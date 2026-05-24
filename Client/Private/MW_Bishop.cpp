@@ -108,6 +108,7 @@ HRESULT MW_Bishop::Ready_PartObjects()
    // _weapon = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_Weapon")]);
    // CHECK_NULL(_weapon, E_FAIL);
 
+    return S_OK;
 }
 
 Shared<MW_Bishop> MW_Bishop::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

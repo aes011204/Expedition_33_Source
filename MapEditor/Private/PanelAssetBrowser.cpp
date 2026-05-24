@@ -104,6 +104,19 @@ void PanelAssetBrowser::Render()
                         _ctx->LoadFromFile(file.string());
                     }
                 }
+
+                if (ImGui::BeginPopupContextItem())
+                {
+                    if (ImGui::MenuItem("Load (Replace)"))
+                    {
+                        _ctx->LoadFromFile(file.string());
+                    }
+                    if (ImGui::MenuItem("Load (Apped)"))
+                    {
+                        _ctx->LoadFromFile(file.string(), true);
+                    }
+                    ImGui::EndPopup();
+                }
             }
         }
     }

@@ -152,6 +152,22 @@ void MEManager::RenderDockSpace()
                 }
             }
 
+            if (ImGui::MenuItem("Append Map..."))
+            {
+                char buf[MAX_PATH] = {};
+                OPENFILENAMEA ofn{};
+                ofn.lStructSize = sizeof(ofn);
+                ofn.lpstrFilter = "JSON Files\0*.json\0All Files\0*.*\0";
+                ofn.lpstrFile = buf;
+                ofn.nMaxFile = MAX_PATH;
+                ofn.lpstrInitialDir = _mapSavePath;
+                ofn.Flags = OFN_FILEMUSTEXIST;
+                if (GetOpenFileNameA(&ofn))
+                {
+                    _ctx->LoadFromFile(buf, true);
+                }
+            }
+
             if (ImGui::MenuItem("Save Map", "Ctrl+S"))
             {
                 SaveMapDialog();

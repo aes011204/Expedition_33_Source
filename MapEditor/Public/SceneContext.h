@@ -35,7 +35,7 @@ struct SceneContext
     bool _dirtyPassOverrides = false;
 
     void SaveToFile(const string& filePath);
-    void LoadFromFile(const string& filePath);
+    void LoadFromFile(const string& filePath, bool bMerge = false);
     Shared<EditorObject> SpawnObject(const wstring& modelPath, const Vec3& pos);
     Shared<EditorObject> SpawnFromPrefab(const string& prefabPath, const Vec3& pos);
 

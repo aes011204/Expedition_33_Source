@@ -298,9 +298,8 @@ void SceneContext::SaveToFile(const string& filePath)
     Write_MapBinaryFile(filePath, root); // 런타임이 .bin을 우선 로드하므로 저장 시 json/bin을 같이 갱신한다.
 }
 
-void SceneContext::LoadFromFile(const string& filePath)
+void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
 {
-    _currentFilePath = filePath;
     ifstream ifs(filePath);
     if (!ifs.is_open())
     {
@@ -310,14 +309,32 @@ void SceneContext::LoadFromFile(const string& filePath)
     json root = json::parse(ifs);
     const json& map = root["MapData"];
 
-    _mapName = String::ToWString(map["MapName"].get<string>());
-    _modelFolder = String::ToWString(map.value("ModelFolder", string{}));
+    wstring fileModelFolder = String::ToWString(map.value("ModelFolder", string{}));
 
-    _objects.erase(remove_if(_objects.begin(), _objects.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _objects.end());
-    _staticMeshes.clear();
-    _lights.erase(remove_if(_lights.begin(), _lights.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _lights.end());
-    _instancedMeshes.clear();
-    _modelOverrides.clear();
+    if (!bMerge)
+    {
+        _currentFilePath = filePath;
+        _mapName = String::ToWString(map["MapName"].get<string>());
+        _modelFolder = fileModelFolder;
+
+        _objects.erase(remove_if(_objects.begin(), _objects.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _objects.end());
+        _staticMeshes.clear();
+        _lights.erase(remove_if(_lights.begin(), _lights.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _lights.end());
+        _instancedMeshes.clear();
+        _modelOverrides.clear();
+        _undoStack.clear();
+        _redoStack.clear();
+        _selected = nullptr;
+    }
+
+    _dirtyRenderHandles = true;
+    _lightDirty = true;
+
+    wstring prevFolder = _modelFolder;
+    if (bMerge)
+    {
+        _modelFolder = fileModelFolder;
+    }
 
     if (map.contains("ModelOverrides"))
     {
@@ -329,13 +346,6 @@ void SceneContext::LoadFromFile(const string& filePath)
             _modelOverrides[filename] = entry;
         }
     }
-
-    _dirtyRenderHandles = true;
-    _lightDirty = true;
-    _selected = nullptr;
-
-    _undoStack.clear();
-    _redoStack.clear();
 
     auto LoadTransform = [](const json& e, EditorObject& obj) {
         auto& pos = e["Position"];
@@ -496,7 +506,7 @@ void SceneContext::LoadFromFile(const string& filePath)
         }
     }
 
-    if (map.contains("DefaultLight"))
+    if (!bMerge && map.contains("DefaultLight"))
     {
         const json& dl = map["DefaultLight"];
         auto it = find_if(_objects.begin(), _objects.end(), [](const Shared<EditorObject>& o) { return o->_isDefaultLight; });
@@ -568,6 +578,11 @@ void SceneContext::LoadFromFile(const string& filePath)
             }
             Add(obj);
         }
+    }
+
+    if (bMerge)
+    {
+        _modelFolder = prevFolder;
     }
 
     _octreeDirty = true;
