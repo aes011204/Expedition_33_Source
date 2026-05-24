@@ -7,6 +7,11 @@
 #include "GameInstance.h"
 #include "MonsterStatCom.h"
 #include "Bounding_OBB.h"
+#include "Monster_Part.h"
+
+
+REGISTER_GLOBAL_ENUM(Monster_WorldBase::MonsterWorldAnim, "MonsterWorldAnim")
+
 
 Monster_WorldBase::Monster_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_WorldBase(device, context)
@@ -37,6 +42,15 @@ void Monster_WorldBase::BeginPlay()
 
     if (!_editorStopHandle.IsValid())
         _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(this, &Monster_WorldBase::On_EditorStopRuntime);
+
+    if (auto* body = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body")))
+    {
+        if (Shared<ModelCom> model = body->Get_Model())
+        {
+            model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+    }
+
 }
 
 void Monster_WorldBase::Update(float timeDelta)
@@ -59,6 +73,36 @@ void Monster_WorldBase::Update(float timeDelta)
 
     if (_combatStat)
         _combatStat->Update(timeDelta);
+
+
+    //if (_aiCtrl && _aiCtrl->Get_IsMoving())
+    //    Set_CurrentAction(MonsterAction::Move);
+
+
+    if (auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body")))
+    {
+        
+    if (_currentAction != _previousAction)
+    {
+        switch (_currentAction)
+        {
+        case MonsterWorldAnim::Idle:
+            bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Idle), 0.3f, true);
+            break;
+
+        case MonsterWorldAnim::Patrol:
+            bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Patrol), 0.3f, true);
+            break;
+
+        case MonsterWorldAnim::Chase:
+            bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Chase), 0.3f, true);
+            break;
+        }
+
+        _previousAction = _currentAction;
+    }
+    }
+
 
     Character_WorldBase::Update(timeDelta);
 }

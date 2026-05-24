@@ -14,6 +14,70 @@ umap<string, Shared<StaticCollisionData>> MapLoader::g_globalCollisionCache;
 umap<string, std::vector<std::pair<uint32, std::string>>> MapLoader::g_globalMaterialBindingCache;
 uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
 
+namespace
+{
+    bool Try_ParseCollisionProxy(const json& node, ModelCollisionProxy& outProxy)
+    {
+        if (!node.is_object())
+            return false;
+
+        outProxy = {};
+        outProxy.type = static_cast<ModelCollisionProxyType>(
+            node.value("Type", static_cast<uint32>(ModelCollisionProxyType::TriangleMesh)));
+        outProxy.name = node.value("Name", string{});
+
+        if (node.contains("Center") && node["Center"].is_array() && node["Center"].size() == 3)
+        {
+            outProxy.center = Vec3(
+                node["Center"][0].get<float>(),
+                node["Center"][1].get<float>(),
+                node["Center"][2].get<float>());
+        }
+
+        if (node.contains("Rotation") && node["Rotation"].is_array() && node["Rotation"].size() == 4)
+        {
+            outProxy.rotation = Quat(
+                node["Rotation"][0].get<float>(),
+                node["Rotation"][1].get<float>(),
+                node["Rotation"][2].get<float>(),
+                node["Rotation"][3].get<float>());
+        }
+
+        if (node.contains("Extents") && node["Extents"].is_array() && node["Extents"].size() == 3)
+        {
+            outProxy.extents = Vec3(
+                node["Extents"][0].get<float>(),
+                node["Extents"][1].get<float>(),
+                node["Extents"][2].get<float>());
+        }
+
+        outProxy.radius = node.value("Radius", 0.f);
+        outProxy.halfHeight = node.value("HalfHeight", 0.f);
+
+        if (node.contains("Positions") && node["Positions"].is_array())
+        {
+            for (const json& positionNode : node["Positions"])
+            {
+                if (!positionNode.is_array() || positionNode.size() != 3)
+                    continue;
+
+                outProxy.positions.push_back(Vec3(
+                    positionNode[0].get<float>(),
+                    positionNode[1].get<float>(),
+                    positionNode[2].get<float>()));
+            }
+        }
+
+        if (node.contains("Indices") && node["Indices"].is_array())
+        {
+            for (const json& indexNode : node["Indices"])
+                outProxy.indices.push_back(indexNode.get<uint32>());
+        }
+
+        return true;
+    }
+}
+
 HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<Context>& context,
     const wstring& filePath, uint32 levelIndex, const wstring& layerTag, LoadSession& outSession)
 {
@@ -133,29 +197,67 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
 
     if (mapData.contains("ModelCollisions") && mapData["ModelCollisions"].is_object())
     {
-        for (const auto& [modelPath, meshArray] : mapData["ModelCollisions"].items())
+        for (const auto& [modelPath, collisionEntry] : mapData["ModelCollisions"].items())
         {
-            if (!meshArray.is_array())
-                continue;
-
             vector<vector<uint8_t>> cookedMeshes;
-            cookedMeshes.reserve(meshArray.size());
+            vector<ModelCollisionProxy> primitiveProxies;
 
-            for (const json& meshData : meshArray)
+            if (collisionEntry.is_array()) // 구포맷: cooked triangle mesh만 배열로 저장되어 있다.
             {
-                if (meshData.is_binary())
+                cookedMeshes.reserve(collisionEntry.size());
+
+                for (const json& meshData : collisionEntry)
                 {
-                    const auto& binaryData = meshData.get_binary();
-                    cookedMeshes.emplace_back(binaryData.begin(), binaryData.end());
+                    if (meshData.is_binary())
+                    {
+                        const auto& binaryData = meshData.get_binary();
+                        cookedMeshes.emplace_back(binaryData.begin(), binaryData.end());
+                    }
+                    else if (meshData.is_string())
+                    {
+                        cookedMeshes.push_back(String::Base64_Decode(meshData.get<string>()));
+                    }
                 }
-                else if (meshData.is_string())
+            }
+            else if (collisionEntry.is_object()) // 신포맷: cooked triangle + primitive proxy를 함께 저장한다.
+            {
+                if (collisionEntry.contains("CookedTriangleMeshes") &&
+                    collisionEntry["CookedTriangleMeshes"].is_array())
                 {
-                    cookedMeshes.push_back(String::Base64_Decode(meshData.get<string>()));
+                    const json& meshArray = collisionEntry["CookedTriangleMeshes"];
+                    cookedMeshes.reserve(meshArray.size());
+
+                    for (const json& meshData : meshArray)
+                    {
+                        if (meshData.is_binary())
+                        {
+                            const auto& binaryData = meshData.get_binary();
+                            cookedMeshes.emplace_back(binaryData.begin(), binaryData.end());
+                        }
+                        else if (meshData.is_string())
+                        {
+                            cookedMeshes.push_back(String::Base64_Decode(meshData.get<string>()));
+                        }
+                    }
+                }
+
+                if (collisionEntry.contains("PrimitiveProxies") &&
+                    collisionEntry["PrimitiveProxies"].is_array())
+                {
+                    for (const json& proxyNode : collisionEntry["PrimitiveProxies"])
+                    {
+                        ModelCollisionProxy proxy{};
+                        if (Try_ParseCollisionProxy(proxyNode, proxy))
+                            primitiveProxies.push_back(std::move(proxy));
+                    }
                 }
             }
 
             if (!cookedMeshes.empty())
                 outSession.cookedCollisionCache[modelPath] = std::move(cookedMeshes);
+
+            if (!primitiveProxies.empty())
+                outSession.primitiveCollisionCache[modelPath] = std::move(primitiveProxies);
         }
     }
 
@@ -769,11 +871,11 @@ HRESULT MapLoader::Convert_Json_To_Bin(const wstring& jsonPath, const wstring& b
             auto& modelCollisions = root["MapData"]["ModelCollisions"];
             for (auto it = modelCollisions.begin(); it != modelCollisions.end(); ++it)
             {
-                auto& meshArray = it.value();
-                if (meshArray.is_array())
+                auto& collisionEntry = it.value();
+                if (collisionEntry.is_array()) // 구포맷 유지
                 {
                     json binaryMeshArray = json::array();
-                    for (auto& base64Mesh : meshArray)
+                    for (auto& base64Mesh : collisionEntry)
                     {
                         if (base64Mesh.is_string())
                         {
@@ -783,6 +885,31 @@ HRESULT MapLoader::Convert_Json_To_Bin(const wstring& jsonPath, const wstring& b
                         }
                     }
                     modelCollisions[it.key()] = binaryMeshArray;
+                }
+                else if (collisionEntry.is_object()) // 신포맷은 cooked triangle mesh만 binary로 바꾸고 primitive는 그대로 둔다.
+                {
+                    if (!collisionEntry.contains("CookedTriangleMeshes") ||
+                        !collisionEntry["CookedTriangleMeshes"].is_array())
+                    {
+                        continue;
+                    }
+
+                    json binaryMeshArray = json::array();
+                    for (auto& base64Mesh : collisionEntry["CookedTriangleMeshes"])
+                    {
+                        if (base64Mesh.is_string())
+                        {
+                            string base64Str = base64Mesh.get<string>();
+                            vector<uint8_t> binaryData = String::Base64_Decode(base64Str);
+                            binaryMeshArray.push_back(json::binary(binaryData));
+                        }
+                        else if (base64Mesh.is_binary())
+                        {
+                            binaryMeshArray.push_back(base64Mesh);
+                        }
+                    }
+
+                    collisionEntry["CookedTriangleMeshes"] = std::move(binaryMeshArray);
                 }
             }
         }
@@ -898,15 +1025,42 @@ Shared<StaticCollisionData> MapLoader::GetOrCreateCookedCollision(
     }
 
     auto cookedIt = session.cookedCollisionCache.find(modelPathStr);
-    if (cookedIt == session.cookedCollisionCache.end() || cookedIt->second.empty())
+    auto primitiveIt = session.primitiveCollisionCache.find(modelPathStr);
+
+    const bool hasCookedTriangles =
+        (cookedIt != session.cookedCollisionCache.end() && !cookedIt->second.empty());
+    const bool hasPrimitiveProxies =
+        (primitiveIt != session.primitiveCollisionCache.end() && !primitiveIt->second.empty());
+
+    if (!hasCookedTriangles && !hasPrimitiveProxies)
+    {
+        // MapTest는 저장 collision이 비어 있어도 테스트 진행을 위해 런타임 메쉬/프리미티브 빌드를 허용한다.
+        if (session.levelIndex == ETOI(LevelType::MapTest))
+        {
+            Shared<StaticCollisionData> collisionData = GetOrBuildCollision(
+                model,
+                modelPathStr,
+                &session.collisionBuildDuration,
+                &session.collisionBuildCount);
+
+            if (collisionData != nullptr)
+                session.preloadedCollisionCache[modelPathStr] = collisionData;
+
+            return collisionData;
+        }
+
         return nullptr;
+    }
 
     auto collisionData = make_shared<StaticCollisionData>();
     collisionData->cacheKey = model->Get_SourceModelPath();
     if (collisionData->cacheKey.empty())
         collisionData->cacheKey = String::ToWString(modelPathStr);
     collisionData->preLocalTransform = model->Get_PreLocalTransformMatrix();
-    collisionData->cookedTriangleMeshes = cookedIt->second;
+    if (hasCookedTriangles)
+        collisionData->cookedTriangleMeshes = cookedIt->second;
+    if (hasPrimitiveProxies)
+        collisionData->primitiveProxies = primitiveIt->second;
 
     session.preloadedCollisionCache[modelPathStr] = collisionData;
 

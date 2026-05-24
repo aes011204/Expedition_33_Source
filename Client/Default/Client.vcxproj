@@ -163,17 +163,29 @@
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
     <ClInclude Include="..\public\AN_EnterAnim.h" />
     <ClInclude Include="..\Public\AN_Test2.h" />
+    <ClInclude Include="..\Public\AttackPlaying.h" />
     <ClInclude Include="..\public\Base_Mon_Attack.h" />
     <ClInclude Include="..\public\BattleActionExecutor.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
+    <ClInclude Include="..\public\BT_Patroll.h" />
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
+    <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
+    <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
+    <ClInclude Include="..\public\MB_Bishop.h" />
+    <ClInclude Include="..\public\MB_Portier.h" />
+    <ClInclude Include="..\public\MB_Volester.h" />
+    <ClInclude Include="..\public\Mon_Bishop_Body.h" />
+    <ClInclude Include="..\public\Mon_Volester_Body.h" />
+    <ClInclude Include="..\public\MW_Bishop.h" />
+    <ClInclude Include="..\public\MW_Portier.h" />
+    <ClInclude Include="..\public\MW_Volester.h" />
     <ClInclude Include="..\Public\GameplayUI_Types.h" />
     <ClInclude Include="..\Public\PB_Gustave.h" />
     <ClInclude Include="..\Public\MB_Lancelier.h" />
@@ -203,7 +215,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
-    <ClInclude Include="..\public\BT_Attack.h" />
+    <ClInclude Include="..\public\BT_Chase.h" />
     <ClInclude Include="..\public\BT_CheckDistance.h" />
     <ClInclude Include="..\public\BT_Idle.h" />
     <ClInclude Include="..\Public\BT_Node_Bootstrap.h" />
@@ -274,6 +286,7 @@
     <ClInclude Include="..\public\PlayerStatCom.h" />
     <ClInclude Include="..\Public\Player_BattleBase.h" />
     <ClInclude Include="..\Public\Player_GameMenu.h" />
+    <ClInclude Include="..\public\Mon_Portier_Body.h" />
     <ClInclude Include="..\public\PreviewShotTable.h" />
     <ClInclude Include="..\public\SkillScript.h" />
     <ClInclude Include="..\Public\PW_Gustave.h" />
@@ -301,9 +314,15 @@
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
     <ClInclude Include="..\Public\Terrain_UE.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
+    <ClInclude Include="..\Public\UI_BattleSystemHUD.h" />
+    <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
+    <ClInclude Include="..\Public\UI_CancelAim.h" />
     <ClInclude Include="..\Public\UI_BattleCommandHUD.h" />
+    <ClInclude Include="..\Public\UI_BattleDefense.h" />
     <ClInclude Include="..\Public\UI_BattleTransition.h" />
+    <ClInclude Include="..\Public\UI_ChoiceTarget.h" />
     <ClInclude Include="..\Public\UI_CrossHair.h" />
+    <ClInclude Include="..\Public\UI_DamageFont.h" />
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
     <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
@@ -326,7 +345,7 @@
     <ClInclude Include="..\public\FreeCamera.h" />
     <ClInclude Include="..\Public\Level_GamePlay.h" />
     <ClInclude Include="..\public\Level_Loading.h" />
-    <ClInclude Include="..\Public\Level_Logo.h" />
+    <ClInclude Include="..\Public\Level_MainTitle.h" />
     <ClInclude Include="..\public\Loader.h" />
     <ClInclude Include="..\Public\MW_Lancelier.h" />
     <ClInclude Include="..\Public\Player_WorldBase.h" />
@@ -344,16 +363,28 @@
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
     <ClCompile Include="..\Private\AN_Test2.cpp" />
+    <ClCompile Include="..\Private\AttackPlaying.cpp" />
     <ClCompile Include="..\private\Base_Mon_Attack.cpp" />
     <ClCompile Include="..\private\BattleActionExecutor.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
+    <ClCompile Include="..\private\BT_Patroll.cpp" />
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />
     <ClCompile Include="..\private\BT_FinishDecision.cpp" />
     <ClCompile Include="..\private\BT_SetSkill.cpp" />
     <ClCompile Include="..\private\BT_Set_Target.cpp" />
+    <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
+    <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
+    <ClCompile Include="..\private\MB_Bishop.cpp" />
+    <ClCompile Include="..\private\MB_Portier.cpp" />
+    <ClCompile Include="..\private\MB_Volester.cpp" />
+    <ClCompile Include="..\private\Mon_Bishop_Body.cpp" />
+    <ClCompile Include="..\private\Mon_Volester_Body.cpp" />
+    <ClCompile Include="..\private\MW_Bishop.cpp" />
+    <ClCompile Include="..\private\MW_Portier.cpp" />
+    <ClCompile Include="..\private\MW_Volester.cpp" />
     <ClCompile Include="..\Private\PB_Gustave.cpp" />
     <ClCompile Include="..\Private\MB_Lancelier.cpp" />
     <ClCompile Include="..\Private\PB_Lune.cpp" />
@@ -381,7 +412,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\private\BT_Attack.cpp" />
+    <ClCompile Include="..\private\BT_Chase.cpp" />
     <ClCompile Include="..\private\BT_CheckDistance.cpp" />
     <ClCompile Include="..\private\BT_Idle.cpp" />
     <ClCompile Include="..\private\BT_Node_Bootstrap.cpp" />
@@ -447,6 +478,7 @@
     <ClCompile Include="..\private\PlayerStatCom.cpp" />
     <ClCompile Include="..\Private\Player_BattleBase.cpp" />
     <ClCompile Include="..\Private\Player_GameMenu.cpp" />
+    <ClCompile Include="..\private\Mon_Portier_Body.cpp" />
     <ClCompile Include="..\private\PreviewShotTable.cpp" />
     <ClCompile Include="..\Private\PW_Gustave.cpp" />
     <ClCompile Include="..\Private\Player_Idle.cpp" />
@@ -475,9 +507,15 @@
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
     <ClCompile Include="..\Private\Terrain_UE.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
+    <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp" />
+    <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
+    <ClCompile Include="..\Private\UI_CancelAim.cpp" />
     <ClCompile Include="..\Private\UI_BattleCommandHUD.cpp" />
+    <ClCompile Include="..\Private\UI_BattleDefense.cpp" />
     <ClCompile Include="..\Private\UI_BattleTransition.cpp" />
+    <ClCompile Include="..\Private\UI_ChoiceTarget.cpp" />
     <ClCompile Include="..\Private\UI_CrossHair.cpp" />
+    <ClCompile Include="..\Private\UI_DamageFont.cpp" />
     <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
     <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
@@ -501,7 +539,7 @@
     <ClCompile Include="..\private\FreeCamera.cpp" />
     <ClCompile Include="..\Private\Level_GamePlay.cpp" />
     <ClCompile Include="..\private\Level_Loading.cpp" />
-    <ClCompile Include="..\Private\Level_Logo.cpp" />
+    <ClCompile Include="..\Private\Level_MainTitle.cpp" />
     <ClCompile Include="..\private\Loader.cpp" />
     <ClCompile Include="..\Private\MW_Lancelier.cpp" />
     <ClCompile Include="..\Private\Player_WorldBase.cpp" />
@@ -524,10 +562,15 @@
       <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CS_Main</EntryPointName>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
+      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CS_Main</EntryPointName>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />

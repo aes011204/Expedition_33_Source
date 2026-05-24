@@ -60,7 +60,8 @@ HRESULT UI_CrossHair::Load_UI(uint32 levelIndex)
 {
     UI_RuntimeLoader::UI_LoadDesc desc{};
     desc.levelIndex = levelIndex;
-    desc.jsonPath = Constants::UI::UI_CrossAir_Path; 
+    desc.jsonPath = Constants::UI::UI_CrossAir_Path;
+    desc.animationPath = Constants::UI_Anim::UI_CrossAirAnim_Path;
     desc.prototypeTagPrefix = L"BattleCrossHair";
     desc.outUIByName = &_uiByName;
 

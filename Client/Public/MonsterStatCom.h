@@ -56,6 +56,8 @@ public:
     bool IsBreak() const { return _MRuntimeStat.isBreak; }
     void SetBreak(bool value) { _MRuntimeStat.isBreak = value; }
 
+
+
     void Set_RuntimeCombatProfile(
         float maxHp,
         uint32 maxAp,

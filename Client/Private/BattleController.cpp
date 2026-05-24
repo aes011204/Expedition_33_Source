@@ -1,4 +1,6 @@
 ﻿#include "BattleController.h"
+
+#include "AttackPlaying.h"
 #include "BuffSystem.h"
 #include "Character.h"
 #include "ClientInstance.h"
@@ -104,17 +106,12 @@ void BattleController::Update(float timeDelta)
 
     if (_isFreeAimShotPlaying)
     {
-        _battleActionExe->Update(timeDelta, _freeAimShotAction);
-
-        if (_battleActionExe->IsFinished())
+        if (_freeAimShotAction._curChar.ModelCom->Is_AnimationFinished())
         {
-            // End Turn으로 가지않고, AP만 소모되게
             Finish_FreeAimShot();
             return;
         }
 
-        // Free Aim 연출 중에는 같은 프레임 일반 턴 액션 실행 X
-        // 애니메이션 들어오면 내일 진행하기
         return;
     }
 
@@ -226,11 +223,7 @@ void BattleController::ExecuteAction(Action turnAction)
     if (!BattleChar.actor)
         return;
 
-    LOG_DEBUG(
-        "ExecuteAction: actor={}, type={}",
-        turnAction._curChar.actor ? String::ToString(turnAction._curChar.actor->Get_Name()).c_str() : "null",
-        static_cast<int>(turnAction.type)
-    );
+    OnActionStarted.Broadcast(turnAction);
 
     // 일반 공격도 스킬로 들어감 구분만 BaseAttack
     switch (turnAction.type)
@@ -382,6 +375,8 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         battleChar.actor = ply;
         battleChar.statCom = character->Get_Component<CombatStatCom>();
 
+        battleChar.statCom->Set_PlayerType(To_PlayerCharacterType(heroId));
+
         // 월드에서 세팅된 스탯들을 배틀턴 진입 시 반영
         Shared<Player_WorldBase> worldHero = CLIENT->Find_Hero(heroId);
         Shared<PlayerStatCom> worldStat = worldHero ? worldHero->Get_Component<PlayerStatCom>() : nullptr;
@@ -471,7 +466,7 @@ void BattleController::SetCharInitPos()
     /*INFO = FiledMgr->GetFiledInfo(FieldID)
     INFO.
     */
-    const Vec3 startPos = Vec3(225.f, -4020.5f, -1.24f);
+    const Vec3 startPos = Vec3(22.f, 2.5f, -10.24f);
 
     const Vec3 playerPos[3] =
     {
@@ -844,15 +839,9 @@ void BattleController::Begin_FreeAimShot(const Action& shotAction)
         return;
 
     _freeAimShotAction = shotAction;
-    _isFreeAimShotPlaying = false;
+    //_isFreeAimShotPlaying = false;
 
     if (_freeAimShotAction._curChar.ModelCom == nullptr)
-    {
-        _freeAimShotAction = {};
-        return;
-    }
-
-    if (_freeAimShotAction._selected_SkillKey.AnimPhases.empty())
     {
         _freeAimShotAction = {};
         return;
@@ -874,36 +863,88 @@ void BattleController::Begin_FreeAimShot(const Action& shotAction)
     _freeAimShotAction.originPos = _freeAimShotAction._curChar.actor->Get_Transform()->Get_Position();
     _freeAimShotAction._curAnimIndex = 0;
 
-    _battleActionExe->BeginAction(_freeAimShotAction);
+     _freeAimShotAction._curChar.ModelCom->Set_AnimationByState(
+        ETOI(BattleAnimType::FreeAim_Shoot),
+        0.1f,
+        false);
+    
     _isFreeAimShotPlaying = true;
 }
 
 void BattleController::Finish_FreeAimShot()
 {
     Clear_CurrentScript();
+    //Clear_TargetPreview();
+
+    if (_freeAimShotAction._curChar.ModelCom)
+    {
+        // Free Aim 발사 후에는 Base Idle로 풀지 않고 다시 조준 idle 자세로 복귀. 턴 종료가 안됐으니까
+        _freeAimShotAction._curChar.ModelCom->Set_AnimationByState(
+            ETOI(BattleAnimType::FreeAim_Idle),
+            0.1f,
+            true);
+    }
 
     _isFreeAimShotPlaying = false;
     _freeAimShotAction = {};
 
-    //Clear_TargetPreview();
 }
 
 void BattleController::OnActionEndNotify()
 {
     if (_isFreeAimShotPlaying)
     {
-        _battleActionExe->OnActionEndNotify(_freeAimShotAction);
-
-        if (_battleActionExe->IsFinished())
-            Finish_FreeAimShot();
+        Finish_FreeAimShot();
 
         return;
     }
 
     auto& action = Get_TurnAction();
     _battleActionExe->OnActionEndNotify(action);
+}
 
+vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
+{
+    vector<BattleChar> preview{};
+    if (maxCount == 0)
+        return preview;
 
+    auto queueCopy = _turnQueue;
+
+    if (_currentTurnActor.actor != nullptr && _currentTurnActor.statCom != nullptr)
+    {
+        preview.push_back(_currentTurnActor);
+
+        // 현재 턴 actor도 다시 들어와야해서 preview 큐에 다시
+        if (_currentTurnActor.statCom->Get_AliveStatus() == EAliveStatus::Alive)
+        {
+            TurnEntry nextEntry{};
+            nextEntry.hero = _currentTurnActor;
+            nextEntry.nextTime =
+                _battleTime + 100.f / max(_currentTurnActor.statCom->Get_Speed(), 1.f);
+
+            queueCopy.push(nextEntry);
+        }
+    }
+
+    while (!queueCopy.empty() && preview.size() < maxCount)
+    {
+        TurnEntry entry = queueCopy.top();
+        queueCopy.pop(); // 위에꺼먼저 삭제
+
+        if (entry.hero.actor == nullptr || entry.hero.statCom == nullptr)
+            continue;
+
+        if (entry.hero.statCom->Get_AliveStatus() != EAliveStatus::Alive)
+            continue;
+
+        preview.push_back(entry.hero);
+
+        entry.nextTime += 100.f / max(entry.hero.statCom->Get_Speed(), 1.f);
+        queueCopy.push(entry);
+    }
+
+    return preview;
 }
 
 HRESULT BattleController::Ready_BattleTurnCamera()
@@ -1018,19 +1059,36 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleMonsterPrefabNames.clear();
 }
 
+PlayerCharacterType BattleController::To_PlayerCharacterType(HeroId heroId)
+{
+    switch (heroId)
+    {
+    case HeroId::Gustave:
+        return PlayerCharacterType::Gustave;
+    case HeroId::Lune:
+        return PlayerCharacterType::Lune;
+    case HeroId::Maelle:
+        return PlayerCharacterType::Maelle;
+    case HeroId::END:
+    default:
+        return PlayerCharacterType::None;
+    }
+}
+
 void BattleController::Set_BattleFSM()
 {
     _battleFSM = BattleStateMachine::Create();
 
-    _battleFSM->Add_State(BattleTurnState::ChooseSkill, ChooseSkill::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::AttackTargeting, AttackTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::ChooseItem, ChooseItem::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::ChooseAction, ChooseAction::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::SkillTargeting, SkillTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::ItemTargeting, ItemTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::UltimateTargeting, UltimateTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::ChooseUltimate, ChooseUltimate::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
-    _battleFSM->Add_State(BattleTurnState::FreeAimTargeting, FreeAimTargeting::Create(dynamic_pointer_cast<BattleController>(shared_from_this())));
+    _battleFSM->Add_State(BattleTurnState::ChooseSkill, ChooseSkill::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::AttackTargeting, AttackTargeting::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::AttackPlaying, AttackPlaying::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ChooseItem, ChooseItem::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ChooseAction, ChooseAction::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::SkillTargeting, SkillTargeting::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ItemTargeting, ItemTargeting::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::UltimateTargeting, UltimateTargeting::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::ChooseUltimate, ChooseUltimate::Create(GetSharedPtr<BattleController>()));
+    _battleFSM->Add_State(BattleTurnState::FreeAimTargeting, FreeAimTargeting::Create(GetSharedPtr<BattleController>()));
 
     //_battleFSM->Change_State(BattleTurnState::ChooseAction);
 }

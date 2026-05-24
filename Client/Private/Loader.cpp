@@ -90,7 +90,7 @@ HRESULT Loader::Loading()
 
     switch (_nextLevel)
     {
-    case LevelType::Logo:
+    case LevelType::MainTitle:
         hr = Loading_For_LogoLevel();
         break;
 
@@ -298,11 +298,11 @@ HRESULT Loader::Load_ResourceJobsForNextLevel()
 
 HRESULT Loader::Loading_For_LogoLevel()
 {
-    lstrcpy(_loadingText, TEXT("Logo 로딩 중..."));
+    lstrcpy(_loadingText, TEXT("MainTitle 로딩 중..."));
 
     if (FAILED(Load_ResourceJobsForNextLevel()))
     {
-        MSG_BOX("Faild to Load Resource Tables : Logo");
+        MSG_BOX("Faild to Load Resource Tables : MainTitle");
         return E_FAIL;
     }
 
@@ -328,7 +328,7 @@ HRESULT Loader::Loading_For_MapTestLevel()
 
     if (FAILED(Load_ResourceJobsForNextLevel()))
     {
-        MSG_BOX("Faild to Load Resource Tables : Logo");
+        MSG_BOX("Faild to Load Resource Tables : MainTitle");
         return E_FAIL;
     }
 
@@ -341,7 +341,7 @@ HRESULT Loader::Loading_For_Stage01Level()
 
     if (FAILED(Load_ResourceJobsForNextLevel()))
     {
-        MSG_BOX("Faild to Load Resource Tables : Logo");
+        MSG_BOX("Faild to Load Resource Tables : MainTitle");
         return E_FAIL;
     }
 
@@ -670,7 +670,16 @@ HRESULT Loader::Try_FinishLoading()
     }
 
     // 백그라운드 프리로드가 끝난 후, 메인 스레드 스폰 단계를 60 FPS(16ms) 예산에 맞춰 점진적 수행하여 화면 멈춤 제거
-    CHECK_FAILED(Process_LevelMapLoad(20, chrono::milliseconds(16)), E_FAIL);
+    chrono::milliseconds mapLoadBudgetMs = chrono::milliseconds(16);
+    size_t mapLoadMeshesPerFrame = 20;
+
+    if (_nextLevel == LevelType::MapTest)
+    {
+        mapLoadMeshesPerFrame = 4;              // TestMap은 로딩 화면 hitch를 줄이기 위해 더 잘게 쪼갠다.
+        mapLoadBudgetMs = chrono::milliseconds(4);
+    }
+
+    CHECK_FAILED(Process_LevelMapLoad(mapLoadMeshesPerFrame, mapLoadBudgetMs), E_FAIL);
 
     if (!_mapLoadFinished)
         return S_OK;

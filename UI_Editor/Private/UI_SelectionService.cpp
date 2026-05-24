@@ -11,11 +11,6 @@ namespace UIEditor
         return find(_state.selectedObjectIds.begin(), _state.selectedObjectIds.end(), objectId) != _state.selectedObjectIds.end();
     }
 
-    UI_Object* UI_SelectionService::Get_SelectedObject(UI_Document& document) const
-    {
-        return document.Find_Object(_state.selectedObjectId);
-    }
-
     const UI_Object* UI_SelectionService::Get_SelectedObject(const UI_Document& document) const
     {
         return document.Find_Object(_state.selectedObjectId);

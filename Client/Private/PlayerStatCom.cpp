@@ -29,6 +29,8 @@ IMPLEMENT_REFLECTION(PlayerStatCom)
     PROPERTY_FLOAT("Base Max HP", _playerDesc.maxHp, 0.f, 9999.f, 1.f);
     PROPERTY_INT("Base Max AP", _playerDesc.maxAp, 0.f, 99.f, 1.f);
 
+    PROPERTY_STRING("Portrait", _playerDesc.portraitGuid);
+
     return true;
 }
 

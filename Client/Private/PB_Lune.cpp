@@ -39,6 +39,14 @@ HairChainPhysicsDesc PB_Lune::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
+bool PB_Lune::Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const
+{
+    outDesc.modelTag = L"Model_Colim";
+    outDesc.socketName = "WeaponAttachPointL";
+
+    return true;
+}
+
 Shared<PB_Lune> PB_Lune::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<PB_Lune>(device, context);

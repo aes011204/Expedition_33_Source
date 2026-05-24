@@ -1,24 +1,25 @@
 ﻿#pragma once
+
 #include "Base.h"
+#include "Delegate.h"
 
 NS_BEGIN(Client)
 struct BattleChar;
 
-class DamageSystem :
-    public Base
+DECLARE_DELEGATE(FOnDamageApplied, const BattleChar&, float);
+
+class DamageSystem : public Base
 {
 public:
-
-    DamageSystem();
-    virtual ~DamageSystem();
+    DamageSystem() = default;
+    virtual ~DamageSystem() = default;
 public:
+    static void ApplyDamage(float damage, const BattleChar& target);
+    static void Heal(float amount, const BattleChar& target);
 
-static void ApplyDamage(float damage,const BattleChar& target);
-static void Heal(float amount, const BattleChar& target);
+    static FOnDamageApplied OnDamageApplied;
 
- static Shared<DamageSystem> Create();
-
- virtual void Free();
+    virtual void Free();
 };
 
 

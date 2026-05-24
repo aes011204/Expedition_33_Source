@@ -1,4 +1,4 @@
-#include "ModelCom.h"
+﻿#include "ModelCom.h"
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "MaterialBuilder.h"
@@ -141,8 +141,8 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, bool isLoop, float startF
 {
     if (stateIndex >= _stateAnimIndices.size() || _stateAnimIndices[stateIndex] == UINT32_MAX)
     {
-        LOG_WARN("[{}] Set_AnimationByState Failed: Invalid StateIndex [{}]",
-            String::ToString(Get_Owner()->Get_Owner()->Get_Name()), stateIndex);
+        // LOG_WARN("[{}] Set_AnimationByState Failed: Invalid StateIndex [{}]",
+        //     String::ToString(Get_Owner()->Get_Owner()->Get_Name()), stateIndex);
 
         return false;
     }
@@ -200,8 +200,8 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool
 {
     if (stateIndex >= _stateAnimIndices.size() || _stateAnimIndices[stateIndex] == UINT32_MAX)
     {
-        LOG_WARN("[{}] Set_AnimationByState Failed: Invalid StateIndex [{}]",
-            String::ToString(Get_Owner()->Get_Owner()->Get_Name()), stateIndex);
+        // LOG_WARN("[{}] Set_AnimationByState Failed: Invalid StateIndex [{}]",
+        //     String::ToString(Get_Owner()->Get_Owner()->Get_Name()), stateIndex);
 
         return false;
     }
@@ -218,6 +218,11 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool
 
     Mark_BoneMatricesDirty();
     return true;
+}
+
+uint32 ModelCom::Get_AnimIndexByState(uint32 stateIndex) const
+{
+    return _stateAnimIndices[stateIndex];
 }
 
 const char* ModelCom::Get_AnimationName(uint32 animationIndex) const
@@ -1657,7 +1662,7 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
     const bool wrapped = (_isAnimLoop && currentTimeSec < context.previousTimeSec);
 
     {
-        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::Notify");
+        //Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::Notify");
 
         if (Ensure_AnimNotifyAssetLoaded())
         {

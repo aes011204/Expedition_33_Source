@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "UI_TransformService.h"
+#include "UI_DocumentInternalAccess.h"
 
 namespace UIEditor
 {
@@ -12,7 +13,7 @@ namespace UIEditor
 
         bool NearlyEqualValue(float lhs, float rhs)
         {
-            return fabsf(lhs - rhs) <= 0.0001f;
+            return fabsf(lhs - rhs) <= 0.001f;
         }
     }
 
@@ -21,7 +22,13 @@ namespace UIEditor
         ObjectId objectId,
         const ImVec2& worldPosition) const
     {
-        return document.Set_WorldPosition(objectId, worldPosition);
+        if (nullptr == static_cast<const UI_Document&>(document).Find_Object(objectId))
+            return false;
+
+        if (NearlyEqual(document.Get_WorldPosition(objectId), worldPosition))
+            return false;
+
+        return UI_DocumentInternalAccess::Set_WorldPosition(document, objectId, worldPosition);
     }
 
     bool UI_TransformService::Can_SetWorldRect(const UI_Document& document, ObjectId objectId) const
@@ -35,7 +42,16 @@ namespace UIEditor
         const ImVec2& worldPosition,
         const ImVec2& worldSize) const
     {
-        return document.Set_WorldRect(objectId, worldPosition, worldSize);
+        if (nullptr == static_cast<const UI_Document&>(document).Find_Object(objectId))
+            return false;
+
+        if (NearlyEqual(document.Get_WorldPosition(objectId), worldPosition) &&
+            NearlyEqual(document.Get_WorldSize(objectId), worldSize))
+        {
+            return false;
+        }
+
+        return UI_DocumentInternalAccess::Set_WorldRect(document, objectId, worldPosition, worldSize);
     }
 
     bool UI_TransformService::Can_SetPivotKeepWorldRect(
@@ -55,7 +71,7 @@ namespace UIEditor
         ObjectId objectId,
         const ImVec2& pivot) const
     {
-        return document.Set_PivotKeepWorldRect(objectId, Clamp01(pivot));
+        return UI_DocumentInternalAccess::Set_PivotKeepWorldRect(document, objectId, Clamp01(pivot));
     }
 
     bool UI_TransformService::Can_SetAnchorsKeepWorldRect(
@@ -80,16 +96,12 @@ namespace UIEditor
         const ImVec2& anchorMin,
         const ImVec2& anchorMax) const
     {
-        return document.Set_AnchorsKeepWorldRect(objectId, Clamp01(anchorMin), Clamp01(anchorMax));
+        return UI_DocumentInternalAccess::Set_AnchorsKeepWorldRect(document, objectId, Clamp01(anchorMin), Clamp01(anchorMax));
     }
 
     ImVec2 UI_TransformService::Get_WorldTopLeft(const UI_Document& document, ObjectId objectId) const
     {
-        const ImVec2 worldCenter = document.Get_WorldCenter(objectId);
-        const ImVec2 worldSize = document.Get_WorldSize(objectId);
-        return ImVec2(
-            worldCenter.x - worldSize.x * 0.5f,
-            worldCenter.y - worldSize.y * 0.5f);
+        return document.Get_WorldPosition(objectId);
     }
 
     ImVec2 UI_TransformService::Clamp01(const ImVec2& value) const

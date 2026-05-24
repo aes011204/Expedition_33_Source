@@ -15,6 +15,71 @@ namespace
     {
         return Vec4(arr[0].get<float>(), arr[1].get<float>(), arr[2].get<float>(), arr[3].get<float>());
     }
+
+    json Serialize_CollisionProxy(const ModelCollisionProxy& proxy)
+    {
+        json node = json::object();
+        node["Type"] = static_cast<uint32>(proxy.type);
+        node["Name"] = proxy.name;
+        node["Center"] = { proxy.center.x, proxy.center.y, proxy.center.z };
+        node["Rotation"] = { proxy.rotation.x, proxy.rotation.y, proxy.rotation.z, proxy.rotation.w };
+        node["Extents"] = { proxy.extents.x, proxy.extents.y, proxy.extents.z };
+        node["Radius"] = proxy.radius;
+        node["HalfHeight"] = proxy.halfHeight;
+
+        json positions = json::array();
+        for (const Vec3& position : proxy.positions)
+            positions.push_back({ position.x, position.y, position.z });
+        node["Positions"] = positions;
+
+        node["Indices"] = proxy.indices;
+        return node;
+    }
+
+    void Write_MapBinaryFile(const string& filePath, const json& sourceRoot)
+    {
+        fs::path jsonPath(filePath);
+        if (jsonPath.extension() != ".json")
+            return;
+
+        json binRoot = sourceRoot;
+        if (binRoot.contains("MapData") && binRoot["MapData"].contains("ModelCollisions"))
+        {
+            auto& modelCollisions = binRoot["MapData"]["ModelCollisions"];
+            for (auto it = modelCollisions.begin(); it != modelCollisions.end(); ++it)
+            {
+                auto& collisionEntry = it.value();
+                if (!collisionEntry.is_object() ||
+                    !collisionEntry.contains("CookedTriangleMeshes") ||
+                    !collisionEntry["CookedTriangleMeshes"].is_array())
+                {
+                    continue;
+                }
+
+                json binaryMeshArray = json::array();
+                for (auto& base64Mesh : collisionEntry["CookedTriangleMeshes"])
+                {
+                    if (!base64Mesh.is_string())
+                        continue;
+
+                    vector<uint8_t> binaryData = String::Base64_Decode(base64Mesh.get<string>());
+                    binaryMeshArray.push_back(json::binary(binaryData));
+                }
+
+                collisionEntry["CookedTriangleMeshes"] = std::move(binaryMeshArray);
+            }
+        }
+
+        fs::path binPath = jsonPath;
+        binPath.replace_extension(".bin");
+
+        ofstream ofs(binPath, ios::binary);
+        if (!ofs.is_open())
+            return;
+
+        vector<uint8_t> msgpack = json::to_msgpack(binRoot);
+        ofs.write(reinterpret_cast<const char*>(msgpack.data()), msgpack.size());
+    }
 }
 
 void SceneContext::SaveToFile(const string& filePath)
@@ -186,23 +251,32 @@ void SceneContext::SaveToFile(const string& filePath)
         for (auto& [relativePath, model] : uniqueModels)
         {
             Shared<StaticCollisionData> colData = MapStaticCollisionBuilder::Build(model);
-            if (!colData || colData->triangleMeshes.empty())
+            if (!colData)
                 continue;
 
-            json meshArray = json::array();
-            for (auto& mesh : colData->triangleMeshes)
+            json collisionEntry = json::object();
+
+            json cookedMeshArray = json::array();
+            for (auto& mesh : colData->triangleMeshes) // triangle mesh collision은 기존처럼 cooked binary를 저장한다.
             {
                 vector<uint8_t> cookedData;
                 if (physxManager->Cook_TriangleMesh(mesh, colData->preLocalTransform, cookedData))
                 {
                     string base64Str = String::Base64_Encode(cookedData);
-                    meshArray.push_back(base64Str);
+                    cookedMeshArray.push_back(base64Str);
                 }
             }
-            if (!meshArray.empty())
-            {
-                modelCollisions[relativePath] = meshArray;
-            }
+
+            json primitiveProxyArray = json::array();
+            for (const ModelCollisionProxy& proxy : colData->primitiveProxies) // box/sphere/capsule 같은 primitive collision도 같이 저장한다.
+                primitiveProxyArray.push_back(Serialize_CollisionProxy(proxy));
+
+            if (cookedMeshArray.empty() && primitiveProxyArray.empty())
+                continue;
+
+            collisionEntry["CookedTriangleMeshes"] = cookedMeshArray;
+            collisionEntry["PrimitiveProxies"] = primitiveProxyArray;
+            modelCollisions[relativePath] = std::move(collisionEntry);
         }
     }
 
@@ -219,6 +293,9 @@ void SceneContext::SaveToFile(const string& filePath)
 
     ofstream ofs(filePath);
     ofs << root.dump(4);
+    ofs.close();
+
+    Write_MapBinaryFile(filePath, root); // 런타임이 .bin을 우선 로드하므로 저장 시 json/bin을 같이 갱신한다.
 }
 
 void SceneContext::LoadFromFile(const string& filePath)

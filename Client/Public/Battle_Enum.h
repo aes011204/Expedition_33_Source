@@ -25,6 +25,7 @@ namespace Client
         None,
         ChooseSkill,
         AttackTargeting,
+        AttackPlaying,      // 타겟 선택 끝나고, 평타 or 스킬 실행중일 때
         ChooseItem,
         ChooseAction,
         SkillTargeting,
@@ -526,17 +527,15 @@ namespace Client
         bool ignoreDefense = false;
     };
 
-
-   
     //------------------------------------
-  
- 
     struct Skill_Data
     {
         string skillKey = "";
         string scriptClassName = "";
         vector<BattleActionPhase> AnimPhases = {};
+
         string IdleAnimationKey = "";
+
 
         int32 apCost = 0;
         ECharacterTeamSelector targetingType = ECharacterTeamSelector::Invalid;
@@ -609,6 +608,11 @@ namespace Client
         Hit_Heavy,
         Hit_Medium,
         Hit_Light,
+
+        FreeAim_Enter,
+        FreeAim_Idle,
+        FreeAim_Shoot,
+
         Dead,
 
     };

@@ -51,11 +51,11 @@ Shared<StaticCollisionData> MapStaticCollisionBuilder::Build(const Shared<ModelC
     // 2. 바디셋업이 명시적으로 존재하지 않는다면, 이 모델은 충돌체가 필요 없는 데코레이션 프롭(풀, 꽃, 자갈돌 등)으로 간주하여 충돌체를 생성하지 않습니다.
     if (!hasBodySetup)
     {
-        return nullptr;
+        Build_TriangleMeshes_FromModelFile(data->cacheKey, data->triangleMeshes);
     }
 
     // 3. 바디셋업이 존재할 때만 설정에 따라 충돌체를 조건부 생성합니다.
-    if (useComplexAsSimple)
+    else if (useComplexAsSimple)
     {
         Build_TriangleMeshes_FromModelFile(data->cacheKey, data->triangleMeshes);
     }

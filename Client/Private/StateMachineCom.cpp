@@ -10,7 +10,7 @@ IMPLEMENT_REFLECTION(StateMachineCom)
     info.properties.clear();
     info.displayName = "StateMachine";
 
-    PROPERTY_ENUM("PlayerState", _currentState, PlayerState);
+    //PROPERTY_ENUM("PlayerState", _currentState, PlayerState);
 
     return true;
 }

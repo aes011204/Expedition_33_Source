@@ -10,7 +10,6 @@
 #include "TargetCamera.h"
 #include "MapLoader.h"
 
-
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : StreamingLevel{ device, context }
 {
@@ -118,8 +117,8 @@ HRESULT Level_GamePlay::Ready_ChunkMap()
     streamingDesc.levelIndex = ETOI(LevelType::GamePlay);
     streamingDesc.gridWidth = 6;
     streamingDesc.gridHeight = 6;
-    streamingDesc.initialChunkX = 0; // chunkX = 0, chunkZ = 2면 02_00 기준으로 4개 스폰
-    streamingDesc.initialChunkZ = 2; 
+    streamingDesc.initialChunkX = 3; // chunkX = 0, chunkZ = 2면 02_00 기준으로 4개 스폰
+    streamingDesc.initialChunkZ = 0; 
     streamingDesc.activeChunkRadius = 1;
     streamingDesc.maxMeshesPerFrame = 2;
     streamingDesc.maxTimePerFrame = chrono::milliseconds(2);
@@ -248,7 +247,7 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
     Vec3 startPos = Vec3(180.f, -4020.47f, -1.94f);
 
-
+    //Lancelier
     const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
         Constants::Prefab::MW_Lancelier, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
         ETOI(LevelType::GamePlay),
@@ -256,6 +255,33 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 
     CHECK_NULL(monster, E_FAIL);
     monster->Get_Transform()->Set_Position(startPos);
+
+    //Portier
+    const Shared<GameObject> monsterPortier = Client::Spawn_Prefab::Spawn(
+        Constants::Prefab::MW_Portier, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
+        ETOI(LevelType::GamePlay),
+        strLayerTag);
+
+    CHECK_NULL(monster, E_FAIL);
+    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f,0.f, 10.f));
+
+    //Volester
+    const Shared<GameObject> monsterVolester = Client::Spawn_Prefab::Spawn(
+        Constants::Prefab::MW_Volester, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
+        ETOI(LevelType::GamePlay),
+        strLayerTag);
+
+    CHECK_NULL(monster, E_FAIL);
+    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 20.f));
+
+    //
+    const Shared<GameObject> monsterBishop = Client::Spawn_Prefab::Spawn(
+        Constants::Prefab::MW_Bishop, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
+        ETOI(LevelType::GamePlay),
+        strLayerTag);
+
+    CHECK_NULL(monster, E_FAIL);
+    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 30.f));
     return S_OK;
 }
 

@@ -42,6 +42,7 @@ public: /* For.Runtime */
     void    Pause();
     void    Stop();
     void    Resume();
+    void    Enter_EditAfterLoading();
 
     bool    IsPlaying() const;
     bool    IsPaused() const;
@@ -204,7 +205,7 @@ private: /* Viewport Data */
     uint32 _appliedPreviewViewportHeight = 0;
 
 private: /* Runtime Data */
-    EDITOR_RUNTIME_STATE _runtimeState = EDITOR_RUNTIME_STATE::Edit;
+    EDITOR_RUNTIME_STATE _runtimeState = EDITOR_RUNTIME_STATE::Play;
     float _runtimeTimeScale = 1.f;
 
     vector<EditorWorldObjectSnapshot> _playStartWorldSnapshot = {};
