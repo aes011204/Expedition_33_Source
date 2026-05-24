@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "PreviewShotTable.h"
+#include "BattleCameraClipTypes.h"
 
 NS_BEGIN(Client)
 class TargetCamera;

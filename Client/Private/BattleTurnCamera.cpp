@@ -1,5 +1,7 @@
 ﻿#include "BattleTurnCamera.h"
 #include <CameraPresetIO.h>
+
+#include "BattleCameraClipIO.h"
 #include "GameInstance.h"
 #include "Character.h"
 #include "Event_Bus.h"
@@ -52,16 +54,28 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
 
     _enemyAttackClip.duration = 5.f;
 
-    _enemyAttackClip.distanceOffset.keyframes.push_back({0.5f, 0.0f});
-    _enemyAttackClip.distanceOffset.keyframes.push_back({1.f, -1.0f});
-    _enemyAttackClip.distanceOffset.keyframes.push_back({2.f, -0.4f});
-    _enemyAttackClip.distanceOffset.keyframes.push_back({3.f, 0.0f});
+    //_enemyAttackClip.distanceOffset.keyframes.push_back({0.5f, 0.0f});
+    //_enemyAttackClip.distanceOffset.keyframes.push_back({1.f, -1.0f});
+    //_enemyAttackClip.distanceOffset.keyframes.push_back({2.f, -0.4f});
+    //_enemyAttackClip.distanceOffset.keyframes.push_back({3.f, 0.0f});
 
-    _enemyAttackClip.fovOffset.keyframes.push_back({0.5f, 0.0f});
-    _enemyAttackClip.fovOffset.keyframes.push_back({1.f, -0.1f});
-    _enemyAttackClip.fovOffset.keyframes.push_back({2.f, -0.2f});
-    _enemyAttackClip.fovOffset.keyframes.push_back({3.f,  0.0f});
+   // _enemyAttackClip.fovOffset.keyframes.push_back({0.5f, XMConvertToRadians(0.f)});
+   // _enemyAttackClip.fovOffset.keyframes.push_back({1.f, XMConvertToRadians(-2.f)});
+   // _enemyAttackClip.fovOffset.keyframes.push_back({2.f, XMConvertToRadians(-1.f)});
+   // _enemyAttackClip.fovOffset.keyframes.push_back({3.f,  XMConvertToRadians(0.f)});
+   //
+   //
+   // _playerAttackClip.duration = 5.f;
+   // _playerAttackClip.fovOffset.keyframes.push_back({0.5f, XMConvertToRadians(0.f)});
+   // _playerAttackClip.fovOffset.keyframes.push_back({1.f, XMConvertToRadians(-3.f)});
+   // _playerAttackClip.fovOffset.keyframes.push_back({2.f, XMConvertToRadians(-1.f)});
+   // _playerAttackClip.fovOffset.keyframes.push_back({3.f,  XMConvertToRadians(0.f)});
+
+   // CameraPresetIO::SaveBattleCameraClipToFile(BattleCameraMode::PLAYERATTACK, _playerAttackClip);
+   // CameraPresetIO::SaveBattleCameraClipToFile(BattleCameraMode::ENEMYATTACK, _enemyAttackClip);
     //_enemyAttackClip.shakeAmplitude.keyframes.push_back({0.5f, 0.1f});
+   BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackClip);
+   BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackClip);
 
    _battlePresentationHandle = GAME->Get_EventBus().Subscribe<EvtBattlePresentation>
     ([this](const EvtBattlePresentation& event)
@@ -124,6 +138,9 @@ void BattleTurnCamera::Update(float timeDelta)
 
     if (_isLiveEditEnabled)
         Update_LiveEditInput(timeDelta);
+
+    if(_isClipPreview)
+        return;
 
     switch (_currentRequest.mode)
     {
@@ -280,6 +297,9 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     if(wasWide && !willWide)
         _isWideMode = false;
 
+    _activeClip = nullptr; 
+    _clipTime = 0.f;
+    _isClipPreview = false;
     _isFirstUpdate = true;
     _currentRequest = request;
     _targetTransform = nullptr;
@@ -308,6 +328,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     case BattleCameraMode::PLAYERATTACK:
         _targetPreset = _playerAttackPreset;
+        _activeClip = &_playerAttackClip;
         break;
     }
 
@@ -366,19 +387,11 @@ void BattleTurnCamera::Update_EnemyFocusMode(float timeDelta)
 
 void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
 {
-    if(_activeClip)
-    {
-        if(_clipTime >= _activeClip->duration)
-            return;
+    // clip이 있을 시 적용
+    const BattleCameraClipSample clip  = Advance_ActiveClip(timeDelta);
 
-        _clipTime += timeDelta;
-
-        auto clip = Sample_Clip(*_activeClip, _clipTime);
-        _fovY += clip.fovOffset;
-        _currentPreset.distance += clip.distanceOffset;
-        //+=clip.shakeAmplitude;
-
-    }
+    float finalFovY = _currentPreset.camera.fovy + clip.fovOffset;
+    float finalDistance = _currentPreset.distance + clip.distanceOffset;
 
     if(_isFirstUpdate)
     {
@@ -404,10 +417,12 @@ void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
     const float yawRad = XMConvertToRadians(_currentPreset.yawOffset);
     Vec3 yawAdjustedBack = backDir * cosf(yawRad) + right * sinf(yawRad);
 
-    Vec3 camPos = _playerPos + yawAdjustedBack * _currentPreset.distance + right * _currentPreset.sideOffset + Vec3::Up * _currentPreset.heightOffset;
+    Vec3 camPos = _playerPos + yawAdjustedBack * finalDistance + right * _currentPreset.sideOffset + Vec3::Up * _currentPreset.heightOffset;
 
     Vec3 lookTarget = _enemyPos + forward * _currentPreset.aimOffset + Vec3::Up * _currentPreset.lookHeight;
 
+    finalFovY = clamp(finalFovY, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
+    Set_FovY(finalFovY);
     Apply_LookAt(camPos,lookTarget);
     Update_TransformMatrices();
 }
@@ -419,23 +434,14 @@ void BattleTurnCamera::Update_PlayerAttackMode(float timeDelta)
 
 void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
     if(_currentRequest.subject == nullptr)
         return;
 
-    if(_activeClip)
-    {
-        if(_clipTime >= _activeClip->duration)
-            return;
+    // Clip이 있을 시 적용
+    const BattleCameraClipSample clip  = Advance_ActiveClip(timeDelta);
 
-        _clipTime += timeDelta;
-
-        auto clip = Sample_Clip(*_activeClip, _clipTime);
-        _fovY += clip.fovOffset;
-        _currentPreset.distance += clip.distanceOffset;
-        //+=clip.shakeAmplitude;
-    }
+    float finalFovY = _currentPreset.camera.fovy + clip.fovOffset;
+    float finalDistance = _currentPreset.distance + clip.distanceOffset;
 
     const Vec3 targetPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
 
@@ -457,7 +463,7 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
     rightDir.z = -sinf(yawRad);
     rightDir.Normalize();
 
-    const Vec3 baseOffset = backDir * _currentPreset.distance;
+    const Vec3 baseOffset = backDir * finalDistance;
 
     const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
     const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
@@ -471,7 +477,10 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
 
     Vec3 newPos = desiredPos;
 
-    //Clip 적용
+    finalFovY = clamp(finalFovY, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
+
+    Set_FovY(finalFovY);
+
     Apply_LookAt(newPos, lookTarget);
     _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, _currentPreset.rollOffset));
     
@@ -582,15 +591,43 @@ void BattleTurnCamera::Set_Preset(BattleCameraMode mode, const BattleCameraPrese
     }
 }
 
+void BattleTurnCamera::Set_Clip(BattleCameraMode mode, const BattleCameraClip& clip)
+{
+    if (BattleCameraClip* targetClip = Get_MutableClip(mode))
+        *targetClip = clip;
+}
+
 void BattleTurnCamera::Apply_PreviewPreset(const BattleCameraPreset& preset)
 {
     _currentPreset = preset;
     _targetPreset = preset;
 }
 
-BattleCameraPreset* BattleTurnCamera::Get_MutablePreset(BattleCameraMode mode)
+void BattleTurnCamera::Preview_ClipAtTime(const BattleShotRequest& request, float time)
 {
-    switch (mode)
+    if (_currentRequest.mode != request.mode || _currentRequest.subject != request.subject || _currentRequest.opponent != request.opponent)
+        Apply_ShotRequest(request);
+    else
+    {
+        _currentRequest = request;
+        _targetTransform = _currentRequest.subject ? _currentRequest.subject->Get_Transform() : nullptr;
+    }
+
+    switch (_currentRequest.mode)
+    {
+    case BattleCameraMode::ENEMYATTACK:
+        Preview_EnemyAttackAtTime(time);
+        break;
+
+    default:
+        Preview_CurrentPresetAtTime(time);
+        break;
+    }
+}
+
+BattleCameraPreset* BattleTurnCamera::Get_MutablePreset(BattleCameraMode cameraMode)
+{
+    switch (cameraMode)
     {
     case BattleCameraMode::WIDE:
         return &_wideModePreset;
@@ -612,6 +649,110 @@ BattleCameraPreset* BattleTurnCamera::Get_MutablePreset(BattleCameraMode mode)
     }
 }
 
+BattleCameraClip* BattleTurnCamera::Get_MutableClip(BattleCameraMode cameraMode)
+{
+    switch (cameraMode)
+    {
+    case BattleCameraMode::WIDE:
+        return &_wideModeClip;
+
+    case BattleCameraMode::PLAYERFOCUS:
+        return &_playerFocusClip;
+
+    case BattleCameraMode::ENEMYFOCUS:
+        return &_enemyFocusClip;
+
+    case BattleCameraMode::ENEMYATTACK:
+        return &_enemyAttackClip;
+
+    case BattleCameraMode::PLAYERATTACK:
+        return &_playerAttackClip;
+
+    default:
+        return nullptr;
+    }
+}
+
+void BattleTurnCamera::Preview_CurrentPresetAtTime(float time)
+{
+    if (_currentRequest.subject == nullptr)
+        return;
+
+    BattleCameraClip* clip = Get_MutableClip(_currentRequest.mode);
+    const BattleCameraClipSample clipSample = clip ? Sample_Clip(*clip, clamp(time, 0.f, clip->duration)) : BattleCameraClipSample {};
+
+    const float finalFovY = clamp(_currentPreset.camera.fovy + clipSample.fovOffset, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
+    const float finalDistance = _currentPreset.distance + clipSample.distanceOffset;
+    const Vec3 targetPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
+
+    const float finalYaw = _yaw + _currentPreset.yawOffset;
+    const float finalPitch = _pitch + _currentPreset.pitchOffset;
+
+    const float yawRad = XMConvertToRadians(finalYaw);
+    const float pitchRad = XMConvertToRadians(finalPitch);
+
+    Vec3 backDir;
+    backDir.x = -sinf(yawRad);
+    backDir.y = 0.f;
+    backDir.z = -cosf(yawRad);
+    backDir.Normalize();
+
+    Vec3 rightDir;
+    rightDir.x = cosf(yawRad);
+    rightDir.y = 0.f;
+    rightDir.z = -sinf(yawRad);
+    rightDir.Normalize();
+
+    const Vec3 baseOffset = backDir * finalDistance;
+    const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
+    const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
+    const Vec3 pivotPos = targetPos + Vec3::Up * _currentPreset.pivotHeight;
+    const Vec3 framingPos = pivotPos + rightDir * _currentPreset.aimOffset;
+    const Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * _currentPreset.heightOffset + rightDir * _currentPreset.sideOffset;
+    const Vec3 lookTarget = framingPos + Vec3::Up * _currentPreset.lookHeight;
+
+    Set_FovY(finalFovY);
+    Apply_LookAt(desiredPos, lookTarget);
+    _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, _currentPreset.rollOffset));
+    Update_TransformMatrices();
+    GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
+}
+
+void BattleTurnCamera::Preview_EnemyAttackAtTime(float time)
+{
+    if (_currentRequest.subject == nullptr || _currentRequest.opponent == nullptr)
+        return;
+
+    BattleCameraClip* clip = Get_MutableClip(_currentRequest.mode);
+    const BattleCameraClipSample clipSample = clip ? Sample_Clip(*clip, clamp(time, 0.f, clip->duration)) : BattleCameraClipSample {};
+
+    const float finalFovY = clamp(_currentPreset.camera.fovy + clipSample.fovOffset, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
+    const float finalDistance = _currentPreset.distance + clipSample.distanceOffset;
+
+    const Vec3 enemyPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
+    const Vec3 playerPos = _currentRequest.opponent->Get_Transform()->Get_WorldPosition();
+
+    Vec3 forward = playerPos - enemyPos;
+    forward.y = 0.f;
+    forward.Normalize();
+
+    Vec3 right;
+    right.x = forward.z;
+    right.y = 0.f;
+    right.z = -forward.x;
+
+    const Vec3 backDir = -forward;
+    const float yawRad = XMConvertToRadians(_currentPreset.yawOffset);
+    const Vec3 yawAdjustedBack = backDir * cosf(yawRad) + right * sinf(yawRad);
+
+    const Vec3 camPos = playerPos + yawAdjustedBack * finalDistance + right * _currentPreset.sideOffset + Vec3::Up * _currentPreset.heightOffset;
+    const Vec3 lookTarget = enemyPos + forward * _currentPreset.aimOffset + Vec3::Up * _currentPreset.lookHeight;
+
+    Set_FovY(finalFovY);
+    Apply_LookAt(camPos, lookTarget);
+    Update_TransformMatrices();
+}
+
 float BattleTurnCamera::Sample_Track(const BattleCameraTrack& battleCameraTrack, float time)
 {
    if(battleCameraTrack.keyframes.empty())
@@ -619,22 +760,22 @@ float BattleTurnCamera::Sample_Track(const BattleCameraTrack& battleCameraTrack,
 
    if(time <= battleCameraTrack.keyframes.front().time)
    {
-       return battleCameraTrack.keyframes.front().time;
+       return battleCameraTrack.keyframes.front().value;
    }
 
    if(time >= battleCameraTrack.keyframes.back().time)
    {
-       return battleCameraTrack.keyframes.back().time;
+       return battleCameraTrack.keyframes.back().value;
    }
 
-    for(auto i = 0; i < battleCameraTrack.keyframes.size() ; i++)
+    for(auto i = 0; i + 1 < battleCameraTrack.keyframes.size() ; i++)
     {
-        auto a = battleCameraTrack.keyframes[i];
-        auto b = battleCameraTrack.keyframes[i + 1];
+        const auto& a = battleCameraTrack.keyframes[i];
+        const auto& b = battleCameraTrack.keyframes[i + 1];
 
         if(time >= a.time && time <= b.time)
         {
-            float t = time - a.time/ (b.time - a.time);
+            float t = (time - a.time) / (b.time - a.time);
             return lerp(a.value, b.value, t);
         }
     }
@@ -648,6 +789,28 @@ BattleCameraClipSample BattleTurnCamera::Sample_Clip(const BattleCameraClip& bat
     sample.distanceOffset = Sample_Track(battleCameraClip.distanceOffset, time);
     sample.fovOffset = Sample_Track(battleCameraClip.fovOffset, time);
     sample.shakeAmplitude = Sample_Track(battleCameraClip.shakeAmplitude, time);
+
+    return sample;
+}
+
+BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta)
+{
+    BattleCameraClipSample sample{};
+
+    if(_activeClip == nullptr)
+        return sample;
+
+    _clipTime += timeDelta;
+
+    float sampleTime = clamp(_clipTime, 0.f, _activeClip->duration);
+
+    sample = Sample_Clip(*_activeClip, sampleTime);
+
+    if(_clipTime >= _activeClip->duration)
+    {
+        _clipTime = _activeClip->duration;
+        _activeClip = nullptr;
+    }
 
     return sample;
 }

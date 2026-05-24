@@ -1,5 +1,6 @@
 ﻿#include "CameraDirector.h"
 #include "GameInstance.h"
+#include "TargetCamera.h"
 
 CameraDirector::CameraDirector()
 {
@@ -72,6 +73,19 @@ void CameraDirector::Restore_PreviousCamera()
     GAME->Change_ActiveCamera(_previousCamera);
 
     _previousCamera.reset();
+}
+
+void CameraDirector::Request_ChangeTargetCameraMode(TargetCameraMode cameraMode)
+{
+    if(!GAME->Is_ActiveCameraType(ObjectType::TargetCamera))
+        GAME->Activate_CameraByType(ObjectType::TargetCamera);
+
+   auto targetCamera =  GAME->Get_CameraByType(ObjectType::TargetCamera);
+
+    if(targetCamera == nullptr)
+        return;
+
+    dynamic_pointer_cast<TargetCamera>(targetCamera)->Change_Mode(cameraMode);
 }
 
 Unique<CameraDirector> CameraDirector::Create()

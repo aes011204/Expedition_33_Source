@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "BT_Node_Bootstrap.h"
@@ -324,6 +324,11 @@ void ClientInstance::Request_BattleTurn()
 void ClientInstance::Request_Cinematic()
 {
     return _cameraDirector->Request_Cinematic();
+}
+
+void ClientInstance::Request_TargetCameraMode(TargetCameraMode cameraMode)
+{
+    return _cameraDirector->Request_ChangeTargetCameraMode(cameraMode);
 }
 
 void ClientInstance::Restore_PreviousCamera()

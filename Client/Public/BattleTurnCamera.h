@@ -36,8 +36,11 @@ public:
     void Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies);
     const BattleCameraPreset& Get_Preset(BattleCameraMode mode) const;
     void Set_Preset(BattleCameraMode mode, const BattleCameraPreset& preset);
+    void Set_Clip(BattleCameraMode mode, const BattleCameraClip& clip);
+    void Set_ClipScrubPreviewEnabled(bool enabled) { _isClipPreview = enabled; }
     void Apply_PreviewPreset(const BattleCameraPreset& preset);
     void Apply_ShotRequest(const BattleShotRequest& request);
+    void Preview_ClipAtTime(const BattleShotRequest& request, float time);
     void Begin_LiveEdit(BattleCameraMode mode, const Shared<Character>& target, const Shared<Character>& opponent);
     void Update_LiveEditContext(BattleCameraMode mode, const Shared<Character>& target, const Shared<Character>& opponent);
     void End_LiveEdit();
@@ -51,10 +54,11 @@ public:
 
     bool Is_FreeAimActive() const { return _isFreeAimActive; }
 
+    void Set_IsClipPreview(bool boolean) { _isClipPreview = boolean; }
+
 private:
     void Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt);
     void Apply_FreeAimCamera();                
-
 
 private:
     void Update_WideMode(float timeDelta);
@@ -62,16 +66,22 @@ private:
     void Update_EnemyFocusMode(float timeDelta);
     void Update_EnemyAttackMode(float timeDelta);
     void Update_FromCurrentPreset(float timeDelta);
+    void Preview_CurrentPresetAtTime(float time);
+    void Preview_EnemyAttackAtTime(float time);
     void Update_LiveEditInput(float timeDelta);
     void Update_PlayerAttackMode(float timeDelta);
 
-    BattleCameraPreset* Get_MutablePreset(BattleCameraMode mode);
+    BattleCameraPreset* Get_MutablePreset(BattleCameraMode cameraMode);
+    BattleCameraClip* Get_MutableClip(BattleCameraMode cameraMode);
+
 
 private:
     float   Sample_Track(const BattleCameraTrack& battleCameraTrack, float time);
     BattleCameraClipSample   Sample_Clip(const BattleCameraClip& battleCameraClip,float time);
+    BattleCameraClipSample   Advance_ActiveClip(float timeDelta);
 
 private:
+    bool                  _isClipPreview = false;
     BattleShotRequest    _currentRequest{};
     BattleCameraPreset   _currentPreset{};
     BattleCameraPreset   _targetPreset{};
@@ -94,6 +104,10 @@ private:
     Vec3                 _playerPos;
 
     BattleCameraClip      _enemyAttackClip {};
+    BattleCameraClip      _playerAttackClip {};
+    BattleCameraClip      _wideModeClip {};
+    BattleCameraClip      _playerFocusClip {};
+    BattleCameraClip      _enemyFocusClip {};
     BattleCameraClip*     _activeClip {};
     float                _clipTime {};
 

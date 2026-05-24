@@ -68,7 +68,7 @@ private:
     Vec3 Resolve_Collision(const Vec3& sweepStart, const Vec3& desiredPos, float timeDelta);
 
 public:
-    void Change_Mode(TargetCameraMode state);
+    void Change_Mode(TargetCameraMode mode);
     void Change_Target();
     bool Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const override;
     void Refresh_TargetTransform();
@@ -107,8 +107,8 @@ public:
     float           Get_PivotHeight() {return _pivotHeight;}
     void            Set_PivotHeight(float pivotHeight) {_pivotHeight = pivotHeight;}
 
-    const           TargetCameraPreset& Get_Preset(TargetCameraMode state) const;
-    void            Set_Preset(TargetCameraMode state, const TargetCameraPreset& preset);
+    const           TargetCameraPreset& Get_Preset(TargetCameraMode mode) const;
+    void            Set_Preset(TargetCameraMode mode, const TargetCameraPreset& preset);
     void            Apply_PreviewPreset(const TargetCameraPreset& preset);
 
 private:

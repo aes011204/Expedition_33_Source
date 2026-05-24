@@ -114,6 +114,22 @@ void Camera_Tool::Render()
     ImGui::End();
 }
 
+void Camera_Tool::Update(float timeDelta)
+{
+    __super::Update(timeDelta);
+
+    //if(GAME->KeyUp(KEY_TYPE::KEY_1))
+    //{
+    //    _isTargetCameraEditMode = !_isTargetCameraEditMode;
+
+    //    GAME->Set_PlayerInputBlocked(_isTargetCameraEditMode);
+    //  //  GAME->Set_P(_isTargetCameraEditMode);
+
+    //    if(_isTargetCameraEditMode)
+    //        GAME->Unlock_Mouse();
+    //}
+}
+
 void Camera_Tool::Render_CameraList()
 {
     int cameraCount =  GAME->Get_CameraCount();
@@ -364,6 +380,20 @@ void Camera_Tool::Edit_BattleTurnCameraPreset()
 
     ImGui::TextDisabled("Live Edit Controls: Hold RMB + move mouse = yaw/pitch");
     ImGui::TextDisabled("RMB + W/S = distance, A/D = aim offset, Q/E = pivot offset, Wheel = zoom");
+}
+
+void Camera_Tool::Edit_BattleCameraClip()
+{
+    Shared<Camera> camera = Get_SelectedCamera(_selectedCameraIndex);
+
+    auto battleCamera = static_pointer_cast<BattleTurnCamera>(camera);
+
+  //  auto clip = battleCamera->Get_Clip(_editingBattleCameraClip);
+}
+
+void Camera_Tool::Select_EditingBattleClip()
+{
+    Select_PresetEnum("Edit Battle Preset", _editingBattleCameraMode);
 }
 
 void Camera_Tool::Select_EditingPreviewPanel()

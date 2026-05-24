@@ -107,7 +107,7 @@ void TargetCamera::Priority_Update(float timeDelta)
 
     if (GAME->Is_WorldGameplayInputBlocked())
     {
-        if (_currentState == TargetCameraMode::AIM)
+        if (_currentState == TargetCameraMode::AIM && !CLIENT->Is_TargetCameraEditMode())
             Change_Mode(TargetCameraMode::NORMAL);
 
         return;
@@ -123,10 +123,10 @@ void TargetCamera::Priority_Update(float timeDelta)
         Change_Mode(TargetCameraMode::NORMAL);
     }
 
-    /*if(GAME->KeyDown(KEY_TYPE::CTRL))
+    if(GAME->KeyDown(KEY_TYPE::CTRL))
     {
-        Change_State(CAMERA_STATE::BATTLE_ENTER);
-    }*/
+        Change_Mode(TargetCameraMode::BATTLE_ENTER);
+    }
 
 }
 
@@ -218,8 +218,8 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
 
     const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
 
-    const bool isTargetMoving = (targetPos - _prevTargetPos).LengthSquared() > 0.0001f;
-    float followSpeed = isTargetMoving ? _currentSettings.followSpeed : _currentSettings.followSpeed * 0.5f;
+    //const bool isTargetMoving = (targetPos - _prevTargetPos).LengthSquared() > 0.0001f;
+    //float followSpeed = isTargetMoving ? _currentSettings.followSpeed : _currentSettings.followSpeed * 0.5f;
 
     const float finalYaw = _yaw + _currentSettings.yawOffset;
     const float finalPitch = _pitch + _currentSettings.pitchOffset;
@@ -328,17 +328,19 @@ void TargetCamera::Update_AimState(float timeDelta)
 
 void TargetCamera::Update_BattleEnterState(float timeDelta)
 {
-    _battleEnterAcc += timeDelta;
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    float unscaledDelta = GAME->Get_UnscaledTimeDelta();
+    _battleEnterAcc += unscaledDelta;
 
     if(_battleEnterAcc >= _battleEnterDuration)
     {
-        //TODO 유림 : 배틀 집입 연출 끝나면 배틀 카메라로! 일단 지금은 다시 normal 카메라로 돌리기
         Change_Mode(TargetCameraMode::NORMAL);
         _battleEnterAcc = 0.f;
         return;
     }
 
-    Update_FromCurrentSettings(timeDelta);
+    Update_FromCurrentSettings(unscaledDelta);
 }
 
 Vec3 TargetCamera::Resolve_Collision(const Vec3& sweepStart, const Vec3& desiredPos, float timeDelta)
@@ -390,12 +392,12 @@ Vec3 TargetCamera::Resolve_Collision(const Vec3& sweepStart, const Vec3& desired
     return sweepStart + sweep * _collisionDistance;
 }
 
-void TargetCamera::Change_Mode(TargetCameraMode state)
+void TargetCamera::Change_Mode(TargetCameraMode mode)
 {
-    if(_currentState == state)
+    if(_currentState == mode)
         return;
 
-    _currentState = state;
+    _currentState = mode;
     _collisionQueryAccum = 0.f;
     _hasCollisionQueryCache = false;
     _collisionDistance = -1.f;
@@ -468,9 +470,9 @@ void TargetCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
     _collisionDistance = -1.f;
 }
 
-const TargetCameraPreset& TargetCamera::Get_Preset(TargetCameraMode state) const
+const TargetCameraPreset& TargetCamera::Get_Preset(TargetCameraMode mode) const
 {
-    switch (state)
+    switch (mode)
     {
     case TargetCameraMode::NORMAL:
         return _normalPreset;
@@ -486,9 +488,9 @@ const TargetCameraPreset& TargetCamera::Get_Preset(TargetCameraMode state) const
     return _normalPreset;
 }
 
-void TargetCamera::Set_Preset(TargetCameraMode state, const TargetCameraPreset& preset)
+void TargetCamera::Set_Preset(TargetCameraMode mode, const TargetCameraPreset& preset)
 {
-    switch (state)
+    switch (mode)
     {
     case TargetCameraMode::NORMAL:
          _normalPreset = preset;

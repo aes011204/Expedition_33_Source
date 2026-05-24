@@ -24,10 +24,12 @@ struct PreviewShotPreset
 
 struct CommonCameraPreset
 {
-    float		 fovy, nearPlane, farPlane;
+    float        fovy = XMConvertToRadians(45.f);
+    float        nearPlane = 0.1f;
+    float        farPlane = 500.f;
 
-    float        mouseSensor;
-    float        mouseSensitivity;
+    float        mouseSensor = 0.f;
+    float        mouseSensitivity = 0.f;
 };
 
 struct TargetCameraPreset

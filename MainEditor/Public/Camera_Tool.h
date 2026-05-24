@@ -3,6 +3,7 @@
 #include "Editor_Window.h"
 #include "CameraPresetTypes.h"
 #include "TargetCamera.h"
+#include "BattleCameraClipTypes.h"
 
 NS_BEGIN(Engine)
 class Character;
@@ -25,6 +26,7 @@ public:
 
 public:
     virtual void Render() override;
+    void         Update(float timeDelta) override;
 
 private:
     void Render_CameraList();
@@ -40,6 +42,8 @@ public:
     void Edit_TargetCameraPreset();
     void Select_EditingBattleCameraMode();
     void Edit_BattleTurnCameraPreset();
+    void Edit_BattleCameraClip();
+    void Select_EditingBattleClip();
     void Select_EditingPreviewPanel();
     void Select_EditingPreviewHero();
     void Edit_PreviewCameraPreset();
@@ -49,6 +53,7 @@ public:
     Shared<Character> Resolve_EnemyPreview() const;
 
 private:
+ //  bool            _isTargetCameraEditMode;
     Shared<Camera> _previewCamera;
     int _selectedCameraIndex = { 0 };
     TargetCameraMode _editingCameraState = TargetCameraMode::NORMAL;
@@ -56,6 +61,7 @@ private:
     PreviewShotPanel _editingPreviewPanel = PreviewShotPanel::CharacterStatus;
     Client::HeroId _editingPreviewHeroId = Client::HeroId::Gustave;
     PreviewShotPreset _editingPreviewPreset = {};
+    BattleCameraClip _editingBattleCameraClip = {};
     PreviewShotPanel _loadedPreviewPanel = PreviewShotPanel::CharacterStatus;
     Client::HeroId _loadedPreviewHeroId = Client::HeroId::END;
     bool _isPreviewPresetLoaded = false;

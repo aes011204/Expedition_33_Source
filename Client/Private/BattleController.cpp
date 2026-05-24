@@ -63,6 +63,12 @@ void BattleController::Update(float timeDelta)
 {
     if (_isBattleEntering)
     {
+        if(!_hasRequestedBattleEnterCamera)
+        {
+            CLIENT->Request_TargetCameraMode(TargetCameraMode::BATTLE_ENTER);
+            _hasRequestedBattleEnterCamera = true;
+        }
+
         // 슬로우 모션 지속시간은 월드 배속 안받은 Unscaled Time 가져오기
         _battleEnterElapsed += GAME->Get_UnscaledTimeDelta();
 
@@ -1071,6 +1077,7 @@ void BattleController::Complete_BattleField()
 void BattleController::Clear_BattleEnterPending()
 {
     _isBattleEntering = false;
+    _hasRequestedBattleEnterCamera = false;
     _battleEnterElapsed = 0.f;
 
     _pendingBattleFieldID = 0;

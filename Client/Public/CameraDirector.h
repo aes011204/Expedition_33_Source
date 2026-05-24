@@ -1,13 +1,14 @@
 ﻿#pragma once
 #include "Base.h"
+enum class TargetCameraMode;
 
 NS_BEGIN(Engine)
-class Camera;
+    class Camera;
 NS_END
 
 NS_BEGIN(Client)
 
-    class CameraDirector final : public Base
+class CameraDirector final : public Base
 {
 public:
     CameraDirector();
@@ -19,6 +20,8 @@ public:
     void Request_BattleTurn();
     void Request_Cinematic();
     void Restore_PreviousCamera();
+
+    void Request_ChangeTargetCameraMode(TargetCameraMode mode);
 
 private:
     Shared<Camera> _previousCamera;

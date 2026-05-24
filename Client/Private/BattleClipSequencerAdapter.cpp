@@ -1,0 +1,341 @@
+#include "BattleClipSequencerAdapter.h"
+#include <algorithm>
+#include <cmath>
+
+#ifdef new
+#pragma push_macro("new")
+#undef new
+#define CLIENT_RESTORE_NEW_MACRO
+#endif
+
+#include <imgui.h>
+#include <imgui_internal.h>
+
+#ifdef CLIENT_RESTORE_NEW_MACRO
+#pragma pop_macro("new")
+#undef CLIENT_RESTORE_NEW_MACRO
+#endif
+
+namespace
+{
+constexpr int kBattleClipFps = 30;
+
+struct BattleClipKeyDragState
+{
+    int trackIndex = -1;
+    int keyIndex = -1;
+};
+
+BattleClipKeyDragState g_battleClipKeyDragState {};
+
+int TimeToFrame(float timeSeconds)
+{
+    return static_cast<int>(std::lround(timeSeconds * static_cast<float>(kBattleClipFps)));
+}
+
+float FrameToTime(int frame)
+{
+    return static_cast<float>(frame) / static_cast<float>(kBattleClipFps);
+}
+
+BattleCameraTrack* GetTrackByIndex(BattleCameraClip* clip, int index)
+{
+    if (clip == nullptr)
+        return nullptr;
+
+    switch (index)
+    {
+    case 0:
+        return &clip->distanceOffset;
+    case 1:
+        return &clip->fovOffset;
+    case 2:
+        return &clip->shakeAmplitude;
+    default:
+        return nullptr;
+    }
+}
+
+const char* GetTrackLabel(int index)
+{
+    switch (index)
+    {
+    case 0:
+        return "Distance Offset";
+    case 1:
+        return "FOV Offset";
+    case 2:
+        return "Shake Amplitude";
+    default:
+        return "";
+    }
+}
+
+void DrawBattleClipKeyMarkers(
+    BattleCameraClip* clip,
+    int* selectedTrackIndex,
+    int* selectedKeyIndex,
+    int* currentFrame,
+    bool* consumedKeyClick,
+    bool* requestOpenInsertPopup,
+    bool* requestRemoveKeyPopup,
+    int* contextTrackIndex,
+    int* contextFrame,
+    int index,
+    ImDrawList* drawList,
+    const ImRect& rc,
+    const ImRect& clippingRect,
+    bool allowSelection)
+{
+    if (clip == nullptr || drawList == nullptr)
+        return;
+
+    BattleCameraTrack* track = GetTrackByIndex(clip, index);
+    if (track == nullptr)
+        return;
+
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        g_battleClipKeyDragState = {};
+
+    const int frameMin = 0;
+    const int frameMax = std::max(TimeToFrame(clip->duration), 1);
+    const int frameRange = std::max(frameMax - frameMin, 1);
+    bool isHoveringAnyKey = false;
+
+    drawList->PushClipRect(clippingRect.Min, clippingRect.Max, true);
+
+    for (int keyIndex = 0; keyIndex < static_cast<int>(track->keyframes.size()); ++keyIndex)
+    {
+        BattleCameraKeyframe& keyframe = track->keyframes[keyIndex];
+        const int keyFrame = std::clamp(TimeToFrame(keyframe.time), frameMin, frameMax);
+        const float normalized = static_cast<float>(keyFrame - frameMin) / static_cast<float>(frameRange);
+        const float markerX = std::max(rc.Min.x, std::min(rc.Min.x + normalized * (rc.Max.x - rc.Min.x), rc.Max.x));
+        const float centerY = (rc.Min.y + rc.Max.y) * 0.5f;
+        const bool isSelected =
+            (selectedTrackIndex != nullptr && selectedKeyIndex != nullptr &&
+             *selectedTrackIndex == index && *selectedKeyIndex == keyIndex);
+
+        const float handleHalfWidth = isSelected ? 10.f : 8.f;
+        const float handleHalfHeight = isSelected ? 11.f : 9.f;
+        const ImVec2 handleMin(markerX - handleHalfWidth, centerY - handleHalfHeight);
+        const ImVec2 handleMax(markerX + handleHalfWidth, centerY + handleHalfHeight);
+        const ImRect handleRect(handleMin, handleMax);
+        const bool isHovered = allowSelection && ImGui::IsMouseHoveringRect(handleRect.Min, handleRect.Max, false);
+        if (isHovered)
+            isHoveringAnyKey = true;
+
+        if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        {
+            if (selectedTrackIndex != nullptr)
+                *selectedTrackIndex = index;
+
+            if (selectedKeyIndex != nullptr)
+                *selectedKeyIndex = keyIndex;
+
+            if (currentFrame != nullptr)
+                *currentFrame = keyFrame;
+
+            if (consumedKeyClick != nullptr)
+                *consumedKeyClick = true;
+
+            g_battleClipKeyDragState.trackIndex = index;
+            g_battleClipKeyDragState.keyIndex = keyIndex;
+        }
+
+        if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+        {
+            if (selectedTrackIndex != nullptr)
+                *selectedTrackIndex = index;
+
+            if (selectedKeyIndex != nullptr)
+                *selectedKeyIndex = keyIndex;
+
+            if (requestRemoveKeyPopup != nullptr)
+                *requestRemoveKeyPopup = true;
+        }
+
+        const bool isDraggingThisKey =
+            allowSelection &&
+            g_battleClipKeyDragState.trackIndex == index &&
+            g_battleClipKeyDragState.keyIndex == keyIndex &&
+            ImGui::IsMouseDown(ImGuiMouseButton_Left);
+
+        if (isDraggingThisKey)
+        {
+            const float mouseX = std::max(rc.Min.x, std::min(ImGui::GetIO().MousePos.x, rc.Max.x));
+            const float normalizedMouse = (mouseX - rc.Min.x) / std::max(rc.Max.x - rc.Min.x, 1.f);
+            const int rawFrame = frameMin + static_cast<int>(std::lround(normalizedMouse * static_cast<float>(frameRange)));
+
+            int minFrame = frameMin;
+            int maxFrame = frameMax;
+
+            if (keyIndex > 0)
+                minFrame = std::max(minFrame, TimeToFrame(track->keyframes[keyIndex - 1].time));
+
+            if (keyIndex + 1 < static_cast<int>(track->keyframes.size()))
+                maxFrame = std::min(maxFrame, TimeToFrame(track->keyframes[keyIndex + 1].time));
+
+            const int clampedFrame = std::clamp(rawFrame, minFrame, maxFrame);
+            keyframe.time = std::clamp(FrameToTime(clampedFrame), 0.f, clip->duration);
+
+            if (currentFrame != nullptr)
+                *currentFrame = clampedFrame;
+        }
+
+        const ImU32 lineColor = isSelected ? 0xFFFFFFB3 : 0xFFFFD166;
+        const ImU32 fillColor = isSelected ? 0xFFFFCC33 : (isHovered ? 0xFFFFE699 : 0xFFE1B657);
+        const ImU32 outlineColor = isSelected ? 0xFF4B3300 : 0xFF3A2E12;
+        const ImVec2 markerTop(markerX, rc.Min.y + 3.f);
+        const ImVec2 markerBottom(markerX, rc.Max.y - 3.f);
+        const ImVec2 diamond[4] =
+        {
+            ImVec2(markerX, centerY - handleHalfHeight),
+            ImVec2(markerX + handleHalfWidth, centerY),
+            ImVec2(markerX, centerY + handleHalfHeight),
+            ImVec2(markerX - handleHalfWidth, centerY)
+        };
+
+        drawList->AddLine(markerTop, markerBottom, outlineColor, 6.f);
+        drawList->AddLine(markerTop, markerBottom, lineColor, 3.5f);
+        drawList->AddConvexPolyFilled(diamond, 4, fillColor);
+        drawList->AddPolyline(diamond, 4, outlineColor, ImDrawFlags_Closed, isSelected ? 3.5f : 2.5f);
+    }
+
+    const bool isRowHovered = allowSelection && ImGui::IsMouseHoveringRect(rc.Min, rc.Max, false);
+    if (isRowHovered && !isHoveringAnyKey && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+    {
+        const float mouseX = std::max(rc.Min.x, std::min(ImGui::GetIO().MousePos.x, rc.Max.x));
+        const float normalizedMouse = (mouseX - rc.Min.x) / std::max(rc.Max.x - rc.Min.x, 1.f);
+        const int clickedFrame = frameMin + static_cast<int>(std::lround(normalizedMouse * static_cast<float>(frameRange)));
+
+        if (selectedTrackIndex != nullptr)
+            *selectedTrackIndex = index;
+
+        if (currentFrame != nullptr)
+            *currentFrame = std::clamp(clickedFrame, frameMin, frameMax);
+
+        if (contextTrackIndex != nullptr)
+            *contextTrackIndex = index;
+
+        if (contextFrame != nullptr)
+            *contextFrame = std::clamp(clickedFrame, frameMin, frameMax);
+
+        if (requestOpenInsertPopup != nullptr)
+            *requestOpenInsertPopup = true;
+    }
+
+    drawList->PopClipRect();
+}
+}
+
+BattleClipSequencerAdapter::BattleClipSequencerAdapter(
+    BattleCameraClip* clip,
+    int* selectedTrackIndex,
+    int* selectedKeyIndex,
+    int* currentFrame,
+    bool* consumedKeyClick,
+    bool* requestOpenInsertPopup,
+    bool* requestRemoveKeyPopup,
+    int* contextTrackIndex,
+    int* contextFrame)
+    : _clip(clip)
+    , _selectedTrackIndex(selectedTrackIndex)
+    , _selectedKeyIndex(selectedKeyIndex)
+    , _currentFrame(currentFrame)
+    , _consumedKeyClick(consumedKeyClick)
+    , _requestOpenInsertPopup(requestOpenInsertPopup)
+    , _requestRemoveKeyPopup(requestRemoveKeyPopup)
+    , _contextTrackIndex(contextTrackIndex)
+    , _contextFrame(contextFrame)
+{
+}
+
+int BattleClipSequencerAdapter::GetFrameMin() const
+{
+    return 0;
+}
+
+int BattleClipSequencerAdapter::GetFrameMax() const
+{
+    if (GetClip() == nullptr)
+        return 1;
+
+    return std::max(TimeToFrame(GetClip()->duration), 1);
+}
+
+int BattleClipSequencerAdapter::GetItemCount() const
+{
+    return 3;
+}
+
+const char* BattleClipSequencerAdapter::GetItemLabel(int index) const
+{
+    return GetTrackLabel(index);
+}
+
+void BattleClipSequencerAdapter::Get(int index, int** start, int** end, int* type, unsigned int* color)
+{
+    UNREFERENCED_PARAMETER(index);
+
+    _frameMin = GetFrameMin();
+    _frameMax = GetFrameMax();
+
+    if (start != nullptr)
+        *start = &_frameMin;
+
+    if (end != nullptr)
+        *end = &_frameMax;
+
+    if (type != nullptr)
+        *type = 0;
+
+    if (color != nullptr)
+        *color = 0xFFB78A2B;
+}
+
+size_t BattleClipSequencerAdapter::GetCustomHeight(int index)
+{
+    UNREFERENCED_PARAMETER(index);
+    return 0;
+}
+
+void BattleClipSequencerAdapter::CustomDraw(int index, ImDrawList* drawList, const ImRect& rc, const ImRect& legendRect, const ImRect& clippingRect, const ImRect& legendClippingRect)
+{
+    UNREFERENCED_PARAMETER(legendRect);
+    UNREFERENCED_PARAMETER(legendClippingRect);
+
+    DrawBattleClipKeyMarkers(
+        _clip,
+        _selectedTrackIndex,
+        _selectedKeyIndex,
+        _currentFrame,
+        _consumedKeyClick,
+        _requestOpenInsertPopup,
+        _requestRemoveKeyPopup,
+        _contextTrackIndex,
+        _contextFrame,
+        index,
+        drawList,
+        rc,
+        clippingRect,
+        true);
+}
+
+void BattleClipSequencerAdapter::CustomDrawCompact(int index, ImDrawList* drawList, const ImRect& rc, const ImRect& clippingRect)
+{
+    DrawBattleClipKeyMarkers(
+        _clip,
+        _selectedTrackIndex,
+        _selectedKeyIndex,
+        _currentFrame,
+        _consumedKeyClick,
+        _requestOpenInsertPopup,
+        _requestRemoveKeyPopup,
+        _contextTrackIndex,
+        _contextFrame,
+        index,
+        drawList,
+        rc,
+        clippingRect,
+        true);
+}

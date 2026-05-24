@@ -155,11 +155,11 @@ private:
 
     bool _isBattleActive = { false };
     bool _isBattleEntering = { false };
+    bool _hasRequestedBattleEnterCamera = false;
 
     int currentTurnIndex = {};
 
     bool _flag = { false };
-
 private:
     BattleChar _targetPreview = {};
     bool _hasTargetPreview = false;
@@ -212,7 +212,7 @@ private:
 
 private:  // 슬로우 처리
     float _battleEnterElapsed = 0.f;
-    float _battleEnterDuration = 2.f;
+    float _battleEnterDuration = 3.f;
     float _battleEnterWorldTimeScale = 0.25f;
 
     uint32 _pendingBattleFieldID = 0;

@@ -111,12 +111,17 @@ public: /* For.Battle_Controller */
     bool Is_BattleActive() const;
     bool Is_BattleEntering() const;
 
-public:
+public: /*For.Camera Director*/
     void Request_GamePlay();
     void Request_Preview();
     void Request_BattleTurn();
     void Request_Cinematic();
+    void Request_TargetCameraMode(TargetCameraMode cameraMode);
     void Restore_PreviousCamera();
+
+public:
+    void Set_TargetCameraEditMode(bool enable) { _isTargetCameraEditMode = enable; }
+    bool Is_TargetCameraEditMode() { return _isTargetCameraEditMode;}
 
 private:
 	HRESULT Ready_ResourceLoader();
@@ -127,8 +132,9 @@ private:
 	ComPtr<Context> _context;
 
     atomic<bool> _isStaticResourcesLoaded = false;
-    bool _isStaticObjectsSpawned = false;
-	bool _isInitialized = false;
+    bool         _isStaticObjectsSpawned = false;
+	bool         _isInitialized = false;
+    bool         _isTargetCameraEditMode = false;
 
 private:
     Shared<CameraDirector>      _cameraDirector;

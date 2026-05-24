@@ -232,6 +232,9 @@
     <Filter Include="04. GamePlayUI\SkillTree_Panel">
       <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Camera\BattleCamera">
+      <UniqueIdentifier>{0c30ab70-c925-490a-a684-610aa1257359}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -565,7 +568,6 @@
     <ClInclude Include="..\Public\MW_Lancelier.h">
       <Filter>02.GameObject\Monster\00. World</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\BattleTurnCamera.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h">
       <Filter>AnimNotify</Filter>
     </ClInclude>
@@ -677,7 +679,19 @@
     <ClInclude Include="..\Public\Player_GameMenu.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BattleTurnCamera.h">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\BattleCameraClipTypes.h">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleCameraClipIO.h">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleClipSequencerAdapter.h">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CameraPresetIO.h">
       <Filter>02.GameObject\Camera</Filter>
     </ClInclude>
   </ItemGroup>
@@ -1041,9 +1055,6 @@
       <Filter>BehavoirTree\battle</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BattleActionExecutor.cpp" />
-    <ClCompile Include="..\Private\BattleTurnCamera.cpp">
-      <Filter>02.GameObject\Camera</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\HairChainPhysics.cpp">
       <Filter>02.GameObject\Player</Filter>
     </ClCompile>
@@ -1102,6 +1113,15 @@
     </ClCompile>
     <ClCompile Include="..\Private\Player_GameMenu.cpp">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleTurnCamera.cpp">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleCameraClipIO.cpp">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleClipSequencerAdapter.cpp">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

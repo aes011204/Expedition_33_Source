@@ -1,5 +1,4 @@
 ﻿#include "EditorInstance.h"
-
 #include "Camera.h"
 #include "RenderTarget.h"
 #include "Editor_Manager.h"
@@ -20,6 +19,7 @@
 #include "Model_Inspector.h"
 #include "EditorPickingSystem.h"
 #include <fstream>
+#include "ClientInstance.h"
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
@@ -160,6 +160,17 @@ void EditorInstance::Update_Editor(float timeDelta)
     {
         Profile_View::Scope scope("Editor::NotificationUpdate");
         _notificationManager->Update(timeDelta);
+    }
+
+
+    if(GAME->KeyUp(KEY_TYPE::KEY_1))
+    {
+        Toogle_TargetCameraEditMode();
+
+        if(_isTargetCameraEditMode)
+        {
+            GAME->Unlock_Mouse();
+        }
     }
 }
 
@@ -1097,16 +1108,18 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         }
         else
         {
-            GAME->Set_PlayerInputBlocked(!gameFocused);
+            GAME->Set_PlayerInputBlocked(!gameFocused || _isTargetCameraEditMode);
             GAME->Set_FreeCameraInputEnabled(false);
 
-            if (gameFocused)
+            if(_isTargetCameraEditMode)
+                GAME->Unlock_Mouse();
+            else if (gameFocused)
                 GAME->Lock_Mouse();
             else
                 GAME->Unlock_Mouse();
         }
 
-        return;
+            return;
     }
 
     const bool freeCameraControl =
@@ -1150,6 +1163,12 @@ void EditorInstance::Flush_PendingPick()
 
     _pendingPick.pending = false;
     _pickingSystem->DoPickAt(_pendingPick.mousePos, _pendingPick.vpMin, _pendingPick.vpMax);
+}
+
+void EditorInstance::Toogle_TargetCameraEditMode()
+{
+    _isTargetCameraEditMode = !_isTargetCameraEditMode;
+    CLIENT->Set_TargetCameraEditMode(_isTargetCameraEditMode);
 }
 
 void EditorInstance::Request_FrameStep()
