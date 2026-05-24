@@ -22,7 +22,12 @@ private:
 	LevelType			    _nextLevel = { LevelType::END };
 	Shared<Loader>          _loader = nullptr;
 	chrono::steady_clock::time_point _loadingStartTime = {};
+	chrono::steady_clock::time_point _firstProcessStartTime = {};
 	bool                    _printedLoadCompleteLog = false;
+	bool                    _hasRenderedFirstFrame = false;
+	bool                    _printedFirstRenderLog = false;
+	bool                    _printedFirstProcessLog = false;
+	uint32                  _postFirstRenderFrameCount = 0;
 
 private:
     HRESULT Ready_LoadingUIRenderResources();

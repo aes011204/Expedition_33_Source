@@ -17,21 +17,31 @@ public:
         CircularHole,
     };
 
+    enum class ImageRenderMode : uint8
+    {
+        Normal,
+        PatternOverlay,
+    };
+
     enum class FillOrigin : uint8
     {
         LeftToRight,
         RightToLeft,
+        TopToBottom,
+        BottomToTop,
     };
 
     struct UI_IMAGE_DESC : public UI_Base::UI_DESC
     {
         wstring texturePath{};
         wstring maskTexturePath{};
+        wstring patternMaskTexturePath{};
         Vec4 color{ 1.f, 1.f, 1.f, 1.f };
         uint32 shaderPrototypeLevelIndex{ 0 };
         wstring shaderPrototypeTag{ L"Shader_UI" };
         uint32 viBufferPrototypeLevelIndex{ 0 };
         wstring viBufferPrototypeTag{ L"VIBuffer_Rect" };
+        ImageRenderMode imageRenderMode = ImageRenderMode::Normal;
 
         // 인수: 원형 마스크 추가
         MaskMode maskMode = MaskMode::None;
@@ -40,7 +50,7 @@ public:
         float holeFeather = 0.05f;
 
         bool useFillRatio = false;
-        float fillRatio = 1.f; // 0~1 비율로 채워진 영역만 남긴다.
+        float fillRatio = 1.f;
         FillOrigin fillOrigin = FillOrigin::LeftToRight;
     };
 
@@ -64,19 +74,24 @@ public:
     void Set_HoleCenterUV(const Vec2& uv) { _holeCenterUV = uv; }
     void Set_HoleRadius(float radius) { _holeRadius = radius; }
     void Set_HoleFeather(float feather) { _holeFeather = feather; }
-    void Set_UseFillRatio(bool useFill) { _useFillRatio = useFill; }
-    void Set_FillRatio(float ratio) { _fillRatio = ::clamp(ratio, 0.f, 1.f); } // HP 바는 0~1 비율로 UV crop 한다.
-    void Set_FillOrigin(FillOrigin origin) { _fillOrigin = origin; }
+    void Set_UseFillRatio(bool useFillRatio) { _useFillRatio = useFillRatio; }
+    void Set_FillRatio(float fillRatio);
+    void Set_FillOrigin(FillOrigin fillOrigin) { _fillOrigin = fillOrigin; }
+
+    HRESULT Set_TexturePath(const wstring& texturePath);
+    HRESULT Set_TextureGuid(const string& textureGuid);
 
 private:
     HRESULT Ready_RenderResources();
+    HRESULT Load_TextureResource();
 
 private:
     bool    _isOverlay = false;
     bool    _useGrayScale = false;
-    float    _grayAmount;
+    float   _grayAmount = 0.f;
     wstring _texturePath{};
     wstring _maskTexturePath{};
+    wstring _patternMaskTexturePath{};
     Vec4    _color{ 1.f, 1.f, 1.f, 1.f };
 
     uint32 _shaderPrototypeLevelIndex{ 0 };
@@ -86,11 +101,13 @@ private:
 
     ComPtr<ShaderResourceView> _srv{};
     ComPtr<ShaderResourceView> _maskSrv{};
+    ComPtr<ShaderResourceView> _patternMaskSrv{};
 
     Shared<ShaderCom> _shader{};
     Shared<VIBuffer_Rect> _viBuffer{};
 
     // 인수: 원형 마스크 추가
+    ImageRenderMode _imageRenderMode = ImageRenderMode::Normal;
     MaskMode _maskMode = MaskMode::None;
     Vec2 _holeCenterUV{ 0.5f, 0.5f };
     float _holeRadius = 0.f;

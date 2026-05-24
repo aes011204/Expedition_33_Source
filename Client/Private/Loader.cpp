@@ -249,9 +249,30 @@ HRESULT Loader::Append_ResourceJobsForLevel(LevelType levelType)
 
     _totalJobCount.fetch_add(builtJobs.size());
 
-    //LOG_ERROR("[Loader::Load_ResourceJobsForLevel] level={}, totalJobs={}",
-    //    static_cast<int>(levelType),
-    //    static_cast<int>(builtJobs.size()));
+#ifdef _DEBUG
+    if (levelType == LevelType::Static)
+    {
+        array<size_t, static_cast<size_t>(ELoadJobType::Unknown) + 1> typeCounts = {};
+
+        for (const FLoadJob& job : builtJobs)
+        {
+            const size_t index = static_cast<size_t>(job.eType);
+            if (index < typeCounts.size())
+                ++typeCounts[index];
+        }
+
+        LOG_DEBUG(
+            "[Loader::StaticJobs] total={}, TextureCreate={}, Shader={}, ComputeShader={}, Model={}, GameObject={}, Component={}, StaticLevel={}",
+            static_cast<int>(builtJobs.size()),
+            static_cast<int>(typeCounts[static_cast<size_t>(ELoadJobType::TextureCreate)]),
+            static_cast<int>(typeCounts[static_cast<size_t>(ELoadJobType::Shader)]),
+            static_cast<int>(typeCounts[static_cast<size_t>(ELoadJobType::ComputeShader)]),
+            static_cast<int>(typeCounts[static_cast<size_t>(ELoadJobType::Model)]),
+            static_cast<int>(typeCounts[static_cast<size_t>(ELoadJobType::GameObject)]),
+            static_cast<int>(typeCounts[static_cast<size_t>(ELoadJobType::Component)]),
+            static_cast<int>(typeCounts[static_cast<size_t>(ELoadJobType::StaticLevel)]));
+    }
+#endif
 
     return S_OK;
 }

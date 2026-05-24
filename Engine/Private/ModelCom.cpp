@@ -1662,7 +1662,7 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
     const bool wrapped = (_isAnimLoop && currentTimeSec < context.previousTimeSec);
 
     {
-        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::Notify");
+        //Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::Notify");
 
         if (Ensure_AnimNotifyAssetLoaded())
         {

@@ -3,6 +3,7 @@
 
 #include "GameInstance.h"
 #include "UI_Animation_View.h"
+#include "UI_DocumentInternalAccess.h"
 #include "UI_Editor_Utils.h"
 #include "UI_Hierarchy_View.h"
 #include "UI_Inspector.h"
@@ -18,6 +19,16 @@ namespace UIEditor
             string normalizedPath = String::ToLowerCopy(path);
             replace(normalizedPath.begin(), normalizedPath.end(), '\\', '/');
             return normalizedPath;
+        }
+
+        bool NearlyEqual(float lhs, float rhs)
+        {
+            return fabsf(lhs - rhs) <= 0.001f;
+        }
+
+        bool NearlyEqual(const ImVec2& lhs, const ImVec2& rhs)
+        {
+            return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
         }
 
     }
@@ -81,11 +92,6 @@ namespace UIEditor
             return nullptr;
 
         return iter->second;
-    }
-
-    UI_Document& UI_Editor_Manager::Get_Document()
-    {
-        return _document;
     }
 
     const UI_Document& UI_Editor_Manager::Get_Document() const
@@ -157,11 +163,6 @@ namespace UIEditor
         Apply_SelectionState(_selectionService.Make_ClearSelectionState(), true);
     }
 
-    UI_Object* UI_Editor_Manager::Get_SelectedObject()
-    {
-        return _selectionService.Get_SelectedObject(_document);
-    }
-
     const UI_Object* UI_Editor_Manager::Get_SelectedObject() const
     {
         return _selectionService.Get_SelectedObject(_document);
@@ -194,6 +195,23 @@ namespace UIEditor
         const string& maskTexturePath)
     {
         return _previewService.Get_MaskedTexturePreviewSRV(textureGuid, texturePath, maskTextureGuid, maskTexturePath);
+    }
+
+    ID3D11ShaderResourceView* UI_Editor_Manager::Get_PatternOverlayPreviewSRV(
+        const string& textureGuid,
+        const string& texturePath,
+        const string& paintMaskTextureGuid,
+        const string& paintMaskTexturePath,
+        const string& patternMaskTextureGuid,
+        const string& patternMaskTexturePath)
+    {
+        return _previewService.Get_PatternOverlayPreviewSRV(
+            textureGuid,
+            texturePath,
+            paintMaskTextureGuid,
+            paintMaskTexturePath,
+            patternMaskTextureGuid,
+            patternMaskTexturePath);
     }
 
     void UI_Editor_Manager::Render_DockSpace()
@@ -355,7 +373,7 @@ namespace UIEditor
         if (!Confirm_SaveIfDirty(L"create a new UI document"))
             return false;
 
-        _document.Reset();
+        UI_DocumentInternalAccess::Reset(_document);
         _fileService.Clear_CurrentDocumentPath();
         Clear_Selection();
         _animationPreviewService.Stop();
@@ -449,7 +467,7 @@ namespace UIEditor
 
         if (ImGui::BeginPopupModal(popupTitle, nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         {
-            UI_Object* object = _isRenamingCanvas ? nullptr : _document.Find_Object(_renameRequestObjectId);
+            const UI_Object* object = _isRenamingCanvas ? nullptr : static_cast<const UI_Document&>(_document).Find_Object(_renameRequestObjectId);
             if (!_isRenamingCanvas && nullptr == object)
             {
                 _renameRequestObjectId = 0;
@@ -505,7 +523,7 @@ namespace UIEditor
         if (!_assetManagerReady)
             return;
 
-        vector<UI_Object>& objects = _document.Get_MutableObjects();
+        vector<UI_Object>& objects = UI_DocumentInternalAccess::Get_MutableObjects(_document);
 
         for (UI_Object& object : objects)
         {
@@ -532,6 +550,7 @@ namespace UIEditor
 
                 resolveTextureGuid(object.textureGuid, object.texturePath, "image");
                 resolveTextureGuid(object.maskTextureGuid, object.maskTexturePath, "mask");
+                resolveTextureGuid(object.patternMaskTextureGuid, object.patternMaskTexturePath, "pattern mask");
             }
             else if (object.type == UI_ObjectType::Text)
             {
@@ -644,6 +663,54 @@ namespace UIEditor
 
         Set_SingleSelection(createdObjectId);
         Mark_Dirty();
+    }
+
+    bool UI_Editor_Manager::Create_PatternOverlayFromImage(ObjectId sourceObjectId)
+    {
+        const UI_Object* sourceObject = static_cast<const UI_Document&>(_document).Find_Object(sourceObjectId);
+        if (nullptr == sourceObject || sourceObject->type != UI_ObjectType::Image)
+            return false;
+
+        if (Is_ObjectEffectivelyLocked(sourceObjectId))
+            return false;
+
+        const UI_Object source = *sourceObject;
+        const int32 overlaySortOrder = source.sortOrder + 1;
+
+        Push_UndoSnapshot();
+
+        const ObjectId overlayObjectId = UI_DocumentInternalAccess::Create_Object(_document, UI_ObjectType::Image, source.parentId);
+        UI_Object* overlayObject = UI_DocumentInternalAccess::Find_Object(_document, overlayObjectId);
+        if (nullptr == overlayObject)
+            return false;
+
+        for (UI_Object& object : UI_DocumentInternalAccess::Get_MutableObjects(_document))
+        {
+            if (object.id != overlayObjectId && object.sortOrder >= overlaySortOrder)
+                ++object.sortOrder;
+        }
+
+        UI_Object overlay = source;
+        overlay.id = overlayObjectId;
+        overlay.name = _document.Generate_UniqueName(source.name.empty() ? "PatternOverlay" : source.name + "_PatternOverlay", overlayObjectId);
+        overlay.parentId = source.parentId;
+        overlay.imageRenderMode = UI_ImageRenderMode::PatternOverlay;
+        overlay.textureGuid.clear();
+        overlay.texturePath.clear();
+        overlay.patternMaskTextureGuid.clear();
+        overlay.patternMaskTexturePath.clear();
+        overlay.color = ImVec4(0.74f, 0.58f, 0.25f, 0.35f);
+        overlay.visible = true;
+        overlay.locked = false;
+        overlay.sortOrder = overlaySortOrder;
+        overlay.animationClips.clear();
+
+        *overlayObject = overlay;
+
+        Set_SingleSelection(overlayObjectId);
+        Clear_RuntimeCaches();
+        Mark_Dirty();
+        return true;
     }
 
     bool UI_Editor_Manager::Create_UIObjectsFromPrefab(const UI_PrefabAsset& prefab)
@@ -787,7 +854,7 @@ namespace UIEditor
         if (!_objectCommandService.Can_RenameObject(_document, objectId, newName))
             return false;
 
-        const UI_Object* object = _document.Find_Object(objectId);
+        const UI_Object* object = static_cast<const UI_Document&>(_document).Find_Object(objectId);
         const string uniqueName = _objectCommandService.Resolve_RenameObjectName(_document, objectId, newName);
         if (object->name == uniqueName)
             return true;
@@ -801,7 +868,7 @@ namespace UIEditor
 
     void UI_Editor_Manager::Request_RenameUIObject(ObjectId objectId)
     {
-        UI_Object* object = _document.Find_Object(objectId);
+        const UI_Object* object = static_cast<const UI_Document&>(_document).Find_Object(objectId);
         if (nullptr == object || Is_ObjectEffectivelyLocked(objectId))
             return;
 
@@ -813,7 +880,7 @@ namespace UIEditor
 
     bool UI_Editor_Manager::Reparent_UIObject(ObjectId objectId, ObjectId newParentId)
     {
-        const UI_Object* object = _document.Find_Object(objectId);
+        const UI_Object* object = static_cast<const UI_Document&>(_document).Find_Object(objectId);
         if (nullptr == object || object->parentId == newParentId)
             return false;
 
@@ -847,30 +914,168 @@ namespace UIEditor
 
     bool UI_Editor_Manager::Set_ObjectVisible(ObjectId objectId, bool visible)
     {
-        if (!_objectCommandService.Can_SetObjectVisible(_document, objectId, visible))
+        if (!_objectEditService.Can_SetObjectVisible(_document, objectId, visible))
             return false;
 
         Push_UndoSnapshot();
-        _objectCommandService.Set_ObjectVisible(_document, objectId, visible);
+        _objectEditService.Set_ObjectVisible(_document, objectId, visible);
         Mark_Dirty();
         return true;
     }
 
     bool UI_Editor_Manager::Set_ObjectLocked(ObjectId objectId, bool locked)
     {
-        if (!_objectCommandService.Can_SetObjectLocked(_document, objectId, locked))
+        if (!_objectEditService.Can_SetObjectLocked(_document, objectId, locked))
             return false;
 
         Push_UndoSnapshot();
-        _objectCommandService.Set_ObjectLocked(_document, objectId, locked);
+        _objectEditService.Set_ObjectLocked(_document, objectId, locked);
         Mark_Dirty();
         return true;
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectLocalPosition(ObjectId objectId, const ImVec2& position)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectLocalPosition(_document, objectId, position); },
+            [&]() { return _objectEditService.Set_ObjectLocalPosition(_document, objectId, position); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectSize(ObjectId objectId, const ImVec2& size)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectSize(_document, objectId, size); },
+            [&]() { return _objectEditService.Set_ObjectSize(_document, objectId, size); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectScale(ObjectId objectId, const ImVec2& scale)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectScale(_document, objectId, scale); },
+            [&]() { return _objectEditService.Set_ObjectScale(_document, objectId, scale); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectRotationRadians(ObjectId objectId, float rotationRadians)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectRotationRadians(_document, objectId, rotationRadians); },
+            [&]() { return _objectEditService.Set_ObjectRotationRadians(_document, objectId, rotationRadians); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectSortOrder(ObjectId objectId, int32 sortOrder)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectSortOrder(_document, objectId, sortOrder); },
+            [&]() { return _objectEditService.Set_ObjectSortOrder(_document, objectId, sortOrder); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectRenderGroup(ObjectId objectId, UI_RenderGroup renderGroup)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectRenderGroup(_document, objectId, renderGroup); },
+            [&]() { return _objectEditService.Set_ObjectRenderGroup(_document, objectId, renderGroup); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectColor(ObjectId objectId, const ImVec4& color)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectColor(_document, objectId, color); },
+            [&]() { return _objectEditService.Set_ObjectColor(_document, objectId, color); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectImageRenderMode(ObjectId objectId, UI_ImageRenderMode imageRenderMode)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectImageRenderMode(_document, objectId, imageRenderMode); },
+            [&]() { return _objectEditService.Set_ObjectImageRenderMode(_document, objectId, imageRenderMode); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectTextureBinding(_document, objectId, textureGuid, texturePath); },
+            [&]() { return _objectEditService.Set_ObjectTextureBinding(_document, objectId, textureGuid, texturePath); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectMaskTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectMaskTextureBinding(_document, objectId, textureGuid, texturePath); },
+            [&]() { return _objectEditService.Set_ObjectMaskTextureBinding(_document, objectId, textureGuid, texturePath); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectPatternMaskTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectPatternMaskTextureBinding(_document, objectId, textureGuid, texturePath); },
+            [&]() { return _objectEditService.Set_ObjectPatternMaskTextureBinding(_document, objectId, textureGuid, texturePath); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectText(ObjectId objectId, const string& text)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectText(_document, objectId, text); },
+            [&]() { return _objectEditService.Set_ObjectText(_document, objectId, text); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectFontSize(ObjectId objectId, float fontSize)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectFontSize(_document, objectId, fontSize); },
+            [&]() { return _objectEditService.Set_ObjectFontSize(_document, objectId, fontSize); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectTextAlign(ObjectId objectId, UI_TextAlign textAlign)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectTextAlign(_document, objectId, textAlign); },
+            [&]() { return _objectEditService.Set_ObjectTextAlign(_document, objectId, textAlign); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectTextWrap(ObjectId objectId, bool textWrap)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectTextWrap(_document, objectId, textWrap); },
+            [&]() { return _objectEditService.Set_ObjectTextWrap(_document, objectId, textWrap); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectFontBinding(
+        ObjectId objectId,
+        const string& fontGuid,
+        const string& fontPath,
+        const string& fontTag)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectFontBinding(_document, objectId, fontGuid, fontPath, fontTag); },
+            [&]() { return _objectEditService.Set_ObjectFontBinding(_document, objectId, fontGuid, fontPath, fontTag); });
     }
 
     bool UI_Editor_Manager::Set_UIObjectWorldPosition(ObjectId objectId, const ImVec2& worldPosition)
     {
         if (Is_ObjectEffectivelyLocked(objectId))
             return false;
+
+        if (nullptr == static_cast<const UI_Document&>(_document).Find_Object(objectId) ||
+            NearlyEqual(_document.Get_WorldPosition(objectId), worldPosition))
+        {
+            return false;
+        }
 
         if (!_historyService.Is_EditTransactionOpen())
             Push_UndoSnapshot();
@@ -889,6 +1094,12 @@ namespace UIEditor
 
         if (!_transformService.Can_SetWorldRect(_document, objectId))
             return false;
+
+        if (NearlyEqual(_document.Get_WorldPosition(objectId), worldPosition) &&
+            NearlyEqual(_document.Get_WorldSize(objectId), worldSize))
+        {
+            return false;
+        }
 
         if (!_historyService.Is_EditTransactionOpen())
             Push_UndoSnapshot();
@@ -1007,6 +1218,31 @@ namespace UIEditor
     void UI_Editor_Manager::Clear_Dirty()
     {
         _historyService.Clear_Dirty(_document);
+    }
+
+    bool UI_Editor_Manager::Apply_UIObjectEdit(
+        ObjectId objectId,
+        const function<bool(const UI_Object&)>& canApply,
+        const function<bool()>& applyEdit)
+    {
+        if (Is_ObjectEffectivelyLocked(objectId))
+            return false;
+
+        const UI_Object* object = static_cast<const UI_Document&>(_document).Find_Object(objectId);
+        if (nullptr == object)
+            return false;
+
+        if (canApply && !canApply(*object))
+            return false;
+
+        if (!_historyService.Is_EditTransactionOpen())
+            Push_UndoSnapshot();
+
+        if (!applyEdit || !applyEdit())
+            return false;
+
+        Mark_Dirty();
+        return true;
     }
 
     void UI_Editor_Manager::Push_UndoSnapshot()

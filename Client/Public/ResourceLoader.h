@@ -33,6 +33,7 @@ using FLoadJob = struct tagLoadJob
     wstring strPrototypeTag = {};
     wstring strPath = {};
 
+    string strSourceTable = {};
     string strInputLayout = {};
     string strEntryPoint = {};
     string strResourceType = {};
@@ -81,6 +82,7 @@ public:
 
     // 이번 레벨에서 필요한 LoadJob 생성. 여기서는 Add_Prototype을 하지 않음
     HRESULT Build_LevelJobs(LevelType levelType, vector<FLoadJob>& outJobs, const wstring& strJsonRootPath = L"");
+    HRESULT Build_LoadingUIRenderJobs(vector<FLoadJob>& outJobs, const wstring& strJsonRootPath = L"");
 
     static FInputLayoutInfo Get_InputLayout(const string& strName);
 
@@ -114,6 +116,7 @@ private:
     static uint32  Get_LevelIndex_FromString(const string& strLevel);
     static wstring Get_DefaultJsonRootPath();
     static wstring Resolve_RuntimePath(const wstring& path);
+    static void    Log_LoadJobPrototypeFailure(const FLoadJob& loadJob, string_view reason);
 
 private:
     ComPtr<Device> _device = { nullptr };

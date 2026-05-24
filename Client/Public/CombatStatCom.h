@@ -34,7 +34,7 @@ public:
         float mastery = 0.f;
         float criticalChance = 0.f;
 
-        string portrait;
+        string portraitGuid;
 
         FCommonCharacterStats commonCharacterStats = {};
     };

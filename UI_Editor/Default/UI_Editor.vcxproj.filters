@@ -64,6 +64,9 @@
     <Filter Include="01. Manager\UI_Editor_Manager\ObjectCommandService">
       <UniqueIdentifier>{07926d15-8c1c-4e97-a6e6-677260259a05}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01. Manager\UI_Editor_Manager\ObjectEditService">
+      <UniqueIdentifier>{91a6a663-fb31-46c4-9ee7-e3f3db9a7018}</UniqueIdentifier>
+    </Filter>
     <Filter Include="01. Manager\UI_Editor_Manager\TransformService">
       <UniqueIdentifier>{6b0c6d40-379b-4631-af6e-6b84e61ae8f6}</UniqueIdentifier>
     </Filter>
@@ -105,6 +108,9 @@
     <ClCompile Include="..\Private\UI_DocumentSerializer.cpp">
       <Filter>04. Document</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_DocumentInternalAccess.cpp">
+      <Filter>04. Document</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_Editor_Window.cpp">
       <Filter>02. View</Filter>
     </ClCompile>
@@ -135,6 +141,9 @@
     <ClCompile Include="..\Private\UI_ObjectCommandService.cpp">
       <Filter>01. Manager\UI_Editor_Manager\ObjectCommandService</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_ObjectEditService.cpp">
+      <Filter>01. Manager\UI_Editor_Manager\ObjectEditService</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_TransformService.cpp">
       <Filter>01. Manager\UI_Editor_Manager\TransformService</Filter>
     </ClCompile>
@@ -154,6 +163,9 @@
       <Filter>02. View\Viewport</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Viewport_Utils.cpp">
+      <Filter>02. View\Viewport\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_PreviewTransformResolver.cpp">
       <Filter>02. View\Viewport\Utility</Filter>
     </ClCompile>
   </ItemGroup>
@@ -206,6 +218,9 @@
     <ClInclude Include="..\Public\UI_Document.h">
       <Filter>04. Document</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_DocumentInternalAccess.h">
+      <Filter>04. Document</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\UI_DocumentSerializer.h">
       <Filter>04. Document</Filter>
     </ClInclude>
@@ -236,6 +251,9 @@
     <ClInclude Include="..\Public\UI_ObjectCommandService.h">
       <Filter>01. Manager\UI_Editor_Manager\ObjectCommandService</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_ObjectEditService.h">
+      <Filter>01. Manager\UI_Editor_Manager\ObjectEditService</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\UI_TransformService.h">
       <Filter>01. Manager\UI_Editor_Manager\TransformService</Filter>
     </ClInclude>
@@ -255,6 +273,9 @@
       <Filter>02. View\Viewport</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_Viewport_Utils.h">
+      <Filter>02. View\Viewport\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_PreviewTransformResolver.h">
       <Filter>02. View\Viewport\Utility</Filter>
     </ClInclude>
   </ItemGroup>
