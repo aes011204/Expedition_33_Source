@@ -63,6 +63,7 @@ private:
 private:
     HRESULT Ready_Fonts();
     HRESULT Ready_Prototype_For_Static_Level();
+    HRESULT Ready_Prototype_For_GamePlay_Preview_Level();
     HRESULT Ready_PreviewLevel(); // EffectEditor 전용 preview level을 GamePlay resource index 위에 올린다.
 
     wstring Get_ClientResourceRoot() const;

@@ -19,7 +19,6 @@ namespace Internal
 {
     constexpr const wchar_t* kDefaultEffectMaterialFileName = L"M_DefaultMaterial.effectmaterial.json";
     constexpr const char* kDefaultEffectMaterialName = "M_DefaultMaterial";
-    constexpr const char* kDefaultEffectMaterialTextureGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
     constexpr const char* kDefaultEffectMaterialTexturePath = "Effects/Textures/Shared/DefaultTexture.dds";
     constexpr const wchar_t* kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
     constexpr const wchar_t* kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
@@ -243,8 +242,10 @@ namespace Internal
         if (materialPath.empty() || !EffectMaterialPresetReader::Read(materialPath, data.material))
         {
             data.material.sourcePresetName = kDefaultEffectMaterialName;
-            data.material.mainTextureGuid = kDefaultEffectMaterialTextureGuid;
             data.material.mainTexturePath = kDefaultEffectMaterialTexturePath;
+            data.material.mainTextureGuid = GAME != nullptr
+                ? GAME->Ensure_AssetGUID((fs::path(GAME->Get_AssetRoot()) / String::ToWString(kDefaultEffectMaterialTexturePath)).wstring(), "Texture")
+                : string{};
         }
 
         return data;

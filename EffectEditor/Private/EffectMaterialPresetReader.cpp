@@ -102,23 +102,48 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         return defaultValue;
     };
 
+    const auto resolve_texture_path_by_path = [](const string& texturePath) -> wstring
+    {
+        if (texturePath.empty())
+            return {};
+
+        fs::path candidatePath = String::ToWString(texturePath);
+        if (candidatePath.is_relative() && GAME != nullptr)
+            candidatePath = fs::path(GAME->Get_AssetRoot()) / candidatePath;
+
+        candidatePath = candidatePath.lexically_normal();
+        return fs::exists(candidatePath) ? candidatePath.wstring() : wstring{};
+    };
+
     const auto migrate_legacy_texture_id = [](const string& textureId, string& outGuid, string& outPath) -> bool
     {
         if (textureId == "Texture_Effect_DefaultTexture")
         {
-            outGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
+            outGuid.clear();
             outPath = "Effects/Textures/Shared/DefaultTexture.dds";
             return true;
         }
 
         if (textureId == "Texture_Effect_Clouds4")
         {
-            outGuid = "321bf66c-e6f9-4495-9855-275274727e83";
+            outGuid.clear();
             outPath = "Effects/Textures/Shared/clouds4_T.dds";
             return true;
         }
 
         return false;
+    };
+
+    const auto fill_texture_guid_from_path = [&](string& textureGuid, const string& texturePath)
+    {
+        if (!textureGuid.empty() || GAME == nullptr)
+            return;
+
+        const wstring resolvedPath = resolve_texture_path_by_path(texturePath);
+        if (resolvedPath.empty())
+            return;
+
+        textureGuid = GAME->Ensure_AssetGUID(resolvedPath, "Texture");
     };
 
     const auto fill_texture_path_hint_from_guid = [](const string& textureGuid, string& texturePath)
@@ -154,6 +179,9 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         const string legacyNoiseTextureId = read_string("noiseTextureId", {});
         migrate_legacy_texture_id(legacyNoiseTextureId, material.noiseTextureGuid, material.noiseTexturePath);
     }
+    fill_texture_guid_from_path(material.mainTextureGuid, material.mainTexturePath);
+    fill_texture_guid_from_path(material.noiseTextureGuid, material.noiseTexturePath);
+    fill_texture_guid_from_path(material.maskTextureGuid, material.maskTexturePath);
     fill_texture_path_hint_from_guid(material.mainTextureGuid, material.mainTexturePath);
     fill_texture_path_hint_from_guid(material.noiseTextureGuid, material.noiseTexturePath);
     fill_texture_path_hint_from_guid(material.maskTextureGuid, material.maskTexturePath);

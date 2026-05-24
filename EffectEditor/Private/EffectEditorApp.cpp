@@ -14,21 +14,40 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    bool Starts_With(const wstring& value, const wchar_t* prefix)
-    {
-        const size_t prefixLength = wcslen(prefix);
-        return value.size() >= prefixLength && 0 == value.compare(0, prefixLength, prefix);
-    }
-
     bool Is_EffectEditorStaticLevelAllowed(const wstring& prototypeTag)
     {
-        return prototypeTag == L"VIBuffer_Rect" || prototypeTag == L"VIBuffer_Cube";
+        return prototypeTag == L"VIBuffer_Cube" || prototypeTag == L"VIBuffer_Rect";
+    }
+
+    bool Is_EffectEditorPreviewTextureAllowed(const wstring& prototypeTag)
+    {
+        return prototypeTag == L"Texture_Effect_EditorSkybox";
+    }
+
+    bool Is_EffectEditorPreviewShaderAllowed(const wstring& prototypeTag)
+    {
+        return
+            prototypeTag == L"Shader_VtxCube" ||
+            prototypeTag == L"Shader_VtxMesh" ||
+            prototypeTag == L"Shader_VtxAnimMesh" ||
+            prototypeTag == L"Shader_EffectMaterialPreview" ||
+            prototypeTag == L"Shader_EffectSprite" ||
+            prototypeTag == L"Shader_EffectTrail";
+    }
+
+    bool Is_EffectEditorPreviewComputeShaderAllowed(const wstring& prototypeTag)
+    {
+        return
+            prototypeTag == L"ComputeShader_PointParticle" ||
+            prototypeTag == L"ComputeShader_TrailStrip" ||
+            prototypeTag == L"ComputeShader_BoneRemap" ||
+            prototypeTag == L"ComputeShader_AnimMeshSkinning";
     }
 
     bool Is_EffectEditorPreviewComponentAllowed(const wstring& prototypeTag)
     {
         return
-            Starts_With(prototypeTag, L"Com_Effect_") ||
+            prototypeTag == L"Com_Effect_ComputePointParticleBuffer" ||
             prototypeTag == L"Com_PlayerStat" ||
             prototypeTag == L"Com_Collider_OBB";
     }
@@ -36,7 +55,6 @@ namespace Internal
     bool Is_EffectEditorPreviewModelAllowed(const wstring& prototypeTag)
     {
         return
-            Starts_With(prototypeTag, L"Model_Effect_") ||
             prototypeTag == L"Model_GustaveBody" ||
             prototypeTag == L"Model_GustaveHead" ||
             prototypeTag == L"Model_GustaveHair";
@@ -45,10 +63,20 @@ namespace Internal
     bool Is_EffectEditorPreviewGameObjectAllowed(const wstring& prototypeTag)
     {
         return
-            Starts_With(prototypeTag, L"GameObject_Effect_") ||
             prototypeTag == L"GameObject_Body_Player" ||
             prototypeTag == L"GameObject_Head_Player" ||
             prototypeTag == L"GameObject_Hair_Player";
+    }
+
+    bool Is_EffectEditorPreviewGamePlayLoadJobAllowed(const FLoadJob& loadJob)
+    {
+        if (loadJob.eType != ELoadJobType::GameObject)
+            return false;
+
+        return
+            loadJob.strPrototypeTag == L"GameObject_EffectInstance" ||
+            loadJob.strPrototypeTag == L"GameObject_Effect_ComputeSpriteEmitter" ||
+            loadJob.strPrototypeTag == L"GameObject_Effect_ComputeTrailEmitter";
     }
 
     bool Is_EffectEditorStaticLoadJobAllowed(const FLoadJob& loadJob)
@@ -56,8 +84,10 @@ namespace Internal
         switch (loadJob.eType)
         {
         case ELoadJobType::Shader:
+            return Is_EffectEditorPreviewShaderAllowed(loadJob.strPrototypeTag);
+
         case ELoadJobType::ComputeShader:
-            return true;
+            return Is_EffectEditorPreviewComputeShaderAllowed(loadJob.strPrototypeTag);
 
         case ELoadJobType::Component:
             return Is_EffectEditorPreviewComponentAllowed(loadJob.strPrototypeTag);
@@ -72,17 +102,23 @@ namespace Internal
             return Is_EffectEditorStaticLevelAllowed(loadJob.strPrototypeTag);
 
         case ELoadJobType::TextureCreate:
-            return Starts_With(loadJob.strPrototypeTag, L"Texture_Effect_");
+            return Is_EffectEditorPreviewTextureAllowed(loadJob.strPrototypeTag);
 
         default:
             return false;
         }
     }
 
-    void Log_EffectEditorStaticLoadSummary(size_t totalCount, size_t includedCount, size_t excludedCount, size_t failedCount)
+    void Log_EffectEditorResourceFilterSummary(
+        const char* scope,
+        size_t totalCount,
+        size_t includedCount,
+        size_t excludedCount,
+        size_t failedCount)
     {
         LOG_INFO(
-            "[EffectEditorStaticFilter] total={}, included={}, excluded={}, failed={}",
+            "[ResourceFilter] scope={}, total={}, included={}, excluded={}, failed={}",
+            scope,
             static_cast<uint32>(totalCount),
             static_cast<uint32>(includedCount),
             static_cast<uint32>(excludedCount),
@@ -186,7 +222,7 @@ HRESULT EffectEditorApp::Initialize()
     CHECK_FAILED(run_startup_step(initializeClientMs, [&]{ return CLIENT->Initialize_Client_ForEffectEditor(_device, _context); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyFontsMs, [&]{ return Ready_Fonts(); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyStaticResourcesMs, [&]{ return Ready_Prototype_For_Static_Level(); }), E_FAIL);
-    CHECK_FAILED(run_startup_step(readyGamePlayResourcesMs, [&]{ return CLIENT->Ready_LevelResources(LevelType::GamePlay); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(readyGamePlayResourcesMs, [&]{ return Ready_Prototype_For_GamePlay_Preview_Level(); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyPreviewLevelMs, [&]{ return Ready_PreviewLevel(); }), E_FAIL);
 
     EffectEditorDesc editorDesc{};
@@ -584,7 +620,7 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
         {
             ++failedCount;
             LOG_WARN(
-                "[EffectEditorStaticFilter] register failed. type={}, tag={}",
+                "[ResourceFilter] scope=Static, register failed. type={}, tag={}",
                 string(magic_enum::enum_name(loadJob.eType)),
                 String::ToString(loadJob.strPrototypeTag)
             );
@@ -592,7 +628,53 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
         }
     }
 
-    Internal::Log_EffectEditorStaticLoadSummary(loadJobs.size(), includedCount, excludedCount, failedCount);
+    Internal::Log_EffectEditorResourceFilterSummary("Static", loadJobs.size(), includedCount, excludedCount, failedCount);
+
+    return S_OK;
+}
+
+HRESULT EffectEditorApp::Ready_Prototype_For_GamePlay_Preview_Level()
+{
+    const Shared<ResourceLoader> resourceLoader = CLIENT->Get_ResourceLoader();
+    CHECK_NULL(resourceLoader, E_FAIL);
+
+    vector<FLoadJob> loadJobs;
+    CHECK_FAILED(resourceLoader->Build_LevelJobs(LevelType::GamePlay, loadJobs), E_FAIL);
+
+    size_t includedCount = 0;
+    size_t excludedCount = 0;
+    size_t failedCount = 0;
+
+    for (const FLoadJob& loadJob : loadJobs)
+    {
+        const bool included = Internal::Is_EffectEditorPreviewGamePlayLoadJobAllowed(loadJob);
+
+        if (!included)
+        {
+            ++excludedCount;
+            continue;
+        }
+
+        ++includedCount;
+
+        if (FAILED(resourceLoader->Register_LoadJob(loadJob)))
+        {
+            ++failedCount;
+            LOG_WARN(
+                "[ResourceFilter] scope=GamePlayPreview, register failed. type={}, tag={}",
+                string(magic_enum::enum_name(loadJob.eType)),
+                String::ToString(loadJob.strPrototypeTag)
+            );
+            continue;
+        }
+    }
+
+    Internal::Log_EffectEditorResourceFilterSummary(
+        "GamePlayPreview",
+        loadJobs.size(),
+        includedCount,
+        excludedCount,
+        failedCount);
 
     return S_OK;
 }

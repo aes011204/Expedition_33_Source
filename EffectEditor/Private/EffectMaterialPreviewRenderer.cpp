@@ -278,13 +278,17 @@ bool EffectMaterialPreviewRenderer::Ready_Texture(const string& textureGuid, con
         return false;
     }
 
+    const string requestedTextureKey = String::ToString(resolvedPath);
+    if (_texture != nullptr && _loadedTextureKey == requestedTextureKey)
+        return true;
+
     if (guidPathMismatch)
     {
         LOG_WARN(
             "EffectMaterialPreview main texture GUID/path mismatch. mainTextureGuid='{}', mainTexturePath='{}', guidResolvedPath='{}'.",
             textureGuid,
             texturePath,
-            String::ToString(resolvedPath)
+            requestedTextureKey
         );
     }
     else if (usedPathFallback)
@@ -293,13 +297,9 @@ bool EffectMaterialPreviewRenderer::Ready_Texture(const string& textureGuid, con
             "EffectMaterialPreview main texture fell back to path. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}'.",
             textureGuid,
             texturePath,
-            String::ToString(resolvedPath)
+            requestedTextureKey
         );
     }
-
-    const string requestedTextureKey = String::ToString(resolvedPath);
-    if (_texture != nullptr && _loadedTextureKey == requestedTextureKey)
-        return true;
 
     _texture = Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), resolvedPath.c_str(), 1);
     _loadedTextureKey = requestedTextureKey;
@@ -336,7 +336,8 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
         _noiseTexture = nullptr;
         _loadedNoiseTextureKey.clear();
         _statusMessage = "Noise texture missing. Preview continues without noise.";
-        LOG_WARN(
+        LOG_WARN_THROTTLED(
+            60,
             "EffectMaterialPreview noise texture missing. noiseTextureGuid='{}', noiseTexturePath='{}'. Preview continues without noise.",
             textureGuid,
             texturePath
@@ -344,13 +345,17 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
         return true;
     }
 
+    const string requestedTextureKey = String::ToString(resolvedPath);
+    if (_noiseTexture != nullptr && _loadedNoiseTextureKey == requestedTextureKey)
+        return true;
+
     if (guidPathMismatch)
     {
         LOG_WARN(
             "EffectMaterialPreview noise texture GUID/path mismatch. noiseTextureGuid='{}', noiseTexturePath='{}', guidResolvedPath='{}'. Preview continues with GUID texture.",
             textureGuid,
             texturePath,
-            String::ToString(resolvedPath)
+            requestedTextureKey
         );
     }
     else if (usedPathFallback)
@@ -359,13 +364,9 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
             "EffectMaterialPreview noise texture fell back to path. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Preview continues with fallback texture.",
             textureGuid,
             texturePath,
-            String::ToString(resolvedPath)
+            requestedTextureKey
         );
     }
-
-    const string requestedTextureKey = String::ToString(resolvedPath);
-    if (_noiseTexture != nullptr && _loadedNoiseTextureKey == requestedTextureKey)
-        return true;
 
     _noiseTexture = Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), resolvedPath.c_str(), 1);
     _loadedNoiseTextureKey = requestedTextureKey;
@@ -374,7 +375,8 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
     {
         _loadedNoiseTextureKey.clear();
         _statusMessage = "Noise texture missing. Preview continues without noise.";
-        LOG_WARN(
+        LOG_WARN_THROTTLED(
+            60,
             "EffectMaterialPreview noise texture create failed. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Preview continues without noise.",
             textureGuid,
             texturePath,

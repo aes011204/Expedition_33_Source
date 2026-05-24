@@ -61,14 +61,14 @@ namespace Internal
     {
         if (textureId == "Texture_Effect_DefaultTexture")
         {
-            outGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
+            outGuid.clear();
             outPath = "Effects/Textures/Shared/DefaultTexture.dds";
             return true;
         }
 
         if (textureId == "Texture_Effect_Clouds4")
         {
-            outGuid = "321bf66c-e6f9-4495-9855-275274727e83";
+            outGuid.clear();
             outPath = "Effects/Textures/Shared/clouds4_T.dds";
             return true;
         }
@@ -112,6 +112,18 @@ namespace Internal
 
         const wstring resolvedPath = Resolve_TexturePathByPath(texturePath);
         return resolvedPath.empty() ? string{} : GAME->Ensure_AssetGUID(resolvedPath, "Texture");
+    }
+
+    void Fill_TextureGuidFromPath(string& textureGuid, const string& texturePath)
+    {
+        if (!textureGuid.empty() || GAME == nullptr)
+            return;
+
+        const wstring resolvedPath = Resolve_TexturePathByPath(texturePath);
+        if (resolvedPath.empty())
+            return;
+
+        textureGuid = GAME->Ensure_AssetGUID(resolvedPath, "Texture");
     }
 
     void Fill_TexturePathHintFromGuid(const string& textureGuid, string& texturePath)
@@ -334,6 +346,9 @@ namespace Internal
             Read_StringField(root, "noiseTextureId", legacyNoiseTextureId);
             Try_MigrateLegacyTextureId(legacyNoiseTextureId, outData.noiseTextureGuid, outData.noiseTexturePath);
         }
+        Fill_TextureGuidFromPath(outData.mainTextureGuid, outData.mainTexturePath);
+        Fill_TextureGuidFromPath(outData.noiseTextureGuid, outData.noiseTexturePath);
+        Fill_TextureGuidFromPath(outData.maskTextureGuid, outData.maskTexturePath);
         Fill_TexturePathHintFromGuid(outData.mainTextureGuid, outData.mainTexturePath);
         Fill_TexturePathHintFromGuid(outData.noiseTextureGuid, outData.noiseTexturePath);
         Fill_TexturePathHintFromGuid(outData.maskTextureGuid, outData.maskTexturePath);
