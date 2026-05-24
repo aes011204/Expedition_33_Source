@@ -339,7 +339,6 @@
     </ClInclude>
     <ClInclude Include="..\public\UtilitySystem.h" />
     <ClInclude Include="..\public\WeaponUI_Common.h" />
-    <ClInclude Include="Battle_Enum.h" />
     <ClInclude Include="Base_Gustave_Attack.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\BackGround.h" />
@@ -363,6 +362,7 @@
     <ClCompile Include="..\private\ANS_Dodge.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
+    <ClCompile Include="..\Private\ANS_QTE.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
@@ -535,8 +535,6 @@
     </ClCompile>
     <ClCompile Include="..\private\UtilitySystem.cpp" />
     <ClCompile Include="..\private\WeaponUI_Common.cpp" />
-    <ClCompile Include="..\public\Ailment.cpp" />
-    <ClCompile Include="..\public\ANS_QTE.cpp" />
     <ClCompile Include="Base_Gustave_Attack.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>

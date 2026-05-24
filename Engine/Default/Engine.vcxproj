@@ -317,7 +317,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\public\Level_Manager.h" />
     <ClInclude Include="..\public\Light.h" />
     <ClInclude Include="..\public\Light_Manager.h" />
-    <ClInclude Include="..\public\Material.h" />
+    <ClInclude Include="..\Public\MaterialCB_OverrideFields.inl" />
+    <ClInclude Include="..\Public\MaterialCom.h" />
     <ClInclude Include="..\public\MaterialBuilder.h" />
     <ClInclude Include="..\public\Mesh.h" />
     <ClInclude Include="..\public\ModelCom.h" />
@@ -368,7 +369,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\ComputeShaderCom.cpp" />
     <ClCompile Include="..\Private\ComputeStructuredBuffer.cpp" />
     <ClCompile Include="..\Private\Culling_Manager.cpp" />
-    <ClCompile Include="..\PRivate\Debug_Manager.cpp" />
+    <ClCompile Include="..\Private\Debug_Manager.cpp" />
     <ClCompile Include="..\Private\Debug_Profile.cpp" />
     <ClCompile Include="..\Private\DebugDraw.cpp" />
     <ClCompile Include="..\Private\Decorator.cpp" />
