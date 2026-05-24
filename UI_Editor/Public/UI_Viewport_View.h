@@ -43,7 +43,6 @@ namespace UIEditor
         ObjectId _resizingObjectId = 0;
         UI_ResizeHandle _activeResizeHandle = UI_ResizeHandle::None;
         ImVec2 _dragStartMouseCanvasPos = ImVec2(0.f, 0.f);
-        ImVec2 _dragStartObjectWorldPosition = ImVec2(0.f, 0.f);
         ImVec2 _resizeStartMouseCanvasPos = ImVec2(0.f, 0.f);
         ImVec2 _resizeStartObjectWorldPosition = ImVec2(0.f, 0.f);
         ImVec2 _resizeStartObjectWorldSize = ImVec2(0.f, 0.f);

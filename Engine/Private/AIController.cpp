@@ -149,11 +149,10 @@ void AIController::Stop_Move()
     if (!owner || !_PF)
         return;
 
-    Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
+    Vec3 pos = owner->Get_Transform()->Get_Position();
     _PF->Stop_Move(pos);
     _isMoving = false;
 }
-
 
 HRESULT AIController::Load_BehaviorTreeAsset()
 {

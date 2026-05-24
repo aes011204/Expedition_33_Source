@@ -25,6 +25,17 @@ namespace UIEditor
 
             return NormalizePathKey(pathKey);
         }
+
+        ImVec2 Rotate_PointAroundCenter(const ImVec2& point, const ImVec2& center, float rotationRadians)
+        {
+            const float cosAngle = cosf(rotationRadians);
+            const float sinAngle = sinf(rotationRadians);
+            const ImVec2 offset = ImVec2(point.x - center.x, point.y - center.y);
+
+            return ImVec2(
+                center.x + offset.x * cosAngle - offset.y * sinAngle,
+                center.y + offset.x * sinAngle + offset.y * cosAngle);
+        }
     }
 
     const char* Get_ObjectTypeName(UI_ObjectType objectType)
@@ -56,6 +67,19 @@ namespace UIEditor
             return "Right";
         default:
             return "Left";
+        }
+    }
+
+    const char* Get_ImageRenderModeName(UI_ImageRenderMode imageRenderMode)
+    {
+        switch (imageRenderMode)
+        {
+        case UI_ImageRenderMode::Normal:
+            return "Normal";
+        case UI_ImageRenderMode::PatternOverlay:
+            return "PatternOverlay";
+        default:
+            return "Normal";
         }
     }
 
@@ -344,6 +368,70 @@ namespace UIEditor
         }
 
         return safeText;
+    }
+
+    UI_WorldObjectFrame Build_UIWorldObjectFrame(
+        ObjectId objectId,
+        const ImVec2& worldPosition,
+        const ImVec2& worldCenter,
+        const ImVec2& worldSize,
+        float worldRotationRadians)
+    {
+        UI_WorldObjectFrame frame = {};
+        frame.id = objectId;
+        frame.worldPosition = worldPosition;
+        frame.worldCenter = worldCenter;
+        frame.worldSize = worldSize;
+        frame.worldRotationRadians = worldRotationRadians;
+        frame.worldBoundsMin = ImVec2(
+            worldCenter.x - worldSize.x * 0.5f,
+            worldCenter.y - worldSize.y * 0.5f);
+        frame.worldBoundsMax = ImVec2(
+            worldCenter.x + worldSize.x * 0.5f,
+            worldCenter.y + worldSize.y * 0.5f);
+
+        frame.worldQuad[0] = Rotate_PointAroundCenter(frame.worldBoundsMin, worldCenter, worldRotationRadians);
+        frame.worldQuad[1] = Rotate_PointAroundCenter(ImVec2(frame.worldBoundsMax.x, frame.worldBoundsMin.y), worldCenter, worldRotationRadians);
+        frame.worldQuad[2] = Rotate_PointAroundCenter(frame.worldBoundsMax, worldCenter, worldRotationRadians);
+        frame.worldQuad[3] = Rotate_PointAroundCenter(ImVec2(frame.worldBoundsMin.x, frame.worldBoundsMax.y), worldCenter, worldRotationRadians);
+
+        frame.worldAabbMin = ImVec2(FLT_MAX, FLT_MAX);
+        frame.worldAabbMax = ImVec2(-FLT_MAX, -FLT_MAX);
+        for (const ImVec2& point : frame.worldQuad)
+        {
+            frame.worldAabbMin.x = min(frame.worldAabbMin.x, point.x);
+            frame.worldAabbMin.y = min(frame.worldAabbMin.y, point.y);
+            frame.worldAabbMax.x = max(frame.worldAabbMax.x, point.x);
+            frame.worldAabbMax.y = max(frame.worldAabbMax.y, point.y);
+        }
+
+        return frame;
+    }
+
+    UI_WorldObjectFrame Build_UIWorldObjectFrame(const UI_Document& document, ObjectId objectId)
+    {
+        return Build_UIWorldObjectFrame(
+            objectId,
+            document.Get_WorldPosition(objectId),
+            document.Get_WorldCenter(objectId),
+            document.Get_WorldSize(objectId),
+            document.Get_WorldRotationRadians(objectId));
+    }
+
+    bool Is_PointInsideUIWorldObjectFrame(const ImVec2& worldPoint, const UI_WorldObjectFrame& frame)
+    {
+        const float cosAngle = cosf(-frame.worldRotationRadians);
+        const float sinAngle = sinf(-frame.worldRotationRadians);
+        const ImVec2 offset = ImVec2(
+            worldPoint.x - frame.worldCenter.x,
+            worldPoint.y - frame.worldCenter.y);
+        const ImVec2 localOffset = ImVec2(
+            offset.x * cosAngle - offset.y * sinAngle,
+            offset.x * sinAngle + offset.y * cosAngle);
+
+        return
+            fabsf(localOffset.x) <= frame.worldSize.x * 0.5f &&
+            fabsf(localOffset.y) <= frame.worldSize.y * 0.5f;
     }
 
     void Apply_TextureAsset(UI_Object& object, const AssetMeta& assetMeta)

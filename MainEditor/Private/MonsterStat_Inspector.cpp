@@ -2,17 +2,22 @@
 
 #include "MonsterStatCom.h"
 
-void MainEditor::MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
+void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
 {
-    Shared<Client::MonsterStatCom> stat = dynamic_pointer_cast<Client::MonsterStatCom>(component);
+    Shared<MonsterStatCom> stat = dynamic_pointer_cast<MonsterStatCom>(component);
     if (stat == nullptr)
         return;
 
     if (!Draw_Header("Monster Stat Com"))
         return;
 
-    const auto& desc = stat->Get_MonsterDesc();
+    auto& desc = stat->Get_StatInfo();
     auto& runtime = stat->Get_MonsterRuntimeStat();
+
+    Draw_PortraitTexturePicker(
+        "TurnOrder Portrait",
+        desc.portraitGuid,
+        "textures/ui/battle/turnorder/enemies/");
 
     float maxHp = desc.maxHp;
     int maxAp = static_cast<int>(desc.maxAp);
@@ -65,7 +70,7 @@ void MainEditor::MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& 
         stat->SetBreak(isBreak); // 몬스터 전용 런타임 플래그
     }
 
-    Draw_CommonRuntimeSection(static_pointer_cast<Client::CombatStatCom>(stat));
+    Draw_CommonRuntimeSection(static_pointer_cast<CombatStatCom>(stat));
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -84,7 +89,7 @@ void MainEditor::MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& 
     ImGui::Text("%.1f", runtime.CurSpeed);
 }
 
-Shared<MainEditor::MonsterStat_Inspector> MainEditor::MonsterStat_Inspector::Create()
+Shared<MonsterStat_Inspector> MonsterStat_Inspector::Create()
 {
     return make_shared<MonsterStat_Inspector>();
 }

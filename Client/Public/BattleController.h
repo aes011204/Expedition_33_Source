@@ -130,6 +130,9 @@ public:
     void Finish_FreeAimShot();
     bool Is_FreeAimShotPlaying() const { return _isFreeAimShotPlaying; }
 
+    // 초상화 세팅
+    vector<BattleChar> Get_TurnOrderPreview(uint32 maxCount = 8) const;
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
@@ -137,6 +140,10 @@ private:
 
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
+
+    // Reaction(패링, 회피)
+    void    PlayReactionAnimation(const BattleChar& target, ReactionType reactionType, bool isSuccess);
+    void    UpdateReactionAnimation();
 
 private:
     PlayerCharacterType To_PlayerCharacterType(HeroId heroId);
@@ -150,14 +157,14 @@ public: /* Delegate */
     FOnActionStarted        OnActionStarted;
 
 private:
-    BattleChar  _currentTurnActor = {};
-    Action      _turnAction = {};
-    Reaction    _reaction = {};
+    BattleChar              _currentTurnActor = {};
+    Action                  _turnAction = {};
+    Reaction                _reaction = {};
 
-    Shared<SkillScript> _curScript = {};
+    Shared<SkillScript>     _curScript = {};
 
-    bool _isBattleActive = { false };
-    bool _isBattleEntering = { false };
+    bool                    _isBattleActive = { false };
+    bool                    _isBattleEntering = { false };
 
     int currentTurnIndex = {};
 
@@ -228,6 +235,9 @@ private:  // 슬로우 처리
 
     bool _isFreeAimShotPlaying = false;
     Action _freeAimShotAction {};
+
+    // Reaction(패링, 회피, QTE?)가 끝나면 Idle로 복귀시킬 대상
+    BattleChar _reactionAnimTarget = {};
 
 public:
     static Shared<BattleController> Create();

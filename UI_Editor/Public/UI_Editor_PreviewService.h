@@ -27,7 +27,15 @@ namespace UIEditor
             const string& textureGuid,
             const string& texturePath,
             const string& maskTextureGuid,
-            const string& maskTexturePath);
+            const string& maskTexturePath,
+            UI_MaskTextureMode maskTextureMode);
+        ID3D11ShaderResourceView* Get_PatternOverlayPreviewSRV(
+            const string& textureGuid,
+            const string& texturePath,
+            const string& paintMaskTextureGuid,
+            const string& paintMaskTexturePath,
+            const string& patternMaskTextureGuid,
+            const string& patternMaskTexturePath);
 
         bool Queue_FontPreview(
             const string& fontGuid,
@@ -65,7 +73,16 @@ namespace UIEditor
         ID3D11ShaderResourceView* Create_MaskedTexturePreviewSRV(
             const string& cacheKey,
             ID3D11ShaderResourceView* textureSRV,
-            ID3D11ShaderResourceView* maskSRV);
+            ID3D11ShaderResourceView* maskSRV,
+            UI_MaskTextureMode maskTextureMode);
+        ID3D11ShaderResourceView* Create_ImageCompositePreviewSRV(
+            const string& cacheKey,
+            ID3D11ShaderResourceView* textureSRV,
+            ID3D11ShaderResourceView* maskSRV,
+            ID3D11ShaderResourceView* patternMaskSRV,
+            uint32 passIndex,
+            unordered_map<string, ComPtr<ID3D11ShaderResourceView>>& cache,
+            unordered_set<string>& failedKeys);
 
     private:
         ComPtr<Device> _device = nullptr;
@@ -76,6 +93,8 @@ namespace UIEditor
         unordered_set<string> _texturePreviewFailedKeys = {};
         unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _maskedTexturePreviewCache = {};
         unordered_set<string> _maskedTexturePreviewFailedKeys = {};
+        unordered_map<string, ComPtr<ID3D11ShaderResourceView>> _patternOverlayPreviewCache = {};
+        unordered_set<string> _patternOverlayPreviewFailedKeys = {};
         Shared<ShaderCom> _imagePreviewShader = nullptr;
         Shared<VIBuffer_Rect> _imagePreviewVIBuffer = nullptr;
         Unique<SpriteBatch> _fontPreviewSpriteBatch = nullptr;

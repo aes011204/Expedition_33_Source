@@ -459,6 +459,8 @@ void Content_Browser::Draw_AssetView()
     if (!_currentFolder)
         return;
 
+    _thumbnailLoadsThisFrame = 0;
+
     const string assetSearchLower = ToLowerCopy(_assetSearchBuffer);
     const bool hasAssetSearch = !assetSearchLower.empty();
 
@@ -468,7 +470,15 @@ void Content_Browser::Draw_AssetView()
     if (columnCount < 1)
         columnCount = 1;
 
-    ImGui::Columns(columnCount, nullptr, false);
+    struct FDisplayItem
+    {
+        FFolderNode* folder = nullptr;
+        const FFileEntry* file = nullptr;
+    };
+
+    vector<FDisplayItem> displayItems{};
+    displayItems.reserve(_currentFolder->subFolders.size() + _currentFolder->files.size());
+    const string prefabSuffix = ".prefab.json";
 
     for (auto& childFolder : _currentFolder->subFolders)
     {
@@ -479,21 +489,20 @@ void Content_Browser::Draw_AssetView()
                 continue;
         }
 
-        Draw_FolderTile(childFolder);
+        displayItems.push_back({ &childFolder, nullptr });
     }
 
     for (const auto& fileEntry : _currentFolder->files)
     {
-        const fs::path path(fileEntry.filePath);
-        const string fileName = String::ToString(path.filename().wstring());
-        const string prefabSuffix = ".prefab.json";
-        string pureName = String::ToString(path.stem().wstring());
-
-        if (fileName.ends_with(prefabSuffix))
-            pureName = fileName.substr(0, fileName.size() - prefabSuffix.size());
-
         if (hasAssetSearch)
         {
+            const fs::path path(fileEntry.filePath);
+            const string fileName = String::ToString(path.filename().wstring());
+            string pureName = String::ToString(path.stem().wstring());
+
+            if (fileName.ends_with(prefabSuffix))
+                pureName = fileName.substr(0, fileName.size() - prefabSuffix.size());
+
             const string pureNameLower = ToLowerCopy(pureName);
             const string fileNameLower = ToLowerCopy(fileName);
             if (pureNameLower.find(assetSearchLower) == string::npos &&
@@ -503,133 +512,43 @@ void Content_Browser::Draw_AssetView()
             }
         }
 
-        ImGui::PushID(fileName.c_str());
-
-        Shared<Texture> thumbnailTexture = Get_FileThumbnail(fileEntry);
-        if (thumbnailTexture)
-        {
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f, 0.f));
-            ImGui::ImageButton(
-                fileName.c_str(),
-                ToImTextureId(thumbnailTexture),
-                ImVec2(_thumbnailSize, _thumbnailSize));
-            ImGui::PopStyleVar();
-        }
-        else
-        {
-            const ImTextureID iconId = Get_IconTextureId(Resolve_IconType(path));
-            if (iconId)
-            {
-                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f, 0.f));
-                ImGui::ImageButton(fileName.c_str(), iconId, ImVec2(_thumbnailSize, _thumbnailSize));
-                ImGui::PopStyleVar();
-            }
-            else
-            {
-                ImGui::Button(pureName.c_str(), ImVec2(_thumbnailSize, _thumbnailSize));
-            }
-        }
-
-        // 드래그해서 프리펩 스폰
-        {
-            if (path.extension() == L".json" && fileName.ends_with(prefabSuffix))
-            {
-                if (ImGui::BeginDragDropSource())
-                {
-                    ImGui::SetDragDropPayload(
-                        "CONTENT_BROWSER_PREFAB",
-                        pureName.c_str(),
-                        pureName.size() + 1);
-
-                    ImGui::Text("Prefab");
-                    ImGui::Separator();
-                    ImGui::Text("%s", pureName.c_str());
-
-                    ImGui::EndDragDropSource();
-                }
-            }
-        }
-
-        // 맵 스태틱 매쉬 스폰
-        {
-            const wstring ext = path.extension().wstring();
-            if (ext == L".model")
-            {
-                if (ImGui::BeginDragDropSource())
-                {
-                    const string pathA = String::ToString(fileEntry.filePath);
-                    ImGui::SetDragDropPayload(
-                        "CONTENT_BROWSER_MODEL",
-                        pathA.c_str(),
-                        pathA.size() + 1);
-                    ImGui::Text("Map Static Mesh");
-                    ImGui::Separator();
-                    ImGui::Text("%s", pureName.c_str());
-
-                    ImGui::EndDragDropSource();
-                }
-            }
-        }
-        //
-
-        const bool isFocused = ImGui::IsItemFocused();
-        const bool isSelected = (_selectedFilePath == fileEntry.filePath);
-
-        if (isSelected)
-        {
-            const ImVec2 itemMin = ImGui::GetItemRectMin();
-            const ImVec2 itemMax = ImGui::GetItemRectMax();
-            ImGui::GetWindowDrawList()->AddRect(itemMin, itemMax, IM_COL32(70, 130, 210, 255), 0.f, 0, 2.f);
-        }
-
-        if (isFocused && !isSelected)
-            _selectedFilePath = fileEntry.filePath;
-
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
-            _selectedFilePath = fileEntry.filePath;
-
-        // 더블클릭으로 프리펩 열기 / TODO : Behavior Tree 도 추가하기
-        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-        {
-            // BT_*.json 은 Prefab_View가 아니라 BT_View에서 바로 연다.
-            if (path.extension() == L".json" && fileName.starts_with("BT_"))
-            {
-                Shared<Editor_Window> btWindowBase = EDITOR->Get_Window(L"BT View");
-                Shared<BT_View> btView = dynamic_pointer_cast<BT_View>(btWindowBase);
-
-                if (btView)
-                {
-                    btView->Open_BTAsset(path.string());
-                }
-            }
-            else if (path.extension() == L".json" && fileName.ends_with(prefabSuffix))
-            {
-                Shared<Editor_Window> prefabWindowBase = EDITOR->Get_Window(L"Prefab");
-                Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabWindowBase);
-
-                if (prefabView)
-                {
-                    const string prefabName = fileName.substr(0, fileName.size() - prefabSuffix.size());
-                    prefabView->Open_Prefab(prefabName, path);
-                }
-            }
-            else if (path.extension() == L".model" || path.extension() == L".anim")
-            {
-                Open_AnimationViewFromAssetPath(path);
-            }
-        }
-
-        Draw_FileContextMenu(fileEntry.filePath, "FileItemContext");
-
-        ImGui::TextWrapped("%s", pureName.c_str());
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("%s", fileName.c_str());
-
-        ImGui::PopID();
-        ImGui::NextColumn();
+        displayItems.push_back({ nullptr, &fileEntry });
     }
 
+    const int rowCount = static_cast<int>((displayItems.size() + columnCount - 1) / columnCount);
+    const float rowHeight =
+        _thumbnailSize +
+        ImGui::GetTextLineHeightWithSpacing() * 3.f +
+        ImGui::GetStyle().ItemSpacing.y * 2.f;
+
+    ImGuiListClipper clipper;
+    clipper.Begin(rowCount, rowHeight);
+
+    ImGui::Columns(columnCount, nullptr, false);
+    while (clipper.Step())
+    {
+        for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
+        {
+            for (int column = 0; column < columnCount; ++column)
+            {
+                const size_t itemIndex = static_cast<size_t>(row * columnCount + column);
+                if (itemIndex < displayItems.size())
+                {
+                    const FDisplayItem& item = displayItems[itemIndex];
+                    if (item.folder)
+                        Draw_FolderTile(*item.folder);
+                    else if (item.file)
+                        Draw_FileTile(*item.file);
+                }
+                else
+                {
+                    ImGui::NextColumn();
+                }
+            }
+        }
+    }
     ImGui::Columns(1);
+    clipper.End();
 
     if (_currentFolder &&
         ImGui::BeginPopupContextWindow("CurrentFolderContext",
@@ -653,6 +572,142 @@ void Content_Browser::Draw_AssetView()
 
         ImGui::EndPopup();
     }
+}
+
+void Content_Browser::Draw_FileTile(const FFileEntry& fileEntry)
+{
+    const fs::path path(fileEntry.filePath);
+    const string fileName = String::ToString(path.filename().wstring());
+    const string prefabSuffix = ".prefab.json";
+    string pureName = String::ToString(path.stem().wstring());
+
+    if (fileName.ends_with(prefabSuffix))
+        pureName = fileName.substr(0, fileName.size() - prefabSuffix.size());
+
+    ImGui::PushID(fileName.c_str());
+
+    Shared<Texture> thumbnailTexture = Get_FileThumbnail(fileEntry);
+    if (thumbnailTexture)
+    {
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f, 0.f));
+        ImGui::ImageButton(
+            fileName.c_str(),
+            ToImTextureId(thumbnailTexture),
+            ImVec2(_thumbnailSize, _thumbnailSize));
+        ImGui::PopStyleVar();
+    }
+    else
+    {
+        const ImTextureID iconId = Get_IconTextureId(Resolve_IconType(path));
+        if (iconId)
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f, 0.f));
+            ImGui::ImageButton(fileName.c_str(), iconId, ImVec2(_thumbnailSize, _thumbnailSize));
+            ImGui::PopStyleVar();
+        }
+        else
+        {
+            ImGui::Button(pureName.c_str(), ImVec2(_thumbnailSize, _thumbnailSize));
+        }
+    }
+
+    // 드래그해서 프리펩 스폰
+    {
+        if (path.extension() == L".json" && fileName.ends_with(prefabSuffix))
+        {
+            if (ImGui::BeginDragDropSource())
+            {
+                ImGui::SetDragDropPayload(
+                    "CONTENT_BROWSER_PREFAB",
+                    pureName.c_str(),
+                    pureName.size() + 1);
+
+                ImGui::Text("Prefab");
+                ImGui::Separator();
+                ImGui::Text("%s", pureName.c_str());
+
+                ImGui::EndDragDropSource();
+            }
+        }
+    }
+
+    // 맵 스태틱 매쉬 스폰
+    {
+        const wstring ext = path.extension().wstring();
+        if (ext == L".model")
+        {
+            if (ImGui::BeginDragDropSource())
+            {
+                const string pathA = String::ToString(fileEntry.filePath);
+                ImGui::SetDragDropPayload(
+                    "CONTENT_BROWSER_MODEL",
+                    pathA.c_str(),
+                    pathA.size() + 1);
+                ImGui::Text("Map Static Mesh");
+                ImGui::Separator();
+                ImGui::Text("%s", pureName.c_str());
+
+                ImGui::EndDragDropSource();
+            }
+        }
+    }
+    //
+
+    const bool isFocused = ImGui::IsItemFocused();
+    const bool isSelected = (_selectedFilePath == fileEntry.filePath);
+
+    if (isSelected)
+    {
+        const ImVec2 itemMin = ImGui::GetItemRectMin();
+        const ImVec2 itemMax = ImGui::GetItemRectMax();
+        ImGui::GetWindowDrawList()->AddRect(itemMin, itemMax, IM_COL32(70, 130, 210, 255), 0.f, 0, 2.f);
+    }
+
+    if (isFocused && !isSelected)
+        _selectedFilePath = fileEntry.filePath;
+
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+        _selectedFilePath = fileEntry.filePath;
+
+    // 더블클릭으로 프리펩 열기 / TODO : Behavior Tree 도 추가하기
+    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+    {
+        // BT_*.json 은 Prefab_View가 아니라 BT_View에서 바로 연다.
+        if (path.extension() == L".json" && fileName.starts_with("BT_"))
+        {
+            Shared<Editor_Window> btWindowBase = EDITOR->Get_Window(L"BT View");
+            Shared<BT_View> btView = dynamic_pointer_cast<BT_View>(btWindowBase);
+
+            if (btView)
+            {
+                btView->Open_BTAsset(path.string());
+            }
+        }
+        else if (path.extension() == L".json" && fileName.ends_with(prefabSuffix))
+        {
+            Shared<Editor_Window> prefabWindowBase = EDITOR->Get_Window(L"Prefab");
+            Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabWindowBase);
+
+            if (prefabView)
+            {
+                const string prefabName = fileName.substr(0, fileName.size() - prefabSuffix.size());
+                prefabView->Open_Prefab(prefabName, path);
+            }
+        }
+        else if (path.extension() == L".model" || path.extension() == L".anim")
+        {
+            Open_AnimationViewFromAssetPath(path);
+        }
+    }
+
+    Draw_FileContextMenu(fileEntry.filePath, "FileItemContext");
+
+    ImGui::TextWrapped("%s", pureName.c_str());
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", fileName.c_str());
+
+    ImGui::PopID();
+    ImGui::NextColumn();
 }
 
 void Content_Browser::Draw_FolderTile(FFolderNode& folder)
@@ -946,6 +1001,11 @@ Shared<Texture> Content_Browser::Get_FileThumbnail(const FFileEntry& fileEntry)
 
         thumbnailPath = sourcePath;
     }
+
+    if (_thumbnailLoadsThisFrame >= MAX_THUMBNAIL_LOADS_PER_FRAME)
+        return nullptr;
+
+    ++_thumbnailLoadsThisFrame;
 
     Shared<Texture> thumbnailTexture =
         Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), thumbnailPath.c_str(), 1);

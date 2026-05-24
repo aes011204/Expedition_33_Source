@@ -218,6 +218,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\Profile_View.cpp" />
     <ClCompile Include="..\Private\TrailPreviewWeaponObject.cpp" />
     <ClCompile Include="..\Private\TrailPreviewController.cpp" />
+    <ClCompile Include="..\Private\TrailPreviewPlayerObject.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\Action_Command.h" />
@@ -264,6 +265,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\ModuleDetail_Drawers.h" />
     <ClInclude Include="..\Public\Profile_View.h" />
     <ClInclude Include="..\Public\TrailPreviewController.h" />
+    <ClInclude Include="..\Public\TrailPreviewPlayerObject.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Client\Default\Client.vcxproj">

@@ -46,8 +46,12 @@ struct UI_Object
     string fontPath = "";
     string textureGuid = "";
     string texturePath = "";
+    UI_ImageRenderMode imageRenderMode = UI_ImageRenderMode::Normal;
     string maskTextureGuid = "";
     string maskTexturePath = "";
+    UI_MaskTextureMode maskTextureMode = UI_MaskTextureMode::Alpha;
+    string patternMaskTextureGuid = "";
+    string patternMaskTexturePath = "";
     vector<UI_AnimationClip> animationClips = {};
 };
 

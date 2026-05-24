@@ -527,17 +527,15 @@ namespace Client
         bool ignoreDefense = false;
     };
 
-
-   
     //------------------------------------
-  
- 
     struct Skill_Data
     {
         string skillKey = "";
         string scriptClassName = "";
         vector<BattleActionPhase> AnimPhases = {};
+
         string IdleAnimationKey = "";
+
 
         int32 apCost = 0;
         ECharacterTeamSelector targetingType = ECharacterTeamSelector::Invalid;
@@ -606,10 +604,22 @@ namespace Client
     enum class BattleAnimType
     {
         Base_Idle,
+
         Battle_Start,
+        Turn_Start,
+
         Hit_Heavy,
         Hit_Medium,
         Hit_Light,
+
+        FreeAim_Enter,
+        FreeAim_Idle,
+        FreeAim_Shoot,
+
+        Dodge,
+        Parray,
+        Counter,
+
         Dead,
 
     };

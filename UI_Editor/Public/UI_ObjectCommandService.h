@@ -42,11 +42,6 @@ namespace UIEditor
         bool Is_ObjectEffectivelyLocked(const UI_Document& document, ObjectId objectId) const;
         vector<ObjectId> Filter_UnlockedObjectIds(const UI_Document& document, const vector<ObjectId>& objectIds) const;
 
-        bool Can_SetObjectVisible(const UI_Document& document, ObjectId objectId, bool visible) const;
-        bool Set_ObjectVisible(UI_Document& document, ObjectId objectId, bool visible) const;
-        bool Can_SetObjectLocked(const UI_Document& document, ObjectId objectId, bool locked) const;
-        bool Set_ObjectLocked(UI_Document& document, ObjectId objectId, bool locked) const;
-
         bool Can_AlignObjects(size_t objectCount, UI_AlignmentCommand command) const;
         bool Align_Objects(UI_Document& document, const vector<ObjectId>& objectIds, UI_AlignmentCommand command) const;
 

@@ -98,7 +98,7 @@ void BattleController::Update(float timeDelta)
     }
 
 
-    if (_heroes.empty() == true || _enemies.empty() == true|| _currentTurnActor.actor == nullptr )
+    if (_heroes.empty() == true || _enemies.empty() == true || _currentTurnActor.actor == nullptr)
         return;
     // 적턴 인지 플레이어 턴인지에 따라
     if (_currentTurnActor.statCom->Is_Player())
@@ -106,17 +106,12 @@ void BattleController::Update(float timeDelta)
 
     if (_isFreeAimShotPlaying)
     {
-        _battleActionExe->Update(timeDelta, _freeAimShotAction);
-
-        if (_battleActionExe->IsFinished())
+        if (_freeAimShotAction._curChar.ModelCom->Is_AnimationFinished())
         {
-            // End Turn으로 가지않고, AP만 소모되게
             Finish_FreeAimShot();
             return;
         }
 
-        // Free Aim 연출 중에는 같은 프레임 일반 턴 액션 실행 X
-        // 애니메이션 들어오면 내일 진행하기
         return;
     }
 
@@ -131,7 +126,7 @@ void BattleController::Update(float timeDelta)
 
     if (_turnAction._curChar.actor != nullptr && _battleActionExe->IsFinished())
     {
-      
+
         EndTurn();
         return;
     }
@@ -150,7 +145,7 @@ void BattleController::Run_EnemyTurn()
     CHECK_NULL(monster);
 
     monster->Decide_Action_BTOnly(Get_TurnAction(), Get_AliveHeroes());
-    ExecuteAction( Get_TurnAction());
+    ExecuteAction(Get_TurnAction());
 }
 
 void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
@@ -170,9 +165,9 @@ void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, cons
     _pendingBattleHeroIds = heroIds;
     _pendingBattleMonsterPrefabNames = battleMonsterPrefabNames;
 
-	// 월드 캐릭터 입력 막기
-	GAME->Set_PlayerInputBlocked(true);
-	_worldCamera = GAME->Get_ActiveCamera();
+    // 월드 캐릭터 입력 막기
+    GAME->Set_PlayerInputBlocked(true);
+    _worldCamera = GAME->Get_ActiveCamera();
     GAME->Slow_WorldTime(_battleEnterWorldTimeScale, _battleEnterDuration);
 }
 
@@ -204,7 +199,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     // 전투 종료 시 슬로우모션 값이 남지 않도록 복구
     GAME->Stop_WorldTimeSlow();
 
-	Restore_WorldCamera(); // 카메라 복구
+    Restore_WorldCamera(); // 카메라 복구
 
     // 도망치기
     // 실패
@@ -217,7 +212,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
     // 초기 애님 관련 변수 초기화
     _firstAnimflag = false;
-    _firstAnimCount =  0;
+    _firstAnimCount = 0;
 
     return result;
 }
@@ -269,7 +264,7 @@ void BattleController::EndTurn()
     {
         OnExitBattleField(EBattleEndResult::Defeat);
         _battleEnded = true;
-		return;
+        return;
     }
 
     for (int i = 0; i < _enemies.size(); i++)
@@ -289,7 +284,7 @@ void BattleController::EndTurn()
         OnExitBattleField(EBattleEndResult::Victory);
         _battleEnded = true;
 
-		return;
+        return;
     }
 
     Clear_TargetPreview();
@@ -316,15 +311,14 @@ void BattleController::EndTurn()
 
 void BattleController::StartTurn()
 {
-
     _currentTurnActor = _turnQueue.top().hero;
     _battleTime = _turnQueue.top().nextTime;
     _turnQueue.pop();
 
-    if(_currentTurnActor.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+    if (_currentTurnActor.statCom->Get_AliveStatus() == EAliveStatus::Dead)
     {
         _turnAction = {};
-     
+
         StartTurn();
         return;
     }
@@ -342,16 +336,31 @@ void BattleController::StartTurn()
     // 상태 이상 엔드
     _buffSystem->ProcessTurnStart(_currentTurnActor.statCom);
 
+    if (_currentTurnActor.ModelCom)
+    {
+        const bool playedTurnStart =
+            _currentTurnActor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Turn_Start),
+                0.2f,
+                false
+            ); // 현재 턴 캐릭터만 턴 시작 애니메이션을 시작
+
+        if (!playedTurnStart)
+        {
+            _currentTurnActor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle),
+                0.2f,
+                true
+            ); // Turn_Start 매핑이 없으면 Base Idle
+        }
+    }
+
     // fsm
     if (actor.statCom->Is_Player())
     {
-        LOG_DEBUG("StartTurn: player turn -> FSM ChooseAction");
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);
     }
     else
     {
-        LOG_DEBUG("StartTurn: enemy turn -> Run_EnemyTurn");
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::None);
         Run_EnemyTurn();
     }
@@ -397,7 +406,7 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         _heroes.push_back(battleChar);
 
 
-       // battleChar.ModelCom->Set_RootMotionEnabled(false);
+        // battleChar.ModelCom->Set_RootMotionEnabled(false);
     }
 
     for (int i = 0; i < battleMonsterPrefabNames.size(); ++i)
@@ -420,7 +429,7 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
 
         _enemies.push_back(battleChar);
 
-      // battleChar.ModelCom->Set_RootMotionEnabled(false);
+        // battleChar.ModelCom->Set_RootMotionEnabled(false);
 
     }
 }
@@ -593,9 +602,13 @@ void BattleController::CloseReactionWindow(ReactionType type)
     if (_reaction.type != type)
         return;
 
-    _reaction.type = ReactionType::None;
     _reaction.isOpen = false;
-    _reaction.isConsumed = false;
+
+    if (_reaction.isConsumed)
+        return;
+
+    _reaction.type = ReactionType::None;
+    _reaction.result = ReactionType::None;
 }
 
 void BattleController::ClearReactionState()
@@ -607,6 +620,8 @@ void BattleController::ClearReactionState()
 
 void BattleController::UpdateReactionInput()
 {
+    UpdateReactionAnimation(); // 패링, 회피 애니메이션 끝났으면 Base Idle로 전환
+
     if (_turnAction.target.actor == nullptr)
         return;
 
@@ -614,45 +629,40 @@ void BattleController::UpdateReactionInput()
     if (_turnAction.target.statCom->Is_Player() != true)
         return;
 
+    if (_reaction.isConsumed)
+        return; // 성공하면, 재입력 금지
 
-    switch (_reaction.type)
+    if (GAME->KeyDown(KEY_TYPE::Q))
     {
-    case ReactionType::Parry:
-        if (GAME->KeyDown(KEY_TYPE::E))
+        const bool isSuccess =
+            _reaction.type == ReactionType::Dodge &&
+            _reaction.isOpen;
+
+        if (isSuccess)
         {
-            // 패링은 여기서 애니XX
-
-            if (!_reaction.isOpen || _reaction.isConsumed)
-                return;
-
-            // 성공 해야 애니 실행
-
-            _reaction.isConsumed = true;
-            _reaction.result = Parry;
-            LOG_ERROR({ "SUCCESS PARRY" });
-        }
-        break;
-
-    case ReactionType::Dodge:
-        if (GAME->KeyDown(KEY_TYPE::Q))
-        {
-            // 회피 애님 실행
-
-            if (!_reaction.isOpen || _reaction.isConsumed)
-                return;
-
-
             _reaction.isConsumed = true;
             _reaction.result = Dodge;
-
-            LOG_ERROR({ "SUCCESS DODGE" });
         }
-        break;
 
-    default:
-        break;
+        // 실패해도 Dodge 시도 애니는 재생
+        PlayReactionAnimation(_turnAction.target, ReactionType::Dodge, isSuccess);
+        return;
     }
 
+    if (GAME->KeyDown(KEY_TYPE::E))
+    {
+        const bool isSuccess =
+            _reaction.type == ReactionType::Parry &&
+            _reaction.isOpen;
+
+        if (isSuccess)
+        {
+            _reaction.isConsumed = true;
+            _reaction.result = Parry;
+        }
+        PlayReactionAnimation(_turnAction.target, ReactionType::Parry, isSuccess); // 성공이면 Counter, 실패면 Parry
+        return;
+    }
 }
 
 void BattleController::Set_TargetPreview(const BattleChar& target)
@@ -772,7 +782,7 @@ void BattleController::Execute_FreeAimShoot(const BattleChar actor, const Action
     // Free Aim은 히트스캔 즉발 데미지
     if (action.target.actor != nullptr && action.target.statCom != nullptr)
     {
-        constexpr float freeAimDamage = 20.f; 
+        constexpr float freeAimDamage = 20.f;
         DamageSystem::ApplyDamage(freeAimDamage, action.target);
     }
 
@@ -844,15 +854,9 @@ void BattleController::Begin_FreeAimShot(const Action& shotAction)
         return;
 
     _freeAimShotAction = shotAction;
-    _isFreeAimShotPlaying = false;
+    //_isFreeAimShotPlaying = false;
 
     if (_freeAimShotAction._curChar.ModelCom == nullptr)
-    {
-        _freeAimShotAction = {};
-        return;
-    }
-
-    if (_freeAimShotAction._selected_SkillKey.AnimPhases.empty())
     {
         _freeAimShotAction = {};
         return;
@@ -874,41 +878,93 @@ void BattleController::Begin_FreeAimShot(const Action& shotAction)
     _freeAimShotAction.originPos = _freeAimShotAction._curChar.actor->Get_Transform()->Get_Position();
     _freeAimShotAction._curAnimIndex = 0;
 
-    _battleActionExe->BeginAction(_freeAimShotAction);
+    _freeAimShotAction._curChar.ModelCom->Set_AnimationByState(
+        ETOI(BattleAnimType::FreeAim_Shoot),
+        0.1f,
+        false);
+
     _isFreeAimShotPlaying = true;
 }
 
 void BattleController::Finish_FreeAimShot()
 {
     Clear_CurrentScript();
+    //Clear_TargetPreview();
+
+    if (_freeAimShotAction._curChar.ModelCom)
+    {
+        // Free Aim 발사 후에는 Base Idle로 풀지 않고 다시 조준 idle 자세로 복귀. 턴 종료가 안됐으니까
+        _freeAimShotAction._curChar.ModelCom->Set_AnimationByState(
+            ETOI(BattleAnimType::FreeAim_Idle),
+            0.1f,
+            true);
+    }
 
     _isFreeAimShotPlaying = false;
     _freeAimShotAction = {};
 
-    //Clear_TargetPreview();
 }
 
 void BattleController::OnActionEndNotify()
 {
     if (_isFreeAimShotPlaying)
     {
-        _battleActionExe->OnActionEndNotify(_freeAimShotAction);
-
-        if (_battleActionExe->IsFinished())
-            Finish_FreeAimShot();
+        Finish_FreeAimShot();
 
         return;
     }
 
     auto& action = Get_TurnAction();
     _battleActionExe->OnActionEndNotify(action);
+}
 
+vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
+{
+    vector<BattleChar> preview{};
+    if (maxCount == 0)
+        return preview;
 
+    auto queueCopy = _turnQueue;
+
+    if (_currentTurnActor.actor != nullptr && _currentTurnActor.statCom != nullptr)
+    {
+        preview.push_back(_currentTurnActor);
+
+        // 현재 턴 actor도 다시 들어와야해서 preview 큐에 다시
+        if (_currentTurnActor.statCom->Get_AliveStatus() == EAliveStatus::Alive)
+        {
+            TurnEntry nextEntry{};
+            nextEntry.hero = _currentTurnActor;
+            nextEntry.nextTime =
+                _battleTime + 100.f / max(_currentTurnActor.statCom->Get_Speed(), 1.f);
+
+            queueCopy.push(nextEntry);
+        }
+    }
+
+    while (!queueCopy.empty() && preview.size() < maxCount)
+    {
+        TurnEntry entry = queueCopy.top();
+        queueCopy.pop(); // 위에꺼먼저 삭제
+
+        if (entry.hero.actor == nullptr || entry.hero.statCom == nullptr)
+            continue;
+
+        if (entry.hero.statCom->Get_AliveStatus() != EAliveStatus::Alive)
+            continue;
+
+        preview.push_back(entry.hero);
+
+        entry.nextTime += 100.f / max(entry.hero.statCom->Get_Speed(), 1.f);
+        queueCopy.push(entry);
+    }
+
+    return preview;
 }
 
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
-	if (_battleTurnCamera)
+    if (_battleTurnCamera)
         return S_OK;
 
     BattleTurnCamera::BATTLE_TURN_CAMERA_DESC desc{};
@@ -939,13 +995,13 @@ void BattleController::Activate_BattleTurnCamera()
     if (_battleTurnCamera == nullptr)
         return;
 
-	_battleTurnCamera->Focus_Battle(_heroes, _enemies);
-	GAME->Change_ActiveCamera(_battleTurnCamera);
+    _battleTurnCamera->Focus_Battle(_heroes, _enemies);
+    GAME->Change_ActiveCamera(_battleTurnCamera);
 }
 
 void BattleController::Restore_WorldCamera()
 {
-	if (_worldCamera)
+    if (_worldCamera)
         GAME->Change_ActiveCamera(_worldCamera);
 
     GAME->Set_PlayerInputBlocked(false);
@@ -985,19 +1041,19 @@ void BattleController::Complete_BattleField()
     // 첫 입장시 플레이어 시작 에니 재생
     PlayerStartAnim();
 
-	if (FAILED(Ready_BattleTurnCamera()))
-	{
-		LOG_ERROR("Create Failed : Battle Camera");
+    if (FAILED(Ready_BattleTurnCamera()))
+    {
+        LOG_ERROR("Create Failed : Battle Camera");
 
-		Restore_WorldCamera();
-		_isBattleActive = false;
-		_battleEnded = true;
+        Restore_WorldCamera();
+        _isBattleActive = false;
+        _battleEnded = true;
 
-		_heroes.clear();
-		_enemies.clear();
+        _heroes.clear();
+        _enemies.clear();
         Clear_BattleEnterPending();
-		return;
-	}
+        return;
+    }
 
     Activate_BattleTurnCamera();
     Clear_BattleEnterPending();
@@ -1016,6 +1072,46 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleIsFirstHero = false;
     _pendingBattleHeroIds.clear();
     _pendingBattleMonsterPrefabNames.clear();
+}
+
+void BattleController::PlayReactionAnimation(const BattleChar& target, ReactionType reactionType, bool isSuccess)
+{
+    if (target.ModelCom == nullptr)
+        return;
+
+    BattleAnimType animType = BattleAnimType::Base_Idle;
+
+    if (reactionType == ReactionType::Dodge)
+    {
+        animType = BattleAnimType::Dodge;
+    }
+    else if (reactionType == ReactionType::Parry)
+    {
+        animType = isSuccess ? BattleAnimType::Counter : BattleAnimType::Parray;
+    }
+    else
+        return;
+
+    if (!target.ModelCom->Set_AnimationByState(ETOI(animType), 0.1f, false))
+        return;
+
+    _reactionAnimTarget = target;
+}
+
+void BattleController::UpdateReactionAnimation()
+{
+    if (_reactionAnimTarget.ModelCom == nullptr)
+        return;
+
+    if (!_reactionAnimTarget.ModelCom->Is_AnimationFinished())
+        return;
+
+    _reactionAnimTarget.ModelCom->Set_AnimationByState(
+        ETOI(BattleAnimType::Base_Idle),
+        0.15f,
+        true);
+
+    _reactionAnimTarget = {};
 }
 
 PlayerCharacterType BattleController::To_PlayerCharacterType(HeroId heroId)
@@ -1068,7 +1164,7 @@ void BattleController::PlayerStartAnim()
     //////// 루네 위치 이상함 충돌체ㅐ랑 비교 필수 
     _firstAnimflag = false;
     // 임시
-    for(auto it : _heroes)
+    for (auto it : _heroes)
     {
         /*string idle = CLIENT->Get_Skill(it.statCom->Get_FirstSkill())->IdleAnimationKey;
         it.ModelCom->Set_Animation(idle, .3f, false);*/
@@ -1080,7 +1176,7 @@ void BattleController::PlayerStartAnim()
     // 일단 여기서 
     for (auto it : _enemies)
     {
-       
+
         it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.3f, false);
 
     }

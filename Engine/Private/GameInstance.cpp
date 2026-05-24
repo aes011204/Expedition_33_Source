@@ -146,8 +146,6 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
         LOG_ERROR("[GameInstance::Initialize_Engine] ThreadPool created. workerCount={}",
         static_cast<int>(workerCount));
     }
-    
-
 
 #ifdef _DEBUG
     _printManager = Print_Manager::Create();

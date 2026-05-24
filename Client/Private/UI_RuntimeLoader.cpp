@@ -53,8 +53,12 @@ namespace
 
         string textureGuid{};
         string texturePath{};
+        UI_Image::ImageRenderMode imageRenderMode = UI_Image::ImageRenderMode::Normal;
         string maskTextureGuid{};
         string maskTexturePath{};
+        UI_Image::MaskTextureMode maskTextureMode = UI_Image::MaskTextureMode::Alpha;
+        string patternMaskTextureGuid{};
+        string patternMaskTexturePath{};
 
         vector<UI_AnimationClip> animationClips{};
         vector<UI_KeyframeAnimationAsset> keyframeAnimationAssets{};
@@ -185,6 +189,26 @@ namespace
             return UI_RenderGroup::Background;
 
         return UI_RenderGroup::Foreground;
+    }
+
+    UI_Image::ImageRenderMode Parse_ImageRenderMode(const string& modeName)
+    {
+        const string mode = String::ToLowerCopy(modeName);
+
+        if ("patternoverlay" == mode || "pattern_overlay" == mode || "pattern overlay" == mode)
+            return UI_Image::ImageRenderMode::PatternOverlay;
+
+        return UI_Image::ImageRenderMode::Normal;
+    }
+
+    UI_Image::MaskTextureMode Parse_MaskTextureMode(const string& modeName)
+    {
+        const string mode = String::ToLowerCopy(modeName);
+
+        if ("blackwhite" == mode || "black_white" == mode || "black white" == mode)
+            return UI_Image::MaskTextureMode::BlackWhite;
+
+        return UI_Image::MaskTextureMode::Alpha;
     }
 
     bool Can_RuntimeTypeHaveChildren(RuntimeUIType type)
@@ -492,45 +516,33 @@ namespace
         }
     }
 
-    vector<RuntimeUIAnimationAssetBinding> Load_KeyframeAnimationAssetBindings(const wstring& animationDirectory)
+    vector<RuntimeUIAnimationAssetBinding> Load_KeyframeAnimationAssetBindings(const wstring& animationPath)
     {
         vector<RuntimeUIAnimationAssetBinding> bindings{};
-        if (animationDirectory.empty())
+        if (animationPath.empty())
             return bindings;
 
         const wstring assetRoot = GAME->Get_AssetRoot();
         if (assetRoot.empty())
             return bindings;
 
-        const fs::path directoryPath = (fs::path(assetRoot) / animationDirectory).lexically_normal();
-        if (!fs::exists(directoryPath) || !fs::is_directory(directoryPath))
+        wstring normalizedAnimationPath = animationPath;
+        replace(normalizedAnimationPath.begin(), normalizedAnimationPath.end(), L'\\', L'/');
+
+        const string loweredAnimationPath = String::ToLowerCopy(String::ToString(normalizedAnimationPath));
+        if (!EndsWith(loweredAnimationPath, ".uianim.json"))
+            normalizedAnimationPath += L".uianim.json";
+
+        const fs::path assetPath = (fs::path(assetRoot) / normalizedAnimationPath).lexically_normal();
+        if (!fs::exists(assetPath) || !fs::is_regular_file(assetPath))
         {
-            LOG_WARN("UI RuntimeLoader animation directory not found: {}", String::ToString(directoryPath.wstring()));
+            LOG_WARN("UI RuntimeLoader animation asset not found: {}", String::ToString(assetPath.wstring()));
             return bindings;
         }
 
-        try
-        {
-            for (const fs::directory_entry& entry : fs::directory_iterator(directoryPath))
-            {
-                if (!entry.is_regular_file())
-                    continue;
-
-                const string fileName = String::ToLowerCopy(String::ToString(entry.path().filename().wstring()));
-                if (!EndsWith(fileName, ".uianim.json"))
-                    continue;
-
-                RuntimeUIAnimationAssetBinding binding{};
-                if (Load_KeyframeAnimationAssetFile(entry.path(), binding))
-                    bindings.push_back(move(binding));
-            }
-        }
-        catch (const exception& exception)
-        {
-            LOG_WARN("UI RuntimeLoader animation directory scan failed: {} ({})",
-                exception.what(),
-                String::ToString(directoryPath.wstring()));
-        }
+        RuntimeUIAnimationAssetBinding binding{};
+        if (Load_KeyframeAnimationAssetFile(assetPath, binding))
+            bindings.push_back(move(binding));
 
         return bindings;
     }
@@ -716,8 +728,12 @@ namespace
 
         object.textureGuid = Read_String(item, "textureGuid", "");
         object.texturePath = Read_String(item, "texturePath", "");
+        object.imageRenderMode = Parse_ImageRenderMode(Read_String(item, "imageRenderMode", "Normal"));
         object.maskTextureGuid = Read_String(item, "maskTextureGuid", "");
         object.maskTexturePath = Read_String(item, "maskTexturePath", "");
+        object.maskTextureMode = Parse_MaskTextureMode(Read_String(item, "maskTextureMode", "Alpha"));
+        object.patternMaskTextureGuid = Read_String(item, "patternMaskTextureGuid", "");
+        object.patternMaskTexturePath = Read_String(item, "patternMaskTexturePath", "");
         object.animationClips = Read_AnimationClips(item);
 
         return object;
@@ -864,12 +880,20 @@ namespace
 
         UI_Image::UI_IMAGE_DESC desc{};
         desc.texturePath = texturePath;
+        desc.imageRenderMode = object.imageRenderMode;
+        desc.maskTextureMode = object.maskTextureMode;
 
         const wstring maskTexturePath = Resolve_JsonAssetPath(object.maskTextureGuid, object.maskTexturePath);
         if (!maskTexturePath.empty() && fs::exists(maskTexturePath))
             desc.maskTexturePath = maskTexturePath;
         else if (!object.maskTextureGuid.empty() || !object.maskTexturePath.empty())
             LOG_WARN("UI RuntimeLoader image mask skipped: missing mask texture. id={}", object.id);
+
+        const wstring patternMaskTexturePath = Resolve_JsonAssetPath(object.patternMaskTextureGuid, object.patternMaskTexturePath);
+        if (!patternMaskTexturePath.empty() && fs::exists(patternMaskTexturePath))
+            desc.patternMaskTexturePath = patternMaskTexturePath;
+        else if (!object.patternMaskTextureGuid.empty() || !object.patternMaskTexturePath.empty())
+            LOG_WARN("UI RuntimeLoader image pattern mask skipped: missing pattern mask texture. id={}", object.id);
 
         desc.color = object.color;
         desc.transformDesc.position = object.position;
@@ -1166,7 +1190,7 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
     if (!Parse_Document(root, document))
         return E_FAIL;
 
-    Apply_KeyframeAnimationAssets(document, Load_KeyframeAnimationAssetBindings(desc.animationDirectory));
+    Apply_KeyframeAnimationAssets(document, Load_KeyframeAnimationAssetBindings(desc.animationPath));
 
     unordered_set<wstring> loadedFontTags;
     unordered_map<int32, Shared<UI_Base>> spawnedUIById;

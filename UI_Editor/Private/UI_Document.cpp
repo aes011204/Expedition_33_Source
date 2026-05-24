@@ -64,6 +64,11 @@ namespace UIEditor
         {
             return ImVec2(Clamp01(value.x), Clamp01(value.y));
         }
+
+        bool NearlyEqual(const ImVec2& lhs, const ImVec2& rhs)
+        {
+            return fabsf(lhs.x - rhs.x) <= 0.001f && fabsf(lhs.y - rhs.y) <= 0.001f;
+        }
     }
 
     UI_Document::UI_Document()
@@ -163,7 +168,16 @@ namespace UIEditor
         if (nullptr == sourceObject)
             return 0;
 
-        return Duplicate_ObjectRecursive(*sourceObject, sourceObject->parentId, offset, true);
+        const ImVec2 sourceWorldPosition = Get_WorldPosition(objectId);
+        const ObjectId duplicatedObjectId = Duplicate_ObjectRecursive(*sourceObject, sourceObject->parentId);
+        if (duplicatedObjectId != 0)
+        {
+            Set_WorldPosition(
+                duplicatedObjectId,
+                ImVec2(sourceWorldPosition.x + offset.x, sourceWorldPosition.y + offset.y));
+        }
+
+        return duplicatedObjectId;
     }
 
     vector<ObjectId> UI_Document::Import_PrefabObjects(
@@ -297,11 +311,6 @@ namespace UIEditor
             importedObject.id = _nextObjectId++;
             importedObject.parentId = importedParentId;
             importedObject.name = Generate_UniqueName(sourceObject.name.empty() ? "Object" : sourceObject.name);
-            if (isRootObject)
-            {
-                importedObject.position.x += rootOffset.x;
-                importedObject.position.y += rootOffset.y;
-            }
             importedObject.sortOrder = resolveImportedSortOrder(sourceObject);
 
             const ObjectId importedObjectId = importedObject.id;
@@ -324,6 +333,17 @@ namespace UIEditor
         {
             if (sourceObject.id != 0 && belongsToRoot(sourceObject.id))
                 importObject(importObject, sourceObject.id);
+        }
+
+        if (!NearlyEqual(rootOffset, ImVec2(0.f, 0.f)))
+        {
+            for (ObjectId importedRootObjectId : importedRootObjectIds)
+            {
+                const ImVec2 currentWorldPosition = Get_WorldPosition(importedRootObjectId);
+                Set_WorldPosition(
+                    importedRootObjectId,
+                    ImVec2(currentWorldPosition.x + rootOffset.x, currentWorldPosition.y + rootOffset.y));
+            }
         }
 
         return importedRootObjectIds;
@@ -360,10 +380,11 @@ namespace UIEditor
             return true;
 
         const ImVec2 oldWorldPosition = Get_WorldPosition(objectId);
+        const ImVec2 oldWorldSize = Get_WorldSize(objectId);
         object->parentId = newParentId;
 
         if (keepWorldPosition)
-            Set_WorldPosition(objectId, oldWorldPosition);
+            Set_WorldRect(objectId, oldWorldPosition, oldWorldSize);
 
         return true;
     }
@@ -640,6 +661,9 @@ namespace UIEditor
         if (nullptr == object)
             return false;
 
+        if (NearlyEqual(Get_WorldPosition(objectId), worldPosition))
+            return false;
+
         vector<const UI_Object*> parentChain;
         unordered_set<ObjectId> visitedIds;
         for (const UI_Object* parentObject = Find_Object(object->parentId);
@@ -693,6 +717,11 @@ namespace UIEditor
         if (nullptr == object)
             return false;
 
+        const ImVec2 previousWorldPosition = Get_WorldPosition(objectId);
+        const ImVec2 previousWorldSize = Get_WorldSize(objectId);
+        if (NearlyEqual(previousWorldPosition, worldPosition) && NearlyEqual(previousWorldSize, worldSize))
+            return false;
+
         const ImVec2 worldScale = Get_WorldScale(objectId);
         const ImVec2 parentReferenceSize = Get_ParentAnchorReferenceSize(objectId);
         const float anchorWidth = parentReferenceSize.x * max(0.f, object->anchorMax.x - object->anchorMin.x);
@@ -715,7 +744,8 @@ namespace UIEditor
                 max(1.f, worldSize.y) / safeScaleY - anchorHeight);
         }
 
-        return Set_WorldPosition(objectId, worldPosition);
+        const bool positionChanged = Set_WorldPosition(objectId, worldPosition);
+        return positionChanged || !NearlyEqual(previousWorldSize, Get_WorldSize(objectId));
     }
 
     bool UI_Document::Set_PivotKeepWorldRect(ObjectId objectId, const ImVec2& pivot)
@@ -724,11 +754,8 @@ namespace UIEditor
         if (nullptr == object)
             return false;
 
+        const ImVec2 worldPosition = Get_WorldPosition(objectId);
         const ImVec2 worldSize = Get_WorldSize(objectId);
-        const ImVec2 worldCenter = Get_WorldCenter(objectId);
-        const ImVec2 worldPosition = ImVec2(
-            worldCenter.x - worldSize.x * 0.5f,
-            worldCenter.y - worldSize.y * 0.5f);
 
         const ImVec2 previousPivot = object->pivot;
         object->pivot = Clamp01(pivot);
@@ -748,11 +775,8 @@ namespace UIEditor
         if (nullptr == object)
             return false;
 
+        const ImVec2 worldPosition = Get_WorldPosition(objectId);
         const ImVec2 worldSize = Get_WorldSize(objectId);
-        const ImVec2 worldCenter = Get_WorldCenter(objectId);
-        const ImVec2 worldPosition = ImVec2(
-            worldCenter.x - worldSize.x * 0.5f,
-            worldCenter.y - worldSize.y * 0.5f);
 
         const ImVec2 previousAnchorMin = object->anchorMin;
         const ImVec2 previousAnchorMax = object->anchorMax;
@@ -974,7 +998,7 @@ namespace UIEditor
         }
     }
 
-    ObjectId UI_Document::Duplicate_ObjectRecursive(UI_Object sourceObject, ObjectId parentId, const ImVec2& offset, bool applyOffset)
+    ObjectId UI_Document::Duplicate_ObjectRecursive(UI_Object sourceObject, ObjectId parentId)
     {
         const ObjectId sourceObjectId = sourceObject.id;
 
@@ -982,11 +1006,6 @@ namespace UIEditor
         duplicateObject.id = _nextObjectId++;
         duplicateObject.parentId = parentId;
         duplicateObject.name = Generate_DuplicateName(sourceObject.name);
-        if (applyOffset)
-        {
-            duplicateObject.position.x += offset.x;
-            duplicateObject.position.y += offset.y;
-        }
         duplicateObject.sortOrder = static_cast<int32>(_objects.size());
 
         _objects.push_back(duplicateObject);
@@ -996,7 +1015,7 @@ namespace UIEditor
             if (_objects[i].parentId == sourceObjectId)
             {
                 UI_Object childSourceObject = _objects[i];
-                Duplicate_ObjectRecursive(childSourceObject, duplicateObject.id, offset, false);
+                Duplicate_ObjectRecursive(childSourceObject, duplicateObject.id);
             }
         }
 
