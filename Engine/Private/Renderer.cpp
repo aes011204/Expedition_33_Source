@@ -524,6 +524,10 @@ void Renderer::Render_CombinedHDR()
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_ShadeTexture)");
 
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_AmbientTexture", RT::Ambient),
+        L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_AmbientTexture)");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_SpecularTexture", RT::Specular),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderResource(g_SpecularTexture)");
 

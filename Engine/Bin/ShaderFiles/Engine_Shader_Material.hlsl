@@ -50,10 +50,35 @@ float4 SampleBaseColor(float2 uv)
     return baseColor;
 }
 
+float ResolveScalarChannel(float4 tex, uint source)
+{
+    if (source == MATERIAL_CHANNEL_CONST0)
+        return 0.f;
+    if (source == MATERIAL_CHANNEL_CONST1)
+        return 1.f;
+    if (source == MATERIAL_CHANNEL_R)
+        return tex.r;
+    if (source == MATERIAL_CHANNEL_G)
+        return tex.g;
+    if (source == MATERIAL_CHANNEL_B)
+        return tex.b;
+    if (source == MATERIAL_CHANNEL_A)
+        return tex.a;
+    if (source == MATERIAL_CHANNEL_MAX_RGB)
+        return max(tex.r, max(tex.g, tex.b));
+    if (source == MATERIAL_CHANNEL_LUMA)
+        return dot(tex.rgb, float3(0.299f, 0.587f, 0.114f));
+
+    return 0.f;
+}
+
 float GetOpacityMaskForMasked(float2 uv, float4 baseColor)
 {
     if (HasMaterialTexture(MATERIAL_SLOT_OPACITY_MASK))
-        return g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].Sample(LinearWrapSampler, uv).r;
+    {
+        float4 maskTex = g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].Sample(LinearWrapSampler, uv);
+        return ResolveScalarChannel(maskTex, g_OpacityMaskSource);
+    }
 
     return 1.f;
 }
@@ -78,7 +103,12 @@ float3 SampleOrm(float2 uv)
     float3 orm = float3(1.f, 1.f, 1.f);
 
     if (HasMaterialTexture(MATERIAL_SLOT_ORM))
-        orm = g_MaterialTextures[MATERIAL_SLOT_ORM].Sample(LinearWrapSampler, uv).rgb;
+    {
+        float4 ormTex = g_MaterialTextures[MATERIAL_SLOT_ORM].Sample(LinearWrapSampler, uv);
+        orm.r = ResolveScalarChannel(ormTex, g_OrmAoSource);
+        orm.g = ResolveScalarChannel(ormTex, g_OrmRoughnessSource);
+        orm.b = ResolveScalarChannel(ormTex, g_OrmMetalnessSource);
+    }
 
     orm.r *= g_AoScale;         // O
     orm.g *= g_RoughnessScale;  // R

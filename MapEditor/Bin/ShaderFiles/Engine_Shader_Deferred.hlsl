@@ -18,6 +18,7 @@ Texture2D g_Texture;
 Texture2D g_DiffuseTexture;
 Texture2D g_NormalTexture;
 Texture2D g_ShadeTexture;
+Texture2D g_AmbientTexture;
 Texture2D g_SpecularTexture;
 Texture2D g_DepthTexture;
 Texture2D g_LightDepthTexture;
@@ -37,7 +38,7 @@ vector g_MtrlSpecular = float4(1.f, 1.f, 1.f, 1.f);
 
 float4 Reconstruct_WorldPos(float2 Texcoord)
 {
-    vector DepthDesc = g_DepthTexture.Sample(LinearWrapSampler, Texcoord);
+    vector DepthDesc = g_DepthTexture.Sample(PointClampSampler, Texcoord);
     float fViewZ = DepthDesc.y * g_DeferredFar;
 
     float4 WorldPos;
@@ -125,8 +126,8 @@ float Get_ViewZ(float2 uv)
 
 float3 Reconstruct_ViewPos(float2 uv)
 {
-    float2 depth = g_DepthTexture.Sample(LinearWrapSampler, uv).xy;
-    float viewZ = depth.y * g_DeferredFar;  // view space에서의 z 값
+    float2 depth = g_DepthTexture.Sample(PointClampSampler, uv).xy;
+    float viewZ = depth.y * g_DeferredFar; // view space에서의 z 값
     if (viewZ <= 0.f)
         return 0.f;
 
@@ -209,7 +210,7 @@ float Compute_DepthSSAO(float2 uv)
     // 각 픽셀마다 다른 SSAO 커널 회전 각도로 샘플링하여, 패턴 생성 방지
     float2 pixelCoord = floor(uv * float2(max(g_ScreenSize.x, 1u), max(g_ScreenSize.y, 1u)));
     float rand01 = Hash12(pixelCoord);
-    float randomAngle = rand01 * 6.28318530718f; // 2PI
+    float randomAngle = 0; // rand01 * 6.28318530718f; // 2PI
 
     float baseRadius = max(g_SSAORadius, MIN_SSAO_RADIUS);
     float depthBias = max(g_SSAOBias, MIN_SSAO_DEPTH_BIAS);
@@ -229,7 +230,7 @@ float Compute_DepthSSAO(float2 uv)
     for (int i = 0; i < sampleCount; ++i)
     {
         // 샘플을 중심 픽셀 근처에 몰아주기 위함
-        float sampleT = ((float)i + 0.5f) / (float)sampleCount;
+        float sampleT = ((float) i + 0.5f) / (float) sampleCount;
         float sampleScale = lerp(0.1f, 1.f, sampleT * sampleT);
         float3 kernel = normalize(SSAOKernel[i]);
 
@@ -260,7 +261,7 @@ float Compute_DepthSSAO(float2 uv)
         // normal-based weighting
         float3 sampleNormalVS = Get_NormalVS(sampleUV);
         float normalAlignment = saturate(dot(centerN, sampleNormalVS));
-        float normalWeight = smoothstep(0.2f, 0.9f, normalAlignment);
+        float normalWeight = 1.f; //smoothstep(0.2f, 0.9f, normalAlignment);
 
         float rangeCheck = smoothstep(0.f, 1.f, depthRange / max(absDepthDiff, EPSILON));
         float sampleWeight = rangeCheck * normalWeight;
@@ -301,7 +302,7 @@ float Compute_SSAOBilateralBlur(float2 uv)
             if (x == 0 && y == 0)
                 continue;
 
-            float2 sampleUV = uv + float2((float)x, (float)y) * texelSize;
+            float2 sampleUV = uv + float2((float) x, (float) y) * texelSize;
             if (any(sampleUV < 0.f) || any(sampleUV > 1.f))
                 continue;
 
@@ -311,7 +312,7 @@ float Compute_SSAOBilateralBlur(float2 uv)
             float3 sampleN = Get_NormalWS(sampleUV);
 
             // joint/cross bilateral blur
-            float dist2 = (float)(x * x + y * y);
+            float dist2 = (float) (x * x + y * y);
             float sigmaS = max(g_SSAOBlurRadius, 1.f);
             float wSpatial = exp(-dist2 / (2.f * sigmaS * sigmaS));
 

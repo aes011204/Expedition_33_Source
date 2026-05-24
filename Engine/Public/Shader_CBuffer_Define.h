@@ -35,7 +35,11 @@ struct alignas(16) MaterialCB
     float uvRotation{ 0.f };
 
     uint32 materialMask{ 0 };
-    float _pad1[2]{};
+    uint32 ormAoSource{ MaterialChannel_R };
+    uint32 ormRoughnessSource{ MaterialChannel_G };
+    uint32 ormMetalnessSource{ MaterialChannel_B };
+    uint32 opacityMaskSource{ MaterialChannel_R };
+    uint32 _pad1[2]{};
 };
 
 /* ------------------------------------------ */

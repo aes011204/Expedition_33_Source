@@ -177,6 +177,19 @@ namespace Engine
     };
 
 
+    enum MaterialChannelSource : uint32
+    {
+        MaterialChannel_Const0 = 0,
+        MaterialChannel_Const1,
+        MaterialChannel_R,
+        MaterialChannel_G,
+        MaterialChannel_B,
+        MaterialChannel_A,
+        MaterialChannel_MaxRGB,
+        MaterialChannel_Luma,
+    };
+
+
 }
 
 template <> struct Enable_Bitmask_Operators<Engine::PostProcessFeature> { static constexpr bool value = true; };

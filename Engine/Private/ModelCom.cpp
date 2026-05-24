@@ -639,6 +639,10 @@ json ModelCom::To_Json() const
                 if (inst.cbMask.roughnessScale) cb["roughnessScale"] = inst.cb.roughnessScale;
                 if (inst.cbMask.metalnessScale) cb["metalnessScale"] = inst.cb.metalnessScale;
                 if (inst.cbMask.aoScale) cb["aoScale"] = inst.cb.aoScale;
+                if (inst.cbMask.ormAoSource) cb["ormAoSource"] = inst.cb.ormAoSource;
+                if (inst.cbMask.ormRoughnessSource) cb["ormRoughnessSource"] = inst.cb.ormRoughnessSource;
+                if (inst.cbMask.ormMetalnessSource) cb["ormMetalnessSource"] = inst.cb.ormMetalnessSource;
+                if (inst.cbMask.opacityMaskSource) cb["opacityMaskSource"] = inst.cb.opacityMaskSource;
 
                 if (inst.cbMask.uvScale) cb["uvScale"] = { inst.cb.uvScale.x, inst.cb.uvScale.y };
                 if (inst.cbMask.uvOffset) cb["uvOffset"] = { inst.cb.uvOffset.x, inst.cb.uvOffset.y };

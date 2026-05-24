@@ -83,8 +83,12 @@ cbuffer MaterialBuffer
     float2 g_UVOffset;              // 72 ~ 79
     float g_UVRotate;               // 80 ~ 83
     uint g_iMaterialMask;           // 84 ~ 87
-    float2 g_MaterialPadding1;      // 88 ~ 95
-}; // 96 bytes
+    uint g_OrmAoSource;             // 88 ~ 91
+    uint g_OrmRoughnessSource;      // 92 ~ 95
+    uint g_OrmMetalnessSource;      // 96 ~ 99
+    uint g_OpacityMaskSource;       // 100 ~ 103
+    float2 g_MaterialPadding1;      // 104 ~ 111
+}; // 112 bytes
 
 cbuffer DrawFeatureBuffer
 {

@@ -62,7 +62,8 @@ PS_OUT_BACKBUFFER PS_MAIN_DEBUG(PS_IN In)
 struct PS_OUT_LIGHT
 {
     vector Shade    : SV_TARGET0;
-    vector Specular : SV_TARGET1;
+    vector Ambient  : SV_TARGET1;
+    vector Specular : SV_TARGET2;
 };
 
 PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
@@ -92,7 +93,8 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
     vector Ambient = g_LightAmbient * g_MtrlAmbient * AO;
     vector DiffuseLight = g_LightDiffuse * NDotL;
 
-    Out.Shade = DiffuseLight + Ambient;
+    Out.Shade = DiffuseLight;
+    Out.Ambient = Ambient;
 
     float SpecularScale = 1.f - Roughness;
      
@@ -128,7 +130,8 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     vector DiffuseLight = g_LightDiffuse * NdotL;
     vector AmbientLight = g_LightAmbient * g_MtrlAmbient * AO;
 
-    Out.Shade = (DiffuseLight + AmbientLight) * fAtt;
+    Out.Shade = DiffuseLight * fAtt;
+    Out.Ambient = AmbientLight * fAtt;
 
     Out.Specular = 0.f;
 
@@ -146,6 +149,7 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
 
     // Light
     vector Shade = g_ShadeTexture.Sample(LinearWrapSampler, In.Texcoord);
+    vector Ambient = g_AmbientTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Emissive = g_EmissiveTexture.Sample(LinearWrapSampler, In.Texcoord);
 
@@ -154,7 +158,9 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     ao = pow(saturate(ao), max(g_SSAOPower, EPSILON));
 
     //float ao = g_SSAOTexture.Sample(LinearWrapSampler, In.Texcoord).r;
-    Out.Color = Diffuse * Shade * ao + Specular;
+    vector direct = Diffuse * Shade;
+    vector indirect = Diffuse * Ambient * ao;
+    Out.Color = direct + indirect + Specular;
 
     // Shadow
     float4 worldPos = Reconstruct_WorldPos(In.Texcoord);
@@ -200,9 +206,11 @@ PS_OUT_HDR_WITH_MASK PS_MAIN_COMBINED_SIMPLE(PS_IN In)
     if (Diffuse.a == 0.f)
         discard;
     vector Shade = g_ShadeTexture.Sample(LinearWrapSampler, In.Texcoord);
+    vector Ambient = g_AmbientTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
 
-    Out.Color = Diffuse * Shade + Specular;
+    // Simple pass still shows the full lit result, but intentionally skips SSAO/emissive.
+    Out.Color = Diffuse * (Shade + Ambient) + Specular;
     Out.Mask = 1.f;
 
     return Out;
@@ -217,10 +225,11 @@ PS_OUT_HDR_WITH_MASK PS_MAIN_COMBINED_PREVIEW(PS_IN In)
         discard;
 
     vector Shade = g_ShadeTexture.Sample(LinearSampler, In.Texcoord);
+    vector Ambient = g_AmbientTexture.Sample(LinearSampler, In.Texcoord);
     vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Emissive = g_EmissiveTexture.Sample(LinearWrapSampler, In.Texcoord);
 
-    Out.Color = Diffuse * Shade + Specular;     // 프리뷰는 direct/deferred lighting 결과만 사용
+    Out.Color = Diffuse * (Shade + Ambient) + Specular;     // 프리뷰는 shadow/SSAO 없이 direct+ambient 결과를 본다.
     Out.Color.rgb += Emissive.rgb;              // emissive는 그대로 더하기
     Out.Color.a = Diffuse.a;
     Out.Mask = 1.f;

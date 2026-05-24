@@ -39,6 +39,15 @@
 #define MATERIAL_FLAG_IRIS_HEIGHT    (1u << MATERIAL_SLOT_IRIS_HEIGHT)
 #define MATERIAL_FLAG_IRIS_MASK      (1u << MATERIAL_SLOT_IRIS_MASK)
 
+#define MATERIAL_CHANNEL_CONST0      0u
+#define MATERIAL_CHANNEL_CONST1      1u
+#define MATERIAL_CHANNEL_R           2u
+#define MATERIAL_CHANNEL_G           3u
+#define MATERIAL_CHANNEL_B           4u
+#define MATERIAL_CHANNEL_A           5u
+#define MATERIAL_CHANNEL_MAX_RGB     6u
+#define MATERIAL_CHANNEL_LUMA        7u
+
 // Feature Texture Slot
 #define FEATURE_TEX_DISSOLVE_NOISE   0
 #define FEATURE_TEX_DISSOLVE_MASK    1
