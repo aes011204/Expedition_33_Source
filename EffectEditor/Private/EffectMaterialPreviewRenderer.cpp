@@ -42,14 +42,15 @@ namespace Internal
 
     wstring Resolve_PreviewTexturePathByGuid(const string& textureGuid)
     {
-        if (GAME != nullptr && !textureGuid.empty())
-        {
-            const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
-            if (!resolvedPath.empty() && fs::exists(resolvedPath))
-                return resolvedPath;
-        }
+        if (GAME == nullptr || textureGuid.empty())
+            return {};
 
-        return {};
+        const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
+        if (assetMeta == nullptr || assetMeta->type != "Texture")
+            return {};
+
+        const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+        return !resolvedPath.empty() && fs::exists(resolvedPath) ? resolvedPath : wstring{};
     }
 
     wstring Resolve_PreviewTexturePathByPath(const string& texturePath)
@@ -68,18 +69,31 @@ namespace Internal
         return {};
     }
 
-    wstring Resolve_PreviewTexturePath(const string& textureGuid, const string& texturePath, bool& outUsedLegacyGuid)
+    bool Is_SamePath(const wstring& lhs, const wstring& rhs)
     {
-        outUsedLegacyGuid = false;
+        if (lhs.empty() || rhs.empty())
+            return false;
 
-        wstring resolvedPath = Resolve_PreviewTexturePathByPath(texturePath);
-        if (!resolvedPath.empty())
-            return resolvedPath;
+        return fs::path(lhs).lexically_normal() == fs::path(rhs).lexically_normal();
+    }
 
-        resolvedPath = Resolve_PreviewTexturePathByGuid(textureGuid);
+    wstring Resolve_PreviewTexturePath(const string& textureGuid, const string& texturePath, bool& outUsedPathFallback, bool& outGuidPathMismatch)
+    {
+        outUsedPathFallback = false;
+        outGuidPathMismatch = false;
+
+        wstring resolvedPath = Resolve_PreviewTexturePathByGuid(textureGuid);
         if (!resolvedPath.empty())
         {
-            outUsedLegacyGuid = true;
+            const wstring pathResolved = Resolve_PreviewTexturePathByPath(texturePath);
+            outGuidPathMismatch = !pathResolved.empty() && !Is_SamePath(resolvedPath, pathResolved);
+            return resolvedPath;
+        }
+
+        resolvedPath = Resolve_PreviewTexturePathByPath(texturePath);
+        if (!resolvedPath.empty())
+        {
+            outUsedPathFallback = true;
             return resolvedPath;
         }
 
@@ -246,8 +260,9 @@ bool EffectMaterialPreviewRenderer::Ready_Shader()
 
 bool EffectMaterialPreviewRenderer::Ready_Texture(const string& textureGuid, const string& texturePath)
 {
-    bool usedLegacyGuid = false;
-    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedLegacyGuid);
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
+    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
     if (resolvedPath.empty())
     {
         _texture = nullptr;
@@ -263,10 +278,19 @@ bool EffectMaterialPreviewRenderer::Ready_Texture(const string& textureGuid, con
         return false;
     }
 
-    if (usedLegacyGuid)
+    if (guidPathMismatch)
     {
         LOG_WARN(
-            "EffectMaterialPreview main texture recovered by legacy GUID. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}'. Save a path-primary reference.",
+            "EffectMaterialPreview main texture GUID/path mismatch. mainTextureGuid='{}', mainTexturePath='{}', guidResolvedPath='{}'.",
+            textureGuid,
+            texturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "EffectMaterialPreview main texture fell back to path. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}'.",
             textureGuid,
             texturePath,
             String::ToString(resolvedPath)
@@ -303,8 +327,9 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
         return true;
     }
 
-    bool usedLegacyGuid = false;
-    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedLegacyGuid);
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
+    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
 
     if (resolvedPath.empty())
     {
@@ -319,10 +344,19 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
         return true;
     }
 
-    if (usedLegacyGuid)
+    if (guidPathMismatch)
     {
         LOG_WARN(
-            "EffectMaterialPreview noise texture recovered by legacy GUID. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Preview continues with legacy recovery.",
+            "EffectMaterialPreview noise texture GUID/path mismatch. noiseTextureGuid='{}', noiseTexturePath='{}', guidResolvedPath='{}'. Preview continues with GUID texture.",
+            textureGuid,
+            texturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "EffectMaterialPreview noise texture fell back to path. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Preview continues with fallback texture.",
             textureGuid,
             texturePath,
             String::ToString(resolvedPath)

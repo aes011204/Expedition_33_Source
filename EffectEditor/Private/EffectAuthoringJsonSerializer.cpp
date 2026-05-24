@@ -1,5 +1,6 @@
 ﻿#include "EffectAuthoringJsonSerializer.h"
 
+#include "GameInstance.h"
 #include "Helper_EffectAuthoring.h"
 
 NS_BEGIN(EffectEditor)
@@ -73,6 +74,62 @@ namespace Internal
         }
 
         return false;
+    }
+
+    wstring Resolve_TexturePathByGuid(const string& textureGuid)
+    {
+        if (GAME == nullptr || textureGuid.empty())
+            return {};
+
+        const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
+        if (assetMeta == nullptr || assetMeta->type != "Texture")
+            return {};
+
+        const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+        return !resolvedPath.empty() && fs::exists(resolvedPath) ? resolvedPath : wstring{};
+    }
+
+    wstring Resolve_TexturePathByPath(const string& texturePath)
+    {
+        if (texturePath.empty())
+            return {};
+
+        fs::path candidatePath = String::ToWString(texturePath);
+        if (candidatePath.is_relative() && GAME != nullptr)
+            candidatePath = fs::path(GAME->Get_AssetRoot()) / candidatePath;
+
+        candidatePath = candidatePath.lexically_normal();
+        return fs::exists(candidatePath) ? candidatePath.wstring() : wstring{};
+    }
+
+    string Make_TextureGuidForSave(const string& textureGuid, const string& texturePath)
+    {
+        if (!textureGuid.empty())
+            return textureGuid;
+
+        if (GAME == nullptr)
+            return {};
+
+        const wstring resolvedPath = Resolve_TexturePathByPath(texturePath);
+        return resolvedPath.empty() ? string{} : GAME->Ensure_AssetGUID(resolvedPath, "Texture");
+    }
+
+    void Fill_TexturePathHintFromGuid(const string& textureGuid, string& texturePath)
+    {
+        if (!texturePath.empty())
+            return;
+
+        const wstring resolvedPath = Resolve_TexturePathByGuid(textureGuid);
+        if (resolvedPath.empty() || GAME == nullptr)
+            return;
+
+        const fs::path assetRoot = fs::path(GAME->Get_AssetRoot()).lexically_normal();
+        const fs::path relativePath = fs::path(resolvedPath).lexically_normal().lexically_relative(assetRoot);
+        if (relativePath.empty() || relativePath.native().starts_with(L".."))
+            return;
+
+        texturePath = String::ToString(relativePath.wstring());
+        ranges::replace(texturePath, '\\', '/');
     }
 
     //## Primitive Value Codec
@@ -227,8 +284,11 @@ namespace Internal
     {
         json root = json::object();
         root["sourcePresetName"] = data.sourcePresetName;
+        root["mainTextureGuid"] = Make_TextureGuidForSave(data.mainTextureGuid, data.mainTexturePath);
         root["mainTexturePath"] = data.mainTexturePath;
+        root["noiseTextureGuid"] = Make_TextureGuidForSave(data.noiseTextureGuid, data.noiseTexturePath);
         root["noiseTexturePath"] = data.noiseTexturePath;
+        root["maskTextureGuid"] = Make_TextureGuidForSave(data.maskTextureGuid, data.maskTexturePath);
         root["maskTexturePath"] = data.maskTexturePath;
         root["tint"] = To_Json(data.tint);
         root["intensity"] = data.intensity;
@@ -274,6 +334,9 @@ namespace Internal
             Read_StringField(root, "noiseTextureId", legacyNoiseTextureId);
             Try_MigrateLegacyTextureId(legacyNoiseTextureId, outData.noiseTextureGuid, outData.noiseTexturePath);
         }
+        Fill_TexturePathHintFromGuid(outData.mainTextureGuid, outData.mainTexturePath);
+        Fill_TexturePathHintFromGuid(outData.noiseTextureGuid, outData.noiseTexturePath);
+        Fill_TexturePathHintFromGuid(outData.maskTextureGuid, outData.maskTexturePath);
         Read_NumberField(root, "intensity", outData.intensity);
         Read_NumberField(root, "opacityPower", outData.opacityPower);
         Read_NumberField(root, "noiseStrength", outData.noiseStrength);

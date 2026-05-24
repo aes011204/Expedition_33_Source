@@ -9,12 +9,12 @@ NS_BEGIN(Engine)
 struct EffectMaterialInstanceData
 {
     string sourcePresetName{}; // UI 표시용 원본 preset 이름이다. 저장 identity나 live reference로 쓰지 않는다.
-    string mainTextureGuid{};  // 구버전 파일 복구/현재 registry 진단용 GUID hint다. 저장 identity로 쓰지 않는다.
-    string mainTexturePath{};  // emitter가 사용할 주 텍스처 resource-relative 경로다.
-    string noiseTextureGuid{}; // 구버전 noise 텍스처 복구/진단용 GUID hint다.
-    string noiseTexturePath{}; // 선택 noise 텍스처 resource-relative 경로다.
-    string maskTextureGuid{};  // 구버전 mask 텍스처 복구/진단용 GUID hint다.
-    string maskTexturePath{};  // 선택 mask 텍스처 resource-relative 경로다.
+    string mainTextureGuid{};  // 주 텍스처 asset identity다. resolve 실패 시 path를 fallback/debug hint로 사용한다.
+    string mainTexturePath{};  // 주 텍스처 resource-relative fallback/debug hint다.
+    string noiseTextureGuid{}; // 선택 noise 텍스처 asset identity다.
+    string noiseTexturePath{}; // 선택 noise 텍스처 resource-relative fallback/debug hint다.
+    string maskTextureGuid{};  // 선택 mask 텍스처 asset identity다.
+    string maskTexturePath{};  // 선택 mask 텍스처 resource-relative fallback/debug hint다.
 
     Color tint{ 1.f, 1.f, 1.f, 1.f }; // main texture RGB emissive-like 색상에 곱할 색상 계수다.
 

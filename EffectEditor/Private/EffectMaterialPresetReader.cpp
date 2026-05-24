@@ -1,5 +1,7 @@
 ﻿#include "EffectMaterialPresetReader.h"
 
+#include "GameInstance.h"
+
 namespace EffectEditor::EffectMaterialPresetReader
 {
 bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
@@ -119,6 +121,19 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         return false;
     };
 
+    const auto fill_texture_path_hint_from_guid = [](const string& textureGuid, string& texturePath)
+    {
+        if (!texturePath.empty() || GAME == nullptr || textureGuid.empty())
+            return;
+
+        const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
+        if (assetMeta == nullptr || assetMeta->type != "Texture" || assetMeta->relativePath.empty())
+            return;
+
+        texturePath = String::ToString(assetMeta->relativePath);
+        ranges::replace(texturePath, '\\', '/');
+    };
+
     const EffectMaterialInstanceData defaultMaterial{};
     EffectMaterialInstanceData material = defaultMaterial;
 
@@ -139,6 +154,9 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         const string legacyNoiseTextureId = read_string("noiseTextureId", {});
         migrate_legacy_texture_id(legacyNoiseTextureId, material.noiseTextureGuid, material.noiseTexturePath);
     }
+    fill_texture_path_hint_from_guid(material.mainTextureGuid, material.mainTexturePath);
+    fill_texture_path_hint_from_guid(material.noiseTextureGuid, material.noiseTexturePath);
+    fill_texture_path_hint_from_guid(material.maskTextureGuid, material.maskTexturePath);
     material.tint = read_color("tint", defaultMaterial.tint);
     material.intensity = read_float("intensity", defaultMaterial.intensity);
     material.opacityPower = read_float("opacityPower", defaultMaterial.opacityPower);

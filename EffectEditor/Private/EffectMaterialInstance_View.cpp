@@ -102,14 +102,15 @@ namespace Internal
 
     wstring Resolve_InstanceTexturePathByGuid(const string& textureGuid)
     {
-        if (GAME != nullptr && !textureGuid.empty())
-        {
-            const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
-            if (!resolvedPath.empty() && fs::exists(resolvedPath))
-                return resolvedPath;
-        }
+        if (GAME == nullptr || textureGuid.empty())
+            return {};
 
-        return {};
+        const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
+        if (assetMeta == nullptr || assetMeta->type != "Texture")
+            return {};
+
+        const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+        return !resolvedPath.empty() && fs::exists(resolvedPath) ? resolvedPath : wstring{};
     }
 
     wstring Resolve_InstanceTexturePathByFallbackPath(const string& texturePath)
@@ -130,11 +131,11 @@ namespace Internal
 
     wstring Resolve_InstanceTexturePath(const string& textureGuid, const string& texturePath)
     {
-        wstring resolvedPath = Resolve_InstanceTexturePathByFallbackPath(texturePath);
+        wstring resolvedPath = Resolve_InstanceTexturePathByGuid(textureGuid);
         if (!resolvedPath.empty())
             return resolvedPath;
 
-        return Resolve_InstanceTexturePathByGuid(textureGuid);
+        return Resolve_InstanceTexturePathByFallbackPath(texturePath);
     }
 
     fs::path Resolve_PreferredTexturePath(const fs::path& filePath, bool& outSwitchedToDds)
@@ -330,17 +331,19 @@ namespace Internal
     string Make_TextureReferenceTooltip(const string& textureGuid, const string& texturePath)
     {
         string state = "Empty";
-        if (!texturePath.empty())
+        if (!textureGuid.empty())
+        {
+            const bool guidResolved = !Resolve_InstanceTexturePathByGuid(textureGuid).empty();
+            if (guidResolved && !texturePath.empty() && Resolve_InstanceTexturePathByFallbackPath(texturePath).empty())
+                state = "GUID reference (path fallback missing)";
+            else
+                state = guidResolved ? "GUID reference" : "GUID missing";
+        }
+        else if (!texturePath.empty())
         {
             state = Resolve_InstanceTexturePathByFallbackPath(texturePath).empty()
-                    ? "Path missing"
-                    : "Path reference";
-        }
-        else if (!textureGuid.empty())
-        {
-            state = Resolve_InstanceTexturePathByGuid(textureGuid).empty()
-                    ? "Legacy GUID resolve failed"
-                    : "Legacy GUID recovery";
+                    ? "Path fallback missing"
+                    : "Path fallback";
         }
 
         return
@@ -352,11 +355,11 @@ namespace Internal
 
     bool Is_WarningTextureReference(const string& textureGuid, const string& texturePath)
     {
+        if (!textureGuid.empty())
+            return Resolve_InstanceTexturePathByGuid(textureGuid).empty();
+
         if (!texturePath.empty())
             return Resolve_InstanceTexturePathByFallbackPath(texturePath).empty();
-
-        if (!textureGuid.empty())
-            return true;
 
         return false;
     }
