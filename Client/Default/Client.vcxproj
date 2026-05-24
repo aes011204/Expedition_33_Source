@@ -167,8 +167,6 @@
     <ClInclude Include="..\public\Base_Mon_Attack.h" />
     <ClInclude Include="..\public\BattleActionExecutor.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
-    <ClInclude Include="..\Public\Monster.h" />
-    <ClInclude Include="..\Public\Mon_BehaviorTree.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
     <ClInclude Include="..\public\BT_Patroll.h" />
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
@@ -364,6 +362,7 @@
     <ClCompile Include="..\private\ANS_Dodge.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
+    <ClCompile Include="..\Private\ANS_QTE.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
@@ -536,10 +535,6 @@
     </ClCompile>
     <ClCompile Include="..\private\UtilitySystem.cpp" />
     <ClCompile Include="..\private\WeaponUI_Common.cpp" />
-    <ClCompile Include="..\public\Ailment.cpp" />
-    <ClCompile Include="..\Private\Mon_BehaviorTree.cpp" />
-    <ClCompile Include="..\Private\Monster.cpp" />
-    <ClCompile Include="..\public\ANS_QTE.cpp" />
     <ClCompile Include="Base_Gustave_Attack.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
