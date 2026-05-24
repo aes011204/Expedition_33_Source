@@ -494,16 +494,15 @@ void Content_Browser::Draw_AssetView()
 
     for (const auto& fileEntry : _currentFolder->files)
     {
-        const fs::path path(fileEntry.filePath);
-        const string fileName = String::ToString(path.filename().wstring());
-        const string prefabSuffix = ".prefab.json";
-        string pureName = String::ToString(path.stem().wstring());
-
-        if (fileName.ends_with(prefabSuffix))
-            pureName = fileName.substr(0, fileName.size() - prefabSuffix.size());
-
         if (hasAssetSearch)
         {
+            const fs::path path(fileEntry.filePath);
+            const string fileName = String::ToString(path.filename().wstring());
+            string pureName = String::ToString(path.stem().wstring());
+
+            if (fileName.ends_with(prefabSuffix))
+                pureName = fileName.substr(0, fileName.size() - prefabSuffix.size());
+
             const string pureNameLower = ToLowerCopy(pureName);
             const string fileNameLower = ToLowerCopy(fileName);
             if (pureNameLower.find(assetSearchLower) == string::npos &&
