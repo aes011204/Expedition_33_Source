@@ -23,6 +23,12 @@ public:
         PatternOverlay,
     };
 
+    enum class MaskTextureMode : uint8
+    {
+        Alpha,
+        BlackWhite,
+    };
+
     enum class FillOrigin : uint8
     {
         LeftToRight,
@@ -42,6 +48,7 @@ public:
         uint32 viBufferPrototypeLevelIndex{ 0 };
         wstring viBufferPrototypeTag{ L"VIBuffer_Rect" };
         ImageRenderMode imageRenderMode = ImageRenderMode::Normal;
+        MaskTextureMode maskTextureMode = MaskTextureMode::Alpha;
 
         // 인수: 원형 마스크 추가
         MaskMode maskMode = MaskMode::None;
@@ -108,6 +115,7 @@ private:
 
     // 인수: 원형 마스크 추가
     ImageRenderMode _imageRenderMode = ImageRenderMode::Normal;
+    MaskTextureMode _maskTextureMode = MaskTextureMode::Alpha;
     MaskMode _maskMode = MaskMode::None;
     Vec2 _holeCenterUV{ 0.5f, 0.5f };
     float _holeRadius = 0.f;

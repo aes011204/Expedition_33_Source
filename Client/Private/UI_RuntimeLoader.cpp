@@ -56,6 +56,7 @@ namespace
         UI_Image::ImageRenderMode imageRenderMode = UI_Image::ImageRenderMode::Normal;
         string maskTextureGuid{};
         string maskTexturePath{};
+        UI_Image::MaskTextureMode maskTextureMode = UI_Image::MaskTextureMode::Alpha;
         string patternMaskTextureGuid{};
         string patternMaskTexturePath{};
 
@@ -198,6 +199,16 @@ namespace
             return UI_Image::ImageRenderMode::PatternOverlay;
 
         return UI_Image::ImageRenderMode::Normal;
+    }
+
+    UI_Image::MaskTextureMode Parse_MaskTextureMode(const string& modeName)
+    {
+        const string mode = String::ToLowerCopy(modeName);
+
+        if ("blackwhite" == mode || "black_white" == mode || "black white" == mode)
+            return UI_Image::MaskTextureMode::BlackWhite;
+
+        return UI_Image::MaskTextureMode::Alpha;
     }
 
     bool Can_RuntimeTypeHaveChildren(RuntimeUIType type)
@@ -732,6 +743,7 @@ namespace
         object.imageRenderMode = Parse_ImageRenderMode(Read_String(item, "imageRenderMode", "Normal"));
         object.maskTextureGuid = Read_String(item, "maskTextureGuid", "");
         object.maskTexturePath = Read_String(item, "maskTexturePath", "");
+        object.maskTextureMode = Parse_MaskTextureMode(Read_String(item, "maskTextureMode", "Alpha"));
         object.patternMaskTextureGuid = Read_String(item, "patternMaskTextureGuid", "");
         object.patternMaskTexturePath = Read_String(item, "patternMaskTexturePath", "");
         object.animationClips = Read_AnimationClips(item);
@@ -881,6 +893,7 @@ namespace
         UI_Image::UI_IMAGE_DESC desc{};
         desc.texturePath = texturePath;
         desc.imageRenderMode = object.imageRenderMode;
+        desc.maskTextureMode = object.maskTextureMode;
 
         const wstring maskTexturePath = Resolve_JsonAssetPath(object.maskTextureGuid, object.maskTexturePath);
         if (!maskTexturePath.empty() && fs::exists(maskTexturePath))
