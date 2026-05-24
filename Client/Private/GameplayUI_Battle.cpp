@@ -5,6 +5,7 @@
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
+#include "UI_AttackTooltip.h"
 
 #include "UI_BattleCommandHUD.h"
 #include "UI_BattleDefense.h"
@@ -16,6 +17,7 @@
 #include "UI_MonsterHpBar.h"
 #include "UI_CrossHair.h"
 #include "UI_DamageFont.h"
+#include "UI_EscapeSkipTurn.h"
 
 GameplayUI_Battle::~GameplayUI_Battle() = default;
 
@@ -37,6 +39,8 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_battleDefense, UI_BattleDefense::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_cancelAim, UI_CancelAim::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_choiceTarget, UI_ChoiceTarget::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_escapeSkipTurn, UI_EscapeSkipTurn::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_attackTooltip, UI_AttackTooltip::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_turnOrder, UI_BattleSystem_TurnOrder::Create), E_FAIL);
 
     for (auto& damageFont : _damageFonts)
@@ -59,6 +63,8 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_BattleDefense(timeDelta);    // 몬스터 턴 방어 (좌측 하단)
     Update_CancelAim(timeDelta);        // Free Aim 취소
     Update_ChoiceTarget(timeDelta);     // 타겟 선택 UI (F 대상 선택, ESC 뒤로)
+    Update_EscapeSkipTurn(timeDelta);   // ChooseAction 중 C 도망 / TAB 턴 넘기기
+    Update_AttackTooltip(timeDelta);    // AttackTargeting 중 기본 공격 설명 툴팁
     Update_TurnOrder(timeDelta);        // 좌측상단 턴 UI
     Update_DamageFonts(timeDelta);      // 데미지 폰트
 
@@ -630,6 +636,63 @@ void GameplayUI_Battle::Update_DamageFonts(float timeDelta)
     }
 }
 
+void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
+{
+    if (_escapeSkipTurn == nullptr)
+        return;
+
+    if (!_isBattleUiActive || !_isPlayerTurnUiActive)
+    {
+        _escapeSkipTurn->Close();
+        return;
+    }
+
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_BattleStarted())
+    {
+        _escapeSkipTurn->Close();
+        return;
+    }
+
+    if (battleController->Get_CurrentTurnState() != BattleTurnState::ChooseAction)
+    {
+        _escapeSkipTurn->Close();
+        return;
+    }
+
+    _escapeSkipTurn->Open(); // ChooseAction 중에만 Escape/SkipTurn 안내를 유지
+    _escapeSkipTurn->Update(timeDelta);
+}
+
+void GameplayUI_Battle::Update_AttackTooltip(float timeDelta)
+{
+    if (_attackTooltip == nullptr)
+        return;
+
+    if (!_isBattleUiActive || !_isPlayerTurnUiActive)
+    {
+        _attackTooltip->Close();
+        return;
+    }
+
+    const auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_BattleStarted())
+    {
+        _attackTooltip->Close();
+        return;
+    }
+
+    if (battleController->Get_CurrentTurnState() != BattleTurnState::AttackTargeting)
+    {
+        _attackTooltip->Close();
+        return;
+    }
+
+    // F 기본 공격으로 AttackTargeting에 들어온 동안만 설명 툴팁을 유지
+    _attackTooltip->Open();
+    _attackTooltip->Update(timeDelta);
+}
+
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
 {
     if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
@@ -715,6 +778,8 @@ void GameplayUI_Battle::Free()
     Release_UI(_crossHair);
     Release_UI(_battleDefense);
     Release_UI(_cancelAim);
+    Release_UI(_escapeSkipTurn);
+    Release_UI(_attackTooltip);
     Release_UI(_choiceTarget);
 
     for (auto& damageFont : _damageFonts)

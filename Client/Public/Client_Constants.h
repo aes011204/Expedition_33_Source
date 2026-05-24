@@ -45,6 +45,10 @@ namespace Client::Constants::UI
 
     inline constexpr wchar_t UI_NormalDamageFont_Path[] = L"UI/UI_Json/BattleSystem/UI_NormalDamageFont.json";
     inline constexpr wchar_t UI_CriticalDamageFont_Path[] = L"UI/UI_Json/BattleSystem/UI_CriticalDamageFont.json";
+
+    inline constexpr wchar_t UI_Escape_SkipTurn_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Escape_SkipTurn.json";
+    inline constexpr wchar_t UI_Attack_Tooltip_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_AttackTooltip.json";
+
 #pragma endregion
 
 }
