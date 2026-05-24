@@ -13,7 +13,6 @@ IMPLEMENT_REFLECTION(BT_Chase)
     return true;
 }
 
-
 BT_Chase::BT_Chase()
 {
 }
@@ -25,10 +24,10 @@ BT_Chase::~BT_Chase()
 void BT_Chase::OnStart()
 {
     LOG_DEBUG("Chase");
-    Shared<Monster_WorldBase> monster = dynamic_pointer_cast<Monster_WorldBase>(Get_Owner()->Get_Owner());
+    const Shared<Monster_WorldBase> monster = dynamic_pointer_cast<Monster_WorldBase>(Get_Owner()->Get_Owner());
     monster->Set_CurrentAction(MW_Lancelier::MonsterWorldAnim::Chase);
 
-    auto bb = Get_Owner()->Get_BlackBoard();
+    const auto bb = Get_Owner()->Get_BlackBoard();
 
     Vec3 target = bb->Get_Value<Vec3>(_targetKey);
     Get_Owner()->Request_Move(target);
@@ -38,38 +37,31 @@ void BT_Chase::OnStart()
 
 BNode::NODE_STATE BT_Chase::Logic_Update(float deltaTime)
 {
-    auto bb = Get_Owner()->Get_BlackBoard();
-
+    const auto bb = Get_Owner()->Get_BlackBoard();
 
     Vec3 target = bb->Get_Value<Vec3>(_targetKey);
-    auto ownerPos = Get_Owner()->Get_Owner()->Get_Transform()->Get_Position();
+    const auto ownerPos = Get_Owner()->Get_Owner()->Get_Transform()->Get_Position();
     Vec3 faceTarget = target;
     faceTarget.y = ownerPos.y;
 
     float distToTarget = (target - ownerPos).Length();
 
-   
     if ((_prevPos - target).Length() >= 1.f)
     {
         Get_Owner()->Request_Move(target);
         _prevPos = target;
-
     }
-
 
     //if (Get_Owner()->Is_Finished())
     //{
     //    return BNode::NODE_STATE::SUCCESS;
     //}
 
-
     return BNode::NODE_STATE::RUN;
-
 }
 
 void BT_Chase::OnFinish()
 {
-
     Get_Owner()->Stop_Move();
 }
 
