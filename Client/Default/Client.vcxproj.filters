@@ -462,6 +462,15 @@
     <ClCompile Include="..\Private\Weapon.cpp">
       <Filter>02. Private</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp">
+      <Filter>02. Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Base_Mon_Spawn.cpp">
+      <Filter>02. Private</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Base_Mon_Defense.cpp">
+      <Filter>02. Private</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\ANS_Dodge.h">
@@ -935,6 +944,15 @@
     <ClInclude Include="..\Public\Weapon.h">
       <Filter>01. Public</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h">
+      <Filter>01. Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Base_Mon_Spawn.h">
+      <Filter>01. Public</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Base_Mon_Defense.h">
+      <Filter>01. Public</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1017,4 +1035,3 @@
     </FxCompile>
   </ItemGroup>
 </Project>
-

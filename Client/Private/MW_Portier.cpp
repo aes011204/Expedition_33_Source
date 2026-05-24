@@ -74,6 +74,12 @@ void MW_Portier::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> ot
 
 void MW_Portier::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
 {
+    outPrefabNames.clear();
+
+    // 일단 렌서러 3마리 고정
+    outPrefabNames.push_back(Constants::Prefab::MB_Lancelier);
+    outPrefabNames.push_back(Constants::Prefab::MB_Portier);
+    outPrefabNames.push_back(Constants::Prefab::MB_Volester);
 }
 
 HRESULT MW_Portier::Ready_Components()
