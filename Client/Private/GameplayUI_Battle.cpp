@@ -1,12 +1,11 @@
 ﻿#include "GameplayUI_Battle.h"
 
-#include "BattleController.h"
 #include "Character.h"
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
-#include "UI_AttackTooltip.h"
 
+#include "UI_AttackTooltip.h"
 #include "UI_BattleCommandHUD.h"
 #include "UI_BattleDefense.h"
 #include "UI_BattleSystemHUD.h"
@@ -18,6 +17,8 @@
 #include "UI_CrossHair.h"
 #include "UI_DamageFont.h"
 #include "UI_EscapeSkipTurn.h"
+#include "UI_ReactionResult.h"
+#include "UI_BattleVictory.h"
 
 GameplayUI_Battle::~GameplayUI_Battle() = default;
 
@@ -41,6 +42,8 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_choiceTarget, UI_ChoiceTarget::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_escapeSkipTurn, UI_EscapeSkipTurn::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_attackTooltip, UI_AttackTooltip::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_reactionResult, UI_ReactionResult::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_battleVictory, UI_BattleVictory::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_turnOrder, UI_BattleSystem_TurnOrder::Create), E_FAIL);
 
     for (auto& damageFont : _damageFonts)
@@ -67,6 +70,7 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_AttackTooltip(timeDelta);    // AttackTargeting 중 기본 공격 설명 툴팁
     Update_TurnOrder(timeDelta);        // 좌측상단 턴 UI
     Update_DamageFonts(timeDelta);      // 데미지 폰트
+    Update_BattleVictory(timeDelta);    // 전투 종료 승리 UI
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -119,6 +123,9 @@ void GameplayUI_Battle::Bind_BattleDelegates()
 
     _damageAppliedHandle =
         DamageSystem::OnDamageApplied.Add(this, &GameplayUI_Battle::Handle_DamageApplied);
+
+    _reactionSucceededHandle =
+        _battleController->OnReactionSucceeded.Add(this, &GameplayUI_Battle::Handle_ReactionSucceeded);
 }
 
 void GameplayUI_Battle::Unbind_BattleDelegates()
@@ -146,6 +153,9 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     if (_damageAppliedHandle.IsValid())
         DamageSystem::OnDamageApplied.Remove(_damageAppliedHandle);
 
+    if (_reactionSucceededHandle.IsValid())
+        _battleController->OnReactionSucceeded.Remove(_reactionSucceededHandle);
+
     _battleStartedHandle.Reset();
     _battleEndedHandle.Reset();
     _turnStartedHandle.Reset();
@@ -153,6 +163,7 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     _targetPreviewChangedHandle.Reset();
     _actionStartedHandle.Reset();
     _damageAppliedHandle.Reset();
+    _reactionSucceededHandle.Reset();
 
     _battleController.reset();
 }
@@ -180,6 +191,7 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isFirstHero)
         _battleDefense.get(),
         _cancelAim.get(),
         _choiceTarget.get(),
+        _reactionResult.get(),
     };
 
     for (UI_RuntimePanelBase* panel : panelsToClose)
@@ -208,6 +220,7 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
     _targetPreviewSnapshot = {};
     _hasCurrentPlayerTurnActor = false;
     _currentPlayerTurnActor = {};
+    _isVictoryUiActive = false;
 
     UI_RuntimePanelBase* panelsToClose[] =
     {
@@ -219,6 +232,10 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
         _battleDefense.get(),
         _cancelAim.get(),
         _choiceTarget.get(),
+        _escapeSkipTurn.get(),
+        _attackTooltip.get(),
+        _reactionResult.get(),
+        _turnOrder.get(),
     };
 
     for (auto* panel : panelsToClose)
@@ -233,7 +250,20 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
             damageFont->Close();
     }
 
-    Stop_BattleEnterTransition(); // 전투 종료 시 남아있는 transition도 같이 정리한다.
+    Stop_BattleEnterTransition(); // 전투 종료 시 남아있는 transition도 같이 정리
+
+    if (result == EBattleEndResult::Victory)
+    {
+        _isVictoryUiActive = true;
+
+        if (_battleVictory)
+            _battleVictory->Open();
+
+        return;
+    }
+
+     if (_battleVictory)
+        _battleVictory->Close();
 }
 
 void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnState state)
@@ -280,6 +310,7 @@ void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
         _battleDefense.get(),
         _cancelAim.get(),
         _choiceTarget.get(),
+        _reactionResult.get(),
     };
 
     for (auto* panel : panelsToClose)
@@ -363,6 +394,14 @@ void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float dam
     selectedSlot->Play_DamageFont(worldPos, damage, stackIndex);
 
 
+}
+
+void GameplayUI_Battle::Handle_ReactionSucceeded(BattleController::ReactionType reactionType)
+{
+    if (_reactionResult)
+    {
+        _reactionResult->Show_Reaction(reactionType);
+    }
 }
 
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
@@ -693,6 +732,46 @@ void GameplayUI_Battle::Update_AttackTooltip(float timeDelta)
     _attackTooltip->Update(timeDelta);
 }
 
+void GameplayUI_Battle::Update_ReactionResult(float timeDelta)
+{
+    if (_reactionResult == nullptr)
+        return;
+
+    if (!_isBattleUiActive)
+    {
+        _reactionResult->Close();
+        return;
+    }
+
+    _reactionResult->Update(timeDelta);
+}
+
+void GameplayUI_Battle::Update_BattleVictory(float timeDelta)
+{
+    if (_battleVictory == nullptr)
+        return;
+
+    if (!_isVictoryUiActive)
+    {
+        _battleVictory->Close();
+        return;
+    }
+
+    _battleVictory->Open();
+    _battleVictory->Update(timeDelta);
+
+    if (GAME->KeyDown(KEY_TYPE::F))
+    {
+        _isVictoryUiActive = false;
+        _battleVictory->Close();
+
+        if (_battleController)
+        {
+            _battleController->Confirm_Victory();
+        }
+    }
+}
+
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
 {
     if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
@@ -781,6 +860,7 @@ void GameplayUI_Battle::Free()
     Release_UI(_escapeSkipTurn);
     Release_UI(_attackTooltip);
     Release_UI(_choiceTarget);
+    Release_UI(_reactionResult);
 
     for (auto& damageFont : _damageFonts)
         Release_UI(damageFont);

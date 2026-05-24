@@ -23,6 +23,21 @@ class BattleTurnCamera;
 
 class BattleController : public Base
 {
+public:
+    enum ReactionType
+    {
+        None, Parry, Dodge, QTE
+    };
+
+    struct Reaction
+    {
+        ReactionType type = ReactionType::None;
+        bool isOpen = false;
+        bool isConsumed = false;
+        ReactionType result = ReactionType::None;
+    };
+
+public: /* Delegate 선언 */
     // 전투 시작
     DECLARE_DELEGATE(FOnBattleStarted, uint32, bool);
     // 전투 종료
@@ -35,23 +50,8 @@ class BattleController : public Base
     DECLARE_DELEGATE(FOnTargetPreviewChanged, const BattleChar*);
     // 공격 시작
     DECLARE_DELEGATE(FOnActionStarted, const Action&);
-
-public:
-    enum ReactionType
-    {
-        None,
-        Parry,
-        Dodge,
-        QTE
-    };
-
-    struct Reaction
-    {
-        ReactionType type = ReactionType::None;
-        bool isOpen = false;
-        bool isConsumed = false;
-        ReactionType result = ReactionType::None;
-    };
+    // Reaction (Dodge, Parry)
+    DECLARE_DELEGATE(FOnReactionSucceeded, ReactionType);
 
 public:
     BattleController();
@@ -133,6 +133,9 @@ public:
     // 초상화 세팅
     vector<BattleChar> Get_TurnOrderPreview(uint32 maxCount = 8) const;
 
+    // 전투 종료
+    void Confirm_Victory();
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
@@ -155,7 +158,8 @@ public: /* Delegate */
     FOnTurnEnded            OnTurnEnded;
     FOnTargetPreviewChanged OnTargetPreviewChanged;
     FOnActionStarted        OnActionStarted;
-
+    FOnReactionSucceeded    OnReactionSucceeded;
+    
 private:
     BattleChar              _currentTurnActor = {};
     Action                  _turnAction = {};
@@ -169,6 +173,7 @@ private:
     int currentTurnIndex = {};
 
     bool _flag = { false };
+    bool _isWaitingVictoryConfirm = false;
 
 private:
     BattleChar _targetPreview = {};

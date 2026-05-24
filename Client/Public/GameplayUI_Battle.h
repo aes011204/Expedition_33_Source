@@ -4,6 +4,7 @@
 #include "Battle_Enum.h"
 #include "Delegate.h"
 #include "UI_BattleSystem_TurnOrder.h"
+#include "BattleController.h"
 
 NS_BEGIN(Client)
 
@@ -20,6 +21,8 @@ class UI_AttackTooltip;
 class UI_BattleSystem_TurnOrder;
 class UI_DamageFont;
 class UI_EscapeSkipTurn;
+class UI_ReactionResult;
+class UI_BattleVictory;
 
 class GameplayUI_Battle final : public Base
 {
@@ -47,6 +50,7 @@ private:
     void    Handle_TargetPreviewChanged(const BattleChar* target);
     void    Handle_ActionStarted(const Action& action);
     void    Handle_DamageApplied(const BattleChar& target, float damage);
+    void    Handle_ReactionSucceeded(BattleController::ReactionType reactionType);
 
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
@@ -59,6 +63,8 @@ private:
     void    Update_DamageFonts(float timeDelta);
     void    Update_EscapeSkipTurn(float timeDelta);
     void    Update_AttackTooltip(float timeDelta);
+    void    Update_ReactionResult(float timeDelta);
+    void    Update_BattleVictory(float timeDelta);
 
 private:
     // 타겟 체력바 위치
@@ -82,8 +88,11 @@ private:
     Unique<UI_ChoiceTarget>                 _choiceTarget;
     Unique<UI_EscapeSkipTurn>               _escapeSkipTurn;
     Unique<UI_AttackTooltip>                _attackTooltip;
+    Unique<UI_ReactionResult>               _reactionResult;
+    Unique<UI_BattleVictory>                _battleVictory;
     Unique<UI_BattleSystem_TurnOrder>       _turnOrder;
 
+private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
     array<Unique<UI_DamageFont>, kDamageFontPoolSize> _damageFonts{};
 
@@ -96,11 +105,14 @@ private:
     FDelegateHandle          _targetPreviewChangedHandle{}; // 타겟 바뀔 때
     FDelegateHandle          _actionStartedHandle{};
     FDelegateHandle          _damageAppliedHandle{};
+    FDelegateHandle           _reactionSucceededHandle{};
 
+private:
     BattleChar               _targetPreviewSnapshot{};
     bool                     _hasTargetPreviewSnapshot = false;
     bool                     _isBattleUiActive = false;
     bool                     _isPlayerTurnUiActive = false;
+    bool                     _isVictoryUiActive = false;
 
 private:
     BattleChar               _currentPlayerTurnActor{}; // 현재 턴 진행중인 플레이어

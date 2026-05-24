@@ -49,6 +49,11 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Escape_SkipTurn_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Escape_SkipTurn.json";
     inline constexpr wchar_t UI_Attack_Tooltip_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_AttackTooltip.json";
 
+    inline constexpr wchar_t UI_Dodge_Path[] = L"UI/UI_Json/BattleSystem/UI_Dodge.json";
+    inline constexpr wchar_t UI_Parry_Path[] = L"UI/UI_Json/BattleSystem/UI_Parry.json";
+
+    inline constexpr wchar_t UI_Battle_Victory_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleVictory.json";
+
 #pragma endregion
 
 }

@@ -192,10 +192,13 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     _isWaitingBattleTransition = false;
 
     Clear_TargetPreview();
-    OnBattleEnded.Broadcast(result); // battle end UI 정리는 GameplayUI_Battle에서 처리한다.
+    OnBattleEnded.Broadcast(result); // battle end UI 정리는 GameplayUI_Battle에서 처리
 
-    // 전투 종료 시 슬로우모션 값이 남지 않도록 복구
-    GAME->Stop_WorldTimeSlow();
+    if (result == EBattleEndResult::Victory)
+    {
+        _isWaitingBattleTransition = true;
+        return result;
+    }
 
     Restore_WorldCamera(); // 카메라 복구
 
@@ -632,10 +635,12 @@ void BattleController::UpdateReactionInput()
             _reaction.type == ReactionType::Dodge &&
             _reaction.isOpen;
 
+        // 회피 성공
         if (isSuccess)
         {
             _reaction.isConsumed = true;
             _reaction.result = Dodge;
+            OnReactionSucceeded.Broadcast(ReactionType::Dodge);
         }
 
         // 실패해도 Dodge 시도 애니는 재생
@@ -649,10 +654,12 @@ void BattleController::UpdateReactionInput()
             _reaction.type == ReactionType::Parry &&
             _reaction.isOpen;
 
+        // 패링 성공 -> 패링 애니메이션 이후 카운터 애니메이션 실행해야함
         if (isSuccess)
         {
             _reaction.isConsumed = true;
-            _reaction.result = Parry;
+            _reaction.result = ReactionType::Parry;
+            OnReactionSucceeded.Broadcast(ReactionType::Parry);
         }
         PlayReactionAnimation(_turnAction.target, ReactionType::Parry, isSuccess); // 성공이면 Counter, 실패면 Parry
         return;
@@ -953,6 +960,27 @@ vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
     }
 
     return preview;
+}
+
+void BattleController::Confirm_Victory()
+{
+    if (!_isWaitingVictoryConfirm)
+        return;
+
+    _isWaitingVictoryConfirm = false;
+
+    GAME->Stop_WorldTimeSlow();
+
+    Restore_WorldCamera();
+
+    _heroes.clear();
+    _enemies.clear();
+
+    Clear_BattleEnterPending();
+
+    // 초기 애님 관련 변수 초기화
+    _firstAnimflag = false;
+    _firstAnimCount = 0;
 }
 
 HRESULT BattleController::Ready_BattleTurnCamera()
