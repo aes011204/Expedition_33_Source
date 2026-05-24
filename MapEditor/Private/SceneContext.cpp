@@ -238,9 +238,16 @@ void SceneContext::SaveToFile(const string& filePath)
     json modelOverrides = json::object();
     for (auto& [filename, entry] : _modelOverrides)
     {
+        json slots = json::object();
+        for (auto& [slotIdx, texPath] : entry.textureSlots)
+        {
+            slots[to_string(slotIdx)] = texPath;
+        }
+
         modelOverrides[filename] = {
         {"PassIndex",  entry.passIndex},
-        {"ShaderType", static_cast<int>(entry.shaderType)}
+        {"ShaderType", static_cast<int>(entry.shaderType)},
+        {"TextureSlots", slots},
         };
     }
 
@@ -268,11 +275,15 @@ void SceneContext::SaveToFile(const string& filePath)
             }
 
             json primitiveProxyArray = json::array();
-            for (const ModelCollisionProxy& proxy : colData->primitiveProxies) // box/sphere/capsule 같은 primitive collision도 같이 저장한다.
+            for (const ModelCollisionProxy& proxy : colData->primitiveProxies)
+            {
                 primitiveProxyArray.push_back(Serialize_CollisionProxy(proxy));
+            }
 
             if (cookedMeshArray.empty() && primitiveProxyArray.empty())
+            {
                 continue;
+            }
 
             collisionEntry["CookedTriangleMeshes"] = cookedMeshArray;
             collisionEntry["PrimitiveProxies"] = primitiveProxyArray;
@@ -343,6 +354,13 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
             ModelOverrideEntry entry;
             entry.passIndex = data.value("PassIndex", -1);
             entry.shaderType = static_cast<ShaderType>(data.value("ShaderType", static_cast<int>(ShaderType::VtxMesh)));
+            if (data.contains("TextureSlots"))
+            {
+                for (auto& [slotStr, texPath] : data["TextureSlots"].items())
+                {
+                    entry.textureSlots[stoi(slotStr)] = texPath.get<string>();
+                }
+            }
             _modelOverrides[filename] = entry;
         }
     }

@@ -290,7 +290,7 @@ void MapEditorApp::Update_StaticMeshHandles()
         Apply_MaterialFromJson(obj->_modelPath, bundleKey, model);
 
         const string modelFilename = String::ToString(fs::path(obj->_modelPath).filename().wstring());
-        Apply_PassOverrideToModel(*model, modelFilename);
+        Apply_PassOverrideToModel(*model, modelFilename, obj->_position);
 
         obj->_renderHandle = actor;
         _scene._octreeDirty = true;
@@ -526,17 +526,40 @@ string MapEditorApp::Resolve_BundleKey(const fs::path& modelPath) const
     return bundleKey;
 }
 
-void MapEditorApp::Apply_PassOverrideToModel(ModelCom& model, const string& modelFilename)
+void MapEditorApp::Apply_PassOverrideToModel(ModelCom& model, const string& modelFilename, Vec3 worldPos)
 {
     auto it = _scene._modelOverrides.find(modelFilename);
     int32 passIndex = (it != _scene._modelOverrides.end()) ? it->second.passIndex : -1;
 
-    for (uint32 i = 0; i < static_cast<uint32>(model.Get_NumMaterials()); ++i)
+    uint32 matSize = static_cast<uint32>(model.Get_NumMaterials());
+    for (uint32 i = 0; i < matSize; ++i)
     {
         auto mat = model.Get_Material(i);
-        if (mat)
+        if (!mat)
         {
-            mat->Set_ForcedPassIndex(passIndex);
+            continue;
+        }
+
+        mat->Set_ForcedPassIndex(passIndex);
+
+        if (it != _scene._modelOverrides.end())
+        {
+            for (auto& [slotIdx, texPath] : it->second.textureSlots)
+            {
+                if (texPath.empty())
+                {
+                    continue;
+                }
+                string fullPath = string(_mapSavePath) + texPath;
+                auto slot = static_cast<MaterialTextureSlot>(slotIdx);
+                mat->Override_TextureSlot(slot, 0, String::ToWString(fullPath));
+            }
+
+            if (it->second.passIndex == static_cast<int32>(VtxMeshPassIndex::LandscapeBlendPass))
+            {
+                auto& cb = mat->Get_CB();
+                cb.uvOffset = Vec2(worldPos.x, worldPos.z);
+            }
         }
     }
 }
@@ -564,7 +587,7 @@ void MapEditorApp::Apply_PassOverrides()
         }
 
         const string modelFilename = String::ToString(fs::path(obj->_modelPath).filename().wstring());
-        Apply_PassOverrideToModel(*model, modelFilename);
+        Apply_PassOverrideToModel(*model, modelFilename, obj->_position);
     }
 
     for (auto& obj : _scene._instancedMeshes)

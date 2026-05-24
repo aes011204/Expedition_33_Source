@@ -103,6 +103,7 @@ namespace MapEditor
     {
         ShaderType shaderType = ShaderType::VtxMesh;
         int32 passIndex = -1;
+        map<int32, string> textureSlots;
     };
 
     inline constexpr pair<const char*, uint32> g_staticMeshPassOptions[] = {
@@ -114,8 +115,9 @@ namespace MapEditor
     { "MaskedTwoSided", VtxMeshPassIndex::MaskedTwoSidedPass },
     { "OpaqueAR", VtxMeshPassIndex::OpaqueARPass },
     { "OpaqueARTwoSided", VtxMeshPassIndex::OpaqueARTwoSidedPass },
+    { "LandscapeBlend", VtxMeshPassIndex::LandscapeBlendPass },
     };
-    inline constexpr int32 g_staticMeshPassOptionCount = 8;
+    inline constexpr int32 g_staticMeshPassOptionCount = 9;
 
     inline constexpr pair<const char*, uint32> g_instanceMeshPassOptions[] = {
     { "Default", VtxInstanceMeshExactPassIndex::DefaultPass },
