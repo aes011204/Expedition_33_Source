@@ -45,7 +45,7 @@ protected:
     virtual const wchar_t* Get_HairModelTag() const = 0;
 
     // 무기가 없다면 장착 X
-    virtual bool Try_GetWeaopnAttackDesc(WeaponAttachDesc& outDesc) const { return false; }
+    virtual bool Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const { return false; }
 
     // body가 만들어진 뒤, 캐릭터별 추가 파트
     virtual HRESULT Ready_WeaponPart(Body_Player* body);

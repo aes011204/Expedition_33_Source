@@ -70,6 +70,7 @@ HRESULT MovementCom::Initialize(void* arg)
     _velocity = Vec3::Zero;
     _currentTurnSpeedDegree = 0.f;
     _idleGroundProbeAccum = 0.f;
+
 #ifdef _DEBUG
     _idleGroundProbeDebugLogAccum = 0.f;
 #endif

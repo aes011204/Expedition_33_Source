@@ -20,6 +20,8 @@ HRESULT Level_Loading::Initialize(LevelType eNextLevelID)
     _nextLevel = eNextLevelID;
     _loadingStartTime = chrono::steady_clock::now();
     _printedLoadCompleteLog = false;
+    _hasRenderedFirstFrame = false;
+    _postFirstRenderFrameCount = 0;
 
     if (FAILED(Ready_LoadingUIRenderResources()))
         return E_FAIL;
@@ -42,7 +44,18 @@ void Level_Loading::Update(float fTimeDelta)
 {
     CHECK_NULL(_loader);
 
-    CHECK_FAILED(_loader->Process_PendingLoadJobs(8, 2, chrono::milliseconds(3)));
+    if (!_hasRenderedFirstFrame)
+        return;
+
+    const size_t maxMainThreadCreatePerFrame =
+        _postFirstRenderFrameCount < 5 ? 1 : 2;
+
+    const chrono::milliseconds maxMainThreadCreateTime =
+        _postFirstRenderFrameCount < 5 ? chrono::milliseconds(1) : chrono::milliseconds(3);
+
+    CHECK_FAILED(_loader->Process_PendingLoadJobs(8, maxMainThreadCreatePerFrame, maxMainThreadCreateTime));
+
+    ++_postFirstRenderFrameCount;
 
 #ifdef _DEBUG
     if (_loader->isFinished() && !_printedLoadCompleteLog)
@@ -96,6 +109,9 @@ void Level_Loading::Update(float fTimeDelta)
 
 HRESULT Level_Loading::Render()
 {
+    if (!_hasRenderedFirstFrame)
+        _hasRenderedFirstFrame = true;
+
 #ifdef _DEBUG
     _loader->Print_LoadingText();
 #endif
@@ -109,17 +125,10 @@ HRESULT Level_Loading::Ready_LoadingUIRenderResources()
     CHECK_NULL(resourceLoader, E_FAIL);
 
     vector<FLoadJob> loadJobs;
-    CHECK_FAILED(resourceLoader->Build_LevelJobs(LevelType::Static, loadJobs), E_FAIL);
+    CHECK_FAILED(resourceLoader->Build_LoadingUIRenderJobs(loadJobs), E_FAIL);
 
     for (const FLoadJob& loadJob : loadJobs)
     {
-        const bool isLoadingUIResource =
-            loadJob.strPrototypeTag == TEXT("Shader_UI") ||
-            loadJob.strPrototypeTag == TEXT("VIBuffer_Rect");
-
-        if (!isLoadingUIResource)
-            continue;
-
         CHECK_FAILED(resourceLoader->Register_LoadJob(loadJob), E_FAIL);
     }
 
@@ -138,7 +147,7 @@ HRESULT Level_Loading::Ready_Layer_UI(const wchar_t* pLayerTag)
     UI_RuntimeLoader::UI_LoadDesc desc{};
     desc.levelIndex = ETOI(LevelType::Loading);
     desc.jsonPath = Constants::UI::Loading_UI_Json_Path;
-    desc.animationDirectory = Constants::UI_Anim::UI_Animation_Dir;
+    desc.animationPath = Constants::UI_Anim::UI_LoadingAnim_Path;
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 

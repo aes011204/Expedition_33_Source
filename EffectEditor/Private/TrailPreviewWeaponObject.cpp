@@ -5,31 +5,25 @@
 #include "EffectEditorInstance.h"
 #include "Material.h"
 #include "ModelCom.h"
-#include "PB_Gustave.h"
 #include "PlayableParts.h"
 #include "ShaderPassFinder.h"
 #include "ShaderCom.h"
+#include "TrailPreviewPlayerObject.h"
 
 NS_BEGIN(EffectEditor)
 
 TrailPreviewWeaponObject::TrailPreviewWeaponObject(const ComPtr<Device>& device, const ComPtr<Context>& context)
-    : GameObject{ device, context }
+    : PartObject{ device, context }
 {
 }
 
 TrailPreviewWeaponObject::TrailPreviewWeaponObject(const TrailPreviewWeaponObject& prototype)
-    : GameObject{ prototype }
+    : PartObject{ prototype }
 {
 }
 
 HRESULT TrailPreviewWeaponObject::Initialize(void* arg)
 {
-    const PreviewDesc* previewDesc = static_cast<PreviewDesc*>(arg);
-    CHECK_NULL(previewDesc, E_FAIL);
-    CHECK_NULL(previewDesc->gustave, E_FAIL);
-
-    _gustave = previewDesc->gustave;
-
     CHECK_FAILED(__super::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
 
@@ -163,22 +157,27 @@ void TrailPreviewWeaponObject::Configure_WeaponMaterials()
     }
 }
 
+Shared<TrailPreviewPlayerObject> TrailPreviewWeaponObject::Get_PlayerOwner() const
+{
+    return dynamic_pointer_cast<TrailPreviewPlayerObject>(Get_Owner());
+}
+
 PlayableParts* TrailPreviewWeaponObject::Get_BodyPart() const
 {
-    const Shared<PB_Gustave> gustave = _gustave.lock();
-    if (nullptr == gustave)
+    const Shared<TrailPreviewPlayerObject> player = Get_PlayerOwner();
+    if (nullptr == player)
         return nullptr;
 
-    return dynamic_cast<PlayableParts*>(gustave->Get_PartObject(L"Part_Body"));
+    return dynamic_cast<PlayableParts*>(player->Get_PartObject(L"Part_Body"));
 }
 
 Matrix TrailPreviewWeaponObject::Get_PlayerWorldMatrix() const
 {
-    const Shared<PB_Gustave> gustave = _gustave.lock();
-    if (nullptr == gustave || nullptr == gustave->Get_Transform())
+    const Shared<TrailPreviewPlayerObject> player = Get_PlayerOwner();
+    if (nullptr == player || nullptr == player->Get_Transform())
         return Matrix::Identity;
 
-    return gustave->Get_Transform()->Get_WorldMatrix();
+    return player->Get_Transform()->Get_WorldMatrix();
 }
 
 Matrix TrailPreviewWeaponObject::Build_WeaponOffsetMatrix() const

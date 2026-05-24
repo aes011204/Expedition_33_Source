@@ -46,6 +46,12 @@
     <Filter Include="02.GameObject\UI" />
     <Filter Include="02.GameObject\UI\BackGround" />
     <Filter Include="03. Component" />
+    <Filter Include="03. Shaders">
+      <UniqueIdentifier>{5171836F-B615-4CE4-9C6F-4361B27204CE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Shaders\Compute">
+      <UniqueIdentifier>{8771B44D-0942-434E-9111-8F4553475CAD}</UniqueIdentifier>
+    </Filter>
     <Filter Include="03. Component\CombatStat" />
     <Filter Include="03. Component\Input" />
     <Filter Include="03. Component\PlayerController" />
@@ -71,34 +77,89 @@
     <Filter Include="BehavoirTree\world" />
     <Filter Include="Skill" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimEvaluate.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMeshSkinning.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMix.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneCombine.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl" />
+    <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
+    <ClCompile Include="..\Private\UI_DamageFont.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
+      <Filter>03. Shaders\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl">
+      <Filter>03. Shaders\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimEvaluate.hlsl">
+      <Filter>03. Shaders\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMeshSkinning.hlsl">
+      <Filter>03. Shaders\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMix.hlsl">
+      <Filter>03. Shaders\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneCombine.hlsl">
+      <Filter>03. Shaders\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
+      <Filter>03. Shaders\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
+      <Filter>03. Shaders\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
+      <Filter>03. Shaders\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
+      <Filter>03. Shaders\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">
+      <Filter>03. Shaders\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
+      <Filter>03. Shaders\Compute</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\ANS_Dodge.h">
@@ -572,6 +633,8 @@
     <ClInclude Include="..\Public\Weapon.h">
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
+    <ClInclude Include="..\Public\UI_DamageFont.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

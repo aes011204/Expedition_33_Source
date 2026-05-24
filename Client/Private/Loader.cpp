@@ -249,10 +249,6 @@ HRESULT Loader::Append_ResourceJobsForLevel(LevelType levelType)
 
     _totalJobCount.fetch_add(builtJobs.size());
 
-    //LOG_ERROR("[Loader::Load_ResourceJobsForLevel] level={}, totalJobs={}",
-    //    static_cast<int>(levelType),
-    //    static_cast<int>(builtJobs.size()));
-
     return S_OK;
 }
 

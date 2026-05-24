@@ -53,7 +53,7 @@ void MW_Portier::Update(float timeDelta)
 
         // Lancelier 월드 이동은 기존 Monster와 동일하게 body root motion 속도를 사용한다.
         const auto rootVelocity = _body->Get_RootTransformVelocity();
-        _transformCom->Set_SpeedPerSec(rootVelocity.position.z * 0.4f/*Constants::Charcter::scaleOffset*/);
+        _transformCom->Set_SpeedPerSec(rootVelocity.position.z * 0.1f/*Constants::Charcter::scaleOffset*/);
     }
 }
 

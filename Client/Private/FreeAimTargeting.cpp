@@ -9,6 +9,7 @@
 #include "PhysX_Types.h"
 #include "GameObject.h"
 #include "Character.h"
+#include "ModelCom.h"
 
 FreeAimTargeting::FreeAimTargeting(const Shared<BattleController>& owner)
     : Battle_State{ owner }
@@ -28,6 +29,7 @@ void FreeAimTargeting::Begin_Play()
 bool FreeAimTargeting::EnterInvoke()
 {
     Clear_HitTarget();
+    _freeAimAnimState = FreeAimAnimState::None;
 
     auto owner = Get_Owner();
     if (!owner)
@@ -42,6 +44,14 @@ bool FreeAimTargeting::EnterInvoke()
     }
 
     //GAME->Lock_Mouse();
+    const BattleChar& actor = owner->Get_TurnAction()._curChar;
+    if (actor.ModelCom == nullptr)
+        return false;
+
+    if (!actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::FreeAim_Enter), 0.2f, false))
+        return false;
+
+    _freeAimAnimState = FreeAimAnimState::EnterTransition;
 
     return Battle_State::EnterInvoke();
 }
@@ -60,17 +70,30 @@ void FreeAimTargeting::Update(float timeDelta)
     if (owner->Is_FreeAimShotPlaying())
         return;
 
+    // 진입 중이고, 애니메이션이 끝나면
+    if (_freeAimAnimState == FreeAimAnimState::EnterTransition && Is_CurrentActorAnimFinished())
+    {
+        // 애니메이션 끝난 뒤부터 실제 조준 자세 유지
+        Play_CurrentActorBattleAnim(BattleAnimType::FreeAim_Idle, 0.15f, true);
+        _freeAimAnimState = FreeAimAnimState::Idle;
+    }
+
     if (const auto battleCamera = owner->Get_BattleTurnCamera())
-    battleCamera->Update_FreeAimRotation(timeDelta); // Free Aim 상태에서만 카메라 회전 갱신
+        battleCamera->Update_FreeAimRotation(timeDelta); // Free Aim 상태에서만 카메라 회전 갱신
 
     Refresh_HitTarget(); // 회전된 카메라 방향 기준으로 적 히트 판정
 
     if (GAME->KeyDown(KEY_TYPE::RBUTTON))
     {
+        Play_CurrentActorBattleAnim(BattleAnimType::Base_Idle, 0.2f, true); // 취소 시에는 기본 Idle로 전환
         Clear_HitTarget();
         battleFSM->Change_State(BattleTurnState::ChooseAction);
         return;
     }
+
+    // 진입이 끝나기 전에는 Shoot 허용 X
+    if (_freeAimAnimState != FreeAimAnimState::Idle)
+        return;
 
     if (GAME->KeyDown(KEY_TYPE::LBUTTON))
     {
@@ -82,12 +105,6 @@ void FreeAimTargeting::Update(float timeDelta)
             shotAction.target = _currentHitTarget;
         else
             shotAction.target = {};
-
-        const Skill_Data* data = CLIENT->Get_Skill(shotAction._curChar.statCom->Get_FirstSkill());
-        if (!data)
-            return;
-
-        shotAction._selected_SkillKey = *data;
 
         owner->Begin_FreeAimShot(shotAction);
         return;
@@ -103,6 +120,7 @@ void FreeAimTargeting::ExitInvoke()
 {
     //GAME->Unlock_Mouse();
     Clear_HitTarget();
+    _freeAimAnimState = FreeAimAnimState::None;
 
     Battle_State::ExitInvoke();
 }
@@ -179,6 +197,32 @@ void FreeAimTargeting::Clear_HitTarget()
 
     if (auto owner = Get_Owner())
         owner->Clear_TargetPreview();
+}
+
+bool FreeAimTargeting::Is_CurrentActorAnimFinished() const
+{
+    auto owner = Get_Owner();
+    if (!owner)
+        return false;
+
+    const BattleChar& actor = owner->Get_TurnAction()._curChar;
+    if (actor.ModelCom == nullptr)
+        return false;
+
+    return actor.ModelCom->Is_AnimationFinished(); // 현재 재생 중인 진입 애니가 끝났는지 확인S
+}
+
+void FreeAimTargeting::Play_CurrentActorBattleAnim(BattleAnimType animType, float blendTime, bool isLoop) const
+{
+    auto owner = Get_Owner();
+    if (!owner)
+        return;
+
+    const BattleChar& actor = owner->Get_TurnAction()._curChar;
+    if (actor.ModelCom == nullptr)
+        return;
+
+    actor.ModelCom->Set_AnimationByState(ETOI(animType), blendTime, isLoop);
 }
 
 Shared<FreeAimTargeting> FreeAimTargeting::Create(const Shared<BattleController>& owner)

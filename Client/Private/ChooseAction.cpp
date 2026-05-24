@@ -47,33 +47,35 @@ void ChooseAction::Update(float timeDelta)
     if (!owner || !battleFSM)
         return;
 
-    if (GAME->KeyDown(KEY_TYPE::F))
+    if (GAME->KeyDown(KEY_TYPE::TAB)) // 턴 넘기기
     {
-        LOG_DEBUG("ChooseAction::Update: F -> BaseAttack -> AttackTargeting");
+        owner->EndTurn();
+        return;
+    }
+
+    if (GAME->KeyDown(KEY_TYPE::F)) // 기본 공격
+    {
         owner->Get_TurnAction().type = EBattleContext::BaseAttack;
         battleFSM->Change_State(BattleTurnState::AttackTargeting);
         return;
     }
 
-    if (GAME->KeyDown(KEY_TYPE::E))
+    if (GAME->KeyDown(KEY_TYPE::E)) // 스킬
     {
-        LOG_DEBUG("ChooseAction::Update: E -> Skill -> ChooseSkill");
         owner->Get_TurnAction().type = EBattleContext::Skill;
         battleFSM->Change_State(BattleTurnState::ChooseSkill);
         return;
     }
 
-    if (GAME->KeyDown(KEY_TYPE::W))
+    if (GAME->KeyDown(KEY_TYPE::W)) // 아이템
     {
-        LOG_DEBUG("ChooseAction::Update: W -> ConsumableItem -> ChooseItem");
         owner->Get_TurnAction().type = EBattleContext::ConsumableItem;
         battleFSM->Change_State(BattleTurnState::ChooseItem);
         return;
     }
 
-    if (GAME->KeyDown(KEY_TYPE::RBUTTON))
+    if (GAME->KeyDown(KEY_TYPE::RBUTTON)) // 조준
     {
-        LOG_DEBUG("ChooseAction::Update: RBUTTON -> ConsumableItem -> Free Aim Shoot");
         owner->Get_TurnAction().type = EBattleContext::FreeAimShoot;
         battleFSM->Change_State(BattleTurnState::FreeAimTargeting);
         return;
