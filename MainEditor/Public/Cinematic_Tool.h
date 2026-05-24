@@ -64,6 +64,8 @@ private:
     void Sort_BattleClipTrackKeyframes(BattleCameraTrack& track);
     void Insert_BattleClipKeyAtFrame(int trackIndex, int frame);
     void Apply_CurrentBattleClipPreview();
+    void Ensure_BattleClipSkillListLoaded();
+    string Get_SelectedBattleClipSkillId() const;
 
   void Clip_BattleClipHotInput();
 
@@ -114,6 +116,9 @@ private:
     int                                  _battleClipContextTrackIndex = -1;
     int                                  _battleClipContextFrame = 0;
     bool                                 _isBattleClipPreviewDirty = false;
+    vector<string>                       _battleClipSkillIds{};
+    int                                  _selectedBattleClipSkillIndex = -1;
+    bool                                 _useBattleClipSkillOverride = false;
 
 public:
     static Shared<Cinematic_Tool> Create();

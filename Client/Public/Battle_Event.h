@@ -9,6 +9,7 @@ struct EvtBattlePresentation
   BattleCameraMode   cameraMode;
   Shared<Character>  subject;
   Shared<Character>  opponent;
+  string             skillId;
     //ui에 필요한 변수들 추가
 };
 NS_END

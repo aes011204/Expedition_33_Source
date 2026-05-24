@@ -9,11 +9,23 @@ BattleCameraClipIO::~BattleCameraClipIO()
 {
 }
 
-void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode, const BattleCameraClip& clip)
+namespace
 {
-    const string name = string(magic_enum::enum_name(cameraMode));
+string Build_BattleCameraClipFilePath(BattleCameraMode cameraMode, const string& skillId)
+{
+    const string modeName = string(magic_enum::enum_name(cameraMode));
+    string fileName = "BattleCameraClip_" + modeName;
 
-    const string filePath = "../../../Client/Bin/Resources/Data/json/CameraPreset/BattleCameraClip_"+ name +".json";
+    if (!skillId.empty())
+        fileName += "_" + skillId;
+
+    return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
+}
+}
+
+void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode, const BattleCameraClip& clip, const string& skillId)
+{
+    const string filePath = Build_BattleCameraClipFilePath(cameraMode, skillId);
 
     json jsonData {};
 
@@ -76,10 +88,9 @@ void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode,
 }
 
 
-bool BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode cameraMode, BattleCameraClip& clip)
+bool BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode cameraMode, BattleCameraClip& clip, const string& skillId)
 {
-    const string name = string(magic_enum::enum_name(cameraMode));
-    const string filePath = "../../../Client/Bin/Resources/Data/json/CameraPreset/BattleCameraClip_" + name + ".json";
+    const string filePath = Build_BattleCameraClipFilePath(cameraMode, skillId);
 
     ifstream file(filePath);
     if(!file.is_open())

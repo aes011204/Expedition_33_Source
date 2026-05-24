@@ -24,8 +24,8 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     if(owner == nullptr)
         return;
 
-    //auto battle = CLIENT->Get_BattleController();
-    //
+    auto battle = CLIENT->Get_BattleController();
+    
     //LOG_DEBUG("Notify owner = {}",
     //    context.owner ? String::ToString(context.owner->Get_Owner()->Get_Name()).c_str() : "null");
     //
@@ -42,6 +42,6 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     EvtBattlePresentation event {};
     event.cameraMode = _cameraMode;
     event.subject = character;
-
+    event.skillId = battle->Get_TurnAction()._selected_SkillKey.skillKey;
     GAME->Get_EventBus().Publish(event);
 }

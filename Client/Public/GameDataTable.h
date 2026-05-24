@@ -122,6 +122,7 @@ public:
     const umap<string, vector<string>>*    Get_SkillTreeRequirementData();
     const WeaponDesc* Get_WeaponDesc(const string& characterId, const string& weaponId) const;
     const vector<WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
+    vector<string> Get_AllSkillIds() const;
     vector<string> Split_String(const string& value, char delimiter);
 
 private:

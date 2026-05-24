@@ -35,8 +35,11 @@ void Draw_SectionHeader(const char* title)
 }
 
     template <typename TEnum>
-void Select_PresetEnum(const char* label, TEnum& currentValue)
+void Select_PresetEnum(const char* label, TEnum& currentValue, const float width = 180.f)
 {
+
+    ImGui::SetNextItemWidth(width);
+
     const char* currentLabel = magic_enum::enum_name(currentValue).data();
     if (!ImGui::BeginCombo(label, currentLabel))
         return;
@@ -169,9 +172,11 @@ void Cinematic_Tool::Render_CinematicTab()
 
 void Cinematic_Tool::Render_BattleClipTab()
 {
+    const string selectedSkillId = Get_SelectedBattleClipSkillId();
+
     if (!_hasLoadedBattleClip || _loadedBattleClipMode != _selectedBattleClipMode)
     {
-        BattleCameraClipIO::LoadBattleCameraClipFromFile(_selectedBattleClipMode, _editingBattleClip);
+        BattleCameraClipIO::LoadBattleCameraClipFromFile(_selectedBattleClipMode, _editingBattleClip, selectedSkillId);
         _loadedBattleClipMode = _selectedBattleClipMode;
         _hasLoadedBattleClip = true;
         _isBattleClipPreviewDirty = true;
@@ -227,14 +232,14 @@ void Cinematic_Tool::Render_BattleClipTab()
 
 void Cinematic_Tool::Render_BattleClipHeader()
 {
+    Ensure_BattleClipSkillListLoaded();
+
     const BattleCameraMode previousMode = _selectedBattleClipMode;
-    Select_PresetEnum("Battle Mode", _selectedBattleClipMode);
+    Select_PresetEnum("Battle Mode", _selectedBattleClipMode, 100.f);
 
     if (previousMode != _selectedBattleClipMode)
     {
-        BattleCameraClipIO::LoadBattleCameraClipFromFile(_selectedBattleClipMode, _editingBattleClip);
-        _loadedBattleClipMode = _selectedBattleClipMode;
-        _hasLoadedBattleClip = true;
+        _hasLoadedBattleClip = false;
         _battleClipSelectedTrackIndex = 0;
         _battleClipSelectedKeyIndex = -1;
         _battleClipCurrentFrame = 0;
@@ -242,9 +247,54 @@ void Cinematic_Tool::Render_BattleClipHeader()
     }
 
     ImGui::SameLine();
+    if (ImGui::Checkbox("Use Skill Override", &_useBattleClipSkillOverride))
+    {
+        _hasLoadedBattleClip = false;
+        _battleClipCurrentFrame = 0;
+        _isBattleClipPreviewDirty = true;
+    }
+
+    if (_useBattleClipSkillOverride)
+    {
+        const char* currentSkillLabel = "None";
+
+        if (_selectedBattleClipSkillIndex >= 0 &&
+            _selectedBattleClipSkillIndex < static_cast<int>(_battleClipSkillIds.size()))
+        {
+            currentSkillLabel = _battleClipSkillIds[_selectedBattleClipSkillIndex].c_str();
+        }
+
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(280.f);
+
+        if (ImGui::BeginCombo("Skill", currentSkillLabel))
+        {
+            for (int i = 0; i < static_cast<int>(_battleClipSkillIds.size()); ++i)
+            {
+                const bool isSelected = (_selectedBattleClipSkillIndex == i);
+
+                if (ImGui::Selectable(_battleClipSkillIds[i].c_str(), isSelected))
+                {
+                    _selectedBattleClipSkillIndex = i;
+                    _hasLoadedBattleClip = false;
+                    _battleClipCurrentFrame = 0;
+                    _isBattleClipPreviewDirty = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+    }
+
+    const string selectedSkillId = Get_SelectedBattleClipSkillId();
+
+    ImGui::SameLine();
     if (ImGui::Button("Load Clip"))
     {
-        BattleCameraClipIO::LoadBattleCameraClipFromFile(_selectedBattleClipMode, _editingBattleClip);
+        BattleCameraClipIO::LoadBattleCameraClipFromFile(_selectedBattleClipMode, _editingBattleClip, selectedSkillId);
         _loadedBattleClipMode = _selectedBattleClipMode;
         _hasLoadedBattleClip = true;
         _battleClipSelectedTrackIndex = 0;
@@ -255,7 +305,7 @@ void Cinematic_Tool::Render_BattleClipHeader()
 
     ImGui::SameLine();
     if (ImGui::Button("Save Clip"))
-        BattleCameraClipIO::SaveBattleCameraClipToFile(_selectedBattleClipMode, _editingBattleClip);
+        BattleCameraClipIO::SaveBattleCameraClipToFile(_selectedBattleClipMode, _editingBattleClip, selectedSkillId);
 
     ImGui::SameLine();
     if (ImGui::Button("Preview Clip"))
@@ -267,6 +317,31 @@ void Cinematic_Tool::Render_BattleClipHeader()
         _battleClipCurrentFrame = 0;
         _isBattleClipPreviewDirty = true;
     }
+}
+
+void Cinematic_Tool::Ensure_BattleClipSkillListLoaded()
+{
+    if (!_battleClipSkillIds.empty())
+        return;
+
+    _battleClipSkillIds = CLIENT->Get_AllSkillIds();
+
+    if (!_battleClipSkillIds.empty() && _selectedBattleClipSkillIndex < 0)
+        _selectedBattleClipSkillIndex = 0;
+}
+
+string Cinematic_Tool::Get_SelectedBattleClipSkillId() const
+{
+    if (!_useBattleClipSkillOverride)
+        return "";
+
+    if (_selectedBattleClipSkillIndex < 0 ||
+        _selectedBattleClipSkillIndex >= static_cast<int>(_battleClipSkillIds.size()))
+    {
+        return "";
+    }
+
+    return _battleClipSkillIds[_selectedBattleClipSkillIndex];
 }
 
 Shared<Character> Cinematic_Tool::Resolve_BattleClipPreviewSubject() const
@@ -285,8 +360,10 @@ Shared<Character> Cinematic_Tool::Resolve_BattleClipPreviewSubject() const
     if (_selectedBattleClipMode == BattleCameraMode::PLAYERFOCUS ||
         _selectedBattleClipMode == BattleCameraMode::PLAYERATTACK)
     {
-        if (const auto heroes = battleController->Get_AliveHeroes(); !heroes.empty() && heroes[0].actor != nullptr)
-            return heroes[0].actor;
+        if(const auto hero = battleController->Get_TurnAction().target.actor)   
+            return hero;
+        //if (const auto heroes = battleController->Get_AliveHeroes(); !heroes.empty() && heroes[0].actor != nullptr)
+        //    return heroes[0].actor;
     }
 
     if (const auto heroes = battleController->Get_AliveHeroes(); !heroes.empty() && heroes[0].actor != nullptr)
@@ -399,6 +476,7 @@ void Cinematic_Tool::Clip_BattleClipHotInput()
         return;
 
 }
+
 void Cinematic_Tool::Clear_BattleClipPreviewState() const
 {
     if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())

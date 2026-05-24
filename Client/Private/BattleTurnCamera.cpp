@@ -2,6 +2,7 @@
 #include <CameraPresetIO.h>
 
 #include "BattleCameraClipIO.h"
+#include "ClientInstance.h"
 #include "GameInstance.h"
 #include "Character.h"
 #include "Event_Bus.h"
@@ -77,6 +78,21 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackClip);
    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackClip);
 
+   _playerAttackDefaultProfile.preset = _playerAttackPreset;
+   _playerAttackDefaultProfile.clip = _playerAttackClip;
+
+   for (const string& skillId : CLIENT->Get_AllSkillIds())
+   {
+       BattleCameraClip skillClip{};
+       if (!BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::PLAYERATTACK, skillClip, skillId))
+           continue;
+
+       BattleCameraProfile profile{};
+       profile.preset = _playerAttackDefaultProfile.preset;
+       profile.clip = skillClip;
+       _playerAttackProfilesBySkill[skillId] = profile;
+   }
+
    _battlePresentationHandle = GAME->Get_EventBus().Subscribe<EvtBattlePresentation>
     ([this](const EvtBattlePresentation& event)
         {
@@ -108,6 +124,7 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
                 case BattleCameraMode::PLAYERATTACK:
                     request.mode = event.cameraMode;
                     request.subject = event.subject;
+                    request.skillId = event.skillId;
                     break;
             }
 
@@ -277,6 +294,22 @@ void BattleTurnCamera::Set_Participants(const vector<BattleChar>& heroes, const 
     _enemies = enemies;
 }
 
+const BattleCameraProfile* BattleTurnCamera::Resolve_BattleCameraProfile(const BattleShotRequest& request) const
+{
+    if (request.mode == BattleCameraMode::PLAYERATTACK && !request.skillId.empty())
+    {
+        auto iter = _playerAttackProfilesBySkill.find(request.skillId);
+        if (iter != _playerAttackProfilesBySkill.end())
+            return &iter->second;
+    }
+
+    if (request.mode == BattleCameraMode::PLAYERATTACK)
+        return &_playerAttackDefaultProfile;
+
+    return nullptr;
+}
+
+
 void BattleTurnCamera::Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt)
 {
     _transformCom->Set_WorldPosition(cameraPos);
@@ -327,8 +360,11 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         break;
 
     case BattleCameraMode::PLAYERATTACK:
-        _targetPreset = _playerAttackPreset;
-        _activeClip = &_playerAttackClip;
+        if (const BattleCameraProfile* profile = Resolve_BattleCameraProfile(_currentRequest))
+        {
+            _targetPreset = profile->preset;
+            _activeClip = const_cast<BattleCameraClip*>(&profile->clip);
+        }
         break;
     }
 
@@ -395,7 +431,9 @@ void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
 
     if(_isFirstUpdate)
     {
+        if(_currentRequest.subject)
         _enemyPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
+        if(_currentRequest.opponent)
         _playerPos = _currentRequest.opponent->Get_Transform()->Get_WorldPosition();
 
         _isFirstUpdate = false;
@@ -584,6 +622,7 @@ void BattleTurnCamera::Set_Preset(BattleCameraMode mode, const BattleCameraPrese
 
     case BattleCameraMode::PLAYERATTACK:
         _playerAttackPreset = preset;
+        _playerAttackDefaultProfile.preset = preset;
         break;
 
     default:
@@ -594,7 +633,12 @@ void BattleTurnCamera::Set_Preset(BattleCameraMode mode, const BattleCameraPrese
 void BattleTurnCamera::Set_Clip(BattleCameraMode mode, const BattleCameraClip& clip)
 {
     if (BattleCameraClip* targetClip = Get_MutableClip(mode))
+    {
         *targetClip = clip;
+
+        if (mode == BattleCameraMode::PLAYERATTACK)
+            _playerAttackDefaultProfile.clip = clip;
+    }
 }
 
 void BattleTurnCamera::Apply_PreviewPreset(const BattleCameraPreset& preset)

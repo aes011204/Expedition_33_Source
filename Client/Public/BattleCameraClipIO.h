@@ -11,7 +11,7 @@ public:
     virtual ~BattleCameraClipIO();
 
 public:
-    static void SaveBattleCameraClipToFile(BattleCameraMode cameraMode, const BattleCameraClip& clip);
-    static bool LoadBattleCameraClipFromFile(BattleCameraMode cameraMode, BattleCameraClip& clip);
+    static void SaveBattleCameraClipToFile(BattleCameraMode cameraMode, const BattleCameraClip& clip, const string& skillId = "");
+    static bool LoadBattleCameraClipFromFile(BattleCameraMode cameraMode, BattleCameraClip& clip, const string& skillId = "");
 };
 NS_END

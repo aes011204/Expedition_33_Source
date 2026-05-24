@@ -1,10 +1,10 @@
 ﻿#pragma once
 #include <Event_Struct.h>
-
 #include "Camera.h"
 #include "Battle_Enum.h"
 #include "CameraPresetTypes.h"
 #include "BattleCameraClipTypes.h"
+#include "BattleCameraProfileTypes.h"
 
 NS_BEGIN(Client)
 class BattleTurnCamera final : public Camera
@@ -19,6 +19,7 @@ public:
         BattleCameraMode mode = BattleCameraMode::WIDE;
         Shared<Engine::Character> subject = nullptr;
         Shared<Engine::Character> opponent = nullptr;
+        string          skillId;
     };
 
 public:
@@ -47,8 +48,9 @@ public:
     bool Is_LiveEditEnabled() const { return _isLiveEditEnabled; }
     void Set_Participants(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies);
 
-    void Update_FreeAimRotation(float timeDelta);
+    const BattleCameraProfile* Resolve_BattleCameraProfile(const BattleShotRequest& request) const;
 
+    void Update_FreeAimRotation(float timeDelta);
     Vec3 Get_AimOrigin() const;                // 히트스캔 시작 위치
     Vec3 Get_AimDirection() const;             // 히트스캔 방향
 
@@ -110,6 +112,9 @@ private:
     BattleCameraClip      _enemyFocusClip {};
     BattleCameraClip*     _activeClip {};
     float                _clipTime {};
+
+    BattleCameraProfile   _playerAttackDefaultProfile{};
+    umap<string, BattleCameraProfile> _playerAttackProfilesBySkill;
 
 public:
     static Shared<BattleTurnCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

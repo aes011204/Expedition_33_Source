@@ -345,6 +345,7 @@
     </ClInclude>
     <ClInclude Include="..\public\UtilitySystem.h" />
     <ClInclude Include="..\public\WeaponUI_Common.h" />
+    <ClInclude Include="..\Public\BattleCameraProfileTypes.h" />
     <ClInclude Include="Battle_Enum.h" />
     <ClInclude Include="Base_Gustave_Attack.h" />
     <ClInclude Include="pch.h" />

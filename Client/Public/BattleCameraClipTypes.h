@@ -25,3 +25,4 @@ struct  BattleCameraClipSample
     float fovOffset;
     float shakeAmplitude;
 };
+
