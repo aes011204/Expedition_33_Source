@@ -15,7 +15,7 @@ public:
 
 private:
     string _nxtAnimName = {};
-    enum class BattleAnimType _animType = {};
+
 };
 
 NS_END

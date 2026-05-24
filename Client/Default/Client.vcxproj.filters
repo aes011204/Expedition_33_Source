@@ -80,6 +80,10 @@
   <ItemGroup>
     <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
     <ClCompile Include="..\Private\UI_DamageFont.cpp" />
+    <ClCompile Include="..\private\Base_Mon_Defense.cpp" />
+    <ClCompile Include="..\private\Base_Mon_Spawn.cpp" />
+    <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp" />
+    <ClCompile Include="..\private\AN_Change_Anim.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -635,6 +639,10 @@
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
     <ClInclude Include="..\Public\UI_DamageFont.h" />
+    <ClInclude Include="..\public\Base_Mon_Defense.h" />
+    <ClInclude Include="..\public\Base_Mon_Spawn.h" />
+    <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h" />
+    <ClInclude Include="..\public\AN_Change_Anim.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
