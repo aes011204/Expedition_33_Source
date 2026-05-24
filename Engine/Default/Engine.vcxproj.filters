@@ -425,7 +425,9 @@
     <ClInclude Include="..\Public\OffsetAnimationModifier.h">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h" />
+    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -533,7 +535,10 @@
     <ClInclude Include="..\public\Mesh.h">
       <Filter>01.Utility\04.Component\Model\Mesh</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Material.h">
+    <ClInclude Include="..\Public\MaterialCom.h">
+      <Filter>01.Utility\04.Component\Model\Material</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MaterialCB_OverrideFields.inl">
       <Filter>01.Utility\04.Component\Model\Material</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Bone.h">
@@ -925,9 +930,6 @@
     <ClCompile Include="..\private\UI_Image.cpp">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\UI_Image.cpp">
-      <Filter>01.Utility\11. UI\Object</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\UI_Text.cpp">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClCompile>
@@ -970,7 +972,9 @@
     <ClCompile Include="..\Private\EffectEmitterFactory.cpp">
       <Filter>01.Utility\03.GameObjects\Effect\Emitter Factory</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\PostProcessPipeline.cpp" />
+    <ClCompile Include="..\Private\PostProcessPipeline.cpp">
+      <Filter>01.Utility\05.Renderer</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\AnimState_Parser.cpp">
       <Filter>94. AnimationParseUtil</Filter>
     </ClCompile>

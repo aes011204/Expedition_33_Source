@@ -89,6 +89,11 @@
     </ClCompile>
     <ClCompile Include="..\Private\UI_BattleVictory.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
+    <ClCompile Include="..\Private\Mon_BehaviorTree.cpp" />
+    <ClCompile Include="..\Private\Monster.cpp" />
+    <ClCompile Include="..\Private\Player_FreeAim.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -585,9 +590,6 @@
     <ClInclude Include="..\public\WeaponUI_Common.h">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClInclude>
-    <ClInclude Include="Battle_Enum.h">
-      <Filter>BattleState\Battle</Filter>
-    </ClInclude>
     <ClInclude Include="Base_Gustave_Attack.h">
       <Filter>Skill</Filter>
     </ClInclude>
@@ -653,6 +655,11 @@
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleVictory.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
+    <ClInclude Include="..\Public\Monster.h" />
+    <ClInclude Include="..\Public\Mon_BehaviorTree.h" />
+    <ClInclude Include="..\Public\Player_FreeAim.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
