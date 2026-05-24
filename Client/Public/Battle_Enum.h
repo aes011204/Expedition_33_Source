@@ -617,6 +617,7 @@ namespace Client
         FreeAim_Shoot,
 
         Dodge,
+        Parray,
         Counter,
 
         Dead,

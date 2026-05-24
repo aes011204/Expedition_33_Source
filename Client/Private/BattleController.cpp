@@ -98,7 +98,7 @@ void BattleController::Update(float timeDelta)
     }
 
 
-    if (_heroes.empty() == true || _enemies.empty() == true|| _currentTurnActor.actor == nullptr )
+    if (_heroes.empty() == true || _enemies.empty() == true || _currentTurnActor.actor == nullptr)
         return;
     // 적턴 인지 플레이어 턴인지에 따라
     if (_currentTurnActor.statCom->Is_Player())
@@ -126,7 +126,7 @@ void BattleController::Update(float timeDelta)
 
     if (_turnAction._curChar.actor != nullptr && _battleActionExe->IsFinished())
     {
-      
+
         EndTurn();
         return;
     }
@@ -145,7 +145,7 @@ void BattleController::Run_EnemyTurn()
     CHECK_NULL(monster);
 
     monster->Decide_Action_BTOnly(Get_TurnAction(), Get_AliveHeroes());
-    ExecuteAction( Get_TurnAction());
+    ExecuteAction(Get_TurnAction());
 }
 
 void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
@@ -165,9 +165,9 @@ void BattleController::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, cons
     _pendingBattleHeroIds = heroIds;
     _pendingBattleMonsterPrefabNames = battleMonsterPrefabNames;
 
-	// 월드 캐릭터 입력 막기
-	GAME->Set_PlayerInputBlocked(true);
-	_worldCamera = GAME->Get_ActiveCamera();
+    // 월드 캐릭터 입력 막기
+    GAME->Set_PlayerInputBlocked(true);
+    _worldCamera = GAME->Get_ActiveCamera();
     GAME->Slow_WorldTime(_battleEnterWorldTimeScale, _battleEnterDuration);
 }
 
@@ -199,7 +199,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     // 전투 종료 시 슬로우모션 값이 남지 않도록 복구
     GAME->Stop_WorldTimeSlow();
 
-	Restore_WorldCamera(); // 카메라 복구
+    Restore_WorldCamera(); // 카메라 복구
 
     // 도망치기
     // 실패
@@ -212,7 +212,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
     // 초기 애님 관련 변수 초기화
     _firstAnimflag = false;
-    _firstAnimCount =  0;
+    _firstAnimCount = 0;
 
     return result;
 }
@@ -264,7 +264,7 @@ void BattleController::EndTurn()
     {
         OnExitBattleField(EBattleEndResult::Defeat);
         _battleEnded = true;
-		return;
+        return;
     }
 
     for (int i = 0; i < _enemies.size(); i++)
@@ -284,7 +284,7 @@ void BattleController::EndTurn()
         OnExitBattleField(EBattleEndResult::Victory);
         _battleEnded = true;
 
-		return;
+        return;
     }
 
     Clear_TargetPreview();
@@ -315,10 +315,10 @@ void BattleController::StartTurn()
     _battleTime = _turnQueue.top().nextTime;
     _turnQueue.pop();
 
-    if(_currentTurnActor.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+    if (_currentTurnActor.statCom->Get_AliveStatus() == EAliveStatus::Dead)
     {
         _turnAction = {};
-     
+
         StartTurn();
         return;
     }
@@ -406,7 +406,7 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         _heroes.push_back(battleChar);
 
 
-       // battleChar.ModelCom->Set_RootMotionEnabled(false);
+        // battleChar.ModelCom->Set_RootMotionEnabled(false);
     }
 
     for (int i = 0; i < battleMonsterPrefabNames.size(); ++i)
@@ -429,7 +429,7 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
 
         _enemies.push_back(battleChar);
 
-      // battleChar.ModelCom->Set_RootMotionEnabled(false);
+        // battleChar.ModelCom->Set_RootMotionEnabled(false);
 
     }
 }
@@ -602,9 +602,13 @@ void BattleController::CloseReactionWindow(ReactionType type)
     if (_reaction.type != type)
         return;
 
-    _reaction.type = ReactionType::None;
     _reaction.isOpen = false;
-    _reaction.isConsumed = false;
+
+    if (_reaction.isConsumed)
+        return;
+
+    _reaction.type = ReactionType::None;
+    _reaction.result = ReactionType::None;
 }
 
 void BattleController::ClearReactionState()
@@ -616,6 +620,8 @@ void BattleController::ClearReactionState()
 
 void BattleController::UpdateReactionInput()
 {
+    UpdateReactionAnimation(); // 패링, 회피 애니메이션 끝났으면 Base Idle로 전환
+
     if (_turnAction.target.actor == nullptr)
         return;
 
@@ -623,48 +629,40 @@ void BattleController::UpdateReactionInput()
     if (_turnAction.target.statCom->Is_Player() != true)
         return;
 
-    switch (_reaction.type)
+    if (_reaction.isConsumed)
+        return; // 성공하면, 재입력 금지
+
+    if (GAME->KeyDown(KEY_TYPE::Q))
     {
-    case ReactionType::Parry:
-        if (GAME->KeyDown(KEY_TYPE::E))
+        const bool isSuccess =
+            _reaction.type == ReactionType::Dodge &&
+            _reaction.isOpen;
+
+        if (isSuccess)
         {
-            // 패링은 여기서 애니XX
-
-            if (!_reaction.isOpen || _reaction.isConsumed)
-                return;
-
-            // 성공 해야 애니 실행
-
-            _reaction.isConsumed = true;
-            _reaction.result = Parry;
-
-            PlayReactionAnimation(_turnAction.target, ReactionType::Parry);
-            LOG_ERROR({ "SUCCESS PARRY" });
-        }
-        break;
-
-    case ReactionType::Dodge:
-        if (GAME->KeyDown(KEY_TYPE::Q))
-        {
-            // 회피 애님 실행
-
-            if (!_reaction.isOpen || _reaction.isConsumed)
-                return;
-
             _reaction.isConsumed = true;
             _reaction.result = Dodge;
-
-            PlayReactionAnimation(_turnAction.target, ReactionType::Dodge);
-
-            LOG_ERROR({ "SUCCESS DODGE" });
         }
-        break;
 
-    default:
-        break;
+        // 실패해도 Dodge 시도 애니는 재생
+        PlayReactionAnimation(_turnAction.target, ReactionType::Dodge, isSuccess);
+        return;
     }
 
-    UpdateReactionAnimation();
+    if (GAME->KeyDown(KEY_TYPE::E))
+    {
+        const bool isSuccess =
+            _reaction.type == ReactionType::Parry &&
+            _reaction.isOpen;
+
+        if (isSuccess)
+        {
+            _reaction.isConsumed = true;
+            _reaction.result = Parry;
+        }
+        PlayReactionAnimation(_turnAction.target, ReactionType::Parry, isSuccess); // 성공이면 Counter, 실패면 Parry
+        return;
+    }
 }
 
 void BattleController::Set_TargetPreview(const BattleChar& target)
@@ -784,7 +782,7 @@ void BattleController::Execute_FreeAimShoot(const BattleChar actor, const Action
     // Free Aim은 히트스캔 즉발 데미지
     if (action.target.actor != nullptr && action.target.statCom != nullptr)
     {
-        constexpr float freeAimDamage = 20.f; 
+        constexpr float freeAimDamage = 20.f;
         DamageSystem::ApplyDamage(freeAimDamage, action.target);
     }
 
@@ -880,11 +878,11 @@ void BattleController::Begin_FreeAimShot(const Action& shotAction)
     _freeAimShotAction.originPos = _freeAimShotAction._curChar.actor->Get_Transform()->Get_Position();
     _freeAimShotAction._curAnimIndex = 0;
 
-     _freeAimShotAction._curChar.ModelCom->Set_AnimationByState(
+    _freeAimShotAction._curChar.ModelCom->Set_AnimationByState(
         ETOI(BattleAnimType::FreeAim_Shoot),
         0.1f,
         false);
-    
+
     _isFreeAimShotPlaying = true;
 }
 
@@ -966,7 +964,7 @@ vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
 
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
-	if (_battleTurnCamera)
+    if (_battleTurnCamera)
         return S_OK;
 
     BattleTurnCamera::BATTLE_TURN_CAMERA_DESC desc{};
@@ -997,13 +995,13 @@ void BattleController::Activate_BattleTurnCamera()
     if (_battleTurnCamera == nullptr)
         return;
 
-	_battleTurnCamera->Focus_Battle(_heroes, _enemies);
-	GAME->Change_ActiveCamera(_battleTurnCamera);
+    _battleTurnCamera->Focus_Battle(_heroes, _enemies);
+    GAME->Change_ActiveCamera(_battleTurnCamera);
 }
 
 void BattleController::Restore_WorldCamera()
 {
-	if (_worldCamera)
+    if (_worldCamera)
         GAME->Change_ActiveCamera(_worldCamera);
 
     GAME->Set_PlayerInputBlocked(false);
@@ -1043,19 +1041,19 @@ void BattleController::Complete_BattleField()
     // 첫 입장시 플레이어 시작 에니 재생
     PlayerStartAnim();
 
-	if (FAILED(Ready_BattleTurnCamera()))
-	{
-		LOG_ERROR("Create Failed : Battle Camera");
+    if (FAILED(Ready_BattleTurnCamera()))
+    {
+        LOG_ERROR("Create Failed : Battle Camera");
 
-		Restore_WorldCamera();
-		_isBattleActive = false;
-		_battleEnded = true;
+        Restore_WorldCamera();
+        _isBattleActive = false;
+        _battleEnded = true;
 
-		_heroes.clear();
-		_enemies.clear();
+        _heroes.clear();
+        _enemies.clear();
         Clear_BattleEnterPending();
-		return;
-	}
+        return;
+    }
 
     Activate_BattleTurnCamera();
     Clear_BattleEnterPending();
@@ -1076,7 +1074,7 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleMonsterPrefabNames.clear();
 }
 
-void BattleController::PlayReactionAnimation(const BattleChar& target, ReactionType reactionType)
+void BattleController::PlayReactionAnimation(const BattleChar& target, ReactionType reactionType, bool isSuccess)
 {
     if (target.ModelCom == nullptr)
         return;
@@ -1084,19 +1082,20 @@ void BattleController::PlayReactionAnimation(const BattleChar& target, ReactionT
     BattleAnimType animType = BattleAnimType::Base_Idle;
 
     if (reactionType == ReactionType::Dodge)
+    {
         animType = BattleAnimType::Dodge;
+    }
     else if (reactionType == ReactionType::Parry)
-        animType = BattleAnimType::Counter;
+    {
+        animType = isSuccess ? BattleAnimType::Counter : BattleAnimType::Parray;
+    }
     else
         return;
 
     if (!target.ModelCom->Set_AnimationByState(ETOI(animType), 0.1f, false))
-    {
-        LOG_WARN("PlayReactionAnimation: failed to play reaction anim");
         return;
-    }
 
-    _reactionAnimTarget = target; 
+    _reactionAnimTarget = target;
 }
 
 void BattleController::UpdateReactionAnimation()
@@ -1165,7 +1164,7 @@ void BattleController::PlayerStartAnim()
     //////// 루네 위치 이상함 충돌체ㅐ랑 비교 필수 
     _firstAnimflag = false;
     // 임시
-    for(auto it : _heroes)
+    for (auto it : _heroes)
     {
         /*string idle = CLIENT->Get_Skill(it.statCom->Get_FirstSkill())->IdleAnimationKey;
         it.ModelCom->Set_Animation(idle, .3f, false);*/
@@ -1177,7 +1176,7 @@ void BattleController::PlayerStartAnim()
     // 일단 여기서 
     for (auto it : _enemies)
     {
-       
+
         it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.3f, false);
 
     }

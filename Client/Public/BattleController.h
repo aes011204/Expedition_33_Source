@@ -142,7 +142,7 @@ private:
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
 
     // Reaction(패링, 회피)
-    void    PlayReactionAnimation(const BattleChar& target, ReactionType reactionType);
+    void    PlayReactionAnimation(const BattleChar& target, ReactionType reactionType, bool isSuccess);
     void    UpdateReactionAnimation();
 
 private:

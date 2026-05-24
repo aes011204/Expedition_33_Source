@@ -517,6 +517,43 @@ HRESULT ResourceLoader::Build_LevelJobs(LevelType levelType, vector<FLoadJob>& o
     return S_OK;
 }
 
+HRESULT ResourceLoader::Build_LoadingUIRenderJobs(vector<FLoadJob>& outJobs, const wstring& strJsonRootPath)
+{
+    outJobs.clear();
+
+    const fs::path jsonRootPath = strJsonRootPath.empty()
+        ? fs::path(Get_DefaultJsonRootPath())
+        : fs::path(Resolve_RuntimePath(strJsonRootPath));
+
+    vector<FLoadJob> candidates;
+
+    CHECK_FAILED(Build_ShaderJobs((jsonRootPath / L"DT_Shader.json").wstring(), candidates), E_FAIL);
+    CHECK_FAILED(Build_StaticLevelJobs((jsonRootPath / L"DT_StaticLevel.json").wstring(), candidates), E_FAIL);
+
+    const uint32 staticLevel = ETOI(LevelType::Static);
+
+    for (const FLoadJob& job : candidates)
+    {
+        if (job.iLevelIndex != staticLevel)
+            continue;
+
+        const bool isLoadingUIResource =
+            job.strPrototypeTag == TEXT("Shader_UI") ||
+            job.strPrototypeTag == TEXT("VIBuffer_Rect");
+
+        if (!isLoadingUIResource)
+            continue;
+
+        outJobs.push_back(job);
+    }
+
+    LOG_INFO(
+        "Built loading UI render jobs. jobCount={}",
+        static_cast<int>(outJobs.size()));
+
+    return S_OK;
+}
+
 ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& strName)
 {
     if ("VTXNORTEX" == strName || "NorTex" == strName || "VtxNorTex" == strName)
