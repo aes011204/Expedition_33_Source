@@ -77,6 +77,9 @@ private:
     static constexpr uint32 kThreadCountX{ 64 };                                                // compute shader numthreads.x와 맞춘 dispatch 단위다.
     static constexpr uint32 kMaxCurveSubdivision{ 32 };                                         // preview 폭주를 막는 interval당 render sample 상한이다.
     static constexpr float kSmoothSampleSideWeight{ 0.25f };                                    // tangent smoothing용 양옆 sample 가중치다.
+    static constexpr int kOpacitySourceAlpha{ 0 };                                              // main texture alpha를 opacity로 사용한다.
+    static constexpr int kOpacitySourceRed{ 1 };                                                // main texture red를 opacity로 사용한다.
+    static constexpr int kOpacitySourceLuminance{ 2 };                                          // main texture luminance를 opacity로 사용한다.
 
 private:
     ComputeTrailEmitterDesc _desc{};       // clone 시점에 받은 trail runtime 설정이다.
@@ -86,6 +89,7 @@ private:
     Shared<ShaderCom> _shader{};               // trail draw shader다.
     Shared<ComputeShaderCom> _computeShader{}; // trail payload 생성 compute shader다.
     Shared<Texture> _texture{};                // trail main texture다.
+    Shared<Texture> _noiseTexture{};           // 선택 noise texture. 없으면 material noise를 비활성화한다.
 
     ComPtr<Buffer> _pointVB{};                            // instanced point draw용 단일 vertex buffer다.
     ComPtr<Buffer> _indexBuffer{};                        // instanced point draw용 단일 index buffer다.
@@ -99,6 +103,7 @@ private:
 private:
     HRESULT Ready_Components();     // trail draw/compute component와 리소스를 준비한다.
     HRESULT Ready_Texture();        // trail main texture와 fallback texture를 준비한다.
+    HRESULT Ready_NoiseTexture();   // 선택 trail noise texture를 준비한다.
     HRESULT Ready_DrawBuffers();    // indirect draw용 point/index/instance buffer를 준비한다.
     HRESULT Ready_ComputeBuffers(); // render sample 입력, instance 출력, indirect args compute buffer를 준비한다.
 
@@ -115,6 +120,7 @@ private:
     HRESULT Reset_IndirectArgs();      // indirect draw args를 draw count 0 상태로 초기화한다.
     HRESULT Copy_ComputeOutput();      // compute 결과 instance/args buffer를 draw용 buffer로 복사한다.
     HRESULT Bind_ShaderResources();    // trail draw shader가 사용할 camera/texture/tint 리소스를 바인딩한다.
+    int Resolve_OpacitySourceIndex() const; // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
 
 public:
     static Shared<ComputeTrailEmitter> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

@@ -4,11 +4,16 @@
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
 
-// TODO: Trail material 확장 시 noiseTexture/noiseStrength를 실제 strip opacity/distortion 해석에 연결한다.
-// Phase3 v0에서는 main texture, tint, blend만 소비하고 noise 계열은 authoring 값 보존용으로 둔다.
+cbuffer cbEffectTrailMaterial : register(b2)
+{
+    float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
+    float4 g_EffectTrailParams = { 1.f, 1.f, 0.f, 0.f }; // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    int g_OpacitySource = 0;
+    float3 g_EffectTrailPadding;
+};
 
-float4 g_Tint = float4(1.f, 1.f, 1.f, 1.f);
 Texture2D g_Texture : register(t0);
+Texture2D g_NoiseTexture : register(t1);
 
 struct VS_IN
 {
@@ -148,9 +153,29 @@ PS_OUT PS_MAIN(PS_IN In)
     const float sideAlpha =
         smoothstep(0.0f, sideFade, In.edgeCoord.y) *
         smoothstep(0.0f, sideFade, 1.0f - In.edgeCoord.y);
-    float4 color = lerp(In.startColor, In.endColor, lifeProgress) * g_Tint * tex;
+    const float4 segmentColor = lerp(In.startColor, In.endColor, lifeProgress);
+    const float opacityPower = max(g_EffectTrailParams.y, 0.0001f);
+    float selectedOpacity = tex.a;
+    float noiseFactor = 1.f;
 
-    color.w *= saturate(In.segmentParams.z) * sideAlpha;
+    if (1 == g_OpacitySource)
+        selectedOpacity = tex.r;
+    else if (2 == g_OpacitySource)
+        selectedOpacity = dot(tex.rgb, float3(0.299f, 0.587f, 0.114f));
+
+    if (0 != g_EffectTrailParams.w && g_EffectTrailParams.z > 0.f)
+    {
+        const float noise = g_NoiseTexture.Sample(LinearClampSampler, In.texCoord).r;
+        noiseFactor = lerp(1.f, noise, saturate(g_EffectTrailParams.z));
+    }
+
+    float4 color = float4(
+        segmentColor.rgb * g_Tint.rgb * tex.rgb,
+        segmentColor.a * g_Tint.a
+    );
+
+    color.rgb *= g_EffectTrailParams.x * noiseFactor;
+    color.w *= pow(saturate(selectedOpacity), opacityPower) * saturate(In.segmentParams.z) * sideAlpha;
     if (color.w < 0.01f)
         discard;
 

@@ -189,6 +189,7 @@ HRESULT ComputeTrailEmitter::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), String::ToWString(kTrailShaderId), _shader), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), String::ToWString(kTrailComputeShaderId), _computeShader), E_FAIL);
     CHECK_FAILED(Ready_Texture(), E_FAIL);
+    CHECK_FAILED(Ready_NoiseTexture(), E_FAIL);
     CHECK_FAILED(Ready_DrawBuffers(), E_FAIL);
     CHECK_FAILED(Ready_ComputeBuffers(), E_FAIL);
     return S_OK;
@@ -232,6 +233,52 @@ HRESULT ComputeTrailEmitter::Ready_Texture()
 
     _texture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
     CHECK_NULL(_texture, E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT ComputeTrailEmitter::Ready_NoiseTexture()
+{
+    if (_desc.material.noiseTextureGuid.empty() && _desc.material.noiseTexturePath.empty())
+        return S_OK;
+
+    bool usedLegacyGuid = false;
+    const wstring resolvedPath = Internal::Resolve_TrailTexturePath(
+        _desc.material.noiseTextureGuid,
+        _desc.material.noiseTexturePath,
+        usedLegacyGuid
+    );
+    if (resolvedPath.empty())
+    {
+        _noiseTexture = nullptr;
+        LOG_WARN(
+            "ComputeTrailEmitter noise texture resolve failed. noiseTextureGuid='{}', noiseTexturePath='{}'. Noise modulation is disabled.",
+            _desc.material.noiseTextureGuid,
+            _desc.material.noiseTexturePath
+        );
+        return S_OK;
+    }
+
+    if (usedLegacyGuid)
+    {
+        LOG_WARN(
+            "ComputeTrailEmitter noise texture recovered by legacy GUID. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'.",
+            _desc.material.noiseTextureGuid,
+            _desc.material.noiseTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+
+    _noiseTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
+    if (_noiseTexture == nullptr)
+    {
+        LOG_WARN(
+            "ComputeTrailEmitter noise texture create failed. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Noise modulation is disabled.",
+            _desc.material.noiseTextureGuid,
+            _desc.material.noiseTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
 
     return S_OK;
 }
@@ -553,8 +600,42 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
 {
     CHECK_FAILED(GAME->Bind_CameraCB(_shader), E_FAIL);
     CHECK_FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
+
+    if (nullptr != _noiseTexture)
+    {
+        CHECK_FAILED(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
+    }
+    else
+    {
+        CHECK_FAILED(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
+    }
+
     CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &_desc.material.tint, sizeof(Vec4)), E_FAIL);
+
+    const Vec4 effectTrailParams = Vec4(
+        _desc.material.intensity,
+        max(_desc.material.opacityPower, 0.0001f),
+        _desc.material.noiseStrength,
+        nullptr != _noiseTexture ? 1.f : 0.f
+    );
+    const int opacitySourceIndex = Resolve_OpacitySourceIndex();
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailParams", &effectTrailParams, sizeof(effectTrailParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
     return S_OK;
+}
+
+int ComputeTrailEmitter::Resolve_OpacitySourceIndex() const
+{
+    if (_desc.material.opacitySource == "Alpha" || _desc.material.opacitySource == "alpha")
+        return kOpacitySourceAlpha;
+
+    if (_desc.material.opacitySource == "Red" || _desc.material.opacitySource == "red")
+        return kOpacitySourceRed;
+
+    if (_desc.material.opacitySource == "Luminance" || _desc.material.opacitySource == "luminance")
+        return kOpacitySourceLuminance;
+
+    return kOpacitySourceAlpha;
 }
 
 Shared<ComputeTrailEmitter> ComputeTrailEmitter::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
