@@ -8,12 +8,18 @@ class ModelCom;
 class ENGINE_DLL OffsetAnimationModifier final : public AnimationModifier
 {
 public:
+    struct OffsetBoneRange
+    {
+        string rootBoneName{};
+        string endBoneName{};
+    };
+
     struct OffsetModifierDesc : public AnimationModifierDesc
     {
         ModelCom* baseModelCom{ nullptr };
         string animName{};
-        vector<string> endBoneNames{};
-        string rootBoneName{};
+        vector<OffsetBoneRange> offsetBoneRanges{};
+        vector<string> translationOnlyBones{};
         float maxPitchAngle{ 60.f };
         ModifierBlendMode blendMode{ ModifierBlendMode::ModifyReplace };
         // 사용할 애니메이션 범위 정의 0.f ~ 1.f
@@ -24,7 +30,14 @@ public:
         float responseCurve{ 1.f };
         float blendInTime{ 0.f };
         float blendOutTime{ 0.f };
+
+        // 재생 제어
+        bool isDynamicPlay{ false };
+        float playRate{ 1.0f };
     };
+
+ 
+
 public:
     OffsetAnimationModifier() = default;
     ~OffsetAnimationModifier() override = default;
@@ -41,9 +54,11 @@ private:
 private:
     OffsetModifierDesc   _desc{};
     vector<int32>        _boneChain;
+    unordered_set<int32> _translationOnlyBones;
     float                _targetPitch{ 0.f };
     int32                _animIndex{ -1 };
     float                _blendAlpha{ 0.f };
+    float                _trackPosition{ 0.f };
 
 public:
     static Shared<OffsetAnimationModifier> Create(OffsetModifierDesc* modifierDesc);

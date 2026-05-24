@@ -67,6 +67,12 @@ void Player_Idle::Update(float timeDelta)
     //    return;
     //}
 
+    if (IsEnterFreeAim())
+    {
+        _stateCom->Change_State(PlayerState::FreeAim);
+        return;
+    }
+
     if (IsEnterWorldAction())
     {
         _stateCom->Change_State(PlayerState::WorldAction);
@@ -76,12 +82,6 @@ void Player_Idle::Update(float timeDelta)
     if (IsEnterJump())
     {
         _stateCom->Change_State(PlayerState::Jump);
-        return;
-    }
-
-    if (IsEnterFreeAim())
-    {
-        _stateCom->Change_State(PlayerState::FreeAim);
         return;
     }
 

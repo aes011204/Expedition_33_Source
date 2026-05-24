@@ -27,7 +27,7 @@ private:
 
 private:
     Shared<OffsetAnimationModifier> _offsetModifier = nullptr;
-    Shared<OffsetAnimationModifier> _walkModifiers[4]; 
+    Shared<OffsetAnimationModifier> _walkModifiers[6]; 
 
     float _rotationSensitivity = 0.5f; 
 

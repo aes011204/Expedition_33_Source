@@ -10,7 +10,7 @@ HRESULT OffsetAnimationModifier::Initialize(AnimationModifierDesc* desc)
     CHECK_FAILED(__super::Initialize(desc), E_FAIL)
     _desc = *static_cast<OffsetModifierDesc*>(desc);
     auto baseModel = _desc.baseModelCom;
-    if (nullptr == baseModel || _desc.endBoneNames.empty() || _desc.rootBoneName.empty())
+    if (nullptr == baseModel || _desc.offsetBoneRanges.empty())
     {
         return E_FAIL;
     }
@@ -21,19 +21,32 @@ HRESULT OffsetAnimationModifier::Initialize(AnimationModifierDesc* desc)
         return E_FAIL;
     }
 
-    int32 rootBoneIdx = baseModel->Get_BoneIndex(_desc.rootBoneName);
-
-    if (rootBoneIdx == -1)
+    for (auto& boneName : _desc.translationOnlyBones)
     {
-        return E_FAIL;
+        int32 boneIndex = baseModel->Get_BoneIndex(boneName);
+        if (boneIndex != -1)
+            _translationOnlyBones.insert(boneIndex);
     }
 
     unordered_set<int32> uniqueBones;
-    for (const string& endBoneName : _desc.endBoneNames)
+    for (const string& boneName : _desc.translationOnlyBones)
     {
-        int32 currentBoneIdx = baseModel->Get_BoneIndex(endBoneName);
-        if (currentBoneIdx == -1) continue;
+        int32 idx = baseModel->Get_BoneIndex(boneName);
+        if (idx != -1)
+            _translationOnlyBones.insert(idx);
+    }
+
+    for (const auto& boneRange : _desc.offsetBoneRanges)
+    {
+        int32 rootBoneIdx = baseModel->Get_BoneIndex(boneRange.rootBoneName);
+        int32 endBoneIdx = baseModel->Get_BoneIndex(boneRange.endBoneName);
+
+        if (rootBoneIdx == -1 || endBoneIdx == -1)
+            continue;
+
+        int32 currentBoneIdx = endBoneIdx;
         int32 depthCount = 0;
+
         while (currentBoneIdx != -1 && depthCount++ < 100)
         {
             uniqueBones.insert(currentBoneIdx);
@@ -44,7 +57,9 @@ HRESULT OffsetAnimationModifier::Initialize(AnimationModifierDesc* desc)
             currentBoneIdx = baseModel->Get_BoneParentIndex(currentBoneIdx);
         }
     }
+
     if (uniqueBones.empty()) return E_FAIL;
+
     _boneChain.assign(uniqueBones.begin(), uniqueBones.end());
 
     return S_OK;
@@ -96,11 +111,22 @@ void OffsetAnimationModifier::UpdateWeightOffset(ModelCom* model, float timeDelt
     Animation* offsetAnim = model->Get_Animation(_animIndex);
     if (!offsetAnim) return;
 
-    auto Get_TransformAtRatio = [&](Shared<Channel> channel, float ratio) {
+    if (_desc.isDynamicPlay)
+    {
+        _trackPosition += timeDelta * offsetAnim->Get_TickPerSecond() * _desc.playRate;
+        if (_trackPosition > offsetAnim->Get_Duration())
+            _trackPosition = fmod(_trackPosition, offsetAnim->Get_Duration());
+    }
+
+    auto Get_TransformAtTime = [&](Shared<Channel> channel, float time) {
         RootMotionFrame tf;
         uint32 keyFrame = 0;
-        channel->Get_ChannelTransform(offsetAnim->Get_Duration() * ratio, keyFrame, offsetAnim->Get_Duration(), true, tf);
+        channel->Get_ChannelTransform(time, keyFrame, offsetAnim->Get_Duration(), true, tf);
         return tf;
+        };
+
+    auto Get_TransformAtRatio = [&](Shared<Channel> channel, float ratio) {
+        return Get_TransformAtTime(channel, offsetAnim->Get_Duration() * ratio);
         };
 
     for (int32 boneIndex : _boneChain)
@@ -120,22 +146,29 @@ void OffsetAnimationModifier::UpdateWeightOffset(ModelCom* model, float timeDelt
         RootMotionFrame center = Get_TransformAtRatio(boneChannel, _desc.timeRatio_Center);
         RootMotionFrame target = center;
 
-        if (weightUp > FLT_EPSILON) // 가중치가 존재하면
+        if (_desc.isDynamicPlay)
         {
-            RootMotionFrame up = Get_TransformAtRatio(boneChannel, _desc.timeRatio_Max);
-            target.rotation = Quaternion::Slerp(center.rotation, up.rotation, weightUp);
-            target.position = Vector3::Lerp(center.position, up.position, weightUp);
-            target.scale = Vector3::Lerp(center.scale, up.scale, weightUp);
+            target = Get_TransformAtTime(boneChannel, _trackPosition);
         }
-        else if (weightDown > FLT_EPSILON)
+        else
         {
-            RootMotionFrame down = Get_TransformAtRatio(boneChannel, _desc.timeRatio_Min);
-            target.rotation = Quaternion::Slerp(center.rotation, down.rotation, weightDown);
-            target.position = Vector3::Lerp(center.position, down.position, weightDown);
-            target.scale = Vector3::Lerp(center.scale, down.scale, weightDown);
+            // 정적 에임 오프셋 시: 상하 가중치에 따라 프레임 혼합
+            if (weightUp > FLT_EPSILON) // 가중치가 존재하면
+            {
+                RootMotionFrame up = Get_TransformAtRatio(boneChannel, _desc.timeRatio_Max);
+                target.rotation = Quaternion::Slerp(center.rotation, up.rotation, weightUp);
+                target.position = Vector3::Lerp(center.position, up.position, weightUp);
+                target.scale = Vector3::Lerp(center.scale, up.scale, weightUp);
+            }
+            else if (weightDown > FLT_EPSILON)
+            {
+                RootMotionFrame down = Get_TransformAtRatio(boneChannel, _desc.timeRatio_Min);
+                target.rotation = Quaternion::Slerp(center.rotation, down.rotation, weightDown);
+                target.position = Vector3::Lerp(center.position, down.position, weightDown);
+                target.scale = Vector3::Lerp(center.scale, down.scale, weightDown);
+            }
         }
 
-        // 모드에 따른 본 매트릭스 결정 
         float effectiveAlpha = _blendAlpha * _strengthAlpha;
 
         Matrix baseMat = model->Get_BoneLocalMatrix(boneIndex);
@@ -149,6 +182,12 @@ void OffsetAnimationModifier::UpdateWeightOffset(ModelCom* model, float timeDelt
 
             Quat finalRot = Quaternion::Slerp(Quaternion::Identity, deltaRot, effectiveAlpha) * baseRot;
             finalRot.Normalize();
+
+            if (_translationOnlyBones.contains(boneIndex))
+            {
+                finalRot = baseRot;
+            }
+
             Vec3 finalPos = basePos + (target.position - center.position) * effectiveAlpha;
             model->Set_BoneLocalMatrix(boneIndex, Matrix::CreateScale(baseScale)
                 * Matrix::CreateFromQuaternion(finalRot)
@@ -159,6 +198,13 @@ void OffsetAnimationModifier::UpdateWeightOffset(ModelCom* model, float timeDelt
             Quat finalRot = Quaternion::Slerp(baseRot, target.rotation, effectiveAlpha);
             Vec3 finalPos = Vector3::Lerp(basePos, target.position, effectiveAlpha);
             Vec3 finalScale = Vector3::Lerp(baseScale, target.scale, effectiveAlpha);
+
+            if (_translationOnlyBones.contains(boneIndex))
+            {
+                finalRot = baseRot;
+                finalScale = baseScale;
+            }
+
             model->Set_BoneLocalMatrix(boneIndex, Matrix::CreateScale(finalScale)
                 * Matrix::CreateFromQuaternion(finalRot)
                 * Matrix::CreateTranslation(finalPos));

@@ -11,6 +11,7 @@
 
 Player_FreeAim::Player_FreeAim(const Shared<Player_WorldBase>& owner)
     : Player_State{ owner } {}
+
 HRESULT Player_FreeAim::Initialize()
 {
     return Player_State::Initialize();
@@ -35,6 +36,8 @@ void Player_FreeAim::Begin_Play()
                 else if (tag == L"Walk_B") _walkModifiers[1] = offsetMod;
                 else if (tag == L"Walk_L") _walkModifiers[2] = offsetMod;
                 else if (tag == L"Walk_R") _walkModifiers[3] = offsetMod;
+                else if (tag == L"Walk_LB") _walkModifiers[4] = offsetMod;
+                else if (tag == L"Walk_RB") _walkModifiers[5] = offsetMod;
             }
         }
     }
@@ -45,7 +48,7 @@ using plAnim = Body_Player::PlayerWorldAnimation;
 bool Player_FreeAim::EnterInvoke()
 {
     _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Idle), 0.1f, true);
-    _offsetModifier->Set_Active(true);
+    if (_offsetModifier) _offsetModifier->Set_Active(true);
 
     return true;
 }
@@ -94,10 +97,10 @@ void Player_FreeAim::Update(float timeDelta)
 
             auto rigid = _controllerCom->Get_RigidControl();
             rigid.rigidLookDir = camera->Get_Transform()->Get_WorldForward();
+            rigid.rigidWalk = true;
             _controllerCom->Set_RigidControl(rigid);
         }
     }
-
 }
 
 void Player_FreeAim::LateUpdate(float timeDelta)
@@ -112,7 +115,7 @@ void Player_FreeAim::ExitInvoke()
         _offsetModifier->Set_Active(false);
     }
 
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 6; ++i)
     {
         if (_walkModifiers[i])
             _walkModifiers[i]->Set_Active(false);
@@ -123,20 +126,28 @@ void Player_FreeAim::Update_DirectionalModifiers()
 {
     MovementCom::MovementInput input = _controllerCom->Get_MovementInput();
 
-    int targetWalkIndex = -1; // -1: 정지, 0:앞, 1:뒤, 2:좌, 3:우
-    if (abs(input.moveZ) > 0.1f || abs(input.moveX) > 0.1f)
+    int targetWalkIndex = -1; // 0:F, 1:B, 2:LF, 3:RF, 4:LB, 5:RB
+
+    float moveX = input.moveX;
+    float moveZ = input.moveZ;
+
+    if (abs(moveZ) > 0.1f || abs(moveX) > 0.1f)
     {
-        if (abs(input.moveZ) >= abs(input.moveX))
-            targetWalkIndex = (input.moveZ > 0.f) ? 0 : 1;
-        else
-            targetWalkIndex = (input.moveX < 0.f) ? 2 : 3;
+        if (moveZ < -0.1f && abs(moveX) > 0.1f) {
+            targetWalkIndex = (moveX < 0.f) ? 4 : 5; // LB(4), RB(5)
+        }
+        else if (abs(moveZ) > abs(moveX) * 1.5f) {
+            targetWalkIndex = (moveZ > 0.f) ? 0 : 1;
+        }
+        else {
+            targetWalkIndex = (moveX < 0.f) ? 2 : 3; // LF(2), RF(3)
+        }
     }
-    for (int i = 0; i < 4; ++i)
+
+    for (int i = 0; i < 6; ++i)
     {
         if (_walkModifiers[i])
-        {
             _walkModifiers[i]->Set_Active(i == targetWalkIndex);
-        }
     }
 }
 

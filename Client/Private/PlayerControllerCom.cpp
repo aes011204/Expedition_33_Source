@@ -228,6 +228,12 @@ void PlayerControllerCom::Check_RigidInput()
         _currentInput.isLockLook = true;
     }
 
+    if (_rigidControl.rigidWalk)
+    {
+        _currentInput.isWalkDown = true;
+        _currentInput.isRunPressed = false;
+    }
+
     if (_rigidControl.rigidLookDir.LengthSquared() > 0.f)
     {
         _currentInput.forcedDirection = _rigidControl.rigidLookDir;

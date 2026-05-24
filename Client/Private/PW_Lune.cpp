@@ -59,28 +59,92 @@ void PW_Lune::BeginPlay()
 
 HRESULT PW_Lune::Ready_Modifier()
 {
-    //if (auto body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body"))))
-    //{
-    //    OffsetAnimationModifier::OffsetModifierDesc offsetDesc{};
-    //
-    //    offsetDesc.baseModelCom = body->Get_Model().get();
-    //    offsetDesc.animName = "Gustave_IdleFreeAim_LoopingWorld_Sweep";
-    //    offsetDesc.rootBoneName = "spine_01";
-    //    offsetDesc.endBoneNames = { "hand_r" };
-    //    offsetDesc.maxPitchAngle = 60.f;
-    //    offsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
-    //    offsetDesc.blendInTime = 0.25f;
-    //    offsetDesc.blendOutTime = 0.25f;
-    //    offsetDesc.responseCurve = 1.5f;
-    //
-    //    if (auto modifier = OffsetAnimationModifier::Create(offsetDesc))
-    //    {
-    //        modifier->Set_Active(false);
-    //        offsetDesc.baseModelCom->Add_AnimModifier(modifier);
-    //    }
-    //}
-    //else
-    //    return E_FAIL;
+    if (auto body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body"))))
+    {
+        OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
+        aimOffsetDesc.baseModelCom = body->Get_Model().get();
+        aimOffsetDesc.animName = "Lune_IdleFreeAim_LoopingWorld_Sweep";
+        aimOffsetDesc.offsetBoneRanges = { { "spine_01", "hand_r" } };
+        aimOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
+        aimOffsetDesc.blendInTime = 0.25f;
+        aimOffsetDesc.blendOutTime = 0.25f;
+        aimOffsetDesc.responseCurve = 1.5f;
+        aimOffsetDesc.modifierTag = L"AimOffset";
+        if (auto modifier = OffsetAnimationModifier::Create(&aimOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+
+        OffsetAnimationModifier::OffsetModifierDesc wOffsetDesc{};
+        wOffsetDesc.baseModelCom = body->Get_Model().get();
+        wOffsetDesc.animName = "Lune_Walk_F";
+        wOffsetDesc.offsetBoneRanges = {
+            {"pelvis", "ball_l"},  
+            {"pelvis", "ball_r"},
+        };
+        wOffsetDesc.translationOnlyBones = { "pelvis" };
+        wOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+        wOffsetDesc.blendInTime = 0.25f;
+        wOffsetDesc.blendOutTime = 0.25f;
+        wOffsetDesc.responseCurve = 1.5f;
+        wOffsetDesc.isDynamicPlay = true;
+        wOffsetDesc.modifierTag = L"Walk_F";
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+
+        wOffsetDesc.animName = "Lune_Walk_B";
+        wOffsetDesc.modifierTag = L"Walk_B";
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+
+        wOffsetDesc.animName = "Lune_Walk_LF";
+        wOffsetDesc.modifierTag = L"Walk_L";
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+
+        wOffsetDesc.animName = "Lune_Walk_RF";
+        wOffsetDesc.modifierTag = L"Walk_R";
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+        
+        wOffsetDesc.animName = "Lune_Walk_LB";
+        wOffsetDesc.modifierTag = L"Walk_LB";
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+
+        wOffsetDesc.animName = "Lune_Walk_RB";
+        wOffsetDesc.modifierTag = L"Walk_RB";
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+    }
+    else
+        return E_FAIL;
 
     return S_OK;
 }

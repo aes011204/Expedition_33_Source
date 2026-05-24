@@ -63,8 +63,7 @@ HRESULT PW_Gustave::Ready_Modifier()
         OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
         aimOffsetDesc.baseModelCom = body->Get_Model().get();
         aimOffsetDesc.animName = "Gustave_IdleFreeAim_LoopingWorld_Sweep";
-        aimOffsetDesc.rootBoneName = "spine_01";
-        aimOffsetDesc.endBoneNames = { "hand_r" };
+        aimOffsetDesc.offsetBoneRanges = { { "spine_01", "hand_r" } };
         aimOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
         aimOffsetDesc.blendInTime = 0.25f;
         aimOffsetDesc.blendOutTime = 0.25f;
@@ -80,12 +79,17 @@ HRESULT PW_Gustave::Ready_Modifier()
         OffsetAnimationModifier::OffsetModifierDesc wOffsetDesc{};
         wOffsetDesc.baseModelCom = body->Get_Model().get();
         wOffsetDesc.animName = "Gustave_Walk_F";
-        wOffsetDesc.rootBoneName = "pelvis";
-        wOffsetDesc.endBoneNames = { "foot_l", "foot_r" };
-        wOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
+        wOffsetDesc.offsetBoneRanges = {
+            {"pelvis", "ball_l"},  
+            {"pelvis", "ball_r"},
+        };
+        wOffsetDesc.translationOnlyBones = { "pelvis" };
+        wOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
         wOffsetDesc.blendInTime = 0.25f;
         wOffsetDesc.blendOutTime = 0.25f;
         wOffsetDesc.responseCurve = 1.5f;
+        wOffsetDesc.isDynamicPlay = true;
+        wOffsetDesc.playRate = 1.f;
         wOffsetDesc.modifierTag = L"Walk_F";
         if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
         {
@@ -108,16 +112,34 @@ HRESULT PW_Gustave::Ready_Modifier()
         if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
         {
             modifier->Set_Active(false);
-            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+            wOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
         }
         else return E_FAIL;
 
-        wOffsetDesc.animName = "Gustave_Walk_LB";
+        wOffsetDesc.animName = "Gustave_Walk_RF";
         wOffsetDesc.modifierTag = L"Walk_R";
         if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
         {
             modifier->Set_Active(false);
-            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+            wOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+        
+        wOffsetDesc.animName = "Gustave_Walk_LB";
+        wOffsetDesc.modifierTag = L"Walk_LB";
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            wOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+        }
+        else return E_FAIL;
+
+        wOffsetDesc.animName = "Gustave_Walk_RB";
+        wOffsetDesc.modifierTag = L"Walk_RB";
+        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+        {
+            modifier->Set_Active(false);
+            wOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
         }
         else return E_FAIL;
     }
