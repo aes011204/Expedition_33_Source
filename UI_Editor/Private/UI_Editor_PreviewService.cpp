@@ -3,7 +3,6 @@
 
 #include "GameInstance.h"
 #include "ShaderCom.h"
-#include "Texture.h"
 #include "UI_Editor_Utils.h"
 #include "VIBuffer_Rect.h"
 
@@ -627,14 +626,41 @@ namespace UIEditor
 
         ++_texturePreviewLoadCountThisFrame;
 
-        Shared<Texture> texture = Texture::Create(_device, _context, texturePath.c_str(), 1);
-        if (nullptr == texture || texture->Get_SRVs().empty() || nullptr == texture->Get_SRVs().front().Get())
+        ComPtr<ID3D11ShaderResourceView> textureSRV = nullptr;
+        const fs::path textureFilePath = fs::path(texturePath);
+        const wstring extension = textureFilePath.extension().wstring();
+        HRESULT hr = E_FAIL;
+
+        if (extension == L".dds" || extension == L".DDS")
+        {
+            hr = DirectX::CreateDDSTextureFromFile(
+                _device.Get(),
+                texturePath.c_str(),
+                nullptr,
+                textureSRV.GetAddressOf());
+        }
+        else
+        {
+            hr = DirectX::CreateWICTextureFromFileEx(
+                _device.Get(),
+                texturePath.c_str(),
+                0,
+                D3D11_USAGE_DEFAULT,
+                D3D11_BIND_SHADER_RESOURCE,
+                0,
+                0,
+                DirectX::WIC_LOADER_IGNORE_SRGB,
+                nullptr,
+                textureSRV.GetAddressOf());
+        }
+
+        if (FAILED(hr) || nullptr == textureSRV)
         {
             _texturePreviewFailedKeys.insert(cacheKey);
             return nullptr;
         }
 
-        _textureThumbCache.emplace(cacheKey, texture->Get_SRVs().front());
+        _textureThumbCache.emplace(cacheKey, textureSRV);
         return _textureThumbCache[cacheKey].Get();
     }
 
