@@ -16,12 +16,6 @@
 
 namespace fs = std::filesystem;
 
-static string ToLowerCopy(string value)
-{
-    transform(value.begin(), value.end(), value.begin(), ::tolower);
-    return value;
-}
-
 static ImTextureID ToImTextureId(const Shared<Texture>& texture)
 {
     if (texture == nullptr)
@@ -32,6 +26,38 @@ static ImTextureID ToImTextureId(const Shared<Texture>& texture)
         return static_cast<ImTextureID>(0);
 
     return static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srvs[0].Get()));
+}
+
+static void DrawTileLabel(const string& text, float maxWidth)
+{
+    if (ImGui::CalcTextSize(text.c_str()).x <= maxWidth)
+    {
+        ImGui::TextUnformatted(text.c_str());
+        return;
+    }
+
+    constexpr const char* ellipsis = "...";
+    const float ellipsisWidth = ImGui::CalcTextSize(ellipsis).x;
+    if (maxWidth <= ellipsisWidth)
+    {
+        ImGui::TextUnformatted(ellipsis);
+        return;
+    }
+
+    size_t low = 0;
+    size_t high = text.size();
+    while (low < high)
+    {
+        const size_t mid = (low + high + 1) / 2;
+        const string candidate = text.substr(0, mid) + ellipsis;
+        if (ImGui::CalcTextSize(candidate.c_str()).x <= maxWidth)
+            low = mid;
+        else
+            high = mid - 1;
+    }
+
+    const string label = text.substr(0, low) + ellipsis;
+    ImGui::TextUnformatted(label.c_str());
 }
 
 static fs::path Resolve_ModelPath_FromAnimation(const fs::path& animPath)
@@ -106,11 +132,9 @@ Content_Browser::Content_Browser()
 {
     const wstring assetRoot = GAME->Get_AssetRoot();
     if (!assetRoot.empty())
-        _resourceRoot = fs::path(assetRoot);
+        Set_ResourceRoot(fs::path(assetRoot));
 
     Load_Icons();
-    Refresh_Resources();
-    Load_Settings();
 }
 
 Content_Browser::~Content_Browser()
@@ -147,11 +171,15 @@ void Content_Browser::Render()
         {
             const wstring assetRoot = GAME->Get_AssetRoot();
             if (!assetRoot.empty())
-                _resourceRoot = fs::path(assetRoot);
+                Set_ResourceRoot(fs::path(assetRoot));
         }
 
-        if (_rootFolder.fullPath.empty() && !_resourceRoot.empty() && fs::exists(_resourceRoot))
+        if (_needsInitialRefresh && _rootFolder.fullPath.empty() && !_resourceRoot.empty() && fs::exists(_resourceRoot))
+        {
             Refresh_Resources();
+            Load_Settings();
+            _needsInitialRefresh = false;
+        }
 
         Handle_SideButtonEvent();
         Handle_ThumbnailZoom();
@@ -227,10 +255,13 @@ void Content_Browser::Render()
                 ImGui::InputText("##CurrentPath", pathBuffer, IM_ARRAYSIZE(pathBuffer), ImGuiInputTextFlags_ReadOnly);
 
                 const float refreshWidth = 120.f;
+                const float settingsWidth = 28.f;
                 const float controlSpacing = 8.f;
+                const bool isLargeTextureFolder = Is_LargeTextureFolder();
+                const float statusWidth = isLargeTextureFolder ? 170.f : 0.f;
 
                 float remainingWidth = ImGui::GetContentRegionAvail().x;
-                float searchSlotWidth = remainingWidth - refreshWidth - controlSpacing;
+                float searchSlotWidth = remainingWidth - refreshWidth - settingsWidth - statusWidth - controlSpacing * 3.f;
 
                 if (searchSlotWidth > 120.f)
                 {
@@ -241,15 +272,32 @@ void Content_Browser::Render()
 
                 ImGui::SameLine();
 
-                float rightX = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - refreshWidth;
+                float rightX = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x -
+                    refreshWidth - settingsWidth - statusWidth - controlSpacing * 2.f;
                 if (rightX > ImGui::GetCursorPosX())
                     ImGui::SetCursorPosX(rightX);
+
+                if (isLargeTextureFolder)
+                {
+                    ImGui::TextDisabled("Large texture folder: %d/frame", Resolve_CurrentThumbnailLoadBudget());
+                    ImGui::SameLine();
+                }
+
+                if (ImGui::Button(ICON_FA_SLIDERS "##ContentBrowserThumbnailSettings", ImVec2(settingsWidth, 24.f)))
+                    ImGui::OpenPopup("ContentBrowserThumbnailSettings");
+
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Thumbnail settings");
+
+                Draw_ThumbnailSettingsPopup();
+
+                ImGui::SameLine();
 
                 if (ImGui::Button(ICON_FA_ROTATE_RIGHT " 새로고침", ImVec2(refreshWidth, 24.f)))
                     Refresh_AssetState();
 
                 if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip("새로고침 [F5]");
+                    ImGui::SetTooltip("새로고침");
 
                 ImGui::Separator();
 
@@ -273,32 +321,14 @@ void Content_Browser::Render()
 
 void Content_Browser::Refresh_Resources()
 {
-    if (_resourceRoot.empty() || !fs::exists(_resourceRoot))
-    {
-        _rootFolder = {};
-        _currentFolder = nullptr;
-        return;
-    }
-
-    const wstring savedPath = _currentFolder ? _currentFolder->fullPath : L"";
     _thumbnailCache.clear();
     _noThumbnailPaths.clear();
-
-    _rootFolder = {};
-    Scan_Folder(_resourceRoot.wstring(), _rootFolder);
-
-    if (!savedPath.empty())
+    _gridItemCache.clear();
+    _gridItemCacheFolder = nullptr;
+    Refresh_BrowserResources([](const wstring& filePath)
     {
-        FFolderNode* found = Find_FolderNode(_rootFolder, savedPath);
-        _currentFolder = found ? found : &_rootFolder;
-    }
-    else
-    {
-        _currentFolder = &_rootFolder;
-    }
-
-    if (_currentFolder && _folderHistory.empty())
-        Record_FolderHistory(_currentFolder->fullPath);
+        return GAME->Find_AssetGUID(filePath);
+    });
 }
 
 void Content_Browser::Refresh_AssetState()
@@ -359,46 +389,12 @@ void Content_Browser::Load_Icons()
 
 void Content_Browser::Refresh_CurrentFolder()
 {
-    if (!_currentFolder || !fs::exists(_currentFolder->fullPath))
-        return;
-
-    _currentFolder->files.clear();
-
-    for (const auto& entry : fs::directory_iterator(_currentFolder->fullPath))
+    _gridItemCache.clear();
+    _gridItemCacheFolder = nullptr;
+    Client::ContentBrowserCore::Refresh_CurrentFolder([](const wstring& filePath)
     {
-        if (entry.is_directory() || entry.path().extension() == L".meta")
-            continue;
-
-        FFileEntry fileEntry{};
-        fileEntry.filePath = entry.path().wstring();
-        fileEntry.guid = GAME->Find_AssetGUID(fileEntry.filePath);
-        _currentFolder->files.emplace_back(fileEntry);
-    }
-}
-
-void Content_Browser::Scan_Folder(const wstring& path, FFolderNode& node)
-{
-    node.fullPath = path;
-    node.name = fs::path(path).filename().wstring();
-    if (node.name.empty())
-        node.name = fs::path(path).wstring();
-
-    for (const auto& entry : fs::directory_iterator(path))
-    {
-        if (entry.is_directory())
-        {
-            FFolderNode child{};
-            Scan_Folder(entry.path().wstring(), child);
-            node.subFolders.emplace_back(std::move(child));
-        }
-        else if (entry.path().extension() != L".meta")
-        {
-            FFileEntry fileEntry{};
-            fileEntry.filePath = entry.path().wstring();
-            fileEntry.guid = GAME->Find_AssetGUID(fileEntry.filePath);
-            node.files.emplace_back(std::move(fileEntry));
-        }
-    }
+        return GAME->Find_AssetGUID(filePath);
+    });
 }
 
 void Content_Browser::Draw_FolderTree(FFolderNode& node)
@@ -460,95 +456,251 @@ void Content_Browser::Draw_AssetView()
         return;
 
     _thumbnailLoadsThisFrame = 0;
+    _thumbnailLoadBudgetThisFrame = Resolve_CurrentThumbnailLoadBudget();
 
     const string assetSearchLower = ToLowerCopy(_assetSearchBuffer);
-    const bool hasAssetSearch = !assetSearchLower.empty();
+    const bool shouldRebuildGridItems =
+        _gridItemCacheFolder != _currentFolder ||
+        _gridItemCacheSubFolderCount != _currentFolder->subFolders.size() ||
+        _gridItemCacheFileCount != _currentFolder->files.size() ||
+        _gridItemCacheSearchLower != assetSearchLower;
 
-    const float panelWidth = ImGui::GetContentRegionAvail().x;
-    const float tileWidth = _thumbnailSize + 40.f;
-    int columnCount = static_cast<int>(panelWidth / tileWidth);
-    if (columnCount < 1)
-        columnCount = 1;
-
-    struct FDisplayItem
+    if (shouldRebuildGridItems)
     {
-        FFolderNode* folder = nullptr;
-        const FFileEntry* file = nullptr;
+        Build_GridItems(
+            *_currentFolder,
+            assetSearchLower,
+            [](const FFolderNode& folder, const string& searchLower)
+            {
+                if (searchLower.empty())
+                    return true;
+
+                const string folderNameLower = ToLowerCopy(String::ToString(folder.name));
+                return folderNameLower.find(searchLower) != string::npos;
+            },
+            [](const FFileEntry& fileEntry, const string& searchLower)
+            {
+                if (searchLower.empty())
+                    return true;
+
+                const fs::path path(fileEntry.filePath);
+                const string fileName = String::ToString(path.filename().wstring());
+                const string prefabSuffix = ".prefab.json";
+                string pureName = String::ToString(path.stem().wstring());
+
+                if (fileName.ends_with(prefabSuffix))
+                    pureName = fileName.substr(0, fileName.size() - prefabSuffix.size());
+
+                const string pureNameLower = ToLowerCopy(pureName);
+                const string fileNameLower = ToLowerCopy(fileName);
+                return pureNameLower.find(searchLower) != string::npos ||
+                    fileNameLower.find(searchLower) != string::npos;
+            },
+            _gridItemCache);
+
+        _gridItemCacheFolder = _currentFolder;
+        _gridItemCacheSubFolderCount = _currentFolder->subFolders.size();
+        _gridItemCacheFileCount = _currentFolder->files.size();
+        _gridItemCacheSearchLower = assetSearchLower;
+    }
+
+    const GridLayout gridLayout = Calculate_GridLayout(
+        ImGui::GetContentRegionAvail().x,
+        _thumbnailSize,
+        ImGui::GetTextLineHeightWithSpacing(),
+        _gridItemCache.size());
+    const GridVisibleRange visibleRange = Calculate_GridVisibleRange(
+        gridLayout,
+        ImGui::GetScrollY(),
+        ImGui::GetWindowHeight(),
+        _gridItemCache.size(),
+        1);
+
+    const auto resolveGridItem = [&](const FGridItemRef& item) -> pair<FFolderNode*, const FFileEntry*>
+    {
+        if (item.type == ContentBrowserGridItemType::Folder)
+        {
+            if (item.index >= _currentFolder->subFolders.size())
+                return { nullptr, nullptr };
+
+            return { &_currentFolder->subFolders[item.index], nullptr };
+        }
+
+        if (item.index >= _currentFolder->files.size())
+            return { nullptr, nullptr };
+
+        return { nullptr, &_currentFolder->files[item.index] };
     };
 
-    vector<FDisplayItem> displayItems{};
-    displayItems.reserve(_currentFolder->subFolders.size() + _currentFolder->files.size());
-    const string prefabSuffix = ".prefab.json";
-
-    for (auto& childFolder : _currentFolder->subFolders)
+    const auto drawFileTile = [&](const FFileEntry& fileEntry)
     {
-        if (hasAssetSearch)
+        const fs::path path(fileEntry.filePath);
+        const string fileName = String::ToString(path.filename().wstring());
+        const string prefabSuffix = ".prefab.json";
+        string pureName = String::ToString(path.stem().wstring());
+
+        if (fileName.ends_with(prefabSuffix))
+            pureName = fileName.substr(0, fileName.size() - prefabSuffix.size());
+
+        ImGui::PushID(fileName.c_str());
+
+        const bool isTileVisible = ImGui::IsRectVisible(
+            ImVec2(_thumbnailSize, _thumbnailSize + ImGui::GetTextLineHeightWithSpacing() * 2.f));
+        Shared<Texture> thumbnailTexture = Get_FileThumbnail(
+            fileEntry,
+            Should_RequestThumbnail(fileEntry, isTileVisible, _thumbnailLoadsThisFrame, _thumbnailLoadBudgetThisFrame));
+        if (thumbnailTexture)
         {
-            const string folderNameLower = ToLowerCopy(String::ToString(childFolder.name));
-            if (folderNameLower.find(assetSearchLower) == string::npos)
-                continue;
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f, 0.f));
+            ImGui::ImageButton(
+                fileName.c_str(),
+                ToImTextureId(thumbnailTexture),
+                ImVec2(_thumbnailSize, _thumbnailSize));
+            ImGui::PopStyleVar();
         }
-
-        displayItems.push_back({ &childFolder, nullptr });
-    }
-
-    for (const auto& fileEntry : _currentFolder->files)
-    {
-        if (hasAssetSearch)
+        else
         {
-            const fs::path path(fileEntry.filePath);
-            const string fileName = String::ToString(path.filename().wstring());
-            string pureName = String::ToString(path.stem().wstring());
-
-            if (fileName.ends_with(prefabSuffix))
-                pureName = fileName.substr(0, fileName.size() - prefabSuffix.size());
-
-            const string pureNameLower = ToLowerCopy(pureName);
-            const string fileNameLower = ToLowerCopy(fileName);
-            if (pureNameLower.find(assetSearchLower) == string::npos &&
-                fileNameLower.find(assetSearchLower) == string::npos)
+            const ImTextureID iconId = Get_IconTextureId(Resolve_IconType(path));
+            if (iconId)
             {
-                continue;
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f, 0.f));
+                ImGui::ImageButton(fileName.c_str(), iconId, ImVec2(_thumbnailSize, _thumbnailSize));
+                ImGui::PopStyleVar();
+            }
+            else
+            {
+                ImGui::Button(pureName.c_str(), ImVec2(_thumbnailSize, _thumbnailSize));
             }
         }
 
-        displayItems.push_back({ nullptr, &fileEntry });
-    }
-
-    const int rowCount = static_cast<int>((displayItems.size() + columnCount - 1) / columnCount);
-    const float rowHeight =
-        _thumbnailSize +
-        ImGui::GetTextLineHeightWithSpacing() * 3.f +
-        ImGui::GetStyle().ItemSpacing.y * 2.f;
-
-    ImGuiListClipper clipper;
-    clipper.Begin(rowCount, rowHeight);
-
-    ImGui::Columns(columnCount, nullptr, false);
-    while (clipper.Step())
-    {
-        for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
+        // 드래그해서 프리펩 스폰
         {
-            for (int column = 0; column < columnCount; ++column)
+            if (path.extension() == L".json" && fileName.ends_with(prefabSuffix))
             {
-                const size_t itemIndex = static_cast<size_t>(row * columnCount + column);
-                if (itemIndex < displayItems.size())
+                if (ImGui::BeginDragDropSource())
                 {
-                    const FDisplayItem& item = displayItems[itemIndex];
-                    if (item.folder)
-                        Draw_FolderTile(*item.folder);
-                    else if (item.file)
-                        Draw_FileTile(*item.file);
-                }
-                else
-                {
-                    ImGui::NextColumn();
+                    ImGui::SetDragDropPayload(
+                        "CONTENT_BROWSER_PREFAB",
+                        pureName.c_str(),
+                        pureName.size() + 1);
+
+                    ImGui::Text("Prefab");
+                    ImGui::Separator();
+                    ImGui::Text("%s", pureName.c_str());
+
+                    ImGui::EndDragDropSource();
                 }
             }
         }
+
+        // 맵 스태틱 매쉬 스폰
+        {
+            const wstring ext = path.extension().wstring();
+            if (ext == L".model")
+            {
+                if (ImGui::BeginDragDropSource())
+                {
+                    const string pathA = String::ToString(fileEntry.filePath);
+                    ImGui::SetDragDropPayload(
+                        "CONTENT_BROWSER_MODEL",
+                        pathA.c_str(),
+                        pathA.size() + 1);
+                    ImGui::Text("Map Static Mesh");
+                    ImGui::Separator();
+                    ImGui::Text("%s", pureName.c_str());
+
+                    ImGui::EndDragDropSource();
+                }
+            }
+        }
+        //
+
+        const bool isFocused = ImGui::IsItemFocused();
+        const bool isSelected = (_selectedFilePath == fileEntry.filePath);
+
+        if (isSelected)
+        {
+            const ImVec2 itemMin = ImGui::GetItemRectMin();
+            const ImVec2 itemMax = ImGui::GetItemRectMax();
+            ImGui::GetWindowDrawList()->AddRect(itemMin, itemMax, IM_COL32(70, 130, 210, 255), 0.f, 0, 2.f);
+        }
+
+        if (isFocused && !isSelected)
+            _selectedFilePath = fileEntry.filePath;
+
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+            _selectedFilePath = fileEntry.filePath;
+
+        // 더블클릭으로 프리펩 열기 / TODO : Behavior Tree 도 추가하기
+        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+        {
+            // BT_*.json 은 Prefab_View가 아니라 BT_View에서 바로 연다.
+            if (path.extension() == L".json" && fileName.starts_with("BT_"))
+            {
+                Shared<Editor_Window> btWindowBase = EDITOR->Get_Window(L"BT View");
+                Shared<BT_View> btView = dynamic_pointer_cast<BT_View>(btWindowBase);
+
+                if (btView)
+                {
+                    btView->Open_BTAsset(path.string());
+                }
+            }
+            else if (path.extension() == L".json" && fileName.ends_with(prefabSuffix))
+            {
+                Shared<Editor_Window> prefabWindowBase = EDITOR->Get_Window(L"Prefab");
+                Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabWindowBase);
+
+                if (prefabView)
+                {
+                    const string prefabName = fileName.substr(0, fileName.size() - prefabSuffix.size());
+                    prefabView->Open_Prefab(prefabName, path);
+                }
+            }
+            else if (path.extension() == L".model" || path.extension() == L".anim")
+            {
+                Open_AnimationViewFromAssetPath(path);
+            }
+        }
+
+        Draw_FileContextMenu(fileEntry.filePath, "FileItemContext");
+
+        DrawTileLabel(pureName, gridLayout.tileWidth - 8.f);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("%s", fileName.c_str());
+
+        ImGui::PopID();
+    };
+
+    if (visibleRange.hasItems)
+    {
+        const ImVec2 startCursorPos = ImGui::GetCursorPos();
+
+        for (int rowIndex = visibleRange.firstRow; rowIndex <= visibleRange.lastRow; ++rowIndex)
+        {
+            const float rowY = startCursorPos.y + static_cast<float>(rowIndex) * gridLayout.tileHeight;
+
+            for (int columnIndex = 0; columnIndex < gridLayout.columnCount; ++columnIndex)
+            {
+                const size_t itemIndex = static_cast<size_t>(rowIndex * gridLayout.columnCount + columnIndex);
+                if (itemIndex > visibleRange.lastItem || itemIndex >= _gridItemCache.size())
+                    break;
+
+                ImGui::SetCursorPos(ImVec2(startCursorPos.x + static_cast<float>(columnIndex) * gridLayout.tileWidth, rowY));
+                ImGui::BeginGroup();
+
+                const auto [folder, file] = resolveGridItem(_gridItemCache[itemIndex]);
+                if (folder)
+                    Draw_FolderTile(*folder);
+                else if (file)
+                    drawFileTile(*file);
+
+                ImGui::EndGroup();
+            }
+        }
+
+        ImGui::SetCursorPos(ImVec2(startCursorPos.x, startCursorPos.y + static_cast<float>(gridLayout.rowCount) * gridLayout.tileHeight));
+        ImGui::Dummy(ImVec2(1.f, 1.f));
     }
-    ImGui::Columns(1);
-    clipper.End();
 
     if (_currentFolder &&
         ImGui::BeginPopupContextWindow("CurrentFolderContext",
@@ -574,140 +726,28 @@ void Content_Browser::Draw_AssetView()
     }
 }
 
-void Content_Browser::Draw_FileTile(const FFileEntry& fileEntry)
+void Content_Browser::Draw_ThumbnailSettingsPopup()
 {
-    const fs::path path(fileEntry.filePath);
-    const string fileName = String::ToString(path.filename().wstring());
-    const string prefabSuffix = ".prefab.json";
-    string pureName = String::ToString(path.stem().wstring());
+    if (!ImGui::BeginPopup("ContentBrowserThumbnailSettings"))
+        return;
 
-    if (fileName.ends_with(prefabSuffix))
-        pureName = fileName.substr(0, fileName.size() - prefabSuffix.size());
+    bool changed = false;
+    changed |= ImGui::Checkbox("Texture thumbnails", &_thumbnailPolicy.textureThumbnails);
+    changed |= ImGui::Checkbox("Show DDS thumbnails", &_thumbnailPolicy.showDdsThumbnails);
+    changed |= ImGui::Checkbox("Adaptive large folders", &_thumbnailPolicy.adaptiveLargeFolders);
 
-    ImGui::PushID(fileName.c_str());
+    changed |= ImGui::InputInt("Large folder threshold", &_thumbnailPolicy.largeFolderThreshold, 10, 100);
+    changed |= ImGui::InputInt("Thumbnail load budget", &_thumbnailPolicy.thumbnailLoadBudget, 1, 4);
+    changed |= ImGui::InputInt("Large folder budget", &_thumbnailPolicy.largeFolderThumbnailLoadBudget, 1, 4);
 
-    Shared<Texture> thumbnailTexture = Get_FileThumbnail(fileEntry);
-    if (thumbnailTexture)
-    {
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f, 0.f));
-        ImGui::ImageButton(
-            fileName.c_str(),
-            ToImTextureId(thumbnailTexture),
-            ImVec2(_thumbnailSize, _thumbnailSize));
-        ImGui::PopStyleVar();
-    }
-    else
-    {
-        const ImTextureID iconId = Get_IconTextureId(Resolve_IconType(path));
-        if (iconId)
-        {
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f, 0.f));
-            ImGui::ImageButton(fileName.c_str(), iconId, ImVec2(_thumbnailSize, _thumbnailSize));
-            ImGui::PopStyleVar();
-        }
-        else
-        {
-            ImGui::Button(pureName.c_str(), ImVec2(_thumbnailSize, _thumbnailSize));
-        }
-    }
+    _thumbnailPolicy.largeFolderThreshold = clamp(_thumbnailPolicy.largeFolderThreshold, 1, 10000);
+    _thumbnailPolicy.thumbnailLoadBudget = clamp(_thumbnailPolicy.thumbnailLoadBudget, 1, 64);
+    _thumbnailPolicy.largeFolderThumbnailLoadBudget = clamp(_thumbnailPolicy.largeFolderThumbnailLoadBudget, 0, 64);
 
-    // 드래그해서 프리펩 스폰
-    {
-        if (path.extension() == L".json" && fileName.ends_with(prefabSuffix))
-        {
-            if (ImGui::BeginDragDropSource())
-            {
-                ImGui::SetDragDropPayload(
-                    "CONTENT_BROWSER_PREFAB",
-                    pureName.c_str(),
-                    pureName.size() + 1);
+    if (changed)
+        Save_Settings();
 
-                ImGui::Text("Prefab");
-                ImGui::Separator();
-                ImGui::Text("%s", pureName.c_str());
-
-                ImGui::EndDragDropSource();
-            }
-        }
-    }
-
-    // 맵 스태틱 매쉬 스폰
-    {
-        const wstring ext = path.extension().wstring();
-        if (ext == L".model")
-        {
-            if (ImGui::BeginDragDropSource())
-            {
-                const string pathA = String::ToString(fileEntry.filePath);
-                ImGui::SetDragDropPayload(
-                    "CONTENT_BROWSER_MODEL",
-                    pathA.c_str(),
-                    pathA.size() + 1);
-                ImGui::Text("Map Static Mesh");
-                ImGui::Separator();
-                ImGui::Text("%s", pureName.c_str());
-
-                ImGui::EndDragDropSource();
-            }
-        }
-    }
-    //
-
-    const bool isFocused = ImGui::IsItemFocused();
-    const bool isSelected = (_selectedFilePath == fileEntry.filePath);
-
-    if (isSelected)
-    {
-        const ImVec2 itemMin = ImGui::GetItemRectMin();
-        const ImVec2 itemMax = ImGui::GetItemRectMax();
-        ImGui::GetWindowDrawList()->AddRect(itemMin, itemMax, IM_COL32(70, 130, 210, 255), 0.f, 0, 2.f);
-    }
-
-    if (isFocused && !isSelected)
-        _selectedFilePath = fileEntry.filePath;
-
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
-        _selectedFilePath = fileEntry.filePath;
-
-    // 더블클릭으로 프리펩 열기 / TODO : Behavior Tree 도 추가하기
-    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-    {
-        // BT_*.json 은 Prefab_View가 아니라 BT_View에서 바로 연다.
-        if (path.extension() == L".json" && fileName.starts_with("BT_"))
-        {
-            Shared<Editor_Window> btWindowBase = EDITOR->Get_Window(L"BT View");
-            Shared<BT_View> btView = dynamic_pointer_cast<BT_View>(btWindowBase);
-
-            if (btView)
-            {
-                btView->Open_BTAsset(path.string());
-            }
-        }
-        else if (path.extension() == L".json" && fileName.ends_with(prefabSuffix))
-        {
-            Shared<Editor_Window> prefabWindowBase = EDITOR->Get_Window(L"Prefab");
-            Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabWindowBase);
-
-            if (prefabView)
-            {
-                const string prefabName = fileName.substr(0, fileName.size() - prefabSuffix.size());
-                prefabView->Open_Prefab(prefabName, path);
-            }
-        }
-        else if (path.extension() == L".model" || path.extension() == L".anim")
-        {
-            Open_AnimationViewFromAssetPath(path);
-        }
-    }
-
-    Draw_FileContextMenu(fileEntry.filePath, "FileItemContext");
-
-    ImGui::TextWrapped("%s", pureName.c_str());
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", fileName.c_str());
-
-    ImGui::PopID();
-    ImGui::NextColumn();
+    ImGui::EndPopup();
 }
 
 void Content_Browser::Draw_FolderTile(FFolderNode& folder)
@@ -739,10 +779,9 @@ void Content_Browser::Draw_FolderTile(FFolderNode& folder)
     Draw_FolderContextMenu(folder, "FolderTileContext_" + String::ToString(folder.fullPath));
 
     const string folderName = String::ToString(folder.name);
-    ImGui::TextWrapped("%s", folderName.c_str());
+    DrawTileLabel(folderName, _thumbnailSize + 32.f);
 
     ImGui::PopID();
-    ImGui::NextColumn();
 }
 
 void Content_Browser::Open_Folder(FFolderNode* folder)
@@ -970,16 +1009,32 @@ void Content_Browser::Draw_FileContextMenu(const wstring& filePath, const string
     ImGui::EndPopup();
 }
 
-Shared<Texture> Content_Browser::Get_FileThumbnail(const FFileEntry& fileEntry)
+Shared<Texture> Content_Browser::Get_FileThumbnail(const FFileEntry& fileEntry, bool allowLoad)
 {
     if (fileEntry.filePath.empty())
         return nullptr;
+
+    const fs::path sourcePath(fileEntry.filePath);
+    if (Is_TextureThumbnailCandidate(sourcePath))
+    {
+        if (!_thumbnailPolicy.textureThumbnails)
+            return nullptr;
+
+        if (Is_DdsFile(sourcePath) && !_thumbnailPolicy.showDdsThumbnails)
+            return nullptr;
+    }
 
     auto cacheIt = _thumbnailCache.find(fileEntry.filePath);
     if (cacheIt != _thumbnailCache.end())
         return cacheIt->second;
 
     if (_noThumbnailPaths.contains(fileEntry.filePath))
+        return nullptr;
+
+    if (!allowLoad)
+        return nullptr;
+
+    if (_thumbnailLoadsThisFrame >= _thumbnailLoadBudgetThisFrame)
         return nullptr;
 
     fs::path thumbnailPath{};
@@ -992,7 +1047,6 @@ Shared<Texture> Content_Browser::Get_FileThumbnail(const FFileEntry& fileEntry)
 
     if (thumbnailPath.empty())
     {
-        const fs::path sourcePath(fileEntry.filePath);
         if (!Is_ThumbnailFileExtension(sourcePath))
         {
             _noThumbnailPaths.insert(fileEntry.filePath);
@@ -1001,9 +1055,6 @@ Shared<Texture> Content_Browser::Get_FileThumbnail(const FFileEntry& fileEntry)
 
         thumbnailPath = sourcePath;
     }
-
-    if (_thumbnailLoadsThisFrame >= MAX_THUMBNAIL_LOADS_PER_FRAME)
-        return nullptr;
 
     ++_thumbnailLoadsThisFrame;
 
@@ -1020,115 +1071,26 @@ Shared<Texture> Content_Browser::Get_FileThumbnail(const FFileEntry& fileEntry)
     return thumbnailTexture;
 }
 
-bool Content_Browser::Is_ThumbnailFileExtension(const filesystem::path& filePath)
+bool Content_Browser::Is_LargeTextureFolder() const
 {
-    const string extension = ToLowerCopy(String::ToString(filePath.extension().wstring()));
+    return ContentBrowserCore::Is_LargeTextureFolder(_currentFolder, _thumbnailPolicy);
+}
 
-    return extension == ".png" ||
-        extension == ".jpg" ||
-        extension == ".jpeg" ||
-        extension == ".bmp" ||
-        extension == ".dds";
+int Content_Browser::Resolve_CurrentThumbnailLoadBudget() const
+{
+    return Resolve_ThumbnailLoadBudget(_currentFolder, _thumbnailPolicy);
 }
 
 void Content_Browser::Save_Settings() const
 {
-    json settings{};
-    const wstring currentPath = _currentFolder ? _currentFolder->fullPath : wstring{};
-    settings["lastPath"] = String::ToString(currentPath);
-
-    const fs::path settingsPath = CONTENT_BROWSER_SETTINGS_PATH;
-    if (!fs::exists(settingsPath.parent_path()))
-        fs::create_directories(settingsPath.parent_path());
-
-    ofstream file(settingsPath);
-    if (!file.is_open())
-        return;
-
-    file << settings.dump(4);
+    Save_CurrentPathSetting(CONTENT_BROWSER_SETTINGS_PATH, "mainEditor");
+    Save_ThumbnailPolicySetting(CONTENT_BROWSER_SETTINGS_PATH, "mainEditor", _thumbnailPolicy);
 }
 
 void Content_Browser::Load_Settings()
 {
-    ifstream file(CONTENT_BROWSER_SETTINGS_PATH);
-    if (!file.is_open())
-        return;
-
-    json settings{};
-    file >> settings;
-
-    if (!settings.contains("lastPath"))
-        return;
-
-    const wstring lastPath = String::ToWString(settings["lastPath"].get<string>());
-    FFolderNode* found = Find_FolderNode(_rootFolder, lastPath);
-    if (!found)
-        return;
-
-    _currentFolder = found;
-    Expand_PathTo(lastPath);
-}
-
-Content_Browser::FFolderNode* Content_Browser::Find_FolderNode(FFolderNode& node, const wstring& path)
-{
-    if (node.fullPath == path)
-        return &node;
-
-    for (auto& child : node.subFolders)
-    {
-        FFolderNode* found = Find_FolderNode(child, path);
-        if (found)
-            return found;
-    }
-
-    return nullptr;
-}
-
-void Content_Browser::Expand_PathTo(const wstring& targetPath)
-{
-    _expandedFolders.clear();
-
-    fs::path current(targetPath);
-    fs::path root(_rootFolder.fullPath);
-
-    while (current != root && !current.empty())
-    {
-        _expandedFolders.insert(current.wstring());
-        current = current.parent_path();
-    }
-
-    _expandedFolders.insert(root.wstring());
-}
-
-bool Content_Browser::IsFolderMatchingSearch(const FFolderNode& node, const string& searchStr)
-{
-    string nameLower = ToLowerCopy(String::ToString(node.name));
-    if (nameLower.find(searchStr) != string::npos)
-        return true;
-
-    for (const auto& child : node.subFolders)
-    {
-        if (IsFolderMatchingSearch(child, searchStr))
-            return true;
-    }
-
-    return false;
-}
-
-Content_Browser::FFolderNode* Content_Browser::Get_FirstMatchingFolder(FFolderNode& node, const string& searchStr)
-{
-    string nameLower = ToLowerCopy(String::ToString(node.name));
-    if (nameLower.find(searchStr) != string::npos)
-        return &node;
-
-    for (auto& child : node.subFolders)
-    {
-        FFolderNode* found = Get_FirstMatchingFolder(child, searchStr);
-        if (found)
-            return found;
-    }
-
-    return nullptr;
+    Load_CurrentPathSetting(CONTENT_BROWSER_SETTINGS_PATH, "mainEditor");
+    Load_ThumbnailPolicySetting(CONTENT_BROWSER_SETTINGS_PATH, "mainEditor", _thumbnailPolicy);
 }
 
 Content_Browser::EIconType Content_Browser::Resolve_IconType(const filesystem::path& filePath) const
@@ -1154,35 +1116,6 @@ ImTextureID Content_Browser::Get_IconTextureId(EIconType iconType) const
         return static_cast<ImTextureID>(0);
 
     return ToImTextureId(_iconFiles[iconIndex]);
-}
-
-void Content_Browser::Record_FolderHistory(const wstring& path)
-{
-    if (_folderHistoryIndex >= 0 &&
-        _folderHistoryIndex < static_cast<int>(_folderHistory.size()) &&
-        _folderHistory[_folderHistoryIndex] == path)
-    {
-        return;
-    }
-
-    if (_folderHistoryIndex + 1 < static_cast<int>(_folderHistory.size()))
-    {
-        _folderHistory.erase(_folderHistory.begin() + _folderHistoryIndex + 1, _folderHistory.end());
-    }
-
-    _folderHistory.push_back(path);
-    _folderHistoryIndex = static_cast<int>(_folderHistory.size()) - 1;
-}
-
-bool Content_Browser::Can_GoBack() const
-{
-    return _folderHistoryIndex > 0;
-}
-
-bool Content_Browser::Can_GoForward() const
-{
-    return _folderHistoryIndex >= 0 &&
-        _folderHistoryIndex + 1 < static_cast<int>(_folderHistory.size());
 }
 
 void Content_Browser::Go_BackFolder()

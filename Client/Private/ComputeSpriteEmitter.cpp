@@ -20,14 +20,15 @@ namespace Client::Internal
 {
     wstring Resolve_TexturePathByGuid(const string& textureGuid)
     {
-        if (GAME != nullptr && !textureGuid.empty())
-        {
-            const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
-            if (!resolvedPath.empty() && fs::exists(resolvedPath))
-                return resolvedPath;
-        }
+        if (GAME == nullptr || textureGuid.empty())
+            return {};
 
-        return {};
+        const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
+        if (assetMeta == nullptr || assetMeta->type != "Texture")
+            return {};
+
+        const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+        return !resolvedPath.empty() && fs::exists(resolvedPath) ? resolvedPath : wstring{};
     }
 
     wstring Resolve_TexturePathByPath(const string& texturePath)
@@ -46,18 +47,31 @@ namespace Client::Internal
         return {};
     }
 
-    wstring Resolve_TexturePath(const string& textureGuid, const string& texturePath, bool& outUsedLegacyGuid)
+    bool Is_SpriteTextureSamePath(const wstring& lhs, const wstring& rhs)
     {
-        outUsedLegacyGuid = false;
+        if (lhs.empty() || rhs.empty())
+            return false;
 
-        wstring resolvedPath = Resolve_TexturePathByPath(texturePath);
-        if (!resolvedPath.empty())
-            return resolvedPath;
+        return fs::path(lhs).lexically_normal() == fs::path(rhs).lexically_normal();
+    }
 
-        resolvedPath = Resolve_TexturePathByGuid(textureGuid);
+    wstring Resolve_TexturePath(const string& textureGuid, const string& texturePath, bool& outUsedPathFallback, bool& outGuidPathMismatch)
+    {
+        outUsedPathFallback = false;
+        outGuidPathMismatch = false;
+
+        wstring resolvedPath = Resolve_TexturePathByGuid(textureGuid);
         if (!resolvedPath.empty())
         {
-            outUsedLegacyGuid = true;
+            const wstring pathResolved = Resolve_TexturePathByPath(texturePath);
+            outGuidPathMismatch = !pathResolved.empty() && !Is_SpriteTextureSamePath(resolvedPath, pathResolved);
+            return resolvedPath;
+        }
+
+        resolvedPath = Resolve_TexturePathByPath(texturePath);
+        if (!resolvedPath.empty())
+        {
+            outUsedPathFallback = true;
             return resolvedPath;
         }
 
@@ -144,17 +158,28 @@ HRESULT ComputeSpriteEmitter::Ready_Components()
 
 HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTexturePath)
 {
-    bool usedLegacyGuid = false;
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
     wstring resolvedPath = Client::Internal::Resolve_TexturePath(
         _desc.required.material.mainTextureGuid,
         _desc.required.material.mainTexturePath,
-        usedLegacyGuid
+        usedPathFallback,
+        guidPathMismatch
     );
     bool usedFallback = false;
-    if (usedLegacyGuid)
+    if (guidPathMismatch)
     {
         LOG_WARN(
-            "ComputeSpriteEmitter main texture recovered by legacy GUID. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}'. Save a path-primary reference.",
+            "ComputeSpriteEmitter main texture GUID/path mismatch. mainTextureGuid='{}', mainTexturePath='{}', guidResolvedPath='{}'.",
+            _desc.required.material.mainTextureGuid,
+            _desc.required.material.mainTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter main texture fell back to path. mainTextureGuid='{}', mainTexturePath='{}', resolvedPath='{}'.",
             _desc.required.material.mainTextureGuid,
             _desc.required.material.mainTexturePath,
             String::ToString(resolvedPath)
@@ -216,11 +241,13 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
     if (_desc.required.material.noiseTextureGuid.empty() && _desc.required.material.noiseTexturePath.empty())
         return S_OK;
 
-    bool usedLegacyGuid = false;
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
     const wstring resolvedPath = Client::Internal::Resolve_TexturePath(
         _desc.required.material.noiseTextureGuid,
         _desc.required.material.noiseTexturePath,
-        usedLegacyGuid
+        usedPathFallback,
+        guidPathMismatch
     );
     if (resolvedPath.empty())
     {
@@ -232,10 +259,19 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
         );
         return S_OK;
     }
-    if (usedLegacyGuid)
+    if (guidPathMismatch)
     {
         LOG_WARN(
-            "ComputeSpriteEmitter noise texture recovered by legacy GUID. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'.",
+            "ComputeSpriteEmitter noise texture GUID/path mismatch. noiseTextureGuid='{}', noiseTexturePath='{}', guidResolvedPath='{}'.",
+            _desc.required.material.noiseTextureGuid,
+            _desc.required.material.noiseTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter noise texture fell back to path. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'.",
             _desc.required.material.noiseTextureGuid,
             _desc.required.material.noiseTexturePath,
             String::ToString(resolvedPath)

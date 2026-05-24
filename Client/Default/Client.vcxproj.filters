@@ -59,6 +59,7 @@
     <Filter Include="03. Component\StateMachine\State" />
     <Filter Include="04. GamePlayUI" />
     <Filter Include="04. GamePlayUI\Weapon" />
+    <Filter Include="90.EditorSupport" />
     <Filter Include="05. BattleSystem" />
     <Filter Include="95. AnimNotify" />
     <Filter Include="95. AnimNotify\00. Notifies" />
@@ -1105,6 +1106,14 @@
     </ClCompile>
     <ClCompile Include="..\Private\Weapon.cpp">
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\Public\ContentBrowserCore.h">
+      <Filter>90.EditorSupport</Filter>
+    </ClInclude>
+    <ClCompile Include="..\Private\ContentBrowserCore.cpp">
+      <Filter>90.EditorSupport</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
