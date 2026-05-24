@@ -547,10 +547,6 @@ HRESULT ResourceLoader::Build_LoadingUIRenderJobs(vector<FLoadJob>& outJobs, con
         outJobs.push_back(job);
     }
 
-    LOG_INFO(
-        "Built loading UI render jobs. jobCount={}",
-        static_cast<int>(outJobs.size()));
-
     return S_OK;
 }
 
