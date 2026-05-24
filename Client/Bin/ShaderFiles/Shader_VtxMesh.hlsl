@@ -258,9 +258,8 @@ PS_OUT PS_LandscapeBlend(PS_IN In)
 
     float w1 = wm.r;
     float w2 = wm.a;
-    float wTotal = w1 + w2 + 0.0001f;
-
-    float3 blendedColor = (layer1AR.rgb * w1 + layer2AR.rgb * w2) / wTotal;
+    float wTotal = w1 + w2;
+    float3 blendedColor = lerp(layer1AR.rgb, (layer1AR.rgb * w1 + layer2AR.rgb * w2) / max(wTotal, 0.0001f), saturate(wTotal * 1000.f));
 
     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, layerUV);
     
