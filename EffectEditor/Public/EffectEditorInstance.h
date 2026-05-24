@@ -26,6 +26,13 @@ class Editor_Context;
 class CommandHistory;
 class Notification_Manager;
 
+struct EffectEditorRenderPerfSample
+{
+    double editorWindowsMs{};
+    double notificationMs{};
+    double imguiMs{};
+};
+
 class EffectEditorInstance final : public Base
 {
     DECLARE_SINGLETON(EffectEditorInstance)
@@ -39,7 +46,7 @@ public:
     void Release_Editor();
 
     void Update_Editor(float timeDelta);
-    void Render_Editor();
+    void Render_Editor(EffectEditorRenderPerfSample* outPerfSample = nullptr);
 
 public: //## Accessor::Graphics
     ComPtr<Device> Get_Device() const { return _device; }

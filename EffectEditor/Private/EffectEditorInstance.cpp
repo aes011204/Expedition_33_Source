@@ -133,14 +133,32 @@ void EffectEditorInstance::Update_Editor(float timeDelta)
         _notificationManager->Update(timeDelta);
 }
 
-void EffectEditorInstance::Render_Editor()
+void EffectEditorInstance::Render_Editor(EffectEditorRenderPerfSample* outPerfSample)
 {
+    chrono::steady_clock::time_point begin{};
+    if (outPerfSample != nullptr)
+        begin = chrono::steady_clock::now();
+
     _editorManager->Render();
+    if (outPerfSample != nullptr)
+        outPerfSample->editorWindowsMs = chrono::duration<double, milli>(chrono::steady_clock::now() - begin).count();
 
     if (_notificationManager)
+    {
+        if (outPerfSample != nullptr)
+            begin = chrono::steady_clock::now();
+
         _notificationManager->Render();
 
+        if (outPerfSample != nullptr)
+            outPerfSample->notificationMs = chrono::duration<double, milli>(chrono::steady_clock::now() - begin).count();
+    }
+
+    if (outPerfSample != nullptr)
+        begin = chrono::steady_clock::now();
     _imguiManager->Render();
+    if (outPerfSample != nullptr)
+        outPerfSample->imguiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - begin).count();
 }
 
 Shared<Editor_Window> EffectEditorInstance::Get_Window(const wstring& windowName) const

@@ -262,8 +262,154 @@ void EffectEditorApp::Late_Update(float)
 {
 }
 
+#ifdef _DEBUG
+bool EffectEditorApp::Should_SampleEffectEditorRenderPerf()
+{
+    ++_renderPerfWindow.observedFrameCount;
+
+    const auto now = chrono::steady_clock::now();
+    if (!_hasRenderPerfLastSampleTime)
+    {
+        _renderPerfLastSampleTime = now;
+        _hasRenderPerfLastSampleTime = true;
+        return true;
+    }
+
+    const float elapsedSec = static_cast<float>(
+        chrono::duration<double>(now - _renderPerfLastSampleTime).count());
+    if (elapsedSec < kEffectEditorRenderPerfSampleIntervalSec)
+        return false;
+
+    _renderPerfLastSampleTime = now;
+    return true;
+}
+
+void EffectEditorApp::Reset_EffectEditorRenderPerfWindowState(chrono::steady_clock::time_point now)
+{
+    _renderPerfWindow = {};
+    _renderPerfWindowStartTime = now;
+    _hasRenderPerfWindowStartTime = true;
+}
+
+void EffectEditorApp::Accumulate_EffectEditorRenderPerf(
+    double totalRenderMs,
+    double gameRenderMs,
+    double captureMs,
+    double bindBackBufferMs,
+    double editorRenderMs,
+    double editorWindowsMs,
+    double notificationMs,
+    double imguiMs,
+    double presentMs)
+{
+    Accumulate_PassPerf(_renderPerfWindow.totalRender, totalRenderMs);
+    Accumulate_PassPerf(_renderPerfWindow.gameRender, gameRenderMs);
+    Accumulate_PassPerf(_renderPerfWindow.capture, captureMs);
+    Accumulate_PassPerf(_renderPerfWindow.bindBackBuffer, bindBackBufferMs);
+    Accumulate_PassPerf(_renderPerfWindow.editorRender, editorRenderMs);
+    Accumulate_PassPerf(_renderPerfWindow.editorWindows, editorWindowsMs);
+    Accumulate_PassPerf(_renderPerfWindow.notification, notificationMs);
+    Accumulate_PassPerf(_renderPerfWindow.imgui, imguiMs);
+    Accumulate_PassPerf(_renderPerfWindow.present, presentMs);
+}
+
+void EffectEditorApp::Try_FlushEffectEditorRenderPerfLog()
+{
+    const auto now = chrono::steady_clock::now();
+    if (!_hasRenderPerfWindowStartTime)
+    {
+        Reset_EffectEditorRenderPerfWindowState(now);
+        return;
+    }
+
+    const float windowSec = static_cast<float>(
+        chrono::duration<double>(now - _renderPerfWindowStartTime).count());
+    if (windowSec < kEffectEditorRenderPerfWindowSec)
+        return;
+
+    const size_t sampleCount = _renderPerfWindow.totalRender.sampleCount;
+    if (0 == sampleCount)
+    {
+        Reset_EffectEditorRenderPerfWindowState(now);
+        return;
+    }
+
+    GAME->Log_FileOnly(
+        spdlog::source_loc{ __FILE__, __LINE__, SPDLOG_FUNCTION },
+        spdlog::level::trace,
+        fmt::format(
+            "[EffectEditorRenderPerf] frames={} samples={} sample_interval={:.2f}s fps~{:.1f} "
+            "total_render_ms(avg={:.2f} max={:.2f}) "
+            "game_render_ms(avg={:.2f} max={:.2f}) "
+            "capture_ms(avg={:.2f} max={:.2f}) "
+            "bind_backbuffer_ms(avg={:.2f} max={:.2f}) "
+            "editor_render_ms(avg={:.2f} max={:.2f}) "
+            "editor_windows_ms(avg={:.2f} max={:.2f}) "
+            "notification_ms(avg={:.2f} max={:.2f}) "
+            "imgui_ms(avg={:.2f} max={:.2f}) "
+            "present_ms(avg={:.2f} max={:.2f})",
+            _renderPerfWindow.observedFrameCount,
+            static_cast<uint32>(sampleCount),
+            kEffectEditorRenderPerfSampleIntervalSec,
+            Safe_Divide(static_cast<double>(_renderPerfWindow.observedFrameCount), windowSec),
+            Safe_Divide(_renderPerfWindow.totalRender.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.totalRender.maxMs,
+            Safe_Divide(_renderPerfWindow.gameRender.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.gameRender.maxMs,
+            Safe_Divide(_renderPerfWindow.capture.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.capture.maxMs,
+            Safe_Divide(_renderPerfWindow.bindBackBuffer.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.bindBackBuffer.maxMs,
+            Safe_Divide(_renderPerfWindow.editorRender.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.editorRender.maxMs,
+            Safe_Divide(_renderPerfWindow.editorWindows.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.editorWindows.maxMs,
+            Safe_Divide(_renderPerfWindow.notification.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.notification.maxMs,
+            Safe_Divide(_renderPerfWindow.imgui.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.imgui.maxMs,
+            Safe_Divide(_renderPerfWindow.present.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.present.maxMs
+        )
+    );
+
+    Reset_EffectEditorRenderPerfWindowState(now);
+}
+
+void EffectEditorApp::Accumulate_PassPerf(PerfCounter& counter, double passMs)
+{
+    ++counter.sampleCount;
+    counter.accumulatedMs += passMs;
+    counter.maxMs = max(counter.maxMs, passMs);
+}
+
+double EffectEditorApp::Safe_Divide(double numerator, double denominator)
+{
+    if (denominator <= 0.0)
+        return 0.0;
+
+    return numerator / denominator;
+}
+#endif
+
 HRESULT EffectEditorApp::Render()
 {
+#ifdef _DEBUG
+    const bool sampleRenderPerf = Should_SampleEffectEditorRenderPerf();
+    chrono::steady_clock::time_point totalRenderBegin{};
+    chrono::steady_clock::time_point passBegin{};
+    double totalRenderMs = 0.0;
+    double gameRenderMs = 0.0;
+    double captureMs = 0.0;
+    double bindBackBufferMs = 0.0;
+    double editorRenderMs = 0.0;
+    double presentMs = 0.0;
+    EffectEditorRenderPerfSample editorPerfSample{};
+
+    if (sampleRenderPerf)
+        totalRenderBegin = chrono::steady_clock::now();
+#endif
+
     // EFFECTEDITOR_BG_FALLBACK_TEMP: EffectEditor 전용 배경색 제어로 보기 어렵고 공용 postprocess 경로 개입 및 관측 왜곡 우려가 있어 비활성화한다.
     /*
     // EFFECTEDITOR_BG_FALLBACK_TEMP: Draw 스코프 밖에서 복구할 수 있도록 사전 백업한다.
@@ -288,6 +434,10 @@ HRESULT EffectEditorApp::Render()
     }
     */
 
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        passBegin = chrono::steady_clock::now();
+#endif
     {
         Profile_View::Scope profileScope("Game::Render");
 
@@ -313,6 +463,10 @@ HRESULT EffectEditorApp::Render()
             return E_FAIL;
         }
     }
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        gameRenderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - passBegin).count();
+#endif
 
     // EFFECTEDITOR_BG_FALLBACK_TEMP: EffectEditor 전용 배경색 제어로 보기 어렵고 공용 postprocess 경로 개입 및 관측 왜곡 우려가 있어 비활성화한다.
     /*
@@ -321,19 +475,72 @@ HRESULT EffectEditorApp::Render()
         postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
     */
 
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        passBegin = chrono::steady_clock::now();
+#endif
     {
         Profile_View::Scope profileScope("Editor::Render");
 
+#ifdef _DEBUG
+        chrono::steady_clock::time_point editorPassBegin{};
+        if (sampleRenderPerf)
+            editorPassBegin = chrono::steady_clock::now();
+#endif
         EDITOR->Capture_BackBuffer_ToViewport();
+#ifdef _DEBUG
+        if (sampleRenderPerf)
+        {
+            captureMs = chrono::duration<double, milli>(chrono::steady_clock::now() - editorPassBegin).count();
+            editorPassBegin = chrono::steady_clock::now();
+        }
+#endif
         GAME->Bind_BackBuffer();
+#ifdef _DEBUG
+        if (sampleRenderPerf)
+        {
+            bindBackBufferMs = chrono::duration<double, milli>(chrono::steady_clock::now() - editorPassBegin).count();
+        }
+#endif
+#ifdef _DEBUG
+        EDITOR->Render_Editor(sampleRenderPerf ? &editorPerfSample : nullptr);
+#else
         EDITOR->Render_Editor();
+#endif
     }
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        editorRenderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - passBegin).count();
+#endif
 
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        passBegin = chrono::steady_clock::now();
+#endif
     {
         Profile_View::Scope profileScope("Engine::Present");
         if (FAILED(GAME->Present()))
             return E_FAIL;
     }
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+    {
+        presentMs = chrono::duration<double, milli>(chrono::steady_clock::now() - passBegin).count();
+        totalRenderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - totalRenderBegin).count();
+        Accumulate_EffectEditorRenderPerf(
+            totalRenderMs,
+            gameRenderMs,
+            captureMs,
+            bindBackBufferMs,
+            editorRenderMs,
+            editorPerfSample.editorWindowsMs,
+            editorPerfSample.notificationMs,
+            editorPerfSample.imguiMs,
+            presentMs);
+    }
+
+    Try_FlushEffectEditorRenderPerfLog();
+#endif
 
     return S_OK;
 }

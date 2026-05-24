@@ -168,7 +168,7 @@ void ContentBrowserCore::Clamp_ThumbnailPolicy(ThumbnailPolicy& policy)
 {
     policy.largeFolderThreshold = clamp(policy.largeFolderThreshold, 1, 10000);
     policy.thumbnailLoadBudget = clamp(policy.thumbnailLoadBudget, 1, 64);
-    policy.largeFolderThumbnailLoadBudget = clamp(policy.largeFolderThumbnailLoadBudget, 1, 64);
+    policy.largeFolderThumbnailLoadBudget = clamp(policy.largeFolderThumbnailLoadBudget, 0, 64);
 }
 
 void ContentBrowserCore::Save_ThumbnailPolicySetting(

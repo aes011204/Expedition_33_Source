@@ -26,7 +26,7 @@ struct ContentBrowserThumbnailPolicy
     bool adaptiveLargeFolders{ true };
     int largeFolderThreshold{ 100 };
     int thumbnailLoadBudget{ 4 };
-    int largeFolderThumbnailLoadBudget{ 1 };
+    int largeFolderThumbnailLoadBudget{ 0 };
 };
 
 enum class ContentBrowserGridItemType

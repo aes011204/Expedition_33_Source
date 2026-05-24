@@ -611,7 +611,7 @@ void Content_Browser::Draw_ThumbnailSettingsPopup()
 
     _thumbnailPolicy.largeFolderThreshold = clamp(_thumbnailPolicy.largeFolderThreshold, 1, 10000);
     _thumbnailPolicy.thumbnailLoadBudget = clamp(_thumbnailPolicy.thumbnailLoadBudget, 1, 64);
-    _thumbnailPolicy.largeFolderThumbnailLoadBudget = clamp(_thumbnailPolicy.largeFolderThumbnailLoadBudget, 1, 64);
+    _thumbnailPolicy.largeFolderThumbnailLoadBudget = clamp(_thumbnailPolicy.largeFolderThumbnailLoadBudget, 0, 64);
 
     if (changed)
         Save_Settings();
