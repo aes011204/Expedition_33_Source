@@ -23,6 +23,8 @@ private:
 	Shared<Loader>          _loader = nullptr;
 	chrono::steady_clock::time_point _loadingStartTime = {};
 	bool                    _printedLoadCompleteLog = false;
+	bool                    _hasRenderedFirstFrame = false;
+	uint32                  _postFirstRenderFrameCount = 0;
 
 private:
     HRESULT Ready_LoadingUIRenderResources();

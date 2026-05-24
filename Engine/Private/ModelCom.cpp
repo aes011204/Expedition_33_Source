@@ -2012,6 +2012,7 @@ bool ModelCom::Ensure_AnimStateAssetLoaded(const string &sourceObjectGUID)
 	}
 
 	string targetPrefabGuid = "";
+	string targetPrefabName = "";
 	if (Get_Owner())
 	{
 		auto prefabContextOwner = Get_Owner();
@@ -2023,8 +2024,8 @@ bool ModelCom::Ensure_AnimStateAssetLoaded(const string &sourceObjectGUID)
 			}
 		}
 
-		string prefabName = prefabContextOwner->Get_SourcePrefabName();
-		if (prefabName.empty())
+		targetPrefabName = prefabContextOwner->Get_SourcePrefabName();
+		if (targetPrefabName.empty())
 		{
 			string selfClass = prefabContextOwner->Get_ReflectionInfo().className;
 			string ownerClass = "";
@@ -2032,17 +2033,17 @@ bool ModelCom::Ensure_AnimStateAssetLoaded(const string &sourceObjectGUID)
 			{
 				ownerClass = ownerOfContext->Get_ReflectionInfo().className;
 			}
-			prefabName = AnimState_Parser::Find_PrefabName_ByStaticClass(ownerClass, selfClass);
-			if (!prefabName.empty())
+			targetPrefabName = AnimState_Parser::Find_PrefabName_ByStaticClass(ownerClass, selfClass);
+			if (!targetPrefabName.empty())
 			{
-				prefabContextOwner->Set_SourcePrefabName(prefabName);
+				prefabContextOwner->Set_SourcePrefabName(targetPrefabName);
 			}
 		}
 
-		targetPrefabGuid = AnimState_Parser::Get_PrefabGuid(prefabName);
+		targetPrefabGuid = AnimState_Parser::Get_PrefabGuid(targetPrefabName);
 	}
 
-	return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType, targetPrefabGuid);
+	return AnimState_Parser::Load_StateAnimations(_sourceModelPath, _animations, _stateAnimIndices, &_animEnumType, targetPrefabGuid, targetPrefabName);
 }
 
 bool ModelCom::Refresh_AnimStateMappingFromOwnerContext()

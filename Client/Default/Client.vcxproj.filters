@@ -79,8 +79,17 @@
     <Filter Include="Skill" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
-    <ClCompile Include="..\Private\UI_DamageFont.cpp" />
+    <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_DamageFont.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_EscapeSkipTurn.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleVictory.cpp" />
+    <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -634,8 +643,17 @@
     <ClInclude Include="..\Public\Weapon.h">
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
-    <ClInclude Include="..\Public\UI_DamageFont.h" />
+    <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_DamageFont.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_EscapeSkipTurn.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleVictory.h" />
+    <ClInclude Include="..\Public\UI_AttackTooltip.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
