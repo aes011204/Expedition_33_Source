@@ -301,7 +301,7 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     _transformCom->LookAt(lookTarget);
     _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, _currentSettings.rollOffset));
 
-    _fovY;
+    
     Update_TransformMatrices();
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
