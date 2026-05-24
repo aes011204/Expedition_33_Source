@@ -176,6 +176,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\MEModelManager.h" />
     <ClInclude Include="..\Public\MEPickingSystem.h" />
     <ClInclude Include="..\Public\MEStaticMeshActor.h" />
+    <ClInclude Include="..\Public\METerrainActor.h" />
     <ClInclude Include="..\Public\MEUe5Importer.h" />
     <ClInclude Include="..\Public\MEWindow.h" />
     <ClInclude Include="..\Public\PanelAssetBrowser.h" />
@@ -206,6 +207,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\MEModelManager.cpp" />
     <ClCompile Include="..\Private\MEPickingSystem.cpp" />
     <ClCompile Include="..\Private\MEStaticMeshActor.cpp" />
+    <ClCompile Include="..\Private\METerrainActor.cpp" />
     <ClCompile Include="..\Private\MEUe5Importer.cpp" />
     <ClCompile Include="..\Private\MEWindow.cpp" />
     <ClCompile Include="..\Private\PanelAssetBrowser.cpp" />

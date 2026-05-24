@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "EditorObject.h"
 
 NS_BEGIN(MapEditor)
@@ -53,6 +53,12 @@ struct SceneContext
 
     void SaveCamData(const string& filePath);
     void LoadCamData(const string& filePath);
+
+    TerrainConfig _terrainConfig;
+
+    void LoadTerrainConfig(const string& filePath);
+
+    bool _terrainDirty = false;
 };
 
 NS_END

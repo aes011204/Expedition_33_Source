@@ -18,6 +18,9 @@
 #include "MEBridgeCamera.h"
 #include "ComputeShaderCom.h"
 
+// test
+#include "METerrainActor.h"
+
 extern HWND g_hWnd;
 extern HINSTANCE g_hInst;
 
@@ -80,6 +83,12 @@ HRESULT MapEditorApp::Initialize()
     CHECK_NULL(instanceShader, E_FAIL);
     CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMeshInstanceExact", instanceShader), E_FAIL);
 
+    CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxNorTex",
+        ShaderCom::Create(_device, _context,
+            L"../../../Client/Bin/ShaderFiles/Shader_VtxNorTex.hlsl",
+            VTXNORTEX::Elements, VTXNORTEX::numElements, ShaderType::VtxNorTex)), E_FAIL);
+
+
     CHECK_FAILED(GAME->Add_Prototype(0, L"MEInstancedMeshActor",
         MEInstancedMeshActor::Create(_device, _context)), E_FAIL);
 
@@ -119,6 +128,12 @@ void MapEditorApp::Update(float timeDelta)
     _manager->Update(timeDelta);
     Update_RenderHandles();
 
+    if (_scene._terrainDirty)
+    {
+        _scene._terrainDirty = false;
+        _terrain.reset();
+        Build_TerrainFromScene();
+    }
 
     if (_scene._octreeDirty)
     {
@@ -201,6 +216,13 @@ HRESULT MapEditorApp::Render()
 
         obj->_instancedRenderHandle->Set_CameraFar(_camera->GetFar());
         obj->_instancedRenderHandle->Late_Update(0.f);
+    }
+
+    // test
+    if (_terrain)
+    {
+        _terrain->Set_CameraFar(_camera->GetFar());
+        _terrain->Late_Update(0.f);
     }
 
     GAME->Bind_BackBuffer();
@@ -563,6 +585,42 @@ void MapEditorApp::Apply_PassOverrides()
     }
 }
 
+HRESULT MapEditorApp::Build_TerrainFromScene()
+{
+    if (!_scene._terrainConfig.IsValid())
+    {
+        return S_OK;
+    }
+
+    const auto& cfg = _scene._terrainConfig;
+
+    Engine::VIBuffer_TerrainUE::TerrainDesc desc{};
+    desc.worldOffsetX = cfg.worldOffsetX;
+    desc.worldOffsetY = cfg.worldOffsetY;
+    desc.worldOffsetZ = cfg.worldOffsetZ;
+    desc.scaleXZ = cfg.scaleXZ;
+    desc.scaleY = cfg.scaleY;
+
+    const wstring folder = String::ToWString(cfg.heightmapFolder);
+    for (const auto& t : cfg.tiles)
+    {
+        Engine::VIBuffer_TerrainUE::TileDesc td;
+        td.heightmapPath = folder + String::ToWString(t.file);
+        td.gridX = t.gridX;
+        td.gridY = t.gridY;
+        desc.tiles.push_back(td);
+    }
+
+    _terrain = METerrainActor::Create(_device, _context, desc);
+    if (!_terrain)
+    {
+        LOG_WARN("Build_TerrainFromScene: Failed to create METerrainActor");
+        return E_FAIL;
+    }
+
+    return S_OK;
+}
+
 Unique<MapEditorApp> MapEditorApp::Create()
 {
     auto instance = make_unique<MapEditorApp>();
@@ -580,6 +638,9 @@ Unique<MapEditorApp> MapEditorApp::Create()
 void MapEditorApp::Free()
 {
     _instanceCullShader.reset();
+    //test
+    _terrain.reset();
+    //
     _scene.ClearScene();
     _modelManager.reset();
 

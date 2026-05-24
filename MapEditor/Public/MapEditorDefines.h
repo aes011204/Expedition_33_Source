@@ -39,6 +39,7 @@ namespace MapEditor
         PostProcessVolume,
         Light,
         InstancedMesh,
+        Terrain,
         Fail
     };
 
@@ -68,6 +69,8 @@ namespace MapEditor
             return "[LT]";
         case MapEditor::EObjectType::InstancedMesh:
             return "[IM]";
+        case MapEditor::EObjectType::Terrain:
+            return "[TR]";
         case MapEditor::EObjectType::Fail:
         default:
             return "[??]";
@@ -141,6 +144,25 @@ namespace MapEditor
         bool valid = false;
     };
     inline constexpr int CameraBookmarkCount = 5;
+
+    struct TerrainTile
+    {
+        string file;
+        int32 gridX = 0;
+        int32 gridY = 0;
+    };
+
+    struct TerrainConfig
+    {
+        string heightmapFolder;
+        float worldOffsetX = 0.f;
+        float worldOffsetY = 0.f;
+        float worldOffsetZ = 0.f;
+        float scaleXZ = 1.f;
+        float scaleY = 1.f;
+        vector<TerrainTile> tiles;
+        bool IsValid() const { return !tiles.empty(); }
+    };
 };
 
 using namespace MapEditor;

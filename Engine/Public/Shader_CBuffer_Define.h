@@ -112,15 +112,23 @@ struct alignas(16) LightCB
 {
     static constexpr ConstantBuffer CBType = ConstantBuffer::Light;
 
-    Vec4 direction;
-    Vec4 position;
+    //Vec4 direction;
+    //Vec4 position;
 
-    Vec4 ambient;
-    Vec4 diffuse;
-    Vec4 specular;
+    //Vec4 ambient;
+    //Vec4 diffuse;
+    //Vec4 specular;
 
+    //float range = 0.f;
+    //float _pad0[3]{};
+
+    Vec4  direction;
+    Vec4  position;
     float range = 0.f;
     float _pad0[3]{};
+    Vec4  diffuse;
+    Vec4  ambient;
+    Vec4  specular;
 };
 
 /* ------------------------------------------ */

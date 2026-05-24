@@ -833,3 +833,53 @@ void SceneContext::LoadCamData(const string& filePath)
     }
 }
 
+void SceneContext::LoadTerrainConfig(const string& filePath)
+{
+    ifstream ifs(filePath);
+    if (!ifs.is_open())
+    {
+        return;
+    }
+
+    json root = json::parse(ifs);
+    if (!root.contains("Terrain"))
+    {
+        return;
+    }
+
+    const json& t = root["Terrain"];
+    _terrainConfig = {};
+    _terrainConfig.heightmapFolder = t.value("HeightmapFolder", string{});
+    _terrainConfig.worldOffsetX = t.value("WorldOffsetX", 0.f);
+    _terrainConfig.worldOffsetY = t.value("WorldOffsetY", 0.f);
+    _terrainConfig.worldOffsetZ = t.value("WorldOffsetZ", 0.f);
+    _terrainConfig.scaleXZ = t.value("ScaleXZ", 1.f);
+    _terrainConfig.scaleY = t.value("ScaleY", 1.f);
+
+    if (t.contains("Tiles"))
+    {
+        for (const auto& tile : t["Tiles"])
+        {
+            TerrainTile tt;
+            tt.file = tile.value("File", string{});
+            tt.gridX = tile.value("GridX", 0);
+            tt.gridY = tile.value("GridY", 0);
+            _terrainConfig.tiles.push_back(tt);
+        }
+    }
+
+    _objects.erase(remove_if(_objects.begin(), _objects.end(),
+        [](const Shared<EditorObject>& o) { return o->_type == EObjectType::Terrain; }), _objects.end());
+
+    auto terrainObj = make_shared<EditorObject>();
+    terrainObj->_type = EObjectType::Terrain;
+    terrainObj->_name = L"Terrain";
+    terrainObj->_position = Vec3(_terrainConfig.worldOffsetX, _terrainConfig.worldOffsetY, _terrainConfig.worldOffsetZ);
+    terrainObj->_scale = Vec3(_terrainConfig.scaleXZ, _terrainConfig.scaleY, _terrainConfig.scaleXZ);
+    terrainObj->_rotation = Quat::Identity;
+    terrainObj->UpdateWorldMatrix();
+    Add(terrainObj);
+
+    _terrainDirty = true;
+}
+

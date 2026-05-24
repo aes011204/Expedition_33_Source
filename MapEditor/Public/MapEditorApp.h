@@ -21,6 +21,9 @@ class MEPickingSystem;
 class MEDebugRenderer;
 class MEBridgeCamera;
 
+// test
+class METerrainActor;
+
 class MapEditorApp final : public Base
 {
 public:
@@ -56,6 +59,8 @@ private:
 
     bool _octreeDirty = true;
 
+    Shared<METerrainActor> _terrain;
+
 private:
     HRESULT Ready_Light();
 
@@ -71,6 +76,8 @@ private:
     string Resolve_BundleKey(const fs::path& modelPath) const;
     void Apply_PassOverrideToModel(ModelCom& model, const string& modelFilename);
     void Apply_PassOverrides();
+
+    HRESULT Build_TerrainFromScene();
 
 public:
     static Unique<MapEditorApp> Create();

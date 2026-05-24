@@ -244,6 +244,9 @@
     <Filter Include="94. ETC">
       <UniqueIdentifier>{4ae885e9-5541-4208-aa64-0a98f58ee9f2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\VIBuffer\TerrainUE">
+      <UniqueIdentifier>{205ec74c-243c-43a5-9652-26ca0b543ad7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -412,6 +415,10 @@
     </ClInclude>
     <ClInclude Include="..\Public\Debug_Types.h">
       <Filter>99. Defines\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h" />
+    <ClInclude Include="..\Public\VIBuffer_TerrainUE.h">
+      <Filter>01.Utility\04.Component\VIBuffer\TerrainUE</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -995,6 +1002,10 @@
       <Filter>01.Utility\11. UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AnimComputeRuntime.cpp" />
+    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_TerrainUE.cpp">
+      <Filter>01.Utility\04.Component\VIBuffer\TerrainUE</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

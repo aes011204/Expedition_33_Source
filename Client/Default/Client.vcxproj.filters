@@ -229,6 +229,9 @@
     <Filter Include="04. GamePlayUI\SkillTree_Panel">
       <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Terrain_UE">
+      <UniqueIdentifier>{4d67b62f-7bd5-43ab-9c10-693a9e78aa72}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -621,9 +624,6 @@
     <ClInclude Include="..\public\UIPreviewManager.h">
       <Filter>02.GameObject\Camera\Preview\Manager</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h">
-      <Filter>02.GameObject\Map</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\WeaponUI_Common.h">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClInclude>
@@ -658,6 +658,10 @@
     </ClInclude>
     <ClInclude Include="..\public\ANS_Move.h">
       <Filter>AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Player_GameMenu.h" />
+    <ClInclude Include="..\Public\Terrain_UE.h">
+      <Filter>02.GameObject\Terrain_UE</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1036,9 +1040,6 @@
     <ClCompile Include="..\private\UIPreviewManager.cpp">
       <Filter>02.GameObject\Camera\Preview\Manager</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp">
-      <Filter>02.GameObject\Map</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\WeaponUI_Common.cpp">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClCompile>
@@ -1070,6 +1071,10 @@
     </ClCompile>
     <ClCompile Include="..\private\ANS_Move.cpp">
       <Filter>AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_GameMenu.cpp" />
+    <ClCompile Include="..\Private\Terrain_UE.cpp">
+      <Filter>02.GameObject\Terrain_UE</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
