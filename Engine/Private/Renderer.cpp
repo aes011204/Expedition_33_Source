@@ -1,9 +1,10 @@
-#include "Renderer.h"
+﻿#include "Renderer.h"
 #include "Camera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "PostProcessPipeline.h"
 #include "SSAOPipeline.h"
+#include "ScreenFx_Manager.h"
 #include "ShaderCom.h"
 #include "VIBuffer_Rect.h"
 #include "Debug_Profile.h"
@@ -204,14 +205,25 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_PostProcess:After");
     postProcessMs = chrono::duration<double, milli>(chrono::steady_clock::now() - postProcesBegin).count();
     const auto uiBegin = chrono::steady_clock::now();
-    DumpCurrentOMState(L"Render_UI:Before");
+    DumpCurrentOMState(L"Render_ScreenFX:Before");
 #endif
 
     // ========================================= //
-    Render_UI();
+    // ScreenFX
     // ========================================= //
+    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
+    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && _screenFxShader;
+    if (useScreenFx)
+    {
+        // BackBuffer(지금까지 그린 화면) -> ScreenFx 로 복사
+        if (FAILED(GAME->Copy_CurrentRTV_To(RT::ScreenFxColor)))
+            DEBUG_LOG_FAIL(L"Render_ScreenFx:FAIL Copy_CurrentRTV_To(ScreenFxColor)");
+        else
+            Render_ScreenFx();
+    }
+
 #ifdef _DEBUG
-    DumpCurrentOMState(L"Render_UI:After");
+    DumpCurrentOMState(L"Render_ScreenFX:After");
     uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
     const auto debugBegin = chrono::steady_clock::now();
 #endif
@@ -789,19 +801,48 @@ void Renderer::Render_PostProcess()
 
     Add_RenderCall();
 }
-void Renderer::Render_UI()
-{
-    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::UI)])
-    {
-        Shared<GameObject> gameObject = renderObject.lock();
-        if (nullptr != gameObject)
-        {
-            gameObject->Render();
-            Add_RenderCall();
-        }
-    }
 
-    _renderGroups[ETOI(RenderGroup::UI)].clear();
+void Renderer::Render_ScreenFx()
+{
+    if (!_screenFxShader || !_viBuffer)
+        return;
+
+    GAME->Bind_BackBuffer();
+
+    RETURN_LOG_IF_FAILED(
+        _screenFxShader->Bind_ObjectCB(_pipelineWorldMatrix),
+        L"Render_ScreenFx:FAIL Bind_ObjectCB");
+
+    RETURN_LOG_IF_FAILED(
+        Bind_ScreenSpaceCB(_screenFxShader, max(1u, _screenSize.width), max(1u, _screenSize.height)),
+        L"Render_ScreenFx:FAIL Bind_ScreenSpaceCB");
+
+    RETURN_LOG_IF_FAILED(
+        _viBuffer->Bind_Resources(),
+        L"Render_ScreenFx:FAIL Bind_Resources");
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_screenFxShader, "g_ScreenFxTexture", RT::ScreenFxColor),
+        L"Render_ScreenFx:FAIL Bind_RT_ShaderResource(g_ScreenFxTexture)");
+
+    // 테스트 코드. S 를 누르면 Ghosting, D를 누르면 BattleTransition, A 를 누르면 Vignette 
+    uint32 passIndex = ETOI(ScreenFxPass::Vignette);
+    if (GAME->KeyPress(KEY_TYPE::S))
+        passIndex = ETOI(ScreenFxPass::Ghosting);
+    else if (GAME->KeyPress(KEY_TYPE::D))
+        passIndex = ETOI(ScreenFxPass::BattleTransition);
+    else if (GAME->KeyPress(KEY_TYPE::A))
+        passIndex = ETOI(ScreenFxPass::Vignette);
+
+    RETURN_LOG_IF_FAILED(
+        _screenFxShader->Begin(passIndex),
+        L"Render_ScreenFx:FAIL ShaderBegin");
+
+    RETURN_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_ScreenFx:FAIL RenderRect");
+
+    Add_RenderCall();
 }
 
 HRESULT Renderer::Ready_Shaders()
@@ -817,6 +858,10 @@ HRESULT Renderer::Ready_Shaders()
     _postprocessShader = ShaderCom::Create(_device, _context,
         L"../../../Client/Bin/ShaderFiles/Shader_PostProcess.hlsl", VTXTEX::Elements, VTXTEX::numElements, ShaderType::PostProcess);
     CHECK_NULL(_postprocessShader, E_FAIL);
+
+    _screenFxShader = ShaderCom::Create(_device, _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_ScreenFx.hlsl", VTXTEX::Elements, VTXTEX::numElements, ShaderType::PostProcess);
+    CHECK_NULL(_screenFxShader, E_FAIL);
 
     _screenSize = {
         GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight()

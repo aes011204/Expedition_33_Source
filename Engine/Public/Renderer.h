@@ -73,7 +73,7 @@ private:
     void Render_Lights();
     void Render_NonLight();
 	void Render_Blend();
-	void Render_UI();
+    void Render_ScreenFx();
 
     void Render_CombinedHDR();
     void Render_PostProcess();
@@ -109,6 +109,7 @@ private:
     D3D11_VIEWPORT                  _shadowViewport = {};
 
     Shared<ShaderCom>               _postprocessShader;
+    Shared<ShaderCom>               _screenFxShader;
     Shared<ShaderCom>               _deferredShader;
     Shared<VIBuffer_Rect>           _viBuffer;
 

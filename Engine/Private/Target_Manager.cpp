@@ -79,6 +79,8 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::BackgroundMask,
         width, height, DXGI_FORMAT_R8_UNORM, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::ScreenFxColor,
+        width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
 
     //CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
 
@@ -104,6 +106,7 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     // PostProcess
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::ScreenFx, RT::ScreenFxColor), E_FAIL);
 
     CHECK_FAILED(Add_MRT(MRT::BloomHalfA, RT::BloomHalfA), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::BloomHalfB, RT::BloomHalfB), E_FAIL);

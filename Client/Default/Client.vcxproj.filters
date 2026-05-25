@@ -146,6 +146,9 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
       <Filter>03. Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
       <Filter>03. Shaders</Filter>
     </FxCompile>

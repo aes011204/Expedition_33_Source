@@ -53,6 +53,7 @@ class Culling_Manager;
 class ThreadPool;
 class PostProcessPipeline;
 class SSAOPipeline;
+class ScreenFx_Manager;
 class ShaderResourceRegistry;
 struct StaticCollisionData;
 NS_END
@@ -210,6 +211,7 @@ public: /* For.Renderer */
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
     const Shared<SSAOPipeline>          Get_SSAOPipeline() const;
     Shared<SSAOPipeline>                Get_SSAOPipeline();
+    const ScreenFx_Manager*             Get_ScreenFxManager() const;
     RenderGroup                         Get_CurrentRenderGroup() const;
 
 public: /* For.PipeLine */
@@ -517,6 +519,7 @@ private:
     Unique<UI_Manager>          _uiManager{};
     Unique<Object_Manager>      _objectManager{};
     Unique<Renderer>            _renderer{};
+    Unique<ScreenFx_Manager>    _screenFxManager{};
     Unique<PipeLine>            _pipeLine{};
     Unique<Input_Manager>       _inputManager{};
     Unique<Light_Manager>       _lightManager{};

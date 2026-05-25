@@ -20,6 +20,7 @@
 #include "RegistorFactory.h"
 #include "Renderer.h"
 #include "Renderer_Define.h"
+#include "ScreenFx_Manager.h"
 #include "Timer_Manager.h"
 #include "Target_Manager.h"
 #include "Shadow.h"
@@ -97,6 +98,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _renderer = Renderer::Create(device, context);
     CHECK_NULL(_renderer, E_FAIL);
+
+    _screenFxManager = make_unique<ScreenFx_Manager>();
+    CHECK_NULL(_screenFxManager, E_FAIL);
 
     _pipeLine = PipeLine::Create();
     CHECK_NULL(_pipeLine, E_FAIL);
@@ -1121,6 +1125,11 @@ const Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline() const
 Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline()
 {
     return _renderer->Get_SSAOPipeline();
+}
+
+const ScreenFx_Manager* GameInstance::Get_ScreenFxManager() const
+{
+    return _screenFxManager.get();
 }
 
 RenderGroup GameInstance::Get_CurrentRenderGroup() const
