@@ -7,13 +7,15 @@
 cbuffer cbEffectMaterialPreview : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectMaterialPreviewParams = { 1.f, 1.f, 0.f, 0.f }; // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectMaterialPreviewParams = { 1.f, 1.f, 0.f, 0.f };      // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectMaterialPreviewAlphaParams = { 0.f, 0.f, 0.f, 0.f }; // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
     int g_OpacitySource = 0;
     float3 g_EffectMaterialPreviewPadding;
 };
 
 Texture2D g_Texture : register(t0);
 Texture2D g_NoiseTexture : register(t1);
+Texture2D g_MaskTexture : register(t2);
 
 struct VS_IN
 {
@@ -61,8 +63,11 @@ PS_OUT PS_MAIN(PS_IN In)
 
     const float4 symbol = g_Texture.Sample(LinearClampSampler, In.texCoord);
     const float opacityPower = max(g_EffectMaterialPreviewParams.y, 0.0001f);
+    const float alphaCutoff = saturate(g_EffectMaterialPreviewAlphaParams.x);
+    const float alphaErosion = saturate(g_EffectMaterialPreviewAlphaParams.y);
     float selectedOpacity = symbol.a;
     float noiseFactor = 1.f;
+    float maskFactor = 1.f;
 
     if (g_OpacitySource == 1)
         selectedOpacity = symbol.r;
@@ -75,12 +80,22 @@ PS_OUT PS_MAIN(PS_IN In)
         noiseFactor = lerp(1.f, noise, saturate(g_EffectMaterialPreviewParams.z));
     }
 
-    const float opacity = pow(saturate(selectedOpacity), opacityPower);
+    if (g_EffectMaterialPreviewAlphaParams.z != 0)
+        maskFactor = g_MaskTexture.Sample(LinearClampSampler, In.texCoord).a;
+
+    if (alphaErosion > 0.f)
+    {
+        const float erosionSource = min(maskFactor, noiseFactor);
+        const float erosionFactor = saturate((erosionSource - alphaErosion) / max(1.f - alphaErosion, 0.0001f));
+        maskFactor *= erosionFactor;
+    }
+
+    const float opacity = pow(saturate(selectedOpacity), opacityPower) * maskFactor;
     const float facing = saturate(abs(In.normal.z) * 0.35f + 0.65f);
     Out.color.rgb = symbol.rgb * g_Tint.rgb * g_EffectMaterialPreviewParams.x * noiseFactor * facing;
     Out.color.a = opacity * g_Tint.a;
 
-    if (Out.color.a < 0.01f)
+    if (Out.color.a < max(alphaCutoff, 0.01f))
         discard;
 
     return Out;

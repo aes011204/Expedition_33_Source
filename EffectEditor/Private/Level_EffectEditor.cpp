@@ -315,7 +315,6 @@ namespace Internal
 
         return Clamp_PreviewColor(fallbackValue);
     }
-
 }
 
 Level_EffectEditor::Level_EffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -464,26 +463,37 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.tint = material.tint;
         desc.required.material.intensity = material.intensity;
         desc.required.material.opacityPower = material.opacityPower;
-
         desc.required.material.noiseTextureGuid = material.noiseTextureGuid;
         desc.required.material.noiseTexturePath = material.noiseTexturePath;
-
+        desc.required.material.maskTextureGuid = material.maskTextureGuid;
+        desc.required.material.maskTexturePath = material.maskTexturePath;
         desc.required.material.noiseStrength = material.noiseStrength;
+        desc.required.material.alphaCutoff = material.alphaCutoff;
+        desc.required.material.alphaErosion = material.alphaErosion;
+        desc.required.material.mainUVScale = material.mainUVScale;
+        desc.required.material.mainUVScrollSpeed = material.mainUVScrollSpeed;
+        desc.required.material.noiseUVScale = material.noiseUVScale;
+        desc.required.material.noiseUVScrollSpeed = material.noiseUVScrollSpeed;
+        desc.required.material.maskUVScale = material.maskUVScale;
+        desc.required.material.maskUVScrollSpeed = material.maskUVScrollSpeed;
+        desc.required.material.twoSided = material.twoSided;
         desc.required.material.subUVRows = max(1u, material.subUVRows);
         desc.required.material.subUVCols = max(1u, material.subUVCols);
+
         desc.required.spriteRender.screenAlignment = Internal::Resolve_EffectSpriteScreenAlignment(required->screenAlignment);
         desc.required.spriteRender.directionalAlignmentMode = Internal::Resolve_EffectSpriteDirectionalAlignmentMode(required->directionalAlignmentMode);
         desc.required.spriteRender.spriteTextureAxis = Internal::Resolve_EffectSpriteTextureAxis(required->spriteTextureAxis);
         desc.required.spriteRender.spriteRollOffsetDegrees = required->spriteRollOffsetDegrees;
+
         desc.required.playback.duration = max(0.0001f, required->duration);
         desc.required.playback.loopCount = required->loopCount;
         desc.required.playback.delay = max(0.f, required->delay);
         desc.required.playback.delayFirstLoopOnly = required->delayFirstLoopOnly;
         desc.required.playback.killOnDeactivate = required->killOnDeactivate;
         desc.required.playback.killOnCompleted = required->killOnCompleted;
+
         desc.required.drawLimit.useMaxDrawCount = required->useMaxDrawCount;
         desc.required.drawLimit.maxDrawCount = max(1u, required->maxDrawCount);
-
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
         definition.useLocalSpace = required->useLocalSpace;
@@ -753,12 +763,23 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         emitterDesc.material.mainTexturePath = material.mainTexturePath;
         emitterDesc.material.noiseTextureGuid = material.noiseTextureGuid;
         emitterDesc.material.noiseTexturePath = material.noiseTexturePath;
+        emitterDesc.material.maskTextureGuid = material.maskTextureGuid;
+        emitterDesc.material.maskTexturePath = material.maskTexturePath;
         emitterDesc.material.blendMode = material.blendMode.empty() ? "AlphaBlend" : material.blendMode;
         emitterDesc.material.opacitySource = material.opacitySource.empty() ? "Alpha" : material.opacitySource;
         emitterDesc.material.tint = material.tint;
         emitterDesc.material.intensity = material.intensity;
         emitterDesc.material.opacityPower = material.opacityPower;
         emitterDesc.material.noiseStrength = material.noiseStrength;
+        emitterDesc.material.alphaCutoff = material.alphaCutoff;
+        emitterDesc.material.alphaErosion = material.alphaErosion;
+        emitterDesc.material.mainUVScale = material.mainUVScale;
+        emitterDesc.material.mainUVScrollSpeed = material.mainUVScrollSpeed;
+        emitterDesc.material.noiseUVScale = material.noiseUVScale;
+        emitterDesc.material.noiseUVScrollSpeed = material.noiseUVScrollSpeed;
+        emitterDesc.material.maskUVScale = material.maskUVScale;
+        emitterDesc.material.maskUVScrollSpeed = material.maskUVScrollSpeed;
+        emitterDesc.material.twoSided = material.twoSided;
 
         emitterDesc.playback.duration = max(0.0001f, required->duration);
         emitterDesc.playback.loopCount = required->loopCount;
@@ -816,20 +837,6 @@ HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
     return S_OK;
 }
 
-HRESULT Level_EffectEditor::Ready_Layer_Sky(const wstring& layerTag)
-{
-    if (layerTag.empty())
-        return E_FAIL;
-
-    const Shared<EffectEditorSkybox> skybox =
-        EffectEditorSkybox::Create(_device, _context);
-    CHECK_NULL(skybox, E_FAIL);
-    CHECK_FAILED(skybox->Initialize(nullptr), E_FAIL);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, skybox), E_FAIL);
-
-    return S_OK;
-}
-
 HRESULT Level_EffectEditor::Ready_Layer_Grid(const wstring& layerTag)
 {
     if (layerTag.empty())
@@ -840,6 +847,20 @@ HRESULT Level_EffectEditor::Ready_Layer_Grid(const wstring& layerTag)
     CHECK_NULL(sceneGrid, E_FAIL);
     CHECK_FAILED(sceneGrid->Initialize(nullptr), E_FAIL);
     CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, sceneGrid), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Level_EffectEditor::Ready_Layer_Sky(const wstring& layerTag)
+{
+    if (layerTag.empty())
+        return E_FAIL;
+
+    const Shared<EffectEditorSkybox> skybox =
+        EffectEditorSkybox::Create(_device, _context);
+    CHECK_NULL(skybox, E_FAIL);
+    CHECK_FAILED(skybox->Initialize(nullptr), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, skybox), E_FAIL);
 
     return S_OK;
 }

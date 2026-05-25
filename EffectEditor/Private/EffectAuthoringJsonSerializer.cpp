@@ -308,12 +308,12 @@ namespace Internal
         root["noiseStrength"] = data.noiseStrength;
         root["alphaCutoff"] = data.alphaCutoff;
         root["alphaErosion"] = data.alphaErosion;
-        root["mainUvScale"] = To_Json(data.mainUvScale);
-        root["mainUvScrollSpeed"] = To_Json(data.mainUvScrollSpeed);
-        root["noiseUvScale"] = To_Json(data.noiseUvScale);
-        root["noiseUvScrollSpeed"] = To_Json(data.noiseUvScrollSpeed);
-        root["maskUvScale"] = To_Json(data.maskUvScale);
-        root["maskUvScrollSpeed"] = To_Json(data.maskUvScrollSpeed);
+        root["mainUVScale"] = To_Json(data.mainUVScale);
+        root["mainUVScrollSpeed"] = To_Json(data.mainUVScrollSpeed);
+        root["noiseUVScale"] = To_Json(data.noiseUVScale);
+        root["noiseUVScrollSpeed"] = To_Json(data.noiseUVScrollSpeed);
+        root["maskUVScale"] = To_Json(data.maskUVScale);
+        root["maskUVScrollSpeed"] = To_Json(data.maskUVScrollSpeed);
         root["blendMode"] = data.blendMode;
         root["opacitySource"] = data.opacitySource;
         root["twoSided"] = data.twoSided;
@@ -367,24 +367,24 @@ namespace Internal
         if (tintIter != root.end())
             Read_Color(*tintIter, outData.tint);
 
-        const auto mainUvScaleIter = root.find("mainUvScale");
-        if (mainUvScaleIter != root.end())
-            Read_Vec2(*mainUvScaleIter, outData.mainUvScale);
-        const auto mainUvScrollSpeedIter = root.find("mainUvScrollSpeed");
-        if (mainUvScrollSpeedIter != root.end())
-            Read_Vec2(*mainUvScrollSpeedIter, outData.mainUvScrollSpeed);
-        const auto noiseUvScaleIter = root.find("noiseUvScale");
-        if (noiseUvScaleIter != root.end())
-            Read_Vec2(*noiseUvScaleIter, outData.noiseUvScale);
-        const auto noiseUvScrollSpeedIter = root.find("noiseUvScrollSpeed");
-        if (noiseUvScrollSpeedIter != root.end())
-            Read_Vec2(*noiseUvScrollSpeedIter, outData.noiseUvScrollSpeed);
-        const auto maskUvScaleIter = root.find("maskUvScale");
-        if (maskUvScaleIter != root.end())
-            Read_Vec2(*maskUvScaleIter, outData.maskUvScale);
-        const auto maskUvScrollSpeedIter = root.find("maskUvScrollSpeed");
-        if (maskUvScrollSpeedIter != root.end())
-            Read_Vec2(*maskUvScrollSpeedIter, outData.maskUvScrollSpeed);
+        const auto mainUVScaleIter = root.find("mainUVScale");
+        if (mainUVScaleIter != root.end())
+            Read_Vec2(*mainUVScaleIter, outData.mainUVScale);
+        const auto mainUVScrollSpeedIter = root.find("mainUVScrollSpeed");
+        if (mainUVScrollSpeedIter != root.end())
+            Read_Vec2(*mainUVScrollSpeedIter, outData.mainUVScrollSpeed);
+        const auto noiseUVScaleIter = root.find("noiseUVScale");
+        if (noiseUVScaleIter != root.end())
+            Read_Vec2(*noiseUVScaleIter, outData.noiseUVScale);
+        const auto noiseUVScrollSpeedIter = root.find("noiseUVScrollSpeed");
+        if (noiseUVScrollSpeedIter != root.end())
+            Read_Vec2(*noiseUVScrollSpeedIter, outData.noiseUVScrollSpeed);
+        const auto maskUVScaleIter = root.find("maskUVScale");
+        if (maskUVScaleIter != root.end())
+            Read_Vec2(*maskUVScaleIter, outData.maskUVScale);
+        const auto maskUVScrollSpeedIter = root.find("maskUVScrollSpeed");
+        if (maskUVScrollSpeedIter != root.end())
+            Read_Vec2(*maskUVScrollSpeedIter, outData.maskUVScrollSpeed);
     }
 
     json To_Json(const FloatCurveKeyData& data)

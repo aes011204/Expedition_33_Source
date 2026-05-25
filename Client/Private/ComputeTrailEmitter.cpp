@@ -13,11 +13,11 @@ Vec3 Catmull_Rom(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3,
     const float t3 = t2 * ratio;
 
     return (
-        p1 * 2.f +
-        (p2 - p0) * ratio +
-        (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2 +
-        (p1 * 3.f - p0 - p2 * 3.f + p3) * t3
-    ) * 0.5f;
+               p1 * 2.f +
+               (p2 - p0) * ratio +
+               (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2 +
+               (p1 * 3.f - p0 - p2 * 3.f + p3) * t3
+           ) * 0.5f;
 }
 
 EffectTrailSample Catmull_RomTrailSample(
@@ -204,6 +204,7 @@ HRESULT ComputeTrailEmitter::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), String::ToWString(kTrailComputeShaderId), _computeShader), E_FAIL);
     CHECK_FAILED(Ready_Texture(), E_FAIL);
     CHECK_FAILED(Ready_NoiseTexture(), E_FAIL);
+    CHECK_FAILED(Ready_MaskTexture(), E_FAIL);
     CHECK_FAILED(Ready_DrawBuffers(), E_FAIL);
     CHECK_FAILED(Ready_ComputeBuffers(), E_FAIL);
     return S_OK;
@@ -258,8 +259,8 @@ HRESULT ComputeTrailEmitter::Ready_Texture()
         );
     }
 
-    _texture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
-    CHECK_NULL(_texture, E_FAIL);
+    _mainTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
+    CHECK_NULL(_mainTexture, E_FAIL);
 
     return S_OK;
 }
@@ -314,6 +315,64 @@ HRESULT ComputeTrailEmitter::Ready_NoiseTexture()
             "ComputeTrailEmitter noise texture create failed. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Noise modulation is disabled.",
             _desc.material.noiseTextureGuid,
             _desc.material.noiseTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+
+    return S_OK;
+}
+
+HRESULT ComputeTrailEmitter::Ready_MaskTexture()
+{
+    if (_desc.material.maskTextureGuid.empty() && _desc.material.maskTexturePath.empty())
+        return S_OK;
+
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
+    const wstring resolvedPath = Internal::Resolve_TrailTexturePath(
+        _desc.material.maskTextureGuid,
+        _desc.material.maskTexturePath,
+        usedPathFallback,
+        guidPathMismatch
+    );
+
+    if (resolvedPath.empty())
+    {
+        _maskTexture = nullptr;
+        LOG_WARN(
+            "ComputeTrailEmitter mask texture resolve failed. maskTextureGuid='{}', maskTexturePath='{}'.",
+            _desc.material.maskTextureGuid,
+            _desc.material.maskTexturePath
+        );
+        return S_OK;
+    }
+
+    if (guidPathMismatch)
+    {
+        LOG_WARN(
+            "ComputeTrailEmitter mask texture GUID/path mismatch. maskTextureGuid='{}', maskTexturePath='{}', guidResolvedPath='{}'.",
+            _desc.material.maskTextureGuid,
+            _desc.material.maskTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "ComputeTrailEmitter mask texture fell back to path. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'.",
+            _desc.material.maskTextureGuid,
+            _desc.material.maskTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+
+    _maskTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
+    if (nullptr == _maskTexture)
+    {
+        LOG_WARN(
+            "ComputeTrailEmitter mask texture create failed. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'.",
+            _desc.material.maskTextureGuid,
+            _desc.material.maskTexturePath,
             String::ToString(resolvedPath)
         );
     }
@@ -428,7 +487,7 @@ void ComputeTrailEmitter::Update_History(float timeDelta)
     if (!sampleAccepted)
     {
         LOG_WARN_THROTTLED(
-            60,
+            120,
             "ComputeTrailEmitter failed to acquire trail sample. providerBound={}, history={}, drawSegments={}. Enable Trail Preview and verify preview weapon visibility.",
             provider != nullptr,
             static_cast<uint32>(_history.size()),
@@ -637,7 +696,7 @@ HRESULT ComputeTrailEmitter::Copy_ComputeOutput()
 HRESULT ComputeTrailEmitter::Bind_ShaderResources()
 {
     CHECK_FAILED(GAME->Bind_CameraCB(_shader), E_FAIL);
-    CHECK_FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
+    CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
 
     if (nullptr != _noiseTexture)
     {
@@ -648,6 +707,15 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         CHECK_FAILED(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
     }
 
+    if (nullptr != _maskTexture)
+    {
+        CHECK_FAILED(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
+    }
+    else
+    {
+        CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
+    }
+
     CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &_desc.material.tint, sizeof(Vec4)), E_FAIL);
 
     const Vec4 effectTrailParams = Vec4(
@@ -656,8 +724,17 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         _desc.material.noiseStrength,
         nullptr != _noiseTexture ? 1.f : 0.f
     );
+
+    const Vec4 effectTrailAlphaParams = Vec4(
+        clamp(_desc.material.alphaCutoff, 0.f, 1.f),
+        clamp(_desc.material.alphaErosion, 0.f, 1.f),
+        nullptr != _maskTexture ? 1.f : 0.f,
+        0.f
+    );
+
     const int opacitySourceIndex = Resolve_OpacitySourceIndex();
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailParams", &effectTrailParams, sizeof(effectTrailParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAlphaParams", &effectTrailAlphaParams, sizeof(effectTrailAlphaParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
     return S_OK;
 }

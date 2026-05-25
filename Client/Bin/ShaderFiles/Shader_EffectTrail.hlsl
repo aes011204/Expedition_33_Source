@@ -7,13 +7,15 @@
 cbuffer cbEffectTrailMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectTrailParams = { 1.f, 1.f, 0.f, 0.f }; // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectTrailParams = { 1.f, 1.f, 0.f, 0.f };      // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectTrailAlphaParams = { 0.f, 0.f, 0.f, 0.f }; // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
     int g_OpacitySource = 0;
     float3 g_EffectTrailPadding;
 };
 
-Texture2D g_Texture : register(t0);
+Texture2D g_MainTexture : register(t0);
 Texture2D g_NoiseTexture : register(t1);
+Texture2D g_MaskTexture : register(t2);
 
 struct VS_IN
 {
@@ -148,15 +150,18 @@ PS_OUT PS_MAIN(PS_IN In)
     PS_OUT Out = (PS_OUT)0;
 
     const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
-    const float4 tex = g_Texture.Sample(LinearClampSampler, In.texCoord);
+    const float4 tex = g_MainTexture.Sample(LinearClampSampler, In.texCoord);
     const float sideFade = max(In.segmentParams.w, 0.0001f);
     const float sideAlpha =
         smoothstep(0.0f, sideFade, In.edgeCoord.y) *
         smoothstep(0.0f, sideFade, 1.0f - In.edgeCoord.y);
     const float4 segmentColor = lerp(In.startColor, In.endColor, lifeProgress);
     const float opacityPower = max(g_EffectTrailParams.y, 0.0001f);
+    const float alphaCutoff = saturate(g_EffectTrailAlphaParams.x);
+    const float alphaErosion = saturate(g_EffectTrailAlphaParams.y);
     float selectedOpacity = tex.a;
     float noiseFactor = 1.f;
+    float maskFactor = 1.f;
 
     if (1 == g_OpacitySource)
         selectedOpacity = tex.r;
@@ -169,14 +174,24 @@ PS_OUT PS_MAIN(PS_IN In)
         noiseFactor = lerp(1.f, noise, saturate(g_EffectTrailParams.z));
     }
 
+    if (0 != g_EffectTrailAlphaParams.z)
+        maskFactor = g_MaskTexture.Sample(LinearClampSampler, In.texCoord).a;
+
+    if (alphaErosion > 0.f)
+    {
+        const float erosionSource = min(maskFactor, noiseFactor);
+        const float erosionFactor = saturate((erosionSource - alphaErosion) / max(1.f - alphaErosion, 0.0001f));
+        maskFactor *= erosionFactor;
+    }
+
     float4 color = float4(
         segmentColor.rgb * g_Tint.rgb * tex.rgb,
         segmentColor.a * g_Tint.a
     );
 
     color.rgb *= g_EffectTrailParams.x * noiseFactor;
-    color.w *= pow(saturate(selectedOpacity), opacityPower) * saturate(In.segmentParams.z) * sideAlpha;
-    if (color.w < 0.01f)
+    color.w *= pow(saturate(selectedOpacity), opacityPower) * maskFactor * saturate(In.segmentParams.z) * sideAlpha;
+    if (color.w < max(alphaCutoff, 0.01f))
         discard;
 
     Out.color = color;

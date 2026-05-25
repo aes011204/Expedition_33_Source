@@ -257,12 +257,12 @@ namespace Internal
             NearlyEqual(lhs.noiseStrength, rhs.noiseStrength) &&
             NearlyEqual(lhs.alphaCutoff, rhs.alphaCutoff) &&
             NearlyEqual(lhs.alphaErosion, rhs.alphaErosion) &&
-            Is_SameVec2(lhs.mainUvScale, rhs.mainUvScale) &&
-            Is_SameVec2(lhs.mainUvScrollSpeed, rhs.mainUvScrollSpeed) &&
-            Is_SameVec2(lhs.noiseUvScale, rhs.noiseUvScale) &&
-            Is_SameVec2(lhs.noiseUvScrollSpeed, rhs.noiseUvScrollSpeed) &&
-            Is_SameVec2(lhs.maskUvScale, rhs.maskUvScale) &&
-            Is_SameVec2(lhs.maskUvScrollSpeed, rhs.maskUvScrollSpeed) &&
+            Is_SameVec2(lhs.mainUVScale, rhs.mainUVScale) &&
+            Is_SameVec2(lhs.mainUVScrollSpeed, rhs.mainUVScrollSpeed) &&
+            Is_SameVec2(lhs.noiseUVScale, rhs.noiseUVScale) &&
+            Is_SameVec2(lhs.noiseUVScrollSpeed, rhs.noiseUVScrollSpeed) &&
+            Is_SameVec2(lhs.maskUVScale, rhs.maskUVScale) &&
+            Is_SameVec2(lhs.maskUVScrollSpeed, rhs.maskUVScrollSpeed) &&
             lhs.blendMode == rhs.blendMode &&
             lhs.opacitySource == rhs.opacitySource &&
             lhs.twoSided == rhs.twoSided &&

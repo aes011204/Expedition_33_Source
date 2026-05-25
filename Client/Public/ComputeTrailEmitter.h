@@ -88,8 +88,9 @@ private:
 
     Shared<ShaderCom> _shader{};               // trail draw shader다.
     Shared<ComputeShaderCom> _computeShader{}; // trail payload 생성 compute shader다.
-    Shared<Texture> _texture{};                // trail main texture다.
+    Shared<Texture> _mainTexture{};            // trail main texture다.
     Shared<Texture> _noiseTexture{};           // 선택 noise texture. 없으면 material noise를 비활성화한다.
+    Shared<Texture> _maskTexture{};            // 선택 mask texture. 없으면 mask alpha 소비를 비활성화한다.
 
     ComPtr<Buffer> _pointVB{};                            // instanced point draw용 단일 vertex buffer다.
     ComPtr<Buffer> _indexBuffer{};                        // instanced point draw용 단일 index buffer다.
@@ -104,22 +105,23 @@ private:
     HRESULT Ready_Components();     // trail draw/compute component와 리소스를 준비한다.
     HRESULT Ready_Texture();        // trail main texture와 fallback texture를 준비한다.
     HRESULT Ready_NoiseTexture();   // 선택 trail noise texture를 준비한다.
+    HRESULT Ready_MaskTexture();    // 선택 trail mask texture를 준비한다.
     HRESULT Ready_DrawBuffers();    // indirect draw용 point/index/instance buffer를 준비한다.
     HRESULT Ready_ComputeBuffers(); // render sample 입력, instance 출력, indirect args compute buffer를 준비한다.
 
     void Update_History(float timeDelta); // provider sample을 history에 누적하고 수명/개수를 정리한다.
 
-    uint32 Compute_MaxRenderSegmentCount() const;                       // render-time tessellation을 포함한 최대 segment capacity다.
-    void Insert_TrailSample(const EffectTrailSample& trailSample);       // provider 원본 sample을 history head에 삽입한다.
-    void Build_RenderSamples(vector<TrailRenderSample>& outSamples) const; // 원본 history를 render-time curve sample 배열로 낮춘다.
+    uint32 Compute_MaxRenderSegmentCount() const;                            // render-time tessellation을 포함한 최대 segment capacity다.
+    void Insert_TrailSample(const EffectTrailSample& trailSample);           // provider 원본 sample을 history head에 삽입한다.
+    void Build_RenderSamples(vector<TrailRenderSample>& outSamples) const;   // 원본 history를 render-time curve sample 배열로 낮춘다.
     EffectTrailSample Build_SmoothedHistorySample(uint32 sampleIndex) const; // smoothTangent 옵션에 따라 history sample을 완만하게 보정한다.
 
-    HRESULT Dispatch_Compute();        // render sample을 trail instance payload로 낮추는 compute pass를 실행한다.
-    HRESULT Update_ComputeInput();     // CPU render sample을 compute 입력 structured buffer에 업로드한다.
-    HRESULT Update_ComputeConstants(); // trail compute 상수 버퍼를 현재 desc 값으로 갱신한다.
-    HRESULT Reset_IndirectArgs();      // indirect draw args를 draw count 0 상태로 초기화한다.
-    HRESULT Copy_ComputeOutput();      // compute 결과 instance/args buffer를 draw용 buffer로 복사한다.
-    HRESULT Bind_ShaderResources();    // trail draw shader가 사용할 camera/texture/tint 리소스를 바인딩한다.
+    HRESULT Dispatch_Compute();             // render sample을 trail instance payload로 낮추는 compute pass를 실행한다.
+    HRESULT Update_ComputeInput();          // CPU render sample을 compute 입력 structured buffer에 업로드한다.
+    HRESULT Update_ComputeConstants();      // trail compute 상수 버퍼를 현재 desc 값으로 갱신한다.
+    HRESULT Reset_IndirectArgs();           // indirect draw args를 draw count 0 상태로 초기화한다.
+    HRESULT Copy_ComputeOutput();           // compute 결과 instance/args buffer를 draw용 buffer로 복사한다.
+    HRESULT Bind_ShaderResources();         // trail draw shader가 사용할 camera/texture/tint 리소스를 바인딩한다.
     int Resolve_OpacitySourceIndex() const; // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
 
 public:

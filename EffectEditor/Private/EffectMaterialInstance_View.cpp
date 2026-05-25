@@ -737,12 +737,12 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
     {
         if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceUVMotion"))
         {
-            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scale", material.mainUvScale, defaultData.mainUvScale);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed", material.mainUvScrollSpeed, defaultData.mainUvScrollSpeed);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scale", material.noiseUvScale, defaultData.noiseUvScale);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed", material.noiseUvScrollSpeed, defaultData.noiseUvScrollSpeed);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scale", material.maskUvScale, defaultData.maskUvScale);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scroll Speed", material.maskUvScrollSpeed, defaultData.maskUvScrollSpeed);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scale (미소비)", material.mainUVScale, defaultData.mainUVScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed (미소비)", material.mainUVScrollSpeed, defaultData.mainUVScrollSpeed);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scale (미소비)", material.noiseUVScale, defaultData.noiseUVScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed (미소비)", material.noiseUVScrollSpeed, defaultData.noiseUVScrollSpeed);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scale (미소비)", material.maskUVScale, defaultData.maskUVScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scroll Speed (미소비)", material.maskUVScrollSpeed, defaultData.maskUVScrollSpeed);
             _detailPropertyContext.End_PropertyTable();
         }
     }
@@ -770,7 +770,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
                 opacitySourceOptions,
                 sizeof(opacitySourceOptions) / sizeof(opacitySourceOptions[0])
             );
-            changed |= _detailPropertyContext.Draw_BoolProperty("Two Sided", material.twoSided, defaultData.twoSided);
+            changed |= _detailPropertyContext.Draw_BoolProperty("Two Sided (미소비)", material.twoSided, defaultData.twoSided);
             changed |= _detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
             changed |= _detailPropertyContext.Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
             _detailPropertyContext.End_PropertyTable();

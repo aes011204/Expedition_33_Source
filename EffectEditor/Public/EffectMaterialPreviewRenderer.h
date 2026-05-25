@@ -48,7 +48,7 @@ private: //## Types
     };
 
 private: //## Static Values
-    static constexpr const wchar_t* kEffectMaterialPreviewShaderId{ L"Shader_EffectMaterialPreview" };
+    static constexpr auto kEffectMaterialPreviewShaderId{ L"Shader_EffectMaterialPreview" };
     static constexpr float kHomeDistance{ 6.f };
     static constexpr float kHomeYawDegrees{ 0.f };
     static constexpr float kHomePitchDegrees{ 0.f };
@@ -62,10 +62,12 @@ private: //## Data
     Shared<ShaderCom> _shader{};
     Shared<Texture> _texture{};
     Shared<Texture> _noiseTexture{};
+    Shared<Texture> _maskTexture{};
     PreviewMeshResource _planeMesh{};
     PreviewMeshResource _sphereMesh{};
     string _loadedTextureKey{};
     string _loadedNoiseTextureKey{};
+    string _loadedMaskTextureKey{};
     string _statusMessage{};
     bool _hasRenderedPreview{ false };
     EffectMaterialPreviewMeshMode _meshMode{ EffectMaterialPreviewMeshMode::Plane };
@@ -78,6 +80,7 @@ private: //## Helper::Resource
     bool Ready_Shader();
     bool Ready_Texture(const string& textureGuid, const string& texturePath);
     bool Ready_NoiseTexture(const string& textureGuid, const string& texturePath);
+    bool Ready_MaskTexture(const string& textureGuid, const string& texturePath);
     bool Ready_Meshes();
     bool Ready_PlaneMesh();
     bool Ready_SphereMesh();
@@ -95,8 +98,7 @@ private: //## Helper::ViewportInput
     void End_ViewportDrag();
 
 private: //## Helper::Camera
-    // 즉시 reset하지 않고 home 시점으로 부드럽게 복귀를 예약한다.
-    void Start_HomeTransition();
+    void Start_HomeTransition(); // 즉시 reset하지 않고 home 시점으로 부드럽게 복귀를 예약한다.
     void Update_HomeTransition(float timeDelta);
     void Reset_View();
 
