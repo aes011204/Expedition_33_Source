@@ -129,24 +129,19 @@ namespace Internal
     class PostProcessFeatureScope final
     {
     public:
-        explicit PostProcessFeatureScope(SceneViewMode sceneViewMode)
+        PostProcessFeatureScope()
             : _pipeline{ GAME->Get_PostProcessPipeline() }
         {
-            if (sceneViewMode != SceneViewMode::Authoring || _pipeline == nullptr)
+            if (_pipeline == nullptr || EDITOR == nullptr)
                 return;
 
             _originalFeatures = _pipeline->Get_PostProcessFeatures();
             _originalParams = _pipeline->Get_PostProcessParams();
             _restore = true;
 
-            PostProcessCB authoringParams = _originalParams;
-            authoringParams.bloomIntensity = 0.f;
-
-            _pipeline->Set_PostProcessFeatures(
-                PostProcessFeature::HDR |
-                PostProcessFeature::Bloom
-            );
-            _pipeline->Set_PostProcessParams(authoringParams);
+            const EffectEditorPostProcessOptions& options = EDITOR->Get_PostProcessOptions();
+            _pipeline->Set_PostProcessFeatures(options.features);
+            _pipeline->Set_PostProcessParams(options.params);
         }
 
         ~PostProcessFeatureScope()
@@ -195,6 +190,7 @@ HRESULT EffectEditorApp::Initialize()
     engineDesc.numLevels = ETOI(LevelType::END);
     engineDesc.viewportWidth = viewportWidth;
     engineDesc.viewportHeight = viewportHeight;
+    engineDesc.swapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     engineDesc.projectName = "EffectEditor";
 
     const auto startupStartTime = chrono::steady_clock::now();
@@ -446,30 +442,6 @@ HRESULT EffectEditorApp::Render()
         totalRenderBegin = chrono::steady_clock::now();
 #endif
 
-    // EFFECTEDITOR_BG_FALLBACK_TEMP: EffectEditor 전용 배경색 제어로 보기 어렵고 공용 postprocess 경로 개입 및 관측 왜곡 우려가 있어 비활성화한다.
-    /*
-    // EFFECTEDITOR_BG_FALLBACK_TEMP: Draw 스코프 밖에서 복구할 수 있도록 사전 백업한다.
-    Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
-    PostProcessCB originalPostProcessParams{};
-    bool hasOriginalPostProcessParams = false;
-    if (postProcessPipeline != nullptr)
-    {
-        originalPostProcessParams = postProcessPipeline->Get_PostProcessParams();
-        hasOriginalPostProcessParams = true;
-    }
-
-    // EFFECTEDITOR_BG_FALLBACK_TEMP: EffectEditor에서 Play가 아닐 때를 Authoring 관측 모드로 보고 fallback을 임시 적용한다.
-    const bool useAuthoringBackgroundFallback = !EDITOR->IsPlaying();
-    if (hasOriginalPostProcessParams && useAuthoringBackgroundFallback)
-    {
-        PostProcessCB authoringPostProcessParams = originalPostProcessParams;
-        authoringPostProcessParams.useBackgroundFallback = 1;
-        // EFFECTEDITOR_BG_FALLBACK_TEMP: authoring fallback 가시성을 위해 임시 배경색을 0.3으로 올린다.
-        authoringPostProcessParams.backgroundFallbackColor = Vec4(0.3f, 0.3f, 0.3f, 1.f);
-        postProcessPipeline->Set_PostProcessParams(authoringPostProcessParams);
-    }
-    */
-
 #ifdef _DEBUG
     if (sampleRenderPerf)
         passBegin = chrono::steady_clock::now();
@@ -477,39 +449,20 @@ HRESULT EffectEditorApp::Render()
     {
         Profile_View::Scope profileScope("Game::Render");
 
-        if (FAILED(GAME->Clear_Buffers(kDefaultClearColor)))
-        {
-            // EFFECTEDITOR_BG_FALLBACK_TEMP: 공용 postprocess 경로 개입을 끄기 위해 백업/원복 블록을 함께 비활성화했다.
-            /*
-            if (hasOriginalPostProcessParams)
-                postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
-            */
-            return E_FAIL;
-        }
+        GAME->Bind_BackBuffer();
 
-        const Internal::PostProcessFeatureScope postProcessFeatureScope{ EDITOR->Get_SceneViewMode() };
+        if (FAILED(GAME->Clear_Buffers(kDefaultClearColor)))
+            return E_FAIL;
+
+        const Internal::PostProcessFeatureScope postProcessFeatureScope{};
 
         if (FAILED(GAME->Draw()))
-        {
-            // EFFECTEDITOR_BG_FALLBACK_TEMP: 공용 postprocess 경로 개입을 끄기 위해 백업/원복 블록을 함께 비활성화했다.
-            /*
-            if (hasOriginalPostProcessParams)
-                postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
-            */
             return E_FAIL;
-        }
     }
 #ifdef _DEBUG
     if (sampleRenderPerf)
         gameRenderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - passBegin).count();
 #endif
-
-    // EFFECTEDITOR_BG_FALLBACK_TEMP: EffectEditor 전용 배경색 제어로 보기 어렵고 공용 postprocess 경로 개입 및 관측 왜곡 우려가 있어 비활성화한다.
-    /*
-    // EFFECTEDITOR_BG_FALLBACK_TEMP: Draw 이후 postprocess 파라미터를 항상 원본으로 복구한다.
-    if (hasOriginalPostProcessParams)
-        postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
-    */
 
 #ifdef _DEBUG
     if (sampleRenderPerf)
@@ -532,6 +485,8 @@ HRESULT EffectEditorApp::Render()
         }
 #endif
         GAME->Bind_BackBuffer();
+        if (FAILED(GAME->Clear_Buffers(kDefaultClearColor)))
+            return E_FAIL;
 #ifdef _DEBUG
         if (sampleRenderPerf)
         {

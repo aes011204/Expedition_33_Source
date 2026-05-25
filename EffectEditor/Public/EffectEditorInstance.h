@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Engine_Enum.h"
+#include "Shader_CBuffer_Define.h"
 
 namespace DirectX::DX11
 {
@@ -31,6 +33,18 @@ struct EffectEditorRenderPerfSample
     double editorWindowsMs{};
     double notificationMs{};
     double imguiMs{};
+};
+
+enum class EffectEditorPostProcessPreset : uint8
+{
+    Authoring,
+    Final,
+};
+
+struct EffectEditorPostProcessOptions
+{
+    PostProcessFeature features{ PostProcessFeature::None };
+    PostProcessCB params{};
 };
 
 class EffectEditorInstance final : public Base
@@ -80,6 +94,9 @@ public: //## Accessor::PreviewOption
     Vec3 Get_DefaultTrailPreviewBaseLocalOffset() const { return kDefaultTrailPreviewBaseLocalOffset; }
     // Trail preview tip offset reset 기준값이다.
     Vec3 Get_DefaultTrailPreviewTipLocalOffset() const { return kDefaultTrailPreviewTipLocalOffset; }
+    EffectEditorPostProcessPreset Get_PostProcessPreset() const { return _postProcessPreset; }
+    const EffectEditorPostProcessOptions& Get_PostProcessOptions() const { return _postProcessOptions; }
+    EffectEditorPostProcessOptions Get_DefaultPostProcessOptions(EffectEditorPostProcessPreset preset) const;
 
 public: //## Accessor::InputPolicy
     bool Is_PreviewCameraControlEnabled() const { return _isPreviewCameraControlEnabled; }
@@ -113,6 +130,10 @@ public: //## Behavior::PreviewOption
     void Set_TrailPreviewLocalOffsets(const Vec3& baseLocalOffset, const Vec3& tipLocalOffset);
     // Trail Preview 조정값을 기본 weapon-local marker 위치로 되돌린다.
     void Reset_TrailPreviewLocalOffsets();
+    void Set_PostProcessPreset(EffectEditorPostProcessPreset preset);
+    void Set_PostProcessFeature(PostProcessFeature feature, bool enabled);
+    void Set_PostProcessParams(const PostProcessCB& params);
+    void Reset_PostProcessOptionsToPresetDefault();
 
 public: //## Behavior::Window
     void Request_WindowFocus(EditorViewportTarget target);
@@ -213,6 +234,8 @@ private: //## Data::PreviewOption
     bool _isTrailPreviewDebugRenderEnabled{ true };
     Vec3 _trailPreviewBaseLocalOffset{ kDefaultTrailPreviewBaseLocalOffset };
     Vec3 _trailPreviewTipLocalOffset{ kDefaultTrailPreviewTipLocalOffset };
+    EffectEditorPostProcessPreset _postProcessPreset{ EffectEditorPostProcessPreset::Authoring };
+    EffectEditorPostProcessOptions _postProcessOptions{};
 
 private: //## Data::Window
     bool _hasPendingWindowFocus{ false };

@@ -112,6 +112,38 @@ namespace
         return changed;
     }
 
+    const char* Get_PostProcessPresetLabel(EffectEditorPostProcessPreset preset)
+    {
+        switch (preset)
+        {
+        case EffectEditorPostProcessPreset::Final:
+            return "Final";
+        case EffectEditorPostProcessPreset::Authoring:
+        default:
+            return "Authoring";
+        }
+    }
+
+    bool Has_PostProcessFeature(PostProcessFeature features, PostProcessFeature feature)
+    {
+        return Has_Flag(features, feature);
+    }
+
+    bool Is_SamePostProcessOptions(
+        const EffectEditorPostProcessOptions& lhs,
+        const EffectEditorPostProcessOptions& rhs)
+    {
+        return
+            lhs.features == rhs.features &&
+            lhs.params.exposure == rhs.params.exposure &&
+            lhs.params.gamma == rhs.params.gamma &&
+            lhs.params.bloomRadius == rhs.params.bloomRadius &&
+            lhs.params.bloomThreshold == rhs.params.bloomThreshold &&
+            lhs.params.bloomIntensity == rhs.params.bloomIntensity &&
+            lhs.params.bloomSoftKnee == rhs.params.bloomSoftKnee &&
+            lhs.params.bloomClamp == rhs.params.bloomClamp;
+    }
+
     bool Draw_TrailCurveQualityProperty(DetailPropertyContext& detailContext, TrailTypeData& data, const TrailTypeData& defaultData)
     {
         bool changed = false;
@@ -267,8 +299,52 @@ void Detail_View::Render_ParticleSystemDetail(
         MarkDirty();
     }
 
+    Render_ViewModeDetail();
     Render_TrailPreviewDetail();
+    Render_PostProcessShaderDetail();
     Commit_PendingAuthoringEditIfIdle(emitterView);
+}
+
+void Detail_View::Render_ViewModeDetail()
+{
+    if (EDITOR == nullptr)
+        return;
+
+    if (!ImGui::CollapsingHeader("뷰 모드", ImGuiTreeNodeFlags_DefaultOpen))
+        return;
+
+    EffectEditorPostProcessPreset preset = EDITOR->Get_PostProcessPreset();
+    int presetIndex = preset == EffectEditorPostProcessPreset::Final ? 1 : 0;
+    static constexpr const char* kPresetLabels[] = { "Authoring", "Final" };
+
+    if (_detailPropertyContext.Begin_PropertyTable("PostProcessViewMode"))
+    {
+        ImGui::PushID("PostProcessPreset");
+        _detailPropertyContext.Draw_PropertyLabel(
+            "프리셋",
+            "EffectEditor 세션 전용 관측 프리셋입니다. 변경 시 현재 후처리 수치가 해당 기본값으로 바뀝니다."
+        );
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        const bool changed = ImGui::Combo("##Value", &presetIndex, kPresetLabels, IM_ARRAYSIZE(kPresetLabels));
+        _detailPropertyContext.Draw_ResetButton(false);
+        ImGui::PopID();
+
+        _detailPropertyContext.End_PropertyTable();
+
+        if (changed)
+        {
+            const EffectEditorPostProcessPreset nextPreset =
+                presetIndex == 1
+                ? EffectEditorPostProcessPreset::Final
+                : EffectEditorPostProcessPreset::Authoring;
+            EDITOR->Set_PostProcessPreset(nextPreset);
+        }
+    }
+
+    ImGui::TextDisabled(
+        "%s preset is an EffectEditor-only preview option.",
+        Get_PostProcessPresetLabel(EDITOR->Get_PostProcessPreset())
+    );
 }
 
 void Detail_View::Render_TrailPreviewDetail()
@@ -300,6 +376,73 @@ void Detail_View::Render_TrailPreviewDetail()
 
     if (changed)
         EDITOR->Set_TrailPreviewLocalOffsets(baseLocalOffset, tipLocalOffset);
+}
+
+void Detail_View::Render_PostProcessShaderDetail()
+{
+    if (EDITOR == nullptr)
+        return;
+
+    if (!ImGui::CollapsingHeader("후처리 셰이더", ImGuiTreeNodeFlags_DefaultOpen))
+        return;
+
+    EffectEditorPostProcessOptions options = EDITOR->Get_PostProcessOptions();
+    const EffectEditorPostProcessOptions defaultOptions =
+        EDITOR->Get_DefaultPostProcessOptions(EDITOR->Get_PostProcessPreset());
+
+    bool hdr = Has_PostProcessFeature(options.features, PostProcessFeature::HDR);
+    bool exposure = Has_PostProcessFeature(options.features, PostProcessFeature::Exposure);
+    bool toneMapping = Has_PostProcessFeature(options.features, PostProcessFeature::ToneMapping);
+    bool bloom = Has_PostProcessFeature(options.features, PostProcessFeature::Bloom);
+    bool gamma = Has_PostProcessFeature(options.features, PostProcessFeature::Gamma);
+
+    const bool defaultHdr = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::HDR);
+    const bool defaultExposure = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Exposure);
+    const bool defaultToneMapping = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::ToneMapping);
+    const bool defaultBloom = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Bloom);
+    const bool defaultGamma = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Gamma);
+
+    if (_detailPropertyContext.Begin_PropertyTable("PostProcessFeatures"))
+    {
+        if (_detailPropertyContext.Draw_BoolProperty("HDR", hdr, defaultHdr))
+            EDITOR->Set_PostProcessFeature(PostProcessFeature::HDR, hdr);
+        if (_detailPropertyContext.Draw_BoolProperty("Exposure", exposure, defaultExposure))
+            EDITOR->Set_PostProcessFeature(PostProcessFeature::Exposure, exposure);
+        if (_detailPropertyContext.Draw_BoolProperty("ToneMapping", toneMapping, defaultToneMapping))
+            EDITOR->Set_PostProcessFeature(PostProcessFeature::ToneMapping, toneMapping);
+        if (_detailPropertyContext.Draw_BoolProperty("Bloom", bloom, defaultBloom))
+            EDITOR->Set_PostProcessFeature(PostProcessFeature::Bloom, bloom);
+        if (_detailPropertyContext.Draw_BoolProperty("Gamma", gamma, defaultGamma))
+            EDITOR->Set_PostProcessFeature(PostProcessFeature::Gamma, gamma);
+        _detailPropertyContext.End_PropertyTable();
+    }
+
+    PostProcessCB params = EDITOR->Get_PostProcessOptions().params;
+    bool paramsChanged = false;
+    if (_detailPropertyContext.Begin_PropertyTable("PostProcessParams"))
+    {
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Exposure", params.exposure, defaultOptions.params.exposure);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Gamma", params.gamma, defaultOptions.params.gamma);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Radius", params.bloomRadius, defaultOptions.params.bloomRadius);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Threshold", params.bloomThreshold, defaultOptions.params.bloomThreshold);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Intensity", params.bloomIntensity, defaultOptions.params.bloomIntensity);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Soft Knee", params.bloomSoftKnee, defaultOptions.params.bloomSoftKnee);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Clamp", params.bloomClamp, defaultOptions.params.bloomClamp, 0.05f);
+        _detailPropertyContext.End_PropertyTable();
+    }
+
+    if (paramsChanged)
+        EDITOR->Set_PostProcessParams(params);
+
+    const bool canReset = !Is_SamePostProcessOptions(EDITOR->Get_PostProcessOptions(), defaultOptions);
+    if (!canReset)
+        ImGui::BeginDisabled();
+
+    if (ImGui::Button("기본값으로 되돌리기"))
+        EDITOR->Reset_PostProcessOptionsToPresetDefault();
+
+    if (!canReset)
+        ImGui::EndDisabled();
 }
 
 void Detail_View::Render_EmitterDetail(

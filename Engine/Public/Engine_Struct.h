@@ -14,6 +14,7 @@ using ENGINE_DESC = struct tagEngineDesc
     unsigned int numLevels;
     unsigned int viewportWidth;
     unsigned int viewportHeight;
+    DXGI_SWAP_EFFECT swapEffect = DXGI_SWAP_EFFECT_DISCARD;
     std::string projectName;
 };
 
