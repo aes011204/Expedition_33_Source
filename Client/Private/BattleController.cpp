@@ -483,7 +483,6 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
 
         _heroes.push_back(battleChar);
 
-
         // battleChar.ModelCom->Set_RootMotionEnabled(false);
     }
 
@@ -719,7 +718,7 @@ void BattleController::Set_TargetPreview(const BattleChar& target)
     _hasTargetPreview = target.actor != nullptr && target.statCom != nullptr;
 
     if (_hasTargetPreview)
-        OnTargetPreviewChanged.Broadcast(&_targetPreview); // Hp Bar/타겟 UI 갱신 등
+        OnTargetPreviewChanged.Broadcast(&_targetPreview);
     else
         OnTargetPreviewChanged.Broadcast(nullptr);
 }
@@ -1223,6 +1222,24 @@ bool BattleController::Can_TriggerVictory() const
     return true;
 }
 
+void BattleController::Set_FreeAimHitTarget(const BattleChar& target)
+{
+    if (target.actor == nullptr || target.statCom == nullptr)
+    {
+        Clear_FreeAimHitTarget();
+        return;
+    }
+
+    _freeAimHitTarget = target;
+    _hasFreeAimHitTarget = true;
+}
+
+void BattleController::Clear_FreeAimHitTarget()
+{
+    _freeAimHitTarget = {};
+    _hasFreeAimHitTarget = false;
+}
+
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
     if (_battleTurnCamera)
@@ -1280,6 +1297,7 @@ void BattleController::Clear_BattleRuntimeState()
     _reactionController.Clear_RuntimeState();
     _isFreeAimShotPlaying = false;
     _freeAimShotAction = {};
+    Clear_FreeAimHitTarget();
     currentTurnIndex = 0;
     _battleTime = 0.f;
     _flag = false;

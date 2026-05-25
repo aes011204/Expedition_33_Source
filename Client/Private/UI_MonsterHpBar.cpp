@@ -4,6 +4,8 @@
 #include "GameInstance.h"
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
+#include "Character.h"
+#include "CombatStatCom.h"
 
 using namespace UI_Utils;
 
@@ -21,18 +23,51 @@ HRESULT UI_MonsterHpBar::Initialize(uint32 levelIndex)
 
 void UI_MonsterHpBar::Update(float timeDelta)
 {
-    if (!Is_Open() || !_hasTargetWorldPos)
-        return;
+    if (_displayMode == DisplayMode::Timed)
+        _displayElapsed += timeDelta;
 
-    Vec2 screenPos{};
-    if (!Try_ProjectWorldToScreen(_targetWorldPos, screenPos))
+    BattleChar target{};
+    if (!Try_GetDisplayTarget(target))
     {
         Close();
         return;
     }
 
+    auto targetTr = target.actor->Get_Transform();
+    CHECK_NULL(targetTr);
+    Vec3 worldPos = targetTr->Get_WorldPosition();
+    worldPos.y += 1.5f;
+
+    Vec2 screenPos{};
+    if (!Try_ProjectWorldToScreen(worldPos, screenPos))
+    {
+        Close();
+        return;
+    }
+
+    Open();
+    Set_Hp(target.statCom->Get_CurHp(), target.statCom->Get_StatInfo().maxHp);
+
     if (_root && _root->Get_Transform())
         _root->Get_Transform()->Set_Position(screenPos);
+}
+
+void UI_MonsterHpBar::Open()
+{
+    UI_RuntimePanelBase::Open();
+}
+
+void UI_MonsterHpBar::Close()
+{
+    _targetWorldPos = Vec3::Zero;
+    _hasTargetWorldPos = false;
+
+    _displayTarget = {};
+    _displayMode = DisplayMode::None;
+    _displayElapsed = 0.f;
+    _displayDuration = 0.f;
+
+    UI_RuntimePanelBase::Close();
 }
 
 void UI_MonsterHpBar::Set_TargetWorldPosition(const Vec3& worldPos)
@@ -50,16 +85,37 @@ void UI_MonsterHpBar::Set_Hp(float curHp, float maxHp)
     Apply_HpGauge(curHp / maxHp);
 }
 
-void UI_MonsterHpBar::Open()
+void UI_MonsterHpBar::Show_TrackedTarget(const BattleChar& target)
 {
-    UI_RuntimePanelBase::Open();
+    if (!Is_ValidMonsterTarget(target))
+        return;
+
+    _displayTarget = target;
+    _displayMode = DisplayMode::Tracked;
+    _displayElapsed = 0.f;
+    _displayDuration = 0.f;
 }
 
-void UI_MonsterHpBar::Close()
+void UI_MonsterHpBar::Clear_TrackedTarget()
 {
-    _hasTargetWorldPos = false;
+    if (_displayMode != DisplayMode::Tracked)
+        return;
 
-    UI_RuntimePanelBase::Close();
+    _displayTarget = {};
+    _displayMode = DisplayMode::None;
+    _displayElapsed = 0.f;
+    _displayDuration = 0.f;
+}
+
+void UI_MonsterHpBar::Show_TimedTarget(const BattleChar& target, float duration)
+{
+    if (!Is_ValidMonsterTarget(target))
+        return;
+
+    _displayTarget = target;
+    _displayMode = DisplayMode::Timed;
+    _displayElapsed = 0.f;
+    _displayDuration = max(0.f, duration);
 }
 
 HRESULT UI_MonsterHpBar::Load_UI(uint32 levelIndex)
@@ -106,6 +162,39 @@ void UI_MonsterHpBar::Apply_HpGauge(float ratio)
 
     ratio = ::clamp(ratio, 0.f, 1.f);
     _hpGauge->Set_FillRatio(ratio); // HP 바 실루엣은 유지하고 채워진 영역만 잘라낸다.
+}
+
+bool UI_MonsterHpBar::Try_GetDisplayTarget(BattleChar& outTarget) const
+{
+    if (_displayMode == DisplayMode::None)
+        return false;
+
+    if (!Is_ValidMonsterTarget(_displayTarget))
+        return false;
+
+    if (_displayMode == DisplayMode::Timed && _displayElapsed >= _displayDuration)
+        return false;
+
+    outTarget = _displayTarget;
+
+    return true;
+}
+
+bool UI_MonsterHpBar::Is_ValidMonsterTarget(const BattleChar& target) const
+{
+    if (target.actor == nullptr || target.statCom == nullptr)
+        return false;
+
+    if (target.actor->Get_Transform() == nullptr)
+        return false;
+
+    if (target.statCom->Is_Player())
+        return false;
+
+    if (target.statCom->Get_AliveStatus() != EAliveStatus::Alive)
+        return false;
+
+    return true;
 }
 
 Unique<UI_MonsterHpBar> UI_MonsterHpBar::Create(uint32 levelIndex)
