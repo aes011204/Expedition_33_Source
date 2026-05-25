@@ -20,6 +20,7 @@
 #include "RegistorFactory.h"
 #include "Renderer.h"
 #include "Renderer_Define.h"
+#include "ScreenFx_Manager.h"
 #include "Timer_Manager.h"
 #include "Target_Manager.h"
 #include "Shadow.h"
@@ -29,6 +30,7 @@
 #include "ThreadPool.h"
 #include "Helper_String.h"
 #include "Material.h"
+#include "ShaderResourceRegistry.h"
 
 #include "Collision_Define.h"
 #include "Event_Bus.h"
@@ -96,6 +98,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _renderer = Renderer::Create(device, context);
     CHECK_NULL(_renderer, E_FAIL);
+
+    _screenFxManager = make_unique<ScreenFx_Manager>();
+    CHECK_NULL(_screenFxManager, E_FAIL);
 
     _pipeLine = PipeLine::Create();
     CHECK_NULL(_pipeLine, E_FAIL);
@@ -1112,6 +1117,26 @@ Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
     return _renderer->Get_PostProcessPipeline();
 }
 
+const Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline() const
+{
+    return _renderer->Get_SSAOPipeline();
+}
+
+Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline()
+{
+    return _renderer->Get_SSAOPipeline();
+}
+
+const ScreenFx_Manager* GameInstance::Get_ScreenFxManager() const
+{
+    return _screenFxManager.get();
+}
+
+RenderGroup GameInstance::Get_CurrentRenderGroup() const
+{
+    return _renderer->Get_CurrentGroup();
+}
+
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)
 {
     return _pipeLine->Bind_CamPosition(shader, constantName);
@@ -1323,6 +1348,11 @@ HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
     if (nullptr == _assetManager)
         return E_FAIL;
 
+    const fs::path shaderTextureRoot = fs::path(resourceRoot) / L"Textures" / L"Shader";
+    _shaderResourceRegistry = ShaderResourceRegistry::Create(_device, _context, shaderTextureRoot.wstring());
+    if (nullptr == _shaderResourceRegistry)
+        return E_FAIL;
+
     return S_OK;
 }
 
@@ -1376,6 +1406,46 @@ string GameInstance::Ensure_AssetGUID(const wstring& filePath, const string& typ
         return existingGuid;
 
     return _assetManager->Register_Asset(filePath, type);
+}
+
+uint32 GameInstance::Get_Handle(const string& name) const
+{
+    if (nullptr == _shaderResourceRegistry)
+        return InvalidSRVHandle;
+
+    return _shaderResourceRegistry->Get_Handle(name);
+}
+
+ID3D11ShaderResourceView* GameInstance::Get_SRV(uint32 handle) const
+{
+    if (nullptr == _shaderResourceRegistry)
+        return nullptr;
+
+    return _shaderResourceRegistry->Get_SRV(handle);
+}
+
+ID3D11ShaderResourceView* GameInstance::Get_SRV(const string& name) const
+{
+    if (nullptr == _shaderResourceRegistry)
+        return nullptr;
+
+    return _shaderResourceRegistry->Get_SRV(name);
+}
+
+HRESULT GameInstance::Bind_ByHandle(ShaderCom* shader, const char* shaderVariableName, uint32 handle) const
+{
+    if (nullptr == _shaderResourceRegistry)
+        return E_FAIL;
+
+    return _shaderResourceRegistry->Bind_ByHandle(shader, shaderVariableName, handle);
+}
+
+HRESULT GameInstance::Bind_ByName(ShaderCom* shader, const char* shaderVariableName, const string& name) const
+{
+    if (nullptr == _shaderResourceRegistry)
+        return E_FAIL;
+
+    return _shaderResourceRegistry->Bind_ByName(shader, shaderVariableName, name);
 }
 
 HRESULT GameInstance::Add_Camera(Shared<Camera> camera) const
@@ -1505,6 +1575,11 @@ Shared<AnimNotify> GameInstance::Create_AnimNotifyPrototype(const string& classN
 Shared<AnimNotifyState> GameInstance::Create_AnimNotifyStatePrototype(const string& className) const
 {
     return _typeRegistry->Create_AnimNotifyState(className);
+}
+
+HRESULT GameInstance::Ready_AllRenderTargets()
+{
+    return _targetManager->Ready_AllRenderTargets();
 }
 
 HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
@@ -1909,6 +1984,7 @@ void GameInstance::Release_Engine()
 
     ReleaseManager(_targetManager);
     ReleaseManager(_shadow);
+    ReleaseManager(_shaderResourceRegistry);
 
 #ifdef _DEBUG
     ReleaseManager(_printManager);

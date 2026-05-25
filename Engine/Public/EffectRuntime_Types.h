@@ -61,10 +61,10 @@ enum class EffectSpriteTextureAxis : uint32
 // Required 모듈에서 material binding에 필요한 값만 접은 runtime payload다.
 struct EffectRequiredMaterialRuntimeDesc
 {
-    string mainTextureGuid{};         // 구버전 파일 복구/현재 registry 진단용 GUID hint다.
-    string mainTexturePath{};         // main particle texture resource-relative 경로다.
-    string noiseTextureGuid{};        // 구버전 noise texture 복구/진단용 GUID hint다.
-    string noiseTexturePath{};        // 선택 noise texture resource-relative 경로다.
+    string mainTextureGuid{};         // main particle texture asset identity다.
+    string mainTexturePath{};         // main particle texture resource-relative fallback/debug hint다.
+    string noiseTextureGuid{};        // 선택 noise texture asset identity다.
+    string noiseTexturePath{};        // 선택 noise texture resource-relative fallback/debug hint다.
     string blendMode{ "AlphaBlend" }; // material bridge의 blend mode 기록값이다.
     string opacitySource{ "Alpha" };  // opacity source selector다.
     Vec4 tint{ 1.f, 1.f, 1.f, 1.f };  // texture sample에 곱할 tint다.

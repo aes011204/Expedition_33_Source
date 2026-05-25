@@ -101,4 +101,10 @@ struct ComputeSkinningCBData
     uint32 pad2 = 0;
 };
 
+struct ViewportSize
+{
+    uint32 width = 1600;
+    uint32 height = 900;
+};
+
 }

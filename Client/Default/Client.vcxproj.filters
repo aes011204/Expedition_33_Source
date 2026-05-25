@@ -59,6 +59,7 @@
     <Filter Include="03. Component\StateMachine\State" />
     <Filter Include="04. GamePlayUI" />
     <Filter Include="04. GamePlayUI\Weapon" />
+    <Filter Include="90.EditorSupport" />
     <Filter Include="05. BattleSystem" />
     <Filter Include="95. AnimNotify" />
     <Filter Include="95. AnimNotify\00. Notifies" />
@@ -89,17 +90,12 @@
     </ClCompile>
     <ClCompile Include="..\Private\UI_BattleVictory.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
-    <ClCompile Include="..\private\AN_Change_Anim.cpp" />
-    <ClCompile Include="..\private\Base_Mon_Defense.cpp" />
-    <ClCompile Include="..\private\Base_Mon_Spawn.cpp" />
-    <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp" />
-    <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
-    <ClCompile Include="..\Private\Player_FreeAim.cpp" />
-    <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
-    <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
-    <ClCompile Include="..\Private\BattleReactionController.cpp" />
-    <ClCompile Include="..\Private\AN_StartCounter.cpp" />
-    <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
+    <ClCompile Include="..\Private\Player_FreeAim.cpp">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_QTE.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -148,6 +144,9 @@
       <Filter>03. Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
       <Filter>03. Shaders</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
@@ -572,6 +571,7 @@
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\SwitchDissolveFeature.h" />
     <ClInclude Include="..\Public\UI_MonsterHpBar.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
@@ -595,9 +595,6 @@
     </ClInclude>
     <ClInclude Include="..\public\WeaponUI_Common.h">
       <Filter>04. GamePlayUI\Weapon</Filter>
-    </ClInclude>
-    <ClInclude Include="Battle_Enum.h">
-      <Filter>BattleState\Battle</Filter>
     </ClInclude>
     <ClInclude Include="Base_Gustave_Attack.h">
       <Filter>Skill</Filter>
@@ -664,17 +661,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleVictory.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
-    <ClInclude Include="..\public\AN_Change_Anim.h" />
-    <ClInclude Include="..\public\Base_Mon_Defense.h" />
-    <ClInclude Include="..\public\Base_Mon_Spawn.h" />
-    <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h" />
-    <ClInclude Include="..\Public\UI_ReactionResult.h" />
-    <ClInclude Include="..\Public\Player_FreeAim.h" />
-    <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
-    <ClInclude Include="..\Public\UI_BattleMechanism.h" />
-    <ClInclude Include="..\Public\BattleReactionController.h" />
-    <ClInclude Include="..\Public\AN_StartCounter.h" />
-    <ClInclude Include="..\Public\AN_CounterDamage.h" />
+    <ClInclude Include="..\Public\Player_FreeAim.h">
+      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
@@ -1064,12 +1053,6 @@
     <ClCompile Include="..\private\WeaponUI_Common.cpp">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClCompile>
-    <ClCompile Include="..\public\Ailment.cpp">
-      <Filter>Ailment</Filter>
-    </ClCompile>
-    <ClCompile Include="..\public\ANS_QTE.cpp">
-      <Filter>95. AnimNotify\01. NotifyStates</Filter>
-    </ClCompile>
     <ClCompile Include="Base_Gustave_Attack.cpp">
       <Filter>Skill</Filter>
     </ClCompile>
@@ -1120,6 +1103,15 @@
     </ClCompile>
     <ClCompile Include="..\Private\Weapon.cpp">
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
+    </ClCompile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ClInclude Include="..\Public\ContentBrowserCore.h">
+      <Filter>90.EditorSupport</Filter>
+    </ClInclude>
+    <ClCompile Include="..\Private\ContentBrowserCore.cpp">
+      <Filter>90.EditorSupport</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

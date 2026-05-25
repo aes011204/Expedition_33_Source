@@ -1,5 +1,6 @@
 ﻿#include "EffectAuthoringJsonSerializer.h"
 
+#include "GameInstance.h"
 #include "Helper_EffectAuthoring.h"
 
 NS_BEGIN(EffectEditor)
@@ -60,19 +61,87 @@ namespace Internal
     {
         if (textureId == "Texture_Effect_DefaultTexture")
         {
-            outGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
+            outGuid.clear();
             outPath = "Effects/Textures/Shared/DefaultTexture.dds";
             return true;
         }
 
         if (textureId == "Texture_Effect_Clouds4")
         {
-            outGuid = "321bf66c-e6f9-4495-9855-275274727e83";
+            outGuid.clear();
             outPath = "Effects/Textures/Shared/clouds4_T.dds";
             return true;
         }
 
         return false;
+    }
+
+    wstring Resolve_TexturePathByGuid(const string& textureGuid)
+    {
+        if (GAME == nullptr || textureGuid.empty())
+            return {};
+
+        const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
+        if (assetMeta == nullptr || assetMeta->type != "Texture")
+            return {};
+
+        const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+        return !resolvedPath.empty() && fs::exists(resolvedPath) ? resolvedPath : wstring{};
+    }
+
+    wstring Resolve_TexturePathByPath(const string& texturePath)
+    {
+        if (texturePath.empty())
+            return {};
+
+        fs::path candidatePath = String::ToWString(texturePath);
+        if (candidatePath.is_relative() && GAME != nullptr)
+            candidatePath = fs::path(GAME->Get_AssetRoot()) / candidatePath;
+
+        candidatePath = candidatePath.lexically_normal();
+        return fs::exists(candidatePath) ? candidatePath.wstring() : wstring{};
+    }
+
+    string Make_TextureGuidForSave(const string& textureGuid, const string& texturePath)
+    {
+        if (!textureGuid.empty())
+            return textureGuid;
+
+        if (GAME == nullptr)
+            return {};
+
+        const wstring resolvedPath = Resolve_TexturePathByPath(texturePath);
+        return resolvedPath.empty() ? string{} : GAME->Ensure_AssetGUID(resolvedPath, "Texture");
+    }
+
+    void Fill_TextureGuidFromPath(string& textureGuid, const string& texturePath)
+    {
+        if (!textureGuid.empty() || GAME == nullptr)
+            return;
+
+        const wstring resolvedPath = Resolve_TexturePathByPath(texturePath);
+        if (resolvedPath.empty())
+            return;
+
+        textureGuid = GAME->Ensure_AssetGUID(resolvedPath, "Texture");
+    }
+
+    void Fill_TexturePathHintFromGuid(const string& textureGuid, string& texturePath)
+    {
+        if (!texturePath.empty())
+            return;
+
+        const wstring resolvedPath = Resolve_TexturePathByGuid(textureGuid);
+        if (resolvedPath.empty() || GAME == nullptr)
+            return;
+
+        const fs::path assetRoot = fs::path(GAME->Get_AssetRoot()).lexically_normal();
+        const fs::path relativePath = fs::path(resolvedPath).lexically_normal().lexically_relative(assetRoot);
+        if (relativePath.empty() || relativePath.native().starts_with(L".."))
+            return;
+
+        texturePath = String::ToString(relativePath.wstring());
+        ranges::replace(texturePath, '\\', '/');
     }
 
     //## Primitive Value Codec
@@ -227,14 +296,27 @@ namespace Internal
     {
         json root = json::object();
         root["sourcePresetName"] = data.sourcePresetName;
+        root["mainTextureGuid"] = Make_TextureGuidForSave(data.mainTextureGuid, data.mainTexturePath);
         root["mainTexturePath"] = data.mainTexturePath;
+        root["noiseTextureGuid"] = Make_TextureGuidForSave(data.noiseTextureGuid, data.noiseTexturePath);
         root["noiseTexturePath"] = data.noiseTexturePath;
+        root["maskTextureGuid"] = Make_TextureGuidForSave(data.maskTextureGuid, data.maskTexturePath);
+        root["maskTexturePath"] = data.maskTexturePath;
         root["tint"] = To_Json(data.tint);
         root["intensity"] = data.intensity;
         root["opacityPower"] = data.opacityPower;
         root["noiseStrength"] = data.noiseStrength;
+        root["alphaCutoff"] = data.alphaCutoff;
+        root["alphaErosion"] = data.alphaErosion;
+        root["mainUvScale"] = To_Json(data.mainUvScale);
+        root["mainUvScrollSpeed"] = To_Json(data.mainUvScrollSpeed);
+        root["noiseUvScale"] = To_Json(data.noiseUvScale);
+        root["noiseUvScrollSpeed"] = To_Json(data.noiseUvScrollSpeed);
+        root["maskUvScale"] = To_Json(data.maskUvScale);
+        root["maskUvScrollSpeed"] = To_Json(data.maskUvScrollSpeed);
         root["blendMode"] = data.blendMode;
         root["opacitySource"] = data.opacitySource;
+        root["twoSided"] = data.twoSided;
         root["subUVRows"] = data.subUVRows;
         root["subUVCols"] = data.subUVCols;
         return root;
@@ -250,6 +332,8 @@ namespace Internal
         Read_StringField(root, "mainTexturePath", outData.mainTexturePath);
         Read_StringField(root, "noiseTextureGuid", outData.noiseTextureGuid);
         Read_StringField(root, "noiseTexturePath", outData.noiseTexturePath);
+        Read_StringField(root, "maskTextureGuid", outData.maskTextureGuid);
+        Read_StringField(root, "maskTexturePath", outData.maskTexturePath);
         if (outData.mainTextureGuid.empty() && outData.mainTexturePath.empty())
         {
             string legacyMainTextureId{};
@@ -262,17 +346,45 @@ namespace Internal
             Read_StringField(root, "noiseTextureId", legacyNoiseTextureId);
             Try_MigrateLegacyTextureId(legacyNoiseTextureId, outData.noiseTextureGuid, outData.noiseTexturePath);
         }
+        Fill_TextureGuidFromPath(outData.mainTextureGuid, outData.mainTexturePath);
+        Fill_TextureGuidFromPath(outData.noiseTextureGuid, outData.noiseTexturePath);
+        Fill_TextureGuidFromPath(outData.maskTextureGuid, outData.maskTexturePath);
+        Fill_TexturePathHintFromGuid(outData.mainTextureGuid, outData.mainTexturePath);
+        Fill_TexturePathHintFromGuid(outData.noiseTextureGuid, outData.noiseTexturePath);
+        Fill_TexturePathHintFromGuid(outData.maskTextureGuid, outData.maskTexturePath);
         Read_NumberField(root, "intensity", outData.intensity);
         Read_NumberField(root, "opacityPower", outData.opacityPower);
         Read_NumberField(root, "noiseStrength", outData.noiseStrength);
+        Read_NumberField(root, "alphaCutoff", outData.alphaCutoff);
+        Read_NumberField(root, "alphaErosion", outData.alphaErosion);
         Read_StringField(root, "blendMode", outData.blendMode);
         Read_StringField(root, "opacitySource", outData.opacitySource);
+        Read_BoolField(root, "twoSided", outData.twoSided);
         Read_NumberField(root, "subUVRows", outData.subUVRows);
         Read_NumberField(root, "subUVCols", outData.subUVCols);
 
         const auto tintIter = root.find("tint");
         if (tintIter != root.end())
             Read_Color(*tintIter, outData.tint);
+
+        const auto mainUvScaleIter = root.find("mainUvScale");
+        if (mainUvScaleIter != root.end())
+            Read_Vec2(*mainUvScaleIter, outData.mainUvScale);
+        const auto mainUvScrollSpeedIter = root.find("mainUvScrollSpeed");
+        if (mainUvScrollSpeedIter != root.end())
+            Read_Vec2(*mainUvScrollSpeedIter, outData.mainUvScrollSpeed);
+        const auto noiseUvScaleIter = root.find("noiseUvScale");
+        if (noiseUvScaleIter != root.end())
+            Read_Vec2(*noiseUvScaleIter, outData.noiseUvScale);
+        const auto noiseUvScrollSpeedIter = root.find("noiseUvScrollSpeed");
+        if (noiseUvScrollSpeedIter != root.end())
+            Read_Vec2(*noiseUvScrollSpeedIter, outData.noiseUvScrollSpeed);
+        const auto maskUvScaleIter = root.find("maskUvScale");
+        if (maskUvScaleIter != root.end())
+            Read_Vec2(*maskUvScaleIter, outData.maskUvScale);
+        const auto maskUvScrollSpeedIter = root.find("maskUvScrollSpeed");
+        if (maskUvScrollSpeedIter != root.end())
+            Read_Vec2(*maskUvScrollSpeedIter, outData.maskUvScrollSpeed);
     }
 
     json To_Json(const FloatCurveKeyData& data)

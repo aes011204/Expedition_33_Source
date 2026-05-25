@@ -80,6 +80,11 @@ namespace Internal
             NearlyEqual(lhs.w, rhs.w);
     }
 
+    static bool Is_SameVec2(const Vec2& lhs, const Vec2& rhs)
+    {
+        return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
+    }
+
     static const char* Get_SubUVFramePlaybackModeLabel(SubUVFramePlaybackMode mode)
     {
         switch (mode)
@@ -244,12 +249,23 @@ namespace Internal
             lhs.mainTexturePath == rhs.mainTexturePath &&
             lhs.noiseTextureGuid == rhs.noiseTextureGuid &&
             lhs.noiseTexturePath == rhs.noiseTexturePath &&
+            lhs.maskTextureGuid == rhs.maskTextureGuid &&
+            lhs.maskTexturePath == rhs.maskTexturePath &&
             Is_SameColor(lhs.tint, rhs.tint) &&
             NearlyEqual(lhs.intensity, rhs.intensity) &&
             NearlyEqual(lhs.opacityPower, rhs.opacityPower) &&
             NearlyEqual(lhs.noiseStrength, rhs.noiseStrength) &&
+            NearlyEqual(lhs.alphaCutoff, rhs.alphaCutoff) &&
+            NearlyEqual(lhs.alphaErosion, rhs.alphaErosion) &&
+            Is_SameVec2(lhs.mainUvScale, rhs.mainUvScale) &&
+            Is_SameVec2(lhs.mainUvScrollSpeed, rhs.mainUvScrollSpeed) &&
+            Is_SameVec2(lhs.noiseUvScale, rhs.noiseUvScale) &&
+            Is_SameVec2(lhs.noiseUvScrollSpeed, rhs.noiseUvScrollSpeed) &&
+            Is_SameVec2(lhs.maskUvScale, rhs.maskUvScale) &&
+            Is_SameVec2(lhs.maskUvScrollSpeed, rhs.maskUvScrollSpeed) &&
             lhs.blendMode == rhs.blendMode &&
             lhs.opacitySource == rhs.opacitySource &&
+            lhs.twoSided == rhs.twoSided &&
             lhs.subUVRows == rhs.subUVRows &&
             lhs.subUVCols == rhs.subUVCols;
     }

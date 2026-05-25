@@ -41,6 +41,8 @@ void Head_Player::Priority_Update(float fTimeDelta)
 
 void Head_Player::Update(float timeDelta)
 {
+    PlayableParts::Update(timeDelta); // TEMP_ERASE : dissolve 업뎃 중 
+
     Debug_Profile::Scope updateScope("Player::Head::Update");
 
     if (Has_LeaderPoseComponent())
@@ -68,6 +70,9 @@ HRESULT Head_Player::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
+    if (FAILED(_shaderCom->Reset_DrawFeatures()))
+        return E_FAIL;
+
     CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
 
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
@@ -85,6 +90,10 @@ HRESULT Head_Player::Render()
             return E_FAIL;
 
         CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
+
+        const uint32 supportFeatureMask = Resolve_DrawFeatureSupportMask();
+        if (FAILED(Bind_SwitchDissolveFeature(_shaderCom, supportFeatureMask)))
+            return E_FAIL;
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shaderCom->Begin(passIndex)))

@@ -133,14 +133,32 @@ void EffectEditorInstance::Update_Editor(float timeDelta)
         _notificationManager->Update(timeDelta);
 }
 
-void EffectEditorInstance::Render_Editor()
+void EffectEditorInstance::Render_Editor(EffectEditorRenderPerfSample* outPerfSample)
 {
+    chrono::steady_clock::time_point begin{};
+    if (outPerfSample != nullptr)
+        begin = chrono::steady_clock::now();
+
     _editorManager->Render();
+    if (outPerfSample != nullptr)
+        outPerfSample->editorWindowsMs = chrono::duration<double, milli>(chrono::steady_clock::now() - begin).count();
 
     if (_notificationManager)
+    {
+        if (outPerfSample != nullptr)
+            begin = chrono::steady_clock::now();
+
         _notificationManager->Render();
 
+        if (outPerfSample != nullptr)
+            outPerfSample->notificationMs = chrono::duration<double, milli>(chrono::steady_clock::now() - begin).count();
+    }
+
+    if (outPerfSample != nullptr)
+        begin = chrono::steady_clock::now();
     _imguiManager->Render();
+    if (outPerfSample != nullptr)
+        outPerfSample->imguiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - begin).count();
 }
 
 Shared<Editor_Window> EffectEditorInstance::Get_Window(const wstring& windowName) const
@@ -589,8 +607,6 @@ Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(ui
 
 void EffectEditorInstance::Capture_BackBuffer_ToViewport()
 {
-    Render_SceneGridToBackBuffer();
-
     const uint32 viewportWidth = min(
         max(1u, GAME->Get_ViewportWidth()),
         max(1u, GAME->Get_BackBufferWidth())
@@ -726,7 +742,7 @@ void EffectEditorInstance::Ensure_SceneGridResources()
 
     D3D11_DEPTH_STENCIL_DESC depthDesc{};
     depthDesc.DepthEnable = TRUE;
-    depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
     depthDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
     depthDesc.StencilEnable = FALSE;
 
@@ -739,21 +755,10 @@ void EffectEditorInstance::Ensure_SceneGridResources()
     }
 }
 
-void EffectEditorInstance::Render_SceneGridToBackBuffer()
+void EffectEditorInstance::Render_SceneGrid()
 {
     if (!_device || !_context)
         return;
-
-    GAME->Bind_BackBuffer();
-
-    D3D11_VIEWPORT viewportDesc{};
-    viewportDesc.TopLeftX = 0.f;
-    viewportDesc.TopLeftY = 0.f;
-    viewportDesc.Width = static_cast<float>(max(1u, GAME->Get_ViewportWidth()));
-    viewportDesc.Height = static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
-    viewportDesc.MinDepth = 0.f;
-    viewportDesc.MaxDepth = 1.f;
-    _context->RSSetViewports(1, &viewportDesc);
 
     const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
     const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
