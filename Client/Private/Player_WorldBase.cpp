@@ -41,8 +41,6 @@ HRESULT Player_WorldBase::Initialize(void* arg)
     CHECK_FAILED(Ready_Components(), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
-
-
     return S_OK;
 }
 
@@ -121,6 +119,20 @@ Vec3 Player_WorldBase::Get_MovementVelocity() const
         return Vec3::Zero;
 
     return _movementCom->Get_Velocity();
+}
+
+void Player_WorldBase::Start_SwitchDissolve(float durationSec, const string& noiseName)
+{
+    // TEMP_ERASE: DISSOLVE 예시 함수
+    // 이후 Effect Component이 생기면 그쪽으로 옮기게 될듯
+    for (const auto& [_, part] : Get_PartObjects())
+    {
+        const Shared<PlayableParts> playablePart = dynamic_pointer_cast<PlayableParts>(part);
+        if (!playablePart)
+            continue;
+
+        playablePart->Start_SwitchDissolve(durationSec, noiseName);
+    }
 }
 
 HRESULT Player_WorldBase::Ready_Components()

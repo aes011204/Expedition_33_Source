@@ -2,6 +2,7 @@
 #define ENGINE_SHADER_DEFINES_HLSLI
 
 #define EPSILON 0.0001f
+#define EPSILON_3 0.001f
 
 // C++ enum 순서
 // BaseColor    = 0
@@ -37,6 +38,26 @@
 #define MATERIAL_FLAG_HAIR_ID        (1u << MATERIAL_SLOT_HAIR_ID)
 #define MATERIAL_FLAG_IRIS_HEIGHT    (1u << MATERIAL_SLOT_IRIS_HEIGHT)
 #define MATERIAL_FLAG_IRIS_MASK      (1u << MATERIAL_SLOT_IRIS_MASK)
+
+#define MATERIAL_CHANNEL_CONST0      0u
+#define MATERIAL_CHANNEL_CONST1      1u
+#define MATERIAL_CHANNEL_R           2u
+#define MATERIAL_CHANNEL_G           3u
+#define MATERIAL_CHANNEL_B           4u
+#define MATERIAL_CHANNEL_A           5u
+#define MATERIAL_CHANNEL_MAX_RGB     6u
+#define MATERIAL_CHANNEL_LUMA        7u
+
+// Feature Texture Slot
+#define FEATURE_TEX_DISSOLVE_NOISE   0
+#define FEATURE_TEX_DISSOLVE_MASK    1
+#define FEATURE_TEX_DISTORTION_FLOW  2
+#define FEATURE_TEX_DISTORTION_NOISE 3
+#define FEATURE_TEX_END              4
+
+// Draw Feature Flags
+#define FEATURE_FLAG_DISSOLVE        (1u << 0)
+#define FEATURE_FLAG_DISTORTION      (1u << 1)
 
 // PostProcess Feature Flags
 // PostProcess Feature Flags

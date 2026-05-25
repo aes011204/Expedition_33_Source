@@ -78,6 +78,31 @@ namespace
         return fullPath;
     }
 
+    constexpr const char* kMaterialChannelSourceLabels[] =
+    {
+        "Const0",
+        "Const1",
+        "R",
+        "G",
+        "B",
+        "A",
+        "MaxRGB",
+        "Luma",
+    };
+    constexpr int kMaterialChannelSourceLabelCount =
+        static_cast<int>(sizeof(kMaterialChannelSourceLabels) / sizeof(kMaterialChannelSourceLabels[0]));
+
+    int ClampMaterialChannelSourceIndex(uint32 value)
+    {
+        const int maxIndex = kMaterialChannelSourceLabelCount - 1;
+        return std::clamp(static_cast<int>(value), 0, maxIndex);
+    }
+
+    const char* GetMaterialChannelSourceLabel(uint32 value)
+    {
+        return kMaterialChannelSourceLabels[ClampMaterialChannelSourceIndex(value)];
+    }
+
     bool Is_TextureExtension(const fs::path& path)
     {
         const string ext = String::ToString(path.extension().wstring());
@@ -1412,6 +1437,74 @@ void Material_View::Draw_MappingsEditorUI(int selectedMaterialIndexFilter, const
         {
             string preview{};
             const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + string(GetMaterialChannelSourceLabel(baseCb.ormAoSource)); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override ORM AO Source", inst->cbMask.ormAoSource, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.ormAoSource && hasBaseCb) inst->cb.ormAoSource = baseCb.ormAoSource;
+            ImGui::BeginDisabled(!inst->cbMask.ormAoSource);
+            int source = ClampMaterialChannelSourceIndex(inst->cb.ormAoSource);
+            if (ImGui::Combo("ORM AO Source", &source, kMaterialChannelSourceLabels, kMaterialChannelSourceLabelCount))
+            {
+                inst->cb.ormAoSource = static_cast<uint32>(source);
+                anyChanged = true;
+            }
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + string(GetMaterialChannelSourceLabel(baseCb.ormRoughnessSource)); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override ORM Roughness Source", inst->cbMask.ormRoughnessSource, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.ormRoughnessSource && hasBaseCb) inst->cb.ormRoughnessSource = baseCb.ormRoughnessSource;
+            ImGui::BeginDisabled(!inst->cbMask.ormRoughnessSource);
+            int source = ClampMaterialChannelSourceIndex(inst->cb.ormRoughnessSource);
+            if (ImGui::Combo("ORM Roughness Source", &source, kMaterialChannelSourceLabels, kMaterialChannelSourceLabelCount))
+            {
+                inst->cb.ormRoughnessSource = static_cast<uint32>(source);
+                anyChanged = true;
+            }
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + string(GetMaterialChannelSourceLabel(baseCb.ormMetalnessSource)); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override ORM Metalness Source", inst->cbMask.ormMetalnessSource, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.ormMetalnessSource && hasBaseCb) inst->cb.ormMetalnessSource = baseCb.ormMetalnessSource;
+            ImGui::BeginDisabled(!inst->cbMask.ormMetalnessSource);
+            int source = ClampMaterialChannelSourceIndex(inst->cb.ormMetalnessSource);
+            if (ImGui::Combo("ORM Metalness Source", &source, kMaterialChannelSourceLabels, kMaterialChannelSourceLabelCount))
+            {
+                inst->cb.ormMetalnessSource = static_cast<uint32>(source);
+                anyChanged = true;
+            }
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
+            if (hasBaseCb) { preview = "Base: " + string(GetMaterialChannelSourceLabel(baseCb.opacityMaskSource)); basePreview = preview.c_str(); }
+            const bool toggled = drawOverrideCheckbox("Override Opacity Mask Source", inst->cbMask.opacityMaskSource, basePreview);
+            anyChanged = anyChanged || toggled;
+            if (toggled && inst->cbMask.opacityMaskSource && hasBaseCb) inst->cb.opacityMaskSource = baseCb.opacityMaskSource;
+            ImGui::BeginDisabled(!inst->cbMask.opacityMaskSource);
+            int source = ClampMaterialChannelSourceIndex(inst->cb.opacityMaskSource);
+            if (ImGui::Combo("Opacity Mask Source", &source, kMaterialChannelSourceLabels, kMaterialChannelSourceLabelCount))
+            {
+                inst->cb.opacityMaskSource = static_cast<uint32>(source);
+                anyChanged = true;
+            }
+            ImGui::EndDisabled();
+        }
+
+        {
+            string preview{};
+            const char* basePreview = nullptr;
             if (hasBaseCb)
             {
                 preview = "Base: " + to_string(baseCb.uvScale.x) + ", " + to_string(baseCb.uvScale.y);
@@ -1823,6 +1916,10 @@ void Material_View::Apply_ToSelectedModel(int onlyMaterialIndex)
                 ov.cbMask.aoScale = inst.cbMask.aoScale;
                 ov.cbMask.roughnessScale = inst.cbMask.roughnessScale;
                 ov.cbMask.metalnessScale = inst.cbMask.metalnessScale;
+                ov.cbMask.ormAoSource = inst.cbMask.ormAoSource;
+                ov.cbMask.ormRoughnessSource = inst.cbMask.ormRoughnessSource;
+                ov.cbMask.ormMetalnessSource = inst.cbMask.ormMetalnessSource;
+                ov.cbMask.opacityMaskSource = inst.cbMask.opacityMaskSource;
                 ov.cbMask.uvScale = inst.cbMask.uvScale;
                 ov.cbMask.uvOffset = inst.cbMask.uvOffset;
                 ov.cbMask.uvRotation = inst.cbMask.uvRotation;
@@ -2255,6 +2352,10 @@ bool Material_View::Load_BundleFile(const wstring& bundlePath)
                 inst.cb.roughnessScale = jcb.value("roughnessScale", inst.cb.roughnessScale);
                 inst.cb.metalnessScale = jcb.value("metalnessScale", inst.cb.metalnessScale);
                 inst.cb.aoScale = jcb.value("aoScale", inst.cb.aoScale);
+                inst.cb.ormAoSource = jcb.value("ormAoSource", inst.cb.ormAoSource);
+                inst.cb.ormRoughnessSource = jcb.value("ormRoughnessSource", inst.cb.ormRoughnessSource);
+                inst.cb.ormMetalnessSource = jcb.value("ormMetalnessSource", inst.cb.ormMetalnessSource);
+                inst.cb.opacityMaskSource = jcb.value("opacityMaskSource", inst.cb.opacityMaskSource);
 
                 if (jcb.contains("uvScale") && jcb["uvScale"].is_array() && jcb["uvScale"].size() >= 2)
                     inst.cb.uvScale = Engine::Vec2(jcb["uvScale"][0], jcb["uvScale"][1]);
@@ -2739,6 +2840,10 @@ bool Material_View::Save_BundleFile(const wstring& outputPath) const
             jcb["roughnessScale"] = inst.cb.roughnessScale;
             jcb["metalnessScale"] = inst.cb.metalnessScale;
             jcb["aoScale"] = inst.cb.aoScale;
+            jcb["ormAoSource"] = inst.cb.ormAoSource;
+            jcb["ormRoughnessSource"] = inst.cb.ormRoughnessSource;
+            jcb["ormMetalnessSource"] = inst.cb.ormMetalnessSource;
+            jcb["opacityMaskSource"] = inst.cb.opacityMaskSource;
             jcb["uvScale"] = { inst.cb.uvScale.x, inst.cb.uvScale.y };
             jcb["uvOffset"] = { inst.cb.uvOffset.x, inst.cb.uvOffset.y };
             ji["cb"] = move(jcb);

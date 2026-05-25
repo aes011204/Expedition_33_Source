@@ -9,33 +9,69 @@ struct alignas(16) MaterialCB
 {
     static constexpr ConstantBuffer CBType = ConstantBuffer::Material;
 
-    Vec4 baseColorTint{ 1.f, 1.f, 1.f, 1.f };
-    Vec4 emissiveColor{ 1.f, 1.f, 1.f, 1.f };
+    Vec4 baseColorTint{ 1.f, 1.f, 1.f, 1.f }; // BaseColor 최종 색에 곱하는 tint다. 전체 색감을 바꾸고 싶을 때 만지고, 원본 색을 유지하려면 1,1,1,1로 둔다.
+    Vec4 emissiveColor{ 1.f, 1.f, 1.f, 1.f }; // Emissive 텍스처에 입힐 색이다. 발광 색조를 바꾸고 싶을 때만 조정하고, 텍스처 원색을 살리려면 흰색에 가깝게 둔다.
 
-    // MI json의 Scalars.Value_Glow 계열
+    // emissiveColor가 곱해진 발광 세기다. 텍스처 원색만 쓰고 싶으면 0으로 두고, 색 입힌 발광을 키우고 싶으면 올린다.
     float emissiveIntensity{ 0.f };
 
-    // MI json의 Scalars.Glow_Mask_Mult 계열
+    // Emissive 텍스처 원색이 얼마나 직접 더해질지 정한다. 현재 셰이더에서는 0이면 원본 발광이 꺼지고, 1이면 텍스처 기여를 그대로 쓴다.
     float emissiveMaskMul{ 1.f };
 
-    // MI json의 Normal/Bump Multiplier 또는 NormalIntensity 계열
+    // 노멀맵 굴곡을 얼마나 강하게 보일지 정한다. 1이 기본이고, 0에 가까울수록 평평해지며 너무 크면 표면이 과장돼 보일 수 있다.
     float normalStrength{ 1.f };
 
-    // 셰이더에서 clip 기준으로 사용
+    // Masked 머테리얼에서 어느 값부터 보일지 정하는 컷오프다. 값을 올리면 더 많이 잘리고, 내리면 더 많이 남는다.
     float opacityMaskClipValue{ 0.3333f };
 
-    // ORM 보정값
-    float aoScale{ 1.f };           // ORM.r = AO
-    float roughnessScale{ 1.f };    // ORM.g = Roughness
-    float metalnessScale{ 1.f };    // ORM.b = Metalness
+    // ORM 보정값.
+    float aoScale{ 1.f };           // ORM에서 읽은 AO에 곱하는 배율이다. 낮추면 틈 그림자가 약해지고, 높이면 음영이 더 눌린다.
+    float roughnessScale{ 1.f };    // ORM에서 읽은 roughness에 곱한다. 높일수록 더 거칠고 덜 반짝여 보이고, 낮출수록 더 매끈해 보인다.
+    float metalnessScale{ 1.f };    // ORM에서 읽은 metalness에 곱한다. 높일수록 금속 느낌이 강해지고, 0에 가까우면 비금속 쪽으로 간다.
     float _pad0{ 0.f };
 
-    Vec2 uvScale{ 1.f, 1.f };
-    Vec2 uvOffset{ 0.f, 0.f };
-    float uvRotation{ 0.f };
+    Vec2 uvScale{ 1.f, 1.f }; // 텍스처 UV 타일링 배율이다. 2면 두 배 촘촘해지고, 0.5면 두 배 크게 늘어나 보인다.
+    Vec2 uvOffset{ 0.f, 0.f }; // 텍스처 UV 시작 위치를 민다. 흐르는 패턴이나 무늬 위치 미세조정에 쓰고, 0이면 원래 위치다.
+    float uvRotation{ 0.f }; // UV를 회전시키는 각도다. 기본 0으로 두고, 방향성이 있는 패턴을 돌리고 싶을 때만 조정한다.
 
-    uint32 materialMask{ 0 };
-    float _pad1[2]{};
+    uint32 materialMask{ 0 }; // 머테리얼 기능/슬롯 상태를 셰이더에 알리는 비트마스크다. 사용자가 직접 튜닝하는 값이라기보다 시스템 플래그에 가깝다.
+    uint32 ormAoSource{ MaterialChannel_R }; // ORM 텍스처의 어느 채널을 AO로 읽을지 정한다. 보통 R이고, packed 텍스처 구성이 다를 때만 바꾼다.
+    uint32 ormRoughnessSource{ MaterialChannel_G }; // ORM 텍스처의 어느 채널을 roughness로 읽을지 정한다. 보통 G를 쓰고, 채널 packing이 다를 때만 변경한다.
+    uint32 ormMetalnessSource{ MaterialChannel_B }; // ORM 텍스처의 어느 채널을 metalness로 읽을지 정한다. 보통 B를 쓰고, packed 소스가 다를 때만 변경한다.
+    uint32 opacityMaskSource{ MaterialChannel_R }; // 마스크 텍스처의 어느 채널을 clip 기준값으로 볼지 정한다. 흑백 마스크가 다른 채널에 들어 있을 때만 바꾼다.
+    uint32 _pad1[2]{};
+};
+
+/* ------------------------------------------ */
+/*              Hair CBuffer                  */
+/* ------------------------------------------ */
+struct alignas(16) HairCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::Hair;
+
+    Vec4 g_HairColorTop{ 0.048f, 0.053f, 0.053f, 1.f };
+    Vec4 g_HairColorDown { 0.965f, 0.937f, 0.929f, 1.f};
+    Vec4 hairHighlightColor{ 0x6C / 255.f, 0x70 / 255.f, 0x75 / 255.f, 0.f };
+
+    float opacityMaskClipValue{ 0.3333f };
+    float roughness{ 0.55f };
+    float specular{ 0.1f };
+    float scatter{ 0.1f };
+
+    float brightness{ 1.0f };
+    float rim{ 1.0f };
+    float randomHueVariation{ 0.1338f };
+    float randomValueVariation{ 1.0f };
+
+    float bumpStrength{ 0.3f };
+    float bumpDistance{ 0.001f };
+    float gradientColor{ 0.226f };
+    float gradientContrast{ 0.35f };
+
+    float gradientHardness{ 2.0f };
+    float gradientHeight{ 0.25f };
+    float edgeContrast{ -0.35f };
+    float edgeMin{ 6.0f };
 };
 
 /* ------------------------------------------ */
@@ -83,14 +119,14 @@ struct alignas(16) ShadowCB
     float   bias = 0.f;
     float   intensity = 0.f;
     float   staticShadowEnabled = 0.f;
-};
+}; 
 
 /* ------------------------------------------ */
-/*             Deferred CBuffer               */
+/*             ScreenSpaceCB CBuffer          */
 /* ------------------------------------------ */
-struct alignas(16) DeferredCB
+struct alignas(16) ScreenSpaceCB
 {
-    static constexpr ConstantBuffer CBType = ConstantBuffer::Deferred;
+    static constexpr ConstantBuffer CBType = ConstantBuffer::ScreenSpace;
 
     Matrix  screenViewMatrix;
     Matrix  screenProjMatrix;
@@ -102,7 +138,8 @@ struct alignas(16) DeferredCB
 
     float   farPlane = 0.f;
     Vec2    texelSize = { 1.f/1600.f, 1.f/900.f };
-    float   _pad0;
+    Vec2    screenSize = { 1600.f, 900.f };
+    float   pad[3];
 };
 
 /* ------------------------------------------ */
@@ -141,12 +178,11 @@ struct alignas(16) PostProcessCB
     float bloomClamp = 10.f;                // Bloom 추출 시 너무 강하지 않게 제한 값
 
     float bloomScatter = 0.7f;              // Bloom 이 얼마나 퍼져 보일지 조정하는 값
-    uint32 toneMapMode = 0;                 // Reinhard, ACES, Uncharted2
-    Vec2 bloomTexelSize{ 0.f, 0.f };        // Bloom 텍스처의 한 픽셀 크기
+    uint32 toneMapMode = 2;                 // 0: Reinhard, 1: ACES, 2: Uncharted2
         
     uint32 featureMask = 0;                 // 적용할 Feature
     uint32 useBackgroundFallback = 0;       // 0이면 비활성, 1이면 빈 픽셀 fallback 색 적용
-    float _pad2[2]{};
+    float _pad2[4]{};
     Vec4 backgroundFallbackColor{ 0.f, 0.f, 0.f, 1.f }; // fallback 배경색
 };
 
@@ -155,40 +191,55 @@ struct alignas(16) PostProcessCB
 /* ------------------------------------------ */
 struct alignas(16) SSAOCB
 {
-    // SSAO 계산 품질/강도
-    float g_SSAORadius = 0.5f;                      // 주변을 얼마나 멀리 샘플링할지.
-    float g_SSAOBias = 0.025f;                      // 자기 자신과 거의 같은 깊이는 ao 로 안 넘김.
-    float g_SSAOIntensity = 1.0f;                   // AO 강도. 클수록 더 어두워짐.
-    float g_SSAOPower = 1.2f;                       // AO 대비 조절. 클수록 어두운 부분이 더 강조됨.
+    static constexpr ConstantBuffer CBType = ConstantBuffer::SSAO;
 
-    // Blur / Bilateral Blur
-    float g_SSAOBlurRadius = 1.0f;                  // Blur 단계에서 주변 몇 픽셀까지 흐릴지.
-    float g_SSAODepthSharpness = 100.0f;            // 깊이 차이가 클 때 AO 영향을 얼마나 빨리 줄일지.
-    float g_SSAONormalSharpness = 8.0f;             // Normal 기반 Bilateral Blur에서 노멀 차이를 얼마나 민감하게 볼지.
-    uint32 g_SSAOSampleCount = 16;                  // 샘플 개수, 최대 16개.
+    // Raw SSAO 핵심 파라미터.
+    // 현재 구현은 view-space 반구 샘플링이므로 Radius는 "화면 픽셀 반경"이 아니라
+    // 현재 픽셀 주변을 3D 공간에서 얼마나 멀리 볼지 정하는 반경으로 해석된다.
+    float SSAORadius = 0.2f;                      // view-space 샘플 반경. 값이 커질수록 넓은 홈/바닥까지 AO가 쉽게 들어간다.
+    float SSAOBias = 0.1f;                      // 자기 표면을 가려진 것으로 잘못 세지 않도록 밀어주는 깊이 여유값.
+    float SSAOIntensity = 0.7f;                   // Combined 단계에서 AO 결과를 얼마나 강하게 섞을지.
+    float SSAOPower = 1.2f;                       // Combined 단계에서 AO 대비를 얼마나 더 눌러줄지.
 
-    // 기능 On/Off
-    uint32 g_SSAOEnabled = 1;                       // SSAO On.Off
-    uint32 g_SSAOHalfResEnabled = 0;                // SSAO를 절반 해상도로 계산할지.
-    uint32 g_SSAOBilateralEnabled = 0;              // Bilateral Blur를 쓸지.
-    uint32 g_SSAOTemporalEnabled = 0;               // Temporal SSAO를 쓸지.
+    float SSAODepthRange = 1.0f;                  // sample depth와 center depth 차이가 클 때 AO 기여를 얼마나 빨리 감쇠할지.
+    float SSAOBlurRadius = 4.0f;                  // Bilateral Blur 반경. 0에 가까울수록 raw SSAO 형태를 더 많이 유지한다.
+    float SSAODepthSharpness = 100.0f;            // Blur에서 깊이 경계를 얼마나 강하게 보존할지.
+    float SSAONormalSharpness = 8.0f;             // Blur에서 노멀 경계를 얼마나 강하게 보존할지.
 
-    // Half-res / Upsampling / Temporal Denoising
-    float g_SSAOUpsampleDepthThreshold = 0.01f;     // Half-res SSAO를 원본 해상도로 키울 때 깊이 차이 허용값.
-    float g_SSAOTemporalBlendFactor = 0.9f;         // 이전 프레임 AO와 현재 프레임 AO를 얼마나 섞을지.
-    float g_SSAOTemporalDepthReject = 0.02f;        // Temporal에서 깊이 차이가 크면 이전 프레임을 버리는 기준.
-    float g_SSAOTemporalNormalReject = 0.9f;        // Temporal에서 노멀 차이가 크면 이전 프레임을 버리는 기준.
+    uint32 SSAOSampleCount = 16;                  // raw SSAO 샘플 개수. 현재 셰이더 커널 최대치는 16개다.
+    uint32 SSAOEnabled = 1;                       // SSAO 패스를 실행할지.
+    uint32 SSAOBilateralEnabled = 1;              // raw SSAO 뒤에 bilateral blur 패스를 추가로 돌릴지.
+    uint32 SSAOPad0 = 0;                          // 16-byte 정렬 유지용 패딩.
+};
+
+/* ------------------------------------------ */
+/*            DrawFeature CBuffer             */
+/* ------------------------------------------ */
+struct alignas(16) DrawFeatureCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::DrawFeature;
+
+    uint32 activeFeatureMask = 0;       // 이번 Draw에서 켜고 싶은 기능
+    uint32 supportFeatureMask = 0;      // 지원가능한 기능
+    uint32 textureSlotMask = 0;         // 실제로 바인딩된 슬롯
+    uint32 _pad0 = 0;
+
+    // 여러 효과에서 알아서 쓰일 parameters. 기능별 .cpp과 .hlsl 간 규약 필요
+    Vec4 param0{ 0.f, 0.f, 0.f, 0.f };  
+    Vec4 param1{ 0.f, 0.f, 0.f, 0.f };
 };
 
 // 패딩이 제대로 됐나 마지막 확인용
 static_assert(sizeof(MaterialCB) % 16 == 0);
+static_assert(sizeof(HairCB) % 16 == 0);
 static_assert(sizeof(CameraCB) % 16 == 0);
 static_assert(sizeof(ObjectCB) % 16 == 0);
 static_assert(sizeof(ShadowCB) % 16 == 0);
-static_assert(sizeof(DeferredCB) % 16 == 0);
+static_assert(sizeof(ScreenSpaceCB) % 16 == 0);
 static_assert(sizeof(LightCB) % 16 == 0);
 static_assert(sizeof(PostProcessCB) % 16 == 0);
 static_assert(sizeof(SSAOCB) % 16 == 0);
+static_assert(sizeof(DrawFeatureCB) % 16 == 0);
 
 NS_END
 

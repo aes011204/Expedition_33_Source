@@ -186,14 +186,16 @@ bool AnimState_Parser::Load_StateAnimations(
 	const vector<Shared<Animation>>& originalAnimations,
 	OUT vector<uint32>& outStateAnimIndices,
 	OUT wstring* outFoundEnumType,
-	const string& targetPrefabGuid)
+	const string& targetPrefabGuid,
+	const string& targetPrefabName)
 {
 	if (sourceModelPath.empty()) return false;
 
 	fs::path modelDir = fs::path(sourceModelPath).parent_path();
 	if (!fs::exists(modelDir)) return false;
 
-	fs::path bestMatch = "";
+	fs::path firstFallback = "";
+	fs::path guidMatch = "";
 
 	for (const auto& entry : fs::directory_iterator(modelDir))
 	{
@@ -201,8 +203,12 @@ bool AnimState_Parser::Load_StateAnimations(
 		string filename = entry.path().filename().string();
 		if (filename.find(".animmap.json") == string::npos) continue;
 
-		// 1. 타겟 GUID가 주어졌다면 파일 내부를 까서 확인
-		if (!targetPrefabGuid.empty())
+		if (firstFallback.empty())
+		{
+			firstFallback = entry.path();
+		}
+
+		if (!targetPrefabName.empty() || !targetPrefabGuid.empty())
 		{
 			std::ifstream file(entry.path());
 			if (file.is_open())
@@ -211,26 +217,34 @@ bool AnimState_Parser::Load_StateAnimations(
 				try 
 				{ 
 					file >> data; 
-					if (data.value("PrefabGuid", "") == targetPrefabGuid)
+					if (!targetPrefabName.empty() && data.value("PrefabName", "") == targetPrefabName)
 					{
-						bestMatch = entry.path();
-						break; // 정확한 매칭을 찾았으므로 즉시 종료
+						return Load_StateAnimations_FromFile(entry.path().wstring(), originalAnimations, outStateAnimIndices, outFoundEnumType);
+					}
+
+					if (!targetPrefabGuid.empty() && data.value("PrefabGuid", "") == targetPrefabGuid)
+					{
+						guidMatch = entry.path();
 					}
 				} 
 				catch (...) {}
 			}
 		}
-
-		// 2. 일치하는 것을 아직 못 찾았다면 첫 번째 발견된 파일을 저장 (Fallback)
-		if (bestMatch.empty())
-		{
-			bestMatch = entry.path();
-		}
 	}
 
-	if (!bestMatch.empty())
+	if (!guidMatch.empty())
 	{
-		return Load_StateAnimations_FromFile(bestMatch.wstring(), originalAnimations, outStateAnimIndices, outFoundEnumType);
+		return Load_StateAnimations_FromFile(guidMatch.wstring(), originalAnimations, outStateAnimIndices, outFoundEnumType);
+	}
+
+	if (!targetPrefabName.empty() || !targetPrefabGuid.empty())
+	{
+		return false;
+	}
+
+	if (!firstFallback.empty())
+	{
+		return Load_StateAnimations_FromFile(firstFallback.wstring(), originalAnimations, outStateAnimIndices, outFoundEnumType);
 	}
 
 	return false;

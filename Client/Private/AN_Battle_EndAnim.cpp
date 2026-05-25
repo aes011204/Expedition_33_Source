@@ -26,5 +26,6 @@ void AN_Battle_EndAnim::Execute(const AnimNotifyContext& context)
     const auto Battle = CLIENT->Get_BattleController();
     if (Battle->Is_BattleStarted() == false)
         return;
+
     Battle->OnActionEndNotify();
 }

@@ -102,14 +102,15 @@ namespace Internal
 
     wstring Resolve_InstanceTexturePathByGuid(const string& textureGuid)
     {
-        if (GAME != nullptr && !textureGuid.empty())
-        {
-            const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
-            if (!resolvedPath.empty() && fs::exists(resolvedPath))
-                return resolvedPath;
-        }
+        if (GAME == nullptr || textureGuid.empty())
+            return {};
 
-        return {};
+        const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
+        if (assetMeta == nullptr || assetMeta->type != "Texture")
+            return {};
+
+        const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+        return !resolvedPath.empty() && fs::exists(resolvedPath) ? resolvedPath : wstring{};
     }
 
     wstring Resolve_InstanceTexturePathByFallbackPath(const string& texturePath)
@@ -130,11 +131,11 @@ namespace Internal
 
     wstring Resolve_InstanceTexturePath(const string& textureGuid, const string& texturePath)
     {
-        wstring resolvedPath = Resolve_InstanceTexturePathByFallbackPath(texturePath);
+        wstring resolvedPath = Resolve_InstanceTexturePathByGuid(textureGuid);
         if (!resolvedPath.empty())
             return resolvedPath;
 
-        return Resolve_InstanceTexturePathByGuid(textureGuid);
+        return Resolve_InstanceTexturePathByFallbackPath(texturePath);
     }
 
     fs::path Resolve_PreferredTexturePath(const fs::path& filePath, bool& outSwitchedToDds)
@@ -330,17 +331,19 @@ namespace Internal
     string Make_TextureReferenceTooltip(const string& textureGuid, const string& texturePath)
     {
         string state = "Empty";
-        if (!texturePath.empty())
+        if (!textureGuid.empty())
+        {
+            const bool guidResolved = !Resolve_InstanceTexturePathByGuid(textureGuid).empty();
+            if (guidResolved && !texturePath.empty() && Resolve_InstanceTexturePathByFallbackPath(texturePath).empty())
+                state = "GUID reference (path fallback missing)";
+            else
+                state = guidResolved ? "GUID reference" : "GUID missing";
+        }
+        else if (!texturePath.empty())
         {
             state = Resolve_InstanceTexturePathByFallbackPath(texturePath).empty()
-                    ? "Path missing"
-                    : "Path reference";
-        }
-        else if (!textureGuid.empty())
-        {
-            state = Resolve_InstanceTexturePathByGuid(textureGuid).empty()
-                    ? "Legacy GUID resolve failed"
-                    : "Legacy GUID recovery";
+                    ? "Path fallback missing"
+                    : "Path fallback";
         }
 
         return
@@ -352,11 +355,11 @@ namespace Internal
 
     bool Is_WarningTextureReference(const string& textureGuid, const string& texturePath)
     {
+        if (!textureGuid.empty())
+            return Resolve_InstanceTexturePathByGuid(textureGuid).empty();
+
         if (!texturePath.empty())
             return Resolve_InstanceTexturePathByFallbackPath(texturePath).empty();
-
-        if (!textureGuid.empty())
-            return true;
 
         return false;
     }
@@ -701,6 +704,14 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
                 defaultData.noiseTextureGuid,
                 defaultData.noiseTexturePath
             );
+            changed |= Internal::Draw_TextureProperty(
+                _detailPropertyContext,
+                "Mask Texture",
+                material.maskTextureGuid,
+                material.maskTexturePath,
+                defaultData.maskTextureGuid,
+                defaultData.maskTexturePath
+            );
             _detailPropertyContext.End_PropertyTable();
         }
 
@@ -716,6 +727,22 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
             changed |= _detailPropertyContext.Draw_FloatProperty("Intensity", material.intensity, defaultData.intensity);
             changed |= _detailPropertyContext.Draw_FloatProperty("Opacity Power", material.opacityPower, defaultData.opacityPower);
             changed |= _detailPropertyContext.Draw_FloatProperty("Noise Strength", material.noiseStrength, defaultData.noiseStrength);
+            changed |= _detailPropertyContext.Draw_FloatProperty("Alpha Cutoff", material.alphaCutoff, defaultData.alphaCutoff);
+            changed |= _detailPropertyContext.Draw_FloatProperty("Alpha Erosion", material.alphaErosion, defaultData.alphaErosion);
+            _detailPropertyContext.End_PropertyTable();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("UV Motion", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceUVMotion"))
+        {
+            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scale", material.mainUvScale, defaultData.mainUvScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed", material.mainUvScrollSpeed, defaultData.mainUvScrollSpeed);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scale", material.noiseUvScale, defaultData.noiseUvScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed", material.noiseUvScrollSpeed, defaultData.noiseUvScrollSpeed);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scale", material.maskUvScale, defaultData.maskUvScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scroll Speed", material.maskUvScrollSpeed, defaultData.maskUvScrollSpeed);
             _detailPropertyContext.End_PropertyTable();
         }
     }
@@ -743,6 +770,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
                 opacitySourceOptions,
                 sizeof(opacitySourceOptions) / sizeof(opacitySourceOptions[0])
             );
+            changed |= _detailPropertyContext.Draw_BoolProperty("Two Sided", material.twoSided, defaultData.twoSided);
             changed |= _detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
             changed |= _detailPropertyContext.Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
             _detailPropertyContext.End_PropertyTable();

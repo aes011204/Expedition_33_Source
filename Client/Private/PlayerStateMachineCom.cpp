@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "PlayerStateMachineCom.h"
 
+#include "Player_FreeAim.h"
 #include "Player_GameMenu.h"
 #include "Player_WorldBase.h"
 #include "Player_Idle.h"
@@ -46,6 +47,7 @@ void PlayerStateMachineCom::BeginPlay()
     CHECK_FAILED(Add_State(PlayerState::Jump, Player_Jump::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::WorldAction, Player_WorldAction::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
     CHECK_FAILED(Add_State(PlayerState::GameMenu, Player_GameMenu::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
+    CHECK_FAILED(Add_State(PlayerState::FreeAim, Player_FreeAim::Create(static_pointer_cast<Player_WorldBase>(_owner.lock()))));
 
     for (auto& [stateTag, state]: _states)
     {

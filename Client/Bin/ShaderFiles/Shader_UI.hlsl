@@ -99,6 +99,19 @@ PS_OUT PS_MASK(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_BLACK_WHITE_MASK(PS_IN In)
+{
+    PS_OUT Out;
+
+    const float3 lumaWeights = float3(0.299f, 0.587f, 0.114f);
+    const float mask = saturate(dot(g_MaskTexture.Sample(LinearClampSampler, In.vTexcoord).rgb, lumaWeights));
+
+    Out.vColor = g_Texture.Sample(LinearClampSampler, In.vTexcoord) * g_Color;
+    Out.vColor.a *= mask;
+
+    return Out;
+}
+
 PS_OUT PS_CIRCULAR_HOLE(PS_IN In)
 {
     PS_OUT Out;
@@ -162,4 +175,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(CircularHolePass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_CIRCULAR_HOLE) // 2
     PASS_RS_DS_BS_VP(PatternOverlayPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_PATTERN_OVERLAY) // 3
     PASS_RS_DS_BS_VP(FillRatioPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_FILL_RATIO) // 4
+    PASS_RS_DS_BS_VP(BlackWhiteMaskPass, RS_UI, DSS_None, BS_AlphaBlend, VS_MAIN, PS_BLACK_WHITE_MASK) // 5
 }

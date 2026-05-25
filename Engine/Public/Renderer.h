@@ -11,6 +11,7 @@ class ShaderCom;
 class VIBuffer_Rect;
 class GameObject;
 class PostProcessPipeline;
+class SSAOPipeline;
 class LightPipeline;
 
 class Renderer final : public Base
@@ -39,6 +40,18 @@ public:
     {
         return _ppPipeline;
     }
+    const Shared<SSAOPipeline> Get_SSAOPipeline() const
+    {
+        return _ssaoPipeline;
+    }
+    Shared<SSAOPipeline> Get_SSAOPipeline()
+    {
+        return _ssaoPipeline;
+    }
+    RenderGroup Get_CurrentGroup() const
+    {
+        return _currentGroup;
+    }
 
     void    Set_PreviewDeferredCombine(bool enable) { _usePreviewDeferredCombine = enable; }
 
@@ -60,15 +73,19 @@ private:
     void Render_Lights();
     void Render_NonLight();
 	void Render_Blend();
-	void Render_UI();
+    void Render_ScreenFx();
 
     void Render_CombinedHDR();
     void Render_PostProcess();
 
-    HRESULT Ready_RenderTargets();
+    HRESULT Ready_Shaders();
     void Change_ViewportDesc(uint32 width, uint32 height);
 
-    HRESULT Bind_TransformCB(Shared<ShaderCom> shader) const;
+    HRESULT Bind_ScreenSpaceCB(Shared<ShaderCom> shader, uint32 width = 0, uint32 height = 0) const;
+
+private :
+    HRESULT Render_BloomPass(const wchar_t* dstMrt, const wchar_t* srcRt, PostProcessPass pass);
+    HRESULT Render_BloomUpsamplePass(const wchar_t* dstMrt, const wchar_t* smallRt, const wchar_t* baseRt);
 
 private: /* 그림자 */
     void Update_DynamicShadowCamera();  // 카메라가 플레이어 위치 추적
@@ -78,9 +95,10 @@ private: /* 그림자 */
     void Update_StaticShadowCamera(const BoundingBox& bounds);
 
 private:
-	ComPtr<Device>                  _device;
-	ComPtr<Context>                 _context;
+    ComPtr<Device>                  _device;
+    ComPtr<Context>                 _context;
     Shared<PostProcessPipeline>     _ppPipeline;
+    Shared<SSAOPipeline>            _ssaoPipeline;
 
     /* Layer가 소유하는 GameObject를 렌더 프레임 동안만 참조하기 위한 약한 참조 목록. */
 	list<Weak<GameObject>>		_renderGroups[ETOI(RenderGroup::END)];
@@ -91,12 +109,12 @@ private:
     D3D11_VIEWPORT                  _shadowViewport = {};
 
     Shared<ShaderCom>               _postprocessShader;
+    Shared<ShaderCom>               _screenFxShader;
     Shared<ShaderCom>               _deferredShader;
     Shared<VIBuffer_Rect>           _viBuffer;
 
     float                           _shadowScale = 1.f;
     bool                            _shadowEnabled = false;
-    uint32                          _shadowMapSize = 0;
 
     Matrix                          _pipelineWorldMatrix;
     Matrix                          _PipelineViewMatrix;
@@ -111,12 +129,11 @@ private:
     bool                            _staticShadowDirty = true;
     bool                            _staticShadowReady = false;
 
-    uint32                          _shadowMapWidth = 4096;
-    uint32                          _shadowMapHeight = 4096;
+    ViewportSize                    _screenSize{};
+    ViewportSize                    _shadowMapSize = { 4096, 4096 };
+    ViewportSize                    _shadowStaticSize = { 4096, 4096 };
 
-    uint32                          _staticShadowMapWidth = 4096;
-    uint32                          _staticShadowMapHeight = 4096;
-
+    RenderGroup                     _currentGroup = RenderGroup::END;
 
 private:
     void Reset_RenderCall();
@@ -129,21 +146,6 @@ private:
         size_t sampleCount{};
         double accumulatedMs{};
         double maxMs{};
-    };
-
-    struct RenderPerfWindow
-    {
-        PerfCounter render{};
-        PerfCounter priority{};
-        PerfCounter shadow{};
-        PerfCounter nonBlend{};
-        PerfCounter nonLight{};
-        PerfCounter lights{};
-        PerfCounter combinedHDR{};
-        PerfCounter postProcess{};
-        PerfCounter blend{};
-        PerfCounter ui{};
-        PerfCounter debug{};
     };
 
     RenderPerfWindow _renderPerfWindow{};
@@ -162,10 +164,7 @@ private:
         double blendMs,
         double uiMs,
         double debugMs);
-    bool Should_SampleRenderPerf();
-    static void Accumulate_PassPerf(PerfCounter& counter, double passMs);
-    static void Reset_RenderPerfWindow(RenderPerfWindow& window);
-    static double Safe_Divide(double numerator, double denominator);
+
     void DumpCurrentOMState(const wchar_t* stageTag) const;
 
 #endif
@@ -187,6 +186,7 @@ private :
 
 #endif
 };
+
 
 NS_END
 

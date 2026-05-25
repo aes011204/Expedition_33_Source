@@ -31,6 +31,12 @@ void Player_Move::Update(float timeDelta)
     //    return;
     //}
 
+    if (IsEnterFreeAim())
+    {
+        _stateCom->Change_State(PlayerState::FreeAim);
+        return;
+    }
+
     if (IsEnterIdle())
     {
         _stateCom->Change_State(PlayerState::Idle);

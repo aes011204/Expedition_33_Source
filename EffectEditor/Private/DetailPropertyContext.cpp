@@ -1917,6 +1917,11 @@ bool DetailPropertyContext::Draw_UintProperty(const char* label, uint32& value, 
     return _basicDrawer->Draw_UintProperty(label, value, defaultValue, tooltip);
 }
 
+bool DetailPropertyContext::Draw_Vec2Property(const char* label, Vec2& value, const Vec2& defaultValue, float speed)
+{
+    return _basicDrawer->Draw_Vec2Property(label, value, defaultValue, speed);
+}
+
 bool DetailPropertyContext::Draw_Vec3Property(const char* label, Vec3& value, const Vec3& defaultValue, float speed)
 {
     return _basicDrawer->Draw_Vec3Property(label, value, defaultValue, speed);

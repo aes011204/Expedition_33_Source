@@ -192,9 +192,10 @@ namespace UIEditor
         const string& textureGuid,
         const string& texturePath,
         const string& maskTextureGuid,
-        const string& maskTexturePath)
+        const string& maskTexturePath,
+        UI_MaskTextureMode maskTextureMode)
     {
-        return _previewService.Get_MaskedTexturePreviewSRV(textureGuid, texturePath, maskTextureGuid, maskTexturePath);
+        return _previewService.Get_MaskedTexturePreviewSRV(textureGuid, texturePath, maskTextureGuid, maskTexturePath, maskTextureMode);
     }
 
     ID3D11ShaderResourceView* UI_Editor_Manager::Get_PatternOverlayPreviewSRV(
@@ -1012,6 +1013,14 @@ namespace UIEditor
             objectId,
             [&](const UI_Object&) { return _objectEditService.Can_SetObjectMaskTextureBinding(_document, objectId, textureGuid, texturePath); },
             [&]() { return _objectEditService.Set_ObjectMaskTextureBinding(_document, objectId, textureGuid, texturePath); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectMaskTextureMode(ObjectId objectId, UI_MaskTextureMode maskTextureMode)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectMaskTextureMode(_document, objectId, maskTextureMode); },
+            [&]() { return _objectEditService.Set_ObjectMaskTextureMode(_document, objectId, maskTextureMode); });
     }
 
     bool UI_Editor_Manager::Set_UIObjectPatternMaskTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath)

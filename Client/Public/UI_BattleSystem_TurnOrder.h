@@ -19,8 +19,13 @@ public:
 
     struct TurnOrderSlot
     {
-        Shared<UI_Base> root{};
-        Shared<UI_Image> portrait{};
+        Shared<UI_Base>  anchor{};
+        Shared<UI_Base>  currentPlayerOverlay{};
+        Shared<UI_Base>  currentMonsterOverlay{};
+        Shared<UI_Base>  playerRoot{};
+        Shared<UI_Base>  monsterRoot{};
+        Shared<UI_Image> playerPortrait{};
+        Shared<UI_Image> monsterPortrait{};
     };
 
 public:
@@ -42,10 +47,16 @@ private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
 
+    HRESULT Load_UIFragment(const wchar_t* jsonPath, const wstring& prototypeTagPrefix, umap<wstring, Shared<UI_Base>>& outUIByName) const;
+    void    Merge_UIMap(const umap<wstring, Shared<UI_Base>>& src);
+    void    Place_OnSlot(const Shared<UI_Base>& ui, const Shared<UI_Base>& parent, bool keepOriginalSize) const;
+    void    Open_UI(const Shared<UI_Base>& ui) const;
+    void    Close_UI(const Shared<UI_Base>& ui) const;
+
 private:
     // 턴 슬롯은 최대 8개
     array<TurnOrderSlot, 8> _slots {};
-    Shared<UI_Image>        _currentTurnArrow{};
+    Shared<UI_Base> _currentTurnAnchor{};
 
 public:
     static Unique<UI_BattleSystem_TurnOrder> Create(uint32 levelIndex);

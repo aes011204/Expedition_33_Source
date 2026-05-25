@@ -16,8 +16,10 @@ class UI_BattleSystemHUD;
 class UI_MonsterHpBar;
 class UI_CrossHair;
 class UI_ChoiceTarget;
+class UI_AttackTooltip;
 class UI_BattleSystem_TurnOrder;
 class UI_DamageFont;
+class UI_EscapeSkipTurn;
 
 class GameplayUI_Battle final : public Base
 {
@@ -55,6 +57,8 @@ private:
     void    Update_ChoiceTarget(float timeDelta);
     void    Update_TurnOrder(float timeDelta);
     void    Update_DamageFonts(float timeDelta);
+    void    Update_EscapeSkipTurn(float timeDelta);
+    void    Update_AttackTooltip(float timeDelta);
 
 private:
     // 타겟 체력바 위치
@@ -76,6 +80,8 @@ private:
     Unique<UI_BattleDefense>                _battleDefense;
     Unique<UI_CancelAim>                    _cancelAim;
     Unique<UI_ChoiceTarget>                 _choiceTarget;
+    Unique<UI_EscapeSkipTurn>               _escapeSkipTurn;
+    Unique<UI_AttackTooltip>                _attackTooltip;
     Unique<UI_BattleSystem_TurnOrder>       _turnOrder;
 
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만

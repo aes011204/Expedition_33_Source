@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Editor_Window.h"
+#include "ContentBrowserCore.h"
 
 NS_BEGIN(Engine)
 class Texture;
@@ -8,7 +9,7 @@ NS_END
 
 NS_BEGIN(MainEditor)
 
-class Content_Browser final : public Editor_Window
+class Content_Browser final : public Editor_Window, private ContentBrowserCore
 {
 private:
     enum class EIconType
@@ -22,20 +23,10 @@ private:
     };
 
 private:
-    struct FFileEntry
-    {
-        wstring filePath{};
-        string guid{};
-    };
-
-    struct FFolderNode
-    {
-        wstring name{};
-        wstring fullPath{};
-
-        vector<FFolderNode> subFolders{};
-        vector<FFileEntry> files{};
-    };
+    using FFileEntry = ContentBrowserFileEntry;
+    using FFolderNode = ContentBrowserFolderNode;
+    using FThumbnailPolicy = ContentBrowserThumbnailPolicy;
+    using FGridItemRef = ContentBrowserGridItemRef;
 
     struct FPrefabCreateEntry
     {
@@ -57,9 +48,9 @@ private:
     void Refresh_CurrentFolder();
     void Load_Icons();
 
-    void Scan_Folder(const wstring& path, FFolderNode& node);
     void Draw_FolderTree(FFolderNode& node);
     void Draw_AssetView();
+    void Draw_ThumbnailSettingsPopup();
 
     void Draw_FolderTile(FFolderNode& folder);
     void Open_Folder(FFolderNode* folder);
@@ -68,22 +59,16 @@ private:
     void Draw_CreatePrefabPopup();
     void Open_CreatePrefabPopup(const wstring& targetFolderPath);
     void Rebuild_CreatePrefabEntries();
-    Shared<Texture> Get_FileThumbnail(const FFileEntry& fileEntry);
-    static bool Is_ThumbnailFileExtension(const filesystem::path& filePath);
+    Shared<Texture> Get_FileThumbnail(const FFileEntry& fileEntry, bool allowLoad);
+    bool Is_LargeTextureFolder() const;
+    int Resolve_CurrentThumbnailLoadBudget() const;
 
     void Save_Settings() const;
     void Load_Settings();
 
-    FFolderNode* Find_FolderNode(FFolderNode& node, const wstring& path);
-    void Expand_PathTo(const wstring& targetPath);
-    static bool IsFolderMatchingSearch(const FFolderNode& node, const string& searchStr);
-    FFolderNode* Get_FirstMatchingFolder(FFolderNode& node, const string& searchStr);
     EIconType Resolve_IconType(const filesystem::path& filePath) const;
     ImTextureID Get_IconTextureId(EIconType iconType) const;
 
-    void Record_FolderHistory(const wstring& path);
-    bool Can_GoBack() const;
-    bool Can_GoForward() const;
     void Go_BackFolder();
     void Go_ForwardFolder();
     void Refresh_AssetState();
@@ -91,11 +76,6 @@ private:
     void Handle_ThumbnailZoom();
 
 private:
-    FFolderNode _rootFolder{};
-    FFolderNode* _currentFolder = nullptr;
-
-    filesystem::path _resourceRoot{};
-
     float _leftPanelWidth = 300.f;
     float _thumbnailSize = 64.f;
     char _searchBuffer[128] = "";
@@ -104,11 +84,17 @@ private:
     vector<Shared<Texture>> _iconFiles{};
     map<wstring, Shared<Texture>> _thumbnailCache{};
     set<wstring> _noThumbnailPaths{};
+    FThumbnailPolicy _thumbnailPolicy{};
+    int _thumbnailLoadsThisFrame{ 0 };
+    int _thumbnailLoadBudgetThisFrame{ 4 };
 
-    set<wstring> _expandedFolders{};
-    vector<wstring> _folderHistory{};
-    int _folderHistoryIndex = -1;
-    bool _suppressHistoryRecord = false;
+    FFolderNode* _gridItemCacheFolder{};
+    size_t _gridItemCacheSubFolderCount{};
+    size_t _gridItemCacheFileCount{};
+    string _gridItemCacheSearchLower{};
+    vector<FGridItemRef> _gridItemCache{};
+
+    bool _needsInitialRefresh = true;
 
     wstring _selectedFilePath{};
     vector<FPrefabCreateEntry> _createPrefabEntries{};
