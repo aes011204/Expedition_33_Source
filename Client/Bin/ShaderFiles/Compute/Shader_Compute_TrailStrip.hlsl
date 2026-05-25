@@ -109,7 +109,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     output.lifeTime = float2(max(g_SegmentLifetime, 0.0001f), age);
     output.startColor = g_StartColor;
     output.endColor = g_EndColor;
-    output.subUVRect = float4(0.0f, currentDistance * g_UVTiling, 1.0f, nextDistance * g_UVTiling);
+    output.subUVRect = float4(0.0f, currentDistance, 1.0f, nextDistance);
     output.segmentParams = float4(lifeProgress, widthScale, ageAlpha * lengthAlpha, g_SideFade); // x: 수명 진행률, y: 폭 배율, z: 알파 배율, w: 가장자리 페이드
 
     OutputData[index] = output;

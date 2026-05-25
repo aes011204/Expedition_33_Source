@@ -12,7 +12,8 @@ public:
         AuthoringEmitter& emitter,
         const AuthoringModule& module,
         RequiredModuleData& data,
-        DetailPropertyContext& detailContext);
+        DetailPropertyContext& detailContext,
+        float timeDelta);
 };
 
 class SpawnModuleDetail

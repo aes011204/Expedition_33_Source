@@ -85,6 +85,7 @@ struct GS_OUT
     float4 subUVRect : TEXCOORD2;
 };
 
+// 파티클 위치에서 카메라를 향하는 정규화 look 방향을 구한다.
 float3 ResolveFacingLookDirection(float3 particlePosition)
 {
     float3 lookDir = g_CamPosition.xyz - particlePosition;
@@ -92,6 +93,7 @@ float3 ResolveFacingLookDirection(float3 particlePosition)
     return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
 }
 
+// emitter 중심에서 바깥쪽을 향하는 정규화 look 방향을 구한다.
 float3 ResolveAwayFromCenterLookDirection(float3 particlePosition)
 {
     float3 lookDir = particlePosition - g_EffectSpriteEmitterCenter.xyz;
@@ -99,6 +101,7 @@ float3 ResolveAwayFromCenterLookDirection(float3 particlePosition)
     return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
 }
 
+// look 방향을 기준으로 billboard right/up 축을 만든다.
 void ResolveLookAlignedBasis(float3 lookDir, out float3 rightDir, out float3 upDir)
 {
     float3 worldUp = float3(0.f, 1.f, 0.f);
@@ -111,12 +114,14 @@ void ResolveLookAlignedBasis(float3 lookDir, out float3 rightDir, out float3 upD
     upDir = normalize(cross(lookDir, rightDir));
 }
 
+// 현재 카메라 평면 기준의 right/up 축을 가져온다.
 void ResolveCameraPlaneBasis(out float3 rightDir, out float3 upDir)
 {
     rightDir = normalize(float3(g_ViewMatrix[0].x, g_ViewMatrix[1].x, g_ViewMatrix[2].x));
     upDir = normalize(float3(g_ViewMatrix[0].y, g_ViewMatrix[1].y, g_ViewMatrix[2].y));
 }
 
+// texture 축 하나를 지정 방향에 맞추는 billboard basis를 시도한다.
 bool TryResolveTextureAxisBasis(float3 axisDir, out float3 rightDir, out float3 upDir)
 {
     ResolveCameraPlaneBasis(rightDir, upDir);

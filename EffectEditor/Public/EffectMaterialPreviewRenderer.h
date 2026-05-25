@@ -27,6 +27,8 @@ public:
 public:
     // 머티리얼 instance 값을 현재 preview render target에 반영할 때 호출한다.
     void Render_Material(const EffectMaterialInstanceData& material);
+    // material preview의 UV scroll용 누적 시간을 외부 update tick에서 갱신한다.
+    void Update_MaterialTime(float timeDelta);
     // ImGui viewport와 입력을 함께 관리하는 원본 머티리얼 preview 패널 진입점이다.
     void Draw_Viewport(const char* id, const EffectMaterialInstanceData& material, const char* label);
     ID3D11ShaderResourceView* Get_SRV() const;
@@ -72,6 +74,7 @@ private: //## Data
     bool _hasRenderedPreview{ false };
     EffectMaterialPreviewMeshMode _meshMode{ EffectMaterialPreviewMeshMode::Plane };
     EffectPreviewOrbitCameraState _cameraState{};
+    float _materialPreviewElapsedTime{}; // material preview UV scroll 계산에 사용할 preview-local 누적 시간이다.
     bool _isViewportDragging{ false };
     bool _hasPendingHome{ false };
 

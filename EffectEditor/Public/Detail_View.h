@@ -59,8 +59,9 @@ private: //## Helper::EffectAuthoring
 
 private: //## Data::ModuleDetail
     DetailPropertyContext _detailPropertyContext{};
-    // module data 자체가 아니라 module type별 detail row UI를 그리는 drawer 상태다.
-    RequiredModuleDetail _requiredModuleDetail{};
+    float _detailTimeDelta{}; // Detail view의 draw helper가 update tick 시간을 명시적으로 소비할 때 사용한다.
+
+    RequiredModuleDetail _requiredModuleDetail{}; // module data 자체가 아니라 module type별 detail row UI를 그리는 drawer 상태다.
     SpawnModuleDetail _spawnModuleDetail{};
     LifetimeModuleDetail _lifetimeModuleDetail{};
     InitialLocationModuleDetail _initialLocationModuleDetail{};
@@ -77,9 +78,9 @@ private: //## Data::ModuleDetail
     RotationRateScaleByLifeModuleDetail _rotationRateScaleByLifeModuleDetail{};
     InitialColorModuleDetail _initialColorModuleDetail{};
     ColorOverLifeModuleDetail _colorOverLifeModuleDetail{};
-    SubUVFrameOverLifeModuleDetail _subUvFrameOverLifeModuleDetail{}; // SubUV frame 진행 규칙 drawer다.
-    SizeByLifeModuleDetail _sizeByLifeModuleDetail{};                 // life 기준 크기 배율 drawer다.
-    SpawnPerUnitModuleDetail _spawnPerUnitModuleDetail{};             // Trail sample insertion drawer다.
+    SubUVFrameOverLifeModuleDetail _subUvFrameOverLifeModuleDetail{};
+    SizeByLifeModuleDetail _sizeByLifeModuleDetail{};
+    SpawnPerUnitModuleDetail _spawnPerUnitModuleDetail{};
 
 private: //## Data::AuthoringHistory
     // selection 전환이나 입력 종료 시점까지 하나의 authoring edit command를 지연 관리한다.

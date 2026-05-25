@@ -1,12 +1,10 @@
 ﻿#include "EffectMaterialInstance_View.h"
 
-#include <shobjidl.h>
-
+#include "DetailPropertyContext.h"
 #include "EffectEditorInstance.h"
 #include "EffectMaterialPreviewRenderer.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
-#include "DetailPropertyContext.h"
 #include "Helper_String.h"
 #include "Notification_Manager.h"
 #include "Texture.h"
@@ -15,8 +13,8 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr const char* kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
-    constexpr const wchar_t* kTextureDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Textures";
+    constexpr auto kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
+    constexpr auto kTextureDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Textures";
 
     string textureAssignStatus{};
 
@@ -186,14 +184,12 @@ namespace Internal
 
         if (switchedToDds)
         {
-            string sourcePath = Make_ResourceRelativePath(filePath);
+            const string sourcePath = Make_ResourceRelativePath(filePath);
             textureAssignStatus = "Texture switched PNG -> DDS: " + sourcePath + " -> " + texturePath;
             Notify_TextureAssignment(NotifyType::Info, textureAssignStatus);
         }
         else
-        {
             textureAssignStatus = "Texture assigned: " + texturePath;
-        }
 
         if (textureGuid.empty())
             Notify_TextureAssignment(NotifyType::Warning, textureAssignStatus + " (GUID cache unavailable)");
@@ -397,10 +393,10 @@ namespace Internal
         const bool isWarningReference = Is_WarningTextureReference(textureGuid, texturePath);
         const ImU32 fillColor = isWarningReference
                                 ? (isHovered || isTextureDragging ? IM_COL32(58, 32, 34, 255) : IM_COL32(34, 22, 24, 255))
-                                : (isHovered || isTextureDragging ? IM_COL32(34, 42, 58, 255) : IM_COL32(22, 25, 32, 255));
+                                : isHovered || isTextureDragging ? IM_COL32(34, 42, 58, 255) : IM_COL32(22, 25, 32, 255);
         const ImU32 borderColor = isWarningReference
                                   ? IM_COL32(214, 86, 96, 255)
-                                  : (isHovered || isTextureDragging ? IM_COL32(116, 156, 235, 255) : IM_COL32(78, 88, 108, 255));
+                                  : isHovered || isTextureDragging ? IM_COL32(116, 156, 235, 255) : IM_COL32(78, 88, 108, 255);
         const ImU32 textColor = isWarningReference
                                 ? IM_COL32(255, 190, 196, 255)
                                 : IM_COL32(220, 226, 238, 255);
@@ -537,6 +533,28 @@ EffectMaterialInstance_View::EffectMaterialInstance_View()
 
 EffectMaterialInstance_View::~EffectMaterialInstance_View() = default;
 
+void EffectMaterialInstance_View::Update(float timeDelta)
+{
+    __super::Update(timeDelta);
+
+    if (Is_Open() && _previewRenderer != nullptr)
+        _previewRenderer->Update_MaterialTime(timeDelta);
+}
+
+void EffectMaterialInstance_View::Pre_Render()
+{
+    if (!Is_Open() || _previewRenderer == nullptr)
+        return;
+
+    Shared<Emitter_View> emitterView{};
+    AuthoringEmitter* emitter{ nullptr };
+    RequiredModuleData* requiredData{ nullptr };
+    if (!Resolve_Target(emitterView, emitter, requiredData))
+        return;
+
+    _previewRenderer->Render_Material(requiredData->material);
+}
+
 void EffectMaterialInstance_View::Render()
 {
     if (!Is_Open())
@@ -627,20 +645,6 @@ void EffectMaterialInstance_View::Render()
 
     Set_Open(isOpen);
     ImGui::End();
-}
-
-void EffectMaterialInstance_View::Pre_Render()
-{
-    if (!Is_Open() || _previewRenderer == nullptr)
-        return;
-
-    Shared<Emitter_View> emitterView{};
-    AuthoringEmitter* emitter{ nullptr };
-    RequiredModuleData* requiredData{ nullptr };
-    if (!Resolve_Target(emitterView, emitter, requiredData))
-        return;
-
-    _previewRenderer->Render_Material(requiredData->material);
 }
 
 void EffectMaterialInstance_View::Open_Instance(uint32 emitterId, uint32 moduleId)
@@ -737,12 +741,12 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
     {
         if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceUVMotion"))
         {
-            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scale (미소비)", material.mainUVScale, defaultData.mainUVScale);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed (미소비)", material.mainUVScrollSpeed, defaultData.mainUVScrollSpeed);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scale (미소비)", material.noiseUVScale, defaultData.noiseUVScale);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed (미소비)", material.noiseUVScrollSpeed, defaultData.noiseUVScrollSpeed);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scale (미소비)", material.maskUVScale, defaultData.maskUVScale);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scroll Speed (미소비)", material.maskUVScrollSpeed, defaultData.maskUVScrollSpeed);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scale", material.mainUVScale, defaultData.mainUVScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed", material.mainUVScrollSpeed, defaultData.mainUVScrollSpeed);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scale", material.noiseUVScale, defaultData.noiseUVScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed", material.noiseUVScrollSpeed, defaultData.noiseUVScrollSpeed);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scale", material.maskUVScale, defaultData.maskUVScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scroll Speed", material.maskUVScrollSpeed, defaultData.maskUVScrollSpeed);
             _detailPropertyContext.End_PropertyTable();
         }
     }

@@ -312,7 +312,7 @@ struct TrailTypeData
     float width{ 1.f };
     float segmentLifetime{ 0.25f };
     uint32 historyCount{ 32 };
-    float uvTiling{ 1.f };
+    float uvTiling{ 1.f };                                      // body/mask가 아니라 noise/breakup 길이 방향 반복 밀도다.
     float maxTrailLength{ 0.f };                                // 0 이하면 head 기준 최대 표시 길이를 제한하지 않는다.
     float tailFadeLength{ 0.1f };                               // maxTrailLength 끝으로 갈수록 alpha를 줄이는 거리다.
     TrailCurveQuality curveQuality{ TrailCurveQuality::Basic }; // trail 곡선 품질 preset 선택값이다.

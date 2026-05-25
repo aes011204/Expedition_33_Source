@@ -1,6 +1,5 @@
 ﻿#include "Emitter_View.h"
 
-#include <shobjidl.h>
 #include "Action_Command.h"
 #include "Editor_Context.h"
 #include "EffectAuthoringJsonSerializer.h"

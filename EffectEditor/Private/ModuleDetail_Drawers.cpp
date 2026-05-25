@@ -1,6 +1,5 @@
 ﻿#include "ModuleDetail_Drawers.h"
 
-#include <shobjidl.h>
 #include "EffectEditorInstance.h"
 #include "EffectEditor_Macro.h"
 #include "EffectMaterialInstance_View.h"
@@ -459,7 +458,7 @@ namespace Internal
         return true;
     }
 
-    bool Draw_MaterialDropSlot(RequiredModuleData& data)
+    bool Draw_MaterialDropSlot(RequiredModuleData& data, float timeDelta)
     {
         constexpr float browseButtonWidth{ 28.f };
         constexpr float slotHeight = 54.f;
@@ -505,6 +504,7 @@ namespace Internal
         ID3D11ShaderResourceView* previewSrv = nullptr;
         if (materialSlotPreview != nullptr)
         {
+            materialSlotPreview->Update_MaterialTime(timeDelta);
             materialSlotPreview->Render_Material(data.material);
             previewSrv = materialSlotPreview->Get_SRV();
         }
@@ -665,7 +665,12 @@ namespace Internal
     }
 }
 
-bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule& module, RequiredModuleData& data, DetailPropertyContext& detailContext)
+bool RequiredModuleDetail::Draw(
+    AuthoringEmitter& emitter,
+    const AuthoringModule& module,
+    RequiredModuleData& data,
+    DetailPropertyContext& detailContext,
+    float timeDelta)
 {
     const RequiredModuleData defaultData{};
     bool changed = false;
@@ -676,7 +681,7 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
         {
             ImGui::PushID("MaterialDropSlot");
             detailContext.Draw_PropertyLabel("머티리얼");
-            changed |= Internal::Draw_MaterialDropSlot(data);
+            changed |= Internal::Draw_MaterialDropSlot(data, timeDelta);
             detailContext.Draw_ResetButton(false);
             ImGui::PopID();
 

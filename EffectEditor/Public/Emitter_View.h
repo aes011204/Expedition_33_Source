@@ -25,14 +25,11 @@ public:
 public:
     HRESULT Initialize() override;
     void Render() override;
-    // 현재 effect authoring document가 Save 대상임을 알린다.
-    bool CanSave() const override;
-    // Save As dialog를 열어 emitter/module authoring json을 저장한다.
-    void Save() override;
-    // 현재 effect authoring document가 Open 대상으로 교체 가능함을 알린다.
-    bool CanOpen() const;
-    // Open dialog로 .effect.json을 열어 authoring 상태를 복원한다.
-    void Open();
+
+    bool CanSave() const override; // 현재 effect authoring document가 Save 대상임을 알린다.
+    void Save() override;          // Save As dialog를 열어 emitter/module authoring json을 저장한다.
+    bool CanOpen() const;          // 현재 effect authoring document가 Open 대상으로 교체 가능함을 알린다.
+    void Open();                   // Open dialog로 .effect.json을 열어 authoring 상태를 복원한다.
 
 public: //## Accessor::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
@@ -54,7 +51,7 @@ public: //## Behavior::AuthoringHistory
     json Build_AuthoringDocumentJson() const;
     bool Restore_AuthoringDocumentJson(const json& root);
 
-private:
+private: //## Types::PendingAction
     enum class PendingEmitterAction
     {
         None,
@@ -79,6 +76,7 @@ private:
         Remove
     };
 
+private: //## Types::ModulePicker
     struct ModulePickerEntry
     {
         optional<AuthoringModuleType> moduleType{};
@@ -102,7 +100,7 @@ private: //## Static Values
     inline static const Color kEmitterSpawnRowColor{ 0.75f, 0.75f, 0.3f, 1.0f };
     inline static const Color kEmitterCommonModuleRowColor{ 0.18f, 0.19f, 0.24f, 1.0f };
     inline static const Color kEmitterModuleDisabledRowColor{ 0.16f, 0.16f, 0.17f, 1.0f };
-    inline static const Color kEmitterUnsupportedModuleTextColor{ 0.86f, 0.62f, 0.25f, 1.0f };
+    inline static const Color kEmitterUnsupportedModuleTextColor{ 0.9f, 0.25f, 0.25f, 1.0f };
 
     static constexpr float kEmitterColumnWidth{ 270.f };
     static constexpr float kEmitterHeaderHeight{ 90.f };
@@ -114,18 +112,22 @@ private: //## Static Values
     static constexpr float kModulePickerNameColumnStretch{ 0.5f };
     static constexpr float kModulePickerStateColumnStretch{ 1.f - kModulePickerNameColumnStretch };
 
-private: //## Data
+private: //## Data::Authoring
     ParticleSystemAuthoringData _particleSystemData{};
     // 현재 편집 중인 effect의 emitter 목록이다.
     vector<AuthoringEmitter> _emitters{};
+    // 저장용 id가 아니라 editor 세션 안에서 emitter/module을 구분하기 위한 임시 id 발급값이다.
+    uint32 _nextAuthoringId{ 1 };
+
+private: //## Data::Selection
     // 현재 선택된 emitter index다. 값이 없으면 emitter 선택이 해제된 상태다.
     optional<size_t> _selectedEmitterIndex{};
     // 현재 선택 대상이 emitter-level TypeData 슬롯인지 나타낸다.
     bool _selectedTypeData{ false };
     // 현재 선택된 emitter 내부의 module index다. 값이 없으면 emitter header만 선택된 상태다.
     optional<size_t> _selectedModuleIndex{};
-    // 저장용 id가 아니라 editor 세션 안에서 emitter/module을 구분하기 위한 임시 id 발급값이다.
-    uint32 _nextAuthoringId{ 1 };
+
+private: //## Data::PendingAction
     PendingEmitterAction _pendingEmitterAction{ PendingEmitterAction::None };
     optional<size_t> _pendingEmitterActionIndex{};
     PendingModuleAction _pendingModuleAction{ PendingModuleAction::None };
@@ -133,11 +135,13 @@ private: //## Data
     optional<size_t> _pendingModuleIndex{};
     PendingTypeDataAction _pendingTypeDataAction{ PendingTypeDataAction::None };
     optional<size_t> _pendingTypeDataEmitterIndex{};
+
+private: //## Data::ModulePicker
     optional<size_t> _modulePickerEmitterIndex{};
     bool _modulePickerPendingOpen{ false };
     char _modulePickerSearchBuffer[128]{};
 
-private: //## Helpers
+private: //## Helper::AuthoringFactory
     // 새 emitter/module에 부여할 editor-local id를 발급한다.
     uint32 Issue_AuthoringId();
     // Cascade의 기본 더미 emitter 하나를 만든다.
@@ -165,37 +169,53 @@ private: //## Helpers
     AuthoringModule Make_SizeByLifeModule();
     AuthoringModule Make_SpawnPerUnitModule();
 
+private: //## Helper::ModulePolicy
     bool Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;                 // 이미터가 특정 모듈 타입을 이미 가지고 있는지 확인한다.
     bool Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitter, AuthoringModuleType type) const; // 현재 emitter 타입이 모듈을 preview에 소비하는지 확인한다.
     bool Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;              // 중복 정책 기준으로 새 모듈 추가 가능 여부를 판단한다.
     void Add_Module(size_t emitterIndex, AuthoringModuleType type);                                       // 선택 이미터에 새 optional 모듈을 추가하고 선택 상태를 갱신한다.
 
+private: //## Helper::Selection
     void Clear_Selection();
-    void Select_Emitter(size_t emitterIndex);
-    void Select_TypeData(size_t emitterIndex);
-    void Insert_NewEmitter(size_t insertIndex);
-    void Duplicate_Emitter(size_t emitterIndex);
-    void Delete_Emitter(size_t emitterIndex);
-    void Queue_EmitterAction(PendingEmitterAction action, size_t emitterIndex);
-    void Process_PendingEmitterAction();
-    void Select_Module(size_t emitterIndex, size_t moduleIndex);
-    void Delete_Module(size_t emitterIndex, size_t moduleIndex);
-    void Reset_ModuleData(size_t emitterIndex, size_t moduleIndex);
-    void Queue_ModuleAction(PendingModuleAction action, size_t emitterIndex, size_t moduleIndex);
-    void Process_PendingModuleAction();
-    void Apply_TypeDataAction(PendingTypeDataAction action, size_t emitterIndex);
-    void Queue_TypeDataAction(PendingTypeDataAction action, size_t emitterIndex);
-    void Process_PendingTypeDataAction();
-    vector<ModulePickerEntry> Build_ModulePickerEntries(const AuthoringEmitter& emitter) const;
-    void Open_ModulePicker(size_t emitterIndex);
-    void Close_ModulePicker();
-    void Draw_ModulePickerPopup();
     void Clamp_Selection(); // 현재 선택 index가 emitter 목록 범위를 벗어나지 않도록 보정한다.
+    void Select_Emitter(size_t emitterIndex);
+    void Select_Module(size_t emitterIndex, size_t moduleIndex);
+    void Select_TypeData(size_t emitterIndex);
+    void Sync_SelectionContext();
+
+private: //## Helper::EmitterAction
+    void Delete_Emitter(size_t emitterIndex);
+    void Duplicate_Emitter(size_t emitterIndex);
+    void Insert_NewEmitter(size_t insertIndex);
+    void Process_PendingEmitterAction();
+    void Queue_EmitterAction(PendingEmitterAction action, size_t emitterIndex);
+
+private: //## Helper::ModuleAction
+    void Delete_Module(size_t emitterIndex, size_t moduleIndex);
+    void Process_PendingModuleAction();
+    void Queue_ModuleAction(PendingModuleAction action, size_t emitterIndex, size_t moduleIndex);
+    void Reset_ModuleData(size_t emitterIndex, size_t moduleIndex);
+
+private: //## Helper::TypeDataAction
+    void Apply_TypeDataAction(PendingTypeDataAction action, size_t emitterIndex);
+    void Process_PendingTypeDataAction();
+    void Queue_TypeDataAction(PendingTypeDataAction action, size_t emitterIndex);
+
+private: //## Helper::PreviewState
+    void Mark_AllPreviewDirty();
     void Sync_EmitterMirror(AuthoringEmitter& emitter);
     void Sync_AllEmitterMirrors();
-    void Mark_AllPreviewDirty();
-    void Sync_SelectionContext();
+
+private: //## Helper::ModulePicker
+    vector<ModulePickerEntry> Build_ModulePickerEntries(const AuthoringEmitter& emitter) const;
+    void Close_ModulePicker();
+    void Draw_ModulePickerPopup();
+    void Open_ModulePicker(size_t emitterIndex);
+
+private: //## Helper::AuthoringHistory
     void Execute_AuthoringEdit(const string& description, const function<void()>& edit);
+
+private: //## Helper::Render
     // hover tooltip은 설명 dump가 아니라 경고성 사유만 노출하는 채널로 유지한다.
     string Build_ModuleWarningTooltip(const AuthoringEmitter& emitter, const AuthoringModule& module) const;
     void Draw_EmitterContextMenu(size_t emitterIndex);

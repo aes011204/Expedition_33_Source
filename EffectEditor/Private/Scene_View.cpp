@@ -6,7 +6,6 @@
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "GameObject.h"
-#include "RenderTarget.h"
 
 NS_BEGIN(EffectEditor)
 

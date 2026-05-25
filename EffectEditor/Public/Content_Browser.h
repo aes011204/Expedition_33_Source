@@ -80,14 +80,14 @@ private: //## Helper::View
 
 private: //## Helper::ThumbnailIcon
     Shared<Texture> Get_FileThumbnail(const FileEntry& fileEntry, bool allowLoad);
-    static bool Is_EffectMaterialPresetFile(const filesystem::path& filePath);
+    static bool Is_EffectMaterialPresetFile(const fs::path& filePath);
     bool Is_LargeTextureFolder() const;
     int Resolve_CurrentThumbnailLoadBudget() const;
 
 private: //## Helper::SettingsSearch
     void Save_Settings() const;
     void Load_Settings();
-    IconType Resolve_IconType(const filesystem::path& filePath) const;
+    IconType Resolve_IconType(const fs::path& filePath) const;
     ImTextureID Get_IconTextureId(IconType iconType) const;
 
 private: //## Helper::NavigationHistory

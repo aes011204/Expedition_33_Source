@@ -153,6 +153,11 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
     _hasRenderedPreview = true;
 }
 
+void EffectMaterialPreviewRenderer::Update_MaterialTime(float timeDelta)
+{
+    _materialPreviewElapsedTime += max(0.f, timeDelta);
+}
+
 void EffectMaterialPreviewRenderer::Draw_Viewport(
     const char* id,
     const EffectMaterialInstanceData&,
@@ -620,6 +625,24 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         _maskTexture != nullptr ? 1.f : 0.f,
         0.f
     );
+    const Vec4 effectMaterialPreviewMainUVParams = Vec4(
+        material.mainUVScale.x,
+        material.mainUVScale.y,
+        material.mainUVScrollSpeed.x,
+        material.mainUVScrollSpeed.y
+    );
+    const Vec4 effectMaterialPreviewNoiseUVParams = Vec4(
+        material.noiseUVScale.x,
+        material.noiseUVScale.y,
+        material.noiseUVScrollSpeed.x,
+        material.noiseUVScrollSpeed.y
+    );
+    const Vec4 effectMaterialPreviewMaskUVParams = Vec4(
+        material.maskUVScale.x,
+        material.maskUVScale.y,
+        material.maskUVScrollSpeed.x,
+        material.maskUVScrollSpeed.y
+    );
     const int opacitySource = Internal::Resolve_OpacitySourceIndex(material.opacitySource);
 
     CHECK_FAILED(_shader->Bind_ObjectCB(worldMatrix), E_FAIL);
@@ -644,14 +667,42 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
     }
 
-    CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectMaterialPreviewParams", &effectMaterialPreviewParams, sizeof(effectMaterialPreviewParams)), E_FAIL);
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewParams", &effectMaterialPreviewParams, sizeof(effectMaterialPreviewParams)),
+        E_FAIL
+    );
     CHECK_FAILED(
         _shader->Bind_RawValue("g_EffectMaterialPreviewAlphaParams", &effectMaterialPreviewAlphaParams, sizeof(effectMaterialPreviewAlphaParams)),
         E_FAIL
     );
-    CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)), E_FAIL);
-    CHECK_FAILED(_shader->Begin(Resolve_BlendPassIndex(material.blendMode, _meshMode)), E_FAIL);
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewMainUVParams", &effectMaterialPreviewMainUVParams, sizeof(effectMaterialPreviewMainUVParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewNoiseUVParams", &effectMaterialPreviewNoiseUVParams, sizeof(effectMaterialPreviewNoiseUVParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewMaskUVParams", &effectMaterialPreviewMaskUVParams, sizeof(effectMaterialPreviewMaskUVParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewTime", &_materialPreviewElapsedTime, sizeof(_materialPreviewElapsedTime)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Begin(Resolve_BlendPassIndex(material.blendMode, _meshMode)),
+        E_FAIL
+    );
 
     const PreviewMeshResource& mesh =
         _meshMode == EffectMaterialPreviewMeshMode::Sphere ? _sphereMesh : _planeMesh;

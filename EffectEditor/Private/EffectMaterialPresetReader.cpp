@@ -217,4 +217,3 @@ string ResolveDisplayName(const fs::path& filePath)
     return fileName;
 }
 }
-

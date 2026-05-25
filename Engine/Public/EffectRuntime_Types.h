@@ -201,7 +201,7 @@ struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
     float width{ 0.1f };            // render sample의 center 기준으로 적용할 world-space strip 폭이다.
     float segmentLifetime{ 0.25f }; // history sample 하나가 화면에 남는 시간이다.
     uint32 historyCount{ 32 };      // trail이 유지할 최대 sample 개수다.
-    float uvTiling{ 1.f };          // trail 진행 방향의 기본 UV 반복값이다.
+    float uvTiling{ 1.f };          // trail noise/breakup 진행 방향의 기본 UV 반복값이다.
     float maxTrailLength{ 0.f };    // head 기준 최대 표시 길이다. 0 이하면 제한하지 않는다.
     float tailFadeLength{ 0.1f };   // maxTrailLength 끝으로 갈수록 alpha를 줄이는 거리다.
     float sampleSpacing{ 0.08f };   // render-time curve sample의 이동 거리 기준 간격이다.

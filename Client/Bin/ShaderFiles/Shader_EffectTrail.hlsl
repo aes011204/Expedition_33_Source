@@ -7,15 +7,25 @@
 cbuffer cbEffectTrailMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectTrailParams = { 1.f, 1.f, 0.f, 0.f };      // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectTrailAlphaParams = { 0.f, 0.f, 0.f, 0.f }; // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectTrailParams = { 1.f, 1.f, 0.f, 0.f };        // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectTrailAlphaParams = { 0.f, 0.f, 0.f, 0.f };   // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectTrailMainUVParams = { 1.f, 1.f, 0.f, 0.f };  // xy: scale, zw: scroll speed
+    float4 g_EffectTrailNoiseUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
+    float4 g_EffectTrailMaskUVParams = { 1.f, 1.f, 0.f, 0.f };  // xy: scale, zw: scroll speed
+    float4 g_EffectTrailUVPolicyParams = { 1.f, 1.f, 0.f, 0.f }; // x: visible trail length, y: noise uv tiling, zw: reserved
+    float g_EffectTrailMaterialTime = 0.f;
     int g_OpacitySource = 0;
-    float3 g_EffectTrailPadding;
+    float2 g_EffectTrailPadding;
 };
 
 Texture2D g_MainTexture : register(t0);
 Texture2D g_NoiseTexture : register(t1);
 Texture2D g_MaskTexture : register(t2);
+
+float2 Apply_MaterialUV(float2 uv, float4 uvParams)
+{
+    return uv * uvParams.xy + uvParams.zw * g_EffectTrailMaterialTime;
+}
 
 struct VS_IN
 {
@@ -150,7 +160,14 @@ PS_OUT PS_MAIN(PS_IN In)
     PS_OUT Out = (PS_OUT)0;
 
     const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
-    const float4 tex = g_MainTexture.Sample(LinearClampSampler, In.texCoord);
+    const float visibleLength = max(g_EffectTrailUVPolicyParams.x, 0.0001f);
+    const float noiseTiling = max(g_EffectTrailUVPolicyParams.y, 0.0001f);
+    const float2 bodyBaseUV = float2(In.texCoord.x, saturate(In.texCoord.y / visibleLength));
+    const float2 noiseBaseUV = float2(In.texCoord.x, In.texCoord.y * noiseTiling);
+    const float2 mainUV = Apply_MaterialUV(bodyBaseUV, g_EffectTrailMainUVParams);
+    const float2 noiseUV = Apply_MaterialUV(noiseBaseUV, g_EffectTrailNoiseUVParams);
+    const float2 maskUV = Apply_MaterialUV(bodyBaseUV, g_EffectTrailMaskUVParams);
+    const float4 tex = g_MainTexture.Sample(LinearClampSampler, mainUV);
     const float sideFade = max(In.segmentParams.w, 0.0001f);
     const float sideAlpha =
         smoothstep(0.0f, sideFade, In.edgeCoord.y) *
@@ -160,37 +177,46 @@ PS_OUT PS_MAIN(PS_IN In)
     const float alphaCutoff = saturate(g_EffectTrailAlphaParams.x);
     const float alphaErosion = saturate(g_EffectTrailAlphaParams.y);
     float selectedOpacity = tex.a;
-    float noiseFactor = 1.f;
-    float maskFactor = 1.f;
+    float noiseRaw = 1.f;
+    float maskAlpha = 1.f;
 
     if (1 == g_OpacitySource)
         selectedOpacity = tex.r;
     else if (2 == g_OpacitySource)
         selectedOpacity = dot(tex.rgb, float3(0.299f, 0.587f, 0.114f));
 
+    const float noiseStrength = saturate(g_EffectTrailParams.z);
     if (0 != g_EffectTrailParams.w && g_EffectTrailParams.z > 0.f)
-    {
-        const float noise = g_NoiseTexture.Sample(LinearClampSampler, In.texCoord).r;
-        noiseFactor = lerp(1.f, noise, saturate(g_EffectTrailParams.z));
-    }
+        noiseRaw = g_NoiseTexture.Sample(LinearWrapSampler, noiseUV).r;
 
     if (0 != g_EffectTrailAlphaParams.z)
-        maskFactor = g_MaskTexture.Sample(LinearClampSampler, In.texCoord).a;
+        maskAlpha = g_MaskTexture.Sample(LinearClampSampler, maskUV).a;
+
+    const float edgeDistance = abs(In.edgeCoord.y - 0.5f) * 2.f;
+    const float edgeWeight = smoothstep(0.35f, 1.f, edgeDistance);
+    const float breakupNoise = lerp(1.f, noiseRaw, noiseStrength);
+    const float edgeBreakup = lerp(1.f, noiseRaw, noiseStrength * edgeWeight);
+
+    float coverage = maskAlpha;
 
     if (alphaErosion > 0.f)
     {
-        const float erosionSource = min(maskFactor, noiseFactor);
-        const float erosionFactor = saturate((erosionSource - alphaErosion) / max(1.f - alphaErosion, 0.0001f));
-        maskFactor *= erosionFactor;
+        const float erosionSource = saturate(maskAlpha * edgeBreakup);
+        const float erosionFactor = smoothstep(alphaErosion, 1.f, erosionSource);
+        coverage *= erosionFactor;
     }
+
+    const float opacity = pow(saturate(selectedOpacity), opacityPower);
+    const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
 
     float4 color = float4(
         segmentColor.rgb * g_Tint.rgb * tex.rgb,
         segmentColor.a * g_Tint.a
     );
 
-    color.rgb *= g_EffectTrailParams.x * noiseFactor;
-    color.w *= pow(saturate(selectedOpacity), opacityPower) * maskFactor * saturate(In.segmentParams.z) * sideAlpha;
+    color.rgb *= g_EffectTrailParams.x * energyVariation;
+    color.w *= opacity * coverage * breakupNoise * saturate(In.segmentParams.z) * sideAlpha;
+
     if (color.w < max(alphaCutoff, 0.01f))
         discard;
 

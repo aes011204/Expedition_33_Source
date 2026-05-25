@@ -7,15 +7,25 @@
 cbuffer cbEffectMaterialPreview : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectMaterialPreviewParams = { 1.f, 1.f, 0.f, 0.f };      // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectMaterialPreviewAlphaParams = { 0.f, 0.f, 0.f, 0.f }; // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectMaterialPreviewParams = { 1.f, 1.f, 0.f, 0.f };        // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectMaterialPreviewAlphaParams = { 0.f, 0.f, 0.f, 0.f };   // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectMaterialPreviewMainUVParams = { 1.f, 1.f, 0.f, 0.f };  // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewNoiseUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewMaskUVParams = { 1.f, 1.f, 0.f, 0.f };  // xy: scale, zw: scroll speed
+    float g_EffectMaterialPreviewTime = 0.f;
     int g_OpacitySource = 0;
-    float3 g_EffectMaterialPreviewPadding;
+    float2 g_EffectMaterialPreviewPadding;
 };
 
 Texture2D g_Texture : register(t0);
 Texture2D g_NoiseTexture : register(t1);
 Texture2D g_MaskTexture : register(t2);
+
+// preview 재질의 UV 스케일과 시간 기반 스크롤을 적용한다.
+float2 Apply_MaterialPreviewUV(float2 uv, float4 uvParams)
+{
+    return uv * uvParams.xy + uvParams.zw * g_EffectMaterialPreviewTime;
+}
 
 struct VS_IN
 {
@@ -61,39 +71,44 @@ PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out = (PS_OUT)0;
 
-    const float4 symbol = g_Texture.Sample(LinearClampSampler, In.texCoord);
+    const float2 mainUV = Apply_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMainUVParams);
+    const float2 noiseUV = Apply_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewNoiseUVParams);
+    const float2 maskUV = Apply_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMaskUVParams);
+    const float4 symbol = g_Texture.Sample(LinearWrapSampler, mainUV);
     const float opacityPower = max(g_EffectMaterialPreviewParams.y, 0.0001f);
     const float alphaCutoff = saturate(g_EffectMaterialPreviewAlphaParams.x);
     const float alphaErosion = saturate(g_EffectMaterialPreviewAlphaParams.y);
     float selectedOpacity = symbol.a;
-    float noiseFactor = 1.f;
-    float maskFactor = 1.f;
+    float noiseRaw = 1.f;
+    float maskAlpha = 1.f;
 
     if (g_OpacitySource == 1)
         selectedOpacity = symbol.r;
     else if (2 == g_OpacitySource)
         selectedOpacity = dot(symbol.rgb, float3(0.299f, 0.587f, 0.114f));
 
+    const float noiseStrength = saturate(g_EffectMaterialPreviewParams.z);
     if (g_EffectMaterialPreviewParams.w != 0 && g_EffectMaterialPreviewParams.z > 0.f)
-    {
-        const float noise = g_NoiseTexture.Sample(LinearClampSampler, In.texCoord).r;
-        noiseFactor = lerp(1.f, noise, saturate(g_EffectMaterialPreviewParams.z));
-    }
+        noiseRaw = g_NoiseTexture.Sample(LinearWrapSampler, noiseUV).r;
 
     if (g_EffectMaterialPreviewAlphaParams.z != 0)
-        maskFactor = g_MaskTexture.Sample(LinearClampSampler, In.texCoord).a;
+        maskAlpha = g_MaskTexture.Sample(LinearWrapSampler, maskUV).a;
+
+    const float breakupNoise = lerp(1.f, noiseRaw, noiseStrength);
+    float coverage = maskAlpha;
 
     if (alphaErosion > 0.f)
     {
-        const float erosionSource = min(maskFactor, noiseFactor);
-        const float erosionFactor = saturate((erosionSource - alphaErosion) / max(1.f - alphaErosion, 0.0001f));
-        maskFactor *= erosionFactor;
+        const float erosionSource = saturate(maskAlpha * breakupNoise);
+        const float erosionFactor = smoothstep(alphaErosion, 1.f, erosionSource);
+        coverage *= erosionFactor;
     }
 
-    const float opacity = pow(saturate(selectedOpacity), opacityPower) * maskFactor;
+    const float opacity = pow(saturate(selectedOpacity), opacityPower);
+    const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
     const float facing = saturate(abs(In.normal.z) * 0.35f + 0.65f);
-    Out.color.rgb = symbol.rgb * g_Tint.rgb * g_EffectMaterialPreviewParams.x * noiseFactor * facing;
-    Out.color.a = opacity * g_Tint.a;
+    Out.color.rgb = symbol.rgb * g_Tint.rgb * g_EffectMaterialPreviewParams.x * energyVariation * facing;
+    Out.color.a = opacity * coverage * breakupNoise * g_Tint.a;
 
     if (Out.color.a < max(alphaCutoff, 0.01f))
         discard;

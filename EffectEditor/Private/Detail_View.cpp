@@ -1,8 +1,8 @@
 ﻿#include "Detail_View.h"
 
+#include "DetailPropertyContext.h"
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
-#include "DetailPropertyContext.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -126,7 +126,7 @@ namespace
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (ImGui::BeginCombo("##Value", Get_TrailCurveQualityLabel(data.curveQuality)))
         {
-            for (TrailCurveQuality value : kTrailCurveQualityValues)
+            for (const TrailCurveQuality value : kTrailCurveQualityValues)
             {
                 const bool selected = data.curveQuality == value;
                 if (ImGui::Selectable(Get_TrailCurveQualityLabel(value), selected))
@@ -169,8 +169,10 @@ Detail_View::~Detail_View()
     Free();
 }
 
-void Detail_View::Update(float)
+void Detail_View::Update(float timeDelta)
 {
+    __super::Update(timeDelta);
+    _detailTimeDelta = max(0.f, timeDelta);
 }
 
 void Detail_View::Render()
@@ -316,7 +318,7 @@ void Detail_View::Render_PostProcessShaderDetail()
     if (!ImGui::CollapsingHeader("후처리 셰이더", ImGuiTreeNodeFlags_DefaultOpen))
         return;
 
-    EffectEditorPostProcessOptions options = EDITOR->Get_PostProcessOptions();
+    const EffectEditorPostProcessOptions options = EDITOR->Get_PostProcessOptions();
     const EffectEditorPostProcessOptions defaultOptions = EDITOR->Get_DefaultPostProcessOptions();
 
     bool hdr = Has_PostProcessFeature(options.features, PostProcessFeature::HDR);
@@ -447,7 +449,7 @@ void Detail_View::Render_TypeDataDetail(
                     data->uvTiling,
                     defaultData.uvTiling,
                     0.01f,
-                    "trail 길이 방향 texture 반복 배율입니다."
+                    "trail noise/breakup texture의 길이 방향 반복 배율입니다. Main/Mask body는 표시 길이에 맞춰 stretch됩니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "최대 표시 길이",
@@ -542,7 +544,7 @@ void Detail_View::Render_ModuleDetail(
     {
     case AuthoringModuleType::Required:
         if (auto* data = get_if<RequiredModuleData>(&module.data))
-            changed = _requiredModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+            changed = _requiredModuleDetail.Draw(emitter, module, *data, _detailPropertyContext, _detailTimeDelta);
         break;
 
     case AuthoringModuleType::Spawn:

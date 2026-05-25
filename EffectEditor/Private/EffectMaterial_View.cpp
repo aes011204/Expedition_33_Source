@@ -42,7 +42,6 @@ namespace Internal
 
         return iter->get<uint32>() == 0;
     }
-
 }
 
 EffectMaterial_View::EffectMaterial_View()
@@ -52,6 +51,14 @@ EffectMaterial_View::EffectMaterial_View()
 }
 
 EffectMaterial_View::~EffectMaterial_View() = default;
+
+void EffectMaterial_View::Update(float timeDelta)
+{
+    __super::Update(timeDelta);
+
+    if (Is_Open() && _previewRenderer != nullptr)
+        _previewRenderer->Update_MaterialTime(timeDelta);
+}
 
 void EffectMaterial_View::Pre_Render()
 {

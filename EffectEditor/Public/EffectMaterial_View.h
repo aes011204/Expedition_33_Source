@@ -14,6 +14,7 @@ public:
     ~EffectMaterial_View() override;
 
 public:
+    void Update(float timeDelta) override; // material preview UV motion 시간을 갱신한다.
     void Pre_Render() override;
     void Render() override;
 

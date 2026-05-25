@@ -1,9 +1,9 @@
 ﻿#pragma once
-
 #include "Editor_Window.h"
-#include "Emitter_View.h"
-#include "EffectAuthoring_Types.h"
+
 #include "DetailPropertyContext.h"
+#include "EffectAuthoring_Types.h"
+#include "Emitter_View.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -17,8 +17,9 @@ public:
     ~EffectMaterialInstance_View() override;
 
 public:
-    void Render() override;
+    void Update(float timeDelta) override; // material instance preview UV motion 시간을 갱신한다.
     void Pre_Render() override;
+    void Render() override;
 
 public: //## Behavior::Selection
     void Open_Instance(uint32 emitterId, uint32 moduleId);

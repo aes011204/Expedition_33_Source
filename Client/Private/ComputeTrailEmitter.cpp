@@ -182,6 +182,7 @@ HRESULT ComputeTrailEmitter::Initialize(void* arg)
 void ComputeTrailEmitter::Update(float timeDelta)
 {
     Sync_FromEffectOwner();
+    _materialElapsedTime += max(0.f, timeDelta);
     Update_History(timeDelta);
     CHECK_FAILED_THROTTLED(Dispatch_Compute(), 60);
 }
@@ -662,10 +663,16 @@ HRESULT ComputeTrailEmitter::Update_ComputeInput()
     if (renderSamples.size() < 2)
     {
         _drawSegmentCount = 0;
+        _visibleTrailLength = 1.f;
         return E_FAIL;
     }
 
     _drawSegmentCount = static_cast<uint32>(renderSamples.size() - 1u);
+    const float totalTrailLength = renderSamples.back().distanceFromHead;
+    _visibleTrailLength = max(
+        0.0001f,
+        _desc.maxTrailLength > 0.f ? min(totalTrailLength, _desc.maxTrailLength) : totalTrailLength
+    );
 
     vector<TrailSamplePayload> payloads{};
     payloads.reserve(renderSamples.size());
@@ -774,17 +781,45 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         _desc.material.noiseStrength,
         nullptr != _noiseTexture ? 1.f : 0.f
     );
-
     const Vec4 effectTrailAlphaParams = Vec4(
         clamp(_desc.material.alphaCutoff, 0.f, 1.f),
         clamp(_desc.material.alphaErosion, 0.f, 1.f),
         nullptr != _maskTexture ? 1.f : 0.f,
         0.f
     );
+    const Vec4 effectTrailMainUVParams = Vec4(
+        _desc.material.mainUVScale.x,
+        _desc.material.mainUVScale.y,
+        _desc.material.mainUVScrollSpeed.x,
+        _desc.material.mainUVScrollSpeed.y
+    );
+    const Vec4 effectTrailNoiseUVParams = Vec4(
+        _desc.material.noiseUVScale.x,
+        _desc.material.noiseUVScale.y,
+        _desc.material.noiseUVScrollSpeed.x,
+        _desc.material.noiseUVScrollSpeed.y
+    );
+    const Vec4 effectTrailMaskUVParams = Vec4(
+        _desc.material.maskUVScale.x,
+        _desc.material.maskUVScale.y,
+        _desc.material.maskUVScrollSpeed.x,
+        _desc.material.maskUVScrollSpeed.y
+    );
+    const Vec4 effectTrailUVPolicyParams = Vec4(
+        _visibleTrailLength,
+        max(_desc.uvTiling, 0.0001f),
+        0.f,
+        0.f
+    );
 
     const int opacitySourceIndex = Resolve_OpacitySourceIndex();
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailParams", &effectTrailParams, sizeof(effectTrailParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAlphaParams", &effectTrailAlphaParams, sizeof(effectTrailAlphaParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMainUVParams", &effectTrailMainUVParams, sizeof(effectTrailMainUVParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailNoiseUVParams", &effectTrailNoiseUVParams, sizeof(effectTrailNoiseUVParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaskUVParams", &effectTrailMaskUVParams, sizeof(effectTrailMaskUVParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVPolicyParams", &effectTrailUVPolicyParams, sizeof(effectTrailUVPolicyParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
     return S_OK;
 }
