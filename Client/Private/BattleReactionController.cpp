@@ -148,7 +148,7 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleS
         return;
 
     GAME->Slow_WorldTime(slowDesc.worldTimeScale, slowDesc.duration);
-    _reactionAnimTarget.ModelCom->Set_FrameSpeed(counterPlayRate);
+    _reactionAnimTarget.ModelCom->Set_FrameSpeed(counterPlayRate); // 플레이어 속도 증가
 
     _isCounterPending = false;
     _isCounterDamageApplied = false;

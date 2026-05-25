@@ -44,8 +44,6 @@ public: /* Delegate 선언 */
     DECLARE_DELEGATE(FOnActionStarted, const Action&);
     // Reaction (Dodge, Parry)
     DECLARE_DELEGATE(FOnReactionSucceeded, ReactionType, const BattleChar&);
-    // HP Bar 보이게
-    DECLARE_DELEGATE(FOnHpbarRevealRequested, const BattleChar&);
 
 public:
     BattleController();
@@ -102,12 +100,12 @@ public:
     HRESULT Ready_Delegates();
 
     //리액션 인풋
-    void OpenReactionWindow(ReactionType type);
-    void CloseReactionWindow(ReactionType type); //일단 이건 쓰지 마
-    void ClearReactionState();
-    void UpdateReactionInput();
+    void    OpenReactionWindow(ReactionType type);
+    void    CloseReactionWindow(ReactionType type); //일단 이건 쓰지 마
+    void    ClearReactionState();
+    void    UpdateReactionInput();
 
-    bool Try_ConsumeReactionGuard(const BattleChar& target);
+    bool    Try_ConsumeReactionGuard(const BattleChar& target);
 
 public: /* 타겟팅 중인 적 세팅 */
     void                Set_TargetPreview(const BattleChar& target);
@@ -147,6 +145,11 @@ public:
 
     uint32 Get_LastVictoryRewardExp() const { return _lastVictoryRewardExp; }
 
+    void Set_FreeAimHitTarget(const BattleChar& target);
+    void Clear_FreeAimHitTarget();
+    bool Has_FreeAimHitTarget() const { return _hasFreeAimHitTarget; }
+    const BattleChar* Get_FreeAimHitTarget() const { return _hasFreeAimHitTarget ? &_freeAimHitTarget : nullptr; }
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
@@ -160,13 +163,13 @@ private:
     PlayerCharacterType To_PlayerCharacterType(HeroId heroId);
 
 public: /* Delegate */
-    FOnBattleStarted        OnBattleStarted;
-    FOnBattleEnded          OnBattleEnded;
-    FOnTurnStarted          OnTurnStarted;
-    FOnTurnEnded            OnTurnEnded;
-    FOnTargetPreviewChanged OnTargetPreviewChanged;
-    FOnActionStarted        OnActionStarted;
-    FOnReactionSucceeded    OnReactionSucceeded;
+    FOnBattleStarted                OnBattleStarted;        // 배틀 시작
+    FOnBattleEnded                  OnBattleEnded;          // 배틀 끝
+    FOnTurnStarted                  OnTurnStarted;          // 턴 시작
+    FOnTurnEnded                    OnTurnEnded;            // 턴 끝
+    FOnTargetPreviewChanged         OnTargetPreviewChanged; // Targeting 중일 때
+    FOnActionStarted                OnActionStarted;        // 공격, 스킬 시작
+    FOnReactionSucceeded            OnReactionSucceeded;    // 회피, 패링 성공
 
     FDelegateHandle         _damageAppliedHandle{};
     FDelegateHandle         _editorStopHandle = {};
@@ -185,8 +188,11 @@ private:
     bool _flag = { false };
 
 private:
-    BattleChar _targetPreview = {};
-    bool _hasTargetPreview = false;
+    BattleChar  _targetPreview = {};
+    bool        _hasTargetPreview = false;
+
+    BattleChar  _freeAimHitTarget{};
+    bool        _hasFreeAimHitTarget = false;
 
 private:
     void Execute_BaseAttack(const BattleChar actor, const Action& turnAction);

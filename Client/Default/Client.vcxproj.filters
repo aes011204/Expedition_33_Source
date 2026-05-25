@@ -96,6 +96,17 @@
     <ClCompile Include="..\Private\ANS_QTE.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\AN_Change_Anim.cpp" />
+    <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
+    <ClCompile Include="..\Private\AN_StartCounter.cpp" />
+    <ClCompile Include="..\private\Base_Mon_Defense.cpp" />
+    <ClCompile Include="..\private\Base_Mon_Spawn.cpp" />
+    <ClCompile Include="..\Private\BattleReactionController.cpp" />
+    <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
+    <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp" />
+    <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
+    <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
+    <ClCompile Include="..\Private\UI_BattlePlayerHpBar.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -664,6 +675,17 @@
     <ClInclude Include="..\Public\Player_FreeAim.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\AN_Change_Anim.h" />
+    <ClInclude Include="..\Public\AN_CounterDamage.h" />
+    <ClInclude Include="..\Public\AN_StartCounter.h" />
+    <ClInclude Include="..\public\Base_Mon_Defense.h" />
+    <ClInclude Include="..\public\Base_Mon_Spawn.h" />
+    <ClInclude Include="..\Public\BattleReactionController.h" />
+    <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
+    <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h" />
+    <ClInclude Include="..\Public\UI_BattleMechanism.h" />
+    <ClInclude Include="..\Public\UI_ReactionResult.h" />
+    <ClInclude Include="..\Public\UI_BattlePlayerHpBar.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
@@ -1105,7 +1127,6 @@
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClCompile>
   </ItemGroup>
-
   <ItemGroup>
     <ClInclude Include="..\Public\ContentBrowserCore.h">
       <Filter>90.EditorSupport</Filter>

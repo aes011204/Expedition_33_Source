@@ -326,6 +326,7 @@
     <ClInclude Include="..\public\UIPreviewManager.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
     <ClInclude Include="..\Public\UI_BattleMechanism.h" />
+    <ClInclude Include="..\Public\UI_BattlePlayerHpBar.h" />
     <ClInclude Include="..\Public\UI_BattleSystemHUD.h" />
     <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
     <ClInclude Include="..\Public\UI_BattleVictory.h" />
@@ -533,6 +534,7 @@
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
+    <ClCompile Include="..\Private\UI_BattlePlayerHpBar.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
     <ClCompile Include="..\Private\UI_BattleVictory.cpp" />

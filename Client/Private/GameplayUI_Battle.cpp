@@ -355,9 +355,6 @@ void GameplayUI_Battle::Handle_TargetPreviewChanged(const BattleChar* target)
         _targetPreviewSnapshot = {};
         _hasTargetPreviewSnapshot = false;
 
-        if (_monsterHpBar)
-            _monsterHpBar->Close();
-
         return;
     }
 
@@ -369,6 +366,10 @@ void GameplayUI_Battle::Handle_ActionStarted(const Action& action)
 {
     if (_choiceTarget)
         _choiceTarget->Close();
+
+    // 공격 시작하면, 몬스터 Hp bar 안보이게 하네
+    if (_monsterHpBar)
+        _monsterHpBar->Clear_TrackedTarget();
 
     const bool isPlayerAction =
         action._curChar.statCom != nullptr &&
@@ -392,6 +393,9 @@ void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float dam
 
     if (damage <= 0.f)
         return;
+
+    if (_monsterHpBar && target.statCom != nullptr && !target.statCom->Is_Player())
+        _monsterHpBar->Show_TimedTarget(target, 1.5f);
 
     Vec3 worldPos{};
     if (!Try_GetDamageFontWorldPos(target, worldPos))
@@ -540,39 +544,29 @@ void GameplayUI_Battle::Update_MonsterHpBar(float timeDelta)
     if (_monsterHpBar == nullptr)
         return;
 
-    if (!_isBattleUiActive || !_hasTargetPreviewSnapshot)
+    if (!_isBattleUiActive)
     {
         _monsterHpBar->Close();
         return;
     }
 
-    if (_targetPreviewSnapshot.actor == nullptr || _targetPreviewSnapshot.statCom == nullptr)
+    const auto battleController = CLIENT->Get_BattleController();
+    const BattleChar* trackedTarget = nullptr;
+
+    if (battleController != nullptr)
     {
-        _monsterHpBar->Close();
-        return;
+        trackedTarget = battleController->Get_FreeAimHitTarget();
+
+        if (trackedTarget == nullptr)
+            trackedTarget = battleController->Get_TargetPreview();
     }
 
-    if (_targetPreviewSnapshot.statCom->Get_AliveStatus() != EAliveStatus::Alive)
-    {
-        _monsterHpBar->Close(); // 죽은 놈
-        return;
-    }
-
-    Vec3 worldPos{};
-    if (!Try_GetTargetHpBarWorldPos(_targetPreviewSnapshot, worldPos))
-    {
-        _monsterHpBar->Close();
-        return;
-    }
-
-    _monsterHpBar->Open();
-    _monsterHpBar->Set_TargetWorldPosition(worldPos);
-    _monsterHpBar->Set_Hp(
-        _targetPreviewSnapshot.statCom->Get_CurHp(),
-        _targetPreviewSnapshot.statCom->Get_StatInfo().maxHp);
+    if (trackedTarget != nullptr)
+        _monsterHpBar->Show_TrackedTarget(*trackedTarget);
+    else
+        _monsterHpBar->Clear_TrackedTarget();
 
     _monsterHpBar->Update(timeDelta);
-
 }
 
 void GameplayUI_Battle::Update_CrossHair(float timeDelta)
@@ -600,7 +594,7 @@ void GameplayUI_Battle::Update_CrossHair(float timeDelta)
     }
 
     _crossHair->Open();
-    _crossHair->Set_HitState(battleController->Get_TargetPreview() != nullptr);
+    _crossHair->Set_HitState(battleController->Has_FreeAimHitTarget());
 
     _crossHair->Update(timeDelta);
 }

@@ -186,8 +186,9 @@ void FreeAimTargeting::Refresh_HitTarget()
     _hasCurrentHitTarget = true;
 
     if (auto owner = Get_Owner())
-        owner->Set_TargetPreview(hitEnemy);
-
+    {
+        owner->Set_FreeAimHitTarget(hitEnemy);
+    }
 }
 
 void FreeAimTargeting::Clear_HitTarget()
@@ -196,7 +197,7 @@ void FreeAimTargeting::Clear_HitTarget()
     _hasCurrentHitTarget = false;
 
     if (auto owner = Get_Owner())
-        owner->Clear_TargetPreview();
+        owner->Clear_FreeAimHitTarget();
 }
 
 bool FreeAimTargeting::Is_CurrentActorAnimFinished() const

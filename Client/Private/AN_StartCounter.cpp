@@ -12,7 +12,6 @@ IMPLEMENT_REFLECTION(AN_StartCounter)
     PROPERTY_FLOAT("Slow 지속시간", _slowDuration);
     PROPERTY_FLOAT("Counter PlayerRate", _counterPlayRate);
 
-    
     return true;
 }
 
