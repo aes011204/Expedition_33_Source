@@ -35,12 +35,14 @@ void BattleReactionController::Clear_RuntimeState()
 {
     Clear();
 
+    if (_reactionAnimTarget.ModelCom)
+        _reactionAnimTarget.ModelCom->Set_FrameSpeed(1.f);
+
     _reactionAnimTarget = {};
     _counterDamageTarget = {};
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
-    _requestTurnEndAfterCounter = false;
 }
 
 bool BattleReactionController::TryInput(BattleReactionType type)
@@ -79,16 +81,6 @@ bool BattleReactionController::IsWindowOpen(BattleReactionType type) const
     default:
         return false;
     }
-}
-
-bool BattleReactionController::Consume_CounterFinishedTurnRequest()
-{
-    if (!_requestTurnEndAfterCounter)
-        return false;
-
-    _requestTurnEndAfterCounter = false;
-
-    return true;
 }
 
 BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateInput(const Action& turnAction)
@@ -144,7 +136,7 @@ void BattleReactionController::UpdateAnimation()
     FinishReactionAnimation();
 }
 
-void BattleReactionController::StartCounter(ModelCom* sourceModel)
+void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate)
 {
     if (!_isCounterPending)
         return;
@@ -154,6 +146,9 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
 
     if (!_reactionAnimTarget.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Counter), 0.12f, false))
         return;
+
+    GAME->Slow_WorldTime(slowDesc.worldTimeScale, slowDesc.duration);
+    _reactionAnimTarget.ModelCom->Set_FrameSpeed(counterPlayRate);
 
     _isCounterPending = false;
     _isCounterDamageApplied = false;
@@ -177,7 +172,7 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
     constexpr float counterDamage = 50.f; // 임시 고정값.
     DamageSystem::ApplyDamage(counterDamage, _counterDamageTarget);
 
-    _isCounterDamageApplied = true; 
+    _isCounterDamageApplied = true;
 }
 
 bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
@@ -242,10 +237,11 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
 
 void BattleReactionController::FinishReactionAnimation()
 {
-    const bool wasCounterPhase = _animPhase == ReactionAnimPhase::Counter;
-
     if (_reactionAnimTarget.ModelCom)
     {
+         // Counter 배속이 다음 애니메이션으로 새지 않게 복구
+        _reactionAnimTarget.ModelCom->Set_FrameSpeed(1.f);
+
         _reactionAnimTarget.ModelCom->Set_AnimationByState(
             ETOI(BattleAnimType::Base_Idle),
             0.15f,
@@ -257,9 +253,6 @@ void BattleReactionController::FinishReactionAnimation()
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
-
-    if (wasCounterPhase)
-        _requestTurnEndAfterCounter = true;
 }
 
 Shared<BattleReactionController> BattleReactionController::Create()

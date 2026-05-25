@@ -44,6 +44,8 @@ public: /* Delegate 선언 */
     DECLARE_DELEGATE(FOnActionStarted, const Action&);
     // Reaction (Dodge, Parry)
     DECLARE_DELEGATE(FOnReactionSucceeded, ReactionType, const BattleChar&);
+    // HP Bar 보이게
+    DECLARE_DELEGATE(FOnHpbarRevealRequested, const BattleChar&);
 
 public:
     BattleController();
@@ -118,7 +120,7 @@ public:
 
     Shared<BattleTurnCamera> Get_BattleTurnCamera() const { return _battleTurnCamera; }
 
-    void                StartCounter(ModelCom* sourceModel);
+    void                StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate);
     void                ApplyCounterDamage(ModelCom* sourceModel);
 
 public:
@@ -132,6 +134,13 @@ public:
 
      // 전투 종료
     void Confirm_Victory();
+
+    // 데미지 후 전투 진행 규칙을 한 곳에서 처리한다.
+    void Handle_DamageApplied(const BattleChar& damagedTarget, float damage);
+
+     // 현재 턴 액터가 죽으면 턴 종료를 예약한다.
+    void Try_RequestEndTurnOnCurrentActorDeath(const BattleChar& damagedTarget, float damage);
+
     // 마지막 데미지 들어가면서 슬로우 시작
     void Try_BeginVictorySlowOnDamage(const BattleChar& damagedTarget, float damage);
     bool Can_TriggerVictory() const;
@@ -194,6 +203,9 @@ private: /* 전투 AP */
 private:
     bool _battleEnded = {};
     bool _pendingNextTurn = {};
+
+    // 현재 턴을 진행중인 적이 죽으면.
+    bool _requestEndTurnOnCurrentActorDeath = false; 
 
 public:
     struct Compare

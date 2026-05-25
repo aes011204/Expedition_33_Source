@@ -152,7 +152,7 @@ void AIController::Stop_Move()
 
     const Shared<TransformCom> transform = owner->Get_Transform();
     if (transform == nullptr)
-        return; 
+        return;
 
     Vec3 pos = transform->Get_Position();
     _PF->Stop_Move(pos);

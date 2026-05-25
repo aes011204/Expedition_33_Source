@@ -44,14 +44,11 @@ public:
     bool IsConsumed() const { return _isConsumed; }
     BattleReactionType Get_Result() const { return _result; }
 
-    // 카운터로 적 죽였을 때 턴 넘기게
-    bool Consume_CounterFinishedTurnRequest();
-
     BattleReactionInputResult UpdateInput(const Action& turnAction);
     void UpdateAnimation();
 
 public:
-    void StartCounter(ModelCom* sourceModel);
+    void StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate);
     void ApplyCounterDamage(ModelCom* sourceModel);
 
 private:
@@ -78,8 +75,6 @@ private:
     ReactionAnimPhase _animPhase = ReactionAnimPhase::None;
     bool _isCounterPending = false;
     bool _isCounterDamageApplied = false;
-
-    bool _requestTurnEndAfterCounter = false;
 
 public:
     static Shared<BattleReactionController> Create();

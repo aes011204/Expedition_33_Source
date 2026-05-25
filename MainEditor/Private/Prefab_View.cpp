@@ -12,6 +12,7 @@
 #include "Animation_View.h"
 #include "ColliderCom.h"
 #include "ModelCom.h"
+#include "Monster_WorldBase.h"
 #include "RenderTarget.h"
 #include "imgui_internal.h"
 #include "AnimState_View.h"
@@ -614,6 +615,10 @@ void Prefab_View::Draw_InspectorPanel()
     case SelectionType::GameObject:
     {
         const json beforeJson = selectedObject->To_Json();
+
+        if (Draw_MonsterBattlePrefabList(selectedObject))
+            MarkDirty();
+
         const Engine::ClassReflectionInfo& info = selectedObject->Get_ReflectionInfo();
 
         if (info.properties.empty())
@@ -678,6 +683,73 @@ void Prefab_View::Draw_InspectorPanel()
     ImGui::EndChild();
 }
 
+bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject)
+{
+    Shared<Client::Monster_WorldBase> monster = dynamic_pointer_cast<Client::Monster_WorldBase>(selectedObject);
+    if (monster == nullptr)
+        return false;
+
+    bool changed = false;
+    vector<string>& prefabNames = monster->Get_BattleMonsterPrefabNames_ForEdit();
+
+    // 프리팹에 저장되는 전투 소환 목록이다.
+    if (!ImGui::CollapsingHeader("Battle Monster Prefabs", ImGuiTreeNodeFlags_DefaultOpen))
+        return false;
+
+    ImGui::PushID("BattleMonsterPrefabs");
+
+    constexpr float BattlePrefabLabelWidth = 110.f;
+
+    int32 removeIndex = -1;
+    for (int32 i = 0; i < static_cast<int32>(prefabNames.size()); ++i)
+    {
+        ImGui::PushID(i);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("Slot %d", i);
+        ImGui::SameLine(BattlePrefabLabelWidth);
+
+        char buffer[256]{};
+        strncpy_s(buffer, prefabNames[i].c_str(), _TRUNCATE);
+
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x - 74.f));
+        if (ImGui::InputText("##BattleMonsterPrefabName", buffer, IM_ARRAYSIZE(buffer)))
+        {
+            prefabNames[i] = buffer;
+            changed = true;
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Remove", ImVec2(68.f, 0.f)))
+            removeIndex = i;
+
+        ImGui::PopID();
+    }
+
+    if (removeIndex >= 0 && removeIndex < static_cast<int32>(prefabNames.size()))
+    {
+        prefabNames.erase(prefabNames.begin() + removeIndex);
+        changed = true;
+    }
+
+    if (ImGui::Button("Add", ImVec2(70.f, 0.f)))
+    {
+        prefabNames.emplace_back();
+        changed = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear", ImVec2(70.f, 0.f)))
+    {
+        prefabNames.clear();
+        changed = true;
+    }
+
+    ImGui::PopID();
+    ImGui::Spacing();
+
+    return changed;
+}
 
 void Prefab_View::Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey)
 {

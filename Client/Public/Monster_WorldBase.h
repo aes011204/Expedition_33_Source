@@ -35,10 +35,19 @@ public:
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
 
+    json    To_Json() const override;
+    void    From_Json(const json& data) override;
+
 public:
     void            OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     void            On_EditorStopRuntime();
-    virtual void    Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const = 0;
+
+    // 이 월드 몬스터와 충돌했을 때 생성할 배틀 몬스터 프리팹 목록을 넘긴다.
+    virtual void    Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const;
+
+    // Prefab_View가 배틀 소환 목록을 직접 편집할 때 사용한다.
+    vector<string>& Get_BattleMonsterPrefabNames_ForEdit() { return _battleMonsterPrefabNames; }
+    const vector<string>& Get_BattleMonsterPrefabNames() const { return _battleMonsterPrefabNames; }
 
     void Set_CurrentAction(MonsterWorldAnim action) { _currentAction = action; }
     MonsterWorldAnim Get_CurrentAction() const { return _currentAction; }
@@ -52,6 +61,8 @@ private:
 protected:
     Shared<AIController>         _aiCtrl;
     Shared<MonsterStatCom>       _combatStat;
+
+    vector<string>               _battleMonsterPrefabNames = {};
 
     bool                         _isBattleStart = false;
     FDelegateHandle              _editorStopHandle = {};

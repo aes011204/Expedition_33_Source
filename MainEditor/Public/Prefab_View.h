@@ -42,6 +42,7 @@ private:
     void Draw_StructurePanel();
     void Draw_PreviewPanel();
     void Draw_InspectorPanel();
+    bool Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject);
     void Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey);
     void Draw_ComponentEntries(const Shared<GameObject>& gameObject, const wstring& objectKey);
 

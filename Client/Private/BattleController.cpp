@@ -91,12 +91,6 @@ void BattleController::Update(float timeDelta)
 
     _reactionController.UpdateAnimation();
 
-    if (!_isPendingVictorySlow && _reactionController.Consume_CounterFinishedTurnRequest())
-    {
-        EndTurn(); // 카운터로 적 턴 액션을 중간에 끊어서 executor 완료 기다리지 않고 바로 턴 종료
-        return;
-    }
-
     if (_isPendingVictorySlow)
     {
         _victorySlow.elapsed += GAME->Get_UnscaledTimeDelta();
@@ -110,6 +104,13 @@ void BattleController::Update(float timeDelta)
             _battleEnded = true;
             return;
         }
+    }
+
+    if (!_isPendingVictorySlow && _requestEndTurnOnCurrentActorDeath)
+    {
+        _requestEndTurnOnCurrentActorDeath = false;
+        EndTurn();
+        return;
     }
 
     if (!_isPendingVictorySlow)
@@ -385,6 +386,8 @@ void BattleController::StartTurn()
 {
     ClearReactionState(); // 이전 턴에서 소비못한 리액션 상태 정리
     _isActionExecuting = false; // 선택 대기 상태에서는 executor 완료 여부로 턴을 넘기지 않는다.
+    _requestEndTurnOnCurrentActorDeath = false;
+
     if (_battleActionExe)
         _battleActionExe->Reset();
 
@@ -631,6 +634,7 @@ void BattleController::Handle_EditorStopRuntime()
     _isWaitingBattleTransition = false;
     _isPendingVictorySlow = false;
     _isWaitingVictoryConfirm = false;
+    _requestEndTurnOnCurrentActorDeath = false;
     _victorySlow.elapsed = 0.f;
 
     if (_battleSpawnRegistry)
@@ -665,7 +669,7 @@ HRESULT BattleController::Ready_Delegates()
     );
 
     _damageAppliedHandle = DamageSystem::OnDamageApplied.Add(
-        this, &BattleController::Try_BeginVictorySlowOnDamage);
+        this, &BattleController::Handle_DamageApplied);
 
     return S_OK;
 }
@@ -760,9 +764,9 @@ BattleTurnState BattleController::Get_CurrentTurnState() const
     return _battleFSM->Get_CurrentPlayerState();
 }
 
-void BattleController::StartCounter(ModelCom* sourceModel)
+void BattleController::StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate)
 {
-    _reactionController.StartCounter(sourceModel);
+    _reactionController.StartCounter(sourceModel, slowDesc, counterPlayRate);
 }
 
 void BattleController::ApplyCounterDamage(ModelCom* sourceModel)
@@ -1074,6 +1078,32 @@ void BattleController::Confirm_Victory()
     _firstAnimCount = 0;
 }
 
+void BattleController::Handle_DamageApplied(const BattleChar& damagedTarget, float damage)
+{
+    Try_RequestEndTurnOnCurrentActorDeath(damagedTarget, damage);
+    Try_BeginVictorySlowOnDamage(damagedTarget, damage);   
+}
+
+void BattleController::Try_RequestEndTurnOnCurrentActorDeath(const BattleChar& damagedTarget, float damage)
+{
+    if (damage <= 0.f)
+        return;
+
+    if (!_isActionExecuting)
+        return;
+
+    if (damagedTarget.actor == nullptr || damagedTarget.statCom == nullptr)
+        return;
+
+    if (_currentTurnActor.actor != damagedTarget.actor)
+        return; // 맞은 대상이 현재 턴 액터일 때만 현재 액션을 끊기
+
+    if (damagedTarget.statCom->Get_AliveStatus() != EAliveStatus::Dead)
+        return;
+
+    _requestEndTurnOnCurrentActorDeath = true; 
+}
+
 void BattleController::Try_BeginVictorySlowOnDamage(const BattleChar& damagedTarget, float damage)
 {
     if (_battleEnded || _isPendingVictorySlow || _isWaitingVictoryConfirm)
@@ -1175,6 +1205,7 @@ void BattleController::Clear_BattleRuntimeState()
     _turnAction = {};
     _currentTurnActor = {};
     _pendingNextTurn = false;
+    _requestEndTurnOnCurrentActorDeath = false;
     _reactionController.Clear_RuntimeState();
     _isFreeAimShotPlaying = false;
     _freeAimShotAction = {};
