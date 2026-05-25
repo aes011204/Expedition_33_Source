@@ -16,6 +16,7 @@ class UI_BattleTransition;
 class UI_BattleCommandHUD;
 class UI_BattleSystemHUD;
 class UI_MonsterHpBar;
+class UI_PlayerHpBar;
 class UI_CrossHair;
 class UI_ChoiceTarget;
 class UI_AttackTooltip;
@@ -57,6 +58,7 @@ private:
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
     void    Update_MonsterHpBar(float timeDelta);
+    void    Update_PlayerHpBar(float timeDelta);
     void    Update_CrossHair(float timeDelta);
     void    Update_BattleDefense(float timeDelta);
     void    Update_CancelAim(float timeDelta);
@@ -92,7 +94,10 @@ private:
     Unique<UI_BattleTransition>             _battleTransition; // 전투 진입 테스트용 페이드 UI
     Unique<UI_BattleCommandHUD>             _battleCommandHUD;
     Unique<UI_BattleSystemHUD>              _battleSystemHUD;
+
     Unique<UI_MonsterHpBar>                 _monsterHpBar;
+    Unique<UI_PlayerHpBar>                  _playerHpBar;
+
     Unique<UI_CrossHair>                    _crossHair;
     Unique<UI_BattleDefense>                _battleDefense;
     Unique<UI_CancelAim>                    _cancelAim;
@@ -117,7 +122,7 @@ private:
     FDelegateHandle          _targetPreviewChangedHandle{}; // 타겟 바뀔 때
     FDelegateHandle          _actionStartedHandle{};
     FDelegateHandle          _damageAppliedHandle{};
-    FDelegateHandle           _reactionSucceededHandle{};
+    FDelegateHandle          _reactionSucceededHandle{};
 
 private:
     BattleChar               _targetPreviewSnapshot{};

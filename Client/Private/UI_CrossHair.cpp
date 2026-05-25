@@ -79,13 +79,12 @@ HRESULT UI_CrossHair::Bind_UI()
     Shared<UI_Base> outlineBase = Find_UI(_uiByName, L"Image_CrossAir_Outline");
 
     CHECK_NULL(crossHairBase, E_FAIL);
-    CHECK_NULL(outlineBase, E_FAIL);
 
     _crossHairImage = dynamic_pointer_cast<UI_Image>(crossHairBase);
-    _crossHairOutlineImage = dynamic_pointer_cast<UI_Image>(outlineBase);
+    if (outlineBase)
+        _crossHairOutlineImage = dynamic_pointer_cast<UI_Image>(outlineBase);
 
     CHECK_NULL(_crossHairImage, E_FAIL);
-    CHECK_NULL(_crossHairOutlineImage, E_FAIL);
 
     Apply_Color();
     return S_OK;

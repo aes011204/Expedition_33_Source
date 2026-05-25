@@ -16,6 +16,7 @@
 #include "UI_CancelAim.h"
 #include "UI_ChoiceTarget.h"
 #include "UI_MonsterHpBar.h"
+#include "UI_PlayerHpBar.h"
 #include "UI_CrossHair.h"
 #include "UI_DamageFont.h"
 #include "UI_EscapeSkipTurn.h"
@@ -42,6 +43,7 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_battleCommandHUD, UI_BattleCommandHUD::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleSystemHUD, UI_BattleSystemHUD::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_monsterHpBar, UI_MonsterHpBar::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_playerHpBar, UI_PlayerHpBar::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_crossHair, UI_CrossHair::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleDefense, UI_BattleDefense::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_cancelAim, UI_CancelAim::Create), E_FAIL);
@@ -69,6 +71,7 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_BattleCommandHUD(timeDelta); // 플레이어 전투 입력 허드
     Update_BattleSystemHUD(timeDelta);  // 파티 portrait HP/AP HUD
     Update_MonsterHpBar(timeDelta);     // 몬스터 체력
+    Update_PlayerHpBar(timeDelta);
     Update_CrossHair(timeDelta);        // Free Aim 크로스헤어
     Update_BattleDefense(timeDelta);    // 몬스터 턴 방어 (좌측 하단)
     Update_CancelAim(timeDelta);        // Free Aim 취소
@@ -196,6 +199,7 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isFirstHero)
         _battleCommandHUD.get(),
         _battleSystemHUD.get(),
         _monsterHpBar.get(),
+        _playerHpBar.get(),
         _crossHair.get(),
         _battleDefense.get(),
         _cancelAim.get(),
@@ -238,6 +242,7 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
         _battleCommandHUD.get(),
         _battleSystemHUD.get(),
         _monsterHpBar.get(),
+        _playerHpBar.get(),
         _crossHair.get(),
         _battleDefense.get(),
         _cancelAim.get(),
@@ -394,8 +399,20 @@ void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float dam
     if (damage <= 0.f)
         return;
 
-    if (_monsterHpBar && target.statCom != nullptr && !target.statCom->Is_Player())
-        _monsterHpBar->Show_TimedTarget(target, 1.5f);
+     if (target.statCom != nullptr)
+    {
+        if (target.statCom->Is_Player())
+        {
+            if (_playerHpBar)
+                _playerHpBar->Show_DamagedTarget(target, damage, 1.5f);
+        }
+        else
+        {
+            if (_monsterHpBar)
+                _monsterHpBar->Show_DamagedTarget(target, damage, 1.5f);
+        }
+    }
+
 
     Vec3 worldPos{};
     if (!Try_GetDamageFontWorldPos(target, worldPos))
@@ -567,6 +584,20 @@ void GameplayUI_Battle::Update_MonsterHpBar(float timeDelta)
         _monsterHpBar->Clear_TrackedTarget();
 
     _monsterHpBar->Update(timeDelta);
+}
+
+void GameplayUI_Battle::Update_PlayerHpBar(float timeDelta)
+{
+     if (_playerHpBar == nullptr)
+        return;
+
+    if (!_isBattleUiActive)
+    {
+        _playerHpBar->Close();
+        return;
+    }
+
+    _playerHpBar->Update(timeDelta);
 }
 
 void GameplayUI_Battle::Update_CrossHair(float timeDelta)
@@ -1026,6 +1057,7 @@ void GameplayUI_Battle::Free()
     Release_UI(_battleCommandHUD);
     Release_UI(_battleSystemHUD);
     Release_UI(_monsterHpBar);
+    Release_UI(_playerHpBar);
     Release_UI(_crossHair);
     Release_UI(_battleDefense);
     Release_UI(_cancelAim);

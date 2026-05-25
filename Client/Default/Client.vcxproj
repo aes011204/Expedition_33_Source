@@ -181,6 +181,7 @@
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
+    <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
@@ -327,7 +328,7 @@
     <ClInclude Include="..\public\UIPreviewManager.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
     <ClInclude Include="..\Public\UI_BattleMechanism.h" />
-    <ClInclude Include="..\Public\UI_BattlePlayerHpBar.h" />
+    <ClInclude Include="..\Public\UI_PlayerHpBar.h" />
     <ClInclude Include="..\Public\UI_BattleSystemHUD.h" />
     <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
     <ClInclude Include="..\Public\UI_BattleVictory.h" />
@@ -399,6 +400,7 @@
     <ClCompile Include="..\private\BT_FinishDecision.cpp" />
     <ClCompile Include="..\private\BT_SetSkill.cpp" />
     <ClCompile Include="..\private\BT_Set_Target.cpp" />
+    <ClCompile Include="..\Private\EffectCom.cpp" />
     <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
@@ -538,7 +540,7 @@
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
-    <ClCompile Include="..\Private\UI_BattlePlayerHpBar.cpp" />
+    <ClCompile Include="..\Private\UI_PlayerHpBar.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
     <ClCompile Include="..\Private\UI_BattleVictory.cpp" />

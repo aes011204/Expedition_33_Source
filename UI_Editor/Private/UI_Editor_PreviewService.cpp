@@ -620,6 +620,7 @@ namespace UIEditor
 
         if (!fs::exists(texturePath))
         {
+            LOG_WARN("UI Editor texture preview missing file: {}", String::ToString(texturePath));
             _texturePreviewFailedKeys.insert(cacheKey);
             return nullptr;
         }
@@ -656,6 +657,7 @@ namespace UIEditor
 
         if (FAILED(hr) || nullptr == textureSRV)
         {
+            LOG_WARN("UI Editor texture preview load failed. hr=0x{:08X}, path={}", static_cast<uint32>(hr), String::ToString(texturePath));
             _texturePreviewFailedKeys.insert(cacheKey);
             return nullptr;
         }

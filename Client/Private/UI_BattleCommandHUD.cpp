@@ -55,22 +55,22 @@ void UI_BattleCommandHUD::Refresh_ForState(BattleTurnState state)
     switch (state)
     {
     case BattleTurnState::AttackTargeting:
-        Set_ButtonHighlighted(_attackButton, true); // 기본 공격
+        Set_CommandSlotHighlighted(_attackSlot, true); // 기본 공격
         break;
 
     case BattleTurnState::ChooseSkill:
     case BattleTurnState::SkillTargeting:
-        Set_ButtonHighlighted(_skillButton, true); // 스킬
+        Set_CommandSlotHighlighted(_skillSlot, true); // 스킬
         break;
 
     case BattleTurnState::ChooseItem:
     case BattleTurnState::ItemTargeting:
-        Set_ButtonHighlighted(_itemButton, true); // 아이템
+        Set_CommandSlotHighlighted(_itemSlot, true); // 아이템
         break;
 
     case BattleTurnState::ChooseUltimate:
     case BattleTurnState::UltimateTargeting:
-        Set_ButtonHighlighted(_shotButton, true); // 이건 일단 임시
+        Set_CommandSlotHighlighted(_shotSlot, true); // 이건 일단 임시
         break;
 
     case BattleTurnState::ChooseAction:
@@ -104,34 +104,56 @@ HRESULT UI_BattleCommandHUD::Load_UI(uint32 levelIndex)
 
 HRESULT UI_BattleCommandHUD::Bind_UI()
 {
-    _attackButton = Find_UI(_uiByName, L"Button_BattleCommand_Attack");
-    _skillButton  = Find_UI(_uiByName, L"Button_BattleCommand_Skill");
-    _itemButton   = Find_UI(_uiByName, L"Button_BattleCommand_Item");
-    _shotButton   = Find_UI(_uiByName, L"Button_BattleCommand_Shot");
-
-    CHECK_NULL(_attackButton, E_FAIL);
-    CHECK_NULL(_skillButton, E_FAIL);
-    CHECK_NULL(_itemButton, E_FAIL);
-    CHECK_NULL(_shotButton, E_FAIL);
+    CHECK_FAILED(Bind_CommandSlot(L"Attack", L"Panel_Key_F", true, _attackSlot), E_FAIL);
+    CHECK_FAILED(Bind_CommandSlot(L"Skill", L"Panel_Key_E", true, _skillSlot), E_FAIL);
+    CHECK_FAILED(Bind_CommandSlot(L"Item", L"Panel_Key_W", true, _itemSlot), E_FAIL);
+    CHECK_FAILED(Bind_CommandSlot(L"Shot", L"Image_Input_RightMouse", false, _shotSlot), E_FAIL);
 
     return S_OK;
 }
 
 void UI_BattleCommandHUD::Apply_DefaultHighlight()
 {
-    Set_ButtonHighlighted(_attackButton, false);
-    Set_ButtonHighlighted(_skillButton, false);
-    Set_ButtonHighlighted(_itemButton, false);
-    Set_ButtonHighlighted(_shotButton, false);
+    Set_CommandSlotHighlighted(_attackSlot, false);
+    Set_CommandSlotHighlighted(_skillSlot, false);
+    Set_CommandSlotHighlighted(_itemSlot, false);
+    Set_CommandSlotHighlighted(_shotSlot, false);
 }
 
-void UI_BattleCommandHUD::Set_ButtonHighlighted(const Shared<UI_Base>& button, bool highlighted)
+HRESULT UI_BattleCommandHUD::Bind_CommandSlot(
+    const wstring& commandName,
+    const wstring& keyName,
+    bool requireKey,
+    CommandSlot& outSlot)
 {
-    if (button == nullptr || button->Get_Transform() == nullptr)
+    const wstring prefix = L"BattleCommand_" + commandName;
+
+    outSlot.root = Find_UI(_uiByName, L"Button_" + prefix);
+    outSlot.frameBG = Find_UI(_uiByName, L"Image_" + prefix + L"_Frame_BG");
+    outSlot.frameLeft = Find_UI(_uiByName, L"Image_" + prefix + L"_Frame_Left");
+    outSlot.frameRight = Find_UI(_uiByName, L"Image_" + prefix + L"_Frame_Right");
+    outSlot.text = Find_UI(_uiByName, L"Text_" + prefix);
+    outSlot.key = keyName.empty() ? nullptr : Find_UI(_uiByName, keyName);
+
+    CHECK_NULL(outSlot.root, E_FAIL);
+    CHECK_NULL(outSlot.frameBG, E_FAIL);
+    CHECK_NULL(outSlot.frameLeft, E_FAIL);
+    CHECK_NULL(outSlot.frameRight, E_FAIL);
+    CHECK_NULL(outSlot.text, E_FAIL);
+
+    if (requireKey)
+        CHECK_NULL(outSlot.key, E_FAIL);
+
+    return S_OK;
+}
+
+void UI_BattleCommandHUD::Set_CommandSlotHighlighted(const CommandSlot& slot, bool highlighted)
+{
+    if (slot.root == nullptr || slot.root->Get_Transform() == nullptr)
         return;
 
     // 선택 강조 표시
-    button->Get_Transform()->Set_Scale(highlighted ? _highlightScale : _normalScale);
+    slot.root->Get_Transform()->Set_Scale(highlighted ? _highlightScale : _normalScale);
 }
 
 Unique<UI_BattleCommandHUD> UI_BattleCommandHUD::Create(uint32 levelIndex)
@@ -153,10 +175,10 @@ void UI_BattleCommandHUD::Free()
     if (_root)
         _root->Close();
 
-    _attackButton.reset();
-    _skillButton.reset();
-    _itemButton.reset();
-    _shotButton.reset();
+    _attackSlot = {};
+    _skillSlot = {};
+    _itemSlot = {};
+    _shotSlot = {};
     _root.reset();
     _uiByName.clear();
 

@@ -401,9 +401,6 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
 
 HRESULT GameInstance::Draw()
 {
-    if (FAILED(_uiManager->Render(UI_RenderGroup::Background)))
-        return E_FAIL;
-
     _renderer->Draw();
 
     _levelManager->Render();
@@ -428,8 +425,16 @@ HRESULT GameInstance::Draw()
     Try_FlushRuntimePerfLog();
 #endif
 
-    if (FAILED(_uiManager->Render()))
+#pragma region UI Render
+    // Background UI는 3D 씬 이후, Foreground UI 이전에 그린다.
+    if (FAILED(_uiManager->Render(UI_RenderGroup::Background)))
         return E_FAIL;
+
+    // Foreground UI는 마지막에 그려서 항상 화면 위에 보이게 한다.
+    if (FAILED(_uiManager->Render(UI_RenderGroup::Foreground)))
+        return E_FAIL;
+#pragma endregion
+
 
 #ifdef _DEBUG
       _printManager->Render();

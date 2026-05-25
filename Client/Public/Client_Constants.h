@@ -39,6 +39,8 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Choice_Target_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Choice_Target.json";
 
     inline constexpr wchar_t UI_Monster_Hp_Path[] = L"UI/UI_Json/BattleSystem/UI_Monster_HP_Bar.json";
+    inline constexpr wchar_t UI_Player_Hp_Path[] = L"UI/UI_Json/BattleSystem/UI_Player_HP_Bar.json";
+
     inline constexpr wchar_t UI_Target_Monster_Path[] = L"UI/UI_Json/BattleSystem/UI_Target_Monster.json";
 
     inline constexpr wchar_t UI_CrossAir_Path[] = L"UI/UI_Json/BattleSystem/UI_CrossAir.json";
