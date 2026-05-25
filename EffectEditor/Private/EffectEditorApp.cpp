@@ -489,9 +489,7 @@ HRESULT EffectEditorApp::Render()
             return E_FAIL;
 #ifdef _DEBUG
         if (sampleRenderPerf)
-        {
             bindBackBufferMs = chrono::duration<double, milli>(chrono::steady_clock::now() - editorPassBegin).count();
-        }
 #endif
 #ifdef _DEBUG
         EDITOR->Render_Editor(sampleRenderPerf ? &editorPerfSample : nullptr);
@@ -527,7 +525,8 @@ HRESULT EffectEditorApp::Render()
             editorPerfSample.editorWindowsMs,
             editorPerfSample.notificationMs,
             editorPerfSample.imguiMs,
-            presentMs);
+            presentMs
+        );
     }
 
     Try_FlushEffectEditorRenderPerfLog();
@@ -629,7 +628,8 @@ HRESULT EffectEditorApp::Ready_Prototype_For_GamePlay_Preview_Level()
         loadJobs.size(),
         includedCount,
         excludedCount,
-        failedCount);
+        failedCount
+    );
 
     return S_OK;
 }

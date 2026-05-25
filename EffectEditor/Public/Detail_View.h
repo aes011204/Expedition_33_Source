@@ -25,7 +25,6 @@ private: //## Helper::EffectAuthoring
         const Shared<Emitter_View>& emitterView,
         const EffectAuthoringSelection& selection,
         ParticleSystemAuthoringData& data);
-    void Render_ViewModeDetail();
     void Render_TrailPreviewDetail();
     void Render_PostProcessShaderDetail();
     void Render_EmitterDetail(

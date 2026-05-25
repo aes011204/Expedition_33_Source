@@ -66,8 +66,7 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
     _isTrailPreviewVisible = false;
-    _postProcessPreset = EffectEditorPostProcessPreset::Authoring;
-    _postProcessOptions = Get_DefaultPostProcessOptions(_postProcessPreset);
+    _postProcessOptions = Get_DefaultPostProcessOptions();
     Queue_PreviewViewportSize(kDefaultPreviewViewportWidth, kDefaultPreviewViewportHeight);
 
     return S_OK;
@@ -104,13 +103,11 @@ void EffectEditorInstance::Release_Editor()
     _pendingPreviewViewportHeight = kDefaultPreviewViewportHeight;
     _appliedPreviewViewportWidth = 0;
     _appliedPreviewViewportHeight = 0;
-    _sceneViewMode = SceneViewMode::Authoring;
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
     _isTrailPreviewVisible = false;
-    _postProcessPreset = EffectEditorPostProcessPreset::Authoring;
-    _postProcessOptions = Get_DefaultPostProcessOptions(_postProcessPreset);
+    _postProcessOptions = Get_DefaultPostProcessOptions();
     _hasPendingWindowFocus = false;
     _pendingWindowFocus = EditorViewportTarget::Game;
     _pendingSingleFrameStep = false;
@@ -334,45 +331,23 @@ void EffectEditorInstance::Reset_TrailPreviewLocalOffsets()
     _trailPreviewTipLocalOffset = kDefaultTrailPreviewTipLocalOffset;
 }
 
-EffectEditorPostProcessOptions EffectEditorInstance::Get_DefaultPostProcessOptions(EffectEditorPostProcessPreset preset) const
+EffectEditorPostProcessOptions EffectEditorInstance::Get_DefaultPostProcessOptions() const
 {
     EffectEditorPostProcessOptions options{};
     options.params = PostProcessCB{};
 
-    switch (preset)
-    {
-    case EffectEditorPostProcessPreset::Final:
-        options.features =
-            PostProcessFeature::HDR |
-            PostProcessFeature::Exposure |
-            PostProcessFeature::ToneMapping |
-            PostProcessFeature::Bloom |
-            PostProcessFeature::Gamma;
-        break;
-
-    case EffectEditorPostProcessPreset::Authoring:
-    default:
-        options.features =
-            PostProcessFeature::HDR |
-            PostProcessFeature::Bloom;
-        options.params.bloomIntensity = 0.f;
-        break;
-    }
+    options.features =
+        PostProcessFeature::HDR |
+        PostProcessFeature::Exposure |
+        PostProcessFeature::Bloom |
+        PostProcessFeature::Gamma;
+    options.params.exposure = 1.2f;
+    options.params.gamma = 1.2f;
+    options.params.bloomRadius = 1.6f;
+    options.params.bloomIntensity = 0.f;
 
     options.params.featureMask = To_Underlying(options.features);
     return options;
-}
-
-void EffectEditorInstance::Set_PostProcessPreset(EffectEditorPostProcessPreset preset)
-{
-    if (_postProcessPreset == preset)
-        return;
-
-    _postProcessPreset = preset;
-    _sceneViewMode = preset == EffectEditorPostProcessPreset::Final
-        ? SceneViewMode::Final
-        : SceneViewMode::Authoring;
-    _postProcessOptions = Get_DefaultPostProcessOptions(_postProcessPreset);
 }
 
 void EffectEditorInstance::Set_PostProcessFeature(PostProcessFeature feature, bool enabled)
@@ -385,11 +360,6 @@ void EffectEditorInstance::Set_PostProcessParams(const PostProcessCB& params)
 {
     _postProcessOptions.params = params;
     _postProcessOptions.params.featureMask = To_Underlying(_postProcessOptions.features);
-}
-
-void EffectEditorInstance::Reset_PostProcessOptionsToPresetDefault()
-{
-    _postProcessOptions = Get_DefaultPostProcessOptions(_postProcessPreset);
 }
 
 void EffectEditorInstance::Request_WindowFocus(EditorViewportTarget target)
@@ -740,15 +710,6 @@ void EffectEditorInstance::Enable_AutoPreviewViewport()
 void EffectEditorInstance::Enable_ManualPreviewViewport()
 {
     _previewViewportMode = PreviewViewportMode::Manual;
-}
-
-void EffectEditorInstance::Set_SceneViewMode(SceneViewMode viewMode)
-{
-    Set_PostProcessPreset(
-        viewMode == SceneViewMode::Final
-        ? EffectEditorPostProcessPreset::Final
-        : EffectEditorPostProcessPreset::Authoring
-    );
 }
 
 void EffectEditorInstance::Set_ManualPreviewViewportSize(uint32 width, uint32 height)

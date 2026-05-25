@@ -112,36 +112,9 @@ namespace
         return changed;
     }
 
-    const char* Get_PostProcessPresetLabel(EffectEditorPostProcessPreset preset)
-    {
-        switch (preset)
-        {
-        case EffectEditorPostProcessPreset::Final:
-            return "Final";
-        case EffectEditorPostProcessPreset::Authoring:
-        default:
-            return "Authoring";
-        }
-    }
-
     bool Has_PostProcessFeature(PostProcessFeature features, PostProcessFeature feature)
     {
         return Has_Flag(features, feature);
-    }
-
-    bool Is_SamePostProcessOptions(
-        const EffectEditorPostProcessOptions& lhs,
-        const EffectEditorPostProcessOptions& rhs)
-    {
-        return
-            lhs.features == rhs.features &&
-            lhs.params.exposure == rhs.params.exposure &&
-            lhs.params.gamma == rhs.params.gamma &&
-            lhs.params.bloomRadius == rhs.params.bloomRadius &&
-            lhs.params.bloomThreshold == rhs.params.bloomThreshold &&
-            lhs.params.bloomIntensity == rhs.params.bloomIntensity &&
-            lhs.params.bloomSoftKnee == rhs.params.bloomSoftKnee &&
-            lhs.params.bloomClamp == rhs.params.bloomClamp;
     }
 
     bool Draw_TrailCurveQualityProperty(DetailPropertyContext& detailContext, TrailTypeData& data, const TrailTypeData& defaultData)
@@ -299,52 +272,9 @@ void Detail_View::Render_ParticleSystemDetail(
         MarkDirty();
     }
 
-    Render_ViewModeDetail();
     Render_TrailPreviewDetail();
     Render_PostProcessShaderDetail();
     Commit_PendingAuthoringEditIfIdle(emitterView);
-}
-
-void Detail_View::Render_ViewModeDetail()
-{
-    if (EDITOR == nullptr)
-        return;
-
-    if (!ImGui::CollapsingHeader("뷰 모드", ImGuiTreeNodeFlags_DefaultOpen))
-        return;
-
-    EffectEditorPostProcessPreset preset = EDITOR->Get_PostProcessPreset();
-    int presetIndex = preset == EffectEditorPostProcessPreset::Final ? 1 : 0;
-    static constexpr const char* kPresetLabels[] = { "Authoring", "Final" };
-
-    if (_detailPropertyContext.Begin_PropertyTable("PostProcessViewMode"))
-    {
-        ImGui::PushID("PostProcessPreset");
-        _detailPropertyContext.Draw_PropertyLabel(
-            "프리셋",
-            "EffectEditor 세션 전용 관측 프리셋입니다. 변경 시 현재 후처리 수치가 해당 기본값으로 바뀝니다."
-        );
-        ImGui::SetNextItemWidth(-FLT_MIN);
-        const bool changed = ImGui::Combo("##Value", &presetIndex, kPresetLabels, IM_ARRAYSIZE(kPresetLabels));
-        _detailPropertyContext.Draw_ResetButton(false);
-        ImGui::PopID();
-
-        _detailPropertyContext.End_PropertyTable();
-
-        if (changed)
-        {
-            const EffectEditorPostProcessPreset nextPreset =
-                presetIndex == 1
-                ? EffectEditorPostProcessPreset::Final
-                : EffectEditorPostProcessPreset::Authoring;
-            EDITOR->Set_PostProcessPreset(nextPreset);
-        }
-    }
-
-    ImGui::TextDisabled(
-        "%s preset is an EffectEditor-only preview option.",
-        Get_PostProcessPresetLabel(EDITOR->Get_PostProcessPreset())
-    );
 }
 
 void Detail_View::Render_TrailPreviewDetail()
@@ -387,8 +317,7 @@ void Detail_View::Render_PostProcessShaderDetail()
         return;
 
     EffectEditorPostProcessOptions options = EDITOR->Get_PostProcessOptions();
-    const EffectEditorPostProcessOptions defaultOptions =
-        EDITOR->Get_DefaultPostProcessOptions(EDITOR->Get_PostProcessPreset());
+    const EffectEditorPostProcessOptions defaultOptions = EDITOR->Get_DefaultPostProcessOptions();
 
     bool hdr = Has_PostProcessFeature(options.features, PostProcessFeature::HDR);
     bool exposure = Has_PostProcessFeature(options.features, PostProcessFeature::Exposure);
@@ -433,16 +362,6 @@ void Detail_View::Render_PostProcessShaderDetail()
 
     if (paramsChanged)
         EDITOR->Set_PostProcessParams(params);
-
-    const bool canReset = !Is_SamePostProcessOptions(EDITOR->Get_PostProcessOptions(), defaultOptions);
-    if (!canReset)
-        ImGui::BeginDisabled();
-
-    if (ImGui::Button("기본값으로 되돌리기"))
-        EDITOR->Reset_PostProcessOptionsToPresetDefault();
-
-    if (!canReset)
-        ImGui::EndDisabled();
 }
 
 void Detail_View::Render_EmitterDetail(
