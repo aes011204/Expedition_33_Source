@@ -431,6 +431,7 @@
     <ClInclude Include="..\Public\MapStaticCollisionBuilder.h">
       <Filter>01.Utility\04.Component\Model\Mesh</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ScreenFx_Manager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -1025,6 +1026,7 @@
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
+    <ClCompile Include="..\Private\SSAOPipeline.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
