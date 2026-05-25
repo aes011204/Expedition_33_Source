@@ -1633,6 +1633,81 @@ HRESULT GameInstance::Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D
     return _targetManager->Copy_Resource(targetTag, destTexture);
 }
 
+HRESULT GameInstance::Bind_PlayerStencilWriteState(bool depthWrite)
+{
+    ComPtr<ID3D11DepthStencilState>& state =
+        depthWrite ? _playerStencilWriteState : _playerStencilWriteDepthReadState;
+
+    if (state == nullptr)
+    {
+        D3D11_DEPTH_STENCIL_DESC desc{};
+        desc.DepthEnable = TRUE;
+        desc.DepthWriteMask = depthWrite ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+        desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+        desc.StencilEnable = TRUE;
+        desc.StencilReadMask = 0xff;
+        desc.StencilWriteMask = 0xff;
+        desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+        desc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+        desc.BackFace = desc.FrontFace;
+
+        CHECK_NULL(_device, E_FAIL);
+        CHECK_FAILED(_device->CreateDepthStencilState(&desc, state.GetAddressOf()), E_FAIL);
+    }
+
+    CHECK_NULL(_context, E_FAIL);
+    _context->OMSetDepthStencilState(state.Get(), 1);
+
+    return S_OK;
+}
+
+HRESULT GameInstance::Bind_BackgroundUIBehindPlayerStencilState()
+{
+    if (_backgroundUIBehindPlayerStencilState == nullptr)
+    {
+        D3D11_DEPTH_STENCIL_DESC desc{};
+        desc.DepthEnable = FALSE;
+        desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+        desc.StencilEnable = TRUE;
+        desc.StencilReadMask = 0xff;
+        desc.StencilWriteMask = 0x00;
+        desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilFunc = D3D11_COMPARISON_NOT_EQUAL;
+        desc.BackFace = desc.FrontFace;
+
+        CHECK_NULL(_device, E_FAIL);
+        CHECK_FAILED(_device->CreateDepthStencilState(&desc, _backgroundUIBehindPlayerStencilState.GetAddressOf()), E_FAIL);
+    }
+
+    CHECK_NULL(_context, E_FAIL);
+    _context->OMSetDepthStencilState(_backgroundUIBehindPlayerStencilState.Get(), 1);
+
+    return S_OK;
+}
+
+HRESULT GameInstance::Bind_UINoDepthStencilState()
+{
+    if (_uiNoDepthStencilState == nullptr)
+    {
+        D3D11_DEPTH_STENCIL_DESC desc{};
+        desc.DepthEnable = FALSE;
+        desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+        desc.StencilEnable = FALSE;
+
+        CHECK_NULL(_device, E_FAIL);
+        CHECK_FAILED(_device->CreateDepthStencilState(&desc, _uiNoDepthStencilState.GetAddressOf()), E_FAIL);
+    }
+
+    CHECK_NULL(_context, E_FAIL);
+    _context->OMSetDepthStencilState(_uiNoDepthStencilState.Get(), 0);
+
+    return S_OK;
+}
+
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
 {
     CHECK_NULL(collider);

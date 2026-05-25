@@ -30,6 +30,9 @@ void Prefab_View::Update(float timeDelta)
     if (EDITOR->IsPlaying())
         return;
 
+    if (!Is_Visible())
+        return;
+
     if (Is_AnimationViewFocused())
         return;
 
@@ -43,6 +46,9 @@ void Prefab_View::Pre_Render()
         return;
 
     if (EDITOR->IsPlaying())
+        return;
+
+    if (!Is_Visible())
         return;
 
     if (Is_AnimationViewFocused())
@@ -180,9 +186,11 @@ void Prefab_View::Render()
 
     _isFocused = false;
     _isHovered = false;
+    _isVisible = false;
 
     if (ImGui::Begin(title.c_str(), &isOpen, windowFlags))
     {
+        _isVisible = true;
         _applyDefaultWindowLayout = false;
         if (_pendingDockId != 0 || _focusPrefabFrames > 0)
             ImGui::SetWindowFocus();

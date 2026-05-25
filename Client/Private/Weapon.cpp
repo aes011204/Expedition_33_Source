@@ -87,6 +87,9 @@ HRESULT Weapon::Render()
         if (FAILED(_shader->Begin(material->Get_PassIndex())))
             return E_FAIL;
 
+        // 플레이어 무기 실루엣도 Background UI를 가리는 영역으로 기록한다.
+        CHECK_FAILED(GAME->Bind_PlayerStencilWriteState(true), E_FAIL);
+
         _model->Render(i);
     }
 

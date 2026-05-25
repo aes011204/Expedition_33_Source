@@ -2,8 +2,6 @@
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "Client_Constants.h"
-#include "EffectAssetRuntimeLoader.h"
-#include "EffectInstance.h"
 #include "PlayableParts.h"
 #include "Player_WorldBase.h"
 #include "Spawn_Prefab.h"
@@ -52,7 +50,6 @@ void Level_GamePlay::BeginPlay()
 
 void Level_GamePlay::Update(float fTimeDelta)
 {
-    //Sync_LuneRightHandEffect();
     //Update_MapStreaming(fTimeDelta);
     Update_WindowTitleFps();
 
@@ -296,87 +293,7 @@ HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Effect(const wstring& strLayerTag)
 {
-#pragma region Effect Test
-    Shared<const EffectDefinition> effectDefinition =
-        EffectAssetRuntimeLoader::Load_DefinitionByName(L"Lune_Thunder_Fall_Charge");
-    CHECK_NULL(effectDefinition, E_FAIL);
-
-    const Shared<GameObject> player = CLIENT->Find_Player(ETOI(LevelType::GamePlay));
-    CHECK_NULL(player, E_FAIL);
-
-    const Vec3 playerPosition = player->Get_Transform()->Get_WorldPosition();
-    const Vec3 playerForward = player->Get_Transform()->Get_WorldForward();
-    constexpr float effectForwardOffset = 5.f;
-
-    EffectInstanceDesc effectDesc{};
-    effectDesc.definition = effectDefinition;
-    effectDesc.position = playerPosition + playerForward * effectForwardOffset;
-
-    CHECK_FAILED(
-        GAME->Add_GameObject(
-            ETOI(LevelType::GamePlay),
-            L"GameObject_EffectInstance",
-            ETOI(LevelType::GamePlay),
-            strLayerTag,
-            &effectDesc),
-        E_FAIL
-    );
-
-    effectDefinition = EffectAssetRuntimeLoader::Load_DefinitionByName(L"Lune_Thunder_Fall_Charge_Blue");
-    CHECK_NULL(effectDefinition, E_FAIL);
-
-    EffectInstanceDesc blueEffectDesc{};
-    blueEffectDesc.definition = effectDefinition;
-    blueEffectDesc.position = playerPosition;
-
-    CHECK_FAILED(
-        GAME->Add_GameObject(
-            ETOI(LevelType::GamePlay),
-            L"GameObject_EffectInstance",
-            ETOI(LevelType::GamePlay),
-            strLayerTag,
-            _luneRightHandEffect,
-            &blueEffectDesc),
-        E_FAIL
-    );
-#pragma endregion
-
     return S_OK;
-}
-
-void Level_GamePlay::Sync_LuneRightHandEffect()
-{
-    CHECK_NULL(_luneRightHandEffect);
-
-    const Shared<Player_WorldBase> lune = CLIENT->Find_Hero(HeroId::Lune);
-    CHECK_NULL_ONCE(lune);
-
-    PartObject* bodyPart = lune->Get_PartObject(L"Part_Body");
-    CHECK_NULL_ONCE(bodyPart);
-
-    const auto playableBody = dynamic_cast<PlayableParts*>(bodyPart);
-    CHECK_NULL_ONCE(playableBody);
-
-    static constexpr char rightHandSocketName[] = "RightHandFrontSocket";
-    const Matrix* socketMatrix = playableBody->Get_SocketBoneMatrixPtr(rightHandSocketName);
-    if (nullptr == socketMatrix)
-    {
-        LOG_WARN_ONCE("Lune right-hand socket '{}' not found.", rightHandSocketName);
-        return;
-    }
-
-    const Shared<TransformCom> effectTransform = _luneRightHandEffect->Get_Transform();
-    const Shared<TransformCom> bodyTransform = playableBody->Get_Transform();
-    const Shared<TransformCom> luneTransform = lune->Get_Transform();
-    if (nullptr == effectTransform || nullptr == bodyTransform || nullptr == luneTransform)
-    {
-        LOG_WARN_ONCE("Lune right-hand blue effect follow failed.");
-        return;
-    }
-
-    const Matrix socketWorldMatrix =
-        *socketMatrix * bodyTransform->Get_WorldMatrix() * luneTransform->Get_WorldMatrix();
-    effectTransform->Set_WorldPosition(Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43));
 }
 
 Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

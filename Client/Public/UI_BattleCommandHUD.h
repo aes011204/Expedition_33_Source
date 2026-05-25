@@ -5,6 +5,8 @@
 
 NS_BEGIN(Engine)
 class UI_Base;
+class UI_Image;
+class UI_Text;
 NS_END
 
 NS_BEGIN(Client)
@@ -25,6 +27,7 @@ public:
 public:
     void    Refresh_ForState(BattleTurnState state);
     void    Set_TargetWorldPosition(const Vec3& worldPos);
+    void    Set_CurrentPlayerAP(uint32 curAp, uint32 maxAp);
 
 private:
     struct CommandSlot
@@ -38,10 +41,15 @@ private:
     };
 
 private:
+    static constexpr uint32 kMaxCommandApSegmentCount = 9;
+
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
 
     void    Apply_DefaultHighlight();
+    HRESULT Bind_CurrentPlayerAP();
+    void    Apply_CurrentPlayerAPGauge(uint32 curAp, uint32 maxAp);
+    void    Set_CurrentPlayerAPText(uint32 curAp);
     HRESULT Bind_CommandSlot(
         const wstring& commandName,
         const wstring& keyName,
@@ -54,6 +62,10 @@ private:
     CommandSlot _skillSlot{};
     CommandSlot _itemSlot{};
     CommandSlot _shotSlot{};
+
+    Shared<UI_Text>  _currentPlayerApText{};
+    Shared<UI_Text>  _currentPlayerApTextBg{};
+    Shared<UI_Image> _currentPlayerApStates[kMaxCommandApSegmentCount]{};
 
 private:
     Vec2 _normalScale = Vec2(1.f, 1.f);

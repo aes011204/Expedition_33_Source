@@ -125,6 +125,9 @@ void Animation_View::Update(float timeDelta)
     if (EDITOR->IsPlaying())
         return;
 
+    if (!Is_Visible())
+        return;
+
     if (Is_PrefabViewFocused())
         return;
 
@@ -147,6 +150,9 @@ void Animation_View::Pre_Render()
         return;
 
     if (EDITOR->IsPlaying())
+        return;
+
+    if (!Is_Visible())
         return;
 
     if (Is_PrefabViewFocused())
@@ -241,9 +247,11 @@ void Animation_View::Render()
 
     _isFocused = false;
     _isHovered = false;
+    _isVisible = false;
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
+        _isVisible = true;
         _pendingDockId = 0;
         _requestFocusOnOpen = false;
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
@@ -794,6 +802,7 @@ void Animation_View::Draw_BoneTree()
 
         const string nodeLabel =
             playbackModel->Get_BoneName(boneIndex) + " [" + to_string(boneIndex) + "]";
+        const string popupId = "AnimationBoneContextMenu_" + to_string(boneIndex);
         ImGui::PushID(static_cast<int>(boneIndex));
         const bool opened = ImGui::TreeNodeEx("BoneNode", flags, "%s", nodeLabel.c_str());
 
@@ -802,6 +811,19 @@ void Animation_View::Draw_BoneTree()
             _selectedBoneIndex = static_cast<int32>(boneIndex);
             _selectedNotifyId = -1;
             _selectedStateId = -1;
+        }
+
+        if (ImGui::BeginPopupContextItem(popupId.c_str()))
+        {
+            if (ImGui::MenuItem("뼈 이름 복사"))
+            {
+                ImGui::SetClipboardText(playbackModel->Get_BoneName(boneIndex).c_str());
+                _selectedBoneIndex = static_cast<int32>(boneIndex);
+                _selectedNotifyId = -1;
+                _selectedStateId = -1;
+            }
+
+            ImGui::EndPopup();
         }
 
         if (!opened)

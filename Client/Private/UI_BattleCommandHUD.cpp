@@ -2,6 +2,8 @@
 #include "Client_Constants.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Base.h"
+#include "UI_Image.h"
+#include "UI_Text.h"
 #include "UI_Utils.h"
 
 using namespace UI_Utils;
@@ -86,6 +88,15 @@ void UI_BattleCommandHUD::Set_TargetWorldPosition(const Vec3& worldPos)
     _hasTargetWorldPos = true;
 }
 
+void UI_BattleCommandHUD::Set_CurrentPlayerAP(uint32 curAp, uint32 maxAp)
+{
+    maxAp = min(maxAp, kMaxCommandApSegmentCount);
+    curAp = min(curAp, maxAp);
+
+    Apply_CurrentPlayerAPGauge(curAp, maxAp);
+    Set_CurrentPlayerAPText(curAp);
+}
+
 HRESULT UI_BattleCommandHUD::Load_UI(uint32 levelIndex)
 {
     UI_RuntimeLoader::UI_LoadDesc desc{};
@@ -108,6 +119,7 @@ HRESULT UI_BattleCommandHUD::Bind_UI()
     CHECK_FAILED(Bind_CommandSlot(L"Skill", L"Panel_Key_E", true, _skillSlot), E_FAIL);
     CHECK_FAILED(Bind_CommandSlot(L"Item", L"Panel_Key_W", true, _itemSlot), E_FAIL);
     CHECK_FAILED(Bind_CommandSlot(L"Shot", L"Image_Input_RightMouse", false, _shotSlot), E_FAIL);
+    CHECK_FAILED(Bind_CurrentPlayerAP(), E_FAIL);
 
     return S_OK;
 }
@@ -118,6 +130,56 @@ void UI_BattleCommandHUD::Apply_DefaultHighlight()
     Set_CommandSlotHighlighted(_skillSlot, false);
     Set_CommandSlotHighlighted(_itemSlot, false);
     Set_CommandSlotHighlighted(_shotSlot, false);
+}
+
+HRESULT UI_BattleCommandHUD::Bind_CurrentPlayerAP()
+{
+    _currentPlayerApText =
+        Find_TypedUI<UI_Text>(_uiByName, L"Text_BattlePortrait_Current_Character_Icon_AP");
+    _currentPlayerApTextBg =
+        Find_TypedUI<UI_Text>(_uiByName, L"Text_BattlePortrait_Current_Character_Icon_AP_BG");
+
+    CHECK_NULL(_currentPlayerApText, E_FAIL);
+    CHECK_NULL(_currentPlayerApTextBg, E_FAIL);
+
+    for (uint32 apIndex = 0; apIndex < kMaxCommandApSegmentCount; ++apIndex)
+    {
+        _currentPlayerApStates[apIndex] =
+            Find_TypedUI<UI_Image>(
+                _uiByName,
+                L"Image_BattlePortrait_Current_Character_AP_" + to_wstring(apIndex + 1));
+
+        CHECK_NULL(_currentPlayerApStates[apIndex], E_FAIL);
+    }
+
+    return S_OK;
+}
+
+void UI_BattleCommandHUD::Apply_CurrentPlayerAPGauge(uint32 curAp, uint32 maxAp)
+{
+    const uint32 clampedMaxAp = min(maxAp, kMaxCommandApSegmentCount);
+
+    for (uint32 i = 0; i < kMaxCommandApSegmentCount; ++i)
+    {
+        if (_currentPlayerApStates[i] == nullptr)
+            continue;
+
+        if (i < curAp && i < clampedMaxAp)
+            _currentPlayerApStates[i]->Open();
+        else
+            _currentPlayerApStates[i]->Close();
+    }
+}
+
+void UI_BattleCommandHUD::Set_CurrentPlayerAPText(uint32 curAp)
+{
+    const wstring apText = to_wstring(curAp);
+
+    if (_currentPlayerApText)
+        _currentPlayerApText->Set_Text(apText);
+
+    if (_currentPlayerApTextBg)
+        _currentPlayerApTextBg->Set_Text(apText);
 }
 
 HRESULT UI_BattleCommandHUD::Bind_CommandSlot(
@@ -179,6 +241,13 @@ void UI_BattleCommandHUD::Free()
     _skillSlot = {};
     _itemSlot = {};
     _shotSlot = {};
+
+    _currentPlayerApText.reset();
+    _currentPlayerApTextBg.reset();
+
+    for (uint32 i = 0; i < kMaxCommandApSegmentCount; ++i)
+        _currentPlayerApStates[i].reset();
+
     _root.reset();
     _uiByName.clear();
 

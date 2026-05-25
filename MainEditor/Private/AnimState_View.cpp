@@ -38,6 +38,9 @@ void AnimState_View::Update(float timeDelta)
     if (EDITOR->IsPlaying())
         return;
 
+    if (!Is_Visible())
+        return;
+
     if (Is_CompanionPreviewFocused())
         return;
 
@@ -51,6 +54,9 @@ void AnimState_View::Pre_Render()
         return;
 
     if (EDITOR->IsPlaying())
+        return;
+
+    if (!Is_Visible())
         return;
 
     if (Is_CompanionPreviewFocused())
@@ -151,9 +157,11 @@ void AnimState_View::Render()
 
     _isFocused = false;
     _isHovered = false;
+    _isVisible = false;
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
+        _isVisible = true;
         _pendingDockId = 0;
         _requestFocusOnOpen = false;
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
