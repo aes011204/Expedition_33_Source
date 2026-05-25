@@ -560,8 +560,6 @@
     </ClCompile>
     <ClCompile Include="..\private\UtilitySystem.cpp" />
     <ClCompile Include="..\private\WeaponUI_Common.cpp" />
-    <ClCompile Include="..\public\Ailment.cpp" />
-    <ClCompile Include="..\public\ANS_QTE.cpp" />
     <ClCompile Include="ANS_Visible_Parts.cpp" />
     <ClCompile Include="Base_Gustave_Attack.cpp" />
     <ClCompile Include="pch.cpp">

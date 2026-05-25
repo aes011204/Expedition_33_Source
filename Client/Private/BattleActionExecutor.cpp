@@ -11,8 +11,15 @@ void BattleActionExecutor::BeginAction(Action& action)
 
 void BattleActionExecutor::Update(float timeDelta, Action& action)
 {
+ /*   if (action.phaseReachedGoal)
+    {
+        FinishCurrentPhaseAtGoal(action);
+        return;
+    }*/
+
     if (_isFinished)
         return;
+
 
     Update_ActionMovement(timeDelta, action);
 }
@@ -31,6 +38,7 @@ void BattleActionExecutor::OnActionEndNotify(Action& action)
         return;
 
     Complete_CurPhase(action);
+    //action.phaseReachedGoal = true;
 }
 
 void BattleActionExecutor::Complete_CurPhase(Action& action)
@@ -167,6 +175,9 @@ void BattleActionExecutor::Face_ActionTarget(Action& action, const Vec3& goalPos
 
 void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action)
 {
+    if (action.phaseReachedGoal)
+        return;
+
     const auto& phases = action._selected_SkillKey.AnimPhases;
     if (action._curAnimIndex >= phases.size())
         return;
@@ -336,6 +347,7 @@ void BattleActionExecutor::FinishCurrentPhaseAtGoal(Action& action)
         return;
 
     action._curChar.actor->Get_Transform()->Set_Position(action.phaseGoalPos);
+    action.phasePrevRootRatio = 0.f;
     action.phaseReachedGoal = true;
     Complete_CurPhase(action);
 }

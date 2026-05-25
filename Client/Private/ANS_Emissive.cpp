@@ -48,17 +48,15 @@ void ANS_Emissive::On_Tick(const AnimNotifyContext& context)
     {
         for(int i =0; i< modelCom->Get_NumMaterials(); i++)
         {
-        auto cb = modelCom->Get_Material(i)->Get_CB();
-        cb.emissiveIntensity = process;
-        modelCom->Get_Material(i)->Set_CB(cb);
+            modelCom->Get_Material(i)->Get_CB().emissiveIntensity = process;
+            LOG_DEBUG("processCB : {}", process);
         }
     }
     else
     {
-        
-    auto cb = modelCom->Get_Material(_matIndex)->Get_CB();
-    cb.emissiveIntensity = process;
-    modelCom->Get_Material(_matIndex)->Set_CB(cb);
+        modelCom->Get_Material(_matIndex)->Get_CB().emissiveIntensity = process;
+        LOG_DEBUG("processCB : {}", process);
+
     }
 
 

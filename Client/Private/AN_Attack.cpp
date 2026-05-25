@@ -22,12 +22,7 @@ void AN_Attack::Execute(const AnimNotifyContext& context)
     if (battle->Try_ConsumeReactionGuard(turnAction.target))
         return;
 
-    // }
 
-    // battle->Get_CurrentScript()->Execute(battle->Get_TurnAction()._selected_SkillKey, battle->Get_TurnAction()._curChar, battle->Get_TurnAction().target);
-
-
-    //     battle->HitAction(battle->Get_TurnAction().target);
     battle->Get_CurrentScript()->Execute(
         turnAction._selected_SkillKey,
         turnAction._curChar,
