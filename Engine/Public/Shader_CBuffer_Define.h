@@ -9,36 +9,36 @@ struct alignas(16) MaterialCB
 {
     static constexpr ConstantBuffer CBType = ConstantBuffer::Material;
 
-    Vec4 baseColorTint{ 1.f, 1.f, 1.f, 1.f };
-    Vec4 emissiveColor{ 1.f, 1.f, 1.f, 1.f };
+    Vec4 baseColorTint{ 1.f, 1.f, 1.f, 1.f }; // BaseColor 최종 색에 곱하는 tint다. 전체 색감을 바꾸고 싶을 때 만지고, 원본 색을 유지하려면 1,1,1,1로 둔다.
+    Vec4 emissiveColor{ 1.f, 1.f, 1.f, 1.f }; // Emissive 텍스처에 입힐 색이다. 발광 색조를 바꾸고 싶을 때만 조정하고, 텍스처 원색을 살리려면 흰색에 가깝게 둔다.
 
-    // MI json의 Scalars.Value_Glow 계열
+    // emissiveColor가 곱해진 발광 세기다. 텍스처 원색만 쓰고 싶으면 0으로 두고, 색 입힌 발광을 키우고 싶으면 올린다.
     float emissiveIntensity{ 0.f };
 
-    // MI json의 Scalars.Glow_Mask_Mult 계열
+    // Emissive 텍스처 원색이 얼마나 직접 더해질지 정한다. 현재 셰이더에서는 0이면 원본 발광이 꺼지고, 1이면 텍스처 기여를 그대로 쓴다.
     float emissiveMaskMul{ 1.f };
 
-    // MI json의 Normal/Bump Multiplier 또는 NormalIntensity 계열
+    // 노멀맵 굴곡을 얼마나 강하게 보일지 정한다. 1이 기본이고, 0에 가까울수록 평평해지며 너무 크면 표면이 과장돼 보일 수 있다.
     float normalStrength{ 1.f };
 
-    // 셰이더에서 clip 기준으로 사용
+    // Masked 머테리얼에서 어느 값부터 보일지 정하는 컷오프다. 값을 올리면 더 많이 잘리고, 내리면 더 많이 남는다.
     float opacityMaskClipValue{ 0.3333f };
 
-    // ORM 보정값
-    float aoScale{ 1.f };           // ORM.r = AO
-    float roughnessScale{ 1.f };    // ORM.g = Roughness
-    float metalnessScale{ 1.f };    // ORM.b = Metalness
+    // ORM 보정값.
+    float aoScale{ 1.f };           // ORM에서 읽은 AO에 곱하는 배율이다. 낮추면 틈 그림자가 약해지고, 높이면 음영이 더 눌린다.
+    float roughnessScale{ 1.f };    // ORM에서 읽은 roughness에 곱한다. 높일수록 더 거칠고 덜 반짝여 보이고, 낮출수록 더 매끈해 보인다.
+    float metalnessScale{ 1.f };    // ORM에서 읽은 metalness에 곱한다. 높일수록 금속 느낌이 강해지고, 0에 가까우면 비금속 쪽으로 간다.
     float _pad0{ 0.f };
 
-    Vec2 uvScale{ 1.f, 1.f };
-    Vec2 uvOffset{ 0.f, 0.f };
-    float uvRotation{ 0.f };
+    Vec2 uvScale{ 1.f, 1.f }; // 텍스처 UV 타일링 배율이다. 2면 두 배 촘촘해지고, 0.5면 두 배 크게 늘어나 보인다.
+    Vec2 uvOffset{ 0.f, 0.f }; // 텍스처 UV 시작 위치를 민다. 흐르는 패턴이나 무늬 위치 미세조정에 쓰고, 0이면 원래 위치다.
+    float uvRotation{ 0.f }; // UV를 회전시키는 각도다. 기본 0으로 두고, 방향성이 있는 패턴을 돌리고 싶을 때만 조정한다.
 
-    uint32 materialMask{ 0 };
-    uint32 ormAoSource{ MaterialChannel_R };
-    uint32 ormRoughnessSource{ MaterialChannel_G };
-    uint32 ormMetalnessSource{ MaterialChannel_B };
-    uint32 opacityMaskSource{ MaterialChannel_R };
+    uint32 materialMask{ 0 }; // 머테리얼 기능/슬롯 상태를 셰이더에 알리는 비트마스크다. 사용자가 직접 튜닝하는 값이라기보다 시스템 플래그에 가깝다.
+    uint32 ormAoSource{ MaterialChannel_R }; // ORM 텍스처의 어느 채널을 AO로 읽을지 정한다. 보통 R이고, packed 텍스처 구성이 다를 때만 바꾼다.
+    uint32 ormRoughnessSource{ MaterialChannel_G }; // ORM 텍스처의 어느 채널을 roughness로 읽을지 정한다. 보통 G를 쓰고, 채널 packing이 다를 때만 변경한다.
+    uint32 ormMetalnessSource{ MaterialChannel_B }; // ORM 텍스처의 어느 채널을 metalness로 읽을지 정한다. 보통 B를 쓰고, packed 소스가 다를 때만 변경한다.
+    uint32 opacityMaskSource{ MaterialChannel_R }; // 마스크 텍스처의 어느 채널을 clip 기준값으로 볼지 정한다. 흑백 마스크가 다른 채널에 들어 있을 때만 바꾼다.
     uint32 _pad1[2]{};
 };
 
