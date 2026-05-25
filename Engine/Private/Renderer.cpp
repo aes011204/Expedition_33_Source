@@ -825,22 +825,13 @@ void Renderer::Render_ScreenFx()
         GAME->Bind_RT_ShaderResource(_screenFxShader, "g_ScreenFxTexture", RT::ScreenFxColor),
         L"Render_ScreenFx:FAIL Bind_RT_ShaderResource(g_ScreenFxTexture)");
 
-    // 테스트 코드. S 를 누르면 Ghosting, D를 누르면 BattleTransition, A 를 누르면 Vignette 
-    uint32 passIndex = ETOI(ScreenFxPass::Vignette);
-    if (GAME->KeyPress(KEY_TYPE::S))
-        passIndex = ETOI(ScreenFxPass::Ghosting);
-    else if (GAME->KeyPress(KEY_TYPE::D))
-        passIndex = ETOI(ScreenFxPass::BattleTransition);
-    else if (GAME->KeyPress(KEY_TYPE::A))
-        passIndex = ETOI(ScreenFxPass::Vignette);
-
-    RETURN_LOG_IF_FAILED(
-        _screenFxShader->Begin(passIndex),
-        L"Render_ScreenFx:FAIL ShaderBegin");
-
-    RETURN_LOG_IF_FAILED(
-        _viBuffer->Render(),
-        L"Render_ScreenFx:FAIL RenderRect");
+    ScreenFx_Manager* manager = GAME->Get_ScreenFxManager();
+    if (manager && manager->Is_ScreenFXActivated())
+    {
+        RETURN_LOG_IF_FAILED(
+            manager->Render_ScreenFx(_screenFxShader.get(), _viBuffer.get()),
+            L"Render_ScreenFx:FAIL Manager->Render_ScreenFx");
+    }
 
     Add_RenderCall();
 }

@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "BT_Node_Bootstrap.h"
@@ -15,6 +15,7 @@
 #include "PreviewShotTable.h"
 #include "UIPreviewManager.h"
 #include "MapLoader.h"
+#include "ClientScreenFxManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -57,6 +58,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _previewManager = UIPreviewManager::Create();
     CHECK_NULL(_previewManager, E_FAIL);
+
+    _screenFxManager = ClientScreenFxManager::Create();
+    CHECK_NULL(_screenFxManager, E_FAIL);
 
 	_isInitialized = true;
 
@@ -302,6 +306,11 @@ bool ClientInstance::Is_BattleEntering() const
     return _battleController && _battleController->Is_BattleEntering();
 }
 
+Shared<ClientScreenFxManager> ClientInstance::Get_ScreenFxManager() const
+{
+    return _screenFxManager;
+}
+
 bool ClientInstance::Is_GameplayMenuOpen() const
 {
     return _gamePlayUI && _gamePlayUI->Is_AnyMenuOpen();
@@ -372,6 +381,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_heroManager);
     ReleaseManager(_battleController);
     ReleaseManager(_gamePlayUI);
+    ReleaseManager(_screenFxManager);
 
     _context.Reset();
     _device.Reset();

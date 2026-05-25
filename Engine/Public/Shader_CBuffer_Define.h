@@ -229,6 +229,30 @@ struct alignas(16) DrawFeatureCB
     Vec4 param1{ 0.f, 0.f, 0.f, 0.f };
 };
 
+struct alignas(16) ScreenFxCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::ScreenFx;
+
+    // float4 0
+    Vec3 vignetteColor{ 0.f, 0.f, 0.f };
+    float vignetteIntensity{ 1.0f };
+
+    // float4 1
+    float vignetteRadius{ 0.75f };
+    float vignetteSoftness{ 0.5f };
+    float ghostingIntensity{ 0.5f };
+    float transitionProgress{ 0.0f };
+
+    // float4 2
+    Vec3 transitionColor{ 0.f, 0.f, 0.f };
+    float radialBlurIntensity{ 0.0f };
+
+    // float4 3
+    Vec2 radialBlurCenter{ 0.5f, 0.5f }; 
+    float radialBlurRadius{ 1.0f };      
+    float chromaticAberrationIntensity{ 0.0f }; 
+};
+
 // 패딩이 제대로 됐나 마지막 확인용
 static_assert(sizeof(MaterialCB) % 16 == 0);
 static_assert(sizeof(HairCB) % 16 == 0);

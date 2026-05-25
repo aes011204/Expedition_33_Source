@@ -363,7 +363,18 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
             cameraMs = chrono::duration<double, milli>(chrono::steady_clock::now() - cameraBegin).count();
 #endif
     }
-    
+
+#ifdef _DEBUG
+    chrono::steady_clock::time_point screenFx{};
+    if (sampleRuntimePerf)
+        screenFx = chrono::steady_clock::now();
+#endif
+    _screenFxManager->Update(timeDelta);
+#ifdef _DEBUG
+    if (sampleRuntimePerf)
+        uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - screenFx).count();
+#endif
+
 #ifdef _DEBUG
     chrono::steady_clock::time_point uiBegin{};
     if (sampleRuntimePerf)
@@ -1127,7 +1138,7 @@ Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline()
     return _renderer->Get_SSAOPipeline();
 }
 
-const ScreenFx_Manager* GameInstance::Get_ScreenFxManager() const
+ScreenFx_Manager* GameInstance::Get_ScreenFxManager() 
 {
     return _screenFxManager.get();
 }
@@ -1964,6 +1975,14 @@ size_t GameInstance::Get_PendingThreadJobCount() const
         return 0;
 
     return _threadPool->Get_PendingJobCount();
+}
+
+void GameInstance::Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX) const
+{
+    if (_screenFxManager == nullptr)
+        return;
+
+    _screenFxManager->Play_ScreenEffect(screenFX);
 }
 
 void GameInstance::Release_Engine()

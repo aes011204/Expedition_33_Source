@@ -134,6 +134,7 @@ namespace Engine
         PostProcess     = 7,
         Hair            = 8,
         DrawFeature     = 9,
+        ScreenFx        = 10,
 
         END
     };

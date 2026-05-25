@@ -211,7 +211,7 @@ public: /* For.Renderer */
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
     const Shared<SSAOPipeline>          Get_SSAOPipeline() const;
     Shared<SSAOPipeline>                Get_SSAOPipeline();
-    const ScreenFx_Manager*             Get_ScreenFxManager() const;
+    ScreenFx_Manager*                   Get_ScreenFxManager();
     RenderGroup                         Get_CurrentRenderGroup() const;
 
 public: /* For.PipeLine */
@@ -509,6 +509,9 @@ public: /* For.Delegate Hub */
 
 public: /* For.Event Bus */
     Event_Bus& Get_EventBus() { return *_eventBus; }
+
+public: /* ScreenFx Manager */
+    void Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX) const;
 
 private:
     Unique<Log_Manager>         _logManager{};

@@ -3,6 +3,7 @@
 #include "BattleController.h"
 #include "Character.h"
 #include "ClientInstance.h"
+#include "ClientScreenFxManager.h"
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
 #include "UI_AttackTooltip.h"
@@ -79,6 +80,8 @@ void GameplayUI_Battle::Update_Input()
 
 void GameplayUI_Battle::Play_BattleEnterTransition()
 {
+    CLIENT->Get_ScreenFxManager()->Play_BattleInCounterFx();
+
     if (_battleTransition)
         _battleTransition->Play_BattleEnter();
 }

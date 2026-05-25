@@ -17,6 +17,7 @@ class ResourceLoader;
 class GameplayUI;
 class PersistentObjectManager;
 class Hero_Manager;
+class ClientScreenFxManager;
 
 class ClientInstance : public Base
 {
@@ -110,6 +111,9 @@ public: /* For.Battle_Controller */
     bool    Is_BattleActive() const;
     bool    Is_BattleEntering() const;
 
+public:
+    Shared<ClientScreenFxManager> Get_ScreenFxManager() const;
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
@@ -123,14 +127,15 @@ private:
 	bool _isInitialized = false;
 
 private:
-    Shared<UIPreviewManager>    _previewManager;
-    Shared<ResourceLoader>      _resourceLoader;
-    Unique<GameDataTable>       _gameDataTable;
-    Unique<PreviewShotTable>    _previewShotTable;
+    Shared<UIPreviewManager>            _previewManager;
+    Shared<ResourceLoader>              _resourceLoader;
+    Unique<GameDataTable>               _gameDataTable;
+    Unique<PreviewShotTable>            _previewShotTable;
 
-    Shared<GameplayUI>          _gamePlayUI;
-    Unique<PersistentObjectManager> _persistentObjectManager;
-    Unique<Hero_Manager>        _heroManager;
+    Shared<GameplayUI>                  _gamePlayUI;
+    Unique<PersistentObjectManager>     _persistentObjectManager;
+    Unique<Hero_Manager>                _heroManager;
+    Shared<ClientScreenFxManager>       _screenFxManager;
 
     Shared<BattleController>    _battleController;
 

@@ -77,6 +77,12 @@
     <Filter Include="BehavoirTree\battle" />
     <Filter Include="BehavoirTree\world" />
     <Filter Include="Skill" />
+    <Filter Include="96. Manager\Client_ScreenFxManager">
+      <UniqueIdentifier>{364be198-10dc-4447-9917-2c5c1b111bcf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="96. Manager\Client_ScreenFxManager\ScreenFx">
+      <UniqueIdentifier>{6feeccd0-d6ea-4658-9c36-1fae7b24cfef}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp">
@@ -95,6 +101,15 @@
     </ClCompile>
     <ClCompile Include="..\Private\ANS_QTE.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ClientScreenFxManager.cpp">
+      <Filter>96. Manager\Client_ScreenFxManager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CA_Instance.cpp">
+      <Filter>96. Manager\Client_ScreenFxManager\ScreenFx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\RadialBlur_Instance.cpp">
+      <Filter>96. Manager\Client_ScreenFxManager\ScreenFx</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -664,6 +679,15 @@
     <ClInclude Include="..\Public\Player_FreeAim.h">
       <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ClientScreenFxManager.h">
+      <Filter>96. Manager\Client_ScreenFxManager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CA_Instance.h">
+      <Filter>96. Manager\Client_ScreenFxManager\ScreenFx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\RadialBlur_Instance.h">
+      <Filter>96. Manager\Client_ScreenFxManager\ScreenFx</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
@@ -1105,7 +1129,6 @@
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClCompile>
   </ItemGroup>
-
   <ItemGroup>
     <ClInclude Include="..\Public\ContentBrowserCore.h">
       <Filter>90.EditorSupport</Filter>
