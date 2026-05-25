@@ -11,7 +11,7 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
     auto& action = CLIENT->Get_BattleController()->Get_TurnAction();
    
     _startPos = action._curChar.actor->Get_Transform()->Get_Position();
-    _originPos = action.originPos;
+    _goalPos = action.phaseGoalPos;
 }
 
 void ANS_Move::On_Tick(const AnimNotifyContext& context)
@@ -19,7 +19,7 @@ void ANS_Move::On_Tick(const AnimNotifyContext& context)
     auto action =  CLIENT->Get_BattleController()->Get_TurnAction();
     float _curProgress = context.notifyStateProgress;
 
-    action._curChar.actor->Get_Transform()->Set_Position(Vec3::Lerp(_startPos, _originPos, _curProgress));
+    action._curChar.actor->Get_Transform()->Set_Position(Vec3::Lerp(_startPos, _goalPos, _curProgress));
    
 }
 

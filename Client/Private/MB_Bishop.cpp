@@ -77,16 +77,28 @@ HRESULT MB_Bishop::Ready_PartObjects()
     CHECK_NULL(_body, E_FAIL);
 
 
-    /*Mon_Lancelier_Weapon::WEAPON_DESC weaponDesc{};
+    Mon_Lancelier_Weapon::WEAPON_DESC weaponDesc{};
     weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     weaponDesc.modelType = ModelType::NonAnim;
     weaponDesc.modelTag = L"Model_Lancelier_Weapon";
-    weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon_R");
+    weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("WeaponAttachPointR");
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancelier_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Lancelier_Weapon"), TEXT("Part_WeaponR"), &weaponDesc), E_FAIL);
 
-    _weapon = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_Weapon")]);
-    CHECK_NULL(_weapon, E_FAIL);*/
+    _weaponR = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_WeaponR")]);
+    CHECK_NULL(_weaponR, E_FAIL);
+
+
+  //  Mon_Lancelier_Weapon::WEAPON_DESC weaponDesc{};
+    weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    weaponDesc.modelType = ModelType::NonAnim;
+    weaponDesc.modelTag = L"Model_Lancelier_Weapon";
+    weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("WeaponAttachPointL");
+
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Lancelier_Weapon"), TEXT("Part_WeaponL"), &weaponDesc), E_FAIL);
+
+    _weaponL = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_WeaponL")]);
+    CHECK_NULL(_weaponL, E_FAIL);
 
     return S_OK;
 }

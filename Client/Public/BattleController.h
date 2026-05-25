@@ -86,6 +86,8 @@ public:
     void SetCharInitPos();
 
     void OnActionEndNotify();
+
+    void Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos);
 public:
     Shared<BattleStateMachine> Get_BattleFSM() { return _battleFSM; };
     Action& Get_TurnAction() { return _turnAction; }

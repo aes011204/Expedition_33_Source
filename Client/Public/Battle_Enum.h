@@ -528,6 +528,8 @@ namespace Client
     };
 
     //------------------------------------
+
+
     struct Skill_Data
     {
         string skillKey = "";
@@ -535,7 +537,7 @@ namespace Client
         vector<BattleActionPhase> AnimPhases = {};
        // string IdleAnimationKey = "";
 
-
+    
         int32 apCost = 0;
         int32 AttackCount = 0;
         ECharacterTeamSelector targetingType = ECharacterTeamSelector::Invalid;
@@ -578,6 +580,7 @@ namespace Client
     {
         None,
         Self,
+        Origin,
         PrimaryTarget,
         TargetCenter,
         FormationSlot,

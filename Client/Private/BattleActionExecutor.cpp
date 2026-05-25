@@ -14,14 +14,13 @@ void BattleActionExecutor::Update(float timeDelta, Action& action)
     if (_isFinished)
         return;
 
-
     Update_ActionMovement(timeDelta, action);
 }
 
 void BattleActionExecutor::OnActionEndNotify(Action& action)
 {
     const auto& phases = action._selected_SkillKey.AnimPhases;
-    if (action._curAnimIndex >= phases.size())
+    if (action._curAnimIndex >= phases.size() )
         return;
 
     const BattleActionPhase& phase = phases[action._curAnimIndex];
@@ -29,18 +28,16 @@ void BattleActionExecutor::OnActionEndNotify(Action& action)
     if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget ||
         phase.movementPolicy == BattleMovementPolicy::MoveToTarget ||
         phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
-    {
         return;
-    }
 
     Complete_CurPhase(action);
 }
+
 void BattleActionExecutor::Complete_CurPhase(Action& action)
 {
     const auto& phases = action._selected_SkillKey.AnimPhases;
     if (action._curAnimIndex >= phases.size())
         return;
-
 
     action._curAnimIndex++;
 
@@ -59,6 +56,7 @@ void BattleActionExecutor::Complete_CurPhase(Action& action)
 
     Begin_ActionPhase(action);
 }
+
 void BattleActionExecutor::Begin_ActionPhase(Action& action)
 {
     if (!action._curChar.actor)
@@ -82,13 +80,10 @@ void BattleActionExecutor::Begin_ActionPhase(Action& action)
     if (phase.faceTarget)
         Face_ActionTarget(action, action.phaseGoalPos);
 
-
-    if(phase.movementPolicy ==BattleMovementPolicy::RootMotionToTarget)
-    {
-        action._curChar.ModelCom->Set_Animation(phase.animationKey,  true, 0.f);
-    }
+    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
+        action._curChar.ModelCom->Set_Animation(phase.animationKey, true, 0.f);
     else
-    action._curChar.ModelCom->Set_Animation(phase.animationKey, false, 0.f);
+        action._curChar.ModelCom->Set_Animation(phase.animationKey, false, 0.f);
 }
 
 Vec3 BattleActionExecutor::Resolve_AnchorPosition(const Action& action, BattleTargetAnchor anchor) const
@@ -107,7 +102,9 @@ Vec3 BattleActionExecutor::Resolve_AnchorPosition(const Action& action, BattleTa
         if (action.target.actor)
             return action.target.actor->Get_Transform()->Get_Position();
         break;
-
+    case BattleTargetAnchor::Origin: // TODO:: 나중에 팀의 중심 값가져오기
+            return action.originPos;
+        break;
     default:
         break;
     }
@@ -127,7 +124,7 @@ Vec3 BattleActionExecutor::Resolve_PhaseGoalPosition(const Action& action, const
 
     const Vec3 anchorPos = Resolve_AnchorPosition(action, phase.targetAnchor);
 
-    if (!phase.useDistance)
+    if (!phase.useDistance|| phase.targetAnchor == BattleTargetAnchor::Origin)
         return anchorPos;
 
     if (phase.targetAnchor == BattleTargetAnchor::Self)
@@ -213,21 +210,21 @@ void BattleActionExecutor::Update_BasicMovement(Action& action, const Shared<Tra
     const auto& rm = action._curChar.ModelCom->Get_RootTransformVelocity();
     const Vec3 delta = rm.position * 0.01f;
 
-    Vec3 rotDeg = transform->Get_RotationEuler();
-    Vec3 rotRad(
+    const Vec3 rotDeg = transform->Get_RotationEuler();
+    const Vec3 rotRad(
         XMConvertToRadians(rotDeg.x),
         XMConvertToRadians(rotDeg.y),
-        XMConvertToRadians(rotDeg.z));
+        XMConvertToRadians(rotDeg.z)
+    );
 
-    Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
-    Vec3 worldDelta = Vec3::TransformNormal(delta, rotMat);
+    const Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
+    const Vec3 worldDelta = Vec3::TransformNormal(delta, rotMat);
 
     transform->Set_Position(currentPos + worldDelta);
 }
 
 void BattleActionExecutor::Update_RootMotionToTarget(Action& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
 {
-
     //RootMotionToTarget
     Vec3 toGoal = action.phaseGoalPos - currentPos;
     toGoal.y = 0.f;
@@ -246,13 +243,14 @@ void BattleActionExecutor::Update_RootMotionToTarget(Action& action, const Share
     if (localDelta.LengthSquared() <= 0.0001f)
         return;
 
-    Vec3 rotDeg = transform->Get_RotationEuler();
-    Vec3 rotRad(
+    const Vec3 rotDeg = transform->Get_RotationEuler();
+    const Vec3 rotRad(
         XMConvertToRadians(rotDeg.x),
         XMConvertToRadians(rotDeg.y),
-        XMConvertToRadians(rotDeg.z));
+        XMConvertToRadians(rotDeg.z)
+    );
 
-    Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
+    const Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
     Vec3 worldDelta = Vec3::TransformNormal(localDelta, rotMat);
     worldDelta.y = 0.f;
 
@@ -266,7 +264,7 @@ void BattleActionExecutor::Update_RootMotionToTarget(Action& action, const Share
     if (forwardAmount <= 0.f)
         return;
 
-    Vec3 moveDelta = goalDir * forwardAmount;
+    const Vec3 moveDelta = goalDir * forwardAmount;
     if (moveDelta.Length() >= remain)
     {
         FinishCurrentPhaseAtGoal(action);

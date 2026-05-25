@@ -2,6 +2,7 @@
 
 #include "DamageSystem.h"
 #include "ClientInstance.h"
+#include "CombatStatCom.h"
 
 Skill_Bishop_Ground_Att::Skill_Bishop_Ground_Att()
 {
@@ -9,32 +10,31 @@ Skill_Bishop_Ground_Att::Skill_Bishop_Ground_Att()
 
 void Skill_Bishop_Ground_Att::Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target)
 {
-    float Damage = 50;
-    auto  hero = CLIENT->Get_BattleController()->Get_AliveHeroes();
+    const float Damage = 50;
+    const auto hero = CLIENT->Get_BattleController()->Get_AliveHeroes();
+    if (hero.empty())
+    {
+        return;
+    }
 
     AttackCount++;
 
-    if(AttackCount==1)
-    {
+    if (AttackCount == 1)
         DamageSystem::ApplyDamage(Damage, target);
-    }
     else if (AttackCount == skill.AttackCount)
     {
         for (int i = 0; i < hero.size(); i++)
         {
             DamageSystem::ApplyDamage(Damage, hero[i]);
         }
+        return;
     }
     else
     {
-        int num = Math::RandNum(0, hero.size());
+        const int num = Math::RandNum(0, hero.size() - 1);
 
-        DamageSystem::ApplyDamage(Damage, hero[num]);
-
+            DamageSystem::ApplyDamage(Damage, hero[num]);
     }
-
-
-
 }
 
 Shared<Skill_Bishop_Ground_Att> Skill_Bishop_Ground_Att::Create()

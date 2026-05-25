@@ -911,6 +911,77 @@ void BattleController::OnActionEndNotify()
     _battleActionExe->OnActionEndNotify(action);
 }
 
+void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos)
+{
+    if (IsHero)
+    {
+        if (_heroes.size() == 3)
+            return;
+
+
+        Shared<GameObject> hero = Spawn_Prefab::Spawn(
+            prefabName,
+            GAME->Current_LevelIndex(),
+            L"BattleLayer"
+        );
+
+        CHECK_NULL(hero);
+
+        const auto ply = dynamic_pointer_cast<Character>(hero);
+        BattleChar battleChar{};
+        battleChar.actor = ply;
+        battleChar.statCom = hero->Get_Component<CombatStatCom>();
+
+        PartObject* body = ply ? ply->Get_PartObject(L"Part_Body") : nullptr;
+        battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // 몬스터 종류와 무관하게 Part_Body의 ModelCom를 사용한다.
+
+        _heroes.push_back(battleChar);
+
+        battleChar.actor->Get_Transform()->Set_Position(pos);
+
+        TurnEntry turn = {};
+        turn.nextTime = _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f);
+
+            turn.hero = battleChar;
+
+
+        _turnQueue.push(turn);
+    }
+    else
+    {
+        if (_enemies.size() == 3)
+            return;
+
+            Shared<GameObject> enemy = Spawn_Prefab::Spawn(
+                prefabName,
+                GAME->Current_LevelIndex(),
+                L"BattleLayer"
+            );
+
+            CHECK_NULL(enemy);
+
+            const auto ply = dynamic_pointer_cast<Character>(enemy);
+            BattleChar battleChar{};
+            battleChar.actor = ply;
+            battleChar.statCom = enemy->Get_Component<CombatStatCom>();
+
+            PartObject* body = ply ? ply->Get_PartObject(L"Part_Body") : nullptr;
+            battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // 몬스터 종류와 무관하게 Part_Body의 ModelCom를 사용한다.
+
+            _enemies.push_back(battleChar);
+
+            battleChar.actor->Get_Transform()->Set_Position(pos);
+
+
+            TurnEntry turn = {};
+            turn.nextTime = _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f);
+                turn.hero = battleChar;
+
+
+            _turnQueue.push(turn);
+    }
+}
+
 vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
 {
     vector<BattleChar> preview{};
@@ -1173,6 +1244,8 @@ void BattleController::PlayerStartAnim()
 
 void BattleController::HitAction(BattleChar target)
 {
+
+
     target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
 
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
