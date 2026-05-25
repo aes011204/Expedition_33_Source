@@ -118,6 +118,9 @@ public:
 
     Shared<BattleTurnCamera> Get_BattleTurnCamera() const { return _battleTurnCamera; }
 
+    void                StartCounter(ModelCom* sourceModel);
+    void                ApplyCounterDamage(ModelCom* sourceModel);
+
 public:
     // Free Aim은 턴 소모 X
     void Begin_FreeAimShot(const Action& shotAction);

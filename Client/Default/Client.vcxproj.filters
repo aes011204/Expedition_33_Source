@@ -98,6 +98,8 @@
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
     <ClCompile Include="..\Private\BattleReactionController.cpp" />
+    <ClCompile Include="..\Private\AN_StartCounter.cpp" />
+    <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -671,6 +673,8 @@
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
     <ClInclude Include="..\Public\UI_BattleMechanism.h" />
     <ClInclude Include="..\Public\BattleReactionController.h" />
+    <ClInclude Include="..\Public\AN_StartCounter.h" />
+    <ClInclude Include="..\Public\AN_CounterDamage.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

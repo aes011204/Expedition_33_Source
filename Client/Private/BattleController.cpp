@@ -89,6 +89,14 @@ void BattleController::Update(float timeDelta)
     if (_battleEnded == true)
         return;
 
+    _reactionController.UpdateAnimation();
+
+    if (!_isPendingVictorySlow && _reactionController.Consume_CounterFinishedTurnRequest())
+    {
+        EndTurn(); // 카운터로 적 턴 액션을 중간에 끊어서 executor 완료 기다리지 않고 바로 턴 종료
+        return;
+    }
+
     if (_isPendingVictorySlow)
     {
         _victorySlow.elapsed += GAME->Get_UnscaledTimeDelta();
@@ -680,7 +688,7 @@ void BattleController::ClearReactionState()
 void BattleController::UpdateReactionInput()
 {
     const ReactionResult result =
-        _reactionController.UpdateInput(_turnAction.target);
+        _reactionController.UpdateInput(_turnAction);
 
     // Reaction 성공 브로드캐스트
     if (result.success)
@@ -750,6 +758,16 @@ BattleTurnState BattleController::Get_CurrentTurnState() const
         return BattleTurnState::None;
 
     return _battleFSM->Get_CurrentPlayerState();
+}
+
+void BattleController::StartCounter(ModelCom* sourceModel)
+{
+    _reactionController.StartCounter(sourceModel);
+}
+
+void BattleController::ApplyCounterDamage(ModelCom* sourceModel)
+{
+    _reactionController.ApplyCounterDamage(sourceModel);
 }
 
 void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& turnAction)

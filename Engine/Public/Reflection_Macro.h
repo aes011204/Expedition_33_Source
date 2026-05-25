@@ -278,9 +278,6 @@ public:                                                                         
         STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
         Engine::PropertyType::WString, offsetof(SelfType, Member) })
 
-
-
-
 #define PROPERTY_BBKEY_VEC3(DisplayName, Member)                                   \
     {                                                                              \
         Engine::PropertyInfo prop{};                                               \

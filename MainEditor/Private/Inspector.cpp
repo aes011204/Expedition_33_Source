@@ -477,9 +477,12 @@ void Inspector::Draw_ReflectionProperty(
         }
         else
         {
-            ImGui::BeginDisabled();
-            ImGui::TextUnformatted(value->c_str());
-            ImGui::EndDisabled();
+            char buffer[512]{};
+            strncpy_s(buffer, value->c_str(), _TRUNCATE);
+
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::InputText(hiddenId.c_str(), buffer, IM_ARRAYSIZE(buffer)))
+                *value = buffer;
         }
         break;
     }
@@ -491,12 +494,15 @@ void Inspector::Draw_ReflectionProperty(
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%s", visibleLabel.c_str());
         ImGui::SameLine(InspectorLabelWidth);
-        ImGui::BeginDisabled();
 
-        const string valueText = String::ToString(*value);
-        ImGui::TextUnformatted(valueText.c_str());
+        string valueText = String::ToString(*value);
+        char buffer[512]{};
+        strncpy_s(buffer, valueText.c_str(), _TRUNCATE);
 
-        ImGui::EndDisabled();
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::InputText(hiddenId.c_str(), buffer, IM_ARRAYSIZE(buffer)))
+            *value = String::ToWString(buffer);
+
         break;
     }
 
