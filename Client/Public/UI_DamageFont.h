@@ -23,7 +23,7 @@ public:
     void    Open() override;
     void    Close() override;
 
-    void    Play_DamageFont(const Vec3& worldPos, float damage, uint32 stackIndex);
+    void    Play_DamageFont(const Vec2& screenPos, float damage, uint32 stackIndex); // 월드 좌표를 계속 따라가지 않고, 시작 화면 좌표를 고정한다.
     bool    Is_Playing() const { return _isPlaying; }
     float   Get_Elapsed() const { return _elapsed; }
 
@@ -31,19 +31,21 @@ private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
 
-    void    Set_DamageText(int32 damageValue);          // 앞/뒤 텍스트를 항상 같이 바꾼다.
-    void    Apply_ScreenOffset(Vec2& screenPos) const;  // 동시 표시 시 살짝 흩어지게 한다.
+    void    Set_DamageText(int32 damageValue);
+    void    Apply_StackOffset(Vec2& screenPos) const;          // 동시 표시 중인 숫자끼리 좌우/상하로 살짝 분산
+    void    Apply_RiseOffset(Vec2& screenPos, float t) const;  // lifetime 동안 위로 떠오르는 연출
 
 private:
     Shared<UI_Text> _damageText{};
     Shared<UI_Text> _damageTextBg{};
 
-    Vec3  _targetWorldPos = Vec3::Zero;
-    bool  _hasTargetWorldPos = false;
+    Vec2  _startScreenPos = Vec2::Zero;
+    bool  _hasStartScreenPos = false;
 
     bool  _isPlaying = false;
     float _elapsed = 0.f;
     float _lifeTime = 1.05f;
+    float _riseDistance = 72.f; // 전체 lifetime 동안 위로 떠오를 총 거리
 
     uint32 _stackIndex = 0;
 

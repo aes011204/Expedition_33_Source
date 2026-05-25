@@ -27,6 +27,7 @@ class BattleController : public Base
 {
 public:
     using ReactionType = BattleReactionType;
+    using ReactionResult = BattleReactionController::BattleReactionInputResult;
 
 public: /* Delegate 선언 */
     // 전투 시작
@@ -42,7 +43,7 @@ public: /* Delegate 선언 */
     // 공격 시작
     DECLARE_DELEGATE(FOnActionStarted, const Action&);
     // Reaction (Dodge, Parry)
-    DECLARE_DELEGATE(FOnReactionSucceeded, ReactionType);
+    DECLARE_DELEGATE(FOnReactionSucceeded, ReactionType, const BattleChar&);
 
 public:
     BattleController();
@@ -145,10 +146,6 @@ private:
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
 
-    // Reaction(패링, 회피)
-    void    PlayReactionAnimation(const BattleChar& target, ReactionType reactionType, bool isSuccess);
-    void    UpdateReactionAnimation();
-
 private:
     PlayerCharacterType To_PlayerCharacterType(HeroId heroId);
 
@@ -219,6 +216,8 @@ private:
     Shared<BuffSystem> _buffSystem;
     /* Shared< BattleEffectResolver> _battleEffectResolver;*/
     Shared<BattleActionExecutor> _battleActionExe;
+
+    // 전투 시작 시 스폰되는 객체들 저장소
     Shared<BattleSpawnRegistry> _battleSpawnRegistry;
     BattleReactionController    _reactionController{};
 
@@ -251,9 +250,6 @@ private:
 
     bool _isFreeAimShotPlaying = false;
     Action _freeAimShotAction {};
-
-    // Reaction(패링, 회피, QTE?)가 끝나면 Idle로 복귀시킬 대상
-    BattleChar _reactionAnimTarget = {};
 
     uint32 _lastVictoryRewardExp = 0;
 

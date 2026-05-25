@@ -22,6 +22,10 @@
 #include "UI_ReactionResult.h"
 #include "UI_BattleVictory.h"
 
+#include "UI_Utils.h"
+
+using namespace UI_Utils;
+
 GameplayUI_Battle::~GameplayUI_Battle() = default;
 
 HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
@@ -389,8 +393,12 @@ void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float dam
         return;
 
     Vec3 worldPos{};
-    if (!Try_GetTargetHpBarWorldPos(target, worldPos))
+    if (!Try_GetDamageFontWorldPos(target, worldPos))
         return;
+
+    Vec2 screenPos{};
+    if (!UI_Utils::Try_ProjectWorldToScreen(worldPos, screenPos))
+        return; // 피격 순간에 카메라 밖이면 숫자를 띄우지 않는다.
 
     UI_DamageFont* selectedSlot = nullptr;
     UI_DamageFont* oldestSlot = nullptr;
@@ -404,7 +412,7 @@ void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float dam
 
         if (damageFont->Is_Playing())
         {
-            ++stackIndex; // 이미 떠 있는 숫자 수를 오프셋 인덱스로 사용
+            ++stackIndex; // 이미 떠 있는 숫자 수만큼 살짝 더 벌린다.
 
             if (damageFont->Get_Elapsed() > longestElapsed)
             {
@@ -416,27 +424,33 @@ void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float dam
         }
 
         if (selectedSlot == nullptr)
-            selectedSlot = damageFont.get(); // 빈 슬롯을 우선 사용
+            selectedSlot = damageFont.get();
     }
 
     if (selectedSlot == nullptr)
-        selectedSlot = oldestSlot; // 모든 슬롯이 사용 중이면 가장 오래된 숫자를 재사용
+        selectedSlot = oldestSlot;
 
     if (selectedSlot == nullptr)
         return;
 
     stackIndex = min(stackIndex, kDamageFontPoolSize - 1);
-    selectedSlot->Play_DamageFont(worldPos, damage, stackIndex);
-
-
+    selectedSlot->Play_DamageFont(screenPos, damage, stackIndex);
 }
 
-void GameplayUI_Battle::Handle_ReactionSucceeded(BattleController::ReactionType reactionType)
+void GameplayUI_Battle::Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const BattleChar& target)
 {
-    if (_reactionResult)
-    {
-        _reactionResult->Show_Reaction(reactionType);
-    }
+    if (!_isBattleUiActive || _reactionResult == nullptr)
+        return;
+
+    Vec3 worldPos{};
+    if (!Try_GetReactionResultWorldPos(target, worldPos))
+        return;
+
+    Vec2 screenPos{};
+    if (!Try_ProjectWorldToScreen(worldPos, screenPos))
+        return;
+
+    _reactionResult->Show_Reaction(reactionType, screenPos);
 }
 
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
@@ -886,6 +900,28 @@ bool GameplayUI_Battle::Try_GetBattleCommandHudWorldPos(const BattleChar& actor,
 
     outWorldPos = actor.actor->Get_Transform()->Get_WorldPosition();
     outWorldPos.y += 0.8f;
+
+    return true;
+}
+
+bool GameplayUI_Battle::Try_GetDamageFontWorldPos(const BattleChar& target, Vec3& outWorldPos) const
+{
+    if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
+        return false;
+
+    outWorldPos = target.actor->Get_Transform()->Get_WorldPosition();
+    outWorldPos.y += 1.1f;
+
+    return true;
+}
+
+bool GameplayUI_Battle::Try_GetReactionResultWorldPos(const BattleChar& target, Vec3& outWorldPos)
+{
+    if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
+        return false;
+
+    outWorldPos = target.actor->Get_Transform()->Get_WorldPosition();
+    outWorldPos.y += 1.25f;
 
     return true;
 }

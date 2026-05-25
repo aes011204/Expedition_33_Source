@@ -9,6 +9,7 @@
 #include "GameInstance.h"
 #include "BNode.h"
 #include "GameObject.h"
+#include "Helper_String.h"
 #include "Inspector.h"
 #include "TypeRegistry.h"
 
@@ -72,6 +73,10 @@ namespace
                 nodeJson[key] = *static_cast<const string*>(address);
                 break;
 
+            case PropertyType::WString:
+                nodeJson[key] = String::ToString(*static_cast<const wstring*>(address));
+                break;
+
             case PropertyType::Enum:
                 nodeJson[key] = *reinterpret_cast<const int*>(address);
                 break;
@@ -114,6 +119,10 @@ namespace
 
             case PropertyType::String:
                 *static_cast<string*>(address) = nodeJson[key].get<string>();
+                break;
+
+            case PropertyType::WString:
+                *static_cast<wstring*>(address) = String::ToWString(nodeJson[key].get<string>());
                 break;
 
             case PropertyType::Enum:

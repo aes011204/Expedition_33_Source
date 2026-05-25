@@ -19,7 +19,7 @@ public:
     void    Close() override;
 
 public:
-    void    Show_Reaction(BattleController::ReactionType reactionType);
+    void    Show_Reaction(BattleController::ReactionType reactionType, const Vec2& screenPos);
 
 private:
     HRESULT Load_UI(uint32 levelIndex);

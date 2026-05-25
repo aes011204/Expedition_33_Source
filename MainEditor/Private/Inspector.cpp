@@ -484,6 +484,22 @@ void Inspector::Draw_ReflectionProperty(
         break;
     }
 
+    case PropertyType::WString:
+    {
+        wstring* value = static_cast<wstring*>(address);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%s", visibleLabel.c_str());
+        ImGui::SameLine(InspectorLabelWidth);
+        ImGui::BeginDisabled();
+
+        const string valueText = String::ToString(*value);
+        ImGui::TextUnformatted(valueText.c_str());
+
+        ImGui::EndDisabled();
+        break;
+    }
+
     case PropertyType::Enum:
     {
         int* value = static_cast<int*>(address);

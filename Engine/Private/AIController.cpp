@@ -6,6 +6,7 @@
 #include "Composite.h"
 #include "Decorator.h"
 #include "GameObject.h"
+#include "Helper_String.h"
 #include "Parallel.h"
 #include "Selector.h"
 #include "Sequence.h"
@@ -390,6 +391,10 @@ HRESULT AIController::Restore_BTNodeProperties(const Shared<BNode>& node, const 
 
         case PropertyType::String:
             *static_cast<string*>(address) = nodeJson[key].get<string>();
+            break;
+
+        case PropertyType::WString:
+            *static_cast<wstring*>(address) = String::ToWString(nodeJson[key].get<string>());
             break;
 
         case PropertyType::Enum:
