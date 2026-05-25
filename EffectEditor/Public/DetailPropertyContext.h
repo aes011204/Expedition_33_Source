@@ -37,6 +37,7 @@ public:
     void Draw_ScreenAlignmentImplementationNote(EmitterScreenAlignment value);
     bool Draw_SortModeProperty(const char* label, EmitterSortMode& value, EmitterSortMode defaultValue);
     bool Draw_UintProperty(const char* label, uint32& value, uint32 defaultValue, const char* tooltip = nullptr);
+    bool Draw_Vec2Property(const char* label, Vec2& value, const Vec2& defaultValue, float speed = 0.01f);
     bool Draw_Vec3Property(const char* label, Vec3& value, const Vec3& defaultValue, float speed = 0.01f);
 
 private:

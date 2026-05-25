@@ -75,16 +75,28 @@ namespace Engine
         CombinedHDR,
         CombinedSimple,
         CombinedPreview = 5, // Preview에서는 그림자 계산 X
+        SSAO,
+        SSAOBlur
     };
 
     enum class PostProcessPass : uint8
     {
         Debug,
-        BloomExtract,
+        BloomExtractHalf,
         BloomDownsample,
         BloomBlurH,
         BloomBlurV,
+        BloomUpsampleAdd,
         ToneMapping,
+
+        END
+    };
+
+    enum class ScreenFxPass : uint8
+    {
+        Vignette = 0,
+        Ghosting,
+        BattleTransition,
 
         END
     };
@@ -112,13 +124,16 @@ namespace Engine
 
     enum class ConstantBuffer : uint8
     {
-        Material    = 0,
-        Camera      = 1,   // View, Proj Matrix
-        Object      = 2,   // WorldMatrix
-        Shadow      = 3,
-        Deferred    = 4,
-        Light       = 5,
-        PostProcess = 6,
+        Material        = 0,
+        Camera          = 1,   // View, Proj Matrix
+        Object          = 2,   // WorldMatrix
+        Shadow          = 3,
+        ScreenSpace     = 4,
+        Light           = 5,
+        SSAO            = 6,
+        PostProcess     = 7,
+        Hair            = 8,
+        DrawFeature     = 9,
 
         END
     };
@@ -171,6 +186,20 @@ namespace Engine
     };
 
 
+    enum MaterialChannelSource : uint32
+    {
+        MaterialChannel_Const0 = 0,
+        MaterialChannel_Const1,
+        MaterialChannel_R,
+        MaterialChannel_G,
+        MaterialChannel_B,
+        MaterialChannel_A,
+        MaterialChannel_MaxRGB,
+        MaterialChannel_Luma,
+    };
+
+
 }
 
 template <> struct Enable_Bitmask_Operators<Engine::PostProcessFeature> { static constexpr bool value = true; };
+

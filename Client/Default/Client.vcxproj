@@ -251,6 +251,7 @@
     <ClInclude Include="..\Public\Cinematic_Types.h" />
     <ClInclude Include="..\Public\Cinematic_Utils.h" />
     <ClInclude Include="..\Public\Client_Constants.h" />
+    <ClInclude Include="..\Public\ContentBrowserCore.h" />
     <ClInclude Include="..\Public\Client_Enum.h" />
     <ClInclude Include="..\Public\Client_Macro.h" />
     <ClInclude Include="..\Public\Client_Struct.h" />
@@ -317,6 +318,7 @@
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
     <ClInclude Include="..\Public\State.h" />
     <ClInclude Include="..\Public\StateMachineCom.h" />
+    <ClInclude Include="..\Public\SwitchDissolveFeature.h" />
     <ClInclude Include="..\Public\StreamingLevel.h" />
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
@@ -373,6 +375,7 @@
     <ClCompile Include="..\private\ANS_Emissive.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
+    <ClCompile Include="..\Private\ANS_QTE.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
@@ -460,6 +463,7 @@
     <ClCompile Include="..\Private\Cinematic_Player.cpp" />
     <ClCompile Include="..\Private\Cinematic_SequenceIO.cpp" />
     <ClCompile Include="..\Private\CombatStatCom.cpp" />
+    <ClCompile Include="..\Private\ContentBrowserCore.cpp" />
     <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp" />
     <ClCompile Include="..\private\DamageSystem.cpp" />
     <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp" />
@@ -598,6 +602,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />

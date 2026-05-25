@@ -66,6 +66,9 @@ HRESULT Weapon::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
+    if (FAILED(_shader->Reset_DrawFeatures()))
+        return E_FAIL;
+
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; ++i)
@@ -98,6 +101,9 @@ HRESULT Weapon::Render_Shadow()
     if (FAILED(GAME->Bind_ShadowCB(_shader)))
         return E_FAIL;
 
+    if (FAILED(_shader->Reset_DrawFeatures()))
+        return E_FAIL;
+        
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; ++i)

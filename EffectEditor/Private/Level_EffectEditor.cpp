@@ -3,6 +3,7 @@
 #include "Camera.h"
 #include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
+#include "EffectEditorSceneGrid.h"
 #include "EffectEditorSkybox.h"
 #include "EffectInstance.h"
 #include "Emitter_View.h"
@@ -332,6 +333,7 @@ HRESULT Level_EffectEditor::Initialize()
     CHECK_FAILED(Level::Initialize(), E_FAIL);
     CHECK_FAILED(Ready_Lights(), E_FAIL);
     CHECK_FAILED(Ready_Layer_Camera(L"Layer_Camera"), E_FAIL);
+    CHECK_FAILED(Ready_Layer_Grid(L"Layer_Grid"), E_FAIL);
     CHECK_FAILED(Ready_Layer_Sky(L"Layer_Sky"), E_FAIL);
     CHECK_FAILED(Ready_Layer_Preview(kPreviewLayerTag), E_FAIL);
 
@@ -824,6 +826,20 @@ HRESULT Level_EffectEditor::Ready_Layer_Sky(const wstring& layerTag)
     CHECK_NULL(skybox, E_FAIL);
     CHECK_FAILED(skybox->Initialize(nullptr), E_FAIL);
     CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, skybox), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Level_EffectEditor::Ready_Layer_Grid(const wstring& layerTag)
+{
+    if (layerTag.empty())
+        return E_FAIL;
+
+    const Shared<EffectEditorSceneGrid> sceneGrid =
+        EffectEditorSceneGrid::Create(_device, _context);
+    CHECK_NULL(sceneGrid, E_FAIL);
+    CHECK_FAILED(sceneGrid->Initialize(nullptr), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, sceneGrid), E_FAIL);
 
     return S_OK;
 }

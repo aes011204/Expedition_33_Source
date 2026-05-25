@@ -151,6 +151,21 @@ struct PerfCounter
     double maxMs{};
 };
 
+struct RenderPerfWindow
+{
+    PerfCounter render{};
+    PerfCounter priority{};
+    PerfCounter shadow{};
+    PerfCounter nonBlend{};
+    PerfCounter nonLight{};
+    PerfCounter lights{};
+    PerfCounter combinedHDR{};
+    PerfCounter postProcess{};
+    PerfCounter blend{};
+    PerfCounter ui{};
+    PerfCounter debug{};
+};
+
 struct UpdatePerfWindow
 {
     PerfCounter update{};

@@ -62,11 +62,18 @@ PS_OUT_COLOR PS_Debug(PS_IN In)
     return Out;
 }
 
-PS_OUT_BACKBUFFER PS_BloomExtract(PS_IN In)
+PS_OUT_BACKBUFFER PS_BloomExtractHalf(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
 
-    float3 color = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord).rgb;
+    float2 texel = max(g_TexelSize, float2(EPSILON, EPSILON));
+    float2 offset = texel * 1.5f;
+
+    float3 c0 = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord + float2(-offset.x, -offset.y)).rgb;
+    float3 c1 = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord + float2(offset.x, -offset.y)).rgb;
+    float3 c2 = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord + float2(-offset.x, offset.y)).rgb;
+    float3 c3 = g_HDRTexture.Sample(LinearClampSampler, In.Texcoord + float2(offset.x, offset.y)).rgb;
+    float3 color = (c0 + c1 + c2 + c3) * 0.25f;
 
     // 컬러를 밝기로 표현
     float luminant = dot(color, REC_709);
@@ -110,6 +117,13 @@ PS_OUT_COLOR PS_BloomBlur_V(PS_IN In)
     return Out;
 }
 
+PS_OUT_COLOR PS_BloomUpsampleAdd(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+    Out.Color = float4(SampleBloomUpsampleAdd(In.Texcoord), 1.f);
+    return Out;
+}
+
 PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
@@ -119,14 +133,52 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
     if (HasPostProcessFeature(POSTPROCESS_FLAG_BLOOM))
         bloomColor = g_BloomTexture.Sample(LinearClampSampler, In.Texcoord).rgb;
 
-    float3 color = hdr.rgb + bloomColor;
+    float3 color = hdr.rgb + bloomColor * g_PP_BloomIntensity;
+    
     // Exposure
     if (HasPostProcessFeature(POSTPROCESS_FLAG_EXPOSURE))
         color *= max(g_PP_Exposure, EPSILON);
     
-    // ToneMapping  현재는 Reinhard
+    // ToneMapping
     if (HasPostProcessFeature(POSTPROCESS_FLAG_TONEMAP))
-        color = color / (1.f + color);          
+    {
+        if (g_PP_ToneMapMode == 0)
+        {
+            // Reinhard
+            color = color / (1.f + color);
+        }
+        else if (g_PP_ToneMapMode == 1)
+        {
+            // ACES fitted
+            const float a = 2.51f;
+            const float b = 0.03f;
+            const float c = 2.43f;
+            const float d = 0.59f;
+            const float e = 0.14f;
+            color = saturate((color * (a * color + b)) / (color * (c * color + d) + e));
+        }
+        else if (g_PP_ToneMapMode == 2)
+        {
+            // Uncharted2 filmic
+            const float A = 0.15f;
+            const float B = 0.50f;
+            const float C = 0.10f;
+            const float D = 0.20f;
+            const float E = 0.02f;
+            const float F = 0.30f;
+            const float W = max(1.f / max(g_PP_InvWhitePoint, EPSILON), EPSILON);
+
+            float3 numerator = color * (A * color + C * B) + D * E;
+            float3 denominator = color * (A * color + B) + D * F;
+            float3 mapped = numerator / max(denominator, EPSILON.xxx) - E / F;
+
+            float whiteNumerator = W * (A * W + C * B) + D * E;
+            float whiteDenominator = W * (A * W + B) + D * F;
+            float whiteScale = whiteNumerator / max(whiteDenominator, EPSILON) - E / F;
+
+            color = mapped / max(whiteScale, EPSILON);
+        }
+    }
     
     // Gamma
     if (HasPostProcessFeature(POSTPROCESS_FLAG_GAMMA))
@@ -134,30 +186,18 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
         float gamma = max(g_PP_Gamma, EPSILON);
         color = pow(saturate(color), 1.f / gamma);
     }
-
-    float outAlpha = 1.f;
-    // 공용 postprocess에서 에디터 배경 정책을 우회적으로 처리하던 fallback 경로는 성능 문제가 제기되어서 비활성화함.
-    /*
-    float backgroundMask = g_BackgroundMaskTexture.Sample(PointClampSampler, In.Texcoord).r;
-    const bool hasSceneContribution = (backgroundMask > 0.5f) || (dot(abs(hdr.rgb), float3(1.f, 1.f, 1.f)) > 0.0001f);
-    if (g_PP_UseBackgroundFallback != 0 && !hasSceneContribution)
-    {
-        color = g_PP_BackgroundFallbackColor.rgb;
-        outAlpha = 1.f;
-    }
-    */
-
     // 최종 출력 화면은 LDR
-    Out.Color = float4(saturate(color), outAlpha);
+    Out.Color = float4(saturate(color), hdr.a);
     return Out;
 }
 
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(HDRDebug,          RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 0
-    PASS_RS_DS_BS_VP(BloomExtract,      RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomExtract)            // 1
+    PASS_RS_DS_BS_VP(BloomExtractHalf,  RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomExtractHalf)        // 1
     PASS_RS_DS_BS_VP(BloomDownsample,   RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomDownsample)         // 2
     PASS_RS_DS_BS_VP(BloomBlurH,        RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomBlur_H)             // 3
     PASS_RS_DS_BS_VP(BloomBlurV,        RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomBlur_V)             // 4
-    PASS_RS_DS_BS_VP(ToneMapping,       RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 5
+    PASS_RS_DS_BS_VP(BloomUpsampleAdd,  RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomUpsampleAdd)        // 5
+    PASS_RS_DS_BS_VP(ToneMapping,       RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 6
 }

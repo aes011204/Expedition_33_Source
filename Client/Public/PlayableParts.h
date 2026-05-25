@@ -1,10 +1,12 @@
 ﻿#pragma once
 #include "PartObject.h"
+#include "SwitchDissolveFeature.h"
 
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
 class AnimComputeRuntime;
+class Material;
 NS_END
 
 NS_BEGIN(Client)
@@ -52,6 +54,8 @@ public:
     virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
 
+    void Start_SwitchDissolve(float durationSec, const string& noiseName); // TEMP_ERASE: DISSOLVE 예시 함수
+
     // 머리 붙이기
     void Set_LeaderPoseComponent(const PlayableParts* leaderPart) const;
     bool Has_LeaderPoseComponent() const;
@@ -70,6 +74,11 @@ protected:
 protected:
     virtual HRESULT Ready_Components(const PLAYABLE_PART_DESC& desc);
     virtual HRESULT Bind_ShaderResources();
+    uint32 Resolve_DrawFeatureSupportMask() const;
+    HRESULT Bind_SwitchDissolveFeature(Shared<ShaderCom> shader, uint32 supportFeatureMask); // TEMP_ERASE: DISSOLVE 예시 바인딩
+
+protected:
+    SwitchDissolveRuntime _switchDissolve{}; // TEMP_ERASE: DISSOLVE 예시 런타임
 
 public:
     virtual Shared<GameObject> Clone(void* arg) override PURE;

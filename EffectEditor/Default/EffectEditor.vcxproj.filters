@@ -94,6 +94,9 @@
     <ClCompile Include="..\Private\EffectEditorSkybox.cpp">
       <Filter>05. EditorOnly Object\EffectEditor Skybox</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\EffectEditorSceneGrid.cpp">
+      <Filter>05. EditorOnly Object\EffectEditor Grid</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\EffectMaterialPresetReader.cpp">
       <Filter>02. View\Effect Material View\Support</Filter>
     </ClCompile>
@@ -231,6 +234,9 @@
     <ClInclude Include="..\Public\EffectEditorSkybox.h">
       <Filter>05. EditorOnly Object\EffectEditor Skybox</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\EffectEditorSceneGrid.h">
+      <Filter>05. EditorOnly Object\EffectEditor Grid</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialPresetReader.h">
       <Filter>02. View\Effect Material View\Support</Filter>
     </ClInclude>
@@ -304,6 +310,9 @@
     </Filter>
     <Filter Include="05. EditorOnly Object\EffectEditor Skybox">
       <UniqueIdentifier>{de00cc05-c9ca-4d49-9b06-b1587466a914}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="05. EditorOnly Object\EffectEditor Grid">
+      <UniqueIdentifier>{4a50e40c-d0cc-4ad8-b72d-a84ba288a853}</UniqueIdentifier>
     </Filter>
     <Filter Include="05. EditorOnly Object\Trail Preview Object">
       <UniqueIdentifier>{29a6939b-5282-4e71-9ce7-47cd7a735cab}</UniqueIdentifier>
