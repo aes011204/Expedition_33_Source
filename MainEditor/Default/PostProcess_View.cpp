@@ -208,11 +208,11 @@ void PostProcess_View::Draw_SSAOControl(Shared<SSAOPipeline> pipeline, bool& dir
                 dirty = true;
             }
 
-            dirty |= ImGui::DragFloat("Radius", &params.SSAORadius, 0.01f, 0.01f, 8.f, "%.3f");
+            dirty |= ImGui::DragFloat("Radius", &params.SSAORadius, 0.001f, 0.01f, 8.f, "%.3f");
             dirty |= ImGui::DragFloat("Bias", &params.SSAOBias, 0.001f, 0.f, 0.2f, "%.4f");
             dirty |= ImGui::DragFloat("Intensity", &params.SSAOIntensity, 0.01f, 0.f, 4.f, "%.3f");
             dirty |= ImGui::DragFloat("Power", &params.SSAOPower, 0.01f, 0.01f, 8.f, "%.3f");
-            dirty |= ImGui::DragFloat("DepthRange", &params.SSAODepthRange, 0.01f, 0.001f, 4.f, "%.3f");
+            dirty |= ImGui::DragFloat("DepthRange", &params.SSAODepthRange, 0.001f, 0.001f, 4.f, "%.3f");
 
             int sampleCount = static_cast<int>(params.SSAOSampleCount);
             if (ImGui::SliderInt("SampleCount", &sampleCount, 1, 16))
@@ -269,7 +269,7 @@ PostProcessCB PostProcess_View::Make_DefaultParams()
     PostProcessCB defaults{};
     defaults.exposure = 1.f;
     defaults.invWhitePoint = 1.f;
-    defaults.gamma = 2.2f;
+    defaults.gamma = 1.7f;
     defaults.bloomRadius = 1.f;
     defaults.bloomThreshold = 1.f;
     defaults.bloomIntensity = 0.5f;

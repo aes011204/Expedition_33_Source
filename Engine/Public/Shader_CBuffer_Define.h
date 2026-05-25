@@ -169,7 +169,7 @@ struct alignas(16) PostProcessCB
 
     float exposure = 1.f;                   // 키우면 밝아짐
     float invWhitePoint = 1.f;              // 어느 밝기 이상을 거의 흰색으로 볼 건지
-    float gamma = 2.2f;                     // 선형 색상을 sRGB에 가깝게 변환함
+    float gamma = 1.7f;                     // 선형 색상을 sRGB에 가깝게 변환함
     float bloomRadius = 1.6f;               // 블러 커널의 샘플 간격을 늘리는 배율
 
     float bloomThreshold = 0.9f;            // Bloom 추출 기준
@@ -196,7 +196,7 @@ struct alignas(16) SSAOCB
     // Raw SSAO 핵심 파라미터.
     // 현재 구현은 view-space 반구 샘플링이므로 Radius는 "화면 픽셀 반경"이 아니라
     // 현재 픽셀 주변을 3D 공간에서 얼마나 멀리 볼지 정하는 반경으로 해석된다.
-    float SSAORadius = 0.2f;                      // view-space 샘플 반경. 값이 커질수록 넓은 홈/바닥까지 AO가 쉽게 들어간다.
+    float SSAORadius = 0.1f;                      // view-space 샘플 반경. 값이 커질수록 넓은 홈/바닥까지 AO가 쉽게 들어간다.
     float SSAOBias = 0.1f;                      // 자기 표면을 가려진 것으로 잘못 세지 않도록 밀어주는 깊이 여유값.
     float SSAOIntensity = 0.7f;                   // Combined 단계에서 AO 결과를 얼마나 강하게 섞을지.
     float SSAOPower = 1.2f;                       // Combined 단계에서 AO 대비를 얼마나 더 눌러줄지.
