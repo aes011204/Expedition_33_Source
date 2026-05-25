@@ -146,6 +146,9 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
       <Filter>03. Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
+      <Filter>03. Shaders</Filter>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
       <Filter>03. Shaders</Filter>
     </FxCompile>
@@ -568,6 +571,7 @@
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\SwitchDissolveFeature.h" />
     <ClInclude Include="..\Public\UI_MonsterHpBar.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
@@ -1101,6 +1105,7 @@
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClCompile>
   </ItemGroup>
+
   <ItemGroup>
     <ClInclude Include="..\Public\ContentBrowserCore.h">
       <Filter>90.EditorSupport</Filter>

@@ -10,6 +10,7 @@
 //==================================================
 Texture2D g_HDRTexture;
 Texture2D g_BloomTexture;
+Texture2D g_BloomBaseTexture;
 Texture2D g_BackgroundMaskTexture;
 
 // Bloom Extract 용도
@@ -30,7 +31,7 @@ bool HasPostProcessFeature(uint feature)
 //==================================================
 float3 SampleGaussianDownsample_4tap(float2 uv)
 {
-    float2 texel = max(g_PP_BloomTexelSize, float2(EPSILON, EPSILON));
+    float2 texel = max(g_TexelSize, float2(EPSILON, EPSILON));
     float2 offset = texel * 1.5f;
 
     const float w0 = 0.25f;
@@ -48,7 +49,7 @@ float3 SampleGaussianDownsample_4tap(float2 uv)
 
 float3 SampleGaussianBlur_5tap(float2 uv, float2 dir)
 {
-    float2 texel = g_PP_BloomTexelSize * max(EPSILON, g_PP_BloomRadius);
+    float2 texel = g_TexelSize * max(EPSILON, g_PP_BloomRadius);
 
     const float w0 = 0.227027f;
     const float w1 = 0.316216f;
@@ -63,6 +64,13 @@ float3 SampleGaussianBlur_5tap(float2 uv, float2 dir)
     c += g_BloomTexture.Sample(LinearClampSampler, uv - texel * 2.f * dir).rgb * w2;
 
     return min(c, g_PP_BloomClamp);
+}
+
+float3 SampleBloomUpsampleAdd(float2 uv)
+{
+    float3 upsampled = g_BloomTexture.Sample(LinearClampSampler, uv).rgb;
+    float3 baseColor = g_BloomBaseTexture.Sample(LinearClampSampler, uv).rgb;
+    return min(baseColor + upsampled, g_PP_BloomClamp);
 }
 
 #endif
