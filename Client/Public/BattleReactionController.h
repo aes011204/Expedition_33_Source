@@ -8,6 +8,15 @@ NS_BEGIN(Client)
 // Dodge, Parry, QTE 전투 리액션을 컨트롤할 클래스. BattleController에서 분리ㄴ
 class BattleReactionController : public Base
 {
+private:
+    enum class ReactionAnimPhase
+    {
+        None,
+        Reaction,   // Dodge Or Parry
+        Counter,    // Parry 성공 이후 카운터로
+        END
+    };
+
 public:
     struct BattleReactionInputResult
     {
@@ -35,13 +44,23 @@ public:
     bool IsConsumed() const { return _isConsumed; }
     BattleReactionType Get_Result() const { return _result; }
 
-    BattleReactionInputResult UpdateInput(const BattleChar& target);
+    BattleReactionInputResult UpdateInput(const Action& turnAction);
     void UpdateAnimation();
+
+public:
+    void StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate);
+    void ApplyCounterDamage(ModelCom* sourceModel);
 
 private:
     bool CanReceiveInput(const BattleChar& target) const;
     bool IsHitOrDeadBattleAnim(BattleAnimType animType) const;
-    void PlayReactionAnimation(const BattleChar& target, BattleReactionType reactionType, bool isSuccess);
+    void PlayReactionAnimation(
+        const BattleChar& target,
+        BattleReactionType reactionType,
+        bool isSuccess,
+        const BattleChar& counterTarget);
+
+    void FinishReactionAnimation();
 
 private:
     bool _isDodgeOpen = false; 
@@ -50,8 +69,12 @@ private:
     bool _isConsumed = false; // 몬스터 애니메이션의 AN_Attack에서 아직 소비되지 않은 상태
     BattleReactionType _result = BattleReactionType::None;
 
-    // Reaction(패링, 회피, QTE?)가 끝나면 Idle로 복귀시킬 대상
-    BattleChar _reactionAnimTarget = {};
+    BattleChar _reactionAnimTarget = {};  // Reaction 애니메이션 재생 플레이어
+    BattleChar _counterDamageTarget = {}; // Parry 성공 후 Counter 데미지를 받을놈
+
+    ReactionAnimPhase _animPhase = ReactionAnimPhase::None;
+    bool _isCounterPending = false;
+    bool _isCounterDamageApplied = false;
 
 public:
     static Shared<BattleReactionController> Create();

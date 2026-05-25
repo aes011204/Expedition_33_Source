@@ -9,9 +9,7 @@
 #include "Bounding_OBB.h"
 #include "Monster_Part.h"
 
-
 REGISTER_GLOBAL_ENUM(Monster_WorldBase::MonsterWorldAnim, "MonsterWorldAnim")
-
 
 Monster_WorldBase::Monster_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_WorldBase(device, context)
@@ -123,6 +121,36 @@ HRESULT Monster_WorldBase::Render_Shadow()
     return Character_WorldBase::Render_Shadow();
 }
 
+json Monster_WorldBase::To_Json() const
+{
+    json data = Character_WorldBase::To_Json();
+
+    json& customProperties = data["custom_properties"];
+    customProperties["battle_monster_prefab_names"] = _battleMonsterPrefabNames;
+
+    return data;
+}
+
+void Monster_WorldBase::From_Json(const json& data)
+{
+    Character_WorldBase::From_Json(data);
+
+    _battleMonsterPrefabNames.clear();
+
+    if (!data.contains("custom_properties") || !data["custom_properties"].is_object())
+        return;
+
+    const json& customProperties = data["custom_properties"];
+    if (!customProperties.contains("battle_monster_prefab_names") || !customProperties["battle_monster_prefab_names"].is_array())
+        return;
+
+    for (const json& prefabName : customProperties["battle_monster_prefab_names"])
+    {
+        if (prefabName.is_string())
+            _battleMonsterPrefabNames.push_back(prefabName.get<string>());
+    }
+}
+
 void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
 {
     Character_WorldBase::OnBeginOverlap(self, other);
@@ -150,6 +178,17 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     vector<string> battleMonsterPrefabNames;
     Set_BattleMonsterPrefabNames(battleMonsterPrefabNames);
 
+    if (battleMonsterPrefabNames.empty())
+    {
+        LOG_ERROR("Battle monster prefab list is empty.");
+        _isBattleStart = false;
+
+        if (self)
+            self->Set_IsActive(true);
+
+        return;
+    }
+
     CLIENT->OnEnterBattleField(1, true, heroes, battleMonsterPrefabNames, GetSharedPtr<GameObject>());
 }
 
@@ -162,6 +201,11 @@ void Monster_WorldBase::On_EditorStopRuntime()
         _colliderCom->Set_IsActive(true);
         _colliderCom->Clear_Overlap();
     }
+}
+
+void Monster_WorldBase::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
+{
+    outPrefabNames = _battleMonsterPrefabNames;
 }
 
 HRESULT Monster_WorldBase::Ready_Components()

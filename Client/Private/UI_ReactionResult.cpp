@@ -21,7 +21,13 @@ HRESULT UI_ReactionResult::Initialize(uint32 levelIndex)
 
 void UI_ReactionResult::Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
+    if (!Is_Open() || !_isShowing)
+        return;
+
+    _elapsed += timeDelta;
+
+    if (_elapsed >= _lifeTime)
+        Close(); // Dodge/Parry 성공 텍스트는 일정 시간 뒤 자동으로 닫는다.
 }
 
 void UI_ReactionResult::Open()
@@ -31,6 +37,9 @@ void UI_ReactionResult::Open()
 
 void UI_ReactionResult::Close()
 {
+    _isShowing = false;
+    _elapsed = 0.f;
+
     UI_RuntimePanelBase::Close();
 
     if (_dodgeRoot)
@@ -43,6 +52,8 @@ void UI_ReactionResult::Close()
 void UI_ReactionResult::Show_Reaction(BattleController::ReactionType reactionType, const Vec2& screenPos)
 {
     Open();
+    _isShowing = true; // 위치 기반 리액션 텍스트의 표시 시간을 Update에서 관리한다.
+    _elapsed = 0.f;
 
     if (_dodgeRoot)
         _dodgeRoot->Close();

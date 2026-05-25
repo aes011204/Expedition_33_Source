@@ -150,10 +150,11 @@ void AIController::Stop_Move()
     if (!owner || !_PF)
         return;
 
-    if (dynamic_pointer_cast<TransformCom>(owner->Get_Transform())== nullptr)
+    const Shared<TransformCom> transform = owner->Get_Transform();
+    if (transform == nullptr)
         return;
 
-    Vec3 pos = owner->Get_Transform()->Get_Position();
+    Vec3 pos = transform->Get_Position();
     _PF->Stop_Move(pos);
     _isMoving = false;
 }

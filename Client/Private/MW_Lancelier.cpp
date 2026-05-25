@@ -81,16 +81,6 @@ void MW_Lancelier::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> 
 
 }
 
-void MW_Lancelier::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
-{
-    outPrefabNames.clear();
-
-    // 일단 렌서러 3마리 고정
-    outPrefabNames.push_back(Constants::Prefab::MB_Lancelier);
-    outPrefabNames.push_back(Constants::Prefab::MB_Lancelier);
-    outPrefabNames.push_back(Constants::Prefab::MB_Lancelier);
-}
-
 HRESULT MW_Lancelier::Ready_Components()
 {
     CHECK_FAILED(Monster_WorldBase::Ready_Components(), E_FAIL);

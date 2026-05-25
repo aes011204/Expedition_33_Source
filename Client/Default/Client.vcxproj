@@ -163,7 +163,9 @@
     <ClInclude Include="..\public\AN_Attack.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
     <ClInclude Include="..\public\AN_Change_Anim.h" />
+    <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\public\AN_EnterAnim.h" />
+    <ClInclude Include="..\Public\AN_StartCounter.h" />
     <ClInclude Include="..\Public\AN_Test2.h" />
     <ClInclude Include="..\Public\AttackPlaying.h" />
     <ClInclude Include="..\public\Base_Mon_Attack.h" />
@@ -379,7 +381,9 @@
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
+    <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
+    <ClCompile Include="..\Private\AN_StartCounter.cpp" />
     <ClCompile Include="..\Private\AN_Test2.cpp" />
     <ClCompile Include="..\Private\AttackPlaying.cpp" />
     <ClCompile Include="..\private\Base_Mon_Attack.cpp" />
