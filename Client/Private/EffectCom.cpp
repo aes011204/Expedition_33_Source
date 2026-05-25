@@ -46,7 +46,22 @@ void EffectCom::BeginPlay()
 
 void EffectCom::Update(float timeDelta)
 {
-    _switchDissolve.Update(timeDelta);
+    const bool wasDissolving = _switchDissolve.enabled;
+    const bool wasVanish = !_switchDissolve.reveal;
+
+     _switchDissolve.Update(timeDelta);
+
+    // 사라지면, Visible 끄기
+    if (_vanishComplete &&
+        wasDissolving &&
+        wasVanish &&
+        !_switchDissolve.enabled)
+    {
+        if (const Shared<GameObject> owner = Get_Owner())
+            owner->Set_Visible(false);
+
+        _vanishComplete = false;
+    }
 
     Update_AttachedEffects();
 }
@@ -55,7 +70,16 @@ void EffectCom::Start_SwitchDissolve(float durationSec, const string& noiseName)
 {
     const uint32 noiseHandle = GAME->Get_Handle(noiseName);
 
+    _vanishComplete = false;
     _switchDissolve.Start_Reveal(durationSec, noiseHandle, 0.08f, 0.02f, Vec3(0.10f, 0.10f, 0.10f));
+}
+
+void EffectCom::Start_VanishDissolve(float durationSec, const string& noiseName, bool vanishComplete)
+{
+    const uint32 noiseHandle = GAME->Get_Handle(noiseName);
+
+    _vanishComplete = vanishComplete;
+    _switchDissolve.Start_Vanish(durationSec, noiseHandle, 0.08f, 0.02f, Vec3(0.10f, 0.10f, 0.10f));
 }
 
 HRESULT EffectCom::Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMask)

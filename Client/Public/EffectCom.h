@@ -34,18 +34,16 @@ public:
     void    Update(float timeDelta);
 
 public:
-    // PlayerWorldBase 에서 옮겨옴
+    // World에서 Active 중인 플레이어 바꿀 때
     void    Start_SwitchDissolve(float durationSec, const string& noiseName);
-	// PlayerablePart::Start_SwitchDisolve에서 옮김
+    // 몬스터 죽을 떄 사라지게
+    void    Start_VanishDissolve(float durationSec, const string& noiseName, bool vanishComplete);
+
     HRESULT Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMask);
 
     // Render 쪽에서는 owner만 세팅
-    static HRESULT Bind_DrawFeatures(
-                    const Shared<GameObject>& owner,
-                    ShaderCom* shader,
-                    uint32 supportFeatureMask);
+    static HRESULT Bind_DrawFeatures(const Shared<GameObject>& owner, ShaderCom* shader, uint32 supportFeatureMask);
 
-	// Ready_Layer_Effect의 EffectInstance 직접 생성 코드 옮김
     HRESULT Play_AttachedEffect(
                 uint32 levelIndex,
 				const wstring& effectName,
@@ -55,7 +53,6 @@ public:
 				const Vec3& localOffset = Vec3::Zero);
 
 private:
-	// Level_GamePlay::Sync_LuneRightHandleEffect에서 Move
     void    Update_AttachedEffects();
 
     bool    Try_GetSocketWorldPosition(
@@ -66,6 +63,9 @@ private:
 private:
     SwitchDissolveRuntime       _switchDissolve{};		// 디졸브
     vector<AttachedEffect>      _attachedEffects{};		// 소켓에 붙일 이팩트
+
+private:
+    bool _vanishComplete = false;
 
 public:
     static Shared<EffectCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

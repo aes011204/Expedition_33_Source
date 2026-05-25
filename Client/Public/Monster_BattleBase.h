@@ -11,6 +11,7 @@ NS_END
 NS_BEGIN(Client)
 
 class MonsterStatCom;
+class EffectCom;
 
 class Monster_BattleBase abstract : public Character_BattleBase
 {
@@ -53,9 +54,11 @@ public:
 protected:
     virtual HRESULT Ready_Components();
     void ActionFromDecision(Action& curturnAction, const BattleDecision decision, const vector<BattleChar>& heroes);
+
 protected:
     Shared<AIController>            _aiCtrl;
     Shared<MonsterStatCom>          _combatStat;
+    Shared<EffectCom>               _effectCom;
 
 public:
     void Free() override;

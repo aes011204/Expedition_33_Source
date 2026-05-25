@@ -108,6 +108,7 @@
     <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
     <ClCompile Include="..\Private\UI_PlayerHpBar.cpp" />
     <ClCompile Include="..\Private\EffectCom.cpp" />
+    <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -688,6 +689,7 @@
     <ClInclude Include="..\Public\UI_ReactionResult.h" />
     <ClInclude Include="..\Public\UI_PlayerHpBar.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
+    <ClInclude Include="..\Public\AN_VanishDissolve.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
