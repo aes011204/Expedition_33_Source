@@ -88,6 +88,7 @@ HRESULT MB_Bishop::Ready_PartObjects()
     _weaponR = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_WeaponR")]);
     CHECK_NULL(_weaponR, E_FAIL);
 
+    _weaponR->Set_Visible(false);
 
   //  Mon_Lancelier_Weapon::WEAPON_DESC weaponDesc{};
     weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
@@ -99,6 +100,9 @@ HRESULT MB_Bishop::Ready_PartObjects()
 
     _weaponL = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_WeaponL")]);
     CHECK_NULL(_weaponL, E_FAIL);
+
+    _weaponL->Set_Visible(false);
+
 
     return S_OK;
 }

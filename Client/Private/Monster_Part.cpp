@@ -50,7 +50,7 @@ void Monster_Part::Update(float timeDelta)
 void Monster_Part::Late_Update(float timeDelta)
 {
     // culling
-    if (!Get_Owner() || !Get_Owner()->Is_Visible())
+    if (!Get_Owner() || !Get_Owner()->Is_Visible()||!Is_Visible())
     {
         return;
     }

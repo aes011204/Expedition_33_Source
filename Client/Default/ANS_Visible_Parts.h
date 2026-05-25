@@ -23,9 +23,11 @@ public:
 private:
     float _start = 1.f;
     float _end = 1.f;
-    wstring  _string =L"";
+    wstring  _partName =L"";
 
-    Character_BattleBase* chart = {};
+    GameObject* Part = {};
+
+    bool _tmp = {};
 };
 
 NS_END

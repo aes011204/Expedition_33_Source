@@ -247,23 +247,23 @@ void Inspector::Draw_Components(const Shared<GameObject>& target)
     Draw_ObjectReflection(target);
 
     target->Visit_Components([&](const wstring&, const Shared<Component>& component)
-    {
-        if (component == nullptr)
-            return;
+        {
+            if (component == nullptr)
+                return;
 
-        // 트랜스폼은 무조건 맨위에 그릴거라 여기서 스킵
-        if (component == transform)
-            return;
+            // 트랜스폼은 무조건 맨위에 그릴거라 여기서 스킵
+            if (component == transform)
+                return;
 
-        if (Draw_ComponentOverride(component))
-            return;
+            if (Draw_ComponentOverride(component))
+                return;
 
-        const ClassReflectionInfo& info = component->Get_ReflectionInfo();
-        if (info.properties.empty())
-            return;
+            const ClassReflectionInfo& info = component->Get_ReflectionInfo();
+            if (info.properties.empty())
+                return;
 
-        Draw_ReflectionSection(info.className, component.get(), info);
-    });
+            Draw_ReflectionSection(info.className, component.get(), info);
+        });
 }
 
 void Inspector::Draw_ObjectReflection(const Shared<GameObject>& target)
@@ -477,9 +477,12 @@ void Inspector::Draw_ReflectionProperty(
         }
         else
         {
-            ImGui::BeginDisabled();
-            ImGui::TextUnformatted(value->c_str());
-            ImGui::EndDisabled();
+            char buffer[512]{};
+            strncpy_s(buffer, value->c_str(), _TRUNCATE);
+
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::InputText(hiddenId.c_str(), buffer, IM_ARRAYSIZE(buffer)))
+                *value = buffer;
         }
         break;
     }
@@ -491,12 +494,15 @@ void Inspector::Draw_ReflectionProperty(
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%s", visibleLabel.c_str());
         ImGui::SameLine(InspectorLabelWidth);
-        ImGui::BeginDisabled();
 
-        const string valueText = String::ToString(*value);
-        ImGui::TextUnformatted(valueText.c_str());
+        string valueText = String::ToString(*value);
+        char buffer[512]{};
+        strncpy_s(buffer, valueText.c_str(), _TRUNCATE);
 
-        ImGui::EndDisabled();
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::InputText(hiddenId.c_str(), buffer, IM_ARRAYSIZE(buffer)))
+            *value = String::ToWString(buffer);
+
         break;
     }
 
@@ -585,7 +591,7 @@ bool Inspector::Draw_ColorPropertyRow(const string& idPrefix, Vec4& value)
 
 bool Inspector::Draw_EnumPropertyRow(const string& idPrefix, const PropertyInfo& property, int& value)
 {
-     ImGui::PushID(idPrefix.c_str());
+    ImGui::PushID(idPrefix.c_str());
 
     if (property.enumNames.empty() || property.enumValues.empty() || property.enumNames.size() != property.enumValues.size())
     {

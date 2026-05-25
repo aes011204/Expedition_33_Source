@@ -99,6 +99,7 @@
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
     <ClCompile Include="..\Private\BattleReactionController.cpp" />
     <ClCompile Include="ANS_Visible_Parts.cpp" />
+    <ClCompile Include="..\private\ANS_Emissive.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -673,6 +674,7 @@
     <ClInclude Include="..\Public\UI_BattleMechanism.h" />
     <ClInclude Include="..\Public\BattleReactionController.h" />
     <ClInclude Include="ANS_Visible_Parts.h" />
+    <ClInclude Include="..\public\ANS_Emissive.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

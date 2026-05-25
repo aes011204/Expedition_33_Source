@@ -156,6 +156,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\public\ANS_Dodge.h" />
+    <ClInclude Include="..\public\ANS_Emissive.h" />
     <ClInclude Include="..\public\ANS_Move.h" />
     <ClInclude Include="..\public\ANS_Parry.h" />
     <ClInclude Include="..\public\ANS_QTE.h" />
@@ -369,6 +370,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp" />
+    <ClCompile Include="..\private\ANS_Emissive.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp" />

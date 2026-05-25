@@ -13,10 +13,9 @@ IMPLEMENT_REFLECTION(ANS_Visible_Parts)
 
     PROPERTY_FLOAT("end", _end);
     PROPERTY_FLOAT("start", _start);
+    PROPERTY_BOOL("tmp", _tmp);
 
     PROPERTY_WSTRING("partName", _partName);
-
-
 
     return true;
 }
@@ -25,9 +24,14 @@ void ANS_Visible_Parts::On_Begin(const AnimNotifyContext& context)
 {
     if (!context.owner || !context.model)
         return;
-
-    chart = dynamic_cast<Character_BattleBase*>(context.owner)->Get_PartObject(_partName);
- 
+    if (_partName == L"")
+    {
+        Part = context.owner;
+    }
+    else
+    Part = dynamic_pointer_cast<Character_BattleBase>(context.owner->Get_Owner())->Get_PartObject(_partName);
+    
+    Part->Set_Visible(_tmp);
 }
 
 void ANS_Visible_Parts::On_Tick(const AnimNotifyContext& context)
@@ -36,8 +40,8 @@ void ANS_Visible_Parts::On_Tick(const AnimNotifyContext& context)
         return;
 
     float alpha = context.notifyStateProgress;
-    
-    chart->
+    float process = lerp(_start, _end, context.notifyStateProgress);
+
 
 }
 
