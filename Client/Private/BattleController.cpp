@@ -293,6 +293,8 @@ void BattleController::ExecuteAction(Action turnAction)
 
     OnActionStarted.Broadcast(turnAction);
 
+    Clear_TargetPreview();
+
     // 일반 공격도 스킬로 들어감 구분만 BaseAttack
     switch (turnAction.type)
     {

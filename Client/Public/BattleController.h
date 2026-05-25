@@ -171,17 +171,17 @@ public: /* Delegate */
     FOnActionStarted                OnActionStarted;        // 공격, 스킬 시작
     FOnReactionSucceeded            OnReactionSucceeded;    // 회피, 패링 성공
 
-    FDelegateHandle         _damageAppliedHandle{};
-    FDelegateHandle         _editorStopHandle = {};
+    FDelegateHandle                 _damageAppliedHandle{};
+    FDelegateHandle                 _editorStopHandle = {};
 
 private:
-    BattleChar              _currentTurnActor = {};
-    Action                  _turnAction = {};
+    BattleChar                      _currentTurnActor = {};
+    Action                          _turnAction = {};
 
-    Shared<SkillScript>     _curScript = {};
+    Shared<SkillScript>             _curScript = {};
 
-    bool                    _isBattleActive = { false };
-    bool                    _isBattleEntering = { false };
+    bool                            _isBattleActive = { false };
+    bool                            _isBattleEntering = { false };
 
     int currentTurnIndex = {};
 

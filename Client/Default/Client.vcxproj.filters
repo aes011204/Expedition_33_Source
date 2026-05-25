@@ -106,7 +106,8 @@
     <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp" />
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
     <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
-    <ClCompile Include="..\Private\UI_BattlePlayerHpBar.cpp" />
+    <ClCompile Include="..\Private\UI_PlayerHpBar.cpp" />
+    <ClCompile Include="..\Private\EffectCom.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -685,7 +686,8 @@
     <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h" />
     <ClInclude Include="..\Public\UI_BattleMechanism.h" />
     <ClInclude Include="..\Public\UI_ReactionResult.h" />
-    <ClInclude Include="..\Public\UI_BattlePlayerHpBar.h" />
+    <ClInclude Include="..\Public\UI_PlayerHpBar.h" />
+    <ClInclude Include="..\Public\EffectCom.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
