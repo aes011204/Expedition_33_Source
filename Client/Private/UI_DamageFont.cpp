@@ -1,13 +1,10 @@
-﻿// Client/Private/UI_DamageFont.cpp
-#include "UI_DamageFont.h"
+﻿#include "UI_DamageFont.h"
 
 #include "Client_Constants.h"
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
 #include "UI_Utils.h"
-
-using namespace UI_Utils;
 
 HRESULT UI_DamageFont::Initialize(uint32 levelIndex)
 {
@@ -22,19 +19,17 @@ HRESULT UI_DamageFont::Initialize(uint32 levelIndex)
 
 void UI_DamageFont::Update(float timeDelta)
 {
-    if (!Is_Open() || !_isPlaying || !_hasTargetWorldPos)
+    if (!Is_Open() || !_isPlaying || !_hasStartScreenPos)
         return;
 
     _elapsed += timeDelta;
 
-    Vec2 screenPos{};
-    if (!Try_ProjectWorldToScreen(_targetWorldPos, screenPos))
-    {
-        Close();
-        return;
-    }
+    const float safeLifeTime = max(_lifeTime, 0.0001f);
+    const float t = clamp(_elapsed / safeLifeTime, 0.f, 1.f);
 
-    Apply_ScreenOffset(screenPos);
+    Vec2 screenPos = _startScreenPos;
+    Apply_StackOffset(screenPos);      // 동시에 뜬 숫자끼리 겹치지 않게 살짝 벌린다.
+    Apply_RiseOffset(screenPos, t);    // 시작 위치 기준으로만 위로 띄운다.
 
     if (_root && _root->Get_Transform())
         _root->Get_Transform()->Set_Position(screenPos);
@@ -43,17 +38,23 @@ void UI_DamageFont::Update(float timeDelta)
         Close();
 }
 
-void UI_DamageFont::Play_DamageFont(const Vec3& worldPos, float damage, uint32 stackIndex)
+void UI_DamageFont::Play_DamageFont(const Vec2& screenPos, float damage, uint32 stackIndex)
 {
     const int32 damageValue = max(0, static_cast<int32>(damage));
 
-    _targetWorldPos = worldPos;
-    _hasTargetWorldPos = true;
+    _startScreenPos = screenPos;
+    _hasStartScreenPos = true;
     _stackIndex = stackIndex;
     _elapsed = 0.f;
     _isPlaying = true;
 
     Set_DamageText(damageValue);
+
+    Vec2 startPos = _startScreenPos;
+    Apply_StackOffset(startPos); // 첫 프레임부터 위치가 바로 맞도록 Open 전에 한 번 반영한다.
+
+    if (_root && _root->Get_Transform())
+        _root->Get_Transform()->Set_Position(startPos);
 
     UI_RuntimePanelBase::Open();
 
@@ -68,9 +69,10 @@ void UI_DamageFont::Open()
 
 void UI_DamageFont::Close()
 {
-    _hasTargetWorldPos = false;
+    _hasStartScreenPos = false;
     _isPlaying = false;
     _elapsed = 0.f;
+    _stackIndex = 0;
 
     UI_RuntimePanelBase::Close();
 }
@@ -86,7 +88,7 @@ HRESULT UI_DamageFont::Load_UI(uint32 levelIndex)
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
-    _root = Find_UI(_uiByName, L"Panel_NormalDamageFont");
+    _root = UI_Utils::Find_UI(_uiByName, L"Panel_NormalDamageFont");
     CHECK_NULL(_root, E_FAIL);
 
     return S_OK;
@@ -94,8 +96,8 @@ HRESULT UI_DamageFont::Load_UI(uint32 levelIndex)
 
 HRESULT UI_DamageFont::Bind_UI()
 {
-    _damageText = Find_TypedUI<UI_Text>(_uiByName, L"Text_NormalDamageFont");
-    _damageTextBg = Find_TypedUI<UI_Text>(_uiByName, L"Text_NormalDamageFont_BG");
+    _damageText = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_NormalDamageFont");
+    _damageTextBg = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_NormalDamageFont_BG");
 
     CHECK_NULL(_damageText, E_FAIL);
     CHECK_NULL(_damageTextBg, E_FAIL);
@@ -107,17 +109,23 @@ void UI_DamageFont::Set_DamageText(int32 damageValue)
 {
     const wstring text = to_wstring(damageValue);
 
-    _damageText->Set_Text(text);   // 앞 숫자
-    _damageTextBg->Set_Text(text); // 외곽/배경 숫자
+    _damageText->Set_Text(text);
+    _damageTextBg->Set_Text(text);
 }
 
-void UI_DamageFont::Apply_ScreenOffset(Vec2& screenPos) const
+void UI_DamageFont::Apply_StackOffset(Vec2& screenPos) const
 {
-    const float horizontal = (_stackIndex % 2 == 0) ? -18.f : 18.f;  // 좌우를 번갈아 흔들어 겹침을 줄인다.
-    const float vertical = -22.f * static_cast<float>(_stackIndex);  // 뒤에 들어온 숫자는 위쪽으로 조금씩 더 벌린다.
+    const float horizontal = (_stackIndex % 2 == 0) ? -18.f : 18.f;
+    const float vertical = -22.f * static_cast<float>(_stackIndex);
 
     screenPos.x += horizontal;
     screenPos.y += vertical;
+}
+
+void UI_DamageFont::Apply_RiseOffset(Vec2& screenPos, float t) const
+{
+    const float eased = 1.f - (1.f - t) * (1.f - t); // 초반에 빨리 뜨고 후반에 살짝 완만해진다.
+    screenPos.y -= _riseDistance * eased;
 }
 
 Unique<UI_DamageFont> UI_DamageFont::Create(uint32 levelIndex)

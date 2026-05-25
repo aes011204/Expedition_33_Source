@@ -392,12 +392,6 @@ void BattleController::StartTurn()
         return;
     }
 
-    LOG_DEBUG(
-        "StartTurn: next actor={}, isPlayer={}",
-        _currentTurnActor.actor ? String::ToString(_currentTurnActor.actor->Get_Name()).c_str() : "null",
-        _currentTurnActor.statCom ? _currentTurnActor.statCom->Is_Player() : 0
-    );
-
     _turnAction = {};
     _turnAction._curChar = _currentTurnActor;
     const auto actor = _currentTurnActor;
@@ -685,44 +679,12 @@ void BattleController::ClearReactionState()
 
 void BattleController::UpdateReactionInput()
 {
-    UpdateReactionAnimation(); // 패링, 회피 애니메이션 끝났으면 Base Idle로 전환
+    const ReactionResult result =
+        _reactionController.UpdateInput(_turnAction.target);
 
-    if (_turnAction.target.actor == nullptr || _turnAction.target.statCom == nullptr)
-        return;
-
-    if (!_turnAction.target.statCom->Is_Player())
-        return;
-
-
-    if (_reactionController.IsConsumed())
-        return; // 성공하면, 재입력 금지
-
-    if (GAME->KeyDown(KEY_TYPE::Q))
-    {
-        const bool isSuccess =
-            _reactionController.TryInput(BattleReactionType::Dodge);
-
-        // 회피 성공
-        if (isSuccess)
-            OnReactionSucceeded.Broadcast(ReactionType::Dodge);
-
-        // 실패해도 Dodge 시도 애니는 재생
-        PlayReactionAnimation(_turnAction.target, ReactionType::Dodge, isSuccess);
-        return;
-    }
-
-    if (GAME->KeyDown(KEY_TYPE::E))
-    {
-        const bool isSuccess =
-            _reactionController.TryInput(BattleReactionType::Parry);
-
-        if (isSuccess)
-            OnReactionSucceeded.Broadcast(ReactionType::Parry);
-
-        // 패링 성공 -> 패링 애니메이션 이후 카운터 애니메이션 실행해야함
-        PlayReactionAnimation(_turnAction.target, ReactionType::Parry, isSuccess);
-        return;
-    }
+    // Reaction 성공 브로드캐스트
+    if (result.success)
+        OnReactionSucceeded.Broadcast(result.type, _turnAction.target);
 }
 
 bool BattleController::Try_ConsumeReactionGuard(const BattleChar& target)
@@ -1195,7 +1157,7 @@ void BattleController::Clear_BattleRuntimeState()
     _turnAction = {};
     _currentTurnActor = {};
     _pendingNextTurn = false;
-    _reactionAnimTarget = {};
+    _reactionController.Clear_RuntimeState();
     _isFreeAimShotPlaying = false;
     _freeAimShotAction = {};
     currentTurnIndex = 0;
@@ -1284,46 +1246,6 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleIsFirstHero = false;
     _pendingBattleHeroIds.clear();
     _pendingBattleMonsterPrefabNames.clear();
-}
-
-void BattleController::PlayReactionAnimation(const BattleChar& target, ReactionType reactionType, bool isSuccess)
-{
-    if (target.ModelCom == nullptr)
-        return;
-
-    BattleAnimType animType = BattleAnimType::Base_Idle;
-
-    if (reactionType == ReactionType::Dodge)
-    {
-        animType = BattleAnimType::Dodge;
-    }
-    else if (reactionType == ReactionType::Parry)
-    {
-        animType = isSuccess ? BattleAnimType::Counter : BattleAnimType::Parray;
-    }
-    else
-        return;
-
-    if (!target.ModelCom->Set_AnimationByState(ETOI(animType), 0.1f, false))
-        return;
-
-    _reactionAnimTarget = target;
-}
-
-void BattleController::UpdateReactionAnimation()
-{
-    if (_reactionAnimTarget.ModelCom == nullptr)
-        return;
-
-    if (!_reactionAnimTarget.ModelCom->Is_AnimationFinished())
-        return;
-
-    _reactionAnimTarget.ModelCom->Set_AnimationByState(
-        ETOI(BattleAnimType::Base_Idle),
-        0.15f,
-        true);
-
-    _reactionAnimTarget = {};
 }
 
 PlayerCharacterType BattleController::To_PlayerCharacterType(HeroId heroId)

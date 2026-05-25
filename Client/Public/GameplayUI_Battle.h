@@ -52,7 +52,7 @@ private:
     void    Handle_TargetPreviewChanged(const BattleChar* target);
     void    Handle_ActionStarted(const Action& action);
     void    Handle_DamageApplied(const BattleChar& target, float damage);
-    void    Handle_ReactionSucceeded(BattleController::ReactionType reactionType);
+    void    Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const BattleChar& target);
 
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
@@ -70,9 +70,13 @@ private:
     void    Update_BattleMechanism(float timeDelta);
 
 private:
-    // 타겟 체력바 위치
-    bool    Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const; // 계산한 월드 위치를 호출부 worldPos에 실제로 반영하려면 참조로 받아야 한다.
+#pragma region UI 위치맞추기
+    // 일단 기능이 비슷하긴한데 나중에 어떻게될지 몰라서 일단 나눠서 사용
     bool    Try_GetBattleCommandHudWorldPos(const BattleChar& actor, Vec3& outWorldPos) const;
+    bool    Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
+    bool    Try_GetDamageFontWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
+    bool    Try_GetReactionResultWorldPos(const BattleChar& target, Vec3& outWorldPos);
+#pragma endregion
 
     // Turn Order
     using TurnDesc = UI_BattleSystem_TurnOrder::TurnOrderEntryDesc;

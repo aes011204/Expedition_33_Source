@@ -40,7 +40,7 @@ void UI_ReactionResult::Close()
         _parryRoot->Close();
 }
 
-void UI_ReactionResult::Show_Reaction(BattleController::ReactionType reactionType)
+void UI_ReactionResult::Show_Reaction(BattleController::ReactionType reactionType, const Vec2& screenPos)
 {
     Open();
 
@@ -50,23 +50,21 @@ void UI_ReactionResult::Show_Reaction(BattleController::ReactionType reactionTyp
     if (_parryRoot)
         _parryRoot->Close();
 
-    // 회피 성공 시에는 회피 텍스트, 패링 성공 시에는 패링 텍스트
-    switch (reactionType)
+    Shared<UI_Base> selectedRoot{};
+
+    if (reactionType == BattleController::ReactionType::Dodge)
+        selectedRoot = _dodgeRoot;
+    else if (reactionType == BattleController::ReactionType::Parry)
+        selectedRoot = _parryRoot;
+
+    if (selectedRoot == nullptr || selectedRoot->Get_Transform() == nullptr)
     {
-    case BattleController::ReactionType::Dodge:
-        if (_dodgeRoot)
-            _dodgeRoot->Open();
-        break;
-
-    case BattleController::ReactionType::Parry:
-        if (_parryRoot)
-            _parryRoot->Open();
-        break;
-
-    default:
         Close();
-        break;
+        return;
     }
+
+    selectedRoot->Get_Transform()->Set_Position(screenPos);
+    selectedRoot->Open();
 }
 
 HRESULT UI_ReactionResult::Load_UI(uint32 levelIndex)
