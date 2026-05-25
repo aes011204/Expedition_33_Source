@@ -604,6 +604,13 @@ namespace Client
      //   bool disableSequenceSnapping = false;
     };
 
+    struct BattleSlowDesc
+    {
+        float elapsed = 0.f;
+        float duration = 0.6f;
+        float worldTimeScale = 0.12f;
+    };
+
     enum class BattleAnimType
     {
         Base_Idle,
@@ -625,5 +632,10 @@ namespace Client
 
         Dead,
 
+    };
+
+    enum class BattleReactionType
+    {
+        None, Parry, Dodge, QTE, END
     };
 }

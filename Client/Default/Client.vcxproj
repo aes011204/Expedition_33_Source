@@ -169,6 +169,8 @@
     <ClInclude Include="..\public\Base_Mon_Defense.h" />
     <ClInclude Include="..\public\Base_Mon_Spawn.h" />
     <ClInclude Include="..\public\BattleActionExecutor.h" />
+    <ClInclude Include="..\Public\BattleReactionController.h" />
+    <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
     <ClInclude Include="..\public\BT_Patroll.h" />
@@ -288,6 +290,7 @@
     <ClInclude Include="..\Public\PlayerControllerCom.h" />
     <ClInclude Include="..\public\PlayerStatCom.h" />
     <ClInclude Include="..\Public\Player_BattleBase.h" />
+    <ClInclude Include="..\Public\Player_FreeAim.h" />
     <ClInclude Include="..\Public\Player_GameMenu.h" />
     <ClInclude Include="..\public\Mon_Portier_Body.h" />
     <ClInclude Include="..\public\PreviewShotTable.h" />
@@ -318,6 +321,7 @@
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
+    <ClInclude Include="..\Public\UI_BattleMechanism.h" />
     <ClInclude Include="..\Public\UI_BattleSystemHUD.h" />
     <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
     <ClInclude Include="..\Public\UI_BattleVictory.h" />
@@ -331,6 +335,7 @@
     <ClInclude Include="..\Public\UI_EscapeSkipTurn.h" />
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
     <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
+    <ClInclude Include="..\Public\UI_ReactionResult.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
     <ClInclude Include="..\Public\SavePoint_Panel.h" />
     <ClInclude Include="..\Public\UI_RuntimePanelBase.h" />
@@ -375,6 +380,8 @@
     <ClCompile Include="..\private\Base_Mon_Defense.cpp" />
     <ClCompile Include="..\private\Base_Mon_Spawn.cpp" />
     <ClCompile Include="..\private\BattleActionExecutor.cpp" />
+    <ClCompile Include="..\Private\BattleReactionController.cpp" />
+    <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
     <ClCompile Include="..\private\BT_Patroll.cpp" />
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />
@@ -486,6 +493,7 @@
     <ClCompile Include="..\Private\PlayerControllerCom.cpp" />
     <ClCompile Include="..\private\PlayerStatCom.cpp" />
     <ClCompile Include="..\Private\Player_BattleBase.cpp" />
+    <ClCompile Include="..\Private\Player_FreeAim.cpp" />
     <ClCompile Include="..\Private\Player_GameMenu.cpp" />
     <ClCompile Include="..\private\Mon_Portier_Body.cpp" />
     <ClCompile Include="..\private\PreviewShotTable.cpp" />
@@ -517,6 +525,7 @@
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
+    <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
     <ClCompile Include="..\Private\UI_BattleVictory.cpp" />
@@ -530,6 +539,7 @@
     <ClCompile Include="..\Private\UI_EscapeSkipTurn.cpp" />
     <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
     <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />
+    <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
     <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
     <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />

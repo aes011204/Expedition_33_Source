@@ -4,6 +4,8 @@
 #include "Battle_Enum.h"
 #include "Delegate.h"
 #include "UI_BattleSystem_TurnOrder.h"
+#include "BattleController.h"
+#include "UI_BattleVictory.h"
 
 NS_BEGIN(Client)
 
@@ -20,6 +22,9 @@ class UI_AttackTooltip;
 class UI_BattleSystem_TurnOrder;
 class UI_DamageFont;
 class UI_EscapeSkipTurn;
+class UI_ReactionResult;
+class UI_BattleVictory;
+class UI_BattleMechanism;
 
 class GameplayUI_Battle final : public Base
 {
@@ -47,6 +52,7 @@ private:
     void    Handle_TargetPreviewChanged(const BattleChar* target);
     void    Handle_ActionStarted(const Action& action);
     void    Handle_DamageApplied(const BattleChar& target, float damage);
+    void    Handle_ReactionSucceeded(BattleController::ReactionType reactionType);
 
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
@@ -59,6 +65,9 @@ private:
     void    Update_DamageFonts(float timeDelta);
     void    Update_EscapeSkipTurn(float timeDelta);
     void    Update_AttackTooltip(float timeDelta);
+    void    Update_ReactionResult(float timeDelta);
+    void    Update_BattleVictory(float timeDelta);
+    void    Update_BattleMechanism(float timeDelta);
 
 private:
     // 타겟 체력바 위치
@@ -71,6 +80,10 @@ private:
     // 초상화 세팅
     static string    Resolve_TurnOrderPortraitGuid(const BattleChar& actor);
 
+    // 전투 승리 시 결과 적용
+    using VictoryStatDesc = UI_BattleVictory::VictoryPlayerStatDesc;
+    vector<VictoryStatDesc> Build_BattleVictoryPlayerStats() const;
+
 private:
     Unique<UI_BattleTransition>             _battleTransition; // 전투 진입 테스트용 페이드 UI
     Unique<UI_BattleCommandHUD>             _battleCommandHUD;
@@ -82,8 +95,12 @@ private:
     Unique<UI_ChoiceTarget>                 _choiceTarget;
     Unique<UI_EscapeSkipTurn>               _escapeSkipTurn;
     Unique<UI_AttackTooltip>                _attackTooltip;
+    Unique<UI_ReactionResult>               _reactionResult;
+    Unique<UI_BattleVictory>                _battleVictory;
     Unique<UI_BattleSystem_TurnOrder>       _turnOrder;
+    Unique<UI_BattleMechanism>              _battleMechanism;
 
+private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
     array<Unique<UI_DamageFont>, kDamageFontPoolSize> _damageFonts{};
 
@@ -96,11 +113,21 @@ private:
     FDelegateHandle          _targetPreviewChangedHandle{}; // 타겟 바뀔 때
     FDelegateHandle          _actionStartedHandle{};
     FDelegateHandle          _damageAppliedHandle{};
+    FDelegateHandle           _reactionSucceededHandle{};
 
+private:
     BattleChar               _targetPreviewSnapshot{};
     bool                     _hasTargetPreviewSnapshot = false;
     bool                     _isBattleUiActive = false;
     bool                     _isPlayerTurnUiActive = false;
+    bool                     _isVictoryUiActive = false;
+
+#pragma region 메커니즘
+    bool                     _isMechanismActionActive = false;
+    HeroId                   _activePlayerId = HeroId::END;
+#pragma endregion
+
+    vector<VictoryStatDesc>  _battleStartVictoryStats{};
 
 private:
     BattleChar               _currentPlayerTurnActor{}; // 현재 턴 진행중인 플레이어

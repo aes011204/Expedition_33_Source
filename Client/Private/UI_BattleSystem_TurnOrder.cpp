@@ -70,11 +70,17 @@ void UI_BattleSystem_TurnOrder::Set_TurnOrderPreview(const vector<TurnOrderEntry
             {
                 Close_UI(slot.currentPlayerOverlay);
                 Open_UI(slot.currentMonsterOverlay);
+
+                if (slot.currentMonsterPortrait && !entry.portraitGuid.empty())
+                    slot.currentMonsterPortrait->Set_TextureGuid(entry.portraitGuid);
             }
             else
             {
                 Open_UI(slot.currentPlayerOverlay);
                 Close_UI(slot.currentMonsterOverlay);
+
+                if (slot.currentPlayerPortrait && !entry.portraitGuid.empty())
+                    slot.currentPlayerPortrait->Set_TextureGuid(entry.portraitGuid);
             }
 
         }
@@ -170,8 +176,11 @@ HRESULT UI_BattleSystem_TurnOrder::Load_UI(uint32 levelIndex)
 
     _slots[0].currentPlayerOverlay =
         Find_UI(currentPlayerUIByName, L"Panel_BattleSystem_TurnOrder_CurrentTurn_Player_Frame");
+    _slots[0].currentPlayerPortrait =
+        Find_TypedUI<UI_Image>(currentPlayerUIByName, L"Image_BattleSystem_TurnOrder_CurrentTurn_Player_Portrait");
 
     CHECK_NULL(_slots[0].currentPlayerOverlay, E_FAIL);
+    CHECK_NULL(_slots[0].currentPlayerPortrait, E_FAIL);
     Merge_UIMap(currentPlayerUIByName);
 
     umap<wstring, Shared<UI_Base>> currentMonsterUIByName{};
@@ -181,8 +190,11 @@ HRESULT UI_BattleSystem_TurnOrder::Load_UI(uint32 levelIndex)
 
     _slots[0].currentMonsterOverlay =
         Find_UI(currentMonsterUIByName, L"Panel_BattleSystem_TurnOrder_CurrentTurn_Monster_Frame");
+    _slots[0].currentMonsterPortrait =
+        Find_TypedUI<UI_Image>(currentMonsterUIByName, L"Image_BattleSystem_TurnOrder_CurrentTurn_Monster_Portrait");
 
     CHECK_NULL(_slots[0].currentMonsterOverlay, E_FAIL);
+    CHECK_NULL(_slots[0].currentMonsterPortrait, E_FAIL);
     Merge_UIMap(currentMonsterUIByName);
 
     return S_OK;
@@ -312,6 +324,8 @@ void UI_BattleSystem_TurnOrder::Free()
         slot.monsterRoot.reset();
         slot.playerPortrait.reset();
         slot.monsterPortrait.reset();
+        slot.currentPlayerPortrait.reset();
+        slot.currentMonsterPortrait.reset();
     }
 
     Base::Free();

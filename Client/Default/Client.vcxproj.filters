@@ -89,6 +89,15 @@
     </ClCompile>
     <ClCompile Include="..\Private\UI_BattleVictory.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
+    <ClCompile Include="..\private\AN_Change_Anim.cpp" />
+    <ClCompile Include="..\private\Base_Mon_Defense.cpp" />
+    <ClCompile Include="..\private\Base_Mon_Spawn.cpp" />
+    <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp" />
+    <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
+    <ClCompile Include="..\Private\Player_FreeAim.cpp" />
+    <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
+    <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
+    <ClCompile Include="..\Private\BattleReactionController.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -653,6 +662,15 @@
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleVictory.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
+    <ClInclude Include="..\public\AN_Change_Anim.h" />
+    <ClInclude Include="..\public\Base_Mon_Defense.h" />
+    <ClInclude Include="..\public\Base_Mon_Spawn.h" />
+    <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h" />
+    <ClInclude Include="..\Public\UI_ReactionResult.h" />
+    <ClInclude Include="..\Public\Player_FreeAim.h" />
+    <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
+    <ClInclude Include="..\Public\UI_BattleMechanism.h" />
+    <ClInclude Include="..\Public\BattleReactionController.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

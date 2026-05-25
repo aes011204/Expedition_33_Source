@@ -9,6 +9,7 @@ namespace Client
         Jump,
         WorldAction, 
         GameMenu,
+        FreeAim,
 
         Climb,
         RopeAction,

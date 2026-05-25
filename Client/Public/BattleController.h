@@ -3,6 +3,7 @@
 #include "Base.h"
 #include "Delegate.h"
 #include "Battle_Enum.h"
+#include "BattleReactionController.h"
 
 NS_BEGIN(Engine)
 class Character;
@@ -20,9 +21,14 @@ class BuffSystem;
 class BattleEffectResolver;
 class BattleStateMachine;
 class BattleTurnCamera;
+class BattleSpawnRegistry;
 
 class BattleController : public Base
 {
+public:
+    using ReactionType = BattleReactionType;
+
+public: /* Delegate 선언 */
     // 전투 시작
     DECLARE_DELEGATE(FOnBattleStarted, uint32, bool);
     // 전투 종료
@@ -35,23 +41,8 @@ class BattleController : public Base
     DECLARE_DELEGATE(FOnTargetPreviewChanged, const BattleChar*);
     // 공격 시작
     DECLARE_DELEGATE(FOnActionStarted, const Action&);
-
-public:
-    enum ReactionType
-    {
-        None,
-        Parry,
-        Dodge,
-        QTE
-    };
-
-    struct Reaction
-    {
-        ReactionType type = ReactionType::None;
-        bool isOpen = false;
-        bool isConsumed = false;
-        ReactionType result = ReactionType::None;
-    };
+    // Reaction (Dodge, Parry)
+    DECLARE_DELEGATE(FOnReactionSucceeded, ReactionType);
 
 public:
     BattleController();
@@ -67,7 +58,8 @@ public:
         uint32 FieldID,
         bool IsFirstHero,
         const vector<HeroId>& heroIds,
-        vector<string>& battleMonsterPrefabNames);
+        const vector<string>& battleMonsterPrefabNames,
+        const Shared<GameObject>& sourceObject = nullptr);
 
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
 
@@ -101,7 +93,6 @@ public:
     Shared<SkillScript> Get_CurrentScript() const { return _curScript; }
     void Clear_CurrentScript() { _curScript.reset(); }
 
-    const Reaction& Get_Reaction() const { return _reaction; }
     const vector<BattleChar>& Get_BattleHeroes() const { return _heroes; }
 
 public:
@@ -114,6 +105,8 @@ public:
     void CloseReactionWindow(ReactionType type); //일단 이건 쓰지 마
     void ClearReactionState();
     void UpdateReactionInput();
+
+    bool Try_ConsumeReactionGuard(const BattleChar& target);
 
 public: /* 타겟팅 중인 적 세팅 */
     void                Set_TargetPreview(const BattleChar& target);
@@ -135,10 +128,19 @@ public:
     // 초상화 세팅
     vector<BattleChar> Get_TurnOrderPreview(uint32 maxCount = 8) const;
 
+     // 전투 종료
+    void Confirm_Victory();
+    // 마지막 데미지 들어가면서 슬로우 시작
+    void Try_BeginVictorySlowOnDamage(const BattleChar& damagedTarget, float damage);
+    bool Can_TriggerVictory() const;
+
+    uint32 Get_LastVictoryRewardExp() const { return _lastVictoryRewardExp; }
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
     void    Restore_WorldCamera();
+    void    Clear_BattleRuntimeState();
 
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
@@ -157,11 +159,14 @@ public: /* Delegate */
     FOnTurnEnded            OnTurnEnded;
     FOnTargetPreviewChanged OnTargetPreviewChanged;
     FOnActionStarted        OnActionStarted;
+    FOnReactionSucceeded    OnReactionSucceeded;
+
+    FDelegateHandle         _damageAppliedHandle{};
+    FDelegateHandle         _editorStopHandle = {};
 
 private:
     BattleChar              _currentTurnActor = {};
     Action                  _turnAction = {};
-    Reaction                _reaction = {};
 
     Shared<SkillScript>     _curScript = {};
 
@@ -185,6 +190,8 @@ private:
 private: /* 전투 AP */
     void Apply_BaseAttackAP(const BattleChar& actor); // Base Attack시 얻는 AP
     bool Apply_FreeAimShootAP(const BattleChar& actor); // Free Aim시 사용되는 AP
+
+    void Apply_VictoryRewardExp(uint32 rewardExp);
 
 private:
     bool _battleEnded = {};
@@ -212,34 +219,43 @@ private:
     Shared<BuffSystem> _buffSystem;
     /* Shared< BattleEffectResolver> _battleEffectResolver;*/
     Shared<BattleActionExecutor> _battleActionExe;
+    Shared<BattleSpawnRegistry> _battleSpawnRegistry;
+    BattleReactionController    _reactionController{};
 
     bool _firstAnimflag = { false };
     int  _firstAnimCount = {0};
 
-    FDelegateHandle _editorStopHandle = {};
+    bool _isActionExecuting = false;
+
 
 private:
     Shared<BattleTurnCamera> _battleTurnCamera;
     Shared<Camera> _worldCamera;    // 전투 시작 전 카메라 저장
 
-private:  // 슬로우 처리
-    float _battleEnterElapsed = 0.f;
-    float _battleEnterDuration = 2.f;
-    float _battleEnterWorldTimeScale = 0.25f;
-
-    uint32 _pendingBattleFieldID = 0;
-    bool _pendingBattleIsFirstHero = false;
-    vector<HeroId> _pendingBattleHeroIds = {};
-    vector<string> _pendingBattleMonsterPrefabNames = {};
+private:
+    // 슬로우 처리
+    BattleSlowDesc _battleEnterSlow{ 0.f, 2.f, 0.25f };
+    BattleSlowDesc _victorySlow{ 0.f, 2.f, 0.12f };
 
     // 배틀 카메라는 이미 켰고, UI 전환 종료만 기다리는 상태
     bool _isWaitingBattleTransition = false;
+
+    bool _isPendingVictorySlow = false;
+    bool _isWaitingVictoryConfirm = false;
+
+private:
+    uint32  _pendingBattleFieldID = 0;
+    bool    _pendingBattleIsFirstHero = false;
+    vector<HeroId> _pendingBattleHeroIds = {};
+    vector<string> _pendingBattleMonsterPrefabNames = {};
 
     bool _isFreeAimShotPlaying = false;
     Action _freeAimShotAction {};
 
     // Reaction(패링, 회피, QTE?)가 끝나면 Idle로 복귀시킬 대상
     BattleChar _reactionAnimTarget = {};
+
+    uint32 _lastVictoryRewardExp = 0;
 
 public:
     static Shared<BattleController> Create();
