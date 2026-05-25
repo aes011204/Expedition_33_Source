@@ -93,6 +93,16 @@ bool Is_TrailTextureSamePath(const wstring& lhs, const wstring& rhs)
     return fs::path(lhs).lexically_normal() == fs::path(rhs).lexically_normal();
 }
 
+Vec4 Average_Color(const Vec4& minColor, const Vec4& maxColor)
+{
+    return Vec4{
+        (minColor.x + maxColor.x) * 0.5f,
+        (minColor.y + maxColor.y) * 0.5f,
+        (minColor.z + maxColor.z) * 0.5f,
+        (minColor.w + maxColor.w) * 0.5f
+    };
+}
+
 wstring Resolve_TrailTexturePath(const string& textureGuid, const string& texturePath, bool& outUsedPathFallback, bool& outGuidPathMismatch)
 {
     outUsedPathFallback = false;
@@ -158,6 +168,10 @@ HRESULT ComputeTrailEmitter::Initialize(void* arg)
     _desc.sampleSpacing = max(1e-3f, _desc.sampleSpacing);
     _desc.curveSubdivision = min(_desc.curveSubdivision, kMaxCurveSubdivision);
     _desc.sideFade = clamp(_desc.sideFade, 1e-3f, 0.49f);
+    _desc.maxTrailLength = max(0.f, _desc.maxTrailLength);
+    _desc.tailFadeLength = max(0.f, _desc.tailFadeLength);
+    _desc.spawnPerUnit.unitDistance = max(0.f, _desc.spawnPerUnit.unitDistance);
+    _desc.spawnPerUnit.maxSampleRate = max(0.f, _desc.spawnPerUnit.maxSampleRate);
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
@@ -466,6 +480,7 @@ void ComputeTrailEmitter::Update_History(float timeDelta)
 
     for (TrailHistorySample& sample : _history)
         sample.age += timeDelta;
+    _secondsSinceLastInsertedSample += timeDelta;
 
     erase_if(
         _history,
@@ -480,8 +495,9 @@ void ComputeTrailEmitter::Update_History(float timeDelta)
     bool sampleAccepted = false;
     if (provider != nullptr && provider->Try_GetTrailSample(trailSample))
     {
-        Insert_TrailSample(trailSample);
         sampleAccepted = true;
+        if (Should_InsertTrailSample(trailSample))
+            Insert_TrailSample(trailSample);
     }
 
     if (!sampleAccepted)
@@ -510,9 +526,35 @@ uint32 ComputeTrailEmitter::Compute_MaxRenderSegmentCount() const
     return max(1u, (_desc.historyCount - 1u) * maxIntervalSubdivision);
 }
 
+bool ComputeTrailEmitter::Should_InsertTrailSample(const EffectTrailSample& trailSample) const
+{
+    if (!_desc.spawnPerUnit.enabled)
+        return true;
+
+    if (_history.empty())
+        return true;
+
+    if (_desc.spawnPerUnit.unitDistance > 0.f)
+    {
+        const float distanceFromLastSample = Internal::Compute_TrailCenterDistance(_history.front().sample, trailSample);
+        if (distanceFromLastSample < _desc.spawnPerUnit.unitDistance)
+            return false;
+    }
+
+    if (_desc.spawnPerUnit.maxSampleRate > 0.f)
+    {
+        const float minInsertInterval = 1.f / _desc.spawnPerUnit.maxSampleRate;
+        if (_secondsSinceLastInsertedSample < minInsertInterval)
+            return false;
+    }
+
+    return true;
+}
+
 void ComputeTrailEmitter::Insert_TrailSample(const EffectTrailSample& trailSample)
 {
     _history.insert(_history.begin(), TrailHistorySample{ trailSample, 0.f });
+    _secondsSinceLastInsertedSample = 0.f;
 }
 
 void ComputeTrailEmitter::Build_RenderSamples(vector<TrailRenderSample>& outSamples) const
@@ -662,7 +704,15 @@ HRESULT ComputeTrailEmitter::Update_ComputeConstants()
     params.width = _desc.width;
     params.uvTiling = _desc.uvTiling;
     params.sideFade = _desc.sideFade;
-    params.tint = _desc.material.tint;
+    params.startColor = Internal::Average_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax);
+    params.endColor = Internal::Average_Color(_desc.colorOverLife.endColorMin, _desc.colorOverLife.endColorMax);
+    params.sizeByLifeParams = Vec4{
+        _desc.sizeByLife.multiplyXStart,
+        _desc.sizeByLife.multiplyXEnd,
+        _desc.sizeByLife.enabled ? 1.f : 0.f,
+        0.f
+    };
+    params.lengthParams = Vec4{ _desc.maxTrailLength, _desc.tailFadeLength, 0.f, 0.f };
 
     _context->UpdateSubresource(_computeConstantBuffer.Get(), 0, nullptr, &params, 0, 0);
     return S_OK;

@@ -79,6 +79,7 @@ private: //## Data::ModuleDetail
     ColorOverLifeModuleDetail _colorOverLifeModuleDetail{};
     SubUVFrameOverLifeModuleDetail _subUvFrameOverLifeModuleDetail{}; // SubUV frame 진행 규칙 drawer다.
     SizeByLifeModuleDetail _sizeByLifeModuleDetail{};                 // life 기준 크기 배율 drawer다.
+    SpawnPerUnitModuleDetail _spawnPerUnitModuleDetail{};             // Trail sample insertion drawer다.
 
 private: //## Data::AuthoringHistory
     // selection 전환이나 입력 종료 시점까지 하나의 authoring edit command를 지연 관리한다.

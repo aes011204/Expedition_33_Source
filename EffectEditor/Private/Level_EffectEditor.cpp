@@ -750,6 +750,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         emitterDesc.segmentLifetime = max(0.001f, trailData->segmentLifetime);
         emitterDesc.historyCount = max(2u, trailData->historyCount);
         emitterDesc.uvTiling = max(0.001f, trailData->uvTiling);
+        emitterDesc.maxTrailLength = max(0.f, trailData->maxTrailLength);
+        emitterDesc.tailFadeLength = max(0.f, trailData->tailFadeLength);
         emitterDesc.sampleSpacing = max(0.001f, trailData->sampleSpacing);
         emitterDesc.curveSubdivision = max(0u, trailData->curveSubdivision);
         emitterDesc.smoothTangent = trailData->smoothTangent;
@@ -788,6 +790,103 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
         definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    {
+        emitterDesc.lifetime.lifeTime = Vec2{
+            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
+            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
+        };
+        emitterDesc.segmentLifetime = max(0.001f, emitterDesc.lifetime.lifeTime.y);
+    }
+
+    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    {
+        const Color minColor = Internal::Evaluate_ColorDistributionMin(
+            initialColor->color,
+            Color{
+                emitterDesc.initialColor.startColorMin.x,
+                emitterDesc.initialColor.startColorMin.y,
+                emitterDesc.initialColor.startColorMin.z,
+                emitterDesc.initialColor.startColorMin.w
+            }
+        );
+        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
+            initialColor->color,
+            Color{
+                emitterDesc.initialColor.startColorMax.x,
+                emitterDesc.initialColor.startColorMax.y,
+                emitterDesc.initialColor.startColorMax.z,
+                emitterDesc.initialColor.startColorMax.w
+            }
+        );
+        const float minAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMin(initialColor->alpha, emitterDesc.initialColor.startColorMin.w),
+            0.f,
+            1.f
+        );
+        const float maxAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMax(initialColor->alpha, emitterDesc.initialColor.startColorMax.w),
+            0.f,
+            1.f
+        );
+
+        emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
+        emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
+        emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
+        emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
+    }
+
+    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    {
+        const Color minEndColor = Internal::Evaluate_ColorDistributionMin(
+            colorOverLife->colorOverLife,
+            Color{
+                emitterDesc.colorOverLife.endColorMin.x,
+                emitterDesc.colorOverLife.endColorMin.y,
+                emitterDesc.colorOverLife.endColorMin.z,
+                emitterDesc.colorOverLife.endColorMin.w
+            }
+        );
+        const Color maxEndColor = Internal::Evaluate_ColorDistributionMax(
+            colorOverLife->colorOverLife,
+            Color{
+                emitterDesc.colorOverLife.endColorMax.x,
+                emitterDesc.colorOverLife.endColorMax.y,
+                emitterDesc.colorOverLife.endColorMax.z,
+                emitterDesc.colorOverLife.endColorMax.w
+            }
+        );
+        const float minEndAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
+            0.f,
+            1.f
+        );
+        const float maxEndAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
+            0.f,
+            1.f
+        );
+
+        emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
+        emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+    }
+
+    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+    {
+        emitterDesc.sizeByLife.enabled = true;
+        emitterDesc.sizeByLife.multiplyXStart = sizeByLife->multiplyXStart;
+        emitterDesc.sizeByLife.multiplyXEnd = sizeByLife->multiplyXEnd;
+        emitterDesc.sizeByLife.multiplyYStart = sizeByLife->multiplyYStart;
+        emitterDesc.sizeByLife.multiplyYEnd = sizeByLife->multiplyYEnd;
+    }
+
+    if (const auto* spawnPerUnit = Internal::Find_ModuleData<SpawnPerUnitModuleData>(emitter, AuthoringModuleType::SpawnPerUnit))
+    {
+        emitterDesc.spawnPerUnit.enabled = spawnPerUnit->enabled;
+        emitterDesc.spawnPerUnit.unitDistance = max(0.f, spawnPerUnit->unitDistance);
+        emitterDesc.spawnPerUnit.maxSampleRate = max(0.f, spawnPerUnit->maxSampleRate);
     }
 
     emitterDesc.sampleProvider = _trailPreviewSampleProvider;

@@ -26,6 +26,7 @@ enum class AuthoringModuleType : uint8
     ColorOverLife,
     SubUVFrameOverLife,
     SizeByLife,
+    SpawnPerUnit,
 };
 
 enum class EffectAuthoringSelectionKind : uint8
@@ -312,6 +313,8 @@ struct TrailTypeData
     float segmentLifetime{ 0.25f };
     uint32 historyCount{ 32 };
     float uvTiling{ 1.f };
+    float maxTrailLength{ 0.f };                                // 0 이하면 head 기준 최대 표시 길이를 제한하지 않는다.
+    float tailFadeLength{ 0.1f };                               // maxTrailLength 끝으로 갈수록 alpha를 줄이는 거리다.
     TrailCurveQuality curveQuality{ TrailCurveQuality::Basic }; // trail 곡선 품질 preset 선택값이다.
     float sampleSpacing{ 0.08f };                               // 이동 거리 기준 중간 sample 삽입 간격이다.
     uint32 curveSubdivision{ 4 };                                // 한 frame에서 보강할 최대 중간 sample 수다.
@@ -495,6 +498,13 @@ struct SizeByLifeModuleData
     float multiplyYEnd{ 1.f };
 };
 
+struct SpawnPerUnitModuleData
+{
+    bool enabled{ true };
+    float unitDistance{ 0.f };
+    float maxSampleRate{ 0.f };
+};
+
 using AuthoringModuleData = std::variant<
     RequiredModuleData,
     SpawnModuleData,
@@ -514,7 +524,8 @@ using AuthoringModuleData = std::variant<
     InitialColorModuleData,
     ColorOverLifeModuleData,
     SubUVFrameOverLifeModuleData,
-    SizeByLifeModuleData>;
+    SizeByLifeModuleData,
+    SpawnPerUnitModuleData>;
 
 struct AuthoringModule
 {

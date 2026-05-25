@@ -102,6 +102,7 @@ private: //## Static Values
     inline static const Color kEmitterSpawnRowColor{ 0.75f, 0.75f, 0.3f, 1.0f };
     inline static const Color kEmitterCommonModuleRowColor{ 0.18f, 0.19f, 0.24f, 1.0f };
     inline static const Color kEmitterModuleDisabledRowColor{ 0.16f, 0.16f, 0.17f, 1.0f };
+    inline static const Color kEmitterUnsupportedModuleTextColor{ 0.86f, 0.62f, 0.25f, 1.0f };
 
     static constexpr float kEmitterColumnWidth{ 270.f };
     static constexpr float kEmitterHeaderHeight{ 90.f };
@@ -162,10 +163,12 @@ private: //## Helpers
     AuthoringModule Make_ColorOverLifeModule();
     AuthoringModule Make_SubUVFrameOverLifeModule();
     AuthoringModule Make_SizeByLifeModule();
+    AuthoringModule Make_SpawnPerUnitModule();
 
-    bool Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;    // 이미터가 특정 모듈 타입을 이미 가지고 있는지 확인한다.
-    bool Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const; // 중복 정책 기준으로 새 모듈 추가 가능 여부를 판단한다.
-    void Add_Module(size_t emitterIndex, AuthoringModuleType type);                          // 선택 이미터에 새 optional 모듈을 추가하고 선택 상태를 갱신한다.
+    bool Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;                 // 이미터가 특정 모듈 타입을 이미 가지고 있는지 확인한다.
+    bool Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitter, AuthoringModuleType type) const; // 현재 emitter 타입이 모듈을 preview에 소비하는지 확인한다.
+    bool Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;              // 중복 정책 기준으로 새 모듈 추가 가능 여부를 판단한다.
+    void Add_Module(size_t emitterIndex, AuthoringModuleType type);                                       // 선택 이미터에 새 optional 모듈을 추가하고 선택 상태를 갱신한다.
 
     void Clear_Selection();
     void Select_Emitter(size_t emitterIndex);
@@ -187,9 +190,7 @@ private: //## Helpers
     void Open_ModulePicker(size_t emitterIndex);
     void Close_ModulePicker();
     void Draw_ModulePickerPopup();
-    // 현재 선택 index가 emitter 목록 범위를 벗어나지 않도록 보정한다.
-    // TODO : 삭제/이동 단계에서 호출 예정
-    void Clamp_Selection();
+    void Clamp_Selection(); // 현재 선택 index가 emitter 목록 범위를 벗어나지 않도록 보정한다.
     void Sync_EmitterMirror(AuthoringEmitter& emitter);
     void Sync_AllEmitterMirrors();
     void Mark_AllPreviewDirty();

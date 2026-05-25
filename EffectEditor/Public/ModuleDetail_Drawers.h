@@ -195,4 +195,14 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class SpawnPerUnitModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SpawnPerUnitModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 NS_END

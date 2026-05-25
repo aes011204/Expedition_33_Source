@@ -449,6 +449,20 @@ void Detail_View::Render_TypeDataDetail(
                     0.01f,
                     "trail 길이 방향 texture 반복 배율입니다."
                 );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "최대 표시 길이",
+                    data->maxTrailLength,
+                    defaultData.maxTrailLength,
+                    0.01f,
+                    "head 기준 누적 거리로 제한하는 최대 표시 길이입니다. 0 이하면 제한하지 않습니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "꼬리 페이드 길이",
+                    data->tailFadeLength,
+                    defaultData.tailFadeLength,
+                    0.01f,
+                    "최대 표시 길이 끝으로 갈수록 alpha를 줄이는 거리입니다."
+                );
                 _detailPropertyContext.End_PropertyTable();
             }
         }
@@ -619,6 +633,11 @@ void Detail_View::Render_ModuleDetail(
     case AuthoringModuleType::SizeByLife:
         if (auto* data = get_if<SizeByLifeModuleData>(&module.data))
             changed = _sizeByLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::SpawnPerUnit:
+        if (auto* data = get_if<SpawnPerUnitModuleData>(&module.data))
+            changed = _spawnPerUnitModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     default:

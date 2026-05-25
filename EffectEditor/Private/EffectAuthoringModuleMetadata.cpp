@@ -9,7 +9,9 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         L"필수",
         L"텍스처, 머티리얼",
         false,
-        false
+        false,
+        true,
+        true
     };
     static const AuthoringModuleMetadata spawn{
         "Spawn",
@@ -21,7 +23,11 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
     static const AuthoringModuleMetadata lifetime{
         "Lifetime",
         L"수명",
-        L"파티클 수명 범위"
+        L"파티클 수명 범위",
+        true,
+        true,
+        true,
+        true
     };
     static const AuthoringModuleMetadata initialLocation{
         "Initial Location",
@@ -86,12 +92,20 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
     static const AuthoringModuleMetadata initialColor{
         "Initial Color",
         L"초기 컬러",
-        L"생성 시점 색상 / 알파"
+        L"생성 시점 색상 / 알파",
+        true,
+        true,
+        true,
+        true
     };
     static const AuthoringModuleMetadata colorOverLife{
         "Color Over Life",
         L"수명에 따른 색상",
-        L"수명 진행률 기준 색 변화"
+        L"수명 진행률 기준 색 변화",
+        true,
+        true,
+        true,
+        true
     };
     static const AuthoringModuleMetadata subUVFrameOverLife{
         "SubUV Frame Over Life",
@@ -101,7 +115,20 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
     static const AuthoringModuleMetadata sizeByLife{
         "Size By Life",
         L"수명에 따른 크기",
-        L"수명 진행률 기준 크기 배율"
+        L"수명 진행률 기준 크기 배율",
+        true,
+        true,
+        true,
+        true
+    };
+    static const AuthoringModuleMetadata spawnPerUnit{
+        "Spawn Per Unit",
+        L"거리당 스폰",
+        L"Trail sample 삽입 밀도",
+        true,
+        true,
+        false,
+        true
     };
 
     switch (type)
@@ -144,6 +171,8 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return subUVFrameOverLife;
     case AuthoringModuleType::SizeByLife:
         return sizeByLife;
+    case AuthoringModuleType::SpawnPerUnit:
+        return spawnPerUnit;
     }
 
     return required;

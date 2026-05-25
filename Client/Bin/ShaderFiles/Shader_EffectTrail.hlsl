@@ -85,7 +85,7 @@ struct GS_OUT
 void Apply_WidthScale(inout float3 basePosition, inout float3 tipPosition, float widthScale)
 {
     const float3 center = (basePosition + tipPosition) * 0.5f;
-    const float3 halfWidth = (tipPosition - basePosition) * 0.5f * saturate(widthScale);
+    const float3 halfWidth = (tipPosition - basePosition) * 0.5f * max(widthScale, 0.0f);
     basePosition = center - halfWidth;
     tipPosition = center + halfWidth;
 }

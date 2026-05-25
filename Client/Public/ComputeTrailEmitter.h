@@ -58,7 +58,10 @@ private:
         float uvTiling{};        // trail 길이 방향 UV 반복 배율이다.
         float sideFade{};        // 폭 방향 alpha edge 감소 강도다.
         Vec3 padding{};          // constant buffer 16-byte 정렬 유지용 padding이다.
-        Vec4 tint{};             // compute가 start/end color를 만들 때 쓰는 material tint다.
+        Vec4 startColor{};       // InitialColor 모듈에서 낮춘 segment 시작 색상이다.
+        Vec4 endColor{};         // ColorOverLife 모듈에서 낮춘 segment 끝 색상이다.
+        Vec4 sizeByLifeParams{}; // x/y: width start/end, z: enabled, w: reserved.
+        Vec4 lengthParams{};     // x: maxTrailLength, y: tailFadeLength, zw: reserved.
     };
 
     struct DrawIndexedInstancedIndirectArgs
@@ -85,6 +88,7 @@ private:
     ComputeTrailEmitterDesc _desc{};       // clone 시점에 받은 trail runtime 설정이다.
     vector<TrailHistorySample> _history{}; // CPU가 보관하는 provider sample history다.
     uint32 _drawSegmentCount{};            // 이번 frame에 그릴 segment 개수다.
+    float _secondsSinceLastInsertedSample{}; // SpawnPerUnit 시간 gate가 마지막 삽입 이후 경과 시간을 추적한다.
 
     Shared<ShaderCom> _shader{};               // trail draw shader다.
     Shared<ComputeShaderCom> _computeShader{}; // trail payload 생성 compute shader다.
@@ -112,6 +116,7 @@ private:
     void Update_History(float timeDelta); // provider sample을 history에 누적하고 수명/개수를 정리한다.
 
     uint32 Compute_MaxRenderSegmentCount() const;                            // render-time tessellation을 포함한 최대 segment capacity다.
+    bool Should_InsertTrailSample(const EffectTrailSample& trailSample) const; // SpawnPerUnit 거리/시간 gate를 통과하는지 판단한다.
     void Insert_TrailSample(const EffectTrailSample& trailSample);           // provider 원본 sample을 history head에 삽입한다.
     void Build_RenderSamples(vector<TrailRenderSample>& outSamples) const;   // 원본 history를 render-time curve sample 배열로 낮춘다.
     EffectTrailSample Build_SmoothedHistorySample(uint32 sampleIndex) const; // smoothTangent 옵션에 따라 history sample을 완만하게 보정한다.

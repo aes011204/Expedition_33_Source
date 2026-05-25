@@ -214,6 +214,8 @@ namespace Internal
         root["segmentLifetime"] = data.segmentLifetime;
         root["historyCount"] = data.historyCount;
         root["uvTiling"] = data.uvTiling;
+        root["maxTrailLength"] = data.maxTrailLength;
+        root["tailFadeLength"] = data.tailFadeLength;
         root["curveQuality"] = To_EnumToken(data.curveQuality);
         root["sampleSpacing"] = data.sampleSpacing;
         root["curveSubdivision"] = data.curveSubdivision;
@@ -231,6 +233,8 @@ namespace Internal
         Read_NumberField(root, "segmentLifetime", outData.segmentLifetime);
         Read_NumberField(root, "historyCount", outData.historyCount);
         Read_NumberField(root, "uvTiling", outData.uvTiling);
+        Read_NumberField(root, "maxTrailLength", outData.maxTrailLength);
+        Read_NumberField(root, "tailFadeLength", outData.tailFadeLength);
         const auto curveQualityIter = root.find("curveQuality");
         if (curveQualityIter != root.end())
             Try_ReadEnumToken(*curveQualityIter, outData.curveQuality);
@@ -1154,6 +1158,22 @@ namespace Internal
         Read_NumberField(root, "multiplyYStart", outData.multiplyYStart);
         Read_NumberField(root, "multiplyYEnd", outData.multiplyYEnd);
     }
+
+    json To_Json(const SpawnPerUnitModuleData& data)
+    {
+        json root = json::object();
+        root["enabled"] = data.enabled;
+        root["unitDistance"] = data.unitDistance;
+        root["maxSampleRate"] = data.maxSampleRate;
+        return root;
+    }
+
+    void From_Json(const json& root, SpawnPerUnitModuleData& outData)
+    {
+        Read_BoolField(root, "enabled", outData.enabled);
+        Read_NumberField(root, "unitDistance", outData.unitDistance);
+        Read_NumberField(root, "maxSampleRate", outData.maxSampleRate);
+    }
 }
 
 json EffectAuthoringJsonSerializer::To_Json(const EffectAuthoringDocument& document)
@@ -1268,6 +1288,9 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::SizeByLife:
         root["data"] = Internal::To_Json(get<SizeByLifeModuleData>(module.data));
         break;
+    case AuthoringModuleType::SpawnPerUnit:
+        root["data"] = Internal::To_Json(get<SpawnPerUnitModuleData>(module.data));
+        break;
     }
 
     return root;
@@ -1368,6 +1391,9 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::SizeByLife:
             Internal::From_Json(*dataIter, get<SizeByLifeModuleData>(module.data));
             break;
+        case AuthoringModuleType::SpawnPerUnit:
+            Internal::From_Json(*dataIter, get<SpawnPerUnitModuleData>(module.data));
+            break;
         }
     }
 
@@ -1464,6 +1490,8 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return SubUVFrameOverLifeModuleData{};
     case AuthoringModuleType::SizeByLife:
         return SizeByLifeModuleData{};
+    case AuthoringModuleType::SpawnPerUnit:
+        return SpawnPerUnitModuleData{};
     }
 
     return RequiredModuleData{};

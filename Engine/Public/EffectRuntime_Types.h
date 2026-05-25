@@ -157,6 +157,14 @@ struct EffectColorOverLifeRuntimeDesc
     Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f }; // Color Over Life 상한이다.
 };
 
+// Trail 전용 SpawnPerUnit 모듈에서 provider sample 삽입 gate에 필요한 값만 접은 payload다.
+struct EffectTrailSpawnPerUnitRuntimeDesc
+{
+    bool enabled{ false };       // true면 거리/시간 기준 sample 삽입 gate를 적용한다.
+    float unitDistance{ 0.f };   // 마지막 삽입 sample 중심에서 이 거리 이상 움직였을 때 새 sample을 받는다.
+    float maxSampleRate{ 0.f };  // 초당 삽입 상한이다. 0 이하면 시간 gate를 쓰지 않는다.
+};
+
 //## Emitter
 
 // compute sprite emitter가 실제 runtime consumer에게 넘길 module-facing payload다.
@@ -184,11 +192,18 @@ struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
     EffectRequiredMaterialRuntimeDesc material{}; // trail 기본 material/tint/blend 값이다.
     EffectEmitterPlaybackRuntimeDesc playback{};  // duration/loop/delay 같은 공통 재생 규칙이다.
+    EffectLifetimeRuntimeDesc lifetime{};         // Lifetime 모듈에서 trail이 소비하는 age fade 기준 값이다.
+    EffectInitialColorRuntimeDesc initialColor{}; // InitialColor 모듈에서 trail segment 시작 색상으로 소비하는 값이다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 trail segment 끝 색상으로 소비하는 값이다.
+    PointParticleSizeByLifeDesc sizeByLife{};        // SizeByLife 모듈에서 trail 폭 배율로 소비하는 값이다.
+    EffectTrailSpawnPerUnitRuntimeDesc spawnPerUnit{}; // SpawnPerUnit 모듈에서 trail sample insertion을 제한하는 값이다.
 
     float width{ 0.1f };            // render sample의 center 기준으로 적용할 world-space strip 폭이다.
     float segmentLifetime{ 0.25f }; // history sample 하나가 화면에 남는 시간이다.
     uint32 historyCount{ 32 };      // trail이 유지할 최대 sample 개수다.
     float uvTiling{ 1.f };          // trail 진행 방향의 기본 UV 반복값이다.
+    float maxTrailLength{ 0.f };    // head 기준 최대 표시 길이다. 0 이하면 제한하지 않는다.
+    float tailFadeLength{ 0.1f };   // maxTrailLength 끝으로 갈수록 alpha를 줄이는 거리다.
     float sampleSpacing{ 0.08f };   // render-time curve sample의 이동 거리 기준 간격이다.
     uint32 curveSubdivision{ 4 };   // 원본 sample interval 하나에서 만들 최대 render segment 수다.
     bool smoothTangent{ true };     // render sample 생성 전 원본 history tangent를 완만하게 보정할지 결정한다.

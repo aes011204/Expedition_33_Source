@@ -1164,4 +1164,41 @@ bool SizeByLifeModuleDetail::Draw(
     return changed;
 }
 
+bool SpawnPerUnitModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    SpawnPerUnitModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const SpawnPerUnitModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("거리당 스폰", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("SpawnPerUnit"))
+        {
+            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
+            changed |= detailContext.Draw_FloatProperty(
+                "단위 거리",
+                data.unitDistance,
+                defaultData.unitDistance,
+                0.01f,
+                "마지막으로 삽입한 sample 중심에서 이 거리 이상 움직였을 때 새 sample을 받습니다. 0 이하면 거리 제한이 없습니다."
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "최대 샘플률",
+                data.maxSampleRate,
+                defaultData.maxSampleRate,
+                0.1f,
+                "초당 sample 삽입 상한입니다. 0 이하면 시간 제한이 없습니다."
+            );
+            detailContext.End_PropertyTable();
+        }
+    }
+
+    data.unitDistance = max(0.f, data.unitDistance);
+    data.maxSampleRate = max(0.f, data.maxSampleRate);
+    return changed;
+}
+
 NS_END

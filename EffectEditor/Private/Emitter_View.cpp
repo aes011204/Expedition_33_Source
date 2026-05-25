@@ -244,8 +244,11 @@ namespace Internal
             data.material.sourcePresetName = kDefaultEffectMaterialName;
             data.material.mainTexturePath = kDefaultEffectMaterialTexturePath;
             data.material.mainTextureGuid = GAME != nullptr
-                ? GAME->Ensure_AssetGUID((fs::path(GAME->Get_AssetRoot()) / String::ToWString(kDefaultEffectMaterialTexturePath)).wstring(), "Texture")
-                : string{};
+                                            ? GAME->Ensure_AssetGUID(
+                                                (fs::path(GAME->Get_AssetRoot()) / String::ToWString(kDefaultEffectMaterialTexturePath)).wstring(),
+                                                "Texture"
+                                            )
+                                            : string{};
         }
 
         return data;
@@ -302,11 +305,6 @@ bool Emitter_View::CanSave() const
     return true;
 }
 
-bool Emitter_View::CanOpen() const
-{
-    return true;
-}
-
 void Emitter_View::Save()
 {
     fs::path savePath{};
@@ -352,6 +350,11 @@ void Emitter_View::Save()
             String::ToString(savePath.filename().wstring())
         );
     }
+}
+
+bool Emitter_View::CanOpen() const
+{
+    return true;
 }
 
 void Emitter_View::Open()
@@ -660,6 +663,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_SubUVFrameOverLifeModule();
     case AuthoringModuleType::SizeByLife:
         return Make_SizeByLifeModule();
+    case AuthoringModuleType::SpawnPerUnit:
+        return Make_SpawnPerUnitModule();
     }
 
     return Make_RequiredModule();
@@ -874,6 +879,17 @@ AuthoringModule Emitter_View::Make_SizeByLifeModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_SpawnPerUnitModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SpawnPerUnit;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = SpawnPerUnitModuleData{};
+    return module;
+}
+
 bool Emitter_View::Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const
 {
     for (const AuthoringModule& module : emitter.modules)
@@ -883,6 +899,15 @@ bool Emitter_View::Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModu
     }
 
     return false;
+}
+
+bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitter, AuthoringModuleType type) const
+{
+    const AuthoringModuleMetadata& metadata = Get_AuthoringModuleMetadata(type);
+    if (emitter.typeData.kind == AuthoringTypeDataKind::Trail)
+        return metadata.supportsTrail;
+
+    return metadata.supportsSprite;
 }
 
 bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const
@@ -910,6 +935,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::ColorOverLife:
     case AuthoringModuleType::SubUVFrameOverLife:
     case AuthoringModuleType::SizeByLife:
+    case AuthoringModuleType::SpawnPerUnit:
         return !Has_ModuleType(emitter, type);
 
     default:
@@ -979,6 +1005,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::SizeByLife:
         module = Make_SizeByLifeModule();
+        break;
+    case AuthoringModuleType::SpawnPerUnit:
+        module = Make_SpawnPerUnitModule();
         break;
     default:
         return;
@@ -1274,6 +1303,9 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
     case AuthoringModuleType::SizeByLife:
         module.data = SizeByLifeModuleData{};
         break;
+    case AuthoringModuleType::SpawnPerUnit:
+        module.data = SpawnPerUnitModuleData{};
+        break;
 
     default:
         return;
@@ -1405,7 +1437,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     const auto makeEntry = [&](
         AuthoringModuleType moduleType,
         bool implemented,
-        bool compatible,
         bool canAdd,
         string disabledReason)
     {
@@ -1414,17 +1445,13 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         entry.displayName = Get_AuthoringModuleMetadata(moduleType).displayName;
         entry.disabledReason = std::move(disabledReason);
         entry.implemented = implemented;
-        entry.compatible = compatible;
+        entry.compatible = Is_ModuleCompatibleWithEmitter(emitter, moduleType);
         entry.canAdd = canAdd;
 
         if (canAdd)
             entry.stateText = "추가 가능";
-        else if (implemented && !compatible)
-            entry.stateText = "현재 emitter와 비호환";
         else if (implemented)
             entry.stateText = "이미 장착됨";
-        else if (!compatible)
-            entry.stateText = "현재 emitter와 비호환";
         else
             entry.stateText = "미구현";
 
@@ -1436,7 +1463,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         makeEntry(
             AuthoringModuleType::Lifetime,
             true,
-            true,
             Can_AddModuleType(emitter, AuthoringModuleType::Lifetime),
             "이미 장착됨"
         )
@@ -1444,7 +1470,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialSize,
-            true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialSize),
             "이미 장착됨"
@@ -1454,7 +1479,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         makeEntry(
             AuthoringModuleType::InitialLocation,
             true,
-            true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialLocation),
             "이미 장착됨"
         )
@@ -1462,7 +1486,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::SphereLocation,
-            true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SphereLocation),
             "이미 장착됨"
@@ -1472,7 +1495,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         makeEntry(
             AuthoringModuleType::InitialVelocity,
             true,
-            true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialVelocity),
             "이미 장착됨"
         )
@@ -1480,7 +1502,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialRadialVelocity,
-            true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRadialVelocity),
             "이미 장착됨"
@@ -1490,7 +1511,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         makeEntry(
             AuthoringModuleType::Acceleration,
             true,
-            true,
             Can_AddModuleType(emitter, AuthoringModuleType::Acceleration),
             "이미 장착됨"
         )
@@ -1498,7 +1518,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::Drag,
-            true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::Drag),
             "이미 장착됨"
@@ -1508,7 +1527,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         makeEntry(
             AuthoringModuleType::VelocityOverLife,
             true,
-            true,
             Can_AddModuleType(emitter, AuthoringModuleType::VelocityOverLife),
             "이미 장착됨"
         )
@@ -1516,7 +1534,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialRotation,
-            true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRotation),
             "이미 장착됨"
@@ -1526,7 +1543,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         makeEntry(
             AuthoringModuleType::RotationOverLife,
             true,
-            true,
             Can_AddModuleType(emitter, AuthoringModuleType::RotationOverLife),
             "이미 장착됨"
         )
@@ -1534,7 +1550,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialRotationRate,
-            true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRotationRate),
             "이미 장착됨"
@@ -1544,7 +1559,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         makeEntry(
             AuthoringModuleType::RotationRateScaleByLife,
             true,
-            true,
             Can_AddModuleType(emitter, AuthoringModuleType::RotationRateScaleByLife),
             "이미 장착됨"
         )
@@ -1552,7 +1566,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::InitialColor,
-            true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialColor),
             "이미 장착됨"
@@ -1562,7 +1575,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         makeEntry(
             AuthoringModuleType::ColorOverLife,
             true,
-            true,
             Can_AddModuleType(emitter, AuthoringModuleType::ColorOverLife),
             "이미 장착됨"
         )
@@ -1570,7 +1582,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     entries.push_back(
         makeEntry(
             AuthoringModuleType::SubUVFrameOverLife,
-            true,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SubUVFrameOverLife),
             "이미 장착됨"
@@ -1580,8 +1591,15 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         makeEntry(
             AuthoringModuleType::SizeByLife,
             true,
-            true,
             Can_AddModuleType(emitter, AuthoringModuleType::SizeByLife),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SpawnPerUnit,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SpawnPerUnit),
             "이미 장착됨"
         )
     );
@@ -1673,7 +1691,17 @@ void Emitter_View::Draw_ModulePickerPopup()
                 if (!entry.canAdd)
                     ImGui::BeginDisabled();
 
+                const bool useUnsupportedPickerColor = !entry.compatible && entry.canAdd;
+                if (useUnsupportedPickerColor)
+                    ImGui::PushStyleColor(ImGuiCol_Text, To_ImVec4(kEmitterUnsupportedModuleTextColor));
+
                 const bool picked = ImGui::Selectable(displayName.c_str(), false, ImGuiSelectableFlags_SpanAllColumns);
+                const bool isModuleNameHovered = ImGui::IsItemHovered();
+                if (useUnsupportedPickerColor)
+                    ImGui::PopStyleColor();
+
+                if (isModuleNameHovered && !entry.compatible)
+                    ImGui::SetTooltip("현재 emitter 타입에서는 이 모듈이 preview에 반영되지 않습니다.");
 
                 if (!entry.canAdd)
                     ImGui::EndDisabled();
@@ -1822,7 +1850,9 @@ string Emitter_View::Build_ModuleWarningTooltip(const AuthoringEmitter& emitter,
     if (!module.enabled && module.type != AuthoringModuleType::Required)
         return "비활성화된 모듈입니다.";
 
-    // 모듈 간 compatibility 경고는 후속 단계에서 이 경로에 추가한다.
+    if (!Is_ModuleCompatibleWithEmitter(emitter, module.type))
+        return "현재 emitter 타입에서는 이 모듈이 preview에 반영되지 않습니다.";
+
     return {};
 }
 
@@ -2141,6 +2171,13 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
                              : usesCategoryColor
                                ? To_ImVec4(kEmitterCategoryTextColor)
                                : ImGui::GetStyleColorVec4(ImGuiCol_Text);
+    const bool moduleCompatible = Is_ModuleCompatibleWithEmitter(_emitters[emitterIndex], module.type);
+    const ImVec4 moduleNameTextColor =
+        !isSelected && module.enabled && !moduleCompatible
+        ? To_ImVec4(kEmitterUnsupportedModuleTextColor)
+        : module.enabled
+          ? textColor
+          : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
 
     const ImVec2 rowCursor = ImGui::GetCursorPos();
     const ImVec4 buttonColor = module.enabled || usesCategoryColor ? rowColor : disabledColor;
@@ -2167,7 +2204,7 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
     const ImVec2 afterRowCursor = ImGui::GetCursorPos();
     const float textOffsetY = (rowHeight - ImGui::GetTextLineHeight()) * 0.5f;
     ImGui::SetCursorPos(ImVec2(rowCursor.x + rowPaddingX, rowCursor.y + textOffsetY));
-    ImGui::PushStyleColor(ImGuiCol_Text, module.enabled ? textColor : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+    ImGui::PushStyleColor(ImGuiCol_Text, moduleNameTextColor);
     ImGui::TextUnformatted(String::ToString(module.displayName).c_str());
     ImGui::PopStyleColor();
 
