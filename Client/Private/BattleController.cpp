@@ -1462,8 +1462,6 @@ void BattleController::PlayerStartAnim()
 
 void BattleController::HitAction(BattleChar target)
 {
-
-
     target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
 
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
