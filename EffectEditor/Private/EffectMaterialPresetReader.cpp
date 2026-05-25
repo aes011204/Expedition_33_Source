@@ -61,6 +61,16 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         return iter->get<bool>();
     };
 
+    const auto read_uv_tiling_mode = [&](const char* key, EffectTextureUVTilingMode defaultValue) -> EffectTextureUVTilingMode
+    {
+        const auto iter = root.find(key);
+        if (iter == root.end() || !iter->is_string())
+            return defaultValue;
+
+        const optional<EffectTextureUVTilingMode> parsed = magic_enum::enum_cast<EffectTextureUVTilingMode>(iter->get<string>());
+        return parsed.value_or(defaultValue);
+    };
+
     const auto read_vec2 = [&](const char* key, const Vec2& defaultValue) -> Vec2
     {
         const auto iter = root.find(key);
@@ -193,10 +203,13 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.alphaErosion = read_float("alphaErosion", defaultMaterial.alphaErosion);
     material.mainUVScale = read_vec2("mainUVScale", defaultMaterial.mainUVScale);
     material.mainUVScrollSpeed = read_vec2("mainUVScrollSpeed", defaultMaterial.mainUVScrollSpeed);
+    material.mainUVTilingMode = read_uv_tiling_mode("mainUVTilingMode", defaultMaterial.mainUVTilingMode);
     material.noiseUVScale = read_vec2("noiseUVScale", defaultMaterial.noiseUVScale);
     material.noiseUVScrollSpeed = read_vec2("noiseUVScrollSpeed", defaultMaterial.noiseUVScrollSpeed);
+    material.noiseUVTilingMode = read_uv_tiling_mode("noiseUVTilingMode", defaultMaterial.noiseUVTilingMode);
     material.maskUVScale = read_vec2("maskUVScale", defaultMaterial.maskUVScale);
     material.maskUVScrollSpeed = read_vec2("maskUVScrollSpeed", defaultMaterial.maskUVScrollSpeed);
+    material.maskUVTilingMode = read_uv_tiling_mode("maskUVTilingMode", defaultMaterial.maskUVTilingMode);
     material.blendMode = read_string("blendMode", defaultMaterial.blendMode);
     material.opacitySource = read_string("opacitySource", defaultMaterial.opacitySource);
     material.twoSided = read_bool("twoSided", defaultMaterial.twoSided);

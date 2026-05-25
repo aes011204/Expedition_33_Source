@@ -258,10 +258,13 @@ namespace Internal
             NearlyEqual(lhs.alphaErosion, rhs.alphaErosion) &&
             Is_SameVec2(lhs.mainUVScale, rhs.mainUVScale) &&
             Is_SameVec2(lhs.mainUVScrollSpeed, rhs.mainUVScrollSpeed) &&
+            lhs.mainUVTilingMode == rhs.mainUVTilingMode &&
             Is_SameVec2(lhs.noiseUVScale, rhs.noiseUVScale) &&
             Is_SameVec2(lhs.noiseUVScrollSpeed, rhs.noiseUVScrollSpeed) &&
+            lhs.noiseUVTilingMode == rhs.noiseUVTilingMode &&
             Is_SameVec2(lhs.maskUVScale, rhs.maskUVScale) &&
             Is_SameVec2(lhs.maskUVScrollSpeed, rhs.maskUVScrollSpeed) &&
+            lhs.maskUVTilingMode == rhs.maskUVTilingMode &&
             lhs.blendMode == rhs.blendMode &&
             lhs.opacitySource == rhs.opacitySource &&
             lhs.twoSided == rhs.twoSided &&
@@ -1183,26 +1186,41 @@ bool SpawnPerUnitModuleDetail::Draw(
         if (detailContext.Begin_PropertyTable("SpawnPerUnit"))
         {
             changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup("분포", data.spawnPerUnit, defaultData.spawnPerUnit);
+
+        if (detailContext.Begin_PropertyTable("SpawnPerUnitPolicy"))
+        {
             changed |= detailContext.Draw_FloatProperty(
-                "단위 거리",
-                data.unitDistance,
-                defaultData.unitDistance,
+                "단위 스칼라",
+                data.unitScalar,
+                defaultData.unitScalar,
                 0.01f,
-                "마지막으로 삽입한 sample 중심에서 이 거리 이상 움직였을 때 새 sample을 받습니다. 0 이하면 거리 제한이 없습니다."
+                "분포 값을 실제 world distance로 환산하는 기준 스칼라입니다."
             );
             changed |= detailContext.Draw_FloatProperty(
-                "최대 샘플률",
-                data.maxSampleRate,
-                defaultData.maxSampleRate,
-                0.1f,
-                "초당 sample 삽입 상한입니다. 0 이하면 시간 제한이 없습니다."
+                "무브먼트 허용치",
+                data.movementTolerance,
+                defaultData.movementTolerance,
+                0.001f,
+                "이 거리 미만의 provider sample 이동은 새 history sample로 받지 않습니다."
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "최대 프레임 거리",
+                data.maxFrameDistance,
+                defaultData.maxFrameDistance,
+                0.01f,
+                "한 frame 이동이 이 거리보다 크면 teleport/skip으로 보고 history를 재시드합니다. 0 이하면 제한이 없습니다."
             );
             detailContext.End_PropertyTable();
         }
     }
 
-    data.unitDistance = max(0.f, data.unitDistance);
-    data.maxSampleRate = max(0.f, data.maxSampleRate);
+    data.unitScalar = max(0.0001f, data.unitScalar);
+    data.movementTolerance = max(0.f, data.movementTolerance);
+    data.maxFrameDistance = max(0.f, data.maxFrameDistance);
     return changed;
 }
 

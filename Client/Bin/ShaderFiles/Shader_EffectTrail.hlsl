@@ -13,6 +13,7 @@ cbuffer cbEffectTrailMaterial : register(b2)
     float4 g_EffectTrailNoiseUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
     float4 g_EffectTrailMaskUVParams = { 1.f, 1.f, 0.f, 0.f };  // xy: scale, zw: scroll speed
     float4 g_EffectTrailUVPolicyParams = { 1.f, 1.f, 0.f, 0.f }; // x: visible trail length, y: noise uv tiling, zw: reserved
+    float4 g_EffectTrailUVModeParams = { 0.f, 0.f, 0.f, 0.f };   // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
     float g_EffectTrailMaterialTime = 0.f;
     int g_OpacitySource = 0;
     float2 g_EffectTrailPadding;
@@ -25,6 +26,46 @@ Texture2D g_MaskTexture : register(t2);
 float2 Apply_MaterialUV(float2 uv, float4 uvParams)
 {
     return uv * uvParams.xy + uvParams.zw * g_EffectTrailMaterialTime;
+}
+
+float2 Build_TrailSlotBaseUV(float2 rawUV, float mode)
+{
+    const float visibleLength = max(g_EffectTrailUVPolicyParams.x, 0.0001f);
+    const float uvTiling = max(g_EffectTrailUVPolicyParams.y, 0.0001f);
+    float2 result = float2(rawUV.x, rawUV.y * uvTiling);
+
+    if (mode >= 0.5f && mode < 1.5f)
+        result = float2(rawUV.x, saturate(rawUV.y / visibleLength));
+    else if (mode >= 2.5f)
+        result = rawUV;
+
+    return result;
+}
+
+bool Use_ClampSampler(float mode)
+{
+    return mode >= 0.5f && mode < 2.5f;
+}
+
+float4 Sample_MainTexture(float2 uv, float mode)
+{
+    return Use_ClampSampler(mode)
+        ? g_MainTexture.Sample(LinearClampSampler, uv)
+        : g_MainTexture.Sample(LinearWrapSampler, uv);
+}
+
+float Sample_NoiseTexture(float2 uv, float mode)
+{
+    return Use_ClampSampler(mode)
+        ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
+        : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
+}
+
+float Sample_MaskTexture(float2 uv, float mode)
+{
+    return Use_ClampSampler(mode)
+        ? g_MaskTexture.Sample(LinearClampSampler, uv).a
+        : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
 }
 
 struct VS_IN
@@ -160,14 +201,16 @@ PS_OUT PS_MAIN(PS_IN In)
     PS_OUT Out = (PS_OUT)0;
 
     const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
-    const float visibleLength = max(g_EffectTrailUVPolicyParams.x, 0.0001f);
-    const float noiseTiling = max(g_EffectTrailUVPolicyParams.y, 0.0001f);
-    const float2 bodyBaseUV = float2(In.texCoord.x, saturate(In.texCoord.y / visibleLength));
-    const float2 noiseBaseUV = float2(In.texCoord.x, In.texCoord.y * noiseTiling);
-    const float2 mainUV = Apply_MaterialUV(bodyBaseUV, g_EffectTrailMainUVParams);
+    const float mainUVMode = g_EffectTrailUVModeParams.x;
+    const float noiseUVMode = g_EffectTrailUVModeParams.y;
+    const float maskUVMode = g_EffectTrailUVModeParams.z;
+    const float2 mainBaseUV = Build_TrailSlotBaseUV(In.texCoord, mainUVMode);
+    const float2 noiseBaseUV = Build_TrailSlotBaseUV(In.texCoord, noiseUVMode);
+    const float2 maskBaseUV = Build_TrailSlotBaseUV(In.texCoord, maskUVMode);
+    const float2 mainUV = Apply_MaterialUV(mainBaseUV, g_EffectTrailMainUVParams);
     const float2 noiseUV = Apply_MaterialUV(noiseBaseUV, g_EffectTrailNoiseUVParams);
-    const float2 maskUV = Apply_MaterialUV(bodyBaseUV, g_EffectTrailMaskUVParams);
-    const float4 tex = g_MainTexture.Sample(LinearClampSampler, mainUV);
+    const float2 maskUV = Apply_MaterialUV(maskBaseUV, g_EffectTrailMaskUVParams);
+    const float4 tex = Sample_MainTexture(mainUV, mainUVMode);
     const float sideFade = max(In.segmentParams.w, 0.0001f);
     const float sideAlpha =
         smoothstep(0.0f, sideFade, In.edgeCoord.y) *
@@ -187,10 +230,10 @@ PS_OUT PS_MAIN(PS_IN In)
 
     const float noiseStrength = saturate(g_EffectTrailParams.z);
     if (0 != g_EffectTrailParams.w && g_EffectTrailParams.z > 0.f)
-        noiseRaw = g_NoiseTexture.Sample(LinearWrapSampler, noiseUV).r;
+        noiseRaw = Sample_NoiseTexture(noiseUV, noiseUVMode);
 
     if (0 != g_EffectTrailAlphaParams.z)
-        maskAlpha = g_MaskTexture.Sample(LinearClampSampler, maskUV).a;
+        maskAlpha = Sample_MaskTexture(maskUV, maskUVMode);
 
     const float edgeDistance = abs(In.edgeCoord.y - 0.5f) * 2.f;
     const float edgeWeight = smoothstep(0.35f, 1.f, edgeDistance);

@@ -501,8 +501,10 @@ struct SizeByLifeModuleData
 struct SpawnPerUnitModuleData
 {
     bool enabled{ true };
-    float unitDistance{ 0.f };
-    float maxSampleRate{ 0.f };
+    FloatDistributionData spawnPerUnit{ FloatDistributionData::Make_Constant(50.f) };
+    float unitScalar{ 1.f };
+    float movementTolerance{ 0.001f };
+    float maxFrameDistance{ 0.f };
 };
 
 using AuthoringModuleData = std::variant<

@@ -74,23 +74,23 @@ private:
     };
 
 private:
-    static constexpr auto kTrailShaderId{ "Shader_EffectTrail" };                               // trail segment draw shader id다.
-    static constexpr auto kTrailComputeShaderId{ "ComputeShader_TrailStrip" };                  // render sample을 instance payload로 낮추는 compute shader id다.
+    static constexpr auto kTrailShaderId{ "Shader_EffectTrail" }; // trail segment draw shader id다.
+    static constexpr auto kTrailComputeShaderId{ "ComputeShader_TrailStrip" }; // render sample을 instance payload로 낮추는 compute shader id다.
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" }; // texture 미지정 시 사용할 기본 텍스처다.
-    static constexpr uint32 kThreadCountX{ 64 };                                                // compute shader numthreads.x와 맞춘 dispatch 단위다.
-    static constexpr uint32 kMaxCurveSubdivision{ 32 };                                         // preview 폭주를 막는 interval당 render sample 상한이다.
-    static constexpr float kSmoothSampleSideWeight{ 0.25f };                                    // tangent smoothing용 양옆 sample 가중치다.
-    static constexpr int kOpacitySourceAlpha{ 0 };                                              // main texture alpha를 opacity로 사용한다.
-    static constexpr int kOpacitySourceRed{ 1 };                                                // main texture red를 opacity로 사용한다.
-    static constexpr int kOpacitySourceLuminance{ 2 };                                          // main texture luminance를 opacity로 사용한다.
+    static constexpr uint32 kThreadCountX{ 64 }; // compute shader numthreads.x와 맞춘 dispatch 단위다.
+    static constexpr uint32 kMaxCurveSubdivision{ 32 }; // preview 폭주를 막는 interval당 render sample 상한이다.
+    static constexpr uint32 kMaxSpawnPerUnitFrameSamples{ 64 }; // 한 frame에서 SpawnPerUnit이 추가할 수 있는 provider history sample 상한이다.
+    static constexpr float kSmoothSampleSideWeight{ 0.25f }; // tangent smoothing용 양옆 sample 가중치다.
+    static constexpr int kOpacitySourceAlpha{ 0 }; // main texture alpha를 opacity로 사용한다.
+    static constexpr int kOpacitySourceRed{ 1 }; // main texture red를 opacity로 사용한다.
+    static constexpr int kOpacitySourceLuminance{ 2 }; // main texture luminance를 opacity로 사용한다.
 
 private:
-    ComputeTrailEmitterDesc _desc{};         // clone 시점에 받은 trail runtime 설정이다.
-    vector<TrailHistorySample> _history{};   // CPU가 보관하는 provider sample history다.
-    uint32 _drawSegmentCount{};              // 이번 frame에 그릴 segment 개수다.
-    float _secondsSinceLastInsertedSample{}; // SpawnPerUnit 시간 gate가 마지막 삽입 이후 경과 시간을 추적한다.
-    float _materialElapsedTime{};            // material UV scroll 계산에 사용할 emitter-local 누적 시간이다.
-    float _visibleTrailLength{ 1.f };         // body/mask UV stretch에 사용할 현재 표시 trail 길이다.
+    ComputeTrailEmitterDesc _desc{};       // clone 시점에 받은 trail runtime 설정이다.
+    vector<TrailHistorySample> _history{}; // CPU가 보관하는 provider sample history다.
+    uint32 _drawSegmentCount{};            // 이번 frame에 그릴 segment 개수다.
+    float _materialElapsedTime{};          // material UV scroll 계산에 사용할 emitter-local 누적 시간이다.
+    float _visibleTrailLength{ 1.f };      // body/mask UV stretch에 사용할 현재 표시 trail 길이다.
 
     Shared<ShaderCom> _shader{};               // trail draw shader다.
     Shared<ComputeShaderCom> _computeShader{}; // trail payload 생성 compute shader다.
@@ -117,11 +117,11 @@ private:
 
     void Update_History(float timeDelta); // provider sample을 history에 누적하고 수명/개수를 정리한다.
 
-    uint32 Compute_MaxRenderSegmentCount() const;                              // render-time tessellation을 포함한 최대 segment capacity다.
-    bool Should_InsertTrailSample(const EffectTrailSample& trailSample) const; // SpawnPerUnit 거리/시간 gate를 통과하는지 판단한다.
-    void Insert_TrailSample(const EffectTrailSample& trailSample);             // provider 원본 sample을 history head에 삽입한다.
-    void Build_RenderSamples(vector<TrailRenderSample>& outSamples) const;     // 원본 history를 render-time curve sample 배열로 낮춘다.
-    EffectTrailSample Build_SmoothedHistorySample(uint32 sampleIndex) const;   // smoothTangent 옵션에 따라 history sample을 완만하게 보정한다.
+    uint32 Compute_MaxRenderSegmentCount() const;                             // render-time tessellation을 포함한 최대 segment capacity다.
+    void Insert_TrailSamplesForFrame(const EffectTrailSample& trailSample);   // SpawnPerUnit 정책에 따라 provider sample과 보강 sample을 history에 삽입한다.
+    void Insert_TrailSample(const EffectTrailSample& trailSample, float age); // provider/render 보강 sample을 history head에 삽입한다.
+    void Build_RenderSamples(vector<TrailRenderSample>& outSamples) const;    // 원본 history를 render-time curve sample 배열로 낮춘다.
+    EffectTrailSample Build_SmoothedHistorySample(uint32 sampleIndex) const;  // smoothTangent 옵션에 따라 history sample을 완만하게 보정한다.
 
     HRESULT Dispatch_Compute();             // render sample을 trail instance payload로 낮추는 compute pass를 실행한다.
     HRESULT Update_ComputeInput();          // CPU render sample을 compute 입력 structured buffer에 업로드한다.

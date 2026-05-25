@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <variant>
+#include "EffectMaterial_Types.h"
 #include "Engine_Typedef.h"
 #include "GameObject.h"
 #include "Particle_Types.h"
@@ -77,10 +78,13 @@ struct EffectRequiredMaterialRuntimeDesc
     float alphaErosion{ 0.f };           // mask/noise 기반 alpha erosion 후보 값이다.
     Vec2 mainUVScale{ 1.f, 1.f };        // main texture UV 반복/확대 배율 후보 값이다.
     Vec2 mainUVScrollSpeed{ 0.f, 0.f };  // main texture 샘플 좌표를 시간에 따라 밀어 흐름감을 만드는 속도 후보 값이다.
+    EffectTextureUVTilingMode mainUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // main texture UV tiling 해석 방식이다.
     Vec2 noiseUVScale{ 1.f, 1.f };       // noise texture UV 반복/확대 배율 후보 값이다.
     Vec2 noiseUVScrollSpeed{ 0.f, 0.f }; // noise를 frame 교체가 아니라 UV 좌표 이동으로 흘려 불규칙한 modulation 흐름을 만드는 속도 후보 값이다.
+    EffectTextureUVTilingMode noiseUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // noise texture UV tiling 해석 방식이다.
     Vec2 maskUVScale{ 1.f, 1.f };        // mask texture UV 반복/확대 배율 후보 값이다.
     Vec2 maskUVScrollSpeed{ 0.f, 0.f };  // mask를 frame 교체가 아니라 UV 좌표 이동으로 흘려 alpha/erosion 변화를 만드는 속도 후보 값이다.
+    EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // mask texture UV tiling 해석 방식이다.
     bool twoSided{ false };              // 지원 renderer가 사용할 양면 렌더 힌트다.
     uint32 subUVRows{ 1 };               // flipbook row 수다.
     uint32 subUVCols{ 1 };               // flipbook column 수다.
@@ -157,12 +161,14 @@ struct EffectColorOverLifeRuntimeDesc
     Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f }; // Color Over Life 상한이다.
 };
 
-// Trail 전용 SpawnPerUnit 모듈에서 provider sample 삽입 gate에 필요한 값만 접은 payload다.
+// Trail 전용 SpawnPerUnit 모듈에서 이동 거리 기반 보강 sample 생성에 필요한 값만 접은 payload다.
 struct EffectTrailSpawnPerUnitRuntimeDesc
 {
-    bool enabled{ false };       // true면 거리/시간 기준 sample 삽입 gate를 적용한다.
-    float unitDistance{ 0.f };   // 마지막 삽입 sample 중심에서 이 거리 이상 움직였을 때 새 sample을 받는다.
-    float maxSampleRate{ 0.f };  // 초당 삽입 상한이다. 0 이하면 시간 gate를 쓰지 않는다.
+    bool enabled{ false };          // true면 이동 거리 기준으로 history sample을 보강 삽입한다.
+    float spawnPerUnit{ 0.f };      // unitScalar 기준 단위 거리당 생성할 sample 수다.
+    float unitScalar{ 1.f };        // spawnPerUnit을 실제 world distance로 환산하는 스칼라다.
+    float movementTolerance{ 0.f }; // 이 거리 미만 이동은 새 sample을 만들지 않는다.
+    float maxFrameDistance{ 0.f };  // 이 거리보다 큰 frame 이동은 teleport/skip으로 보고 history를 재시드한다. 0 이하면 제한하지 않는다.
 };
 
 //## Emitter
@@ -196,7 +202,7 @@ struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
     EffectInitialColorRuntimeDesc initialColor{}; // InitialColor 모듈에서 trail segment 시작 색상으로 소비하는 값이다.
     EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 trail segment 끝 색상으로 소비하는 값이다.
     PointParticleSizeByLifeDesc sizeByLife{};        // SizeByLife 모듈에서 trail 폭 배율로 소비하는 값이다.
-    EffectTrailSpawnPerUnitRuntimeDesc spawnPerUnit{}; // SpawnPerUnit 모듈에서 trail sample insertion을 제한하는 값이다.
+    EffectTrailSpawnPerUnitRuntimeDesc spawnPerUnit{}; // SpawnPerUnit 모듈에서 trail sample density를 보강하는 값이다.
 
     float width{ 0.1f };            // render sample의 center 기준으로 적용할 world-space strip 폭이다.
     float segmentLifetime{ 0.25f }; // history sample 하나가 화면에 남는 시간이다.

@@ -545,6 +545,9 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
         desc.required.material.intensity = Read_Float(material, "intensity", desc.required.material.intensity);
         desc.required.material.opacityPower = Read_Float(material, "opacityPower", desc.required.material.opacityPower);
         desc.required.material.noiseStrength = Read_Float(material, "noiseStrength", desc.required.material.noiseStrength);
+        Read_Enum(material, "mainUVTilingMode", desc.required.material.mainUVTilingMode);
+        Read_Enum(material, "noiseUVTilingMode", desc.required.material.noiseUVTilingMode);
+        Read_Enum(material, "maskUVTilingMode", desc.required.material.maskUVTilingMode);
         desc.required.material.subUVRows = max(1u, Read_UInt(material, "subUVRows", desc.required.material.subUVRows));
         desc.required.material.subUVCols = max(1u, Read_UInt(material, "subUVCols", desc.required.material.subUVCols));
     }

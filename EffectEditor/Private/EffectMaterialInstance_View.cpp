@@ -523,6 +523,70 @@ namespace Internal
         ImGui::PopID();
         return changed;
     }
+
+    const char* Get_UVTilingModeLabel(EffectTextureUVTilingMode value)
+    {
+        switch (value)
+        {
+        case EffectTextureUVTilingMode::Wrap:
+            return "Wrap";
+        case EffectTextureUVTilingMode::Stretch:
+            return "Stretch";
+        case EffectTextureUVTilingMode::Clamp:
+            return "Clamp";
+        case EffectTextureUVTilingMode::Raw:
+            return "Raw";
+        default:
+            return "Wrap";
+        }
+    }
+
+    bool Draw_UVTilingModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        EffectTextureUVTilingMode& value,
+        EffectTextureUVTilingMode defaultValue)
+    {
+        static constexpr EffectTextureUVTilingMode kModes[]{
+            EffectTextureUVTilingMode::Wrap,
+            EffectTextureUVTilingMode::Stretch,
+            EffectTextureUVTilingMode::Clamp,
+            EffectTextureUVTilingMode::Raw
+        };
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        bool changed = false;
+
+        if (ImGui::BeginCombo("##Value", Get_UVTilingModeLabel(value)))
+        {
+            for (EffectTextureUVTilingMode mode : kModes)
+            {
+                const bool selected = value == mode;
+                if (ImGui::Selectable(Get_UVTilingModeLabel(mode), selected))
+                {
+                    value = mode;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        if (resetClicked)
+        {
+            value = defaultValue;
+            changed = true;
+        }
+
+        ImGui::PopID();
+        return changed;
+    }
 }
 
 EffectMaterialInstance_View::EffectMaterialInstance_View()
@@ -583,6 +647,7 @@ void EffectMaterialInstance_View::Render()
             ImGui::Separator();
 
             bool changed = false;
+            bool restartPreview = false;
             const float contentWidth = ImGui::GetContentRegionAvail().x;
             const bool useSideBySideLayout = contentWidth >= 760.f;
             const EffectAuthoringSelection selection{
@@ -614,7 +679,7 @@ void EffectMaterialInstance_View::Render()
 
                 ImGui::BeginChild("EffectMaterialInstancePropertyPane", ImVec2(0.f, 0.f), false);
                 {
-                    changed |= Draw_InstanceProperties(requiredData->material);
+                    changed |= Draw_InstanceProperties(requiredData->material, &restartPreview);
                 }
                 ImGui::EndChild();
             }
@@ -630,13 +695,16 @@ void EffectMaterialInstance_View::Render()
                     ImGui::Separator();
                 }
 
-                changed |= Draw_InstanceProperties(requiredData->material);
+                changed |= Draw_InstanceProperties(requiredData->material, &restartPreview);
             }
 
             if (changed)
             {
                 Apply_MaterialChanged(emitterView, *emitter, *requiredData);
                 Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Material Instance");
+
+                if (restartPreview && EDITOR != nullptr)
+                    EDITOR->Request_RestartPreview();
             }
 
             Commit_PendingAuthoringEditIfIdle(emitterView);
@@ -683,10 +751,11 @@ bool EffectMaterialInstance_View::Resolve_Target(
     return outRequiredData != nullptr;
 }
 
-bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstanceData& material)
+bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstanceData& material, bool* outRestartPreview)
 {
     const EffectMaterialInstanceData defaultData{};
     bool changed = false;
+    bool restartPreview = false;
 
     if (ImGui::CollapsingHeader("Texture", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -737,14 +806,23 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
         }
     }
 
-    if (ImGui::CollapsingHeader("UV Motion", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("UV", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceUVMotion"))
+        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceUV"))
         {
+            const bool mainModeChanged = Internal::Draw_UVTilingModeProperty(_detailPropertyContext, "Main UV Tiling Mode", material.mainUVTilingMode, defaultData.mainUVTilingMode);
+            changed |= mainModeChanged;
+            restartPreview |= mainModeChanged;
             changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scale", material.mainUVScale, defaultData.mainUVScale);
             changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed", material.mainUVScrollSpeed, defaultData.mainUVScrollSpeed);
+            const bool noiseModeChanged = Internal::Draw_UVTilingModeProperty(_detailPropertyContext, "Noise UV Tiling Mode", material.noiseUVTilingMode, defaultData.noiseUVTilingMode);
+            changed |= noiseModeChanged;
+            restartPreview |= noiseModeChanged;
             changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scale", material.noiseUVScale, defaultData.noiseUVScale);
             changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed", material.noiseUVScrollSpeed, defaultData.noiseUVScrollSpeed);
+            const bool maskModeChanged = Internal::Draw_UVTilingModeProperty(_detailPropertyContext, "Mask UV Tiling Mode", material.maskUVTilingMode, defaultData.maskUVTilingMode);
+            changed |= maskModeChanged;
+            restartPreview |= maskModeChanged;
             changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scale", material.maskUVScale, defaultData.maskUVScale);
             changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scroll Speed", material.maskUVScrollSpeed, defaultData.maskUVScrollSpeed);
             _detailPropertyContext.End_PropertyTable();
@@ -780,6 +858,9 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
             _detailPropertyContext.End_PropertyTable();
         }
     }
+
+    if (outRestartPreview != nullptr)
+        *outRestartPreview = restartPreview;
 
     return changed;
 }

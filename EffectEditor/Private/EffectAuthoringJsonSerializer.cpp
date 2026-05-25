@@ -314,10 +314,13 @@ namespace Internal
         root["alphaErosion"] = data.alphaErosion;
         root["mainUVScale"] = To_Json(data.mainUVScale);
         root["mainUVScrollSpeed"] = To_Json(data.mainUVScrollSpeed);
+        root["mainUVTilingMode"] = To_EnumToken(data.mainUVTilingMode);
         root["noiseUVScale"] = To_Json(data.noiseUVScale);
         root["noiseUVScrollSpeed"] = To_Json(data.noiseUVScrollSpeed);
+        root["noiseUVTilingMode"] = To_EnumToken(data.noiseUVTilingMode);
         root["maskUVScale"] = To_Json(data.maskUVScale);
         root["maskUVScrollSpeed"] = To_Json(data.maskUVScrollSpeed);
+        root["maskUVTilingMode"] = To_EnumToken(data.maskUVTilingMode);
         root["blendMode"] = data.blendMode;
         root["opacitySource"] = data.opacitySource;
         root["twoSided"] = data.twoSided;
@@ -377,18 +380,27 @@ namespace Internal
         const auto mainUVScrollSpeedIter = root.find("mainUVScrollSpeed");
         if (mainUVScrollSpeedIter != root.end())
             Read_Vec2(*mainUVScrollSpeedIter, outData.mainUVScrollSpeed);
+        const auto mainUVTilingModeIter = root.find("mainUVTilingMode");
+        if (mainUVTilingModeIter != root.end())
+            Try_ReadEnumToken(*mainUVTilingModeIter, outData.mainUVTilingMode);
         const auto noiseUVScaleIter = root.find("noiseUVScale");
         if (noiseUVScaleIter != root.end())
             Read_Vec2(*noiseUVScaleIter, outData.noiseUVScale);
         const auto noiseUVScrollSpeedIter = root.find("noiseUVScrollSpeed");
         if (noiseUVScrollSpeedIter != root.end())
             Read_Vec2(*noiseUVScrollSpeedIter, outData.noiseUVScrollSpeed);
+        const auto noiseUVTilingModeIter = root.find("noiseUVTilingMode");
+        if (noiseUVTilingModeIter != root.end())
+            Try_ReadEnumToken(*noiseUVTilingModeIter, outData.noiseUVTilingMode);
         const auto maskUVScaleIter = root.find("maskUVScale");
         if (maskUVScaleIter != root.end())
             Read_Vec2(*maskUVScaleIter, outData.maskUVScale);
         const auto maskUVScrollSpeedIter = root.find("maskUVScrollSpeed");
         if (maskUVScrollSpeedIter != root.end())
             Read_Vec2(*maskUVScrollSpeedIter, outData.maskUVScrollSpeed);
+        const auto maskUVTilingModeIter = root.find("maskUVTilingMode");
+        if (maskUVTilingModeIter != root.end())
+            Try_ReadEnumToken(*maskUVTilingModeIter, outData.maskUVTilingMode);
     }
 
     json To_Json(const FloatCurveKeyData& data)
@@ -1163,16 +1175,35 @@ namespace Internal
     {
         json root = json::object();
         root["enabled"] = data.enabled;
-        root["unitDistance"] = data.unitDistance;
-        root["maxSampleRate"] = data.maxSampleRate;
+        root["spawnPerUnit"] = To_Json(data.spawnPerUnit);
+        root["unitScalar"] = data.unitScalar;
+        root["movementTolerance"] = data.movementTolerance;
+        root["maxFrameDistance"] = data.maxFrameDistance;
         return root;
     }
 
     void From_Json(const json& root, SpawnPerUnitModuleData& outData)
     {
+        if (!root.is_object())
+            return;
+
         Read_BoolField(root, "enabled", outData.enabled);
-        Read_NumberField(root, "unitDistance", outData.unitDistance);
-        Read_NumberField(root, "maxSampleRate", outData.maxSampleRate);
+
+        const auto spawnPerUnitIter = root.find("spawnPerUnit");
+        if (spawnPerUnitIter != root.end())
+            From_Json(*spawnPerUnitIter, outData.spawnPerUnit);
+
+        Read_NumberField(root, "unitScalar", outData.unitScalar);
+        Read_NumberField(root, "movementTolerance", outData.movementTolerance);
+        Read_NumberField(root, "maxFrameDistance", outData.maxFrameDistance);
+
+        if (spawnPerUnitIter == root.end())
+        {
+            float legacyUnitDistance = 0.f;
+            Read_NumberField(root, "unitDistance", legacyUnitDistance);
+            if (legacyUnitDistance > 0.f)
+                outData.spawnPerUnit = FloatDistributionData::Make_Constant(max(0.0001f, outData.unitScalar) / legacyUnitDistance);
+        }
     }
 }
 

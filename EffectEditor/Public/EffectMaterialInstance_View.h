@@ -32,7 +32,7 @@ private: //## Data
 
 private: //## Helpers
     bool Resolve_Target(Shared<Emitter_View>& outEmitterView, AuthoringEmitter*& outEmitter, RequiredModuleData*& outRequiredData) const;
-    bool Draw_InstanceProperties(EffectMaterialInstanceData& material);
+    bool Draw_InstanceProperties(EffectMaterialInstanceData& material, bool* outRestartPreview);
     void Apply_MaterialChanged(const Shared<Emitter_View>& emitterView, AuthoringEmitter& emitter, const RequiredModuleData& requiredData);
     void Begin_PendingAuthoringEdit(
         const Shared<Emitter_View>& emitterView,

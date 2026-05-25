@@ -472,10 +472,13 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.alphaErosion = material.alphaErosion;
         desc.required.material.mainUVScale = material.mainUVScale;
         desc.required.material.mainUVScrollSpeed = material.mainUVScrollSpeed;
+        desc.required.material.mainUVTilingMode = material.mainUVTilingMode;
         desc.required.material.noiseUVScale = material.noiseUVScale;
         desc.required.material.noiseUVScrollSpeed = material.noiseUVScrollSpeed;
+        desc.required.material.noiseUVTilingMode = material.noiseUVTilingMode;
         desc.required.material.maskUVScale = material.maskUVScale;
         desc.required.material.maskUVScrollSpeed = material.maskUVScrollSpeed;
+        desc.required.material.maskUVTilingMode = material.maskUVTilingMode;
         desc.required.material.twoSided = material.twoSided;
         desc.required.material.subUVRows = max(1u, material.subUVRows);
         desc.required.material.subUVCols = max(1u, material.subUVCols);
@@ -777,10 +780,13 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         emitterDesc.material.alphaErosion = material.alphaErosion;
         emitterDesc.material.mainUVScale = material.mainUVScale;
         emitterDesc.material.mainUVScrollSpeed = material.mainUVScrollSpeed;
+        emitterDesc.material.mainUVTilingMode = material.mainUVTilingMode;
         emitterDesc.material.noiseUVScale = material.noiseUVScale;
         emitterDesc.material.noiseUVScrollSpeed = material.noiseUVScrollSpeed;
+        emitterDesc.material.noiseUVTilingMode = material.noiseUVTilingMode;
         emitterDesc.material.maskUVScale = material.maskUVScale;
         emitterDesc.material.maskUVScrollSpeed = material.maskUVScrollSpeed;
+        emitterDesc.material.maskUVTilingMode = material.maskUVTilingMode;
         emitterDesc.material.twoSided = material.twoSided;
 
         emitterDesc.playback.duration = max(0.0001f, required->duration);
@@ -885,8 +891,11 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
     if (const auto* spawnPerUnit = Internal::Find_ModuleData<SpawnPerUnitModuleData>(emitter, AuthoringModuleType::SpawnPerUnit))
     {
         emitterDesc.spawnPerUnit.enabled = spawnPerUnit->enabled;
-        emitterDesc.spawnPerUnit.unitDistance = max(0.f, spawnPerUnit->unitDistance);
-        emitterDesc.spawnPerUnit.maxSampleRate = max(0.f, spawnPerUnit->maxSampleRate);
+        emitterDesc.spawnPerUnit.spawnPerUnit =
+            max(0.f, Internal::Evaluate_FloatDistributionMax(spawnPerUnit->spawnPerUnit, emitterDesc.spawnPerUnit.spawnPerUnit));
+        emitterDesc.spawnPerUnit.unitScalar = max(0.0001f, spawnPerUnit->unitScalar);
+        emitterDesc.spawnPerUnit.movementTolerance = max(0.f, spawnPerUnit->movementTolerance);
+        emitterDesc.spawnPerUnit.maxFrameDistance = max(0.f, spawnPerUnit->maxFrameDistance);
     }
 
     emitterDesc.sampleProvider = _trailPreviewSampleProvider;

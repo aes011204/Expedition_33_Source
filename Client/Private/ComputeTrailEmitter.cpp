@@ -46,6 +46,16 @@ EffectTrailSample Catmull_RomTrailSample(
     return result;
 }
 
+EffectTrailSample Lerp_TrailSample(const EffectTrailSample& from, const EffectTrailSample& to, const float ratio)
+{
+    const float clampedRatio = clamp(ratio, 0.f, 1.f);
+
+    EffectTrailSample result{};
+    result.baseWorldPosition = Vec3::Lerp(from.baseWorldPosition, to.baseWorldPosition, clampedRatio);
+    result.tipWorldPosition = Vec3::Lerp(from.tipWorldPosition, to.tipWorldPosition, clampedRatio);
+    return result;
+}
+
 Vec3 Compute_TrailCenter(const EffectTrailSample& sample)
 {
     return (sample.baseWorldPosition + sample.tipWorldPosition) * 0.5f;
@@ -170,8 +180,10 @@ HRESULT ComputeTrailEmitter::Initialize(void* arg)
     _desc.sideFade = clamp(_desc.sideFade, 1e-3f, 0.49f);
     _desc.maxTrailLength = max(0.f, _desc.maxTrailLength);
     _desc.tailFadeLength = max(0.f, _desc.tailFadeLength);
-    _desc.spawnPerUnit.unitDistance = max(0.f, _desc.spawnPerUnit.unitDistance);
-    _desc.spawnPerUnit.maxSampleRate = max(0.f, _desc.spawnPerUnit.maxSampleRate);
+    _desc.spawnPerUnit.spawnPerUnit = max(0.f, _desc.spawnPerUnit.spawnPerUnit);
+    _desc.spawnPerUnit.unitScalar = max(1e-4f, _desc.spawnPerUnit.unitScalar);
+    _desc.spawnPerUnit.movementTolerance = max(0.f, _desc.spawnPerUnit.movementTolerance);
+    _desc.spawnPerUnit.maxFrameDistance = max(0.f, _desc.spawnPerUnit.maxFrameDistance);
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
@@ -481,7 +493,6 @@ void ComputeTrailEmitter::Update_History(float timeDelta)
 
     for (TrailHistorySample& sample : _history)
         sample.age += timeDelta;
-    _secondsSinceLastInsertedSample += timeDelta;
 
     erase_if(
         _history,
@@ -497,8 +508,7 @@ void ComputeTrailEmitter::Update_History(float timeDelta)
     if (provider != nullptr && provider->Try_GetTrailSample(trailSample))
     {
         sampleAccepted = true;
-        if (Should_InsertTrailSample(trailSample))
-            Insert_TrailSample(trailSample);
+        Insert_TrailSamplesForFrame(trailSample);
     }
 
     if (!sampleAccepted)
@@ -527,35 +537,57 @@ uint32 ComputeTrailEmitter::Compute_MaxRenderSegmentCount() const
     return max(1u, (_desc.historyCount - 1u) * maxIntervalSubdivision);
 }
 
-bool ComputeTrailEmitter::Should_InsertTrailSample(const EffectTrailSample& trailSample) const
+void ComputeTrailEmitter::Insert_TrailSamplesForFrame(const EffectTrailSample& trailSample)
 {
     if (!_desc.spawnPerUnit.enabled)
-        return true;
+    {
+        Insert_TrailSample(trailSample, 0.f);
+        return;
+    }
 
     if (_history.empty())
-        return true;
-
-    if (_desc.spawnPerUnit.unitDistance > 0.f)
     {
-        const float distanceFromLastSample = Internal::Compute_TrailCenterDistance(_history.front().sample, trailSample);
-        if (distanceFromLastSample < _desc.spawnPerUnit.unitDistance)
-            return false;
+        Insert_TrailSample(trailSample, 0.f);
+        return;
     }
 
-    if (_desc.spawnPerUnit.maxSampleRate > 0.f)
+    const TrailHistorySample previousHead = _history.front();
+    const float distanceFromLastSample = Internal::Compute_TrailCenterDistance(previousHead.sample, trailSample);
+    if (distanceFromLastSample < _desc.spawnPerUnit.movementTolerance)
+        return;
+
+    if (_desc.spawnPerUnit.maxFrameDistance > 0.f &&
+        distanceFromLastSample > _desc.spawnPerUnit.maxFrameDistance)
     {
-        const float minInsertInterval = 1.f / _desc.spawnPerUnit.maxSampleRate;
-        if (_secondsSinceLastInsertedSample < minInsertInterval)
-            return false;
+        _history.clear();
+        Insert_TrailSample(trailSample, 0.f);
+        return;
     }
 
-    return true;
+    const float sampleDensity = _desc.spawnPerUnit.spawnPerUnit / max(_desc.spawnPerUnit.unitScalar, 1e-4f);
+    if (sampleDensity <= 0.f)
+    {
+        Insert_TrailSample(trailSample, 0.f);
+        return;
+    }
+
+    const uint32 stepCount = min(
+        max(1u, static_cast<uint32>(ceilf(distanceFromLastSample * sampleDensity))),
+        kMaxSpawnPerUnitFrameSamples
+    );
+
+    for (uint32 step = 1u; step <= stepCount; ++step)
+    {
+        const float ratio = static_cast<float>(step) / static_cast<float>(stepCount);
+        const EffectTrailSample interpolatedSample = Internal::Lerp_TrailSample(previousHead.sample, trailSample, ratio);
+        const float interpolatedAge = previousHead.age * (1.f - ratio);
+        Insert_TrailSample(interpolatedSample, interpolatedAge);
+    }
 }
 
-void ComputeTrailEmitter::Insert_TrailSample(const EffectTrailSample& trailSample)
+void ComputeTrailEmitter::Insert_TrailSample(const EffectTrailSample& trailSample, float age)
 {
-    _history.insert(_history.begin(), TrailHistorySample{ trailSample, 0.f });
-    _secondsSinceLastInsertedSample = 0.f;
+    _history.insert(_history.begin(), TrailHistorySample{ trailSample, max(0.f, age) });
 }
 
 void ComputeTrailEmitter::Build_RenderSamples(vector<TrailRenderSample>& outSamples) const
@@ -811,6 +843,12 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         0.f,
         0.f
     );
+    const Vec4 effectTrailUVModeParams = Vec4(
+        static_cast<float>(static_cast<uint32>(_desc.material.mainUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(_desc.material.noiseUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(_desc.material.maskUVTilingMode)),
+        0.f
+    );
 
     const int opacitySourceIndex = Resolve_OpacitySourceIndex();
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailParams", &effectTrailParams, sizeof(effectTrailParams)), E_FAIL);
@@ -819,6 +857,7 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailNoiseUVParams", &effectTrailNoiseUVParams, sizeof(effectTrailNoiseUVParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaskUVParams", &effectTrailMaskUVParams, sizeof(effectTrailMaskUVParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVPolicyParams", &effectTrailUVPolicyParams, sizeof(effectTrailUVPolicyParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVModeParams", &effectTrailUVModeParams, sizeof(effectTrailUVModeParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
     return S_OK;
