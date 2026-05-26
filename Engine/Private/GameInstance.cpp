@@ -57,6 +57,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
         engineDesc.winMode,
         engineDesc.viewportWidth,
         engineDesc.viewportHeight,
+        engineDesc.swapEffect,
         device,
         context
     );

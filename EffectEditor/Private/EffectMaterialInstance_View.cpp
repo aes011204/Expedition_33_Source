@@ -1,12 +1,10 @@
 ﻿#include "EffectMaterialInstance_View.h"
 
-#include <shobjidl.h>
-
+#include "DetailPropertyContext.h"
 #include "EffectEditorInstance.h"
 #include "EffectMaterialPreviewRenderer.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
-#include "DetailPropertyContext.h"
 #include "Helper_String.h"
 #include "Notification_Manager.h"
 #include "Texture.h"
@@ -15,8 +13,8 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr const char* kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
-    constexpr const wchar_t* kTextureDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Textures";
+    constexpr auto kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
+    constexpr auto kTextureDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Textures";
 
     string textureAssignStatus{};
 
@@ -186,14 +184,12 @@ namespace Internal
 
         if (switchedToDds)
         {
-            string sourcePath = Make_ResourceRelativePath(filePath);
+            const string sourcePath = Make_ResourceRelativePath(filePath);
             textureAssignStatus = "Texture switched PNG -> DDS: " + sourcePath + " -> " + texturePath;
             Notify_TextureAssignment(NotifyType::Info, textureAssignStatus);
         }
         else
-        {
             textureAssignStatus = "Texture assigned: " + texturePath;
-        }
 
         if (textureGuid.empty())
             Notify_TextureAssignment(NotifyType::Warning, textureAssignStatus + " (GUID cache unavailable)");
@@ -397,10 +393,10 @@ namespace Internal
         const bool isWarningReference = Is_WarningTextureReference(textureGuid, texturePath);
         const ImU32 fillColor = isWarningReference
                                 ? (isHovered || isTextureDragging ? IM_COL32(58, 32, 34, 255) : IM_COL32(34, 22, 24, 255))
-                                : (isHovered || isTextureDragging ? IM_COL32(34, 42, 58, 255) : IM_COL32(22, 25, 32, 255));
+                                : isHovered || isTextureDragging ? IM_COL32(34, 42, 58, 255) : IM_COL32(22, 25, 32, 255);
         const ImU32 borderColor = isWarningReference
                                   ? IM_COL32(214, 86, 96, 255)
-                                  : (isHovered || isTextureDragging ? IM_COL32(116, 156, 235, 255) : IM_COL32(78, 88, 108, 255));
+                                  : isHovered || isTextureDragging ? IM_COL32(116, 156, 235, 255) : IM_COL32(78, 88, 108, 255);
         const ImU32 textColor = isWarningReference
                                 ? IM_COL32(255, 190, 196, 255)
                                 : IM_COL32(220, 226, 238, 255);
@@ -527,6 +523,374 @@ namespace Internal
         ImGui::PopID();
         return changed;
     }
+
+    static const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
+    {
+        switch (value)
+        {
+        case EffectMaterialBlendMode::AlphaBlend:
+            return "AlphaBlend";
+        case EffectMaterialBlendMode::Additive:
+            return "Additive";
+        case EffectMaterialBlendMode::Modulate:
+            return "Modulate";
+        default:
+            return "AlphaBlend";
+        }
+    }
+
+    bool Draw_BlendModeProperty(
+        DetailPropertyContext& detailContext,
+        EffectMaterialBlendMode& value,
+        EffectMaterialBlendMode defaultValue)
+    {
+        static constexpr EffectMaterialBlendMode kModes[]{
+            EffectMaterialBlendMode::AlphaBlend,
+            EffectMaterialBlendMode::Additive,
+            EffectMaterialBlendMode::Modulate
+        };
+
+        ImGui::PushID("Blend Mode");
+        detailContext.Draw_PropertyLabel("Blend Mode");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        bool changed = false;
+
+        if (ImGui::BeginCombo("##Value", Get_BlendModeLabel(value)))
+        {
+            for (EffectMaterialBlendMode mode : kModes)
+            {
+                const bool selected = value == mode;
+                const bool selectable =
+                    mode == EffectMaterialBlendMode::AlphaBlend ||
+                    mode == EffectMaterialBlendMode::Additive;
+
+                if (!selectable)
+                    ImGui::BeginDisabled();
+
+                if (ImGui::Selectable(Get_BlendModeLabel(mode), selected) && selectable)
+                {
+                    value = mode;
+                    changed = true;
+                }
+
+                if (!selectable)
+                    ImGui::EndDisabled();
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        if (resetClicked)
+        {
+            value = defaultValue;
+            changed = true;
+        }
+
+        ImGui::PopID();
+        return changed;
+    }
+
+    const char* Get_AdditiveColorSourceLabel(EffectMaterialAdditiveColorSource value)
+    {
+        switch (value)
+        {
+        case EffectMaterialAdditiveColorSource::MainRGB:
+            return "Main RGB";
+        case EffectMaterialAdditiveColorSource::TintedRGB:
+            return "Tinted RGB";
+        case EffectMaterialAdditiveColorSource::EmissiveColor:
+            return "Emissive Color";
+        case EffectMaterialAdditiveColorSource::ConstantColor:
+            return "Constant Color";
+        default:
+            return "Main RGB";
+        }
+    }
+
+    const char* Get_AdditiveAmountSourceLabel(EffectMaterialAdditiveAmountSource value)
+    {
+        switch (value)
+        {
+        case EffectMaterialAdditiveAmountSource::Alpha:
+            return "Alpha";
+        case EffectMaterialAdditiveAmountSource::Red:
+            return "Red";
+        case EffectMaterialAdditiveAmountSource::Luminance:
+            return "Luminance";
+        case EffectMaterialAdditiveAmountSource::Mask:
+            return "Mask";
+        case EffectMaterialAdditiveAmountSource::One:
+            return "One";
+        default:
+            return "Alpha";
+        }
+    }
+
+    const char* Get_AdditiveCoveragePolicyLabel(EffectMaterialAdditiveCoveragePolicy value)
+    {
+        switch (value)
+        {
+        case EffectMaterialAdditiveCoveragePolicy::AmountOnly:
+            return "Amount Only";
+        case EffectMaterialAdditiveCoveragePolicy::CoverageAndAmount:
+            return "Coverage And Amount";
+        case EffectMaterialAdditiveCoveragePolicy::Independent:
+            return "Independent";
+        default:
+            return "Amount Only";
+        }
+    }
+
+    template <typename EnumType>
+    bool Draw_EnumComboProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        EnumType& value,
+        EnumType defaultValue,
+        const EnumType* options,
+        size_t optionCount,
+        const char* (*getLabel)(EnumType))
+    {
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        bool changed = false;
+
+        if (ImGui::BeginCombo("##Value", getLabel(value)))
+        {
+            for (size_t i = 0; i < optionCount; ++i)
+            {
+                const EnumType option = options[i];
+                const bool selected = value == option;
+                if (ImGui::Selectable(getLabel(option), selected))
+                {
+                    value = option;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        if (resetClicked)
+        {
+            value = defaultValue;
+            changed = true;
+        }
+
+        ImGui::PopID();
+        return changed;
+    }
+
+    bool Draw_AdditivePresetProperty(DetailPropertyContext& detailContext, EffectMaterialAdditiveContributionData& additive)
+    {
+        struct AdditivePreset
+        {
+            const char* label{};
+            EffectMaterialAdditiveContributionData data{};
+        };
+
+        static const AdditivePreset kPresets[]{
+            {
+                "RGB Additive",
+                EffectMaterialAdditiveContributionData{
+                    .colorSource = EffectMaterialAdditiveColorSource::MainRGB,
+                    .amountSource = EffectMaterialAdditiveAmountSource::Alpha
+                }
+            },
+            {
+                "Tinted RGB Additive",
+                EffectMaterialAdditiveContributionData{
+                    .colorSource = EffectMaterialAdditiveColorSource::TintedRGB,
+                    .amountSource = EffectMaterialAdditiveAmountSource::Alpha
+                }
+            },
+            {
+                "Emissive Additive",
+                EffectMaterialAdditiveContributionData{
+                    .colorSource = EffectMaterialAdditiveColorSource::EmissiveColor,
+                    .amountSource = EffectMaterialAdditiveAmountSource::Alpha
+                }
+            },
+            {
+                "Channel Packed Additive",
+                EffectMaterialAdditiveContributionData{
+                    .colorSource = EffectMaterialAdditiveColorSource::ConstantColor,
+                    .amountSource = EffectMaterialAdditiveAmountSource::Red
+                }
+            },
+            {
+                "Unmasked Additive",
+                EffectMaterialAdditiveContributionData{
+                    .colorSource = EffectMaterialAdditiveColorSource::MainRGB,
+                    .amountSource = EffectMaterialAdditiveAmountSource::One
+                }
+            },
+        };
+
+        ImGui::PushID("Additive Preset");
+        detailContext.Draw_PropertyLabel("Preset");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", "Apply preset..."))
+        {
+            for (const AdditivePreset& preset : kPresets)
+            {
+                if (ImGui::Selectable(preset.label))
+                {
+                    additive = preset.data;
+                    changed = true;
+                }
+            }
+
+            ImGui::EndCombo();
+        }
+
+        detailContext.Draw_ResetButton(false);
+        ImGui::PopID();
+        return changed;
+    }
+
+    bool Draw_AdditiveContributionPanel(
+        DetailPropertyContext& detailContext,
+        EffectMaterialAdditiveContributionData& additive,
+        const EffectMaterialAdditiveContributionData& defaultAdditive)
+    {
+        bool changed = false;
+        if (!ImGui::TreeNodeEx("Additive Contribution", ImGuiTreeNodeFlags_DefaultOpen))
+            return changed;
+
+        if (detailContext.Begin_PropertyTable("EffectMaterialInstanceAdditiveContribution"))
+        {
+            static constexpr EffectMaterialAdditiveColorSource kColorSources[]{
+                EffectMaterialAdditiveColorSource::MainRGB,
+                EffectMaterialAdditiveColorSource::TintedRGB,
+                EffectMaterialAdditiveColorSource::EmissiveColor,
+                EffectMaterialAdditiveColorSource::ConstantColor
+            };
+            static constexpr EffectMaterialAdditiveAmountSource kAmountSources[]{
+                EffectMaterialAdditiveAmountSource::Alpha,
+                EffectMaterialAdditiveAmountSource::Red,
+                EffectMaterialAdditiveAmountSource::Luminance,
+                EffectMaterialAdditiveAmountSource::Mask,
+                EffectMaterialAdditiveAmountSource::One
+            };
+            static constexpr EffectMaterialAdditiveCoveragePolicy kCoveragePolicies[]{
+                EffectMaterialAdditiveCoveragePolicy::AmountOnly,
+                EffectMaterialAdditiveCoveragePolicy::CoverageAndAmount,
+                EffectMaterialAdditiveCoveragePolicy::Independent
+            };
+
+            changed |= Draw_AdditivePresetProperty(detailContext, additive);
+            changed |= Draw_EnumComboProperty(
+                detailContext,
+                "Color Source",
+                additive.colorSource,
+                defaultAdditive.colorSource,
+                kColorSources,
+                std::size(kColorSources),
+                Get_AdditiveColorSourceLabel
+            );
+            changed |= Draw_EnumComboProperty(
+                detailContext,
+                "Amount Source",
+                additive.amountSource,
+                defaultAdditive.amountSource,
+                kAmountSources,
+                std::size(kAmountSources),
+                Get_AdditiveAmountSourceLabel
+            );
+            changed |= Draw_EnumComboProperty(
+                detailContext,
+                "Coverage Policy",
+                additive.coveragePolicy,
+                defaultAdditive.coveragePolicy,
+                kCoveragePolicies,
+                std::size(kCoveragePolicies),
+                Get_AdditiveCoveragePolicyLabel
+            );
+            changed |= detailContext.Draw_ColorProperty("Emissive Color", additive.emissiveColor, defaultAdditive.emissiveColor);
+            changed |= detailContext.Draw_ColorProperty("Constant Color", additive.constantColor, defaultAdditive.constantColor);
+            changed |= detailContext.Draw_FloatProperty("Intensity Scale", additive.intensityScale, defaultAdditive.intensityScale);
+            changed |= detailContext.Draw_BoolProperty("Black Neutral", additive.blackNeutral, defaultAdditive.blackNeutral);
+            detailContext.End_PropertyTable();
+        }
+
+        ImGui::TreePop();
+        return changed;
+    }
+
+    const char* Get_UVTilingModeLabel(EffectTextureUVTilingMode value)
+    {
+        switch (value)
+        {
+        case EffectTextureUVTilingMode::Wrap:
+            return "Wrap";
+        case EffectTextureUVTilingMode::Stretch:
+            return "Stretch";
+        case EffectTextureUVTilingMode::Clamp:
+            return "Clamp";
+        case EffectTextureUVTilingMode::Raw:
+            return "Raw";
+        default:
+            return "Wrap";
+        }
+    }
+
+    bool Draw_UVTilingModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        EffectTextureUVTilingMode& value,
+        EffectTextureUVTilingMode defaultValue)
+    {
+        static constexpr EffectTextureUVTilingMode kModes[]{
+            EffectTextureUVTilingMode::Wrap,
+            EffectTextureUVTilingMode::Stretch,
+            EffectTextureUVTilingMode::Clamp,
+            EffectTextureUVTilingMode::Raw
+        };
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        bool changed = false;
+
+        if (ImGui::BeginCombo("##Value", Get_UVTilingModeLabel(value)))
+        {
+            for (EffectTextureUVTilingMode mode : kModes)
+            {
+                const bool selected = value == mode;
+                if (ImGui::Selectable(Get_UVTilingModeLabel(mode), selected))
+                {
+                    value = mode;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        if (resetClicked)
+        {
+            value = defaultValue;
+            changed = true;
+        }
+
+        ImGui::PopID();
+        return changed;
+    }
 }
 
 EffectMaterialInstance_View::EffectMaterialInstance_View()
@@ -536,6 +900,28 @@ EffectMaterialInstance_View::EffectMaterialInstance_View()
 }
 
 EffectMaterialInstance_View::~EffectMaterialInstance_View() = default;
+
+void EffectMaterialInstance_View::Update(float timeDelta)
+{
+    __super::Update(timeDelta);
+
+    if (Is_Open() && _previewRenderer != nullptr)
+        _previewRenderer->Update_MaterialTime(timeDelta);
+}
+
+void EffectMaterialInstance_View::Pre_Render()
+{
+    if (!Is_Open() || _previewRenderer == nullptr)
+        return;
+
+    Shared<Emitter_View> emitterView{};
+    AuthoringEmitter* emitter{ nullptr };
+    RequiredModuleData* requiredData{ nullptr };
+    if (!Resolve_Target(emitterView, emitter, requiredData))
+        return;
+
+    _previewRenderer->Render_Material(requiredData->material);
+}
 
 void EffectMaterialInstance_View::Render()
 {
@@ -565,6 +951,7 @@ void EffectMaterialInstance_View::Render()
             ImGui::Separator();
 
             bool changed = false;
+            bool restartPreview = false;
             const float contentWidth = ImGui::GetContentRegionAvail().x;
             const bool useSideBySideLayout = contentWidth >= 760.f;
             const EffectAuthoringSelection selection{
@@ -596,7 +983,7 @@ void EffectMaterialInstance_View::Render()
 
                 ImGui::BeginChild("EffectMaterialInstancePropertyPane", ImVec2(0.f, 0.f), false);
                 {
-                    changed |= Draw_InstanceProperties(requiredData->material);
+                    changed |= Draw_InstanceProperties(requiredData->material, &restartPreview);
                 }
                 ImGui::EndChild();
             }
@@ -612,13 +999,16 @@ void EffectMaterialInstance_View::Render()
                     ImGui::Separator();
                 }
 
-                changed |= Draw_InstanceProperties(requiredData->material);
+                changed |= Draw_InstanceProperties(requiredData->material, &restartPreview);
             }
 
             if (changed)
             {
                 Apply_MaterialChanged(emitterView, *emitter, *requiredData);
                 Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Material Instance");
+
+                if (restartPreview && EDITOR != nullptr)
+                    EDITOR->Request_RestartPreview();
             }
 
             Commit_PendingAuthoringEditIfIdle(emitterView);
@@ -627,20 +1017,6 @@ void EffectMaterialInstance_View::Render()
 
     Set_Open(isOpen);
     ImGui::End();
-}
-
-void EffectMaterialInstance_View::Pre_Render()
-{
-    if (!Is_Open() || _previewRenderer == nullptr)
-        return;
-
-    Shared<Emitter_View> emitterView{};
-    AuthoringEmitter* emitter{ nullptr };
-    RequiredModuleData* requiredData{ nullptr };
-    if (!Resolve_Target(emitterView, emitter, requiredData))
-        return;
-
-    _previewRenderer->Render_Material(requiredData->material);
 }
 
 void EffectMaterialInstance_View::Open_Instance(uint32 emitterId, uint32 moduleId)
@@ -679,10 +1055,11 @@ bool EffectMaterialInstance_View::Resolve_Target(
     return outRequiredData != nullptr;
 }
 
-bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstanceData& material)
+bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstanceData& material, bool* outRestartPreview)
 {
     const EffectMaterialInstanceData defaultData{};
     bool changed = false;
+    bool restartPreview = false;
 
     if (ImGui::CollapsingHeader("Texture", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -733,16 +1110,28 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
         }
     }
 
-    if (ImGui::CollapsingHeader("UV Motion", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("UV", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceUVMotion"))
+        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceUV"))
         {
-            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scale", material.mainUvScale, defaultData.mainUvScale);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed", material.mainUvScrollSpeed, defaultData.mainUvScrollSpeed);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scale", material.noiseUvScale, defaultData.noiseUvScale);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed", material.noiseUvScrollSpeed, defaultData.noiseUvScrollSpeed);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scale", material.maskUvScale, defaultData.maskUvScale);
-            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scroll Speed", material.maskUvScrollSpeed, defaultData.maskUvScrollSpeed);
+            const bool mainModeChanged = Internal::Draw_UVTilingModeProperty(_detailPropertyContext, "Main UV Tiling Mode", material.mainUVTilingMode, defaultData.mainUVTilingMode);
+            changed |= mainModeChanged;
+            restartPreview |= mainModeChanged;
+            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scale", material.mainUVScale, defaultData.mainUVScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Offset", material.mainUVOffset, defaultData.mainUVOffset);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed", material.mainUVScrollSpeed, defaultData.mainUVScrollSpeed);
+            const bool noiseModeChanged = Internal::Draw_UVTilingModeProperty(_detailPropertyContext, "Noise UV Tiling Mode", material.noiseUVTilingMode, defaultData.noiseUVTilingMode);
+            changed |= noiseModeChanged;
+            restartPreview |= noiseModeChanged;
+            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scale", material.noiseUVScale, defaultData.noiseUVScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Offset", material.noiseUVOffset, defaultData.noiseUVOffset);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed", material.noiseUVScrollSpeed, defaultData.noiseUVScrollSpeed);
+            const bool maskModeChanged = Internal::Draw_UVTilingModeProperty(_detailPropertyContext, "Mask UV Tiling Mode", material.maskUVTilingMode, defaultData.maskUVTilingMode);
+            changed |= maskModeChanged;
+            restartPreview |= maskModeChanged;
+            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scale", material.maskUVScale, defaultData.maskUVScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Offset", material.maskUVOffset, defaultData.maskUVOffset);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scroll Speed", material.maskUVScrollSpeed, defaultData.maskUVScrollSpeed);
             _detailPropertyContext.End_PropertyTable();
         }
     }
@@ -751,31 +1140,37 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
     {
         if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceOptions"))
         {
-            constexpr const char* blendModeOptions[]{ "AlphaBlend", "Additive" };
             constexpr const char* opacitySourceOptions[]{ "Alpha", "Red", "Luminance" };
 
-            changed |= Internal::Draw_StringComboProperty(
-                _detailPropertyContext,
-                "Blend Mode",
-                material.blendMode,
-                defaultData.blendMode,
-                blendModeOptions,
-                sizeof(blendModeOptions) / sizeof(blendModeOptions[0])
-            );
-            changed |= Internal::Draw_StringComboProperty(
-                _detailPropertyContext,
-                "Opacity Source",
-                material.opacitySource,
-                defaultData.opacitySource,
-                opacitySourceOptions,
-                sizeof(opacitySourceOptions) / sizeof(opacitySourceOptions[0])
-            );
-            changed |= _detailPropertyContext.Draw_BoolProperty("Two Sided", material.twoSided, defaultData.twoSided);
+            changed |= Internal::Draw_BlendModeProperty(_detailPropertyContext, material.blendMode, defaultData.blendMode);
+            if (material.blendMode != EffectMaterialBlendMode::Additive)
+            {
+                changed |= Internal::Draw_StringComboProperty(
+                    _detailPropertyContext,
+                    "Opacity Source",
+                    material.opacitySource,
+                    defaultData.opacitySource,
+                    opacitySourceOptions,
+                    sizeof(opacitySourceOptions) / sizeof(opacitySourceOptions[0])
+                );
+            }
+            _detailPropertyContext.End_PropertyTable();
+        }
+
+        if (material.blendMode == EffectMaterialBlendMode::Additive)
+            changed |= Internal::Draw_AdditiveContributionPanel(_detailPropertyContext, material.additive, defaultData.additive);
+
+        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceOptionsTail"))
+        {
+            changed |= _detailPropertyContext.Draw_BoolProperty("Two Sided (미소비)", material.twoSided, defaultData.twoSided);
             changed |= _detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
             changed |= _detailPropertyContext.Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
             _detailPropertyContext.End_PropertyTable();
         }
     }
+
+    if (outRestartPreview != nullptr)
+        *outRestartPreview = restartPreview;
 
     return changed;
 }

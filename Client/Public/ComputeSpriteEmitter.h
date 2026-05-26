@@ -45,8 +45,6 @@ private: //## Types::PlaybackRuntime
 private: //## Static Values
     static constexpr const char* kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     static constexpr const char* kEffectSpriteShaderId{ "Shader_EffectSprite" };
-    static constexpr uint32 kEffectSpriteAlphaBlendPass{ 0 };
-    static constexpr uint32 kEffectSpriteAdditivePass{ 1 };
     static constexpr int kOpacitySourceAlpha{ 0 };
     static constexpr int kOpacitySourceRed{ 1 };
     static constexpr int kOpacitySourceLuminance{ 2 };
@@ -55,12 +53,12 @@ private: //## Data::Components
     Shared<ShaderCom> _shader{};                          // EffectSprite material effect shader.
     Shared<Texture> _texture{};                           // compute sprite effect main texture.
     Shared<Texture> _noiseTexture{};                      // 선택 noise texture. 없으면 material noise를 비활성화한다.
+    Shared<Texture> _maskTexture{};                       // 선택 mask texture. 없으면 material mask/erosion을 비활성화한다.
     Shared<VIBufferCom_ComputePointParticle> _viBuffer{}; // compute output을 instance draw로 제출하는 검증 버퍼.
 
 private: //## Data::Desc
     ComputeSpriteEmitterDesc _desc{};               // clone 생성 시 전달받은 compute sprite emitter 규칙이다.
     int _opacitySourceIndex{ kOpacitySourceAlpha }; // shader opacity source selector.
-    uint32 _effectSpritePassIndex{ kEffectSpriteAlphaBlendPass }; // material blend mode가 선택한 EffectSprite pass다.
 
 private: //## Data::SpawnRuntime
     vector<bool> _burstExecuted{}; // burst 목록의 1회 실행 여부를 emitter runtime 동안 유지한다.
@@ -78,12 +76,13 @@ private: //## Helper::Setup
     HRESULT Ready_TextureComponent(string& outResolvedTexturePath);          // compute sprite main texture를 준비하고 fallback 결과를 기록한다.
     HRESULT Ready_ShaderComponent();                                         // compute sprite effect가 사용할 EffectSprite shader를 준비한다.
     HRESULT Ready_NoiseTextureComponent(const string& resolvedTexturePath);  // 선택 noise texture를 준비하고 없으면 noise path를 비활성화한다.
+    HRESULT Ready_MaskTextureComponent(const string& resolvedTexturePath);   // 선택 mask texture를 준비하고 없으면 alpha mask를 비활성화한다.
 
 private: //## Helper::Render
     HRESULT Bind_ShaderResources();         // EffectSprite shader에 camera/texture resource를 바인딩한다.
     HRESULT Bind_MaterialResources();       // EffectSprite material 파라미터를 shader에 바인딩한다.
     int Resolve_OpacitySourceIndex() const; // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
-    uint32 Resolve_EffectSpritePassIndex() const; // authoring blendMode 문자열을 EffectSprite pass로 변환한다.
+    uint32 Resolve_BlendPassIndex() const;  // material blend mode에 맞는 EffectSprite shader pass를 고른다.
 
 private: //## Helper::Desc
     ComputePointParticleDesc Make_ComputePointParticleDesc() const; // compute sprite effect용 particle 규칙을 만든다.

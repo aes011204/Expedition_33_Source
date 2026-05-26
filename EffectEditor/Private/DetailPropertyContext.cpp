@@ -730,7 +730,7 @@ private: //## Distribution Types
 private: //## Dependencies
     BasicDetailPropertyDrawer& _basicDrawer;
 
-private:  //## Color Helpers
+private: //## Color Helpers
     static ImVec4 Lerp_Color(const ImVec4& lhs, const ImVec4& rhs, float t)
     {
         return ImVec4{

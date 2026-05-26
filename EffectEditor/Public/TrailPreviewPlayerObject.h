@@ -20,6 +20,7 @@ public:
 public: //## Lifecycle
     HRESULT Initialize_Prototype() override { return S_OK; }
     HRESULT Initialize(void* arg) override;
+    void BeginPlay() override;
 
 public: //## Accessor::Preview
     Shared<TrailPreviewWeaponObject> Get_PreviewWeapon() const;

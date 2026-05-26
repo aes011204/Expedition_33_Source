@@ -91,6 +91,7 @@ float3 SampleRange3(float3 minValue, float3 maxValue, uint seed)
     );
 }
 
+// emitter local 축 기준 값을 월드 방향 오프셋으로 변환한다.
 float3 ResolveEmitterBasisVector(float3 localValue)
 {
     const float rightLength = length(g_EmitterBasisRight.xyz);
@@ -102,6 +103,7 @@ float3 ResolveEmitterBasisVector(float3 localValue)
     return right * localValue.x + up * localValue.y + look * localValue.z;
 }
 
+// sphere location 설정에 따라 구 내부 spawn 오프셋을 샘플링한다.
 float3 SampleSphereLocationOffset(uint seed)
 {
     const float radius = max(0.0f, g_SphereLocationOffsetRadius.w);
@@ -118,12 +120,13 @@ float3 SampleSphereLocationOffset(uint seed)
     return ResolveEmitterBasisVector(g_SphereLocationOffsetRadius.xyz + direction * radius * distanceScale) * enabled;
 }
 
-// 선형 start/end life 배율을 현재 lifeProgress까지 누적 이동/회전에 쓸 (적분) 평균 배율로 바꾼다.
+// life에 따라 선형 변화하는 배율을 누적 이동/회전에 쓸 평균값으로 바꾼다.
 float IntegrateLifeScale(float scaleStart, float scaleEnd, float lifeProgress)
 {
     return scaleStart + 0.5f * (scaleEnd - scaleStart) * lifeProgress;
 }
 
+// 수명 min/max 범위에서 이번 particle의 최대 수명을 샘플링한다.
 float SampleLifeMax(uint seed)
 {
     const float lifeMin = max(0.0001f, min(g_LifeTimeParams.x, g_LifeTimeParams.y));

@@ -91,7 +91,7 @@ HRESULT PointParticleEffect::Ready_TextureComponent(string& resolvedTextureId)
                                       : _desc.textureId;
     const wstring requestedTextureTag = String::ToWString(requestedTextureId);
 
-    if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), requestedTextureTag, _texture)))
+    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), requestedTextureTag, _texture)))
     {
         if (requestedTextureId == kFallbackTextureId)
         {
@@ -105,7 +105,7 @@ HRESULT PointParticleEffect::Ready_TextureComponent(string& resolvedTextureId)
             kFallbackTextureId
         );
 
-        if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), String::ToWString(kFallbackTextureId), _texture)))
+        if (FAILED(__super::Add_Component(ETOI(LevelType::Static), String::ToWString(kFallbackTextureId), _texture)))
         {
             LOG_WARN("PointParticleEffect fallback texture resolve failed. textureId='{}'", kFallbackTextureId);
             return E_FAIL;
@@ -152,7 +152,7 @@ HRESULT PointParticleEffect::Ready_NoiseTextureComponent(const string& resolvedT
         return S_OK;
     }
 
-    if (FAILED(__super::Add_Component(ETOI(LevelType::GamePlay), String::ToWString(_desc.noiseTextureId), _noiseTexture)))
+    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), String::ToWString(_desc.noiseTextureId), _noiseTexture)))
     {
         LOG_WARN(
             "PointParticleEffect failed to resolve noiseTextureId='{}'. Noise modulation is disabled.",

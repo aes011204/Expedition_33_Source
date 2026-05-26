@@ -3,11 +3,17 @@
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_EffectMaterial.hlsl"
 
 cbuffer cbEffectSpriteMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f }; // x: emissive-like intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f }; // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectSpriteAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
+    float4 g_EffectSpriteAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
+    float4 g_EffectSpriteAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
+    float4 g_EffectSpriteAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
     int g_OpacitySource = 0;
     float3 g_EffectSpritePadding;
 };
@@ -23,6 +29,7 @@ cbuffer cbEffectSpriteRuntime : register(b3)
 
 Texture2D g_Texture : register(t0); // sprite effect의 primary texture다. 현재 경로에서는 RGB를 emissive-like color source로 해석한다.
 Texture2D g_NoiseTexture : register(t1);
+Texture2D g_MaskTexture : register(t2);
 
 struct VS_IN
 {
@@ -85,6 +92,7 @@ struct GS_OUT
     float4 subUVRect : TEXCOORD2;
 };
 
+// 파티클 위치에서 카메라를 향하는 정규화 look 방향을 구한다.
 float3 ResolveFacingLookDirection(float3 particlePosition)
 {
     float3 lookDir = g_CamPosition.xyz - particlePosition;
@@ -92,6 +100,7 @@ float3 ResolveFacingLookDirection(float3 particlePosition)
     return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
 }
 
+// emitter 중심에서 바깥쪽을 향하는 정규화 look 방향을 구한다.
 float3 ResolveAwayFromCenterLookDirection(float3 particlePosition)
 {
     float3 lookDir = particlePosition - g_EffectSpriteEmitterCenter.xyz;
@@ -99,6 +108,7 @@ float3 ResolveAwayFromCenterLookDirection(float3 particlePosition)
     return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
 }
 
+// look 방향을 기준으로 billboard right/up 축을 만든다.
 void ResolveLookAlignedBasis(float3 lookDir, out float3 rightDir, out float3 upDir)
 {
     float3 worldUp = float3(0.f, 1.f, 0.f);
@@ -111,12 +121,14 @@ void ResolveLookAlignedBasis(float3 lookDir, out float3 rightDir, out float3 upD
     upDir = normalize(cross(lookDir, rightDir));
 }
 
+// 현재 카메라 평면 기준의 right/up 축을 가져온다.
 void ResolveCameraPlaneBasis(out float3 rightDir, out float3 upDir)
 {
     rightDir = normalize(float3(g_ViewMatrix[0].x, g_ViewMatrix[1].x, g_ViewMatrix[2].x));
     upDir = normalize(float3(g_ViewMatrix[0].y, g_ViewMatrix[1].y, g_ViewMatrix[2].y));
 }
 
+// texture 축 하나를 지정 방향에 맞추는 billboard basis를 시도한다.
 bool TryResolveTextureAxisBasis(float3 axisDir, out float3 rightDir, out float3 upDir)
 {
     ResolveCameraPlaneBasis(rightDir, upDir);
@@ -253,7 +265,50 @@ struct PS_OUT
     float4 color : SV_TARGET0;
 };
 
+EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
+{
+    EffectMaterialSurface surface = (EffectMaterialSurface)0;
+
+    const float lifeMax = max(In.lifeTime.x, 0.0001f);
+    const float lifeProgress = saturate(In.lifeTime.y / lifeMax);
+    const float4 particleColor = lerp(In.startColor, In.endColor, lifeProgress);
+    const float2 sampleUV = lerp(In.subUVRect.xy, In.subUVRect.zw, In.texCoord);
+    const float4 symbol = g_Texture.Sample(LinearClampSampler, sampleUV);
+    const float opacityPower = max(g_EffectSpriteParams.y, 0.0001f);
+    const float alphaCutoff = saturate(g_EffectSpriteAlphaParams.x);
+    const float alphaErosion = saturate(g_EffectSpriteAlphaParams.y);
+    const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
+    float noiseFactor = 1.f;
+    float maskAlpha = 1.f;
+
+    if (0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f)
+    {
+        const float noise = g_NoiseTexture.Sample(LinearClampSampler, sampleUV).r;
+        noiseFactor = lerp(1.f, noise, saturate(g_EffectSpriteParams.z));
+    }
+
+    if (0 != g_EffectSpriteAlphaParams.z)
+        maskAlpha = g_MaskTexture.Sample(LinearClampSampler, sampleUV).a;
+
+    const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
+    surface.color = symbol.rgb * particleColor.rgb * g_Tint.rgb * noiseFactor;
+    surface.coverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, particleColor.a * g_Tint.a);
+
+    if (surface.coverage < max(alphaCutoff, 0.01f))
+        discard;
+
+    return surface;
+}
+
 PS_OUT PS_MAIN(PS_IN In)
+{
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
+    Out.color = Effect_ComposeAlphaBlend(surface, g_EffectSpriteParams.x);
+    return Out;
+}
+
+PS_OUT PS_ADDITIVE(PS_IN In)
 {
     PS_OUT Out = (PS_OUT)0;
 
@@ -262,14 +317,10 @@ PS_OUT PS_MAIN(PS_IN In)
     const float4 particleColor = lerp(In.startColor, In.endColor, lifeProgress);
     const float2 sampleUV = lerp(In.subUVRect.xy, In.subUVRect.zw, In.texCoord);
     const float4 symbol = g_Texture.Sample(LinearClampSampler, sampleUV);
-    const float opacityPower = max(g_EffectSpriteParams.y, 0.0001f);
-    float selectedOpacity = symbol.a;
+    const float alphaCutoff = saturate(g_EffectSpriteAlphaParams.x);
+    const float alphaErosion = saturate(g_EffectSpriteAlphaParams.y);
     float noiseFactor = 1.f;
-
-    if (1 == g_OpacitySource)
-        selectedOpacity = symbol.r;
-    else if (2 == g_OpacitySource)
-        selectedOpacity = dot(symbol.rgb, float3(0.299f, 0.587f, 0.114f));
+    float maskAlpha = 1.f;
 
     if (0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f)
     {
@@ -277,18 +328,37 @@ PS_OUT PS_MAIN(PS_IN In)
         noiseFactor = lerp(1.f, noise, saturate(g_EffectSpriteParams.z));
     }
 
-    const float opacity = pow(saturate(selectedOpacity), opacityPower);
-    Out.color.rgb = symbol.rgb * particleColor.rgb * g_Tint.rgb * g_EffectSpriteParams.x * noiseFactor;
-    Out.color.a = opacity * particleColor.a * g_Tint.a;
+    if (0 != g_EffectSpriteAlphaParams.z)
+        maskAlpha = g_MaskTexture.Sample(LinearClampSampler, sampleUV).a;
 
-    if (Out.color.a < 0.01f)
+    const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
+    const float coverageBase = saturate(maskCoverage * noiseFactor * particleColor.a * g_Tint.a);
+    const int colorSource = (int)g_EffectSpriteAdditiveParams.x;
+    const int amountSource = (int)g_EffectSpriteAdditiveParams.y;
+    const int coveragePolicy = (int)g_EffectSpriteAdditiveParams.z;
+    const float amount = Effect_SelectAdditiveAmount(symbol, maskAlpha, amountSource);
+    const float policyAmount = Effect_ResolveAdditivePolicyAmount(amount, coverageBase, coveragePolicy);
+    const float discardSource = Effect_ResolveAdditiveDiscardSource(amount, coverageBase, coveragePolicy);
+    const float blackGate = Effect_ResolveAdditiveBlackGate(symbol.rgb, colorSource, g_EffectSpriteAdditiveFlags.x);
+
+    if (discardSource < max(alphaCutoff, 0.01f))
         discard;
 
+    const float3 materialColor = Effect_ResolveAdditiveColor(
+        symbol.rgb,
+        symbol.rgb * g_Tint.rgb,
+        g_EffectSpriteAdditiveEmissiveColor,
+        g_EffectSpriteAdditiveConstantColor,
+        colorSource
+    );
+    const float intensity = max(g_EffectSpriteParams.x, 0.f) * max(g_EffectSpriteAdditiveParams.w, 0.f);
+    const float3 contribution = materialColor * particleColor.rgb * noiseFactor * policyAmount * intensity * blackGate;
+    Out.color = float4(contribution, 1.f);
     return Out;
 }
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_AlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
-    PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_Blend, VS_MAIN, GS_MAIN, PS_MAIN)        // 1
+    PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_EffectAlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
+    PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, GS_MAIN, PS_ADDITIVE) // 1
 }

@@ -1,7 +1,5 @@
 ﻿#include "Profile_View.h"
 
-#include <cctype>
-#include <cstring>
 #include <psapi.h>
 
 #pragma comment(lib, "psapi.lib")
