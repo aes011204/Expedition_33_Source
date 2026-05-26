@@ -3,6 +3,7 @@
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_EffectMaterial.hlsl"
 
 cbuffer cbEffectTrailMaterial : register(b2)
 {
@@ -196,9 +197,9 @@ struct PS_OUT
     float4 color : SV_TARGET0;
 };
 
-PS_OUT PS_MAIN(PS_IN In)
+EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
 {
-    PS_OUT Out = (PS_OUT)0;
+    EffectMaterialSurface surface = (EffectMaterialSurface)0;
 
     const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
     const float mainUVMode = g_EffectTrailUVModeParams.x;
@@ -219,14 +220,9 @@ PS_OUT PS_MAIN(PS_IN In)
     const float opacityPower = max(g_EffectTrailParams.y, 0.0001f);
     const float alphaCutoff = saturate(g_EffectTrailAlphaParams.x);
     const float alphaErosion = saturate(g_EffectTrailAlphaParams.y);
-    float selectedOpacity = tex.a;
+    const float selectedOpacity = Effect_SelectOpacity(tex, g_OpacitySource);
     float noiseRaw = 1.f;
     float maskAlpha = 1.f;
-
-    if (1 == g_OpacitySource)
-        selectedOpacity = tex.r;
-    else if (2 == g_OpacitySource)
-        selectedOpacity = dot(tex.rgb, float3(0.299f, 0.587f, 0.114f));
 
     const float noiseStrength = saturate(g_EffectTrailParams.z);
     if (0 != g_EffectTrailParams.w && g_EffectTrailParams.z > 0.f)
@@ -242,53 +238,52 @@ PS_OUT PS_MAIN(PS_IN In)
 
     float coverage = maskAlpha;
 
-    if (alphaErosion > 0.f)
-    {
-        const float erosionSource = saturate(maskAlpha * edgeBreakup);
-        const float erosionFactor = smoothstep(alphaErosion, 1.f, erosionSource);
-        coverage *= erosionFactor;
-    }
+    coverage = Effect_ApplyAlphaErosion(coverage, maskAlpha * edgeBreakup, alphaErosion);
 
-    const float opacity = pow(saturate(selectedOpacity), opacityPower);
     const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
 
-    float4 color = float4(
-        segmentColor.rgb * g_Tint.rgb * tex.rgb,
-        segmentColor.a * g_Tint.a
+    surface.color = segmentColor.rgb * g_Tint.rgb * tex.rgb * energyVariation;
+    surface.coverage = Effect_BuildCoverage(
+        selectedOpacity,
+        opacityPower,
+        coverage,
+        breakupNoise,
+        segmentColor.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha
     );
 
-    color.rgb *= g_EffectTrailParams.x * energyVariation;
-    color.w *= opacity * coverage * breakupNoise * saturate(In.segmentParams.z) * sideAlpha;
-
-    if (color.w < max(alphaCutoff, 0.01f))
+    if (surface.coverage < max(alphaCutoff, 0.01f))
         discard;
 
-    Out.color = color;
+    return surface;
+}
 
+PS_OUT PS_MAIN(PS_IN In)
+{
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
+    Out.color = Effect_ComposeAlphaBlend(surface, g_EffectTrailParams.x);
     return Out;
 }
 
 PS_OUT PS_ADDITIVE(PS_IN In)
 {
-    PS_OUT Out = PS_MAIN(In);
-    Out.color.rgb *= saturate(Out.color.a);
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
+    Out.color = Effect_ComposeAdditive(surface, g_EffectTrailParams.x);
     return Out;
 }
 
-PS_OUT PS_MULTIPLY(PS_IN In)
+PS_OUT PS_MODULATE(PS_IN In)
 {
-    PS_OUT Out = PS_MAIN(In);
-    const float intensity = max(g_EffectTrailParams.x, 0.0001f);
-    const float3 multiplyColor = saturate(Out.color.rgb / intensity);
-    const float multiplyCoverage = dot(multiplyColor, float3(0.299f, 0.587f, 0.114f));
-    const float multiplyStrength = saturate(Out.color.a * multiplyCoverage * intensity * 0.35f);
-    Out.color.rgb = lerp(float3(1.f, 1.f, 1.f), multiplyColor, multiplyStrength);
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
+    Out.color = Effect_ComposeModulate(surface, g_EffectTrailParams.x);
     return Out;
 }
 
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_AlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
-    PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_Blend, VS_MAIN, GS_MAIN, PS_ADDITIVE)    // 1
-    PASS_RS_DS_BS_VGP(MultiplyPass, RS_CullNone, DSS_DepthRead, BS_Multiply, VS_MAIN, GS_MAIN, PS_MULTIPLY) // 2
+    PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, GS_MAIN, PS_ADDITIVE) // 1
+    PASS_RS_DS_BS_VGP(ModulatePass, RS_CullNone, DSS_DepthRead, BS_EffectModulate, VS_MAIN, GS_MAIN, PS_MODULATE) // 2
 }

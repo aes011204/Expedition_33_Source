@@ -3,6 +3,7 @@
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_EffectMaterial.hlsl"
 
 cbuffer cbEffectMaterialPreview : register(b2)
 {
@@ -94,9 +95,9 @@ struct PS_OUT
     float4 color : SV_TARGET0;
 };
 
-PS_OUT PS_MAIN(PS_IN In)
+EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
 {
-    PS_OUT Out = (PS_OUT)0;
+    EffectMaterialSurface surface = (EffectMaterialSurface)0;
 
     const float2 mainUV = Apply_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewMainUVParams);
     const float2 noiseUV = Apply_MaterialPreviewUV(In.texCoord, g_EffectMaterialPreviewNoiseUVParams);
@@ -108,14 +109,9 @@ PS_OUT PS_MAIN(PS_IN In)
     const float opacityPower = max(g_EffectMaterialPreviewParams.y, 0.0001f);
     const float alphaCutoff = saturate(g_EffectMaterialPreviewAlphaParams.x);
     const float alphaErosion = saturate(g_EffectMaterialPreviewAlphaParams.y);
-    float selectedOpacity = symbol.a;
+    const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
     float noiseRaw = 1.f;
     float maskAlpha = 1.f;
-
-    if (g_OpacitySource == 1)
-        selectedOpacity = symbol.r;
-    else if (2 == g_OpacitySource)
-        selectedOpacity = dot(symbol.rgb, float3(0.299f, 0.587f, 0.114f));
 
     const float noiseStrength = saturate(g_EffectMaterialPreviewParams.z);
     if (g_EffectMaterialPreviewParams.w != 0 && g_EffectMaterialPreviewParams.z > 0.f)
@@ -127,40 +123,40 @@ PS_OUT PS_MAIN(PS_IN In)
     const float breakupNoise = lerp(1.f, noiseRaw, noiseStrength);
     float coverage = maskAlpha;
 
-    if (alphaErosion > 0.f)
-    {
-        const float erosionSource = saturate(maskAlpha * breakupNoise);
-        const float erosionFactor = smoothstep(alphaErosion, 1.f, erosionSource);
-        coverage *= erosionFactor;
-    }
+    coverage = Effect_ApplyAlphaErosion(coverage, maskAlpha * breakupNoise, alphaErosion);
 
-    const float opacity = pow(saturate(selectedOpacity), opacityPower);
     const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
     const float facing = saturate(abs(In.normal.z) * 0.35f + 0.65f);
-    Out.color.rgb = symbol.rgb * g_Tint.rgb * g_EffectMaterialPreviewParams.x * energyVariation * facing;
-    Out.color.a = opacity * coverage * breakupNoise * g_Tint.a;
+    surface.color = symbol.rgb * g_Tint.rgb * energyVariation * facing;
+    surface.coverage = Effect_BuildCoverage(selectedOpacity, opacityPower, coverage, breakupNoise, g_Tint.a);
 
-    if (Out.color.a < max(alphaCutoff, 0.01f))
+    if (surface.coverage < max(alphaCutoff, 0.01f))
         discard;
 
+    return surface;
+}
+
+PS_OUT PS_MAIN(PS_IN In)
+{
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
+    Out.color = Effect_ComposeAlphaBlend(surface, g_EffectMaterialPreviewParams.x);
     return Out;
 }
 
 PS_OUT PS_ADDITIVE(PS_IN In)
 {
-    PS_OUT Out = PS_MAIN(In);
-    Out.color.rgb *= saturate(Out.color.a);
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
+    Out.color = Effect_ComposeAdditive(surface, g_EffectMaterialPreviewParams.x);
     return Out;
 }
 
-PS_OUT PS_MULTIPLY(PS_IN In)
+PS_OUT PS_MODULATE(PS_IN In)
 {
-    PS_OUT Out = PS_MAIN(In);
-    const float intensity = max(g_EffectMaterialPreviewParams.x, 0.0001f);
-    const float3 multiplyColor = saturate(Out.color.rgb / intensity);
-    const float multiplyCoverage = dot(multiplyColor, float3(0.299f, 0.587f, 0.114f));
-    const float multiplyStrength = saturate(Out.color.a * multiplyCoverage * intensity * 0.35f);
-    Out.color.rgb = lerp(float3(1.f, 1.f, 1.f), multiplyColor, multiplyStrength);
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
+    Out.color = Effect_ComposeModulate(surface, g_EffectMaterialPreviewParams.x);
     return Out;
 }
 
@@ -168,11 +164,11 @@ technique11 DefaultTechnique
 {
     // Plane preview
     PASS_RS_DS_BS_VP(AlphaBlendPass, RS_CullNone, DSS_Default, BS_AlphaBlend, VS_MAIN, PS_MAIN) // 0
-    PASS_RS_DS_BS_VP(AdditivePass, RS_CullNone, DSS_Default, BS_Blend, VS_MAIN, PS_ADDITIVE)    // 1
-    PASS_RS_DS_BS_VP(MultiplyPass, RS_CullNone, DSS_Default, BS_Multiply, VS_MAIN, PS_MULTIPLY) // 2
+    PASS_RS_DS_BS_VP(AdditivePass, RS_CullNone, DSS_Default, BS_EffectAdditive, VS_MAIN, PS_ADDITIVE) // 1
+    PASS_RS_DS_BS_VP(ModulatePass, RS_CullNone, DSS_Default, BS_EffectModulate, VS_MAIN, PS_MODULATE) // 2
 
     // Sphere preview
     PASS_RS_DS_BS_VP(SphereAlphaBlendPass, RS_Default, DSS_Default, BS_AlphaBlend, VS_MAIN, PS_MAIN) // 3
-    PASS_RS_DS_BS_VP(SphereAdditivePass, RS_Default, DSS_Default, BS_Blend, VS_MAIN, PS_ADDITIVE)    // 4
-    PASS_RS_DS_BS_VP(SphereMultiplyPass, RS_Default, DSS_Default, BS_Multiply, VS_MAIN, PS_MULTIPLY) // 5
+    PASS_RS_DS_BS_VP(SphereAdditivePass, RS_Default, DSS_Default, BS_EffectAdditive, VS_MAIN, PS_ADDITIVE) // 4
+    PASS_RS_DS_BS_VP(SphereModulatePass, RS_Default, DSS_Default, BS_EffectModulate, VS_MAIN, PS_MODULATE) // 5
 }

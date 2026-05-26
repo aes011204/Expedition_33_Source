@@ -945,12 +945,12 @@ uint32 EffectMaterialPreviewRenderer::Resolve_BlendPassIndex(
     EffectMaterialPreviewMeshMode meshMode) const
 {
     const bool isAdditive = blendMode == "Additive" || blendMode == "additive";
-    const bool isMultiply = blendMode == "Multiply" || blendMode == "multiply";
+    const bool isModulate = blendMode == "Modulate" || blendMode == "modulate";
 
     if (meshMode == EffectMaterialPreviewMeshMode::Sphere)
-        return isMultiply ? 5 : (isAdditive ? 4 : 3);
+        return isModulate ? 5 : (isAdditive ? 4 : 3);
 
-    return isMultiply ? 2 : (isAdditive ? 1 : 0);
+    return isModulate ? 2 : (isAdditive ? 1 : 0);
 }
 
 void EffectMaterialPreviewRenderer::Cleanup()

@@ -833,7 +833,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
     {
         if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceOptions"))
         {
-            constexpr const char* blendModeOptions[]{ "AlphaBlend", "Additive", "Multiply" };
+            constexpr const char* blendModeOptions[]{ "AlphaBlend", "Additive", "Modulate" };
             constexpr const char* opacitySourceOptions[]{ "Alpha", "Red", "Luminance" };
 
             changed |= Internal::Draw_StringComboProperty(

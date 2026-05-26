@@ -212,7 +212,7 @@ HRESULT ComputeTrailEmitter::Render()
     uint32 passIndex = 0u;
     if (_desc.material.blendMode == "Additive" || _desc.material.blendMode == "additive")
         passIndex = 1u;
-    else if (_desc.material.blendMode == "Multiply" || _desc.material.blendMode == "multiply")
+    else if (_desc.material.blendMode == "Modulate" || _desc.material.blendMode == "modulate")
         passIndex = 2u;
 
     CHECK_FAILED_THROTTLED(_shader->Begin(passIndex), 60, E_FAIL);

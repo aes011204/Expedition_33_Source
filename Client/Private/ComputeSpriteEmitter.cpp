@@ -149,6 +149,7 @@ HRESULT ComputeSpriteEmitter::Ready_Components()
     CHECK_FAILED(Ready_TextureComponent(resolvedTexturePath), E_FAIL);
     CHECK_FAILED(Ready_ShaderComponent(), E_FAIL);
     CHECK_FAILED(Ready_NoiseTextureComponent(resolvedTexturePath), E_FAIL);
+    CHECK_FAILED(Ready_MaskTextureComponent(resolvedTexturePath), E_FAIL);
 
     ComputePointParticleDesc desc = Make_ComputePointParticleDesc();
     CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect_ComputePointParticleBuffer"), _viBuffer, &desc), E_FAIL);
@@ -299,6 +300,69 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
     return S_OK;
 }
 
+HRESULT ComputeSpriteEmitter::Ready_MaskTextureComponent(const string& resolvedTexturePath)
+{
+    if (_desc.required.material.maskTextureGuid.empty() && _desc.required.material.maskTexturePath.empty())
+        return S_OK;
+
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
+    const wstring resolvedPath = Client::Internal::Resolve_TexturePath(
+        _desc.required.material.maskTextureGuid,
+        _desc.required.material.maskTexturePath,
+        usedPathFallback,
+        guidPathMismatch
+    );
+    if (resolvedPath.empty())
+    {
+        _maskTexture = nullptr;
+        LOG_WARN(
+            "ComputeSpriteEmitter mask texture resolve failed. maskTextureGuid='{}', maskTexturePath='{}'. Alpha mask is disabled.",
+            _desc.required.material.maskTextureGuid,
+            _desc.required.material.maskTexturePath
+        );
+        return S_OK;
+    }
+    if (guidPathMismatch)
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter mask texture GUID/path mismatch. maskTextureGuid='{}', maskTexturePath='{}', guidResolvedPath='{}'.",
+            _desc.required.material.maskTextureGuid,
+            _desc.required.material.maskTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter mask texture fell back to path. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'.",
+            _desc.required.material.maskTextureGuid,
+            _desc.required.material.maskTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+
+    const string maskTexturePath = String::ToString(resolvedPath);
+    if (maskTexturePath == resolvedTexturePath && nullptr != _texture)
+    {
+        _maskTexture = _texture;
+        return S_OK;
+    }
+
+    _maskTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
+    if (_maskTexture == nullptr)
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter mask texture create failed. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'. Alpha mask is disabled.",
+            _desc.required.material.maskTextureGuid,
+            _desc.required.material.maskTexturePath,
+            maskTexturePath
+        );
+    }
+
+    return S_OK;
+}
+
 HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
 {
     CHECK_FAILED_ONCE(GAME->Bind_CameraCB(_shader), E_FAIL);
@@ -324,7 +388,22 @@ HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
 HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
 {
     if (nullptr != _noiseTexture)
+    {
         CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
+    }
+    else
+    {
+        CHECK_FAILED_ONCE(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
+    }
+
+    if (nullptr != _maskTexture)
+    {
+        CHECK_FAILED_ONCE(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
+    }
+    else
+    {
+        CHECK_FAILED_ONCE(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
+    }
 
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_Tint", &_desc.required.material.tint, sizeof(_desc.required.material.tint)), E_FAIL);
 
@@ -334,7 +413,14 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         _desc.required.material.noiseStrength,
         nullptr != _noiseTexture ? 1.f : 0.f
     );
+    const Vec4 effectSpriteAlphaParams = Vec4(
+        clamp(_desc.required.material.alphaCutoff, 0.f, 1.f),
+        clamp(_desc.required.material.alphaErosion, 0.f, 1.f),
+        nullptr != _maskTexture ? 1.f : 0.f,
+        0.f
+    );
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteParams", &effectSpriteParams, sizeof(effectSpriteParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAlphaParams", &effectSpriteAlphaParams, sizeof(effectSpriteAlphaParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), E_FAIL);
 
     return S_OK;
@@ -362,8 +448,8 @@ uint32 ComputeSpriteEmitter::Resolve_EffectSpritePassIndex() const
     if (_desc.required.material.blendMode == "Additive" || _desc.required.material.blendMode == "additive")
         return kEffectSpriteAdditivePass;
 
-    if (_desc.required.material.blendMode == "Multiply" || _desc.required.material.blendMode == "multiply")
-        return kEffectSpriteMultiplyPass;
+    if (_desc.required.material.blendMode == "Modulate" || _desc.required.material.blendMode == "modulate")
+        return kEffectSpriteModulatePass;
 
     LOG_WARN(
         "ComputeSpriteEmitter unknown blendMode='{}'. Falling back to AlphaBlend.",

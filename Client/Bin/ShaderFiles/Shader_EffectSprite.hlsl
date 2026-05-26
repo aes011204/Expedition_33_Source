@@ -3,11 +3,13 @@
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_EffectMaterial.hlsl"
 
 cbuffer cbEffectSpriteMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f }; // x: emissive-like intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f }; // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
     int g_OpacitySource = 0;
     float3 g_EffectSpritePadding;
 };
@@ -23,6 +25,7 @@ cbuffer cbEffectSpriteRuntime : register(b3)
 
 Texture2D g_Texture : register(t0); // sprite effect의 primary texture다. 현재 경로에서는 RGB를 emissive-like color source로 해석한다.
 Texture2D g_NoiseTexture : register(t1);
+Texture2D g_MaskTexture : register(t2);
 
 struct VS_IN
 {
@@ -258,9 +261,9 @@ struct PS_OUT
     float4 color : SV_TARGET0;
 };
 
-PS_OUT PS_MAIN(PS_IN In)
+EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
 {
-    PS_OUT Out = (PS_OUT)0;
+    EffectMaterialSurface surface = (EffectMaterialSurface)0;
 
     const float lifeMax = max(In.lifeTime.x, 0.0001f);
     const float lifeProgress = saturate(In.lifeTime.y / lifeMax);
@@ -268,13 +271,11 @@ PS_OUT PS_MAIN(PS_IN In)
     const float2 sampleUV = lerp(In.subUVRect.xy, In.subUVRect.zw, In.texCoord);
     const float4 symbol = g_Texture.Sample(LinearClampSampler, sampleUV);
     const float opacityPower = max(g_EffectSpriteParams.y, 0.0001f);
-    float selectedOpacity = symbol.a;
+    const float alphaCutoff = saturate(g_EffectSpriteAlphaParams.x);
+    const float alphaErosion = saturate(g_EffectSpriteAlphaParams.y);
+    const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
     float noiseFactor = 1.f;
-
-    if (1 == g_OpacitySource)
-        selectedOpacity = symbol.r;
-    else if (2 == g_OpacitySource)
-        selectedOpacity = dot(symbol.rgb, float3(0.299f, 0.587f, 0.114f));
+    float maskAlpha = 1.f;
 
     if (0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f)
     {
@@ -282,37 +283,46 @@ PS_OUT PS_MAIN(PS_IN In)
         noiseFactor = lerp(1.f, noise, saturate(g_EffectSpriteParams.z));
     }
 
-    const float opacity = pow(saturate(selectedOpacity), opacityPower);
-    Out.color.rgb = symbol.rgb * particleColor.rgb * g_Tint.rgb * g_EffectSpriteParams.x * noiseFactor;
-    Out.color.a = opacity * particleColor.a * g_Tint.a;
+    if (0 != g_EffectSpriteAlphaParams.z)
+        maskAlpha = g_MaskTexture.Sample(LinearClampSampler, sampleUV).a;
 
-    if (Out.color.a < 0.01f)
+    const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
+    surface.color = symbol.rgb * particleColor.rgb * g_Tint.rgb * noiseFactor;
+    surface.coverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, particleColor.a * g_Tint.a);
+
+    if (surface.coverage < max(alphaCutoff, 0.01f))
         discard;
 
+    return surface;
+}
+
+PS_OUT PS_MAIN(PS_IN In)
+{
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
+    Out.color = Effect_ComposeAlphaBlend(surface, g_EffectSpriteParams.x);
     return Out;
 }
 
 PS_OUT PS_ADDITIVE(PS_IN In)
 {
-    PS_OUT Out = PS_MAIN(In);
-    Out.color.rgb *= saturate(Out.color.a);
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
+    Out.color = Effect_ComposeAdditive(surface, g_EffectSpriteParams.x);
     return Out;
 }
 
-PS_OUT PS_MULTIPLY(PS_IN In)
+PS_OUT PS_MODULATE(PS_IN In)
 {
-    PS_OUT Out = PS_MAIN(In);
-    const float intensity = max(g_EffectSpriteParams.x, 0.0001f);
-    const float3 multiplyColor = saturate(Out.color.rgb / intensity);
-    const float multiplyCoverage = dot(multiplyColor, float3(0.299f, 0.587f, 0.114f));
-    const float multiplyStrength = saturate(Out.color.a * multiplyCoverage * intensity * 0.35f);
-    Out.color.rgb = lerp(float3(1.f, 1.f, 1.f), multiplyColor, multiplyStrength);
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
+    Out.color = Effect_ComposeModulate(surface, g_EffectSpriteParams.x);
     return Out;
 }
 
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_AlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
-    PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_Blend, VS_MAIN, GS_MAIN, PS_ADDITIVE)    // 1
-    PASS_RS_DS_BS_VGP(MultiplyPass, RS_CullNone, DSS_DepthRead, BS_Multiply, VS_MAIN, GS_MAIN, PS_MULTIPLY) // 2
+    PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, GS_MAIN, PS_ADDITIVE) // 1
+    PASS_RS_DS_BS_VGP(ModulatePass, RS_CullNone, DSS_DepthRead, BS_EffectModulate, VS_MAIN, GS_MAIN, PS_MODULATE) // 2
 }

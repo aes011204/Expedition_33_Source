@@ -60,6 +60,12 @@ HRESULT TrailPreviewPlayerObject::Initialize(void*)
     return S_OK;
 }
 
+void TrailPreviewPlayerObject::BeginPlay()
+{
+    // EffectEditor trail preview reuses Player_BattleBase visuals only.
+    Character::BeginPlay();
+}
+
 Shared<TrailPreviewWeaponObject> TrailPreviewPlayerObject::Get_PreviewWeapon() const
 {
     const auto iter = _partObjects.find(L"Part_Weapon");

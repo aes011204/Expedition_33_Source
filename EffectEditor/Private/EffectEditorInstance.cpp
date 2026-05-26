@@ -198,8 +198,8 @@ EffectEditorPostProcessOptions EffectEditorInstance::Get_DefaultPostProcessOptio
     options.features =
         PostProcessFeature::HDR |
         PostProcessFeature::Exposure |
-        PostProcessFeature::Bloom |
-        PostProcessFeature::Gamma;
+        PostProcessFeature::Bloom;
+
     options.params.exposure = 1.2f;
     options.params.gamma = 1.2f;
     options.params.bloomRadius = 1.6f;

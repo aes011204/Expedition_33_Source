@@ -47,7 +47,7 @@ private: //## Static Values
     static constexpr const char* kEffectSpriteShaderId{ "Shader_EffectSprite" };
     static constexpr uint32 kEffectSpriteAlphaBlendPass{ 0 };
     static constexpr uint32 kEffectSpriteAdditivePass{ 1 };
-    static constexpr uint32 kEffectSpriteMultiplyPass{ 2 };
+    static constexpr uint32 kEffectSpriteModulatePass{ 2 };
     static constexpr int kOpacitySourceAlpha{ 0 };
     static constexpr int kOpacitySourceRed{ 1 };
     static constexpr int kOpacitySourceLuminance{ 2 };
@@ -56,6 +56,7 @@ private: //## Data::Components
     Shared<ShaderCom> _shader{};                          // EffectSprite material effect shader.
     Shared<Texture> _texture{};                           // compute sprite effect main texture.
     Shared<Texture> _noiseTexture{};                      // 선택 noise texture. 없으면 material noise를 비활성화한다.
+    Shared<Texture> _maskTexture{};                       // 선택 mask texture. 없으면 material mask/erosion을 비활성화한다.
     Shared<VIBufferCom_ComputePointParticle> _viBuffer{}; // compute output을 instance draw로 제출하는 검증 버퍼.
 
 private: //## Data::Desc
@@ -79,6 +80,7 @@ private: //## Helper::Setup
     HRESULT Ready_TextureComponent(string& outResolvedTexturePath);          // compute sprite main texture를 준비하고 fallback 결과를 기록한다.
     HRESULT Ready_ShaderComponent();                                         // compute sprite effect가 사용할 EffectSprite shader를 준비한다.
     HRESULT Ready_NoiseTextureComponent(const string& resolvedTexturePath);  // 선택 noise texture를 준비하고 없으면 noise path를 비활성화한다.
+    HRESULT Ready_MaskTextureComponent(const string& resolvedTexturePath);   // 선택 mask texture를 준비하고 없으면 alpha mask를 비활성화한다.
 
 private: //## Helper::Render
     HRESULT Bind_ShaderResources();         // EffectSprite shader에 camera/texture resource를 바인딩한다.
