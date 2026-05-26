@@ -131,7 +131,7 @@ HRESULT EffectCom::Bind_DrawFeatures(const Shared<GameObject>& owner, ShaderCom*
     return shader->Reset_DrawFeatures();
 }
 
-HRESULT EffectCom::Play_AttachedEffect(uint32 levelIndex, const wstring& effectName, const wstring& partTag, const string& socketName,
+HRESULT EffectCom::Play_AttachedEffect(uint32, const wstring& effectName, const wstring& partTag, const string& socketName,
                                        const wstring& layerTag, const Vec3& localOffset)
 {
     Shared<const EffectDefinition> definition = EffectAssetRuntimeLoader::Load_DefinitionByName(effectName);
@@ -148,7 +148,7 @@ HRESULT EffectCom::Play_AttachedEffect(uint32 levelIndex, const wstring& effectN
     Shared<GameObject> effectObject{};
     CHECK_FAILED(
         GAME->Add_GameObject(
-            levelIndex, // 이거 바꿔야하는데. 일단 지금 GamePlay로 Prototype이 생성될듯
+            ETOI(LevelType::Static),
             L"GameObject_EffectInstance",
             GAME->Current_LevelIndex(),
             layerTag,

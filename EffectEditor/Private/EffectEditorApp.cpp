@@ -21,7 +21,10 @@ namespace Internal
 
     bool Is_EffectEditorPreviewTextureAllowed(const wstring& prototypeTag)
     {
-        return prototypeTag == L"Texture_Effect_EditorSkybox";
+        return
+            prototypeTag == L"Texture_Effect_EditorSkybox" ||
+            prototypeTag == L"Texture_Effect_DefaultTexture" ||
+            prototypeTag == L"Texture_Effect_Clouds4";
     }
 
     bool Is_EffectEditorPreviewShaderAllowed(const wstring& prototypeTag)
@@ -65,18 +68,10 @@ namespace Internal
         return
             prototypeTag == L"GameObject_Body_Player" ||
             prototypeTag == L"GameObject_Head_Player" ||
-            prototypeTag == L"GameObject_Hair_Player";
-    }
-
-    bool Is_EffectEditorPreviewGamePlayLoadJobAllowed(const FLoadJob& loadJob)
-    {
-        if (loadJob.eType != ELoadJobType::GameObject)
-            return false;
-
-        return
-            loadJob.strPrototypeTag == L"GameObject_EffectInstance" ||
-            loadJob.strPrototypeTag == L"GameObject_Effect_ComputeSpriteEmitter" ||
-            loadJob.strPrototypeTag == L"GameObject_Effect_ComputeTrailEmitter";
+            prototypeTag == L"GameObject_Hair_Player" ||
+            prototypeTag == L"GameObject_EffectInstance" ||
+            prototypeTag == L"GameObject_Effect_ComputeSpriteEmitter" ||
+            prototypeTag == L"GameObject_Effect_ComputeTrailEmitter";
     }
 
     bool Is_EffectEditorStaticLoadJobAllowed(const FLoadJob& loadJob)
@@ -200,7 +195,6 @@ HRESULT EffectEditorApp::Initialize()
     long long initializeClientMs = 0;
     long long readyFontsMs = 0;
     long long readyStaticResourcesMs = 0;
-    long long readyGamePlayResourcesMs = 0;
     long long readyPreviewLevelMs = 0;
     long long initializeEditorMs = 0;
 
@@ -218,7 +212,6 @@ HRESULT EffectEditorApp::Initialize()
     CHECK_FAILED(run_startup_step(initializeClientMs, [&]{ return CLIENT->Initialize_Client_ForEffectEditor(_device, _context); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyFontsMs, [&]{ return Ready_Fonts(); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyStaticResourcesMs, [&]{ return Ready_Prototype_For_Static_Level(); }), E_FAIL);
-    CHECK_FAILED(run_startup_step(readyGamePlayResourcesMs, [&]{ return Ready_Prototype_For_GamePlay_Preview_Level(); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyPreviewLevelMs, [&]{ return Ready_PreviewLevel(); }), E_FAIL);
 
     EffectEditorDesc editorDesc{};
@@ -232,14 +225,13 @@ HRESULT EffectEditorApp::Initialize()
 
     const auto totalStartupMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - startupStartTime).count();
     LOG_INFO(
-        "EffectEditor startup summary. total={}ms engine={}ms assetManager={}ms client={}ms fonts={}ms staticResources={}ms gameplayResources={}ms previewLevel={}ms editor={}ms",
+        "EffectEditor startup summary. total={}ms engine={}ms assetManager={}ms client={}ms fonts={}ms staticResources={}ms previewLevel={}ms editor={}ms",
         totalStartupMs,
         initializeEngineMs,
         initializeAssetManagerMs,
         initializeClientMs,
         readyFontsMs,
         readyStaticResourcesMs,
-        readyGamePlayResourcesMs,
         readyPreviewLevelMs,
         initializeEditorMs
     );
@@ -587,58 +579,11 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
     return S_OK;
 }
 
-HRESULT EffectEditorApp::Ready_Prototype_For_GamePlay_Preview_Level()
-{
-    const Shared<ResourceLoader> resourceLoader = CLIENT->Get_ResourceLoader();
-    CHECK_NULL(resourceLoader, E_FAIL);
-
-    vector<FLoadJob> loadJobs;
-    CHECK_FAILED(resourceLoader->Build_LevelJobs(LevelType::GamePlay, loadJobs), E_FAIL);
-
-    size_t includedCount = 0;
-    size_t excludedCount = 0;
-    size_t failedCount = 0;
-
-    for (const FLoadJob& loadJob : loadJobs)
-    {
-        const bool included = Internal::Is_EffectEditorPreviewGamePlayLoadJobAllowed(loadJob);
-
-        if (!included)
-        {
-            ++excludedCount;
-            continue;
-        }
-
-        ++includedCount;
-
-        if (FAILED(resourceLoader->Register_LoadJob(loadJob)))
-        {
-            ++failedCount;
-            LOG_WARN(
-                "[ResourceFilter] scope=GamePlayPreview, register failed. type={}, tag={}",
-                string(magic_enum::enum_name(loadJob.eType)),
-                String::ToString(loadJob.strPrototypeTag)
-            );
-            continue;
-        }
-    }
-
-    Internal::Log_EffectEditorResourceFilterSummary(
-        "GamePlayPreview",
-        loadJobs.size(),
-        includedCount,
-        excludedCount,
-        failedCount
-    );
-
-    return S_OK;
-}
-
 HRESULT EffectEditorApp::Ready_PreviewLevel()
 {
-    // preview level은 저장 level이 아니므로 GamePlay resource index를 명시적으로 빌려 쓴다.
+    // preview level은 저장 level이 아니므로 Static resource index를 명시적으로 빌려 쓴다.
     const HRESULT hr = GAME->Change_Level(
-        ETOI(LevelType::GamePlay),
+        ETOI(LevelType::Static),
         Level_EffectEditor::Create(_device, _context)
     );
     CHECK_FAILED(hr, E_FAIL);

@@ -369,10 +369,7 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
     _currentPreviewDefinition = previewDefinition;
 
     for (const AuthoringEmitter& emitter : emitterView->Get_Emitters())
-    {
-        if (emitter.enabled)
-            emitterView->Clear_PreviewDirty(emitter.id);
-    }
+        emitterView->Clear_PreviewDirty(emitter.id);
 
     return S_OK;
 }
@@ -400,7 +397,7 @@ HRESULT Level_EffectEditor::Restart_PreviewFromDefinition(const Shared<const Eff
     const Shared<GameObject> previewObject = previewPrototype->Clone(&previewDesc);
     CHECK_NULL(previewObject, E_FAIL);
 
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), kPreviewLayerTag, previewObject), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), kPreviewLayerTag, previewObject), E_FAIL);
 
     vector<Shared<GameObject>> restartedPreviewObjects{};
     restartedPreviewObjects.push_back(previewObject);
@@ -944,7 +941,7 @@ HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
     CHECK_NULL(previewCamera, E_FAIL);
     CHECK_FAILED(previewCamera->Initialize(&cameraDesc), E_FAIL);
     EDITOR->Register_PreviewCamera(previewCamera);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, previewCamera), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, previewCamera), E_FAIL);
 
     GAME->Change_ActiveCamera(previewCamera);
 
@@ -960,7 +957,7 @@ HRESULT Level_EffectEditor::Ready_Layer_Grid(const wstring& layerTag)
         EffectEditorSceneGrid::Create(_device, _context);
     CHECK_NULL(sceneGrid, E_FAIL);
     CHECK_FAILED(sceneGrid->Initialize(nullptr), E_FAIL);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, sceneGrid), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, sceneGrid), E_FAIL);
 
     return S_OK;
 }
@@ -974,7 +971,7 @@ HRESULT Level_EffectEditor::Ready_Layer_Sky(const wstring& layerTag)
         EffectEditorSkybox::Create(_device, _context);
     CHECK_NULL(skybox, E_FAIL);
     CHECK_FAILED(skybox->Initialize(nullptr), E_FAIL);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, skybox), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, skybox), E_FAIL);
 
     return S_OK;
 }
@@ -988,7 +985,7 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
         TrailPreviewPlayerObject::Create(_device, _context);
     CHECK_NULL(trailPreviewPlayer, E_FAIL);
     CHECK_FAILED(trailPreviewPlayer->Initialize(nullptr), E_FAIL);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, trailPreviewPlayer), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, trailPreviewPlayer), E_FAIL);
 
     const Shared<TrailPreviewWeaponObject> trailPreviewWeapon = trailPreviewPlayer->Get_PreviewWeapon();
     if (trailPreviewWeapon == nullptr)
@@ -1006,7 +1003,7 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
         TrailPreviewController::Create(_device, _context);
     CHECK_NULL(trailPreviewController, E_FAIL);
     CHECK_FAILED(trailPreviewController->Initialize(&controllerDesc), E_FAIL);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, trailPreviewController), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, trailPreviewController), E_FAIL);
 
     return S_OK;
 }
@@ -1016,7 +1013,7 @@ void Level_EffectEditor::Clear_PreviewObjects()
     for (Shared<GameObject>& previewObject : _previewObjects)
     {
         if (previewObject != nullptr)
-            GAME->Remove_GameObject(ETOI(LevelType::GamePlay), previewObject);
+            GAME->Remove_GameObject(ETOI(LevelType::Static), previewObject);
     }
 
     _previewObjects.clear();
