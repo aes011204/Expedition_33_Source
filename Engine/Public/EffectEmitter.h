@@ -28,6 +28,10 @@ public: //## Behavior::Attach
     HRESULT Attach_ToEffect(const EffectEmitterRuntimeDesc& runtimeDesc); // root가 생성 직후 공통 runtime 상태를 주입한다.
     void Sync_FromEffectOwner();                                          // root와 local/world 정책을 기준으로 emitter transform을 동기화한다.
 
+public: //## Behavior::Lifecycle
+    virtual HRESULT Reset_ForEffectReplay(); // effect root가 재사용 전에 emitter runtime 상태를 초기화할 때 호출한다.
+    virtual bool Is_EffectFinished() const;  // effect root가 자연 완료 여부를 종합할 때 사용하는 완료 상태다.
+
     bool Is_EmitterEnabled() const { return _enabled; }            // root fan-out 시 enabled gate로 사용한다.
     uint32 Get_EmitterId() const { return _emitterId; }            // 디버그/추적용 emitter id 반환이다.
     const string& Get_EmitterName() const { return _emitterName; } // 디버그/추적용 emitter 이름 반환이다.
@@ -42,7 +46,7 @@ protected: //## Data::Runtime
     bool _enabled{ true };                       // root 수준 enabled 플래그다.
 
 protected: //## Hook
-    virtual void On_EffectTransformSynced() {}   // concrete emitter가 root sync 직후 내부 payload를 갱신할 때 override한다.
+    virtual void On_EffectTransformSynced() {} // concrete emitter가 root sync 직후 내부 payload를 갱신할 때 override한다.
 
 public:
     Shared<GameObject> Clone(void* arg) override = 0;

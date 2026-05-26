@@ -467,6 +467,9 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <None Include="..\Bin\ShaderFiles\Engine_Shader_ConstantBuffer.hlsl">
       <FileType>Document</FileType>
     </None>
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_EffectMaterial.hlsl">
+      <FileType>Document</FileType>
+    </None>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Material.hlsl">
       <FileType>Document</FileType>
     </None>

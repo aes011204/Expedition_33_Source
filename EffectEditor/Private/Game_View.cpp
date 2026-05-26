@@ -85,7 +85,7 @@ void Game_View::Render()
         ImGui::InvisibleButton("GameViewportCanvas", viewportSize);
         EDITOR->Set_GameViewportInputState(ImGui::IsItemHovered());
 
-        ID3D11ShaderResourceView* viewportSrv = EDITOR->Get_SharedViewportSRV();
+        ShaderResourceView* viewportSrv = EDITOR->Get_SharedViewportSRV();
         if (nullptr != viewportSrv)
         {
             const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(viewportSrv));

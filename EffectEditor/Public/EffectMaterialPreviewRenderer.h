@@ -31,7 +31,7 @@ public:
     void Update_MaterialTime(float timeDelta);
     // ImGui viewport와 입력을 함께 관리하는 원본 머티리얼 preview 패널 진입점이다.
     void Draw_Viewport(const char* id, const EffectMaterialInstanceData& material, const char* label);
-    ID3D11ShaderResourceView* Get_SRV() const;
+    ShaderResourceView* Get_SRV() const;
     const string& Get_StatusMessage() const;
 
 private: //## Types
