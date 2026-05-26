@@ -261,12 +261,14 @@ namespace Internal
         return !outFilePath.empty();
     }
 
-    Shared<Texture> Resolve_TextureThumbnail(const string& textureGuid, const string& texturePath)
+    Shared<Texture> Resolve_TextureThumbnail(
+        map<string, Shared<Texture>>& textureCache,
+        const string& textureGuid,
+        const string& texturePath)
     {
         if (EDITOR == nullptr)
             return nullptr;
 
-        static map<string, Shared<Texture>> textureCache{};
         const wstring resolvedPath = Resolve_InstanceTexturePath(textureGuid, texturePath);
         if (resolvedPath.empty())
             return nullptr;
@@ -281,18 +283,25 @@ namespace Internal
         return texture;
     }
 
-    ID3D11ShaderResourceView* Get_TextureThumbnailSRV(const string& textureGuid, const string& texturePath)
+    ShaderResourceView* Get_TextureThumbnailSRV(
+        map<string, Shared<Texture>>& textureCache,
+        const string& textureGuid,
+        const string& texturePath)
     {
-        const Shared<Texture> texture = Resolve_TextureThumbnail(textureGuid, texturePath);
+        const Shared<Texture> texture = Resolve_TextureThumbnail(textureCache, textureGuid, texturePath);
         if (texture == nullptr || texture->Get_SRVs().empty())
             return nullptr;
 
         return texture->Get_SRVs().front().Get();
     }
 
-    void Draw_TextureThumbnail(const string& textureGuid, const string& texturePath, const ImVec2& size)
+    void Draw_TextureThumbnail(
+        map<string, Shared<Texture>>& textureCache,
+        const string& textureGuid,
+        const string& texturePath,
+        const ImVec2& size)
     {
-        ID3D11ShaderResourceView* srv = Get_TextureThumbnailSRV(textureGuid, texturePath);
+        ShaderResourceView* srv = Get_TextureThumbnailSRV(textureCache, textureGuid, texturePath);
         if (srv != nullptr)
         {
             const ImTextureID texture = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(srv));
@@ -439,6 +448,7 @@ namespace Internal
     }
 
     bool Draw_TextureProperty(
+        map<string, Shared<Texture>>& textureCache,
         DetailPropertyContext& detailContext,
         const char* label,
         string& textureGuid,
@@ -450,7 +460,7 @@ namespace Internal
         detailContext.Draw_PropertyLabel(label);
 
         constexpr ImVec2 thumbnailSize{ 44.f, 44.f };
-        Draw_TextureThumbnail(textureGuid, texturePath, thumbnailSize);
+        Draw_TextureThumbnail(textureCache, textureGuid, texturePath, thumbnailSize);
         ImGui::SameLine();
         bool changed = Draw_TextureSlotBody(textureGuid, texturePath);
 
@@ -557,7 +567,7 @@ namespace Internal
 
         if (ImGui::BeginCombo("##Value", Get_BlendModeLabel(value)))
         {
-            for (EffectMaterialBlendMode mode : kModes)
+            for (const EffectMaterialBlendMode mode : kModes)
             {
                 const bool selected = value == mode;
                 const bool selectable =
@@ -865,7 +875,7 @@ namespace Internal
 
         if (ImGui::BeginCombo("##Value", Get_UVTilingModeLabel(value)))
         {
-            for (EffectTextureUVTilingMode mode : kModes)
+            for (const EffectTextureUVTilingMode mode : kModes)
             {
                 const bool selected = value == mode;
                 if (ImGui::Selectable(Get_UVTilingModeLabel(mode), selected))
@@ -899,7 +909,10 @@ EffectMaterialInstance_View::EffectMaterialInstance_View()
 {
 }
 
-EffectMaterialInstance_View::~EffectMaterialInstance_View() = default;
+EffectMaterialInstance_View::~EffectMaterialInstance_View()
+{
+    _textureThumbnailCache.clear();
+}
 
 void EffectMaterialInstance_View::Update(float timeDelta)
 {
@@ -1066,6 +1079,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
         if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceTexture"))
         {
             changed |= Internal::Draw_TextureProperty(
+                _textureThumbnailCache,
                 _detailPropertyContext,
                 "Main Texture (Emissive)",
                 material.mainTextureGuid,
@@ -1074,6 +1088,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
                 defaultData.mainTexturePath
             );
             changed |= Internal::Draw_TextureProperty(
+                _textureThumbnailCache,
                 _detailPropertyContext,
                 "Noise Texture",
                 material.noiseTextureGuid,
@@ -1082,6 +1097,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
                 defaultData.noiseTexturePath
             );
             changed |= Internal::Draw_TextureProperty(
+                _textureThumbnailCache,
                 _detailPropertyContext,
                 "Mask Texture",
                 material.maskTextureGuid,
@@ -1114,19 +1130,34 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
     {
         if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceUV"))
         {
-            const bool mainModeChanged = Internal::Draw_UVTilingModeProperty(_detailPropertyContext, "Main UV Tiling Mode", material.mainUVTilingMode, defaultData.mainUVTilingMode);
+            const bool mainModeChanged = Internal::Draw_UVTilingModeProperty(
+                _detailPropertyContext,
+                "Main UV Tiling Mode",
+                material.mainUVTilingMode,
+                defaultData.mainUVTilingMode
+            );
             changed |= mainModeChanged;
             restartPreview |= mainModeChanged;
             changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scale", material.mainUVScale, defaultData.mainUVScale);
             changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Offset", material.mainUVOffset, defaultData.mainUVOffset);
             changed |= _detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed", material.mainUVScrollSpeed, defaultData.mainUVScrollSpeed);
-            const bool noiseModeChanged = Internal::Draw_UVTilingModeProperty(_detailPropertyContext, "Noise UV Tiling Mode", material.noiseUVTilingMode, defaultData.noiseUVTilingMode);
+            const bool noiseModeChanged = Internal::Draw_UVTilingModeProperty(
+                _detailPropertyContext,
+                "Noise UV Tiling Mode",
+                material.noiseUVTilingMode,
+                defaultData.noiseUVTilingMode
+            );
             changed |= noiseModeChanged;
             restartPreview |= noiseModeChanged;
             changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scale", material.noiseUVScale, defaultData.noiseUVScale);
             changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Offset", material.noiseUVOffset, defaultData.noiseUVOffset);
             changed |= _detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed", material.noiseUVScrollSpeed, defaultData.noiseUVScrollSpeed);
-            const bool maskModeChanged = Internal::Draw_UVTilingModeProperty(_detailPropertyContext, "Mask UV Tiling Mode", material.maskUVTilingMode, defaultData.maskUVTilingMode);
+            const bool maskModeChanged = Internal::Draw_UVTilingModeProperty(
+                _detailPropertyContext,
+                "Mask UV Tiling Mode",
+                material.maskUVTilingMode,
+                defaultData.maskUVTilingMode
+            );
             changed |= maskModeChanged;
             restartPreview |= maskModeChanged;
             changed |= _detailPropertyContext.Draw_Vec2Property("Mask UV Scale", material.maskUVScale, defaultData.maskUVScale);

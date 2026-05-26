@@ -27,6 +27,13 @@ public:
     void Late_Update(float timeDelta) override;
     HRESULT Render() override;
 
+public:
+    HRESULT Reset_ForEffectReplay() override; // effect root 재사용 시 sprite playback runtime을 초기화한다.
+    bool Is_EffectFinished() const override;  // sprite playback이 마지막 loop를 끝냈는지 반환한다.
+
+protected:
+    void On_EffectTransformSynced() override; // root/local-space sync 직후 compute center를 즉시 갱신한다.
+
 private: //## Types::PlaybackRuntime
     enum class PlaybackState : uint8
     {
@@ -37,9 +44,9 @@ private: //## Types::PlaybackRuntime
 
     struct PlaybackTick
     {
-        float computeDeltaTime{};     // 이번 frame에서 particle simulation에 흘려보낼 시간이다.
-        uint32 spawnRequest{};        // 이번 frame에 활성화할 particle 수다.
-        bool killActiveParticles{};   // 이번 frame에 active particle을 모두 죽일지 나타낸다.
+        float computeDeltaTime{};   // 이번 frame에서 particle simulation에 흘려보낼 시간이다.
+        uint32 spawnRequest{};      // 이번 frame에 활성화할 particle 수다.
+        bool killActiveParticles{}; // 이번 frame에 active particle을 모두 죽일지 나타낸다.
     };
 
 private: //## Static Values
@@ -72,11 +79,11 @@ private: //## Data::PlaybackRuntime
     bool _completedKillDispatched{};                        // 완료 kill 요청을 한 번만 보내기 위한 latch다.
 
 private: //## Helper::Setup
-    HRESULT Ready_Components();                                              // effect에 필요한 shader/texture/compute buffer component를 준비한다.
-    HRESULT Ready_TextureComponent(string& outResolvedTexturePath);          // compute sprite main texture를 준비하고 fallback 결과를 기록한다.
-    HRESULT Ready_ShaderComponent();                                         // compute sprite effect가 사용할 EffectSprite shader를 준비한다.
-    HRESULT Ready_NoiseTextureComponent(const string& resolvedTexturePath);  // 선택 noise texture를 준비하고 없으면 noise path를 비활성화한다.
-    HRESULT Ready_MaskTextureComponent(const string& resolvedTexturePath);   // 선택 mask texture를 준비하고 없으면 alpha mask를 비활성화한다.
+    HRESULT Ready_Components();                                             // effect에 필요한 shader/texture/compute buffer component를 준비한다.
+    HRESULT Ready_TextureComponent(string& outResolvedTexturePath);         // compute sprite main texture를 준비하고 fallback 결과를 기록한다.
+    HRESULT Ready_ShaderComponent();                                        // compute sprite effect가 사용할 EffectSprite shader를 준비한다.
+    HRESULT Ready_NoiseTextureComponent(const string& resolvedTexturePath); // 선택 noise texture를 준비하고 없으면 noise path를 비활성화한다.
+    HRESULT Ready_MaskTextureComponent(const string& resolvedTexturePath);  // 선택 mask texture를 준비하고 없으면 alpha mask를 비활성화한다.
 
 private: //## Helper::Render
     HRESULT Bind_ShaderResources();         // EffectSprite shader에 camera/texture resource를 바인딩한다.
@@ -92,16 +99,13 @@ private: //## Helper::SpawnRuntime
     uint32 Consume_SpawnRequest(float timeDelta); // 이번 frame에 새로 활성화할 particle 수를 계산한다.
 
 private: //## Helper::PlaybackRuntime
-    void Reset_PlaybackRuntime();              // emitter timing runtime state를 초기화한다.
+    void Reset_PlaybackRuntime();                   // emitter timing runtime state를 초기화한다.
     PlaybackTick Advance_Playback(float timeDelta); // delay/duration/loop 정책을 진행하고 compute tick을 만든다.
-    void Start_NextLoop();                     // loop-local spawn/burst state를 초기화하고 다음 loop로 넘어간다.
-    float Resolve_CurrentLoopDelay() const;    // 현재 loop에 적용할 delay를 반환한다.
-    float Resolve_Duration() const;            // 0 이하 duration으로 인한 무한 루프를 막는 안전 duration을 반환한다.
-    bool Has_NextLoop() const;                 // loopCount 정책상 다음 loop가 있는지 확인한다.
-    bool Can_SubmitRender() const;             // delay/completed kill 정책상 render 제출 가능한지 확인한다.
-
-protected:
-    void On_EffectTransformSynced() override;                       // root/local-space sync 직후 compute center를 즉시 갱신한다.
+    void Start_NextLoop();                          // loop-local spawn/burst state를 초기화하고 다음 loop로 넘어간다.
+    float Resolve_CurrentLoopDelay() const;         // 현재 loop에 적용할 delay를 반환한다.
+    float Resolve_Duration() const;                 // 0 이하 duration으로 인한 무한 루프를 막는 안전 duration을 반환한다.
+    bool Has_NextLoop() const;                      // loopCount 정책상 다음 loop가 있는지 확인한다.
+    bool Can_SubmitRender() const;                  // delay/completed kill 정책상 render 제출 가능한지 확인한다.
 
 public:
     static Shared<ComputeSpriteEmitter> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

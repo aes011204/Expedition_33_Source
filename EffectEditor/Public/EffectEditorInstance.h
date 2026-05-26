@@ -96,7 +96,7 @@ public: //## Accessor::InputPolicy
     bool Is_PreviewCameraDragging() const { return _isPreviewCameraDragging; }
 
 public: //## Accessor::Viewport
-    ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
+    ShaderResourceView* Get_SharedViewportSRV() const;
     PreviewViewportMode Get_PreviewViewportMode() const { return _previewViewportMode; }
     bool Is_ManualPreviewViewportEnabled() const { return _previewViewportMode == PreviewViewportMode::Manual; }
     float Get_EffectiveViewportAspect() const;

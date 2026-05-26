@@ -2094,6 +2094,11 @@ void GameInstance::Release_Engine()
 
     Material::Clear_TextureSRVCache();
 
+    _playerStencilWriteState.Reset();
+    _playerStencilWriteDepthReadState.Reset();
+    _backgroundUIBehindPlayerStencilState.Reset();
+    _uiNoDepthStencilState.Reset();
+
     _context.Reset();
     _device.Reset();
 

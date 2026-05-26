@@ -5,6 +5,10 @@
 #include "EffectAuthoring_Types.h"
 #include "Emitter_View.h"
 
+NS_BEGIN(Engine)
+class Texture;
+NS_END
+
 NS_BEGIN(EffectEditor)
 
 class EffectMaterial_View;
@@ -29,6 +33,7 @@ private: //## Data
     uint32 _targetModuleId{ 0 };
     DetailPropertyContext _detailPropertyContext{};
     Unique<EffectMaterialPreviewRenderer> _previewRenderer{};
+    map<string, Shared<Texture>> _textureThumbnailCache{};
 
 private: //## Helpers
     bool Resolve_Target(Shared<Emitter_View>& outEmitterView, AuthoringEmitter*& outEmitter, RequiredModuleData*& outRequiredData) const;

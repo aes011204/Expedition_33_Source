@@ -76,6 +76,12 @@ void EffectEditorInstance::Release_Editor()
 {
     End_PreviewCameraDrag();
 
+    if (_context)
+    {
+        _context->OMSetDepthStencilState(nullptr, 0);
+        _context->IASetInputLayout(nullptr);
+    }
+
     _sharedViewportRenderTarget.reset();
     _sceneGridBatch.reset();
     _sceneGridEffect.reset();
@@ -209,7 +215,7 @@ EffectEditorPostProcessOptions EffectEditorInstance::Get_DefaultPostProcessOptio
     return options;
 }
 
-ID3D11ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
+ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
 {
     if (nullptr == _sharedViewportRenderTarget)
         return nullptr;
@@ -715,7 +721,7 @@ void EffectEditorInstance::Render_SceneGrid()
     ID3D11GeometryShader* nullGeometryShader = nullptr;
     _context->GSSetShader(nullGeometryShader, nullptr, 0);
 
-    ID3D11ShaderResourceView* nullShaderResourceViews[1] = { nullptr };
+    ShaderResourceView* nullShaderResourceViews[1] = { nullptr };
     _context->PSSetShaderResources(0, 1, nullShaderResourceViews);
 
     _context->RSSetState(nullptr);
