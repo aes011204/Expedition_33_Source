@@ -1,4 +1,4 @@
-#include "ComputeTrailEmitter.h"
+﻿#include "ComputeTrailEmitter.h"
 
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
@@ -236,6 +236,30 @@ HRESULT ComputeTrailEmitter::Render()
     _context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
     _context->DrawIndexedInstancedIndirect(_indirectArgsBuffer.Get(), 0);
     return S_OK;
+}
+
+HRESULT ComputeTrailEmitter::Reset_ForEffectReplay()
+{
+    _history.clear();
+    _drawSegmentCount = 0u;
+    _materialElapsedTime = 0.f;
+    _visibleTrailLength = 1.f;
+
+    if (nullptr != _computeArgsOutput)
+        CHECK_FAILED(Reset_IndirectArgs(), E_FAIL);
+
+    if (nullptr != _computeOutput && nullptr != _computeArgsOutput &&
+        nullptr != _instanceBuffer && nullptr != _indirectArgsBuffer)
+    {
+        CHECK_FAILED(Copy_ComputeOutput(), E_FAIL);
+    }
+
+    return S_OK;
+}
+
+bool ComputeTrailEmitter::Is_EffectFinished() const
+{
+    return false;
 }
 
 HRESULT ComputeTrailEmitter::Ready_Components()

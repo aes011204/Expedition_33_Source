@@ -58,3 +58,13 @@ void EffectEmitter::Sync_FromEffectOwner()
 
     On_EffectTransformSynced();
 }
+
+HRESULT EffectEmitter::Reset_ForEffectReplay()
+{
+    return S_OK;
+}
+
+bool EffectEmitter::Is_EffectFinished() const
+{
+    return false;
+}

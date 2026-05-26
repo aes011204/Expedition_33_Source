@@ -29,6 +29,10 @@ public:
     void Late_Update(float timeDelta) override;
     HRESULT Render() override;
 
+public:
+    HRESULT Reset_ForEffectReplay() override; // effect root 재사용 시 trail history와 draw runtime을 초기화한다.
+    bool Is_EffectFinished() const override;  // trail은 일단 자동 완료가 아니라 명시 Stop/release를 따른다.
+
 private:
     struct TrailHistorySample
     {

@@ -18,65 +18,65 @@ IMPLEMENT_REFLECTION(ComputeSpriteEmitter)
 
 namespace Client::Internal
 {
-    wstring Resolve_TexturePathByGuid(const string& textureGuid)
-    {
-        if (GAME == nullptr || textureGuid.empty())
-            return {};
-
-        const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
-        if (assetMeta == nullptr || assetMeta->type != "Texture")
-            return {};
-
-        const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
-        return !resolvedPath.empty() && fs::exists(resolvedPath) ? resolvedPath : wstring{};
-    }
-
-    wstring Resolve_TexturePathByPath(const string& texturePath)
-    {
-        if (!texturePath.empty())
-        {
-            fs::path candidatePath = String::ToWString(texturePath);
-            if (candidatePath.is_relative() && GAME != nullptr)
-                candidatePath = fs::path(GAME->Get_AssetRoot()) / candidatePath;
-
-            candidatePath = candidatePath.lexically_normal();
-            if (fs::exists(candidatePath))
-                return candidatePath.wstring();
-        }
-
+wstring Resolve_TexturePathByGuid(const string& textureGuid)
+{
+    if (GAME == nullptr || textureGuid.empty())
         return {};
-    }
 
-    bool Is_SpriteTextureSamePath(const wstring& lhs, const wstring& rhs)
-    {
-        if (lhs.empty() || rhs.empty())
-            return false;
-
-        return fs::path(lhs).lexically_normal() == fs::path(rhs).lexically_normal();
-    }
-
-    wstring Resolve_TexturePath(const string& textureGuid, const string& texturePath, bool& outUsedPathFallback, bool& outGuidPathMismatch)
-    {
-        outUsedPathFallback = false;
-        outGuidPathMismatch = false;
-
-        wstring resolvedPath = Resolve_TexturePathByGuid(textureGuid);
-        if (!resolvedPath.empty())
-        {
-            const wstring pathResolved = Resolve_TexturePathByPath(texturePath);
-            outGuidPathMismatch = !pathResolved.empty() && !Is_SpriteTextureSamePath(resolvedPath, pathResolved);
-            return resolvedPath;
-        }
-
-        resolvedPath = Resolve_TexturePathByPath(texturePath);
-        if (!resolvedPath.empty())
-        {
-            outUsedPathFallback = true;
-            return resolvedPath;
-        }
-
+    const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
+    if (assetMeta == nullptr || assetMeta->type != "Texture")
         return {};
+
+    const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+    return !resolvedPath.empty() && fs::exists(resolvedPath) ? resolvedPath : wstring{};
+}
+
+wstring Resolve_TexturePathByPath(const string& texturePath)
+{
+    if (!texturePath.empty())
+    {
+        fs::path candidatePath = String::ToWString(texturePath);
+        if (candidatePath.is_relative() && GAME != nullptr)
+            candidatePath = fs::path(GAME->Get_AssetRoot()) / candidatePath;
+
+        candidatePath = candidatePath.lexically_normal();
+        if (fs::exists(candidatePath))
+            return candidatePath.wstring();
     }
+
+    return {};
+}
+
+bool Is_SpriteTextureSamePath(const wstring& lhs, const wstring& rhs)
+{
+    if (lhs.empty() || rhs.empty())
+        return false;
+
+    return fs::path(lhs).lexically_normal() == fs::path(rhs).lexically_normal();
+}
+
+wstring Resolve_TexturePath(const string& textureGuid, const string& texturePath, bool& outUsedPathFallback, bool& outGuidPathMismatch)
+{
+    outUsedPathFallback = false;
+    outGuidPathMismatch = false;
+
+    wstring resolvedPath = Resolve_TexturePathByGuid(textureGuid);
+    if (!resolvedPath.empty())
+    {
+        const wstring pathResolved = Resolve_TexturePathByPath(texturePath);
+        outGuidPathMismatch = !pathResolved.empty() && !Is_SpriteTextureSamePath(resolvedPath, pathResolved);
+        return resolvedPath;
+    }
+
+    resolvedPath = Resolve_TexturePathByPath(texturePath);
+    if (!resolvedPath.empty())
+    {
+        outUsedPathFallback = true;
+        return resolvedPath;
+    }
+
+    return {};
+}
 }
 
 ComputeSpriteEmitter::ComputeSpriteEmitter(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -141,6 +141,24 @@ HRESULT ComputeSpriteEmitter::Render()
     CHECK_FAILED_ONCE(_viBuffer->Render(), E_FAIL);
 
     return S_OK;
+}
+
+HRESULT ComputeSpriteEmitter::Reset_ForEffectReplay()
+{
+    Reset_PlaybackRuntime();
+    Sync_WorldCenterToComputeBuffer();
+
+    return S_OK;
+}
+
+bool ComputeSpriteEmitter::Is_EffectFinished() const
+{
+    return PlaybackState::Completed == _playbackState;
+}
+
+void ComputeSpriteEmitter::On_EffectTransformSynced()
+{
+    Sync_WorldCenterToComputeBuffer();
 }
 
 HRESULT ComputeSpriteEmitter::Ready_Components()
@@ -496,6 +514,19 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     return desc;
 }
 
+void ComputeSpriteEmitter::Sync_WorldCenterToComputeBuffer()
+{
+    CHECK_NULL_THROTTLED(_transformCom, 120);
+    CHECK_NULL_THROTTLED(_viBuffer, 120);
+
+    _viBuffer->Set_Center(_transformCom->Get_WorldPosition());
+    _viBuffer->Set_EmitterBasis(
+        _transformCom->Get_WorldRight(),
+        _transformCom->Get_WorldUp(),
+        _transformCom->Get_WorldForward()
+    );
+}
+
 uint32 ComputeSpriteEmitter::Consume_SpawnRequest(float timeDelta)
 {
     const float safeDeltaTime = max(0.f, timeDelta);
@@ -658,24 +689,6 @@ bool ComputeSpriteEmitter::Can_SubmitRender() const
         return false;
 
     return nullptr != _viBuffer;
-}
-
-void ComputeSpriteEmitter::Sync_WorldCenterToComputeBuffer()
-{
-    CHECK_NULL_THROTTLED(_transformCom, 120);
-    CHECK_NULL_THROTTLED(_viBuffer, 120);
-
-    _viBuffer->Set_Center(_transformCom->Get_WorldPosition());
-    _viBuffer->Set_EmitterBasis(
-        _transformCom->Get_WorldRight(),
-        _transformCom->Get_WorldUp(),
-        _transformCom->Get_WorldForward()
-    );
-}
-
-void ComputeSpriteEmitter::On_EffectTransformSynced()
-{
-    Sync_WorldCenterToComputeBuffer();
 }
 
 Shared<ComputeSpriteEmitter> ComputeSpriteEmitter::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
