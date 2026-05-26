@@ -664,7 +664,7 @@ namespace UIEditor
             ImGui::Separator();
 
             string searchText = String::ToLowerCopy(_fontSearchBuffer);
-            vector<AssetMeta> uiFontAssets = _editorManager.Is_AssetManagerReady() ? Collect_UISpriteFontAssets(searchText) : vector<AssetMeta>{};
+            vector<AssetMeta> uiFontAssets = Collect_UISpriteFontAssets(searchText);
 
             if (uiFontAssets.empty())
             {
