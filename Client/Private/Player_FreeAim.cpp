@@ -75,7 +75,7 @@ void Player_FreeAim::Update(float timeDelta)
         if (animIndex != ETOI(plAnim::Pl_FreeAim_Shoot))
         {
             _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Shoot), 0.25f, false);
-            _bodyPlayer->Set_AnimationSpeed(3.f);
+            _bodyPlayer->Set_AnimationSpeed(2.f);
         }
     }
     else
