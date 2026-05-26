@@ -1,152 +1,10 @@
 #include "pch.h"
 #include "UI_AnimationAssetService.h"
 
-#include <commdlg.h>
-
 namespace UIEditor
 {
     namespace
     {
-        constexpr wchar_t kDefaultAnimationName[] = L"NewUIAnimation";
-        constexpr wchar_t kDefaultAnimationFileName[] = L"NewUIAnimation.uianim.json";
-
-        fs::path Get_ModuleDirectory()
-        {
-            wchar_t modulePath[MAX_PATH] = {};
-            if (0 == GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
-                return {};
-
-            return fs::path(modulePath).parent_path();
-        }
-
-        bool Try_CreateDirectory(const fs::path& directory)
-        {
-            if (directory.empty())
-                return false;
-
-            try
-            {
-                if (fs::exists(directory))
-                    return fs::is_directory(directory);
-
-                return fs::create_directories(directory);
-            }
-            catch (const exception& exception)
-            {
-                LOG_WARN("UI animation directory create failed: {} ({})", exception.what(), String::ToString(directory.wstring()));
-                return false;
-            }
-        }
-
-        bool Try_FindResourceRootFromStart(const fs::path& startPath, fs::path& outResourceRoot)
-        {
-            if (startPath.empty())
-                return false;
-
-            try
-            {
-                fs::path start = fs::absolute(startPath).lexically_normal();
-                for (fs::path currentPath = start; !currentPath.empty(); currentPath = currentPath.parent_path())
-                {
-                    const fs::path candidate = (currentPath / L"Client" / L"Bin" / L"Resources").lexically_normal();
-                    if (fs::exists(candidate) && fs::is_directory(candidate))
-                    {
-                        outResourceRoot = candidate;
-                        return true;
-                    }
-
-                    if (currentPath == currentPath.parent_path())
-                        break;
-                }
-            }
-            catch (const exception& exception)
-            {
-                LOG_WARN("UI animation resource root search failed: {}", exception.what());
-            }
-
-            return false;
-        }
-
-        bool Ends_With(const wstring& value, const wstring& suffix)
-        {
-            if (value.size() < suffix.size())
-                return false;
-
-            return equal(suffix.rbegin(), suffix.rend(), value.rbegin());
-        }
-
-        wstring To_Lower(wstring value)
-        {
-            transform(
-                value.begin(),
-                value.end(),
-                value.begin(),
-                [](wchar_t ch)
-                {
-                    return static_cast<wchar_t>(towlower(ch));
-                });
-            return value;
-        }
-
-        wstring Trim_Copy(const wstring& value)
-        {
-            const auto beginIter = find_if_not(
-                value.begin(),
-                value.end(),
-                [](wchar_t ch)
-                {
-                    return iswspace(ch) != 0;
-                });
-
-            if (beginIter == value.end())
-                return {};
-
-            const auto endIter = find_if_not(
-                value.rbegin(),
-                value.rend(),
-                [](wchar_t ch)
-                {
-                    return iswspace(ch) != 0;
-                }).base();
-
-            return wstring(beginIter, endIter);
-        }
-
-        wstring Make_SafeAnimationFileName(const string& assetName)
-        {
-            wstring safeName = Trim_Copy(String::ToWString(assetName));
-            if (safeName.empty())
-                safeName = kDefaultAnimationName;
-
-            for (wchar_t& ch : safeName)
-            {
-                switch (ch)
-                {
-                case L'<':
-                case L'>':
-                case L':':
-                case L'"':
-                case L'/':
-                case L'\\':
-                case L'|':
-                case L'?':
-                case L'*':
-                    ch = L'_';
-                    break;
-                default:
-                    if (ch < 32)
-                        ch = L'_';
-                    break;
-                }
-            }
-
-            safeName = Trim_Copy(safeName);
-            if (safeName.empty())
-                safeName = kDefaultAnimationName;
-
-            return safeName + L".uianim.json";
-        }
-
         ImVec4 Make_Color255WithAlpha01(const ImVec4& baseColor255, float alpha01)
         {
             ImVec4 color = Clamp_AnimationKeyframeColor(baseColor255);
@@ -183,6 +41,8 @@ namespace UIEditor
         _assetFilePath.clear();
         _assetDirty = false;
         _previewEnabled = true;
+        _targetBindingDirty = true;
+        _legacyAlphaMigrationPending = false;
         _currentFrame = _asset.startFrame;
         _selectedTargetIndex = -1;
         _selectedTrackIndex = -1;
@@ -227,6 +87,8 @@ namespace UIEditor
         _asset = move(loadedAsset);
         _assetFilePath = filePath;
         _assetDirty = false;
+        _targetBindingDirty = true;
+        _legacyAlphaMigrationPending = true;
         _selectedTargetIndex = _asset.targets.empty() ? -1 : 0;
         _selectedTrackIndex = -1;
         if (_selectedTargetIndex >= 0 && !_asset.targets[_selectedTargetIndex].tracks.empty())
@@ -274,6 +136,7 @@ namespace UIEditor
             const bool renamedTarget = _asset.targets[targetIndex].targetName != selectedObject->name;
             _asset.targets[targetIndex].targetName = selectedObject->name;
             _asset.targets[targetIndex].targetObjectId = selectedObject->id;
+            _targetBindingDirty = false;
             Clamp_SelectedIndices();
             if (renamedTarget)
                 Mark_AssetDirty();
@@ -284,6 +147,7 @@ namespace UIEditor
         target.targetName = selectedObject->name;
         target.targetObjectId = selectedObject->id;
         _asset.targets.push_back(move(target));
+        _targetBindingDirty = false;
         _selectedTargetIndex = static_cast<int32>(_asset.targets.size()) - 1;
         _selectedTrackIndex = -1;
         _selectedKeyIndex = -1;
@@ -299,11 +163,15 @@ namespace UIEditor
 
         target->targetName.clear();
         target->targetObjectId = 0;
+        _targetBindingDirty = false;
         Mark_AssetDirty();
     }
 
-    void UI_AnimationAssetService::Resolve_TargetObject(const UI_Document& document)
+    void UI_AnimationAssetService::Resolve_TargetObject(const UI_Document& document, bool forceResolve)
     {
+        if (!forceResolve && !_targetBindingDirty && !_legacyAlphaMigrationPending)
+            return;
+
         for (UI_AnimationTargetBinding& target : _asset.targets)
         {
             if (target.targetName.empty())
@@ -313,7 +181,7 @@ namespace UIEditor
             }
 
             const UI_Object* currentTarget = document.Find_Object(target.targetObjectId);
-            if (nullptr != currentTarget && currentTarget->name == target.targetName)
+            if (!forceResolve && nullptr != currentTarget && currentTarget->name == target.targetName)
                 continue;
 
             target.targetObjectId = 0;
@@ -327,7 +195,13 @@ namespace UIEditor
             }
         }
 
-        Migrate_LegacyAlphaTracks(document);
+        _targetBindingDirty = false;
+
+        if (_legacyAlphaMigrationPending)
+        {
+            Migrate_LegacyAlphaTracks(document);
+            _legacyAlphaMigrationPending = false;
+        }
     }
 
     void UI_AnimationAssetService::Set_TargetName(const string& targetName, const UI_Document& document)
@@ -346,7 +220,8 @@ namespace UIEditor
             Get_SelectedTarget()->targetName = targetName;
         }
 
-        Resolve_TargetObject(document);
+        _targetBindingDirty = true;
+        Resolve_TargetObject(document, true);
         Mark_AssetDirty();
     }
 
@@ -361,15 +236,13 @@ namespace UIEditor
 
     void UI_AnimationAssetService::Set_CurrentFrame(int32 frame)
     {
-        Clamp_Asset();
+        Clamp_AssetRange();
         _currentFrame = min(max(frame, _asset.startFrame), _asset.endFrame);
     }
 
     void UI_AnimationAssetService::Clamp_Asset()
     {
-        _asset.fps = max(1, _asset.fps);
-        _asset.endFrame = max(_asset.startFrame + 1, _asset.endFrame);
-        _currentFrame = min(max(_currentFrame, _asset.startFrame), _asset.endFrame);
+        Clamp_AssetRange();
 
         for (UI_AnimationTargetBinding& target : _asset.targets)
         {
@@ -387,6 +260,13 @@ namespace UIEditor
         }
 
         Clamp_SelectedIndices();
+    }
+
+    void UI_AnimationAssetService::Clamp_AssetRange()
+    {
+        _asset.fps = max(1, _asset.fps);
+        _asset.endFrame = max(_asset.startFrame + 1, _asset.endFrame);
+        _currentFrame = min(max(_currentFrame, _asset.startFrame), _asset.endFrame);
     }
 
     void UI_AnimationAssetService::Normalize_AllTracks()
@@ -595,132 +475,6 @@ namespace UIEditor
         return changed;
     }
 
-    bool UI_AnimationAssetService::Apply_Preset(const UI_Document& document, UI_AnimationPresetType presetType, int32 durationFrames, float distance, float scaleAmount)
-    {
-        const UI_AnimationTargetBinding* target = Get_SelectedTarget();
-        const UI_Object* targetObject = nullptr != target ? document.Find_Object(target->targetObjectId) : nullptr;
-        if (nullptr == targetObject)
-            return false;
-
-        const int32 startFrame = _currentFrame;
-        const int32 safeDuration = max(1, durationFrames);
-        const int32 endFrame = startFrame + safeDuration;
-        const int32 midFrame = startFrame + max(1, static_cast<int32>(roundf(static_cast<float>(safeDuration) * 0.6f)));
-        const float safeDistance = max(1.f, distance);
-        const float safeScaleAmount = max(0.01f, scaleAmount);
-        const float baseX = targetObject->position.x;
-        const float baseY = targetObject->position.y;
-        const float baseScaleX = max(0.01f, targetObject->scale.x);
-        const float baseScaleY = max(0.01f, targetObject->scale.y);
-        const float baseRotation = targetObject->rotationRadians;
-        const float baseAlpha = min(max(targetObject->color.w, 0.f), 1.f);
-        const ImVec4 baseColor = Convert_AnimationColor01To255(targetObject->color);
-        const ImVec4 transparentColor = Make_Color255WithAlpha01(baseColor, 0.f);
-
-        _asset.endFrame = max(_asset.endFrame, endFrame);
-
-        bool changed = false;
-        auto key = [&](UI_AnimationKeyframeTrackType trackType, int32 frame, float value, UI_AnimationEasing easing)
-        {
-            changed |= Upsert_KeyValue(trackType, frame, value, easing, false);
-        };
-        auto colorKey = [&](int32 frame, const ImVec4& color, UI_AnimationEasing easing)
-        {
-            changed |= Upsert_KeyColor(frame, color, easing, false);
-        };
-
-        switch (presetType)
-        {
-        case UI_AnimationPresetType::FadeIn:
-            colorKey(startFrame, transparentColor, UI_AnimationEasing::EaseOut);
-            colorKey(endFrame, Make_Color255WithAlpha01(baseColor, baseAlpha), UI_AnimationEasing::EaseOut);
-            break;
-        case UI_AnimationPresetType::FadeOut:
-            colorKey(startFrame, Make_Color255WithAlpha01(baseColor, baseAlpha), UI_AnimationEasing::EaseIn);
-            colorKey(endFrame, transparentColor, UI_AnimationEasing::EaseIn);
-            break;
-        case UI_AnimationPresetType::SlideInUp:
-            key(UI_AnimationKeyframeTrackType::PositionY, startFrame, baseY + safeDistance, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::PositionY, endFrame, baseY, UI_AnimationEasing::EaseOut);
-            colorKey(startFrame, transparentColor, UI_AnimationEasing::EaseOut);
-            colorKey(endFrame, Make_Color255WithAlpha01(baseColor, baseAlpha), UI_AnimationEasing::EaseOut);
-            break;
-        case UI_AnimationPresetType::SlideInDown:
-            key(UI_AnimationKeyframeTrackType::PositionY, startFrame, baseY - safeDistance, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::PositionY, endFrame, baseY, UI_AnimationEasing::EaseOut);
-            colorKey(startFrame, transparentColor, UI_AnimationEasing::EaseOut);
-            colorKey(endFrame, Make_Color255WithAlpha01(baseColor, baseAlpha), UI_AnimationEasing::EaseOut);
-            break;
-        case UI_AnimationPresetType::SlideInLeft:
-            key(UI_AnimationKeyframeTrackType::PositionX, startFrame, baseX - safeDistance, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::PositionX, endFrame, baseX, UI_AnimationEasing::EaseOut);
-            colorKey(startFrame, transparentColor, UI_AnimationEasing::EaseOut);
-            colorKey(endFrame, Make_Color255WithAlpha01(baseColor, baseAlpha), UI_AnimationEasing::EaseOut);
-            break;
-        case UI_AnimationPresetType::SlideInRight:
-            key(UI_AnimationKeyframeTrackType::PositionX, startFrame, baseX + safeDistance, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::PositionX, endFrame, baseX, UI_AnimationEasing::EaseOut);
-            colorKey(startFrame, transparentColor, UI_AnimationEasing::EaseOut);
-            colorKey(endFrame, Make_Color255WithAlpha01(baseColor, baseAlpha), UI_AnimationEasing::EaseOut);
-            break;
-        case UI_AnimationPresetType::PopIn:
-            key(UI_AnimationKeyframeTrackType::ScaleX, startFrame, baseScaleX * 0.86f, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, startFrame, baseScaleY * 0.86f, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleX, midFrame, baseScaleX * safeScaleAmount, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, midFrame, baseScaleY * safeScaleAmount, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleX, endFrame, baseScaleX, UI_AnimationEasing::EaseInOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, endFrame, baseScaleY, UI_AnimationEasing::EaseInOut);
-            colorKey(startFrame, transparentColor, UI_AnimationEasing::EaseOut);
-            colorKey(endFrame, Make_Color255WithAlpha01(baseColor, baseAlpha), UI_AnimationEasing::EaseOut);
-            break;
-        case UI_AnimationPresetType::TooltipAppear:
-            key(UI_AnimationKeyframeTrackType::PositionY, startFrame, baseY + safeDistance * 0.35f, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::PositionY, endFrame, baseY, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleX, startFrame, baseScaleX * 0.96f, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, startFrame, baseScaleY * 0.96f, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleX, endFrame, baseScaleX, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, endFrame, baseScaleY, UI_AnimationEasing::EaseOut);
-            colorKey(startFrame, transparentColor, UI_AnimationEasing::EaseOut);
-            colorKey(endFrame, Make_Color255WithAlpha01(baseColor, baseAlpha), UI_AnimationEasing::EaseOut);
-            break;
-        case UI_AnimationPresetType::ButtonHoverPulse:
-            key(UI_AnimationKeyframeTrackType::ScaleX, startFrame, baseScaleX, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, startFrame, baseScaleY, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleX, midFrame, baseScaleX * 1.04f, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, midFrame, baseScaleY * 1.04f, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleX, endFrame, baseScaleX, UI_AnimationEasing::EaseInOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, endFrame, baseScaleY, UI_AnimationEasing::EaseInOut);
-            break;
-        case UI_AnimationPresetType::ButtonPressPop:
-            key(UI_AnimationKeyframeTrackType::ScaleX, startFrame, baseScaleX, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, startFrame, baseScaleY, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleX, midFrame, baseScaleX * 0.94f, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, midFrame, baseScaleY * 0.94f, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleX, endFrame, baseScaleX, UI_AnimationEasing::EaseInOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, endFrame, baseScaleY, UI_AnimationEasing::EaseInOut);
-            break;
-        case UI_AnimationPresetType::SkillNodeReveal:
-            key(UI_AnimationKeyframeTrackType::ScaleX, startFrame, baseScaleX * 0.75f, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, startFrame, baseScaleY * 0.75f, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleX, midFrame, baseScaleX * safeScaleAmount, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, midFrame, baseScaleY * safeScaleAmount, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::ScaleX, endFrame, baseScaleX, UI_AnimationEasing::EaseInOut);
-            key(UI_AnimationKeyframeTrackType::ScaleY, endFrame, baseScaleY, UI_AnimationEasing::EaseInOut);
-            key(UI_AnimationKeyframeTrackType::Rotation, startFrame, baseRotation - 0.08f, UI_AnimationEasing::EaseOut);
-            key(UI_AnimationKeyframeTrackType::Rotation, endFrame, baseRotation, UI_AnimationEasing::EaseOut);
-            colorKey(startFrame, transparentColor, UI_AnimationEasing::EaseOut);
-            colorKey(endFrame, Make_Color255WithAlpha01(baseColor, baseAlpha), UI_AnimationEasing::EaseOut);
-            break;
-        default:
-            return false;
-        }
-
-        if (changed)
-            Mark_AssetDirty();
-
-        return changed;
-    }
-
     bool UI_AnimationAssetService::Copy_SelectedKey()
     {
         UI_AnimationKeyframeTrack* track = Get_SelectedTrack();
@@ -911,126 +665,6 @@ namespace UIEditor
         _assetDirty = true;
     }
 
-    bool UI_AnimationAssetService::Show_SaveAssetDialog(wstring& outFilePath) const
-    {
-        wchar_t filePathBuffer[MAX_PATH] = {};
-        if (!outFilePath.empty())
-            wcsncpy_s(filePathBuffer, outFilePath.c_str(), _TRUNCATE);
-        else
-        {
-            const wstring defaultFileName = Make_SafeAnimationFileName(_asset.name);
-            wcsncpy_s(filePathBuffer, defaultFileName.empty() ? kDefaultAnimationFileName : defaultFileName.c_str(), _TRUNCATE);
-        }
-
-        const wstring initialDirectory = Resolve_DefaultAnimationDirectory();
-
-        OPENFILENAMEW openFileName = {};
-        openFileName.lStructSize = sizeof(openFileName);
-        openFileName.lpstrFilter = L"UI Animation Files\0*.uianim.json\0JSON Files\0*.json\0All Files\0*.*\0";
-        openFileName.lpstrFile = filePathBuffer;
-        openFileName.nMaxFile = MAX_PATH;
-        if (!initialDirectory.empty())
-            openFileName.lpstrInitialDir = initialDirectory.c_str();
-        openFileName.lpstrDefExt = L"uianim.json";
-        openFileName.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
-
-        if (FALSE == GetSaveFileNameW(&openFileName))
-            return false;
-
-        outFilePath = filePathBuffer;
-        Ensure_AnimationExtension(outFilePath);
-        return !outFilePath.empty();
-    }
-
-    bool UI_AnimationAssetService::Show_LoadAssetDialog(wstring& outFilePath) const
-    {
-        wchar_t filePathBuffer[MAX_PATH] = {};
-        const wstring initialDirectory = Resolve_DefaultAnimationDirectory();
-
-        OPENFILENAMEW openFileName = {};
-        openFileName.lStructSize = sizeof(openFileName);
-        openFileName.lpstrFilter = L"UI Animation Files\0*.uianim.json\0JSON Files\0*.json\0All Files\0*.*\0";
-        openFileName.lpstrFile = filePathBuffer;
-        openFileName.nMaxFile = MAX_PATH;
-        if (!initialDirectory.empty())
-            openFileName.lpstrInitialDir = initialDirectory.c_str();
-        openFileName.lpstrDefExt = L"uianim.json";
-        openFileName.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
-
-        if (FALSE == GetOpenFileNameW(&openFileName))
-            return false;
-
-        outFilePath = filePathBuffer;
-        return !outFilePath.empty();
-    }
-
-    wstring UI_AnimationAssetService::Resolve_DefaultAnimationDirectory() const
-    {
-        vector<fs::path> startPaths;
-
-        const fs::path moduleDirectory = Get_ModuleDirectory();
-        if (!moduleDirectory.empty())
-            startPaths.push_back(moduleDirectory);
-
-        try
-        {
-            startPaths.push_back(fs::current_path());
-        }
-        catch (const exception& exception)
-        {
-            LOG_WARN("UI animation current path query failed: {}", exception.what());
-        }
-
-        for (const fs::path& startPath : startPaths)
-        {
-            fs::path resourceRoot = {};
-            if (Try_FindResourceRootFromStart(startPath, resourceRoot))
-            {
-                const fs::path animationDirectory = (resourceRoot / L"UI" / L"UI_Animations").lexically_normal();
-                if (Try_CreateDirectory(animationDirectory))
-                    return animationDirectory.wstring();
-            }
-        }
-
-        const vector<fs::path> fallbackCandidates = {
-            L"..\\Bin\\Resources\\UI\\UI_Animations",
-            L"..\\Client\\Bin\\Resources\\UI\\UI_Animations",
-            L"..\\..\\Client\\Bin\\Resources\\UI\\UI_Animations",
-            L"..\\..\\..\\Client\\Bin\\Resources\\UI\\UI_Animations",
-            L"Client\\Bin\\Resources\\UI\\UI_Animations",
-        };
-
-        for (const fs::path& candidate : fallbackCandidates)
-        {
-            try
-            {
-                const fs::path normalizedCandidate = fs::absolute(candidate).lexically_normal();
-                if (Try_CreateDirectory(normalizedCandidate))
-                    return normalizedCandidate.wstring();
-            }
-            catch (const exception& exception)
-            {
-                LOG_WARN("UI animation fallback directory failed: {} ({})", exception.what(), String::ToString(candidate.wstring()));
-            }
-        }
-
-        return {};
-    }
-
-    void UI_AnimationAssetService::Ensure_AnimationExtension(wstring& filePath) const
-    {
-        if (filePath.empty())
-            return;
-
-        fs::path path(filePath);
-        const wstring lowerFileName = To_Lower(path.filename().wstring());
-        if (Ends_With(lowerFileName, L".uianim.json"))
-            return;
-
-        path.replace_extension(L".uianim.json");
-        filePath = path.wstring();
-    }
-
     int32 UI_AnimationAssetService::Find_TargetIndexByName(const string& targetName) const
     {
         if (targetName.empty())
@@ -1100,88 +734,6 @@ namespace UIEditor
         target->tracks.push_back(track);
         Mark_AssetDirty();
         return static_cast<int32>(target->tracks.size()) - 1;
-    }
-
-    void UI_AnimationAssetService::Migrate_LegacyAlphaTracks(const UI_Document& document)
-    {
-        bool changed = false;
-        for (UI_AnimationTargetBinding& target : _asset.targets)
-        {
-            const UI_Object* targetObject = document.Find_Object(target.targetObjectId);
-            const ImVec4 baseColor = nullptr != targetObject
-                ? Convert_AnimationColor01To255(targetObject->color)
-                : ImVec4(255.f, 255.f, 255.f, 255.f);
-
-            int32 colorTrackIndex = -1;
-            for (int32 trackIndex = 0; trackIndex < static_cast<int32>(target.tracks.size()); ++trackIndex)
-            {
-                if (target.tracks[trackIndex].type == UI_AnimationKeyframeTrackType::Color)
-                {
-                    colorTrackIndex = trackIndex;
-                    break;
-                }
-            }
-
-            for (int32 trackIndex = 0; trackIndex < static_cast<int32>(target.tracks.size()); ++trackIndex)
-            {
-                UI_AnimationKeyframeTrack& track = target.tracks[trackIndex];
-                if (track.type != UI_AnimationKeyframeTrackType::Alpha)
-                    continue;
-
-                if (colorTrackIndex >= 0 && colorTrackIndex != trackIndex)
-                {
-                    UI_AnimationKeyframeTrack& colorTrack = target.tracks[colorTrackIndex];
-                    for (const UI_AnimationKeyframe& alphaKey : track.keys)
-                    {
-                        UI_AnimationKeyframe colorKey = alphaKey;
-                        colorKey.color = Make_Color255WithAlpha01(baseColor, alphaKey.value);
-
-                        const int32 existingKeyIndex = Find_KeyIndexAtFrame(colorTrack, colorKey.frame);
-                        if (existingKeyIndex >= 0)
-                        {
-                            colorTrack.keys[existingKeyIndex].color.w = colorKey.color.w;
-                            colorTrack.keys[existingKeyIndex].easing = colorKey.easing;
-                        }
-                        else
-                        {
-                            colorTrack.keys.push_back(colorKey);
-                        }
-                    }
-
-                    Sort_TrackKeys(colorTrack);
-                    track.keys.clear();
-                }
-                else
-                {
-                    track.type = UI_AnimationKeyframeTrackType::Color;
-                    for (UI_AnimationKeyframe& key : track.keys)
-                        key.color = Make_Color255WithAlpha01(baseColor, key.value);
-                    Sort_TrackKeys(track);
-                    colorTrackIndex = trackIndex;
-                }
-
-                changed = true;
-            }
-
-            target.tracks.erase(
-                remove_if(
-                    target.tracks.begin(),
-                    target.tracks.end(),
-                    [](const UI_AnimationKeyframeTrack& track)
-                    {
-                        return track.type == UI_AnimationKeyframeTrackType::Alpha && track.keys.empty();
-                    }),
-                target.tracks.end());
-        }
-
-        if (changed)
-        {
-            if (_pendingTrackType == UI_AnimationKeyframeTrackType::Alpha)
-                _pendingTrackType = UI_AnimationKeyframeTrackType::Color;
-
-            Clamp_SelectedIndices();
-            Mark_AssetDirty();
-        }
     }
 
     bool UI_AnimationAssetService::Upsert_CurrentValueKey(const UI_Document& document, int32 trackIndex, bool selectKey)

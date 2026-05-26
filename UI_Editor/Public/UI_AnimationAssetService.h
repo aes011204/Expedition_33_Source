@@ -49,7 +49,7 @@ namespace UIEditor
 
         bool Bind_SelectedUI(const UI_Object* selectedObject);
         void Clear_Target();
-        void Resolve_TargetObject(const UI_Document& document);
+        void Resolve_TargetObject(const UI_Document& document, bool forceResolve = false);
         void Set_AssetName(const string& assetName);
         void Set_TargetName(const string& targetName, const UI_Document& document);
         void Set_CurrentFrame(int32 frame);
@@ -102,6 +102,7 @@ namespace UIEditor
         bool Upsert_KeyColor(int32 frame, const ImVec4& color, UI_AnimationEasing easing, bool selectKey);
         void Sort_TrackKeysWithoutMerge(UI_AnimationKeyframeTrack& track, int32 movingKeyOriginalIndex, const UI_AnimationKeyframe& movingKey);
         void Sort_TrackKeys(UI_AnimationKeyframeTrack& track);
+        void Clamp_AssetRange();
         void Clamp_SelectedIndices();
 
     private:
@@ -109,6 +110,8 @@ namespace UIEditor
         wstring _assetFilePath = {};
         bool _assetDirty = false;
         bool _previewEnabled = true;
+        bool _targetBindingDirty = true;
+        bool _legacyAlphaMigrationPending = false;
         int32 _currentFrame = 0;
         int32 _selectedTargetIndex = -1;
         int32 _selectedTrackIndex = -1;

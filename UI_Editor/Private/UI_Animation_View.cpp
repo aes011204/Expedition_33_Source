@@ -129,9 +129,6 @@ namespace UIEditor
             _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
             Handle_Shortcuts();
 
-            _assetService.Clamp_Asset();
-            _assetService.Resolve_TargetObject(_editorManager.Get_Document());
-
             if (_editorManager.Is_AnimationPreviewActive() && _assetService.Has_AnyResolvedTarget())
                 _assetService.Set_CurrentFrame(_editorManager.Get_AnimationPreviewFrame());
 
@@ -161,6 +158,7 @@ namespace UIEditor
         {
             _editorManager.Stop_AnimationPreview();
             _assetService.New_Asset();
+            Mark_StaticPreviewDirty();
             Sync_AssetNameBuffer();
             Sync_TargetNameBuffer();
         }
@@ -171,10 +169,10 @@ namespace UIEditor
             if (_assetService.Load_Asset())
             {
                 _editorManager.Stop_AnimationPreview();
-                _assetService.Resolve_TargetObject(_editorManager.Get_Document());
+                _assetService.Resolve_TargetObject(_editorManager.Get_Document(), true);
                 Sync_AssetNameBuffer();
                 Sync_TargetNameBuffer();
-                Refresh_StaticPreview();
+                Request_StaticPreviewRefresh();
             }
         }
 
@@ -205,7 +203,7 @@ namespace UIEditor
             if (_assetService.Bind_SelectedUI(_editorManager.Get_SelectedObject()))
             {
                 Sync_TargetNameBuffer();
-                Refresh_StaticPreview();
+                Request_StaticPreviewRefresh();
             }
         }
 
@@ -216,7 +214,7 @@ namespace UIEditor
             {
                 Sync_TargetNameBuffer();
                 _editorManager.Stop_AnimationPreview();
-                Refresh_StaticPreview();
+                Request_StaticPreviewRefresh();
             }
         }
 
@@ -224,7 +222,7 @@ namespace UIEditor
         if (ImGui::InputText("Target Name", _targetNameBuffer, size(_targetNameBuffer)))
         {
             _assetService.Set_TargetName(_targetNameBuffer, _editorManager.Get_Document());
-            Refresh_StaticPreview();
+            Request_StaticPreviewRefresh();
         }
         ImGui::EndDisabled();
 
@@ -271,7 +269,7 @@ namespace UIEditor
             if (!previewEnabled)
                 _editorManager.Stop_AnimationPreview();
             else
-                Refresh_StaticPreview();
+                Request_StaticPreviewRefresh();
         }
 
         bool changed = false;
@@ -354,7 +352,7 @@ namespace UIEditor
             if (ImGui::Button(label) &&
                 _assetService.Apply_Preset(_editorManager.Get_Document(), presetType, _presetDurationFrames, _presetDistance, _presetScaleAmount))
             {
-                Refresh_StaticPreview();
+                Request_StaticPreviewRefresh();
             }
         };
 
@@ -449,25 +447,25 @@ namespace UIEditor
         if (ImGui::Combo("Track Easing", &trackEasingIndex, kEasingNames, static_cast<int32>(size(kEasingNames))) &&
             _assetService.Set_SelectedTrackEasing(static_cast<UI_AnimationEasing>(trackEasingIndex), true))
         {
-            Refresh_StaticPreview();
+            Request_StaticPreviewRefresh();
         }
         Show_ItemTooltip("Applies the easing to every key on the selected track.");
         ImGui::EndDisabled();
 
         ImGui::BeginDisabled(nullptr == _assetService.Get_SelectedTrack());
         if (ImGui::Button("Delete Track") && _assetService.Delete_SelectedTrack())
-            Refresh_StaticPreview();
+            Request_StaticPreviewRefresh();
         ImGui::EndDisabled();
 
         ImGui::BeginDisabled(!hasResolvedTarget || nullptr == _assetService.Get_SelectedTrack());
         if (ImGui::Button("Key Selected Track") && _assetService.Add_KeyToSelectedTrack(_editorManager.Get_Document()))
-            Refresh_StaticPreview();
+            Request_StaticPreviewRefresh();
         ImGui::EndDisabled();
         Show_ItemTooltip("Create or update one key from the bound UI at the current frame.");
 
         ImGui::BeginDisabled(!hasResolvedTarget);
         if (ImGui::Button("Key Transform Set") && _assetService.Add_CurrentValueKeysToTransformTracks(_editorManager.Get_Document()))
-            Refresh_StaticPreview();
+            Request_StaticPreviewRefresh();
         ImGui::EndDisabled();
         Show_ItemTooltip("Create or update Position, Scale, Rotation, and Color keys at the current frame.");
 
@@ -478,12 +476,12 @@ namespace UIEditor
 
         ImGui::BeginDisabled(!_assetService.Has_CopiedKey());
         if (ImGui::Button("Paste Key") && _assetService.Paste_CopiedKey())
-            Refresh_StaticPreview();
+            Request_StaticPreviewRefresh();
         ImGui::EndDisabled();
 
         ImGui::BeginDisabled(nullptr == _assetService.Get_SelectedKey());
         if (ImGui::Button("Delete Key") && _assetService.Delete_SelectedKey())
-            Refresh_StaticPreview();
+            Request_StaticPreviewRefresh();
         ImGui::EndDisabled();
     }
 
@@ -537,7 +535,7 @@ namespace UIEditor
         if (ImGui::Combo("Key Easing", &keyEasingIndex, kEasingNames, static_cast<int32>(size(kEasingNames))) &&
             _assetService.Set_SelectedKeyEasing(static_cast<UI_AnimationEasing>(keyEasingIndex)))
         {
-            Refresh_StaticPreview();
+            Request_StaticPreviewRefresh();
         }
         Show_ItemTooltip("Controls interpolation from this key to the next key.");
 
@@ -559,7 +557,7 @@ namespace UIEditor
                     static_cast<float>(min(max(channels[2], 0), 255)),
                     static_cast<float>(min(max(channels[3], 0), 255)));
                 if (_assetService.Set_SelectedKeyColor(nextColor))
-                    Refresh_StaticPreview();
+                    Request_StaticPreviewRefresh();
             }
             Show_ItemTooltip("Edit R, G, B, and A as 0 to 255 values.");
         }
@@ -575,7 +573,7 @@ namespace UIEditor
                     ? Degrees_ToRadians(value)
                     : value;
                 if (_assetService.Set_SelectedKeyValue(nextValue))
-                    Refresh_StaticPreview();
+                    Request_StaticPreviewRefresh();
             }
         }
     }
@@ -602,14 +600,14 @@ namespace UIEditor
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false))
         {
             if (_assetService.Paste_CopiedKey())
-                Refresh_StaticPreview();
+                Request_StaticPreviewRefresh();
             return;
         }
 
         if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) || ImGui::IsKeyPressed(ImGuiKey_Backspace, false))
         {
             if (_assetService.Delete_SelectedKey())
-                Refresh_StaticPreview();
+                Request_StaticPreviewRefresh();
             return;
         }
     }
@@ -631,6 +629,23 @@ namespace UIEditor
     void UI_Animation_View::Set_CurrentFrame(int32 frame)
     {
         _assetService.Set_CurrentFrame(frame);
+        Request_StaticPreviewRefresh();
+    }
+
+    void UI_Animation_View::Refresh_TargetBindings()
+    {
+        _assetService.Resolve_TargetObject(_editorManager.Get_Document(), true);
+        Request_StaticPreviewRefresh();
+    }
+
+    void UI_Animation_View::Mark_StaticPreviewDirty()
+    {
+        _staticPreviewDirty = true;
+    }
+
+    void UI_Animation_View::Request_StaticPreviewRefresh()
+    {
+        Mark_StaticPreviewDirty();
         Refresh_StaticPreview();
     }
 
@@ -638,10 +653,25 @@ namespace UIEditor
     {
         _assetService.Resolve_TargetObject(_editorManager.Get_Document());
         if (!_assetService.Is_PreviewEnabled() || !_assetService.Has_AnyResolvedTarget())
+        {
+            _lastStaticPreviewFrame = INT_MIN;
+            return;
+        }
+
+        if (_editorManager.Is_AnimationPreviewPlaying())
             return;
 
-        if (!_editorManager.Is_AnimationPreviewPlaying())
-            _editorManager.Preview_AnimationAsset(_assetService.Get_Asset(), _assetService.Get_CurrentFrame());
+        const int32 currentFrame = _assetService.Get_CurrentFrame();
+        if (!_staticPreviewDirty &&
+            _lastStaticPreviewFrame == currentFrame &&
+            _editorManager.Is_AnimationPreviewActive())
+        {
+            return;
+        }
+
+        _editorManager.Preview_AnimationAsset(_assetService.Get_Asset(), currentFrame);
+        _staticPreviewDirty = false;
+        _lastStaticPreviewFrame = currentFrame;
     }
 
     void UI_Animation_View::Handle_TimelineClick(const UI_AnimationTimelineClickResult& clickResult)
