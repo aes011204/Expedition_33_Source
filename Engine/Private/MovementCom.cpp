@@ -268,7 +268,18 @@ void MovementCom::Update_Rotation(float timeDelta)
     if (_input.isLockLook) return;
 
     Vec3 desiredDir = Vec3::Zero;
-    if (!Resolve_MoveDirection(desiredDir))
+
+    if (_input.forcedDirection.LengthSquared() > 0.f)
+    {
+        desiredDir = _input.forcedDirection;
+        desiredDir.y = 0.f;
+
+        if (desiredDir.LengthSquared() > 0.f)
+            desiredDir.Normalize();
+        else
+            desiredDir = Vec3::Look;
+    }
+    else if (!Resolve_MoveDirection(desiredDir))
     {
         _currentTurnSpeedDegree = Engine::Math::Lerp_Damp(_currentTurnSpeedDegree, 0.f, _moveDesc.turnResponse, timeDelta);
         return;

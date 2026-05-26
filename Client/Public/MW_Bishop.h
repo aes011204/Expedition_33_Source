@@ -27,7 +27,6 @@ public:
 
 public:
     void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
-    void    Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const override;
 
 protected:
     HRESULT Ready_Components() override;

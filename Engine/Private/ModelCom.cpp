@@ -7,6 +7,7 @@
 #include "ShaderCom.h"
 #include "Material.h"
 #include "Animation.h"
+#include "AnimationModifier.h"
 #include "SkeletalMesh.h"
 #include "StaticMesh.h"
 #include "ComputeStructuredBuffer.h"
@@ -231,6 +232,17 @@ const char* ModelCom::Get_AnimationName(uint32 animationIndex) const
         return nullptr;
 
     return _animations[animationIndex]->Get_AnimationName().c_str();
+}
+
+uint32 ModelCom::Get_AnimationIndexByName(const string& animationName) const
+{
+    for (auto& [name, index] : _mappedAnimIndices)
+    {
+        if (name == animationName)
+            return index;
+    }
+
+    return UINT_MAX;
 }
 
 const Matrix* ModelCom::Get_BoneMatrixPtr(const char* boneName) const
@@ -639,6 +651,10 @@ json ModelCom::To_Json() const
                 if (inst.cbMask.roughnessScale) cb["roughnessScale"] = inst.cb.roughnessScale;
                 if (inst.cbMask.metalnessScale) cb["metalnessScale"] = inst.cb.metalnessScale;
                 if (inst.cbMask.aoScale) cb["aoScale"] = inst.cb.aoScale;
+                if (inst.cbMask.ormAoSource) cb["ormAoSource"] = inst.cb.ormAoSource;
+                if (inst.cbMask.ormRoughnessSource) cb["ormRoughnessSource"] = inst.cb.ormRoughnessSource;
+                if (inst.cbMask.ormMetalnessSource) cb["ormMetalnessSource"] = inst.cb.ormMetalnessSource;
+                if (inst.cbMask.opacityMaskSource) cb["opacityMaskSource"] = inst.cb.opacityMaskSource;
 
                 if (inst.cbMask.uvScale) cb["uvScale"] = { inst.cb.uvScale.x, inst.cb.uvScale.y };
                 if (inst.cbMask.uvOffset) cb["uvOffset"] = { inst.cb.uvOffset.x, inst.cb.uvOffset.y };
@@ -831,6 +847,7 @@ bool ModelCom::Play_Animation(float timeDelta)
     Begin_AnimationPipeline(timeDelta, context);
 
     Step_SampleAnimationPose(context);
+    Evaluate_AnimationModifiers(timeDelta);
     Step_RebuildCombinedBones();
     Step_FinalizeAnimationFrame(context);
 
@@ -1739,6 +1756,33 @@ HRESULT ModelCom::Ensure_AnimationComputeSource()
     }
 
     return S_OK;
+}
+
+void ModelCom::Add_AnimModifier(const Shared<AnimationModifier>& modifier)
+{
+    if (modifier)
+    {
+        _modifiers.push_back(modifier);
+    }
+}
+
+AnimationModifier* ModelCom::Find_AnimModifierByTag(const wstring& modifierTag) const
+{
+    for (auto mod : _modifiers)
+    {
+        if (mod->Get_ModifierTag() == modifierTag)
+            return mod.get();
+    }
+    
+    return nullptr;
+}
+
+void ModelCom::Evaluate_AnimationModifiers(float timeDelta)
+{
+    for (auto& modifier : _modifiers)
+    {
+        modifier->Evaluate_Modifier(this, timeDelta);
+    }
 }
 
 HRESULT ModelCom::Ready_Model(const char* modelPath)

@@ -244,6 +244,9 @@
     <Filter Include="94. ETC">
       <UniqueIdentifier>{4ae885e9-5541-4208-aa64-0a98f58ee9f2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\Model\Animation\Modifier">
+      <UniqueIdentifier>{4a8b075f-4a2b-4060-839b-978fbfb1912b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -385,6 +388,9 @@
     <ClInclude Include="..\Public\Shader_CBuffer_Define.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ShaderResourceRegistry.h">
+      <Filter>01.Utility\04.Component\Shader</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\ThreadPool.h">
       <Filter>94. ETC</Filter>
     </ClInclude>
@@ -412,6 +418,18 @@
     </ClInclude>
     <ClInclude Include="..\Public\Debug_Types.h">
       <Filter>99. Defines\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AnimationModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\IKAnimationModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\OffsetAnimationModifier.h">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h">
+      <Filter>01.Utility\04.Component\Model\Mesh</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -520,7 +538,10 @@
     <ClInclude Include="..\public\Mesh.h">
       <Filter>01.Utility\04.Component\Model\Mesh</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\Material.h">
+    <ClInclude Include="..\Public\MaterialCom.h">
+      <Filter>01.Utility\04.Component\Model\Material</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MaterialCB_OverrideFields.inl">
       <Filter>01.Utility\04.Component\Model\Material</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Bone.h">
@@ -735,6 +756,9 @@
     <ClCompile Include="..\private\ShaderCom.cpp">
       <Filter>01.Utility\04.Component\Shader</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ShaderResourceRegistry.cpp">
+      <Filter>01.Utility\04.Component\Shader</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\UIObject.cpp">
       <Filter>01.Utility\03.GameObjects\UIObject</Filter>
     </ClCompile>
@@ -912,9 +936,6 @@
     <ClCompile Include="..\private\UI_Image.cpp">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\UI_Image.cpp">
-      <Filter>01.Utility\11. UI\Object</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\UI_Text.cpp">
       <Filter>01.Utility\11. UI\Object</Filter>
     </ClCompile>
@@ -957,7 +978,9 @@
     <ClCompile Include="..\Private\EffectEmitterFactory.cpp">
       <Filter>01.Utility\03.GameObjects\Effect\Emitter Factory</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\PostProcessPipeline.cpp" />
+    <ClCompile Include="..\Private\PostProcessPipeline.cpp">
+      <Filter>01.Utility\05.Renderer</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\AnimState_Parser.cpp">
       <Filter>94. AnimationParseUtil</Filter>
     </ClCompile>
@@ -995,6 +1018,13 @@
       <Filter>01.Utility\11. UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AnimComputeRuntime.cpp" />
+    <ClCompile Include="..\Private\AnimationModifier.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\OffsetAnimationModifier.cpp">
+      <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
@@ -1019,6 +1049,7 @@
       <Filter>02.ShaderFiles</Filter>
     </None>
     <None Include="..\Public\PostProcessPipeline.h" />
+    <None Include="..\Public\SSAOPipeline.h" />
     <None Include="..\Bin\ShaderFiles\Engine_Shader_PostProcess.hlsl">
       <Filter>02.ShaderFiles</Filter>
     </None>
@@ -1026,6 +1057,9 @@
       <Filter>02.ShaderFiles</Filter>
     </None>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_ComputeAnimTypes.hlsli" />
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Feature.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Engine.rc">

@@ -14,21 +14,40 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    bool Starts_With(const wstring& value, const wchar_t* prefix)
-    {
-        const size_t prefixLength = wcslen(prefix);
-        return value.size() >= prefixLength && 0 == value.compare(0, prefixLength, prefix);
-    }
-
     bool Is_EffectEditorStaticLevelAllowed(const wstring& prototypeTag)
     {
-        return prototypeTag == L"VIBuffer_Rect" || prototypeTag == L"VIBuffer_Cube";
+        return prototypeTag == L"VIBuffer_Cube" || prototypeTag == L"VIBuffer_Rect";
+    }
+
+    bool Is_EffectEditorPreviewTextureAllowed(const wstring& prototypeTag)
+    {
+        return prototypeTag == L"Texture_Effect_EditorSkybox";
+    }
+
+    bool Is_EffectEditorPreviewShaderAllowed(const wstring& prototypeTag)
+    {
+        return
+            prototypeTag == L"Shader_VtxCube" ||
+            prototypeTag == L"Shader_VtxMesh" ||
+            prototypeTag == L"Shader_VtxAnimMesh" ||
+            prototypeTag == L"Shader_EffectMaterialPreview" ||
+            prototypeTag == L"Shader_EffectSprite" ||
+            prototypeTag == L"Shader_EffectTrail";
+    }
+
+    bool Is_EffectEditorPreviewComputeShaderAllowed(const wstring& prototypeTag)
+    {
+        return
+            prototypeTag == L"ComputeShader_PointParticle" ||
+            prototypeTag == L"ComputeShader_TrailStrip" ||
+            prototypeTag == L"ComputeShader_BoneRemap" ||
+            prototypeTag == L"ComputeShader_AnimMeshSkinning";
     }
 
     bool Is_EffectEditorPreviewComponentAllowed(const wstring& prototypeTag)
     {
         return
-            Starts_With(prototypeTag, L"Com_Effect_") ||
+            prototypeTag == L"Com_Effect_ComputePointParticleBuffer" ||
             prototypeTag == L"Com_PlayerStat" ||
             prototypeTag == L"Com_Collider_OBB";
     }
@@ -36,7 +55,6 @@ namespace Internal
     bool Is_EffectEditorPreviewModelAllowed(const wstring& prototypeTag)
     {
         return
-            Starts_With(prototypeTag, L"Model_Effect_") ||
             prototypeTag == L"Model_GustaveBody" ||
             prototypeTag == L"Model_GustaveHead" ||
             prototypeTag == L"Model_GustaveHair";
@@ -45,10 +63,20 @@ namespace Internal
     bool Is_EffectEditorPreviewGameObjectAllowed(const wstring& prototypeTag)
     {
         return
-            Starts_With(prototypeTag, L"GameObject_Effect_") ||
             prototypeTag == L"GameObject_Body_Player" ||
             prototypeTag == L"GameObject_Head_Player" ||
             prototypeTag == L"GameObject_Hair_Player";
+    }
+
+    bool Is_EffectEditorPreviewGamePlayLoadJobAllowed(const FLoadJob& loadJob)
+    {
+        if (loadJob.eType != ELoadJobType::GameObject)
+            return false;
+
+        return
+            loadJob.strPrototypeTag == L"GameObject_EffectInstance" ||
+            loadJob.strPrototypeTag == L"GameObject_Effect_ComputeSpriteEmitter" ||
+            loadJob.strPrototypeTag == L"GameObject_Effect_ComputeTrailEmitter";
     }
 
     bool Is_EffectEditorStaticLoadJobAllowed(const FLoadJob& loadJob)
@@ -56,8 +84,10 @@ namespace Internal
         switch (loadJob.eType)
         {
         case ELoadJobType::Shader:
+            return Is_EffectEditorPreviewShaderAllowed(loadJob.strPrototypeTag);
+
         case ELoadJobType::ComputeShader:
-            return true;
+            return Is_EffectEditorPreviewComputeShaderAllowed(loadJob.strPrototypeTag);
 
         case ELoadJobType::Component:
             return Is_EffectEditorPreviewComponentAllowed(loadJob.strPrototypeTag);
@@ -72,17 +102,23 @@ namespace Internal
             return Is_EffectEditorStaticLevelAllowed(loadJob.strPrototypeTag);
 
         case ELoadJobType::TextureCreate:
-            return Starts_With(loadJob.strPrototypeTag, L"Texture_Effect_");
+            return Is_EffectEditorPreviewTextureAllowed(loadJob.strPrototypeTag);
 
         default:
             return false;
         }
     }
 
-    void Log_EffectEditorStaticLoadSummary(size_t totalCount, size_t includedCount, size_t excludedCount, size_t failedCount)
+    void Log_EffectEditorResourceFilterSummary(
+        const char* scope,
+        size_t totalCount,
+        size_t includedCount,
+        size_t excludedCount,
+        size_t failedCount)
     {
         LOG_INFO(
-            "[EffectEditorStaticFilter] total={}, included={}, excluded={}, failed={}",
+            "[ResourceFilter] scope={}, total={}, included={}, excluded={}, failed={}",
+            scope,
             static_cast<uint32>(totalCount),
             static_cast<uint32>(includedCount),
             static_cast<uint32>(excludedCount),
@@ -186,7 +222,7 @@ HRESULT EffectEditorApp::Initialize()
     CHECK_FAILED(run_startup_step(initializeClientMs, [&]{ return CLIENT->Initialize_Client_ForEffectEditor(_device, _context); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyFontsMs, [&]{ return Ready_Fonts(); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyStaticResourcesMs, [&]{ return Ready_Prototype_For_Static_Level(); }), E_FAIL);
-    CHECK_FAILED(run_startup_step(readyGamePlayResourcesMs, [&]{ return CLIENT->Ready_LevelResources(LevelType::GamePlay); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(readyGamePlayResourcesMs, [&]{ return Ready_Prototype_For_GamePlay_Preview_Level(); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyPreviewLevelMs, [&]{ return Ready_PreviewLevel(); }), E_FAIL);
 
     EffectEditorDesc editorDesc{};
@@ -262,8 +298,154 @@ void EffectEditorApp::Late_Update(float)
 {
 }
 
+#ifdef _DEBUG
+bool EffectEditorApp::Should_SampleEffectEditorRenderPerf()
+{
+    ++_renderPerfWindow.observedFrameCount;
+
+    const auto now = chrono::steady_clock::now();
+    if (!_hasRenderPerfLastSampleTime)
+    {
+        _renderPerfLastSampleTime = now;
+        _hasRenderPerfLastSampleTime = true;
+        return true;
+    }
+
+    const float elapsedSec = static_cast<float>(
+        chrono::duration<double>(now - _renderPerfLastSampleTime).count());
+    if (elapsedSec < kEffectEditorRenderPerfSampleIntervalSec)
+        return false;
+
+    _renderPerfLastSampleTime = now;
+    return true;
+}
+
+void EffectEditorApp::Reset_EffectEditorRenderPerfWindowState(chrono::steady_clock::time_point now)
+{
+    _renderPerfWindow = {};
+    _renderPerfWindowStartTime = now;
+    _hasRenderPerfWindowStartTime = true;
+}
+
+void EffectEditorApp::Accumulate_EffectEditorRenderPerf(
+    double totalRenderMs,
+    double gameRenderMs,
+    double captureMs,
+    double bindBackBufferMs,
+    double editorRenderMs,
+    double editorWindowsMs,
+    double notificationMs,
+    double imguiMs,
+    double presentMs)
+{
+    Accumulate_PassPerf(_renderPerfWindow.totalRender, totalRenderMs);
+    Accumulate_PassPerf(_renderPerfWindow.gameRender, gameRenderMs);
+    Accumulate_PassPerf(_renderPerfWindow.capture, captureMs);
+    Accumulate_PassPerf(_renderPerfWindow.bindBackBuffer, bindBackBufferMs);
+    Accumulate_PassPerf(_renderPerfWindow.editorRender, editorRenderMs);
+    Accumulate_PassPerf(_renderPerfWindow.editorWindows, editorWindowsMs);
+    Accumulate_PassPerf(_renderPerfWindow.notification, notificationMs);
+    Accumulate_PassPerf(_renderPerfWindow.imgui, imguiMs);
+    Accumulate_PassPerf(_renderPerfWindow.present, presentMs);
+}
+
+void EffectEditorApp::Try_FlushEffectEditorRenderPerfLog()
+{
+    const auto now = chrono::steady_clock::now();
+    if (!_hasRenderPerfWindowStartTime)
+    {
+        Reset_EffectEditorRenderPerfWindowState(now);
+        return;
+    }
+
+    const float windowSec = static_cast<float>(
+        chrono::duration<double>(now - _renderPerfWindowStartTime).count());
+    if (windowSec < kEffectEditorRenderPerfWindowSec)
+        return;
+
+    const size_t sampleCount = _renderPerfWindow.totalRender.sampleCount;
+    if (0 == sampleCount)
+    {
+        Reset_EffectEditorRenderPerfWindowState(now);
+        return;
+    }
+
+    GAME->Log_FileOnly(
+        spdlog::source_loc{ __FILE__, __LINE__, SPDLOG_FUNCTION },
+        spdlog::level::trace,
+        fmt::format(
+            "[EffectEditorRenderPerf] frames={} samples={} sample_interval={:.2f}s fps~{:.1f} "
+            "total_render_ms(avg={:.2f} max={:.2f}) "
+            "game_render_ms(avg={:.2f} max={:.2f}) "
+            "capture_ms(avg={:.2f} max={:.2f}) "
+            "bind_backbuffer_ms(avg={:.2f} max={:.2f}) "
+            "editor_render_ms(avg={:.2f} max={:.2f}) "
+            "editor_windows_ms(avg={:.2f} max={:.2f}) "
+            "notification_ms(avg={:.2f} max={:.2f}) "
+            "imgui_ms(avg={:.2f} max={:.2f}) "
+            "present_ms(avg={:.2f} max={:.2f})",
+            _renderPerfWindow.observedFrameCount,
+            static_cast<uint32>(sampleCount),
+            kEffectEditorRenderPerfSampleIntervalSec,
+            Safe_Divide(static_cast<double>(_renderPerfWindow.observedFrameCount), windowSec),
+            Safe_Divide(_renderPerfWindow.totalRender.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.totalRender.maxMs,
+            Safe_Divide(_renderPerfWindow.gameRender.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.gameRender.maxMs,
+            Safe_Divide(_renderPerfWindow.capture.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.capture.maxMs,
+            Safe_Divide(_renderPerfWindow.bindBackBuffer.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.bindBackBuffer.maxMs,
+            Safe_Divide(_renderPerfWindow.editorRender.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.editorRender.maxMs,
+            Safe_Divide(_renderPerfWindow.editorWindows.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.editorWindows.maxMs,
+            Safe_Divide(_renderPerfWindow.notification.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.notification.maxMs,
+            Safe_Divide(_renderPerfWindow.imgui.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.imgui.maxMs,
+            Safe_Divide(_renderPerfWindow.present.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.present.maxMs
+        )
+    );
+
+    Reset_EffectEditorRenderPerfWindowState(now);
+}
+
+void EffectEditorApp::Accumulate_PassPerf(PerfCounter& counter, double passMs)
+{
+    ++counter.sampleCount;
+    counter.accumulatedMs += passMs;
+    counter.maxMs = max(counter.maxMs, passMs);
+}
+
+double EffectEditorApp::Safe_Divide(double numerator, double denominator)
+{
+    if (denominator <= 0.0)
+        return 0.0;
+
+    return numerator / denominator;
+}
+#endif
+
 HRESULT EffectEditorApp::Render()
 {
+#ifdef _DEBUG
+    const bool sampleRenderPerf = Should_SampleEffectEditorRenderPerf();
+    chrono::steady_clock::time_point totalRenderBegin{};
+    chrono::steady_clock::time_point passBegin{};
+    double totalRenderMs = 0.0;
+    double gameRenderMs = 0.0;
+    double captureMs = 0.0;
+    double bindBackBufferMs = 0.0;
+    double editorRenderMs = 0.0;
+    double presentMs = 0.0;
+    EffectEditorRenderPerfSample editorPerfSample{};
+
+    if (sampleRenderPerf)
+        totalRenderBegin = chrono::steady_clock::now();
+#endif
+
     // EFFECTEDITOR_BG_FALLBACK_TEMP: EffectEditor 전용 배경색 제어로 보기 어렵고 공용 postprocess 경로 개입 및 관측 왜곡 우려가 있어 비활성화한다.
     /*
     // EFFECTEDITOR_BG_FALLBACK_TEMP: Draw 스코프 밖에서 복구할 수 있도록 사전 백업한다.
@@ -288,6 +470,10 @@ HRESULT EffectEditorApp::Render()
     }
     */
 
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        passBegin = chrono::steady_clock::now();
+#endif
     {
         Profile_View::Scope profileScope("Game::Render");
 
@@ -313,6 +499,10 @@ HRESULT EffectEditorApp::Render()
             return E_FAIL;
         }
     }
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        gameRenderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - passBegin).count();
+#endif
 
     // EFFECTEDITOR_BG_FALLBACK_TEMP: EffectEditor 전용 배경색 제어로 보기 어렵고 공용 postprocess 경로 개입 및 관측 왜곡 우려가 있어 비활성화한다.
     /*
@@ -321,19 +511,72 @@ HRESULT EffectEditorApp::Render()
         postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
     */
 
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        passBegin = chrono::steady_clock::now();
+#endif
     {
         Profile_View::Scope profileScope("Editor::Render");
 
+#ifdef _DEBUG
+        chrono::steady_clock::time_point editorPassBegin{};
+        if (sampleRenderPerf)
+            editorPassBegin = chrono::steady_clock::now();
+#endif
         EDITOR->Capture_BackBuffer_ToViewport();
+#ifdef _DEBUG
+        if (sampleRenderPerf)
+        {
+            captureMs = chrono::duration<double, milli>(chrono::steady_clock::now() - editorPassBegin).count();
+            editorPassBegin = chrono::steady_clock::now();
+        }
+#endif
         GAME->Bind_BackBuffer();
+#ifdef _DEBUG
+        if (sampleRenderPerf)
+        {
+            bindBackBufferMs = chrono::duration<double, milli>(chrono::steady_clock::now() - editorPassBegin).count();
+        }
+#endif
+#ifdef _DEBUG
+        EDITOR->Render_Editor(sampleRenderPerf ? &editorPerfSample : nullptr);
+#else
         EDITOR->Render_Editor();
+#endif
     }
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        editorRenderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - passBegin).count();
+#endif
 
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        passBegin = chrono::steady_clock::now();
+#endif
     {
         Profile_View::Scope profileScope("Engine::Present");
         if (FAILED(GAME->Present()))
             return E_FAIL;
     }
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+    {
+        presentMs = chrono::duration<double, milli>(chrono::steady_clock::now() - passBegin).count();
+        totalRenderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - totalRenderBegin).count();
+        Accumulate_EffectEditorRenderPerf(
+            totalRenderMs,
+            gameRenderMs,
+            captureMs,
+            bindBackBufferMs,
+            editorRenderMs,
+            editorPerfSample.editorWindowsMs,
+            editorPerfSample.notificationMs,
+            editorPerfSample.imguiMs,
+            presentMs);
+    }
+
+    Try_FlushEffectEditorRenderPerfLog();
+#endif
 
     return S_OK;
 }
@@ -377,7 +620,7 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
         {
             ++failedCount;
             LOG_WARN(
-                "[EffectEditorStaticFilter] register failed. type={}, tag={}",
+                "[ResourceFilter] scope=Static, register failed. type={}, tag={}",
                 string(magic_enum::enum_name(loadJob.eType)),
                 String::ToString(loadJob.strPrototypeTag)
             );
@@ -385,7 +628,53 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
         }
     }
 
-    Internal::Log_EffectEditorStaticLoadSummary(loadJobs.size(), includedCount, excludedCount, failedCount);
+    Internal::Log_EffectEditorResourceFilterSummary("Static", loadJobs.size(), includedCount, excludedCount, failedCount);
+
+    return S_OK;
+}
+
+HRESULT EffectEditorApp::Ready_Prototype_For_GamePlay_Preview_Level()
+{
+    const Shared<ResourceLoader> resourceLoader = CLIENT->Get_ResourceLoader();
+    CHECK_NULL(resourceLoader, E_FAIL);
+
+    vector<FLoadJob> loadJobs;
+    CHECK_FAILED(resourceLoader->Build_LevelJobs(LevelType::GamePlay, loadJobs), E_FAIL);
+
+    size_t includedCount = 0;
+    size_t excludedCount = 0;
+    size_t failedCount = 0;
+
+    for (const FLoadJob& loadJob : loadJobs)
+    {
+        const bool included = Internal::Is_EffectEditorPreviewGamePlayLoadJobAllowed(loadJob);
+
+        if (!included)
+        {
+            ++excludedCount;
+            continue;
+        }
+
+        ++includedCount;
+
+        if (FAILED(resourceLoader->Register_LoadJob(loadJob)))
+        {
+            ++failedCount;
+            LOG_WARN(
+                "[ResourceFilter] scope=GamePlayPreview, register failed. type={}, tag={}",
+                string(magic_enum::enum_name(loadJob.eType)),
+                String::ToString(loadJob.strPrototypeTag)
+            );
+            continue;
+        }
+    }
+
+    Internal::Log_EffectEditorResourceFilterSummary(
+        "GamePlayPreview",
+        loadJobs.size(),
+        includedCount,
+        excludedCount,
+        failedCount);
 
     return S_OK;
 }

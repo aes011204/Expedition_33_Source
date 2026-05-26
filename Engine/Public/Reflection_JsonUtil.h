@@ -1,7 +1,8 @@
 ﻿#pragma once
 
-#include "Reflection_Types.h"
 #include "Engine_Typedef.h"
+#include "Helper_String.h"
+#include "Reflection_Types.h"
 
 namespace Engine::Reflection
 {
@@ -57,6 +58,10 @@ namespace Engine::Reflection
 
         case PropertyType::String:
             root[key] = *static_cast<const string*>(memberPtr);
+            break;
+
+        case PropertyType::WString:
+            root[key] = String::ToString(*static_cast<const wstring*>(memberPtr));
             break;
 
         case PropertyType::Enum:
@@ -146,6 +151,10 @@ namespace Engine::Reflection
 
         case PropertyType::String:
             *static_cast<string*>(memberPtr) = root[key].get<string>();
+            break;
+
+        case PropertyType::WString:
+            *static_cast<wstring*>(memberPtr) = String::ToWString(root[key].get<string>());
             break;
 
         case PropertyType::Enum:

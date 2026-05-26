@@ -7,6 +7,9 @@
 #include "Player_BattleBase.h"
 #include "Body_Player.h"
 #include "ModelCom.h"
+#include "Monster_Part.h"
+#include "Monster_WorldBase.h"
+#include "Monster_BattleBase.h"
 #include "TransformCom.h"
 
 namespace fs = std::filesystem;
@@ -34,6 +37,29 @@ void Refresh_PlayerBodyAnimMapping(const Shared<GameObject>& gameObject)
         }
     }
 }
+
+void Refresh_MonsterBodyAnimMapping(const Shared<GameObject>& gameObject)
+{
+    if (auto worldMonster = dynamic_pointer_cast<Monster_WorldBase>(gameObject))
+    {
+        if (auto* body = dynamic_cast<Monster_Part*>(worldMonster->Get_PartObject(L"Part_Body")))
+        {
+            if (Shared<ModelCom> model = body->Get_Model())
+                model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+        return;
+    }
+
+    if (auto battleMonster = dynamic_pointer_cast<Monster_BattleBase>(gameObject))
+    {
+        if (auto* body = dynamic_cast<Monster_Part*>(battleMonster->Get_PartObject(L"Part_Body")))
+        {
+            if (Shared<ModelCom> model = body->Get_Model())
+                model->Refresh_AnimStateMappingFromOwnerContext();
+        }
+    }
+}
+
 }
 
 Spawn_Prefab::Builder::Builder(const string& prefabName)
@@ -170,6 +196,7 @@ Shared<GameObject> Spawn_Prefab::Spawn_Implementation(const FSpawnDesc& desc)
 
     gameObject->Set_SourcePrefabName(desc.prefabName);
     Refresh_PlayerBodyAnimMapping(gameObject);
+    Refresh_MonsterBodyAnimMapping(gameObject);
 
     Apply_Overrides(gameObject, desc.overrides);
 

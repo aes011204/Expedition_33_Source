@@ -36,6 +36,9 @@ void UI_CrossHair::Open()
 
     UI_RuntimePanelBase::Open();
 
+    if (_outlineRoot)
+        _outlineRoot->Open();
+
     Apply_Color();
 
     if (!wasOpen && _crossHairImage)
@@ -48,6 +51,9 @@ void UI_CrossHair::Close()
     Apply_Color();
 
     UI_RuntimePanelBase::Close();
+
+    if (_outlineRoot)
+        _outlineRoot->Close();
 }
 
 void UI_CrossHair::Set_HitState(bool isHit)
@@ -70,6 +76,9 @@ HRESULT UI_CrossHair::Load_UI(uint32 levelIndex)
     _root = Find_UI(_uiByName, L"Panel_CrossAir");
     CHECK_NULL(_root, E_FAIL);
 
+    _outlineRoot = Find_UI(_uiByName, L"Panel_CrossAir_Outline");
+    CHECK_NULL(_outlineRoot, E_FAIL);
+
     return S_OK;
 }
 
@@ -79,13 +88,12 @@ HRESULT UI_CrossHair::Bind_UI()
     Shared<UI_Base> outlineBase = Find_UI(_uiByName, L"Image_CrossAir_Outline");
 
     CHECK_NULL(crossHairBase, E_FAIL);
-    CHECK_NULL(outlineBase, E_FAIL);
 
     _crossHairImage = dynamic_pointer_cast<UI_Image>(crossHairBase);
-    _crossHairOutlineImage = dynamic_pointer_cast<UI_Image>(outlineBase);
+    if (outlineBase)
+        _crossHairOutlineImage = dynamic_pointer_cast<UI_Image>(outlineBase);
 
     CHECK_NULL(_crossHairImage, E_FAIL);
-    CHECK_NULL(_crossHairOutlineImage, E_FAIL);
 
     Apply_Color();
     return S_OK;
@@ -94,9 +102,11 @@ HRESULT UI_CrossHair::Bind_UI()
 void UI_CrossHair::Apply_Color()
 {
     if (_crossHairImage)
+        // 히트 여부에 따라 중앙 크로스헤어 색을 바꾼다.
         _crossHairImage->Set_Color(_isHit ? _hitColor : _normalColor); 
 
     if (_crossHairOutlineImage)
+        // 히트 여부에 따라 외곽선 색을 바꾼다.
         _crossHairOutlineImage->Set_Color(_isHit ? _outlineHitColor : _outlineNormalColor);
 }
 
@@ -116,11 +126,15 @@ Unique<UI_CrossHair> UI_CrossHair::Create(uint32 levelIndex)
 
 void UI_CrossHair::Free()
 {
+    if (_outlineRoot)
+        _outlineRoot->Close();
+
     if (_root)
         _root->Close();
 
     _crossHairImage.reset();
     _crossHairOutlineImage.reset();
+    _outlineRoot.reset();
     _root.reset();
     _uiByName.clear();
 

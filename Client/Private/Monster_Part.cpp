@@ -6,6 +6,8 @@
 #include "ShaderCom.h"
 #include "AnimComputeRuntime.h"
 #include "ComputeShaderCom.h"
+#include "EffectCom.h"
+#include "SwitchDissolveFeature.h"
 
 NS_BEGIN(Client)
 
@@ -65,6 +67,11 @@ HRESULT Monster_Part::Render()
 {
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
+
+    CHECK_FAILED(EffectCom::Bind_DrawFeatures(
+        Get_Owner(),
+        _shader.get(),
+        DrawFeatureFlagDissolve), E_FAIL);
 
     // runtime compute 경로가 있으면 runtime buffer 준비
     if (_animComputeRuntime != nullptr)
@@ -129,6 +136,9 @@ HRESULT Monster_Part::Render_Shadow()
         return E_FAIL;
 
     if (FAILED(GAME->Bind_ShadowCB(_shader)))
+        return E_FAIL;
+
+    if (FAILED(_shader->Reset_DrawFeatures()))
         return E_FAIL;
 
     // runtime compute 경로가 있으면 runtime buffer 준비
@@ -200,7 +210,7 @@ void Monster_Part::Set_AnimationByState(uint32 stateIndex, float blendDuration, 
     if (_model == nullptr)
         return;
 
-    _model->Set_AnimationByState(stateIndex, blendDuration, isLoop,startFrame);
+    _model->Set_AnimationByState(stateIndex, blendDuration, isLoop, startFrame);
 }
 
 bool Monster_Part::Play_Animation(float timeDelta)
@@ -235,7 +245,7 @@ HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
     }
     else
     {
-        if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader))) 
+        if (FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader)))
             return E_FAIL;
     }
 

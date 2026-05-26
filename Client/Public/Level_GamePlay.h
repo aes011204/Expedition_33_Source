@@ -36,10 +36,8 @@ private:
     HRESULT Ready_Layer_Effect(const wstring& strLayerTag);
 
     void    Update_WindowTitleFps();
-    void    Sync_LuneRightHandEffect();
 
 private:
-    Shared<GameObject> _luneRightHandEffect{ nullptr };
     chrono::steady_clock::time_point _fpsSampleBegin = {};
     uint32 _fpsFrameCount = 0;
     int32 _displayFps = 0;

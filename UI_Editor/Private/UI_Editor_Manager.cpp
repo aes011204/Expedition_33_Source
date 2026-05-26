@@ -532,8 +532,13 @@ namespace UIEditor
             {
                 auto resolveTextureGuid = [](string& guid, const string& path, const char* label)
                 {
-                    if (!guid.empty() || path.empty())
+                    if (!guid.empty() && nullptr != GAME->Find_AssetByGUID(guid))
                         return;
+
+                    if (path.empty())
+                        return;
+
+                    guid.clear();
 
                     const string targetPath = Normalize_PathForCompare(path);
                     for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Texture"))

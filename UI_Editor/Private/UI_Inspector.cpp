@@ -49,6 +49,16 @@ namespace UIEditor
 
             return clicked;
         }
+
+        bool Is_UITextureFileExtension(const fs::path& path)
+        {
+            const string extension = String::ToLowerCopy(path.extension().string());
+            return extension == ".png" ||
+                extension == ".jpg" ||
+                extension == ".jpeg" ||
+                extension == ".dds" ||
+                extension == ".tga";
+        }
     }
 
     UI_Inspector::UI_Inspector(UI_Editor_Manager& editorManager)
@@ -482,7 +492,8 @@ namespace UIEditor
                 {
                     auto draw_texture_row = [&](const AssetMeta& assetMeta)
                     {
-                        ImGui::PushID(assetMeta.guid.c_str());
+                        const string rowId = assetMeta.guid.empty() ? Make_ClientRuntimeResourcePath(assetMeta) : assetMeta.guid;
+                        ImGui::PushID(rowId.c_str());
 
                         const string assetTexturePath = Make_ClientRuntimeResourcePath(assetMeta);
                         ID3D11ShaderResourceView* rowSRV = _editorManager.Get_TexturePreviewSRV(assetMeta.guid, assetTexturePath);
@@ -504,7 +515,9 @@ namespace UIEditor
                         ImGui::SameLine();
                         ImGui::BeginGroup();
 
-                        const bool isSelected = textureGuid == assetMeta.guid;
+                        const bool isSelected =
+                            (!assetMeta.guid.empty() && textureGuid == assetMeta.guid) ||
+                            (assetMeta.guid.empty() && texturePath == assetTexturePath);
                         if (ImGui::Selectable(Get_AssetFileName(assetMeta).c_str(), isSelected))
                         {
                             textureGuid = assetMeta.guid;
@@ -551,6 +564,34 @@ namespace UIEditor
             {
                 if (Is_UITextureAsset(assetMeta))
                     _uiTextureAssets.push_back(assetMeta);
+            }
+        }
+
+        if (_uiTextureAssets.empty())
+        {
+            const wstring resourceRoot = Resolve_UIEditorClientResourceRoot();
+            const fs::path uiTextureRoot = fs::path(resourceRoot) / L"Textures" / L"UI";
+
+            try
+            {
+                if (!resourceRoot.empty() && fs::exists(uiTextureRoot) && fs::is_directory(uiTextureRoot))
+                {
+                    for (const fs::directory_entry& entry : fs::recursive_directory_iterator(uiTextureRoot))
+                    {
+                        if (!entry.is_regular_file() || !Is_UITextureFileExtension(entry.path()))
+                            continue;
+
+                        AssetMeta textureAsset = {};
+                        textureAsset.type = "Texture";
+                        textureAsset.fullPath = fs::absolute(entry.path()).lexically_normal().wstring();
+                        textureAsset.relativePath = fs::relative(entry.path(), fs::path(resourceRoot)).lexically_normal().wstring();
+
+                        _uiTextureAssets.push_back(textureAsset);
+                    }
+                }
+            }
+            catch (...)
+            {
             }
         }
 
