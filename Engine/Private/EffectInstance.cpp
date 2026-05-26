@@ -144,6 +144,17 @@ bool EffectInstance::Is_Finished() const
     return EffectPlaybackState::Finished == _playbackState;
 }
 
+void EffectInstance::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider)
+{
+    for (const Shared<EffectEmitter>& emitter : _emitters)
+    {
+        if (nullptr == emitter)
+            continue;
+
+        emitter->Bind_TrailSampleProvider(provider);
+    }
+}
+
 HRESULT EffectInstance::Ready_Emitters()
 {
     Clear_Emitters();

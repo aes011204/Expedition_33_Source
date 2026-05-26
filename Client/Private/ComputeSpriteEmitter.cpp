@@ -147,6 +147,8 @@ HRESULT ComputeSpriteEmitter::Reset_ForEffectReplay()
 {
     Reset_PlaybackRuntime();
     Sync_WorldCenterToComputeBuffer();
+    CHECK_NULL(_viBuffer, E_FAIL);
+    CHECK_FAILED(_viBuffer->Reset_ForEffectReplay(), E_FAIL);
 
     return S_OK;
 }
