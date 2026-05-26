@@ -136,7 +136,7 @@ void ComputeSpriteEmitter::Late_Update(float timeDelta)
 HRESULT ComputeSpriteEmitter::Render()
 {
     CHECK_FAILED_ONCE(Bind_ShaderResources(), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Begin(0), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Begin(Resolve_BlendPassIndex()), E_FAIL);
     CHECK_FAILED_ONCE(_viBuffer->Bind_Resources(), E_FAIL);
     CHECK_FAILED_ONCE(_viBuffer->Render(), E_FAIL);
 
@@ -418,8 +418,20 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         nullptr != _maskTexture ? 1.f : 0.f,
         0.f
     );
+    const EffectMaterialAdditiveContributionData& additive = _desc.required.material.additive;
+    const Vec4 effectSpriteAdditiveParams = Vec4(
+        static_cast<float>(static_cast<uint32>(additive.colorSource)),
+        static_cast<float>(static_cast<uint32>(additive.amountSource)),
+        static_cast<float>(static_cast<uint32>(additive.coveragePolicy)),
+        additive.intensityScale
+    );
+    const Vec4 effectSpriteAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteParams", &effectSpriteParams, sizeof(effectSpriteParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAlphaParams", &effectSpriteAlphaParams, sizeof(effectSpriteAlphaParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveParams", &effectSpriteAdditiveParams, sizeof(effectSpriteAdditiveParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveFlags", &effectSpriteAdditiveFlags, sizeof(effectSpriteAdditiveFlags)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), E_FAIL);
 
     return S_OK;
@@ -437,6 +449,11 @@ int ComputeSpriteEmitter::Resolve_OpacitySourceIndex() const
         return kOpacitySourceLuminance;
 
     return kOpacitySourceAlpha;
+}
+
+uint32 ComputeSpriteEmitter::Resolve_BlendPassIndex() const
+{
+    return _desc.required.material.blendMode == EffectMaterialBlendMode::Additive ? 1u : 0u;
 }
 
 ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() const

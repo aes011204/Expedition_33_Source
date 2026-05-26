@@ -82,6 +82,7 @@ private: //## Helper::Render
     HRESULT Bind_ShaderResources();         // EffectSprite shader에 camera/texture resource를 바인딩한다.
     HRESULT Bind_MaterialResources();       // EffectSprite material 파라미터를 shader에 바인딩한다.
     int Resolve_OpacitySourceIndex() const; // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
+    uint32 Resolve_BlendPassIndex() const;  // material blend mode에 맞는 EffectSprite shader pass를 고른다.
 
 private: //## Helper::Desc
     ComputePointParticleDesc Make_ComputePointParticleDesc() const; // compute sprite effect용 particle 규칙을 만든다.

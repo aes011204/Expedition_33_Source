@@ -81,6 +81,39 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         return parsed.value_or(defaultValue);
     };
 
+    const auto read_additive_color_source = [](const json& node, const char* key, EffectMaterialAdditiveColorSource defaultValue) -> EffectMaterialAdditiveColorSource
+    {
+        const auto iter = node.find(key);
+        if (iter == node.end() || !iter->is_string())
+            return defaultValue;
+
+        const optional<EffectMaterialAdditiveColorSource> parsed =
+            magic_enum::enum_cast<EffectMaterialAdditiveColorSource>(iter->get<string>());
+        return parsed.value_or(defaultValue);
+    };
+
+    const auto read_additive_amount_source = [](const json& node, const char* key, EffectMaterialAdditiveAmountSource defaultValue) -> EffectMaterialAdditiveAmountSource
+    {
+        const auto iter = node.find(key);
+        if (iter == node.end() || !iter->is_string())
+            return defaultValue;
+
+        const optional<EffectMaterialAdditiveAmountSource> parsed =
+            magic_enum::enum_cast<EffectMaterialAdditiveAmountSource>(iter->get<string>());
+        return parsed.value_or(defaultValue);
+    };
+
+    const auto read_additive_coverage_policy = [](const json& node, const char* key, EffectMaterialAdditiveCoveragePolicy defaultValue) -> EffectMaterialAdditiveCoveragePolicy
+    {
+        const auto iter = node.find(key);
+        if (iter == node.end() || !iter->is_string())
+            return defaultValue;
+
+        const optional<EffectMaterialAdditiveCoveragePolicy> parsed =
+            magic_enum::enum_cast<EffectMaterialAdditiveCoveragePolicy>(iter->get<string>());
+        return parsed.value_or(defaultValue);
+    };
+
     const auto read_vec2 = [&](const char* key, const Vec2& defaultValue) -> Vec2
     {
         const auto iter = root.find(key);
@@ -93,33 +126,35 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         };
     };
 
-    const auto read_color = [&](const char* key, const Color& defaultValue) -> Color
+    const auto read_color_node = [](const json& node, const Color& defaultValue) -> Color
     {
-        const auto iter = root.find(key);
-        if (iter == root.end())
-            return defaultValue;
-
-        if (iter->is_object())
+        if (node.is_object())
         {
             return Color(
-                iter->value("r", defaultValue.x),
-                iter->value("g", defaultValue.y),
-                iter->value("b", defaultValue.z),
-                iter->value("a", defaultValue.w)
+                node.value("r", defaultValue.x),
+                node.value("g", defaultValue.y),
+                node.value("b", defaultValue.z),
+                node.value("a", defaultValue.w)
             );
         }
 
-        if (iter->is_array() && iter->size() >= 4)
+        if (node.is_array() && node.size() >= 4)
         {
             return Color(
-                iter->at(0).is_number() ? iter->at(0).get<float>() : defaultValue.x,
-                iter->at(1).is_number() ? iter->at(1).get<float>() : defaultValue.y,
-                iter->at(2).is_number() ? iter->at(2).get<float>() : defaultValue.z,
-                iter->at(3).is_number() ? iter->at(3).get<float>() : defaultValue.w
+                node.at(0).is_number() ? node.at(0).get<float>() : defaultValue.x,
+                node.at(1).is_number() ? node.at(1).get<float>() : defaultValue.y,
+                node.at(2).is_number() ? node.at(2).get<float>() : defaultValue.z,
+                node.at(3).is_number() ? node.at(3).get<float>() : defaultValue.w
             );
         }
 
         return defaultValue;
+    };
+
+    const auto read_color = [&](const char* key, const Color& defaultValue) -> Color
+    {
+        const auto iter = root.find(key);
+        return iter == root.end() ? defaultValue : read_color_node(*iter, defaultValue);
     };
 
     const auto resolve_texture_path_by_path = [](const string& texturePath) -> wstring
@@ -212,16 +247,35 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.alphaCutoff = read_float("alphaCutoff", defaultMaterial.alphaCutoff);
     material.alphaErosion = read_float("alphaErosion", defaultMaterial.alphaErosion);
     material.mainUVScale = read_vec2("mainUVScale", defaultMaterial.mainUVScale);
+    material.mainUVOffset = read_vec2("mainUVOffset", defaultMaterial.mainUVOffset);
     material.mainUVScrollSpeed = read_vec2("mainUVScrollSpeed", defaultMaterial.mainUVScrollSpeed);
     material.mainUVTilingMode = read_uv_tiling_mode("mainUVTilingMode", defaultMaterial.mainUVTilingMode);
     material.noiseUVScale = read_vec2("noiseUVScale", defaultMaterial.noiseUVScale);
+    material.noiseUVOffset = read_vec2("noiseUVOffset", defaultMaterial.noiseUVOffset);
     material.noiseUVScrollSpeed = read_vec2("noiseUVScrollSpeed", defaultMaterial.noiseUVScrollSpeed);
     material.noiseUVTilingMode = read_uv_tiling_mode("noiseUVTilingMode", defaultMaterial.noiseUVTilingMode);
     material.maskUVScale = read_vec2("maskUVScale", defaultMaterial.maskUVScale);
+    material.maskUVOffset = read_vec2("maskUVOffset", defaultMaterial.maskUVOffset);
     material.maskUVScrollSpeed = read_vec2("maskUVScrollSpeed", defaultMaterial.maskUVScrollSpeed);
     material.maskUVTilingMode = read_uv_tiling_mode("maskUVTilingMode", defaultMaterial.maskUVTilingMode);
     material.blendMode = read_blend_mode("blendMode", defaultMaterial.blendMode);
     material.opacitySource = read_string("opacitySource", defaultMaterial.opacitySource);
+    if (const auto additiveIter = root.find("additive"); additiveIter != root.end() && additiveIter->is_object())
+    {
+        const json& additive = *additiveIter;
+        material.additive.colorSource = read_additive_color_source(additive, "colorSource", defaultMaterial.additive.colorSource);
+        material.additive.amountSource = read_additive_amount_source(additive, "amountSource", defaultMaterial.additive.amountSource);
+        material.additive.coveragePolicy = read_additive_coverage_policy(additive, "coveragePolicy", defaultMaterial.additive.coveragePolicy);
+
+        if (const auto intensityScaleIter = additive.find("intensityScale"); intensityScaleIter != additive.end() && intensityScaleIter->is_number())
+            material.additive.intensityScale = intensityScaleIter->get<float>();
+        if (const auto blackNeutralIter = additive.find("blackNeutral"); blackNeutralIter != additive.end() && blackNeutralIter->is_boolean())
+            material.additive.blackNeutral = blackNeutralIter->get<bool>();
+        if (const auto emissiveColorIter = additive.find("emissiveColor"); emissiveColorIter != additive.end())
+            material.additive.emissiveColor = read_color_node(*emissiveColorIter, defaultMaterial.additive.emissiveColor);
+        if (const auto constantColorIter = additive.find("constantColor"); constantColorIter != additive.end())
+            material.additive.constantColor = read_color_node(*constantColorIter, defaultMaterial.additive.constantColor);
+    }
     material.twoSided = read_bool("twoSided", defaultMaterial.twoSided);
     material.subUVRows = max(1u, read_uint("subUVRows", defaultMaterial.subUVRows));
     material.subUVCols = max(1u, read_uint("subUVCols", defaultMaterial.subUVCols));

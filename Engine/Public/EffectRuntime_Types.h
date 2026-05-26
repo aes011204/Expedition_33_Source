@@ -77,14 +77,18 @@ struct EffectRequiredMaterialRuntimeDesc
     float alphaCutoff{ 0.f };            // Trail 등 지원 renderer가 사용할 alpha discard threshold다.
     float alphaErosion{ 0.f };           // mask/noise 기반 alpha erosion 후보 값이다.
     Vec2 mainUVScale{ 1.f, 1.f };        // main texture UV 반복/확대 배율 후보 값이다.
+    Vec2 mainUVOffset{ 0.f, 0.f };       // main texture 샘플 시작 위치를 정적으로 민다.
     Vec2 mainUVScrollSpeed{ 0.f, 0.f };  // main texture 샘플 좌표를 시간에 따라 밀어 흐름감을 만드는 속도 후보 값이다.
     EffectTextureUVTilingMode mainUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // main texture UV tiling 해석 방식이다.
     Vec2 noiseUVScale{ 1.f, 1.f };       // noise texture UV 반복/확대 배율 후보 값이다.
+    Vec2 noiseUVOffset{ 0.f, 0.f };      // noise texture 샘플 시작 위치를 정적으로 민다.
     Vec2 noiseUVScrollSpeed{ 0.f, 0.f }; // noise를 frame 교체가 아니라 UV 좌표 이동으로 흘려 불규칙한 modulation 흐름을 만드는 속도 후보 값이다.
     EffectTextureUVTilingMode noiseUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // noise texture UV tiling 해석 방식이다.
     Vec2 maskUVScale{ 1.f, 1.f };        // mask texture UV 반복/확대 배율 후보 값이다.
+    Vec2 maskUVOffset{ 0.f, 0.f };       // mask texture 샘플 시작 위치를 정적으로 민다.
     Vec2 maskUVScrollSpeed{ 0.f, 0.f };  // mask를 frame 교체가 아니라 UV 좌표 이동으로 흘려 alpha/erosion 변화를 만드는 속도 후보 값이다.
     EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // mask texture UV tiling 해석 방식이다.
+    EffectMaterialAdditiveContributionData additive{}; // Additive blend에서 더할 contribution 해석 규칙이다.
     bool twoSided{ false };              // 지원 renderer가 사용할 양면 렌더 힌트다.
     uint32 subUVRows{ 1 };               // flipbook row 수다.
     uint32 subUVCols{ 1 };               // flipbook column 수다.

@@ -76,6 +76,20 @@ BlendState BS_EffectAlphaBlend
     BlendOpAlpha = Add;
 };
 
+BlendState BS_EffectAdditive
+{
+    BlendEnable[0] = true;
+    BlendEnable[1] = true;
+
+    SrcBlend = One;
+    DestBlend = One;
+    BlendOp = Add;
+
+    SrcBlendAlpha = Zero;
+    DestBlendAlpha = One;
+    BlendOpAlpha = Add;
+};
+
 BlendState BS_Blend
 {
     BlendEnable[0] = true;

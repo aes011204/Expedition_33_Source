@@ -643,12 +643,32 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         material.maskUVScrollSpeed.x,
         material.maskUVScrollSpeed.y
     );
+    const Vec4 effectMaterialPreviewUVOffsetParams = Vec4(
+        material.mainUVOffset.x,
+        material.mainUVOffset.y,
+        material.noiseUVOffset.x,
+        material.noiseUVOffset.y
+    );
+    const Vec4 effectMaterialPreviewMaskUVOffsetParams = Vec4(
+        material.maskUVOffset.x,
+        material.maskUVOffset.y,
+        0.f,
+        0.f
+    );
     const Vec4 effectMaterialPreviewUVModeParams = Vec4(
         static_cast<float>(static_cast<uint32>(material.mainUVTilingMode)),
         static_cast<float>(static_cast<uint32>(material.noiseUVTilingMode)),
         static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
         0.f
     );
+    const EffectMaterialAdditiveContributionData& additive = material.additive;
+    const Vec4 effectMaterialPreviewAdditiveParams = Vec4(
+        static_cast<float>(static_cast<uint32>(additive.colorSource)),
+        static_cast<float>(static_cast<uint32>(additive.amountSource)),
+        static_cast<float>(static_cast<uint32>(additive.coveragePolicy)),
+        additive.intensityScale
+    );
+    const Vec4 effectMaterialPreviewAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
     const int opacitySource = Internal::Resolve_OpacitySourceIndex(material.opacitySource);
 
     CHECK_FAILED(_shader->Bind_ObjectCB(worldMatrix), E_FAIL);
@@ -698,7 +718,31 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         E_FAIL
     );
     CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewUVOffsetParams", &effectMaterialPreviewUVOffsetParams, sizeof(effectMaterialPreviewUVOffsetParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewMaskUVOffsetParams", &effectMaterialPreviewMaskUVOffsetParams, sizeof(effectMaterialPreviewMaskUVOffsetParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
         _shader->Bind_RawValue("g_EffectMaterialPreviewUVModeParams", &effectMaterialPreviewUVModeParams, sizeof(effectMaterialPreviewUVModeParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewAdditiveParams", &effectMaterialPreviewAdditiveParams, sizeof(effectMaterialPreviewAdditiveParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewAdditiveFlags", &effectMaterialPreviewAdditiveFlags, sizeof(effectMaterialPreviewAdditiveFlags)),
         E_FAIL
     );
     CHECK_FAILED(
@@ -709,7 +753,9 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         _shader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)),
         E_FAIL
     );
-    const uint32 passIndex = _meshMode == EffectMaterialPreviewMeshMode::Sphere ? 1u : 0u;
+    const uint32 meshPassOffset = _meshMode == EffectMaterialPreviewMeshMode::Sphere ? 1u : 0u;
+    const uint32 blendPassOffset = material.blendMode == EffectMaterialBlendMode::Additive ? 2u : 0u;
+    const uint32 passIndex = blendPassOffset + meshPassOffset;
     CHECK_FAILED(_shader->Begin(passIndex), E_FAIL);
 
     const PreviewMeshResource& mesh =

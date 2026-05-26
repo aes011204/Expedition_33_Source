@@ -130,6 +130,7 @@ private:
     HRESULT Copy_ComputeOutput();           // compute 결과 instance/args buffer를 draw용 buffer로 복사한다.
     HRESULT Bind_ShaderResources();         // trail draw shader가 사용할 camera/texture/tint 리소스를 바인딩한다.
     int Resolve_OpacitySourceIndex() const; // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
+    uint32 Resolve_BlendPassIndex() const;  // material blend mode에 맞는 EffectTrail shader pass를 고른다.
 
 public:
     static Shared<ComputeTrailEmitter> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

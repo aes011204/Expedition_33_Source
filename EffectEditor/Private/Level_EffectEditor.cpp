@@ -469,14 +469,18 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.alphaCutoff = material.alphaCutoff;
         desc.required.material.alphaErosion = material.alphaErosion;
         desc.required.material.mainUVScale = material.mainUVScale;
+        desc.required.material.mainUVOffset = material.mainUVOffset;
         desc.required.material.mainUVScrollSpeed = material.mainUVScrollSpeed;
         desc.required.material.mainUVTilingMode = material.mainUVTilingMode;
         desc.required.material.noiseUVScale = material.noiseUVScale;
+        desc.required.material.noiseUVOffset = material.noiseUVOffset;
         desc.required.material.noiseUVScrollSpeed = material.noiseUVScrollSpeed;
         desc.required.material.noiseUVTilingMode = material.noiseUVTilingMode;
         desc.required.material.maskUVScale = material.maskUVScale;
+        desc.required.material.maskUVOffset = material.maskUVOffset;
         desc.required.material.maskUVScrollSpeed = material.maskUVScrollSpeed;
         desc.required.material.maskUVTilingMode = material.maskUVTilingMode;
+        desc.required.material.additive = material.additive;
         desc.required.material.twoSided = material.twoSided;
         desc.required.material.subUVRows = max(1u, material.subUVRows);
         desc.required.material.subUVCols = max(1u, material.subUVCols);
@@ -777,14 +781,18 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         emitterDesc.material.alphaCutoff = material.alphaCutoff;
         emitterDesc.material.alphaErosion = material.alphaErosion;
         emitterDesc.material.mainUVScale = material.mainUVScale;
+        emitterDesc.material.mainUVOffset = material.mainUVOffset;
         emitterDesc.material.mainUVScrollSpeed = material.mainUVScrollSpeed;
         emitterDesc.material.mainUVTilingMode = material.mainUVTilingMode;
         emitterDesc.material.noiseUVScale = material.noiseUVScale;
+        emitterDesc.material.noiseUVOffset = material.noiseUVOffset;
         emitterDesc.material.noiseUVScrollSpeed = material.noiseUVScrollSpeed;
         emitterDesc.material.noiseUVTilingMode = material.noiseUVTilingMode;
         emitterDesc.material.maskUVScale = material.maskUVScale;
+        emitterDesc.material.maskUVOffset = material.maskUVOffset;
         emitterDesc.material.maskUVScrollSpeed = material.maskUVScrollSpeed;
         emitterDesc.material.maskUVTilingMode = material.maskUVTilingMode;
+        emitterDesc.material.additive = material.additive;
         emitterDesc.material.twoSided = material.twoSided;
 
         emitterDesc.playback.duration = max(0.0001f, required->duration);

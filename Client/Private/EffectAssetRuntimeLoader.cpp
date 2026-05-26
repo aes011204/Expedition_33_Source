@@ -81,6 +81,18 @@ namespace Internal
         outValue.w = node[3].get<float>();
     }
 
+    void Read_Color(const json& node, Color& outValue)
+    {
+        if (!node.is_array() || node.size() < 4 ||
+            !node[0].is_number() || !node[1].is_number() || !node[2].is_number() || !node[3].is_number())
+            return;
+
+        outValue.x = node[0].get<float>();
+        outValue.y = node[1].get<float>();
+        outValue.z = node[2].get<float>();
+        outValue.w = node[3].get<float>();
+    }
+
     template <typename EnumType>
     void Read_Enum(const json& node, const char* key, EnumType& outValue)
     {
@@ -102,6 +114,7 @@ using Internal::Read_UInt;
 using Internal::Read_Vec2;
 using Internal::Read_Vec3;
 using Internal::Read_Vec4;
+using Internal::Read_Color;
 using Internal::To_LogPath;
 using Internal::kMaxSubUVFrameCurveKeys;
 
@@ -529,6 +542,8 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
         desc.required.material.mainTexturePath = Read_String(material, "mainTexturePath", desc.required.material.mainTexturePath);
         desc.required.material.noiseTextureGuid = Read_String(material, "noiseTextureGuid", desc.required.material.noiseTextureGuid);
         desc.required.material.noiseTexturePath = Read_String(material, "noiseTexturePath", desc.required.material.noiseTexturePath);
+        desc.required.material.maskTextureGuid = Read_String(material, "maskTextureGuid", desc.required.material.maskTextureGuid);
+        desc.required.material.maskTexturePath = Read_String(material, "maskTexturePath", desc.required.material.maskTexturePath);
 
         Read_Enum(material, "blendMode", desc.required.material.blendMode);
 
@@ -543,11 +558,42 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
         desc.required.material.intensity = Read_Float(material, "intensity", desc.required.material.intensity);
         desc.required.material.opacityPower = Read_Float(material, "opacityPower", desc.required.material.opacityPower);
         desc.required.material.noiseStrength = Read_Float(material, "noiseStrength", desc.required.material.noiseStrength);
+        desc.required.material.alphaCutoff = Read_Float(material, "alphaCutoff", desc.required.material.alphaCutoff);
+        desc.required.material.alphaErosion = Read_Float(material, "alphaErosion", desc.required.material.alphaErosion);
+        const auto mainUVOffsetIter = material.find("mainUVOffset");
+        if (mainUVOffsetIter != material.end())
+            Read_Vec2(*mainUVOffsetIter, desc.required.material.mainUVOffset);
+        const auto noiseUVOffsetIter = material.find("noiseUVOffset");
+        if (noiseUVOffsetIter != material.end())
+            Read_Vec2(*noiseUVOffsetIter, desc.required.material.noiseUVOffset);
+        const auto maskUVOffsetIter = material.find("maskUVOffset");
+        if (maskUVOffsetIter != material.end())
+            Read_Vec2(*maskUVOffsetIter, desc.required.material.maskUVOffset);
         Read_Enum(material, "mainUVTilingMode", desc.required.material.mainUVTilingMode);
         Read_Enum(material, "noiseUVTilingMode", desc.required.material.noiseUVTilingMode);
         Read_Enum(material, "maskUVTilingMode", desc.required.material.maskUVTilingMode);
         desc.required.material.subUVRows = max(1u, Read_UInt(material, "subUVRows", desc.required.material.subUVRows));
         desc.required.material.subUVCols = max(1u, Read_UInt(material, "subUVCols", desc.required.material.subUVCols));
+
+        const auto additiveIter = material.find("additive");
+        if (additiveIter != material.end() && additiveIter->is_object())
+        {
+            const json& additive = *additiveIter;
+            Read_Enum(additive, "colorSource", desc.required.material.additive.colorSource);
+            Read_Enum(additive, "amountSource", desc.required.material.additive.amountSource);
+            Read_Enum(additive, "coveragePolicy", desc.required.material.additive.coveragePolicy);
+            desc.required.material.additive.intensityScale =
+                Read_Float(additive, "intensityScale", desc.required.material.additive.intensityScale);
+            desc.required.material.additive.blackNeutral =
+                Read_Bool(additive, "blackNeutral", desc.required.material.additive.blackNeutral);
+
+            const auto emissiveColorIter = additive.find("emissiveColor");
+            if (emissiveColorIter != additive.end())
+                Read_Color(*emissiveColorIter, desc.required.material.additive.emissiveColor);
+            const auto constantColorIter = additive.find("constantColor");
+            if (constantColorIter != additive.end())
+                Read_Color(*constantColorIter, desc.required.material.additive.constantColor);
+        }
     }
 
     Read_Enum(data, "screenAlignment", desc.required.spriteRender.screenAlignment);

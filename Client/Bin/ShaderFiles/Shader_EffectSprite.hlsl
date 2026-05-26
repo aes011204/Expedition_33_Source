@@ -10,6 +10,10 @@ cbuffer cbEffectSpriteMaterial : register(b2)
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f }; // x: emissive-like intensity, y: opacityPower, z: noiseStrength, w: useNoise
     float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f }; // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectSpriteAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
+    float4 g_EffectSpriteAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
+    float4 g_EffectSpriteAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
+    float4 g_EffectSpriteAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
     int g_OpacitySource = 0;
     float3 g_EffectSpritePadding;
 };
@@ -304,7 +308,57 @@ PS_OUT PS_MAIN(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_ADDITIVE(PS_IN In)
+{
+    PS_OUT Out = (PS_OUT)0;
+
+    const float lifeMax = max(In.lifeTime.x, 0.0001f);
+    const float lifeProgress = saturate(In.lifeTime.y / lifeMax);
+    const float4 particleColor = lerp(In.startColor, In.endColor, lifeProgress);
+    const float2 sampleUV = lerp(In.subUVRect.xy, In.subUVRect.zw, In.texCoord);
+    const float4 symbol = g_Texture.Sample(LinearClampSampler, sampleUV);
+    const float alphaCutoff = saturate(g_EffectSpriteAlphaParams.x);
+    const float alphaErosion = saturate(g_EffectSpriteAlphaParams.y);
+    float noiseFactor = 1.f;
+    float maskAlpha = 1.f;
+
+    if (0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f)
+    {
+        const float noise = g_NoiseTexture.Sample(LinearClampSampler, sampleUV).r;
+        noiseFactor = lerp(1.f, noise, saturate(g_EffectSpriteParams.z));
+    }
+
+    if (0 != g_EffectSpriteAlphaParams.z)
+        maskAlpha = g_MaskTexture.Sample(LinearClampSampler, sampleUV).a;
+
+    const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
+    const float coverageBase = saturate(maskCoverage * noiseFactor * particleColor.a * g_Tint.a);
+    const int colorSource = (int)g_EffectSpriteAdditiveParams.x;
+    const int amountSource = (int)g_EffectSpriteAdditiveParams.y;
+    const int coveragePolicy = (int)g_EffectSpriteAdditiveParams.z;
+    const float amount = Effect_SelectAdditiveAmount(symbol, maskAlpha, amountSource);
+    const float policyAmount = Effect_ResolveAdditivePolicyAmount(amount, coverageBase, coveragePolicy);
+    const float discardSource = Effect_ResolveAdditiveDiscardSource(amount, coverageBase, coveragePolicy);
+    const float blackGate = Effect_ResolveAdditiveBlackGate(symbol.rgb, colorSource, g_EffectSpriteAdditiveFlags.x);
+
+    if (discardSource < max(alphaCutoff, 0.01f))
+        discard;
+
+    const float3 materialColor = Effect_ResolveAdditiveColor(
+        symbol.rgb,
+        symbol.rgb * g_Tint.rgb,
+        g_EffectSpriteAdditiveEmissiveColor,
+        g_EffectSpriteAdditiveConstantColor,
+        colorSource
+    );
+    const float intensity = max(g_EffectSpriteParams.x, 0.f) * max(g_EffectSpriteAdditiveParams.w, 0.f);
+    const float3 contribution = materialColor * particleColor.rgb * noiseFactor * policyAmount * intensity * blackGate;
+    Out.color = float4(contribution, 1.f);
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_EffectAlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
+    PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, GS_MAIN, PS_ADDITIVE) // 1
 }

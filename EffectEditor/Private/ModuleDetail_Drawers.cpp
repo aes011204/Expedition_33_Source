@@ -79,6 +79,20 @@ namespace Internal
             NearlyEqual(lhs.w, rhs.w);
     }
 
+    static bool Is_SameAdditiveContribution(
+        const EffectMaterialAdditiveContributionData& lhs,
+        const EffectMaterialAdditiveContributionData& rhs)
+    {
+        return
+            lhs.colorSource == rhs.colorSource &&
+            lhs.amountSource == rhs.amountSource &&
+            lhs.coveragePolicy == rhs.coveragePolicy &&
+            NearlyEqual(lhs.intensityScale, rhs.intensityScale) &&
+            lhs.blackNeutral == rhs.blackNeutral &&
+            Is_SameColor(lhs.emissiveColor, rhs.emissiveColor) &&
+            Is_SameColor(lhs.constantColor, rhs.constantColor);
+    }
+
     static bool Is_SameVec2(const Vec2& lhs, const Vec2& rhs)
     {
         return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
@@ -257,16 +271,20 @@ namespace Internal
             NearlyEqual(lhs.alphaCutoff, rhs.alphaCutoff) &&
             NearlyEqual(lhs.alphaErosion, rhs.alphaErosion) &&
             Is_SameVec2(lhs.mainUVScale, rhs.mainUVScale) &&
+            Is_SameVec2(lhs.mainUVOffset, rhs.mainUVOffset) &&
             Is_SameVec2(lhs.mainUVScrollSpeed, rhs.mainUVScrollSpeed) &&
             lhs.mainUVTilingMode == rhs.mainUVTilingMode &&
             Is_SameVec2(lhs.noiseUVScale, rhs.noiseUVScale) &&
+            Is_SameVec2(lhs.noiseUVOffset, rhs.noiseUVOffset) &&
             Is_SameVec2(lhs.noiseUVScrollSpeed, rhs.noiseUVScrollSpeed) &&
             lhs.noiseUVTilingMode == rhs.noiseUVTilingMode &&
             Is_SameVec2(lhs.maskUVScale, rhs.maskUVScale) &&
+            Is_SameVec2(lhs.maskUVOffset, rhs.maskUVOffset) &&
             Is_SameVec2(lhs.maskUVScrollSpeed, rhs.maskUVScrollSpeed) &&
             lhs.maskUVTilingMode == rhs.maskUVTilingMode &&
             lhs.blendMode == rhs.blendMode &&
             lhs.opacitySource == rhs.opacitySource &&
+            Is_SameAdditiveContribution(lhs.additive, rhs.additive) &&
             lhs.twoSided == rhs.twoSided &&
             lhs.subUVRows == rhs.subUVRows &&
             lhs.subUVCols == rhs.subUVCols;
@@ -528,7 +546,12 @@ namespace Internal
         const string& resolvedName = Internal::Resolve_MaterialDisplayName(data);
         const string displayName = resolvedName.empty() ? "(drop material here)" : resolvedName;
         const string blendModeName = string(magic_enum::enum_name(data.material.blendMode));
-        const string materialSummary = blendModeName + " / " + data.material.opacitySource +
+        const string sourceSummary =
+            data.material.blendMode == EffectMaterialBlendMode::Additive
+            ? string(magic_enum::enum_name(data.material.additive.colorSource)) + " / " +
+              string(magic_enum::enum_name(data.material.additive.amountSource))
+            : data.material.opacitySource;
+        const string materialSummary = blendModeName + " / " + sourceSummary +
                                        " / SubUV " + to_string(data.material.subUVRows) + "x" + to_string(data.material.subUVCols);
         drawList->PushClipRect(
             ImVec2(slotMin.x + 57.f, slotMin.y),
@@ -562,7 +585,7 @@ namespace Internal
                 mainTooltip.c_str(),
                 noiseTooltip.c_str(),
                 blendModeName.c_str(),
-                data.material.opacitySource.c_str(),
+                sourceSummary.c_str(),
                 data.material.subUVRows,
                 data.material.subUVCols
             );

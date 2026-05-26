@@ -20,6 +20,44 @@ enum class EffectMaterialBlendMode : uint32
     END,
 };
 
+enum class EffectMaterialAdditiveColorSource : uint32
+{
+    MainRGB = 0,
+    TintedRGB,
+    EmissiveColor,
+    ConstantColor,
+    END,
+};
+
+enum class EffectMaterialAdditiveAmountSource : uint32
+{
+    Alpha = 0,
+    Red,
+    Luminance,
+    Mask,
+    One,
+    END,
+};
+
+enum class EffectMaterialAdditiveCoveragePolicy : uint32
+{
+    AmountOnly = 0,
+    CoverageAndAmount,
+    Independent,
+    END,
+};
+
+struct EffectMaterialAdditiveContributionData
+{
+    EffectMaterialAdditiveColorSource colorSource{ EffectMaterialAdditiveColorSource::MainRGB };
+    EffectMaterialAdditiveAmountSource amountSource{ EffectMaterialAdditiveAmountSource::Alpha };
+    EffectMaterialAdditiveCoveragePolicy coveragePolicy{ EffectMaterialAdditiveCoveragePolicy::AmountOnly };
+    float intensityScale{ 1.f };
+    bool blackNeutral{ true };
+    Color emissiveColor{ 1.f, 1.f, 1.f, 1.f };
+    Color constantColor{ 1.f, 1.f, 1.f, 1.f };
+};
+
 // effect material preset/source에서 복사되어 runtime/authoring 쪽이 함께 보는 최소 material instance 값이다.
 // sprite effect 경로에서는 mainTexturePath를 lit base color가 아니라 emissive color + opacity source로 해석한다.
 struct EffectMaterialInstanceData
@@ -41,17 +79,21 @@ struct EffectMaterialInstanceData
     float alphaErosion{ 0.f };  // mask/noise 기반 alpha erosion 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
 
     Vec2 mainUVScale{ 1.f, 1.f };                                                      // main texture UV scale 후보 값이다.
+    Vec2 mainUVOffset{ 0.f, 0.f };                                                     // main texture UV 시작 위치를 정적으로 민다.
     Vec2 mainUVScrollSpeed{ 0.f, 0.f };                                                // main texture UV scroll speed 후보 값이다.
     EffectTextureUVTilingMode mainUVTilingMode{ EffectTextureUVTilingMode::Stretch };  // main texture UV tiling 해석 방식이다.
     Vec2 noiseUVScale{ 1.f, 1.f };                                                     // noise texture UV scale 후보 값이다.
+    Vec2 noiseUVOffset{ 0.f, 0.f };                                                    // noise texture UV 시작 위치를 정적으로 민다.
     Vec2 noiseUVScrollSpeed{ 0.f, 0.f };                                               // noise texture UV scroll speed 후보 값이다.
     EffectTextureUVTilingMode noiseUVTilingMode{ EffectTextureUVTilingMode::Stretch }; // noise texture UV tiling 해석 방식이다.
     Vec2 maskUVScale{ 1.f, 1.f };                                                      // mask texture UV scale 후보 값이다.
+    Vec2 maskUVOffset{ 0.f, 0.f };                                                     // mask texture UV 시작 위치를 정적으로 민다.
     Vec2 maskUVScrollSpeed{ 0.f, 0.f };                                                // mask texture UV scroll speed 후보 값이다.
     EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Stretch };  // mask texture UV tiling 해석 방식이다.
 
     EffectMaterialBlendMode blendMode{ EffectMaterialBlendMode::AlphaBlend }; // effect material blend/compose mode다.
     string opacitySource{ "Alpha" };  // main texture에서 opacity를 뽑을 채널/방식이다.
+    EffectMaterialAdditiveContributionData additive{}; // Additive blend에서 더할 contribution 해석 규칙이다.
     bool twoSided{ false };           // render state 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
     uint32 subUVRows{ 1 };            // atlas row 수다.
     uint32 subUVCols{ 1 };            // atlas column 수다.

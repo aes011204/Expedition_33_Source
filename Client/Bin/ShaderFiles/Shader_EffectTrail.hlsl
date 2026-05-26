@@ -13,8 +13,14 @@ cbuffer cbEffectTrailMaterial : register(b2)
     float4 g_EffectTrailMainUVParams = { 1.f, 1.f, 0.f, 0.f };  // xy: scale, zw: scroll speed
     float4 g_EffectTrailNoiseUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
     float4 g_EffectTrailMaskUVParams = { 1.f, 1.f, 0.f, 0.f };  // xy: scale, zw: scroll speed
+    float4 g_EffectTrailUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: noise offset
+    float4 g_EffectTrailMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask offset, zw: reserved
     float4 g_EffectTrailUVPolicyParams = { 1.f, 1.f, 0.f, 0.f }; // x: visible trail length, y: noise uv tiling, zw: reserved
     float4 g_EffectTrailUVModeParams = { 0.f, 0.f, 0.f, 0.f };   // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
+    float4 g_EffectTrailAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
+    float4 g_EffectTrailAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
+    float4 g_EffectTrailAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
+    float4 g_EffectTrailAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
     float g_EffectTrailMaterialTime = 0.f;
     int g_OpacitySource = 0;
     float2 g_EffectTrailPadding;
@@ -24,9 +30,9 @@ Texture2D g_MainTexture : register(t0);
 Texture2D g_NoiseTexture : register(t1);
 Texture2D g_MaskTexture : register(t2);
 
-float2 Apply_MaterialUV(float2 uv, float4 uvParams)
+float2 Apply_MaterialUV(float2 uv, float4 uvParams, float2 uvOffset)
 {
-    return uv * uvParams.xy + uvParams.zw * g_EffectTrailMaterialTime;
+    return uv * uvParams.xy + uvOffset + uvParams.zw * g_EffectTrailMaterialTime;
 }
 
 float2 Build_TrailSlotBaseUV(float2 rawUV, float mode)
@@ -208,9 +214,9 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     const float2 mainBaseUV = Build_TrailSlotBaseUV(In.texCoord, mainUVMode);
     const float2 noiseBaseUV = Build_TrailSlotBaseUV(In.texCoord, noiseUVMode);
     const float2 maskBaseUV = Build_TrailSlotBaseUV(In.texCoord, maskUVMode);
-    const float2 mainUV = Apply_MaterialUV(mainBaseUV, g_EffectTrailMainUVParams);
-    const float2 noiseUV = Apply_MaterialUV(noiseBaseUV, g_EffectTrailNoiseUVParams);
-    const float2 maskUV = Apply_MaterialUV(maskBaseUV, g_EffectTrailMaskUVParams);
+    const float2 mainUV = Apply_MaterialUV(mainBaseUV, g_EffectTrailMainUVParams, g_EffectTrailUVOffsetParams.xy);
+    const float2 noiseUV = Apply_MaterialUV(noiseBaseUV, g_EffectTrailNoiseUVParams, g_EffectTrailUVOffsetParams.zw);
+    const float2 maskUV = Apply_MaterialUV(maskBaseUV, g_EffectTrailMaskUVParams, g_EffectTrailMaskUVOffsetParams.xy);
     const float4 tex = Sample_MainTexture(mainUV, mainUVMode);
     const float sideFade = max(In.segmentParams.w, 0.0001f);
     const float sideAlpha =
@@ -265,7 +271,71 @@ PS_OUT PS_MAIN(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_ADDITIVE(PS_IN In)
+{
+    PS_OUT Out = (PS_OUT)0;
+
+    const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
+    const float mainUVMode = g_EffectTrailUVModeParams.x;
+    const float noiseUVMode = g_EffectTrailUVModeParams.y;
+    const float maskUVMode = g_EffectTrailUVModeParams.z;
+    const float2 mainBaseUV = Build_TrailSlotBaseUV(In.texCoord, mainUVMode);
+    const float2 noiseBaseUV = Build_TrailSlotBaseUV(In.texCoord, noiseUVMode);
+    const float2 maskBaseUV = Build_TrailSlotBaseUV(In.texCoord, maskUVMode);
+    const float2 mainUV = Apply_MaterialUV(mainBaseUV, g_EffectTrailMainUVParams, g_EffectTrailUVOffsetParams.xy);
+    const float2 noiseUV = Apply_MaterialUV(noiseBaseUV, g_EffectTrailNoiseUVParams, g_EffectTrailUVOffsetParams.zw);
+    const float2 maskUV = Apply_MaterialUV(maskBaseUV, g_EffectTrailMaskUVParams, g_EffectTrailMaskUVOffsetParams.xy);
+    const float4 tex = Sample_MainTexture(mainUV, mainUVMode);
+    const float sideFade = max(In.segmentParams.w, 0.0001f);
+    const float sideAlpha =
+        smoothstep(0.0f, sideFade, In.edgeCoord.y) *
+        smoothstep(0.0f, sideFade, 1.0f - In.edgeCoord.y);
+    const float4 segmentColor = lerp(In.startColor, In.endColor, lifeProgress);
+    const float alphaCutoff = saturate(g_EffectTrailAlphaParams.x);
+    const float alphaErosion = saturate(g_EffectTrailAlphaParams.y);
+    float noiseRaw = 1.f;
+    float maskAlpha = 1.f;
+
+    const float noiseStrength = saturate(g_EffectTrailParams.z);
+    if (0 != g_EffectTrailParams.w && g_EffectTrailParams.z > 0.f)
+        noiseRaw = Sample_NoiseTexture(noiseUV, noiseUVMode);
+
+    if (0 != g_EffectTrailAlphaParams.z)
+        maskAlpha = Sample_MaskTexture(maskUV, maskUVMode);
+
+    const float edgeDistance = abs(In.edgeCoord.y - 0.5f) * 2.f;
+    const float edgeWeight = smoothstep(0.35f, 1.f, edgeDistance);
+    const float breakupNoise = lerp(1.f, noiseRaw, noiseStrength);
+    const float edgeBreakup = lerp(1.f, noiseRaw, noiseStrength * edgeWeight);
+    float coverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * edgeBreakup, alphaErosion);
+    const float coverageBase = saturate(coverage * breakupNoise * segmentColor.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
+    const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
+    const int colorSource = (int)g_EffectTrailAdditiveParams.x;
+    const int amountSource = (int)g_EffectTrailAdditiveParams.y;
+    const int coveragePolicy = (int)g_EffectTrailAdditiveParams.z;
+    const float amount = Effect_SelectAdditiveAmount(tex, maskAlpha, amountSource);
+    const float policyAmount = Effect_ResolveAdditivePolicyAmount(amount, coverageBase, coveragePolicy);
+    const float discardSource = Effect_ResolveAdditiveDiscardSource(amount, coverageBase, coveragePolicy);
+    const float blackGate = Effect_ResolveAdditiveBlackGate(tex.rgb, colorSource, g_EffectTrailAdditiveFlags.x);
+
+    if (discardSource < max(alphaCutoff, 0.01f))
+        discard;
+
+    const float3 materialColor = Effect_ResolveAdditiveColor(
+        tex.rgb,
+        tex.rgb * g_Tint.rgb,
+        g_EffectTrailAdditiveEmissiveColor,
+        g_EffectTrailAdditiveConstantColor,
+        colorSource
+    );
+    const float intensity = max(g_EffectTrailParams.x, 0.f) * max(g_EffectTrailAdditiveParams.w, 0.f);
+    const float3 contribution = materialColor * segmentColor.rgb * energyVariation * policyAmount * intensity * blackGate;
+    Out.color = float4(contribution, 1.f);
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_EffectAlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
+    PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, GS_MAIN, PS_ADDITIVE) // 1
 }

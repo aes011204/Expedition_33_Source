@@ -25,6 +25,57 @@ namespace Internal
         }
     }
 
+    static const char* Get_AdditiveColorSourceLabel(EffectMaterialAdditiveColorSource value)
+    {
+        switch (value)
+        {
+        case EffectMaterialAdditiveColorSource::MainRGB:
+            return "Main RGB";
+        case EffectMaterialAdditiveColorSource::TintedRGB:
+            return "Tinted RGB";
+        case EffectMaterialAdditiveColorSource::EmissiveColor:
+            return "Emissive Color";
+        case EffectMaterialAdditiveColorSource::ConstantColor:
+            return "Constant Color";
+        default:
+            return "Main RGB";
+        }
+    }
+
+    static const char* Get_AdditiveAmountSourceLabel(EffectMaterialAdditiveAmountSource value)
+    {
+        switch (value)
+        {
+        case EffectMaterialAdditiveAmountSource::Alpha:
+            return "Alpha";
+        case EffectMaterialAdditiveAmountSource::Red:
+            return "Red";
+        case EffectMaterialAdditiveAmountSource::Luminance:
+            return "Luminance";
+        case EffectMaterialAdditiveAmountSource::Mask:
+            return "Mask";
+        case EffectMaterialAdditiveAmountSource::One:
+            return "One";
+        default:
+            return "Alpha";
+        }
+    }
+
+    static const char* Get_AdditiveCoveragePolicyLabel(EffectMaterialAdditiveCoveragePolicy value)
+    {
+        switch (value)
+        {
+        case EffectMaterialAdditiveCoveragePolicy::AmountOnly:
+            return "Amount Only";
+        case EffectMaterialAdditiveCoveragePolicy::CoverageAndAmount:
+            return "Coverage And Amount";
+        case EffectMaterialAdditiveCoveragePolicy::Independent:
+            return "Independent";
+        default:
+            return "Amount Only";
+        }
+    }
+
     bool Is_SupportedOpacitySource(const string& opacitySource)
     {
         return
@@ -283,7 +334,20 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
     ImGui::Text("%.2f", material.noiseStrength);
 
     drawRow("Blend Mode", Internal::Get_BlendModeLabel(material.blendMode));
-    drawRow("Opacity Source", material.opacitySource);
+    if (material.blendMode == EffectMaterialBlendMode::Additive)
+    {
+        drawRow("Additive Color Source", Internal::Get_AdditiveColorSourceLabel(material.additive.colorSource));
+        drawRow("Additive Amount Source", Internal::Get_AdditiveAmountSourceLabel(material.additive.amountSource));
+        drawRow("Additive Coverage", Internal::Get_AdditiveCoveragePolicyLabel(material.additive.coveragePolicy));
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextDisabled("Additive Intensity");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::Text("%.2f", material.additive.intensityScale);
+    }
+    else
+        drawRow("Opacity Source", material.opacitySource);
 
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);

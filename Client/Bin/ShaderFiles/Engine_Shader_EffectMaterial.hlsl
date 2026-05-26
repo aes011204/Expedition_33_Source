@@ -48,4 +48,59 @@ float4 Effect_ComposeAlphaBlend(EffectMaterialSurface surface, float intensity)
     return float4(surface.color * max(intensity, 0.f), surface.coverage);
 }
 
+float Effect_SelectAdditiveAmount(float4 texel, float maskAlpha, int amountSource)
+{
+    if (amountSource == 1)
+        return saturate(texel.r);
+    if (amountSource == 2)
+        return saturate(dot(texel.rgb, float3(0.299f, 0.587f, 0.114f)));
+    if (amountSource == 3)
+        return saturate(maskAlpha);
+    if (amountSource == 4)
+        return 1.f;
+
+    return saturate(texel.a);
+}
+
+float3 Effect_ResolveAdditiveColor(
+    float3 mainRGB,
+    float3 tintedRGB,
+    float4 emissiveColor,
+    float4 constantColor,
+    int colorSource)
+{
+    if (colorSource == 1)
+        return tintedRGB;
+    if (colorSource == 2)
+        return emissiveColor.rgb;
+    if (colorSource == 3)
+        return constantColor.rgb;
+
+    return mainRGB;
+}
+
+float Effect_ResolveAdditivePolicyAmount(float amount, float coverageBase, int coveragePolicy)
+{
+    if (coveragePolicy == 1)
+        return saturate(amount) * saturate(coverageBase);
+
+    return saturate(amount);
+}
+
+float Effect_ResolveAdditiveDiscardSource(float amount, float coverageBase, int coveragePolicy)
+{
+    if (coveragePolicy == 2)
+        return saturate(coverageBase);
+
+    return saturate(amount);
+}
+
+float Effect_ResolveAdditiveBlackGate(float3 mainRGB, int colorSource, float blackNeutral)
+{
+    if (blackNeutral == 0.f || colorSource < 2)
+        return 1.f;
+
+    return saturate(dot(mainRGB, float3(0.299f, 0.587f, 0.114f)));
+}
+
 #endif
