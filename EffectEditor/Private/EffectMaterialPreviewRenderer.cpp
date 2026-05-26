@@ -132,7 +132,7 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
         !Ready_Meshes())
         return;
 
-    ID3D11ShaderResourceView* nullSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
+    ShaderResourceView* nullSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
     EDITOR->Get_Context()->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
 
     if (FAILED(_renderTarget->Begin(true, true)))
@@ -190,7 +190,7 @@ void EffectMaterialPreviewRenderer::Draw_Viewport(
         ImGui::InvisibleButton("EffectMaterialPreviewCanvas", canvasSize);
         const bool isHovered = ImGui::IsItemHovered();
 
-        ID3D11ShaderResourceView* previewSrv = Get_SRV();
+        ShaderResourceView* previewSrv = Get_SRV();
         if (previewSrv != nullptr)
         {
             const ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(previewSrv));
@@ -214,7 +214,7 @@ void EffectMaterialPreviewRenderer::Draw_Viewport(
     Draw_MeshModeControls();
 }
 
-ID3D11ShaderResourceView* EffectMaterialPreviewRenderer::Get_SRV() const
+ShaderResourceView* EffectMaterialPreviewRenderer::Get_SRV() const
 {
     return !_hasRenderedPreview || _renderTarget == nullptr ? nullptr : _renderTarget->Get_SRV();
 }

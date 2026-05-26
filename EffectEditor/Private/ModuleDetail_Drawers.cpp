@@ -479,7 +479,10 @@ namespace Internal
         return true;
     }
 
-    bool Draw_MaterialDropSlot(RequiredModuleData& data, float timeDelta)
+    bool Draw_MaterialDropSlot(
+        RequiredModuleData& data,
+        EffectMaterialPreviewRenderer* materialSlotPreview,
+        float timeDelta)
     {
         constexpr float browseButtonWidth{ 28.f };
         constexpr float slotHeight = 54.f;
@@ -521,8 +524,7 @@ namespace Internal
         drawList->AddRectFilled(slotMin, slotMax, fillColor, 6.f);
         drawList->AddRect(slotMin, slotMax, borderColor, 6.f, 0, isMaterialDragging ? 2.5f : 1.5f);
 
-        static Unique<EffectMaterialPreviewRenderer> materialSlotPreview = EffectMaterialPreviewRenderer::Create(64);
-        ID3D11ShaderResourceView* previewSrv = nullptr;
+        ShaderResourceView* previewSrv = nullptr;
         if (materialSlotPreview != nullptr)
         {
             materialSlotPreview->Update_MaterialTime(timeDelta);
@@ -702,13 +704,16 @@ bool RequiredModuleDetail::Draw(
     const RequiredModuleData defaultData{};
     bool changed = false;
 
+    if (_materialSlotPreview == nullptr)
+        _materialSlotPreview = EffectMaterialPreviewRenderer::Create(64);
+
     if (ImGui::CollapsingHeader("머티리얼", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("RequiredMaterial"))
         {
             ImGui::PushID("MaterialDropSlot");
             detailContext.Draw_PropertyLabel("머티리얼");
-            changed |= Internal::Draw_MaterialDropSlot(data, timeDelta);
+            changed |= Internal::Draw_MaterialDropSlot(data, _materialSlotPreview.get(), timeDelta);
             detailContext.Draw_ResetButton(false);
             ImGui::PopID();
 

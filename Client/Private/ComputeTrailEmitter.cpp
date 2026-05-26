@@ -977,5 +977,28 @@ Shared<GameObject> ComputeTrailEmitter::Clone(void* arg)
 
 void ComputeTrailEmitter::Free()
 {
+    _history.clear();
+    _drawSegmentCount = 0u;
+    _materialElapsedTime = 0.f;
+    _visibleTrailLength = 1.f;
+
+    _shader.reset();
+    _computeShader.reset();
+    _mainTexture.reset();
+    _noiseTexture.reset();
+    _maskTexture.reset();
+
+    _pointVB.Reset();
+    _indexBuffer.Reset();
+    _instanceBuffer.Reset();
+    _computeConstantBuffer.Reset();
+    _indirectArgsBuffer.Reset();
+
+    _historyInput.reset();
+    _computeOutput.reset();
+    _computeArgsOutput.reset();
+
+    _desc = {};
+
     __super::Free();
 }

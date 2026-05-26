@@ -665,7 +665,7 @@ void Scene_View::Render_ViewportCanvas()
     const ImVec2 canvasMax = ImVec2(canvasMin.x + _viewportSize.x, canvasMin.y + _viewportSize.y);
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    ID3D11ShaderResourceView* viewportSrv = EDITOR->Get_SharedViewportSRV();
+    ShaderResourceView* viewportSrv = EDITOR->Get_SharedViewportSRV();
     if (nullptr != viewportSrv)
     {
         const float aspect = EDITOR->Get_EffectiveViewportAspect();

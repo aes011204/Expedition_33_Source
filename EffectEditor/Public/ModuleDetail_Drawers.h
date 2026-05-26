@@ -2,6 +2,7 @@
 
 #include "EffectAuthoring_Types.h"
 #include "DetailPropertyContext.h"
+#include "EffectMaterialPreviewRenderer.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -14,6 +15,9 @@ public:
         RequiredModuleData& data,
         DetailPropertyContext& detailContext,
         float timeDelta);
+
+private:
+    Unique<EffectMaterialPreviewRenderer> _materialSlotPreview{};
 };
 
 class SpawnModuleDetail

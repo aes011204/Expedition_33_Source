@@ -720,4 +720,21 @@ Shared<GameObject> ComputeSpriteEmitter::Clone(void* arg)
 
 void ComputeSpriteEmitter::Free()
 {
+    _shader.reset();
+    _texture.reset();
+    _noiseTexture.reset();
+    _maskTexture.reset();
+    _viBuffer.reset();
+
+    _desc = {};
+    _opacitySourceIndex = kOpacitySourceAlpha;
+    _burstExecuted.clear();
+    _emitterElapsedTime = 0.f;
+    _spawnAccumulator = 0.f;
+    _playbackState = PlaybackState::Delayed;
+    _loopElapsedTime = 0.f;
+    _loopIndex = 0u;
+    _completedKillDispatched = false;
+
+    __super::Free();
 }

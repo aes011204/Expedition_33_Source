@@ -213,6 +213,12 @@ void EffectInstance::Evaluate_Finished()
 
 void EffectInstance::Clear_Emitters()
 {
+    for (Shared<EffectEmitter>& emitter : _emitters)
+    {
+        if (emitter != nullptr)
+            emitter->Free();
+    }
+
     _emitters.clear();
 }
 
