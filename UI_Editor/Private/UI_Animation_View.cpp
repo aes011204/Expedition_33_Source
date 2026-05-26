@@ -15,7 +15,7 @@ namespace UIEditor
             "ScaleX",
             "ScaleY",
             "Rotation",
-            "Alpha",
+            "Color",
         };
 
         const char* const kEasingNames[] = {
@@ -27,6 +27,9 @@ namespace UIEditor
 
         int32 Get_TrackTypeIndex(UI_AnimationKeyframeTrackType type)
         {
+            if (type == UI_AnimationKeyframeTrackType::Alpha)
+                return static_cast<int32>(UI_AnimationKeyframeTrackType::Color);
+
             return min(max(static_cast<int32>(type), 0), static_cast<int32>(size(kTrackTypeNames)) - 1);
         }
 
@@ -43,6 +46,8 @@ namespace UIEditor
             case UI_AnimationKeyframeTrackType::PositionY:
             case UI_AnimationKeyframeTrackType::Rotation:
                 return 1.f;
+            case UI_AnimationKeyframeTrackType::Color:
+                return 0.f;
             case UI_AnimationKeyframeTrackType::Alpha:
             case UI_AnimationKeyframeTrackType::ScaleX:
             case UI_AnimationKeyframeTrackType::ScaleY:
@@ -66,7 +71,27 @@ namespace UIEditor
             if (track.type == UI_AnimationKeyframeTrackType::Rotation)
                 return to_string(Radians_ToDegrees(key.value)) + " deg";
 
+            if (track.type == UI_AnimationKeyframeTrackType::Color)
+            {
+                const ImVec4 color = Clamp_AnimationKeyframeColor(key.color);
+                return
+                    "RGBA(" +
+                    to_string(static_cast<int32>(roundf(color.x))) + ", " +
+                    to_string(static_cast<int32>(roundf(color.y))) + ", " +
+                    to_string(static_cast<int32>(roundf(color.z))) + ", " +
+                    to_string(static_cast<int32>(roundf(color.w))) + ")";
+            }
+
             return to_string(key.value);
+        }
+
+        size_t Count_Tracks(const UI_AnimationAsset& asset)
+        {
+            size_t trackCount = 0;
+            for (const UI_AnimationTargetBinding& target : asset.targets)
+                trackCount += target.tracks.size();
+
+            return trackCount;
         }
 
         void Show_ItemTooltip(const char* text)
@@ -107,8 +132,7 @@ namespace UIEditor
             _assetService.Clamp_Asset();
             _assetService.Resolve_TargetObject(_editorManager.Get_Document());
 
-            const UI_AnimationAsset& asset = _assetService.Get_Asset();
-            if (_editorManager.Is_AnimationPreviewActive() && asset.targetObjectId != 0)
+            if (_editorManager.Is_AnimationPreviewActive() && _assetService.Has_AnyResolvedTarget())
                 _assetService.Set_CurrentFrame(_editorManager.Get_AnimationPreviewFrame());
 
             Render_Toolbar();
@@ -186,24 +210,29 @@ namespace UIEditor
         }
 
         ImGui::SameLine();
-        if (ImGui::Button("Clear Target"))
+        if (ImGui::Button("Remove Target"))
         {
-            _assetService.Clear_Target();
-            Sync_TargetNameBuffer();
-            _editorManager.Stop_AnimationPreview();
+            if (_assetService.Remove_SelectedTarget())
+            {
+                Sync_TargetNameBuffer();
+                _editorManager.Stop_AnimationPreview();
+                Refresh_StaticPreview();
+            }
         }
 
+        ImGui::BeginDisabled(nullptr == _assetService.Get_SelectedTarget());
         if (ImGui::InputText("Target Name", _targetNameBuffer, size(_targetNameBuffer)))
         {
             _assetService.Set_TargetName(_targetNameBuffer, _editorManager.Get_Document());
             Refresh_StaticPreview();
         }
+        ImGui::EndDisabled();
 
-        const UI_AnimationAsset& asset = _assetService.Get_Asset();
         const char* boundName = "None";
-        if (asset.targetObjectId != 0)
+        const UI_AnimationTargetBinding* selectedTarget = _assetService.Get_SelectedTarget();
+        if (nullptr != selectedTarget && selectedTarget->targetObjectId != 0)
         {
-            const UI_Object* targetObject = _editorManager.Get_Document().Find_Object(asset.targetObjectId);
+            const UI_Object* targetObject = _editorManager.Get_Document().Find_Object(selectedTarget->targetObjectId);
             if (nullptr != targetObject)
                 boundName = targetObject->name.c_str();
         }
@@ -214,7 +243,7 @@ namespace UIEditor
     void UI_Animation_View::Render_PlaybackSection()
     {
         UI_AnimationAsset& asset = _assetService.Get_MutableAsset();
-        const bool hasTarget = asset.targetObjectId != 0;
+        const bool hasTarget = _assetService.Has_AnyResolvedTarget();
 
         ImGui::BeginDisabled(!hasTarget);
         if (ImGui::Button("Play"))
@@ -288,6 +317,7 @@ namespace UIEditor
             const UI_AnimationTimelineClickResult clickResult = _timelineView.Render(
                 _assetService.Get_Asset(),
                 _assetService.Get_CurrentFrame(),
+                _assetService.Get_SelectedTargetIndex(),
                 _assetService.Get_SelectedTrackIndex(),
                 _assetService.Get_SelectedKeyIndex(),
                 timelineSize);
@@ -302,8 +332,7 @@ namespace UIEditor
 
     void UI_Animation_View::Render_PresetPanel()
     {
-        const UI_AnimationAsset& asset = _assetService.Get_Asset();
-        const bool hasTarget = asset.targetObjectId != 0;
+        const bool hasTarget = _assetService.Has_SelectedResolvedTarget();
 
         ImGui::Text("Presets");
         ImGui::SameLine();
@@ -357,20 +386,50 @@ namespace UIEditor
     void UI_Animation_View::Render_TrackPanel()
     {
         const UI_AnimationAsset& asset = _assetService.Get_Asset();
-        const bool hasTarget = asset.targetObjectId != 0;
+        const bool hasTarget = nullptr != _assetService.Get_SelectedTarget();
+        const bool hasResolvedTarget = _assetService.Has_SelectedResolvedTarget();
 
-        ImGui::Text("Tracks: %zu", asset.tracks.size());
+        ImGui::Text("Targets: %zu  Tracks: %zu", asset.targets.size(), Count_Tracks(asset));
         ImGui::Separator();
 
-        const float trackListHeight = 130.f;
+        const float trackListHeight = 170.f;
         if (ImGui::BeginChild("AnimationTrackList", ImVec2(0.f, trackListHeight), true))
         {
-            for (int32 index = 0; index < static_cast<int32>(asset.tracks.size()); ++index)
+            for (int32 targetIndex = 0; targetIndex < static_cast<int32>(asset.targets.size()); ++targetIndex)
             {
-                const UI_AnimationKeyframeTrack& track = asset.tracks[index];
-                const string label = string(Get_AnimationKeyframeTrackTypeName(track.type)) + " (" + to_string(track.keys.size()) + ")";
-                if (ImGui::Selectable(label.c_str(), _assetService.Get_SelectedTrackIndex() == index))
-                    _assetService.Select_Track(index);
+                const UI_AnimationTargetBinding& target = asset.targets[targetIndex];
+                const string targetName = target.targetName.empty() ? string("(Unnamed Target)") : target.targetName;
+                const string targetLabel = targetName + "##Target" + to_string(targetIndex);
+                const bool selectedTargetOnly =
+                    _assetService.Get_SelectedTargetIndex() == targetIndex &&
+                    _assetService.Get_SelectedTrackIndex() < 0;
+                if (ImGui::Selectable(targetLabel.c_str(), selectedTargetOnly))
+                {
+                    _assetService.Select_Target(targetIndex);
+                    Sync_TargetNameBuffer();
+                }
+
+                for (int32 trackIndex = 0; trackIndex < static_cast<int32>(target.tracks.size()); ++trackIndex)
+                {
+                    const UI_AnimationKeyframeTrack& track = target.tracks[trackIndex];
+                    const string label =
+                        "  " +
+                        string(Get_AnimationKeyframeTrackTypeName(track.type)) +
+                        " (" +
+                        to_string(track.keys.size()) +
+                        ")##Track" +
+                        to_string(targetIndex) +
+                        "_" +
+                        to_string(trackIndex);
+                    const bool selectedTrack =
+                        _assetService.Get_SelectedTargetIndex() == targetIndex &&
+                        _assetService.Get_SelectedTrackIndex() == trackIndex;
+                    if (ImGui::Selectable(label.c_str(), selectedTrack))
+                    {
+                        _assetService.Select_Track(targetIndex, trackIndex);
+                        Sync_TargetNameBuffer();
+                    }
+                }
             }
         }
         ImGui::EndChild();
@@ -379,8 +438,10 @@ namespace UIEditor
         if (ImGui::Combo("Add Track Type", &trackTypeIndex, kTrackTypeNames, static_cast<int32>(size(kTrackTypeNames))))
             _assetService.Set_PendingTrackType(static_cast<UI_AnimationKeyframeTrackType>(trackTypeIndex));
 
+        ImGui::BeginDisabled(!hasTarget);
         if (ImGui::Button("Add Track"))
             _assetService.Add_Track(_assetService.Get_PendingTrackType());
+        ImGui::EndDisabled();
 
         UI_AnimationKeyframeTrack* selectedTrack = _assetService.Get_SelectedTrack();
         ImGui::BeginDisabled(nullptr == selectedTrack);
@@ -398,17 +459,17 @@ namespace UIEditor
             Refresh_StaticPreview();
         ImGui::EndDisabled();
 
-        ImGui::BeginDisabled(!hasTarget || nullptr == _assetService.Get_SelectedTrack());
+        ImGui::BeginDisabled(!hasResolvedTarget || nullptr == _assetService.Get_SelectedTrack());
         if (ImGui::Button("Key Selected Track") && _assetService.Add_KeyToSelectedTrack(_editorManager.Get_Document()))
             Refresh_StaticPreview();
         ImGui::EndDisabled();
         Show_ItemTooltip("Create or update one key from the bound UI at the current frame.");
 
-        ImGui::BeginDisabled(!hasTarget);
+        ImGui::BeginDisabled(!hasResolvedTarget);
         if (ImGui::Button("Key Transform Set") && _assetService.Add_CurrentValueKeysToTransformTracks(_editorManager.Get_Document()))
             Refresh_StaticPreview();
         ImGui::EndDisabled();
-        Show_ItemTooltip("Create or update Position, Scale, Rotation, and Alpha keys at the current frame.");
+        Show_ItemTooltip("Create or update Position, Scale, Rotation, and Color keys at the current frame.");
 
         ImGui::BeginDisabled(nullptr == _assetService.Get_SelectedKey());
         if (ImGui::Button("Copy Key"))
@@ -446,7 +507,7 @@ namespace UIEditor
                 const UI_AnimationKeyframe& key = selectedTrack->keys[keyIndex];
                 const string label = "Frame " + to_string(key.frame) + "  |  " + Make_KeyValueLabel(*selectedTrack, key);
                 if (ImGui::Selectable(label.c_str(), _assetService.Get_SelectedKeyIndex() == keyIndex))
-                    _assetService.Select_Key(_assetService.Get_SelectedTrackIndex(), keyIndex);
+                    _assetService.Select_Key(_assetService.Get_SelectedTargetIndex(), _assetService.Get_SelectedTrackIndex(), keyIndex);
             }
         }
         ImGui::EndChild();
@@ -463,7 +524,7 @@ namespace UIEditor
         if (ImGui::InputInt("Frame", &frame))
         {
             int32 targetFrame = frame;
-            if (_assetService.Set_SelectedKeyFrame(frame, targetFrame))
+            if (_assetService.TryMoveSelectedKeyFrame(frame, targetFrame))
                 Set_CurrentFrame(targetFrame);
         }
 
@@ -480,17 +541,42 @@ namespace UIEditor
         }
         Show_ItemTooltip("Controls interpolation from this key to the next key.");
 
-        float value = editableTrack->type == UI_AnimationKeyframeTrackType::Rotation
-            ? Radians_ToDegrees(selectedKey->value)
-            : selectedKey->value;
-        const char* valueLabel = editableTrack->type == UI_AnimationKeyframeTrackType::Rotation ? "Value (deg)" : "Value";
-        if (ImGui::DragFloat(valueLabel, &value, Get_ValueDragSpeed(editableTrack->type), 0.f, 0.f, "%.3f"))
+        if (editableTrack->type == UI_AnimationKeyframeTrackType::Color)
         {
-            const float nextValue = editableTrack->type == UI_AnimationKeyframeTrackType::Rotation
-                ? Degrees_ToRadians(value)
-                : value;
-            if (_assetService.Set_SelectedKeyValue(nextValue))
-                Refresh_StaticPreview();
+            const ImVec4 color = Clamp_AnimationKeyframeColor(selectedKey->color);
+            int32 channels[4] = {
+                static_cast<int32>(roundf(color.x)),
+                static_cast<int32>(roundf(color.y)),
+                static_cast<int32>(roundf(color.z)),
+                static_cast<int32>(roundf(color.w)),
+            };
+
+            if (ImGui::InputInt4("RGBA", channels))
+            {
+                const ImVec4 nextColor(
+                    static_cast<float>(min(max(channels[0], 0), 255)),
+                    static_cast<float>(min(max(channels[1], 0), 255)),
+                    static_cast<float>(min(max(channels[2], 0), 255)),
+                    static_cast<float>(min(max(channels[3], 0), 255)));
+                if (_assetService.Set_SelectedKeyColor(nextColor))
+                    Refresh_StaticPreview();
+            }
+            Show_ItemTooltip("Edit R, G, B, and A as 0 to 255 values.");
+        }
+        else
+        {
+            float value = editableTrack->type == UI_AnimationKeyframeTrackType::Rotation
+                ? Radians_ToDegrees(selectedKey->value)
+                : selectedKey->value;
+            const char* valueLabel = editableTrack->type == UI_AnimationKeyframeTrackType::Rotation ? "Value (deg)" : "Value";
+            if (ImGui::DragFloat(valueLabel, &value, Get_ValueDragSpeed(editableTrack->type), 0.f, 0.f, "%.3f"))
+            {
+                const float nextValue = editableTrack->type == UI_AnimationKeyframeTrackType::Rotation
+                    ? Degrees_ToRadians(value)
+                    : value;
+                if (_assetService.Set_SelectedKeyValue(nextValue))
+                    Refresh_StaticPreview();
+            }
         }
     }
 
@@ -537,7 +623,9 @@ namespace UIEditor
     void UI_Animation_View::Sync_TargetNameBuffer()
     {
         memset(_targetNameBuffer, 0, sizeof(_targetNameBuffer));
-        strncpy_s(_targetNameBuffer, _assetService.Get_Asset().targetName.c_str(), _TRUNCATE);
+        const UI_AnimationTargetBinding* target = _assetService.Get_SelectedTarget();
+        if (nullptr != target)
+            strncpy_s(_targetNameBuffer, target->targetName.c_str(), _TRUNCATE);
     }
 
     void UI_Animation_View::Set_CurrentFrame(int32 frame)
@@ -549,12 +637,11 @@ namespace UIEditor
     void UI_Animation_View::Refresh_StaticPreview()
     {
         _assetService.Resolve_TargetObject(_editorManager.Get_Document());
-        const UI_AnimationAsset& asset = _assetService.Get_Asset();
-        if (!_assetService.Is_PreviewEnabled() || asset.targetObjectId == 0)
+        if (!_assetService.Is_PreviewEnabled() || !_assetService.Has_AnyResolvedTarget())
             return;
 
         if (!_editorManager.Is_AnimationPreviewPlaying())
-            _editorManager.Preview_AnimationAsset(asset, _assetService.Get_CurrentFrame());
+            _editorManager.Preview_AnimationAsset(_assetService.Get_Asset(), _assetService.Get_CurrentFrame());
     }
 
     void UI_Animation_View::Handle_TimelineClick(const UI_AnimationTimelineClickResult& clickResult)
@@ -563,12 +650,18 @@ namespace UIEditor
             return;
 
         bool selectedKey = false;
-        if (clickResult.trackIndex >= 0)
+        if (clickResult.targetIndex >= 0 && clickResult.trackIndex >= 0)
         {
             if (clickResult.hitKey)
-                selectedKey = _assetService.Select_Key(clickResult.trackIndex, clickResult.keyIndex);
+                selectedKey = _assetService.Select_Key(clickResult.targetIndex, clickResult.trackIndex, clickResult.keyIndex);
             else
-                _assetService.Select_Track(clickResult.trackIndex);
+                _assetService.Select_Track(clickResult.targetIndex, clickResult.trackIndex);
+            Sync_TargetNameBuffer();
+        }
+        else if (clickResult.targetIndex >= 0)
+        {
+            _assetService.Select_Target(clickResult.targetIndex);
+            Sync_TargetNameBuffer();
         }
 
         if (clickResult.draggedKey)
@@ -577,7 +670,7 @@ namespace UIEditor
                 return;
 
             int32 targetFrame = clickResult.frame;
-            if (_assetService.Set_SelectedKeyFrame(clickResult.frame, targetFrame))
+            if (_assetService.TryMoveSelectedKeyFrame(clickResult.frame, targetFrame))
                 Set_CurrentFrame(targetFrame);
             return;
         }
