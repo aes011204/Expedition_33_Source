@@ -72,6 +72,20 @@ BlendState BS_Blend
     BlendOp = Add;
 };
 
+BlendState BS_Multiply
+{
+    BlendEnable[0] = true;
+    BlendEnable[1] = true;
+
+    SrcBlend = Dest_Color;
+    DestBlend = Zero;
+    BlendOp = Add;
+
+    SrcBlendAlpha = Zero;
+    DestBlendAlpha = One;
+    BlendOpAlpha = Add;
+};
+
 RasterizerState RS_CullNone
 {
     FillMode = Solid;

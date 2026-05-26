@@ -17,7 +17,9 @@ namespace Internal
             blendMode == "alphaBlend" ||
             blendMode == "alphablend" ||
             blendMode == "Additive" ||
-            blendMode == "additive";
+            blendMode == "additive" ||
+            blendMode == "Multiply" ||
+            blendMode == "multiply";
     }
 
     bool Is_SupportedOpacitySource(const string& opacitySource)

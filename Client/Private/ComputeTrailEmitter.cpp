@@ -208,7 +208,14 @@ void ComputeTrailEmitter::Late_Update(float)
 HRESULT ComputeTrailEmitter::Render()
 {
     CHECK_FAILED_THROTTLED(Bind_ShaderResources(), 60, E_FAIL);
-    CHECK_FAILED_THROTTLED(_shader->Begin(_desc.material.blendMode == "Additive" ? 1u : 0u), 60, E_FAIL);
+
+    uint32 passIndex = 0u;
+    if (_desc.material.blendMode == "Additive" || _desc.material.blendMode == "additive")
+        passIndex = 1u;
+    else if (_desc.material.blendMode == "Multiply" || _desc.material.blendMode == "multiply")
+        passIndex = 2u;
+
+    CHECK_FAILED_THROTTLED(_shader->Begin(passIndex), 60, E_FAIL);
 
     constexpr uint32 stride0 = sizeof(Vec3);
     constexpr uint32 offset0 = 0;

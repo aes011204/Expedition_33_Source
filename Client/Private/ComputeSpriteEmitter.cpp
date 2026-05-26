@@ -362,6 +362,9 @@ uint32 ComputeSpriteEmitter::Resolve_EffectSpritePassIndex() const
     if (_desc.required.material.blendMode == "Additive" || _desc.required.material.blendMode == "additive")
         return kEffectSpriteAdditivePass;
 
+    if (_desc.required.material.blendMode == "Multiply" || _desc.required.material.blendMode == "multiply")
+        return kEffectSpriteMultiplyPass;
+
     LOG_WARN(
         "ComputeSpriteEmitter unknown blendMode='{}'. Falling back to AlphaBlend.",
         _desc.required.material.blendMode

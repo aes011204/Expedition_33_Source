@@ -146,13 +146,33 @@ PS_OUT PS_MAIN(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_ADDITIVE(PS_IN In)
+{
+    PS_OUT Out = PS_MAIN(In);
+    Out.color.rgb *= saturate(Out.color.a);
+    return Out;
+}
+
+PS_OUT PS_MULTIPLY(PS_IN In)
+{
+    PS_OUT Out = PS_MAIN(In);
+    const float intensity = max(g_EffectMaterialPreviewParams.x, 0.0001f);
+    const float3 multiplyColor = saturate(Out.color.rgb / intensity);
+    const float multiplyCoverage = dot(multiplyColor, float3(0.299f, 0.587f, 0.114f));
+    const float multiplyStrength = saturate(Out.color.a * multiplyCoverage * intensity * 0.35f);
+    Out.color.rgb = lerp(float3(1.f, 1.f, 1.f), multiplyColor, multiplyStrength);
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     // Plane preview
     PASS_RS_DS_BS_VP(AlphaBlendPass, RS_CullNone, DSS_Default, BS_AlphaBlend, VS_MAIN, PS_MAIN) // 0
-    PASS_RS_DS_BS_VP(AdditivePass, RS_CullNone, DSS_Default, BS_Blend, VS_MAIN, PS_MAIN)        // 1
+    PASS_RS_DS_BS_VP(AdditivePass, RS_CullNone, DSS_Default, BS_Blend, VS_MAIN, PS_ADDITIVE)    // 1
+    PASS_RS_DS_BS_VP(MultiplyPass, RS_CullNone, DSS_Default, BS_Multiply, VS_MAIN, PS_MULTIPLY) // 2
 
     // Sphere preview
-    PASS_RS_DS_BS_VP(SphereAlphaBlendPass, RS_Default, DSS_Default, BS_AlphaBlend, VS_MAIN, PS_MAIN) // 2
-    PASS_RS_DS_BS_VP(SphereAdditivePass, RS_Default, DSS_Default, BS_Blend, VS_MAIN, PS_MAIN)        // 3
+    PASS_RS_DS_BS_VP(SphereAlphaBlendPass, RS_Default, DSS_Default, BS_AlphaBlend, VS_MAIN, PS_MAIN) // 3
+    PASS_RS_DS_BS_VP(SphereAdditivePass, RS_Default, DSS_Default, BS_Blend, VS_MAIN, PS_ADDITIVE)    // 4
+    PASS_RS_DS_BS_VP(SphereMultiplyPass, RS_Default, DSS_Default, BS_Multiply, VS_MAIN, PS_MULTIPLY) // 5
 }

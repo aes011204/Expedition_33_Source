@@ -47,6 +47,7 @@ private: //## Static Values
     static constexpr const char* kEffectSpriteShaderId{ "Shader_EffectSprite" };
     static constexpr uint32 kEffectSpriteAlphaBlendPass{ 0 };
     static constexpr uint32 kEffectSpriteAdditivePass{ 1 };
+    static constexpr uint32 kEffectSpriteMultiplyPass{ 2 };
     static constexpr int kOpacitySourceAlpha{ 0 };
     static constexpr int kOpacitySourceRed{ 1 };
     static constexpr int kOpacitySourceLuminance{ 2 };

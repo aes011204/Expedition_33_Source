@@ -32,15 +32,15 @@ struct EffectMaterialInstanceData
     float alphaCutoff{ 0.f };   // alpha cutoff 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
     float alphaErosion{ 0.f };  // mask/noise 기반 alpha erosion 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
 
-    Vec2 mainUVScale{ 1.f, 1.f };                                                   // main texture UV scale 후보 값이다.
-    Vec2 mainUVScrollSpeed{ 0.f, 0.f };                                             // main texture UV scroll speed 후보 값이다.
-    EffectTextureUVTilingMode mainUVTilingMode{ EffectTextureUVTilingMode::Wrap };  // main texture UV tiling 해석 방식이다.
-    Vec2 noiseUVScale{ 1.f, 1.f };                                                  // noise texture UV scale 후보 값이다.
-    Vec2 noiseUVScrollSpeed{ 0.f, 0.f };                                            // noise texture UV scroll speed 후보 값이다.
-    EffectTextureUVTilingMode noiseUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // noise texture UV tiling 해석 방식이다.
-    Vec2 maskUVScale{ 1.f, 1.f };                                                   // mask texture UV scale 후보 값이다.
-    Vec2 maskUVScrollSpeed{ 0.f, 0.f };                                             // mask texture UV scroll speed 후보 값이다.
-    EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Wrap };  // mask texture UV tiling 해석 방식이다.
+    Vec2 mainUVScale{ 1.f, 1.f };                                                      // main texture UV scale 후보 값이다.
+    Vec2 mainUVScrollSpeed{ 0.f, 0.f };                                                // main texture UV scroll speed 후보 값이다.
+    EffectTextureUVTilingMode mainUVTilingMode{ EffectTextureUVTilingMode::Stretch };  // main texture UV tiling 해석 방식이다.
+    Vec2 noiseUVScale{ 1.f, 1.f };                                                     // noise texture UV scale 후보 값이다.
+    Vec2 noiseUVScrollSpeed{ 0.f, 0.f };                                               // noise texture UV scroll speed 후보 값이다.
+    EffectTextureUVTilingMode noiseUVTilingMode{ EffectTextureUVTilingMode::Stretch }; // noise texture UV tiling 해석 방식이다.
+    Vec2 maskUVScale{ 1.f, 1.f };                                                      // mask texture UV scale 후보 값이다.
+    Vec2 maskUVScrollSpeed{ 0.f, 0.f };                                                // mask texture UV scroll speed 후보 값이다.
+    EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Stretch };  // mask texture UV tiling 해석 방식이다.
 
     string blendMode{ "AlphaBlend" }; // shader/render path가 해석할 blend mode 힌트다.
     string opacitySource{ "Alpha" };  // main texture에서 opacity를 뽑을 채널/방식이다.

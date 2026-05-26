@@ -292,8 +292,27 @@ PS_OUT PS_MAIN(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_ADDITIVE(PS_IN In)
+{
+    PS_OUT Out = PS_MAIN(In);
+    Out.color.rgb *= saturate(Out.color.a);
+    return Out;
+}
+
+PS_OUT PS_MULTIPLY(PS_IN In)
+{
+    PS_OUT Out = PS_MAIN(In);
+    const float intensity = max(g_EffectSpriteParams.x, 0.0001f);
+    const float3 multiplyColor = saturate(Out.color.rgb / intensity);
+    const float multiplyCoverage = dot(multiplyColor, float3(0.299f, 0.587f, 0.114f));
+    const float multiplyStrength = saturate(Out.color.a * multiplyCoverage * intensity * 0.35f);
+    Out.color.rgb = lerp(float3(1.f, 1.f, 1.f), multiplyColor, multiplyStrength);
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_AlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
-    PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_Blend, VS_MAIN, GS_MAIN, PS_MAIN)        // 1
+    PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_Blend, VS_MAIN, GS_MAIN, PS_ADDITIVE)    // 1
+    PASS_RS_DS_BS_VGP(MultiplyPass, RS_CullNone, DSS_DepthRead, BS_Multiply, VS_MAIN, GS_MAIN, PS_MULTIPLY) // 2
 }
