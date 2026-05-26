@@ -11,6 +11,7 @@
 #include "PlayableParts.h"
 #include "PlayerStateMachineCom.h"
 #include "Body_Player.h"
+#include "EffectCom.h"
 #include "Hair_Player.h"
 #include "Head_Player.h"
 #include "Player_GameMenu.h"
@@ -80,7 +81,9 @@ void Player_WorldBase::Update(float timeDelta)
 
     __super::Update(timeDelta);
 
-    
+    if (_effectCom)
+        _effectCom->Update(timeDelta);
+
 }
 
 void Player_WorldBase::Late_Update(float timeDelta)
@@ -119,6 +122,14 @@ Vec3 Player_WorldBase::Get_MovementVelocity() const
         return Vec3::Zero;
 
     return _movementCom->Get_Velocity();
+}
+
+void Player_WorldBase::Start_SwitchDissolve(float durationSec, const string& noiseName)
+{
+    if (_effectCom)
+        _effectCom->Start_SwitchDissolve(durationSec, noiseName);
+
+
 }
 
 HRESULT Player_WorldBase::Ready_Components()
@@ -161,6 +172,8 @@ HRESULT Player_WorldBase::Ready_Components()
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SkillTree"), _skillTreeCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStat"), _combatStatCom), E_FAIL);
+
+	CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
 
     return S_OK;
 }

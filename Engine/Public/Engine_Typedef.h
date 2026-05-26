@@ -67,4 +67,6 @@ namespace Engine
     using ShaderResourceView = ID3D11ShaderResourceView;
     using UnorderedAccessView = ID3D11UnorderedAccessView;
     using ComputeShader = ID3D11ComputeShader;
+
+    inline constexpr uint32 InvalidSRVHandle = UINT32_MAX;
 }

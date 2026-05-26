@@ -2,6 +2,7 @@
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_Material.hlsl"
+#include "Engine_Shader_Feature.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
 #include "Engine_Shader_Utils.hlsl"
 #include "Engine_Shader_ConstantBuffer.hlsl"
@@ -143,6 +144,12 @@ PS_OUT PS_Opaque(PS_IN In)
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+    {
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+    }
 
     // BaseColor
     float4 baseColor = SampleBaseColor(finalUV);
@@ -159,6 +166,7 @@ PS_OUT PS_Opaque(PS_IN In)
     Out.Material = float4(orm.xyz, 1.f); 
 
     float3 emissive = SampleEmissive(finalUV);
+    emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
     Out.Emissive = float4(emissive.xyz, 1.f);
 
     return Out;
@@ -169,12 +177,19 @@ PS_OUT PS_Mask(PS_IN In)
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
     // BaseColor
     float4 baseColor = SampleBaseColor(finalUV);
     // Mask
     float mask = GetOpacityMaskForMasked(finalUV, baseColor);
     if (mask < g_OpacityMaskClipValue)
         discard;
+
+    if (IsSwitchDissolveEnabled())
+    {
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+    }
+
     // Normal
     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
 
@@ -186,6 +201,7 @@ PS_OUT PS_Mask(PS_IN In)
     Out.Material = float4(orm.xyz, 1.f);
 
     float3 emissive = SampleEmissive(finalUV);
+    emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
     Out.Emissive = float4(emissive.xyz, 1.f);
     
     return Out;
@@ -228,6 +244,10 @@ PS_OUT PS_CharacterEye(PS_IN In)
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float dissolveEdge = 0.f;
+
+    if (IsSwitchDissolveEnabled())
+        dissolveEdge = ApplySwitchDissolveClip(finalUV);
 
     EyeMaterialSample eye = SampleEyeMaterial(finalUV);
 
@@ -249,6 +269,7 @@ PS_OUT PS_CharacterEye(PS_IN In)
     Out.Material = float4(orm.xyz, 1.f);
 
     float3 emissive = SampleEmissive(finalUV);
+    emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
     Out.Emissive = float4(emissive.xyz, 1.f);
 
     return Out;
@@ -260,35 +281,91 @@ PS_OUT PS_CharacterHair(PS_IN In)
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
 
-    HairMaterialSample hair = SampleHairMaterial(finalUV);
+    float hairMask = SampleHairMask(finalUV);
 
-    if (hair.opacity < 0.003)
-        discard;
+    // 본체 coverage를 더 넓게 잡는다.
+    const float hairCoreStart = 0.25f;
+    const float hairCoreEnd = 0.50f;
+
+    float coreMask = smoothstep(hairCoreStart, hairCoreEnd, hairMask);
+
+    // 기존보다 완화해서 더 많은 본체가 남게 한다.
+    clip(coreMask - 0.15f);
+
+    float3 hairBSDFColor = Compute_BlenderHairColor(finalUV);
+
+    const float hairAO = 1.f;
+    const float hairRoughness = 0.4f;
+    const float hairMetalness = 0.f;
 
     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
-        
-    Out.Diffuse = float4(hair.baseColor, 1.f);                                          
-    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);                                
-    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);    
 
-    float3 orm = SampleOrm(finalUV);        
-    Out.Material = float4(orm.xyz, 1.f);    
+    Out.Diffuse = float4(hairBSDFColor, 1.f);
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = float4(hairAO, hairRoughness, hairMetalness, 1.f);
+    Out.Emissive = float4(0.f, 0.f, 0.f, 1.f);
 
-    float3 emissive = SampleEmissive(finalUV);  
-    Out.Emissive = float4(emissive.xyz, 1.f);   
+    return Out;
+}
+
+struct PS_OUT_HAIR_BLEND
+{
+    vector Color : SV_TARGET0;
+};
+
+PS_OUT_HAIR_BLEND PS_CharacterHairBlend(PS_IN In)
+{
+    PS_OUT_HAIR_BLEND Out;
+
+    float2 finalUV = ApplyUVTransform(In.Texcoord);
+
+    float3 hairColor = Compute_BlenderHairColor(finalUV);
+
+    float hairMask = g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].Sample(LinearWrapSampler, finalUV).r;
+    hairMask = saturate(hairMask);
+
+    // GBuffer와 같은 core 해석을 사용
+    float hairMaskCore = pow(hairMask, 0.75f);
+
+    const float hairCoreStart = 0.20f;
+    const float hairCoreEnd = 0.80f;
+
+    float coreMask = smoothstep(hairCoreStart, hairCoreEnd, hairMaskCore);
+
+    // soft는 아주 얇은 가장자리만 담당
+    const float hairSoftStart = 0.02f;
+    const float hairSoftEnd = 0.55f;
+
+    float softMask = smoothstep(hairSoftStart, hairSoftEnd, hairMask);
+
+    // core는 이미 GBuffer에서 그렸으니 제외
+    float hairAlpha = softMask * (1.f - coreMask);
+
+    // 너무 약한 알파는 버림
+    clip(hairAlpha);
+
+    // soft hair는 너무 세면 노이즈가 되므로 적당히만
+    hairAlpha *= 0.18f;
+
+    // 실제 테스트에서는 너무 어둡게 누르지 말 것
+    float3 blendHairColor = hairColor;
+
+    Out.Color = float4(blendHairColor, hairAlpha);
 
     return Out;
 }
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(OpaquePass,            RS_Default,     DSS_Default, BS_Default, VS_Main,   PS_Opaque)          // 0
-    PASS_RS_DS_BS_VP(MaskedPass,            RS_Default,     DSS_Default, BS_Default, VS_Main,   PS_Mask)            // 1
-    PASS_RS_DS_BS_VP(OpaqueTwoSidedPass,    RS_CullNone,    DSS_Default, BS_Default, VS_Main,   PS_Opaque)          // 2
-    PASS_RS_DS_BS_VP(MaskedTwoSidedPass,    RS_CullNone,    DSS_Default, BS_Default, VS_Main,   PS_Mask)            // 3
-    PASS_RS_DS_BS_VP(ShadowPass,            RS_Default,     DSS_Default, BS_Default, VS_Shadow, PS_Shadow)          // 4
-    PASS_RS_DS_BS_VP(CharacterEye,          RS_Default,     DSS_Default, BS_Default, VS_Main, PS_CharacterEye)      // 5
-    PASS_RS_DS_BS_VP(CharacterHair,         RS_CullNone,    DSS_Default, BS_Default, VS_Main, PS_CharacterHair)     // 6
-    PASS_RS_DS_BS_VP(IDPass,                RS_Default,     DSS_Default, BS_Default, VS_Main, PS_ID)                // 7
+    PASS_RS_DS_BS_VP(OpaquePass,            RS_Default,     DSS_Default, BS_Default,        VS_Main,   PS_Opaque)          // 0
+    PASS_RS_DS_BS_VP(MaskedPass,            RS_Default,     DSS_Default, BS_Default,        VS_Main,   PS_Mask)            // 1
+    PASS_RS_DS_BS_VP(OpaqueTwoSidedPass,    RS_CullNone,    DSS_Default, BS_Default,        VS_Main,   PS_Opaque)          // 2
+    PASS_RS_DS_BS_VP(MaskedTwoSidedPass,    RS_CullNone,    DSS_Default, BS_Default,        VS_Main,   PS_Mask)            // 3
+    PASS_RS_DS_BS_VP(ShadowPass,            RS_Default,     DSS_Default, BS_Default,        VS_Shadow, PS_Shadow)          // 4
+    PASS_RS_DS_BS_VP(CharacterEye,          RS_Default,     DSS_Default, BS_Default,        VS_Main,   PS_CharacterEye)      // 5
+    PASS_RS_DS_BS_VP(CharacterHair,         RS_CullNone,    DSS_Default, BS_Default,        VS_Main,   PS_CharacterHair)     // 6
+    PASS_RS_DS_BS_VP(IDPass,                RS_Default,     DSS_Default, BS_Default,        VS_Main,   PS_ID)                // 7
+    PASS_RS_DS_BS_VP(CharacterHairBlend,    RS_CullNone,    DSS_DepthRead, BS_AlphaBlend,   VS_Main,   PS_CharacterHairBlend) // 8
 }
 

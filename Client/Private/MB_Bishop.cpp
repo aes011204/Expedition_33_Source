@@ -36,9 +36,15 @@ HRESULT MB_Bishop::Initialize(void* arg)
     CHECK_FAILED(Monster_BattleBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
-    _body->Set_Animation("Bishop_Idle", 0.3f, true);
+    //_body->Set_Animation("Bishop_Idle", 0.3f, true);
 
-
+    _combatStat->Set_Skill("Eveque_Projectiles");
+    _combatStat->Set_Skill("Eveque_SingleSpear");
+    _combatStat->Set_Skill("Eveque_DoubleSpear");
+    _combatStat->Set_Skill("Eveque_Defense");
+    _combatStat->Set_Skill("Eveque_GroundAoE");
+    _combatStat->Set_Skill("Eveque_EnragedCombo");
+    _combatStat->Set_Skill("Eveque_Spawn_Mini");
 
 
     return S_OK;

@@ -26,6 +26,31 @@ namespace UIEditor
             return NormalizePathKey(pathKey);
         }
 
+        wstring Find_ClientResourceRootFrom(const fs::path& startPath)
+        {
+            try
+            {
+                fs::path currentPath = fs::absolute(startPath).lexically_normal();
+                if (fs::is_regular_file(currentPath))
+                    currentPath = currentPath.parent_path();
+
+                for (; !currentPath.empty(); currentPath = currentPath.parent_path())
+                {
+                    const fs::path candidate = currentPath / L"Client" / L"Bin" / L"Resources";
+                    if (fs::exists(candidate) && fs::is_directory(candidate))
+                        return candidate.lexically_normal().wstring();
+
+                    if (currentPath == currentPath.parent_path())
+                        break;
+                }
+            }
+            catch (...)
+            {
+            }
+
+            return {};
+        }
+
         ImVec2 Rotate_PointAroundCenter(const ImVec2& point, const ImVec2& center, float rotationRadians)
         {
             const float cosAngle = cosf(rotationRadians);
@@ -121,6 +146,23 @@ namespace UIEditor
         return "../Bin/Resources/" + relativePath;
     }
 
+    wstring Resolve_UIEditorClientResourceRoot()
+    {
+        const wstring assetRoot = GAME->Get_AssetRoot();
+        if (!assetRoot.empty() && fs::exists(assetRoot))
+            return fs::path(assetRoot).lexically_normal().wstring();
+
+        wchar_t modulePath[MAX_PATH] = {};
+        if (0 != GetModuleFileNameW(nullptr, modulePath, MAX_PATH))
+        {
+            const wstring foundRoot = Find_ClientResourceRootFrom(fs::path(modulePath));
+            if (!foundRoot.empty())
+                return foundRoot;
+        }
+
+        return Find_ClientResourceRootFrom(fs::current_path());
+    }
+
     wstring Resolve_ClientRuntimeResourcePath(const string& runtimePath)
     {
         if (runtimePath.empty())
@@ -145,7 +187,7 @@ namespace UIEditor
         else if (StartsWith(resourceRelativePath, resourcesPrefix))
             resourceRelativePath = resourceRelativePath.substr(resourcesPrefix.size());
 
-        const wstring assetRoot = GAME->Get_AssetRoot();
+        const wstring assetRoot = Resolve_UIEditorClientResourceRoot();
         if (assetRoot.empty())
             return {};
 

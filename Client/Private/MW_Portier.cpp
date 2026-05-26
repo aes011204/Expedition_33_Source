@@ -72,13 +72,6 @@ void MW_Portier::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> ot
     Monster_WorldBase::OnBeginOverlap(self, other);
 }
 
-void MW_Portier::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
-{
-    outPrefabNames.push_back(Constants::Prefab::MB_Lancelier);
-    outPrefabNames.push_back(Constants::Prefab::MB_Portier);
-    outPrefabNames.push_back(Constants::Prefab::MB_Volester);
-}
-
 HRESULT MW_Portier::Ready_Components()
 {
    Monster_WorldBase::Ready_Components();

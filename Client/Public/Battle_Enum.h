@@ -533,11 +533,11 @@ namespace Client
         string skillKey = "";
         string scriptClassName = "";
         vector<BattleActionPhase> AnimPhases = {};
-
-        string IdleAnimationKey = "";
+       // string IdleAnimationKey = "";
 
 
         int32 apCost = 0;
+        int32 AttackCount = 0;
         ECharacterTeamSelector targetingType = ECharacterTeamSelector::Invalid;
         EAttackType element = EAttackType::None;
         Buffs buff = Buffs::None;
@@ -601,6 +601,13 @@ namespace Client
      //   bool disableSequenceSnapping = false;
     };
 
+    struct BattleSlowDesc
+    {
+        float elapsed = 0.f;
+        float duration = 0.6f;
+        float worldTimeScale = 0.12f;
+    };
+
     enum class BattleAnimType
     {
         Base_Idle,
@@ -622,5 +629,10 @@ namespace Client
 
         Dead,
 
+    };
+
+    enum class BattleReactionType
+    {
+        None, Parry, Dodge, QTE, END
     };
 }

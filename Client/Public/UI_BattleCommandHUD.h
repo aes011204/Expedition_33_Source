@@ -5,6 +5,8 @@
 
 NS_BEGIN(Engine)
 class UI_Base;
+class UI_Image;
+class UI_Text;
 NS_END
 
 NS_BEGIN(Client)
@@ -25,19 +27,45 @@ public:
 public:
     void    Refresh_ForState(BattleTurnState state);
     void    Set_TargetWorldPosition(const Vec3& worldPos);
+    void    Set_CurrentPlayerAP(uint32 curAp, uint32 maxAp);
 
 private:
+    struct CommandSlot
+    {
+        Shared<UI_Base> root{};
+        Shared<UI_Base> frameBG{};
+        Shared<UI_Base> frameLeft{};
+        Shared<UI_Base> frameRight{};
+        Shared<UI_Base> text{};
+        Shared<UI_Base> key{};
+    };
+
+private:
+    static constexpr uint32 kMaxCommandApSegmentCount = 9;
+
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
 
     void    Apply_DefaultHighlight();
-    void    Set_ButtonHighlighted(const Shared<UI_Base>& button, bool highlighted);
+    HRESULT Bind_CurrentPlayerAP();
+    void    Apply_CurrentPlayerAPGauge(uint32 curAp, uint32 maxAp);
+    void    Set_CurrentPlayerAPText(uint32 curAp);
+    HRESULT Bind_CommandSlot(
+        const wstring& commandName,
+        const wstring& keyName,
+        bool requireKey,
+        CommandSlot& outSlot);
+    void    Set_CommandSlotHighlighted(const CommandSlot& slot, bool highlighted);
 
 private:
-    Shared<UI_Base> _attackButton{};
-    Shared<UI_Base> _skillButton{};
-    Shared<UI_Base> _itemButton{};
-    Shared<UI_Base> _shotButton{};
+    CommandSlot _attackSlot{};
+    CommandSlot _skillSlot{};
+    CommandSlot _itemSlot{};
+    CommandSlot _shotSlot{};
+
+    Shared<UI_Text>  _currentPlayerApText{};
+    Shared<UI_Text>  _currentPlayerApTextBg{};
+    Shared<UI_Image> _currentPlayerApStates[kMaxCommandApSegmentCount]{};
 
 private:
     Vec2 _normalScale = Vec2(1.f, 1.f);

@@ -72,10 +72,6 @@ void MW_Volester::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> o
     Monster_WorldBase::OnBeginOverlap(self, other);
 }
 
-void MW_Volester::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
-{
-}
-
 HRESULT MW_Volester::Ready_Components()
 {
     Monster_WorldBase::Ready_Components();
@@ -93,6 +89,8 @@ HRESULT MW_Volester::Ready_PartObjects()
 
     _body = dynamic_pointer_cast<Mon_Volester_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
+
+    return S_OK;
 }
 
 Shared<MW_Volester> MW_Volester::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

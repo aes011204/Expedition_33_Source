@@ -33,6 +33,7 @@ HRESULT Hair_Player::Initialize(void* arg)
     {
         // PW_* 캐릭터에서 넘긴 hair physics 값을 실제 파츠에 저장
         _hairPhysicsDesc = desc->hairPhysicsDesc;
+        _hairCB = desc->hairCB;
     }
 
     _offsetMatrix = Matrix::Identity;
@@ -57,6 +58,8 @@ void Hair_Player::Priority_Update(float timeDelta)
 
 void Hair_Player::Update(float timeDelta)
 {
+    PlayableParts::Update(timeDelta);
+
     Debug_Profile::Scope profileScope("Player::Hair::Update");
 
     if (_modelCom == nullptr)

@@ -5,6 +5,7 @@ NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
 class AnimComputeRuntime;
+class Material;
 NS_END
 
 NS_BEGIN(Client)

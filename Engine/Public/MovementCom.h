@@ -133,6 +133,9 @@ public:
     void Set_FollowMoveCommand(const FollowMoveCommand& command) { _followMove = command; }
     void Clear_FollowMoveCommand() { _followMove = {}; }
 
+    void Set_TurnSpeedDegree(float turnSpeedDegree) { _moveDesc.turnSpeedDegree = turnSpeedDegree; }
+    void Set_TurnResponse(float turnResponse) { _moveDesc.turnResponse = turnResponse; }
+
 private:
     void Start_Jump();
 

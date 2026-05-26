@@ -9,9 +9,7 @@
 #include "Bounding_OBB.h"
 #include "Monster_Part.h"
 
-
 REGISTER_GLOBAL_ENUM(Monster_WorldBase::MonsterWorldAnim, "MonsterWorldAnim")
-
 
 Monster_WorldBase::Monster_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_WorldBase(device, context)
@@ -19,7 +17,7 @@ Monster_WorldBase::Monster_WorldBase(const ComPtr<Device>& device, const ComPtr<
 }
 
 Monster_WorldBase::Monster_WorldBase(const Monster_WorldBase& prototype)
-   : Character_WorldBase(prototype)
+    : Character_WorldBase(prototype)
 {
 }
 
@@ -55,8 +53,8 @@ void Monster_WorldBase::BeginPlay()
 
 void Monster_WorldBase::Update(float timeDelta)
 {
-	if (CLIENT->Is_BattleActive())
-		return;
+    if (CLIENT->Is_BattleActive())
+        return;
 
     if (_aiCtrl)
     {
@@ -81,26 +79,25 @@ void Monster_WorldBase::Update(float timeDelta)
 
     if (auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body")))
     {
-        
-    if (_currentAction != _previousAction)
-    {
-        switch (_currentAction)
+        if (_currentAction != _previousAction)
         {
-        case MonsterWorldAnim::Idle:
-            bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Idle), 0.3f, true);
-            break;
+            switch (_currentAction)
+            {
+            case MonsterWorldAnim::Idle:
+                bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Idle), 0.3f, true);
+                break;
 
-        case MonsterWorldAnim::Patrol:
-            bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Patrol), 0.3f, true);
-            break;
+            case MonsterWorldAnim::Patrol:
+                bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Patrol), 0.3f, true);
+                break;
 
-        case MonsterWorldAnim::Chase:
-            bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Chase), 0.3f, true);
-            break;
+            case MonsterWorldAnim::Chase:
+                bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Chase), 0.3f, true);
+                break;
+            }
+
+            _previousAction = _currentAction;
         }
-
-        _previousAction = _currentAction;
-    }
     }
 
 
@@ -122,6 +119,36 @@ HRESULT Monster_WorldBase::Render()
 HRESULT Monster_WorldBase::Render_Shadow()
 {
     return Character_WorldBase::Render_Shadow();
+}
+
+json Monster_WorldBase::To_Json() const
+{
+    json data = Character_WorldBase::To_Json();
+
+    json& customProperties = data["custom_properties"];
+    customProperties["battle_monster_prefab_names"] = _battleMonsterPrefabNames;
+
+    return data;
+}
+
+void Monster_WorldBase::From_Json(const json& data)
+{
+    Character_WorldBase::From_Json(data);
+
+    _battleMonsterPrefabNames.clear();
+
+    if (!data.contains("custom_properties") || !data["custom_properties"].is_object())
+        return;
+
+    const json& customProperties = data["custom_properties"];
+    if (!customProperties.contains("battle_monster_prefab_names") || !customProperties["battle_monster_prefab_names"].is_array())
+        return;
+
+    for (const json& prefabName : customProperties["battle_monster_prefab_names"])
+    {
+        if (prefabName.is_string())
+            _battleMonsterPrefabNames.push_back(prefabName.get<string>());
+    }
 }
 
 void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other)
@@ -151,7 +178,18 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     vector<string> battleMonsterPrefabNames;
     Set_BattleMonsterPrefabNames(battleMonsterPrefabNames);
 
-    CLIENT->OnEnterBattleField(1, true, heroes, battleMonsterPrefabNames);
+    if (battleMonsterPrefabNames.empty())
+    {
+        LOG_ERROR("Battle monster prefab list is empty.");
+        _isBattleStart = false;
+
+        if (self)
+            self->Set_IsActive(true);
+
+        return;
+    }
+
+    CLIENT->OnEnterBattleField(1, true, heroes, battleMonsterPrefabNames, GetSharedPtr<GameObject>());
 }
 
 void Monster_WorldBase::On_EditorStopRuntime()
@@ -163,6 +201,11 @@ void Monster_WorldBase::On_EditorStopRuntime()
         _colliderCom->Set_IsActive(true);
         _colliderCom->Clear_Overlap();
     }
+}
+
+void Monster_WorldBase::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
+{
+    outPrefabNames = _battleMonsterPrefabNames;
 }
 
 HRESULT Monster_WorldBase::Ready_Components()

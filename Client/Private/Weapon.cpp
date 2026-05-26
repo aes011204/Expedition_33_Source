@@ -66,6 +66,9 @@ HRESULT Weapon::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
+    if (FAILED(_shader->Reset_DrawFeatures()))
+        return E_FAIL;
+
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; ++i)
@@ -84,6 +87,9 @@ HRESULT Weapon::Render()
         if (FAILED(_shader->Begin(material->Get_PassIndex())))
             return E_FAIL;
 
+        // 플레이어 무기 실루엣도 Background UI를 가리는 영역으로 기록한다.
+        CHECK_FAILED(GAME->Bind_PlayerStencilWriteState(true), E_FAIL);
+
         _model->Render(i);
     }
 
@@ -98,6 +104,9 @@ HRESULT Weapon::Render_Shadow()
     if (FAILED(GAME->Bind_ShadowCB(_shader)))
         return E_FAIL;
 
+    if (FAILED(_shader->Reset_DrawFeatures()))
+        return E_FAIL;
+        
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; ++i)
