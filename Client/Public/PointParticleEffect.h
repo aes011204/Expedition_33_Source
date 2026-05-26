@@ -22,7 +22,6 @@ public:
         PointParticleDrawMode drawMode{ PointParticleDrawMode::Direct }; // 이 effect clone의 draw 제출 방식.
 
         string textureId{ "Texture_Effect_DefaultTexture" };      // Required.textureId에서 내려온 main particle texture id.
-        string blendMode{ "AlphaBlend" };                         // effect shader/render path가 해석할 blend mode 단서.
         string opacitySource{ "Alpha" };                          // texture에서 opacity를 뽑을 채널/방식.
         Vec4 tint{ 1.f, 1.f, 1.f, 1.f };                          // texture sample에 곱할 material tint.
         float intensity{ 1.f };                                   // sprite 색상 밝기/발광감을 조절하는 effect 계수.

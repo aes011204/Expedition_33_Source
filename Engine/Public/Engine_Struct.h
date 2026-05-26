@@ -14,6 +14,7 @@ using ENGINE_DESC = struct tagEngineDesc
     unsigned int numLevels;
     unsigned int viewportWidth;
     unsigned int viewportHeight;
+    DXGI_SWAP_EFFECT swapEffect = DXGI_SWAP_EFFECT_DISCARD;
     std::string projectName;
 };
 
@@ -99,6 +100,12 @@ struct ComputeSkinningCBData
     uint32 pad0 = 0;
     uint32 pad1 = 0;
     uint32 pad2 = 0;
+};
+
+struct ViewportSize
+{
+    uint32 width = 1600;
+    uint32 height = 900;
 };
 
 }

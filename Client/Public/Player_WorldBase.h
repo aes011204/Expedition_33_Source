@@ -17,6 +17,7 @@ class PlayerStatCom;
 class InputCom;
 class PlayerControllerCom;
 class PlayerStateMachineCom;
+class EffectCom;
 
 class Player_WorldBase : public Character_WorldBase
 {
@@ -40,6 +41,7 @@ public:
     void    Update_StatusPreview(float timeDelta);
     void    Enter_GameMenuAnimation(uint32 introAnim, uint32 idleAnim);
     Vec3    Get_MovementVelocity() const;
+    void    Start_SwitchDissolve(float durationSec, const string& noiseName);
 
 protected:
     HRESULT Ready_Components();
@@ -63,7 +65,7 @@ protected:
     Shared<PlayerStateMachineCom>   _playerStateMachineCom;
     Shared<SkillTreeCom>            _skillTreeCom;
     Shared<PlayerStatCom>           _combatStatCom;
-
+    Shared<EffectCom>               _effectCom;
 
 public:
 	static Shared<Player_WorldBase> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

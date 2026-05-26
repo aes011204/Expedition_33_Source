@@ -95,6 +95,10 @@ bool MaterialBuilder::Try_ParseCB(const json& value, MaterialCB& out)
     out.roughnessScale = value.value("roughnessScale", out.roughnessScale);
     out.metalnessScale = value.value("metalnessScale", out.metalnessScale);
     out.aoScale = value.value("aoScale", out.aoScale);
+    out.ormAoSource = value.value("ormAoSource", out.ormAoSource);
+    out.ormRoughnessSource = value.value("ormRoughnessSource", out.ormRoughnessSource);
+    out.ormMetalnessSource = value.value("ormMetalnessSource", out.ormMetalnessSource);
+    out.opacityMaskSource = value.value("opacityMaskSource", out.opacityMaskSource);
 
     if (value.contains("uvScale"))
         (void)Try_ParseVec2(value["uvScale"], out.uvScale);
@@ -426,6 +430,10 @@ bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const j
             if (inst.cbMask.roughnessScale) inst.cb.roughnessScale = jcb.value("roughnessScale", inst.cb.roughnessScale);
             if (inst.cbMask.metalnessScale) inst.cb.metalnessScale = jcb.value("metalnessScale", inst.cb.metalnessScale);
             if (inst.cbMask.aoScale) inst.cb.aoScale = jcb.value("aoScale", inst.cb.aoScale);
+            if (inst.cbMask.ormAoSource) inst.cb.ormAoSource = jcb.value("ormAoSource", inst.cb.ormAoSource);
+            if (inst.cbMask.ormRoughnessSource) inst.cb.ormRoughnessSource = jcb.value("ormRoughnessSource", inst.cb.ormRoughnessSource);
+            if (inst.cbMask.ormMetalnessSource) inst.cb.ormMetalnessSource = jcb.value("ormMetalnessSource", inst.cb.ormMetalnessSource);
+            if (inst.cbMask.opacityMaskSource) inst.cb.opacityMaskSource = jcb.value("opacityMaskSource", inst.cb.opacityMaskSource);
 
             if (inst.cbMask.uvScale && jcb.contains("uvScale"))
                 (void)Try_ParseVec2(jcb["uvScale"], inst.cb.uvScale);

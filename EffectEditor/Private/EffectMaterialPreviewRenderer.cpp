@@ -128,6 +128,7 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
         !Ready_Shader() ||
         !Ready_Texture(material.mainTextureGuid, material.mainTexturePath) ||
         !Ready_NoiseTexture(material.noiseTextureGuid, material.noiseTexturePath) ||
+        !Ready_MaskTexture(material.maskTextureGuid, material.maskTexturePath) ||
         !Ready_Meshes())
         return;
 
@@ -150,6 +151,11 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
     }
 
     _hasRenderedPreview = true;
+}
+
+void EffectMaterialPreviewRenderer::Update_MaterialTime(float timeDelta)
+{
+    _materialPreviewElapsedTime += max(0.f, timeDelta);
 }
 
 void EffectMaterialPreviewRenderer::Draw_Viewport(
@@ -387,6 +393,75 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
     return true;
 }
 
+bool EffectMaterialPreviewRenderer::Ready_MaskTexture(const string& textureGuid, const string& texturePath)
+{
+    if (textureGuid.empty() && texturePath.empty())
+    {
+        _maskTexture = nullptr;
+        _loadedMaskTextureKey.clear();
+        return true;
+    }
+
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
+    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
+
+    if (resolvedPath.empty())
+    {
+        _maskTexture = nullptr;
+        _loadedMaskTextureKey.clear();
+        _statusMessage = "Mask texture missing. Preview continues without mask.";
+        LOG_WARN_THROTTLED(
+            60,
+            "EffectMaterialPreview mask texture missing. maskTextureGuid='{}', maskTexturePath='{}'. Preview continues without mask.",
+            textureGuid,
+            texturePath
+        );
+        return true;
+    }
+
+    const string requestedTextureKey = String::ToString(resolvedPath);
+    if (_maskTexture != nullptr && _loadedMaskTextureKey == requestedTextureKey)
+        return true;
+
+    if (guidPathMismatch)
+    {
+        LOG_WARN(
+            "EffectMaterialPreview mask texture GUID/path mismatch. maskTextureGuid='{}', maskTexturePath='{}', guidResolvedPath='{}'. Preview continues with GUID texture.",
+            textureGuid,
+            texturePath,
+            requestedTextureKey
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "EffectMaterialPreview mask texture fell back to path. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'. Preview continues with fallback texture.",
+            textureGuid,
+            texturePath,
+            requestedTextureKey
+        );
+    }
+
+    _maskTexture = Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), resolvedPath.c_str(), 1);
+    _loadedMaskTextureKey = requestedTextureKey;
+
+    if (_maskTexture == nullptr)
+    {
+        _loadedMaskTextureKey.clear();
+        _statusMessage = "Mask texture missing. Preview continues without mask.";
+        LOG_WARN_THROTTLED(
+            60,
+            "EffectMaterialPreview mask texture create failed. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'. Preview continues without mask.",
+            textureGuid,
+            texturePath,
+            requestedTextureKey
+        );
+    }
+
+    return true;
+}
+
 bool EffectMaterialPreviewRenderer::Ready_Meshes()
 {
     return Ready_PlaneMesh() && Ready_SphereMesh();
@@ -544,6 +619,56 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         material.noiseStrength,
         _noiseTexture != nullptr ? 1.f : 0.f
     );
+    const Vec4 effectMaterialPreviewAlphaParams = Vec4(
+        clamp(material.alphaCutoff, 0.f, 1.f),
+        clamp(material.alphaErosion, 0.f, 1.f),
+        _maskTexture != nullptr ? 1.f : 0.f,
+        0.f
+    );
+    const Vec4 effectMaterialPreviewMainUVParams = Vec4(
+        material.mainUVScale.x,
+        material.mainUVScale.y,
+        material.mainUVScrollSpeed.x,
+        material.mainUVScrollSpeed.y
+    );
+    const Vec4 effectMaterialPreviewNoiseUVParams = Vec4(
+        material.noiseUVScale.x,
+        material.noiseUVScale.y,
+        material.noiseUVScrollSpeed.x,
+        material.noiseUVScrollSpeed.y
+    );
+    const Vec4 effectMaterialPreviewMaskUVParams = Vec4(
+        material.maskUVScale.x,
+        material.maskUVScale.y,
+        material.maskUVScrollSpeed.x,
+        material.maskUVScrollSpeed.y
+    );
+    const Vec4 effectMaterialPreviewUVOffsetParams = Vec4(
+        material.mainUVOffset.x,
+        material.mainUVOffset.y,
+        material.noiseUVOffset.x,
+        material.noiseUVOffset.y
+    );
+    const Vec4 effectMaterialPreviewMaskUVOffsetParams = Vec4(
+        material.maskUVOffset.x,
+        material.maskUVOffset.y,
+        0.f,
+        0.f
+    );
+    const Vec4 effectMaterialPreviewUVModeParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
+        0.f
+    );
+    const EffectMaterialAdditiveContributionData& additive = material.additive;
+    const Vec4 effectMaterialPreviewAdditiveParams = Vec4(
+        static_cast<float>(static_cast<uint32>(additive.colorSource)),
+        static_cast<float>(static_cast<uint32>(additive.amountSource)),
+        static_cast<float>(static_cast<uint32>(additive.coveragePolicy)),
+        additive.intensityScale
+    );
+    const Vec4 effectMaterialPreviewAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
     const int opacitySource = Internal::Resolve_OpacitySourceIndex(material.opacitySource);
 
     CHECK_FAILED(_shader->Bind_ObjectCB(worldMatrix), E_FAIL);
@@ -559,10 +684,79 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         CHECK_FAILED(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
     }
 
-    CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectMaterialPreviewParams", &effectMaterialPreviewParams, sizeof(effectMaterialPreviewParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)), E_FAIL);
-    CHECK_FAILED(_shader->Begin(Resolve_BlendPassIndex(material.blendMode, _meshMode)), E_FAIL);
+    if (_maskTexture != nullptr)
+    {
+        CHECK_FAILED(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
+    }
+    else
+    {
+        CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
+    }
+
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewParams", &effectMaterialPreviewParams, sizeof(effectMaterialPreviewParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewAlphaParams", &effectMaterialPreviewAlphaParams, sizeof(effectMaterialPreviewAlphaParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewMainUVParams", &effectMaterialPreviewMainUVParams, sizeof(effectMaterialPreviewMainUVParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewNoiseUVParams", &effectMaterialPreviewNoiseUVParams, sizeof(effectMaterialPreviewNoiseUVParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewMaskUVParams", &effectMaterialPreviewMaskUVParams, sizeof(effectMaterialPreviewMaskUVParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewUVOffsetParams", &effectMaterialPreviewUVOffsetParams, sizeof(effectMaterialPreviewUVOffsetParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewMaskUVOffsetParams", &effectMaterialPreviewMaskUVOffsetParams, sizeof(effectMaterialPreviewMaskUVOffsetParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewUVModeParams", &effectMaterialPreviewUVModeParams, sizeof(effectMaterialPreviewUVModeParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewAdditiveParams", &effectMaterialPreviewAdditiveParams, sizeof(effectMaterialPreviewAdditiveParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewAdditiveFlags", &effectMaterialPreviewAdditiveFlags, sizeof(effectMaterialPreviewAdditiveFlags)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewTime", &_materialPreviewElapsedTime, sizeof(_materialPreviewElapsedTime)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)),
+        E_FAIL
+    );
+    const uint32 meshPassOffset = _meshMode == EffectMaterialPreviewMeshMode::Sphere ? 1u : 0u;
+    const uint32 blendPassOffset = material.blendMode == EffectMaterialBlendMode::Additive ? 2u : 0u;
+    const uint32 passIndex = blendPassOffset + meshPassOffset;
+    CHECK_FAILED(_shader->Begin(passIndex), E_FAIL);
 
     const PreviewMeshResource& mesh =
         _meshMode == EffectMaterialPreviewMeshMode::Sphere ? _sphereMesh : _planeMesh;
@@ -788,18 +982,6 @@ void EffectMaterialPreviewRenderer::Draw_MeshModeControls()
         ImGui::PopStyleColor();
 
     ImGui::PopID();
-}
-
-uint32 EffectMaterialPreviewRenderer::Resolve_BlendPassIndex(
-    const string& blendMode,
-    EffectMaterialPreviewMeshMode meshMode) const
-{
-    const bool isAdditive = blendMode == "Additive" || blendMode == "additive";
-
-    if (meshMode == EffectMaterialPreviewMeshMode::Sphere)
-        return isAdditive ? 3 : 2;
-
-    return isAdditive ? 1 : 0;
 }
 
 void EffectMaterialPreviewRenderer::Cleanup()

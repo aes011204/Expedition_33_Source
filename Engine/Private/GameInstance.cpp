@@ -20,6 +20,7 @@
 #include "RegistorFactory.h"
 #include "Renderer.h"
 #include "Renderer_Define.h"
+#include "ScreenFx_Manager.h"
 #include "Timer_Manager.h"
 #include "Target_Manager.h"
 #include "Shadow.h"
@@ -29,6 +30,7 @@
 #include "ThreadPool.h"
 #include "Helper_String.h"
 #include "Material.h"
+#include "ShaderResourceRegistry.h"
 
 #include "Collision_Define.h"
 #include "Event_Bus.h"
@@ -55,6 +57,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
         engineDesc.winMode,
         engineDesc.viewportWidth,
         engineDesc.viewportHeight,
+        engineDesc.swapEffect,
         device,
         context
     );
@@ -96,6 +99,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _renderer = Renderer::Create(device, context);
     CHECK_NULL(_renderer, E_FAIL);
+
+    _screenFxManager = make_unique<ScreenFx_Manager>();
+    CHECK_NULL(_screenFxManager, E_FAIL);
 
     _pipeLine = PipeLine::Create();
     CHECK_NULL(_pipeLine, E_FAIL);
@@ -396,9 +402,6 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
 
 HRESULT GameInstance::Draw()
 {
-    if (FAILED(_uiManager->Render(UI_RenderGroup::Background)))
-        return E_FAIL;
-
     _renderer->Draw();
 
     _levelManager->Render();
@@ -423,8 +426,16 @@ HRESULT GameInstance::Draw()
     Try_FlushRuntimePerfLog();
 #endif
 
-    if (FAILED(_uiManager->Render()))
+#pragma region UI Render
+    // Background UI는 3D 씬 이후, Foreground UI 이전에 그린다.
+    if (FAILED(_uiManager->Render(UI_RenderGroup::Background)))
         return E_FAIL;
+
+    // Foreground UI는 마지막에 그려서 항상 화면 위에 보이게 한다.
+    if (FAILED(_uiManager->Render(UI_RenderGroup::Foreground)))
+        return E_FAIL;
+#pragma endregion
+
 
 #ifdef _DEBUG
       _printManager->Render();
@@ -1112,6 +1123,26 @@ Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
     return _renderer->Get_PostProcessPipeline();
 }
 
+const Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline() const
+{
+    return _renderer->Get_SSAOPipeline();
+}
+
+Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline()
+{
+    return _renderer->Get_SSAOPipeline();
+}
+
+const ScreenFx_Manager* GameInstance::Get_ScreenFxManager() const
+{
+    return _screenFxManager.get();
+}
+
+RenderGroup GameInstance::Get_CurrentRenderGroup() const
+{
+    return _renderer->Get_CurrentGroup();
+}
+
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)
 {
     return _pipeLine->Bind_CamPosition(shader, constantName);
@@ -1323,6 +1354,11 @@ HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
     if (nullptr == _assetManager)
         return E_FAIL;
 
+    const fs::path shaderTextureRoot = fs::path(resourceRoot) / L"Textures" / L"Shader";
+    _shaderResourceRegistry = ShaderResourceRegistry::Create(_device, _context, shaderTextureRoot.wstring());
+    if (nullptr == _shaderResourceRegistry)
+        return E_FAIL;
+
     return S_OK;
 }
 
@@ -1376,6 +1412,46 @@ string GameInstance::Ensure_AssetGUID(const wstring& filePath, const string& typ
         return existingGuid;
 
     return _assetManager->Register_Asset(filePath, type);
+}
+
+uint32 GameInstance::Get_Handle(const string& name) const
+{
+    if (nullptr == _shaderResourceRegistry)
+        return InvalidSRVHandle;
+
+    return _shaderResourceRegistry->Get_Handle(name);
+}
+
+ID3D11ShaderResourceView* GameInstance::Get_SRV(uint32 handle) const
+{
+    if (nullptr == _shaderResourceRegistry)
+        return nullptr;
+
+    return _shaderResourceRegistry->Get_SRV(handle);
+}
+
+ID3D11ShaderResourceView* GameInstance::Get_SRV(const string& name) const
+{
+    if (nullptr == _shaderResourceRegistry)
+        return nullptr;
+
+    return _shaderResourceRegistry->Get_SRV(name);
+}
+
+HRESULT GameInstance::Bind_ByHandle(ShaderCom* shader, const char* shaderVariableName, uint32 handle) const
+{
+    if (nullptr == _shaderResourceRegistry)
+        return E_FAIL;
+
+    return _shaderResourceRegistry->Bind_ByHandle(shader, shaderVariableName, handle);
+}
+
+HRESULT GameInstance::Bind_ByName(ShaderCom* shader, const char* shaderVariableName, const string& name) const
+{
+    if (nullptr == _shaderResourceRegistry)
+        return E_FAIL;
+
+    return _shaderResourceRegistry->Bind_ByName(shader, shaderVariableName, name);
 }
 
 HRESULT GameInstance::Add_Camera(Shared<Camera> camera) const
@@ -1507,6 +1583,11 @@ Shared<AnimNotifyState> GameInstance::Create_AnimNotifyStatePrototype(const stri
     return _typeRegistry->Create_AnimNotifyState(className);
 }
 
+HRESULT GameInstance::Ready_AllRenderTargets()
+{
+    return _targetManager->Ready_AllRenderTargets();
+}
+
 HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
                                        const Color& clearColor, bool resizeWithViewport, bool useDSV)
 {
@@ -1551,6 +1632,81 @@ HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTa
 HRESULT GameInstance::Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture)
 {
     return _targetManager->Copy_Resource(targetTag, destTexture);
+}
+
+HRESULT GameInstance::Bind_PlayerStencilWriteState(bool depthWrite)
+{
+    ComPtr<ID3D11DepthStencilState>& state =
+        depthWrite ? _playerStencilWriteState : _playerStencilWriteDepthReadState;
+
+    if (state == nullptr)
+    {
+        D3D11_DEPTH_STENCIL_DESC desc{};
+        desc.DepthEnable = TRUE;
+        desc.DepthWriteMask = depthWrite ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+        desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+        desc.StencilEnable = TRUE;
+        desc.StencilReadMask = 0xff;
+        desc.StencilWriteMask = 0xff;
+        desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+        desc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+        desc.BackFace = desc.FrontFace;
+
+        CHECK_NULL(_device, E_FAIL);
+        CHECK_FAILED(_device->CreateDepthStencilState(&desc, state.GetAddressOf()), E_FAIL);
+    }
+
+    CHECK_NULL(_context, E_FAIL);
+    _context->OMSetDepthStencilState(state.Get(), 1);
+
+    return S_OK;
+}
+
+HRESULT GameInstance::Bind_BackgroundUIBehindPlayerStencilState()
+{
+    if (_backgroundUIBehindPlayerStencilState == nullptr)
+    {
+        D3D11_DEPTH_STENCIL_DESC desc{};
+        desc.DepthEnable = FALSE;
+        desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+        desc.StencilEnable = TRUE;
+        desc.StencilReadMask = 0xff;
+        desc.StencilWriteMask = 0x00;
+        desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilFunc = D3D11_COMPARISON_NOT_EQUAL;
+        desc.BackFace = desc.FrontFace;
+
+        CHECK_NULL(_device, E_FAIL);
+        CHECK_FAILED(_device->CreateDepthStencilState(&desc, _backgroundUIBehindPlayerStencilState.GetAddressOf()), E_FAIL);
+    }
+
+    CHECK_NULL(_context, E_FAIL);
+    _context->OMSetDepthStencilState(_backgroundUIBehindPlayerStencilState.Get(), 1);
+
+    return S_OK;
+}
+
+HRESULT GameInstance::Bind_UINoDepthStencilState()
+{
+    if (_uiNoDepthStencilState == nullptr)
+    {
+        D3D11_DEPTH_STENCIL_DESC desc{};
+        desc.DepthEnable = FALSE;
+        desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+        desc.StencilEnable = FALSE;
+
+        CHECK_NULL(_device, E_FAIL);
+        CHECK_FAILED(_device->CreateDepthStencilState(&desc, _uiNoDepthStencilState.GetAddressOf()), E_FAIL);
+    }
+
+    CHECK_NULL(_context, E_FAIL);
+    _context->OMSetDepthStencilState(_uiNoDepthStencilState.Get(), 0);
+
+    return S_OK;
 }
 
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
@@ -1909,6 +2065,7 @@ void GameInstance::Release_Engine()
 
     ReleaseManager(_targetManager);
     ReleaseManager(_shadow);
+    ReleaseManager(_shaderResourceRegistry);
 
 #ifdef _DEBUG
     ReleaseManager(_printManager);

@@ -38,7 +38,7 @@ cbuffer ShadowBuffer
     float g_StaticShadowEnabled;
 };
 
-cbuffer DeferredBuffer
+cbuffer ScreenSpaceBuffer
 {
     row_major float4x4 g_ScreenViewMatrix;          // 64
     row_major float4x4 g_ScreenProjMatrix;          // 128
@@ -50,7 +50,8 @@ cbuffer DeferredBuffer
 
     float   g_DeferredFar;                          // 276
     float2  g_TexelSize;                            // 284
-    float   g_DeferredPadding0;                     // 288
+    float2  g_ScreenSize;                           // 292
+    float3  g_DeferredPadding0;                     // 304
 };
 
 cbuffer LightBuffer
@@ -70,24 +71,53 @@ cbuffer MaterialBuffer
 {
     float4 g_BaseColorTint;         //  0 ~ 15
     float4 g_EmissiveColor;         // 16 ~ 31
-
     float g_EmissiveIntensity;      // 32 ~ 35
     float g_EmissiveMaskMul;        // 36 ~ 39
     float g_NormalStrength;         // 40 ~ 43
     float g_OpacityMaskClipValue;   // 44 ~ 47
-
     float g_AoScale;                // 48 ~ 51
     float g_RoughnessScale;         // 52 ~ 55
     float g_MetalnessScale;         // 56 ~ 59
     float g_MaterialPadding0;       // 60 ~ 63
-
     float2 g_UVScale;               // 64 ~ 71
     float2 g_UVOffset;              // 72 ~ 79
-    float g_UVRotate;              // 80 ~ 83
-
+    float g_UVRotate;               // 80 ~ 83
     uint g_iMaterialMask;           // 84 ~ 87
-    float2 g_MaterialPadding1;      // 88 ~ 95
-}; // 96 bytes
+    uint g_OrmAoSource;             // 88 ~ 91
+    uint g_OrmRoughnessSource;      // 92 ~ 95
+    uint g_OrmMetalnessSource;      // 96 ~ 99
+    uint g_OpacityMaskSource;       // 100 ~ 103
+    float2 g_MaterialPadding1;      // 104 ~ 111
+}; // 112 bytes
+
+cbuffer DrawFeatureBuffer
+{
+    uint g_ActiveFeatureMask;
+    uint g_SupportFeatureMask;
+    uint g_FeatureTextureMask;
+    uint g_DrawFeaturePadding0;
+
+    float4 g_FeatureParam0;
+    float4 g_FeatureParam1;
+};
+
+cbuffer SSAOBuffer
+{
+    float g_SSAORadius;
+    float g_SSAOBias;
+    float g_SSAOIntensity;
+    float g_SSAOPower;
+
+    float g_SSAODepthRange;
+    float g_SSAOBlurRadius;
+    float g_SSAODepthSharpness;
+    float g_SSAONormalSharpness;
+
+    uint g_SSAOSampleCount;
+    uint g_SSAOEnabled;
+    uint g_SSAOBilateralEnabled;
+    uint g_SSAOPad0;
+};
 
 cbuffer PostProcessBuffer
 {
@@ -103,35 +133,39 @@ cbuffer PostProcessBuffer
 
     float g_PP_BloomScatter;    // 32 ~ 35
     uint g_PP_ToneMapMode;      // 36 ~ 39
-    float2 g_PP_BloomTexelSize; // 40 ~ 47
 
-    uint g_PP_FeatureMask;             // 48 ~ 51
-    uint g_PP_UseBackgroundFallback;   // 52 ~ 55
-    float2 g_PP_Padding2;              // 56 ~ 63
+    uint g_PP_FeatureMask;             // 40 ~ 43
+    uint g_PP_UseBackgroundFallback;   // 44 ~ 47
+    float4 g_PP_Padding2;              // 48 ~ 63
 
     float4 g_PP_BackgroundFallbackColor; // 64 ~ 79
 }; // 80 bytes
 
-cbuffer cbSSAO
+cbuffer HairDescBuffer
 {
-    float g_SSAORadius;         
-    float g_SSAOBias;
-    float g_SSAOIntensity;
-    float g_SSAOPower;
+    float4 g_HairColorTop;
+    float4 g_HairColorDown;
+    float4 g_HairHighlightColor;
 
-    float g_SSAOBlurRadius;
-    float g_SSAODepthSharpness;
-    float g_SSAONormalSharpness;
-    uint g_SSAOSampleCount;
+    float g_HairOpacityMaskClipValue;
+    float g_HairRoughness;
+    float g_HairSpecular;
+    float g_HairScatter;
 
-    uint g_SSAOEnabled;
-    uint g_SSAOHalfResEnabled;
-    uint g_SSAOBilateralEnabled;
-    uint g_SSAOTemporalEnabled;
+    float g_HairBrightness;
+    float g_HairRim;
+    float g_HairRandomHueVariation;
+    float g_HairRandomValueVariation;
 
-    float g_SSAOUpsampleDepthThreshold;
-    float g_SSAOTemporalBlendFactor;
-    float g_SSAOTemporalDepthReject;
-    float g_SSAOTemporalNormalReject;
+    float g_HairBumpStrength;
+    float g_HairBumpDistance;
+    float g_HairGradientColor;
+    float g_HairGradientContrast;
+
+    float g_HairGradientHardness;
+    float g_HairGradientHeight;
+    float g_HairEdgeContrast;
+    float g_HairEdgeMin;
 };
+
 #endif

@@ -388,6 +388,9 @@
     <ClInclude Include="..\Public\Shader_CBuffer_Define.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ShaderResourceRegistry.h">
+      <Filter>01.Utility\04.Component\Shader</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\ThreadPool.h">
       <Filter>94. ETC</Filter>
     </ClInclude>
@@ -753,6 +756,9 @@
     <ClCompile Include="..\private\ShaderCom.cpp">
       <Filter>01.Utility\04.Component\Shader</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ShaderResourceRegistry.cpp">
+      <Filter>01.Utility\04.Component\Shader</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\UIObject.cpp">
       <Filter>01.Utility\03.GameObjects\UIObject</Filter>
     </ClCompile>
@@ -1043,6 +1049,7 @@
       <Filter>02.ShaderFiles</Filter>
     </None>
     <None Include="..\Public\PostProcessPipeline.h" />
+    <None Include="..\Public\SSAOPipeline.h" />
     <None Include="..\Bin\ShaderFiles\Engine_Shader_PostProcess.hlsl">
       <Filter>02.ShaderFiles</Filter>
     </None>
@@ -1050,6 +1057,9 @@
       <Filter>02.ShaderFiles</Filter>
     </None>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_ComputeAnimTypes.hlsli" />
+    <None Include="..\Bin\ShaderFiles\Engine_Shader_Feature.hlsl">
+      <Filter>02.ShaderFiles</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Engine.rc">

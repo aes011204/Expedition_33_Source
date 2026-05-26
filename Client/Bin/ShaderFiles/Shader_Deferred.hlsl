@@ -44,10 +44,10 @@ struct PS_OUT_BACKBUFFER
     vector Color : SV_TARGET0;
 };
 
-struct PS_OUT_HDR_WITH_MASK
+struct PS_OUT_HDR_WITH_MASK         // 해당 픽셀이 그려졌는지 (안 그려졌다면 해당 픽셀을 배경 기본색으로 덮기 위해)
 {
-    vector Color : SV_TARGET0;
-    float Mask : SV_TARGET1;
+    vector Color    : SV_TARGET0;
+    float Mask      : SV_TARGET1;
 };
 
 PS_OUT_BACKBUFFER PS_MAIN_DEBUG(PS_IN In)
@@ -62,7 +62,8 @@ PS_OUT_BACKBUFFER PS_MAIN_DEBUG(PS_IN In)
 struct PS_OUT_LIGHT
 {
     vector Shade    : SV_TARGET0;
-    vector Specular : SV_TARGET1;
+    vector Ambient  : SV_TARGET1;
+    vector Specular : SV_TARGET2;
 };
 
 PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
@@ -92,7 +93,8 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
     vector Ambient = g_LightAmbient * g_MtrlAmbient * AO;
     vector DiffuseLight = g_LightDiffuse * NDotL;
 
-    Out.Shade = DiffuseLight + Ambient;
+    Out.Shade = DiffuseLight;
+    Out.Ambient = Ambient;
 
     float SpecularScale = 1.f - Roughness;
      
@@ -128,7 +130,8 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     vector DiffuseLight = g_LightDiffuse * NdotL;
     vector AmbientLight = g_LightAmbient * g_MtrlAmbient * AO;
 
-    Out.Shade = (DiffuseLight + AmbientLight) * fAtt;
+    Out.Shade = DiffuseLight * fAtt;
+    Out.Ambient = AmbientLight * fAtt;
 
     Out.Specular = 0.f;
 
@@ -146,10 +149,18 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
 
     // Light
     vector Shade = g_ShadeTexture.Sample(LinearWrapSampler, In.Texcoord);
+    vector Ambient = g_AmbientTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Emissive = g_EmissiveTexture.Sample(LinearWrapSampler, In.Texcoord);
 
-    Out.Color = Diffuse * Shade + Specular;
+    float aoRaw = g_SSAOTexture.Sample(LinearClampSampler, In.Texcoord);
+    float ao = lerp(1.f, aoRaw, saturate(g_SSAOIntensity));
+    ao = pow(saturate(ao), max(g_SSAOPower, EPSILON));
+
+    //float ao = g_SSAOTexture.Sample(LinearWrapSampler, In.Texcoord).r;
+    vector direct = Diffuse * Shade;
+    vector indirect = Diffuse * Ambient * ao;
+    Out.Color = direct + indirect + Specular;
 
     // Shadow
     float4 worldPos = Reconstruct_WorldPos(In.Texcoord);
@@ -195,9 +206,11 @@ PS_OUT_HDR_WITH_MASK PS_MAIN_COMBINED_SIMPLE(PS_IN In)
     if (Diffuse.a == 0.f)
         discard;
     vector Shade = g_ShadeTexture.Sample(LinearWrapSampler, In.Texcoord);
+    vector Ambient = g_AmbientTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
 
-    Out.Color = Diffuse * Shade + Specular;
+    // Simple pass still shows the full lit result, but intentionally skips SSAO/emissive.
+    Out.Color = Diffuse * (Shade + Ambient) + Specular;
     Out.Mask = 1.f;
 
     return Out;
@@ -212,10 +225,11 @@ PS_OUT_HDR_WITH_MASK PS_MAIN_COMBINED_PREVIEW(PS_IN In)
         discard;
 
     vector Shade = g_ShadeTexture.Sample(LinearSampler, In.Texcoord);
+    vector Ambient = g_AmbientTexture.Sample(LinearSampler, In.Texcoord);
     vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Emissive = g_EmissiveTexture.Sample(LinearWrapSampler, In.Texcoord);
 
-    Out.Color = Diffuse * Shade + Specular;     // 프리뷰는 direct/deferred lighting 결과만 사용
+    Out.Color = Diffuse * (Shade + Ambient) + Specular;     // 프리뷰는 shadow/SSAO 없이 direct+ambient 결과를 본다.
     Out.Color.rgb += Emissive.rgb;              // emissive는 그대로 더하기
     Out.Color.a = Diffuse.a;
     Out.Mask = 1.f;
@@ -226,7 +240,14 @@ PS_OUT_HDR_WITH_MASK PS_MAIN_COMBINED_PREVIEW(PS_IN In)
 PS_OUT_BACKBUFFER PS_SSAO(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
-    Out.Color = float4(0.f, 0.f, 0.f, 0.f);
+    Out.Color = Compute_DepthSSAO(In.Texcoord);
+    return Out;
+}
+
+PS_OUT_BACKBUFFER PS_SSAOBlur(PS_IN In)
+{
+    PS_OUT_BACKBUFFER Out;
+    Out.Color = Compute_SSAOBilateralBlur(In.Texcoord);
     return Out;
 }
 
@@ -239,4 +260,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(CombinedSimple,    RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED_SIMPLE)    // 4
     PASS_RS_DS_BS_VP(CombinedPreview,   RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED_PREVIEW)   // 5
     PASS_RS_DS_BS_VP(SSAO,              RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_SSAO)                    // 6
+    PASS_RS_DS_BS_VP(SSAOBlur,          RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_SSAOBlur)                // 7
 }

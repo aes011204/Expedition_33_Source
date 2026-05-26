@@ -28,6 +28,9 @@ private:
     float       _idleElapsedTime{ 0.f };
     const float _idleBlendTime{ 0.5f };
 
+    // Free Aim -> Idle로 돌아올 때에만 빠르게
+    const float _freeAimExitBlendTime { 0.2f };
+
     unordered_set<uint32> _exitAnim;
 
 public:

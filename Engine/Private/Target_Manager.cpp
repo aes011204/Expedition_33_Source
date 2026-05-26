@@ -2,10 +2,125 @@
 #include "RenderTarget.h"
 #include "ShaderCom.h"
 #include "Helper_String.h"
+#include "Renderer_Define.h"
+#include "GameInstance.h"
 
 Target_Manager::Target_Manager(ComPtr<Device> device, ComPtr<ID3D11DeviceContext> context)
     : _device(device), _context(context)
 {
+}
+
+HRESULT Target_Manager::Ready_AllRenderTargets()
+{
+    const uint32 width = GAME->Get_ViewportWidth();
+    const uint32 height = GAME->Get_ViewportHeight();
+
+    const bool resizeWithViewport = true;
+    const bool useDSV = true;
+
+    // MRT_GameObjects
+    CHECK_FAILED(Add_RenderTarget(RT::Diffuse,
+        width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::Normal,
+        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::Depth,
+        width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::Material,
+        width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::Emissive,
+        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
+
+    // SSAO
+    CHECK_FAILED(Add_RenderTarget(RT::SSAO,
+        width, height, DXGI_FORMAT_R16_FLOAT, Color(1.f, 1.f, 1.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::SSAOBlur,
+        width, height, DXGI_FORMAT_R16_FLOAT, Color(1.f, 1.f, 1.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+
+    // MRT_LightAcc
+    CHECK_FAILED(Add_RenderTarget(RT::Shade,
+        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::Ambient,
+        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::Specular,
+        width, height, DXGI_FORMAT_R16G16B16A16_UNORM, Color(0, 0, 0, 0), resizeWithViewport, !useDSV), E_FAIL);
+
+    // MRT_ShadowObjects
+    CHECK_FAILED(Add_RenderTarget(RT::LightDepth,
+        _shadowMapWidth, _shadowMapHeight,
+        DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
+
+    CHECK_FAILED(Add_RenderTarget(RT::StaticLightDepth,
+        _staticShadowMapWidth, _staticShadowMapHeight,
+        DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
+
+
+    // MRT_PostProcess
+    const uint32 bloomHalfWidth = max(1u, width / 2u);
+    const uint32 bloomHalfHeight = max(1u, height / 2u);
+    const uint32 bloomQuarterWidth = max(1u, width / 4u);
+    const uint32 bloomQuarterHeight = max(1u, height / 4u);
+    const uint32 bloomEighthWidth = max(1u, width / 8u);
+    const uint32 bloomEighthHeight = max(1u, height / 8u);
+
+    CHECK_FAILED(Add_RenderTarget(RT::BloomHalfA,
+        bloomHalfWidth, bloomHalfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::BloomHalfB,
+        bloomHalfWidth, bloomHalfHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::BloomQuarterA,
+        bloomQuarterWidth, bloomQuarterHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::BloomQuarterB,
+        bloomQuarterWidth, bloomQuarterHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::BloomEighthA,
+        bloomEighthWidth, bloomEighthHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::BloomEighthB,
+        bloomEighthWidth, bloomEighthHeight, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+
+    CHECK_FAILED(Add_RenderTarget(RT::HDRColor,
+        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::BackgroundMask,
+        width, height, DXGI_FORMAT_R8_UNORM, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::ScreenFxColor,
+        width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+
+    //CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
+
+    // Create MRT
+    CHECK_FAILED(Add_MRT(MRT::GameObjects, RT::Diffuse), E_FAIL);		// SV_TARGET0
+    CHECK_FAILED(Add_MRT(MRT::GameObjects, RT::Normal), E_FAIL);		// SV_TARGET1
+    CHECK_FAILED(Add_MRT(MRT::GameObjects, RT::Depth), E_FAIL);		// SV_TARGET2
+    CHECK_FAILED(Add_MRT(MRT::GameObjects, RT::Material), E_FAIL);	// SV_TARGET3
+    CHECK_FAILED(Add_MRT(MRT::GameObjects, RT::Emissive), E_FAIL);	// SV_TARGET4
+
+    // SSAO
+    CHECK_FAILED(Add_MRT(MRT::SSAO, RT::SSAO), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::SSAOBlur, RT::SSAOBlur), E_FAIL);
+
+    // Light
+    CHECK_FAILED(Add_MRT(MRT::LightAcc, RT::Shade), E_FAIL);			// SV_TARGET0
+    CHECK_FAILED(Add_MRT(MRT::LightAcc, RT::Ambient), E_FAIL);		// SV_TARGET1
+    CHECK_FAILED(Add_MRT(MRT::LightAcc, RT::Specular), E_FAIL);		// SV_TARGET2
+
+    CHECK_FAILED(Add_MRT(MRT::ShadowObjects, RT::LightDepth), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::StaticShadowObjects, RT::StaticLightDepth), E_FAIL);
+
+    // PostProcess
+    CHECK_FAILED(Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::ScreenFx, RT::ScreenFxColor), E_FAIL);
+
+    CHECK_FAILED(Add_MRT(MRT::BloomHalfA, RT::BloomHalfA), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::BloomHalfB, RT::BloomHalfB), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::BloomQuarterA, RT::BloomQuarterA), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::BloomQuarterB, RT::BloomQuarterB), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::BloomEighthA, RT::BloomEighthA), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::BloomEighthB, RT::BloomEighthB), E_FAIL);
+
+#ifdef _DEBUG
+    // 전체 뷰포트의 1/4만 사용하여 디버그 렌더
+    Initialize_Debug(width * 0.5f, height * 0.5f);
+#endif
+
+    return S_OK;
 }
 
 HRESULT Target_Manager::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport, bool useDSV)

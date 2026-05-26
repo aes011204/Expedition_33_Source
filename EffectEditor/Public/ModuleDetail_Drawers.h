@@ -12,7 +12,8 @@ public:
         AuthoringEmitter& emitter,
         const AuthoringModule& module,
         RequiredModuleData& data,
-        DetailPropertyContext& detailContext);
+        DetailPropertyContext& detailContext,
+        float timeDelta);
 };
 
 class SpawnModuleDetail
@@ -192,6 +193,16 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         SizeByLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class SpawnPerUnitModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SpawnPerUnitModuleData& data,
         DetailPropertyContext& detailContext);
 };
 

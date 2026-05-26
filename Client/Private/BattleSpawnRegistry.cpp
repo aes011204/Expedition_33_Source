@@ -1,0 +1,88 @@
+﻿#include "BattleSpawnRegistry.h"
+
+#include "GameInstance.h"
+#include "GameObject.h"
+#include "MonsterStatCom.h"
+
+void BattleSpawnRegistry::Register_SpawnObject(const Shared<GameObject>& object, uint32 levelIndex)
+{
+    if (object == nullptr)
+        return;
+
+    BattleEntry entry{};
+    entry.levelIndex = levelIndex;
+    entry.object = object;
+
+    _spawnedObjects.push_back(entry);
+}
+
+void BattleSpawnRegistry::Register_BattleMonsterObject(const Shared<GameObject>& object, uint32 levelIndex)
+{
+    Register_SpawnObject(object, levelIndex);
+
+    if (object == nullptr)
+        return;
+
+    const Shared<MonsterStatCom> monsterStat = object->Get_Component<MonsterStatCom>();
+    if (monsterStat == nullptr)
+        return;
+
+    _battleRewardExp += monsterStat->Get_StatInfo().exp;
+}
+
+void BattleSpawnRegistry::Set_SourceWorldObject(const Shared<GameObject>& object, uint32 levelIndex)
+{
+    _sourceWorldObject = object;
+    _sourceWorldObjectLevelIndex = object ? levelIndex : 0;
+}
+
+void BattleSpawnRegistry::Destroy_SpawnedObjects()
+{
+    for (const BattleEntry& entry : _spawnedObjects)
+    {
+        if (entry.object)
+            GAME->Remove_GameObject(entry.levelIndex, entry.object);
+    }
+
+    _spawnedObjects.clear();
+}
+
+void BattleSpawnRegistry::Destroy_SourceWorldObject()
+{
+    const Shared<GameObject> sourceObject = _sourceWorldObject.lock();
+
+    if (sourceObject)
+        GAME->Remove_GameObject(_sourceWorldObjectLevelIndex, sourceObject);
+
+    Clear_SourceWorldObject();
+}
+
+void BattleSpawnRegistry::Clear_BattleReward()
+{
+    _battleRewardExp = 0;
+}
+
+void BattleSpawnRegistry::Clear_SourceWorldObject()
+{
+    _sourceWorldObject.reset();
+    _sourceWorldObjectLevelIndex = 0;
+}
+
+void BattleSpawnRegistry::Clear_All()
+{
+    Destroy_SpawnedObjects();
+    Clear_SourceWorldObject();
+    Clear_BattleReward();
+}
+
+Shared<BattleSpawnRegistry> BattleSpawnRegistry::Create()
+{
+    return make_shared<BattleSpawnRegistry>();
+}
+
+void BattleSpawnRegistry::Free()
+{
+    Clear_All();
+
+    Base::Free();
+}

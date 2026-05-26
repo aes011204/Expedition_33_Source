@@ -15,6 +15,7 @@ public:
 
 private:
     string _nxtAnimName = {};
+
 };
 
 NS_END

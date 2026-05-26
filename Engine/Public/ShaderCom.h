@@ -2,6 +2,7 @@
 
 #include "Component.h"
 #include "Material_Types.h"
+#include "Shader_CBuffer_Define.h"
 
 NS_BEGIN(Engine)
 class Material;
@@ -27,7 +28,13 @@ public:
     HRESULT Bind_RawValue(const char* constantName, const void* data, uint32 length);
 
     HRESULT Bind_MaterialTextures(Material& material);
+    
     HRESULT Bind_ObjectCB(const Matrix& worldMatrix);
+    
+    HRESULT Bind_DrawFeatures(const DrawFeatureCB& cb, ID3D11ShaderResourceView** ppSRVs, uint32 numSRVs);
+    HRESULT Reset_DrawFeatures();
+    HRESULT Bind_FeatureTextures(ID3D11ShaderResourceView** ppSRVs, uint32 numSRVs);
+    HRESULT Clear_FeatureTextures();
 
     ShaderType  Get_Type() const { return _type; }
 
@@ -59,6 +66,8 @@ private:
     // 핸들
     ComPtr<ID3DX11EffectConstantBuffer>             _CB[ETOI(ConstantBuffer::END)]{};
     ComPtr<ID3DX11EffectShaderResourceVariable>     _materialTextures{};
+    ComPtr<ID3DX11EffectShaderResourceVariable>     _drawFeatureTextures{};
+    ComPtr<ID3D11ShaderResourceView>                _featureSRVs[4]{};
 
     // GPU 주소
     ComPtr<ID3D11Buffer>                            _allocatedCB[ETOI(ConstantBuffer::END)]{};
