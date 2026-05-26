@@ -527,7 +527,8 @@ namespace Internal
 
         const string& resolvedName = Internal::Resolve_MaterialDisplayName(data);
         const string displayName = resolvedName.empty() ? "(drop material here)" : resolvedName;
-        const string materialSummary = data.material.blendMode + " / " + data.material.opacitySource +
+        const string blendModeName = string(magic_enum::enum_name(data.material.blendMode));
+        const string materialSummary = blendModeName + " / " + data.material.opacitySource +
                                        " / SubUV " + to_string(data.material.subUVRows) + "x" + to_string(data.material.subUVCols);
         drawList->PushClipRect(
             ImVec2(slotMin.x + 57.f, slotMin.y),
@@ -560,7 +561,7 @@ namespace Internal
                 "Main Texture (Emissive)\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %ux%u",
                 mainTooltip.c_str(),
                 noiseTooltip.c_str(),
-                data.material.blendMode.c_str(),
+                blendModeName.c_str(),
                 data.material.opacitySource.c_str(),
                 data.material.subUVRows,
                 data.material.subUVCols

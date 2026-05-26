@@ -209,13 +209,7 @@ HRESULT ComputeTrailEmitter::Render()
 {
     CHECK_FAILED_THROTTLED(Bind_ShaderResources(), 60, E_FAIL);
 
-    uint32 passIndex = 0u;
-    if (_desc.material.blendMode == "Additive" || _desc.material.blendMode == "additive")
-        passIndex = 1u;
-    else if (_desc.material.blendMode == "Modulate" || _desc.material.blendMode == "modulate")
-        passIndex = 2u;
-
-    CHECK_FAILED_THROTTLED(_shader->Begin(passIndex), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Begin(0), 60, E_FAIL);
 
     constexpr uint32 stride0 = sizeof(Vec3);
     constexpr uint32 offset0 = 0;

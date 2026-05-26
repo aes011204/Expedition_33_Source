@@ -48,16 +48,4 @@ float4 Effect_ComposeAlphaBlend(EffectMaterialSurface surface, float intensity)
     return float4(surface.color * max(intensity, 0.f), surface.coverage);
 }
 
-float4 Effect_ComposeAdditive(EffectMaterialSurface surface, float intensity)
-{
-    return float4(surface.color * max(intensity, 0.f), surface.coverage);
-}
-
-float4 Effect_ComposeModulate(EffectMaterialSurface surface, float intensity)
-{
-    const float strength = saturate(surface.coverage * max(intensity, 0.f));
-    const float3 modulation = lerp(float3(1.f, 1.f, 1.f), saturate(surface.color), strength);
-    return float4(modulation, strength);
-}
-
 #endif

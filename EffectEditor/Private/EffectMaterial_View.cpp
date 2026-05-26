@@ -10,16 +10,19 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    bool Is_SupportedBlendMode(const string& blendMode)
+    static const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
     {
-        return
-            blendMode == "AlphaBlend" ||
-            blendMode == "alphaBlend" ||
-            blendMode == "alphablend" ||
-            blendMode == "Additive" ||
-            blendMode == "additive" ||
-            blendMode == "Modulate" ||
-            blendMode == "modulate";
+        switch (value)
+        {
+        case EffectMaterialBlendMode::AlphaBlend:
+            return "AlphaBlend";
+        case EffectMaterialBlendMode::Additive:
+            return "Additive";
+        case EffectMaterialBlendMode::Modulate:
+            return "Modulate";
+        default:
+            return "AlphaBlend";
+        }
     }
 
     bool Is_SupportedOpacitySource(const string& opacitySource)
@@ -279,7 +282,7 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
     ImGui::TableSetColumnIndex(1);
     ImGui::Text("%.2f", material.noiseStrength);
 
-    drawRow("Blend Mode", material.blendMode);
+    drawRow("Blend Mode", Internal::Get_BlendModeLabel(material.blendMode));
     drawRow("Opacity Source", material.opacitySource);
 
     ImGui::TableNextRow();
@@ -415,17 +418,6 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
         LOG_WARN("EffectMaterial material preset corrected invalid subUVRows to 1. path='{}'", presetPath);
     if (warnSubUVCols)
         LOG_WARN("EffectMaterial material preset corrected invalid subUVCols to 1. path='{}'", presetPath);
-
-    if (!Internal::Is_SupportedBlendMode(material.blendMode))
-    {
-        _statusMessage = "Unsupported blendMode in material preset.";
-        LOG_ERROR(
-            "EffectMaterial material preset load failed: unsupported blendMode='{}'. path='{}'",
-            material.blendMode,
-            presetPath
-        );
-        return false;
-    }
 
     if (!Internal::Is_SupportedOpacitySource(material.opacitySource))
     {

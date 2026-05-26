@@ -709,10 +709,8 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         _shader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)),
         E_FAIL
     );
-    CHECK_FAILED(
-        _shader->Begin(Resolve_BlendPassIndex(material.blendMode, _meshMode)),
-        E_FAIL
-    );
+    const uint32 passIndex = _meshMode == EffectMaterialPreviewMeshMode::Sphere ? 1u : 0u;
+    CHECK_FAILED(_shader->Begin(passIndex), E_FAIL);
 
     const PreviewMeshResource& mesh =
         _meshMode == EffectMaterialPreviewMeshMode::Sphere ? _sphereMesh : _planeMesh;
@@ -938,19 +936,6 @@ void EffectMaterialPreviewRenderer::Draw_MeshModeControls()
         ImGui::PopStyleColor();
 
     ImGui::PopID();
-}
-
-uint32 EffectMaterialPreviewRenderer::Resolve_BlendPassIndex(
-    const string& blendMode,
-    EffectMaterialPreviewMeshMode meshMode) const
-{
-    const bool isAdditive = blendMode == "Additive" || blendMode == "additive";
-    const bool isModulate = blendMode == "Modulate" || blendMode == "modulate";
-
-    if (meshMode == EffectMaterialPreviewMeshMode::Sphere)
-        return isModulate ? 5 : (isAdditive ? 4 : 3);
-
-    return isModulate ? 2 : (isAdditive ? 1 : 0);
 }
 
 void EffectMaterialPreviewRenderer::Cleanup()

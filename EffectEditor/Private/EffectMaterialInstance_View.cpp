@@ -524,6 +524,74 @@ namespace Internal
         return changed;
     }
 
+    static const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
+    {
+        switch (value)
+        {
+        case EffectMaterialBlendMode::AlphaBlend:
+            return "AlphaBlend";
+        case EffectMaterialBlendMode::Additive:
+            return "Additive";
+        case EffectMaterialBlendMode::Modulate:
+            return "Modulate";
+        default:
+            return "AlphaBlend";
+        }
+    }
+
+    bool Draw_BlendModeProperty(
+        DetailPropertyContext& detailContext,
+        EffectMaterialBlendMode& value,
+        EffectMaterialBlendMode defaultValue)
+    {
+        static constexpr EffectMaterialBlendMode kModes[]{
+            EffectMaterialBlendMode::AlphaBlend,
+            EffectMaterialBlendMode::Additive,
+            EffectMaterialBlendMode::Modulate
+        };
+
+        ImGui::PushID("Blend Mode");
+        detailContext.Draw_PropertyLabel("Blend Mode");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        bool changed = false;
+
+        if (ImGui::BeginCombo("##Value", Get_BlendModeLabel(value)))
+        {
+            for (EffectMaterialBlendMode mode : kModes)
+            {
+                const bool selected = value == mode;
+                const bool selectable = mode == EffectMaterialBlendMode::AlphaBlend;
+
+                if (!selectable)
+                    ImGui::BeginDisabled();
+
+                if (ImGui::Selectable(Get_BlendModeLabel(mode), selected) && selectable)
+                {
+                    value = mode;
+                    changed = true;
+                }
+
+                if (!selectable)
+                    ImGui::EndDisabled();
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        if (resetClicked)
+        {
+            value = defaultValue;
+            changed = true;
+        }
+
+        ImGui::PopID();
+        return changed;
+    }
+
     const char* Get_UVTilingModeLabel(EffectTextureUVTilingMode value)
     {
         switch (value)
@@ -833,17 +901,9 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
     {
         if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceOptions"))
         {
-            constexpr const char* blendModeOptions[]{ "AlphaBlend", "Additive", "Modulate" };
             constexpr const char* opacitySourceOptions[]{ "Alpha", "Red", "Luminance" };
 
-            changed |= Internal::Draw_StringComboProperty(
-                _detailPropertyContext,
-                "Blend Mode",
-                material.blendMode,
-                defaultData.blendMode,
-                blendModeOptions,
-                sizeof(blendModeOptions) / sizeof(blendModeOptions[0])
-            );
+            changed |= Internal::Draw_BlendModeProperty(_detailPropertyContext, material.blendMode, defaultData.blendMode);
             changed |= Internal::Draw_StringComboProperty(
                 _detailPropertyContext,
                 "Opacity Source",

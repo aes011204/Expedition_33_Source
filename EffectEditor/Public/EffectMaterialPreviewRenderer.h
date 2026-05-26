@@ -108,7 +108,6 @@ private: //## Helper::Camera
 private: //## Helper::Overlay
     void Draw_ViewportTextOverlay(const ImVec2& canvasMin, const ImVec2& canvasMax, const char* label);
     void Draw_MeshModeControls();
-    uint32 Resolve_BlendPassIndex(const string& blendMode, EffectMaterialPreviewMeshMode meshMode) const;
 
 private: //## Helper::Lifecycle
     void Cleanup();

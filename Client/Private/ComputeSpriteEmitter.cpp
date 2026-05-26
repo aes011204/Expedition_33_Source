@@ -136,7 +136,7 @@ void ComputeSpriteEmitter::Late_Update(float timeDelta)
 HRESULT ComputeSpriteEmitter::Render()
 {
     CHECK_FAILED_ONCE(Bind_ShaderResources(), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Begin(_effectSpritePassIndex), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Begin(0), E_FAIL);
     CHECK_FAILED_ONCE(_viBuffer->Bind_Resources(), E_FAIL);
     CHECK_FAILED_ONCE(_viBuffer->Render(), E_FAIL);
 
@@ -233,7 +233,6 @@ HRESULT ComputeSpriteEmitter::Ready_ShaderComponent()
 {
     CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), String::ToWString(kEffectSpriteShaderId), _shader), E_FAIL);
     _opacitySourceIndex = Resolve_OpacitySourceIndex();
-    _effectSpritePassIndex = Resolve_EffectSpritePassIndex();
     return S_OK;
 }
 
@@ -438,25 +437,6 @@ int ComputeSpriteEmitter::Resolve_OpacitySourceIndex() const
         return kOpacitySourceLuminance;
 
     return kOpacitySourceAlpha;
-}
-
-uint32 ComputeSpriteEmitter::Resolve_EffectSpritePassIndex() const
-{
-    if (_desc.required.material.blendMode == "AlphaBlend" || _desc.required.material.blendMode == "alphaBlend" || _desc.required.material.blendMode == "alphablend")
-        return kEffectSpriteAlphaBlendPass;
-
-    if (_desc.required.material.blendMode == "Additive" || _desc.required.material.blendMode == "additive")
-        return kEffectSpriteAdditivePass;
-
-    if (_desc.required.material.blendMode == "Modulate" || _desc.required.material.blendMode == "modulate")
-        return kEffectSpriteModulatePass;
-
-    LOG_WARN(
-        "ComputeSpriteEmitter unknown blendMode='{}'. Falling back to AlphaBlend.",
-        _desc.required.material.blendMode
-    );
-
-    return kEffectSpriteAlphaBlendPass;
 }
 
 ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() const

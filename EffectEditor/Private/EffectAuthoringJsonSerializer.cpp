@@ -321,7 +321,7 @@ namespace Internal
         root["maskUVScale"] = To_Json(data.maskUVScale);
         root["maskUVScrollSpeed"] = To_Json(data.maskUVScrollSpeed);
         root["maskUVTilingMode"] = To_EnumToken(data.maskUVTilingMode);
-        root["blendMode"] = data.blendMode;
+        root["blendMode"] = To_EnumToken(data.blendMode);
         root["opacitySource"] = data.opacitySource;
         root["twoSided"] = data.twoSided;
         root["subUVRows"] = data.subUVRows;
@@ -364,7 +364,8 @@ namespace Internal
         Read_NumberField(root, "noiseStrength", outData.noiseStrength);
         Read_NumberField(root, "alphaCutoff", outData.alphaCutoff);
         Read_NumberField(root, "alphaErosion", outData.alphaErosion);
-        Read_StringField(root, "blendMode", outData.blendMode);
+        if (const auto blendModeIter = root.find("blendMode"); blendModeIter != root.end())
+            Try_ReadEnumToken(*blendModeIter, outData.blendMode);
         Read_StringField(root, "opacitySource", outData.opacitySource);
         Read_BoolField(root, "twoSided", outData.twoSided);
         Read_NumberField(root, "subUVRows", outData.subUVRows);

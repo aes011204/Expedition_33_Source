@@ -68,7 +68,7 @@ struct EffectRequiredMaterialRuntimeDesc
     string noiseTexturePath{};           // (선택) noise texture resource-relative fallback/debug hint다.
     string maskTextureGuid{};            // (선택) mask texture asset identity다.
     string maskTexturePath{};            // (선택) mask texture resource-relative fallback/debug hint다.
-    string blendMode{ "AlphaBlend" };    // material bridge의 blend mode 기록값이다.
+    EffectMaterialBlendMode blendMode{ EffectMaterialBlendMode::AlphaBlend }; // effect material blend/compose mode다.
     string opacitySource{ "Alpha" };     // opacity source selector다.
     Vec4 tint{ 1.f, 1.f, 1.f, 1.f };     // texture sample에 곱할 tint다.
     float intensity{ 1.f };              // sprite 색상 밝기/발광감 계수다.

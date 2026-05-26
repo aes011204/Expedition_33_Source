@@ -453,9 +453,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
         desc.required.material.mainTextureGuid = material.mainTextureGuid;
         desc.required.material.mainTexturePath = material.mainTexturePath;
-
-        if (!material.blendMode.empty())
-            desc.required.material.blendMode = material.blendMode;
+        desc.required.material.blendMode = material.blendMode;
 
         if (!material.opacitySource.empty())
             desc.required.material.opacitySource = material.opacitySource;
@@ -770,7 +768,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         emitterDesc.material.noiseTexturePath = material.noiseTexturePath;
         emitterDesc.material.maskTextureGuid = material.maskTextureGuid;
         emitterDesc.material.maskTexturePath = material.maskTexturePath;
-        emitterDesc.material.blendMode = material.blendMode.empty() ? "AlphaBlend" : material.blendMode;
+        emitterDesc.material.blendMode = material.blendMode;
         emitterDesc.material.opacitySource = material.opacitySource.empty() ? "Alpha" : material.opacitySource;
         emitterDesc.material.tint = material.tint;
         emitterDesc.material.intensity = material.intensity;

@@ -71,6 +71,16 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         return parsed.value_or(defaultValue);
     };
 
+    const auto read_blend_mode = [&](const char* key, EffectMaterialBlendMode defaultValue) -> EffectMaterialBlendMode
+    {
+        const auto iter = root.find(key);
+        if (iter == root.end() || !iter->is_string())
+            return defaultValue;
+
+        const optional<EffectMaterialBlendMode> parsed = magic_enum::enum_cast<EffectMaterialBlendMode>(iter->get<string>());
+        return parsed.value_or(defaultValue);
+    };
+
     const auto read_vec2 = [&](const char* key, const Vec2& defaultValue) -> Vec2
     {
         const auto iter = root.find(key);
@@ -210,7 +220,7 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.maskUVScale = read_vec2("maskUVScale", defaultMaterial.maskUVScale);
     material.maskUVScrollSpeed = read_vec2("maskUVScrollSpeed", defaultMaterial.maskUVScrollSpeed);
     material.maskUVTilingMode = read_uv_tiling_mode("maskUVTilingMode", defaultMaterial.maskUVTilingMode);
-    material.blendMode = read_string("blendMode", defaultMaterial.blendMode);
+    material.blendMode = read_blend_mode("blendMode", defaultMaterial.blendMode);
     material.opacitySource = read_string("opacitySource", defaultMaterial.opacitySource);
     material.twoSided = read_bool("twoSided", defaultMaterial.twoSided);
     material.subUVRows = max(1u, read_uint("subUVRows", defaultMaterial.subUVRows));

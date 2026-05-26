@@ -304,25 +304,7 @@ PS_OUT PS_MAIN(PS_IN In)
     return Out;
 }
 
-PS_OUT PS_ADDITIVE(PS_IN In)
-{
-    PS_OUT Out = (PS_OUT)0;
-    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
-    Out.color = Effect_ComposeAdditive(surface, g_EffectSpriteParams.x);
-    return Out;
-}
-
-PS_OUT PS_MODULATE(PS_IN In)
-{
-    PS_OUT Out = (PS_OUT)0;
-    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
-    Out.color = Effect_ComposeModulate(surface, g_EffectSpriteParams.x);
-    return Out;
-}
-
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_AlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
-    PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, GS_MAIN, PS_ADDITIVE) // 1
-    PASS_RS_DS_BS_VGP(ModulatePass, RS_CullNone, DSS_DepthRead, BS_EffectModulate, VS_MAIN, GS_MAIN, PS_MODULATE) // 2
+    PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_EffectAlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
 }

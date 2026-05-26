@@ -144,31 +144,11 @@ PS_OUT PS_MAIN(PS_IN In)
     return Out;
 }
 
-PS_OUT PS_ADDITIVE(PS_IN In)
-{
-    PS_OUT Out = (PS_OUT)0;
-    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
-    Out.color = Effect_ComposeAdditive(surface, g_EffectMaterialPreviewParams.x);
-    return Out;
-}
-
-PS_OUT PS_MODULATE(PS_IN In)
-{
-    PS_OUT Out = (PS_OUT)0;
-    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
-    Out.color = Effect_ComposeModulate(surface, g_EffectMaterialPreviewParams.x);
-    return Out;
-}
-
 technique11 DefaultTechnique
 {
     // Plane preview
-    PASS_RS_DS_BS_VP(AlphaBlendPass, RS_CullNone, DSS_Default, BS_AlphaBlend, VS_MAIN, PS_MAIN) // 0
-    PASS_RS_DS_BS_VP(AdditivePass, RS_CullNone, DSS_Default, BS_EffectAdditive, VS_MAIN, PS_ADDITIVE) // 1
-    PASS_RS_DS_BS_VP(ModulatePass, RS_CullNone, DSS_Default, BS_EffectModulate, VS_MAIN, PS_MODULATE) // 2
+    PASS_RS_DS_BS_VP(AlphaBlendPass, RS_CullNone, DSS_Default, BS_EffectAlphaBlend, VS_MAIN, PS_MAIN) // 0
 
     // Sphere preview
-    PASS_RS_DS_BS_VP(SphereAlphaBlendPass, RS_Default, DSS_Default, BS_AlphaBlend, VS_MAIN, PS_MAIN) // 3
-    PASS_RS_DS_BS_VP(SphereAdditivePass, RS_Default, DSS_Default, BS_EffectAdditive, VS_MAIN, PS_ADDITIVE) // 4
-    PASS_RS_DS_BS_VP(SphereModulatePass, RS_Default, DSS_Default, BS_EffectModulate, VS_MAIN, PS_MODULATE) // 5
+    PASS_RS_DS_BS_VP(SphereAlphaBlendPass, RS_Default, DSS_Default, BS_EffectAlphaBlend, VS_MAIN, PS_MAIN) // 1
 }

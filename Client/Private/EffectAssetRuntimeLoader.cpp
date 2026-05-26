@@ -530,9 +530,7 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
         desc.required.material.noiseTextureGuid = Read_String(material, "noiseTextureGuid", desc.required.material.noiseTextureGuid);
         desc.required.material.noiseTexturePath = Read_String(material, "noiseTexturePath", desc.required.material.noiseTexturePath);
 
-        const string blendMode = Read_String(material, "blendMode");
-        if (!blendMode.empty())
-            desc.required.material.blendMode = blendMode;
+        Read_Enum(material, "blendMode", desc.required.material.blendMode);
 
         const string opacitySource = Read_String(material, "opacitySource");
         if (!opacitySource.empty())

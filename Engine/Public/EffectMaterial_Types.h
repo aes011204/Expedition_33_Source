@@ -12,6 +12,14 @@ enum class EffectTextureUVTilingMode : uint32
     Raw = 3,     // shader가 받은 distance UV를 tiling/stretch 없이 그대로 사용한다.
 };
 
+enum class EffectMaterialBlendMode : uint32
+{
+    AlphaBlend = 0,
+    Additive,
+    Modulate,
+    END,
+};
+
 // effect material preset/source에서 복사되어 runtime/authoring 쪽이 함께 보는 최소 material instance 값이다.
 // sprite effect 경로에서는 mainTexturePath를 lit base color가 아니라 emissive color + opacity source로 해석한다.
 struct EffectMaterialInstanceData
@@ -42,7 +50,7 @@ struct EffectMaterialInstanceData
     Vec2 maskUVScrollSpeed{ 0.f, 0.f };                                                // mask texture UV scroll speed 후보 값이다.
     EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Stretch };  // mask texture UV tiling 해석 방식이다.
 
-    string blendMode{ "AlphaBlend" }; // shader/render path가 해석할 blend mode 힌트다.
+    EffectMaterialBlendMode blendMode{ EffectMaterialBlendMode::AlphaBlend }; // effect material blend/compose mode다.
     string opacitySource{ "Alpha" };  // main texture에서 opacity를 뽑을 채널/방식이다.
     bool twoSided{ false };           // render state 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
     uint32 subUVRows{ 1 };            // atlas row 수다.
