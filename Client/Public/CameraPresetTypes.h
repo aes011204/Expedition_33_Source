@@ -15,6 +15,14 @@ enum class BattleCameraMode
   PLAYERATTACK
 };
 
+enum class BattleCameraTransitionEasing
+{
+    Linear,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+};
+
 struct PreviewShotPreset
 {
     Vec3 lookOffset;
@@ -70,6 +78,7 @@ struct BattleCameraPreset
 {
     CommonCameraPreset camera;
     bool         snapOnEnter = false;
+    BattleCameraTransitionEasing transitionEasing = BattleCameraTransitionEasing::EaseInOut;
 
     float        followSpeed;
     float        distance;

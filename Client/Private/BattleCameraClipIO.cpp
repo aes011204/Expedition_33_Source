@@ -21,6 +21,38 @@ string Build_BattleCameraClipFilePath(BattleCameraMode cameraMode, const string&
 
     return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
 }
+
+json Serialize_BattleCameraTrack(const BattleCameraTrack& track)
+{
+    json keyframes = json::array();
+    for (const BattleCameraKeyframe& keyframe : track.keyframes)
+    {
+        json keyJson{};
+        keyJson["time"] = keyframe.time;
+        keyJson["value"] = keyframe.value;
+        keyframes.push_back(keyJson);
+    }
+
+    return keyframes;
+}
+
+void Deserialize_BattleCameraTrack(const json& jsonData, const char* keyName, BattleCameraTrack& outTrack)
+{
+    if (!jsonData.contains(keyName))
+        return;
+
+    const json& keyframes = jsonData[keyName];
+    if (!keyframes.is_array())
+        return;
+
+    for (const auto& keyframe : keyframes)
+    {
+        BattleCameraKeyframe key{};
+        key.time = keyframe.value("time", key.time);
+        key.value = keyframe.value("value", key.value);
+        outTrack.keyframes.push_back(key);
+    }
+}
 }
 
 void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode, const BattleCameraClip& clip, const string& skillId)
@@ -31,60 +63,12 @@ void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode,
 
     jsonData["duration"] = clip.duration;
 
-    json distanceKeys= json::array();
-
-    for(auto&  keyframe : clip.distanceOffset.keyframes)
-    {
-        json KeyJson {};
-
-        KeyJson["time"] = keyframe.time;
-        KeyJson["value"] = keyframe.value;
-
-        distanceKeys.push_back(KeyJson);
-    }
-
-    jsonData["distanceOffset"] = distanceKeys;
-
-    json fovKeys = json::array();
-
-    for(auto& keyframe :clip.fovOffset.keyframes)
-    {
-        json KeyJson {};
-
-        KeyJson["time"] = keyframe.time;
-        KeyJson["value"] = keyframe.value;
-
-        fovKeys.push_back(KeyJson);
-    }
-
-    jsonData["fovOffset"] = fovKeys;
-
-    json pivotOffsetKeys = json::array();
-
-    for (auto& keyframe : clip.pivotOffset.keyframes)
-    {
-        json keyJson{};
-
-        keyJson["time"] = keyframe.time;
-        keyJson["value"] = keyframe.value;
-
-        pivotOffsetKeys.push_back(keyJson);
-    }
-
-    jsonData["pivotOffset"] = pivotOffsetKeys;
-
-    json shakeAmpKeys {};
-
-    for(auto& keyframe :clip.shakeAmplitude.keyframes)
-    {
-        json KeyJson {};
-
-        KeyJson["time"] = keyframe.time;
-        KeyJson["value"] = keyframe.value;
-
-        shakeAmpKeys.push_back(KeyJson);
-    }
-    jsonData["shakeAmplitude"] = shakeAmpKeys;
+    jsonData["distanceOffset"] = Serialize_BattleCameraTrack(clip.distanceOffset);
+    jsonData["fovOffset"] = Serialize_BattleCameraTrack(clip.fovOffset);
+    jsonData["sideOffset"] = Serialize_BattleCameraTrack(clip.sideOffset);
+    jsonData["pivotOffset"] = Serialize_BattleCameraTrack(clip.pivotOffset);
+    jsonData["yawOffset"] = Serialize_BattleCameraTrack(clip.yawOffset);
+    jsonData["shakeAmplitude"] = Serialize_BattleCameraTrack(clip.shakeAmplitude);
 
     
     const fs::path savePath = filePath;
@@ -118,62 +102,12 @@ bool BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode cameraMod
 
     loadedClip.duration = jsonData.value("duration", clip.duration);
 
-    const json& keyframes = jsonData["distanceOffset"];
-
-    if(keyframes.is_array())
-    {
-        for (const auto& keyframe : keyframes)
-        {
-            BattleCameraKeyframe key {};
-            key.time = keyframe.value("time", key.time);
-            key.value = keyframe.value("value",key.value);
-
-            loadedClip.distanceOffset.keyframes.push_back(key);
-        }
-    }
-
-    const json& fovOffsetKeyFrames = jsonData["fovOffset"];
-
-    if(fovOffsetKeyFrames.is_array())
-    {
-        for (const auto& keyframe : fovOffsetKeyFrames)
-        {
-            BattleCameraKeyframe key {};
-            key.time = keyframe.value("time", key.time);
-            key.value = keyframe.value("value",key.value);
-
-            loadedClip.fovOffset.keyframes.push_back(key);
-        }
-    
-    }
-
-    const json& pivotOffsetKeyFrames = jsonData["pivotOffset"];
-
-    if (pivotOffsetKeyFrames.is_array())
-    {
-        for (const auto& keyframe : pivotOffsetKeyFrames)
-        {
-            BattleCameraKeyframe key {};
-            key.time = keyframe.value("time", key.time);
-            key.value = keyframe.value("value", key.value);
-
-            loadedClip.pivotOffset.keyframes.push_back(key);
-        }
-    }
-
-    const json& shakeAmplitudeKeyFrames = jsonData["shakeAmplitude"];
-
-    if(shakeAmplitudeKeyFrames.is_array())
-    {
-        for (const auto& keyframe : shakeAmplitudeKeyFrames)
-        {
-            BattleCameraKeyframe key {};
-            key.time = keyframe.value("time", key.time);
-            key.value = keyframe.value("value",key.value);
-
-            loadedClip.shakeAmplitude.keyframes.push_back(key);
-        }
-    }
+    Deserialize_BattleCameraTrack(jsonData, "distanceOffset", loadedClip.distanceOffset);
+    Deserialize_BattleCameraTrack(jsonData, "fovOffset", loadedClip.fovOffset);
+    Deserialize_BattleCameraTrack(jsonData, "sideOffset", loadedClip.sideOffset);
+    Deserialize_BattleCameraTrack(jsonData, "pivotOffset", loadedClip.pivotOffset);
+    Deserialize_BattleCameraTrack(jsonData, "yawOffset", loadedClip.yawOffset);
+    Deserialize_BattleCameraTrack(jsonData, "shakeAmplitude", loadedClip.shakeAmplitude);
 
     clip = loadedClip;
     return true;

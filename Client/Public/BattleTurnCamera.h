@@ -66,6 +66,7 @@ private:
         bool active = false;
         float elapsed = 0.f;
         float duration = 0.35f;
+        BattleCameraTransitionEasing easing = BattleCameraTransitionEasing::EaseInOut;
         EvaluatedPose fromPose{};
         EvaluatedPose toPose{};
         BattleShotRequest targetRequest{};
@@ -133,6 +134,8 @@ public:
         const BattleCameraPreset& preset,
         const BattleCameraClipSample& clipSample,
         EvaluatedPose& outPose) const;
+
+    static float Evaluate_CameraTransitionT(BattleCameraTransitionEasing easing, float t);
 
     BattleCameraPreset* Get_MutablePreset(BattleCameraMode cameraMode);
     BattleCameraClip* Get_MutableClip(BattleCameraMode cameraMode);

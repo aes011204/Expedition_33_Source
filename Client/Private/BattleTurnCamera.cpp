@@ -441,7 +441,7 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
             return false;
 
         const Vec3 subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
-        return Evaluate_BattleTurnCurrentPresetPose(
+        return Evaluate_BattleTurnPresetPose(
             subjectPos,
             preset,
             BattleCameraClipSample{},
@@ -501,6 +501,7 @@ bool BattleTurnCamera::Start_PoseTransition(
     _poseTransition.active = true;
     _poseTransition.elapsed = 0.f;
     _poseTransition.duration = 0.35f;
+    _poseTransition.easing = preset.transitionEasing;
     _poseTransition.fromPose = fromPose;
     _poseTransition.toPose = toPose;
     _poseTransition.targetRequest = request;
@@ -518,12 +519,13 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     _poseTransition.elapsed += clampedDelta;
     const float duration = std::max(0.0001f, _poseTransition.duration);
     const float t = std::clamp(_poseTransition.elapsed / duration, 0.f, 1.f);
-
+    float  easedT = Evaluate_CameraTransitionT(_poseTransition.easing, t);
     EvaluatedPose blended{};
-    blended.cameraPos = Vec3::Lerp(_poseTransition.fromPose.cameraPos, _poseTransition.toPose.cameraPos, t);
-    blended.lookTarget = Vec3::Lerp(_poseTransition.fromPose.lookTarget, _poseTransition.toPose.lookTarget, t);
-    blended.fovY = _poseTransition.fromPose.fovY + (_poseTransition.toPose.fovY - _poseTransition.fromPose.fovY) * t;
-    blended.rollOffset = _poseTransition.fromPose.rollOffset + (_poseTransition.toPose.rollOffset - _poseTransition.fromPose.rollOffset) * t;
+
+    blended.cameraPos = Vec3::Lerp(_poseTransition.fromPose.cameraPos, _poseTransition.toPose.cameraPos, easedT);
+    blended.lookTarget = Vec3::Lerp(_poseTransition.fromPose.lookTarget, _poseTransition.toPose.lookTarget, easedT);
+    blended.fovY = lerp(_poseTransition.fromPose.fovY, _poseTransition.toPose.fovY, easedT);
+    blended.rollOffset = lerp(_poseTransition.fromPose.rollOffset, _poseTransition.toPose.rollOffset, easedT);
     Apply_EvaluatedPose(blended);
 
     if (t < 1.f)
@@ -550,7 +552,7 @@ bool BattleTurnCamera::Evaluate_CurrentPresetPose(
     const Vec3* smoothedTargetPos,
     EvaluatedPose& outPose) const
 {
-    return Evaluate_BattleTurnCurrentPresetPose(
+    return Evaluate_BattleTurnPresetPose(
         targetPos,
         preset,
         clipSample,
@@ -981,6 +983,29 @@ bool BattleTurnCamera::Evaluate_PreviewEnemyAttackPose(
     EvaluatedPose& outPose) const
 {
     return Evaluate_EnemyAttackPose(subjectPos, opponentPos, preset, clipSample, outPose);
+}
+
+float BattleTurnCamera::Evaluate_CameraTransitionT(BattleCameraTransitionEasing easing, float t)
+{
+    t = clamp(t, 0.f, 1.f);
+
+    switch (easing)
+    {
+    case BattleCameraTransitionEasing::Linear:
+        return t;
+
+    case BattleCameraTransitionEasing::EaseIn:
+        return t * t;
+
+    case BattleCameraTransitionEasing::EaseOut:
+        return 1.f - (1.f - t) * (1.f - t);
+
+    case BattleCameraTransitionEasing::EaseInOut:
+        return t * t * (3.f - 2.f * t);
+
+    default:
+        return t;
+    }
 }
 
 BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta)

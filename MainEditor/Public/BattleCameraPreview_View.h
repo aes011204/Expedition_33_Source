@@ -4,17 +4,14 @@
 #include "BattleCameraClipTypes.h"
 #include "CameraPresetTypes.h"
 #include "Client_Enum.h"
+#include "BattleTurnCamera.h"
 #include <array>
 #include <BattleTurnCameraPoseUtils.h>
 
 NS_BEGIN(Engine)
-    class GameObject;
+class GameObject;
 class ModelCom;
 class RenderTarget;
-NS_END
-
-NS_BEGIN(Client)
-class BattleTurnCamera;
 NS_END
 
 NS_BEGIN(MainEditor)
@@ -99,7 +96,7 @@ private:
     void Apply_PreviewAnimation(float previewTimeSec) const;
     void Apply_BattleCameraPreviewPose(float previewTimeSec);
     float Get_CurrentPreviewAnimationDurationSec() const;
-    int Get_BattleClipPreviewFrameMax() const;
+    int  Get_BattleClipPreviewFrameMax() const;
     void Clear_PreviewContext();
     void Refresh_PreviewAnimationList();
     void Try_AutoSelectPreviewActorAndAnimation();
@@ -124,7 +121,7 @@ private:
     void Capture_CurrentPreviewIntoTransitionStep(PreviewTransitionStep& step);
     void Set_TransitionPreviewLocalTime(float timeSec);
     Client::BattleTurnCameraEvaluatedPose Capture_PreviewCurrentPose() const;
-    bool Evaluate_PreviewModePose(BattleCameraMode mode, Client::BattleTurnCameraEvaluatedPose& outPose) const;
+    bool Evaluate_PreviewModePose(BattleCameraMode mode, float previewTimeSec, bool includeClip, Client::BattleTurnCameraEvaluatedPose& outPose) const;
     void Apply_PreviewEvaluatedPose(const Client::BattleTurnCameraEvaluatedPose& pose);
     void Rebuild_TransitionPreviewStepAtTime(int stepIndex, float timeSec);
     void Rebuild_TransitionPreviewSequenceAtTime(float timeSec);

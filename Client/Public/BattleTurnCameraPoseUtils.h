@@ -14,7 +14,7 @@ struct BattleTurnCameraEvaluatedPose
     float rollOffset = 0.f;
 };
 
-inline bool Evaluate_BattleTurnCurrentPresetPose(
+inline bool Evaluate_BattleTurnPresetPose(
     const Vec3& targetPos,
     const BattleCameraPreset& preset,
     const BattleCameraClipSample& clipSample,

@@ -1084,7 +1084,7 @@ void BattleCameraPreview_View::Render_TransitionPreviewPanel()
         step.durationSec = std::max(0.05f, step.durationSec);
 
         ImGui::TextDisabled(
-            "Skill : %s | Animation : %s",
+            "Skill : %s | Animation : %s | Easing : follows loaded preset",
             step.skillId.empty() ? "(default)" : step.skillId.c_str(),
             step.animationName.empty() ? "(current)" : step.animationName.c_str());
 
@@ -1232,6 +1232,9 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
 
     ImGui::Separator();
     dragFloat("Follow Speed", _editingBattlePreset.followSpeed, 0.01f, 0.f, 30.f);
+    ImGui::SetNextItemWidth(kPresetInputWidth);
+    if (Select_EnumCombo("Transition Easing", _editingBattlePreset.transitionEasing, kPresetInputWidth))
+        changed = true;
     dragFloat("Near Plane", _editingBattlePreset.camera.nearPlane, 0.001f, 0.001f, 10.f);
     dragFloat("Far Plane", _editingBattlePreset.camera.farPlane, 1.f, 10.f, 5000.f, "%.1f");
     if (ImGui::Checkbox("Snap On Enter", &_editingBattlePreset.snapOnEnter))
@@ -1737,7 +1740,7 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
     else
     {
         Client::BattleTurnCameraEvaluatedPose pose{};
-        if (Client::Evaluate_BattleTurnCurrentPresetPose(
+        if (Client::Evaluate_BattleTurnPresetPose(
             subjectPos,
             preset,
             previewClipSample,
@@ -2377,7 +2380,7 @@ Client::BattleTurnCameraEvaluatedPose BattleCameraPreview_View::Capture_PreviewC
     return pose;
 }
 
-bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, Client::BattleTurnCameraEvaluatedPose& outPose) const
+bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, float previewTimeSec, bool includeClip, Client::BattleTurnCameraEvaluatedPose& outPose) const
 {
     BattleCameraPreset preset = Make_FallbackBattleCameraPreset();
     Client::CameraPresetIO::LoadBattlePresetFromFile(mode, preset);
@@ -2436,6 +2439,25 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, C
         return true;
     }
 
+    BattleCameraClipSample clipSample{};
+    if (includeClip && Uses_RuntimeBattleClip(mode))
+    {
+        clipSample = Client::Sample_BattleCameraClip(_editingBattleClip, previewTimeSec);
+
+        if (!_previewFovOffsetEnabled)
+            clipSample.fovOffset = 0.f;
+        if (!_previewDistanceOffsetEnabled)
+            clipSample.distanceOffset = 0.f;
+        if (!_previewShakeEnabled)
+            clipSample.shakeAmplitude = 0.f;
+        if (!_previewYawOffsetEnabled)
+            clipSample.yawOffset = 0.f;
+        if (!_previewSideOffsetEnabled)
+            clipSample.sideOffset = 0.f;
+        if (!_previewPivotOffsetEnabled)
+            clipSample.pivotOffset = 0.f;
+    }
+
     PreviewSlotSide subjectSide = PreviewSlotSide::Hero;
     int subjectSlot = 1;
     PreviewSlotSide opponentSide = PreviewSlotSide::Enemy;
@@ -2460,10 +2482,10 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, C
 
     if (mode == BattleCameraMode::ENEMYATTACK && opponentSide != subjectSide)
     {
-        return Client::Evaluate_BattleTurnEnemyAttackPose(subjectPos, opponentPos, preset, BattleCameraClipSample{}, 0.f, outPose);
+        return Client::Evaluate_BattleTurnEnemyAttackPose(subjectPos, opponentPos, preset, clipSample, previewTimeSec, outPose);
     }
 
-    return Client::Evaluate_BattleTurnCurrentPresetPose(subjectPos, preset, BattleCameraClipSample{}, 0.f, 0.f, nullptr, 0.f, outPose);
+    return Client::Evaluate_BattleTurnPresetPose(subjectPos, preset, clipSample, 0.f, 0.f, nullptr, previewTimeSec, outPose);
 }
 
 void BattleCameraPreview_View::Apply_PreviewEvaluatedPose(const Client::BattleTurnCameraEvaluatedPose& pose)
@@ -2496,7 +2518,7 @@ void BattleCameraPreview_View::Rebuild_TransitionPreviewStepAtTime(int stepIndex
     Apply_PreviewAnimation(clampedTime);
 
     Client::BattleTurnCameraEvaluatedPose toPose{};
-    if (!Evaluate_PreviewModePose(step.mode, toPose))
+    if (!Evaluate_PreviewModePose(step.mode, clampedTime, false, toPose))
         return;
 
     Client::BattleTurnCameraEvaluatedPose fromPose = toPose;
@@ -2509,19 +2531,47 @@ void BattleCameraPreview_View::Rebuild_TransitionPreviewStepAtTime(int stepIndex
     else
     {
         const PreviewTransitionStep& previousStep = _transitionPreviewSteps[stepIndex - 1];
-        if (!Evaluate_PreviewModePose(previousStep.mode, fromPose))
+
+        Apply_TransitionStepContext(previousStep);
+
+        if (!Evaluate_PreviewModePose(previousStep.mode, std::max(0.f, previousStep.durationSec), false, fromPose))
+        {
+            Apply_TransitionStepContext(previousStep);
+            fromPose = Capture_PreviewCurrentPose();
+        }
+        else
+        {
             fromPose = toPose;
+        }
+
+        Apply_TransitionStepContext(step);
     }
 
     const float duration = std::max(0.0001f, step.durationSec);
     const float ratio = (stepIndex == 0) ? 1.f : std::clamp(clampedTime / duration, 0.f, 1.f);
+    const float easedRatio = (stepIndex == 0)
+        ? 1.f
+        : Client::BattleTurnCamera::Evaluate_CameraTransitionT(_editingBattlePreset.transitionEasing, ratio);
 
-    Client::BattleTurnCameraEvaluatedPose blended{};
-    blended.cameraPos = Vec3::Lerp(fromPose.cameraPos, toPose.cameraPos, ratio);
-    blended.lookTarget = Vec3::Lerp(fromPose.lookTarget, toPose.lookTarget, ratio);
-    blended.fovY = fromPose.fovY + (toPose.fovY - fromPose.fovY) * ratio;
-    blended.rollOffset = fromPose.rollOffset + (toPose.rollOffset - fromPose.rollOffset) * ratio;
-    Apply_PreviewEvaluatedPose(blended);
+    Client::BattleTurnCameraEvaluatedPose blendedBase{};
+    blendedBase.cameraPos = Vec3::Lerp(fromPose.cameraPos, toPose.cameraPos, easedRatio);
+    blendedBase.lookTarget = Vec3::Lerp(fromPose.lookTarget, toPose.lookTarget, easedRatio);
+    blendedBase.fovY = fromPose.fovY + (toPose.fovY - fromPose.fovY) * easedRatio;
+    blendedBase.rollOffset = fromPose.rollOffset + (toPose.rollOffset - fromPose.rollOffset) * easedRatio;
+
+    Client::BattleTurnCameraEvaluatedPose finalPose = blendedBase;
+    Client::BattleTurnCameraEvaluatedPose currentStepBasePose{};
+    Client::BattleTurnCameraEvaluatedPose currentStepClipPose{};
+    if (Evaluate_PreviewModePose(step.mode, clampedTime, false, currentStepBasePose) &&
+        Evaluate_PreviewModePose(step.mode, clampedTime, true, currentStepClipPose))
+    {
+        finalPose.cameraPos += (currentStepClipPose.cameraPos - currentStepBasePose.cameraPos);
+        finalPose.lookTarget += (currentStepClipPose.lookTarget - currentStepBasePose.lookTarget);
+        finalPose.fovY += (currentStepClipPose.fovY - currentStepBasePose.fovY);
+        finalPose.rollOffset += (currentStepClipPose.rollOffset - currentStepBasePose.rollOffset);
+    }
+
+    Apply_PreviewEvaluatedPose(finalPose);
     _previewDirty = false;
 }
 

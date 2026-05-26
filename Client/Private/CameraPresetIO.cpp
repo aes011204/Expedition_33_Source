@@ -28,6 +28,7 @@ void CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode cameraMode, const T
     json jsonData {};
 
     jsonData["snapOnEnter"]     = preset.snapOnEnter;
+   //
     jsonData["followSpeed"]     = preset.followSpeed;
     jsonData["aimOffset"]       = preset.aimOffset;
     jsonData["pivotHeight"]     = preset.pivotHeight;
@@ -181,6 +182,7 @@ void CameraPresetIO::SaveBattlePresetToFile(BattleCameraMode cameraMode, const B
     jsonData["fovY"]            = preset.camera.fovy;
     jsonData["farPlane"]        = preset.camera.farPlane;
     jsonData["nearPlane"]       = preset.camera.nearPlane;
+    jsonData["transitionEasing"]= preset.transitionEasing;
     //jsonData["allowMouseRotation"] = preset.allowMouseRotation;
 
     const string filePath = Build_BattlePresetFilePath(cameraMode, skillId);
@@ -199,7 +201,7 @@ void CameraPresetIO::SaveBattlePresetToFile(BattleCameraMode cameraMode, const B
     file << jsonData.dump(4);
 }
 
-bool CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode cameraMode, BattleCameraPreset& outPreset, const string& skillId)
+bool CameraPresetIO:: LoadBattlePresetFromFile(BattleCameraMode cameraMode, BattleCameraPreset& outPreset, const string& skillId)
 {
     const string filePath = Build_BattlePresetFilePath(cameraMode, skillId);
 
@@ -211,8 +213,25 @@ bool CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode cameraMode, Battl
     file >> jsonData;
 
     BattleCameraPreset preset {};
+    const int transitionEasing = jsonData.value("transitionEasing", static_cast<int>(BattleCameraTransitionEasing::EaseInOut));
 
     preset.snapOnEnter = jsonData.value("snapOnEnter", false);
+    switch (transitionEasing)
+    {
+    case static_cast<int>(BattleCameraTransitionEasing::Linear):
+        preset.transitionEasing = BattleCameraTransitionEasing::Linear;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseIn):
+        preset.transitionEasing = BattleCameraTransitionEasing::EaseIn;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOut):
+        preset.transitionEasing = BattleCameraTransitionEasing::EaseOut;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInOut):
+    default:
+        preset.transitionEasing = BattleCameraTransitionEasing::EaseInOut;
+        break;
+    }
     preset.followSpeed = jsonData.value("followSpeed", preset.followSpeed);
     preset.distance  = jsonData.value("distance", preset.distance);
     preset.sideOffset  = jsonData.value("sideOffset", preset.sideOffset);
