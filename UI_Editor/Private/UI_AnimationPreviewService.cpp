@@ -77,6 +77,62 @@ namespace UIEditor
 
             return track.keys.back().value;
         }
+
+        ImVec4 Evaluate_ColorKeyframes(const UI_AnimationKeyframeTrack& track, float frame, bool& outHasValue)
+        {
+            outHasValue = false;
+            if (track.keys.empty())
+                return ImVec4(255.f, 255.f, 255.f, 255.f);
+
+            outHasValue = true;
+            if (track.keys.size() == 1)
+                return Clamp_AnimationKeyframeColor(track.keys.front().color);
+
+            if (frame <= static_cast<float>(track.keys.front().frame))
+                return Clamp_AnimationKeyframeColor(track.keys.front().color);
+
+            if (frame >= static_cast<float>(track.keys.back().frame))
+                return Clamp_AnimationKeyframeColor(track.keys.back().color);
+
+            for (size_t index = 0; index + 1 < track.keys.size(); ++index)
+            {
+                const UI_AnimationKeyframe& currentKey = track.keys[index];
+                const UI_AnimationKeyframe& nextKey = track.keys[index + 1];
+                if (frame < static_cast<float>(currentKey.frame) || frame > static_cast<float>(nextKey.frame))
+                    continue;
+
+                const float frameRange = max(1.f, static_cast<float>(nextKey.frame - currentKey.frame));
+                const float t = min(max((frame - static_cast<float>(currentKey.frame)) / frameRange, 0.f), 1.f);
+                return Clamp_AnimationKeyframeColor(Lerp_Color(
+                    currentKey.color,
+                    nextKey.color,
+                    Evaluate_AnimationEasing(currentKey.easing, t)));
+            }
+
+            return Clamp_AnimationKeyframeColor(track.keys.back().color);
+        }
+
+        const UI_AnimationTargetBinding* Find_KeyframeTarget(const UI_AnimationAsset& asset, const UI_Object& object)
+        {
+            for (const UI_AnimationTargetBinding& target : asset.targets)
+            {
+                if (target.targetObjectId == object.id)
+                    return &target;
+            }
+
+            return nullptr;
+        }
+
+        bool Has_KeyframeTarget(const UI_AnimationAsset& asset)
+        {
+            for (const UI_AnimationTargetBinding& target : asset.targets)
+            {
+                if (target.targetObjectId != 0)
+                    return true;
+            }
+
+            return false;
+        }
     }
 
     void UI_AnimationPreviewService::Update(float deltaTime)
@@ -118,11 +174,11 @@ namespace UIEditor
 
     void UI_AnimationPreviewService::Play_KeyframeAsset(const UI_AnimationAsset& asset, int32 startFrame)
     {
-        if (asset.targetObjectId == 0)
+        if (!Has_KeyframeTarget(asset))
             return;
 
         _keyframeAsset = &asset;
-        _targetObjectId = asset.targetObjectId;
+        _targetObjectId = 0;
         _previewStartFrame = Clamp_Frame(asset, startFrame);
         _previewStaticFrame = _previewStartFrame;
         _time = 0.f;
@@ -132,11 +188,11 @@ namespace UIEditor
 
     void UI_AnimationPreviewService::Preview_KeyframeAsset(const UI_AnimationAsset& asset, int32 frame)
     {
-        if (asset.targetObjectId == 0)
+        if (!Has_KeyframeTarget(asset))
             return;
 
         _keyframeAsset = &asset;
-        _targetObjectId = asset.targetObjectId;
+        _targetObjectId = 0;
         _previewStartFrame = Clamp_Frame(asset, frame);
         _previewStaticFrame = _previewStartFrame;
         _time = 0.f;
@@ -290,7 +346,11 @@ namespace UIEditor
 
     bool UI_AnimationPreviewService::Sample_KeyframeAsset(const UI_Object& object, UI_AnimationPreviewSample& outSample) const
     {
-        if (nullptr == _keyframeAsset || object.id != _keyframeAsset->targetObjectId)
+        if (nullptr == _keyframeAsset)
+            return false;
+
+        const UI_AnimationTargetBinding* target = Find_KeyframeTarget(*_keyframeAsset, object);
+        if (nullptr == target)
             return false;
 
         const float frame = Get_CurrentKeyframeFrameFloat();
@@ -302,10 +362,22 @@ namespace UIEditor
         sample.color = object.color;
 
         bool hasSampledTrack = false;
-        for (const UI_AnimationKeyframeTrack& track : _keyframeAsset->tracks)
+        for (const UI_AnimationKeyframeTrack& track : target->tracks)
         {
             if (!track.enabled)
                 continue;
+
+            if (track.type == UI_AnimationKeyframeTrackType::Color)
+            {
+                bool hasColor = false;
+                const ImVec4 color = Evaluate_ColorKeyframes(track, frame, hasColor);
+                if (!hasColor)
+                    continue;
+
+                sample.color = Convert_AnimationColor255To01(color);
+                hasSampledTrack = true;
+                continue;
+            }
 
             bool hasValue = false;
             const float value = Clamp_AnimationKeyframeTrackValue(track.type, Evaluate_Keyframes(track, frame, hasValue));

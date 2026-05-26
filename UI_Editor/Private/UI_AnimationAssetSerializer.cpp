@@ -5,7 +5,7 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kCurrentAnimationAssetJsonVersion = 2;
+        constexpr int32 kCurrentAnimationAssetJsonVersion = 3;
 
         string Read_String(const json& item, const char* key, const string& defaultValue)
         {
@@ -43,6 +43,19 @@ namespace UIEditor
             return iter->get<bool>();
         }
 
+        ImVec4 Read_Color255(const json& item, const char* key, const ImVec4& defaultValue)
+        {
+            const auto iter = item.find(key);
+            if (iter == item.end() || !iter->is_array() || iter->size() < 4)
+                return defaultValue;
+
+            return Clamp_AnimationKeyframeColor(ImVec4(
+                iter->at(0).is_number() ? iter->at(0).get<float>() : defaultValue.x,
+                iter->at(1).is_number() ? iter->at(1).get<float>() : defaultValue.y,
+                iter->at(2).is_number() ? iter->at(2).get<float>() : defaultValue.z,
+                iter->at(3).is_number() ? iter->at(3).get<float>() : defaultValue.w));
+        }
+
         void Normalize_AssetRange(UI_AnimationAsset& asset)
         {
             asset.fps = max(1, asset.fps);
@@ -54,7 +67,10 @@ namespace UIEditor
             for (UI_AnimationKeyframe& key : track.keys)
             {
                 key.frame = min(max(key.frame, asset.startFrame), asset.endFrame);
-                key.value = Clamp_AnimationKeyframeTrackValue(track.type, key.value);
+                if (track.type == UI_AnimationKeyframeTrackType::Color)
+                    key.color = Clamp_AnimationKeyframeColor(key.color);
+                else
+                    key.value = Clamp_AnimationKeyframeTrackValue(track.type, key.value);
             }
 
             stable_sort(
@@ -81,11 +97,19 @@ namespace UIEditor
             track.keys = move(mergedKeys);
         }
 
-        json Keyframe_ToJson(const UI_AnimationKeyframe& key)
+        json Keyframe_ToJson(UI_AnimationKeyframeTrackType trackType, const UI_AnimationKeyframe& key)
         {
             json item = json::object();
             item["frame"] = key.frame;
-            item["value"] = key.value;
+            if (trackType == UI_AnimationKeyframeTrackType::Color)
+            {
+                const ImVec4 color = Clamp_AnimationKeyframeColor(key.color);
+                item["color"] = { color.x, color.y, color.z, color.w };
+            }
+            else
+            {
+                item["value"] = key.value;
+            }
             item["easing"] = Get_AnimationEasingName(key.easing);
             return item;
         }
@@ -93,25 +117,63 @@ namespace UIEditor
         json Track_ToJson(const UI_AnimationKeyframeTrack& track)
         {
             json item = json::object();
-            item["type"] = Get_AnimationKeyframeTrackTypeName(track.type);
+            const UI_AnimationKeyframeTrackType serializedType =
+                track.type == UI_AnimationKeyframeTrackType::Alpha ? UI_AnimationKeyframeTrackType::Color : track.type;
+            item["type"] = Get_AnimationKeyframeTrackTypeName(serializedType);
             item["enabled"] = track.enabled;
             item["easing"] = Get_AnimationEasingName(track.easing);
             item["keys"] = json::array();
 
             for (const UI_AnimationKeyframe& key : track.keys)
-                item["keys"].push_back(Keyframe_ToJson(key));
+            {
+                if (track.type == UI_AnimationKeyframeTrackType::Alpha)
+                {
+                    UI_AnimationKeyframe colorKey = key;
+                    colorKey.color = Clamp_AnimationKeyframeColor(ImVec4(
+                        key.color.x,
+                        key.color.y,
+                        key.color.z,
+                        Clamp_AnimationKeyframeTrackValue(UI_AnimationKeyframeTrackType::Alpha, key.value) * 255.f));
+                    item["keys"].push_back(Keyframe_ToJson(serializedType, colorKey));
+                }
+                else
+                {
+                    item["keys"].push_back(Keyframe_ToJson(serializedType, key));
+                }
+            }
 
             return item;
         }
 
-        bool Try_ReadKeyframe(const json& item, UI_AnimationEasing defaultEasing, UI_AnimationKeyframe& outKeyframe)
+        json Target_ToJson(const UI_AnimationTargetBinding& target)
+        {
+            json item = json::object();
+            item["targetName"] = target.targetName;
+            item["tracks"] = json::array();
+
+            for (const UI_AnimationKeyframeTrack& track : target.tracks)
+                item["tracks"].push_back(Track_ToJson(track));
+
+            return item;
+        }
+
+        bool Try_ReadKeyframe(const json& item, UI_AnimationKeyframeTrackType trackType, UI_AnimationEasing defaultEasing, UI_AnimationKeyframe& outKeyframe)
         {
             if (!item.is_object())
                 return false;
 
             UI_AnimationKeyframe key = {};
             key.frame = Read_Int(item, "frame", 0);
-            key.value = Read_Float(item, "value", 0.f);
+            if (trackType == UI_AnimationKeyframeTrackType::Color)
+            {
+                key.color = Read_Color255(item, "color", ImVec4(255.f, 255.f, 255.f, 255.f));
+            }
+            else
+            {
+                key.value = Read_Float(item, "value", 0.f);
+                if (trackType == UI_AnimationKeyframeTrackType::Alpha)
+                    key.color = ImVec4(255.f, 255.f, 255.f, Clamp_AnimationKeyframeTrackValue(trackType, key.value) * 255.f);
+            }
             key.easing = defaultEasing;
 
             UI_AnimationEasing easing = defaultEasing;
@@ -145,12 +207,46 @@ namespace UIEditor
                 for (const json& keyItem : *keyIter)
                 {
                     UI_AnimationKeyframe key = {};
-                    if (Try_ReadKeyframe(keyItem, track.easing, key))
+                    if (Try_ReadKeyframe(keyItem, track.type, track.easing, key))
                         track.keys.push_back(key);
                 }
             }
 
             outTrack = move(track);
+            return true;
+        }
+
+        void Read_Tracks(const json& item, const UI_AnimationAsset& asset, vector<UI_AnimationKeyframeTrack>& outTracks)
+        {
+            const auto trackIter = item.find("tracks");
+            if (trackIter == item.end() || !trackIter->is_array())
+                return;
+
+            for (const json& trackItem : *trackIter)
+            {
+                UI_AnimationKeyframeTrack track = {};
+                if (!Try_ReadTrack(trackItem, track))
+                    continue;
+
+                Normalize_Track(track, asset);
+                outTracks.push_back(move(track));
+            }
+        }
+
+        bool Try_ReadTarget(const json& item, const UI_AnimationAsset& asset, UI_AnimationTargetBinding& outTarget)
+        {
+            if (!item.is_object())
+                return false;
+
+            UI_AnimationTargetBinding target = {};
+            target.targetName = Read_String(item, "targetName", "");
+            target.targetObjectId = 0;
+            Read_Tracks(item, asset, target.tracks);
+
+            if (target.targetName.empty() && target.tracks.empty())
+                return false;
+
+            outTarget = move(target);
             return true;
         }
     }
@@ -198,21 +294,23 @@ namespace UIEditor
     {
         UI_AnimationAsset normalizedAsset = asset;
         Normalize_AssetRange(normalizedAsset);
-        for (UI_AnimationKeyframeTrack& track : normalizedAsset.tracks)
-            Normalize_Track(track, normalizedAsset);
+        for (UI_AnimationTargetBinding& target : normalizedAsset.targets)
+        {
+            for (UI_AnimationKeyframeTrack& track : target.tracks)
+                Normalize_Track(track, normalizedAsset);
+        }
 
         json root = json::object();
         root["version"] = kCurrentAnimationAssetJsonVersion;
         root["name"] = normalizedAsset.name;
-        root["targetName"] = normalizedAsset.targetName;
         root["fps"] = normalizedAsset.fps;
         root["startFrame"] = normalizedAsset.startFrame;
         root["endFrame"] = normalizedAsset.endFrame;
         root["loop"] = normalizedAsset.loop;
-        root["tracks"] = json::array();
+        root["targets"] = json::array();
 
-        for (const UI_AnimationKeyframeTrack& track : normalizedAsset.tracks)
-            root["tracks"].push_back(Track_ToJson(track));
+        for (const UI_AnimationTargetBinding& target : normalizedAsset.targets)
+            root["targets"].push_back(Target_ToJson(target));
 
         return root;
     }
@@ -224,26 +322,33 @@ namespace UIEditor
 
         UI_AnimationAsset loadedAsset = {};
         loadedAsset.name = Read_String(root, "name", "NewUIAnimation");
-        loadedAsset.targetName = Read_String(root, "targetName", "");
-        loadedAsset.targetObjectId = 0;
         loadedAsset.fps = Read_Int(root, "fps", 60);
         loadedAsset.startFrame = Read_Int(root, "startFrame", 0);
         loadedAsset.endFrame = Read_Int(root, "endFrame", 60);
         loadedAsset.loop = Read_Bool(root, "loop", false);
         Normalize_AssetRange(loadedAsset);
 
-        const auto trackIter = root.find("tracks");
-        if (trackIter != root.end() && trackIter->is_array())
+        const auto targetIter = root.find("targets");
+        if (targetIter != root.end() && targetIter->is_array())
         {
-            for (const json& trackItem : *trackIter)
+            for (const json& targetItem : *targetIter)
             {
-                UI_AnimationKeyframeTrack track = {};
-                if (!Try_ReadTrack(trackItem, track))
+                UI_AnimationTargetBinding target = {};
+                if (!Try_ReadTarget(targetItem, loadedAsset, target))
                     continue;
 
-                Normalize_Track(track, loadedAsset);
-                loadedAsset.tracks.push_back(move(track));
+                loadedAsset.targets.push_back(move(target));
             }
+        }
+        else
+        {
+            UI_AnimationTargetBinding legacyTarget = {};
+            legacyTarget.targetName = Read_String(root, "targetName", "");
+            legacyTarget.targetObjectId = 0;
+            Read_Tracks(root, loadedAsset, legacyTarget.tracks);
+
+            if (!legacyTarget.targetName.empty() || !legacyTarget.tracks.empty())
+                loadedAsset.targets.push_back(move(legacyTarget));
         }
 
         asset = move(loadedAsset);

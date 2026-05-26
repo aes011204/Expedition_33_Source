@@ -53,6 +53,7 @@ enum class UI_AnimationKeyframeTrackType
     ScaleX,
     ScaleY,
     Rotation,
+    Color,
     Alpha,
 };
 
@@ -60,6 +61,7 @@ struct UI_AnimationKeyframe
 {
     int32 frame = 0;
     float value = 0.f;
+    ImVec4 color = ImVec4(255.f, 255.f, 255.f, 255.f);
     UI_AnimationEasing easing = UI_AnimationEasing::Linear;
 };
 
@@ -71,16 +73,21 @@ struct UI_AnimationKeyframeTrack
     vector<UI_AnimationKeyframe> keys = {};
 };
 
+struct UI_AnimationTargetBinding
+{
+    string targetName = "";
+    uint32 targetObjectId = 0;
+    vector<UI_AnimationKeyframeTrack> tracks = {};
+};
+
 struct UI_AnimationAsset
 {
     string name = "NewUIAnimation";
-    string targetName = "";
-    uint32 targetObjectId = 0;
     int32 fps = 60;
     int32 startFrame = 0;
     int32 endFrame = 60;
     bool loop = false;
-    vector<UI_AnimationKeyframeTrack> tracks = {};
+    vector<UI_AnimationTargetBinding> targets = {};
 };
 
 inline const char* Get_AnimationTrackTypeName(UI_AnimationTrackType type)
@@ -151,6 +158,8 @@ inline const char* Get_AnimationKeyframeTrackTypeName(UI_AnimationKeyframeTrackT
         return "ScaleY";
     case UI_AnimationKeyframeTrackType::Rotation:
         return "Rotation";
+    case UI_AnimationKeyframeTrackType::Color:
+        return "Color";
     case UI_AnimationKeyframeTrackType::Alpha:
         return "Alpha";
     default:
@@ -190,6 +199,12 @@ inline bool Try_ParseAnimationKeyframeTrackType(const string& typeName, UI_Anima
         return true;
     }
 
+    if (typeName == "Color")
+    {
+        outType = UI_AnimationKeyframeTrackType::Color;
+        return true;
+    }
+
     if (typeName == "Alpha")
     {
         outType = UI_AnimationKeyframeTrackType::Alpha;
@@ -211,6 +226,39 @@ inline float Clamp_AnimationKeyframeTrackValue(UI_AnimationKeyframeTrackType typ
     default:
         return value;
     }
+}
+
+inline float Clamp_AnimationColorChannel255(float value)
+{
+    return min(max(value, 0.f), 255.f);
+}
+
+inline ImVec4 Clamp_AnimationKeyframeColor(ImVec4 color)
+{
+    color.x = Clamp_AnimationColorChannel255(color.x);
+    color.y = Clamp_AnimationColorChannel255(color.y);
+    color.z = Clamp_AnimationColorChannel255(color.z);
+    color.w = Clamp_AnimationColorChannel255(color.w);
+    return color;
+}
+
+inline ImVec4 Convert_AnimationColor01To255(const ImVec4& color)
+{
+    return Clamp_AnimationKeyframeColor(ImVec4(
+        color.x * 255.f,
+        color.y * 255.f,
+        color.z * 255.f,
+        color.w * 255.f));
+}
+
+inline ImVec4 Convert_AnimationColor255To01(const ImVec4& color)
+{
+    const ImVec4 clampedColor = Clamp_AnimationKeyframeColor(color);
+    return ImVec4(
+        clampedColor.x / 255.f,
+        clampedColor.y / 255.f,
+        clampedColor.z / 255.f,
+        clampedColor.w / 255.f);
 }
 
 inline const char* Get_AnimationEasingName(UI_AnimationEasing easing)
