@@ -2,6 +2,7 @@
 #include <Event_Struct.h>
 #include "Camera.h"
 #include "Battle_Enum.h"
+#include "BattleTurnCameraPoseUtils.h"
 #include "CameraPresetTypes.h"
 #include "BattleCameraClipTypes.h"
 #include "BattleCameraProfileTypes.h"
@@ -13,6 +14,7 @@ class BattleTurnCamera final : public Camera
 
 public:
     using BATTLE_TURN_CAMERA_DESC = Camera::CAMERA_DESC;
+    using EvaluatedPose = BattleTurnCameraEvaluatedPose;
 
     struct BattleShotRequest
     {
@@ -59,8 +61,53 @@ public:
     void Set_IsClipPreview(bool boolean) { _isClipPreview = boolean; }
 
 private:
+    struct PoseTransitionState
+    {
+        bool active = false;
+        float elapsed = 0.f;
+        float duration = 0.35f;
+        EvaluatedPose fromPose{};
+        EvaluatedPose toPose{};
+        BattleShotRequest targetRequest{};
+        BattleCameraPreset targetPreset{};
+        BattleCameraClip* targetActiveClip = nullptr;
+        Vec3 targetSmoothedTargetPos = Vec3::Zero;
+        Vec3 targetPrevTargetPos = Vec3::Zero;
+    };
+
+private:
     void Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt);
     void Apply_FreeAimCamera();                
+    void Apply_EvaluatedPose(const EvaluatedPose& pose);
+    EvaluatedPose Capture_CurrentPose();
+    bool Evaluate_ShotRequestPose(
+        const BattleShotRequest& request,
+        const BattleCameraPreset& preset,
+        const Vec3* smoothedTargetPos,
+        float clipTime,
+        EvaluatedPose& outPose) const;
+    bool Should_StartPoseTransition(const BattleShotRequest& request) const;
+    bool Start_PoseTransition(
+        const BattleShotRequest& request,
+        const BattleCameraPreset& preset,
+        BattleCameraClip* activeClip,
+        const Vec3& targetSmoothedTargetPos,
+        const Vec3& targetPrevTargetPos);
+    void Update_PoseTransition(float timeDelta);
+    bool Evaluate_CurrentPresetPose(
+        const Vec3& targetPos,
+        const BattleCameraPreset& preset,
+        const BattleCameraClipSample& clipSample,
+        float yawBase,
+        float pitchBase,
+        const Vec3* smoothedTargetPos,
+        EvaluatedPose& outPose) const;
+    bool Evaluate_EnemyAttackPose(
+        const Vec3& subjectPos,
+        const Vec3& opponentPos,
+        const BattleCameraPreset& preset,
+        const BattleCameraClipSample& clipSample,
+        EvaluatedPose& outPose) const;
 
 private:
     void Update_WideMode(float timeDelta);
@@ -72,14 +119,26 @@ private:
     void Preview_EnemyAttackAtTime(float time);
     void Update_LiveEditInput(float timeDelta);
     void Update_PlayerAttackMode(float timeDelta);
+public:
+    bool Evaluate_PreviewCurrentPresetPose(
+        const Vec3& targetPos,
+        const BattleCameraPreset& preset,
+        const BattleCameraClipSample& clipSample,
+        float yawBase,
+        float pitchBase,
+        EvaluatedPose& outPose) const;
+    bool Evaluate_PreviewEnemyAttackPose(
+        const Vec3& subjectPos,
+        const Vec3& opponentPos,
+        const BattleCameraPreset& preset,
+        const BattleCameraClipSample& clipSample,
+        EvaluatedPose& outPose) const;
 
     BattleCameraPreset* Get_MutablePreset(BattleCameraMode cameraMode);
     BattleCameraClip* Get_MutableClip(BattleCameraMode cameraMode);
 
 
 private:
-    float   Sample_Track(const BattleCameraTrack& battleCameraTrack, float time);
-    BattleCameraClipSample   Sample_Clip(const BattleCameraClip& battleCameraClip,float time);
     BattleCameraClipSample   Advance_ActiveClip(float timeDelta);
 
 private:
@@ -115,6 +174,7 @@ private:
 
     BattleCameraProfile   _playerAttackDefaultProfile{};
     umap<string, BattleCameraProfile> _playerAttackProfilesBySkill;
+    PoseTransitionState   _poseTransition{};
 
 public:
     static Shared<BattleTurnCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

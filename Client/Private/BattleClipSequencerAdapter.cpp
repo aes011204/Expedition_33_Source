@@ -51,6 +51,12 @@ BattleCameraTrack* GetTrackByIndex(BattleCameraClip* clip, int index)
         return &clip->fovOffset;
     case 2:
         return &clip->shakeAmplitude;
+    case 3:
+        return &clip->sideOffset;
+    case 4:
+        return &clip->pivotOffset;
+    case 5:
+        return &clip->yawOffset;
     default:
         return nullptr;
     }
@@ -66,6 +72,12 @@ const char* GetTrackLabel(int index)
         return "FOV Offset";
     case 2:
         return "Shake Amplitude";
+    case 3:
+        return "Side Offset";
+    case 4:
+        return "Pivot Offset";
+    case 5:
+        return "Yaw Offset";
     default:
         return "";
     }
@@ -237,7 +249,15 @@ BattleClipSequencerAdapter::BattleClipSequencerAdapter(
     bool* requestOpenInsertPopup,
     bool* requestRemoveKeyPopup,
     int* contextTrackIndex,
-    int* contextFrame)
+    int* contextFrame,
+    int* displayFrameMax,
+    bool* previewDirty,
+    bool* distanceEnabled,
+    bool* fovEnabled,
+    bool* shakeEnabled,
+    bool* sideEnabled,
+    bool* pivotEnabled,
+    bool* yawEnabled)
     : _clip(clip)
     , _selectedTrackIndex(selectedTrackIndex)
     , _selectedKeyIndex(selectedKeyIndex)
@@ -247,7 +267,15 @@ BattleClipSequencerAdapter::BattleClipSequencerAdapter(
     , _requestRemoveKeyPopup(requestRemoveKeyPopup)
     , _contextTrackIndex(contextTrackIndex)
     , _contextFrame(contextFrame)
+    , _displayFrameMax(displayFrameMax)
+    , _previewDirty(previewDirty)
 {
+    _trackEnabledFlags[0] = distanceEnabled;
+    _trackEnabledFlags[1] = fovEnabled;
+    _trackEnabledFlags[2] = shakeEnabled;
+    _trackEnabledFlags[3] = sideEnabled;
+    _trackEnabledFlags[4] = pivotEnabled;
+    _trackEnabledFlags[5] = yawEnabled;
 }
 
 int BattleClipSequencerAdapter::GetFrameMin() const
@@ -260,12 +288,16 @@ int BattleClipSequencerAdapter::GetFrameMax() const
     if (GetClip() == nullptr)
         return 1;
 
-    return std::max(TimeToFrame(GetClip()->duration), 1);
+    const int clipFrameMax = std::max(TimeToFrame(GetClip()->duration), 1);
+    if (_displayFrameMax == nullptr)
+        return clipFrameMax;
+
+    return std::max(clipFrameMax, std::max(*_displayFrameMax, 1));
 }
 
 int BattleClipSequencerAdapter::GetItemCount() const
 {
-    return 3;
+    return 6;
 }
 
 const char* BattleClipSequencerAdapter::GetItemLabel(int index) const
@@ -299,10 +331,57 @@ size_t BattleClipSequencerAdapter::GetCustomHeight(int index)
     return 0;
 }
 
+bool* BattleClipSequencerAdapter::GetTrackEnabledFlag(int index) const
+{
+    if (index < 0 || index >= static_cast<int>(std::size(_trackEnabledFlags)))
+        return nullptr;
+
+    return _trackEnabledFlags[index];
+}
+
 void BattleClipSequencerAdapter::CustomDraw(int index, ImDrawList* drawList, const ImRect& rc, const ImRect& legendRect, const ImRect& clippingRect, const ImRect& legendClippingRect)
 {
-    UNREFERENCED_PARAMETER(legendRect);
-    UNREFERENCED_PARAMETER(legendClippingRect);
+    if (bool* enabled = GetTrackEnabledFlag(index))
+    {
+        const float checkboxSize = 16.f;
+        const ImVec2 checkboxMin(
+            legendRect.Max.x - checkboxSize - 8.f,
+            legendRect.Min.y + std::max((legendRect.GetHeight() - checkboxSize) * 0.5f, 0.f));
+        const ImVec2 checkboxMax(checkboxMin.x + checkboxSize, checkboxMin.y + checkboxSize);
+        const ImRect checkboxRect(checkboxMin, checkboxMax);
+        const bool hovered = ImGui::IsMouseHoveringRect(checkboxRect.Min, checkboxRect.Max, false);
+
+        if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        {
+            *enabled = !(*enabled);
+            if (_previewDirty != nullptr)
+                *_previewDirty = true;
+        }
+
+        drawList->PushClipRect(legendClippingRect.Min, legendClippingRect.Max, true);
+        drawList->AddRectFilled(
+            checkboxRect.Min,
+            checkboxRect.Max,
+            hovered ? IM_COL32(74, 76, 84, 255) : IM_COL32(52, 54, 60, 255),
+            3.f);
+        drawList->AddRect(checkboxRect.Min, checkboxRect.Max, IM_COL32(130, 134, 146, 255), 3.f);
+
+        if (*enabled)
+        {
+            drawList->AddLine(
+                ImVec2(checkboxRect.Min.x + 3.f, checkboxRect.Min.y + checkboxSize * 0.55f),
+                ImVec2(checkboxRect.Min.x + checkboxSize * 0.42f, checkboxRect.Max.y - 3.f),
+                IM_COL32(242, 194, 76, 255),
+                2.f);
+            drawList->AddLine(
+                ImVec2(checkboxRect.Min.x + checkboxSize * 0.42f, checkboxRect.Max.y - 3.f),
+                ImVec2(checkboxRect.Max.x - 3.f, checkboxRect.Min.y + 3.f),
+                IM_COL32(242, 194, 76, 255),
+                2.f);
+        }
+
+        drawList->PopClipRect();
+    }
 
     DrawBattleClipKeyMarkers(
         _clip,

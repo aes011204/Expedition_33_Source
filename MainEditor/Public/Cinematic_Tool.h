@@ -106,6 +106,7 @@ private:
     CAMERAPOSE                           _pendingInsertPose{};
     BattleCameraMode                     _selectedBattleClipMode = BattleCameraMode::PLAYERATTACK;
     BattleCameraMode                     _loadedBattleClipMode = BattleCameraMode::PLAYERATTACK;
+    string                               _loadedBattleClipSkillId{};
     BattleCameraClip                     _editingBattleClip{ 1.f };
     bool                                 _hasLoadedBattleClip = false;
     int                                  _battleClipSelectedTrackIndex = 0;

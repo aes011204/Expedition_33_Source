@@ -15,7 +15,15 @@ public:
         bool* requestOpenInsertPopup,
         bool* requestRemoveKeyPopup,
         int* contextTrackIndex,
-        int* contextFrame);
+        int* contextFrame,
+        int* displayFrameMax = nullptr,
+        bool* previewDirty = nullptr,
+        bool* distanceEnabled = nullptr,
+        bool* fovEnabled = nullptr,
+        bool* shakeEnabled = nullptr,
+        bool* sideEnabled = nullptr,
+        bool* pivotEnabled = nullptr,
+        bool* yawEnabled = nullptr);
 
 public:
     int GetFrameMin() const override;
@@ -29,17 +37,21 @@ public:
 
 private:
     BattleCameraClip* GetClip() const { return _clip; }
+    bool* GetTrackEnabledFlag(int index) const;
 
 private:
     BattleCameraClip* _clip = nullptr;
     int* _selectedTrackIndex = nullptr;
     int* _selectedKeyIndex = nullptr;
     int* _currentFrame = nullptr;
+    int* _displayFrameMax = nullptr;
     bool* _consumedKeyClick = nullptr;
     bool* _requestOpenInsertPopup = nullptr;
     bool* _requestRemoveKeyPopup = nullptr;
     int* _contextTrackIndex = nullptr;
     int* _contextFrame = nullptr;
+    bool* _previewDirty = nullptr;
+    bool* _trackEnabledFlags[6] = {};
     mutable int _frameMin = 0;
     mutable int _frameMax = 1;
 };

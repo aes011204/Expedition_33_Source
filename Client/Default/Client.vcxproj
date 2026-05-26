@@ -168,6 +168,7 @@
     <ClInclude Include="..\public\Base_Mon_Attack.h" />
     <ClInclude Include="..\public\BattleActionExecutor.h" />
     <ClInclude Include="..\Public\BattleCameraClipIO.h" />
+    <ClInclude Include="..\Public\BattleCameraClipUtils.h" />
     <ClInclude Include="..\Public\BattleClipSequencerAdapter.h" />
     <ClInclude Include="..\Public\BattleCameraClipTypes.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />

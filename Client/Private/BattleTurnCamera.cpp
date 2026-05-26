@@ -2,11 +2,26 @@
 #include <CameraPresetIO.h>
 
 #include "BattleCameraClipIO.h"
+#include "BattleCameraClipUtils.h"
 #include "ClientInstance.h"
 #include "GameInstance.h"
 #include "Character.h"
+#include "PartObject.h"
+#include "ModelCom.h"
 #include "Event_Bus.h"
 #include "Battle_Event.h"
+
+namespace
+{
+Shared<ModelCom> Resolve_BattleCameraSubjectModel(const Shared<Character>& character)
+{
+    if (character == nullptr)
+        return nullptr;
+
+    PartObject* body = character->Get_PartObject(L"Part_Body");
+    return body ? body->Get_Component<ModelCom>() : nullptr;
+}
+}
 
 IMPLEMENT_REFLECTION(BattleTurnCamera)
 {
@@ -83,13 +98,14 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
 
    for (const string& skillId : CLIENT->Get_AllSkillIds())
    {
+       BattleCameraPreset skillPreset = _playerAttackDefaultProfile.preset;
        BattleCameraClip skillClip{};
-       if (!BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::PLAYERATTACK, skillClip, skillId))
-           continue;
+       BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::PLAYERATTACK, skillClip, skillId);
+       CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::PLAYERATTACK, skillPreset, skillId);
 
        BattleCameraProfile profile{};
-       profile.preset = _playerAttackDefaultProfile.preset;
-       profile.clip = skillClip;
+       profile.preset = skillPreset;
+       profile.clip = skillClip.duration > 0.f ? skillClip : _playerAttackDefaultProfile.clip;
        _playerAttackProfilesBySkill[skillId] = profile;
    }
 
@@ -158,6 +174,12 @@ void BattleTurnCamera::Update(float timeDelta)
 
     if(_isClipPreview)
         return;
+
+    if (_poseTransition.active)
+    {
+        Update_PoseTransition(timeDelta);
+        return;
+    }
 
     switch (_currentRequest.mode)
     {
@@ -318,6 +340,243 @@ void BattleTurnCamera::Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt)
     Update_TransformMatrices();
 }
 
+void BattleTurnCamera::Apply_EvaluatedPose(const EvaluatedPose& pose)
+{
+    Set_FovY(pose.fovY);
+    Apply_LookAt(pose.cameraPos, pose.lookTarget);
+    _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, pose.rollOffset));
+    Update_TransformMatrices();
+}
+
+BattleTurnCamera::EvaluatedPose BattleTurnCamera::Capture_CurrentPose()
+{
+    EvaluatedPose pose{};
+    pose.fovY = Get_FovY();
+
+    if (_transformCom == nullptr)
+        return pose;
+
+    const Vec3 cameraPos = _transformCom->Get_WorldPosition();
+    Vec3 forward = _transformCom->Get_WorldForward();
+    if (forward.LengthSquared() <= 0.0001f)
+        forward = Vec3::Look;
+    else
+        forward.Normalize();
+
+    pose.cameraPos = cameraPos;
+    pose.lookTarget = cameraPos + forward * 10.f;
+    pose.rollOffset = 0.f;
+    return pose;
+}
+
+bool BattleTurnCamera::Evaluate_ShotRequestPose(
+    const BattleShotRequest& request,
+    const BattleCameraPreset& preset,
+    const Vec3* smoothedTargetPos,
+    float clipTime,
+    EvaluatedPose& outPose) const
+{
+    switch (request.mode)
+    {
+    case BattleCameraMode::WIDE:
+    {
+        Vec3 heroCenter = Vec3::Zero;
+        uint32 heroCount = 0;
+
+        for (const BattleChar& hero : _heroes)
+        {
+            if (hero.actor == nullptr || hero.actor->Get_Transform() == nullptr)
+                continue;
+
+            heroCenter += hero.actor->Get_Transform()->Get_WorldPosition();
+            ++heroCount;
+        }
+
+        if (heroCount == 0)
+            return false;
+
+        heroCenter /= static_cast<float>(heroCount);
+
+        Shared<GameObject> yawBaseActor = nullptr;
+        if (_heroes.size() > 1 && _heroes[1].actor && _heroes[1].actor->Get_Transform())
+            yawBaseActor = _heroes[1].actor;
+        else if (!_heroes.empty() && _heroes[0].actor && _heroes[0].actor->Get_Transform())
+            yawBaseActor = _heroes[0].actor;
+
+        if (yawBaseActor == nullptr)
+            return false;
+
+        const Vec3 baseRot = yawBaseActor->Get_Transform()->Get_RotationEuler();
+        const float cameraYawRad = XMConvertToRadians(baseRot.y);
+
+        Vec3 forwardDir{};
+        forwardDir.x = sinf(cameraYawRad);
+        forwardDir.y = 0.f;
+        forwardDir.z = cosf(cameraYawRad);
+        forwardDir.Normalize();
+
+        const Vec3 backDir = -forwardDir;
+        Vec3 rightDir{};
+        rightDir.x = cosf(cameraYawRad);
+        rightDir.y = 0.f;
+        rightDir.z = -sinf(cameraYawRad);
+        rightDir.Normalize();
+
+        outPose.cameraPos =
+            heroCenter +
+            backDir * 8.5f +
+            rightDir * 2.0f +
+            Vec3(2.f, 3.f, -2.f);
+        outPose.lookTarget = heroCenter + Vec3(0.f, 2.2f, 0.f);
+        outPose.fovY = preset.camera.fovy;
+        outPose.rollOffset = 0.f;
+        return true;
+    }
+
+    case BattleCameraMode::PLAYERFOCUS:
+    case BattleCameraMode::ENEMYFOCUS:
+    case BattleCameraMode::PLAYERATTACK:
+    {
+        if (request.subject == nullptr)
+            return false;
+
+        const Vec3 subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+        return Evaluate_BattleTurnCurrentPresetPose(
+            subjectPos,
+            preset,
+            BattleCameraClipSample{},
+            _yaw,
+            _pitch,
+            smoothedTargetPos,
+            clipTime,
+            outPose);
+    }
+
+    case BattleCameraMode::ENEMYATTACK:
+    {
+        if (request.opponent == nullptr)
+            return false;
+
+        if (request.subject == nullptr)
+            return false;
+
+        const Vec3 subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+        const Vec3 opponentPos = request.opponent->Get_Transform()->Get_WorldPosition();
+        return Evaluate_BattleTurnEnemyAttackPose(
+            subjectPos,
+            opponentPos,
+            preset,
+            BattleCameraClipSample{},
+            clipTime,
+            outPose);
+    }
+    default:
+        return false;
+    }
+}
+
+bool BattleTurnCamera::Should_StartPoseTransition(const BattleShotRequest& request) const
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    if (_currentRequest.subject != nullptr)
+        return true;
+
+    return _currentRequest.mode == BattleCameraMode::WIDE && _isWideMode;
+}
+
+bool BattleTurnCamera::Start_PoseTransition(
+    const BattleShotRequest& request,
+    const BattleCameraPreset& preset,
+    BattleCameraClip* activeClip,
+    const Vec3& targetSmoothedTargetPos,
+    const Vec3& targetPrevTargetPos)
+{
+    EvaluatedPose fromPose = Capture_CurrentPose();
+    EvaluatedPose toPose{};
+    if (!Evaluate_ShotRequestPose(request, preset, &targetSmoothedTargetPos, 0.f, toPose))
+        return false;
+
+    _poseTransition.active = true;
+    _poseTransition.elapsed = 0.f;
+    _poseTransition.duration = 0.35f;
+    _poseTransition.fromPose = fromPose;
+    _poseTransition.toPose = toPose;
+    _poseTransition.targetRequest = request;
+    _poseTransition.targetPreset = preset;
+    _poseTransition.targetActiveClip = activeClip;
+    _poseTransition.targetSmoothedTargetPos = targetSmoothedTargetPos;
+    _poseTransition.targetPrevTargetPos = targetPrevTargetPos;
+    _isClipPreview = false;
+    return true;
+}
+
+void BattleTurnCamera::Update_PoseTransition(float timeDelta)
+{
+    const float clampedDelta = std::max(0.f, timeDelta);
+    _poseTransition.elapsed += clampedDelta;
+    const float duration = std::max(0.0001f, _poseTransition.duration);
+    const float t = std::clamp(_poseTransition.elapsed / duration, 0.f, 1.f);
+
+    EvaluatedPose blended{};
+    blended.cameraPos = Vec3::Lerp(_poseTransition.fromPose.cameraPos, _poseTransition.toPose.cameraPos, t);
+    blended.lookTarget = Vec3::Lerp(_poseTransition.fromPose.lookTarget, _poseTransition.toPose.lookTarget, t);
+    blended.fovY = _poseTransition.fromPose.fovY + (_poseTransition.toPose.fovY - _poseTransition.fromPose.fovY) * t;
+    blended.rollOffset = _poseTransition.fromPose.rollOffset + (_poseTransition.toPose.rollOffset - _poseTransition.fromPose.rollOffset) * t;
+    Apply_EvaluatedPose(blended);
+
+    if (t < 1.f)
+        return;
+
+    _poseTransition.active = false;
+    _currentRequest = _poseTransition.targetRequest;
+    _currentPreset = _poseTransition.targetPreset;
+    _targetPreset = _poseTransition.targetPreset;
+    _targetTransform = _currentRequest.subject ? _currentRequest.subject->Get_Transform() : nullptr;
+    _smoothedTargetPos = _poseTransition.targetSmoothedTargetPos;
+    _prevTargetPos = _poseTransition.targetPrevTargetPos;
+    _activeClip = _poseTransition.targetActiveClip;
+    _clipTime = 0.f;
+    _isFirstUpdate = true;
+}
+
+bool BattleTurnCamera::Evaluate_CurrentPresetPose(
+    const Vec3& targetPos,
+    const BattleCameraPreset& preset,
+    const BattleCameraClipSample& clipSample,
+    float yawBase,
+    float pitchBase,
+    const Vec3* smoothedTargetPos,
+    EvaluatedPose& outPose) const
+{
+    return Evaluate_BattleTurnCurrentPresetPose(
+        targetPos,
+        preset,
+        clipSample,
+        yawBase,
+        pitchBase,
+        smoothedTargetPos,
+        _clipTime,
+        outPose);
+}
+
+bool BattleTurnCamera::Evaluate_EnemyAttackPose(
+    const Vec3& subjectPos,
+    const Vec3& opponentPos,
+    const BattleCameraPreset& preset,
+    const BattleCameraClipSample& clipSample,
+    EvaluatedPose& outPose) const
+{
+    return Evaluate_BattleTurnEnemyAttackPose(
+        subjectPos,
+        opponentPos,
+        preset,
+        clipSample,
+        _clipTime,
+        outPose);
+}
+
 void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 {
     if (_currentRequest.mode == request.mode &&
@@ -330,54 +589,67 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     if(wasWide && !willWide)
         _isWideMode = false;
 
-    _activeClip = nullptr; 
-    _clipTime = 0.f;
-    _isClipPreview = false;
-    _isFirstUpdate = true;
-    _currentRequest = request;
-    _targetTransform = nullptr;
+    BattleCameraClip* nextActiveClip = nullptr;
+    BattleCameraPreset nextPreset{};
 
-    if (_currentRequest.subject)
-        _targetTransform = _currentRequest.subject->Get_Transform();
-
-    switch(_currentRequest.mode)
+    switch(request.mode)
     {
     case BattleCameraMode::WIDE:
-        _targetPreset = _wideModePreset;
+        nextPreset = _wideModePreset;
         break;
 
     case BattleCameraMode::PLAYERFOCUS: 
-        _targetPreset = _playerFocusPreset;
+        nextPreset = _playerFocusPreset;
         break;
 
     case BattleCameraMode::ENEMYFOCUS:
-        _targetPreset = _enemyFocusPreset;
+        nextPreset = _enemyFocusPreset;
         break;
 
     case BattleCameraMode::ENEMYATTACK:
-        _targetPreset = _enemyAttackPreset;
-        _activeClip = &_enemyAttackClip;
+        nextPreset = _enemyAttackPreset;
+        nextActiveClip = &_enemyAttackClip;
         break;
 
     case BattleCameraMode::PLAYERATTACK:
-        if (const BattleCameraProfile* profile = Resolve_BattleCameraProfile(_currentRequest))
+        if (const BattleCameraProfile* profile = Resolve_BattleCameraProfile(request))
         {
-            _targetPreset = profile->preset;
-            _activeClip = const_cast<BattleCameraClip*>(&profile->clip);
+            nextPreset = profile->preset;
+            nextActiveClip = const_cast<BattleCameraClip*>(&profile->clip);
         }
         break;
     }
 
+    Vec3 targetSmoothedTargetPos = _smoothedTargetPos;
+    Vec3 targetPrevTargetPos = _prevTargetPos;
+    Shared<TransformCom> nextTargetTransform = request.subject ? request.subject->Get_Transform() : nullptr;
+    if (request.subject && (nextPreset.snapOnEnter || _currentRequest.subject == nullptr))
+    {
+        const Vec3 targetPos = request.subject->Get_Transform()->Get_WorldPosition();
+        targetSmoothedTargetPos = targetPos;
+        targetPrevTargetPos = targetPos;
+    }
+
+    if (Should_StartPoseTransition(request))
+    {
+        if (Start_PoseTransition(request, nextPreset, nextActiveClip, targetSmoothedTargetPos, targetPrevTargetPos))
+            return;
+    }
+
+    _poseTransition.active = false;
+    _activeClip = nextActiveClip;
+    _clipTime = 0.f;
+    _isClipPreview = false;
+    _isFirstUpdate = true;
+    _currentRequest = request;
+    _targetTransform = nextTargetTransform;
+    _targetPreset = nextPreset;
     _currentPreset = _targetPreset;
 
     //playerfocus, playerAttack 이었을 때 snapOnEnter가 false여서 그 마지막 애니메이션의 target Pos가 되어있을텐데 지금은 enemyfocus가 마지막으로 저장된 것이므로 거기서 확대되는식으로 이루어짐
     //각 애니메이션이 종료하고 나서의 _smoothedTargetPos는 무조건 그 애니메이션 종료 시점에 한번씩은 저장할 수 있도록 해야할텐데
-    if (_currentPreset.snapOnEnter && _targetTransform)
-    {
-        const Vec3 targetPos = _targetTransform->Get_WorldPosition();
-        _smoothedTargetPos = targetPos;
-        _prevTargetPos = targetPos;
-    }
+    _smoothedTargetPos = targetSmoothedTargetPos;
+    _prevTargetPos = targetPrevTargetPos;
 }
 
 void BattleTurnCamera::Begin_LiveEdit(BattleCameraMode mode, const Shared<Character>& subject, const Shared<Character>& opponent)
@@ -423,11 +695,7 @@ void BattleTurnCamera::Update_EnemyFocusMode(float timeDelta)
 
 void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
 {
-    // clip이 있을 시 적용
     const BattleCameraClipSample clip  = Advance_ActiveClip(timeDelta);
-
-    float finalFovY = _currentPreset.camera.fovy + clip.fovOffset;
-    float finalDistance = _currentPreset.distance + clip.distanceOffset;
 
     if(_isFirstUpdate)
     {
@@ -439,30 +707,11 @@ void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
         _isFirstUpdate = false;
     }
 
-    Vec3 forward = _playerPos - _enemyPos;
+    EvaluatedPose pose{};
+    if (!Evaluate_EnemyAttackPose(_enemyPos, _playerPos, _currentPreset, clip, pose))
+        return;
 
-    forward.y = 0;
-    forward.Normalize();
-
-    Vec3 right;
-
-    right.x = forward.z;
-    right.y = 0;
-    right.z  = -forward.x;
-
-    Vec3 backDir = - forward;
-
-    const float yawRad = XMConvertToRadians(_currentPreset.yawOffset);
-    Vec3 yawAdjustedBack = backDir * cosf(yawRad) + right * sinf(yawRad);
-
-    Vec3 camPos = _playerPos + yawAdjustedBack * finalDistance + right * _currentPreset.sideOffset + Vec3::Up * _currentPreset.heightOffset;
-
-    Vec3 lookTarget = _enemyPos + forward * _currentPreset.aimOffset + Vec3::Up * _currentPreset.lookHeight;
-
-    finalFovY = clamp(finalFovY, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
-    Set_FovY(finalFovY);
-    Apply_LookAt(camPos,lookTarget);
-    Update_TransformMatrices();
+    Apply_EvaluatedPose(pose);
 }
 
 void BattleTurnCamera::Update_PlayerAttackMode(float timeDelta)
@@ -478,51 +727,13 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
     // Clip이 있을 시 적용
     const BattleCameraClipSample clip  = Advance_ActiveClip(timeDelta);
 
-    float finalFovY = _currentPreset.camera.fovy + clip.fovOffset;
-    float finalDistance = _currentPreset.distance + clip.distanceOffset;
-
     const Vec3 targetPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
-
-    const float finalYaw = _yaw + _currentPreset.yawOffset;
-    const float finalPitch = _pitch + _currentPreset.pitchOffset;
-
-    const float yawRad = XMConvertToRadians(finalYaw);
-    const float pitchRad = XMConvertToRadians(finalPitch);
-
-    Vec3 backDir;
-    backDir.x = -sinf(yawRad);
-    backDir.y = 0.f;
-    backDir.z = -cosf(yawRad);
-    backDir.Normalize();
-
-    Vec3 rightDir;
-    rightDir.x = cosf(yawRad);
-    rightDir.y = 0.f;
-    rightDir.z = -sinf(yawRad);
-    rightDir.Normalize();
-
-    const Vec3 baseOffset = backDir * finalDistance;
-
-    const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
-    const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
 
     _smoothedTargetPos = Vec3::Lerp(_smoothedTargetPos, targetPos, timeDelta * _currentPreset.followSpeed);
 
-    const Vec3 pivotPos = _smoothedTargetPos + Vec3::Up * _currentPreset.pivotHeight;
-    Vec3 framingPos = pivotPos  + rightDir * _currentPreset.aimOffset;
-    Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * _currentPreset.heightOffset + rightDir * _currentPreset.sideOffset;
-    Vec3 lookTarget = framingPos + Vec3::Up * _currentPreset.lookHeight;
-
-    Vec3 newPos = desiredPos;
-
-    finalFovY = clamp(finalFovY, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
-
-    Set_FovY(finalFovY);
-
-    Apply_LookAt(newPos, lookTarget);
-    _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, _currentPreset.rollOffset));
-    
-    Update_TransformMatrices();
+    EvaluatedPose pose{};
+    Evaluate_CurrentPresetPose(targetPos, _currentPreset, clip, _yaw, _pitch, &_smoothedTargetPos, pose);
+    Apply_EvaluatedPose(pose);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
     _prevTargetPos = targetPos;
@@ -723,42 +934,13 @@ void BattleTurnCamera::Preview_CurrentPresetAtTime(float time)
         return;
 
     BattleCameraClip* clip = Get_MutableClip(_currentRequest.mode);
-    const BattleCameraClipSample clipSample = clip ? Sample_Clip(*clip, clamp(time, 0.f, clip->duration)) : BattleCameraClipSample {};
+    const BattleCameraClipSample clipSample = clip ? Sample_BattleCameraClip(*clip, clamp(time, 0.f, clip->duration)) : BattleCameraClipSample {};
 
-    const float finalFovY = clamp(_currentPreset.camera.fovy + clipSample.fovOffset, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
-    const float finalDistance = _currentPreset.distance + clipSample.distanceOffset;
     const Vec3 targetPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
 
-    const float finalYaw = _yaw + _currentPreset.yawOffset;
-    const float finalPitch = _pitch + _currentPreset.pitchOffset;
-
-    const float yawRad = XMConvertToRadians(finalYaw);
-    const float pitchRad = XMConvertToRadians(finalPitch);
-
-    Vec3 backDir;
-    backDir.x = -sinf(yawRad);
-    backDir.y = 0.f;
-    backDir.z = -cosf(yawRad);
-    backDir.Normalize();
-
-    Vec3 rightDir;
-    rightDir.x = cosf(yawRad);
-    rightDir.y = 0.f;
-    rightDir.z = -sinf(yawRad);
-    rightDir.Normalize();
-
-    const Vec3 baseOffset = backDir * finalDistance;
-    const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
-    const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
-    const Vec3 pivotPos = targetPos + Vec3::Up * _currentPreset.pivotHeight;
-    const Vec3 framingPos = pivotPos + rightDir * _currentPreset.aimOffset;
-    const Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * _currentPreset.heightOffset + rightDir * _currentPreset.sideOffset;
-    const Vec3 lookTarget = framingPos + Vec3::Up * _currentPreset.lookHeight;
-
-    Set_FovY(finalFovY);
-    Apply_LookAt(desiredPos, lookTarget);
-    _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, _currentPreset.rollOffset));
-    Update_TransformMatrices();
+    EvaluatedPose pose{};
+    Evaluate_CurrentPresetPose(targetPos, _currentPreset, clipSample, _yaw, _pitch, nullptr, pose);
+    Apply_EvaluatedPose(pose);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 }
 
@@ -768,73 +950,37 @@ void BattleTurnCamera::Preview_EnemyAttackAtTime(float time)
         return;
 
     BattleCameraClip* clip = Get_MutableClip(_currentRequest.mode);
-    const BattleCameraClipSample clipSample = clip ? Sample_Clip(*clip, clamp(time, 0.f, clip->duration)) : BattleCameraClipSample {};
-
-    const float finalFovY = clamp(_currentPreset.camera.fovy + clipSample.fovOffset, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
-    const float finalDistance = _currentPreset.distance + clipSample.distanceOffset;
+    const BattleCameraClipSample clipSample = clip ? Sample_BattleCameraClip(*clip, clamp(time, 0.f, clip->duration)) : BattleCameraClipSample {};
 
     const Vec3 enemyPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
     const Vec3 playerPos = _currentRequest.opponent->Get_Transform()->Get_WorldPosition();
 
-    Vec3 forward = playerPos - enemyPos;
-    forward.y = 0.f;
-    forward.Normalize();
+    EvaluatedPose pose{};
+    if (!Evaluate_EnemyAttackPose(enemyPos, playerPos, _currentPreset, clipSample, pose))
+        return;
 
-    Vec3 right;
-    right.x = forward.z;
-    right.y = 0.f;
-    right.z = -forward.x;
-
-    const Vec3 backDir = -forward;
-    const float yawRad = XMConvertToRadians(_currentPreset.yawOffset);
-    const Vec3 yawAdjustedBack = backDir * cosf(yawRad) + right * sinf(yawRad);
-
-    const Vec3 camPos = playerPos + yawAdjustedBack * finalDistance + right * _currentPreset.sideOffset + Vec3::Up * _currentPreset.heightOffset;
-    const Vec3 lookTarget = enemyPos + forward * _currentPreset.aimOffset + Vec3::Up * _currentPreset.lookHeight;
-
-    Set_FovY(finalFovY);
-    Apply_LookAt(camPos, lookTarget);
-    Update_TransformMatrices();
+    Apply_EvaluatedPose(pose);
 }
 
-float BattleTurnCamera::Sample_Track(const BattleCameraTrack& battleCameraTrack, float time)
+bool BattleTurnCamera::Evaluate_PreviewCurrentPresetPose(
+    const Vec3& targetPos,
+    const BattleCameraPreset& preset,
+    const BattleCameraClipSample& clipSample,
+    float yawBase,
+    float pitchBase,
+    EvaluatedPose& outPose) const
 {
-   if(battleCameraTrack.keyframes.empty())
-       return 0.f;
-
-   if(time <= battleCameraTrack.keyframes.front().time)
-   {
-       return battleCameraTrack.keyframes.front().value;
-   }
-
-   if(time >= battleCameraTrack.keyframes.back().time)
-   {
-       return battleCameraTrack.keyframes.back().value;
-   }
-
-    for(auto i = 0; i + 1 < battleCameraTrack.keyframes.size() ; i++)
-    {
-        const auto& a = battleCameraTrack.keyframes[i];
-        const auto& b = battleCameraTrack.keyframes[i + 1];
-
-        if(time >= a.time && time <= b.time)
-        {
-            float t = (time - a.time) / (b.time - a.time);
-            return lerp(a.value, b.value, t);
-        }
-    }
-    return battleCameraTrack.keyframes.back().value;
+    return Evaluate_CurrentPresetPose(targetPos, preset, clipSample, yawBase, pitchBase, nullptr, outPose);
 }
 
-BattleCameraClipSample BattleTurnCamera::Sample_Clip(const BattleCameraClip& battleCameraClip, float time)
+bool BattleTurnCamera::Evaluate_PreviewEnemyAttackPose(
+    const Vec3& subjectPos,
+    const Vec3& opponentPos,
+    const BattleCameraPreset& preset,
+    const BattleCameraClipSample& clipSample,
+    EvaluatedPose& outPose) const
 {
-    BattleCameraClipSample sample;
-
-    sample.distanceOffset = Sample_Track(battleCameraClip.distanceOffset, time);
-    sample.fovOffset = Sample_Track(battleCameraClip.fovOffset, time);
-    sample.shakeAmplitude = Sample_Track(battleCameraClip.shakeAmplitude, time);
-
-    return sample;
+    return Evaluate_EnemyAttackPose(subjectPos, opponentPos, preset, clipSample, outPose);
 }
 
 BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta)
@@ -846,11 +992,16 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta)
 
     _clipTime += timeDelta;
 
-    float sampleTime = clamp(_clipTime, 0.f, _activeClip->duration);
+    float sampleTime = _clipTime;
+    if (Shared<ModelCom> model = Resolve_BattleCameraSubjectModel(_currentRequest.subject))
+        sampleTime = model->Get_CurrentAnimationTimeSec();
 
-    sample = Sample_Clip(*_activeClip, sampleTime);
+    sampleTime = clamp(sampleTime, 0.f, _activeClip->duration);
+    _clipTime = sampleTime;
 
-    if(_clipTime >= _activeClip->duration)
+    sample = Sample_BattleCameraClip(*_activeClip, sampleTime);
+
+    if(sampleTime >= _activeClip->duration)
     {
         _clipTime = _activeClip->duration;
         _activeClip = nullptr;

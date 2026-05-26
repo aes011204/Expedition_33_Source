@@ -28,8 +28,8 @@ struct CommonCameraPreset
     float        nearPlane = 0.1f;
     float        farPlane = 500.f;
 
-    float        mouseSensor = 0.f;
-    float        mouseSensitivity = 0.f;
+    float        mouseSensor = 0.3f;
+    float        mouseSensitivity = 0.1f;
 };
 
 struct TargetCameraPreset

@@ -174,10 +174,13 @@ void Cinematic_Tool::Render_BattleClipTab()
 {
     const string selectedSkillId = Get_SelectedBattleClipSkillId();
 
-    if (!_hasLoadedBattleClip || _loadedBattleClipMode != _selectedBattleClipMode)
+    if (!_hasLoadedBattleClip ||
+        _loadedBattleClipMode != _selectedBattleClipMode ||
+        _loadedBattleClipSkillId != selectedSkillId)
     {
         BattleCameraClipIO::LoadBattleCameraClipFromFile(_selectedBattleClipMode, _editingBattleClip, selectedSkillId);
         _loadedBattleClipMode = _selectedBattleClipMode;
+        _loadedBattleClipSkillId = selectedSkillId;
         _hasLoadedBattleClip = true;
         _isBattleClipPreviewDirty = true;
     }
@@ -221,6 +224,8 @@ void Cinematic_Tool::Render_BattleClipTab()
         Render_BattleClipTrackEditor("Distance Offset", _editingBattleClip.distanceOffset);
         Render_BattleClipTrackEditor("FOV Offset", _editingBattleClip.fovOffset);
         Render_BattleClipTrackEditor("Shake Amplitude", _editingBattleClip.shakeAmplitude);
+        Render_BattleClipTrackEditor("Side Offset", _editingBattleClip.sideOffset);
+        Render_BattleClipTrackEditor("Yaw Offset", _editingBattleClip.yawOffset);
         ImGui::EndChild();
 
         ImGui::EndTable();
@@ -296,6 +301,7 @@ void Cinematic_Tool::Render_BattleClipHeader()
     {
         BattleCameraClipIO::LoadBattleCameraClipFromFile(_selectedBattleClipMode, _editingBattleClip, selectedSkillId);
         _loadedBattleClipMode = _selectedBattleClipMode;
+        _loadedBattleClipSkillId = selectedSkillId;
         _hasLoadedBattleClip = true;
         _battleClipSelectedTrackIndex = 0;
         _battleClipSelectedKeyIndex = -1;
@@ -1402,6 +1408,12 @@ void Cinematic_Tool::Insert_BattleClipKeyAtFrame(int trackIndex, int frame)
     case 2:
         track = &_editingBattleClip.shakeAmplitude;
         break;
+    case 3:
+        track = &_editingBattleClip.sideOffset;
+        break;
+    case 4:
+        track = &_editingBattleClip.yawOffset;
+        break;
     default:
         return;
     }
@@ -1651,6 +1663,10 @@ BattleCameraTrack* Cinematic_Tool::Get_SelectedBattleClipTrack()
         return &_editingBattleClip.fovOffset;
     case 2:
         return &_editingBattleClip.shakeAmplitude;
+    case 3:
+        return &_editingBattleClip.sideOffset;
+    case 4:
+        return &_editingBattleClip.yawOffset;
     default:
         return nullptr;
     }

@@ -16,6 +16,9 @@ struct BattleCameraClip
 
    BattleCameraTrack distanceOffset;
    BattleCameraTrack fovOffset;
+   BattleCameraTrack yawOffset;
+   BattleCameraTrack sideOffset;
+   BattleCameraTrack pivotOffset;
    BattleCameraTrack shakeAmplitude;
 };
 
@@ -23,6 +26,9 @@ struct  BattleCameraClipSample
 {
     float distanceOffset;
     float fovOffset;
+    float sideOffset;
+    float pivotOffset;
+    float yawOffset;
     float shakeAmplitude;
 };
 

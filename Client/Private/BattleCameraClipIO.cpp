@@ -59,6 +59,20 @@ void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode,
 
     jsonData["fovOffset"] = fovKeys;
 
+    json pivotOffsetKeys = json::array();
+
+    for (auto& keyframe : clip.pivotOffset.keyframes)
+    {
+        json keyJson{};
+
+        keyJson["time"] = keyframe.time;
+        keyJson["value"] = keyframe.value;
+
+        pivotOffsetKeys.push_back(keyJson);
+    }
+
+    jsonData["pivotOffset"] = pivotOffsetKeys;
+
     json shakeAmpKeys {};
 
     for(auto& keyframe :clip.shakeAmplitude.keyframes)
@@ -131,6 +145,20 @@ bool BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode cameraMod
             loadedClip.fovOffset.keyframes.push_back(key);
         }
     
+    }
+
+    const json& pivotOffsetKeyFrames = jsonData["pivotOffset"];
+
+    if (pivotOffsetKeyFrames.is_array())
+    {
+        for (const auto& keyframe : pivotOffsetKeyFrames)
+        {
+            BattleCameraKeyframe key {};
+            key.time = keyframe.value("time", key.time);
+            key.value = keyframe.value("value", key.value);
+
+            loadedClip.pivotOffset.keyframes.push_back(key);
+        }
     }
 
     const json& shakeAmplitudeKeyFrames = jsonData["shakeAmplitude"];

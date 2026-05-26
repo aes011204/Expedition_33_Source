@@ -9,6 +9,20 @@ CameraPresetIO::~CameraPresetIO()
 {
 }
 
+namespace
+{
+string Build_BattlePresetFilePath(BattleCameraMode cameraMode, const string& skillId)
+{
+    const string modeName = string(magic_enum::enum_name(cameraMode));
+    string fileName = "BattlePreset_" + modeName;
+
+    if (!skillId.empty())
+        fileName += "_" + skillId;
+
+    return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
+}
+}
+
 void CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode cameraMode, const TargetCameraPreset& preset)
 {
     json jsonData {};
@@ -144,7 +158,7 @@ bool CameraPresetIO::LoadPreviewFromFile(PreviewShotPanel panel, HeroId heroId, 
     return true;
 }
 
-void CameraPresetIO::SaveBattlePresetToFile(BattleCameraMode cameraMode, const BattleCameraPreset& preset)
+void CameraPresetIO::SaveBattlePresetToFile(BattleCameraMode cameraMode, const BattleCameraPreset& preset, const string& skillId)
 {
     json jsonData {};
 
@@ -169,9 +183,7 @@ void CameraPresetIO::SaveBattlePresetToFile(BattleCameraMode cameraMode, const B
     jsonData["nearPlane"]       = preset.camera.nearPlane;
     //jsonData["allowMouseRotation"] = preset.allowMouseRotation;
 
-    const string name = string(magic_enum::enum_name(cameraMode));
-
-    const string filePath = "../../../Client/Bin/Resources/Data/json/CameraPreset/BattlePreset_" + name + ".json";
+    const string filePath = Build_BattlePresetFilePath(cameraMode, skillId);
 
     const fs::path savePath = filePath;
     if (!fs::exists(savePath.parent_path()))
@@ -187,11 +199,9 @@ void CameraPresetIO::SaveBattlePresetToFile(BattleCameraMode cameraMode, const B
     file << jsonData.dump(4);
 }
 
-bool CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode cameraMode, BattleCameraPreset& outPreset)
+bool CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode cameraMode, BattleCameraPreset& outPreset, const string& skillId)
 {
-    const string name = string(magic_enum::enum_name(cameraMode));
-
-    const string filePath = "../../../Client/Bin/Resources/Data/json/CameraPreset/BattlePreset_" + name + ".json";
+    const string filePath = Build_BattlePresetFilePath(cameraMode, skillId);
 
     ifstream file(filePath);
     if (!file.is_open())

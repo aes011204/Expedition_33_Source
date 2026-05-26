@@ -183,6 +183,7 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
 
         Skill_Data skill{};
 
+        skill.characterId = item.value("character id", "");
         skill.skillKey = item.value("skillKey", "");
         skill.scriptClassName = item.value("scriptClassName", "");
         skill.apCost = item.value("ap cost", 0);

@@ -560,6 +560,8 @@ Shared<Character> Camera_Tool::Resolve_EnemyPreview() const
            return target;
         }
     }
+
+    return nullptr;
 }
 
 Shared<Camera_Tool> Camera_Tool::Create()
