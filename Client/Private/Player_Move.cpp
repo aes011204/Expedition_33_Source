@@ -18,6 +18,16 @@ bool Player_Move::EnterInvoke()
 {
     isInvokePreSprint = false;
 
+    const auto prevState = _stateCom->Get_CurrentPlayerState();
+    _enterMoveBlendTime = _defaultMoveBlendTime;
+    _useOneShotEnterBlendTime = false;
+
+    if (prevState == PlayerState::FreeAim)
+    {
+        _enterMoveBlendTime = _freeAimExitMoveBlendTime;
+        _useOneShotEnterBlendTime = true;
+    }
+
     return true;
 }
 
@@ -55,26 +65,31 @@ void Player_Move::Update(float timeDelta)
         return;
     }
 
+    const float locomotionBlendTime = _useOneShotEnterBlendTime ? _enterMoveBlendTime : _defaultMoveBlendTime;
+
     if (IsSprintMove())
     {
         if (isInvokePreSprint)
         {
             if (_bodyPlayer->Is_AnimationFinished())
             {
-                _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Sprint), 0.35f, true);
+                _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Sprint), locomotionBlendTime, true);
                 isInvokePreSprint = false;
+                _useOneShotEnterBlendTime = false;
             }
         }
         else if (animIndex != ETOI(plAnim::Pl_Sprint))
         {
-            if (_bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_PreSprint), 0.35f, false))
+            if (_bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_PreSprint), locomotionBlendTime, false))
             {
                 isInvokePreSprint = true;
+                _useOneShotEnterBlendTime = false;
             }
             else
             {
                 _bodyPlayer->Set_AnimationSpeed(1.5f);
-                _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Sprint), 0.35f, true);
+                _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Sprint), locomotionBlendTime, true);
+                _useOneShotEnterBlendTime = false;
             }
         }
     }
@@ -83,7 +98,10 @@ void Player_Move::Update(float timeDelta)
         isInvokePreSprint = false;
         _bodyPlayer->Set_AnimationSpeed(1.f);
         if (animIndex != ETOI(plAnim::Pl_Walk))
-            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Walk), 0.35f, true);
+        {
+            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Walk), locomotionBlendTime, true);
+            _useOneShotEnterBlendTime = false; // 첫 전환에만 적용
+        }
     }
     else
     {
@@ -91,7 +109,8 @@ void Player_Move::Update(float timeDelta)
         _bodyPlayer->Set_AnimationSpeed(1.35f);
         if (animIndex != ETOI(plAnim::Pl_Run))
         {
-            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Run), 0.35f, true);
+            _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Run), locomotionBlendTime, true);
+            _useOneShotEnterBlendTime = false; // 첫 전환에만 적용
         }
     }
 }

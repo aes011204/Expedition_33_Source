@@ -51,10 +51,6 @@ void PW_Lune::BeginPlay()
 {
     Player_WorldBase::BeginPlay();
 
-    // PW에서 세팅해줘야, 전투 시작 시 PB한테 전달된다.
-    _combatStatCom->Get_StatInfo().maxAp = 9;
-    _combatStatCom->Get_PlayerRuntimeStat().CurMaxAp = 9;
-    _combatStatCom->Get_PlayerRuntimeStat().CurAp = 3;
 }
 
 HRESULT PW_Lune::Ready_Modifier()

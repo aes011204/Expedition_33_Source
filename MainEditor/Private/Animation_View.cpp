@@ -141,7 +141,15 @@ void Animation_View::Update(float timeDelta)
     Validate_SelectedBoneSelection();
 
     if (!playbackModel->Is_AnimationPaused())
+    {
+        if (playbackModel->Is_AnimationFinished())
+        {
+            // 끝난 클립은 현재 선택된 애니메이션으로 즉시 다시 시작해서 다음 클립으로 넘어가지 않게 한다.
+            Sync_PreviewAnimationSelection();
+        }
+
         _sequencerCurrentFrame = static_cast<int32>(std::round(playbackModel->Get_CurrentAnimationTimeSec() * static_cast<float>(Get_CurrentAnimationFps())));
+    }
 }
 
 void Animation_View::Pre_Render()

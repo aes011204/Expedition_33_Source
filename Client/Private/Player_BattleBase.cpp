@@ -49,6 +49,7 @@ void Player_BattleBase::BeginPlay()
         }
     }
 
+    _combatStatCom->Set_BattleStartAp();
 }
 
 void Player_BattleBase::Update(float timeDelta)

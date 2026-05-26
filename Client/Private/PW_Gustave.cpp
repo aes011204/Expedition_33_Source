@@ -51,9 +51,6 @@ void PW_Gustave::BeginPlay()
 {
     Player_WorldBase::BeginPlay();
 
-    _combatStatCom->Get_StatInfo().maxAp = 9;   
-    _combatStatCom->Get_PlayerRuntimeStat().CurMaxAp = 9;
-    _combatStatCom->Get_PlayerRuntimeStat().CurAp = 3;
 }
 
 HRESULT PW_Gustave::Ready_Modifier()
@@ -65,8 +62,8 @@ HRESULT PW_Gustave::Ready_Modifier()
         aimOffsetDesc.animName = "Gustave_IdleFreeAim_LoopingWorld_Sweep";
         aimOffsetDesc.offsetBoneRanges = { { "spine_01", "hand_r" } };
         aimOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
-        aimOffsetDesc.blendInTime = 0.25f;
-        aimOffsetDesc.blendOutTime = 0.25f;
+        aimOffsetDesc.blendInTime = 0.75f;
+        aimOffsetDesc.blendOutTime = 0.75f;
         aimOffsetDesc.responseCurve = 1.5f;
         aimOffsetDesc.modifierTag = L"AimOffset";
         if (auto modifier = OffsetAnimationModifier::Create(&aimOffsetDesc))
