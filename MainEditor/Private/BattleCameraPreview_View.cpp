@@ -2094,10 +2094,10 @@ void BattleCameraPreview_View::Try_AutoSelectPreviewActorAndAnimation()
     {
         targetAnimationName = skill->AnimPhases.front().animationKey;
     }
-    else
+   /* else
     {
         targetAnimationName = skill->IdleAnimationKey;
-    }
+    }*/
 
     if (targetAnimationName.empty() || _previewAnimationNames.empty())
         return;
@@ -2531,9 +2531,7 @@ void BattleCameraPreview_View::Rebuild_TransitionPreviewStepAtTime(int stepIndex
     else
     {
         const PreviewTransitionStep& previousStep = _transitionPreviewSteps[stepIndex - 1];
-
         Apply_TransitionStepContext(previousStep);
-
         if (!Evaluate_PreviewModePose(previousStep.mode, std::max(0.f, previousStep.durationSec), false, fromPose))
         {
             Apply_TransitionStepContext(previousStep);
@@ -2543,7 +2541,6 @@ void BattleCameraPreview_View::Rebuild_TransitionPreviewStepAtTime(int stepIndex
         {
             fromPose = toPose;
         }
-
         Apply_TransitionStepContext(step);
     }
 
