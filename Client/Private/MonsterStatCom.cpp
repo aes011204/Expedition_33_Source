@@ -11,6 +11,7 @@ IMPLEMENT_REFLECTION(MonsterStatCom)
     PROPERTY_FLOAT("HP", _MRuntimeStat.CurHp, 0.f, 9999.f, 1.f);
     PROPERTY_FLOAT("AP", _MRuntimeStat.CurAp, 0.f, 9.f, 1.f);
 
+    PROPERTY_INT("Reward Exp", _monsterDesc.exp, 0.f, 9999999.f, 1.f);
     PROPERTY_STRING("Portrait", _monsterDesc.portraitGuid);
 
     return true;
@@ -65,7 +66,7 @@ HRESULT MonsterStatCom::Initialize(void* arg)
 void MonsterStatCom::Update(float timeDelta)
 {
 #ifdef _DEBUG
-    GAME->Print(L"몬스터 체력 : {}", _MRuntimeStat.CurHp, duration(0.f));
+    //GAME->Print(L"몬스터 체력 : {}", _MRuntimeStat.CurHp, duration(0.f));
 #endif
 }
 

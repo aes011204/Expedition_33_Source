@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "Engine_Enum.h"
+#include "Shader_CBuffer_Define.h"
 
 namespace DirectX::DX11
 {
@@ -26,6 +28,19 @@ class Editor_Context;
 class CommandHistory;
 class Notification_Manager;
 
+struct EffectEditorRenderPerfSample
+{
+    double editorWindowsMs{};
+    double notificationMs{};
+    double imguiMs{};
+};
+
+struct EffectEditorPostProcessOptions
+{
+    PostProcessFeature features{ PostProcessFeature::None };
+    PostProcessCB params{};
+};
+
 class EffectEditorInstance final : public Base
 {
     DECLARE_SINGLETON(EffectEditorInstance)
@@ -39,7 +54,7 @@ public:
     void Release_Editor();
 
     void Update_Editor(float timeDelta);
-    void Render_Editor();
+    void Render_Editor(EffectEditorRenderPerfSample* outPerfSample = nullptr);
 
 public: //## Accessor::Graphics
     ComPtr<Device> Get_Device() const { return _device; }
@@ -73,6 +88,8 @@ public: //## Accessor::PreviewOption
     Vec3 Get_DefaultTrailPreviewBaseLocalOffset() const { return kDefaultTrailPreviewBaseLocalOffset; }
     // Trail preview tip offset reset 기준값이다.
     Vec3 Get_DefaultTrailPreviewTipLocalOffset() const { return kDefaultTrailPreviewTipLocalOffset; }
+    const EffectEditorPostProcessOptions& Get_PostProcessOptions() const { return _postProcessOptions; }
+    EffectEditorPostProcessOptions Get_DefaultPostProcessOptions() const;
 
 public: //## Accessor::InputPolicy
     bool Is_PreviewCameraControlEnabled() const { return _isPreviewCameraControlEnabled; }
@@ -81,7 +98,6 @@ public: //## Accessor::InputPolicy
 public: //## Accessor::Viewport
     ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
     PreviewViewportMode Get_PreviewViewportMode() const { return _previewViewportMode; }
-    SceneViewMode Get_SceneViewMode() const { return _sceneViewMode; }
     bool Is_ManualPreviewViewportEnabled() const { return _previewViewportMode == PreviewViewportMode::Manual; }
     float Get_EffectiveViewportAspect() const;
 
@@ -106,6 +122,8 @@ public: //## Behavior::PreviewOption
     void Set_TrailPreviewLocalOffsets(const Vec3& baseLocalOffset, const Vec3& tipLocalOffset);
     // Trail Preview 조정값을 기본 weapon-local marker 위치로 되돌린다.
     void Reset_TrailPreviewLocalOffsets();
+    void Set_PostProcessFeature(PostProcessFeature feature, bool enabled);
+    void Set_PostProcessParams(const PostProcessCB& params);
 
 public: //## Behavior::Window
     void Request_WindowFocus(EditorViewportTarget target);
@@ -147,12 +165,13 @@ public: //## Behavior::Viewport
     Shared<RenderTarget> Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
     // runtime back buffer 결과를 editor 공유 viewport target으로 복사한다.
     void Capture_BackBuffer_ToViewport();
+    // EffectEditor scene grid를 현재 바인딩된 world render target에 그린다.
+    void Render_SceneGrid();
 
     void Request_PreviewViewportSize(uint32 width, uint32 height);
 
     void Enable_AutoPreviewViewport();
     void Enable_ManualPreviewViewport();
-    void Set_SceneViewMode(SceneViewMode viewMode);
     void Set_ManualPreviewViewportSize(uint32 width, uint32 height);
     // queued viewport 요청과 현재 모드를 맞춰 preview target 적용 상태를 동기화한다.
     void Sync_PreviewViewportMode();
@@ -190,7 +209,6 @@ private: //## Data::Viewport
     uint32 _pendingPreviewViewportHeight{ kDefaultPreviewViewportHeight };
     uint32 _appliedPreviewViewportWidth{ 0 };
     uint32 _appliedPreviewViewportHeight{ 0 };
-    SceneViewMode _sceneViewMode{ SceneViewMode::Authoring };
 
 private: //## Data::Runtime
     EffectEditorRuntimeState _runtimeState{ EffectEditorRuntimeState::Edit };
@@ -204,6 +222,7 @@ private: //## Data::PreviewOption
     bool _isTrailPreviewDebugRenderEnabled{ true };
     Vec3 _trailPreviewBaseLocalOffset{ kDefaultTrailPreviewBaseLocalOffset };
     Vec3 _trailPreviewTipLocalOffset{ kDefaultTrailPreviewTipLocalOffset };
+    EffectEditorPostProcessOptions _postProcessOptions{};
 
 private: //## Data::Window
     bool _hasPendingWindowFocus{ false };
@@ -223,7 +242,6 @@ private: //## Data::InputPolicy
 
 private: //## Helper::PreviewViewport
     void Ensure_SceneGridResources();
-    void Render_SceneGridToBackBuffer();
     void Queue_PreviewViewportSize(uint32 width, uint32 height);
     void Apply_PendingPreviewViewportSize();
 

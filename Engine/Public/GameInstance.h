@@ -52,6 +52,9 @@ class Picking;
 class Culling_Manager;
 class ThreadPool;
 class PostProcessPipeline;
+class SSAOPipeline;
+class ScreenFx_Manager;
+class ShaderResourceRegistry;
 struct StaticCollisionData;
 NS_END
 #pragma endregion
@@ -206,6 +209,10 @@ public: /* For.Renderer */
     uint32 Get_RenderCall() const;
     const Shared<PostProcessPipeline>   Get_PostProcessPipeline() const;
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
+    const Shared<SSAOPipeline>          Get_SSAOPipeline() const;
+    Shared<SSAOPipeline>                Get_SSAOPipeline();
+    const ScreenFx_Manager*             Get_ScreenFxManager() const;
+    RenderGroup                         Get_CurrentRenderGroup() const;
 
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
@@ -293,6 +300,14 @@ public: /* For.Asset_Manager (access) */
     const Asset_Manager* Get_AssetManager() const { return _assetManager.get(); }
     Asset_Manager*       Get_AssetManager() { return _assetManager.get(); }
 
+public: /* For.ShaderResourceRegistry */
+    uint32 Get_Handle(const string& name) const;
+    ID3D11ShaderResourceView* Get_SRV(uint32 handle) const;
+    ID3D11ShaderResourceView* Get_SRV(const string& name) const;
+
+    HRESULT Bind_ByHandle(ShaderCom* shader, const char* shaderVariableName, uint32 handle) const;
+    HRESULT Bind_ByName(ShaderCom* shader, const char* shaderVariableName, const string& name) const;
+
 public: /* For.Camera_Manager */
     HRESULT Add_Camera(Shared<Camera> camera) const;
     bool    Is_ActiveCamera(Shared<Camera> camera);
@@ -335,6 +350,7 @@ public: /* For.TypeRegistry */
 
 
 public : /* For.Target_Manager */
+    HRESULT Ready_AllRenderTargets();
     HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);
     HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
 
@@ -347,6 +363,9 @@ public : /* For.Target_Manager */
     HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
 
     HRESULT Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture);
+    HRESULT Bind_PlayerStencilWriteState(bool depthWrite);
+    HRESULT Bind_BackgroundUIBehindPlayerStencilState();
+    HRESULT Bind_UINoDepthStencilState();
 
 #ifdef _DEBUG
     HRESULT Initialize_Debug(float sizeX, float sizeY);
@@ -504,11 +523,13 @@ private:
     Unique<UI_Manager>          _uiManager{};
     Unique<Object_Manager>      _objectManager{};
     Unique<Renderer>            _renderer{};
+    Unique<ScreenFx_Manager>    _screenFxManager{};
     Unique<PipeLine>            _pipeLine{};
     Unique<Input_Manager>       _inputManager{};
     Unique<Light_Manager>       _lightManager{};
     Unique<Font_Manager>        _fontManager{};
     Unique<Asset_Manager>       _assetManager{}; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
+    Unique<ShaderResourceRegistry> _shaderResourceRegistry{};
     Unique<Camera_Manager>      _cameraManager{};
     Unique<TypeRegistry>        _typeRegistry{};
     Unique<Target_Manager>      _targetManager{};
@@ -529,6 +550,10 @@ private:
 private:
     ComPtr<Device>               _device = {};
     ComPtr<Context>              _context = {};
+    ComPtr<ID3D11DepthStencilState> _playerStencilWriteState = {};
+    ComPtr<ID3D11DepthStencilState> _playerStencilWriteDepthReadState = {};
+    ComPtr<ID3D11DepthStencilState> _backgroundUIBehindPlayerStencilState = {};
+    ComPtr<ID3D11DepthStencilState> _uiNoDepthStencilState = {};
 
     uint32  _viewportWidth{ 0 };
     uint32  _viewportHeight{ 0 };

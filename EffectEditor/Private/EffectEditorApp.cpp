@@ -14,21 +14,43 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    bool Starts_With(const wstring& value, const wchar_t* prefix)
-    {
-        const size_t prefixLength = wcslen(prefix);
-        return value.size() >= prefixLength && 0 == value.compare(0, prefixLength, prefix);
-    }
-
     bool Is_EffectEditorStaticLevelAllowed(const wstring& prototypeTag)
     {
-        return prototypeTag == L"VIBuffer_Rect" || prototypeTag == L"VIBuffer_Cube";
+        return prototypeTag == L"VIBuffer_Cube" || prototypeTag == L"VIBuffer_Rect";
+    }
+
+    bool Is_EffectEditorPreviewTextureAllowed(const wstring& prototypeTag)
+    {
+        return
+            prototypeTag == L"Texture_Effect_EditorSkybox" ||
+            prototypeTag == L"Texture_Effect_DefaultTexture" ||
+            prototypeTag == L"Texture_Effect_Clouds4";
+    }
+
+    bool Is_EffectEditorPreviewShaderAllowed(const wstring& prototypeTag)
+    {
+        return
+            prototypeTag == L"Shader_VtxCube" ||
+            prototypeTag == L"Shader_VtxMesh" ||
+            prototypeTag == L"Shader_VtxAnimMesh" ||
+            prototypeTag == L"Shader_EffectMaterialPreview" ||
+            prototypeTag == L"Shader_EffectSprite" ||
+            prototypeTag == L"Shader_EffectTrail";
+    }
+
+    bool Is_EffectEditorPreviewComputeShaderAllowed(const wstring& prototypeTag)
+    {
+        return
+            prototypeTag == L"ComputeShader_PointParticle" ||
+            prototypeTag == L"ComputeShader_TrailStrip" ||
+            prototypeTag == L"ComputeShader_BoneRemap" ||
+            prototypeTag == L"ComputeShader_AnimMeshSkinning";
     }
 
     bool Is_EffectEditorPreviewComponentAllowed(const wstring& prototypeTag)
     {
         return
-            Starts_With(prototypeTag, L"Com_Effect_") ||
+            prototypeTag == L"Com_Effect_ComputePointParticleBuffer" ||
             prototypeTag == L"Com_PlayerStat" ||
             prototypeTag == L"Com_Collider_OBB";
     }
@@ -36,7 +58,6 @@ namespace Internal
     bool Is_EffectEditorPreviewModelAllowed(const wstring& prototypeTag)
     {
         return
-            Starts_With(prototypeTag, L"Model_Effect_") ||
             prototypeTag == L"Model_GustaveBody" ||
             prototypeTag == L"Model_GustaveHead" ||
             prototypeTag == L"Model_GustaveHair";
@@ -45,10 +66,12 @@ namespace Internal
     bool Is_EffectEditorPreviewGameObjectAllowed(const wstring& prototypeTag)
     {
         return
-            Starts_With(prototypeTag, L"GameObject_Effect_") ||
             prototypeTag == L"GameObject_Body_Player" ||
             prototypeTag == L"GameObject_Head_Player" ||
-            prototypeTag == L"GameObject_Hair_Player";
+            prototypeTag == L"GameObject_Hair_Player" ||
+            prototypeTag == L"GameObject_EffectInstance" ||
+            prototypeTag == L"GameObject_Effect_ComputeSpriteEmitter" ||
+            prototypeTag == L"GameObject_Effect_ComputeTrailEmitter";
     }
 
     bool Is_EffectEditorStaticLoadJobAllowed(const FLoadJob& loadJob)
@@ -56,8 +79,10 @@ namespace Internal
         switch (loadJob.eType)
         {
         case ELoadJobType::Shader:
+            return Is_EffectEditorPreviewShaderAllowed(loadJob.strPrototypeTag);
+
         case ELoadJobType::ComputeShader:
-            return true;
+            return Is_EffectEditorPreviewComputeShaderAllowed(loadJob.strPrototypeTag);
 
         case ELoadJobType::Component:
             return Is_EffectEditorPreviewComponentAllowed(loadJob.strPrototypeTag);
@@ -72,17 +97,23 @@ namespace Internal
             return Is_EffectEditorStaticLevelAllowed(loadJob.strPrototypeTag);
 
         case ELoadJobType::TextureCreate:
-            return Starts_With(loadJob.strPrototypeTag, L"Texture_Effect_");
+            return Is_EffectEditorPreviewTextureAllowed(loadJob.strPrototypeTag);
 
         default:
             return false;
         }
     }
 
-    void Log_EffectEditorStaticLoadSummary(size_t totalCount, size_t includedCount, size_t excludedCount, size_t failedCount)
+    void Log_EffectEditorResourceFilterSummary(
+        const char* scope,
+        size_t totalCount,
+        size_t includedCount,
+        size_t excludedCount,
+        size_t failedCount)
     {
         LOG_INFO(
-            "[EffectEditorStaticFilter] total={}, included={}, excluded={}, failed={}",
+            "[ResourceFilter] scope={}, total={}, included={}, excluded={}, failed={}",
+            scope,
             static_cast<uint32>(totalCount),
             static_cast<uint32>(includedCount),
             static_cast<uint32>(excludedCount),
@@ -93,24 +124,19 @@ namespace Internal
     class PostProcessFeatureScope final
     {
     public:
-        explicit PostProcessFeatureScope(SceneViewMode sceneViewMode)
+        PostProcessFeatureScope()
             : _pipeline{ GAME->Get_PostProcessPipeline() }
         {
-            if (sceneViewMode != SceneViewMode::Authoring || _pipeline == nullptr)
+            if (_pipeline == nullptr || EDITOR == nullptr)
                 return;
 
             _originalFeatures = _pipeline->Get_PostProcessFeatures();
             _originalParams = _pipeline->Get_PostProcessParams();
             _restore = true;
 
-            PostProcessCB authoringParams = _originalParams;
-            authoringParams.bloomIntensity = 0.f;
-
-            _pipeline->Set_PostProcessFeatures(
-                PostProcessFeature::HDR |
-                PostProcessFeature::Bloom
-            );
-            _pipeline->Set_PostProcessParams(authoringParams);
+            const EffectEditorPostProcessOptions& options = EDITOR->Get_PostProcessOptions();
+            _pipeline->Set_PostProcessFeatures(options.features);
+            _pipeline->Set_PostProcessParams(options.params);
         }
 
         ~PostProcessFeatureScope()
@@ -159,6 +185,7 @@ HRESULT EffectEditorApp::Initialize()
     engineDesc.numLevels = ETOI(LevelType::END);
     engineDesc.viewportWidth = viewportWidth;
     engineDesc.viewportHeight = viewportHeight;
+    engineDesc.swapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     engineDesc.projectName = "EffectEditor";
 
     const auto startupStartTime = chrono::steady_clock::now();
@@ -168,7 +195,6 @@ HRESULT EffectEditorApp::Initialize()
     long long initializeClientMs = 0;
     long long readyFontsMs = 0;
     long long readyStaticResourcesMs = 0;
-    long long readyGamePlayResourcesMs = 0;
     long long readyPreviewLevelMs = 0;
     long long initializeEditorMs = 0;
 
@@ -186,7 +212,6 @@ HRESULT EffectEditorApp::Initialize()
     CHECK_FAILED(run_startup_step(initializeClientMs, [&]{ return CLIENT->Initialize_Client_ForEffectEditor(_device, _context); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyFontsMs, [&]{ return Ready_Fonts(); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyStaticResourcesMs, [&]{ return Ready_Prototype_For_Static_Level(); }), E_FAIL);
-    CHECK_FAILED(run_startup_step(readyGamePlayResourcesMs, [&]{ return CLIENT->Ready_LevelResources(LevelType::GamePlay); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyPreviewLevelMs, [&]{ return Ready_PreviewLevel(); }), E_FAIL);
 
     EffectEditorDesc editorDesc{};
@@ -200,14 +225,13 @@ HRESULT EffectEditorApp::Initialize()
 
     const auto totalStartupMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - startupStartTime).count();
     LOG_INFO(
-        "EffectEditor startup summary. total={}ms engine={}ms assetManager={}ms client={}ms fonts={}ms staticResources={}ms gameplayResources={}ms previewLevel={}ms editor={}ms",
+        "EffectEditor startup summary. total={}ms engine={}ms assetManager={}ms client={}ms fonts={}ms staticResources={}ms previewLevel={}ms editor={}ms",
         totalStartupMs,
         initializeEngineMs,
         initializeAssetManagerMs,
         initializeClientMs,
         readyFontsMs,
         readyStaticResourcesMs,
-        readyGamePlayResourcesMs,
         readyPreviewLevelMs,
         initializeEditorMs
     );
@@ -262,78 +286,243 @@ void EffectEditorApp::Late_Update(float)
 {
 }
 
+#ifdef _DEBUG
+bool EffectEditorApp::Should_SampleEffectEditorRenderPerf()
+{
+    ++_renderPerfWindow.observedFrameCount;
+
+    const auto now = chrono::steady_clock::now();
+    if (!_hasRenderPerfLastSampleTime)
+    {
+        _renderPerfLastSampleTime = now;
+        _hasRenderPerfLastSampleTime = true;
+        return true;
+    }
+
+    const float elapsedSec = static_cast<float>(
+        chrono::duration<double>(now - _renderPerfLastSampleTime).count());
+    if (elapsedSec < kEffectEditorRenderPerfSampleIntervalSec)
+        return false;
+
+    _renderPerfLastSampleTime = now;
+    return true;
+}
+
+void EffectEditorApp::Reset_EffectEditorRenderPerfWindowState(chrono::steady_clock::time_point now)
+{
+    _renderPerfWindow = {};
+    _renderPerfWindowStartTime = now;
+    _hasRenderPerfWindowStartTime = true;
+}
+
+void EffectEditorApp::Accumulate_EffectEditorRenderPerf(
+    double totalRenderMs,
+    double gameRenderMs,
+    double captureMs,
+    double bindBackBufferMs,
+    double editorRenderMs,
+    double editorWindowsMs,
+    double notificationMs,
+    double imguiMs,
+    double presentMs)
+{
+    Accumulate_PassPerf(_renderPerfWindow.totalRender, totalRenderMs);
+    Accumulate_PassPerf(_renderPerfWindow.gameRender, gameRenderMs);
+    Accumulate_PassPerf(_renderPerfWindow.capture, captureMs);
+    Accumulate_PassPerf(_renderPerfWindow.bindBackBuffer, bindBackBufferMs);
+    Accumulate_PassPerf(_renderPerfWindow.editorRender, editorRenderMs);
+    Accumulate_PassPerf(_renderPerfWindow.editorWindows, editorWindowsMs);
+    Accumulate_PassPerf(_renderPerfWindow.notification, notificationMs);
+    Accumulate_PassPerf(_renderPerfWindow.imgui, imguiMs);
+    Accumulate_PassPerf(_renderPerfWindow.present, presentMs);
+}
+
+void EffectEditorApp::Try_FlushEffectEditorRenderPerfLog()
+{
+    const auto now = chrono::steady_clock::now();
+    if (!_hasRenderPerfWindowStartTime)
+    {
+        Reset_EffectEditorRenderPerfWindowState(now);
+        return;
+    }
+
+    const float windowSec = static_cast<float>(
+        chrono::duration<double>(now - _renderPerfWindowStartTime).count());
+    if (windowSec < kEffectEditorRenderPerfWindowSec)
+        return;
+
+    const size_t sampleCount = _renderPerfWindow.totalRender.sampleCount;
+    if (0 == sampleCount)
+    {
+        Reset_EffectEditorRenderPerfWindowState(now);
+        return;
+    }
+
+    GAME->Log_FileOnly(
+        spdlog::source_loc{ __FILE__, __LINE__, SPDLOG_FUNCTION },
+        spdlog::level::trace,
+        fmt::format(
+            "[EffectEditorRenderPerf] frames={} samples={} sample_interval={:.2f}s fps~{:.1f} "
+            "total_render_ms(avg={:.2f} max={:.2f}) "
+            "game_render_ms(avg={:.2f} max={:.2f}) "
+            "capture_ms(avg={:.2f} max={:.2f}) "
+            "bind_backbuffer_ms(avg={:.2f} max={:.2f}) "
+            "editor_render_ms(avg={:.2f} max={:.2f}) "
+            "editor_windows_ms(avg={:.2f} max={:.2f}) "
+            "notification_ms(avg={:.2f} max={:.2f}) "
+            "imgui_ms(avg={:.2f} max={:.2f}) "
+            "present_ms(avg={:.2f} max={:.2f})",
+            _renderPerfWindow.observedFrameCount,
+            static_cast<uint32>(sampleCount),
+            kEffectEditorRenderPerfSampleIntervalSec,
+            Safe_Divide(static_cast<double>(_renderPerfWindow.observedFrameCount), windowSec),
+            Safe_Divide(_renderPerfWindow.totalRender.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.totalRender.maxMs,
+            Safe_Divide(_renderPerfWindow.gameRender.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.gameRender.maxMs,
+            Safe_Divide(_renderPerfWindow.capture.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.capture.maxMs,
+            Safe_Divide(_renderPerfWindow.bindBackBuffer.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.bindBackBuffer.maxMs,
+            Safe_Divide(_renderPerfWindow.editorRender.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.editorRender.maxMs,
+            Safe_Divide(_renderPerfWindow.editorWindows.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.editorWindows.maxMs,
+            Safe_Divide(_renderPerfWindow.notification.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.notification.maxMs,
+            Safe_Divide(_renderPerfWindow.imgui.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.imgui.maxMs,
+            Safe_Divide(_renderPerfWindow.present.accumulatedMs, static_cast<double>(sampleCount)),
+            _renderPerfWindow.present.maxMs
+        )
+    );
+
+    Reset_EffectEditorRenderPerfWindowState(now);
+}
+
+void EffectEditorApp::Accumulate_PassPerf(PerfCounter& counter, double passMs)
+{
+    ++counter.sampleCount;
+    counter.accumulatedMs += passMs;
+    counter.maxMs = max(counter.maxMs, passMs);
+}
+
+double EffectEditorApp::Safe_Divide(double numerator, double denominator)
+{
+    if (denominator <= 0.0)
+        return 0.0;
+
+    return numerator / denominator;
+}
+#endif
+
 HRESULT EffectEditorApp::Render()
 {
-    // EFFECTEDITOR_BG_FALLBACK_TEMP: EffectEditor 전용 배경색 제어로 보기 어렵고 공용 postprocess 경로 개입 및 관측 왜곡 우려가 있어 비활성화한다.
-    /*
-    // EFFECTEDITOR_BG_FALLBACK_TEMP: Draw 스코프 밖에서 복구할 수 있도록 사전 백업한다.
-    Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
-    PostProcessCB originalPostProcessParams{};
-    bool hasOriginalPostProcessParams = false;
-    if (postProcessPipeline != nullptr)
-    {
-        originalPostProcessParams = postProcessPipeline->Get_PostProcessParams();
-        hasOriginalPostProcessParams = true;
-    }
+#ifdef _DEBUG
+    const bool sampleRenderPerf = Should_SampleEffectEditorRenderPerf();
+    chrono::steady_clock::time_point totalRenderBegin{};
+    chrono::steady_clock::time_point passBegin{};
+    double totalRenderMs = 0.0;
+    double gameRenderMs = 0.0;
+    double captureMs = 0.0;
+    double bindBackBufferMs = 0.0;
+    double editorRenderMs = 0.0;
+    double presentMs = 0.0;
+    EffectEditorRenderPerfSample editorPerfSample{};
 
-    // EFFECTEDITOR_BG_FALLBACK_TEMP: EffectEditor에서 Play가 아닐 때를 Authoring 관측 모드로 보고 fallback을 임시 적용한다.
-    const bool useAuthoringBackgroundFallback = !EDITOR->IsPlaying();
-    if (hasOriginalPostProcessParams && useAuthoringBackgroundFallback)
-    {
-        PostProcessCB authoringPostProcessParams = originalPostProcessParams;
-        authoringPostProcessParams.useBackgroundFallback = 1;
-        // EFFECTEDITOR_BG_FALLBACK_TEMP: authoring fallback 가시성을 위해 임시 배경색을 0.3으로 올린다.
-        authoringPostProcessParams.backgroundFallbackColor = Vec4(0.3f, 0.3f, 0.3f, 1.f);
-        postProcessPipeline->Set_PostProcessParams(authoringPostProcessParams);
-    }
-    */
+    if (sampleRenderPerf)
+        totalRenderBegin = chrono::steady_clock::now();
+#endif
 
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        passBegin = chrono::steady_clock::now();
+#endif
     {
         Profile_View::Scope profileScope("Game::Render");
 
-        if (FAILED(GAME->Clear_Buffers(kDefaultClearColor)))
-        {
-            // EFFECTEDITOR_BG_FALLBACK_TEMP: 공용 postprocess 경로 개입을 끄기 위해 백업/원복 블록을 함께 비활성화했다.
-            /*
-            if (hasOriginalPostProcessParams)
-                postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
-            */
-            return E_FAIL;
-        }
+        GAME->Bind_BackBuffer();
 
-        const Internal::PostProcessFeatureScope postProcessFeatureScope{ EDITOR->Get_SceneViewMode() };
+        if (FAILED(GAME->Clear_Buffers(kDefaultClearColor)))
+            return E_FAIL;
+
+        const Internal::PostProcessFeatureScope postProcessFeatureScope{};
 
         if (FAILED(GAME->Draw()))
-        {
-            // EFFECTEDITOR_BG_FALLBACK_TEMP: 공용 postprocess 경로 개입을 끄기 위해 백업/원복 블록을 함께 비활성화했다.
-            /*
-            if (hasOriginalPostProcessParams)
-                postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
-            */
             return E_FAIL;
-        }
     }
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        gameRenderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - passBegin).count();
+#endif
 
-    // EFFECTEDITOR_BG_FALLBACK_TEMP: EffectEditor 전용 배경색 제어로 보기 어렵고 공용 postprocess 경로 개입 및 관측 왜곡 우려가 있어 비활성화한다.
-    /*
-    // EFFECTEDITOR_BG_FALLBACK_TEMP: Draw 이후 postprocess 파라미터를 항상 원본으로 복구한다.
-    if (hasOriginalPostProcessParams)
-        postProcessPipeline->Set_PostProcessParams(originalPostProcessParams);
-    */
-
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        passBegin = chrono::steady_clock::now();
+#endif
     {
         Profile_View::Scope profileScope("Editor::Render");
 
+#ifdef _DEBUG
+        chrono::steady_clock::time_point editorPassBegin{};
+        if (sampleRenderPerf)
+            editorPassBegin = chrono::steady_clock::now();
+#endif
         EDITOR->Capture_BackBuffer_ToViewport();
+#ifdef _DEBUG
+        if (sampleRenderPerf)
+        {
+            captureMs = chrono::duration<double, milli>(chrono::steady_clock::now() - editorPassBegin).count();
+            editorPassBegin = chrono::steady_clock::now();
+        }
+#endif
         GAME->Bind_BackBuffer();
+        if (FAILED(GAME->Clear_Buffers(kDefaultClearColor)))
+            return E_FAIL;
+#ifdef _DEBUG
+        if (sampleRenderPerf)
+            bindBackBufferMs = chrono::duration<double, milli>(chrono::steady_clock::now() - editorPassBegin).count();
+#endif
+#ifdef _DEBUG
+        EDITOR->Render_Editor(sampleRenderPerf ? &editorPerfSample : nullptr);
+#else
         EDITOR->Render_Editor();
+#endif
     }
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        editorRenderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - passBegin).count();
+#endif
 
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+        passBegin = chrono::steady_clock::now();
+#endif
     {
         Profile_View::Scope profileScope("Engine::Present");
         if (FAILED(GAME->Present()))
             return E_FAIL;
     }
+#ifdef _DEBUG
+    if (sampleRenderPerf)
+    {
+        presentMs = chrono::duration<double, milli>(chrono::steady_clock::now() - passBegin).count();
+        totalRenderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - totalRenderBegin).count();
+        Accumulate_EffectEditorRenderPerf(
+            totalRenderMs,
+            gameRenderMs,
+            captureMs,
+            bindBackBufferMs,
+            editorRenderMs,
+            editorPerfSample.editorWindowsMs,
+            editorPerfSample.notificationMs,
+            editorPerfSample.imguiMs,
+            presentMs
+        );
+    }
+
+    Try_FlushEffectEditorRenderPerfLog();
+#endif
 
     return S_OK;
 }
@@ -377,7 +566,7 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
         {
             ++failedCount;
             LOG_WARN(
-                "[EffectEditorStaticFilter] register failed. type={}, tag={}",
+                "[ResourceFilter] scope=Static, register failed. type={}, tag={}",
                 string(magic_enum::enum_name(loadJob.eType)),
                 String::ToString(loadJob.strPrototypeTag)
             );
@@ -385,16 +574,16 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
         }
     }
 
-    Internal::Log_EffectEditorStaticLoadSummary(loadJobs.size(), includedCount, excludedCount, failedCount);
+    Internal::Log_EffectEditorResourceFilterSummary("Static", loadJobs.size(), includedCount, excludedCount, failedCount);
 
     return S_OK;
 }
 
 HRESULT EffectEditorApp::Ready_PreviewLevel()
 {
-    // preview level은 저장 level이 아니므로 GamePlay resource index를 명시적으로 빌려 쓴다.
+    // preview level은 저장 level이 아니므로 Static resource index를 명시적으로 빌려 쓴다.
     const HRESULT hr = GAME->Change_Level(
-        ETOI(LevelType::GamePlay),
+        ETOI(LevelType::Static),
         Level_EffectEditor::Create(_device, _context)
     );
     CHECK_FAILED(hr, E_FAIL);

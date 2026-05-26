@@ -1,5 +1,6 @@
 ﻿#include "EffectAuthoringJsonSerializer.h"
 
+#include "GameInstance.h"
 #include "Helper_EffectAuthoring.h"
 
 NS_BEGIN(EffectEditor)
@@ -60,19 +61,87 @@ namespace Internal
     {
         if (textureId == "Texture_Effect_DefaultTexture")
         {
-            outGuid = "3c90794a-31bb-4e97-969a-3fd4497acc0f";
+            outGuid.clear();
             outPath = "Effects/Textures/Shared/DefaultTexture.dds";
             return true;
         }
 
         if (textureId == "Texture_Effect_Clouds4")
         {
-            outGuid = "321bf66c-e6f9-4495-9855-275274727e83";
+            outGuid.clear();
             outPath = "Effects/Textures/Shared/clouds4_T.dds";
             return true;
         }
 
         return false;
+    }
+
+    wstring Resolve_TexturePathByGuid(const string& textureGuid)
+    {
+        if (GAME == nullptr || textureGuid.empty())
+            return {};
+
+        const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
+        if (assetMeta == nullptr || assetMeta->type != "Texture")
+            return {};
+
+        const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+        return !resolvedPath.empty() && fs::exists(resolvedPath) ? resolvedPath : wstring{};
+    }
+
+    wstring Resolve_TexturePathByPath(const string& texturePath)
+    {
+        if (texturePath.empty())
+            return {};
+
+        fs::path candidatePath = String::ToWString(texturePath);
+        if (candidatePath.is_relative() && GAME != nullptr)
+            candidatePath = fs::path(GAME->Get_AssetRoot()) / candidatePath;
+
+        candidatePath = candidatePath.lexically_normal();
+        return fs::exists(candidatePath) ? candidatePath.wstring() : wstring{};
+    }
+
+    string Make_TextureGuidForSave(const string& textureGuid, const string& texturePath)
+    {
+        if (!textureGuid.empty())
+            return textureGuid;
+
+        if (GAME == nullptr)
+            return {};
+
+        const wstring resolvedPath = Resolve_TexturePathByPath(texturePath);
+        return resolvedPath.empty() ? string{} : GAME->Ensure_AssetGUID(resolvedPath, "Texture");
+    }
+
+    void Fill_TextureGuidFromPath(string& textureGuid, const string& texturePath)
+    {
+        if (!textureGuid.empty() || GAME == nullptr)
+            return;
+
+        const wstring resolvedPath = Resolve_TexturePathByPath(texturePath);
+        if (resolvedPath.empty())
+            return;
+
+        textureGuid = GAME->Ensure_AssetGUID(resolvedPath, "Texture");
+    }
+
+    void Fill_TexturePathHintFromGuid(const string& textureGuid, string& texturePath)
+    {
+        if (!texturePath.empty())
+            return;
+
+        const wstring resolvedPath = Resolve_TexturePathByGuid(textureGuid);
+        if (resolvedPath.empty() || GAME == nullptr)
+            return;
+
+        const fs::path assetRoot = fs::path(GAME->Get_AssetRoot()).lexically_normal();
+        const fs::path relativePath = fs::path(resolvedPath).lexically_normal().lexically_relative(assetRoot);
+        if (relativePath.empty() || relativePath.native().starts_with(L".."))
+            return;
+
+        texturePath = String::ToString(relativePath.wstring());
+        ranges::replace(texturePath, '\\', '/');
     }
 
     //## Primitive Value Codec
@@ -123,6 +192,62 @@ namespace Internal
         outValue.w = node[3].get<float>();
     }
 
+    bool Is_SameColor(const Color& lhs, const Color& rhs)
+    {
+        return
+            lhs.x == rhs.x &&
+            lhs.y == rhs.y &&
+            lhs.z == rhs.z &&
+            lhs.w == rhs.w;
+    }
+
+    bool Is_DefaultAdditiveContribution(const EffectMaterialAdditiveContributionData& data)
+    {
+        const EffectMaterialAdditiveContributionData defaultData{};
+        return
+            data.colorSource == defaultData.colorSource &&
+            data.amountSource == defaultData.amountSource &&
+            data.coveragePolicy == defaultData.coveragePolicy &&
+            data.intensityScale == defaultData.intensityScale &&
+            data.blackNeutral == defaultData.blackNeutral &&
+            Is_SameColor(data.emissiveColor, defaultData.emissiveColor) &&
+            Is_SameColor(data.constantColor, defaultData.constantColor);
+    }
+
+    json To_Json(const EffectMaterialAdditiveContributionData& data)
+    {
+        json root = json::object();
+        root["colorSource"] = To_EnumToken(data.colorSource);
+        root["amountSource"] = To_EnumToken(data.amountSource);
+        root["coveragePolicy"] = To_EnumToken(data.coveragePolicy);
+        root["intensityScale"] = data.intensityScale;
+        root["blackNeutral"] = data.blackNeutral;
+        root["emissiveColor"] = To_Json(data.emissiveColor);
+        root["constantColor"] = To_Json(data.constantColor);
+        return root;
+    }
+
+    void From_Json(const json& root, EffectMaterialAdditiveContributionData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto colorSourceIter = root.find("colorSource"); colorSourceIter != root.end())
+            Try_ReadEnumToken(*colorSourceIter, outData.colorSource);
+        if (const auto amountSourceIter = root.find("amountSource"); amountSourceIter != root.end())
+            Try_ReadEnumToken(*amountSourceIter, outData.amountSource);
+        if (const auto coveragePolicyIter = root.find("coveragePolicy"); coveragePolicyIter != root.end())
+            Try_ReadEnumToken(*coveragePolicyIter, outData.coveragePolicy);
+
+        Read_NumberField(root, "intensityScale", outData.intensityScale);
+        Read_BoolField(root, "blackNeutral", outData.blackNeutral);
+
+        if (const auto emissiveColorIter = root.find("emissiveColor"); emissiveColorIter != root.end())
+            Read_Color(*emissiveColorIter, outData.emissiveColor);
+        if (const auto constantColorIter = root.find("constantColor"); constantColorIter != root.end())
+            Read_Color(*constantColorIter, outData.constantColor);
+    }
+
     json To_Json(const ParticleSystemAuthoringData& data)
     {
         json root = json::object();
@@ -145,6 +270,8 @@ namespace Internal
         root["segmentLifetime"] = data.segmentLifetime;
         root["historyCount"] = data.historyCount;
         root["uvTiling"] = data.uvTiling;
+        root["maxTrailLength"] = data.maxTrailLength;
+        root["tailFadeLength"] = data.tailFadeLength;
         root["curveQuality"] = To_EnumToken(data.curveQuality);
         root["sampleSpacing"] = data.sampleSpacing;
         root["curveSubdivision"] = data.curveSubdivision;
@@ -162,6 +289,8 @@ namespace Internal
         Read_NumberField(root, "segmentLifetime", outData.segmentLifetime);
         Read_NumberField(root, "historyCount", outData.historyCount);
         Read_NumberField(root, "uvTiling", outData.uvTiling);
+        Read_NumberField(root, "maxTrailLength", outData.maxTrailLength);
+        Read_NumberField(root, "tailFadeLength", outData.tailFadeLength);
         const auto curveQualityIter = root.find("curveQuality");
         if (curveQualityIter != root.end())
             Try_ReadEnumToken(*curveQualityIter, outData.curveQuality);
@@ -227,14 +356,35 @@ namespace Internal
     {
         json root = json::object();
         root["sourcePresetName"] = data.sourcePresetName;
+        root["mainTextureGuid"] = Make_TextureGuidForSave(data.mainTextureGuid, data.mainTexturePath);
         root["mainTexturePath"] = data.mainTexturePath;
+        root["noiseTextureGuid"] = Make_TextureGuidForSave(data.noiseTextureGuid, data.noiseTexturePath);
         root["noiseTexturePath"] = data.noiseTexturePath;
+        root["maskTextureGuid"] = Make_TextureGuidForSave(data.maskTextureGuid, data.maskTexturePath);
+        root["maskTexturePath"] = data.maskTexturePath;
         root["tint"] = To_Json(data.tint);
         root["intensity"] = data.intensity;
         root["opacityPower"] = data.opacityPower;
         root["noiseStrength"] = data.noiseStrength;
-        root["blendMode"] = data.blendMode;
+        root["alphaCutoff"] = data.alphaCutoff;
+        root["alphaErosion"] = data.alphaErosion;
+        root["mainUVScale"] = To_Json(data.mainUVScale);
+        root["mainUVOffset"] = To_Json(data.mainUVOffset);
+        root["mainUVScrollSpeed"] = To_Json(data.mainUVScrollSpeed);
+        root["mainUVTilingMode"] = To_EnumToken(data.mainUVTilingMode);
+        root["noiseUVScale"] = To_Json(data.noiseUVScale);
+        root["noiseUVOffset"] = To_Json(data.noiseUVOffset);
+        root["noiseUVScrollSpeed"] = To_Json(data.noiseUVScrollSpeed);
+        root["noiseUVTilingMode"] = To_EnumToken(data.noiseUVTilingMode);
+        root["maskUVScale"] = To_Json(data.maskUVScale);
+        root["maskUVOffset"] = To_Json(data.maskUVOffset);
+        root["maskUVScrollSpeed"] = To_Json(data.maskUVScrollSpeed);
+        root["maskUVTilingMode"] = To_EnumToken(data.maskUVTilingMode);
+        root["blendMode"] = To_EnumToken(data.blendMode);
         root["opacitySource"] = data.opacitySource;
+        if (data.blendMode == EffectMaterialBlendMode::Additive || !Is_DefaultAdditiveContribution(data.additive))
+            root["additive"] = To_Json(data.additive);
+        root["twoSided"] = data.twoSided;
         root["subUVRows"] = data.subUVRows;
         root["subUVCols"] = data.subUVCols;
         return root;
@@ -250,6 +400,8 @@ namespace Internal
         Read_StringField(root, "mainTexturePath", outData.mainTexturePath);
         Read_StringField(root, "noiseTextureGuid", outData.noiseTextureGuid);
         Read_StringField(root, "noiseTexturePath", outData.noiseTexturePath);
+        Read_StringField(root, "maskTextureGuid", outData.maskTextureGuid);
+        Read_StringField(root, "maskTexturePath", outData.maskTexturePath);
         if (outData.mainTextureGuid.empty() && outData.mainTexturePath.empty())
         {
             string legacyMainTextureId{};
@@ -262,17 +414,66 @@ namespace Internal
             Read_StringField(root, "noiseTextureId", legacyNoiseTextureId);
             Try_MigrateLegacyTextureId(legacyNoiseTextureId, outData.noiseTextureGuid, outData.noiseTexturePath);
         }
+        Fill_TextureGuidFromPath(outData.mainTextureGuid, outData.mainTexturePath);
+        Fill_TextureGuidFromPath(outData.noiseTextureGuid, outData.noiseTexturePath);
+        Fill_TextureGuidFromPath(outData.maskTextureGuid, outData.maskTexturePath);
+        Fill_TexturePathHintFromGuid(outData.mainTextureGuid, outData.mainTexturePath);
+        Fill_TexturePathHintFromGuid(outData.noiseTextureGuid, outData.noiseTexturePath);
+        Fill_TexturePathHintFromGuid(outData.maskTextureGuid, outData.maskTexturePath);
         Read_NumberField(root, "intensity", outData.intensity);
         Read_NumberField(root, "opacityPower", outData.opacityPower);
         Read_NumberField(root, "noiseStrength", outData.noiseStrength);
-        Read_StringField(root, "blendMode", outData.blendMode);
+        Read_NumberField(root, "alphaCutoff", outData.alphaCutoff);
+        Read_NumberField(root, "alphaErosion", outData.alphaErosion);
+        if (const auto blendModeIter = root.find("blendMode"); blendModeIter != root.end())
+            Try_ReadEnumToken(*blendModeIter, outData.blendMode);
         Read_StringField(root, "opacitySource", outData.opacitySource);
+        if (const auto additiveIter = root.find("additive"); additiveIter != root.end())
+            From_Json(*additiveIter, outData.additive);
+        Read_BoolField(root, "twoSided", outData.twoSided);
         Read_NumberField(root, "subUVRows", outData.subUVRows);
         Read_NumberField(root, "subUVCols", outData.subUVCols);
 
         const auto tintIter = root.find("tint");
         if (tintIter != root.end())
             Read_Color(*tintIter, outData.tint);
+
+        const auto mainUVScaleIter = root.find("mainUVScale");
+        if (mainUVScaleIter != root.end())
+            Read_Vec2(*mainUVScaleIter, outData.mainUVScale);
+        const auto mainUVOffsetIter = root.find("mainUVOffset");
+        if (mainUVOffsetIter != root.end())
+            Read_Vec2(*mainUVOffsetIter, outData.mainUVOffset);
+        const auto mainUVScrollSpeedIter = root.find("mainUVScrollSpeed");
+        if (mainUVScrollSpeedIter != root.end())
+            Read_Vec2(*mainUVScrollSpeedIter, outData.mainUVScrollSpeed);
+        const auto mainUVTilingModeIter = root.find("mainUVTilingMode");
+        if (mainUVTilingModeIter != root.end())
+            Try_ReadEnumToken(*mainUVTilingModeIter, outData.mainUVTilingMode);
+        const auto noiseUVScaleIter = root.find("noiseUVScale");
+        if (noiseUVScaleIter != root.end())
+            Read_Vec2(*noiseUVScaleIter, outData.noiseUVScale);
+        const auto noiseUVOffsetIter = root.find("noiseUVOffset");
+        if (noiseUVOffsetIter != root.end())
+            Read_Vec2(*noiseUVOffsetIter, outData.noiseUVOffset);
+        const auto noiseUVScrollSpeedIter = root.find("noiseUVScrollSpeed");
+        if (noiseUVScrollSpeedIter != root.end())
+            Read_Vec2(*noiseUVScrollSpeedIter, outData.noiseUVScrollSpeed);
+        const auto noiseUVTilingModeIter = root.find("noiseUVTilingMode");
+        if (noiseUVTilingModeIter != root.end())
+            Try_ReadEnumToken(*noiseUVTilingModeIter, outData.noiseUVTilingMode);
+        const auto maskUVScaleIter = root.find("maskUVScale");
+        if (maskUVScaleIter != root.end())
+            Read_Vec2(*maskUVScaleIter, outData.maskUVScale);
+        const auto maskUVOffsetIter = root.find("maskUVOffset");
+        if (maskUVOffsetIter != root.end())
+            Read_Vec2(*maskUVOffsetIter, outData.maskUVOffset);
+        const auto maskUVScrollSpeedIter = root.find("maskUVScrollSpeed");
+        if (maskUVScrollSpeedIter != root.end())
+            Read_Vec2(*maskUVScrollSpeedIter, outData.maskUVScrollSpeed);
+        const auto maskUVTilingModeIter = root.find("maskUVTilingMode");
+        if (maskUVTilingModeIter != root.end())
+            Try_ReadEnumToken(*maskUVTilingModeIter, outData.maskUVTilingMode);
     }
 
     json To_Json(const FloatCurveKeyData& data)
@@ -1042,6 +1243,41 @@ namespace Internal
         Read_NumberField(root, "multiplyYStart", outData.multiplyYStart);
         Read_NumberField(root, "multiplyYEnd", outData.multiplyYEnd);
     }
+
+    json To_Json(const SpawnPerUnitModuleData& data)
+    {
+        json root = json::object();
+        root["enabled"] = data.enabled;
+        root["spawnPerUnit"] = To_Json(data.spawnPerUnit);
+        root["unitScalar"] = data.unitScalar;
+        root["movementTolerance"] = data.movementTolerance;
+        root["maxFrameDistance"] = data.maxFrameDistance;
+        return root;
+    }
+
+    void From_Json(const json& root, SpawnPerUnitModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_BoolField(root, "enabled", outData.enabled);
+
+        const auto spawnPerUnitIter = root.find("spawnPerUnit");
+        if (spawnPerUnitIter != root.end())
+            From_Json(*spawnPerUnitIter, outData.spawnPerUnit);
+
+        Read_NumberField(root, "unitScalar", outData.unitScalar);
+        Read_NumberField(root, "movementTolerance", outData.movementTolerance);
+        Read_NumberField(root, "maxFrameDistance", outData.maxFrameDistance);
+
+        if (spawnPerUnitIter == root.end())
+        {
+            float legacyUnitDistance = 0.f;
+            Read_NumberField(root, "unitDistance", legacyUnitDistance);
+            if (legacyUnitDistance > 0.f)
+                outData.spawnPerUnit = FloatDistributionData::Make_Constant(max(0.0001f, outData.unitScalar) / legacyUnitDistance);
+        }
+    }
 }
 
 json EffectAuthoringJsonSerializer::To_Json(const EffectAuthoringDocument& document)
@@ -1156,6 +1392,9 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::SizeByLife:
         root["data"] = Internal::To_Json(get<SizeByLifeModuleData>(module.data));
         break;
+    case AuthoringModuleType::SpawnPerUnit:
+        root["data"] = Internal::To_Json(get<SpawnPerUnitModuleData>(module.data));
+        break;
     }
 
     return root;
@@ -1256,6 +1495,9 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::SizeByLife:
             Internal::From_Json(*dataIter, get<SizeByLifeModuleData>(module.data));
             break;
+        case AuthoringModuleType::SpawnPerUnit:
+            Internal::From_Json(*dataIter, get<SpawnPerUnitModuleData>(module.data));
+            break;
         }
     }
 
@@ -1352,6 +1594,8 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return SubUVFrameOverLifeModuleData{};
     case AuthoringModuleType::SizeByLife:
         return SizeByLifeModuleData{};
+    case AuthoringModuleType::SpawnPerUnit:
+        return SpawnPerUnitModuleData{};
     }
 
     return RequiredModuleData{};

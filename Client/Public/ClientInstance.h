@@ -105,7 +105,8 @@ public: /* For.Battle_Controller */
         uint32 FieldID,
         bool IsFirstHero,
         const vector<HeroId>& heroIds,
-        vector<string>& MonsterProtoTag);
+        const vector<string>& MonsterProtoTag,
+        const Shared<GameObject>& sourceObject = nullptr);
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
 

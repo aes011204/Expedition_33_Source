@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Reflection_Types.h"
 #include "RegistorFactory.h"
@@ -273,8 +273,10 @@ public:                                                                         
         STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
         Engine::PropertyType::String, offsetof(SelfType, Member) })
 
-
-
+#define PROPERTY_WSTRING(DisplayName, Member)                                      \
+    info.properties.push_back(Engine::PropertyInfo{                                \
+        STRINGIZE(Member), DisplayName, STRINGIZE(Member),                         \
+        Engine::PropertyType::WString, offsetof(SelfType, Member) })
 
 #define PROPERTY_BBKEY_VEC3(DisplayName, Member)                                   \
     {                                                                              \

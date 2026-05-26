@@ -147,6 +147,19 @@ namespace
         return color;
     }
 
+    Vec4 Read_Color255(const json& item, const char* key, const Vec4& defaultValue)
+    {
+        const auto iter = item.find(key);
+        if (iter == item.end() || !iter->is_array() || iter->size() < 4)
+            return defaultValue;
+
+        return Vec4(
+            min(max(iter->at(0).is_number() ? iter->at(0).get<float>() : defaultValue.x, 0.f), 255.f),
+            min(max(iter->at(1).is_number() ? iter->at(1).get<float>() : defaultValue.y, 0.f), 255.f),
+            min(max(iter->at(2).is_number() ? iter->at(2).get<float>() : defaultValue.z, 0.f), 255.f),
+            min(max(iter->at(3).is_number() ? iter->at(3).get<float>() : defaultValue.w, 0.f), 255.f));
+    }
+
     Vec4 Make_PremultipliedSpriteFontColor(const Vec4& color)
     {
         const float alpha = min(max(color.w, 0.f), 1.f);
@@ -369,7 +382,14 @@ namespace
         for (UI_KeyframeAnimationKey& key : track.keys)
         {
             key.frame = min(max(key.frame, asset.startFrame), asset.endFrame);
-            if (track.type == UI_KeyframeAnimationTrackType::ScaleX || track.type == UI_KeyframeAnimationTrackType::ScaleY)
+            if (track.type == UI_KeyframeAnimationTrackType::Color)
+            {
+                key.color.x = min(max(key.color.x, 0.f), 255.f);
+                key.color.y = min(max(key.color.y, 0.f), 255.f);
+                key.color.z = min(max(key.color.z, 0.f), 255.f);
+                key.color.w = min(max(key.color.w, 0.f), 255.f);
+            }
+            else if (track.type == UI_KeyframeAnimationTrackType::ScaleX || track.type == UI_KeyframeAnimationTrackType::ScaleY)
                 key.value = max(0.01f, key.value);
             else if (track.type == UI_KeyframeAnimationTrackType::Alpha)
                 key.value = min(max(key.value, 0.f), 1.f);
@@ -399,14 +419,23 @@ namespace
         track.keys = move(mergedKeys);
     }
 
-    bool Try_ReadKeyframeAnimationKey(const json& item, UI_KeyframeAnimationKey& outKey)
+    bool Try_ReadKeyframeAnimationKey(const json& item, UI_KeyframeAnimationTrackType trackType, UI_KeyframeAnimationKey& outKey)
     {
         if (!item.is_object())
             return false;
 
         UI_KeyframeAnimationKey key{};
         key.frame = Read_Int(item, "frame", 0);
-        key.value = Read_Float(item, "value", 0.f);
+        if (trackType == UI_KeyframeAnimationTrackType::Color)
+        {
+            key.color = Read_Color255(item, "color", Vec4(255.f, 255.f, 255.f, 255.f));
+        }
+        else
+        {
+            key.value = Read_Float(item, "value", 0.f);
+            if (trackType == UI_KeyframeAnimationTrackType::Alpha)
+                key.color = Vec4(255.f, 255.f, 255.f, min(max(key.value, 0.f), 1.f) * 255.f);
+        }
         key.easing = outKey.easing;
 
         UI_AnimationEasing easing = key.easing;
@@ -446,7 +475,7 @@ namespace
             {
                 UI_KeyframeAnimationKey key{};
                 key.easing = track.easing;
-                if (Try_ReadKeyframeAnimationKey(keyItem, key))
+                if (Try_ReadKeyframeAnimationKey(keyItem, track.type, key))
                     track.keys.push_back(key);
             }
         }
@@ -455,7 +484,37 @@ namespace
         return true;
     }
 
-    bool Try_ReadKeyframeAnimationAssetBinding(const json& root, RuntimeUIAnimationAssetBinding& outBinding)
+    void Read_KeyframeAnimationTracks(const json& item, UI_KeyframeAnimationAsset& asset)
+    {
+        const auto tracksIter = item.find("tracks");
+        if (tracksIter == item.end() || !tracksIter->is_array())
+            return;
+
+        for (const json& trackItem : *tracksIter)
+        {
+            UI_KeyframeAnimationTrack track{};
+            if (!Try_ReadKeyframeAnimationTrack(trackItem, track))
+                continue;
+
+            Sort_KeyframeTrack(track, asset);
+            asset.tracks.push_back(move(track));
+        }
+    }
+
+    UI_KeyframeAnimationAsset Make_KeyframeAnimationAssetFromRoot(const json& root)
+    {
+        UI_KeyframeAnimationAsset asset{};
+        asset.name = String::ToWString(Read_String(root, "name", "NewUIAnimation"));
+        asset.enabled = true;
+        asset.playOnOpen = true;
+        asset.fps = max(1, Read_Int(root, "fps", 60));
+        asset.startFrame = Read_Int(root, "startFrame", 0);
+        asset.endFrame = max(asset.startFrame + 1, Read_Int(root, "endFrame", 60));
+        asset.loop = Read_Bool(root, "loop", false);
+        return asset;
+    }
+
+    bool Try_ReadLegacyKeyframeAnimationAssetBinding(const json& root, RuntimeUIAnimationAssetBinding& outBinding)
     {
         if (!root.is_object())
             return false;
@@ -465,35 +524,53 @@ namespace
         if (binding.targetName.empty())
             return false;
 
-        UI_KeyframeAnimationAsset asset{};
-        asset.name = String::ToWString(Read_String(root, "name", "NewUIAnimation"));
-        asset.enabled = true;
-        asset.playOnOpen = true;
-        asset.fps = max(1, Read_Int(root, "fps", 60));
-        asset.startFrame = Read_Int(root, "startFrame", 0);
-        asset.endFrame = max(asset.startFrame + 1, Read_Int(root, "endFrame", 60));
-        asset.loop = Read_Bool(root, "loop", false);
-
-        const auto tracksIter = root.find("tracks");
-        if (tracksIter != root.end() && tracksIter->is_array())
-        {
-            for (const json& trackItem : *tracksIter)
-            {
-                UI_KeyframeAnimationTrack track{};
-                if (!Try_ReadKeyframeAnimationTrack(trackItem, track))
-                    continue;
-
-                Sort_KeyframeTrack(track, asset);
-                asset.tracks.push_back(move(track));
-            }
-        }
+        UI_KeyframeAnimationAsset asset = Make_KeyframeAnimationAssetFromRoot(root);
+        Read_KeyframeAnimationTracks(root, asset);
 
         binding.asset = move(asset);
         outBinding = move(binding);
         return true;
     }
 
-    bool Load_KeyframeAnimationAssetFile(const fs::path& assetPath, RuntimeUIAnimationAssetBinding& outBinding)
+    bool Try_ReadKeyframeAnimationAssetBindings(const json& root, vector<RuntimeUIAnimationAssetBinding>& outBindings)
+    {
+        if (!root.is_object())
+            return false;
+
+        const auto targetsIter = root.find("targets");
+        if (targetsIter == root.end() || !targetsIter->is_array())
+        {
+            RuntimeUIAnimationAssetBinding binding{};
+            if (!Try_ReadLegacyKeyframeAnimationAssetBinding(root, binding))
+                return false;
+
+            outBindings.push_back(move(binding));
+            return true;
+        }
+
+        bool hasBinding = false;
+        for (const json& targetItem : *targetsIter)
+        {
+            if (!targetItem.is_object())
+                continue;
+
+            RuntimeUIAnimationAssetBinding binding{};
+            binding.targetName = Read_String(targetItem, "targetName", "");
+            if (binding.targetName.empty())
+                continue;
+
+            UI_KeyframeAnimationAsset asset = Make_KeyframeAnimationAssetFromRoot(root);
+            Read_KeyframeAnimationTracks(targetItem, asset);
+
+            binding.asset = move(asset);
+            outBindings.push_back(move(binding));
+            hasBinding = true;
+        }
+
+        return hasBinding;
+    }
+
+    bool Load_KeyframeAnimationAssetFile(const fs::path& assetPath, vector<RuntimeUIAnimationAssetBinding>& outBindings)
     {
         try
         {
@@ -505,7 +582,7 @@ namespace
             if (root.is_discarded())
                 return false;
 
-            return Try_ReadKeyframeAnimationAssetBinding(root, outBinding);
+            return Try_ReadKeyframeAnimationAssetBindings(root, outBindings);
         }
         catch (const exception& exception)
         {
@@ -540,9 +617,7 @@ namespace
             return bindings;
         }
 
-        RuntimeUIAnimationAssetBinding binding{};
-        if (Load_KeyframeAnimationAssetFile(assetPath, binding))
-            bindings.push_back(move(binding));
+        Load_KeyframeAnimationAssetFile(assetPath, bindings);
 
         return bindings;
     }

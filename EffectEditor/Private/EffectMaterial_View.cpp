@@ -10,14 +10,70 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    bool Is_SupportedBlendMode(const string& blendMode)
+    static const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
     {
-        return
-            blendMode == "AlphaBlend" ||
-            blendMode == "alphaBlend" ||
-            blendMode == "alphablend" ||
-            blendMode == "Additive" ||
-            blendMode == "additive";
+        switch (value)
+        {
+        case EffectMaterialBlendMode::AlphaBlend:
+            return "AlphaBlend";
+        case EffectMaterialBlendMode::Additive:
+            return "Additive";
+        case EffectMaterialBlendMode::Modulate:
+            return "Modulate";
+        default:
+            return "AlphaBlend";
+        }
+    }
+
+    static const char* Get_AdditiveColorSourceLabel(EffectMaterialAdditiveColorSource value)
+    {
+        switch (value)
+        {
+        case EffectMaterialAdditiveColorSource::MainRGB:
+            return "Main RGB";
+        case EffectMaterialAdditiveColorSource::TintedRGB:
+            return "Tinted RGB";
+        case EffectMaterialAdditiveColorSource::EmissiveColor:
+            return "Emissive Color";
+        case EffectMaterialAdditiveColorSource::ConstantColor:
+            return "Constant Color";
+        default:
+            return "Main RGB";
+        }
+    }
+
+    static const char* Get_AdditiveAmountSourceLabel(EffectMaterialAdditiveAmountSource value)
+    {
+        switch (value)
+        {
+        case EffectMaterialAdditiveAmountSource::Alpha:
+            return "Alpha";
+        case EffectMaterialAdditiveAmountSource::Red:
+            return "Red";
+        case EffectMaterialAdditiveAmountSource::Luminance:
+            return "Luminance";
+        case EffectMaterialAdditiveAmountSource::Mask:
+            return "Mask";
+        case EffectMaterialAdditiveAmountSource::One:
+            return "One";
+        default:
+            return "Alpha";
+        }
+    }
+
+    static const char* Get_AdditiveCoveragePolicyLabel(EffectMaterialAdditiveCoveragePolicy value)
+    {
+        switch (value)
+        {
+        case EffectMaterialAdditiveCoveragePolicy::AmountOnly:
+            return "Amount Only";
+        case EffectMaterialAdditiveCoveragePolicy::CoverageAndAmount:
+            return "Coverage And Amount";
+        case EffectMaterialAdditiveCoveragePolicy::Independent:
+            return "Independent";
+        default:
+            return "Amount Only";
+        }
     }
 
     bool Is_SupportedOpacitySource(const string& opacitySource)
@@ -42,7 +98,6 @@ namespace Internal
 
         return iter->get<uint32>() == 0;
     }
-
 }
 
 EffectMaterial_View::EffectMaterial_View()
@@ -52,6 +107,14 @@ EffectMaterial_View::EffectMaterial_View()
 }
 
 EffectMaterial_View::~EffectMaterial_View() = default;
+
+void EffectMaterial_View::Update(float timeDelta)
+{
+    __super::Update(timeDelta);
+
+    if (Is_Open() && _previewRenderer != nullptr)
+        _previewRenderer->Update_MaterialTime(timeDelta);
+}
 
 void EffectMaterial_View::Pre_Render()
 {
@@ -270,8 +333,21 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
     ImGui::TableSetColumnIndex(1);
     ImGui::Text("%.2f", material.noiseStrength);
 
-    drawRow("Blend Mode", material.blendMode);
-    drawRow("Opacity Source", material.opacitySource);
+    drawRow("Blend Mode", Internal::Get_BlendModeLabel(material.blendMode));
+    if (material.blendMode == EffectMaterialBlendMode::Additive)
+    {
+        drawRow("Additive Color Source", Internal::Get_AdditiveColorSourceLabel(material.additive.colorSource));
+        drawRow("Additive Amount Source", Internal::Get_AdditiveAmountSourceLabel(material.additive.amountSource));
+        drawRow("Additive Coverage", Internal::Get_AdditiveCoveragePolicyLabel(material.additive.coveragePolicy));
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextDisabled("Additive Intensity");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::Text("%.2f", material.additive.intensityScale);
+    }
+    else
+        drawRow("Opacity Source", material.opacitySource);
 
     ImGui::TableNextRow();
     ImGui::TableSetColumnIndex(0);
@@ -406,17 +482,6 @@ bool EffectMaterial_View::Load_PresetFile(const wstring& filePath)
         LOG_WARN("EffectMaterial material preset corrected invalid subUVRows to 1. path='{}'", presetPath);
     if (warnSubUVCols)
         LOG_WARN("EffectMaterial material preset corrected invalid subUVCols to 1. path='{}'", presetPath);
-
-    if (!Internal::Is_SupportedBlendMode(material.blendMode))
-    {
-        _statusMessage = "Unsupported blendMode in material preset.";
-        LOG_ERROR(
-            "EffectMaterial material preset load failed: unsupported blendMode='{}'. path='{}'",
-            material.blendMode,
-            presetPath
-        );
-        return false;
-    }
 
     if (!Internal::Is_SupportedOpacitySource(material.opacitySource))
     {

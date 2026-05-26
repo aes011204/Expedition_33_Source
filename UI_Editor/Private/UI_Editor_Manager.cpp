@@ -364,6 +364,7 @@ namespace UIEditor
         _animationPreviewService.Stop();
         Clear_RuntimeCaches();
         Resolve_LoadedAssetReferences();
+        Refresh_AnimationTargetBindings();
         Clear_History();
         Clear_Dirty();
         return true;
@@ -379,6 +380,7 @@ namespace UIEditor
         Clear_Selection();
         _animationPreviewService.Stop();
         Clear_RuntimeCaches();
+        Refresh_AnimationTargetBindings();
         Clear_History();
         Clear_Dirty();
         return true;
@@ -532,8 +534,13 @@ namespace UIEditor
             {
                 auto resolveTextureGuid = [](string& guid, const string& path, const char* label)
                 {
-                    if (!guid.empty() || path.empty())
+                    if (!guid.empty() && nullptr != GAME->Find_AssetByGUID(guid))
                         return;
+
+                    if (path.empty())
+                        return;
+
+                    guid.clear();
 
                     const string targetPath = Normalize_PathForCompare(path);
                     for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Texture"))
@@ -577,6 +584,14 @@ namespace UIEditor
                     object.fontTag = String::ToString(fs::path(String::ToWString(object.fontPath)).stem().wstring());
             }
         }
+    }
+
+    void UI_Editor_Manager::Refresh_AnimationTargetBindings()
+    {
+        const Shared<UI_Editor_Window> animationWindow = Find_Window(L"Animation");
+        const Shared<UI_Animation_View> animationView = dynamic_pointer_cast<UI_Animation_View>(animationWindow);
+        if (nullptr != animationView)
+            animationView->Refresh_TargetBindings();
     }
 
     bool UI_Editor_Manager::Queue_FontPreview(
@@ -639,6 +654,7 @@ namespace UIEditor
 
         Set_SelectedObjectIds(createdRootObjectIds, createdRootObjectIds.back());
         Resolve_LoadedAssetReferences();
+        Refresh_AnimationTargetBindings();
         Clear_RuntimeCaches();
         Mark_Dirty();
         return true;
@@ -651,6 +667,7 @@ namespace UIEditor
         _animationPreviewService.Stop();
         Clear_RuntimeCaches();
         Resolve_LoadedAssetReferences();
+        Refresh_AnimationTargetBindings();
     }
 
     void UI_Editor_Manager::Create_UIObject(UI_ObjectType objectType)
@@ -759,6 +776,7 @@ namespace UIEditor
         Prune_InvalidSelection();
 
         _animationPreviewService.Stop();
+        Refresh_AnimationTargetBindings();
         Mark_Dirty();
     }
 
@@ -800,6 +818,7 @@ namespace UIEditor
 
         Prune_InvalidSelection();
         _animationPreviewService.Stop();
+        Refresh_AnimationTargetBindings();
         Mark_Dirty();
     }
 

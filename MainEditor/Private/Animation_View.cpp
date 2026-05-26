@@ -125,6 +125,9 @@ void Animation_View::Update(float timeDelta)
     if (EDITOR->IsPlaying())
         return;
 
+    if (!Is_Visible())
+        return;
+
     if (Is_PrefabViewFocused())
         return;
 
@@ -138,7 +141,15 @@ void Animation_View::Update(float timeDelta)
     Validate_SelectedBoneSelection();
 
     if (!playbackModel->Is_AnimationPaused())
+    {
+        if (playbackModel->Is_AnimationFinished())
+        {
+            // 끝난 클립은 현재 선택된 애니메이션으로 즉시 다시 시작해서 다음 클립으로 넘어가지 않게 한다.
+            Sync_PreviewAnimationSelection();
+        }
+
         _sequencerCurrentFrame = static_cast<int32>(std::round(playbackModel->Get_CurrentAnimationTimeSec() * static_cast<float>(Get_CurrentAnimationFps())));
+    }
 }
 
 void Animation_View::Pre_Render()
@@ -147,6 +158,9 @@ void Animation_View::Pre_Render()
         return;
 
     if (EDITOR->IsPlaying())
+        return;
+
+    if (!Is_Visible())
         return;
 
     if (Is_PrefabViewFocused())
@@ -241,9 +255,11 @@ void Animation_View::Render()
 
     _isFocused = false;
     _isHovered = false;
+    _isVisible = false;
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
+        _isVisible = true;
         _pendingDockId = 0;
         _requestFocusOnOpen = false;
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
@@ -794,6 +810,7 @@ void Animation_View::Draw_BoneTree()
 
         const string nodeLabel =
             playbackModel->Get_BoneName(boneIndex) + " [" + to_string(boneIndex) + "]";
+        const string popupId = "AnimationBoneContextMenu_" + to_string(boneIndex);
         ImGui::PushID(static_cast<int>(boneIndex));
         const bool opened = ImGui::TreeNodeEx("BoneNode", flags, "%s", nodeLabel.c_str());
 
@@ -802,6 +819,19 @@ void Animation_View::Draw_BoneTree()
             _selectedBoneIndex = static_cast<int32>(boneIndex);
             _selectedNotifyId = -1;
             _selectedStateId = -1;
+        }
+
+        if (ImGui::BeginPopupContextItem(popupId.c_str()))
+        {
+            if (ImGui::MenuItem("뼈 이름 복사"))
+            {
+                ImGui::SetClipboardText(playbackModel->Get_BoneName(boneIndex).c_str());
+                _selectedBoneIndex = static_cast<int32>(boneIndex);
+                _selectedNotifyId = -1;
+                _selectedStateId = -1;
+            }
+
+            ImGui::EndPopup();
         }
 
         if (!opened)

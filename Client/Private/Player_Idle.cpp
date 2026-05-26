@@ -26,7 +26,9 @@ bool Player_Idle::EnterInvoke()
     auto stateIndex = _stateCom->Get_CurrentPlayerState();
     uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
 
-
+    const float enterBlendTime = // Free Aim일 때에는 빠르게
+        (stateIndex == PlayerState::FreeAim) ? _freeAimExitBlendTime : _idleBlendTime;
+        
     bool hasFailedStateAnimation = true;
     switch (stateIndex)
     {
@@ -40,12 +42,12 @@ bool Player_Idle::EnterInvoke()
             hasFailedStateAnimation = _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_EndWalk), 0.25f, false);
         break;
     default:
-        _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Idle_0), _idleBlendTime, true);
+        _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Idle_0), enterBlendTime, true);
         break;
     }
 
     if (!hasFailedStateAnimation)
-        _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Idle_0), _idleBlendTime, true);
+        _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Idle_0), enterBlendTime, true);
 
     Reset_IdleTimer();
     

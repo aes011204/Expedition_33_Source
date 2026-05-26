@@ -31,10 +31,6 @@ void ChooseAction::Begin_Play()
 
 bool ChooseAction::EnterInvoke()
 {
-    LOG_DEBUG("ChooseAction::EnterInvoke");
-
-    LOG_DEBUG("PRESS F : AttackTargeting // PRESS E : ChooseSkill // PRESS W : ChooseItem");// // PRESS 4 : ChooseUltimate");
-
     return Battle_State::EnterInvoke();
 }
 

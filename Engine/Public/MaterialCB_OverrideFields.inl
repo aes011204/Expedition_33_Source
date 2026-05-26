@@ -22,6 +22,10 @@
     X("aoScale",              aoScale,              Float) \
     X("roughnessScale",       roughnessScale,       Float) \
     X("metalnessScale",       metalnessScale,       Float) \
+    X("ormAoSource",          ormAoSource,          UInt) \
+    X("ormRoughnessSource",   ormRoughnessSource,   UInt) \
+    X("ormMetalnessSource",   ormMetalnessSource,   UInt) \
+    X("opacityMaskSource",    opacityMaskSource,    UInt) \
     X("uvScale",              uvScale,              Vec2) \
     X("uvOffset",             uvOffset,             Vec2) \
     X("uvRotation",           uvRotation,           Float) \

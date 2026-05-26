@@ -6,8 +6,15 @@
 #include "GameInstance.h"
 #include "AnimComputeRuntime.h"
 #include "ComputeShaderCom.h"
+#include "EffectCom.h"
+#include "SwitchDissolveFeature.h"
 
 NS_BEGIN(Client)
+
+namespace
+{
+    constexpr uint32 kVtxAnimMeshCharacterHairBlendPass = 8u;
+}
 
 PlayableParts::PlayableParts(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : PartObject{ device, context } {}
@@ -149,7 +156,7 @@ void PlayableParts::Priority_Update(float timeDelta)
 
 void PlayableParts::Update(float timeDelta)
 {
-       
+    // 기존에 있던 _switchDissolve Update는 EffectCom으로 이동
 }
 
 void PlayableParts::Late_Update(float timeDelta)
@@ -187,9 +194,16 @@ HRESULT PlayableParts::Render()
 
         CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
+        CHECK_FAILED(EffectCom::Bind_DrawFeatures(
+            Get_Owner(), _shaderCom.get(), DrawFeatureFlagDissolve), E_FAIL);
+
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shaderCom->Begin(passIndex)))
             return E_FAIL;
+
+        // 플레이어 파츠가 그려진 픽셀에 stencil=1을 남겨 Background UI가 이 영역을 피하게 한다.
+        const bool depthWrite = passIndex != kVtxAnimMeshCharacterHairBlendPass;
+        CHECK_FAILED(GAME->Bind_PlayerStencilWriteState(depthWrite), E_FAIL);
 
         _modelCom->Render(i);
     }
@@ -203,6 +217,9 @@ HRESULT PlayableParts::Render_Shadow()
         return E_FAIL;
 
     if (FAILED(GAME->Bind_ShadowCB(_shaderCom)))
+        return E_FAIL;
+
+    if (FAILED(_shaderCom->Reset_DrawFeatures()))
         return E_FAIL;
 
     // shadow pass 전에도 bone buffer 최신화
@@ -314,7 +331,6 @@ HRESULT PlayableParts::Bind_ShaderResources()
 
     return S_OK;
 }
-
 
 void PlayableParts::Free()
 {

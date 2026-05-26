@@ -6,6 +6,7 @@
 #include "Debug_Profile.h"
 #include "ShaderPassFinder.h"
 #include "AnimComputeRuntime.h"
+#include "EffectCom.h"
 #include "OffsetAnimationModifier.h"
 
 REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerWorldAnimation, "PlayerWorldAnimation")
@@ -46,6 +47,8 @@ void Body_Player::Priority_Update(float fTimeDelta)
 
 void Body_Player::Update(float fTimeDelta)
 {
+    PlayableParts::Update(fTimeDelta);
+
     Debug_Profile::Scope profileScope("Player::Body::Update");
 
     if (Has_LeaderPoseComponent())
@@ -104,11 +107,19 @@ HRESULT Body_Player::Render()
         if (FAILED(_computeRenderShaderCom->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
+        CHECK_FAILED(EffectCom::Bind_DrawFeatures(
+            Get_Owner(),
+            _computeRenderShaderCom.get(),
+            DrawFeatureFlagDissolve), E_FAIL);
+
         const uint32 passIndex =
             ShaderPassFinder::Find_PassIndex(ShaderType::VtxMesh, material->Get_RenderState());
 
         if (FAILED(_computeRenderShaderCom->Begin(passIndex)))
             return E_FAIL;
+
+        // Compute skinning 바디도 기존 pass는 유지하고 stencil=1만 함께 기록한다.
+        CHECK_FAILED(GAME->Bind_PlayerStencilWriteState(true), E_FAIL);
 
         if (FAILED(_animComputeRuntime->Render_ComputeSkinned(i)))
             return E_FAIL;
@@ -132,6 +143,9 @@ HRESULT Body_Player::Render_Shadow()
         return E_FAIL;
 
     if (FAILED(GAME->Bind_ShadowCB(_computeRenderShaderCom)))
+        return E_FAIL;
+
+    if (FAILED(_computeRenderShaderCom->Reset_DrawFeatures()))
         return E_FAIL;
 
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());

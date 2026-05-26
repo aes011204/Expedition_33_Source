@@ -27,6 +27,8 @@ public:
 public:
     // 머티리얼 instance 값을 현재 preview render target에 반영할 때 호출한다.
     void Render_Material(const EffectMaterialInstanceData& material);
+    // material preview의 UV scroll용 누적 시간을 외부 update tick에서 갱신한다.
+    void Update_MaterialTime(float timeDelta);
     // ImGui viewport와 입력을 함께 관리하는 원본 머티리얼 preview 패널 진입점이다.
     void Draw_Viewport(const char* id, const EffectMaterialInstanceData& material, const char* label);
     ID3D11ShaderResourceView* Get_SRV() const;
@@ -48,7 +50,7 @@ private: //## Types
     };
 
 private: //## Static Values
-    static constexpr const wchar_t* kEffectMaterialPreviewShaderId{ L"Shader_EffectMaterialPreview" };
+    static constexpr auto kEffectMaterialPreviewShaderId{ L"Shader_EffectMaterialPreview" };
     static constexpr float kHomeDistance{ 6.f };
     static constexpr float kHomeYawDegrees{ 0.f };
     static constexpr float kHomePitchDegrees{ 0.f };
@@ -62,14 +64,17 @@ private: //## Data
     Shared<ShaderCom> _shader{};
     Shared<Texture> _texture{};
     Shared<Texture> _noiseTexture{};
+    Shared<Texture> _maskTexture{};
     PreviewMeshResource _planeMesh{};
     PreviewMeshResource _sphereMesh{};
     string _loadedTextureKey{};
     string _loadedNoiseTextureKey{};
+    string _loadedMaskTextureKey{};
     string _statusMessage{};
     bool _hasRenderedPreview{ false };
     EffectMaterialPreviewMeshMode _meshMode{ EffectMaterialPreviewMeshMode::Plane };
     EffectPreviewOrbitCameraState _cameraState{};
+    float _materialPreviewElapsedTime{}; // material preview UV scroll 계산에 사용할 preview-local 누적 시간이다.
     bool _isViewportDragging{ false };
     bool _hasPendingHome{ false };
 
@@ -78,6 +83,7 @@ private: //## Helper::Resource
     bool Ready_Shader();
     bool Ready_Texture(const string& textureGuid, const string& texturePath);
     bool Ready_NoiseTexture(const string& textureGuid, const string& texturePath);
+    bool Ready_MaskTexture(const string& textureGuid, const string& texturePath);
     bool Ready_Meshes();
     bool Ready_PlaneMesh();
     bool Ready_SphereMesh();
@@ -95,15 +101,13 @@ private: //## Helper::ViewportInput
     void End_ViewportDrag();
 
 private: //## Helper::Camera
-    // 즉시 reset하지 않고 home 시점으로 부드럽게 복귀를 예약한다.
-    void Start_HomeTransition();
+    void Start_HomeTransition(); // 즉시 reset하지 않고 home 시점으로 부드럽게 복귀를 예약한다.
     void Update_HomeTransition(float timeDelta);
     void Reset_View();
 
 private: //## Helper::Overlay
     void Draw_ViewportTextOverlay(const ImVec2& canvasMin, const ImVec2& canvasMax, const char* label);
     void Draw_MeshModeControls();
-    uint32 Resolve_BlendPassIndex(const string& blendMode, EffectMaterialPreviewMeshMode meshMode) const;
 
 private: //## Helper::Lifecycle
     void Cleanup();

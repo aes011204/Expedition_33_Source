@@ -66,6 +66,7 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
     _isTrailPreviewVisible = false;
+    _postProcessOptions = Get_DefaultPostProcessOptions();
     Queue_PreviewViewportSize(kDefaultPreviewViewportWidth, kDefaultPreviewViewportHeight);
 
     return S_OK;
@@ -102,11 +103,11 @@ void EffectEditorInstance::Release_Editor()
     _pendingPreviewViewportHeight = kDefaultPreviewViewportHeight;
     _appliedPreviewViewportWidth = 0;
     _appliedPreviewViewportHeight = 0;
-    _sceneViewMode = SceneViewMode::Authoring;
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
     _isTrailPreviewVisible = false;
+    _postProcessOptions = Get_DefaultPostProcessOptions();
     _hasPendingWindowFocus = false;
     _pendingWindowFocus = EditorViewportTarget::Game;
     _pendingSingleFrameStep = false;
@@ -133,14 +134,32 @@ void EffectEditorInstance::Update_Editor(float timeDelta)
         _notificationManager->Update(timeDelta);
 }
 
-void EffectEditorInstance::Render_Editor()
+void EffectEditorInstance::Render_Editor(EffectEditorRenderPerfSample* outPerfSample)
 {
+    chrono::steady_clock::time_point begin{};
+    if (outPerfSample != nullptr)
+        begin = chrono::steady_clock::now();
+
     _editorManager->Render();
+    if (outPerfSample != nullptr)
+        outPerfSample->editorWindowsMs = chrono::duration<double, milli>(chrono::steady_clock::now() - begin).count();
 
     if (_notificationManager)
+    {
+        if (outPerfSample != nullptr)
+            begin = chrono::steady_clock::now();
+
         _notificationManager->Render();
 
+        if (outPerfSample != nullptr)
+            outPerfSample->notificationMs = chrono::duration<double, milli>(chrono::steady_clock::now() - begin).count();
+    }
+
+    if (outPerfSample != nullptr)
+        begin = chrono::steady_clock::now();
     _imguiManager->Render();
+    if (outPerfSample != nullptr)
+        outPerfSample->imguiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - begin).count();
 }
 
 Shared<Editor_Window> EffectEditorInstance::Get_Window(const wstring& windowName) const
@@ -169,6 +188,25 @@ bool EffectEditorInstance::IsPaused() const
 float EffectEditorInstance::Get_RuntimeTimeScale() const
 {
     return _runtimeTimeScale;
+}
+
+EffectEditorPostProcessOptions EffectEditorInstance::Get_DefaultPostProcessOptions() const
+{
+    EffectEditorPostProcessOptions options{};
+    options.params = PostProcessCB{};
+
+    options.features =
+        PostProcessFeature::HDR |
+        PostProcessFeature::Exposure |
+        PostProcessFeature::Bloom;
+
+    options.params.exposure = 1.2f;
+    options.params.gamma = 1.2f;
+    options.params.bloomRadius = 1.6f;
+    options.params.bloomIntensity = 0.f;
+
+    options.params.featureMask = To_Underlying(options.features);
+    return options;
 }
 
 ID3D11ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
@@ -310,6 +348,18 @@ void EffectEditorInstance::Reset_TrailPreviewLocalOffsets()
 {
     _trailPreviewBaseLocalOffset = kDefaultTrailPreviewBaseLocalOffset;
     _trailPreviewTipLocalOffset = kDefaultTrailPreviewTipLocalOffset;
+}
+
+void EffectEditorInstance::Set_PostProcessFeature(PostProcessFeature feature, bool enabled)
+{
+    Set_Flag(_postProcessOptions.features, feature, enabled);
+    _postProcessOptions.params.featureMask = To_Underlying(_postProcessOptions.features);
+}
+
+void EffectEditorInstance::Set_PostProcessParams(const PostProcessCB& params)
+{
+    _postProcessOptions.params = params;
+    _postProcessOptions.params.featureMask = To_Underlying(_postProcessOptions.features);
 }
 
 void EffectEditorInstance::Request_WindowFocus(EditorViewportTarget target)
@@ -589,8 +639,6 @@ Shared<RenderTarget> EffectEditorInstance::Prepare_SharedViewportRenderTarget(ui
 
 void EffectEditorInstance::Capture_BackBuffer_ToViewport()
 {
-    Render_SceneGridToBackBuffer();
-
     const uint32 viewportWidth = min(
         max(1u, GAME->Get_ViewportWidth()),
         max(1u, GAME->Get_BackBufferWidth())
@@ -646,114 +694,10 @@ void EffectEditorInstance::Capture_BackBuffer_ToViewport()
     );
 }
 
-void EffectEditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
-{
-    if (_previewViewportMode != PreviewViewportMode::Auto)
-        return;
-
-    Queue_PreviewViewportSize(width, height);
-}
-
-void EffectEditorInstance::Enable_AutoPreviewViewport()
-{
-    _previewViewportMode = PreviewViewportMode::Auto;
-}
-
-void EffectEditorInstance::Enable_ManualPreviewViewport()
-{
-    _previewViewportMode = PreviewViewportMode::Manual;
-}
-
-void EffectEditorInstance::Set_SceneViewMode(SceneViewMode viewMode)
-{
-    _sceneViewMode = viewMode;
-}
-
-void EffectEditorInstance::Set_ManualPreviewViewportSize(uint32 width, uint32 height)
-{
-    _previewViewportMode = PreviewViewportMode::Manual;
-    Queue_PreviewViewportSize(width, height);
-}
-
-void EffectEditorInstance::Sync_PreviewViewportMode()
-{
-    if (GAME->Get_ViewportWidth() > GAME->Get_BackBufferWidth() ||
-        GAME->Get_ViewportHeight() > GAME->Get_BackBufferHeight())
-        Queue_PreviewViewportSize(GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight());
-}
-
-void EffectEditorInstance::Ensure_SceneGridResources()
-{
-    if (_sceneGridBatch && _sceneGridEffect && _sceneGridInputLayout && _sceneGridDepthState)
-        return;
-
-    static constexpr D3D11_INPUT_ELEMENT_DESC sceneGridInputElements[] =
-    {
-        { "SV_Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
-
-    _sceneGridBatch = make_shared<PrimitiveBatch<VertexPositionColor>>(_context.Get());
-    _sceneGridEffect = make_shared<BasicEffect>(_device.Get());
-
-    if (nullptr == _sceneGridBatch || nullptr == _sceneGridEffect)
-    {
-        _sceneGridBatch.reset();
-        _sceneGridEffect.reset();
-        return;
-    }
-
-    _sceneGridEffect->SetVertexColorEnabled(true);
-
-    const void* shaderByteCode = nullptr;
-    size_t shaderByteCodeLength = 0;
-    _sceneGridEffect->GetVertexShaderBytecode(&shaderByteCode, &shaderByteCodeLength);
-
-    if (FAILED(
-        _device->CreateInputLayout(
-            sceneGridInputElements,
-            static_cast<UINT>(_countof(sceneGridInputElements)),
-            shaderByteCode,
-            shaderByteCodeLength,
-            _sceneGridInputLayout.GetAddressOf())
-    ))
-    {
-        _sceneGridBatch.reset();
-        _sceneGridEffect.reset();
-        _sceneGridInputLayout.Reset();
-        return;
-    }
-
-    D3D11_DEPTH_STENCIL_DESC depthDesc{};
-    depthDesc.DepthEnable = TRUE;
-    depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-    depthDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
-    depthDesc.StencilEnable = FALSE;
-
-    if (FAILED(_device->CreateDepthStencilState(&depthDesc, _sceneGridDepthState.GetAddressOf())))
-    {
-        _sceneGridBatch.reset();
-        _sceneGridEffect.reset();
-        _sceneGridInputLayout.Reset();
-        _sceneGridDepthState.Reset();
-    }
-}
-
-void EffectEditorInstance::Render_SceneGridToBackBuffer()
+void EffectEditorInstance::Render_SceneGrid()
 {
     if (!_device || !_context)
         return;
-
-    GAME->Bind_BackBuffer();
-
-    D3D11_VIEWPORT viewportDesc{};
-    viewportDesc.TopLeftX = 0.f;
-    viewportDesc.TopLeftY = 0.f;
-    viewportDesc.Width = static_cast<float>(max(1u, GAME->Get_ViewportWidth()));
-    viewportDesc.Height = static_cast<float>(max(1u, GAME->Get_ViewportHeight()));
-    viewportDesc.MinDepth = 0.f;
-    viewportDesc.MaxDepth = 1.f;
-    _context->RSSetViewports(1, &viewportDesc);
 
     const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
     const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
@@ -815,6 +759,94 @@ void EffectEditorInstance::Render_SceneGridToBackBuffer()
     }
 
     _sceneGridBatch->End();
+}
+
+void EffectEditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
+{
+    if (_previewViewportMode != PreviewViewportMode::Auto)
+        return;
+
+    Queue_PreviewViewportSize(width, height);
+}
+
+void EffectEditorInstance::Enable_AutoPreviewViewport()
+{
+    _previewViewportMode = PreviewViewportMode::Auto;
+}
+
+void EffectEditorInstance::Enable_ManualPreviewViewport()
+{
+    _previewViewportMode = PreviewViewportMode::Manual;
+}
+
+void EffectEditorInstance::Set_ManualPreviewViewportSize(uint32 width, uint32 height)
+{
+    _previewViewportMode = PreviewViewportMode::Manual;
+    Queue_PreviewViewportSize(width, height);
+}
+
+void EffectEditorInstance::Sync_PreviewViewportMode()
+{
+    if (GAME->Get_ViewportWidth() > GAME->Get_BackBufferWidth() ||
+        GAME->Get_ViewportHeight() > GAME->Get_BackBufferHeight())
+        Queue_PreviewViewportSize(GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight());
+}
+
+void EffectEditorInstance::Ensure_SceneGridResources()
+{
+    if (_sceneGridBatch && _sceneGridEffect && _sceneGridInputLayout && _sceneGridDepthState)
+        return;
+
+    static constexpr D3D11_INPUT_ELEMENT_DESC sceneGridInputElements[] =
+    {
+        { "SV_Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+
+    _sceneGridBatch = make_shared<PrimitiveBatch<VertexPositionColor>>(_context.Get());
+    _sceneGridEffect = make_shared<BasicEffect>(_device.Get());
+
+    if (nullptr == _sceneGridBatch || nullptr == _sceneGridEffect)
+    {
+        _sceneGridBatch.reset();
+        _sceneGridEffect.reset();
+        return;
+    }
+
+    _sceneGridEffect->SetVertexColorEnabled(true);
+
+    const void* shaderByteCode = nullptr;
+    size_t shaderByteCodeLength = 0;
+    _sceneGridEffect->GetVertexShaderBytecode(&shaderByteCode, &shaderByteCodeLength);
+
+    if (FAILED(
+        _device->CreateInputLayout(
+            sceneGridInputElements,
+            static_cast<UINT>(_countof(sceneGridInputElements)),
+            shaderByteCode,
+            shaderByteCodeLength,
+            _sceneGridInputLayout.GetAddressOf())
+    ))
+    {
+        _sceneGridBatch.reset();
+        _sceneGridEffect.reset();
+        _sceneGridInputLayout.Reset();
+        return;
+    }
+
+    D3D11_DEPTH_STENCIL_DESC depthDesc{};
+    depthDesc.DepthEnable = TRUE;
+    depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    depthDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+    depthDesc.StencilEnable = FALSE;
+
+    if (FAILED(_device->CreateDepthStencilState(&depthDesc, _sceneGridDepthState.GetAddressOf())))
+    {
+        _sceneGridBatch.reset();
+        _sceneGridEffect.reset();
+        _sceneGridInputLayout.Reset();
+        _sceneGridDepthState.Reset();
+    }
 }
 
 void EffectEditorInstance::Queue_PreviewViewportSize(uint32 width, uint32 height)

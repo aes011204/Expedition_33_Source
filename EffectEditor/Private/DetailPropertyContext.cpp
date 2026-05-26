@@ -730,7 +730,7 @@ private: //## Distribution Types
 private: //## Dependencies
     BasicDetailPropertyDrawer& _basicDrawer;
 
-private:  //## Color Helpers
+private: //## Color Helpers
     static ImVec4 Lerp_Color(const ImVec4& lhs, const ImVec4& rhs, float t)
     {
         return ImVec4{
@@ -1915,6 +1915,11 @@ bool DetailPropertyContext::Draw_SortModeProperty(const char* label, EmitterSort
 bool DetailPropertyContext::Draw_UintProperty(const char* label, uint32& value, uint32 defaultValue, const char* tooltip)
 {
     return _basicDrawer->Draw_UintProperty(label, value, defaultValue, tooltip);
+}
+
+bool DetailPropertyContext::Draw_Vec2Property(const char* label, Vec2& value, const Vec2& defaultValue, float speed)
+{
+    return _basicDrawer->Draw_Vec2Property(label, value, defaultValue, speed);
 }
 
 bool DetailPropertyContext::Draw_Vec3Property(const char* label, Vec3& value, const Vec3& defaultValue, float speed)
