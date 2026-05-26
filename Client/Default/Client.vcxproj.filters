@@ -110,6 +110,7 @@
     <ClCompile Include="..\Private\EffectCom.cpp" />
     <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
     <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
+    <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -692,6 +693,7 @@
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
     <ClInclude Include="..\Public\ANS_IdleOffset.h" />
+    <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

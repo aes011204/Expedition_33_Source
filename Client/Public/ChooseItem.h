@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Battle_State.h"
 
 NS_BEGIN(Client)

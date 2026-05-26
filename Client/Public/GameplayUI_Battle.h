@@ -26,6 +26,7 @@ class UI_EscapeSkipTurn;
 class UI_ReactionResult;
 class UI_BattleVictory;
 class UI_BattleMechanism;
+class UI_BattleItemPanel;
 
 class GameplayUI_Battle final : public Base
 {
@@ -70,6 +71,7 @@ private:
     void    Update_ReactionResult(float timeDelta);
     void    Update_BattleVictory(float timeDelta);
     void    Update_BattleMechanism(float timeDelta);
+    void    Update_BattleItemPanel(float timeDelta);
 
 private:
 #pragma region UI 위치맞추기
@@ -108,6 +110,7 @@ private:
     Unique<UI_BattleVictory>                _battleVictory;
     Unique<UI_BattleSystem_TurnOrder>       _turnOrder;
     Unique<UI_BattleMechanism>              _battleMechanism;
+    Unique<UI_BattleItemPanel>              _battleItemPanel;
 
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만

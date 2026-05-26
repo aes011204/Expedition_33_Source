@@ -22,6 +22,7 @@
 #include "UI_EscapeSkipTurn.h"
 #include "UI_ReactionResult.h"
 #include "UI_BattleVictory.h"
+#include "UI_BattleItemPanel.h"
 
 #include "UI_Utils.h"
 
@@ -54,6 +55,7 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_battleVictory, UI_BattleVictory::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_turnOrder, UI_BattleSystem_TurnOrder::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleMechanism, UI_BattleMechanism::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_battleItemPanel, UI_BattleItemPanel::Create), E_FAIL);
 
     for (auto& damageFont : _damageFonts)
     {
@@ -83,6 +85,7 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_DamageFonts(timeDelta);      // 데미지 폰트
     Update_ReactionResult(timeDelta);   // 회피/패링 성공 텍스트 수명 갱신
     Update_BattleVictory(timeDelta);    // 전투 종료 승리 UI
+    Update_BattleItemPanel(timeDelta);  // 아이템
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -606,6 +609,26 @@ void GameplayUI_Battle::Update_PlayerHpBar(float timeDelta)
         return;
     }
 
+    const auto battleController = CLIENT->Get_BattleController();
+    const BattleChar* trackedTarget = nullptr;
+
+    if (battleController != nullptr &&
+        battleController->Get_CurrentTurnState() == BattleTurnState::ItemTargeting)
+    {
+        trackedTarget = battleController->Get_TargetPreview();
+    }
+
+    if (trackedTarget != nullptr &&
+        trackedTarget->statCom != nullptr &&
+        trackedTarget->statCom->Is_Player())
+    {
+        _playerHpBar->Show_TrackedTarget(*trackedTarget);
+    }
+    else
+    {
+        _playerHpBar->Clear_TrackedTarget();
+    }
+
     _playerHpBar->Update(timeDelta);
 }
 
@@ -918,6 +941,45 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
     _battleMechanism->Update(timeDelta);
 }
 
+void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    if (_battleItemPanel == nullptr)
+        return;
+
+    auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_PlayerTurnActive())
+    {
+        _battleItemPanel->Close();
+        return;
+    }
+
+    const Item_Data* healing = CLIENT->Get_Item(BattleItemType::HealingTint);
+    const Item_Data* energy = CLIENT->Get_Item(BattleItemType::EnergyTint);
+    const Item_Data* revive = CLIENT->Get_Item(BattleItemType::ReviveTint);
+
+    if (healing && energy && revive)
+        _battleItemPanel->Refresh_Counts(*healing, *energy, *revive);
+
+    auto turnState = battleController->Get_CurrentTurnState();
+
+    switch (turnState)
+    {
+     case BattleTurnState::ChooseItem:
+        _battleItemPanel->Open_MainPanel();
+        break;
+
+    case BattleTurnState::ItemTargeting:
+        _battleItemPanel->Open_Tooltip(battleController->Get_TurnAction()._selected_ItemKey.itemType);
+        break;
+
+    default:
+        _battleItemPanel->Close();
+        break;
+    }
+}
+
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
 {
     if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
@@ -1075,6 +1137,7 @@ void GameplayUI_Battle::Free()
     Release_UI(_choiceTarget);
     Release_UI(_reactionResult);
     Release_UI(_battleMechanism);
+    Release_UI(_battleItemPanel);
 
     for (auto& damageFont : _damageFonts)
         Release_UI(damageFont);

@@ -60,7 +60,11 @@ namespace Client::Constants::UI
 
     inline constexpr wchar_t UI_Battle_Victory_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleVictory.json";
 
-
+    // 아이템
+    inline constexpr wchar_t UI_Battle_ItemPanel_Path[] = L"UI/UI_Json/BattleSystem/Item/UI_BattleSystem_Item.json";
+    inline constexpr wchar_t UI_Battle_HealingTooltip_Path[] = L"UI/UI_Json/BattleSystem/Item/UI_BattleSystem_ItemTooltip_Healing_Tint.json";
+    inline constexpr wchar_t UI_Battle_EnergyTooltip_Path[] = L"UI/UI_Json/BattleSystem/Item/UI_BattleSystem_ItemTooltip_Energy_Tint.json";
+    inline constexpr wchar_t UI_Battle_ReviveTooltip_Path[] = L"UI/UI_Json/BattleSystem/Item/UI_BattleSystem_ItemTooltip_Revive_Tint.json";
 
 #pragma endregion
 

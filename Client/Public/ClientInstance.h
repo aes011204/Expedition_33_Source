@@ -55,6 +55,10 @@ public: /* For.GameData Table */
     const vector<GameDataTable::WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
     const Skill_Data* Get_Skill(const string& skillId);
 
+    const Item_Data*  Get_Item(const string& itemId);
+    const Item_Data*  Get_Item(BattleItemType itemType);
+    bool              Consume_Item(BattleItemType itemType);
+
 public:
     void    Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout);
     void    Begin_Preview(PreviewShotTable::PreviewShotPanel panel);

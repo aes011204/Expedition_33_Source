@@ -24,7 +24,8 @@ HRESULT UI_PlayerHpBar::Initialize(uint32 levelIndex)
 
 void UI_PlayerHpBar::Update(float timeDelta)
 {
-    _displayElapsed += timeDelta;
+    if (_displayMode == DisplayMode::Timed)
+        _displayElapsed += timeDelta;
 
     BattleChar target{};
     if (!Try_GetDisplayTarget(target))
@@ -62,7 +63,7 @@ void UI_PlayerHpBar::Open()
 void UI_PlayerHpBar::Close()
 {
     _displayTarget = {};
-    _hasDisplayTarget = false;
+    _displayMode = DisplayMode::None;
     _displayElapsed = 0.f;
     _displayDuration = 0.f;
 
@@ -70,6 +71,37 @@ void UI_PlayerHpBar::Close()
     _delayedHpRatio = 1.f;
 
     UI_RuntimePanelBase::Close();
+}
+
+void UI_PlayerHpBar::Show_TrackedTarget(const BattleChar& target)
+{
+    if (!Is_ValidPlayerTarget(target))
+        return;
+
+    _displayTarget = target;
+    _displayMode = DisplayMode::Tracked;
+    _displayElapsed = 0.f;
+    _displayDuration = 0.f;
+
+    const float maxHp = max(target.statCom->Get_StatInfo().maxHp, 1.f);
+    const float hpRatio = clamp(target.statCom->Get_CurHp() / maxHp, 0.f, 1.f);
+
+    _hpRatio = hpRatio;
+    _delayedHpRatio = hpRatio;
+
+    Apply_HpGauge(_hpRatio);
+    Apply_DelayedHpGauge(_delayedHpRatio);
+}
+
+void UI_PlayerHpBar::Clear_TrackedTarget()
+{
+    if (_displayMode != DisplayMode::Tracked)
+        return;
+
+    _displayTarget = {};
+    _displayMode = DisplayMode::None;
+    _displayElapsed = 0.f;
+    _displayDuration = 0.f;
 }
 
 void UI_PlayerHpBar::Show_DamagedTarget(const BattleChar& target, float damage, float duration)
@@ -82,7 +114,7 @@ void UI_PlayerHpBar::Show_DamagedTarget(const BattleChar& target, float damage, 
     const float prevHp = clamp(curHp + max(damage, 0.f), 0.f, maxHp);
 
     _displayTarget = target;
-    _hasDisplayTarget = true;
+    _displayMode = DisplayMode::Timed;
     _displayElapsed = 0.f;
     _displayDuration = max(0.f, duration);
 
@@ -179,13 +211,13 @@ void UI_PlayerHpBar::Update_DelayedHpGauge(float timeDelta, float targetRatio)
 
 bool UI_PlayerHpBar::Try_GetDisplayTarget(BattleChar& outTarget) const
 {
-    if (!_hasDisplayTarget)
+    if (_displayMode == DisplayMode::None)
         return false;
 
     if (!Is_ValidPlayerTarget(_displayTarget))
         return false;
 
-    if (_displayElapsed >= _displayDuration)
+    if (_displayMode == DisplayMode::Timed && _displayElapsed >= _displayDuration)
         return false;
 
     outTarget = _displayTarget;

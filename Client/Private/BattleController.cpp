@@ -889,6 +889,48 @@ void BattleController::Execute_Skill(const BattleChar actor, const Action& turnA
 
 void BattleController::Execute_Item(const BattleChar actor, const Action& turnAction)
 {
+    CHECK_NULL(turnAction.target.statCom);
+    CHECK_NULL(actor.statCom);
+
+    auto& action = Get_TurnAction();
+    const Item_Data& itemData = action._selected_ItemKey;
+
+    bool hasApplied = false;
+
+    switch (itemData.itemType)
+    {
+    case BattleItemType::HealingTint:
+        DamageSystem::Heal(static_cast<float>(itemData.healHp), action.target);
+        hasApplied = true;
+        break;
+
+    case BattleItemType::EnergyTint:
+        action.target.statCom->Add_AP(itemData.restoreAp);
+        hasApplied = true;
+        break;
+
+    case BattleItemType::ReviveTint:
+        if (action.target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+        {
+            // 먼저 부활 상태 복구
+            action.target.statCom->Set_AliveStatus(EAliveStatus::Alive);
+             // 부활 직후 HP 회복
+            DamageSystem::Heal(static_cast<float>(itemData.reviveHp), action.target);
+            hasApplied = true;
+        }
+        break;
+
+    default:
+        return;
+    }
+
+    if (!hasApplied)
+        return; // 잘못된 대상이면 소비/턴종료 없이 그냥 막는다
+
+    CLIENT->Consume_Item(itemData.itemType);
+    Clear_TargetPreview();
+
+    _isActionExecuting = false;
 }
 
 void BattleController::Apply_BaseAttackAP(const BattleChar& actor)
@@ -1082,7 +1124,7 @@ void BattleController::Confirm_Victory()
 void BattleController::Handle_DamageApplied(const BattleChar& damagedTarget, float damage)
 {
     Try_RequestEndTurnOnCurrentActorDeath(damagedTarget, damage);
-    Try_BeginVictorySlowOnDamage(damagedTarget, damage);   
+    Try_BeginVictorySlowOnDamage(damagedTarget, damage);
 }
 
 void BattleController::Try_RequestEndTurnOnCurrentActorDeath(const BattleChar& damagedTarget, float damage)
@@ -1102,7 +1144,7 @@ void BattleController::Try_RequestEndTurnOnCurrentActorDeath(const BattleChar& d
     if (damagedTarget.statCom->Get_AliveStatus() != EAliveStatus::Dead)
         return;
 
-    _requestEndTurnOnCurrentActorDeath = true; 
+    _requestEndTurnOnCurrentActorDeath = true;
 }
 
 void BattleController::Try_BeginVictorySlowOnDamage(const BattleChar& damagedTarget, float damage)

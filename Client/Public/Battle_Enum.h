@@ -390,9 +390,29 @@ namespace Client
         double PortraitOffset;
     };
 
+    enum class BattleItemType
+    {
+        Invalid,
+        HealingTint,
+        EnergyTint,
+        ReviveTint,
+    };
+
     struct Item_Data
     {
-        
+        string itemKey = "";
+        wstring displayName = TEXT("");
+        BattleItemType itemType = BattleItemType::Invalid;
+
+        int32 count = 0;      // 전투 중 현재 사용 가능한 수량
+        int32 healHp = 0;     // HealingTint 전용 회복량
+        int32 restoreAp = 0;  // EnergyTint 전용 AP 회복량
+        int32 reviveHp = 0;   // ReviveTint 전용 부활 후 HP
+
+        bool IsValid() const
+        {
+            return itemType != BattleItemType::Invalid;
+        }
     };
 
     //-------------------------------------
@@ -628,6 +648,10 @@ namespace Client
         Counter,
 
         Dead,
+
+        Item_Enter, // Idle은 노티파이로
+        Item_Idle,
+        Item_Use,
 
     };
 
