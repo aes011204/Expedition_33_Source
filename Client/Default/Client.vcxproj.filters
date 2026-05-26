@@ -85,7 +85,7 @@
     <ClCompile Include="..\Private\UI_DamageFont.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_EscapeSkipTurn.cpp">
+    <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_BattleVictory.cpp" />
@@ -111,6 +111,8 @@
     <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
     <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
     <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
+    <ClCompile Include="..\Private\AN_EndTurn.cpp" />
+    <ClCompile Include="..\Private\UI_HealFont.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -671,7 +673,7 @@
     <ClInclude Include="..\Public\UI_DamageFont.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_EscapeSkipTurn.h">
+    <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BattleVictory.h" />
@@ -694,6 +696,8 @@
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
     <ClInclude Include="..\Public\ANS_IdleOffset.h" />
     <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
+    <ClInclude Include="..\Public\AN_EndTurn.h" />
+    <ClInclude Include="..\Public\UI_HealFont.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

@@ -46,6 +46,10 @@ void UI_BattleItemPanel::Open_MainPanel()
 void UI_BattleItemPanel::Open_Tooltip(BattleItemType itemType)
 {
     Open();
+
+    if (_root)
+        _root->Close();
+
     Close_Tooltip();
 
     switch (itemType)
@@ -73,7 +77,7 @@ void UI_BattleItemPanel::Close_Tooltip()
     if (_reviveTooltipRoot) _reviveTooltipRoot->Close();
 }
 
-void UI_BattleItemPanel::Refresh_Counts(const Item_Data& healing, const Item_Data& energy, const Item_Data& revive)
+void UI_BattleItemPanel::Refresh_ItemTexts(const Item_Data& healing, const Item_Data& energy, const Item_Data& revive)
 {
     if (_healingCountText)
         _healingCountText->Set_Text(to_wstring(max(0, healing.count)));
@@ -83,6 +87,42 @@ void UI_BattleItemPanel::Refresh_Counts(const Item_Data& healing, const Item_Dat
 
     if (_reviveCountText)
         _reviveCountText->Set_Text(to_wstring(max(0, revive.count)));
+
+    if (_healingDescValueText)
+        _healingDescValueText->Set_Text(to_wstring(max(0, healing.healHp)));
+
+    if (_energyDescValueText)
+        _energyDescValueText->Set_Text(to_wstring(max(0, energy.restoreAp)));
+
+    if (_reviveDescValueText)
+        _reviveDescValueText->Set_Text(to_wstring(max(0, revive.reviveHp)));
+
+    if (_healingDescUnitText)
+        _healingDescUnitText->Set_Text(L"%");
+
+    if (_energyDescUnitText)
+        _energyDescUnitText->Set_Text(L"AP");
+
+    if (_reviveDescUnitText)
+        _reviveDescUnitText->Set_Text(L"%");
+
+    if (_healingTooltipValueText)
+        _healingTooltipValueText->Set_Text(to_wstring(max(0, healing.healHp)));
+
+    if (_energyTooltipValueText)
+        _energyTooltipValueText->Set_Text(to_wstring(max(0, energy.restoreAp)));
+
+    if (_reviveTooltipValueText)
+        _reviveTooltipValueText->Set_Text(to_wstring(max(0, revive.reviveHp)));
+
+    if (_healingTooltipUnitText)
+        _healingTooltipUnitText->Set_Text(L"%");
+
+    if (_energyTooltipUnitText)
+        _energyTooltipUnitText->Set_Text(L"AP");
+
+    if (_reviveTooltipUnitText)
+        _reviveTooltipUnitText->Set_Text(L"%");
 }
 
 HRESULT UI_BattleItemPanel::Load_UI(uint32 levelIndex)
@@ -126,6 +166,18 @@ HRESULT UI_BattleItemPanel::Bind_UI()
     _healingCountText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Healing_Tint_Count");
     _energyCountText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Energy_Tint_Count");
     _reviveCountText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Revive_Tint_Count");
+    _healingDescValueText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Healing_Tint_Description_2");
+    _energyDescValueText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Energy_Tint_Description_2");
+    _reviveDescValueText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Revive_Tint_Description_2");
+    _healingDescUnitText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Healing_Tint_Description_3");
+    _energyDescUnitText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Energy_Tint_Description_3");
+    _reviveDescUnitText = Find_TypedUI<UI_Text>(_uiByName, L"Text_Revive_Tint_Description_3");
+    _healingTooltipValueText = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattleSystem_ItemTooltip_Healing_Tint_Number_1");
+    _energyTooltipValueText = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattleSystem_ItemTooltip_Energy_Tint_Number_1");
+    _reviveTooltipValueText = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattleSystem_ItemTooltip_Revive_Tint_Number_1");
+    _healingTooltipUnitText = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattleSystem_ItemTooltip_Healing_Tint_Percent");
+    _energyTooltipUnitText = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattleSystem_ItemTooltip_Energy_Tint_AP");
+    _reviveTooltipUnitText = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattleSystem_ItemTooltip_Revive_Tint_Percent");
 
     CHECK_NULL(_root, E_FAIL);
     CHECK_NULL(_healingTooltipRoot, E_FAIL);
@@ -134,6 +186,18 @@ HRESULT UI_BattleItemPanel::Bind_UI()
     CHECK_NULL(_healingCountText, E_FAIL);
     CHECK_NULL(_energyCountText, E_FAIL);
     CHECK_NULL(_reviveCountText, E_FAIL);
+    CHECK_NULL(_healingDescValueText, E_FAIL);
+    CHECK_NULL(_energyDescValueText, E_FAIL);
+    CHECK_NULL(_reviveDescValueText, E_FAIL);
+    CHECK_NULL(_healingDescUnitText, E_FAIL);
+    CHECK_NULL(_energyDescUnitText, E_FAIL);
+    CHECK_NULL(_reviveDescUnitText, E_FAIL);
+    CHECK_NULL(_healingTooltipValueText, E_FAIL);
+    CHECK_NULL(_energyTooltipValueText, E_FAIL);
+    CHECK_NULL(_reviveTooltipValueText, E_FAIL);
+    CHECK_NULL(_healingTooltipUnitText, E_FAIL);
+    CHECK_NULL(_energyTooltipUnitText, E_FAIL);
+    CHECK_NULL(_reviveTooltipUnitText, E_FAIL);
 
     return S_OK;
 }

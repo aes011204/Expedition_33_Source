@@ -27,7 +27,7 @@ public:
     void Open_Tooltip(BattleItemType itemType);
     void Close_Tooltip();
 
-    void Refresh_Counts(const Item_Data& healing, const Item_Data& energy, const Item_Data& revive);
+    void Refresh_ItemTexts(const Item_Data& healing, const Item_Data& energy, const Item_Data& revive);
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
@@ -41,6 +41,22 @@ private:
     Shared<UI_Text> _healingCountText;
     Shared<UI_Text> _energyCountText;
     Shared<UI_Text> _reviveCountText;
+
+    Shared<UI_Text> _healingDescValueText;
+    Shared<UI_Text> _energyDescValueText;
+    Shared<UI_Text> _reviveDescValueText;
+
+    Shared<UI_Text> _healingDescUnitText;
+    Shared<UI_Text> _energyDescUnitText;
+    Shared<UI_Text> _reviveDescUnitText;
+
+    Shared<UI_Text> _healingTooltipValueText;
+    Shared<UI_Text> _energyTooltipValueText;
+    Shared<UI_Text> _reviveTooltipValueText;
+
+    Shared<UI_Text> _healingTooltipUnitText;
+    Shared<UI_Text> _energyTooltipUnitText;
+    Shared<UI_Text> _reviveTooltipUnitText;
 
 public:
     static Unique<UI_BattleItemPanel> Create(uint32 levelIndex);

@@ -36,6 +36,21 @@ bool ChooseItem::EnterInvoke()
 
     owner->Get_TurnAction()._selected_ItemKey = {}; // 메뉴에 다시 들어오면 이전 선택 초기화
 
+    const BattleChar& actor = owner->Get_TurnAction()._curChar;
+    if (actor.ModelCom)
+    {
+        const uint32 animIndex = actor.ModelCom->Get_AnimationStateIndex();
+
+        if (animIndex != ETOI(BattleAnimType::Item_Enter) &&
+            animIndex != ETOI(BattleAnimType::Item_Idle))
+        {
+            if (!actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Item_Enter), 0.2f, false))
+            {
+                actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Item_Idle), 0.2f, true);
+            }
+        }
+    }
+
     return Battle_State::EnterInvoke();
 }
 
@@ -51,6 +66,13 @@ void ChooseItem::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
         owner->Get_TurnAction()._selected_ItemKey= {};
+
+        const BattleChar& actor = owner->Get_TurnAction()._curChar;
+        if (actor.ModelCom)
+        {
+            actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.2f, true);
+        }
+
         battleFSM->Change_State(BattleTurnState::ChooseAction);
         return;
     }

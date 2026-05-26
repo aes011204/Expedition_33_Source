@@ -47,8 +47,9 @@ namespace Client::Constants::UI
 
     inline constexpr wchar_t UI_NormalDamageFont_Path[] = L"UI/UI_Json/BattleSystem/UI_NormalDamageFont.json";
     inline constexpr wchar_t UI_CriticalDamageFont_Path[] = L"UI/UI_Json/BattleSystem/UI_CriticalDamageFont.json";
+    inline constexpr wchar_t UI_HealFont_Path[] = L"UI/UI_Json/BattleSystem/UI_HealFont.json";
 
-    inline constexpr wchar_t UI_Escape_SkipTurn_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Escape_SkipTurn.json";
+    inline constexpr wchar_t UI_Escape_SkipTurnBack_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Escape_SkipTurn_Back.json";
     inline constexpr wchar_t UI_Attack_Tooltip_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_AttackTooltip.json";
 
     inline constexpr wchar_t UI_Gustave_Mechanism_Path[] = L"UI/UI_Json/BattleSystem/Gustave/UI_BattleSystem_Gustave_Mechanism.json";
@@ -66,6 +67,8 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Battle_EnergyTooltip_Path[] = L"UI/UI_Json/BattleSystem/Item/UI_BattleSystem_ItemTooltip_Energy_Tint.json";
     inline constexpr wchar_t UI_Battle_ReviveTooltip_Path[] = L"UI/UI_Json/BattleSystem/Item/UI_BattleSystem_ItemTooltip_Revive_Tint.json";
 
+
+
 #pragma endregion
 
 }
@@ -74,9 +77,19 @@ namespace Client::Constants::UI_Anim
 {
     inline constexpr wchar_t UI_LoadingAnim_Path[] = L"UI/UI_Animations/Scene/Loading";
 
-    inline constexpr wchar_t UI_CrossAirAnim_Path[] = L"UI/UI_Animations/BattleSystem/CrossAir/Ready_CrossAir";
+    inline constexpr wchar_t UI_CrossAirReadyAnim_Path[] =
+        L"UI/UI_Animations/BattleSystem/CrossAir/Ready_CrossAir";
+
+    inline constexpr wchar_t UI_CrossAirHoverMonsterAnim_Path[] =
+        L"UI/UI_Animations/BattleSystem/CrossAir/Hover_Monster_CrossAir";
+
+    inline constexpr wchar_t UI_CrossAirHoverCancelMonsterAnim_Path[] =
+        L"UI/UI_Animations/BattleSystem/CrossAir/Hover_Cancel_Monster_CrossAir";
+    
     inline constexpr wchar_t UI_NormalDamageFontAnim_Path[] = L"UI/UI_Animations/BattleSystem/DamageFont/NormalDamageFont";
     inline constexpr wchar_t UI_CriticalDamageFontAnim_Path[] = L"UI/UI_Animations/BattleSystem/DamageFont/CriticalDamageFont";
+    
+    inline constexpr wchar_t UI_HealFontAnim_Path[] = L"UI/UI_Animations/BattleSystem/DamageFont/HealFont";
 }
 
 namespace Client::Constants::Map

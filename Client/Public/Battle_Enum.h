@@ -653,6 +653,8 @@ namespace Client
         Item_Idle,
         Item_Use,
 
+        Revive,
+
     };
 
     enum class BattleReactionType

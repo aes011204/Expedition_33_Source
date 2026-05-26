@@ -557,6 +557,38 @@ void BattleController::Build_InitialTurnQueue(bool IsFirstHero)
     }
 }
 
+void BattleController::Rebuild_TurnQueue(const BattleChar& revivedActor)
+{
+    if (revivedActor.actor == nullptr || revivedActor.statCom == nullptr)
+        return;
+
+    priority_queue<TurnEntry, vector<TurnEntry>, Compare> rebuiltQueue{};
+
+    while (!_turnQueue.empty())
+    {
+        TurnEntry entry = _turnQueue.top();
+        _turnQueue.pop();
+
+        if (entry.hero.actor == nullptr || entry.hero.statCom == nullptr)
+            continue;
+
+        if (entry.hero.actor == revivedActor.actor)
+            continue;
+
+        if (entry.hero.statCom->Get_AliveStatus() != EAliveStatus::Alive)
+            continue;
+
+        rebuiltQueue.push(entry);
+    }
+
+    TurnEntry revivedEntry{};
+    revivedEntry.hero = revivedActor;
+    revivedEntry.nextTime = _battleTime + 100.f / max(revivedActor.statCom->Get_Speed(), 1.f);
+
+    rebuiltQueue.push(revivedEntry);
+    _turnQueue = std::move(rebuiltQueue);
+}
+
 void BattleController::SetCharInitPos()
 {
     /*INFO = FiledMgr->GetFiledInfo(FieldID)
@@ -895,42 +927,47 @@ void BattleController::Execute_Item(const BattleChar actor, const Action& turnAc
     auto& action = Get_TurnAction();
     const Item_Data& itemData = action._selected_ItemKey;
 
-    bool hasApplied = false;
-
     switch (itemData.itemType)
     {
     case BattleItemType::HealingTint:
-        DamageSystem::Heal(static_cast<float>(itemData.healHp), action.target);
-        hasApplied = true;
+        if (action.target.statCom->Get_AliveStatus() != EAliveStatus::Alive)
+            return; // 치유 틴트는 살아있는 대상에게만 적용한다.
+
+        DamageSystem::Heal(action.target.statCom->Get_StatInfo().maxHp * static_cast<float>(itemData.healHp) * 0.01f, action.target);
         break;
 
     case BattleItemType::EnergyTint:
+        if (action.target.statCom->Get_AliveStatus() != EAliveStatus::Alive)
+            return; // 에너지 틴트는 살아있는 대상에게만 적용한다.
+
         action.target.statCom->Add_AP(itemData.restoreAp);
-        hasApplied = true;
         break;
 
     case BattleItemType::ReviveTint:
-        if (action.target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+        if (action.target.statCom->Get_AliveStatus() != EAliveStatus::Dead)
+            return; // 부활 틴트는 죽어있는 대상에게만 적용한다.
+
+        action.target.statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
+        DamageSystem::Heal(action.target.statCom->Get_StatInfo().maxHp * static_cast<float>(itemData.reviveHp) * 0.01f, action.target);
+
+        if (action.target.ModelCom)
         {
-            // 먼저 부활 상태 복구
-            action.target.statCom->Set_AliveStatus(EAliveStatus::Alive);
-             // 부활 직후 HP 회복
-            DamageSystem::Heal(static_cast<float>(itemData.reviveHp), action.target);
-            hasApplied = true;
+            if (!action.target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
+            {
+                action.target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.2f, true); // Revive 매핑이 없으면 바로 기본 Idle로 복귀한다.
+            }
         }
+
+        Rebuild_TurnQueue(action.target);
+
         break;
 
     default:
         return;
     }
 
-    if (!hasApplied)
-        return; // 잘못된 대상이면 소비/턴종료 없이 그냥 막는다
-
     CLIENT->Consume_Item(itemData.itemType);
     Clear_TargetPreview();
-
-    _isActionExecuting = false;
 }
 
 void BattleController::Apply_BaseAttackAP(const BattleChar& actor)

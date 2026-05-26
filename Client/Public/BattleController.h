@@ -76,6 +76,8 @@ public:
 
     void Create_BattleChar(const vector<HeroId>& heroIds, vector<string>& battleMonsterPrefabNames);
     void Build_InitialTurnQueue(bool IsFirstHero);
+    // 부활하면 턴 큐 한번 다시 리빌드
+    void Rebuild_TurnQueue(const BattleChar& revivedActor);
     void SetCharInitPos();
 
     void OnActionEndNotify();

@@ -4,11 +4,11 @@
 
 NS_BEGIN(Client)
 
-class UI_EscapeSkipTurn final : public UI_RuntimePanelBase
+class UI_EscapeSkipTurnBack final : public UI_RuntimePanelBase
 {
 public:
-    UI_EscapeSkipTurn() = default;
-    ~UI_EscapeSkipTurn() override = default;
+    UI_EscapeSkipTurnBack() = default;
+    ~UI_EscapeSkipTurnBack() override = default;
 
 public:
     HRESULT Initialize(uint32 levelIndex) override;
@@ -26,7 +26,7 @@ private:
     Shared<UI_Base> _keyTab{};
 
 public:
-    static Unique<UI_EscapeSkipTurn> Create(uint32 levelIndex);
+    static Unique<UI_EscapeSkipTurnBack> Create(uint32 levelIndex);
     void Free() override;
 };
 
