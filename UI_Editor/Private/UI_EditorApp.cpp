@@ -13,18 +13,31 @@ namespace UIEditor
 
     HRESULT UI_EditorApp::Initialize(HWND hWnd)
     {
+        const auto startupBeginTime = chrono::steady_clock::now();
+        auto lastStepTime = startupBeginTime;
+        auto logStartupStep = [&lastStepTime](const char* stepName)
+        {
+            const auto nowTime = chrono::steady_clock::now();
+            const double elapsedMilliseconds = chrono::duration<double, milli>(nowTime - lastStepTime).count();
+            LOG_INFO("UI Editor startup: {} {:.2f} ms", stepName, elapsedMilliseconds);
+            lastStepTime = nowTime;
+        };
+
         _hWnd = hWnd;
 
         if (FAILED(Create_DeviceObjects(hWnd)))
             return E_FAIL;
+        logStartupStep("device");
 
         const wstring resourceRoot = Resolve_ClientResourceRoot();
+        logStartupStep("resource-root");
         if (!resourceRoot.empty())
         {
             _assetManagerReady = SUCCEEDED(GAME->Initialize_AssetManager(resourceRoot));
             if (!_assetManagerReady)
                 GameInstance::DestroyInstance();
         }
+        logStartupStep("asset-manager");
 
         UI_EDITOR_DESC editorDesc {};
         editorDesc.hWnd = _hWnd;
@@ -42,8 +55,11 @@ namespace UIEditor
             _device.Reset();
             return E_FAIL;
         }
+        logStartupStep("editor-manager");
 
         _initialized = true;
+        const double totalMilliseconds = chrono::duration<double, milli>(chrono::steady_clock::now() - startupBeginTime).count();
+        LOG_INFO("UI Editor startup: total {:.2f} ms", totalMilliseconds);
         return S_OK;
     }
 

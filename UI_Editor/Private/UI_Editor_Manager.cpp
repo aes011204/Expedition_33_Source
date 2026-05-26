@@ -364,6 +364,7 @@ namespace UIEditor
         _animationPreviewService.Stop();
         Clear_RuntimeCaches();
         Resolve_LoadedAssetReferences();
+        Refresh_AnimationTargetBindings();
         Clear_History();
         Clear_Dirty();
         return true;
@@ -379,6 +380,7 @@ namespace UIEditor
         Clear_Selection();
         _animationPreviewService.Stop();
         Clear_RuntimeCaches();
+        Refresh_AnimationTargetBindings();
         Clear_History();
         Clear_Dirty();
         return true;
@@ -584,6 +586,14 @@ namespace UIEditor
         }
     }
 
+    void UI_Editor_Manager::Refresh_AnimationTargetBindings()
+    {
+        const Shared<UI_Editor_Window> animationWindow = Find_Window(L"Animation");
+        const Shared<UI_Animation_View> animationView = dynamic_pointer_cast<UI_Animation_View>(animationWindow);
+        if (nullptr != animationView)
+            animationView->Refresh_TargetBindings();
+    }
+
     bool UI_Editor_Manager::Queue_FontPreview(
         const string& fontGuid,
         const string& fontPath,
@@ -644,6 +654,7 @@ namespace UIEditor
 
         Set_SelectedObjectIds(createdRootObjectIds, createdRootObjectIds.back());
         Resolve_LoadedAssetReferences();
+        Refresh_AnimationTargetBindings();
         Clear_RuntimeCaches();
         Mark_Dirty();
         return true;
@@ -656,6 +667,7 @@ namespace UIEditor
         _animationPreviewService.Stop();
         Clear_RuntimeCaches();
         Resolve_LoadedAssetReferences();
+        Refresh_AnimationTargetBindings();
     }
 
     void UI_Editor_Manager::Create_UIObject(UI_ObjectType objectType)
@@ -764,6 +776,7 @@ namespace UIEditor
         Prune_InvalidSelection();
 
         _animationPreviewService.Stop();
+        Refresh_AnimationTargetBindings();
         Mark_Dirty();
     }
 
@@ -805,6 +818,7 @@ namespace UIEditor
 
         Prune_InvalidSelection();
         _animationPreviewService.Stop();
+        Refresh_AnimationTargetBindings();
         Mark_Dirty();
     }
 
