@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "GameObject.h"
+#include "EffectRuntime_Types.h"
 
 NS_BEGIN(Engine)
 
@@ -31,6 +32,7 @@ public: //## Behavior::Attach
 public: //## Behavior::Lifecycle
     virtual HRESULT Reset_ForEffectReplay(); // effect root가 재사용 전에 emitter runtime 상태를 초기화할 때 호출한다.
     virtual bool Is_EffectFinished() const;  // effect root가 자연 완료 여부를 종합할 때 사용하는 완료 상태다.
+    virtual void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider); // trail sample provider를 acquire 시점 context로 다시 바인딩한다.
 
     bool Is_EmitterEnabled() const { return _enabled; }            // root fan-out 시 enabled gate로 사용한다.
     uint32 Get_EmitterId() const { return _emitterId; }            // 디버그/추적용 emitter id 반환이다.
