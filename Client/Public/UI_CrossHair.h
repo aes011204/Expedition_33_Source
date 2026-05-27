@@ -23,12 +23,13 @@ public:
     void    Close() override;
 
 public:
-    void    Set_HitState(bool isHit); // 히트 충돌중이면, 빨간색
+    void    Set_HitState(bool isHit);
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
-    void    Apply_Color();
+
+    void    Play_CrossAirAnimation(const wstring& animationName);
 
 private:
     Shared<UI_Base> _outlineRoot{};
@@ -37,11 +38,7 @@ private:
 
 private:
     bool _isHit = false;
-
-    Vec4 _normalColor = Vec4(1.f, 1.f, 1.f, 0.78f);
-    Vec4 _hitColor = Vec4(1.f, 0.2f, 0.2f, 0.95f);
-    Vec4 _outlineNormalColor = Vec4(1.f, 1.f, 1.f, 0.47f);
-    Vec4 _outlineHitColor = Vec4(1.f, 0.35f, 0.35f, 0.70f);
+    bool _hasHitState = false;
 
 public:
     static Unique<UI_CrossHair> Create(uint32 levelIndex);

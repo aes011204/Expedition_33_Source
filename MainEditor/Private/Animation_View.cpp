@@ -21,6 +21,19 @@
 
 namespace
 {
+    bool IsInteractivePreviewWindow(const Shared<Editor_Window>& window)
+    {
+        return window != nullptr &&
+            window->Is_Open() &&
+            window->Is_Visible() &&
+            (window->Is_Focused() || window->Is_Hovered());
+    }
+
+    bool IsShownPreviewWindow(const Shared<Editor_Window>& window)
+    {
+        return window != nullptr && window->Is_Open() && window->Is_Visible();
+    }
+
     string Resolve_NotifyAnimationKey(const Animation_View::AnimationEntry& entry)
     {
         if (!entry.playbackName.empty())
@@ -128,7 +141,7 @@ void Animation_View::Update(float timeDelta)
     if (!Is_Visible())
         return;
 
-    if (Is_PrefabViewFocused())
+    if (Should_DeferToCompanionPreview())
         return;
 
     if (_previewCamera && _isPreviewHovered)
@@ -163,7 +176,7 @@ void Animation_View::Pre_Render()
     if (!Is_Visible())
         return;
 
-    if (Is_PrefabViewFocused())
+    if (Should_DeferToCompanionPreview())
         return;
 
     Shared<GameObject> previewRenderObject = Get_PreviewRenderObject();
@@ -2199,15 +2212,21 @@ void Animation_View::Lock_PreviewObjectToOrigin(const Shared<GameObject>& gameOb
     transformCom->Set_WorldPosition(Vec3::Zero);
 }
 
-bool Animation_View::Is_PrefabViewFocused()
+bool Animation_View::Should_DeferToCompanionPreview()
 {
+    const Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
+    const bool isAnimationInteractive = IsInteractivePreviewWindow(animationWindow);
+
     Shared<Editor_Window> prefabWindow = EDITOR->Get_Window(L"Prefab");
-    Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabWindow);
-    if (prefabView != nullptr && prefabView->Is_Open() && prefabView->Is_Focused())
+    if (IsInteractivePreviewWindow(prefabWindow))
         return true;
 
     Shared<Editor_Window> animStateWindow = EDITOR->Get_Window(L"AnimState");
-    return animStateWindow != nullptr && animStateWindow->Is_Open() && animStateWindow->Is_Focused();
+    if (IsInteractivePreviewWindow(animStateWindow))
+        return true;
+
+    // fallback owner priority: AnimState > Animation > Prefab
+    return !isAnimationInteractive && IsShownPreviewWindow(animStateWindow);
 }
 
 Editor_Camera_Free::EDITOR_CAMERA_DESC Animation_View::Build_PreviewCameraDesc(const Shared<GameObject>& gameObject)

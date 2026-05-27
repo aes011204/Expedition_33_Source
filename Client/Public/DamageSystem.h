@@ -7,6 +7,7 @@ NS_BEGIN(Client)
 struct BattleChar;
 
 DECLARE_DELEGATE(FOnDamageApplied, const BattleChar&, float);
+DECLARE_DELEGATE(FOnHealApplied, const BattleChar&, float);
 
 class DamageSystem : public Base
 {
@@ -18,6 +19,7 @@ public:
     static void Heal(float amount, const BattleChar& target);
 
     static FOnDamageApplied OnDamageApplied;
+    static FOnHealApplied   OnHealApplied;
 
     virtual void Free();
 };

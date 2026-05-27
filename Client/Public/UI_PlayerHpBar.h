@@ -25,6 +25,8 @@ public:
 
 public:
     void    Show_DamagedTarget(const BattleChar& target, float damage, float duration);
+    void    Show_TrackedTarget(const BattleChar& target);
+    void    Clear_TrackedTarget();
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
@@ -39,11 +41,19 @@ private:
     bool    Is_ValidPlayerTarget(const BattleChar& target) const;
 
 private:
+    enum class DisplayMode
+    {
+        None,
+        Tracked,
+        Timed,
+    };
+
+private:
     Shared<UI_Image> _hpGauge{};   
     Shared<UI_Image> _hpGaugeBG{}; 
 
     BattleChar _displayTarget{};
-    bool       _hasDisplayTarget = false;
+    DisplayMode _displayMode = DisplayMode::None;
 
     float      _displayElapsed = 0.f;
     float      _displayDuration = 0.f;

@@ -32,11 +32,6 @@ public:
         uint32 preferredDockId = 0,
         bool focusOnOpen = true);
 
-    bool Is_CompanionPreviewFocused();
-
-public:
-
-
 private:
     struct AnimationEntry
     {
@@ -89,6 +84,7 @@ private:
     static const AnimationEntry* Find_AnimationEntryByAnyName(const vector<AnimationEntry>& entries, const string& name);
     static int32 Find_AnimationIndex(const Shared<ModelCom>& modelCom, const string& animationName);
     static Shared<GameObject> Resolve_RootPreviewObject(const Shared<GameObject>& gameObject);
+    static bool Should_DeferToCompanionPreview();
     static Editor_Camera_Free::EDITOR_CAMERA_DESC Build_PreviewCameraDesc(const Shared<GameObject>& gameObject);
     static void Apply_PreviewCameraTransform(const Shared<Editor_Camera_Free>& camera);
 

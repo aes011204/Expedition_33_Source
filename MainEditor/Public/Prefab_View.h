@@ -68,7 +68,7 @@ private:
     static Editor_Camera_Free::EDITOR_CAMERA_DESC Build_PreviewCameraDesc(const Shared<GameObject>& gameObject);
     static void Apply_PreviewCameraTransform(const Shared<Editor_Camera_Free>& camera);
     static void Disable_PreviewAnimNotifyExecution(const Shared<GameObject>& gameObject);
-    static bool Is_AnimationViewFocused();
+    static bool Should_DeferToCompanionPreview();
 
 private:
     string              _prefabName {};
