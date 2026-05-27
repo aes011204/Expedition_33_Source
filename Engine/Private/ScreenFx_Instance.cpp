@@ -16,6 +16,7 @@ HRESULT ScreenFx_Instance::Initialize(ScreenFxDesc* desc)
         {
             _endCondition.Add(desc->endPredicate);
         }
+        return S_OK;
     }
 
     LOG_ERROR("[SCREEN FX INSTANCE] : Failed to Initialize ScreenFx");
@@ -31,4 +32,9 @@ bool ScreenFx_Instance::Check_EndCondition()
     }
 
     return shouldEnd;
+}
+
+HRESULT ScreenFx_Instance::Bind_ShaderResources(ShaderCom* shader)
+{
+    return S_OK;
 }

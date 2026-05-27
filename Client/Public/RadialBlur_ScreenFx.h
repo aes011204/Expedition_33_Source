@@ -1,13 +1,16 @@
 ﻿#pragma once
-
 #include "ScreenFx_Instance.h"
+
+NS_BEGIN(Engine)
+class ShaderCom;
+NS_END
 
 NS_BEGIN(Client)
 
 class RadialBlur_ScreenFx final : public ScreenFx_Instance
 {
 public:
-    struct RadialBlurDesc : public ScreenFx_Instance::ScreenFxDesc
+    struct RadialBlurDesc : public ScreenFxDesc
     {
         Vec2    center{ 0.5f, 0.5f };
         float   radius{ 1.0f };
@@ -15,21 +18,25 @@ public:
         float   duration{ 1.0f };
     };
 
-private:
-    RadialBlur_ScreenFx(const RadialBlurDesc& desc);
+public:
+    RadialBlur_ScreenFx() = default;
     ~RadialBlur_ScreenFx() override = default;
+
+public:
+    HRESULT Initialize(ScreenFxDesc* desc) override;
+    void Update_ScreenFx(float timeDelta) override;
+    HRESULT Bind_FxConstantBuffer(ShaderCom* shader) override;
 
 private:
     Vec2    _center{};
     float   _radius{};
     float   _maxIntensity{};
-    
     float   _duration{};
     float   _timeAcc{};
     float   _currentIntensity{};
 
 public:
-    static Shared<RadialBlur_ScreenFx> Create(const RadialBlurDesc& desc);
+    static Shared<RadialBlur_ScreenFx> Create(RadialBlurDesc* desc);
 };
 
 NS_END

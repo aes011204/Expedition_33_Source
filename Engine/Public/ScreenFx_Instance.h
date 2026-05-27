@@ -17,7 +17,7 @@ public:
     struct ScreenFxDesc
     {
         uint32 passType{};
-        const function<void(bool&)> endPredicate{};
+        function<void(bool&)> endPredicate{};
     };
 
 public:
@@ -29,14 +29,13 @@ public:
     bool Check_EndCondition();
     virtual void Update_ScreenFx(float timeDelta) { }
     virtual HRESULT Bind_FxConstantBuffer(ShaderCom* shader) PURE;
-    virtual HRESULT Bind_ShaderResources(ShaderCom* shader) { return S_OK; }
+    virtual HRESULT Bind_ShaderResources(ShaderCom* shader);
     
 public:
-    uint32                  Get_PassIndex() const { return ETOI(_passType); }
+    uint32 Get_PassIndex() const { return _passType; }
 
 protected:
     uint32                  _passType{};
-    ScreenFxCB              _bufferData{};
     EndCondition            _endCondition{};
 
 };

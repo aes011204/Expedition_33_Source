@@ -119,7 +119,7 @@ PS_OUT_BACKBUFFER PS_Glow(PS_IN In)
     
     // 간단한 박스 블러 형태의 글로우 (임시 가짜 블룸)
     float4 blurColor = float4(0,0,0,0);
-    float2 texOffset = float2(1.0f / 1600.0f, 1.0f / 900.0f) * 2.0f; // 임시 스크린 사이즈 기반
+    float2 texOffset = float2(1.0f / g_ScreenSize.x, 1.0f / g_ScreenSize.y) * 2.0f;
     
     blurColor += g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord + float2( texOffset.x,  texOffset.y));
     blurColor += g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord + float2(-texOffset.x,  texOffset.y));
@@ -166,71 +166,14 @@ PS_OUT_BACKBUFFER PS_Distortion(PS_IN In)
     Out.Color = g_ScreenFxTexture.Sample(LinearClampSampler, finalUV);
     return Out;
 }
-PS_OUT_BACKBUFFER PS_Shockwave(PS_IN In)
-{
-    PS_OUT_BACKBUFFER Out;
-
-    float2 center = g_radialBlurCenter;
-    float2 dir = In.Texcoord - center;
-    float dist = length(dir);
-    float2 normDir = dir / max(0.0001f, dist);
-
-    // 1. Bulge (공간 왜곡/팽창)
-    // 충격파가 퍼져나가는 느낌을 위해 특정 반경(Radius) 근처에서만 왜곡이 강하게 발생하도록 설정
-    float waveDist = abs(dist - g_radialBlurRadius); // 현재 웨이브 프론트와의 거리
-    float bulgeFactor = 1.0f - saturate(waveDist * 5.0f); // 0.2 반경 내에서만 영향
-    float2 distortedUV = In.Texcoord + normDir * (bulgeFactor * g_bulgeIntensity);
-
-    // 2. Radial Blur + Chromatic Aberration
-    // 왜곡된 UV를 기반으로 방사형 블러와 색수차를 동시에 적용
-    float blurIntensity = saturate(dist / max(0.001f, g_radialBlurRadius)) * g_radialBlurIntensity;
-    float caOffsetAmount = dist * g_chromaticAberrationIntensity;
-
-    float3 combinedColor = float3(0, 0, 0);
-    const int SAMPLES = 10;
-
-    for (int i = 0; i < SAMPLES; ++i)
-    {
-        // Radial Blur 샘플링 위치 계산
-        float scale = 1.0f - blurIntensity * (float(i) / (float(SAMPLES) - 1.0f));
-        float2 baseSampleUV = center + (distortedUV - center) * scale;
-
-        // CA 적용 (RGB 채널 분리)
-        float2 offset = normDir * caOffsetAmount;
-        float2 redUV = baseSampleUV - offset;
-        float2 greenUV = baseSampleUV;
-        float2 blueUV = baseSampleUV + offset;
-
-        combinedColor.r += g_ScreenFxTexture.Sample(LinearClampSampler, redUV).r;
-        combinedColor.g += g_ScreenFxTexture.Sample(LinearClampSampler, greenUV).g;
-        combinedColor.b += g_ScreenFxTexture.Sample(LinearClampSampler, blueUV).b;
-    }
-    combinedColor /= float(SAMPLES);
-
-    // 3. Vignette (외곽 포커싱)
-    float vignetteMask = smoothstep(0.8f, 0.5f, distance(In.Texcoord, float2(0.5f, 0.5f)));
-    combinedColor = lerp(combinedColor * 0.5f, combinedColor, vignetteMask); // 단순 강도 조절 (임시)
-    // 좀 더 자연스러운 비네팅을 원하면 g_vignetteRadius 등을 활용할 수 있습니다.
-
-    Out.Color = float4(combinedColor, 1.0f);
-    return Out;
-}
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(Vignette,         RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)          // 0
-    PASS_RS_DS_BS_VP(RadialBlur,       RS_Default, DSS_None, BS_Default, VS_MAIN, PS_RadialBlur)        // 1
-    PASS_RS_DS_BS_VP(ChromaticAberration, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_ChromaticAberration) // 2
-    PASS_RS_DS_BS_VP(RadialBlurAndCA,  RS_Default, DSS_None, BS_Default, VS_MAIN, PS_RadialBlurAndCA)   // 3
-    PASS_RS_DS_BS_VP(Glow,             RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Glow)              // 4
-    PASS_RS_DS_BS_VP(ToneMapping,      RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)          // 5 (임시)
-    PASS_RS_DS_BS_VP(ColorGrading,     RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)          // 6 (임시)
-    PASS_RS_DS_BS_VP(Ghosting,         RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)          // 7 (임시)
-    PASS_RS_DS_BS_VP(Transition,       RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)          // 8 (임시)
-    PASS_RS_DS_BS_VP(Distortion,       RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)          // 9 (임시)
-    PASS_RS_DS_BS_VP(DirectionalPull,  RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)          // 10 (임시)
-    PASS_RS_DS_BS_VP(Shockwave,        RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Shockwave)         // 11
-}
+    PASS_RS_DS_BS_VP(Vignette,         RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)          
+    PASS_RS_DS_BS_VP(RadialBlur,       RS_Default, DSS_None, BS_Default, VS_MAIN, PS_RadialBlur)        
+    PASS_RS_DS_BS_VP(ChromaticAberration, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_ChromaticAberration) 
+    PASS_RS_DS_BS_VP(Glow,             RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Glow)              
     PASS_RS_DS_BS_VP(Ghosting,              RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Ghosting)
     PASS_RS_DS_BS_VP(Distortion,            RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Distortion)
 }
+

@@ -65,6 +65,9 @@ HRESULT ScreenFx_Manager::Render_ScreenFx(const Shared<ShaderCom>& shader, const
         if (FAILED(GAME->Bind_RT_ShaderResource(shader, "g_ScreenFxTexture", readRT)))
             return E_FAIL;
 
+        if (FAILED(effect->Bind_FxConstantBuffer(shader.get())))
+            return E_FAIL;
+
         uint32 passIndex = effect->Get_PassIndex();
         if (FAILED(shader->Begin(passIndex)))
             return E_FAIL;
