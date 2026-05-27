@@ -18,7 +18,7 @@ HRESULT Editor_Window::Initialize()
     return S_OK;
 }
 
-void Editor_Window::Update(float)
+void Editor_Window::Update(float timeDelta)
 {
 }
 

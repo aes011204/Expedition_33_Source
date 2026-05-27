@@ -1,9 +1,13 @@
 ﻿#pragma once
-
 #include "Editor_Window.h"
-#include "Emitter_View.h"
-#include "EffectAuthoring_Types.h"
+
 #include "DetailPropertyContext.h"
+#include "EffectAuthoring_Types.h"
+#include "Emitter_View.h"
+
+NS_BEGIN(Engine)
+class Texture;
+NS_END
 
 NS_BEGIN(EffectEditor)
 
@@ -17,8 +21,9 @@ public:
     ~EffectMaterialInstance_View() override;
 
 public:
-    void Render() override;
+    void Update(float timeDelta) override; // material instance preview UV motion 시간을 갱신한다.
     void Pre_Render() override;
+    void Render() override;
 
 public: //## Behavior::Selection
     void Open_Instance(uint32 emitterId, uint32 moduleId);
@@ -28,10 +33,11 @@ private: //## Data
     uint32 _targetModuleId{ 0 };
     DetailPropertyContext _detailPropertyContext{};
     Unique<EffectMaterialPreviewRenderer> _previewRenderer{};
+    map<string, Shared<Texture>> _textureThumbnailCache{};
 
 private: //## Helpers
     bool Resolve_Target(Shared<Emitter_View>& outEmitterView, AuthoringEmitter*& outEmitter, RequiredModuleData*& outRequiredData) const;
-    bool Draw_InstanceProperties(EffectMaterialInstanceData& material);
+    bool Draw_InstanceProperties(EffectMaterialInstanceData& material, bool* outRestartPreview);
     void Apply_MaterialChanged(const Shared<Emitter_View>& emitterView, AuthoringEmitter& emitter, const RequiredModuleData& requiredData);
     void Begin_PendingAuthoringEdit(
         const Shared<Emitter_View>& emitterView,

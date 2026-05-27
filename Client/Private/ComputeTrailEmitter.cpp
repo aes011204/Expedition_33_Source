@@ -13,11 +13,11 @@ Vec3 Catmull_Rom(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3,
     const float t3 = t2 * ratio;
 
     return (
-        p1 * 2.f +
-        (p2 - p0) * ratio +
-        (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2 +
-        (p1 * 3.f - p0 - p2 * 3.f + p3) * t3
-    ) * 0.5f;
+               p1 * 2.f +
+               (p2 - p0) * ratio +
+               (p0 * 2.f - p1 * 5.f + p2 * 4.f - p3) * t2 +
+               (p1 * 3.f - p0 - p2 * 3.f + p3) * t3
+           ) * 0.5f;
 }
 
 EffectTrailSample Catmull_RomTrailSample(
@@ -46,6 +46,16 @@ EffectTrailSample Catmull_RomTrailSample(
     return result;
 }
 
+EffectTrailSample Lerp_TrailSample(const EffectTrailSample& from, const EffectTrailSample& to, const float ratio)
+{
+    const float clampedRatio = clamp(ratio, 0.f, 1.f);
+
+    EffectTrailSample result{};
+    result.baseWorldPosition = Vec3::Lerp(from.baseWorldPosition, to.baseWorldPosition, clampedRatio);
+    result.tipWorldPosition = Vec3::Lerp(from.tipWorldPosition, to.tipWorldPosition, clampedRatio);
+    return result;
+}
+
 Vec3 Compute_TrailCenter(const EffectTrailSample& sample)
 {
     return (sample.baseWorldPosition + sample.tipWorldPosition) * 0.5f;
@@ -54,6 +64,18 @@ Vec3 Compute_TrailCenter(const EffectTrailSample& sample)
 float Compute_TrailCenterDistance(const EffectTrailSample& from, const EffectTrailSample& to)
 {
     return (Compute_TrailCenter(to) - Compute_TrailCenter(from)).Length();
+}
+
+// 회전처럼 base/tip이 반대 방향으로 움직여 center가 상쇄되는 경우를 커버하기 위해
+// base/tip/center 세 거리 중 최댓값을 반환한다.
+// movementTolerance 판정과 stepCount 계산에 사용하며,
+// 텔레포트 감지(maxFrameDistance)에는 center 기반을 별도로 사용한다.
+float Compute_TrailMotionDistance(const EffectTrailSample& from, const EffectTrailSample& to)
+{
+    const float baseDistance = (to.baseWorldPosition - from.baseWorldPosition).Length();
+    const float tipDistance = (to.tipWorldPosition - from.tipWorldPosition).Length();
+    const float centerDistance = Compute_TrailCenterDistance(from, to);
+    return max(centerDistance, max(baseDistance, tipDistance));
 }
 
 wstring Resolve_TrailTexturePathByGuid(const string& textureGuid)
@@ -91,6 +113,16 @@ bool Is_TrailTextureSamePath(const wstring& lhs, const wstring& rhs)
         return false;
 
     return fs::path(lhs).lexically_normal() == fs::path(rhs).lexically_normal();
+}
+
+Vec4 Average_Color(const Vec4& minColor, const Vec4& maxColor)
+{
+    return Vec4{
+        (minColor.x + maxColor.x) * 0.5f,
+        (minColor.y + maxColor.y) * 0.5f,
+        (minColor.z + maxColor.z) * 0.5f,
+        (minColor.w + maxColor.w) * 0.5f
+    };
 }
 
 wstring Resolve_TrailTexturePath(const string& textureGuid, const string& texturePath, bool& outUsedPathFallback, bool& outGuidPathMismatch)
@@ -158,6 +190,12 @@ HRESULT ComputeTrailEmitter::Initialize(void* arg)
     _desc.sampleSpacing = max(1e-3f, _desc.sampleSpacing);
     _desc.curveSubdivision = min(_desc.curveSubdivision, kMaxCurveSubdivision);
     _desc.sideFade = clamp(_desc.sideFade, 1e-3f, 0.49f);
+    _desc.maxTrailLength = max(0.f, _desc.maxTrailLength);
+    _desc.tailFadeLength = max(0.f, _desc.tailFadeLength);
+    _desc.spawnPerUnit.spawnPerUnit = max(0.f, _desc.spawnPerUnit.spawnPerUnit);
+    _desc.spawnPerUnit.unitScalar = max(1e-4f, _desc.spawnPerUnit.unitScalar);
+    _desc.spawnPerUnit.movementTolerance = max(0.f, _desc.spawnPerUnit.movementTolerance);
+    _desc.spawnPerUnit.maxFrameDistance = max(0.f, _desc.spawnPerUnit.maxFrameDistance);
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
@@ -168,6 +206,7 @@ HRESULT ComputeTrailEmitter::Initialize(void* arg)
 void ComputeTrailEmitter::Update(float timeDelta)
 {
     Sync_FromEffectOwner();
+    _materialElapsedTime += max(0.f, timeDelta);
     Update_History(timeDelta);
     CHECK_FAILED_THROTTLED(Dispatch_Compute(), 60);
 }
@@ -181,7 +220,8 @@ void ComputeTrailEmitter::Late_Update(float)
 HRESULT ComputeTrailEmitter::Render()
 {
     CHECK_FAILED_THROTTLED(Bind_ShaderResources(), 60, E_FAIL);
-    CHECK_FAILED_THROTTLED(_shader->Begin(_desc.material.blendMode == "Additive" ? 1u : 0u), 60, E_FAIL);
+
+    CHECK_FAILED_THROTTLED(_shader->Begin(Resolve_BlendPassIndex()), 60, E_FAIL);
 
     constexpr uint32 stride0 = sizeof(Vec3);
     constexpr uint32 offset0 = 0;
@@ -198,12 +238,42 @@ HRESULT ComputeTrailEmitter::Render()
     return S_OK;
 }
 
+HRESULT ComputeTrailEmitter::Reset_ForEffectReplay()
+{
+    _history.clear();
+    _drawSegmentCount = 0u;
+    _materialElapsedTime = 0.f;
+    _visibleTrailLength = 1.f;
+
+    if (nullptr != _computeArgsOutput)
+        CHECK_FAILED(Reset_IndirectArgs(), E_FAIL);
+
+    if (nullptr != _computeOutput && nullptr != _computeArgsOutput &&
+        nullptr != _instanceBuffer && nullptr != _indirectArgsBuffer)
+    {
+        CHECK_FAILED(Copy_ComputeOutput(), E_FAIL);
+    }
+
+    return S_OK;
+}
+
+bool ComputeTrailEmitter::Is_EffectFinished() const
+{
+    return false;
+}
+
+void ComputeTrailEmitter::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider)
+{
+    _desc.sampleProvider = provider;
+}
+
 HRESULT ComputeTrailEmitter::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), String::ToWString(kTrailShaderId), _shader), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), String::ToWString(kTrailComputeShaderId), _computeShader), E_FAIL);
     CHECK_FAILED(Ready_Texture(), E_FAIL);
     CHECK_FAILED(Ready_NoiseTexture(), E_FAIL);
+    CHECK_FAILED(Ready_MaskTexture(), E_FAIL);
     CHECK_FAILED(Ready_DrawBuffers(), E_FAIL);
     CHECK_FAILED(Ready_ComputeBuffers(), E_FAIL);
     return S_OK;
@@ -258,8 +328,8 @@ HRESULT ComputeTrailEmitter::Ready_Texture()
         );
     }
 
-    _texture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
-    CHECK_NULL(_texture, E_FAIL);
+    _mainTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
+    CHECK_NULL(_mainTexture, E_FAIL);
 
     return S_OK;
 }
@@ -314,6 +384,64 @@ HRESULT ComputeTrailEmitter::Ready_NoiseTexture()
             "ComputeTrailEmitter noise texture create failed. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Noise modulation is disabled.",
             _desc.material.noiseTextureGuid,
             _desc.material.noiseTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+
+    return S_OK;
+}
+
+HRESULT ComputeTrailEmitter::Ready_MaskTexture()
+{
+    if (_desc.material.maskTextureGuid.empty() && _desc.material.maskTexturePath.empty())
+        return S_OK;
+
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
+    const wstring resolvedPath = Internal::Resolve_TrailTexturePath(
+        _desc.material.maskTextureGuid,
+        _desc.material.maskTexturePath,
+        usedPathFallback,
+        guidPathMismatch
+    );
+
+    if (resolvedPath.empty())
+    {
+        _maskTexture = nullptr;
+        LOG_WARN(
+            "ComputeTrailEmitter mask texture resolve failed. maskTextureGuid='{}', maskTexturePath='{}'.",
+            _desc.material.maskTextureGuid,
+            _desc.material.maskTexturePath
+        );
+        return S_OK;
+    }
+
+    if (guidPathMismatch)
+    {
+        LOG_WARN(
+            "ComputeTrailEmitter mask texture GUID/path mismatch. maskTextureGuid='{}', maskTexturePath='{}', guidResolvedPath='{}'.",
+            _desc.material.maskTextureGuid,
+            _desc.material.maskTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "ComputeTrailEmitter mask texture fell back to path. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'.",
+            _desc.material.maskTextureGuid,
+            _desc.material.maskTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+
+    _maskTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
+    if (nullptr == _maskTexture)
+    {
+        LOG_WARN(
+            "ComputeTrailEmitter mask texture create failed. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'.",
+            _desc.material.maskTextureGuid,
+            _desc.material.maskTexturePath,
             String::ToString(resolvedPath)
         );
     }
@@ -421,14 +549,14 @@ void ComputeTrailEmitter::Update_History(float timeDelta)
     bool sampleAccepted = false;
     if (provider != nullptr && provider->Try_GetTrailSample(trailSample))
     {
-        Insert_TrailSample(trailSample);
         sampleAccepted = true;
+        Insert_TrailSamplesForFrame(trailSample);
     }
 
     if (!sampleAccepted)
     {
         LOG_WARN_THROTTLED(
-            60,
+            120,
             "ComputeTrailEmitter failed to acquire trail sample. providerBound={}, history={}, drawSegments={}. Enable Trail Preview and verify preview weapon visibility.",
             provider != nullptr,
             static_cast<uint32>(_history.size()),
@@ -451,9 +579,60 @@ uint32 ComputeTrailEmitter::Compute_MaxRenderSegmentCount() const
     return max(1u, (_desc.historyCount - 1u) * maxIntervalSubdivision);
 }
 
-void ComputeTrailEmitter::Insert_TrailSample(const EffectTrailSample& trailSample)
+void ComputeTrailEmitter::Insert_TrailSamplesForFrame(const EffectTrailSample& trailSample)
 {
-    _history.insert(_history.begin(), TrailHistorySample{ trailSample, 0.f });
+    if (!_desc.spawnPerUnit.enabled)
+    {
+        Insert_TrailSample(trailSample, 0.f);
+        return;
+    }
+
+    if (_history.empty())
+    {
+        Insert_TrailSample(trailSample, 0.f);
+        return;
+    }
+
+    const TrailHistorySample previousHead = _history.front();
+    // 회전 등 base/tip이 반대로 움직이는 경우를 커버하기 위해 최대 거리 기준으로 판정한다.
+    const float motionDistance = Internal::Compute_TrailMotionDistance(previousHead.sample, trailSample);
+    if (motionDistance < _desc.spawnPerUnit.movementTolerance)
+        return;
+
+    // 텔레포트 감지는 tip jitter 오감지를 막기 위해 center 기반을 별도로 사용한다.
+    const float centerDistance = Internal::Compute_TrailCenterDistance(previousHead.sample, trailSample);
+    if (_desc.spawnPerUnit.maxFrameDistance > 0.f &&
+        centerDistance > _desc.spawnPerUnit.maxFrameDistance)
+    {
+        _history.clear();
+        Insert_TrailSample(trailSample, 0.f);
+        return;
+    }
+
+    const float sampleDensity = _desc.spawnPerUnit.spawnPerUnit / max(_desc.spawnPerUnit.unitScalar, 1e-4f);
+    if (sampleDensity <= 0.f)
+    {
+        Insert_TrailSample(trailSample, 0.f);
+        return;
+    }
+
+    const uint32 stepCount = min(
+        max(1u, static_cast<uint32>(ceilf(motionDistance * sampleDensity))),
+        kMaxSpawnPerUnitFrameSamples
+    );
+
+    for (uint32 step = 1u; step <= stepCount; ++step)
+    {
+        const float ratio = static_cast<float>(step) / static_cast<float>(stepCount);
+        const EffectTrailSample interpolatedSample = Internal::Lerp_TrailSample(previousHead.sample, trailSample, ratio);
+        const float interpolatedAge = previousHead.age * (1.f - ratio);
+        Insert_TrailSample(interpolatedSample, interpolatedAge);
+    }
+}
+
+void ComputeTrailEmitter::Insert_TrailSample(const EffectTrailSample& trailSample, float age)
+{
+    _history.insert(_history.begin(), TrailHistorySample{ trailSample, max(0.f, age) });
 }
 
 void ComputeTrailEmitter::Build_RenderSamples(vector<TrailRenderSample>& outSamples) const
@@ -561,10 +740,16 @@ HRESULT ComputeTrailEmitter::Update_ComputeInput()
     if (renderSamples.size() < 2)
     {
         _drawSegmentCount = 0;
+        _visibleTrailLength = 1.f;
         return E_FAIL;
     }
 
     _drawSegmentCount = static_cast<uint32>(renderSamples.size() - 1u);
+    const float totalTrailLength = renderSamples.back().distanceFromHead;
+    _visibleTrailLength = max(
+        0.0001f,
+        _desc.maxTrailLength > 0.f ? min(totalTrailLength, _desc.maxTrailLength) : totalTrailLength
+    );
 
     vector<TrailSamplePayload> payloads{};
     payloads.reserve(renderSamples.size());
@@ -603,7 +788,15 @@ HRESULT ComputeTrailEmitter::Update_ComputeConstants()
     params.width = _desc.width;
     params.uvTiling = _desc.uvTiling;
     params.sideFade = _desc.sideFade;
-    params.tint = _desc.material.tint;
+    params.startColor = Internal::Average_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax);
+    params.endColor = Internal::Average_Color(_desc.colorOverLife.endColorMin, _desc.colorOverLife.endColorMax);
+    params.sizeByLifeParams = Vec4{
+        _desc.sizeByLife.multiplyXStart,
+        _desc.sizeByLife.multiplyXEnd,
+        _desc.sizeByLife.enabled ? 1.f : 0.f,
+        0.f
+    };
+    params.lengthParams = Vec4{ _desc.maxTrailLength, _desc.tailFadeLength, 0.f, 0.f };
 
     _context->UpdateSubresource(_computeConstantBuffer.Get(), 0, nullptr, &params, 0, 0);
     return S_OK;
@@ -637,7 +830,7 @@ HRESULT ComputeTrailEmitter::Copy_ComputeOutput()
 HRESULT ComputeTrailEmitter::Bind_ShaderResources()
 {
     CHECK_FAILED(GAME->Bind_CameraCB(_shader), E_FAIL);
-    CHECK_FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
+    CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
 
     if (nullptr != _noiseTexture)
     {
@@ -648,6 +841,15 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         CHECK_FAILED(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
     }
 
+    if (nullptr != _maskTexture)
+    {
+        CHECK_FAILED(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
+    }
+    else
+    {
+        CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
+    }
+
     CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &_desc.material.tint, sizeof(Vec4)), E_FAIL);
 
     const Vec4 effectTrailParams = Vec4(
@@ -656,8 +858,78 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         _desc.material.noiseStrength,
         nullptr != _noiseTexture ? 1.f : 0.f
     );
+    const Vec4 effectTrailAlphaParams = Vec4(
+        clamp(_desc.material.alphaCutoff, 0.f, 1.f),
+        clamp(_desc.material.alphaErosion, 0.f, 1.f),
+        nullptr != _maskTexture ? 1.f : 0.f,
+        0.f
+    );
+    const Vec4 effectTrailMainUVParams = Vec4(
+        _desc.material.mainUVScale.x,
+        _desc.material.mainUVScale.y,
+        _desc.material.mainUVScrollSpeed.x,
+        _desc.material.mainUVScrollSpeed.y
+    );
+    const Vec4 effectTrailNoiseUVParams = Vec4(
+        _desc.material.noiseUVScale.x,
+        _desc.material.noiseUVScale.y,
+        _desc.material.noiseUVScrollSpeed.x,
+        _desc.material.noiseUVScrollSpeed.y
+    );
+    const Vec4 effectTrailMaskUVParams = Vec4(
+        _desc.material.maskUVScale.x,
+        _desc.material.maskUVScale.y,
+        _desc.material.maskUVScrollSpeed.x,
+        _desc.material.maskUVScrollSpeed.y
+    );
+    const Vec4 effectTrailUVOffsetParams = Vec4(
+        _desc.material.mainUVOffset.x,
+        _desc.material.mainUVOffset.y,
+        _desc.material.noiseUVOffset.x,
+        _desc.material.noiseUVOffset.y
+    );
+    const Vec4 effectTrailMaskUVOffsetParams = Vec4(
+        _desc.material.maskUVOffset.x,
+        _desc.material.maskUVOffset.y,
+        0.f,
+        0.f
+    );
+    const Vec4 effectTrailUVPolicyParams = Vec4(
+        _visibleTrailLength,
+        max(_desc.uvTiling, 0.0001f),
+        0.f,
+        0.f
+    );
+    const Vec4 effectTrailUVModeParams = Vec4(
+        static_cast<float>(static_cast<uint32>(_desc.material.mainUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(_desc.material.noiseUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(_desc.material.maskUVTilingMode)),
+        0.f
+    );
+    const EffectMaterialAdditiveContributionData& additive = _desc.material.additive;
+    const Vec4 effectTrailAdditiveParams = Vec4(
+        static_cast<float>(static_cast<uint32>(additive.colorSource)),
+        static_cast<float>(static_cast<uint32>(additive.amountSource)),
+        static_cast<float>(static_cast<uint32>(additive.coveragePolicy)),
+        additive.intensityScale
+    );
+    const Vec4 effectTrailAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
+
     const int opacitySourceIndex = Resolve_OpacitySourceIndex();
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailParams", &effectTrailParams, sizeof(effectTrailParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAlphaParams", &effectTrailAlphaParams, sizeof(effectTrailAlphaParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMainUVParams", &effectTrailMainUVParams, sizeof(effectTrailMainUVParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailNoiseUVParams", &effectTrailNoiseUVParams, sizeof(effectTrailNoiseUVParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaskUVParams", &effectTrailMaskUVParams, sizeof(effectTrailMaskUVParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVOffsetParams", &effectTrailUVOffsetParams, sizeof(effectTrailUVOffsetParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaskUVOffsetParams", &effectTrailMaskUVOffsetParams, sizeof(effectTrailMaskUVOffsetParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVPolicyParams", &effectTrailUVPolicyParams, sizeof(effectTrailUVPolicyParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVModeParams", &effectTrailUVModeParams, sizeof(effectTrailUVModeParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAdditiveParams", &effectTrailAdditiveParams, sizeof(effectTrailAdditiveParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAdditiveFlags", &effectTrailAdditiveFlags, sizeof(effectTrailAdditiveFlags)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
     return S_OK;
 }
@@ -674,6 +946,11 @@ int ComputeTrailEmitter::Resolve_OpacitySourceIndex() const
         return kOpacitySourceLuminance;
 
     return kOpacitySourceAlpha;
+}
+
+uint32 ComputeTrailEmitter::Resolve_BlendPassIndex() const
+{
+    return _desc.material.blendMode == EffectMaterialBlendMode::Additive ? 1u : 0u;
 }
 
 Shared<ComputeTrailEmitter> ComputeTrailEmitter::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -705,5 +982,28 @@ Shared<GameObject> ComputeTrailEmitter::Clone(void* arg)
 
 void ComputeTrailEmitter::Free()
 {
+    _history.clear();
+    _drawSegmentCount = 0u;
+    _materialElapsedTime = 0.f;
+    _visibleTrailLength = 1.f;
+
+    _shader.reset();
+    _computeShader.reset();
+    _mainTexture.reset();
+    _noiseTexture.reset();
+    _maskTexture.reset();
+
+    _pointVB.Reset();
+    _indexBuffer.Reset();
+    _instanceBuffer.Reset();
+    _computeConstantBuffer.Reset();
+    _indirectArgsBuffer.Reset();
+
+    _historyInput.reset();
+    _computeOutput.reset();
+    _computeArgsOutput.reset();
+
+    _desc = {};
+
     __super::Free();
 }

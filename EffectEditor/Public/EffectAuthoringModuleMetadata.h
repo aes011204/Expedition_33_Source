@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "EffectAuthoring_Types.h"
 
 NS_BEGIN(EffectEditor)
@@ -10,6 +10,8 @@ struct AuthoringModuleMetadata
     wstring summary{};
     bool movable{ true };
     bool removable{ true };
+    bool supportsSprite{ true };
+    bool supportsTrail{ false };
 };
 
 // AuthoringModuleType에서 파생되는 editor-local 표시/정책 metadata를 제공한다.

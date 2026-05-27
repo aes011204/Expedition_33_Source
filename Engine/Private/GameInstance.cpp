@@ -57,6 +57,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
         engineDesc.winMode,
         engineDesc.viewportWidth,
         engineDesc.viewportHeight,
+        engineDesc.swapEffect,
         device,
         context
     );
@@ -2087,6 +2088,11 @@ void GameInstance::Release_Engine()
     ReleaseManager(_timerManager);
 
     Material::Clear_TextureSRVCache();
+
+    _playerStencilWriteState.Reset();
+    _playerStencilWriteDepthReadState.Reset();
+    _backgroundUIBehindPlayerStencilState.Reset();
+    _uiNoDepthStencilState.Reset();
 
     _context.Reset();
     _device.Reset();

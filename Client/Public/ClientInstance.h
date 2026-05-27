@@ -17,6 +17,7 @@ class ResourceLoader;
 class GameplayUI;
 class PersistentObjectManager;
 class Hero_Manager;
+class EffectInstancePool;
 
 class ClientInstance : public Base
 {
@@ -38,6 +39,7 @@ public:
     HRESULT Ready_StaticObjects();
 
 	Shared<ResourceLoader> Get_ResourceLoader() const;
+    EffectInstancePool* Get_EffectInstancePool() const { return _effectInstancePool.get(); } // attached/runtime effect acquire/release를 맡는 Client-local pool owner다.
 
     bool    Is_StaticResourcesLoaded() const { return _isStaticResourcesLoaded.load(); }
     void    Set_StaticResourcesLoaded(bool isLoaded) { _isStaticResourcesLoaded.store(isLoaded); }
@@ -132,6 +134,7 @@ private:
     Shared<ResourceLoader>      _resourceLoader;
     Unique<GameDataTable>       _gameDataTable;
     Unique<PreviewShotTable>    _previewShotTable;
+    Unique<EffectInstancePool>  _effectInstancePool;
 
     Shared<GameplayUI>          _gamePlayUI;
     Unique<PersistentObjectManager> _persistentObjectManager;

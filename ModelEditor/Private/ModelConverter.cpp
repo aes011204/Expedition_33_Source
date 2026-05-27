@@ -122,10 +122,14 @@ namespace ModelEditor
 	        LOG_INFO("ModelConverter Called");
 	        _importFlags = aiProcess_ConvertToLeftHanded |
 	                                  aiProcess_Triangulate |
-	                                  aiProcess_CalcTangentSpace |
+	                                  // aiProcess_CalcTangentSpace | // [TEST] 탄젠트 계산 임시 제외
 	                                  aiProcess_GenSmoothNormals |
 	                                  aiProcess_LimitBoneWeights |
-	                                  aiProcess_JoinIdenticalVertices;
+	                                  aiProcess_JoinIdenticalVertices |
+                                      aiProcess_ImproveCacheLocality |
+                                      aiProcess_OptimizeMeshes |
+                aiProcess_RemoveRedundantMaterials |
+                aiProcess_FindInvalidData;
 
 		strcpy_s(_pathBuffer, Engine::String::ToString(ResourcePath).c_str());
 		_resourcePath = ResourcePath;
@@ -314,6 +318,10 @@ namespace ModelEditor
 		
         string utf8FilePath = Engine::String::ToString(fbxFilePath);
         
+        // 정점 분할(Split) 강제 억제 설정 (Tangent 및 Normal 계산 시 미세한 각도 차이로 정점이 쪼개지는 현상 방지)
+        _importer.SetPropertyFloat(AI_CONFIG_PP_CT_MAX_SMOOTHING_ANGLE, 175.0f);
+        _importer.SetPropertyFloat(AI_CONFIG_PP_GSN_MAX_SMOOTHING_ANGLE, 175.0f);
+
         const aiScene* probeScene = _importer.ReadFile(utf8FilePath,
             aiProcess_Triangulate | aiProcess_ConvertToLeftHanded);
         if (nullptr == probeScene || probeScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !probeScene->mRootNode)
@@ -1126,6 +1134,43 @@ namespace ModelEditor
 			for (int i = 0; i < 16; ++i) a.push_back(f[i]);
 			return a;
 		};
+
+		{
+			json jStats = json::array();
+			size_t totalBytes = 0;
+			uint32 vertexStride = _isSkeletal ? sizeof(VTXANIMMESH) : sizeof(VTXMESH);
+
+			for (size_t i = 0; i < _meshHeaders.size(); ++i)
+			{
+				uint32 vtxCount = _meshHeaders[i].numVertices;
+				uint32 idxCount = _meshHeaders[i].numIndices;
+				uint32 vtxBytes = vtxCount * vertexStride;
+				uint32 idxBytes = idxCount * sizeof(uint32);
+				uint32 meshTotal = vtxBytes + idxBytes;
+
+				jStats.push_back({
+					{"meshIndex", i},
+					{"name", _meshHeaders[i].name},
+					{"materialIndex", _meshHeaders[i].materialIndex},
+					{"numVertices", vtxCount},
+					{"numIndices", idxCount},
+					{"vertexStride", vertexStride},
+					{"vertexDataSize", vtxBytes},
+					{"indexDataSize", idxBytes},
+					{"totalSizeBytes", meshTotal}
+					});
+				totalBytes += meshTotal;
+			}
+
+			json jSummary = {
+				{"isSkeletal", _isSkeletal},
+				{"totalMeshCount", static_cast<uint32>(_meshHeaders.size())},
+				{"totalBinarySize", totalBytes},
+				{"meshes", jStats}
+			};
+
+			ofstream(logDir + L"MeshStats.json") << jSummary.dump(4);
+		}
 
 		{
 			json jArr = json::array();

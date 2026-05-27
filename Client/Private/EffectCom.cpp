@@ -1,4 +1,5 @@
 ﻿#include "EffectCom.h"
+#include "ClientInstance.h"
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
 #include "GameInstance.h"
@@ -82,6 +83,14 @@ void EffectCom::Start_VanishDissolve(float durationSec, const string& noiseName,
     _switchDissolve.Start_Vanish(durationSec, noiseHandle, 0.08f, 0.02f, Vec3(0.10f, 0.10f, 0.10f));
 }
 
+void EffectCom::Stop_AllAttachedEffects()
+{
+    for (AttachedEffect& attached : _attachedEffects)
+        Release_AttachedEffect(attached);
+
+    Prune_ReleasedAttachedEffects();
+}
+
 HRESULT EffectCom::Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMask)
 {
     CHECK_NULL(shader , E_FAIL);
@@ -131,33 +140,54 @@ HRESULT EffectCom::Bind_DrawFeatures(const Shared<GameObject>& owner, ShaderCom*
     return shader->Reset_DrawFeatures();
 }
 
-HRESULT EffectCom::Play_AttachedEffect(uint32 levelIndex, const wstring& effectName, const wstring& partTag, const string& socketName,
-                                       const wstring& layerTag, const Vec3& localOffset)
+HRESULT EffectCom::Play_AttachedEffect(
+    uint32,
+    const wstring& effectName,
+    const wstring& partTag,
+    const string& socketName,
+    const wstring& layerTag,
+    const Vec3& localOffset,
+    const Weak<IEffectTrailSampleProvider>& trailSampleProvider)
 {
-    Shared<const EffectDefinition> definition = EffectAssetRuntimeLoader::Load_DefinitionByName(effectName);
-    CHECK_NULL(definition, E_FAIL);
+    // TODO : 이펙트 풀 작업 중 비활성화함. 필요 없어지면 지울 것
+    //Shared<const EffectDefinition> definition = EffectAssetRuntimeLoader::Load_DefinitionByName(effectName);
+    //CHECK_NULL(definition, E_FAIL);
 
     Vec3 spawnPosition{};
     if (!Try_GetSocketWorldPosition(partTag, socketName, spawnPosition))
         return E_FAIL;
 
-    EffectInstanceDesc desc{};
-    desc.definition = definition;
-    desc.position = spawnPosition + localOffset;
+    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+    CHECK_NULL(effectPool, E_FAIL);
 
-    Shared<GameObject> effectObject{};
-    CHECK_FAILED(
-        GAME->Add_GameObject(
-            levelIndex, // 이거 바꿔야하는데. 일단 지금 GamePlay로 Prototype이 생성될듯
-            L"GameObject_EffectInstance",
-            GAME->Current_LevelIndex(),
-            layerTag,
-            effectObject,
-            &desc),
-        E_FAIL);
+    EffectInstancePool::AcquireDesc acquireDesc{};
+    acquireDesc.effectName = effectName;
+    acquireDesc.layerTag = layerTag;
+    acquireDesc.worldPosition = spawnPosition + localOffset;
+    acquireDesc.trailSampleProvider = trailSampleProvider;
+
+    EffectInstancePool::AttachedHandle handle{};
+    CHECK_FAILED(effectPool->Acquire(acquireDesc, handle), E_FAIL);
+
+    // TODO : 이펙트 풀 작업 중 비활성화함. 필요 없어지면 지울 것
+    //EffectInstanceDesc desc{};
+    //desc.definition = definition;
+    //desc.position = spawnPosition + localOffset;
+    //
+    //Shared<GameObject> effectObject{};
+    //CHECK_FAILED(
+    //    GAME->Add_GameObject(
+    //        ETOI(LevelType::Static),
+    //        L"GameObject_EffectInstance",
+    //        GAME->Current_LevelIndex(),
+    //        layerTag,
+    //        effectObject,
+    //        &desc),
+    //    E_FAIL);
 
     AttachedEffect attached{};
-    attached.effectObject = effectObject;
+    //attached.effectObject = effectObject;
+    attached.poolHandle = handle;
     attached.partTag = partTag;
     attached.socketName = socketName;
     attached.localOffset = localOffset;
@@ -170,22 +200,74 @@ void EffectCom::Update_AttachedEffects()
 {
     for (AttachedEffect& attached : _attachedEffects)
     {
-        if (attached.effectObject == nullptr)
+        // TODO : 이펙트 풀 작업 중 비활성화함. 필요 없어지면 지울 것
+        //if (attached.effectObject == nullptr)
+        if (attached.poolHandle.effectObject == nullptr)
             continue;
+
+        if (Should_ReleaseAttachedEffect(attached))
+        {
+            Release_AttachedEffect(attached);
+            continue;
+        }
 
         Vec3 socketPosition{};
         if (!Try_GetSocketWorldPosition(attached.partTag, attached.socketName, socketPosition))
             continue;
 
-        const Shared<TransformCom> effectTransform = attached.effectObject->Get_Transform();
+        // TODO : 이펙트 풀 작업 중 비활성화함. 필요 없어지면 지울 것
+        //const Shared<TransformCom> effectTransform = attached.effectObject->Get_Transform();
+        const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
         CHECK_NULL(effectTransform);
 
         effectTransform->Set_WorldPosition(socketPosition + attached.localOffset);
     }
+
+    Prune_ReleasedAttachedEffects();
+}
+
+void EffectCom::Release_AttachedEffect(AttachedEffect& attached)
+{
+    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+    if (nullptr == effectPool)
+        return;
+
+    if (nullptr == attached.poolHandle.effectObject)
+        return;
+
+    effectPool->Release(attached.poolHandle);
+    attached.poolHandle = {};
+}
+
+bool EffectCom::Should_ReleaseAttachedEffect(const AttachedEffect& attached) const
+{
+    if (nullptr == attached.poolHandle.effectObject)
+        return false;
+
+    if (attached.poolHandle.requiresManualRelease)
+        return false;
+
+    const Shared<EffectInstance> effectInstance =
+        dynamic_pointer_cast<EffectInstance>(attached.poolHandle.effectObject);
+    if (nullptr == effectInstance)
+        return false;
+
+    return effectInstance->Is_Finished();
+}
+
+void EffectCom::Prune_ReleasedAttachedEffects()
+{
+    erase_if(
+        _attachedEffects,
+        [](const AttachedEffect& attached)
+        {
+            return attached.poolHandle.effectObject == nullptr;
+        }
+    );
 }
 
 bool EffectCom::Try_GetSocketWorldPosition(const wstring& partTag, const string& socketName,
-    Vec3& outWorldPosition) const
+                                           Vec3& outWorldPosition) const
 {
     const Shared<GameObject> ownerObject = Get_Owner();
     const Shared<Player_WorldBase> ownerPlayer = dynamic_pointer_cast<Player_WorldBase>(ownerObject);
@@ -241,7 +323,10 @@ Shared<Component> EffectCom::Clone(void* arg)
 
 void EffectCom::Free()
 {
-    _attachedEffects.clear();
+    // TODO : 이펙트 풀 작업 중 비활성화함. 필요 없어지면 지울 것
+    //_attachedEffects.clear();
+
+    Stop_AllAttachedEffects();
 
     Component::Free();
 }

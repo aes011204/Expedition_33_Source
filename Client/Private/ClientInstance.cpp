@@ -4,6 +4,7 @@
 #include "BT_Node_Bootstrap.h"
 #include "ComputeSpriteEmitter.h"
 #include "EffectEmitterRegistration.h"
+#include "EffectInstancePool.h"
 #include "GameDataTable.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -58,6 +59,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _previewManager = UIPreviewManager::Create();
     CHECK_NULL(_previewManager, E_FAIL);
 
+    _effectInstancePool = EffectInstancePool::Create();
+    CHECK_NULL(_effectInstancePool, E_FAIL);
+
 	_isInitialized = true;
 
 	return S_OK;
@@ -74,6 +78,9 @@ HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& 
     CHECK_FAILED(Ready_ResourceLoader(), E_FAIL);
 
     Register_ClientEffectEmitters();
+
+    _effectInstancePool = EffectInstancePool::Create();
+    CHECK_NULL(_effectInstancePool, E_FAIL);
 
     _isInitialized = true;
 
@@ -392,6 +399,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_gameDataTable);
     ReleaseManager(_previewShotTable);
     ReleaseManager(_previewManager);
+    ReleaseManager(_effectInstancePool);
     ReleaseManager(_persistentObjectManager);
     ReleaseManager(_resourceLoader);
     ReleaseManager(_heroManager);
