@@ -84,6 +84,7 @@ public:
 public:
     Shared<BattleStateMachine> Get_BattleFSM() { return _battleFSM; };
     Action& Get_TurnAction() { return _turnAction; }
+    void    Request_WidePresentationMode();
 
     vector<BattleChar> Get_AliveEnemies();
     vector<BattleChar> Get_AliveHeroes();
@@ -97,8 +98,9 @@ public:
     const vector<BattleChar>& Get_BattleHeroes() const { return _heroes; }
 
 public:
-    void    End_FirstAnim();
-    void    Handle_EditorStopRuntime();
+    void End_FirstAnim();
+    void Handle_EditorStopRuntime();
+   // void Handle_TargetPreviewChanged(const BattleChar* target);
     HRESULT Ready_Delegates();
 
     //리액션 인풋
@@ -165,6 +167,13 @@ private:
     PlayerCharacterType To_PlayerCharacterType(HeroId heroId);
 
 public: /* Delegate */
+   // FDelegateHandle         _targetPreviewChangedHandle;
+   // FOnBattleStarted        OnBattleStarted;
+   // FOnBattleEnded          OnBattleEnded;
+   // FOnTurnStarted          OnTurnStarted;
+   // FOnTurnEnded            OnTurnEnded;
+   // FOnTargetPreviewChanged OnTargetPreviewChanged;
+   // FOnActionStarted        OnActionStarted;
     FOnBattleStarted                OnBattleStarted;        // 배틀 시작
     FOnBattleEnded                  OnBattleEnded;          // 배틀 끝
     FOnTurnStarted                  OnTurnStarted;          // 턴 시작
@@ -182,13 +191,13 @@ private:
 
     Shared<SkillScript>             _curScript = {};
 
-    bool                            _isBattleActive = { false };
-    bool                            _isBattleEntering = { false };
+    bool _isBattleActive = { false };
+    bool _isBattleEntering = { false };
+    bool _hasRequestedBattleEnterCamera = false;
 
     int currentTurnIndex = {};
 
     bool _flag = { false };
-
 private:
     BattleChar  _targetPreview = {};
     bool        _hasTargetPreview = false;
@@ -250,7 +259,13 @@ private:
 
 private:
     Shared<BattleTurnCamera> _battleTurnCamera;
-    Shared<Camera> _worldCamera;    // 전투 시작 전 카메라 저장
+  //  Shared<Camera> _worldCamera;    // 전투 시작 전 카메라 저장
+
+private:  // 슬로우 처리
+   // float _battleEnterElapsed = 0.f;
+   // float _battleEnterDuration = 3.f;
+   // float _battleEnterWorldTimeScale = 0.25f;
+
 
 private:
     // 슬로우 처리

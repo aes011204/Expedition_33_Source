@@ -77,14 +77,19 @@ void CharacterStatus_Panel::Open()
 
 	Clear_PendingStats(); // 임시 저장값 비우기
 
-	const HeroId activeHeroId = CLIENT->Get_HeroId(CLIENT->Get_ActiveHeroSlot());
-	_selectedHeroIndex = Get_CharacterStatusIndex(activeHeroId);
+    CLIENT->Begin_Preview(PreviewShotPanel::CharacterStatus);
 
-	CLIENT->Begin_Preview(PreviewShotTable::PreviewShotPanel::CharacterStatus);
+    auto previewLayout = Build_PreviewLayout();
+    CLIENT->Apply_PreviewLayout(previewLayout);
+    CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotPanel::CharacterStatus);
+	//const HeroId activeHeroId = CLIENT->Get_HeroId(CLIENT->Get_ActiveHeroSlot());
+	//_selectedHeroIndex = Get_CharacterStatusIndex(activeHeroId);
 
-	auto previewLayout = Build_PreviewLayout();
-	CLIENT->Apply_PreviewLayout(previewLayout);
-	CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotTable::PreviewShotPanel::CharacterStatus);
+	//CLIENT->Begin_Preview(PreviewShotTable::PreviewShotPanel::CharacterStatus);
+
+	//auto previewLayout = Build_PreviewLayout();
+	//CLIENT->Apply_PreviewLayout(previewLayout);
+	//CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotTable::PreviewShotPanel::CharacterStatus);
 
 	Refresh_CombatStats();
 	Refresh_CharacterSelectUI();
@@ -136,9 +141,10 @@ void CharacterStatus_Panel::Handle_SelectionInput()
 
 		auto previewLayout = Build_PreviewLayout();
 		CLIENT->Apply_PreviewLayout(previewLayout);
-		CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotTable::PreviewShotPanel::CharacterStatus);
+		CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotPanel::CharacterStatus);
 	}
 }
+
 
 void CharacterStatus_Panel::Handle_StatInput()
 {

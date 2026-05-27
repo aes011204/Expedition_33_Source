@@ -325,6 +325,7 @@ public: /* For.Camera_Manager */
     Shared<Camera>  Get_Camera(int index) const;
     Shared<Camera>  Get_ActiveCamera();
     int             Get_CameraCount();
+    Shared<Camera>  Get_CameraByType(ObjectType objectType);
 
     HRESULT Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName);
 
