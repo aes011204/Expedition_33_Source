@@ -52,7 +52,7 @@ private:
     void    Handle_TurnEnded(const BattleChar& actor);
     void    Handle_TargetPreviewChanged(const BattleChar* target);
     void    Handle_ActionStarted(const Action& action);
-    void    Handle_DamageApplied(const BattleChar& target, float damage);
+    void    Handle_DamageApplied(const BattleChar& target, float damage, AttackType attackType);
     void    Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const BattleChar& target);
 
     void    Update_BattleCommandHUD(float timeDelta);

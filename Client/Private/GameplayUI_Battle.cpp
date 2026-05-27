@@ -1,6 +1,6 @@
 ﻿#include "GameplayUI_Battle.h"
 
-#include "Character.h"
+#include "Monster_BattleBase.h"
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
@@ -391,7 +391,7 @@ void GameplayUI_Battle::Handle_ActionStarted(const Action& action)
         _battleMechanism->Close();
 }
 
-void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float damage)
+void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float damage, AttackType attackType)
 {
     if (!_isBattleUiActive)
         return;

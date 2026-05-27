@@ -45,12 +45,14 @@ public:
     BattleReactionType Get_Result() const { return _result; }
 
     BattleReactionInputResult UpdateInput(const Action& turnAction);
+    BattleReactionInputResult UpdateTargetInput(const BattleChar& reactionTarget, const BattleChar& counterTarget, uint32 curAnimIndex, bool pressedQ, bool pressedE);
     void UpdateAnimation();
 
 public:
     void StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate);
     void ApplyCounterDamage(ModelCom* sourceModel);
 
+    void Set_CurSkillData(const Skill_Data* curSkillData) { _curSkillData = curSkillData; };
 private:
     bool CanReceiveInput(const BattleChar& target) const;
     bool IsHitOrDeadBattleAnim(BattleAnimType animType) const;
@@ -58,9 +60,11 @@ private:
         const BattleChar& target,
         BattleReactionType reactionType,
         bool isSuccess,
-        const BattleChar& counterTarget);
+        const BattleChar& counterTarget,
+        uint32 curAttackIndex);
 
     void FinishReactionAnimation();
+
 
 private:
     bool _isDodgeOpen = false; 
@@ -75,6 +79,8 @@ private:
     ReactionAnimPhase _animPhase = ReactionAnimPhase::None;
     bool _isCounterPending = false;
     bool _isCounterDamageApplied = false;
+
+    const Skill_Data* _curSkillData = {};
 
 public:
     static Shared<BattleReactionController> Create();

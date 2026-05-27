@@ -1,13 +1,13 @@
 ﻿#include "Base_Mon_Spawn.h"
 
-#include <Character.h>
+#include "Monster_BattleBase.h"
 #include "ClientInstance.h"
 
 Base_Mon_Spawn::Base_Mon_Spawn()
 {
 }
 
-void Base_Mon_Spawn::Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target)
+void Base_Mon_Spawn::Execute(const Skill_Data& skill, const Action& action)
 {
     auto enemy = CLIENT->Get_BattleController()->Get_AliveEnemies();
     if(enemy.size() == 1)

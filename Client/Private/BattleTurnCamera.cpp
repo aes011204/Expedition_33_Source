@@ -1,5 +1,5 @@
 ﻿#include "BattleTurnCamera.h"
-#include "Character.h"
+#include "Monster_BattleBase.h"
 #include "GameInstance.h"
 
 IMPLEMENT_REFLECTION(BattleTurnCamera)

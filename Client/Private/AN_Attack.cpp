@@ -17,16 +17,23 @@ void AN_Attack::Execute(const AnimNotifyContext& context)
         return;
 
     Action& turnAction = battle->Get_TurnAction();
+    if (battle->Get_AliveEnemies().empty()|| battle->Get_AliveHeroes().empty())
+         return;
+    
 
     // 회피/패링 성공 입력이 있으면 이번 공격 notify의 데미지를 소비하고 스킵한다.
     if (battle->Try_ConsumeReactionGuard(turnAction.target))
         return;
 
 
+
     battle->Get_CurrentScript()->Execute(
         turnAction._selected_SkillKey,
-        turnAction._curChar,
-        turnAction.target);
+        battle->Get_TurnAction());
 
-   battle->HitAction(turnAction.target);
+
+    // 어택 한번 한거다 라는 표시
+    battle->Get_TurnAction()._curAttackIndex++;
+
+  // battle->HitAction(turnAction.target);
 }

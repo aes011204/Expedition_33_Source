@@ -4,6 +4,7 @@
 #include "BuffSystem.h"
 #include "Character.h"
 #include "ClientInstance.h"
+#include "GameDataTable.h"
 #include "AttackTargeting.h"
 #include "BattleStateMachine.h"
 #include "ChooseAction.h"
@@ -30,6 +31,7 @@
 #include "FreeAimTargeting.h"
 #include "PlayerStatCom.h"
 #include "BattleSpawnRegistry.h"
+#include "BattleReactionController.h"
 
 REGISTER_GLOBAL_ENUM(BattleAnimType, "BattleAnimType")
 
@@ -293,6 +295,9 @@ void BattleController::ExecuteAction(Action turnAction)
 
     OnActionStarted.Broadcast(turnAction);
 
+    auto skillData = CLIENT->Get_Skill(turnAction._selected_SkillKey.skillKey);
+    _reactionController.Set_CurSkillData(skillData);
+
     Clear_TargetPreview();
 
     // 일반 공격도 스킬로 들어감 구분만 BaseAttack
@@ -300,11 +305,6 @@ void BattleController::ExecuteAction(Action turnAction)
     {
     case EBattleContext::BaseAttack:
         Execute_BaseAttack(BattleChar, turnAction);
-        break;
-
-    case EBattleContext::FreeAimShoot:
-        // Free Aim은 턴 소모 Xㄴ
-        //Execute_FreeAimShoot(BattleChar, turnAction);
         break;
 
     case EBattleContext::Skill:
@@ -464,7 +464,7 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         // Registry에 플레이어 등록
         _battleSpawnRegistry->Register_SpawnObject(character, GAME->Current_LevelIndex());
 
-        const auto ply = dynamic_pointer_cast<Character>(character);
+        const auto ply = dynamic_pointer_cast<Character_BattleBase>(character);
 
         BattleChar battleChar{};
         battleChar.heroId = heroId; // 배틀 종료 후 어떤 PW로 돌릴지 식별용
@@ -501,7 +501,7 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         // Registry에 몬스터 등록
         _battleSpawnRegistry->Register_BattleMonsterObject(enemy, GAME->Current_LevelIndex());
 
-        const auto ply = dynamic_pointer_cast<Character>(enemy);
+        const auto ply = dynamic_pointer_cast<Character_BattleBase>(enemy);
         BattleChar battleChar{};
         battleChar.actor = ply;
         battleChar.statCom = enemy->Get_Component<CombatStatCom>();
@@ -814,44 +814,6 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
     _battleActionExe->BeginAction(action);
 }
 
-void BattleController::Execute_FreeAimShoot(const BattleChar actor, const Action& turnAction)
-{
-    LOG_DEBUG(
-        "Execute_FreeAimShoot: actor={}, target={}",
-        actor.actor ? String::ToString(actor.actor->Get_Name()).c_str() : "null",
-        turnAction.target.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null"
-    );
-
-    auto& action = Get_TurnAction();
-
-    if (actor.ModelCom == nullptr)
-    {
-        LOG_ERROR("Execute_FreeAimShoot: actor.ModelCom is null");
-        EndTurn();
-        return;
-    }
-
-    if (action._selected_SkillKey.AnimPhases.empty())
-    {
-        LOG_ERROR("Execute_FreeAimShoot: no animationKey");
-        EndTurn();
-        return;
-    }
-
-    // Free Aim은 히트스캔 즉발 데미지
-    if (action.target.actor != nullptr && action.target.statCom != nullptr)
-    {
-        constexpr float freeAimDamage = 20.f;
-        DamageSystem::ApplyDamage(freeAimDamage, action.target);
-    }
-
-    action.originPos = action._curChar.actor->Get_Transform()->Get_Position();
-    action._curAnimIndex = 0;
-
-    _isActionExecuting = true;
-    _battleActionExe->BeginAction(action);
-}
-
 void BattleController::Execute_Skill(const BattleChar actor, const Action& turnAction)
 {
     LOG_DEBUG(
@@ -950,7 +912,7 @@ void BattleController::Begin_FreeAimShot(const Action& shotAction)
     if (_freeAimShotAction.target.actor != nullptr && _freeAimShotAction.target.statCom != nullptr)
     {
         constexpr float freeAimDamage = 20.f; // 우선 테스트용 데미지
-        DamageSystem::ApplyDamage(freeAimDamage, _freeAimShotAction.target);
+        DamageSystem::ApplyDamage(freeAimDamage, _freeAimShotAction.target,AttackType::FreeAimLight);
     }
 
     _freeAimShotAction.originPos = _freeAimShotAction._curChar.actor->Get_Transform()->Get_Position();
@@ -1012,7 +974,7 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
 
         CHECK_NULL(hero);
 
-        const auto ply = dynamic_pointer_cast<Character>(hero);
+        const auto ply = dynamic_pointer_cast<Character_BattleBase>(hero);
         BattleChar battleChar{};
         battleChar.actor = ply;
         battleChar.statCom = hero->Get_Component<CombatStatCom>();
@@ -1027,7 +989,7 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
         TurnEntry turn = {};
         turn.nextTime = _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f);
 
-            turn.hero = battleChar;
+        turn.hero = battleChar;
 
 
         _turnQueue.push(turn);
@@ -1045,7 +1007,7 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
 
             CHECK_NULL(enemy);
 
-            const auto ply = dynamic_pointer_cast<Character>(enemy);
+            const auto ply = dynamic_pointer_cast<Character_BattleBase>(enemy);
             BattleChar battleChar{};
             battleChar.actor = ply;
             battleChar.statCom = enemy->Get_Component<CombatStatCom>();
@@ -1150,8 +1112,13 @@ void BattleController::Confirm_Victory()
     _firstAnimCount = 0;
 }
 
-void BattleController::Handle_DamageApplied(const BattleChar& damagedTarget, float damage)
+void BattleController::Handle_DamageApplied(const BattleChar& damagedTarget, float damage, AttackType attackType)
 {
+    if (damage > 0.f && damagedTarget.actor)
+    {
+        HitAction(damagedTarget, attackType);
+    }
+
     Try_RequestEndTurnOnCurrentActorDeath(damagedTarget, damage);
     Try_BeginVictorySlowOnDamage(damagedTarget, damage);   
 }
@@ -1193,8 +1160,8 @@ void BattleController::Try_BeginVictorySlowOnDamage(const BattleChar& damagedTar
     if (damagedTarget.statCom->Get_AliveStatus() != EAliveStatus::Dead)
         return;
 
-    if (damagedTarget.ModelCom)
-        HitAction(damagedTarget);
+    //if (damagedTarget.ModelCom)
+    //    HitAction(damagedTarget,);
 
     Clear_TargetPreview();
 
@@ -1451,12 +1418,35 @@ void BattleController::PlayerStartAnim()
 
 }
 
-void BattleController::HitAction(BattleChar target)
+void BattleController::HitAction(BattleChar target, AttackType attackType)
 {
-    target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
-
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+    {
         target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Dead), 0.3f, false);
+        return;
+    }
+
+    switch (attackType)
+    {
+    case AttackType::FreeAimLight:
+    case AttackType::Combo:
+        target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Light), 0.3f, false);
+        break;
+
+    case AttackType::BaseAttack:
+    case AttackType::SingleSkill:
+        target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Medium), 0.3f, false);
+        break;
+
+    case AttackType::SingleAOE:
+    case AttackType::FreeAimWeak:
+    case AttackType::ComboLast:
+        target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
+        break;
+
+    case AttackType::Counter:
+        break;
+    }
 }
 
 Shared<BattleController> BattleController::Create()

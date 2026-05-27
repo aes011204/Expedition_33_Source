@@ -66,7 +66,7 @@ public:
 
     void Set_BattleFSM();
     void PlayerStartAnim();
-    void HitAction(BattleChar target);
+    void HitAction(BattleChar target, AttackType attackType);
     void ExecuteAction(Action turnAction); //실제로 선택한 행동을 실행하는 함수
 
     void EndTurn();
@@ -136,7 +136,7 @@ public:
     void Confirm_Victory();
 
     // 데미지 후 전투 진행 규칙을 한 곳에서 처리한다.
-    void Handle_DamageApplied(const BattleChar& damagedTarget, float damage);
+    void Handle_DamageApplied(const BattleChar& damagedTarget, float damage, AttackType attackType);
 
      // 현재 턴 액터가 죽으면 턴 종료를 예약한다.
     void Try_RequestEndTurnOnCurrentActorDeath(const BattleChar& damagedTarget, float damage);
@@ -235,7 +235,6 @@ private:
 
     Shared<BattleStateMachine> _battleFSM;
     Shared<BuffSystem> _buffSystem;
-    /* Shared< BattleEffectResolver> _battleEffectResolver;*/
     Shared<BattleActionExecutor> _battleActionExe;
 
     // 전투 시작 시 스폰되는 객체들 저장소

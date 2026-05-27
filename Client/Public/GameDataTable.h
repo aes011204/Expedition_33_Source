@@ -115,6 +115,7 @@ public:
     void Clear();
 
     const Skill_Data* Get_Skill(const string& skillId);
+    vector<TargetType> ParseTargetTypes(const string& data);
     HRESULT Load_SkillPhaseData(const wstring& jsonRootPath);
 public:
     uint32 Get_NextExp(uint32 level) const;

@@ -1,5 +1,5 @@
 ﻿#include "BattleActionExecutor.h"
-#include "Character.h"
+#include "Monster_BattleBase.h"
 #include "CombatStatCom.h"
 
 void BattleActionExecutor::BeginAction(Action& action)
@@ -17,6 +17,10 @@ void BattleActionExecutor::Update(float timeDelta, Action& action)
         return;
     }*/
 
+    LOG_DEBUG("StartX : {}, {}, {}", action.phaseStartPos.x, action.phaseStartPos.y, action.phaseStartPos.z);
+    LOG_DEBUG("GoalX : {}, {}, {}", action.phaseGoalPos.x, action.phaseGoalPos.y, action.phaseGoalPos.z);
+
+
     if (_isFinished)
         return;
 
@@ -33,8 +37,8 @@ void BattleActionExecutor::OnActionEndNotify(Action& action)
     const BattleActionPhase& phase = phases[action._curAnimIndex];
 
     if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget ||
-        phase.movementPolicy == BattleMovementPolicy::MoveToTarget ||
-        phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
+        phase.movementPolicy == BattleMovementPolicy::MoveToTarget )//||
+       // phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
         return;
 
     Complete_CurPhase(action);
@@ -53,7 +57,7 @@ void BattleActionExecutor::Complete_CurPhase(Action& action)
     {
         if (action._curChar.ModelCom)
         {
-            action._curChar.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), .3f, true);
+            action._curChar.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), .5f, true);
             //action._curChar.ModelCom->Set_Animation(action._selected_SkillKey.IdleAnimationKey, true, 0.f);
         }
 
@@ -89,9 +93,9 @@ void BattleActionExecutor::Begin_ActionPhase(Action& action)
         Face_ActionTarget(action, action.phaseGoalPos);
 
     if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
-        action._curChar.ModelCom->Set_Animation(phase.animationKey, true, 0.f);
+        action._curChar.ModelCom->Set_Animation(phase.animationKey,0.3f, true);
     else
-        action._curChar.ModelCom->Set_Animation(phase.animationKey, false, 0.f);
+        action._curChar.ModelCom->Set_Animation(phase.animationKey, 0.3f, false);
 }
 
 Vec3 BattleActionExecutor::Resolve_AnchorPosition(const Action& action, BattleTargetAnchor anchor) const

@@ -17,7 +17,7 @@ void DamageSystem::Heal(float amount, const BattleChar& target)
     }
 }
 
-void DamageSystem::ApplyDamage(float damage, const BattleChar& target)
+void DamageSystem::ApplyDamage(float damage, const BattleChar& target, AttackType attackType)
 {
 
     if(target.statCom->Get_CurrentShield()!=0)
@@ -41,7 +41,7 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& target)
         runtimeStat.CurHp,
         static_cast<int>(runtimeStat.CurAliveState));
 
-    OnDamageApplied.Broadcast(target, damage);
+    OnDamageApplied.Broadcast(target, damage,attackType);
 }
 
 void DamageSystem::Free()

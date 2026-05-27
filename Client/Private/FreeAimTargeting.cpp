@@ -8,7 +8,7 @@
 #include "GameInstance.h"
 #include "PhysX_Types.h"
 #include "GameObject.h"
-#include "Character.h"
+#include "Monster_BattleBase.h"
 #include "ModelCom.h"
 
 FreeAimTargeting::FreeAimTargeting(const Shared<BattleController>& owner)

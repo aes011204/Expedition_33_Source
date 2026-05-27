@@ -12,8 +12,7 @@ public:
     virtual ~Skill_Bishop_Ground_Att() = default;
 public:
     virtual void Execute(const Skill_Data& skill,
-        const BattleChar& attacker,
-        const BattleChar& target);
+        const Action& action);
 
 
 private:

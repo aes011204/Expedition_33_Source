@@ -10,26 +10,35 @@ Base_Mon_Attack::Base_Mon_Attack()
 {
 }
 
-void Base_Mon_Attack::Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target)
+void Base_Mon_Attack::Execute(const Skill_Data& skill, const Action& action)
 {
-    float Damage = 50;
-    auto  hero = CLIENT->Get_BattleController()->Get_AliveHeroes();
+    const float Damage = 50;
+    const auto hero = CLIENT->Get_BattleController()->Get_AliveHeroes();
 
-    if(skill.targetingType == ECharacterTeamSelector::Enemies)
+    if(CurIndex >= skill.targetingType.size())
     {
-        for(int i =0 ; i < hero.size(); i++)
+        LOG_ERROR("ERROR_Base_Mon_Attack_ OutofRange");
+        return;
+    }
+
+
+        if (skill.targetingType[CurIndex] == TargetType::AllEnemies)
         {
-        DamageSystem::ApplyDamage(Damage, hero[i]);
+            for (int i = 0; i < hero.size(); i++)
+                DamageSystem::ApplyDamage(Damage, hero[i],AttackType::SingleAOE);
         }
-    }
-    else
-    {
-    DamageSystem::ApplyDamage(Damage, target);
-        
-    }
+        else if (skill.targetingType[CurIndex] == TargetType::Primary)
+            DamageSystem::ApplyDamage(Damage, action.target,AttackType::SingleSkill);
+        else if (skill.targetingType[CurIndex] == TargetType::RandomEnemy)
+        {
 
+            const int num = Math::RandNum(0, hero.size() - 1);
+            DamageSystem::ApplyDamage(Damage, hero[num],AttackType::Combo);
 
+        }
 
+        CurIndex++;
+     
 }
 
 Shared<Base_Mon_Attack> Base_Mon_Attack::Create()
