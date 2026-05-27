@@ -192,6 +192,62 @@ namespace Internal
         outValue.w = node[3].get<float>();
     }
 
+    bool Is_SameColor(const Color& lhs, const Color& rhs)
+    {
+        return
+            lhs.x == rhs.x &&
+            lhs.y == rhs.y &&
+            lhs.z == rhs.z &&
+            lhs.w == rhs.w;
+    }
+
+    bool Is_DefaultAdditiveContribution(const EffectMaterialAdditiveContributionData& data)
+    {
+        const EffectMaterialAdditiveContributionData defaultData{};
+        return
+            data.colorSource == defaultData.colorSource &&
+            data.amountSource == defaultData.amountSource &&
+            data.coveragePolicy == defaultData.coveragePolicy &&
+            data.intensityScale == defaultData.intensityScale &&
+            data.blackNeutral == defaultData.blackNeutral &&
+            Is_SameColor(data.emissiveColor, defaultData.emissiveColor) &&
+            Is_SameColor(data.constantColor, defaultData.constantColor);
+    }
+
+    json To_Json(const EffectMaterialAdditiveContributionData& data)
+    {
+        json root = json::object();
+        root["colorSource"] = To_EnumToken(data.colorSource);
+        root["amountSource"] = To_EnumToken(data.amountSource);
+        root["coveragePolicy"] = To_EnumToken(data.coveragePolicy);
+        root["intensityScale"] = data.intensityScale;
+        root["blackNeutral"] = data.blackNeutral;
+        root["emissiveColor"] = To_Json(data.emissiveColor);
+        root["constantColor"] = To_Json(data.constantColor);
+        return root;
+    }
+
+    void From_Json(const json& root, EffectMaterialAdditiveContributionData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto colorSourceIter = root.find("colorSource"); colorSourceIter != root.end())
+            Try_ReadEnumToken(*colorSourceIter, outData.colorSource);
+        if (const auto amountSourceIter = root.find("amountSource"); amountSourceIter != root.end())
+            Try_ReadEnumToken(*amountSourceIter, outData.amountSource);
+        if (const auto coveragePolicyIter = root.find("coveragePolicy"); coveragePolicyIter != root.end())
+            Try_ReadEnumToken(*coveragePolicyIter, outData.coveragePolicy);
+
+        Read_NumberField(root, "intensityScale", outData.intensityScale);
+        Read_BoolField(root, "blackNeutral", outData.blackNeutral);
+
+        if (const auto emissiveColorIter = root.find("emissiveColor"); emissiveColorIter != root.end())
+            Read_Color(*emissiveColorIter, outData.emissiveColor);
+        if (const auto constantColorIter = root.find("constantColor"); constantColorIter != root.end())
+            Read_Color(*constantColorIter, outData.constantColor);
+    }
+
     json To_Json(const ParticleSystemAuthoringData& data)
     {
         json root = json::object();
@@ -214,6 +270,8 @@ namespace Internal
         root["segmentLifetime"] = data.segmentLifetime;
         root["historyCount"] = data.historyCount;
         root["uvTiling"] = data.uvTiling;
+        root["maxTrailLength"] = data.maxTrailLength;
+        root["tailFadeLength"] = data.tailFadeLength;
         root["curveQuality"] = To_EnumToken(data.curveQuality);
         root["sampleSpacing"] = data.sampleSpacing;
         root["curveSubdivision"] = data.curveSubdivision;
@@ -231,6 +289,8 @@ namespace Internal
         Read_NumberField(root, "segmentLifetime", outData.segmentLifetime);
         Read_NumberField(root, "historyCount", outData.historyCount);
         Read_NumberField(root, "uvTiling", outData.uvTiling);
+        Read_NumberField(root, "maxTrailLength", outData.maxTrailLength);
+        Read_NumberField(root, "tailFadeLength", outData.tailFadeLength);
         const auto curveQualityIter = root.find("curveQuality");
         if (curveQualityIter != root.end())
             Try_ReadEnumToken(*curveQualityIter, outData.curveQuality);
@@ -308,14 +368,22 @@ namespace Internal
         root["noiseStrength"] = data.noiseStrength;
         root["alphaCutoff"] = data.alphaCutoff;
         root["alphaErosion"] = data.alphaErosion;
-        root["mainUvScale"] = To_Json(data.mainUvScale);
-        root["mainUvScrollSpeed"] = To_Json(data.mainUvScrollSpeed);
-        root["noiseUvScale"] = To_Json(data.noiseUvScale);
-        root["noiseUvScrollSpeed"] = To_Json(data.noiseUvScrollSpeed);
-        root["maskUvScale"] = To_Json(data.maskUvScale);
-        root["maskUvScrollSpeed"] = To_Json(data.maskUvScrollSpeed);
-        root["blendMode"] = data.blendMode;
+        root["mainUVScale"] = To_Json(data.mainUVScale);
+        root["mainUVOffset"] = To_Json(data.mainUVOffset);
+        root["mainUVScrollSpeed"] = To_Json(data.mainUVScrollSpeed);
+        root["mainUVTilingMode"] = To_EnumToken(data.mainUVTilingMode);
+        root["noiseUVScale"] = To_Json(data.noiseUVScale);
+        root["noiseUVOffset"] = To_Json(data.noiseUVOffset);
+        root["noiseUVScrollSpeed"] = To_Json(data.noiseUVScrollSpeed);
+        root["noiseUVTilingMode"] = To_EnumToken(data.noiseUVTilingMode);
+        root["maskUVScale"] = To_Json(data.maskUVScale);
+        root["maskUVOffset"] = To_Json(data.maskUVOffset);
+        root["maskUVScrollSpeed"] = To_Json(data.maskUVScrollSpeed);
+        root["maskUVTilingMode"] = To_EnumToken(data.maskUVTilingMode);
+        root["blendMode"] = To_EnumToken(data.blendMode);
         root["opacitySource"] = data.opacitySource;
+        if (data.blendMode == EffectMaterialBlendMode::Additive || !Is_DefaultAdditiveContribution(data.additive))
+            root["additive"] = To_Json(data.additive);
         root["twoSided"] = data.twoSided;
         root["subUVRows"] = data.subUVRows;
         root["subUVCols"] = data.subUVCols;
@@ -357,8 +425,11 @@ namespace Internal
         Read_NumberField(root, "noiseStrength", outData.noiseStrength);
         Read_NumberField(root, "alphaCutoff", outData.alphaCutoff);
         Read_NumberField(root, "alphaErosion", outData.alphaErosion);
-        Read_StringField(root, "blendMode", outData.blendMode);
+        if (const auto blendModeIter = root.find("blendMode"); blendModeIter != root.end())
+            Try_ReadEnumToken(*blendModeIter, outData.blendMode);
         Read_StringField(root, "opacitySource", outData.opacitySource);
+        if (const auto additiveIter = root.find("additive"); additiveIter != root.end())
+            From_Json(*additiveIter, outData.additive);
         Read_BoolField(root, "twoSided", outData.twoSided);
         Read_NumberField(root, "subUVRows", outData.subUVRows);
         Read_NumberField(root, "subUVCols", outData.subUVCols);
@@ -367,24 +438,42 @@ namespace Internal
         if (tintIter != root.end())
             Read_Color(*tintIter, outData.tint);
 
-        const auto mainUvScaleIter = root.find("mainUvScale");
-        if (mainUvScaleIter != root.end())
-            Read_Vec2(*mainUvScaleIter, outData.mainUvScale);
-        const auto mainUvScrollSpeedIter = root.find("mainUvScrollSpeed");
-        if (mainUvScrollSpeedIter != root.end())
-            Read_Vec2(*mainUvScrollSpeedIter, outData.mainUvScrollSpeed);
-        const auto noiseUvScaleIter = root.find("noiseUvScale");
-        if (noiseUvScaleIter != root.end())
-            Read_Vec2(*noiseUvScaleIter, outData.noiseUvScale);
-        const auto noiseUvScrollSpeedIter = root.find("noiseUvScrollSpeed");
-        if (noiseUvScrollSpeedIter != root.end())
-            Read_Vec2(*noiseUvScrollSpeedIter, outData.noiseUvScrollSpeed);
-        const auto maskUvScaleIter = root.find("maskUvScale");
-        if (maskUvScaleIter != root.end())
-            Read_Vec2(*maskUvScaleIter, outData.maskUvScale);
-        const auto maskUvScrollSpeedIter = root.find("maskUvScrollSpeed");
-        if (maskUvScrollSpeedIter != root.end())
-            Read_Vec2(*maskUvScrollSpeedIter, outData.maskUvScrollSpeed);
+        const auto mainUVScaleIter = root.find("mainUVScale");
+        if (mainUVScaleIter != root.end())
+            Read_Vec2(*mainUVScaleIter, outData.mainUVScale);
+        const auto mainUVOffsetIter = root.find("mainUVOffset");
+        if (mainUVOffsetIter != root.end())
+            Read_Vec2(*mainUVOffsetIter, outData.mainUVOffset);
+        const auto mainUVScrollSpeedIter = root.find("mainUVScrollSpeed");
+        if (mainUVScrollSpeedIter != root.end())
+            Read_Vec2(*mainUVScrollSpeedIter, outData.mainUVScrollSpeed);
+        const auto mainUVTilingModeIter = root.find("mainUVTilingMode");
+        if (mainUVTilingModeIter != root.end())
+            Try_ReadEnumToken(*mainUVTilingModeIter, outData.mainUVTilingMode);
+        const auto noiseUVScaleIter = root.find("noiseUVScale");
+        if (noiseUVScaleIter != root.end())
+            Read_Vec2(*noiseUVScaleIter, outData.noiseUVScale);
+        const auto noiseUVOffsetIter = root.find("noiseUVOffset");
+        if (noiseUVOffsetIter != root.end())
+            Read_Vec2(*noiseUVOffsetIter, outData.noiseUVOffset);
+        const auto noiseUVScrollSpeedIter = root.find("noiseUVScrollSpeed");
+        if (noiseUVScrollSpeedIter != root.end())
+            Read_Vec2(*noiseUVScrollSpeedIter, outData.noiseUVScrollSpeed);
+        const auto noiseUVTilingModeIter = root.find("noiseUVTilingMode");
+        if (noiseUVTilingModeIter != root.end())
+            Try_ReadEnumToken(*noiseUVTilingModeIter, outData.noiseUVTilingMode);
+        const auto maskUVScaleIter = root.find("maskUVScale");
+        if (maskUVScaleIter != root.end())
+            Read_Vec2(*maskUVScaleIter, outData.maskUVScale);
+        const auto maskUVOffsetIter = root.find("maskUVOffset");
+        if (maskUVOffsetIter != root.end())
+            Read_Vec2(*maskUVOffsetIter, outData.maskUVOffset);
+        const auto maskUVScrollSpeedIter = root.find("maskUVScrollSpeed");
+        if (maskUVScrollSpeedIter != root.end())
+            Read_Vec2(*maskUVScrollSpeedIter, outData.maskUVScrollSpeed);
+        const auto maskUVTilingModeIter = root.find("maskUVTilingMode");
+        if (maskUVTilingModeIter != root.end())
+            Try_ReadEnumToken(*maskUVTilingModeIter, outData.maskUVTilingMode);
     }
 
     json To_Json(const FloatCurveKeyData& data)
@@ -1154,6 +1243,41 @@ namespace Internal
         Read_NumberField(root, "multiplyYStart", outData.multiplyYStart);
         Read_NumberField(root, "multiplyYEnd", outData.multiplyYEnd);
     }
+
+    json To_Json(const SpawnPerUnitModuleData& data)
+    {
+        json root = json::object();
+        root["enabled"] = data.enabled;
+        root["spawnPerUnit"] = To_Json(data.spawnPerUnit);
+        root["unitScalar"] = data.unitScalar;
+        root["movementTolerance"] = data.movementTolerance;
+        root["maxFrameDistance"] = data.maxFrameDistance;
+        return root;
+    }
+
+    void From_Json(const json& root, SpawnPerUnitModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_BoolField(root, "enabled", outData.enabled);
+
+        const auto spawnPerUnitIter = root.find("spawnPerUnit");
+        if (spawnPerUnitIter != root.end())
+            From_Json(*spawnPerUnitIter, outData.spawnPerUnit);
+
+        Read_NumberField(root, "unitScalar", outData.unitScalar);
+        Read_NumberField(root, "movementTolerance", outData.movementTolerance);
+        Read_NumberField(root, "maxFrameDistance", outData.maxFrameDistance);
+
+        if (spawnPerUnitIter == root.end())
+        {
+            float legacyUnitDistance = 0.f;
+            Read_NumberField(root, "unitDistance", legacyUnitDistance);
+            if (legacyUnitDistance > 0.f)
+                outData.spawnPerUnit = FloatDistributionData::Make_Constant(max(0.0001f, outData.unitScalar) / legacyUnitDistance);
+        }
+    }
 }
 
 json EffectAuthoringJsonSerializer::To_Json(const EffectAuthoringDocument& document)
@@ -1268,6 +1392,9 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::SizeByLife:
         root["data"] = Internal::To_Json(get<SizeByLifeModuleData>(module.data));
         break;
+    case AuthoringModuleType::SpawnPerUnit:
+        root["data"] = Internal::To_Json(get<SpawnPerUnitModuleData>(module.data));
+        break;
     }
 
     return root;
@@ -1368,6 +1495,9 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::SizeByLife:
             Internal::From_Json(*dataIter, get<SizeByLifeModuleData>(module.data));
             break;
+        case AuthoringModuleType::SpawnPerUnit:
+            Internal::From_Json(*dataIter, get<SpawnPerUnitModuleData>(module.data));
+            break;
         }
     }
 
@@ -1464,6 +1594,8 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return SubUVFrameOverLifeModuleData{};
     case AuthoringModuleType::SizeByLife:
         return SizeByLifeModuleData{};
+    case AuthoringModuleType::SpawnPerUnit:
+        return SpawnPerUnitModuleData{};
     }
 
     return RequiredModuleData{};

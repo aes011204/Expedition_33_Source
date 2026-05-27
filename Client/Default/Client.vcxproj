@@ -156,16 +156,26 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\public\ANS_Dodge.h" />
+    <ClInclude Include="..\Public\ANS_IdleOffset.h" />
     <ClInclude Include="..\public\ANS_Move.h" />
     <ClInclude Include="..\public\ANS_Parry.h" />
     <ClInclude Include="..\public\ANS_QTE.h" />
     <ClInclude Include="..\public\AN_Attack.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
+    <ClInclude Include="..\public\AN_Change_Anim.h" />
+    <ClInclude Include="..\Public\AN_CounterDamage.h" />
+    <ClInclude Include="..\Public\AN_EndTurn.h" />
+    <ClInclude Include="..\Public\AN_VanishDissolve.h" />
     <ClInclude Include="..\public\AN_EnterAnim.h" />
+    <ClInclude Include="..\Public\AN_StartCounter.h" />
     <ClInclude Include="..\Public\AN_Test2.h" />
     <ClInclude Include="..\Public\AttackPlaying.h" />
     <ClInclude Include="..\public\Base_Mon_Attack.h" />
+    <ClInclude Include="..\public\Base_Mon_Defense.h" />
+    <ClInclude Include="..\public\Base_Mon_Spawn.h" />
     <ClInclude Include="..\public\BattleActionExecutor.h" />
+    <ClInclude Include="..\Public\BattleReactionController.h" />
+    <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
     <ClInclude Include="..\public\BT_Patroll.h" />
@@ -173,6 +183,8 @@
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
+    <ClInclude Include="..\Public\EffectCom.h" />
+    <ClInclude Include="..\Public\EffectInstancePool.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
@@ -308,6 +320,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="..\Public\Create_Class.h" />
+    <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h" />
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
     <ClInclude Include="..\Public\State.h" />
     <ClInclude Include="..\Public\StateMachineCom.h" />
@@ -318,6 +331,10 @@
     <ClInclude Include="..\Public\Terrain_UE.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
+    <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
+    <ClInclude Include="..\Public\UI_BattleMechanism.h" />
+    <ClInclude Include="..\Public\UI_HealFont.h" />
+    <ClInclude Include="..\Public\UI_PlayerHpBar.h" />
     <ClInclude Include="..\Public\UI_BattleSystemHUD.h" />
     <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
     <ClInclude Include="..\Public\UI_BattleVictory.h" />
@@ -328,12 +345,14 @@
     <ClInclude Include="..\Public\UI_ChoiceTarget.h" />
     <ClInclude Include="..\Public\UI_CrossHair.h" />
     <ClInclude Include="..\Public\UI_DamageFont.h" />
-    <ClInclude Include="..\Public\UI_EscapeSkipTurn.h" />
+    <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h" />
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
     <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
+    <ClInclude Include="..\Public\UI_ReactionResult.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
     <ClInclude Include="..\Public\SavePoint_Panel.h" />
     <ClInclude Include="..\Public\UI_RuntimePanelBase.h" />
+    <ClInclude Include="..\Public\UI_BattleSkillPanel.h" />
     <ClInclude Include="..\Public\UI_Utils.h" />
     <ClInclude Include="..\public\UltimateTargeting.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
@@ -362,22 +381,34 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp" />
+    <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
     <ClCompile Include="..\Private\ANS_QTE.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
+    <ClCompile Include="..\private\AN_Change_Anim.cpp" />
+    <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
+    <ClCompile Include="..\Private\AN_EndTurn.cpp" />
+    <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
+    <ClCompile Include="..\Private\AN_StartCounter.cpp" />
     <ClCompile Include="..\Private\AN_Test2.cpp" />
     <ClCompile Include="..\Private\AttackPlaying.cpp" />
     <ClCompile Include="..\private\Base_Mon_Attack.cpp" />
+    <ClCompile Include="..\private\Base_Mon_Defense.cpp" />
+    <ClCompile Include="..\private\Base_Mon_Spawn.cpp" />
     <ClCompile Include="..\private\BattleActionExecutor.cpp" />
+    <ClCompile Include="..\Private\BattleReactionController.cpp" />
+    <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
     <ClCompile Include="..\private\BT_Patroll.cpp" />
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />
     <ClCompile Include="..\private\BT_FinishDecision.cpp" />
     <ClCompile Include="..\private\BT_SetSkill.cpp" />
     <ClCompile Include="..\private\BT_Set_Target.cpp" />
+    <ClCompile Include="..\Private\EffectCom.cpp" />
+    <ClCompile Include="..\Private\EffectInstancePool.cpp" />
     <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
@@ -507,6 +538,7 @@
     <ClCompile Include="..\Private\SkillTreeCom.cpp" />
     <ClCompile Include="..\private\SkillTree_Panel.cpp" />
     <ClCompile Include="..\Private\Create_Class.cpp" />
+    <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp" />
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
     <ClCompile Include="..\Private\State.cpp" />
     <ClCompile Include="..\Private\StateMachineCom.cpp" />
@@ -516,6 +548,10 @@
     <ClCompile Include="..\Private\Terrain_UE.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
+    <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
+    <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
+    <ClCompile Include="..\Private\UI_HealFont.cpp" />
+    <ClCompile Include="..\Private\UI_PlayerHpBar.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
     <ClCompile Include="..\Private\UI_BattleVictory.cpp" />
@@ -526,12 +562,14 @@
     <ClCompile Include="..\Private\UI_ChoiceTarget.cpp" />
     <ClCompile Include="..\Private\UI_CrossHair.cpp" />
     <ClCompile Include="..\Private\UI_DamageFont.cpp" />
-    <ClCompile Include="..\Private\UI_EscapeSkipTurn.cpp" />
+    <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
     <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
     <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />
+    <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
     <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
     <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
+    <ClCompile Include="..\Private\UI_BattleSkillPanel.cpp" />
     <ClCompile Include="..\private\UltimateTargeting.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>

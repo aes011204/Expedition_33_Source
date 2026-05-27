@@ -72,10 +72,6 @@ void MW_Volester::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> o
     Monster_WorldBase::OnBeginOverlap(self, other);
 }
 
-void MW_Volester::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
-{
-}
-
 HRESULT MW_Volester::Ready_Components()
 {
     Monster_WorldBase::Ready_Components();

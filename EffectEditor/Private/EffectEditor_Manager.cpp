@@ -6,8 +6,8 @@
 #include "Detail_View.h"
 #include "Editor_Window.h"
 #include "EffectEditorInstance.h"
-#include "EffectMaterial_View.h"
 #include "EffectMaterialInstance_View.h"
+#include "EffectMaterial_View.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "Hierarchy_View.h"
@@ -24,9 +24,6 @@ EffectEditor_Manager::~EffectEditor_Manager()
 HRESULT EffectEditor_Manager::Initialize()
 {
     Add_Window(Scene_View::Create());
-
-    // Game View는 비활성화
-
     Add_Window(Emitter_View::Create());
     Add_Window(Hierarchy_View::Create());
     Add_Window(Content_Browser::Create());

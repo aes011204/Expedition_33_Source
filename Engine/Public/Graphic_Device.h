@@ -10,7 +10,7 @@ public:
     Graphic_Device();
     virtual ~Graphic_Device() = default;
 
-	HRESULT Initialize(HWND hWnd, WinMode isWindowed, uint32 winSizeX, uint32 winSizeY,
+	HRESULT Initialize(HWND hWnd, WinMode isWindowed, uint32 winSizeX, uint32 winSizeY, DXGI_SWAP_EFFECT swapEffect,
 		ComPtr<Device>& device, ComPtr<Context>& context);
 
 	HRESULT Clear_BackBuffer_View(const Vec4& clearColor);
@@ -37,7 +37,7 @@ private:
 	ComPtr<DepthStencilView>    _depthStencilView = nullptr;
 
 private:
-	HRESULT Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 windowWidth, uint32 windowHeight);
+	HRESULT Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 windowWidth, uint32 windowHeight, DXGI_SWAP_EFFECT swapEffect);
 	HRESULT Ready_BackBufferRenderTargetView();
 	HRESULT Ready_DepthStencilView(uint32 windowWidth, uint32 windowHeight);
 
@@ -47,7 +47,7 @@ private:
 
 
 public:
-	static Unique<Graphic_Device> Create(HWND hWnd, WinMode isWindowed, uint32 windowSizeX, uint32 windowSizeY, ComPtr<Device>& device, ComPtr<Context>& context);
+	static Unique<Graphic_Device> Create(HWND hWnd, WinMode isWindowed, uint32 windowSizeX, uint32 windowSizeY, DXGI_SWAP_EFFECT swapEffect, ComPtr<Device>& device, ComPtr<Context>& context);
 	virtual void Free() override;
 };
 

@@ -22,6 +22,9 @@
     <ClCompile Include="..\Private\UI_ClipboardService.cpp" />
     <ClCompile Include="..\Private\UI_AnimationAssetSerializer.cpp" />
     <ClCompile Include="..\Private\UI_AnimationAssetService.cpp" />
+    <ClCompile Include="..\Private\UI_AnimationAssetService_FileDialog.cpp" />
+    <ClCompile Include="..\Private\UI_AnimationAssetService_Legacy.cpp" />
+    <ClCompile Include="..\Private\UI_AnimationAssetService_Presets.cpp" />
     <ClCompile Include="..\Private\UI_AnimationTimelineView.cpp" />
     <ClCompile Include="..\Private\UI_Animation_View.cpp" />
     <ClCompile Include="..\Private\UI_AnimationPreviewService.cpp" />

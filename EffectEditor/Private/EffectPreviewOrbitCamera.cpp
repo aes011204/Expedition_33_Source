@@ -1,4 +1,4 @@
-#include "EffectPreviewOrbitCamera.h"
+﻿#include "EffectPreviewOrbitCamera.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -90,4 +90,3 @@ EffectPreviewOrbitCameraFrame EffectPreviewOrbitCamera::Build_Frame(
 }
 
 NS_END
-

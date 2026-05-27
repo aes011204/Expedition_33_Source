@@ -10,6 +10,8 @@ class SkillTree_Panel;
 class CharacterStatus_Panel;
 class ChangeWeapon_Panel;
 class ExpeditionStat_Panel;
+class UI_CrossHair;
+class Monster_WorldBase;
 
 class GameplayUI_World final : public Base
 {
@@ -28,11 +30,13 @@ public:
 
 private:
     void    Handle_SavePointAction(SavePoint_Panel::SavePointAction action);
-
     void    Handle_TabInput();
     void    Handle_ExpeditionStat();
     void    Handle_BackInput();            // Esc로 현재 메뉴 닫고 이전 메뉴 복귀
 
+    void    Update_CrossHair(float timeDelta);
+
+private:
     void    Push_Menu(GameplayMenu menu);
     void    Pop_Menu();
     void    Close_AllMenus();              // 전체 메뉴 종료
@@ -40,12 +44,18 @@ private:
     void    Open_Menu(GameplayMenu menu);  // 메뉴 enum -> 실제 panel open
     void    Close_Menu(GameplayMenu menu); // 메뉴 enum -> 실제 panel close
 
+    // 월드에서 CrossHair를 보여줘야하는 상태인지?
+    bool    Is_WorldFreeAimActive() const;
+    // Hit 판정
+    bool    Has_FreeAimHitMonster() const;
+
 private:
     Unique<SavePoint_Panel>       _savePointPanel;
     Unique<CharacterStatus_Panel> _characterStatusPanel;
     Unique<SkillTree_Panel>       _skillTreePanel;
     Unique<ChangeWeapon_Panel>    _changeWeaponPanel;
     Unique<ExpeditionStat_Panel>  _expeditionStatPanel;
+    Unique<UI_CrossHair>          _crossHair;
 
     vector<GameplayMenu>          _menuStack{};
 

@@ -19,8 +19,8 @@ namespace Engine
     enum class UI_RenderGroup
     {
         // UI Render 순서. 필요하다면 추후에 더 확장
-        Background, // 플레이어보다 뒤에 그려질거
-        Foreground, // 플레이어 앞에
+        Background, // 플레이어 뒤 연출용 UI
+        Foreground, // depth를 무시하고 화면 최상단에 그리는 UI
     };
 
     enum class State { Right, Up, Look, Position, END };

@@ -32,6 +32,7 @@ HRESULT MainEditorApp::Initialize()
     engineDesc.numLevels = ETOI(LevelType::END);
     engineDesc.viewportWidth = viewportWidth;
     engineDesc.viewportHeight = viewportHeight;
+    engineDesc.swapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     engineDesc.projectName = "MainEditor";
 
     if (FAILED(GAME->Initialize_Engine(engineDesc, _device, _context)))

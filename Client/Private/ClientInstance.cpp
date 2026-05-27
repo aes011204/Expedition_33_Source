@@ -1,9 +1,10 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "BT_Node_Bootstrap.h"
 #include "ComputeSpriteEmitter.h"
 #include "EffectEmitterRegistration.h"
+#include "EffectInstancePool.h"
 #include "GameDataTable.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -58,6 +59,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _previewManager = UIPreviewManager::Create();
     CHECK_NULL(_previewManager, E_FAIL);
 
+    _effectInstancePool = EffectInstancePool::Create();
+    CHECK_NULL(_effectInstancePool, E_FAIL);
+
 	_isInitialized = true;
 
 	return S_OK;
@@ -74,6 +78,9 @@ HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& 
     CHECK_FAILED(Ready_ResourceLoader(), E_FAIL);
 
     Register_ClientEffectEmitters();
+
+    _effectInstancePool = EffectInstancePool::Create();
+    CHECK_NULL(_effectInstancePool, E_FAIL);
 
     _isInitialized = true;
 
@@ -158,6 +165,31 @@ const Skill_Data* ClientInstance::Get_Skill(const string& skillId)
 {
     return _gameDataTable->Get_Skill(skillId);
 }
+
+const Item_Data* ClientInstance::Get_Item(const string& itemId)
+{
+    if (!_gameDataTable)
+        return nullptr;
+
+    return _gameDataTable->Get_Item(itemId);
+}
+
+const Item_Data* ClientInstance::Get_Item(BattleItemType itemType)
+{
+     if (!_gameDataTable)
+        return nullptr;
+
+    return _gameDataTable->Get_Item(itemType);
+}
+
+bool ClientInstance::Consume_Item(BattleItemType itemType)
+{
+    if (_gameDataTable == nullptr)
+        return false;
+
+    return _gameDataTable->Consume_Item(itemType);
+}
+
 void ClientInstance::Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout)
 {
     return _previewManager->Apply_Layout(layout);
@@ -287,9 +319,9 @@ bool ClientInstance::Is_BattleEnterTransitionPlaying() const
 }
 
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
-                                        vector<string>& MonsterProtoTag)
+                                        const vector<string>& MonsterProtoTag, const Shared<GameObject>& sourceObject)
 {
-    return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag);
+    return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag, sourceObject);
 }
 
 bool ClientInstance::Is_BattleActive() const
@@ -367,6 +399,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_gameDataTable);
     ReleaseManager(_previewShotTable);
     ReleaseManager(_previewManager);
+    ReleaseManager(_effectInstancePool);
     ReleaseManager(_persistentObjectManager);
     ReleaseManager(_resourceLoader);
     ReleaseManager(_heroManager);

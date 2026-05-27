@@ -229,8 +229,6 @@ void Hero_Manager::Switch_NextHero()
 
         if (const Shared<Player_WorldBase>& hero = _heroes[i].hero)
         {
-            // TEMP_ERASE 내가 맘대로 수정했음 
-            // 새 active를 제외한 나머지 두 hero에만 switch dissolve를 건다.
             hero->Start_SwitchDissolve(0.35f, "T_Perlin_Noise_M");
         }
     }

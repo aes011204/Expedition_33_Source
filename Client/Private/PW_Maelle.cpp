@@ -51,10 +51,6 @@ HRESULT PW_Maelle::Initialize(void* arg)
 void PW_Maelle::BeginPlay()
 {
     Player_WorldBase::BeginPlay();
-
-    _combatStatCom->Get_StatInfo().maxAp = 9;   
-    _combatStatCom->Get_PlayerRuntimeStat().CurMaxAp = 9;
-    _combatStatCom->Get_PlayerRuntimeStat().CurAp = 4;
 }
 
 HRESULT PW_Maelle::Ready_Modifier()

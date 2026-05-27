@@ -81,6 +81,18 @@ namespace Internal
         outValue.w = node[3].get<float>();
     }
 
+    void Read_Color(const json& node, Color& outValue)
+    {
+        if (!node.is_array() || node.size() < 4 ||
+            !node[0].is_number() || !node[1].is_number() || !node[2].is_number() || !node[3].is_number())
+            return;
+
+        outValue.x = node[0].get<float>();
+        outValue.y = node[1].get<float>();
+        outValue.z = node[2].get<float>();
+        outValue.w = node[3].get<float>();
+    }
+
     template <typename EnumType>
     void Read_Enum(const json& node, const char* key, EnumType& outValue)
     {
@@ -102,6 +114,7 @@ using Internal::Read_UInt;
 using Internal::Read_Vec2;
 using Internal::Read_Vec3;
 using Internal::Read_Vec4;
+using Internal::Read_Color;
 using Internal::To_LogPath;
 using Internal::kMaxSubUVFrameCurveKeys;
 
@@ -140,14 +153,21 @@ Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_Definition(const w
         if (!Read_Bool(emitter, "enabled", true))
             continue;
 
-        string rendererType = Read_String(emitter, "rendererType");
-        if (rendererType.empty())
-        {
-            if (const json* required = Find_ModuleData(emitter, "Required"))
-                rendererType = Read_String(*required, "rendererType");
-        }
+        const string rendererType = Resolve_RendererType(emitter);
+        const string rendererTypeLower = String::ToLowerCopy(rendererType);
 
-        if (String::ToLowerCopy(rendererType) != "sprite")
+        EffectEmitterDefinition emitterDefinition{};
+        bool converted = false;
+
+        if (rendererTypeLower == "sprite")
+        {
+            converted = Build_EmitterDefinition(emitter, emitterDefinition);
+        }
+        else if (rendererTypeLower == "trail")
+        {
+            converted = Build_TrailEmitterDefinition(emitter, emitterDefinition);
+        }
+        else
         {
             LOG_INFO(
                 "Skipped unsupported renderer. effect='{}', emitter='{}', rendererType='{}'",
@@ -158,8 +178,7 @@ Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_Definition(const w
             continue;
         }
 
-        EffectEmitterDefinition emitterDefinition{};
-        if (!Build_EmitterDefinition(emitter, emitterDefinition))
+        if (!converted)
         {
             LOG_WARN(
                 "EffectAssetRuntimeLoader skipped emitter conversion failure. effect='{}', emitter='{}'",
@@ -519,35 +538,124 @@ void EffectAssetRuntimeLoader::Fill_SubUVFrameCurvePayload(PointParticleSubUVFra
     }
 }
 
+string EffectAssetRuntimeLoader::Resolve_RendererType(const json& emitter)
+{
+    string rendererType = Read_String(emitter, "rendererType");
+    if (!rendererType.empty())
+        return rendererType;
+
+    if (const json* required = Find_ModuleData(emitter, "Required"))
+    {
+        rendererType = Read_String(*required, "rendererType");
+        if (!rendererType.empty())
+            return rendererType;
+    }
+
+    const auto typeDataIter = emitter.find("typeData");
+    if (typeDataIter != emitter.end() && typeDataIter->is_object())
+        return Read_String(*typeDataIter, "kind");
+
+    return {};
+}
+
+void EffectAssetRuntimeLoader::Apply_MaterialPayload(
+    const json& material,
+    EffectRequiredMaterialRuntimeDesc& materialDesc,
+    bool includeTrailMaterialFields)
+{
+    materialDesc.mainTextureGuid = Read_String(material, "mainTextureGuid", materialDesc.mainTextureGuid);
+    materialDesc.mainTexturePath = Read_String(material, "mainTexturePath", materialDesc.mainTexturePath);
+    materialDesc.noiseTextureGuid = Read_String(material, "noiseTextureGuid", materialDesc.noiseTextureGuid);
+    materialDesc.noiseTexturePath = Read_String(material, "noiseTexturePath", materialDesc.noiseTexturePath);
+    materialDesc.maskTextureGuid = Read_String(material, "maskTextureGuid", materialDesc.maskTextureGuid);
+    materialDesc.maskTexturePath = Read_String(material, "maskTexturePath", materialDesc.maskTexturePath);
+
+    Read_Enum(material, "blendMode", materialDesc.blendMode);
+
+    const string opacitySource = Read_String(material, "opacitySource");
+    if (!opacitySource.empty())
+        materialDesc.opacitySource = opacitySource;
+
+    const auto tintIter = material.find("tint");
+    if (tintIter != material.end())
+        Read_Vec4(*tintIter, materialDesc.tint);
+
+    materialDesc.intensity = Read_Float(material, "intensity", materialDesc.intensity);
+    materialDesc.opacityPower = Read_Float(material, "opacityPower", materialDesc.opacityPower);
+    materialDesc.noiseStrength = Read_Float(material, "noiseStrength", materialDesc.noiseStrength);
+    materialDesc.alphaCutoff = Read_Float(material, "alphaCutoff", materialDesc.alphaCutoff);
+    materialDesc.alphaErosion = Read_Float(material, "alphaErosion", materialDesc.alphaErosion);
+
+    const auto mainUVOffsetIter = material.find("mainUVOffset");
+    if (mainUVOffsetIter != material.end())
+        Read_Vec2(*mainUVOffsetIter, materialDesc.mainUVOffset);
+
+    const auto noiseUVOffsetIter = material.find("noiseUVOffset");
+    if (noiseUVOffsetIter != material.end())
+        Read_Vec2(*noiseUVOffsetIter, materialDesc.noiseUVOffset);
+
+    const auto maskUVOffsetIter = material.find("maskUVOffset");
+    if (maskUVOffsetIter != material.end())
+        Read_Vec2(*maskUVOffsetIter, materialDesc.maskUVOffset);
+
+    Read_Enum(material, "mainUVTilingMode", materialDesc.mainUVTilingMode);
+    Read_Enum(material, "noiseUVTilingMode", materialDesc.noiseUVTilingMode);
+    Read_Enum(material, "maskUVTilingMode", materialDesc.maskUVTilingMode);
+    materialDesc.subUVRows = max(1u, Read_UInt(material, "subUVRows", materialDesc.subUVRows));
+    materialDesc.subUVCols = max(1u, Read_UInt(material, "subUVCols", materialDesc.subUVCols));
+
+    if (includeTrailMaterialFields)
+    {
+        const auto mainUVScaleIter = material.find("mainUVScale");
+        if (mainUVScaleIter != material.end())
+            Read_Vec2(*mainUVScaleIter, materialDesc.mainUVScale);
+        const auto mainUVScrollSpeedIter = material.find("mainUVScrollSpeed");
+        if (mainUVScrollSpeedIter != material.end())
+            Read_Vec2(*mainUVScrollSpeedIter, materialDesc.mainUVScrollSpeed);
+
+        const auto noiseUVScaleIter = material.find("noiseUVScale");
+        if (noiseUVScaleIter != material.end())
+            Read_Vec2(*noiseUVScaleIter, materialDesc.noiseUVScale);
+        const auto noiseUVScrollSpeedIter = material.find("noiseUVScrollSpeed");
+        if (noiseUVScrollSpeedIter != material.end())
+            Read_Vec2(*noiseUVScrollSpeedIter, materialDesc.noiseUVScrollSpeed);
+
+        const auto maskUVScaleIter = material.find("maskUVScale");
+        if (maskUVScaleIter != material.end())
+            Read_Vec2(*maskUVScaleIter, materialDesc.maskUVScale);
+        const auto maskUVScrollSpeedIter = material.find("maskUVScrollSpeed");
+        if (maskUVScrollSpeedIter != material.end())
+            Read_Vec2(*maskUVScrollSpeedIter, materialDesc.maskUVScrollSpeed);
+
+        materialDesc.twoSided = Read_Bool(material, "twoSided", materialDesc.twoSided);
+    }
+
+    const auto additiveIter = material.find("additive");
+    if (additiveIter != material.end() && additiveIter->is_object())
+    {
+        const json& additive = *additiveIter;
+        Read_Enum(additive, "colorSource", materialDesc.additive.colorSource);
+        Read_Enum(additive, "amountSource", materialDesc.additive.amountSource);
+        Read_Enum(additive, "coveragePolicy", materialDesc.additive.coveragePolicy);
+        materialDesc.additive.intensityScale =
+            Read_Float(additive, "intensityScale", materialDesc.additive.intensityScale);
+        materialDesc.additive.blackNeutral =
+            Read_Bool(additive, "blackNeutral", materialDesc.additive.blackNeutral);
+
+        const auto emissiveColorIter = additive.find("emissiveColor");
+        if (emissiveColorIter != additive.end())
+            Read_Color(*emissiveColorIter, materialDesc.additive.emissiveColor);
+        const auto constantColorIter = additive.find("constantColor");
+        if (constantColorIter != additive.end())
+            Read_Color(*constantColorIter, materialDesc.additive.constantColor);
+    }
+}
+
 void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeSpriteEmitterDesc& desc)
 {
     const auto materialIter = data.find("material");
     if (materialIter != data.end() && materialIter->is_object())
-    {
-        const json& material = *materialIter;
-        desc.required.material.mainTextureGuid = Read_String(material, "mainTextureGuid", desc.required.material.mainTextureGuid);
-        desc.required.material.mainTexturePath = Read_String(material, "mainTexturePath", desc.required.material.mainTexturePath);
-        desc.required.material.noiseTextureGuid = Read_String(material, "noiseTextureGuid", desc.required.material.noiseTextureGuid);
-        desc.required.material.noiseTexturePath = Read_String(material, "noiseTexturePath", desc.required.material.noiseTexturePath);
-
-        const string blendMode = Read_String(material, "blendMode");
-        if (!blendMode.empty())
-            desc.required.material.blendMode = blendMode;
-
-        const string opacitySource = Read_String(material, "opacitySource");
-        if (!opacitySource.empty())
-            desc.required.material.opacitySource = opacitySource;
-
-        const auto tintIter = material.find("tint");
-        if (tintIter != material.end())
-            Read_Vec4(*tintIter, desc.required.material.tint);
-
-        desc.required.material.intensity = Read_Float(material, "intensity", desc.required.material.intensity);
-        desc.required.material.opacityPower = Read_Float(material, "opacityPower", desc.required.material.opacityPower);
-        desc.required.material.noiseStrength = Read_Float(material, "noiseStrength", desc.required.material.noiseStrength);
-        desc.required.material.subUVRows = max(1u, Read_UInt(material, "subUVRows", desc.required.material.subUVRows));
-        desc.required.material.subUVCols = max(1u, Read_UInt(material, "subUVCols", desc.required.material.subUVCols));
-    }
+        Apply_MaterialPayload(*materialIter, desc.required.material, false);
 
     Read_Enum(data, "screenAlignment", desc.required.spriteRender.screenAlignment);
     Read_Enum(data, "directionalAlignmentMode", desc.required.spriteRender.directionalAlignmentMode);
@@ -562,6 +670,30 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
     desc.required.playback.killOnCompleted = Read_Bool(data, "killOnCompleted", desc.required.playback.killOnCompleted);
     desc.required.drawLimit.useMaxDrawCount = Read_Bool(data, "useMaxDrawCount", desc.required.drawLimit.useMaxDrawCount);
     desc.required.drawLimit.maxDrawCount = max(1u, Read_UInt(data, "maxDrawCount", desc.required.drawLimit.maxDrawCount));
+
+    const auto originIter = data.find("emitterOrigin");
+    if (originIter != data.end())
+        Read_Vec3(*originIter, definition.localPosition);
+
+    const auto rotationIter = data.find("emitterRotationDegrees");
+    if (rotationIter != data.end())
+        Read_Vec3(*rotationIter, definition.localRotationDegrees);
+
+    definition.useLocalSpace = Read_Bool(data, "useLocalSpace", definition.useLocalSpace);
+}
+
+void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeTrailEmitterDesc& desc)
+{
+    const auto materialIter = data.find("material");
+    if (materialIter != data.end() && materialIter->is_object())
+        Apply_MaterialPayload(*materialIter, desc.material, true);
+
+    desc.playback.duration = max(0.0001f, Read_Float(data, "duration", desc.playback.duration));
+    desc.playback.loopCount = Read_UInt(data, "loopCount", desc.playback.loopCount);
+    desc.playback.delay = max(0.f, Read_Float(data, "delay", desc.playback.delay));
+    desc.playback.delayFirstLoopOnly = Read_Bool(data, "delayFirstLoopOnly", desc.playback.delayFirstLoopOnly);
+    desc.playback.killOnDeactivate = Read_Bool(data, "killOnDeactivate", desc.playback.killOnDeactivate);
+    desc.playback.killOnCompleted = Read_Bool(data, "killOnCompleted", desc.playback.killOnCompleted);
 
     const auto originIter = data.find("emitterOrigin");
     if (originIter != data.end())
@@ -881,6 +1013,124 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
             Read_Float(*rotationRateScaleByLife, "scaleStart", desc.rotation.rotationRateScaleByLife.x),
             Read_Float(*rotationRateScaleByLife, "scaleEnd", desc.rotation.rotationRateScaleByLife.y)
         };
+    }
+
+    outDefinition.concreteDesc = desc;
+    return true;
+}
+
+bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition)
+{
+    outDefinition = EffectEmitterDefinition{};
+    outDefinition.id = Read_UInt(emitter, "id");
+    outDefinition.name = Read_String(emitter, "name");
+    outDefinition.kind = EffectEmitterKind::ComputeTrail;
+    outDefinition.enabled = true;
+
+    ComputeTrailEmitterDesc desc{};
+
+    const auto typeDataIter = emitter.find("typeData");
+    if (typeDataIter != emitter.end() && typeDataIter->is_object())
+    {
+        const auto dataIter = typeDataIter->find("data");
+        if (dataIter != typeDataIter->end() && dataIter->is_object())
+        {
+            const json& typeData = *dataIter;
+            desc.width = max(0.001f, Read_Float(typeData, "width", desc.width));
+            desc.segmentLifetime = max(0.001f, Read_Float(typeData, "segmentLifetime", desc.segmentLifetime));
+            desc.historyCount = max(2u, Read_UInt(typeData, "historyCount", desc.historyCount));
+            desc.uvTiling = max(0.001f, Read_Float(typeData, "uvTiling", desc.uvTiling));
+            desc.maxTrailLength = max(0.f, Read_Float(typeData, "maxTrailLength", desc.maxTrailLength));
+            desc.tailFadeLength = max(0.f, Read_Float(typeData, "tailFadeLength", desc.tailFadeLength));
+            desc.sampleSpacing = max(0.001f, Read_Float(typeData, "sampleSpacing", desc.sampleSpacing));
+            desc.curveSubdivision = max(0u, Read_UInt(typeData, "curveSubdivision", desc.curveSubdivision));
+            desc.smoothTangent = Read_Bool(typeData, "smoothTangent", desc.smoothTangent);
+            desc.sideFade = clamp(Read_Float(typeData, "sideFade", desc.sideFade), 0.001f, 0.49f);
+        }
+    }
+
+    if (const json* required = Find_ModuleData(emitter, "Required"))
+        Apply_RequiredModule(*required, outDefinition, desc);
+
+    if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
+    {
+        const auto lifeTimeIter = lifetime->find("lifeTime");
+        if (lifeTimeIter != lifetime->end())
+        {
+            desc.lifetime.lifeTime = Vec2{
+                Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
+                Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
+            };
+            desc.segmentLifetime = max(0.001f, desc.lifetime.lifeTime.y);
+        }
+    }
+
+    if (const json* initialColor = Find_ModuleData(emitter, "InitialColor"))
+    {
+        const auto colorIter = initialColor->find("color");
+        if (colorIter != initialColor->end())
+        {
+            desc.initialColor.startColorMin = Evaluate_ColorDistributionMin(*colorIter, desc.initialColor.startColorMin);
+            desc.initialColor.startColorMax = Evaluate_ColorDistributionMax(*colorIter, desc.initialColor.startColorMax);
+        }
+
+        const auto alphaIter = initialColor->find("alpha");
+        if (alphaIter != initialColor->end())
+        {
+            desc.initialColor.startColorMin.w =
+                clamp(Evaluate_FloatDistributionMin(*alphaIter, desc.initialColor.startColorMin.w), 0.f, 1.f);
+            desc.initialColor.startColorMax.w =
+                clamp(Evaluate_FloatDistributionMax(*alphaIter, desc.initialColor.startColorMax.w), 0.f, 1.f);
+        }
+
+        desc.colorOverLife.endColorMin = desc.initialColor.startColorMin;
+        desc.colorOverLife.endColorMax = desc.initialColor.startColorMax;
+    }
+
+    if (const json* colorOverLife = Find_ModuleData(emitter, "ColorOverLife"))
+    {
+        const auto colorIter = colorOverLife->find("colorOverLife");
+        if (colorIter != colorOverLife->end())
+        {
+            desc.colorOverLife.endColorMin = Evaluate_ColorDistributionMin(*colorIter, desc.colorOverLife.endColorMin);
+            desc.colorOverLife.endColorMax = Evaluate_ColorDistributionMax(*colorIter, desc.colorOverLife.endColorMax);
+        }
+
+        const auto alphaIter = colorOverLife->find("alphaOverLife");
+        if (alphaIter != colorOverLife->end())
+        {
+            desc.colorOverLife.endColorMin.w =
+                clamp(Evaluate_FloatDistributionMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
+            desc.colorOverLife.endColorMax.w =
+                clamp(Evaluate_FloatDistributionMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
+        }
+    }
+
+    if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
+    {
+        desc.sizeByLife.enabled = true;
+        desc.sizeByLife.multiplyXStart = Read_Float(*sizeByLife, "multiplyXStart", desc.sizeByLife.multiplyXStart);
+        desc.sizeByLife.multiplyXEnd = Read_Float(*sizeByLife, "multiplyXEnd", desc.sizeByLife.multiplyXEnd);
+        desc.sizeByLife.multiplyYStart = Read_Float(*sizeByLife, "multiplyYStart", desc.sizeByLife.multiplyYStart);
+        desc.sizeByLife.multiplyYEnd = Read_Float(*sizeByLife, "multiplyYEnd", desc.sizeByLife.multiplyYEnd);
+    }
+
+    if (const json* spawnPerUnit = Find_ModuleData(emitter, "SpawnPerUnit"))
+    {
+        desc.spawnPerUnit.enabled = Read_Bool(*spawnPerUnit, "enabled", true);
+
+        const auto spawnPerUnitIter = spawnPerUnit->find("spawnPerUnit");
+        if (spawnPerUnitIter != spawnPerUnit->end())
+        {
+            desc.spawnPerUnit.spawnPerUnit =
+                max(0.f, Evaluate_FloatDistributionMax(*spawnPerUnitIter, desc.spawnPerUnit.spawnPerUnit));
+        }
+
+        desc.spawnPerUnit.unitScalar = max(0.0001f, Read_Float(*spawnPerUnit, "unitScalar", desc.spawnPerUnit.unitScalar));
+        desc.spawnPerUnit.movementTolerance =
+            max(0.f, Read_Float(*spawnPerUnit, "movementTolerance", desc.spawnPerUnit.movementTolerance));
+        desc.spawnPerUnit.maxFrameDistance =
+            max(0.f, Read_Float(*spawnPerUnit, "maxFrameDistance", desc.spawnPerUnit.maxFrameDistance));
     }
 
     outDefinition.concreteDesc = desc;

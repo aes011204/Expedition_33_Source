@@ -17,6 +17,7 @@ class ResourceLoader;
 class GameplayUI;
 class PersistentObjectManager;
 class Hero_Manager;
+class EffectInstancePool;
 
 class ClientInstance : public Base
 {
@@ -38,6 +39,7 @@ public:
     HRESULT Ready_StaticObjects();
 
 	Shared<ResourceLoader> Get_ResourceLoader() const;
+    EffectInstancePool* Get_EffectInstancePool() const { return _effectInstancePool.get(); } // attached/runtime effect acquire/release를 맡는 Client-local pool owner다.
 
     bool    Is_StaticResourcesLoaded() const { return _isStaticResourcesLoaded.load(); }
     void    Set_StaticResourcesLoaded(bool isLoaded) { _isStaticResourcesLoaded.store(isLoaded); }
@@ -54,6 +56,10 @@ public: /* For.GameData Table */
     const GameDataTable::WeaponDesc* Get_WeaponDesc(const string& characterId, const string& weaponId) const;
     const vector<GameDataTable::WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
     const Skill_Data* Get_Skill(const string& skillId);
+
+    const Item_Data*  Get_Item(const string& itemId);
+    const Item_Data*  Get_Item(BattleItemType itemType);
+    bool              Consume_Item(BattleItemType itemType);
 
 public:
     void    Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout);
@@ -103,7 +109,8 @@ public: /* For.Battle_Controller */
         uint32 FieldID,
         bool IsFirstHero,
         const vector<HeroId>& heroIds,
-        vector<string>& MonsterProtoTag);
+        const vector<string>& MonsterProtoTag,
+        const Shared<GameObject>& sourceObject = nullptr);
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
 
@@ -127,6 +134,7 @@ private:
     Shared<ResourceLoader>      _resourceLoader;
     Unique<GameDataTable>       _gameDataTable;
     Unique<PreviewShotTable>    _previewShotTable;
+    Unique<EffectInstancePool>  _effectInstancePool;
 
     Shared<GameplayUI>          _gamePlayUI;
     Unique<PersistentObjectManager> _persistentObjectManager;

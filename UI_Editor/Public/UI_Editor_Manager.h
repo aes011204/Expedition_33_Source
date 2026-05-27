@@ -146,6 +146,7 @@ private:
     void Render_RenamePopup();
     void Clear_RuntimeCaches();
     void Resolve_LoadedAssetReferences();
+    void Refresh_AnimationTargetBindings();
     void Apply_Selection(const vector<ObjectId>& objectIds, ObjectId primaryObjectId);
     void Apply_SelectionState(UI_SelectionState selectionState, bool commitTransactionOnPrimaryChange);
     void Prune_InvalidSelection();

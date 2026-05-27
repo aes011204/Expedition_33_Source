@@ -1,6 +1,5 @@
 ﻿#include "ModuleDetail_Drawers.h"
 
-#include <shobjidl.h>
 #include "EffectEditorInstance.h"
 #include "EffectEditor_Macro.h"
 #include "EffectMaterialInstance_View.h"
@@ -78,6 +77,20 @@ namespace Internal
             NearlyEqual(lhs.y, rhs.y) &&
             NearlyEqual(lhs.z, rhs.z) &&
             NearlyEqual(lhs.w, rhs.w);
+    }
+
+    static bool Is_SameAdditiveContribution(
+        const EffectMaterialAdditiveContributionData& lhs,
+        const EffectMaterialAdditiveContributionData& rhs)
+    {
+        return
+            lhs.colorSource == rhs.colorSource &&
+            lhs.amountSource == rhs.amountSource &&
+            lhs.coveragePolicy == rhs.coveragePolicy &&
+            NearlyEqual(lhs.intensityScale, rhs.intensityScale) &&
+            lhs.blackNeutral == rhs.blackNeutral &&
+            Is_SameColor(lhs.emissiveColor, rhs.emissiveColor) &&
+            Is_SameColor(lhs.constantColor, rhs.constantColor);
     }
 
     static bool Is_SameVec2(const Vec2& lhs, const Vec2& rhs)
@@ -257,14 +270,21 @@ namespace Internal
             NearlyEqual(lhs.noiseStrength, rhs.noiseStrength) &&
             NearlyEqual(lhs.alphaCutoff, rhs.alphaCutoff) &&
             NearlyEqual(lhs.alphaErosion, rhs.alphaErosion) &&
-            Is_SameVec2(lhs.mainUvScale, rhs.mainUvScale) &&
-            Is_SameVec2(lhs.mainUvScrollSpeed, rhs.mainUvScrollSpeed) &&
-            Is_SameVec2(lhs.noiseUvScale, rhs.noiseUvScale) &&
-            Is_SameVec2(lhs.noiseUvScrollSpeed, rhs.noiseUvScrollSpeed) &&
-            Is_SameVec2(lhs.maskUvScale, rhs.maskUvScale) &&
-            Is_SameVec2(lhs.maskUvScrollSpeed, rhs.maskUvScrollSpeed) &&
+            Is_SameVec2(lhs.mainUVScale, rhs.mainUVScale) &&
+            Is_SameVec2(lhs.mainUVOffset, rhs.mainUVOffset) &&
+            Is_SameVec2(lhs.mainUVScrollSpeed, rhs.mainUVScrollSpeed) &&
+            lhs.mainUVTilingMode == rhs.mainUVTilingMode &&
+            Is_SameVec2(lhs.noiseUVScale, rhs.noiseUVScale) &&
+            Is_SameVec2(lhs.noiseUVOffset, rhs.noiseUVOffset) &&
+            Is_SameVec2(lhs.noiseUVScrollSpeed, rhs.noiseUVScrollSpeed) &&
+            lhs.noiseUVTilingMode == rhs.noiseUVTilingMode &&
+            Is_SameVec2(lhs.maskUVScale, rhs.maskUVScale) &&
+            Is_SameVec2(lhs.maskUVOffset, rhs.maskUVOffset) &&
+            Is_SameVec2(lhs.maskUVScrollSpeed, rhs.maskUVScrollSpeed) &&
+            lhs.maskUVTilingMode == rhs.maskUVTilingMode &&
             lhs.blendMode == rhs.blendMode &&
             lhs.opacitySource == rhs.opacitySource &&
+            Is_SameAdditiveContribution(lhs.additive, rhs.additive) &&
             lhs.twoSided == rhs.twoSided &&
             lhs.subUVRows == rhs.subUVRows &&
             lhs.subUVCols == rhs.subUVCols;
@@ -459,7 +479,10 @@ namespace Internal
         return true;
     }
 
-    bool Draw_MaterialDropSlot(RequiredModuleData& data)
+    bool Draw_MaterialDropSlot(
+        RequiredModuleData& data,
+        EffectMaterialPreviewRenderer* materialSlotPreview,
+        float timeDelta)
     {
         constexpr float browseButtonWidth{ 28.f };
         constexpr float slotHeight = 54.f;
@@ -501,10 +524,10 @@ namespace Internal
         drawList->AddRectFilled(slotMin, slotMax, fillColor, 6.f);
         drawList->AddRect(slotMin, slotMax, borderColor, 6.f, 0, isMaterialDragging ? 2.5f : 1.5f);
 
-        static Unique<EffectMaterialPreviewRenderer> materialSlotPreview = EffectMaterialPreviewRenderer::Create(64);
-        ID3D11ShaderResourceView* previewSrv = nullptr;
+        ShaderResourceView* previewSrv = nullptr;
         if (materialSlotPreview != nullptr)
         {
+            materialSlotPreview->Update_MaterialTime(timeDelta);
             materialSlotPreview->Render_Material(data.material);
             previewSrv = materialSlotPreview->Get_SRV();
         }
@@ -524,7 +547,13 @@ namespace Internal
 
         const string& resolvedName = Internal::Resolve_MaterialDisplayName(data);
         const string displayName = resolvedName.empty() ? "(drop material here)" : resolvedName;
-        const string materialSummary = data.material.blendMode + " / " + data.material.opacitySource +
+        const string blendModeName = string(magic_enum::enum_name(data.material.blendMode));
+        const string sourceSummary =
+            data.material.blendMode == EffectMaterialBlendMode::Additive
+            ? string(magic_enum::enum_name(data.material.additive.colorSource)) + " / " +
+              string(magic_enum::enum_name(data.material.additive.amountSource))
+            : data.material.opacitySource;
+        const string materialSummary = blendModeName + " / " + sourceSummary +
                                        " / SubUV " + to_string(data.material.subUVRows) + "x" + to_string(data.material.subUVCols);
         drawList->PushClipRect(
             ImVec2(slotMin.x + 57.f, slotMin.y),
@@ -557,8 +586,8 @@ namespace Internal
                 "Main Texture (Emissive)\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %ux%u",
                 mainTooltip.c_str(),
                 noiseTooltip.c_str(),
-                data.material.blendMode.c_str(),
-                data.material.opacitySource.c_str(),
+                blendModeName.c_str(),
+                sourceSummary.c_str(),
                 data.material.subUVRows,
                 data.material.subUVCols
             );
@@ -665,10 +694,18 @@ namespace Internal
     }
 }
 
-bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule& module, RequiredModuleData& data, DetailPropertyContext& detailContext)
+bool RequiredModuleDetail::Draw(
+    AuthoringEmitter& emitter,
+    const AuthoringModule& module,
+    RequiredModuleData& data,
+    DetailPropertyContext& detailContext,
+    float timeDelta)
 {
     const RequiredModuleData defaultData{};
     bool changed = false;
+
+    if (_materialSlotPreview == nullptr)
+        _materialSlotPreview = EffectMaterialPreviewRenderer::Create(64);
 
     if (ImGui::CollapsingHeader("머티리얼", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -676,7 +713,7 @@ bool RequiredModuleDetail::Draw(AuthoringEmitter& emitter, const AuthoringModule
         {
             ImGui::PushID("MaterialDropSlot");
             detailContext.Draw_PropertyLabel("머티리얼");
-            changed |= Internal::Draw_MaterialDropSlot(data);
+            changed |= Internal::Draw_MaterialDropSlot(data, _materialSlotPreview.get(), timeDelta);
             detailContext.Draw_ResetButton(false);
             ImGui::PopID();
 
@@ -1161,6 +1198,58 @@ bool SizeByLifeModuleDetail::Draw(
         }
     }
 
+    return changed;
+}
+
+bool SpawnPerUnitModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    SpawnPerUnitModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const SpawnPerUnitModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("거리당 스폰", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("SpawnPerUnit"))
+        {
+            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup("분포", data.spawnPerUnit, defaultData.spawnPerUnit);
+
+        if (detailContext.Begin_PropertyTable("SpawnPerUnitPolicy"))
+        {
+            changed |= detailContext.Draw_FloatProperty(
+                "단위 스칼라",
+                data.unitScalar,
+                defaultData.unitScalar,
+                0.01f,
+                "분포 값을 실제 world distance로 환산하는 기준 스칼라입니다."
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "무브먼트 허용치",
+                data.movementTolerance,
+                defaultData.movementTolerance,
+                0.001f,
+                "이 거리 미만의 provider sample 이동은 새 history sample로 받지 않습니다."
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "최대 프레임 거리",
+                data.maxFrameDistance,
+                defaultData.maxFrameDistance,
+                0.01f,
+                "한 frame 이동이 이 거리보다 크면 teleport/skip으로 보고 history를 재시드합니다. 0 이하면 제한이 없습니다."
+            );
+            detailContext.End_PropertyTable();
+        }
+    }
+
+    data.unitScalar = max(0.0001f, data.unitScalar);
+    data.movementTolerance = max(0.f, data.movementTolerance);
+    data.maxFrameDistance = max(0.f, data.maxFrameDistance);
     return changed;
 }
 

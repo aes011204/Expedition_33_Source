@@ -11,6 +11,17 @@
 #include "TransformCom.h"
 #include "AnimState_Parser.h"
 
+namespace
+{
+    bool IsInteractivePreviewWindow(const Shared<Editor_Window>& window)
+    {
+        return window != nullptr &&
+            window->Is_Open() &&
+            window->Is_Visible() &&
+            (window->Is_Focused() || window->Is_Hovered());
+    }
+}
+
 AnimState_View::AnimState_View()
     : Editor_Window(L"AnimState")
 {
@@ -38,7 +49,10 @@ void AnimState_View::Update(float timeDelta)
     if (EDITOR->IsPlaying())
         return;
 
-    if (Is_CompanionPreviewFocused())
+    if (!Is_Visible())
+        return;
+
+    if (Should_DeferToCompanionPreview())
         return;
 
     if (_previewCamera && _isPreviewHovered)
@@ -53,7 +67,10 @@ void AnimState_View::Pre_Render()
     if (EDITOR->IsPlaying())
         return;
 
-    if (Is_CompanionPreviewFocused())
+    if (!Is_Visible())
+        return;
+
+    if (Should_DeferToCompanionPreview())
         return;
 
     Shared<GameObject> previewRenderObject = Get_PreviewRenderObject();
@@ -151,9 +168,11 @@ void AnimState_View::Render()
 
     _isFocused = false;
     _isHovered = false;
+    _isVisible = false;
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
+        _isVisible = true;
         _pendingDockId = 0;
         _requestFocusOnOpen = false;
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
@@ -258,14 +277,14 @@ void AnimState_View::Open_FromModelComponent(
     Set_Open(true);
 }
 
-bool AnimState_View::Is_CompanionPreviewFocused()
+bool AnimState_View::Should_DeferToCompanionPreview()
 {
     Shared<Editor_Window> prefabWindow = EDITOR->Get_Window(L"Prefab");
-    if (prefabWindow != nullptr && prefabWindow->Is_Open() && prefabWindow->Is_Focused())
+    if (IsInteractivePreviewWindow(prefabWindow))
         return true;
 
     Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
-    return animationWindow != nullptr && animationWindow->Is_Open() && animationWindow->Is_Focused();
+    return IsInteractivePreviewWindow(animationWindow);
 }
 
 void AnimState_View::Refresh_AnimationList()

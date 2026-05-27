@@ -24,10 +24,18 @@ public:
 
 private:
     void Update_DirectionalModifiers();
+    void Update_EnterTurnBurst();
 
 private:
     Shared<OffsetAnimationModifier> _offsetModifier = nullptr;
-    Shared<OffsetAnimationModifier> _walkModifiers[6]; 
+    Shared<OffsetAnimationModifier> _walkModifiers[6];
+
+    float _freeAimTurnSpeedDegree = 1800.f;
+    float _freeAimTurnResponse = 18.f;
+
+    float _prevTurnSpeedDegree = 0.f;       
+    float _prevTurnResponse = 0.f;
+    bool _isEnterTurnBurstActive = false;
 
     float _rotationSensitivity = 0.5f; 
 

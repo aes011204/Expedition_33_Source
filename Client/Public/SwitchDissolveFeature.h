@@ -5,8 +5,7 @@
 NS_BEGIN(Client)
 
 // SwitchDissolve Feature constants
-// TEMP_ERASE
-// 바로 밑에 얘네들도 이후에 Effect Component이 생기면 그쪽으로 옮겨져야할듯?
+// flag/texture slot 값 자체는 shader feature 계약이라 특정 컴포넌트 내부로 이동은 안시키겠습니다
 inline constexpr uint32 DrawFeatureFlagDissolve = (1u << 0);    // 이번 draw 에서 디졸브 기능을 켤지 여부. 지원 여부와는 별개임.
 inline constexpr uint32 DrawFeatureFlagDistortion = (1u << 1);  // 이번 draw 에서 왜곡 기능을 켤지 여부. 지원 여부와는 별개임.
 inline constexpr uint32 DrawFeatureTexDissolveNoise = 0u;       // dissolve 기능에서 사용할 노이즈 텍스처가 바인딩될 슬롯 인덱스. DrawFeatureCB의 textureSlotMask에 이 인덱스 비트를 켜서 실제로 바인딩된 텍스처를 알린다.

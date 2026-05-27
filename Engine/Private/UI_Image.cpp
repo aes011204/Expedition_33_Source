@@ -226,11 +226,24 @@ HRESULT UI_Image::Render()
     if (FAILED(_shader->Begin(passIndex)))
         return E_FAIL;
 
+    const bool isBackgroundUI = Get_RenderGroup() == UI_RenderGroup::Background;
+    if (isBackgroundUI)
+    {
+        // Background UI는 플레이어/무기 stencil=1 영역을 피해 그린다.
+        CHECK_FAILED(GAME->Bind_BackgroundUIBehindPlayerStencilState(), E_FAIL);
+    }
+
     if (FAILED(_viBuffer->Bind_Resources()))
         return E_FAIL;
 
     if (FAILED(_viBuffer->Render()))
         return E_FAIL;
+
+    if (isBackgroundUI)
+    {
+        // 이후 Font/Sprite 기반 Foreground UI가 stencil state를 물려받지 않도록 복구한다.
+        CHECK_FAILED(GAME->Bind_UINoDepthStencilState(), E_FAIL);
+    }
 
     return S_OK;
 }

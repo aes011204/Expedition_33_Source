@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <variant>
+#include "EffectMaterial_Types.h"
 #include "Engine_Typedef.h"
 #include "GameObject.h"
 #include "Particle_Types.h"
@@ -61,18 +62,36 @@ enum class EffectSpriteTextureAxis : uint32
 // Required 모듈에서 material binding에 필요한 값만 접은 runtime payload다.
 struct EffectRequiredMaterialRuntimeDesc
 {
-    string mainTextureGuid{};         // main particle texture asset identity다.
-    string mainTexturePath{};         // main particle texture resource-relative fallback/debug hint다.
-    string noiseTextureGuid{};        // 선택 noise texture asset identity다.
-    string noiseTexturePath{};        // 선택 noise texture resource-relative fallback/debug hint다.
-    string blendMode{ "AlphaBlend" }; // material bridge의 blend mode 기록값이다.
-    string opacitySource{ "Alpha" };  // opacity source selector다.
-    Vec4 tint{ 1.f, 1.f, 1.f, 1.f };  // texture sample에 곱할 tint다.
-    float intensity{ 1.f };           // sprite 색상 밝기/발광감 계수다.
-    float opacityPower{ 1.f };        // opacity sharpening 계수다.
-    float noiseStrength{ 0.f };       // noise modulation 강도다.
-    uint32 subUVRows{ 1 };            // flipbook row 수다.
-    uint32 subUVCols{ 1 };            // flipbook column 수다.
+    string mainTextureGuid{};            // main particle texture asset identity다.
+    string mainTexturePath{};            // main particle texture resource-relative fallback/debug hint다.
+    string noiseTextureGuid{};           // (선택) noise texture asset identity다.
+    string noiseTexturePath{};           // (선택) noise texture resource-relative fallback/debug hint다.
+    string maskTextureGuid{};            // (선택) mask texture asset identity다.
+    string maskTexturePath{};            // (선택) mask texture resource-relative fallback/debug hint다.
+    EffectMaterialBlendMode blendMode{ EffectMaterialBlendMode::AlphaBlend }; // effect material blend/compose mode다.
+    string opacitySource{ "Alpha" };     // opacity source selector다.
+    Vec4 tint{ 1.f, 1.f, 1.f, 1.f };     // texture sample에 곱할 tint다.
+    float intensity{ 1.f };              // sprite 색상 밝기/발광감 계수다.
+    float opacityPower{ 1.f };           // opacity sharpening 계수다.
+    float noiseStrength{ 0.f };          // noise modulation 강도다.
+    float alphaCutoff{ 0.f };            // Trail 등 지원 renderer가 사용할 alpha discard threshold다.
+    float alphaErosion{ 0.f };           // mask/noise 기반 alpha erosion 후보 값이다.
+    Vec2 mainUVScale{ 1.f, 1.f };        // main texture UV 반복/확대 배율 후보 값이다.
+    Vec2 mainUVOffset{ 0.f, 0.f };       // main texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 mainUVScrollSpeed{ 0.f, 0.f };  // main texture 샘플 좌표를 시간에 따라 밀어 흐름감을 만드는 속도 후보 값이다.
+    EffectTextureUVTilingMode mainUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // main texture UV tiling 해석 방식이다.
+    Vec2 noiseUVScale{ 1.f, 1.f };       // noise texture UV 반복/확대 배율 후보 값이다.
+    Vec2 noiseUVOffset{ 0.f, 0.f };      // noise texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 noiseUVScrollSpeed{ 0.f, 0.f }; // noise를 frame 교체가 아니라 UV 좌표 이동으로 흘려 불규칙한 modulation 흐름을 만드는 속도 후보 값이다.
+    EffectTextureUVTilingMode noiseUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // noise texture UV tiling 해석 방식이다.
+    Vec2 maskUVScale{ 1.f, 1.f };        // mask texture UV 반복/확대 배율 후보 값이다.
+    Vec2 maskUVOffset{ 0.f, 0.f };       // mask texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 maskUVScrollSpeed{ 0.f, 0.f };  // mask를 frame 교체가 아니라 UV 좌표 이동으로 흘려 alpha/erosion 변화를 만드는 속도 후보 값이다.
+    EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // mask texture UV tiling 해석 방식이다.
+    EffectMaterialAdditiveContributionData additive{}; // Additive blend에서 더할 contribution 해석 규칙이다.
+    bool twoSided{ false };              // 지원 renderer가 사용할 양면 렌더 힌트다.
+    uint32 subUVRows{ 1 };               // flipbook row 수다.
+    uint32 subUVCols{ 1 };               // flipbook column 수다.
 };
 
 // Required 모듈에서 sprite render alignment에 필요한 값만 접은 runtime payload다.
@@ -146,6 +165,16 @@ struct EffectColorOverLifeRuntimeDesc
     Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f }; // Color Over Life 상한이다.
 };
 
+// Trail 전용 SpawnPerUnit 모듈에서 이동 거리 기반 보강 sample 생성에 필요한 값만 접은 payload다.
+struct EffectTrailSpawnPerUnitRuntimeDesc
+{
+    bool enabled{ false };          // true면 이동 거리 기준으로 history sample을 보강 삽입한다.
+    float spawnPerUnit{ 0.f };      // unitScalar 기준 단위 거리당 생성할 sample 수다.
+    float unitScalar{ 1.f };        // spawnPerUnit을 실제 world distance로 환산하는 스칼라다.
+    float movementTolerance{ 0.f }; // 이 거리 미만 이동은 새 sample을 만들지 않는다.
+    float maxFrameDistance{ 0.f };  // 이 거리보다 큰 frame 이동은 teleport/skip으로 보고 history를 재시드한다. 0 이하면 제한하지 않는다.
+};
+
 //## Emitter
 
 // compute sprite emitter가 실제 runtime consumer에게 넘길 module-facing payload다.
@@ -173,11 +202,18 @@ struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
     EffectRequiredMaterialRuntimeDesc material{}; // trail 기본 material/tint/blend 값이다.
     EffectEmitterPlaybackRuntimeDesc playback{};  // duration/loop/delay 같은 공통 재생 규칙이다.
+    EffectLifetimeRuntimeDesc lifetime{};         // Lifetime 모듈에서 trail이 소비하는 age fade 기준 값이다.
+    EffectInitialColorRuntimeDesc initialColor{}; // InitialColor 모듈에서 trail segment 시작 색상으로 소비하는 값이다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 trail segment 끝 색상으로 소비하는 값이다.
+    PointParticleSizeByLifeDesc sizeByLife{};        // SizeByLife 모듈에서 trail 폭 배율로 소비하는 값이다.
+    EffectTrailSpawnPerUnitRuntimeDesc spawnPerUnit{}; // SpawnPerUnit 모듈에서 trail sample density를 보강하는 값이다.
 
     float width{ 0.1f };            // render sample의 center 기준으로 적용할 world-space strip 폭이다.
     float segmentLifetime{ 0.25f }; // history sample 하나가 화면에 남는 시간이다.
     uint32 historyCount{ 32 };      // trail이 유지할 최대 sample 개수다.
-    float uvTiling{ 1.f };          // trail 진행 방향의 기본 UV 반복값이다.
+    float uvTiling{ 1.f };          // trail noise/breakup 진행 방향의 기본 UV 반복값이다.
+    float maxTrailLength{ 0.f };    // head 기준 최대 표시 길이다. 0 이하면 제한하지 않는다.
+    float tailFadeLength{ 0.1f };   // maxTrailLength 끝으로 갈수록 alpha를 줄이는 거리다.
     float sampleSpacing{ 0.08f };   // render-time curve sample의 이동 거리 기준 간격이다.
     uint32 curveSubdivision{ 4 };   // 원본 sample interval 하나에서 만들 최대 render segment 수다.
     bool smoothTangent{ true };     // render sample 생성 전 원본 history tangent를 완만하게 보정할지 결정한다.

@@ -42,6 +42,7 @@ private:
     void Draw_StructurePanel();
     void Draw_PreviewPanel();
     void Draw_InspectorPanel();
+    bool Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject);
     void Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey);
     void Draw_ComponentEntries(const Shared<GameObject>& gameObject, const wstring& objectKey);
 
@@ -67,7 +68,7 @@ private:
     static Editor_Camera_Free::EDITOR_CAMERA_DESC Build_PreviewCameraDesc(const Shared<GameObject>& gameObject);
     static void Apply_PreviewCameraTransform(const Shared<Editor_Camera_Free>& camera);
     static void Disable_PreviewAnimNotifyExecution(const Shared<GameObject>& gameObject);
-    static bool Is_AnimationViewFocused();
+    static bool Should_DeferToCompanionPreview();
 
 private:
     string              _prefabName {};

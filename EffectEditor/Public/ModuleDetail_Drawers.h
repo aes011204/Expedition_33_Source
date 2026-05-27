@@ -2,6 +2,7 @@
 
 #include "EffectAuthoring_Types.h"
 #include "DetailPropertyContext.h"
+#include "EffectMaterialPreviewRenderer.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -12,7 +13,11 @@ public:
         AuthoringEmitter& emitter,
         const AuthoringModule& module,
         RequiredModuleData& data,
-        DetailPropertyContext& detailContext);
+        DetailPropertyContext& detailContext,
+        float timeDelta);
+
+private:
+    Unique<EffectMaterialPreviewRenderer> _materialSlotPreview{};
 };
 
 class SpawnModuleDetail
@@ -192,6 +197,16 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         SizeByLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class SpawnPerUnitModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SpawnPerUnitModuleData& data,
         DetailPropertyContext& detailContext);
 };
 
