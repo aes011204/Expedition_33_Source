@@ -68,7 +68,6 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Battle_ReviveTooltip_Path[] = L"UI/UI_Json/BattleSystem/Item/UI_BattleSystem_ItemTooltip_Revive_Tint.json";
 
 
-
 #pragma endregion
 
 }

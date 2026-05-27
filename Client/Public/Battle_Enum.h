@@ -655,6 +655,9 @@ namespace Client
 
         Revive,
 
+        Skill_Enter,
+        Skill_Idle,
+
     };
 
     enum class BattleReactionType

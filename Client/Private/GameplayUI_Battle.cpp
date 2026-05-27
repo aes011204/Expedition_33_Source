@@ -23,6 +23,7 @@
 #include "UI_ReactionResult.h"
 #include "UI_BattleVictory.h"
 #include "UI_BattleItemPanel.h"
+#include "UI_BattleSkillPanel.h"
 #include "UI_HealFont.h"
 
 #include "UI_Utils.h"
@@ -57,6 +58,7 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_turnOrder, UI_BattleSystem_TurnOrder::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleMechanism, UI_BattleMechanism::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleItemPanel, UI_BattleItemPanel::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_battleSkillPanel, UI_BattleSkillPanel::Create), E_FAIL);
 
     // 데미지 폰트 최대 8개
     for (auto& damageFont : _damageFonts)
@@ -95,6 +97,7 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_ReactionResult(timeDelta);   // 회피/패링 성공 텍스트 수명 갱신
     Update_BattleVictory(timeDelta);    // 전투 종료 승리 UI
     Update_BattleItemPanel(timeDelta);  // 아이템
+    Update_BattleSkillPanel(timeDelta); // 스킬
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -824,7 +827,8 @@ void GameplayUI_Battle::Update_ChoiceTarget(float timeDelta)
 
     const BattleTurnState turnState = battleController->Get_CurrentTurnState();
 
-    if (turnState == BattleTurnState::AttackTargeting)
+    if (turnState == BattleTurnState::AttackTargeting ||
+        turnState == BattleTurnState::SkillTargeting)
     {
         _choiceTarget->Open();
         _choiceTarget->Update(timeDelta);
@@ -1086,6 +1090,47 @@ void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
     }
 }
 
+void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
+{
+    if (_battleSkillPanel == nullptr)
+        return;
+
+    auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_PlayerTurnActive())
+    {
+        _battleSkillPanel->Close();
+        return;
+    }
+
+    const BattleTurnState turnState = battleController->Get_CurrentTurnState();
+    const Action& turnAction = battleController->Get_TurnAction();
+
+    switch (turnState)
+    {
+    case BattleTurnState::ChooseSkill:
+        if (turnAction._curChar.statCom)
+        {
+            // 캐릭터별 스킬 목록 패널
+            _battleSkillPanel->Open_MainPanel(turnAction._curChar.statCom->Get_PlayerType());
+            _battleSkillPanel->Update(timeDelta);
+        }
+        else
+        {
+            _battleSkillPanel->Close();
+        }
+        break;
+
+    case BattleTurnState::SkillTargeting:
+        _battleSkillPanel->Open_Tooltip(turnAction._selected_SkillKey.skillKey);
+        _battleSkillPanel->Update(timeDelta);
+        break;
+
+    default:
+        _battleSkillPanel->Close();
+        break;
+    }
+}
+
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
 {
     if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
@@ -1255,6 +1300,7 @@ void GameplayUI_Battle::Free()
     Release_UI(_reactionResult);
     Release_UI(_battleMechanism);
     Release_UI(_battleItemPanel);
+    Release_UI(_battleSkillPanel);
 
     for (auto& damageFont : _damageFonts)
         Release_UI(damageFont);

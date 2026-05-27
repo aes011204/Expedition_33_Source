@@ -893,27 +893,60 @@ void BattleController::Execute_Skill(const BattleChar actor, const Action& turnA
         turnAction._selected_SkillKey.scriptClassName.c_str()
     );
 
-    _curScript = Create_Class::SkillScript(_turnAction._selected_SkillKey.scriptClassName).Create();
-
     auto& action = Get_TurnAction();
 
     if (actor.ModelCom == nullptr)
     {
-        LOG_ERROR("Execute_BaseAttack: actor.ModelCom is null");
+        LOG_ERROR("Execute_Skill: actor.ModelCom is null");
         EndTurn();
         return;
     }
+
+    if (actor.statCom == nullptr)
+    {
+        LOG_ERROR("Execute_Skill: actor.statCom is null");
+        EndTurn();
+        return;
+    }
+
     if (action._selected_SkillKey.AnimPhases.empty())
     {
-        LOG_ERROR("Execute_BaseAttack: no animationKey");
+        LOG_ERROR("Execute_Skill: no animationKey");
         EndTurn();
+        return;
+    }
+
+    _curScript = Create_Class::SkillScript(action._selected_SkillKey.scriptClassName).Create();
+    if (_curScript == nullptr)
+    {
+        LOG_ERROR("Execute_Skill: script create failed. script={}", action._selected_SkillKey.scriptClassName.c_str());
+        EndTurn();
+        return;
+    }
+
+    const uint32 apCost = action._selected_SkillKey.apCost > 0
+        ? static_cast<uint32>(action._selected_SkillKey.apCost)
+        : 0u;
+
+    if (apCost > 0 && !actor.statCom->Try_ConsumeAP(apCost))
+    {
+        LOG_DEBUG("Execute_Skill: not enough AP. skill={}, curAP={}, cost={}",
+            action._selected_SkillKey.skillKey.c_str(),
+            actor.statCom->Get_CurAP(),
+            apCost);
+
+        Clear_CurrentScript();
+
+        if (actor.statCom->Is_Player() && _battleFSM)
+            _battleFSM->Change_State(BattleTurnState::ChooseSkill); // 플레이어는 다시 스킬을 고를 수 있게 되돌린다.
+        else
+            EndTurn();
+
         return;
     }
 
     action.originPos = action._curChar.actor->Get_Transform()->Get_Position();
     action._curAnimIndex = 0;
-
-    Apply_BaseAttackAP(actor);
 
     _isActionExecuting = true;
     _battleActionExe->BeginAction(action);

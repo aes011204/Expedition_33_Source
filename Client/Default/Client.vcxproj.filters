@@ -113,6 +113,7 @@
     <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
     <ClCompile Include="..\Private\UI_HealFont.cpp" />
+    <ClCompile Include="..\Private\UI_BattleSkillPanel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -698,6 +699,7 @@
     <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
     <ClInclude Include="..\Public\AN_EndTurn.h" />
     <ClInclude Include="..\Public\UI_HealFont.h" />
+    <ClInclude Include="..\Public\UI_BattleSkillPanel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
