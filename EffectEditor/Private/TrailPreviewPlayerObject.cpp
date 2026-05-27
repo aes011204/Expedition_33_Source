@@ -8,7 +8,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace
+namespace Internal
 {
     constexpr auto kSourcePrefabName{ "PB_Gustave" };
 
@@ -48,7 +48,7 @@ HRESULT TrailPreviewPlayerObject::Initialize(void*)
         CHECK_FAILED(Ready_WeaponPart(body), E_FAIL);
 
     Set_Name(L"TrailPreview_Player");
-    Set_SourcePrefabName(kSourcePrefabName);
+    Set_SourcePrefabName(Internal::kSourcePrefabName);
     Set_PreviewVisible(false);
 
     if (const auto* body = dynamic_cast<Body_Player*>(Get_PartObject(L"Part_Body")))
@@ -58,6 +58,12 @@ HRESULT TrailPreviewPlayerObject::Initialize(void*)
     }
 
     return S_OK;
+}
+
+void TrailPreviewPlayerObject::BeginPlay()
+{
+    // EffectEditor trail preview reuses Player_BattleBase visuals only.
+    Character::BeginPlay();
 }
 
 Shared<TrailPreviewWeaponObject> TrailPreviewPlayerObject::Get_PreviewWeapon() const
@@ -96,7 +102,7 @@ HRESULT TrailPreviewPlayerObject::Restore_VisualPartsFromPrefab()
         return E_FAIL;
     }
 
-    Set_SourcePrefabName(kSourcePrefabName);
+    Set_SourcePrefabName(Internal::kSourcePrefabName);
 
     uint32 restoredCount = 0;
     for (const json& partNode : *partsIter)
@@ -121,7 +127,7 @@ HRESULT TrailPreviewPlayerObject::Restore_VisualPartFromPrefab(const json& partN
 
     const string partTagString = partNode.value("part_tag", string{});
     const wstring partTag = String::ToWString(partTagString);
-    if (!Is_RestorableVisualPart(partTag))
+    if (!Internal::Is_RestorableVisualPart(partTag))
         return E_FAIL;
 
     const auto objectIter = partNode.find("object");

@@ -9,6 +9,7 @@
 #include "GameInstance.h"
 #include "MonsterStatCom.h"
 #include "Monster_Part.h"
+#include "EffectCom.h"
 
 Monster_BattleBase::Monster_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_BattleBase(device, context)
@@ -50,6 +51,9 @@ void Monster_BattleBase::Update(float timeDelta)
 {
     if (_combatStat)
         _combatStat->Update(timeDelta);
+
+     if (_effectCom)
+        _effectCom->Update(timeDelta); // 몬스터 사망 시 디졸브용
 
     Character_BattleBase::Update(timeDelta);
 }
@@ -147,6 +151,8 @@ HRESULT Monster_BattleBase::Ready_Components()
     obbDesc.extents = Vec3(0.5f, 0.6f, 0.5f);
 
     CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::Monster_Body), E_FAIL);
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
 
     return S_OK;
 }

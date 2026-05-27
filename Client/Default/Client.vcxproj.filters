@@ -77,6 +77,12 @@
     <Filter Include="BehavoirTree\battle" />
     <Filter Include="BehavoirTree\world" />
     <Filter Include="Skill" />
+    <Filter Include="06. Pool">
+      <UniqueIdentifier>{8f34c89c-d6ca-43eb-90fc-7d07306b013f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. Pool\Effect Pool">
+      <UniqueIdentifier>{c1313e91-9b45-46ca-9845-0762d62c53ba}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp">
@@ -120,6 +126,11 @@
     <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
     <ClCompile Include="..\Private\UI_PlayerHpBar.cpp" />
     <ClCompile Include="..\Private\EffectCom.cpp" />
+    <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
+    <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
+    <ClCompile Include="..\Private\EffectInstancePool.cpp">
+      <Filter>06. Pool\Effect Pool</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -704,6 +715,11 @@
     <ClInclude Include="..\Public\UI_BattlePlayerHpBar.h" />
     <ClInclude Include="..\Public\UI_PlayerHpBar.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
+    <ClInclude Include="..\Public\AN_VanishDissolve.h" />
+    <ClInclude Include="..\Public\ANS_IdleOffset.h" />
+    <ClInclude Include="..\Public\EffectInstancePool.h">
+      <Filter>06. Pool\Effect Pool</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

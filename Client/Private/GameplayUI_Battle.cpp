@@ -501,6 +501,12 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
         return;
     }
 
+    if (!_hasCurrentPlayerTurnActor || _currentPlayerTurnActor.statCom == nullptr)
+    {
+        _battleCommandHUD->Close();
+        return;
+    }
+
     Vec3 worldPos{};
     if (!Try_GetBattleCommandHudWorldPos(_currentPlayerTurnActor, worldPos))
     {
@@ -510,7 +516,10 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 
     _battleCommandHUD->Open();
     _battleCommandHUD->Set_TargetWorldPosition(worldPos);
-    _battleCommandHUD->Refresh_ForState(battleController->Get_CurrentTurnState());
+    _battleCommandHUD->Set_CurrentPlayerAP(
+        _currentPlayerTurnActor.statCom->Get_CurAP(),
+        _currentPlayerTurnActor.statCom->Get_MaxAP());
+    _battleCommandHUD->Refresh_ForState(currentState);
 
     _battleCommandHUD->Update(timeDelta);
 }

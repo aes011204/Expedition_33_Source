@@ -16,6 +16,7 @@ namespace UIEditor
 
     public:
         void Render() override;
+        void Refresh_TargetBindings();
 
     private:
         void Render_Toolbar();
@@ -29,6 +30,8 @@ namespace UIEditor
         void Sync_AssetNameBuffer();
         void Sync_TargetNameBuffer();
         void Set_CurrentFrame(int32 frame);
+        void Mark_StaticPreviewDirty();
+        void Request_StaticPreviewRefresh();
         void Refresh_StaticPreview();
         void Handle_TimelineClick(const UI_AnimationTimelineClickResult& clickResult);
         void Handle_Shortcuts();
@@ -45,5 +48,7 @@ namespace UIEditor
         int32 _presetDurationFrames = 18;
         float _presetDistance = 48.f;
         float _presetScaleAmount = 1.08f;
+        bool _staticPreviewDirty = true;
+        int32 _lastStaticPreviewFrame = INT_MIN;
     };
 }

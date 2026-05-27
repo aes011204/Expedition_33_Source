@@ -157,6 +157,7 @@
   <ItemGroup>
     <ClInclude Include="..\public\ANS_Dodge.h" />
     <ClInclude Include="..\public\ANS_Emissive.h" />
+    <ClInclude Include="..\Public\ANS_IdleOffset.h" />
     <ClInclude Include="..\public\ANS_Move.h" />
     <ClInclude Include="..\public\ANS_Parry.h" />
     <ClInclude Include="..\public\ANS_QTE.h" />
@@ -164,6 +165,7 @@
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
     <ClInclude Include="..\public\AN_Change_Anim.h" />
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
+    <ClInclude Include="..\Public\AN_VanishDissolve.h" />
     <ClInclude Include="..\public\AN_EnterAnim.h" />
     <ClInclude Include="..\Public\AN_StartCounter.h" />
     <ClInclude Include="..\Public\AN_Test2.h" />
@@ -182,6 +184,7 @@
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
+    <ClInclude Include="..\Public\EffectInstancePool.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
@@ -377,6 +380,7 @@
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp" />
     <ClCompile Include="..\private\ANS_Emissive.cpp" />
+    <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
     <ClCompile Include="..\Private\ANS_QTE.cpp" />
@@ -384,6 +388,7 @@
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
+    <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
     <ClCompile Include="..\Private\AN_StartCounter.cpp" />
     <ClCompile Include="..\Private\AN_Test2.cpp" />
@@ -401,6 +406,7 @@
     <ClCompile Include="..\private\BT_SetSkill.cpp" />
     <ClCompile Include="..\private\BT_Set_Target.cpp" />
     <ClCompile Include="..\Private\EffectCom.cpp" />
+    <ClCompile Include="..\Private\EffectInstancePool.cpp" />
     <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />

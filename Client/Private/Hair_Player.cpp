@@ -58,7 +58,7 @@ void Hair_Player::Priority_Update(float timeDelta)
 
 void Hair_Player::Update(float timeDelta)
 {
-    PlayableParts::Update(timeDelta);     // TEMP_ERASE : Dissolve 업데이트 중 
+    PlayableParts::Update(timeDelta);
 
     Debug_Profile::Scope profileScope("Player::Hair::Update");
 

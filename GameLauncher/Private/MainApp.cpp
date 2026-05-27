@@ -27,6 +27,7 @@ HRESULT MainApp::Initialize()
     engineDesc.numLevels = ETOI(LevelType::END);
     engineDesc.viewportWidth = g_iWinSizeX;
     engineDesc.viewportHeight = g_iWinSizeY;
+    engineDesc.swapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     engineDesc.projectName = "GameLauncher";
 
     if (FAILED(GAME->Initialize_Engine(engineDesc, _device, _context)))

@@ -31,6 +31,7 @@ private:
     void    Apply_Color();
 
 private:
+    Shared<UI_Base> _outlineRoot{};
     Shared<UI_Image> _crossHairImage{};
     Shared<UI_Image> _crossHairOutlineImage{};
 

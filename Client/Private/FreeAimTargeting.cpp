@@ -143,7 +143,7 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleChar& outEnemy) const
     direction.Normalize();
 
     constexpr float traceDistance = 100.f;
-    constexpr float sweepRadius = 0.15f;
+    constexpr float sweepRadius = 0.3f;
 
     PhysXQueryHit hit{};
     const bool hasHit = GAME->Sweep_Sphere(

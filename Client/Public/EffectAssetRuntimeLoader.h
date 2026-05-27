@@ -35,9 +35,16 @@ private:
     static Vec4 Evaluate_ColorDistributionMax(const json& distribution, const Vec4& fallbackValue);
     static void Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value);
     static void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const json& frameIndex);
+    static string Resolve_RendererType(const json& emitter);
+    static void Apply_MaterialPayload(
+        const json& material,
+        EffectRequiredMaterialRuntimeDesc& materialDesc,
+        bool includeTrailMaterialFields);
     static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeSpriteEmitterDesc& desc);
+    static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeTrailEmitterDesc& desc);
     static void Apply_SpawnModule(const json& data, ComputeSpriteEmitterDesc& desc);
     static bool Build_EmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
+    static bool Build_TrailEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
     static bool Try_MakeResourceRelativePath(
         const fs::path& fullPath,
         const char* logContext,

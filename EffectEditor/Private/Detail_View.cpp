@@ -1,8 +1,8 @@
 ﻿#include "Detail_View.h"
 
+#include "DetailPropertyContext.h"
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
-#include "DetailPropertyContext.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -112,6 +112,11 @@ namespace
         return changed;
     }
 
+    bool Has_PostProcessFeature(PostProcessFeature features, PostProcessFeature feature)
+    {
+        return Has_Flag(features, feature);
+    }
+
     bool Draw_TrailCurveQualityProperty(DetailPropertyContext& detailContext, TrailTypeData& data, const TrailTypeData& defaultData)
     {
         bool changed = false;
@@ -121,7 +126,7 @@ namespace
         ImGui::SetNextItemWidth(-FLT_MIN);
         if (ImGui::BeginCombo("##Value", Get_TrailCurveQualityLabel(data.curveQuality)))
         {
-            for (TrailCurveQuality value : kTrailCurveQualityValues)
+            for (const TrailCurveQuality value : kTrailCurveQualityValues)
             {
                 const bool selected = data.curveQuality == value;
                 if (ImGui::Selectable(Get_TrailCurveQualityLabel(value), selected))
@@ -164,8 +169,10 @@ Detail_View::~Detail_View()
     Free();
 }
 
-void Detail_View::Update(float)
+void Detail_View::Update(float timeDelta)
 {
+    __super::Update(timeDelta);
+    _detailTimeDelta = max(0.f, timeDelta);
 }
 
 void Detail_View::Render()
@@ -268,6 +275,7 @@ void Detail_View::Render_ParticleSystemDetail(
     }
 
     Render_TrailPreviewDetail();
+    Render_PostProcessShaderDetail();
     Commit_PendingAuthoringEditIfIdle(emitterView);
 }
 
@@ -300,6 +308,62 @@ void Detail_View::Render_TrailPreviewDetail()
 
     if (changed)
         EDITOR->Set_TrailPreviewLocalOffsets(baseLocalOffset, tipLocalOffset);
+}
+
+void Detail_View::Render_PostProcessShaderDetail()
+{
+    if (EDITOR == nullptr)
+        return;
+
+    if (!ImGui::CollapsingHeader("후처리 셰이더", ImGuiTreeNodeFlags_DefaultOpen))
+        return;
+
+    const EffectEditorPostProcessOptions options = EDITOR->Get_PostProcessOptions();
+    const EffectEditorPostProcessOptions defaultOptions = EDITOR->Get_DefaultPostProcessOptions();
+
+    bool hdr = Has_PostProcessFeature(options.features, PostProcessFeature::HDR);
+    bool exposure = Has_PostProcessFeature(options.features, PostProcessFeature::Exposure);
+    bool toneMapping = Has_PostProcessFeature(options.features, PostProcessFeature::ToneMapping);
+    bool bloom = Has_PostProcessFeature(options.features, PostProcessFeature::Bloom);
+    bool gamma = Has_PostProcessFeature(options.features, PostProcessFeature::Gamma);
+
+    const bool defaultHdr = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::HDR);
+    const bool defaultExposure = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Exposure);
+    const bool defaultToneMapping = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::ToneMapping);
+    const bool defaultBloom = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Bloom);
+    const bool defaultGamma = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Gamma);
+
+    if (_detailPropertyContext.Begin_PropertyTable("PostProcessFeatures"))
+    {
+        if (_detailPropertyContext.Draw_BoolProperty("HDR", hdr, defaultHdr))
+            EDITOR->Set_PostProcessFeature(PostProcessFeature::HDR, hdr);
+        if (_detailPropertyContext.Draw_BoolProperty("Exposure", exposure, defaultExposure))
+            EDITOR->Set_PostProcessFeature(PostProcessFeature::Exposure, exposure);
+        if (_detailPropertyContext.Draw_BoolProperty("ToneMapping", toneMapping, defaultToneMapping))
+            EDITOR->Set_PostProcessFeature(PostProcessFeature::ToneMapping, toneMapping);
+        if (_detailPropertyContext.Draw_BoolProperty("Bloom", bloom, defaultBloom))
+            EDITOR->Set_PostProcessFeature(PostProcessFeature::Bloom, bloom);
+        if (_detailPropertyContext.Draw_BoolProperty("Gamma", gamma, defaultGamma))
+            EDITOR->Set_PostProcessFeature(PostProcessFeature::Gamma, gamma);
+        _detailPropertyContext.End_PropertyTable();
+    }
+
+    PostProcessCB params = EDITOR->Get_PostProcessOptions().params;
+    bool paramsChanged = false;
+    if (_detailPropertyContext.Begin_PropertyTable("PostProcessParams"))
+    {
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Exposure", params.exposure, defaultOptions.params.exposure);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Gamma", params.gamma, defaultOptions.params.gamma);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Radius", params.bloomRadius, defaultOptions.params.bloomRadius);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Threshold", params.bloomThreshold, defaultOptions.params.bloomThreshold);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Intensity", params.bloomIntensity, defaultOptions.params.bloomIntensity);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Soft Knee", params.bloomSoftKnee, defaultOptions.params.bloomSoftKnee);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Clamp", params.bloomClamp, defaultOptions.params.bloomClamp, 0.05f);
+        _detailPropertyContext.End_PropertyTable();
+    }
+
+    if (paramsChanged)
+        EDITOR->Set_PostProcessParams(params);
 }
 
 void Detail_View::Render_EmitterDetail(
@@ -385,7 +449,21 @@ void Detail_View::Render_TypeDataDetail(
                     data->uvTiling,
                     defaultData.uvTiling,
                     0.01f,
-                    "trail 길이 방향 texture 반복 배율입니다."
+                    "trail noise/breakup texture의 길이 방향 반복 배율입니다. Main/Mask body는 표시 길이에 맞춰 stretch됩니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "최대 표시 길이",
+                    data->maxTrailLength,
+                    defaultData.maxTrailLength,
+                    0.01f,
+                    "head 기준 누적 거리로 제한하는 최대 표시 길이입니다. 0 이하면 제한하지 않습니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "꼬리 페이드 길이",
+                    data->tailFadeLength,
+                    defaultData.tailFadeLength,
+                    0.01f,
+                    "최대 표시 길이 끝으로 갈수록 alpha를 줄이는 거리입니다."
                 );
                 _detailPropertyContext.End_PropertyTable();
             }
@@ -466,7 +544,7 @@ void Detail_View::Render_ModuleDetail(
     {
     case AuthoringModuleType::Required:
         if (auto* data = get_if<RequiredModuleData>(&module.data))
-            changed = _requiredModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+            changed = _requiredModuleDetail.Draw(emitter, module, *data, _detailPropertyContext, _detailTimeDelta);
         break;
 
     case AuthoringModuleType::Spawn:
@@ -557,6 +635,11 @@ void Detail_View::Render_ModuleDetail(
     case AuthoringModuleType::SizeByLife:
         if (auto* data = get_if<SizeByLifeModuleData>(&module.data))
             changed = _sizeByLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::SpawnPerUnit:
+        if (auto* data = get_if<SpawnPerUnitModuleData>(&module.data))
+            changed = _spawnPerUnitModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     default:
