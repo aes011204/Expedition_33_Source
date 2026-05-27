@@ -162,6 +162,7 @@ HRESULT EffectCom::Play_AttachedEffect(
 
     EffectInstancePool::AcquireDesc acquireDesc{};
     acquireDesc.effectName = effectName;
+    acquireDesc.layerLevelIndex = GAME->Current_LevelIndex();
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = spawnPosition + localOffset;
     acquireDesc.trailSampleProvider = trailSampleProvider;

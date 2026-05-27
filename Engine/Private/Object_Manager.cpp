@@ -1,8 +1,32 @@
 ﻿#include "Object_Manager.h"
 
+#include "Debug_Profile.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "Layer.h"
+
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+namespace
+{
+string Narrow_Profile_Tag(const wstring& tag)
+{
+    string result{};
+    result.reserve(tag.size());
+
+    for (const wchar_t ch : tag)
+        result.push_back(ch <= 0x7f ? static_cast<char>(ch) : '?');
+
+    return result;
+}
+
+string Make_Layer_Profile_Name(const char* phaseName, size_t levelIndex, const wstring& layerTag)
+{
+    return string{ "Object::" } + phaseName
+        + "::L" + to_string(levelIndex)
+        + "::" + Narrow_Profile_Tag(layerTag);
+}
+}
+#endif
 
 Object_Manager::Object_Manager()
 {
@@ -121,26 +145,65 @@ bool Object_Manager::Remove_GameObject(uint32 levelIndex, const Shared<GameObjec
 
 void Object_Manager::Priority_Update(float timeDelta)
 {
-    for (auto& layers : _layers)
+    ENGINE_PROFILE_SCOPE_BASIC("Object::PriorityUpdateAll");
+
+    for (size_t levelIndex = 0; levelIndex < _layers.size(); ++levelIndex)
+    {
+        auto& layers = _layers[levelIndex];
         for (auto& Pair : layers)
+        {
             if (nullptr != Pair.second)
+            {
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+                const string profileName = Make_Layer_Profile_Name("Priority", levelIndex, Pair.first);
+                ENGINE_PROFILE_SCOPE_DETAIL(profileName.c_str());
+#endif
                 Pair.second->Priority_Update(timeDelta);
+            }
+        }
+    }
 }
 
 void Object_Manager::Update(float timeDelta)
 {
-    for (auto& layers : _layers)
+    ENGINE_PROFILE_SCOPE_BASIC("Object::UpdateAll");
+
+    for (size_t levelIndex = 0; levelIndex < _layers.size(); ++levelIndex)
+    {
+        auto& layers = _layers[levelIndex];
         for (auto& Pair : layers)
+        {
             if (nullptr != Pair.second)
+            {
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+                const string profileName = Make_Layer_Profile_Name("Update", levelIndex, Pair.first);
+                ENGINE_PROFILE_SCOPE_DETAIL(profileName.c_str());
+#endif
                 Pair.second->Update(timeDelta);
+            }
+        }
+    }
 }
 
 void Object_Manager::Late_Update(float timeDelta)
 {
-    for (auto& layers : _layers)
+    ENGINE_PROFILE_SCOPE_BASIC("Object::LateUpdateAll");
+
+    for (size_t levelIndex = 0; levelIndex < _layers.size(); ++levelIndex)
+    {
+        auto& layers = _layers[levelIndex];
         for (auto& Pair : layers)
+        {
             if (nullptr != Pair.second)
+            {
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+                const string profileName = Make_Layer_Profile_Name("Late", levelIndex, Pair.first);
+                ENGINE_PROFILE_SCOPE_DETAIL(profileName.c_str());
+#endif
                 Pair.second->Late_Update(timeDelta);
+            }
+        }
+    }
 }
 
 HRESULT Object_Manager::Clear_Layers(uint32 levelIndex)

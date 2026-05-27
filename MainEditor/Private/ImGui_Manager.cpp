@@ -68,7 +68,7 @@ void ImGui_Manager::Update(float timeDelta)
 void ImGui_Manager::Render(bool renderPlatformWindows)
 {
     {
-        Profile_View::Scope scope("ImGui::RenderMain");
+        ENGINE_PROFILE_SCOPE_DETAIL("ImGui::RenderMain");
         ImGui::Render();
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
     }
@@ -76,7 +76,7 @@ void ImGui_Manager::Render(bool renderPlatformWindows)
     ImGuiIO& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
-        Profile_View::Scope scope("ImGui::PlatformWindows");
+        ENGINE_PROFILE_SCOPE_DETAIL("ImGui::PlatformWindows");
         ImGui::UpdatePlatformWindows();
 
         if (renderPlatformWindows)

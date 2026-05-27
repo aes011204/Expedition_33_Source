@@ -74,6 +74,14 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
     _logManager = Log_Manager::Create(engineDesc.projectName);
     CHECK_NULL(_logManager, E_FAIL);
 
+#ifdef _DEBUG
+#if ENGINE_ENABLE_DX11_DEBUG_LAYER
+    LOG_WARN("[StartupMode] Debug - DX11 debug layer ON");
+#else
+    LOG_WARN("[StartupMode] Debug - DX11 debug layer OFF by ENGINE_ENABLE_DX11_DEBUG_LAYER=0");
+#endif
+#endif
+
     _timerManager = Timer_Manager::Create();
     CHECK_NULL(_timerManager, E_FAIL);
 
