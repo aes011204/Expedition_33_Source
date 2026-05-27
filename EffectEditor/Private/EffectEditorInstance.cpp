@@ -66,6 +66,7 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
     _isTrailPreviewVisible = false;
+    _postProcessOptions = Get_DefaultPostProcessOptions();
     Queue_PreviewViewportSize(kDefaultPreviewViewportWidth, kDefaultPreviewViewportHeight);
 
     return S_OK;
@@ -74,6 +75,12 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
 void EffectEditorInstance::Release_Editor()
 {
     End_PreviewCameraDrag();
+
+    if (_context)
+    {
+        _context->OMSetDepthStencilState(nullptr, 0);
+        _context->IASetInputLayout(nullptr);
+    }
 
     _sharedViewportRenderTarget.reset();
     _sceneGridBatch.reset();
@@ -102,11 +109,11 @@ void EffectEditorInstance::Release_Editor()
     _pendingPreviewViewportHeight = kDefaultPreviewViewportHeight;
     _appliedPreviewViewportWidth = 0;
     _appliedPreviewViewportHeight = 0;
-    _sceneViewMode = SceneViewMode::Authoring;
 
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
     _isTrailPreviewVisible = false;
+    _postProcessOptions = Get_DefaultPostProcessOptions();
     _hasPendingWindowFocus = false;
     _pendingWindowFocus = EditorViewportTarget::Game;
     _pendingSingleFrameStep = false;
@@ -189,7 +196,26 @@ float EffectEditorInstance::Get_RuntimeTimeScale() const
     return _runtimeTimeScale;
 }
 
-ID3D11ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
+EffectEditorPostProcessOptions EffectEditorInstance::Get_DefaultPostProcessOptions() const
+{
+    EffectEditorPostProcessOptions options{};
+    options.params = PostProcessCB{};
+
+    options.features =
+        PostProcessFeature::HDR |
+        PostProcessFeature::Exposure |
+        PostProcessFeature::Bloom;
+
+    options.params.exposure = 1.2f;
+    options.params.gamma = 1.2f;
+    options.params.bloomRadius = 1.6f;
+    options.params.bloomIntensity = 0.f;
+
+    options.params.featureMask = To_Underlying(options.features);
+    return options;
+}
+
+ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
 {
     if (nullptr == _sharedViewportRenderTarget)
         return nullptr;
@@ -328,6 +354,18 @@ void EffectEditorInstance::Reset_TrailPreviewLocalOffsets()
 {
     _trailPreviewBaseLocalOffset = kDefaultTrailPreviewBaseLocalOffset;
     _trailPreviewTipLocalOffset = kDefaultTrailPreviewTipLocalOffset;
+}
+
+void EffectEditorInstance::Set_PostProcessFeature(PostProcessFeature feature, bool enabled)
+{
+    Set_Flag(_postProcessOptions.features, feature, enabled);
+    _postProcessOptions.params.featureMask = To_Underlying(_postProcessOptions.features);
+}
+
+void EffectEditorInstance::Set_PostProcessParams(const PostProcessCB& params)
+{
+    _postProcessOptions.params = params;
+    _postProcessOptions.params.featureMask = To_Underlying(_postProcessOptions.features);
 }
 
 void EffectEditorInstance::Request_WindowFocus(EditorViewportTarget target)
@@ -662,6 +700,73 @@ void EffectEditorInstance::Capture_BackBuffer_ToViewport()
     );
 }
 
+void EffectEditorInstance::Render_SceneGrid()
+{
+    if (!_device || !_context)
+        return;
+
+    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
+    const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
+    if (nullptr == viewMatrix || nullptr == projMatrix)
+        return;
+
+    Ensure_SceneGridResources();
+    if (!_sceneGridBatch || !_sceneGridEffect || !_sceneGridInputLayout || !_sceneGridDepthState)
+        return;
+
+    _sceneGridEffect->SetWorld(Matrix::Identity);
+    _sceneGridEffect->SetView(*viewMatrix);
+    _sceneGridEffect->SetProjection(*projMatrix);
+
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    _context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ShaderResourceView* nullShaderResourceViews[1] = { nullptr };
+    _context->PSSetShaderResources(0, 1, nullShaderResourceViews);
+
+    _context->RSSetState(nullptr);
+    _context->IASetInputLayout(_sceneGridInputLayout.Get());
+    _context->OMSetDepthStencilState(_sceneGridDepthState.Get(), 0);
+    _context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _sceneGridEffect->Apply(_context.Get());
+
+    _sceneGridBatch->Begin();
+
+    const float step = kSceneGridHalfExtent * 2.f / static_cast<float>(kSceneGridDivisions);
+    const XMVECTOR gridColor = XMVectorSet(0.58f, 0.58f, 0.62f, 1.f);
+    const XMVECTOR xAxisColor = XMVectorSet(0.95f, 0.32f, 0.32f, 1.f);
+    const XMVECTOR zAxisColor = XMVectorSet(0.28f, 0.72f, 1.f, 1.f);
+
+    for (int i = 0; i <= kSceneGridDivisions; ++i)
+    {
+        const float offset = -kSceneGridHalfExtent + step * static_cast<float>(i);
+        const XMVECTOR colorX = fabsf(offset) < 0.0001f ? zAxisColor : gridColor;
+        const XMVECTOR colorZ = fabsf(offset) < 0.0001f ? xAxisColor : gridColor;
+
+        VertexPositionColor lineXStart(
+            Vec3(-kSceneGridHalfExtent, kSceneGridHeight, offset),
+            colorX
+        );
+        VertexPositionColor lineXEnd(
+            Vec3(kSceneGridHalfExtent, kSceneGridHeight, offset),
+            colorX
+        );
+        _sceneGridBatch->DrawLine(lineXStart, lineXEnd);
+
+        VertexPositionColor lineZStart(
+            Vec3(offset, kSceneGridHeight, -kSceneGridHalfExtent),
+            colorZ
+        );
+        VertexPositionColor lineZEnd(
+            Vec3(offset, kSceneGridHeight, kSceneGridHalfExtent),
+            colorZ
+        );
+        _sceneGridBatch->DrawLine(lineZStart, lineZEnd);
+    }
+
+    _sceneGridBatch->End();
+}
+
 void EffectEditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
 {
     if (_previewViewportMode != PreviewViewportMode::Auto)
@@ -678,11 +783,6 @@ void EffectEditorInstance::Enable_AutoPreviewViewport()
 void EffectEditorInstance::Enable_ManualPreviewViewport()
 {
     _previewViewportMode = PreviewViewportMode::Manual;
-}
-
-void EffectEditorInstance::Set_SceneViewMode(SceneViewMode viewMode)
-{
-    _sceneViewMode = viewMode;
 }
 
 void EffectEditorInstance::Set_ManualPreviewViewportSize(uint32 width, uint32 height)
@@ -753,73 +853,6 @@ void EffectEditorInstance::Ensure_SceneGridResources()
         _sceneGridInputLayout.Reset();
         _sceneGridDepthState.Reset();
     }
-}
-
-void EffectEditorInstance::Render_SceneGrid()
-{
-    if (!_device || !_context)
-        return;
-
-    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
-    const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
-    if (nullptr == viewMatrix || nullptr == projMatrix)
-        return;
-
-    Ensure_SceneGridResources();
-    if (!_sceneGridBatch || !_sceneGridEffect || !_sceneGridInputLayout || !_sceneGridDepthState)
-        return;
-
-    _sceneGridEffect->SetWorld(Matrix::Identity);
-    _sceneGridEffect->SetView(*viewMatrix);
-    _sceneGridEffect->SetProjection(*projMatrix);
-
-    ID3D11GeometryShader* nullGeometryShader = nullptr;
-    _context->GSSetShader(nullGeometryShader, nullptr, 0);
-
-    ID3D11ShaderResourceView* nullShaderResourceViews[1] = { nullptr };
-    _context->PSSetShaderResources(0, 1, nullShaderResourceViews);
-
-    _context->RSSetState(nullptr);
-    _context->IASetInputLayout(_sceneGridInputLayout.Get());
-    _context->OMSetDepthStencilState(_sceneGridDepthState.Get(), 0);
-    _context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
-    _sceneGridEffect->Apply(_context.Get());
-
-    _sceneGridBatch->Begin();
-
-    const float step = kSceneGridHalfExtent * 2.f / static_cast<float>(kSceneGridDivisions);
-    const XMVECTOR gridColor = XMVectorSet(0.58f, 0.58f, 0.62f, 1.f);
-    const XMVECTOR xAxisColor = XMVectorSet(0.95f, 0.32f, 0.32f, 1.f);
-    const XMVECTOR zAxisColor = XMVectorSet(0.28f, 0.72f, 1.f, 1.f);
-
-    for (int i = 0; i <= kSceneGridDivisions; ++i)
-    {
-        const float offset = -kSceneGridHalfExtent + step * static_cast<float>(i);
-        const XMVECTOR colorX = fabsf(offset) < 0.0001f ? zAxisColor : gridColor;
-        const XMVECTOR colorZ = fabsf(offset) < 0.0001f ? xAxisColor : gridColor;
-
-        VertexPositionColor lineXStart(
-            Vec3(-kSceneGridHalfExtent, kSceneGridHeight, offset),
-            colorX
-        );
-        VertexPositionColor lineXEnd(
-            Vec3(kSceneGridHalfExtent, kSceneGridHeight, offset),
-            colorX
-        );
-        _sceneGridBatch->DrawLine(lineXStart, lineXEnd);
-
-        VertexPositionColor lineZStart(
-            Vec3(offset, kSceneGridHeight, -kSceneGridHalfExtent),
-            colorZ
-        );
-        VertexPositionColor lineZEnd(
-            Vec3(offset, kSceneGridHeight, kSceneGridHalfExtent),
-            colorZ
-        );
-        _sceneGridBatch->DrawLine(lineZStart, lineZEnd);
-    }
-
-    _sceneGridBatch->End();
 }
 
 void EffectEditorInstance::Queue_PreviewViewportSize(uint32 width, uint32 height)

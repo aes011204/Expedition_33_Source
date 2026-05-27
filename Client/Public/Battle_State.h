@@ -25,6 +25,8 @@ public:
     Shared<BattleController> Get_Owner() const { return _owner.lock(); }
     BattleStateMachine* Get_BattleFSM() const { return _battleFSM; }
 
+
+
 protected:
     Weak<BattleController> _owner{};
     BattleStateMachine* _battleFSM = nullptr;

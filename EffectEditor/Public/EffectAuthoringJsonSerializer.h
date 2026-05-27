@@ -14,7 +14,7 @@ public:
     static uint32 Find_NextAuthoringId(const EffectAuthoringDocument& document);
 
 private: //## Static Values
-    static constexpr int kEffectAuthoringJsonVersion{ 1 };
+    static constexpr int kEffectAuthoringJsonVersion{ 2 };
 
 private: //## Helper::AuthoringAggregate
     static json To_Json(const AuthoringModule& module);

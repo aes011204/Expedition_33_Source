@@ -1,12 +1,20 @@
 ﻿#pragma once
 
 #include "Editor_Window.h"
+#include "BattleCameraClipTypes.h"
+#include "CameraPresetTypes.h"
 #include "Cinematic_Types.h"
 #include <filesystem>
+
+NS_BEGIN(Engine)
+class Character;
+class ModelCom;
+NS_END
 
 NS_BEGIN(Client)
 class FreeCamera;
 class Cinematic_Player;
+class BattleTurnCamera;
 NS_END
 
 NS_BEGIN(MainEditor)
@@ -23,6 +31,14 @@ public:
     virtual void Render() override;
 
 private:
+    void Render_CinematicTab();
+    void Render_BattleClipTab();
+    void Render_BattleClipHeader();
+    void Render_BattleClipSequencer();
+    void Render_BattleClipTrackEditor(const char* label, BattleCameraTrack& track);
+    void Render_SelectedBattleClipKeyframe();
+    void Render_BattleClipInsertKeyframePopup();
+    void Render_BattleClipRemoveKeyframePopup();
     void Render_SequenceSettings();
     void Render_TrackList();
     void Render_KeyframeList();
@@ -45,9 +61,24 @@ private:
     void Load_SelectedSequenceFile();
     void Apply_CurrentFramePose();
     void Clear_PendingInsertRequest();
+    void Sort_BattleClipTrackKeyframes(BattleCameraTrack& track);
+    void Insert_BattleClipKeyAtFrame(int trackIndex, int frame);
+    void Apply_CurrentBattleClipPreview();
+    void Ensure_BattleClipSkillListLoaded();
+    string Get_SelectedBattleClipSkillId() const;
+
+  void Clip_BattleClipHotInput();
 
     CINEMATIC_TRACK* Get_SelectedTrack();
     CINEMATIC_KEYFRAME* Get_SelectedKeyframe();
+    BattleCameraTrack* Get_SelectedBattleClipTrack();
+    BattleCameraKeyframe* Get_SelectedBattleClipKeyframe();
+    Shared<Client::BattleTurnCamera> Get_BattleTurnCamera() const;
+    Shared<Character> Resolve_BattleClipPreviewSubject() const;
+    Shared<Character> Resolve_BattleClipPreviewOpponent() const;
+    Shared<ModelCom> Resolve_BattleClipPreviewModel() const;
+    void Apply_BattleClipPreviewAnimation(float previewTimeSec) const;
+    void Clear_BattleClipPreviewState() const;
     Shared<Client::FreeCamera> Get_ActiveFreeCamera() const;
     bool Try_CaptureActiveFreeCameraPose(CAMERAPOSE& outPose) const;
 
@@ -73,6 +104,22 @@ private:
     int                                  _pendingInsertTrackIndex = -1;
     int                                  _pendingInsertFrame = 0;
     CAMERAPOSE                           _pendingInsertPose{};
+    BattleCameraMode                     _selectedBattleClipMode = BattleCameraMode::PLAYERATTACK;
+    BattleCameraMode                     _loadedBattleClipMode = BattleCameraMode::PLAYERATTACK;
+    string                               _loadedBattleClipSkillId{};
+    BattleCameraClip                     _editingBattleClip{ 1.f };
+    bool                                 _hasLoadedBattleClip = false;
+    int                                  _battleClipSelectedTrackIndex = 0;
+    int                                  _battleClipSelectedKeyIndex = -1;
+    int                                  _battleClipCurrentFrame = 0;
+    bool                                 _requestOpenBattleClipInsertPopup = false;
+    bool                                 _requestRemoveBattleClipKeyPopup = false;
+    int                                  _battleClipContextTrackIndex = -1;
+    int                                  _battleClipContextFrame = 0;
+    bool                                 _isBattleClipPreviewDirty = false;
+    vector<string>                       _battleClipSkillIds{};
+    int                                  _selectedBattleClipSkillIndex = -1;
+    bool                                 _useBattleClipSkillOverride = false;
 
 public:
     static Shared<Cinematic_Tool> Create();

@@ -1,6 +1,5 @@
 ﻿#include "pch.h"
 #include "AttackTargeting.h"
-
 #include "Input_Manager.h"
 #include "GameInstance.h"
 #include "BattleController.h"
@@ -8,10 +7,12 @@
 #include "Battle_Enum.h"
 #include "ClientInstance.h"
 #include "PlayerStatCom.h"
+#include "Battle_Event.h"
+#include "Event_Bus.h"
 
 NS_BEGIN(Client)
 
-AttackTargeting::AttackTargeting(const Shared<BattleController>& owner)
+    AttackTargeting::AttackTargeting(const Shared<BattleController>& owner)
     : Battle_State{ owner }
 {
 }
@@ -78,6 +79,7 @@ void AttackTargeting::Update(float timeDelta)
     {
         owner->Set_TargetPreview(enemies[TargetIndex]);
         owner->Get_TurnAction().target = owner->Get_AliveEnemies()[TargetIndex];
+        owner->Request_WidePresentationMode();  
 
         auto data = CLIENT->Get_Skill(owner->Get_TurnAction()._curChar.statCom->Get_FirstSkill());
         owner->Get_TurnAction()._selected_SkillKey = *data;
@@ -97,6 +99,12 @@ void AttackTargeting::Update(float timeDelta)
             return;
 
         owner->Set_TargetPreview(enemies[TargetIndex]);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::ENEMYFOCUS;
+        event.subject = enemies[TargetIndex].actor;
+        GAME->Get_EventBus().Publish(event);
+
         LOG_DEBUG("TARGETTING {}", TargetIndex);
 
         // 임시 기본 공격은 무조건 적 공격 이라는 가정 / 동료 치료 불가
@@ -110,11 +118,15 @@ void AttackTargeting::Update(float timeDelta)
             return;
 
         owner->Set_TargetPreview(enemies[TargetIndex]);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::ENEMYFOCUS;
+        event.subject = enemies[TargetIndex].actor;
+        GAME->Get_EventBus().Publish(event);
+
         LOG_DEBUG("TARGETTING {}", TargetIndex);
         return;
     }
-
-
 }
 
 void AttackTargeting::LateUpdate(float timeDelta)

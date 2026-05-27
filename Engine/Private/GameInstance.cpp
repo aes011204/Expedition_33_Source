@@ -57,6 +57,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
         engineDesc.winMode,
         engineDesc.viewportWidth,
         engineDesc.viewportHeight,
+        engineDesc.swapEffect,
         device,
         context
     );
@@ -71,6 +72,14 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _logManager = Log_Manager::Create(engineDesc.projectName);
     CHECK_NULL(_logManager, E_FAIL);
+
+#ifdef _DEBUG
+#if ENGINE_ENABLE_DX11_DEBUG_LAYER
+    LOG_WARN("[StartupMode] Debug - DX11 debug layer ON");
+#else
+    LOG_WARN("[StartupMode] Debug - DX11 debug layer OFF by ENGINE_ENABLE_DX11_DEBUG_LAYER=0");
+#endif
+#endif
 
     _timerManager = Timer_Manager::Create();
     CHECK_NULL(_timerManager, E_FAIL);
@@ -1503,6 +1512,11 @@ int GameInstance::Get_CameraCount()
     return _cameraManager->Get_CameraCount();
 }
 
+Shared<Camera> GameInstance::Get_CameraByType(ObjectType objectType)
+{
+    return _cameraManager->Get_CameraByType(objectType);
+}
+
 HRESULT GameInstance::Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName)
 {
     return _cameraManager->Bind_CameraFar(shader, constantName);
@@ -2087,6 +2101,11 @@ void GameInstance::Release_Engine()
     ReleaseManager(_timerManager);
 
     Material::Clear_TextureSRVCache();
+
+    _playerStencilWriteState.Reset();
+    _playerStencilWriteDepthReadState.Reset();
+    _backgroundUIBehindPlayerStencilState.Reset();
+    _uiNoDepthStencilState.Reset();
 
     _context.Reset();
     _device.Reset();

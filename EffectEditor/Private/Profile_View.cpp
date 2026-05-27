@@ -1,7 +1,5 @@
 ﻿#include "Profile_View.h"
 
-#include <cctype>
-#include <cstring>
 #include <psapi.h>
 
 #pragma comment(lib, "psapi.lib")
@@ -42,6 +40,19 @@ struct Profile_View::ProfilerRuntime
 
 namespace Internal
 {
+    static const char* Get_Profile_Level_Name()
+    {
+#if ENGINE_PROFILE_LEVEL == ENGINE_PROFILE_LEVEL_OFF
+        return "Off";
+#elif ENGINE_PROFILE_LEVEL == ENGINE_PROFILE_LEVEL_BASIC
+        return "Basic";
+#elif ENGINE_PROFILE_LEVEL == ENGINE_PROFILE_LEVEL_DETAIL
+        return "Detail";
+#else
+        return "Custom";
+#endif
+    }
+
     static bool Str_IContains(const string& haystack, const char* needle)
     {
         if (nullptr == needle || '\0' == needle[0])
@@ -65,17 +76,23 @@ namespace Internal
 
 Profile_View::Scope::Scope(const char* scopeName)
 {
+#if ENGINE_PROFILE_LEVEL > ENGINE_PROFILE_LEVEL_OFF
     if (nullptr == scopeName || '\0' == scopeName[0])
         return;
 
     Begin_Scope(scopeName);
     _active = true;
+#else
+    UNREFERENCED_PARAMETER(scopeName);
+#endif
 }
 
 Profile_View::Scope::~Scope()
 {
+#if ENGINE_PROFILE_LEVEL > ENGINE_PROFILE_LEVEL_OFF
     if (_active)
         End_Scope();
+#endif
 }
 
 Profile_View::Profile_View()
@@ -166,6 +183,16 @@ void Profile_View::Frame_End()
                               ? 0.0
                               : runtime.frameWindowSum / static_cast<double>(runtime.frameWindow.size());
     activeView->_fpsAvg = activeView->_frameMsAvg > 0.0001 ? 1000.0 / activeView->_frameMsAvg : 0.0;
+
+    vector<Engine::DebugProfileSample> debugSamples = {};
+    Engine::Debug_Profile::Consume_Samples(debugSamples);
+
+    unordered_map<string, double> debugSampleSums = {};
+    for (const Engine::DebugProfileSample& sample : debugSamples)
+        debugSampleSums[sample.name] += sample.elapsedMs;
+
+    for (const auto& [scopeName, elapsedMs] : debugSampleSums)
+        activeView->Record_Scope_Sample(scopeName, elapsedMs);
 
     activeView->Prune_Dead_Scopes();
 }
@@ -285,6 +312,7 @@ void Profile_View::Draw_Toolbar()
 
 void Profile_View::Draw_Frame_Info()
 {
+    ImGui::Text("Profile Level: %s (%d)", Internal::Get_Profile_Level_Name(), ENGINE_PROFILE_LEVEL);
     ImGui::Text("FPS (Last / Avg): %d / %d", static_cast<int>(_fpsLast), static_cast<int>(_fpsAvg));
     ImGui::Text("Frame ms (Last / Avg): %.2f / %.2f", static_cast<float>(_frameMsLast), static_cast<float>(_frameMsAvg));
     ImGui::Text("Render Calls: %u", _renderCallCount);
@@ -438,6 +466,51 @@ void Profile_View::Prune_Dead_Scopes()
         else
             ++iter;
     }
+}
+
+void Profile_View::Record_Scope_Sample(const string& scopeName, double elapsedMs)
+{
+    if (nullptr == _runtime || scopeName.empty())
+        return;
+
+    auto& runtime = *_runtime;
+
+    if (!runtime.capture)
+        return;
+
+    auto& entry = runtime.scopes[scopeName];
+    auto& stats = entry.ui;
+
+    if (0 == stats.samples)
+    {
+        stats.name = scopeName;
+        stats.minMs = elapsedMs;
+        stats.maxMs = elapsedMs;
+        stats.isEnabled = true;
+    }
+
+    entry.lastTouchedFrame = runtime.frameIndex;
+
+    if (!stats.isEnabled)
+        return;
+
+    stats.lastMs = elapsedMs;
+    stats.minMs = min(stats.minMs, elapsedMs);
+    stats.maxMs = max(stats.maxMs, elapsedMs);
+    stats.samples++;
+
+    entry.window.push_back(elapsedMs);
+    entry.windowSum += elapsedMs;
+
+    while (static_cast<int>(entry.window.size()) > runtime.avgWindow)
+    {
+        entry.windowSum -= entry.window.front();
+        entry.window.pop_front();
+    }
+
+    stats.avgMs = entry.window.empty()
+                  ? 0.0
+                  : entry.windowSum / static_cast<double>(entry.window.size());
 }
 
 Profile_View::ProcessMemory Profile_View::Get_Process_Memory() const

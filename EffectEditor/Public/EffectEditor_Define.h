@@ -2,6 +2,7 @@
 
 #include <Windows.h>
 #include <variant>
+#include <shobjidl.h>
 
 #include "Engine_Define.h"
 

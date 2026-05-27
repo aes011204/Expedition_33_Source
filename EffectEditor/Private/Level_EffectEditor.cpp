@@ -1,11 +1,11 @@
 ﻿#include "Level_EffectEditor.h"
 
 #include "Camera.h"
+#include "ClientInstance.h"
 #include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
 #include "EffectEditorSceneGrid.h"
 #include "EffectEditorSkybox.h"
-#include "EffectInstance.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -17,6 +17,8 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
+    constexpr const wchar_t* kPreviewPoolKey = L"EffectEditorPreview";
+
     //## Module Lookup
 
     template <typename TData>
@@ -315,7 +317,6 @@ namespace Internal
 
         return Clamp_PreviewColor(fallbackValue);
     }
-
 }
 
 Level_EffectEditor::Level_EffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -366,14 +367,18 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
         Build_PreviewEffectDefinition(emitterView->Get_Emitters());
     CHECK_NULL(previewDefinition, E_FAIL);
 
+    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+    CHECK_NULL(effectPool, E_FAIL);
+
+    effectPool->Release(_previewPoolHandle);
+    _previewPoolHandle = {};
+    effectPool->Discard_Inactive(Internal::kPreviewPoolKey);
+
     CHECK_FAILED(Restart_PreviewFromDefinition(previewDefinition), E_FAIL);
     _currentPreviewDefinition = previewDefinition;
 
     for (const AuthoringEmitter& emitter : emitterView->Get_Emitters())
-    {
-        if (emitter.enabled)
-            emitterView->Clear_PreviewDirty(emitter.id);
-    }
+        emitterView->Clear_PreviewDirty(emitter.id);
 
     return S_OK;
 }
@@ -390,24 +395,20 @@ HRESULT Level_EffectEditor::Restart_PreviewFromDefinition(const Shared<const Eff
 {
     CHECK_NULL(previewDefinition, E_FAIL);
 
-    Clear_PreviewObjects();
+    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+    CHECK_NULL(effectPool, E_FAIL);
 
-    EffectInstanceDesc previewDesc{};
-    previewDesc.definition = previewDefinition;
+    effectPool->Release(_previewPoolHandle);
+    _previewPoolHandle = {};
 
-    const Shared<EffectInstance> previewPrototype = EffectInstance::Create(_device, _context);
-    CHECK_NULL(previewPrototype, E_FAIL);
+    EffectInstancePool::AcquireDesc acquireDesc{};
+    acquireDesc.effectName = Internal::kPreviewPoolKey;
+    acquireDesc.definition = previewDefinition;
+    acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
+    acquireDesc.layerTag = kPreviewLayerTag;
+    acquireDesc.trailSampleProvider = _trailPreviewSampleProvider;
 
-    const Shared<GameObject> previewObject = previewPrototype->Clone(&previewDesc);
-    CHECK_NULL(previewObject, E_FAIL);
-
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), kPreviewLayerTag, previewObject), E_FAIL);
-
-    vector<Shared<GameObject>> restartedPreviewObjects{};
-    restartedPreviewObjects.push_back(previewObject);
-
-    _previewObjects = move(restartedPreviewObjects);
-
+    CHECK_FAILED(effectPool->Acquire(acquireDesc, _previewPoolHandle), E_FAIL);
     return S_OK;
 }
 
@@ -454,9 +455,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
         desc.required.material.mainTextureGuid = material.mainTextureGuid;
         desc.required.material.mainTexturePath = material.mainTexturePath;
-
-        if (!material.blendMode.empty())
-            desc.required.material.blendMode = material.blendMode;
+        desc.required.material.blendMode = material.blendMode;
 
         if (!material.opacitySource.empty())
             desc.required.material.opacitySource = material.opacitySource;
@@ -464,26 +463,44 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.tint = material.tint;
         desc.required.material.intensity = material.intensity;
         desc.required.material.opacityPower = material.opacityPower;
-
         desc.required.material.noiseTextureGuid = material.noiseTextureGuid;
         desc.required.material.noiseTexturePath = material.noiseTexturePath;
-
+        desc.required.material.maskTextureGuid = material.maskTextureGuid;
+        desc.required.material.maskTexturePath = material.maskTexturePath;
         desc.required.material.noiseStrength = material.noiseStrength;
+        desc.required.material.alphaCutoff = material.alphaCutoff;
+        desc.required.material.alphaErosion = material.alphaErosion;
+        desc.required.material.mainUVScale = material.mainUVScale;
+        desc.required.material.mainUVOffset = material.mainUVOffset;
+        desc.required.material.mainUVScrollSpeed = material.mainUVScrollSpeed;
+        desc.required.material.mainUVTilingMode = material.mainUVTilingMode;
+        desc.required.material.noiseUVScale = material.noiseUVScale;
+        desc.required.material.noiseUVOffset = material.noiseUVOffset;
+        desc.required.material.noiseUVScrollSpeed = material.noiseUVScrollSpeed;
+        desc.required.material.noiseUVTilingMode = material.noiseUVTilingMode;
+        desc.required.material.maskUVScale = material.maskUVScale;
+        desc.required.material.maskUVOffset = material.maskUVOffset;
+        desc.required.material.maskUVScrollSpeed = material.maskUVScrollSpeed;
+        desc.required.material.maskUVTilingMode = material.maskUVTilingMode;
+        desc.required.material.additive = material.additive;
+        desc.required.material.twoSided = material.twoSided;
         desc.required.material.subUVRows = max(1u, material.subUVRows);
         desc.required.material.subUVCols = max(1u, material.subUVCols);
+
         desc.required.spriteRender.screenAlignment = Internal::Resolve_EffectSpriteScreenAlignment(required->screenAlignment);
         desc.required.spriteRender.directionalAlignmentMode = Internal::Resolve_EffectSpriteDirectionalAlignmentMode(required->directionalAlignmentMode);
         desc.required.spriteRender.spriteTextureAxis = Internal::Resolve_EffectSpriteTextureAxis(required->spriteTextureAxis);
         desc.required.spriteRender.spriteRollOffsetDegrees = required->spriteRollOffsetDegrees;
+
         desc.required.playback.duration = max(0.0001f, required->duration);
         desc.required.playback.loopCount = required->loopCount;
         desc.required.playback.delay = max(0.f, required->delay);
         desc.required.playback.delayFirstLoopOnly = required->delayFirstLoopOnly;
         desc.required.playback.killOnDeactivate = required->killOnDeactivate;
         desc.required.playback.killOnCompleted = required->killOnCompleted;
+
         desc.required.drawLimit.useMaxDrawCount = required->useMaxDrawCount;
         desc.required.drawLimit.maxDrawCount = max(1u, required->maxDrawCount);
-
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
         definition.useLocalSpace = required->useLocalSpace;
@@ -740,6 +757,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         emitterDesc.segmentLifetime = max(0.001f, trailData->segmentLifetime);
         emitterDesc.historyCount = max(2u, trailData->historyCount);
         emitterDesc.uvTiling = max(0.001f, trailData->uvTiling);
+        emitterDesc.maxTrailLength = max(0.f, trailData->maxTrailLength);
+        emitterDesc.tailFadeLength = max(0.f, trailData->tailFadeLength);
         emitterDesc.sampleSpacing = max(0.001f, trailData->sampleSpacing);
         emitterDesc.curveSubdivision = max(0u, trailData->curveSubdivision);
         emitterDesc.smoothTangent = trailData->smoothTangent;
@@ -753,12 +772,30 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         emitterDesc.material.mainTexturePath = material.mainTexturePath;
         emitterDesc.material.noiseTextureGuid = material.noiseTextureGuid;
         emitterDesc.material.noiseTexturePath = material.noiseTexturePath;
-        emitterDesc.material.blendMode = material.blendMode.empty() ? "AlphaBlend" : material.blendMode;
+        emitterDesc.material.maskTextureGuid = material.maskTextureGuid;
+        emitterDesc.material.maskTexturePath = material.maskTexturePath;
+        emitterDesc.material.blendMode = material.blendMode;
         emitterDesc.material.opacitySource = material.opacitySource.empty() ? "Alpha" : material.opacitySource;
         emitterDesc.material.tint = material.tint;
         emitterDesc.material.intensity = material.intensity;
         emitterDesc.material.opacityPower = material.opacityPower;
         emitterDesc.material.noiseStrength = material.noiseStrength;
+        emitterDesc.material.alphaCutoff = material.alphaCutoff;
+        emitterDesc.material.alphaErosion = material.alphaErosion;
+        emitterDesc.material.mainUVScale = material.mainUVScale;
+        emitterDesc.material.mainUVOffset = material.mainUVOffset;
+        emitterDesc.material.mainUVScrollSpeed = material.mainUVScrollSpeed;
+        emitterDesc.material.mainUVTilingMode = material.mainUVTilingMode;
+        emitterDesc.material.noiseUVScale = material.noiseUVScale;
+        emitterDesc.material.noiseUVOffset = material.noiseUVOffset;
+        emitterDesc.material.noiseUVScrollSpeed = material.noiseUVScrollSpeed;
+        emitterDesc.material.noiseUVTilingMode = material.noiseUVTilingMode;
+        emitterDesc.material.maskUVScale = material.maskUVScale;
+        emitterDesc.material.maskUVOffset = material.maskUVOffset;
+        emitterDesc.material.maskUVScrollSpeed = material.maskUVScrollSpeed;
+        emitterDesc.material.maskUVTilingMode = material.maskUVTilingMode;
+        emitterDesc.material.additive = material.additive;
+        emitterDesc.material.twoSided = material.twoSided;
 
         emitterDesc.playback.duration = max(0.0001f, required->duration);
         emitterDesc.playback.loopCount = required->loopCount;
@@ -767,6 +804,106 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
         definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    {
+        emitterDesc.lifetime.lifeTime = Vec2{
+            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
+            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
+        };
+        emitterDesc.segmentLifetime = max(0.001f, emitterDesc.lifetime.lifeTime.y);
+    }
+
+    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    {
+        const Color minColor = Internal::Evaluate_ColorDistributionMin(
+            initialColor->color,
+            Color{
+                emitterDesc.initialColor.startColorMin.x,
+                emitterDesc.initialColor.startColorMin.y,
+                emitterDesc.initialColor.startColorMin.z,
+                emitterDesc.initialColor.startColorMin.w
+            }
+        );
+        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
+            initialColor->color,
+            Color{
+                emitterDesc.initialColor.startColorMax.x,
+                emitterDesc.initialColor.startColorMax.y,
+                emitterDesc.initialColor.startColorMax.z,
+                emitterDesc.initialColor.startColorMax.w
+            }
+        );
+        const float minAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMin(initialColor->alpha, emitterDesc.initialColor.startColorMin.w),
+            0.f,
+            1.f
+        );
+        const float maxAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMax(initialColor->alpha, emitterDesc.initialColor.startColorMax.w),
+            0.f,
+            1.f
+        );
+
+        emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
+        emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
+        emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
+        emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
+    }
+
+    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    {
+        const Color minEndColor = Internal::Evaluate_ColorDistributionMin(
+            colorOverLife->colorOverLife,
+            Color{
+                emitterDesc.colorOverLife.endColorMin.x,
+                emitterDesc.colorOverLife.endColorMin.y,
+                emitterDesc.colorOverLife.endColorMin.z,
+                emitterDesc.colorOverLife.endColorMin.w
+            }
+        );
+        const Color maxEndColor = Internal::Evaluate_ColorDistributionMax(
+            colorOverLife->colorOverLife,
+            Color{
+                emitterDesc.colorOverLife.endColorMax.x,
+                emitterDesc.colorOverLife.endColorMax.y,
+                emitterDesc.colorOverLife.endColorMax.z,
+                emitterDesc.colorOverLife.endColorMax.w
+            }
+        );
+        const float minEndAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
+            0.f,
+            1.f
+        );
+        const float maxEndAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
+            0.f,
+            1.f
+        );
+
+        emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
+        emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+    }
+
+    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+    {
+        emitterDesc.sizeByLife.enabled = true;
+        emitterDesc.sizeByLife.multiplyXStart = sizeByLife->multiplyXStart;
+        emitterDesc.sizeByLife.multiplyXEnd = sizeByLife->multiplyXEnd;
+        emitterDesc.sizeByLife.multiplyYStart = sizeByLife->multiplyYStart;
+        emitterDesc.sizeByLife.multiplyYEnd = sizeByLife->multiplyYEnd;
+    }
+
+    if (const auto* spawnPerUnit = Internal::Find_ModuleData<SpawnPerUnitModuleData>(emitter, AuthoringModuleType::SpawnPerUnit))
+    {
+        emitterDesc.spawnPerUnit.enabled = spawnPerUnit->enabled;
+        emitterDesc.spawnPerUnit.spawnPerUnit =
+            max(0.f, Internal::Evaluate_FloatDistributionMax(spawnPerUnit->spawnPerUnit, emitterDesc.spawnPerUnit.spawnPerUnit));
+        emitterDesc.spawnPerUnit.unitScalar = max(0.0001f, spawnPerUnit->unitScalar);
+        emitterDesc.spawnPerUnit.movementTolerance = max(0.f, spawnPerUnit->movementTolerance);
+        emitterDesc.spawnPerUnit.maxFrameDistance = max(0.f, spawnPerUnit->maxFrameDistance);
     }
 
     emitterDesc.sampleProvider = _trailPreviewSampleProvider;
@@ -809,23 +946,9 @@ HRESULT Level_EffectEditor::Ready_Layer_Camera(const wstring& layerTag)
     CHECK_NULL(previewCamera, E_FAIL);
     CHECK_FAILED(previewCamera->Initialize(&cameraDesc), E_FAIL);
     EDITOR->Register_PreviewCamera(previewCamera);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, previewCamera), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, previewCamera), E_FAIL);
 
     GAME->Change_ActiveCamera(previewCamera);
-
-    return S_OK;
-}
-
-HRESULT Level_EffectEditor::Ready_Layer_Sky(const wstring& layerTag)
-{
-    if (layerTag.empty())
-        return E_FAIL;
-
-    const Shared<EffectEditorSkybox> skybox =
-        EffectEditorSkybox::Create(_device, _context);
-    CHECK_NULL(skybox, E_FAIL);
-    CHECK_FAILED(skybox->Initialize(nullptr), E_FAIL);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, skybox), E_FAIL);
 
     return S_OK;
 }
@@ -839,7 +962,21 @@ HRESULT Level_EffectEditor::Ready_Layer_Grid(const wstring& layerTag)
         EffectEditorSceneGrid::Create(_device, _context);
     CHECK_NULL(sceneGrid, E_FAIL);
     CHECK_FAILED(sceneGrid->Initialize(nullptr), E_FAIL);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, sceneGrid), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, sceneGrid), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Level_EffectEditor::Ready_Layer_Sky(const wstring& layerTag)
+{
+    if (layerTag.empty())
+        return E_FAIL;
+
+    const Shared<EffectEditorSkybox> skybox =
+        EffectEditorSkybox::Create(_device, _context);
+    CHECK_NULL(skybox, E_FAIL);
+    CHECK_FAILED(skybox->Initialize(nullptr), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, skybox), E_FAIL);
 
     return S_OK;
 }
@@ -853,7 +990,7 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
         TrailPreviewPlayerObject::Create(_device, _context);
     CHECK_NULL(trailPreviewPlayer, E_FAIL);
     CHECK_FAILED(trailPreviewPlayer->Initialize(nullptr), E_FAIL);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, trailPreviewPlayer), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, trailPreviewPlayer), E_FAIL);
 
     const Shared<TrailPreviewWeaponObject> trailPreviewWeapon = trailPreviewPlayer->Get_PreviewWeapon();
     if (trailPreviewWeapon == nullptr)
@@ -871,20 +1008,20 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
         TrailPreviewController::Create(_device, _context);
     CHECK_NULL(trailPreviewController, E_FAIL);
     CHECK_FAILED(trailPreviewController->Initialize(&controllerDesc), E_FAIL);
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::GamePlay), layerTag, trailPreviewController), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, trailPreviewController), E_FAIL);
 
     return S_OK;
 }
 
 void Level_EffectEditor::Clear_PreviewObjects()
 {
-    for (Shared<GameObject>& previewObject : _previewObjects)
-    {
-        if (previewObject != nullptr)
-            GAME->Remove_GameObject(ETOI(LevelType::GamePlay), previewObject);
-    }
+    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+    if (nullptr == effectPool)
+        return;
 
-    _previewObjects.clear();
+    effectPool->Release(_previewPoolHandle);
+    _previewPoolHandle = {};
+    effectPool->Discard_Inactive(Internal::kPreviewPoolKey);
 }
 
 Shared<Level_EffectEditor> Level_EffectEditor::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

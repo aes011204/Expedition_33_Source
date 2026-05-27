@@ -46,12 +46,6 @@
     <Filter Include="02.GameObject\UI" />
     <Filter Include="02.GameObject\UI\BackGround" />
     <Filter Include="03. Component" />
-    <Filter Include="03. Shaders">
-      <UniqueIdentifier>{5171836F-B615-4CE4-9C6F-4361B27204CE}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="03. Shaders\Compute">
-      <UniqueIdentifier>{8771B44D-0942-434E-9111-8F4553475CAD}</UniqueIdentifier>
-    </Filter>
     <Filter Include="03. Component\CombatStat" />
     <Filter Include="03. Component\Input" />
     <Filter Include="03. Component\PlayerController" />
@@ -77,21 +71,31 @@
     <Filter Include="BehavoirTree\battle" />
     <Filter Include="BehavoirTree\world" />
     <Filter Include="Skill" />
+    <Filter Include="02.GameObject\Camera\BattleCamera">
+      <UniqueIdentifier>{a140d5ff-7aa8-44da-b19f-d406017bc23e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. Pool">
+      <UniqueIdentifier>{8f34c89c-d6ca-43eb-90fc-7d07306b013f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. Pool\Effect Pool">
+      <UniqueIdentifier>{c1313e91-9b45-46ca-9845-0762d62c53ba}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_DamageFont.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_EscapeSkipTurn.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_BattleVictory.cpp" />
+    <ClCompile Include="..\private\AN_BattleShot.cpp" />
+    <ClCompile Include="..\Private\BattleClipSequencerAdapter.cpp" />
+    <ClCompile Include="..\Private\CameraDirector.cpp" />
+    <ClCompile Include="..\Private\Player_FreeAim.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
-    <ClCompile Include="..\Private\Player_FreeAim.cpp">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
+    <ClCompile Include="..\Private\UI_BattleVictory.cpp" />
+    <ClCompile Include="..\Private\UI_DamageFont.cpp" />
+    <ClCompile Include="..\Private\UI_EscapeSkipTurn.cpp" />
+    <ClCompile Include="..\Private\BattleTurnCamera.cpp">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleCameraClipIO.cpp">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ANS_QTE.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
@@ -110,89 +114,42 @@
     <ClCompile Include="..\Private\EffectCom.cpp" />
     <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
     <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
+    <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
+    <ClCompile Include="..\Private\AN_EndTurn.cpp" />
+    <ClCompile Include="..\Private\UI_HealFont.cpp" />
+    <ClCompile Include="..\Private\UI_BattleSkillPanel.cpp" />
+    <ClCompile Include="..\Private\EffectInstancePool.cpp">
+      <Filter>06. Pool\Effect Pool</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
-      <Filter>03. Shaders\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl">
-      <Filter>03. Shaders\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimEvaluate.hlsl">
-      <Filter>03. Shaders\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMeshSkinning.hlsl">
-      <Filter>03. Shaders\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMix.hlsl">
-      <Filter>03. Shaders\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneCombine.hlsl">
-      <Filter>03. Shaders\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
-      <Filter>03. Shaders\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
-      <Filter>03. Shaders\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
-      <Filter>03. Shaders\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
-      <Filter>03. Shaders\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
-      <Filter>03. Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">
-      <Filter>03. Shaders\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
-      <Filter>03. Shaders\Compute</Filter>
-    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimEvaluate.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMeshSkinning.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMix.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneCombine.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\ANS_Dodge.h">
@@ -230,9 +187,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Battle_Enum.h">
       <Filter>BattleState\Battle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\BattleTurnCamera.h">
-      <Filter>02.GameObject\Camera</Filter>
     </ClInclude>
     <ClInclude Include="..\public\BT_Patroll.h">
       <Filter>BehavoirTree\world</Filter>
@@ -534,9 +488,6 @@
     <ClInclude Include="..\public\SkillTree_Panel.h">
       <Filter>04. GamePlayUI</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\SkillTargeting.h">
-      <Filter>BattleState</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Create_Class.h">
       <Filter>99.Defines\Helper</Filter>
     </ClInclude>
@@ -664,19 +615,34 @@
     <ClInclude Include="..\Public\Weapon.h">
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_DamageFont.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_EscapeSkipTurn.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\UI_BattleVictory.h" />
+    <ClInclude Include="..\public\AN_BattleShot.h" />
+    <ClInclude Include="..\Public\BattleClipSequencerAdapter.h" />
+    <ClInclude Include="..\Public\CameraDirector.h" />
+    <ClInclude Include="..\Public\CameraPresetIO.h" />
+    <ClInclude Include="..\Public\CameraPresetTypes.h" />
+    <ClInclude Include="..\Public\Player_FreeAim.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
-    <ClInclude Include="..\Public\Player_FreeAim.h">
-      <Filter>02.GameObject\Player\PlayerStateMachine\State</Filter>
+    <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
+    <ClInclude Include="..\Public\UI_BattleVictory.h" />
+    <ClInclude Include="..\Public\UI_DamageFont.h" />
+    <ClInclude Include="..\Public\UI_EscapeSkipTurn.h" />
+    <ClInclude Include="..\Public\BattleTurnCamera.h">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\SkillTargeting.h">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleCameraClipTypes.h">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleCameraClipIO.h">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleCameraProfileTypes.h">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleCameraClipUtils.h">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClInclude>
     <ClInclude Include="..\public\AN_Change_Anim.h" />
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
@@ -692,6 +658,13 @@
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
     <ClInclude Include="..\Public\ANS_IdleOffset.h" />
+    <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
+    <ClInclude Include="..\Public\AN_EndTurn.h" />
+    <ClInclude Include="..\Public\UI_HealFont.h" />
+    <ClInclude Include="..\Public\UI_BattleSkillPanel.h" />
+    <ClInclude Include="..\Public\EffectInstancePool.h">
+      <Filter>06. Pool\Effect Pool</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
@@ -723,9 +696,6 @@
     </ClCompile>
     <ClCompile Include="..\private\BattleActionExecutor.cpp">
       <Filter>BattleState\Battle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\BattleTurnCamera.cpp">
-      <Filter>02.GameObject\Camera</Filter>
     </ClCompile>
     <ClCompile Include="..\private\BT_Patroll.cpp">
       <Filter>BehavoirTree\world</Filter>

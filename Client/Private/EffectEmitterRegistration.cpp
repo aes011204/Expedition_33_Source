@@ -23,7 +23,7 @@ namespace Internal
             const Shared<GameObject> clonedObject = dynamic_pointer_cast<GameObject>(
                 GAME->Clone_Prototype(
                     Prototype::GameObject,
-                    ETOI(LevelType::GamePlay),
+                    ETOI(LevelType::Static),
                     L"GameObject_Effect_ComputeSpriteEmitter",
                     &concreteDesc
                 )
@@ -42,7 +42,7 @@ namespace Internal
             const Shared<GameObject> clonedObject = dynamic_pointer_cast<GameObject>(
                 GAME->Clone_Prototype(
                     Prototype::GameObject,
-                    ETOI(LevelType::GamePlay),
+                    ETOI(LevelType::Static),
                     L"GameObject_Effect_ComputeTrailEmitter",
                     &concreteDesc
                 )

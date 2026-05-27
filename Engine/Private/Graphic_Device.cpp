@@ -1,14 +1,28 @@
 ﻿#include "Graphic_Device.h"
 
+namespace Internal
+{
+bool Is_FlipSwapEffect(DXGI_SWAP_EFFECT swapEffect)
+{
+    return swapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD ||
+           swapEffect == DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+}
+
+uint32 Resolve_BackBufferCount(DXGI_SWAP_EFFECT swapEffect)
+{
+    return Is_FlipSwapEffect(swapEffect) ? 2u : 1u;
+}
+}
+
 Graphic_Device::Graphic_Device()
 {
 }
 
-HRESULT Graphic_Device::Initialize(HWND hWnd, WinMode isWindowed, uint32 winSizeX, uint32 winSizeY, ComPtr<Device>& device, ComPtr<Context>& context)
+HRESULT Graphic_Device::Initialize(HWND hWnd, WinMode isWindowed, uint32 winSizeX, uint32 winSizeY, DXGI_SWAP_EFFECT swapEffect, ComPtr<Device>& device, ComPtr<Context>& context)
 {
 	uint32 flag = 0;
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && ENGINE_ENABLE_DX11_DEBUG_LAYER
 	flag = D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
@@ -17,7 +31,7 @@ HRESULT Graphic_Device::Initialize(HWND hWnd, WinMode isWindowed, uint32 winSize
 	if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, 0, flag, nullptr, 0, D3D11_SDK_VERSION, _device.GetAddressOf(), &FeatureLevel, _deviceContext.GetAddressOf())))
 		return E_FAIL;
 
-	if (FAILED(Ready_SwapChain(hWnd, isWindowed, winSizeX, winSizeY)))
+	if (FAILED(Ready_SwapChain(hWnd, isWindowed, winSizeX, winSizeY, swapEffect)))
 		return E_FAIL;
 
 	if (FAILED(Ready_BackBufferRenderTargetView()))
@@ -110,7 +124,7 @@ HRESULT Graphic_Device::Resize(uint32 width, uint32 height)
     return S_OK;
 }
 
-HRESULT Graphic_Device::Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 windowWidth, uint32 windowHeight)
+HRESULT Graphic_Device::Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 windowWidth, uint32 windowHeight, DXGI_SWAP_EFFECT swapEffect)
 {
 	ComPtr<IDXGIDevice> dxgiDevice = nullptr;
 	if (FAILED(_device.As(&dxgiDevice)))
@@ -131,14 +145,14 @@ HRESULT Graphic_Device::Ready_SwapChain(HWND hWnd, WinMode isWindowed, uint32 wi
 	SwapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 	SwapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 	SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	SwapChainDesc.BufferCount = 1;
+	SwapChainDesc.BufferCount = Internal::Resolve_BackBufferCount(swapEffect);
 	SwapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
 	SwapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
 	SwapChainDesc.SampleDesc.Quality = 0;
 	SwapChainDesc.SampleDesc.Count = 1;
 	SwapChainDesc.OutputWindow = hWnd;
 	SwapChainDesc.Windowed = static_cast<BOOL>(isWindowed);
-	SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD; // 필요한 경우 Flip Model로 바꾸는 현대화 작업 가능
+	SwapChainDesc.SwapEffect = swapEffect;
 
 	if (FAILED(factory->CreateSwapChain(_device.Get(), &SwapChainDesc, _swapChain.GetAddressOf())))
 		return E_FAIL;
@@ -197,11 +211,11 @@ HRESULT Graphic_Device::Ready_DepthStencilView(uint32 windowWidth, uint32 window
 	return S_OK;
 }
 
-Unique<Graphic_Device> Graphic_Device::Create(HWND hWnd, WinMode isWindowed, uint32 windowSizeX, uint32 windowSizeY, ComPtr<Device>& device, ComPtr<Context>& context)
+Unique<Graphic_Device> Graphic_Device::Create(HWND hWnd, WinMode isWindowed, uint32 windowSizeX, uint32 windowSizeY, DXGI_SWAP_EFFECT swapEffect, ComPtr<Device>& device, ComPtr<Context>& context)
 {
 	Unique<Graphic_Device> instance{ new Graphic_Device() };
 
-	if (FAILED(instance->Initialize(hWnd, isWindowed, windowSizeX, windowSizeY, device, context)))
+	if (FAILED(instance->Initialize(hWnd, isWindowed, windowSizeX, windowSizeY, swapEffect, device, context)))
 	{
 		MSG_BOX("Failed to Created : Graphic_Device");
 		instance->Free();

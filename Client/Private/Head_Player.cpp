@@ -43,11 +43,11 @@ void Head_Player::Update(float timeDelta)
 {
     PlayableParts::Update(timeDelta);
 
-    Debug_Profile::Scope updateScope("Player::Head::Update");
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Head::Update");
 
     if (Has_LeaderPoseComponent())
     {
-        Debug_Profile::Scope profileScope("Player::Head::LeaderPose");
+        ENGINE_PROFILE_SCOPE_DETAIL("Player::Head::LeaderPose");
         Update_LeaderPoseMatrices();
     }
     else
@@ -65,7 +65,7 @@ void Head_Player::Late_Update(float timeDelta)
 
 HRESULT Head_Player::Render()
 {
-    Debug_Profile::Scope profileScope("Player::Head::Render");
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Head::Render");
 
     return PlayableParts::Render();
 }
