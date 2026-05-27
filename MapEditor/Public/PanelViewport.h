@@ -19,6 +19,7 @@ public:
 public:
     void SetSnapSettings(Shared<SnapSettings> settings) { _snapSettings = settings; }
     void Set_SceneSRV(ID3D11ShaderResourceView* srv) { _sceneSRV = srv; }
+    void Set_SculpState(Shared<LandscapeSculptState> state) { _sculptState = state; }
 
 public:
     virtual void Update(float timeDelta) override;
@@ -59,10 +60,18 @@ private:
 
     ID3D11ShaderResourceView* _sceneSRV = {};
 
+    Shared<LandscapeSculptState> _sculptState;
+
+    bool _sculptRequested = false;
+    ImVec2 _sculptMousePos = {};
+    ImVec2 _sculptVpPos = {};
+    ImVec2 _sculptVpSize = {};
+
 public:
     bool ConsumePick(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
     bool ConsumeSpawn(string& outModelPath, ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
     bool ConsumeCursorSet(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
+    bool ConsumeSculpt(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);
 
 public:
     static Shared<PanelViewport> Create(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx);

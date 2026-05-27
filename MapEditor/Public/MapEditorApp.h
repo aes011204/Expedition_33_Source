@@ -60,6 +60,7 @@ private:
     bool _octreeDirty = true;
 
     Shared<METerrainActor> _terrain;
+    Shared<LandscapeSculptState> _sculptState;
 
 private:
     HRESULT Ready_Light();
@@ -76,6 +77,9 @@ private:
     string Resolve_BundleKey(const fs::path& modelPath) const;
     void Apply_PassOverrideToModel(ModelCom& model, const string& modelFilename, Vec3 worldPos = Vec3(0.f, 0.f, 0.f), const string& fullModelPath = "");
     void Apply_PassOverrides();
+
+    void Add_Landscape(const LandscapeConfig& cfg);
+    void Remove_Landscape(int32 idx);
 
     HRESULT Build_TerrainFromScene();
 

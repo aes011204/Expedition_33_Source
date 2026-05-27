@@ -172,6 +172,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\MEDebugRenderer.h" />
     <ClInclude Include="..\Public\MEImGuiManager.h" />
     <ClInclude Include="..\Public\MEInstancedMeshActor.h" />
+    <ClInclude Include="..\Public\MELandscapeActor.h" />
     <ClInclude Include="..\Public\MEManager.h" />
     <ClInclude Include="..\Public\MEModelManager.h" />
     <ClInclude Include="..\Public\MEPickingSystem.h" />
@@ -182,6 +183,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\PanelAssetBrowser.h" />
     <ClInclude Include="..\Public\PanelHierarchy.h" />
     <ClInclude Include="..\Public\PanelInspector.h" />
+    <ClInclude Include="..\Public\PanelLandscape.h" />
     <ClInclude Include="..\Public\PanelModelOverride.h" />
     <ClInclude Include="..\Public\PanelSnap.h" />
     <ClInclude Include="..\Public\PanelViewport.h" />
@@ -203,6 +205,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\MEDebugRenderer.cpp" />
     <ClCompile Include="..\Private\MEImGuiManager.cpp" />
     <ClCompile Include="..\Private\MEInstancedMeshActor.cpp" />
+    <ClCompile Include="..\Private\MELandscapeActor.cpp" />
     <ClCompile Include="..\Private\MEManager.cpp" />
     <ClCompile Include="..\Private\MEModelManager.cpp" />
     <ClCompile Include="..\Private\MEPickingSystem.cpp" />
@@ -213,6 +216,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\PanelAssetBrowser.cpp" />
     <ClCompile Include="..\Private\PanelHierarchy.cpp" />
     <ClCompile Include="..\Private\PanelInspector.cpp" />
+    <ClCompile Include="..\Private\PanelLandscape.cpp" />
     <ClCompile Include="..\Private\PanelModelOverride.cpp" />
     <ClCompile Include="..\Private\PanelSnap.cpp" />
     <ClCompile Include="..\Private\PanelViewport.cpp" />

@@ -17,6 +17,7 @@
 #include "MEInstancedMeshActor.h"
 #include "MEBridgeCamera.h"
 #include "ComputeShaderCom.h"
+#include "MELandscapeActor.h"
 
 // test
 #include "METerrainActor.h"
@@ -64,7 +65,14 @@ HRESULT MapEditorApp::Initialize()
     _viewport = PanelViewport::Create(_camera, _rt, &_scene);
     CHECK_NULL(_viewport, E_FAIL);
 
-    _manager = MEManager::Create(_viewport, &_scene, _camera.get());
+    _sculptState = make_shared<LandscapeSculptState>();
+
+    LandscapePanelContext landscapeCtx{};
+    landscapeCtx.sculptState = _sculptState;
+    landscapeCtx.onAdd = [this](const LandscapeConfig& cfg) { Add_Landscape(cfg); };
+    landscapeCtx.onRemove = [this](int32 idx) { Remove_Landscape(idx); };
+
+    _manager = MEManager::Create(_viewport, &_scene, _camera.get(), landscapeCtx);
     CHECK_NULL(_manager, E_FAIL);
 
     _pickingSystem = MEPickingSystem::Create(_device, _context, g_iWinSizeX, g_iWinSizeY);
@@ -223,6 +231,12 @@ HRESULT MapEditorApp::Render()
     {
         _terrain->Set_CameraFar(_camera->GetFar());
         _terrain->Late_Update(0.f);
+    }
+
+    for (auto& landscape : _scene._landscapes)
+    {
+        landscape->Set_CameraFar(_camera->GetFar());
+        landscape->Late_Update(0.f);
     }
 
     GAME->Bind_BackBuffer();
@@ -653,6 +667,49 @@ void MapEditorApp::Apply_PassOverrides()
 
         const string modelFilename = String::ToString(fs::path(obj->_instancedModelPath).filename().wstring());
         Apply_PassOverrideToModel(*model, modelFilename);
+    }
+}
+
+void MapEditorApp::Add_Landscape(const LandscapeConfig& cfg)
+{
+    VIBuffer_Landscape::LAND_DESC desc{};
+    desc.countX = cfg.countX;
+    desc.countZ = cfg.countZ;
+    desc.sizeX = cfg.sizeX;
+    desc.sizeZ = cfg.sizeZ;
+
+    auto actor = MELandscapeActor::Create(_device, _context, desc);
+    if (!actor)
+    {
+        LOG_WARN("Add_Landscape: Failed to create MELandscapeActor");
+        return;
+    }
+
+    actor->Get_Transform()->Set_Position(Vec3(cfg.worldOffsetX, cfg.worldOffsetY, cfg.worldOffsetZ));
+
+    if (!cfg.heights.empty())
+    {
+        auto& heights = actor->Get_VIBuffer()->Get_Heights();
+        heights = cfg.heights;
+        actor->Get_VIBuffer()->Flush();
+    }
+
+    _scene._landscapes.push_back(actor);
+    _scene._activeLandscapeIdx= static_cast<int32>(_scene._landscapes.size()) - 1;
+}
+
+void MapEditorApp::Remove_Landscape(int32 idx)
+{
+    if (idx < 0 || idx >= static_cast<int32>(_scene._landscapes.size()))
+    {
+        return;
+    }
+
+    _scene._landscapes.erase(_scene._landscapes.begin() + idx);
+
+    if (_scene._activeLandscapeIdx>= static_cast<int32>(_scene._landscapes.size()))
+    {
+        _scene._activeLandscapeIdx= static_cast<int32>(_scene._landscapes.size());
     }
 }
 

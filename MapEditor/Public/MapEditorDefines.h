@@ -40,6 +40,7 @@ namespace MapEditor
         Light,
         InstancedMesh,
         Terrain,
+        Landscape,
         Fail
     };
 
@@ -71,6 +72,8 @@ namespace MapEditor
             return "[IM]";
         case MapEditor::EObjectType::Terrain:
             return "[TR]";
+        case MapEditor::EObjectType::Landscape:
+            return "[LS]";
         case MapEditor::EObjectType::Fail:
         default:
             return "[??]";
@@ -164,6 +167,43 @@ namespace MapEditor
         float scaleY = 1.f;
         vector<TerrainTile> tiles;
         bool IsValid() const { return !tiles.empty(); }
+    };
+
+    enum class ESculptMode
+    {
+        None,
+        Raise,
+        Lower,
+        Smooth,
+        Flatten
+    };
+
+    struct LandscapeSculptState
+    {
+        ESculptMode mode = ESculptMode::None;
+        float brushRadius = 5.f;
+        float brushStrength = 0.5f;
+        float flattenHeight = 0.f;
+    };
+
+    struct LandscapeConfig
+    {
+        string name = "Landscape_0";
+        uint32 countX = 64;
+        uint32 countZ = 64;
+        float sizeX = 1.f;
+        float sizeZ = 1.f;
+        float worldOffsetX = 0.f;
+        float worldOffsetY = 0.f;
+        float worldOffsetZ = 0.f;
+        vector<float> heights;
+    };
+
+    struct LandscapePanelContext
+    {
+        Shared<LandscapeSculptState> sculptState;
+        function<void(const LandscapeConfig&)> onAdd;
+        function<void(int32)> onRemove;
     };
 };
 

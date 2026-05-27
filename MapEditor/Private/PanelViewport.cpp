@@ -105,8 +105,17 @@ void PanelViewport::Render()
                 ImGui::EndDragDropTarget();
             }
 
-            if (_ctx && ImGui::IsItemClicked(ImGuiMouseButton_Left) &&
-                !ImGuizmo::IsOver() && !ImGuizmo::IsUsing())
+            const bool sculptActive = _sculptState && _sculptState->mode != ESculptMode::None;
+
+            if (_ctx && ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Left) && !ImGuizmo::IsOver() && !ImGuizmo::IsUsing() && sculptActive)
+            {
+                _sculptRequested = true;
+                _sculptMousePos = ImGui::GetIO().MousePos;
+                _sculptVpPos = ImGui::GetItemRectMin();
+                _sculptVpSize = ImGui::GetItemRectSize();
+            }
+            else if (_ctx && ImGui::IsItemClicked(ImGuiMouseButton_Left) &&
+                !ImGuizmo::IsOver() && !ImGuizmo::IsUsing() && !sculptActive)
             {
                 const bool shiftHeld = ImGui::GetIO().KeyShift;
                 if (shiftHeld)
@@ -116,7 +125,6 @@ void PanelViewport::Render()
                     _cursorVpPos = ImGui::GetItemRectMin();
                     _cursorVpSize = ImGui::GetItemRectSize();
                 }
-
                 else
                 {
                     _pickRequested = true;
@@ -259,6 +267,21 @@ bool PanelViewport::ConsumeCursorSet(ImVec2& outMousePos, ImVec2& outVpPos, ImVe
     outMousePos = _cursorMousePos;
     outVpPos = _cursorVpPos;
     outVpSize = _cursorVpSize;
+
+    return true;
+}
+
+bool PanelViewport::ConsumeSculpt(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize)
+{
+    if (!_sculptRequested)
+    {
+        return false;
+    }
+
+    _sculptRequested = false;
+    outMousePos = _sculptMousePos;
+    outVpPos = _sculptVpPos;
+    outVpSize = _sculptVpSize;
 
     return true;
 }

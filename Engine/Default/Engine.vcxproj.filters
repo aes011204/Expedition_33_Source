@@ -250,6 +250,9 @@
     <Filter Include="01.Utility\04.Component\Model\Animation\Modifier">
       <UniqueIdentifier>{4a8b075f-4a2b-4060-839b-978fbfb1912b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\VIBuffer\Landscape">
+      <UniqueIdentifier>{8b2838d7-5ee3-4c26-a1f3-6eb4e9100b13}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -437,6 +440,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\MapStaticCollisionBuilder.h">
       <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\VIBuffer_Landscape.h">
+      <Filter>01.Utility\04.Component\VIBuffer\Landscape</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1036,6 +1042,10 @@
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
+    <ClCompile Include="..\Private\SSAOPipeline.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_Landscape.cpp">
+      <Filter>01.Utility\04.Component\VIBuffer\Landscape</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

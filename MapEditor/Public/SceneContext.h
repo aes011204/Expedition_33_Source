@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "EditorObject.h"
+#include "MELandscapeActor.h"
 
 NS_BEGIN(MapEditor)
 
@@ -59,6 +60,10 @@ struct SceneContext
     void LoadTerrainConfig(const string& filePath);
 
     bool _terrainDirty = false;
+
+    vector<LandscapeConfig> _landscapeConfigs;
+    vector<Shared<MELandscapeActor>> _landscapes;
+    int32 _activeLandscapeIdx = -1;
 };
 
 NS_END

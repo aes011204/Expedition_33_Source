@@ -1,0 +1,213 @@
+﻿#include "PanelLandscape.h"
+#include "SceneContext.h"
+
+PanelLandscape::PanelLandscape()
+    : MEWindow{ L"Landscape" }
+{
+}
+
+HRESULT PanelLandscape::Initialize(SceneContext* ctx, const LandscapePanelContext& landscapeCtx)
+{
+    _ctx = ctx;
+    _sculptState = landscapeCtx.sculptState;
+    _onAdd = landscapeCtx.onAdd;
+    _onRemove = landscapeCtx.onRemove;
+
+    return S_OK;
+}
+
+void PanelLandscape::Update(float timeDelta)
+{
+}
+
+void PanelLandscape::Render()
+{
+    bool open = IsOpen();
+    if (ImGui::Begin("Landscape", &open))
+    {
+        Render_LandscapeList();
+        ImGui::Separator();
+        Render_SculptTools();
+        ImGui::Separator();
+        Render_WorldOffset();
+    }
+
+    ImGui::End();
+    SetOpen(open);
+
+    if (_showCreateDialog)
+    {
+        Render_CreateDialog();
+    }
+}
+
+void PanelLandscape::Render_LandscapeList()
+{
+    ImGui::Text("Landscapes");
+
+    const int32 count = static_cast<int32>(_ctx->_landscapes.size());
+
+    if (count == 0)
+    {
+        ImGui::TextDisabled("None");
+    }
+    else
+    {
+        for (int32 i = 0; i < count; ++i)
+        {
+            ImGui::PushID(i);
+
+            const string label = "Landscape_" + to_string(i);
+            bool selected = (_ctx->_activeLandscapeIdx == i);
+            if (ImGui::Selectable(label.c_str(), selected))
+            {
+                _ctx->_activeLandscapeIdx = i;
+            }
+
+            ImGui::PopID();
+        }
+    }
+
+    ImGui::Spacing();
+
+    if (ImGui::Button("+ 추가"))
+    {
+        _showCreateDialog = true;
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("- 삭제"))
+    {
+        if (_ctx->_activeLandscapeIdx >= 0 && _onRemove)
+        {
+            _onRemove(_ctx->_activeLandscapeIdx);
+        }
+    }
+}
+
+void PanelLandscape::Render_CreateDialog()
+{
+    ImGui::SetNextWindowSize(ImVec2(320.f, 300.f), ImGuiCond_Always);
+    if (ImGui::Begin("Landscape 생성", &_showCreateDialog, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
+    {
+        ImGui::InputText("이름", _createName, sizeof(_createName));
+        ImGui::InputInt("쿼드 X", &_createCountX);
+        ImGui::InputInt("쿼드 Z", &_createCountZ);
+        ImGui::DragFloat("크기 X", &_createSizeX, 0.1f, 0.1f, 100.f, "%.2f");
+        ImGui::DragFloat("크기 Z", &_createSizeZ, 0.1f, 0.1f, 100.f, "%.2f");
+        ImGui::Separator();
+        ImGui::DragFloat("오프셋 X", &_createOffsetX, 1.f, -10000.f, 10000.f, "%.1f");
+        ImGui::DragFloat("오프셋 Y", &_createOffsetY, 1.f, -10000.f, 10000.f, "%.1f");
+        ImGui::DragFloat("오프셋 Z", &_createOffsetZ, 1.f, -10000.f, 10000.f, "%.1f");
+        ImGui::Separator();
+
+        _createCountX = max(2, _createCountX);
+        _createCountZ = max(2, _createCountZ);
+
+        const float totalX = _createCountX * _createSizeX;
+        const float totalZ = _createCountZ * _createSizeZ;
+        ImGui::TextDisabled("총 크기: %.1f x %.1f", totalX, totalZ);
+        ImGui::TextDisabled("정점 수: %d", (_createCountX + 1) * (_createCountZ + 1));
+
+        ImGui::Spacing();
+        if (ImGui::Button("생성", ImVec2(120.f, 0.f)))
+        {
+            LandscapeConfig cfg{};
+            cfg.name = _createName;
+            cfg.countX = static_cast<uint32>(_createCountX);
+            cfg.countZ = static_cast<uint32>(_createCountZ);
+            cfg.sizeX = _createSizeX;
+            cfg.sizeZ = _createSizeZ;
+            cfg.worldOffsetX = _createOffsetX;
+            cfg.worldOffsetY = _createOffsetY;
+            cfg.worldOffsetZ = _createOffsetZ;
+
+            if (_onAdd)
+            {
+                _onAdd(cfg);
+            }
+
+            _showCreateDialog = false;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("취소", ImVec2(120.f, 0.f)))
+        {
+            _showCreateDialog = false;
+        }
+    }
+    ImGui::End();
+}
+
+void PanelLandscape::Render_SculptTools()
+{
+    ImGui::Text("Sculpt");
+
+    const auto Btn = [&](const char* label, ESculptMode mode)
+        {
+            bool active = (_sculptState->mode == mode);
+            if (active)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+            }
+
+            if (ImGui::Button(label, ImVec2(70.f, 0.f)))
+            {
+                _sculptState->mode = active ? ESculptMode::None : mode;
+            }
+
+            if (active)
+            {
+                ImGui::PopStyleColor();
+            }
+        };
+
+    Btn("Raise", ESculptMode::Raise);
+    ImGui::SameLine();
+
+    Btn("Lower", ESculptMode::Lower);
+    ImGui::SameLine();
+
+    Btn("Smooth", ESculptMode::Smooth);
+    ImGui::SameLine();
+
+    Btn("Flatten", ESculptMode::Flatten);
+
+    ImGui::Spacing();
+    ImGui::DragFloat("반경", &_sculptState->brushRadius, 0.1f, 0.5f, 200.f, "%.1f");
+    ImGui::DragFloat("강도", &_sculptState->brushStrength, 0.01f, 0.01f, 5.f, "%.2f");
+
+    if (_sculptState->mode == ESculptMode::Flatten)
+    {
+        ImGui::DragFloat("목표 높이", &_sculptState->flattenHeight, 0.1f, -1000.f, 1000.f, "%.1f");
+    }
+}
+
+void PanelLandscape::Render_WorldOffset()
+{
+    if (_ctx->_activeLandscapeIdx < 0 || _ctx->_activeLandscapeIdx >= static_cast<int32>(_ctx->_landscapes.size()))
+    {
+        return;
+    }
+
+    auto& actor = (_ctx->_landscapes)[_ctx->_activeLandscapeIdx];
+    Vec3 pos = actor->Get_Transform()->Get_Position();
+
+    ImGui::Text("World Offset");
+    if (ImGui::DragFloat3("위치##landscape", reinterpret_cast<float*>(&pos), 1.f, -10000.f, 10000.f, "%.1f"))
+    {
+        actor->Get_Transform()->Set_Position(pos);
+    }
+}
+
+Shared<PanelLandscape> PanelLandscape::Create(SceneContext* ctx, const LandscapePanelContext& landscapeCtx)
+{
+    auto instance = make_shared<PanelLandscape>();
+    if (FAILED(instance->Initialize(ctx, landscapeCtx)))
+    {
+        return nullptr;
+    }
+
+    return instance;
+}
+
