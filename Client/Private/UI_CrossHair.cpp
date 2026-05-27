@@ -39,16 +39,19 @@ void UI_CrossHair::Open()
     if (_outlineRoot)
         _outlineRoot->Open();
 
-    Apply_Color();
-
-    if (!wasOpen && _crossHairImage)
-        _crossHairImage->Play_UIAnimation(L"Ready_CrossAir", true); // 처음 열릴 때만 Ready_CrossAir 연출을 다시 시작한다.
+    if (!wasOpen)
+    {
+        _isHit = false;
+        _hasHitState = false;
+        Play_CrossAirAnimation(L"Ready_CrossAir");
+    }
+        
 }
 
 void UI_CrossHair::Close()
 {
     _isHit = false;
-    Apply_Color();
+    _hasHitState = false;
 
     UI_RuntimePanelBase::Close();
 
@@ -58,8 +61,26 @@ void UI_CrossHair::Close()
 
 void UI_CrossHair::Set_HitState(bool isHit)
 {
+    if (!_hasHitState)
+    {
+        _hasHitState = true;
+        _isHit = isHit;
+
+        if (_isHit)
+            Play_CrossAirAnimation(L"Hover_Monster_CrossAir");
+
+        return;
+    }
+
+    if (_isHit == isHit)
+        return;
+
     _isHit = isHit;
-    Apply_Color();
+
+    if (_isHit)
+        Play_CrossAirAnimation(L"Hover_Monster_CrossAir");
+    else
+        Play_CrossAirAnimation(L"Hover_Cancel_Monster_CrossAir");
 }
 
 HRESULT UI_CrossHair::Load_UI(uint32 levelIndex)
@@ -67,7 +88,11 @@ HRESULT UI_CrossHair::Load_UI(uint32 levelIndex)
     UI_RuntimeLoader::UI_LoadDesc desc{};
     desc.levelIndex = levelIndex;
     desc.jsonPath = Constants::UI::UI_CrossAir_Path;
-    desc.animationPath = Constants::UI_Anim::UI_CrossAirAnim_Path;
+    desc.animationPaths = {
+        Constants::UI_Anim::UI_CrossAirReadyAnim_Path,
+        Constants::UI_Anim::UI_CrossAirHoverMonsterAnim_Path,
+        Constants::UI_Anim::UI_CrossAirHoverCancelMonsterAnim_Path,
+    };
     desc.prototypeTagPrefix = L"BattleCrossHair";
     desc.outUIByName = &_uiByName;
 
@@ -95,19 +120,16 @@ HRESULT UI_CrossHair::Bind_UI()
 
     CHECK_NULL(_crossHairImage, E_FAIL);
 
-    Apply_Color();
     return S_OK;
 }
 
-void UI_CrossHair::Apply_Color()
+void UI_CrossHair::Play_CrossAirAnimation(const wstring& animationName)
 {
     if (_crossHairImage)
-        // 히트 여부에 따라 중앙 크로스헤어 색을 바꾼다.
-        _crossHairImage->Set_Color(_isHit ? _hitColor : _normalColor); 
+        _crossHairImage->Play_UIAnimation(animationName, true);
 
     if (_crossHairOutlineImage)
-        // 히트 여부에 따라 외곽선 색을 바꾼다.
-        _crossHairOutlineImage->Set_Color(_isHit ? _outlineHitColor : _outlineNormalColor);
+        _crossHairOutlineImage->Play_UIAnimation(animationName, true);
 }
 
 Unique<UI_CrossHair> UI_CrossHair::Create(uint32 levelIndex)

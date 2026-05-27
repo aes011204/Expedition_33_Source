@@ -17,6 +17,22 @@
 #include "imgui_internal.h"
 #include "AnimState_View.h"
 
+namespace
+{
+    bool IsInteractivePreviewWindow(const Shared<Editor_Window>& window)
+    {
+        return window != nullptr &&
+            window->Is_Open() &&
+            window->Is_Visible() &&
+            (window->Is_Focused() || window->Is_Hovered());
+    }
+
+    bool IsShownPreviewWindow(const Shared<Editor_Window>& window)
+    {
+        return window != nullptr && window->Is_Open() && window->Is_Visible();
+    }
+}
+
 Prefab_View::Prefab_View()
     : Editor_Window(L"Prefab")
 {
@@ -33,7 +49,7 @@ void Prefab_View::Update(float timeDelta)
     if (!Is_Visible())
         return;
 
-    if (Is_AnimationViewFocused())
+    if (Should_DeferToCompanionPreview())
         return;
 
     if (_isPreviewHovered && _previewCamera)
@@ -51,7 +67,7 @@ void Prefab_View::Pre_Render()
     if (!Is_Visible())
         return;
 
-    if (Is_AnimationViewFocused())
+    if (Should_DeferToCompanionPreview())
         return;
 
     if (_previewObject == nullptr || _previewCamera == nullptr)
@@ -964,15 +980,22 @@ void Prefab_View::Disable_PreviewAnimNotifyExecution(const Shared<GameObject>& g
     }
 }
 
-bool Prefab_View::Is_AnimationViewFocused()
+bool Prefab_View::Should_DeferToCompanionPreview()
 {
+    const Shared<Editor_Window> prefabWindow = EDITOR->Get_Window(L"Prefab");
+    const bool isPrefabInteractive = IsInteractivePreviewWindow(prefabWindow);
+
     Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
-    Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(animationWindow);
-    if (animationView != nullptr && animationView->Is_Open() && animationView->Is_Focused())
+    if (IsInteractivePreviewWindow(animationWindow))
         return true;
 
     Shared<Editor_Window> animStateWindow = EDITOR->Get_Window(L"AnimState");
-    return animStateWindow != nullptr && animStateWindow->Is_Open() && animStateWindow->Is_Focused();
+    if (IsInteractivePreviewWindow(animStateWindow))
+        return true;
+
+    // 같은 프리뷰 대상을 여는 companion 창이 보이는 동안에는 기본 owner를 companion 쪽으로 둔다.
+    return !isPrefabInteractive &&
+        (IsShownPreviewWindow(animationWindow) || IsShownPreviewWindow(animStateWindow));
 }
 
 void Prefab_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)

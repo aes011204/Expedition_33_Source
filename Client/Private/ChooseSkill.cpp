@@ -1,7 +1,34 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ChooseSkill.h"
 
+#include "Input_Manager.h"
+#include "GameInstance.h"
+#include "ClientInstance.h"
+#include "BattleController.h"
+#include "BattleStateMachine.h"
+#include "CombatStatCom.h"
+
 NS_BEGIN(Client)
+
+// TODO : TEMP TEMP. 진짜 임시 그냥 일단 스킬 가져와서 사용만 되게 Q만 열어서
+namespace
+{
+    string Resolve_FirstBattleSkillKey(PlayerCharacterType playerType, KEY_TYPE key)
+    {
+        if (key != KEY_TYPE::Q)
+        {
+            return "";
+        }
+
+        switch (playerType)
+        {
+        case PlayerCharacterType::Gustave: return "LumiereAssault";
+        case PlayerCharacterType::Lune:    return "Immolation";
+        case PlayerCharacterType::Maelle:  return "OffensiveSwitch";
+        default:                           return "";
+        }
+    }
+}
 
 ChooseSkill::ChooseSkill(const Shared<BattleController>& owner)
     : Battle_State{ owner }
@@ -24,13 +51,84 @@ void ChooseSkill::Begin_Play()
 
 bool ChooseSkill::EnterInvoke()
 {
-    LOG_DEBUG("ChooseSkill::EnterInvoke");
+    auto owner = Get_Owner();
+    if (!owner)
+        return false;
+
+    auto& action = owner->Get_TurnAction();
+    action._selected_SkillKey = {}; // 스킬 메뉴 재진입 시 이전 선택값 제거
+
+    const BattleChar& actor = action._curChar;
+    if (actor.ModelCom)
+    {
+        // Enter 애니메이션 진입 후
+        if (!actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Skill_Enter), 0.2f, false))
+        {
+            // 없으면 fallback용 Idle로
+            actor.ModelCom->Set_AnimationByState(
+                ETOI(BattleAnimType::Skill_Idle), 0.2f, true
+            );
+        }
+    }
+
     return Battle_State::EnterInvoke();
 }
 
 void ChooseSkill::Update(float timeDelta)
 {
     Battle_State::Update(timeDelta);
+
+    auto owner = Get_Owner();
+    auto battleFSM = Get_BattleFSM();
+
+    if (!owner || !battleFSM)
+        return;
+
+    auto& action = owner->Get_TurnAction();
+    if (action._curChar.statCom == nullptr)
+        return;
+
+    if (GAME->KeyDown(KEY_TYPE::ESCAPE))
+    {
+        action._selected_SkillKey = {}; // 스킬 메뉴 취소
+
+        if (action._curChar.ModelCom)
+            action._curChar.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.2f, true);
+
+        battleFSM->Change_State(BattleTurnState::ChooseAction);
+        return;
+    }
+
+    if (!GAME->KeyDown(KEY_TYPE::Q))
+        return;
+
+    const string skillKey =
+        Resolve_FirstBattleSkillKey(action._curChar.statCom->Get_PlayerType(), KEY_TYPE::Q);
+
+    if (skillKey.empty())
+        return;
+
+    const Skill_Data* skillData = CLIENT->Get_Skill(skillKey);
+    if (skillData == nullptr)
+    {
+        LOG_ERROR("ChooseSkill: skill data not found. skillKey={}", skillKey.c_str());
+        return;
+    }
+
+    const uint32 apCost = skillData->apCost > 0 ? static_cast<uint32>(skillData->apCost) : 0u;
+    if (action._curChar.statCom->Get_CurAP() < apCost)
+    {
+        LOG_DEBUG("ChooseSkill: not enough AP. skillKey={}, curAP={}, cost={}",
+            skillKey.c_str(),
+            action._curChar.statCom->Get_CurAP(),
+            apCost);
+        return;
+    }
+
+    action.type = EBattleContext::Skill;
+    action._selected_SkillKey = *skillData; // SkillTargeting에서 target까지 확정한 뒤 Execute_Skill로 넘긴다.
+
+    battleFSM->Change_State(BattleTurnState::SkillTargeting);
 }
 
 void ChooseSkill::LateUpdate(float timeDelta)
@@ -40,7 +138,6 @@ void ChooseSkill::LateUpdate(float timeDelta)
 
 void ChooseSkill::ExitInvoke()
 {
-    LOG_DEBUG("ChooseSkill::ExitInvoke");
     Battle_State::ExitInvoke();
 }
 

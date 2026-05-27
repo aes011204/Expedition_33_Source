@@ -91,9 +91,15 @@ bool BattleStateMachine::Change_State(BattleTurnState playerState)
 
 BattleTurnState BattleStateMachine::Get_CurrentPlayerState() const
 {
-    auto str = String::ToString(_currentStateName);
+    if (_currentStateName.empty())
+        return BattleTurnState::None; // 아직 FSM 현재 상태가 안 잡힌 프레임은 None으로 취급한다.
 
-    return magic_enum::enum_cast<BattleTurnState>(str).value();
+    const auto str = String::ToString(_currentStateName);
+    const auto state = magic_enum::enum_cast<BattleTurnState>(str);
+    if (!state.has_value())
+        return BattleTurnState::None; // 저장된 상태명이 enum과 안 맞아도 예외 대신 안전하게 빠진다.
+
+    return state.value();
 }
 
 

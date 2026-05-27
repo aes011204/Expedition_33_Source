@@ -15,7 +15,6 @@ void Base_Gustave_Attack::Execute(const Skill_Data& skill, const BattleChar& att
 {
     float Damage = 40;
     DamageSystem::ApplyDamage(Damage, target);
-
 }
 
 Shared<Base_Gustave_Attack> Base_Gustave_Attack::Create()

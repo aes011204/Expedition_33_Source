@@ -138,23 +138,46 @@ def convert_xlsx_file(xlsx_file: str) -> None:
     print(f"Converted {filename} -> {os.path.basename(output_path)}")
 
 
-def convert_all_xlsx_to_json() -> None:
-    """Convert every DT_*.xlsx file below Data/xlsx into Data/json."""
+def list_local_xlsx_files() -> list[str]:
+    """Return local DT_*.xlsx files in a stable order, excluding temp lock files."""
     os.makedirs(XLSX_DIR, exist_ok=True)
-    os.makedirs(JSON_DIR, exist_ok=True)
 
     xlsx_files = sorted(glob.glob(os.path.join(XLSX_DIR, "DT_*.xlsx")))
+    return [
+        xlsx_file
+        for xlsx_file in xlsx_files
+        if not os.path.basename(xlsx_file).startswith("~$")
+    ]
+
+
+def convert_all_xlsx_to_json(selected_sheet: str | None = None) -> None:
+    """Convert every DT_*.xlsx file, or one selected workbook, into Data/json."""
+    os.makedirs(JSON_DIR, exist_ok=True)
+
+    xlsx_files = list_local_xlsx_files()
+    if selected_sheet:
+        selected_path = os.path.join(XLSX_DIR, selected_sheet)
+        if selected_path not in xlsx_files:
+            raise FileNotFoundError(f"Selected sheet not found: {selected_sheet}")
+        xlsx_files = [selected_path]
+
     for xlsx_file in xlsx_files:
-        if os.path.basename(xlsx_file).startswith("~$"):
-            continue
         convert_xlsx_file(xlsx_file)
 
 
-def sync_google_sheets() -> None:
+def sync_google_sheets(selected_sheet: str | None = None) -> None:
     """Refresh local xlsx snapshots from Google Sheets."""
     sync_google_sheet_shortcuts()
 
-    for filename, export_url in GOOGLE_SHEET_EXPORTS.items():
+    sync_targets = GOOGLE_SHEET_EXPORTS.items()
+    if selected_sheet:
+        export_url = GOOGLE_SHEET_EXPORTS.get(selected_sheet)
+        if export_url is None:
+            print(f"Skipped {selected_sheet} sync (Google Sheet URL not registered)")
+            return
+        sync_targets = [(selected_sheet, export_url)]
+
+    for filename, export_url in sync_targets:
         try:
             sync_google_sheet_xlsx(filename, export_url)
         except urllib.error.HTTPError as error:
@@ -170,11 +193,15 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Download the latest Google Sheet exports into Data/xlsx before conversion.",
     )
+    parser.add_argument(
+        "--sheet",
+        help="Convert only one DT_*.xlsx filename from Data/xlsx.",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
     if args.sync_google:
-        sync_google_sheets()
-    convert_all_xlsx_to_json()
+        sync_google_sheets(args.sheet)
+    convert_all_xlsx_to_json(args.sheet)
