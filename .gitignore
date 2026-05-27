@@ -500,6 +500,7 @@ Engine/Bin/Engine.dll
 # Keep shared Data inputs tracked. Broad ignore here can delete teammates' local copies
 # once tracked files are removed on a branch.
 Client/Bin/Resources/Models/Data/Assets/**
+Client/Bin/Resources/Data/xlsx/*.xlsx
 
 # Repo-local agent instructions
 /AGENTS.md
