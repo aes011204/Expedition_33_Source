@@ -3,7 +3,7 @@
 // Debug build에서 DX11 debug layer를 켤지 결정한다.
 // D3D11 Live Object ref Count Checker 작동 여부에 영향을 미친다.
 #ifndef ENGINE_ENABLE_DX11_DEBUG_LAYER
-#define ENGINE_ENABLE_DX11_DEBUG_LAYER 0
+#define ENGINE_ENABLE_DX11_DEBUG_LAYER 1
 #endif
 
 // 프로파일 창의 강도를 설정
