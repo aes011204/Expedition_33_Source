@@ -213,6 +213,22 @@ struct alignas(16) SSAOCB
 };
 
 /* ------------------------------------------ */
+/*        DeferredLighting CBuffer            */
+/* ------------------------------------------ */
+struct alignas(16) DeferredLightingCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::DeferredLighting;
+
+    float iblIntensity{ 1.f };
+    float iblDiffuseIntensity{ 1.f };
+    float iblSpecularIntensity{ 1.f };
+    float iblPrefilterMaxMip{ 8.f };
+
+    uint32 iblEnabled{ 1u };
+    uint32 _pad0[3]{};
+};
+
+/* ------------------------------------------ */
 /*            DrawFeature CBuffer             */
 /* ------------------------------------------ */
 struct alignas(16) DrawFeatureCB
@@ -239,6 +255,7 @@ static_assert(sizeof(ScreenSpaceCB) % 16 == 0);
 static_assert(sizeof(LightCB) % 16 == 0);
 static_assert(sizeof(PostProcessCB) % 16 == 0);
 static_assert(sizeof(SSAOCB) % 16 == 0);
+static_assert(sizeof(DeferredLightingCB) % 16 == 0);
 static_assert(sizeof(DrawFeatureCB) % 16 == 0);
 
 NS_END

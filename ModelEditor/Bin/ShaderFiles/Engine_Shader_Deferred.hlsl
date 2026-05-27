@@ -27,13 +27,13 @@ Texture2D g_EmissiveTexture;
 Texture2D g_StaticLightDepthTexture;
 Texture2D g_SSAOTexture;
 Texture2D g_SSAOBlurTexture;
+TextureCube g_IrradianceMap;
+TextureCube g_PrefilterMap;
+Texture2D g_BRDFLUT;
 
 //==================================================
 // LIGHT
 //==================================================
-vector g_MtrlAmbient = float4(1.f, 1.f, 1.f, 1.f);
-vector g_MtrlSpecular = float4(1.f, 1.f, 1.f, 1.f);
-
 
 
 float4 Reconstruct_WorldPos(float2 Texcoord)
@@ -392,6 +392,21 @@ float GeometrySmith(float NdotV, float NdotL, float roughness)
     float ggxView = GeometrySchlickGGX(NdotV, roughness); // 카메라 방향으로 나오는 반사광이 얼마나 가려지는지
     float ggxLight = GeometrySchlickGGX(NdotL, roughness); // 빛이 표면으로 들어올 때 얼마나 가려지는지
     return ggxView * ggxLight;
+}
+
+float2 EnvBRDFApprox(float roughness, float NoV)
+{
+    const float4 c0 = float4(-1.0f, -0.0275f, -0.572f, 0.022f);
+    const float4 c1 = float4(1.0f, 0.0425f, 1.04f, -0.04f);
+    float4 r = roughness * c0 + c1;
+    float a004 = min(r.x * r.x, exp2(-9.28f * NoV)) * r.x + r.y;
+    return float2(-1.04f, 1.04f) * a004 + r.zw;
+}
+
+float3 FresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
+{
+    return F0 + (max(float3(1.0f - roughness, 1.0f - roughness, 1.0f - roughness), F0) - F0) *
+        pow(saturate(1.0f - cosTheta), 5.0f);
 }
 
 

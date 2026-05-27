@@ -1117,14 +1117,14 @@ Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
     return _renderer->Get_PostProcessPipeline();
 }
 
-const Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline() const
+const Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
 {
-    return _renderer->Get_SSAOPipeline();
+    return _renderer->Get_LightingPipeline();
 }
 
-Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline()
+Shared<LightingPipeline> GameInstance::Get_LightingPipeline()
 {
-    return _renderer->Get_SSAOPipeline();
+    return _renderer->Get_LightingPipeline();
 }
 
 const ScreenFx_Manager* GameInstance::Get_ScreenFxManager() const

@@ -1,6 +1,6 @@
 ﻿#include "PostProcess_View.h"
 #include "PostProcessPipeline.h"
-#include "SSAOPipeline.h"
+#include "LightingPipeline.h"
 #include "GameInstance.h"
 
 PostProcess_View::PostProcess_View()
@@ -36,22 +36,22 @@ void PostProcess_View::Render()
     if (ImGui::Begin(windowName.c_str(), &isOpen, flags))
     {
         Shared<PostProcessPipeline> pipeline = GAME->Get_PostProcessPipeline();
-        Shared<SSAOPipeline> ssaoPipeline = GAME->Get_SSAOPipeline();
+        Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.f, 12.f));
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.f);
         ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 6.f);
         ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 8.f);
 
-        if (!pipeline || !ssaoPipeline)
+        if (!pipeline || !lightingPipeline)
         {
-            ImGui::TextColored(ImVec4(0.95f, 0.35f, 0.35f, 1.f), "PostProcess/SSAO pipeline is null");
+            ImGui::TextColored(ImVec4(0.95f, 0.35f, 0.35f, 1.f), "PostProcess/Lighting pipeline is null");
             ImGui::TextDisabled("Renderer pipeline initialization order check needed.");
         }
         else
         {
             bool dirty = false;
-            bool ssaoDirty = false;
+            bool lightingDirty = false;
             PostProcessCB& params = pipeline->Get_PostProcessParams();
 
             Draw_StatusBadge();
@@ -72,19 +72,22 @@ void PostProcess_View::Render()
             ImGui::Separator();
             ImGui::Spacing();
 
-            Draw_SSAOControl(ssaoPipeline, ssaoDirty);
+            Draw_LightingControl(lightingPipeline, lightingDirty);
 
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
 
-            Draw_QuickAction(params, ssaoPipeline, dirty, ssaoDirty);
+            Draw_QuickAction(params, lightingPipeline, dirty, lightingDirty);
 
             if (dirty)
                 pipeline->Set_PostProcessParams(params);
 
-            if (ssaoDirty)
-                ssaoPipeline->Set_Params(ssaoPipeline->Get_Params());
+            if (lightingDirty)
+            {
+                lightingPipeline->Set_Params(lightingPipeline->Get_Params());
+                lightingPipeline->Set_DeferredLightingParams(lightingPipeline->Get_DeferredLightingParams());
+            }
         }
 
         ImGui::PopStyleVar(4);
@@ -96,15 +99,16 @@ void PostProcess_View::Render()
 
 void PostProcess_View::Draw_StatusBadge()
 {
-    ImGui::Text("HDR + SSAO");
+    ImGui::Text("Post Process + Lighting");
     ImGui::SameLine();
 
     Shared<PostProcessPipeline> ppPipeline = GAME->Get_PostProcessPipeline();
-    Shared<SSAOPipeline> ssaoPipeline = GAME->Get_SSAOPipeline();
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
     const bool ppOn = ppPipeline && ppPipeline->Has_PostProcessFeature(PostProcessFeature::HDR);
-    const bool ssaoOn = ssaoPipeline && ssaoPipeline->Is_Enabled();
+    const bool lightingOn = lightingPipeline &&
+        (lightingPipeline->Is_Enabled() || lightingPipeline->Is_IBLEnabled());
 
-    if (ppOn || ssaoOn)
+    if (ppOn || lightingOn)
         ImGui::TextColored(ImVec4(0.35f, 0.9f, 0.45f, 1.f), "ON");
     else
         ImGui::TextColored(ImVec4(0.9f, 0.35f, 0.35f, 1.f), "OFF");
@@ -191,56 +195,72 @@ void PostProcess_View::Draw_ParameterControl(PostProcessCB& params, bool& dirty)
     ImGui::EndChild();
 }
 
-void PostProcess_View::Draw_SSAOControl(Shared<SSAOPipeline> pipeline, bool& dirty)
+void PostProcess_View::Draw_LightingControl(Shared<LightingPipeline> pipeline, bool& dirty)
 {
-    if (ImGui::BeginChild("##SSAOControl", ImVec2(0.f, 250.f), true))
+    if (ImGui::BeginChild("##LightingControl", ImVec2(0.f, 340.f), true))
     {
-        ImGui::Text("SSAO");
+        ImGui::Text("Lighting");
 
-        SSAOCB& params = pipeline->Get_Params();
+        SSAOCB& ssaoParams = pipeline->Get_Params();
+        DeferredLightingCB& lightingParams = pipeline->Get_DeferredLightingParams();
 
-        if (ImGui::CollapsingHeader("Core", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("SSAO / Core", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            bool enabled = params.SSAOEnabled != 0u;
+            bool enabled = ssaoParams.SSAOEnabled != 0u;
             if (ImGui::Checkbox("Enable SSAO", &enabled))
             {
-                params.SSAOEnabled = enabled ? 1u : 0u;
+                ssaoParams.SSAOEnabled = enabled ? 1u : 0u;
                 dirty = true;
             }
 
-            dirty |= ImGui::DragFloat("Radius", &params.SSAORadius, 0.001f, 0.01f, 8.f, "%.3f");
-            dirty |= ImGui::DragFloat("Bias", &params.SSAOBias, 0.001f, 0.f, 0.2f, "%.4f");
-            dirty |= ImGui::DragFloat("Intensity", &params.SSAOIntensity, 0.01f, 0.f, 4.f, "%.3f");
-            dirty |= ImGui::DragFloat("Power", &params.SSAOPower, 0.01f, 0.01f, 8.f, "%.3f");
-            dirty |= ImGui::DragFloat("DepthRange", &params.SSAODepthRange, 0.001f, 0.001f, 4.f, "%.3f");
+            dirty |= ImGui::DragFloat("Radius", &ssaoParams.SSAORadius, 0.001f, 0.01f, 8.f, "%.3f");
+            dirty |= ImGui::DragFloat("Bias", &ssaoParams.SSAOBias, 0.001f, 0.f, 0.2f, "%.4f");
+            dirty |= ImGui::DragFloat("Intensity", &ssaoParams.SSAOIntensity, 0.01f, 0.f, 4.f, "%.3f");
+            dirty |= ImGui::DragFloat("Power", &ssaoParams.SSAOPower, 0.01f, 0.01f, 8.f, "%.3f");
+            dirty |= ImGui::DragFloat("DepthRange", &ssaoParams.SSAODepthRange, 0.001f, 0.001f, 4.f, "%.3f");
 
-            int sampleCount = static_cast<int>(params.SSAOSampleCount);
+            int sampleCount = static_cast<int>(ssaoParams.SSAOSampleCount);
             if (ImGui::SliderInt("SampleCount", &sampleCount, 1, 16))
             {
-                params.SSAOSampleCount = static_cast<uint32>(sampleCount);
+                ssaoParams.SSAOSampleCount = static_cast<uint32>(sampleCount);
                 dirty = true;
             }
         }
 
-        if (ImGui::CollapsingHeader("Blur / Bilateral", ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("SSAO / Blur", ImGuiTreeNodeFlags_DefaultOpen))
         {
-            bool bilateral = params.SSAOBilateralEnabled != 0u;
+            bool bilateral = ssaoParams.SSAOBilateralEnabled != 0u;
             if (ImGui::Checkbox("Bilateral", &bilateral))
             {
-                params.SSAOBilateralEnabled = bilateral ? 1u : 0u;
+                ssaoParams.SSAOBilateralEnabled = bilateral ? 1u : 0u;
                 dirty = true;
             }
 
-            dirty |= ImGui::DragFloat("BlurRadius", &params.SSAOBlurRadius, 0.1f, 0.0f, 16.f, "%.2f");
-            dirty |= ImGui::DragFloat("DepthSharpness", &params.SSAODepthSharpness, 0.1f, 0.0f, 400.f, "%.2f");
-            dirty |= ImGui::DragFloat("NormalSharpness", &params.SSAONormalSharpness, 0.1f, 0.0f, 64.f, "%.2f");
+            dirty |= ImGui::DragFloat("BlurRadius", &ssaoParams.SSAOBlurRadius, 0.1f, 0.0f, 16.f, "%.2f");
+            dirty |= ImGui::DragFloat("DepthSharpness", &ssaoParams.SSAODepthSharpness, 0.1f, 0.0f, 400.f, "%.2f");
+            dirty |= ImGui::DragFloat("NormalSharpness", &ssaoParams.SSAONormalSharpness, 0.1f, 0.0f, 64.f, "%.2f");
+        }
+
+        if (ImGui::CollapsingHeader("IBL / Deferred", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            bool iblEnabled = lightingParams.iblEnabled != 0u;
+            if (ImGui::Checkbox("Enable IBL", &iblEnabled))
+            {
+                lightingParams.iblEnabled = iblEnabled ? 1u : 0u;
+                dirty = true;
+            }
+
+            dirty |= ImGui::DragFloat("IBL Intensity", &lightingParams.iblIntensity, 0.01f, 0.f, 8.f, "%.2f");
+            dirty |= ImGui::DragFloat("IBL Diffuse Intensity", &lightingParams.iblDiffuseIntensity, 0.01f, 0.f, 8.f, "%.2f");
+            dirty |= ImGui::DragFloat("IBL Specular Intensity", &lightingParams.iblSpecularIntensity, 0.01f, 0.f, 8.f, "%.2f");
+            dirty |= ImGui::DragFloat("IBL Prefilter MaxMip", &lightingParams.iblPrefilterMaxMip, 0.1f, 0.f, 16.f, "%.2f");
         }
     }
 
     ImGui::EndChild();
 }
 
-void PostProcess_View::Draw_QuickAction(PostProcessCB& params, Shared<SSAOPipeline> ssaoPipeline, bool& dirty, bool& ssaoDirty)
+void PostProcess_View::Draw_QuickAction(PostProcessCB& params, Shared<LightingPipeline> lightingPipeline, bool& dirty, bool& lightingDirty)
 {
     if (ImGui::BeginChild("##QuickAction", ImVec2(0.f, 70.f), true))
     {
@@ -254,10 +274,11 @@ void PostProcess_View::Draw_QuickAction(PostProcessCB& params, Shared<SSAOPipeli
 
         ImGui::SameLine();
 
-        if (ImGui::Button("Reset SSAO Params") && ssaoPipeline)
+        if (ImGui::Button("Reset Lighting Params") && lightingPipeline)
         {
-            ssaoPipeline->Get_Params() = Make_DefaultSSAOParams();
-            ssaoDirty = true;
+            lightingPipeline->Get_Params() = Make_DefaultSSAOParams();
+            lightingPipeline->Get_DeferredLightingParams() = Make_DefaultDeferredLightingParams();
+            lightingDirty = true;
         }
     }
 
@@ -283,6 +304,11 @@ PostProcessCB PostProcess_View::Make_DefaultParams()
 SSAOCB PostProcess_View::Make_DefaultSSAOParams()
 {
     return SSAOCB{};
+}
+
+DeferredLightingCB PostProcess_View::Make_DefaultDeferredLightingParams()
+{
+    return DeferredLightingCB{};
 }
 
 Shared<PostProcess_View> PostProcess_View::Create()

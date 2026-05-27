@@ -2,8 +2,8 @@
 #include "Camera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
+#include "LightingPipeline.h"
 #include "PostProcessPipeline.h"
-#include "SSAOPipeline.h"
 #include "ScreenFx_Manager.h"
 #include "ShaderCom.h"
 #include "Texture.h"
@@ -76,8 +76,8 @@ HRESULT Renderer::Initialize()
     _ppPipeline = PostProcessPipeline::Create(_device, _context);
     CHECK_NULL(_ppPipeline, E_FAIL);
 
-    _ssaoPipeline = SSAOPipeline::Create(_device, _context);
-    CHECK_NULL(_ssaoPipeline, E_FAIL);
+    _lightingPipeline = LightingPipeline::Create(_device, _context);
+    CHECK_NULL(_lightingPipeline, E_FAIL);
 
 	return S_OK;
 }
@@ -358,7 +358,7 @@ void Renderer::Render_SSAO()
         return;
 
     // SSAO 사용 여부 
-    const bool ssaoEnabled = (_ssaoPipeline != nullptr) && _ssaoPipeline->Is_Enabled();
+    const bool ssaoEnabled = (_lightingPipeline != nullptr) && _lightingPipeline->Is_Enabled();
     if (!ssaoEnabled)
     {
         // SSAO를 끈 프레임에는 이전 AO 결과가 남지 않도록 RT만 기본값(1.0)으로 초기화한다.
@@ -400,8 +400,8 @@ void Renderer::Render_SSAO()
             GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
 
         SSAOCB ssaoParams{};
-        if (_ssaoPipeline)
-            ssaoParams = _ssaoPipeline->Get_Params();
+        if (_lightingPipeline)
+            ssaoParams = _lightingPipeline->Get_Params();
 
         ENDMRT_RETURN_IF_FAILED(_deferredShader->Bind_CBufferData(ssaoParams));
 
@@ -422,7 +422,7 @@ void Renderer::Render_SSAO()
 
     // SSAO Blur 패스 : AO 값을 경계 보존하며 부드럽게 만들기
     {
-        if (_ssaoPipeline == nullptr || _ssaoPipeline->Get_Params().SSAOBilateralEnabled == 0u)
+        if (_lightingPipeline == nullptr || _lightingPipeline->Get_Params().SSAOBilateralEnabled == 0u)
             return;
 
         // MRT 바뀌었으니 다시 바인딩
@@ -446,7 +446,7 @@ void Renderer::Render_SSAO()
             GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
 
         ENDMRT_RETURN_IF_FAILED(
-            _deferredShader->Bind_CBufferData(_ssaoPipeline->Get_Params()));
+            _deferredShader->Bind_CBufferData(_lightingPipeline->Get_Params()));
 
         ENDMRT_RETURN_IF_FAILED(
             _viBuffer->Bind_Resources());
@@ -563,8 +563,8 @@ void Renderer::Render_CombinedHDR()
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_EmissiveTexture)");
 
     // Bilateral Blur : 거리, 깊이, 노말에 따라 Blur 가중치를 조절하는 기능
-    const bool ssaoEnabled = (_ssaoPipeline != nullptr) && _ssaoPipeline->Is_Enabled();
-    const wchar_t* ssaoResult = (ssaoEnabled && _ssaoPipeline->Get_Params().SSAOBilateralEnabled != 0u)
+    const bool ssaoEnabled = (_lightingPipeline != nullptr) && _lightingPipeline->Is_Enabled();
+    const wchar_t* ssaoResult = (ssaoEnabled && _lightingPipeline->Get_Params().SSAOBilateralEnabled != 0u)
         ? RT::SSAOBlur
         : RT::SSAO;
 
@@ -611,37 +611,26 @@ void Renderer::Render_CombinedHDR()
             L"Render_CombinedHDR:FAIL ClearSRV(g_BRDFLUT)");
     }
 
-    // 기본값: IBL on (밝기 복구)
-    float iblIntensity = 1.0f;
-    float iblDiffuseIntensity = 1.0f;
-    float iblSpecularIntensity = 1.0f;
-    float iblPrefilterMaxMip = 8.0f;
+    DeferredLightingCB deferredLightingParams{};
+    if (_lightingPipeline)
+        deferredLightingParams = _lightingPipeline->Get_DeferredLightingParams();
 
     if (_iblDebugMode == IBLDebugMode::SpecularOnly)
     {
-        iblIntensity = 1.0f;
-        iblDiffuseIntensity = 0.0f;
-        iblSpecularIntensity = 1.0f;
+        deferredLightingParams.iblIntensity = 1.0f;
+        deferredLightingParams.iblDiffuseIntensity = 0.0f;
+        deferredLightingParams.iblSpecularIntensity = 1.0f;
     }
     else if (_iblDebugMode == IBLDebugMode::DiffuseOnly)
     {
-        iblIntensity = 1.0f;
-        iblDiffuseIntensity = 1.0f;
-        iblSpecularIntensity = 0.0f;
+        deferredLightingParams.iblIntensity = 1.0f;
+        deferredLightingParams.iblDiffuseIntensity = 1.0f;
+        deferredLightingParams.iblSpecularIntensity = 0.0f;
     }
 
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
-        _deferredShader->Bind_RawValue("g_IBLIntensity", &iblIntensity, sizeof(float)),
-        L"Render_CombinedHDR:FAIL Bind_RawValue(g_IBLIntensity)");
-    COMBINEDHDR_RETURN_LOG_IF_FAILED(
-        _deferredShader->Bind_RawValue("g_IBLDiffuseIntensity", &iblDiffuseIntensity, sizeof(float)),
-        L"Render_CombinedHDR:FAIL Bind_RawValue(g_IBLDiffuseIntensity)");
-    COMBINEDHDR_RETURN_LOG_IF_FAILED(
-        _deferredShader->Bind_RawValue("g_IBLSpecularIntensity", &iblSpecularIntensity, sizeof(float)),
-        L"Render_CombinedHDR:FAIL Bind_RawValue(g_IBLSpecularIntensity)");
-    COMBINEDHDR_RETURN_LOG_IF_FAILED(
-        _deferredShader->Bind_RawValue("g_IBLPrefilterMaxMip", &iblPrefilterMaxMip, sizeof(float)),
-        L"Render_CombinedHDR:FAIL Bind_RawValue(g_IBLPrefilterMaxMip)");
+        _deferredShader->Bind_CBufferData(deferredLightingParams),
+        L"Render_CombinedHDR:FAIL Bind_CBufferData(DeferredLightingCB)");
 
     // Light 기록
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
