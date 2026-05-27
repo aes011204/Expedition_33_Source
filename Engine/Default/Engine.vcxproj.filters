@@ -1025,7 +1025,7 @@
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
-    <ClCompile Include="..\Private\SSAOPipeline.cpp" />
+    <ClCompile Include="..\Private\LightingPipeline.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">
@@ -1050,7 +1050,7 @@
       <Filter>02.ShaderFiles</Filter>
     </None>
     <None Include="..\Public\PostProcessPipeline.h" />
-    <None Include="..\Public\SSAOPipeline.h" />
+    <None Include="..\Public\LightingPipeline.h" />
     <None Include="..\Bin\ShaderFiles\Engine_Shader_PostProcess.hlsl">
       <Filter>02.ShaderFiles</Filter>
     </None>
