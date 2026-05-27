@@ -2,22 +2,24 @@
 UE5 OriginJson의 _Generated_ 폴더에서 지형(Landscape) 타일 정보를 추출해
 SaveJson 포맷의 terrain 전용 파일을 생성합니다.
 
+각 LandscapeStreamingProxy는 별도 해시 폴더에 Heightmap_N.png를 가집니다.
+SectionBaseX/Y로 실제 그리드 위치를 계산합니다.
+
 Usage:
   python extract_terrain.py <맵 이름>
 
 예시:
-  python extract_terrain.py Level_SpringMeadows_Main_V2
+  python extract_terrain.py SmallLevel_MF_Zone_01
 """
 import json
 import os
 import glob
-import math
 import argparse
+import re
 
 ORIGIN_DIR = "../Client/Bin/Resources/Map/OriginJson"
 SAVE_DIR   = "../Client/Bin/Resources/Map/SaveJson"
 
-# MapEditor 실행 경로(MapEditor/Bin/Debug/)에서의 상대 경로
 RUNTIME_ORIGIN_PREFIX = "../../../Client/Bin/Resources/Map/OriginJson"
 
 
@@ -41,48 +43,88 @@ def parse_landscape_transform(origin_path: str) -> dict | None:
         if not loc or not scl:
             continue
 
-        # UE → 게임 좌표 변환 (Build_TerrainFromScene 기준)
-        # UE: X=앞, Y=오른쪽, Z=위  →  Game: X=앞, Y=위, Z=오른쪽
         ue_loc_x, ue_loc_y, ue_loc_z = loc["X"], loc["Y"], loc["Z"]
         ue_scl_x, ue_scl_z           = scl["X"], scl["Z"]
 
-        world_offset_x = ue_loc_x * 0.01
-        world_offset_y = ue_loc_z * 0.01
-        world_offset_z = ue_loc_y * 0.01
-        scale_xz       = ue_scl_x * 0.01
-        scale_y = ue_scl_z * 0.01
-
         return {
-            "WorldOffsetX": round(world_offset_x, 4),
-            "WorldOffsetY": round(world_offset_y, 4),
-            "WorldOffsetZ": round(world_offset_z, 4),
-            "ScaleXZ":      round(scale_xz, 6),
-            "ScaleY":       round(scale_y, 4),
+            "WorldOffsetX": round(ue_loc_x * 0.01, 4),
+            "WorldOffsetY": round(ue_loc_z * 0.01, 4),
+            "WorldOffsetZ": round(ue_loc_y * 0.01, 4),
+            "ScaleXZ":      round(ue_scl_x * 0.01, 6),
+            "ScaleY":       round(ue_scl_z * 0.01, 4),
         }
 
     return None
 
 
-def find_heightmaps(generated_dir: str) -> list:
-    pattern = os.path.join(generated_dir, "Heightmap_*.png")
-    files = glob.glob(pattern)
-
-    def get_num(path):
-        name = os.path.splitext(os.path.basename(path))[0]  # "Heightmap_0"
-        return int(name.split("_")[-1])
-
-    return sorted(files, key=get_num)
+def extract_proxy_hash(object_path: str) -> str | None:
+    """ObjectPath에서 proxy 해시 이름을 추출합니다.
+    예: '/Game/.../_Generated_/1E1H9PJ7T5XMX7ZF9XMBDABHT.19' → '1E1H9PJ7T5XMX7ZF9XMBDABHT'
+    """
+    match = re.search(r'_Generated_/([^./]+)', object_path)
+    return match.group(1) if match else None
 
 
-def build_tiles(heightmap_files: list, grid_cols: int) -> list:
+def parse_landscape_components(generated_dir: str) -> list:
+    """_Generated_ 폴더의 JSON 파일에서 LandscapeComponent 데이터를 파싱합니다.
+    각 컴포넌트의 SectionBaseX/Y와 proxy별 Heightmap 파일 경로를 반환합니다."""
+    components = []
+    json_files = glob.glob(os.path.join(generated_dir, "*.json"))
+
+    for json_file in json_files:
+        with open(json_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, list):
+            continue
+
+        for item in data:
+            if item.get("Type") != "LandscapeComponent":
+                continue
+
+            props = item.get("Properties", {})
+            section_base_x = props.get("SectionBaseX")
+            section_base_y = props.get("SectionBaseY")
+            hm_texture     = props.get("HeightmapTexture", {})
+
+            if section_base_x is None or section_base_y is None:
+                continue
+
+            hm_obj_name = hm_texture.get("ObjectName", "")
+            hm_obj_path = hm_texture.get("ObjectPath", "")
+
+            hm_match = re.search(r'(Heightmap_\d+)', hm_obj_name)
+            if not hm_match:
+                continue
+
+            proxy_hash = extract_proxy_hash(hm_obj_path)
+            if not proxy_hash:
+                continue
+
+            components.append({
+                "SectionBaseX":  section_base_x,
+                "SectionBaseY":  section_base_y,
+                "HeightmapFile": f"{proxy_hash}/{hm_match.group(1)}.png",
+            })
+
+    return components
+
+
+def build_tiles(components: list, component_size_quads: int = 126) -> list:
+    """SectionBaseX/Y 기준으로 정확한 GridX/GridY를 계산해 타일 목록을 반환합니다."""
+    if not components:
+        return []
+
+    min_x = min(c["SectionBaseX"] for c in components)
+    min_y = min(c["SectionBaseY"] for c in components)
+
     tiles = []
-    for i, filepath in enumerate(heightmap_files):
-        filename = os.path.basename(filepath)
+    for c in sorted(components, key=lambda x: (x["SectionBaseY"], x["SectionBaseX"])):
         tiles.append({
-            "File": filename,
-            "GridX": i % grid_cols,
-            "GridY": i // grid_cols,
+            "File":  c["HeightmapFile"],
+            "GridX": (c["SectionBaseX"] - min_x) // component_size_quads,
+            "GridY": (c["SectionBaseY"] - min_y) // component_size_quads,
         })
+
     return tiles
 
 
@@ -95,12 +137,10 @@ def extract_terrain(map_name: str):
     if not os.path.exists(origin_path):
         print(f"오류: OriginJson을 찾을 수 없습니다 → {origin_path}")
         return
-
     if not os.path.isdir(generated_dir):
         print(f"오류: _Generated_ 폴더가 없습니다 → {generated_dir}")
         return
 
-    # 1. Landscape 위치/크기 파싱
     print("Landscape 트랜스폼 파싱 중...")
     transform = parse_landscape_transform(origin_path)
     if not transform:
@@ -109,26 +149,23 @@ def extract_terrain(map_name: str):
     print(f"  WorldOffset: ({transform['WorldOffsetX']}, {transform['WorldOffsetY']}, {transform['WorldOffsetZ']})")
     print(f"  ScaleXZ: {transform['ScaleXZ']},  ScaleY: {transform['ScaleY']}")
 
-    # 2. 하이트맵 파일 목록
-    heightmap_files = find_heightmaps(generated_dir)
-    if not heightmap_files:
-        print(f"오류: Heightmap_*.png 파일이 없습니다 → {generated_dir}")
+    print("LandscapeComponent 파싱 중...")
+    components = parse_landscape_components(generated_dir)
+    if not components:
+        print("오류: LandscapeComponent를 찾을 수 없습니다.")
         return
+    print(f"  컴포넌트 {len(components)}개 발견")
 
-    count     = len(heightmap_files)
-    grid_cols = int(math.sqrt(count))
-    if grid_cols * grid_cols != count:
-        print(f"경고: 하이트맵 {count}개는 정사각형 그리드가 아닙니다. cols={grid_cols} 로 가정합니다.")
-    else:
-        print(f"하이트맵 {count}개 발견 → {grid_cols}x{grid_cols} 그리드")
-
-    heightmap_folder_runtime = f"{RUNTIME_ORIGIN_PREFIX}/{map_name}/_Generated_/"
+    tiles = build_tiles(components)
+    grid_w = max(t["GridX"] for t in tiles) + 1
+    grid_h = max(t["GridY"] for t in tiles) + 1
+    print(f"  그리드: {grid_w}x{grid_h} ({len(tiles)}타일)")
 
     output = {
         "Terrain": {
             **transform,
-            "HeightmapFolder": heightmap_folder_runtime,
-            "Tiles":           build_tiles(heightmap_files, grid_cols),
+            "HeightmapFolder": f"{RUNTIME_ORIGIN_PREFIX}/{map_name}/_Generated_/",
+            "Tiles": tiles,
         }
     }
 
@@ -137,13 +174,12 @@ def extract_terrain(map_name: str):
         json.dump(output, f, indent=4, ensure_ascii=False)
 
     print(f"완료: {save_path}")
-    print(f"  HeightmapFolder: {heightmap_folder_runtime}")
-    print(f"  타일 수:          {count}")
+    print(f"  타일 수: {len(tiles)}")
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("mapname", help="맵 이름 (예: Level_SpringMeadows_Main_V2)")
+    parser.add_argument("mapname", help="맵 이름 (예: SmallLevel_MF_Zone_01)")
     args = parser.parse_args()
     extract_terrain(args.mapname)
 

@@ -136,8 +136,9 @@ HRESULT VIBuffer_TerrainUE::Build_Tile(const TileDesc& tile, const TerrainDesc& 
         return E_FAIL;
     }
 
-    const float tileOriginX = desc.worldOffsetX + tile.gridX * 31.f * desc.scaleXZ;
-    const float tileOriginZ = desc.worldOffsetZ + tile.gridY * 31.f * desc.scaleXZ;
+    const float tileSpan = 126.f * desc.scaleXZ;
+    const float tileOriginX = desc.worldOffsetX + tile.gridX * tileSpan;
+    const float tileOriginZ = desc.worldOffsetZ + tile.gridY * tileSpan;
 
     for (uint32 z = 0; z < _vertsZ; ++z)
     {
@@ -150,7 +151,9 @@ HRESULT VIBuffer_TerrainUE::Build_Tile(const TileDesc& tile, const TerrainDesc& 
             float worldY = desc.worldOffsetY + (static_cast<float>(h) - 32768.f) / 128.0f * desc.scaleY;
 
             VTXNORTEX v{};
-            v.position = Vec3(tileOriginX + x * desc.scaleXZ, worldY, tileOriginZ + z * desc.scaleXZ);
+            const float stepX = tileSpan / (_vertsX - 1);
+            const float stepZ = tileSpan / (_vertsZ - 1);
+            v.position = Vec3(tileOriginX + x * stepX, worldY, tileOriginZ + z * stepZ);
             v.normal = Vec3(0.f, 1.f, 0.f);
             v.texcoord = Vec2(x / static_cast<float>(_vertsX - 1), z / static_cast<float>(_vertsZ - 1));
 
@@ -202,9 +205,9 @@ HRESULT VIBuffer_TerrainUE::ReadHeightmapPNG(const TCHAR* path, vector<uint16>& 
     // RGBA32
     ComPtr<IWICFormatConverter> converter;
     factory->CreateFormatConverter(&converter);
-    converter->Initialize(frame.Get(), GUID_WICPixelFormat16bppGray, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom);
+    converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom);
 
-    const uint32 stride = outWidth * 2;
+    const uint32 stride = outWidth * 4;
     vector<uint8> pixels(stride * outHeight);
     if (FAILED(converter->CopyPixels(nullptr, stride, static_cast<uint32>(pixels.size()), pixels.data())))
     {
@@ -214,7 +217,9 @@ HRESULT VIBuffer_TerrainUE::ReadHeightmapPNG(const TCHAR* path, vector<uint16>& 
     outHeights.resize(outWidth * outHeight);
     for (uint32 i = 0; i < outWidth * outHeight; ++i)
     {
-        outHeights[i] = *reinterpret_cast<const uint16*>(&pixels[i * 2]);
+        uint8 r = pixels[i * 4 + 0];
+        uint8 g = pixels[i * 4 + 1];
+        outHeights[i] = (static_cast<uint16>(r) << 8) | static_cast<uint16>(g);
     }
 
     return S_OK;
