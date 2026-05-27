@@ -1,9 +1,18 @@
 ﻿#include "Cinematic_Tool.h"
+#include "BattleCameraClipIO.h"
+#include "BattleClipSequencerAdapter.h"
 #include "Cinematic_Player.h"
 #include "Cinematic_Utils.h"
 #include "FreeCamera.h"
+#include "BattleTurnCamera.h"
+#include "BattleController.h"
+#include "ClientInstance.h"
+#include "Character.h"
 #include "GameInstance.h"
+#include "ModelCom.h"
+#include "PartObject.h"
 #include <algorithm>
+#include <cmath>
 #include "CinematicSequencerAdapter.h"
 #include "Cinematic_SequenceIO.h"
 #include "EditorInstance.h"
@@ -11,12 +20,43 @@
 
 namespace
 {
+constexpr float kBattleClipPreviewFps = 30.f;
+
+int Get_BattleClipFrameMax(const BattleCameraClip& clip)
+{
+    return std::max(0, static_cast<int>(std::lround(clip.duration * kBattleClipPreviewFps)));
+}
+
 void Draw_SectionHeader(const char* title)
 {
     ImGui::Spacing();
     ImGui::TextDisabled("%s", title);
     ImGui::Separator();
 }
+
+    template <typename TEnum>
+void Select_PresetEnum(const char* label, TEnum& currentValue, const float width = 180.f)
+{
+
+    ImGui::SetNextItemWidth(width);
+
+    const char* currentLabel = magic_enum::enum_name(currentValue).data();
+    if (!ImGui::BeginCombo(label, currentLabel))
+        return;
+
+    for (TEnum value : magic_enum::enum_values<TEnum>())
+    {
+        const bool isSelected = (currentValue == value);
+        if (ImGui::Selectable(magic_enum::enum_name(value).data(), isSelected))
+            currentValue = value;
+
+        if (isSelected)
+            ImGui::SetItemDefaultFocus();
+    }
+
+    ImGui::EndCombo();
+}
+
 }
 
 Cinematic_Tool::Cinematic_Tool()
@@ -47,11 +87,20 @@ void Cinematic_Tool::Update(float timeDelta)
         }
     }
 
+    if (_isBattleClipPreviewDirty)
+    {
+        Apply_CurrentBattleClipPreview();
+        _isBattleClipPreviewDirty = false;
+
+        return;
+    }
+
     if(_isPreviewDirty && !_hasPendingInsertRequest)
     {
         Apply_CurrentFramePose();
         _isPreviewDirty = false;
     }
+
 }
 
 void Cinematic_Tool::Render()
@@ -67,38 +116,595 @@ void Cinematic_Tool::Render()
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
 
-        Ensure_DefaultTrack();
-        Clamp_Selection();
-
-        if (ImGui::BeginTable("##CinematicToolLayout", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp))
+        if (ImGui::BeginTabBar("##CinematicToolTabs"))
         {
-            ImGui::TableSetupColumn("Timeline", ImGuiTableColumnFlags_WidthStretch, 2.2f);
-            ImGui::TableSetupColumn("Controls", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+            if (ImGui::BeginTabItem("Cinematic"))
+            {
+                Render_CinematicTab();
+                ImGui::EndTabItem();
+            }
 
-            ImGui::TableNextColumn();
-            ImGui::BeginChild("##SequencerPanel", ImVec2(0.f, 0.f), true);
-            Draw_SectionHeader("Timeline");
-            ImGui::TextDisabled("Left click : select / drag keyframe");
-            ImGui::TextDisabled("Double click : expand selected key editor");
-            ImGui::TextDisabled("Right click row : insert keyframe at clicked frame");
-            ImGui::Spacing();
-            Render_ImSequencer();
-            ImGui::EndChild();
+            if (ImGui::BeginTabItem("Battle Clip"))
+            {
+                Render_BattleClipTab();
+                ImGui::EndTabItem();
+            }
 
-            ImGui::TableNextColumn();
-            ImGui::BeginChild("##CinematicRightPanel", ImVec2(0.f, 0.f), false);
-            Render_RightPanel();
-            ImGui::EndChild();
-
-            ImGui::EndTable();
+            ImGui::EndTabBar();
         }
-
-      /*  Render_SelectedKeyframePopup();*/
-        Render_InsertKeyframePopup();
     }
 
     Set_Open(isOpen);
     ImGui::End();
+}
+
+void Cinematic_Tool::Render_CinematicTab()
+{
+    Clear_BattleClipPreviewState();
+    Ensure_DefaultTrack();
+    Clamp_Selection();
+
+    if (ImGui::BeginTable("##CinematicToolLayout", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp))
+    {
+        ImGui::TableSetupColumn("Timeline", ImGuiTableColumnFlags_WidthStretch, 2.2f);
+        ImGui::TableSetupColumn("Controls", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+
+        ImGui::TableNextColumn();
+        ImGui::BeginChild("##SequencerPanel", ImVec2(0.f, 0.f), true);
+        Draw_SectionHeader("Timeline");
+        ImGui::TextDisabled("Left click : select / drag keyframe");
+        ImGui::TextDisabled("Double click : expand selected key editor");
+        ImGui::TextDisabled("Right click row : insert keyframe at clicked frame");
+        ImGui::Spacing();
+        Render_ImSequencer();
+        ImGui::EndChild();
+
+        ImGui::TableNextColumn();
+        ImGui::BeginChild("##CinematicRightPanel", ImVec2(0.f, 0.f), false);
+        Render_RightPanel();
+        ImGui::EndChild();
+
+        ImGui::EndTable();
+    }
+
+    Render_InsertKeyframePopup();
+}
+
+void Cinematic_Tool::Render_BattleClipTab()
+{
+    const string selectedSkillId = Get_SelectedBattleClipSkillId();
+
+    if (!_hasLoadedBattleClip ||
+        _loadedBattleClipMode != _selectedBattleClipMode ||
+        _loadedBattleClipSkillId != selectedSkillId)
+    {
+        BattleCameraClipIO::LoadBattleCameraClipFromFile(_selectedBattleClipMode, _editingBattleClip, selectedSkillId);
+        _loadedBattleClipMode = _selectedBattleClipMode;
+        _loadedBattleClipSkillId = selectedSkillId;
+        _hasLoadedBattleClip = true;
+        _isBattleClipPreviewDirty = true;
+    }
+
+    Render_BattleClipHeader();
+    ImGui::Separator();
+
+    if (ImGui::BeginTable("##BattleClipLayout", 2, ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingStretchProp))
+    {
+        ImGui::TableSetupColumn("Timeline", ImGuiTableColumnFlags_WidthStretch, 2.0f);
+        ImGui::TableSetupColumn("Controls", ImGuiTableColumnFlags_WidthStretch, 1.1f);
+
+        ImGui::TableNextColumn();
+        ImGui::BeginChild("##BattleClipSequencerPanel", ImVec2(0.f, 0.f), true);
+        Draw_SectionHeader("Battle Clip Timeline");
+        ImGui::TextDisabled("Left click : select / drag keyframe");
+        ImGui::TextDisabled("Right click row : insert keyframe at clicked time");
+        ImGui::TextDisabled("Right click key : remove selected keyframe");
+        ImGui::Spacing();
+        Render_BattleClipSequencer();
+        ImGui::EndChild();
+
+        ImGui::TableNextColumn();
+        ImGui::BeginChild("##BattleClipRightPanel", ImVec2(0.f, 0.f), false);
+        ImGui::SetNextItemWidth(160.f);
+        if (ImGui::DragFloat("Duration", &_editingBattleClip.duration, 0.01f, 0.f, 30.f))
+        {
+            _editingBattleClip.duration = std::max(0.f, _editingBattleClip.duration);
+            _battleClipCurrentFrame = std::clamp(_battleClipCurrentFrame, 0, Get_BattleClipFrameMax(_editingBattleClip));
+            _isBattleClipPreviewDirty = true;
+        }
+        else
+        {
+            _editingBattleClip.duration = std::max(0.f, _editingBattleClip.duration);
+        }
+
+        ImGui::TextDisabled("Current Frame : %d", _battleClipCurrentFrame);
+        ImGui::TextDisabled("Current Time : %.3f s", static_cast<float>(_battleClipCurrentFrame) / kBattleClipPreviewFps);
+
+        Render_SelectedBattleClipKeyframe();
+        Render_BattleClipTrackEditor("Distance Offset", _editingBattleClip.distanceOffset);
+        Render_BattleClipTrackEditor("FOV Offset", _editingBattleClip.fovOffset);
+        Render_BattleClipTrackEditor("Shake Amplitude", _editingBattleClip.shakeAmplitude);
+        Render_BattleClipTrackEditor("Side Offset", _editingBattleClip.sideOffset);
+        Render_BattleClipTrackEditor("Yaw Offset", _editingBattleClip.yawOffset);
+        ImGui::EndChild();
+
+        ImGui::EndTable();
+    }
+
+    Render_BattleClipInsertKeyframePopup();
+    Render_BattleClipRemoveKeyframePopup();
+}
+
+void Cinematic_Tool::Render_BattleClipHeader()
+{
+    Ensure_BattleClipSkillListLoaded();
+
+    const BattleCameraMode previousMode = _selectedBattleClipMode;
+    Select_PresetEnum("Battle Mode", _selectedBattleClipMode, 100.f);
+
+    if (previousMode != _selectedBattleClipMode)
+    {
+        _hasLoadedBattleClip = false;
+        _battleClipSelectedTrackIndex = 0;
+        _battleClipSelectedKeyIndex = -1;
+        _battleClipCurrentFrame = 0;
+        _isBattleClipPreviewDirty = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Checkbox("Use Skill Override", &_useBattleClipSkillOverride))
+    {
+        _hasLoadedBattleClip = false;
+        _battleClipCurrentFrame = 0;
+        _isBattleClipPreviewDirty = true;
+    }
+
+    if (_useBattleClipSkillOverride)
+    {
+        const char* currentSkillLabel = "None";
+
+        if (_selectedBattleClipSkillIndex >= 0 &&
+            _selectedBattleClipSkillIndex < static_cast<int>(_battleClipSkillIds.size()))
+        {
+            currentSkillLabel = _battleClipSkillIds[_selectedBattleClipSkillIndex].c_str();
+        }
+
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(280.f);
+
+        if (ImGui::BeginCombo("Skill", currentSkillLabel))
+        {
+            for (int i = 0; i < static_cast<int>(_battleClipSkillIds.size()); ++i)
+            {
+                const bool isSelected = (_selectedBattleClipSkillIndex == i);
+
+                if (ImGui::Selectable(_battleClipSkillIds[i].c_str(), isSelected))
+                {
+                    _selectedBattleClipSkillIndex = i;
+                    _hasLoadedBattleClip = false;
+                    _battleClipCurrentFrame = 0;
+                    _isBattleClipPreviewDirty = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+    }
+
+    const string selectedSkillId = Get_SelectedBattleClipSkillId();
+
+    ImGui::SameLine();
+    if (ImGui::Button("Load Clip"))
+    {
+        BattleCameraClipIO::LoadBattleCameraClipFromFile(_selectedBattleClipMode, _editingBattleClip, selectedSkillId);
+        _loadedBattleClipMode = _selectedBattleClipMode;
+        _loadedBattleClipSkillId = selectedSkillId;
+        _hasLoadedBattleClip = true;
+        _battleClipSelectedTrackIndex = 0;
+        _battleClipSelectedKeyIndex = -1;
+        _battleClipCurrentFrame = 0;
+        _isBattleClipPreviewDirty = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Save Clip"))
+        BattleCameraClipIO::SaveBattleCameraClipToFile(_selectedBattleClipMode, _editingBattleClip, selectedSkillId);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Preview Clip"))
+        _isBattleClipPreviewDirty = true;
+
+    ImGui::SameLine();
+    if (ImGui::Button("Go To Start"))
+    {
+        _battleClipCurrentFrame = 0;
+        _isBattleClipPreviewDirty = true;
+    }
+}
+
+void Cinematic_Tool::Ensure_BattleClipSkillListLoaded()
+{
+    if (!_battleClipSkillIds.empty())
+        return;
+
+    _battleClipSkillIds = CLIENT->Get_AllSkillIds();
+
+    if (!_battleClipSkillIds.empty() && _selectedBattleClipSkillIndex < 0)
+        _selectedBattleClipSkillIndex = 0;
+}
+
+string Cinematic_Tool::Get_SelectedBattleClipSkillId() const
+{
+    if (!_useBattleClipSkillOverride)
+        return "";
+
+    if (_selectedBattleClipSkillIndex < 0 ||
+        _selectedBattleClipSkillIndex >= static_cast<int>(_battleClipSkillIds.size()))
+    {
+        return "";
+    }
+
+    return _battleClipSkillIds[_selectedBattleClipSkillIndex];
+}
+
+Shared<Character> Cinematic_Tool::Resolve_BattleClipPreviewSubject() const
+{
+    auto battleController = CLIENT->Get_BattleController();
+    if (!battleController)
+        return nullptr;
+
+    if (_selectedBattleClipMode == BattleCameraMode::ENEMYFOCUS ||
+        _selectedBattleClipMode == BattleCameraMode::ENEMYATTACK)
+    {
+        if (const auto enemies = battleController->Get_AliveEnemies(); !enemies.empty() && enemies[0].actor != nullptr)
+            return enemies[0].actor;
+    }
+
+    if (_selectedBattleClipMode == BattleCameraMode::PLAYERFOCUS ||
+        _selectedBattleClipMode == BattleCameraMode::PLAYERATTACK)
+    {
+        if(const auto hero = battleController->Get_TurnAction().target.actor)   
+            return hero;
+        //if (const auto heroes = battleController->Get_AliveHeroes(); !heroes.empty() && heroes[0].actor != nullptr)
+        //    return heroes[0].actor;
+    }
+
+    if (const auto heroes = battleController->Get_AliveHeroes(); !heroes.empty() && heroes[0].actor != nullptr)
+        return heroes[0].actor;
+
+    if (const auto enemies = battleController->Get_AliveEnemies(); !enemies.empty() && enemies[0].actor != nullptr)
+        return enemies[0].actor;
+
+    return nullptr;
+}
+
+Shared<Character> Cinematic_Tool::Resolve_BattleClipPreviewOpponent() const
+{
+    auto battleController = CLIENT->Get_BattleController();
+    if (!battleController)
+        return nullptr;
+
+    if (_selectedBattleClipMode == BattleCameraMode::ENEMYATTACK)
+    {
+        if (auto target = battleController->Get_TurnAction().target.actor)
+            return target;
+
+        if (const auto heroes = battleController->Get_AliveHeroes(); !heroes.empty() && heroes[0].actor != nullptr)
+            return heroes[0].actor;
+    }
+
+    if (_selectedBattleClipMode == BattleCameraMode::PLAYERATTACK)
+    {
+        if (const BattleChar* preview = battleController->Get_TargetPreview())
+        {
+            if (preview->actor != nullptr)
+                return preview->actor;
+        }
+
+        if (const auto enemies = battleController->Get_AliveEnemies(); !enemies.empty() && enemies[0].actor != nullptr)
+            return enemies[0].actor;
+    }
+
+    if (const auto enemies = battleController->Get_AliveEnemies(); !enemies.empty() && enemies[0].actor != nullptr)
+        return enemies[0].actor;
+
+    if (const auto heroes = battleController->Get_AliveHeroes(); !heroes.empty() && heroes[0].actor != nullptr)
+        return heroes[0].actor;
+
+    return nullptr;
+}
+
+Shared<ModelCom> Cinematic_Tool::Resolve_BattleClipPreviewModel() const
+{
+    if (Shared<Character> subject = Resolve_BattleClipPreviewSubject())
+    {
+        PartObject* body = subject->Get_PartObject(L"Part_Body");
+        if (body != nullptr)
+        {
+            if (Shared<ModelCom> model = body->Get_Component<ModelCom>())
+                return model;
+        }
+    }
+
+    auto battleController = CLIENT->Get_BattleController();
+    if (!battleController)
+        return nullptr;
+
+    const Action& action = battleController->Get_TurnAction();
+    if (action._curChar.ModelCom != nullptr)
+        return action._curChar.ModelCom;
+
+    return nullptr;
+}
+
+void Cinematic_Tool::Apply_BattleClipPreviewAnimation(float previewTimeSec) const
+{
+    Shared<ModelCom> model = Resolve_BattleClipPreviewModel();
+    if (model == nullptr)
+        return;
+
+    auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr)
+        return;
+
+    const Action& action = battleController->Get_TurnAction();
+    if ((_selectedBattleClipMode == BattleCameraMode::PLAYERATTACK ||
+         _selectedBattleClipMode == BattleCameraMode::ENEMYATTACK) &&
+        !action._selected_SkillKey.AnimPhases.empty())
+    {
+        const uint32 phaseIndex = std::min<uint32>(action._curAnimIndex, static_cast<uint32>(action._selected_SkillKey.AnimPhases.size() - 1));
+        const string& animationKey = action._selected_SkillKey.AnimPhases[phaseIndex].animationKey;
+        const char* currentAnimationName = model->Get_AnimationName(model->Get_CurrentAnimationIndex());
+
+        if (!animationKey.empty() &&
+            (currentAnimationName == nullptr || animationKey != currentAnimationName))
+        {
+            model->Set_Animation(animationKey, false, 0.f);
+        }
+    }
+
+    model->Set_AnimationPaused(true);
+    model->Set_CurrentAnimationTimeSec(previewTimeSec);
+    model->Refresh_CurrentAnimationPose();
+}
+
+void Cinematic_Tool::Clip_BattleClipHotInput()
+{
+    BattleCameraKeyframe* key = Get_SelectedBattleClipKeyframe();
+
+    if(key == nullptr)
+        return;
+
+    if(!_isFocused||!_isHovered)
+        return;
+
+}
+
+void Cinematic_Tool::Clear_BattleClipPreviewState() const
+{
+    if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
+        battleTurnCamera->Set_ClipScrubPreviewEnabled(false);
+
+    if (Shared<ModelCom> model = Resolve_BattleClipPreviewModel())
+        model->Set_AnimationPaused(false);
+}
+
+void Cinematic_Tool::Render_BattleClipTrackEditor(const char* label, BattleCameraTrack& track)
+{
+    if (!ImGui::CollapsingHeader(label, ImGuiTreeNodeFlags_DefaultOpen))
+        return;
+
+    ImGui::PushID(label);
+    bool needsSort = false;
+    float selectionTime = -1.f;
+
+    const string addKeyId = string("Add Key##") + label;
+    if (ImGui::Button(addKeyId.c_str()))
+    {
+        BattleCameraKeyframe keyframe {};
+        if (!track.keyframes.empty())
+            keyframe.time = track.keyframes.back().time;
+
+        track.keyframes.push_back(keyframe);
+        Sort_BattleClipTrackKeyframes(track);
+        _isBattleClipPreviewDirty = true;
+    }
+
+    ImGui::Separator();
+
+    for (int i = 0; i < static_cast<int>(track.keyframes.size()); ++i)
+    {
+        BattleCameraKeyframe& keyframe = track.keyframes[i];
+
+        ImGui::PushID(i);
+        ImGui::TextDisabled("Key %d", i);
+        ImGui::SameLine();
+
+        if (ImGui::Button("Remove"))
+        {
+            track.keyframes.erase(track.keyframes.begin() + i);
+            if (&track == Get_SelectedBattleClipTrack())
+                _battleClipSelectedKeyIndex = std::clamp(_battleClipSelectedKeyIndex, -1, static_cast<int>(track.keyframes.size()) - 1);
+            _isBattleClipPreviewDirty = true;
+            ImGui::PopID();
+            break;
+        }
+
+        ImGui::SetNextItemWidth(140.f);
+        if (ImGui::DragFloat("Time", &keyframe.time, 0.01f, 0.f, _editingBattleClip.duration))
+        {
+            keyframe.time = std::clamp(keyframe.time, 0.f, _editingBattleClip.duration);
+            needsSort = true;
+            _isBattleClipPreviewDirty = true;
+            if (&track == Get_SelectedBattleClipTrack() && _battleClipSelectedKeyIndex == i)
+                selectionTime = keyframe.time;
+        }
+
+        ImGui::SetNextItemWidth(140.f);
+        if (ImGui::DragFloat("Value", &keyframe.value, 0.01f))
+            _isBattleClipPreviewDirty = true;
+        ImGui::Separator();
+        ImGui::PopID();
+    }
+
+    if (needsSort)
+    {
+        Sort_BattleClipTrackKeyframes(track);
+
+        if (&track == Get_SelectedBattleClipTrack() && selectionTime >= 0.f)
+        {
+            for (int i = 0; i < static_cast<int>(track.keyframes.size()); ++i)
+            {
+                if (fabsf(track.keyframes[i].time - selectionTime) <= 0.0001f)
+                {
+                    _battleClipSelectedKeyIndex = i;
+                    break;
+                }
+            }
+        }
+    }
+
+    ImGui::PopID();
+}
+
+void Cinematic_Tool::Render_BattleClipSequencer()
+{
+    bool consumedKeyClick = false;
+    bool requestOpenInsertPopup = false;
+    bool requestRemoveKeyPopup = false;
+    int sequencerSelectedTrackIndex = _battleClipSelectedTrackIndex;
+    const int previousFrame = _battleClipCurrentFrame;
+    const int previousTrackIndex = _battleClipSelectedTrackIndex;
+    const int previousKeyIndex = _battleClipSelectedKeyIndex;
+
+    BattleClipSequencerAdapter adapter(
+        &_editingBattleClip,
+        &_battleClipSelectedTrackIndex,
+        &_battleClipSelectedKeyIndex,
+        &_battleClipCurrentFrame,
+        &consumedKeyClick,
+        &requestOpenInsertPopup,
+        &requestRemoveKeyPopup,
+        &_battleClipContextTrackIndex,
+        &_battleClipContextFrame);
+
+    static bool expanded = true;
+    static int firstFrame = 0;
+    ImSequencer::Sequencer(&adapter, &_battleClipCurrentFrame, &expanded, &sequencerSelectedTrackIndex, &firstFrame, ImSequencer::SEQUENCER_CHANGE_FRAME);
+
+    if (!consumedKeyClick)
+        _battleClipSelectedTrackIndex = sequencerSelectedTrackIndex;
+
+    if (requestOpenInsertPopup)
+        _requestOpenBattleClipInsertPopup = true;
+
+    if (requestRemoveKeyPopup)
+        _requestRemoveBattleClipKeyPopup = true;
+
+    if (previousFrame != _battleClipCurrentFrame ||
+        previousTrackIndex != _battleClipSelectedTrackIndex ||
+        previousKeyIndex != _battleClipSelectedKeyIndex)
+    {
+        _isBattleClipPreviewDirty = true;
+    }
+}
+
+void Cinematic_Tool::Render_SelectedBattleClipKeyframe()
+{
+    BattleCameraKeyframe* keyframe = Get_SelectedBattleClipKeyframe();
+    if (keyframe == nullptr)
+        return;
+
+    Draw_SectionHeader("Selected Battle Key");
+    ImGui::TextDisabled("Track %d | Key %d", _battleClipSelectedTrackIndex, _battleClipSelectedKeyIndex);
+
+    ImGui::SetNextItemWidth(140.f);
+    if (ImGui::DragFloat("Selected Time", &keyframe->time, 0.01f, 0.f, _editingBattleClip.duration))
+    {
+        keyframe->time = std::clamp(keyframe->time, 0.f, _editingBattleClip.duration);
+        if (BattleCameraTrack* track = Get_SelectedBattleClipTrack())
+        {
+            const float selectionTime = keyframe->time;
+            Sort_BattleClipTrackKeyframes(*track);
+            for (int i = 0; i < static_cast<int>(track->keyframes.size()); ++i)
+            {
+                if (fabsf(track->keyframes[i].time - selectionTime) <= 0.0001f)
+                {
+                    _battleClipSelectedKeyIndex = i;
+                    break;
+                }
+            }
+        }
+
+        _isBattleClipPreviewDirty = true;
+    }
+
+    ImGui::SetNextItemWidth(140.f);
+    if (ImGui::DragFloat("Selected Value", &keyframe->value, 0.01f))
+        _isBattleClipPreviewDirty = true;
+}
+
+void Cinematic_Tool::Render_BattleClipInsertKeyframePopup()
+{
+    if (_requestOpenBattleClipInsertPopup)
+    {
+        ImGui::OpenPopup("Insert Battle Clip Keyframe");
+        _requestOpenBattleClipInsertPopup = false;
+    }
+
+    if (!ImGui::BeginPopup("Insert Battle Clip Keyframe"))
+        return;
+
+    ImGui::TextDisabled("Track %d", _battleClipContextTrackIndex);
+    ImGui::TextDisabled("Frame %d", _battleClipContextFrame);
+    ImGui::Separator();
+
+    if (ImGui::Button("Insert Keyframe"))
+    {
+        Insert_BattleClipKeyAtFrame(_battleClipContextTrackIndex, _battleClipContextFrame);
+        _isBattleClipPreviewDirty = true;
+        ImGui::CloseCurrentPopup();
+    }
+
+    if (ImGui::Button("Cancel"))
+        ImGui::CloseCurrentPopup();
+
+    ImGui::EndPopup();
+}
+
+void Cinematic_Tool::Render_BattleClipRemoveKeyframePopup()
+{
+    if (_requestRemoveBattleClipKeyPopup)
+    {
+        ImGui::OpenPopup("Remove Battle Clip Keyframe");
+        _requestRemoveBattleClipKeyPopup = false;
+    }
+
+    if (!ImGui::BeginPopup("Remove Battle Clip Keyframe"))
+        return;
+
+    if (ImGui::Button("Remove Selected Key"))
+    {
+        BattleCameraTrack* track = Get_SelectedBattleClipTrack();
+        if (track != nullptr &&
+            _battleClipSelectedKeyIndex >= 0 &&
+            _battleClipSelectedKeyIndex < static_cast<int>(track->keyframes.size()))
+        {
+            track->keyframes.erase(track->keyframes.begin() + _battleClipSelectedKeyIndex);
+            _battleClipSelectedKeyIndex = std::clamp(_battleClipSelectedKeyIndex, -1, static_cast<int>(track->keyframes.size()) - 1);
+            _isBattleClipPreviewDirty = true;
+        }
+
+        ImGui::CloseCurrentPopup();
+    }
+
+    if (ImGui::Button("Cancel"))
+        ImGui::CloseCurrentPopup();
+
+    ImGui::EndPopup();
 }
 
 void Cinematic_Tool::Render_RightPanel()
@@ -778,6 +1384,71 @@ void Cinematic_Tool::Sort_SelectedTrackKeyframes()
     _selectedKeyIndex = 0;
 }
 
+void Cinematic_Tool::Sort_BattleClipTrackKeyframes(BattleCameraTrack& track)
+{
+    std::sort(track.keyframes.begin(), track.keyframes.end(),
+        [](const BattleCameraKeyframe& lhs, const BattleCameraKeyframe& rhs)
+        {
+            return lhs.time < rhs.time;
+        });
+}
+
+void Cinematic_Tool::Insert_BattleClipKeyAtFrame(int trackIndex, int frame)
+{
+    BattleCameraTrack* track = nullptr;
+
+    switch (trackIndex)
+    {
+    case 0:
+        track = &_editingBattleClip.distanceOffset;
+        break;
+    case 1:
+        track = &_editingBattleClip.fovOffset;
+        break;
+    case 2:
+        track = &_editingBattleClip.shakeAmplitude;
+        break;
+    case 3:
+        track = &_editingBattleClip.sideOffset;
+        break;
+    case 4:
+        track = &_editingBattleClip.yawOffset;
+        break;
+    default:
+        return;
+    }
+
+    const float keyTime = std::clamp(static_cast<float>(frame) / 30.f, 0.f, _editingBattleClip.duration);
+
+    for (int i = 0; i < static_cast<int>(track->keyframes.size()); ++i)
+    {
+        if (fabsf(track->keyframes[i].time - keyTime) <= 0.0001f)
+        {
+            _battleClipSelectedTrackIndex = trackIndex;
+            _battleClipSelectedKeyIndex = i;
+            _battleClipCurrentFrame = frame;
+            return;
+        }
+    }
+
+    BattleCameraKeyframe keyframe {};
+    keyframe.time = keyTime;
+    track->keyframes.push_back(keyframe);
+    Sort_BattleClipTrackKeyframes(*track);
+
+    _battleClipSelectedTrackIndex = trackIndex;
+    _battleClipCurrentFrame = frame;
+
+    for (int i = 0; i < static_cast<int>(track->keyframes.size()); ++i)
+    {
+        if (fabsf(track->keyframes[i].time - keyTime) <= 0.0001f)
+        {
+            _battleClipSelectedKeyIndex = i;
+            break;
+        }
+    }
+}
+
 void Cinematic_Tool::Capture_KeyframeFromFreeCamera()
 {
     CAMERAPOSE camPose{};
@@ -929,6 +1600,30 @@ void Cinematic_Tool::Apply_CurrentFramePose()
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 }
 
+void Cinematic_Tool::Apply_CurrentBattleClipPreview()
+{
+    Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera();
+    if (battleTurnCamera == nullptr)
+        return;
+
+    BattleTurnCamera::BattleShotRequest request {};
+    request.mode = _selectedBattleClipMode;
+    request.subject = Resolve_BattleClipPreviewSubject();
+    request.opponent = Resolve_BattleClipPreviewOpponent();
+
+    if (request.subject == nullptr)
+        return;
+
+    _battleClipCurrentFrame = std::clamp(_battleClipCurrentFrame, 0, Get_BattleClipFrameMax(_editingBattleClip));
+    const float previewTimeSec = static_cast<float>(_battleClipCurrentFrame) / kBattleClipPreviewFps;
+
+    Apply_BattleClipPreviewAnimation(previewTimeSec);
+    battleTurnCamera->Set_Clip(_selectedBattleClipMode, _editingBattleClip);
+    battleTurnCamera->Set_IsClipPreview(true);
+    battleTurnCamera->Preview_ClipAtTime(request, previewTimeSec);
+    GAME->Change_ActiveCamera(battleTurnCamera);
+}
+
 CINEMATIC_TRACK* Cinematic_Tool::Get_SelectedTrack()
 {
     if (_selectedTrackIndex < 0 || _selectedTrackIndex >= static_cast<int>(_sequence.cinematicTracks.size()))
@@ -947,6 +1642,46 @@ CINEMATIC_KEYFRAME* Cinematic_Tool::Get_SelectedKeyframe()
         return nullptr;
 
     return &selectedTrack->keyframes[_selectedKeyIndex];
+}
+
+Shared<Client::BattleTurnCamera> Cinematic_Tool::Get_BattleTurnCamera() const
+{
+    Shared<Camera> camera = GAME->Get_CameraByType(ObjectType::BattleTurnCamera);
+    if (camera == nullptr)
+        return nullptr;
+
+    return dynamic_pointer_cast<Client::BattleTurnCamera>(camera);
+}
+
+BattleCameraTrack* Cinematic_Tool::Get_SelectedBattleClipTrack()
+{
+    switch (_battleClipSelectedTrackIndex)
+    {
+    case 0:
+        return &_editingBattleClip.distanceOffset;
+    case 1:
+        return &_editingBattleClip.fovOffset;
+    case 2:
+        return &_editingBattleClip.shakeAmplitude;
+    case 3:
+        return &_editingBattleClip.sideOffset;
+    case 4:
+        return &_editingBattleClip.yawOffset;
+    default:
+        return nullptr;
+    }
+}
+
+BattleCameraKeyframe* Cinematic_Tool::Get_SelectedBattleClipKeyframe()
+{
+    BattleCameraTrack* track = Get_SelectedBattleClipTrack();
+    if (track == nullptr)
+        return nullptr;
+
+    if (_battleClipSelectedKeyIndex < 0 || _battleClipSelectedKeyIndex >= static_cast<int>(track->keyframes.size()))
+        return nullptr;
+
+    return &track->keyframes[_battleClipSelectedKeyIndex];
 }
 
 void Cinematic_Tool::Clear_PendingInsertRequest()

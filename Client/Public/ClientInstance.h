@@ -17,6 +17,7 @@ class ResourceLoader;
 class GameplayUI;
 class PersistentObjectManager;
 class Hero_Manager;
+class CameraDirector;
 class EffectInstancePool;
 
 class ClientInstance : public Base
@@ -56,6 +57,7 @@ public: /* For.GameData Table */
     const GameDataTable::WeaponDesc* Get_WeaponDesc(const string& characterId, const string& weaponId) const;
     const vector<GameDataTable::WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
     const Skill_Data* Get_Skill(const string& skillId);
+    const vector<string> Get_AllSkillIds();
 
     const Item_Data*  Get_Item(const string& itemId);
     const Item_Data*  Get_Item(BattleItemType itemType);
@@ -63,12 +65,12 @@ public: /* For.GameData Table */
 
 public:
     void    Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout);
-    void    Begin_Preview(PreviewShotTable::PreviewShotPanel panel);
-    void    Show_Preview(HeroId heroId, PreviewShotTable::PreviewShotPanel panel);
+    void    Begin_Preview(PreviewShotPanel panel);
+    void    Show_Preview(HeroId heroId, PreviewShotPanel panel);
     void    Hide_Preview();
 
 public:
-    PreviewShotTable::PreviewShotPreset Get_Preset(HeroId hero, PreviewShotTable::PreviewShotPanel panel);
+    PreviewShotPreset Get_Preset(HeroId hero, PreviewShotPanel panel);
 
 public: /* For.Hero Manager */
     HRESULT        Initialize_Hero(uint32 levelIndex, const wstring& layerTag, const Vec3& startPos = Vec3::Zero);
@@ -114,8 +116,20 @@ public: /* For.Battle_Controller */
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
 
-    bool    Is_BattleActive() const;
-    bool    Is_BattleEntering() const;
+    bool Is_BattleActive() const;
+    bool Is_BattleEntering() const;
+
+public: /*For.Camera Director*/
+    void Request_GamePlay();
+    void Request_Preview();
+    void Request_BattleTurn();
+    void Request_Cinematic();
+    void Request_TargetCameraMode(TargetCameraMode cameraMode);
+    void Restore_PreviousCamera();
+
+public:
+    void Set_TargetCameraEditMode(bool enable) { _isTargetCameraEditMode = enable; }
+    bool Is_TargetCameraEditMode() { return _isTargetCameraEditMode;}
 
 private:
 	HRESULT Ready_ResourceLoader();
@@ -126,10 +140,12 @@ private:
 	ComPtr<Context> _context;
 
     atomic<bool> _isStaticResourcesLoaded = false;
-    bool _isStaticObjectsSpawned = false;
-	bool _isInitialized = false;
+    bool         _isStaticObjectsSpawned = false;
+	bool         _isInitialized = false;
+    bool         _isTargetCameraEditMode = false;
 
 private:
+    Shared<CameraDirector>      _cameraDirector;
     Shared<UIPreviewManager>    _previewManager;
     Shared<ResourceLoader>      _resourceLoader;
     Unique<GameDataTable>       _gameDataTable;

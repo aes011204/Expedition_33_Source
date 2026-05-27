@@ -1,11 +1,11 @@
 ﻿#include "Level_EffectEditor.h"
 
 #include "Camera.h"
+#include "ClientInstance.h"
 #include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
 #include "EffectEditorSceneGrid.h"
 #include "EffectEditorSkybox.h"
-#include "EffectInstance.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -17,6 +17,8 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
+    constexpr const wchar_t* kPreviewPoolKey = L"EffectEditorPreview";
+
     //## Module Lookup
 
     template <typename TData>
@@ -365,6 +367,13 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
         Build_PreviewEffectDefinition(emitterView->Get_Emitters());
     CHECK_NULL(previewDefinition, E_FAIL);
 
+    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+    CHECK_NULL(effectPool, E_FAIL);
+
+    effectPool->Release(_previewPoolHandle);
+    _previewPoolHandle = {};
+    effectPool->Discard_Inactive(Internal::kPreviewPoolKey);
+
     CHECK_FAILED(Restart_PreviewFromDefinition(previewDefinition), E_FAIL);
     _currentPreviewDefinition = previewDefinition;
 
@@ -386,24 +395,20 @@ HRESULT Level_EffectEditor::Restart_PreviewFromDefinition(const Shared<const Eff
 {
     CHECK_NULL(previewDefinition, E_FAIL);
 
-    Clear_PreviewObjects();
+    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+    CHECK_NULL(effectPool, E_FAIL);
 
-    EffectInstanceDesc previewDesc{};
-    previewDesc.definition = previewDefinition;
+    effectPool->Release(_previewPoolHandle);
+    _previewPoolHandle = {};
 
-    const Shared<EffectInstance> previewPrototype = EffectInstance::Create(_device, _context);
-    CHECK_NULL(previewPrototype, E_FAIL);
+    EffectInstancePool::AcquireDesc acquireDesc{};
+    acquireDesc.effectName = Internal::kPreviewPoolKey;
+    acquireDesc.definition = previewDefinition;
+    acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
+    acquireDesc.layerTag = kPreviewLayerTag;
+    acquireDesc.trailSampleProvider = _trailPreviewSampleProvider;
 
-    const Shared<GameObject> previewObject = previewPrototype->Clone(&previewDesc);
-    CHECK_NULL(previewObject, E_FAIL);
-
-    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), kPreviewLayerTag, previewObject), E_FAIL);
-
-    vector<Shared<GameObject>> restartedPreviewObjects{};
-    restartedPreviewObjects.push_back(previewObject);
-
-    _previewObjects = move(restartedPreviewObjects);
-
+    CHECK_FAILED(effectPool->Acquire(acquireDesc, _previewPoolHandle), E_FAIL);
     return S_OK;
 }
 
@@ -1010,13 +1015,13 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
 
 void Level_EffectEditor::Clear_PreviewObjects()
 {
-    for (Shared<GameObject>& previewObject : _previewObjects)
-    {
-        if (previewObject != nullptr)
-            GAME->Remove_GameObject(ETOI(LevelType::Static), previewObject);
-    }
+    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+    if (nullptr == effectPool)
+        return;
 
-    _previewObjects.clear();
+    effectPool->Release(_previewPoolHandle);
+    _previewPoolHandle = {};
+    effectPool->Discard_Inactive(Internal::kPreviewPoolKey);
 }
 
 Shared<Level_EffectEditor> Level_EffectEditor::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

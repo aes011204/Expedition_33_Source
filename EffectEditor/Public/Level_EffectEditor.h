@@ -1,12 +1,9 @@
 ﻿#pragma once
 
 #include "EffectAuthoring_Types.h"
+#include "EffectInstancePool.h"
 #include "EffectRuntime_Types.h"
 #include "Level.h"
-
-NS_BEGIN(Engine)
-class GameObject;
-NS_END
 
 NS_BEGIN(EffectEditor)
 
@@ -31,7 +28,7 @@ private:
     static constexpr auto kPreviewLayerTag{ L"Layer_Preview" };
 
 private:
-    vector<Shared<GameObject>> _previewObjects{};
+    EffectInstancePool::AttachedHandle _previewPoolHandle{};
     Shared<const EffectDefinition> _currentPreviewDefinition{};
     // Trail TypeData preview가 읽을 editor-local sample provider다.
     Weak<IEffectTrailSampleProvider> _trailPreviewSampleProvider{};

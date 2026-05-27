@@ -39,6 +39,8 @@
 
 #pragma warning(disable : 4251 4275)
 
+#include "Engine_Config.h"
+
 #include <directxtk/DDSTextureLoader.h>
 #include <directxtk/Effects.h>
 #include <directxtk/PrimitiveBatch.h>

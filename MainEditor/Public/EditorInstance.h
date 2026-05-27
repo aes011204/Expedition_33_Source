@@ -125,6 +125,11 @@ public: // for pickingSystem
     void Request_Pick(const ImVec2& mousePos, const ImVec2& vpMin, const ImVec2& vpMax);
     void Flush_PendingPick();
 
+public: // for targetCamera edit mode
+    void Toogle_TargetCameraEditMode();
+    void Set_TargetCameraEditMode(bool enable) { _isTargetCameraEditMode = enable;}
+    const bool Is_TargetCameraEditMode() { return _isTargetCameraEditMode;}
+
 private:
     void Focus_GameView();
     void Focus_SceneView();
@@ -172,6 +177,9 @@ private: /* 저장 */
     bool Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const;
     vector<EditorWorldObjectSnapshot> Capture_CurrentLevelObjects(int32* outSelectedIndex = nullptr) const;
     HRESULT Restore_CurrentLevelObjects(const vector<EditorWorldObjectSnapshot>& snapshots, int32 selectedIndex);
+
+private:
+    bool                        _isTargetCameraEditMode = false;
 
 private: /* Core Data */
     ComPtr<Device>               _device = {};

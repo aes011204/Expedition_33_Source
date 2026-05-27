@@ -85,7 +85,6 @@ void SkillTree_Panel::Update(float timeDelta)
 
    Handle_SelectionInput();
    Update_UI();
-  // Update_StatusPreviewHeroes(timeDelta);
 }
 
 void SkillTree_Panel::Open()
@@ -99,11 +98,11 @@ void SkillTree_Panel::Open()
     //선택된 캐릭터 ui 확대
     _currentView->characterSelectUI->Get_Transform()->Set_Scale(_hoveredSize);
 
-    CLIENT->Begin_Preview(PreviewShotTable::PreviewShotPanel::SkillTree);
+    CLIENT->Begin_Preview(PreviewShotPanel::SkillTree);
 
     auto previewLayout  = Build_PreviewLayout();
     CLIENT->Apply_PreviewLayout(previewLayout);
-    CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex),PreviewShotTable::PreviewShotPanel::SkillTree);
+    CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex),PreviewShotPanel::SkillTree);
 
     // 마우스 잠금
     GAME->Unlock_Mouse();
@@ -194,7 +193,7 @@ void SkillTree_Panel::Handle_SelectionInput()
 
   /*      auto previewLayout = Build_PreviewLayout();
         CLIENT->Apply_PreviewLayout(previewLayout);*/
-        CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotTable::PreviewShotPanel::SkillTree);
+        CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotPanel::SkillTree);
     }
 }
 
@@ -708,9 +707,12 @@ vector<UIPreviewManager::PreviewSlotDesc> SkillTree_Panel::Build_PreviewLayout()
 {
     static const Vec3 positions[] =
     {
-        Vec3(1.1f,  0.f, -0.1f),
-        Vec3(0.0f,  0.f, 0.f),
-        Vec3(-1.1f, 0.f, -0.1f),
+        //Vec3(1.1f,  0.f, -0.1f),
+        //Vec3(0.0f,  0.f, 0.f),
+        //Vec3(-1.1f, 0.f, -0.1f),
+        Vec3(0.8f,  0.f,  0.0f),
+        Vec3(0.0f,  0.f,  0.2f),
+        Vec3(-1.1f, 0.f, -0.3f),
     };
 
     static const Vec3 rotations[] =

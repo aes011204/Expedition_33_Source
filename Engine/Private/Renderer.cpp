@@ -1043,7 +1043,7 @@ void Renderer::Update_DynamicShadowCamera()
 
 void Renderer::Render_StaticShadowOnce()
 {
-    Debug_Profile::Scope profileScope("Render::StaticShadow");
+    ENGINE_PROFILE_SCOPE_DETAIL("Render::StaticShadow");
 
     if (!_staticShadowDirty)
         return;
@@ -1085,7 +1085,7 @@ void Renderer::Render_StaticShadowOnce()
 
 void Renderer::Render_DynamicShadow()
 {
-    Debug_Profile::Scope profileScope("Render::DynamicShadow");
+    ENGINE_PROFILE_SCOPE_DETAIL("Render::DynamicShadow");
 
     Update_DynamicShadowCamera();
 

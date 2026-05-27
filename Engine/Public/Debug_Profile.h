@@ -31,3 +31,19 @@ public:
 };
 
 NS_END
+
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_BASIC
+#define ENGINE_PROFILE_SCOPE_BASIC(_name) Engine::Debug_Profile::Scope ENGINE_LOG_UNIQUE_NAME(engineProfileScope, __LINE__)(_name)
+#define ENGINE_PROFILE_PUSH_BASIC(_name, _elapsedMs) Engine::Debug_Profile::Push_Sample((_name), (_elapsedMs))
+#else
+#define ENGINE_PROFILE_SCOPE_BASIC(_name) ((void)0)
+#define ENGINE_PROFILE_PUSH_BASIC(_name, _elapsedMs) ((void)0)
+#endif
+
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+#define ENGINE_PROFILE_SCOPE_DETAIL(_name) Engine::Debug_Profile::Scope ENGINE_LOG_UNIQUE_NAME(engineProfileScope, __LINE__)(_name)
+#define ENGINE_PROFILE_PUSH_DETAIL(_name, _elapsedMs) Engine::Debug_Profile::Push_Sample((_name), (_elapsedMs))
+#else
+#define ENGINE_PROFILE_SCOPE_DETAIL(_name) ((void)0)
+#define ENGINE_PROFILE_PUSH_DETAIL(_name, _elapsedMs) ((void)0)
+#endif

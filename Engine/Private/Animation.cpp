@@ -152,7 +152,7 @@ Vec3 Animation::Get_CurrentRootTranslation(int32 rootNodeIndex) const
 
 bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shared<Bone>>& bones, bool isLoop, int32 rootNodeIndex)
 {
-    Debug_Profile::Scope profileScope("Animation::UpdatePose");
+    ENGINE_PROFILE_SCOPE_DETAIL("Animation::UpdatePose");
 
 	_currentTrackPosition += _tickPerSecond * timeDelta;
 
@@ -178,7 +178,7 @@ bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shar
 void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Animation>& nextAnim, float blendRatio,
 	const vector<Shared<Bone>>& bones, bool isLoop, int32 rootNodeIndex)
 {
-    Debug_Profile::Scope profileScope("Animation::BlendPose");
+    ENGINE_PROFILE_SCOPE_DETAIL("Animation::BlendPose");
 
 	// 현재 애니메이션 시간 갱신 
 	_currentTrackPosition += _tickPerSecond * currentTimeDelta;
