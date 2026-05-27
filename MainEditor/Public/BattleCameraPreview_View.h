@@ -59,6 +59,8 @@ private:
         PreviewSlotSide opponentSide = PreviewSlotSide::Enemy;
         int opponentSlot = 1;
         float timeSec = 0.f;
+
+        Vec3 subjectOriginPos  = Vec3::Zero;
     };
 
     struct PreviewTransitionStep
@@ -67,6 +69,12 @@ private:
         string skillId{};
         string animationName{};
         float durationSec = 0.75f;
+    };
+
+    enum class TimelineEditorTab : uint8
+    {
+        ClipTimeline,
+        TransitionPreview,
     };
 
 private:
@@ -147,6 +155,11 @@ private:
     void Resolve_TransitionSequenceTime(float time, int& outStepIndex, float& outStepLocalTime);
     void Scrub_TransitionSequence(float timeSec);
 
+    Vec3 Resolve_PhaseGoalPosition(const PreviewContext& context, const Client::BattleActionPhase& phase);
+    Vec3 Resolve_AnchorPosition(const PreviewContext& context, Client::BattleTargetAnchor anchor);
+    void Update_RootMotionToTarget();
+    void Update_RatioMoveTo();
+
 private:
     PreviewContext _previewContext{};
     PreviewFormation _previewFormation{};
@@ -216,6 +229,7 @@ private:
     bool _transitionPreviewAutoFollowActiveStep = true;
     float _transitionPreviewElapsed = 0.f;
     float _transitionPreviewSequenceTimeSec = 0.f;
+    TimelineEditorTab _activeTimelineEditorTab = TimelineEditorTab::ClipTimeline;
 
 public:
     static Shared<BattleCameraPreview_View> Create();

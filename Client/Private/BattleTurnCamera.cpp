@@ -625,11 +625,33 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     Vec3 targetSmoothedTargetPos = _smoothedTargetPos;
     Vec3 targetPrevTargetPos = _prevTargetPos;
     Shared<TransformCom> nextTargetTransform = request.subject ? request.subject->Get_Transform() : nullptr;
-    if (request.subject && (nextPreset.snapOnEnter || _currentRequest.subject == nullptr))
+    if (request.subject && (nextPreset.snapOnEnter)) //|| _currentRequest.subject == nullptr))
     {
         const Vec3 targetPos = request.subject->Get_Transform()->Get_WorldPosition();
         targetSmoothedTargetPos = targetPos;
         targetPrevTargetPos = targetPos;
+    }
+
+    if(nextPreset.snapOnEnter || request.mode == BattleCameraMode::WIDE)
+    {
+        _poseTransition.active = false;
+        _activeClip = nextActiveClip;
+        _clipTime = 0.f;
+        _isClipPreview = false;
+        _isFirstUpdate = true;
+        _currentRequest = request;
+        _targetTransform = nextTargetTransform;
+        _targetPreset = nextPreset;
+        _currentPreset = _targetPreset;
+        _smoothedTargetPos = targetSmoothedTargetPos;
+        _prevTargetPos = targetPrevTargetPos;
+
+        EvaluatedPose toPose {};
+
+        if(Evaluate_ShotRequestPose(_currentRequest, _currentPreset, &_smoothedTargetPos, _clipTime, toPose ))
+        Apply_EvaluatedPose(toPose);
+
+        return;
     }
 
     if (Should_StartPoseTransition(request))

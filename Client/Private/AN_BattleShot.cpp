@@ -38,7 +38,7 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
 
     if(character == nullptr)
         return;
-
+    
     EvtBattlePresentation event {};
     event.cameraMode = _cameraMode;
     event.subject = character;

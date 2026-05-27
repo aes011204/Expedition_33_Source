@@ -203,12 +203,12 @@ void BattleController::Run_EnemyTurn()
     monster->Decide_Action_BTOnly(Get_TurnAction(), Get_AliveHeroes());
     ExecuteAction( Get_TurnAction());
 
-    EvtBattlePresentation event;
-    event.cameraMode = BattleCameraMode::ENEMYATTACK;
-    event.subject = monster;
-    event.opponent = Get_TurnAction().target.actor;
+   // EvtBattlePresentation event;
+   // event.cameraMode = BattleCameraMode::ENEMYATTACK;
+   // event.subject = monster;
+   // event.opponent = Get_TurnAction().target.actor;
     
-    GAME->Get_EventBus().Publish(event);
+   // GAME->Get_EventBus().Publish(event);
 }
 
 void BattleController::OnEnterBattleField(
@@ -239,7 +239,7 @@ void BattleController::OnEnterBattleField(
 	// 월드 캐릭터 입력 막기
 	GAME->Set_PlayerInputBlocked(true);
 	//_worldCamera = GAME->Get_ActiveCamera();
-    GAME->Slow_WorldTime(_battleEnterWorldTimeScale, _battleEnterDuration);
+    GAME->Slow_WorldTime(_battleEnterSlow.worldTimeScale, _battleEnterSlow.duration);
 }
 
 EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
@@ -1389,7 +1389,7 @@ void BattleController::Clear_BattleEnterPending()
 {
     _isBattleEntering = false;
     _hasRequestedBattleEnterCamera = false;
-    _battleEnterElapsed = 0.f;
+    _battleEnterSlow.elapsed  = 0.f;
 
     _pendingBattleFieldID = 0;
     _pendingBattleIsFirstHero = false;

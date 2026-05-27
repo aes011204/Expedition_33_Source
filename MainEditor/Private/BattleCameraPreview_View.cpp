@@ -1178,7 +1178,9 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
     ImGui::Separator();
     ImGui::TextDisabled("Battle Preset Editor");
     ImGui::Text("Editing Mode : %s", magic_enum::enum_name(editorMode).data());
-    if (_transitionPreviewAutoFollowActiveStep)
+    if (_activeTimelineEditorTab != TimelineEditorTab::TransitionPreview)
+        ImGui::TextDisabled("Editor follows preview context mode.");
+    else if (_transitionPreviewAutoFollowActiveStep)
         ImGui::TextDisabled("Editor follows active transition step.");
     else if (_transitionPreviewEditTargetPinned)
         ImGui::TextDisabled("Editor is pinned to transition step %d.", _transitionPreviewEditTargetStepIndex + 1);
@@ -1258,6 +1260,7 @@ void BattleCameraPreview_View::Render_TimelinePanel()
     {
         if (ImGui::BeginTabItem("Clip Timeline"))
         {
+            _activeTimelineEditorTab = TimelineEditorTab::ClipTimeline;
             ImGui::TextDisabled("Battle Clip Timeline");
             ImGui::Separator();
 
@@ -1345,6 +1348,7 @@ void BattleCameraPreview_View::Render_TimelinePanel()
 
         if (ImGui::BeginTabItem("Transition Preview"))
         {
+            _activeTimelineEditorTab = TimelineEditorTab::TransitionPreview;
             Render_TransitionPreviewPanel();
             ImGui::EndTabItem();
         }
@@ -2667,6 +2671,17 @@ void BattleCameraPreview_View::Update_PreviewAttackActorMotion(float previewTime
         _previewContext.mode != BattleCameraMode::PLAYERATTACK)
         return;
 
+    string skillId = _previewContext.skillId;
+    if (skillId.empty())
+        skillId = Get_SelectedSkillId();
+
+    if (skillId.empty())
+        return;
+
+    const Client::Skill_Data* skill = CLIENT->Get_Skill(skillId);
+    if (skill == nullptr || skill->AnimPhases.empty())
+        return;
+
     Shared<GameObject> subjectObject = Resolve_PreviewBattleActor(_previewContext.subjectSide);
     Shared<GameObject> opponentObject = Resolve_PreviewBattleActor(_previewContext.opponentSide);
 
@@ -2678,21 +2693,70 @@ void BattleCameraPreview_View::Update_PreviewAttackActorMotion(float previewTime
     if (subjectTransform == nullptr || opponentTransform == nullptr)
         return;
 
-    const Vec3 startPos = Get_PreviewSlotWorldPosition(_previewContext.subjectSide, _previewContext.subjectSlot);
-    const Vec3 opponentPos = opponentTransform->Get_WorldPosition();
-
-    Vec3 toOpponent = opponentPos - startPos;
-
-    toOpponent.y = 0.f;
-    if (toOpponent.LengthSquared() <= 0.0001f)
+    Shared<ModelCom> subjectModel = Resolve_PreviewSubjectModel();
+    if (subjectModel == nullptr)
         return;
 
-    toOpponent.Normalize();
+    _previewContext.subjectOriginPos = Get_PreviewSlotWorldPosition(_previewContext.subjectSide, _previewContext.subjectSlot);
 
-    const float attackWindow = 0.35f;
-    const float moveDistance = 2.f;
-    const float t = clamp(previewTimeSec / attackWindow, 0.f, 1.f);
-    subjectTransform->Set_WorldPosition(startPos + toOpponent * (moveDistance * t));
+    const string currentAnimationName =
+        (_selectedPreviewAnimationIndex >= 0 &&
+         _selectedPreviewAnimationIndex < static_cast<int>(_previewAnimationNames.size()))
+        ? _previewAnimationNames[_selectedPreviewAnimationIndex]
+        : string{};
+
+    const Client::BattleActionPhase* currentPhase = &skill->AnimPhases.front();
+    for (const Client::BattleActionPhase& phase : skill->AnimPhases)
+    {
+        if (!currentAnimationName.empty() && phase.animationKey == currentAnimationName)
+        {
+            currentPhase = &phase;
+            break;
+        }
+    }
+
+    if (currentPhase == nullptr)
+        return;
+
+    const float rootRatio = std::clamp(subjectModel->Get_RootMotionTranslationRatio(), 0.f, 1.f);
+    const Vec3 phaseGoalPos = Resolve_PhaseGoalPosition(_previewContext, *currentPhase);
+    Vec3 desiredPos = _previewContext.subjectOriginPos;
+
+    if (currentPhase->faceTarget)
+    {
+        Vec3 faceDir = phaseGoalPos - desiredPos;
+        faceDir.y = 0.f;
+        if (faceDir.LengthSquared() > 0.0001f)
+        {
+            faceDir.Normalize();
+            const float yawRad = atan2f(faceDir.x, faceDir.z);
+            Vec3 rot = subjectTransform->Get_WorldRotationEuler();
+            rot.y = XMConvertToDegrees(yawRad);
+            subjectTransform->Set_WorldRotationEuler(rot);
+        }
+    }
+
+    switch (currentPhase->movementPolicy)
+    {
+    case Client::BattleMovementPolicy::SnapToTarget:
+        desiredPos = phaseGoalPos;
+        break;
+
+    case Client::BattleMovementPolicy::MoveToTarget:
+    case Client::BattleMovementPolicy::ReturnToOrigin:
+    case Client::BattleMovementPolicy::RootMotionToTarget:
+        desiredPos = Vec3::Lerp(_previewContext.subjectOriginPos, phaseGoalPos, rootRatio);
+        break;
+
+    case Client::BattleMovementPolicy::None:
+    case Client::BattleMovementPolicy::Custom:
+    default:
+        desiredPos = _previewContext.subjectOriginPos;
+        break;
+    }
+
+    desiredPos.y = _previewContext.subjectOriginPos.y;
+    subjectTransform->Set_WorldPosition(desiredPos);
 }
 
 Shared<GameObject> BattleCameraPreview_View::Resolve_PreviewBattleActor(PreviewSlotSide side)
@@ -2821,6 +2885,9 @@ string BattleCameraPreview_View::Get_SelectedEnemyPrefabName() const
 
 BattleCameraMode BattleCameraPreview_View::Get_BattlePresetEditorMode() const
 {
+    if (_activeTimelineEditorTab != TimelineEditorTab::TransitionPreview)
+        return _previewContext.mode;
+
     if (_transitionPreviewAutoFollowActiveStep &&
         _transitionPreviewActiveStepIndex >= 0 &&
         _transitionPreviewActiveStepIndex < static_cast<int>(_transitionPreviewSteps.size()))
@@ -2924,6 +2991,74 @@ void BattleCameraPreview_View::Scrub_TransitionSequence(float timeSec)
     _transitionPreviewActiveStepIndex = stepIndex;
     _transitionPreviewElapsed = stepLocalTime;
     Rebuild_TransitionPreviewSequenceAtTime(_transitionPreviewSequenceTimeSec);
+}
+
+Vec3 BattleCameraPreview_View::Resolve_PhaseGoalPosition(const PreviewContext& context, const Client::BattleActionPhase& phase)
+{
+    Shared<GameObject> subject = Resolve_PreviewBattleActor(context.subjectSide);
+
+    if (!subject)
+        return {};
+
+    Shared<TransformCom> subjectTransform = subject->Get_Transform();
+    if (subjectTransform == nullptr)
+        return {};
+
+    const Vec3 actorPos = subjectTransform->Get_WorldPosition();
+
+    if (phase.movementPolicy == Client::BattleMovementPolicy::ReturnToOrigin)
+        return context.subjectOriginPos;
+
+    const Vec3 anchorPos = Resolve_AnchorPosition(context, phase.targetAnchor);
+
+    if (!phase.useDistance)
+        return anchorPos;
+
+    if (phase.targetAnchor == Client::BattleTargetAnchor::Self)
+        return anchorPos;
+
+    Vec3 dir = anchorPos - actorPos;
+    dir.y = 0.f;
+
+    if (dir.LengthSquared() <= 0.0001f)
+        return anchorPos;
+
+    dir.Normalize();
+
+    return anchorPos - dir * phase.offsetDistance;
+}
+
+
+Vec3 BattleCameraPreview_View::Resolve_AnchorPosition(const PreviewContext& context, Client::BattleTargetAnchor anchor)
+{
+    Shared<GameObject> subject = Resolve_PreviewBattleActor(context.subjectSide);
+    Shared<GameObject> opponent = Resolve_PreviewBattleActor(context.opponentSide);
+
+    switch (anchor)
+    {
+    case Client::BattleTargetAnchor::Self:
+        if (subject && subject->Get_Transform())
+            return subject->Get_Transform()->Get_WorldPosition();
+        break;
+
+    case Client::BattleTargetAnchor::PrimaryTarget:
+        if (opponent && opponent->Get_Transform())
+            return opponent->Get_Transform()->Get_WorldPosition();
+        break;
+
+    case Client::BattleTargetAnchor::TargetCenter:
+        if (opponent && opponent->Get_Transform())
+            return opponent->Get_Transform()->Get_WorldPosition();
+        break;
+
+    default:
+        break;
+    }
+
+    if (subject && subject->Get_Transform())
+        return subject->Get_Transform()->Get_WorldPosition();
+
+    return Vec3::Zero;
 }
 
 Shared<BattleCameraPreview_View> BattleCameraPreview_View::Create()
