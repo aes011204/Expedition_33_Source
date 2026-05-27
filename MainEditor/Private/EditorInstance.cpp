@@ -161,17 +161,17 @@ void EditorInstance::Update_Editor(float timeDelta)
     Apply_PendingPreviewViewportSize();
 
     {
-        Profile_View::Scope scope("Editor::ImGuiUpdate");
+        ENGINE_PROFILE_SCOPE_DETAIL("Editor::ImGuiUpdate");
         _imguiManager->Update(timeDelta);
     }
 
     {
-        Profile_View::Scope scope("Editor::EditorManagerUpdate");
+        ENGINE_PROFILE_SCOPE_DETAIL("Editor::EditorManagerUpdate");
         _editorManager->Update(timeDelta);
     }
 
     {
-        Profile_View::Scope scope("Editor::NotificationUpdate");
+        ENGINE_PROFILE_SCOPE_DETAIL("Editor::NotificationUpdate");
         _notificationManager->Update(timeDelta);
     }
 }
@@ -179,17 +179,17 @@ void EditorInstance::Update_Editor(float timeDelta)
 void EditorInstance::Render_Editor()
 {
     {
-        Profile_View::Scope scope("Editor::EditorManager");
+        ENGINE_PROFILE_SCOPE_DETAIL("Editor::EditorManager");
         _editorManager->Render();
     }
 
     {
-        Profile_View::Scope scope("Editor::Notification");
+        ENGINE_PROFILE_SCOPE_DETAIL("Editor::Notification");
         _notificationManager->Render();
     }
 
     {
-        Profile_View::Scope scope("Editor::ImGui");
+        ENGINE_PROFILE_SCOPE_DETAIL("Editor::ImGui");
         _imguiManager->Render();
     }
 }
@@ -685,7 +685,7 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
 
     Shared<RenderTarget> renderTarget = nullptr;
     {
-        Profile_View::Scope scope("Capture::PrepareRT");
+        ENGINE_PROFILE_SCOPE_DETAIL("Capture::PrepareRT");
         renderTarget = Prepare_SharedViewportRenderTarget(copyWidth, copyHeight);
     }
 
@@ -694,7 +694,7 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
 
     ID3D11Texture2D* backBufferTexture = nullptr;
     {
-        Profile_View::Scope scope("Capture::GetBackBuffer");
+        ENGINE_PROFILE_SCOPE_DETAIL("Capture::GetBackBuffer");
         backBufferTexture = Get_CachedBackBufferTexture();
     }
 
@@ -714,7 +714,7 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
     sourceBox.back = 1;
 
     {
-        Profile_View::Scope scope("Capture::CopySubresource");
+        ENGINE_PROFILE_SCOPE_DETAIL("Capture::CopySubresource");
         _context->CopySubresourceRegion(
             viewportTexture.Get(),
             0,

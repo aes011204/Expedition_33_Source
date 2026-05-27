@@ -44,6 +44,19 @@ struct Profile_View::Profiler_Runtime
 
 namespace
 {
+const char* Get_Profile_Level_Name()
+{
+#if ENGINE_PROFILE_LEVEL == ENGINE_PROFILE_LEVEL_OFF
+    return "Off";
+#elif ENGINE_PROFILE_LEVEL == ENGINE_PROFILE_LEVEL_BASIC
+    return "Basic";
+#elif ENGINE_PROFILE_LEVEL == ENGINE_PROFILE_LEVEL_DETAIL
+    return "Detail";
+#else
+    return "Custom";
+#endif
+}
+
 bool Str_IContains(const string& haystack, const char* needle)
 {
     if (nullptr == needle || '\0' == needle[0])
@@ -67,17 +80,23 @@ bool Str_IContains(const string& haystack, const char* needle)
 
 Profile_View::Scope::Scope(const char* scopeName)
 {
+#if ENGINE_PROFILE_LEVEL > ENGINE_PROFILE_LEVEL_OFF
     if (nullptr == scopeName || '\0' == scopeName[0])
         return;
 
     Profile_View::Begin_Scope(scopeName);
     _active = true;
+#else
+    UNREFERENCED_PARAMETER(scopeName);
+#endif
 }
 
 Profile_View::Scope::~Scope()
 {
+#if ENGINE_PROFILE_LEVEL > ENGINE_PROFILE_LEVEL_OFF
     if (_active)
         Profile_View::End_Scope();
+#endif
 }
 
 Profile_View::Profile_View()
@@ -297,6 +316,7 @@ void Profile_View::Draw_Toolbar()
 
 void Profile_View::Draw_Frame_Info()
 {
+    ImGui::Text("Profile Level: %s (%d)", Get_Profile_Level_Name(), ENGINE_PROFILE_LEVEL);
     ImGui::Text("FPS (Last / Avg): %d / %d", static_cast<int>(_fpsLast), static_cast<int>(_fpsAvg));
     ImGui::Text("Frame ms (Last / Avg): %.2f / %.2f", static_cast<float>(_frameMsLast), static_cast<float>(_frameMsAvg));
     ImGui::Text("Render Calls: %u", _renderCallCount);

@@ -246,7 +246,7 @@ void EffectEditorApp::Priority_Update(float)
 void EffectEditorApp::Update(float timeDelta)
 {
     {
-        Profile_View::Scope profileScope("Editor::Update");
+        ENGINE_PROFILE_SCOPE_BASIC("Editor::Update");
         EDITOR->Update_Editor(timeDelta);
     }
 
@@ -275,7 +275,7 @@ void EffectEditorApp::Update(float timeDelta)
 
     GAME->Set_FreeCameraTimeDelta(freeCameraDelta);
     {
-        Profile_View::Scope profileScope("Game::Update");
+        ENGINE_PROFILE_SCOPE_BASIC("Game::Update");
         GAME->Update_Engine(runtimeDelta);
     }
 
@@ -439,7 +439,7 @@ HRESULT EffectEditorApp::Render()
         passBegin = chrono::steady_clock::now();
 #endif
     {
-        Profile_View::Scope profileScope("Game::Render");
+        ENGINE_PROFILE_SCOPE_BASIC("Game::Render");
 
         GAME->Bind_BackBuffer();
 
@@ -461,7 +461,7 @@ HRESULT EffectEditorApp::Render()
         passBegin = chrono::steady_clock::now();
 #endif
     {
-        Profile_View::Scope profileScope("Editor::Render");
+        ENGINE_PROFILE_SCOPE_BASIC("Editor::Render");
 
 #ifdef _DEBUG
         chrono::steady_clock::time_point editorPassBegin{};
@@ -499,7 +499,7 @@ HRESULT EffectEditorApp::Render()
         passBegin = chrono::steady_clock::now();
 #endif
     {
-        Profile_View::Scope profileScope("Engine::Present");
+        ENGINE_PROFILE_SCOPE_BASIC("Engine::Present");
         if (FAILED(GAME->Present()))
             return E_FAIL;
     }

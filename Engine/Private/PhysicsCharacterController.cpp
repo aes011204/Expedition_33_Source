@@ -101,7 +101,7 @@ HRESULT PhysicsCharacterController::Initialize(
 
 CharacterControllerMoveResult PhysicsCharacterController::Move(const Vec3& displacement, float timeDelta)
 {
-    Debug_Profile::Scope profileScope("PhysX::CCT::Move");
+    ENGINE_PROFILE_SCOPE_DETAIL("PhysX::CCT::Move");
 
     CharacterControllerMoveResult result{};
 

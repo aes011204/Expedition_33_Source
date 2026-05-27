@@ -99,7 +99,7 @@ void MovementCom::BeginPlay()
 
 void MovementCom::Update_Movement(float timeDelta)
 {
-    Debug_Profile::Scope profileScope("Movement::Update");
+    ENGINE_PROFILE_SCOPE_DETAIL("Movement::Update");
 
     CHECK_NULL(_transformCom);
 
@@ -384,7 +384,7 @@ void MovementCom::Update_VerticalVelocity(float timeDelta)
 
 void MovementCom::Apply_Velocity(float timeDelta)
 {
-    Debug_Profile::Scope profileScope("Movement::ApplyVelocity");
+    ENGINE_PROFILE_SCOPE_DETAIL("Movement::ApplyVelocity");
 
     Update_HorizontalVelocity();
     Update_VerticalVelocity(timeDelta);
@@ -393,7 +393,7 @@ void MovementCom::Apply_Velocity(float timeDelta)
 
     if (_moveDesc.backend == MoveBackend::PhysXCCT && _characterController != nullptr)
     {
-        Debug_Profile::Scope cctScope("Movement::ApplyVelocity::CCT");
+        ENGINE_PROFILE_SCOPE_DETAIL("Movement::ApplyVelocity::CCT");
 
         // 정지 상태에서는 일단 스킵
         if (_isGrounded && !_isJumping && displacement.LengthSquared() <= 0.000001f)
@@ -419,7 +419,7 @@ void MovementCom::Apply_Velocity(float timeDelta)
         return;
     }
 
-    Debug_Profile::Scope sweepScope("Movement::ApplyVelocity::Sweep");
+    ENGINE_PROFILE_SCOPE_DETAIL("Movement::ApplyVelocity::Sweep");
 
     if (_colliderCom == nullptr || _colliderCom->Get_PxShape() == nullptr)
     {

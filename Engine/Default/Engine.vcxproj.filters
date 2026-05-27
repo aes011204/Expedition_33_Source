@@ -445,6 +445,9 @@
     <ClInclude Include="..\Public\Engine_Macro.h">
       <Filter>99. Defines</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Engine_Config.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Engine_Struct.h">
       <Filter>99. Defines</Filter>
     </ClInclude>

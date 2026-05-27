@@ -11,7 +11,7 @@ constexpr size_t MaxDebugProfileSamples = 8192;
 
 Debug_Profile::Scope::Scope(const char* name)
 {
-#ifdef _DEBUG
+#if ENGINE_PROFILE_LEVEL > ENGINE_PROFILE_LEVEL_OFF
     if (name == nullptr || name[0] == '\0')
         return;
 
@@ -25,7 +25,7 @@ Debug_Profile::Scope::Scope(const char* name)
 
 Debug_Profile::Scope::~Scope()
 {
-#ifdef _DEBUG
+#if ENGINE_PROFILE_LEVEL > ENGINE_PROFILE_LEVEL_OFF
     if (!_active)
         return;
 
@@ -37,7 +37,7 @@ Debug_Profile::Scope::~Scope()
 
 void Debug_Profile::Push_Sample(const char* name, double elapsedMs)
 {
-#ifdef _DEBUG
+#if ENGINE_PROFILE_LEVEL > ENGINE_PROFILE_LEVEL_OFF
     if (name == nullptr || name[0] == '\0')
         return;
 
@@ -54,7 +54,7 @@ void Debug_Profile::Push_Sample(const char* name, double elapsedMs)
 
 void Debug_Profile::Consume_Samples(vector<DebugProfileSample>& outSamples)
 {
-#ifdef _DEBUG
+#if ENGINE_PROFILE_LEVEL > ENGINE_PROFILE_LEVEL_OFF
     lock_guard<mutex> lock(g_debugProfileMutex);
     outSamples.insert(outSamples.end(), g_debugProfileSamples.begin(), g_debugProfileSamples.end());
     g_debugProfileSamples.clear();
