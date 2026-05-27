@@ -1,27 +1,34 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ScreenFx_Instance.h"
 #include "GameInstance.h"
 
-ScreenFx_Instance::ScreenFx_Instance(ScreenFxDesc* desc)
+ScreenFx_Instance::ScreenFx_Instance()
 {
-    if (desc != nullptr)
-    {
-        _type = desc->type;
-        _blendMode = desc->blendMode;
-        _endCondition = desc->endCondition;
-    }
+
 }
 
-bool ScreenFx_Instance::Update_ScreenFx(float timeDelta)
+HRESULT ScreenFx_Instance::Initialize(ScreenFxDesc* desc)
+{
+    if (desc)
+    {
+        _passType = desc->passType;
+        if (desc->endPredicate)
+        {
+            _endCondition.Add(desc->endPredicate);
+        }
+    }
+
+    LOG_ERROR("[SCREEN FX INSTANCE] : Failed to Initialize ScreenFx");
+    return E_FAIL;
+}
+
+bool ScreenFx_Instance::Check_EndCondition()
 {
     bool shouldEnd = false;
     if (_endCondition.IsBound())
     {
         _endCondition.Broadcast(shouldEnd);
-
-        if (shouldEnd)
-            return true;
     }
-    
+
     return shouldEnd;
 }

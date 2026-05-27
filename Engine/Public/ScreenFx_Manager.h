@@ -5,6 +5,7 @@
 NS_BEGIN(Engine)
 
 class ShaderCom;
+class VIBuffer_Rect;
 
 class ScreenFx_Manager final : Base
 {
@@ -16,23 +17,18 @@ public:
     bool Is_ScreenFXActivated() const { return _activeFx; }
     void Set_ScreenFxActivated(bool active) { _activeFx = active; }
 
-    ScreenFxCB& Get_Parameters() { return _parameters; }
-    const ScreenFxCB& Get_Parameters() const { return _parameters; }
-
     void Play_ScreenEffect(const Shared<ScreenFx_Instance>& effect);
     void Clear_ScreenEffect();
 
 public:
     void Update(float timeDelta);
-    HRESULT Render_ScreenFx(class ShaderCom* shader, class VIBuffer_Rect* rtBuffer);
-    HRESULT Bind_ScreenFxCBuffer(ShaderCom* shader);
+    HRESULT Render_ScreenFx(const Shared<ShaderCom>& shader, const Shared <VIBuffer_Rect>& rtBuffer);
 
 private:
     bool _activeFx{ true };
 
 private:
     vector<Shared<ScreenFx_Instance>> _activeEffects;
-    ScreenFxCB _parameters{};
 
 public:
     static Unique<ScreenFx_Manager> Create();

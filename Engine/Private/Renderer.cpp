@@ -216,7 +216,7 @@ void Renderer::Draw()
     if (useScreenFx)
     {
         // BackBuffer(지금까지 그린 화면) -> ScreenFx 로 복사
-        if (FAILED(GAME->Copy_CurrentRTV_To(RT::ScreenFxColor)))
+        if (FAILED(GAME->Copy_CurrentRTV_To(RT::ScreenFxColorA)))
             DEBUG_LOG_FAIL(L"Render_ScreenFx:FAIL Copy_CurrentRTV_To(ScreenFxColor)");
         else
             Render_ScreenFx();
@@ -374,6 +374,7 @@ void Renderer::Render_SSAO()
 
         if (FAILED(GAME->End_MRT()))
             return;
+
         return;
     }
 
@@ -822,16 +823,8 @@ void Renderer::Render_ScreenFx()
         L"Render_ScreenFx:FAIL Bind_Resources");
 
     RETURN_LOG_IF_FAILED(
-        GAME->Bind_RT_ShaderResource(_screenFxShader, "g_ScreenFxTexture", RT::ScreenFxColor),
-        L"Render_ScreenFx:FAIL Bind_RT_ShaderResource(g_ScreenFxTexture)");
-
-    ScreenFx_Manager* manager = GAME->Get_ScreenFxManager();
-    if (manager && manager->Is_ScreenFXActivated())
-    {
-        RETURN_LOG_IF_FAILED(
-            manager->Render_ScreenFx(_screenFxShader.get(), _viBuffer.get()),
-            L"Render_ScreenFx:FAIL Manager->Render_ScreenFx");
-    }
+        GAME->Get_ScreenFxManager()->Render_ScreenFx(_screenFxShader, _viBuffer),
+        L"Render_ScreenFx:FAIL Manager->Render_ScreenFx");
 
     Add_RenderCall();
 }

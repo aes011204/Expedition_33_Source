@@ -169,12 +169,13 @@
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
     <ClInclude Include="..\public\BT_Patroll.h" />
-    <ClInclude Include="..\Public\CA_Instance.h" />
+    <ClInclude Include="..\Public\CA_ScreenFx.h" />
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
     <ClInclude Include="..\Public\ClientScreenFxManager.h" />
+    <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
@@ -292,7 +293,7 @@
     <ClInclude Include="..\Public\Player_GameMenu.h" />
     <ClInclude Include="..\public\Mon_Portier_Body.h" />
     <ClInclude Include="..\public\PreviewShotTable.h" />
-    <ClInclude Include="..\Public\RadialBlur_Instance.h" />
+    <ClInclude Include="..\Public\RadialBlur_ScreenFx.h" />
     <ClInclude Include="..\public\SkillScript.h" />
     <ClInclude Include="..\Public\PW_Gustave.h" />
     <ClInclude Include="..\Public\PW_Lune.h" />
@@ -376,12 +377,13 @@
     <ClCompile Include="..\private\BattleActionExecutor.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
     <ClCompile Include="..\private\BT_Patroll.cpp" />
-    <ClCompile Include="..\Private\CA_Instance.cpp" />
+    <ClCompile Include="..\Private\CA_ScreenFx.cpp" />
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />
     <ClCompile Include="..\private\BT_FinishDecision.cpp" />
     <ClCompile Include="..\private\BT_SetSkill.cpp" />
     <ClCompile Include="..\private\BT_Set_Target.cpp" />
     <ClCompile Include="..\Private\ClientScreenFxManager.cpp" />
+    <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
     <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
@@ -502,7 +504,7 @@
     <ClCompile Include="..\Private\PlayerStateMachineCom.cpp" />
     <ClCompile Include="..\Private\PreviewCamera.cpp" />
     <ClCompile Include="..\Private\Player_WorldAction.cpp" />
-    <ClCompile Include="..\Private\RadialBlur_Instance.cpp" />
+    <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\private\SkillScript.cpp" />
     <ClCompile Include="..\private\SkillTargeting.cpp">

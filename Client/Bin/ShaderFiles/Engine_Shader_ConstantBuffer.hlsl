@@ -172,7 +172,6 @@ cbuffer ScreenFxBuffer
 {
     float3 g_vignetteColor;
     float g_vignetteIntensity;
-
     float g_vignetteRadius;
     float g_vignetteSoftness;
     float g_ghostingIntensity;
@@ -184,6 +183,9 @@ cbuffer ScreenFxBuffer
     float2 g_radialBlurCenter;
     float g_radialBlurRadius;
     float g_chromaticAberrationIntensity;
+    float g_pullIntensity;
+    float g_bulgeIntensity;
+    float2 g_pullDirection;
 };
 
 #endif

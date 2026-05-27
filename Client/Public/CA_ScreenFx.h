@@ -1,10 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "ScreenFx_Instance.h"
 
 NS_BEGIN(Client)
 
-class CA_Instance final : public ScreenFx_Instance
+class CA_ScreenFx final : public ScreenFx_Instance
 {
 public:
 
@@ -16,12 +16,10 @@ public:
     };
 
 private:
-    CA_Instance(const CADesc& desc);
-    ~CA_Instance() override = default;
+    CA_ScreenFx(const CADesc& desc);
+    ~CA_ScreenFx() override = default;
 
 public:
-    bool Update_ScreenFx(float timeDelta) override;
-    void Apply_To(struct Engine::ScreenFxCB& outParameters) override;
 
 private:
     float   _maxIntensity{};
@@ -30,7 +28,7 @@ private:
     float   _currentIntensity{};
 
 public:
-    static Shared<CA_Instance> Create(const CADesc& desc);
+    static Shared<CA_ScreenFx> Create(const CADesc& desc);
 };
 
 NS_END
