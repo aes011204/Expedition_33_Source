@@ -2,6 +2,7 @@
 
 #include "Debug_Profile.h"
 #include "Editor_Window.h"
+#include "GameInstance.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -55,6 +56,15 @@ private: //## Types
         size_t privateBytesMb{ 0 };
     };
 
+    struct ResourceMemory
+    {
+        Engine::DebugResourceMemorySummary engine{};
+        uint32 effectPoolEntryCount{ 0 };
+        uint32 effectPoolActiveCount{ 0 };
+        uint32 effectPoolIdleCount{ 0 };
+        bool hasData{ false };
+    };
+
 private: //## Static Values
     static Profile_View* activeView;
 
@@ -62,7 +72,7 @@ private: //## Data
     Unique<ProfilerRuntime> _runtime{ nullptr };
     clock::time_point _prevFrame{ clock::now() };
 
-    bool _capture{ false };
+    bool _capture{ true };
     bool _sortByCost{ true };
     bool _showDisabled{ false };
     int _avgWindow{ 120 };
@@ -74,16 +84,29 @@ private: //## Data
     double _fpsLast{ 0.0 };
     double _fpsAvg{ 0.0 };
     uint32 _renderCallCount{ 0 };
+    ProcessMemory _processMemory{};
+    ResourceMemory _resourceMemory{};
+    clock::time_point _lastTimingSampleTime{};
+    clock::time_point _lastProcessMemorySampleTime{};
+    clock::time_point _lastResourceMemorySampleTime{};
+    bool _hasTimingSample{ false };
+    bool _hasProcessMemorySample{ false };
+    bool _hasResourceMemorySample{ false };
+    size_t _peakWorkingSetMb{ 0 };
+    size_t _peakPrivateBytesMb{ 0 };
 
 private: //## Helpers
     void Draw_Toolbar();
     void Draw_Frame_Info();
     void Draw_Scopes();
     void Draw_Memory();
+    void Draw_Resource_Memory();
     void Reset_Stats();
     void Prune_Dead_Scopes();
     void Record_Scope_Sample(const string& scopeName, double elapsedMs);
+    void Refresh_Memory_Samples();
     ProcessMemory Get_Process_Memory() const;
+    ResourceMemory Get_Resource_Memory() const;
 
 public:
     static Shared<Profile_View> Create();

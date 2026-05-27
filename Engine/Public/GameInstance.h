@@ -66,6 +66,26 @@ enum class Collision_Preset;
 struct PhysXStaticActorHandle;
 struct PhysXQueryHit;
 
+struct DebugResourceMemorySummary
+{
+    uint32 texturePrototypeCount{};
+    uint32 textureSrvCount{};
+    size_t textureEstimatedBytes{};
+
+    uint32 modelPrototypeCount{};
+    uint32 modelMeshCount{};
+    uint32 modelMaterialCount{};
+    uint32 modelBoneCount{};
+    uint32 modelAnimationCount{};
+    size_t modelEstimatedBytes{};
+
+    uint32 standaloneBufferPrototypeCount{};
+    size_t standaloneBufferEstimatedBytes{};
+
+    uint32 currentLevelObjectCount{};
+    uint32 currentLevelComponentCount{};
+};
+
 class ENGINE_DLL GameInstance final : public Base
 {
     DECLARE_SINGLETON(GameInstance)
@@ -299,6 +319,10 @@ public: /* For.Asset_Manager */
 public: /* For.Asset_Manager (access) */
     const Asset_Manager* Get_AssetManager() const { return _assetManager.get(); }
     Asset_Manager*       Get_AssetManager() { return _assetManager.get(); }
+
+public: /* For.Debug Profile */
+    // Profile View에서 현재 등록 prototype/object의 대략적인 리소스 메모리 사용량을 요약할 때 사용한다.
+    bool Build_DebugResourceMemorySummary(DebugResourceMemorySummary& outSummary) const;
 
 public: /* For.ShaderResourceRegistry */
     uint32 Get_Handle(const string& name) const;

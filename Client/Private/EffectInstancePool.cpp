@@ -165,6 +165,22 @@ void EffectInstancePool::Discard_Inactive(const wstring& effectName)
     }
 }
 
+EffectInstancePool::DebugSummary EffectInstancePool::Get_DebugSummary() const
+{
+    DebugSummary summary{};
+    summary.entryCount = static_cast<uint32>(_entries.size());
+
+    for (const PooledInstance& entry : _entries)
+    {
+        if (entry.inUse)
+            ++summary.activeCount;
+        else
+            ++summary.idleCount;
+    }
+
+    return summary;
+}
+
 HRESULT EffectInstancePool::Acquire_Instance(
     const AcquireDesc& desc,
     Shared<const EffectDefinition>& outDefinition,

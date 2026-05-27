@@ -1,5 +1,8 @@
 ﻿#include "Profile_View.h"
 
+#include "ClientInstance.h"
+#include "EffectInstancePool.h"
+
 #include <psapi.h>
 
 #pragma comment(lib, "psapi.lib")
@@ -33,6 +36,7 @@ struct Profile_View::ProfilerRuntime
 
     bool externalFrameTime = false;
     double externalFrameMs = 0.0;
+    bool timingSampleFrame = false;
 
     deque<double> frameWindow = {};
     double frameWindowSum = 0.0;
@@ -72,6 +76,29 @@ namespace Internal
 
         return string::npos != lowerHaystack.find(lowerNeedle);
     }
+
+    static bool Should_Refresh_Sample(
+        const Profile_View::clock::time_point now,
+        const Profile_View::clock::time_point lastSampleTime,
+        const bool hasSample,
+        const float intervalSec)
+    {
+        if (!hasSample)
+            return true;
+
+        if (intervalSec <= 0.f)
+            return true;
+
+        const float elapsedSec = static_cast<float>(
+            chrono::duration<double>(now - lastSampleTime).count());
+        return elapsedSec >= intervalSec;
+    }
+
+    static double Bytes_To_Mb(const size_t bytes)
+    {
+        return static_cast<double>(bytes) / (1024.0 * 1024.0);
+    }
+
 }
 
 Profile_View::Scope::Scope(const char* scopeName)
@@ -127,8 +154,11 @@ void Profile_View::Render()
         Draw_Frame_Info();
         ImGui::Separator();
         Draw_Scopes();
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_BASIC
+        Refresh_Memory_Samples();
         ImGui::Separator();
         Draw_Memory();
+#endif
     }
 
     Set_Open(isOpen);
@@ -141,9 +171,20 @@ void Profile_View::Frame_Begin()
         return;
 
     auto& runtime = *activeView->_runtime;
+    const clock::time_point now = clock::now();
     runtime.frameIndex++;
     runtime.avgWindow = max(1, activeView->_avgWindow);
-    runtime.capture = activeView->_capture && activeView->Is_Open();
+    runtime.timingSampleFrame = Internal::Should_Refresh_Sample(
+        now,
+        activeView->_lastTimingSampleTime,
+        activeView->_hasTimingSample,
+        ENGINE_PROFILE_TIMING_SAMPLE_INTERVAL_SEC);
+    if (runtime.timingSampleFrame)
+    {
+        activeView->_lastTimingSampleTime = now;
+        activeView->_hasTimingSample = true;
+    }
+    runtime.capture = activeView->_capture && activeView->Is_Open() && runtime.timingSampleFrame;
 }
 
 void Profile_View::Frame_End()
@@ -167,32 +208,38 @@ void Profile_View::Frame_End()
         activeView->_prevFrame = now;
     }
 
-    activeView->_frameMsLast = frameMs;
-    activeView->_fpsLast = frameMs > 0.0001 ? 1000.0 / frameMs : 0.0;
-
-    runtime.frameWindow.push_back(frameMs);
-    runtime.frameWindowSum += frameMs;
-
-    while (static_cast<int>(runtime.frameWindow.size()) > runtime.avgWindow)
+    if (runtime.timingSampleFrame)
     {
-        runtime.frameWindowSum -= runtime.frameWindow.front();
-        runtime.frameWindow.pop_front();
-    }
+        activeView->_frameMsLast = frameMs;
+        activeView->_fpsLast = frameMs > 0.0001 ? 1000.0 / frameMs : 0.0;
 
-    activeView->_frameMsAvg = runtime.frameWindow.empty()
-                              ? 0.0
-                              : runtime.frameWindowSum / static_cast<double>(runtime.frameWindow.size());
-    activeView->_fpsAvg = activeView->_frameMsAvg > 0.0001 ? 1000.0 / activeView->_frameMsAvg : 0.0;
+        runtime.frameWindow.push_back(frameMs);
+        runtime.frameWindowSum += frameMs;
+
+        while (static_cast<int>(runtime.frameWindow.size()) > runtime.avgWindow)
+        {
+            runtime.frameWindowSum -= runtime.frameWindow.front();
+            runtime.frameWindow.pop_front();
+        }
+
+        activeView->_frameMsAvg = runtime.frameWindow.empty()
+                                  ? 0.0
+                                  : runtime.frameWindowSum / static_cast<double>(runtime.frameWindow.size());
+        activeView->_fpsAvg = activeView->_frameMsAvg > 0.0001 ? 1000.0 / activeView->_frameMsAvg : 0.0;
+    }
 
     vector<Engine::DebugProfileSample> debugSamples = {};
     Engine::Debug_Profile::Consume_Samples(debugSamples);
 
-    unordered_map<string, double> debugSampleSums = {};
-    for (const Engine::DebugProfileSample& sample : debugSamples)
-        debugSampleSums[sample.name] += sample.elapsedMs;
+    if (runtime.capture)
+    {
+        unordered_map<string, double> debugSampleSums = {};
+        for (const Engine::DebugProfileSample& sample : debugSamples)
+            debugSampleSums[sample.name] += sample.elapsedMs;
 
-    for (const auto& [scopeName, elapsedMs] : debugSampleSums)
-        activeView->Record_Scope_Sample(scopeName, elapsedMs);
+        for (const auto& [scopeName, elapsedMs] : debugSampleSums)
+            activeView->Record_Scope_Sample(scopeName, elapsedMs);
+    }
 
     activeView->Prune_Dead_Scopes();
 }
@@ -350,9 +397,8 @@ void Profile_View::Draw_Scopes()
 
     if (_sortByCost)
     {
-        sort(
-            rows.begin(),
-            rows.end(),
+        ranges::sort(
+            rows,
             [](const Row& lhs, const Row& rhs)
             {
                 return lhs.sortKey > rhs.sortKey;
@@ -361,9 +407,8 @@ void Profile_View::Draw_Scopes()
     }
     else
     {
-        sort(
-            rows.begin(),
-            rows.end(),
+        ranges::sort(
+            rows,
             [](const Row& lhs, const Row& rhs)
             {
                 return lhs.stats->name < rhs.stats->name;
@@ -417,11 +462,111 @@ void Profile_View::Draw_Scopes()
 
 void Profile_View::Draw_Memory()
 {
-    const ProcessMemory memory = Get_Process_Memory();
-
     ImGui::Text("Memory");
-    ImGui::BulletText("Working Set : %zu MB", memory.workingSetMb);
-    ImGui::BulletText("Private     : %zu MB", memory.privateBytesMb);
+
+    if (ImGui::BeginTable("MemoryTable", 3, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg))
+    {
+        ImGui::TableSetupColumn("Metric");
+        ImGui::TableSetupColumn("Current");
+        ImGui::TableSetupColumn("Peak");
+        ImGui::TableHeadersRow();
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Working Set");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::Text("%zu MB", _processMemory.workingSetMb);
+        ImGui::TableSetColumnIndex(2);
+        ImGui::Text("%zu MB", _peakWorkingSetMb);
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextUnformatted("Private");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::Text("%zu MB", _processMemory.privateBytesMb);
+        ImGui::TableSetColumnIndex(2);
+        ImGui::Text("%zu MB", _peakPrivateBytesMb);
+
+        ImGui::EndTable();
+    }
+
+    ImGui::Separator();
+    Draw_Resource_Memory();
+}
+
+void Profile_View::Draw_Resource_Memory()
+{
+    ImGui::Text("Resource Summary");
+
+    if (!_resourceMemory.hasData)
+    {
+        ImGui::TextDisabled("Pending");
+        return;
+    }
+
+    const Engine::DebugResourceMemorySummary& summary = _resourceMemory.engine;
+
+    if (ImGui::BeginTable("ResourceMemoryTable", 4, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg))
+    {
+        ImGui::TableSetupColumn("Category");
+        ImGui::TableSetupColumn("Count");
+        ImGui::TableSetupColumn("Estimated");
+        ImGui::TableSetupColumn("Detail");
+        ImGui::TableHeadersRow();
+
+        auto drawRow = [](const char* category, const string& count, const string& estimated, const string& detail)
+        {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::TextUnformatted(category);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::TextUnformatted(count.c_str());
+            ImGui::TableSetColumnIndex(2);
+            ImGui::TextUnformatted(estimated.c_str());
+            ImGui::TableSetColumnIndex(3);
+            ImGui::TextUnformatted(detail.c_str());
+        };
+
+        drawRow(
+            "Textures",
+            fmt::format("{} prototypes", summary.texturePrototypeCount),
+            fmt::format("{:.1f} MB", Internal::Bytes_To_Mb(summary.textureEstimatedBytes)),
+            fmt::format("{} SRVs incl. materials", summary.textureSrvCount));
+
+        drawRow(
+            "Models",
+            fmt::format("{} prototypes", summary.modelPrototypeCount),
+            fmt::format("{:.1f} MB", Internal::Bytes_To_Mb(summary.modelEstimatedBytes)),
+            fmt::format(
+                "{} meshes / {} materials / {} bones / {} anims",
+                summary.modelMeshCount,
+                summary.modelMaterialCount,
+                summary.modelBoneCount,
+                summary.modelAnimationCount));
+
+        drawRow(
+            "Standalone Buffers",
+            fmt::format("{} prototypes", summary.standaloneBufferPrototypeCount),
+            fmt::format("{:.1f} MB", Internal::Bytes_To_Mb(summary.standaloneBufferEstimatedBytes)),
+            "VIBuffer prototypes");
+
+        drawRow(
+            "Objects",
+            fmt::format("{} objects", summary.currentLevelObjectCount),
+            "N/A",
+            fmt::format("{} components", summary.currentLevelComponentCount));
+
+        drawRow(
+            "Effect Pool",
+            fmt::format("{} entries", _resourceMemory.effectPoolEntryCount),
+            "N/A",
+            fmt::format(
+                "{} active / {} idle",
+                _resourceMemory.effectPoolActiveCount,
+                _resourceMemory.effectPoolIdleCount));
+
+        ImGui::EndTable();
+    }
 }
 
 void Profile_View::Reset_Stats()
@@ -449,6 +594,13 @@ void Profile_View::Reset_Stats()
     _frameMsAvg = 0.0;
     _fpsLast = 0.0;
     _fpsAvg = 0.0;
+    _processMemory = {};
+    _resourceMemory = {};
+    _hasTimingSample = false;
+    _hasProcessMemorySample = false;
+    _hasResourceMemorySample = false;
+    _peakWorkingSetMb = 0;
+    _peakPrivateBytesMb = 0;
 }
 
 void Profile_View::Prune_Dead_Scopes()
@@ -513,6 +665,35 @@ void Profile_View::Record_Scope_Sample(const string& scopeName, double elapsedMs
                   : entry.windowSum / static_cast<double>(entry.window.size());
 }
 
+void Profile_View::Refresh_Memory_Samples()
+{
+    const clock::time_point now = clock::now();
+
+    if (Internal::Should_Refresh_Sample(
+        now,
+        _lastProcessMemorySampleTime,
+        _hasProcessMemorySample,
+        ENGINE_PROFILE_PROCESS_MEMORY_SAMPLE_INTERVAL_SEC))
+    {
+        _processMemory = Get_Process_Memory();
+        _peakWorkingSetMb = max(_peakWorkingSetMb, _processMemory.workingSetMb);
+        _peakPrivateBytesMb = max(_peakPrivateBytesMb, _processMemory.privateBytesMb);
+        _lastProcessMemorySampleTime = now;
+        _hasProcessMemorySample = true;
+    }
+
+    if (Internal::Should_Refresh_Sample(
+        now,
+        _lastResourceMemorySampleTime,
+        _hasResourceMemorySample,
+        ENGINE_PROFILE_RESOURCE_MEMORY_SAMPLE_INTERVAL_SEC))
+    {
+        _resourceMemory = Get_Resource_Memory();
+        _lastResourceMemorySampleTime = now;
+        _hasResourceMemorySample = true;
+    }
+}
+
 Profile_View::ProcessMemory Profile_View::Get_Process_Memory() const
 {
     PROCESS_MEMORY_COUNTERS_EX processMemoryCounters = {};
@@ -525,6 +706,24 @@ Profile_View::ProcessMemory Profile_View::Get_Process_Memory() const
     ProcessMemory result = {};
     result.workingSetMb = processMemoryCounters.WorkingSetSize / (1024 * 1024);
     result.privateBytesMb = processMemoryCounters.PrivateUsage / (1024 * 1024);
+    return result;
+}
+
+Profile_View::ResourceMemory Profile_View::Get_Resource_Memory() const
+{
+    ResourceMemory result{};
+    result.hasData = GAME->Build_DebugResourceMemorySummary(result.engine);
+
+    const Shared<Client::ClientInstance>& client = Client::ClientInstance::GetInstance();
+    if (client && client->Get_EffectInstancePool())
+    {
+        const Client::EffectInstancePool::DebugSummary poolSummary =
+            client->Get_EffectInstancePool()->Get_DebugSummary();
+        result.effectPoolEntryCount = poolSummary.entryCount;
+        result.effectPoolActiveCount = poolSummary.activeCount;
+        result.effectPoolIdleCount = poolSummary.idleCount;
+    }
+
     return result;
 }
 
