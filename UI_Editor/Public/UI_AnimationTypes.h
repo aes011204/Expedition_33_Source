@@ -22,6 +22,12 @@ enum class UI_AnimationEasing
     EaseInOut,
 };
 
+enum class UI_AnimationAssetType
+{
+    Target_Animation,
+    Public_Animation,
+};
+
 struct UI_AnimationTrack
 {
     UI_AnimationTrackType type = UI_AnimationTrackType::Fade;
@@ -83,12 +89,43 @@ struct UI_AnimationTargetBinding
 struct UI_AnimationAsset
 {
     string name = "NewUIAnimation";
+    UI_AnimationAssetType animationType = UI_AnimationAssetType::Public_Animation;
     int32 fps = 60;
     int32 startFrame = 0;
     int32 endFrame = 60;
     bool loop = false;
+    vector<UI_AnimationKeyframeTrack> tracks = {};
     vector<UI_AnimationTargetBinding> targets = {};
 };
+
+enum class UI_StateAnimationEvent
+{
+    HoverEnter,
+    HoverExit,
+    PressedEnter,
+    PressedExit,
+    FocusedEnter,
+    FocusedExit,
+    DisabledEnter,
+    DisabledExit,
+    Count,
+};
+
+struct UI_StateAnimationAsset
+{
+    string name = "NewUIStateAnimation";
+    array<string, static_cast<size_t>(UI_StateAnimationEvent::Count)> eventAnimationPaths = {};
+};
+
+inline bool Is_TargetAnimation(const UI_AnimationAsset& asset)
+{
+    return asset.animationType == UI_AnimationAssetType::Target_Animation;
+}
+
+inline bool Is_PublicAnimation(const UI_AnimationAsset& asset)
+{
+    return asset.animationType == UI_AnimationAssetType::Public_Animation;
+}
 
 inline const char* Get_AnimationTrackTypeName(UI_AnimationTrackType type)
 {
@@ -276,6 +313,76 @@ inline const char* Get_AnimationEasingName(UI_AnimationEasing easing)
     default:
         return "EaseOut";
     }
+}
+
+inline const char* Get_AnimationAssetTypeName(UI_AnimationAssetType type)
+{
+    switch (type)
+    {
+    case UI_AnimationAssetType::Target_Animation:
+        return "Target_Animation";
+    case UI_AnimationAssetType::Public_Animation:
+        return "Public_Animation";
+    default:
+        return "Public_Animation";
+    }
+}
+
+inline bool Try_ParseAnimationAssetType(const string& typeName, UI_AnimationAssetType& outType)
+{
+    if (typeName == "Target_Animation" || typeName == "PerTargetTracks")
+    {
+        outType = UI_AnimationAssetType::Target_Animation;
+        return true;
+    }
+
+    if (typeName == "Public_Animation" || typeName == "SharedRelativeTracks")
+    {
+        outType = UI_AnimationAssetType::Public_Animation;
+        return true;
+    }
+
+    return false;
+}
+
+inline const char* Get_StateAnimationEventName(UI_StateAnimationEvent eventType)
+{
+    switch (eventType)
+    {
+    case UI_StateAnimationEvent::HoverEnter:
+        return "HoverEnter";
+    case UI_StateAnimationEvent::HoverExit:
+        return "HoverExit";
+    case UI_StateAnimationEvent::PressedEnter:
+        return "PressedEnter";
+    case UI_StateAnimationEvent::PressedExit:
+        return "PressedExit";
+    case UI_StateAnimationEvent::FocusedEnter:
+        return "FocusedEnter";
+    case UI_StateAnimationEvent::FocusedExit:
+        return "FocusedExit";
+    case UI_StateAnimationEvent::DisabledEnter:
+        return "DisabledEnter";
+    case UI_StateAnimationEvent::DisabledExit:
+        return "DisabledExit";
+    default:
+        return "HoverEnter";
+    }
+}
+
+inline bool Try_ParseStateAnimationEvent(const string& eventName, UI_StateAnimationEvent& outEvent)
+{
+    for (int32 index = 0; index < static_cast<int32>(UI_StateAnimationEvent::Count); ++index)
+    {
+        const UI_StateAnimationEvent eventType = static_cast<UI_StateAnimationEvent>(index);
+        if (eventName == Get_StateAnimationEventName(eventType))
+        {
+            outEvent = eventType;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 inline bool Try_ParseAnimationEasing(const string& easingName, UI_AnimationEasing& outEasing)

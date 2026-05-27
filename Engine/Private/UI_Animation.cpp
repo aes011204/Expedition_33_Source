@@ -318,6 +318,7 @@ namespace
         sample.scale = baseScale;
         sample.rotationRadians = baseRotationRadians;
         bool hasSampledTrack = false;
+        const bool useRelativeTracks = asset.valueMode == UI_KeyframeAnimationValueMode::RelativeTransform;
 
         for (const UI_KeyframeAnimationTrack& track : asset.tracks)
         {
@@ -348,23 +349,23 @@ namespace
             {
             case UI_KeyframeAnimationTrackType::PositionX:
                 sample.hasPosition = true;
-                sample.position.x = value;
+                sample.position.x = useRelativeTracks ? basePosition.x + value : value;
                 break;
             case UI_KeyframeAnimationTrackType::PositionY:
                 sample.hasPosition = true;
-                sample.position.y = value;
+                sample.position.y = useRelativeTracks ? basePosition.y + value : value;
                 break;
             case UI_KeyframeAnimationTrackType::ScaleX:
                 sample.hasScale = true;
-                sample.scale.x = value;
+                sample.scale.x = useRelativeTracks ? baseScale.x * value : value;
                 break;
             case UI_KeyframeAnimationTrackType::ScaleY:
                 sample.hasScale = true;
-                sample.scale.y = value;
+                sample.scale.y = useRelativeTracks ? baseScale.y * value : value;
                 break;
             case UI_KeyframeAnimationTrackType::Rotation:
                 sample.hasRotation = true;
-                sample.rotationRadians = value;
+                sample.rotationRadians = useRelativeTracks ? baseRotationRadians + value : value;
                 break;
             case UI_KeyframeAnimationTrackType::Alpha:
                 sample.hasColor = true;
@@ -395,6 +396,20 @@ void UI_AnimationPlayer::Set_KeyframeAssets(const vector<UI_KeyframeAnimationAss
 {
     _keyframeAssets = assets;
     Stop();
+}
+
+void UI_AnimationPlayer::Add_KeyframeAsset(const UI_KeyframeAnimationAsset& asset)
+{
+    for (UI_KeyframeAnimationAsset& existingAsset : _keyframeAssets)
+    {
+        if (existingAsset.name == asset.name)
+        {
+            existingAsset = asset;
+            return;
+        }
+    }
+
+    _keyframeAssets.push_back(asset);
 }
 
 void UI_AnimationPlayer::Set_BaseTransformState(const Vec2& position, const Vec2& scale, float rotationRadians)

@@ -33,8 +33,15 @@ HRESULT UI_Button::Initialize_Prototype()
 
 HRESULT UI_Button::Initialize(void* arg)
 {
+    UI_BUTTON_DESC desc{};
+    if (nullptr != arg)
+        desc = *static_cast<UI_BUTTON_DESC*>(arg);
 
-   // _baseScale = _transform->Get_Scale();
+    _stateAnimationProfile = desc.stateAnimationProfile;
+    _isFocusedForState = desc.isFocused;
+    _isDisabled = desc.isDisabled;
+    _previousFocusedForState = _isFocusedForState;
+    _previousDisabledForState = _isDisabled;
 
     return __super::Initialize(arg);
 }
@@ -49,33 +56,36 @@ void UI_Button::Update(float timeDelta)
     {
         _isHovered = false;
         _isPressed = false;
+        _previousHoveredForState = _isHovered;
+        _previousPressedForState = _isPressed;
+        _previousFocusedForState = _isFocusedForState;
+        _previousDisabledForState = _isDisabled;
         return;
     }
 
-    _isHovered = Hit_TestMouse();
-
-    if (_isHovered && GAME->KeyDown(KEY_TYPE::LBUTTON))
-        _isPressed = true;
-
-    if (_isPressed && GAME->KeyUp(KEY_TYPE::LBUTTON))
+    if (_isDisabled)
     {
-        _wasClicked = _isHovered;
+        _isHovered = false;
         _isPressed = false;
-        return;
+    }
+    else
+    {
+        _isHovered = Hit_TestMouse();
+
+        if (_isHovered && GAME->KeyDown(KEY_TYPE::LBUTTON))
+            _isPressed = true;
+
+        if (_isPressed && GAME->KeyUp(KEY_TYPE::LBUTTON))
+        {
+            _wasClicked = _isHovered;
+            _isPressed = false;
+        }
+
+        if (!GAME->KeyDown(KEY_TYPE::LBUTTON) && !GAME->KeyPress(KEY_TYPE::LBUTTON))
+            _isPressed = false;
     }
 
-    if (!GAME->KeyDown(KEY_TYPE::LBUTTON) && !GAME->KeyPress(KEY_TYPE::LBUTTON))
-        _isPressed = false;
-
-   // if(_enableHoveredAnim && _isHovered)
-   // {
-   //     Math::Lerp_Damp(_baseScale, _targetScale, 1, timeDelta); 
-   // }
-   //
-   // if(_enableHoveredAnim && !_isHovered)
-   // {
-   //     Math::Lerp_Damp(_targetScale, _baseScale, 1, timeDelta);
-   // }
+    Update_StateAnimationEvents();
 }
 
 Vec4 UI_Button::Resolve_RenderColor() const
@@ -87,6 +97,76 @@ Vec4 UI_Button::Resolve_RenderColor() const
         return Scale_RGB(_color, 1.18f);
 
     return _color;
+}
+
+void UI_Button::Set_Focused(bool isFocused)
+{
+    _isFocusedForState = isFocused;
+}
+
+void UI_Button::Set_Disabled(bool isDisabled)
+{
+    _isDisabled = isDisabled;
+    if (_isDisabled)
+    {
+        _isHovered = false;
+        _isPressed = false;
+        _wasClicked = false;
+    }
+}
+
+void UI_Button::Set_StateAnimationProfile(const UI_StateAnimationProfile& stateAnimationProfile)
+{
+    _stateAnimationProfile = stateAnimationProfile;
+}
+
+void UI_Button::Update_StateAnimationEvents()
+{
+    UI_StateAnimationEvent eventType = UI_StateAnimationEvent::Count;
+
+    if (_previousDisabledForState != _isDisabled)
+        eventType = _isDisabled ? UI_StateAnimationEvent::DisabledEnter : UI_StateAnimationEvent::DisabledExit;
+    else if (_previousPressedForState != _isPressed)
+        eventType = _isPressed ? UI_StateAnimationEvent::PressedEnter : UI_StateAnimationEvent::PressedExit;
+    else if (_previousHoveredForState != _isHovered)
+        eventType = _isHovered ? UI_StateAnimationEvent::HoverEnter : UI_StateAnimationEvent::HoverExit;
+    else if (_previousFocusedForState != _isFocusedForState)
+        eventType = _isFocusedForState ? UI_StateAnimationEvent::FocusedEnter : UI_StateAnimationEvent::FocusedExit;
+
+    if (eventType != UI_StateAnimationEvent::Count)
+        Try_PlayStateAnimation(eventType);
+
+    _previousHoveredForState = _isHovered;
+    _previousPressedForState = _isPressed;
+    _previousFocusedForState = _isFocusedForState;
+    _previousDisabledForState = _isDisabled;
+}
+
+bool UI_Button::Try_PlayStateAnimation(UI_StateAnimationEvent eventType)
+{
+    const size_t eventIndex = static_cast<size_t>(eventType);
+    if (eventIndex >= _stateAnimationProfile.eventAnimationNames.size())
+        return false;
+
+    bool played = false;
+    const wstring& animationName = _stateAnimationProfile.eventAnimationNames[eventIndex];
+    if (!animationName.empty())
+        played = Play_UIAnimation(animationName, true);
+
+    const vector<UI_StateAnimationTargetAction>& targetActions = _stateAnimationProfile.eventTargetActions[eventIndex];
+    for (const UI_StateAnimationTargetAction& targetAction : targetActions)
+    {
+        if (targetAction.animationName.empty())
+            continue;
+
+        Shared<UI_Base> target = targetAction.target.lock();
+        if (nullptr == target)
+            continue;
+
+        played = target->Play_UIAnimation(targetAction.animationName, true) || played;
+    }
+
+    return played;
 }
 
 bool UI_Button::Hit_TestMouse() const

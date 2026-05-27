@@ -172,7 +172,10 @@ namespace UIEditor
 
                     ImGui::Text("Container Children: %d", childCount);
                     if (selectedObject->type == UI_ObjectType::Button)
+                    {
                         ImGui::TextDisabled("Button objects can own Image/Text children.");
+                        Render_StateAnimationPicker(*selectedObject);
+                    }
                 }
 
                 if (selectedObject->type == UI_ObjectType::Text)
@@ -389,6 +392,20 @@ namespace UIEditor
                 _editorManager.Set_UIObjectPatternMaskTextureBinding(object.id, nextPatternMaskTextureGuid, nextPatternMaskTexturePath);
             }
         }
+    }
+
+    void UI_Inspector::Render_StateAnimationPicker(const UI_Object& object)
+    {
+        ImGui::Separator();
+        ImGui::TextUnformatted("State Animation");
+
+        char pathBuffer[260] = {};
+        strncpy_s(pathBuffer, object.stateAnimationPath.c_str(), _TRUNCATE);
+        if (ImGui::InputText("State Animation Path", pathBuffer, size(pathBuffer)))
+            _editorManager.Set_UIObjectStateAnimationPath(object.id, pathBuffer);
+
+        if (ImGui::Button(("Clear State Animation##" + to_string(object.id)).c_str()))
+            _editorManager.Set_UIObjectStateAnimationPath(object.id, "");
     }
 
     void UI_Inspector::Render_FontPicker(const UI_Object& object)

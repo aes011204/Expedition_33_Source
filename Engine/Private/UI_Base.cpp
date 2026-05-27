@@ -145,22 +145,36 @@ void UI_Base::Stop_UIAnimation()
     _animationPlayer.Stop();
 }
 
+void UI_Base::Add_UIAnimationAsset(const UI_KeyframeAnimationAsset& animationAsset)
+{
+    _animationPlayer.Add_KeyframeAsset(animationAsset);
+}
+
 bool UI_Base::Is_EffectivelyOpen() const
 {
     if (!_isOpen)
         return false;
 
-    unordered_set<const UI_Base*> visitedParents;
     Shared<UI_Base> parent = _parent.lock();
+#ifdef _DEBUG
+    uint32 depth = 0;
+#endif
+
     while (nullptr != parent)
     {
-        if (!visitedParents.insert(parent.get()).second)
-            return false;
-
         if (!parent->Is_Open())
             return false;
 
         parent = parent->_parent.lock();
+
+#ifdef _DEBUG
+        ++depth;
+        if (depth > 256)
+        {
+            LOG_WARN("UI_Base::Is_EffectivelyOpen stopped by excessive parent depth.");
+            return false;
+        }
+#endif
     }
 
     return true;
