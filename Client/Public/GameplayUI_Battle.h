@@ -29,6 +29,7 @@ class UI_BattleVictory;
 class UI_BattleMechanism;
 class UI_BattleItemPanel;
 class UI_BattleSkillPanel;
+class UI_BattleAnnounce;
 
 class GameplayUI_Battle final : public Base
 {
@@ -77,6 +78,7 @@ private:
     void    Update_BattleMechanism(float timeDelta);
     void    Update_BattleItemPanel(float timeDelta);
     void    Update_BattleSkillPanel(float timeDelta);
+    void    Update_BattleAnnounce(float timeDelta);
 
 private:
 #pragma region UI 위치맞추기
@@ -118,6 +120,7 @@ private:
     Unique<UI_BattleMechanism>              _battleMechanism;
     Unique<UI_BattleItemPanel>              _battleItemPanel;
     Unique<UI_BattleSkillPanel>             _battleSkillPanel;
+    Unique<UI_BattleAnnounce>               _battleAnnounce;
 
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만

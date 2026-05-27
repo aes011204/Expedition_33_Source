@@ -73,6 +73,7 @@ private:
     void Render_Lights();
     void Render_NonLight();
 	void Render_Blend();
+    void Render_PreviewGroup(RenderGroup renderGroup);
     void Render_ScreenFx();
 
     void Render_CombinedHDR();

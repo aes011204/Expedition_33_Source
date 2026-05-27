@@ -69,6 +69,11 @@ public:
     virtual  CombatStatDesc& Get_StatInfo() = 0;;
 
     virtual  RuntimeCombatStat& Get_RuntimeStat() = 0;
+    virtual const wstring& Get_BattleAnnounceSubjectName() const
+    {
+        static const wstring empty{};
+        return empty;
+    }
 
     EAliveStatus Get_CurAliveState();
 

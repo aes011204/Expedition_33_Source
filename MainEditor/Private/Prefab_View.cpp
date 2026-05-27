@@ -14,6 +14,7 @@
 #include "ModelCom.h"
 #include "Monster_WorldBase.h"
 #include "RenderTarget.h"
+#include "Weapon.h"
 #include "imgui_internal.h"
 #include "AnimState_View.h"
 
@@ -130,6 +131,7 @@ void Prefab_View::Pre_Render()
         Draw_PreviewColliders(_previewObject);
 
     Draw_PreviewGrid();
+    Draw_SelectedWeaponTrailAnchorPreview();
 
     GAME->Set_Lights(savedLightDescs);
     GAME->Set_PlayerInputBlocked(wasPlayerInputBlocked);
@@ -251,6 +253,13 @@ void Prefab_View::Save()
 
     if (SUCCEEDED(GAME->Save_GameObjectJson(_prefabPath, _previewObject)))
     {
+        Save_SelectedWeaponTrailAnchor();
+
+        Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
+        Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(animationWindow);
+        if (animationView != nullptr)
+            animationView->Refresh_PreviewTrailAnchorAsset();
+
         ClearDirty();
 
         EDITOR->Apply_SavedPrefabToCurrentLevel(_prefabName, _prefabPath);
@@ -308,7 +317,10 @@ void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPa
     _selectionType = SelectionType::GameObject;
     _selectedObjectKey = L"Root";
     _selectedComponentKey.clear();
+    _selectedWeaponTrailModelGuid.clear();
+    _selectedWeaponTrailAnchor = {};
     _showPrefabCollider = false;
+    Rebuild_MonsterBattlePrefabEntries();
 
     ClearDirty();
     Set_Open(true);
@@ -347,6 +359,9 @@ void Prefab_View::Close_Prefab()
     _selectionType = SelectionType::None;
     _selectedObjectKey.clear();
     _selectedComponentKey.clear();
+    _selectedWeaponTrailModelGuid.clear();
+    _selectedWeaponTrailAnchor = {};
+    _monsterBattlePrefabEntries.clear();
     _showPrefabCollider = false;
 
     ClearDirty();
@@ -640,6 +655,8 @@ void Prefab_View::Draw_InspectorPanel()
 
         if (beforeJson != selectedObject->To_Json())
             MarkDirty();
+
+        Draw_SelectedWeaponTrailAnchorPanel(selectedObject);
         break;
     }
 
@@ -680,6 +697,8 @@ void Prefab_View::Draw_InspectorPanel()
 
         if (beforeJson != selectedComponent->To_Json())
             MarkDirty();
+
+        Draw_SelectedWeaponTrailAnchorPanel(selectedObject);
         break;
     }
 
@@ -691,11 +710,54 @@ void Prefab_View::Draw_InspectorPanel()
     ImGui::EndChild();
 }
 
+void Prefab_View::Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& selectedObject)
+{
+    Shared<ModelCom> modelCom = nullptr;
+    string modelGuid{};
+    if (!Try_GetSelectedWeaponModel(selectedObject, modelCom, modelGuid))
+        return;
+
+    if (_selectedWeaponTrailModelGuid != modelGuid)
+        Load_SelectedWeaponTrailAnchor(modelGuid, modelCom);
+
+    ImGui::Spacing();
+    ImGui::SeparatorText("Trail Anchors");
+
+    ImGui::Text("Model GUID");
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", modelGuid.c_str());
+
+    ImGui::Text("Base Bone");
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", _selectedWeaponTrailAnchor.base.boneName.empty() ? "(None)" : _selectedWeaponTrailAnchor.base.boneName.c_str());
+
+    ImGui::Text("Tip Bone");
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", _selectedWeaponTrailAnchor.tip.boneName.empty() ? "(None)" : _selectedWeaponTrailAnchor.tip.boneName.c_str());
+
+    Vec3 baseLocal = _selectedWeaponTrailAnchor.base.localPosition;
+    if (ImGui::DragFloat3("Base Local", &baseLocal.x, 0.01f))
+    {
+        _selectedWeaponTrailAnchor.base.localPosition = baseLocal;
+        MarkDirty();
+    }
+
+    Vec3 tipLocal = _selectedWeaponTrailAnchor.tip.localPosition;
+    if (ImGui::DragFloat3("Tip Local", &tipLocal.x, 0.01f))
+    {
+        _selectedWeaponTrailAnchor.tip.localPosition = tipLocal;
+        MarkDirty();
+    }
+}
+
 bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject)
 {
     Shared<Client::Monster_WorldBase> monster = dynamic_pointer_cast<Client::Monster_WorldBase>(selectedObject);
     if (monster == nullptr)
         return false;
+
+    if (_monsterBattlePrefabEntries.empty())
+        Rebuild_MonsterBattlePrefabEntries();
 
     bool changed = false;
     vector<string>& prefabNames = monster->Get_BattleMonsterPrefabNames_ForEdit();
@@ -717,14 +779,39 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
         ImGui::Text("Slot %d", i);
         ImGui::SameLine(BattlePrefabLabelWidth);
 
-        char buffer[256]{};
-        strncpy_s(buffer, prefabNames[i].c_str(), _TRUNCATE);
-
         ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x - 74.f));
-        if (ImGui::InputText("##BattleMonsterPrefabName", buffer, IM_ARRAYSIZE(buffer)))
+        const char* previewLabel =
+            prefabNames[i].empty() ? "(select prefab)" : prefabNames[i].c_str();
+        if (ImGui::BeginCombo("##BattleMonsterPrefabName", previewLabel))
         {
-            prefabNames[i] = buffer;
-            changed = true;
+            bool hasCurrentPrefab = prefabNames[i].empty();
+            for (const auto& entry : _monsterBattlePrefabEntries)
+            {
+                const bool isSelected = (prefabNames[i] == entry.prefabName);
+                if (isSelected)
+                    hasCurrentPrefab = true;
+
+                const string label = entry.prefabName + "##" + entry.className;
+                if (ImGui::Selectable(label.c_str(), isSelected))
+                {
+                    if (prefabNames[i] != entry.prefabName)
+                    {
+                        prefabNames[i] = entry.prefabName; // 저장값은 실제 prefab 이름으로 유지한다.
+                        changed = true;
+                    }
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            if (!hasCurrentPrefab && !prefabNames[i].empty())
+            {
+                ImGui::Separator();
+                ImGui::TextDisabled("Missing: %s", prefabNames[i].c_str());
+            }
+
+            ImGui::EndCombo();
         }
 
         ImGui::SameLine();
@@ -742,7 +829,10 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
 
     if (ImGui::Button("Add", ImVec2(70.f, 0.f)))
     {
-        prefabNames.emplace_back();
+        if (!_monsterBattlePrefabEntries.empty())
+            prefabNames.emplace_back(_monsterBattlePrefabEntries.front().prefabName);
+        else
+            prefabNames.emplace_back();
         changed = true;
     }
 
@@ -757,6 +847,57 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
     ImGui::Spacing();
 
     return changed;
+}
+
+void Prefab_View::Rebuild_MonsterBattlePrefabEntries()
+{
+    _monsterBattlePrefabEntries.clear();
+
+    fs::path prefabsDir = _prefabPath.empty()
+        ? fs::path(L"../../../Client/Bin/Resources/Data/json/Prefabs")
+        : _prefabPath.parent_path();
+
+    if (!fs::exists(prefabsDir) || !fs::is_directory(prefabsDir))
+        return;
+
+    static const string kPrefabSuffix = ".prefab.json";
+
+    for (const fs::directory_entry& entry : fs::directory_iterator(prefabsDir))
+    {
+        if (!entry.is_regular_file())
+            continue;
+
+        const string fileName = String::ToString(entry.path().filename().wstring());
+        if (fileName.size() <= kPrefabSuffix.size() ||
+            fileName.compare(fileName.size() - kPrefabSuffix.size(), kPrefabSuffix.size(), kPrefabSuffix) != 0)
+        {
+            continue;
+        }
+
+        const json root = GAME->Load_JsonFile(entry.path());
+        if (!root.is_object())
+            continue;
+
+        const string staticClass = root.value("static_class", string{});
+        if (staticClass.empty())
+            continue;
+
+        const TypeRegistry::GameObjectTypeInfo* typeInfo = GAME->Find_GameObjectType(staticClass);
+        if (typeInfo == nullptr || typeInfo->reflectionInfo == nullptr)
+            continue;
+
+        if (typeInfo->reflectionInfo->category != "Monster")
+            continue; // 컨텐츠 브라우저의 Monster category 기준으로만 보여준다.
+
+        const string prefabName = fileName.substr(0, fileName.size() - kPrefabSuffix.size());
+        _monsterBattlePrefabEntries.push_back({ prefabName, staticClass });
+    }
+
+    sort(_monsterBattlePrefabEntries.begin(), _monsterBattlePrefabEntries.end(),
+        [](const FMonsterBattlePrefabEntry& a, const FMonsterBattlePrefabEntry& b)
+        {
+            return a.prefabName < b.prefabName;
+        });
 }
 
 void Prefab_View::Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey)
@@ -1174,6 +1315,155 @@ void Prefab_View::Draw_PreviewGrid() const
     }
 
     _previewGridBatch->End();
+}
+
+void Prefab_View::Draw_SelectedWeaponTrailAnchorPreview() const
+{
+    Shared<GameObject> selectedObject = Find_GameObjectByKey(_previewObject, _selectedObjectKey);
+    if (selectedObject == nullptr)
+        return;
+
+    if (dynamic_pointer_cast<Client::Weapon>(selectedObject) == nullptr)
+        return;
+
+    if (_selectedWeaponTrailModelGuid.empty())
+        return;
+
+    Vec3 baseWorld{};
+    Vec3 tipWorld{};
+    if (!Try_ResolveTrailAnchorWorldPosition(selectedObject, _selectedWeaponTrailAnchor.base, baseWorld))
+        return;
+    if (!Try_ResolveTrailAnchorWorldPosition(selectedObject, _selectedWeaponTrailAnchor.tip, tipWorld))
+        return;
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewGridDepthState)
+        return;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewGridDepthState.Get(), 0);
+    context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    constexpr float markerSize = 0.08f;
+    _previewGridBatch->Begin();
+
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(baseWorld, DirectX::Colors::Orange),
+        DirectX::VertexPositionColor(tipWorld, DirectX::Colors::Cyan));
+
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(baseWorld + Vec3(-markerSize, 0.f, 0.f), DirectX::Colors::Orange),
+        DirectX::VertexPositionColor(baseWorld + Vec3(markerSize, 0.f, 0.f), DirectX::Colors::Orange));
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(baseWorld + Vec3(0.f, -markerSize, 0.f), DirectX::Colors::Orange),
+        DirectX::VertexPositionColor(baseWorld + Vec3(0.f, markerSize, 0.f), DirectX::Colors::Orange));
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(baseWorld + Vec3(0.f, 0.f, -markerSize), DirectX::Colors::Orange),
+        DirectX::VertexPositionColor(baseWorld + Vec3(0.f, 0.f, markerSize), DirectX::Colors::Orange));
+
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(tipWorld + Vec3(-markerSize, 0.f, 0.f), DirectX::Colors::Cyan),
+        DirectX::VertexPositionColor(tipWorld + Vec3(markerSize, 0.f, 0.f), DirectX::Colors::Cyan));
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(tipWorld + Vec3(0.f, -markerSize, 0.f), DirectX::Colors::Cyan),
+        DirectX::VertexPositionColor(tipWorld + Vec3(0.f, markerSize, 0.f), DirectX::Colors::Cyan));
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(tipWorld + Vec3(0.f, 0.f, -markerSize), DirectX::Colors::Cyan),
+        DirectX::VertexPositionColor(tipWorld + Vec3(0.f, 0.f, markerSize), DirectX::Colors::Cyan));
+
+    _previewGridBatch->End();
+}
+
+void Prefab_View::Load_SelectedWeaponTrailAnchor(const string& modelGuid, const Shared<ModelCom>& modelCom)
+{
+    _selectedWeaponTrailModelGuid = modelGuid;
+    _selectedWeaponTrailAnchor = {};
+    _selectedWeaponTrailAnchor.modelGuid = modelGuid;
+
+    if (modelGuid.empty())
+        return;
+
+    const fs::path filePath = Client::TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
+    (void)Client::TrailAnchor_Parser::Load_FromFile(filePath.wstring(), _selectedWeaponTrailAnchor);
+
+    if (_selectedWeaponTrailAnchor.modelGuid.empty())
+        _selectedWeaponTrailAnchor.modelGuid = modelGuid;
+
+    if (modelCom == nullptr || modelCom->Get_NumBones() == 0)
+        return;
+
+    const string& defaultBoneName = modelCom->Get_BoneName(0);
+    if (_selectedWeaponTrailAnchor.base.boneName.empty())
+        _selectedWeaponTrailAnchor.base.boneName = defaultBoneName;
+    if (_selectedWeaponTrailAnchor.tip.boneName.empty())
+        _selectedWeaponTrailAnchor.tip.boneName = defaultBoneName;
+}
+
+void Prefab_View::Save_SelectedWeaponTrailAnchor() const
+{
+    if (_selectedWeaponTrailModelGuid.empty())
+        return;
+
+    Client::TrailAnchorAsset asset = _selectedWeaponTrailAnchor;
+    asset.modelGuid = _selectedWeaponTrailModelGuid;
+
+    const fs::path filePath = Client::TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(_selectedWeaponTrailModelGuid);
+    (void)Client::TrailAnchor_Parser::Save_ToFile(filePath.wstring(), asset);
+}
+
+bool Prefab_View::Try_GetSelectedWeaponModel(const Shared<GameObject>& selectedObject, Shared<ModelCom>& outModel, string& outModelGuid) const
+{
+    outModel = nullptr;
+    outModelGuid.clear();
+
+    Shared<Client::Weapon> weaponObject = dynamic_pointer_cast<Client::Weapon>(selectedObject);
+    if (weaponObject == nullptr)
+        return false;
+
+    outModel = weaponObject->Get_Model();
+    if (outModel == nullptr)
+        return false;
+
+    const wstring& sourceModelPath = outModel->Get_SourceModelPath();
+    if (sourceModelPath.empty())
+        return false;
+
+    outModelGuid = GAME->Ensure_AssetGUID(sourceModelPath, "Model");
+    return !outModelGuid.empty();
+}
+
+bool Prefab_View::Try_ResolveTrailAnchorWorldPosition(
+    const Shared<GameObject>& selectedObject,
+    const Client::TrailAnchorPointDesc& anchor,
+    Vec3& outWorldPosition) const
+{
+    Shared<Client::Weapon> weaponObject = dynamic_pointer_cast<Client::Weapon>(selectedObject);
+    if (weaponObject == nullptr || anchor.boneName.empty())
+        return false;
+
+    Shared<ModelCom> modelCom = weaponObject->Get_Model();
+    if (modelCom == nullptr)
+        return false;
+
+    const int32 boneIndex = modelCom->Get_BoneIndex(anchor.boneName);
+    if (boneIndex < 0)
+        return false;
+
+    const Matrix* boneMatrix = modelCom->Get_BoneMatrixPtr(static_cast<uint32>(boneIndex));
+    if (boneMatrix == nullptr)
+        return false;
+
+    const Matrix anchorWorldMatrix = *boneMatrix * weaponObject->Get_CombinedWorldMatrix();
+    outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
+    return true;
 }
 
 Shared<Prefab_View> Prefab_View::Create()

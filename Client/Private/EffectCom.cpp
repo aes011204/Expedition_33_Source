@@ -195,11 +195,11 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     CHECK_NULL(weaponModel, E_FAIL);
 
     const wstring& sourceModelPath = weaponModel->Get_SourceModelPath();
-    if (!sourceModelPath.empty())
+    if (sourceModelPath.empty())
         return E_FAIL;
 
     const string modelGuid = GAME->Ensure_AssetGUID(sourceModelPath, "Model");
-    if (!modelGuid.empty())
+    if (modelGuid.empty())
         return E_FAIL;
 
     AttachedEffect attached{};
@@ -209,11 +209,11 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     attached.isTrail = true;
 
     const fs::path anchorPath = TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
-    if (TrailAnchor_Parser::Load_FromFile(anchorPath.wstring(), attached.trailAnchorAsset))
+    if (!TrailAnchor_Parser::Load_FromFile(anchorPath.wstring(), attached.trailAnchorAsset))
         return E_FAIL;
 
     EffectTrailSample initialSample{};
-    if (Try_BuildTrailSample(attached, initialSample))
+    if (!Try_BuildTrailSample(attached, initialSample))
         return E_FAIL;
 
     EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool();

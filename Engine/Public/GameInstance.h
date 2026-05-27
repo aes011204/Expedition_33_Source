@@ -34,6 +34,7 @@ class PipeLine;
 class Light_Manager;
 class Font_Manager;
 class Asset_Manager;
+class Sound_Manager;
 class Log_Manager;
 class Target_Manager;
 class Camera_Manager;
@@ -300,6 +301,27 @@ public: /* For.Asset_Manager (access) */
     const Asset_Manager* Get_AssetManager() const { return _assetManager.get(); }
     Asset_Manager*       Get_AssetManager() { return _assetManager.get(); }
 
+public: /* For.Sound_Manager */
+    bool    Play_Sound(const wstring& soundFile, SoundChannel channel, float volume = 1.f);
+    bool    Play_Sound_Pitched(const wstring& soundFile, SoundChannel channel, float volume, float pitch);
+    bool    Play_BGM(
+        const wstring& soundFile,
+        float volume = 1.f,
+        bool stopPrevBGM = true,
+        float fadeOutDuration = 0.f);
+    bool    Play_LoopSound(
+        const wstring& soundFile,
+        SoundChannel channel,
+        float volume = 1.f,
+        bool stopPrevChannel = false,
+        float fadeOutDuration = 0.f);
+    void    Stop_SoundChannel(SoundChannel channel, float fadeOutDuration = 0.f);
+    void    Stop_Sound(const wstring& soundFile);
+    void    Stop_AllSounds(float fadeOutDuration = 0.f);
+    void    Set_SoundChannelVolume(SoundChannel channel, float volume);
+    float   Get_SoundChannelVolume(SoundChannel channel) const;
+    bool    Has_Sound(const wstring& soundFile) const;
+
 public: /* For.ShaderResourceRegistry */
     uint32 Get_Handle(const string& name) const;
     ID3D11ShaderResourceView* Get_SRV(uint32 handle) const;
@@ -528,6 +550,7 @@ private:
     Unique<Light_Manager>       _lightManager{};
     Unique<Font_Manager>        _fontManager{};
     Unique<Asset_Manager>       _assetManager{}; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
+    Unique<Sound_Manager>       _soundManager{};
     Unique<ShaderResourceRegistry> _shaderResourceRegistry{};
     Unique<Camera_Manager>      _cameraManager{};
     Unique<TypeRegistry>        _typeRegistry{};

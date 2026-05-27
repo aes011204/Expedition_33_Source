@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "EffectRuntime_Types.h"
 #include "Editor_Window.h"
 #include "AnimNotify_Types.h"
 #include "Editor_Camera_Free.h"
@@ -9,12 +10,13 @@ NS_BEGIN(Engine)
 class ModelCom;
 class GameObject;
 class RenderTarget;
+class EffectInstance;
 NS_END
 
 NS_BEGIN(MainEditor)
 
 class AnimSequencerAdapter;
-class Animation_View final : public Editor_Window
+class Animation_View final : public Editor_Window, public Engine::IEffectTrailSampleProvider
 {
     friend class AnimSequencerAdapter;
 
@@ -46,6 +48,8 @@ public:
 public:
     const string& Get_ModelGuid() const { return _modelGuid; }
     const string& Get_CurrentAnimationName() const { return _currentAnimationName; }
+    bool Try_GetTrailSample(EffectTrailSample& outSample) const override;
+    void Refresh_PreviewTrailAnchorAsset();
 
     int32 Get_CurrentAnimationFps() const;
     float Get_CurrentAnimationLengthSec() const;
@@ -101,6 +105,7 @@ private:
     void Save_NotifyAsset();
     void Load_TrailAnchorAsset();
     void Save_TrailAnchorAsset() const;
+    void Load_PreviewTrailAnchorAsset();
     void Refresh_OpenModelNotifyAssets() const;
 
     void Draw_Header();
@@ -147,11 +152,18 @@ private:
     void Draw_PreviewGrid() const;
     void Draw_SelectedBoneMarker() const;
     void Draw_TrailAnchorPreview() const;
+    void Update_PreviewTrailEffect(float timeDelta);
+    void Reset_PreviewTrailEffect();
+    const AnimNotifyStateEntry* Find_ActivePreviewTrailState() const;
+    bool Ensure_PreviewTrailEffect(const wstring& effectName);
     void Sync_PreviewAnimationSelection(bool keepCurrentTime = false);
     void Validate_SelectedBoneSelection();
     void Assign_SelectedBoneToTrailAnchor(const Shared<ModelCom>& playbackModel, TrailAnchorSlot slot);
     bool Try_ResolveTrailAnchorWorldPosition(
         const Shared<ModelCom>& playbackModel,
+        const Client::TrailAnchorPointDesc& anchor,
+        Vec3& outWorldPosition) const;
+    bool Try_ResolvePreviewTrailAnchorWorldPosition(
         const Client::TrailAnchorPointDesc& anchor,
         Vec3& outWorldPosition) const;
 
@@ -196,6 +208,13 @@ private:
 
     AnimNotifyAsset _asset{};
     Client::TrailAnchorAsset _trailAnchorAsset{};
+    Client::TrailAnchorAsset _previewTrailAnchorAsset{};
+    string _previewTrailModelGuid{};
+    Shared<EffectInstance> _previewTrailEffect{};
+    wstring _previewTrailEffectName{};
+    int32 _activePreviewTrailStateId = -1;
+    bool _isPreviewTrailPlaying = false;
+    float _previewTrailLastTimeSec = -1.f;
     bool _isDirty = false;
     int32 _selectedBoneIndex = -1;
 

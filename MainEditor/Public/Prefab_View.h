@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "TrailAnchor_Asset.h"
 #include "Editor_Camera_Free.h"
 #include "Editor_Window.h"
 
@@ -38,10 +39,18 @@ public:
 
 
 private:
+    struct FMonsterBattlePrefabEntry
+    {
+        string prefabName{};
+        string className{};
+    };
+
+private:
     void Draw_Header();
     void Draw_StructurePanel();
     void Draw_PreviewPanel();
     void Draw_InspectorPanel();
+    void Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& selectedObject);
     bool Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject);
     void Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey);
     void Draw_ComponentEntries(const Shared<GameObject>& gameObject, const wstring& objectKey);
@@ -57,12 +66,21 @@ private:
 
     void Draw_PreviewColliders(const Shared<GameObject>& gameObject) const;
     void Draw_PreviewGrid() const;
+    void Draw_SelectedWeaponTrailAnchorPreview() const;
 
     Shared<ModelCom> Find_FirstModelComponent() const;
     void Prepare_AnimationViewSiblingDock();
 
     void Open_PendingAnimationView();
     void Open_PendingAnimStateView();
+    void Load_SelectedWeaponTrailAnchor(const string& modelGuid, const Shared<ModelCom>& modelCom);
+    void Save_SelectedWeaponTrailAnchor() const;
+    bool Try_GetSelectedWeaponModel(const Shared<GameObject>& selectedObject, Shared<ModelCom>& outModel, string& outModelGuid) const;
+    void Rebuild_MonsterBattlePrefabEntries();
+    bool Try_ResolveTrailAnchorWorldPosition(
+        const Shared<GameObject>& selectedObject,
+        const Client::TrailAnchorPointDesc& anchor,
+        Vec3& outWorldPosition) const;
 
 private:
     static Editor_Camera_Free::EDITOR_CAMERA_DESC Build_PreviewCameraDesc(const Shared<GameObject>& gameObject);
@@ -111,6 +129,9 @@ private:
 
     wstring _selectedObjectKey{};
     wstring _selectedComponentKey{};
+    string _selectedWeaponTrailModelGuid{};
+    Client::TrailAnchorAsset _selectedWeaponTrailAnchor{};
+    vector<FMonsterBattlePrefabEntry> _monsterBattlePrefabEntries{};
 
 public:
     static Shared<Prefab_View> Create();

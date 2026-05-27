@@ -219,6 +219,7 @@ private: /* Runtime Data */
 
     bool _hasPendingWindowFocus = false;
     EDITOR_VIEWPORT_TARGET _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;
+    mutable PreviewOwner _stickyPreviewOwner = PreviewOwner::None;
 
     bool _pendingSingleFrameStep = false;
     string _copiedObjectJson = {};

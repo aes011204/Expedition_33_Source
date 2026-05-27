@@ -243,34 +243,12 @@ void Renderer::Draw_Preview()
     Reset_RenderCall();
 #endif
 
-    Render_Priority();
+    Render_PreviewGroup(RenderGroup::Priority);
     _renderGroups[ETOI(RenderGroup::Shadow)].clear();
 
-    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonBlend)])
-    {
-        Shared<GameObject> gameObject = renderObject.lock();
-        if (nullptr != gameObject)
-        {
-            gameObject->Render();
-            Add_RenderCall();
-        }
-    }
-
-    _renderGroups[ETOI(RenderGroup::NonBlend)].clear();
-
-    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonLight)])
-    {
-        Shared<GameObject> gameObject = renderObject.lock();
-        if (nullptr != gameObject)
-        {
-            gameObject->Render();
-            Add_RenderCall();
-        }
-    }
-
-    _renderGroups[ETOI(RenderGroup::NonLight)].clear();
-
-    Render_Blend();
+    Render_PreviewGroup(RenderGroup::NonBlend);
+    Render_PreviewGroup(RenderGroup::NonLight);
+    Render_PreviewGroup(RenderGroup::Blend);
     _renderGroups[ETOI(RenderGroup::UI)].clear();
 }
 
@@ -636,6 +614,26 @@ void Renderer::Render_Blend()
     _renderGroups[ETOI(RenderGroup::Blend)].clear();
 
     GAME->End_MRT();
+}
+
+void Renderer::Render_PreviewGroup(RenderGroup renderGroup)
+{
+    if (renderGroup < RenderGroup::Priority || renderGroup >= RenderGroup::END)
+        return;
+
+    _currentGroup = renderGroup;
+
+    for (auto& renderObject : _renderGroups[ETOI(renderGroup)])
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (nullptr != gameObject)
+        {
+            gameObject->Render();
+            Add_RenderCall();
+        }
+    }
+
+    _renderGroups[ETOI(renderGroup)].clear();
 }
 
 void Renderer::Render_PostProcess()

@@ -9,7 +9,7 @@ IMPLEMENT_REFLECTION(ANS_Trail)
 
     PROPERTY_WSTRING("Effect 이름", _effectName);
     PROPERTY_WSTRING("대상 파츠", _partTag);
-    
+
     return true;
 }
 
@@ -18,7 +18,16 @@ void ANS_Trail::On_Begin(const AnimNotifyContext& context)
     if (context.owner == nullptr)
         return;
 
-    const Shared<EffectCom> effectCom = context.owner->Get_Component<EffectCom>();
+    Shared<GameObject> effectOwner = context.owner->GetSharedPtr<GameObject>();
+    Shared<EffectCom> effectCom = effectOwner ? effectOwner->Get_Component<EffectCom>() : nullptr;
+
+    if (effectCom == nullptr && effectOwner)
+    {
+        effectOwner = effectOwner->Get_Owner();
+        if (effectOwner)
+            effectCom = effectOwner->Get_Component<EffectCom>();
+    }
+
     if (effectCom == nullptr)
         return;
 
@@ -36,9 +45,15 @@ void ANS_Trail::On_End(const AnimNotifyContext& context)
     if (context.owner == nullptr)
         return;
 
-    const Shared<EffectCom> effectCom = context.owner->Get_Component<EffectCom>();
-    if (effectCom == nullptr)
-        return;
+    Shared<GameObject> effectOwner = context.owner->GetSharedPtr<GameObject>();
+    Shared<EffectCom> effectCom = effectOwner ? effectOwner->Get_Component<EffectCom>() : nullptr;
+
+    if (effectCom == nullptr && effectOwner)
+    {
+        effectOwner = effectOwner->Get_Owner();
+        if (effectOwner)
+            effectCom = effectOwner->Get_Component<EffectCom>();
+    }
 
     effectCom->Stop_TrailEffect(_effectName, _partTag);
 }

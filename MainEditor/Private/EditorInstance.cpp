@@ -538,36 +538,81 @@ PreviewOwner EditorInstance::Get_ActivePreviewOwner() const
     const Shared<Editor_Window> animationWindow = Get_Window(L"Animation");
     const Shared<Editor_Window> animStateWindow = Get_Window(L"AnimState");
 
+    const auto isWindowVisible = [](const Shared<Editor_Window>& window)
+    {
+        return window && window->Is_Open() && window->Is_Visible();
+    };
+
     const bool prefabInteractive =
-        prefabWindow && prefabWindow->Is_Open() && prefabWindow->Is_Visible() &&
+        isWindowVisible(prefabWindow) &&
         (prefabWindow->Is_Focused() || prefabWindow->Is_Hovered());
 
     const bool animationInteractive =
-        animationWindow && animationWindow->Is_Open() && animationWindow->Is_Visible() &&
+        isWindowVisible(animationWindow) &&
         (animationWindow->Is_Focused() || animationWindow->Is_Hovered());
 
     const bool animStateInteractive =
-        animStateWindow && animStateWindow->Is_Open() && animStateWindow->Is_Visible() &&
+        isWindowVisible(animStateWindow) &&
         (animStateWindow->Is_Focused() || animStateWindow->Is_Hovered());
 
     if (prefabInteractive)
+    {
+        _stickyPreviewOwner = PreviewOwner::Prefab;
         return PreviewOwner::Prefab;
+    }
 
     if (animationInteractive)
+    {
+        _stickyPreviewOwner = PreviewOwner::Animation;
         return PreviewOwner::Animation;
+    }
 
     if (animStateInteractive)
+    {
+        _stickyPreviewOwner = PreviewOwner::AnimState;
         return PreviewOwner::AnimState;
+    }
 
-    if (animStateWindow && animStateWindow->Is_Open() && animStateWindow->Is_Visible())
-        return PreviewOwner::AnimState;
+    switch (_stickyPreviewOwner)
+    {
+    case PreviewOwner::Prefab:
+        if (isWindowVisible(prefabWindow))
+            return PreviewOwner::Prefab;
+        break;
 
-    if (animationWindow && animationWindow->Is_Open() && animationWindow->Is_Visible())
-        return PreviewOwner::Animation;
+    case PreviewOwner::Animation:
+        if (isWindowVisible(animationWindow))
+            return PreviewOwner::Animation;
+        break;
 
-    if (prefabWindow && prefabWindow->Is_Open() && prefabWindow->Is_Visible())
+    case PreviewOwner::AnimState:
+        if (isWindowVisible(animStateWindow))
+            return PreviewOwner::AnimState;
+        break;
+
+    default:
+        break;
+    }
+
+    if (isWindowVisible(prefabWindow))
+    {
+        _stickyPreviewOwner = PreviewOwner::Prefab;
         return PreviewOwner::Prefab;
+    }
 
+    if (isWindowVisible(animationWindow))
+    {
+        _stickyPreviewOwner = PreviewOwner::Animation;
+        return PreviewOwner::Animation;
+    }
+
+    if (isWindowVisible(animStateWindow))
+    {
+        _stickyPreviewOwner = PreviewOwner::AnimState;
+        return PreviewOwner::AnimState;
+    }
+
+    _stickyPreviewOwner = PreviewOwner::None;
     return PreviewOwner::None;
 }
 

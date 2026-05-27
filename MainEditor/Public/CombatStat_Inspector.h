@@ -15,6 +15,10 @@ public:
 
 protected:
     void Draw_CommonRuntimeSection(const Shared<Client::CombatStatCom>& stat);
+    bool Draw_WStringPropertyRow(
+        const char* label,
+        const char* hiddenId,
+        wstring& value);
 
     bool Draw_PortraitTexturePicker(
         const char* label,

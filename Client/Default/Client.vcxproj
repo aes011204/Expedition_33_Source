@@ -332,6 +332,7 @@
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
+    <ClInclude Include="..\Public\UI_BattleAnnounce.h" />
     <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
     <ClInclude Include="..\Public\UI_BattleMechanism.h" />
     <ClInclude Include="..\Public\UI_HealFont.h" />
@@ -550,6 +551,7 @@
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
+    <ClCompile Include="..\Private\UI_BattleAnnounce.cpp" />
     <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
     <ClCompile Include="..\Private\UI_HealFont.cpp" />

@@ -31,6 +31,7 @@
 #include "Helper_String.h"
 #include "Material.h"
 #include "ShaderResourceRegistry.h"
+#include "Sound_Manager.h"
 
 #include "Collision_Define.h"
 #include "Event_Bus.h"
@@ -234,6 +235,9 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     if (sampleRuntimePerf)
         printMgrMs = chrono::duration<double, milli>(chrono::steady_clock::now() - printMgrBegin).count();
 #endif
+
+    if (_soundManager)
+        _soundManager->Update(timeDelta);
 
     // 입력 갱신 직후, 레벨/오브젝트/UI 업데이트 전에 클라이언트쪽 런타임 갱신을 위해
     if (clientUpdate)
@@ -1354,12 +1358,75 @@ HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
     if (nullptr == _assetManager)
         return E_FAIL;
 
+    const fs::path soundRoot = fs::path(resourceRoot) / L"Sounds";
+    if (fs::exists(soundRoot) && fs::is_directory(soundRoot))
+    {
+        _soundManager = Sound_Manager::Create(soundRoot.wstring());
+        if (nullptr == _soundManager)
+            return E_FAIL;
+    }
+
     const fs::path shaderTextureRoot = fs::path(resourceRoot) / L"Textures" / L"Shader";
     _shaderResourceRegistry = ShaderResourceRegistry::Create(_device, _context, shaderTextureRoot.wstring());
     if (nullptr == _shaderResourceRegistry)
         return E_FAIL;
 
     return S_OK;
+}
+
+bool GameInstance::Play_Sound(const wstring& soundFile, SoundChannel channel, float volume)
+{
+    return _soundManager ? _soundManager->Play_Once(soundFile, channel, volume) : false;
+}
+
+bool GameInstance::Play_Sound_Pitched(const wstring& soundFile, SoundChannel channel, float volume, float pitch)
+{
+    return _soundManager ? _soundManager->Play_Once_Pitched(soundFile, channel, volume, pitch) : false;
+}
+
+bool GameInstance::Play_BGM(const wstring& soundFile, float volume, bool stopPrevBGM, float fadeOutDuration)
+{
+    return _soundManager ? _soundManager->Play_BGM(soundFile, volume, stopPrevBGM, fadeOutDuration) : false;
+}
+
+bool GameInstance::Play_LoopSound(const wstring& soundFile, SoundChannel channel, float volume, bool stopPrevChannel,
+    float fadeOutDuration)
+{
+    return _soundManager ? _soundManager->Play_Loop(soundFile, channel, volume, stopPrevChannel, fadeOutDuration) : false;
+}
+
+void GameInstance::Stop_SoundChannel(SoundChannel channel, float fadeOutDuration)
+{
+    if (_soundManager)
+        _soundManager->Stop_Channel(channel, fadeOutDuration);
+}
+
+void GameInstance::Stop_Sound(const wstring& soundFile)
+{
+    if (_soundManager)
+        _soundManager->Stop_Sound(soundFile);
+}
+
+void GameInstance::Stop_AllSounds(float fadeOutDuration)
+{
+    if (_soundManager)
+        _soundManager->Stop_All(fadeOutDuration);
+}
+
+void GameInstance::Set_SoundChannelVolume(SoundChannel channel, float volume)
+{
+    if (_soundManager)
+        _soundManager->Set_ChannelVolume(channel, volume);
+}
+
+float GameInstance::Get_SoundChannelVolume(SoundChannel channel) const
+{
+    return _soundManager ? _soundManager->Get_ChannelVolume(channel) : 0.f;
+}
+
+bool GameInstance::Has_Sound(const wstring& soundFile) const
+{
+    return _soundManager ? _soundManager->Has_Sound(soundFile) : false;
 }
 
 string GameInstance::Find_AssetGUID(const wstring& filePath) const
@@ -2062,6 +2129,7 @@ void GameInstance::Release_Engine()
     ReleaseManager(_debugManager);
     ReleaseManager(_cameraManager);
     ReleaseManager(_assetManager);
+    ReleaseManager(_soundManager);
 
     ReleaseManager(_targetManager);
     ReleaseManager(_shadow);

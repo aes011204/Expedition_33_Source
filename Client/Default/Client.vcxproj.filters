@@ -125,6 +125,7 @@
     </ClCompile>
     <ClCompile Include="..\Private\ANS_Trail.cpp" />
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
+    <ClCompile Include="..\Private\UI_BattleAnnounce.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -716,6 +717,7 @@
     </ClInclude>
     <ClInclude Include="..\Public\ANS_Trail.h" />
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
+    <ClInclude Include="..\Public\UI_BattleAnnounce.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
