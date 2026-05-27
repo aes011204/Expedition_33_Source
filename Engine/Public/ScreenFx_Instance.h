@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Base.h"
 #include "Delegate.h"
 
@@ -20,15 +20,16 @@ public:
 
     enum class ScreenFx_Type : uint32
     {
-        ToneMapping,    // Color, Tone
-        ColorGrading,
-        Vignette,       // Lens, Camera
-        Bloom, 
-        RadialBlur,
-        ChromaticAberration, // Color split
-        Ghosting,       // Custom & Transition
-        Transition,
-        Distortion,
+        Vignette                = 0,
+        RadialBlur              = 1,
+        ChromaticAberration     = 2,
+        RadialBlurAndCA         = 3,
+        Glow                    = 4,
+        ToneMapping             = 5,
+        ColorGrading            = 6,
+        Ghosting                = 7,
+        Transition              = 8,
+        Distortion              = 9,
     };
 
     struct ScreenFxDesc
@@ -46,9 +47,10 @@ public:
     virtual bool Update_ScreenFx(float timeDelta);
     virtual void Apply_To(struct ScreenFxCB& outParameters) PURE;
     
-
+public:
     ScreenFx_Type           Get_FxType() const { return _type; }
     ScreenFx_BlendMode      Get_FxBlendMode() const { return _blendMode; }
+    uint32                  Get_PassIndex()
 
 protected:
     ScreenFx_Type           _type{};
