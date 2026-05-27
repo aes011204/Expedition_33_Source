@@ -4,6 +4,7 @@
 #include "BT_Node_Bootstrap.h"
 #include "ComputeSpriteEmitter.h"
 #include "EffectEmitterRegistration.h"
+#include "EffectInstancePool.h"
 #include "GameDataTable.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -14,6 +15,7 @@
 #include "ResourceLoader.h"
 #include "PreviewShotTable.h"
 #include "UIPreviewManager.h"
+#include "CameraDirector.h"
 #include "MapLoader.h"
 #include "ClientScreenFxManager.h"
 
@@ -59,6 +61,11 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _previewManager = UIPreviewManager::Create();
     CHECK_NULL(_previewManager, E_FAIL);
 
+    _cameraDirector = CameraDirector::Create();
+    CHECK_NULL(_cameraDirector, E_FAIL);
+    _effectInstancePool = EffectInstancePool::Create();
+    CHECK_NULL(_effectInstancePool, E_FAIL);
+
     _screenFxManager = ClientScreenFxManager::Create();
     CHECK_NULL(_screenFxManager, E_FAIL);
 
@@ -78,6 +85,9 @@ HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& 
     CHECK_FAILED(Ready_ResourceLoader(), E_FAIL);
 
     Register_ClientEffectEmitters();
+
+    _effectInstancePool = EffectInstancePool::Create();
+    CHECK_NULL(_effectInstancePool, E_FAIL);
 
     _isInitialized = true;
 
@@ -162,17 +172,47 @@ const Skill_Data* ClientInstance::Get_Skill(const string& skillId)
 {
     return _gameDataTable->Get_Skill(skillId);
 }
+
+const vector<string> ClientInstance::Get_AllSkillIds()
+{
+    return _gameDataTable->Get_AllSkillIds();
+}
+
+const Item_Data* ClientInstance::Get_Item(const string& itemId)
+{
+    if (!_gameDataTable)
+        return nullptr;
+
+    return _gameDataTable->Get_Item(itemId);
+}
+
+const Item_Data* ClientInstance::Get_Item(BattleItemType itemType)
+{
+     if (!_gameDataTable)
+        return nullptr;
+
+    return _gameDataTable->Get_Item(itemType);
+}
+
+bool ClientInstance::Consume_Item(BattleItemType itemType)
+{
+    if (_gameDataTable == nullptr)
+        return false;
+
+    return _gameDataTable->Consume_Item(itemType);
+}
+
 void ClientInstance::Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout)
 {
     return _previewManager->Apply_Layout(layout);
 }
 
-void ClientInstance::Begin_Preview(PreviewShotTable::PreviewShotPanel panel)
+void ClientInstance::Begin_Preview(PreviewShotPanel panel)
 {
     return _previewManager->Begin_Preview(panel);
 }
 
-void ClientInstance::Show_Preview(HeroId heroId, PreviewShotTable::PreviewShotPanel panel)
+void ClientInstance::Show_Preview(HeroId heroId, PreviewShotPanel panel)
 {
     return _previewManager->Show_Preview(heroId, panel);
 }
@@ -182,7 +222,7 @@ void ClientInstance::Hide_Preview()
     return _previewManager->Hide_Preview();
 }
 
-PreviewShotTable::PreviewShotPreset ClientInstance::Get_Preset(HeroId hero, PreviewShotTable::PreviewShotPanel panel)
+PreviewShotPreset ClientInstance::Get_Preset(HeroId hero, PreviewShotPanel panel)
 {
     return _previewShotTable->Get(hero, panel);
 }
@@ -291,9 +331,9 @@ bool ClientInstance::Is_BattleEnterTransitionPlaying() const
 }
 
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
-                                        vector<string>& MonsterProtoTag)
+                                        const vector<string>& MonsterProtoTag, const Shared<GameObject>& sourceObject)
 {
-    return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag);
+    return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag, sourceObject);
 }
 
 bool ClientInstance::Is_BattleActive() const
@@ -304,6 +344,36 @@ bool ClientInstance::Is_BattleActive() const
 bool ClientInstance::Is_BattleEntering() const
 {
     return _battleController && _battleController->Is_BattleEntering();
+}
+
+void ClientInstance::Request_GamePlay()
+{
+    return _cameraDirector->Request_GamePlay();
+}
+
+void ClientInstance::Request_Preview()
+{
+    return _cameraDirector->Request_Preview();
+}
+
+void ClientInstance::Request_BattleTurn()
+{
+    return _cameraDirector->Request_BattleTurn();
+}
+
+void ClientInstance::Request_Cinematic()
+{
+    return _cameraDirector->Request_Cinematic();
+}
+
+void ClientInstance::Request_TargetCameraMode(TargetCameraMode cameraMode)
+{
+    return _cameraDirector->Request_ChangeTargetCameraMode(cameraMode);
+}
+
+void ClientInstance::Restore_PreviousCamera()
+{
+    return _cameraDirector->Restore_PreviousCamera();
 }
 
 Shared<ClientScreenFxManager> ClientInstance::Get_ScreenFxManager() const
@@ -376,6 +446,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_gameDataTable);
     ReleaseManager(_previewShotTable);
     ReleaseManager(_previewManager);
+    ReleaseManager(_effectInstancePool);
     ReleaseManager(_persistentObjectManager);
     ReleaseManager(_resourceLoader);
     ReleaseManager(_heroManager);

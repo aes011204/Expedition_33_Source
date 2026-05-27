@@ -356,7 +356,7 @@ void Renderer::Render_SSAO()
     if (!_deferredShader || !_viBuffer)
         return;
 
-    // SSAO 사용 여부 
+    // SSAO 사용 여부
     const bool ssaoEnabled = (_ssaoPipeline != nullptr) && _ssaoPipeline->Is_Enabled();
     if (!ssaoEnabled)
     {
@@ -413,7 +413,7 @@ void Renderer::Render_SSAO()
 
         ENDMRT_RETURN_IF_FAILED(
             _viBuffer->Render());
-        
+
         if (FAILED(GAME->End_MRT()))
             return;
 
@@ -826,6 +826,10 @@ void Renderer::Render_ScreenFx()
         GAME->Get_ScreenFxManager()->Render_ScreenFx(_screenFxShader, _viBuffer),
         L"Render_ScreenFx:FAIL Manager->Render_ScreenFx");
 
+    RETURN_LOG_IF_FAILED(
+       _viBuffer->Render(),
+       L"Render_ScreenFx:FAIL RenderRect");
+
     Add_RenderCall();
 }
 
@@ -1027,7 +1031,7 @@ void Renderer::Update_DynamicShadowCamera()
 
 void Renderer::Render_StaticShadowOnce()
 {
-    Debug_Profile::Scope profileScope("Render::StaticShadow");
+    ENGINE_PROFILE_SCOPE_DETAIL("Render::StaticShadow");
 
     if (!_staticShadowDirty)
         return;
@@ -1069,7 +1073,7 @@ void Renderer::Render_StaticShadowOnce()
 
 void Renderer::Render_DynamicShadow()
 {
-    Debug_Profile::Scope profileScope("Render::DynamicShadow");
+    ENGINE_PROFILE_SCOPE_DETAIL("Render::DynamicShadow");
 
     Update_DynamicShadowCamera();
 

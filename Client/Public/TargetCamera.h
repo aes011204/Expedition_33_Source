@@ -1,13 +1,12 @@
 ﻿#pragma once
 #include "Camera.h"
+#include "CameraPresetTypes.h"
 
 NS_BEGIN(Client)
-class TargetCamera final : public Camera
+
+    class TargetCamera final : public Camera
 {
     GENERATED_GAMEOBJECT(TargetCamera, ObjectType::TargetCamera)
-public:
-    
-    enum class CAMERA_STATE { NORMAL, AIM, BATTLE_ENTER};
 
 public:
     typedef struct tagTargetCamera final : public Camera::CAMERA_DESC
@@ -29,7 +28,6 @@ public:
         float        rollOffset = 0.f;
 
         float        lookHeight;
-
         float        pivotHeight;
 
         bool         allowMouseRotation = true;
@@ -70,7 +68,7 @@ private:
     Vec3 Resolve_Collision(const Vec3& sweepStart, const Vec3& desiredPos, float timeDelta);
 
 public:
-    void Change_State(CAMERA_STATE state);
+    void Change_Mode(TargetCameraMode mode);
     void Change_Target();
     bool Try_GetFlatMoveBasis(Vec3& outForward, Vec3& outRight) const override;
     void Refresh_TargetTransform();
@@ -109,17 +107,17 @@ public:
     float           Get_PivotHeight() {return _pivotHeight;}
     void            Set_PivotHeight(float pivotHeight) {_pivotHeight = pivotHeight;}
 
-    const           TARGETCAMERA_DESC& Get_Preset(CAMERA_STATE state) const;
-    void            Set_Preset(CAMERA_STATE state, const TARGETCAMERA_DESC& preset);
-    void            Apply_PreviewPreset(const TARGETCAMERA_DESC& preset);
+    const           TargetCameraPreset& Get_Preset(TargetCameraMode mode) const;
+    void            Set_Preset(TargetCameraMode mode, const TargetCameraPreset& preset);
+    void            Apply_PreviewPreset(const TargetCameraPreset& preset);
 
 private:
-    TARGETCAMERA_DESC  _currentSettings;
-    TARGETCAMERA_DESC  _targetSettings;
+    TargetCameraPreset  _currentSettings;
+    TargetCameraPreset  _targetSettings;
 
-    TARGETCAMERA_DESC  _normalPreset;
-    TARGETCAMERA_DESC  _aimPreset;
-    TARGETCAMERA_DESC  _battleEnterPreset;
+    TargetCameraPreset  _normalPreset;
+    TargetCameraPreset  _aimPreset;
+    TargetCameraPreset  _battleEnterPreset;
 
     float               _battleEnterDuration = 3.f;
     float               _battleEnterAcc = { 0.f };
@@ -140,7 +138,7 @@ private:
 
     Vec3               _smoothedTargetPos;
     Vec3               _prevTargetPos;
-    CAMERA_STATE       _currentState;
+    TargetCameraMode   _currentState;
 
     //float               _speed = 5.f;
 

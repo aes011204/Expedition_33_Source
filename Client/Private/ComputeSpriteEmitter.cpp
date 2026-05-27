@@ -18,65 +18,65 @@ IMPLEMENT_REFLECTION(ComputeSpriteEmitter)
 
 namespace Client::Internal
 {
-    wstring Resolve_TexturePathByGuid(const string& textureGuid)
-    {
-        if (GAME == nullptr || textureGuid.empty())
-            return {};
-
-        const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
-        if (assetMeta == nullptr || assetMeta->type != "Texture")
-            return {};
-
-        const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
-        return !resolvedPath.empty() && fs::exists(resolvedPath) ? resolvedPath : wstring{};
-    }
-
-    wstring Resolve_TexturePathByPath(const string& texturePath)
-    {
-        if (!texturePath.empty())
-        {
-            fs::path candidatePath = String::ToWString(texturePath);
-            if (candidatePath.is_relative() && GAME != nullptr)
-                candidatePath = fs::path(GAME->Get_AssetRoot()) / candidatePath;
-
-            candidatePath = candidatePath.lexically_normal();
-            if (fs::exists(candidatePath))
-                return candidatePath.wstring();
-        }
-
+wstring Resolve_TexturePathByGuid(const string& textureGuid)
+{
+    if (GAME == nullptr || textureGuid.empty())
         return {};
-    }
 
-    bool Is_SpriteTextureSamePath(const wstring& lhs, const wstring& rhs)
-    {
-        if (lhs.empty() || rhs.empty())
-            return false;
-
-        return fs::path(lhs).lexically_normal() == fs::path(rhs).lexically_normal();
-    }
-
-    wstring Resolve_TexturePath(const string& textureGuid, const string& texturePath, bool& outUsedPathFallback, bool& outGuidPathMismatch)
-    {
-        outUsedPathFallback = false;
-        outGuidPathMismatch = false;
-
-        wstring resolvedPath = Resolve_TexturePathByGuid(textureGuid);
-        if (!resolvedPath.empty())
-        {
-            const wstring pathResolved = Resolve_TexturePathByPath(texturePath);
-            outGuidPathMismatch = !pathResolved.empty() && !Is_SpriteTextureSamePath(resolvedPath, pathResolved);
-            return resolvedPath;
-        }
-
-        resolvedPath = Resolve_TexturePathByPath(texturePath);
-        if (!resolvedPath.empty())
-        {
-            outUsedPathFallback = true;
-            return resolvedPath;
-        }
-
+    const AssetMeta* assetMeta = GAME->Find_AssetByGUID(textureGuid);
+    if (assetMeta == nullptr || assetMeta->type != "Texture")
         return {};
+
+    const wstring resolvedPath = GAME->Resolve_AssetPath(textureGuid);
+    return !resolvedPath.empty() && fs::exists(resolvedPath) ? resolvedPath : wstring{};
+}
+
+wstring Resolve_TexturePathByPath(const string& texturePath)
+{
+    if (!texturePath.empty())
+    {
+        fs::path candidatePath = String::ToWString(texturePath);
+        if (candidatePath.is_relative() && GAME != nullptr)
+            candidatePath = fs::path(GAME->Get_AssetRoot()) / candidatePath;
+
+        candidatePath = candidatePath.lexically_normal();
+        if (fs::exists(candidatePath))
+            return candidatePath.wstring();
     }
+
+    return {};
+}
+
+bool Is_SpriteTextureSamePath(const wstring& lhs, const wstring& rhs)
+{
+    if (lhs.empty() || rhs.empty())
+        return false;
+
+    return fs::path(lhs).lexically_normal() == fs::path(rhs).lexically_normal();
+}
+
+wstring Resolve_TexturePath(const string& textureGuid, const string& texturePath, bool& outUsedPathFallback, bool& outGuidPathMismatch)
+{
+    outUsedPathFallback = false;
+    outGuidPathMismatch = false;
+
+    wstring resolvedPath = Resolve_TexturePathByGuid(textureGuid);
+    if (!resolvedPath.empty())
+    {
+        const wstring pathResolved = Resolve_TexturePathByPath(texturePath);
+        outGuidPathMismatch = !pathResolved.empty() && !Is_SpriteTextureSamePath(resolvedPath, pathResolved);
+        return resolvedPath;
+    }
+
+    resolvedPath = Resolve_TexturePathByPath(texturePath);
+    if (!resolvedPath.empty())
+    {
+        outUsedPathFallback = true;
+        return resolvedPath;
+    }
+
+    return {};
+}
 }
 
 ComputeSpriteEmitter::ComputeSpriteEmitter(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -136,11 +136,31 @@ void ComputeSpriteEmitter::Late_Update(float timeDelta)
 HRESULT ComputeSpriteEmitter::Render()
 {
     CHECK_FAILED_ONCE(Bind_ShaderResources(), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Begin(_effectSpritePassIndex), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Begin(Resolve_BlendPassIndex()), E_FAIL);
     CHECK_FAILED_ONCE(_viBuffer->Bind_Resources(), E_FAIL);
     CHECK_FAILED_ONCE(_viBuffer->Render(), E_FAIL);
 
     return S_OK;
+}
+
+HRESULT ComputeSpriteEmitter::Reset_ForEffectReplay()
+{
+    Reset_PlaybackRuntime();
+    Sync_WorldCenterToComputeBuffer();
+    CHECK_NULL(_viBuffer, E_FAIL);
+    CHECK_FAILED(_viBuffer->Reset_ForEffectReplay(), E_FAIL);
+
+    return S_OK;
+}
+
+bool ComputeSpriteEmitter::Is_EffectFinished() const
+{
+    return PlaybackState::Completed == _playbackState;
+}
+
+void ComputeSpriteEmitter::On_EffectTransformSynced()
+{
+    Sync_WorldCenterToComputeBuffer();
 }
 
 HRESULT ComputeSpriteEmitter::Ready_Components()
@@ -149,6 +169,7 @@ HRESULT ComputeSpriteEmitter::Ready_Components()
     CHECK_FAILED(Ready_TextureComponent(resolvedTexturePath), E_FAIL);
     CHECK_FAILED(Ready_ShaderComponent(), E_FAIL);
     CHECK_FAILED(Ready_NoiseTextureComponent(resolvedTexturePath), E_FAIL);
+    CHECK_FAILED(Ready_MaskTextureComponent(resolvedTexturePath), E_FAIL);
 
     ComputePointParticleDesc desc = Make_ComputePointParticleDesc();
     CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect_ComputePointParticleBuffer"), _viBuffer, &desc), E_FAIL);
@@ -232,7 +253,6 @@ HRESULT ComputeSpriteEmitter::Ready_ShaderComponent()
 {
     CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), String::ToWString(kEffectSpriteShaderId), _shader), E_FAIL);
     _opacitySourceIndex = Resolve_OpacitySourceIndex();
-    _effectSpritePassIndex = Resolve_EffectSpritePassIndex();
     return S_OK;
 }
 
@@ -299,6 +319,69 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
     return S_OK;
 }
 
+HRESULT ComputeSpriteEmitter::Ready_MaskTextureComponent(const string& resolvedTexturePath)
+{
+    if (_desc.required.material.maskTextureGuid.empty() && _desc.required.material.maskTexturePath.empty())
+        return S_OK;
+
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
+    const wstring resolvedPath = Client::Internal::Resolve_TexturePath(
+        _desc.required.material.maskTextureGuid,
+        _desc.required.material.maskTexturePath,
+        usedPathFallback,
+        guidPathMismatch
+    );
+    if (resolvedPath.empty())
+    {
+        _maskTexture = nullptr;
+        LOG_WARN(
+            "ComputeSpriteEmitter mask texture resolve failed. maskTextureGuid='{}', maskTexturePath='{}'. Alpha mask is disabled.",
+            _desc.required.material.maskTextureGuid,
+            _desc.required.material.maskTexturePath
+        );
+        return S_OK;
+    }
+    if (guidPathMismatch)
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter mask texture GUID/path mismatch. maskTextureGuid='{}', maskTexturePath='{}', guidResolvedPath='{}'.",
+            _desc.required.material.maskTextureGuid,
+            _desc.required.material.maskTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter mask texture fell back to path. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'.",
+            _desc.required.material.maskTextureGuid,
+            _desc.required.material.maskTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+
+    const string maskTexturePath = String::ToString(resolvedPath);
+    if (maskTexturePath == resolvedTexturePath && nullptr != _texture)
+    {
+        _maskTexture = _texture;
+        return S_OK;
+    }
+
+    _maskTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
+    if (_maskTexture == nullptr)
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter mask texture create failed. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'. Alpha mask is disabled.",
+            _desc.required.material.maskTextureGuid,
+            _desc.required.material.maskTexturePath,
+            maskTexturePath
+        );
+    }
+
+    return S_OK;
+}
+
 HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
 {
     CHECK_FAILED_ONCE(GAME->Bind_CameraCB(_shader), E_FAIL);
@@ -324,7 +407,22 @@ HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
 HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
 {
     if (nullptr != _noiseTexture)
+    {
         CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
+    }
+    else
+    {
+        CHECK_FAILED_ONCE(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
+    }
+
+    if (nullptr != _maskTexture)
+    {
+        CHECK_FAILED_ONCE(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
+    }
+    else
+    {
+        CHECK_FAILED_ONCE(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
+    }
 
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_Tint", &_desc.required.material.tint, sizeof(_desc.required.material.tint)), E_FAIL);
 
@@ -334,7 +432,26 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         _desc.required.material.noiseStrength,
         nullptr != _noiseTexture ? 1.f : 0.f
     );
+    const Vec4 effectSpriteAlphaParams = Vec4(
+        clamp(_desc.required.material.alphaCutoff, 0.f, 1.f),
+        clamp(_desc.required.material.alphaErosion, 0.f, 1.f),
+        nullptr != _maskTexture ? 1.f : 0.f,
+        0.f
+    );
+    const EffectMaterialAdditiveContributionData& additive = _desc.required.material.additive;
+    const Vec4 effectSpriteAdditiveParams = Vec4(
+        static_cast<float>(static_cast<uint32>(additive.colorSource)),
+        static_cast<float>(static_cast<uint32>(additive.amountSource)),
+        static_cast<float>(static_cast<uint32>(additive.coveragePolicy)),
+        additive.intensityScale
+    );
+    const Vec4 effectSpriteAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteParams", &effectSpriteParams, sizeof(effectSpriteParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAlphaParams", &effectSpriteAlphaParams, sizeof(effectSpriteAlphaParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveParams", &effectSpriteAdditiveParams, sizeof(effectSpriteAdditiveParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveFlags", &effectSpriteAdditiveFlags, sizeof(effectSpriteAdditiveFlags)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), E_FAIL);
 
     return S_OK;
@@ -354,20 +471,9 @@ int ComputeSpriteEmitter::Resolve_OpacitySourceIndex() const
     return kOpacitySourceAlpha;
 }
 
-uint32 ComputeSpriteEmitter::Resolve_EffectSpritePassIndex() const
+uint32 ComputeSpriteEmitter::Resolve_BlendPassIndex() const
 {
-    if (_desc.required.material.blendMode == "AlphaBlend" || _desc.required.material.blendMode == "alphaBlend" || _desc.required.material.blendMode == "alphablend")
-        return kEffectSpriteAlphaBlendPass;
-
-    if (_desc.required.material.blendMode == "Additive" || _desc.required.material.blendMode == "additive")
-        return kEffectSpriteAdditivePass;
-
-    LOG_WARN(
-        "ComputeSpriteEmitter unknown blendMode='{}'. Falling back to AlphaBlend.",
-        _desc.required.material.blendMode
-    );
-
-    return kEffectSpriteAlphaBlendPass;
+    return _desc.required.material.blendMode == EffectMaterialBlendMode::Additive ? 1u : 0u;
 }
 
 ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() const
@@ -408,6 +514,19 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.computeShaderPrototypeTag = L"ComputeShader_PointParticle";
 
     return desc;
+}
+
+void ComputeSpriteEmitter::Sync_WorldCenterToComputeBuffer()
+{
+    CHECK_NULL_THROTTLED(_transformCom, 120);
+    CHECK_NULL_THROTTLED(_viBuffer, 120);
+
+    _viBuffer->Set_Center(_transformCom->Get_WorldPosition());
+    _viBuffer->Set_EmitterBasis(
+        _transformCom->Get_WorldRight(),
+        _transformCom->Get_WorldUp(),
+        _transformCom->Get_WorldForward()
+    );
 }
 
 uint32 ComputeSpriteEmitter::Consume_SpawnRequest(float timeDelta)
@@ -574,24 +693,6 @@ bool ComputeSpriteEmitter::Can_SubmitRender() const
     return nullptr != _viBuffer;
 }
 
-void ComputeSpriteEmitter::Sync_WorldCenterToComputeBuffer()
-{
-    CHECK_NULL_THROTTLED(_transformCom, 120);
-    CHECK_NULL_THROTTLED(_viBuffer, 120);
-
-    _viBuffer->Set_Center(_transformCom->Get_WorldPosition());
-    _viBuffer->Set_EmitterBasis(
-        _transformCom->Get_WorldRight(),
-        _transformCom->Get_WorldUp(),
-        _transformCom->Get_WorldForward()
-    );
-}
-
-void ComputeSpriteEmitter::On_EffectTransformSynced()
-{
-    Sync_WorldCenterToComputeBuffer();
-}
-
 Shared<ComputeSpriteEmitter> ComputeSpriteEmitter::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<ComputeSpriteEmitter>(device, context);
@@ -621,4 +722,21 @@ Shared<GameObject> ComputeSpriteEmitter::Clone(void* arg)
 
 void ComputeSpriteEmitter::Free()
 {
+    _shader.reset();
+    _texture.reset();
+    _noiseTexture.reset();
+    _maskTexture.reset();
+    _viBuffer.reset();
+
+    _desc = {};
+    _opacitySourceIndex = kOpacitySourceAlpha;
+    _burstExecuted.clear();
+    _emitterElapsedTime = 0.f;
+    _spawnAccumulator = 0.f;
+    _playbackState = PlaybackState::Delayed;
+    _loopElapsedTime = 0.f;
+    _loopIndex = 0u;
+    _completedKillDispatched = false;
+
+    __super::Free();
 }

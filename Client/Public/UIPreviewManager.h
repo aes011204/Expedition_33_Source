@@ -32,8 +32,8 @@ public:
     void    Update(float timeDelta);
 
 public:
-    void    Begin_Preview(PreviewShotTable::PreviewShotPanel panel);
-    void    Show_Preview(HeroId heroId, PreviewShotTable::PreviewShotPanel panel);
+    void    Begin_Preview(PreviewShotPanel panel);
+    void    Show_Preview(HeroId heroId, PreviewShotPanel panel);
     void    Hide_Preview();
     void    Apply_Layout(const vector<PreviewSlotDesc>& layout);
 
@@ -42,7 +42,7 @@ private:
     HRESULT Ensure_PreviewCharacters();
     HRESULT Spawn_PreviewCamera();
     HRESULT Spawn_PreviewCharacter();
-    void    Restore_PreviousCamera();
+  //  void    Restore_PreviousCamera();
     void    Clear_StatusPreviewHeroes();
 
 private:
@@ -52,8 +52,9 @@ private:
     };
 
     bool                      _isActive = false;
+    bool                      _pendingPreviewReveal = false;
     vector<StatusPreviewHero> _previewHeroes{};
-    Shared<Camera>            _previousCamera{};
+  //  Shared<Camera>            _previousCamera{};
     Shared<PreviewCamera>     _previewCamera{};
     wstring                   _previewLayerTag = L"Layer_UIPreview";
 

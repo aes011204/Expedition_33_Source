@@ -64,6 +64,9 @@
     <ClCompile Include="..\private\Camera_Tool.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleCameraPreview_View.cpp">
+      <Filter>01. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\BT_View.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
@@ -200,6 +203,9 @@
       <Filter>97. Utils</Filter>
     </ClInclude>
     <ClInclude Include="..\public\Camera_Tool.h">
+      <Filter>01. View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleCameraPreview_View.h">
       <Filter>01. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Component_Inspector.h">

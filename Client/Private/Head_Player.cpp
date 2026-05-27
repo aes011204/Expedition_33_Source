@@ -41,13 +41,13 @@ void Head_Player::Priority_Update(float fTimeDelta)
 
 void Head_Player::Update(float timeDelta)
 {
-    PlayableParts::Update(timeDelta); // TEMP_ERASE : dissolve 업뎃 중 
+    PlayableParts::Update(timeDelta);
 
-    Debug_Profile::Scope updateScope("Player::Head::Update");
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Head::Update");
 
     if (Has_LeaderPoseComponent())
     {
-        Debug_Profile::Scope profileScope("Player::Head::LeaderPose");
+        ENGINE_PROFILE_SCOPE_DETAIL("Player::Head::LeaderPose");
         Update_LeaderPoseMatrices();
     }
     else
@@ -65,44 +65,9 @@ void Head_Player::Late_Update(float timeDelta)
 
 HRESULT Head_Player::Render()
 {
-    Debug_Profile::Scope profileScope("Player::Head::Render");
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Head::Render");
 
-    if (FAILED(Bind_ShaderResources()))
-        return E_FAIL;
-
-    if (FAILED(_shaderCom->Reset_DrawFeatures()))
-        return E_FAIL;
-
-    CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
-
-    const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
-    for (uint32 i = 0; i < numMeshes; ++i)
-    {
-        const uint32 materialIndex = _modelCom->Get_MeshMaterialIndex(i);
-        const Shared<Material> material = _modelCom->Get_Material(materialIndex);
-        if (material == nullptr)
-            continue;
-
-        if (FAILED(_shaderCom->Bind_MaterialTextures(*material)))
-            continue;
-
-        if (FAILED(_shaderCom->Bind_CBufferData(material->Get_CB())))
-            return E_FAIL;
-
-        CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
-
-        const uint32 supportFeatureMask = Resolve_DrawFeatureSupportMask();
-        if (FAILED(Bind_SwitchDissolveFeature(_shaderCom, supportFeatureMask)))
-            return E_FAIL;
-
-        const uint32 passIndex = material->Get_PassIndex();
-        if (FAILED(_shaderCom->Begin(passIndex)))
-            return E_FAIL;
-
-        _modelCom->Render(i);
-    }
-
-    return S_OK;
+    return PlayableParts::Render();
 }
 
 HRESULT Head_Player::Render_Shadow()

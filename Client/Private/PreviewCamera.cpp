@@ -80,7 +80,7 @@ void PreviewCamera::Apply_View()
     Update_TransformMatrices();
 }
 
-void PreviewCamera::Set_Preset(PreviewShotTable::PreviewShotPreset preset)
+void PreviewCamera::Set_Preset(PreviewShotPreset preset)
 {
     _lookOffset = preset.lookOffset;
     _distance = preset.distance;

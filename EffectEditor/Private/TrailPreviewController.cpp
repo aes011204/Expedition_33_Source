@@ -1,5 +1,4 @@
-﻿#include "pch.h"
-#include "TrailPreviewController.h"
+﻿#include "TrailPreviewController.h"
 
 #include "EffectEditorInstance.h"
 #include "ModelCom.h"

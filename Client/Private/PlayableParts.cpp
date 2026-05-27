@@ -6,10 +6,15 @@
 #include "GameInstance.h"
 #include "AnimComputeRuntime.h"
 #include "ComputeShaderCom.h"
-#include "Shader_CBuffer_Define.h"
+#include "EffectCom.h"
 #include "SwitchDissolveFeature.h"
 
 NS_BEGIN(Client)
+
+namespace
+{
+    constexpr uint32 kVtxAnimMeshCharacterHairBlendPass = 8u;
+}
 
 PlayableParts::PlayableParts(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : PartObject{ device, context } {}
@@ -151,8 +156,7 @@ void PlayableParts::Priority_Update(float timeDelta)
 
 void PlayableParts::Update(float timeDelta)
 {
-    // TEMP_ERASE
-    _switchDissolve.Update(timeDelta);
+    // 기존에 있던 _switchDissolve Update는 EffectCom으로 이동
 }
 
 void PlayableParts::Late_Update(float timeDelta)
@@ -173,11 +177,6 @@ HRESULT PlayableParts::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
-    // TEMP_ERASE : 렌더 시작할 때 먼저 draw feature cbuffer와 feature texture 를 초기화한다.
-    // 이전 메쉬가 남긴 거 없애려고 .근ㄷ ㅔ이건 이펙트 컴포넌트 쪽이 다시 생각해봐야할듯
-    if (FAILED(_shaderCom->Reset_DrawFeatures()))
-        return E_FAIL;
-
     CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
 
     const uint32 iNumMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
@@ -195,27 +194,21 @@ HRESULT PlayableParts::Render()
 
         CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
-        // TEMP_ERASE: Dissolve 예시 내가 맘대로 잡은 구조임. 
-        // 나중에 Effect Component이 생기면 그쪽으로 옮기게 될듯
-        const uint32 supportFeatureMask = Resolve_DrawFeatureSupportMask();
-        if (FAILED(Bind_SwitchDissolveFeature(_shaderCom, supportFeatureMask)))
-            return E_FAIL;
+        CHECK_FAILED(EffectCom::Bind_DrawFeatures(
+            Get_Owner(), _shaderCom.get(), DrawFeatureFlagDissolve), E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shaderCom->Begin(passIndex)))
             return E_FAIL;
 
+        // 플레이어 파츠가 그려진 픽셀에 stencil=1을 남겨 Background UI가 이 영역을 피하게 한다.
+        const bool depthWrite = passIndex != kVtxAnimMeshCharacterHairBlendPass;
+        CHECK_FAILED(GAME->Bind_PlayerStencilWriteState(depthWrite), E_FAIL);
+
         _modelCom->Render(i);
     }
 
     return S_OK;
-}
-
-void PlayableParts::Start_SwitchDissolve(float durationSec, const string& noiseName)
-{
-    // TEMP_ERASE: DISSOLVE 예시 함수
-    const uint32 noiseHandle = GAME->Get_Handle(noiseName);
-    _switchDissolve.Start_Reveal(durationSec, noiseHandle, 0.08f, 0.02f, Vec3(0.10f, 0.10f, 0.10f));
 }
 
 HRESULT PlayableParts::Render_Shadow()
@@ -337,47 +330,6 @@ HRESULT PlayableParts::Bind_ShaderResources()
         return E_FAIL;
 
     return S_OK;
-}
-
-uint32 PlayableParts::Resolve_DrawFeatureSupportMask() const
-{
-    // TEMP_ERASE: DISSOLVE 예시 바인딩
-    return DrawFeatureFlagDissolve;
-}
-
-HRESULT PlayableParts::Bind_SwitchDissolveFeature(Shared<ShaderCom> shader, uint32 supportFeatureMask)
-{
-    // TEMP_ERASE: DISSOLVE 예시 바인딩
-    if (shader == nullptr)
-        return E_FAIL;
-
-    DrawFeatureCB drawFeatureCB{};
-
-    constexpr uint32 featureTextureCount =
-        static_cast<uint32>(Engine::ShaderSRV::DrawFeatureTextureSlotNames.size());
-
-    std::array<ID3D11ShaderResourceView*, featureTextureCount> featureSrvs{};
-    drawFeatureCB.supportFeatureMask = supportFeatureMask;
-
-    // TEMP_ERASE 여기는 문인수씨가 이펙트 컴포넌트 추가한다고 했을 때 로직 옮겨야 하는 부분임.
-    if (_switchDissolve.enabled == true &&
-        (supportFeatureMask & DrawFeatureFlagDissolve) != 0u)
-    {
-        drawFeatureCB.activeFeatureMask = DrawFeatureFlagDissolve;
-        drawFeatureCB.param0.x = _switchDissolve.progress;
-        drawFeatureCB.param0.y = _switchDissolve.edgeWidth;
-        drawFeatureCB.param0.z = _switchDissolve.edgeSoftness;
-        drawFeatureCB.param0.w = _switchDissolve.reveal ? 1.f : 0.f;
-        drawFeatureCB.param1 = Vec4(_switchDissolve.edgeColor.x, _switchDissolve.edgeColor.y, _switchDissolve.edgeColor.z, 0.45f);
-
-        if (ID3D11ShaderResourceView* noiseSRV = GAME->Get_SRV(_switchDissolve.noiseHandle))
-        {
-            featureSrvs[DrawFeatureTexDissolveNoise] = noiseSRV;
-            drawFeatureCB.textureSlotMask |= (1u << DrawFeatureTexDissolveNoise);
-        }
-    }
-
-    return shader->Bind_DrawFeatures(drawFeatureCB, featureSrvs.data(), featureTextureCount);
 }
 
 void PlayableParts::Free()

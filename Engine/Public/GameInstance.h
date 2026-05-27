@@ -325,6 +325,7 @@ public: /* For.Camera_Manager */
     Shared<Camera>  Get_Camera(int index) const;
     Shared<Camera>  Get_ActiveCamera();
     int             Get_CameraCount();
+    Shared<Camera>  Get_CameraByType(ObjectType objectType);
 
     HRESULT Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName);
 
@@ -362,6 +363,9 @@ public : /* For.Target_Manager */
     HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
 
     HRESULT Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture);
+    HRESULT Bind_PlayerStencilWriteState(bool depthWrite);
+    HRESULT Bind_BackgroundUIBehindPlayerStencilState();
+    HRESULT Bind_UINoDepthStencilState();
 
 #ifdef _DEBUG
     HRESULT Initialize_Debug(float sizeX, float sizeY);
@@ -549,6 +553,10 @@ private:
 private:
     ComPtr<Device>               _device = {};
     ComPtr<Context>              _context = {};
+    ComPtr<ID3D11DepthStencilState> _playerStencilWriteState = {};
+    ComPtr<ID3D11DepthStencilState> _playerStencilWriteDepthReadState = {};
+    ComPtr<ID3D11DepthStencilState> _backgroundUIBehindPlayerStencilState = {};
+    ComPtr<ID3D11DepthStencilState> _uiNoDepthStencilState = {};
 
     uint32  _viewportWidth{ 0 };
     uint32  _viewportHeight{ 0 };

@@ -1,5 +1,4 @@
 ﻿#pragma once
-
 NS_BEGIN(Engine)
 
 struct EvtHandle

@@ -189,6 +189,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\AnimState_View.cpp" />
     <ClCompile Include="..\private\BT_View.cpp" />
     <ClCompile Include="..\private\Camera_Tool.cpp" />
+    <ClCompile Include="..\Private\BattleCameraPreview_View.cpp" />
     <ClCompile Include="..\private\Cinematic_Tool.cpp" />
     <ClCompile Include="..\Private\Collider_Inspector.cpp" />
     <ClCompile Include="..\Private\CombatStat_Inspector.cpp" />
@@ -234,6 +235,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\public\AIController_Inspector.h" />
     <ClInclude Include="..\Public\AnimState_View.h" />
     <ClInclude Include="..\public\BT_VIew.h" />
+    <ClInclude Include="..\Public\BattleCameraPreview_View.h" />
     <ClInclude Include="..\public\Camera_Tool.h" />
     <ClInclude Include="..\Public\Collider_Inspector.h" />
     <ClInclude Include="..\Public\CombatStat_Inspector.h" />

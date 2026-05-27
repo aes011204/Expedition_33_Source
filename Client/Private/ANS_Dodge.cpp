@@ -24,8 +24,7 @@ void ANS_Dodge::On_Begin(const AnimNotifyContext& context)
 
 void ANS_Dodge::On_Tick(const AnimNotifyContext& context)
 {
-    LOG_INFO({ "DODGE TIME" });
-
+    UNREFERENCED_PARAMETER(context);
  
 }
 

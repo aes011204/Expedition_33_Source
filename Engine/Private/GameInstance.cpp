@@ -57,6 +57,7 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
         engineDesc.winMode,
         engineDesc.viewportWidth,
         engineDesc.viewportHeight,
+        engineDesc.swapEffect,
         device,
         context
     );
@@ -71,6 +72,14 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _logManager = Log_Manager::Create(engineDesc.projectName);
     CHECK_NULL(_logManager, E_FAIL);
+
+#ifdef _DEBUG
+#if ENGINE_ENABLE_DX11_DEBUG_LAYER
+    LOG_WARN("[StartupMode] Debug - DX11 debug layer ON");
+#else
+    LOG_WARN("[StartupMode] Debug - DX11 debug layer OFF by ENGINE_ENABLE_DX11_DEBUG_LAYER=0");
+#endif
+#endif
 
     _timerManager = Timer_Manager::Create();
     CHECK_NULL(_timerManager, E_FAIL);
@@ -412,9 +421,6 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
 
 HRESULT GameInstance::Draw()
 {
-    if (FAILED(_uiManager->Render(UI_RenderGroup::Background)))
-        return E_FAIL;
-
     _renderer->Draw();
 
     _levelManager->Render();
@@ -439,8 +445,16 @@ HRESULT GameInstance::Draw()
     Try_FlushRuntimePerfLog();
 #endif
 
-    if (FAILED(_uiManager->Render()))
+#pragma region UI Render
+    // Background UI는 3D 씬 이후, Foreground UI 이전에 그린다.
+    if (FAILED(_uiManager->Render(UI_RenderGroup::Background)))
         return E_FAIL;
+
+    // Foreground UI는 마지막에 그려서 항상 화면 위에 보이게 한다.
+    if (FAILED(_uiManager->Render(UI_RenderGroup::Foreground)))
+        return E_FAIL;
+#pragma endregion
+
 
 #ifdef _DEBUG
       _printManager->Render();
@@ -1509,6 +1523,11 @@ int GameInstance::Get_CameraCount()
     return _cameraManager->Get_CameraCount();
 }
 
+Shared<Camera> GameInstance::Get_CameraByType(ObjectType objectType)
+{
+    return _cameraManager->Get_CameraByType(objectType);
+}
+
 HRESULT GameInstance::Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName)
 {
     return _cameraManager->Bind_CameraFar(shader, constantName);
@@ -1637,6 +1656,81 @@ HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTa
 HRESULT GameInstance::Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture)
 {
     return _targetManager->Copy_Resource(targetTag, destTexture);
+}
+
+HRESULT GameInstance::Bind_PlayerStencilWriteState(bool depthWrite)
+{
+    ComPtr<ID3D11DepthStencilState>& state =
+        depthWrite ? _playerStencilWriteState : _playerStencilWriteDepthReadState;
+
+    if (state == nullptr)
+    {
+        D3D11_DEPTH_STENCIL_DESC desc{};
+        desc.DepthEnable = TRUE;
+        desc.DepthWriteMask = depthWrite ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+        desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+        desc.StencilEnable = TRUE;
+        desc.StencilReadMask = 0xff;
+        desc.StencilWriteMask = 0xff;
+        desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
+        desc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+        desc.BackFace = desc.FrontFace;
+
+        CHECK_NULL(_device, E_FAIL);
+        CHECK_FAILED(_device->CreateDepthStencilState(&desc, state.GetAddressOf()), E_FAIL);
+    }
+
+    CHECK_NULL(_context, E_FAIL);
+    _context->OMSetDepthStencilState(state.Get(), 1);
+
+    return S_OK;
+}
+
+HRESULT GameInstance::Bind_BackgroundUIBehindPlayerStencilState()
+{
+    if (_backgroundUIBehindPlayerStencilState == nullptr)
+    {
+        D3D11_DEPTH_STENCIL_DESC desc{};
+        desc.DepthEnable = FALSE;
+        desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+        desc.StencilEnable = TRUE;
+        desc.StencilReadMask = 0xff;
+        desc.StencilWriteMask = 0x00;
+        desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+        desc.FrontFace.StencilFunc = D3D11_COMPARISON_NOT_EQUAL;
+        desc.BackFace = desc.FrontFace;
+
+        CHECK_NULL(_device, E_FAIL);
+        CHECK_FAILED(_device->CreateDepthStencilState(&desc, _backgroundUIBehindPlayerStencilState.GetAddressOf()), E_FAIL);
+    }
+
+    CHECK_NULL(_context, E_FAIL);
+    _context->OMSetDepthStencilState(_backgroundUIBehindPlayerStencilState.Get(), 1);
+
+    return S_OK;
+}
+
+HRESULT GameInstance::Bind_UINoDepthStencilState()
+{
+    if (_uiNoDepthStencilState == nullptr)
+    {
+        D3D11_DEPTH_STENCIL_DESC desc{};
+        desc.DepthEnable = FALSE;
+        desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+        desc.StencilEnable = FALSE;
+
+        CHECK_NULL(_device, E_FAIL);
+        CHECK_FAILED(_device->CreateDepthStencilState(&desc, _uiNoDepthStencilState.GetAddressOf()), E_FAIL);
+    }
+
+    CHECK_NULL(_context, E_FAIL);
+    _context->OMSetDepthStencilState(_uiNoDepthStencilState.Get(), 0);
+
+    return S_OK;
 }
 
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
@@ -2026,6 +2120,11 @@ void GameInstance::Release_Engine()
     ReleaseManager(_timerManager);
 
     Material::Clear_TextureSRVCache();
+
+    _playerStencilWriteState.Reset();
+    _playerStencilWriteDepthReadState.Reset();
+    _backgroundUIBehindPlayerStencilState.Reset();
+    _uiNoDepthStencilState.Reset();
 
     _context.Reset();
     _device.Reset();

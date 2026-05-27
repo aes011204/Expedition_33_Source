@@ -24,6 +24,7 @@ namespace Engine
         Vec4,
         Color,
         String,
+        WString,
         Enum,
         ReadOnly, // 수정 불가
     };

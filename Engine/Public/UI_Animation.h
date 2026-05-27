@@ -52,6 +52,7 @@ enum class UI_KeyframeAnimationTrackType
     ScaleX,
     ScaleY,
     Rotation,
+    Color,
     Alpha,
 };
 
@@ -59,6 +60,7 @@ struct UI_KeyframeAnimationKey
 {
     int32 frame = 0;
     float value = 0.f;
+    Vec4 color{ 255.f, 255.f, 255.f, 255.f };
     UI_AnimationEasing easing = UI_AnimationEasing::Linear;
 };
 
@@ -192,6 +194,12 @@ inline bool Try_ParseUIKeyframeAnimationTrackType(const string& typeName, UI_Key
     if (typeName == "Rotation")
     {
         outType = UI_KeyframeAnimationTrackType::Rotation;
+        return true;
+    }
+
+    if (typeName == "Color")
+    {
+        outType = UI_KeyframeAnimationTrackType::Color;
         return true;
     }
 

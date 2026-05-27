@@ -6,6 +6,7 @@
 #include "Debug_Profile.h"
 #include "ShaderPassFinder.h"
 #include "AnimComputeRuntime.h"
+#include "EffectCom.h"
 #include "OffsetAnimationModifier.h"
 
 REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerWorldAnimation, "PlayerWorldAnimation")
@@ -46,9 +47,9 @@ void Body_Player::Priority_Update(float fTimeDelta)
 
 void Body_Player::Update(float fTimeDelta)
 {
-    PlayableParts::Update(fTimeDelta);    // TEMP_ERASE : 디졸브 업데이트 중이다 아오 진짜 
+    PlayableParts::Update(fTimeDelta);
 
-    Debug_Profile::Scope profileScope("Player::Body::Update");
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::Update");
 
     if (Has_LeaderPoseComponent())
     {
@@ -56,7 +57,7 @@ void Body_Player::Update(float fTimeDelta)
     }
     else if (_useComputeSkinning && _animComputeRuntime != nullptr)
     {
-        Debug_Profile::Scope computeScope("Player::Body::ComputeUpdate");
+        ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::ComputeUpdate");
         CHECK_FAILED(_animComputeRuntime->Update_Frame(fTimeDelta), ); // compute animation 파이프라인 전체 실행
     }
     else
@@ -75,7 +76,7 @@ void Body_Player::Late_Update(float fTimeDelta)
 
 HRESULT Body_Player::Render()
 {
-    Debug_Profile::Scope profileScope("Player::Body::Render");
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::Render");
 
      if (!_useComputeSkinning)
         return PlayableParts::Render();
@@ -89,9 +90,6 @@ HRESULT Body_Player::Render()
         return E_FAIL;
 
     if (FAILED(GAME->Bind_CameraCB(_computeRenderShaderCom)))
-        return E_FAIL;
-
-    if (FAILED(_computeRenderShaderCom->Reset_DrawFeatures()))
         return E_FAIL;
 
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
@@ -109,15 +107,19 @@ HRESULT Body_Player::Render()
         if (FAILED(_computeRenderShaderCom->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        const uint32 supportFeatureMask = Resolve_DrawFeatureSupportMask();
-        if (FAILED(Bind_SwitchDissolveFeature(_computeRenderShaderCom, supportFeatureMask)))
-            return E_FAIL;
+        CHECK_FAILED(EffectCom::Bind_DrawFeatures(
+            Get_Owner(),
+            _computeRenderShaderCom.get(),
+            DrawFeatureFlagDissolve), E_FAIL);
 
         const uint32 passIndex =
             ShaderPassFinder::Find_PassIndex(ShaderType::VtxMesh, material->Get_RenderState());
 
         if (FAILED(_computeRenderShaderCom->Begin(passIndex)))
             return E_FAIL;
+
+        // Compute skinning 바디도 기존 pass는 유지하고 stencil=1만 함께 기록한다.
+        CHECK_FAILED(GAME->Bind_PlayerStencilWriteState(true), E_FAIL);
 
         if (FAILED(_animComputeRuntime->Render_ComputeSkinned(i)))
             return E_FAIL;

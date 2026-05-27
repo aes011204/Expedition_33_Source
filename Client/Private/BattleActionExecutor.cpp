@@ -41,15 +41,12 @@ void BattleActionExecutor::Complete_CurPhase(Action& action)
     if (action._curAnimIndex >= phases.size())
         return;
 
-    //TODO :: 나중에 워크 고치고 주석 풀기
-    //if (action._curChar.actor)
-    //    action._curChar.actor->Get_Transform()->Set_Position(action.phaseGoalPos);
 
     action._curAnimIndex++;
 
     if (action._curAnimIndex >= phases.size())
     {
-        if (action._curChar.ModelCom && !action._selected_SkillKey.IdleAnimationKey.empty())
+        if (action._curChar.ModelCom)
         {
             action._curChar.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), .3f, true);
             //action._curChar.ModelCom->Set_Animation(action._selected_SkillKey.IdleAnimationKey, true, 0.f);

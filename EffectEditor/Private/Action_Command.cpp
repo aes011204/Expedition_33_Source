@@ -1,5 +1,4 @@
-﻿#include "pch.h"
-#include "Action_Command.h"
+﻿#include "Action_Command.h"
 
 NS_BEGIN(EffectEditor)
 

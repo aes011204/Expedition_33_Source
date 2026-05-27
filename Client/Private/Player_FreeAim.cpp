@@ -50,6 +50,24 @@ bool Player_FreeAim::EnterInvoke()
     _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Idle), 0.1f, true);
     if (_offsetModifier) _offsetModifier->Set_Active(true);
 
+    auto owner = _owner.lock();
+    if (owner)
+    {
+        auto movementCom = owner->Get_Component<MovementCom>();
+        if (movementCom)
+        {
+            const auto& moveDesc = movementCom->Get_MoveDesc();
+
+            _prevTurnSpeedDegree = moveDesc.turnSpeedDegree;
+            _prevTurnResponse = moveDesc.turnResponse;
+
+            movementCom->Set_TurnSpeedDegree(_freeAimTurnSpeedDegree);
+            movementCom->Set_TurnResponse(_freeAimTurnResponse);
+
+            _isEnterTurnBurstActive = true;
+        }
+    }
+
     return true;
 }
 
@@ -69,13 +87,15 @@ void Player_FreeAim::Update(float timeDelta)
         }
     }
 
+    Update_EnterTurnBurst();
+
     uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
     if (IsFreeAimShoot())
     {
         if (animIndex != ETOI(plAnim::Pl_FreeAim_Shoot))
         {
             _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Shoot), 0.25f, false);
-            _bodyPlayer->Set_AnimationSpeed(3.f);
+            _bodyPlayer->Set_AnimationSpeed(2.f);
         }
     }
     else
@@ -120,6 +140,8 @@ void Player_FreeAim::ExitInvoke()
         if (_walkModifiers[i])
             _walkModifiers[i]->Set_Active(false);
     }
+
+    _isEnterTurnBurstActive = false;
 }
 
 void Player_FreeAim::Update_DirectionalModifiers()
@@ -148,6 +170,50 @@ void Player_FreeAim::Update_DirectionalModifiers()
     {
         if (_walkModifiers[i])
             _walkModifiers[i]->Set_Active(i == targetWalkIndex);
+    }
+}
+
+void Player_FreeAim::Update_EnterTurnBurst()
+{
+    if (!_isEnterTurnBurstActive)
+        return;
+
+    auto owner = _owner.lock();
+    if (!owner)
+        return;
+
+    auto movementCom = owner->Get_Component<MovementCom>();
+    if (!movementCom)
+        return;
+
+    auto camera = GAME->Get_ActiveCamera();
+    if (!camera)
+        return;
+
+    auto ownerTransform = owner->Get_Transform();
+    auto cameraTransform = camera->Get_Transform();
+    if (!ownerTransform || !cameraTransform)
+        return;
+
+    Vec3 actorForward = ownerTransform->Get_WorldForward();
+    Vec3 aimForward = cameraTransform->Get_WorldForward();
+
+    actorForward.y = 0.f;
+    aimForward.y = 0.f;
+
+    if (actorForward.LengthSquared() <= 0.f || aimForward.LengthSquared() <= 0.f)
+        return;
+
+    actorForward.Normalize();
+    aimForward.Normalize();
+
+    const float dot = std::clamp(actorForward.Dot(aimForward), -1.f, 1.f);
+
+    if (dot >= 0.995f)
+    {
+        movementCom->Set_TurnSpeedDegree(_prevTurnSpeedDegree);
+        movementCom->Set_TurnResponse(_prevTurnResponse);
+        _isEnterTurnBurstActive = false;
     }
 }
 

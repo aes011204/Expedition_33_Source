@@ -108,6 +108,8 @@ public:
     uint32  Get_NextExp(uint32 level) const;
     void    Add_Exp(uint32 value);
 
+    void    Set_BattleStartAp();
+
 public:
     static PreviewStat Calculate_PreviewStat(
         int32 vitality,

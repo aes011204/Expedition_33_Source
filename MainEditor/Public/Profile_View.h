@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Debug_Profile.h"
 #include "Editor_Window.h"
 
 NS_BEGIN(MainEditor)
