@@ -598,6 +598,38 @@ void BattleController::Build_InitialTurnQueue(bool IsFirstHero)
     }
 }
 
+void BattleController::Rebuild_TurnQueue(const BattleChar& revivedActor)
+{
+    if (revivedActor.actor == nullptr || revivedActor.statCom == nullptr)
+        return;
+
+    priority_queue<TurnEntry, vector<TurnEntry>, Compare> rebuiltQueue{};
+
+    while (!_turnQueue.empty())
+    {
+        TurnEntry entry = _turnQueue.top();
+        _turnQueue.pop();
+
+        if (entry.hero.actor == nullptr || entry.hero.statCom == nullptr)
+            continue;
+
+        if (entry.hero.actor == revivedActor.actor)
+            continue;
+
+        if (entry.hero.statCom->Get_AliveStatus() != EAliveStatus::Alive)
+            continue;
+
+        rebuiltQueue.push(entry);
+    }
+
+    TurnEntry revivedEntry{};
+    revivedEntry.hero = revivedActor;
+    revivedEntry.nextTime = _battleTime + 100.f / max(revivedActor.statCom->Get_Speed(), 1.f);
+
+    rebuiltQueue.push(revivedEntry);
+    _turnQueue = std::move(rebuiltQueue);
+}
+
 void BattleController::SetCharInitPos()
 {
     /*INFO = FiledMgr->GetFiledInfo(FieldID)
@@ -938,27 +970,60 @@ void BattleController::Execute_Skill(const BattleChar actor, const Action& turnA
         turnAction._selected_SkillKey.scriptClassName.c_str()
     );
 
-    _curScript = Create_Class::SkillScript(_turnAction._selected_SkillKey.scriptClassName).Create();
-
     auto& action = Get_TurnAction();
 
     if (actor.ModelCom == nullptr)
     {
-        LOG_ERROR("Execute_BaseAttack: actor.ModelCom is null");
+        LOG_ERROR("Execute_Skill: actor.ModelCom is null");
         EndTurn();
         return;
     }
+
+    if (actor.statCom == nullptr)
+    {
+        LOG_ERROR("Execute_Skill: actor.statCom is null");
+        EndTurn();
+        return;
+    }
+
     if (action._selected_SkillKey.AnimPhases.empty())
     {
-        LOG_ERROR("Execute_BaseAttack: no animationKey");
+        LOG_ERROR("Execute_Skill: no animationKey");
         EndTurn();
+        return;
+    }
+
+    _curScript = Create_Class::SkillScript(action._selected_SkillKey.scriptClassName).Create();
+    if (_curScript == nullptr)
+    {
+        LOG_ERROR("Execute_Skill: script create failed. script={}", action._selected_SkillKey.scriptClassName.c_str());
+        EndTurn();
+        return;
+    }
+
+    const uint32 apCost = action._selected_SkillKey.apCost > 0
+        ? static_cast<uint32>(action._selected_SkillKey.apCost)
+        : 0u;
+
+    if (apCost > 0 && !actor.statCom->Try_ConsumeAP(apCost))
+    {
+        LOG_DEBUG("Execute_Skill: not enough AP. skill={}, curAP={}, cost={}",
+            action._selected_SkillKey.skillKey.c_str(),
+            actor.statCom->Get_CurAP(),
+            apCost);
+
+        Clear_CurrentScript();
+
+        if (actor.statCom->Is_Player() && _battleFSM)
+            _battleFSM->Change_State(BattleTurnState::ChooseSkill); // 플레이어는 다시 스킬을 고를 수 있게 되돌린다.
+        else
+            EndTurn();
+
         return;
     }
 
     action.originPos = action._curChar.actor->Get_Transform()->Get_Position();
     action._curAnimIndex = 0;
-
-    Apply_BaseAttackAP(actor);
 
     _isActionExecuting = true;
     _battleActionExe->BeginAction(action);
@@ -966,6 +1031,53 @@ void BattleController::Execute_Skill(const BattleChar actor, const Action& turnA
 
 void BattleController::Execute_Item(const BattleChar actor, const Action& turnAction)
 {
+    CHECK_NULL(turnAction.target.statCom);
+    CHECK_NULL(actor.statCom);
+
+    auto& action = Get_TurnAction();
+    const Item_Data& itemData = action._selected_ItemKey;
+
+    switch (itemData.itemType)
+    {
+    case BattleItemType::HealingTint:
+        if (action.target.statCom->Get_AliveStatus() != EAliveStatus::Alive)
+            return; // 치유 틴트는 살아있는 대상에게만 적용한다.
+
+        DamageSystem::Heal(action.target.statCom->Get_StatInfo().maxHp * static_cast<float>(itemData.healHp) * 0.01f, action.target);
+        break;
+
+    case BattleItemType::EnergyTint:
+        if (action.target.statCom->Get_AliveStatus() != EAliveStatus::Alive)
+            return; // 에너지 틴트는 살아있는 대상에게만 적용한다.
+
+        action.target.statCom->Add_AP(itemData.restoreAp);
+        break;
+
+    case BattleItemType::ReviveTint:
+        if (action.target.statCom->Get_AliveStatus() != EAliveStatus::Dead)
+            return; // 부활 틴트는 죽어있는 대상에게만 적용한다.
+
+        action.target.statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
+        DamageSystem::Heal(action.target.statCom->Get_StatInfo().maxHp * static_cast<float>(itemData.reviveHp) * 0.01f, action.target);
+
+        if (action.target.ModelCom)
+        {
+            if (!action.target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
+            {
+                action.target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.2f, true); // Revive 매핑이 없으면 바로 기본 Idle로 복귀한다.
+            }
+        }
+
+        Rebuild_TurnQueue(action.target);
+
+        break;
+
+    default:
+        return;
+    }
+
+    CLIENT->Consume_Item(itemData.itemType);
+    Clear_TargetPreview();
 }
 
 void BattleController::Apply_BaseAttackAP(const BattleChar& actor)
@@ -1159,7 +1271,7 @@ void BattleController::Confirm_Victory()
 void BattleController::Handle_DamageApplied(const BattleChar& damagedTarget, float damage)
 {
     Try_RequestEndTurnOnCurrentActorDeath(damagedTarget, damage);
-    Try_BeginVictorySlowOnDamage(damagedTarget, damage);   
+    Try_BeginVictorySlowOnDamage(damagedTarget, damage);
 }
 
 void BattleController::Try_RequestEndTurnOnCurrentActorDeath(const BattleChar& damagedTarget, float damage)
@@ -1179,7 +1291,7 @@ void BattleController::Try_RequestEndTurnOnCurrentActorDeath(const BattleChar& d
     if (damagedTarget.statCom->Get_AliveStatus() != EAliveStatus::Dead)
         return;
 
-    _requestEndTurnOnCurrentActorDeath = true; 
+    _requestEndTurnOnCurrentActorDeath = true;
 }
 
 void BattleController::Try_BeginVictorySlowOnDamage(const BattleChar& damagedTarget, float damage)

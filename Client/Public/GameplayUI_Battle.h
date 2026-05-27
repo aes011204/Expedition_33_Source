@@ -22,10 +22,13 @@ class UI_ChoiceTarget;
 class UI_AttackTooltip;
 class UI_BattleSystem_TurnOrder;
 class UI_DamageFont;
-class UI_EscapeSkipTurn;
+class UI_HealFont;
+class UI_EscapeSkipTurnBack;
 class UI_ReactionResult;
 class UI_BattleVictory;
 class UI_BattleMechanism;
+class UI_BattleItemPanel;
+class UI_BattleSkillPanel;
 
 class GameplayUI_Battle final : public Base
 {
@@ -53,6 +56,7 @@ private:
     void    Handle_TargetPreviewChanged(const BattleChar* target);
     void    Handle_ActionStarted(const Action& action);
     void    Handle_DamageApplied(const BattleChar& target, float damage);
+    void    Handle_HealApplied(const BattleChar& target, float healAmount);
     void    Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const BattleChar& target);
 
     void    Update_BattleCommandHUD(float timeDelta);
@@ -65,11 +69,14 @@ private:
     void    Update_ChoiceTarget(float timeDelta);
     void    Update_TurnOrder(float timeDelta);
     void    Update_DamageFonts(float timeDelta);
+    void    Update_HealFonts(float timeDelta);
     void    Update_EscapeSkipTurn(float timeDelta);
     void    Update_AttackTooltip(float timeDelta);
     void    Update_ReactionResult(float timeDelta);
     void    Update_BattleVictory(float timeDelta);
     void    Update_BattleMechanism(float timeDelta);
+    void    Update_BattleItemPanel(float timeDelta);
+    void    Update_BattleSkillPanel(float timeDelta);
 
 private:
 #pragma region UI 위치맞추기
@@ -78,6 +85,7 @@ private:
     bool    Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
     bool    Try_GetDamageFontWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
     bool    Try_GetReactionResultWorldPos(const BattleChar& target, Vec3& outWorldPos);
+    bool    Try_GetHealFontWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
 #pragma endregion
 
     // Turn Order
@@ -102,16 +110,21 @@ private:
     Unique<UI_BattleDefense>                _battleDefense;
     Unique<UI_CancelAim>                    _cancelAim;
     Unique<UI_ChoiceTarget>                 _choiceTarget;
-    Unique<UI_EscapeSkipTurn>               _escapeSkipTurn;
+    Unique<UI_EscapeSkipTurnBack>           _escapeSkipTurn;
     Unique<UI_AttackTooltip>                _attackTooltip;
     Unique<UI_ReactionResult>               _reactionResult;
     Unique<UI_BattleVictory>                _battleVictory;
     Unique<UI_BattleSystem_TurnOrder>       _turnOrder;
     Unique<UI_BattleMechanism>              _battleMechanism;
+    Unique<UI_BattleItemPanel>              _battleItemPanel;
+    Unique<UI_BattleSkillPanel>             _battleSkillPanel;
 
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
     array<Unique<UI_DamageFont>, kDamageFontPoolSize> _damageFonts{};
+
+    static constexpr uint32 kHealFontPoolSize = 8;
+    array<Unique<UI_HealFont>, kHealFontPoolSize> _healFonts{};
 
     // Delegate 구독 대상
     Shared<BattleController> _battleController;
@@ -122,6 +135,7 @@ private:
     FDelegateHandle          _targetPreviewChangedHandle{}; // 타겟 바뀔 때
     FDelegateHandle          _actionStartedHandle{};
     FDelegateHandle          _damageAppliedHandle{};
+    FDelegateHandle          _healAppliedHandle{};
     FDelegateHandle          _reactionSucceededHandle{};
 
 private:

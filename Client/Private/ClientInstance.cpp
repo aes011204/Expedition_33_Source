@@ -4,6 +4,7 @@
 #include "BT_Node_Bootstrap.h"
 #include "ComputeSpriteEmitter.h"
 #include "EffectEmitterRegistration.h"
+#include "EffectInstancePool.h"
 #include "GameDataTable.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -61,6 +62,8 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _cameraDirector = CameraDirector::Create();
     CHECK_NULL(_cameraDirector, E_FAIL);
+    _effectInstancePool = EffectInstancePool::Create();
+    CHECK_NULL(_effectInstancePool, E_FAIL);
 
 	_isInitialized = true;
 
@@ -78,6 +81,9 @@ HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& 
     CHECK_FAILED(Ready_ResourceLoader(), E_FAIL);
 
     Register_ClientEffectEmitters();
+
+    _effectInstancePool = EffectInstancePool::Create();
+    CHECK_NULL(_effectInstancePool, E_FAIL);
 
     _isInitialized = true;
 
@@ -166,6 +172,30 @@ const Skill_Data* ClientInstance::Get_Skill(const string& skillId)
 const vector<string> ClientInstance::Get_AllSkillIds()
 {
     return _gameDataTable->Get_AllSkillIds();
+}
+
+const Item_Data* ClientInstance::Get_Item(const string& itemId)
+{
+    if (!_gameDataTable)
+        return nullptr;
+
+    return _gameDataTable->Get_Item(itemId);
+}
+
+const Item_Data* ClientInstance::Get_Item(BattleItemType itemType)
+{
+     if (!_gameDataTable)
+        return nullptr;
+
+    return _gameDataTable->Get_Item(itemType);
+}
+
+bool ClientInstance::Consume_Item(BattleItemType itemType)
+{
+    if (_gameDataTable == nullptr)
+        return false;
+
+    return _gameDataTable->Consume_Item(itemType);
 }
 
 void ClientInstance::Apply_PreviewLayout(const vector<UIPreviewManager::PreviewSlotDesc>& layout)
@@ -407,6 +437,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_gameDataTable);
     ReleaseManager(_previewShotTable);
     ReleaseManager(_previewManager);
+    ReleaseManager(_effectInstancePool);
     ReleaseManager(_persistentObjectManager);
     ReleaseManager(_resourceLoader);
     ReleaseManager(_heroManager);

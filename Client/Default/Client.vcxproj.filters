@@ -74,6 +74,12 @@
     <Filter Include="02.GameObject\Camera\BattleCamera">
       <UniqueIdentifier>{a140d5ff-7aa8-44da-b19f-d406017bc23e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="06. Pool">
+      <UniqueIdentifier>{8f34c89c-d6ca-43eb-90fc-7d07306b013f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. Pool\Effect Pool">
+      <UniqueIdentifier>{c1313e91-9b45-46ca-9845-0762d62c53ba}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\AN_BattleShot.cpp" />
@@ -108,6 +114,13 @@
     <ClCompile Include="..\Private\EffectCom.cpp" />
     <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
     <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
+    <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
+    <ClCompile Include="..\Private\AN_EndTurn.cpp" />
+    <ClCompile Include="..\Private\UI_HealFont.cpp" />
+    <ClCompile Include="..\Private\UI_BattleSkillPanel.cpp" />
+    <ClCompile Include="..\Private\EffectInstancePool.cpp">
+      <Filter>06. Pool\Effect Pool</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl" />
@@ -645,6 +658,13 @@
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
     <ClInclude Include="..\Public\ANS_IdleOffset.h" />
+    <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
+    <ClInclude Include="..\Public\AN_EndTurn.h" />
+    <ClInclude Include="..\Public\UI_HealFont.h" />
+    <ClInclude Include="..\Public\UI_BattleSkillPanel.h" />
+    <ClInclude Include="..\Public\EffectInstancePool.h">
+      <Filter>06. Pool\Effect Pool</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

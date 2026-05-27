@@ -32,6 +32,7 @@ public:
 public:
     HRESULT Reset_ForEffectReplay() override; // effect root 재사용 시 trail history와 draw runtime을 초기화한다.
     bool Is_EffectFinished() const override;  // trail은 일단 자동 완료가 아니라 명시 Stop/release를 따른다.
+    void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider) override; // acquire 시점 owner가 준 trail sample provider를 현재 runtime desc에 다시 바인딩한다.
 
 private:
     struct TrailHistorySample

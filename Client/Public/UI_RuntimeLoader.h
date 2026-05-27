@@ -19,6 +19,7 @@ public:
         uint32 levelIndex = 0;
         wstring jsonPath{};
         wstring animationPath{};
+        vector<wstring> animationPaths{};
         wstring prototypeTagPrefix {};
         wstring outUINamePrefixFilter {};
 

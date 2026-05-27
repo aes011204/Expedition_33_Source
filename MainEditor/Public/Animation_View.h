@@ -152,7 +152,7 @@ private:
     static float Resolve_AnimNotifyDataLengthSec(const AnimNotifyData* animationData);
     static Shared<GameObject> Resolve_RootPreviewObject(const Shared<GameObject>& gameObject);
     static void Lock_PreviewObjectToOrigin(const Shared<GameObject>& gameObject);
-    static bool Is_PrefabViewFocused();
+    static bool Should_DeferToCompanionPreview();
     static Editor_Camera_Free::EDITOR_CAMERA_DESC Build_PreviewCameraDesc(const Shared<GameObject>& gameObject);
     static void Apply_PreviewCameraTransform(const Shared<Editor_Camera_Free>& camera);
     static void Remove_NotifyTrackEntries(AnimNotifyData& animationData, int32 trackIndex);

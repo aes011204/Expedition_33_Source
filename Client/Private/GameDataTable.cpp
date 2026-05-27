@@ -66,6 +66,7 @@ HRESULT GameDataTable::Load_All()
     CHECK_FAILED(Load_SkillTreeRequirementData(jsonRootPath), E_FAIL);
 
     CHECK_FAILED(Load_Weapon(jsonRootPath), E_FAIL);
+    CHECK_FAILED(Load_ItemData(jsonRootPath), E_FAIL);
 
     _isLoaded = true;
 
@@ -76,6 +77,10 @@ void GameDataTable::Clear()
 {
     _nextExpByLevel.clear();
     _weaponDataByCharacter.clear();
+    _skillDefs.clear();
+    _skillIndexById.clear();
+    _itemDefs.clear();
+    _itemIndexById.clear();
     _isLoaded = false;
 }
 
@@ -210,6 +215,62 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
     return S_OK;
 }
 
+HRESULT GameDataTable::Load_ItemData(const wstring& jsonRootPath)
+{
+    const fs::path tablePath = fs::path(jsonRootPath) / L"DT_Item.json";
+
+    json root = {};
+
+    try
+    {
+        ifstream file(tablePath);
+        if (!file.is_open())
+        {
+            LOG_ERROR("[GameDataTable] failed to open item table: {}", String::ToString(tablePath.wstring()));
+            return E_FAIL;
+        }
+
+        file >> root;
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("[GameDataTable] failed to parse item table: {} ({})",
+            String::ToString(tablePath.wstring()), e.what());
+        return E_FAIL;
+    }
+
+    if (!root.contains("DT_Item") || !root["DT_Item"].is_array())
+    {
+        LOG_ERROR("[GameDataTable] DT_Item array not found: {}", String::ToString(tablePath.wstring()));
+        return E_FAIL;
+    }
+
+    for (const json& item : root["DT_Item"])
+    {
+        const string itemKey = item.value("itemKey", "");
+        if (itemKey.empty())
+            continue;
+
+        Item_Data itemData{};
+        itemData.itemKey = itemKey;
+        itemData.displayName = String::ToWString(item.value("displayName", ""));
+        itemData.itemType =
+            magic_enum::enum_cast<BattleItemType>(item.value("itemType", "Invalid"))
+            .value_or(BattleItemType::Invalid);
+        itemData.count = item.value("count", 0);
+        itemData.healHp = item.value("healHp", 0);
+        itemData.restoreAp = item.value("restoreAp", 0);
+        itemData.reviveHp = item.value("reviveHp", 0);
+
+        const size_t index = _itemDefs.size();
+        _itemDefs.push_back(itemData);
+        _itemIndexById[itemKey] = index;
+    }
+
+    LOG_INFO("[GameDataTable] loaded item table: count={}", _itemDefs.size());
+    return S_OK;
+}
+
 const Skill_Data* GameDataTable::Get_Skill(const string& skillId)
 {
     auto it = _skillIndexById.find(skillId);
@@ -221,6 +282,47 @@ const Skill_Data* GameDataTable::Get_Skill(const string& skillId)
         return nullptr;
 
     return &_skillDefs[index];
+}
+
+const Item_Data* GameDataTable::Get_Item(const string& itemId)
+{
+    auto it = _itemIndexById.find(itemId);
+    if (it == _itemIndexById.end())
+        return nullptr;
+
+    const size_t index = it->second;
+    if (index >= _itemDefs.size())
+        return nullptr;
+
+    return &_itemDefs[index];
+}
+
+const Item_Data* GameDataTable::Get_Item(BattleItemType itemType)
+{
+    for (const auto& item : _itemDefs)
+    {
+        if (item.itemType == itemType)
+            return &item;
+    }
+
+    return nullptr;
+}
+
+bool GameDataTable::Consume_Item(BattleItemType itemType)
+{
+    for (Item_Data& item : _itemDefs)
+    {
+        if (item.itemType != itemType)
+            continue;
+
+        if (item.count <= 0)
+            return false;
+
+        --item.count;
+        return true;
+    }
+
+    return false;
 }
 
 HRESULT GameDataTable::Load_SkillPhaseData(const wstring& jsonRootPath)

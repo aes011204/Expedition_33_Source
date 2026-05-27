@@ -29,6 +29,7 @@ public: //## Behavior::Lifecycle
     HRESULT Reset();          // 같은 definition으로 다시 재생할 수 있도록 root와 child runtime 상태를 초기화한다.
     bool Is_Playing() const;  // 현재 update/render fan-out 대상인지 반환한다.
     bool Is_Finished() const; // one-shot 완료 후 pool 반환 후보인지 반환한다.
+    void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider); // 현재 acquire context가 공급한 trail sample provider를 child emitter에 다시 전파한다.
 
 private: //## Types::Lifecycle
     enum class EffectPlaybackState : uint8

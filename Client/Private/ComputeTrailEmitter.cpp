@@ -262,6 +262,11 @@ bool ComputeTrailEmitter::Is_EffectFinished() const
     return false;
 }
 
+void ComputeTrailEmitter::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider)
+{
+    _desc.sampleProvider = provider;
+}
+
 HRESULT ComputeTrailEmitter::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), String::ToWString(kTrailShaderId), _shader), E_FAIL);

@@ -68,3 +68,7 @@ bool EffectEmitter::Is_EffectFinished() const
 {
     return false;
 }
+
+void EffectEmitter::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>&)
+{
+}
