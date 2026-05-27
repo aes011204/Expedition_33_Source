@@ -131,6 +131,7 @@
     <ClCompile Include="..\Private\EffectInstancePool.cpp">
       <Filter>06. Pool\Effect Pool</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\BattleAction.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -712,7 +713,6 @@
     <ClInclude Include="..\Public\UI_ReactionResult.h" />
     <ClInclude Include="ANS_Visible_Parts.h" />
     <ClInclude Include="Battle_Enum.h" />
-    <ClInclude Include="..\Public\UI_BattlePlayerHpBar.h" />
     <ClInclude Include="..\Public\UI_PlayerHpBar.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
@@ -720,6 +720,7 @@
     <ClInclude Include="..\Public\EffectInstancePool.h">
       <Filter>06. Pool\Effect Pool</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\BattleAction.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

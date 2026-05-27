@@ -550,18 +550,7 @@ struct BattleActionPhase;
 
     //------------------------------------
 
-    struct AttackState
-    {
-        int index = 0;
-        int maxCount = 0;
-        TargetType curTargetType = {};
-
-        bool IsLast() const
-        {
-            return index == maxCount - 1;
-        }
-    };
-
+    
     struct Skill_Data
     {
         string skillKey = "";
@@ -578,28 +567,7 @@ struct BattleActionPhase;
         Buffs buff = Buffs::None;
         float ailmentChance = 0.f;
     };
-
-    struct Action
-    {
-        BattleChar _curChar = {};
-        BattleChar  target = {};
-
-        EBattleContext type = {};
-
-        Item_Data   _selected_ItemKey = {};
-        Skill_Data   _selected_SkillKey = {};
-
-        uint32 _curAnimIndex = {};
-        uint32 _curAttackIndex = {};
-
-
-        Vec3 originPos = {};
-        Vec3 phaseStartPos = {};
-        Vec3 phaseGoalPos = {};
-        bool phaseReachedGoal = false;
-        float phasePrevRootRatio = 0.f;
-    };
-
+    
 //
     enum class BattleMovementPolicy
     {

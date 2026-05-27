@@ -781,7 +781,7 @@ void BattleController::Execute_BaseAttack(const BattleChar actor, const Action& 
     LOG_DEBUG(
         "Execute_BaseAttack: actor={}, target={}, script={}",
         actor.actor ? String::ToString(actor.actor->Get_Name()).c_str() : "null",
-        turnAction.target.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null",
+        turnAction.steps[turnAction._curStepIndex].targets.actor ? String::ToString(turnAction.target.actor->Get_Name()).c_str() : "null",
         turnAction._selected_SkillKey.scriptClassName.c_str()
     );
 

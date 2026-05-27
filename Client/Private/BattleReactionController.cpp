@@ -101,13 +101,13 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
 
     const BattleChar& reactionTarget = turnAction.target;
 
-    //// 입력받지 못할 떄 
-    //if (!CanReceiveInput(reactionTarget))
-    //    return result;
+    // 입력받지 못할 떄 
+    if (!CanReceiveInput(reactionTarget))
+        return result;
 
-    //// 이미 소비 했으면 
-    //if (IsConsumed())
-    //    return result;
+    // 이미 소비 했으면 
+    if (IsConsumed())
+        return result;
 
     bool pressedQ = GAME->KeyDown(KEY_TYPE::Q);
     bool pressedE = GAME->KeyDown(KEY_TYPE::E);
@@ -150,7 +150,7 @@ bool pressedQ, bool pressedE)
     {
         result.hasInput = true;
         result.type = BattleReactionType::Dodge;
-        result.success = IsWindowOpen(BattleReactionType::Dodge);
+        result.success = TryInput(BattleReactionType::Dodge); ;
 
         // 실패했을 때도 애니메이션은 재생
         PlayReactionAnimation(reactionTarget, BattleReactionType::Dodge, result.success, {}, curAnimIndex);
@@ -160,7 +160,7 @@ bool pressedQ, bool pressedE)
     {
         result.hasInput = true;
         result.type = BattleReactionType::Parry;
-        result.success = IsWindowOpen(BattleReactionType::Parry);
+        result.success = TryInput(BattleReactionType::Parry); ;
 
         // 성공하면 Counter
         PlayReactionAnimation(reactionTarget, BattleReactionType::Parry, result.success, counterTarget, curAnimIndex);
@@ -173,13 +173,13 @@ bool pressedQ, bool pressedE)
 
 void BattleReactionController::UpdateAnimation()
 {
-    //if (_reactionAnimTarget.ModelCom == nullptr)
-    //    return;
+    if (_reactionAnimTarget.ModelCom == nullptr)
+        return;
 
-    //if (!_reactionAnimTarget.ModelCom->Is_AnimationFinished())
-    //    return;
+    if (!_reactionAnimTarget.ModelCom->Is_AnimationFinished())
+        return;
 
-    //FinishReactionAnimation();
+    FinishReactionAnimation();
 }
 
 void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate)
