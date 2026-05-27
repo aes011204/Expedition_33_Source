@@ -532,6 +532,50 @@ Shared<Editor_Window> EditorInstance::Get_Window(const wstring& strWindowName) c
     return _editorManager->Find_Window(strWindowName);
 }
 
+PreviewOwner EditorInstance::Get_ActivePreviewOwner() const
+{
+    const Shared<Editor_Window> prefabWindow = Get_Window(L"Prefab");
+    const Shared<Editor_Window> animationWindow = Get_Window(L"Animation");
+    const Shared<Editor_Window> animStateWindow = Get_Window(L"AnimState");
+
+    const bool prefabInteractive =
+        prefabWindow && prefabWindow->Is_Open() && prefabWindow->Is_Visible() &&
+        (prefabWindow->Is_Focused() || prefabWindow->Is_Hovered());
+
+    const bool animationInteractive =
+        animationWindow && animationWindow->Is_Open() && animationWindow->Is_Visible() &&
+        (animationWindow->Is_Focused() || animationWindow->Is_Hovered());
+
+    const bool animStateInteractive =
+        animStateWindow && animStateWindow->Is_Open() && animStateWindow->Is_Visible() &&
+        (animStateWindow->Is_Focused() || animStateWindow->Is_Hovered());
+
+    if (prefabInteractive)
+        return PreviewOwner::Prefab;
+
+    if (animationInteractive)
+        return PreviewOwner::Animation;
+
+    if (animStateInteractive)
+        return PreviewOwner::AnimState;
+
+    if (animStateWindow && animStateWindow->Is_Open() && animStateWindow->Is_Visible())
+        return PreviewOwner::AnimState;
+
+    if (animationWindow && animationWindow->Is_Open() && animationWindow->Is_Visible())
+        return PreviewOwner::Animation;
+
+    if (prefabWindow && prefabWindow->Is_Open() && prefabWindow->Is_Visible())
+        return PreviewOwner::Prefab;
+
+    return PreviewOwner::None;
+}
+
+bool EditorInstance::Is_ActivePreviewOwner(PreviewOwner owner) const
+{
+    return Get_ActivePreviewOwner() == owner;
+}
+
 void EditorInstance::Execute_Command(const Shared<ICommand>& command)
 {
     if (_commandHistory && command)

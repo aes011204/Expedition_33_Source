@@ -123,6 +123,8 @@
     <ClCompile Include="..\Private\EffectInstancePool.cpp">
       <Filter>06. Pool\Effect Pool</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ANS_Trail.cpp" />
+    <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -712,6 +714,8 @@
     <ClInclude Include="..\Public\EffectInstancePool.h">
       <Filter>06. Pool\Effect Pool</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ANS_Trail.h" />
+    <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

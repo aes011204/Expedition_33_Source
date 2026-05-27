@@ -3,6 +3,7 @@
 #include "Editor_Window.h"
 #include "AnimNotify_Types.h"
 #include "Editor_Camera_Free.h"
+#include "TrailAnchor_Asset.h"
 
 NS_BEGIN(Engine)
 class ModelCom;
@@ -85,12 +86,21 @@ public:
     };
 
 private:
+    enum class TrailAnchorSlot : uint8
+    {
+        Base,
+        Tip
+    };
+
+private:
     void Refresh_Source();
     void Refresh_AssetAnimationList();
     void Refresh_LiveAnimationList();
 
     void Load_NotifyAsset();
     void Save_NotifyAsset();
+    void Load_TrailAnchorAsset();
+    void Save_TrailAnchorAsset() const;
     void Refresh_OpenModelNotifyAssets() const;
 
     void Draw_Header();
@@ -100,7 +110,8 @@ private:
     void Draw_PreviewPanel();
     void Draw_Sequencer();
     void Draw_SelectedDetail();
-    void Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel) const;
+    void Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel);
+    void Draw_TrailAnchorPanel();
     void Draw_EventListPanel();
     void Draw_NotifyList();
     void Draw_StateList();
@@ -135,8 +146,14 @@ private:
     void Fit_PreviewCameraToModel();
     void Draw_PreviewGrid() const;
     void Draw_SelectedBoneMarker() const;
+    void Draw_TrailAnchorPreview() const;
     void Sync_PreviewAnimationSelection(bool keepCurrentTime = false);
     void Validate_SelectedBoneSelection();
+    void Assign_SelectedBoneToTrailAnchor(const Shared<ModelCom>& playbackModel, TrailAnchorSlot slot);
+    bool Try_ResolveTrailAnchorWorldPosition(
+        const Shared<ModelCom>& playbackModel,
+        const Client::TrailAnchorPointDesc& anchor,
+        Vec3& outWorldPosition) const;
 
     AnimNotifyData* Get_CurrentAnimation();
     const AnimNotifyData* Get_CurrentAnimation() const;
@@ -178,6 +195,7 @@ private:
     char _boneSearchBuffer[128] = "";
 
     AnimNotifyAsset _asset{};
+    Client::TrailAnchorAsset _trailAnchorAsset{};
     bool _isDirty = false;
     int32 _selectedBoneIndex = -1;
 

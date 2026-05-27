@@ -11,17 +11,6 @@
 #include "TransformCom.h"
 #include "AnimState_Parser.h"
 
-namespace
-{
-    bool IsInteractivePreviewWindow(const Shared<Editor_Window>& window)
-    {
-        return window != nullptr &&
-            window->Is_Open() &&
-            window->Is_Visible() &&
-            (window->Is_Focused() || window->Is_Hovered());
-    }
-}
-
 AnimState_View::AnimState_View()
     : Editor_Window(L"AnimState")
 {
@@ -279,12 +268,7 @@ void AnimState_View::Open_FromModelComponent(
 
 bool AnimState_View::Should_DeferToCompanionPreview()
 {
-    Shared<Editor_Window> prefabWindow = EDITOR->Get_Window(L"Prefab");
-    if (IsInteractivePreviewWindow(prefabWindow))
-        return true;
-
-    Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
-    return IsInteractivePreviewWindow(animationWindow);
+    return !EDITOR->Is_ActivePreviewOwner(PreviewOwner::AnimState);
 }
 
 void AnimState_View::Refresh_AnimationList()

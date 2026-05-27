@@ -160,6 +160,7 @@
     <ClInclude Include="..\public\ANS_Move.h" />
     <ClInclude Include="..\public\ANS_Parry.h" />
     <ClInclude Include="..\public\ANS_QTE.h" />
+    <ClInclude Include="..\Public\ANS_Trail.h" />
     <ClInclude Include="..\public\AN_Attack.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
     <ClInclude Include="..\public\AN_Change_Anim.h" />
@@ -328,6 +329,7 @@
     <ClInclude Include="..\Public\StreamingLevel.h" />
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
+    <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
     <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
@@ -384,6 +386,7 @@
     <ClCompile Include="..\private\ANS_Move.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
     <ClCompile Include="..\Private\ANS_QTE.cpp" />
+    <ClCompile Include="..\Private\ANS_Trail.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
@@ -544,6 +547,7 @@
     <ClCompile Include="..\Private\StreamingLevel.cpp" />
     <ClCompile Include="..\Private\TargetCamera.cpp" />
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
+    <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
     <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />

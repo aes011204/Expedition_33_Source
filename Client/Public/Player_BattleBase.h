@@ -12,6 +12,7 @@ class PlayerStatCom;
 class Body_Player;
 class Head_Player;
 class Hair_Player;
+class EffectCom;
 
 class Player_BattleBase : public Character_BattleBase
 {
@@ -52,8 +53,7 @@ protected:
 
 protected:
     Shared<PlayerStatCom>   _combatStatCom;
-
-public:
+    Shared<EffectCom>       _effectCom;
 
 };
 

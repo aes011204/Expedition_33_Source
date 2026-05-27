@@ -120,6 +120,14 @@ HRESULT Weapon::Render_Shadow()
     return S_OK;
 }
 
+const Matrix* Weapon::Get_SocketBoneMatrixPtr(const string& boneName) const
+{
+    if (_model == nullptr)
+        return nullptr;
+
+    return _model->Get_BoneMatrixPtr(boneName.c_str());
+}
+
 HRESULT Weapon::Ready_Components(const WEAPON_DESC& desc)
 {
 	CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader), E_FAIL);

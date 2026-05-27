@@ -17,22 +17,6 @@
 #include "imgui_internal.h"
 #include "AnimState_View.h"
 
-namespace
-{
-    bool IsInteractivePreviewWindow(const Shared<Editor_Window>& window)
-    {
-        return window != nullptr &&
-            window->Is_Open() &&
-            window->Is_Visible() &&
-            (window->Is_Focused() || window->Is_Hovered());
-    }
-
-    bool IsShownPreviewWindow(const Shared<Editor_Window>& window)
-    {
-        return window != nullptr && window->Is_Open() && window->Is_Visible();
-    }
-}
-
 Prefab_View::Prefab_View()
     : Editor_Window(L"Prefab")
 {
@@ -982,20 +966,7 @@ void Prefab_View::Disable_PreviewAnimNotifyExecution(const Shared<GameObject>& g
 
 bool Prefab_View::Should_DeferToCompanionPreview()
 {
-    const Shared<Editor_Window> prefabWindow = EDITOR->Get_Window(L"Prefab");
-    const bool isPrefabInteractive = IsInteractivePreviewWindow(prefabWindow);
-
-    Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
-    if (IsInteractivePreviewWindow(animationWindow))
-        return true;
-
-    Shared<Editor_Window> animStateWindow = EDITOR->Get_Window(L"AnimState");
-    if (IsInteractivePreviewWindow(animStateWindow))
-        return true;
-
-    // 같은 프리뷰 대상을 여는 companion 창이 보이는 동안에는 기본 owner를 companion 쪽으로 둔다.
-    return !isPrefabInteractive &&
-        (IsShownPreviewWindow(animationWindow) || IsShownPreviewWindow(animStateWindow));
+    return !EDITOR->Is_ActivePreviewOwner(PreviewOwner::Prefab);
 }
 
 void Prefab_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)

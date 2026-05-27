@@ -59,6 +59,10 @@ public: /* For.Window */
     bool                    Consume_WindowFocusRequest(EDITOR_VIEWPORT_TARGET target);
     Shared<Editor_Window>   Get_Window(const wstring& windowName) const;
 
+public: /* For.Preview */
+    PreviewOwner            Get_ActivePreviewOwner() const;
+    bool                    Is_ActivePreviewOwner(PreviewOwner owner) const;
+
 public: /* For.Editor Selection */
     const Editor_Context*   Get_EditorContext() const { return _editorContext.get(); }
     Shared<GameObject>      Selected_Object() const;

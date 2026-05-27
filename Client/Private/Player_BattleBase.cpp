@@ -7,7 +7,7 @@
 #include "GameInstance.h"
 #include "PlayerStatCom.h"
 #include "Weapon.h"
-
+#include "EffectCom.h"
 
 Player_BattleBase::Player_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_BattleBase(device, context)
@@ -54,6 +54,9 @@ void Player_BattleBase::BeginPlay()
 
 void Player_BattleBase::Update(float timeDelta)
 {
+    if (_effectCom)
+        _effectCom->Update(timeDelta);
+
     Character_BattleBase::Update(timeDelta);
 }
 
@@ -132,6 +135,7 @@ HRESULT Player_BattleBase::Ready_WeaponPart(Body_Player* body)
 HRESULT Player_BattleBase::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStat"), _combatStatCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
 
     Bounding_OBB::BoundingOBBDesc obbDesc{};
     obbDesc.center = Vec3(0.f, 0.75f, 0.f);

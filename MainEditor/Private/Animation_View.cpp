@@ -21,19 +21,6 @@
 
 namespace
 {
-    bool IsInteractivePreviewWindow(const Shared<Editor_Window>& window)
-    {
-        return window != nullptr &&
-            window->Is_Open() &&
-            window->Is_Visible() &&
-            (window->Is_Focused() || window->Is_Hovered());
-    }
-
-    bool IsShownPreviewWindow(const Shared<Editor_Window>& window)
-    {
-        return window != nullptr && window->Is_Open() && window->Is_Visible();
-    }
-
     string Resolve_NotifyAnimationKey(const Animation_View::AnimationEntry& entry)
     {
         if (!entry.playbackName.empty())
@@ -241,6 +228,7 @@ void Animation_View::Pre_Render()
     GAME->Restore_RenderGroup();
     Ensure_PreviewGridResources();
     Draw_SelectedBoneMarker();
+    Draw_TrailAnchorPreview();
     Draw_PreviewGrid();
     GAME->Set_Lights(savedLightDescs);
     GAME->Set_PlayerInputBlocked(wasPlayerInputBlocked);
@@ -369,6 +357,7 @@ bool Animation_View::CanSave() const
 void Animation_View::Save()
 {
     Save_NotifyAsset();
+    Save_TrailAnchorAsset();
 }
 
 void Animation_View::Open_FromAsset(const wstring& modelPath, const string& modelGuid, const string& preferredAnimationName, uint32 preferredDockId)
@@ -393,6 +382,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
 
     Refresh_Source();
     Load_NotifyAsset();
+    Load_TrailAnchorAsset();
 
     Set_Open(true);
 }
@@ -421,6 +411,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
 
     Refresh_Source();
     Load_NotifyAsset();
+    Load_TrailAnchorAsset();
     Ensure_PreviewCamera();
     Fit_PreviewCameraToModel();
     Sync_PreviewAnimationSelection(true);
@@ -585,6 +576,20 @@ void Animation_View::Load_NotifyAsset()
     AnimNotify_Parser::Get_OrAddAnimation(_asset, _currentAnimationName);
 }
 
+void Animation_View::Load_TrailAnchorAsset()
+{
+    _trailAnchorAsset = {};
+
+    if (_modelGuid.empty())
+        return;
+
+    const fs::path filePath = Client::TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(_modelGuid);
+    (void)Client::TrailAnchor_Parser::Load_FromFile(filePath.wstring(), _trailAnchorAsset);
+
+    if (_trailAnchorAsset.modelGuid.empty())
+        _trailAnchorAsset.modelGuid = _modelGuid;
+}
+
 void Animation_View::Save_NotifyAsset()
 {
     if (_modelGuid.empty())
@@ -604,6 +609,18 @@ void Animation_View::Save_NotifyAsset()
     {
         EDITOR->Get_Notification()->Add_Notification_With_Type(NotifyType::Warning, "애니메이션 노티파이 저장 실패: {}", _currentAnimationName);
     }
+}
+
+void Animation_View::Save_TrailAnchorAsset() const
+{
+    if (_modelGuid.empty())
+        return;
+
+    Client::TrailAnchorAsset asset = _trailAnchorAsset;
+    asset.modelGuid = _modelGuid;
+
+    const fs::path filePath = Client::TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(_modelGuid);
+    (void)Client::TrailAnchor_Parser::Save_ToFile(filePath.wstring(), asset);
 }
 
 void Animation_View::Refresh_OpenModelNotifyAssets() const
@@ -842,6 +859,22 @@ void Animation_View::Draw_BoneTree()
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
                 _selectedNotifyId = -1;
                 _selectedStateId = -1;
+            }
+
+            if (ImGui::MenuItem("Trail Base로 지정"))
+            {
+                _selectedBoneIndex = static_cast<int32>(boneIndex);
+                _selectedNotifyId = -1;
+                _selectedStateId = -1;
+                Assign_SelectedBoneToTrailAnchor(playbackModel, TrailAnchorSlot::Base);
+            }
+
+            if (ImGui::MenuItem("Trail Tip으로 지정"))
+            {
+                _selectedBoneIndex = static_cast<int32>(boneIndex);
+                _selectedNotifyId = -1;
+                _selectedStateId = -1;
+                Assign_SelectedBoneToTrailAnchor(playbackModel, TrailAnchorSlot::Tip);
             }
 
             ImGui::EndPopup();
@@ -1092,7 +1125,7 @@ void Animation_View::Draw_SelectedDetail()
     ImGui::EndChild();
 }
 
-void Animation_View::Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel) const
+void Animation_View::Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel)
 {
     if (playbackModel == nullptr || _selectedBoneIndex < 0)
     {
@@ -1130,6 +1163,37 @@ void Animation_View::Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackMod
     else
     {
         ImGui::TextDisabled("(Root)");
+    }
+
+    ImGui::Spacing();
+    Draw_TrailAnchorPanel();
+}
+
+void Animation_View::Draw_TrailAnchorPanel()
+{
+    ImGui::Separator();
+    ImGui::Text("Trail Anchors");
+
+    ImGui::Text("Base Bone");
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", _trailAnchorAsset.base.boneName.empty() ? "(None)" : _trailAnchorAsset.base.boneName.c_str());
+
+    ImGui::Text("Tip Bone");
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", _trailAnchorAsset.tip.boneName.empty() ? "(None)" : _trailAnchorAsset.tip.boneName.c_str());
+
+    Vec3 baseLocal = _trailAnchorAsset.base.localPosition;
+    if (ImGui::DragFloat3("Base Local", &baseLocal.x, 0.5f))
+    {
+        _trailAnchorAsset.base.localPosition = baseLocal;
+        MarkDirty();
+    }
+
+    Vec3 tipLocal = _trailAnchorAsset.tip.localPosition;
+    if (ImGui::DragFloat3("Tip Local", &tipLocal.x, 0.5f))
+    {
+        _trailAnchorAsset.tip.localPosition = tipLocal;
+        MarkDirty();
     }
 }
 
@@ -2105,6 +2169,112 @@ void Animation_View::Draw_SelectedBoneMarker() const
     _previewGridBatch->End();
 }
 
+void Animation_View::Draw_TrailAnchorPreview() const
+{
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    if (playbackModel == nullptr)
+        return;
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
+        return;
+
+    Vec3 baseWorld{};
+    Vec3 tipWorld{};
+    if (!Try_ResolveTrailAnchorWorldPosition(playbackModel, _trailAnchorAsset.base, baseWorld))
+        return;
+    if (!Try_ResolveTrailAnchorWorldPosition(playbackModel, _trailAnchorAsset.tip, tipWorld))
+        return;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
+    context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    constexpr float markerSize = 0.08f;
+    _previewGridBatch->Begin();
+
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(baseWorld, DirectX::Colors::Orange),
+        DirectX::VertexPositionColor(tipWorld, DirectX::Colors::Cyan));
+
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(baseWorld + Vec3(-markerSize, 0.f, 0.f), DirectX::Colors::Orange),
+        DirectX::VertexPositionColor(baseWorld + Vec3(markerSize, 0.f, 0.f), DirectX::Colors::Orange));
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(baseWorld + Vec3(0.f, -markerSize, 0.f), DirectX::Colors::Orange),
+        DirectX::VertexPositionColor(baseWorld + Vec3(0.f, markerSize, 0.f), DirectX::Colors::Orange));
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(baseWorld + Vec3(0.f, 0.f, -markerSize), DirectX::Colors::Orange),
+        DirectX::VertexPositionColor(baseWorld + Vec3(0.f, 0.f, markerSize), DirectX::Colors::Orange));
+
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(tipWorld + Vec3(-markerSize, 0.f, 0.f), DirectX::Colors::Cyan),
+        DirectX::VertexPositionColor(tipWorld + Vec3(markerSize, 0.f, 0.f), DirectX::Colors::Cyan));
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(tipWorld + Vec3(0.f, -markerSize, 0.f), DirectX::Colors::Cyan),
+        DirectX::VertexPositionColor(tipWorld + Vec3(0.f, markerSize, 0.f), DirectX::Colors::Cyan));
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(tipWorld + Vec3(0.f, 0.f, -markerSize), DirectX::Colors::Cyan),
+        DirectX::VertexPositionColor(tipWorld + Vec3(0.f, 0.f, markerSize), DirectX::Colors::Cyan));
+
+    _previewGridBatch->End();
+}
+
+void Animation_View::Assign_SelectedBoneToTrailAnchor(const Shared<ModelCom>& playbackModel, TrailAnchorSlot slot)
+{
+    if (playbackModel == nullptr || _selectedBoneIndex < 0)
+        return;
+
+    const uint32 boneIndex = static_cast<uint32>(_selectedBoneIndex);
+    if (boneIndex >= playbackModel->Get_NumBones())
+        return;
+
+    Client::TrailAnchorPointDesc* target = nullptr;
+    if (slot == TrailAnchorSlot::Base)
+        target = &_trailAnchorAsset.base;
+    else
+        target = &_trailAnchorAsset.tip;
+
+    target->boneName = playbackModel->Get_BoneName(boneIndex);
+    target->localPosition = Vec3::Zero;
+
+    _trailAnchorAsset.modelGuid = _modelGuid;
+    MarkDirty();
+}
+
+bool Animation_View::Try_ResolveTrailAnchorWorldPosition(
+    const Shared<ModelCom>& playbackModel,
+    const Client::TrailAnchorPointDesc& anchor,
+    Vec3& outWorldPosition) const
+{
+    if (playbackModel == nullptr || anchor.boneName.empty())
+        return false;
+
+    const int32 boneIndex = playbackModel->Get_BoneIndex(anchor.boneName);
+    if (boneIndex < 0)
+        return false;
+
+    const Matrix* boneMatrix = playbackModel->Get_BoneMatrixPtr(static_cast<uint32>(boneIndex));
+    if (boneMatrix == nullptr)
+        return false;
+
+    Shared<GameObject> ownerObject = playbackModel->Get_Owner();
+    Shared<TransformCom> ownerTransform = ownerObject ? ownerObject->Get_Transform() : nullptr;
+    const Matrix ownerWorldMatrix = ownerTransform ? ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+
+    const Matrix anchorWorldMatrix = *boneMatrix * ownerWorldMatrix;
+    outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
+    return true;
+}
+
 void Animation_View::Validate_SelectedBoneSelection()
 {
     Shared<ModelCom> playbackModel = Get_PlaybackModel();
@@ -2214,19 +2384,7 @@ void Animation_View::Lock_PreviewObjectToOrigin(const Shared<GameObject>& gameOb
 
 bool Animation_View::Should_DeferToCompanionPreview()
 {
-    const Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
-    const bool isAnimationInteractive = IsInteractivePreviewWindow(animationWindow);
-
-    Shared<Editor_Window> prefabWindow = EDITOR->Get_Window(L"Prefab");
-    if (IsInteractivePreviewWindow(prefabWindow))
-        return true;
-
-    Shared<Editor_Window> animStateWindow = EDITOR->Get_Window(L"AnimState");
-    if (IsInteractivePreviewWindow(animStateWindow))
-        return true;
-
-    // fallback owner priority: AnimState > Animation > Prefab
-    return !isAnimationInteractive && IsShownPreviewWindow(animStateWindow);
+    return !EDITOR->Is_ActivePreviewOwner(PreviewOwner::Animation);
 }
 
 Editor_Camera_Free::EDITOR_CAMERA_DESC Animation_View::Build_PreviewCameraDesc(const Shared<GameObject>& gameObject)

@@ -41,6 +41,10 @@ public:
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
 
+public:
+    const Matrix* Get_SocketBoneMatrixPtr(const string& boneName) const;
+    Shared<ModelCom> Get_Model() const { return _model; }
+
 private:
     HRESULT Ready_Components(const WEAPON_DESC& desc);
     HRESULT Bind_ShaderResources();
