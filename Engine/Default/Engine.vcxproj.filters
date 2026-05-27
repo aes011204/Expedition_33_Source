@@ -1025,6 +1025,7 @@
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
+    <ClCompile Include="..\Private\SSAOPipeline.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

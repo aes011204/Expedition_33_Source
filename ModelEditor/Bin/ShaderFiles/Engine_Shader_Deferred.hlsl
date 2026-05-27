@@ -359,4 +359,40 @@ float Compute_SSAOBilateralBlur(float2 uv)
     return saturate(aoSum / max(weightSum, EPSILON));
 }
 
+
+static const float PI = 3.14159265359f;
+
+// 프레넬 반사(근사). 정면에서 볼 때 반사가 약하고, 비스듬히 보면 반사가 세지도록 한다. 
+float3 FresnelSchlick(float cosTheta, float3 F0)
+{
+    // F0 : 정면에서 봤을 때 기본 반사율
+    // cosTheta : 얼마나 정면인지
+    return F0 + (1.0f - F0) * pow(saturate(1.0f - cosTheta), 5.0f);
+}
+
+// GGX Specular의 하이라이트 모양을 정하는 공식. GGX NDF
+float DistributionGGX(float NdotH, float roughness)
+{
+    float a = roughness * roughness * roughness * roughness;
+    float denom = max((NdotH * NdotH) * (a - 1.0f) + 1.0f, EPSILON);
+    return a / (PI * denom * denom);
+}
+
+// GGX의 Geometry 항을 Schlick 방식으로 근사 계산. 미세 표면에 의한 가림 보정
+float GeometrySchlickGGX(float NdotX, float roughness)
+{
+    float r = roughness + 1.0f;
+    float k = (r * r) * 0.125f;
+    return NdotX / max(NdotX * (1.0f - k) + k, EPSILON);
+}
+
+// Smith Geometry Term 계열 
+float GeometrySmith(float NdotV, float NdotL, float roughness)
+{
+    float ggxView = GeometrySchlickGGX(NdotV, roughness); // 카메라 방향으로 나오는 반사광이 얼마나 가려지는지
+    float ggxLight = GeometrySchlickGGX(NdotL, roughness); // 빛이 표면으로 들어올 때 얼마나 가려지는지
+    return ggxView * ggxLight;
+}
+
+
 #endif

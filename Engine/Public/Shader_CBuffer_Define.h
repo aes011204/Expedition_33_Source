@@ -169,7 +169,7 @@ struct alignas(16) PostProcessCB
 
     float exposure = 1.f;                   // 키우면 밝아짐
     float invWhitePoint = 1.f;              // 어느 밝기 이상을 거의 흰색으로 볼 건지
-    float gamma = 1.7f;                     // 선형 색상을 sRGB에 가깝게 변환함
+    float gamma = 2.2f;                     // 선형 색상을 sRGB에 가깝게 변환함
     float bloomRadius = 1.6f;               // 블러 커널의 샘플 간격을 늘리는 배율
 
     float bloomThreshold = 0.9f;            // Bloom 추출 기준

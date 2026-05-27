@@ -6,6 +6,7 @@
 #include "SSAOPipeline.h"
 #include "ScreenFx_Manager.h"
 #include "ShaderCom.h"
+#include "Texture.h"
 #include "VIBuffer_Rect.h"
 #include "Debug_Profile.h"
 
@@ -480,6 +481,8 @@ void Renderer::Render_Lights()
 
     // 명암 연산을 위한 SRV
     ENDMRT_RETURN_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DiffuseTexture", RT::Diffuse));
+    ENDMRT_RETURN_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", RT::Normal));
     ENDMRT_RETURN_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
@@ -568,6 +571,77 @@ void Renderer::Render_CombinedHDR()
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_SSAOTexture", ssaoResult),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_SSAOTexture)");
+
+    if (_iblIrradianceTexture != nullptr)
+    {
+        COMBINEDHDR_RETURN_LOG_IF_FAILED(
+            _iblIrradianceTexture->Bind_ShaderResourceView(_deferredShader.get(), "g_IrradianceMap", 0),
+            L"Render_CombinedHDR:FAIL Bind_ShaderResourceView(g_IrradianceMap)");
+    }
+    else
+    {
+        COMBINEDHDR_RETURN_LOG_IF_FAILED(
+            _deferredShader->Bind_SRV("g_IrradianceMap", nullptr),
+            L"Render_CombinedHDR:FAIL ClearSRV(g_IrradianceMap)");
+    }
+
+    if (_iblPrefilterTexture != nullptr)
+    {
+        COMBINEDHDR_RETURN_LOG_IF_FAILED(
+            _iblPrefilterTexture->Bind_ShaderResourceView(_deferredShader.get(), "g_PrefilterMap", 0),
+            L"Render_CombinedHDR:FAIL Bind_ShaderResourceView(g_PrefilterMap)");
+    }
+    else
+    {
+        COMBINEDHDR_RETURN_LOG_IF_FAILED(
+            _deferredShader->Bind_SRV("g_PrefilterMap", nullptr),
+            L"Render_CombinedHDR:FAIL ClearSRV(g_PrefilterMap)");
+    }
+
+    if (_iblBrdfLutTexture != nullptr)
+    {
+        COMBINEDHDR_RETURN_LOG_IF_FAILED(
+            _iblBrdfLutTexture->Bind_ShaderResourceView(_deferredShader.get(), "g_BRDFLUT", 0),
+            L"Render_CombinedHDR:FAIL Bind_ShaderResourceView(g_BRDFLUT)");
+    }
+    else
+    {
+        COMBINEDHDR_RETURN_LOG_IF_FAILED(
+            _deferredShader->Bind_SRV("g_BRDFLUT", nullptr),
+            L"Render_CombinedHDR:FAIL ClearSRV(g_BRDFLUT)");
+    }
+
+    // 기본값: IBL on (밝기 복구)
+    float iblIntensity = 1.0f;
+    float iblDiffuseIntensity = 1.0f;
+    float iblSpecularIntensity = 1.0f;
+    float iblPrefilterMaxMip = 8.0f;
+
+    if (_iblDebugMode == IBLDebugMode::SpecularOnly)
+    {
+        iblIntensity = 1.0f;
+        iblDiffuseIntensity = 0.0f;
+        iblSpecularIntensity = 1.0f;
+    }
+    else if (_iblDebugMode == IBLDebugMode::DiffuseOnly)
+    {
+        iblIntensity = 1.0f;
+        iblDiffuseIntensity = 1.0f;
+        iblSpecularIntensity = 0.0f;
+    }
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        _deferredShader->Bind_RawValue("g_IBLIntensity", &iblIntensity, sizeof(float)),
+        L"Render_CombinedHDR:FAIL Bind_RawValue(g_IBLIntensity)");
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        _deferredShader->Bind_RawValue("g_IBLDiffuseIntensity", &iblDiffuseIntensity, sizeof(float)),
+        L"Render_CombinedHDR:FAIL Bind_RawValue(g_IBLDiffuseIntensity)");
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        _deferredShader->Bind_RawValue("g_IBLSpecularIntensity", &iblSpecularIntensity, sizeof(float)),
+        L"Render_CombinedHDR:FAIL Bind_RawValue(g_IBLSpecularIntensity)");
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        _deferredShader->Bind_RawValue("g_IBLPrefilterMaxMip", &iblPrefilterMaxMip, sizeof(float)),
+        L"Render_CombinedHDR:FAIL Bind_RawValue(g_IBLPrefilterMaxMip)");
 
     // Light 기록
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
@@ -866,6 +940,25 @@ HRESULT Renderer::Ready_Shaders()
     _screenSize = {
         GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight()
     };
+
+    // IBL 3분리 자산 로드. 누락 시 nullptr로 남고 셰이더에서 안전 fallback(0 기여) 처리한다.
+    _iblIrradianceTexture = Texture::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_sunset.dds",
+        1);
+
+    _iblPrefilterTexture = Texture::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_sunset.dds",
+        1);
+
+    _iblBrdfLutTexture = Texture::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/BRDF_LUT.dds",
+        1);
 
     Sync_ViewportDependentState(_screenSize.width, _screenSize.height);
 

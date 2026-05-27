@@ -13,6 +13,7 @@ class GameObject;
 class PostProcessPipeline;
 class SSAOPipeline;
 class LightPipeline;
+class Texture;
 
 class Renderer final : public Base
 {
@@ -112,6 +113,11 @@ private:
     Shared<ShaderCom>               _screenFxShader;
     Shared<ShaderCom>               _deferredShader;
     Shared<VIBuffer_Rect>           _viBuffer;
+    Shared<Texture>                 _iblIrradianceTexture;
+    Shared<Texture>                 _iblPrefilterTexture;
+    Shared<Texture>                 _iblBrdfLutTexture;
+    enum class IBLDebugMode : uint8 { Default = 0, SpecularOnly, DiffuseOnly };
+    IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
 
     float                           _shadowScale = 1.f;
     bool                            _shadowEnabled = false;

@@ -269,7 +269,7 @@ PostProcessCB PostProcess_View::Make_DefaultParams()
     PostProcessCB defaults{};
     defaults.exposure = 1.f;
     defaults.invWhitePoint = 1.f;
-    defaults.gamma = 1.7f;
+    defaults.gamma = 2.2f;
     defaults.bloomRadius = 1.f;
     defaults.bloomThreshold = 1.f;
     defaults.bloomIntensity = 0.5f;
