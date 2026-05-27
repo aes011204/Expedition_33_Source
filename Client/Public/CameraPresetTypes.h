@@ -9,6 +9,7 @@ enum class PreviewShotPanel
 enum class TargetCameraMode { NORMAL, AIM, BATTLE_ENTER };
 enum class BattleCameraMode
 { WIDE,
+  BATTLEINTRO,
   ENEMYFOCUS, //공격 대상 선택시 줌
   ENEMYATTACK, //적 공격
   PLAYERFOCUS, //플레이어 공격 선택시 줌

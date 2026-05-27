@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "BattleCameraClipTypes.h"
 #include "BattleCameraClipUtils.h"
@@ -54,6 +54,38 @@ inline bool Evaluate_BattleTurnPresetPose(
     const Vec3 framingPos = pivotPos + rightDir * preset.aimOffset;
     Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * preset.heightOffset + rightDir * finalSideOffset;
     Vec3 lookTarget = framingPos + Vec3::Up * preset.lookHeight;
+
+    if (fabsf(clipSample.orbitYaw) > 0.0001f ||
+        fabsf(clipSample.orbitRadius) > 0.0001f ||
+        fabsf(clipSample.orbitHeight) > 0.0001f ||
+        fabsf(clipSample.orbitLookHeight) > 0.0001f)
+    {
+        Vec3 orbitVector = desiredPos - pivotPos;
+        const float baseHeight = orbitVector.y;
+        orbitVector.y = 0.f;
+
+        if (orbitVector.LengthSquared() > 0.0001f)
+        {
+            const Matrix orbitRotation = XMMatrixRotationY(XMConvertToRadians(clipSample.orbitYaw));
+            Vec3 rotatedOrbit = XMVector3TransformNormal(orbitVector, orbitRotation);
+            rotatedOrbit.y = 0.f;
+
+            const float baseRadius = orbitVector.Length();
+            if (rotatedOrbit.LengthSquared() > 0.0001f)
+            {
+                rotatedOrbit.Normalize();
+                rotatedOrbit *= std::max(0.05f, baseRadius + clipSample.orbitRadius);
+            }
+
+            desiredPos = pivotPos + rotatedOrbit + Vec3::Up * (baseHeight + clipSample.orbitHeight);
+        }
+        else
+        {
+            desiredPos += Vec3::Up * clipSample.orbitHeight;
+        }
+
+        lookTarget += Vec3::Up * clipSample.orbitLookHeight;
+    }
 
     Vec3 cameraForward = lookTarget - desiredPos;
     cameraForward.Normalize();

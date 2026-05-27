@@ -23,7 +23,11 @@ public:
         bool* shakeEnabled = nullptr,
         bool* sideEnabled = nullptr,
         bool* pivotEnabled = nullptr,
-        bool* yawEnabled = nullptr);
+        bool* yawEnabled = nullptr,
+        bool* orbitYawEnabled = nullptr,
+        bool* orbitRadiusEnabled = nullptr,
+        bool* orbitHeightEnabled = nullptr,
+        bool* orbitLookHeightEnabled = nullptr);
 
 public:
     int GetFrameMin() const override;
@@ -51,7 +55,7 @@ private:
     int* _contextTrackIndex = nullptr;
     int* _contextFrame = nullptr;
     bool* _previewDirty = nullptr;
-    bool* _trackEnabledFlags[6] = {};
+    bool* _trackEnabledFlags[10] = {};
     mutable int _frameMin = 0;
     mutable int _frameMax = 1;
 };

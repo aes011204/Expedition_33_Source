@@ -69,6 +69,10 @@ void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode,
     jsonData["pivotOffset"] = Serialize_BattleCameraTrack(clip.pivotOffset);
     jsonData["yawOffset"] = Serialize_BattleCameraTrack(clip.yawOffset);
     jsonData["shakeAmplitude"] = Serialize_BattleCameraTrack(clip.shakeAmplitude);
+    jsonData["orbitYaw"] = Serialize_BattleCameraTrack(clip.orbitYaw);
+    jsonData["orbitRadius"] = Serialize_BattleCameraTrack(clip.orbitRadius);
+    jsonData["orbitHeight"] = Serialize_BattleCameraTrack(clip.orbitHeight);
+    jsonData["orbitLookHeight"] = Serialize_BattleCameraTrack(clip.orbitLookHeight);
 
     
     const fs::path savePath = filePath;
@@ -108,6 +112,10 @@ bool BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode cameraMod
     Deserialize_BattleCameraTrack(jsonData, "pivotOffset", loadedClip.pivotOffset);
     Deserialize_BattleCameraTrack(jsonData, "yawOffset", loadedClip.yawOffset);
     Deserialize_BattleCameraTrack(jsonData, "shakeAmplitude", loadedClip.shakeAmplitude);
+    Deserialize_BattleCameraTrack(jsonData, "orbitYaw", loadedClip.orbitYaw);
+    Deserialize_BattleCameraTrack(jsonData, "orbitRadius", loadedClip.orbitRadius);
+    Deserialize_BattleCameraTrack(jsonData, "orbitHeight", loadedClip.orbitHeight);
+    Deserialize_BattleCameraTrack(jsonData, "orbitLookHeight", loadedClip.orbitLookHeight);
 
     clip = loadedClip;
     return true;

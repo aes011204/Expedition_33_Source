@@ -63,6 +63,7 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
     Set_Name(L"Battle Turn Camera");
 
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::WIDE, _wideModePreset);
+    CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::BATTLEINTRO, _battleIntroPreset);
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::PLAYERFOCUS, _playerFocusPreset);
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYFOCUS, _enemyFocusPreset);
     CameraPresetIO::LoadBattlePresetFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackPreset);
@@ -90,6 +91,7 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
    // CameraPresetIO::SaveBattleCameraClipToFile(BattleCameraMode::PLAYERATTACK, _playerAttackClip);
    // CameraPresetIO::SaveBattleCameraClipToFile(BattleCameraMode::ENEMYATTACK, _enemyAttackClip);
     //_enemyAttackClip.shakeAmplitude.keyframes.push_back({0.5f, 0.1f});
+   BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::BATTLEINTRO, _battleIntroClip);
    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackClip);
    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackClip);
 
@@ -131,6 +133,11 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
                     request.subject = event.subject;
                     break;
 
+                case BattleCameraMode::BATTLEINTRO:
+                    request.mode = event.cameraMode;
+                    request.subject = event.subject;
+                    break;
+
                 case BattleCameraMode::ENEMYATTACK:
                     request.mode = event.cameraMode;
                     request.subject = event.subject;
@@ -167,8 +174,6 @@ void BattleTurnCamera::Update(float timeDelta)
     if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
 
-    LOG_DEBUG("Camera Mode : ", magic_enum::enum_name(_currentRequest.mode));
-
     if (_isLiveEditEnabled)
         Update_LiveEditInput(timeDelta);
 
@@ -192,6 +197,9 @@ void BattleTurnCamera::Update(float timeDelta)
          }
         }
         break;
+    case BattleCameraMode::BATTLEINTRO:
+        Update_FromCurrentPreset(timeDelta);
+        break;
     case BattleCameraMode::PLAYERFOCUS:
         Update_PlayerFocusMode(timeDelta);
         break;
@@ -204,6 +212,9 @@ void BattleTurnCamera::Update(float timeDelta)
     case BattleCameraMode::PLAYERATTACK:
         Update_PlayerAttackMode(timeDelta);
         break;
+
+    default:
+        Update_FromCurrentPreset(timeDelta);
     }
 
     Update_TransformMatrices();
@@ -314,6 +325,20 @@ void BattleTurnCamera::Set_Participants(const vector<BattleChar>& heroes, const 
 {
     _heroes = heroes;
     _enemies = enemies;
+}
+
+void BattleTurnCamera::Reset_RuntimeState()
+{
+    _currentRequest = {};
+    _targetTransform.reset();
+    _activeClip = nullptr;
+    _clipTime = 0.f;
+    _poseTransition = {};
+    _smoothedTargetPos = Vec3::Zero;
+    _prevTargetPos = Vec3::Zero;
+    _isClipPreview = false;
+    _isFirstUpdate = true;
+    _isWideMode = false;
 }
 
 const BattleCameraProfile* BattleTurnCamera::Resolve_BattleCameraProfile(const BattleShotRequest& request) const
@@ -433,6 +458,7 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
         return true;
     }
 
+    case BattleCameraMode::BATTLEINTRO:
     case BattleCameraMode::PLAYERFOCUS:
     case BattleCameraMode::ENEMYFOCUS:
     case BattleCameraMode::PLAYERATTACK:
@@ -600,6 +626,11 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     {
     case BattleCameraMode::WIDE:
         nextPreset = _wideModePreset;
+        break;
+
+    case BattleCameraMode::BATTLEINTRO:
+        nextPreset = _battleIntroPreset;
+        nextActiveClip = &_battleIntroClip;
         break;
 
     case BattleCameraMode::PLAYERFOCUS: 
@@ -820,6 +851,9 @@ const BattleCameraPreset& BattleTurnCamera::Get_Preset(BattleCameraMode mode) co
     case BattleCameraMode::WIDE:
         return _wideModePreset;
 
+    case BattleCameraMode::BATTLEINTRO:
+        return _battleIntroPreset;
+
     case BattleCameraMode::PLAYERFOCUS:
         return _playerFocusPreset;
 
@@ -843,6 +877,10 @@ void BattleTurnCamera::Set_Preset(BattleCameraMode mode, const BattleCameraPrese
     {
     case BattleCameraMode::WIDE:
         _wideModePreset = preset;
+        break;
+
+    case BattleCameraMode::BATTLEINTRO:
+        _battleIntroPreset = preset;
         break;
 
     case BattleCameraMode::PLAYERFOCUS:
@@ -913,6 +951,9 @@ BattleCameraPreset* BattleTurnCamera::Get_MutablePreset(BattleCameraMode cameraM
     case BattleCameraMode::WIDE:
         return &_wideModePreset;
 
+    case BattleCameraMode::BATTLEINTRO:
+        return &_battleIntroPreset;
+
     case BattleCameraMode::PLAYERFOCUS:
         return &_playerFocusPreset;
 
@@ -936,6 +977,9 @@ BattleCameraClip* BattleTurnCamera::Get_MutableClip(BattleCameraMode cameraMode)
     {
     case BattleCameraMode::WIDE:
         return &_wideModeClip;
+
+    case BattleCameraMode::BATTLEINTRO:
+        return &_battleIntroClip;
 
     case BattleCameraMode::PLAYERFOCUS:
         return &_playerFocusClip;

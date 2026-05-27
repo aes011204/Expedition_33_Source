@@ -1433,6 +1433,9 @@ void BattleController::Clear_BattleRuntimeState()
 
     if (_battleActionExe)
         _battleActionExe->Reset();
+
+    if(_battleTurnCamera)
+        _battleTurnCamera->Reset_RuntimeState();
 }
 
 void BattleController::Complete_BattleField()

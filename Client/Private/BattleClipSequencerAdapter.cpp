@@ -57,6 +57,14 @@ BattleCameraTrack* GetTrackByIndex(BattleCameraClip* clip, int index)
         return &clip->pivotOffset;
     case 5:
         return &clip->yawOffset;
+    case 6:
+        return &clip->orbitYaw;
+    case 7:
+        return &clip->orbitRadius;
+    case 8:
+        return &clip->orbitHeight;
+    case 9:
+        return &clip->orbitLookHeight;
     default:
         return nullptr;
     }
@@ -78,6 +86,14 @@ const char* GetTrackLabel(int index)
         return "Pivot Offset";
     case 5:
         return "Yaw Offset";
+    case 6:
+        return "Orbit Yaw";
+    case 7:
+        return "Orbit Radius";
+    case 8:
+        return "Orbit Height";
+    case 9:
+        return "Orbit Look Height";
     default:
         return "";
     }
@@ -257,7 +273,11 @@ BattleClipSequencerAdapter::BattleClipSequencerAdapter(
     bool* shakeEnabled,
     bool* sideEnabled,
     bool* pivotEnabled,
-    bool* yawEnabled)
+    bool* yawEnabled,
+    bool* orbitYawEnabled,
+    bool* orbitRadiusEnabled,
+    bool* orbitHeightEnabled,
+    bool* orbitLookHeightEnabled)
     : _clip(clip)
     , _selectedTrackIndex(selectedTrackIndex)
     , _selectedKeyIndex(selectedKeyIndex)
@@ -276,6 +296,10 @@ BattleClipSequencerAdapter::BattleClipSequencerAdapter(
     _trackEnabledFlags[3] = sideEnabled;
     _trackEnabledFlags[4] = pivotEnabled;
     _trackEnabledFlags[5] = yawEnabled;
+    _trackEnabledFlags[6] = orbitYawEnabled;
+    _trackEnabledFlags[7] = orbitRadiusEnabled;
+    _trackEnabledFlags[8] = orbitHeightEnabled;
+    _trackEnabledFlags[9] = orbitLookHeightEnabled;
 }
 
 int BattleClipSequencerAdapter::GetFrameMin() const
@@ -297,7 +321,7 @@ int BattleClipSequencerAdapter::GetFrameMax() const
 
 int BattleClipSequencerAdapter::GetItemCount() const
 {
-    return 6;
+    return 10;
 }
 
 const char* BattleClipSequencerAdapter::GetItemLabel(int index) const

@@ -56,7 +56,7 @@ int Get_BattleClipFrameMax(const BattleCameraClip& clip)
 
 bool Uses_RuntimeBattleClip(BattleCameraMode mode)
 {
-    return mode == BattleCameraMode::ENEMYATTACK || mode == BattleCameraMode::PLAYERATTACK;
+    return true;
 }
 
 BattleCameraPreset Make_FallbackBattleCameraPreset()
@@ -1387,7 +1387,11 @@ void BattleCameraPreview_View::Render_BattleClipSequencer()
         &_previewShakeEnabled,
         &_previewSideOffsetEnabled,
         &_previewPivotOffsetEnabled,
-        &_previewYawOffsetEnabled);
+        &_previewYawOffsetEnabled,
+        &_previewOrbitYawEnabled,
+        &_previewOrbitRadiusEnabled,
+        &_previewOrbitHeightEnabled,
+        &_previewOrbitLookHeightEnabled);
 
     static bool expanded = true;
     static int firstFrame = 0;
@@ -1630,6 +1634,14 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
         previewClipSample.sideOffset = 0.f;
     if (!_previewPivotOffsetEnabled)
         previewClipSample.pivotOffset = 0.f;
+    if (!_previewOrbitYawEnabled)
+        previewClipSample.orbitYaw = 0.f;
+    if (!_previewOrbitRadiusEnabled)
+        previewClipSample.orbitRadius = 0.f;
+    if (!_previewOrbitHeightEnabled)
+        previewClipSample.orbitHeight = 0.f;
+    if (!_previewOrbitLookHeightEnabled)
+        previewClipSample.orbitLookHeight = 0.f;
 
     const float finalFovY = std::clamp(preset.camera.fovy + previewClipSample.fovOffset, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
 
@@ -2146,6 +2158,18 @@ void BattleCameraPreview_View::Insert_BattleClipKeyAtFrame(int trackIndex, int f
     case 5:
         track = &_editingBattleClip.yawOffset;
         break;
+    case 6:
+        track = &_editingBattleClip.orbitYaw;
+        break;
+    case 7:
+        track = &_editingBattleClip.orbitRadius;
+        break;
+    case 8:
+        track = &_editingBattleClip.orbitHeight;
+        break;
+    case 9:
+        track = &_editingBattleClip.orbitLookHeight;
+        break;
     default:
         return;
     }
@@ -2239,6 +2263,13 @@ void BattleCameraPreview_View::Apply_DefaultPreviewSlotsForMode(BattleCameraMode
 {
     switch (mode)
     {
+    case BattleCameraMode::BATTLEINTRO:
+        _previewContext.subjectSide = PreviewSlotSide::Hero;
+        _previewContext.subjectSlot = 1;
+        _previewContext.opponentSide = PreviewSlotSide::Enemy;
+        _previewContext.opponentSlot = 1;
+        break;
+
     case BattleCameraMode::ENEMYFOCUS:
     case BattleCameraMode::ENEMYATTACK:
         _previewContext.subjectSide = PreviewSlotSide::Enemy;
@@ -2460,6 +2491,14 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
             clipSample.sideOffset = 0.f;
         if (!_previewPivotOffsetEnabled)
             clipSample.pivotOffset = 0.f;
+        if (!_previewOrbitYawEnabled)
+            clipSample.orbitYaw = 0.f;
+        if (!_previewOrbitRadiusEnabled)
+            clipSample.orbitRadius = 0.f;
+        if (!_previewOrbitHeightEnabled)
+            clipSample.orbitHeight = 0.f;
+        if (!_previewOrbitLookHeightEnabled)
+            clipSample.orbitLookHeight = 0.f;
     }
 
     PreviewSlotSide subjectSide = PreviewSlotSide::Hero;
@@ -2469,6 +2508,9 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
 
     switch (mode)
     {
+    case BattleCameraMode::BATTLEINTRO:
+        break;
+
     case BattleCameraMode::ENEMYFOCUS:
     case BattleCameraMode::ENEMYATTACK:
         subjectSide = PreviewSlotSide::Enemy;
@@ -2921,6 +2963,14 @@ BattleCameraTrack* BattleCameraPreview_View::Get_SelectedBattleClipTrack()
         return &_editingBattleClip.pivotOffset;
     case 5:
         return &_editingBattleClip.yawOffset;
+    case 6:
+        return &_editingBattleClip.orbitYaw;
+    case 7:
+        return &_editingBattleClip.orbitRadius;
+    case 8:
+        return &_editingBattleClip.orbitHeight;
+    case 9:
+        return &_editingBattleClip.orbitLookHeight;
     default:
         return nullptr;
     }

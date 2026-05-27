@@ -14,21 +14,29 @@ struct BattleCameraClip
 {
     float duration;
 
-   BattleCameraTrack distanceOffset;
-   BattleCameraTrack fovOffset;
-   BattleCameraTrack yawOffset;
-   BattleCameraTrack sideOffset;
-   BattleCameraTrack pivotOffset;
-   BattleCameraTrack shakeAmplitude;
+    BattleCameraTrack distanceOffset;
+    BattleCameraTrack fovOffset;
+    BattleCameraTrack yawOffset;
+    BattleCameraTrack sideOffset;
+    BattleCameraTrack pivotOffset;
+    BattleCameraTrack shakeAmplitude;
+    BattleCameraTrack orbitYaw;
+    BattleCameraTrack orbitRadius;
+    BattleCameraTrack orbitHeight;
+    BattleCameraTrack orbitLookHeight;
 };
 
-struct  BattleCameraClipSample
+struct BattleCameraClipSample
 {
-    float distanceOffset;
-    float fovOffset;
-    float sideOffset;
-    float pivotOffset;
-    float yawOffset;
-    float shakeAmplitude;
+    float distanceOffset = 0.f;
+    float fovOffset = 0.f;
+    float sideOffset = 0.f;
+    float pivotOffset = 0.f;
+    float yawOffset = 0.f;
+    float shakeAmplitude = 0.f;
+    float orbitYaw = 0.f;
+    float orbitRadius = 0.f;
+    float orbitHeight = 0.f;
+    float orbitLookHeight = 0.f;
 };
 

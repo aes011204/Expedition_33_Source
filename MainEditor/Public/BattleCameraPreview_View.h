@@ -176,6 +176,10 @@ private:
     bool _previewSideOffsetEnabled = true;
     bool _previewPivotOffsetEnabled = true;
     bool _previewYawOffsetEnabled = true;
+    bool _previewOrbitYawEnabled = true;
+    bool _previewOrbitRadiusEnabled = true;
+    bool _previewOrbitHeightEnabled = true;
+    bool _previewOrbitLookHeightEnabled = true;
     bool _previewEnabled = true;
     bool _previewDirty = false;
     bool _previewObjectsDirty = true;
