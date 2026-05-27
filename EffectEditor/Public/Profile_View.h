@@ -48,6 +48,12 @@ public:
     static void Set_RenderCallCount_External(uint32 renderCallCount);
 
 private: //## Types
+    struct ScopeRow
+    {
+        const ScopeStats* stats{ nullptr };
+        double sortKey{ 0.0 };
+    };
+
     struct ProfilerRuntime;
 
     struct ProcessMemory
@@ -103,6 +109,8 @@ private: //## Helpers
     void Draw_Resource_Memory();
     void Reset_Stats();
     void Prune_Dead_Scopes();
+    vector<ScopeRow> Build_Scope_Rows() const;
+    void Log_Snapshot() const;
     void Record_Scope_Sample(const string& scopeName, double elapsedMs);
     void Refresh_Memory_Samples();
     ProcessMemory Get_Process_Memory() const;
