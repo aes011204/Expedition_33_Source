@@ -52,6 +52,22 @@ void GameplayUI::Update(float timeDelta)
     }
 }
 
+vector<RuntimeUIEntry> GameplayUI::Get_WorldRuntimeUIEntries() const
+{
+    if (_worldUI == nullptr)
+        return {};
+
+    return _worldUI->Get_RuntimeUIEntries();
+}
+
+vector<RuntimeUIEntry> GameplayUI::Get_BattleRuntimeUIEntries() const
+{
+    if (_battleUI == nullptr)
+        return {};
+
+    return _battleUI->Get_RuntimeUIEntries();
+}
+
 void GameplayUI::Play_BattleEnterTransition()
 {
     if (_battleUI)

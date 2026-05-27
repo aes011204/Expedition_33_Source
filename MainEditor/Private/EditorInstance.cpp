@@ -351,14 +351,48 @@ Shared<GameObject> EditorInstance::Selected_Object() const
     return _editorContext->Get_Selection().selectedObject;
 }
 
+Shared<UI_Base> EditorInstance::Selected_UI() const
+{
+    return _editorContext->Get_Selection().selectedUI.lock();
+}
+
+string EditorInstance::Selected_UIGroup() const
+{
+    return _editorContext->Get_Selection().selectedUIGroup;
+}
+
+string EditorInstance::Selected_UIDisplayName() const
+{
+    return _editorContext->Get_Selection().selectedUIDisplayName;
+}
+
+bool EditorInstance::Selected_UIPositionDrivenByCode() const
+{
+    return _editorContext->Get_Selection().selectedUIPositionDrivenByCode;
+}
+
 void EditorInstance::Select_Object(const Shared<GameObject>& gameObject)
 {
     return _editorContext->Set_SelectObject(gameObject);
 }
 
+void EditorInstance::Select_UI(
+    const Shared<UI_Base>& ui,
+    const string& groupName,
+    const string& displayName,
+    bool positionDrivenByCode)
+{
+    return _editorContext->Set_SelectUI(ui, groupName, displayName, positionDrivenByCode);
+}
+
 void EditorInstance::Clear_SelectedObject()
 {
-    return _editorContext->Clear_Selection();
+    return _editorContext->Clear_SelectedObject();
+}
+
+void EditorInstance::Clear_SelectedUI()
+{
+    return _editorContext->Clear_SelectedUI();
 }
 
 uint32 EditorInstance::Selection_Revision() const

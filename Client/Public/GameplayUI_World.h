@@ -23,6 +23,7 @@ public:
     HRESULT Initialize(uint32 levelIndex);
     void    Update(float timeDelta);
     void    Update_Input();
+    vector<RuntimeUIEntry> Get_RuntimeUIEntries() const;
 
     bool    Is_AnyMenuOpen() const;
     GameplayMenu Get_CurrentMenu() const; // 현재 최상위 메뉴 확인용

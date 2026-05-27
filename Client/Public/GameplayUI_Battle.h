@@ -3,6 +3,7 @@
 #include "Base.h"
 #include "Battle_Enum.h"
 #include "Delegate.h"
+#include "GameplayUI_Types.h"
 #include "UI_BattleSystem_TurnOrder.h"
 #include "BattleController.h"
 #include "UI_BattleVictory.h"
@@ -41,6 +42,7 @@ public:
     HRESULT Initialize(uint32 levelIndex);
     void    Update(float timeDelta);
     void    Update_Input();
+    vector<RuntimeUIEntry> Get_RuntimeUIEntries() const;
 
     void    Play_BattleEnterTransition();
     void    Stop_BattleEnterTransition();

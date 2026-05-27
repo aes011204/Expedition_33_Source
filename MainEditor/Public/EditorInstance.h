@@ -8,6 +8,7 @@ class ICommand;
 class GameObject;
 class Component;
 class Camera;
+class UI_Base;
 NS_END
 
 NS_BEGIN(MainEditor)
@@ -66,8 +67,18 @@ public: /* For.Preview */
 public: /* For.Editor Selection */
     const Editor_Context*   Get_EditorContext() const { return _editorContext.get(); }
     Shared<GameObject>      Selected_Object() const;
+    Shared<UI_Base>         Selected_UI() const;
+    string                  Selected_UIGroup() const;
+    string                  Selected_UIDisplayName() const;
+    bool                    Selected_UIPositionDrivenByCode() const;
     void                    Select_Object(const Shared<GameObject>& gameObject);
+    void                    Select_UI(
+        const Shared<UI_Base>& ui,
+        const string& groupName,
+        const string& displayName,
+        bool positionDrivenByCode = false);
     void                    Clear_SelectedObject();
+    void                    Clear_SelectedUI();
     uint32                  Selection_Revision() const;
     void                    Copy_SelectedObject();
     Shared<GameObject>      Paste_CopiedObject();

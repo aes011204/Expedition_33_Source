@@ -25,6 +25,8 @@ public:
 public:
     HRESULT Initialize(uint32 levelIndex);
     void    Update(float timeDelta);
+    vector<RuntimeUIEntry> Get_WorldRuntimeUIEntries() const;
+    vector<RuntimeUIEntry> Get_BattleRuntimeUIEntries() const;
 
     void    Play_BattleEnterTransition();
     void    Stop_BattleEnterTransition();

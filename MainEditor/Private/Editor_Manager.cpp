@@ -323,7 +323,9 @@ void Editor_Manager::Handle_Shortcuts()
     {
         if (EDITOR->IsPlaying())
             EDITOR->Pause();
-        else if (!EDITOR->IsPlaying())
+        else if (EDITOR->IsPaused())
+            EDITOR->Resume();
+        else
             EDITOR->Play();
 
         return;

@@ -16,6 +16,27 @@
 
 GameplayUI_World::~GameplayUI_World() = default;
 
+namespace
+{
+    template <typename TPanel>
+    void Append_RuntimePanelEntry(
+        vector<RuntimeUIEntry>& outEntries,
+        const char* category,
+        const char* name,
+        const TPanel* panel,
+        bool positionDrivenByCode = false)
+    {
+        if (panel == nullptr)
+            return;
+
+        Shared<UI_Base> root = panel->Get_RootUI();
+        if (root == nullptr)
+            return;
+
+        outEntries.push_back({ category, name, root, positionDrivenByCode });
+    }
+}
+
 HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
 {
     _characterStatusPanel = CharacterStatus_Panel::Create(levelIndex);
@@ -70,6 +91,21 @@ void GameplayUI_World::Update_Input()
     Handle_TabInput(); // Tab은 root 메뉴인 SavePoint 진입/종료만 담당
     Handle_BackInput();
     Handle_ExpeditionStat();
+}
+
+vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
+{
+    vector<RuntimeUIEntry> entries{};
+    entries.reserve(6);
+
+    Append_RuntimePanelEntry(entries, "World", "SavePointPanel", _savePointPanel.get());
+    Append_RuntimePanelEntry(entries, "World", "CharacterStatusPanel", _characterStatusPanel.get());
+    Append_RuntimePanelEntry(entries, "World", "SkillTreePanel", _skillTreePanel.get());
+    Append_RuntimePanelEntry(entries, "World", "ChangeWeaponPanel", _changeWeaponPanel.get());
+    Append_RuntimePanelEntry(entries, "World", "ExpeditionStatPanel", _expeditionStatPanel.get());
+    Append_RuntimePanelEntry(entries, "World", "CrossHair", _crossHair.get());
+
+    return entries;
 }
 
 bool GameplayUI_World::Is_AnyMenuOpen() const

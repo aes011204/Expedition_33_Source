@@ -25,6 +25,7 @@ public:
     virtual void Toggle();
 
     bool Is_Open() const { return _isOpen; }
+    Shared<UI_Base> Get_RootUI() const { return _root; }
 
 protected:
     uint32 _levelIndex = 0; 

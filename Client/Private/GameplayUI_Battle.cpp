@@ -33,6 +33,25 @@ using namespace UI_Utils;
 
 GameplayUI_Battle::~GameplayUI_Battle() = default;
 
+namespace
+{
+    void Append_RuntimePanelEntry(
+        vector<RuntimeUIEntry>& outEntries,
+        const char* name,
+        const UI_RuntimePanelBase* panel,
+        bool positionDrivenByCode = false)
+    {
+        if (panel == nullptr)
+            return;
+
+        Shared<UI_Base> root = panel->Get_RootUI();
+        if (root == nullptr)
+            return;
+
+        outEntries.push_back({ "Battle", name, root, positionDrivenByCode });
+    }
+}
+
 HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
 {
     auto Create_UI = [levelIndex](auto& ui, auto& createFn) -> HRESULT
@@ -109,6 +128,39 @@ void GameplayUI_Battle::Update(float timeDelta)
 void GameplayUI_Battle::Update_Input()
 {
 
+}
+
+vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
+{
+    vector<RuntimeUIEntry> entries{};
+    entries.reserve(18 + static_cast<uint32>(_damageFonts.size()) + static_cast<uint32>(_healFonts.size()));
+
+    Append_RuntimePanelEntry(entries, "BattleTransition", _battleTransition.get());
+    Append_RuntimePanelEntry(entries, "BattleCommandHUD", _battleCommandHUD.get(), true);
+    Append_RuntimePanelEntry(entries, "BattleSystemHUD", _battleSystemHUD.get());
+    Append_RuntimePanelEntry(entries, "MonsterHpBar", _monsterHpBar.get(), true);
+    Append_RuntimePanelEntry(entries, "PlayerHpBar", _playerHpBar.get(), true);
+    Append_RuntimePanelEntry(entries, "CrossHair", _crossHair.get());
+    Append_RuntimePanelEntry(entries, "BattleDefense", _battleDefense.get());
+    Append_RuntimePanelEntry(entries, "CancelAim", _cancelAim.get());
+    Append_RuntimePanelEntry(entries, "ChoiceTarget", _choiceTarget.get());
+    Append_RuntimePanelEntry(entries, "EscapeSkipTurn", _escapeSkipTurn.get());
+    Append_RuntimePanelEntry(entries, "AttackTooltip", _attackTooltip.get());
+    Append_RuntimePanelEntry(entries, "ReactionResult", _reactionResult.get(), true);
+    Append_RuntimePanelEntry(entries, "BattleVictory", _battleVictory.get());
+    Append_RuntimePanelEntry(entries, "TurnOrder", _turnOrder.get());
+    Append_RuntimePanelEntry(entries, "BattleMechanism", _battleMechanism.get());
+    Append_RuntimePanelEntry(entries, "BattleItemPanel", _battleItemPanel.get());
+    Append_RuntimePanelEntry(entries, "BattleSkillPanel", _battleSkillPanel.get());
+    Append_RuntimePanelEntry(entries, "BattleAnnounce", _battleAnnounce.get());
+
+    for (uint32 i = 0; i < _damageFonts.size(); ++i)
+        Append_RuntimePanelEntry(entries, ("DamageFont_" + to_string(i)).c_str(), _damageFonts[i].get(), true);
+
+    for (uint32 i = 0; i < _healFonts.size(); ++i)
+        Append_RuntimePanelEntry(entries, ("HealFont_" + to_string(i)).c_str(), _healFonts[i].get(), true);
+
+    return entries;
 }
 
 void GameplayUI_Battle::Play_BattleEnterTransition()
