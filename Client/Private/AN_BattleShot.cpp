@@ -13,6 +13,8 @@ IMPLEMENT_REFLECTION(AN_BattleShot)
     info.properties.clear();
 
     PROPERTY_ENUM("Camera Mode", _cameraMode, BattleCameraMode);
+    PROPERTY_BOOL("Use Clip", _useClip);
+    PROPERTY_BOOL("Restart Clip", _restartClip);
 
     return true;
 }
@@ -43,5 +45,7 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     event.cameraMode = _cameraMode;
     event.subject = character;
     event.skillId = battle->Get_TurnAction()._selected_SkillKey.skillKey;
+    event.useClip = _useClip;
+    event.restartClip = _restartClip;
     GAME->Get_EventBus().Publish(event);
 }

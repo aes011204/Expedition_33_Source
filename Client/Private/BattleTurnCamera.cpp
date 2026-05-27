@@ -582,7 +582,9 @@ bool BattleTurnCamera::Evaluate_EnemyAttackPose(
 void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 {
     if (_currentRequest.mode == request.mode &&
-        _currentRequest.subject == request.subject)
+        _currentRequest.subject == request.subject &&
+        _currentRequest.useClip == request.useClip &&
+        request.restartClip == false)
         return;
 
     bool wasWide = _currentRequest.mode == BattleCameraMode::WIDE;
@@ -621,6 +623,9 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         }
         break;
     }
+
+    if(request.useClip == false)
+        nextActiveClip = nullptr;
 
     Vec3 targetSmoothedTargetPos = _smoothedTargetPos;
     Vec3 targetPrevTargetPos = _prevTargetPos;
@@ -669,9 +674,6 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     _targetTransform = nextTargetTransform;
     _targetPreset = nextPreset;
     _currentPreset = _targetPreset;
-
-    //playerfocus, playerAttack 이었을 때 snapOnEnter가 false여서 그 마지막 애니메이션의 target Pos가 되어있을텐데 지금은 enemyfocus가 마지막으로 저장된 것이므로 거기서 확대되는식으로 이루어짐
-    //각 애니메이션이 종료하고 나서의 _smoothedTargetPos는 무조건 그 애니메이션 종료 시점에 한번씩은 저장할 수 있도록 해야할텐데
     _smoothedTargetPos = targetSmoothedTargetPos;
     _prevTargetPos = targetPrevTargetPos;
 }

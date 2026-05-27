@@ -22,6 +22,8 @@ public:
         Shared<Engine::Character> subject = nullptr;
         Shared<Engine::Character> opponent = nullptr;
         string          skillId;
+        bool            useClip;
+        bool            restartClip;
     };
 
 public:

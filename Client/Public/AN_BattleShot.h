@@ -18,6 +18,8 @@ public:
 
 private:
     BattleCameraMode _cameraMode = BattleCameraMode::PLAYERATTACK;
+    bool             _restartClip;
+    bool             _useClip;
 };
 
 NS_END
