@@ -34,6 +34,13 @@ public:
         bool requiresManualRelease{ false }; // true면 자동 완료 대신 명시 Stop/release를 기다린다.
     };
 
+    struct DebugSummary
+    {
+        uint32 entryCount{};
+        uint32 activeCount{};
+        uint32 idleCount{};
+    };
+
 public:
     EffectInstancePool() = default;
     ~EffectInstancePool() override = default;
@@ -51,6 +58,7 @@ public:
 public:
     // [Effect Editor용] 같은 key의 inactive entry만 level에서 제거해 mutable preview definition 재사용을 막는다.
     void Discard_Inactive(const wstring& effectName);
+    DebugSummary Get_DebugSummary() const;
 
 private:
     struct PooledInstance
