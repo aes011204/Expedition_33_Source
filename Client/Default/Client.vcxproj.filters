@@ -90,7 +90,6 @@
     <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
     <ClCompile Include="..\Private\UI_BattleVictory.cpp" />
     <ClCompile Include="..\Private\UI_DamageFont.cpp" />
-    <ClCompile Include="..\Private\UI_EscapeSkipTurn.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp">
       <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClCompile>
@@ -124,6 +123,8 @@
     <ClCompile Include="..\Private\ANS_Trail.cpp" />
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
     <ClCompile Include="..\Private\UI_BattleAnnounce.cpp" />
+    <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
+    <ClCompile Include="..\Private\WeaponPrefabLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl" />
@@ -628,7 +629,6 @@
     <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
     <ClInclude Include="..\Public\UI_BattleVictory.h" />
     <ClInclude Include="..\Public\UI_DamageFont.h" />
-    <ClInclude Include="..\Public\UI_EscapeSkipTurn.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h">
       <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClInclude>
@@ -671,6 +671,9 @@
     <ClInclude Include="..\Public\ANS_Trail.h" />
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
     <ClInclude Include="..\Public\UI_BattleAnnounce.h" />
+    <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h" />
+    <ClInclude Include="Battle_Enum.h" />
+    <ClInclude Include="..\Public\WeaponPrefabLoader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

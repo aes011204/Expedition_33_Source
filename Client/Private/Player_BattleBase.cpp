@@ -66,6 +66,35 @@ void Player_BattleBase::Late_Update(float timeDelta)
     
 }
 
+json Player_BattleBase::To_Json() const
+{
+    json root = GameObject::To_Json();
+    json parts = json::array();
+
+    for (const auto& [partTag, partObject] : _partObjects)
+    {
+        if (partObject == nullptr)
+            continue;
+
+        // 무기 파트는 코드 + WP_* 프리펩에서 재구성되므로 PB 저장본에는 넣지 않는다.
+        if (partTag == L"Part_Weapon")
+            continue;
+
+        json partJson = json::object();
+        partJson["part_tag"] = String::ToString(partTag);
+        partJson["object"] = partObject->To_Json();
+        parts.emplace_back(std::move(partJson));
+    }
+
+    root["parts"] = std::move(parts);
+    return root;
+}
+
+void Player_BattleBase::From_Json(const json& data)
+{
+    Character_BattleBase::From_Json(data);
+}
+
 HRESULT Player_BattleBase::Ready_PartObjects()
 {
     Body_Player::BODY_PLAYER_DESC bodyDesc{};
