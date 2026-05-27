@@ -54,6 +54,75 @@ int Get_BattleClipFrameMax(const BattleCameraClip& clip)
     return std::max(0, static_cast<int>(std::lround(clip.duration * kBattleClipPreviewFps)));
 }
 
+BattleCameraClipTimeMode Get_DefaultBattleCameraClipTimeMode(BattleCameraMode cameraMode)
+{
+    return cameraMode == BattleCameraMode::BATTLEINTRO
+        ? BattleCameraClipTimeMode::Independent
+        : BattleCameraClipTimeMode::AnimationSync;
+}
+
+const char* Get_BattleClipTimeModeLabel(BattleCameraClipTimeMode timeMode)
+{
+    switch (timeMode)
+    {
+    case BattleCameraClipTimeMode::AnimationSync:
+        return "Animation Sync";
+    case BattleCameraClipTimeMode::Independent:
+        return "Independent";
+    default:
+        return "Unknown";
+    }
+}
+
+const BattleCameraTrack* Get_BattleClipTrackByIndex(const BattleCameraClip& clip, int trackIndex)
+{
+    switch (trackIndex)
+    {
+    case 0: return &clip.distanceOffset;
+    case 1: return &clip.fovOffset;
+    case 2: return &clip.shakeAmplitude;
+    case 3: return &clip.sideOffset;
+    case 4: return &clip.pivotOffset;
+    case 5: return &clip.yawOffset;
+    case 6: return &clip.orbitYaw;
+    case 7: return &clip.orbitRadius;
+    case 8: return &clip.orbitHeight;
+    case 9: return &clip.orbitLookHeight;
+    default:
+        return nullptr;
+    }
+}
+
+const char* Get_BattleClipTrackLabel(int trackIndex)
+{
+    switch (trackIndex)
+    {
+    case 0: return "Distance Offset";
+    case 1: return "FOV Offset";
+    case 2: return "Shake Amplitude";
+    case 3: return "Side Offset";
+    case 4: return "Pivot Offset";
+    case 5: return "Yaw Offset";
+    case 6: return "Orbit Yaw";
+    case 7: return "Orbit Radius";
+    case 8: return "Orbit Height";
+    case 9: return "Orbit Look Height";
+    default:
+        return "Unknown";
+    }
+}
+
+bool Is_BattleClipTrackSorted(const BattleCameraTrack& track)
+{
+    for (size_t i = 1; i < track.keyframes.size(); ++i)
+    {
+        if (track.keyframes[i - 1].time > track.keyframes[i].time)
+            return false;
+    }
+
+    return true;
+}
+
 bool Uses_RuntimeBattleClip(BattleCameraMode mode)
 {
     return true;
@@ -1283,6 +1352,34 @@ void BattleCameraPreview_View::Render_TimelinePanel()
             }
 
             ImGui::SameLine();
+            ImGui::SetNextItemWidth(170.f);
+            const char* currentTimeModeLabel = Get_BattleClipTimeModeLabel(_editingBattleClip.timeMode);
+            if (ImGui::BeginCombo("Time Mode", currentTimeModeLabel))
+            {
+                const BattleCameraClipTimeMode timeModes[] =
+                {
+                    BattleCameraClipTimeMode::AnimationSync,
+                    BattleCameraClipTimeMode::Independent
+                };
+
+                for (BattleCameraClipTimeMode timeMode : timeModes)
+                {
+                    const bool isSelected = _editingBattleClip.timeMode == timeMode;
+                    if (ImGui::Selectable(Get_BattleClipTimeModeLabel(timeMode), isSelected))
+                    {
+                        _editingBattleClip.timeMode = timeMode;
+                        _battleClipCurrentFrame = std::clamp(_battleClipCurrentFrame, 0, Get_BattleClipPreviewFrameMax());
+                        Sync_PreviewTimeFromTimeline();
+                        _previewDirty = true;
+                    }
+
+                    if (isSelected)
+                        ImGui::SetItemDefaultFocus();
+                }
+
+                ImGui::EndCombo();
+            }
+
             if (ImGui::Button("Load Clip"))
             {
                 Load_BattleClipForCurrentMode();
@@ -1341,6 +1438,7 @@ void BattleCameraPreview_View::Render_TimelinePanel()
             ImGui::Spacing();
             Render_BattleClipSequencer();
             Render_SelectedBattleClipKeyframe();
+            Render_BattleClipDebugPanel();
             Render_BattleClipInsertKeyframePopup();
             Render_BattleClipRemoveKeyframePopup();
             ImGui::EndTabItem();
@@ -1426,10 +1524,13 @@ void BattleCameraPreview_View::Render_SelectedBattleClipKeyframe()
     ImGui::Separator();
     ImGui::TextDisabled("Selected Key | Track %d | Key %d", _battleClipSelectedTrackIndex, _battleClipSelectedKeyIndex);
 
+    const float authoringDurationSec = Get_BattleClipAuthoringDurationSec();
     ImGui::SetNextItemWidth(140.f);
-    if (ImGui::DragFloat("Key Time", &keyframe->time, 0.01f, 0.f, _editingBattleClip.duration))
+    if (ImGui::DragFloat("Key Time", &keyframe->time, 0.01f, 0.f, authoringDurationSec))
     {
-        keyframe->time = std::clamp(keyframe->time, 0.f, _editingBattleClip.duration);
+        keyframe->time = std::clamp(keyframe->time, 0.f, authoringDurationSec);
+        if (keyframe->time > _editingBattleClip.duration)
+            _editingBattleClip.duration = keyframe->time;
         if (BattleCameraTrack* track = Get_SelectedBattleClipTrack())
         {
             const float selectionTime = keyframe->time;
@@ -1453,6 +1554,51 @@ void BattleCameraPreview_View::Render_SelectedBattleClipKeyframe()
     ImGui::SetNextItemWidth(140.f);
     if (ImGui::DragFloat("Key Value", &keyframe->value, 0.01f))
         _previewDirty = true;
+}
+
+void BattleCameraPreview_View::Render_BattleClipDebugPanel()
+{
+    const int fallbackTrackIndex = 5;
+    const int debugTrackIndex = Get_BattleClipTrackByIndex(_editingBattleClip, _battleClipSelectedTrackIndex) != nullptr
+        ? _battleClipSelectedTrackIndex
+        : fallbackTrackIndex;
+    const BattleCameraTrack* debugTrack = Get_BattleClipTrackByIndex(_editingBattleClip, debugTrackIndex);
+    if (debugTrack == nullptr)
+        return;
+
+    const float previewTimeSec = _previewContext.timeSec;
+    const float animationDurationSec = Get_CurrentPreviewAnimationDurationSec();
+    const int previewFrameMax = Get_BattleClipPreviewFrameMax();
+    const BattleCameraClipSample clipSample = Client::Sample_BattleCameraClip(_editingBattleClip, previewTimeSec);
+    const float trackSample = Client::Sample_BattleCameraTrack(*debugTrack, previewTimeSec);
+    const bool isSorted = Is_BattleClipTrackSorted(*debugTrack);
+
+    ImGui::Separator();
+    ImGui::TextDisabled("Clip Debug");
+    ImGui::Text("Frame: %d / %d", _battleClipCurrentFrame, previewFrameMax);
+    ImGui::Text("Preview Time: %.3f s", previewTimeSec);
+    ImGui::Text("Clip Duration: %.3f s", _editingBattleClip.duration);
+    ImGui::Text("Time Mode: %s", Get_BattleClipTimeModeLabel(_editingBattleClip.timeMode));
+    ImGui::Text("Animation Duration: %.3f s", animationDurationSec);
+    ImGui::Text("Debug Track: %s (%d)", Get_BattleClipTrackLabel(debugTrackIndex), debugTrackIndex);
+    ImGui::Text("Track Key Count: %d", static_cast<int>(debugTrack->keyframes.size()));
+    ImGui::Text("Track Sorted: %s", isSorted ? "Yes" : "No");
+
+    if (!debugTrack->keyframes.empty())
+    {
+        const BattleCameraKeyframe& firstKey = debugTrack->keyframes.front();
+        const BattleCameraKeyframe& lastKey = debugTrack->keyframes.back();
+        ImGui::Text("First Key: time=%.3f value=%.3f", firstKey.time, firstKey.value);
+        ImGui::Text("Last Key:  time=%.3f value=%.3f", lastKey.time, lastKey.value);
+    }
+    else
+    {
+        ImGui::TextDisabled("First Key: (none)");
+        ImGui::TextDisabled("Last Key: (none)");
+    }
+
+    ImGui::Text("Track Sample @ %.3f: %.3f", previewTimeSec, trackSample);
+    ImGui::Text("Clip Yaw Sample @ %.3f: %.3f", previewTimeSec, clipSample.yawOffset);
 }
 
 void BattleCameraPreview_View::Render_BattleClipInsertKeyframePopup()
@@ -1606,7 +1752,11 @@ void BattleCameraPreview_View::Apply_PreviewAnimation(float previewTimeSec) cons
     }
 
     model->Set_AnimationPaused(true);
-    model->Set_CurrentAnimationTimeSec(previewTimeSec);
+    float animationTimeSec = previewTimeSec;
+    if (_editingBattleClip.timeMode == BattleCameraClipTimeMode::Independent)
+        animationTimeSec = std::clamp(previewTimeSec, 0.f, std::max(0.f, model->Get_CurrentAnimationDurationSec()));
+
+    model->Set_CurrentAnimationTimeSec(animationTimeSec);
     model->Refresh_CurrentAnimationPose();
 }
 
@@ -1809,9 +1959,17 @@ float BattleCameraPreview_View::Get_CurrentPreviewAnimationDurationSec() const
     return std::max(0.f, model->Get_CurrentAnimationDurationSec());
 }
 
+float BattleCameraPreview_View::Get_BattleClipAuthoringDurationSec() const
+{
+    if (_editingBattleClip.timeMode == BattleCameraClipTimeMode::Independent)
+        return std::max(0.f, _editingBattleClip.duration);
+
+    return std::max(_editingBattleClip.duration, Get_CurrentPreviewAnimationDurationSec());
+}
+
 int BattleCameraPreview_View::Get_BattleClipPreviewFrameMax() const
 {
-    const float previewDurationSec = std::max(_editingBattleClip.duration, Get_CurrentPreviewAnimationDurationSec());
+    const float previewDurationSec = Get_BattleClipAuthoringDurationSec();
     return std::max(0, static_cast<int>(std::lround(previewDurationSec * kBattleClipPreviewFps)));
 }
 
@@ -1860,6 +2018,7 @@ void BattleCameraPreview_View::Load_BattleClipForCurrentMode()
 {
     const string selectedSkillId = Get_SelectedSkillId();
     _editingBattleClip = BattleCameraClip{ 1.f };
+    _editingBattleClip.timeMode = Get_DefaultBattleCameraClipTimeMode(_previewContext.mode);
     Client::BattleCameraClipIO::LoadBattleCameraClipFromFile(_previewContext.mode, _editingBattleClip);
 
     if (!selectedSkillId.empty())
@@ -2174,7 +2333,9 @@ void BattleCameraPreview_View::Insert_BattleClipKeyAtFrame(int trackIndex, int f
         return;
     }
 
-    const float keyTime = std::clamp(static_cast<float>(frame) / kBattleClipPreviewFps, 0.f, _editingBattleClip.duration);
+    const float keyTime = std::clamp(static_cast<float>(frame) / kBattleClipPreviewFps, 0.f, Get_BattleClipAuthoringDurationSec());
+    if (keyTime > _editingBattleClip.duration)
+        _editingBattleClip.duration = keyTime;
 
     for (int i = 0; i < static_cast<int>(track->keyframes.size()); ++i)
     {

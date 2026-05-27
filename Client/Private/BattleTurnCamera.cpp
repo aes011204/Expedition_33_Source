@@ -13,6 +13,13 @@
 
 namespace
 {
+BattleCameraClipTimeMode Get_DefaultBattleCameraClipTimeMode(BattleCameraMode cameraMode)
+{
+    return cameraMode == BattleCameraMode::BATTLEINTRO
+        ? BattleCameraClipTimeMode::Independent
+        : BattleCameraClipTimeMode::AnimationSync;
+}
+
 Shared<ModelCom> Resolve_BattleCameraSubjectModel(const Shared<Character>& character)
 {
     if (character == nullptr)
@@ -91,6 +98,10 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
    // CameraPresetIO::SaveBattleCameraClipToFile(BattleCameraMode::PLAYERATTACK, _playerAttackClip);
    // CameraPresetIO::SaveBattleCameraClipToFile(BattleCameraMode::ENEMYATTACK, _enemyAttackClip);
     //_enemyAttackClip.shakeAmplitude.keyframes.push_back({0.5f, 0.1f});
+   _battleIntroClip.timeMode = Get_DefaultBattleCameraClipTimeMode(BattleCameraMode::BATTLEINTRO);
+   _playerAttackClip.timeMode = Get_DefaultBattleCameraClipTimeMode(BattleCameraMode::PLAYERATTACK);
+   _enemyAttackClip.timeMode = Get_DefaultBattleCameraClipTimeMode(BattleCameraMode::ENEMYATTACK);
+
    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::BATTLEINTRO, _battleIntroClip);
    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackClip);
    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackClip);
@@ -1084,10 +1095,13 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta)
         return sample;
 
     _clipTime += timeDelta;
-
     float sampleTime = _clipTime;
-    if (Shared<ModelCom> model = Resolve_BattleCameraSubjectModel(_currentRequest.subject))
-        sampleTime = model->Get_CurrentAnimationTimeSec();
+
+    if (_activeClip->timeMode == BattleCameraClipTimeMode::AnimationSync)
+    {
+        if (Shared<ModelCom> model = Resolve_BattleCameraSubjectModel(_currentRequest.subject))
+            sampleTime = model->Get_CurrentAnimationTimeSec();
+    }
 
     sampleTime = clamp(sampleTime, 0.f, _activeClip->duration);
     _clipTime = sampleTime;

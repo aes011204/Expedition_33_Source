@@ -97,6 +97,7 @@ private:
     void Render_TimelinePanel();
     void Render_BattleClipSequencer();
     void Render_SelectedBattleClipKeyframe();
+    void Render_BattleClipDebugPanel();
     void Render_BattleClipInsertKeyframePopup();
     void Render_BattleClipRemoveKeyframePopup();
     void Render_LoadAuthoringFilePopup();
@@ -104,6 +105,7 @@ private:
     void Apply_PreviewAnimation(float previewTimeSec) const;
     void Apply_BattleCameraPreviewPose(float previewTimeSec);
     float Get_CurrentPreviewAnimationDurationSec() const;
+    float Get_BattleClipAuthoringDurationSec() const;
     int  Get_BattleClipPreviewFrameMax() const;
     void Clear_PreviewContext();
     void Refresh_PreviewAnimationList();
