@@ -1571,6 +1571,11 @@ int GameInstance::Get_CameraCount()
     return _cameraManager->Get_CameraCount();
 }
 
+Shared<Camera> GameInstance::Get_CameraByType(ObjectType objectType)
+{
+    return _cameraManager->Get_CameraByType(objectType);
+}
+
 HRESULT GameInstance::Bind_CameraFar(Shared<ShaderCom> shader, const char* constantName)
 {
     return _cameraManager->Bind_CameraFar(shader, constantName);

@@ -88,9 +88,10 @@ private:
 
 public:
     static Unique<Event_Bus>Create();
-    virtual void Free() override;;
+    virtual void Free() override;
 
 };
+
 
 inline Event_Bus::Event_Bus()
 {
@@ -109,5 +110,4 @@ inline void Event_Bus::Free()
 {
     Base::Free();
 }
-
 NS_END

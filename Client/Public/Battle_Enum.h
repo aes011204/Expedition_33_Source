@@ -550,6 +550,7 @@ namespace Client
     //------------------------------------
     struct Skill_Data
     {
+        string characterId = "";
         string skillKey = "";
         string scriptClassName = "";
         vector<BattleActionPhase> AnimPhases = {};

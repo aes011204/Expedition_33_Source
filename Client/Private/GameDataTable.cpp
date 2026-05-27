@@ -188,6 +188,7 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
 
         Skill_Data skill{};
 
+        skill.characterId = item.value("character id", "");
         skill.skillKey = item.value("skillKey", "");
         skill.scriptClassName = item.value("scriptClassName", "");
         skill.apCost = item.value("ap cost", 0);
@@ -722,6 +723,24 @@ const vector<GameDataTable::WeaponDesc>* GameDataTable::Get_WeaponDescs(const st
 
     return &characterIter->second;
 }
+
+vector<string> GameDataTable::Get_AllSkillIds() const
+{
+    vector<string> skillIds;
+
+    skillIds.reserve(_skillDefs.size());
+
+    for(const Skill_Data& skill : _skillDefs)
+    {
+        if(!skill.skillKey.empty())
+            skillIds.push_back(skill.skillKey);
+    }
+
+    sort(skillIds.begin(), skillIds.end());
+
+    return skillIds;
+}
+
 vector<string> GameDataTable::Split_String(const string& value, char delimiter)
 {
     vector<string> result;
