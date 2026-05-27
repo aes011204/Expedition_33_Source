@@ -12,7 +12,7 @@ public:
     virtual ~Skill_Bishop_Ground_Att() = default;
 public:
     virtual void Execute(const Skill_Data& skill,
-        const Action& action);
+        const BattleAction& action, AttackType attackType) override;
 
 
 private:

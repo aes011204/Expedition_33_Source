@@ -10,10 +10,11 @@ Base_Mon_Attack::Base_Mon_Attack()
 {
 }
 
-void Base_Mon_Attack::Execute(const Skill_Data& skill, const Action& action)
+void Base_Mon_Attack::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
+    UNREFERENCED_PARAMETER(attackType);
+
     const float Damage = 50;
-    const auto hero = CLIENT->Get_BattleController()->Get_AliveHeroes();
 
     if(CurIndex >= skill.targetingType.size())
     {
@@ -21,8 +22,9 @@ void Base_Mon_Attack::Execute(const Skill_Data& skill, const Action& action)
         return;
     }
 
+    DamageSystem::ApplyDamage(Damage, action.GetCurStepTarget(), attackType);
 
-        if (skill.targetingType[CurIndex] == TargetType::AllEnemies)
+       /* if (skill.targetingType[CurIndex] == TargetType::AllEnemies)
         {
             for (int i = 0; i < hero.size(); i++)
                 DamageSystem::ApplyDamage(Damage, hero[i],AttackType::SingleAOE);
@@ -35,7 +37,7 @@ void Base_Mon_Attack::Execute(const Skill_Data& skill, const Action& action)
             const int num = Math::RandNum(0, hero.size() - 1);
             DamageSystem::ApplyDamage(Damage, hero[num],AttackType::Combo);
 
-        }
+        }*/
 
         CurIndex++;
      

@@ -6,11 +6,15 @@ Base_Mon_Defense::Base_Mon_Defense()
 {
 }
 
-void Base_Mon_Defense::Execute(const Skill_Data& skill, const Action& action)
+void Base_Mon_Defense::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
+    UNREFERENCED_PARAMETER(skill);
+    UNREFERENCED_PARAMETER(attackType);
+
     uint32 shieldNum = {5};
 
-    action ._curChar.statCom->Add_Shield(shieldNum);
+    if (action.Get_CurChar().statCom)
+        action.Get_CurChar().statCom->Add_Shield(shieldNum);
 
 }
 

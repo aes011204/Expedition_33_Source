@@ -568,9 +568,6 @@ struct BattleActionPhase;
         bool ignoreDefense = false;
     };
 
-    //------------------------------------
-
-    
     struct Skill_Data
     {
         string skillKey = "";
@@ -586,6 +583,17 @@ struct BattleActionPhase;
         ElementalType element = ElementalType::None;
         Buffs buff = Buffs::None;
         float ailmentChance = 0.f;
+    };
+
+    //------------------------------------
+    struct ActionRequest
+    {
+        EBattleContext type = EBattleContext::Invalid;
+
+        BattleChar actor = {};
+        BattleChar InitTarget = {};
+        string skillKey = "";
+        BattleItemType itemType = BattleItemType::Invalid;
     };
     
 //

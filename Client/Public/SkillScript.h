@@ -11,7 +11,7 @@ public:
     virtual ~SkillScript() = default;
 public:
     virtual void Execute(const Skill_Data& skill,
-  const Action& action) = 0;
+  const BattleAction& action, AttackType attackType) = 0;
 
     using SkillScriptCreateFn = function<Shared<SkillScript>()>;
 

@@ -12,7 +12,7 @@ public:
     virtual ~Base_Mon_Spawn() = default;
 public:
     virtual void Execute(const Skill_Data& skill,
-        const Action& action);
+        const BattleAction& action, AttackType attackType) override;
 public:
     static Shared<Base_Mon_Spawn> Create();
     //Shared<Component> Clone(void* arg) override;

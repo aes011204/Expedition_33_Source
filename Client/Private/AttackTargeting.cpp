@@ -77,16 +77,17 @@ void AttackTargeting::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::F))
     {
         owner->Set_TargetPreview(enemies[TargetIndex]);
-        owner->Get_TurnAction().target = owner->Get_AliveEnemies()[TargetIndex];
+        auto& request = owner->Get_TurnActionRequest();
+        request.InitTarget = owner->Get_AliveEnemies()[TargetIndex];
 
-        auto data = CLIENT->Get_Skill(owner->Get_TurnAction()._curChar.statCom->Get_FirstSkill());
-        owner->Get_TurnAction()._selected_SkillKey = *data;
+        auto data = CLIENT->Get_Skill(request.actor.statCom->Get_FirstSkill());
+        request.skillKey = data ? data->skillKey : "";
 
         LOG_DEBUG("AttackTargeting: confirm target index={}", TargetIndex);
-        LOG_DEBUG("AttackTargeting: selected skill={}", owner->Get_TurnAction()._selected_SkillKey.scriptClassName.c_str());
+        LOG_DEBUG("AttackTargeting: selected skill={}", request.skillKey.c_str());
 
         battleFSM->Change_State(BattleTurnState::AttackPlaying);
-        owner->ExecuteAction(owner->Get_TurnAction());
+        owner->ExecuteActionRequest(request);
         return;
     }
 

@@ -18,6 +18,7 @@ public:
     virtual ~DamageSystem() = default;
 public:
     static void ApplyDamage(float damage, const BattleChar& target, AttackType attackType);
+    static void ApplyDamage(float damage, const vector<BattleChar>& target, AttackType attackType);
     static void Heal(float amount, const BattleChar& target);
 
     static FOnDamageApplied OnDamageApplied;

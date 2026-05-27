@@ -55,6 +55,14 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& target, AttackTyp
     OnDamageApplied.Broadcast(target, damage,attackType);
 }
 
+void DamageSystem::ApplyDamage(float damage, const vector<BattleChar>& target, AttackType attackType)
+{
+    for(auto character : target)
+    {
+        ApplyDamage(damage, character, attackType);
+    }
+}
+
 void DamageSystem::Free()
 {
     Base::Free();

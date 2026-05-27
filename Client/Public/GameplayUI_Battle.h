@@ -54,10 +54,10 @@ private:
     void    Handle_TurnStarted(const BattleChar& actor, BattleTurnState state);
     void    Handle_TurnEnded(const BattleChar& actor);
     void    Handle_TargetPreviewChanged(const BattleChar* target);
-    void    Handle_ActionStarted(const Action& action);
+    void    Handle_ActionStarted(const BattleAction& action);
     void    Handle_DamageApplied(const BattleChar& target, float damage, AttackType attackType);
     void    Handle_HealApplied(const BattleChar& target, float healAmount);
-    void    Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const BattleChar& target);
+    void    Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const vector<BattleChar>& target);
 
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
