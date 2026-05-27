@@ -268,6 +268,7 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
     ImGuiIO& io = ImGui::GetIO();
     const ImVec2 mousePos = io.MousePos;
     const bool rowHovered = rc.Contains(mousePos);
+    const bool isLeftDragging = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
     bool clickedAnyItem = false;
 
     if (isSelectedTrack)
@@ -344,7 +345,7 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
             _draggingNotifyId = entry.id;
         }
 
-        if (_draggingNotifyId == entry.id && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        if (_draggingNotifyId == entry.id && isLeftDragging)
         {
             const float clampedX = std::clamp(mousePos.x, rc.Min.x, rc.Max.x);
             const float relative = clampedX - rc.Min.x;
@@ -402,6 +403,7 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
     ImGuiIO& io = ImGui::GetIO();
     const ImVec2 mousePos = io.MousePos;
     const bool rowHovered = rc.Contains(mousePos);
+    const bool isLeftDragging = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
     bool clickedAnyItem = false;
 
     if (isSelectedTrack)
@@ -512,7 +514,7 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
             _stateDragOffsetX = mousePos.x - itemRect.Min.x;
         }
 
-        if (_draggingStateId == entry.id && ImGui::IsMouseDown(ImGuiMouseButton_Left) && rowHovered)
+        if (_draggingStateId == entry.id && isLeftDragging && rowHovered)
         {
             const int32 currentStartFrame = TimeSec_ToFrame(entry.startSec, fps);
             const int32 currentDurationFrame = max(1, TimeSec_ToFrame(entry.durationSec, fps));

@@ -9,6 +9,7 @@ enum class AttackType;
 struct BattleChar;
 
 DECLARE_DELEGATE(FOnDamageApplied, const BattleChar&, float, AttackType);
+DECLARE_DELEGATE(FOnHealApplied, const BattleChar&, float);
 
 class DamageSystem : public Base
 {
@@ -20,6 +21,7 @@ public:
     static void Heal(float amount, const BattleChar& target);
 
     static FOnDamageApplied OnDamageApplied;
+    static FOnHealApplied   OnHealApplied;
 
     virtual void Free();
 };

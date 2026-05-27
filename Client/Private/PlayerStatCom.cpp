@@ -146,7 +146,6 @@ bool PlayerStatCom::Add_Stat(StatType type, int32 value)
 
     Recalculate_Stats();
     _PRuntimeStat.CurHp = _playerDesc.maxHp * hpRate;
-    _PRuntimeStat.CurHp = _PRuntimeStat.CurHp;
     Update_StatInfo();
 
     return true;
@@ -170,7 +169,7 @@ bool PlayerStatCom::Reset_Stat()
 
     Recalculate_Stats();
     _PRuntimeStat.CurHp = min(_PRuntimeStat.CurHp, _playerDesc.maxHp);
-    _PRuntimeStat.CurHp = _PRuntimeStat.CurHp;
+    
     Update_StatInfo();
 
     return true;
@@ -382,10 +381,6 @@ void PlayerStatCom::Update_StatInfo()
     _PRuntimeStat.CurCriticalRate = _playerDesc.criticalRate;
     _PRuntimeStat.CurMastery = _playerDesc.mastery;
     _PRuntimeStat.CurCriticalChance = _playerDesc.criticalChance;
-
-    _PRuntimeStat.CurHp = _PRuntimeStat.CurHp;
-    _PRuntimeStat.CurAp = _PRuntimeStat.CurAp;
-    _PRuntimeStat.CurShield = _PRuntimeStat.CurShield;
 }
 
 Shared<PlayerStatCom> PlayerStatCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

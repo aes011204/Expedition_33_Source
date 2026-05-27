@@ -1265,7 +1265,21 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
     if (!Parse_Document(root, document))
         return E_FAIL;
 
-    Apply_KeyframeAnimationAssets(document, Load_KeyframeAnimationAssetBindings(desc.animationPath));
+    vector<RuntimeUIAnimationAssetBinding> animationBindings =
+        Load_KeyframeAnimationAssetBindings(desc.animationPath);
+
+    for (const wstring& animationPath : desc.animationPaths)
+    {
+        vector<RuntimeUIAnimationAssetBinding> extraBindings =
+            Load_KeyframeAnimationAssetBindings(animationPath);
+
+        animationBindings.insert(
+            animationBindings.end(),
+            make_move_iterator(extraBindings.begin()),
+            make_move_iterator(extraBindings.end()));
+    }
+
+    Apply_KeyframeAnimationAssets(document, animationBindings);
 
     unordered_set<wstring> loadedFontTags;
     unordered_map<int32, Shared<UI_Base>> spawnedUIById;

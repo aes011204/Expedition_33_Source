@@ -1,16 +1,20 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ChooseItem.h"
+#include "GameInstance.h"
+#include "ClientInstance.h"
+#include "BattleController.h"
+#include "BattleStateMachine.h"
 
 NS_BEGIN(Client)
 
-ChooseItem::ChooseItem(const Shared<BattleController>& owner)
+    ChooseItem::ChooseItem(const Shared<BattleController>& owner)
     : Battle_State{ owner }
 {
 }
 
 ChooseItem::~ChooseItem()
 {
-}
+} 
 
 HRESULT ChooseItem::Initialize()
 {
@@ -20,17 +24,100 @@ HRESULT ChooseItem::Initialize()
 void ChooseItem::Begin_Play()
 {
     Battle_State::Begin_Play();
+
+
 }
 
 bool ChooseItem::EnterInvoke()
 {
-    LOG_DEBUG("ChooseItem::EnterInvoke");
+    auto owner = Get_Owner();
+    if (!owner)
+        return false;
+
+    owner->Get_TurnAction()._selected_ItemKey = {}; // 메뉴에 다시 들어오면 이전 선택 초기화
+
+    const BattleChar& actor = owner->Get_TurnAction()._curChar;
+    if (actor.ModelCom)
+    {
+        const uint32 animIndex = actor.ModelCom->Get_AnimationStateIndex();
+
+        if (animIndex != ETOI(BattleAnimType::Item_Enter) &&
+            animIndex != ETOI(BattleAnimType::Item_Idle))
+        {
+            if (!actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Item_Enter), 0.2f, false))
+            {
+                actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Item_Idle), 0.2f, true);
+            }
+        }
+    }
+
     return Battle_State::EnterInvoke();
 }
 
 void ChooseItem::Update(float timeDelta)
 {
     Battle_State::Update(timeDelta);
+
+    auto owner = Get_Owner();
+    auto battleFSM = Get_BattleFSM();
+    if (!owner || !battleFSM)
+        return;
+
+    if (GAME->KeyDown(KEY_TYPE::ESCAPE))
+    {
+        owner->Get_TurnAction()._selected_ItemKey= {};
+
+        const BattleChar& actor = owner->Get_TurnAction()._curChar;
+        if (actor.ModelCom)
+        {
+            actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.2f, true);
+        }
+
+        battleFSM->Change_State(BattleTurnState::ChooseAction);
+        return;
+    }
+
+    auto Try_SelectItem = [&](BattleItemType itemType)
+    {
+        const Item_Data* itemData = CLIENT->Get_Item(itemType);
+        if (!itemData)
+            return false;
+
+        if (itemData->count <= 0)
+            return false; // TODO : 수량 없으면 나중에 Opacity 조절 예정
+
+        owner->Get_TurnAction()._selected_ItemKey = *itemData;
+        battleFSM->Change_State(BattleTurnState::ItemTargeting);
+
+        return true;
+    };
+
+    if (GAME->KeyDown(KEY_TYPE::Q))
+    {
+        if (!Try_SelectItem(BattleItemType::HealingTint))
+        {
+            // 아이템 개수 부족
+        }
+        return;
+    }
+
+    if (GAME->KeyDown(KEY_TYPE::W))
+    {
+        if (!Try_SelectItem(BattleItemType::EnergyTint))
+        {
+            // 아이템 개수 부족
+        }
+        return;
+    }
+
+    if (GAME->KeyDown(KEY_TYPE::E))
+    {
+        if (!Try_SelectItem(BattleItemType::ReviveTint))
+        {   
+            // 아이템 개수 부족
+        }
+        return;
+    }
 }
 
 void ChooseItem::LateUpdate(float timeDelta)

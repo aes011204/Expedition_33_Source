@@ -5,16 +5,27 @@
 #include "CombatStatCom.h"
 
 FOnDamageApplied DamageSystem::OnDamageApplied{};
+FOnHealApplied DamageSystem::OnHealApplied{};
 
 void DamageSystem::Heal(float amount, const BattleChar& target)
 {
-    auto& runtimeStat = target.statCom->Get_RuntimeStat();
-        runtimeStat.CurHp += amount;
+    if (amount <= 0.f || target.statCom == nullptr)
+        return;
 
-    if (runtimeStat.CurHp > target.statCom->Get_StatInfo().maxHp)
-    {
-        runtimeStat.CurHp = target.statCom->Get_StatInfo().maxHp;
-    }
+    auto& runtimeStat = target.statCom->Get_RuntimeStat();
+    const float beforeHp = runtimeStat.CurHp;
+    const float maxHp = target.statCom->Get_StatInfo().maxHp;
+
+    runtimeStat.CurHp += amount;
+
+    if (runtimeStat.CurHp > maxHp)
+        runtimeStat.CurHp = maxHp;
+
+    const float healedAmount = runtimeStat.CurHp - beforeHp;
+    if (healedAmount <= 0.f)
+        return;
+
+    OnHealApplied.Broadcast(target, healedAmount);
 }
 
 void DamageSystem::ApplyDamage(float damage, const BattleChar& target, AttackType attackType)

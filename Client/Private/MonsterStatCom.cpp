@@ -4,12 +4,16 @@
 IMPLEMENT_REFLECTION(MonsterStatCom)
 {
     auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
 
     info.className = "MonsterStatCom";
     info.displayName = "Monster Stat Com";
 
-    PROPERTY_FLOAT("HP", _MRuntimeStat.CurHp, 0.f, 9999.f, 1.f);
-    PROPERTY_FLOAT("AP", _MRuntimeStat.CurAp, 0.f, 9.f, 1.f);
+    PROPERTY_FLOAT("Base Max HP", _monsterDesc.maxHp, 0.f, 999999.f, 1.f);
+    PROPERTY_INT("Base Max AP", _monsterDesc.maxAp, 0.f, 999.f, 1.f);
+    PROPERTY_FLOAT("Base Attack", _monsterDesc.physicalAttack, 0.f, 999999.f, 1.f);
+    PROPERTY_FLOAT("Base Defense", _monsterDesc.physicalDefense, 0.f, 999999.f, 1.f);
+    PROPERTY_FLOAT("Base Speed", _monsterDesc.speed, 0.f, 999999.f, 1.f);
 
     PROPERTY_INT("Reward Exp", _monsterDesc.exp, 0.f, 9999999.f, 1.f);
     PROPERTY_STRING("Portrait", _monsterDesc.portraitGuid);
@@ -42,6 +46,7 @@ HRESULT MonsterStatCom::Initialize(void* arg)
     CHECK_FAILED(CombatStatCom::Initialize(arg), E_FAIL);
 
     MonsterCombatStatDesc desc{};
+    _MRuntimeStat = {};
 
     if (arg != nullptr)
     {
@@ -61,6 +66,19 @@ HRESULT MonsterStatCom::Initialize(void* arg)
     _isPlayer = false;
 
     return S_OK;
+}
+
+void MonsterStatCom::From_Json(const json& data)
+{
+    CombatStatCom::From_Json(data);
+
+    _MRuntimeStat.CurHp = _monsterDesc.maxHp;
+    _MRuntimeStat.CurAp = _monsterDesc.maxAp;
+    _MRuntimeStat.CurShield = _monsterDesc.commonCharacterStats.ShieldPointsAtSpawn;
+    _MRuntimeStat.physicalAttack = _monsterDesc.physicalAttack;
+    _MRuntimeStat.physicalDefense = _monsterDesc.physicalDefense;
+    _MRuntimeStat.CurSpeed = _monsterDesc.speed;
+    _MRuntimeStat.isBreak = false;
 }
 
 void MonsterStatCom::Update(float timeDelta)

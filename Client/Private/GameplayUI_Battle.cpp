@@ -19,9 +19,12 @@
 #include "UI_PlayerHpBar.h"
 #include "UI_CrossHair.h"
 #include "UI_DamageFont.h"
-#include "UI_EscapeSkipTurn.h"
+#include "UI_EscapeSkipTurnBack.h"
 #include "UI_ReactionResult.h"
 #include "UI_BattleVictory.h"
+#include "UI_BattleItemPanel.h"
+#include "UI_BattleSkillPanel.h"
+#include "UI_HealFont.h"
 
 #include "UI_Utils.h"
 
@@ -48,17 +51,26 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_battleDefense, UI_BattleDefense::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_cancelAim, UI_CancelAim::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_choiceTarget, UI_ChoiceTarget::Create), E_FAIL);
-    CHECK_FAILED(Create_UI(_escapeSkipTurn, UI_EscapeSkipTurn::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_escapeSkipTurn, UI_EscapeSkipTurnBack::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_attackTooltip, UI_AttackTooltip::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_reactionResult, UI_ReactionResult::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleVictory, UI_BattleVictory::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_turnOrder, UI_BattleSystem_TurnOrder::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleMechanism, UI_BattleMechanism::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_battleItemPanel, UI_BattleItemPanel::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_battleSkillPanel, UI_BattleSkillPanel::Create), E_FAIL);
 
+    // 데미지 폰트 최대 8개
     for (auto& damageFont : _damageFonts)
     {
         damageFont = UI_DamageFont::Create(levelIndex);
         CHECK_NULL(damageFont, E_FAIL);
+    }
+    // 힐 폰트도 일단 최대 8개
+    for (auto& healFont : _healFonts)
+    {
+        healFont = UI_HealFont::Create(levelIndex);
+        CHECK_NULL(healFont, E_FAIL);
     }
 
     Bind_BattleDelegates();
@@ -81,8 +93,11 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_BattleMechanism(timeDelta);  // 플레이어 공격 액션 중 캐릭터별 메커니즘 UI
     Update_TurnOrder(timeDelta);        // 좌측상단 턴 UI
     Update_DamageFonts(timeDelta);      // 데미지 폰트
+    Update_HealFonts(timeDelta);        // 힐 폰트
     Update_ReactionResult(timeDelta);   // 회피/패링 성공 텍스트 수명 갱신
     Update_BattleVictory(timeDelta);    // 전투 종료 승리 UI
+    Update_BattleItemPanel(timeDelta);  // 아이템
+    Update_BattleSkillPanel(timeDelta); // 스킬
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -136,6 +151,9 @@ void GameplayUI_Battle::Bind_BattleDelegates()
     _damageAppliedHandle =
         DamageSystem::OnDamageApplied.Add(this, &GameplayUI_Battle::Handle_DamageApplied);
 
+    _healAppliedHandle =
+        DamageSystem::OnHealApplied.Add(this, &GameplayUI_Battle::Handle_HealApplied);
+
     _reactionSucceededHandle =
         _battleController->OnReactionSucceeded.Add(this, &GameplayUI_Battle::Handle_ReactionSucceeded);
 }
@@ -165,6 +183,9 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     if (_damageAppliedHandle.IsValid())
         DamageSystem::OnDamageApplied.Remove(_damageAppliedHandle);
 
+    if (_healAppliedHandle.IsValid())
+        DamageSystem::OnHealApplied.Remove(_healAppliedHandle);
+
     if (_reactionSucceededHandle.IsValid())
         _battleController->OnReactionSucceeded.Remove(_reactionSucceededHandle);
 
@@ -175,6 +196,7 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     _targetPreviewChangedHandle.Reset();
     _actionStartedHandle.Reset();
     _damageAppliedHandle.Reset();
+    _healAppliedHandle.Reset();
     _reactionSucceededHandle.Reset();
 
     _battleController.reset();
@@ -264,6 +286,12 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
     {
         if (damageFont)
             damageFont->Close();
+    }
+
+    for (auto& healFont : _healFonts)
+    {
+        if (healFont)
+            healFont->Close();
     }
 
     Stop_BattleEnterTransition(); // 전투 종료 시 남아있는 transition도 같이 정리
@@ -459,6 +487,59 @@ void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float dam
     selectedSlot->Play_DamageFont(screenPos, damage, stackIndex);
 }
 
+void GameplayUI_Battle::Handle_HealApplied(const BattleChar& target, float healAmount)
+{
+    if (!_isBattleUiActive)
+        return;
+
+    if (healAmount <= 0.f)
+        return;
+
+    Vec3 worldPos{};
+    if (!Try_GetHealFontWorldPos(target, worldPos))
+        return;
+
+    Vec2 screenPos{};
+    if (!UI_Utils::Try_ProjectWorldToScreen(worldPos, screenPos))
+        return;
+
+    UI_HealFont* selectedSlot = nullptr;
+    UI_HealFont* oldestSlot = nullptr;
+    float longestElapsed = -1.f;
+    uint32 stackIndex = 0;
+
+    for (auto& healFont : _healFonts)
+    {
+        if (!healFont)
+            continue;
+
+        if (healFont->Is_Playing())
+        {
+            ++stackIndex;
+
+            if (healFont->Get_Elapsed() > longestElapsed)
+            {
+                longestElapsed = healFont->Get_Elapsed();
+                oldestSlot = healFont.get();
+            }
+
+            continue;
+        }
+
+        if (selectedSlot == nullptr)
+            selectedSlot = healFont.get();
+    }
+
+    if (selectedSlot == nullptr)
+        selectedSlot = oldestSlot;
+
+    if (selectedSlot == nullptr)
+        return;
+
+    stackIndex = min(stackIndex, kHealFontPoolSize - 1);
+    selectedSlot->Play_HealFont(screenPos, healAmount, stackIndex);
+}
+
 void GameplayUI_Battle::Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const BattleChar& target)
 {
     if (!_isBattleUiActive || _reactionResult == nullptr)
@@ -606,6 +687,27 @@ void GameplayUI_Battle::Update_PlayerHpBar(float timeDelta)
         return;
     }
 
+    const auto battleController = CLIENT->Get_BattleController();
+    const BattleChar* trackedTarget = nullptr;
+    const BattleTurnState currentState =
+        battleController ? battleController->Get_CurrentTurnState() : BattleTurnState::None;
+
+    if (currentState == BattleTurnState::ItemTargeting)
+    {
+        trackedTarget = battleController->Get_TargetPreview();
+    }
+
+    if (trackedTarget != nullptr &&
+        trackedTarget->statCom != nullptr &&
+        trackedTarget->statCom->Is_Player())
+    {
+        _playerHpBar->Show_TrackedTarget(*trackedTarget);
+    }
+    else
+    {
+        _playerHpBar->Clear_TrackedTarget();
+    }
+
     _playerHpBar->Update(timeDelta);
 }
 
@@ -723,7 +825,26 @@ void GameplayUI_Battle::Update_ChoiceTarget(float timeDelta)
         return;
     }
 
-    if (battleController->Get_CurrentTurnState() != BattleTurnState::AttackTargeting)
+    const BattleTurnState turnState = battleController->Get_CurrentTurnState();
+
+    if (turnState == BattleTurnState::AttackTargeting ||
+        turnState == BattleTurnState::SkillTargeting)
+    {
+        _choiceTarget->Open();
+        _choiceTarget->Update(timeDelta);
+        return;
+    }
+
+    if (turnState != BattleTurnState::ItemTargeting)
+    {
+        _choiceTarget->Close();
+        return;
+    }
+
+    const Action& turnAction = battleController->Get_TurnAction();
+    const BattleChar& actor = turnAction._curChar;
+    if (actor.ModelCom != nullptr &&
+        actor.ModelCom->Get_AnimationStateIndex() == ETOI(BattleAnimType::Item_Use))
     {
         _choiceTarget->Close();
         return;
@@ -759,6 +880,15 @@ void GameplayUI_Battle::Update_DamageFonts(float timeDelta)
     }
 }
 
+void GameplayUI_Battle::Update_HealFonts(float timeDelta)
+{
+    for (auto& healFont : _healFonts)
+    {
+        if (healFont)
+            healFont->Update(timeDelta);
+    }
+}
+
 void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
 {
     if (_escapeSkipTurn == nullptr)
@@ -777,13 +907,16 @@ void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
         return;
     }
 
-    if (battleController->Get_CurrentTurnState() != BattleTurnState::ChooseAction)
+    const BattleTurnState turnState = battleController->Get_CurrentTurnState();
+
+    if (turnState != BattleTurnState::ChooseAction &&
+        turnState != BattleTurnState::ChooseItem)
     {
         _escapeSkipTurn->Close();
         return;
     }
 
-    _escapeSkipTurn->Open(); // ChooseAction 중에만 Escape/SkipTurn 안내를 유지
+    _escapeSkipTurn->Open();
     _escapeSkipTurn->Update(timeDelta);
 }
 
@@ -918,6 +1051,86 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
     _battleMechanism->Update(timeDelta);
 }
 
+void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    if (_battleItemPanel == nullptr)
+        return;
+
+    auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_PlayerTurnActive())
+    {
+        _battleItemPanel->Close();
+        return;
+    }
+
+    const Item_Data* healing = CLIENT->Get_Item(BattleItemType::HealingTint);
+    const Item_Data* energy = CLIENT->Get_Item(BattleItemType::EnergyTint);
+    const Item_Data* revive = CLIENT->Get_Item(BattleItemType::ReviveTint);
+
+    if (healing && energy && revive)
+        _battleItemPanel->Refresh_ItemTexts(*healing, *energy, *revive);
+
+    auto turnState = battleController->Get_CurrentTurnState();
+
+    switch (turnState)
+    {
+     case BattleTurnState::ChooseItem:
+        _battleItemPanel->Open_MainPanel();
+        break;
+
+    case BattleTurnState::ItemTargeting:
+        _battleItemPanel->Open_Tooltip(battleController->Get_TurnAction()._selected_ItemKey.itemType);
+        break;
+
+    default:
+        _battleItemPanel->Close();
+        break;
+    }
+}
+
+void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
+{
+    if (_battleSkillPanel == nullptr)
+        return;
+
+    auto battleController = CLIENT->Get_BattleController();
+    if (battleController == nullptr || !battleController->Is_PlayerTurnActive())
+    {
+        _battleSkillPanel->Close();
+        return;
+    }
+
+    const BattleTurnState turnState = battleController->Get_CurrentTurnState();
+    const Action& turnAction = battleController->Get_TurnAction();
+
+    switch (turnState)
+    {
+    case BattleTurnState::ChooseSkill:
+        if (turnAction._curChar.statCom)
+        {
+            // 캐릭터별 스킬 목록 패널
+            _battleSkillPanel->Open_MainPanel(turnAction._curChar.statCom->Get_PlayerType());
+            _battleSkillPanel->Update(timeDelta);
+        }
+        else
+        {
+            _battleSkillPanel->Close();
+        }
+        break;
+
+    case BattleTurnState::SkillTargeting:
+        _battleSkillPanel->Open_Tooltip(turnAction._selected_SkillKey.skillKey);
+        _battleSkillPanel->Update(timeDelta);
+        break;
+
+    default:
+        _battleSkillPanel->Close();
+        break;
+    }
+}
+
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
 {
     if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
@@ -957,6 +1170,17 @@ bool GameplayUI_Battle::Try_GetReactionResultWorldPos(const BattleChar& target, 
 
     outWorldPos = target.actor->Get_Transform()->Get_WorldPosition();
     outWorldPos.y += 1.25f;
+
+    return true;
+}
+
+bool GameplayUI_Battle::Try_GetHealFontWorldPos(const BattleChar& target, Vec3& outWorldPos) const
+{
+    if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
+        return false;
+
+    outWorldPos = target.actor->Get_Transform()->Get_WorldPosition();
+    outWorldPos.y += 1.0f;
 
     return true;
 }
@@ -1075,6 +1299,8 @@ void GameplayUI_Battle::Free()
     Release_UI(_choiceTarget);
     Release_UI(_reactionResult);
     Release_UI(_battleMechanism);
+    Release_UI(_battleItemPanel);
+    Release_UI(_battleSkillPanel);
 
     for (auto& damageFont : _damageFonts)
         Release_UI(damageFont);

@@ -17,6 +17,13 @@ IMPLEMENT_REFLECTION(AN_Change_Anim)
 
 void AN_Change_Anim::Execute(const AnimNotifyContext& context)
 {
-    CLIENT->Get_BattleController()->End_FirstAnim();
+    if (context.isPreview)
+        return;
+
+    if (context.model == nullptr)
+        return;
+
+    //CLIENT->Get_BattleController()->End_FirstAnim();
+
     context.model->Set_AnimationByState(ETOI(_animType), 0.3f, true);
 }

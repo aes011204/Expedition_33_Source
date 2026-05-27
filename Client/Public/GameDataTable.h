@@ -116,6 +116,11 @@ public:
 
     const Skill_Data* Get_Skill(const string& skillId);
     vector<TargetType> ParseTargetTypes(const string& data);
+    const Item_Data* Get_Item(const string& itemId);
+    const Item_Data* Get_Item(BattleItemType itemType);
+
+    bool Consume_Item(BattleItemType itemType);
+
     HRESULT Load_SkillPhaseData(const wstring& jsonRootPath);
 public:
     uint32 Get_NextExp(uint32 level) const;
@@ -134,6 +139,10 @@ private:
 
     // 스킬
     HRESULT Load_SkillData(const wstring& jsonRootPath);
+
+    // 아이템
+    HRESULT Load_ItemData(const wstring& jsonRootPath);
+
 private:
     wstring         Get_DefaultJsonRootPath() const;
     uint32          Get_FallbackNextExp(uint32 level) const;
@@ -149,6 +158,9 @@ private:
     // 스킬
     vector<Skill_Data> _skillDefs;
     unordered_map<string, size_t> _skillIndexById;
+
+    vector<Item_Data> _itemDefs;
+    umap<string, size_t> _itemIndexById;
 
 public:
     static Unique<GameDataTable> Create();
