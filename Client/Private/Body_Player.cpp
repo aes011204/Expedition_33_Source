@@ -49,7 +49,7 @@ void Body_Player::Update(float fTimeDelta)
 {
     PlayableParts::Update(fTimeDelta);
 
-    Debug_Profile::Scope profileScope("Player::Body::Update");
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::Update");
 
     if (Has_LeaderPoseComponent())
     {
@@ -57,7 +57,7 @@ void Body_Player::Update(float fTimeDelta)
     }
     else if (_useComputeSkinning && _animComputeRuntime != nullptr)
     {
-        Debug_Profile::Scope computeScope("Player::Body::ComputeUpdate");
+        ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::ComputeUpdate");
         CHECK_FAILED(_animComputeRuntime->Update_Frame(fTimeDelta), ); // compute animation 파이프라인 전체 실행
     }
     else
@@ -76,7 +76,7 @@ void Body_Player::Late_Update(float fTimeDelta)
 
 HRESULT Body_Player::Render()
 {
-    Debug_Profile::Scope profileScope("Player::Body::Render");
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Body::Render");
 
      if (!_useComputeSkinning)
         return PlayableParts::Render();

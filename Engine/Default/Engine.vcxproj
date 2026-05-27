@@ -303,6 +303,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\public\Component.h" />
     <ClInclude Include="..\public\ContainerObject.h" />
     <ClInclude Include="..\public\CustomFont.h" />
+    <ClInclude Include="..\Public\Engine_Config.h" />
     <ClInclude Include="..\Public\Engine_Define.h" />
     <ClInclude Include="..\Public\Engine_Enum.h" />
     <ClInclude Include="..\Public\Engine_Function.h" />

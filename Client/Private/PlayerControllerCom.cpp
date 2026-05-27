@@ -82,7 +82,7 @@ void PlayerControllerCom::Update_InputState()
 
 void PlayerControllerCom::Update_Movement(float timeDelta)
 {
-    Debug_Profile::Scope profileScope("PlayerController::UpdateMovement");
+    ENGINE_PROFILE_SCOPE_DETAIL("PlayerController::UpdateMovement");
 
 	if (GAME->Is_WorldGameplayInputBlocked())
 	{

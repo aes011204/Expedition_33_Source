@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "Debug_Profile.h"
 #include "Editor_Window.h"
 
 NS_BEGIN(EffectEditor)
@@ -81,6 +82,7 @@ private: //## Helpers
     void Draw_Memory();
     void Reset_Stats();
     void Prune_Dead_Scopes();
+    void Record_Scope_Sample(const string& scopeName, double elapsedMs);
     ProcessMemory Get_Process_Memory() const;
 
 public:
