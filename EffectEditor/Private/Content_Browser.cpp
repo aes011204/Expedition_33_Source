@@ -1,6 +1,5 @@
 ﻿#include "Content_Browser.h"
 
-#include <fstream>
 #include <shellapi.h>
 #include "EffectEditorInstance.h"
 #include "EffectMaterial_View.h"
@@ -209,7 +208,7 @@ void Content_Browser::Render()
                 ImGui::SameLine();
 
                 const float rightX = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x -
-                    refreshWidth - settingsWidth - statusWidth - controlSpacing * 2.f;
+                                     refreshWidth - settingsWidth - statusWidth - controlSpacing * 2.f;
                 if (rightX > ImGui::GetCursorPosX())
                     ImGui::SetCursorPosX(rightX);
 
@@ -257,20 +256,24 @@ void Content_Browser::Refresh_Resources()
     _noThumbnailPaths.clear();
     _gridItemCache.clear();
     _gridItemCacheFolder = nullptr;
-    Refresh_BrowserResources([](const wstring& filePath)
-    {
-        return GAME->Find_AssetGUID(filePath);
-    });
+    Refresh_BrowserResources(
+        [](const wstring& filePath)
+        {
+            return GAME->Find_AssetGUID(filePath);
+        }
+    );
 }
 
 void Content_Browser::Refresh_CurrentFolder()
 {
     _gridItemCache.clear();
     _gridItemCacheFolder = nullptr;
-    Client::ContentBrowserCore::Refresh_CurrentFolder([](const wstring& filePath)
-    {
-        return GAME->Find_AssetGUID(filePath);
-    });
+    Client::ContentBrowserCore::Refresh_CurrentFolder(
+        [](const wstring& filePath)
+        {
+            return GAME->Find_AssetGUID(filePath);
+        }
+    );
 }
 
 void Content_Browser::Load_Icons()
@@ -402,9 +405,10 @@ void Content_Browser::Draw_AssetView()
                 const string fileNameLower = ToLowerCopy(String::ToString(path.filename().wstring()));
                 const string pureNameLower = ToLowerCopy(String::ToString(path.stem().wstring()));
                 return pureNameLower.find(searchLower) != string::npos ||
-                    fileNameLower.find(searchLower) != string::npos;
+                       fileNameLower.find(searchLower) != string::npos;
             },
-            _gridItemCache);
+            _gridItemCache
+        );
 
         _gridItemCacheFolder = _currentFolder;
         _gridItemCacheSubFolderCount = _currentFolder->subFolders.size();
@@ -416,13 +420,15 @@ void Content_Browser::Draw_AssetView()
         ImGui::GetContentRegionAvail().x,
         _thumbnailSize,
         ImGui::GetTextLineHeightWithSpacing(),
-        _gridItemCache.size());
+        _gridItemCache.size()
+    );
     const GridVisibleRange visibleRange = Calculate_GridVisibleRange(
         gridLayout,
         ImGui::GetScrollY(),
         ImGui::GetWindowHeight(),
         _gridItemCache.size(),
-        1);
+        1
+    );
 
     const auto resolveGridItem = [&](const GridItemRef& item) -> pair<FolderNode*, const FileEntry*>
     {
@@ -449,10 +455,12 @@ void Content_Browser::Draw_AssetView()
         ImGui::PushID(fileName.c_str());
 
         const bool isTileVisible = ImGui::IsRectVisible(
-            ImVec2(_thumbnailSize, _thumbnailSize + ImGui::GetTextLineHeightWithSpacing() * 2.f));
+            ImVec2(_thumbnailSize, _thumbnailSize + ImGui::GetTextLineHeightWithSpacing() * 2.f)
+        );
         Shared<Texture> thumbnailTexture = Get_FileThumbnail(
             fileEntry,
-            Should_RequestThumbnail(fileEntry, isTileVisible, _thumbnailLoadsThisFrame, _thumbnailLoadBudgetThisFrame));
+            Should_RequestThumbnail(fileEntry, isTileVisible, _thumbnailLoadsThisFrame, _thumbnailLoadBudgetThisFrame)
+        );
         if (thumbnailTexture)
         {
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0.f, 0.f));
@@ -803,7 +811,7 @@ Shared<Texture> Content_Browser::Get_FileThumbnail(const FileEntry& fileEntry, b
     return thumbnailTexture;
 }
 
-bool Content_Browser::Is_EffectMaterialPresetFile(const filesystem::path& filePath)
+bool Content_Browser::Is_EffectMaterialPresetFile(const fs::path& filePath)
 {
     return String::ToLowerCopy(filePath.generic_string()).ends_with(".effectmaterial.json");
 }
@@ -830,7 +838,7 @@ void Content_Browser::Load_Settings()
     Load_ThumbnailPolicySetting(kContentBrowserSettingsPath, "effectEditor", _thumbnailPolicy);
 }
 
-Content_Browser::IconType Content_Browser::Resolve_IconType(const filesystem::path& filePath) const
+Content_Browser::IconType Content_Browser::Resolve_IconType(const fs::path& filePath) const
 {
     const string extension = ToLowerCopy(String::ToString(filePath.extension().wstring()));
 

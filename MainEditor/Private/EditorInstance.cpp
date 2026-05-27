@@ -1,5 +1,4 @@
 ﻿#include "EditorInstance.h"
-
 #include "Camera.h"
 #include "RenderTarget.h"
 #include "Editor_Manager.h"
@@ -21,6 +20,7 @@
 #include "Model_Inspector.h"
 #include "EditorPickingSystem.h"
 #include <fstream>
+#include "ClientInstance.h"
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
@@ -161,35 +161,46 @@ void EditorInstance::Update_Editor(float timeDelta)
     Apply_PendingPreviewViewportSize();
 
     {
-        Profile_View::Scope scope("Editor::ImGuiUpdate");
+        ENGINE_PROFILE_SCOPE_DETAIL("Editor::ImGuiUpdate");
         _imguiManager->Update(timeDelta);
     }
 
     {
-        Profile_View::Scope scope("Editor::EditorManagerUpdate");
+        ENGINE_PROFILE_SCOPE_DETAIL("Editor::EditorManagerUpdate");
         _editorManager->Update(timeDelta);
     }
 
     {
-        Profile_View::Scope scope("Editor::NotificationUpdate");
+        ENGINE_PROFILE_SCOPE_DETAIL("Editor::NotificationUpdate");
         _notificationManager->Update(timeDelta);
+    }
+
+
+    if(GAME->KeyUp(KEY_TYPE::KEY_1))
+    {
+        Toogle_TargetCameraEditMode();
+
+        if(_isTargetCameraEditMode)
+        {
+            GAME->Unlock_Mouse();
+        }
     }
 }
 
 void EditorInstance::Render_Editor()
 {
     {
-        Profile_View::Scope scope("Editor::EditorManager");
+        ENGINE_PROFILE_SCOPE_DETAIL("Editor::EditorManager");
         _editorManager->Render();
     }
 
     {
-        Profile_View::Scope scope("Editor::Notification");
+        ENGINE_PROFILE_SCOPE_DETAIL("Editor::Notification");
         _notificationManager->Render();
     }
 
     {
-        Profile_View::Scope scope("Editor::ImGui");
+        ENGINE_PROFILE_SCOPE_DETAIL("Editor::ImGui");
         _imguiManager->Render();
     }
 }
@@ -574,6 +585,9 @@ void EditorInstance::Activate_FreeCamera()
 
     if (hasActiveCameraPose)
         Apply_CameraPoseToCameraType(ObjectType::FreeCamera, activeCameraPose);
+
+  //  GAME->Set_PlayerInputBlocked(false);
+   // GAME->Set_FreeCameraInputEnabled(true);
 }
 
 void EditorInstance::Restore_PreviousCameraOrTarget()
@@ -685,7 +699,7 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
 
     Shared<RenderTarget> renderTarget = nullptr;
     {
-        Profile_View::Scope scope("Capture::PrepareRT");
+        ENGINE_PROFILE_SCOPE_DETAIL("Capture::PrepareRT");
         renderTarget = Prepare_SharedViewportRenderTarget(copyWidth, copyHeight);
     }
 
@@ -694,7 +708,7 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
 
     ID3D11Texture2D* backBufferTexture = nullptr;
     {
-        Profile_View::Scope scope("Capture::GetBackBuffer");
+        ENGINE_PROFILE_SCOPE_DETAIL("Capture::GetBackBuffer");
         backBufferTexture = Get_CachedBackBufferTexture();
     }
 
@@ -714,7 +728,7 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
     sourceBox.back = 1;
 
     {
-        Profile_View::Scope scope("Capture::CopySubresource");
+        ENGINE_PROFILE_SCOPE_DETAIL("Capture::CopySubresource");
         _context->CopySubresourceRegion(
             viewportTexture.Get(),
             0,
@@ -1109,16 +1123,18 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         }
         else
         {
-            GAME->Set_PlayerInputBlocked(!gameFocused);
+            GAME->Set_PlayerInputBlocked(!gameFocused || _isTargetCameraEditMode);
             GAME->Set_FreeCameraInputEnabled(false);
 
-            if (gameFocused)
+            if(_isTargetCameraEditMode)
+                GAME->Unlock_Mouse();
+            else if (gameFocused)
                 GAME->Lock_Mouse();
             else
                 GAME->Unlock_Mouse();
         }
 
-        return;
+            return;
     }
 
     const bool freeCameraControl =
@@ -1162,6 +1178,12 @@ void EditorInstance::Flush_PendingPick()
 
     _pendingPick.pending = false;
     _pickingSystem->DoPickAt(_pendingPick.mousePos, _pendingPick.vpMin, _pendingPick.vpMax);
+}
+
+void EditorInstance::Toogle_TargetCameraEditMode()
+{
+    _isTargetCameraEditMode = !_isTargetCameraEditMode;
+    CLIENT->Set_TargetCameraEditMode(_isTargetCameraEditMode);
 }
 
 void EditorInstance::Request_FrameStep()

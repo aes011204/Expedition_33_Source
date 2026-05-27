@@ -25,6 +25,7 @@ public:
 
     bool Is_Open() const { return _isOpen; }
     void Set_Open(bool isOpen) { _isOpen = isOpen; }
+    bool Is_Visible() const { return _isVisible; }
 
     bool Is_Focused() const { return _isFocused; }
     bool Is_Dirty() const { return _isDirty; }
@@ -37,6 +38,7 @@ public:
 protected:
     wstring _window;
     bool    _isOpen = true;
+    bool    _isVisible = false;
     bool    _isFocused = false;
     bool    _isDirty = false;
     bool    _isHovered = false;

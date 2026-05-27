@@ -32,6 +32,7 @@ HRESULT MainEditorApp::Initialize()
     engineDesc.numLevels = ETOI(LevelType::END);
     engineDesc.viewportWidth = viewportWidth;
     engineDesc.viewportHeight = viewportHeight;
+    engineDesc.swapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
     engineDesc.projectName = "MainEditor";
 
     if (FAILED(GAME->Initialize_Engine(engineDesc, _device, _context)))
@@ -71,7 +72,7 @@ void MainEditorApp::Priority_Update(float timeDelta)
 void MainEditorApp::Update(float timeDelta)
 {
     {
-        Profile_View::Scope profileScope("Editor::Update");
+        ENGINE_PROFILE_SCOPE_BASIC("Editor::Update");
         EDITOR->Update_Editor(timeDelta);
     }
 
@@ -109,7 +110,7 @@ void MainEditorApp::Update(float timeDelta)
     GAME->Set_FreeCameraTimeDelta(freeCameraDelta);
 
     {
-        Profile_View::Scope profileScope("Game::Update");
+        ENGINE_PROFILE_SCOPE_BASIC("Game::Update");
 
         GAME->Update_Engine(
             runtimeDelta,
@@ -147,10 +148,10 @@ HRESULT MainEditorApp::Render()
     };
 
     {
-        Profile_View::Scope profileScope("Game::Render");
+        ENGINE_PROFILE_SCOPE_BASIC("Game::Render");
 
         {
-            Profile_View::Scope bindScope("Game::BindBackBuffer");
+            ENGINE_PROFILE_SCOPE_DETAIL("Game::BindBackBuffer");
             GAME->Bind_BackBuffer();
         }
 
@@ -160,50 +161,50 @@ HRESULT MainEditorApp::Render()
             : Vec4(0.f, 0.f, 1.f, 1.f);
 
         {
-            Profile_View::Scope clearScope("Game::ClearBuffers");
+            ENGINE_PROFILE_SCOPE_DETAIL("Game::ClearBuffers");
             if (FAILED(GAME->Clear_Buffers(clearColor)))
                 return fail();
         }
 
         {
-            Profile_View::Scope drawScope("Game::Draw");
+            ENGINE_PROFILE_SCOPE_BASIC("Game::Draw");
             if (FAILED(GAME->Draw()))
                 return fail();
         }
 
         // picking
         {
-            Profile_View::Scope pickScope("Editor::FlushPendingPick");
+            ENGINE_PROFILE_SCOPE_DETAIL("Editor::FlushPendingPick");
             EDITOR->Flush_PendingPick();
         }
     }
 
     {
-        Profile_View::Scope profileScope("Editor::CaptureViewport");
+        ENGINE_PROFILE_SCOPE_DETAIL("Editor::CaptureViewport");
         EDITOR->Capture_BackBuffer_ToViewport();
     }
 
     {
-        Profile_View::Scope profileScope("Editor::RenderUI");
+        ENGINE_PROFILE_SCOPE_BASIC("Editor::RenderUI");
 
         {
-            Profile_View::Scope bindScope("Editor::BindBackBuffer");
+            ENGINE_PROFILE_SCOPE_DETAIL("Editor::BindBackBuffer");
             GAME->Bind_BackBuffer();
         }
 
         {
-            Profile_View::Scope renderScope("Editor::Render_Editor");
+            ENGINE_PROFILE_SCOPE_DETAIL("Editor::Render_Editor");
             EDITOR->Render_Editor();
         }
 
         {
-            Profile_View::Scope restoreScope("Editor::RestoreBackBuffer");
+            ENGINE_PROFILE_SCOPE_DETAIL("Editor::RestoreBackBuffer");
             GAME->Bind_BackBuffer();
         }
     }
 
     {
-        Profile_View::Scope profileScope("Engine::Present");
+        ENGINE_PROFILE_SCOPE_BASIC("Engine::Present");
         if (FAILED(GAME->Present()))
             return fail();
     }

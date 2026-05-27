@@ -85,8 +85,18 @@
 // 같은 호출 위치에서 첫 1회만 CRITICAL 로그를 남긴다.
 #define LOG_CRITICAL_ONCE(...) ENGINE_LOG_ONCE_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogOnce, __LINE__), LOG_CRITICAL, __VA_ARGS__)
 
-// 같은 호출 위치에서 첫 1회와 지정 interval 주기마다 로그를 남긴다.
+// 같은 호출 위치에서 첫 1회와 지정 interval 주기마다 TRACE 로그를 남긴다.
+#define LOG_TRACE_THROTTLED(_interval, ...) ENGINE_LOG_THROTTLED_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogThrottle, __LINE__), LOG_TRACE, _interval, __VA_ARGS__)
+// 같은 호출 위치에서 첫 1회와 지정 interval 주기마다 DEBUG 로그를 남긴다.
+#define LOG_DEBUG_THROTTLED(_interval, ...) ENGINE_LOG_THROTTLED_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogThrottle, __LINE__), LOG_DEBUG, _interval, __VA_ARGS__)
+// 같은 호출 위치에서 첫 1회와 지정 interval 주기마다 INFO 로그를 남긴다.
+#define LOG_INFO_THROTTLED(_interval, ...) ENGINE_LOG_THROTTLED_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogThrottle, __LINE__), LOG_INFO, _interval, __VA_ARGS__)
+// 같은 호출 위치에서 첫 1회와 지정 interval 주기마다 WARN 로그를 남긴다.
 #define LOG_WARN_THROTTLED(_interval, ...) ENGINE_LOG_THROTTLED_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogThrottle, __LINE__), LOG_WARN, _interval, __VA_ARGS__)
+// 같은 호출 위치에서 첫 1회와 지정 interval 주기마다 ERROR 로그를 남긴다.
+#define LOG_ERROR_THROTTLED(_interval, ...) ENGINE_LOG_THROTTLED_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogThrottle, __LINE__), LOG_ERROR, _interval, __VA_ARGS__)
+// 같은 호출 위치에서 첫 1회와 지정 interval 주기마다 CRITICAL 로그를 남긴다.
+#define LOG_CRITICAL_THROTTLED(_interval, ...) ENGINE_LOG_THROTTLED_IMPL(ENGINE_LOG_UNIQUE_NAME(engineLogThrottle, __LINE__), LOG_CRITICAL, _interval, __VA_ARGS__)
 
 /* ------------------------------------------ */
 /*           네임스페이스 관련 매크로           */

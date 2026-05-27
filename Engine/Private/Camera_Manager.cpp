@@ -175,13 +175,30 @@ bool Camera_Manager::Activate_CameraByType(ObjectType objectType)
 
         if (camera->Get_ObjectType() == objectType)
         {
-            m_activeCamera = camera;
-            _hasPendingFreeCameraFocus = false;
+            Change_ActiveCamera(camera);
+            //camera->Apply_View();   
+
             return true;
+        }
+
+    }
+    return false;
+}
+
+Shared<Camera> Camera_Manager::Get_CameraByType(ObjectType objectType)
+{
+    for(const auto& camera : m_cameras)
+    {
+        if(nullptr == camera)
+            continue;
+
+        if(camera->Get_ObjectType() == objectType)
+        {
+            return camera;
         }
     }
 
-    return false;
+    return nullptr;
 }
 
 bool Camera_Manager::Is_ActiveCameraType(ObjectType objectType) const

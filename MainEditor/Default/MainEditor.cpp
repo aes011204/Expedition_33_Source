@@ -85,7 +85,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ LPWSTR,
             MainEditor::Profile_View::Frame_Begin();
 
             {
-                MainEditor::Profile_View::Scope frameScope("Frame");
+                ENGINE_PROFILE_SCOPE_BASIC("Frame");
                 mainApp->Priority_Update(dt);
                 mainApp->Update(dt);
 

@@ -12,6 +12,7 @@ namespace UIEditor
 
     string Normalize_AssetRelativePath(const AssetMeta& assetMeta);
     string Make_ClientRuntimeResourcePath(const AssetMeta& assetMeta);
+    wstring Resolve_UIEditorClientResourceRoot();
     wstring Resolve_ClientRuntimeResourcePath(const string& runtimePath);
     string Get_AssetFileName(const AssetMeta& assetMeta);
     bool Is_UITextureAsset(const AssetMeta& assetMeta);

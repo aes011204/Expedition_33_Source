@@ -21,6 +21,19 @@
 
 namespace
 {
+    bool IsInteractivePreviewWindow(const Shared<Editor_Window>& window)
+    {
+        return window != nullptr &&
+            window->Is_Open() &&
+            window->Is_Visible() &&
+            (window->Is_Focused() || window->Is_Hovered());
+    }
+
+    bool IsShownPreviewWindow(const Shared<Editor_Window>& window)
+    {
+        return window != nullptr && window->Is_Open() && window->Is_Visible();
+    }
+
     string Resolve_NotifyAnimationKey(const Animation_View::AnimationEntry& entry)
     {
         if (!entry.playbackName.empty())
@@ -125,7 +138,10 @@ void Animation_View::Update(float timeDelta)
     if (EDITOR->IsPlaying())
         return;
 
-    if (Is_PrefabViewFocused())
+    if (!Is_Visible())
+        return;
+
+    if (Should_DeferToCompanionPreview())
         return;
 
     if (_previewCamera && _isPreviewHovered)
@@ -138,7 +154,15 @@ void Animation_View::Update(float timeDelta)
     Validate_SelectedBoneSelection();
 
     if (!playbackModel->Is_AnimationPaused())
+    {
+        if (playbackModel->Is_AnimationFinished())
+        {
+            // 끝난 클립은 현재 선택된 애니메이션으로 즉시 다시 시작해서 다음 클립으로 넘어가지 않게 한다.
+            Sync_PreviewAnimationSelection();
+        }
+
         _sequencerCurrentFrame = static_cast<int32>(std::round(playbackModel->Get_CurrentAnimationTimeSec() * static_cast<float>(Get_CurrentAnimationFps())));
+    }
 }
 
 void Animation_View::Pre_Render()
@@ -149,7 +173,10 @@ void Animation_View::Pre_Render()
     if (EDITOR->IsPlaying())
         return;
 
-    if (Is_PrefabViewFocused())
+    if (!Is_Visible())
+        return;
+
+    if (Should_DeferToCompanionPreview())
         return;
 
     Shared<GameObject> previewRenderObject = Get_PreviewRenderObject();
@@ -241,9 +268,11 @@ void Animation_View::Render()
 
     _isFocused = false;
     _isHovered = false;
+    _isVisible = false;
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
+        _isVisible = true;
         _pendingDockId = 0;
         _requestFocusOnOpen = false;
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
@@ -794,6 +823,7 @@ void Animation_View::Draw_BoneTree()
 
         const string nodeLabel =
             playbackModel->Get_BoneName(boneIndex) + " [" + to_string(boneIndex) + "]";
+        const string popupId = "AnimationBoneContextMenu_" + to_string(boneIndex);
         ImGui::PushID(static_cast<int>(boneIndex));
         const bool opened = ImGui::TreeNodeEx("BoneNode", flags, "%s", nodeLabel.c_str());
 
@@ -802,6 +832,19 @@ void Animation_View::Draw_BoneTree()
             _selectedBoneIndex = static_cast<int32>(boneIndex);
             _selectedNotifyId = -1;
             _selectedStateId = -1;
+        }
+
+        if (ImGui::BeginPopupContextItem(popupId.c_str()))
+        {
+            if (ImGui::MenuItem("뼈 이름 복사"))
+            {
+                ImGui::SetClipboardText(playbackModel->Get_BoneName(boneIndex).c_str());
+                _selectedBoneIndex = static_cast<int32>(boneIndex);
+                _selectedNotifyId = -1;
+                _selectedStateId = -1;
+            }
+
+            ImGui::EndPopup();
         }
 
         if (!opened)
@@ -2169,15 +2212,21 @@ void Animation_View::Lock_PreviewObjectToOrigin(const Shared<GameObject>& gameOb
     transformCom->Set_WorldPosition(Vec3::Zero);
 }
 
-bool Animation_View::Is_PrefabViewFocused()
+bool Animation_View::Should_DeferToCompanionPreview()
 {
+    const Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
+    const bool isAnimationInteractive = IsInteractivePreviewWindow(animationWindow);
+
     Shared<Editor_Window> prefabWindow = EDITOR->Get_Window(L"Prefab");
-    Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabWindow);
-    if (prefabView != nullptr && prefabView->Is_Open() && prefabView->Is_Focused())
+    if (IsInteractivePreviewWindow(prefabWindow))
         return true;
 
     Shared<Editor_Window> animStateWindow = EDITOR->Get_Window(L"AnimState");
-    return animStateWindow != nullptr && animStateWindow->Is_Open() && animStateWindow->Is_Focused();
+    if (IsInteractivePreviewWindow(animStateWindow))
+        return true;
+
+    // fallback owner priority: AnimState > Animation > Prefab
+    return !isAnimationInteractive && IsShownPreviewWindow(animStateWindow);
 }
 
 Editor_Camera_Free::EDITOR_CAMERA_DESC Animation_View::Build_PreviewCameraDesc(const Shared<GameObject>& gameObject)

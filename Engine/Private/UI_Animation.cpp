@@ -57,6 +57,30 @@ namespace
         }
     }
 
+    float Clamp_ColorChannel255(float value)
+    {
+        return min(max(value, 0.f), 255.f);
+    }
+
+    Vec4 Clamp_KeyframeColor255(const Vec4& color)
+    {
+        return Vec4(
+            Clamp_ColorChannel255(color.x),
+            Clamp_ColorChannel255(color.y),
+            Clamp_ColorChannel255(color.z),
+            Clamp_ColorChannel255(color.w));
+    }
+
+    Vec4 Convert_Color255To01(const Vec4& color)
+    {
+        const Vec4 clampedColor = Clamp_KeyframeColor255(color);
+        return Vec4(
+            clampedColor.x / 255.f,
+            clampedColor.y / 255.f,
+            clampedColor.z / 255.f,
+            clampedColor.w / 255.f);
+    }
+
     void Merge_Sample(UI_AnimationSample& outSample, const UI_AnimationSample& sample)
     {
         if (sample.hasPosition)
@@ -234,6 +258,41 @@ namespace
         return track.keys.back().value;
     }
 
+    Vec4 Evaluate_ColorKeyframes(const UI_KeyframeAnimationTrack& track, float frame, bool& outHasValue)
+    {
+        outHasValue = false;
+        if (track.keys.empty())
+            return Vec4(255.f, 255.f, 255.f, 255.f);
+
+        outHasValue = true;
+        if (track.keys.size() == 1)
+            return Clamp_KeyframeColor255(track.keys.front().color);
+
+        if (frame <= static_cast<float>(track.keys.front().frame))
+            return Clamp_KeyframeColor255(track.keys.front().color);
+
+        if (frame >= static_cast<float>(track.keys.back().frame))
+            return Clamp_KeyframeColor255(track.keys.back().color);
+
+        for (size_t index = 0; index + 1 < track.keys.size(); ++index)
+        {
+            const UI_KeyframeAnimationKey& currentKey = track.keys[index];
+            const UI_KeyframeAnimationKey& nextKey = track.keys[index + 1];
+
+            if (frame < static_cast<float>(currentKey.frame) || frame > static_cast<float>(nextKey.frame))
+                continue;
+
+            const float frameRange = max(1.f, static_cast<float>(nextKey.frame - currentKey.frame));
+            const float t = min(max((frame - static_cast<float>(currentKey.frame)) / frameRange, 0.f), 1.f);
+            return Clamp_KeyframeColor255(Lerp_Vec4(
+                currentKey.color,
+                nextKey.color,
+                Evaluate_Easing(currentKey.easing, t)));
+        }
+
+        return Clamp_KeyframeColor255(track.keys.back().color);
+    }
+
     bool Sample_KeyframeAsset(
         const UI_KeyframeAnimationAsset& asset,
         float time,
@@ -264,6 +323,20 @@ namespace
         {
             if (!track.enabled)
                 continue;
+
+            if (track.type == UI_KeyframeAnimationTrackType::Color)
+            {
+                bool hasColor = false;
+                const Vec4 color = Evaluate_ColorKeyframes(track, frame, hasColor);
+                if (!hasColor)
+                    continue;
+
+                sample.hasColor = true;
+                sample.hasColorTrack = true;
+                sample.color = Convert_Color255To01(color);
+                hasSampledTrack = true;
+                continue;
+            }
 
             bool hasValue = false;
             const float value = Clamp_KeyframeTrackValue(track.type, Evaluate_Keyframes(track, frame, hasValue));

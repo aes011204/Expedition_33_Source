@@ -42,7 +42,7 @@ HRESULT AnimComputeRuntime::Initialize(const CreateDesc& desc)
 
 HRESULT AnimComputeRuntime::Update_Frame(float timeDelta)
 {
-    Debug_Profile::Scope profileScope("AnimCompute::UpdateFrame");
+    ENGINE_PROFILE_SCOPE_DETAIL("AnimCompute::UpdateFrame");
 
     CHECK_NULL(_model, E_FAIL);
 
@@ -50,7 +50,7 @@ HRESULT AnimComputeRuntime::Update_Frame(float timeDelta)
     Build_FrameContext(timeDelta, context);
 
     {
-        Debug_Profile::Scope scope("AnimCompute::SamplePose");
+        ENGINE_PROFILE_SCOPE_DETAIL("AnimCompute::SamplePose");
         _model->Step_SampleAnimationPose(context.modelContext);
     }
     _model->Evaluate_AnimationModifiers(timeDelta);

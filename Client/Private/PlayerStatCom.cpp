@@ -1,6 +1,6 @@
 ﻿#include "PlayerStatCom.h"
 
-#include <GameObject.h>
+#include "GameObject.h"
 #include "ClientInstance.h"
 
 IMPLEMENT_REFLECTION(PlayerStatCom)
@@ -146,7 +146,6 @@ bool PlayerStatCom::Add_Stat(StatType type, int32 value)
 
     Recalculate_Stats();
     _PRuntimeStat.CurHp = _playerDesc.maxHp * hpRate;
-    _PRuntimeStat.CurHp = _PRuntimeStat.CurHp;
     Update_StatInfo();
 
     return true;
@@ -170,7 +169,7 @@ bool PlayerStatCom::Reset_Stat()
 
     Recalculate_Stats();
     _PRuntimeStat.CurHp = min(_PRuntimeStat.CurHp, _playerDesc.maxHp);
-    _PRuntimeStat.CurHp = _PRuntimeStat.CurHp;
+    
     Update_StatInfo();
 
     return true;
@@ -222,8 +221,15 @@ void PlayerStatCom::Add_Exp(uint32 value)
 
 }
 
+void PlayerStatCom::Set_BattleStartAp()
+{
+    Get_StatInfo().maxAp = 9;   
+    Get_PlayerRuntimeStat().CurMaxAp = 9;
+    Get_PlayerRuntimeStat().CurAp = 3;
+}
+
 PlayerStatCom::PreviewStat PlayerStatCom::Calculate_PreviewStat(int32 vitality, int32 might, int32 agility,
-    int32 defense, int32 luck)
+                                                                int32 defense, int32 luck)
 {
     PreviewStat preview{};
     preview.maxHp = 100.f + static_cast<float>(vitality) * 10.f;                  // 기존 HP 공식
@@ -364,6 +370,7 @@ void PlayerStatCom::Update_StatInfo()
     _PRuntimeStat.CurExp = _playerDesc.exp;
     _PRuntimeStat.CurChroma = _playerDesc.chroma;
     _PRuntimeStat.nextExp = Get_NextExp(_playerDesc.level);
+    _PRuntimeStat.CurMaxExp = _PRuntimeStat.nextExp;
 
     _PRuntimeStat.CurMaxHp = _playerDesc.maxHp;
     _PRuntimeStat.CurMaxAp = _playerDesc.maxAp;
@@ -374,10 +381,6 @@ void PlayerStatCom::Update_StatInfo()
     _PRuntimeStat.CurCriticalRate = _playerDesc.criticalRate;
     _PRuntimeStat.CurMastery = _playerDesc.mastery;
     _PRuntimeStat.CurCriticalChance = _playerDesc.criticalChance;
-
-    _PRuntimeStat.CurHp = _PRuntimeStat.CurHp;
-    _PRuntimeStat.CurAp = _PRuntimeStat.CurAp;
-    _PRuntimeStat.CurShield = _PRuntimeStat.CurShield;
 }
 
 Shared<PlayerStatCom> PlayerStatCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

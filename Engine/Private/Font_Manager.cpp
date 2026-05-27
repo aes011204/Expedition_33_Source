@@ -23,7 +23,7 @@ namespace
 
         if (fileName == "33_damagenum_font.spritefont")
         {
-            return 24.f / 256.f;
+            return 24.f / 240.f;
         }
 
         if (fileName == "33_mainen_font.spritefont"  ||

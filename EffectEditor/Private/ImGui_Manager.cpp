@@ -1,5 +1,5 @@
-﻿#include "pch.h"
-#include "ImGui_Manager.h"
+﻿#include "ImGui_Manager.h"
+
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 

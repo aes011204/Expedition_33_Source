@@ -84,6 +84,15 @@
     <ClCompile Include="..\Private\UI_AnimationAssetService.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationAssetService_FileDialog.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationAssetService_Legacy.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationAssetService_Presets.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_AnimationTimelineView.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>

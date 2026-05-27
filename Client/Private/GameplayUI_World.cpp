@@ -1,9 +1,18 @@
 ﻿#include "GameplayUI_World.h"
+
+#include "Camera.h"
+#include "PhysX_Types.h"
+#include "GameObject.h"
 #include "CharacterStatus_Panel.h"
 #include "GameInstance.h"
 #include "SkillTree_Panel.h"
 #include "ChangeWeapon_Panel.h"
 #include "ExpeditionStat_Panel.h"
+#include "UI_CrossHair.h"
+#include "ClientInstance.h"
+#include "PlayerStateMachineCom.h"
+#include "Player_WorldBase.h"
+#include "Monster_WorldBase.h"
 
 GameplayUI_World::~GameplayUI_World() = default;
 
@@ -23,7 +32,9 @@ HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
 
     _expeditionStatPanel = ExpeditionStat_Panel::Create(levelIndex);
     CHECK_NULL(_expeditionStatPanel, E_FAIL);
-    
+
+    _crossHair = UI_CrossHair::Create(levelIndex);
+    CHECK_NULL(_crossHair, E_FAIL);
 
     return S_OK;
 }
@@ -44,6 +55,8 @@ void GameplayUI_World::Update(float timeDelta)
 
     if (_expeditionStatPanel)
         _expeditionStatPanel->Update(timeDelta);
+
+    Update_CrossHair(timeDelta);
 
     if (_savePointPanel && _savePointPanel->Is_Open())
     {
@@ -155,6 +168,24 @@ void GameplayUI_World::Handle_BackInput()
     Pop_Menu();
 }
 
+void GameplayUI_World::Update_CrossHair(float timeDelta)
+{
+    if (_crossHair == nullptr)
+        return;
+
+    if (!Is_WorldFreeAimActive())
+    {
+        _crossHair->Close();
+        return;
+    }
+
+    const bool isHitMonster = Has_FreeAimHitMonster();
+
+    _crossHair->Open();
+    _crossHair->Set_HitState(isHitMonster);
+    _crossHair->Update(timeDelta);
+}
+
 void GameplayUI_World::Push_Menu(GameplayMenu menu)
 {
     if (menu == GameplayMenu::None)
@@ -261,6 +292,67 @@ void GameplayUI_World::Close_Menu(GameplayMenu menu)
     }
 }
 
+bool GameplayUI_World::Is_WorldFreeAimActive() const
+{
+    // 배틀 중 아닐 때.
+    if (CLIENT->Is_BattleActive() || CLIENT->Is_BattleEntering())
+        return false;
+
+    // 월드 입력이 막혀 있으면 조준 UI도 같이 숨긴다.
+    if (GAME->Is_WorldGameplayInputBlocked())
+        return false;
+
+    // 월드 메뉴가 열려 있으면 조준 UI를 덮지 않는다.
+    if (!_menuStack.empty())
+        return false;
+
+    if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
+        return false;
+
+    const Shared<Player_WorldBase> activeHero = CLIENT->Get_ActiveHero();
+    if (activeHero == nullptr)
+        return false;
+
+    const Shared<PlayerStateMachineCom> stateCom = activeHero->Get_Component<PlayerStateMachineCom>();
+    if (stateCom == nullptr)
+        return false;
+
+    return stateCom->Get_CurrentPlayerState() == PlayerState::FreeAim;
+}
+
+bool GameplayUI_World::Has_FreeAimHitMonster() const
+{
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    if (activeCamera == nullptr)
+        return false;
+
+    const Vec3 cameraOrigin = activeCamera->Get_Transform()->Get_WorldPosition();
+    Vec3 direction = activeCamera->Get_Transform()->Get_WorldForward();
+
+    if (direction.LengthSquared() <= 0.0001f)
+        return false;
+
+    direction.Normalize();
+
+    constexpr float traceDistance = 100.f;
+    constexpr float sweepRadius = 0.3f;
+
+    PhysXQueryHit hit{};
+    const bool hasHit = GAME->Sweep_Sphere(
+        cameraOrigin,
+        direction,
+        traceDistance,
+        sweepRadius,
+        Collision_Preset::Player_Target, // 몬스터 계열만 걸리게
+        hit);
+
+    if (!hasHit || hit.owner == nullptr)
+        return false;
+
+    Monster_WorldBase* hitMonster = dynamic_cast<Monster_WorldBase*>(hit.owner);
+    return hitMonster != nullptr;
+}
+
 Unique<GameplayUI_World> GameplayUI_World::Create(uint32 levelIndex)
 {
     auto instance = make_unique<GameplayUI_World>();
@@ -286,6 +378,7 @@ void GameplayUI_World::Free()
             }
         };
 
+    Release_Panel(_crossHair);
     Release_Panel(_savePointPanel);
     Release_Panel(_characterStatusPanel);
     Release_Panel(_skillTreePanel);

@@ -1,4 +1,4 @@
-﻿#include "UI_EscapeSkipTurn.h"
+﻿#include "UI_EscapeSkipTurnBack.h"
 
 #include "Client_Constants.h"
 #include "UI_Base.h"
@@ -7,7 +7,7 @@
 
 using namespace UI_Utils;
 
-HRESULT UI_EscapeSkipTurn::Initialize(uint32 levelIndex)
+HRESULT UI_EscapeSkipTurnBack::Initialize(uint32 levelIndex)
 {
     _levelIndex = levelIndex;
 
@@ -18,38 +18,38 @@ HRESULT UI_EscapeSkipTurn::Initialize(uint32 levelIndex)
     return S_OK;
 }
 
-void UI_EscapeSkipTurn::Update(float timeDelta)
+void UI_EscapeSkipTurnBack::Update(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 }
 
-void UI_EscapeSkipTurn::Open()
+void UI_EscapeSkipTurnBack::Open()
 {
     UI_RuntimePanelBase::Open();
 }
 
-void UI_EscapeSkipTurn::Close()
+void UI_EscapeSkipTurnBack::Close()
 {
     UI_RuntimePanelBase::Close();
 }
 
-HRESULT UI_EscapeSkipTurn::Load_UI(uint32 levelIndex)
+HRESULT UI_EscapeSkipTurnBack::Load_UI(uint32 levelIndex)
 {
     UI_RuntimeLoader::UI_LoadDesc desc{};
     desc.levelIndex = levelIndex;
-    desc.jsonPath = Constants::UI::UI_Escape_SkipTurn_Path;
+    desc.jsonPath = Constants::UI::UI_Escape_SkipTurnBack_Path;
     desc.prototypeTagPrefix = L"EscapeSkipTurn";
     desc.outUIByName = &_uiByName;
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
-    _root = Find_UI(_uiByName, L"Panel_BattleSystem_Escape_SkipTurn");
+    _root = Find_UI(_uiByName, L"Panel_BattleSystem_Escape_SkipTurn_Back");
     CHECK_NULL(_root, E_FAIL);
 
     return S_OK;
 }
 
-HRESULT UI_EscapeSkipTurn::Bind_UI()
+HRESULT UI_EscapeSkipTurnBack::Bind_UI()
 {
     _keyC = Find_UI(_uiByName, L"Panel_Key_C");
     _keyTab = Find_UI(_uiByName, L"Panel_Key_Tab");
@@ -60,13 +60,13 @@ HRESULT UI_EscapeSkipTurn::Bind_UI()
     return S_OK;
 }
 
-Unique<UI_EscapeSkipTurn> UI_EscapeSkipTurn::Create(uint32 levelIndex)
+Unique<UI_EscapeSkipTurnBack> UI_EscapeSkipTurnBack::Create(uint32 levelIndex)
 {
-    auto instance = make_unique<UI_EscapeSkipTurn>();
+    auto instance = make_unique<UI_EscapeSkipTurnBack>();
 
     if (FAILED(instance->Initialize(levelIndex)))
     {
-        LOG_ERROR("Failed to Created : UI_EscapeSkipTurn");
+        LOG_ERROR("Failed to Created : UI_EscapeSkipTurnBack");
         instance->Free();
         return nullptr;
     }
@@ -74,7 +74,7 @@ Unique<UI_EscapeSkipTurn> UI_EscapeSkipTurn::Create(uint32 levelIndex)
     return instance;
 }
 
-void UI_EscapeSkipTurn::Free()
+void UI_EscapeSkipTurnBack::Free()
 {
     if (_root)
         _root->Close();

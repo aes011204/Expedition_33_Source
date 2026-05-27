@@ -26,6 +26,8 @@ public:
         Shared<UI_Base>  monsterRoot{};
         Shared<UI_Image> playerPortrait{};
         Shared<UI_Image> monsterPortrait{};
+        Shared<UI_Image> currentPlayerPortrait{};
+        Shared<UI_Image> currentMonsterPortrait{};
     };
 
 public:

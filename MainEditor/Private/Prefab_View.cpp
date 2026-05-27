@@ -12,9 +12,26 @@
 #include "Animation_View.h"
 #include "ColliderCom.h"
 #include "ModelCom.h"
+#include "Monster_WorldBase.h"
 #include "RenderTarget.h"
 #include "imgui_internal.h"
 #include "AnimState_View.h"
+
+namespace
+{
+    bool IsInteractivePreviewWindow(const Shared<Editor_Window>& window)
+    {
+        return window != nullptr &&
+            window->Is_Open() &&
+            window->Is_Visible() &&
+            (window->Is_Focused() || window->Is_Hovered());
+    }
+
+    bool IsShownPreviewWindow(const Shared<Editor_Window>& window)
+    {
+        return window != nullptr && window->Is_Open() && window->Is_Visible();
+    }
+}
 
 Prefab_View::Prefab_View()
     : Editor_Window(L"Prefab")
@@ -29,7 +46,10 @@ void Prefab_View::Update(float timeDelta)
     if (EDITOR->IsPlaying())
         return;
 
-    if (Is_AnimationViewFocused())
+    if (!Is_Visible())
+        return;
+
+    if (Should_DeferToCompanionPreview())
         return;
 
     if (_isPreviewHovered && _previewCamera)
@@ -44,7 +64,10 @@ void Prefab_View::Pre_Render()
     if (EDITOR->IsPlaying())
         return;
 
-    if (Is_AnimationViewFocused())
+    if (!Is_Visible())
+        return;
+
+    if (Should_DeferToCompanionPreview())
         return;
 
     if (_previewObject == nullptr || _previewCamera == nullptr)
@@ -179,9 +202,11 @@ void Prefab_View::Render()
 
     _isFocused = false;
     _isHovered = false;
+    _isVisible = false;
 
     if (ImGui::Begin(title.c_str(), &isOpen, windowFlags))
     {
+        _isVisible = true;
         _applyDefaultWindowLayout = false;
         if (_pendingDockId != 0 || _focusPrefabFrames > 0)
             ImGui::SetWindowFocus();
@@ -614,6 +639,10 @@ void Prefab_View::Draw_InspectorPanel()
     case SelectionType::GameObject:
     {
         const json beforeJson = selectedObject->To_Json();
+
+        if (Draw_MonsterBattlePrefabList(selectedObject))
+            MarkDirty();
+
         const Engine::ClassReflectionInfo& info = selectedObject->Get_ReflectionInfo();
 
         if (info.properties.empty())
@@ -678,6 +707,73 @@ void Prefab_View::Draw_InspectorPanel()
     ImGui::EndChild();
 }
 
+bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject)
+{
+    Shared<Client::Monster_WorldBase> monster = dynamic_pointer_cast<Client::Monster_WorldBase>(selectedObject);
+    if (monster == nullptr)
+        return false;
+
+    bool changed = false;
+    vector<string>& prefabNames = monster->Get_BattleMonsterPrefabNames_ForEdit();
+
+    // 프리팹에 저장되는 전투 소환 목록이다.
+    if (!ImGui::CollapsingHeader("Battle Monster Prefabs", ImGuiTreeNodeFlags_DefaultOpen))
+        return false;
+
+    ImGui::PushID("BattleMonsterPrefabs");
+
+    constexpr float BattlePrefabLabelWidth = 110.f;
+
+    int32 removeIndex = -1;
+    for (int32 i = 0; i < static_cast<int32>(prefabNames.size()); ++i)
+    {
+        ImGui::PushID(i);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("Slot %d", i);
+        ImGui::SameLine(BattlePrefabLabelWidth);
+
+        char buffer[256]{};
+        strncpy_s(buffer, prefabNames[i].c_str(), _TRUNCATE);
+
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x - 74.f));
+        if (ImGui::InputText("##BattleMonsterPrefabName", buffer, IM_ARRAYSIZE(buffer)))
+        {
+            prefabNames[i] = buffer;
+            changed = true;
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Remove", ImVec2(68.f, 0.f)))
+            removeIndex = i;
+
+        ImGui::PopID();
+    }
+
+    if (removeIndex >= 0 && removeIndex < static_cast<int32>(prefabNames.size()))
+    {
+        prefabNames.erase(prefabNames.begin() + removeIndex);
+        changed = true;
+    }
+
+    if (ImGui::Button("Add", ImVec2(70.f, 0.f)))
+    {
+        prefabNames.emplace_back();
+        changed = true;
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Clear", ImVec2(70.f, 0.f)))
+    {
+        prefabNames.clear();
+        changed = true;
+    }
+
+    ImGui::PopID();
+    ImGui::Spacing();
+
+    return changed;
+}
 
 void Prefab_View::Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey)
 {
@@ -884,15 +980,22 @@ void Prefab_View::Disable_PreviewAnimNotifyExecution(const Shared<GameObject>& g
     }
 }
 
-bool Prefab_View::Is_AnimationViewFocused()
+bool Prefab_View::Should_DeferToCompanionPreview()
 {
+    const Shared<Editor_Window> prefabWindow = EDITOR->Get_Window(L"Prefab");
+    const bool isPrefabInteractive = IsInteractivePreviewWindow(prefabWindow);
+
     Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
-    Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(animationWindow);
-    if (animationView != nullptr && animationView->Is_Open() && animationView->Is_Focused())
+    if (IsInteractivePreviewWindow(animationWindow))
         return true;
 
     Shared<Editor_Window> animStateWindow = EDITOR->Get_Window(L"AnimState");
-    return animStateWindow != nullptr && animStateWindow->Is_Open() && animStateWindow->Is_Focused();
+    if (IsInteractivePreviewWindow(animStateWindow))
+        return true;
+
+    // 같은 프리뷰 대상을 여는 companion 창이 보이는 동안에는 기본 owner를 companion 쪽으로 둔다.
+    return !isPrefabInteractive &&
+        (IsShownPreviewWindow(animationWindow) || IsShownPreviewWindow(animStateWindow));
 }
 
 void Prefab_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)

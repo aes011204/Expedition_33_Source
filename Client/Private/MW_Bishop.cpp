@@ -73,10 +73,6 @@ void MW_Bishop::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> oth
     Monster_WorldBase::OnBeginOverlap(self, other);
 }
 
-void MW_Bishop::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
-{
-}
-
 HRESULT MW_Bishop::Ready_Components()
 {
     Monster_WorldBase::Ready_Components();

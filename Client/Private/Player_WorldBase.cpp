@@ -11,6 +11,7 @@
 #include "PlayableParts.h"
 #include "PlayerStateMachineCom.h"
 #include "Body_Player.h"
+#include "EffectCom.h"
 #include "Hair_Player.h"
 #include "Head_Player.h"
 #include "Player_GameMenu.h"
@@ -80,7 +81,9 @@ void Player_WorldBase::Update(float timeDelta)
 
     __super::Update(timeDelta);
 
-    
+    if (_effectCom)
+        _effectCom->Update(timeDelta);
+
 }
 
 void Player_WorldBase::Late_Update(float timeDelta)
@@ -123,16 +126,10 @@ Vec3 Player_WorldBase::Get_MovementVelocity() const
 
 void Player_WorldBase::Start_SwitchDissolve(float durationSec, const string& noiseName)
 {
-    // TEMP_ERASE: DISSOLVE 예시 함수
-    // 이후 Effect Component이 생기면 그쪽으로 옮기게 될듯
-    for (const auto& [_, part] : Get_PartObjects())
-    {
-        const Shared<PlayableParts> playablePart = dynamic_pointer_cast<PlayableParts>(part);
-        if (!playablePart)
-            continue;
+    if (_effectCom)
+        _effectCom->Start_SwitchDissolve(durationSec, noiseName);
 
-        playablePart->Start_SwitchDissolve(durationSec, noiseName);
-    }
+
 }
 
 HRESULT Player_WorldBase::Ready_Components()
@@ -175,6 +172,8 @@ HRESULT Player_WorldBase::Ready_Components()
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_SkillTree"), _skillTreeCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStat"), _combatStatCom), E_FAIL);
+
+	CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
 
     return S_OK;
 }

@@ -484,10 +484,32 @@ void Inspector::Draw_ReflectionProperty(
         }
         else
         {
-            ImGui::BeginDisabled();
-            ImGui::TextUnformatted(value->c_str());
-            ImGui::EndDisabled();
+            char buffer[512]{};
+            strncpy_s(buffer, value->c_str(), _TRUNCATE);
+
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::InputText(hiddenId.c_str(), buffer, IM_ARRAYSIZE(buffer)))
+                *value = buffer;
         }
+        break;
+    }
+
+    case PropertyType::WString:
+    {
+        wstring* value = static_cast<wstring*>(address);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("%s", visibleLabel.c_str());
+        ImGui::SameLine(InspectorLabelWidth);
+
+        string valueText = String::ToString(*value);
+        char buffer[512]{};
+        strncpy_s(buffer, valueText.c_str(), _TRUNCATE);
+
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::InputText(hiddenId.c_str(), buffer, IM_ARRAYSIZE(buffer)))
+            *value = String::ToWString(buffer);
+
         break;
     }
 

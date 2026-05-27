@@ -42,6 +42,7 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
+    void From_Json(const json& data) override;
 
     void Update(float timeDelta);
 

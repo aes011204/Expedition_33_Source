@@ -37,7 +37,10 @@ SWAP_XY = False
 # Set this to a real path if you want the placed 16-tile scene exported at once.
 EXPORT_SCENE_FBX_PATH = None
 
-TILE_SIZE_QUADS = 126
+# SpringMeadows landscape proxy spacing is 4 components * 31 quads = 124.
+# The imported PSK local bounds are slightly wider than the logical proxy span,
+# so using the raw mesh AABB as the step produces a broken layout.
+TILE_SIZE_QUADS = 124
 LANDSCAPE_PROXY_RE = re.compile(r"LandscapeStreamingProxy_[^']+_1_(-?\d+)_(-?\d+)_0$")
 
 

@@ -51,10 +51,15 @@ void EffectInstance::BeginPlay()
         if (emitter)
             (void)emitter->Try_BeginPlay();
     }
+
+    (void)Play();
 }
 
 void EffectInstance::Priority_Update(float timeDelta)
 {
+    if (!Is_Playing())
+        return;
+
     Sync_Emitters();
 
     for (const auto& emitter : _emitters)
@@ -66,6 +71,9 @@ void EffectInstance::Priority_Update(float timeDelta)
 
 void EffectInstance::Update(float timeDelta)
 {
+    if (!Is_Playing())
+        return;
+
     Sync_Emitters();
 
     for (const auto& emitter : _emitters)
@@ -77,6 +85,9 @@ void EffectInstance::Update(float timeDelta)
 
 void EffectInstance::Late_Update(float timeDelta)
 {
+    if (!Is_Playing())
+        return;
+
     Sync_Emitters();
 
     for (const auto& emitter : _emitters)
@@ -84,11 +95,64 @@ void EffectInstance::Late_Update(float timeDelta)
         if (emitter && emitter->Is_EmitterEnabled())
             emitter->Late_Update(timeDelta);
     }
+
+    Evaluate_Finished();
 }
 
 HRESULT EffectInstance::Render()
 {
     return S_OK;
+}
+
+HRESULT EffectInstance::Play()
+{
+    _playbackState = EffectPlaybackState::Playing;
+    Set_Visible(true);
+
+    return S_OK;
+}
+
+void EffectInstance::Stop()
+{
+    _playbackState = EffectPlaybackState::Stopped;
+    Set_Visible(false);
+}
+
+HRESULT EffectInstance::Reset()
+{
+    _playbackState = EffectPlaybackState::Stopped;
+    Set_Visible(false);
+
+    for (const Shared<EffectEmitter>& emitter : _emitters)
+    {
+        if (nullptr == emitter)
+            continue;
+
+        CHECK_FAILED(emitter->Reset_ForEffectReplay(), E_FAIL);
+    }
+
+    return S_OK;
+}
+
+bool EffectInstance::Is_Playing() const
+{
+    return EffectPlaybackState::Playing == _playbackState;
+}
+
+bool EffectInstance::Is_Finished() const
+{
+    return EffectPlaybackState::Finished == _playbackState;
+}
+
+void EffectInstance::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider)
+{
+    for (const Shared<EffectEmitter>& emitter : _emitters)
+    {
+        if (nullptr == emitter)
+            continue;
+
+        emitter->Bind_TrailSampleProvider(provider);
+    }
 }
 
 HRESULT EffectInstance::Ready_Emitters()
@@ -136,8 +200,36 @@ void EffectInstance::Sync_Emitters()
     }
 }
 
+void EffectInstance::Evaluate_Finished()
+{
+    bool hasEnabledEmitter = false;
+
+    for (const Shared<EffectEmitter>& emitter : _emitters)
+    {
+        if (nullptr == emitter || !emitter->Is_EmitterEnabled())
+            continue;
+
+        hasEnabledEmitter = true;
+
+        if (!emitter->Is_EffectFinished())
+            return;
+    }
+
+    if (hasEnabledEmitter)
+    {
+        _playbackState = EffectPlaybackState::Finished;
+        Set_Visible(false);
+    }
+}
+
 void EffectInstance::Clear_Emitters()
 {
+    for (Shared<EffectEmitter>& emitter : _emitters)
+    {
+        if (emitter != nullptr)
+            emitter->Free();
+    }
+
     _emitters.clear();
 }
 

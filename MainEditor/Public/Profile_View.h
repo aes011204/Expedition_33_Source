@@ -1,6 +1,8 @@
 #pragma once
 
+#include "Debug_Profile.h"
 #include "Editor_Window.h"
+#include "GameInstance.h"
 
 NS_BEGIN(MainEditor)
 
@@ -46,6 +48,12 @@ public:
     static void Set_RenderCallCount_External(uint32 renderCallCount);
 
 private:
+    struct Scope_Row
+    {
+        const Scope_Stats* stats = nullptr;
+        double sortKey = 0.0;
+    };
+
     struct Profiler_Runtime;
     struct Process_Memory
     {
@@ -53,15 +61,29 @@ private:
         size_t privateBytesMb = 0;
     };
 
+    struct Resource_Memory
+    {
+        Engine::DebugResourceMemorySummary engine{};
+        uint32 effectPoolEntryCount = 0;
+        uint32 effectPoolActiveCount = 0;
+        uint32 effectPoolIdleCount = 0;
+        bool hasData = false;
+    };
+
 private:
     void Draw_Toolbar();
     void Draw_Frame_Info();
     void Draw_Scopes();
     void Draw_Memory();
+    void Draw_Resource_Memory();
     void Reset_Stats();
     void Prune_Dead_Scopes();
+    vector<Scope_Row> Build_Scope_Rows() const;
+    void Log_Snapshot() const;
     void Record_Scope_Sample(const string& scopeName, double elapsedMs);
+    void Refresh_Memory_Samples();
     Process_Memory Get_Process_Memory() const;
+    Resource_Memory Get_Resource_Memory() const;
 
 private:
     static Profile_View* s_active;
@@ -81,6 +103,16 @@ private:
     double _fpsLast = 0.0;
     double _fpsAvg = 0.0;
     uint32 _renderCallCount = 0;
+    Process_Memory _processMemory = {};
+    Resource_Memory _resourceMemory = {};
+    clock::time_point _lastTimingSampleTime = {};
+    clock::time_point _lastProcessMemorySampleTime = {};
+    clock::time_point _lastResourceMemorySampleTime = {};
+    bool _hasTimingSample = false;
+    bool _hasProcessMemorySample = false;
+    bool _hasResourceMemorySample = false;
+    size_t _peakWorkingSetMb = 0;
+    size_t _peakPrivateBytesMb = 0;
 
 public:
     static Shared<Profile_View> Create();
