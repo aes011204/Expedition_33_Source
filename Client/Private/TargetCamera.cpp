@@ -4,6 +4,7 @@
 #include "GameInstance.h"
 #include "Collision_Define.h"
 #include "PhysX_Types.h"
+#include "CameraPresetTypes.h"
 
 TargetCamera::TargetCamera(const ComPtr<Device>& device, const ComPtr<Context>& context) :  Camera {device, context}
 {
@@ -29,7 +30,7 @@ HRESULT TargetCamera::Initialize(void* arg)
     const auto desc = static_cast<TARGETCAMERA_DESC*>(arg);
 
     _currentSettings.followSpeed = desc->followSpeed;
-    _currentSettings.mouseSensor = desc->mouseSensor;
+    _currentSettings.camera.mouseSensor = desc->mouseSensor;
     _currentSettings.distance = desc->distance;
     _currentSettings.sideOffset = desc->sideOffset;
     _currentSettings.heightOffset = desc->heightOffset;
@@ -39,7 +40,7 @@ HRESULT TargetCamera::Initialize(void* arg)
     _currentSettings.pitchMax = desc->pitchMax;
     _currentSettings.lookHeight = desc->lookHeight;
     _currentSettings.pivotHeight = desc->pivotHeight;
-    _currentSettings.mouseSensitivity = desc->mouseSensitivity;
+    _currentSettings.camera.mouseSensitivity = desc->mouseSensitivity;
     _currentSettings.yawOffset = desc->yawOffset;
     _currentSettings.pitchOffset = desc->pitchOffset;
     _currentSettings.rollOffset = desc->rollOffset;
@@ -54,11 +55,11 @@ HRESULT TargetCamera::Initialize(void* arg)
 
     Set_Name(L"Target Camera");
 
-    CameraPresetIO::LoadPresetFromFile(CAMERA_STATE::NORMAL, _normalPreset);
-    CameraPresetIO::LoadPresetFromFile(CAMERA_STATE::AIM, _aimPreset);
-    CameraPresetIO::LoadPresetFromFile(CAMERA_STATE::BATTLE_ENTER, _battleEnterPreset);
+    CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::NORMAL, _normalPreset);
+    CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::AIM, _aimPreset);
+    CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode::BATTLE_ENTER, _battleEnterPreset);
 
-    _currentState = CAMERA_STATE::NORMAL;
+    _currentState = TargetCameraMode::NORMAL;
     _currentSettings = _normalPreset;
     _targetSettings = _currentSettings;
 
@@ -76,7 +77,7 @@ void TargetCamera::BeginPlay()
     Camera::BeginPlay();
 
     GAME->Add_Camera(GetSharedPtr<Camera>());
-    GAME->Change_ActiveCamera(GetSharedPtr<Camera>());
+    CLIENT->Request_GamePlay();
 
     Refresh_TargetTransform();
 
@@ -106,26 +107,26 @@ void TargetCamera::Priority_Update(float timeDelta)
 
     if (GAME->Is_WorldGameplayInputBlocked())
     {
-        if (_currentState == CAMERA_STATE::AIM)
-            Change_State(CAMERA_STATE::NORMAL);
+        if (_currentState == TargetCameraMode::AIM && !CLIENT->Is_TargetCameraEditMode())
+            Change_Mode(TargetCameraMode::NORMAL);
 
         return;
     }
 
     if(GAME->KeyDown(KEY_TYPE::RBUTTON))
     {
-        Change_State(CAMERA_STATE::AIM);
+        Change_Mode(TargetCameraMode::AIM);
     }
 
-    if(_currentState == CAMERA_STATE::AIM && GAME->KeyUp(KEY_TYPE::RBUTTON))
+    if(_currentState == TargetCameraMode::AIM && GAME->KeyUp(KEY_TYPE::RBUTTON))
     {
-        Change_State(CAMERA_STATE::NORMAL);
+        Change_Mode(TargetCameraMode::NORMAL);
     }
 
-    /*if(GAME->KeyDown(KEY_TYPE::CTRL))
+    if(GAME->KeyDown(KEY_TYPE::CTRL))
     {
-        Change_State(CAMERA_STATE::BATTLE_ENTER);
-    }*/
+        Change_Mode(TargetCameraMode::BATTLE_ENTER);
+    }
 
 }
 
@@ -142,8 +143,8 @@ void TargetCamera::Update(float timeDelta)
     {
         const Vec2 mouseDelta = GAME->Get_MouseDelta();
 
-        _yaw += mouseDelta.x * _currentSettings.mouseSensor;
-        _pitch += mouseDelta.y * _currentSettings.mouseSensor * _currentSettings.mouseSensitivity;
+        _yaw += mouseDelta.x * _currentSettings.camera.mouseSensor;
+        _pitch += mouseDelta.y * _currentSettings.camera.mouseSensor * _currentSettings.camera.mouseSensitivity;
         _pitch = std::clamp(_pitch, _currentSettings.pitchMin, _currentSettings.pitchMax);
      
     }
@@ -152,15 +153,15 @@ void TargetCamera::Update(float timeDelta)
 
     switch(_currentState)
     {
-    case CAMERA_STATE::NORMAL:
+    case TargetCameraMode::NORMAL:
         Update_NormalState(timeDelta);
         break;
 
-    case CAMERA_STATE::AIM:
+    case TargetCameraMode::AIM:
         Update_AimState(timeDelta);
         break;
 
-    case CAMERA_STATE::BATTLE_ENTER:
+    case TargetCameraMode::BATTLE_ENTER:
         Update_BattleEnterState(timeDelta);
         break;
     }
@@ -194,7 +195,7 @@ void TargetCamera::Interpolate_CurrentSettings(float timeDelta)
     _currentSettings.pitchOffset = lerp(_currentSettings.pitchOffset, _targetSettings.pitchOffset, t);
     _currentSettings.yawOffset = lerp(_currentSettings.yawOffset,_targetSettings.yawOffset,t);
     _currentSettings.rollOffset = lerp(_currentSettings.rollOffset,_targetSettings.rollOffset,t);
-    _currentSettings.fovy = lerp(_currentSettings.fovy,_targetSettings.fovy,t);
+    _currentSettings.camera.fovy = lerp(_currentSettings.camera.fovy,_targetSettings.camera.fovy,t);
 }
 
 bool TargetCamera::Try_GetTargetTransform(Shared<TransformCom>& outTargetTransformCom) const
@@ -217,8 +218,8 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
 
     const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
 
-    const bool isTargetMoving = (targetPos - _prevTargetPos).LengthSquared() > 0.0001f;
-    float followSpeed = isTargetMoving ? _currentSettings.followSpeed : _currentSettings.followSpeed * 0.5f;
+    //const bool isTargetMoving = (targetPos - _prevTargetPos).LengthSquared() > 0.0001f;
+    //float followSpeed = isTargetMoving ? _currentSettings.followSpeed : _currentSettings.followSpeed * 0.5f;
 
     const float finalYaw = _yaw + _currentSettings.yawOffset;
     const float finalPitch = _pitch + _currentSettings.pitchOffset;
@@ -301,7 +302,6 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     _transformCom->LookAt(lookTarget);
     _transformCom->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, _currentSettings.rollOffset));
 
-    
     Update_TransformMatrices();
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
@@ -328,17 +328,19 @@ void TargetCamera::Update_AimState(float timeDelta)
 
 void TargetCamera::Update_BattleEnterState(float timeDelta)
 {
-    _battleEnterAcc += timeDelta;
+    UNREFERENCED_PARAMETER(timeDelta);
+
+    float unscaledDelta = GAME->Get_UnscaledTimeDelta();
+    _battleEnterAcc += unscaledDelta;
 
     if(_battleEnterAcc >= _battleEnterDuration)
     {
-        //TODO 유림 : 배틀 집입 연출 끝나면 배틀 카메라로! 일단 지금은 다시 normal 카메라로 돌리기
-        Change_State(CAMERA_STATE::NORMAL);
+        Change_Mode(TargetCameraMode::NORMAL);
         _battleEnterAcc = 0.f;
         return;
     }
 
-    Update_FromCurrentSettings(timeDelta);
+    Update_FromCurrentSettings(unscaledDelta);
 }
 
 Vec3 TargetCamera::Resolve_Collision(const Vec3& sweepStart, const Vec3& desiredPos, float timeDelta)
@@ -390,32 +392,45 @@ Vec3 TargetCamera::Resolve_Collision(const Vec3& sweepStart, const Vec3& desired
     return sweepStart + sweep * _collisionDistance;
 }
 
-void TargetCamera::Change_State(CAMERA_STATE state)
+void TargetCamera::Change_Mode(TargetCameraMode mode)
 {
-    if(_currentState == state)
+    if(_currentState == mode)
         return;
 
-    _currentState = state;
+    _currentState = mode;
     _collisionQueryAccum = 0.f;
     _hasCollisionQueryCache = false;
     _collisionDistance = -1.f;
 
     switch(_currentState)
     {
-    case CAMERA_STATE::NORMAL:
+    case TargetCameraMode::NORMAL:
         _targetSettings = _normalPreset;
         _currentSettings.followSpeed = _normalPreset.followSpeed;
         break;
 
-    case CAMERA_STATE::AIM:
+    case TargetCameraMode::AIM:
         _targetSettings = _aimPreset;
         _currentSettings.followSpeed = _aimPreset.followSpeed;
         break;
 
-    case CAMERA_STATE::BATTLE_ENTER:
+    case TargetCameraMode::BATTLE_ENTER:
         _targetSettings = _battleEnterPreset;
         _currentSettings.followSpeed = _battleEnterPreset.followSpeed;
         break;
+    }
+
+    if (_targetSettings.snapOnEnter)
+    {
+        _currentSettings = _targetSettings;
+
+        Shared<TransformCom> targetTransformCom;
+        if (Try_GetTargetTransform(targetTransformCom))
+        {
+            const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
+            _prevTargetPos = targetPos;
+            _smoothedTargetPos = targetPos;
+        }
     }
 }
 
@@ -455,17 +470,17 @@ void TargetCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
     _collisionDistance = -1.f;
 }
 
-const TargetCamera::TARGETCAMERA_DESC& TargetCamera::Get_Preset(CAMERA_STATE state) const
+const TargetCameraPreset& TargetCamera::Get_Preset(TargetCameraMode mode) const
 {
-    switch (state)
+    switch (mode)
     {
-    case CAMERA_STATE::NORMAL:
+    case TargetCameraMode::NORMAL:
         return _normalPreset;
 
-    case CAMERA_STATE::AIM:
+    case TargetCameraMode::AIM:
         return _aimPreset;
 
-    case CAMERA_STATE::BATTLE_ENTER:
+    case TargetCameraMode::BATTLE_ENTER:
         return _battleEnterPreset;
     }
 
@@ -473,19 +488,19 @@ const TargetCamera::TARGETCAMERA_DESC& TargetCamera::Get_Preset(CAMERA_STATE sta
     return _normalPreset;
 }
 
-void TargetCamera::Set_Preset(CAMERA_STATE state, const TARGETCAMERA_DESC& preset)
+void TargetCamera::Set_Preset(TargetCameraMode mode, const TargetCameraPreset& preset)
 {
-    switch (state)
+    switch (mode)
     {
-    case CAMERA_STATE::NORMAL:
+    case TargetCameraMode::NORMAL:
          _normalPreset = preset;
         break;
 
-    case CAMERA_STATE::AIM:
+    case TargetCameraMode::AIM:
         _aimPreset = preset;
         break;
 
-    case CAMERA_STATE::BATTLE_ENTER:
+    case TargetCameraMode::BATTLE_ENTER:
         _battleEnterPreset = preset;
 
     default:
@@ -494,7 +509,7 @@ void TargetCamera::Set_Preset(CAMERA_STATE state, const TARGETCAMERA_DESC& prese
     }
 }
 
-void TargetCamera::Apply_PreviewPreset(const TARGETCAMERA_DESC& preset)
+void TargetCamera::Apply_PreviewPreset(const TargetCameraPreset& preset)
 {
     _currentSettings = preset;
     _targetSettings = preset;
