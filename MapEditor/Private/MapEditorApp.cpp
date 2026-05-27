@@ -66,6 +66,7 @@ HRESULT MapEditorApp::Initialize()
     CHECK_NULL(_viewport, E_FAIL);
 
     _sculptState = make_shared<LandscapeSculptState>();
+    _viewport->Set_SculpState(_sculptState);
 
     LandscapePanelContext landscapeCtx{};
     landscapeCtx.sculptState = _sculptState;
@@ -187,6 +188,12 @@ HRESULT MapEditorApp::Render()
     if (_viewport->ConsumeCursorSet(mousePos, vpPos, vpSize))
     {
         _pickingSystem->SetCursorAt(_scene, *_camera, mousePos, vpPos, vpSize, *_rt);
+    }
+
+    ImVec2 sculptMouse{}, sculptVpPos{}, sculptVpSize{};
+    if (_viewport->ConsumeSculpt(sculptMouse, sculptVpPos, sculptVpSize))
+    {
+        Do_SculptAt(sculptMouse, sculptVpPos, sculptVpSize, 0.016f);
     }
 
     string spawnPath{};
@@ -747,6 +754,157 @@ HRESULT MapEditorApp::Build_TerrainFromScene()
     }
 
     return S_OK;
+}
+
+void MapEditorApp::Do_SculptAt(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSize, float timeDelta)
+{
+    if (_scene._activeLandscapeIdx <= 0 || _scene._activeLandscapeIdx >= static_cast<int32>(_scene._landscapes.size()))
+    {
+        return;
+    }
+
+    auto& actor = _scene._landscapes[_scene._activeLandscapeIdx];
+    auto vb = actor->Get_VIBuffer();
+    if (!vb)
+    {
+        return;
+    }
+
+    float u = (mousePos.x - vpPos.x) / vpSize.x;
+    float v = (mousePos.y - vpPos.y) / vpSize.y;
+    float ndcX = u * 2.f - 1.f;
+    float ndcY = 1.f - v * 2.f;
+
+    Matrix viewProjInv = (Matrix(_camera->GetView()) * Matrix(_camera->GetProj())).Invert();
+    Vec3 nearP = Vec3::Transform(Vec3(ndcX, ndcY, 0.f), viewProjInv);
+    Vec3 farP = Vec3::Transform(Vec3(ndcX, ndcY, 1.f), viewProjInv);
+
+    Vec3 rayDir = farP - nearP;
+    rayDir.Normalize();
+
+    Vec3 rayOrigin{}, rayDirection{};
+    rayOrigin = nearP;
+    rayDirection = rayDir;
+
+    // ray & land
+    Vec3 landscapePos = actor->Get_Transform()->Get_Position();
+    float stepSize = min(vb->Get_SizeX(), vb->Get_SizeZ()) * 0.5f;
+    Vec3 hitPos = {};
+    bool hit = false;
+
+    for (float i = 0.f; i < 5000.f; i += stepSize)
+    {
+        Vec3 p = {
+          rayOrigin.x + rayDirection.x * i,
+          rayOrigin.y + rayDirection.y * i,
+          rayOrigin.z + rayDirection.z * i
+        };
+
+        float localX = p.x - landscapePos.x;
+        float localZ = p.z - landscapePos.z;
+        float terrainY = vb->Sample_Height(localX, localZ) + landscapePos.y;
+
+        if (p.y <= terrainY)
+        {
+            hitPos = p;
+            hit = true;
+            break;
+        }
+    }
+
+    if (!hit)
+    {
+        return;
+    }
+
+    const float radius = _sculptState->brushRadius;
+    const float strength = _sculptState->brushStrength;
+    const ESculptMode mode = _sculptState->mode;
+    const float flatH = _sculptState->flattenHeight;
+
+    const uint32 numVX = vb->Get_CountX() + 1;
+    const uint32 numVZ = vb->Get_CountZ() + 1;
+    auto& heights = vb->Get_Heights();
+
+    float localHitX = hitPos.x - landscapePos.x;
+    float localHitZ = hitPos.z - landscapePos.z;
+
+    if (mode == ESculptMode::Smooth)
+    {
+        vector<float> smoothed = heights;
+        for (uint32 z = 0; z < numVZ; ++z)
+        {
+            for (uint32 x = 0; x < numVX; ++x)
+            {
+                float vx = x * vb->Get_SizeX();
+                float vz = z * vb->Get_SizeZ();
+                float dist = sqrtf((vx - localHitX) * (vx - localHitX) + (vz - localHitZ) * (vz - localHitZ));
+
+                if (dist >= radius)
+                {
+                    continue;
+                }
+
+                float sum = 0.f;
+                int cnt = 0;
+                for (int dz = -1; dz <= 1; ++dz)
+                {
+                    for (int dx = -1; dx <= 1; ++dx)
+                    {
+                        int nx = (int)x + dx;
+                        int nz = (int)z + dz;
+                        if (nx >= 0 && nx < (int)numVX && nz >= 0 && nz < (int)numVZ)
+                        {
+                            sum += heights[nz * numVX + nx];
+                            ++cnt;
+                        }
+                    }
+                }
+
+                float falloff = 1.f - (dist / radius);
+                float avg = sum / cnt;
+                uint32 idx = z * numVX + x;
+                smoothed[idx] = heights[idx] + (avg - heights[idx]) * falloff * strength * timeDelta * 10.f;
+            }
+        }
+        heights = smoothed;
+    }
+    else
+    {
+        for (uint32 z = 0; z < numVZ; ++z)
+        {
+            for (uint32 x = 0; x < numVX; ++x)
+            {
+                float vx = x * vb->Get_SizeX();
+                float vz = z * vb->Get_SizeZ();
+                float dist = sqrtf((vx - localHitX) * (vx - localHitX) + (vz - localHitZ) * (vz - localHitZ));
+                if (dist >= radius)
+                {
+                    continue;
+                }
+
+                float falloff = 1.f - (dist / radius);
+                float delta = strength * falloff * timeDelta * 10.f;
+                uint32  idx = z * numVX + x;
+
+                switch (mode)
+                {
+                case ESculptMode::Raise:
+                    heights[idx] += delta;
+                    break;
+                case ESculptMode::Lower:
+                    heights[idx] -= delta;
+                    break;
+                case ESculptMode::Flatten:
+                    heights[idx] += (flatH - heights[idx]) * delta;
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
+    }
+    vb->Flush();
 }
 
 Unique<MapEditorApp> MapEditorApp::Create()

@@ -83,6 +83,8 @@ private:
 
     HRESULT Build_TerrainFromScene();
 
+    void Do_SculptAt(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSize, float timeDelta);
+
 public:
     static Unique<MapEditorApp> Create();
     virtual void Free() override;

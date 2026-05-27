@@ -248,7 +248,14 @@ HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clear
         renderTargets[renderTargetCount++] = rt->Get_RTV();
     }
 
-    dsv = dsv ? dsv : _originalDSV.Get();
+    if(useDSV)
+    {
+        dsv = dsv ? dsv : _originalDSV.Get();
+    }
+    else
+    {
+        dsv = nullptr;
+    }
 
     //if (!useDSV)
     //{
