@@ -10,6 +10,7 @@ IMPLEMENT_REFLECTION(BT_RotateToTarget)
     info.properties.clear();
 
     PROPERTY_BBKEY_VEC3("Target Key", _targetKey);
+    PROPERTY_BBKEY_FLOAT("speed", _speed);
 
     return true;
 }
@@ -64,7 +65,7 @@ BNode::NODE_STATE BT_RotateToTarget::Logic_Update(float deltaTime)
 
         const Quat targetRot = Quat::CreateFromYawPitchRoll(targetYawRad, 0.f, 0.f);
 
-        const float t = std::clamp(deltaTime * 8.f, 0.f, 1.f);
+        const float t = std::clamp(deltaTime * _speed, 0.f, 1.f);
         const Quat smoothRot = Quaternion::Slerp(currentRot, targetRot, t);
 
 
