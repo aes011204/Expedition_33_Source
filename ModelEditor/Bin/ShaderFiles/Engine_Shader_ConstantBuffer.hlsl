@@ -119,6 +119,17 @@ cbuffer SSAOBuffer
     uint g_SSAOPad0;
 };
 
+cbuffer DeferredLightingBuffer
+{
+    float g_IBLIntensity;
+    float g_IBLDiffuseIntensity;
+    float g_IBLSpecularIntensity;
+    float g_IBLPrefilterMaxMip;
+
+    uint g_IBLEnabled;
+    uint3 g_IBLPadding0;
+};
+
 cbuffer PostProcessBuffer
 {
     float g_PP_Exposure;        //  0 ~  3

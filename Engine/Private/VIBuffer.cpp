@@ -60,6 +60,12 @@ HRESULT VIBuffer::Render()
 	return S_OK;
 }
 
+size_t VIBuffer::Get_DebugEstimatedBufferBytes() const
+{
+    return static_cast<size_t>(_vertexStride) * static_cast<size_t>(_numVertices)
+        + static_cast<size_t>(_indexStride) * static_cast<size_t>(_numIndices);
+}
+
 void VIBuffer::Free()
 {
 	__super::Free();

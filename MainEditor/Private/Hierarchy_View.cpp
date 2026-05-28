@@ -9,6 +9,68 @@
 #include "ClientInstance.h"
 #include "GameplayUI.h"
 
+namespace
+{
+    string To_LowerCopy(string value)
+    {
+        transform(value.begin(), value.end(), value.begin(), [](unsigned char ch)
+        {
+            return static_cast<char>(tolower(ch));
+        });
+        return value;
+    }
+
+    bool Match_WildcardPattern(const string& text, const string& pattern)
+    {
+        size_t textIndex = 0;
+        size_t patternIndex = 0;
+        size_t starPatternIndex = string::npos;
+        size_t starTextIndex = 0;
+
+        while (textIndex < text.size())
+        {
+            if (patternIndex < pattern.size() && pattern[patternIndex] == '*')
+            {
+                starPatternIndex = patternIndex++;
+                starTextIndex = textIndex;
+                continue;
+            }
+
+            if (patternIndex < pattern.size() && pattern[patternIndex] == text[textIndex])
+            {
+                ++patternIndex;
+                ++textIndex;
+                continue;
+            }
+
+            if (starPatternIndex != string::npos)
+            {
+                patternIndex = starPatternIndex + 1;
+                textIndex = ++starTextIndex;
+                continue;
+            }
+
+            return false;
+        }
+
+        while (patternIndex < pattern.size() && pattern[patternIndex] == '*')
+            ++patternIndex;
+
+        return patternIndex == pattern.size();
+    }
+
+    bool Match_SearchPattern(const string& text, const string& rawPattern)
+    {
+        const string textLower = To_LowerCopy(text);
+        const string patternLower = To_LowerCopy(rawPattern);
+
+        if (patternLower.find('*') == string::npos)
+            return textLower.find(patternLower) != string::npos;
+
+        return Match_WildcardPattern(textLower, patternLower);
+    }
+}
+
 Hierarchy_View::Hierarchy_View()
     : Editor_Window{ L"Hierarchy" }
 {
@@ -145,7 +207,7 @@ bool Hierarchy_View::Pass_SearchFilter(const Shared<GameObject>& gameObject, uin
         return true;
 
     const string label = Build_HierarchyLabel(gameObject, objectIndex);
-    return label.find(_searchFilter) != string::npos;
+    return Match_SearchPattern(label, _searchFilter);
 }
 
 bool Hierarchy_View::Pass_LightingSearchFilter() const
@@ -153,11 +215,11 @@ bool Hierarchy_View::Pass_LightingSearchFilter() const
     if (_searchFilter.empty())
         return true;
 
-    return string("Lighting").find(_searchFilter) != string::npos ||
-        string("Light").find(_searchFilter) != string::npos ||
-        string("Directional Light").find(_searchFilter) != string::npos ||
-        string("Primary Shadow Light").find(_searchFilter) != string::npos ||
-        string("Shadow").find(_searchFilter) != string::npos;
+    return Match_SearchPattern("Lighting", _searchFilter) ||
+        Match_SearchPattern("Light", _searchFilter) ||
+        Match_SearchPattern("Directional Light", _searchFilter) ||
+        Match_SearchPattern("Primary Shadow Light", _searchFilter) ||
+        Match_SearchPattern("Shadow", _searchFilter);
 }
 
 uint32 Hierarchy_View::Get_TotalObjectCount() const

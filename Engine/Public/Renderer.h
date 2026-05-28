@@ -11,8 +11,9 @@ class ShaderCom;
 class VIBuffer_Rect;
 class GameObject;
 class PostProcessPipeline;
-class SSAOPipeline;
+class LightingPipeline;
 class LightPipeline;
+class Texture;
 
 class Renderer final : public Base
 {
@@ -39,13 +40,13 @@ public:
     {
         return _ppPipeline;
     }
-    const Shared<SSAOPipeline> Get_SSAOPipeline() const
+    const Shared<LightingPipeline> Get_LightingPipeline() const
     {
-        return _ssaoPipeline;
+        return _lightingPipeline;
     }
-    Shared<SSAOPipeline> Get_SSAOPipeline()
+    Shared<LightingPipeline> Get_LightingPipeline()
     {
-        return _ssaoPipeline;
+        return _lightingPipeline;
     }
     RenderGroup Get_CurrentGroup() const
     {
@@ -95,7 +96,7 @@ private:
     ComPtr<Device>                  _device;
     ComPtr<Context>                 _context;
     Shared<PostProcessPipeline>     _ppPipeline;
-    Shared<SSAOPipeline>            _ssaoPipeline;
+    Shared<LightingPipeline>        _lightingPipeline;
 
     /* Layer가 소유하는 GameObject를 렌더 프레임 동안만 참조하기 위한 약한 참조 목록. */
 	list<Weak<GameObject>>		_renderGroups[ETOI(RenderGroup::END)];
@@ -109,6 +110,11 @@ private:
     Shared<ShaderCom>               _screenFxShader;
     Shared<ShaderCom>               _deferredShader;
     Shared<VIBuffer_Rect>           _viBuffer;
+    Shared<Texture>                 _iblIrradianceTexture;
+    Shared<Texture>                 _iblPrefilterTexture;
+    Shared<Texture>                 _iblBrdfLutTexture;
+    enum class IBLDebugMode : uint8 { Default = 0, SpecularOnly, DiffuseOnly };
+    IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
 
     float                           _shadowScale = 1.f;
     bool                            _shadowEnabled = false;

@@ -4,6 +4,7 @@
 #include "Camera_Manager.h"
 #include "Camera.h"
 #include "Collision_Manager.h"
+#include "Component.h"
 #include "PhysX_Manager.h"
 #include "Debug_Manager.h"
 #include "Font_Manager.h"
@@ -16,6 +17,8 @@
 #include "Object_Manager.h"
 #include "PipeLine.h"
 #include "GameObject.h"
+#include "Mesh.h"
+#include "ModelCom.h"
 #include "Prototype_Manager.h"
 #include "RegistorFactory.h"
 #include "Renderer.h"
@@ -32,6 +35,8 @@
 #include "Material.h"
 #include "ShaderResourceRegistry.h"
 #include "Sound_Manager.h"
+#include "Texture.h"
+#include "VIBuffer.h"
 
 #include "Collision_Define.h"
 #include "Event_Bus.h"
@@ -44,6 +49,193 @@
 #pragma endregion
 
 IMPLEMENT_SINGLETON(GameInstance)
+
+namespace
+{
+bool Is_Block_Compressed(DXGI_FORMAT format, size_t& outBlockBytes)
+{
+    switch (format)
+    {
+    case DXGI_FORMAT_BC1_TYPELESS:
+    case DXGI_FORMAT_BC1_UNORM:
+    case DXGI_FORMAT_BC1_UNORM_SRGB:
+    case DXGI_FORMAT_BC4_TYPELESS:
+    case DXGI_FORMAT_BC4_UNORM:
+    case DXGI_FORMAT_BC4_SNORM:
+        outBlockBytes = 8;
+        return true;
+
+    case DXGI_FORMAT_BC2_TYPELESS:
+    case DXGI_FORMAT_BC2_UNORM:
+    case DXGI_FORMAT_BC2_UNORM_SRGB:
+    case DXGI_FORMAT_BC3_TYPELESS:
+    case DXGI_FORMAT_BC3_UNORM:
+    case DXGI_FORMAT_BC3_UNORM_SRGB:
+    case DXGI_FORMAT_BC5_TYPELESS:
+    case DXGI_FORMAT_BC5_UNORM:
+    case DXGI_FORMAT_BC5_SNORM:
+    case DXGI_FORMAT_BC6H_TYPELESS:
+    case DXGI_FORMAT_BC6H_UF16:
+    case DXGI_FORMAT_BC6H_SF16:
+    case DXGI_FORMAT_BC7_TYPELESS:
+    case DXGI_FORMAT_BC7_UNORM:
+    case DXGI_FORMAT_BC7_UNORM_SRGB:
+        outBlockBytes = 16;
+        return true;
+
+    default:
+        outBlockBytes = 0;
+        return false;
+    }
+}
+
+size_t Bits_Per_Pixel(DXGI_FORMAT format)
+{
+    switch (format)
+    {
+    case DXGI_FORMAT_R32G32B32A32_TYPELESS:
+    case DXGI_FORMAT_R32G32B32A32_FLOAT:
+    case DXGI_FORMAT_R32G32B32A32_UINT:
+    case DXGI_FORMAT_R32G32B32A32_SINT:
+        return 128;
+
+    case DXGI_FORMAT_R32G32B32_TYPELESS:
+    case DXGI_FORMAT_R32G32B32_FLOAT:
+    case DXGI_FORMAT_R32G32B32_UINT:
+    case DXGI_FORMAT_R32G32B32_SINT:
+        return 96;
+
+    case DXGI_FORMAT_R16G16B16A16_TYPELESS:
+    case DXGI_FORMAT_R16G16B16A16_FLOAT:
+    case DXGI_FORMAT_R16G16B16A16_UNORM:
+    case DXGI_FORMAT_R16G16B16A16_UINT:
+    case DXGI_FORMAT_R16G16B16A16_SNORM:
+    case DXGI_FORMAT_R16G16B16A16_SINT:
+    case DXGI_FORMAT_R32G32_TYPELESS:
+    case DXGI_FORMAT_R32G32_FLOAT:
+    case DXGI_FORMAT_R32G32_UINT:
+    case DXGI_FORMAT_R32G32_SINT:
+    case DXGI_FORMAT_R32G8X24_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+    case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+    case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+        return 64;
+
+    case DXGI_FORMAT_R10G10B10A2_TYPELESS:
+    case DXGI_FORMAT_R10G10B10A2_UNORM:
+    case DXGI_FORMAT_R10G10B10A2_UINT:
+    case DXGI_FORMAT_R11G11B10_FLOAT:
+    case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+    case DXGI_FORMAT_R8G8B8A8_UINT:
+    case DXGI_FORMAT_R8G8B8A8_SNORM:
+    case DXGI_FORMAT_R8G8B8A8_SINT:
+    case DXGI_FORMAT_R16G16_TYPELESS:
+    case DXGI_FORMAT_R16G16_FLOAT:
+    case DXGI_FORMAT_R16G16_UNORM:
+    case DXGI_FORMAT_R16G16_UINT:
+    case DXGI_FORMAT_R16G16_SNORM:
+    case DXGI_FORMAT_R16G16_SINT:
+    case DXGI_FORMAT_R32_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT:
+    case DXGI_FORMAT_R32_FLOAT:
+    case DXGI_FORMAT_R32_UINT:
+    case DXGI_FORMAT_R32_SINT:
+    case DXGI_FORMAT_R24G8_TYPELESS:
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+    case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+    case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+    case DXGI_FORMAT_R9G9B9E5_SHAREDEXP:
+    case DXGI_FORMAT_R8G8_B8G8_UNORM:
+    case DXGI_FORMAT_G8R8_G8B8_UNORM:
+    case DXGI_FORMAT_B8G8R8A8_UNORM:
+    case DXGI_FORMAT_B8G8R8X8_UNORM:
+    case DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM:
+    case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+    case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+    case DXGI_FORMAT_B8G8R8X8_TYPELESS:
+    case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+        return 32;
+
+    case DXGI_FORMAT_R8G8_TYPELESS:
+    case DXGI_FORMAT_R8G8_UNORM:
+    case DXGI_FORMAT_R8G8_UINT:
+    case DXGI_FORMAT_R8G8_SNORM:
+    case DXGI_FORMAT_R8G8_SINT:
+    case DXGI_FORMAT_R16_TYPELESS:
+    case DXGI_FORMAT_R16_FLOAT:
+    case DXGI_FORMAT_D16_UNORM:
+    case DXGI_FORMAT_R16_UNORM:
+    case DXGI_FORMAT_R16_UINT:
+    case DXGI_FORMAT_R16_SNORM:
+    case DXGI_FORMAT_R16_SINT:
+    case DXGI_FORMAT_B5G6R5_UNORM:
+    case DXGI_FORMAT_B5G5R5A1_UNORM:
+        return 16;
+
+    case DXGI_FORMAT_R8_TYPELESS:
+    case DXGI_FORMAT_R8_UNORM:
+    case DXGI_FORMAT_R8_UINT:
+    case DXGI_FORMAT_R8_SNORM:
+    case DXGI_FORMAT_R8_SINT:
+    case DXGI_FORMAT_A8_UNORM:
+        return 8;
+
+    default:
+        return 0;
+    }
+}
+
+size_t Estimate_Texture2D_Bytes(const D3D11_TEXTURE2D_DESC& desc)
+{
+    size_t blockBytes = 0;
+    const bool isCompressed = Is_Block_Compressed(desc.Format, blockBytes);
+    const size_t bitsPerPixel = Bits_Per_Pixel(desc.Format);
+    const uint32 mipLevels = max<uint32>(1, desc.MipLevels);
+    size_t totalBytes = 0;
+
+    for (uint32 mip = 0; mip < mipLevels; ++mip)
+    {
+        const size_t width = max<size_t>(1, static_cast<size_t>(desc.Width) >> mip);
+        const size_t height = max<size_t>(1, static_cast<size_t>(desc.Height) >> mip);
+
+        if (isCompressed)
+        {
+            const size_t blocksWide = max<size_t>(1, (width + 3) / 4);
+            const size_t blocksHigh = max<size_t>(1, (height + 3) / 4);
+            totalBytes += blocksWide * blocksHigh * blockBytes * desc.ArraySize;
+            continue;
+        }
+
+        if (bitsPerPixel > 0)
+            totalBytes += width * height * bitsPerPixel / 8 * desc.ArraySize;
+    }
+
+    return totalBytes;
+}
+
+size_t Estimate_TextureSrv_Bytes(ID3D11ShaderResourceView* srv)
+{
+    if (srv == nullptr)
+        return 0;
+
+    ComPtr<ID3D11Resource> resource{};
+    srv->GetResource(resource.GetAddressOf());
+    if (resource == nullptr)
+        return 0;
+
+    ComPtr<ID3D11Texture2D> texture2D{};
+    if (SUCCEEDED(resource.As(&texture2D)) && texture2D != nullptr)
+    {
+        D3D11_TEXTURE2D_DESC desc{};
+        texture2D->GetDesc(&desc);
+        return Estimate_Texture2D_Bytes(desc);
+    }
+
+    return 0;
+}
+}
 
 GameInstance::GameInstance()
 {
@@ -1122,14 +1314,14 @@ Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
     return _renderer->Get_PostProcessPipeline();
 }
 
-const Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline() const
+const Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
 {
-    return _renderer->Get_SSAOPipeline();
+    return _renderer->Get_LightingPipeline();
 }
 
-Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline()
+Shared<LightingPipeline> GameInstance::Get_LightingPipeline()
 {
-    return _renderer->Get_SSAOPipeline();
+    return _renderer->Get_LightingPipeline();
 }
 
 const ScreenFx_Manager* GameInstance::Get_ScreenFxManager() const
@@ -1479,6 +1671,96 @@ string GameInstance::Ensure_AssetGUID(const wstring& filePath, const string& typ
         return existingGuid;
 
     return _assetManager->Register_Asset(filePath, type);
+}
+
+bool GameInstance::Build_DebugResourceMemorySummary(DebugResourceMemorySummary& outSummary) const
+{
+    outSummary = {};
+
+    if (nullptr == _prototypeManager)
+        return false;
+
+    unordered_set<ID3D11ShaderResourceView*> countedSrvs{};
+
+    auto addTextureSrv = [&](ID3D11ShaderResourceView* srv)
+    {
+        if (srv == nullptr)
+            return;
+
+        if (!countedSrvs.insert(srv).second)
+            return;
+
+        ++outSummary.textureSrvCount;
+        outSummary.textureEstimatedBytes += Estimate_TextureSrv_Bytes(srv);
+    };
+
+    _prototypeManager->Visit_Prototypes(
+        [&](uint32, const wstring&, const Shared<Base>& prototype)
+        {
+            if (prototype == nullptr)
+                return;
+
+            if (const Shared<Texture> texture = dynamic_pointer_cast<Texture>(prototype))
+            {
+                ++outSummary.texturePrototypeCount;
+                for (const auto& srv : texture->Get_SRVs())
+                    addTextureSrv(srv.Get());
+                return;
+            }
+
+            if (const Shared<ModelCom> model = dynamic_pointer_cast<ModelCom>(prototype))
+            {
+                ++outSummary.modelPrototypeCount;
+                outSummary.modelMeshCount += static_cast<uint32>(model->Get_NumMeshes());
+                outSummary.modelMaterialCount += static_cast<uint32>(model->Get_NumMaterials());
+                outSummary.modelBoneCount += static_cast<uint32>(model->Get_NumBones());
+                outSummary.modelAnimationCount += static_cast<uint32>(model->Get_NumAnimations());
+
+                for (const Shared<Mesh>& mesh : model->Get_Meshes())
+                {
+                    if (mesh)
+                        outSummary.modelEstimatedBytes += mesh->Get_DebugEstimatedBufferBytes();
+                }
+
+                for (uint32 materialIndex = 0; materialIndex < model->Get_NumMaterials(); ++materialIndex)
+                {
+                    const Shared<Material> material = model->Get_Material(materialIndex);
+                    if (!material)
+                        continue;
+
+                    for (const auto& slots : material->Get_TextureSlots())
+                    {
+                        for (const Material::TextureSlot& slot : slots)
+                            addTextureSrv(slot.shaderResourceView.Get());
+                    }
+                }
+
+                return;
+            }
+
+            if (const Shared<VIBuffer> viBuffer = dynamic_pointer_cast<VIBuffer>(prototype))
+            {
+                ++outSummary.standaloneBufferPrototypeCount;
+                outSummary.standaloneBufferEstimatedBytes += viBuffer->Get_DebugEstimatedBufferBytes();
+            }
+        });
+
+    Visit_CurrentLevelObjects(
+        [&](const wstring&, const Shared<GameObject>& gameObject)
+        {
+            if (gameObject == nullptr)
+                return;
+
+            ++outSummary.currentLevelObjectCount;
+            gameObject->Visit_Components(
+                [&](const wstring&, const Shared<Component>& component)
+                {
+                    if (component)
+                        ++outSummary.currentLevelComponentCount;
+                });
+        });
+
+    return true;
 }
 
 uint32 GameInstance::Get_Handle(const string& name) const

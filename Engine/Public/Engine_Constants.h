@@ -4,6 +4,7 @@
 // NOTE:
 // ConstantBuffer enum과 ShaderCB::Names 배열 순서는 반드시 동기화되어야 한다.
 // 새 ConstantBuffer를 추가할 때는 Engine_Constants의 ShaderCB 이름과 Names 배열도 함께 갱신해야 한다.
+#include "Engine_Config.h"
 #include <array>
 namespace Engine::ShaderCB
 {
@@ -14,6 +15,7 @@ namespace Engine::ShaderCB
     inline constexpr ::string_view ScreenSpace  = "ScreenSpaceBuffer";
     inline constexpr ::string_view Light       = "LightBuffer";
     inline constexpr ::string_view SSAO        = "SSAOBuffer";
+    inline constexpr ::string_view DeferredLighting = "DeferredLightingBuffer";
     inline constexpr ::string_view PostProcess = "PostProcessBuffer";
     inline constexpr ::string_view Hair        = "HairDescBuffer";
     inline constexpr ::string_view DrawFeature = "DrawFeatureBuffer";
@@ -27,6 +29,7 @@ namespace Engine::ShaderCB
         ScreenSpace,
         Light,
         SSAO,
+        DeferredLighting,
         PostProcess,
         Hair,
         DrawFeature
@@ -51,6 +54,7 @@ namespace Engine::DebugPerf
 {
 #ifdef _DEBUG
     // 성능 평가의 sample_interval 값. 변경하면 체크 주기를 줄이거나 늘릴 수 있다.
-    inline constexpr float kRuntimePerfSampleIntervalSec = 0.25f;
+    inline constexpr float kRuntimePerfSampleIntervalSec = ENGINE_RUNTIME_PERF_LOG_SAMPLE_INTERVAL_SEC;
+    inline constexpr float kRuntimePerfLogWindowSec = ENGINE_RUNTIME_PERF_LOG_WINDOW_SEC;
 #endif
 }
