@@ -41,6 +41,7 @@ HRESULT PW_Lune::Initialize(void* arg)
 
     skilltreeCom->TryUnlock("Immolation");
     skilltreeCom->TryUnlock("IceGust");
+    skilltreeCom->TryUnlock("Thunderfall");
 
     CHECK_FAILED(Ready_Modifier(), E_FAIL)
 

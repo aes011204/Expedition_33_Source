@@ -48,6 +48,18 @@ EAliveStatus CombatStatCom::Get_CurAliveState()
     return Get_RuntimeStat().CurAliveState;
 }
 
+bool CombatStatCom::Try_GetSkillKeyBySlot(uint32 slotIndex, string& outSkillKey) const
+{
+    if (slotIndex >= _skillKeys.size())
+        return false;
+
+    if (_skillKeys[slotIndex].empty())
+        return false;
+
+    outSkillKey = _skillKeys[slotIndex];
+    return true;
+}
+
 string CombatStatCom::Get_FirstSkill()
 {
     if (Get_Owner()->Get_Name() == L"PB_Gustave")

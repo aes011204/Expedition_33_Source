@@ -11,13 +11,18 @@ void MonsterStat_Inspector::Draw_Inspector(const Shared<Component>& component)
     if (!Draw_Header("Monster Stat Com"))
         return;
 
-    auto& desc = stat->Get_StatInfo();
+    auto& desc = stat->Get_MonsterDesc();
     auto& runtime = stat->Get_MonsterRuntimeStat();
 
     Draw_PortraitTexturePicker(
         "TurnOrder Portrait",
         desc.portraitGuid,
         "textures/ui/battle/turnorder/enemies/");
+
+    Draw_WStringPropertyRow(
+        "Battle Announce Name",
+        "##MonsterBattleAnnounceName",
+        desc.battleAnnounceName);
 
     float maxHp = desc.maxHp;
     int maxAp = static_cast<int>(desc.maxAp);

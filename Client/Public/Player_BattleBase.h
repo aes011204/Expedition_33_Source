@@ -12,13 +12,15 @@ class PlayerStatCom;
 class Body_Player;
 class Head_Player;
 class Hair_Player;
+class EffectCom;
+class BattleMechanismCom;
 
 class Player_BattleBase : public Character_BattleBase
 {
 public:
     struct WeaponAttachDesc
     {
-        const wchar_t*  modelTag = nullptr;     // 무기를
+        string          weaponPrefabName{};     // 어떤 무기 프리펩을 세팅할건지
         const char*     socketName = nullptr;   // 어디 소켓에 붙일건지
     };
 
@@ -33,6 +35,9 @@ public:
     void    BeginPlay() override;
     void    Update(float timeDelta) override;
     void    Late_Update(float timeDelta) override;
+
+    json    To_Json() const override;
+    void    From_Json(const json& data) override;
 
 protected:
     HRESULT Ready_Components();
@@ -51,9 +56,9 @@ protected:
     virtual HRESULT Ready_WeaponPart(Body_Player* body);
 
 protected:
-    Shared<PlayerStatCom>   _combatStatCom;
-
-public:
+    Shared<PlayerStatCom>       _combatStatCom;
+    Shared<EffectCom>           _effectCom;
+    Shared<BattleMechanismCom>  _battleMechanismCom;
 
 };
 

@@ -9,6 +9,8 @@
 #include "GameObject.h"
 #include "DebugDraw.h"
 #include "Editor_Macro.h"
+#include "EffectAssetRuntimeLoader.h"
+#include "EffectInstance.h"
 #include "Inspector.h"
 #include "ModelCom.h"
 #include "Prefab_View.h"
@@ -18,22 +20,10 @@
 #include "AnimNotifyState.h"
 #include "imgui_internal.h"
 #include "Notification_Manager.h"
+#include "Weapon.h"
 
 namespace
 {
-    bool IsInteractivePreviewWindow(const Shared<Editor_Window>& window)
-    {
-        return window != nullptr &&
-            window->Is_Open() &&
-            window->Is_Visible() &&
-            (window->Is_Focused() || window->Is_Hovered());
-    }
-
-    bool IsShownPreviewWindow(const Shared<Editor_Window>& window)
-    {
-        return window != nullptr && window->Is_Open() && window->Is_Visible();
-    }
-
     string Resolve_NotifyAnimationKey(const Animation_View::AnimationEntry& entry)
     {
         if (!entry.playbackName.empty())
@@ -183,23 +173,29 @@ void Animation_View::Pre_Render()
     if (previewRenderObject == nullptr || _previewCamera == nullptr)
         return;
 
-    Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
-    if (_previewRenderTarget == nullptr)
-        return;
-
     const Matrix savedView = *GAME->Get_Transform(D3DTS::View);
     const Matrix savedProj = *GAME->Get_Transform(D3DTS::Proj);
+    const Shared<Camera> savedActiveCamera = GAME->Get_ActiveCamera();
+    const uint32 savedViewportWidth = GAME->Get_ViewportWidth();
+    const uint32 savedViewportHeight = GAME->Get_ViewportHeight();
     vector<LIGHT_DESC> savedLightDescs{};
     GAME->Get_LightDescs(savedLightDescs);
     const bool wasPlayerInputBlocked = GAME->Is_PlayerInputBlocked();
 
-    if (FAILED(_previewRenderTarget->Begin(true, true)))
+    EDITOR->Request_PreviewViewportSize(_previewWidth, _previewHeight);
+
+    GAME->Bind_BackBuffer();
+    if (FAILED(GAME->Clear_Buffers(Vec4(0.f, 0.f, 0.f, 1.f))))
+    {
+        EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
         return;
+    }
 
     const Matrix previewView = _previewCamera->Get_ViewMatrix();
     const float aspect = static_cast<float>(_previewWidth) / static_cast<float>(max(1u, _previewHeight));
     const Matrix previewProj = XMMatrixPerspectiveFovLH(_previewCamera->Get_FovY(), aspect, _previewCamera->Get_Near(), _previewCamera->Get_Far());
 
+    GAME->Change_ActiveCamera(_previewCamera);
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(previewView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(previewProj));
     GAME->UpdateFrustum(previewView, previewProj);
@@ -226,28 +222,38 @@ void Animation_View::Pre_Render()
     GAME->Set_Lights(previewLightDescs);
     GAME->Set_PlayerInputBlocked(true);
 
-    const float dt = ImGui::GetIO().DeltaTime;
+    const float dt = min(ImGui::GetIO().DeltaTime, 1.f / 30.f);
+    Lock_PreviewObjectToOrigin(previewRenderObject);
+
     if (_sourceMode == SourceMode::LiveModel)
     {
         previewRenderObject->Priority_Update(dt);
         previewRenderObject->Update(dt);
+        Update_PreviewTrailEffect(dt);
     }
 
     GAME->Backup_RenderGroup();
     previewRenderObject->Late_Update(dt);
-    Lock_PreviewObjectToOrigin(previewRenderObject);
 
-    GAME->Draw_Preview();
+    if (_previewTrailEffect && _isPreviewTrailPlaying)
+        _previewTrailEffect->Late_Update(dt);
+
+    GAME->Draw_RendererOnly();
     GAME->Restore_RenderGroup();
     Ensure_PreviewGridResources();
     Draw_SelectedBoneMarker();
+    Draw_TrailAnchorPreview();
     Draw_PreviewGrid();
+    EDITOR->Capture_BackBuffer_ToPreview();
     GAME->Set_Lights(savedLightDescs);
     GAME->Set_PlayerInputBlocked(wasPlayerInputBlocked);
 
     GAME->Bind_BackBuffer();
+    if (savedActiveCamera != nullptr)
+        GAME->Change_ActiveCamera(savedActiveCamera);
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(savedView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(savedProj));
+    EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
 }
 
 void Animation_View::Render()
@@ -359,6 +365,9 @@ void Animation_View::Render()
 
     Set_Open(isOpen);
     ImGui::End();
+
+    if (!isOpen)
+        Reset_PreviewTrailEffect();
 }
 
 bool Animation_View::CanSave() const
@@ -369,10 +378,13 @@ bool Animation_View::CanSave() const
 void Animation_View::Save()
 {
     Save_NotifyAsset();
+    Save_TrailAnchorAsset();
 }
 
 void Animation_View::Open_FromAsset(const wstring& modelPath, const string& modelGuid, const string& preferredAnimationName, uint32 preferredDockId)
 {
+    Reset_PreviewTrailEffect();
+
     _sourceMode = SourceMode::None;
     _sourceModelPath = modelPath;
     _liveModelCom.reset();
@@ -393,6 +405,9 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
 
     Refresh_Source();
     Load_NotifyAsset();
+    Load_TrailAnchorAsset();
+    _previewTrailAnchorAsset = {};
+    _previewTrailModelGuid.clear();
 
     Set_Open(true);
 }
@@ -400,6 +415,8 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
 void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, const string& preferredAnimationName, uint32 preferredDockId, bool focusOnOpen)
 {
     const wstring sourceModelPath = modelCom ? modelCom->Get_SourceModelPath() : wstring{};
+
+    Reset_PreviewTrailEffect();
 
     _sourceMode = SourceMode::LiveModel;
     _liveModelCom = modelCom;
@@ -421,11 +438,43 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
 
     Refresh_Source();
     Load_NotifyAsset();
+    Load_TrailAnchorAsset();
+    Load_PreviewTrailAnchorAsset();
     Ensure_PreviewCamera();
     Fit_PreviewCameraToModel();
     Sync_PreviewAnimationSelection(true);
 
     Set_Open(true);
+}
+
+void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewRoot)
+{
+    if (_sourceMode != SourceMode::LiveModel)
+        return;
+
+    if (previewRoot != nullptr)
+    {
+        const Shared<GameObject> currentPreviewRoot = Get_PreviewRenderObject();
+        if (currentPreviewRoot != previewRoot)
+            return;
+    }
+
+    Reset_PreviewTrailEffect();
+
+    _sourceMode = SourceMode::None;
+    _sourceModelPath.clear();
+    _liveModelCom.reset();
+    _modelGuid.clear();
+    _currentAnimationName.clear();
+    _availableAnimations.clear();
+    _selectedNotifyId = -1;
+    _selectedStateId = -1;
+    _selectedNotifyTrackIndex = 0;
+    _selectedNotifyStateTrackIndex = 0;
+    _sequencerCurrentFrame = 0;
+    _sequencerSelectedRow = -1;
+    _sequencerFirstFrame = 0;
+    _selectedBoneIndex = -1;
 }
 
 int32 Animation_View::Get_CurrentAnimationFps() const
@@ -434,6 +483,12 @@ int32 Animation_View::Get_CurrentAnimationFps() const
         return max(1, animationData->displayFps);
 
     return 60;
+}
+
+void Animation_View::Refresh_PreviewTrailAnchorAsset()
+{
+    Reset_PreviewTrailEffect();
+    Load_PreviewTrailAnchorAsset();
 }
 
 float Animation_View::Get_CurrentAnimationLengthSec() const
@@ -585,6 +640,53 @@ void Animation_View::Load_NotifyAsset()
     AnimNotify_Parser::Get_OrAddAnimation(_asset, _currentAnimationName);
 }
 
+void Animation_View::Load_TrailAnchorAsset()
+{
+    _trailAnchorAsset = {};
+
+    if (_modelGuid.empty())
+        return;
+
+    const fs::path filePath = Client::TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(_modelGuid);
+    (void)Client::TrailAnchor_Parser::Load_FromFile(filePath.wstring(), _trailAnchorAsset);
+
+    if (_trailAnchorAsset.modelGuid.empty())
+        _trailAnchorAsset.modelGuid = _modelGuid;
+}
+
+void Animation_View::Load_PreviewTrailAnchorAsset()
+{
+    _previewTrailAnchorAsset = {};
+    _previewTrailModelGuid.clear();
+
+    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+    if (ownerContainer == nullptr)
+        return;
+
+    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(L"Part_Weapon"));
+    if (weaponPart == nullptr)
+        return;
+
+    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+    if (weaponModel == nullptr)
+        return;
+
+    const wstring& sourceModelPath = weaponModel->Get_SourceModelPath();
+    if (sourceModelPath.empty())
+        return;
+
+    _previewTrailModelGuid = GAME->Ensure_AssetGUID(sourceModelPath, "Model");
+    if (_previewTrailModelGuid.empty())
+        return;
+
+    const fs::path filePath = Client::TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(_previewTrailModelGuid);
+    (void)Client::TrailAnchor_Parser::Load_FromFile(filePath.wstring(), _previewTrailAnchorAsset);
+
+    if (_previewTrailAnchorAsset.modelGuid.empty())
+        _previewTrailAnchorAsset.modelGuid = _previewTrailModelGuid;
+}
+
 void Animation_View::Save_NotifyAsset()
 {
     if (_modelGuid.empty())
@@ -604,6 +706,18 @@ void Animation_View::Save_NotifyAsset()
     {
         EDITOR->Get_Notification()->Add_Notification_With_Type(NotifyType::Warning, "애니메이션 노티파이 저장 실패: {}", _currentAnimationName);
     }
+}
+
+void Animation_View::Save_TrailAnchorAsset() const
+{
+    if (_modelGuid.empty())
+        return;
+
+    Client::TrailAnchorAsset asset = _trailAnchorAsset;
+    asset.modelGuid = _modelGuid;
+
+    const fs::path filePath = Client::TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(_modelGuid);
+    (void)Client::TrailAnchor_Parser::Save_ToFile(filePath.wstring(), asset);
 }
 
 void Animation_View::Refresh_OpenModelNotifyAssets() const
@@ -844,6 +958,22 @@ void Animation_View::Draw_BoneTree()
                 _selectedStateId = -1;
             }
 
+            if (ImGui::MenuItem("Trail Base로 지정"))
+            {
+                _selectedBoneIndex = static_cast<int32>(boneIndex);
+                _selectedNotifyId = -1;
+                _selectedStateId = -1;
+                Assign_SelectedBoneToTrailAnchor(playbackModel, TrailAnchorSlot::Base);
+            }
+
+            if (ImGui::MenuItem("Trail Tip으로 지정"))
+            {
+                _selectedBoneIndex = static_cast<int32>(boneIndex);
+                _selectedNotifyId = -1;
+                _selectedStateId = -1;
+                Assign_SelectedBoneToTrailAnchor(playbackModel, TrailAnchorSlot::Tip);
+            }
+
             ImGui::EndPopup();
         }
 
@@ -960,9 +1090,10 @@ void Animation_View::Draw_PreviewPanel()
     Shared<GameObject> previewRenderObject = Get_PreviewRenderObject();
     Shared<ModelCom> playbackModel = Get_PlaybackModel();
 
-    if (previewRenderObject != nullptr && playbackModel != nullptr && _previewRenderTarget && _previewRenderTarget->Get_SRV())
+    ID3D11ShaderResourceView* previewSRV = EDITOR->Get_SharedPreviewSRV();
+    if (previewRenderObject != nullptr && playbackModel != nullptr && previewSRV != nullptr)
     {
-        ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(_previewRenderTarget->Get_SRV()));
+        ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(previewSRV));
         drawList->AddImage(
             textureId,
             previewPos,
@@ -1092,7 +1223,7 @@ void Animation_View::Draw_SelectedDetail()
     ImGui::EndChild();
 }
 
-void Animation_View::Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel) const
+void Animation_View::Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel)
 {
     if (playbackModel == nullptr || _selectedBoneIndex < 0)
     {
@@ -1130,6 +1261,37 @@ void Animation_View::Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackMod
     else
     {
         ImGui::TextDisabled("(Root)");
+    }
+
+    ImGui::Spacing();
+    Draw_TrailAnchorPanel();
+}
+
+void Animation_View::Draw_TrailAnchorPanel()
+{
+    ImGui::Separator();
+    ImGui::Text("Trail Anchors");
+
+    ImGui::Text("Base Bone");
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", _trailAnchorAsset.base.boneName.empty() ? "(None)" : _trailAnchorAsset.base.boneName.c_str());
+
+    ImGui::Text("Tip Bone");
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", _trailAnchorAsset.tip.boneName.empty() ? "(None)" : _trailAnchorAsset.tip.boneName.c_str());
+
+    Vec3 baseLocal = _trailAnchorAsset.base.localPosition;
+    if (ImGui::DragFloat3("Base Local", &baseLocal.x, 0.5f))
+    {
+        _trailAnchorAsset.base.localPosition = baseLocal;
+        MarkDirty();
+    }
+
+    Vec3 tipLocal = _trailAnchorAsset.tip.localPosition;
+    if (ImGui::DragFloat3("Tip Local", &tipLocal.x, 0.5f))
+    {
+        _trailAnchorAsset.tip.localPosition = tipLocal;
+        MarkDirty();
     }
 }
 
@@ -1803,6 +1965,20 @@ Shared<ModelCom> Animation_View::Get_PlaybackModel() const
     return _liveModelCom;
 }
 
+bool Animation_View::Try_GetTrailSample(EffectTrailSample& outSample) const
+{
+    Vec3 baseWorld{};
+    Vec3 tipWorld{};
+    if (!Try_ResolvePreviewTrailAnchorWorldPosition(_previewTrailAnchorAsset.base, baseWorld))
+        return false;
+    if (!Try_ResolvePreviewTrailAnchorWorldPosition(_previewTrailAnchorAsset.tip, tipWorld))
+        return false;
+
+    outSample.baseWorldPosition = baseWorld;
+    outSample.tipWorldPosition = tipWorld;
+    return true;
+}
+
 void Animation_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)
 {
     width = max(1u, width);
@@ -1956,6 +2132,13 @@ void Animation_View::Draw_PreviewGrid() const
     _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
     _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
 
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
     context->IASetInputLayout(_previewGridInputLayout.Get());
     context->OMSetDepthStencilState(_previewGridDepthState.Get(), 0);
     context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
@@ -2034,6 +2217,13 @@ void Animation_View::Draw_SelectedBoneMarker() const
     _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
     _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
 
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
     context->IASetInputLayout(_previewGridInputLayout.Get());
     context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
     context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
@@ -2103,6 +2293,300 @@ void Animation_View::Draw_SelectedBoneMarker() const
     drawAxisLine(forwardAxis * axisLength, DirectX::Colors::DeepSkyBlue);
 
     _previewGridBatch->End();
+}
+
+void Animation_View::Draw_TrailAnchorPreview() const
+{
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    if (playbackModel == nullptr)
+        return;
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
+        return;
+
+    Vec3 baseWorld{};
+    Vec3 tipWorld{};
+    if (!Try_ResolveTrailAnchorWorldPosition(playbackModel, _trailAnchorAsset.base, baseWorld))
+        return;
+    if (!Try_ResolveTrailAnchorWorldPosition(playbackModel, _trailAnchorAsset.tip, tipWorld))
+        return;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
+    context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    constexpr float markerSize = 0.08f;
+    _previewGridBatch->Begin();
+
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(baseWorld, DirectX::Colors::Orange),
+        DirectX::VertexPositionColor(tipWorld, DirectX::Colors::Cyan));
+
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(baseWorld + Vec3(-markerSize, 0.f, 0.f), DirectX::Colors::Orange),
+        DirectX::VertexPositionColor(baseWorld + Vec3(markerSize, 0.f, 0.f), DirectX::Colors::Orange));
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(baseWorld + Vec3(0.f, -markerSize, 0.f), DirectX::Colors::Orange),
+        DirectX::VertexPositionColor(baseWorld + Vec3(0.f, markerSize, 0.f), DirectX::Colors::Orange));
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(baseWorld + Vec3(0.f, 0.f, -markerSize), DirectX::Colors::Orange),
+        DirectX::VertexPositionColor(baseWorld + Vec3(0.f, 0.f, markerSize), DirectX::Colors::Orange));
+
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(tipWorld + Vec3(-markerSize, 0.f, 0.f), DirectX::Colors::Cyan),
+        DirectX::VertexPositionColor(tipWorld + Vec3(markerSize, 0.f, 0.f), DirectX::Colors::Cyan));
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(tipWorld + Vec3(0.f, -markerSize, 0.f), DirectX::Colors::Cyan),
+        DirectX::VertexPositionColor(tipWorld + Vec3(0.f, markerSize, 0.f), DirectX::Colors::Cyan));
+    _previewGridBatch->DrawLine(
+        DirectX::VertexPositionColor(tipWorld + Vec3(0.f, 0.f, -markerSize), DirectX::Colors::Cyan),
+        DirectX::VertexPositionColor(tipWorld + Vec3(0.f, 0.f, markerSize), DirectX::Colors::Cyan));
+
+    _previewGridBatch->End();
+}
+
+void Animation_View::Update_PreviewTrailEffect(float timeDelta)
+{
+    const AnimNotifyStateEntry* activeTrailState = Find_ActivePreviewTrailState();
+    if (activeTrailState == nullptr)
+    {
+        Reset_PreviewTrailEffect();
+        return;
+    }
+
+    const float currentTimeSec = _liveModelCom ? _liveModelCom->Get_CurrentAnimationTimeSec() : 0.f;
+    const bool hasPreviousTime = _previewTrailLastTimeSec >= 0.f;
+    const bool timeMovedBackward = hasPreviousTime && currentTimeSec + 1e-4f < _previewTrailLastTimeSec;
+    if (timeMovedBackward)
+        Reset_PreviewTrailEffect();
+
+    const json payload = activeTrailState->notifyState ? activeTrailState->notifyState->To_Json() : json{};
+    const string partTag = payload.value("_partTag", string{ "Part_Weapon" });
+    if (partTag != "Part_Weapon")
+    {
+        Reset_PreviewTrailEffect();
+        return;
+    }
+
+    const string effectNameValue = payload.value("_effectName", string{});
+    if (effectNameValue.empty())
+    {
+        Reset_PreviewTrailEffect();
+        return;
+    }
+
+    const wstring effectName = wstring(effectNameValue.begin(), effectNameValue.end());
+    if (!Ensure_PreviewTrailEffect(effectName))
+        return;
+
+    EffectTrailSample trailSample{};
+    if (!Try_GetTrailSample(trailSample))
+    {
+        if (_previewTrailEffect && _isPreviewTrailPlaying)
+        {
+            _previewTrailEffect->Stop();
+            _isPreviewTrailPlaying = false;
+            _activePreviewTrailStateId = -1;
+        }
+        return;
+    }
+
+    const bool needsReplay =
+        !_isPreviewTrailPlaying ||
+        _activePreviewTrailStateId != activeTrailState->id;
+
+    if (needsReplay)
+    {
+        _previewTrailEffect->Bind_TrailSampleProvider(static_pointer_cast<IEffectTrailSampleProvider>(GetSharedPtr<Animation_View>()));
+        if (FAILED(_previewTrailEffect->Reset()))
+            return;
+
+        const Shared<TransformCom> effectTransform = _previewTrailEffect->Get_Transform();
+        if (effectTransform == nullptr)
+            return;
+        effectTransform->Set_WorldPosition(trailSample.baseWorldPosition);
+
+        if (FAILED(_previewTrailEffect->Play()))
+            return;
+
+        _activePreviewTrailStateId = activeTrailState->id;
+        _isPreviewTrailPlaying = true;
+    }
+
+    const Shared<TransformCom> effectTransform = _previewTrailEffect->Get_Transform();
+    if (effectTransform == nullptr)
+        return;
+    effectTransform->Set_WorldPosition(trailSample.baseWorldPosition);
+
+    _previewTrailEffect->Priority_Update(timeDelta);
+    _previewTrailEffect->Update(timeDelta);
+    _previewTrailLastTimeSec = currentTimeSec;
+}
+
+void Animation_View::Reset_PreviewTrailEffect()
+{
+    if (_previewTrailEffect)
+        _previewTrailEffect->Stop();
+
+    _previewTrailEffect = nullptr;
+    _previewTrailEffectName.clear();
+    _activePreviewTrailStateId = -1;
+    _isPreviewTrailPlaying = false;
+    _previewTrailLastTimeSec = -1.f;
+}
+
+const AnimNotifyStateEntry* Animation_View::Find_ActivePreviewTrailState() const
+{
+    if (_sourceMode != SourceMode::LiveModel || _liveModelCom == nullptr)
+        return nullptr;
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+        return nullptr;
+
+    const float currentTimeSec = _liveModelCom->Get_CurrentAnimationTimeSec();
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_Trail")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        return &entry;
+    }
+
+    return nullptr;
+}
+
+bool Animation_View::Ensure_PreviewTrailEffect(const wstring& effectName)
+{
+    if (_previewTrailEffect && _previewTrailEffectName == effectName)
+        return true;
+
+    Reset_PreviewTrailEffect();
+
+    const Shared<const EffectDefinition> definition = EffectAssetRuntimeLoader::Load_DefinitionByName(effectName);
+    if (definition == nullptr)
+        return false;
+
+    const Shared<EffectInstance> prototype = EffectInstance::Create(GAME->Get_Device(), GAME->Get_Context());
+    if (prototype == nullptr)
+        return false;
+
+    EffectInstanceDesc effectDesc{};
+    effectDesc.definition = definition;
+
+    const Shared<GameObject> previewEffectObject = prototype->Clone(&effectDesc);
+    _previewTrailEffect = dynamic_pointer_cast<EffectInstance>(previewEffectObject);
+    if (_previewTrailEffect == nullptr)
+        return false;
+
+    _previewTrailEffect->Bind_TrailSampleProvider(static_pointer_cast<IEffectTrailSampleProvider>(GetSharedPtr<Animation_View>()));
+    CHECK_FAILED(_previewTrailEffect->Try_BeginPlay(), false);
+    CHECK_FAILED(_previewTrailEffect->Reset(), false);
+
+    _previewTrailEffectName = effectName;
+    return true;
+}
+
+void Animation_View::Assign_SelectedBoneToTrailAnchor(const Shared<ModelCom>& playbackModel, TrailAnchorSlot slot)
+{
+    if (playbackModel == nullptr || _selectedBoneIndex < 0)
+        return;
+
+    const uint32 boneIndex = static_cast<uint32>(_selectedBoneIndex);
+    if (boneIndex >= playbackModel->Get_NumBones())
+        return;
+
+    Client::TrailAnchorPointDesc* target = nullptr;
+    if (slot == TrailAnchorSlot::Base)
+        target = &_trailAnchorAsset.base;
+    else
+        target = &_trailAnchorAsset.tip;
+
+    target->boneName = playbackModel->Get_BoneName(boneIndex);
+    target->localPosition = Vec3::Zero;
+
+    _trailAnchorAsset.modelGuid = _modelGuid;
+    MarkDirty();
+}
+
+bool Animation_View::Try_ResolveTrailAnchorWorldPosition(
+    const Shared<ModelCom>& playbackModel,
+    const Client::TrailAnchorPointDesc& anchor,
+    Vec3& outWorldPosition) const
+{
+    if (playbackModel == nullptr || anchor.boneName.empty())
+        return false;
+
+    const int32 boneIndex = playbackModel->Get_BoneIndex(anchor.boneName);
+    if (boneIndex < 0)
+        return false;
+
+    const Matrix* boneMatrix = playbackModel->Get_BoneMatrixPtr(static_cast<uint32>(boneIndex));
+    if (boneMatrix == nullptr)
+        return false;
+
+    Shared<GameObject> ownerObject = playbackModel->Get_Owner();
+    Shared<TransformCom> ownerTransform = ownerObject ? ownerObject->Get_Transform() : nullptr;
+    const Matrix ownerWorldMatrix = ownerTransform ? ownerTransform->Get_WorldMatrix() : Matrix::Identity;
+
+    const Matrix anchorWorldMatrix = *boneMatrix * ownerWorldMatrix;
+    outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
+    return true;
+}
+
+bool Animation_View::Try_ResolvePreviewTrailAnchorWorldPosition(
+    const Client::TrailAnchorPointDesc& anchor,
+    Vec3& outWorldPosition) const
+{
+    if (anchor.boneName.empty())
+        return false;
+
+    const Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(previewRootObject);
+    if (ownerContainer == nullptr)
+        return false;
+
+    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(L"Part_Weapon"));
+    if (weaponPart == nullptr)
+        return false;
+
+    const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
+    if (weaponModel == nullptr)
+        return false;
+
+    const int32 boneIndex = weaponModel->Get_BoneIndex(anchor.boneName);
+    if (boneIndex < 0)
+        return false;
+
+    const Matrix* boneMatrix = weaponModel->Get_BoneMatrixPtr(static_cast<uint32>(boneIndex));
+    if (boneMatrix == nullptr)
+        return false;
+
+    const Matrix anchorWorldMatrix = *boneMatrix * weaponPart->Get_CombinedWorldMatrix();
+    outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
+    return true;
 }
 
 void Animation_View::Validate_SelectedBoneSelection()
@@ -2214,19 +2698,7 @@ void Animation_View::Lock_PreviewObjectToOrigin(const Shared<GameObject>& gameOb
 
 bool Animation_View::Should_DeferToCompanionPreview()
 {
-    const Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
-    const bool isAnimationInteractive = IsInteractivePreviewWindow(animationWindow);
-
-    Shared<Editor_Window> prefabWindow = EDITOR->Get_Window(L"Prefab");
-    if (IsInteractivePreviewWindow(prefabWindow))
-        return true;
-
-    Shared<Editor_Window> animStateWindow = EDITOR->Get_Window(L"AnimState");
-    if (IsInteractivePreviewWindow(animStateWindow))
-        return true;
-
-    // fallback owner priority: AnimState > Animation > Prefab
-    return !isAnimationInteractive && IsShownPreviewWindow(animStateWindow);
+    return !EDITOR->Is_ActivePreviewOwner(PreviewOwner::Animation);
 }
 
 Editor_Camera_Free::EDITOR_CAMERA_DESC Animation_View::Build_PreviewCameraDesc(const Shared<GameObject>& gameObject)

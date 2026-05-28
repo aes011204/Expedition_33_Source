@@ -122,7 +122,6 @@ void TargetCamera::Priority_Update(float timeDelta)
     {
         Change_Mode(TargetCameraMode::NORMAL);
     }
-
 }
 
 void TargetCamera::Update(float timeDelta)

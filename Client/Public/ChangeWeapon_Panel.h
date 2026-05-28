@@ -25,6 +25,7 @@ public:
     void    Close();
 
     bool    Is_Open() const { return _isOpen; }
+    Shared<UI_Base> Get_RootUI() const { return _root; }
 
 private:
     HRESULT Load_UI(uint32 levelIndex);

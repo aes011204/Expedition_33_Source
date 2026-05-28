@@ -43,6 +43,7 @@ void UI_HealFont::Play_HealFont(const Vec2& screenPos, float healAmount, uint32 
     const int32 healValue = max(0, static_cast<int32>(healAmount));
 
     _startScreenPos = screenPos;
+    Apply_EditorOffsets(_startScreenPos);
     _hasStartScreenPos = true;
     _stackIndex = stackIndex;
     _elapsed = 0.f;

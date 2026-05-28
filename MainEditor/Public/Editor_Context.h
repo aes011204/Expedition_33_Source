@@ -3,6 +3,7 @@
 
 NS_BEGIN(Engine)
 class GameObject;
+class UI_Base;
 NS_END
 
 NS_BEGIN(MainEditor)
@@ -18,6 +19,13 @@ public:
     const EditorSelection& Get_Selection() const { return _selection; }
 
     void Set_SelectObject(const Shared<GameObject>& gameObject);
+    void Set_SelectUI(
+        const Shared<UI_Base>& ui,
+        const string& groupName,
+        const string& displayName,
+        bool positionDrivenByCode);
+    void Clear_SelectedObject();
+    void Clear_SelectedUI();
     void Clear_Selection();
     void Request_FocusObject(const Shared<GameObject>& gameObject);
     Shared<GameObject> Consume_FocusObjectRequest();
