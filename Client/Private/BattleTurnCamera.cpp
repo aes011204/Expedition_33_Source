@@ -105,7 +105,7 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
 
    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::BATTLEINTRO, _battleIntroClip);
    BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::PLAYERATTACK, _playerAttackClip);
-   //BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackClip);
+   BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode::ENEMYATTACK, _enemyAttackClip);
 
    _playerAttackDefaultProfile.preset = _playerAttackPreset;
    _playerAttackDefaultProfile.clip = _playerAttackClip;
@@ -168,6 +168,9 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
                     request.profileId = event.profileId;
                     break;
             }
+
+            request.useClip = event.useClip;
+            request.restartClip = event.restartClip;
 
             Apply_ShotRequest(request);
         }
@@ -711,25 +714,65 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     switch(request.mode)
     {
     case BattleCameraMode::WIDE:
-        nextPreset = _wideModePreset;
+        if (const BattleCameraProfile* profile = Resolve_BattleCameraProfile(request))
+        {
+            nextPreset = profile->preset;
+            nextActiveClip = const_cast<BattleCameraClip*>(&profile->clip);
+        }
+        else
+        {
+            nextPreset = _wideModePreset;
+        }
         break;
 
     case BattleCameraMode::BATTLEINTRO:
-        nextPreset = _battleIntroPreset;
-        nextActiveClip = &_battleIntroClip;
+        if (const BattleCameraProfile* profile = Resolve_BattleCameraProfile(request))
+        {
+            nextPreset = profile->preset;
+            nextActiveClip = const_cast<BattleCameraClip*>(&profile->clip);
+        }
+        else
+        {
+            nextPreset = _battleIntroPreset;
+            nextActiveClip = &_battleIntroClip;
+        }
         break;
 
     case BattleCameraMode::PLAYERFOCUS: 
-        nextPreset = _playerFocusPreset;
+        if (const BattleCameraProfile* profile = Resolve_BattleCameraProfile(request))
+        {
+            nextPreset = profile->preset;
+            nextActiveClip = const_cast<BattleCameraClip*>(&profile->clip);
+        }
+        else
+        {
+            nextPreset = _playerFocusPreset;
+        }
         break;
 
     case BattleCameraMode::ENEMYFOCUS:
-        nextPreset = _enemyFocusPreset;
+        if (const BattleCameraProfile* profile = Resolve_BattleCameraProfile(request))
+        {
+            nextPreset = profile->preset;
+            nextActiveClip = const_cast<BattleCameraClip*>(&profile->clip);
+        }
+        else
+        {
+            nextPreset = _enemyFocusPreset;
+        }
         break;
 
     case BattleCameraMode::ENEMYATTACK:
-        nextPreset = _enemyAttackPreset;
-        nextActiveClip = &_enemyAttackClip;
+        if (const BattleCameraProfile* profile = Resolve_BattleCameraProfile(request))
+        {
+            nextPreset = profile->preset;
+            nextActiveClip = const_cast<BattleCameraClip*>(&profile->clip);
+        }
+        else
+        {
+            nextPreset = _enemyAttackPreset;
+            nextActiveClip = &_enemyAttackClip;
+        }
         break;
 
     case BattleCameraMode::PLAYERATTACK:
@@ -737,6 +780,11 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         {
             nextPreset = profile->preset;
             nextActiveClip = const_cast<BattleCameraClip*>(&profile->clip);
+        }
+        else
+        {
+            nextPreset = _playerAttackDefaultProfile.preset;
+            nextActiveClip = &_playerAttackDefaultProfile.clip;
         }
         break;
     }

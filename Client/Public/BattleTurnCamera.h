@@ -23,8 +23,8 @@ public:
         Shared<Engine::Character> opponent = nullptr;
         string          skillId;
         string          profileId;
-        bool            useClip;
-        bool            restartClip;
+        bool            useClip = false;
+        bool            restartClip = false;
     };
 
 public:
