@@ -67,6 +67,8 @@ void UI_BattleSkillPanel::Open_MainPanel(PlayerCharacterType playerType)
         break;
     }
 
+    Reset_EditorDesignPositionCache(); // 메인 패널 루트의 원래 위치를 다시 잡게 한다.
+
     if (_root == nullptr)
     {
         _isOpen = false;
@@ -85,11 +87,13 @@ void UI_BattleSkillPanel::Open_Tooltip(const string& skillKey)
     if (iter == _tooltipRoots.end() || iter->second == nullptr)
     {
         _root = nullptr;
+        Reset_EditorDesignPositionCache(); // 잘못된 이전 루트 위치가 남지 않게 정리
         _isOpen = false;
         return;
     }
 
     _root = iter->second;
+    Reset_EditorDesignPositionCache(); // 툴팁 루트의 원래 위치를 다시 캡처하게 한다.
     UI_RuntimePanelBase::Open();
 }
 
@@ -99,6 +103,7 @@ void UI_BattleSkillPanel::Close()
     Close_Tooltips();
 
     _root = nullptr;
+    Reset_EditorDesignPositionCache(); // 다음 Open 때 새 루트 기준으로 다시 시작
     _isOpen = false;
 }
 

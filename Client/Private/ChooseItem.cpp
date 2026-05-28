@@ -1,5 +1,7 @@
 ﻿#include "pch.h"
 #include "ChooseItem.h"
+
+#include "BattleAnimutils.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
@@ -67,11 +69,8 @@ void ChooseItem::Update(float timeDelta)
     {
         owner->Get_TurnActionRequest().itemType = BattleItemType::Invalid;
 
-        const BattleChar& actor = owner->Get_TurnActionRequest().actor;
-        if (actor.ModelCom)
-        {
-            actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.2f, true);
-        }
+        const BattleChar& actor = owner->Get_TurnAction().Get_CurChar();
+        BattleAnimUtils::Play_BattleIdle(actor, 0.3f);
 
         battleFSM->Change_State(BattleTurnState::ChooseAction);
         return;

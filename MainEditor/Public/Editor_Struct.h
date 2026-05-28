@@ -1,15 +1,24 @@
-﻿#pragma once
+#pragma once
+
+NS_BEGIN(Engine)
+class GameObject;
+class UI_Base;
+NS_END
 
 namespace MainEditor
 {
     struct EditorSelection
     {
-        Shared<GameObject> selectedObject;
+        Shared<Engine::GameObject> selectedObject;
+        Weak<Engine::UI_Base> selectedUI{};
+        string selectedUIGroup{};
+        string selectedUIDisplayName{};
+        bool selectedUIPositionDrivenByCode = false;
     };
 
     struct EditorFocusRequest
     {
-        Shared<GameObject> targetObject;
+        Shared<Engine::GameObject> targetObject;
     };
 
     struct FNotification
@@ -22,8 +31,4 @@ namespace MainEditor
         float alpha = 1.f;
 
     };
-
-
-
-
 }

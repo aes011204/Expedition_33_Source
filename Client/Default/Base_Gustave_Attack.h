@@ -1,4 +1,3 @@
-﻿
 #pragma once
 #include "SkillScript.h"
 
@@ -16,6 +15,9 @@ public:
     virtual void Execute(const Skill_Data& skill,
         const BattleAction& action,
         AttackType attackType) override;
+
+private:
+	
 
 public:
     static Shared<Base_Gustave_Attack> Create();

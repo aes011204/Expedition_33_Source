@@ -16,6 +16,27 @@
 
 GameplayUI_World::~GameplayUI_World() = default;
 
+namespace
+{
+    template <typename TPanel>
+    void Append_RuntimePanelEntry(
+        vector<RuntimeUIEntry>& outEntries,
+        const char* category,
+        const char* name,
+        const TPanel* panel,
+        bool positionDrivenByCode = false)
+    {
+        if (panel == nullptr)
+            return;
+
+        Shared<UI_Base> root = panel->Get_RootUI();
+        if (root == nullptr)
+            return;
+
+        outEntries.push_back({ category, name, root, nullptr, positionDrivenByCode });
+    }
+}
+
 HRESULT GameplayUI_World::Initialize(uint32 levelIndex)
 {
     _characterStatusPanel = CharacterStatus_Panel::Create(levelIndex);
@@ -72,6 +93,21 @@ void GameplayUI_World::Update_Input()
     Handle_ExpeditionStat();
 }
 
+vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
+{
+    vector<RuntimeUIEntry> entries{};
+    entries.reserve(6);
+
+    Append_RuntimePanelEntry(entries, "World", "SavePointPanel", _savePointPanel.get());
+    Append_RuntimePanelEntry(entries, "World", "CharacterStatusPanel", _characterStatusPanel.get());
+    Append_RuntimePanelEntry(entries, "World", "SkillTreePanel", _skillTreePanel.get());
+    Append_RuntimePanelEntry(entries, "World", "ChangeWeaponPanel", _changeWeaponPanel.get());
+    Append_RuntimePanelEntry(entries, "World", "ExpeditionStatPanel", _expeditionStatPanel.get());
+    Append_RuntimePanelEntry(entries, "World", "CrossHair", _crossHair.get());
+
+    return entries;
+}
+
 bool GameplayUI_World::Is_AnyMenuOpen() const
 {
     return !_menuStack.empty();
@@ -88,6 +124,11 @@ GameplayMenu GameplayUI_World::Get_CurrentMenu() const
 void GameplayUI_World::Force_CloseAllMenus()
 {
     Close_AllMenus(); // 배틀 진입 시 월드 메뉴가 남아 있지 않게 강제 정리
+}
+
+void GameplayUI_World::Handle_EditorStopRuntime()
+{
+    Force_CloseAllMenus();
 }
 
 void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction action)

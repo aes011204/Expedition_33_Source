@@ -1,4 +1,7 @@
 ﻿#include "BattleActionExecutor.h"
+
+#include "BattleAnimutils.h"
+#include "Character.h"
 #include "Monster_BattleBase.h"
 #include "CombatStatCom.h"
 
@@ -64,7 +67,7 @@ void BattleActionExecutor::Complete_CurPhase(BattleAction& action)
     {
         if (action.Get_CurChar().ModelCom)
         {
-            action.Get_CurChar().ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), .5f, true);
+            BattleAnimUtils::Play_BattleIdle(action.Get_CurChar(), 0.3f);
             //action._curChar.ModelCom->Set_Animation(action._selected_SkillKey.IdleAnimationKey, true, 0.f);
         }
 
@@ -78,8 +81,6 @@ void BattleActionExecutor::Complete_CurPhase(BattleAction& action)
 
 void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
 {
-
-
     if (!action.Get_CurChar().actor)
         return;
 

@@ -16,6 +16,8 @@ struct BattleActionPhase;
     enum class Buffs;
     enum class ElementalType;
     class CombatStatCom;
+    class BattleMechanismCom;
+
     // =============================
     // 상태 / 컨텍스트
     // =============================
@@ -488,6 +490,7 @@ struct BattleActionPhase;
         Shared<Character_BattleBase> actor;
         Shared<CombatStatCom> statCom;
         Shared<ModelCom> ModelCom;
+        Shared<BattleMechanismCom> mechanismCom;
     };
 
 
@@ -538,7 +541,7 @@ struct BattleActionPhase;
     enum class TargetType
     {
         Invalid,
-        Primary,        // 처음 선택한 타겟
+        Primary,       
         RandomEnemy,
         AllEnemies,
         Self,
@@ -671,6 +674,9 @@ struct BattleActionPhase;
         Skill_Enter,
         Skill_Idle,
 
+        Offensive_Idle, // 마엘 공격 태세 idle
+        Defensive_Idle, // 마엘 방어 태세 idle
+        Virtuose_Idle,  // 마엘 명인 태세 idle
     };
 
     enum class BattleReactionType

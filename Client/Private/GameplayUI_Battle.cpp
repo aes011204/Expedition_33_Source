@@ -25,12 +25,38 @@
 #include "UI_BattleItemPanel.h"
 #include "UI_BattleSkillPanel.h"
 #include "UI_HealFont.h"
+#include "UI_BattleAnnounce.h"
 
 #include "UI_Utils.h"
 
 using namespace UI_Utils;
 
 GameplayUI_Battle::~GameplayUI_Battle() = default;
+
+namespace
+{
+    void Append_RuntimePanelEntry(
+        vector<RuntimeUIEntry>& outEntries,
+        const char* name,
+        UI_RuntimePanelBase* panel)
+    {
+        if (panel == nullptr)
+            return;
+
+        Shared<UI_Base> root = panel->Get_EditorRootUI();
+        if (root == nullptr)
+            return;
+
+        outEntries.push_back(
+            {
+                "Battle",
+                name,
+                root,
+                panel, // Inspector가 실제 오프셋 값을 읽고 쓸 Battle UI 소유자다.
+                panel->Is_EditorPositionDrivenByCode()
+            });
+    }
+}
 
 HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
 {
@@ -59,6 +85,7 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_battleMechanism, UI_BattleMechanism::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleItemPanel, UI_BattleItemPanel::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleSkillPanel, UI_BattleSkillPanel::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_battleAnnounce, UI_BattleAnnounce::Create), E_FAIL);
 
     // 데미지 폰트 최대 8개
     for (auto& damageFont : _damageFonts)
@@ -98,6 +125,7 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_BattleVictory(timeDelta);    // 전투 종료 승리 UI
     Update_BattleItemPanel(timeDelta);  // 아이템
     Update_BattleSkillPanel(timeDelta); // 스킬
+    Update_BattleAnnounce(timeDelta);   // 스킬
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -106,6 +134,39 @@ void GameplayUI_Battle::Update(float timeDelta)
 void GameplayUI_Battle::Update_Input()
 {
 
+}
+
+vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
+{
+    vector<RuntimeUIEntry> entries{};
+    entries.reserve(18 + static_cast<uint32>(_damageFonts.size()) + static_cast<uint32>(_healFonts.size()));
+
+    Append_RuntimePanelEntry(entries, "BattleTransition", _battleTransition.get());
+    Append_RuntimePanelEntry(entries, "BattleCommandHUD", _battleCommandHUD.get());
+    Append_RuntimePanelEntry(entries, "BattleSystemHUD", _battleSystemHUD.get());
+    Append_RuntimePanelEntry(entries, "MonsterHpBar", _monsterHpBar.get());
+    Append_RuntimePanelEntry(entries, "PlayerHpBar", _playerHpBar.get());
+    Append_RuntimePanelEntry(entries, "CrossHair", _crossHair.get());
+    Append_RuntimePanelEntry(entries, "BattleDefense", _battleDefense.get());
+    Append_RuntimePanelEntry(entries, "CancelAim", _cancelAim.get());
+    Append_RuntimePanelEntry(entries, "ChoiceTarget", _choiceTarget.get());
+    Append_RuntimePanelEntry(entries, "EscapeSkipTurn", _escapeSkipTurn.get());
+    Append_RuntimePanelEntry(entries, "AttackTooltip", _attackTooltip.get());
+    Append_RuntimePanelEntry(entries, "ReactionResult", _reactionResult.get());
+    Append_RuntimePanelEntry(entries, "BattleVictory", _battleVictory.get());
+    Append_RuntimePanelEntry(entries, "TurnOrder", _turnOrder.get());
+    Append_RuntimePanelEntry(entries, "BattleMechanism", _battleMechanism.get());
+    Append_RuntimePanelEntry(entries, "BattleItemPanel", _battleItemPanel.get());
+    Append_RuntimePanelEntry(entries, "BattleSkillPanel", _battleSkillPanel.get());
+    Append_RuntimePanelEntry(entries, "BattleAnnounce", _battleAnnounce.get());
+
+    for (uint32 i = 0; i < _damageFonts.size(); ++i)
+        Append_RuntimePanelEntry(entries, ("DamageFont_" + to_string(i)).c_str(), _damageFonts[i].get());
+
+    for (uint32 i = 0; i < _healFonts.size(); ++i)
+        Append_RuntimePanelEntry(entries, ("HealFont_" + to_string(i)).c_str(), _healFonts[i].get());
+
+    return entries;
 }
 
 void GameplayUI_Battle::Play_BattleEnterTransition()
@@ -123,6 +184,28 @@ void GameplayUI_Battle::Stop_BattleEnterTransition()
 bool GameplayUI_Battle::Is_BattleEnterTransitionPlaying() const
 {
     return _battleTransition && _battleTransition->Is_Playing();
+}
+
+void GameplayUI_Battle::Handle_EditorStopRuntime()
+{
+    Reset_BattleUiRuntimeState(true);
+}
+
+bool GameplayUI_Battle::Needs_RuntimeUpdate() const
+{
+    if (CLIENT->Is_BattleEntering())
+        return true;
+
+    if (CLIENT->Is_BattleActive())
+        return true;
+
+    if (_isVictoryUiActive)
+        return true;
+
+    if (Is_BattleEnterTransitionPlaying())
+        return true;
+
+    return false;
 }
 
 void GameplayUI_Battle::Bind_BattleDelegates()
@@ -228,6 +311,7 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isFirstHero)
         _choiceTarget.get(),
         _reactionResult.get(),
         _battleMechanism.get(),
+        _battleAnnounce.get(),
     };
 
     for (UI_RuntimePanelBase* panel : panelsToClose)
@@ -248,57 +332,11 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isFirstHero)
 
 void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
 {
-    _isBattleUiActive = false;      // 전투 끝나면 battle UI 전체 비활성
-    _isPlayerTurnUiActive = false;
-    _hasTargetPreviewSnapshot = false;
-    _targetPreviewSnapshot = {};
-    _hasCurrentPlayerTurnActor = false;
-    _currentPlayerTurnActor = {};
-    _isVictoryUiActive = false;
-    _isMechanismActionActive = false;
-    _activePlayerId = HeroId::END;
-
-    UI_RuntimePanelBase* panelsToClose[] =
-    {
-        // 턴 시작 시 닫아야할 UI들이 있다면 여기에 추가
-        _battleCommandHUD.get(),
-        _battleSystemHUD.get(),
-        _monsterHpBar.get(),
-        _playerHpBar.get(),
-        _crossHair.get(),
-        _battleDefense.get(),
-        _cancelAim.get(),
-        _choiceTarget.get(),
-        _escapeSkipTurn.get(),
-        _attackTooltip.get(),
-        _reactionResult.get(),
-        _turnOrder.get(),
-        _battleMechanism.get(),
-    };
-
-    for (auto* panel : panelsToClose)
-    {
-        if (panel)
-            panel->Close();
-    }
-
-    for (auto& damageFont : _damageFonts)
-    {
-        if (damageFont)
-            damageFont->Close();
-    }
-
-    for (auto& healFont : _healFonts)
-    {
-        if (healFont)
-            healFont->Close();
-    }
-
-    Stop_BattleEnterTransition(); // 전투 종료 시 남아있는 transition도 같이 정리
+    Reset_BattleUiRuntimeState(result != EBattleEndResult::Victory);
 
     if (result == EBattleEndResult::Victory)
     {
-        _isVictoryUiActive = true;
+        _isVictoryUiActive = true; // 실제 전투 승리 때만 결과창 갱신/표시를 허용
 
         if (_battleVictory)
         {
@@ -311,9 +349,6 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
 
         return;
     }
-
-    if (_battleVictory)
-        _battleVictory->Close();
 }
 
 void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnState state)
@@ -372,6 +407,7 @@ void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
         _choiceTarget.get(),
         _reactionResult.get(),
         _battleMechanism.get(),
+        _battleAnnounce.get(),
     };
 
     for (auto* panel : panelsToClose)
@@ -419,6 +455,9 @@ void GameplayUI_Battle::Handle_ActionStarted(const BattleAction& action)
 
     if (!_isMechanismActionActive && _battleMechanism)
         _battleMechanism->Close();
+
+    if (_battleAnnounce && isAttackAction)
+        _battleAnnounce->Show_TurnStart(action.Get_CurChar(), BattleTurnState::AttackPlaying);
 }
 
 void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float damage, AttackType attackType)
@@ -429,7 +468,7 @@ void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float dam
     if (damage <= 0.f)
         return;
 
-     if (target.statCom != nullptr)
+    if (target.statCom != nullptr)
     {
         if (target.statCom->Is_Player())
         {
@@ -604,9 +643,14 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 
     _battleCommandHUD->Open();
     _battleCommandHUD->Set_TargetWorldPosition(worldPos);
+
+    // 현재 턴 영웅을 HUD에 넘겨 Hero별 오프셋 세팅이 되게
+    _battleCommandHUD->Set_CurrentHeroId(_currentPlayerTurnActor.heroId);
+
     _battleCommandHUD->Set_CurrentPlayerAP(
         _currentPlayerTurnActor.statCom->Get_CurAP(),
         _currentPlayerTurnActor.statCom->Get_MaxAP());
+
     _battleCommandHUD->Refresh_ForState(currentState);
 
     _battleCommandHUD->Update(timeDelta);
@@ -648,6 +692,19 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
             hero.statCom->Get_StatInfo().maxHp,
             hero.statCom->Get_CurAP(),
             hero.statCom->Get_MaxAP());
+
+        if (hero.heroId == HeroId::Gustave)
+        {
+            _battleSystemHUD->Set_GustaveMechanismCharge(hero.mechanismCom);
+        }
+        else if (hero.heroId == HeroId::Lune)
+        {
+            // TODO : 루네 얼룩
+        }
+        else if (hero.heroId == HeroId::Maelle)
+        {
+            // TODO : 마엘 전투태세 연동
+        }
     }
 
     _battleSystemHUD->Update(timeDelta);
@@ -685,7 +742,7 @@ void GameplayUI_Battle::Update_MonsterHpBar(float timeDelta)
 
 void GameplayUI_Battle::Update_PlayerHpBar(float timeDelta)
 {
-     if (_playerHpBar == nullptr)
+    if (_playerHpBar == nullptr)
         return;
 
     if (!_isBattleUiActive)
@@ -1024,6 +1081,7 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
         state == BattleTurnState::AttackTargeting)
     {
         _battleMechanism->Show_Hero(_activePlayerId);
+        _battleMechanism->Sync_BattleChar(_currentPlayerTurnActor);
         _battleMechanism->Update(timeDelta);
         return;
     }
@@ -1055,6 +1113,7 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
     }
 
     _battleMechanism->Show_Hero(_activePlayerId);
+    _battleMechanism->Sync_BattleChar(action.Get_CurChar());
     _battleMechanism->Update(timeDelta);
 }
 
@@ -1083,7 +1142,7 @@ void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
 
     switch (turnState)
     {
-     case BattleTurnState::ChooseItem:
+    case BattleTurnState::ChooseItem:
         _battleItemPanel->Open_MainPanel();
         break;
 
@@ -1136,6 +1195,14 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
         _battleSkillPanel->Close();
         break;
     }
+}
+
+void GameplayUI_Battle::Update_BattleAnnounce(float timeDelta)
+{
+    if (_battleAnnounce == nullptr)
+        return;
+
+    _battleAnnounce->Update(timeDelta);
 }
 
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
@@ -1266,6 +1333,63 @@ vector<GameplayUI_Battle::VictoryStatDesc> GameplayUI_Battle::Build_BattleVictor
     return victoryStats;
 }
 
+void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
+{
+    _isBattleUiActive = false;      
+    _isPlayerTurnUiActive = false;
+    _hasTargetPreviewSnapshot = false;
+    _targetPreviewSnapshot = {};
+    _hasCurrentPlayerTurnActor = false;
+    _currentPlayerTurnActor = {};
+    _isVictoryUiActive = false;
+    _isMechanismActionActive = false;
+    _activePlayerId = HeroId::END;
+    _battleStartVictoryStats.clear();
+
+    UI_RuntimePanelBase* panelsToClose[] =
+    {
+        _battleCommandHUD.get(),
+        _battleSystemHUD.get(),
+        _monsterHpBar.get(),
+        _playerHpBar.get(),
+        _crossHair.get(),
+        _battleDefense.get(),
+        _cancelAim.get(),
+        _choiceTarget.get(),
+        _escapeSkipTurn.get(),
+        _attackTooltip.get(),
+        _reactionResult.get(),
+        _turnOrder.get(),
+        _battleMechanism.get(),
+        _battleItemPanel.get(),
+        _battleSkillPanel.get(),
+        _battleAnnounce.get(),
+    };
+
+    for (auto* panel : panelsToClose)
+    {
+        if (panel)
+            panel->Close();
+    }
+
+    for (auto& damageFont : _damageFonts)
+    {
+        if (damageFont)
+            damageFont->Close();
+    }
+
+    for (auto& healFont : _healFonts)
+    {
+        if (healFont)
+            healFont->Close();
+    }
+
+    Stop_BattleEnterTransition(); // 진입 중 F4에서도 페이드 잔상을 남기지 않는다.
+
+    if (closeVictoryUi && _battleVictory)
+        _battleVictory->Close();
+}
+
 Shared<GameplayUI_Battle> GameplayUI_Battle::Create(uint32 levelIndex)
 {
     auto instance = make_shared<GameplayUI_Battle>();
@@ -1308,6 +1432,7 @@ void GameplayUI_Battle::Free()
     Release_UI(_battleMechanism);
     Release_UI(_battleItemPanel);
     Release_UI(_battleSkillPanel);
+    Release_UI(_battleAnnounce);
 
     for (auto& damageFont : _damageFonts)
         Release_UI(damageFont);

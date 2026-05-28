@@ -47,7 +47,7 @@ HairChainPhysicsDesc PB_Maelle::Get_HairChainPhysicsDesc() const
 
 bool PB_Maelle::Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const
 {
-    outDesc.modelTag = L"Model_Medalum";
+    outDesc.weaponPrefabName = Constants::Prefab::Maelle_Medalum;
     outDesc.socketName = "Weapon_r";
 
     return true;

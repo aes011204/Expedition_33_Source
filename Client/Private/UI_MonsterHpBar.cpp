@@ -46,6 +46,8 @@ void UI_MonsterHpBar::Update(float timeDelta)
         return;
     }
 
+    Apply_EditorOffsets(screenPos);
+
     Open();
     Set_Hp(target.statCom->Get_CurHp(), target.statCom->Get_StatInfo().maxHp);
     Update_DelayHpGauge(timeDelta, _hpRatio);

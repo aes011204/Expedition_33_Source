@@ -405,6 +405,46 @@ HRESULT ModelCom::Initialize(void* arg)
     return S_OK;
 }
 
+bool ModelCom::Try_BuildDefaultPrototypeTag(const wstring& sourceModelPath, wstring& outPrototypeTag)
+{
+    outPrototypeTag.clear();
+
+    if (sourceModelPath.empty())
+        return false;
+
+    const wstring stem = fs::path(sourceModelPath).stem().wstring();
+    if (stem.empty())
+        return false;
+
+    const wstring candidateTag = L"Model_" + stem;
+    if (!GAME->Has_Prototype(0, candidateTag))
+        return false;
+
+    outPrototypeTag = candidateTag;
+    return true;
+}
+
+string ModelCom::Build_DefaultBaseBundleKey(const wstring& sourceModelPath)
+{
+    if (sourceModelPath.empty())
+        return {};
+
+    return String::ToLowerCopy(String::ToString(fs::path(sourceModelPath).stem().wstring()));
+}
+
+string ModelCom::Build_DefaultBaseBundleKeyFromPrototypeTag(const wstring& prototypeTag)
+{
+    const wstring prefix = L"Model_";
+    if (!prototypeTag.starts_with(prefix))
+        return {};
+
+    const wstring stem = prototypeTag.substr(prefix.size());
+    if (stem.empty())
+        return {};
+
+    return String::ToLowerCopy(String::ToString(stem));
+}
+
 void ModelCom::Ensure_MaterialBindings()
 {
     const size_t desired = _materials.size();
@@ -447,6 +487,55 @@ void ModelCom::Clear_InstanceOverride(uint32 materialIndex)
         return;
 
     _materialBindings[materialIndex].instance = MaterialInstanceOverride{};
+}
+
+bool ModelCom::Normalize_OwnerComponentTagAndBindings()
+{
+    Shared<GameObject> owner = Get_Owner();
+    if (owner == nullptr)
+        return false;
+
+    wstring currentTag{};
+    bool foundCurrentTag = false;
+    owner->Visit_Components([&](const wstring& tag, const Shared<Component>& component)
+    {
+        if (foundCurrentTag || component.get() != this)
+            return;
+
+        currentTag = tag; // 현재 owner 안에서 이 ModelCom가 어떤 태그로 걸려 있는지 찾는다.
+        foundCurrentTag = true;
+    });
+
+    if (!foundCurrentTag)
+        return false;
+
+    const string oldDefaultBundleKey = Build_DefaultBaseBundleKeyFromPrototypeTag(currentTag);
+    const string newDefaultBundleKey = Build_DefaultBaseBundleKey(_sourceModelPath);
+
+    bool changed = false;
+
+    wstring normalizedTag{};
+    const bool hasNormalizedTag =
+        Try_BuildDefaultPrototypeTag(_sourceModelPath, normalizedTag); // 태그 계산은 "되면 적용", 실패해도 아래 bundle key 정상화는 계속 진행한다.
+
+    if (hasNormalizedTag && currentTag != normalizedTag)
+        changed |= owner->Rename_ComponentTag(currentTag, normalizedTag);
+
+    Ensure_MaterialBindings();
+
+    for (MaterialBinding& binding : _materialBindings)
+    {
+        if (binding.baseBundleKey.empty() || binding.baseBundleKey == oldDefaultBundleKey)
+        {
+            binding.baseBundleKey = newDefaultBundleKey; // 예전 기본값만 새 모델 기본 key로 바꾼다.
+            changed = true;
+        }
+    }
+
+    if (changed)
+        Apply_BaseMaterialFromBundle_AllSlots(); // tag rename이든 bundle key 교체든 하나라도 바뀌면 실제 material에 다시 반영한다.
+
+    return changed;
 }
 
 static void Apply_TextureOverride(Engine::Material* material, Engine::MaterialTextureSlot slot, const Engine::TextureOverride& ov)
@@ -729,6 +818,7 @@ void ModelCom::From_Json(const json& data)
         }
 
         Apply_BaseMaterialFromBundle_AllSlots();
+        Normalize_OwnerComponentTagAndBindings();
         return;
     }
 
@@ -744,6 +834,7 @@ void ModelCom::From_Json(const json& data)
         }
 
         Apply_BaseMaterialFromBundle_AllSlots();
+        Normalize_OwnerComponentTagAndBindings();
         return;
     }
 
@@ -765,6 +856,7 @@ void ModelCom::From_Json(const json& data)
         }
 
         Apply_BaseMaterialFromBundle_AllSlots();
+        Normalize_OwnerComponentTagAndBindings();
         Ensure_AnimStateAssetLoaded(modelGuid);
         return;
     }
@@ -781,6 +873,7 @@ void ModelCom::From_Json(const json& data)
     }
 
     Apply_BaseMaterialFromBundle_AllSlots();
+    Normalize_OwnerComponentTagAndBindings();
 
     Ensure_AnimStateAssetLoaded(modelGuid); // 애니메이션은 Prefab기반 로드 싱크를 여기다 맞춤
 }
@@ -2194,5 +2287,3 @@ void ModelCom::Free()
     _meshes.clear();
     _bones.clear();
 }
-
-

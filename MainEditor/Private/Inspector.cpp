@@ -9,9 +9,14 @@
 #include "Helper_String.h"
 #include "Inspector_Factory.h"
 #include "ModelCom.h"
+#include "ClientInstance.h"
+#include "GameplayUI.h"
+#include "IRuntimeUI_EditorTarget.h"
 #include "MapStaticMesh.h"
 #include "Reflection_Types.h"
 #include "TransformCom.h"
+#include "UI_Base.h"
+#include "UI_Transform.h"
 
 const vector<Engine::BTBlackboardKeyView>* Inspector::_btBlackboardKeys = nullptr;
 
@@ -43,7 +48,19 @@ void Inspector::Render()
             return;
         }
 
-        if (selectedObject == nullptr)
+        if (selectedObject != nullptr)
+        {
+            Draw_Components(selectedObject);
+        }
+        else if (Shared<UI_Base> selectedUI = EDITOR->Selected_UI(); selectedUI != nullptr)
+        {
+            Draw_UIInspector(
+                selectedUI,
+                EDITOR->Selected_UIGroup(),
+                EDITOR->Selected_UIDisplayName(),
+                EDITOR->Selected_UIPositionDrivenByCode());
+        }
+        else
         {
             ImGui::TextUnformatted("No Selected");
             ImGui::Separator();
@@ -52,8 +69,6 @@ void Inspector::Render()
             ImGui::End();
             return;
         }
-
-        Draw_Components(selectedObject);
     }
 
     Set_Open(isOpen);
@@ -65,7 +80,162 @@ void Inspector::Set_PrimaryShadowLightTarget(bool enabled)
     _isPrimaryShadowLightTarget = enabled;
 
     if (enabled)
+    {
         EDITOR->Clear_SelectedObject();
+        EDITOR->Clear_SelectedUI();
+    }
+}
+
+void Inspector::Draw_UIInspector(
+    const Shared<UI_Base>& ui,
+    const string& groupName,
+    const string& displayName,
+    bool positionDrivenByCode)
+{
+    if (ui == nullptr)
+    {
+        ImGui::TextDisabled("UI selection is no longer valid");
+        return;
+    }
+
+    UI_Transform* transform = ui->Get_Transform();
+    if (transform == nullptr)
+    {
+        ImGui::TextDisabled("UI Transform 없음");
+        return;
+    }
+
+    const string resolvedName = displayName.empty() ? "RuntimeUI" : displayName;
+
+    ImGui::Text("이름: %s", resolvedName.c_str());
+    ImGui::TextDisabled("그룹: %s", groupName.empty() ? "UI" : groupName.c_str());
+    ImGui::Separator();
+
+    if (positionDrivenByCode)
+    {
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.78f, 0.25f, 1.f));
+        ImGui::TextWrapped("현재 Position 값은 런타임 코드에서 계속 갱신되어 다음 프레임에 덮어써질 수 있습니다. 아래 강제 테스트 오프셋으로 위치를 맞춰보세요.");
+        ImGui::PopStyleColor();
+        ImGui::Spacing();
+    }
+
+    Draw_RuntimeUITestOffsetSection(ui); // Battle UI만 공통 테스트 오프셋 편집기를 노출한다.
+
+    bool isOpen = ui->Is_Open();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("열림");
+    ImGui::SameLine(InspectorLabelWidth);
+    ImGui::BeginDisabled();
+    ImGui::Checkbox("##UIOpenState", &isOpen);
+    ImGui::EndDisabled();
+
+    Vec2 position = transform->Get_Position();
+    if (Draw_UIVec2Row("Position", "##UIPosition", position, 1.f))
+        transform->Set_Position(position);
+
+    Vec2 size = transform->Get_Size();
+    if (Draw_UIVec2Row("Size", "##UISize", size, 1.f))
+        transform->Set_Size(size);
+
+    Vec2 scale = transform->Get_Scale();
+    if (Draw_UIVec2Row("Scale", "##UIScale", scale, 0.01f))
+        transform->Set_Scale(scale);
+
+    Vec2 pivot = transform->Get_Pivot();
+    if (Draw_UIVec2Row("Pivot", "##UIPivot", pivot, 0.01f))
+        transform->Set_Pivot(pivot);
+
+    Vec2 anchorMin = transform->Get_AnchorMin();
+    if (Draw_UIVec2Row("Anchor Min", "##UIAnchorMin", anchorMin, 0.01f))
+        transform->Set_AnchorMin(anchorMin);
+
+    Vec2 anchorMax = transform->Get_AnchorMax();
+    if (Draw_UIVec2Row("Anchor Max", "##UIAnchorMax", anchorMax, 0.01f))
+        transform->Set_AnchorMax(anchorMax);
+
+    float rotationRadians = transform->Get_RotationRadians();
+    if (Draw_UIFloatRow("Rotation", "##UIRotation", rotationRadians, 0.01f))
+        transform->Set_RotationRadians(rotationRadians);
+}
+
+void Inspector::Draw_RuntimeUITestOffsetSection(const Shared<UI_Base>& ui)
+{
+    Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI();
+    if (gameplayUI == nullptr)
+        return;
+
+    IRuntimeUI_EditorTarget* editorTarget = gameplayUI->Find_RuntimeUIEditorTarget(ui);
+    if (editorTarget == nullptr)
+        return; // World UI는 여기로 들어오지 않게 Battle 쪽만 연결한다.
+
+    ImGui::Separator();
+    ImGui::TextDisabled("강제 테스트 오프셋");
+
+    Vec2 defaultOffset = editorTarget->Get_EditorDefaultTestOffset();
+    if (Draw_UIVec2Row("기본 오프셋", "##RuntimeUIDefaultOffset", defaultOffset, 1.f))
+        editorTarget->Set_EditorDefaultTestOffset(defaultOffset); // 모든 Battle Runtime UI 공통 기본 오프셋
+
+    if (!editorTarget->Supports_EditorHeroTestOffset())
+    {
+        ImGui::Spacing();
+        return; // Hero 문맥이 없는 Battle UI는 기본 Offset만 조절한다.
+    }
+
+    const HeroId activeHeroId = editorTarget->Get_EditorActiveHeroId();
+    if (activeHeroId == HeroId::END)
+    {
+        ImGui::TextDisabled("현재 플레이어 턴이 아니라 영웅별 오프셋을 조절할 수 없습니다.");
+        ImGui::Spacing();
+        return;
+    }
+
+    const char* heroLabel = "Unknown";
+    switch (activeHeroId)
+    {
+    case HeroId::Gustave:
+        heroLabel = "Gustave";
+        break;
+
+    case HeroId::Lune:
+        heroLabel = "Lune";
+        break;
+
+    case HeroId::Maelle:
+        heroLabel = "Maelle";
+        break;
+
+    case HeroId::END:
+    default:
+        break;
+    }
+
+    ImGui::Text("현재 영웅: %s", heroLabel);
+
+    Vec2 heroOffset = editorTarget->Get_EditorHeroTestOffset(activeHeroId);
+    if (Draw_UIVec2Row("영웅별 오프셋", "##RuntimeUIHeroOffset", heroOffset, 1.f))
+        editorTarget->Set_EditorHeroTestOffset(activeHeroId, heroOffset); // BattleCommandHUD만 Hero별 추가 오프셋을 갖는다.
+
+    ImGui::Spacing();
+}
+
+bool Inspector::Draw_UIVec2Row(const char* label, const string& id, Vec2& value, float speed)
+{
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", label);
+    ImGui::SameLine(InspectorLabelWidth);
+
+    PropertyInfo property{};
+    property.dragSpeed = speed;
+    return Draw_Vec2PropertyRow(id, property, value);
+}
+
+bool Inspector::Draw_UIFloatRow(const char* label, const string& id, float& value, float speed)
+{
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("%s", label);
+    ImGui::SameLine(InspectorLabelWidth);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    return ImGui::DragFloat(id.c_str(), &value, speed);
 }
 
 void Inspector::Draw_PrimaryShadowLightInspector()

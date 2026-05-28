@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "Base_Gustave_Attack.h"
 
+#include "BattleMechanismCom.h"
 #include "Character.h"
 #include "CombatStatCom.h"
 #include "ClientInstance.h"
@@ -26,23 +27,16 @@ void Base_Gustave_Attack::Execute(const Skill_Data& skill, const BattleAction& a
 
     DamageSystem::ApplyDamage(Damage, action.GetCurStepTarget(), attackType);
 
+    auto attacker = action.Get_CurChar();
 
-    /*if (skill.targetingType[CurIndex] == TargetType::AllEnemies)
+    if (attacker.heroId == HeroId::Gustave &&
+        attacker.mechanismCom != nullptr &&
+        skill.skillKey == "Gustave_Default_Attack")
     {
-        for (int i = 0; i < enemy.size(); i++)
-            DamageSystem::ApplyDamage(Damage, enemy[i], AttackType::SingleAOE);
+        attacker.mechanismCom->Add_GustaveCharge(1);
     }
-    else if (skill.targetingType[CurIndex] == TargetType::Primary)
-        DamageSystem::ApplyDamage(Damage, action.target, AttackType::SingleSkill);
-    else if (skill.targetingType[CurIndex] == TargetType::RandomEnemy)
-    {
-
-        const int num = Math::RandNum(0, enemy.size() - 1);
-        DamageSystem::ApplyDamage(Damage, enemy[num], AttackType::Combo);
-    }*/
 
     CurIndex++;
-
 }
 
 Shared<Base_Gustave_Attack> Base_Gustave_Attack::Create()

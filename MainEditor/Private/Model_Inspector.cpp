@@ -365,10 +365,12 @@ void ModelCom_Inspector::Draw_ModelPicker(const Shared<Engine::ModelCom>& model)
             modelAssets = GAME->Get_AssetsByType("model");
 
         const string searchText = String::ToLowerCopy(string(searchBuffer));
-        bool hasSelectableModel = false;
+        vector<uint32> filteredIndices{};
+        filteredIndices.reserve(modelAssets.size());
 
-        for (const AssetMeta& assetMeta : modelAssets)
+        for (uint32 assetIndex = 0; assetIndex < static_cast<uint32>(modelAssets.size()); ++assetIndex)
         {
+            const AssetMeta& assetMeta = modelAssets[assetIndex];
             if (!Is_ModelAssetOfType(assetMeta, model->Get_ModelType()))
                 continue;
 
@@ -384,30 +386,56 @@ void ModelCom_Inspector::Draw_ModelPicker(const Shared<Engine::ModelCom>& model)
                 }
             }
 
-            hasSelectableModel = true;
-            const bool isSelected = assetMeta.guid == currentGuid;
-
-            if (isSelected)
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 0.85f, 0.3f, 1.f));
-
-            if (ImGui::Selectable(label.c_str(), isSelected))
-            {
-                json swapData = model->To_Json();
-                swapData["model_guid"] = assetMeta.guid;
-                swapData["model_type"] = assetMeta.modelType.empty()
-                    ? toModelTypeString(model->Get_ModelType())
-                    : assetMeta.modelType;
-
-                model->From_Json(swapData);
-                ImGui::CloseCurrentPopup();
-            }
-
-            if (isSelected)
-                ImGui::PopStyleColor();
+            filteredIndices.push_back(assetIndex);
         }
 
-        if (!hasSelectableModel)
+        if (filteredIndices.empty())
+        {
             ImGui::TextDisabled("(No matching .model assets)");
+        }
+        else
+        {
+            const float rowHeight = ImGui::GetTextLineHeightWithSpacing();
+            const float popupHeight = rowHeight * 10.f + ImGui::GetStyle().FramePadding.y * 2.f;
+
+            if (ImGui::BeginChild("##ModelComModelPickerList", ImVec2(0.f, popupHeight), true))
+            {
+                ImGuiListClipper clipper;
+                clipper.Begin(static_cast<int>(filteredIndices.size()));
+
+                while (clipper.Step())
+                {
+                    for (int displayIndex = clipper.DisplayStart; displayIndex < clipper.DisplayEnd; ++displayIndex)
+                    {
+                        const AssetMeta& assetMeta = modelAssets[filteredIndices[displayIndex]];
+                        const string label = Build_ModelPickerLabel(assetMeta);
+                        const bool isSelected = assetMeta.guid == currentGuid;
+
+                        if (isSelected)
+                            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.3f, 0.85f, 0.3f, 1.f));
+
+                        if (ImGui::Selectable(label.c_str(), isSelected))
+                        {
+                            json swapData = model->To_Json();
+                            swapData["model_guid"] = assetMeta.guid;
+                            swapData["model_type"] = assetMeta.modelType.empty()
+                                ? toModelTypeString(model->Get_ModelType())
+                                : assetMeta.modelType;
+
+                            model->From_Json(swapData);
+                            ImGui::CloseCurrentPopup();
+                        }
+
+                        if (isSelected)
+                            ImGui::PopStyleColor();
+                    }
+                }
+
+                clipper.End();
+            }
+
+            ImGui::EndChild();
+        }
 
         ImGui::EndPopup();
     }

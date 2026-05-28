@@ -5,6 +5,7 @@
 #include "BattleAction.h"
 #include "Battle_Enum.h"
 #include "BattleReactionController.h"
+#include "BattleHitSequenceRunner.h"
 
 NS_BEGIN(Engine)
 class Character;
@@ -24,6 +25,7 @@ class BattleEffectResolver;
 class BattleStateMachine;
 class BattleTurnCamera;
 class BattleSpawnRegistry;
+class SkillTreeCom;
 
 class BattleController : public Base
 {
@@ -163,6 +165,9 @@ public:
     bool Has_FreeAimHitTarget() const { return _hasFreeAimHitTarget; }
     const BattleChar* Get_FreeAimHitTarget() const { return _hasFreeAimHitTarget ? &_freeAimHitTarget : nullptr; }
 
+     // 스킬 스크립트가 다단히트를 예약할 때 사용
+    BattleHitSequenceRunner& Get_HitSequenceRunner() { return _hitSequenceRunner; }
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
@@ -173,6 +178,16 @@ private:
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
 
 private:
+    // World의 SkillTree 상태를 읽어서 battle에서 사용할 기본 스킬 3개 세팅
+    // TODO : 나중에는 실제 장착되는 스킬 세팅되게 해줄거같은데. 그러면 그 때 수정
+    void Configure_BattlePlayerSkills(
+        HeroId heroId,
+        const Shared<CombatStatCom>& battleStat,
+        const Shared<SkillTreeCom>& worldSkillTreeCom);
+
+    // Q/W/E가 소비할 기본 스킬 일단은 고정.
+    vector<string> Get_DefaultBattleSkillKeys(HeroId heroId);
+
     PlayerCharacterType To_PlayerCharacterType(HeroId heroId);
 
 public: /* Delegate */
@@ -259,6 +274,7 @@ private:
     // 전투 시작 시 스폰되는 객체들 저장소
     Shared<BattleSpawnRegistry> _battleSpawnRegistry;
     BattleReactionController    _reactionController{};
+    BattleHitSequenceRunner _hitSequenceRunner{};
 
     bool _firstAnimflag = { false };
     int  _firstAnimCount = {0};

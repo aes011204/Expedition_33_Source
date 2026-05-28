@@ -3,6 +3,7 @@
 #include "Base.h"
 #include "Battle_Enum.h"
 #include "Delegate.h"
+#include "GameplayUI_Types.h"
 #include "UI_BattleSystem_TurnOrder.h"
 #include "BattleController.h"
 #include "UI_BattleVictory.h"
@@ -29,6 +30,7 @@ class UI_BattleVictory;
 class UI_BattleMechanism;
 class UI_BattleItemPanel;
 class UI_BattleSkillPanel;
+class UI_BattleAnnounce;
 
 class GameplayUI_Battle final : public Base
 {
@@ -40,10 +42,16 @@ public:
     HRESULT Initialize(uint32 levelIndex);
     void    Update(float timeDelta);
     void    Update_Input();
+    vector<RuntimeUIEntry> Get_RuntimeUIEntries() const;
+
+    // 평소에는 Battle UI 업데이트 막기
+    bool    Needs_RuntimeUpdate() const;
 
     void    Play_BattleEnterTransition();
     void    Stop_BattleEnterTransition();
     bool    Is_BattleEnterTransitionPlaying() const;
+
+    void    Handle_EditorStopRuntime();
 
 private:
     void    Bind_BattleDelegates();        // 턴 관련 델리게이트 구독
@@ -77,6 +85,7 @@ private:
     void    Update_BattleMechanism(float timeDelta);
     void    Update_BattleItemPanel(float timeDelta);
     void    Update_BattleSkillPanel(float timeDelta);
+    void    Update_BattleAnnounce(float timeDelta);
 
 private:
 #pragma region UI 위치맞추기
@@ -98,6 +107,8 @@ private:
     using VictoryStatDesc = UI_BattleVictory::VictoryPlayerStatDesc;
     vector<VictoryStatDesc> Build_BattleVictoryPlayerStats() const;
 
+    void    Reset_BattleUiRuntimeState(bool closeVictoryUi); 
+
 private:
     Unique<UI_BattleTransition>             _battleTransition; // 전투 진입 테스트용 페이드 UI
     Unique<UI_BattleCommandHUD>             _battleCommandHUD;
@@ -118,6 +129,7 @@ private:
     Unique<UI_BattleMechanism>              _battleMechanism;
     Unique<UI_BattleItemPanel>              _battleItemPanel;
     Unique<UI_BattleSkillPanel>             _battleSkillPanel;
+    Unique<UI_BattleAnnounce>               _battleAnnounce;
 
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
