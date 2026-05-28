@@ -57,7 +57,7 @@ void UI_BattleCommandHUD::Close()
 
     UI_RuntimePanelBase::Close();
 
-    Apply_DefaultHighlight(); 
+    Apply_DefaultHighlight();
 }
 
 void UI_BattleCommandHUD::Refresh_ForState(BattleTurnState state)
@@ -262,7 +262,7 @@ void UI_BattleCommandHUD::Set_CommandSlotHighlighted(const CommandSlot& slot, bo
 
 Vec2 UI_BattleCommandHUD::Resolve_HeroTestOffset(HeroId heroId) const
 {
-     switch (heroId)
+    switch (heroId)
     {
     case HeroId::Gustave:
         return _gustaveTestOffset;

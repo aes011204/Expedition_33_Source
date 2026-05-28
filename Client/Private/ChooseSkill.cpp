@@ -1,34 +1,11 @@
 ﻿#include "pch.h"
 #include "ChooseSkill.h"
-
 #include "Input_Manager.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "BattleStateMachine.h"
 #include "CombatStatCom.h"
-
-NS_BEGIN(Client)
-
-// TODO : TEMP TEMP. 진짜 임시 그냥 일단 스킬 가져와서 사용만 되게 Q만 열어서
-namespace
-{
-    string Resolve_FirstBattleSkillKey(PlayerCharacterType playerType, KEY_TYPE key)
-    {
-        if (key != KEY_TYPE::Q)
-        {
-            return "";
-        }
-
-        switch (playerType)
-        {
-        case PlayerCharacterType::Gustave: return "LumiereAssault";
-        case PlayerCharacterType::Lune:    return "Immolation";
-        case PlayerCharacterType::Maelle:  return "OffensiveSwitch";
-        default:                           return "";
-        }
-    }
-}
 
 ChooseSkill::ChooseSkill(const Shared<BattleController>& owner)
     : Battle_State{ owner }
@@ -99,14 +76,28 @@ void ChooseSkill::Update(float timeDelta)
         return;
     }
 
-    if (!GAME->KeyDown(KEY_TYPE::Q))
+    uint32 slotIndex = 0;
+    if (GAME->KeyDown(KEY_TYPE::Q))
+    {
+        slotIndex = 0; // Q는 첫 번째 battle skill slot
+    }
+    else if (GAME->KeyDown(KEY_TYPE::W))
+    {
+        slotIndex = 1; // W는 두 번째 battle skill slot
+    }
+    else if (GAME->KeyDown(KEY_TYPE::E))
+    {
+        slotIndex = 2; // E는 세 번째 battle skill slot
+    }
+    else
         return;
 
-    const string skillKey =
-        Resolve_FirstBattleSkillKey(action._curChar.statCom->Get_PlayerType(), KEY_TYPE::Q);
-
-    if (skillKey.empty())
-        return;
+    string skillKey{};
+    if (!action._curChar.statCom->Try_GetSkillKeyBySlot(slotIndex, skillKey))
+    {
+        LOG_DEBUG("ChooseSkill: empty or missing battle skill slot. slotIndex={}", slotIndex);
+        return; // 아직 해금되지 않은 슬롯은 눌러도 선택되지 않는다. 나중에는 스킬 텍스트도 안뜨게 변경 예정
+    }
 
     const Skill_Data* skillData = CLIENT->Get_Skill(skillKey);
     if (skillData == nullptr)
@@ -126,9 +117,12 @@ void ChooseSkill::Update(float timeDelta)
     }
 
     action.type = EBattleContext::Skill;
-    action._selected_SkillKey = *skillData; // SkillTargeting에서 target까지 확정한 뒤 Execute_Skill로 넘긴다.
+     // SkillTree 기준으로 구성된 battle slot 스킬을 targeting/execution으로 넘긴다.
+    action._selected_SkillKey = *skillData;
 
     battleFSM->Change_State(BattleTurnState::SkillTargeting);
+
+
 }
 
 void ChooseSkill::LateUpdate(float timeDelta)
@@ -155,5 +149,3 @@ Shared<ChooseSkill> ChooseSkill::Create(const Shared<BattleController>& owner)
 
     return instance;
 }
-
-NS_END

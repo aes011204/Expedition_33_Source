@@ -234,6 +234,7 @@ public: /* For.Input_Manager */
     void  Set_MouseWheel(float mouseWheel);
 	void  Lock_Mouse();
 	void  Unlock_Mouse();
+    bool  Is_MouseLocked() const;
     
     // 에디터 뷰 전환 중 포커스가 흔들려도 마우스 락을 유지할 때 시작한다.
 	void  Begin_EditorMouseLockSession();

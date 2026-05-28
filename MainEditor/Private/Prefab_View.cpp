@@ -320,6 +320,9 @@ void Prefab_View::Save()
 
 void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPath)
 {
+    if (_previewObject != nullptr)
+        Close_Prefab();
+
     _prefabName = prefabName;
     _prefabPath = prefabPath;
     _sourceStaticClass.clear();
@@ -373,6 +376,16 @@ void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPa
 
 void Prefab_View::Close_Prefab()
 {
+    Shared<Editor_Window> animationWindow = EDITOR->Get_Window(L"Animation");
+    Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(animationWindow);
+    if (animationView != nullptr)
+        animationView->Clear_LivePreviewBinding(_previewObject);
+
+    Shared<Editor_Window> animStateWindow = EDITOR->Get_Window(L"AnimState");
+    Shared<AnimState_View> animStateView = dynamic_pointer_cast<AnimState_View>(animStateWindow);
+    if (animStateView != nullptr)
+        animStateView->Clear_LivePreviewBinding(_previewObject);
+
     _prefabName.clear();
     _prefabPath.clear();
     _sourceStaticClass.clear();

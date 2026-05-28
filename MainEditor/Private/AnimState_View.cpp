@@ -278,6 +278,27 @@ void AnimState_View::Open_FromModelComponent(
     Set_Open(true);
 }
 
+void AnimState_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewRoot)
+{
+    if (previewRoot != nullptr)
+    {
+        const Shared<GameObject> currentPreviewRoot = Get_PreviewRenderObject();
+        if (currentPreviewRoot != previewRoot)
+            return;
+    }
+
+    _sourceModelPath.clear();
+    _liveModelCom.reset();
+    _modelGuid.clear();
+    _currentAnimationName.clear();
+    _availableAnimations.clear();
+    _animationSearchBuffer[0] = '\0';
+    _stateNames.clear();
+    _stateIndices.clear();
+    _animationMapping.clear();
+    _selectedAnimmapFileIndex = -1;
+}
+
 bool AnimState_View::Should_DeferToCompanionPreview()
 {
     return !EDITOR->Is_ActivePreviewOwner(PreviewOwner::AnimState);

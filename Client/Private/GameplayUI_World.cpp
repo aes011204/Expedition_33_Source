@@ -126,6 +126,11 @@ void GameplayUI_World::Force_CloseAllMenus()
     Close_AllMenus(); // 배틀 진입 시 월드 메뉴가 남아 있지 않게 강제 정리
 }
 
+void GameplayUI_World::Handle_EditorStopRuntime()
+{
+    Force_CloseAllMenus();
+}
+
 void GameplayUI_World::Handle_SavePointAction(SavePoint_Panel::SavePointAction action)
 {
     switch (action)

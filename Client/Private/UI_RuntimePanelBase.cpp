@@ -61,6 +61,12 @@ void UI_RuntimePanelBase::Capture_EditorDesignPositionIfNeeded()
     _hasEditorDesignPosition = true;
 }
 
+void UI_RuntimePanelBase::Reset_EditorDesignPositionCache()
+{
+    _editorDesignPosition = Vec2::Zero;
+    _hasEditorDesignPosition = false;
+}
+
 void UI_RuntimePanelBase::Apply_EditorOffsets(Vec2& inOutPosition) const
 {
     inOutPosition += _editorDefaultTestOffset; 

@@ -97,10 +97,17 @@ public:
     void Set_PlayerType(PlayerCharacterType playerType) { _playerType = playerType; }
 
     vector<string> Get_SkillKey() { return _skillKeys; }
-    void Set_Skill(string skillName){
-        _skillKeys.push_back(skillName);
+    const vector<string>& Get_SkillKeys() const { return _skillKeys; }
 
+    // TEMP : 전투 진입 시 world 해금 상태 기준으로 스킬 슬롯 채우기
+    void Clear_Skills() { _skillKeys.clear(); }
+
+    void Set_Skill(string skillName)
+    {
+        _skillKeys.push_back(skillName);
     }
+
+    bool Try_GetSkillKeyBySlot(uint32 slotIndex, string& outSkillKey) const;
 
     //test
     string Get_FirstSkill();

@@ -38,6 +38,7 @@ public: // IRuntimeUIEditorTarget
 
 protected:
     void Capture_EditorDesignPositionIfNeeded();
+    void Reset_EditorDesignPositionCache(); // 루트 UI가 바뀌면 이전 루트 위치 캐시를 버린다.
 
     void Apply_EditorOffsets(Vec2& inOutPosition) const;
     void Set_EditorPositionDrivenByCode(bool enabled) { _editorPositionDrivenByCode = enabled; }

@@ -20,13 +20,25 @@ void Base_Gustave_Attack::Execute(const Skill_Data& skill, const BattleChar& att
     const float Damage = 40;
     DamageSystem::ApplyDamage(Damage, target);
 
-    // TEMP. 임시 테스트용 구스타브 공격 시 게이지 충전
+#pragma region TEMP. 임시 테스트 - 프로토타입 까지는
+
+    if (attacker.mechanismCom == nullptr)
+        return;
+
+    //  구스타브 공격 시 게이지 충전
     if (attacker.heroId == HeroId::Gustave &&
-        attacker.mechanismCom != nullptr &&
-        (skill.skillKey == "Gustave_Default_Attack" || skill.skillKey == "LumiereAssault"))
+        (skill.skillKey != "UnleashedCharge")) // 과충전은 제외하고
     {
         attacker.mechanismCom->Add_GustaveCharge(1);
     }
+
+    if (attacker.heroId == HeroId::Maelle)
+    {
+        attacker.mechanismCom->Apply_MaelleSkillTransition(skill.skillKey);
+    }
+#pragma endregion
+
+   
 }
 
 Shared<Base_Gustave_Attack> Base_Gustave_Attack::Create()

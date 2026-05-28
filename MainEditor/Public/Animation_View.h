@@ -44,6 +44,7 @@ public:
 
     // Prefab / Scene의 실제 ModelCom를 대상으로 열 때
     void Open_FromModelComponent(const Shared<ModelCom>& modelCom, const string& preferredAnimationName = "", uint32 preferredDockId = 0, bool focusOnOpen = true);
+    void Clear_LivePreviewBinding(const Shared<GameObject>& previewRoot = nullptr);
 
 public:
     const string& Get_ModelGuid() const { return _modelGuid; }

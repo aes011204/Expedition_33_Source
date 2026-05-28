@@ -26,6 +26,10 @@ public:
 public:
     HRESULT Initialize(uint32 levelIndex);
     void    Update(float timeDelta);
+
+public:
+    void                Handle_EditorStopRuntime();
+
     vector<RuntimeUIEntry> Get_WorldRuntimeUIEntries() const;
     vector<RuntimeUIEntry> Get_BattleRuntimeUIEntries() const;
     IRuntimeUI_EditorTarget* Find_RuntimeUIEditorTarget(const Shared<Engine::UI_Base>& rootUI) const; // Battle UI 루트에서 오프셋 소유자를 찾는다.
@@ -41,6 +45,7 @@ private:
     // 이번 프레임에 어떤 UI 입력인지. World ? Battle ?
     GameplayUIInputMode Resolve_InputMode() const;
     void                Handle_InputModeChanged(GameplayUIInputMode previousMode, GameplayUIInputMode currentMode);
+
 
 private:
     Unique<GameplayUI_World>    _worldUI;  // 월드 UI는 GameplayUI 하나만 소유

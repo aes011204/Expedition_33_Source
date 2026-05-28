@@ -21,6 +21,7 @@
 #include "EditorPickingSystem.h"
 #include <fstream>
 #include "ClientInstance.h"
+#include "GameplayUI.h"
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
@@ -253,6 +254,10 @@ void EditorInstance::Stop()
         _runtimeState == EDITOR_RUNTIME_STATE::Pause)
     {
         GAME->Get_DelegateHub().OnEditorStopRuntime.Broadcast();
+
+         if (Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
+            gameplayUI->Handle_EditorStopRuntime();
+
         Restore_PlayStartSnapshot();
     }
 
@@ -1233,6 +1238,15 @@ void EditorInstance::Apply_PendingPreviewViewportSize()
 
 void EditorInstance::Apply_RuntimeInputPolicy()
 {
+    const auto applyMouseLockOverride =
+        [this]()
+        {
+            if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)
+                GAME->Lock_Mouse();
+            else if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
+                GAME->Unlock_Mouse();
+        };
+
     Shared<Editor_Window> sceneView = Get_Window(L"Scene");
     Shared<Editor_Window> gameView = Get_Window(L"Game");
 
@@ -1270,6 +1284,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
             GAME->Set_PlayerInputBlocked(true);
             GAME->Set_FreeCameraInputEnabled(false);
             GAME->Unlock_Mouse();
+            applyMouseLockOverride();
             return;
         }
 
@@ -1278,6 +1293,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
             GAME->Set_PlayerInputBlocked(true);      
             GAME->Set_FreeCameraInputEnabled(false);
             GAME->Unlock_Mouse();
+            applyMouseLockOverride();
             return;
         }
 
@@ -1286,6 +1302,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
             GAME->Set_PlayerInputBlocked(true);
             GAME->Set_FreeCameraInputEnabled(false);
             GAME->Unlock_Mouse();
+            applyMouseLockOverride();
             return;
         }
 
@@ -1315,7 +1332,8 @@ void EditorInstance::Apply_RuntimeInputPolicy()
                 GAME->Unlock_Mouse();
         }
 
-            return;
+        applyMouseLockOverride();
+        return;
     }
 
     const bool freeCameraControl =
@@ -1327,6 +1345,32 @@ void EditorInstance::Apply_RuntimeInputPolicy()
     if (freeCameraControl)
         GAME->Lock_Mouse();
     else
+        GAME->Unlock_Mouse();
+
+    applyMouseLockOverride();
+}
+
+void EditorInstance::Toggle_MouseLockOverride()
+{
+    if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)
+    {
+        _mouseLockOverrideMode = MouseLockOverrideMode::Unlocked;
+    }
+    else if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
+    {
+        _mouseLockOverrideMode = MouseLockOverrideMode::Locked;
+    }
+    else
+    {
+        _mouseLockOverrideMode =
+            GAME->Is_MouseLocked()
+            ? MouseLockOverrideMode::Unlocked
+            : MouseLockOverrideMode::Locked;
+    }
+
+    if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)
+        GAME->Lock_Mouse();
+    else if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
         GAME->Unlock_Mouse();
 }
 

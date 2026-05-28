@@ -331,6 +331,13 @@ void Editor_Manager::Handle_Shortcuts()
         return;
     }
 
+    // F10 : 마우스 락 수동 토글
+    if (ImGui::IsKeyPressed(ImGuiKey_F10, false))
+    {
+        EDITOR->Toggle_MouseLockOverride();
+        return;
+    }
+
     // Esc : 게임 종료
     if (ImGui::IsKeyPressed(ImGuiKey_F4, false))
     {
@@ -397,6 +404,7 @@ void Editor_Manager::Render_ShortcutHelp()
             DrawShortcutRow("F4", "Stop");
             DrawShortcutRow("F8", "카메라 전환");
             DrawShortcutRow("F9", "Pause + Free Camera");
+            DrawShortcutRow("F10", "마우스 락 토글");
             DrawShortcutRow("Ctrl + Wheel", "Free Camera Speed");
             DrawShortcutRow("Shift +", "배속 증가");
             DrawShortcutRow("Shift -", "배속 감소");

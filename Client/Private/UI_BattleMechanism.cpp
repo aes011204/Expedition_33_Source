@@ -82,10 +82,26 @@ void UI_BattleMechanism::Show_Hero(HeroId heroId)
 
 void UI_BattleMechanism::Sync_BattleChar(const BattleChar& actor)
 {
-    if (actor.heroId != HeroId::Gustave)
+    if (actor.mechanismCom == nullptr)
         return;
 
-	Apply_GustaveState(actor.mechanismCom);
+	switch (actor.heroId)
+    {
+    case HeroId::Gustave:
+        Apply_GustaveState(actor.mechanismCom);
+        break;
+
+    case HeroId::Maelle:
+        Apply_MaelleState(actor.mechanismCom);
+        break;
+
+    case HeroId::Lune:
+        Apply_LuneState(actor.mechanismCom);
+        break;
+
+    default:
+        break;
+    }
 }
 
 HRESULT UI_BattleMechanism::Load_UI(uint32 levelIndex)
@@ -215,6 +231,46 @@ void UI_BattleMechanism::Apply_GustaveState(const Shared<BattleMechanismCom>& me
 		else
 			_gustaveChargeGlows[i]->Close();
 	}
+}
+
+void UI_BattleMechanism::Apply_MaelleState(const Shared<BattleMechanismCom>& mechanismCom)
+{
+    if (mechanismCom == nullptr || !mechanismCom->Is_Maelle())
+        return;
+
+    Close_AllMaelleStances();
+
+    switch (mechanismCom->Get_MaelleStance())
+    {
+    case BattleMechanismCom::MaelleStance::Stanceless:
+        if (_maelleStanceless)
+            _maelleStanceless->Open();
+        break;
+
+    case BattleMechanismCom::MaelleStance::Offensive:
+        if (_maelleOffensive)
+            _maelleOffensive->Open();
+        break;
+
+    case BattleMechanismCom::MaelleStance::Defensive:
+        if (_maelleDefensive)
+            _maelleDefensive->Open();
+        break;
+
+    case BattleMechanismCom::MaelleStance::Virtuose:
+        if (_maelleVirtuose)
+            _maelleVirtuose->Open();
+        break;
+
+    default:
+        if (_maelleStanceless)
+            _maelleStanceless->Open();
+        break;
+    }
+}
+
+void UI_BattleMechanism::Apply_LuneState(const Shared<BattleMechanismCom>& mechanismCom)
+{
 }
 
 void UI_BattleMechanism::Close_AllMaelleStances()

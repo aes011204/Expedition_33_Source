@@ -1230,6 +1230,11 @@ void GameInstance::Unlock_Mouse()
     return _inputManager->Unlock_Mouse();
 }
 
+bool GameInstance::Is_MouseLocked() const
+{
+    return _inputManager->Is_MouseLocked();
+}
+
 void GameInstance::Begin_EditorMouseLockSession()
 {
     return _inputManager->Begin_EditorMouseLockSession();

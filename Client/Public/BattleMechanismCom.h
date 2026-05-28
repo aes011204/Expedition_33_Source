@@ -21,9 +21,18 @@ public:
         // TODO : 루네 얼룩
     };
 
+    enum class MaelleStance
+    {
+        Stanceless, // 태세 없음
+        Offensive,  // 공격 태세
+        Defensive,  // 방어 태세
+        Virtuose,   // 명인 태세
+        END
+    };
+
     struct MaelleMechanism
     {
-        // TODO : 마엘 태세 전환
+        MaelleStance currentStance = MaelleStance::Stanceless;
     };
 
 public:
@@ -61,8 +70,11 @@ public: /* 루네 */
 
 
 public: /* 마엘 */
+    MaelleStance Get_MaelleStance() const { return _maelle.currentStance; }
 
-
+    void    Set_MaelleStance(MaelleStance stance);
+    void    Reset_MaelleStance(); // 전투 시작 시 태세 없음으로 초기화
+    void    Apply_MaelleSkillTransition(const string& skillKey);
 
 private:
     GustaveMechanism _gustave{};

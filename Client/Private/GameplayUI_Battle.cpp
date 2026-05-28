@@ -186,6 +186,11 @@ bool GameplayUI_Battle::Is_BattleEnterTransitionPlaying() const
     return _battleTransition && _battleTransition->Is_Playing();
 }
 
+void GameplayUI_Battle::Handle_EditorStopRuntime()
+{
+    Reset_BattleUiRuntimeState(true);
+}
+
 bool GameplayUI_Battle::Needs_RuntimeUpdate() const
 {
     if (CLIENT->Is_BattleEntering())
@@ -327,58 +332,11 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isFirstHero)
 
 void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
 {
-    _isBattleUiActive = false;      // 전투 끝나면 battle UI 전체 비활성
-    _isPlayerTurnUiActive = false;
-    _hasTargetPreviewSnapshot = false;
-    _targetPreviewSnapshot = {};
-    _hasCurrentPlayerTurnActor = false;
-    _currentPlayerTurnActor = {};
-    _isVictoryUiActive = false;
-    _isMechanismActionActive = false;
-    _activePlayerId = HeroId::END;
-
-    UI_RuntimePanelBase* panelsToClose[] =
-    {
-        // 턴 시작 시 닫아야할 UI들이 있다면 여기에 추가
-        _battleCommandHUD.get(),
-        _battleSystemHUD.get(),
-        _monsterHpBar.get(),
-        _playerHpBar.get(),
-        _crossHair.get(),
-        _battleDefense.get(),
-        _cancelAim.get(),
-        _choiceTarget.get(),
-        _escapeSkipTurn.get(),
-        _attackTooltip.get(),
-        _reactionResult.get(),
-        _turnOrder.get(),
-        _battleMechanism.get(),
-        _battleAnnounce.get(),
-    };
-
-    for (auto* panel : panelsToClose)
-    {
-        if (panel)
-            panel->Close();
-    }
-
-    for (auto& damageFont : _damageFonts)
-    {
-        if (damageFont)
-            damageFont->Close();
-    }
-
-    for (auto& healFont : _healFonts)
-    {
-        if (healFont)
-            healFont->Close();
-    }
-
-    Stop_BattleEnterTransition(); // 전투 종료 시 남아있는 transition도 같이 정리
+    Reset_BattleUiRuntimeState(result != EBattleEndResult::Victory);
 
     if (result == EBattleEndResult::Victory)
     {
-        _isVictoryUiActive = true;
+        _isVictoryUiActive = true; // 실제 전투 승리 때만 결과창 갱신/표시를 허용
 
         if (_battleVictory)
         {
@@ -391,9 +349,6 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
 
         return;
     }
-
-    if (_battleVictory)
-        _battleVictory->Close();
 }
 
 void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnState state)
@@ -730,6 +685,19 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
             hero.statCom->Get_StatInfo().maxHp,
             hero.statCom->Get_CurAP(),
             hero.statCom->Get_MaxAP());
+
+        if (hero.heroId == HeroId::Gustave)
+        {
+            _battleSystemHUD->Set_GustaveMechanismCharge(hero.mechanismCom);
+        }
+        else if (hero.heroId == HeroId::Lune)
+        {
+            // TODO : 루네 얼룩
+        }
+        else if (hero.heroId == HeroId::Maelle)
+        {
+            // TODO : 마엘 전투태세 연동
+        }
     }
 
     _battleSystemHUD->Update(timeDelta);
@@ -1356,6 +1324,63 @@ vector<GameplayUI_Battle::VictoryStatDesc> GameplayUI_Battle::Build_BattleVictor
     }
 
     return victoryStats;
+}
+
+void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
+{
+    _isBattleUiActive = false;      
+    _isPlayerTurnUiActive = false;
+    _hasTargetPreviewSnapshot = false;
+    _targetPreviewSnapshot = {};
+    _hasCurrentPlayerTurnActor = false;
+    _currentPlayerTurnActor = {};
+    _isVictoryUiActive = false;
+    _isMechanismActionActive = false;
+    _activePlayerId = HeroId::END;
+    _battleStartVictoryStats.clear();
+
+    UI_RuntimePanelBase* panelsToClose[] =
+    {
+        _battleCommandHUD.get(),
+        _battleSystemHUD.get(),
+        _monsterHpBar.get(),
+        _playerHpBar.get(),
+        _crossHair.get(),
+        _battleDefense.get(),
+        _cancelAim.get(),
+        _choiceTarget.get(),
+        _escapeSkipTurn.get(),
+        _attackTooltip.get(),
+        _reactionResult.get(),
+        _turnOrder.get(),
+        _battleMechanism.get(),
+        _battleItemPanel.get(),
+        _battleSkillPanel.get(),
+        _battleAnnounce.get(),
+    };
+
+    for (auto* panel : panelsToClose)
+    {
+        if (panel)
+            panel->Close();
+    }
+
+    for (auto& damageFont : _damageFonts)
+    {
+        if (damageFont)
+            damageFont->Close();
+    }
+
+    for (auto& healFont : _healFonts)
+    {
+        if (healFont)
+            healFont->Close();
+    }
+
+    Stop_BattleEnterTransition(); // 진입 중 F4에서도 페이드 잔상을 남기지 않는다.
+
+    if (closeVictoryUi && _battleVictory)
+        _battleVictory->Close();
 }
 
 Shared<GameplayUI_Battle> GameplayUI_Battle::Create(uint32 levelIndex)

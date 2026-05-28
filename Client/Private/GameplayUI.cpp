@@ -133,6 +133,19 @@ void GameplayUI::Handle_InputModeChanged(GameplayUIInputMode previousMode, Gamep
     }
 }
 
+void GameplayUI::Handle_EditorStopRuntime()
+{
+    if (_worldUI)
+    {
+        _worldUI->Handle_EditorStopRuntime();
+    }
+
+    if (_battleUI)
+    {
+        _battleUI->Handle_EditorStopRuntime();
+    }
+}
+
 Shared<GameplayUI> GameplayUI::Create(uint32 levelIndex)
 {
     auto instance = make_shared<GameplayUI>();

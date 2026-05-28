@@ -11,6 +11,8 @@ NS_END
 
 NS_BEGIN(Client)
 
+class BattleMechanismCom;
+
 class UI_BattleCommandHUD final : public UI_RuntimePanelBase
 {
 public:
@@ -85,9 +87,10 @@ private:
     bool _hasTargetWorldPos = false;
 
     HeroId _currentHeroId = HeroId::END;
-    Vec2 _gustaveTestOffset = Vec2::Zero;
-    Vec2 _luneTestOffset = Vec2::Zero;
-    Vec2 _maelleTestOffset = Vec2::Zero;
+
+    Vec2 _gustaveTestOffset = Vec2(151.f, -104.f);
+    Vec2 _luneTestOffset = Vec2(157.f, -60.f);
+    Vec2 _maelleTestOffset = Vec2(143.f, -47.f);
 
 public:
     static Unique<UI_BattleCommandHUD> Create(uint32 levelIndex);

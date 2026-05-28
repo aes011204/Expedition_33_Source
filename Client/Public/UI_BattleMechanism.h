@@ -40,6 +40,9 @@ private:
 
 private:
     void    Apply_GustaveState(const Shared<BattleMechanismCom>& mechanismCom);
+    void    Apply_MaelleState(const Shared<BattleMechanismCom>& mechanismCom);
+    void    Apply_LuneState(const Shared<BattleMechanismCom>& mechanismCom);
+
     void    Close_AllMaelleStances();
 
 private:

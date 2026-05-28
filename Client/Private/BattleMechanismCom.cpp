@@ -69,7 +69,10 @@ void BattleMechanismCom::Reset_ForHero(HeroId heroId)
         _gustave.currentCharge = 0;
         _gustave.maxCharge = 10;
     }
-
+    else if (_heroId == HeroId::Maelle)
+    {
+        _maelle.currentStance = MaelleStance::Stanceless;
+    }
 }
 
 void BattleMechanismCom::Add_GustaveCharge(int32 amount)
@@ -96,6 +99,43 @@ void BattleMechanismCom::Clear_GustaveCharge()
         return;
 
     _gustave.currentCharge = 0;
+}
+
+void BattleMechanismCom::Set_MaelleStance(MaelleStance stance)
+{
+    if (!Is_Maelle())
+        return;
+
+    _maelle.currentStance = stance;
+}
+
+void BattleMechanismCom::Reset_MaelleStance()
+{
+    if (!Is_Maelle())
+        return;
+
+    _maelle.currentStance = MaelleStance::Stanceless;
+}
+
+void BattleMechanismCom::Apply_MaelleSkillTransition(const string& skillKey)
+{
+    if (!Is_Maelle())
+        return;
+
+    // TODO : 일단은 하드코딩으로 각 스킬을 받아서 태세 변경을 진행하는데,
+    // TODO : 추후에 스킬 데이터 자체에 어떤 태세로 변경될지까지 넣어줘야한다.
+    if (skillKey == "OffensiveSwitch")
+    {
+        _maelle.currentStance = MaelleStance::Offensive;
+    }
+    else if (skillKey == "FireRise")
+    {
+        _maelle.currentStance = MaelleStance::Virtuose;
+    }
+    else if (skillKey == "Percee")
+    {
+        _maelle.currentStance = MaelleStance::Defensive;
+    }
 }
 
 Shared<BattleMechanismCom> BattleMechanismCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

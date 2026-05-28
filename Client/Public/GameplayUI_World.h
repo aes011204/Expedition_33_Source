@@ -29,6 +29,8 @@ public:
     GameplayMenu Get_CurrentMenu() const; // 현재 최상위 메뉴 확인용
     void    Force_CloseAllMenus();
 
+    void    Handle_EditorStopRuntime();
+
 private:
     void    Handle_SavePointAction(SavePoint_Panel::SavePointAction action);
     void    Handle_TabInput();

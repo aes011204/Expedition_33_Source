@@ -51,6 +51,8 @@ public:
     void    Stop_BattleEnterTransition();
     bool    Is_BattleEnterTransitionPlaying() const;
 
+    void    Handle_EditorStopRuntime();
+
 private:
     void    Bind_BattleDelegates();        // 턴 관련 델리게이트 구독
     void    Unbind_BattleDelegates();      // 턴 관련 델리게이트 구독 해제
@@ -104,6 +106,8 @@ private:
     // 전투 승리 시 결과 적용
     using VictoryStatDesc = UI_BattleVictory::VictoryPlayerStatDesc;
     vector<VictoryStatDesc> Build_BattleVictoryPlayerStats() const;
+
+    void    Reset_BattleUiRuntimeState(bool closeVictoryUi); 
 
 private:
     Unique<UI_BattleTransition>             _battleTransition; // 전투 진입 테스트용 페이드 UI

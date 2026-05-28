@@ -447,6 +447,36 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     Set_Open(true);
 }
 
+void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewRoot)
+{
+    if (_sourceMode != SourceMode::LiveModel)
+        return;
+
+    if (previewRoot != nullptr)
+    {
+        const Shared<GameObject> currentPreviewRoot = Get_PreviewRenderObject();
+        if (currentPreviewRoot != previewRoot)
+            return;
+    }
+
+    Reset_PreviewTrailEffect();
+
+    _sourceMode = SourceMode::None;
+    _sourceModelPath.clear();
+    _liveModelCom.reset();
+    _modelGuid.clear();
+    _currentAnimationName.clear();
+    _availableAnimations.clear();
+    _selectedNotifyId = -1;
+    _selectedStateId = -1;
+    _selectedNotifyTrackIndex = 0;
+    _selectedNotifyStateTrackIndex = 0;
+    _sequencerCurrentFrame = 0;
+    _sequencerSelectedRow = -1;
+    _sequencerFirstFrame = 0;
+    _selectedBoneIndex = -1;
+}
+
 int32 Animation_View::Get_CurrentAnimationFps() const
 {
     if (const AnimNotifyData* animationData = Get_CurrentAnimation())

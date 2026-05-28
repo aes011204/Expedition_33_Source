@@ -28,6 +28,14 @@ class EditorInstance final : public Base
     DECLARE_SINGLETON(EditorInstance)
 
 public:
+    enum class MouseLockOverrideMode : uint8
+    {
+        Auto,
+        Locked,
+        Unlocked,
+    };
+
+public:
     EditorInstance();
     virtual ~EditorInstance() = default;
 
@@ -138,6 +146,8 @@ public: /* For.Viewport */
     float                    Get_EffectiveViewportAspect() const;
 
     void                     Apply_RuntimeInputPolicy();
+    void                     Toggle_MouseLockOverride();
+    MouseLockOverrideMode    Get_MouseLockOverrideMode() const { return _mouseLockOverrideMode; }
 
 public: // for pickingSystem
     void DoPickAt(const ImVec2& mousePos, const ImVec2& vpMin, const ImVec2& vpMax);
@@ -199,6 +209,7 @@ private: /* 저장 */
 
 private:
     bool                        _isTargetCameraEditMode = false;
+    MouseLockOverrideMode       _mouseLockOverrideMode = MouseLockOverrideMode::Auto;
 
 private: /* Core Data */
     ComPtr<Device>               _device = {};
