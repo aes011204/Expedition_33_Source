@@ -457,7 +457,7 @@ void GameplayUI_Battle::Handle_ActionStarted(const BattleAction& action)
         _battleMechanism->Close();
 
     if (_battleAnnounce && isAttackAction)
-        _battleAnnounce->Show_TurnStart(action._curChar, BattleTurnState::AttackPlaying);
+        _battleAnnounce->Show_TurnStart(action.Get_CurChar(), BattleTurnState::AttackPlaying);
 }
 
 void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float damage, AttackType attackType)
@@ -1113,7 +1113,7 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
     }
 
     _battleMechanism->Show_Hero(_activePlayerId);
-    _battleMechanism->Sync_BattleChar(action._curChar);
+    _battleMechanism->Sync_BattleChar(action.Get_CurChar());
     _battleMechanism->Update(timeDelta);
 }
 

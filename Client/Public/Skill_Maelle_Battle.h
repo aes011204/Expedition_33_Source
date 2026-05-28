@@ -13,7 +13,7 @@ public:
     ~Skill_Maelle_OffensiveSwitch() override = default;
 
 public:
-    void Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target) override;
+    void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
 
 public:
     static Shared<Skill_Maelle_OffensiveSwitch> Create();
@@ -29,7 +29,7 @@ public:
     ~Skill_Maelle_Percee() override = default;
 
 public:
-    void Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target) override;
+    void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
 
 public:
     static Shared<Skill_Maelle_Percee> Create();
@@ -45,7 +45,7 @@ public:
     ~Skill_Maelle_FireRise() override = default;
 
 public:
-    void Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target) override;
+    void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
 
 public:
     static Shared<Skill_Maelle_FireRise> Create();

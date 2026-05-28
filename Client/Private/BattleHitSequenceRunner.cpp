@@ -25,7 +25,10 @@ void BattleHitSequenceRunner::Update(float timeDelta)
     {
         _pending.elapsed -= _pending.hitInterval;
 
-        DamageSystem::ApplyDamage(_pending.hitDamage, _pending.target);
+        DamageSystem::ApplyDamage(
+            _pending.hitDamage,
+            _pending.target,
+            _pending.attackType);
 
         --_pending.remainingHits;
     }
@@ -35,7 +38,7 @@ void BattleHitSequenceRunner::Update(float timeDelta)
 }
 
 void BattleHitSequenceRunner::Begin_RepeatedHit(const BattleChar& attacker, const BattleChar& target, int32 hitCount,
-    float interval, float hitDamage)
+    float interval, float hitDamage, AttackType attackType)
 {
     Clear();
 
@@ -58,6 +61,7 @@ void BattleHitSequenceRunner::Begin_RepeatedHit(const BattleChar& attacker, cons
     _pending.hitInterval = interval;
     _pending.elapsed = 0.f;
     _pending.hitDamage = hitDamage;
+    _pending.attackType = attackType;
 }
 
 void BattleHitSequenceRunner::Clear()

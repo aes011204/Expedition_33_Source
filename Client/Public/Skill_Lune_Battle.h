@@ -13,7 +13,7 @@ public:
     ~Skill_Lune_Immolation() override = default;
 
 public:
-    void Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target) override;
+    void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
 
 public:
     static Shared<Skill_Lune_Immolation> Create();
@@ -29,7 +29,7 @@ public:
     ~Skill_Lune_IceGust() override = default;
 
 public:
-    void Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target) override;
+    void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
 
 public:
     static Shared<Skill_Lune_IceGust> Create();
@@ -45,7 +45,7 @@ public:
     ~Skill_Lune_Thunderfall() override = default;
 
 public:
-    void Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target) override;
+    void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
 
 public:
     static Shared<Skill_Lune_Thunderfall> Create();

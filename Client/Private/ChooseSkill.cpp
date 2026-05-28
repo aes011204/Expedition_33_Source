@@ -70,7 +70,7 @@ void ChooseSkill::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
         request.skillKey.clear(); // 스킬 메뉴 취소
-        BattleAnimUtils::Play_BattleIdle(action._curChar, 0.3f);
+        BattleAnimUtils::Play_BattleIdle(request.actor, 0.3f);
 
         battleFSM->Change_State(BattleTurnState::ChooseAction);
         return;
@@ -93,7 +93,7 @@ void ChooseSkill::Update(float timeDelta)
         return;
 
     string skillKey{};
-    if (!action._curChar.statCom->Try_GetSkillKeyBySlot(slotIndex, skillKey))
+    if (!request.actor.statCom->Try_GetSkillKeyBySlot(slotIndex, skillKey))
     {
         LOG_DEBUG("ChooseSkill: empty or missing battle skill slot. slotIndex={}", slotIndex);
         return; // 아직 해금되지 않은 슬롯은 눌러도 선택되지 않는다. 나중에는 스킬 텍스트도 안뜨게 변경 예정

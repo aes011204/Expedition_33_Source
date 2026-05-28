@@ -25,5 +25,5 @@ void AN_EnterAnim::Execute(const AnimNotifyContext& context)
     battle->End_FirstAnim();
 
     BattleAnimUtils::Play_BattleIdle(
-        battle->Get_TurnAction()._curChar, 0.3f); 
+        battle->Get_TurnAction().Get_CurChar(), 0.3f); 
 }

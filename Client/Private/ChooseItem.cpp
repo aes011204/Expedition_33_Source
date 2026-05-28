@@ -69,7 +69,7 @@ void ChooseItem::Update(float timeDelta)
     {
         owner->Get_TurnActionRequest().itemType = BattleItemType::Invalid;
 
-        const BattleChar& actor = owner->Get_TurnAction()._curChar;
+        const BattleChar& actor = owner->Get_TurnAction().Get_CurChar();
         BattleAnimUtils::Play_BattleIdle(actor, 0.3f);
 
         battleFSM->Change_State(BattleTurnState::ChooseAction);

@@ -13,7 +13,7 @@ Base_Gustave_Attack::Base_Gustave_Attack()
 {
 }
 
-void Base_Gustave_Attack::Execute(const Skill_Data &skill, const BattleAction &action, AttackType attackType)
+void Base_Gustave_Attack::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
     float Damage = 40;
 
@@ -27,19 +27,7 @@ void Base_Gustave_Attack::Execute(const Skill_Data &skill, const BattleAction &a
 
     DamageSystem::ApplyDamage(Damage, action.GetCurStepTarget(), attackType);
 
-    /*if (skill.targetingType[CurIndex] == TargetType::AllEnemies)
-    {
-        for (int i = 0; i < enemy.size(); i++)
-            DamageSystem::ApplyDamage(Damage, enemy[i], AttackType::SingleAOE);
-    }
-    else if (skill.targetingType[CurIndex] == TargetType::Primary)
-        DamageSystem::ApplyDamage(Damage, action.target, AttackType::SingleSkill);
-    else if (skill.targetingType[CurIndex] == TargetType::RandomEnemy)
-    {
-
-        const int num = Math::RandNum(0, enemy.size() - 1);
-        DamageSystem::ApplyDamage(Damage, enemy[num], AttackType::Combo);
-    }*/
+    auto attacker = action.Get_CurChar();
 
     if (attacker.heroId == HeroId::Gustave &&
         attacker.mechanismCom != nullptr &&

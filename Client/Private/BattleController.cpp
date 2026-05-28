@@ -1069,7 +1069,9 @@ void BattleController::Execute_Item()
         {
             if (!action.GetInitTarget().ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
             {
-                BattleAnimUtils::Play_BattleIdle(_currentTurnActor, 0.2f); // Revive 매핑이 없으면 바로 기본 Idle로 복귀한다.
+                BattleAnimUtils::Play_BattleIdle(
+            action.GetInitTarget(),
+            0.2f); // Revive 매핑이 없으면 부활된 대상 기준 idle로 복귀한다.
             }
         }
 

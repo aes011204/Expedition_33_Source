@@ -5,13 +5,17 @@
 // TODO : 프로토타입 이후, 데미지 계산식 제대로
 
 /* 뤼미에르 */
-void Skill_Gustave_LumiereAssault::Execute(const Skill_Data& skill, const BattleChar& attacker,
-    const BattleChar& target)
+void Skill_Gustave_LumiereAssault::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
-    if (!target.actor || !target.statCom)
+    const BattleChar& attacker = action.Get_CurChar();
+
+    const auto& curTargets = action.GetCurStepTarget();
+    if (curTargets.empty())
         return;
 
-    DamageSystem::ApplyDamage(15.f, target);
+    const BattleChar& target = curTargets.front();
+
+    DamageSystem::ApplyDamage(15.f, target, attackType);
 
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_GustaveCharge(1);
@@ -23,13 +27,17 @@ Shared<Skill_Gustave_LumiereAssault> Skill_Gustave_LumiereAssault::Create()
 }
 
 /* 과충전 */
-void Skill_Gustave_UnleashedCharge::Execute(const Skill_Data& skill, const BattleChar& attacker,
-    const BattleChar& target)
+void Skill_Gustave_UnleashedCharge::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
-    if (!target.actor || !target.statCom)
+    const BattleChar& attacker = action.Get_CurChar();
+
+    const auto& curTargets = action.GetCurStepTarget();
+    if (curTargets.empty())
         return;
 
-    DamageSystem::ApplyDamage(40.f, target);
+    const BattleChar& target = curTargets.front();
+
+    DamageSystem::ApplyDamage(40.f, target, attackType);
 
     if (!attacker.mechanismCom)
         return;
@@ -44,12 +52,17 @@ Shared<Skill_Gustave_UnleashedCharge> Skill_Gustave_UnleashedCharge::Create()
 }
 
 /* 징표 사격 */
-void Skill_Gustave_MarkingShot::Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target)
+void Skill_Gustave_MarkingShot::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
-    if (!target.actor || !target.statCom)
+    const BattleChar& attacker = action.Get_CurChar();
+
+    const auto& curTargets = action.GetCurStepTarget();
+    if (curTargets.empty())
         return;
 
-    DamageSystem::ApplyDamage(25.f, target);
+    const BattleChar& target = curTargets.front();
+
+    DamageSystem::ApplyDamage(25.f, target, attackType);
 
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_GustaveCharge(1);

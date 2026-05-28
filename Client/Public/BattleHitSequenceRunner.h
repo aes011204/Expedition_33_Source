@@ -19,6 +19,9 @@ public:
         float hitInterval = 0.3f;  // 타격 간격
         float elapsed = 0.f;       // 누적 시간
         float hitDamage = 0.f;     // 1타당 데미지
+
+        // 첫 타랑 같은 타입으로 들어가게
+        AttackType attackType = AttackType::SingleSkill;
     };
 
 public:
@@ -27,7 +30,14 @@ public:
 
 public:
     void Update(float timeDelta);
-    void Begin_RepeatedHit(const BattleChar& attacker, const BattleChar& target, int32 hitCount, float interval, float hitDamage);
+    void Begin_RepeatedHit(
+        const BattleChar& attacker,
+        const BattleChar& target,
+        int32 hitCount,
+        float interval,
+        float hitDamage,
+        AttackType attackType);
+
     void Clear();
 
     

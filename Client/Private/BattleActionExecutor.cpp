@@ -67,7 +67,7 @@ void BattleActionExecutor::Complete_CurPhase(BattleAction& action)
     {
         if (action.Get_CurChar().ModelCom)
         {
-            BattleAnimUtils::Play_BattleIdle(action._curChar, 0.3f);
+            BattleAnimUtils::Play_BattleIdle(action.Get_CurChar(), 0.3f);
             //action._curChar.ModelCom->Set_Animation(action._selected_SkillKey.IdleAnimationKey, true, 0.f);
         }
 
