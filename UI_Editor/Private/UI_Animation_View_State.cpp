@@ -64,6 +64,8 @@ namespace UIEditor
     void UI_Animation_View::Render_StateAnimationEvents()
     {
         ImGui::TextDisabled("State events play Public_Animation or Target_Animation assets. Paths are resource-relative and usually omit .uianim.json.");
+        // TODO: Add a runtime-like state-event preview mode that samples TransitionFromCurrent start state.
+        ImGui::TextDisabled("Runtime starts state animations from current transform (TransitionFromCurrent*), but this editor preview does not simulate that start-state transition yet.");
 
         if (ImGui::BeginTable("StateAnimationEvents", 3, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg))
         {

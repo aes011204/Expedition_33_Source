@@ -62,6 +62,8 @@ enum class UI_KeyframeAnimationValueMode
 {
     Absolute,
     RelativeTransform,
+    TransitionFromCurrent,
+    TransitionFromCurrentRelativeTransform,
 };
 
 enum class UI_StateAnimationEvent
@@ -143,6 +145,7 @@ public:
     void Set_KeyframeAssets(const vector<UI_KeyframeAnimationAsset>& assets);
     void Add_KeyframeAsset(const UI_KeyframeAnimationAsset& asset);
     void Set_BaseTransformState(const Vec2& position, const Vec2& scale, float rotationRadians);
+    void Set_TransitionStartState(const Vec2& position, const Vec2& scale, float rotationRadians);
     void Play_OnOpen();
     void Stop();
     bool Play_KeyframeAnimation(const wstring& animationName, bool restart = true); // 이름으로 keyframe animation 하나를 선택 재생
@@ -163,6 +166,9 @@ private:
     Vec2 _basePosition{ 0.f, 0.f };
     Vec2 _baseScale{ 1.f, 1.f };
     float _baseRotationRadians = 0.f;
+    Vec2 _transitionStartPosition{ 0.f, 0.f };
+    Vec2 _transitionStartScale{ 1.f, 1.f };
+    float _transitionStartRotationRadians = 0.f;
 };
 
 inline bool Try_ParseUIAnimationTrackType(const string& typeName, UI_AnimationTrackType& outType)

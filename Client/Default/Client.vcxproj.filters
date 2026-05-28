@@ -193,9 +193,6 @@
     <Filter Include="02.GameObject\UI\CharacterStatus_Panel">
       <UniqueIdentifier>{ee7b5bd8-e9bc-4acd-91ee-92cc1ca9e59b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Map\MapInstancedMesh">
-      <UniqueIdentifier>{48582af2-9fa3-4baf-bee3-b247fe81d3f0}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\Camera\Preview">
       <UniqueIdentifier>{2e34842e-b1f0-4652-925c-5877a9a340a6}</UniqueIdentifier>
     </Filter>
@@ -229,62 +226,8 @@
     <Filter Include="04. GamePlayUI\SkillTree_Panel">
       <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Terrain_UE">
-      <UniqueIdentifier>{4d67b62f-7bd5-43ab-9c10-693a9e78aa72}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\Effect\Emitters\ComputeTrail" />
-    <Filter Include="02.GameObject\Effect\Emitters\PointParticle %28deprecated%29" />
-    <Filter Include="02.GameObject\InstancedMeshActor" />
-    <Filter Include="02.GameObject\Map" />
-    <Filter Include="02.GameObject\Map\MapInstancedMesh" />
-    <Filter Include="02.GameObject\Map\MapLoader" />
-    <Filter Include="02.GameObject\Map\MapStaticMesh" />
-    <Filter Include="02.GameObject\Monster" />
-    <Filter Include="02.GameObject\Monster\00. World" />
-    <Filter Include="02.GameObject\Monster\01. Battle" />
-    <Filter Include="02.GameObject\Player" />
-    <Filter Include="02.GameObject\Player\00. World" />
-    <Filter Include="02.GameObject\Player\01. Battle" />
-    <Filter Include="02.GameObject\Player\PlayerParts" />
-    <Filter Include="02.GameObject\Player\PlayerParts\Body" />
-    <Filter Include="02.GameObject\Player\PlayerParts\Hair" />
-    <Filter Include="02.GameObject\Player\PlayerParts\Head" />
-    <Filter Include="02.GameObject\Player\PlayerParts\Weapon" />
-    <Filter Include="02.GameObject\Player\PlayerStateMachine" />
-    <Filter Include="02.GameObject\Player\PlayerStateMachine\State" />
-    <Filter Include="02.GameObject\Sky" />
-    <Filter Include="02.GameObject\Terrain" />
-    <Filter Include="02.GameObject\UI" />
-    <Filter Include="02.GameObject\UI\BackGround" />
-    <Filter Include="03. Component" />
-    <Filter Include="03. Component\CombatStat" />
-    <Filter Include="03. Component\Input" />
-    <Filter Include="03. Component\PlayerController" />
-    <Filter Include="03. Component\StateMachine" />
-    <Filter Include="03. Component\StateMachine\State" />
-    <Filter Include="04. GamePlayUI" />
-    <Filter Include="04. GamePlayUI\Weapon" />
     <Filter Include="90.EditorSupport" />
-    <Filter Include="05. BattleSystem" />
-    <Filter Include="95. AnimNotify" />
-    <Filter Include="95. AnimNotify\00. Notifies" />
-    <Filter Include="95. AnimNotify\01. NotifyStates" />
-    <Filter Include="96. Manager" />
-    <Filter Include="97.ShaderFiles" />
-    <Filter Include="97.ShaderFiles\Compute" />
-    <Filter Include="97.ShaderFiles\Effect" />
-    <Filter Include="98.Default" />
-    <Filter Include="99.Defines" />
-    <Filter Include="99.Defines\Helper" />
-    <Filter Include="Ailment" />
-    <Filter Include="AnimNotify" />
-    <Filter Include="BattleState" />
-    <Filter Include="BattleState\Battle" />
-    <Filter Include="BattleState\Battle\BattleController" />
-    <Filter Include="BehavoirTree" />
-    <Filter Include="BehavoirTree\battle" />
-    <Filter Include="BehavoirTree\world" />
-    <Filter Include="Skill" />
     <Filter Include="02.GameObject\Camera\BattleCamera">
       <UniqueIdentifier>{a140d5ff-7aa8-44da-b19f-d406017bc23e}</UniqueIdentifier>
     </Filter>
@@ -335,7 +278,9 @@
     <ClCompile Include="..\Private\EffectInstancePool.cpp">
       <Filter>06. Pool\Effect Pool</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
+    <ClCompile Include="..\private\Level_GameEntry.cpp">
+      <Filter>01.Levels\Logo</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -357,13 +302,9 @@
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
@@ -391,16 +332,6 @@
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
@@ -432,27 +363,6 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
-      <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -880,7 +790,6 @@
     <ClInclude Include="..\Public\ClientInstance.h">
       <Filter>00.Core</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Player_GameMenu.h" />
     <ClInclude Include="..\Public\Client_Defines.h">
       <Filter>99.Defines</Filter>
     </ClInclude>
@@ -970,8 +879,9 @@
     <ClInclude Include="..\Public\EffectInstancePool.h">
       <Filter>06. Pool\Effect Pool</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h" />
-    <ClInclude Include="Battle_Enum.h" />
+    <ClInclude Include="..\public\Level_GameEntry.h">
+      <Filter>01.Levels\Logo</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
@@ -1409,7 +1319,6 @@
     <ClCompile Include="..\Private\Weapon.cpp">
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Player_GameMenu.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ContentBrowserCore.h">

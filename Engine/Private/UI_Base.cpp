@@ -49,6 +49,10 @@ UI_Base::UI_Base()
 UI_Base::UI_Base(const UI_Base& Prototype)
     : _isOpen{ false }
     , _sortOrder{ Prototype._sortOrder }
+    , _openBasePosition{ Prototype._openBasePosition }
+    , _openBaseScale{ Prototype._openBaseScale }
+    , _openBaseRotationRadians{ Prototype._openBaseRotationRadians }
+    , _hasOpenBaseTransform{ Prototype._hasOpenBaseTransform }
     , _renderGroup{Prototype._renderGroup }
 {
     Set_Name(Prototype.Get_Name());
@@ -79,10 +83,15 @@ HRESULT UI_Base::Initialize(void* Arg)
     _transform = UI_Transform::Create(&Desc.transformDesc);
     CHECK_NULL(_transform, E_FAIL);
 
+    _openBasePosition = _transform->Get_Position();
+    _openBaseScale = _transform->Get_Scale();
+    _openBaseRotationRadians = _transform->Get_RotationRadians();
+    _hasOpenBaseTransform = true;
+
     _animationPlayer.Set_BaseTransformState(
-        _transform->Get_Position(),
-        _transform->Get_Scale(),
-        _transform->Get_RotationRadians());
+        _openBasePosition,
+        _openBaseScale,
+        _openBaseRotationRadians);
     _animationPlayer.Set_Clips(Desc.animationClips);
     _animationPlayer.Set_KeyframeAssets(Desc.keyframeAnimationAssets);
     if (_isOpen)
@@ -94,7 +103,35 @@ HRESULT UI_Base::Initialize(void* Arg)
 void UI_Base::Open()
 {
     _isOpen = true;
+
+    if (nullptr != _transform && _hasOpenBaseTransform)
+    {
+        _transform->Set_Position(_openBasePosition);
+        _transform->Set_Scale(_openBaseScale);
+        _transform->Set_RotationRadians(_openBaseRotationRadians);
+        _animationPlayer.Set_TransitionStartState(
+            _openBasePosition,
+            _openBaseScale,
+            _openBaseRotationRadians);
+    }
+
     _animationPlayer.Play_OnOpen();
+}
+
+void UI_Base::Refresh_OpenBaseTransform()
+{
+    if (nullptr == _transform)
+        return;
+
+    _openBasePosition = _transform->Get_Position();
+    _openBaseScale = _transform->Get_Scale();
+    _openBaseRotationRadians = _transform->Get_RotationRadians();
+    _hasOpenBaseTransform = true;
+
+    _animationPlayer.Set_BaseTransformState(
+        _openBasePosition,
+        _openBaseScale,
+        _openBaseRotationRadians);
 }
 
 void UI_Base::Close()
@@ -137,6 +174,14 @@ HRESULT UI_Base::Render()
 
 bool UI_Base::Play_UIAnimation(const wstring& animationName, bool restart)
 {
+    if (nullptr != _transform)
+    {
+        _animationPlayer.Set_TransitionStartState(
+            _transform->Get_Position(),
+            _transform->Get_Scale(),
+            _transform->Get_RotationRadians());
+    }
+
     return _animationPlayer.Play_KeyframeAnimation(animationName, restart); // 실제 선택 재생은 AnimationPlayer가 맡는다.
 }
 

@@ -122,19 +122,17 @@ void UI_Button::Set_StateAnimationProfile(const UI_StateAnimationProfile& stateA
 
 void UI_Button::Update_StateAnimationEvents()
 {
-    UI_StateAnimationEvent eventType = UI_StateAnimationEvent::Count;
-
     if (_previousDisabledForState != _isDisabled)
-        eventType = _isDisabled ? UI_StateAnimationEvent::DisabledEnter : UI_StateAnimationEvent::DisabledExit;
-    else if (_previousPressedForState != _isPressed)
-        eventType = _isPressed ? UI_StateAnimationEvent::PressedEnter : UI_StateAnimationEvent::PressedExit;
-    else if (_previousHoveredForState != _isHovered)
-        eventType = _isHovered ? UI_StateAnimationEvent::HoverEnter : UI_StateAnimationEvent::HoverExit;
-    else if (_previousFocusedForState != _isFocusedForState)
-        eventType = _isFocusedForState ? UI_StateAnimationEvent::FocusedEnter : UI_StateAnimationEvent::FocusedExit;
+        Try_PlayStateAnimation(_isDisabled ? UI_StateAnimationEvent::DisabledEnter : UI_StateAnimationEvent::DisabledExit);
 
-    if (eventType != UI_StateAnimationEvent::Count)
-        Try_PlayStateAnimation(eventType);
+    if (_previousPressedForState != _isPressed)
+        Try_PlayStateAnimation(_isPressed ? UI_StateAnimationEvent::PressedEnter : UI_StateAnimationEvent::PressedExit);
+
+    if (_previousHoveredForState != _isHovered)
+        Try_PlayStateAnimation(_isHovered ? UI_StateAnimationEvent::HoverEnter : UI_StateAnimationEvent::HoverExit);
+
+    if (_previousFocusedForState != _isFocusedForState)
+        Try_PlayStateAnimation(_isFocusedForState ? UI_StateAnimationEvent::FocusedEnter : UI_StateAnimationEvent::FocusedExit);
 
     _previousHoveredForState = _isHovered;
     _previousPressedForState = _isPressed;

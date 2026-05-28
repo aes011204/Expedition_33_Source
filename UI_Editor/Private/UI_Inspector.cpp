@@ -59,6 +59,119 @@ namespace UIEditor
                 extension == ".dds" ||
                 extension == ".tga";
         }
+
+        wstring To_LowerW(wstring value)
+        {
+            transform(value.begin(), value.end(), value.begin(), [](wchar_t ch)
+                {
+                    return static_cast<wchar_t>(towlower(ch));
+                });
+
+            return value;
+        }
+
+        bool Starts_With(const wstring& value, const wstring& prefix)
+        {
+            return value.size() >= prefix.size() && equal(prefix.begin(), prefix.end(), value.begin());
+        }
+
+        bool Ends_With(const wstring& value, const wstring& suffix)
+        {
+            return value.size() >= suffix.size() && equal(suffix.rbegin(), suffix.rend(), value.rbegin());
+        }
+
+        wstring Resolve_DefaultStateAnimationDirectory()
+        {
+            const wstring resourceRoot = Resolve_UIEditorClientResourceRoot();
+            if (!resourceRoot.empty())
+            {
+                const fs::path stateAnimationDirectory = (fs::path(resourceRoot) / L"UI" / L"UI_StateAnimations").lexically_normal();
+                try
+                {
+                    if (fs::exists(stateAnimationDirectory) && fs::is_directory(stateAnimationDirectory))
+                        return stateAnimationDirectory.wstring();
+                }
+                catch (const exception& exception)
+                {
+                    LOG_WARN("UI inspector state animation directory check failed: {} ({})",
+                        exception.what(),
+                        String::ToString(stateAnimationDirectory.wstring()));
+                }
+            }
+
+            return {};
+        }
+
+        bool Show_StateAnimationSelectDialog(wstring& outFilePath)
+        {
+            wchar_t filePathBuffer[MAX_PATH] = {};
+            const wstring initialDirectory = Resolve_DefaultStateAnimationDirectory();
+
+            OPENFILENAMEW openFileName = {};
+            openFileName.lStructSize = sizeof(openFileName);
+            openFileName.lpstrFilter = L"UI State Animation Files\0*.uistateanim.json\0JSON Files\0*.json\0All Files\0*.*\0";
+            openFileName.lpstrFile = filePathBuffer;
+            openFileName.nMaxFile = MAX_PATH;
+            if (!initialDirectory.empty())
+                openFileName.lpstrInitialDir = initialDirectory.c_str();
+            openFileName.lpstrDefExt = L"uistateanim.json";
+            openFileName.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+
+            if (FALSE == GetOpenFileNameW(&openFileName))
+                return false;
+
+            outFilePath = filePathBuffer;
+            return !outFilePath.empty();
+        }
+
+        bool Try_MakeStateAnimationResourcePath(const wstring& filePath, string& outResourcePath)
+        {
+            outResourcePath.clear();
+            if (filePath.empty())
+                return false;
+
+            try
+            {
+                const wstring resourceRootValue = Resolve_UIEditorClientResourceRoot();
+                if (resourceRootValue.empty())
+                    return false;
+
+                const fs::path selectedPath = fs::weakly_canonical(fs::path(filePath));
+                const fs::path resourceRoot = fs::weakly_canonical(fs::path(resourceRootValue));
+                fs::path relativePath = selectedPath.lexically_relative(resourceRoot);
+                if (relativePath.empty())
+                    return false;
+
+                for (const fs::path& part : relativePath)
+                {
+                    if (part.native() == L"..")
+                        return false;
+                }
+
+                const wstring lowerRelativePath = To_LowerW(relativePath.generic_wstring());
+                if (!Starts_With(lowerRelativePath, L"ui/ui_stateanimations/"))
+                    return false;
+
+                constexpr wchar_t kStateAnimationExtension[] = L".uistateanim.json";
+                const wstring lowerFileName = To_LowerW(relativePath.filename().wstring());
+                if (!Ends_With(lowerFileName, kStateAnimationExtension))
+                    return false;
+
+                wstring fileNameWithoutExtension = relativePath.filename().wstring();
+                fileNameWithoutExtension.resize(fileNameWithoutExtension.size() - wcslen(kStateAnimationExtension));
+                relativePath.replace_filename(fileNameWithoutExtension);
+
+                outResourcePath = String::ToString(relativePath.generic_wstring());
+                return !outResourcePath.empty();
+            }
+            catch (const exception& exception)
+            {
+                LOG_WARN("UI inspector state animation resource path convert failed: {} ({})",
+                    exception.what(),
+                    String::ToString(filePath));
+                return false;
+            }
+        }
     }
 
     UI_Inspector::UI_Inspector(UI_Editor_Manager& editorManager)
@@ -404,6 +517,20 @@ namespace UIEditor
         if (ImGui::InputText("State Animation Path", pathBuffer, size(pathBuffer)))
             _editorManager.Set_UIObjectStateAnimationPath(object.id, pathBuffer);
 
+        if (ImGui::Button(("Select##StateAnimation" + to_string(object.id)).c_str()))
+        {
+            wstring filePath = {};
+            if (Show_StateAnimationSelectDialog(filePath))
+            {
+                string stateAnimationPath = {};
+                if (Try_MakeStateAnimationResourcePath(filePath, stateAnimationPath))
+                    _editorManager.Set_UIObjectStateAnimationPath(object.id, stateAnimationPath);
+                else
+                    LOG_WARN("UI inspector state animation must be under Resources/UI/UI_StateAnimations: {}", String::ToString(filePath));
+            }
+        }
+
+        ImGui::SameLine();
         if (ImGui::Button(("Clear State Animation##" + to_string(object.id)).c_str()))
             _editorManager.Set_UIObjectStateAnimationPath(object.id, "");
     }

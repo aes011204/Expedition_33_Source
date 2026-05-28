@@ -703,6 +703,16 @@ namespace
             if (root.is_discarded())
                 return false;
 
+            RuntimeAnimationAssetType animationType = RuntimeAnimationAssetType::Target_Animation;
+            Try_ParseAnimationAssetType(root, animationType);
+            if (animationType == RuntimeAnimationAssetType::Public_Animation)
+            {
+                LOG_WARN(
+                    "UI RuntimeLoader animationPath/animationPaths expects Target_Animation. Public_Animation is ignored: {}",
+                    String::ToString(assetPath.wstring()));
+                return false;
+            }
+
             return Try_ReadKeyframeAnimationAssetBindings(root, outBindings);
         }
         catch (const exception& exception)
@@ -828,7 +838,7 @@ namespace
 
                 UI_KeyframeAnimationAsset publicAsset = Make_KeyframeAnimationAssetFromRoot(root);
                 publicAsset.playOnOpen = false;
-                publicAsset.valueMode = UI_KeyframeAnimationValueMode::RelativeTransform;
+                publicAsset.valueMode = UI_KeyframeAnimationValueMode::TransitionFromCurrentRelativeTransform;
                 Read_KeyframeAnimationTracks(root, publicAsset);
                 if (publicAsset.tracks.empty())
                 {
@@ -874,6 +884,7 @@ namespace
                     }
 
                     binding.asset.playOnOpen = false;
+                    binding.asset.valueMode = UI_KeyframeAnimationValueMode::TransitionFromCurrent;
                     validBindings.push_back(move(binding));
                 }
 
@@ -979,7 +990,8 @@ namespace
 
         for (UI_KeyframeAnimationAsset& asset : assets)
         {
-            if (asset.valueMode == UI_KeyframeAnimationValueMode::RelativeTransform)
+            if (asset.valueMode == UI_KeyframeAnimationValueMode::RelativeTransform ||
+                asset.valueMode == UI_KeyframeAnimationValueMode::TransitionFromCurrentRelativeTransform)
                 continue;
 
             for (UI_KeyframeAnimationTrack& track : asset.tracks)
