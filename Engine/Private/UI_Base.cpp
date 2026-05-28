@@ -284,17 +284,26 @@ Vec2 UI_Base::Get_ScaledLocalCenter(const Vec2& localScale) const
 Vec2 UI_Base::Transform_LocalPointToWorld(const Vec2& localPoint) const
 {
     Vec2 worldPoint = localPoint;
-    unordered_set<const UI_Base*> visitedParents;
     Shared<UI_Base> parent = _parent.lock();
+#ifdef _DEBUG
+    uint32 depth = 0;
+#endif
+
     while (nullptr != parent)
     {
-        if (!visitedParents.insert(parent.get()).second)
-            break;
-
         if (nullptr != parent->_transform)
             worldPoint = Transform_PointByParent(worldPoint, *parent);
 
         parent = parent->_parent.lock();
+
+#ifdef _DEBUG
+        ++depth;
+        if (depth > 256)
+        {
+            LOG_WARN("UI_Base::Transform_LocalPointToWorld stopped by excessive parent depth.");
+            break;
+        }
+#endif
     }
 
     return worldPoint;
@@ -304,13 +313,13 @@ Vec2 UI_Base::Get_WorldScale() const
 {
     Vec2 worldScale = nullptr != _transform ? _transform->Get_Scale() : Vec2(1.f, 1.f);
 
-    unordered_set<const UI_Base*> visitedParents;
     Shared<UI_Base> parent = _parent.lock();
+#ifdef _DEBUG
+    uint32 depth = 0;
+#endif
+
     while (nullptr != parent)
     {
-        if (!visitedParents.insert(parent.get()).second)
-            break;
-
         if (nullptr != parent->_transform)
         {
             const Vec2& parentScale = parent->_transform->Get_Scale();
@@ -319,6 +328,15 @@ Vec2 UI_Base::Get_WorldScale() const
         }
 
         parent = parent->_parent.lock();
+
+#ifdef _DEBUG
+        ++depth;
+        if (depth > 256)
+        {
+            LOG_WARN("UI_Base::Get_WorldScale stopped by excessive parent depth.");
+            break;
+        }
+#endif
     }
 
     return worldScale;
@@ -328,17 +346,26 @@ float UI_Base::Get_WorldRotationRadians() const
 {
     float worldRotationRadians = nullptr != _transform ? _transform->Get_RotationRadians() : 0.f;
 
-    unordered_set<const UI_Base*> visitedParents;
     Shared<UI_Base> parent = _parent.lock();
+#ifdef _DEBUG
+    uint32 depth = 0;
+#endif
+
     while (nullptr != parent)
     {
-        if (!visitedParents.insert(parent.get()).second)
-            break;
-
         if (nullptr != parent->_transform)
             worldRotationRadians += parent->_transform->Get_RotationRadians();
 
         parent = parent->_parent.lock();
+
+#ifdef _DEBUG
+        ++depth;
+        if (depth > 256)
+        {
+            LOG_WARN("UI_Base::Get_WorldRotationRadians stopped by excessive parent depth.");
+            break;
+        }
+#endif
     }
 
     return worldRotationRadians;
