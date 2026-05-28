@@ -1,9 +1,10 @@
 ﻿#pragma once
+
 #include "SkillScript.h"
 
 NS_BEGIN(Client)
-class Base_Gustave_Attack :
-    public SkillScript
+
+class Base_Gustave_Attack : public SkillScript
 {
      GENERATED_SKILLSCRIPT(Base_Gustave_Attack)
 
@@ -16,7 +17,8 @@ public:
         const BattleChar& target);
 
 private:
-	uint32 charging = {};
+	
+
 public:
     static Shared<Base_Gustave_Attack> Create();
     //Shared<Component> Clone(void* arg) override;

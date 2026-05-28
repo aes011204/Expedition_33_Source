@@ -112,7 +112,9 @@
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" "$(OutDir)"</Command>
+if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -142,8 +144,9 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" x
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
-
-if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" "$(OutDir)"</Command>
+if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">

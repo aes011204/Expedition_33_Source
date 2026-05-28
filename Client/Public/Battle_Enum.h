@@ -15,6 +15,8 @@ namespace Client
     enum class Buffs;
     enum class EAttackType;
     class CombatStatCom;
+    class BattleMechanismCom;
+
     // =============================
     // 상태 / 컨텍스트
     // =============================
@@ -474,6 +476,7 @@ namespace Client
         Shared<Character> actor;
         Shared<CombatStatCom> statCom;
         Shared<ModelCom> ModelCom;
+        Shared<BattleMechanismCom> mechanismCom;
     };
 
 

@@ -44,6 +44,9 @@ public:
     void    Update_Input();
     vector<RuntimeUIEntry> Get_RuntimeUIEntries() const;
 
+    // 평소에는 Battle UI 업데이트 막기
+    bool    Needs_RuntimeUpdate() const;
+
     void    Play_BattleEnterTransition();
     void    Stop_BattleEnterTransition();
     bool    Is_BattleEnterTransitionPlaying() const;

@@ -38,17 +38,23 @@ namespace
     void Append_RuntimePanelEntry(
         vector<RuntimeUIEntry>& outEntries,
         const char* name,
-        const UI_RuntimePanelBase* panel,
-        bool positionDrivenByCode = false)
+        UI_RuntimePanelBase* panel)
     {
         if (panel == nullptr)
             return;
 
-        Shared<UI_Base> root = panel->Get_RootUI();
+        Shared<UI_Base> root = panel->Get_EditorRootUI();
         if (root == nullptr)
             return;
 
-        outEntries.push_back({ "Battle", name, root, positionDrivenByCode });
+        outEntries.push_back(
+            {
+                "Battle",
+                name,
+                root,
+                panel, // Inspector가 실제 오프셋 값을 읽고 쓸 Battle UI 소유자다.
+                panel->Is_EditorPositionDrivenByCode()
+            });
     }
 }
 
@@ -136,17 +142,17 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     entries.reserve(18 + static_cast<uint32>(_damageFonts.size()) + static_cast<uint32>(_healFonts.size()));
 
     Append_RuntimePanelEntry(entries, "BattleTransition", _battleTransition.get());
-    Append_RuntimePanelEntry(entries, "BattleCommandHUD", _battleCommandHUD.get(), true);
+    Append_RuntimePanelEntry(entries, "BattleCommandHUD", _battleCommandHUD.get());
     Append_RuntimePanelEntry(entries, "BattleSystemHUD", _battleSystemHUD.get());
-    Append_RuntimePanelEntry(entries, "MonsterHpBar", _monsterHpBar.get(), true);
-    Append_RuntimePanelEntry(entries, "PlayerHpBar", _playerHpBar.get(), true);
+    Append_RuntimePanelEntry(entries, "MonsterHpBar", _monsterHpBar.get());
+    Append_RuntimePanelEntry(entries, "PlayerHpBar", _playerHpBar.get());
     Append_RuntimePanelEntry(entries, "CrossHair", _crossHair.get());
     Append_RuntimePanelEntry(entries, "BattleDefense", _battleDefense.get());
     Append_RuntimePanelEntry(entries, "CancelAim", _cancelAim.get());
     Append_RuntimePanelEntry(entries, "ChoiceTarget", _choiceTarget.get());
     Append_RuntimePanelEntry(entries, "EscapeSkipTurn", _escapeSkipTurn.get());
     Append_RuntimePanelEntry(entries, "AttackTooltip", _attackTooltip.get());
-    Append_RuntimePanelEntry(entries, "ReactionResult", _reactionResult.get(), true);
+    Append_RuntimePanelEntry(entries, "ReactionResult", _reactionResult.get());
     Append_RuntimePanelEntry(entries, "BattleVictory", _battleVictory.get());
     Append_RuntimePanelEntry(entries, "TurnOrder", _turnOrder.get());
     Append_RuntimePanelEntry(entries, "BattleMechanism", _battleMechanism.get());
@@ -155,10 +161,10 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     Append_RuntimePanelEntry(entries, "BattleAnnounce", _battleAnnounce.get());
 
     for (uint32 i = 0; i < _damageFonts.size(); ++i)
-        Append_RuntimePanelEntry(entries, ("DamageFont_" + to_string(i)).c_str(), _damageFonts[i].get(), true);
+        Append_RuntimePanelEntry(entries, ("DamageFont_" + to_string(i)).c_str(), _damageFonts[i].get());
 
     for (uint32 i = 0; i < _healFonts.size(); ++i)
-        Append_RuntimePanelEntry(entries, ("HealFont_" + to_string(i)).c_str(), _healFonts[i].get(), true);
+        Append_RuntimePanelEntry(entries, ("HealFont_" + to_string(i)).c_str(), _healFonts[i].get());
 
     return entries;
 }
@@ -178,6 +184,23 @@ void GameplayUI_Battle::Stop_BattleEnterTransition()
 bool GameplayUI_Battle::Is_BattleEnterTransitionPlaying() const
 {
     return _battleTransition && _battleTransition->Is_Playing();
+}
+
+bool GameplayUI_Battle::Needs_RuntimeUpdate() const
+{
+    if (CLIENT->Is_BattleEntering())
+        return true;
+
+    if (CLIENT->Is_BattleActive())
+        return true;
+
+    if (_isVictoryUiActive)
+        return true;
+
+    if (Is_BattleEnterTransitionPlaying())
+        return true;
+
+    return false;
 }
 
 void GameplayUI_Battle::Bind_BattleDelegates()
@@ -658,9 +681,14 @@ void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 
     _battleCommandHUD->Open();
     _battleCommandHUD->Set_TargetWorldPosition(worldPos);
+
+    // 현재 턴 영웅을 HUD에 넘겨 Hero별 오프셋 세팅이 되게
+    _battleCommandHUD->Set_CurrentHeroId(_currentPlayerTurnActor.heroId);
+
     _battleCommandHUD->Set_CurrentPlayerAP(
         _currentPlayerTurnActor.statCom->Get_CurAP(),
         _currentPlayerTurnActor.statCom->Get_MaxAP());
+
     _battleCommandHUD->Refresh_ForState(currentState);
 
     _battleCommandHUD->Update(timeDelta);
@@ -1078,6 +1106,7 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
         state == BattleTurnState::AttackTargeting)
     {
         _battleMechanism->Show_Hero(_activePlayerId);
+        _battleMechanism->Sync_BattleChar(_currentPlayerTurnActor);
         _battleMechanism->Update(timeDelta);
         return;
     }
@@ -1109,6 +1138,7 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
     }
 
     _battleMechanism->Show_Hero(_activePlayerId);
+    _battleMechanism->Sync_BattleChar(action._curChar);
     _battleMechanism->Update(timeDelta);
 }
 

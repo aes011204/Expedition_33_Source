@@ -26,6 +26,7 @@
 #include "Camera.h"
 #include "TargetCamera.h"
 #include "BattleActionExecutor.h"
+#include "BattleMechanismCom.h"
 #include "Battle_Event.h"
 #include "Character.h"
 #include "Event_Bus.h"
@@ -511,8 +512,12 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         battleChar.heroId = heroId; // 배틀 종료 후 어떤 PW로 돌릴지 식별용
         battleChar.actor = ply;
         battleChar.statCom = character->Get_Component<CombatStatCom>();
+        battleChar.mechanismCom = character->Get_Component<BattleMechanismCom>();
 
         battleChar.statCom->Set_PlayerType(To_PlayerCharacterType(heroId));
+
+        if (battleChar.mechanismCom)
+            battleChar.mechanismCom->Reset_ForHero(heroId); // 배틀 진입 시 메커니즘 초기화
 
         // 월드에서 세팅된 스탯들을 배틀턴 진입 시 반영
         const Shared<Player_WorldBase> worldHero = CLIENT->Find_Hero(heroId);
@@ -546,6 +551,7 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         BattleChar battleChar{};
         battleChar.actor = ply;
         battleChar.statCom = enemy->Get_Component<CombatStatCom>();
+        battleChar.mechanismCom = nullptr;
 
         PartObject* body = ply ? ply->Get_PartObject(L"Part_Body") : nullptr;
         battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // 몬스터 종류와 무관하게 Part_Body의 ModelCom를 사용한다.

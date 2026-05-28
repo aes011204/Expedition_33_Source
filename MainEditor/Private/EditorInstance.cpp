@@ -122,6 +122,7 @@ void EditorInstance::Release_Editor()
 
     _pickingSystem.reset();
     _sharedViewportRenderTarget.reset();
+    _sharedPreviewRenderTarget.reset();
 
     Release_Manager(_imguiManager);
     Release_Manager(_inspectorFactory);
@@ -807,12 +808,51 @@ Shared<RenderTarget> EditorInstance::Prepare_SharedViewportRenderTarget(uint32 w
     return _sharedViewportRenderTarget;
 }
 
+Shared<RenderTarget> EditorInstance::Prepare_SharedPreviewRenderTarget(uint32 width, uint32 height)
+{
+    if (0 == width)
+        width = 1;
+
+    if (0 == height)
+        height = 1;
+
+    if (nullptr == _sharedPreviewRenderTarget)
+    {
+        _sharedPreviewRenderTarget = RenderTarget::Create(
+            L"PreviewRenderTarget",
+            _device,
+            _context,
+            width,
+            height,
+            DXGI_FORMAT_R8G8B8A8_UNORM,
+            Vec4(0.f, 0.f, 0.f, 1.f));
+    }
+    else if (FAILED(_sharedPreviewRenderTarget->Resize(
+        width,
+        height,
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        Vec4(0.f, 0.f, 0.f, 1.f))))
+    {
+        return nullptr;
+    }
+
+    return _sharedPreviewRenderTarget;
+}
+
 ID3D11ShaderResourceView* EditorInstance::Get_SharedViewportSRV() const
 {
     if (nullptr == _sharedViewportRenderTarget)
         return nullptr;
 
     return _sharedViewportRenderTarget->Get_SRV();
+}
+
+ID3D11ShaderResourceView* EditorInstance::Get_SharedPreviewSRV() const
+{
+    if (nullptr == _sharedPreviewRenderTarget)
+        return nullptr;
+
+    return _sharedPreviewRenderTarget->Get_SRV();
 }
 
 void EditorInstance::Capture_BackBuffer_ToViewport()
@@ -826,6 +866,25 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
         renderTarget = Prepare_SharedViewportRenderTarget(copyWidth, copyHeight);
     }
 
+    Capture_BackBuffer_ToRenderTarget(renderTarget);
+}
+
+void EditorInstance::Capture_BackBuffer_ToPreview()
+{
+    const uint32 copyWidth = min(max(1u, GAME->Get_ViewportWidth()), max(1u, GAME->Get_BackBufferWidth()));
+    const uint32 copyHeight = min(max(1u, GAME->Get_ViewportHeight()), max(1u, GAME->Get_BackBufferHeight()));
+
+    Shared<RenderTarget> renderTarget = nullptr;
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("Capture::PreparePreviewRT");
+        renderTarget = Prepare_SharedPreviewRenderTarget(copyWidth, copyHeight);
+    }
+
+    Capture_BackBuffer_ToRenderTarget(renderTarget);
+}
+
+void EditorInstance::Capture_BackBuffer_ToRenderTarget(const Shared<RenderTarget>& renderTarget)
+{
     if (nullptr == renderTarget || nullptr == _context)
         return;
 
@@ -846,8 +905,8 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
     sourceBox.left = 0;
     sourceBox.top = 0;
     sourceBox.front = 0;
-    sourceBox.right = copyWidth;
-    sourceBox.bottom = copyHeight;
+    sourceBox.right = min(max(1u, GAME->Get_ViewportWidth()), renderTarget->Get_Width());
+    sourceBox.bottom = min(max(1u, GAME->Get_ViewportHeight()), renderTarget->Get_Height());
     sourceBox.back = 1;
 
     {
@@ -1035,8 +1094,7 @@ HRESULT EditorInstance::Restore_CurrentLevelObjects(const vector<EditorWorldObje
 
 void EditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
 {
-    (void)width;
-    (void)height;
+    GAME->Apply_LogicalViewportSize(max(1u, width), max(1u, height));
 }
 
 void EditorInstance::Enable_AutoPreviewViewport()

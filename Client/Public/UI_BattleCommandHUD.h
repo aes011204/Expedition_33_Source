@@ -29,6 +29,14 @@ public:
     void    Set_TargetWorldPosition(const Vec3& worldPos);
     void    Set_CurrentPlayerAP(uint32 curAp, uint32 maxAp);
 
+    // 현재 턴 영웅을 받아서, 영웅별로 offset값 조금씩 조절이 가능하게
+    void    Set_CurrentHeroId(HeroId heroId);
+    HeroId  Get_EditorActiveHeroId() const override { return _currentHeroId; }
+
+    bool    Supports_EditorHeroTestOffset() const override { return true; }
+    Vec2    Get_EditorHeroTestOffset(HeroId heroId) const override;
+    void    Set_EditorHeroTestOffset(HeroId heroId, const Vec2& offset) override;
+
 private:
     struct CommandSlot
     {
@@ -55,7 +63,9 @@ private:
         const wstring& keyName,
         bool requireKey,
         CommandSlot& outSlot);
+
     void    Set_CommandSlotHighlighted(const CommandSlot& slot, bool highlighted);
+    Vec2    Resolve_HeroTestOffset(HeroId heroId) const;
 
 private:
     CommandSlot _attackSlot{};
@@ -73,6 +83,11 @@ private:
 
     Vec3 _targetWorldPos = Vec3::Zero;
     bool _hasTargetWorldPos = false;
+
+    HeroId _currentHeroId = HeroId::END;
+    Vec2 _gustaveTestOffset = Vec2::Zero;
+    Vec2 _luneTestOffset = Vec2::Zero;
+    Vec2 _maelleTestOffset = Vec2::Zero;
 
 public:
     static Unique<UI_BattleCommandHUD> Create(uint32 levelIndex);

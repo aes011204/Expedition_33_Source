@@ -15,6 +15,9 @@ HRESULT UI_BattleCommandHUD::Initialize(uint32 levelIndex)
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
 
+    // BattleCommand HUD는 매 프레임 screen Pos 계산
+    Set_EditorPositionDrivenByCode(true);
+
     Close();
 
     return S_OK;
@@ -34,6 +37,10 @@ void UI_BattleCommandHUD::Update(float timeDelta)
         return;
     }
 
+    // TEMP : Hero 별 오프셋 세팅 일단
+    Apply_EditorOffsets(screenPos);
+    screenPos += Resolve_HeroTestOffset(_currentHeroId);
+
     if (_root && _root->Get_Transform())
         _root->Get_Transform()->Set_Position(screenPos);
 }
@@ -46,6 +53,8 @@ void UI_BattleCommandHUD::Open()
 void UI_BattleCommandHUD::Close()
 {
     _hasTargetWorldPos = false;
+    _currentHeroId = HeroId::END;
+
     UI_RuntimePanelBase::Close();
 
     Apply_DefaultHighlight(); 
@@ -96,6 +105,38 @@ void UI_BattleCommandHUD::Set_CurrentPlayerAP(uint32 curAp, uint32 maxAp)
 
     Apply_CurrentPlayerAPGauge(curAp, maxAp);
     Set_CurrentPlayerAPText(curAp);
+}
+
+void UI_BattleCommandHUD::Set_CurrentHeroId(HeroId heroId)
+{
+    _currentHeroId = heroId;
+}
+
+Vec2 UI_BattleCommandHUD::Get_EditorHeroTestOffset(HeroId heroId) const
+{
+    return Resolve_HeroTestOffset(heroId);
+}
+
+void UI_BattleCommandHUD::Set_EditorHeroTestOffset(HeroId heroId, const Vec2& offset)
+{
+    switch (heroId)
+    {
+    case HeroId::Gustave:
+        _gustaveTestOffset = offset; // Gustave에만 적용할 추가 오프셋
+        break;
+
+    case HeroId::Lune:
+        _luneTestOffset = offset; // Lune에만 적용할 추가 오프셋
+        break;
+
+    case HeroId::Maelle:
+        _maelleTestOffset = offset; // Maelle에만 적용할 추가 오프셋
+        break;
+
+    case HeroId::END:
+    default:
+        break;
+    }
 }
 
 HRESULT UI_BattleCommandHUD::Load_UI(uint32 levelIndex)
@@ -217,6 +258,25 @@ void UI_BattleCommandHUD::Set_CommandSlotHighlighted(const CommandSlot& slot, bo
 
     // 선택 강조 표시
     slot.root->Get_Transform()->Set_Scale(highlighted ? _highlightScale : _normalScale);
+}
+
+Vec2 UI_BattleCommandHUD::Resolve_HeroTestOffset(HeroId heroId) const
+{
+     switch (heroId)
+    {
+    case HeroId::Gustave:
+        return _gustaveTestOffset;
+
+    case HeroId::Lune:
+        return _luneTestOffset;
+
+    case HeroId::Maelle:
+        return _maelleTestOffset;
+
+    case HeroId::END:
+    default:
+        return Vec2::Zero;
+    }
 }
 
 Unique<UI_BattleCommandHUD> UI_BattleCommandHUD::Create(uint32 levelIndex)

@@ -114,9 +114,13 @@ public: /* For.Camera */
 
 public: /* For.Viewport */
     Shared<RenderTarget>      Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
+    Shared<RenderTarget>      Prepare_SharedPreviewRenderTarget(uint32 width, uint32 height);
     void                      Request_ViewportSize(EDITOR_VIEWPORT_TARGET targetType, uint32 width, uint32 height);
     ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
+    ID3D11ShaderResourceView* Get_SharedPreviewSRV() const;
     void                      Capture_BackBuffer_ToViewport();
+    void                      Capture_BackBuffer_ToPreview();
+    void                      Capture_BackBuffer_ToRenderTarget(const Shared<RenderTarget>& renderTarget);
     void                      Invalidate_BackBufferCache();
     void                      EndImGuiFrameIfBegun();
     ComPtr<Device>            Get_Device() const { return _device; }
@@ -212,6 +216,7 @@ private: /* Manager */
 
 private: /* Viewport Data */
     Shared<RenderTarget> _sharedViewportRenderTarget = nullptr;
+    Shared<RenderTarget> _sharedPreviewRenderTarget = nullptr;
     ComPtr<ID3D11Texture2D> _cachedBackBufferTexture = nullptr;
     uint32 _cachedBackBufferWidth = 0;
     uint32 _cachedBackBufferHeight = 0;

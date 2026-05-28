@@ -33,7 +33,7 @@ namespace
         if (root == nullptr)
             return;
 
-        outEntries.push_back({ category, name, root, positionDrivenByCode });
+        outEntries.push_back({ category, name, root, nullptr, positionDrivenByCode });
     }
 }
 

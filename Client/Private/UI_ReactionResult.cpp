@@ -74,7 +74,9 @@ void UI_ReactionResult::Show_Reaction(BattleController::ReactionType reactionTyp
         return;
     }
 
-    selectedRoot->Get_Transform()->Set_Position(screenPos);
+    Vec2 finalScreenPos = screenPos;
+    Apply_EditorOffsets(finalScreenPos);
+    selectedRoot->Get_Transform()->Set_Position(finalScreenPos);
     selectedRoot->Open();
 }
 

@@ -84,11 +84,8 @@ public:
 
     HRESULT Draw();
     HRESULT Draw_RendererOnly(); // 에디터용
-    HRESULT Draw_Preview(); // 에디터 프리뷰용
     void    Backup_RenderGroup();
     void    Restore_RenderGroup();
-    // 프리뷰 창에서만 shadow 없는 pass 사용
-    void    Set_PreviewDeferredCombine(bool enable);
 
     void    Clear_Resources(uint32 levelIndex);
 
@@ -214,7 +211,6 @@ public: /* For.Renderer */
     Shared<SSAOPipeline>                Get_SSAOPipeline();
     const ScreenFx_Manager*             Get_ScreenFxManager() const;
     RenderGroup                         Get_CurrentRenderGroup() const;
-
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
     HRESULT Bind_TransformMatrix(D3DTS transformState, ShaderCom* shader, const char* constantName);

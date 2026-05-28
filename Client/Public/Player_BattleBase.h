@@ -13,6 +13,7 @@ class Body_Player;
 class Head_Player;
 class Hair_Player;
 class EffectCom;
+class BattleMechanismCom;
 
 class Player_BattleBase : public Character_BattleBase
 {
@@ -55,8 +56,9 @@ protected:
     virtual HRESULT Ready_WeaponPart(Body_Player* body);
 
 protected:
-    Shared<PlayerStatCom>   _combatStatCom;
-    Shared<EffectCom>       _effectCom;
+    Shared<PlayerStatCom>       _combatStatCom;
+    Shared<EffectCom>           _effectCom;
+    Shared<BattleMechanismCom>  _battleMechanismCom;
 
 };
 

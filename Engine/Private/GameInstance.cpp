@@ -463,13 +463,6 @@ HRESULT GameInstance::Draw_RendererOnly()
     return S_OK;
 }
 
-HRESULT GameInstance::Draw_Preview()
-{
-    _renderer->Draw_Preview();
-
-    return S_OK;
-}
-
 void GameInstance::Backup_RenderGroup()
 {
     if (_renderer)
@@ -480,12 +473,6 @@ void GameInstance::Restore_RenderGroup()
 {
     if (_renderer)
         _renderer->Restore_RenderGroups();
-}
-
-void GameInstance::Set_PreviewDeferredCombine(bool enable)
-{
-    if (_renderer)
-        _renderer->Set_PreviewDeferredCombine(enable);
 }
 
 #ifdef _DEBUG

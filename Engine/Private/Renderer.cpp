@@ -237,21 +237,6 @@ void Renderer::Draw()
 #endif
 }
 
-void Renderer::Draw_Preview()
-{
-#ifdef _DEBUG
-    Reset_RenderCall();
-#endif
-
-    Render_PreviewGroup(RenderGroup::Priority);
-    _renderGroups[ETOI(RenderGroup::Shadow)].clear();
-
-    Render_PreviewGroup(RenderGroup::NonBlend);
-    Render_PreviewGroup(RenderGroup::NonLight);
-    Render_PreviewGroup(RenderGroup::Blend);
-    _renderGroups[ETOI(RenderGroup::UI)].clear();
-}
-
 void Renderer::Backup_RenderGroups()
 {
     for (size_t i = 0; i < ETOI(RenderGroup::END); ++i)
@@ -569,7 +554,6 @@ void Renderer::Render_CombinedHDR()
 
     Add_RenderCall();
 }
-
 void Renderer::Render_NonLight()
 {
     RETURN_LOG_IF_FAILED(
@@ -614,26 +598,6 @@ void Renderer::Render_Blend()
     _renderGroups[ETOI(RenderGroup::Blend)].clear();
 
     GAME->End_MRT();
-}
-
-void Renderer::Render_PreviewGroup(RenderGroup renderGroup)
-{
-    if (renderGroup < RenderGroup::Priority || renderGroup >= RenderGroup::END)
-        return;
-
-    _currentGroup = renderGroup;
-
-    for (auto& renderObject : _renderGroups[ETOI(renderGroup)])
-    {
-        Shared<GameObject> gameObject = renderObject.lock();
-        if (nullptr != gameObject)
-        {
-            gameObject->Render();
-            Add_RenderCall();
-        }
-    }
-
-    _renderGroups[ETOI(renderGroup)].clear();
 }
 
 void Renderer::Render_PostProcess()
@@ -788,10 +752,6 @@ void Renderer::Render_PostProcess()
     RETURN_LOG_IF_FAILED(
         _postprocessShader->Begin(ETOI(PostProcessPass::ToneMapping)),
         L"Render_PostProcess:FAIL ShaderBegin(ToneMapping)");
-
-    const uint32 passIndex = _usePreviewDeferredCombine
-        ? ETOI(DeferredPass::CombinedPreview)
-        : ETOI(DeferredPass::CombinedHDR);       // 일반 runtime/gameplay는 기존 shadow combine 유지
 
     RETURN_LOG_IF_FAILED(
         _viBuffer->Render(),

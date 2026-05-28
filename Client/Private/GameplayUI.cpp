@@ -21,13 +21,14 @@ HRESULT GameplayUI::Initialize(uint32 levelIndex)
 
 void GameplayUI::Update(float timeDelta)
 {
+    const GameplayUIInputMode currentInputMode = Resolve_InputMode();
+
     if (_worldUI)
         _worldUI->Update(timeDelta);
 
-    if (_battleUI)
+    if (_battleUI && _battleUI->Needs_RuntimeUpdate())
         _battleUI->Update(timeDelta);
 
-    const GameplayUIInputMode currentInputMode = Resolve_InputMode();
     if (currentInputMode != _lastInputMode)
     {
         // 월드 -> 배틀 진입 시 월드 메뉴를 경계에서 정리
@@ -66,6 +67,23 @@ vector<RuntimeUIEntry> GameplayUI::Get_BattleRuntimeUIEntries() const
         return {};
 
     return _battleUI->Get_RuntimeUIEntries();
+}
+
+IRuntimeUI_EditorTarget* GameplayUI::Find_RuntimeUIEditorTarget(const Shared<Engine::UI_Base>& rootUI) const
+{
+    if (rootUI == nullptr || _battleUI == nullptr)
+        return nullptr; // 이번 오프셋 파이프라인은 Battle UI에만 연결한다.
+
+    const vector<RuntimeUIEntry> entries = _battleUI->Get_RuntimeUIEntries();
+    for (const RuntimeUIEntry& entry : entries)
+    {
+        if (entry.ui != rootUI)
+            continue;
+
+        return entry.editorTarget; // 선택된 루트 UI와 연결된 실제 오프셋 소유자를 반환한다.
+    }
+
+    return nullptr;
 }
 
 void GameplayUI::Play_BattleEnterTransition()

@@ -122,12 +122,6 @@ void TargetCamera::Priority_Update(float timeDelta)
     {
         Change_Mode(TargetCameraMode::NORMAL);
     }
-
-    if(GAME->KeyDown(KEY_TYPE::CTRL))
-    {
-        Change_Mode(TargetCameraMode::BATTLE_ENTER);
-    }
-
 }
 
 void TargetCamera::Update(float timeDelta)

@@ -5,36 +5,53 @@
 #include "AnimComputeRuntime.h" 
 #include "ComputeShaderCom.h"   
 
+IMPLEMENT_REFLECTION(Weapon)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.displayName = "Weapon";
+    info.category = "Weapon";
+
+    return true;
+}
+
 Weapon::Weapon(const ComPtr<Device>& device, const ComPtr<Context>& context)
-	: PartObject { device, context }
+    : PartObject{ device, context }
 {
 }
 
 Weapon::Weapon(const Weapon& prototype)
-	: PartObject{ prototype }
+    : PartObject{ prototype }
 {
 }
 
 HRESULT Weapon::Initialize_Prototype()
 {
-	return S_OK;
+    return S_OK;
 }
 
 HRESULT Weapon::Initialize(void* arg)
 {
-	auto* desc = static_cast<WEAPON_DESC*>(arg);
-    if (desc == nullptr)
-        return E_FAIL;
+    auto* desc = static_cast<WEAPON_DESC*>(arg);
 
     // body socketMatrix 사용
-    _socketMatrix = desc->socketMatrix;
+    _socketMatrix = (desc != nullptr) ? desc->socketMatrix : nullptr;
 
     CHECK_FAILED(PartObject::Initialize(arg), E_FAIL);
-    CHECK_FAILED(Ready_Components(*desc), E_FAIL);
+
+    if (desc != nullptr && desc->modelTag != nullptr)
+    {
+        CHECK_FAILED(Ready_Components(*desc), E_FAIL);
+    }
+    else
+    {
+        CHECK_FAILED(Ready_DefaultComponents(), E_FAIL);
+    }
 
     Set_ShadowCasterType(ShadowCasterType::Dynamic);
 
-	return S_OK;
+    return S_OK;
 }
 
 void Weapon::Priority_Update(float timeDelta)
@@ -49,20 +66,26 @@ void Weapon::Update(float timeDelta)
         return;
     }
 
-        
-	Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * (*_socketMatrix));
+
+    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * (*_socketMatrix));
 }
 
 void Weapon::Late_Update(float timeDelta)
 {
-	GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    if (_shader == nullptr || _model == nullptr)
+        return;
+
+    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 
     if (Casts_DynamicShadow())
-	    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT Weapon::Render()
 {
+    if (_shader == nullptr || _model == nullptr)
+        return S_OK;
+
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
@@ -87,7 +110,6 @@ HRESULT Weapon::Render()
         if (FAILED(_shader->Begin(material->Get_PassIndex())))
             return E_FAIL;
 
-        // 플레이어 무기 실루엣도 Background UI를 가리는 영역으로 기록한다.
         CHECK_FAILED(GAME->Bind_PlayerStencilWriteState(true), E_FAIL);
 
         _model->Render(i);
@@ -98,6 +120,9 @@ HRESULT Weapon::Render()
 
 HRESULT Weapon::Render_Shadow()
 {
+    if (_shader == nullptr || _model == nullptr)
+        return S_OK;
+
     if (FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix)))
         return E_FAIL;
 
@@ -106,7 +131,7 @@ HRESULT Weapon::Render_Shadow()
 
     if (FAILED(_shader->Reset_DrawFeatures()))
         return E_FAIL;
-        
+
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; ++i)
@@ -120,6 +145,14 @@ HRESULT Weapon::Render_Shadow()
     return S_OK;
 }
 
+void Weapon::From_Json(const json& data)
+{
+    if (FAILED(Ensure_RuntimeComponentsFromJson(data)))
+        return;
+
+    PartObject::From_Json(data);
+}
+
 const Matrix* Weapon::Get_SocketBoneMatrixPtr(const string& boneName) const
 {
     if (_model == nullptr)
@@ -130,52 +163,140 @@ const Matrix* Weapon::Get_SocketBoneMatrixPtr(const string& boneName) const
 
 HRESULT Weapon::Ready_Components(const WEAPON_DESC& desc)
 {
-	CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), desc.modelTag, _model), E_FAIL);
 
     return S_OK;
 }
 
+HRESULT Weapon::Ready_DefaultComponents()
+{
+    WEAPON_DESC defaultDesc{};
+    defaultDesc.modelType = ModelType::NonAnim;
+    defaultDesc.modelTag = L"Model_Lanceram";
+    defaultDesc.socketMatrix = _socketMatrix;
+
+    return Ready_Components(defaultDesc);
+}
+
 HRESULT Weapon::Bind_ShaderResources()
 {
-	if (FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix)))
-		return E_FAIL;
-
-	if (FAILED(GAME->Bind_CameraCB(_shader)))
+    if (_shader == nullptr || _model == nullptr)
         return E_FAIL;
 
-	return S_OK;
+    if (FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix)))
+        return E_FAIL;
+
+    if (FAILED(GAME->Bind_CameraCB(_shader)))
+        return E_FAIL;
+
+    return S_OK;
+}
+
+HRESULT Weapon::Ensure_RuntimeComponentsFromJson(const json& data)
+{
+    if (!data.contains("components") || !data["components"].is_array())
+        return S_OK;
+
+    auto findComponentTag =
+        [this](const Shared<Component>& targetComponent) -> wstring
+        {
+            if (targetComponent == nullptr)
+                return {};
+
+            wstring foundTag{};
+            Visit_Components(
+                [&foundTag, &targetComponent](const wstring& tag, const Shared<Component>& component)
+                {
+                    if (foundTag.empty() && component == targetComponent)
+                        foundTag = tag;
+                });
+
+            return foundTag;
+        };
+
+    for (const json& componentJson : data["components"])
+    {
+        if (!componentJson.is_object())
+            continue;
+
+        const string prototypeTagString = componentJson.value("prototype_tag", string{});
+        if (prototypeTagString.empty())
+            continue;
+
+        const wstring prototypeTag = String::ToWString(prototypeTagString);
+
+        if (prototypeTag == L"Shader_VtxMesh")
+        {
+            if (_components.find(prototypeTag) != _components.end())
+                continue;
+
+            if (_shader != nullptr)
+            {
+                const wstring currentShaderTag = findComponentTag(static_pointer_cast<Component>(_shader));
+                if (!currentShaderTag.empty())
+                    CHECK_FAILED(Rename_ComponentTag(currentShaderTag, prototypeTag), E_FAIL);
+            }
+            else
+            {
+                CHECK_FAILED(Add_Component(ETOI(LevelType::Static), prototypeTag.c_str(), _shader), E_FAIL);
+            }
+
+            continue;
+        }
+
+        if (componentJson.contains("model_type"))
+        {
+            if (_components.find(prototypeTag) != _components.end())
+                continue;
+
+            if (_model != nullptr)
+            {
+                const wstring currentModelTag = findComponentTag(static_pointer_cast<Component>(_model));
+                if (!currentModelTag.empty())
+                    CHECK_FAILED(Rename_ComponentTag(currentModelTag, prototypeTag), E_FAIL);
+            }
+            else
+            {
+                CHECK_FAILED(Add_Component(ETOI(LevelType::Static), prototypeTag.c_str(), _model), E_FAIL);
+            }
+
+            continue;
+        }
+    }
+
+    return S_OK;
 }
 
 Shared<Weapon> Weapon::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
-	auto pInstance = make_shared<Weapon>(device, context);
+    auto pInstance = make_shared<Weapon>(device, context);
 
-	if (FAILED(pInstance->Initialize_Prototype()))
-	{
-		LOG_ERROR("Failed to Created : Weapon");
-		return nullptr;
-	}
-	return pInstance;
+    if (FAILED(pInstance->Initialize_Prototype()))
+    {
+        LOG_ERROR("Failed to Created : Weapon");
+        return nullptr;
+    }
+    return pInstance;
 }
 
 
 Shared<GameObject> Weapon::Clone(void* pArg)
 {
-	auto pInstance = make_shared<Weapon>(*this);
+    auto pInstance = make_shared<Weapon>(*this);
 
-	if (FAILED(pInstance->Initialize(pArg)))
-	{
-		MSG_BOX("Failed to Cloned : Weapon");
-		return nullptr;
-	}
-	return pInstance;
+    if (FAILED(pInstance->Initialize(pArg)))
+    {
+        MSG_BOX("Failed to Cloned : Weapon");
+        return nullptr;
+    }
+    return pInstance;
 }
 
 
 void Weapon::Free()
 {
-	__super::Free();
+    __super::Free();
 
 }
 

@@ -9,6 +9,9 @@
 #include "Helper_String.h"
 #include "Inspector_Factory.h"
 #include "ModelCom.h"
+#include "ClientInstance.h"
+#include "GameplayUI.h"
+#include "IRuntimeUI_EditorTarget.h"
 #include "Reflection_Types.h"
 #include "TransformCom.h"
 #include "UI_Base.h"
@@ -110,10 +113,12 @@ void Inspector::Draw_UIInspector(
     if (positionDrivenByCode)
     {
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.78f, 0.25f, 1.f));
-        ImGui::TextWrapped("현재 Position 값은 런타임 코드에서 계속 갱신되어 다음 프레임에 덮어써질 수 있습니다.");
+        ImGui::TextWrapped("현재 Position 값은 런타임 코드에서 계속 갱신되어 다음 프레임에 덮어써질 수 있습니다. 아래 강제 테스트 오프셋으로 위치를 맞춰보세요.");
         ImGui::PopStyleColor();
         ImGui::Spacing();
     }
+
+    Draw_RuntimeUITestOffsetSection(ui); // Battle UI만 공통 테스트 오프셋 편집기를 노출한다.
 
     bool isOpen = ui->Is_Open();
     ImGui::AlignTextToFramePadding();
@@ -150,6 +155,66 @@ void Inspector::Draw_UIInspector(
     float rotationRadians = transform->Get_RotationRadians();
     if (Draw_UIFloatRow("Rotation", "##UIRotation", rotationRadians, 0.01f))
         transform->Set_RotationRadians(rotationRadians);
+}
+
+void Inspector::Draw_RuntimeUITestOffsetSection(const Shared<UI_Base>& ui)
+{
+    Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI();
+    if (gameplayUI == nullptr)
+        return;
+
+    IRuntimeUI_EditorTarget* editorTarget = gameplayUI->Find_RuntimeUIEditorTarget(ui);
+    if (editorTarget == nullptr)
+        return; // World UI는 여기로 들어오지 않게 Battle 쪽만 연결한다.
+
+    ImGui::Separator();
+    ImGui::TextDisabled("강제 테스트 오프셋");
+
+    Vec2 defaultOffset = editorTarget->Get_EditorDefaultTestOffset();
+    if (Draw_UIVec2Row("기본 오프셋", "##RuntimeUIDefaultOffset", defaultOffset, 1.f))
+        editorTarget->Set_EditorDefaultTestOffset(defaultOffset); // 모든 Battle Runtime UI 공통 기본 오프셋
+
+    if (!editorTarget->Supports_EditorHeroTestOffset())
+    {
+        ImGui::Spacing();
+        return; // Hero 문맥이 없는 Battle UI는 기본 Offset만 조절한다.
+    }
+
+    const HeroId activeHeroId = editorTarget->Get_EditorActiveHeroId();
+    if (activeHeroId == HeroId::END)
+    {
+        ImGui::TextDisabled("현재 플레이어 턴이 아니라 영웅별 오프셋을 조절할 수 없습니다.");
+        ImGui::Spacing();
+        return;
+    }
+
+    const char* heroLabel = "Unknown";
+    switch (activeHeroId)
+    {
+    case HeroId::Gustave:
+        heroLabel = "Gustave";
+        break;
+
+    case HeroId::Lune:
+        heroLabel = "Lune";
+        break;
+
+    case HeroId::Maelle:
+        heroLabel = "Maelle";
+        break;
+
+    case HeroId::END:
+    default:
+        break;
+    }
+
+    ImGui::Text("현재 영웅: %s", heroLabel);
+
+    Vec2 heroOffset = editorTarget->Get_EditorHeroTestOffset(activeHeroId);
+    if (Draw_UIVec2Row("영웅별 오프셋", "##RuntimeUIHeroOffset", heroOffset, 1.f))
+        editorTarget->Set_EditorHeroTestOffset(activeHeroId, heroOffset); // BattleCommandHUD만 Hero별 추가 오프셋을 갖는다.
+
+    ImGui::Spacing();
 }
 
 bool Inspector::Draw_UIVec2Row(const char* label, const string& id, Vec2& value, float speed)

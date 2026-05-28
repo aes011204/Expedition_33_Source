@@ -27,6 +27,7 @@ Prefab_View::Prefab_View()
 void Prefab_View::Update(float timeDelta)
 {
     Editor_Window::Update(timeDelta);
+    Handle_GizmoShortcut();
 
     if (EDITOR->IsPlaying())
         return;
@@ -58,11 +59,7 @@ void Prefab_View::Pre_Render()
     if (_previewObject == nullptr || _previewCamera == nullptr)
         return;
 
-    Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
     Ensure_PreviewGridResources();
-
-    if (_previewRenderTarget == nullptr)
-        return;
 
     if (!_previewHasBegunPlay)
     {
@@ -72,18 +69,28 @@ void Prefab_View::Pre_Render()
 
     const Matrix savedView = *GAME->Get_Transform(D3DTS::View);
     const Matrix savedProj = *GAME->Get_Transform(D3DTS::Proj);
+    const Shared<Camera> savedActiveCamera = GAME->Get_ActiveCamera();
+    const uint32 savedViewportWidth = GAME->Get_ViewportWidth();
+    const uint32 savedViewportHeight = GAME->Get_ViewportHeight();
 
     vector<LIGHT_DESC> savedLightDescs{};
     GAME->Get_LightDescs(savedLightDescs);
     const bool wasPlayerInputBlocked = GAME->Is_PlayerInputBlocked();
 
-    if (FAILED(_previewRenderTarget->Begin(true, true)))
+    EDITOR->Request_PreviewViewportSize(_previewWidth, _previewHeight);
+
+    GAME->Bind_BackBuffer();
+    if (FAILED(GAME->Clear_Buffers(Vec4(0.f, 0.f, 0.f, 1.f))))
+    {
+        EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
         return;
+    }
 
     const Matrix previewView = _previewCamera->Get_ViewMatrix();
     const float aspect = static_cast<float>(_previewWidth) / static_cast<float>(max(1u, _previewHeight));
     const Matrix previewProj = XMMatrixPerspectiveFovLH(_previewCamera->Get_FovY(), aspect, _previewCamera->Get_Near(), _previewCamera->Get_Far());
 
+    GAME->Change_ActiveCamera(_previewCamera);
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(previewView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(previewProj));
     GAME->UpdateFrustum(previewView, previewProj);
@@ -124,7 +131,7 @@ void Prefab_View::Pre_Render()
         _requestResetPreviewCamera = false;
     }
 
-    GAME->Draw_Preview();
+    GAME->Draw_RendererOnly();
     GAME->Restore_RenderGroup();
 
     if (_showPrefabCollider)
@@ -132,14 +139,19 @@ void Prefab_View::Pre_Render()
 
     Draw_PreviewGrid();
     Draw_SelectedWeaponTrailAnchorPreview();
+    EDITOR->Capture_BackBuffer_ToPreview();
 
     GAME->Set_Lights(savedLightDescs);
     GAME->Set_PlayerInputBlocked(wasPlayerInputBlocked);
 
     GAME->Bind_BackBuffer();
 
+    if (savedActiveCamera != nullptr)
+        GAME->Change_ActiveCamera(savedActiveCamera);
+
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(savedView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(savedProj));
+    EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
 }
 
 void Prefab_View::Render()
@@ -204,6 +216,9 @@ void Prefab_View::Render()
         if (_focusPrefabFrames > 0)
             --_focusPrefabFrames;
 
+        ImGuizmo::BeginFrame();
+        ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
+
         Draw_Header();
         ImGui::Separator();
 
@@ -226,6 +241,9 @@ void Prefab_View::Render()
 
             ImGui::EndTable();
         }
+
+        Render_SelectedObjectGizmo();
+        Render_GizmoOverlay();
     }
 
     Set_Open(isOpen);
@@ -239,6 +257,33 @@ void Prefab_View::Render()
 
     if (_pendingOpenAnimStateView)
         Open_PendingAnimStateView();
+}
+
+void Prefab_View::Handle_GizmoShortcut()
+{
+    if (!_isFocused)
+        return;
+
+    if (GAME->KeyPress(KEY_TYPE::RBUTTON))
+        return;
+
+    if (ImGui::IsKeyPressed(ImGuiKey_W, false))
+    {
+        _gizmoOperation = ImGuizmo::TRANSLATE;
+        return;
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_E, false))
+    {
+        _gizmoOperation = ImGuizmo::ROTATE;
+        return;
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey_R, false))
+    {
+        _gizmoOperation = ImGuizmo::SCALE;
+        return;
+    }
 }
 
 bool Prefab_View::CanSave() const
@@ -567,6 +612,8 @@ void Prefab_View::Draw_PreviewPanel()
     _previewHeight = max(1u, static_cast<uint32>(previewSize.y));
 
     const ImVec2 previewPos = ImGui::GetCursorScreenPos();
+    _previewCanvasMin = previewPos;
+    _previewCanvasMax = ImVec2(previewPos.x + previewSize.x, previewPos.y + previewSize.y);
     ImGui::InvisibleButton(
         "PrefabPreviewCanvas",
         previewSize,
@@ -577,10 +624,11 @@ void Prefab_View::Draw_PreviewPanel()
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    if (_previewRenderTarget && _previewRenderTarget->Get_SRV())
+    ID3D11ShaderResourceView* previewSRV = EDITOR->Get_SharedPreviewSRV();
+    if (previewSRV != nullptr)
     {
         ImTextureID textureId =
-            static_cast<ImTextureID>(reinterpret_cast<intptr_t>(_previewRenderTarget->Get_SRV()));
+            static_cast<ImTextureID>(reinterpret_cast<intptr_t>(previewSRV));
 
         drawList->AddImage(
             textureId,
@@ -606,6 +654,127 @@ void Prefab_View::Draw_PreviewPanel()
     }
 
     ImGui::EndChild();
+}
+
+void Prefab_View::Render_SelectedObjectGizmo()
+{
+    if (_previewObject == nullptr || _previewCamera == nullptr)
+        return;
+
+    Shared<GameObject> selectedObject = Find_GameObjectByKey(_previewObject, _selectedObjectKey);
+    if (selectedObject == nullptr)
+        selectedObject = _previewObject;
+
+    Shared<TransformCom> transform = selectedObject->Get_Transform();
+    if (transform == nullptr)
+        return;
+
+    const float viewportWidth = _previewCanvasMax.x - _previewCanvasMin.x;
+    const float viewportHeight = _previewCanvasMax.y - _previewCanvasMin.y;
+    if (viewportWidth <= 1.f || viewportHeight <= 1.f)
+        return;
+
+    const Matrix viewMatrix = _previewCamera->Get_ViewMatrix();
+    const Matrix projMatrix = XMMatrixPerspectiveFovLH(
+        _previewCamera->Get_FovY(),
+        viewportWidth / viewportHeight,
+        _previewCamera->Get_Near(),
+        _previewCamera->Get_Far());
+
+    Matrix worldMatrix = transform->Get_WorldMatrix();
+
+    ImGuizmo::SetOrthographic(false);
+    ImGuizmo::SetRect(_previewCanvasMin.x, _previewCanvasMin.y, viewportWidth, viewportHeight);
+
+    const bool manipulated = ImGuizmo::Manipulate(
+        reinterpret_cast<float*>(const_cast<Matrix*>(&viewMatrix)),
+        reinterpret_cast<float*>(const_cast<Matrix*>(&projMatrix)),
+        _gizmoOperation,
+        _gizmoMode,
+        reinterpret_cast<float*>(&worldMatrix));
+
+    if (!manipulated)
+        return;
+
+    Vec3 scale = Vec3::One;
+    Quat rotation = Quat::Identity;
+    Vec3 translation = Vec3::Zero;
+
+    if (!worldMatrix.Decompose(scale, rotation, translation))
+        return;
+
+    transform->Set_WorldPosition(translation);
+    transform->Set_RotationQuaternion(rotation);
+    transform->Set_Scale(scale);
+    MarkDirty();
+}
+
+void Prefab_View::Render_GizmoOverlay()
+{
+    const float viewportWidth = _previewCanvasMax.x - _previewCanvasMin.x;
+    const float viewportHeight = _previewCanvasMax.y - _previewCanvasMin.y;
+    if (viewportWidth <= 1.f || viewportHeight <= 1.f)
+        return;
+
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+    const ImVec2 panelSize = ImVec2(180.f, 34.f);
+    const ImVec2 panelMin = ImVec2(_previewCanvasMax.x - panelSize.x - 16.f, _previewCanvasMin.y + 16.f);
+    const ImVec2 panelMax = ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y);
+
+    drawList->AddRectFilled(panelMin, panelMax, IM_COL32(36, 38, 42, 220), 6.f);
+    drawList->AddRect(panelMin, panelMax, IM_COL32(92, 96, 104, 255), 6.f);
+
+    ImGui::SetCursorScreenPos(ImVec2(panelMin.x + 8.f, panelMin.y + 5.f));
+    ImGui::PushID("PrefabGizmoOverlay");
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5.f, 3.f));
+
+    const ImVec4 activeButtonColor = ImVec4(0.79f, 0.56f, 0.18f, 1.f);
+    const ImVec4 activeHoveredColor = ImVec4(0.88f, 0.64f, 0.23f, 1.f);
+    const ImVec4 activeTextColor = ImVec4(0.09f, 0.09f, 0.09f, 1.f);
+
+    const auto drawModeButton = [&](const char* label, const ImVec2& size, bool active)
+        {
+            if (active)
+            {
+                ImGui::PushStyleColor(ImGuiCol_Button, activeButtonColor);
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, activeHoveredColor);
+                ImGui::PushStyleColor(ImGuiCol_Text, activeTextColor);
+            }
+
+            const bool clicked = ImGui::Button(label, size);
+
+            if (active)
+                ImGui::PopStyleColor(3);
+
+            return clicked;
+        };
+
+    if (drawModeButton("W", ImVec2(24.f, 22.f), _gizmoOperation == ImGuizmo::TRANSLATE))
+        _gizmoOperation = ImGuizmo::TRANSLATE;
+
+    ImGui::SameLine();
+
+    if (drawModeButton("E", ImVec2(24.f, 22.f), _gizmoOperation == ImGuizmo::ROTATE))
+        _gizmoOperation = ImGuizmo::ROTATE;
+
+    ImGui::SameLine();
+
+    if (drawModeButton("R", ImVec2(24.f, 22.f), _gizmoOperation == ImGuizmo::SCALE))
+        _gizmoOperation = ImGuizmo::SCALE;
+
+    ImGui::SameLine(0.f, 8.f);
+
+    if (drawModeButton("Local", ImVec2(56.f, 22.f), _gizmoMode == ImGuizmo::LOCAL))
+        _gizmoMode = ImGuizmo::LOCAL;
+
+    ImGui::SameLine();
+
+    if (drawModeButton("World", ImVec2(56.f, 22.f), _gizmoMode == ImGuizmo::WORLD))
+        _gizmoMode = ImGuizmo::WORLD;
+
+    ImGui::PopStyleVar();
+    ImGui::PopID();
 }
 
 void Prefab_View::Draw_InspectorPanel()

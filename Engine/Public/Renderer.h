@@ -26,7 +26,6 @@ public:
 	HRESULT Initialize();
 	void    Add_RenderGroup(RenderGroup renderGroup, const Shared<GameObject>& gameObject);
 	void    Draw();
-    void    Draw_Preview();
     void    Backup_RenderGroups();
     void    Restore_RenderGroups();
     void    Sync_ViewportDependentState(uint32 width, uint32 height);
@@ -53,8 +52,6 @@ public:
         return _currentGroup;
     }
 
-    void    Set_PreviewDeferredCombine(bool enable) { _usePreviewDeferredCombine = enable; }
-
 #ifdef _DEBUG
 public:
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);
@@ -73,7 +70,6 @@ private:
     void Render_Lights();
     void Render_NonLight();
 	void Render_Blend();
-    void Render_PreviewGroup(RenderGroup renderGroup);
     void Render_ScreenFx();
 
     void Render_CombinedHDR();
@@ -122,7 +118,6 @@ private:
     Matrix                          _pipelineProjMatrix;
     uint32                          iDrawCall = 0;
 
-    bool                            _usePreviewDeferredCombine = false;
     bool                            _useRTVDump = false;
 
 private:

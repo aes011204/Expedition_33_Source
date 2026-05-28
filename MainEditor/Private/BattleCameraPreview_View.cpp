@@ -24,6 +24,7 @@
 #include <optional>
 #include <shobjidl.h>
 #include <string_view>
+#include "EditorInstance.h"
 
 namespace
 {
@@ -322,14 +323,24 @@ void BattleCameraPreview_View::Pre_Render()
 
     const Matrix savedView = *GAME->Get_Transform(D3DTS::View);
     const Matrix savedProj = *GAME->Get_Transform(D3DTS::Proj);
+    const Shared<Camera> savedActiveCamera = GAME->Get_ActiveCamera();
+    const uint32 savedViewportWidth = GAME->Get_ViewportWidth();
+    const uint32 savedViewportHeight = GAME->Get_ViewportHeight();
 
-    if (FAILED(_previewRenderTarget->Begin(true, true)))
+    EDITOR->Request_PreviewViewportSize(_previewWidth, _previewHeight);
+
+    GAME->Bind_BackBuffer();
+    if (FAILED(GAME->Clear_Buffers(Vec4(0.f, 0.f, 0.f, 1.f))))
+    {
+        EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
         return;
+    }
 
     const Matrix previewView = _previewCamera->Get_ViewMatrix();
     const float aspect = static_cast<float>(_previewWidth) / static_cast<float>(std::max(1u, _previewHeight));
     const Matrix previewProj = XMMatrixPerspectiveFovLH(_previewCamera->Get_FovY(), aspect, _previewCamera->Get_Near(), _previewCamera->Get_Far());
 
+    GAME->Change_ActiveCamera(_previewCamera);
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(previewView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(previewProj));
     GAME->UpdateFrustum(previewView, previewProj);
@@ -367,12 +378,16 @@ void BattleCameraPreview_View::Pre_Render()
     if (_previewEnabled)
         Update_PreviewAttackActorMotion(_previewContext.timeSec);
 
-    GAME->Draw_Preview();
+    GAME->Draw_RendererOnly();
     GAME->Restore_RenderGroup();
+    EDITOR->Capture_BackBuffer_ToRenderTarget(_previewRenderTarget);
 
     GAME->Bind_BackBuffer();
+    if (savedActiveCamera != nullptr)
+        GAME->Change_ActiveCamera(savedActiveCamera);
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(savedView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(savedProj));
+    EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
 }
 
 void BattleCameraPreview_View::Render()
@@ -903,7 +918,7 @@ void BattleCameraPreview_View::Render_PreviewCanvas()
         drawList->AddText(
             ImVec2(previewPos.x + 12.f, previewPos.y + 12.f),
             IM_COL32(190, 198, 210, 255),
-            "Independent preview target");
+            "Runtime preview capture");
 
         drawList->AddText(
             ImVec2(previewPos.x + 12.f, previewMax.y - 46.f),

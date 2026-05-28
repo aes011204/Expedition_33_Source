@@ -46,10 +46,13 @@ private:
     };
 
 private:
+    void Handle_GizmoShortcut();
     void Draw_Header();
     void Draw_StructurePanel();
     void Draw_PreviewPanel();
     void Draw_InspectorPanel();
+    void Render_SelectedObjectGizmo();
+    void Render_GizmoOverlay();
     void Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& selectedObject);
     bool Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject);
     void Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey);
@@ -122,6 +125,10 @@ private:
     uint32              _previewHeight = 512;
     bool                _previewHasBegunPlay = false;
     bool                _requestResetPreviewCamera = false;
+    ImVec2              _previewCanvasMin = {};
+    ImVec2              _previewCanvasMax = {};
+    ImGuizmo::OPERATION _gizmoOperation = ImGuizmo::TRANSLATE;
+    ImGuizmo::MODE      _gizmoMode = ImGuizmo::LOCAL;
 
     SelectionType       _selectionType = SelectionType::None;
     bool                _showPrefabCollider = false;

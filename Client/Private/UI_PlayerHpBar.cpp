@@ -47,6 +47,8 @@ void UI_PlayerHpBar::Update(float timeDelta)
         return;
     }
 
+    Apply_EditorOffsets(screenPos);
+
     Open();
     Set_Hp(target.statCom->Get_CurHp(), target.statCom->Get_StatInfo().maxHp);
     Update_DelayedHpGauge(timeDelta, _hpRatio);

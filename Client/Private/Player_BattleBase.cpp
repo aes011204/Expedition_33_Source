@@ -8,6 +8,8 @@
 #include "PlayerStatCom.h"
 #include "Weapon.h"
 #include "EffectCom.h"
+#include "WeaponPrefabLoader.h"
+#include "BattleMechanismCom.h"
 
 Player_BattleBase::Player_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_BattleBase(device, context)
@@ -142,29 +144,44 @@ HRESULT Player_BattleBase::Ready_WeaponPart(Body_Player* body)
     if (!Try_GetWeaponAttackDesc(attachDesc))
         return S_OK; // 무기가 없는 캐릭터는 여기서 끝
 
-    CHECK_NULL(attachDesc.modelTag, E_FAIL);
     CHECK_NULL(attachDesc.socketName, E_FAIL);
+    if (attachDesc.weaponPrefabName.empty())
+        return E_FAIL;
 
     const Matrix* socketMatrix = body->Get_SocketBoneMatrixPtr(attachDesc.socketName);
     CHECK_NULL(socketMatrix, E_FAIL);
 
-    Weapon::WEAPON_DESC weaponDesc;
+    WeaponPrefabLoader::LoadedWeaponPrefab loadedPrefab{};
+    if (!WeaponPrefabLoader::Load(attachDesc.weaponPrefabName, loadedPrefab))
+        return E_FAIL;
+
+    Weapon::WEAPON_DESC weaponDesc{};
     weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-    weaponDesc.modelType = ModelType::NonAnim;
-    weaponDesc.modelTag = attachDesc.modelTag;
+    weaponDesc.modelType = loadedPrefab.modelType;
+    weaponDesc.modelTag = loadedPrefab.modelTag.c_str();
     weaponDesc.socketMatrix = socketMatrix;
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static),
-            TEXT("GameObject_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
+    // 생성은 기조 Weapon Prototype 유지하고, 세부값은 WP_
+    CHECK_FAILED(Add_PartObject(
+        ETOI(LevelType::Static),
+        TEXT("GameObject_Weapon"),
+        TEXT("Part_Weapon"),
+        &weaponDesc), E_FAIL);
+
+    PartObject* weaponPart = Get_PartObject(L"Part_Weapon");
+    CHECK_NULL(weaponPart, E_FAIL);
+
+    weaponPart->From_Json(loadedPrefab.rootJson);
+    weaponPart->Set_SourcePrefabName(attachDesc.weaponPrefabName);
 
     return S_OK;
-
 }
 
 HRESULT Player_BattleBase::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_PlayerStat"), _combatStatCom), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_BattleMechanism"), _battleMechanismCom), E_FAIL);
 
     Bounding_OBB::BoundingOBBDesc obbDesc{};
     obbDesc.center = Vec3(0.f, 0.75f, 0.f);

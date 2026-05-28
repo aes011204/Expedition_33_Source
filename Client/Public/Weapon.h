@@ -41,13 +41,19 @@ public:
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
 
+    void    From_Json(const json& data) override;
+
 public:
     const Matrix* Get_SocketBoneMatrixPtr(const string& boneName) const;
     Shared<ModelCom> Get_Model() const { return _model; }
 
 private:
     HRESULT Ready_Components(const WEAPON_DESC& desc);
+    HRESULT Ready_DefaultComponents(); // desc 없이 생성
+
     HRESULT Bind_ShaderResources();
+
+    HRESULT Ensure_RuntimeComponentsFromJson(const json& data);
 
 private:
     Shared<ShaderCom>    _shader = { nullptr };

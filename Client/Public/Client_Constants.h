@@ -134,6 +134,7 @@ namespace Client::Constants::Charcter
 
 namespace Client::Constants::Prefab
 {
+#pragma region 플레이어
     inline constexpr char PW_Gustave[]  = "PW_Gustave";
     inline constexpr char PW_Lune[]     = "PW_Lune";
     inline constexpr char PW_Maelle[]   = "PW_Maelle";
@@ -141,16 +142,28 @@ namespace Client::Constants::Prefab
     inline constexpr char PB_Gustave[]  = "PB_Gustave";
     inline constexpr char PB_Lune[]     = "PB_Lune";
     inline constexpr char PB_Maelle[]   = "PB_Maelle";
+#pragma endregion
 
-    inline constexpr char MW_Lancelier[] = "MW_Lancelier";
-    inline constexpr char MB_Lancelier[] = "MB_Lancelier";
+#pragma region 몬스터
+    inline constexpr char MW_Lancelier[]        = "MW_Lancelier";
+    inline constexpr char MB_Lancelier[]        = "MB_Lancelier";
 
-    inline constexpr char MW_Portier[] = "MW_Portier";
-    inline constexpr char MB_Portier[] = "MB_Portier";
+    inline constexpr char MW_Portier[]          = "MW_Portier";
+    inline constexpr char MB_Portier[]          = "MB_Portier";
 
-    inline constexpr char MW_Bishop[] = "MW_Bishop";
-    inline constexpr char MB_Bishop[] = "MB_Bishop";
+    inline constexpr char MW_Bishop[]           = "MW_Bishop";
+    inline constexpr char MB_Bishop[]           = "MB_Bishop";
 
-    inline constexpr char MW_Volester[] = "MW_Volester";
-    inline constexpr char MB_Volester[] = "MB_Volester";
+    inline constexpr char MW_Volester[]         = "MW_Volester";
+    inline constexpr char MB_Volester[]         = "MB_Volester";
+#pragma endregion
+
+#pragma region 무기
+    inline constexpr char Gustave_Lanceram[]    = "WP_Gustave_Lanceram";
+    inline constexpr char Lune_Colim[]          = "WP_Lune_Colim";
+    inline constexpr char Maelle_Medalum[]      = "WP_Maelle_Medalum";
+#pragma endregion
+
+
+    
 }

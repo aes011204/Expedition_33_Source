@@ -70,20 +70,25 @@ void AnimState_View::Pre_Render()
     if (_previewCamera == nullptr)
         return;
 
-    Ensure_PreviewRenderTarget(_previewWidth, _previewHeight);
-    if (_previewRenderTarget == nullptr)
-        return;
-
     const Matrix savedView = *GAME->Get_Transform(D3DTS::View);
     const Matrix savedProj = *GAME->Get_Transform(D3DTS::Proj);
+    const Shared<Camera> savedActiveCamera = GAME->Get_ActiveCamera();
+    const uint32 savedViewportWidth = GAME->Get_ViewportWidth();
+    const uint32 savedViewportHeight = GAME->Get_ViewportHeight();
 
     vector<LIGHT_DESC> savedLightDescs{};
     GAME->Get_LightDescs(savedLightDescs);
 
     const bool wasPlayerInputBlocked = GAME->Is_PlayerInputBlocked();
 
-    if (FAILED(_previewRenderTarget->Begin(true, true)))
+    EDITOR->Request_PreviewViewportSize(_previewWidth, _previewHeight);
+
+    GAME->Bind_BackBuffer();
+    if (FAILED(GAME->Clear_Buffers(Vec4(0.f, 0.f, 0.f, 1.f))))
+    {
+        EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
         return;
+    }
 
     const Matrix previewView = _previewCamera->Get_ViewMatrix();
     const float aspect = static_cast<float>(_previewWidth) / static_cast<float>(max(1u, _previewHeight));
@@ -93,6 +98,7 @@ void AnimState_View::Pre_Render()
         _previewCamera->Get_Near(),
         _previewCamera->Get_Far());
 
+    GAME->Change_ActiveCamera(_previewCamera);
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(previewView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(previewProj));
     GAME->UpdateFrustum(previewView, previewProj);
@@ -124,18 +130,24 @@ void AnimState_View::Pre_Render()
     GAME->Backup_RenderGroup();
     previewRenderObject->Late_Update(dt);
 
-    GAME->Draw_Preview();
+    GAME->Draw_RendererOnly();
     GAME->Restore_RenderGroup();
 
     Ensure_PreviewGridResources();
     Draw_PreviewGrid();
+    EDITOR->Capture_BackBuffer_ToPreview();
 
     GAME->Set_Lights(savedLightDescs);
     GAME->Set_PlayerInputBlocked(wasPlayerInputBlocked);
 
     GAME->Bind_BackBuffer();
+
+    if (savedActiveCamera != nullptr)
+        GAME->Change_ActiveCamera(savedActiveCamera);
+
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(savedView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(savedProj));
+    EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
 }
 
 void AnimState_View::Render()
@@ -444,9 +456,10 @@ void AnimState_View::Draw_PreviewPanel()
     Shared<GameObject> previewRenderObject = Get_PreviewRenderObject();
     Shared<ModelCom> playbackModel = Get_PlaybackModel();
 
-    if (previewRenderObject != nullptr && playbackModel != nullptr && _previewRenderTarget && _previewRenderTarget->Get_SRV())
+    ID3D11ShaderResourceView* previewSRV = EDITOR->Get_SharedPreviewSRV();
+    if (previewRenderObject != nullptr && playbackModel != nullptr && previewSRV != nullptr)
     {
-        ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(_previewRenderTarget->Get_SRV()));
+        ImTextureID textureId = static_cast<ImTextureID>(reinterpret_cast<intptr_t>(previewSRV));
         ImGui::Image(textureId, previewSize);
 
         _isPreviewHovered = ImGui::IsItemHovered();
