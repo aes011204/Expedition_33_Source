@@ -29,8 +29,7 @@ public:
 
     void InitActionDirection();
     void BeginPhase(const Vec3& startPos, const Vec3& goalPos);
-    void ResetCurAnimIndex() { _curAnimIndex = 0; }
-    void AdvanceCurAnimIndex() { ++_curAnimIndex; }
+    void ResetCurAnimIndex() { _curAnimIndex = 0; }void AdvanceCurAnimIndex() { ++_curAnimIndex; }
     void SetPhaseReachedGoal(bool reached) { _phaseReachedGoal = reached; }
     void SetPhasePrevRootRatio(float ratio) { _phasePrevRootRatio = ratio; }
     void ResetPhasePrevRootRatio() { _phasePrevRootRatio = 0.f; }

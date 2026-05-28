@@ -107,7 +107,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
     if (_curSkillData == nullptr)
         return result;
 
-    if(turnAction.GetSteps().size() <=  turnAction.GetCurStepIndex())
+    if (turnAction.GetSteps().size() <= turnAction.GetCurStepIndex())
         return result;
 
     const auto& curTargets = turnAction.GetCurStepTarget();
@@ -169,17 +169,17 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
         }
     }
 
- /*   if ((pressedQ && IsWindowOpen(BattleReactionType::Dodge)) ||
-        (pressedE && IsWindowOpen(BattleReactionType::Parry)))
-    {
-        _isConsumed = true;
-    }*/
+    /*   if ((pressedQ && IsWindowOpen(BattleReactionType::Dodge)) ||
+           (pressedE && IsWindowOpen(BattleReactionType::Parry)))
+       {
+           _isConsumed = true;
+       }*/
 
     return result;
 }
 
 BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateTargetInput(const BattleChar& reactionTarget, const BattleChar& counterTarget, uint32 curAnimIndex,
-bool pressedQ, bool pressedE)
+    bool pressedQ, bool pressedE)
 {
 
     BattleReactionInputResult result{};
@@ -244,18 +244,18 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleS
     bool ownsSource = false;
     for (const BattleChar& target : _reactionAnimTargets)
     {
-        if (target.ModelCom && target.ModelCom.get() == sourceModel)
-        {
-            ownsSource = true;
-            break;
-        }
+        //if (target.ModelCom && target.ModelCom.get() == sourceModel)
+        //{
+         //   ownsSource = true;
+            if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Counter), 0.12f, false))
+                return;
+        //    break;
+       // }
     }
 
-    if (!ownsSource)
-        return;
+    //if (!ownsSource)
+    //    return;
 
-    if (!sourceModel->Set_AnimationByState(ETOI(BattleAnimType::Counter), 0.12f, false))
-        return;
 
     GAME->Slow_WorldTime(slowDesc.worldTimeScale, slowDesc.duration);
     sourceModel->Set_FrameSpeed(counterPlayRate); // 플레이어 속도 증가
@@ -273,26 +273,25 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
     if (_isCounterDamageApplied)
         return;
 
-    bool ownsSource = false;
-    for (const BattleChar& target : _reactionAnimTargets)
-    {
-        if (target.ModelCom && target.ModelCom.get() == sourceModel)
-        {
-            ownsSource = true;
-            break;
-        }
-    }
-
-    if (!ownsSource)
-        return;
 
     if (_counterDamageTarget.actor == nullptr || _counterDamageTarget.statCom == nullptr)
         return;
 
-    constexpr float counterDamage = 50.f; // 임시 고정값.
-    DamageSystem::ApplyDamage(counterDamage, _counterDamageTarget, AttackType::Counter);
+    constexpr float counterDamage = 50.f;
 
-    _isCounterDamageApplied = true;
+    uint32 hitCount = 0;
+
+    for (const BattleChar& target : _reactionAnimTargets)
+    {
+        if (target.actor == nullptr || target.statCom == nullptr)
+            continue;
+
+        DamageSystem::ApplyDamage(counterDamage, _counterDamageTarget, AttackType::Counter);
+        ++hitCount;
+    }
+
+    if (hitCount > 0)
+        _isCounterDamageApplied = true;
 }
 
 bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
@@ -338,7 +337,7 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
     {
         animType = BattleAnimType::Parray; // 성공하면 패링 애니메이션
 
-        if (isSuccess && _curSkillData->targetingType.size()-1 == curAttackIndex)
+        if (isSuccess && _curSkillData->targetingType.size() - 1 == curAttackIndex)
         {
             _isCounterPending = true;
             _counterDamageTarget = counterTarget;

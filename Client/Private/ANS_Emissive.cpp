@@ -49,13 +49,13 @@ void ANS_Emissive::On_Tick(const AnimNotifyContext& context)
         for(int i =0; i< modelCom->Get_NumMaterials(); i++)
         {
             modelCom->Get_Material(i)->Get_CB().emissiveIntensity = process;
-            LOG_DEBUG("processCB : {}", process);
+            //LOG_DEBUG("processCB : {}", process);
         }
     }
     else
     {
         modelCom->Get_Material(_matIndex)->Get_CB().emissiveIntensity = process;
-        LOG_DEBUG("processCB : {}", process);
+      //  LOG_DEBUG("processCB : {}", process);
 
     }
 
@@ -67,5 +67,4 @@ void ANS_Emissive::On_End(const AnimNotifyContext& context)
     if (!context.owner || !context.model)
         return;
 
-    LOG_DEBUG("ANS_Test End");
 }

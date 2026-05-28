@@ -50,5 +50,5 @@ void ANS_Visible_Parts::On_End(const AnimNotifyContext& context)
     if (!context.owner || !context.model)
         return;
 
-    LOG_DEBUG("ANS_Test End");
+
 }

@@ -17,7 +17,8 @@ void BattleActionExecutor::Update(float timeDelta, BattleAction& action)
         return;
     }*/
 
-
+    //LOG_DEBUG("goal : {},{},{}", action.GetPhaseGoalPos().x, action.GetPhaseGoalPos().y, action.GetPhaseGoalPos().z);
+    //LOG_DEBUG("start : {},{},{}", action.GetPhaseStartPos().x, action.GetPhaseStartPos().y, action.GetPhaseStartPos().z);
 
     if (_isFinished)
         return;
@@ -34,10 +35,18 @@ void BattleActionExecutor::OnActionEndNotify(BattleAction& action)
 
     const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
 
-    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget ||
-        phase.movementPolicy == BattleMovementPolicy::MoveToTarget )//||
+    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget )//||
+        //phase.movementPolicy == BattleMovementPolicy::MoveToTarget )//||
        // phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
         return;
+
+    //if (phase.movementPolicy == BattleMovementPolicy::MoveToTarget ||
+    //    phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
+    //{
+    //    action.SnapActorToPhaseGoal();
+    //    action.ResetPhasePrevRootRatio();
+    //    action.SetPhaseReachedGoal(true);
+    //}
 
     Complete_CurPhase(action);
     //action.phaseReachedGoal = true;
@@ -69,6 +78,8 @@ void BattleActionExecutor::Complete_CurPhase(BattleAction& action)
 
 void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
 {
+
+
     if (!action.Get_CurChar().actor)
         return;
 
@@ -90,9 +101,9 @@ void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
         Face_ActionTarget(action, action.GetPhaseGoalPos());
 
     if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
-        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey,0.3f, true);
+        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey,0.0f, true);
     else
-        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, 0.3f, false);
+        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, 0.0f, false);
 }
 
 Vec3 BattleActionExecutor::Resolve_AnchorPosition(const BattleAction& action, BattleTargetAnchor anchor) const
@@ -296,7 +307,10 @@ void BattleActionExecutor::Update_RatioMoveTo(BattleAction& action, const Shared
 
     if (totalDistance <= 0.05f)
     {
-        FinishCurrentPhaseAtGoal(action);
+       // FinishCurrentPhaseAtGoal(action);
+      /*  action.SnapActorToPhaseGoal();
+        action.ResetPhasePrevRootRatio();
+        action.SetPhaseReachedGoal(true);*/
         return;
     }
 
@@ -308,38 +322,48 @@ void BattleActionExecutor::Update_RatioMoveTo(BattleAction& action, const Shared
 
     if (remain <= 0.05f)
     {
-        FinishCurrentPhaseAtGoal(action);
+      //  FinishCurrentPhaseAtGoal(action);
+      /*  action.SnapActorToPhaseGoal();
+        action.ResetPhasePrevRootRatio();
+        action.SetPhaseReachedGoal(true);*/
         return;
     }
 
     const float currentRatio = action.Get_CurChar().ModelCom->Get_RootMotionTranslationRatio();
     float deltaRatio = currentRatio - action.GetPhasePrevRootRatio();
 
-    if (currentRatio >= 0.999f)
-    {
-        FinishCurrentPhaseAtGoal(action);
-        return;
-    }
+    //if (currentRatio >= 0.999f)
+    //{
+    //  //  FinishCurrentPhaseAtGoal(action);
+    //   /* action.SnapActorToPhaseGoal();
+    //    action.ResetPhasePrevRootRatio();
+    //    action.SetPhaseReachedGoal(true);*/
+    //    return;
+    //}
 
     if (deltaRatio < 0.f)
         deltaRatio = 0.f;
 
     action.SetPhasePrevRootRatio(currentRatio);
 
-    if (deltaRatio < -0.05f || currentRatio >= 0.999f)
-        return;
+    //if (deltaRatio <= 0.f /*|| currentRatio >= 0.999f*/)
+    //    return;
 
     const float moveAmount = totalDistance * deltaRatio;
     if (moveAmount <= 0.f)
         return;
 
-    if (moveAmount >= remain)
-    {
-        FinishCurrentPhaseAtGoal(action);
-        return;
-    }
+    //if (moveAmount >= remain)
+    //{
+    //  //  FinishCurrentPhaseAtGoal(action);
+    //  /*  action.SnapActorToPhaseGoal();
+    //    action.ResetPhasePrevRootRatio();
+    //    action.SetPhaseReachedGoal(true);*/
+    //    return;
+    //}
 
-    transform->Set_Position(currentPos + path * moveAmount);
+    const float clampedMove = min(moveAmount, remain);
+    transform->Set_Position(currentPos + path * clampedMove);
 }
 
 void BattleActionExecutor::FinishCurrentPhaseAtGoal(BattleAction& action)

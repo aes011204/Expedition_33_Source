@@ -132,7 +132,7 @@ void BattleAction::Spend_AttackStep()
 
     if (_curStepIndex >= _steps.size())
     {
-        _isFinished = true;
+        //_isFinished = true;
         return;
     }
 
