@@ -115,6 +115,9 @@
     <Filter Include="04. Panel\PanelLandscape">
       <UniqueIdentifier>{4720604d-4ff4-498f-9807-5010edc8d1f6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="06. EditorUtil\NoiseUtil">
+      <UniqueIdentifier>{d8a7e132-93ca-4f8a-bc6d-44a32fb66afd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -215,6 +218,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\PanelLandscape.h">
       <Filter>04. Panel\PanelLandscape</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\NoiseUtil.h">
+      <Filter>06. EditorUtil\NoiseUtil</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

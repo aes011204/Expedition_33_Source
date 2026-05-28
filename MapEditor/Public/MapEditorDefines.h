@@ -199,11 +199,32 @@ namespace MapEditor
         vector<float> heights;
     };
 
+    struct LandscapeNoiseParams
+    {
+        float scale = 0.05f;
+        float amplitude = 10.f;
+        int32 octaves = 4;
+        float persistence = 0.5f;
+        int32 seed = 42;
+        bool additive = true;
+    };
+
+    struct LandscapeErosionParams
+    {
+        int32 iterations = 50;
+        float talusAngle = 0.5f;
+        float erosionRate = 0.5f;
+    };
+
     struct LandscapePanelContext
     {
         Shared<LandscapeSculptState> sculptState;
         function<void(const LandscapeConfig&)> onAdd;
         function<void(int32)> onRemove;
+        function<void(int32, const WCHAR*)> onSave;
+        function<void(int32, const WCHAR*)> onLoad;
+        function<void(int32, const LandscapeNoiseParams&)> onApplyNoise;
+        function<void(int32, const LandscapeErosionParams&)> onApplyErosion;
     };
 };
 

@@ -22,6 +22,10 @@ private:
     Shared<LandscapeSculptState> _sculptState;
     function<void(const LandscapeConfig&)> _onAdd;
     function<void(int32)> _onRemove;
+    function<void(int32, const WCHAR*)> _onSave;
+    function<void(int32, const WCHAR*)> _onLoad;
+    function<void(int32, const LandscapeNoiseParams&)> _onApplyNoise;
+    function<void(int32, const LandscapeErosionParams&)> _onApplyErosion;
 
     bool   _showCreateDialog = false;
     int32  _createCountX = 64;
@@ -33,11 +37,17 @@ private:
     float  _createOffsetZ = 0.f;
     char   _createName[64] = "Landscape_0";
 
+    LandscapeNoiseParams _noiseParams{};
+    LandscapeErosionParams _erosionParams{};
+
 private:
     void Render_LandscapeList();
     void Render_CreateDialog();
     void Render_SculptTools();
     void Render_WorldOffset();
+    void Render_SaveLoad();
+    void Render_Noise();
+    void Render_Erosion();
 
 public:
     static Shared<PanelLandscape> Create(SceneContext* ctx, const LandscapePanelContext& landscapeCtx);

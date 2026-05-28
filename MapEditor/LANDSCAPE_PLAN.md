@@ -38,27 +38,27 @@ Heightmap 기반 Terrain(UE Landscape 포함)은 **모든 X,Z 좌표에 높이�
 
 ## 구현할 기능 목록
 
-### 1단계 - 필수 (Core) — 최우선 구현
+### 1단계 - 필수 (Core)
 
-| 기능 | 설명 |
-|------|------|
-| Terrain 생성 다이얼로그 | 크기(X/Z), 해상도(섹션당 쿼드 수), 세계 위치(Y 오프셋 포함) 설정 후 생성 |
-| 동적 Heightmap VIBuffer | PNG 없이 메모리 상의 높이값 배열로 메시 실시간 재생성 |
-| Sculpt - Raise / Lower | 브러시 범위 내 높이 올리기/내리기 (좌클릭 / Shift+좌클릭) |
-| Sculpt - Smooth | 브러시 범위 내 인접 정점 평균화 |
-| Sculpt - Flatten | 특정 높이값으로 고정 |
-| 브러시 시각화 | 뷰포트에서 커서 위치와 브러시 반경을 원형으로 표시 |
-| Heightmap 저장 / 불러오기 | 편집된 높이값을 PNG(16-bit) 또는 RAW로 저장·불러오기 |
-| Terrain 다중 배치 | MapEditor에서 Terrain Actor를 여러 개 생성·선택·삭제 가능 |
+| 기능 | 상태 | 설명 |
+|------|------|------|
+| Terrain 생성 다이얼로그 | ✅ 완료 | 크기(X/Z), 해상도, 세계 위치 설정 후 생성 |
+| 동적 Heightmap VIBuffer | ✅ 완료 | `VIBuffer_Landscape` - float[] 높이 배열, D3D11_USAGE_DYNAMIC |
+| Sculpt - Raise / Lower | ✅ 완료 | 좌클릭 홀드, 거리 기반 falloff |
+| Sculpt - Smooth | ✅ 완료 | 브러시 범위 내 인접 정점 평균화 |
+| Sculpt - Flatten | ✅ 완료 | 목표 높이값으로 수렴 |
+| Terrain 다중 배치 | ✅ 완료 | 생성·선택·삭제, 독립 transform |
+| Heightmap 저장 / 불러오기 | ✅ 완료 | .hmap 바이너리 (헤더 + float[] heights), Windows 파일 다이얼로그 |
+| 브러시 시각화 | ✅ 완료 | 깊이 버퍼 픽셀 리드백으로 지형 위 원형 오버레이 표시 |
 
 ### 2단계 - 권장 (Quality of Life)
 
-| 기능 | 설명 |
-|------|------|
-| Sculpt - Erosion | 간단한 열 침식으로 자연스러운 지형 생성 |
-| Noise 생성 | Perlin/Simplex 노이즈 기반 초기 지형 자동 생성 |
-| 텍스처 레이어 Paint | 레이어별 weight map 편집 + 블렌딩 (grass, rock, dirt 등) |
-| LOD | 카메라 거리에 따른 폴리곤 수 감소 |
+| 기능 | 상태 | 설명 |
+|------|------|------|
+| Sculpt - Erosion | ⬜ 미구현 | 간단한 열 침식으로 자연스러운 지형 생성 |
+| Noise 생성 | ⬜ 미구현 | Perlin/Simplex 노이즈 기반 초기 지형 자동 생성 |
+| 텍스처 레이어 Paint | ⬜ 미구현 | 레이어별 weight map 편집 + 블렌딩 |
+| LOD | ⬜ 미구현 | 카메라 거리에 따른 폴리곤 수 감소 |
 
 ---
 

@@ -9,6 +9,7 @@ NS_BEGIN(MapEditor)
 
 class MECamera;
 struct SceneContext;
+class MEPickingSystem;
 
 class PanelViewport final : public MEWindow
 {
@@ -20,6 +21,7 @@ public:
     void SetSnapSettings(Shared<SnapSettings> settings) { _snapSettings = settings; }
     void Set_SceneSRV(ID3D11ShaderResourceView* srv) { _sceneSRV = srv; }
     void Set_SculpState(Shared<LandscapeSculptState> state) { _sculptState = state; }
+    void Set_PickingSystem(MEPickingSystem* sys) { _pickingSystem = sys; }
 
 public:
     virtual void Update(float timeDelta) override;
@@ -66,6 +68,11 @@ private:
     ImVec2 _sculptMousePos = {};
     ImVec2 _sculptVpPos = {};
     ImVec2 _sculptVpSize = {};
+
+    MEPickingSystem* _pickingSystem = {};
+
+private:
+    bool Ray_Hit_Landscape(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSz, Vec3& outHit);
 
 public:
     bool ConsumePick(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize);

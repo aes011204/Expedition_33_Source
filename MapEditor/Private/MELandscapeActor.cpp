@@ -13,7 +13,7 @@ HRESULT MELandscapeActor::Initialize(const VIBuffer_Landscape::LAND_DESC& desc)
         return E_FAIL;
     }
 
-    if (FAILED(Add_Component(1, L"Shader_VtxNorTex", _shader)))
+    if (FAILED(Add_Component(0, L"Shader_VtxNorTex", _shader)))
     {
         return E_FAIL;
     }

@@ -65,12 +65,12 @@ HRESULT VIBuffer_Landscape::Initialize_Prototype()
             uint32 bl = tl + numVerticesX;
             uint32 br = bl + 1;
 
-            indices[idx++] = tl;
-            indices[idx++] = tr;
             indices[idx++] = bl;
-            indices[idx++] = tr;
             indices[idx++] = br;
+            indices[idx++] = tr;
             indices[idx++] = bl;
+            indices[idx++] = tr;
+            indices[idx++] = tl;
         }
     }
 
@@ -141,7 +141,9 @@ void VIBuffer_Landscape::Flush()
         for (uint32 x = 0; x < numVerticesX; ++x)
         {
             uint32 idx = z * numVerticesX + x;
+            vertices[idx].position.x = x * _desc.sizeX;
             vertices[idx].position.y = _heights[idx];
+            vertices[idx].position.z = z * _desc.sizeZ;
             vertices[idx].texcoord = Vec2(static_cast<float>(x) / _desc.countX, static_cast<float>(z) / _desc.countZ);
         }
     }

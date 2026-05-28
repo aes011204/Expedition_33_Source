@@ -18,6 +18,7 @@
 #include "MEBridgeCamera.h"
 #include "ComputeShaderCom.h"
 #include "MELandscapeActor.h"
+#include "NoiseUtil.h"
 
 // test
 #include "METerrainActor.h"
@@ -72,12 +73,18 @@ HRESULT MapEditorApp::Initialize()
     landscapeCtx.sculptState = _sculptState;
     landscapeCtx.onAdd = [this](const LandscapeConfig& cfg) { Add_Landscape(cfg); };
     landscapeCtx.onRemove = [this](int32 idx) { Remove_Landscape(idx); };
+    landscapeCtx.onSave = [this](int32 idx, const WCHAR* path) { Save_Landscape(idx, path); };
+    landscapeCtx.onLoad = [this](int32 idx, const WCHAR* path) { Load_Landscape(idx, path); };
+    landscapeCtx.onApplyNoise = [this](int32 idx, const LandscapeNoiseParams& params) {Apply_Noise(idx, params); };
+    landscapeCtx.onApplyErosion = [this](int32 idx, const LandscapeErosionParams& params) { Apply_Erosion(idx, params); };
 
     _manager = MEManager::Create(_viewport, &_scene, _camera.get(), landscapeCtx);
     CHECK_NULL(_manager, E_FAIL);
 
     _pickingSystem = MEPickingSystem::Create(_device, _context, g_iWinSizeX, g_iWinSizeY);
     CHECK_NULL(_pickingSystem, E_FAIL);
+    _viewport->Set_PickingSystem(_pickingSystem.get());
+
     _debugRenderer = MEDebugRenderer::Create();
     CHECK_NULL(_debugRenderer, E_FAIL);
 
@@ -758,7 +765,7 @@ HRESULT MapEditorApp::Build_TerrainFromScene()
 
 void MapEditorApp::Do_SculptAt(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSize, float timeDelta)
 {
-    if (_scene._activeLandscapeIdx <= 0 || _scene._activeLandscapeIdx >= static_cast<int32>(_scene._landscapes.size()))
+    if (_scene._activeLandscapeIdx < 0 || _scene._activeLandscapeIdx >= static_cast<int32>(_scene._landscapes.size()))
     {
         return;
     }
@@ -792,7 +799,8 @@ void MapEditorApp::Do_SculptAt(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSize, flo
     Vec3 hitPos = {};
     bool hit = false;
 
-    for (float i = 0.f; i < 5000.f; i += stepSize)
+    float camFar = _camera->GetFar();
+    for (float i = 0.f; i < camFar; i += stepSize)
     {
         Vec3 p = {
           rayOrigin.x + rayDirection.x * i,
@@ -902,6 +910,188 @@ void MapEditorApp::Do_SculptAt(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSize, flo
                     break;
                 }
             }
+        }
+    }
+    vb->Flush();
+}
+
+void MapEditorApp::Save_Landscape(int32 idx, const WCHAR* path)
+{
+    if (idx < 0 || idx >= static_cast<int32>(_scene._landscapes.size()))
+    {
+        return;
+    }
+
+    auto vb = _scene._landscapes[idx]->Get_VIBuffer();
+    const auto& heights = vb->Get_Heights();
+
+    FILE* f = {};
+    if (_wfopen_s(&f, path, L"wb") != 0 || !f)
+    {
+        return;
+    }
+
+    uint32 countX = vb->Get_CountX();
+    uint32 countZ = vb->Get_CountZ();
+    float sizeX = vb->Get_SizeX();
+    float sizeZ = vb->Get_SizeZ();
+
+    fwrite(&countX, sizeof(uint32), 1, f);
+    fwrite(&countZ, sizeof(uint32), 1, f);
+    fwrite(&sizeX, sizeof(float), 1, f);
+    fwrite(&sizeZ, sizeof(float), 1, f);
+    fwrite(heights.data(), sizeof(float), heights.size(), f);
+
+    fclose(f);
+}
+
+void MapEditorApp::Load_Landscape(int32 idx, const WCHAR* path)
+{
+    FILE* f = {};
+    if (_wfopen_s(&f, path, L"rb") != 0 || !f)
+    {
+        return;
+    }
+
+    uint32 countX = {}, countZ = {};
+    float sizeX = {}, sizeZ = {};
+
+    fread(&countX, sizeof(uint32), 1, f);
+    fread(&countZ, sizeof(uint32), 1, f);
+    fread(&sizeX, sizeof(float), 1, f);
+    fread(&sizeZ, sizeof(float), 1, f);
+
+    if (idx < 0 || idx >= static_cast<int32>(_scene._landscapes.size()))
+    {
+        LandscapeConfig cfg{};
+        cfg.countX = countX;
+        cfg.countZ = countZ;
+        cfg.sizeX = sizeX;
+        cfg.sizeZ = sizeZ;
+        Add_Landscape(cfg);
+        idx = static_cast<int32>(_scene._landscapes.size()) - 1;
+    }
+
+    auto vb = _scene._landscapes[idx]->Get_VIBuffer();
+    auto& heights = vb->Get_Heights();
+
+    const uint32 expected = (countX + 1) * (countZ + 1);
+    heights.resize(expected);
+    fread(heights.data(), sizeof(float), expected, f);
+    fclose(f);
+
+    vb->Flush();
+}
+
+void MapEditorApp::Apply_Noise(int32 idx, const LandscapeNoiseParams& params)
+{
+    if (idx < 0 || idx >= static_cast<int32>(_scene._landscapes.size()))
+    {
+        return;
+    }
+
+    auto vb = _scene._landscapes[idx]->Get_VIBuffer();
+    if (!vb)
+    {
+        return;
+    }
+
+    int perm[512] = {};
+    iota(perm, perm + 256, 0);
+    shuffle(perm, perm + 256, mt19937(static_cast<uint32>(params.seed)));
+    for (int i = 0; i < 256; ++i)
+    {
+        perm[256 + i] = perm[i];
+    }
+
+    const uint32 cntX = vb->Get_CountX();
+    const uint32 cntZ = vb->Get_CountZ();
+    auto& heights = vb->Get_Heights();
+
+    for (uint32 z = 0; z <= cntZ; ++z)
+    {
+        for (uint32 x = 0; x <= cntX; ++x)
+        {
+            float value = 0.f;
+            float amp = 1.f;
+            float freq = 1.f;
+            float maxAmp = 0.f;
+
+            for (int32 o = 0; o < params.octaves; ++o)
+            {
+                value += NoiseUtil::Perlin_Noise2D(x * params.scale * freq, z * params.scale * freq, perm) * amp;
+                maxAmp += amp;
+                amp *= params.persistence;
+                freq *= 2.f;
+            }
+
+            value = (value / maxAmp) * params.amplitude;
+
+            const uint32 i = z * (cntX + 1) + x;
+            heights[i] = params.additive ? heights[i] + value : value;
+        }
+    }
+
+    vb->Flush();
+}
+
+void MapEditorApp::Apply_Erosion(int32 idx, const LandscapeErosionParams& params)
+{
+    if (idx < 0 || idx >= static_cast<int32>(_scene._landscapes.size()))
+    {
+        return;
+    }
+
+    auto vb = _scene._landscapes[idx]->Get_VIBuffer();
+    if (!vb)
+    {
+        return;
+    }
+
+    const uint32 cntX = vb->Get_CountX();
+    const uint32 cntZ = vb->Get_CountZ();
+    auto& heights = vb->Get_Heights();
+
+    const int32 w = static_cast<int32>(cntX + 1);
+    const int32 h = static_cast<int32>(cntZ + 1);
+
+    for (int32 iter = 0; iter < params.iterations; ++iter)
+    {
+        bool changed = false;
+        for (int32 z = 0; z < h; ++z)
+        {
+            for (int32 x = 0; x < w; ++x)
+            {
+                const int32 i = z * w + x;
+                const float cur = heights[i];
+
+                auto Erode = [&](int32 nx, int32 nz)
+                    {
+                        if (nx < 0 || nx >= w || nz < 0 || nz >= h)
+                        {
+                            return;
+                        }
+
+                        const int32 ni = nz * w + nx;
+                        const float diff = cur - heights[ni];
+                        if (diff > params.talusAngle)
+                        {
+                            const float delta = diff * params.erosionRate * 0.5f;
+                            heights[i] -= delta;
+                            heights[ni] += delta;
+                            changed = true;
+                        }
+                    };
+
+                Erode(x - 1, z);
+                Erode(x + 1, z);
+                Erode(x, z - 1);
+                Erode(x, z + 1);
+            }
+        }
+        if (!changed)
+        {
+            break;
         }
     }
     vb->Flush();

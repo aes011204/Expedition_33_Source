@@ -12,6 +12,10 @@ HRESULT PanelLandscape::Initialize(SceneContext* ctx, const LandscapePanelContex
     _sculptState = landscapeCtx.sculptState;
     _onAdd = landscapeCtx.onAdd;
     _onRemove = landscapeCtx.onRemove;
+    _onSave = landscapeCtx.onSave;
+    _onLoad = landscapeCtx.onLoad;
+    _onApplyNoise = landscapeCtx.onApplyNoise;
+    _onApplyErosion = landscapeCtx.onApplyErosion;
 
     return S_OK;
 }
@@ -27,9 +31,20 @@ void PanelLandscape::Render()
     {
         Render_LandscapeList();
         ImGui::Separator();
+
         Render_SculptTools();
         ImGui::Separator();
+
         Render_WorldOffset();
+        ImGui::Separator();
+
+        Render_SaveLoad();
+        ImGui::Separator();
+
+        Render_Noise();
+        ImGui::Separator();
+
+        Render_Erosion();
     }
 
     ImGui::End();
@@ -172,6 +187,23 @@ void PanelLandscape::Render_SculptTools()
     ImGui::SameLine();
 
     Btn("Flatten", ESculptMode::Flatten);
+    ImGui::SameLine();
+
+    {
+        bool active = (_sculptState->mode == ESculptMode::None);
+        if (active)
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+        }
+        if (ImGui::Button("Off", ImVec2(40.f, 0.f)))
+        {
+            _sculptState->mode = ESculptMode::None;
+        }
+        if (active)
+        {
+            ImGui::PopStyleColor();
+        }
+    }
 
     ImGui::Spacing();
     ImGui::DragFloat("반경", &_sculptState->brushRadius, 0.1f, 0.5f, 200.f, "%.1f");
@@ -197,6 +229,87 @@ void PanelLandscape::Render_WorldOffset()
     if (ImGui::DragFloat3("위치##landscape", reinterpret_cast<float*>(&pos), 1.f, -10000.f, 10000.f, "%.1f"))
     {
         actor->Get_Transform()->Set_Position(pos);
+    }
+}
+
+void PanelLandscape::Render_SaveLoad()
+{
+    ImGui::Text("Heightmap");
+
+    if (ImGui::Button("Save"))
+    {
+        if (_ctx->_activeLandscapeIdx >= 0 && _onSave)
+        {
+            WCHAR buf[MAX_PATH] = {};
+            OPENFILENAMEW ofn{};
+            ofn.lStructSize = sizeof(ofn);
+            ofn.lpstrFile = buf;
+            ofn.lpstrFilter = L"Heightmap Files\0*.hmap\0All Files\0*.*\0";
+            ofn.nMaxFile = MAX_PATH;
+            ofn.lpstrDefExt = L"hmap";
+            ofn.Flags = OFN_OVERWRITEPROMPT;
+            if (GetSaveFileNameW(&ofn))
+            {
+                _onSave(_ctx->_activeLandscapeIdx, buf);
+            }
+        }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load"))
+    {
+        if (_onLoad)
+        {
+            WCHAR buf[MAX_PATH] = {};
+            OPENFILENAMEW ofn{};
+            ofn.lStructSize = sizeof(ofn);
+            ofn.lpstrFilter = L"Heightmap Files\0*.hmap\0All Files\0*.*\0";
+            ofn.lpstrFile = buf;
+            ofn.nMaxFile = MAX_PATH;
+            ofn.Flags = OFN_FILEMUSTEXIST;
+            if (GetOpenFileNameW(&ofn))
+            {
+                _onLoad(_ctx->_activeLandscapeIdx, buf);
+            }
+        }
+    }
+}
+
+void PanelLandscape::Render_Noise()
+{
+    ImGui::Text("Noise");
+
+    ImGui::DragFloat("스케일", &_noiseParams.scale, 0.001f, 0.001f, 1.f, "%.3f");
+    ImGui::DragFloat("진폭", &_noiseParams.amplitude, 0.5f, 0.1f, 500.f, "%.1f");
+    ImGui::DragInt("옥타브", &_noiseParams.octaves, 1, 1, 8);
+    ImGui::DragFloat("Persistence", &_noiseParams.persistence, 0.01f, 0.1f, 1.f, "%.2f");
+    ImGui::DragInt("Seed", &_noiseParams.seed, 1, 0, 99999);
+    ImGui::Checkbox("기존에 더하기", &_noiseParams.additive);
+
+    ImGui::Spacing();
+    if (ImGui::Button("Noise 적용", ImVec2(120.f, 0.f)))
+    {
+        if (_ctx->_activeLandscapeIdx >= 0 && _onApplyNoise)
+        {
+            _onApplyNoise(_ctx->_activeLandscapeIdx, _noiseParams);
+        }
+    }
+}
+
+void PanelLandscape::Render_Erosion()
+{
+    ImGui::Text("Erosion");
+
+    ImGui::DragInt("반복 횟수", &_erosionParams.iterations, 1, 1, 500);
+    ImGui::DragFloat("임계 경사도", &_erosionParams.talusAngle, 0.01f, 0.01f, 10.f, "%.2f");
+    ImGui::DragFloat("침식량", &_erosionParams.erosionRate, 0.01f, 0.01f, 1.f, "%.2f");
+
+    ImGui::Spacing();
+    if (ImGui::Button("Erosion 적용", ImVec2(120.f, 0.f)))
+    {
+        if (_ctx->_activeLandscapeIdx >= 0 && _onApplyErosion)
+        {
+            _onApplyErosion(_ctx->_activeLandscapeIdx, _erosionParams);
+        }
     }
 }
 

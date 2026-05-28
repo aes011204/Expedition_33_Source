@@ -888,6 +888,8 @@ void SceneContext::ClearScene()
     _staticMeshes.clear();
     _lights.erase(remove_if(_lights.begin(), _lights.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _lights.end());
     _instancedMeshes.clear();
+    _landscapes.clear();
+    _activeLandscapeIdx = -1;
     _selected = nullptr;
     _undoStack.clear();
     _redoStack.clear();

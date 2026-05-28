@@ -85,6 +85,12 @@ private:
 
     void Do_SculptAt(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSize, float timeDelta);
 
+    void Save_Landscape(int32 idx, const WCHAR* path);
+    void Load_Landscape(int32 idx, const WCHAR* path);
+
+    void Apply_Noise(int32 idx, const LandscapeNoiseParams& params);
+    void Apply_Erosion(int32 idx, const LandscapeErosionParams& params);
+
 public:
     static Unique<MapEditorApp> Create();
     virtual void Free() override;

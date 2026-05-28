@@ -248,14 +248,26 @@ HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clear
         renderTargets[renderTargetCount++] = rt->Get_RTV();
     }
 
-    if(useDSV)
-    {
-        dsv = dsv ? dsv : _originalDSV.Get();
-    }
-    else
+    //dsv = dsv ? dsv : _originalDSV.Get();
+    // ^ fix to down
+
+    if (!useDSV)
     {
         dsv = nullptr;
     }
+    else if (!dsv && hasMRTViewport && _originalDSV)
+    {
+        // RTV 크기와 DSV 크기가 같을 때만 fallback 사용
+        // 크기가 다르면(bloom half/quarter 등) depth 불필요하므로 nullptr
+        D3D11_TEXTURE2D_DESC dsvDesc{};
+        if (Try_GetViewTexture(_originalDSV.Get(), dsvDesc) &&
+            static_cast<uint32>(mrtViewport.Width) == dsvDesc.Width &&
+            static_cast<uint32>(mrtViewport.Height) == dsvDesc.Height)
+        {
+            dsv = _originalDSV.Get();
+        }
+    }
+    //
 
     //if (!useDSV)
     //{
@@ -583,6 +595,16 @@ HRESULT Target_Manager::Render_Debug(Shared<ShaderCom> shader, Shared<VIBuffer_R
 const map<wstring, bool>& Target_Manager::Get_RTs() const
 {
     return _debugRTMaps;
+}
+
+ComPtr<ID3D11Texture2D> Target_Manager::Get_RT_Texture(const wstring& targetTag)
+{
+    auto rt = Find_RenderTarget(targetTag);
+    if (!rt)
+    {
+        return nullptr;
+    }
+    return rt->Get_Texture();
 }
 
 #endif

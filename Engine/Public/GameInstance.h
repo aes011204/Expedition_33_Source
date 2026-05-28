@@ -366,6 +366,7 @@ public : /* For.Target_Manager */
     HRESULT Bind_PlayerStencilWriteState(bool depthWrite);
     HRESULT Bind_BackgroundUIBehindPlayerStencilState();
     HRESULT Bind_UINoDepthStencilState();
+    ComPtr<ID3D11Texture2D> Get_RT_Texture(const wstring& targetTag);
 
 #ifdef _DEBUG
     HRESULT Initialize_Debug(float sizeX, float sizeY);
