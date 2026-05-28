@@ -69,7 +69,7 @@ public:
     void Set_BattleFSM();
     void PlayerStartAnim();
     void HitAction(BattleChar target, AttackType attackType);
-    void ExecuteAction(BattleAction& turnAction); //실제로 선택한 행동을 실행하는 함수
+    void ExecuteAction(const BattleAction& turnAction); //실제로 선택한 행동을 실행하는 함수
     void ExecuteActionRequest(const ActionRequest& request);
 
     void EndTurn();
@@ -89,7 +89,9 @@ public:
 public:
     Shared<BattleStateMachine> Get_BattleFSM() { return _battleFSM; };
     BattleAction& Get_TurnAction() { return _turnAction; }
+    const BattleAction& Get_TurnAction() const { return _turnAction; }
     ActionRequest& Get_TurnActionRequest() { return _turnActionRequest; }
+    const ActionRequest& Get_TurnActionRequest() const { return _turnActionRequest; }
     // Action& Get_TurnAction() { return _turnAction; }
     void    Request_WidePresentationMode();
 

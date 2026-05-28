@@ -44,7 +44,8 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     EvtBattlePresentation event {};
     event.cameraMode = _cameraMode;
     event.subject = character;
-    event.skillId = battle->Get_TurnAction()._selected_SkillKey.skillKey;
+    if (battle)
+        event.skillId = battle->Get_TurnAction().GetSkillData().skillKey;
     event.useClip = _useClip;
     event.restartClip = _restartClip;
     GAME->Get_EventBus().Publish(event);

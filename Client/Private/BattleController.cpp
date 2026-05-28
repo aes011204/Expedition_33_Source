@@ -323,7 +323,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     return result;
 }
 
-void BattleController::ExecuteAction(BattleAction& turnAction)
+void BattleController::ExecuteAction(const BattleAction& turnAction)
 {
     const auto BattleChar = turnAction.Get_CurChar();
     if (!BattleChar.actor)

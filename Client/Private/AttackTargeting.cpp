@@ -80,9 +80,8 @@ void AttackTargeting::Update(float timeDelta)
         owner->Set_TargetPreview(enemies[TargetIndex]);
         
         auto& request = owner->Get_TurnActionRequest();
-        request.InitTarget = owner->Get_AliveEnemies()[TargetIndex];
+        request.InitTarget = enemies[TargetIndex];
 
-        owner->Get_TurnAction().target = owner->Get_AliveEnemies()[TargetIndex];
         owner->Request_WidePresentationMode();  
 
         auto data = CLIENT->Get_Skill(request.actor.statCom->Get_FirstSkill());
