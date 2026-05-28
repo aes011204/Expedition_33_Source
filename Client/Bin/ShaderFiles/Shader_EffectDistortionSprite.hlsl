@@ -11,6 +11,12 @@ cbuffer cbEffectDistortionSpriteMaterial : register(b2)
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectSpriteMainUVParams = { 1.f, 1.f, 0.f, 0.f };
+    float4 g_EffectSpriteNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };
+    float4 g_EffectSpriteMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
+    float4 g_EffectSpriteUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectSpriteMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectSpriteUVModeParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f };            // x:intensity, y:presence, z:useFlow, w:emitterElapsedTime
     float4 g_EffectDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f }; // x:mode, y:radius, z:thickness, w:softness
     float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f };       // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
@@ -18,7 +24,9 @@ cbuffer cbEffectDistortionSpriteMaterial : register(b2)
     float2 g_FlowUVScale = { 1.f, 1.f };
     float2 g_FlowUVOffset = { 0.f, 0.f };
     float2 g_FlowUVScrollSpeed = { 0.f, 0.f };
+    float g_FlowUVTilingMode = 0.f;
     int g_OpacitySource = 0;
+    float g_EffectSpriteMaterialTime = 0.f;
     float g_DistortionPadding;
 };
 
@@ -29,6 +37,45 @@ Texture2D g_FlowTexture : register(t3);
 Texture2D g_DistortionSourceTexture : register(t4);
 
 static const float3 kInfluenceOutlineColor = float3(1.f, 0.f, 0.f);
+
+bool Use_EffectSpriteClampSampler(float mode)
+{
+    return mode >= 0.5f && mode < 2.5f;
+}
+
+float2 Build_EffectSpriteUV(float2 baseUV, float4 uvParams, float2 uvOffset, float mode)
+{
+    const float2 transformedUV = baseUV * uvParams.xy + uvOffset + uvParams.zw * g_EffectSpriteMaterialTime;
+    return mode >= 2.5f ? baseUV : transformedUV;
+}
+
+float4 Sample_EffectSpriteMainTexture(float2 uv, float mode)
+{
+    return Use_EffectSpriteClampSampler(mode)
+           ? g_Texture.Sample(LinearClampSampler, uv)
+           : g_Texture.Sample(LinearWrapSampler, uv);
+}
+
+float Sample_EffectSpriteNoiseTexture(float2 uv, float mode)
+{
+    return Use_EffectSpriteClampSampler(mode)
+           ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
+           : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
+}
+
+float Sample_EffectSpriteMaskTexture(float2 uv, float mode)
+{
+    return Use_EffectSpriteClampSampler(mode)
+           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
+           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+}
+
+float2 Sample_EffectSpriteFlowTexture(float2 uv, float mode)
+{
+    return Use_EffectSpriteClampSampler(mode)
+           ? g_FlowTexture.Sample(LinearClampSampler, uv).rg
+           : g_FlowTexture.Sample(LinearWrapSampler, uv).rg;
+}
 
 float Compute_InfluenceOutlineWidth(float2 cardUV)
 {
@@ -322,7 +369,10 @@ PS_OUT PS_MAIN(PS_IN In)
     const float lifeProgress = saturate(In.lifeTime.y / lifeMax);
     const float4 particleColor = lerp(In.startColor, In.endColor, lifeProgress);
     const float2 sampleUV = lerp(In.subUVRect.xy, In.subUVRect.zw, In.texCoord);
-    const float4 symbol = g_Texture.Sample(LinearClampSampler, sampleUV);
+    const float2 mainUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMainUVParams, g_EffectSpriteUVOffsetParams.xy, g_EffectSpriteUVModeParams.x);
+    const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, g_EffectSpriteUVModeParams.y);
+    const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, g_EffectSpriteUVModeParams.z);
+    const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, g_EffectSpriteUVModeParams.x);
     const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
     const float opacityPower = max(g_EffectSpriteParams.y, 0.0001f);
     const float alphaCutoff = saturate(g_EffectSpriteAlphaParams.x);
@@ -332,12 +382,12 @@ PS_OUT PS_MAIN(PS_IN In)
 
     if (0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f)
     {
-        const float noise = g_NoiseTexture.Sample(LinearClampSampler, sampleUV).r;
+        const float noise = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
         noiseFactor = lerp(1.f, noise, saturate(g_EffectSpriteParams.z));
     }
 
     if (0 != g_EffectSpriteAlphaParams.z)
-        maskAlpha = g_MaskTexture.Sample(LinearClampSampler, sampleUV).a;
+        maskAlpha = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
     const float coverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, particleColor.a * g_Tint.a);
@@ -345,9 +395,9 @@ PS_OUT PS_MAIN(PS_IN In)
         discard;
 
     const float2 screenUV = In.position.xy / max(g_DistortionScreenSize.xy, float2(1.f, 1.f));
-    const float2 flowUV = sampleUV * g_FlowUVScale + g_FlowUVOffset + g_FlowUVScrollSpeed * g_EffectDistortionParams.w;
+    const float2 flowUV = Build_EffectSpriteUV(sampleUV, float4(g_FlowUVScale, g_FlowUVScrollSpeed), g_FlowUVOffset, g_FlowUVTilingMode);
     const float2 flow = 0 != g_EffectDistortionParams.z
-                        ? g_FlowTexture.Sample(LinearClampSampler, flowUV).rg * 2.f - 1.f
+                        ? Sample_EffectSpriteFlowTexture(flowUV, g_FlowUVTilingMode) * 2.f - 1.f
                         : float2(0.f, 0.f);
 
     const float shapeWeight = Compute_DistortionShapeWeight(In.texCoord);

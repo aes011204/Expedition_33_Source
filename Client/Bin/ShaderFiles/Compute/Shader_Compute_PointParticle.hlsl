@@ -33,9 +33,9 @@ cbuffer ComputePointParticleParams : register(b0)
     uint g_MaxDrawCount;
     uint g_KillActiveParticles;
     float4 g_Center;
-    float4 g_EmitterBasisRight;          // xyz: emitter local X axis in world space
-    float4 g_EmitterBasisUp;             // xyz: emitter local Y axis in world space
-    float4 g_EmitterBasisLook;           // xyz: emitter local Z axis in world space
+    float4 g_EmitterBasisRight; // xyz: emitter local X axis in world space
+    float4 g_EmitterBasisUp;    // xyz: emitter local Y axis in world space
+    float4 g_EmitterBasisLook;  // xyz: emitter local Z axis in world space
     float4 g_SpawnRange;
     float4 g_InitialLocationMin;         // xyz: InitialLocation min offset, w: enabled
     float4 g_InitialLocationMax;         // xyz: InitialLocation max offset
@@ -152,9 +152,13 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const uint maxInstanceCount = (uint)g_InstanceCount;
     const uint maxActiveCount = min(maxInstanceCount, max(1u, g_MaxActiveCount));
     const uint maxDrawCount = min(maxInstanceCount, max(1u, g_MaxDrawCount));
+    const uint stableDrawCount = min(maxActiveCount, maxDrawCount);
 
     if (index >= (uint)g_InstanceCount)
         return;
+
+    if (index == 0u)
+        ArgsData[0].instanceCount = stableDrawCount;
 
     ParticleLifecycleState lifecycle = LifecycleState[index];
 
@@ -166,7 +170,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         return;
     }
 
-    if (index >= maxActiveCount)
+    if (index >= stableDrawCount)
     {
         lifecycle.active = 0u;
         LifecycleState[index] = lifecycle;
@@ -199,6 +203,8 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     if (lifecycle.active == 0u)
     {
         lifecycle.lifeAge = 0.0f;
+        if (index < stableDrawCount)
+            OutputData[index] = (ParticleInstanceVertex)0;
         LifecycleState[index] = lifecycle;
         return;
     }
@@ -242,11 +248,13 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                                          : ResolveEmitterBasisVector(g_MotionRadialPivot.xyz);
         const float3 pivotPosition = g_Center.xyz + radialPivotOffset;
         float3 radialDirection = spawnPosition - pivotPosition;
-        const float3 fallbackRadialDirection = ResolveEmitterBasisVector(float3(
-            Hash01(seed + 307u) * 2.0f - 1.0f,
-            0.25f,
-            Hash01(seed + 401u) * 2.0f - 1.0f
-        ));
+        const float3 fallbackRadialDirection = ResolveEmitterBasisVector(
+            float3(
+                Hash01(seed + 307u) * 2.0f - 1.0f,
+                0.25f,
+                Hash01(seed + 401u) * 2.0f - 1.0f
+            )
+        );
         const float fallbackRadialLength = length(fallbackRadialDirection);
         const float3 normalizedFallbackRadialDirection = fallbackRadialLength < 0.0001f
                                                          ? float3(0.0f, 1.0f, 0.0f)
@@ -344,14 +352,12 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     instance.endColor = lerp(g_EndColorMin, g_EndColorMax, colorRatio);
     instance.subUVRect = float4(u0, v0, u0 + invCols, v0 + invRows);
 
-    if (index >= maxDrawCount)
+    if (index >= stableDrawCount)
     {
         LifecycleState[index] = lifecycle;
         return;
     }
 
-    uint drawIndex = 0u;
-    InterlockedAdd(ArgsData[0].instanceCount, 1u, drawIndex);
-    OutputData[drawIndex] = instance;
+    OutputData[index] = instance;
     LifecycleState[index] = lifecycle;
 }
