@@ -10,12 +10,17 @@
 #include "Editor_Context.h"
 #include "Editor_Window.h"
 #include "Prefab_View.h"
+#include <fstream>
 
 using TexturePreviewCache   = umap<wstring, ComPtr<ID3D11ShaderResourceView>>;
 using TextureSearchCache    = umap<string, string>;
+using TextureFolderCache    = umap<wstring, vector<fs::path>>;
+using TextureMipCache       = umap<wstring, int32>;
 
 static TexturePreviewCache  g_TexturePreviewCache {};
 static TextureSearchCache   g_TextureSearchCache  {};
+static TextureFolderCache   g_TextureFolderCache  {};
+static TextureMipCache      g_TextureMipCache     {};
 
 void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 {
@@ -147,6 +152,32 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
             const string displayPath = resolvedPath.empty() ? "(empty)" : To_DisplayTexturePath(resolvedPath);
             ImGui::TextWrapped("%s", displayPath.c_str());
             ImGui::EndDisabled();
+
+            if (!resolvedPath.empty())
+            {
+                ImGui::TextDisabled("Mip Count");
+                ImGui::SameLine(120.f);
+
+                const int32 mipCount = Get_TextureMipCount(fs::path(resolvedPath), slotSrv);
+                if (mipCount > 0)
+                {
+                    const bool singleMip = mipCount == 1;
+                    if (singleMip)
+                    {
+                        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.75f, 0.2f, 1.f));
+                        ImGui::Text("%d (single mip)", mipCount);
+                        ImGui::PopStyleColor();
+                    }
+                    else
+                    {
+                        ImGui::Text("%d", mipCount);
+                    }
+                }
+                else
+                {
+                    ImGui::TextDisabled("(unknown)");
+                }
+            }
 
             if (slotSrv)
             {
@@ -427,6 +458,11 @@ vector<fs::path> ModelCom_Inspector::Collect_TextureCandidates(const wstring& re
     if (directory.empty() || !fs::exists(directory))
         return candidates;
 
+    const wstring cacheKey = directory.lexically_normal().wstring();
+    const auto cached = g_TextureFolderCache.find(cacheKey);
+    if (cached != g_TextureFolderCache.end())
+        return cached->second;
+
     for (const auto& entry : fs::directory_iterator(directory))
     {
         if (!entry.is_regular_file())
@@ -443,6 +479,7 @@ vector<fs::path> ModelCom_Inspector::Collect_TextureCandidates(const wstring& re
         return lhs.filename().wstring() < rhs.filename().wstring();
     });
 
+    g_TextureFolderCache.emplace(cacheKey, candidates);
     return candidates;
 }
 
@@ -475,10 +512,88 @@ ID3D11ShaderResourceView* ModelCom_Inspector::Get_TexturePreviewSRV(const fs::pa
     return srv;
 }
 
+namespace
+{
+    constexpr uint32 kDdsMagic = 0x20534444; // "DDS "
+    constexpr uint32 kDdsHeaderSize = 124;
+
+    struct DdsHeaderRaw
+    {
+        uint32 size = 0;
+        uint32 flags = 0;
+        uint32 height = 0;
+        uint32 width = 0;
+        uint32 pitchOrLinearSize = 0;
+        uint32 depth = 0;
+        uint32 mipMapCount = 0;
+        uint32 reserved1[11]{};
+        uint32 ddspf[8]{};
+        uint32 caps = 0;
+        uint32 caps2 = 0;
+        uint32 caps3 = 0;
+        uint32 caps4 = 0;
+        uint32 reserved2 = 0;
+    };
+}
+
+int32 ModelCom_Inspector::Get_TextureMipCount(const fs::path& texturePath, ID3D11ShaderResourceView* shaderResourceView)
+{
+    namespace fs = fs;
+
+    const wstring normalizedPath = texturePath.lexically_normal().wstring();
+    const auto cached = g_TextureMipCache.find(normalizedPath);
+    if (cached != g_TextureMipCache.end())
+        return cached->second;
+
+    int32 mipCount = 0;
+
+    if (shaderResourceView != nullptr)
+    {
+        ComPtr<ID3D11Resource> resource;
+        shaderResourceView->GetResource(resource.GetAddressOf());
+        if (resource != nullptr)
+        {
+            ComPtr<ID3D11Texture2D> texture2D;
+            if (SUCCEEDED(resource.As(&texture2D)) && texture2D != nullptr)
+            {
+                D3D11_TEXTURE2D_DESC desc{};
+                texture2D->GetDesc(&desc);
+                mipCount = static_cast<int32>(desc.MipLevels);
+            }
+        }
+    }
+
+    if (mipCount <= 0 &&
+        fs::exists(texturePath) &&
+        String::ToLowerCopy(String::ToString(texturePath.extension().wstring())) == ".dds")
+    {
+        ifstream stream(texturePath, ios::binary);
+        if (stream.is_open())
+        {
+            uint32 magic = 0;
+            DdsHeaderRaw header{};
+            stream.read(reinterpret_cast<char*>(&magic), sizeof(uint32));
+            stream.read(reinterpret_cast<char*>(&header), sizeof(DdsHeaderRaw));
+
+            if (stream.good() &&
+                magic == kDdsMagic &&
+                header.size == kDdsHeaderSize)
+            {
+                mipCount = static_cast<int32>(header.mipMapCount == 0 ? 1 : header.mipMapCount);
+            }
+        }
+    }
+
+    g_TextureMipCache.emplace(normalizedPath, mipCount);
+    return mipCount;
+}
+
 void ModelCom_Inspector::Clear_TexturePreviewCache()
 {
     g_TexturePreviewCache.clear();
     g_TextureSearchCache.clear();
+    g_TextureFolderCache.clear();
+    g_TextureMipCache.clear();
 }
 
 ModelCom_Inspector::AnimPreviewState& ModelCom_Inspector::Get_AnimPreviewState(const Engine::ModelCom* model)

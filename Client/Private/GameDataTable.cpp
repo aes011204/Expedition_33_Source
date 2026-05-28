@@ -192,19 +192,21 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
         skill.skillKey = item.value("skillKey", "");
         skill.scriptClassName = item.value("scriptClassName", "");
         skill.apCost = item.value("ap cost", 0);
-        skill.AttackCount = item.value("AttackCount", 0);
-        skill.targetingType =
+        //skill.AttackCount = item.value("AttackCount", 0);
+       /* skill.targetingType =
             magic_enum::enum_cast<ECharacterTeamSelector>(item.value("targetingType", ""))
-            .value_or(ECharacterTeamSelector::Invalid);
+            .value_or(ECharacterTeamSelector::Invalid);*/
         skill.element =
-            magic_enum::enum_cast<EAttackType>(item.value("element", ""))
-            .value_or(EAttackType::None);
+            magic_enum::enum_cast<ElementalType>(item.value("element", ""))
+            .value_or(ElementalType::None);
         skill.buff =
             magic_enum::enum_cast<Buffs>(item.value("buff", ""))
             .value_or(Buffs::None);
         skill.ailmentChance = item.value("BuffChance", 0.f);
        // skill.IdleAnimationKey = item.value("IdleAnimationKey", "");
-      //  skill.animationKey = Split_String(item.value("animationKey", ""), '|');
+
+       
+        skill.targetingType = ParseTargetTypes(item.value("targetingType", ""));
 
         const size_t index = _skillDefs.size();
         _skillDefs.push_back(skill);
@@ -284,6 +286,32 @@ const Skill_Data* GameDataTable::Get_Skill(const string& skillId)
     return &_skillDefs[index];
 }
 
+vector<TargetType> GameDataTable::ParseTargetTypes(const string& data)
+{
+    vector<TargetType> result;
+
+    stringstream ss(data);
+    string token;
+
+    while (getline(ss, token, '|'))
+    {
+        if (token.empty())
+            continue;
+
+        auto opt = magic_enum::enum_cast<TargetType>(token);
+
+        if (opt.has_value())
+            result.push_back(opt.value());
+        else
+        {
+            result.push_back(TargetType::Invalid);
+            LOG_ERROR("-----------------fail to load TargetTypes----------------");
+        }
+
+    }
+
+    return result;
+}
 const Item_Data* GameDataTable::Get_Item(const string& itemId)
 {
     auto it = _itemIndexById.find(itemId);

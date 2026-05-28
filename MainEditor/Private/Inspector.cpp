@@ -9,6 +9,7 @@
 #include "Helper_String.h"
 #include "Inspector_Factory.h"
 #include "ModelCom.h"
+#include "MapStaticMesh.h"
 #include "Reflection_Types.h"
 #include "TransformCom.h"
 
@@ -247,23 +248,29 @@ void Inspector::Draw_Components(const Shared<GameObject>& target)
     Draw_ObjectReflection(target);
 
     target->Visit_Components([&](const wstring&, const Shared<Component>& component)
-    {
-        if (component == nullptr)
-            return;
+        {
+            if (component == nullptr)
+                return;
 
-        // 트랜스폼은 무조건 맨위에 그릴거라 여기서 스킵
-        if (component == transform)
-            return;
+            // 트랜스폼은 무조건 맨위에 그릴거라 여기서 스킵
+            if (component == transform)
+                return;
 
-        if (Draw_ComponentOverride(component))
-            return;
+            if (Draw_ComponentOverride(component))
+                return;
 
-        const ClassReflectionInfo& info = component->Get_ReflectionInfo();
-        if (info.properties.empty())
-            return;
+            const ClassReflectionInfo& info = component->Get_ReflectionInfo();
+            if (info.properties.empty())
+                return;
 
         Draw_ReflectionSection(info.className, component.get(), info);
     });
+
+    if (const Shared<Client::MapStaticMesh> mapStaticMesh = dynamic_pointer_cast<Client::MapStaticMesh>(target))
+    {
+        if (const Shared<ModelCom> mapModel = mapStaticMesh->Get_Model())
+            Draw_ComponentOverride(static_pointer_cast<Component>(mapModel));
+    }
 }
 
 void Inspector::Draw_ObjectReflection(const Shared<GameObject>& target)
@@ -591,7 +598,7 @@ bool Inspector::Draw_ColorPropertyRow(const string& idPrefix, Vec4& value)
 
 bool Inspector::Draw_EnumPropertyRow(const string& idPrefix, const PropertyInfo& property, int& value)
 {
-     ImGui::PushID(idPrefix.c_str());
+    ImGui::PushID(idPrefix.c_str());
 
     if (property.enumNames.empty() || property.enumValues.empty() || property.enumNames.size() != property.enumValues.size())
     {

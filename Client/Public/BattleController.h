@@ -2,12 +2,14 @@
 
 #include "Base.h"
 #include "Delegate.h"
+#include "BattleAction.h"
 #include "Battle_Enum.h"
 #include "BattleReactionController.h"
 
 NS_BEGIN(Engine)
 class Character;
 class Camera;
+class BattleAction;
 NS_END
 
 NS_BEGIN(Client)
@@ -41,9 +43,9 @@ public: /* Delegate 선언 */
     // 타겟 전환
     DECLARE_DELEGATE(FOnTargetPreviewChanged, const BattleChar*);
     // 공격 시작
-    DECLARE_DELEGATE(FOnActionStarted, const Action&);
+    DECLARE_DELEGATE(FOnActionStarted, const BattleAction&);
     // Reaction (Dodge, Parry)
-    DECLARE_DELEGATE(FOnReactionSucceeded, ReactionType, const BattleChar&);
+    DECLARE_DELEGATE(FOnReactionSucceeded, ReactionType,const vector<BattleChar>&);
 
 public:
     BattleController();
@@ -66,8 +68,9 @@ public:
 
     void Set_BattleFSM();
     void PlayerStartAnim();
-    void HitAction(BattleChar target);
-    void ExecuteAction(Action turnAction); //실제로 선택한 행동을 실행하는 함수
+    void HitAction(BattleChar target, AttackType attackType);
+    void ExecuteAction(const BattleAction& turnAction); //실제로 선택한 행동을 실행하는 함수
+    void ExecuteActionRequest(const ActionRequest& request);
 
     void EndTurn();
     void StartTurn();
@@ -81,9 +84,15 @@ public:
     void SetCharInitPos();
 
     void OnActionEndNotify();
+
+    void Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos);
 public:
     Shared<BattleStateMachine> Get_BattleFSM() { return _battleFSM; };
-    Action& Get_TurnAction() { return _turnAction; }
+    BattleAction& Get_TurnAction() { return _turnAction; }
+    const BattleAction& Get_TurnAction() const { return _turnAction; }
+    ActionRequest& Get_TurnActionRequest() { return _turnActionRequest; }
+    const ActionRequest& Get_TurnActionRequest() const { return _turnActionRequest; }
+    // Action& Get_TurnAction() { return _turnAction; }
     void    Request_WidePresentationMode();
 
     vector<BattleChar> Get_AliveEnemies();
@@ -127,7 +136,7 @@ public:
 
 public:
     // Free Aim은 턴 소모 X
-    void Begin_FreeAimShot(const Action& shotAction);
+    void Begin_FreeAimShot(const BattleAction& shotAction);
     void Finish_FreeAimShot();
     bool Is_FreeAimShotPlaying() const { return _isFreeAimShotPlaying; }
 
@@ -138,7 +147,7 @@ public:
     void Confirm_Victory();
 
     // 데미지 후 전투 진행 규칙을 한 곳에서 처리한다.
-    void Handle_DamageApplied(const BattleChar& damagedTarget, float damage);
+    void Handle_DamageApplied(const BattleChar& damagedTarget, float damage, AttackType attackType);
 
      // 현재 턴 액터가 죽으면 턴 종료를 예약한다.
     void Try_RequestEndTurnOnCurrentActorDeath(const BattleChar& damagedTarget, float damage);
@@ -187,7 +196,8 @@ public: /* Delegate */
 
 private:
     BattleChar                      _currentTurnActor = {};
-    Action                          _turnAction = {};
+    BattleAction                   _turnAction = {};
+    ActionRequest                  _turnActionRequest = {};
 
     Shared<SkillScript>             _curScript = {};
 
@@ -206,10 +216,10 @@ private:
     bool        _hasFreeAimHitTarget = false;
 
 private:
-    void Execute_BaseAttack(const BattleChar actor, const Action& turnAction);
-    void Execute_FreeAimShoot(const BattleChar actor, const Action& turnAction);
-    void Execute_Skill(const BattleChar actor, const Action& turnAction);
-    void Execute_Item(const BattleChar actor, const Action& turnAction);
+    void Execute_BaseAttack();
+    void Execute_FreeAimShoot();
+    void Execute_Skill();
+    void Execute_Item();
 
 private: /* 전투 AP */
     void Apply_BaseAttackAP(const BattleChar& actor); // Base Attack시 얻는 AP
@@ -244,7 +254,6 @@ private:
 
     Shared<BattleStateMachine> _battleFSM;
     Shared<BuffSystem> _buffSystem;
-    /* Shared< BattleEffectResolver> _battleEffectResolver;*/
     Shared<BattleActionExecutor> _battleActionExe;
 
     // 전투 시작 시 스폰되는 객체들 저장소
@@ -285,7 +294,7 @@ private:
     vector<string> _pendingBattleMonsterPrefabNames = {};
 
     bool _isFreeAimShotPlaying = false;
-    Action _freeAimShotAction {};
+    BattleAction _freeAimShotAction {};
 
     uint32 _lastVictoryRewardExp = 0;
 

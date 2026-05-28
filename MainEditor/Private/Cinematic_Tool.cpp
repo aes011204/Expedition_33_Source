@@ -17,6 +17,7 @@
 #include "Cinematic_SequenceIO.h"
 #include "EditorInstance.h"
 #include "magic_enum/magic_enum.hpp"
+#include "BattleAction.h"
 
 namespace
 {
@@ -433,9 +434,9 @@ Shared<ModelCom> Cinematic_Tool::Resolve_BattleClipPreviewModel() const
     if (!battleController)
         return nullptr;
 
-    const Action& action = battleController->Get_TurnAction();
-    if (action._curChar.ModelCom != nullptr)
-        return action._curChar.ModelCom;
+    const Client::BattleAction& action = battleController->Get_TurnAction();
+    if (action.Get_CurChar().ModelCom != nullptr)
+        return action.Get_CurChar().ModelCom;
 
     return nullptr;
 }
@@ -450,13 +451,14 @@ void Cinematic_Tool::Apply_BattleClipPreviewAnimation(float previewTimeSec) cons
     if (battleController == nullptr)
         return;
 
-    const Action& action = battleController->Get_TurnAction();
+    const Client::BattleAction& action = battleController->Get_TurnAction();
+    const Client::Skill_Data& skillData = action.GetSkillData();
     if ((_selectedBattleClipMode == BattleCameraMode::PLAYERATTACK ||
          _selectedBattleClipMode == BattleCameraMode::ENEMYATTACK) &&
-        !action._selected_SkillKey.AnimPhases.empty())
+        !skillData.AnimPhases.empty())
     {
-        const uint32 phaseIndex = std::min<uint32>(action._curAnimIndex, static_cast<uint32>(action._selected_SkillKey.AnimPhases.size() - 1));
-        const string& animationKey = action._selected_SkillKey.AnimPhases[phaseIndex].animationKey;
+        const uint32 phaseIndex = std::min<uint32>(action.GetCurAnimIndex(), static_cast<uint32>(skillData.AnimPhases.size() - 1));
+        const string& animationKey = skillData.AnimPhases[phaseIndex].animationKey;
         const char* currentAnimationName = model->Get_AnimationName(model->Get_CurrentAnimationIndex());
 
         if (!animationKey.empty() &&
