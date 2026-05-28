@@ -364,6 +364,7 @@ HRESULT GameDataTable::Load_SkillPhaseData(const wstring& jsonRootPath)
         BattleActionPhase phase{};
         phase.phaseIndex = item.value("phaseIndex", 0);
         phase.animationKey = item.value("animationKey", "");
+        phase.cameraProfileId = item.value("cameraProfileId", "");
 
         phase.movementPolicy =
             magic_enum::enum_cast<BattleMovementPolicy>(item.value("movementPolicy", "None"))
@@ -376,6 +377,7 @@ HRESULT GameDataTable::Load_SkillPhaseData(const wstring& jsonRootPath)
         phase.useDistance = ReadBoolFlexible(item, "useDistance", false);
         phase.faceTarget = ReadBoolFlexible(item, "faceTarget", true);
         phase.offsetDistance = item.value("offsetDistance", 0.f);
+        phase.cameraProfileId = item.value("cameraProfileId", "");
 
         auto it = _skillIndexById.find(skillKey);
         if (it == _skillIndexById.end())
