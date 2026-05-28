@@ -4,6 +4,7 @@
 #include "Delegate.h"
 #include "Battle_Enum.h"
 #include "BattleReactionController.h"
+#include "BattleHitSequenceRunner.h"
 
 NS_BEGIN(Engine)
 class Character;
@@ -155,6 +156,9 @@ public:
     bool Has_FreeAimHitTarget() const { return _hasFreeAimHitTarget; }
     const BattleChar* Get_FreeAimHitTarget() const { return _hasFreeAimHitTarget ? &_freeAimHitTarget : nullptr; }
 
+     // 스킬 스크립트가 다단히트를 예약할 때 사용
+    BattleHitSequenceRunner& Get_HitSequenceRunner() { return _hitSequenceRunner; }
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
@@ -261,6 +265,7 @@ private:
     // 전투 시작 시 스폰되는 객체들 저장소
     Shared<BattleSpawnRegistry> _battleSpawnRegistry;
     BattleReactionController    _reactionController{};
+    BattleHitSequenceRunner _hitSequenceRunner{};
 
     bool _firstAnimflag = { false };
     int  _firstAnimCount = {0};

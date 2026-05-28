@@ -1,5 +1,7 @@
 ﻿#include "pch.h"
 #include "ChooseSkill.h"
+
+#include "BattleAnimutils.h"
 #include "Input_Manager.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
@@ -69,8 +71,7 @@ void ChooseSkill::Update(float timeDelta)
     {
         action._selected_SkillKey = {}; // 스킬 메뉴 취소
 
-        if (action._curChar.ModelCom)
-            action._curChar.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.2f, true);
+        BattleAnimUtils::Play_BattleIdle(action._curChar, 0.3f);
 
         battleFSM->Change_State(BattleTurnState::ChooseAction);
         return;

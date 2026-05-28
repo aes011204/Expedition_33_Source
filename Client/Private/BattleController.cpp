@@ -26,6 +26,7 @@
 #include "Camera.h"
 #include "TargetCamera.h"
 #include "BattleActionExecutor.h"
+#include "BattleAnimutils.h"
 #include "BattleMechanismCom.h"
 #include "Battle_Event.h"
 #include "Character.h"
@@ -156,6 +157,9 @@ void BattleController::Update(float timeDelta)
     // 적턴 인지 플레이어 턴인지에 따라
     if (!_isPendingVictorySlow && _currentTurnActor.statCom->Is_Player())
         _battleFSM->Update_StateMachine(timeDelta);
+
+    // Script 다단히트 적용
+    _hitSequenceRunner.Update(timeDelta);
 
     if (_isFreeAimShotPlaying)
     {
@@ -458,12 +462,7 @@ void BattleController::StartTurn()
             ); // 현재 턴 캐릭터만 턴 시작 애니메이션을 시작
 
         if (!playedTurnStart)
-        {
-            _currentTurnActor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle),
-                0.2f,
-                true
-            ); // Turn_Start 매핑이 없으면 Base Idle
-        }
+            BattleAnimUtils::Play_BattleIdle(_currentTurnActor, 0.2f); // Turn_Start 매핑이 없으면 Base Idle
     }
 
     // fsm
@@ -1076,7 +1075,7 @@ void BattleController::Execute_Item(const BattleChar actor, const Action& turnAc
         {
             if (!action.target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
             {
-                action.target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.2f, true); // Revive 매핑이 없으면 바로 기본 Idle로 복귀한다.
+                BattleAnimUtils::Play_BattleIdle(_currentTurnActor, 0.2f); // Revive 매핑이 없으면 바로 기본 Idle로 복귀한다.
             }
         }
 
@@ -1437,6 +1436,7 @@ void BattleController::Clear_BattleRuntimeState()
     _battleTime = 0.f;
     _flag = false;
     _isActionExecuting = false;
+    _hitSequenceRunner.Clear();
 
     while (!_turnQueue.empty())
     {

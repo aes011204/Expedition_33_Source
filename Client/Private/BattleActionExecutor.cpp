@@ -1,4 +1,6 @@
 ﻿#include "BattleActionExecutor.h"
+
+#include "BattleAnimutils.h"
 #include "Character.h"
 #include "CombatStatCom.h"
 
@@ -35,12 +37,12 @@ void BattleActionExecutor::OnActionEndNotify(Action& action)
 
     Complete_CurPhase(action);
 }
+
 void BattleActionExecutor::Complete_CurPhase(Action& action)
 {
     const auto& phases = action._selected_SkillKey.AnimPhases;
     if (action._curAnimIndex >= phases.size())
         return;
-
 
     action._curAnimIndex++;
 
@@ -48,7 +50,7 @@ void BattleActionExecutor::Complete_CurPhase(Action& action)
     {
         if (action._curChar.ModelCom)
         {
-            action._curChar.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), .3f, true);
+            BattleAnimUtils::Play_BattleIdle(action._curChar, 0.3f);
             //action._curChar.ModelCom->Set_Animation(action._selected_SkillKey.IdleAnimationKey, true, 0.f);
         }
 
@@ -59,6 +61,7 @@ void BattleActionExecutor::Complete_CurPhase(Action& action)
 
     Begin_ActionPhase(action);
 }
+
 void BattleActionExecutor::Begin_ActionPhase(Action& action)
 {
     if (!action._curChar.actor)

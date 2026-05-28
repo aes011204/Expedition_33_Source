@@ -1,6 +1,7 @@
 ﻿#include "Skill_Lune_Battle.h"
 #include "BattleMechanismCom.h"
 #include "DamageSystem.h"
+#include "ClientInstance.h"
 
 /* 제물 */
 void Skill_Lune_Immolation::Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target)
@@ -40,9 +41,22 @@ void Skill_Lune_Thunderfall::Execute(const Skill_Data& skill, const BattleChar& 
     const float totalDamage = 80.f;
     const float hitDamage = totalDamage / static_cast<float>(hitCount);
 
-    for (int32 i = 0; i < hitCount; ++i)
-        DamageSystem::ApplyDamage(hitDamage, target);
+    DamageSystem::ApplyDamage(hitDamage, target); // 첫 타 호출 시점은 AN_Attack
 
+    const int32 remainingHits = hitCount - 1; // hitCount에서 한대 때렸으니까 -1
+    if (remainingHits <= 0)
+        return;
+
+    auto battle = CLIENT->Get_BattleController();
+    if (battle == nullptr)
+        return;
+
+    battle->Get_HitSequenceRunner().Begin_RepeatedHit(
+        attacker,
+        target,
+        remainingHits, // 이미 첫 타를 넣었으므로 남은 5타만 예약한다.
+        0.3f,
+        hitDamage);
 }
 
 Shared<Skill_Lune_Thunderfall> Skill_Lune_Thunderfall::Create()

@@ -1,6 +1,8 @@
 ﻿#include "AN_EnterAnim.h"
 
 #include <ModelCom.h>
+
+#include "BattleAnimutils.h"
 #include "BattleController.h"
 #include "ClientInstance.h"
 
@@ -16,6 +18,12 @@ IMPLEMENT_REFLECTION(AN_EnterAnim)
 
 void AN_EnterAnim::Execute(const AnimNotifyContext& context)
 {
-    CLIENT->Get_BattleController()->End_FirstAnim();
-    context.model->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.3f, true);
+    const auto battle = CLIENT->Get_BattleController();
+    if (battle == nullptr)
+        return;
+
+    battle->End_FirstAnim();
+
+    BattleAnimUtils::Play_BattleIdle(
+        battle->Get_TurnAction()._curChar, 0.3f); 
 }

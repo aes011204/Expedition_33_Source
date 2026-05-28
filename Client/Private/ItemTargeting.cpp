@@ -1,5 +1,7 @@
 ﻿#include "pch.h"
 #include "ItemTargeting.h"
+
+#include "BattleAnimutils.h"
 #include "BattleController.h"
 #include "BattleStateMachine.h"
 #include "CombatStatCom.h"
@@ -101,7 +103,7 @@ void ItemTargeting::Update(float timeDelta)
 		{
 			// 애니메이션 안넣었을 때 fallback
 			owner->ExecuteAction(owner->Get_TurnAction());
-			actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.2f, true); // fallback에서는 바로 기본 Idle로 복귀한다.
+			BattleAnimUtils::Play_BattleIdle(actor, 0.2f); // fallback에서는 바로 기본 Idle로 복귀한다.
 			owner->EndTurn();
 			return;
 		}

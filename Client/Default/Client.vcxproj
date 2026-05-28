@@ -176,10 +176,12 @@
     <ClInclude Include="..\public\Base_Mon_Defense.h" />
     <ClInclude Include="..\public\Base_Mon_Spawn.h" />
     <ClInclude Include="..\public\BattleActionExecutor.h" />
+    <ClInclude Include="..\Public\BattleAnimUtils.h" />
     <ClInclude Include="..\Public\BattleCameraClipIO.h" />
     <ClInclude Include="..\Public\BattleCameraClipUtils.h" />
     <ClInclude Include="..\Public\BattleClipSequencerAdapter.h" />
     <ClInclude Include="..\Public\BattleCameraClipTypes.h" />
+    <ClInclude Include="..\Public\BattleHitSequenceRunner.h" />
     <ClInclude Include="..\Public\BattleMechanismCom.h" />
     <ClInclude Include="..\Public\BattleReactionController.h" />
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
@@ -419,8 +421,10 @@
     <ClCompile Include="..\private\Base_Mon_Defense.cpp" />
     <ClCompile Include="..\private\Base_Mon_Spawn.cpp" />
     <ClCompile Include="..\private\BattleActionExecutor.cpp" />
+    <ClCompile Include="..\Private\BattleAnimutils.cpp" />
     <ClCompile Include="..\Private\BattleCameraClipIO.cpp" />
     <ClCompile Include="..\Private\BattleClipSequencerAdapter.cpp" />
+    <ClCompile Include="..\Private\BattleHitSequenceRunner.cpp" />
     <ClCompile Include="..\Private\BattleMechanismCom.cpp" />
     <ClCompile Include="..\Private\BattleReactionController.cpp" />
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
