@@ -693,7 +693,7 @@ void BattleController::Request_WidePresentationMode()
     EvtBattlePresentation event;
     event.cameraMode = BattleCameraMode::WIDE;
     event.subject = nullptr;
-    GAME->Get_EventBus().Publish(event);
+    GAME->Get_EventBus().Publish(event); 
 
     return;
 }

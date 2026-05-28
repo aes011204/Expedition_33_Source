@@ -1031,12 +1031,10 @@
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
-    <ClCompile Include="..\Private\SSAOPipeline.cpp" />
     <ClCompile Include="..\Private\Sound_Manager.cpp">
       <Filter>01.Utility\03.GameObjects\Manager</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\LightingPipeline.cpp" />
-      </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

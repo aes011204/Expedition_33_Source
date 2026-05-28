@@ -393,7 +393,6 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\Picking.cpp" />
     <ClCompile Include="..\Private\PostProcessPipeline.cpp" />
     <ClCompile Include="..\Private\Sound_Manager.cpp" />
-    <ClCompile Include="..\Private\SSAOPipeline.cpp" />
     <ClCompile Include="..\Private\LightingPipeline.cpp" />
     <ClCompile Include="..\Private\Print_Manager.cpp" />
     <ClCompile Include="..\Private\RenderTarget.cpp" />

@@ -74,7 +74,6 @@ public: /* 마엘 */
 
     void    Set_MaelleStance(MaelleStance stance);
     void    Reset_MaelleStance(); // 전투 시작 시 태세 없음으로 초기화
-    void    Apply_MaelleSkillTransition(const string& skillKey);
 
 private:
     GustaveMechanism _gustave{};

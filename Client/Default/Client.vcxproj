@@ -332,6 +332,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\Create_Class.h" />
     <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h" />
+    <ClInclude Include="..\Public\Skill_Gustave_Battle.h" />
+    <ClInclude Include="..\Public\Skill_Lune_Battle.h" />
+    <ClInclude Include="..\Public\Skill_Maelle_Battle.h" />
     <ClInclude Include="..\Public\Spawn_Prefab.h" />
     <ClInclude Include="..\Public\State.h" />
     <ClInclude Include="..\Public\StateMachineCom.h" />
@@ -561,6 +564,9 @@
     <ClCompile Include="..\private\SkillTree_Panel.cpp" />
     <ClCompile Include="..\Private\Create_Class.cpp" />
     <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp" />
+    <ClCompile Include="..\Private\Skill_Gustave_Battle.cpp" />
+    <ClCompile Include="..\Private\Skill_Lune_Battle.cpp" />
+    <ClCompile Include="..\Private\Skill_Maelle_Battle.cpp" />
     <ClCompile Include="..\Private\Spawn_Prefab.cpp" />
     <ClCompile Include="..\Private\State.cpp" />
     <ClCompile Include="..\Private\StateMachineCom.cpp" />
