@@ -45,7 +45,12 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     event.cameraMode = _cameraMode;
     event.subject = character;
     if (battle)
-        event.skillId = battle->Get_TurnAction().GetSkillData().skillKey;
+    {
+        const auto& action = battle->Get_TurnAction();
+        event.skillId = action.GetSkillData().skillKey;
+        if (action.GetCurAnimIndex() < action.GetSkillData().AnimPhases.size())
+            event.profileId = action.GetSkillData().AnimPhases[action.GetCurAnimIndex()].cameraProfileId;
+    }
     event.useClip = _useClip;
     event.restartClip = _restartClip;
     GAME->Get_EventBus().Publish(event);

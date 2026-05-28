@@ -623,15 +623,13 @@ struct BattleActionPhase;
     struct BattleActionPhase
     {
         string animationKey = "";
+        string cameraProfileId = "";
       //  string sequenceKey = "";
         uint32 phaseIndex={};
         BattleMovementPolicy movementPolicy = BattleMovementPolicy::None;
         BattleTargetAnchor targetAnchor = BattleTargetAnchor::PrimaryTarget;
-
         bool useDistance = false;
-
         float offsetDistance = {};
-
         bool faceTarget = true;
      //   bool disableSequenceSnapping = false;
     };
