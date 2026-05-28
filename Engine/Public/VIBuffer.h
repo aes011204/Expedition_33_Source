@@ -20,6 +20,8 @@ public:
 	virtual HRESULT Render();
 
 	uint32 Get_NumIndices() const { return _numIndices; }
+    // Profile View의 리소스 요약에서 vertex/index buffer의 대략적인 GPU byte를 추정할 때 사용한다.
+    size_t Get_DebugEstimatedBufferBytes() const;
 
 protected:
 	ComPtr<ID3D11Buffer>		_vb = nullptr;
