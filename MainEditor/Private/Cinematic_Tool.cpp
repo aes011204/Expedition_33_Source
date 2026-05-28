@@ -367,7 +367,8 @@ Shared<Character> Cinematic_Tool::Resolve_BattleClipPreviewSubject() const
     if (_selectedBattleClipMode == BattleCameraMode::PLAYERFOCUS ||
         _selectedBattleClipMode == BattleCameraMode::PLAYERATTACK)
     {
-        if(const auto hero = battleController->Get_TurnAction().target.actor)   
+        //원래는 battleController->Get_TurnAction().target.actor
+        if(const auto hero = battleController->Get_TurnAction().GetInitTarget().actor)   
             return hero;
         //if (const auto heroes = battleController->Get_AliveHeroes(); !heroes.empty() && heroes[0].actor != nullptr)
         //    return heroes[0].actor;
@@ -390,7 +391,7 @@ Shared<Character> Cinematic_Tool::Resolve_BattleClipPreviewOpponent() const
 
     if (_selectedBattleClipMode == BattleCameraMode::ENEMYATTACK)
     {
-        if (auto target = battleController->Get_TurnAction().target.actor)
+        if (auto target = battleController->Get_TurnAction().GetInitTarget().actor)
             return target;
 
         if (const auto heroes = battleController->Get_AliveHeroes(); !heroes.empty() && heroes[0].actor != nullptr)

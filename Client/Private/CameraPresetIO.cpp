@@ -28,7 +28,6 @@ void CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode cameraMode, const T
     json jsonData {};
 
     jsonData["snapOnEnter"]     = preset.snapOnEnter;
-   //
     jsonData["followSpeed"]     = preset.followSpeed;
     jsonData["aimOffset"]       = preset.aimOffset;
     jsonData["pivotHeight"]     = preset.pivotHeight;
@@ -43,7 +42,10 @@ void CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode cameraMode, const T
     jsonData["mouseSensitivity"]= preset.camera.mouseSensitivity;
     jsonData["yawOffset"]       = preset.yawOffset;
     jsonData["pitchOffset"]     = preset.pitchOffset;
-    jsonData["rollOffset"]        = preset.rollOffset;
+    jsonData["rollOffset"]      = preset.rollOffset;
+    jsonData["fovY"]            = preset.camera.fovy;
+    jsonData["nearPlane"]       = preset.camera.nearPlane;
+    jsonData["farPlane"]        = preset.camera.farPlane;
     jsonData["allowMouseRotation"] = preset.allowMouseRotation;
 
     const string name = string(magic_enum::enum_name(cameraMode));
@@ -96,6 +98,9 @@ bool CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode cameraMode, Targe
     preset.rollOffset = jsonData.value("rollOffset", 0.f);
     preset.camera.mouseSensor = jsonData.value("mouseSensor",preset.camera.mouseSensor);
     preset.camera.mouseSensitivity = jsonData.value("mouseSensitivity", preset.camera.mouseSensitivity);
+    preset.camera.fovy = jsonData.value("fovY", preset.camera.fovy);
+    preset.camera.nearPlane = jsonData.value("nearPlane", preset.camera.nearPlane);
+    preset.camera.farPlane = jsonData.value("farPlane", preset.camera.farPlane);
     preset.allowMouseRotation = jsonData.value("allowMouseRotation",true);
     outPreset = preset;
 

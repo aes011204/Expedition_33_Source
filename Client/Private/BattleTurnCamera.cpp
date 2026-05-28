@@ -10,6 +10,7 @@
 #include "ModelCom.h"
 #include "Event_Bus.h"
 #include "Battle_Event.h"
+#include "Character_BattleBase.h"
 
 namespace
 {

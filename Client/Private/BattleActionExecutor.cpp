@@ -101,9 +101,9 @@ void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
         Face_ActionTarget(action, action.GetPhaseGoalPos());
 
     if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
-        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey,0.0f, true);
+        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, true);
     else
-        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, 0.0f, false);
+        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, false);
 }
 
 Vec3 BattleActionExecutor::Resolve_AnchorPosition(const BattleAction& action, BattleTargetAnchor anchor) const

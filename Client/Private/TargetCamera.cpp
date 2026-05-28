@@ -191,6 +191,12 @@ void TargetCamera::Interpolate_CurrentSettings(float timeDelta)
     _currentSettings.yawOffset = lerp(_currentSettings.yawOffset,_targetSettings.yawOffset,t);
     _currentSettings.rollOffset = lerp(_currentSettings.rollOffset,_targetSettings.rollOffset,t);
     _currentSettings.camera.fovy = lerp(_currentSettings.camera.fovy,_targetSettings.camera.fovy,t);
+    _currentSettings.camera.nearPlane = lerp(_currentSettings.camera.nearPlane, _targetSettings.camera.nearPlane, t);
+    _currentSettings.camera.farPlane = lerp(_currentSettings.camera.farPlane, _targetSettings.camera.farPlane, t);
+
+    Set_FovY(_currentSettings.camera.fovy);
+    Set_Near(_currentSettings.camera.nearPlane);
+    Set_Far(_currentSettings.camera.farPlane);
 }
 
 bool TargetCamera::Try_GetTargetTransform(Shared<TransformCom>& outTargetTransformCom) const
@@ -508,6 +514,9 @@ void TargetCamera::Apply_PreviewPreset(const TargetCameraPreset& preset)
 {
     _currentSettings = preset;
     _targetSettings = preset;
+    Set_FovY(_currentSettings.camera.fovy);
+    Set_Near(_currentSettings.camera.nearPlane);
+    Set_Far(_currentSettings.camera.farPlane);
 }
 
 Shared<TargetCamera> TargetCamera::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

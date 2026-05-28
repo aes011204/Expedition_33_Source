@@ -47,9 +47,9 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     if (battle)
     {
         const auto& action = battle->Get_TurnAction();
-        event.skillId = action._selected_SkillKey.skillKey;
-        if (action._curAnimIndex < action._selected_SkillKey.AnimPhases.size())
-            event.profileId = action._selected_SkillKey.AnimPhases[action._curAnimIndex].cameraProfileId;
+        event.skillId = action.GetSkillData().skillKey;
+        if (action.GetCurAnimIndex() < action.GetSkillData().AnimPhases.size())
+            event.profileId = action.GetSkillData().AnimPhases[action.GetCurAnimIndex()].cameraProfileId;
     }
     event.useClip = _useClip;
     event.restartClip = _restartClip;
