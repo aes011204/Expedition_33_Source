@@ -4,6 +4,7 @@
 #include "BattleMechanismCom.h"
 #include "Character.h"
 #include "CombatStatCom.h"
+#include "ClientInstance.h"
 #include "DamageSystem.h"
 
 NS_BEGIN(Client)
@@ -12,13 +13,33 @@ Base_Gustave_Attack::Base_Gustave_Attack()
 {
 }
 
-void Base_Gustave_Attack::Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target)
+void Base_Gustave_Attack::Execute(const Skill_Data &skill, const BattleAction &action, AttackType attackType)
 {
-    if (target.actor == nullptr || target.statCom == nullptr)
-        return;
+    float Damage = 40;
 
-    const float Damage = 20;
-    DamageSystem::ApplyDamage(Damage, target);
+    const auto enemy = CLIENT->Get_BattleController()->Get_AliveEnemies();
+
+    if (CurIndex >= skill.targetingType.size())
+    {
+        LOG_ERROR("ERROR_Base_Mon_Attack_ OutofRange");
+        return;
+    }
+
+    DamageSystem::ApplyDamage(Damage, action.GetCurStepTarget(), attackType);
+
+    /*if (skill.targetingType[CurIndex] == TargetType::AllEnemies)
+    {
+        for (int i = 0; i < enemy.size(); i++)
+            DamageSystem::ApplyDamage(Damage, enemy[i], AttackType::SingleAOE);
+    }
+    else if (skill.targetingType[CurIndex] == TargetType::Primary)
+        DamageSystem::ApplyDamage(Damage, action.target, AttackType::SingleSkill);
+    else if (skill.targetingType[CurIndex] == TargetType::RandomEnemy)
+    {
+
+        const int num = Math::RandNum(0, enemy.size() - 1);
+        DamageSystem::ApplyDamage(Damage, enemy[num], AttackType::Combo);
+    }*/
 
     if (attacker.heroId == HeroId::Gustave &&
         attacker.mechanismCom != nullptr &&
@@ -26,6 +47,8 @@ void Base_Gustave_Attack::Execute(const Skill_Data& skill, const BattleChar& att
     {
         attacker.mechanismCom->Add_GustaveCharge(1);
     }
+
+    CurIndex++;
 }
 
 Shared<Base_Gustave_Attack> Base_Gustave_Attack::Create()

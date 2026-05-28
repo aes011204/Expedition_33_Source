@@ -10,10 +10,11 @@ namespace Engine
 
 namespace Client
 {
-    struct BattleActionPhase;
+class Character_BattleBase;
+struct BattleActionPhase;
     struct Skill_Data;
     enum class Buffs;
-    enum class EAttackType;
+    enum class ElementalType;
     class CombatStatCom;
     class BattleMechanismCom;
 
@@ -138,12 +139,11 @@ namespace Client
     enum class EDamageReason
     {
         Invalid,
-        SkillCast,
+        Skill, // 일반 스킬 
         BuffEffect,
         FreeAim,
         Attack,
         Counter,
-        Lumina,
         Item,
         GradientCounter,
         RangeCounter,
@@ -168,7 +168,21 @@ namespace Client
         Initial,
         Final
     };
-
+    enum class AttackType
+    {
+        Invalid,
+        SingleSkill, // 일반 스킬 
+        BuffEffect,
+        FreeAimWeak,
+        FreeAimLight,
+        BaseAttack,
+        Counter,
+        Combo,
+        ComboLast,
+        //GradientCounter,
+        SingleAOE,
+        //JumpCounter
+    };
     //EMissReason
     enum class EMissReason
     {
@@ -426,7 +440,7 @@ namespace Client
         Boss
     };
 
-    enum class EAttackType
+    enum class ElementalType
     {
         None,
         Fire,
@@ -466,14 +480,14 @@ namespace Client
 
     struct FElementalAffinity
     {
-        EAttackType        attackType = EAttackType::None;
+        ElementalType        attackType = ElementalType::None;
         EElementalAffinity affinity = EElementalAffinity::Normal;
     };
 
     struct BattleChar
     {
         HeroId heroId = HeroId::END; // 어떤 월드 영웅과 연결된 배틀 캐릭터인지 끝날 때 역반영으로 사용
-        Shared<Character> actor;
+        Shared<Character_BattleBase> actor;
         Shared<CombatStatCom> statCom;
         Shared<ModelCom> ModelCom;
         Shared<BattleMechanismCom> mechanismCom;
@@ -524,8 +538,15 @@ namespace Client
 
     };
 
-
-
+    enum class TargetType
+    {
+        Invalid,
+        Primary,       
+        RandomEnemy,
+        AllEnemies,
+        Self,
+        ETC, //스폰 , 쉴드 등 
+    };
     
     struct TurnEntry
     {
@@ -541,7 +562,7 @@ namespace Client
         float baseDamage;
 
         EDamageReason damageType;
-        EAttackType element;
+        ElementalType element;
 
         float finalMultiplier = 1.0f;
         float flatBonus = 0.0f;
@@ -550,43 +571,35 @@ namespace Client
         bool ignoreDefense = false;
     };
 
-    //------------------------------------
     struct Skill_Data
     {
         string characterId = "";
         string skillKey = "";
         string scriptClassName = "";
         vector<BattleActionPhase> AnimPhases = {};
-       // string IdleAnimationKey = "";
 
+        vector<TargetType> targetingType = {};
 
+    
         int32 apCost = 0;
         int32 AttackCount = 0;
-        ECharacterTeamSelector targetingType = ECharacterTeamSelector::Invalid;
-        EAttackType element = EAttackType::None;
+        //ECharacterTeamSelector targetingType = ECharacterTeamSelector::Invalid;
+        ElementalType element = ElementalType::None;
         Buffs buff = Buffs::None;
         float ailmentChance = 0.f;
     };
 
-    struct Action
+    //------------------------------------
+    struct ActionRequest
     {
-        BattleChar _curChar = {};
-        BattleChar  target = {};
+        EBattleContext type = EBattleContext::Invalid;
 
-        EBattleContext type = {};
-
-        Item_Data   _selected_ItemKey = {};
-        Skill_Data   _selected_SkillKey = {};
-
-        uint32 _curAnimIndex = {};
-
-        Vec3 originPos = {};
-        Vec3 phaseStartPos = {};
-        Vec3 phaseGoalPos = {};
-        bool phaseReachedGoal = false;
-        float phasePrevRootRatio = 0.f;
+        BattleChar actor = {};
+        BattleChar InitTarget = {};
+        string skillKey = "";
+        BattleItemType itemType = BattleItemType::Invalid;
     };
-
+    
 //
     enum class BattleMovementPolicy
     {
@@ -602,6 +615,7 @@ namespace Client
     {
         None,
         Self,
+        Origin,
         PrimaryTarget,
         TargetCenter,
         FormationSlot,
@@ -612,15 +626,13 @@ namespace Client
     struct BattleActionPhase
     {
         string animationKey = "";
+        string cameraProfileId = "";
       //  string sequenceKey = "";
         uint32 phaseIndex={};
         BattleMovementPolicy movementPolicy = BattleMovementPolicy::None;
         BattleTargetAnchor targetAnchor = BattleTargetAnchor::PrimaryTarget;
-
         bool useDistance = false;
-
         float offsetDistance = {};
-
         bool faceTarget = true;
      //   bool disableSequenceSnapping = false;
     };

@@ -11,6 +11,13 @@ BattleCameraClipIO::~BattleCameraClipIO()
 
 namespace
 {
+BattleCameraClipTimeMode Get_DefaultBattleCameraClipTimeMode(BattleCameraMode cameraMode)
+{
+    return cameraMode == BattleCameraMode::BATTLEINTRO
+        ? BattleCameraClipTimeMode::Independent
+        : BattleCameraClipTimeMode::AnimationSync;
+}
+
 string Build_BattleCameraClipFilePath(BattleCameraMode cameraMode, const string& skillId)
 {
     const string modeName = string(magic_enum::enum_name(cameraMode));
@@ -36,6 +43,15 @@ json Serialize_BattleCameraTrack(const BattleCameraTrack& track)
     return keyframes;
 }
 
+void Sort_BattleCameraTrack(BattleCameraTrack& track)
+{
+    std::sort(track.keyframes.begin(), track.keyframes.end(),
+        [](const BattleCameraKeyframe& lhs, const BattleCameraKeyframe& rhs)
+        {
+            return lhs.time < rhs.time;
+        });
+}
+
 void Deserialize_BattleCameraTrack(const json& jsonData, const char* keyName, BattleCameraTrack& outTrack)
 {
     if (!jsonData.contains(keyName))
@@ -52,6 +68,8 @@ void Deserialize_BattleCameraTrack(const json& jsonData, const char* keyName, Ba
         key.value = keyframe.value("value", key.value);
         outTrack.keyframes.push_back(key);
     }
+
+    Sort_BattleCameraTrack(outTrack);
 }
 }
 
@@ -62,6 +80,7 @@ void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode,
     json jsonData {};
 
     jsonData["duration"] = clip.duration;
+    jsonData["timeMode"] = string(magic_enum::enum_name(clip.timeMode));
 
     jsonData["distanceOffset"] = Serialize_BattleCameraTrack(clip.distanceOffset);
     jsonData["fovOffset"] = Serialize_BattleCameraTrack(clip.fovOffset);
@@ -103,8 +122,14 @@ bool BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode cameraMod
     file >> jsonData;
 
     BattleCameraClip loadedClip {};
+    loadedClip.timeMode = Get_DefaultBattleCameraClipTimeMode(cameraMode);
 
     loadedClip.duration = jsonData.value("duration", clip.duration);
+    if (const string timeModeName = jsonData.value("timeMode", string{}); !timeModeName.empty())
+    {
+        if (const auto parsedTimeMode = magic_enum::enum_cast<BattleCameraClipTimeMode>(timeModeName); parsedTimeMode.has_value())
+            loadedClip.timeMode = parsedTimeMode.value();
+    }
 
     Deserialize_BattleCameraTrack(jsonData, "distanceOffset", loadedClip.distanceOffset);
     Deserialize_BattleCameraTrack(jsonData, "fovOffset", loadedClip.fovOffset);

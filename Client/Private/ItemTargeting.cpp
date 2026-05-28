@@ -54,7 +54,7 @@ void ItemTargeting::Update(float timeDelta)
 	if (!owner || !battleFSM)
 		return;
 
-	const BattleChar& actor = owner->Get_TurnAction()._curChar;
+	const BattleChar& actor = owner->Get_TurnActionRequest().actor;
 	if (actor.ModelCom)
 	{
 		const uint32 animIndex = actor.ModelCom->Get_AnimationStateIndex();
@@ -97,7 +97,8 @@ void ItemTargeting::Update(float timeDelta)
 		if (animIndex != ETOI(BattleAnimType::Item_Idle))
 			return;
 
-		owner->Get_TurnAction().target = _targetCandidates[_targetIndex];
+		auto& request = owner->Get_TurnActionRequest();
+		request.InitTarget = _targetCandidates[_targetIndex];
 
 		if (!actor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Item_Use), 0.1f, false))
 		{
@@ -108,7 +109,7 @@ void ItemTargeting::Update(float timeDelta)
 			return;
 		}
 
-		owner->ExecuteAction(owner->Get_TurnAction());
+		owner->ExecuteActionRequest(request);
 
 		return;
 	}
@@ -169,9 +170,9 @@ bool ItemTargeting::Is_ValidTarget(const BattleChar& target) const
 	if (!owner)
 		return false;
 
-	const Item_Data& itemData = owner->Get_TurnAction()._selected_ItemKey;
+	const BattleItemType itemType = owner->Get_TurnActionRequest().itemType;
 
-	switch (itemData.itemType)
+	switch (itemType)
 	{
 	case BattleItemType::HealingTint:
 	case BattleItemType::EnergyTint:    // 살아있는 플레이어만 사용 가능

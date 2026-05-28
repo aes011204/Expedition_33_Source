@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "SkillTargeting.h"
 #include "GameInstance.h"
 #include "BattleController.h"
@@ -93,15 +93,15 @@ void SkillTargeting::Update(float timeDelta)
     {
         owner->Set_TargetPreview(enemies[_targetIndex]);
 
-        auto& action = owner->Get_TurnAction();
-        action.target = enemies[_targetIndex]; // 여기서 선택 스킬 + 선택 타겟
+        auto& action = owner->Get_TurnActionRequest();
+        action.InitTarget = enemies[_targetIndex]; // 여기서 선택 스킬 + 선택 타겟
 
         LOG_DEBUG("SkillTargeting: confirm skill={}, targetIndex={}",
-            action._selected_SkillKey.skillKey.c_str(),
+            action.skillKey.c_str(),
             _targetIndex);
 
         battleFSM->Change_State(BattleTurnState::AttackPlaying);
-        owner->ExecuteAction(action);
+        owner->ExecuteActionRequest(action);
         return;
     }
 }

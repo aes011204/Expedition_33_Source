@@ -77,7 +77,7 @@ public:
 
     EAliveStatus Get_CurAliveState();
 
-    int32 Get_CurrentShield() { return Get_RuntimeStat().CurShield; }
+    uint32 Get_CurrentShield() { return Get_RuntimeStat().CurShield; }
     void Add_Shield(int32 value);
     void Remove_Shield(int32 value);
 

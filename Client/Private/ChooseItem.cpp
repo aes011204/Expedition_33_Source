@@ -36,9 +36,9 @@ bool ChooseItem::EnterInvoke()
     if (!owner)
         return false;
 
-    owner->Get_TurnAction()._selected_ItemKey = {}; // 메뉴에 다시 들어오면 이전 선택 초기화
+    owner->Get_TurnActionRequest().itemType = BattleItemType::Invalid; // 메뉴에 다시 들어오면 이전 선택 초기화
 
-    const BattleChar& actor = owner->Get_TurnAction()._curChar;
+    const BattleChar& actor = owner->Get_TurnActionRequest().actor;
     if (actor.ModelCom)
     {
         const uint32 animIndex = actor.ModelCom->Get_AnimationStateIndex();
@@ -67,7 +67,7 @@ void ChooseItem::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
-        owner->Get_TurnAction()._selected_ItemKey= {};
+        owner->Get_TurnActionRequest().itemType = BattleItemType::Invalid;
 
         const BattleChar& actor = owner->Get_TurnAction()._curChar;
         BattleAnimUtils::Play_BattleIdle(actor, 0.3f);
@@ -85,7 +85,7 @@ void ChooseItem::Update(float timeDelta)
         if (itemData->count <= 0)
             return false; // TODO : 수량 없으면 나중에 Opacity 조절 예정
 
-        owner->Get_TurnAction()._selected_ItemKey = *itemData;
+        owner->Get_TurnActionRequest().itemType = itemData->itemType;
         battleFSM->Change_State(BattleTurnState::ItemTargeting);
 
         return true;

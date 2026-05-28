@@ -34,10 +34,10 @@ bool ChooseSkill::EnterInvoke()
     if (!owner)
         return false;
 
-    auto& action = owner->Get_TurnAction();
-    action._selected_SkillKey = {}; // 스킬 메뉴 재진입 시 이전 선택값 제거
+    auto& request = owner->Get_TurnActionRequest();
+    request.skillKey.clear(); // 스킬 메뉴 재진입 시 이전 선택값 제거
 
-    const BattleChar& actor = action._curChar;
+    const BattleChar& actor = request.actor;
     if (actor.ModelCom)
     {
         // Enter 애니메이션 진입 후
@@ -63,14 +63,13 @@ void ChooseSkill::Update(float timeDelta)
     if (!owner || !battleFSM)
         return;
 
-    auto& action = owner->Get_TurnAction();
-    if (action._curChar.statCom == nullptr)
+    auto& request = owner->Get_TurnActionRequest();
+    if (request.actor.statCom == nullptr)
         return;
 
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
-        action._selected_SkillKey = {}; // 스킬 메뉴 취소
-
+        request.skillKey.clear(); // 스킬 메뉴 취소
         BattleAnimUtils::Play_BattleIdle(action._curChar, 0.3f);
 
         battleFSM->Change_State(BattleTurnState::ChooseAction);
@@ -108,18 +107,17 @@ void ChooseSkill::Update(float timeDelta)
     }
 
     const uint32 apCost = skillData->apCost > 0 ? static_cast<uint32>(skillData->apCost) : 0u;
-    if (action._curChar.statCom->Get_CurAP() < apCost)
+    if (request.actor.statCom->Get_CurAP() < apCost)
     {
         LOG_DEBUG("ChooseSkill: not enough AP. skillKey={}, curAP={}, cost={}",
             skillKey.c_str(),
-            action._curChar.statCom->Get_CurAP(),
+            request.actor.statCom->Get_CurAP(),
             apCost);
         return;
     }
 
-    action.type = EBattleContext::Skill;
-     // SkillTree 기준으로 구성된 battle slot 스킬을 targeting/execution으로 넘긴다.
-    action._selected_SkillKey = *skillData;
+    request.type = EBattleContext::Skill;
+    request.skillKey = skillData->skillKey; // SkillTargeting에서 target까지 확정한 뒤 Execute_Skill로 넘긴다.
 
     battleFSM->Change_State(BattleTurnState::SkillTargeting);
 

@@ -32,6 +32,7 @@ protected:
     HRESULT Ready_Components() override;
     HRESULT Ready_PartObjects();
 
+    virtual void    Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames)const override;
 private:
     Shared<Mon_Bishop_Body>      _body = {};
     //Shared<Mon_Lancelier_Weapon>      _weapon = {};

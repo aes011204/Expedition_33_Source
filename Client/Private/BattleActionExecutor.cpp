@@ -2,17 +2,27 @@
 
 #include "BattleAnimutils.h"
 #include "Character.h"
+#include "Monster_BattleBase.h"
 #include "CombatStatCom.h"
 
-void BattleActionExecutor::BeginAction(Action& action)
+void BattleActionExecutor::BeginAction(BattleAction& action)
 {
     _isFinished = false;
-    action._curAnimIndex = 0;
+    action.ResetCurAnimIndex();
     Begin_ActionPhase(action);
 }
 
-void BattleActionExecutor::Update(float timeDelta, Action& action)
+void BattleActionExecutor::Update(float timeDelta, BattleAction& action)
 {
+ /*   if (action.phaseReachedGoal)
+    {
+        FinishCurrentPhaseAtGoal(action);
+        return;
+    }*/
+
+    //LOG_DEBUG("goal : {},{},{}", action.GetPhaseGoalPos().x, action.GetPhaseGoalPos().y, action.GetPhaseGoalPos().z);
+    //LOG_DEBUG("start : {},{},{}", action.GetPhaseStartPos().x, action.GetPhaseStartPos().y, action.GetPhaseStartPos().z);
+
     if (_isFinished)
         return;
 
@@ -20,117 +30,122 @@ void BattleActionExecutor::Update(float timeDelta, Action& action)
     Update_ActionMovement(timeDelta, action);
 }
 
-void BattleActionExecutor::OnActionEndNotify(Action& action)
+void BattleActionExecutor::OnActionEndNotify(BattleAction& action)
 {
-    const auto& phases = action._selected_SkillKey.AnimPhases;
-    if (action._curAnimIndex >= phases.size())
+    const auto& phases = action.GetSkillData().AnimPhases;
+    if (action.GetCurAnimIndex() >= phases.size() )
         return;
 
-    const BattleActionPhase& phase = phases[action._curAnimIndex];
+    const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
 
-    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget ||
-        phase.movementPolicy == BattleMovementPolicy::MoveToTarget ||
-        phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
-    {
+    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget )//||
+        //phase.movementPolicy == BattleMovementPolicy::MoveToTarget )//||
+       // phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
         return;
-    }
+
+    //if (phase.movementPolicy == BattleMovementPolicy::MoveToTarget ||
+    //    phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
+    //{
+    //    action.SnapActorToPhaseGoal();
+    //    action.ResetPhasePrevRootRatio();
+    //    action.SetPhaseReachedGoal(true);
+    //}
 
     Complete_CurPhase(action);
+    //action.phaseReachedGoal = true;
 }
 
-void BattleActionExecutor::Complete_CurPhase(Action& action)
+void BattleActionExecutor::Complete_CurPhase(BattleAction& action)
 {
-    const auto& phases = action._selected_SkillKey.AnimPhases;
-    if (action._curAnimIndex >= phases.size())
+    const auto& phases = action.GetSkillData().AnimPhases;
+    if (action.GetCurAnimIndex() >= phases.size())
         return;
 
-    action._curAnimIndex++;
+    action.AdvanceCurAnimIndex();
 
-    if (action._curAnimIndex >= phases.size())
+    if (action.GetCurAnimIndex() >= phases.size())
     {
-        if (action._curChar.ModelCom)
+        if (action.Get_CurChar().ModelCom)
         {
             BattleAnimUtils::Play_BattleIdle(action._curChar, 0.3f);
             //action._curChar.ModelCom->Set_Animation(action._selected_SkillKey.IdleAnimationKey, true, 0.f);
         }
 
         _isFinished = true;
-        action.phaseReachedGoal = true;
+        action.SetPhaseReachedGoal(true);
         return;
     }
 
     Begin_ActionPhase(action);
 }
 
-void BattleActionExecutor::Begin_ActionPhase(Action& action)
+void BattleActionExecutor::Begin_ActionPhase(BattleAction& action)
 {
-    if (!action._curChar.actor)
+    if (!action.Get_CurChar().actor)
         return;
 
     //phases 가져옴
-    const auto phases = action._selected_SkillKey.AnimPhases;
+    const auto phases = action.GetSkillData().AnimPhases;
     if (phases.size() == 0)
         return;
 
-    const BattleActionPhase& phase = phases[action._curAnimIndex];
+    const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
 
     //phase에 현재 단계 데이터 저장
-    action.phaseStartPos = action._curChar.actor->Get_Transform()->Get_Position();
-    action.phaseGoalPos = Resolve_PhaseGoalPosition(action, phase);
-    action.phaseReachedGoal = false;
-    action.phasePrevRootRatio = 0.f;
+    action.BeginPhase(
+        action.Get_CurChar().actor->Get_Transform()->Get_Position(),
+        Resolve_PhaseGoalPosition(action, phase));
 
-    // _testPrevRatio = action._curChar.ModelCom->Get_RootMotionTranslationRatio();
+    // _testPrevRatio = action.Get_CurChar().ModelCom->Get_RootMotionTranslationRatio();
 
     if (phase.faceTarget)
-        Face_ActionTarget(action, action.phaseGoalPos);
+        Face_ActionTarget(action, action.GetPhaseGoalPos());
 
-
-    if(phase.movementPolicy ==BattleMovementPolicy::RootMotionToTarget)
-    {
-        action._curChar.ModelCom->Set_Animation(phase.animationKey,  true, 0.f);
-    }
+    if (phase.movementPolicy == BattleMovementPolicy::RootMotionToTarget)
+        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, true);
     else
-    action._curChar.ModelCom->Set_Animation(phase.animationKey, false, 0.f);
+        action.Get_CurChar().ModelCom->Set_Animation(phase.animationKey, false);
 }
 
-Vec3 BattleActionExecutor::Resolve_AnchorPosition(const Action& action, BattleTargetAnchor anchor) const
+Vec3 BattleActionExecutor::Resolve_AnchorPosition(const BattleAction& action, BattleTargetAnchor anchor) const
 {
     switch (anchor)
     {
     case BattleTargetAnchor::Self:
-        return action._curChar.actor->Get_Transform()->Get_Position();
+        return action.Get_CurChar().actor->Get_Transform()->Get_Position();
 
     case BattleTargetAnchor::PrimaryTarget:
-        if (action.target.actor)
-            return action.target.actor->Get_Transform()->Get_Position();
+        if (action.GetInitTarget().actor)
+            return action.GetInitTarget().actor->Get_Transform()->Get_Position();
         break;
 
     case BattleTargetAnchor::TargetCenter: // TODO:: 나중에 팀의 중심 값가져오기
-        if (action.target.actor)
-            return action.target.actor->Get_Transform()->Get_Position();
+        if (action.GetInitTarget().actor)
+            return action.GetInitTarget().actor->Get_Transform()->Get_Position();
         break;
-
+    case BattleTargetAnchor::Origin: // TODO:: 나중에 팀의 중심 값가져오기
+            return action.GetOriginPos();
+        break;
     default:
         break;
     }
 
-    return action._curChar.actor->Get_Transform()->Get_Position();
+    return action.Get_CurChar().actor->Get_Transform()->Get_Position();
 }
 
-Vec3 BattleActionExecutor::Resolve_PhaseGoalPosition(const Action& action, const BattleActionPhase& phase) const
+Vec3 BattleActionExecutor::Resolve_PhaseGoalPosition(const BattleAction& action, const BattleActionPhase& phase) const
 {
-    if (!action._curChar.actor)
+    if (!action.Get_CurChar().actor)
         return {};
 
-    const Vec3 actorPos = action._curChar.actor->Get_Transform()->Get_Position();
+    const Vec3 actorPos = action.Get_CurChar().actor->Get_Transform()->Get_Position();
 
     if (phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
-        return action.originPos;
+        return action.GetOriginPos();
 
     const Vec3 anchorPos = Resolve_AnchorPosition(action, phase.targetAnchor);
 
-    if (!phase.useDistance)
+    if (!phase.useDistance|| phase.targetAnchor == BattleTargetAnchor::Origin)
         return anchorPos;
 
     if (phase.targetAnchor == BattleTargetAnchor::Self)
@@ -147,12 +162,12 @@ Vec3 BattleActionExecutor::Resolve_PhaseGoalPosition(const Action& action, const
     return anchorPos - dir * phase.offsetDistance;
 }
 
-void BattleActionExecutor::Face_ActionTarget(Action& action, const Vec3& goalPos)
+void BattleActionExecutor::Face_ActionTarget(BattleAction& action, const Vec3& goalPos)
 {
-    if (!action._curChar.actor)
+    if (!action.Get_CurChar().actor)
         return;
 
-    const auto transform = action._curChar.actor->Get_Transform();
+    const auto transform = action.Get_CurChar().actor->Get_Transform();
     const Vec3 pos = transform->Get_Position();
 
     Vec3 dir = goalPos - pos;
@@ -171,24 +186,27 @@ void BattleActionExecutor::Face_ActionTarget(Action& action, const Vec3& goalPos
     transform->Set_RotationEuler(rot);
 }
 
-void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action)
+void BattleActionExecutor::Update_ActionMovement(float timeDelta, BattleAction& action)
 {
-    const auto& phases = action._selected_SkillKey.AnimPhases;
-    if (action._curAnimIndex >= phases.size())
+    if (action.HasReachedPhaseGoal())
         return;
 
-    const BattleActionPhase& phase = phases[action._curAnimIndex];
+    const auto& phases = action.GetSkillData().AnimPhases;
+    if (action.GetCurAnimIndex() >= phases.size())
+        return;
+
+    const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
     if (phase.movementPolicy == BattleMovementPolicy::Custom)
         return;
 
-    if (!action._curChar.actor || !action._curChar.ModelCom)
+    if (!action.Get_CurChar().actor || !action.Get_CurChar().ModelCom)
         return;
 
-    const auto transform = action._curChar.actor->Get_Transform();
+    const auto transform = action.Get_CurChar().actor->Get_Transform();
     const Vec3 currentPos = transform->Get_Position();
 
     if (phase.faceTarget)
-        Face_ActionTarget(action, action.phaseGoalPos);
+        Face_ActionTarget(action, action.GetPhaseGoalPos());
 
     switch (phase.movementPolicy)
     {
@@ -210,29 +228,29 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, Action& action
     }
 }
 
-void BattleActionExecutor::Update_BasicMovement(Action& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
+void BattleActionExecutor::Update_BasicMovement(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
 {
     //NONE
-    const auto& rm = action._curChar.ModelCom->Get_RootTransformVelocity();
+    const auto& rm = action.Get_CurChar().ModelCom->Get_RootTransformVelocity();
     const Vec3 delta = rm.position * 0.01f;
 
-    Vec3 rotDeg = transform->Get_RotationEuler();
-    Vec3 rotRad(
+    const Vec3 rotDeg = transform->Get_RotationEuler();
+    const Vec3 rotRad(
         XMConvertToRadians(rotDeg.x),
         XMConvertToRadians(rotDeg.y),
-        XMConvertToRadians(rotDeg.z));
+        XMConvertToRadians(rotDeg.z)
+    );
 
-    Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
-    Vec3 worldDelta = Vec3::TransformNormal(delta, rotMat);
+    const Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
+    const Vec3 worldDelta = Vec3::TransformNormal(delta, rotMat);
 
     transform->Set_Position(currentPos + worldDelta);
 }
 
-void BattleActionExecutor::Update_RootMotionToTarget(Action& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
+void BattleActionExecutor::Update_RootMotionToTarget(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
 {
-
     //RootMotionToTarget
-    Vec3 toGoal = action.phaseGoalPos - currentPos;
+    Vec3 toGoal = action.GetPhaseGoalPos() - currentPos;
     toGoal.y = 0.f;
 
     const float remain = toGoal.Length();
@@ -242,20 +260,21 @@ void BattleActionExecutor::Update_RootMotionToTarget(Action& action, const Share
         return;
     }
 
-    const auto& rm = action._curChar.ModelCom->Get_RootTransformVelocity();
+    const auto& rm = action.Get_CurChar().ModelCom->Get_RootTransformVelocity();
     Vec3 localDelta = rm.position * 0.01f;
     localDelta.y = 0.f;
 
     if (localDelta.LengthSquared() <= 0.0001f)
         return;
 
-    Vec3 rotDeg = transform->Get_RotationEuler();
-    Vec3 rotRad(
+    const Vec3 rotDeg = transform->Get_RotationEuler();
+    const Vec3 rotRad(
         XMConvertToRadians(rotDeg.x),
         XMConvertToRadians(rotDeg.y),
-        XMConvertToRadians(rotDeg.z));
+        XMConvertToRadians(rotDeg.z)
+    );
 
-    Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
+    const Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
     Vec3 worldDelta = Vec3::TransformNormal(localDelta, rotMat);
     worldDelta.y = 0.f;
 
@@ -269,7 +288,7 @@ void BattleActionExecutor::Update_RootMotionToTarget(Action& action, const Share
     if (forwardAmount <= 0.f)
         return;
 
-    Vec3 moveDelta = goalDir * forwardAmount;
+    const Vec3 moveDelta = goalDir * forwardAmount;
     if (moveDelta.Length() >= remain)
     {
         FinishCurrentPhaseAtGoal(action);
@@ -279,69 +298,83 @@ void BattleActionExecutor::Update_RootMotionToTarget(Action& action, const Share
     transform->Set_Position(currentPos + moveDelta);
 }
 
-void BattleActionExecutor::Update_RatioMoveTo(Action& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
+void BattleActionExecutor::Update_RatioMoveTo(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
 {
     //ReturnToOrigin
     //MoveToTarget
-    Vec3 path = action.phaseGoalPos - action.phaseStartPos;
+    Vec3 path = action.GetPhaseGoalPos() - action.GetPhaseStartPos();
     path.y = 0.f;
     const float totalDistance = path.Length();
 
     if (totalDistance <= 0.05f)
     {
-        FinishCurrentPhaseAtGoal(action);
+       // FinishCurrentPhaseAtGoal(action);
+      /*  action.SnapActorToPhaseGoal();
+        action.ResetPhasePrevRootRatio();
+        action.SetPhaseReachedGoal(true);*/
         return;
     }
 
     path.Normalize();
 
-    Vec3 toGoal = action.phaseGoalPos - currentPos;
+    Vec3 toGoal = action.GetPhaseGoalPos() - currentPos;
     toGoal.y = 0.f;
     const float remain = toGoal.Length();
 
     if (remain <= 0.05f)
     {
-        FinishCurrentPhaseAtGoal(action);
+      //  FinishCurrentPhaseAtGoal(action);
+      /*  action.SnapActorToPhaseGoal();
+        action.ResetPhasePrevRootRatio();
+        action.SetPhaseReachedGoal(true);*/
         return;
     }
 
-    const float currentRatio = action._curChar.ModelCom->Get_RootMotionTranslationRatio();
-    float deltaRatio = currentRatio - action.phasePrevRootRatio;
+    const float currentRatio = action.Get_CurChar().ModelCom->Get_RootMotionTranslationRatio();
+    float deltaRatio = currentRatio - action.GetPhasePrevRootRatio();
 
-    if (currentRatio >= 0.999f)
-    {
-        FinishCurrentPhaseAtGoal(action);
-        return;
-    }
+    //if (currentRatio >= 0.999f)
+    //{
+    //  //  FinishCurrentPhaseAtGoal(action);
+    //   /* action.SnapActorToPhaseGoal();
+    //    action.ResetPhasePrevRootRatio();
+    //    action.SetPhaseReachedGoal(true);*/
+    //    return;
+    //}
 
     if (deltaRatio < 0.f)
         deltaRatio = 0.f;
 
-    action.phasePrevRootRatio = currentRatio;
+    action.SetPhasePrevRootRatio(currentRatio);
 
-    if (deltaRatio < -0.05f || currentRatio >= 0.999f)
-        return;
+    //if (deltaRatio <= 0.f /*|| currentRatio >= 0.999f*/)
+    //    return;
 
     const float moveAmount = totalDistance * deltaRatio;
     if (moveAmount <= 0.f)
         return;
 
-    if (moveAmount >= remain)
-    {
-        FinishCurrentPhaseAtGoal(action);
-        return;
-    }
+    //if (moveAmount >= remain)
+    //{
+    //  //  FinishCurrentPhaseAtGoal(action);
+    //  /*  action.SnapActorToPhaseGoal();
+    //    action.ResetPhasePrevRootRatio();
+    //    action.SetPhaseReachedGoal(true);*/
+    //    return;
+    //}
 
-    transform->Set_Position(currentPos + path * moveAmount);
+    const float clampedMove = min(moveAmount, remain);
+    transform->Set_Position(currentPos + path * clampedMove);
 }
 
-void BattleActionExecutor::FinishCurrentPhaseAtGoal(Action& action)
+void BattleActionExecutor::FinishCurrentPhaseAtGoal(BattleAction& action)
 {
-    if (!action._curChar.actor)
+    if (!action.Get_CurChar().actor)
         return;
 
-    action._curChar.actor->Get_Transform()->Set_Position(action.phaseGoalPos);
-    action.phaseReachedGoal = true;
+    action.SnapActorToPhaseGoal();
+    action.ResetPhasePrevRootRatio();
+    action.SetPhaseReachedGoal(true);
     Complete_CurPhase(action);
 }
 

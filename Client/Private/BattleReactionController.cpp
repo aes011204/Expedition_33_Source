@@ -2,6 +2,8 @@
 
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
+#include "ClientInstance.h"
+#include "BattleController.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
 
@@ -29,23 +31,26 @@ void BattleReactionController::Clear()
     _isParryOpen = false;
     _isConsumed = false;
     _result = BattleReactionType::None;
+    _consumedStepIndex = UINT32_MAX;
 }
 
 void BattleReactionController::Clear_RuntimeState()
 {
     Clear();
 
-    if (_reactionAnimTarget.ModelCom)
-        _reactionAnimTarget.ModelCom->Set_FrameSpeed(1.f);
-
-    _reactionAnimTarget = {};
+    for (const BattleChar& target : _reactionAnimTargets)
+    {
+        if (target.ModelCom)
+            target.ModelCom->Set_FrameSpeed(1.f);
+    }
+    _reactionAnimTargets.clear();
     _counterDamageTarget = {};
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
 }
 
-bool BattleReactionController::TryInput(BattleReactionType type)
+bool BattleReactionController::TryInput(BattleReactionType type, uint32 stepIndex)
 {
     if (_isConsumed)
         return false;
@@ -55,14 +60,23 @@ bool BattleReactionController::TryInput(BattleReactionType type)
 
     _isConsumed = true;
     _result = type;
-
+    _consumedStepIndex = stepIndex;
     return true;
 }
 
-bool BattleReactionController::TryConsume(BattleReactionType& outResult)
+bool BattleReactionController::TryConsume(BattleReactionType& outResult, uint32 stepIndex)
 {
     if (!_isConsumed)
         return false;
+
+    if (_consumedStepIndex != stepIndex)
+    {
+        // 저장된 입력이 이미 지난 step용이면 버린다.
+        if (_consumedStepIndex < stepIndex)
+            Clear();
+
+        return false;
+    }
 
     outResult = _result;
     Clear();
@@ -83,54 +97,141 @@ bool BattleReactionController::IsWindowOpen(BattleReactionType type) const
     }
 }
 
-BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateInput(const Action& turnAction)
+BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateInput(const BattleAction& turnAction)
 {
+
     UpdateAnimation();
 
     BattleReactionInputResult result{};
-    const BattleChar& reactionTarget = turnAction.target;  // 회피/패링 애니메이션을 재생할 플레이어
-    const BattleChar& counterTarget = turnAction._curChar; // Parry 성공 후 Counter 데미지를 받을 현재 공격자
 
-    // 입력받지 못할 떄 
-    if (!CanReceiveInput(reactionTarget))
+    if (_curSkillData == nullptr)
         return result;
 
-    // 이미 소비 했으면
+    if (turnAction.GetSteps().size() <= turnAction.GetCurStepIndex())
+        return result;
+
+    const auto& curTargets = turnAction.GetCurStepTarget();
+    if (curTargets.empty())
+        return result;
+
     if (IsConsumed())
         return result;
 
-    // 회피
-    if (GAME->KeyDown(KEY_TYPE::Q))
+    bool pressedQ = GAME->KeyDown(KEY_TYPE::Q);
+    bool pressedE = GAME->KeyDown(KEY_TYPE::E);
+
+    if (!pressedQ && !pressedE)
+        return result;
+
+    const BattleChar& counterTarget = turnAction.Get_CurChar();
+    const uint32 curStepIndex = turnAction.GetCurStepIndex();
+
+    if (pressedQ)
     {
+        const bool success = TryInput(BattleReactionType::Dodge, curStepIndex);
+
         result.hasInput = true;
         result.type = BattleReactionType::Dodge;
-        result.success = TryInput(BattleReactionType::Dodge);
+        result.success = success;
 
-        // 실패했을 때도 애니메이션은 재생
-        PlayReactionAnimation(reactionTarget, BattleReactionType::Dodge, result.success, {});
-        return result;
+        for (const BattleChar& target : curTargets)
+        {
+            if (!CanReceiveInput(target))
+                continue;
+
+            PlayReactionAnimation(
+                target,
+                BattleReactionType::Dodge,
+                success,
+                {},
+                curStepIndex);
+        }
     }
-    // 패링
-    if (GAME->KeyDown(KEY_TYPE::E))
+    else if (pressedE)
     {
+        const bool success = TryInput(BattleReactionType::Parry, curStepIndex);
+
         result.hasInput = true;
         result.type = BattleReactionType::Parry;
-        result.success = TryInput(BattleReactionType::Parry);
+        result.success = success;
 
-        // 성공하면 Counter
-        PlayReactionAnimation(reactionTarget, BattleReactionType::Parry, result.success, counterTarget);
-        return result;
+        for (const BattleChar& target : curTargets)
+        {
+            if (!CanReceiveInput(target))
+                continue;
+
+            PlayReactionAnimation(
+                target,
+                BattleReactionType::Parry,
+                success,
+                counterTarget,
+                curStepIndex);
+        }
     }
+
+    /*   if ((pressedQ && IsWindowOpen(BattleReactionType::Dodge)) ||
+           (pressedE && IsWindowOpen(BattleReactionType::Parry)))
+       {
+           _isConsumed = true;
+       }*/
 
     return result;
 }
 
+BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateTargetInput(const BattleChar& reactionTarget, const BattleChar& counterTarget, uint32 curAnimIndex,
+    bool pressedQ, bool pressedE)
+{
+
+    BattleReactionInputResult result{};
+
+
+
+    //// 회피
+    //if (pressedQ)
+    //{
+    //    result.hasInput = true;
+    //    result.type = BattleReactionType::Dodge;
+    //    result.success = TryInput(BattleReactionType::Dodge,); ;
+
+    //    // 실패했을 때도 애니메이션은 재생
+    //    PlayReactionAnimation(reactionTarget, BattleReactionType::Dodge, result.success, {}, curAnimIndex);
+    //}
+    //// 패링
+    //if (pressedE)
+    //{
+    //    result.hasInput = true;
+    //    result.type = BattleReactionType::Parry;
+    //    result.success = TryInput(BattleReactionType::Parry,); ;
+
+    //    // 성공하면 Counter
+    //    PlayReactionAnimation(reactionTarget, BattleReactionType::Parry, result.success, counterTarget, curAnimIndex);
+    //}
+
+
+    return result;
+}
+
+
 void BattleReactionController::UpdateAnimation()
 {
-    if (_reactionAnimTarget.ModelCom == nullptr)
+    if (_reactionAnimTargets.empty())
         return;
 
-    if (!_reactionAnimTarget.ModelCom->Is_AnimationFinished())
+    bool allFinished = true;
+
+    for (const BattleChar& target : _reactionAnimTargets)
+    {
+        if (target.ModelCom == nullptr)
+            continue;
+
+        if (!target.ModelCom->Is_AnimationFinished())
+        {
+            allFinished = false;
+            break;
+        }
+    }
+
+    if (!allFinished)
         return;
 
     FinishReactionAnimation();
@@ -140,15 +241,24 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleS
 {
     if (!_isCounterPending)
         return;
+    bool ownsSource = false;
+    for (const BattleChar& target : _reactionAnimTargets)
+    {
+        //if (target.ModelCom && target.ModelCom.get() == sourceModel)
+        //{
+         //   ownsSource = true;
+            if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Counter), 0.12f, false))
+                return;
+        //    break;
+       // }
+    }
 
-    if (_reactionAnimTarget.ModelCom == nullptr || _reactionAnimTarget.ModelCom.get() != sourceModel)
-        return;
+    //if (!ownsSource)
+    //    return;
 
-    if (!_reactionAnimTarget.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Counter), 0.12f, false))
-        return;
 
     GAME->Slow_WorldTime(slowDesc.worldTimeScale, slowDesc.duration);
-    _reactionAnimTarget.ModelCom->Set_FrameSpeed(counterPlayRate); // 플레이어 속도 증가
+    sourceModel->Set_FrameSpeed(counterPlayRate); // 플레이어 속도 증가
 
     _isCounterPending = false;
     _isCounterDamageApplied = false;
@@ -157,22 +267,31 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleS
 
 void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
 {
-     if (_animPhase != ReactionAnimPhase::Counter)
+    if (_animPhase != ReactionAnimPhase::Counter)
         return;
 
     if (_isCounterDamageApplied)
         return;
 
-    if (_reactionAnimTarget.ModelCom == nullptr || _reactionAnimTarget.ModelCom.get() != sourceModel)
-        return; 
 
     if (_counterDamageTarget.actor == nullptr || _counterDamageTarget.statCom == nullptr)
         return;
 
-    constexpr float counterDamage = 50.f; // 임시 고정값.
-    DamageSystem::ApplyDamage(counterDamage, _counterDamageTarget);
+    constexpr float counterDamage = 50.f;
 
-    _isCounterDamageApplied = true;
+    uint32 hitCount = 0;
+
+    for (const BattleChar& target : _reactionAnimTargets)
+    {
+        if (target.actor == nullptr || target.statCom == nullptr)
+            continue;
+
+        DamageSystem::ApplyDamage(counterDamage, _counterDamageTarget, AttackType::Counter);
+        ++hitCount;
+    }
+
+    if (hitCount > 0)
+        _isCounterDamageApplied = true;
 }
 
 bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
@@ -201,8 +320,10 @@ bool BattleReactionController::IsHitOrDeadBattleAnim(BattleAnimType animType) co
 }
 
 void BattleReactionController::PlayReactionAnimation(const BattleChar& target, BattleReactionType reactionType,
-    bool isSuccess, const BattleChar& counterTarget)
+    bool isSuccess, const BattleChar& counterTarget, uint32 curAttackIndex)
 {
+
+
     if (target.ModelCom == nullptr)
         return;
 
@@ -216,7 +337,7 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
     {
         animType = BattleAnimType::Parray; // 성공하면 패링 애니메이션
 
-        if (isSuccess)
+        if (isSuccess && _curSkillData->targetingType.size() - 1 == curAttackIndex)
         {
             _isCounterPending = true;
             _counterDamageTarget = counterTarget;
@@ -231,24 +352,28 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
     if (!target.ModelCom->Set_AnimationByState(ETOI(animType), 0.1f, false))
         return;
 
-    _reactionAnimTarget = target;
+    _reactionAnimTargets.push_back(target);
     _animPhase = ReactionAnimPhase::Reaction;
+
+
+
 }
 
 void BattleReactionController::FinishReactionAnimation()
 {
-    if (_reactionAnimTarget.ModelCom)
+    for (const BattleChar& target : _reactionAnimTargets)
     {
-         // Counter 배속이 다음 애니메이션으로 새지 않게 복구
-        _reactionAnimTarget.ModelCom->Set_FrameSpeed(1.f);
+        if (target.ModelCom == nullptr)
+            continue;
 
-        _reactionAnimTarget.ModelCom->Set_AnimationByState(
+        target.ModelCom->Set_FrameSpeed(1.f);
+        target.ModelCom->Set_AnimationByState(
             ETOI(BattleAnimType::Base_Idle),
             0.15f,
             true);
     }
 
-    _reactionAnimTarget = {};
+    _reactionAnimTargets.clear();
     _counterDamageTarget = {};
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;

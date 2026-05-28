@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="98.Default">
@@ -307,6 +307,18 @@
     <ClCompile Include="..\Private\BattleCameraClipIO.cpp">
       <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClCompile>
+    <ClCompile Include="..\private\ANS_Emissive.cpp" />
+    <ClCompile Include="..\private\AN_Change_Anim.cpp" />
+    <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
+    <ClCompile Include="..\Private\AN_StartCounter.cpp" />
+    <ClCompile Include="..\private\Base_Mon_Defense.cpp" />
+    <ClCompile Include="..\private\Base_Mon_Spawn.cpp" />
+    <ClCompile Include="..\Private\BattleReactionController.cpp" />
+    <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
+    <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp" />
+    <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
+    <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
+    <ClCompile Include="ANS_Visible_Parts.cpp" />
     <ClCompile Include="..\Private\ANS_QTE.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
@@ -344,6 +356,9 @@
     <ClCompile Include="..\Private\Skill_Maelle_Battle.cpp" />
     <ClCompile Include="..\Private\BattleHitSequenceRunner.cpp" />
     <ClCompile Include="..\Private\BattleAnimutils.cpp" />
+    <ClCompile Include="..\private\BattleAction.cpp" />
+    <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
+    <ClCompile Include="..\private\BT_LookRange.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -362,6 +377,9 @@
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneCombine.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">
@@ -500,6 +518,8 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
+      <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -995,6 +1015,7 @@
     <ClInclude Include="..\Public\BattleCameraClipUtils.h">
       <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\ANS_Emissive.h" />
     <ClInclude Include="..\public\AN_Change_Anim.h" />
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\Public\AN_StartCounter.h" />
@@ -1005,6 +1026,8 @@
     <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h" />
     <ClInclude Include="..\Public\UI_BattleMechanism.h" />
     <ClInclude Include="..\Public\UI_ReactionResult.h" />
+    <ClInclude Include="ANS_Visible_Parts.h" />
+    <ClInclude Include="Battle_Enum.h" />
     <ClInclude Include="..\Public\UI_PlayerHpBar.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
@@ -1031,6 +1054,10 @@
     <ClInclude Include="..\Public\Skill_Maelle_Battle.h" />
     <ClInclude Include="..\Public\BattleHitSequenceRunner.h" />
     <ClInclude Include="..\Public\BattleAnimUtils.h" />
+    <ClInclude Include="..\public\BattleAction.h" />
+    <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h" />
+    <ClInclude Include="Battle_Enum.h" />
+    <ClInclude Include="..\public\BT_LookRange.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

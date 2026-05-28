@@ -8,7 +8,7 @@
 #include "GameInstance.h"
 #include "PhysX_Types.h"
 #include "GameObject.h"
-#include "Character.h"
+#include "Monster_BattleBase.h"
 #include "ModelCom.h"
 
 FreeAimTargeting::FreeAimTargeting(const Shared<BattleController>& owner)
@@ -44,7 +44,7 @@ bool FreeAimTargeting::EnterInvoke()
     }
 
     //GAME->Lock_Mouse();
-    const BattleChar& actor = owner->Get_TurnAction()._curChar;
+    const BattleChar& actor = owner->Get_TurnActionRequest().actor;
     if (actor.ModelCom == nullptr)
         return false;
 
@@ -97,16 +97,16 @@ void FreeAimTargeting::Update(float timeDelta)
 
     if (GAME->KeyDown(KEY_TYPE::LBUTTON))
     {
-        Action shotAction{};
-        shotAction._curChar = owner->Get_TurnAction()._curChar;
-        shotAction.type = EBattleContext::FreeAimShoot;
+        ActionRequest shotRequest{};
+        shotRequest.actor = owner->Get_TurnActionRequest().actor;
+        shotRequest.type = EBattleContext::FreeAimShoot;
 
         if (_hasCurrentHitTarget)
-            shotAction.target = _currentHitTarget;
+            shotRequest.InitTarget = _currentHitTarget;
         else
-            shotAction.target = {};
+            shotRequest.InitTarget = {};
 
-        owner->Begin_FreeAimShot(shotAction);
+        owner->ExecuteActionRequest(shotRequest);
         return;
     }
 }
@@ -206,7 +206,7 @@ bool FreeAimTargeting::Is_CurrentActorAnimFinished() const
     if (!owner)
         return false;
 
-    const BattleChar& actor = owner->Get_TurnAction()._curChar;
+    const BattleChar& actor = owner->Get_TurnActionRequest().actor;
     if (actor.ModelCom == nullptr)
         return false;
 
@@ -219,7 +219,7 @@ void FreeAimTargeting::Play_CurrentActorBattleAnim(BattleAnimType animType, floa
     if (!owner)
         return;
 
-    const BattleChar& actor = owner->Get_TurnAction()._curChar;
+    const BattleChar& actor = owner->Get_TurnActionRequest().actor;
     if (actor.ModelCom == nullptr)
         return;
 
