@@ -212,7 +212,7 @@ void Renderer::Draw()
     // ScreenFX
     // ========================================= //
     const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
-    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && _screenFxShader;
+    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
     if (useScreenFx)
     {
         // BackBuffer(지금까지 그린 화면) -> ScreenFx 로 복사
@@ -825,12 +825,6 @@ void Renderer::Render_ScreenFx()
     RETURN_LOG_IF_FAILED(
         GAME->Get_ScreenFxManager()->Render_ScreenFx(_screenFxShader, _viBuffer),
         L"Render_ScreenFx:FAIL Manager->Render_ScreenFx");
-
-    RETURN_LOG_IF_FAILED(
-       _viBuffer->Render(),
-       L"Render_ScreenFx:FAIL RenderRect");
-
-    Add_RenderCall();
 }
 
 HRESULT Renderer::Ready_Shaders()

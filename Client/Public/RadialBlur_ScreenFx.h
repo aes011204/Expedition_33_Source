@@ -9,6 +9,7 @@ NS_BEGIN(Client)
 
 class RadialBlur_ScreenFx final : public ScreenFx_Instance
 {
+    GENERATED_BASE_TYPE_BODY(RadialBlur_ScreenFx)
 public:
     struct RadialBlurDesc : public ScreenFxDesc
     {
@@ -26,13 +27,12 @@ public:
     HRESULT Initialize(ScreenFxDesc* desc) override;
     void Update_ScreenFx(float timeDelta) override;
     HRESULT Bind_FxConstantBuffer(ShaderCom* shader) override;
+    void Evaluate_At(float normalizedTime) override;
 
 private:
     Vec2    _center{};
     float   _radius{};
     float   _maxIntensity{};
-    float   _duration{};
-    float   _timeAcc{};
     float   _currentIntensity{};
 
 public:

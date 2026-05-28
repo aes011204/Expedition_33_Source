@@ -56,6 +56,7 @@ class SSAOPipeline;
 class ScreenFx_Manager;
 class ShaderResourceRegistry;
 struct StaticCollisionData;
+class ScreenFx_Instance;
 NS_END
 #pragma endregion
 
@@ -336,17 +337,20 @@ public: /* For.TypeRegistry */
     const TypeRegistry::BTNodeTypeInfo*          Find_BTNodeType(const string& className) const;
     const TypeRegistry::AnimNotifyTypeInfo*      Find_AnimNotifyType(const string& className) const;
     const TypeRegistry::AnimNotifyStateTypeInfo* Find_AnimNotifyStateType(const string& className) const;
+    const TypeRegistry::ScreenFxTypeInfo*        Find_ScreenFxType(const string& className) const;
 
     void Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const;
     void Visit_AnimNotifyTypes(const function<void(const TypeRegistry::AnimNotifyTypeInfo&)>& visitor) const;
     void Visit_AnimNotifyStateTypes(const function<void(const TypeRegistry::AnimNotifyStateTypeInfo&)>& visitor) const;
 	void Visit_GlobalEnums(const function<void(const TypeRegistry::GlobalEnumInfo&)>& visitor) const;
+    void Visit_ScreenFxTypes(const function<void(const TypeRegistry::ScreenFxTypeInfo&)>& visitor) const;
 
     Shared<Component>       Create_ComponentPrototype(const string& className) const;
     Shared<GameObject>      Create_GameObjectPrototype(const string& className) const;
     Shared<Base>            Create_BTNodePrototype(const string& className) const;
     Shared<AnimNotify>      Create_AnimNotifyPrototype(const string& className) const;
     Shared<AnimNotifyState> Create_AnimNotifyStatePrototype(const string& className) const;
+    Shared<ScreenFx_Instance> Create_ScreenFxInstance(const string& className) const;
 
 
 public : /* For.Target_Manager */

@@ -1,4 +1,4 @@
-﻿#pragma region INCLUDE
+#pragma region INCLUDE
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
@@ -1559,6 +1559,11 @@ const TypeRegistry::AnimNotifyStateTypeInfo* GameInstance::Find_AnimNotifyStateT
     return _typeRegistry->Find_AnimNotifyStateType(className);
 }
 
+const TypeRegistry::ScreenFxTypeInfo* GameInstance::Find_ScreenFxType(const string& className) const
+{
+    return _typeRegistry->Find_ScreenFxType(className);
+}
+
 void GameInstance::Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const
 {
     CHECK_NULL(_typeRegistry);
@@ -1580,6 +1585,12 @@ void GameInstance::Visit_GlobalEnums(const function<void(const TypeRegistry::Glo
 {
 	CHECK_NULL(_typeRegistry);
 	_typeRegistry->Visit_GlobalEnums(visitor);
+}
+
+void GameInstance::Visit_ScreenFxTypes(const function<void(const TypeRegistry::ScreenFxTypeInfo&)>& visitor) const
+{
+    CHECK_NULL(_typeRegistry);
+    _typeRegistry->Visit_ScreenFxTypes(visitor);
 }
 
 Shared<Component> GameInstance::Create_ComponentPrototype(const string& className) const
@@ -1605,6 +1616,11 @@ Shared<AnimNotify> GameInstance::Create_AnimNotifyPrototype(const string& classN
 Shared<AnimNotifyState> GameInstance::Create_AnimNotifyStatePrototype(const string& className) const
 {
     return _typeRegistry->Create_AnimNotifyState(className);
+}
+
+Shared<ScreenFx_Instance> GameInstance::Create_ScreenFxInstance(const string& className) const
+{
+    return _typeRegistry->Create_ScreenFxInstance(className);
 }
 
 HRESULT GameInstance::Ready_AllRenderTargets()

@@ -6,6 +6,16 @@
 
 NS_BEGIN(Client)
 
+IMPLEMENT_REFLECTION(RadialBlur_ScreenFx)
+{
+    Vec2    _center{};
+    float   _radius{};
+    float   _maxIntensity{};
+    float   _currentIntensity{};
+
+    return true;
+}
+
 HRESULT RadialBlur_ScreenFx::Initialize(ScreenFxDesc* desc)
 {
     if (FAILED(ScreenFx_Instance::Initialize(desc)))
@@ -17,7 +27,7 @@ HRESULT RadialBlur_ScreenFx::Initialize(ScreenFxDesc* desc)
     _maxIntensity = blurDesc->maxIntensity;
     _duration = blurDesc->duration;
     
-    _timeAcc = 0.0f;
+    _elapsedTime = 0.0f;
     _currentIntensity = _maxIntensity;
 
     return S_OK;
@@ -25,20 +35,25 @@ HRESULT RadialBlur_ScreenFx::Initialize(ScreenFxDesc* desc)
 
 void RadialBlur_ScreenFx::Update_ScreenFx(float timeDelta)
 {
-    _timeAcc += timeDelta;
-    float ratio = 1.0f - std::clamp(_timeAcc / max(0.001f, _duration), 0.0f, 1.0f);
+    _elapsedTime += timeDelta;
+    float ratio = 1.0f - std::clamp(_elapsedTime / max(0.001f, _duration), 0.0f, 1.0f);
     _currentIntensity = _maxIntensity * ratio;
 }
 
 HRESULT RadialBlur_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
 {
-    Engine::ScreenFxCB cbData{};
+    ScreenFxCB cbData{};
     
     cbData.radialBlurCenter = _center;
     cbData.radialBlurRadius = _radius;
     cbData.radialBlurIntensity = _currentIntensity;
     
     return shader->Bind_CBufferData(cbData);
+}
+
+void RadialBlur_ScreenFx::Evaluate_At(float normalizedTime)
+{
+    
 }
 
 Shared<RadialBlur_ScreenFx> RadialBlur_ScreenFx::Create(RadialBlurDesc* desc)

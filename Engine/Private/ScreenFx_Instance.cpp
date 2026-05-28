@@ -3,6 +3,7 @@
 #include "GameInstance.h"
 
 ScreenFx_Instance::ScreenFx_Instance()
+    : Base{}
 {
 
 }
@@ -32,6 +33,13 @@ bool ScreenFx_Instance::Check_EndCondition()
     }
 
     return shouldEnd;
+}
+
+void ScreenFx_Instance::Update_ScreenFx(float timeDelta)
+{
+    _elapsedTime += timeDelta;
+    
+    Evaluate_At(_elapsedTime);
 }
 
 HRESULT ScreenFx_Instance::Bind_ShaderResources(ShaderCom* shader)

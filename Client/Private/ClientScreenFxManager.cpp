@@ -14,7 +14,7 @@ void ClientScreenFxManager::Play_BattleInCounterFx()
     Vec2 centerPos = Vec2(0.5f, 0.5f);
 
     auto killCondition = [](bool& outShouldEnd) {
-        if (!CLIENT->Is_BattleActive()) {
+        if (CLIENT->Is_BattleActive()) {
             outShouldEnd = true;
         }
     };
@@ -24,6 +24,7 @@ void ClientScreenFxManager::Play_BattleInCounterFx()
     distDesc.duration = shockwaveDuration;
     distDesc.endPredicate = killCondition;
     distDesc.bulgeIntensity = 0.6f;
+    distDesc.pullDirection = Vec2{ -1.f, 1.f };
     distDesc.pullIntensity = 0.0f;
 
     RadialBlur_ScreenFx::RadialBlurDesc blurDesc;
@@ -41,8 +42,8 @@ void ClientScreenFxManager::Play_BattleInCounterFx()
     caDesc.maxIntensity = 0.25f;
 
     GAME->Play_ScreenFx(Distortion_ScreenFx::Create(&distDesc));
-    GAME->Play_ScreenFx(RadialBlur_ScreenFx::Create(&blurDesc));
-    GAME->Play_ScreenFx(CA_ScreenFx::Create(&caDesc));
+    //GAME->Play_ScreenFx(RadialBlur_ScreenFx::Create(&blurDesc));
+    //GAME->Play_ScreenFx(CA_ScreenFx::Create(&caDesc));
 }
 
 Shared<ClientScreenFxManager> ClientScreenFxManager::Create()

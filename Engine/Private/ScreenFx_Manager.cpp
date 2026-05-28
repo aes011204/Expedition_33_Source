@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "ScreenFx_Manager.h"
 #include "GameInstance.h"
 #include "Renderer_Define.h"
@@ -39,7 +39,13 @@ void ScreenFx_Manager::Update(float timeDelta)
 HRESULT ScreenFx_Manager::Render_ScreenFx(const Shared<ShaderCom>& shader, const Shared<VIBuffer_Rect>& rtBuffer)
 {
     if (!shader || !rtBuffer) return E_FAIL;
-    if (!_activeFx || _activeEffects.empty()) return S_OK;
+    
+    bool hasActiveEffects = !_activeEffects.empty();
+#ifdef _DEBUG
+    if (_previewEffect) hasActiveEffects = true;
+#endif
+
+    if (!_activeFx || !hasActiveEffects) return S_OK;
 
     if (FAILED(GAME->Copy_CurrentRTV_To(RT::ScreenFxColorA)))
         return E_FAIL;
@@ -82,6 +88,16 @@ HRESULT ScreenFx_Manager::Render_ScreenFx(const Shared<ShaderCom>& shader, const
         }
         readFromA = !readFromA; // 타겟 스왑(Ping-Pong)
     }
+
+#ifdef _DEBUG
+    if (_previewEffect)
+    {
+        _previewEffect->Bind_FxConstantBuffer(shader.get());
+        _previewEffect->Bind_ShaderResources(shader.get());
+        shader->Begin(_previewEffect->Get_PassIndex());
+        rtBuffer->Render();
+    }
+#endif
 
 
     return S_OK;

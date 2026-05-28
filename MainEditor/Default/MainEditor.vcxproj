@@ -211,6 +211,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\Prefab_View.cpp" />
     <ClCompile Include="..\Private\ImGui_Manager.cpp" />
     <ClCompile Include="..\Private\ImSequencer.cpp" />
+    <ClCompile Include="..\Private\ScreenFx_View.cpp" />
     <ClCompile Include="..\Private\Transform_Inspector.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
@@ -259,6 +260,7 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\Notification_Manager.h" />
     <ClInclude Include="..\Public\PlayerStat_Inspector.h" />
     <ClInclude Include="..\Public\Prefab_View.h" />
+    <ClInclude Include="..\Public\ScreenFx_View.h" />
     <ClInclude Include="..\Public\Transform_Inspector.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\Public\MainEditorApp.h" />

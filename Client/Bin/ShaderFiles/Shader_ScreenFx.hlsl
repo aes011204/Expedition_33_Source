@@ -154,25 +154,44 @@ PS_OUT_BACKBUFFER PS_Distortion(PS_IN In)
 
     float2 finalUV = In.Texcoord;
 
-    // Dis Lense 
-    float bulgeFactor = 1.f + (distFromCenter * distFromCenter) * g_bulgeIntensity;
+    // Dis Lense (Bulge)
+    // 양수 bulgeIntensity일 때 볼록 렌즈처럼 확대되도록 (UV를 중심쪽으로 당김)
+    float bulgeFactor = 1.f - (distFromCenter * distFromCenter) * g_bulgeIntensity;
     float2 bulgeOffset = dirFromCenter * (bulgeFactor - 1.f);
 
-    // Dis Direction 
-    float2 pullOffset = normalize(g_pullDirection) * g_pullIntensity * distFromCenter;
+    // Dis Direction (Pull)
+    float2 pullOffset = float2(0.f, 0.f);
+    float pullLen = length(g_pullDirection);
+    float2 pullDir = (pullLen > 0.0001f) ? (g_pullDirection / pullLen) : float2(0.f, 0.f);
+    
+    if (pullLen > 0.0001f)
+    {
+        pullOffset = pullDir * g_pullIntensity * distFromCenter;
+    }
 
     finalUV += bulgeOffset + pullOffset;
 
-    Out.Color = g_ScreenFxTexture.Sample(LinearClampSampler, finalUV);
+    // Chromatic Aberration (무지개 효과)
+    // pullDirection이 있으면 해당 방향으로, 없으면 방사형(Radial)으로 색수차 발생
+    float caStrength = (abs(g_bulgeIntensity) + abs(g_pullIntensity)) * 0.03f * distFromCenter;
+    float2 caOffset = (pullLen > 0.0001f) ? (pullDir * caStrength) : (dirFromCenter * caStrength);
+
+    // RGB 분리 샘플링
+    float r = g_ScreenFxTexture.Sample(LinearClampSampler, finalUV - caOffset).r;
+    float g = g_ScreenFxTexture.Sample(LinearClampSampler, finalUV).g;
+    float b = g_ScreenFxTexture.Sample(LinearClampSampler, finalUV + caOffset).b;
+    float a = g_ScreenFxTexture.Sample(LinearClampSampler, finalUV).a;
+
+    Out.Color = float4(r, g, b, a);
     return Out;
 }
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(Vignette,         RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)          
-    PASS_RS_DS_BS_VP(RadialBlur,       RS_Default, DSS_None, BS_Default, VS_MAIN, PS_RadialBlur)        
-    PASS_RS_DS_BS_VP(ChromaticAberration, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_ChromaticAberration) 
-    PASS_RS_DS_BS_VP(Glow,             RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Glow)              
+    PASS_RS_DS_BS_VP(Vignette,              RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)          
+    PASS_RS_DS_BS_VP(RadialBlur,            RS_Default, DSS_None, BS_Default, VS_MAIN, PS_RadialBlur)        
+    PASS_RS_DS_BS_VP(ChromaticAberration,   RS_Default, DSS_None, BS_Default, VS_MAIN, PS_ChromaticAberration) 
+    PASS_RS_DS_BS_VP(Glow,                  RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Glow)              
     PASS_RS_DS_BS_VP(Ghosting,              RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Ghosting)
     PASS_RS_DS_BS_VP(Distortion,            RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Distortion)
 }

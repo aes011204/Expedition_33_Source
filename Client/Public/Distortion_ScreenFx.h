@@ -5,6 +5,7 @@ NS_BEGIN(Client)
 
 class Distortion_ScreenFx final : public ScreenFx_Instance
 {
+    GENERATED_SCREEN_FX(Distortion_ScreenFx)
 public:
     struct DistortionDesc : public ScreenFxDesc
     {
@@ -22,6 +23,7 @@ public:
     HRESULT Initialize(ScreenFxDesc* desc) override;
     void Update_ScreenFx(float timeDelta) override;
     HRESULT Bind_FxConstantBuffer(class ShaderCom* shader) override;
+    void Evaluate_At(float elapsedTime) override;
 
 private:
     DistortionDesc _originalDesc{};

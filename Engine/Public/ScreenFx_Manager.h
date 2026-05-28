@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Shader_CBuffer_Define.h"
 #include "ScreenFx_Instance.h"
@@ -16,6 +16,11 @@ public:
 public:
     bool Is_ScreenFXActivated() const { return _activeFx; }
     void Set_ScreenFxActivated(bool active) { _activeFx = active; }
+#ifdef _DEBUG
+    bool Has_ActiveEffects() const { return !_activeEffects.empty() || _previewEffect != nullptr; }
+#else
+    bool Has_ActiveEffects() const { return !_activeEffects.empty(); }
+#endif
 
     void Play_ScreenEffect(const Shared<ScreenFx_Instance>& effect);
     void Clear_ScreenEffect();
@@ -29,6 +34,13 @@ private:
 
 private:
     vector<Shared<ScreenFx_Instance>> _activeEffects;
+
+public:
+#ifdef _DEBUG
+    void Set_PreviewEffect(const Shared<ScreenFx_Instance>& effect) { _previewEffect = effect; }
+    void Clear_PreviewEffect() { _previewEffect = nullptr; }
+    Shared<ScreenFx_Instance> _previewEffect{};
+#endif
 
 public:
     static Unique<ScreenFx_Manager> Create();
