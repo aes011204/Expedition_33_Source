@@ -12,6 +12,13 @@ enum class EffectTextureUVTilingMode : uint32
     Raw = 3,     // shader가 받은 distance UV를 tiling/stretch 없이 그대로 사용한다.
 };
 
+enum class EffectMaterialFamily : uint32
+{
+    Default = 0,      // 기존 color/coverage 중심 effect material family다.
+    SpriteDistortion, // scene color snapshot을 screen-space offset으로 다시 샘플링하는 sprite distortion family다.
+    END,
+};
+
 enum class EffectMaterialBlendMode : uint32
 {
     AlphaBlend = 0,
@@ -62,13 +69,16 @@ struct EffectMaterialAdditiveContributionData
 // sprite effect 경로에서는 mainTexturePath를 lit base color가 아니라 emissive color + opacity source로 해석한다.
 struct EffectMaterialInstanceData
 {
-    string sourcePresetName{}; // UI 표시용 원본 preset 이름이다. 저장 identity나 live reference로 쓰지 않는다.
-    string mainTextureGuid{};  // 주 텍스처 asset identity다. resolve 실패 시 path를 fallback/debug hint로 사용한다.
-    string mainTexturePath{};  // 주 텍스처 resource-relative fallback/debug hint다.
-    string noiseTextureGuid{}; // 선택 noise 텍스처 asset identity다.
-    string noiseTexturePath{}; // 선택 noise 텍스처 resource-relative fallback/debug hint다.
-    string maskTextureGuid{};  // 선택 mask 텍스처 asset identity다.
-    string maskTexturePath{};  // 선택 mask 텍스처 resource-relative fallback/debug hint다.
+    string sourcePresetName{};                                            // UI 표시용 원본 preset 이름이다. 저장 identity나 live reference로 쓰지 않는다.
+    EffectMaterialFamily materialFamily{ EffectMaterialFamily::Default }; // material shader/pass family를 고르는 상위 분류다.
+    string mainTextureGuid{};                                             // 주 텍스처 asset identity다. resolve 실패 시 path를 fallback/debug hint로 사용한다.
+    string mainTexturePath{};                                             // 주 텍스처 resource-relative fallback/debug hint다.
+    string noiseTextureGuid{};                                            // 선택 noise 텍스처 asset identity다.
+    string noiseTexturePath{};                                            // 선택 noise 텍스처 resource-relative fallback/debug hint다.
+    string maskTextureGuid{};                                             // 선택 mask 텍스처 asset identity다.
+    string maskTexturePath{};                                             // 선택 mask 텍스처 resource-relative fallback/debug hint다.
+    string flowTextureGuid{};                                             // SpriteDistortion에서 screen UV offset source로 사용할 flow texture asset identity다.
+    string flowTexturePath{};                                             // SpriteDistortion flow texture의 resource-relative fallback/debug hint다.
 
     Color tint{ 1.f, 1.f, 1.f, 1.f }; // main texture RGB emissive-like 색상에 곱할 색상 계수다.
 
@@ -90,13 +100,19 @@ struct EffectMaterialInstanceData
     Vec2 maskUVOffset{ 0.f, 0.f };                                                     // mask texture UV 시작 위치를 정적으로 민다.
     Vec2 maskUVScrollSpeed{ 0.f, 0.f };                                                // mask texture UV scroll speed 후보 값이다.
     EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Stretch };  // mask texture UV tiling 해석 방식이다.
+    Vec2 flowUVScale{ 1.f, 1.f };                                                      // flow texture UV scale 후보 값이다.
+    Vec2 flowUVOffset{ 0.f, 0.f };                                                     // flow texture UV 시작 위치를 정적으로 민다.
+    Vec2 flowUVScrollSpeed{ 0.f, 0.f };                                                // flow texture UV scroll speed 후보 값이다.
+    EffectTextureUVTilingMode flowUVTilingMode{ EffectTextureUVTilingMode::Stretch };  // flow texture UV tiling 해석 방식이다.
 
     EffectMaterialBlendMode blendMode{ EffectMaterialBlendMode::AlphaBlend }; // effect material blend/compose mode다.
-    string opacitySource{ "Alpha" };  // main texture에서 opacity를 뽑을 채널/방식이다.
-    EffectMaterialAdditiveContributionData additive{}; // Additive blend에서 더할 contribution 해석 규칙이다.
-    bool twoSided{ false };           // render state 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
-    uint32 subUVRows{ 1 };            // atlas row 수다.
-    uint32 subUVCols{ 1 };            // atlas column 수다.
+    string opacitySource{ "Alpha" };                                          // main texture에서 opacity를 뽑을 채널/방식이다.
+    EffectMaterialAdditiveContributionData additive{};                        // Additive blend에서 더할 contribution 해석 규칙이다.
+    float refractionIntensity{ 0.f };                                         // SpriteDistortion screen UV offset 강도다.
+    float refractionPresence{ 1.f };                                          // SpriteDistortion refraction 영향도를 켜고 줄이는 authored scalar다.
+    bool twoSided{ false };                                                   // render state 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
+    uint32 subUVRows{ 1 };                                                    // atlas row 수다.
+    uint32 subUVCols{ 1 };                                                    // atlas column 수다.
 };
 
 NS_END

@@ -51,6 +51,7 @@ private: //## Types
 
 private: //## Static Values
     static constexpr auto kEffectMaterialPreviewShaderId{ L"Shader_EffectMaterialPreview" };
+    static constexpr auto kEffectMaterialPreviewDistortionShaderId{ L"Shader_EffectMaterialPreviewDistortion" };
     static constexpr float kHomeDistance{ 6.f };
     static constexpr float kHomeYawDegrees{ 0.f };
     static constexpr float kHomePitchDegrees{ 0.f };
@@ -61,15 +62,19 @@ private: //## Data
     uint32 _previewTextureWidth{ 512 };
     uint32 _previewTextureHeight{ 512 };
     Shared<RenderTarget> _renderTarget{};
+    Shared<RenderTarget> _distortionSourceTarget{};
     Shared<ShaderCom> _shader{};
+    Shared<ShaderCom> _distortionShader{};
     Shared<Texture> _texture{};
     Shared<Texture> _noiseTexture{};
     Shared<Texture> _maskTexture{};
+    Shared<Texture> _flowTexture{};
     PreviewMeshResource _planeMesh{};
     PreviewMeshResource _sphereMesh{};
     string _loadedTextureKey{};
     string _loadedNoiseTextureKey{};
     string _loadedMaskTextureKey{};
+    string _loadedFlowTextureKey{};
     string _statusMessage{};
     bool _hasRenderedPreview{ false };
     EffectMaterialPreviewMeshMode _meshMode{ EffectMaterialPreviewMeshMode::Plane };
@@ -80,10 +85,13 @@ private: //## Data
 
 private: //## Helper::Resource
     bool Ready_RenderTarget();
+    bool Ready_DistortionSourceTarget();
     bool Ready_Shader();
+    bool Ready_DistortionShader();
     bool Ready_Texture(const string& textureGuid, const string& texturePath);
     bool Ready_NoiseTexture(const string& textureGuid, const string& texturePath);
     bool Ready_MaskTexture(const string& textureGuid, const string& texturePath);
+    bool Ready_FlowTexture(const string& textureGuid, const string& texturePath);
     bool Ready_Meshes();
     bool Ready_PlaneMesh();
     bool Ready_SphereMesh();
@@ -91,6 +99,8 @@ private: //## Helper::Resource
 
 private: //## Helper::Render
     HRESULT Render_PreviewMesh(const EffectMaterialInstanceData& material) const;
+    HRESULT Render_CheckerBackground() const;
+    HRESULT Render_DistortionPreviewMesh(const EffectMaterialInstanceData& material) const;
     HRESULT Render_Mesh(const PreviewMeshResource& mesh) const;
     void Resize_RenderTarget(uint32 width, uint32 height);
 

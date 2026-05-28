@@ -160,13 +160,9 @@ Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_Definition(const w
         bool converted = false;
 
         if (rendererTypeLower == "sprite")
-        {
             converted = Build_EmitterDefinition(emitter, emitterDefinition);
-        }
         else if (rendererTypeLower == "trail")
-        {
             converted = Build_TrailEmitterDefinition(emitter, emitterDefinition);
-        }
         else
         {
             LOG_INFO(
@@ -563,12 +559,15 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     EffectRequiredMaterialRuntimeDesc& materialDesc,
     bool includeTrailMaterialFields)
 {
+    Read_Enum(material, "materialFamily", materialDesc.materialFamily);
     materialDesc.mainTextureGuid = Read_String(material, "mainTextureGuid", materialDesc.mainTextureGuid);
     materialDesc.mainTexturePath = Read_String(material, "mainTexturePath", materialDesc.mainTexturePath);
     materialDesc.noiseTextureGuid = Read_String(material, "noiseTextureGuid", materialDesc.noiseTextureGuid);
     materialDesc.noiseTexturePath = Read_String(material, "noiseTexturePath", materialDesc.noiseTexturePath);
     materialDesc.maskTextureGuid = Read_String(material, "maskTextureGuid", materialDesc.maskTextureGuid);
     materialDesc.maskTexturePath = Read_String(material, "maskTexturePath", materialDesc.maskTexturePath);
+    materialDesc.flowTextureGuid = Read_String(material, "flowTextureGuid", materialDesc.flowTextureGuid);
+    materialDesc.flowTexturePath = Read_String(material, "flowTexturePath", materialDesc.flowTexturePath);
 
     Read_Enum(material, "blendMode", materialDesc.blendMode);
 
@@ -586,45 +585,51 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     materialDesc.alphaCutoff = Read_Float(material, "alphaCutoff", materialDesc.alphaCutoff);
     materialDesc.alphaErosion = Read_Float(material, "alphaErosion", materialDesc.alphaErosion);
 
-    const auto mainUVOffsetIter = material.find("mainUVOffset");
-    if (mainUVOffsetIter != material.end())
+    if (const auto mainUVOffsetIter = material.find("mainUVOffset"); mainUVOffsetIter != material.end())
         Read_Vec2(*mainUVOffsetIter, materialDesc.mainUVOffset);
 
-    const auto noiseUVOffsetIter = material.find("noiseUVOffset");
-    if (noiseUVOffsetIter != material.end())
+    if (const auto noiseUVOffsetIter = material.find("noiseUVOffset"); noiseUVOffsetIter != material.end())
         Read_Vec2(*noiseUVOffsetIter, materialDesc.noiseUVOffset);
 
-    const auto maskUVOffsetIter = material.find("maskUVOffset");
-    if (maskUVOffsetIter != material.end())
+    if (const auto maskUVOffsetIter = material.find("maskUVOffset"); maskUVOffsetIter != material.end())
         Read_Vec2(*maskUVOffsetIter, materialDesc.maskUVOffset);
+
+    if (const auto flowUVScaleIter = material.find("flowUVScale"); flowUVScaleIter != material.end())
+        Read_Vec2(*flowUVScaleIter, materialDesc.flowUVScale);
+
+    if (const auto flowUVOffsetIter = material.find("flowUVOffset"); flowUVOffsetIter != material.end())
+        Read_Vec2(*flowUVOffsetIter, materialDesc.flowUVOffset);
+
+    if (const auto flowUVScrollSpeedIter = material.find("flowUVScrollSpeed"); flowUVScrollSpeedIter != material.end())
+        Read_Vec2(*flowUVScrollSpeedIter, materialDesc.flowUVScrollSpeed);
 
     Read_Enum(material, "mainUVTilingMode", materialDesc.mainUVTilingMode);
     Read_Enum(material, "noiseUVTilingMode", materialDesc.noiseUVTilingMode);
     Read_Enum(material, "maskUVTilingMode", materialDesc.maskUVTilingMode);
+    Read_Enum(material, "flowUVTilingMode", materialDesc.flowUVTilingMode);
+    materialDesc.refractionIntensity = Read_Float(material, "refractionIntensity", materialDesc.refractionIntensity);
+    materialDesc.refractionPresence = Read_Float(material, "refractionPresence", materialDesc.refractionPresence);
     materialDesc.subUVRows = max(1u, Read_UInt(material, "subUVRows", materialDesc.subUVRows));
     materialDesc.subUVCols = max(1u, Read_UInt(material, "subUVCols", materialDesc.subUVCols));
 
     if (includeTrailMaterialFields)
     {
-        const auto mainUVScaleIter = material.find("mainUVScale");
-        if (mainUVScaleIter != material.end())
+        if (const auto mainUVScaleIter = material.find("mainUVScale"); mainUVScaleIter != material.end())
             Read_Vec2(*mainUVScaleIter, materialDesc.mainUVScale);
-        const auto mainUVScrollSpeedIter = material.find("mainUVScrollSpeed");
-        if (mainUVScrollSpeedIter != material.end())
+
+        if (const auto mainUVScrollSpeedIter = material.find("mainUVScrollSpeed"); mainUVScrollSpeedIter != material.end())
             Read_Vec2(*mainUVScrollSpeedIter, materialDesc.mainUVScrollSpeed);
 
-        const auto noiseUVScaleIter = material.find("noiseUVScale");
-        if (noiseUVScaleIter != material.end())
+        if (const auto noiseUVScaleIter = material.find("noiseUVScale"); noiseUVScaleIter != material.end())
             Read_Vec2(*noiseUVScaleIter, materialDesc.noiseUVScale);
-        const auto noiseUVScrollSpeedIter = material.find("noiseUVScrollSpeed");
-        if (noiseUVScrollSpeedIter != material.end())
+
+        if (const auto noiseUVScrollSpeedIter = material.find("noiseUVScrollSpeed"); noiseUVScrollSpeedIter != material.end())
             Read_Vec2(*noiseUVScrollSpeedIter, materialDesc.noiseUVScrollSpeed);
 
-        const auto maskUVScaleIter = material.find("maskUVScale");
-        if (maskUVScaleIter != material.end())
+        if (const auto maskUVScaleIter = material.find("maskUVScale"); maskUVScaleIter != material.end())
             Read_Vec2(*maskUVScaleIter, materialDesc.maskUVScale);
-        const auto maskUVScrollSpeedIter = material.find("maskUVScrollSpeed");
-        if (maskUVScrollSpeedIter != material.end())
+
+        if (const auto maskUVScrollSpeedIter = material.find("maskUVScrollSpeed"); maskUVScrollSpeedIter != material.end())
             Read_Vec2(*maskUVScrollSpeedIter, materialDesc.maskUVScrollSpeed);
 
         materialDesc.twoSided = Read_Bool(material, "twoSided", materialDesc.twoSided);

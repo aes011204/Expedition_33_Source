@@ -453,6 +453,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     {
         const EffectMaterialInstanceData& material = required->material;
 
+        desc.required.material.materialFamily = material.materialFamily;
         desc.required.material.mainTextureGuid = material.mainTextureGuid;
         desc.required.material.mainTexturePath = material.mainTexturePath;
         desc.required.material.blendMode = material.blendMode;
@@ -467,6 +468,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.noiseTexturePath = material.noiseTexturePath;
         desc.required.material.maskTextureGuid = material.maskTextureGuid;
         desc.required.material.maskTexturePath = material.maskTexturePath;
+        desc.required.material.flowTextureGuid = material.flowTextureGuid;
+        desc.required.material.flowTexturePath = material.flowTexturePath;
+
         desc.required.material.noiseStrength = material.noiseStrength;
         desc.required.material.alphaCutoff = material.alphaCutoff;
         desc.required.material.alphaErosion = material.alphaErosion;
@@ -482,7 +486,14 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.maskUVOffset = material.maskUVOffset;
         desc.required.material.maskUVScrollSpeed = material.maskUVScrollSpeed;
         desc.required.material.maskUVTilingMode = material.maskUVTilingMode;
+        desc.required.material.flowUVScale = material.flowUVScale;
+        desc.required.material.flowUVOffset = material.flowUVOffset;
+        desc.required.material.flowUVScrollSpeed = material.flowUVScrollSpeed;
+        desc.required.material.flowUVTilingMode = material.flowUVTilingMode;
+
         desc.required.material.additive = material.additive;
+        desc.required.material.refractionIntensity = material.refractionIntensity;
+        desc.required.material.refractionPresence = material.refractionPresence;
         desc.required.material.twoSided = material.twoSided;
         desc.required.material.subUVRows = max(1u, material.subUVRows);
         desc.required.material.subUVCols = max(1u, material.subUVCols);
@@ -768,12 +779,17 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
         const EffectMaterialInstanceData& material = required->material;
+
+        emitterDesc.material.materialFamily = material.materialFamily;
         emitterDesc.material.mainTextureGuid = material.mainTextureGuid;
         emitterDesc.material.mainTexturePath = material.mainTexturePath;
         emitterDesc.material.noiseTextureGuid = material.noiseTextureGuid;
         emitterDesc.material.noiseTexturePath = material.noiseTexturePath;
         emitterDesc.material.maskTextureGuid = material.maskTextureGuid;
         emitterDesc.material.maskTexturePath = material.maskTexturePath;
+        emitterDesc.material.flowTextureGuid = material.flowTextureGuid;
+        emitterDesc.material.flowTexturePath = material.flowTexturePath;
+
         emitterDesc.material.blendMode = material.blendMode;
         emitterDesc.material.opacitySource = material.opacitySource.empty() ? "Alpha" : material.opacitySource;
         emitterDesc.material.tint = material.tint;
@@ -794,7 +810,14 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         emitterDesc.material.maskUVOffset = material.maskUVOffset;
         emitterDesc.material.maskUVScrollSpeed = material.maskUVScrollSpeed;
         emitterDesc.material.maskUVTilingMode = material.maskUVTilingMode;
+        emitterDesc.material.flowUVScale = material.flowUVScale;
+        emitterDesc.material.flowUVOffset = material.flowUVOffset;
+        emitterDesc.material.flowUVScrollSpeed = material.flowUVScrollSpeed;
+        emitterDesc.material.flowUVTilingMode = material.flowUVTilingMode;
+
         emitterDesc.material.additive = material.additive;
+        emitterDesc.material.refractionIntensity = material.refractionIntensity;
+        emitterDesc.material.refractionPresence = material.refractionPresence;
         emitterDesc.material.twoSided = material.twoSided;
 
         emitterDesc.playback.duration = max(0.0001f, required->duration);

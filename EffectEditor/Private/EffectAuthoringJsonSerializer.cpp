@@ -356,12 +356,15 @@ namespace Internal
     {
         json root = json::object();
         root["sourcePresetName"] = data.sourcePresetName;
+        root["materialFamily"] = To_EnumToken(data.materialFamily);
         root["mainTextureGuid"] = Make_TextureGuidForSave(data.mainTextureGuid, data.mainTexturePath);
         root["mainTexturePath"] = data.mainTexturePath;
         root["noiseTextureGuid"] = Make_TextureGuidForSave(data.noiseTextureGuid, data.noiseTexturePath);
         root["noiseTexturePath"] = data.noiseTexturePath;
         root["maskTextureGuid"] = Make_TextureGuidForSave(data.maskTextureGuid, data.maskTexturePath);
         root["maskTexturePath"] = data.maskTexturePath;
+        root["flowTextureGuid"] = Make_TextureGuidForSave(data.flowTextureGuid, data.flowTexturePath);
+        root["flowTexturePath"] = data.flowTexturePath;
         root["tint"] = To_Json(data.tint);
         root["intensity"] = data.intensity;
         root["opacityPower"] = data.opacityPower;
@@ -380,10 +383,16 @@ namespace Internal
         root["maskUVOffset"] = To_Json(data.maskUVOffset);
         root["maskUVScrollSpeed"] = To_Json(data.maskUVScrollSpeed);
         root["maskUVTilingMode"] = To_EnumToken(data.maskUVTilingMode);
+        root["flowUVScale"] = To_Json(data.flowUVScale);
+        root["flowUVOffset"] = To_Json(data.flowUVOffset);
+        root["flowUVScrollSpeed"] = To_Json(data.flowUVScrollSpeed);
+        root["flowUVTilingMode"] = To_EnumToken(data.flowUVTilingMode);
         root["blendMode"] = To_EnumToken(data.blendMode);
         root["opacitySource"] = data.opacitySource;
         if (data.blendMode == EffectMaterialBlendMode::Additive || !Is_DefaultAdditiveContribution(data.additive))
             root["additive"] = To_Json(data.additive);
+        root["refractionIntensity"] = data.refractionIntensity;
+        root["refractionPresence"] = data.refractionPresence;
         root["twoSided"] = data.twoSided;
         root["subUVRows"] = data.subUVRows;
         root["subUVCols"] = data.subUVCols;
@@ -396,12 +405,16 @@ namespace Internal
             return;
 
         Read_StringField(root, "sourcePresetName", outData.sourcePresetName);
+        if (const auto materialFamilyIter = root.find("materialFamily"); materialFamilyIter != root.end())
+            Try_ReadEnumToken(*materialFamilyIter, outData.materialFamily);
         Read_StringField(root, "mainTextureGuid", outData.mainTextureGuid);
         Read_StringField(root, "mainTexturePath", outData.mainTexturePath);
         Read_StringField(root, "noiseTextureGuid", outData.noiseTextureGuid);
         Read_StringField(root, "noiseTexturePath", outData.noiseTexturePath);
         Read_StringField(root, "maskTextureGuid", outData.maskTextureGuid);
         Read_StringField(root, "maskTexturePath", outData.maskTexturePath);
+        Read_StringField(root, "flowTextureGuid", outData.flowTextureGuid);
+        Read_StringField(root, "flowTexturePath", outData.flowTexturePath);
         if (outData.mainTextureGuid.empty() && outData.mainTexturePath.empty())
         {
             string legacyMainTextureId{};
@@ -417,9 +430,11 @@ namespace Internal
         Fill_TextureGuidFromPath(outData.mainTextureGuid, outData.mainTexturePath);
         Fill_TextureGuidFromPath(outData.noiseTextureGuid, outData.noiseTexturePath);
         Fill_TextureGuidFromPath(outData.maskTextureGuid, outData.maskTexturePath);
+        Fill_TextureGuidFromPath(outData.flowTextureGuid, outData.flowTexturePath);
         Fill_TexturePathHintFromGuid(outData.mainTextureGuid, outData.mainTexturePath);
         Fill_TexturePathHintFromGuid(outData.noiseTextureGuid, outData.noiseTexturePath);
         Fill_TexturePathHintFromGuid(outData.maskTextureGuid, outData.maskTexturePath);
+        Fill_TexturePathHintFromGuid(outData.flowTextureGuid, outData.flowTexturePath);
         Read_NumberField(root, "intensity", outData.intensity);
         Read_NumberField(root, "opacityPower", outData.opacityPower);
         Read_NumberField(root, "noiseStrength", outData.noiseStrength);
@@ -434,46 +449,59 @@ namespace Internal
         Read_NumberField(root, "subUVRows", outData.subUVRows);
         Read_NumberField(root, "subUVCols", outData.subUVCols);
 
-        const auto tintIter = root.find("tint");
-        if (tintIter != root.end())
+        if (const auto tintIter = root.find("tint"); tintIter != root.end())
             Read_Color(*tintIter, outData.tint);
 
-        const auto mainUVScaleIter = root.find("mainUVScale");
-        if (mainUVScaleIter != root.end())
+        if (const auto mainUVScaleIter = root.find("mainUVScale"); mainUVScaleIter != root.end())
             Read_Vec2(*mainUVScaleIter, outData.mainUVScale);
-        const auto mainUVOffsetIter = root.find("mainUVOffset");
-        if (mainUVOffsetIter != root.end())
+
+        if (const auto mainUVOffsetIter = root.find("mainUVOffset"); mainUVOffsetIter != root.end())
             Read_Vec2(*mainUVOffsetIter, outData.mainUVOffset);
-        const auto mainUVScrollSpeedIter = root.find("mainUVScrollSpeed");
-        if (mainUVScrollSpeedIter != root.end())
+
+        if (const auto mainUVScrollSpeedIter = root.find("mainUVScrollSpeed"); mainUVScrollSpeedIter != root.end())
             Read_Vec2(*mainUVScrollSpeedIter, outData.mainUVScrollSpeed);
-        const auto mainUVTilingModeIter = root.find("mainUVTilingMode");
-        if (mainUVTilingModeIter != root.end())
+
+        if (const auto mainUVTilingModeIter = root.find("mainUVTilingMode"); mainUVTilingModeIter != root.end())
             Try_ReadEnumToken(*mainUVTilingModeIter, outData.mainUVTilingMode);
-        const auto noiseUVScaleIter = root.find("noiseUVScale");
-        if (noiseUVScaleIter != root.end())
+
+        if (const auto noiseUVScaleIter = root.find("noiseUVScale"); noiseUVScaleIter != root.end())
             Read_Vec2(*noiseUVScaleIter, outData.noiseUVScale);
-        const auto noiseUVOffsetIter = root.find("noiseUVOffset");
-        if (noiseUVOffsetIter != root.end())
+
+        if (const auto noiseUVOffsetIter = root.find("noiseUVOffset"); noiseUVOffsetIter != root.end())
             Read_Vec2(*noiseUVOffsetIter, outData.noiseUVOffset);
-        const auto noiseUVScrollSpeedIter = root.find("noiseUVScrollSpeed");
-        if (noiseUVScrollSpeedIter != root.end())
+
+        if (const auto noiseUVScrollSpeedIter = root.find("noiseUVScrollSpeed"); noiseUVScrollSpeedIter != root.end())
             Read_Vec2(*noiseUVScrollSpeedIter, outData.noiseUVScrollSpeed);
-        const auto noiseUVTilingModeIter = root.find("noiseUVTilingMode");
-        if (noiseUVTilingModeIter != root.end())
+
+        if (const auto noiseUVTilingModeIter = root.find("noiseUVTilingMode"); noiseUVTilingModeIter != root.end())
             Try_ReadEnumToken(*noiseUVTilingModeIter, outData.noiseUVTilingMode);
-        const auto maskUVScaleIter = root.find("maskUVScale");
-        if (maskUVScaleIter != root.end())
+
+        if (const auto maskUVScaleIter = root.find("maskUVScale"); maskUVScaleIter != root.end())
             Read_Vec2(*maskUVScaleIter, outData.maskUVScale);
-        const auto maskUVOffsetIter = root.find("maskUVOffset");
-        if (maskUVOffsetIter != root.end())
+
+        if (const auto maskUVOffsetIter = root.find("maskUVOffset"); maskUVOffsetIter != root.end())
             Read_Vec2(*maskUVOffsetIter, outData.maskUVOffset);
-        const auto maskUVScrollSpeedIter = root.find("maskUVScrollSpeed");
-        if (maskUVScrollSpeedIter != root.end())
+
+        if (const auto maskUVScrollSpeedIter = root.find("maskUVScrollSpeed"); maskUVScrollSpeedIter != root.end())
             Read_Vec2(*maskUVScrollSpeedIter, outData.maskUVScrollSpeed);
-        const auto maskUVTilingModeIter = root.find("maskUVTilingMode");
-        if (maskUVTilingModeIter != root.end())
+
+        if (const auto maskUVTilingModeIter = root.find("maskUVTilingMode"); maskUVTilingModeIter != root.end())
             Try_ReadEnumToken(*maskUVTilingModeIter, outData.maskUVTilingMode);
+
+        if (const auto flowUVScaleIter = root.find("flowUVScale"); flowUVScaleIter != root.end())
+            Read_Vec2(*flowUVScaleIter, outData.flowUVScale);
+
+        if (const auto flowUVOffsetIter = root.find("flowUVOffset"); flowUVOffsetIter != root.end())
+            Read_Vec2(*flowUVOffsetIter, outData.flowUVOffset);
+
+        if (const auto flowUVScrollSpeedIter = root.find("flowUVScrollSpeed"); flowUVScrollSpeedIter != root.end())
+            Read_Vec2(*flowUVScrollSpeedIter, outData.flowUVScrollSpeed);
+
+        if (const auto flowUVTilingModeIter = root.find("flowUVTilingMode"); flowUVTilingModeIter != root.end())
+            Try_ReadEnumToken(*flowUVTilingModeIter, outData.flowUVTilingMode);
+
+        Read_NumberField(root, "refractionIntensity", outData.refractionIntensity);
+        Read_NumberField(root, "refractionPresence", outData.refractionPresence);
     }
 
     json To_Json(const FloatCurveKeyData& data)

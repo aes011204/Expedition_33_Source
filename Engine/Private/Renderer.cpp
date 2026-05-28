@@ -185,6 +185,14 @@ void Renderer::Draw()
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonLight:After");
     nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
+    DumpCurrentOMState(L"Render_Distortion:Before");
+#endif
+
+    // ========================================= //
+    Render_Distortion();
+    // ========================================= //
+#ifdef _DEBUG
+    DumpCurrentOMState(L"Render_Distortion:After");
     const auto blendBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_Blend:Before");
 #endif
@@ -270,6 +278,8 @@ void Renderer::Draw_Preview()
     }
 
     _renderGroups[ETOI(RenderGroup::NonLight)].clear();
+
+    _renderGroups[ETOI(RenderGroup::Distortion)].clear();
 
     Render_Blend();
     _renderGroups[ETOI(RenderGroup::UI)].clear();
@@ -674,6 +684,39 @@ void Renderer::Render_NonLight()
     }
 
     _renderGroups[ETOI(RenderGroup::NonLight)].clear();
+
+    GAME->End_MRT();
+}
+
+void Renderer::Render_Distortion()
+{
+    auto& distortionGroup = _renderGroups[ETOI(RenderGroup::Distortion)];
+    if (distortionGroup.empty())
+        return;
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Copy_RTV(RT::HDRColor, RT::DistortionSource),
+        L"Render_Distortion:FAIL Copy_RTV(HDRColor -> DistortionSource)"
+    );
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Render_Distortion:FAIL Begin_MRT(HDR)"
+    );
+
+    _currentGroup = RenderGroup::Distortion;
+
+    for (auto& renderObject : distortionGroup)
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (nullptr != gameObject)
+        {
+            gameObject->Render();
+            Add_RenderCall();
+        }
+    }
+
+    distortionGroup.clear();
 
     GAME->End_MRT();
 }

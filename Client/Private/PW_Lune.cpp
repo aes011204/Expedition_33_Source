@@ -35,14 +35,14 @@ PW_Lune::PW_Lune(const PW_Lune& prototype)
 
 HRESULT PW_Lune::Initialize(void* arg)
 {
-    CHECK_FAILED(__super::Initialize(arg), E_FAIL)
+    CHECK_FAILED(__super::Initialize(arg), E_FAIL);
 
     auto skilltreeCom = Get_Component<SkillTreeCom>();
 
     skilltreeCom->TryUnlock("Immolation");
     skilltreeCom->TryUnlock("IceGust");
 
-    CHECK_FAILED(Ready_Modifier(), E_FAIL)
+    CHECK_FAILED(Ready_Modifier(), E_FAIL);
 
     return S_OK;
 }

@@ -1,6 +1,8 @@
 ﻿#include "ComputeSpriteEmitter.h"
 
+#include "Battle_Enum.h"
 #include "GameInstance.h"
+#include "Renderer_Define.h"
 #include "ShaderCom.h"
 #include "Texture.h"
 #include "VIBufferCom_ComputePointParticle.h"
@@ -130,13 +132,13 @@ void ComputeSpriteEmitter::Update(float timeDelta)
 void ComputeSpriteEmitter::Late_Update(float timeDelta)
 {
     if (Can_SubmitRender())
-        GAME->Add_RenderGroup(RenderGroup::Blend, GetSharedPtr<GameObject>());
+        GAME->Add_RenderGroup(Resolve_RenderGroup(), GetSharedPtr<GameObject>());
 }
 
 HRESULT ComputeSpriteEmitter::Render()
 {
     CHECK_FAILED_ONCE(Bind_ShaderResources(), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Begin(Resolve_BlendPassIndex()), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Begin(Resolve_ShaderPassIndex()), E_FAIL);
     CHECK_FAILED_ONCE(_viBuffer->Bind_Resources(), E_FAIL);
     CHECK_FAILED_ONCE(_viBuffer->Render(), E_FAIL);
 
@@ -170,6 +172,7 @@ HRESULT ComputeSpriteEmitter::Ready_Components()
     CHECK_FAILED(Ready_ShaderComponent(), E_FAIL);
     CHECK_FAILED(Ready_NoiseTextureComponent(resolvedTexturePath), E_FAIL);
     CHECK_FAILED(Ready_MaskTextureComponent(resolvedTexturePath), E_FAIL);
+    CHECK_FAILED(Ready_FlowTextureComponent(resolvedTexturePath), E_FAIL);
 
     ComputePointParticleDesc desc = Make_ComputePointParticleDesc();
     CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect_ComputePointParticleBuffer"), _viBuffer, &desc), E_FAIL);
@@ -251,7 +254,7 @@ HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureP
 
 HRESULT ComputeSpriteEmitter::Ready_ShaderComponent()
 {
-    CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), String::ToWString(kEffectSpriteShaderId), _shader), E_FAIL);
+    CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), String::ToWString(Resolve_ShaderId()), _shader), E_FAIL);
     _opacitySourceIndex = Resolve_OpacitySourceIndex();
     return S_OK;
 }
@@ -273,7 +276,7 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
     {
         _noiseTexture = nullptr;
         LOG_WARN(
-            "ComputeSpriteEmitter noise texture resolve failed. noiseTextureGuid='{}', noiseTexturePath='{}'. Noise modulation is disabled.",
+            "ComputeSpriteEmitter noise texture resolve failed. noiseTextureGuid='{}', noiseTexturePath='{}'.",
             _desc.required.material.noiseTextureGuid,
             _desc.required.material.noiseTexturePath
         );
@@ -309,7 +312,7 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
     if (_noiseTexture == nullptr)
     {
         LOG_WARN(
-            "ComputeSpriteEmitter noise texture create failed. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Noise modulation is disabled.",
+            "ComputeSpriteEmitter noise texture create failed. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'.",
             _desc.required.material.noiseTextureGuid,
             _desc.required.material.noiseTexturePath,
             noiseTexturePath
@@ -336,7 +339,7 @@ HRESULT ComputeSpriteEmitter::Ready_MaskTextureComponent(const string& resolvedT
     {
         _maskTexture = nullptr;
         LOG_WARN(
-            "ComputeSpriteEmitter mask texture resolve failed. maskTextureGuid='{}', maskTexturePath='{}'. Alpha mask is disabled.",
+            "ComputeSpriteEmitter mask texture resolve failed. maskTextureGuid='{}', maskTexturePath='{}'.",
             _desc.required.material.maskTextureGuid,
             _desc.required.material.maskTexturePath
         );
@@ -372,10 +375,58 @@ HRESULT ComputeSpriteEmitter::Ready_MaskTextureComponent(const string& resolvedT
     if (_maskTexture == nullptr)
     {
         LOG_WARN(
-            "ComputeSpriteEmitter mask texture create failed. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'. Alpha mask is disabled.",
+            "ComputeSpriteEmitter mask texture create failed. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'.",
             _desc.required.material.maskTextureGuid,
             _desc.required.material.maskTexturePath,
             maskTexturePath
+        );
+    }
+
+    return S_OK;
+}
+
+HRESULT ComputeSpriteEmitter::Ready_FlowTextureComponent(const string& resolvedTexturePath)
+{
+    if (!Is_DistortionFamily())
+        return S_OK;
+
+    if (_desc.required.material.flowTextureGuid.empty() && _desc.required.material.flowTexturePath.empty())
+        return S_OK;
+
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
+    const wstring resolvedPath = Internal::Resolve_TexturePath(
+        _desc.required.material.flowTextureGuid,
+        _desc.required.material.flowTexturePath,
+        usedPathFallback,
+        guidPathMismatch
+    );
+
+    if (resolvedPath.empty())
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter flow texture resolve failed. flowTextureGuid='{}', flowTexturePath='{}'.",
+            _desc.required.material.flowTextureGuid,
+            _desc.required.material.flowTexturePath
+        );
+        return S_OK;
+    }
+
+    const string flowTexturePath = String::ToString(resolvedPath);
+    if (flowTexturePath == resolvedTexturePath && nullptr != _texture)
+    {
+        _flowTexture = _texture;
+        return S_OK;
+    }
+
+    _flowTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
+    if (nullptr == _flowTexture)
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter flow texture create failed. flowTextureGuid='{}', flowTexturePath='{}', resolvedPath='{}'.",
+            _desc.required.material.flowTextureGuid,
+            _desc.required.material.flowTexturePath,
+            flowTexturePath
         );
     }
 
@@ -400,6 +451,8 @@ HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
     // 현재 sprite effect 경로에서는 주 텍스처를 lit base color가 아니라 emissive-like color + opacity source로 해석한다.
     CHECK_FAILED_ONCE(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
     CHECK_FAILED_ONCE(Bind_MaterialResources(), E_FAIL);
+    if (Is_DistortionFamily())
+        CHECK_FAILED_ONCE(Bind_DistortionResources(), E_FAIL);
 
     return S_OK;
 }
@@ -407,22 +460,14 @@ HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
 HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
 {
     if (nullptr != _noiseTexture)
-    {
         CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
-    }
     else
-    {
         CHECK_FAILED_ONCE(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
-    }
 
     if (nullptr != _maskTexture)
-    {
         CHECK_FAILED_ONCE(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
-    }
     else
-    {
         CHECK_FAILED_ONCE(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
-    }
 
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_Tint", &_desc.required.material.tint, sizeof(_desc.required.material.tint)), E_FAIL);
 
@@ -438,23 +483,94 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         nullptr != _maskTexture ? 1.f : 0.f,
         0.f
     );
-    const EffectMaterialAdditiveContributionData& additive = _desc.required.material.additive;
-    const Vec4 effectSpriteAdditiveParams = Vec4(
-        static_cast<float>(static_cast<uint32>(additive.colorSource)),
-        static_cast<float>(static_cast<uint32>(additive.amountSource)),
-        static_cast<float>(static_cast<uint32>(additive.coveragePolicy)),
-        additive.intensityScale
-    );
-    const Vec4 effectSpriteAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
+
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteParams", &effectSpriteParams, sizeof(effectSpriteParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAlphaParams", &effectSpriteAlphaParams, sizeof(effectSpriteAlphaParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveParams", &effectSpriteAdditiveParams, sizeof(effectSpriteAdditiveParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveFlags", &effectSpriteAdditiveFlags, sizeof(effectSpriteAdditiveFlags)), E_FAIL);
+
+    if (!Is_DistortionFamily())
+    {
+        const EffectMaterialAdditiveContributionData& additive = _desc.required.material.additive;
+        const Vec4 effectSpriteAdditiveParams = Vec4(
+            static_cast<float>(static_cast<uint32>(additive.colorSource)),
+            static_cast<float>(static_cast<uint32>(additive.amountSource)),
+            static_cast<float>(static_cast<uint32>(additive.coveragePolicy)),
+            additive.intensityScale
+        );
+        const Vec4 effectSpriteAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
+        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveParams", &effectSpriteAdditiveParams, sizeof(effectSpriteAdditiveParams)), E_FAIL);
+        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
+        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
+        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveFlags", &effectSpriteAdditiveFlags, sizeof(effectSpriteAdditiveFlags)), E_FAIL);
+    }
+
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), E_FAIL);
 
     return S_OK;
+}
+
+HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
+{
+    CHECK_FAILED_ONCE(GAME->Bind_RT_ShaderResource(_shader, "g_DistortionSourceTexture", RT::DistortionSource), E_FAIL);
+
+    if (nullptr != _flowTexture)
+        CHECK_FAILED_ONCE(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);
+    else
+        CHECK_FAILED_ONCE(_shader->Bind_SRV("g_FlowTexture", nullptr), E_FAIL);
+
+    D3D11_VIEWPORT viewport{};
+    uint32 viewportCount = 1u;
+    _context->RSGetViewports(&viewportCount, &viewport);
+
+    const Vec4 distortionParams(
+        max(0.f, _desc.required.material.refractionIntensity),
+        max(0.f, _desc.required.material.refractionPresence),
+        nullptr != _flowTexture ? 1.f : 0.f,
+        _emitterElapsedTime
+    );
+    const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
+
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_FlowUVScale", &_desc.required.material.flowUVScale, sizeof(_desc.required.material.flowUVScale)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_FlowUVOffset", &_desc.required.material.flowUVOffset, sizeof(_desc.required.material.flowUVOffset)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_FlowUVScrollSpeed", &_desc.required.material.flowUVScrollSpeed, sizeof(_desc.required.material.flowUVScrollSpeed)),
+        E_FAIL
+    );
+
+    return S_OK;
+}
+
+bool ComputeSpriteEmitter::Is_DistortionFamily() const
+{
+    return _desc.required.material.materialFamily == EffectMaterialFamily::SpriteDistortion;
+}
+
+RenderGroup ComputeSpriteEmitter::Resolve_RenderGroup() const
+{
+    return Is_DistortionFamily() ? RenderGroup::Distortion : RenderGroup::Blend;
+}
+
+const char* ComputeSpriteEmitter::Resolve_ShaderId() const
+{
+    return Is_DistortionFamily() ? kEffectDistortionSpriteShaderId : kEffectSpriteShaderId;
+}
+
+uint32 ComputeSpriteEmitter::Resolve_ShaderPassIndex() const
+{
+    return Is_DistortionFamily() ? 0u : Resolve_BlendPassIndex();
 }
 
 int ComputeSpriteEmitter::Resolve_OpacitySourceIndex() const

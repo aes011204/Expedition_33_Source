@@ -35,7 +35,7 @@ PW_Maelle::PW_Maelle(const PW_Maelle& prototype)
 
 HRESULT PW_Maelle::Initialize(void* arg)
 {
-    CHECK_FAILED(__super::Initialize(arg), E_FAIL)
+    CHECK_FAILED(__super::Initialize(arg), E_FAIL);
 
     auto skilltreeCom = Get_Component<SkillTreeCom>();
 
@@ -43,7 +43,7 @@ HRESULT PW_Maelle::Initialize(void* arg)
     skilltreeCom->TryUnlock("Percee");
     skilltreeCom->TryUnlock("Spark");
 
-    CHECK_FAILED(Ready_Modifier(), E_FAIL)
+    CHECK_FAILED(Ready_Modifier(), E_FAIL);
 
     return S_OK;
 }

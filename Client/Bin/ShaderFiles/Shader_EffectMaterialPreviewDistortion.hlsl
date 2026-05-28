@@ -1,0 +1,156 @@
+#include "Engine_Shader_Defines.hlsli"
+#include "Engine_Shader_ConstantBuffer.hlsl"
+#include "Engine_Shader_Passes.hlsl"
+#include "Engine_Shader_RenderState.hlsl"
+#include "Engine_Shader_Samplers.hlsl"
+#include "Engine_Shader_EffectMaterial.hlsl"
+
+cbuffer cbEffectMaterialPreviewDistortion : register(b2)
+{
+    float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
+    float4 g_EffectMaterialPreviewAlphaParams = { 0.f, 0.f, 0.f, 0.f };       // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectMaterialPreviewMainUVParams = { 1.f, 1.f, 0.f, 0.f };      // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewMaskUVParams = { 1.f, 1.f, 0.f, 0.f };      // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewFlowUVParams = { 1.f, 1.f, 0.f, 0.f };      // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };    // xy: main offset, zw: flow offset
+    float4 g_EffectMaterialPreviewMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };// xy: mask offset, zw: reserved
+    float4 g_EffectMaterialPreviewUVModeParams = { 0.f, 0.f, 0.f, 0.f };      // x: main, y: mask, z: flow, w: reserved
+    float4 g_EffectMaterialPreviewDistortionParams = { 0.f, 1.f, 0.f, 0.f };  // x: intensity, y: presence, z: useFlow, w: time
+    float4 g_EffectMaterialPreviewScreenSize = { 512.f, 512.f, 0.f, 0.f };
+    int g_OpacitySource = 0;
+    float3 g_EffectMaterialPreviewPadding;
+};
+
+Texture2D g_Texture : register(t0);
+Texture2D g_MaskTexture : register(t2);
+Texture2D g_FlowTexture : register(t3);
+Texture2D g_DistortionSourceTexture : register(t4);
+
+float2 Apply_MaterialPreviewUV(float2 uv, float4 uvParams, float2 uvOffset)
+{
+    return uv * uvParams.xy + uvOffset + uvParams.zw * g_EffectMaterialPreviewDistortionParams.w;
+}
+
+bool Use_PreviewClampSampler(float mode)
+{
+    return mode >= 0.5f && mode < 2.5f;
+}
+
+float4 Sample_PreviewMainTexture(float2 uv, float mode)
+{
+    return Use_PreviewClampSampler(mode)
+           ? g_Texture.Sample(LinearClampSampler, uv)
+           : g_Texture.Sample(LinearWrapSampler, uv);
+}
+
+float Sample_PreviewMaskTexture(float2 uv, float mode)
+{
+    return Use_PreviewClampSampler(mode)
+           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
+           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+}
+
+float2 Sample_PreviewFlowTexture(float2 uv, float mode)
+{
+    return Use_PreviewClampSampler(mode)
+           ? g_FlowTexture.Sample(LinearClampSampler, uv).rg
+           : g_FlowTexture.Sample(LinearWrapSampler, uv).rg;
+}
+
+struct VS_IN
+{
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float2 texCoord : TEXCOORD0;
+};
+
+struct VS_OUT
+{
+    float4 position : SV_POSITION;
+    float3 normal : NORMAL;
+    float2 texCoord : TEXCOORD0;
+};
+
+VS_OUT VS_MAIN(VS_IN In)
+{
+    VS_OUT Out = (VS_OUT)0;
+
+    const float4x4 matWV = mul(g_WorldMatrix, g_ViewMatrix);
+    const float4x4 matWVP = mul(matWV, g_ProjMatrix);
+
+    Out.position = mul(float4(In.position, 1.f), matWVP);
+    Out.normal = normalize(mul(float4(In.normal, 0.f), g_WorldMatrix).xyz);
+    Out.texCoord = In.texCoord;
+
+    return Out;
+}
+
+struct PS_IN
+{
+    float4 position : SV_POSITION;
+    float3 normal : NORMAL;
+    float2 texCoord : TEXCOORD0;
+};
+
+struct PS_OUT
+{
+    float4 color : SV_TARGET0;
+};
+
+PS_OUT PS_MAIN(PS_IN In)
+{
+    PS_OUT Out = (PS_OUT)0;
+
+    const float mainUVMode = g_EffectMaterialPreviewUVModeParams.x;
+    const float maskUVMode = g_EffectMaterialPreviewUVModeParams.y;
+    const float flowUVMode = g_EffectMaterialPreviewUVModeParams.z;
+    const float2 mainUV = Apply_MaterialPreviewUV(
+        In.texCoord,
+        g_EffectMaterialPreviewMainUVParams,
+        g_EffectMaterialPreviewUVOffsetParams.xy
+    );
+    const float2 maskUV = Apply_MaterialPreviewUV(
+        In.texCoord,
+        g_EffectMaterialPreviewMaskUVParams,
+        g_EffectMaterialPreviewMaskUVOffsetParams.xy
+    );
+    const float2 flowUV = Apply_MaterialPreviewUV(
+        In.texCoord,
+        g_EffectMaterialPreviewFlowUVParams,
+        g_EffectMaterialPreviewUVOffsetParams.zw
+    );
+    const float4 symbol = Sample_PreviewMainTexture(mainUV, mainUVMode);
+    const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
+    const float alphaCutoff = saturate(g_EffectMaterialPreviewAlphaParams.x);
+    const float alphaErosion = saturate(g_EffectMaterialPreviewAlphaParams.y);
+    float maskAlpha = 1.f;
+
+    if (g_EffectMaterialPreviewAlphaParams.z != 0)
+        maskAlpha = Sample_PreviewMaskTexture(maskUV, maskUVMode);
+
+    const float coverage = Effect_ApplyAlphaErosion(selectedOpacity * g_Tint.a, maskAlpha, alphaErosion);
+    if (coverage < max(alphaCutoff, 0.01f))
+        discard;
+
+    const float2 flow = g_EffectMaterialPreviewDistortionParams.z != 0
+                        ? Sample_PreviewFlowTexture(flowUV, flowUVMode) * 2.f - 1.f
+                        : float2(0.f, 0.f);
+    const float2 screenUV = In.position.xy / max(g_EffectMaterialPreviewScreenSize.xy, float2(1.f, 1.f));
+    const float strength =
+        max(g_EffectMaterialPreviewDistortionParams.x, 0.f) *
+        max(g_EffectMaterialPreviewDistortionParams.y, 0.f) *
+        saturate(coverage);
+    const float4 distortedColor = g_DistortionSourceTexture.Sample(LinearClampSampler, screenUV + flow * strength);
+
+    Out.color = float4(distortedColor.rgb, saturate(coverage));
+    return Out;
+}
+
+technique11 DefaultTechnique
+{
+    // Plane distortion preview
+    PASS_RS_DS_BS_VP(DistortionPreviewPass, RS_CullNone, DSS_Default, BS_EffectAlphaBlend, VS_MAIN, PS_MAIN) // 0
+
+    // Sphere distortion preview
+    PASS_RS_DS_BS_VP(SphereDistortionPreviewPass, RS_Default, DSS_Default, BS_EffectAlphaBlend, VS_MAIN, PS_MAIN) // 1
+}

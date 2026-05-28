@@ -4,6 +4,7 @@
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
 #include "Engine_Shader_EffectMaterial.hlsl"
+#include "Shader_EffectSpriteCommon.hlsli"
 
 cbuffer cbEffectSpriteMaterial : register(b2)
 {
@@ -16,15 +17,6 @@ cbuffer cbEffectSpriteMaterial : register(b2)
     float4 g_EffectSpriteAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
     int g_OpacitySource = 0;
     float3 g_EffectSpritePadding;
-};
-
-cbuffer cbEffectSpriteRuntime : register(b3)
-{
-    int g_ScreenAlignmentMode = 0;
-    int g_DirectionalAlignmentMode = 1;
-    int g_SpriteTextureAxis = 1;
-    float g_SpriteRollOffsetRadians = 0.f;
-    float4 g_EffectSpriteEmitterCenter = { 0.f, 0.f, 0.f, 1.f };
 };
 
 Texture2D g_Texture : register(t0); // sprite effect의 primary texture다. 현재 경로에서는 RGB를 emissive-like color source로 해석한다.

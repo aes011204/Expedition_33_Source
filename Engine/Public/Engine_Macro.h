@@ -121,24 +121,27 @@
 
 // _ptr이 nullptr이면 __VA_ARGS__로 지정한 값을 반환 (비어있으면 void 반환)
 #define CHECK_NULL(_ptr, ...)                                                   \
+do                                                                              \
 {                                                                               \
     if ((_ptr) == 0) [[unlikely]] {                                             \
         LOG_ERROR("NULL Pointer Detected!");                                    \
         return __VA_ARGS__;                                                     \
     }                                                                           \
-}
+} while (false)
 
 // _ptr이 nullptr이면 항상 반환하되, generic error 로그는 첫 1회만 남긴다.
 #define CHECK_NULL_ONCE(_ptr, ...)                                              \
+do                                                                              \
 {                                                                               \
     if ((_ptr) == 0) [[unlikely]] {                                             \
         LOG_ERROR_ONCE("NULL Pointer Detected!");                               \
         return __VA_ARGS__;                                                     \
     }                                                                           \
-}
+} while (false)
 
 // _ptr이 nullptr이면 항상 반환하되, generic error 로그는 제한 주기로 남긴다.
 #define CHECK_NULL_THROTTLED(_ptr, _interval, ...)                              \
+do                                                                              \
 {                                                                               \
     if ((_ptr) == 0) [[unlikely]] {                                             \
         ENGINE_LOG_THROTTLED_IMPL(                                              \
@@ -149,7 +152,7 @@
         );                                                                      \
         return __VA_ARGS__;                                                     \
     }                                                                           \
-}
+} while (false)
 
 /* ------------------------------------------ */
 /*              경로 검사 매크로               */
@@ -157,6 +160,7 @@
 
 // const char* 경로가 nullptr 이거나 빈 문자열이면 로그를 남기고 반환
 #define CHECK_PATH(_path, ...)                                                  \
+do                                                                              \
 {                                                                               \
     if ((_path) == nullptr || (_path)[0] == '\0') [[unlikely]] {                \
         LOG_ERROR(                                                              \
@@ -166,10 +170,11 @@
         );                                                                      \
         return __VA_ARGS__;                                                     \
     }                                                                           \
-}
+} while (false)
 
 // wide 문자열에도 안전하게 사용 가능한 검사 매크로
 #define CHECK_WIDEPATH(_path, ...)                                              \
+do                                                                              \
 {                                                                               \
     if ((_path) == nullptr || (_path)[0] == L'\0') [[unlikely]] {               \
         LOG_ERROR(                                                              \
@@ -179,7 +184,7 @@
         );                                                                      \
         return __VA_ARGS__;                                                     \
     }                                                                           \
-}
+} while (false)
 
 /* ------------------------------------------ */
 /*             HRESULT 검사 매크로             */
@@ -187,24 +192,27 @@
 
 // HRESULT가 실패면 __VA_ARGS__로 지정한 값을 반환 (비어있으면 void 반환)
 #define CHECK_FAILED(_hr, ...)                                                  \
+do                                                                              \
 {                                                                               \
     if (((HRESULT)(_hr)) < 0) [[unlikely]] {                                    \
         LOG_ERROR("Check Failed!");                                             \
         return __VA_ARGS__;                                                     \
     }                                                                           \
-}
+} while (false)
 
 // HRESULT가 실패면 항상 반환하되, generic error 로그는 첫 1회만 남긴다.
 #define CHECK_FAILED_ONCE(_hr, ...)                                             \
+do                                                                              \
 {                                                                               \
     if (((HRESULT)(_hr)) < 0) [[unlikely]] {                                    \
         LOG_ERROR_ONCE("Check Failed!");                                        \
         return __VA_ARGS__;                                                     \
     }                                                                           \
-}
+} while (false)
 
 // HRESULT가 실패면 항상 반환하되, generic error 로그는 제한 주기로 남긴다.
 #define CHECK_FAILED_THROTTLED(_hr, _interval, ...)                             \
+do                                                                              \
 {                                                                               \
     if (((HRESULT)(_hr)) < 0) [[unlikely]] {                                    \
         ENGINE_LOG_THROTTLED_IMPL(                                              \
@@ -215,7 +223,7 @@
         );                                                                      \
         return __VA_ARGS__;                                                     \
     }                                                                           \
-}
+} while (false)
 
 /* ------------------------------------------ */
 /*                싱글톤 매크로                */
