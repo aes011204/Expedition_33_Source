@@ -538,7 +538,7 @@ struct BattleActionPhase;
     enum class TargetType
     {
         Invalid,
-        Primary,        // 처음 선택한 타겟
+        Primary,       
         RandomEnemy,
         AllEnemies,
         Self,

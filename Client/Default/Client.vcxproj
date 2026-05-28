@@ -185,6 +185,7 @@
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
+    <ClInclude Include="..\public\BT_LookRange.h" />
     <ClInclude Include="..\Public\CameraDirector.h" />
     <ClInclude Include="..\Public\CameraPresetIO.h" />
     <ClInclude Include="..\Public\CameraPresetTypes.h" />
@@ -419,6 +420,7 @@
     <ClCompile Include="..\Private\BattleReactionController.cpp" />
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
+    <ClCompile Include="..\private\BT_LookRange.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patroll.cpp" />
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />

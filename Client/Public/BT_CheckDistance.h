@@ -12,7 +12,6 @@ public:
         LessThan, GreaterThan, Between
     };
 
-public:
     BT_CheckDistance();
     virtual ~BT_CheckDistance();
 public:

@@ -345,6 +345,7 @@
     </ClCompile>
     <ClCompile Include="..\private\BattleAction.cpp" />
     <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
+    <ClCompile Include="..\private\BT_LookRange.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -964,6 +965,7 @@
     <ClInclude Include="..\public\BattleAction.h" />
     <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h" />
     <ClInclude Include="Battle_Enum.h" />
+    <ClInclude Include="..\public\BT_LookRange.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
