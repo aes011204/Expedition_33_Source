@@ -22,7 +22,7 @@ HRESULT Graphic_Device::Initialize(HWND hWnd, WinMode isWindowed, uint32 winSize
 {
 	uint32 flag = 0;
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && ENGINE_ENABLE_DX11_DEBUG_LAYER
 	flag = D3D11_CREATE_DEVICE_DEBUG;
 #endif
 

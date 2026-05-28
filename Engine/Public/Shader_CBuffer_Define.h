@@ -196,7 +196,7 @@ struct alignas(16) SSAOCB
     // Raw SSAO 핵심 파라미터.
     // 현재 구현은 view-space 반구 샘플링이므로 Radius는 "화면 픽셀 반경"이 아니라
     // 현재 픽셀 주변을 3D 공간에서 얼마나 멀리 볼지 정하는 반경으로 해석된다.
-    float SSAORadius = 0.2f;                      // view-space 샘플 반경. 값이 커질수록 넓은 홈/바닥까지 AO가 쉽게 들어간다.
+    float SSAORadius = 0.1f;                      // view-space 샘플 반경. 값이 커질수록 넓은 홈/바닥까지 AO가 쉽게 들어간다.
     float SSAOBias = 0.1f;                      // 자기 표면을 가려진 것으로 잘못 세지 않도록 밀어주는 깊이 여유값.
     float SSAOIntensity = 0.7f;                   // Combined 단계에서 AO 결과를 얼마나 강하게 섞을지.
     float SSAOPower = 1.2f;                       // Combined 단계에서 AO 대비를 얼마나 더 눌러줄지.
@@ -210,6 +210,22 @@ struct alignas(16) SSAOCB
     uint32 SSAOEnabled = 1;                       // SSAO 패스를 실행할지.
     uint32 SSAOBilateralEnabled = 1;              // raw SSAO 뒤에 bilateral blur 패스를 추가로 돌릴지.
     uint32 SSAOPad0 = 0;                          // 16-byte 정렬 유지용 패딩.
+};
+
+/* ------------------------------------------ */
+/*        DeferredLighting CBuffer            */
+/* ------------------------------------------ */
+struct alignas(16) DeferredLightingCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::DeferredLighting;
+
+    float iblIntensity{ 1.f };
+    float iblDiffuseIntensity{ 1.f };
+    float iblSpecularIntensity{ 1.f };
+    float iblPrefilterMaxMip{ 8.f };
+
+    uint32 iblEnabled{ 1u };
+    uint32 _pad0[3]{};
 };
 
 /* ------------------------------------------ */
@@ -239,6 +255,7 @@ static_assert(sizeof(ScreenSpaceCB) % 16 == 0);
 static_assert(sizeof(LightCB) % 16 == 0);
 static_assert(sizeof(PostProcessCB) % 16 == 0);
 static_assert(sizeof(SSAOCB) % 16 == 0);
+static_assert(sizeof(DeferredLightingCB) % 16 == 0);
 static_assert(sizeof(DrawFeatureCB) % 16 == 0);
 
 NS_END

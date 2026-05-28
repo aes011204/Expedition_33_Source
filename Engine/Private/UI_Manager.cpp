@@ -1,7 +1,7 @@
 ﻿#include "UI_Manager.h"
 
 #include <algorithm>
-
+#include "Debug_Profile.h"
 #include "UI_Base.h"
 #include "Prototype_Manager.h"
 
@@ -81,6 +81,13 @@ HRESULT UI_Manager::Initialize()
 
 void UI_Manager::Update(float timeDelta)
 {
+    ENGINE_PROFILE_SCOPE_BASIC("UI::UpdateAll");
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+    double openCheckElapsedMs = 0.0;
+    double actualUpdateElapsedMs = 0.0;
+    const chrono::steady_clock::time_point loopBeginTime = chrono::steady_clock::now();
+#endif
+
     for (auto& entry : _uiList)
     {
         Shared<UI_Base>& ui = entry.ui;
@@ -88,11 +95,43 @@ void UI_Manager::Update(float timeDelta)
         if (nullptr == ui)
             continue;
 
-        if (!ui->Is_EffectivelyOpen())
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+        const chrono::steady_clock::time_point openCheckBeginTime = chrono::steady_clock::now();
+#endif
+
+        const bool isEffectivelyOpen = ui->Is_EffectivelyOpen();
+
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+        const chrono::steady_clock::time_point openCheckEndTime = chrono::steady_clock::now();
+        const double openCheckMs = chrono::duration<double, milli>(openCheckEndTime - openCheckBeginTime).count();
+        openCheckElapsedMs += openCheckMs;
+#endif
+
+        if (!isEffectivelyOpen)
             continue;
 
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+        const chrono::steady_clock::time_point updateBeginTime = chrono::steady_clock::now();
+#endif
+
         ui->Update(timeDelta);
+
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+        const chrono::steady_clock::time_point updateEndTime = chrono::steady_clock::now();
+        const double updateMs = chrono::duration<double, milli>(updateEndTime - updateBeginTime).count();
+        actualUpdateElapsedMs += updateMs;
+#endif
     }
+
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+    const chrono::steady_clock::time_point loopEndTime = chrono::steady_clock::now();
+    const double loopElapsedMs = chrono::duration<double, milli>(loopEndTime - loopBeginTime).count();
+    const double loopOverheadMs = max(0.0, loopElapsedMs - openCheckElapsedMs - actualUpdateElapsedMs);
+
+    ENGINE_PROFILE_PUSH_DETAIL("UI::OpenCheckAll", openCheckElapsedMs);
+    ENGINE_PROFILE_PUSH_DETAIL("UI::ActualUpdateAll", actualUpdateElapsedMs);
+    ENGINE_PROFILE_PUSH_DETAIL("UI::LoopOverheadAll", loopOverheadMs);
+#endif
 }
 
 HRESULT UI_Manager::Render(UI_RenderGroup renderGroup)

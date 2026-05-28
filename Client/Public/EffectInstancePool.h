@@ -20,6 +20,8 @@ public:
     struct AcquireDesc
     {
         wstring effectName{};                                   // 어떤 effect 정의를 재생할지 식별하는 이름이다.
+        Shared<const EffectDefinition> definition{};            // editor preview처럼 저장된 asset이 아닌 definition을 직접 재생할 때 사용한다.
+        uint32 layerLevelIndex{ ETOI(LevelType::Static) };      // 신규 spawn과 stale entry 제거에 사용할 layer index다.
         wstring layerTag{};                                     // acquire 실패 시 신규 spawn을 넣을 레이어다.
         Vec3 worldPosition{ Vec3::Zero };                       // acquire 직후 root에 반영할 월드 위치다.
         Weak<IEffectTrailSampleProvider> trailSampleProvider{}; // attachment/gameplay owner가 공급하는 trail sample provider weak ref다.
@@ -30,6 +32,13 @@ public:
         Shared<GameObject> effectObject{};   // 실제로 follow/release 대상이 되는 acquired effect root다.
         wstring effectName{};                // release 시 원래 pool bucket을 찾기 위한 key다.
         bool requiresManualRelease{ false }; // true면 자동 완료 대신 명시 Stop/release를 기다린다.
+    };
+
+    struct DebugSummary
+    {
+        uint32 entryCount{};
+        uint32 activeCount{};
+        uint32 idleCount{};
     };
 
 public:
@@ -46,12 +55,18 @@ public:
     // pool bookkeeping과 재사용 엔트리를 비운다.
     void Clear();
 
+public:
+    // [Effect Editor용] 같은 key의 inactive entry만 level에서 제거해 mutable preview definition 재사용을 막는다.
+    void Discard_Inactive(const wstring& effectName);
+    DebugSummary Get_DebugSummary() const;
+
 private:
     struct PooledInstance
     {
         wstring effectName{};                        // 이 instance가 속한 pool bucket key다.
         Shared<const EffectDefinition> definition{}; // 재생 시 재사용하는 정적 effect 정의다.
         Shared<EffectInstance> instance{};           // 실제 재사용되는 runtime root다.
+        uint32 layerLevelIndex{};                    // instance가 올라간 layer index다.
         bool inUse{ false };                         // 현재 consumer가 빌려 간 상태인지 나타낸다.
     };
 
@@ -71,8 +86,8 @@ private:
         Shared<EffectInstance>& outInstance);
     // 다음 재생 전에 Reset/position/Play를 적용한다.
     HRESULT Prepare_AcquiredInstance(const AcquireDesc& desc, const Shared<EffectInstance>& instance);
-    // 같은 key의 inactive entry를 찾는다.
-    PooledInstance* Find_AvailableEntry(const wstring& effectName);
+    // 같은 key의 inactive entry를 찾는다. direct definition acquire는 definition identity까지 맞춘다.
+    PooledInstance* Find_AvailableEntry(const AcquireDesc& desc, const Shared<const EffectDefinition>& definition);
     // 반환 대상 object에 대응하는 pool entry를 찾는다.
     PooledInstance* Find_EntryByObject(const Shared<GameObject>& effectObject);
 

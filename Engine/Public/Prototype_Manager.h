@@ -24,6 +24,8 @@ public:
 	HRESULT Clear_Prototypes(uint32 levelIndex);
 
     bool Has_Prototype(uint32 levelIndex, const wstring& prototypeTag) const;
+    // Profile/debug summary처럼 prototype registry를 읽기만 하는 진단 코드에서 사용한다.
+    void Visit_Prototypes(const function<void(uint32 levelIndex, const wstring& prototypeTag, const Shared<Base>& prototype)>& visitor) const;
 
 private:
 	vector<map<const wstring, Shared<Base>>> _prototypes;

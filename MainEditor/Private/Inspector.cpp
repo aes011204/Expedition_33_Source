@@ -9,6 +9,7 @@
 #include "Helper_String.h"
 #include "Inspector_Factory.h"
 #include "ModelCom.h"
+#include "MapStaticMesh.h"
 #include "Reflection_Types.h"
 #include "TransformCom.h"
 
@@ -262,8 +263,14 @@ void Inspector::Draw_Components(const Shared<GameObject>& target)
             if (info.properties.empty())
                 return;
 
-            Draw_ReflectionSection(info.className, component.get(), info);
-        });
+        Draw_ReflectionSection(info.className, component.get(), info);
+    });
+
+    if (const Shared<Client::MapStaticMesh> mapStaticMesh = dynamic_pointer_cast<Client::MapStaticMesh>(target))
+    {
+        if (const Shared<ModelCom> mapModel = mapStaticMesh->Get_Model())
+            Draw_ComponentOverride(static_pointer_cast<Component>(mapModel));
+    }
 }
 
 void Inspector::Draw_ObjectReflection(const Shared<GameObject>& target)

@@ -27,13 +27,13 @@ Texture2D g_EmissiveTexture;
 Texture2D g_StaticLightDepthTexture;
 Texture2D g_SSAOTexture;
 Texture2D g_SSAOBlurTexture;
+TextureCube g_IrradianceMap;
+TextureCube g_PrefilterMap;
+Texture2D g_BRDFLUT;
 
 //==================================================
 // LIGHT
 //==================================================
-vector g_MtrlAmbient = float4(1.f, 1.f, 1.f, 1.f);
-vector g_MtrlSpecular = float4(1.f, 1.f, 1.f, 1.f);
-
 
 
 float4 Reconstruct_WorldPos(float2 Texcoord)
@@ -189,6 +189,13 @@ float Hash12(float2 pixel)
     return frac(sin(h) * 43758.5453123f);
 }
 
+float2 Get_SSAOPixelCoord(float2 uv)
+{
+    uint width, height;
+    g_DepthTexture.GetDimensions(width, height);
+    return floor(uv * float2(max(width, 1u), max(height, 1u)));
+}
+
 // Depth로 AO를 계산한 다음, 이후 Blur 단계에서 부드럽게 함
 float Compute_DepthSSAO(float2 uv)
 {
@@ -208,12 +215,13 @@ float Compute_DepthSSAO(float2 uv)
     float sampleWeightSum = 0.f;
 
     // 각 픽셀마다 다른 SSAO 커널 회전 각도로 샘플링하여, 패턴 생성 방지
-    float2 pixelCoord = floor(uv * float2(max(g_ScreenSize.x, 1u), max(g_ScreenSize.y, 1u)));
+    float2 pixelCoord = Get_SSAOPixelCoord(uv);
     float rand01 = Hash12(pixelCoord);
-    float randomAngle = 0; // rand01 * 6.28318530718f; // 2PI
+    float randomAngle = rand01 * 6.28318530718f; // 2PI
+    float radiusJitter = lerp(0.9f, 1.1f, Hash12(pixelCoord + 19.19f));
 
     float baseRadius = max(g_SSAORadius, MIN_SSAO_RADIUS);
-    float depthBias = max(g_SSAOBias, MIN_SSAO_DEPTH_BIAS);
+    float baseDepthBias = max(g_SSAOBias, MIN_SSAO_DEPTH_BIAS);
 
     // 해당 픽셀과 샘플 픽셀의 View Z 차이가 너무 커, SSAO 계산에서 제외해야 할 때 쓰인다. 
     float depthRange = max(g_SSAODepthRange, baseRadius);
@@ -241,7 +249,10 @@ float Compute_DepthSSAO(float2 uv)
             centerN * abs(kernel.z);
 
         // 샘플 위치(VS)를 화면에 투영한 뒤, 그 화면 위치에 실제로 찍힌 Depth와 비교한다
-        float3 samplePosVS = centerPosVS + sampleDirVS * (baseRadius * sampleScale);
+        float sampleRadius = baseRadius * sampleScale * radiusJitter;
+        float sampleDepthBias = max(baseDepthBias * sampleScale, MIN_SSAO_DEPTH_BIAS);
+        float sampleDepthRange = max(depthRange * sampleScale, sampleDepthBias * 2.f);
+        float3 samplePosVS = centerPosVS + sampleDirVS * sampleRadius;
         if (samplePosVS.z <= 0.f)
             continue;
 
@@ -255,7 +266,7 @@ float Compute_DepthSSAO(float2 uv)
             continue;
 
         float absDepthDiff = abs(centerPosVS.z - sampleDepthVS);
-        if (absDepthDiff > depthRange)
+        if (absDepthDiff > sampleDepthRange)
             continue;
 
         // normal-based weighting
@@ -263,11 +274,11 @@ float Compute_DepthSSAO(float2 uv)
         float normalAlignment = saturate(dot(centerN, sampleNormalVS));
         float normalWeight = 1.f; //smoothstep(0.2f, 0.9f, normalAlignment);
 
-        float rangeCheck = smoothstep(0.f, 1.f, depthRange / max(absDepthDiff, EPSILON));
+        float rangeCheck = 1.f - smoothstep(0.f, sampleDepthRange, absDepthDiff);
         float sampleWeight = rangeCheck * normalWeight;
 
         // 실제 Depth에 기록된 z가 가상 샘플 위치의 z보다 앞에 있으면 occluded로 판단한다.
-        float occluded = (sampleDepthVS <= samplePosVS.z - depthBias) ? 1.f : 0.f;
+        float occluded = (sampleDepthVS <= samplePosVS.z - sampleDepthBias) ? 1.f : 0.f;
 
         occlusion += occluded * sampleWeight;
         sampleWeightSum += sampleWeight;
@@ -291,7 +302,17 @@ float Compute_SSAOBilateralBlur(float2 uv)
     float aoSum = centerAO;
     float weightSum = 1.f;
     float2 texelSize = g_TexelSize;
+    float2 pixelCoord = Get_SSAOPixelCoord(uv);
     int radius = max(1, (int) round(g_SSAOBlurRadius));
+    float blurAngle = Hash12(pixelCoord + 53.17f) * 6.28318530718f;
+    float blurSin = sin(blurAngle);
+    float blurCos = cos(blurAngle);
+    float2 blurJitter = float2(
+        Hash12(pixelCoord + 11.3f),
+        Hash12(pixelCoord + 29.7f)) - 0.5f;
+    float2 blurJitterUV = blurJitter * texelSize * 0.35f;
+    float sigmaS = max(g_SSAOBlurRadius * 0.5f, 1.f);
+    float aoRange = 0.02f + min((float) radius, 16.f) * 0.005f;
 
     [loop]
     for (int y = -radius; y <= radius; ++y)
@@ -302,7 +323,11 @@ float Compute_SSAOBilateralBlur(float2 uv)
             if (x == 0 && y == 0)
                 continue;
 
-            float2 sampleUV = uv + float2((float) x, (float) y) * texelSize;
+            float2 kernelOffset = float2((float) x, (float) y);
+            float2 rotatedOffset = float2(
+                kernelOffset.x * blurCos - kernelOffset.y * blurSin,
+                kernelOffset.x * blurSin + kernelOffset.y * blurCos);
+            float2 sampleUV = uv + rotatedOffset * texelSize + blurJitterUV;
             if (any(sampleUV < 0.f) || any(sampleUV > 1.f))
                 continue;
 
@@ -312,8 +337,7 @@ float Compute_SSAOBilateralBlur(float2 uv)
             float3 sampleN = Get_NormalWS(sampleUV);
 
             // joint/cross bilateral blur
-            float dist2 = (float) (x * x + y * y);
-            float sigmaS = max(g_SSAOBlurRadius, 1.f);
+            float dist2 = dot(rotatedOffset, rotatedOffset);
             float wSpatial = exp(-dist2 / (2.f * sigmaS * sigmaS));
 
             float depthDiff = abs(centerZ - sampleZ);
@@ -322,7 +346,11 @@ float Compute_SSAOBilateralBlur(float2 uv)
             float normalDelta = 1.f - saturate(dot(centerN, sampleN));
             float wNormal = exp(-normalDelta * max(g_SSAONormalSharpness, EPSILON));
 
-            float weight = wSpatial * wDepth * wNormal;
+            float aoDiff = abs(centerAO - sampleAO);
+            float aoSimilarity = 1.f - smoothstep(0.f, aoRange, aoDiff);
+            float wAO = lerp(1.f, aoSimilarity, 0.35f);
+
+            float weight = wSpatial * wDepth * wNormal * wAO;
             aoSum += sampleAO * weight;
             weightSum += weight;
         }
@@ -330,5 +358,56 @@ float Compute_SSAOBilateralBlur(float2 uv)
 
     return saturate(aoSum / max(weightSum, EPSILON));
 }
+
+
+static const float PI = 3.14159265359f;
+
+// 프레넬 반사(근사). 정면에서 볼 때 반사가 약하고, 비스듬히 보면 반사가 세지도록 한다. 
+float3 FresnelSchlick(float cosTheta, float3 F0)
+{
+    // F0 : 정면에서 봤을 때 기본 반사율
+    // cosTheta : 얼마나 정면인지
+    return F0 + (1.0f - F0) * pow(saturate(1.0f - cosTheta), 5.0f);
+}
+
+// GGX Specular의 하이라이트 모양을 정하는 공식. GGX NDF
+float DistributionGGX(float NdotH, float roughness)
+{
+    float a = roughness * roughness * roughness * roughness;
+    float denom = max((NdotH * NdotH) * (a - 1.0f) + 1.0f, EPSILON);
+    return a / (PI * denom * denom);
+}
+
+// GGX의 Geometry 항을 Schlick 방식으로 근사 계산. 미세 표면에 의한 가림 보정
+float GeometrySchlickGGX(float NdotX, float roughness)
+{
+    float r = roughness + 1.0f;
+    float k = (r * r) * 0.125f;
+    return NdotX / max(NdotX * (1.0f - k) + k, EPSILON);
+}
+
+// Smith Geometry Term 계열 
+float GeometrySmith(float NdotV, float NdotL, float roughness)
+{
+    float ggxView = GeometrySchlickGGX(NdotV, roughness); // 카메라 방향으로 나오는 반사광이 얼마나 가려지는지
+    float ggxLight = GeometrySchlickGGX(NdotL, roughness); // 빛이 표면으로 들어올 때 얼마나 가려지는지
+    return ggxView * ggxLight;
+}
+
+float2 EnvBRDFApprox(float roughness, float NoV)
+{
+    const float4 c0 = float4(-1.0f, -0.0275f, -0.572f, 0.022f);
+    const float4 c1 = float4(1.0f, 0.0425f, 1.04f, -0.04f);
+    float4 r = roughness * c0 + c1;
+    float a004 = min(r.x * r.x, exp2(-9.28f * NoV)) * r.x + r.y;
+    return float2(-1.04f, 1.04f) * a004 + r.zw;
+}
+
+float3 FresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
+{
+    return F0 + (max(float3(1.0f - roughness, 1.0f - roughness, 1.0f - roughness), F0) - F0) *
+        pow(saturate(1.0f - cosTheta), 5.0f);
+}
+
 
 #endif

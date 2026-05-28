@@ -50,8 +50,7 @@ public:
         umap<wstring, Shared<UI_Base>> characterSheetUIs;
         umap<wstring, Shared<UI_Base>> tooltipsByName;
         umap<wstring, Shared<UI_Base>> tooltips;
-
-             
+              
         Shared<UI_Text>                levelText{};
 
         Shared<UI_Text>                vitalityText{};
@@ -67,7 +66,7 @@ public:
         Shared<UI_Text>                maxHpText{};
 
         Shared<UI_Text>                hpText{};
-        Shared<UI_Text>                attackText{};
+        Shared<UI_Text>                attackText{}; 
         Shared<UI_Text>                speedText{};
         Shared<UI_Text>                defenseValueText{};
         Shared<UI_Text>                criticalRateText{};
@@ -112,17 +111,7 @@ private:
 private:
     void    Change_ToSelectedViewState();
 
-//private:
-//    HRESULT Spawn_StatusPreviewHeroes();
-//    void    Clear_StatusPreviewHeroes();
-//
-//    void    Update_StatusPreviewHeroes(float timeDelta);
-//    void    Layout_StatusPreviewHeroes();
-//
-//    HRESULT Ready_StatusPreviewCamera();
-//    void    Activate_StatusPreviewCamera();
-//    void    Restore_PreviousCamera();
-//
+
 public:
     vector<UIPreviewManager::PreviewSlotDesc> Build_PreviewLayout();
 
@@ -136,11 +125,6 @@ private:
 
     uint32                                   _selectedHeroIndex = 0;
     bool                                     _isOpen = false;
-
-    //vector<StatusPreviewHero>                _previewHeroes{};
-   // wstring                                  _previewLayerTag = L"Layer_CharacterStatusPreview";
-    //Shared<Camera>                           _previousCamera{};
-    //Shared<PreviewCamera>                    _previewCamera{};
     Shared<UI_Base>                          _skillpointUI;
     Shared<UI_Base>                          _backgroundUI;
     umap<wstring, Shared<UI_Base>>           _backgroundUIs;

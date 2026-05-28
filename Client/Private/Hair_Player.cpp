@@ -60,7 +60,7 @@ void Hair_Player::Update(float timeDelta)
 {
     PlayableParts::Update(timeDelta);
 
-    Debug_Profile::Scope profileScope("Player::Hair::Update");
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Hair::Update");
 
     if (_modelCom == nullptr)
         return;
@@ -115,7 +115,7 @@ void Hair_Player::Update(float timeDelta)
         }
         if (doSimulate)
         {
-            Debug_Profile::Scope physicsScope("Player::Hair::Physics");
+            ENGINE_PROFILE_SCOPE_DETAIL("Player::Hair::Physics");
             _hairPhysics.Simulate(_modelCom.get(), timeDelta, _combinedWorldMatrix, ownerVelocity);
             _wasPhysicsSkipped = false;
         }
@@ -136,7 +136,7 @@ void Hair_Player::Late_Update(float timeDelta)
 
 HRESULT Hair_Player::Render()
 {
-    Debug_Profile::Scope profileScope("Player::Hair::Render");
+    ENGINE_PROFILE_SCOPE_DETAIL("Player::Hair::Render");
 
     return PlayableParts::Render();
 }

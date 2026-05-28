@@ -864,7 +864,7 @@ HRESULT ModelCom::Bind_Material(ShaderCom* shader, const char* constantName, uin
 
 HRESULT ModelCom::Bind_BoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
 {
-    Debug_Profile::Scope profileScope("AnimMesh::BindBoneMatrices");
+    ENGINE_PROFILE_SCOPE_DETAIL("AnimMesh::BindBoneMatrices");
 
     CHECK_FAILED(Prepare_BoneMatrixBuffers(), E_FAIL);
     return Bind_PreparedBoneMatrices(shader, constantName, meshIndex);
@@ -976,7 +976,7 @@ void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bun
 
 HRESULT ModelCom::Prepare_BoneMatrixBuffers()
 {
-    Debug_Profile::Scope profileScope("AnimMesh::PrepareBoneMatrixBuffers");
+    ENGINE_PROFILE_SCOPE_DETAIL("AnimMesh::PrepareBoneMatrixBuffers");
 
     if (!_isSkeletal || _numBones == 0)
         return S_OK;
@@ -995,7 +995,7 @@ HRESULT ModelCom::Prepare_BoneMatrixBuffers()
 
 HRESULT ModelCom::Bind_PreparedBoneMatrices(ShaderCom* shader, const char* constantName, uint32 meshIndex)
 {
-    Debug_Profile::Scope profileScope("AnimMesh::BindPreparedBoneMatrices");
+    ENGINE_PROFILE_SCOPE_DETAIL("AnimMesh::BindPreparedBoneMatrices");
 
     if (shader == nullptr || constantName == nullptr)
         return E_FAIL;
@@ -1361,7 +1361,7 @@ void ModelCom::Clear_LeaderPoseComponent()
 
 void ModelCom::Update_LeaderPoseMatrices()
 {
-    Debug_Profile::Scope profileScope("AnimMesh::UpdateLeaderPose");
+    ENGINE_PROFILE_SCOPE_DETAIL("AnimMesh::UpdateLeaderPose");
     if (nullptr == _leaderPoseModel || _leaderPoseBoneMap.empty())
         return;
 
@@ -1449,7 +1449,7 @@ void ModelCom::Mark_BoneMatricesDirty()
 
 HRESULT ModelCom::Ensure_MeshBoneMatrices()
 {
-    Debug_Profile::Scope profileScope("AnimMesh::EnsureMeshBoneMatrices");
+    ENGINE_PROFILE_SCOPE_DETAIL("AnimMesh::EnsureMeshBoneMatrices");
 
     if (!_isSkeletal || _numBones == 0)
         return S_OK;
@@ -1498,7 +1498,7 @@ HRESULT ModelCom::Ensure_MeshBoneMatrices()
 
 HRESULT ModelCom::Ensure_MeshBoneMatrixBuffers()
 {
-    Debug_Profile::Scope profileScope("AnimMesh::EnsureMeshBoneMatrixBuffers");
+    ENGINE_PROFILE_SCOPE_DETAIL("AnimMesh::EnsureMeshBoneMatrixBuffers");
 
     CHECK_FAILED(Ensure_MeshBoneMatrices(), E_FAIL); // CPU mesh bone matrices cache 최신화
 
@@ -1510,7 +1510,7 @@ HRESULT ModelCom::Ensure_MeshBoneMatrixBuffers()
 
     for (uint32 meshIndex = 0; meshIndex < _meshBoneMatrixCaches.size(); ++meshIndex)
     {
-        Debug_Profile::Scope uploadScope("AnimMesh::UploadBoneBuffer");
+        ENGINE_PROFILE_SCOPE_DETAIL("AnimMesh::UploadBoneBuffer");
 
         const vector<Matrix>& meshBoneMatrices = _meshBoneMatrixCaches[meshIndex];
         if (meshBoneMatrices.empty())
@@ -1704,7 +1704,7 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
     }
 
     {
-        Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::StopNotifyStates");
+    ENGINE_PROFILE_SCOPE_DETAIL("AnimMesh::PlayAnimation::StopNotifyStates");
 
         if (_isFinished && !_isAnimLoop)
             Stop_AllNotifyStates(_isAnimNotifyExecutionEnabled);
@@ -1713,7 +1713,7 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
 
 void ModelCom::Step_RebuildCombinedBones()
 {
-    Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::CombinedBones");
+    ENGINE_PROFILE_SCOPE_DETAIL("AnimMesh::PlayAnimation::CombinedBones");
 
     for (uint32 i = 0; i < _numBones; ++i)
         _bones[i]->Update_CombinedTransformationMatrix(_bones, _preLocalTransformMatrix);
