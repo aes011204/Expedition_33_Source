@@ -52,7 +52,7 @@ class Picking;
 class Culling_Manager;
 class ThreadPool;
 class PostProcessPipeline;
-class SSAOPipeline;
+class LightingPipeline;
 class ScreenFx_Manager;
 class ShaderResourceRegistry;
 struct StaticCollisionData;
@@ -229,8 +229,8 @@ public: /* For.Renderer */
     uint32 Get_RenderCall() const;
     const Shared<PostProcessPipeline>   Get_PostProcessPipeline() const;
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
-    const Shared<SSAOPipeline>          Get_SSAOPipeline() const;
-    Shared<SSAOPipeline>                Get_SSAOPipeline();
+    const Shared<LightingPipeline>      Get_LightingPipeline() const;
+    Shared<LightingPipeline>            Get_LightingPipeline();
     const ScreenFx_Manager*             Get_ScreenFxManager() const;
     RenderGroup                         Get_CurrentRenderGroup() const;
 

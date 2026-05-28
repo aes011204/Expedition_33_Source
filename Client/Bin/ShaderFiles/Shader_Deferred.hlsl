@@ -1,5 +1,7 @@
 #include "Engine_Shader_Deferred.hlsl"
 
+#define IBL_DUMMY_TEST 0
+
 //==================================================
 // VS
 //==================================================
@@ -61,8 +63,8 @@ PS_OUT_BACKBUFFER PS_MAIN_DEBUG(PS_IN In)
 
 struct PS_OUT_LIGHT
 {
-    vector Shade    : SV_TARGET0;
-    vector Ambient  : SV_TARGET1;
+    vector Shade    : SV_TARGET0;   // 픽셀의 재질이 그 빛을 받아 diffuse 방향으로 반사한 결과 색
+    vector Ambient  : SV_TARGET1;   // 픽셀이 빛을 받아서 카메라 방향으로 반사한 스페큘러 결과
     vector Specular : SV_TARGET2;
 };
 
@@ -70,35 +72,61 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
 {
     PS_OUT_LIGHT Out;
 
+    // Diffuse 
+    vector baseColorDesc = g_DiffuseTexture.Sample(LinearWrapSampler, In.Texcoord);
+    if (baseColorDesc.a == 0.f) // 비어있는 픽셀
+        discard;
+    float3 baseColor = saturate(baseColorDesc.rgb);
+
     // Normal : DXGI_FORMAT_R16G16B16A16_UNORM
     vector NormalDesc = g_NormalTexture.Sample(LinearWrapSampler, In.Texcoord);
-    vector Normal = vector(normalize(DecodeNormal(NormalDesc.xyz)), 0.f);
+    float3 N = normalize(DecodeNormal(NormalDesc.xyz));
 
     // ORM
     vector MaterialDesc = g_MaterialTexture.Sample(LinearWrapSampler, In.Texcoord);
-    float AO = MaterialDesc.r;
-    float Roughness = saturate(MaterialDesc.g);
-    float Metalness = saturate(MaterialDesc.b);
+    float roughness = clamp(MaterialDesc.g, 0.05f, 1.f);
+    float metalness = saturate(MaterialDesc.b);
 
-    // Light
-    float4 Reflect = reflect(normalize(g_LightDir), Normal);
     float4 WorldPos = Reconstruct_WorldPos(In.Texcoord);
-    float4 Look = WorldPos - g_DeferredCamPosition;                                                    
+    float3 V = normalize(g_DeferredCamPosition.xyz - WorldPos.xyz); // 현재 픽셀에서 카메라를 향하는 방향
+    float3 L = normalize(-g_LightDir.xyz);                          // 현재 픽셀에서 빛을 향하는 방향
 
-    float SpecularPower = lerp(128.f, 8.f, Roughness);
-    float Specular = pow(max(dot(normalize(Look) * -1.f, normalize(Reflect)), 0.f), SpecularPower);
+    float3 Hraw = V + L;
+    float invHLen = rsqrt(max(dot(Hraw, Hraw), EPSILON));   
+    float3 H = Hraw * invHLen;                                      // V와 L의 중간 방향. 하프벡터
 
-    float NDotL = max(dot(normalize(g_LightDir) * -1.f, normalize(Normal)), 0.f);
+    float NdotL = saturate(dot(N, L));  // 표면이 빛을 얼마나 정면으로 받는지
+    if (NdotL <= 0.0f)
+    {
+        Out.Shade = float4(0, 0, 0, 1);
+        Out.Specular = float4(0, 0, 0, 1);
+        Out.Ambient = float4(0, 0, 0, 1);
+        return Out;
+    }
 
-    vector Ambient = g_LightAmbient * g_MtrlAmbient * AO;
-    vector DiffuseLight = g_LightDiffuse * NDotL;
+    float NdotV = saturate(dot(N, V));  // 표면이 카메라를 얼마나 정면으로 보고 있는지
+    float NdotH = saturate(dot(N, H)); 
+    float VdotH = saturate(dot(V, H));
 
-    Out.Shade = DiffuseLight;
-    Out.Ambient = Ambient;
+    // Cook-Torrance Specular BRDF
+    float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), baseColor, metalness);    // 비금속 반사 ~ 금속 반사 
+    float3 F = FresnelSchlick(VdotH, F0);               // 보는 각도에 따라 반사율이 얼마나 강해지는지
+    float D = DistributionGGX(NdotH, roughness);        // roughness에 따라 하이라이트가 어떻게 펴질지
+    float G = GeometrySmith(NdotV, NdotL, roughness);   // 미세 요철 때문에 반사광이 얼마나 줄어드는지
 
-    float SpecularScale = 1.f - Roughness;
-     
-    Out.Specular = (g_LightSpecular * g_MtrlSpecular) * Specular * SpecularScale;
+    // Cook-Torrance Microfacet Specular BRDF
+    float3 specularBRDF = (D * G * F) / max(4.0f * NdotV * NdotL, EPSILON);
+
+    float3 kS = F;
+    float3 kD = (1.0f - kS) * (1.0f - metalness);
+    float3 diffuseBRDF = kD * baseColor / PI;
+
+    // 픽셀에 도달하는 빛의 색/세기
+    float3 radiance = g_LightDiffuse.rgb;
+
+    Out.Shade = float4(diffuseBRDF * radiance * NdotL, 1.f);
+    Out.Specular = float4(specularBRDF * radiance * NdotL, 1.f);
+    Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
 
     return Out;
 }
@@ -107,33 +135,62 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
 {
     PS_OUT_LIGHT Out;
 
+    // Diffuse
+    vector baseColorDesc = g_DiffuseTexture.Sample(LinearWrapSampler, In.Texcoord);
+    if (baseColorDesc.a == 0.f) // 비어있는 픽셀
+        discard;
+    float3 baseColor = saturate(baseColorDesc.rgb);
+
     // Normal : DXGI_FORMAT_R16G16B16A16_UNORM
     vector NormalDesc = g_NormalTexture.Sample(LinearWrapSampler, In.Texcoord);
-    vector Normal = vector(normalize(DecodeNormal(NormalDesc.xyz)), 0.f);
+    float3 N = normalize(DecodeNormal(NormalDesc.xyz));
 
     vector MaterialDesc = g_MaterialTexture.Sample(LinearWrapSampler, In.Texcoord);
-
-    float AO = saturate(MaterialDesc.r);
-    float Roughness = saturate(MaterialDesc.g);
-    float Metalness = saturate(MaterialDesc.b);
+    float roughness = clamp(MaterialDesc.g, 0.05f, 1.f);
+    float metalness = saturate(MaterialDesc.b);
 
     // Light
     float4 WorldPos = Reconstruct_WorldPos(In.Texcoord);
-    vector LightVec = WorldPos - g_LightPos;
+    float3 LightVec = g_LightPos.xyz - WorldPos.xyz;
     float Distance = length(LightVec);
-    vector vLightDir = (Distance > 0.f) ? (LightVec / Distance) : float4(0.f, 0.f, 0.f, 0.f);
+    float3 L = (Distance > 0.f) ? (LightVec / Distance) : float3(0.f, 0.f, 0.f);    // 현재 픽셀에서 빛을 향하는 방향
+    float3 V = normalize(g_DeferredCamPosition.xyz - WorldPos.xyz);                 // 현재 픽셀에서 카메라를 향하는 방향
+    float3 Hraw = V + L;
+    float invHLen = rsqrt(max(dot(Hraw, Hraw), EPSILON));
+    float3 H = Hraw * invHLen;                                                      // V와 L의 중간 방향. 하프벡터
 
-    float fAtt = saturate((g_LightRange - Distance) / g_LightRange);
+    float att = saturate((g_LightRange - Distance) / g_LightRange);
 
-    float NdotL = max(dot(normalize(vLightDir) * -1.f, normalize(Normal)), 0.f);
+    float NdotL = saturate(dot(N, L));  // 표면이 빛을 얼마나 정면으로 받는지
+    if (NdotL <= 0.0f)
+    {
+        Out.Shade = float4(0, 0, 0, 1);
+        Out.Specular = float4(0, 0, 0, 1);
+        Out.Ambient = float4(0, 0, 0, 1);
+        return Out;
+    }
 
-    vector DiffuseLight = g_LightDiffuse * NdotL;
-    vector AmbientLight = g_LightAmbient * g_MtrlAmbient * AO;
+    float NdotV = saturate(dot(N, V));  // 표면이 카메라를 얼마나 정면으로 보고 있는지
+    float NdotH = saturate(dot(N, H));
+    float VdotH = saturate(dot(V, H));
 
-    Out.Shade = DiffuseLight * fAtt;
-    Out.Ambient = AmbientLight * fAtt;
+    float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), baseColor, metalness);    // 비금속 반사 ~ 금속 반사
+    float3 F = FresnelSchlick(VdotH, F0);                                    // 보는 각도에 따라 반사율이 얼마나 강해지는지
+    float D = DistributionGGX(NdotH, roughness);                             // roughness에 따라 하이라이트가 어떻게 펴질지
+    float G = GeometrySmith(NdotV, NdotL, roughness);                        // 미세 요철 때문에 반사광이 얼마나 줄어드는지
 
-    Out.Specular = 0.f;
+    // Cook-Torrance Microfacet Specular BRDF
+    float3 specularBRDF = (D * G * F) / max(4.0f * NdotV * NdotL, EPSILON);
+    // Specular와 Diffuse의 비율
+    float3 kS = F;
+    float3 kD = (1.0f - kS) * (1.0f - metalness);
+    float3 diffuseBRDF = kD * baseColor / PI;
+
+    float3 radiance = g_LightDiffuse.rgb * att;
+
+    Out.Shade = float4(diffuseBRDF * radiance * NdotL, 1.f);
+    Out.Specular = float4(specularBRDF * radiance * NdotL, 1.f);
+    Out.Ambient = float4(0.f, 0.f, 0.f, 1.f);
 
     return Out;
 }
@@ -149,21 +206,66 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
 
     // Light
     vector Shade = g_ShadeTexture.Sample(LinearWrapSampler, In.Texcoord);
-    vector Ambient = g_AmbientTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Specular = g_SpecularTexture.Sample(LinearWrapSampler, In.Texcoord);
     vector Emissive = g_EmissiveTexture.Sample(LinearWrapSampler, In.Texcoord);
+    vector NormalDesc = g_NormalTexture.Sample(LinearWrapSampler, In.Texcoord);
+    vector MaterialDesc = g_MaterialTexture.Sample(LinearWrapSampler, In.Texcoord);
 
     float aoRaw = g_SSAOTexture.Sample(LinearClampSampler, In.Texcoord);
     float ao = lerp(1.f, aoRaw, saturate(g_SSAOIntensity));
     ao = pow(saturate(ao), max(g_SSAOPower, EPSILON));
 
-    //float ao = g_SSAOTexture.Sample(LinearWrapSampler, In.Texcoord).r;
-    vector direct = Diffuse * Shade;
-    vector indirect = Diffuse * Ambient * ao;
-    Out.Color = direct + indirect + Specular;
+    // Direct BRDF는 Light pass에서 계산 완료.
+    vector direct = Shade + Specular;
+    vector indirect = float4(0.f, 0.f, 0.f, 0.f);
+
+    // IBL 계산용 표면 정보
+    float3 N = normalize(DecodeNormal(NormalDesc.xyz));               // 월드 노멀
+    float4 WorldPos = Reconstruct_WorldPos(In.Texcoord);              // 현재 픽셀 월드 위치
+    float3 V = normalize(g_DeferredCamPosition.xyz - WorldPos.xyz);   // 현재 픽셀 -> 카메라 방향
+    float NdotV = saturate(dot(N, V));                                  // 카메라 정면도
+
+    // PBR 파라미터
+    float finalAO = saturate(MaterialDesc.r) * ao;
+
+    float roughness = clamp(MaterialDesc.g, 0.05f, 1.f);
+    float metalness = saturate(MaterialDesc.b);
+    float3 baseColor = saturate(Diffuse.rgb);
+
+    if (g_IBLEnabled != 0u)
+    {
+        // Fresnel / 에너지 분배 계수
+        float3 F0 = lerp(float3(0.04f, 0.04f, 0.04f), baseColor, metalness);
+        float3 F = FresnelSchlickRoughness(NdotV, F0, roughness);
+        float3 kS = F;
+        float3 kD = (1.0f - kS) * (1.0f - metalness);
+
+        // Indirect Lighting
+        // Diffuse IBL : irradiance map 기반 확산 간접광
+        float3 envDiffuse = g_IrradianceMap.Sample(LinearSampler, N).rgb;
+        float3 diffuseIBL = envDiffuse * baseColor * kD;
+
+        // Specular IBL : prefilter map + BRDF LUT(split-sum)
+        float3 R = reflect(-V, N);
+        float prefilterMip = roughness * g_IBLPrefilterMaxMip;
+        float3 envSpecular = g_PrefilterMap.SampleLevel(LinearSampler, R, prefilterMip).rgb;
+        float2 envBRDF = g_BRDFLUT.Sample(LinearClampSampler, float2(NdotV, roughness)).rg;
+        if (envBRDF.x == 0.f && envBRDF.y == 0.f)
+        {
+            envBRDF = EnvBRDFApprox(roughness, NdotV);
+        }
+        float3 specularIBL = envSpecular * (F * envBRDF.x + envBRDF.y);
+
+        // AO는 diffuse IBL에만 적용한다. specular AO는 v1에서 제외.
+        float3 indirectDiffuse = diffuseIBL * finalAO * g_IBLDiffuseIntensity;
+        float3 indirectSpecular = specularIBL * g_IBLSpecularIntensity;
+        indirect.rgb = (indirectDiffuse + indirectSpecular) * g_IBLIntensity;
+    }
+
+    Out.Color = direct + indirect;
 
     // Shadow
-    float4 worldPos = Reconstruct_WorldPos(In.Texcoord);
+    float4 worldPos = WorldPos;
 
     float dynamicShadow = SampleShadowAmount(
     g_LightDepthTexture,
