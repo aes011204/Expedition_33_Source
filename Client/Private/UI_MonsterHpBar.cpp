@@ -4,7 +4,7 @@
 #include "GameInstance.h"
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
-#include "Character.h"
+#include "Monster_BattleBase.h"
 #include "CombatStatCom.h"
 
 using namespace UI_Utils;

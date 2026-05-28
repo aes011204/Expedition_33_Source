@@ -48,12 +48,12 @@ public:
     void    Update(float timeDelta) override;
     void    Late_Update(float timeDelta) override;
 
-    void Decide_Action(Action& curTurnAction, const vector<BattleChar>& heroes);
-    void Decide_Action_BTOnly(Action& curturnAction, const vector<BattleChar>& heroes);
+    void Decide_Action(ActionRequest& request, const vector<BattleChar>& heroes);
+    void Decide_Action_BTOnly(ActionRequest& request, const vector<BattleChar>& heroes);
     
 protected:
     virtual HRESULT Ready_Components();
-    void ActionFromDecision(Action& curturnAction, const BattleDecision decision, const vector<BattleChar>& heroes);
+    void ActionFromDecision(ActionRequest& request, const BattleDecision decision, const vector<BattleChar>& heroes);
 
 protected:
     Shared<AIController>            _aiCtrl;

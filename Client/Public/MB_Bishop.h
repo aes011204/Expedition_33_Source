@@ -28,7 +28,8 @@ protected:
 
 private:
     Shared<Mon_Bishop_Body> _body = {};
-    //Shared<Mon_Lancelier_Weapon> _weapon = {};
+    Shared<Mon_Lancelier_Weapon> _weaponL = {};
+    Shared<Mon_Lancelier_Weapon> _weaponR = {};
 
 public:
     static Shared<MB_Bishop> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

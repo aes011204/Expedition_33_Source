@@ -1,6 +1,6 @@
 ﻿#include "GameplayUI_Battle.h"
 
-#include "Character.h"
+#include "Monster_BattleBase.h"
 #include "ClientInstance.h"
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
@@ -395,7 +395,7 @@ void GameplayUI_Battle::Handle_TargetPreviewChanged(const BattleChar* target)
     _hasTargetPreviewSnapshot = true;
 }
 
-void GameplayUI_Battle::Handle_ActionStarted(const Action& action)
+void GameplayUI_Battle::Handle_ActionStarted(const BattleAction& action)
 {
     if (_choiceTarget)
         _choiceTarget->Close();
@@ -404,22 +404,24 @@ void GameplayUI_Battle::Handle_ActionStarted(const Action& action)
     if (_monsterHpBar)
         _monsterHpBar->Clear_TrackedTarget();
 
+    const BattleChar& actor = action.Get_CurChar();
+
     const bool isPlayerAction =
-        action._curChar.statCom != nullptr &&
-        action._curChar.statCom->Is_Player();
+        actor.statCom != nullptr &&
+        actor.statCom->Is_Player();
 
     const bool isAttackAction =
-        action.type == EBattleContext::BaseAttack ||
-        action.type == EBattleContext::Skill;
+        action.GetType() == EBattleContext::BaseAttack ||
+        action.GetType() == EBattleContext::Skill;
 
     _isMechanismActionActive = isPlayerAction && isAttackAction;
-    _activePlayerId = _isMechanismActionActive ? action._curChar.heroId : HeroId::END;
+    _activePlayerId = _isMechanismActionActive ? actor.heroId : HeroId::END;
 
     if (!_isMechanismActionActive && _battleMechanism)
         _battleMechanism->Close();
 }
 
-void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float damage)
+void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float damage, AttackType attackType)
 {
     if (!_isBattleUiActive)
         return;
@@ -540,14 +542,19 @@ void GameplayUI_Battle::Handle_HealApplied(const BattleChar& target, float healA
     selectedSlot->Play_HealFont(screenPos, healAmount, stackIndex);
 }
 
-void GameplayUI_Battle::Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const BattleChar& target)
+void GameplayUI_Battle::Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const vector<BattleChar>& target)
 {
     if (!_isBattleUiActive || _reactionResult == nullptr)
         return;
 
     Vec3 worldPos{};
-    if (!Try_GetReactionResultWorldPos(target, worldPos))
+    for(auto& targetChar: target)
+    {
+    if (!Try_GetReactionResultWorldPos(targetChar, worldPos))
         return;
+        
+    }
+
 
     Vec2 screenPos{};
     if (!Try_ProjectWorldToScreen(worldPos, screenPos))
@@ -761,7 +768,7 @@ void GameplayUI_Battle::Update_BattleDefense(float timeDelta)
         return;
     }
 
-    const BattleChar& currentActor = battleController->Get_TurnAction()._curChar;
+    const BattleChar& currentActor = battleController->Get_TurnAction().Get_CurChar();
     if (currentActor.actor == nullptr || currentActor.statCom == nullptr)
     {
         _battleDefense->Close();
@@ -841,8 +848,8 @@ void GameplayUI_Battle::Update_ChoiceTarget(float timeDelta)
         return;
     }
 
-    const Action& turnAction = battleController->Get_TurnAction();
-    const BattleChar& actor = turnAction._curChar;
+    const BattleAction& turnAction = battleController->Get_TurnAction();
+    const BattleChar& actor = turnAction.Get_CurChar();
     if (actor.ModelCom != nullptr &&
         actor.ModelCom->Get_AnimationStateIndex() == ETOI(BattleAnimType::Item_Use))
     {
@@ -1027,16 +1034,16 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
         return;
     }
 
-    const Action& action = battleController->Get_TurnAction();
-    const vector<BattleActionPhase>& phases = action._selected_SkillKey.AnimPhases;
+    const BattleAction& action = battleController->Get_TurnAction();
+    const vector<BattleActionPhase>& phases = action.GetSkillData().AnimPhases;
 
-    if (action._curChar.actor == nullptr || phases.empty() || action._curAnimIndex >= phases.size())
+    if (action.Get_CurChar().actor == nullptr || phases.empty() || action.GetCurAnimIndex() >= phases.size())
     {
         _battleMechanism->Close();
         return;
     }
 
-    const BattleActionPhase& phase = phases[action._curAnimIndex];
+    const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
 
     // 대쉬 Out 시작하면 메커니즘 UI 닫기
     if (phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
@@ -1081,7 +1088,7 @@ void GameplayUI_Battle::Update_BattleItemPanel(float timeDelta)
         break;
 
     case BattleTurnState::ItemTargeting:
-        _battleItemPanel->Open_Tooltip(battleController->Get_TurnAction()._selected_ItemKey.itemType);
+        _battleItemPanel->Open_Tooltip(battleController->Get_TurnActionRequest().itemType);
         break;
 
     default:
@@ -1103,15 +1110,15 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
     }
 
     const BattleTurnState turnState = battleController->Get_CurrentTurnState();
-    const Action& turnAction = battleController->Get_TurnAction();
+    const ActionRequest& turnRequest = battleController->Get_TurnActionRequest();
 
     switch (turnState)
     {
     case BattleTurnState::ChooseSkill:
-        if (turnAction._curChar.statCom)
+        if (turnRequest.actor.statCom)
         {
             // 캐릭터별 스킬 목록 패널
-            _battleSkillPanel->Open_MainPanel(turnAction._curChar.statCom->Get_PlayerType());
+            _battleSkillPanel->Open_MainPanel(turnRequest.actor.statCom->Get_PlayerType());
             _battleSkillPanel->Update(timeDelta);
         }
         else
@@ -1121,7 +1128,7 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
         break;
 
     case BattleTurnState::SkillTargeting:
-        _battleSkillPanel->Open_Tooltip(turnAction._selected_SkillKey.skillKey);
+        _battleSkillPanel->Open_Tooltip(turnRequest.skillKey);
         _battleSkillPanel->Update(timeDelta);
         break;
 

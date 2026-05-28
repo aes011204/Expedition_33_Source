@@ -10,6 +10,7 @@ struct EvtBattlePresentation
   Shared<Character>  subject;
   Shared<Character>  opponent;
   string             skillId;
+  string             profileId;
   bool               useClip;
   bool               restartClip;
     //ui에 필요한 변수들 추가
