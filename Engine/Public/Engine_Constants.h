@@ -15,6 +15,7 @@ namespace Engine::ShaderCB
     inline constexpr ::string_view ScreenSpace  = "ScreenSpaceBuffer";
     inline constexpr ::string_view Light       = "LightBuffer";
     inline constexpr ::string_view SSAO        = "SSAOBuffer";
+    inline constexpr ::string_view DeferredLighting = "DeferredLightingBuffer";
     inline constexpr ::string_view PostProcess = "PostProcessBuffer";
     inline constexpr ::string_view Hair        = "HairDescBuffer";
     inline constexpr ::string_view DrawFeature = "DrawFeatureBuffer";
@@ -28,6 +29,7 @@ namespace Engine::ShaderCB
         ScreenSpace,
         Light,
         SSAO,
+        DeferredLighting,
         PostProcess,
         Hair,
         DrawFeature

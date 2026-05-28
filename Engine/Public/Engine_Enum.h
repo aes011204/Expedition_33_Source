@@ -141,9 +141,10 @@ namespace Engine
         ScreenSpace     = 4,
         Light           = 5,
         SSAO            = 6,
-        PostProcess     = 7,
-        Hair            = 8,
-        DrawFeature     = 9,
+        DeferredLighting = 7,
+        PostProcess     = 8,
+        Hair            = 9,
+        DrawFeature     = 10,
 
         END
     };

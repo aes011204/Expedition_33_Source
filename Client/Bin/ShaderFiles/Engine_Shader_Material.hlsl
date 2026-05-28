@@ -85,6 +85,8 @@ float GetOpacityMaskForMasked(float2 uv, float4 baseColor)
 
 float3 ComputeWorldNormal(float3 normalW, float3 tangentW, float3 binormalW, float2 uv)
 {
+    return normalW;
+
     float3 n = normalize(normalW);
     float3 t = normalize(tangentW);
     float3 b = normalize(binormalW);
