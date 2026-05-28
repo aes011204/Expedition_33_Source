@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ScreenFx_Manager.h"
 #include "GameInstance.h"
 #include "Renderer_Define.h"
@@ -92,8 +92,12 @@ HRESULT ScreenFx_Manager::Render_ScreenFx(const Shared<ShaderCom>& shader, const
 #ifdef _DEBUG
     if (_previewEffect)
     {
+        const wchar_t* readRT = readFromA ? RT::ScreenFxColorA : RT::ScreenFxColorB;
+        GAME->Bind_RT_ShaderResource(shader, "g_ScreenFxTexture", readRT);
+        GAME->Bind_BackBuffer();
+
         _previewEffect->Bind_FxConstantBuffer(shader.get());
-        _previewEffect->Bind_ShaderResources(shader.get());
+        _previewEffect->Bind_ShaderResources(shader);
         shader->Begin(_previewEffect->Get_PassIndex());
         rtBuffer->Render();
     }

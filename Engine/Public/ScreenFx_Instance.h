@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Base.h"
 #include "Delegate.h"
 
@@ -11,12 +11,12 @@ class ENGINE_DLL ScreenFx_Instance abstract : public Base
 {
 public:
     using EndPredicate = function<bool>;
-    DECLARE_DELEGATE(EndCondition, bool&);
+    DECLARE_DELEGATE(EndCondition, bool&, class ScreenFx_Instance*);
 
     struct ScreenFxDesc
     {
         uint32 passType{};
-        function<void(bool&)> endPredicate{};
+        function<void(bool&, class ScreenFx_Instance*)> endPredicate{};
     };
 
     virtual ClassReflectionInfo& Get_ReflectionInfo()
@@ -34,7 +34,7 @@ public:
     bool Check_EndCondition();
     virtual void Update_ScreenFx(float timeDelta);
     virtual HRESULT Bind_FxConstantBuffer(ShaderCom* shader) PURE;
-    virtual HRESULT Bind_ShaderResources(ShaderCom* shader);
+    virtual HRESULT Bind_ShaderResources(const Shared<ShaderCom>& shader);
     
 public:
     uint32 Get_PassIndex() const { return _passType; }

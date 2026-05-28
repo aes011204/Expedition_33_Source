@@ -184,6 +184,10 @@ cbuffer ScreenFxBuffer
     float2 g_radialBlurCenter;
     float g_radialBlurRadius;
     float g_chromaticAberrationIntensity;
+
+    float g_wipeRadius;
+    float g_edgeSoftness;
+    float2 pad;
 };
 
 #endif

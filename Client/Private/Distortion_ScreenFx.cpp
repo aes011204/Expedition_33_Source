@@ -11,26 +11,36 @@ IMPLEMENT_REFLECTION(Distortion_ScreenFx)
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
     info.displayName = "Distortion";
-    info.type = Engine::RegisteredType::ScreenFx;
-    PROPERTY_FLOAT("Bulge Intensity", _originalDesc.bulgeIntensity, 0.f, 5.f, 0.01f);
+    info.type = RegisteredType::ScreenFx;
+    PROPERTY_FLOAT("Bulge Intensity", _originalDesc.bulgeIntensity, -5.f, 5.f, 0.01f);
     PROPERTY_FLOAT("Pull Intensity", _originalDesc.pullIntensity, 0.f, 5.f, 0.01f);
     PROPERTY_VEC2("Pull Direction", _originalDesc.pullDirection);
-    PROPERTY_FLOAT("Duration", _duration, 0.01f, 30.f, 0.1f);
+    PROPERTY_FLOAT("Duration", _originalDesc.duration, 0.01f, 30.f, 0.1f);
+    PROPERTY_FLOAT("Delay", _originalDesc.delayTime, 0.f, 30.f, 0.1f);
+    PROPERTY_BOOL("Is Reverse", _originalDesc.isReverse);
     PROPERTY_FLOAT("Elapsed Time", _elapsedTime, 0.f, 30.f, 0.01f);
     return true;
 }
 
 HRESULT Distortion_ScreenFx::Initialize(ScreenFxDesc* desc)
 {
-    if (FAILED(ScreenFx_Instance::Initialize(desc)))
-        return E_FAIL;
+    if (desc)
+    {
+        if (FAILED(ScreenFx_Instance::Initialize(desc)))
+            return E_FAIL;
+    }
 
-    DistortionDesc* distDesc = static_cast<DistortionDesc*>(desc);
-    _originalDesc = *distDesc; 
-    
-    _timeAcc = 0.0f;
-    _currentBulge = distDesc->bulgeIntensity;
-    _currentPull = distDesc->pullIntensity;
+    _passType = 5;
+    if (desc)
+    {
+        DistortionDesc* distDesc = static_cast<DistortionDesc*>(desc);
+        _originalDesc = *distDesc; 
+        
+        _timeAcc = 0.0f;
+        _duration = _originalDesc.duration + _originalDesc.delayTime;
+        _currentBulge = _originalDesc.isReverse ? 0.f : _originalDesc.bulgeIntensity;
+        _currentPull = _originalDesc.isReverse ? 0.f : _originalDesc.pullIntensity;
+    }
 
     return S_OK;
 }
@@ -38,8 +48,21 @@ HRESULT Distortion_ScreenFx::Initialize(ScreenFxDesc* desc)
 void Distortion_ScreenFx::Update_ScreenFx(float timeDelta)
 {
     _timeAcc += timeDelta;
-    float ratio = 1.0f - std::clamp(_timeAcc / max(0.001f, _originalDesc.duration), 0.0f, 20.0f);
+    _duration = _originalDesc.duration + _originalDesc.delayTime; // Update in case properties changed in editor
     
+    if (_timeAcc < _originalDesc.delayTime)
+    {
+        _currentBulge = _originalDesc.isReverse ? 0.f : _originalDesc.bulgeIntensity;
+        _currentPull = _originalDesc.isReverse ? 0.f : _originalDesc.pullIntensity;
+        return;
+    }
+
+    float activeTime = _timeAcc - _originalDesc.delayTime;
+    float ratio = std::clamp(activeTime / max(0.001f, _originalDesc.duration), 0.0f, 1.0f);
+
+    if (!_originalDesc.isReverse)
+        ratio = 1.0f - ratio;
+        
     _currentBulge = _originalDesc.bulgeIntensity * ratio;
     _currentPull = _originalDesc.pullIntensity * ratio;
 }
@@ -57,8 +80,22 @@ HRESULT Distortion_ScreenFx::Bind_FxConstantBuffer(class ShaderCom* shader)
 
 void Distortion_ScreenFx::Evaluate_At(float elapsedTime)
 {
-    float durationToUse = max(0.001f, _duration);
-    float ratio = 1.0f - std::clamp(elapsedTime / durationToUse, 0.f, 1.f);
+    _duration = _originalDesc.duration + _originalDesc.delayTime; // Sync duration for timeline
+
+    if (elapsedTime < _originalDesc.delayTime)
+    {
+        _currentBulge = _originalDesc.isReverse ? 0.f : _originalDesc.bulgeIntensity;
+        _currentPull = _originalDesc.isReverse ? 0.f : _originalDesc.pullIntensity;
+        return;
+    }
+
+    float activeTime = elapsedTime - _originalDesc.delayTime;
+    float durationToUse = max(0.001f, _originalDesc.duration);
+    float ratio = std::clamp(activeTime / durationToUse, 0.f, 1.f);
+    
+    if (!_originalDesc.isReverse)
+        ratio = 1.0f - ratio;
+
     _currentBulge = _originalDesc.bulgeIntensity * ratio;
     _currentPull = _originalDesc.pullIntensity * ratio;
 }

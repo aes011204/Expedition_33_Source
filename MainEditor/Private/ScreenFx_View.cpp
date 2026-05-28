@@ -127,6 +127,10 @@ void ScreenFx_View::Render()
                 if (ImGui::ColorEdit4(prop.displayName.c_str(), reinterpret_cast<float*>(valuePtr)))
                     propertyChanged = true;
                 break;
+            case static_cast<int>(Engine::PropertyType::Bool):
+                if (ImGui::Checkbox(prop.displayName.c_str(), reinterpret_cast<bool*>(valuePtr)))
+                    propertyChanged = true;
+                break;
             }
             ImGui::PopID();
         }

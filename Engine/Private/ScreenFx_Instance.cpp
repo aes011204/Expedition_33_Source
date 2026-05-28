@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "ScreenFx_Instance.h"
 #include "GameInstance.h"
 
@@ -29,7 +29,7 @@ bool ScreenFx_Instance::Check_EndCondition()
     bool shouldEnd = false;
     if (_endCondition.IsBound())
     {
-        _endCondition.Broadcast(shouldEnd);
+        _endCondition.Broadcast(shouldEnd, this);
     }
 
     return shouldEnd;
@@ -42,7 +42,7 @@ void ScreenFx_Instance::Update_ScreenFx(float timeDelta)
     Evaluate_At(_elapsedTime);
 }
 
-HRESULT ScreenFx_Instance::Bind_ShaderResources(ShaderCom* shader)
+HRESULT ScreenFx_Instance::Bind_ShaderResources(const Shared<ShaderCom>& shader)
 {
     return S_OK;
 }

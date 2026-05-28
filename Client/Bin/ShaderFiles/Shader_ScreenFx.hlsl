@@ -6,6 +6,7 @@
 #include "Engine_Shader_ConstantBuffer.hlsl"
 
 Texture2D g_ScreenFxTexture;
+Texture2D g_ScreenMaskTexture;
 
 struct VS_IN
 {
@@ -139,7 +140,7 @@ PS_OUT_BACKBUFFER PS_Ghosting(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
 
-    Out.Color = vector(1.f, 1.f, 1.f, 1.f);
+    Out.Color = g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord);
 
     return Out;
 }
@@ -171,8 +172,7 @@ PS_OUT_BACKBUFFER PS_Distortion(PS_IN In)
 
     finalUV += bulgeOffset + pullOffset;
 
-    // Chromatic Aberration (무지개 효과)
-    // pullDirection이 있으면 해당 방향으로, 없으면 방사형(Radial)으로 색수차 발생
+    // Chromatic Aberration (무지개 효과) pullDirection이 있으면 해당 방향으로, 없으면 방사형(Radial)으로 색수차 발생
     float caStrength = (abs(g_bulgeIntensity) + abs(g_pullIntensity)) * 0.03f * distFromCenter;
     float2 caOffset = (pullLen > 0.0001f) ? (pullDir * caStrength) : (dirFromCenter * caStrength);
 
@@ -186,13 +186,37 @@ PS_OUT_BACKBUFFER PS_Distortion(PS_IN In)
     return Out;
 }
 
+PS_OUT_BACKBUFFER PS_CircularWipeTransition(PS_IN In)
+{
+    PS_OUT_BACKBUFFER Out;
+
+    float4 currentSceneColor = g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord);
+    float4 capturedSceneColor = g_ScreenMaskTexture.Sample(LinearClampSampler, In.Texcoord);
+
+    float2 center = float2(0.5, 0.5);
+    float aspect = g_ScreenSize.x / g_ScreenSize.y;
+    // 타원이 되지 않도록 종횡비에 따라 원형 보정 
+    float2 diff = In.Texcoord - center;
+    diff.x *= aspect;
+    // 중앙으로부터의 거리
+    float dist = length(diff);
+
+    float edgeSoftness = 0.05f;
+    float alpha = smoothstep(g_wipeRadius - edgeSoftness, g_wipeRadius, dist);
+
+    Out.Color = lerp(currentSceneColor, capturedSceneColor, alpha);
+
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(Vignette,              RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)          
-    PASS_RS_DS_BS_VP(RadialBlur,            RS_Default, DSS_None, BS_Default, VS_MAIN, PS_RadialBlur)        
-    PASS_RS_DS_BS_VP(ChromaticAberration,   RS_Default, DSS_None, BS_Default, VS_MAIN, PS_ChromaticAberration) 
-    PASS_RS_DS_BS_VP(Glow,                  RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Glow)              
-    PASS_RS_DS_BS_VP(Ghosting,              RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Ghosting)
-    PASS_RS_DS_BS_VP(Distortion,            RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Distortion)
+    PASS_RS_DS_BS_VP(Vignette,                  RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)          
+    PASS_RS_DS_BS_VP(RadialBlur,                RS_Default, DSS_None, BS_Default, VS_MAIN, PS_RadialBlur)        
+    PASS_RS_DS_BS_VP(ChromaticAberration,       RS_Default, DSS_None, BS_Default, VS_MAIN, PS_ChromaticAberration) 
+    PASS_RS_DS_BS_VP(Glow,                      RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Glow)              
+    PASS_RS_DS_BS_VP(Ghosting,                  RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Ghosting)
+    PASS_RS_DS_BS_VP(Distortion,                RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Distortion)
+    PASS_RS_DS_BS_VP(PS_CircularWipeTransition, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_CircularWipeTransition)
 }
 

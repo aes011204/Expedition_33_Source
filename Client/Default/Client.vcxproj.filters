@@ -350,6 +350,9 @@
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp">
       <Filter>96. Manager\ScreenFxManager\ScreenFxInstance</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp">
+      <Filter>96. Manager\ScreenFxManager\ScreenFxInstance</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -975,6 +978,9 @@
       <Filter>96. Manager\ScreenFxManager\ScreenFxInstance</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Distortion_ScreenFx.h">
+      <Filter>96. Manager\ScreenFxManager\ScreenFxInstance</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleTransition_ScreenFx.h">
       <Filter>96. Manager\ScreenFxManager\ScreenFxInstance</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "ScreenFx_Instance.h"
 
 NS_BEGIN(Client)
@@ -13,10 +13,12 @@ public:
         float pullIntensity{ 0.0f };
         Vec2 pullDirection{ 0.0f, 0.0f };
         float duration{ 1.0f };
+        float delayTime{ 0.0f };
+        bool isReverse{ false };
     };
 
 public:
-    Distortion_ScreenFx() = default;
+    Distortion_ScreenFx() { _passType = 5; }
     ~Distortion_ScreenFx() override = default;
 
 public:

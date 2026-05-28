@@ -243,12 +243,18 @@ struct alignas(16) ScreenFxCB
     Vec3 transitionColor{ 0.f, 0.f, 0.f };
     float radialBlurIntensity{ 0.0f };
 
+    // Distortion
     Vec2 radialBlurCenter{ 0.5f, 0.5f }; 
     float radialBlurRadius{ 1.0f };      
     float chromaticAberrationIntensity{ 0.0f }; 
     float bulgeIntensity{ 0.f };
     float pullIntensity{ 0.f };
     Vec2 pullDirection{ -1.f, 1.f };
+
+    // Transition
+    float wipeRadius{ 0.f };
+    float edgeSoftness{ 0.05f };
+    Vec2 pad;
 };
 
 // 패딩이 제대로 됐나 마지막 확인용
@@ -262,6 +268,7 @@ static_assert(sizeof(LightCB) % 16 == 0);
 static_assert(sizeof(PostProcessCB) % 16 == 0);
 static_assert(sizeof(SSAOCB) % 16 == 0);
 static_assert(sizeof(DrawFeatureCB) % 16 == 0);
+static_assert(sizeof(ScreenFxCB) % 16 == 0);
 
 NS_END
 

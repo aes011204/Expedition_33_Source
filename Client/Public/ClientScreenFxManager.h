@@ -14,10 +14,12 @@ public:
         Bloom,
         Ghosting,
         Distortion,
+        BattleTransition,
     };
 
 public:
     void Play_BattleInCounterFx();
+    void Transition_To_BattleField();
 
 private:
 
