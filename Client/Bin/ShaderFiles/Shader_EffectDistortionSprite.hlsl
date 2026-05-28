@@ -11,7 +11,9 @@ cbuffer cbEffectDistortionSpriteMaterial : register(b2)
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f };
-    float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f }; // x:intensity, y:presence, z:useFlow, w:emitterElapsedTime
+    float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f };            // x:intensity, y:presence, z:useFlow, w:emitterElapsedTime
+    float4 g_EffectDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f }; // x:mode, y:radius, z:thickness, w:softness
+    float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f };       // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
     float4 g_DistortionScreenSize = { 1.f, 1.f, 0.f, 0.f };
     float2 g_FlowUVScale = { 1.f, 1.f };
     float2 g_FlowUVOffset = { 0.f, 0.f };
@@ -25,6 +27,15 @@ Texture2D g_NoiseTexture : register(t1);
 Texture2D g_MaskTexture : register(t2);
 Texture2D g_FlowTexture : register(t3);
 Texture2D g_DistortionSourceTexture : register(t4);
+
+static const float3 kInfluenceOutlineColor = float3(1.f, 0.f, 0.f);
+
+float Compute_InfluenceOutlineWidth(float2 cardUV)
+{
+    const float pixelUvWidth = max(fwidth(cardUV.x), fwidth(cardUV.y));
+    const float pixelScale = max(g_EffectInfluenceDebugParams.z, 0.0001f);
+    return clamp(pixelUvWidth * pixelScale, 0.0001f, 0.035f);
+}
 
 struct VS_IN
 {
@@ -260,6 +271,49 @@ struct PS_OUT
     float4 color : SV_TARGET0;
 };
 
+float Compute_DistortionShapeWeight(float2 cardUV)
+{
+    const float mode = g_EffectDistortionShapeParams.x;
+    float shapeWeight = 1.f;
+
+    if (mode >= 0.5f)
+    {
+        const float radius = max(g_EffectDistortionShapeParams.y, 0.f);
+        const float thickness = max(g_EffectDistortionShapeParams.z, 0.f);
+        const float softness = max(g_EffectDistortionShapeParams.w, 0.0001f);
+        const float distanceFromCenter = distance(cardUV, float2(0.5f, 0.5f));
+
+        if (mode < 1.5f)
+            shapeWeight = 1.f - smoothstep(radius, radius + softness, distanceFromCenter);
+        else
+        {
+            const float ringDistance = abs(distanceFromCenter - radius);
+            shapeWeight = 1.f - smoothstep(thickness, thickness + softness, ringDistance);
+        }
+    }
+
+    return saturate(shapeWeight);
+}
+
+float Compute_DistortionInfluenceOutline(float2 cardUV)
+{
+    const float mode = g_EffectDistortionShapeParams.x;
+    const float outlineWidth = Compute_InfluenceOutlineWidth(cardUV);
+    const float distanceFromCenter = distance(cardUV, float2(0.5f, 0.5f));
+    float edgeDistance = min(min(cardUV.x, 1.f - cardUV.x), min(cardUV.y, 1.f - cardUV.y));
+
+    if (mode >= 0.5f && mode < 1.5f)
+        edgeDistance = abs(distanceFromCenter - max(g_EffectDistortionShapeParams.y, 0.f));
+    else if (mode >= 1.5f)
+    {
+        const float radius = max(g_EffectDistortionShapeParams.y, 0.f);
+        const float thickness = max(g_EffectDistortionShapeParams.z, 0.f);
+        edgeDistance = abs(abs(distanceFromCenter - radius) - thickness);
+    }
+
+    return 1.f - smoothstep(outlineWidth, outlineWidth * 1.5f, edgeDistance);
+}
+
 PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out = (PS_OUT)0;
@@ -296,9 +350,16 @@ PS_OUT PS_MAIN(PS_IN In)
                         ? g_FlowTexture.Sample(LinearClampSampler, flowUV).rg * 2.f - 1.f
                         : float2(0.f, 0.f);
 
-    const float strength = g_EffectDistortionParams.x * g_EffectDistortionParams.y * coverage;
+    const float shapeWeight = Compute_DistortionShapeWeight(In.texCoord);
+    const float strength = g_EffectDistortionParams.x * g_EffectDistortionParams.y * coverage * shapeWeight;
     const float4 distortedColor = g_DistortionSourceTexture.Sample(LinearClampSampler, screenUV + flow * strength);
     Out.color = float4(distortedColor.rgb, coverage);
+    if (g_EffectInfluenceDebugParams.x > 0.5f)
+    {
+        const float outlineMask = saturate(Compute_DistortionInfluenceOutline(In.texCoord));
+        Out.color.rgb = lerp(Out.color.rgb, kInfluenceOutlineColor, outlineMask);
+        Out.color.a = max(Out.color.a, outlineMask);
+    }
     return Out;
 }
 

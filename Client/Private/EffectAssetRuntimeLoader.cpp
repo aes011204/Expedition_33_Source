@@ -609,6 +609,10 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     Read_Enum(material, "flowUVTilingMode", materialDesc.flowUVTilingMode);
     materialDesc.refractionIntensity = Read_Float(material, "refractionIntensity", materialDesc.refractionIntensity);
     materialDesc.refractionPresence = Read_Float(material, "refractionPresence", materialDesc.refractionPresence);
+    Read_Enum(material, "distortionShapeMode", materialDesc.distortionShapeMode);
+    materialDesc.distortionShapeRadius = Read_Float(material, "distortionShapeRadius", materialDesc.distortionShapeRadius);
+    materialDesc.distortionShapeThickness = Read_Float(material, "distortionShapeThickness", materialDesc.distortionShapeThickness);
+    materialDesc.distortionShapeSoftness = Read_Float(material, "distortionShapeSoftness", materialDesc.distortionShapeSoftness);
     materialDesc.subUVRows = max(1u, Read_UInt(material, "subUVRows", materialDesc.subUVRows));
     materialDesc.subUVCols = max(1u, Read_UInt(material, "subUVCols", materialDesc.subUVCols));
 

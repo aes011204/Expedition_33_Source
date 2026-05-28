@@ -393,6 +393,10 @@ namespace Internal
             root["additive"] = To_Json(data.additive);
         root["refractionIntensity"] = data.refractionIntensity;
         root["refractionPresence"] = data.refractionPresence;
+        root["distortionShapeMode"] = To_EnumToken(data.distortionShapeMode);
+        root["distortionShapeRadius"] = data.distortionShapeRadius;
+        root["distortionShapeThickness"] = data.distortionShapeThickness;
+        root["distortionShapeSoftness"] = data.distortionShapeSoftness;
         root["twoSided"] = data.twoSided;
         root["subUVRows"] = data.subUVRows;
         root["subUVCols"] = data.subUVCols;
@@ -502,6 +506,11 @@ namespace Internal
 
         Read_NumberField(root, "refractionIntensity", outData.refractionIntensity);
         Read_NumberField(root, "refractionPresence", outData.refractionPresence);
+        if (const auto shapeModeIter = root.find("distortionShapeMode"); shapeModeIter != root.end())
+            Try_ReadEnumToken(*shapeModeIter, outData.distortionShapeMode);
+        Read_NumberField(root, "distortionShapeRadius", outData.distortionShapeRadius);
+        Read_NumberField(root, "distortionShapeThickness", outData.distortionShapeThickness);
+        Read_NumberField(root, "distortionShapeSoftness", outData.distortionShapeSoftness);
     }
 
     json To_Json(const FloatCurveKeyData& data)

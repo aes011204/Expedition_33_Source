@@ -338,7 +338,7 @@ struct RequiredModuleData
     Vec3 emitterOrigin{ 0.f, 0.f, 0.f };
     Vec3 emitterRotationDegrees{ 0.f, 0.f, 0.f };
 
-    EmitterScreenAlignment screenAlignment{ EmitterScreenAlignment::Square };
+    EmitterScreenAlignment screenAlignment{ EmitterScreenAlignment::FacingCameraPosition };
     // AwayFromCenter/Velocity에서 기준 방향을 look으로 쓸지 texture 축으로 쓸지 결정한다.
     EmitterDirectionalAlignmentMode directionalAlignmentMode{ EmitterDirectionalAlignmentMode::TextureAxis };
     // TextureAxis mode에서 기준 방향에 맞출 texture 축이다.

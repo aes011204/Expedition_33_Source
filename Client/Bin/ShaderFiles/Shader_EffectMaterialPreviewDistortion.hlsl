@@ -16,6 +16,7 @@ cbuffer cbEffectMaterialPreviewDistortion : register(b2)
     float4 g_EffectMaterialPreviewMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };// xy: mask offset, zw: reserved
     float4 g_EffectMaterialPreviewUVModeParams = { 0.f, 0.f, 0.f, 0.f };      // x: main, y: mask, z: flow, w: reserved
     float4 g_EffectMaterialPreviewDistortionParams = { 0.f, 1.f, 0.f, 0.f };  // x: intensity, y: presence, z: useFlow, w: time
+    float4 g_EffectMaterialPreviewDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f }; // x: mode, y: radius, z: thickness, w: softness
     float4 g_EffectMaterialPreviewScreenSize = { 512.f, 512.f, 0.f, 0.f };
     int g_OpacitySource = 0;
     float3 g_EffectMaterialPreviewPadding;
@@ -97,6 +98,30 @@ struct PS_OUT
     float4 color : SV_TARGET0;
 };
 
+float Compute_PreviewDistortionShapeWeight(float2 cardUV)
+{
+    const float mode = g_EffectMaterialPreviewDistortionShapeParams.x;
+    float shapeWeight = 1.f;
+
+    if (mode >= 0.5f)
+    {
+        const float radius = max(g_EffectMaterialPreviewDistortionShapeParams.y, 0.f);
+        const float thickness = max(g_EffectMaterialPreviewDistortionShapeParams.z, 0.f);
+        const float softness = max(g_EffectMaterialPreviewDistortionShapeParams.w, 0.0001f);
+        const float distanceFromCenter = distance(cardUV, float2(0.5f, 0.5f));
+
+        if (mode < 1.5f)
+            shapeWeight = 1.f - smoothstep(radius, radius + softness, distanceFromCenter);
+        else
+        {
+            const float ringDistance = abs(distanceFromCenter - radius);
+            shapeWeight = 1.f - smoothstep(thickness, thickness + softness, ringDistance);
+        }
+    }
+
+    return saturate(shapeWeight);
+}
+
 PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out = (PS_OUT)0;
@@ -139,7 +164,8 @@ PS_OUT PS_MAIN(PS_IN In)
     const float strength =
         max(g_EffectMaterialPreviewDistortionParams.x, 0.f) *
         max(g_EffectMaterialPreviewDistortionParams.y, 0.f) *
-        saturate(coverage);
+        saturate(coverage) *
+        Compute_PreviewDistortionShapeWeight(In.texCoord);
     const float4 distortedColor = g_DistortionSourceTexture.Sample(LinearClampSampler, screenUV + flow * strength);
 
     Out.color = float4(distortedColor.rgb, saturate(coverage));

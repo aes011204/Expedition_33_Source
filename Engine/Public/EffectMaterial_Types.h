@@ -19,6 +19,15 @@ enum class EffectMaterialFamily : uint32
     END,
 };
 
+// SpriteDistortion family에서 screen UV offset 강도에 곱할 card-local 영향 범위를 고른다.
+enum class EffectDistortionShapeMode : uint32
+{
+    None = 0, // 기존 square card 전체 distortion 동작이다.
+    Radial,   // sprite UV 중심 기준 soft circle/aura 계열 영향 범위다.
+    Ring,     // sprite UV 중심 기준 shockwave rim 계열 영향 범위다.
+    END,
+};
+
 enum class EffectMaterialBlendMode : uint32
 {
     AlphaBlend = 0,
@@ -110,6 +119,10 @@ struct EffectMaterialInstanceData
     EffectMaterialAdditiveContributionData additive{};                        // Additive blend에서 더할 contribution 해석 규칙이다.
     float refractionIntensity{ 0.f };                                         // SpriteDistortion screen UV offset 강도다.
     float refractionPresence{ 1.f };                                          // SpriteDistortion refraction 영향도를 켜고 줄이는 authored scalar다.
+    EffectDistortionShapeMode distortionShapeMode{ EffectDistortionShapeMode::None }; // SpriteDistortion 영향 범위 weight mode다.
+    float distortionShapeRadius{ 0.45f };                                     // sprite UV 중심에서 shape 기준 반경이다.
+    float distortionShapeThickness{ 0.10f };                                  // Ring mode에서 중심선 주변의 단단한 띠 폭이다.
+    float distortionShapeSoftness{ 0.15f };                                   // shape edge falloff 폭이다.
     bool twoSided{ false };                                                   // render state 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
     uint32 subUVRows{ 1 };                                                    // atlas row 수다.
     uint32 subUVCols{ 1 };                                                    // atlas column 수다.

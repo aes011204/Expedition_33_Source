@@ -991,6 +991,12 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
         _flowTexture != nullptr ? 1.f : 0.f,
         _materialPreviewElapsedTime
     );
+    const Vec4 distortionShapeParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.distortionShapeMode)),
+        max(0.f, material.distortionShapeRadius),
+        max(0.f, material.distortionShapeThickness),
+        max(0.f, material.distortionShapeSoftness)
+    );
     const Vec4 screenSize = Vec4(
         static_cast<float>(_previewTextureWidth),
         static_cast<float>(_previewTextureHeight),
@@ -1023,6 +1029,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewMaskUVOffsetParams", &maskUVOffsetParams, sizeof(maskUVOffsetParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVModeParams", &uvModeParams, sizeof(uvModeParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewDistortionShapeParams", &distortionShapeParams, sizeof(distortionShapeParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewScreenSize", &screenSize, sizeof(screenSize)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)), E_FAIL);
 

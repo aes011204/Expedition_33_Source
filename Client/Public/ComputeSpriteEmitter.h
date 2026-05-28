@@ -31,6 +31,10 @@ public:
     HRESULT Reset_ForEffectReplay() override; // effect root 재사용 시 sprite playback runtime을 초기화한다.
     bool Is_EffectFinished() const override;  // sprite playback이 마지막 loop를 끝냈는지 반환한다.
 
+public: //## Debug::EditorSession
+    static void Set_InfluenceOutlineDebugEnabled(bool enabled); // EffectEditor 세션에서 sprite influence outline shader overlay를 켜고 끈다.
+    static bool Is_InfluenceOutlineDebugEnabled();
+
 protected:
     void On_EffectTransformSynced() override; // root/local-space sync 직후 compute center를 즉시 갱신한다.
 
@@ -56,6 +60,8 @@ private: //## Static Values
     static constexpr int kOpacitySourceAlpha{ 0 };
     static constexpr int kOpacitySourceRed{ 1 };
     static constexpr int kOpacitySourceLuminance{ 2 };
+    static constexpr float kInfluenceOutlinePixelWidthScale{ 2.f };
+    inline static bool _isInfluenceOutlineDebugEnabled{ false };
 
 private: //## Data::Components
     Shared<ShaderCom> _shader{};                          // EffectSprite material effect shader.

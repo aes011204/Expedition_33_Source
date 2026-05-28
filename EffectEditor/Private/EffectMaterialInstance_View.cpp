@@ -915,6 +915,43 @@ namespace Internal
         }
     }
 
+    const char* Get_DistortionShapeModeLabel(EffectDistortionShapeMode value)
+    {
+        switch (value)
+        {
+        case EffectDistortionShapeMode::None:
+            return "None";
+        case EffectDistortionShapeMode::Radial:
+            return "Radial";
+        case EffectDistortionShapeMode::Ring:
+            return "Ring";
+        default:
+            return "None";
+        }
+    }
+
+    bool Draw_DistortionShapeModeProperty(
+        DetailPropertyContext& detailContext,
+        EffectDistortionShapeMode& value,
+        EffectDistortionShapeMode defaultValue)
+    {
+        static constexpr EffectDistortionShapeMode kModes[]{
+            EffectDistortionShapeMode::None,
+            EffectDistortionShapeMode::Radial,
+            EffectDistortionShapeMode::Ring
+        };
+
+        return Draw_EnumComboProperty(
+            detailContext,
+            "Shape Mode",
+            value,
+            defaultValue,
+            kModes,
+            sizeof(kModes) / sizeof(kModes[0]),
+            Get_DistortionShapeModeLabel
+        );
+    }
+
     void Draw_ReadOnlyTextProperty(DetailPropertyContext& detailContext, const char* label, const char* value)
     {
         ImGui::PushID(label);
@@ -1267,6 +1304,33 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
             changed |= _detailPropertyContext.Draw_Vec2Property("Flow UV Scroll Speed", material.flowUVScrollSpeed, defaultData.flowUVScrollSpeed);
             changed |= _detailPropertyContext.Draw_FloatProperty("Refraction Intensity", material.refractionIntensity, defaultData.refractionIntensity);
             changed |= _detailPropertyContext.Draw_FloatProperty("Refraction Presence", material.refractionPresence, defaultData.refractionPresence);
+            changed |= Internal::Draw_DistortionShapeModeProperty(
+                _detailPropertyContext,
+                material.distortionShapeMode,
+                defaultData.distortionShapeMode
+            );
+            if (material.distortionShapeMode == EffectDistortionShapeMode::Radial ||
+                material.distortionShapeMode == EffectDistortionShapeMode::Ring)
+            {
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "Shape Radius",
+                    material.distortionShapeRadius,
+                    defaultData.distortionShapeRadius
+                );
+                if (material.distortionShapeMode == EffectDistortionShapeMode::Ring)
+                {
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "Shape Thickness",
+                        material.distortionShapeThickness,
+                        defaultData.distortionShapeThickness
+                    );
+                }
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "Shape Softness",
+                    material.distortionShapeSoftness,
+                    defaultData.distortionShapeSoftness
+                );
+            }
             _detailPropertyContext.End_PropertyTable();
         }
     }

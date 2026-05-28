@@ -91,6 +91,16 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         return parsed.value_or(defaultValue);
     };
 
+    const auto read_distortion_shape_mode = [&](const char* key, EffectDistortionShapeMode defaultValue) -> EffectDistortionShapeMode
+    {
+        const auto iter = root.find(key);
+        if (iter == root.end() || !iter->is_string())
+            return defaultValue;
+
+        const optional<EffectDistortionShapeMode> parsed = magic_enum::enum_cast<EffectDistortionShapeMode>(iter->get<string>());
+        return parsed.value_or(defaultValue);
+    };
+
     const auto read_additive_color_source = [](
         const json& node,
         const char* key,
@@ -293,6 +303,10 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.opacitySource = read_string("opacitySource", defaultMaterial.opacitySource);
     material.refractionIntensity = read_float("refractionIntensity", defaultMaterial.refractionIntensity);
     material.refractionPresence = read_float("refractionPresence", defaultMaterial.refractionPresence);
+    material.distortionShapeMode = read_distortion_shape_mode("distortionShapeMode", defaultMaterial.distortionShapeMode);
+    material.distortionShapeRadius = read_float("distortionShapeRadius", defaultMaterial.distortionShapeRadius);
+    material.distortionShapeThickness = read_float("distortionShapeThickness", defaultMaterial.distortionShapeThickness);
+    material.distortionShapeSoftness = read_float("distortionShapeSoftness", defaultMaterial.distortionShapeSoftness);
 
     if (const auto additiveIter = root.find("additive"); additiveIter != root.end() && additiveIter->is_object())
     {

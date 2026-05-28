@@ -494,6 +494,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.additive = material.additive;
         desc.required.material.refractionIntensity = material.refractionIntensity;
         desc.required.material.refractionPresence = material.refractionPresence;
+        desc.required.material.distortionShapeMode = material.distortionShapeMode;
+        desc.required.material.distortionShapeRadius = material.distortionShapeRadius;
+        desc.required.material.distortionShapeThickness = material.distortionShapeThickness;
+        desc.required.material.distortionShapeSoftness = material.distortionShapeSoftness;
         desc.required.material.twoSided = material.twoSided;
         desc.required.material.subUVRows = max(1u, material.subUVRows);
         desc.required.material.subUVCols = max(1u, material.subUVCols);
@@ -818,6 +822,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         emitterDesc.material.additive = material.additive;
         emitterDesc.material.refractionIntensity = material.refractionIntensity;
         emitterDesc.material.refractionPresence = material.refractionPresence;
+        emitterDesc.material.distortionShapeMode = material.distortionShapeMode;
+        emitterDesc.material.distortionShapeRadius = material.distortionShapeRadius;
+        emitterDesc.material.distortionShapeThickness = material.distortionShapeThickness;
+        emitterDesc.material.distortionShapeSoftness = material.distortionShapeSoftness;
         emitterDesc.material.twoSided = material.twoSided;
 
         emitterDesc.playback.duration = max(0.0001f, required->duration);

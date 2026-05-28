@@ -14,7 +14,8 @@ cbuffer cbEffectSpriteMaterial : register(b2)
     float4 g_EffectSpriteAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectSpriteAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectSpriteAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
+    float4 g_EffectSpriteAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };   // x: blackNeutral
+    float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f }; // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
     int g_OpacitySource = 0;
     float3 g_EffectSpritePadding;
 };
@@ -22,6 +23,22 @@ cbuffer cbEffectSpriteMaterial : register(b2)
 Texture2D g_Texture : register(t0); // sprite effect의 primary texture다. 현재 경로에서는 RGB를 emissive-like color source로 해석한다.
 Texture2D g_NoiseTexture : register(t1);
 Texture2D g_MaskTexture : register(t2);
+
+static const float3 kInfluenceOutlineColor = float3(1.f, 0.f, 0.f);
+
+float Compute_InfluenceOutlineWidth(float2 cardUV)
+{
+    const float pixelUvWidth = max(fwidth(cardUV.x), fwidth(cardUV.y));
+    const float pixelScale = max(g_EffectInfluenceDebugParams.z, 0.0001f);
+    return clamp(pixelUvWidth * pixelScale, 0.0001f, 0.035f);
+}
+
+float Compute_CardInfluenceOutline(float2 cardUV)
+{
+    const float outlineWidth = Compute_InfluenceOutlineWidth(cardUV);
+    const float edgeDistance = min(min(cardUV.x, 1.f - cardUV.x), min(cardUV.y, 1.f - cardUV.y));
+    return 1.f - smoothstep(outlineWidth, outlineWidth * 1.5f, edgeDistance);
+}
 
 struct VS_IN
 {
@@ -297,6 +314,12 @@ PS_OUT PS_MAIN(PS_IN In)
     PS_OUT Out = (PS_OUT)0;
     const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
     Out.color = Effect_ComposeAlphaBlend(surface, g_EffectSpriteParams.x);
+    if (g_EffectInfluenceDebugParams.x > 0.5f)
+    {
+        const float outlineMask = Compute_CardInfluenceOutline(In.texCoord);
+        Out.color.rgb = lerp(Out.color.rgb, kInfluenceOutlineColor, outlineMask);
+        Out.color.a = max(Out.color.a, outlineMask);
+    }
     return Out;
 }
 
@@ -346,6 +369,11 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float intensity = max(g_EffectSpriteParams.x, 0.f) * max(g_EffectSpriteAdditiveParams.w, 0.f);
     const float3 contribution = materialColor * particleColor.rgb * noiseFactor * policyAmount * intensity * blackGate;
     Out.color = float4(contribution, 1.f);
+    if (g_EffectInfluenceDebugParams.x > 0.5f)
+    {
+        const float outlineMask = Compute_CardInfluenceOutline(In.texCoord);
+        Out.color.rgb = lerp(Out.color.rgb, kInfluenceOutlineColor, outlineMask);
+    }
     return Out;
 }
 

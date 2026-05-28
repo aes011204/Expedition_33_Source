@@ -18,6 +18,16 @@ IMPLEMENT_REFLECTION(ComputeSpriteEmitter)
     return true;
 }
 
+void ComputeSpriteEmitter::Set_InfluenceOutlineDebugEnabled(bool enabled)
+{
+    _isInfluenceOutlineDebugEnabled = enabled;
+}
+
+bool ComputeSpriteEmitter::Is_InfluenceOutlineDebugEnabled()
+{
+    return _isInfluenceOutlineDebugEnabled;
+}
+
 namespace Client::Internal
 {
 wstring Resolve_TexturePathByGuid(const string& textureGuid)
@@ -487,6 +497,14 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteParams", &effectSpriteParams, sizeof(effectSpriteParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAlphaParams", &effectSpriteAlphaParams, sizeof(effectSpriteAlphaParams)), E_FAIL);
 
+    const Vec4 effectInfluenceDebugParams = Vec4(
+        _isInfluenceOutlineDebugEnabled ? 1.f : 0.f,
+        0.5f,
+        kInfluenceOutlinePixelWidthScale,
+        0.f
+    );
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectInfluenceDebugParams", &effectInfluenceDebugParams, sizeof(effectInfluenceDebugParams)), E_FAIL);
+
     if (!Is_DistortionFamily())
     {
         const EffectMaterialAdditiveContributionData& additive = _desc.required.material.additive;
@@ -527,10 +545,20 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
         nullptr != _flowTexture ? 1.f : 0.f,
         _emitterElapsedTime
     );
+    const Vec4 distortionShapeParams(
+        static_cast<float>(static_cast<uint32>(_desc.required.material.distortionShapeMode)),
+        max(0.f, _desc.required.material.distortionShapeRadius),
+        max(0.f, _desc.required.material.distortionShapeThickness),
+        max(0.f, _desc.required.material.distortionShapeSoftness)
+    );
     const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
 
     CHECK_FAILED_ONCE(
         _shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_EffectDistortionShapeParams", &distortionShapeParams, sizeof(distortionShapeParams)),
         E_FAIL
     );
     CHECK_FAILED_ONCE(
