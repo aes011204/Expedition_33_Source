@@ -25,14 +25,18 @@ void ScreenFx_Manager::Update(float timeDelta)
 {
     if (!_activeFx) return;
 
-    for (auto it = _activeEffects.begin(); it != _activeEffects.end(); )
+    for (int32 i = 0; i < static_cast<int32>(_activeEffects.size()); )
     {
-        (*it)->Update_ScreenFx(timeDelta);
+        _activeEffects[i]->Update_ScreenFx(timeDelta);
 
-        if ((*it)->Check_EndCondition())
-            it = _activeEffects.erase(it);
+        if (_activeEffects[i]->Check_EndCondition())
+        {
+            _activeEffects.erase(_activeEffects.begin() + i);
+        }
         else
-            ++it;
+        {
+            ++i;
+        }
     }
 }
 

@@ -11,12 +11,12 @@ class ENGINE_DLL ScreenFx_Instance abstract : public Base
 {
 public:
     using EndPredicate = function<bool>;
-    DECLARE_DELEGATE(EndCondition, bool&, class ScreenFx_Instance*);
+    DECLARE_DELEGATE(EndCondition, bool&);
 
     struct ScreenFxDesc
     {
         uint32 passType{};
-        function<void(bool&, class ScreenFx_Instance*)> endPredicate{};
+        function<void(bool&)> endPredicate{};
     };
 
     virtual ClassReflectionInfo& Get_ReflectionInfo()

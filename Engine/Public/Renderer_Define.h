@@ -26,6 +26,7 @@ namespace RT
     inline constexpr const wchar_t* BackgroundMask = L"Target_BackgroundMask";
     inline constexpr const wchar_t* ScreenFxColorA = L"Target_ScreenFxColorA";
     inline constexpr const wchar_t* ScreenFxColorB = L"Target_ScreenFxColorB";
+    inline constexpr const wchar_t* ScreenCapture = L"Target_ScreenCapture";
     inline constexpr const wchar_t* BloomHalfA = L"Target_BloomHalfA";
     inline constexpr const wchar_t* BloomHalfB = L"Target_BloomHalfB";
     inline constexpr const wchar_t* BloomQuarterA = L"Target_BloomQuarterA";

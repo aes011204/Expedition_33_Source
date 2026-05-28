@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "ScreenFx_Instance.h"
 
 NS_BEGIN(Engine)
@@ -25,6 +25,7 @@ public:
 public:
     HRESULT Initialize(ScreenFxDesc* desc) override;
     void Update_ScreenFx(float timeDelta) override;
+    void Evaluate_At(float normalizedTime) override;
     HRESULT Bind_FxConstantBuffer(ShaderCom* shader) override;
     HRESULT Bind_ShaderResources(const Shared<ShaderCom>& shader) override;
 

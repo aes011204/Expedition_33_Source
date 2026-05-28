@@ -29,7 +29,7 @@ bool ScreenFx_Instance::Check_EndCondition()
     bool shouldEnd = false;
     if (_endCondition.IsBound())
     {
-        _endCondition.Broadcast(shouldEnd, this);
+        _endCondition.Broadcast(shouldEnd);
     }
 
     return shouldEnd;

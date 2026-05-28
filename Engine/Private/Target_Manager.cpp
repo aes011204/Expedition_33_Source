@@ -83,6 +83,8 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
         width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::ScreenFxColorB,
         width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::ScreenCapture,
+        width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
 
     //CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
 
