@@ -8,8 +8,8 @@
 cbuffer cbEffectSpriteMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f }; // x: emissive-like intensity, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f }; // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f };         // x: emissive-like intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f };    // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
     float4 g_EffectSpriteAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectSpriteAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };

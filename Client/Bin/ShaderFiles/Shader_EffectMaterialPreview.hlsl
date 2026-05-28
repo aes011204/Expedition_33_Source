@@ -8,15 +8,15 @@
 cbuffer cbEffectMaterialPreview : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectMaterialPreviewParams = { 1.f, 1.f, 0.f, 0.f };        // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectMaterialPreviewAlphaParams = { 0.f, 0.f, 0.f, 0.f };   // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
-    float4 g_EffectMaterialPreviewMainUVParams = { 1.f, 1.f, 0.f, 0.f };  // xy: scale, zw: scroll speed
-    float4 g_EffectMaterialPreviewNoiseUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
-    float4 g_EffectMaterialPreviewMaskUVParams = { 1.f, 1.f, 0.f, 0.f };  // xy: scale, zw: scroll speed
-    float4 g_EffectMaterialPreviewUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: noise offset
+    float4 g_EffectMaterialPreviewParams = { 1.f, 1.f, 0.f, 0.f };             // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectMaterialPreviewAlphaParams = { 0.f, 0.f, 0.f, 0.f };        // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectMaterialPreviewMainUVParams = { 1.f, 1.f, 0.f, 0.f };       // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };      // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewMaskUVParams = { 1.f, 1.f, 0.f, 0.f };       // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main offset, zw: noise offset
     float4 g_EffectMaterialPreviewMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask offset, zw: reserved
-    float4 g_EffectMaterialPreviewUVModeParams = { 0.f, 0.f, 0.f, 0.f };  // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
-    float4 g_EffectMaterialPreviewAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
+    float4 g_EffectMaterialPreviewUVModeParams = { 0.f, 0.f, 0.f, 0.f };       // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
+    float4 g_EffectMaterialPreviewAdditiveParams = { 0.f, 0.f, 0.f, 1.f };     // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectMaterialPreviewAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectMaterialPreviewAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectMaterialPreviewAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
@@ -43,22 +43,22 @@ bool Use_PreviewClampSampler(float mode)
 float4 Sample_PreviewMainTexture(float2 uv, float mode)
 {
     return Use_PreviewClampSampler(mode)
-        ? g_Texture.Sample(LinearClampSampler, uv)
-        : g_Texture.Sample(LinearWrapSampler, uv);
+           ? g_Texture.Sample(LinearClampSampler, uv)
+           : g_Texture.Sample(LinearWrapSampler, uv);
 }
 
 float Sample_PreviewNoiseTexture(float2 uv, float mode)
 {
     return Use_PreviewClampSampler(mode)
-        ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
-        : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
+           ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
+           : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
 }
 
 float Sample_PreviewMaskTexture(float2 uv, float mode)
 {
     return Use_PreviewClampSampler(mode)
-        ? g_MaskTexture.Sample(LinearClampSampler, uv).a
-        : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
+           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
 }
 
 struct VS_IN

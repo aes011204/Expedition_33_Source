@@ -7,7 +7,17 @@ namespace Engine
 
     enum class Prototype { GameObject, UI, Comopnent };
 
-    enum class RenderGroup { Priority, Shadow, NonBlend, NonLight, Blend, UI, END };
+    enum class RenderGroup
+    {
+        Priority,
+        Shadow,
+        NonBlend,
+        NonLight,
+        Blend,
+        Distortion, // Effect용 Distortion
+        UI,
+        END
+    };
 
     enum class ShadowCasterType : uint8
     {
