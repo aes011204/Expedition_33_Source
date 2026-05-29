@@ -27,6 +27,8 @@ BT_RotateToTarget::~BT_RotateToTarget()
 void BT_RotateToTarget::OnStart()
 {
     auto bb = Get_Owner()->Get_BlackBoard();
+    if (!bb || !bb->Has_Value(_targetKey))
+        return;
 
     Vec3 target = bb->Get_Value<Vec3>(_targetKey);
    // Get_Owner()->Request_Move(target);
