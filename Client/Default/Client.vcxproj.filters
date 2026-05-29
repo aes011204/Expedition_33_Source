@@ -228,6 +228,7 @@
     <ClCompile Include="..\Private\Weapon.cpp" />
     <ClCompile Include="..\Private\AN_SpawnActor.cpp" />
     <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
+    <ClCompile Include="..\Private\UI_SuddenAttack.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\ANS_Dodge.h" />
@@ -442,6 +443,7 @@
     <ClInclude Include="..\Public\Weapon.h" />
     <ClInclude Include="..\Public\AN_SpawnActor.h" />
     <ClInclude Include="..\Public\Trigger_WorldAction.h" />
+    <ClInclude Include="..\Public\UI_SuddenAttack.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli" />
