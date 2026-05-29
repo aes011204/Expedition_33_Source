@@ -99,14 +99,28 @@ struct PointParticleSubUVFrameOverLifeDesc
     Vec4 frameCurveValues{};                                                   // 후속 Curve Editor용 frame index 값이다.
 };
 
+enum class PointParticleSizeByLifeAxisLock : uint8
+{
+    None,
+    X,
+    Y,
+};
+
 // SizeByLife 모듈의 최소 preview runtime desc다.
 struct PointParticleSizeByLifeDesc
 {
-    bool enabled{ false };       // Size By Life 모듈이 실제로 켜져 있는지 나타낸다.
-    float multiplyXStart{ 1.f }; // 수명 시작 시 X축에 곱할 배율이다.
-    float multiplyXEnd{ 1.f };   // 수명 종료 시 X축에 곱할 배율이다.
-    float multiplyYStart{ 1.f }; // 수명 시작 시 Y축에 곱할 배율이다.
-    float multiplyYEnd{ 1.f };   // 수명 종료 시 Y축에 곱할 배율이다.
+    bool enabled{ false };                                             // Size By Life 모듈이 실제로 켜져 있는지 나타낸다.
+    float multiplyXStart{ 1.f };                                       // legacy endpoint fallback: 수명 시작 시 X축 배율이다.
+    float multiplyXEnd{ 1.f };                                         // legacy endpoint fallback: 수명 종료 시 X축 배율이다.
+    float multiplyYStart{ 1.f };                                       // legacy endpoint fallback: 수명 시작 시 Y축 배율이다.
+    float multiplyYEnd{ 1.f };                                         // legacy endpoint fallback: 수명 종료 시 Y축 배율이다.
+    bool multiplyX{ true };                                            // false면 평가된 X 대신 1을 사용한다.
+    bool multiplyY{ true };                                            // false면 평가된 Y 대신 1을 사용한다.
+    PointParticleSizeByLifeAxisLock axisLock{};                        // Sprite 2D 범위의 X/Y 축 잠금 정책이다.
+    uint32 curveKeyCount{ 2 };                                         // scaleOverLife compact curve key 수다.
+    Vec4 curveKeyTimes{ 0.f, 1.f, 0.f, 0.f };                          // scaleOverLife key time 0..1 값이다.
+    Vec4 curveKeyValuesX{ 1.f, 1.f, 0.f, 0.f };                        // scaleOverLife X multiplier 값이다.
+    Vec4 curveKeyValuesY{ 1.f, 1.f, 0.f, 0.f };                        // scaleOverLife Y multiplier 값이다.
 };
 
 // motion 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
