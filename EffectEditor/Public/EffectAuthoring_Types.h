@@ -151,6 +151,50 @@ struct ConstantCurveVector2DistributionData
     };
 };
 
+// 분포 Vec3 상수 커브의 필요 값들이다.
+struct Vector3CurveKeyData
+{
+    float time{ 0.f };          // 0..1 공통축에서 이 key의 위치다.
+    Vec3 value{ 0.f, 0.f, 0.f }; // 이 key 시점의 X/Y/Z 출력값이다.
+    Vec3 arriveTangent{};       // key로 들어오는 X/Y/Z 곡선 기울기다.
+    Vec3 leaveTangent{};        // key에서 나가는 X/Y/Z 곡선 기울기다.
+    FloatCurveInterpolationMode interpolationMode{
+        FloatCurveInterpolationMode::Linear
+    }; // 이 key 이후 구간의 보간 방식을 결정한다.
+};
+
+// 분포 Vec3 상수 커브의 보간 key 목록을 보관한다.
+struct ConstantCurveVector3DistributionData
+{
+    // 분포 Vec3 상수 커브의 authoring key 목록이다.
+    vector<Vector3CurveKeyData> keys{
+        Vector3CurveKeyData{ 0.f, Vec3{ 0.f, 0.f, 0.f }, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear },
+        Vector3CurveKeyData{ 1.f, Vec3{ 0.f, 0.f, 0.f }, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear }
+    };
+};
+
+// Color 분포는 alpha를 별도 Float distribution에서 유지하므로 curve key의 w는 저장/편집하지 않는다.
+struct ColorCurveKeyData
+{
+    float time{ 0.f };                  // 0..1 공통축에서 이 key의 위치다.
+    Color value{ 1.f, 1.f, 1.f, 1.f };  // 이 key 시점의 RGB 출력값이다. alpha는 별도 분포가 정본이다.
+    Color arriveTangent{};              // key로 들어오는 RGB 곡선 기울기다.
+    Color leaveTangent{};               // key에서 나가는 RGB 곡선 기울기다.
+    FloatCurveInterpolationMode interpolationMode{
+        FloatCurveInterpolationMode::Linear
+    }; // 이 key 이후 구간의 보간 방식을 결정한다.
+};
+
+// Color RGB 상수 커브의 보간 key 목록을 보관한다.
+struct ConstantCurveColorDistributionData
+{
+    // Color RGB 상수 커브의 authoring key 목록이다.
+    vector<ColorCurveKeyData> keys{
+        ColorCurveKeyData{ 0.f, Color{ 1.f, 1.f, 1.f, 1.f }, Color{}, Color{}, FloatCurveInterpolationMode::Linear },
+        ColorCurveKeyData{ 1.f, Color{ 1.f, 1.f, 1.f, 1.f }, Color{}, Color{}, FloatCurveInterpolationMode::Linear }
+    };
+};
+
 struct ConstantFloatDistributionData
 {
     float value{ 0.f };
@@ -292,7 +336,10 @@ struct UniformVector3DistributionData
 
 struct Vector3DistributionData
 {
-    using Payload = variant<ConstantVector3DistributionData, UniformVector3DistributionData>;
+    using Payload = variant<
+        ConstantVector3DistributionData,
+        UniformVector3DistributionData,
+        ConstantCurveVector3DistributionData>;
 
     DistributionMode mode{ DistributionMode::Constant };
     Payload payload{ ConstantVector3DistributionData{} };
@@ -312,6 +359,32 @@ struct Vector3DistributionData
         data.payload = UniformVector3DistributionData{ minValue, maxValue };
         return data;
     }
+
+    static Vector3DistributionData Make_ConstantCurve(const Vec3& value)
+    {
+        Vector3DistributionData data{};
+        data.mode = DistributionMode::ConstantCurve;
+        data.payload = ConstantCurveVector3DistributionData{
+            {
+                Vector3CurveKeyData{ 0.f, value, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear },
+                Vector3CurveKeyData{ 1.f, value, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear }
+            }
+        };
+        return data;
+    }
+
+    static Vector3DistributionData Make_ConstantCurve(const Vec3& startValue, const Vec3& endValue)
+    {
+        Vector3DistributionData data{};
+        data.mode = DistributionMode::ConstantCurve;
+        data.payload = ConstantCurveVector3DistributionData{
+            {
+                Vector3CurveKeyData{ 0.f, startValue, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear },
+                Vector3CurveKeyData{ 1.f, endValue, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear }
+            }
+        };
+        return data;
+    }
 };
 
 struct ConstantColorDistributionData
@@ -327,7 +400,10 @@ struct UniformColorDistributionData
 
 struct ColorDistributionData
 {
-    using Payload = variant<ConstantColorDistributionData, UniformColorDistributionData>;
+    using Payload = variant<
+        ConstantColorDistributionData,
+        UniformColorDistributionData,
+        ConstantCurveColorDistributionData>;
 
     DistributionMode mode{ DistributionMode::Constant };
     Payload payload{ ConstantColorDistributionData{} };
@@ -345,6 +421,32 @@ struct ColorDistributionData
         ColorDistributionData data{};
         data.mode = DistributionMode::Uniform;
         data.payload = UniformColorDistributionData{ minValue, maxValue };
+        return data;
+    }
+
+    static ColorDistributionData Make_ConstantCurve(const Color& value)
+    {
+        ColorDistributionData data{};
+        data.mode = DistributionMode::ConstantCurve;
+        data.payload = ConstantCurveColorDistributionData{
+            {
+                ColorCurveKeyData{ 0.f, value, Color{}, Color{}, FloatCurveInterpolationMode::Linear },
+                ColorCurveKeyData{ 1.f, value, Color{}, Color{}, FloatCurveInterpolationMode::Linear }
+            }
+        };
+        return data;
+    }
+
+    static ColorDistributionData Make_ConstantCurve(const Color& startValue, const Color& endValue)
+    {
+        ColorDistributionData data{};
+        data.mode = DistributionMode::ConstantCurve;
+        data.payload = ConstantCurveColorDistributionData{
+            {
+                ColorCurveKeyData{ 0.f, startValue, Color{}, Color{}, FloatCurveInterpolationMode::Linear },
+                ColorCurveKeyData{ 1.f, endValue, Color{}, Color{}, FloatCurveInterpolationMode::Linear }
+            }
+        };
         return data;
     }
 };

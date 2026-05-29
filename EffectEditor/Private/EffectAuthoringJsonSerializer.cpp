@@ -574,6 +574,91 @@ namespace Internal
             Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
     }
 
+    json To_Json(const Vector3CurveKeyData& data)
+    {
+        json root = json::object();
+        root["time"] = data.time;
+        root["value"] = To_Json(data.value);
+        root["arriveTangent"] = To_Json(data.arriveTangent);
+        root["leaveTangent"] = To_Json(data.leaveTangent);
+        root["interpolationMode"] = To_EnumToken(data.interpolationMode);
+        return root;
+    }
+
+    void From_Json(const json& root, Vector3CurveKeyData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "time", outData.time);
+
+        const auto valueIter = root.find("value");
+        if (valueIter != root.end())
+            Read_Vec3(*valueIter, outData.value);
+
+        const auto arriveTangentIter = root.find("arriveTangent");
+        if (arriveTangentIter != root.end())
+            Read_Vec3(*arriveTangentIter, outData.arriveTangent);
+
+        const auto leaveTangentIter = root.find("leaveTangent");
+        if (leaveTangentIter != root.end())
+            Read_Vec3(*leaveTangentIter, outData.leaveTangent);
+
+        const auto interpolationIter = root.find("interpolationMode");
+        if (interpolationIter != root.end())
+            Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
+    }
+
+    json To_ColorRgbJson(const Color& value)
+    {
+        return json::array({ value.x, value.y, value.z });
+    }
+
+    void Read_ColorRgb(const json& node, Color& outValue)
+    {
+        if (!node.is_array() || node.size() < 3 || !node[0].is_number() || !node[1].is_number() || !node[2].is_number())
+            return;
+
+        outValue.x = node[0].get<float>();
+        outValue.y = node[1].get<float>();
+        outValue.z = node[2].get<float>();
+    }
+
+    json To_Json(const ColorCurveKeyData& data)
+    {
+        json root = json::object();
+        root["time"] = data.time;
+        root["value"] = To_ColorRgbJson(data.value);
+        root["arriveTangent"] = To_ColorRgbJson(data.arriveTangent);
+        root["leaveTangent"] = To_ColorRgbJson(data.leaveTangent);
+        root["interpolationMode"] = To_EnumToken(data.interpolationMode);
+        return root;
+    }
+
+    void From_Json(const json& root, ColorCurveKeyData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "time", outData.time);
+
+        const auto valueIter = root.find("value");
+        if (valueIter != root.end())
+            Read_ColorRgb(*valueIter, outData.value);
+
+        const auto arriveTangentIter = root.find("arriveTangent");
+        if (arriveTangentIter != root.end())
+            Read_ColorRgb(*arriveTangentIter, outData.arriveTangent);
+
+        const auto leaveTangentIter = root.find("leaveTangent");
+        if (leaveTangentIter != root.end())
+            Read_ColorRgb(*leaveTangentIter, outData.leaveTangent);
+
+        const auto interpolationIter = root.find("interpolationMode");
+        if (interpolationIter != root.end())
+            Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
+    }
+
     static float Evaluate_FloatCurveSegmentLinear(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
     {
         const float width = max(0.0001f, rightKey.time - leftKey.time);
@@ -836,6 +921,12 @@ namespace Internal
             payload["minValue"] = To_Json(uniformData->minValue);
             payload["maxValue"] = To_Json(uniformData->maxValue);
         }
+        else if (const auto* constantCurveData = get_if<ConstantCurveVector3DistributionData>(&data.payload))
+        {
+            payload["keys"] = json::array();
+            for (const Vector3CurveKeyData& key : constantCurveData->keys)
+                payload["keys"].push_back(To_Json(key));
+        }
 
         root["payload"] = move(payload);
         return root;
@@ -850,7 +941,9 @@ namespace Internal
         const auto modeIter = root.find("mode");
         if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
         {
-            if (parsedMode == DistributionMode::Constant || parsedMode == DistributionMode::Uniform)
+            if (parsedMode == DistributionMode::Constant ||
+                parsedMode == DistributionMode::Uniform ||
+                parsedMode == DistributionMode::ConstantCurve)
                 outData.mode = parsedMode;
         }
 
@@ -885,6 +978,30 @@ namespace Internal
             outData.payload = payload;
             break;
         }
+        case DistributionMode::ConstantCurve:
+        {
+            ConstantCurveVector3DistributionData payload{};
+            const auto keysIter = payloadIter->find("keys");
+            if (keysIter != payloadIter->end() && keysIter->is_array())
+            {
+                payload.keys.clear();
+                for (const json& keyNode : *keysIter)
+                {
+                    Vector3CurveKeyData key{};
+                    From_Json(keyNode, key);
+                    payload.keys.push_back(key);
+                }
+            }
+
+            if (payload.keys.empty())
+            {
+                if (const auto* existingPayload = get_if<ConstantCurveVector3DistributionData>(&outData.payload))
+                    payload.keys = existingPayload->keys;
+            }
+
+            outData.payload = payload;
+            break;
+        }
         default:
             break;
         }
@@ -903,6 +1020,12 @@ namespace Internal
             payload["minValue"] = To_Json(uniformData->minValue);
             payload["maxValue"] = To_Json(uniformData->maxValue);
         }
+        else if (const auto* constantCurveData = get_if<ConstantCurveColorDistributionData>(&data.payload))
+        {
+            payload["keys"] = json::array();
+            for (const ColorCurveKeyData& key : constantCurveData->keys)
+                payload["keys"].push_back(To_Json(key));
+        }
 
         root["payload"] = move(payload);
         return root;
@@ -917,7 +1040,9 @@ namespace Internal
         const auto modeIter = root.find("mode");
         if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
         {
-            if (parsedMode == DistributionMode::Constant || parsedMode == DistributionMode::Uniform)
+            if (parsedMode == DistributionMode::Constant ||
+                parsedMode == DistributionMode::Uniform ||
+                parsedMode == DistributionMode::ConstantCurve)
                 outData.mode = parsedMode;
         }
 
@@ -949,6 +1074,30 @@ namespace Internal
             const auto maxIter = payloadIter->find("maxValue");
             if (maxIter != payloadIter->end())
                 Read_Color(*maxIter, payload.maxValue);
+            outData.payload = payload;
+            break;
+        }
+        case DistributionMode::ConstantCurve:
+        {
+            ConstantCurveColorDistributionData payload{};
+            const auto keysIter = payloadIter->find("keys");
+            if (keysIter != payloadIter->end() && keysIter->is_array())
+            {
+                payload.keys.clear();
+                for (const json& keyNode : *keysIter)
+                {
+                    ColorCurveKeyData key{};
+                    From_Json(keyNode, key);
+                    payload.keys.push_back(key);
+                }
+            }
+
+            if (payload.keys.empty())
+            {
+                if (const auto* existingPayload = get_if<ConstantCurveColorDistributionData>(&outData.payload))
+                    payload.keys = existingPayload->keys;
+            }
+
             outData.payload = payload;
             break;
         }

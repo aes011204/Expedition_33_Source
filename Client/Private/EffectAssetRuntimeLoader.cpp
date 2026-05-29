@@ -381,6 +381,95 @@ Vec2 EffectAssetRuntimeLoader::Evaluate_Vector2ConstantCurve(const json& keys, f
     return read_value(keys.back(), fallbackValue);
 }
 
+Vec3 EffectAssetRuntimeLoader::Evaluate_Vector3ConstantCurve(const json& keys, float x, const Vec3& fallbackValue)
+{
+    if (!keys.is_array() || keys.empty())
+        return fallbackValue;
+
+    auto read_value = [](const json& key, const Vec3& fallback)
+    {
+        Vec3 value = fallback;
+        if (const auto iter = key.find("value"); iter != key.end())
+            Read_Vec3(*iter, value);
+        return value;
+    };
+
+    if (keys.size() == 1)
+        return read_value(keys.front(), fallbackValue);
+
+    const float clampedX = clamp(x, 0.f, 1.f);
+    for (size_t index = 1; index < keys.size(); ++index)
+    {
+        const json& leftKey = keys[index - 1];
+        const json& rightKey = keys[index];
+        if (clampedX > Read_Float(rightKey, "time", 1.f))
+            continue;
+
+        const string interpolationMode = Read_String(leftKey, "interpolationMode", "Linear");
+        if ("Constant" == interpolationMode)
+            return read_value(leftKey, fallbackValue);
+
+        const float leftTime = Read_Float(leftKey, "time");
+        const float rightTime = Read_Float(rightKey, "time", 1.f);
+        const float width = max(0.0001f, rightTime - leftTime);
+        const float t = clamp((clampedX - leftTime) / width, 0.f, 1.f);
+        const Vec3 leftValue = read_value(leftKey, fallbackValue);
+        const Vec3 rightValue = read_value(rightKey, fallbackValue);
+        return Vec3{
+            lerp(leftValue.x, rightValue.x, t),
+            lerp(leftValue.y, rightValue.y, t),
+            lerp(leftValue.z, rightValue.z, t)
+        };
+    }
+
+    return read_value(keys.back(), fallbackValue);
+}
+
+Vec4 EffectAssetRuntimeLoader::Evaluate_ColorConstantCurve(const json& keys, float x, const Vec4& fallbackValue)
+{
+    if (!keys.is_array() || keys.empty())
+        return fallbackValue;
+
+    auto read_value = [](const json& key, const Vec4& fallback)
+    {
+        Vec3 rgb{ fallback.x, fallback.y, fallback.z };
+        if (const auto iter = key.find("value"); iter != key.end())
+            Read_Vec3(*iter, rgb);
+        return Vec4{ rgb.x, rgb.y, rgb.z, fallback.w };
+    };
+
+    if (keys.size() == 1)
+        return read_value(keys.front(), fallbackValue);
+
+    const float clampedX = clamp(x, 0.f, 1.f);
+    for (size_t index = 1; index < keys.size(); ++index)
+    {
+        const json& leftKey = keys[index - 1];
+        const json& rightKey = keys[index];
+        if (clampedX > Read_Float(rightKey, "time", 1.f))
+            continue;
+
+        const string interpolationMode = Read_String(leftKey, "interpolationMode", "Linear");
+        if ("Constant" == interpolationMode)
+            return read_value(leftKey, fallbackValue);
+
+        const float leftTime = Read_Float(leftKey, "time");
+        const float rightTime = Read_Float(rightKey, "time", 1.f);
+        const float width = max(0.0001f, rightTime - leftTime);
+        const float t = clamp((clampedX - leftTime) / width, 0.f, 1.f);
+        const Vec4 leftValue = read_value(leftKey, fallbackValue);
+        const Vec4 rightValue = read_value(rightKey, fallbackValue);
+        return Vec4{
+            lerp(leftValue.x, rightValue.x, t),
+            lerp(leftValue.y, rightValue.y, t),
+            lerp(leftValue.z, rightValue.z, t),
+            fallbackValue.w
+        };
+    }
+
+    return read_value(keys.back(), fallbackValue);
+}
+
 const json* EffectAssetRuntimeLoader::Find_DistributionPayload(const json& distribution)
 {
     const auto payloadIter = distribution.find("payload");
@@ -503,6 +592,12 @@ Vec3 EffectAssetRuntimeLoader::Evaluate_Vector3DistributionMin(const json& distr
         return value;
     }
 
+    if ("ConstantCurve" == Read_String(distribution, "mode"))
+    {
+        const auto keysIter = payload->find("keys");
+        return keysIter != payload->end() ? Evaluate_Vector3ConstantCurve(*keysIter, 0.f, fallbackValue) : fallbackValue;
+    }
+
     const auto iter = payload->find("value");
     if (iter != payload->end())
         Read_Vec3(*iter, value);
@@ -522,6 +617,12 @@ Vec3 EffectAssetRuntimeLoader::Evaluate_Vector3DistributionMax(const json& distr
         if (iter != payload->end())
             Read_Vec3(*iter, value);
         return value;
+    }
+
+    if ("ConstantCurve" == Read_String(distribution, "mode"))
+    {
+        const auto keysIter = payload->find("keys");
+        return keysIter != payload->end() ? Evaluate_Vector3ConstantCurve(*keysIter, 1.f, fallbackValue) : fallbackValue;
     }
 
     const auto iter = payload->find("value");
@@ -554,6 +655,12 @@ Vec4 EffectAssetRuntimeLoader::Evaluate_ColorDistributionMin(const json& distrib
         return Clamp_Color(value);
     }
 
+    if ("ConstantCurve" == Read_String(distribution, "mode"))
+    {
+        const auto keysIter = payload->find("keys");
+        return Clamp_Color(keysIter != payload->end() ? Evaluate_ColorConstantCurve(*keysIter, 0.f, fallbackValue) : fallbackValue);
+    }
+
     const auto iter = payload->find("value");
     if (iter != payload->end())
         Read_Vec4(*iter, value);
@@ -573,6 +680,12 @@ Vec4 EffectAssetRuntimeLoader::Evaluate_ColorDistributionMax(const json& distrib
         if (iter != payload->end())
             Read_Vec4(*iter, value);
         return Clamp_Color(value);
+    }
+
+    if ("ConstantCurve" == Read_String(distribution, "mode"))
+    {
+        const auto keysIter = payload->find("keys");
+        return Clamp_Color(keysIter != payload->end() ? Evaluate_ColorConstantCurve(*keysIter, 1.f, fallbackValue) : fallbackValue);
     }
 
     const auto iter = payload->find("value");

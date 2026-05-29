@@ -26,6 +26,8 @@ private:
     static Vec2 Evaluate_Vector2CurveSegmentLinear(const json& leftKey, const json& rightKey, float x);
     static Vec2 Evaluate_Vector2CurveSegmentAutoClamped(const json& leftKey, const json& rightKey, float x);
     static Vec2 Evaluate_Vector2ConstantCurve(const json& keys, float x, const Vec2& fallbackValue);
+    static Vec3 Evaluate_Vector3ConstantCurve(const json& keys, float x, const Vec3& fallbackValue);
+    static Vec4 Evaluate_ColorConstantCurve(const json& keys, float x, const Vec4& fallbackValue);
     static const json* Find_DistributionPayload(const json& distribution);
     static float Evaluate_FloatDistributionMin(const json& distribution, float fallbackValue);
     static float Evaluate_FloatDistributionMax(const json& distribution, float fallbackValue);

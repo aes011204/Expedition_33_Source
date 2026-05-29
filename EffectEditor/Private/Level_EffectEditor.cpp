@@ -193,13 +193,13 @@ namespace Internal
         const float t3 = t2 * t;
         return Vec2{
             (2.f * t3 - 3.f * t2 + 1.f) * leftKey.value.x +
-                (t3 - 2.f * t2 + t) * m0.x +
-                (-2.f * t3 + 3.f * t2) * rightKey.value.x +
-                (t3 - t2) * m1.x,
+            (t3 - 2.f * t2 + t) * m0.x +
+            (-2.f * t3 + 3.f * t2) * rightKey.value.x +
+            (t3 - t2) * m1.x,
             (2.f * t3 - 3.f * t2 + 1.f) * leftKey.value.y +
-                (t3 - 2.f * t2 + t) * m0.y +
-                (-2.f * t3 + 3.f * t2) * rightKey.value.y +
-                (t3 - t2) * m1.y
+            (t3 - 2.f * t2 + t) * m0.y +
+            (-2.f * t3 + 3.f * t2) * rightKey.value.y +
+            (t3 - t2) * m1.y
         };
     }
 
@@ -441,6 +441,16 @@ namespace Internal
         if (const auto* uniform = get_if<UniformVector3DistributionData>(&data.payload))
             return uniform->minValue;
 
+        if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&data.payload))
+        {
+            if (!curve->keys.empty())
+            {
+                vector<Vector3CurveKeyData> keys = curve->keys;
+                ranges::sort(keys, {}, &Vector3CurveKeyData::time);
+                return keys.front().value;
+            }
+        }
+
         return fallbackValue;
     }
 
@@ -451,6 +461,16 @@ namespace Internal
 
         if (const auto* uniform = get_if<UniformVector3DistributionData>(&data.payload))
             return uniform->maxValue;
+
+        if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&data.payload))
+        {
+            if (!curve->keys.empty())
+            {
+                vector<Vector3CurveKeyData> keys = curve->keys;
+                ranges::sort(keys, {}, &Vector3CurveKeyData::time);
+                return keys.back().value;
+            }
+        }
 
         return fallbackValue;
     }
@@ -463,6 +483,18 @@ namespace Internal
         if (const auto* uniform = get_if<UniformColorDistributionData>(&data.payload))
             return Clamp_PreviewColor(uniform->minValue);
 
+        if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&data.payload))
+        {
+            if (!curve->keys.empty())
+            {
+                vector<ColorCurveKeyData> keys = curve->keys;
+                ranges::sort(keys, {}, &ColorCurveKeyData::time);
+                Color value = keys.front().value;
+                value.w = fallbackValue.w;
+                return Clamp_PreviewColor(value);
+            }
+        }
+
         return Clamp_PreviewColor(fallbackValue);
     }
 
@@ -473,6 +505,18 @@ namespace Internal
 
         if (const auto* uniform = get_if<UniformColorDistributionData>(&data.payload))
             return Clamp_PreviewColor(uniform->maxValue);
+
+        if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&data.payload))
+        {
+            if (!curve->keys.empty())
+            {
+                vector<ColorCurveKeyData> keys = curve->keys;
+                ranges::sort(keys, {}, &ColorCurveKeyData::time);
+                Color value = keys.back().value;
+                value.w = fallbackValue.w;
+                return Clamp_PreviewColor(value);
+            }
+        }
 
         return Clamp_PreviewColor(fallbackValue);
     }
@@ -822,9 +866,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     }
 
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
-    {
         Internal::Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
-    }
 
     if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
     {
@@ -1074,9 +1116,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
     }
 
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
-    {
         Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
-    }
 
     if (const auto* spawnPerUnit = Internal::Find_ModuleData<SpawnPerUnitModuleData>(emitter, AuthoringModuleType::SpawnPerUnit))
     {
