@@ -173,7 +173,9 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClInclude Include="..\Public\MEImGuiManager.h" />
     <ClInclude Include="..\Public\MEInstancedMeshActor.h" />
     <ClInclude Include="..\Public\MELandscapeActor.h" />
+    <ClInclude Include="..\Public\MELandscapeManager.h" />
     <ClInclude Include="..\Public\MEManager.h" />
+    <ClInclude Include="..\Public\MEMaterialApplicator.h" />
     <ClInclude Include="..\Public\MEModelManager.h" />
     <ClInclude Include="..\Public\MEPickingSystem.h" />
     <ClInclude Include="..\Public\MEStaticMeshActor.h" />
@@ -207,7 +209,9 @@ if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mt.dll" xc
     <ClCompile Include="..\Private\MEImGuiManager.cpp" />
     <ClCompile Include="..\Private\MEInstancedMeshActor.cpp" />
     <ClCompile Include="..\Private\MELandscapeActor.cpp" />
+    <ClCompile Include="..\Private\MELandscapeManager.cpp" />
     <ClCompile Include="..\Private\MEManager.cpp" />
+    <ClCompile Include="..\Private\MEMaterialApplicator.cpp" />
     <ClCompile Include="..\Private\MEModelManager.cpp" />
     <ClCompile Include="..\Private\MEPickingSystem.cpp" />
     <ClCompile Include="..\Private\MEStaticMeshActor.cpp" />

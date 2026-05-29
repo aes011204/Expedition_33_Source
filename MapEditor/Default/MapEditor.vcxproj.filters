@@ -118,6 +118,12 @@
     <Filter Include="06. EditorUtil\NoiseUtil">
       <UniqueIdentifier>{d8a7e132-93ca-4f8a-bc6d-44a32fb66afd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="03. Manager\MELandscapeManager">
+      <UniqueIdentifier>{6940058e-b4a4-417f-bd15-7037c31768c3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="10. System\MEMaterialApplicator">
+      <UniqueIdentifier>{00437c28-a8d3-4d86-8b01-1ff655d439b2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -222,6 +228,12 @@
     <ClInclude Include="..\Public\NoiseUtil.h">
       <Filter>06. EditorUtil\NoiseUtil</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MELandscapeManager.h">
+      <Filter>03. Manager\MELandscapeManager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEMaterialApplicator.h">
+      <Filter>10. System\MEMaterialApplicator</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="MapEditor.ico">
@@ -323,6 +335,12 @@
     </ClCompile>
     <ClCompile Include="..\Private\PanelLandscape.cpp">
       <Filter>04. Panel\PanelLandscape</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MELandscapeManager.cpp">
+      <Filter>03. Manager\MELandscapeManager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEMaterialApplicator.cpp">
+      <Filter>10. System\MEMaterialApplicator</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
