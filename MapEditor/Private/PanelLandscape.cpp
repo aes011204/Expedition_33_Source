@@ -17,6 +17,7 @@ HRESULT PanelLandscape::Initialize(SceneContext* ctx, const LandscapePanelContex
     _onApplyNoise = landscapeCtx.onApplyNoise;
     _onApplyErosion = landscapeCtx.onApplyErosion;
     _onAddLayer = landscapeCtx.onAddLayer;
+    _onModify = landscapeCtx.onModify;
 
     return S_OK;
 }
@@ -103,6 +104,30 @@ void PanelLandscape::Render_LandscapeList()
             _onRemove(_ctx->_activeLandscapeIdx);
         }
     }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("수정"))
+    {
+        int32 idx = _ctx->_activeLandscapeIdx;
+        if (idx >= 0 && idx < static_cast<int32>(_ctx->_landscapes.size()))
+        {
+            auto& actor = _ctx->_landscapes[idx];
+            auto vib = actor->Get_VIBuffer();
+            Vec3 pos = actor->Get_Transform()->Get_Position();
+            _createCountX = static_cast<int32>(vib->Get_CountX());
+            _createCountZ = static_cast<int32>(vib->Get_CountZ());
+            _createSizeX = vib->Get_SizeX();
+            _createSizeZ = vib->Get_SizeZ();
+            _createChunkSize = static_cast<int32>(vib->Get_ChunkSize());
+            _createOffsetX = pos.x;
+            _createOffsetY = pos.y;
+            _createOffsetZ = pos.z;
+            _modifyTargetIdx = idx;
+            _isModifyMode = true;
+            _showCreateDialog = true;
+        }
+    }
 }
 
 void PanelLandscape::Render_CreateDialog()
@@ -133,30 +158,56 @@ void PanelLandscape::Render_CreateDialog()
         ImGui::TextDisabled("정점 수: %d", (_createCountX + 1) * (_createCountZ + 1));
 
         ImGui::Spacing();
-        if (ImGui::Button("생성", ImVec2(120.f, 0.f)))
+        if (_isModifyMode)
         {
-            LandscapeConfig cfg{};
-            cfg.name = _createName;
-            cfg.countX = static_cast<uint32>(_createCountX);
-            cfg.countZ = static_cast<uint32>(_createCountZ);
-            cfg.sizeX = _createSizeX;
-            cfg.sizeZ = _createSizeZ;
-            cfg.worldOffsetX = _createOffsetX;
-            cfg.worldOffsetY = _createOffsetY;
-            cfg.worldOffsetZ = _createOffsetZ;
-            cfg.chunkSize = static_cast<uint32>(max(4, _createChunkSize));
-
-            if (_onAdd)
+            if (ImGui::Button("수정", ImVec2(120.f, 0.f)))
             {
-                _onAdd(cfg);
-            }
+                LandscapeConfig cfg{};
+                cfg.name = _createName;
+                cfg.countX = static_cast<uint32>(_createCountX);
+                cfg.countZ = static_cast<uint32>(_createCountZ);
+                cfg.sizeX = _createSizeX;
+                cfg.sizeZ = _createSizeZ;
+                cfg.worldOffsetX = _createOffsetX;
+                cfg.worldOffsetY = _createOffsetY;
+                cfg.worldOffsetZ = _createOffsetZ;
+                cfg.chunkSize = static_cast<uint32>(max(4, _createChunkSize));
 
-            _showCreateDialog = false;
+                if (_onModify)
+                {
+                    _onModify(_modifyTargetIdx, cfg);
+                }
+                _showCreateDialog = false;
+                _isModifyMode = false;
+            }
+        }
+        else
+        {
+            if (ImGui::Button("생성", ImVec2(120.f, 0.f)))
+            {
+                LandscapeConfig cfg{};
+                cfg.name = _createName;
+                cfg.countX = static_cast<uint32>(_createCountX);
+                cfg.countZ = static_cast<uint32>(_createCountZ);
+                cfg.sizeX = _createSizeX;
+                cfg.sizeZ = _createSizeZ;
+                cfg.worldOffsetX = _createOffsetX;
+                cfg.worldOffsetY = _createOffsetY;
+                cfg.worldOffsetZ = _createOffsetZ;
+                cfg.chunkSize = static_cast<uint32>(max(4, _createChunkSize));
+
+                if (_onAdd)
+                {
+                    _onAdd(cfg);
+                }
+                _showCreateDialog = false;
+            }
         }
         ImGui::SameLine();
         if (ImGui::Button("취소", ImVec2(120.f, 0.f)))
         {
             _showCreateDialog = false;
+            _isModifyMode = false;
         }
     }
     ImGui::End();

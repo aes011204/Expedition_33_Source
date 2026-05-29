@@ -78,6 +78,7 @@ HRESULT MapEditorApp::Initialize()
     landscapeCtx.onApplyNoise = [this](int32 idx, const LandscapeNoiseParams& params) {Apply_Noise(idx, params); };
     landscapeCtx.onApplyErosion = [this](int32 idx, const LandscapeErosionParams& params) { Apply_Erosion(idx, params); };
     landscapeCtx.onAddLayer = [this](int32 idx, const WCHAR* path) {Add_LandscapeLayer(idx, path); };
+    landscapeCtx.onModify = [this](int32 idx, const LandscapeConfig& cfg) { Modify_Landscape(idx, cfg); };
 
     _manager = MEManager::Create(_viewport, &_scene, _camera.get(), landscapeCtx);
     CHECK_NULL(_manager, E_FAIL);
@@ -218,27 +219,66 @@ HRESULT MapEditorApp::Render()
     vector<uint32> visibleIndices;
     GAME->QueryVisible(visibleIndices);
 
-    for (uint32 idx : visibleIndices)
+    if (_scene._objectBBoxMode)
     {
-        auto& obj = _scene._staticMeshes[idx];
-        if (!obj->_renderHandle)
+        for (uint32 idx : visibleIndices)
         {
-            continue;
-        }
+            auto& obj = _scene._staticMeshes[idx];
+            if (!obj->_renderHandle)
+            {
+                continue;
+            }
 
-        obj->_renderHandle->Set_CameraFar(_camera->GetFar());
-        obj->_renderHandle->Late_Update(0.f);
+            const auto& model = obj->_renderHandle->GetModel();
+            Vec3 localMin{}, localMax{};
+            BoundingBox worldBox{};
+            if (model->Try_Get_LocalBounds(localMin, localMax))
+            {
+                BoundingBox localBox;
+                BoundingBox::CreateFromPoints(localBox, localMin, localMax);
+                localBox.Transform(worldBox, model->Get_PreLocalTransformMatrix() * obj->_worldMatrix);
+            }
+            else
+            {
+                worldBox.Center = obj->_position;
+                worldBox.Extents = Vec3(0.3f, 0.3f, 0.3f);
+            }
+
+            DebugBoxDesc box;
+            box.center = worldBox.Center;
+            box.extents = worldBox.Extents;
+            box.style.color = (obj == _scene._selected) ? Color(1.f, 1.f, 0.f, 1.f) : Color(0.5f, 0.8f, 1.f, 1.f);
+            box.style.depthEnabled = true;
+            GAME->Draw_DebugBox(box);
+        }
+    }
+    else
+    {
+        for (uint32 idx : visibleIndices)
+        {
+            auto& obj = _scene._staticMeshes[idx];
+            if (!obj->_renderHandle)
+            {
+                continue;
+            }
+
+            obj->_renderHandle->Set_CameraFar(_camera->GetFar());
+            obj->_renderHandle->Late_Update(0.f);
+        }
     }
 
-    for (auto& obj : _scene._instancedMeshes)
+    if (!_scene._hideInstancedMesh)
     {
-        if (!obj->_instancedRenderHandle)
+        for (auto& obj : _scene._instancedMeshes)
         {
-            continue;
-        }
+            if (!obj->_instancedRenderHandle)
+            {
+                continue;
+            }
 
-        obj->_instancedRenderHandle->Set_CameraFar(_camera->GetFar());
-        obj->_instancedRenderHandle->Late_Update(0.f);
+            obj->_instancedRenderHandle->Set_CameraFar(_camera->GetFar());
+            obj->_instancedRenderHandle->Late_Update(0.f);
+        }
     }
 
     // test
@@ -949,7 +989,24 @@ void MapEditorApp::Save_Landscape(int32 idx, const WCHAR* path)
     fwrite(&countZ, sizeof(uint32), 1, f);
     fwrite(&sizeX, sizeof(float), 1, f);
     fwrite(&sizeZ, sizeof(float), 1, f);
+     
+    Vec3 pos = _scene._landscapes[idx]->Get_Transform()->Get_Position();
+    fwrite(&pos, sizeof(Vec3), 1, f);
     fwrite(heights.data(), sizeof(float), heights.size(), f);
+
+    uint32 layerCount = _scene._landscapes[idx]->Get_LayerCount();
+    fwrite(&layerCount, sizeof(uint32), 1, f);
+
+    for (uint32 i = 0; i < layerCount; ++i)
+    {
+        const wstring& name = _scene._landscapes[idx]->Get_LayerPath(i);
+        uint32 nameLen = static_cast<uint32>(name.size());
+        fwrite(&nameLen, sizeof(uint32), 1, f);
+        fwrite(name.c_str(), sizeof(wchar_t), nameLen, f);
+
+        const auto& weights = vb->Get_WeightMap(i);
+        fwrite(weights.data(), sizeof(float), weights.size(), f);
+    }
 
     fclose(f);
 }
@@ -970,6 +1027,9 @@ void MapEditorApp::Load_Landscape(int32 idx, const WCHAR* path)
     fread(&sizeX, sizeof(float), 1, f);
     fread(&sizeZ, sizeof(float), 1, f);
 
+    Vec3 pos{};
+    fread(&pos, sizeof(Vec3), 1, f);
+
     if (idx < 0 || idx >= static_cast<int32>(_scene._landscapes.size()))
     {
         LandscapeConfig cfg{};
@@ -977,19 +1037,44 @@ void MapEditorApp::Load_Landscape(int32 idx, const WCHAR* path)
         cfg.countZ = countZ;
         cfg.sizeX = sizeX;
         cfg.sizeZ = sizeZ;
+        cfg.worldOffsetX = pos.x;
+        cfg.worldOffsetY = pos.y;
+        cfg.worldOffsetZ = pos.z;
         Add_Landscape(cfg);
         idx = static_cast<int32>(_scene._landscapes.size()) - 1;
     }
 
     auto vb = _scene._landscapes[idx]->Get_VIBuffer();
+    _scene._landscapes[idx]->Get_Transform()->Set_Position(pos);
     auto& heights = vb->Get_Heights();
 
     const uint32 expected = (countX + 1) * (countZ + 1);
     heights.resize(expected);
     fread(heights.data(), sizeof(float), expected, f);
-    fclose(f);
 
     vb->Flush();
+
+    uint32 layerCount = 0;
+    if (fread(&layerCount, sizeof(uint32), 1, f) == 1 && layerCount > 0)
+    {
+        _scene._landscapes[idx]->Clear_Layers();
+        vb->Set_LayerCount(layerCount);
+        for (uint32 i = 0; i < layerCount; ++i)
+        {
+            uint32 nameLen = 0;
+            fread(&nameLen, sizeof(uint32), 1, f);
+            wstring name(nameLen, L'\0');
+            fread(name.data(), sizeof(WCHAR), nameLen, f);
+
+            auto& weights = vb->Get_WeightMap(i);
+            fread(weights.data(), sizeof(float), expected, f);
+
+            wstring fullPath = (fs::path(Get_ClientResourceRoot()) / L"Map" / L"LandscapeTextures" / name).wstring();
+            _scene._landscapes[idx]->Add_LayerTexture(fullPath);
+            _scene._landscapes[idx]->Flush_WeightMap(i);
+        }
+    }
+    fclose(f);
 }
 
 void MapEditorApp::Apply_Noise(int32 idx, const LandscapeNoiseParams& params)
@@ -1114,6 +1199,61 @@ void MapEditorApp::Add_LandscapeLayer(int32 idx, const WCHAR* path)
     }
 
     _scene._landscapes[idx]->Add_LayerTexture(wstring(path));
+}
+
+void MapEditorApp::Modify_Landscape(int32 idx, const LandscapeConfig& cfg)
+{
+    if (idx < 0 || idx >= static_cast<int32>(_scene._landscapes.size()))
+    {
+        return;
+    }
+
+    auto& oldActor = _scene._landscapes[idx];
+    auto oldVib = oldActor->Get_VIBuffer();
+
+    const uint32 oldCountX = oldVib->Get_CountX();
+    const uint32 oldCountZ = oldVib->Get_CountZ();
+
+    VIBuffer_Landscape::LAND_DESC desc{};
+    desc.countX = cfg.countX;
+    desc.countZ = cfg.countZ;
+    desc.sizeX = cfg.sizeX;
+    desc.sizeZ = cfg.sizeZ;
+    desc.chunkSize = cfg.chunkSize;
+
+    auto newActor = MELandscapeActor::Create(_device, _context, desc);
+    if (!newActor)
+    {
+        return;
+    }
+
+    newActor->Get_Transform()->Set_Position(Vec3(cfg.worldOffsetX, cfg.worldOffsetY, cfg.worldOffsetZ));
+
+    auto newVib = newActor->Get_VIBuffer();
+    const bool sameResolution = (oldCountX == newVib->Get_CountX() && oldCountZ == newVib->Get_CountZ());
+
+    if (sameResolution)
+    {
+        newVib->Get_Heights() = oldVib->Get_Heights();
+        newVib->Flush();
+    }
+
+    const uint32 layerCount = oldActor->Get_LayerCount();
+    for (uint32 i = 0; i < layerCount; ++i)
+    {
+        newActor->Add_LayerTexture(oldActor->Get_LayerPath(i));
+        if (sameResolution)
+        {
+            newVib->Get_WeightMap(i) = oldVib->Get_WeightMap(i);
+            newActor->Flush_WeightMap(i);
+        }
+    }
+
+    _scene._landscapes[idx] = newActor;
+    if (idx < static_cast<int32>(_scene._landscapeConfigs.size()))
+    {
+        _scene._landscapeConfigs[idx] = cfg;
+    }
 }
 
 Unique<MapEditorApp> MapEditorApp::Create()

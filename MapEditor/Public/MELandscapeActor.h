@@ -23,6 +23,7 @@ public:
 public:
     Shared<VIBuffer_Landscape> Get_VIBuffer() { return _vibuffer; }
     uint32 Get_LayerCount() const { return _layerCount; }
+    const wstring& Get_LayerPath(uint32 i) const { return _layerPaths[i]; };
 
     void Set_CameraFar(float camFar) { _cameraFar = camFar; }
     void Set_CameraPos(const Vec3& pos) { _cameraPos = pos; }
@@ -45,12 +46,15 @@ private:
     ComPtr<ID3D11ShaderResourceView> _weightSRVs[MAX_LAYERS];
     uint32 _layerCount = 0;
 
+    wstring _layerPaths[MAX_LAYERS];
+
 private:
     HRESULT Bind_ShaderResources();
 
 public:
     HRESULT Add_LayerTexture(const wstring& texturePath);
     void Flush_WeightMap(uint32 layerIdx);
+    void Clear_Layers();
 
 public:
     static Shared<MELandscapeActor> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const VIBuffer_Landscape::LAND_DESC& desc);

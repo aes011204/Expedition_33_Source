@@ -142,6 +142,7 @@ HRESULT MELandscapeActor::Add_LayerTexture(const wstring& texturePath)
     }
 
     _vibuffer->Set_LayerCount(_layerCount + 1);
+    _layerPaths[_layerCount] = fs::path(texturePath).filename().wstring();
     ++_layerCount;
 
     Flush_WeightMap(_layerCount - 1);
@@ -176,6 +177,19 @@ void MELandscapeActor::Flush_WeightMap(uint32 layerIdx)
     }
 
     _context->Unmap(_weightTextures[layerIdx].Get(), 0);
+}
+
+void MELandscapeActor::Clear_Layers()
+{
+    for (uint32 i = 0; i < MAX_LAYERS; ++i)
+    {
+        _layerSRVs[i].Reset();
+        _weightTextures[i].Reset();
+        _weightSRVs[i].Reset();
+        _layerPaths[i].clear();
+    }
+    _layerCount = 0;
+    _vibuffer->Clear_Layers();
 }
 
 Shared<MELandscapeActor> MELandscapeActor::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const VIBuffer_Landscape::LAND_DESC& desc)

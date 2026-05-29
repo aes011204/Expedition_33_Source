@@ -93,6 +93,8 @@ private:
 
     void Add_LandscapeLayer(int32 idx, const WCHAR* path);
 
+    void Modify_Landscape(int32 idx, const LandscapeConfig& cfg);
+
 public:
     static Unique<MapEditorApp> Create();
     virtual void Free() override;

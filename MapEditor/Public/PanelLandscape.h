@@ -27,6 +27,7 @@ private:
     function<void(int32, const LandscapeNoiseParams&)> _onApplyNoise;
     function<void(int32, const LandscapeErosionParams&)> _onApplyErosion;
     function<void(int32, const WCHAR*)> _onAddLayer;
+    function<void(int32, const LandscapeConfig&)> _onModify;
 
     bool   _showCreateDialog = false;
     int32  _createCountX = 64;
@@ -41,6 +42,9 @@ private:
 
     LandscapeNoiseParams _noiseParams{};
     LandscapeErosionParams _erosionParams{};
+
+    bool _isModifyMode = false;
+    int32 _modifyTargetIdx = -1;
 
 private:
     void Render_LandscapeList();

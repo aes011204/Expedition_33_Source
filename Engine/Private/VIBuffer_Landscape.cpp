@@ -13,13 +13,19 @@ VIBuffer_Landscape::VIBuffer_Landscape(const VIBuffer_Landscape& prototype)
 void VIBuffer_Landscape::Set_LayerCount(uint32 count)
 {
     count = min(count, 4u);
-    _weightMaps.resize(count);
-    for (auto& wm : _weightMaps)
+    uint32 oldCount = static_cast<uint32>(_weightMaps.size());
+    if (count <= oldCount)
     {
-        wm.assign(_numTerrainVerts, 0.f);
+        return;
     }
 
-    if (count > 0)
+    _weightMaps.resize(count);
+    for (uint32 i = oldCount; i < count; ++i)
+    {
+        _weightMaps[i].assign(_numTerrainVerts, 0.f);
+    }
+
+    if (oldCount == 0 && count > 0)
     {
         fill(_weightMaps[0].begin(), _weightMaps[0].end(), 1.f);
     }
@@ -511,6 +517,12 @@ void VIBuffer_Landscape::Paint_Layer(uint32 layerIdx, float worldX, float worldZ
             }
         }
     }
+}
+
+void VIBuffer_Landscape::Clear_Layers()
+{
+    _weightMaps.clear();
+    _layerCount = 0;
 }
 
 Shared<VIBuffer_Landscape> VIBuffer_Landscape::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const LAND_DESC& desc)

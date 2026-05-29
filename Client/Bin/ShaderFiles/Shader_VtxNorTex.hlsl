@@ -80,6 +80,8 @@ struct PS_OUT
     vector Diffuse  : SV_TARGET0;
     vector Normal   : SV_TARGET1;
     vector Depth    : SV_TARGET2;
+    vector Material : SV_TARGET3; // r=AO, g=Roughness, b=Metalness
+    vector Emissive : SV_TARGET4;
 };
 
 PS_OUT PS_Default(PS_IN In)
@@ -88,6 +90,8 @@ PS_OUT PS_Default(PS_IN In)
     Out.Diffuse = float4(1.f, 1.f, 1.f, 1.f);
     Out.Normal = vector(In.Normal.xyz * 0.5f + 0.5f, 1.f);
     Out.Depth = vector(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = vector(1.f, 0.8f, 0.f, 0.f);
+    Out.Emissive = vector(0.f, 0.f, 0.f, 0.f);
     
     return Out;
 }
@@ -103,6 +107,8 @@ PS_OUT PS_Layer(PS_IN In)
     Out.Diffuse = vector(color.rgb, 1.f);
     Out.Normal = vector(In.Normal.xyz * 0.5f + 0.5f, 1.f);
     Out.Depth = vector(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = vector(1.f, 0.8f, 0.f, 0.f);
+    Out.Emissive = vector(0.f, 0.f, 0.f, 0.f);
     return Out;
 }
 

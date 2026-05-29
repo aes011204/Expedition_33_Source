@@ -88,6 +88,8 @@ void PanelViewport::Render()
                     float& sens = _camera->GetRotateSensitivityRef();
                     ImGui::SetNextItemWidth(160.f);
                     ImGui::SliderFloat("Rotate", &sens, 0.001f, 0.01f, "%.4f");
+                    ImGui::Checkbox("BBox", &_ctx->_objectBBoxMode);
+                    ImGui::Checkbox("Instance 숨기기", &_ctx->_hideInstancedMesh);
                 }
                 ImGui::End();
             }

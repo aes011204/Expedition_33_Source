@@ -64,6 +64,9 @@ struct SceneContext
     vector<LandscapeConfig> _landscapeConfigs;
     vector<Shared<MELandscapeActor>> _landscapes;
     int32 _activeLandscapeIdx = -1;
+
+    bool _objectBBoxMode = false;
+    bool _hideInstancedMesh = false;
 };
 
 NS_END

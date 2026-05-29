@@ -40,7 +40,7 @@ public:
     uint32 Get_ChunkSize() const { return _desc.chunkSize; }
     uint32 Get_NumChunkX() const { return _numChunksX; }
     uint32 Get_NumChunkZ() const { return _numChunksZ; }
-    const vector<float>& Get_WeightMap(uint32 layerIdx) const { return _weightMaps[layerIdx]; }
+    vector<float>& Get_WeightMap(uint32 layerIdx) { return _weightMaps[layerIdx]; }
     uint32 Get_LayerCount() const { return _layerCount; }
 
     void Set_LayerCount(uint32 count);
@@ -77,6 +77,7 @@ public:
     HRESULT Render_LOD(const Vec3& cameraPos, const float lodDist[2]);
     float Sample_Height(float worldX, float worldZ) const;
     void Paint_Layer(uint32 layerIdx, float worldX, float worldZ, float radius, float strength);
+    void Clear_Layers();
 
 public:
     static Shared<VIBuffer_Landscape> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const LAND_DESC& desc);
