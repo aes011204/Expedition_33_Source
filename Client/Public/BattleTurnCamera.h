@@ -22,6 +22,7 @@ public:
         Shared<Engine::Character> subject = nullptr;
         Shared<Engine::Character> opponent = nullptr;
         string          skillId;
+        string          profileId;
         bool            useClip;
         bool            restartClip;
     };
@@ -77,6 +78,7 @@ private:
     };
 
 private:
+    const BattleCameraProfile* Resolve_BattleCameraProfileById(BattleCameraMode mode, const string& profileId) const;
     void Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt);
     void Apply_FreeAimCamera();                
     void Apply_EvaluatedPose(const EvaluatedPose& pose);
@@ -179,6 +181,7 @@ private:
 
     BattleCameraProfile   _playerAttackDefaultProfile{};
     umap<string, BattleCameraProfile> _playerAttackProfilesBySkill;
+    mutable umap<string, BattleCameraProfile> _profilesById;
     PoseTransitionState   _poseTransition{};
 
 public:

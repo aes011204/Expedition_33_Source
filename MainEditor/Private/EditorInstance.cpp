@@ -21,6 +21,7 @@
 #include "EditorPickingSystem.h"
 #include <fstream>
 #include "ClientInstance.h"
+#include "GameplayUI.h"
 
 IMPLEMENT_SINGLETON(EditorInstance)
 
@@ -122,6 +123,7 @@ void EditorInstance::Release_Editor()
 
     _pickingSystem.reset();
     _sharedViewportRenderTarget.reset();
+    _sharedPreviewRenderTarget.reset();
 
     Release_Manager(_imguiManager);
     Release_Manager(_inspectorFactory);
@@ -252,6 +254,10 @@ void EditorInstance::Stop()
         _runtimeState == EDITOR_RUNTIME_STATE::Pause)
     {
         GAME->Get_DelegateHub().OnEditorStopRuntime.Broadcast();
+
+         if (Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
+            gameplayUI->Handle_EditorStopRuntime();
+
         Restore_PlayStartSnapshot();
     }
 
@@ -351,14 +357,48 @@ Shared<GameObject> EditorInstance::Selected_Object() const
     return _editorContext->Get_Selection().selectedObject;
 }
 
+Shared<UI_Base> EditorInstance::Selected_UI() const
+{
+    return _editorContext->Get_Selection().selectedUI.lock();
+}
+
+string EditorInstance::Selected_UIGroup() const
+{
+    return _editorContext->Get_Selection().selectedUIGroup;
+}
+
+string EditorInstance::Selected_UIDisplayName() const
+{
+    return _editorContext->Get_Selection().selectedUIDisplayName;
+}
+
+bool EditorInstance::Selected_UIPositionDrivenByCode() const
+{
+    return _editorContext->Get_Selection().selectedUIPositionDrivenByCode;
+}
+
 void EditorInstance::Select_Object(const Shared<GameObject>& gameObject)
 {
     return _editorContext->Set_SelectObject(gameObject);
 }
 
+void EditorInstance::Select_UI(
+    const Shared<UI_Base>& ui,
+    const string& groupName,
+    const string& displayName,
+    bool positionDrivenByCode)
+{
+    return _editorContext->Set_SelectUI(ui, groupName, displayName, positionDrivenByCode);
+}
+
 void EditorInstance::Clear_SelectedObject()
 {
-    return _editorContext->Clear_Selection();
+    return _editorContext->Clear_SelectedObject();
+}
+
+void EditorInstance::Clear_SelectedUI()
+{
+    return _editorContext->Clear_SelectedUI();
 }
 
 uint32 EditorInstance::Selection_Revision() const
@@ -543,6 +583,95 @@ Shared<Editor_Window> EditorInstance::Get_Window(const wstring& strWindowName) c
     return _editorManager->Find_Window(strWindowName);
 }
 
+PreviewOwner EditorInstance::Get_ActivePreviewOwner() const
+{
+    const Shared<Editor_Window> prefabWindow = Get_Window(L"Prefab");
+    const Shared<Editor_Window> animationWindow = Get_Window(L"Animation");
+    const Shared<Editor_Window> animStateWindow = Get_Window(L"AnimState");
+
+    const auto isWindowVisible = [](const Shared<Editor_Window>& window)
+    {
+        return window && window->Is_Open() && window->Is_Visible();
+    };
+
+    const bool prefabInteractive =
+        isWindowVisible(prefabWindow) &&
+        (prefabWindow->Is_Focused() || prefabWindow->Is_Hovered());
+
+    const bool animationInteractive =
+        isWindowVisible(animationWindow) &&
+        (animationWindow->Is_Focused() || animationWindow->Is_Hovered());
+
+    const bool animStateInteractive =
+        isWindowVisible(animStateWindow) &&
+        (animStateWindow->Is_Focused() || animStateWindow->Is_Hovered());
+
+    if (prefabInteractive)
+    {
+        _stickyPreviewOwner = PreviewOwner::Prefab;
+        return PreviewOwner::Prefab;
+    }
+
+    if (animationInteractive)
+    {
+        _stickyPreviewOwner = PreviewOwner::Animation;
+        return PreviewOwner::Animation;
+    }
+
+    if (animStateInteractive)
+    {
+        _stickyPreviewOwner = PreviewOwner::AnimState;
+        return PreviewOwner::AnimState;
+    }
+
+    switch (_stickyPreviewOwner)
+    {
+    case PreviewOwner::Prefab:
+        if (isWindowVisible(prefabWindow))
+            return PreviewOwner::Prefab;
+        break;
+
+    case PreviewOwner::Animation:
+        if (isWindowVisible(animationWindow))
+            return PreviewOwner::Animation;
+        break;
+
+    case PreviewOwner::AnimState:
+        if (isWindowVisible(animStateWindow))
+            return PreviewOwner::AnimState;
+        break;
+
+    default:
+        break;
+    }
+
+    if (isWindowVisible(prefabWindow))
+    {
+        _stickyPreviewOwner = PreviewOwner::Prefab;
+        return PreviewOwner::Prefab;
+    }
+
+    if (isWindowVisible(animationWindow))
+    {
+        _stickyPreviewOwner = PreviewOwner::Animation;
+        return PreviewOwner::Animation;
+    }
+
+    if (isWindowVisible(animStateWindow))
+    {
+        _stickyPreviewOwner = PreviewOwner::AnimState;
+        return PreviewOwner::AnimState;
+    }
+
+    _stickyPreviewOwner = PreviewOwner::None;
+    return PreviewOwner::None;
+}
+
+bool EditorInstance::Is_ActivePreviewOwner(PreviewOwner owner) const
+{
+    return Get_ActivePreviewOwner() == owner;
+}
+
 void EditorInstance::Execute_Command(const Shared<ICommand>& command)
 {
     if (_commandHistory && command)
@@ -684,12 +813,51 @@ Shared<RenderTarget> EditorInstance::Prepare_SharedViewportRenderTarget(uint32 w
     return _sharedViewportRenderTarget;
 }
 
+Shared<RenderTarget> EditorInstance::Prepare_SharedPreviewRenderTarget(uint32 width, uint32 height)
+{
+    if (0 == width)
+        width = 1;
+
+    if (0 == height)
+        height = 1;
+
+    if (nullptr == _sharedPreviewRenderTarget)
+    {
+        _sharedPreviewRenderTarget = RenderTarget::Create(
+            L"PreviewRenderTarget",
+            _device,
+            _context,
+            width,
+            height,
+            DXGI_FORMAT_R8G8B8A8_UNORM,
+            Vec4(0.f, 0.f, 0.f, 1.f));
+    }
+    else if (FAILED(_sharedPreviewRenderTarget->Resize(
+        width,
+        height,
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        Vec4(0.f, 0.f, 0.f, 1.f))))
+    {
+        return nullptr;
+    }
+
+    return _sharedPreviewRenderTarget;
+}
+
 ID3D11ShaderResourceView* EditorInstance::Get_SharedViewportSRV() const
 {
     if (nullptr == _sharedViewportRenderTarget)
         return nullptr;
 
     return _sharedViewportRenderTarget->Get_SRV();
+}
+
+ID3D11ShaderResourceView* EditorInstance::Get_SharedPreviewSRV() const
+{
+    if (nullptr == _sharedPreviewRenderTarget)
+        return nullptr;
+
+    return _sharedPreviewRenderTarget->Get_SRV();
 }
 
 void EditorInstance::Capture_BackBuffer_ToViewport()
@@ -703,6 +871,25 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
         renderTarget = Prepare_SharedViewportRenderTarget(copyWidth, copyHeight);
     }
 
+    Capture_BackBuffer_ToRenderTarget(renderTarget);
+}
+
+void EditorInstance::Capture_BackBuffer_ToPreview()
+{
+    const uint32 copyWidth = min(max(1u, GAME->Get_ViewportWidth()), max(1u, GAME->Get_BackBufferWidth()));
+    const uint32 copyHeight = min(max(1u, GAME->Get_ViewportHeight()), max(1u, GAME->Get_BackBufferHeight()));
+
+    Shared<RenderTarget> renderTarget = nullptr;
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("Capture::PreparePreviewRT");
+        renderTarget = Prepare_SharedPreviewRenderTarget(copyWidth, copyHeight);
+    }
+
+    Capture_BackBuffer_ToRenderTarget(renderTarget);
+}
+
+void EditorInstance::Capture_BackBuffer_ToRenderTarget(const Shared<RenderTarget>& renderTarget)
+{
     if (nullptr == renderTarget || nullptr == _context)
         return;
 
@@ -723,8 +910,8 @@ void EditorInstance::Capture_BackBuffer_ToViewport()
     sourceBox.left = 0;
     sourceBox.top = 0;
     sourceBox.front = 0;
-    sourceBox.right = copyWidth;
-    sourceBox.bottom = copyHeight;
+    sourceBox.right = min(max(1u, GAME->Get_ViewportWidth()), renderTarget->Get_Width());
+    sourceBox.bottom = min(max(1u, GAME->Get_ViewportHeight()), renderTarget->Get_Height());
     sourceBox.back = 1;
 
     {
@@ -912,8 +1099,7 @@ HRESULT EditorInstance::Restore_CurrentLevelObjects(const vector<EditorWorldObje
 
 void EditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
 {
-    (void)width;
-    (void)height;
+    GAME->Apply_LogicalViewportSize(max(1u, width), max(1u, height));
 }
 
 void EditorInstance::Enable_AutoPreviewViewport()
@@ -1052,6 +1238,15 @@ void EditorInstance::Apply_PendingPreviewViewportSize()
 
 void EditorInstance::Apply_RuntimeInputPolicy()
 {
+    const auto applyMouseLockOverride =
+        [this]()
+        {
+            if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)
+                GAME->Lock_Mouse();
+            else if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
+                GAME->Unlock_Mouse();
+        };
+
     Shared<Editor_Window> sceneView = Get_Window(L"Scene");
     Shared<Editor_Window> gameView = Get_Window(L"Game");
 
@@ -1089,6 +1284,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
             GAME->Set_PlayerInputBlocked(true);
             GAME->Set_FreeCameraInputEnabled(false);
             GAME->Unlock_Mouse();
+            applyMouseLockOverride();
             return;
         }
 
@@ -1097,6 +1293,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
             GAME->Set_PlayerInputBlocked(true);      
             GAME->Set_FreeCameraInputEnabled(false);
             GAME->Unlock_Mouse();
+            applyMouseLockOverride();
             return;
         }
 
@@ -1105,6 +1302,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
             GAME->Set_PlayerInputBlocked(true);
             GAME->Set_FreeCameraInputEnabled(false);
             GAME->Unlock_Mouse();
+            applyMouseLockOverride();
             return;
         }
 
@@ -1134,7 +1332,8 @@ void EditorInstance::Apply_RuntimeInputPolicy()
                 GAME->Unlock_Mouse();
         }
 
-            return;
+        applyMouseLockOverride();
+        return;
     }
 
     const bool freeCameraControl =
@@ -1146,6 +1345,32 @@ void EditorInstance::Apply_RuntimeInputPolicy()
     if (freeCameraControl)
         GAME->Lock_Mouse();
     else
+        GAME->Unlock_Mouse();
+
+    applyMouseLockOverride();
+}
+
+void EditorInstance::Toggle_MouseLockOverride()
+{
+    if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)
+    {
+        _mouseLockOverrideMode = MouseLockOverrideMode::Unlocked;
+    }
+    else if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
+    {
+        _mouseLockOverrideMode = MouseLockOverrideMode::Locked;
+    }
+    else
+    {
+        _mouseLockOverrideMode =
+            GAME->Is_MouseLocked()
+            ? MouseLockOverrideMode::Unlocked
+            : MouseLockOverrideMode::Locked;
+    }
+
+    if (_mouseLockOverrideMode == MouseLockOverrideMode::Locked)
+        GAME->Lock_Mouse();
+    else if (_mouseLockOverrideMode == MouseLockOverrideMode::Unlocked)
         GAME->Unlock_Mouse();
 }
 

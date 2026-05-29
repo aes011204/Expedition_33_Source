@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Editor_Window.h"
+#include "GameplayUI_Types.h"
 
 NS_BEGIN(MainEditor)
 
@@ -20,6 +21,9 @@ private:
     void    Draw_SearchBar();
     void    Rebuild_Cache();
     void    Handle_Shortcuts();
+    void    Draw_RuntimeUINode();
+    void    Draw_RuntimeUIGroup(const char* groupLabel, const vector<Client::RuntimeUIEntry>& entries);
+    void    Sync_RuntimeUISelection(const vector<Client::RuntimeUIEntry>& worldEntries, const vector<Client::RuntimeUIEntry>& battleEntries);
     bool    Pass_SearchFilter(const Shared<GameObject>& gameObject, uint32 objectIndex) const;
     bool    Pass_LightingSearchFilter() const;
     uint32  Get_TotalObjectCount() const;

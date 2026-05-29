@@ -45,6 +45,7 @@ namespace Client::Constants::UI
 
     inline constexpr wchar_t UI_CrossAir_Path[] = L"UI/UI_Json/BattleSystem/UI_CrossAir.json";
 
+    // 폰트
     inline constexpr wchar_t UI_NormalDamageFont_Path[] = L"UI/UI_Json/BattleSystem/UI_NormalDamageFont.json";
     inline constexpr wchar_t UI_CriticalDamageFont_Path[] = L"UI/UI_Json/BattleSystem/UI_CriticalDamageFont.json";
     inline constexpr wchar_t UI_HealFont_Path[] = L"UI/UI_Json/BattleSystem/UI_HealFont.json";
@@ -52,13 +53,16 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Escape_SkipTurnBack_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Escape_SkipTurn_Back.json";
     inline constexpr wchar_t UI_Attack_Tooltip_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_AttackTooltip.json";
 
+    // 플레이어 메커니즘
     inline constexpr wchar_t UI_Gustave_Mechanism_Path[] = L"UI/UI_Json/BattleSystem/Gustave/UI_BattleSystem_Gustave_Mechanism.json";
     inline constexpr wchar_t UI_Lune_Mechanism_Path[] = L"UI/UI_Json/BattleSystem/Lune/UI_BattleSystem_Lune_Mechanism.json";
     inline constexpr wchar_t UI_Maelle_Mechanism_Path[] = L"UI/UI_Json/BattleSystem/Maelle/UI_BattleSystem_Maelle_Mechanism.json";
 
+    // Reaction
     inline constexpr wchar_t UI_Dodge_Path[] = L"UI/UI_Json/BattleSystem/UI_Dodge.json";
     inline constexpr wchar_t UI_Parry_Path[] = L"UI/UI_Json/BattleSystem/UI_Parry.json";
 
+    // 전투 승리
     inline constexpr wchar_t UI_Battle_Victory_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleVictory.json";
 
     // 아이템
@@ -67,6 +71,8 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Battle_EnergyTooltip_Path[] = L"UI/UI_Json/BattleSystem/Item/UI_BattleSystem_ItemTooltip_Energy_Tint.json";
     inline constexpr wchar_t UI_Battle_ReviveTooltip_Path[] = L"UI/UI_Json/BattleSystem/Item/UI_BattleSystem_ItemTooltip_Revive_Tint.json";
 
+    // Battle Announce
+    inline constexpr wchar_t UI_BattleSystem_Announce_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Announce.json";
 
 #pragma endregion
 
@@ -89,6 +95,8 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_CriticalDamageFontAnim_Path[] = L"UI/UI_Animations/BattleSystem/DamageFont/CriticalDamageFont";
     
     inline constexpr wchar_t UI_HealFontAnim_Path[] = L"UI/UI_Animations/BattleSystem/DamageFont/HealFont";
+
+    inline constexpr wchar_t UI_BattleSystem_AnnounceAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Announce";
 }
 
 namespace Client::Constants::Map
@@ -126,6 +134,7 @@ namespace Client::Constants::Charcter
 
 namespace Client::Constants::Prefab
 {
+#pragma region 플레이어
     inline constexpr char PW_Gustave[]  = "PW_Gustave";
     inline constexpr char PW_Lune[]     = "PW_Lune";
     inline constexpr char PW_Maelle[]   = "PW_Maelle";
@@ -133,16 +142,28 @@ namespace Client::Constants::Prefab
     inline constexpr char PB_Gustave[]  = "PB_Gustave";
     inline constexpr char PB_Lune[]     = "PB_Lune";
     inline constexpr char PB_Maelle[]   = "PB_Maelle";
+#pragma endregion
 
-    inline constexpr char MW_Lancelier[] = "MW_Lancelier";
-    inline constexpr char MB_Lancelier[] = "MB_Lancelier";
+#pragma region 몬스터
+    inline constexpr char MW_Lancelier[]        = "MW_Lancelier";
+    inline constexpr char MB_Lancelier[]        = "MB_Lancelier";
 
-    inline constexpr char MW_Portier[] = "MW_Portier";
-    inline constexpr char MB_Portier[] = "MB_Portier";
+    inline constexpr char MW_Portier[]          = "MW_Portier";
+    inline constexpr char MB_Portier[]          = "MB_Portier";
 
-    inline constexpr char MW_Bishop[] = "MW_Bishop";
-    inline constexpr char MB_Bishop[] = "MB_Bishop";
+    inline constexpr char MW_Bishop[]           = "MW_Bishop";
+    inline constexpr char MB_Bishop[]           = "MB_Bishop";
 
-    inline constexpr char MW_Volester[] = "MW_Volester";
-    inline constexpr char MB_Volester[] = "MB_Volester";
+    inline constexpr char MW_Volester[]         = "MW_Volester";
+    inline constexpr char MB_Volester[]         = "MB_Volester";
+#pragma endregion
+
+#pragma region 무기
+    inline constexpr char Gustave_Lanceram[]    = "WP_Gustave_Lanceram";
+    inline constexpr char Lune_Colim[]          = "WP_Lune_Colim";
+    inline constexpr char Maelle_Medalum[]      = "WP_Maelle_Medalum";
+#pragma endregion
+
+
+    
 }

@@ -30,6 +30,7 @@ IMPLEMENT_REFLECTION(PlayerStatCom)
     PROPERTY_INT("Base Max AP", _playerDesc.maxAp, 0.f, 99.f, 1.f);
 
     PROPERTY_STRING("Portrait", _playerDesc.portraitGuid);
+    PROPERTY_WSTRING("Battle Announce Name", _playerDesc.battleAnnounceName);
 
     return true;
 }

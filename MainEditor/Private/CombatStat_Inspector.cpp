@@ -72,6 +72,28 @@ void CombatStat_Inspector::Draw_CommonRuntimeSection(const Shared<Client::Combat
     ImGui::Text("%d", static_cast<int>(runtime.CurAliveState)); // 지금은 표시만
 }
 
+bool CombatStat_Inspector::Draw_WStringPropertyRow(
+    const char* label,
+    const char* hiddenId,
+    wstring& value)
+{
+    ImGui::TextDisabled("%s", label);
+    ImGui::SameLine(120.f);
+
+    string valueText = String::ToString(value);
+    char buffer[512]{};
+    strncpy_s(buffer, valueText.c_str(), _TRUNCATE);
+
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (ImGui::InputText(hiddenId, buffer, IM_ARRAYSIZE(buffer)))
+    {
+        value = String::ToWString(buffer);
+        return true;
+    }
+
+    return false;
+}
+
 bool CombatStat_Inspector::Draw_PortraitTexturePicker(const char* label, string& portraitGuid,
     const string& requiredRelativePrefix)
 {

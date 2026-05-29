@@ -1,6 +1,7 @@
 ﻿#include "EffectEditorInstance.h"
 
 #include "CommandHistory.h"
+#include "ComputeSpriteEmitter.h"
 #include "Editor_Context.h"
 #include "Editor_Window.h"
 #include "EffectEditorCamera.h"
@@ -66,6 +67,8 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
     _isTrailPreviewVisible = false;
+    _isEffectInfluenceOutlineEnabled = false;
+    ComputeSpriteEmitter::Set_InfluenceOutlineDebugEnabled(false);
     _postProcessOptions = Get_DefaultPostProcessOptions();
     Queue_PreviewViewportSize(kDefaultPreviewViewportWidth, kDefaultPreviewViewportHeight);
 
@@ -342,6 +345,12 @@ void EffectEditorInstance::Set_TrailPreviewVisible(bool visible)
 void EffectEditorInstance::Set_TrailPreviewDebugRenderEnabled(bool enabled)
 {
     _isTrailPreviewDebugRenderEnabled = enabled;
+}
+
+void EffectEditorInstance::Set_EffectInfluenceOutlineEnabled(bool enabled)
+{
+    _isEffectInfluenceOutlineEnabled = enabled;
+    ComputeSpriteEmitter::Set_InfluenceOutlineDebugEnabled(enabled);
 }
 
 void EffectEditorInstance::Set_TrailPreviewLocalOffsets(const Vec3& baseLocalOffset, const Vec3& tipLocalOffset)

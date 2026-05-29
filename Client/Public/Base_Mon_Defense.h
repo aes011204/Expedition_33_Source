@@ -12,8 +12,7 @@ public:
     virtual ~Base_Mon_Defense() = default;
 public:
     virtual void Execute(const Skill_Data& skill,
-        const BattleChar& attacker,
-        const BattleChar& target);
+        const BattleAction& action, AttackType attackType) override;
 public:
     static Shared<Base_Mon_Defense> Create();
     //Shared<Component> Clone(void* arg) override;

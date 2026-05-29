@@ -1190,12 +1190,51 @@ bool SizeByLifeModuleDetail::Draw(
     {
         if (detailContext.Begin_PropertyTable("SizeByLife"))
         {
-            changed |= detailContext.Draw_FloatProperty("X 시작 배율", data.multiplyXStart, defaultData.multiplyXStart);
-            changed |= detailContext.Draw_FloatProperty("X 종료 배율", data.multiplyXEnd, defaultData.multiplyXEnd);
-            changed |= detailContext.Draw_FloatProperty("Y 시작 배율", data.multiplyYStart, defaultData.multiplyYStart);
-            changed |= detailContext.Draw_FloatProperty("Y 종료 배율", data.multiplyYEnd, defaultData.multiplyYEnd);
+            changed |= detailContext.Draw_BoolProperty("X축 적용", data.multiplyX, defaultData.multiplyX);
+            changed |= detailContext.Draw_BoolProperty("Y축 적용", data.multiplyY, defaultData.multiplyY);
             detailContext.End_PropertyTable();
         }
+
+        const auto axis_lock_label = [](SizeByLifeModuleData::AxisLock axisLock)
+        {
+            switch (axisLock)
+            {
+            case SizeByLifeModuleData::AxisLock::X:
+                return "X";
+            case SizeByLifeModuleData::AxisLock::Y:
+                return "Y";
+            case SizeByLifeModuleData::AxisLock::None:
+            default:
+                return "None";
+            }
+        };
+
+        ImGui::PushID("SizeByLifeAxisLock");
+        ImGui::TextUnformatted("축 잠금");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(160.f);
+        if (ImGui::BeginCombo("##AxisLock", axis_lock_label(data.axisLock)))
+        {
+            const auto draw_axis_lock = [&](SizeByLifeModuleData::AxisLock value)
+            {
+                const bool selected = data.axisLock == value;
+                if (ImGui::Selectable(axis_lock_label(value), selected))
+                {
+                    data.axisLock = value;
+                    changed = true;
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            };
+
+            draw_axis_lock(SizeByLifeModuleData::AxisLock::None);
+            draw_axis_lock(SizeByLifeModuleData::AxisLock::X);
+            draw_axis_lock(SizeByLifeModuleData::AxisLock::Y);
+            ImGui::EndCombo();
+        }
+        ImGui::PopID();
+
+        changed |= detailContext.Draw_Vector2DistributionGroup("수명 배율", data.scaleOverLife, defaultData.scaleOverLife, 0.01f);
     }
 
     return changed;

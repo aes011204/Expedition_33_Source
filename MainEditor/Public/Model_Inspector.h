@@ -35,6 +35,7 @@ private:
     static bool Is_TextureExtension(const fs::path& path);
     static vector<fs::path> Collect_TextureCandidates(const wstring& resolvedPath, const wstring& sourceModelPath);
     static ID3D11ShaderResourceView* Get_TexturePreviewSRV(const fs::path& texturePath);
+    static int32 Get_TextureMipCount(const fs::path& texturePath, ID3D11ShaderResourceView* shaderResourceView);
     static AnimPreviewState& Get_AnimPreviewState(const Engine::ModelCom* model);
     static void Draw_AnimationSection(const Shared<Engine::ModelCom>& model);
 

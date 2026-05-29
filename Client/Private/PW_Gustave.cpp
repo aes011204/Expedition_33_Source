@@ -35,14 +35,15 @@ PW_Gustave::PW_Gustave(const PW_Gustave& prototype)
 
 HRESULT PW_Gustave::Initialize(void* arg)
 {
-    CHECK_FAILED(__super::Initialize(arg), E_FAIL)
+    CHECK_FAILED(__super::Initialize(arg), E_FAIL);
 
     auto skillTreeCom = Get_Component<SkillTreeCom>();
 
     skillTreeCom->TryUnlock("LumiereAssault");
     skillTreeCom->TryUnlock("UnleashedCharge");
+    skillTreeCom->TryUnlock("MarkingShot");
 
-    CHECK_FAILED(Ready_Modifier(), E_FAIL)
+    CHECK_FAILED(Ready_Modifier(), E_FAIL);
 
     return S_OK; 
 }

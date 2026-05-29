@@ -63,7 +63,7 @@ void Monster_BattleBase::Late_Update(float timeDelta)
     Character_BattleBase::Late_Update(timeDelta);
 }
 
-void Monster_BattleBase::ActionFromDecision(Action& curturnAction, const BattleDecision decision, const vector<BattleChar>& heroes)
+void Monster_BattleBase::ActionFromDecision(ActionRequest& request, const BattleDecision decision, const vector<BattleChar>& heroes)
 {
     auto stat = Get_Component<MonsterStatCom>();
     if (stat == nullptr)
@@ -82,13 +82,12 @@ void Monster_BattleBase::ActionFromDecision(Action& curturnAction, const BattleD
     if (skill == nullptr)
         return;
 
-    curturnAction.target = heroes[decision.targetIndex];
-    curturnAction._selected_SkillKey = *skill;
-    curturnAction.type = decision.actionType;
-    curturnAction._curAnimIndex = 0;
+    request.InitTarget = heroes[decision.targetIndex];
+    request.skillKey = skill->skillKey;
+    request.type = decision.actionType;
 }
 
-void Monster_BattleBase::Decide_Action_BTOnly(Action& curturnAction, const vector<BattleChar>& heroes)
+void Monster_BattleBase::Decide_Action_BTOnly(ActionRequest& request, const vector<BattleChar>& heroes)
 {
     if (heroes.empty() || _aiCtrl == nullptr)
         return;
@@ -118,22 +117,22 @@ void Monster_BattleBase::Decide_Action_BTOnly(Action& curturnAction, const vecto
             decision.actionType = static_cast<EBattleContext>(bb->Get_Value<int>("ActionType"));
     }
 
-    ActionFromDecision(curturnAction, decision, heroes);
+    ActionFromDecision(request, decision, heroes);
 }
 
-void Monster_BattleBase::Decide_Action(Action& curturnAction, const vector<BattleChar>& heroes)
+void Monster_BattleBase::Decide_Action(ActionRequest& request, const vector<BattleChar>& heroes)
 {
     if (heroes.empty())
         return;
 
     const BattleDecision decision = {};
-    ActionFromDecision(curturnAction, decision, heroes);
+    ActionFromDecision(request, decision, heroes);
 
     LOG_DEBUG(
         "Monster::Decide_Action: target={}, script={}, type={}",
-        curturnAction.target.actor ? String::ToString(curturnAction.target.actor->Get_Name()).c_str() : "null",
-        curturnAction._selected_SkillKey.scriptClassName.c_str(),
-        static_cast<int>(curturnAction.type)
+        request.InitTarget.actor ? String::ToString(request.InitTarget.actor->Get_Name()).c_str() : "null",
+        request.skillKey.c_str(),
+        static_cast<int>(request.type)
     );
 }
 

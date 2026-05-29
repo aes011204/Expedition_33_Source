@@ -347,10 +347,82 @@ Vec2 VIBufferCom_PointParticle::Evaluate_SizeMultiplier(float lifeProgress) cons
     if (!_desc.sizeByLife.enabled)
         return Vec2{ 1.f, 1.f };
 
-    return Vec2{
-        lerp(_desc.sizeByLife.multiplyXStart, _desc.sizeByLife.multiplyXEnd, lifeProgress),
-        lerp(_desc.sizeByLife.multiplyYStart, _desc.sizeByLife.multiplyYEnd, lifeProgress)
+    const uint32 keyCount = max(1u, min(4u, _desc.sizeByLife.curveKeyCount));
+    auto read_component = [](const Vec4& values, uint32 index)
+    {
+        switch (index)
+        {
+        case 0:
+            return values.x;
+        case 1:
+            return values.y;
+        case 2:
+            return values.z;
+        case 3:
+            return values.w;
+        default:
+            return values.x;
+        }
     };
+
+    Vec2 multiplier{
+        _desc.sizeByLife.multiplyXStart,
+        _desc.sizeByLife.multiplyYStart
+    };
+
+    if (keyCount == 1 || lifeProgress <= read_component(_desc.sizeByLife.curveKeyTimes, 0))
+    {
+        multiplier = Vec2{
+            read_component(_desc.sizeByLife.curveKeyValuesX, 0),
+            read_component(_desc.sizeByLife.curveKeyValuesY, 0)
+        };
+    }
+    else
+    {
+        for (uint32 index = 1; index < keyCount; ++index)
+        {
+            const float rightTime = read_component(_desc.sizeByLife.curveKeyTimes, index);
+            if (lifeProgress > rightTime)
+                continue;
+
+            const float leftTime = read_component(_desc.sizeByLife.curveKeyTimes, index - 1);
+            const float width = max(0.0001f, rightTime - leftTime);
+            const float ratio = clamp((lifeProgress - leftTime) / width, 0.f, 1.f);
+            multiplier = Vec2{
+                lerp(
+                    read_component(_desc.sizeByLife.curveKeyValuesX, index - 1),
+                    read_component(_desc.sizeByLife.curveKeyValuesX, index),
+                    ratio
+                ),
+                lerp(
+                    read_component(_desc.sizeByLife.curveKeyValuesY, index - 1),
+                    read_component(_desc.sizeByLife.curveKeyValuesY, index),
+                    ratio
+                )
+            };
+            break;
+        }
+
+        if (lifeProgress > read_component(_desc.sizeByLife.curveKeyTimes, keyCount - 1))
+        {
+            multiplier = Vec2{
+                read_component(_desc.sizeByLife.curveKeyValuesX, keyCount - 1),
+                read_component(_desc.sizeByLife.curveKeyValuesY, keyCount - 1)
+            };
+        }
+    }
+
+    if (_desc.sizeByLife.axisLock == PointParticleSizeByLifeAxisLock::X)
+        multiplier.y = multiplier.x;
+    else if (_desc.sizeByLife.axisLock == PointParticleSizeByLifeAxisLock::Y)
+        multiplier.x = multiplier.y;
+
+    if (!_desc.sizeByLife.multiplyX)
+        multiplier.x = 1.f;
+    if (!_desc.sizeByLife.multiplyY)
+        multiplier.y = 1.f;
+
+    return multiplier;
 }
 
 Vec4 VIBufferCom_PointParticle::Evaluate_SubUVRect(float lifeProgress, float lifeCurrent, uint32 particleIndex) const

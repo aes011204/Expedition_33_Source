@@ -158,7 +158,9 @@ if exist "$(ProjectDir)..\..\Client\Bin\assimp-vc143-mt.dll" xcopy /y /d "$(Proj
     <PostBuildEvent>
       <Command>if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" xcopy /y /d "$(ProjectDir)..\..\Engine\Bin\$(Configuration)\Engine.pdb" "$(OutDir)"
-if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" "$(OutDir)"</Command>
+if exist "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" xcopy /y /d "$(ProjectDir)..\..\Client\Bin\$(Configuration)\assimp-vc143-mtd.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -198,6 +200,7 @@ if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXCooking_64.dll
 if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXFoundation_64.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXFoundation_64.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXGpu_64.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXGpu_64.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXDevice64.dll" xcopy /y /d "$(ProjectDir)..\..\vcpkg_installed\x64-windows\bin\PhysXDevice64.dll" "$(OutDir)"
+if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmodL.dll" "$(OutDir)"
 if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>

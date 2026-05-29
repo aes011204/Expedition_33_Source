@@ -10,4 +10,12 @@ namespace MainEditor
         Manual,
     };
 
+    enum class PreviewOwner : uint8
+    {
+        None,
+        Prefab,
+        Animation,
+        AnimState,
+    };
+
 }

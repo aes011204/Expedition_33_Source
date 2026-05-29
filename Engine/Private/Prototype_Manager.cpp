@@ -74,6 +74,19 @@ bool Prototype_Manager::Has_Prototype(uint32 levelIndex, const wstring& prototyp
     return iter != _prototypes[levelIndex].end();
 }
 
+void Prototype_Manager::Visit_Prototypes(
+    const function<void(uint32 levelIndex, const wstring& prototypeTag, const Shared<Base>& prototype)>& visitor) const
+{
+    if (!visitor)
+        return;
+
+    for (uint32 levelIndex = 0; levelIndex < _prototypes.size(); ++levelIndex)
+    {
+        for (const auto& [prototypeTag, prototype] : _prototypes[levelIndex])
+            visitor(levelIndex, prototypeTag, prototype);
+    }
+}
+
 Shared<Base> Prototype_Manager::Find_Prototype(uint32 levelIndex, const wstring& prototypeTag)
 {
 	if (levelIndex >= _numLevels)

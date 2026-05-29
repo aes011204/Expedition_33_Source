@@ -11,6 +11,8 @@
 
 namespace
 {
+    constexpr size_t kCookedCollisionWarnBytes = 256 * 1024;
+
     Vec4 ToVec4(const json& arr)
     {
         return Vec4(arr[0].get<float>(), arr[1].get<float>(), arr[2].get<float>(), arr[3].get<float>());
@@ -264,11 +266,13 @@ void SceneContext::SaveToFile(const string& filePath)
             json collisionEntry = json::object();
 
             json cookedMeshArray = json::array();
+            size_t totalCookedBytes = 0;
             for (auto& mesh : colData->triangleMeshes) // triangle mesh collision은 기존처럼 cooked binary를 저장한다.
             {
                 vector<uint8_t> cookedData;
                 if (physxManager->Cook_TriangleMesh(mesh, colData->preLocalTransform, cookedData))
                 {
+                    totalCookedBytes += cookedData.size();
                     string base64Str = String::Base64_Encode(cookedData);
                     cookedMeshArray.push_back(base64Str);
                 }
@@ -278,6 +282,16 @@ void SceneContext::SaveToFile(const string& filePath)
             for (const ModelCollisionProxy& proxy : colData->primitiveProxies)
             {
                 primitiveProxyArray.push_back(Serialize_CollisionProxy(proxy));
+            }
+
+            if (primitiveProxyArray.empty() &&
+                totalCookedBytes >= kCookedCollisionWarnBytes)
+            {
+                LOG_WARN(
+                    "[SceneContext::SaveToFile] Large cooked collision saved without primitive proxies. model={}, cookedBytes={}, cookedMeshCount={}",
+                    relativePath,
+                    totalCookedBytes,
+                    cookedMeshArray.size());
             }
 
             if (cookedMeshArray.empty() && primitiveProxyArray.empty())

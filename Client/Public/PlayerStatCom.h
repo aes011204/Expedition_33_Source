@@ -12,6 +12,8 @@ public:
     // 초기 세팅 값
     struct PlayerCombatStatDesc : CombatStatCom::CombatStatDesc
     {
+        wstring battleAnnounceName = L"";
+
         uint32 statPoint = 10;
         uint32 skillPoint = 10;
         uint32 respecCount = 1; // 스탯 초기화 횟수
@@ -100,6 +102,7 @@ public:
     virtual  CombatStatDesc& Get_StatInfo() { return _playerDesc; };
     virtual  RuntimeCombatStat& Get_RuntimeStat() { return _PRuntimeStat; };
 
+    PlayerCombatStatDesc& Get_PlayerDesc() { return _playerDesc; }
     const PlayerCombatStatDesc& Get_PlayerDesc() const{return _playerDesc;}
     PRuntimeCombatStat& Get_PlayerRuntimeStat(){return _PRuntimeStat;}
     bool    Add_Stat(StatType type, int32 value = 1);
@@ -109,6 +112,11 @@ public:
     void    Add_Exp(uint32 value);
 
     void    Set_BattleStartAp();
+
+    const wstring& Get_BattleAnnounceSubjectName() const override
+    {
+        return _playerDesc.battleAnnounceName;
+    }
 
 public:
     static PreviewStat Calculate_PreviewStat(

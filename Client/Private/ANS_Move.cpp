@@ -10,17 +10,17 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
 {
     auto& action = CLIENT->Get_BattleController()->Get_TurnAction();
    
-    _startPos = action._curChar.actor->Get_Transform()->Get_Position();
-    _originPos = action.originPos;
+    _startPos = action.Get_CurChar().actor->Get_Transform()->Get_Position();
+    _goalPos = action.GetPhaseGoalPos();
 }
 
 void ANS_Move::On_Tick(const AnimNotifyContext& context)
 {
-    auto action =  CLIENT->Get_BattleController()->Get_TurnAction();
+    auto& action = CLIENT->Get_BattleController()->Get_TurnAction();
     float _curProgress = context.notifyStateProgress;
 
-    action._curChar.actor->Get_Transform()->Set_Position(Vec3::Lerp(_startPos, _originPos, _curProgress));
-    
+    action.Get_CurChar().actor->Get_Transform()->Set_Position(Vec3::Lerp(_startPos, _goalPos, _curProgress));
+
 }
 
 void ANS_Move::On_End(const AnimNotifyContext& context)
@@ -30,8 +30,8 @@ void ANS_Move::On_End(const AnimNotifyContext& context)
 
     auto& action = CLIENT->Get_BattleController()->Get_TurnAction();
 
-    if (!action._curChar.actor)
+    if (!action.Get_CurChar().actor)
         return;
 
-    action._curChar.actor->Get_Transform()->Set_Position(_originPos);
+    action.Get_CurChar().actor->Get_Transform()->Set_Position(_goalPos);
 }

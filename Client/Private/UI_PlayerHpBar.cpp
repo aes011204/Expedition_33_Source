@@ -4,7 +4,7 @@
 #include "GameInstance.h"
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
-#include "Character.h"
+#include "Monster_BattleBase.h"
 #include "CombatStatCom.h"
 #include "Client_Constants.h"
 
@@ -46,6 +46,8 @@ void UI_PlayerHpBar::Update(float timeDelta)
         Close();
         return;
     }
+
+    Apply_EditorOffsets(screenPos);
 
     Open();
     Set_Hp(target.statCom->Get_CurHp(), target.statCom->Get_StatInfo().maxHp);

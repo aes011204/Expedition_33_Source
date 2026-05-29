@@ -53,9 +53,14 @@ public:
     const vector<MaterialBinding>& Get_MaterialBindings() const { return _materialBindings; }
     vector<MaterialBinding>& Get_MaterialBindings() { return _materialBindings; }
 
+    static bool Try_BuildDefaultPrototypeTag(const wstring& sourceModelPath, wstring& outPrototypeTag);
+    static string Build_DefaultBaseBundleKey(const wstring& sourceModelPath);
+    static string Build_DefaultBaseBundleKeyFromPrototypeTag(const wstring& prototypeTag);
+
     void Set_BaseBundleKey(uint32 materialIndex, const string& bundleKey);
     void Set_InstanceOverride(uint32 materialIndex, const MaterialInstanceOverride& overrideData);
     void Clear_InstanceOverride(uint32 materialIndex);
+    bool Normalize_OwnerComponentTagAndBindings();
 
     void Apply_BaseMaterialFromBundle_AllSlots();
     void Apply_EffectiveMaterial(uint32 materialIndex);

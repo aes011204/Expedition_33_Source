@@ -41,6 +41,8 @@ public:
 
 public:
     void    Set_PartyBattleStat(PlayerCharacterType playerType, float curHp, float maxHp, uint32 curAp, uint32 maxAp);
+    void    Set_GustaveMechanismCharge(const Shared<BattleMechanismCom>& mechanismCom);
+    void    Clear_GustaveMechanismCharge();
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
@@ -57,6 +59,13 @@ private:
 
 private:
     PartyBattleStatSlot _partySlots[3]{};
+
+private: /* 구스타브 */
+    Shared<UI_Base> _gustaveMechanismRoot{};
+    Shared<UI_Text> _gustaveCurrentChargeText{};
+    Shared<UI_Text> _gustaveCurrentChargeTextBg{};
+    Shared<UI_Text> _gustaveMaxChargeText{};
+    Shared<UI_Text> _gustaveMaxChargeTextBg{};
 
 private:
     static constexpr const wchar_t* kPortraitNames[3] =

@@ -36,6 +36,10 @@ struct ComputePointParticleParams
     Vec4 subUVFrameCurveValues{}; // 후속 Curve Editor용 frame curve frame values.
     Vec4 subUVFrameCurveParams{}; // x: key count, y/z/w: unused.
     Vec4 sizeByLifeParams{};      // x/y: width start/end, z/w: height start/end.
+    Vec4 sizeByLifeCurveTimes{};  // SizeByLife scale curve key times.
+    Vec4 sizeByLifeCurveValuesX{}; // SizeByLife X multiplier key values.
+    Vec4 sizeByLifeCurveValuesY{}; // SizeByLife Y multiplier key values.
+    Vec4 sizeByLifeCurveParams{}; // x: key count, y: multiplyX, z: multiplyY, w: axisLock.
     Vec4 motionFlags{};           // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled.
     Vec4 motionSpaceFlags{};      // x: radial world, y/z/w: unused.
     Vec4 initialVelocityMin{};    // xyz: vector velocity min, w: unused.
@@ -417,6 +421,15 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.sizeByLife.multiplyXEnd,
             _desc.sizeByLife.multiplyYStart,
             _desc.sizeByLife.multiplyYEnd
+        },
+        .sizeByLifeCurveTimes = _desc.sizeByLife.curveKeyTimes,
+        .sizeByLifeCurveValuesX = _desc.sizeByLife.curveKeyValuesX,
+        .sizeByLifeCurveValuesY = _desc.sizeByLife.curveKeyValuesY,
+        .sizeByLifeCurveParams = Vec4{
+            static_cast<float>(max(1u, min(4u, _desc.sizeByLife.curveKeyCount))),
+            _desc.sizeByLife.multiplyX ? 1.f : 0.f,
+            _desc.sizeByLife.multiplyY ? 1.f : 0.f,
+            static_cast<float>(ETOI(_desc.sizeByLife.axisLock))
         },
         .motionFlags = Vec4{
             _desc.motion.enabled ? 1.f : 0.f,
