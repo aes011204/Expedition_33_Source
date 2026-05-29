@@ -8,7 +8,10 @@ NS_BEGIN(EffectEditor)
 
 namespace
 {
-    constexpr float kTrackListWidth{ 230.f };
+    constexpr float kDefaultTrackListWidth{ 230.f };
+    constexpr float kTrackListMinWidth{ 170.f };
+    constexpr float kTrackListSplitterWidth{ 6.f };
+    constexpr float kCurvePanelMinWidth{ 260.f };
     constexpr float kGraphHeight{ 260.f };
     constexpr float kGraphPadding{ 28.f };
     constexpr float kKeyHitRadius{ 8.f };
@@ -60,6 +63,7 @@ namespace
 CurveEditor_View::CurveEditor_View()
     : Editor_Window{ L"Curve Editor", ICON_FA_WAVE_SQUARE }
 {
+    _trackListWidth = kDefaultTrackListWidth;
 }
 
 void CurveEditor_View::Render()
@@ -85,8 +89,43 @@ void CurveEditor_View::Render()
         }
         else
         {
+            const float contentWidth = ImGui::GetContentRegionAvail().x;
+            const float maxTrackListWidth = max(kTrackListMinWidth, contentWidth - kTrackListSplitterWidth - kCurvePanelMinWidth);
+            _trackListWidth = clamp(_trackListWidth, kTrackListMinWidth, maxTrackListWidth);
+
             Draw_TrackList(targets);
-            ImGui::SameLine();
+            ImGui::SameLine(0.f, 0.f);
+
+            const ImVec2 splitterSize{
+                kTrackListSplitterWidth,
+                max(ImGui::GetContentRegionAvail().y, ImGui::GetFrameHeight())
+            };
+            ImGui::InvisibleButton("##CurveTrackListSplitter", splitterSize);
+            {
+                ImDrawList* drawList = ImGui::GetWindowDrawList();
+                const ImVec2 min = ImGui::GetItemRectMin();
+                const ImVec2 max = ImGui::GetItemRectMax();
+                const ImU32 splitterColor = ImGui::IsItemHovered() || ImGui::IsItemActive()
+                    ? ImGui::GetColorU32(ImGuiCol_SeparatorActive)
+                    : ImGui::GetColorU32(ImGuiCol_Separator);
+                drawList->AddLine(
+                    ImVec2{ min.x + splitterSize.x * 0.5f, min.y },
+                    ImVec2{ min.x + splitterSize.x * 0.5f, max.y },
+                    splitterColor
+                );
+            }
+            if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+            if (ImGui::IsItemActive())
+            {
+                _trackListWidth = clamp(
+                    _trackListWidth + ImGui::GetIO().MouseDelta.x,
+                    kTrackListMinWidth,
+                    maxTrackListWidth
+                );
+            }
+
+            ImGui::SameLine(0.f, 0.f);
 
             if (optional<CurveTarget> activeTarget = Get_ActiveTarget(targets))
             {
@@ -365,6 +404,10 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(Au
         if (auto* data = get_if<InitialRotationModuleData>(&module.data))
             Add_FloatTarget(targets, emitter, module, data->rotationDegrees, "rotationDegrees", "Rotation", IM_COL32(245, 205, 95, 255));
         break;
+    case AuthoringModuleType::RotationOverLife:
+        if (auto* data = get_if<RotationOverLifeModuleData>(&module.data))
+            Add_FloatTarget(targets, emitter, module, data->rotationOverLife, "rotationOverLife", "Rotation Over Life", IM_COL32(245, 205, 95, 255));
+        break;
     case AuthoringModuleType::InitialRotationRate:
         if (auto* data = get_if<InitialRotationRateModuleData>(&module.data))
             Add_FloatTarget(targets, emitter, module, data->rotationRateDegrees, "rotationRateDegrees", "Rotation Rate", IM_COL32(245, 205, 95, 255));
@@ -600,7 +643,7 @@ void CurveEditor_View::Draw_EmptyState()
 
 void CurveEditor_View::Draw_TrackList(const vector<CurveTarget>& targets)
 {
-    ImGui::BeginChild("##CurveTrackList", ImVec2(kTrackListWidth, 0.f), true);
+    ImGui::BeginChild("##CurveTrackList", ImVec2(_trackListWidth, 0.f), true);
     ImGui::TextDisabled("Pinned Tracks");
     ImGui::Separator();
 

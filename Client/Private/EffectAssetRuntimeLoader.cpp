@@ -695,6 +695,57 @@ void EffectAssetRuntimeLoader::Fill_SizeByLifePayload(PointParticleSizeByLifeDes
     }
 }
 
+void EffectAssetRuntimeLoader::Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife)
+{
+    const auto rotationOverLifeIter = rotationOverLife.find("rotationOverLife");
+    if (rotationOverLifeIter == rotationOverLife.end())
+    {
+        desc.rotationOverLifeDegrees = Vec2{
+            Read_Float(rotationOverLife, "rotationStartDegrees", desc.rotationOverLifeDegrees.x),
+            Read_Float(rotationOverLife, "rotationEndDegrees", desc.rotationOverLifeDegrees.y)
+        };
+        desc.rotationOverLifeCurveKeyCount = 2;
+        desc.rotationOverLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.rotationOverLifeCurveValues = Vec4{ desc.rotationOverLifeDegrees.x, desc.rotationOverLifeDegrees.y, 0.f, 0.f };
+        return;
+    }
+
+    const float startValue = Evaluate_FloatDistributionMin(*rotationOverLifeIter, 0.f);
+    const float endValue = Evaluate_FloatDistributionMax(*rotationOverLifeIter, 0.f);
+    desc.rotationOverLifeDegrees = Vec2{ startValue, endValue };
+    desc.rotationOverLifeCurveKeyCount = 2;
+    desc.rotationOverLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.rotationOverLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
+
+    const json* payload = Find_DistributionPayload(*rotationOverLifeIter);
+    if (payload == nullptr || "ConstantCurve" != Read_String(*rotationOverLifeIter, "mode"))
+        return;
+
+    const auto keysIter = payload->find("keys");
+    if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+        return;
+
+    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
+    desc.rotationOverLifeCurveKeyCount = keyCount;
+    desc.rotationOverLifeCurveTimes = Vec4{};
+    desc.rotationOverLifeCurveValues = Vec4{};
+
+    for (uint32 index = 0; index < keyCount; ++index)
+    {
+        const json& key = (*keysIter)[index];
+        Set_SubUVFrameCurveComponent(
+            desc.rotationOverLifeCurveTimes,
+            index,
+            clamp(Read_Float(key, "time"), 0.f, 1.f)
+        );
+        Set_SubUVFrameCurveComponent(
+            desc.rotationOverLifeCurveValues,
+            index,
+            Read_Float(key, "value")
+        );
+    }
+}
+
 string EffectAssetRuntimeLoader::Resolve_RendererType(const json& emitter)
 {
     string rendererType = Read_String(emitter, "rendererType");
@@ -1153,10 +1204,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
     if (const json* rotationOverLife = Find_ModuleData(emitter, "RotationOverLife"))
     {
         desc.rotation.enabled = true;
-        desc.rotation.rotationOverLifeDegrees = Vec2{
-            Read_Float(*rotationOverLife, "rotationStartDegrees", desc.rotation.rotationOverLifeDegrees.x),
-            Read_Float(*rotationOverLife, "rotationEndDegrees", desc.rotation.rotationOverLifeDegrees.y)
-        };
+        Fill_RotationOverLifePayload(desc.rotation, *rotationOverLife);
     }
 
     if (const json* initialRotationRate = Find_ModuleData(emitter, "InitialRotationRate"))

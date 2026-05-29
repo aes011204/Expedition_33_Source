@@ -1264,8 +1264,7 @@ namespace Internal
     json To_Json(const RotationOverLifeModuleData& data)
     {
         json root = json::object();
-        root["rotationStartDegrees"] = data.rotationStartDegrees;
-        root["rotationEndDegrees"] = data.rotationEndDegrees;
+        root["rotationOverLife"] = To_Json(data.rotationOverLife);
         return root;
     }
 
@@ -1274,8 +1273,18 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_NumberField(root, "rotationStartDegrees", outData.rotationStartDegrees);
-        Read_NumberField(root, "rotationEndDegrees", outData.rotationEndDegrees);
+        const auto rotationOverLifeIter = root.find("rotationOverLife");
+        if (rotationOverLifeIter != root.end())
+        {
+            From_Json(*rotationOverLifeIter, outData.rotationOverLife);
+            return;
+        }
+
+        float rotationStartDegrees{ 0.f };
+        float rotationEndDegrees{ 0.f };
+        Read_NumberField(root, "rotationStartDegrees", rotationStartDegrees);
+        Read_NumberField(root, "rotationEndDegrees", rotationEndDegrees);
+        outData.rotationOverLife = FloatDistributionData::Make_ConstantCurve(rotationStartDegrees, rotationEndDegrees);
     }
 
     json To_Json(const InitialRotationRateModuleData& data)

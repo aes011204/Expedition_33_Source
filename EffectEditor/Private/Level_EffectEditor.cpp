@@ -294,6 +294,12 @@ namespace Internal
         Set_SubUVFrameCurveComponent(desc.curveKeyValuesY, index, value.y);
     }
 
+    void Fill_RotationOverLifeCurveComponent(PointParticleRotationDesc& desc, uint32 index, float time, float value)
+    {
+        Set_SubUVFrameCurveComponent(desc.rotationOverLifeCurveTimes, index, clamp(time, 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.rotationOverLifeCurveValues, index, value);
+    }
+
     void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const FloatDistributionData& frameIndex)
     {
         desc.frameCurveKeyCount = 1;
@@ -398,6 +404,32 @@ namespace Internal
             desc.curveKeyValuesY = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
                 Fill_SizeByLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
+        }
+    }
+
+    void Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const RotationOverLifeModuleData& data)
+    {
+        const float startValue = Evaluate_FloatDistributionMin(data.rotationOverLife, 0.f);
+        const float endValue = Evaluate_FloatDistributionMax(data.rotationOverLife, 0.f);
+        desc.rotationOverLifeDegrees = Vec2{ startValue, endValue };
+        desc.rotationOverLifeCurveKeyCount = 2;
+        desc.rotationOverLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.rotationOverLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
+
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.rotationOverLife.payload))
+        {
+            vector<FloatCurveKeyData> keys = curve->keys;
+            ranges::sort(keys, {}, &FloatCurveKeyData::time);
+            constexpr uint32 maxRotationOverLifeCurveKeys{ 4 };
+            const uint32 keyCount = min(maxRotationOverLifeCurveKeys, static_cast<uint32>(keys.size()));
+            if (keyCount == 0)
+                return;
+
+            desc.rotationOverLifeCurveKeyCount = keyCount;
+            desc.rotationOverLifeCurveTimes = Vec4{};
+            desc.rotationOverLifeCurveValues = Vec4{};
+            for (uint32 index = 0; index < keyCount; ++index)
+                Fill_RotationOverLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
         }
     }
 
@@ -854,7 +886,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     if (const auto* rotationOverLife = Internal::Find_ModuleData<RotationOverLifeModuleData>(emitter, AuthoringModuleType::RotationOverLife))
     {
         desc.rotation.enabled = true;
-        desc.rotation.rotationOverLifeDegrees = Vec2{ rotationOverLife->rotationStartDegrees, rotationOverLife->rotationEndDegrees };
+        Internal::Fill_RotationOverLifePayload(desc.rotation, *rotationOverLife);
     }
 
     if (const auto* initialRotationRate = Internal::Find_ModuleData<InitialRotationRateModuleData>(emitter, AuthoringModuleType::InitialRotationRate))

@@ -515,8 +515,7 @@ struct InitialRotationModuleData
 
 struct RotationOverLifeModuleData
 {
-    float rotationStartDegrees{ 0.f };
-    float rotationEndDegrees{ 0.f };
+    FloatDistributionData rotationOverLife{ FloatDistributionData::Make_ConstantCurve(0.f, 0.f) };
 };
 
 struct InitialRotationRateModuleData

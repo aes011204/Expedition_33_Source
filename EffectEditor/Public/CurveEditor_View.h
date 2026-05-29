@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Editor_Window.h"
 #include "EffectAuthoring_Types.h"
@@ -110,6 +110,7 @@ private:
     vector<PinnedTrack> _pinnedTracks{};
     optional<CurveTargetIdentity> _activeTrack{};
     optional<size_t> _selectedKeyIndex{};
+    float _trackListWidth{ 230.f };
 };
 
 NS_END

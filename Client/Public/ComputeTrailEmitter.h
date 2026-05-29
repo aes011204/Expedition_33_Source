@@ -65,8 +65,11 @@ private:
         Vec3 padding{};          // constant buffer 16-byte 정렬 유지용 padding이다.
         Vec4 startColor{};       // InitialColor 모듈에서 낮춘 segment 시작 색상이다.
         Vec4 endColor{};         // ColorOverLife 모듈에서 낮춘 segment 끝 색상이다.
-        Vec4 sizeByLifeParams{}; // x/y: width start/end, z: enabled, w: reserved.
-        Vec4 lengthParams{};     // x: maxTrailLength, y: tailFadeLength, zw: reserved.
+        Vec4 sizeByLifeParams{};       // x/y: width start/end, z: enabled, w: reserved.
+        Vec4 sizeByLifeCurveTimes{};   // SizeByLife scaleOverLife key times다.
+        Vec4 sizeByLifeCurveValuesX{}; // SizeByLife scaleOverLife X multiplier 값이다.
+        Vec4 sizeByLifeCurveParams{};  // x: key count, y: multiplyX, zw: reserved.
+        Vec4 lengthParams{};           // x: maxTrailLength, y: tailFadeLength, zw: reserved.
     };
 
     struct DrawIndexedInstancedIndirectArgs

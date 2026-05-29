@@ -796,6 +796,14 @@ HRESULT ComputeTrailEmitter::Update_ComputeConstants()
         _desc.sizeByLife.enabled ? 1.f : 0.f,
         0.f
     };
+    params.sizeByLifeCurveTimes = _desc.sizeByLife.curveKeyTimes;
+    params.sizeByLifeCurveValuesX = _desc.sizeByLife.curveKeyValuesX;
+    params.sizeByLifeCurveParams = Vec4{
+        static_cast<float>(max(1u, min(4u, _desc.sizeByLife.curveKeyCount))),
+        _desc.sizeByLife.multiplyX ? 1.f : 0.f,
+        0.f,
+        0.f
+    };
     params.lengthParams = Vec4{ _desc.maxTrailLength, _desc.tailFadeLength, 0.f, 0.f };
 
     _context->UpdateSubresource(_computeConstantBuffer.Get(), 0, nullptr, &params, 0, 0);

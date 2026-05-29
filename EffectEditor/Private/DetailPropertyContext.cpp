@@ -791,7 +791,7 @@ private: //## Label Helpers
             {
             case DistributionMode::Constant: return "Vec2 고정값";
             case DistributionMode::Uniform: return "Vec2 랜덤값";
-            case DistributionMode::ConstantCurve: return "Vec2 고정값 커브 (예정)";
+            case DistributionMode::ConstantCurve: return "Vec2 고정값 커브";
             case DistributionMode::UniformCurve: return "Vec2 랜덤 커브 (예정)";
             case DistributionMode::ParticleParameter: return "Vec2 파티클 파라미터 (예정)";
             default: return "Vec2 고정값";
@@ -1002,7 +1002,9 @@ private: //## Label Helpers
             _basicDrawer.Push_RowTint(Get_DistributionKeyHeaderRowTint());
             _basicDrawer.Push_LabelTint(Get_DistributionKeyLabelTint());
             const bool isOpen = _basicDrawer.Draw_TreePropertyLabel(rowId.c_str());
+            ImGui::PushID("HeaderReset");
             _basicDrawer.Draw_ResetButton(false);
+            ImGui::PopID();
             _basicDrawer.Pop_LabelTint();
             if (isOpen)
             {
@@ -1022,7 +1024,9 @@ private: //## Label Helpers
                     Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveBreak, false, key.interpolationMode, changed);
                     ImGui::EndCombo();
                 }
+                ImGui::PushID("InterpolationReset");
                 _basicDrawer.Draw_ResetButton(false);
+                ImGui::PopID();
 
                 const bool showTangents =
                     key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped &&
@@ -1078,7 +1082,9 @@ private: //## Label Helpers
             _basicDrawer.Push_RowTint(Get_DistributionKeyHeaderRowTint());
             _basicDrawer.Push_LabelTint(Get_DistributionKeyLabelTint());
             const bool isOpen = _basicDrawer.Draw_TreePropertyLabel(rowId.c_str());
+            ImGui::PushID("HeaderReset");
             _basicDrawer.Draw_ResetButton(false);
+            ImGui::PopID();
             _basicDrawer.Pop_LabelTint();
             if (isOpen)
             {
@@ -1098,8 +1104,9 @@ private: //## Label Helpers
                     Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveBreak, false, key.interpolationMode, changed);
                     ImGui::EndCombo();
                 }
+                ImGui::PushID("InterpolationReset");
                 _basicDrawer.Draw_ResetButton(false);
-
+                ImGui::PopID();
                 const bool showTangents =
                     key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped &&
                     ImGui::TreeNode("고급");
