@@ -112,7 +112,7 @@ public: /* For.Gameplay UI */
 public: /* For.Battle_Controller */
     void OnEnterBattleField(
         uint32 FieldID,
-        bool IsFirstHero,
+        bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
         const vector<string>& MonsterProtoTag,
         const Shared<GameObject>& sourceObject = nullptr);

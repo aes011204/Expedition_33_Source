@@ -71,6 +71,7 @@ namespace Engine
         Weapon,
         PartObject,
         Projectile,
+        WorldActionTrigger,
         Effect,
         EffectEmitter,
         Trigger,

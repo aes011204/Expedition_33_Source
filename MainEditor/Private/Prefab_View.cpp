@@ -242,8 +242,17 @@ void Prefab_View::Render()
             ImGui::EndTable();
         }
 
-        Render_SelectedObjectGizmo();
-        Render_GizmoOverlay();
+        if (_previewCanvasMax.x > _previewCanvasMin.x && _previewCanvasMax.y > _previewCanvasMin.y)
+        {
+            ImDrawList* windowDrawList = ImGui::GetWindowDrawList();
+            // ImGuizmo 입력은 부모 Prefab window 컨텍스트를 유지하고, 표시만 Preview rect로 잘라서 맞춘다.
+            windowDrawList->PushClipRect(_previewCanvasMin, _previewCanvasMax, true);
+            ImGuizmo::SetDrawlist(windowDrawList);
+            Render_SelectedObjectGizmo();
+            Render_GizmoOverlay();
+            windowDrawList->PopClipRect();
+        }
+
     }
 
     Set_Open(isOpen);

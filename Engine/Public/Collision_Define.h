@@ -22,6 +22,7 @@ enum class Collision_Channel : uint32
     Enviroment = 1 << 12,
     Player_Target = 1 << 13,
     Camera = 1 << 14,
+    WorldActionTrigger = 1 << 15,
 
     CHANNEL_ALL = 0xFFFFFFFF,   // 모든 충돌 OK
     CHANNEL_NONE = 0x00000000,  // 모든 충돌 ㄴㄴ
@@ -37,6 +38,7 @@ enum class Collision_Preset
 
     Weapon,
     Projectile, // 투사체
+    WorldActionTrigger, // 월드액션 전투 진입용 트리거
 
     Item,
     Trigger,
@@ -161,7 +163,8 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     /* overlapMask */ ETOI(Collision_Channel::Player_Body) |
                       ETOI(Collision_Channel::Player_WorldBody) |
                       ETOI(Collision_Channel::Projectile) |
-                      ETOI(Collision_Channel::Player_Target),
+                      ETOI(Collision_Channel::Player_Target) |
+                      ETOI(Collision_Channel::WorldActionTrigger),
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)
    },
 
@@ -181,6 +184,11 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     { Collision_Channel::Projectile,
     /* overlapMask */ ETOI(Collision_Channel::Monster) |
                       ETOI(Collision_Channel::Player),
+    /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    },
+
+    { Collision_Channel::WorldActionTrigger,
+    /* overlapMask */ ETOI(Collision_Channel::Monster_WorldBody),
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)
     },
 

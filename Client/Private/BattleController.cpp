@@ -222,7 +222,7 @@ void BattleController::Run_EnemyTurn()
 
 void BattleController::OnEnterBattleField(
     uint32 FieldID,
-    bool IsFirstHero,
+    bool isPlayerAdvantage,
     const vector<HeroId>& heroIds,
     const vector<string>& battleMonsterPrefabNames,
     const Shared<GameObject>& sourceObject)
@@ -241,7 +241,7 @@ void BattleController::OnEnterBattleField(
 
     // 2초 뒤 실제 배틀 생성 데이터 추가
     _pendingBattleFieldID = FieldID;
-    _pendingBattleIsFirstHero = IsFirstHero;
+    _pendingBattleIsPlayerAdvantage = isPlayerAdvantage;
     _pendingBattleHeroIds = heroIds;
     _pendingBattleMonsterPrefabNames = battleMonsterPrefabNames;
 
@@ -593,10 +593,11 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
     }
 }
 
-void BattleController::Build_InitialTurnQueue(bool IsFirstHero)
+void BattleController::Build_InitialTurnQueue(bool isPlayerAdvantage)
 {
     float heroOffset = {};
     float monsterOffset = {};
+
     // 첨 초기화
     _battleTime = 0;
 
@@ -605,12 +606,11 @@ void BattleController::Build_InitialTurnQueue(bool IsFirstHero)
         _turnQueue.pop();
     }
 
-    //초기 보정 값
-
-    if (IsFirstHero == false)
-        heroOffset = 5;
-    else
+    // 선제 타격이면 몬스털르 늦추고, Player <-> Monster 충돌 진입이면 플레이어를 낮추기
+    if (isPlayerAdvantage)
         monsterOffset = 5.f;
+    else
+        heroOffset = 5.f;
 
     for (const auto& hero : _heroes)
     {
@@ -1575,13 +1575,13 @@ void BattleController::Complete_BattleField()
     //// 카메라 저장
     //_worldCamera = GAME->Get_ActiveCamera();
     const uint32 battleFieldId = _pendingBattleFieldID;
-    const bool isFirstHero = _pendingBattleIsFirstHero;
+    const bool isPlayerAdvantage = _pendingBattleIsPlayerAdvantage;
 
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
     Create_BattleChar(_pendingBattleHeroIds, _pendingBattleMonsterPrefabNames);
 
     // 초기 플레이 순서 지정
-    Build_InitialTurnQueue(_pendingBattleIsFirstHero);
+    Build_InitialTurnQueue(_pendingBattleIsPlayerAdvantage);
 
     // 들어온 캐릭터들의 위치 셋팅
     // FieldID로 
@@ -1616,7 +1616,8 @@ void BattleController::Complete_BattleField()
     Clear_BattleEnterPending();
 
     // 턴 시작
-    OnBattleStarted.Broadcast(battleFieldId, isFirstHero); // battle start event만 발행하고, 전환 연출은 GameplayUI_Battle이 처리한다.
+    // battle start event만 넘겨주고, 전환 연출은 GameplayUI_Battle이 처리한다.
+    OnBattleStarted.Broadcast(battleFieldId, isPlayerAdvantage);
     _isWaitingBattleTransition = true;
 }
 
@@ -1627,7 +1628,7 @@ void BattleController::Clear_BattleEnterPending()
     _battleEnterSlow.elapsed = 0.f;
 
     _pendingBattleFieldID = 0;
-    _pendingBattleIsFirstHero = false;
+    _pendingBattleIsPlayerAdvantage = false;
     _pendingBattleHeroIds.clear();
     _pendingBattleMonsterPrefabNames.clear();
 }

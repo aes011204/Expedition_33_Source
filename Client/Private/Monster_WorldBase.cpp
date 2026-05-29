@@ -162,11 +162,22 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     if (CLIENT->Is_BattleActive() || CLIENT->Is_BattleEntering())
         return;
 
-        const Shared<GameObject> overlapOwner = other ? other->Get_Owner() : nullptr;
+    const Shared<GameObject> overlapOwner = other ? other->Get_Owner() : nullptr;
+    if (!overlapOwner)
+        return;
+
+    Shared<GameObject> heroOwner = overlapOwner;
 
     // 충돌된 플레이어가 Active 플레이어가 아니라면 배틀 진입 X
-    if (!CLIENT->Is_ActiveHero(overlapOwner))
+    // 월드액션 충돌체는 AN_SpawnActor가 owner를 플레이어로 심어주므로 한 단계 위 owner의 owner까지 가야함
+    if (!CLIENT->Is_ActiveHero(heroOwner))
+        heroOwner = overlapOwner->Get_Owner();
+
+    if (!CLIENT->Is_ActiveHero(heroOwner))
         return;
+
+    const bool isPlayerAdvantage =
+        other->Get_CollisionPreset() == Collision_Preset::WorldActionTrigger; // 월드액션 트리거로 먼저 맞춘 경우만 플레이어 선턴
 
     _isBattleStart = true;
 
@@ -195,7 +206,8 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         return;
     }
 
-    CLIENT->OnEnterBattleField(1, true, heroes, battleMonsterPrefabNames, GetSharedPtr<GameObject>());
+    // 이제, 턴 진입 조건에 따라서 플레이어, 몬스터 턴 관리
+    CLIENT->OnEnterBattleField(1, isPlayerAdvantage, heroes, battleMonsterPrefabNames, GetSharedPtr<GameObject>());
 }
 
 void Monster_WorldBase::On_EditorStopRuntime()
