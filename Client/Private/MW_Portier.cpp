@@ -90,6 +90,9 @@ HRESULT MW_Portier::Ready_PartObjects()
     _body = dynamic_pointer_cast<Mon_Portier_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
 
+
+
+
     return S_OK;
 }
 

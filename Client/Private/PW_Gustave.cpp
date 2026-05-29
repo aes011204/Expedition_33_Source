@@ -41,6 +41,7 @@ HRESULT PW_Gustave::Initialize(void* arg)
 
     skillTreeCom->TryUnlock("LumiereAssault");
     skillTreeCom->TryUnlock("UnleashedCharge");
+    skillTreeCom->TryUnlock("MarkingShot");
 
     CHECK_FAILED(Ready_Modifier(), E_FAIL);
 

@@ -20,6 +20,9 @@ public:
     bool HasRequiredSkill(const string& skillId);
     bool HasEnoughSkillPoint(const string& skillId);
 
+    // TEMP : 테스트용 강제해금
+    void ForceUnlock(const string& skillId);
+
 private:
     vector<string> _unlockedSkillId;
 

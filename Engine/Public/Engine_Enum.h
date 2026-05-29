@@ -196,6 +196,20 @@ namespace Engine
         BattleMenu      // 배틀 메뉴 선택
     };
 
+    enum class SoundChannel : uint32
+    {
+        BGM = 0,
+        Effect,
+        UI,
+        Player,
+        Monster,
+        Boss,
+        Ambient,
+        Voice,
+        System,
+        END
+    };
+
 
     enum MaterialChannelSource : uint32
     {

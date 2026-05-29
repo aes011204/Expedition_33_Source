@@ -16,7 +16,9 @@ IMPLEMENT_REFLECTION(MonsterStatCom)
     PROPERTY_FLOAT("Base Speed", _monsterDesc.speed, 0.f, 999999.f, 1.f);
 
     PROPERTY_INT("Reward Exp", _monsterDesc.exp, 0.f, 9999999.f, 1.f);
+
     PROPERTY_STRING("Portrait", _monsterDesc.portraitGuid);
+    PROPERTY_WSTRING("Battle Announce Name", _monsterDesc.battleAnnounceName);
 
     return true;
 }

@@ -12,18 +12,18 @@
 
 IMPLEMENT_REFLECTION(PW_Maelle)
 {
-    auto& info = GetStaticReflectionInfo();
-    info.properties.clear();
+	auto& info = GetStaticReflectionInfo();
+	info.properties.clear();
 
-    info.displayName = "PW_Maelle";
-    info.category = "Character";
-    
+	info.displayName = "PW_Maelle";
+	info.category = "Character";
 
-    return true;
+
+	return true;
 }
 
 PW_Maelle::PW_Maelle(const ComPtr<Device>& device, const ComPtr<Context>& context)
-	: Player_WorldBase { device, context }
+	: Player_WorldBase{ device, context }
 {
 }
 
@@ -37,137 +37,138 @@ HRESULT PW_Maelle::Initialize(void* arg)
 {
     CHECK_FAILED(__super::Initialize(arg), E_FAIL);
 
-    auto skilltreeCom = Get_Component<SkillTreeCom>();
+		auto skilltreeCom = Get_Component<SkillTreeCom>();
 
-    skilltreeCom->TryUnlock("OffensiveSwitch");
-    skilltreeCom->TryUnlock("Percee");
-    skilltreeCom->TryUnlock("Spark");
+	skilltreeCom->TryUnlock("OffensiveSwitch");
+	skilltreeCom->TryUnlock("Percee");
 
-    CHECK_FAILED(Ready_Modifier(), E_FAIL);
+	skilltreeCom->ForceUnlock("FireRise");
 
-    return S_OK;
+	CHECK_FAILED(Ready_Modifier(), E_FAIL);
+
+	return S_OK;
 }
 
 void PW_Maelle::BeginPlay()
 {
-    Player_WorldBase::BeginPlay();
+	Player_WorldBase::BeginPlay();
 }
 
 HRESULT PW_Maelle::Ready_Modifier()
 {
-    if (auto body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body"))))
-    {
-        OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
-        aimOffsetDesc.baseModelCom = body->Get_Model().get();
-        aimOffsetDesc.animName = "Maelle_IdleFreeAim_LoopingWorld_Sweep";
-        aimOffsetDesc.offsetBoneRanges = { { "spine_01", "hand_r" } };
-        aimOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
-        aimOffsetDesc.blendInTime = 0.25f;
-        aimOffsetDesc.blendOutTime = 0.25f;
-        aimOffsetDesc.responseCurve = 1.5f;
-        aimOffsetDesc.modifierTag = L"AimOffset";
-        if (auto modifier = OffsetAnimationModifier::Create(&aimOffsetDesc))
-        {
-            modifier->Set_Active(false);
-            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
+	if (auto body = dynamic_cast<Body_Player*>(Find_PartObject(TEXT("Part_Body"))))
+	{
+		OffsetAnimationModifier::OffsetModifierDesc aimOffsetDesc{};
+		aimOffsetDesc.baseModelCom = body->Get_Model().get();
+		aimOffsetDesc.animName = "Maelle_IdleFreeAim_LoopingWorld_Sweep";
+		aimOffsetDesc.offsetBoneRanges = { { "spine_01", "hand_r" } };
+		aimOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyAddictive;
+		aimOffsetDesc.blendInTime = 0.25f;
+		aimOffsetDesc.blendOutTime = 0.25f;
+		aimOffsetDesc.responseCurve = 1.5f;
+		aimOffsetDesc.modifierTag = L"AimOffset";
+		if (auto modifier = OffsetAnimationModifier::Create(&aimOffsetDesc))
+		{
+			modifier->Set_Active(false);
+			aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+		}
+		else return E_FAIL;
 
-        OffsetAnimationModifier::OffsetModifierDesc wOffsetDesc{};
-        wOffsetDesc.baseModelCom = body->Get_Model().get();
-        wOffsetDesc.animName = "Maelle_Walk_F";
-        wOffsetDesc.offsetBoneRanges = {
-            {"pelvis", "ball_l"},
-            {"pelvis", "ball_r"},
-        };
-        wOffsetDesc.translationOnlyBones = { "pelvis" };
-        wOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
-        wOffsetDesc.blendInTime = 0.25f;
-        wOffsetDesc.blendOutTime = 0.25f;
-        wOffsetDesc.responseCurve = 1.5f;
-        wOffsetDesc.isDynamicPlay = true;
-        wOffsetDesc.playRate = 1.f;
-        wOffsetDesc.modifierTag = L"Walk_F";
-        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
-        {
-            modifier->Set_Active(false);
-            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
+		OffsetAnimationModifier::OffsetModifierDesc wOffsetDesc{};
+		wOffsetDesc.baseModelCom = body->Get_Model().get();
+		wOffsetDesc.animName = "Maelle_Walk_F";
+		wOffsetDesc.offsetBoneRanges = {
+			{"pelvis", "ball_l"},
+			{"pelvis", "ball_r"},
+		};
+		wOffsetDesc.translationOnlyBones = { "pelvis" };
+		wOffsetDesc.blendMode = AnimationModifier::ModifierBlendMode::ModifyReplace;
+		wOffsetDesc.blendInTime = 0.25f;
+		wOffsetDesc.blendOutTime = 0.25f;
+		wOffsetDesc.responseCurve = 1.5f;
+		wOffsetDesc.isDynamicPlay = true;
+		wOffsetDesc.playRate = 1.f;
+		wOffsetDesc.modifierTag = L"Walk_F";
+		if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+		{
+			modifier->Set_Active(false);
+			aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+		}
+		else return E_FAIL;
 
-        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
-        {
-            modifier->Set_Active(false);
-            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
+		if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+		{
+			modifier->Set_Active(false);
+			aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+		}
+		else return E_FAIL;
 
-        wOffsetDesc.animName = "Maelle_Walk_LF";
-        wOffsetDesc.modifierTag = L"Walk_L";
-        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
-        {
-            modifier->Set_Active(false);
-            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
+		wOffsetDesc.animName = "Maelle_Walk_LF";
+		wOffsetDesc.modifierTag = L"Walk_L";
+		if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+		{
+			modifier->Set_Active(false);
+			aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+		}
+		else return E_FAIL;
 
-        wOffsetDesc.animName = "Maelle_Walk_RF";
-        wOffsetDesc.modifierTag = L"Walk_R";
-        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
-        {
-            modifier->Set_Active(false);
-            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
-        
-        wOffsetDesc.animName = "Maelle_Walk_LB";
-        wOffsetDesc.modifierTag = L"Walk_LB";
-        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
-        {
-            modifier->Set_Active(false);
-            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
+		wOffsetDesc.animName = "Maelle_Walk_RF";
+		wOffsetDesc.modifierTag = L"Walk_R";
+		if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+		{
+			modifier->Set_Active(false);
+			aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+		}
+		else return E_FAIL;
 
-        wOffsetDesc.animName = "Maelle_Walk_RB";
-        wOffsetDesc.modifierTag = L"Walk_RB";
-        if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
-        {
-            modifier->Set_Active(false);
-            aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
-        }
-        else return E_FAIL;
-    }
-    else
-        return E_FAIL;
+		wOffsetDesc.animName = "Maelle_Walk_LB";
+		wOffsetDesc.modifierTag = L"Walk_LB";
+		if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+		{
+			modifier->Set_Active(false);
+			aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+		}
+		else return E_FAIL;
 
-    return S_OK;
+		wOffsetDesc.animName = "Maelle_Walk_RB";
+		wOffsetDesc.modifierTag = L"Walk_RB";
+		if (auto modifier = OffsetAnimationModifier::Create(&wOffsetDesc))
+		{
+			modifier->Set_Active(false);
+			aimOffsetDesc.baseModelCom->Add_AnimModifier(modifier);
+		}
+		else return E_FAIL;
+	}
+	else
+		return E_FAIL;
+
+	return S_OK;
 }
 
 HairChainPhysicsDesc PW_Maelle::Get_HairChainPhysicsDesc() const
 {
-    HairChainPhysicsDesc desc{};
+	HairChainPhysicsDesc desc{};
 
-    desc.profile = HairPhysicsProfile::Maelle;
-    desc.bonePrefix = "Strand_";
+	desc.profile = HairPhysicsProfile::Maelle;
+	desc.bonePrefix = "Strand_";
 
-    // Maelle: Strand_0_1 total 46, Strand_5/6도 길어서 Lune보다 더 흐르게.
-    desc.stiffness = 0.035f;
-    desc.damping = 0.38f;
-    desc.windScale = 0.12f;
-    desc.gravity = Vec3(0.f, -0.35f, 0.f);
+	// Maelle: Strand_0_1 total 46, Strand_5/6도 길어서 Lune보다 더 흐르게.
+	desc.stiffness = 0.035f;
+	desc.damping = 0.38f;
+	desc.windScale = 0.12f;
+	desc.gravity = Vec3(0.f, -0.35f, 0.f);
 
-    desc.movementInertiaScale = 0.12f;
-    desc.maxMovementInertia = 1.6f;
-    desc.maxMovementOffset = 0.045f;
+	desc.movementInertiaScale = 0.12f;
+	desc.maxMovementInertia = 1.6f;
+	desc.maxMovementOffset = 0.045f;
 
-    desc.poseRestoreStrength = 0.15f;
-    desc.maxBendAngleDegree = 34.f;
+	desc.poseRestoreStrength = 0.15f;
+	desc.maxBendAngleDegree = 34.f;
 
-    desc.teleportDistance = 300.f;
-    desc.solverIterations = 3;
+	desc.teleportDistance = 300.f;
+	desc.solverIterations = 3;
 
-    return desc;
+	return desc;
 }
 
 Shared<PW_Maelle> PW_Maelle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

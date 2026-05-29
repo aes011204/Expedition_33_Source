@@ -86,6 +86,7 @@ public:
     void    Toggle();
 
     bool    Is_Open() const { return _isOpen;}
+    Shared<UI_Base> Get_RootUI() const { return _backgroundUI; }
 
     void    Handle_SelectionInput();
 

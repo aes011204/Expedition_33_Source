@@ -47,7 +47,7 @@ HairChainPhysicsDesc PB_Gustave::Get_HairChainPhysicsDesc() const
 
 bool PB_Gustave::Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const
 {
-    outDesc.modelTag = L"Model_Lanceram";
+    outDesc.weaponPrefabName = Constants::Prefab::Gustave_Lanceram;
     outDesc.socketName = "Weapon_R";
 
     return true;

@@ -115,6 +115,7 @@ public:
     void Clear();
 
     const Skill_Data* Get_Skill(const string& skillId);
+    vector<TargetType> ParseTargetTypes(const string& data);
     const Item_Data* Get_Item(const string& itemId);
     const Item_Data* Get_Item(BattleItemType itemType);
 

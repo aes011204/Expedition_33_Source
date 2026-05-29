@@ -41,7 +41,7 @@ HairChainPhysicsDesc PB_Lune::Get_HairChainPhysicsDesc() const
 
 bool PB_Lune::Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const
 {
-    outDesc.modelTag = L"Model_Colim";
+    outDesc.weaponPrefabName = Constants::Prefab::Lune_Colim;
     outDesc.socketName = "WeaponAttachPointL";
 
     return true;

@@ -2,6 +2,11 @@
 
 #include "UI_RuntimePanelBase.h"
 #include "Client_Enum.h"
+#include "Battle_Enum.h"
+
+NS_BEGIN(Engine)
+class UI_Text;
+NS_END
 
 NS_BEGIN(Client)
 
@@ -19,6 +24,7 @@ public:
     void    Close() override;
 
     void    Show_Hero(HeroId heroId);
+    void    Sync_BattleChar(const BattleChar& actor);
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
@@ -31,17 +37,36 @@ private:
     HRESULT Bind_UI();
 
     void    Close_AllRoots();
+
+private:
+    void    Apply_GustaveState(const Shared<BattleMechanismCom>& mechanismCom);
+    void    Apply_MaelleState(const Shared<BattleMechanismCom>& mechanismCom);
+    void    Apply_LuneState(const Shared<BattleMechanismCom>& mechanismCom);
+
     void    Close_AllMaelleStances();
 
 private:
+#pragma region 구스타브
     Shared<UI_Base> _gustaveRoot{};
-    Shared<UI_Base> _luneRoot{};
-    Shared<UI_Base> _maelleRoot{};
+    Shared<UI_Text> _gustaveCurrentChargeText{};
+    Shared<UI_Text> _gustaveMaxChargeText{};
 
+    array<Shared<UI_Base>, 10> _gustaveChargeGlows{};
+
+#pragma endregion
+
+#pragma region 루네
+    Shared<UI_Base> _luneRoot{};
+
+#pragma endregion
+
+#pragma region 마엘
+    Shared<UI_Base> _maelleRoot{};
     Shared<UI_Base> _maelleStanceless{};    // 태세 없음
     Shared<UI_Base> _maelleVirtuose{};      // 명인 태세
     Shared<UI_Base> _maelleDefensive{};     // 방어 태세
     Shared<UI_Base> _maelleOffensive{};     // 공격 태세
+#pragma endregion
 
     HeroId _currentHeroId = HeroId::END;
 

@@ -6,6 +6,8 @@
 #include "ContainerObject.h"
 #include "Inspector.h"
 #include "PartObject.h"
+#include "ClientInstance.h"
+#include "GameplayUI.h"
 
 namespace
 {
@@ -325,10 +327,105 @@ void Hierarchy_View::Render()
                 }
             }
         }
+
+        Draw_RuntimeUINode();
     }
 
     Set_Open(isOpen);
     ImGui::End();
+}
+
+void Hierarchy_View::Draw_RuntimeUINode()
+{
+    Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI();
+    if (gameplayUI == nullptr)
+    {
+        if (EDITOR->Selected_UI() != nullptr ||
+            !EDITOR->Selected_UIGroup().empty() ||
+            !EDITOR->Selected_UIDisplayName().empty())
+        {
+            EDITOR->Clear_SelectedUI();
+        }
+        return;
+    }
+
+    const vector<Client::RuntimeUIEntry> worldEntries = gameplayUI->Get_WorldRuntimeUIEntries();
+    const vector<Client::RuntimeUIEntry> battleEntries = gameplayUI->Get_BattleRuntimeUIEntries();
+
+    Sync_RuntimeUISelection(worldEntries, battleEntries);
+
+    ImGuiTreeNodeFlags rootFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+    if (ImGui::TreeNodeEx("GamePlayerUI", rootFlags))
+    {
+        Draw_RuntimeUIGroup("World", worldEntries);
+        Draw_RuntimeUIGroup("Battle", battleEntries);
+        ImGui::TreePop();
+    }
+}
+
+void Hierarchy_View::Draw_RuntimeUIGroup(const char* groupLabel, const vector<Client::RuntimeUIEntry>& entries)
+{
+    ImGuiTreeNodeFlags groupFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+    if (!ImGui::TreeNodeEx(groupLabel, groupFlags))
+        return;
+
+    if (entries.empty())
+    {
+        ImGui::TextDisabled("No runtime UI");
+        ImGui::TreePop();
+        return;
+    }
+
+    const Shared<UI_Base> selectedUI = EDITOR->Selected_UI();
+    for (const Client::RuntimeUIEntry& entry : entries)
+    {
+        const bool isSelected = (selectedUI == entry.ui);
+        ImGuiTreeNodeFlags itemFlags =
+            ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+        if (isSelected)
+            itemFlags |= ImGuiTreeNodeFlags_Selected;
+
+        ImGui::PushID(entry.ui.get());
+        ImGui::TreeNodeEx(entry.name.c_str(), itemFlags);
+        if (ImGui::IsItemClicked() && entry.ui != nullptr)
+        {
+            _isPrimaryShadowLightSelected = false;
+            if (Shared<Inspector> inspector = dynamic_pointer_cast<Inspector>(EDITOR->Get_Window(L"Inspector")))
+                inspector->Set_PrimaryShadowLightTarget(false);
+
+            EDITOR->Select_UI(entry.ui, entry.category, entry.name, entry.positionDrivenByCode);
+        }
+        ImGui::PopID();
+    }
+
+    ImGui::TreePop();
+}
+
+void Hierarchy_View::Sync_RuntimeUISelection(
+    const vector<Client::RuntimeUIEntry>& worldEntries,
+    const vector<Client::RuntimeUIEntry>& battleEntries)
+{
+    const Shared<UI_Base> selectedUI = EDITOR->Selected_UI();
+    if (selectedUI == nullptr)
+    {
+        if (!EDITOR->Selected_UIGroup().empty() || !EDITOR->Selected_UIDisplayName().empty())
+            EDITOR->Clear_SelectedUI();
+        return;
+    }
+
+    auto containsSelected = [&selectedUI](const vector<Client::RuntimeUIEntry>& entries)
+    {
+        for (const Client::RuntimeUIEntry& entry : entries)
+        {
+            if (entry.ui == selectedUI)
+                return true;
+        }
+
+        return false;
+    };
+
+    if (!containsSelected(worldEntries) && !containsSelected(battleEntries))
+        EDITOR->Clear_SelectedUI();
 }
 
 void Hierarchy_View::Draw_NodeObject(const Shared<GameObject>& gameObject, uint32 objectIndex)
