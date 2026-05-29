@@ -26,6 +26,7 @@ private:
     function<void(int32, const WCHAR*)> _onLoad;
     function<void(int32, const LandscapeNoiseParams&)> _onApplyNoise;
     function<void(int32, const LandscapeErosionParams&)> _onApplyErosion;
+    function<void(int32, const WCHAR*)> _onAddLayer;
 
     bool   _showCreateDialog = false;
     int32  _createCountX = 64;
@@ -36,6 +37,7 @@ private:
     float  _createOffsetY = 0.f;
     float  _createOffsetZ = 0.f;
     char   _createName[64] = "Landscape_0";
+    int32 _createChunkSize = 16;
 
     LandscapeNoiseParams _noiseParams{};
     LandscapeErosionParams _erosionParams{};
@@ -48,6 +50,7 @@ private:
     void Render_SaveLoad();
     void Render_Noise();
     void Render_Erosion();
+    void Render_PaintTools();
 
 public:
     static Shared<PanelLandscape> Create(SceneContext* ctx, const LandscapePanelContext& landscapeCtx);

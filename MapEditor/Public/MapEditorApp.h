@@ -91,6 +91,8 @@ private:
     void Apply_Noise(int32 idx, const LandscapeNoiseParams& params);
     void Apply_Erosion(int32 idx, const LandscapeErosionParams& params);
 
+    void Add_LandscapeLayer(int32 idx, const WCHAR* path);
+
 public:
     static Unique<MapEditorApp> Create();
     virtual void Free() override;

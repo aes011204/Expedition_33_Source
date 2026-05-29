@@ -77,6 +77,7 @@ HRESULT MapEditorApp::Initialize()
     landscapeCtx.onLoad = [this](int32 idx, const WCHAR* path) { Load_Landscape(idx, path); };
     landscapeCtx.onApplyNoise = [this](int32 idx, const LandscapeNoiseParams& params) {Apply_Noise(idx, params); };
     landscapeCtx.onApplyErosion = [this](int32 idx, const LandscapeErosionParams& params) { Apply_Erosion(idx, params); };
+    landscapeCtx.onAddLayer = [this](int32 idx, const WCHAR* path) {Add_LandscapeLayer(idx, path); };
 
     _manager = MEManager::Create(_viewport, &_scene, _camera.get(), landscapeCtx);
     CHECK_NULL(_manager, E_FAIL);
@@ -250,6 +251,7 @@ HRESULT MapEditorApp::Render()
     for (auto& landscape : _scene._landscapes)
     {
         landscape->Set_CameraFar(_camera->GetFar());
+        landscape->Set_CameraPos(_camera->GetPosition());
         landscape->Late_Update(0.f);
     }
 
@@ -837,6 +839,13 @@ void MapEditorApp::Do_SculptAt(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSize, flo
     float localHitX = hitPos.x - landscapePos.x;
     float localHitZ = hitPos.z - landscapePos.z;
 
+    if (mode == ESculptMode::Paint)
+    {
+        vb->Paint_Layer(_sculptState->paintLayerIdx, localHitX, localHitZ, radius, strength * timeDelta * 10.f);
+        actor->Flush_WeightMap(_sculptState->paintLayerIdx);
+        return;
+    }
+
     if (mode == ESculptMode::Smooth)
     {
         vector<float> smoothed = heights;
@@ -1095,6 +1104,16 @@ void MapEditorApp::Apply_Erosion(int32 idx, const LandscapeErosionParams& params
         }
     }
     vb->Flush();
+}
+
+void MapEditorApp::Add_LandscapeLayer(int32 idx, const WCHAR* path)
+{
+    if (idx < 0 || idx >= static_cast<int32>(_scene._landscapes.size()))
+    {
+        return;
+    }
+
+    _scene._landscapes[idx]->Add_LayerTexture(wstring(path));
 }
 
 Unique<MapEditorApp> MapEditorApp::Create()

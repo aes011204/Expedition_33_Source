@@ -175,7 +175,8 @@ namespace MapEditor
         Raise,
         Lower,
         Smooth,
-        Flatten
+        Flatten,
+        Paint
     };
 
     struct LandscapeSculptState
@@ -184,6 +185,7 @@ namespace MapEditor
         float brushRadius = 5.f;
         float brushStrength = 0.5f;
         float flattenHeight = 0.f;
+        uint32 paintLayerIdx = 0;
     };
 
     struct LandscapeConfig
@@ -196,6 +198,7 @@ namespace MapEditor
         float worldOffsetX = 0.f;
         float worldOffsetY = 0.f;
         float worldOffsetZ = 0.f;
+        uint32 chunkSize = 16;
         vector<float> heights;
     };
 
@@ -225,6 +228,7 @@ namespace MapEditor
         function<void(int32, const WCHAR*)> onLoad;
         function<void(int32, const LandscapeNoiseParams&)> onApplyNoise;
         function<void(int32, const LandscapeErosionParams&)> onApplyErosion;
+        function<void(int32, const WCHAR*)> onAddLayer;
     };
 };
 

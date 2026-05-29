@@ -55,10 +55,10 @@ Heightmap 기반 Terrain(UE Landscape 포함)은 **모든 X,Z 좌표에 높이�
 
 | 기능 | 상태 | 설명 |
 |------|------|------|
-| Sculpt - Erosion | ⬜ 미구현 | 간단한 열 침식으로 자연스러운 지형 생성 |
-| Noise 생성 | ⬜ 미구현 | Perlin/Simplex 노이즈 기반 초기 지형 자동 생성 |
+| Sculpt - Erosion | ✅ 완료 | 열 침식(Thermal Erosion), 반복 횟수·talusAngle·erosionRate 파라미터, 조기 종료 |
+| Noise 생성 | ✅ 완료 | Perlin 노이즈, octave·scale·amplitude·seed 파라미터, 덮어쓰기/누적 선택 (`NoiseUtil.h`) |
+| LOD | ✅ 완료 | 청크 기반 LOD + Dynamic IB + LOD clamping(이웃 차이 ≤1) + 중심점 기반 경계 스티칭으로 균열 제거 |
 | 텍스처 레이어 Paint | ⬜ 미구현 | 레이어별 weight map 편집 + 블렌딩 |
-| LOD | ⬜ 미구현 | 카메라 거리에 따른 폴리곤 수 감소 |
 
 ---
 
