@@ -251,7 +251,9 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * _currentSettings.heightOffset + rightDir * _currentSettings.sideOffset;
     Vec3 lookTarget = framingPos + Vec3::Up * _currentSettings.lookHeight;
 
-        const Vec3 collisionStart = lookTarget;
+    _currentLookTarget = lookTarget;
+
+    const Vec3 collisionStart = lookTarget;
 
     Vec3 newPos = desiredPos;
 
@@ -314,6 +316,26 @@ void TargetCamera::Refresh_TargetTransform()
     auto player = CLIENT->Find_Player(GAME->Current_LevelIndex());
     if (player && player->Get_Transform())
         _targetTransformCom = player->Get_Transform();
+}
+
+Vec3 TargetCamera::Get_FreeAimQueryOrigin() const
+{
+    CHECK_NULL(_transformCom, Vec3::Zero);
+
+    return _transformCom->Get_WorldPosition();
+}
+
+Vec3 TargetCamera::Get_FreeAimQueryDirection() const
+{
+    CHECK_NULL(_transformCom, Vec3::Look);
+
+    Vec3 direction = _transformCom->Get_WorldForward();
+
+    if (direction.LengthSquared() <= 0.0001f)
+        return Vec3::Look;
+
+    direction.Normalize();
+    return direction;
 }
 
 void TargetCamera::Update_NormalState(float timeDelta)

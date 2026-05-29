@@ -703,7 +703,7 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
         }
         else if (hero.heroId == HeroId::Maelle)
         {
-            // TODO : 마엘 전투태세 연동
+            _battleSystemHUD->Set_MaelleMechanismStance(hero.mechanismCom);
         }
     }
 

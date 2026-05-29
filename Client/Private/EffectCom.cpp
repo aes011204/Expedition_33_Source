@@ -144,8 +144,109 @@ HRESULT EffectCom::Bind_DrawFeatures(const Shared<GameObject>& owner, ShaderCom*
     return shader->Reset_DrawFeatures();
 }
 
+Shared<EffectCom> EffectCom::Find_FromNotifyOwner(GameObject* notifyOwner)
+{
+    Shared<GameObject> current = notifyOwner ? notifyOwner->GetSharedPtr<GameObject>() : nullptr;
+
+    while (current)
+    {
+        if (Shared<EffectCom> effectCom = current->Get_Component<EffectCom>())
+            return effectCom;
+
+        current = current->Get_Owner();
+    }
+
+    return nullptr;
+}
+
+HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
+{
+    if (desc.effectName.empty() || desc.layerTag.empty())
+        return E_FAIL;
+
+    Vec3 spawnWorldPosition{};
+    if (!Try_ResolveEffectWorldPosition(
+            desc.target,
+            desc.partTag,
+            desc.socketName,
+            desc.localOffset,
+            spawnWorldPosition))
+    {
+        return E_FAIL;
+    }
+
+    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+    CHECK_NULL(effectPool, E_FAIL);
+
+    EffectInstancePool::AcquireDesc acquireDesc{};
+    acquireDesc.effectName = desc.effectName;
+    acquireDesc.layerLevelIndex = desc.levelIndex;
+    acquireDesc.layerTag = desc.layerTag;
+    acquireDesc.worldPosition = spawnWorldPosition;
+    acquireDesc.trailSampleProvider = desc.trailSampleProvider;
+
+    EffectInstancePool::AttachedHandle handle{};
+    CHECK_FAILED(effectPool->Acquire(acquireDesc, handle), E_FAIL);
+
+    AttachedEffect attached{};
+    attached.poolHandle = handle;
+    attached.effectName = desc.effectName;
+    attached.target = desc.target;
+    attached.partTag = desc.partTag;
+    attached.socketName = desc.socketName;
+    attached.layerTag = desc.layerTag;
+    attached.localOffset = desc.localOffset;
+    attached.followTarget = desc.followTarget;
+    attached.isTrail = false;
+    _attachedEffects.push_back(attached);
+
+    return S_OK;
+}
+
+void EffectCom::Stop_Effect(const wstring& effectName, EffectPlayTarget target, const wstring& partTag,
+    const string& socketName)
+{
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        if (attached.isTrail)
+            continue;
+        if (attached.effectName != effectName)
+            continue;
+        if (attached.target != target)
+            continue;
+        if (attached.partTag != partTag)
+            continue;
+        if (attached.socketName != socketName)
+            continue;
+
+        Release_AttachedEffect(attached);
+    }
+
+    Prune_ReleasedAttachedEffects();
+}
+
+bool EffectCom::Try_ResolveEffectWorldPosition(EffectPlayTarget target, const wstring& partTag,
+    const string& socketName, const Vec3& localOffset, Vec3& outWorldPosition) const
+{
+    Vec3 baseWorldPosition{};
+
+    if (target == EffectPlayTarget::OwnerRoot)
+    {
+        if (!Try_GetOwnerRootWorldPosition(baseWorldPosition))
+            return false;
+    }
+    else
+    {
+        if (!Try_GetSocketWorldPosition(partTag, socketName, baseWorldPosition))
+            return false;
+    }
+
+    outWorldPosition = baseWorldPosition + localOffset;
+    return true;
+}
+
 HRESULT EffectCom::Play_AttachedEffect(
-    uint32,
+    uint32 levelIndex,
     const wstring& effectName,
     const wstring& partTag,
     const string& socketName,
@@ -153,34 +254,18 @@ HRESULT EffectCom::Play_AttachedEffect(
     const Vec3& localOffset,
     const Weak<IEffectTrailSampleProvider>& trailSampleProvider)
 {
-    Vec3 spawnPosition{};
-    if (!Try_GetSocketWorldPosition(partTag, socketName, spawnPosition))
-        return E_FAIL;
+    EffectPlayDesc desc{};
+    desc.levelIndex = levelIndex;
+    desc.effectName = effectName;
+    desc.target = EffectPlayTarget::PartSocket;
+    desc.partTag = partTag;
+    desc.socketName = socketName;
+    desc.layerTag = layerTag;
+    desc.localOffset = localOffset;
+    desc.followTarget = true;
+    desc.trailSampleProvider = trailSampleProvider;
 
-    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
-    CHECK_NULL(effectPool, E_FAIL);
-
-    EffectInstancePool::AcquireDesc acquireDesc{};
-    acquireDesc.effectName = effectName;
-    acquireDesc.layerLevelIndex = GAME->Current_LevelIndex();
-    acquireDesc.layerTag = layerTag;
-    acquireDesc.worldPosition = spawnPosition + localOffset;
-    acquireDesc.trailSampleProvider = trailSampleProvider;
-
-    EffectInstancePool::AttachedHandle handle{};
-    CHECK_FAILED(effectPool->Acquire(acquireDesc, handle), E_FAIL);
-
-    AttachedEffect attached{};
-    attached.poolHandle = handle;
-    attached.effectName = effectName; 
-    attached.partTag = partTag;
-    attached.socketName = socketName;
-    attached.layerTag = layerTag;
-    attached.localOffset = localOffset;
-    attached.isTrail = false;
-    _attachedEffects.push_back(attached);
-
-    return S_OK;
+    return Play_Effect(desc);
 }
 
 HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& partTag, const wstring& layerTag)
@@ -261,7 +346,7 @@ bool EffectCom::Try_GetTrailSample(EffectTrailSample& outSample) const
 
 void EffectCom::Update_AttachedEffects()
 {
-    for (AttachedEffect& attached : _attachedEffects)
+     for (AttachedEffect& attached : _attachedEffects)
     {
         if (attached.poolHandle.effectObject == nullptr)
             continue;
@@ -285,14 +370,24 @@ void EffectCom::Update_AttachedEffects()
             continue;
         }
 
-        Vec3 socketPosition{};
-        if (!Try_GetSocketWorldPosition(attached.partTag, attached.socketName, socketPosition))
+        if (!attached.followTarget)
+            continue; // AN 단발 이펙트는 시작 위치만 맞추고 더 이상 이동시키지 않는다.
+
+        Vec3 targetWorldPosition{};
+        if (!Try_ResolveEffectWorldPosition(
+                attached.target,
+                attached.partTag,
+                attached.socketName,
+                attached.localOffset,
+                targetWorldPosition))
+        {
             continue;
+        }
 
         const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
         CHECK_NULL(effectTransform);
 
-        effectTransform->Set_WorldPosition(socketPosition + attached.localOffset);
+        effectTransform->Set_WorldPosition(targetWorldPosition);
     }
 
     Prune_ReleasedAttachedEffects();
@@ -336,6 +431,20 @@ void EffectCom::Prune_ReleasedAttachedEffects()
             return attached.poolHandle.effectObject == nullptr;
         }
     );
+}
+
+bool EffectCom::Try_GetOwnerRootWorldPosition(Vec3& outWorldPosition) const
+{
+    const Shared<GameObject> ownerObject = Get_Owner();
+    if (ownerObject == nullptr)
+        return false;
+
+    const Shared<TransformCom> ownerTransform = ownerObject->Get_Transform();
+    if (ownerTransform == nullptr)
+        return false;
+
+    outWorldPosition = ownerTransform->Get_Position();
+    return true;
 }
 
 bool EffectCom::Try_GetSocketWorldPosition(const wstring& partTag, const string& socketName,

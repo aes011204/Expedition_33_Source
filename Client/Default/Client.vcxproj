@@ -160,6 +160,7 @@
     <ClInclude Include="..\Public\ANS_IdleOffset.h" />
     <ClInclude Include="..\public\ANS_Move.h" />
     <ClInclude Include="..\public\ANS_Parry.h" />
+    <ClInclude Include="..\Public\ANS_PlayEffect.h" />
     <ClInclude Include="..\public\ANS_QTE.h" />
     <ClInclude Include="..\Public\ANS_Trail.h" />
     <ClInclude Include="..\public\AN_Attack.h" />
@@ -168,6 +169,7 @@
     <ClInclude Include="..\public\AN_Change_Anim.h" />
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\Public\AN_EndTurn.h" />
+    <ClInclude Include="..\Public\AN_PlayEffect.h" />
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
     <ClInclude Include="..\public\AN_EnterAnim.h" />
     <ClInclude Include="..\Public\AN_StartCounter.h" />
@@ -409,6 +411,7 @@
     <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
+    <ClCompile Include="..\Private\ANS_PlayEffect.cpp" />
     <ClCompile Include="..\Private\ANS_QTE.cpp" />
     <ClCompile Include="..\Private\ANS_Trail.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp" />
@@ -417,6 +420,7 @@
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
+    <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
     <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
     <ClCompile Include="..\Private\AN_StartCounter.cpp" />
