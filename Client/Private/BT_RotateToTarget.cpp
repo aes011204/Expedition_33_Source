@@ -10,7 +10,7 @@ IMPLEMENT_REFLECTION(BT_RotateToTarget)
     info.properties.clear();
 
     PROPERTY_BBKEY_VEC3("Target Key", _targetKey);
-    PROPERTY_BBKEY_FLOAT("speed", _speed);
+    PROPERTY_FLOAT("speed", _speed);
 
     return true;
 }

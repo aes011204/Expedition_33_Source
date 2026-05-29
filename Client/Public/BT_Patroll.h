@@ -17,6 +17,13 @@ public:
 
     static Shared<BT_Patroll> Create();
     virtual void Free()override;
+
+private:
+
+    bool _isPatrol = {};
+    vector<Vec3> _patrolPoints ;
+
+    uint32 curIndex = {};
 };
 
 NS_END

@@ -51,6 +51,10 @@ public:
 
     void Set_CurrentAction(MonsterWorldAnim action) { _currentAction = action; }
     MonsterWorldAnim Get_CurrentAction() const { return _currentAction; }
+
+    //일단 셋은 임시 
+    void Set_PatrollPoints(vector<Vec3> patrollPoint) { _patrollPoints = patrollPoint; };
+    const vector<Vec3>& Get_PatrolPoints() { return _patrollPoints; };
 protected:
     virtual HRESULT Ready_Components();
 
@@ -67,6 +71,7 @@ protected:
     bool                         _isBattleStart = false;
     FDelegateHandle              _editorStopHandle = {};
 
+    vector<Vec3>                 _patrollPoints;
 public:
     void Free() override;
 

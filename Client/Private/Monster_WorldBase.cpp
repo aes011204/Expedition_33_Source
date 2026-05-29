@@ -81,19 +81,34 @@ void Monster_WorldBase::Update(float timeDelta)
     {
         if (_currentAction != _previousAction)
         {
+            LOG_DEBUG("Monster_WorldBase action change current={} previous={}",
+                ETOI(_currentAction),
+                ETOI(_previousAction));
+
+            bool applied = false;
+
             switch (_currentAction)
             {
             case MonsterWorldAnim::Idle:
-                bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Idle), 0.3f, true);
+                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Idle), 0.3f, true);
                 break;
 
             case MonsterWorldAnim::Patrol:
-                bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Patrol), 0.3f, true);
+                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Patrol), 0.3f, true);
                 break;
 
             case MonsterWorldAnim::Chase:
-                bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Chase), 0.3f, true);
+                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Chase), 0.3f, true);
                 break;
+            }
+
+            if (Shared<ModelCom> model = bodyPart->Get_Model())
+            {
+                const char* animName = model->Get_AnimationName(model->Get_CurrentAnimationIndex());
+                LOG_DEBUG("Monster_WorldBase action applied={} currentAction={} currentAnim={}",
+                    applied,
+                    ETOI(_currentAction),
+                    animName != nullptr ? animName : "<null>");
             }
 
             _previousAction = _currentAction;

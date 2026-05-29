@@ -36,6 +36,20 @@ HRESULT MW_Lancelier::Initialize(void* arg)
     CHECK_FAILED(Monster_WorldBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
+    vector<Vec3> po = {
+        { 0.f, 1.f, 32.f },
+        { 8.f, 1.f, 25.f },
+        { 12.f, 1.f, 32.f },
+        { 8.f, 1.f, 39.f },
+        { 0.f, 1.f, 32.f },
+        { -8.f, 1.f, 25.f },
+        { -12.f, 1.f, 32.f },
+        { -8.f, 1.f, 39.f },
+        { 0.f, 1.f, 32.f }
+    };
+
+    Set_PatrollPoints(po);
+
     return S_OK;
 }
 

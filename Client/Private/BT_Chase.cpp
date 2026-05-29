@@ -23,9 +23,9 @@ BT_Chase::~BT_Chase()
 
 void BT_Chase::OnStart()
 {
-    LOG_DEBUG("Chase");
+    LOG_DEBUG("BT_Chase::OnStart");
     const Shared<Monster_WorldBase> monster = dynamic_pointer_cast<Monster_WorldBase>(Get_Owner()->Get_Owner());
-    monster->Set_CurrentAction(MW_Lancelier::MonsterWorldAnim::Chase);
+     monster->Set_CurrentAction(MW_Lancelier::MonsterWorldAnim::Chase);
 
     const auto bb = Get_Owner()->Get_BlackBoard();
 
