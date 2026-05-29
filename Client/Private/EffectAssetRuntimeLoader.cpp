@@ -160,13 +160,9 @@ Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_Definition(const w
         bool converted = false;
 
         if (rendererTypeLower == "sprite")
-        {
             converted = Build_EmitterDefinition(emitter, emitterDefinition);
-        }
         else if (rendererTypeLower == "trail")
-        {
             converted = Build_TrailEmitterDefinition(emitter, emitterDefinition);
-        }
         else
         {
             LOG_INFO(
@@ -295,6 +291,96 @@ float EffectAssetRuntimeLoader::Evaluate_FloatConstantCurve(const json& keys, fl
     return Read_Float(keys.back(), "value", fallbackValue);
 }
 
+Vec2 EffectAssetRuntimeLoader::Evaluate_Vector2CurveSegmentLinear(const json& leftKey, const json& rightKey, float x)
+{
+    const float leftTime = Read_Float(leftKey, "time");
+    const float rightTime = Read_Float(rightKey, "time", 1.f);
+    const float width = max(0.0001f, rightTime - leftTime);
+    const float t = clamp((x - leftTime) / width, 0.f, 1.f);
+
+    Vec2 leftValue{};
+    Vec2 rightValue{};
+    if (const auto iter = leftKey.find("value"); iter != leftKey.end())
+        Read_Vec2(*iter, leftValue);
+    if (const auto iter = rightKey.find("value"); iter != rightKey.end())
+        Read_Vec2(*iter, rightValue);
+
+    return Vec2{ lerp(leftValue.x, rightValue.x, t), lerp(leftValue.y, rightValue.y, t) };
+}
+
+Vec2 EffectAssetRuntimeLoader::Evaluate_Vector2CurveSegmentAutoClamped(const json& leftKey, const json& rightKey, float x)
+{
+    const float leftTime = Read_Float(leftKey, "time");
+    const float rightTime = Read_Float(rightKey, "time", 1.f);
+    const float width = max(0.0001f, rightTime - leftTime);
+    const float t = clamp((x - leftTime) / width, 0.f, 1.f);
+    const float t2 = t * t;
+    const float t3 = t2 * t;
+
+    Vec2 leftValue{};
+    Vec2 rightValue{};
+    Vec2 leftTangent{};
+    Vec2 rightTangent{};
+    if (const auto iter = leftKey.find("value"); iter != leftKey.end())
+        Read_Vec2(*iter, leftValue);
+    if (const auto iter = rightKey.find("value"); iter != rightKey.end())
+        Read_Vec2(*iter, rightValue);
+    if (const auto iter = leftKey.find("leaveTangent"); iter != leftKey.end())
+        Read_Vec2(*iter, leftTangent);
+    if (const auto iter = rightKey.find("arriveTangent"); iter != rightKey.end())
+        Read_Vec2(*iter, rightTangent);
+
+    const Vec2 m0{ leftTangent.x * width, leftTangent.y * width };
+    const Vec2 m1{ rightTangent.x * width, rightTangent.y * width };
+    return Vec2{
+        (2.f * t3 - 3.f * t2 + 1.f) * leftValue.x +
+            (t3 - 2.f * t2 + t) * m0.x +
+            (-2.f * t3 + 3.f * t2) * rightValue.x +
+            (t3 - t2) * m1.x,
+        (2.f * t3 - 3.f * t2 + 1.f) * leftValue.y +
+            (t3 - 2.f * t2 + t) * m0.y +
+            (-2.f * t3 + 3.f * t2) * rightValue.y +
+            (t3 - t2) * m1.y
+    };
+}
+
+Vec2 EffectAssetRuntimeLoader::Evaluate_Vector2ConstantCurve(const json& keys, float x, const Vec2& fallbackValue)
+{
+    if (!keys.is_array() || keys.empty())
+        return fallbackValue;
+
+    auto read_value = [](const json& key, const Vec2& fallback)
+    {
+        Vec2 value = fallback;
+        if (const auto iter = key.find("value"); iter != key.end())
+            Read_Vec2(*iter, value);
+        return value;
+    };
+
+    if (keys.size() == 1)
+        return read_value(keys.front(), fallbackValue);
+
+    const float clampedX = clamp(x, 0.f, 1.f);
+    for (size_t index = 1; index < keys.size(); ++index)
+    {
+        const json& leftKey = keys[index - 1];
+        const json& rightKey = keys[index];
+        if (clampedX > Read_Float(rightKey, "time", 1.f))
+            continue;
+
+        const string interpolationMode = Read_String(leftKey, "interpolationMode", "Linear");
+        if ("Constant" == interpolationMode)
+            return read_value(leftKey, fallbackValue);
+
+        if ("CurveAutoClamped" == interpolationMode)
+            return Evaluate_Vector2CurveSegmentAutoClamped(leftKey, rightKey, clampedX);
+
+        return Evaluate_Vector2CurveSegmentLinear(leftKey, rightKey, clampedX);
+    }
+
+    return read_value(keys.back(), fallbackValue);
+}
+
 const json* EffectAssetRuntimeLoader::Find_DistributionPayload(const json& distribution)
 {
     const auto payloadIter = distribution.find("payload");
@@ -363,6 +449,12 @@ Vec2 EffectAssetRuntimeLoader::Evaluate_Vector2DistributionMin(const json& distr
         return value;
     }
 
+    if ("ConstantCurve" == Read_String(distribution, "mode"))
+    {
+        const auto keysIter = payload->find("keys");
+        return keysIter != payload->end() ? Evaluate_Vector2ConstantCurve(*keysIter, 0.f, fallbackValue) : fallbackValue;
+    }
+
     const auto iter = payload->find("value");
     if (iter != payload->end())
         Read_Vec2(*iter, value);
@@ -382,6 +474,12 @@ Vec2 EffectAssetRuntimeLoader::Evaluate_Vector2DistributionMax(const json& distr
         if (iter != payload->end())
             Read_Vec2(*iter, value);
         return value;
+    }
+
+    if ("ConstantCurve" == Read_String(distribution, "mode"))
+    {
+        const auto keysIter = payload->find("keys");
+        return keysIter != payload->end() ? Evaluate_Vector2ConstantCurve(*keysIter, 1.f, fallbackValue) : fallbackValue;
     }
 
     const auto iter = payload->find("value");
@@ -538,6 +636,65 @@ void EffectAssetRuntimeLoader::Fill_SubUVFrameCurvePayload(PointParticleSubUVFra
     }
 }
 
+void EffectAssetRuntimeLoader::Fill_SizeByLifePayload(PointParticleSizeByLifeDesc& desc, const json& sizeByLife)
+{
+    desc.enabled = true;
+    desc.multiplyX = Read_Bool(sizeByLife, "multiplyX", desc.multiplyX);
+    desc.multiplyY = Read_Bool(sizeByLife, "multiplyY", desc.multiplyY);
+    Read_Enum(sizeByLife, "axisLock", desc.axisLock);
+
+    const auto scaleOverLifeIter = sizeByLife.find("scaleOverLife");
+    if (scaleOverLifeIter == sizeByLife.end())
+    {
+        desc.multiplyXStart = Read_Float(sizeByLife, "multiplyXStart", desc.multiplyXStart);
+        desc.multiplyXEnd = Read_Float(sizeByLife, "multiplyXEnd", desc.multiplyXEnd);
+        desc.multiplyYStart = Read_Float(sizeByLife, "multiplyYStart", desc.multiplyYStart);
+        desc.multiplyYEnd = Read_Float(sizeByLife, "multiplyYEnd", desc.multiplyYEnd);
+        desc.curveKeyCount = 2;
+        desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.curveKeyValuesX = Vec4{ desc.multiplyXStart, desc.multiplyXEnd, 0.f, 0.f };
+        desc.curveKeyValuesY = Vec4{ desc.multiplyYStart, desc.multiplyYEnd, 0.f, 0.f };
+        return;
+    }
+
+    const Vec2 startValue = Evaluate_Vector2DistributionMin(*scaleOverLifeIter, Vec2{ 1.f, 1.f });
+    const Vec2 endValue = Evaluate_Vector2DistributionMax(*scaleOverLifeIter, Vec2{ 1.f, 1.f });
+    desc.multiplyXStart = startValue.x;
+    desc.multiplyXEnd = endValue.x;
+    desc.multiplyYStart = startValue.y;
+    desc.multiplyYEnd = endValue.y;
+    desc.curveKeyCount = 2;
+    desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.curveKeyValuesX = Vec4{ startValue.x, endValue.x, 0.f, 0.f };
+    desc.curveKeyValuesY = Vec4{ startValue.y, endValue.y, 0.f, 0.f };
+
+    const json* payload = Find_DistributionPayload(*scaleOverLifeIter);
+    if (payload == nullptr || "ConstantCurve" != Read_String(*scaleOverLifeIter, "mode"))
+        return;
+
+    const auto keysIter = payload->find("keys");
+    if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+        return;
+
+    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
+    desc.curveKeyCount = keyCount;
+    desc.curveKeyTimes = Vec4{};
+    desc.curveKeyValuesX = Vec4{};
+    desc.curveKeyValuesY = Vec4{};
+
+    for (uint32 index = 0; index < keyCount; ++index)
+    {
+        const json& key = (*keysIter)[index];
+        Vec2 value{ 1.f, 1.f };
+        if (const auto valueIter = key.find("value"); valueIter != key.end())
+            Read_Vec2(*valueIter, value);
+
+        Set_SubUVFrameCurveComponent(desc.curveKeyTimes, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.curveKeyValuesX, index, value.x);
+        Set_SubUVFrameCurveComponent(desc.curveKeyValuesY, index, value.y);
+    }
+}
+
 string EffectAssetRuntimeLoader::Resolve_RendererType(const json& emitter)
 {
     string rendererType = Read_String(emitter, "rendererType");
@@ -563,12 +720,15 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     EffectRequiredMaterialRuntimeDesc& materialDesc,
     bool includeTrailMaterialFields)
 {
+    Read_Enum(material, "materialFamily", materialDesc.materialFamily);
     materialDesc.mainTextureGuid = Read_String(material, "mainTextureGuid", materialDesc.mainTextureGuid);
     materialDesc.mainTexturePath = Read_String(material, "mainTexturePath", materialDesc.mainTexturePath);
     materialDesc.noiseTextureGuid = Read_String(material, "noiseTextureGuid", materialDesc.noiseTextureGuid);
     materialDesc.noiseTexturePath = Read_String(material, "noiseTexturePath", materialDesc.noiseTexturePath);
     materialDesc.maskTextureGuid = Read_String(material, "maskTextureGuid", materialDesc.maskTextureGuid);
     materialDesc.maskTexturePath = Read_String(material, "maskTexturePath", materialDesc.maskTexturePath);
+    materialDesc.flowTextureGuid = Read_String(material, "flowTextureGuid", materialDesc.flowTextureGuid);
+    materialDesc.flowTexturePath = Read_String(material, "flowTexturePath", materialDesc.flowTexturePath);
 
     Read_Enum(material, "blendMode", materialDesc.blendMode);
 
@@ -586,45 +746,55 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     materialDesc.alphaCutoff = Read_Float(material, "alphaCutoff", materialDesc.alphaCutoff);
     materialDesc.alphaErosion = Read_Float(material, "alphaErosion", materialDesc.alphaErosion);
 
-    const auto mainUVOffsetIter = material.find("mainUVOffset");
-    if (mainUVOffsetIter != material.end())
+    if (const auto mainUVOffsetIter = material.find("mainUVOffset"); mainUVOffsetIter != material.end())
         Read_Vec2(*mainUVOffsetIter, materialDesc.mainUVOffset);
 
-    const auto noiseUVOffsetIter = material.find("noiseUVOffset");
-    if (noiseUVOffsetIter != material.end())
+    if (const auto noiseUVOffsetIter = material.find("noiseUVOffset"); noiseUVOffsetIter != material.end())
         Read_Vec2(*noiseUVOffsetIter, materialDesc.noiseUVOffset);
 
-    const auto maskUVOffsetIter = material.find("maskUVOffset");
-    if (maskUVOffsetIter != material.end())
+    if (const auto maskUVOffsetIter = material.find("maskUVOffset"); maskUVOffsetIter != material.end())
         Read_Vec2(*maskUVOffsetIter, materialDesc.maskUVOffset);
+
+    if (const auto flowUVScaleIter = material.find("flowUVScale"); flowUVScaleIter != material.end())
+        Read_Vec2(*flowUVScaleIter, materialDesc.flowUVScale);
+
+    if (const auto flowUVOffsetIter = material.find("flowUVOffset"); flowUVOffsetIter != material.end())
+        Read_Vec2(*flowUVOffsetIter, materialDesc.flowUVOffset);
+
+    if (const auto flowUVScrollSpeedIter = material.find("flowUVScrollSpeed"); flowUVScrollSpeedIter != material.end())
+        Read_Vec2(*flowUVScrollSpeedIter, materialDesc.flowUVScrollSpeed);
 
     Read_Enum(material, "mainUVTilingMode", materialDesc.mainUVTilingMode);
     Read_Enum(material, "noiseUVTilingMode", materialDesc.noiseUVTilingMode);
     Read_Enum(material, "maskUVTilingMode", materialDesc.maskUVTilingMode);
+    Read_Enum(material, "flowUVTilingMode", materialDesc.flowUVTilingMode);
+    materialDesc.refractionIntensity = Read_Float(material, "refractionIntensity", materialDesc.refractionIntensity);
+    materialDesc.refractionPresence = Read_Float(material, "refractionPresence", materialDesc.refractionPresence);
+    Read_Enum(material, "distortionShapeMode", materialDesc.distortionShapeMode);
+    materialDesc.distortionShapeRadius = Read_Float(material, "distortionShapeRadius", materialDesc.distortionShapeRadius);
+    materialDesc.distortionShapeThickness = Read_Float(material, "distortionShapeThickness", materialDesc.distortionShapeThickness);
+    materialDesc.distortionShapeSoftness = Read_Float(material, "distortionShapeSoftness", materialDesc.distortionShapeSoftness);
     materialDesc.subUVRows = max(1u, Read_UInt(material, "subUVRows", materialDesc.subUVRows));
     materialDesc.subUVCols = max(1u, Read_UInt(material, "subUVCols", materialDesc.subUVCols));
 
     if (includeTrailMaterialFields)
     {
-        const auto mainUVScaleIter = material.find("mainUVScale");
-        if (mainUVScaleIter != material.end())
+        if (const auto mainUVScaleIter = material.find("mainUVScale"); mainUVScaleIter != material.end())
             Read_Vec2(*mainUVScaleIter, materialDesc.mainUVScale);
-        const auto mainUVScrollSpeedIter = material.find("mainUVScrollSpeed");
-        if (mainUVScrollSpeedIter != material.end())
+
+        if (const auto mainUVScrollSpeedIter = material.find("mainUVScrollSpeed"); mainUVScrollSpeedIter != material.end())
             Read_Vec2(*mainUVScrollSpeedIter, materialDesc.mainUVScrollSpeed);
 
-        const auto noiseUVScaleIter = material.find("noiseUVScale");
-        if (noiseUVScaleIter != material.end())
+        if (const auto noiseUVScaleIter = material.find("noiseUVScale"); noiseUVScaleIter != material.end())
             Read_Vec2(*noiseUVScaleIter, materialDesc.noiseUVScale);
-        const auto noiseUVScrollSpeedIter = material.find("noiseUVScrollSpeed");
-        if (noiseUVScrollSpeedIter != material.end())
+
+        if (const auto noiseUVScrollSpeedIter = material.find("noiseUVScrollSpeed"); noiseUVScrollSpeedIter != material.end())
             Read_Vec2(*noiseUVScrollSpeedIter, materialDesc.noiseUVScrollSpeed);
 
-        const auto maskUVScaleIter = material.find("maskUVScale");
-        if (maskUVScaleIter != material.end())
+        if (const auto maskUVScaleIter = material.find("maskUVScale"); maskUVScaleIter != material.end())
             Read_Vec2(*maskUVScaleIter, materialDesc.maskUVScale);
-        const auto maskUVScrollSpeedIter = material.find("maskUVScrollSpeed");
-        if (maskUVScrollSpeedIter != material.end())
+
+        if (const auto maskUVScrollSpeedIter = material.find("maskUVScrollSpeed"); maskUVScrollSpeedIter != material.end())
             Read_Vec2(*maskUVScrollSpeedIter, materialDesc.maskUVScrollSpeed);
 
         materialDesc.twoSided = Read_Bool(material, "twoSided", materialDesc.twoSided);
@@ -896,11 +1066,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
 
     if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
     {
-        desc.sizeByLife.enabled = true;
-        desc.sizeByLife.multiplyXStart = Read_Float(*sizeByLife, "multiplyXStart", desc.sizeByLife.multiplyXStart);
-        desc.sizeByLife.multiplyXEnd = Read_Float(*sizeByLife, "multiplyXEnd", desc.sizeByLife.multiplyXEnd);
-        desc.sizeByLife.multiplyYStart = Read_Float(*sizeByLife, "multiplyYStart", desc.sizeByLife.multiplyYStart);
-        desc.sizeByLife.multiplyYEnd = Read_Float(*sizeByLife, "multiplyYEnd", desc.sizeByLife.multiplyYEnd);
+        Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
     }
 
     if (const json* initialVelocity = Find_ModuleData(emitter, "InitialVelocity"))
@@ -1108,11 +1274,7 @@ bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter,
 
     if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
     {
-        desc.sizeByLife.enabled = true;
-        desc.sizeByLife.multiplyXStart = Read_Float(*sizeByLife, "multiplyXStart", desc.sizeByLife.multiplyXStart);
-        desc.sizeByLife.multiplyXEnd = Read_Float(*sizeByLife, "multiplyXEnd", desc.sizeByLife.multiplyXEnd);
-        desc.sizeByLife.multiplyYStart = Read_Float(*sizeByLife, "multiplyYStart", desc.sizeByLife.multiplyYStart);
-        desc.sizeByLife.multiplyYEnd = Read_Float(*sizeByLife, "multiplyYEnd", desc.sizeByLife.multiplyYEnd);
+        Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
     }
 
     if (const json* spawnPerUnit = Find_ModuleData(emitter, "SpawnPerUnit"))

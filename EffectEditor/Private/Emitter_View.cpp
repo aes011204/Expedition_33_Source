@@ -1,6 +1,7 @@
 ﻿#include "Emitter_View.h"
 
 #include "Action_Command.h"
+#include "CurveEditor_View.h"
 #include "Editor_Context.h"
 #include "EffectAuthoringJsonSerializer.h"
 #include "EffectAuthoringModuleMetadata.h"
@@ -570,6 +571,11 @@ bool Emitter_View::Restore_AuthoringDocumentJson(const json& root)
     Mark_AllPreviewDirty();
     Clamp_Selection();
     Sync_SelectionContext();
+    if (EDITOR != nullptr)
+    {
+        if (const Shared<CurveEditor_View> curveEditor = dynamic_pointer_cast<CurveEditor_View>(EDITOR->Get_Window(L"Curve Editor")))
+            curveEditor->Clear_PinnedTracks();
+    }
     MarkDirty();
     return true;
 }
@@ -2171,6 +2177,26 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
                                ? To_ImVec4(kEmitterCategoryTextColor)
                                : ImGui::GetStyleColorVec4(ImGuiCol_Text);
     const bool moduleCompatible = Is_ModuleCompatibleWithEmitter(_emitters[emitterIndex], module.type);
+    const bool canPinCurve = [&module]
+    {
+        switch (module.type)
+        {
+        case AuthoringModuleType::Spawn:
+        case AuthoringModuleType::Lifetime:
+        case AuthoringModuleType::InitialSize:
+        case AuthoringModuleType::InitialRadialVelocity:
+        case AuthoringModuleType::Drag:
+        case AuthoringModuleType::InitialRotation:
+        case AuthoringModuleType::InitialRotationRate:
+        case AuthoringModuleType::InitialColor:
+        case AuthoringModuleType::ColorOverLife:
+        case AuthoringModuleType::SizeByLife:
+        case AuthoringModuleType::SpawnPerUnit:
+            return true;
+        default:
+            return false;
+        }
+    }();
     const ImVec4 moduleNameTextColor =
         !isSelected && module.enabled && !moduleCompatible
         ? To_ImVec4(kEmitterUnsupportedModuleTextColor)
@@ -2209,6 +2235,29 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
 
     if (!isRequiredRow)
     {
+        const float curveButtonRightPadding = canPinCurve ? moduleCheckboxRightPadding + ImGui::GetFrameHeight() + 4.f : moduleCheckboxRightPadding;
+        if (canPinCurve)
+        {
+            ImGui::SetCursorPos(
+                ImVec2(
+                    rowCursor.x + kEmitterColumnWidth - curveButtonRightPadding,
+                    rowCursor.y + (rowHeight - ImGui::GetFrameHeight()) * 0.5f
+                )
+            );
+            ImGui::PushID("PinCurves");
+            if (ImGui::SmallButton(ICON_FA_CHART_LINE))
+            {
+                if (EDITOR != nullptr)
+                {
+                    if (const Shared<CurveEditor_View> curveEditor = dynamic_pointer_cast<CurveEditor_View>(EDITOR->Get_Window(L"Curve Editor")))
+                        curveEditor->Pin_ModuleTargets(_emitters[emitterIndex].id, module.id);
+                }
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Pin module curves");
+            ImGui::PopID();
+        }
+
         ImGui::SetCursorPos(
             ImVec2(
                 rowCursor.x + kEmitterColumnWidth - moduleCheckboxRightPadding,

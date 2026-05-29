@@ -8,16 +8,16 @@
 cbuffer cbEffectTrailMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectTrailParams = { 1.f, 1.f, 0.f, 0.f };        // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectTrailAlphaParams = { 0.f, 0.f, 0.f, 0.f };   // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
-    float4 g_EffectTrailMainUVParams = { 1.f, 1.f, 0.f, 0.f };  // xy: scale, zw: scroll speed
-    float4 g_EffectTrailNoiseUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
-    float4 g_EffectTrailMaskUVParams = { 1.f, 1.f, 0.f, 0.f };  // xy: scale, zw: scroll speed
-    float4 g_EffectTrailUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: noise offset
+    float4 g_EffectTrailParams = { 1.f, 1.f, 0.f, 0.f };             // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectTrailAlphaParams = { 0.f, 0.f, 0.f, 0.f };        // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectTrailMainUVParams = { 1.f, 1.f, 0.f, 0.f };       // xy: scale, zw: scroll speed
+    float4 g_EffectTrailNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };      // xy: scale, zw: scroll speed
+    float4 g_EffectTrailMaskUVParams = { 1.f, 1.f, 0.f, 0.f };       // xy: scale, zw: scroll speed
+    float4 g_EffectTrailUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main offset, zw: noise offset
     float4 g_EffectTrailMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask offset, zw: reserved
-    float4 g_EffectTrailUVPolicyParams = { 1.f, 1.f, 0.f, 0.f }; // x: visible trail length, y: noise uv tiling, zw: reserved
-    float4 g_EffectTrailUVModeParams = { 0.f, 0.f, 0.f, 0.f };   // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
-    float4 g_EffectTrailAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
+    float4 g_EffectTrailUVPolicyParams = { 1.f, 1.f, 0.f, 0.f };     // x: visible trail length, y: noise uv tiling, zw: reserved
+    float4 g_EffectTrailUVModeParams = { 0.f, 0.f, 0.f, 0.f };       // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
+    float4 g_EffectTrailAdditiveParams = { 0.f, 0.f, 0.f, 1.f };     // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectTrailAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectTrailAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectTrailAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
@@ -57,22 +57,22 @@ bool Use_ClampSampler(float mode)
 float4 Sample_MainTexture(float2 uv, float mode)
 {
     return Use_ClampSampler(mode)
-        ? g_MainTexture.Sample(LinearClampSampler, uv)
-        : g_MainTexture.Sample(LinearWrapSampler, uv);
+           ? g_MainTexture.Sample(LinearClampSampler, uv)
+           : g_MainTexture.Sample(LinearWrapSampler, uv);
 }
 
 float Sample_NoiseTexture(float2 uv, float mode)
 {
     return Use_ClampSampler(mode)
-        ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
-        : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
+           ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
+           : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
 }
 
 float Sample_MaskTexture(float2 uv, float mode)
 {
     return Use_ClampSampler(mode)
-        ? g_MaskTexture.Sample(LinearClampSampler, uv).a
-        : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
+           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
 }
 
 struct VS_IN

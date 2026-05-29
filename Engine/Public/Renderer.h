@@ -70,6 +70,7 @@ private:
     void Render_SSAO();
     void Render_Lights();
     void Render_NonLight();
+    void Render_Distortion(); // HDRColor snapshot을 source로 쓰는 particle-local 왜곡 pass를 그린다.
 	void Render_Blend();
     void Render_ScreenFx();
 

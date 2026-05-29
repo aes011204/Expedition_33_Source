@@ -112,6 +112,18 @@ namespace Internal
         };
     }
 
+    static OverlayRect Compute_DebugOptionOverlayRect(const ImVec2& viewportMin, const ImVec2& viewportMax)
+    {
+        const OverlayRect previewRect = Compute_PreviewViewportOverlayRect(viewportMin, viewportMax);
+        const ImVec2 panelSize = ImVec2(280.f, 34.f);
+        const ImVec2 panelMin = ImVec2(previewRect.max.x - panelSize.x, previewRect.max.y + 8.f);
+
+        return {
+            panelMin,
+            ImVec2(panelMin.x + panelSize.x, panelMin.y + panelSize.y)
+        };
+    }
+
     static bool Is_PointInRect(const ImVec2& point, const OverlayRect& rect)
     {
         return point.x >= rect.min.x && point.x <= rect.max.x &&
@@ -133,15 +145,16 @@ namespace Internal
         const OverlayRect pinRect = Compute_ToolbarPinRect(viewportMin, viewportMax);
         const OverlayRect gizmoRect = Compute_GizmoOverlayRect(viewportMin, viewportMax);
         const OverlayRect previewRect = Compute_PreviewViewportOverlayRect(viewportMin, viewportMax);
+        const OverlayRect debugRect = Compute_DebugOptionOverlayRect(viewportMin, viewportMax);
 
         return {
             ImVec2(
-                min(min(pinRect.min.x, gizmoRect.min.x), previewRect.min.x),
-                min(min(pinRect.min.y, gizmoRect.min.y), previewRect.min.y)
+                min(min(min(pinRect.min.x, gizmoRect.min.x), previewRect.min.x), debugRect.min.x),
+                min(min(min(pinRect.min.y, gizmoRect.min.y), previewRect.min.y), debugRect.min.y)
             ),
             ImVec2(
-                max(max(pinRect.max.x, gizmoRect.max.x), previewRect.max.x),
-                max(max(pinRect.max.y, gizmoRect.max.y), previewRect.max.y)
+                max(max(max(pinRect.max.x, gizmoRect.max.x), previewRect.max.x), debugRect.max.x),
+                max(max(max(pinRect.max.y, gizmoRect.max.y), previewRect.max.y), debugRect.max.y)
             )
         };
     }
@@ -410,6 +423,32 @@ void Scene_View::Render_ViewportToolbarOverlay()
         Internal::Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
         Internal::Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
     Render_PreviewViewportOverlay();
+    _isViewportToolbarInteracting =
+        _isViewportToolbarInteracting ||
+        ImGui::IsAnyItemActive() ||
+        Internal::Should_OpenToolbarOverlay(_viewportMin, _viewportMax) ||
+        Internal::Should_KeepToolbarOverlay(_viewportMin, _viewportMax);
+
+    const Internal::OverlayRect debugRect = Internal::Compute_DebugOptionOverlayRect(_viewportMin, _viewportMax);
+    drawList->AddRectFilled(debugRect.min, debugRect.max, IM_COL32(36, 38, 42, 220), 6.f);
+    drawList->AddRect(debugRect.min, debugRect.max, IM_COL32(92, 96, 104, 255), 6.f);
+
+    ImGui::SetCursorScreenPos(ImVec2(debugRect.min.x + 8.f, debugRect.min.y + 5.f));
+    ImGui::PushID("DebugOptionOverlay");
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5.f, 3.f));
+
+    bool influenceOutlineEnabled = EDITOR->Is_EffectInfluenceOutlineEnabled();
+    if (ImGui::Checkbox("Influence Outline", &influenceOutlineEnabled))
+        EDITOR->Set_EffectInfluenceOutlineEnabled(influenceOutlineEnabled);
+
+    ImGui::SameLine(0.f, 10.f);
+    bool trailPreviewVisible = EDITOR->Is_TrailPreviewVisible();
+    if (ImGui::Checkbox("Preview Object", &trailPreviewVisible))
+        EDITOR->Set_TrailPreviewVisible(trailPreviewVisible);
+
+    ImGui::PopStyleVar();
+    ImGui::PopID();
+
     _isViewportToolbarInteracting =
         _isViewportToolbarInteracting ||
         ImGui::IsAnyItemActive() ||
