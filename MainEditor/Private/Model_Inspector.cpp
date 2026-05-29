@@ -22,6 +22,41 @@ static TextureSearchCache   g_TextureSearchCache  {};
 static TextureFolderCache   g_TextureFolderCache  {};
 static TextureMipCache      g_TextureMipCache     {};
 
+namespace
+{
+    string Build_ClippedButtonLabel(const string& visibleText, float buttonWidth, const char* hiddenIdSuffix)
+    {
+        const float horizontalPadding = ImGui::GetStyle().FramePadding.x * 2.f;
+        const float availableTextWidth = max(0.f, buttonWidth - horizontalPadding);
+        const float fullTextWidth = ImGui::CalcTextSize(visibleText.c_str()).x;
+
+        if (fullTextWidth <= availableTextWidth)
+            return visibleText + hiddenIdSuffix;
+
+        static constexpr char kEllipsis[] = "...";
+        const float ellipsisWidth = ImGui::CalcTextSize(kEllipsis).x;
+
+        string clippedText{};
+        clippedText.reserve(visibleText.size());
+
+        for (char ch : visibleText)
+        {
+            const string candidate = clippedText + ch;
+            if (ImGui::CalcTextSize(candidate.c_str()).x + ellipsisWidth > availableTextWidth)
+                break;
+
+            clippedText.push_back(ch);
+        }
+
+        if (clippedText.empty())
+            clippedText = kEllipsis;
+        else
+            clippedText += kEllipsis;
+
+        return clippedText + hiddenIdSuffix;
+    }
+}
+
 void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 {
     Shared<ModelCom> model = dynamic_pointer_cast<ModelCom>(component);
@@ -349,8 +384,14 @@ void ModelCom_Inspector::Draw_ModelPicker(const Shared<Engine::ModelCom>& model)
     ImGui::TextDisabled("Mesh");
     ImGui::SameLine(120.f);
 
-    if (ImGui::Button(displayName.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0.f)))
+    const float buttonWidth = ImGui::GetContentRegionAvail().x;
+    const string buttonLabel = Build_ClippedButtonLabel(displayName, buttonWidth, "##ModelComModelPickerButton");
+
+    if (ImGui::Button(buttonLabel.c_str(), ImVec2(buttonWidth, 0.f)))
         ImGui::OpenPopup("##ModelComModelPicker");
+
+    if (buttonLabel != displayName + "##ModelComModelPickerButton" && ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", displayName.c_str());
 
     if (ImGui::BeginPopup("##ModelComModelPicker"))
     {

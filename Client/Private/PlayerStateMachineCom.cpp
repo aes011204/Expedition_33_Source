@@ -69,6 +69,17 @@ bool PlayerStateMachineCom::Change_State(PlayerState playerState)
     return StateMachineCom::Change_State(str);
 }
 
+Shared<State> PlayerStateMachineCom::Get_State(PlayerState playerState) const
+{
+    const wstring stateName = String::ToWString(magic_enum::enum_name(playerState).data());
+
+    auto iter = _states.find(stateName);
+    if (iter == _states.end())
+        return nullptr;
+
+    return iter->second;
+}
+
 PlayerState PlayerStateMachineCom::Get_CurrentPlayerState() const
 {
     auto str = String::ToString(_currentStateName);

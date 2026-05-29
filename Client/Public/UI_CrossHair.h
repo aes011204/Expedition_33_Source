@@ -30,6 +30,7 @@ private:
     HRESULT Bind_UI();
 
     void    Play_CrossAirAnimation(const wstring& animationName);
+    
 
 private:
     Shared<UI_Base> _outlineRoot{};

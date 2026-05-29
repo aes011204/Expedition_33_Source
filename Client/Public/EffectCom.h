@@ -68,6 +68,15 @@ public:
                 const Weak<IEffectTrailSampleProvider>& trailSampleProvider = {});
 #pragma endregion
 
+#pragma region 이팩트 재생
+    HRESULT Play_Effect(
+                uint32 levelIndex,
+                const wstring& effectName,
+                const wstring& layerTag,
+                const Vec3& localOffset = Vec3::Zero);
+#pragma endregion
+
+
 #pragma region ANS_Trail에서 사용할 Play, Stop Trail
      HRESULT Play_TrailEffect(
                 const wstring& effectName,

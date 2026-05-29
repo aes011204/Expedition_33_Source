@@ -38,8 +38,6 @@ void AN_Attack::Execute(const AnimNotifyContext& context)
 
     // 어택 한번 한거다 라는 표시
     turnAction.Spend_AttackStep();
-
-
 }
 
 AttackType AN_Attack::ResolveAttackType(const BattleAction& action, uint32 index)

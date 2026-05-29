@@ -43,6 +43,7 @@ void UI_CrossHair::Open()
     {
         _isHit = false;
         _hasHitState = false;
+
         Play_CrossAirAnimation(L"Ready_CrossAir");
     }
         

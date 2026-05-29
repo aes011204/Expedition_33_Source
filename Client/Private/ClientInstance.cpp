@@ -288,6 +288,11 @@ void ClientInstance::Reset_AllHeroesToIdle()
     return _heroManager->Reset_AllHeroesToIdle();
 }
 
+bool ClientInstance::Is_ActiveHero(const Shared<GameObject>& target) const
+{
+    return _heroManager->Is_ActiveHero(target);
+}
+
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 {
     Clear_GameplayUI();

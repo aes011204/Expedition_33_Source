@@ -162,6 +162,12 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     if (CLIENT->Is_BattleActive() || CLIENT->Is_BattleEntering())
         return;
 
+        const Shared<GameObject> overlapOwner = other ? other->Get_Owner() : nullptr;
+
+    // 충돌된 플레이어가 Active 플레이어가 아니라면 배틀 진입 X
+    if (!CLIENT->Is_ActiveHero(overlapOwner))
+        return;
+
     _isBattleStart = true;
 
     if (self)
