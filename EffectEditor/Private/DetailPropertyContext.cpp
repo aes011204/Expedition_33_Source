@@ -1074,6 +1074,128 @@ private: //## Label Helpers
         }
     }
 
+    enum class CurveKeyHeaderAction
+    {
+        None,
+        MoveUp,
+        MoveDown,
+        Remove,
+    };
+
+    template <typename TKey>
+    static float Compute_NewCurveKeyTime(const vector<TKey>& keys)
+    {
+        if (keys.empty())
+            return 0.f;
+
+        if (keys.size() == 1)
+            return keys.front().time < 0.5f ? 1.f : 0.f;
+
+        vector<float> times{};
+        times.reserve(keys.size());
+        for (const TKey& key : keys)
+            times.push_back(clamp(key.time, 0.f, 1.f));
+
+        ranges::sort(times);
+
+        float bestLeft = 0.f;
+        float bestRight = times.front();
+        float bestGap = bestRight - bestLeft;
+        for (size_t index = 1; index < times.size(); ++index)
+        {
+            const float left = times[index - 1];
+            const float right = times[index];
+            const float gap = right - left;
+            if (gap > bestGap)
+            {
+                bestLeft = left;
+                bestRight = right;
+                bestGap = gap;
+            }
+        }
+
+        const float tailGap = 1.f - times.back();
+        if (tailGap > bestGap)
+        {
+            bestLeft = times.back();
+            bestRight = 1.f;
+            bestGap = tailGap;
+        }
+
+        if (bestGap <= 0.f)
+            return clamp(keys.back().time, 0.f, 1.f);
+
+        return clamp((bestLeft + bestRight) * 0.5f, 0.f, 1.f);
+    }
+
+    CurveKeyHeaderAction Draw_CurveKeyHeaderActions(size_t index, size_t keyCount)
+    {
+        CurveKeyHeaderAction action = CurveKeyHeaderAction::None;
+        const bool canMoveUp = index > 0;
+        const bool canMoveDown = index + 1 < keyCount;
+        const bool canRemove = keyCount > 1;
+
+        auto draw_action_button = [&](const char* label, const char* tooltip, bool enabled, CurveKeyHeaderAction buttonAction)
+        {
+            if (!enabled)
+                ImGui::BeginDisabled();
+
+            if (ImGui::SmallButton(label) && enabled)
+                action = buttonAction;
+
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+                ImGui::SetTooltip("%s", tooltip);
+
+            if (!enabled)
+                ImGui::EndDisabled();
+        };
+
+        draw_action_button(ICON_FA_ARROW_UP "##MoveUp", "위로 이동", canMoveUp, CurveKeyHeaderAction::MoveUp);
+        ImGui::SameLine();
+        draw_action_button(ICON_FA_ARROW_DOWN "##MoveDown", "아래로 이동", canMoveDown, CurveKeyHeaderAction::MoveDown);
+        ImGui::SameLine();
+        draw_action_button(ICON_FA_TRASH "##Remove", "인덱스 삭제", canRemove, CurveKeyHeaderAction::Remove);
+
+        return action;
+    }
+
+    template <typename TKey>
+    static bool Apply_CurveKeyHeaderAction(vector<TKey>& keys, size_t index, CurveKeyHeaderAction action)
+    {
+        switch (action)
+        {
+        case CurveKeyHeaderAction::MoveUp:
+            if (index > 0 && index < keys.size())
+            {
+                swap(keys[index].time, keys[index - 1].time);
+                return true;
+            }
+            break;
+
+        case CurveKeyHeaderAction::MoveDown:
+            if (index + 1 < keys.size())
+            {
+                swap(keys[index].time, keys[index + 1].time);
+                return true;
+            }
+            break;
+
+        case CurveKeyHeaderAction::Remove:
+            if (keys.size() > 1 && index < keys.size())
+            {
+                keys.erase(keys.begin() + static_cast<vector<TKey>::difference_type>(index));
+                return true;
+            }
+            break;
+
+        case CurveKeyHeaderAction::None:
+        default:
+            break;
+        }
+
+        return false;
+    }
+
     bool Draw_FloatCurveKeyListProperty(
         ConstantCurveFloatDistributionData& value,
         const ConstantCurveFloatDistributionData& defaultValue,
@@ -1088,14 +1210,15 @@ private: //## Label Helpers
         ImGui::SameLine();
         if (ImGui::Button(ICON_FA_PLUS "##AddFloatCurveKey"))
         {
-            const FloatCurveKeyData seed = value.keys.empty() ? FloatCurveKeyData{} : value.keys.back();
+            FloatCurveKeyData seed = value.keys.empty() ? FloatCurveKeyData{} : value.keys.back();
+            seed.time = Compute_NewCurveKeyTime(value.keys);
             value.keys.push_back(seed);
             changed = true;
         }
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
-        for (size_t index = 0; index < value.keys.size(); ++index)
+        for (size_t index = 0; index < value.keys.size();)
         {
             ImGui::PushID(static_cast<int>(index));
             FloatCurveKeyData& key = value.keys[index];
@@ -1108,10 +1231,21 @@ private: //## Label Helpers
             _basicDrawer.Push_RowTint(Get_DistributionKeyHeaderRowTint());
             _basicDrawer.Push_LabelTint(Get_DistributionKeyLabelTint());
             const bool isOpen = _basicDrawer.Draw_TreePropertyLabel(rowId.c_str());
-            ImGui::PushID("HeaderReset");
-            _basicDrawer.Draw_ResetButton(false);
-            ImGui::PopID();
+            const CurveKeyHeaderAction headerAction = Draw_CurveKeyHeaderActions(index, value.keys.size());
             _basicDrawer.Pop_LabelTint();
+            if (Apply_CurveKeyHeaderAction(value.keys, index, headerAction))
+            {
+                changed = true;
+                if (isOpen)
+                    ImGui::TreePop();
+                _basicDrawer.Pop_RowTint();
+                ImGui::PopID();
+                if (headerAction == CurveKeyHeaderAction::Remove)
+                    continue;
+
+                ++index;
+                continue;
+            }
             if (isOpen)
             {
                 _basicDrawer.Push_RowTint(Get_DistributionKeyBodyRowTint());
@@ -1134,14 +1268,13 @@ private: //## Label Helpers
                 _basicDrawer.Draw_ResetButton(false);
                 ImGui::PopID();
 
-                const bool showTangents =
-                    key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped &&
-                    ImGui::TreeNode("고급");
-                if (showTangents)
+                if (key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
                 {
+                    _basicDrawer.Draw_PropertyLabel("고급");
+                    ImGui::TextDisabled("Curve Auto Clamped");
+                    _basicDrawer.Draw_ResetButton(false);
                     changed |= _basicDrawer.Draw_FloatProperty("도착 탄젠트", key.arriveTangent, defaultKey.arriveTangent, speed);
                     changed |= _basicDrawer.Draw_FloatProperty("출발 탄젠트", key.leaveTangent, defaultKey.leaveTangent, speed);
-                    ImGui::TreePop();
                 }
 
                 _basicDrawer.Pop_RowTint();
@@ -1149,6 +1282,7 @@ private: //## Label Helpers
             }
             _basicDrawer.Pop_RowTint();
             ImGui::PopID();
+            ++index;
         }
 
         return changed;
@@ -1168,14 +1302,15 @@ private: //## Label Helpers
         ImGui::SameLine();
         if (ImGui::Button(ICON_FA_PLUS "##AddVector2CurveKey"))
         {
-            const Vector2CurveKeyData seed = value.keys.empty() ? Vector2CurveKeyData{} : value.keys.back();
+            Vector2CurveKeyData seed = value.keys.empty() ? Vector2CurveKeyData{} : value.keys.back();
+            seed.time = Compute_NewCurveKeyTime(value.keys);
             value.keys.push_back(seed);
             changed = true;
         }
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
-        for (size_t index = 0; index < value.keys.size(); ++index)
+        for (size_t index = 0; index < value.keys.size();)
         {
             ImGui::PushID(static_cast<int>(index));
             Vector2CurveKeyData& key = value.keys[index];
@@ -1188,10 +1323,21 @@ private: //## Label Helpers
             _basicDrawer.Push_RowTint(Get_DistributionKeyHeaderRowTint());
             _basicDrawer.Push_LabelTint(Get_DistributionKeyLabelTint());
             const bool isOpen = _basicDrawer.Draw_TreePropertyLabel(rowId.c_str());
-            ImGui::PushID("HeaderReset");
-            _basicDrawer.Draw_ResetButton(false);
-            ImGui::PopID();
+            const CurveKeyHeaderAction headerAction = Draw_CurveKeyHeaderActions(index, value.keys.size());
             _basicDrawer.Pop_LabelTint();
+            if (Apply_CurveKeyHeaderAction(value.keys, index, headerAction))
+            {
+                changed = true;
+                if (isOpen)
+                    ImGui::TreePop();
+                _basicDrawer.Pop_RowTint();
+                ImGui::PopID();
+                if (headerAction == CurveKeyHeaderAction::Remove)
+                    continue;
+
+                ++index;
+                continue;
+            }
             if (isOpen)
             {
                 _basicDrawer.Push_RowTint(Get_DistributionKeyBodyRowTint());
@@ -1213,14 +1359,14 @@ private: //## Label Helpers
                 ImGui::PushID("InterpolationReset");
                 _basicDrawer.Draw_ResetButton(false);
                 ImGui::PopID();
-                const bool showTangents =
-                    key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped &&
-                    ImGui::TreeNode("고급");
-                if (showTangents)
+
+                if (key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
                 {
+                    _basicDrawer.Draw_PropertyLabel("고급");
+                    ImGui::TextDisabled("Curve Auto Clamped");
+                    _basicDrawer.Draw_ResetButton(false);
                     changed |= _basicDrawer.Draw_Vec2Property("도착 탄젠트", key.arriveTangent, defaultKey.arriveTangent, speed);
                     changed |= _basicDrawer.Draw_Vec2Property("출발 탄젠트", key.leaveTangent, defaultKey.leaveTangent, speed);
-                    ImGui::TreePop();
                 }
 
                 _basicDrawer.Pop_RowTint();
@@ -1228,6 +1374,7 @@ private: //## Label Helpers
             }
             _basicDrawer.Pop_RowTint();
             ImGui::PopID();
+            ++index;
         }
 
         return changed;
@@ -1247,14 +1394,15 @@ private: //## Label Helpers
         ImGui::SameLine();
         if (ImGui::Button(ICON_FA_PLUS "##AddVector3CurveKey"))
         {
-            const Vector3CurveKeyData seed = value.keys.empty() ? Vector3CurveKeyData{} : value.keys.back();
+            Vector3CurveKeyData seed = value.keys.empty() ? Vector3CurveKeyData{} : value.keys.back();
+            seed.time = Compute_NewCurveKeyTime(value.keys);
             value.keys.push_back(seed);
             changed = true;
         }
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
-        for (size_t index = 0; index < value.keys.size(); ++index)
+        for (size_t index = 0; index < value.keys.size();)
         {
             ImGui::PushID(static_cast<int>(index));
             Vector3CurveKeyData& key = value.keys[index];
@@ -1267,10 +1415,21 @@ private: //## Label Helpers
             _basicDrawer.Push_RowTint(Get_DistributionKeyHeaderRowTint());
             _basicDrawer.Push_LabelTint(Get_DistributionKeyLabelTint());
             const bool isOpen = _basicDrawer.Draw_TreePropertyLabel(rowId.c_str());
-            ImGui::PushID("HeaderReset");
-            _basicDrawer.Draw_ResetButton(false);
-            ImGui::PopID();
+            const CurveKeyHeaderAction headerAction = Draw_CurveKeyHeaderActions(index, value.keys.size());
             _basicDrawer.Pop_LabelTint();
+            if (Apply_CurveKeyHeaderAction(value.keys, index, headerAction))
+            {
+                changed = true;
+                if (isOpen)
+                    ImGui::TreePop();
+                _basicDrawer.Pop_RowTint();
+                ImGui::PopID();
+                if (headerAction == CurveKeyHeaderAction::Remove)
+                    continue;
+
+                ++index;
+                continue;
+            }
             if (isOpen)
             {
                 _basicDrawer.Push_RowTint(Get_DistributionKeyBodyRowTint());
@@ -1292,14 +1451,14 @@ private: //## Label Helpers
                 ImGui::PushID("InterpolationReset");
                 _basicDrawer.Draw_ResetButton(false);
                 ImGui::PopID();
-                const bool showTangents =
-                    key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped &&
-                    ImGui::TreeNode("고급");
-                if (showTangents)
+
+                if (key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
                 {
+                    _basicDrawer.Draw_PropertyLabel("고급");
+                    ImGui::TextDisabled("Curve Auto Clamped");
+                    _basicDrawer.Draw_ResetButton(false);
                     changed |= _basicDrawer.Draw_Vec3Property("도착 탄젠트", key.arriveTangent, defaultKey.arriveTangent, speed);
                     changed |= _basicDrawer.Draw_Vec3Property("출발 탄젠트", key.leaveTangent, defaultKey.leaveTangent, speed);
-                    ImGui::TreePop();
                 }
 
                 _basicDrawer.Pop_RowTint();
@@ -1307,6 +1466,7 @@ private: //## Label Helpers
             }
             _basicDrawer.Pop_RowTint();
             ImGui::PopID();
+            ++index;
         }
 
         return changed;
@@ -1325,14 +1485,15 @@ private: //## Label Helpers
         ImGui::SameLine();
         if (ImGui::Button(ICON_FA_PLUS "##AddColorCurveKey"))
         {
-            const ColorCurveKeyData seed = value.keys.empty() ? ColorCurveKeyData{} : value.keys.back();
+            ColorCurveKeyData seed = value.keys.empty() ? ColorCurveKeyData{} : value.keys.back();
+            seed.time = Compute_NewCurveKeyTime(value.keys);
             value.keys.push_back(seed);
             changed = true;
         }
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
-        for (size_t index = 0; index < value.keys.size(); ++index)
+        for (size_t index = 0; index < value.keys.size();)
         {
             ImGui::PushID(static_cast<int>(index));
             ColorCurveKeyData& key = value.keys[index];
@@ -1345,10 +1506,21 @@ private: //## Label Helpers
             _basicDrawer.Push_RowTint(Get_DistributionKeyHeaderRowTint());
             _basicDrawer.Push_LabelTint(Get_DistributionKeyLabelTint());
             const bool isOpen = _basicDrawer.Draw_TreePropertyLabel(rowId.c_str());
-            ImGui::PushID("HeaderReset");
-            _basicDrawer.Draw_ResetButton(false);
-            ImGui::PopID();
+            const CurveKeyHeaderAction headerAction = Draw_CurveKeyHeaderActions(index, value.keys.size());
             _basicDrawer.Pop_LabelTint();
+            if (Apply_CurveKeyHeaderAction(value.keys, index, headerAction))
+            {
+                changed = true;
+                if (isOpen)
+                    ImGui::TreePop();
+                _basicDrawer.Pop_RowTint();
+                ImGui::PopID();
+                if (headerAction == CurveKeyHeaderAction::Remove)
+                    continue;
+
+                ++index;
+                continue;
+            }
             if (isOpen)
             {
                 _basicDrawer.Push_RowTint(Get_DistributionKeyBodyRowTint());
@@ -1376,6 +1548,7 @@ private: //## Label Helpers
             }
             _basicDrawer.Pop_RowTint();
             ImGui::PopID();
+            ++index;
         }
 
         return changed;

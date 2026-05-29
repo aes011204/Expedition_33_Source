@@ -663,6 +663,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrailDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
