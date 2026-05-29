@@ -31,6 +31,10 @@ public:
     HRESULT Reset_ForEffectReplay() override; // effect root 재사용 시 sprite playback runtime을 초기화한다.
     bool Is_EffectFinished() const override;  // sprite playback이 마지막 loop를 끝냈는지 반환한다.
 
+public: //## Debug::EditorSession
+    static void Set_InfluenceOutlineDebugEnabled(bool enabled); // EffectEditor 세션에서 sprite influence outline shader overlay를 켜고 끈다.
+    static bool Is_InfluenceOutlineDebugEnabled();
+
 protected:
     void On_EffectTransformSynced() override; // root/local-space sync 직후 compute center를 즉시 갱신한다.
 
@@ -50,17 +54,21 @@ private: //## Types::PlaybackRuntime
     };
 
 private: //## Static Values
-    static constexpr const char* kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
-    static constexpr const char* kEffectSpriteShaderId{ "Shader_EffectSprite" };
+    static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
+    static constexpr auto kEffectSpriteShaderId{ "Shader_EffectSprite" };
+    static constexpr auto kEffectDistortionSpriteShaderId{ "Shader_EffectDistortionSprite" }; // SpriteDistortion family가 사용할 전용 shader id다.
     static constexpr int kOpacitySourceAlpha{ 0 };
     static constexpr int kOpacitySourceRed{ 1 };
     static constexpr int kOpacitySourceLuminance{ 2 };
+    static constexpr float kInfluenceOutlinePixelWidthScale{ 2.f };
+    inline static bool _isInfluenceOutlineDebugEnabled{ false };
 
 private: //## Data::Components
     Shared<ShaderCom> _shader{};                          // EffectSprite material effect shader.
     Shared<Texture> _texture{};                           // compute sprite effect main texture.
     Shared<Texture> _noiseTexture{};                      // 선택 noise texture. 없으면 material noise를 비활성화한다.
     Shared<Texture> _maskTexture{};                       // 선택 mask texture. 없으면 material mask/erosion을 비활성화한다.
+    Shared<Texture> _flowTexture{};                       // 선택 flow texture. 없으면 distortion offset을 0으로 처리한다.
     Shared<VIBufferCom_ComputePointParticle> _viBuffer{}; // compute output을 instance draw로 제출하는 검증 버퍼.
 
 private: //## Data::Desc
@@ -84,12 +92,18 @@ private: //## Helper::Setup
     HRESULT Ready_ShaderComponent();                                        // compute sprite effect가 사용할 EffectSprite shader를 준비한다.
     HRESULT Ready_NoiseTextureComponent(const string& resolvedTexturePath); // 선택 noise texture를 준비하고 없으면 noise path를 비활성화한다.
     HRESULT Ready_MaskTextureComponent(const string& resolvedTexturePath);  // 선택 mask texture를 준비하고 없으면 alpha mask를 비활성화한다.
+    HRESULT Ready_FlowTextureComponent(const string& resolvedTexturePath);  // SpriteDistortion용 flow texture를 준비하고 없으면 neutral flow로 둔다.
 
 private: //## Helper::Render
-    HRESULT Bind_ShaderResources();         // EffectSprite shader에 camera/texture resource를 바인딩한다.
-    HRESULT Bind_MaterialResources();       // EffectSprite material 파라미터를 shader에 바인딩한다.
-    int Resolve_OpacitySourceIndex() const; // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
-    uint32 Resolve_BlendPassIndex() const;  // material blend mode에 맞는 EffectSprite shader pass를 고른다.
+    HRESULT Bind_ShaderResources();          // EffectSprite shader에 camera/texture resource를 바인딩한다.
+    HRESULT Bind_MaterialResources();        // EffectSprite material 파라미터를 shader에 바인딩한다.
+    HRESULT Bind_DistortionResources();      // SpriteDistortion shader에 scene snapshot과 flow 파라미터를 바인딩한다.
+    bool Is_DistortionFamily() const;        // 현재 material family가 sprite distortion 경로인지 확인한다.
+    RenderGroup Resolve_RenderGroup() const; // material family에 맞는 renderer group을 반환한다.
+    const char* Resolve_ShaderId() const;    // material family에 맞는 shader prototype id를 반환한다.
+    uint32 Resolve_ShaderPassIndex() const;  // 현재 shader에서 사용할 pass index를 반환한다.
+    int Resolve_OpacitySourceIndex() const;  // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
+    uint32 Resolve_BlendPassIndex() const;   // material blend mode에 맞는 EffectSprite shader pass를 고른다.
 
 private: //## Helper::Desc
     ComputePointParticleDesc Make_ComputePointParticleDesc() const; // compute sprite effect용 particle 규칙을 만든다.

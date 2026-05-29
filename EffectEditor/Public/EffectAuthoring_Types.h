@@ -129,6 +129,28 @@ struct ConstantCurveFloatDistributionData
     };
 };
 
+// 분포 Vec2 상수 커브의 필요 값들이다.
+struct Vector2CurveKeyData
+{
+    float time{ 0.f };          // 0..1 공통축에서 이 key의 위치다.
+    Vec2 value{ 0.f, 0.f };     // 이 key 시점의 X/Y 출력값이다.
+    Vec2 arriveTangent{};       // key로 들어오는 X/Y 곡선 기울기다.
+    Vec2 leaveTangent{};        // key에서 나가는 X/Y 곡선 기울기다.
+    FloatCurveInterpolationMode interpolationMode{
+        FloatCurveInterpolationMode::Linear
+    }; // 이 key 이후 구간의 보간 방식을 결정한다.
+};
+
+// 분포 Vec2 상수 커브의 보간 key 목록을 보관한다.
+struct ConstantCurveVector2DistributionData
+{
+    // 분포 Vec2 상수 커브의 authoring key 목록이다.
+    vector<Vector2CurveKeyData> keys{
+        Vector2CurveKeyData{ 0.f, Vec2{ 0.f, 0.f }, Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear },
+        Vector2CurveKeyData{ 1.f, Vec2{ 0.f, 0.f }, Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear }
+    };
+};
+
 struct ConstantFloatDistributionData
 {
     float value{ 0.f };
@@ -178,6 +200,19 @@ struct FloatDistributionData
         };
         return data;
     }
+
+    static FloatDistributionData Make_ConstantCurve(float startValue, float endValue)
+    {
+        FloatDistributionData data{};
+        data.mode = DistributionMode::ConstantCurve;
+        data.payload = ConstantCurveFloatDistributionData{
+            {
+                FloatCurveKeyData{ 0.f, startValue, 0.f, 0.f, FloatCurveInterpolationMode::Linear },
+                FloatCurveKeyData{ 1.f, endValue, 0.f, 0.f, FloatCurveInterpolationMode::Linear }
+            }
+        };
+        return data;
+    }
 };
 
 struct ConstantVector2DistributionData
@@ -193,7 +228,10 @@ struct UniformVector2DistributionData
 
 struct Vector2DistributionData
 {
-    using Payload = variant<ConstantVector2DistributionData, UniformVector2DistributionData>;
+    using Payload = variant<
+        ConstantVector2DistributionData,
+        UniformVector2DistributionData,
+        ConstantCurveVector2DistributionData>;
 
     DistributionMode mode{ DistributionMode::Constant };
     Payload payload{ ConstantVector2DistributionData{} };
@@ -211,6 +249,32 @@ struct Vector2DistributionData
         Vector2DistributionData data{};
         data.mode = DistributionMode::Uniform;
         data.payload = UniformVector2DistributionData{ minValue, maxValue };
+        return data;
+    }
+
+    static Vector2DistributionData Make_ConstantCurve(const Vec2& value)
+    {
+        Vector2DistributionData data{};
+        data.mode = DistributionMode::ConstantCurve;
+        data.payload = ConstantCurveVector2DistributionData{
+            {
+                Vector2CurveKeyData{ 0.f, value, Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear },
+                Vector2CurveKeyData{ 1.f, value, Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear }
+            }
+        };
+        return data;
+    }
+
+    static Vector2DistributionData Make_ConstantCurve(const Vec2& startValue, const Vec2& endValue)
+    {
+        Vector2DistributionData data{};
+        data.mode = DistributionMode::ConstantCurve;
+        data.payload = ConstantCurveVector2DistributionData{
+            {
+                Vector2CurveKeyData{ 0.f, startValue, Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear },
+                Vector2CurveKeyData{ 1.f, endValue, Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear }
+            }
+        };
         return data;
     }
 };
@@ -338,7 +402,7 @@ struct RequiredModuleData
     Vec3 emitterOrigin{ 0.f, 0.f, 0.f };
     Vec3 emitterRotationDegrees{ 0.f, 0.f, 0.f };
 
-    EmitterScreenAlignment screenAlignment{ EmitterScreenAlignment::Square };
+    EmitterScreenAlignment screenAlignment{ EmitterScreenAlignment::FacingCameraPosition };
     // AwayFromCenter/Velocity에서 기준 방향을 look으로 쓸지 texture 축으로 쓸지 결정한다.
     EmitterDirectionalAlignmentMode directionalAlignmentMode{ EmitterDirectionalAlignmentMode::TextureAxis };
     // TextureAxis mode에서 기준 방향에 맞출 texture 축이다.
@@ -492,10 +556,17 @@ struct SubUVFrameOverLifeModuleData
 
 struct SizeByLifeModuleData
 {
-    float multiplyXStart{ 1.f };
-    float multiplyXEnd{ 1.f };
-    float multiplyYStart{ 1.f };
-    float multiplyYEnd{ 1.f };
+    enum class AxisLock : uint8
+    {
+        None,
+        X,
+        Y,
+    };
+
+    Vector2DistributionData scaleOverLife{ Vector2DistributionData::Make_ConstantCurve(Vec2{ 1.f, 1.f }) };
+    bool multiplyX{ true };
+    bool multiplyY{ true };
+    AxisLock axisLock{ AxisLock::None };
 };
 
 struct SpawnPerUnitModuleData

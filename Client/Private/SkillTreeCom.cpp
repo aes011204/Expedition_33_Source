@@ -16,7 +16,7 @@ SkillTreeCom::~SkillTreeCom()
 
 HRESULT SkillTreeCom::Initialize(void* arg)
 {
-    CHECK_FAILED(__super::Initialize(arg), E_FAIL)
+    CHECK_FAILED(__super::Initialize(arg), E_FAIL);
    
     return S_OK;
 }

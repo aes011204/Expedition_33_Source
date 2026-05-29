@@ -394,7 +394,36 @@
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
@@ -403,22 +432,22 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
@@ -442,6 +471,10 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectDistortionSprite.hlsl">
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl" />
@@ -522,6 +555,11 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\ANS_Dodge.h">
