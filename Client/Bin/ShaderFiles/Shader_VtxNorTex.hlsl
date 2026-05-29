@@ -16,7 +16,9 @@ float g_Far = 0.f;
 //==================================================
 // TEXTURE
 //==================================================
-Texture2D g_DiffuseTexture;
+//Texture2D g_DiffuseTexture;
+Texture2D g_Layer0, g_Layer1, g_Layer2, g_Layer3;
+Texture2D g_Weight0, g_Weight1, g_Weight2, g_Weight3;
 
 vector g_vBrushPosition = vector(70.f, 0.f, 20.f, 1.f);
 
@@ -78,20 +80,40 @@ struct PS_OUT
     vector Diffuse  : SV_TARGET0;
     vector Normal   : SV_TARGET1;
     vector Depth    : SV_TARGET2;
+    vector Material : SV_TARGET3; // r=AO, g=Roughness, b=Metalness
+    vector Emissive : SV_TARGET4;
 };
 
 PS_OUT PS_Default(PS_IN In)
 {
     PS_OUT Out;
-    vector mtrlDiffuse = g_DiffuseTexture.Sample(LinearWrapSampler, In.Texcoord * 30.f);
-    Out.Diffuse = vector(mtrlDiffuse.rgb, 1.f);
+    Out.Diffuse = float4(1.f, 1.f, 1.f, 1.f);
     Out.Normal = vector(In.Normal.xyz * 0.5f + 0.5f, 1.f);
     Out.Depth = vector(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = vector(1.f, 0.8f, 0.f, 0.f);
+    Out.Emissive = vector(0.f, 0.f, 0.f, 0.f);
     
+    return Out;
+}
+
+PS_OUT PS_Layer(PS_IN In)
+{
+    PS_OUT Out;
+    float2 tiledUV = In.Texcoord * 30.f;
+    float4 color = g_Layer0.Sample(LinearWrapSampler, tiledUV) * g_Weight0.Sample(LinearClampSampler, In.Texcoord).r
+                 + g_Layer1.Sample(LinearWrapSampler, tiledUV) * g_Weight1.Sample(LinearClampSampler, In.Texcoord).r
+                 + g_Layer2.Sample(LinearWrapSampler, tiledUV) * g_Weight2.Sample(LinearClampSampler, In.Texcoord).r
+                 + g_Layer3.Sample(LinearWrapSampler, tiledUV) * g_Weight3.Sample(LinearClampSampler, In.Texcoord).r;
+    Out.Diffuse = vector(color.rgb, 1.f);
+    Out.Normal = vector(In.Normal.xyz * 0.5f + 0.5f, 1.f);
+    Out.Depth = vector(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = vector(1.f, 0.8f, 0.f, 0.f);
+    Out.Emissive = vector(0.f, 0.f, 0.f, 0.f);
     return Out;
 }
 
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_Default) // 0
+    PASS_RS_DS_BS_VP(LayerPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_Layer) // 1
 }

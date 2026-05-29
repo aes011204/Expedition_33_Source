@@ -244,8 +244,14 @@
     <Filter Include="94. ETC">
       <UniqueIdentifier>{4ae885e9-5541-4208-aa64-0a98f58ee9f2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\VIBuffer\TerrainUE">
+      <UniqueIdentifier>{205ec74c-243c-43a5-9652-26ca0b543ad7}</UniqueIdentifier>
+    </Filter>
     <Filter Include="01.Utility\04.Component\Model\Animation\Modifier">
       <UniqueIdentifier>{4a8b075f-4a2b-4060-839b-978fbfb1912b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="01.Utility\04.Component\VIBuffer\Landscape">
+      <UniqueIdentifier>{8b2838d7-5ee3-4c26-a1f3-6eb4e9100b13}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -419,6 +425,10 @@
     <ClInclude Include="..\Public\Debug_Types.h">
       <Filter>99. Defines\Types</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MapStaticCollisionBuilder.h" />
+    <ClInclude Include="..\Public\VIBuffer_TerrainUE.h">
+      <Filter>01.Utility\04.Component\VIBuffer\TerrainUE</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\AnimationModifier.h">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClInclude>
@@ -430,6 +440,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\MapStaticCollisionBuilder.h">
       <Filter>01.Utility\04.Component\Model\Mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\VIBuffer_Landscape.h">
+      <Filter>01.Utility\04.Component\VIBuffer\Landscape</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Sound_Manager.h">
       <Filter>01.Utility\03.GameObjects\Manager</Filter>
@@ -1024,6 +1037,10 @@
       <Filter>01.Utility\11. UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AnimComputeRuntime.cpp" />
+    <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_TerrainUE.cpp">
+      <Filter>01.Utility\04.Component\VIBuffer\TerrainUE</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\AnimationModifier.cpp">
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
@@ -1031,6 +1048,10 @@
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
+    <ClCompile Include="..\Private\SSAOPipeline.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_Landscape.cpp">
+      <Filter>01.Utility\04.Component\VIBuffer\Landscape</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\Sound_Manager.cpp">
       <Filter>01.Utility\03.GameObjects\Manager</Filter>
     </ClCompile>

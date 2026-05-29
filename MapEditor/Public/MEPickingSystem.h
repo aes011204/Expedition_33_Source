@@ -25,6 +25,7 @@ private:
     ComPtr<Context> _context;
     Shared<RenderTarget> _idRT;
     ComPtr<ID3D11Texture2D> _idStagingTex;
+    ComPtr<ID3D11Texture2D> _depthStagingTex;
 
 private:
     uint32 SampleID(const SceneContext& scene, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, const RenderTarget& rt);
@@ -33,6 +34,7 @@ private:
 public:
     void DoPickAt(SceneContext& scene, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, const RenderTarget& rt);
     void SetCursorAt(SceneContext& scene, const MECamera& camera, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, const RenderTarget& rt);
+    bool SampleWorldPos(const MECamera& camera, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, Vec3& outWorldPos);
 
 public:
     static Unique<MEPickingSystem> Create(ComPtr<Device> device, ComPtr<Context> context, uint32 w, uint32 h);

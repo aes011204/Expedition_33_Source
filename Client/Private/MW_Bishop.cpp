@@ -101,6 +101,7 @@ HRESULT MW_Bishop::Ready_PartObjects()
 
 return S_OK;
 
+    return S_OK;
 }
 
 
