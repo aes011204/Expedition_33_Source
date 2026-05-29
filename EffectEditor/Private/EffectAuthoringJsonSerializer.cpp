@@ -539,6 +539,96 @@ namespace Internal
             Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
     }
 
+    json To_Json(const Vector2CurveKeyData& data)
+    {
+        json root = json::object();
+        root["time"] = data.time;
+        root["value"] = To_Json(data.value);
+        root["arriveTangent"] = To_Json(data.arriveTangent);
+        root["leaveTangent"] = To_Json(data.leaveTangent);
+        root["interpolationMode"] = To_EnumToken(data.interpolationMode);
+        return root;
+    }
+
+    void From_Json(const json& root, Vector2CurveKeyData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "time", outData.time);
+
+        const auto valueIter = root.find("value");
+        if (valueIter != root.end())
+            Read_Vec2(*valueIter, outData.value);
+
+        const auto arriveTangentIter = root.find("arriveTangent");
+        if (arriveTangentIter != root.end())
+            Read_Vec2(*arriveTangentIter, outData.arriveTangent);
+
+        const auto leaveTangentIter = root.find("leaveTangent");
+        if (leaveTangentIter != root.end())
+            Read_Vec2(*leaveTangentIter, outData.leaveTangent);
+
+        const auto interpolationIter = root.find("interpolationMode");
+        if (interpolationIter != root.end())
+            Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
+    }
+
+    static float Evaluate_FloatCurveSegmentLinear(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
+    {
+        const float width = max(0.0001f, rightKey.time - leftKey.time);
+        const float t = clamp((x - leftKey.time) / width, 0.f, 1.f);
+        return lerp(leftKey.value, rightKey.value, t);
+    }
+
+    static float Evaluate_FloatCurveSegmentAutoClamped(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
+    {
+        const float width = max(0.0001f, rightKey.time - leftKey.time);
+        const float t = clamp((x - leftKey.time) / width, 0.f, 1.f);
+        const float m0 = leftKey.leaveTangent * width;
+        const float m1 = rightKey.arriveTangent * width;
+        const float t2 = t * t;
+        const float t3 = t2 * t;
+
+        return (2.f * t3 - 3.f * t2 + 1.f) * leftKey.value +
+               (t3 - 2.f * t2 + t) * m0 +
+               (-2.f * t3 + 3.f * t2) * rightKey.value +
+               (t3 - t2) * m1;
+    }
+
+    static float Evaluate_FloatConstantCurve(const ConstantCurveFloatDistributionData& curve, float x, float fallbackValue)
+    {
+        if (curve.keys.empty())
+            return fallbackValue;
+
+        if (curve.keys.size() == 1)
+            return curve.keys.front().value;
+
+        const float clampedX = clamp(x, 0.f, 1.f);
+        for (size_t index = 1; index < curve.keys.size(); ++index)
+        {
+            const FloatCurveKeyData& leftKey = curve.keys[index - 1];
+            const FloatCurveKeyData& rightKey = curve.keys[index];
+            if (clampedX > rightKey.time)
+                continue;
+
+            if (leftKey.interpolationMode == FloatCurveInterpolationMode::Constant)
+                return leftKey.value;
+
+            if (leftKey.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
+                return Evaluate_FloatCurveSegmentAutoClamped(leftKey, rightKey, clampedX);
+
+            return Evaluate_FloatCurveSegmentLinear(leftKey, rightKey, clampedX);
+        }
+
+        return curve.keys.back().value;
+    }
+
+    static Vec2 Lerp_Vec2(const Vec2& left, const Vec2& right, float t)
+    {
+        return Vec2{ lerp(left.x, right.x, t), lerp(left.y, right.y, t) };
+    }
+
     //## Distribution Codec
 
     json To_Json(const FloatDistributionData& data)
@@ -647,6 +737,12 @@ namespace Internal
             payload["minValue"] = To_Json(uniformData->minValue);
             payload["maxValue"] = To_Json(uniformData->maxValue);
         }
+        else if (const auto* constantCurveData = get_if<ConstantCurveVector2DistributionData>(&data.payload))
+        {
+            payload["keys"] = json::array();
+            for (const Vector2CurveKeyData& key : constantCurveData->keys)
+                payload["keys"].push_back(To_Json(key));
+        }
 
         root["payload"] = move(payload);
         return root;
@@ -661,7 +757,9 @@ namespace Internal
         const auto modeIter = root.find("mode");
         if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
         {
-            if (parsedMode == DistributionMode::Constant || parsedMode == DistributionMode::Uniform)
+            if (parsedMode == DistributionMode::Constant ||
+                parsedMode == DistributionMode::Uniform ||
+                parsedMode == DistributionMode::ConstantCurve)
                 outData.mode = parsedMode;
         }
 
@@ -693,6 +791,30 @@ namespace Internal
             const auto maxIter = payloadIter->find("maxValue");
             if (maxIter != payloadIter->end())
                 Read_Vec2(*maxIter, payload.maxValue);
+            outData.payload = payload;
+            break;
+        }
+        case DistributionMode::ConstantCurve:
+        {
+            ConstantCurveVector2DistributionData payload{};
+            const auto keysIter = payloadIter->find("keys");
+            if (keysIter != payloadIter->end() && keysIter->is_array())
+            {
+                payload.keys.clear();
+                for (const json& keyNode : *keysIter)
+                {
+                    Vector2CurveKeyData key{};
+                    From_Json(keyNode, key);
+                    payload.keys.push_back(key);
+                }
+            }
+
+            if (payload.keys.empty())
+            {
+                if (const auto* existingPayload = get_if<ConstantCurveVector2DistributionData>(&outData.payload))
+                    payload.keys = existingPayload->keys;
+            }
+
             outData.payload = payload;
             break;
         }
@@ -1263,10 +1385,10 @@ namespace Internal
     json To_Json(const SizeByLifeModuleData& data)
     {
         json root = json::object();
-        root["multiplyXStart"] = data.multiplyXStart;
-        root["multiplyXEnd"] = data.multiplyXEnd;
-        root["multiplyYStart"] = data.multiplyYStart;
-        root["multiplyYEnd"] = data.multiplyYEnd;
+        root["scaleOverLife"] = To_Json(data.scaleOverLife);
+        root["multiplyX"] = data.multiplyX;
+        root["multiplyY"] = data.multiplyY;
+        root["axisLock"] = To_EnumToken(data.axisLock);
         return root;
     }
 
@@ -1275,10 +1397,72 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_NumberField(root, "multiplyXStart", outData.multiplyXStart);
-        Read_NumberField(root, "multiplyXEnd", outData.multiplyXEnd);
-        Read_NumberField(root, "multiplyYStart", outData.multiplyYStart);
-        Read_NumberField(root, "multiplyYEnd", outData.multiplyYEnd);
+        Read_BoolField(root, "multiplyX", outData.multiplyX);
+        Read_BoolField(root, "multiplyY", outData.multiplyY);
+
+        const auto axisLockIter = root.find("axisLock");
+        if (axisLockIter != root.end())
+            Try_ReadEnumToken(*axisLockIter, outData.axisLock);
+
+        const auto scaleOverLifeIter = root.find("scaleOverLife");
+        if (scaleOverLifeIter != root.end())
+        {
+            From_Json(*scaleOverLifeIter, outData.scaleOverLife);
+            return;
+        }
+
+        float multiplyXStart{ 1.f };
+        float multiplyXEnd{ 1.f };
+        float multiplyYStart{ 1.f };
+        float multiplyYEnd{ 1.f };
+        Read_NumberField(root, "multiplyXStart", multiplyXStart);
+        Read_NumberField(root, "multiplyXEnd", multiplyXEnd);
+        Read_NumberField(root, "multiplyYStart", multiplyYStart);
+        Read_NumberField(root, "multiplyYEnd", multiplyYEnd);
+
+        const auto responseCurveIter = root.find("responseCurve");
+        if (responseCurveIter == root.end())
+        {
+            outData.scaleOverLife = Vector2DistributionData::Make_ConstantCurve(
+                Vec2{ multiplyXStart, multiplyYStart },
+                Vec2{ multiplyXEnd, multiplyYEnd }
+            );
+            return;
+        }
+
+        FloatDistributionData responseCurve{ FloatDistributionData::Make_ConstantCurve(0.f, 1.f) };
+        From_Json(*responseCurveIter, responseCurve);
+
+        ConstantCurveVector2DistributionData bakedCurve{};
+        bakedCurve.keys.clear();
+
+        const auto* curve = get_if<ConstantCurveFloatDistributionData>(&responseCurve.payload);
+        if (responseCurve.mode == DistributionMode::ConstantCurve && curve != nullptr && !curve->keys.empty())
+        {
+            for (const FloatCurveKeyData& responseKey : curve->keys)
+            {
+                const float ratio = Evaluate_FloatConstantCurve(*curve, responseKey.time, responseKey.value);
+                bakedCurve.keys.push_back(Vector2CurveKeyData{
+                    responseKey.time,
+                    Lerp_Vec2(Vec2{ multiplyXStart, multiplyYStart }, Vec2{ multiplyXEnd, multiplyYEnd }, ratio),
+                    Vec2{},
+                    Vec2{},
+                    responseKey.interpolationMode
+                });
+            }
+        }
+
+        if (bakedCurve.keys.empty())
+        {
+            bakedCurve.keys = get<ConstantCurveVector2DistributionData>(
+                Vector2DistributionData::Make_ConstantCurve(
+                    Vec2{ multiplyXStart, multiplyYStart },
+                    Vec2{ multiplyXEnd, multiplyYEnd }
+                ).payload).keys;
+        }
+
+        outData.scaleOverLife.mode = DistributionMode::ConstantCurve;
+        outData.scaleOverLife.payload = bakedCurve;
     }
 
     json To_Json(const SpawnPerUnitModuleData& data)

@@ -54,6 +54,10 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_SubUVFrameCurveValues; // Reserved frame curve frame values for later Curve Editor work
     float4 g_SubUVFrameCurveParams; // x: key count
     float4 g_SizeByLifeParams;      // x/y: width start/end, z/w: height start/end
+    float4 g_SizeByLifeCurveTimes;  // scaleOverLife key times
+    float4 g_SizeByLifeCurveValuesX; // scaleOverLife X multipliers
+    float4 g_SizeByLifeCurveValuesY; // scaleOverLife Y multipliers
+    float4 g_SizeByLifeCurveParams; // x: key count, y: multiplyX, z: multiplyY, w: axisLock
     float4 g_MotionFlags;           // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled
     float4 g_MotionSpaceFlags;      // x: radial world
     float4 g_InitialVelocityMin;    // xyz: vector velocity min
@@ -69,6 +73,82 @@ cbuffer ComputePointParticleParams : register(b0)
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
 RWStructuredBuffer<ParticleLifecycleState> LifecycleState : register(u2);
+
+float ReadVec4Component(float4 values, uint index)
+{
+    if (index == 0u)
+        return values.x;
+    if (index == 1u)
+        return values.y;
+    if (index == 2u)
+        return values.z;
+    return values.w;
+}
+
+float2 EvaluateSizeByLifeMultiplier(float lifeProgress)
+{
+    const uint keyCount = max(1u, min(4u, (uint)g_SizeByLifeCurveParams.x));
+    float2 multiplier = float2(g_SizeByLifeParams.x, g_SizeByLifeParams.z);
+
+    if (keyCount == 1u || lifeProgress <= ReadVec4Component(g_SizeByLifeCurveTimes, 0u))
+    {
+        multiplier = float2(
+            ReadVec4Component(g_SizeByLifeCurveValuesX, 0u),
+            ReadVec4Component(g_SizeByLifeCurveValuesY, 0u)
+        );
+    }
+    else
+    {
+        bool found = false;
+        [unroll]
+        for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+        {
+            if (keyIndex >= keyCount || found)
+                continue;
+
+            const float rightTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyIndex);
+            if (lifeProgress > rightTime)
+                continue;
+
+            const float leftTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyIndex - 1u);
+            const float ratio = saturate((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime));
+            multiplier = float2(
+                lerp(
+                    ReadVec4Component(g_SizeByLifeCurveValuesX, keyIndex - 1u),
+                    ReadVec4Component(g_SizeByLifeCurveValuesX, keyIndex),
+                    ratio
+                ),
+                lerp(
+                    ReadVec4Component(g_SizeByLifeCurveValuesY, keyIndex - 1u),
+                    ReadVec4Component(g_SizeByLifeCurveValuesY, keyIndex),
+                    ratio
+                )
+            );
+            found = true;
+        }
+
+        const float lastTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyCount - 1u);
+        if (!found && lifeProgress > lastTime)
+        {
+            multiplier = float2(
+                ReadVec4Component(g_SizeByLifeCurveValuesX, keyCount - 1u),
+                ReadVec4Component(g_SizeByLifeCurveValuesY, keyCount - 1u)
+            );
+        }
+    }
+
+    if ((uint)g_SizeByLifeCurveParams.w == 1u)
+        multiplier.y = multiplier.x;
+    else if ((uint)g_SizeByLifeCurveParams.w == 2u)
+        multiplier.x = multiplier.y;
+
+    if (g_SizeByLifeCurveParams.y == 0.0f)
+        multiplier.x = 1.0f;
+    if (g_SizeByLifeCurveParams.z == 0.0f)
+        multiplier.y = 1.0f;
+
+    return multiplier;
+}
 
 // 정수 seed를 0~1 사이의 pseudo-random float 값으로 바꾼다.
 float Hash01(uint seed)
@@ -217,8 +297,9 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float lifeMax = max(lifecycle.lifeMax, 0.0001f);
     const float lifeAge = max(0.0f, lifecycle.lifeAge);
     const float lifeProgress = saturate(lifeAge / lifeMax);
-    const float sizeX = baseSize.x * lerp(g_SizeByLifeParams.x, g_SizeByLifeParams.y, lifeProgress);
-    const float sizeY = baseSize.y * lerp(g_SizeByLifeParams.z, g_SizeByLifeParams.w, lifeProgress);
+    const float2 sizeByLifeMultiplier = EvaluateSizeByLifeMultiplier(lifeProgress);
+    const float sizeX = baseSize.x * sizeByLifeMultiplier.x;
+    const float sizeY = baseSize.y * sizeByLifeMultiplier.y;
 
     // particle index에서 만든 deterministic seed다.
     // 같은 particle 생애 안에서는 같은 seed를 사용하므로 spawn offset, speed, rotation 랜덤값이 흔들리지 않는다.

@@ -913,6 +913,61 @@ private: //## Label Helpers
         }
     }
 
+    static Vec2 Evaluate_Vector2CurveAutoClampedTangent(
+        const Vector2CurveKeyData* prevKey,
+        const Vector2CurveKeyData& key,
+        const Vector2CurveKeyData* nextKey)
+    {
+        if (prevKey == nullptr || nextKey == nullptr)
+            return Vec2{};
+
+        const float dt = nextKey->time - prevKey->time;
+        if (dt <= 0.f)
+            return Vec2{};
+
+        return Vec2{
+            (nextKey->value.x - prevKey->value.x) / dt,
+            (nextKey->value.y - prevKey->value.y) / dt
+        };
+    }
+
+    static void Normalize_Vector2CurveKeys(ConstantCurveVector2DistributionData& value)
+    {
+        if (value.keys.empty())
+        {
+            value.keys = {
+                Vector2CurveKeyData{ 0.f, Vec2{ 0.f, 0.f }, Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear },
+                Vector2CurveKeyData{ 1.f, Vec2{ 0.f, 0.f }, Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear }
+            };
+            return;
+        }
+
+        ranges::sort(
+            value.keys,
+            [](const Vector2CurveKeyData& lhs, const Vector2CurveKeyData& rhs)
+            {
+                return lhs.time < rhs.time;
+            }
+        );
+
+        for (Vector2CurveKeyData& key : value.keys)
+            key.time = clamp(key.time, 0.f, 1.f);
+
+        for (size_t index = 0; index < value.keys.size(); ++index)
+        {
+            Vector2CurveKeyData& key = value.keys[index];
+            const Vector2CurveKeyData* prevKey = index > 0 ? &value.keys[index - 1] : nullptr;
+            const Vector2CurveKeyData* nextKey = index + 1 < value.keys.size() ? &value.keys[index + 1] : nullptr;
+
+            if (key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
+            {
+                const Vec2 tangent = Evaluate_Vector2CurveAutoClampedTangent(prevKey, key, nextKey);
+                key.arriveTangent = tangent;
+                key.leaveTangent = tangent;
+            }
+        }
+    }
+
     bool Draw_FloatCurveKeyListProperty(
         ConstantCurveFloatDistributionData& value,
         const ConstantCurveFloatDistributionData& defaultValue,
@@ -976,6 +1031,82 @@ private: //## Label Helpers
                 {
                     changed |= _basicDrawer.Draw_FloatProperty("도착 탄젠트", key.arriveTangent, defaultKey.arriveTangent, speed);
                     changed |= _basicDrawer.Draw_FloatProperty("출발 탄젠트", key.leaveTangent, defaultKey.leaveTangent, speed);
+                    ImGui::TreePop();
+                }
+
+                _basicDrawer.Pop_RowTint();
+                ImGui::TreePop();
+            }
+            _basicDrawer.Pop_RowTint();
+            ImGui::PopID();
+        }
+
+        return changed;
+    }
+
+    bool Draw_Vector2CurveKeyListProperty(
+        ConstantCurveVector2DistributionData& value,
+        const ConstantCurveVector2DistributionData& defaultValue,
+        float speed = 0.01f)
+    {
+        bool changed = false;
+
+        ImGui::PushID("PointsRow");
+        _basicDrawer.Draw_PropertyLabel("포인트");
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("배열 엘리먼트: %zu", value.keys.size());
+        ImGui::SameLine();
+        if (ImGui::Button(ICON_FA_PLUS "##AddVector2CurveKey"))
+        {
+            const Vector2CurveKeyData seed = value.keys.empty() ? Vector2CurveKeyData{} : value.keys.back();
+            value.keys.push_back(seed);
+            changed = true;
+        }
+        _basicDrawer.Draw_ResetButton(false);
+        ImGui::PopID();
+
+        for (size_t index = 0; index < value.keys.size(); ++index)
+        {
+            ImGui::PushID(static_cast<int>(index));
+            Vector2CurveKeyData& key = value.keys[index];
+            const Vector2CurveKeyData defaultKey = index < defaultValue.keys.size() ? defaultValue.keys[index] : key;
+
+            if (index > 0)
+                ImGui::Dummy(ImVec2{ 0.f, 4.f });
+
+            const string rowId = "인덱스 [" + to_string(index) + "]";
+            _basicDrawer.Push_RowTint(Get_DistributionKeyHeaderRowTint());
+            _basicDrawer.Push_LabelTint(Get_DistributionKeyLabelTint());
+            const bool isOpen = _basicDrawer.Draw_TreePropertyLabel(rowId.c_str());
+            _basicDrawer.Draw_ResetButton(false);
+            _basicDrawer.Pop_LabelTint();
+            if (isOpen)
+            {
+                _basicDrawer.Push_RowTint(Get_DistributionKeyBodyRowTint());
+                changed |= _basicDrawer.Draw_FloatProperty("In 값", key.time, defaultKey.time, speed);
+                changed |= _basicDrawer.Draw_Vec2Property("Out 값", key.value, defaultKey.value, speed);
+
+                _basicDrawer.Draw_PropertyLabel("보간 모드");
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                if (ImGui::BeginCombo("##Interpolation", Get_FloatCurveInterpolationLabel(key.interpolationMode)))
+                {
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::Linear, true, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::Constant, true, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveAutoClamped, true, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveAuto, false, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveUser, false, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveBreak, false, key.interpolationMode, changed);
+                    ImGui::EndCombo();
+                }
+                _basicDrawer.Draw_ResetButton(false);
+
+                const bool showTangents =
+                    key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped &&
+                    ImGui::TreeNode("고급");
+                if (showTangents)
+                {
+                    changed |= _basicDrawer.Draw_Vec2Property("도착 탄젠트", key.arriveTangent, defaultKey.arriveTangent, speed);
+                    changed |= _basicDrawer.Draw_Vec2Property("출발 탄젠트", key.leaveTangent, defaultKey.leaveTangent, speed);
                     ImGui::TreePop();
                 }
 
@@ -1126,7 +1257,7 @@ private: //## Label Helpers
 
             draw_selectable(DistributionMode::Constant, true);
             draw_selectable(DistributionMode::Uniform, true);
-            draw_selectable(DistributionMode::ConstantCurve, false);
+            draw_selectable(DistributionMode::ConstantCurve, true);
             draw_selectable(DistributionMode::UniformCurve, false);
             draw_selectable(DistributionMode::ParticleParameter, false);
             ImGui::EndCombo();
@@ -1165,6 +1296,16 @@ private: //## Label Helpers
                 changed |= _basicDrawer.Draw_Vec2Property("최소", uniform->minValue, defaultMin, speed);
                 changed |= _basicDrawer.Draw_Vec2Property("최대", uniform->maxValue, defaultMax, speed);
                 Normalize_Vector2Uniform(*uniform);
+            }
+            break;
+        case DistributionMode::ConstantCurve:
+            if (auto* curve = get_if<ConstantCurveVector2DistributionData>(&value.payload))
+            {
+                const auto* defaultCurve = get_if<ConstantCurveVector2DistributionData>(&defaultValue.payload);
+                const Vector2DistributionData fallbackCurveData = Vector2DistributionData::Make_ConstantCurve(Vec2{ 0.f, 0.f });
+                const auto* fallbackDefault = get_if<ConstantCurveVector2DistributionData>(&fallbackCurveData.payload);
+                changed |= Draw_Vector2CurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
+                Normalize_Vector2CurveKeys(*curve);
             }
             break;
         default:
@@ -1496,6 +1637,29 @@ private: //## Label Helpers
         return Is_DefaultValue(value.minValue, defaultValue.minValue) && Is_DefaultValue(value.maxValue, defaultValue.maxValue);
     }
 
+    static bool Is_DefaultValue(const Vector2CurveKeyData& value, const Vector2CurveKeyData& defaultValue)
+    {
+        return Is_DefaultValue(value.time, defaultValue.time) &&
+               Is_DefaultValue(value.value, defaultValue.value) &&
+               Is_DefaultValue(value.arriveTangent, defaultValue.arriveTangent) &&
+               Is_DefaultValue(value.leaveTangent, defaultValue.leaveTangent) &&
+               value.interpolationMode == defaultValue.interpolationMode;
+    }
+
+    static bool Is_DefaultValue(const ConstantCurveVector2DistributionData& value, const ConstantCurveVector2DistributionData& defaultValue)
+    {
+        if (value.keys.size() != defaultValue.keys.size())
+            return false;
+
+        for (size_t index = 0; index < value.keys.size(); ++index)
+        {
+            if (!Is_DefaultValue(value.keys[index], defaultValue.keys[index]))
+                return false;
+        }
+
+        return true;
+    }
+
     static bool Is_DefaultValue(const Vector2DistributionData& value, const Vector2DistributionData& defaultValue)
     {
         if (value.mode != defaultValue.mode || value.payload.index() != defaultValue.payload.index())
@@ -1504,6 +1668,8 @@ private: //## Label Helpers
             return Is_DefaultValue(*current, get<ConstantVector2DistributionData>(defaultValue.payload));
         if (const auto* current = get_if<UniformVector2DistributionData>(&value.payload))
             return Is_DefaultValue(*current, get<UniformVector2DistributionData>(defaultValue.payload));
+        if (const auto* current = get_if<ConstantCurveVector2DistributionData>(&value.payload))
+            return Is_DefaultValue(*current, get<ConstantCurveVector2DistributionData>(defaultValue.payload));
         return false;
     }
 
@@ -1612,6 +1778,8 @@ private: //## Label Helpers
                 value.payload = ConstantVector2DistributionData{ uniform->minValue };
             else if (const auto* constant = get_if<ConstantVector2DistributionData>(&value.payload))
                 value.payload = ConstantVector2DistributionData{ constant->value };
+            else if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&value.payload))
+                value.payload = ConstantVector2DistributionData{ curve->keys.empty() ? Vec2{} : curve->keys.front().value };
             else
                 value.payload = ConstantVector2DistributionData{};
             break;
@@ -1620,8 +1788,24 @@ private: //## Label Helpers
                 value.payload = UniformVector2DistributionData{ constant->value, constant->value };
             else if (const auto* uniform = get_if<UniformVector2DistributionData>(&value.payload))
                 value.payload = *uniform;
+            else if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&value.payload))
+            {
+                const Vec2 minValue = curve->keys.empty() ? Vec2{} : curve->keys.front().value;
+                const Vec2 maxValue = curve->keys.size() > 1 ? curve->keys.back().value : minValue;
+                value.payload = UniformVector2DistributionData{ minValue, maxValue };
+            }
             else
                 value.payload = UniformVector2DistributionData{};
+            break;
+        case DistributionMode::ConstantCurve:
+            if (const auto* constant = get_if<ConstantVector2DistributionData>(&value.payload))
+                value.payload = Vector2DistributionData::Make_ConstantCurve(constant->value).payload;
+            else if (const auto* uniform = get_if<UniformVector2DistributionData>(&value.payload))
+                value.payload = Vector2DistributionData::Make_ConstantCurve(uniform->minValue, uniform->maxValue).payload;
+            else if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&value.payload))
+                value.payload = *curve;
+            else
+                value.payload = Vector2DistributionData::Make_ConstantCurve(Vec2{ 0.f, 0.f }).payload;
             break;
         default:
             return;

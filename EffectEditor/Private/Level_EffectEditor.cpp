@@ -173,6 +173,69 @@ namespace Internal
         return curve.keys.back().value;
     }
 
+    Vec2 Evaluate_Vector2CurveSegmentLinear(const Vector2CurveKeyData& leftKey, const Vector2CurveKeyData& rightKey, float x)
+    {
+        const float width = max(0.0001f, rightKey.time - leftKey.time);
+        const float t = clamp((x - leftKey.time) / width, 0.f, 1.f);
+        return Vec2{
+            lerp(leftKey.value.x, rightKey.value.x, t),
+            lerp(leftKey.value.y, rightKey.value.y, t)
+        };
+    }
+
+    Vec2 Evaluate_Vector2CurveSegmentAutoClamped(const Vector2CurveKeyData& leftKey, const Vector2CurveKeyData& rightKey, float x)
+    {
+        const float width = max(0.0001f, rightKey.time - leftKey.time);
+        const float t = clamp((x - leftKey.time) / width, 0.f, 1.f);
+        const Vec2 m0{ leftKey.leaveTangent.x * width, leftKey.leaveTangent.y * width };
+        const Vec2 m1{ rightKey.arriveTangent.x * width, rightKey.arriveTangent.y * width };
+        const float t2 = t * t;
+        const float t3 = t2 * t;
+        return Vec2{
+            (2.f * t3 - 3.f * t2 + 1.f) * leftKey.value.x +
+                (t3 - 2.f * t2 + t) * m0.x +
+                (-2.f * t3 + 3.f * t2) * rightKey.value.x +
+                (t3 - t2) * m1.x,
+            (2.f * t3 - 3.f * t2 + 1.f) * leftKey.value.y +
+                (t3 - 2.f * t2 + t) * m0.y +
+                (-2.f * t3 + 3.f * t2) * rightKey.value.y +
+                (t3 - t2) * m1.y
+        };
+    }
+
+    Vec2 Evaluate_Vector2ConstantCurve(const ConstantCurveVector2DistributionData& curve, float x, const Vec2& fallbackValue)
+    {
+        if (curve.keys.empty())
+            return fallbackValue;
+
+        if (curve.keys.size() == 1)
+            return curve.keys.front().value;
+
+        const float clampedX = clamp(x, 0.f, 1.f);
+        for (size_t index = 1; index < curve.keys.size(); ++index)
+        {
+            const Vector2CurveKeyData& leftKey = curve.keys[index - 1];
+            const Vector2CurveKeyData& rightKey = curve.keys[index];
+            if (clampedX > rightKey.time)
+                continue;
+
+            switch (leftKey.interpolationMode)
+            {
+            case FloatCurveInterpolationMode::Constant:
+                return leftKey.value;
+
+            case FloatCurveInterpolationMode::CurveAutoClamped:
+                return Evaluate_Vector2CurveSegmentAutoClamped(leftKey, rightKey, clampedX);
+
+            case FloatCurveInterpolationMode::Linear:
+            default:
+                return Evaluate_Vector2CurveSegmentLinear(leftKey, rightKey, clampedX);
+            }
+        }
+
+        return curve.keys.back().value;
+    }
+
     //## Distribution Eval
 
     float Evaluate_FloatDistributionMin(const FloatDistributionData& data, float fallbackValue)
@@ -224,6 +287,13 @@ namespace Internal
         }
     }
 
+    void Fill_SizeByLifeCurveComponent(PointParticleSizeByLifeDesc& desc, uint32 index, float time, const Vec2& value)
+    {
+        Set_SubUVFrameCurveComponent(desc.curveKeyTimes, index, clamp(time, 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.curveKeyValuesX, index, value.x);
+        Set_SubUVFrameCurveComponent(desc.curveKeyValuesY, index, value.y);
+    }
+
     void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const FloatDistributionData& frameIndex)
     {
         desc.frameCurveKeyCount = 1;
@@ -260,6 +330,9 @@ namespace Internal
         if (const auto* uniform = get_if<UniformVector2DistributionData>(&data.payload))
             return uniform->minValue;
 
+        if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&data.payload))
+            return Evaluate_Vector2ConstantCurve(*curve, 0.f, fallbackValue);
+
         return fallbackValue;
     }
 
@@ -271,7 +344,61 @@ namespace Internal
         if (const auto* uniform = get_if<UniformVector2DistributionData>(&data.payload))
             return uniform->maxValue;
 
+        if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&data.payload))
+            return Evaluate_Vector2ConstantCurve(*curve, 1.f, fallbackValue);
+
         return fallbackValue;
+    }
+
+    PointParticleSizeByLifeAxisLock To_RuntimeAxisLock(SizeByLifeModuleData::AxisLock axisLock)
+    {
+        switch (axisLock)
+        {
+        case SizeByLifeModuleData::AxisLock::X:
+            return PointParticleSizeByLifeAxisLock::X;
+        case SizeByLifeModuleData::AxisLock::Y:
+            return PointParticleSizeByLifeAxisLock::Y;
+        case SizeByLifeModuleData::AxisLock::None:
+        default:
+            return PointParticleSizeByLifeAxisLock::None;
+        }
+    }
+
+    void Fill_SizeByLifePayload(PointParticleSizeByLifeDesc& desc, const SizeByLifeModuleData& data)
+    {
+        desc.enabled = true;
+        desc.multiplyX = data.multiplyX;
+        desc.multiplyY = data.multiplyY;
+        desc.axisLock = To_RuntimeAxisLock(data.axisLock);
+
+        const Vec2 startValue = Evaluate_Vector2DistributionMin(data.scaleOverLife, Vec2{ 1.f, 1.f });
+        const Vec2 endValue = Evaluate_Vector2DistributionMax(data.scaleOverLife, Vec2{ 1.f, 1.f });
+        desc.multiplyXStart = startValue.x;
+        desc.multiplyXEnd = endValue.x;
+        desc.multiplyYStart = startValue.y;
+        desc.multiplyYEnd = endValue.y;
+
+        desc.curveKeyCount = 2;
+        desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.curveKeyValuesX = Vec4{ startValue.x, endValue.x, 0.f, 0.f };
+        desc.curveKeyValuesY = Vec4{ startValue.y, endValue.y, 0.f, 0.f };
+
+        if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&data.scaleOverLife.payload))
+        {
+            vector<Vector2CurveKeyData> keys = curve->keys;
+            ranges::sort(keys, {}, &Vector2CurveKeyData::time);
+            constexpr uint32 maxSizeByLifeCurveKeys{ 4 };
+            const uint32 keyCount = min(maxSizeByLifeCurveKeys, static_cast<uint32>(keys.size()));
+            if (keyCount == 0)
+                return;
+
+            desc.curveKeyCount = keyCount;
+            desc.curveKeyTimes = Vec4{};
+            desc.curveKeyValuesX = Vec4{};
+            desc.curveKeyValuesY = Vec4{};
+            for (uint32 index = 0; index < keyCount; ++index)
+                Fill_SizeByLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
+        }
     }
 
     Vec3 Evaluate_Vector3DistributionMin(const Vector3DistributionData& data, const Vec3& fallbackValue)
@@ -664,11 +791,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
     {
-        desc.sizeByLife.enabled = true;
-        desc.sizeByLife.multiplyXStart = sizeByLife->multiplyXStart;
-        desc.sizeByLife.multiplyXEnd = sizeByLife->multiplyXEnd;
-        desc.sizeByLife.multiplyYStart = sizeByLife->multiplyYStart;
-        desc.sizeByLife.multiplyYEnd = sizeByLife->multiplyYEnd;
+        Internal::Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
     }
 
     if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
@@ -920,11 +1043,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
 
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
     {
-        emitterDesc.sizeByLife.enabled = true;
-        emitterDesc.sizeByLife.multiplyXStart = sizeByLife->multiplyXStart;
-        emitterDesc.sizeByLife.multiplyXEnd = sizeByLife->multiplyXEnd;
-        emitterDesc.sizeByLife.multiplyYStart = sizeByLife->multiplyYStart;
-        emitterDesc.sizeByLife.multiplyYEnd = sizeByLife->multiplyYEnd;
+        Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
     }
 
     if (const auto* spawnPerUnit = Internal::Find_ModuleData<SpawnPerUnitModuleData>(emitter, AuthoringModuleType::SpawnPerUnit))
