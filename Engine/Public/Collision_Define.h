@@ -9,18 +9,19 @@ enum class Collision_Channel : uint32
     NONE = 0,
     Player = 1 << 0,
     Player_Body = 1 << 1,
-    Player_Attack = 1 << 2,
-    Monster = 1 << 3,
-    Monster_Body = 1 << 4,
-    Monster_WorldBody = 1 << 5,
-    Monster_Attack = 1 << 6,
-    Weapon = 1 << 7,
-    Projectile = 1 << 8,
-    Item = 1 << 9,
-    Trigger = 1 << 10,
-    Enviroment = 1 << 11,
-    Player_Target = 1 << 12,
-    Camera = 1 << 13,
+    Player_WorldBody = 1 << 2,
+    Player_Attack = 1 << 3,
+    Monster = 1 << 4,
+    Monster_Body = 1 << 5,
+    Monster_WorldBody = 1 << 6,
+    Monster_Attack = 1 << 7,
+    Weapon = 1 << 8,
+    Projectile = 1 << 9,
+    Item = 1 << 10,
+    Trigger = 1 << 11,
+    Enviroment = 1 << 12,
+    Player_Target = 1 << 13,
+    Camera = 1 << 14,
 
     CHANNEL_ALL = 0xFFFFFFFF,   // 모든 충돌 OK
     CHANNEL_NONE = 0x00000000,  // 모든 충돌 ㄴㄴ
@@ -124,8 +125,12 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)
     },
 
-    { Collision_Channel::Player_Body,
-    /* overlapMask */ ETOI(Collision_Channel::Monster_Body),
+    { Collision_Channel::Player_WorldBody,
+    /* overlapMask */ ETOI(Collision_Channel::Monster_Attack) |
+                      ETOI(Collision_Channel::Item) |
+                      ETOI(Collision_Channel::Trigger) |
+                      ETOI(Collision_Channel::Monster_WorldBody),
+
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)
     },
 
@@ -154,6 +159,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
 
     { Collision_Channel::Monster_WorldBody,
     /* overlapMask */ ETOI(Collision_Channel::Player_Body) |
+                      ETOI(Collision_Channel::Player_WorldBody) |
                       ETOI(Collision_Channel::Projectile) |
                       ETOI(Collision_Channel::Player_Target),
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)
@@ -194,6 +200,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     /* overlapMask */ 0,
     /* blockMask   */ ETOI(Collision_Channel::Player) |
                       ETOI(Collision_Channel::Player_Body) |
+                      ETOI(Collision_Channel::Player_WorldBody) |
                       ETOI(Collision_Channel::Projectile) |
                       ETOI(Collision_Channel::Monster_Body) |
                       ETOI(Collision_Channel::Monster_WorldBody) |
