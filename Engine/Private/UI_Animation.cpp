@@ -258,6 +258,90 @@ namespace
         return track.keys.back().value;
     }
 
+    float Resolve_RelativeKeyframeTargetValue(
+        UI_KeyframeAnimationTrackType type,
+        float value,
+        const Vec2& basePosition,
+        const Vec2& baseScale,
+        float baseRotationRadians)
+    {
+        switch (type)
+        {
+        case UI_KeyframeAnimationTrackType::PositionX:
+            return basePosition.x + value;
+        case UI_KeyframeAnimationTrackType::PositionY:
+            return basePosition.y + value;
+        case UI_KeyframeAnimationTrackType::ScaleX:
+            return baseScale.x * value;
+        case UI_KeyframeAnimationTrackType::ScaleY:
+            return baseScale.y * value;
+        case UI_KeyframeAnimationTrackType::Rotation:
+            return baseRotationRadians + value;
+        default:
+            return value;
+        }
+    }
+
+    float Evaluate_KeyframesFromCurrent(
+        const UI_KeyframeAnimationTrack& track,
+        float frame,
+        float currentValue,
+        bool useRelativeTargets,
+        const Vec2& basePosition,
+        const Vec2& baseScale,
+        float baseRotationRadians,
+        bool& outHasValue)
+    {
+        outHasValue = false;
+        if (track.keys.empty())
+            return currentValue;
+
+        outHasValue = true;
+        if (track.keys.size() == 1)
+        {
+            const float value = track.keys.front().value;
+            return useRelativeTargets
+                ? Resolve_RelativeKeyframeTargetValue(track.type, value, basePosition, baseScale, baseRotationRadians)
+                : value;
+        }
+
+        if (frame <= static_cast<float>(track.keys.front().frame))
+            return currentValue;
+
+        if (frame >= static_cast<float>(track.keys.back().frame))
+        {
+            const float value = track.keys.back().value;
+            return useRelativeTargets
+                ? Resolve_RelativeKeyframeTargetValue(track.type, value, basePosition, baseScale, baseRotationRadians)
+                : value;
+        }
+
+        for (size_t index = 0; index + 1 < track.keys.size(); ++index)
+        {
+            const UI_KeyframeAnimationKey& currentKey = track.keys[index];
+            const UI_KeyframeAnimationKey& nextKey = track.keys[index + 1];
+
+            if (frame < static_cast<float>(currentKey.frame) || frame > static_cast<float>(nextKey.frame))
+                continue;
+
+            const float frameRange = max(1.f, static_cast<float>(nextKey.frame - currentKey.frame));
+            const float t = min(max((frame - static_cast<float>(currentKey.frame)) / frameRange, 0.f), 1.f);
+            const float currentKeyValue = useRelativeTargets
+                ? Resolve_RelativeKeyframeTargetValue(track.type, currentKey.value, basePosition, baseScale, baseRotationRadians)
+                : currentKey.value;
+            const float nextKeyValue = useRelativeTargets
+                ? Resolve_RelativeKeyframeTargetValue(track.type, nextKey.value, basePosition, baseScale, baseRotationRadians)
+                : nextKey.value;
+            const float fromValue = (0 == index) ? currentValue : currentKeyValue;
+            return Lerp_Float(fromValue, nextKeyValue, Evaluate_Easing(currentKey.easing, t));
+        }
+
+        const float value = track.keys.back().value;
+        return useRelativeTargets
+            ? Resolve_RelativeKeyframeTargetValue(track.type, value, basePosition, baseScale, baseRotationRadians)
+            : value;
+    }
+
     Vec4 Evaluate_ColorKeyframes(const UI_KeyframeAnimationTrack& track, float frame, bool& outHasValue)
     {
         outHasValue = false;
@@ -299,6 +383,9 @@ namespace
         const Vec2& basePosition,
         const Vec2& baseScale,
         float baseRotationRadians,
+        const Vec2& transitionStartPosition,
+        const Vec2& transitionStartScale,
+        float transitionStartRotationRadians,
         UI_AnimationSample& outSample,
         bool& outReachedEnd)
     {
@@ -318,6 +405,12 @@ namespace
         sample.scale = baseScale;
         sample.rotationRadians = baseRotationRadians;
         bool hasSampledTrack = false;
+        const bool useRelativeTracks = asset.valueMode == UI_KeyframeAnimationValueMode::RelativeTransform;
+        const bool useCurrentStart =
+            asset.valueMode == UI_KeyframeAnimationValueMode::TransitionFromCurrent ||
+            asset.valueMode == UI_KeyframeAnimationValueMode::TransitionFromCurrentRelativeTransform;
+        const bool useCurrentRelativeTargets =
+            asset.valueMode == UI_KeyframeAnimationValueMode::TransitionFromCurrentRelativeTransform;
 
         for (const UI_KeyframeAnimationTrack& track : asset.tracks)
         {
@@ -339,7 +432,40 @@ namespace
             }
 
             bool hasValue = false;
-            const float value = Clamp_KeyframeTrackValue(track.type, Evaluate_Keyframes(track, frame, hasValue));
+            float currentValue = 0.f;
+            switch (track.type)
+            {
+            case UI_KeyframeAnimationTrackType::PositionX:
+                currentValue = transitionStartPosition.x;
+                break;
+            case UI_KeyframeAnimationTrackType::PositionY:
+                currentValue = transitionStartPosition.y;
+                break;
+            case UI_KeyframeAnimationTrackType::ScaleX:
+                currentValue = transitionStartScale.x;
+                break;
+            case UI_KeyframeAnimationTrackType::ScaleY:
+                currentValue = transitionStartScale.y;
+                break;
+            case UI_KeyframeAnimationTrackType::Rotation:
+                currentValue = transitionStartRotationRadians;
+                break;
+            default:
+                break;
+            }
+
+            const float rawValue = useCurrentStart
+                ? Evaluate_KeyframesFromCurrent(
+                    track,
+                    frame,
+                    currentValue,
+                    useCurrentRelativeTargets,
+                    basePosition,
+                    baseScale,
+                    baseRotationRadians,
+                    hasValue)
+                : Evaluate_Keyframes(track, frame, hasValue);
+            const float value = Clamp_KeyframeTrackValue(track.type, rawValue);
             if (!hasValue)
                 continue;
 
@@ -348,23 +474,23 @@ namespace
             {
             case UI_KeyframeAnimationTrackType::PositionX:
                 sample.hasPosition = true;
-                sample.position.x = value;
+                sample.position.x = useRelativeTracks ? basePosition.x + value : value;
                 break;
             case UI_KeyframeAnimationTrackType::PositionY:
                 sample.hasPosition = true;
-                sample.position.y = value;
+                sample.position.y = useRelativeTracks ? basePosition.y + value : value;
                 break;
             case UI_KeyframeAnimationTrackType::ScaleX:
                 sample.hasScale = true;
-                sample.scale.x = value;
+                sample.scale.x = useRelativeTracks ? baseScale.x * value : value;
                 break;
             case UI_KeyframeAnimationTrackType::ScaleY:
                 sample.hasScale = true;
-                sample.scale.y = value;
+                sample.scale.y = useRelativeTracks ? baseScale.y * value : value;
                 break;
             case UI_KeyframeAnimationTrackType::Rotation:
                 sample.hasRotation = true;
-                sample.rotationRadians = value;
+                sample.rotationRadians = useRelativeTracks ? baseRotationRadians + value : value;
                 break;
             case UI_KeyframeAnimationTrackType::Alpha:
                 sample.hasColor = true;
@@ -397,11 +523,33 @@ void UI_AnimationPlayer::Set_KeyframeAssets(const vector<UI_KeyframeAnimationAss
     Stop();
 }
 
+void UI_AnimationPlayer::Add_KeyframeAsset(const UI_KeyframeAnimationAsset& asset)
+{
+    for (UI_KeyframeAnimationAsset& existingAsset : _keyframeAssets)
+    {
+        if (existingAsset.name == asset.name)
+        {
+            existingAsset = asset;
+            return;
+        }
+    }
+
+    _keyframeAssets.push_back(asset);
+}
+
 void UI_AnimationPlayer::Set_BaseTransformState(const Vec2& position, const Vec2& scale, float rotationRadians)
 {
     _basePosition = position;
     _baseScale = scale;
     _baseRotationRadians = rotationRadians;
+    Set_TransitionStartState(position, scale, rotationRadians);
+}
+
+void UI_AnimationPlayer::Set_TransitionStartState(const Vec2& position, const Vec2& scale, float rotationRadians)
+{
+    _transitionStartPosition = position;
+    _transitionStartScale = scale;
+    _transitionStartRotationRadians = rotationRadians;
 }
 
 void UI_AnimationPlayer::Play_OnOpen()
@@ -472,6 +620,9 @@ bool UI_AnimationPlayer::Update(float deltaTime, UI_AnimationSample& outSample)
             _basePosition,
             _baseScale,
             _baseRotationRadians,
+            _transitionStartPosition,
+            _transitionStartScale,
+            _transitionStartRotationRadians,
             keyframeSample,
             reachedEnd))
         {

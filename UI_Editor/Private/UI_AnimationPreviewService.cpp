@@ -133,6 +133,16 @@ namespace UIEditor
 
             return false;
         }
+
+        const vector<UI_AnimationKeyframeTrack>& Get_KeyframeTracks(
+            const UI_AnimationAsset& asset,
+            const UI_AnimationTargetBinding& target)
+        {
+            if (Is_PublicAnimation(asset))
+                return asset.tracks;
+
+            return target.tracks;
+        }
     }
 
     void UI_AnimationPreviewService::Update(float deltaTime)
@@ -362,7 +372,9 @@ namespace UIEditor
         sample.color = object.color;
 
         bool hasSampledTrack = false;
-        for (const UI_AnimationKeyframeTrack& track : target->tracks)
+        const bool useRelativeTracks = Is_PublicAnimation(*_keyframeAsset);
+        const vector<UI_AnimationKeyframeTrack>& tracks = Get_KeyframeTracks(*_keyframeAsset, *target);
+        for (const UI_AnimationKeyframeTrack& track : tracks)
         {
             if (!track.enabled)
                 continue;
@@ -388,19 +400,19 @@ namespace UIEditor
             switch (track.type)
             {
             case UI_AnimationKeyframeTrackType::PositionX:
-                sample.position.x = value;
+                sample.position.x = useRelativeTracks ? object.position.x + value : value;
                 break;
             case UI_AnimationKeyframeTrackType::PositionY:
-                sample.position.y = value;
+                sample.position.y = useRelativeTracks ? object.position.y + value : value;
                 break;
             case UI_AnimationKeyframeTrackType::ScaleX:
-                sample.scale.x = value;
+                sample.scale.x = useRelativeTracks ? object.scale.x * value : value;
                 break;
             case UI_AnimationKeyframeTrackType::ScaleY:
-                sample.scale.y = value;
+                sample.scale.y = useRelativeTracks ? object.scale.y * value : value;
                 break;
             case UI_AnimationKeyframeTrackType::Rotation:
-                sample.rotationRadians = value;
+                sample.rotationRadians = useRelativeTracks ? object.rotationRadians + value : value;
                 break;
             case UI_AnimationKeyframeTrackType::Alpha:
                 sample.color.w = value;

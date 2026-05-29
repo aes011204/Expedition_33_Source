@@ -11,11 +11,33 @@ namespace UIEditor
             color.w = Clamp_AnimationKeyframeTrackValue(UI_AnimationKeyframeTrackType::Alpha, alpha01) * 255.f;
             return color;
         }
+
+        float Get_PublicAnimationCurrentValue(UI_AnimationKeyframeTrackType trackType)
+        {
+            switch (trackType)
+            {
+            case UI_AnimationKeyframeTrackType::ScaleX:
+            case UI_AnimationKeyframeTrackType::ScaleY:
+            case UI_AnimationKeyframeTrackType::Alpha:
+                return 1.f;
+            case UI_AnimationKeyframeTrackType::PositionX:
+            case UI_AnimationKeyframeTrackType::PositionY:
+            case UI_AnimationKeyframeTrackType::Rotation:
+            case UI_AnimationKeyframeTrackType::Color:
+            default:
+                return 0.f;
+            }
+        }
     }
 
     UI_AnimationAssetService::UI_AnimationAssetService()
     {
         New_Asset();
+    }
+
+    bool UI_AnimationAssetService::Is_PublicAnimationMode() const
+    {
+        return Is_PublicAnimation(_asset);
     }
 
     bool UI_AnimationAssetService::Has_AnyResolvedTarget() const
@@ -51,6 +73,7 @@ namespace UIEditor
         _hasCopiedKey = false;
         _copiedKeyTrackType = UI_AnimationKeyframeTrackType::PositionX;
         _copiedKey = {};
+        Reset_EditHistory();
     }
 
     bool UI_AnimationAssetService::Save_Asset(bool forceSaveAs)
@@ -100,6 +123,7 @@ namespace UIEditor
         Clamp_Asset();
         Clamp_SelectedIndices();
         _currentFrame = _asset.startFrame;
+        Reset_EditHistory();
         return true;
     }
 
@@ -121,10 +145,62 @@ namespace UIEditor
         return true;
     }
 
+    bool UI_AnimationAssetService::Undo_AssetEdit()
+    {
+        UI_AnimationAssetHistoryState undoState = {};
+        if (!_editHistory.Undo(
+            Capture_HistoryState(),
+            undoState,
+            [this](const UI_AnimationAssetHistoryState& lhs, const UI_AnimationAssetHistoryState& rhs)
+            {
+                return Is_SameHistoryAsset(lhs, rhs);
+            }))
+        {
+            return false;
+        }
+
+        Restore_HistoryState(undoState);
+        _assetDirty = true;
+        return true;
+    }
+
+    bool UI_AnimationAssetService::Redo_AssetEdit()
+    {
+        UI_AnimationAssetHistoryState redoState = {};
+        if (!_editHistory.Redo(
+            Capture_HistoryState(),
+            redoState,
+            [this](const UI_AnimationAssetHistoryState& lhs, const UI_AnimationAssetHistoryState& rhs)
+            {
+                return Is_SameHistoryAsset(lhs, rhs);
+            }))
+        {
+            return false;
+        }
+
+        Restore_HistoryState(redoState);
+        _assetDirty = true;
+        return true;
+    }
+
     bool UI_AnimationAssetService::Bind_SelectedUI(const UI_Object* selectedObject)
     {
         if (nullptr == selectedObject)
             return false;
+
+        if (Is_PublicAnimationMode())
+        {
+            UI_AnimationTargetBinding previewTarget = {};
+            previewTarget.targetName = selectedObject->name;
+            previewTarget.targetObjectId = selectedObject->id;
+            _asset.targets.clear();
+            _asset.targets.push_back(move(previewTarget));
+            _targetBindingDirty = false;
+            _selectedTargetIndex = 0;
+            _selectedKeyIndex = -1;
+            Clamp_SelectedIndices();
+            return true;
+        }
 
         int32 targetIndex = Find_TargetIndexByObjectId(selectedObject->id);
         if (targetIndex < 0)
@@ -134,11 +210,17 @@ namespace UIEditor
         {
             _selectedTargetIndex = targetIndex;
             const bool renamedTarget = _asset.targets[targetIndex].targetName != selectedObject->name;
+            bool copiedPublicTracks = false;
             _asset.targets[targetIndex].targetName = selectedObject->name;
             _asset.targets[targetIndex].targetObjectId = selectedObject->id;
+            if (_asset.targets[targetIndex].tracks.empty() && !_asset.tracks.empty())
+            {
+                _asset.targets[targetIndex].tracks = _asset.tracks;
+                copiedPublicTracks = true;
+            }
             _targetBindingDirty = false;
             Clamp_SelectedIndices();
-            if (renamedTarget)
+            if (renamedTarget || copiedPublicTracks)
                 Mark_AssetDirty();
             return true;
         }
@@ -146,6 +228,8 @@ namespace UIEditor
         UI_AnimationTargetBinding target = {};
         target.targetName = selectedObject->name;
         target.targetObjectId = selectedObject->id;
+        if (!_asset.tracks.empty())
+            target.tracks = _asset.tracks;
         _asset.targets.push_back(move(target));
         _targetBindingDirty = false;
         _selectedTargetIndex = static_cast<int32>(_asset.targets.size()) - 1;
@@ -164,6 +248,8 @@ namespace UIEditor
         target->targetName.clear();
         target->targetObjectId = 0;
         _targetBindingDirty = false;
+        if (Is_PublicAnimationMode())
+            return;
         Mark_AssetDirty();
     }
 
@@ -206,6 +292,26 @@ namespace UIEditor
 
     void UI_AnimationAssetService::Set_TargetName(const string& targetName, const UI_Document& document)
     {
+        if (Is_PublicAnimationMode())
+        {
+            if (_asset.targets.empty())
+            {
+                UI_AnimationTargetBinding previewTarget = {};
+                previewTarget.targetName = targetName;
+                _asset.targets.push_back(move(previewTarget));
+                _selectedTargetIndex = 0;
+            }
+            else
+            {
+                _asset.targets[0].targetName = targetName;
+                _selectedTargetIndex = 0;
+            }
+
+            _targetBindingDirty = true;
+            Resolve_TargetObject(document, true);
+            return;
+        }
+
         if (nullptr == Get_SelectedTarget())
         {
             UI_AnimationTargetBinding target = {};
@@ -234,6 +340,40 @@ namespace UIEditor
         Mark_AssetDirty();
     }
 
+    void UI_AnimationAssetService::Set_AnimationType(UI_AnimationAssetType animationType)
+    {
+        if (_asset.animationType == animationType)
+            return;
+
+        if (animationType == UI_AnimationAssetType::Public_Animation && _asset.tracks.empty())
+        {
+            const UI_AnimationTargetBinding* target = Get_SelectedTarget();
+            if (nullptr != target && !target->tracks.empty())
+                _asset.tracks = target->tracks;
+
+            if (nullptr != target)
+            {
+                UI_AnimationTargetBinding previewTarget = *target;
+                previewTarget.tracks.clear();
+                _asset.targets.clear();
+                _asset.targets.push_back(move(previewTarget));
+                _selectedTargetIndex = 0;
+            }
+        }
+        else if (animationType == UI_AnimationAssetType::Target_Animation && !_asset.tracks.empty())
+        {
+            UI_AnimationTargetBinding* target = Get_SelectedTarget();
+            if (nullptr != target && target->tracks.empty())
+                target->tracks = _asset.tracks;
+        }
+
+        _asset.animationType = animationType;
+        _selectedTrackIndex = -1;
+        _selectedKeyIndex = -1;
+        Clamp_SelectedIndices();
+        Mark_AssetDirty();
+    }
+
     void UI_AnimationAssetService::Set_CurrentFrame(int32 frame)
     {
         Clamp_AssetRange();
@@ -243,6 +383,18 @@ namespace UIEditor
     void UI_AnimationAssetService::Clamp_Asset()
     {
         Clamp_AssetRange();
+
+        for (UI_AnimationKeyframeTrack& track : _asset.tracks)
+        {
+            for (UI_AnimationKeyframe& key : track.keys)
+            {
+                key.frame = min(max(key.frame, _asset.startFrame), _asset.endFrame);
+                if (track.type == UI_AnimationKeyframeTrackType::Color)
+                    key.color = Clamp_AnimationKeyframeColor(key.color);
+                else
+                    key.value = Clamp_AnimationKeyframeTrackValue(track.type, key.value);
+            }
+        }
 
         for (UI_AnimationTargetBinding& target : _asset.targets)
         {
@@ -271,6 +423,9 @@ namespace UIEditor
 
     void UI_AnimationAssetService::Normalize_AllTracks()
     {
+        for (UI_AnimationKeyframeTrack& track : _asset.tracks)
+            Sort_TrackKeys(track);
+
         for (UI_AnimationTargetBinding& target : _asset.targets)
         {
             for (UI_AnimationKeyframeTrack& track : target.tracks)
@@ -296,6 +451,14 @@ namespace UIEditor
 
     UI_AnimationKeyframeTrack* UI_AnimationAssetService::Get_SelectedTrack()
     {
+        if (Is_PublicAnimationMode())
+        {
+            if (_selectedTrackIndex < 0 || _selectedTrackIndex >= static_cast<int32>(_asset.tracks.size()))
+                return nullptr;
+
+            return &_asset.tracks[_selectedTrackIndex];
+        }
+
         UI_AnimationTargetBinding* target = Get_SelectedTarget();
         if (nullptr == target || _selectedTrackIndex < 0 || _selectedTrackIndex >= static_cast<int32>(target->tracks.size()))
             return nullptr;
@@ -305,6 +468,14 @@ namespace UIEditor
 
     const UI_AnimationKeyframeTrack* UI_AnimationAssetService::Get_SelectedTrack() const
     {
+        if (Is_PublicAnimationMode())
+        {
+            if (_selectedTrackIndex < 0 || _selectedTrackIndex >= static_cast<int32>(_asset.tracks.size()))
+                return nullptr;
+
+            return &_asset.tracks[_selectedTrackIndex];
+        }
+
         const UI_AnimationTargetBinding* target = Get_SelectedTarget();
         if (nullptr == target || _selectedTrackIndex < 0 || _selectedTrackIndex >= static_cast<int32>(target->tracks.size()))
             return nullptr;
@@ -332,6 +503,9 @@ namespace UIEditor
 
     float UI_AnimationAssetService::Get_TargetCurrentValue(const UI_Document& document, UI_AnimationKeyframeTrackType trackType) const
     {
+        if (Is_PublicAnimationMode())
+            return Get_PublicAnimationCurrentValue(trackType);
+
         const UI_AnimationTargetBinding* target = Get_SelectedTarget();
         const UI_Object* targetObject = nullptr != target ? document.Find_Object(target->targetObjectId) : nullptr;
         if (nullptr == targetObject)
@@ -378,11 +552,11 @@ namespace UIEditor
         if (trackType == UI_AnimationKeyframeTrackType::Alpha)
             trackType = UI_AnimationKeyframeTrackType::Color;
 
-        UI_AnimationTargetBinding* target = Get_SelectedTarget();
-        if (nullptr == target)
+        if (!Is_PublicAnimationMode() && nullptr == Get_SelectedTarget())
             return false;
 
-        const int32 existingTrackIndex = Find_TrackIndex(*target, trackType);
+        vector<UI_AnimationKeyframeTrack>& tracks = Get_EditableTracks();
+        const int32 existingTrackIndex = Find_TrackIndex(tracks, trackType);
         if (existingTrackIndex >= 0)
         {
             _selectedTrackIndex = existingTrackIndex;
@@ -393,8 +567,8 @@ namespace UIEditor
         UI_AnimationKeyframeTrack track = {};
         track.type = trackType;
         track.enabled = true;
-        target->tracks.push_back(track);
-        _selectedTrackIndex = static_cast<int32>(target->tracks.size()) - 1;
+        tracks.push_back(track);
+        _selectedTrackIndex = static_cast<int32>(tracks.size()) - 1;
         _selectedKeyIndex = -1;
         Mark_AssetDirty();
         return true;
@@ -402,13 +576,16 @@ namespace UIEditor
 
     bool UI_AnimationAssetService::Delete_SelectedTrack()
     {
-        UI_AnimationTargetBinding* target = Get_SelectedTarget();
-        if (nullptr == target || _selectedTrackIndex < 0 || _selectedTrackIndex >= static_cast<int32>(target->tracks.size()))
+        if (!Is_PublicAnimationMode() && nullptr == Get_SelectedTarget())
             return false;
 
-        target->tracks.erase(target->tracks.begin() + _selectedTrackIndex);
-        if (_selectedTrackIndex >= static_cast<int32>(target->tracks.size()))
-            _selectedTrackIndex = static_cast<int32>(target->tracks.size()) - 1;
+        vector<UI_AnimationKeyframeTrack>& tracks = Get_EditableTracks();
+        if (_selectedTrackIndex < 0 || _selectedTrackIndex >= static_cast<int32>(tracks.size()))
+            return false;
+
+        tracks.erase(tracks.begin() + _selectedTrackIndex);
+        if (_selectedTrackIndex >= static_cast<int32>(tracks.size()))
+            _selectedTrackIndex = static_cast<int32>(tracks.size()) - 1;
         _selectedKeyIndex = -1;
         Mark_AssetDirty();
         return true;
@@ -433,8 +610,7 @@ namespace UIEditor
 
     bool UI_AnimationAssetService::Add_CurrentValueKeysToTransformTracks(const UI_Document& document)
     {
-        UI_AnimationTargetBinding* target = Get_SelectedTarget();
-        if (nullptr == target)
+        if (!Is_PublicAnimationMode() && nullptr == Get_SelectedTarget())
             return false;
 
         const UI_AnimationKeyframeTrackType trackTypes[] = {
@@ -463,13 +639,14 @@ namespace UIEditor
         }
 
         int32 preferredTrackIndex = previousTrackIndex;
-        if (preferredTrackIndex < 0 || preferredTrackIndex >= static_cast<int32>(target->tracks.size()))
+        const vector<UI_AnimationKeyframeTrack>& tracks = Get_EditableTracks();
+        if (preferredTrackIndex < 0 || preferredTrackIndex >= static_cast<int32>(tracks.size()))
             preferredTrackIndex = fallbackTrackIndex;
 
-        if (preferredTrackIndex >= 0 && preferredTrackIndex < static_cast<int32>(target->tracks.size()))
+        if (preferredTrackIndex >= 0 && preferredTrackIndex < static_cast<int32>(tracks.size()))
         {
             _selectedTrackIndex = preferredTrackIndex;
-            _selectedKeyIndex = Find_KeyIndexAtFrame(target->tracks[preferredTrackIndex], _currentFrame);
+            _selectedKeyIndex = Find_KeyIndexAtFrame(tracks[preferredTrackIndex], _currentFrame);
         }
 
         return changed;
@@ -521,10 +698,19 @@ namespace UIEditor
         if (_selectedTargetIndex >= static_cast<int32>(_asset.targets.size()))
             _selectedTargetIndex = static_cast<int32>(_asset.targets.size()) - 1;
 
-        _selectedTrackIndex = -1;
-        _selectedKeyIndex = -1;
-        if (nullptr != Get_SelectedTarget() && !Get_SelectedTarget()->tracks.empty())
-            _selectedTrackIndex = 0;
+        if (Is_PublicAnimationMode())
+        {
+            _targetBindingDirty = false;
+            return true;
+        }
+
+        if (!Is_PublicAnimationMode())
+        {
+            _selectedTrackIndex = -1;
+            _selectedKeyIndex = -1;
+            if (nullptr != Get_SelectedTarget() && !Get_SelectedTarget()->tracks.empty())
+                _selectedTrackIndex = 0;
+        }
 
         Mark_AssetDirty();
         return true;
@@ -536,12 +722,28 @@ namespace UIEditor
             return;
 
         _selectedTargetIndex = targetIndex;
-        _selectedTrackIndex = -1;
-        _selectedKeyIndex = -1;
+        if (!Is_PublicAnimationMode())
+        {
+            _selectedTrackIndex = -1;
+            _selectedKeyIndex = -1;
+        }
     }
 
     void UI_AnimationAssetService::Select_Track(int32 targetIndex, int32 trackIndex)
     {
+        if (Is_PublicAnimationMode())
+        {
+            if (trackIndex < 0 || trackIndex >= static_cast<int32>(_asset.tracks.size()))
+                return;
+
+            if (targetIndex >= 0 && targetIndex < static_cast<int32>(_asset.targets.size()))
+                _selectedTargetIndex = targetIndex;
+
+            _selectedTrackIndex = trackIndex;
+            _selectedKeyIndex = -1;
+            return;
+        }
+
         if (targetIndex < 0 || targetIndex >= static_cast<int32>(_asset.targets.size()))
             return;
 
@@ -556,6 +758,22 @@ namespace UIEditor
 
     bool UI_AnimationAssetService::Select_Key(int32 targetIndex, int32 trackIndex, int32 keyIndex)
     {
+        if (Is_PublicAnimationMode())
+        {
+            if (trackIndex < 0 || trackIndex >= static_cast<int32>(_asset.tracks.size()))
+                return false;
+
+            if (keyIndex < 0 || keyIndex >= static_cast<int32>(_asset.tracks[trackIndex].keys.size()))
+                return false;
+
+            if (targetIndex >= 0 && targetIndex < static_cast<int32>(_asset.targets.size()))
+                _selectedTargetIndex = targetIndex;
+
+            _selectedTrackIndex = trackIndex;
+            _selectedKeyIndex = keyIndex;
+            return true;
+        }
+
         if (targetIndex < 0 || targetIndex >= static_cast<int32>(_asset.targets.size()))
             return false;
 
@@ -662,7 +880,51 @@ namespace UIEditor
 
     void UI_AnimationAssetService::Mark_AssetDirty()
     {
+        _editHistory.Capture_Edit(
+            Capture_HistoryState(),
+            [this](const UI_AnimationAssetHistoryState& lhs, const UI_AnimationAssetHistoryState& rhs)
+            {
+                return Is_SameHistoryAsset(lhs, rhs);
+            });
+
         _assetDirty = true;
+    }
+
+    UI_AnimationAssetService::UI_AnimationAssetHistoryState UI_AnimationAssetService::Capture_HistoryState() const
+    {
+        UI_AnimationAssetHistoryState historyState = {};
+        historyState.asset = _asset;
+        historyState.currentFrame = _currentFrame;
+        historyState.selectedTargetIndex = _selectedTargetIndex;
+        historyState.selectedTrackIndex = _selectedTrackIndex;
+        historyState.selectedKeyIndex = _selectedKeyIndex;
+        historyState.pendingTrackType = _pendingTrackType;
+        return historyState;
+    }
+
+    void UI_AnimationAssetService::Restore_HistoryState(const UI_AnimationAssetHistoryState& historyState)
+    {
+        _asset = historyState.asset;
+        _currentFrame = historyState.currentFrame;
+        _selectedTargetIndex = historyState.selectedTargetIndex;
+        _selectedTrackIndex = historyState.selectedTrackIndex;
+        _selectedKeyIndex = historyState.selectedKeyIndex;
+        _pendingTrackType = historyState.pendingTrackType;
+        _targetBindingDirty = true;
+        Clamp_Asset();
+        Clamp_SelectedIndices();
+    }
+
+    bool UI_AnimationAssetService::Is_SameHistoryAsset(
+        const UI_AnimationAssetHistoryState& lhs,
+        const UI_AnimationAssetHistoryState& rhs) const
+    {
+        return UI_AnimationAssetSerializer::To_Json(lhs.asset) == UI_AnimationAssetSerializer::To_Json(rhs.asset);
+    }
+
+    void UI_AnimationAssetService::Reset_EditHistory()
+    {
+        _editHistory.Reset(Capture_HistoryState());
     }
 
     int32 UI_AnimationAssetService::Find_TargetIndexByName(const string& targetName) const
@@ -695,9 +957,14 @@ namespace UIEditor
 
     int32 UI_AnimationAssetService::Find_TrackIndex(const UI_AnimationTargetBinding& target, UI_AnimationKeyframeTrackType trackType) const
     {
-        for (int32 index = 0; index < static_cast<int32>(target.tracks.size()); ++index)
+        return Find_TrackIndex(target.tracks, trackType);
+    }
+
+    int32 UI_AnimationAssetService::Find_TrackIndex(const vector<UI_AnimationKeyframeTrack>& tracks, UI_AnimationKeyframeTrackType trackType) const
+    {
+        for (int32 index = 0; index < static_cast<int32>(tracks.size()); ++index)
         {
-            if (target.tracks[index].type == trackType)
+            if (tracks[index].type == trackType)
                 return index;
         }
 
@@ -720,29 +987,56 @@ namespace UIEditor
         if (trackType == UI_AnimationKeyframeTrackType::Alpha)
             trackType = UI_AnimationKeyframeTrackType::Color;
 
-        UI_AnimationTargetBinding* target = Get_SelectedTarget();
-        if (nullptr == target)
+        if (!Is_PublicAnimationMode() && nullptr == Get_SelectedTarget())
             return -1;
 
-        const int32 existingTrackIndex = Find_TrackIndex(*target, trackType);
+        vector<UI_AnimationKeyframeTrack>& tracks = Get_EditableTracks();
+        const int32 existingTrackIndex = Find_TrackIndex(tracks, trackType);
         if (existingTrackIndex >= 0)
             return existingTrackIndex;
 
         UI_AnimationKeyframeTrack track = {};
         track.type = trackType;
         track.enabled = true;
-        target->tracks.push_back(track);
+        tracks.push_back(track);
         Mark_AssetDirty();
-        return static_cast<int32>(target->tracks.size()) - 1;
+        return static_cast<int32>(tracks.size()) - 1;
+    }
+
+    vector<UI_AnimationKeyframeTrack>& UI_AnimationAssetService::Get_EditableTracks()
+    {
+        if (Is_PublicAnimationMode())
+            return _asset.tracks;
+
+        UI_AnimationTargetBinding* target = Get_SelectedTarget();
+        if (nullptr != target)
+            return target->tracks;
+
+        return _asset.tracks;
+    }
+
+    const vector<UI_AnimationKeyframeTrack>& UI_AnimationAssetService::Get_EditableTracks() const
+    {
+        if (Is_PublicAnimationMode())
+            return _asset.tracks;
+
+        const UI_AnimationTargetBinding* target = Get_SelectedTarget();
+        if (nullptr != target)
+            return target->tracks;
+
+        return _asset.tracks;
     }
 
     bool UI_AnimationAssetService::Upsert_CurrentValueKey(const UI_Document& document, int32 trackIndex, bool selectKey)
     {
-        UI_AnimationTargetBinding* target = Get_SelectedTarget();
-        if (nullptr == target || trackIndex < 0 || trackIndex >= static_cast<int32>(target->tracks.size()))
+        if (!Is_PublicAnimationMode() && nullptr == Get_SelectedTarget())
             return false;
 
-        UI_AnimationKeyframeTrack& track = target->tracks[trackIndex];
+        vector<UI_AnimationKeyframeTrack>& tracks = Get_EditableTracks();
+        if (trackIndex < 0 || trackIndex >= static_cast<int32>(tracks.size()))
+            return false;
+
+        UI_AnimationKeyframeTrack& track = tracks[trackIndex];
         if (track.type == UI_AnimationKeyframeTrackType::Color)
             return Upsert_KeyColor(_currentFrame, Get_TargetCurrentColor255(document), track.easing, selectKey);
 
@@ -796,11 +1090,14 @@ namespace UIEditor
         }
 
         const int32 trackIndex = Ensure_Track(trackType);
-        UI_AnimationTargetBinding* target = Get_SelectedTarget();
-        if (nullptr == target || trackIndex < 0 || trackIndex >= static_cast<int32>(target->tracks.size()))
+        if (!Is_PublicAnimationMode() && nullptr == Get_SelectedTarget())
             return false;
 
-        UI_AnimationKeyframeTrack& track = target->tracks[trackIndex];
+        vector<UI_AnimationKeyframeTrack>& tracks = Get_EditableTracks();
+        if (trackIndex < 0 || trackIndex >= static_cast<int32>(tracks.size()))
+            return false;
+
+        UI_AnimationKeyframeTrack& track = tracks[trackIndex];
         track.easing = easing;
 
         const int32 targetFrame = min(max(frame, _asset.startFrame), _asset.endFrame);
@@ -849,11 +1146,14 @@ namespace UIEditor
     bool UI_AnimationAssetService::Upsert_KeyColor(int32 frame, const ImVec4& color, UI_AnimationEasing easing, bool selectKey)
     {
         const int32 trackIndex = Ensure_Track(UI_AnimationKeyframeTrackType::Color);
-        UI_AnimationTargetBinding* target = Get_SelectedTarget();
-        if (nullptr == target || trackIndex < 0 || trackIndex >= static_cast<int32>(target->tracks.size()))
+        if (!Is_PublicAnimationMode() && nullptr == Get_SelectedTarget())
             return false;
 
-        UI_AnimationKeyframeTrack& track = target->tracks[trackIndex];
+        vector<UI_AnimationKeyframeTrack>& tracks = Get_EditableTracks();
+        if (trackIndex < 0 || trackIndex >= static_cast<int32>(tracks.size()))
+            return false;
+
+        UI_AnimationKeyframeTrack& track = tracks[trackIndex];
         track.easing = easing;
 
         const int32 targetFrame = min(max(frame, _asset.startFrame), _asset.endFrame);
@@ -979,13 +1279,41 @@ namespace UIEditor
         if (_asset.targets.empty())
         {
             _selectedTargetIndex = -1;
-            _selectedTrackIndex = -1;
-            _selectedKeyIndex = -1;
-            return;
+            if (!Is_PublicAnimationMode())
+            {
+                _selectedTrackIndex = -1;
+                _selectedKeyIndex = -1;
+                return;
+            }
+        }
+        else if (_selectedTargetIndex < 0 || _selectedTargetIndex >= static_cast<int32>(_asset.targets.size()))
+        {
+            _selectedTargetIndex = 0;
         }
 
-        if (_selectedTargetIndex < 0 || _selectedTargetIndex >= static_cast<int32>(_asset.targets.size()))
-            _selectedTargetIndex = 0;
+        if (Is_PublicAnimationMode())
+        {
+            if (_asset.tracks.empty())
+            {
+                _selectedTrackIndex = -1;
+                _selectedKeyIndex = -1;
+                return;
+            }
+
+            if (_selectedTrackIndex < 0 || _selectedTrackIndex >= static_cast<int32>(_asset.tracks.size()))
+                _selectedTrackIndex = 0;
+
+            UI_AnimationKeyframeTrack& track = _asset.tracks[_selectedTrackIndex];
+            if (track.keys.empty())
+            {
+                _selectedKeyIndex = -1;
+                return;
+            }
+
+            if (_selectedKeyIndex >= static_cast<int32>(track.keys.size()))
+                _selectedKeyIndex = static_cast<int32>(track.keys.size()) - 1;
+            return;
+        }
 
         UI_AnimationTargetBinding& target = _asset.targets[_selectedTargetIndex];
         if (target.tracks.empty())
@@ -1008,4 +1336,5 @@ namespace UIEditor
         if (_selectedKeyIndex >= static_cast<int32>(track.keys.size()))
             _selectedKeyIndex = static_cast<int32>(track.keys.size()) - 1;
     }
+
 }

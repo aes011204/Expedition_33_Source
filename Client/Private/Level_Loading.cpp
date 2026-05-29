@@ -6,6 +6,7 @@
 #include "UI_RuntimeLoader.h"
 
 #include "Level_MainTitle.h"
+#include "Level_GameEntry.h"
 #include "Level_GamePlay.h"
 #include "Level_MapTest.h"
 #include "Level_Stage01.h"
@@ -80,6 +81,9 @@ void Level_Loading::Update(float fTimeDelta)
         {
         case LevelType::MainTitle:
             pNextLevel = Level_MainTitle::Create(_device.Get(), _context.Get());
+            break;
+        case LevelType::GameEntry:
+            pNextLevel = Level_GameEntry::Create(_device.Get(), _context.Get());
             break;
         case LevelType::GamePlay:
             pNextLevel = Level_GamePlay::Create(_device.Get(), _context.Get());

@@ -243,7 +243,7 @@ namespace UIEditor
         for (const AssetMeta& assetMeta : GAME->Get_AssetsByType("Font"))
             tryAddFontAsset(assetMeta);
 
-        const wstring assetRoot = GAME->Get_AssetRoot();
+        const wstring assetRoot = Resolve_UIEditorClientResourceRoot();
         if (!assetRoot.empty())
         {
             const fs::path assetRootPath = fs::path(assetRoot);

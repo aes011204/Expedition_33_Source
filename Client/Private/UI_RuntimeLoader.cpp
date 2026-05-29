@@ -22,6 +22,13 @@ namespace
         Unknown,
     };
 
+    struct RuntimeUIStateAnimationTargetAction
+    {
+        UI_StateAnimationEvent eventType = UI_StateAnimationEvent::Count;
+        string targetName{};
+        wstring animationName{};
+    };
+
     struct RuntimeUIObject
     {
         int32 id = 0;
@@ -62,6 +69,9 @@ namespace
 
         vector<UI_AnimationClip> animationClips{};
         vector<UI_KeyframeAnimationAsset> keyframeAnimationAssets{};
+        string stateAnimationPath{};
+        UI_StateAnimationProfile stateAnimationProfile{};
+        vector<RuntimeUIStateAnimationTargetAction> stateAnimationTargetActions{};
     };
 
     struct RuntimeUIDocument
@@ -75,6 +85,14 @@ namespace
     {
         string targetName{};
         UI_KeyframeAnimationAsset asset{};
+    };
+
+    struct RuntimeStateAnimationProfileLoadResult
+    {
+        UI_StateAnimationProfile profile{};
+        vector<UI_KeyframeAnimationAsset> publicAnimationAssets{};
+        vector<RuntimeUIAnimationAssetBinding> targetAnimationBindings{};
+        vector<RuntimeUIStateAnimationTargetAction> targetActions{};
     };
 
     // -----------------------------
@@ -115,6 +133,84 @@ namespace
             return defaultValue;
 
         return iter->get<bool>();
+    }
+
+    enum class RuntimeAnimationAssetType
+    {
+        Target_Animation,
+        Public_Animation,
+    };
+
+    bool Try_ParseAnimationAssetType(const json& root, RuntimeAnimationAssetType& outType)
+    {
+        const string animationType = Read_String(root, "animationType", "");
+        if (animationType == "Target_Animation")
+        {
+            outType = RuntimeAnimationAssetType::Target_Animation;
+            return true;
+        }
+
+        if (animationType == "Public_Animation")
+        {
+            outType = RuntimeAnimationAssetType::Public_Animation;
+            return true;
+        }
+
+        const string legacyBindingMode = Read_String(root, "bindingMode", "");
+        if (legacyBindingMode == "PerTargetTracks")
+        {
+            outType = RuntimeAnimationAssetType::Target_Animation;
+            return true;
+        }
+
+        if (legacyBindingMode == "SharedRelativeTracks")
+        {
+            outType = RuntimeAnimationAssetType::Public_Animation;
+            return true;
+        }
+
+        outType = RuntimeAnimationAssetType::Target_Animation;
+        return false;
+    }
+
+    const char* Get_StateAnimationEventName(UI_StateAnimationEvent eventType)
+    {
+        switch (eventType)
+        {
+        case UI_StateAnimationEvent::HoverEnter:
+            return "HoverEnter";
+        case UI_StateAnimationEvent::HoverExit:
+            return "HoverExit";
+        case UI_StateAnimationEvent::PressedEnter:
+            return "PressedEnter";
+        case UI_StateAnimationEvent::PressedExit:
+            return "PressedExit";
+        case UI_StateAnimationEvent::FocusedEnter:
+            return "FocusedEnter";
+        case UI_StateAnimationEvent::FocusedExit:
+            return "FocusedExit";
+        case UI_StateAnimationEvent::DisabledEnter:
+            return "DisabledEnter";
+        case UI_StateAnimationEvent::DisabledExit:
+            return "DisabledExit";
+        default:
+            return "HoverEnter";
+        }
+    }
+
+    bool Try_ParseStateAnimationEvent(const string& eventName, UI_StateAnimationEvent& outEvent)
+    {
+        for (int32 index = 0; index < static_cast<int32>(UI_StateAnimationEvent::Count); ++index)
+        {
+            const UI_StateAnimationEvent eventType = static_cast<UI_StateAnimationEvent>(index);
+            if (eventName == Get_StateAnimationEventName(eventType))
+            {
+                outEvent = eventType;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     Vec2 Read_Vec2(const json& item, const char* key, const Vec2& defaultValue)
@@ -514,6 +610,26 @@ namespace
         return asset;
     }
 
+    fs::path Resolve_AnimationAssetPath(const wstring& animationPath, const wchar_t* extension)
+    {
+        if (animationPath.empty())
+            return {};
+
+        const wstring assetRoot = GAME->Get_AssetRoot();
+        if (assetRoot.empty())
+            return {};
+
+        wstring normalizedAnimationPath = animationPath;
+        replace(normalizedAnimationPath.begin(), normalizedAnimationPath.end(), L'\\', L'/');
+
+        const string loweredAnimationPath = String::ToLowerCopy(String::ToString(normalizedAnimationPath));
+        const string loweredExtension = String::ToLowerCopy(String::ToString(wstring(extension)));
+        if (!EndsWith(loweredAnimationPath, loweredExtension))
+            normalizedAnimationPath += extension;
+
+        return (fs::path(assetRoot) / normalizedAnimationPath).lexically_normal();
+    }
+
     bool Try_ReadLegacyKeyframeAnimationAssetBinding(const json& root, RuntimeUIAnimationAssetBinding& outBinding)
     {
         if (!root.is_object())
@@ -535,6 +651,11 @@ namespace
     bool Try_ReadKeyframeAnimationAssetBindings(const json& root, vector<RuntimeUIAnimationAssetBinding>& outBindings)
     {
         if (!root.is_object())
+            return false;
+
+        RuntimeAnimationAssetType animationType = RuntimeAnimationAssetType::Target_Animation;
+        Try_ParseAnimationAssetType(root, animationType);
+        if (animationType == RuntimeAnimationAssetType::Public_Animation)
             return false;
 
         const auto targetsIter = root.find("targets");
@@ -582,6 +703,16 @@ namespace
             if (root.is_discarded())
                 return false;
 
+            RuntimeAnimationAssetType animationType = RuntimeAnimationAssetType::Target_Animation;
+            Try_ParseAnimationAssetType(root, animationType);
+            if (animationType == RuntimeAnimationAssetType::Public_Animation)
+            {
+                LOG_WARN(
+                    "UI RuntimeLoader animationPath/animationPaths expects Target_Animation. Public_Animation is ignored: {}",
+                    String::ToString(assetPath.wstring()));
+                return false;
+            }
+
             return Try_ReadKeyframeAnimationAssetBindings(root, outBindings);
         }
         catch (const exception& exception)
@@ -599,18 +730,10 @@ namespace
         if (animationPath.empty())
             return bindings;
 
-        const wstring assetRoot = GAME->Get_AssetRoot();
-        if (assetRoot.empty())
+        const fs::path assetPath = Resolve_AnimationAssetPath(animationPath, L".uianim.json");
+        if (assetPath.empty())
             return bindings;
 
-        wstring normalizedAnimationPath = animationPath;
-        replace(normalizedAnimationPath.begin(), normalizedAnimationPath.end(), L'\\', L'/');
-
-        const string loweredAnimationPath = String::ToLowerCopy(String::ToString(normalizedAnimationPath));
-        if (!EndsWith(loweredAnimationPath, ".uianim.json"))
-            normalizedAnimationPath += L".uianim.json";
-
-        const fs::path assetPath = (fs::path(assetRoot) / normalizedAnimationPath).lexically_normal();
         if (!fs::exists(assetPath) || !fs::is_regular_file(assetPath))
         {
             LOG_WARN("UI RuntimeLoader animation asset not found: {}", String::ToString(assetPath.wstring()));
@@ -622,6 +745,244 @@ namespace
         return bindings;
     }
 
+    bool Load_PublicKeyframeAnimationAsset(const wstring& animationPath, UI_KeyframeAnimationAsset& outAsset)
+    {
+        const fs::path assetPath = Resolve_AnimationAssetPath(animationPath, L".uianim.json");
+        if (assetPath.empty())
+            return false;
+
+        if (!fs::exists(assetPath) || !fs::is_regular_file(assetPath))
+        {
+            LOG_WARN("UI RuntimeLoader public animation asset not found: {}", String::ToString(assetPath.wstring()));
+            return false;
+        }
+
+        try
+        {
+            ifstream file(assetPath);
+            if (!file.is_open())
+                return false;
+
+            json root = json::parse(file, nullptr, false);
+            if (root.is_discarded())
+                return false;
+
+            RuntimeAnimationAssetType animationType = RuntimeAnimationAssetType::Target_Animation;
+            Try_ParseAnimationAssetType(root, animationType);
+            if (animationType != RuntimeAnimationAssetType::Public_Animation)
+            {
+                LOG_WARN("UI RuntimeLoader expected Public_Animation asset: {}", String::ToString(assetPath.wstring()));
+                return false;
+            }
+
+            UI_KeyframeAnimationAsset asset = Make_KeyframeAnimationAssetFromRoot(root);
+            asset.valueMode = UI_KeyframeAnimationValueMode::RelativeTransform;
+            Read_KeyframeAnimationTracks(root, asset);
+            if (asset.tracks.empty())
+                return false;
+
+            outAsset = move(asset);
+            return true;
+        }
+        catch (const exception& exception)
+        {
+            LOG_WARN("UI RuntimeLoader public animation parse failed: {} ({})",
+                exception.what(),
+                String::ToString(assetPath.wstring()));
+            return false;
+        }
+    }
+
+    bool Load_StateEventAnimationAsset(
+        const string& animationPath,
+        UI_StateAnimationEvent eventType,
+        RuntimeStateAnimationProfileLoadResult& outResult,
+        unordered_map<string, wstring>& loadedPublicAnimationNamesByPath,
+        unordered_map<string, vector<RuntimeUIAnimationAssetBinding>>& loadedTargetBindingsByPath)
+    {
+        const fs::path assetPath = Resolve_AnimationAssetPath(String::ToWString(animationPath), L".uianim.json");
+        if (assetPath.empty())
+            return false;
+
+        if (!fs::exists(assetPath) || !fs::is_regular_file(assetPath))
+        {
+            LOG_WARN("UI RuntimeLoader state event animation asset not found: {}", String::ToString(assetPath.wstring()));
+            return false;
+        }
+
+        try
+        {
+            ifstream file(assetPath);
+            if (!file.is_open())
+                return false;
+
+            json root = json::parse(file, nullptr, false);
+            if (root.is_discarded())
+                return false;
+
+            RuntimeAnimationAssetType animationType = RuntimeAnimationAssetType::Target_Animation;
+            Try_ParseAnimationAssetType(root, animationType);
+
+            const size_t eventIndex = static_cast<size_t>(eventType);
+            if (eventIndex >= outResult.profile.eventAnimationNames.size())
+                return false;
+
+            if (animationType == RuntimeAnimationAssetType::Public_Animation)
+            {
+                const auto loadedIter = loadedPublicAnimationNamesByPath.find(animationPath);
+                if (loadedIter != loadedPublicAnimationNamesByPath.end())
+                {
+                    outResult.profile.eventAnimationNames[eventIndex] = loadedIter->second;
+                    return true;
+                }
+
+                UI_KeyframeAnimationAsset publicAsset = Make_KeyframeAnimationAssetFromRoot(root);
+                publicAsset.playOnOpen = false;
+                publicAsset.valueMode = UI_KeyframeAnimationValueMode::TransitionFromCurrentRelativeTransform;
+                Read_KeyframeAnimationTracks(root, publicAsset);
+                if (publicAsset.tracks.empty())
+                {
+                    LOG_WARN("UI RuntimeLoader state public animation has no tracks: {}", String::ToString(assetPath.wstring()));
+                    return false;
+                }
+
+                const wstring animationName = publicAsset.name;
+                loadedPublicAnimationNamesByPath.emplace(animationPath, animationName);
+                outResult.publicAnimationAssets.push_back(move(publicAsset));
+                outResult.profile.eventAnimationNames[eventIndex] = animationName;
+                return true;
+            }
+
+            const auto loadedTargetIter = loadedTargetBindingsByPath.find(animationPath);
+            const vector<RuntimeUIAnimationAssetBinding>* targetBindings = nullptr;
+            if (loadedTargetIter != loadedTargetBindingsByPath.end())
+            {
+                targetBindings = &loadedTargetIter->second;
+            }
+            else
+            {
+                vector<RuntimeUIAnimationAssetBinding> loadedBindings{};
+                if (!Try_ReadKeyframeAnimationAssetBindings(root, loadedBindings))
+                {
+                    LOG_WARN("UI RuntimeLoader state target animation has no target bindings: {}", String::ToString(assetPath.wstring()));
+                    return false;
+                }
+
+                vector<RuntimeUIAnimationAssetBinding> validBindings{};
+                for (RuntimeUIAnimationAssetBinding& binding : loadedBindings)
+                {
+                    if (binding.targetName.empty())
+                    {
+                        LOG_WARN("UI RuntimeLoader state target animation skipped empty targetName: {}", String::ToString(assetPath.wstring()));
+                        continue;
+                    }
+
+                    if (binding.asset.tracks.empty())
+                    {
+                        LOG_WARN("UI RuntimeLoader state target animation skipped empty tracks. target={}", binding.targetName);
+                        continue;
+                    }
+
+                    binding.asset.playOnOpen = false;
+                    binding.asset.valueMode = UI_KeyframeAnimationValueMode::TransitionFromCurrent;
+                    validBindings.push_back(move(binding));
+                }
+
+                if (validBindings.empty())
+                    return false;
+
+                auto insertedIter = loadedTargetBindingsByPath.emplace(animationPath, move(validBindings)).first;
+                targetBindings = &insertedIter->second;
+            }
+
+            for (const RuntimeUIAnimationAssetBinding& binding : *targetBindings)
+            {
+                outResult.targetAnimationBindings.push_back(binding);
+                outResult.targetActions.push_back(RuntimeUIStateAnimationTargetAction{
+                    eventType,
+                    binding.targetName,
+                    binding.asset.name });
+            }
+
+            return true;
+        }
+        catch (const exception& exception)
+        {
+            LOG_WARN("UI RuntimeLoader state event animation parse failed: {} ({})",
+                exception.what(),
+                String::ToString(assetPath.wstring()));
+            return false;
+        }
+    }
+
+    bool Load_StateAnimationProfile(
+        const string& stateAnimationPath,
+        RuntimeStateAnimationProfileLoadResult& outResult)
+    {
+        if (stateAnimationPath.empty())
+            return false;
+
+        const fs::path assetPath = Resolve_AnimationAssetPath(String::ToWString(stateAnimationPath), L".uistateanim.json");
+        if (assetPath.empty())
+            return false;
+
+        if (!fs::exists(assetPath) || !fs::is_regular_file(assetPath))
+        {
+            LOG_WARN("UI RuntimeLoader state animation asset not found: {}", String::ToString(assetPath.wstring()));
+            return false;
+        }
+
+        try
+        {
+            ifstream file(assetPath);
+            if (!file.is_open())
+                return false;
+
+            json root = json::parse(file, nullptr, false);
+            if (root.is_discarded())
+                return false;
+
+            const auto eventsIter = root.find("events");
+            if (eventsIter == root.end() || !eventsIter->is_object())
+                return false;
+
+            RuntimeStateAnimationProfileLoadResult loadResult{};
+            unordered_map<string, wstring> loadedPublicAnimationNamesByPath;
+            unordered_map<string, vector<RuntimeUIAnimationAssetBinding>> loadedTargetBindingsByPath;
+
+            for (auto iter = eventsIter->begin(); iter != eventsIter->end(); ++iter)
+            {
+                if (!iter.value().is_string())
+                    continue;
+
+                UI_StateAnimationEvent eventType = UI_StateAnimationEvent::HoverEnter;
+                if (!Try_ParseStateAnimationEvent(iter.key(), eventType))
+                    continue;
+
+                const string animationPath = iter.value().get<string>();
+                if (animationPath.empty())
+                    continue;
+
+                Load_StateEventAnimationAsset(
+                    animationPath,
+                    eventType,
+                    loadResult,
+                    loadedPublicAnimationNamesByPath,
+                    loadedTargetBindingsByPath);
+            }
+
+            outResult = move(loadResult);
+            return true;
+        }
+        catch (const exception& exception)
+        {
+            LOG_WARN("UI RuntimeLoader state animation parse failed: {} ({})",
+                exception.what(),
+                String::ToString(assetPath.wstring()));
+            return false;
+        }
+    }
+
     vector<UI_KeyframeAnimationAsset> Make_TextKeyframeAnimationAssets(const RuntimeUIObject& object)
     {
         vector<UI_KeyframeAnimationAsset> assets = object.keyframeAnimationAssets;
@@ -629,6 +990,10 @@ namespace
 
         for (UI_KeyframeAnimationAsset& asset : assets)
         {
+            if (asset.valueMode == UI_KeyframeAnimationValueMode::RelativeTransform ||
+                asset.valueMode == UI_KeyframeAnimationValueMode::TransitionFromCurrentRelativeTransform)
+                continue;
+
             for (UI_KeyframeAnimationTrack& track : asset.tracks)
             {
                 if (track.type != UI_KeyframeAnimationTrackType::ScaleX)
@@ -810,6 +1175,7 @@ namespace
         object.patternMaskTextureGuid = Read_String(item, "patternMaskTextureGuid", "");
         object.patternMaskTexturePath = Read_String(item, "patternMaskTexturePath", "");
         object.animationClips = Read_AnimationClips(item);
+        object.stateAnimationPath = Read_String(item, "stateAnimationPath", "");
 
         return object;
     }
@@ -937,6 +1303,96 @@ namespace
 
             if (!bound)
                 LOG_WARN("UI RuntimeLoader keyframe animation target not found: {}", binding.targetName);
+        }
+    }
+
+    void Apply_StateAnimationProfiles(RuntimeUIDocument& document)
+    {
+        for (RuntimeUIObject& object : document.objects)
+        {
+            if (object.type != RuntimeUIType::Button || object.stateAnimationPath.empty())
+                continue;
+
+            RuntimeStateAnimationProfileLoadResult loadResult{};
+            if (!Load_StateAnimationProfile(object.stateAnimationPath, loadResult))
+                continue;
+
+            object.stateAnimationProfile = move(loadResult.profile);
+            for (UI_KeyframeAnimationAsset& publicAnimationAsset : loadResult.publicAnimationAssets)
+                object.keyframeAnimationAssets.push_back(move(publicAnimationAsset));
+            for (const RuntimeUIAnimationAssetBinding& targetBinding : loadResult.targetAnimationBindings)
+            {
+                bool bound = false;
+                for (RuntimeUIObject& targetObject : document.objects)
+                {
+                    if (targetObject.name != targetBinding.targetName)
+                        continue;
+
+                    targetObject.keyframeAnimationAssets.push_back(targetBinding.asset);
+                    bound = true;
+                }
+
+                if (!bound)
+                    LOG_WARN("UI RuntimeLoader state animation target not found: {}", targetBinding.targetName);
+            }
+            for (RuntimeUIStateAnimationTargetAction& targetAction : loadResult.targetActions)
+                object.stateAnimationTargetActions.push_back(move(targetAction));
+        }
+    }
+
+    void Apply_StateAnimationTargetActions(
+        const RuntimeUIDocument& document,
+        const unordered_map<int32, Shared<UI_Base>>& spawnedUIById)
+    {
+        unordered_map<string, Shared<UI_Base>> spawnedUIByName;
+        spawnedUIByName.reserve(document.objects.size());
+
+        for (const RuntimeUIObject& object : document.objects)
+        {
+            if (object.name.empty())
+                continue;
+
+            const auto spawnedIter = spawnedUIById.find(object.id);
+            if (spawnedIter == spawnedUIById.end() || nullptr == spawnedIter->second)
+                continue;
+
+            spawnedUIByName[object.name] = spawnedIter->second;
+        }
+
+        for (const RuntimeUIObject& object : document.objects)
+        {
+            if (object.type != RuntimeUIType::Button || object.stateAnimationTargetActions.empty())
+                continue;
+
+            const auto buttonIter = spawnedUIById.find(object.id);
+            if (buttonIter == spawnedUIById.end() || nullptr == buttonIter->second)
+                continue;
+
+            Shared<UI_Button> button = dynamic_pointer_cast<UI_Button>(buttonIter->second);
+            if (nullptr == button)
+                continue;
+
+            UI_StateAnimationProfile profile = object.stateAnimationProfile;
+            for (const RuntimeUIStateAnimationTargetAction& targetAction : object.stateAnimationTargetActions)
+            {
+                const size_t eventIndex = static_cast<size_t>(targetAction.eventType);
+                if (eventIndex >= profile.eventTargetActions.size())
+                    continue;
+
+                const auto targetIter = spawnedUIByName.find(targetAction.targetName);
+                if (targetIter == spawnedUIByName.end() || nullptr == targetIter->second)
+                {
+                    LOG_WARN("UI RuntimeLoader state animation target action not found: {}", targetAction.targetName);
+                    continue;
+                }
+
+                UI_StateAnimationTargetAction engineAction{};
+                engineAction.target = targetIter->second;
+                engineAction.animationName = targetAction.animationName;
+                profile.eventTargetActions[eventIndex].push_back(engineAction);
+            }
+
+            button->Set_StateAnimationProfile(profile);
         }
     }
 
@@ -1114,6 +1570,7 @@ namespace
         desc.isOpenOnCreate = object.visible;
         desc.animationClips = object.animationClips;
         desc.keyframeAnimationAssets = object.keyframeAnimationAssets;
+        desc.stateAnimationProfile = object.stateAnimationProfile;
         desc.renderGroup = object.renderGroup;
 
         const wstring prototypeTag =
@@ -1280,6 +1737,7 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
     }
 
     Apply_KeyframeAnimationAssets(document, animationBindings);
+    Apply_StateAnimationProfiles(document);
 
     unordered_set<wstring> loadedFontTags;
     unordered_map<int32, Shared<UI_Base>> spawnedUIById;
@@ -1319,6 +1777,7 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
     }
 
     Link_ParentRelations(document, spawnedUIById);
+    Apply_StateAnimationTargetActions(document, spawnedUIById);
 
     if (nullptr != desc.outChildrenByParentName)
     {
@@ -1357,4 +1816,9 @@ HRESULT UI_RuntimeLoader::Load_Document(const UI_LoadDesc& desc)
 
 
     return S_OK;
+}
+
+bool UI_RuntimeLoader::Load_PublicAnimationAsset(const wstring& animationPath, UI_KeyframeAnimationAsset& outAsset)
+{
+    return Load_PublicKeyframeAnimationAsset(animationPath, outAsset);
 }
