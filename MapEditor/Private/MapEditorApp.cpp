@@ -12,13 +12,10 @@
 #include "MEStaticMeshActor.h"
 #include "MEModelManager.h"
 #include "CmdAddObject.h"
-#include "CmdDeleteObject.h"
-#include "CmdTransformObject.h"
 #include "MEInstancedMeshActor.h"
 #include "MEBridgeCamera.h"
 #include "ComputeShaderCom.h"
 #include "MELandscapeActor.h"
-#include "NoiseUtil.h"
 #include "MELandscapeManager.h"
 #include "MEMaterialApplicator.h"
 
