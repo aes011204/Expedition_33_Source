@@ -13,6 +13,7 @@ HRESULT ScreenFx_Instance::Initialize(ScreenFxDesc* desc)
     if (desc)
     {
         _passType = desc->passType;
+        _duration = desc->duration;
         if (desc->endPredicate)
         {
             _endCondition.Add(desc->endPredicate);
@@ -26,13 +27,16 @@ HRESULT ScreenFx_Instance::Initialize(ScreenFxDesc* desc)
 
 bool ScreenFx_Instance::Check_EndCondition()
 {
-    bool shouldEnd = false;
+    bool endDuration = _duration > 0.f && _elapsedTime >= _duration;
+
     if (_endCondition.IsBound())
     {
+        bool shouldEnd = false;
         _endCondition.Broadcast(shouldEnd);
+        return endDuration || shouldEnd;
     }
 
-    return shouldEnd;
+    return endDuration;
 }
 
 void ScreenFx_Instance::Update_ScreenFx(float timeDelta)

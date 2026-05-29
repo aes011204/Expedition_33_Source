@@ -155,6 +155,11 @@ void ScreenFx_View::Render()
         if (ImGui::Button(_isPlaying ? "Pause" : "Play"))
         {
             _isPlaying = !_isPlaying;
+            if (_isPlaying && _previewInstance)
+            {
+                // BattleTransition 등 이전 화면 캡처가 필요한 이펙트를 위해 캡처 요청 (파일 저장은 X)
+                GAME->Request_ScreenCapture(false);
+            }
         }
         ImGui::SameLine();
         if (ImGui::Button("Stop"))

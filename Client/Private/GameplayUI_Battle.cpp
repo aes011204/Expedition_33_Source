@@ -2,6 +2,7 @@
 
 #include "Character.h"
 #include "ClientInstance.h"
+#include "ClientScreenFxManager.h"
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
 #include "PlayerStatCom.h"
@@ -111,7 +112,11 @@ void GameplayUI_Battle::Update_Input()
 void GameplayUI_Battle::Play_BattleEnterTransition()
 {
     if (_battleTransition)
+    {
+        GAME->Request_ScreenCapture();
+        CLIENT->Get_ScreenFxManager()->Transition_To_BattleField();
         _battleTransition->Play_BattleEnter();
+    }
 }
 
 void GameplayUI_Battle::Stop_BattleEnterTransition()

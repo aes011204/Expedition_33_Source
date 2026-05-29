@@ -44,28 +44,19 @@ HRESULT BattleTransition_ScreenFx::Initialize(ScreenFxDesc* desc)
 void BattleTransition_ScreenFx::Update_ScreenFx(float timeDelta)
 {
     _elapsedTime += timeDelta;
-    _duration = _originalDesc.duration;
-
-    float time = std::clamp(_elapsedTime / max(0.001f, _duration), 0.0f, 1.0f);
-    float easeOut = 1.0f - powf(1.0f - time, 3.0f);
-
-    _currentRadius = _originalDesc.maxRadius * easeOut;
+    
+    Evaluate_At(_elapsedTime);
 }
-
 void BattleTransition_ScreenFx::Evaluate_At(float elapsedTime)
 {
-    if (elapsedTime <= 0.001f)
-    {
-        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
-    }
-
     _elapsedTime = elapsedTime;
     _duration = _originalDesc.duration;
 
     float time = std::clamp(_elapsedTime / max(0.001f, _duration), 0.0f, 1.0f);
-    float easeOut = 1.0f - powf(1.0f - time, 3.0f);
 
-    _currentRadius = _originalDesc.maxRadius * easeOut;
+    float easeTime = time < 0.5f ? 2.f * time * time : 1.f - powf(-2.f * time + 2.f, 2.f) / 2.f;
+
+    _currentRadius = _originalDesc.maxRadius * easeTime;
 }
 
 HRESULT BattleTransition_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
@@ -79,7 +70,6 @@ HRESULT BattleTransition_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
 
 HRESULT BattleTransition_ScreenFx::Bind_ShaderResources(const Shared<ShaderCom>& shader)
 {
-    CHECK_FAILED(GAME->Copy_CurrentRTV_To(RT::ScreenCapture), E_FAIL)
     return GAME->Bind_RT_ShaderResource(shader, "g_ScreenMaskTexture", RT::ScreenCapture);
 }
 

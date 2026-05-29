@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Shader_CBuffer_Define.h"
 #include "ScreenFx_Instance.h"
@@ -25,12 +25,18 @@ public:
     void Play_ScreenEffect(const Shared<ScreenFx_Instance>& effect);
     void Clear_ScreenEffect();
 
+    // Screen Capture
+    void Request_ScreenCapture(bool saveToFile = true);
+    HRESULT Save_ScreenCapture(const wstring& filePath);
+
 public:
     void Update(float timeDelta);
     HRESULT Render_ScreenFx(const Shared<ShaderCom>& shader, const Shared <VIBuffer_Rect>& rtBuffer);
 
 private:
     bool _activeFx{ true };
+    bool _captureRequested{ false };
+    bool _saveRequested{ false };
 
 private:
     vector<Shared<ScreenFx_Instance>> _activeEffects;

@@ -1,4 +1,4 @@
-﻿#include "BattleController.h"
+#include "BattleController.h"
 
 #include "AttackPlaying.h"
 #include "BuffSystem.h"

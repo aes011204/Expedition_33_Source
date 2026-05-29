@@ -51,6 +51,17 @@ HRESULT ScreenFx_Manager::Render_ScreenFx(const Shared<ShaderCom>& shader, const
 
     if (!_activeFx || !hasActiveEffects) return S_OK;
 
+    if (_captureRequested)
+    {
+        if (SUCCEEDED(GAME->Copy_CurrentRTV_To(RT::ScreenCapture)))
+        {
+            if (_saveRequested)
+                Save_ScreenCapture(L"../Screenshot/LastCapture.png");
+        }
+        _captureRequested = false;
+        _saveRequested = false;
+    }
+
     if (FAILED(GAME->Copy_CurrentRTV_To(RT::ScreenFxColorA)))
         return E_FAIL;
     bool readFromA = true;
@@ -114,4 +125,16 @@ HRESULT ScreenFx_Manager::Render_ScreenFx(const Shared<ShaderCom>& shader, const
 Unique<ScreenFx_Manager> ScreenFx_Manager::Create()
 {
     return make_unique<ScreenFx_Manager>();
+}
+
+void ScreenFx_Manager::Request_ScreenCapture(bool saveToFile)
+{
+    _captureRequested = true;
+    _saveRequested = saveToFile;
+    GAME->Copy_RTV(RT::ScreenFxColorA, RT::ScreenCapture);
+}
+
+HRESULT ScreenFx_Manager::Save_ScreenCapture(const wstring& filePath)
+{
+    return S_OK;
 }

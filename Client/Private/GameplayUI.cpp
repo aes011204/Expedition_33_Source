@@ -1,6 +1,7 @@
 ﻿#include "GameplayUI.h"
 
 #include "ClientInstance.h"
+#include "ClientScreenFxManager.h"
 #include "GameplayUI_Battle.h"
 #include "GameplayUI_World.h"
 

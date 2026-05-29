@@ -189,24 +189,23 @@ PS_OUT_BACKBUFFER PS_Distortion(PS_IN In)
 PS_OUT_BACKBUFFER PS_CircularWipeTransition(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
-
+    
     float4 currentSceneColor = g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord);
     float4 capturedSceneColor = g_ScreenMaskTexture.Sample(LinearClampSampler, In.Texcoord);
 
     float2 center = float2(0.5, 0.5);
-    float aspect = g_ScreenSize.x / g_ScreenSize.y;
-    // 타원이 되지 않도록 종횡비에 따라 원형 보정 
+    float aspect = g_ScreenSize.x / max(1.0, g_ScreenSize.y);
     float2 diff = In.Texcoord - center;
     diff.x *= aspect;
-    // 중앙으로부터의 거리
+
     float dist = length(diff);
+    float edgeSoftness = max(0.001f, g_edgeSoftness);
+    float mask = smoothstep(g_wipeRadius, g_wipeRadius + edgeSoftness, dist);
 
-    float edgeSoftness = 0.05f;
-    float alpha = smoothstep(g_wipeRadius - edgeSoftness, g_wipeRadius, dist);
-
-    Out.Color = lerp(currentSceneColor, capturedSceneColor, alpha);
+    Out.Color = lerp(currentSceneColor, capturedSceneColor, mask);
 
     return Out;
+
 }
 
 technique11 DefaultTechnique

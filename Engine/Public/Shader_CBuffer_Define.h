@@ -136,9 +136,9 @@ struct alignas(16) ScreenSpaceCB
 
     Vec4    cameraPosition;
 
-    float   farPlane = 0.f;
     Vec2    texelSize = { 1.f/1600.f, 1.f/900.f };
     Vec2    screenSize = { 1600.f, 900.f };
+    float   farPlane = 0.f;
     float   pad[3];
 };
 

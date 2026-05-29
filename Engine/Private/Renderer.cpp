@@ -215,11 +215,7 @@ void Renderer::Draw()
     const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
     if (useScreenFx)
     {
-        // BackBuffer(지금까지 그린 화면) -> ScreenFx 로 복사
-        if (FAILED(GAME->Copy_CurrentRTV_To(RT::ScreenFxColorA)))
-            DEBUG_LOG_FAIL(L"Render_ScreenFx:FAIL Copy_CurrentRTV_To(ScreenFxColor)");
-        else
-            Render_ScreenFx();
+        Render_ScreenFx();
     }
 
 #ifdef _DEBUG

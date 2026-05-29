@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "ScreenFx_Instance.h"
 
 NS_BEGIN(Client)
@@ -12,7 +12,6 @@ public:
         float bulgeIntensity{ 0.0f };
         float pullIntensity{ 0.0f };
         Vec2 pullDirection{ 0.0f, 0.0f };
-        float duration{ 1.0f };
         float delayTime{ 0.0f };
         bool isReverse{ false };
     };

@@ -1,4 +1,4 @@
-#pragma region INCLUDE
+﻿#pragma region INCLUDE
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
@@ -1155,6 +1155,11 @@ Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline()
 ScreenFx_Manager* GameInstance::Get_ScreenFxManager() 
 {
     return _screenFxManager.get();
+}
+
+void GameInstance::Request_ScreenCapture(bool saveToFile)
+{
+    _screenFxManager->Request_ScreenCapture(saveToFile);
 }
 
 RenderGroup GameInstance::Get_CurrentRenderGroup() const

@@ -48,10 +48,10 @@ cbuffer ScreenSpaceBuffer
 
     float4  g_DeferredCamPosition;                  // 272
 
-    float   g_DeferredFar;                          // 276
-    float2  g_TexelSize;                            // 284
-    float2  g_ScreenSize;                           // 292
-    float3  g_DeferredPadding0;                     // 304
+    float2 g_TexelSize;                             // 272
+    float2 g_ScreenSize;                            // 280
+    float g_DeferredFar;                            // 288
+    float3 g_DeferredPadding0;                      // 292
 };
 
 cbuffer LightBuffer
@@ -191,7 +191,7 @@ cbuffer ScreenFxBuffer
 
     float g_wipeRadius;
     float g_edgeSoftness;
-    float pad;
+    float2 pad;
 };
 
 #endif

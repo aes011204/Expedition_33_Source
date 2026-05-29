@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #pragma region INCLUDE
 
@@ -213,6 +213,7 @@ public: /* For.Renderer */
     const Shared<SSAOPipeline>          Get_SSAOPipeline() const;
     Shared<SSAOPipeline>                Get_SSAOPipeline();
     ScreenFx_Manager*                   Get_ScreenFxManager();
+    void                                Request_ScreenCapture(bool saveToFile = false);
     RenderGroup                         Get_CurrentRenderGroup() const;
 
 public: /* For.PipeLine */

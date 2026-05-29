@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Base.h"
 #include "Delegate.h"
 
@@ -16,6 +16,7 @@ public:
     struct ScreenFxDesc
     {
         uint32 passType{};
+        float duration{};
         function<void(bool&)> endPredicate{};
     };
 

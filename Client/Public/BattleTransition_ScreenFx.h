@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "ScreenFx_Instance.h"
 
 NS_BEGIN(Engine)
@@ -13,7 +13,6 @@ class BattleTransition_ScreenFx final : public ScreenFx_Instance
 public:
     struct BattleTransitionDesc : public ScreenFxDesc
     {
-        float duration{ 1.5f };
         float edgeSoftness{ 0.05f };
         float maxRadius{ 1.5f };
     };

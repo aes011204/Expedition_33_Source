@@ -92,15 +92,6 @@ namespace Engine
         END
     };
 
-    enum class ScreenFxPass : uint8
-    {
-        Vignette = 0,
-        Ghosting,
-        BattleTransition,
-
-        END
-    };
-
     enum class CollisionShape : uint8_t
     {
         AABB,
