@@ -108,7 +108,6 @@ void Player_FreeAim::Update(float timeDelta)
             // TODO : Hit Monster 로그. 여기서 몬스터 상태전환해서 Stun으로 만들면 됩니다.
             LOG_DEBUG("World FreeAim Shoot Hit Monster: {}", String::ToString(hitMonster->Get_Name()).c_str());
         }
-            
 
         if (animIndex != ETOI(plAnim::Pl_FreeAim_Shoot))
         {

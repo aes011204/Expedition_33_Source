@@ -19,17 +19,42 @@ class EffectCom : public Component, public IEffectTrailSampleProvider
 {
     GENERATED_COMPONENT(EffectCom);
 
+public:
+    enum class EffectPlayTarget : uint8
+    {
+        OwnerRoot = 0,  // 플레이할 Owner의 Transfrom 기준
+        PartSocket = 1, // partTag + socketName
+    };
+
+    struct EffectPlayDesc
+    {
+        uint32 levelIndex = ETOI(LevelType::Static);
+        wstring effectName{};
+        EffectPlayTarget target = EffectPlayTarget::OwnerRoot;
+
+        wstring partTag{};
+        string socketName{};
+        wstring layerTag = L"Layer_Effect";
+        Vec3 localOffset = Vec3::Zero;
+
+        bool followTarget = false; // AN은 false, ANS는 true로 사용
+        Weak<IEffectTrailSampleProvider> trailSampleProvider{};
+    };
+
 private:
     struct AttachedEffect
     {
         EffectInstancePool::AttachedHandle poolHandle{};
 
         wstring effectName{};
+        EffectPlayTarget target = EffectPlayTarget::OwnerRoot;
         wstring partTag{};
 
         string  socketName{};
         wstring layerTag{};
         Vec3    localOffset{ Vec3::Zero };
+
+        bool followTarget = false; // true면 Update에서 owner/socket 위치를 계속 따라간다.
         bool    isTrail = false;
         TrailAnchorAsset trailAnchorAsset{};
     };
@@ -57,6 +82,21 @@ public:
     static HRESULT Bind_DrawFeatures(const Shared<GameObject>& owner, ShaderCom* shader, uint32 supportFeatureMask);
 
 public:
+    // AN/ANS에서 context.owner가 part일 수도 있어서 owner chain 타고 EffectCom를 찾는 공용 진입점
+    static Shared<EffectCom> Find_FromNotifyOwner(GameObject* notifyOwner);
+
+#pragma region AN_PlayEffect에서 재생시킬 함수
+     HRESULT Play_Effect(const EffectPlayDesc& desc);
+
+    // ANS 종료될 때, 같은 key의 attached effect를 pool로 반환하게
+     void    Stop_Effect(
+                const wstring& effectName,
+                EffectPlayTarget target,
+                const wstring& partTag = L"",
+                const string& socketName = "");
+#pragma endregion
+
+
 #pragma region Effect 특정 파츠, 소켓에 붙이기
     HRESULT Play_AttachedEffect(
                 uint32 levelIndex,
@@ -67,15 +107,6 @@ public:
 				const Vec3& localOffset = Vec3::Zero,
                 const Weak<IEffectTrailSampleProvider>& trailSampleProvider = {});
 #pragma endregion
-
-#pragma region 이팩트 재생
-    HRESULT Play_Effect(
-                uint32 levelIndex,
-                const wstring& effectName,
-                const wstring& layerTag,
-                const Vec3& localOffset = Vec3::Zero);
-#pragma endregion
-
 
 #pragma region ANS_Trail에서 사용할 Play, Stop Trail
      HRESULT Play_TrailEffect(
@@ -97,9 +128,18 @@ private:
     bool Should_ReleaseAttachedEffect(const AttachedEffect& attached) const; // auto/manual release 정책을 판정한다.
     void Prune_ReleasedAttachedEffects();                                    // 반환이 끝난 attached entry를 목록에서 제거한다.
 
+    bool Try_GetOwnerRootWorldPosition(Vec3& outWorldPosition) const;
+
     bool Try_GetSocketWorldPosition(
             const wstring& partTag,
             const string& socketName,
+            Vec3& outWorldPosition) const;
+
+    bool Try_ResolveEffectWorldPosition(
+            EffectPlayTarget target,
+            const wstring& partTag,
+            const string& socketName,
+            const Vec3& localOffset,
             Vec3& outWorldPosition) const;
 
     bool Try_BuildTrailSample(
