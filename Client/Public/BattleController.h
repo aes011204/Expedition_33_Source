@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
 #include "Delegate.h"
@@ -242,6 +242,9 @@ private: /* 전투 AP */
 
     void Apply_VictoryRewardExp(uint32 rewardExp);
 
+    void Play_EnemyTargetedStart(const BattleChar& target);
+    void Play_EnemyTargetedEnd();
+
 private:
     bool _battleEnded = {};
     bool _pendingNextTurn = {};
@@ -314,6 +317,9 @@ private:
     BattleAction _freeAimShotAction {};
 
     uint32 _lastVictoryRewardExp = 0;
+
+    BattleChar  _enemyTurnTargetedActor = {};
+    bool        _hasEnemyTurnTargetedActor = false;
 
 public:
     static Shared<BattleController> Create();

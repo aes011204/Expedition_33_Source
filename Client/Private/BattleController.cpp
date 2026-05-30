@@ -1,4 +1,4 @@
-#include "BattleController.h"
+﻿#include "BattleController.h"
 
 #include "AttackPlaying.h"
 #include "BuffSystem.h"
@@ -198,10 +198,10 @@ void BattleController::Update(float timeDelta)
 
 void BattleController::Run_EnemyTurn()
 {
-    LOG_DEBUG(
-        "Run_EnemyTurn: actor={}",
-        Get_TurnActionRequest().actor.actor ? String::ToString(Get_TurnActionRequest().actor.actor->Get_Name()).c_str() : "null"
-    );
+    //LOG_DEBUG(
+    //    "Run_EnemyTurn: actor={}",
+    //    Get_TurnActionRequest().actor.actor ? String::ToString(Get_TurnActionRequest().actor.actor->Get_Name()).c_str() : "null"
+    //);
 
     const auto monster
         = dynamic_pointer_cast<Monster_BattleBase>(Get_TurnActionRequest().actor.actor);
@@ -209,8 +209,10 @@ void BattleController::Run_EnemyTurn()
     CHECK_NULL(monster);
 
     monster->Decide_Action_BTOnly(Get_TurnActionRequest(), Get_AliveHeroes());
-    ExecuteActionRequest(Get_TurnActionRequest());
 
+    Play_EnemyTargetedStart(Get_TurnActionRequest().InitTarget);
+
+    ExecuteActionRequest(Get_TurnActionRequest());
 
     // EvtBattlePresentation event;
     // event.cameraMode = BattleCameraMode::ENEMYATTACK;
@@ -381,6 +383,9 @@ void BattleController::ExecuteActionRequest(const ActionRequest& request)
 void BattleController::EndTurn()
 {
     _isActionExecuting = false;
+
+    // 이번 적 턴에서 공격하는 플레이어 Targeted End 애니메이션 재생
+    Play_EnemyTargetedEnd();
 
     // 일단 만들어 놓은 스킬 지우기
     Clear_CurrentScript();
@@ -1119,6 +1124,44 @@ void BattleController::Apply_VictoryRewardExp(uint32 rewardExp)
     }
 }
 
+void BattleController::Play_EnemyTargetedStart(const BattleChar& target)
+{
+    _enemyTurnTargetedActor = {};
+    _hasEnemyTurnTargetedActor = false;
+    if (target.actor == nullptr || target.ModelCom == nullptr || target.statCom == nullptr)
+        return;
+
+    if (!target.statCom->Is_Player())
+        return;
+
+    _enemyTurnTargetedActor = target;
+    _hasEnemyTurnTargetedActor = true;
+
+    // Start -> Idle은 Notify에서 제어
+    if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_Start), 0.2f, false))
+    {
+        // fallback
+        if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_Idle), 0.2f, true))
+            BattleAnimUtils::Play_BattleIdle(target, 0.2f);
+    }
+}
+
+void BattleController::Play_EnemyTargetedEnd()
+{
+    if (!_hasEnemyTurnTargetedActor)
+        return;
+
+    const BattleChar target = _enemyTurnTargetedActor;
+    _enemyTurnTargetedActor = {};
+    _hasEnemyTurnTargetedActor = false;
+
+    if (target.actor == nullptr || target.ModelCom == nullptr)
+        return;
+
+    if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_End), 0.2f, false))
+        BattleAnimUtils::Play_BattleIdle(target, 0.2f);
+}
+
 void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
 {
     if (_isFreeAimShotPlaying)
@@ -1672,7 +1715,7 @@ vector<string> BattleController::Get_DefaultBattleSkillKeys(HeroId heroId)
     case HeroId::Lune:
         return { "Immolation", "IceGust", "Thunderfall" };
     case HeroId::Maelle:
-        return { "OffensiveSwitch", "Percee", "FireRise" };
+        return { "OffensiveSwitch", "Percee", "FleureFury" };
     default:
         return {};
     }
