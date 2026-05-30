@@ -455,6 +455,12 @@ HRESULT GameInstance::Draw()
         return E_FAIL;
 #pragma endregion
 
+    if (_screenFxManager->Is_CaptureRequested())
+    {
+        GAME->Bind_BackBuffer(); // 오염된 RTV 상태를 메인 백버퍼로 복구
+        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
+        _screenFxManager->Clear_CaptureRequested();
+    }
 
 #ifdef _DEBUG
       _printManager->Render();

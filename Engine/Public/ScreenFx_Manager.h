@@ -16,6 +16,11 @@ public:
 public:
     bool Is_ScreenFXActivated() const { return _activeFx; }
     void Set_ScreenFxActivated(bool active) { _activeFx = active; }
+
+    bool Is_CaptureRequested() const { return _captureRequested; }
+    bool Is_SaveRequested() const { return _saveRequested; }
+    void Clear_CaptureRequested() { _captureRequested = false; _saveRequested = false; }
+
 #ifdef _DEBUG
     bool Has_ActiveEffects() const { return !_activeEffects.empty() || _previewEffect != nullptr; }
 #else

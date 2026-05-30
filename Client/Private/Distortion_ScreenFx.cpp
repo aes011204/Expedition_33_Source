@@ -1,8 +1,8 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "Distortion_ScreenFx.h"
 #include "Shader_CBuffer_Define.h"
 #include "ShaderCom.h"
-#include <algorithm>
+#include "GameInstance.h"
 
 NS_BEGIN(Client)
 
@@ -65,6 +65,12 @@ void Distortion_ScreenFx::Update_ScreenFx(float timeDelta)
         
     _currentBulge = _originalDesc.bulgeIntensity * ratio;
     _currentPull = _originalDesc.pullIntensity * ratio;
+
+    float timeRemaining = _duration - _timeAcc;
+    if (timeRemaining <= 0.5f && timeRemaining >= 0.1f)
+    {
+        GAME->Request_ScreenCapture(false);
+    }
 }
 
 HRESULT Distortion_ScreenFx::Bind_FxConstantBuffer(class ShaderCom* shader)
