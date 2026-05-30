@@ -1087,14 +1087,7 @@ bool RotationRateScaleByLifeModuleDetail::Draw(
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailContext.Begin_PropertyTable("RotationRateScaleByLife"))
-        {
-            changed |= detailContext.Draw_FloatProperty("시작 배율", data.scaleStart, defaultData.scaleStart);
-            changed |= detailContext.Draw_FloatProperty("종료 배율", data.scaleEnd, defaultData.scaleEnd);
-            detailContext.End_PropertyTable();
-        }
-    }
+        changed |= detailContext.Draw_FloatDistributionGroup("회전 속도 배율", data.scaleOverLife, defaultData.scaleOverLife);
 
     return changed;
 }

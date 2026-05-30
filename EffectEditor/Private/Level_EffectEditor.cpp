@@ -300,6 +300,12 @@ namespace Internal
         Set_SubUVFrameCurveComponent(desc.rotationOverLifeCurveValues, index, value);
     }
 
+    void Fill_RotationRateScaleByLifeCurveComponent(PointParticleRotationDesc& desc, uint32 index, float time, float value)
+    {
+        Set_SubUVFrameCurveComponent(desc.rotationRateScaleByLifeCurveTimes, index, clamp(time, 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.rotationRateScaleByLifeCurveValues, index, value);
+    }
+
     void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const FloatDistributionData& frameIndex)
     {
         desc.frameCurveKeyCount = 1;
@@ -430,6 +436,32 @@ namespace Internal
             desc.rotationOverLifeCurveValues = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
                 Fill_RotationOverLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
+        }
+    }
+
+    void Fill_RotationRateScaleByLifePayload(PointParticleRotationDesc& desc, const RotationRateScaleByLifeModuleData& data)
+    {
+        const float startValue = Evaluate_FloatDistributionMin(data.scaleOverLife, 1.f);
+        const float endValue = Evaluate_FloatDistributionMax(data.scaleOverLife, 1.f);
+        desc.rotationRateScaleByLife = Vec2{ startValue, endValue };
+        desc.rotationRateScaleByLifeCurveKeyCount = 2;
+        desc.rotationRateScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.rotationRateScaleByLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
+
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.scaleOverLife.payload))
+        {
+            vector<FloatCurveKeyData> keys = curve->keys;
+            ranges::sort(keys, {}, &FloatCurveKeyData::time);
+            constexpr uint32 maxRotationRateScaleByLifeCurveKeys{ 4 };
+            const uint32 keyCount = min(maxRotationRateScaleByLifeCurveKeys, static_cast<uint32>(keys.size()));
+            if (keyCount == 0)
+                return;
+
+            desc.rotationRateScaleByLifeCurveKeyCount = keyCount;
+            desc.rotationRateScaleByLifeCurveTimes = Vec4{};
+            desc.rotationRateScaleByLifeCurveValues = Vec4{};
+            for (uint32 index = 0; index < keyCount; ++index)
+                Fill_RotationRateScaleByLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
         }
     }
 
@@ -947,7 +979,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     ))
     {
         desc.rotation.enabled = true;
-        desc.rotation.rotationRateScaleByLife = Vec2{ rotationRateScaleByLife->scaleStart, rotationRateScaleByLife->scaleEnd };
+        Internal::Fill_RotationRateScaleByLifePayload(desc.rotation, *rotationRateScaleByLife);
     }
 
     definition.concreteDesc = desc;

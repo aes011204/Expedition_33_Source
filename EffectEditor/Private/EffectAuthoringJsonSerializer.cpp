@@ -1495,8 +1495,7 @@ namespace Internal
     json To_Json(const RotationRateScaleByLifeModuleData& data)
     {
         json root = json::object();
-        root["scaleStart"] = data.scaleStart;
-        root["scaleEnd"] = data.scaleEnd;
+        root["scaleOverLife"] = To_Json(data.scaleOverLife);
         return root;
     }
 
@@ -1505,8 +1504,18 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_NumberField(root, "scaleStart", outData.scaleStart);
-        Read_NumberField(root, "scaleEnd", outData.scaleEnd);
+        const auto scaleOverLifeIter = root.find("scaleOverLife");
+        if (scaleOverLifeIter != root.end())
+        {
+            From_Json(*scaleOverLifeIter, outData.scaleOverLife);
+            return;
+        }
+
+        float scaleStart{ 1.f };
+        float scaleEnd{ 1.f };
+        Read_NumberField(root, "scaleStart", scaleStart);
+        Read_NumberField(root, "scaleEnd", scaleEnd);
+        outData.scaleOverLife = FloatDistributionData::Make_ConstantCurve(scaleStart, scaleEnd);
     }
 
     json To_Json(const InitialColorModuleData& data)
