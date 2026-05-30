@@ -997,7 +997,9 @@ void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
     const BattleTurnState turnState = battleController->Get_CurrentTurnState();
 
     if (turnState != BattleTurnState::ChooseAction &&
-        turnState != BattleTurnState::ChooseItem)
+        turnState != BattleTurnState::ChooseItem &&
+        turnState != BattleTurnState::ChooseSkill &&
+        turnState != BattleTurnState::SkillTargeting)
     {
         _escapeSkipTurn->Close();
         return;
@@ -1101,7 +1103,9 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
     const BattleTurnState state = battleController->Get_CurrentTurnState();
 
     if (state == BattleTurnState::ChooseAction ||
-        state == BattleTurnState::AttackTargeting)
+        state == BattleTurnState::AttackTargeting ||
+        state == BattleTurnState::ChooseSkill ||
+        state == BattleTurnState::SkillTargeting)
     {
         _battleMechanism->Show_Hero(_activePlayerId);
         _battleMechanism->Sync_BattleChar(_currentPlayerTurnActor);
@@ -1120,17 +1124,6 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
 
     if (action.Get_CurChar().actor == nullptr || phases.empty() || action.GetCurAnimIndex() >= phases.size())
     {
-        _battleMechanism->Close();
-        return;
-    }
-
-    const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
-
-    // 대쉬 Out 시작하면 메커니즘 UI 닫기
-    if (phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
-    {
-        _isMechanismActionActive = false;
-        _activePlayerId = HeroId::END;
         _battleMechanism->Close();
         return;
     }
