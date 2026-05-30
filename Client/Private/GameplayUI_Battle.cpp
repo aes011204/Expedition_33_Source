@@ -2,6 +2,7 @@
 
 #include "Monster_BattleBase.h"
 #include "ClientInstance.h"
+#include "ClientScreenFxManager.h"
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
 #include "PlayerStatCom.h"
@@ -175,8 +176,7 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
 
 void GameplayUI_Battle::Play_BattleEnterTransition()
 {
-    if (_battleTransition)
-        _battleTransition->Play_BattleEnter();
+    CLIENT->Get_ScreenFxManager()->Transition_To_BattleField();
 }
 
 void GameplayUI_Battle::Stop_BattleEnterTransition()

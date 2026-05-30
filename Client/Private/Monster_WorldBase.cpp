@@ -7,6 +7,7 @@
 #include "GameInstance.h"
 #include "MonsterStatCom.h"
 #include "Bounding_OBB.h"
+#include "ClientScreenFxManager.h"
 #include "Monster_Part.h"
 
 REGISTER_GLOBAL_ENUM(Monster_WorldBase::MonsterWorldAnim, "MonsterWorldAnim")
@@ -194,6 +195,7 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
 
     vector<string> battleMonsterPrefabNames;
     Set_BattleMonsterPrefabNames(battleMonsterPrefabNames);
+    CLIENT->Get_ScreenFxManager()->Play_BattleInCounterFx();
 
     if (battleMonsterPrefabNames.empty())
     {
