@@ -44,6 +44,8 @@ public:
     virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const override;
     virtual HRESULT RenderPickingID(uint32 id) override;
 
+    Shared<ModelCom> Get_Model() const { return _model; }
+
 private:
     Shared<ShaderCom>   _shader;
     Shared<ModelCom>    _model;

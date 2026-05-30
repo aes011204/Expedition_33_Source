@@ -23,6 +23,7 @@ namespace RT
     inline constexpr const wchar_t* StaticLightDepth = L"Target_StaticLightDepth";  // Static Shadow
 
     inline constexpr const wchar_t* HDRColor = L"Target_HDRColor";
+    inline constexpr const wchar_t* DistortionSource = L"Target_DistortionSource"; // 왜곡 pass가 읽을 HDRColor snapshot이다.
     inline constexpr const wchar_t* BackgroundMask = L"Target_BackgroundMask";
     inline constexpr const wchar_t* ScreenFxColorA = L"Target_ScreenFxColorA";
     inline constexpr const wchar_t* ScreenFxColorB = L"Target_ScreenFxColorB";

@@ -71,10 +71,34 @@ private:
         float durationSec = 0.75f;
     };
 
+    struct PreviewSkillPhaseBlock
+    {
+        int phaseIndex = 0;
+        string animationKey{};
+        float startTimeSec = 0.f;
+        float durationSec = 0.f;
+    };
+
+    struct PreviewCameraShotBlock
+    {
+        float startTimeSec = 0.f;
+        float endTimeSec = 0.75f;
+        BattleCameraMode mode = BattleCameraMode::PLAYERATTACK;
+        string profileId{};
+    };
+
     enum class TimelineEditorTab : uint8
     {
         ClipTimeline,
         TransitionPreview,
+    };
+
+    enum class PreviewShotDragMode : uint8
+    {
+        None,
+        Move,
+        ResizeStart,
+        ResizeEnd,
     };
 
 private:
@@ -97,13 +121,16 @@ private:
     void Render_TimelinePanel();
     void Render_BattleClipSequencer();
     void Render_SelectedBattleClipKeyframe();
+    void Render_BattleClipDebugPanel();
     void Render_BattleClipInsertKeyframePopup();
     void Render_BattleClipRemoveKeyframePopup();
+    void Render_SkillShotTimeline();
     void Render_LoadAuthoringFilePopup();
     void Apply_PreviewContext();
     void Apply_PreviewAnimation(float previewTimeSec) const;
     void Apply_BattleCameraPreviewPose(float previewTimeSec);
     float Get_CurrentPreviewAnimationDurationSec() const;
+    float Get_BattleClipAuthoringDurationSec() const;
     int  Get_BattleClipPreviewFrameMax() const;
     void Clear_PreviewContext();
     void Refresh_PreviewAnimationList();
@@ -112,9 +139,9 @@ private:
     void Insert_BattleClipKeyAtFrame(int trackIndex, int frame);
     void Sync_PreviewTimeFromTimeline();
     void Ensure_BattlePresetLoaded();
-    void Load_BattlePresetForMode(BattleCameraMode mode);
-    void Load_BattlePresetForCurrentMode();
-    void Load_BattleClipForCurrentMode();
+    void Load_BattlePresetForMode(BattleCameraMode mode, bool loadBase = false);
+    void Load_BattlePresetForCurrentMode(bool loadBase = false);
+    void Load_BattleClipForCurrentMode(bool loadBase = false, bool resetTimeline = false);
     void Refresh_AuthoringFileList();
     void Load_SelectedAuthoringFile();
     bool Apply_AuthoringFileSelection(const fs::path& filePath);
@@ -138,6 +165,22 @@ private:
     void Update_TransitionPreviewPlayback(float timeDelta);
     void Set_TransitionEditTargetStep(int stepIndex);
     void Update_PreviewAttackActorMotion(float previewTimeSec);
+    void Refresh_PreviewSkillPhaseBlocks();
+    float Resolve_PreviewAnimationDurationByName(const string& animationName) const;
+    float Get_PreviewSkillSequenceDuration() const;
+    const PreviewSkillPhaseBlock* Resolve_ActivePreviewSkillPhase(float previewTimeSec) const;
+    PreviewCameraShotBlock* Get_SelectedPreviewShotBlock();
+    const PreviewCameraShotBlock* Get_SelectedPreviewShotBlock() const;
+    const PreviewCameraShotBlock* Resolve_ActivePreviewShotBlock(float previewTimeSec) const;
+    void Apply_ActivePreviewShotBlock(float previewTimeSec);
+    string Get_CurrentBattleAuthoringOverrideId() const;
+    void Add_PreviewShotBlockFromSelectedPhase();
+    void Add_PreviewShotBlockAtCurrentTime();
+    void Remove_SelectedPreviewShotBlock();
+    void Duplicate_SelectedPreviewShotBlock();
+    void Fit_SelectedPreviewShotBlockToActivePhase();
+    void Select_PreviewShotBlock(int blockIndex, bool syncPreviewTime = false);
+    float Snap_PreviewShotTime(float timeSec, float timelineDurationSec) const;
     Shared<GameObject> Resolve_PreviewBattleActor(PreviewSlotSide side);
 
     Shared<Client::BattleTurnCamera> Get_BattleTurnCamera() const;
@@ -185,6 +228,7 @@ private:
     bool _previewObjectsDirty = true;
     bool _previewObjectsBegunPlay = false;
     bool _animationListDirty = true;
+    bool _previewSkillPhaseBlocksDirty = true;
     bool _timelinePlaying = false;
     float _topSectionHeight = 420.f;
     uint32 _previewWidth = 1;
@@ -197,6 +241,15 @@ private:
     Shared<GameObject> _previewEnemyObject{};
     vector<string> _previewAnimationNames{};
     int _selectedPreviewAnimationIndex = -1;
+    vector<PreviewSkillPhaseBlock> _previewSkillPhaseBlocks{};
+    vector<PreviewCameraShotBlock> _previewShotBlocks{};
+    int _selectedPreviewShotBlockIndex = -1;
+    bool _useSkillShotTimeline = true;
+    PreviewShotDragMode _previewShotDragMode = PreviewShotDragMode::None;
+    int _previewShotDragBlockIndex = -1;
+    float _previewShotDragGrabOffsetSec = 0.f;
+    float _previewShotDragOriginalStartSec = 0.f;
+    float _previewShotDragOriginalEndSec = 0.f;
     BattleCameraPreset _editingBattlePreset{};
     BattleCameraMode _loadedBattlePresetMode = BattleCameraMode::PLAYERATTACK;
     string _loadedBattlePresetSkillId{};
@@ -220,6 +273,8 @@ private:
     PreviewSlotSide _previewPoseSubjectSide = PreviewSlotSide::Hero;
     int _previewPoseSubjectSlot = 1;
     float _previewPoseLastTimeSec = 0.f;
+    BattleCameraMode _activePreviewShotMode = BattleCameraMode::PLAYERATTACK;
+    string _activePreviewShotProfileId{};
     vector<PreviewTransitionStep> _transitionPreviewSteps
     {
         { BattleCameraMode::PLAYERFOCUS, {}, {}, 0.75f },

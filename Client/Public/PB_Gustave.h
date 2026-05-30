@@ -26,7 +26,10 @@ public:
     static Shared<PB_Gustave> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;
     void Free() override;
+
 protected:
+
+
 };
 
 NS_END

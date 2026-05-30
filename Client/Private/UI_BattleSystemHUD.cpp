@@ -7,6 +7,8 @@
 #include "UI_Text.h"
 #include "UI_Utils.h"
 
+#include "BattleMechanismCom.h"
+
 using namespace UI_Utils;
 
 HRESULT UI_BattleSystemHUD::Initialize(uint32 levelIndex)
@@ -46,7 +48,7 @@ void UI_BattleSystemHUD::Set_PartyBattleStat(PlayerCharacterType playerType, flo
     maxHp = max(maxHp, 1.f);
     curHp = clamp(curHp, 0.f, maxHp);
 
-    maxAp = min(maxAp, 9u); 
+    maxAp = min(maxAp, 9u);
     curAp = min(curAp, maxAp);
 
     Apply_HpGauge(slot, curHp / maxHp);
@@ -54,6 +56,27 @@ void UI_BattleSystemHUD::Set_PartyBattleStat(PlayerCharacterType playerType, flo
 
     Set_HpText(slot, curHp, maxHp);
     Set_ApText(slot, curAp);
+}
+
+void UI_BattleSystemHUD::Set_GustaveMechanismCharge(const Shared<BattleMechanismCom>& mechanismCom)
+{
+    if (mechanismCom == nullptr || !mechanismCom->Is_Gustave())
+    {
+        Clear_GustaveMechanismCharge();
+        return;
+    }
+
+    const int32 currentCharge = mechanismCom->Get_GustaveCharge();
+    const int32 maxCharge = mechanismCom->Get_GustaveMaxCharge();
+
+    Set_TextPair(_gustaveCurrentChargeText, _gustaveCurrentChargeTextBg, to_wstring(currentCharge));
+    Set_TextPair(_gustaveMaxChargeText, _gustaveMaxChargeTextBg, to_wstring(maxCharge));
+}
+
+void UI_BattleSystemHUD::Clear_GustaveMechanismCharge()
+{
+    Set_TextPair(_gustaveCurrentChargeText, _gustaveCurrentChargeTextBg, L"0");
+    Set_TextPair(_gustaveMaxChargeText, _gustaveMaxChargeTextBg, L"10");
 }
 
 HRESULT UI_BattleSystemHUD::Load_UI(uint32 levelIndex)
@@ -94,7 +117,7 @@ HRESULT UI_BattleSystemHUD::Bind_UI()
         CHECK_NULL(_partySlots[i].apText, E_FAIL);
         CHECK_NULL(_partySlots[i].apTextBg, E_FAIL);
 
-        _partySlots[i].hpGauge->Set_UseFillRatio(true); 
+        _partySlots[i].hpGauge->Set_UseFillRatio(true);
         _partySlots[i].hpGauge->Set_FillOrigin(UI_Image::FillOrigin::LeftToRight);
 
         for (uint32 apIndex = 0; apIndex < 9; ++apIndex)
@@ -104,6 +127,19 @@ HRESULT UI_BattleSystemHUD::Bind_UI()
             CHECK_NULL(_partySlots[i].apStates[apIndex], E_FAIL);
         }
     }
+
+    // 구스타브 portrait 전용 메커니즘
+    _gustaveMechanismRoot = Find_UI(_uiByName, L"Panel_BattlePortrait_Gustave_Mechanism");
+    _gustaveCurrentChargeText = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattlePortrait_Gustave_Current_Charge");
+    _gustaveCurrentChargeTextBg = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattlePortrait_Gustave_Current_Charge_BG");
+    _gustaveMaxChargeText = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattlePortrait_Gustave_Max_Charge");
+    _gustaveMaxChargeTextBg = Find_TypedUI<UI_Text>(_uiByName, L"Text_BattlePortrait_Gustave_Max_Charge_BG");
+
+    CHECK_NULL(_gustaveMechanismRoot, E_FAIL);
+    CHECK_NULL(_gustaveCurrentChargeText, E_FAIL);
+    CHECK_NULL(_gustaveCurrentChargeTextBg, E_FAIL);
+    CHECK_NULL(_gustaveMaxChargeText, E_FAIL);
+    CHECK_NULL(_gustaveMaxChargeTextBg, E_FAIL);
 
     return S_OK;
 }
@@ -213,6 +249,12 @@ void UI_BattleSystemHUD::Free()
         for (uint32 apIndex = 0; apIndex < 9; ++apIndex)
             _partySlots[i].apStates[apIndex].reset();
     }
+
+    _gustaveMechanismRoot.reset();
+    _gustaveCurrentChargeText.reset();
+    _gustaveCurrentChargeTextBg.reset();
+    _gustaveMaxChargeText.reset();
+    _gustaveMaxChargeTextBg.reset();
 
     _root.reset();
     _uiByName.clear();

@@ -25,7 +25,7 @@ void ANS_Parry::On_Begin(const AnimNotifyContext& context)
 void ANS_Parry::On_Tick(const AnimNotifyContext& context)
 {
     UNREFERENCED_PARAMETER(context);
-   
+    LOG_DEBUG("parryyyyyyyyyyyy");
 }
 
 void ANS_Parry::On_End(const AnimNotifyContext& context)

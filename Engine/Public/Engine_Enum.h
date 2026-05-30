@@ -7,7 +7,17 @@ namespace Engine
 
     enum class Prototype { GameObject, UI, Comopnent };
 
-    enum class RenderGroup { Priority, Shadow, NonBlend, NonLight, Blend, UI, END };
+    enum class RenderGroup
+    {
+        Priority,
+        Shadow,
+        NonBlend,
+        NonLight,
+        Distortion, // Effect용 Distortion
+        Blend,
+        UI,
+        END
+    };
 
     enum class ShadowCasterType : uint8
     {
@@ -122,10 +132,11 @@ namespace Engine
         ScreenSpace     = 4,
         Light           = 5,
         SSAO            = 6,
-        PostProcess     = 7,
-        Hair            = 8,
-        DrawFeature     = 9,
-        ScreenFx        = 10,
+        DeferredLighting = 7,
+        PostProcess     = 8,
+        Hair            = 9,
+        DrawFeature     = 10,
+        ScreenFx        = 11,
 
         END
     };
@@ -175,6 +186,20 @@ namespace Engine
         UIOnly,         // UI 입력만 허용, 월드 입력차단
         Cutscene,       // 컷신처럼 월드 입력 차단
         BattleMenu      // 배틀 메뉴 선택
+    };
+
+    enum class SoundChannel : uint32
+    {
+        BGM = 0,
+        Effect,
+        UI,
+        Player,
+        Monster,
+        Boss,
+        Ambient,
+        Voice,
+        System,
+        END
     };
 
 

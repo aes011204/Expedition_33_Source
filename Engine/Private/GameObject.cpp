@@ -157,6 +157,24 @@ void GameObject::From_Json(const json& data)
     }
 }
 
+bool GameObject::Rename_ComponentTag(const wstring& oldTag, const wstring& newTag)
+{
+    if (oldTag == newTag)
+        return true;
+
+    auto oldIter = _components.find(oldTag);
+    if (oldIter == _components.end())
+        return false;
+
+    if (_components.find(newTag) != _components.end())
+        return false;
+
+    Shared<Component> component = oldIter->second;
+    _components.erase(oldIter);
+    _components.emplace(newTag, component);
+    return true;
+}
+
 
 void GameObject::Free()
 {

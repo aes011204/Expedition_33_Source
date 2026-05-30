@@ -555,7 +555,7 @@ Shared<Character> Camera_Tool::Resolve_EnemyPreview() const
 
     if(_editingBattleCameraMode == BattleCameraMode::ENEMYATTACK)
     {
-        if (auto target  = battleController->Get_TurnAction().target.actor)
+        if (auto target  = battleController->Get_TurnAction().GetInitTarget().actor)
         {
            return target;
         }

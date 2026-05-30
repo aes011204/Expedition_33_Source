@@ -4,6 +4,7 @@
 #include "Camera_Manager.h"
 #include "Camera.h"
 #include "Collision_Manager.h"
+#include "Component.h"
 #include "PhysX_Manager.h"
 #include "Debug_Manager.h"
 #include "Font_Manager.h"
@@ -16,6 +17,8 @@
 #include "Object_Manager.h"
 #include "PipeLine.h"
 #include "GameObject.h"
+#include "Mesh.h"
+#include "ModelCom.h"
 #include "Prototype_Manager.h"
 #include "RegistorFactory.h"
 #include "Renderer.h"
@@ -31,6 +34,9 @@
 #include "Helper_String.h"
 #include "Material.h"
 #include "ShaderResourceRegistry.h"
+#include "Sound_Manager.h"
+#include "Texture.h"
+#include "VIBuffer.h"
 
 #include "Collision_Define.h"
 #include "Event_Bus.h"
@@ -43,6 +49,193 @@
 #pragma endregion
 
 IMPLEMENT_SINGLETON(GameInstance)
+
+namespace
+{
+bool Is_Block_Compressed(DXGI_FORMAT format, size_t& outBlockBytes)
+{
+    switch (format)
+    {
+    case DXGI_FORMAT_BC1_TYPELESS:
+    case DXGI_FORMAT_BC1_UNORM:
+    case DXGI_FORMAT_BC1_UNORM_SRGB:
+    case DXGI_FORMAT_BC4_TYPELESS:
+    case DXGI_FORMAT_BC4_UNORM:
+    case DXGI_FORMAT_BC4_SNORM:
+        outBlockBytes = 8;
+        return true;
+
+    case DXGI_FORMAT_BC2_TYPELESS:
+    case DXGI_FORMAT_BC2_UNORM:
+    case DXGI_FORMAT_BC2_UNORM_SRGB:
+    case DXGI_FORMAT_BC3_TYPELESS:
+    case DXGI_FORMAT_BC3_UNORM:
+    case DXGI_FORMAT_BC3_UNORM_SRGB:
+    case DXGI_FORMAT_BC5_TYPELESS:
+    case DXGI_FORMAT_BC5_UNORM:
+    case DXGI_FORMAT_BC5_SNORM:
+    case DXGI_FORMAT_BC6H_TYPELESS:
+    case DXGI_FORMAT_BC6H_UF16:
+    case DXGI_FORMAT_BC6H_SF16:
+    case DXGI_FORMAT_BC7_TYPELESS:
+    case DXGI_FORMAT_BC7_UNORM:
+    case DXGI_FORMAT_BC7_UNORM_SRGB:
+        outBlockBytes = 16;
+        return true;
+
+    default:
+        outBlockBytes = 0;
+        return false;
+    }
+}
+
+size_t Bits_Per_Pixel(DXGI_FORMAT format)
+{
+    switch (format)
+    {
+    case DXGI_FORMAT_R32G32B32A32_TYPELESS:
+    case DXGI_FORMAT_R32G32B32A32_FLOAT:
+    case DXGI_FORMAT_R32G32B32A32_UINT:
+    case DXGI_FORMAT_R32G32B32A32_SINT:
+        return 128;
+
+    case DXGI_FORMAT_R32G32B32_TYPELESS:
+    case DXGI_FORMAT_R32G32B32_FLOAT:
+    case DXGI_FORMAT_R32G32B32_UINT:
+    case DXGI_FORMAT_R32G32B32_SINT:
+        return 96;
+
+    case DXGI_FORMAT_R16G16B16A16_TYPELESS:
+    case DXGI_FORMAT_R16G16B16A16_FLOAT:
+    case DXGI_FORMAT_R16G16B16A16_UNORM:
+    case DXGI_FORMAT_R16G16B16A16_UINT:
+    case DXGI_FORMAT_R16G16B16A16_SNORM:
+    case DXGI_FORMAT_R16G16B16A16_SINT:
+    case DXGI_FORMAT_R32G32_TYPELESS:
+    case DXGI_FORMAT_R32G32_FLOAT:
+    case DXGI_FORMAT_R32G32_UINT:
+    case DXGI_FORMAT_R32G32_SINT:
+    case DXGI_FORMAT_R32G8X24_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+    case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
+    case DXGI_FORMAT_X32_TYPELESS_G8X24_UINT:
+        return 64;
+
+    case DXGI_FORMAT_R10G10B10A2_TYPELESS:
+    case DXGI_FORMAT_R10G10B10A2_UNORM:
+    case DXGI_FORMAT_R10G10B10A2_UINT:
+    case DXGI_FORMAT_R11G11B10_FLOAT:
+    case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+    case DXGI_FORMAT_R8G8B8A8_UINT:
+    case DXGI_FORMAT_R8G8B8A8_SNORM:
+    case DXGI_FORMAT_R8G8B8A8_SINT:
+    case DXGI_FORMAT_R16G16_TYPELESS:
+    case DXGI_FORMAT_R16G16_FLOAT:
+    case DXGI_FORMAT_R16G16_UNORM:
+    case DXGI_FORMAT_R16G16_UINT:
+    case DXGI_FORMAT_R16G16_SNORM:
+    case DXGI_FORMAT_R16G16_SINT:
+    case DXGI_FORMAT_R32_TYPELESS:
+    case DXGI_FORMAT_D32_FLOAT:
+    case DXGI_FORMAT_R32_FLOAT:
+    case DXGI_FORMAT_R32_UINT:
+    case DXGI_FORMAT_R32_SINT:
+    case DXGI_FORMAT_R24G8_TYPELESS:
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+    case DXGI_FORMAT_R24_UNORM_X8_TYPELESS:
+    case DXGI_FORMAT_X24_TYPELESS_G8_UINT:
+    case DXGI_FORMAT_R9G9B9E5_SHAREDEXP:
+    case DXGI_FORMAT_R8G8_B8G8_UNORM:
+    case DXGI_FORMAT_G8R8_G8B8_UNORM:
+    case DXGI_FORMAT_B8G8R8A8_UNORM:
+    case DXGI_FORMAT_B8G8R8X8_UNORM:
+    case DXGI_FORMAT_R10G10B10_XR_BIAS_A2_UNORM:
+    case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+    case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+    case DXGI_FORMAT_B8G8R8X8_TYPELESS:
+    case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+        return 32;
+
+    case DXGI_FORMAT_R8G8_TYPELESS:
+    case DXGI_FORMAT_R8G8_UNORM:
+    case DXGI_FORMAT_R8G8_UINT:
+    case DXGI_FORMAT_R8G8_SNORM:
+    case DXGI_FORMAT_R8G8_SINT:
+    case DXGI_FORMAT_R16_TYPELESS:
+    case DXGI_FORMAT_R16_FLOAT:
+    case DXGI_FORMAT_D16_UNORM:
+    case DXGI_FORMAT_R16_UNORM:
+    case DXGI_FORMAT_R16_UINT:
+    case DXGI_FORMAT_R16_SNORM:
+    case DXGI_FORMAT_R16_SINT:
+    case DXGI_FORMAT_B5G6R5_UNORM:
+    case DXGI_FORMAT_B5G5R5A1_UNORM:
+        return 16;
+
+    case DXGI_FORMAT_R8_TYPELESS:
+    case DXGI_FORMAT_R8_UNORM:
+    case DXGI_FORMAT_R8_UINT:
+    case DXGI_FORMAT_R8_SNORM:
+    case DXGI_FORMAT_R8_SINT:
+    case DXGI_FORMAT_A8_UNORM:
+        return 8;
+
+    default:
+        return 0;
+    }
+}
+
+size_t Estimate_Texture2D_Bytes(const D3D11_TEXTURE2D_DESC& desc)
+{
+    size_t blockBytes = 0;
+    const bool isCompressed = Is_Block_Compressed(desc.Format, blockBytes);
+    const size_t bitsPerPixel = Bits_Per_Pixel(desc.Format);
+    const uint32 mipLevels = max<uint32>(1, desc.MipLevels);
+    size_t totalBytes = 0;
+
+    for (uint32 mip = 0; mip < mipLevels; ++mip)
+    {
+        const size_t width = max<size_t>(1, static_cast<size_t>(desc.Width) >> mip);
+        const size_t height = max<size_t>(1, static_cast<size_t>(desc.Height) >> mip);
+
+        if (isCompressed)
+        {
+            const size_t blocksWide = max<size_t>(1, (width + 3) / 4);
+            const size_t blocksHigh = max<size_t>(1, (height + 3) / 4);
+            totalBytes += blocksWide * blocksHigh * blockBytes * desc.ArraySize;
+            continue;
+        }
+
+        if (bitsPerPixel > 0)
+            totalBytes += width * height * bitsPerPixel / 8 * desc.ArraySize;
+    }
+
+    return totalBytes;
+}
+
+size_t Estimate_TextureSrv_Bytes(ID3D11ShaderResourceView* srv)
+{
+    if (srv == nullptr)
+        return 0;
+
+    ComPtr<ID3D11Resource> resource{};
+    srv->GetResource(resource.GetAddressOf());
+    if (resource == nullptr)
+        return 0;
+
+    ComPtr<ID3D11Texture2D> texture2D{};
+    if (SUCCEEDED(resource.As(&texture2D)) && texture2D != nullptr)
+    {
+        D3D11_TEXTURE2D_DESC desc{};
+        texture2D->GetDesc(&desc);
+        return Estimate_Texture2D_Bytes(desc);
+    }
+
+    return 0;
+}
+}
 
 GameInstance::GameInstance()
 {
@@ -242,6 +435,9 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
     if (sampleRuntimePerf)
         printMgrMs = chrono::duration<double, milli>(chrono::steady_clock::now() - printMgrBegin).count();
 #endif
+
+    if (_soundManager)
+        _soundManager->Update(timeDelta);
 
     // 입력 갱신 직후, 레벨/오브젝트/UI 업데이트 전에 클라이언트쪽 런타임 갱신을 위해
     if (clientUpdate)
@@ -476,13 +672,6 @@ HRESULT GameInstance::Draw_RendererOnly()
     return S_OK;
 }
 
-HRESULT GameInstance::Draw_Preview()
-{
-    _renderer->Draw_Preview();
-
-    return S_OK;
-}
-
 void GameInstance::Backup_RenderGroup()
 {
     if (_renderer)
@@ -493,12 +682,6 @@ void GameInstance::Restore_RenderGroup()
 {
     if (_renderer)
         _renderer->Restore_RenderGroups();
-}
-
-void GameInstance::Set_PreviewDeferredCombine(bool enable)
-{
-    if (_renderer)
-        _renderer->Set_PreviewDeferredCombine(enable);
 }
 
 #ifdef _DEBUG
@@ -1148,14 +1331,14 @@ Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
     return _renderer->Get_PostProcessPipeline();
 }
 
-const Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline() const
+const Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
 {
-    return _renderer->Get_SSAOPipeline();
+    return _renderer->Get_LightingPipeline();
 }
 
-Shared<SSAOPipeline> GameInstance::Get_SSAOPipeline()
+Shared<LightingPipeline> GameInstance::Get_LightingPipeline()
 {
-    return _renderer->Get_SSAOPipeline();
+    return _renderer->Get_LightingPipeline();
 }
 
 ScreenFx_Manager* GameInstance::Get_ScreenFxManager() 
@@ -1259,6 +1442,11 @@ void GameInstance::Lock_Mouse()
 void GameInstance::Unlock_Mouse()
 {
     return _inputManager->Unlock_Mouse();
+}
+
+bool GameInstance::Is_MouseLocked() const
+{
+    return _inputManager->Is_MouseLocked();
 }
 
 void GameInstance::Begin_EditorMouseLockSession()
@@ -1384,12 +1572,75 @@ HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
     if (nullptr == _assetManager)
         return E_FAIL;
 
+    const fs::path soundRoot = fs::path(resourceRoot) / L"Sounds";
+    if (fs::exists(soundRoot) && fs::is_directory(soundRoot))
+    {
+        _soundManager = Sound_Manager::Create(soundRoot.wstring());
+        if (nullptr == _soundManager)
+            return E_FAIL;
+    }
+
     const fs::path shaderTextureRoot = fs::path(resourceRoot) / L"Textures" / L"Shader";
     _shaderResourceRegistry = ShaderResourceRegistry::Create(_device, _context, shaderTextureRoot.wstring());
     if (nullptr == _shaderResourceRegistry)
         return E_FAIL;
 
     return S_OK;
+}
+
+bool GameInstance::Play_Sound(const wstring& soundFile, SoundChannel channel, float volume)
+{
+    return _soundManager ? _soundManager->Play_Once(soundFile, channel, volume) : false;
+}
+
+bool GameInstance::Play_Sound_Pitched(const wstring& soundFile, SoundChannel channel, float volume, float pitch)
+{
+    return _soundManager ? _soundManager->Play_Once_Pitched(soundFile, channel, volume, pitch) : false;
+}
+
+bool GameInstance::Play_BGM(const wstring& soundFile, float volume, bool stopPrevBGM, float fadeOutDuration)
+{
+    return _soundManager ? _soundManager->Play_BGM(soundFile, volume, stopPrevBGM, fadeOutDuration) : false;
+}
+
+bool GameInstance::Play_LoopSound(const wstring& soundFile, SoundChannel channel, float volume, bool stopPrevChannel,
+    float fadeOutDuration)
+{
+    return _soundManager ? _soundManager->Play_Loop(soundFile, channel, volume, stopPrevChannel, fadeOutDuration) : false;
+}
+
+void GameInstance::Stop_SoundChannel(SoundChannel channel, float fadeOutDuration)
+{
+    if (_soundManager)
+        _soundManager->Stop_Channel(channel, fadeOutDuration);
+}
+
+void GameInstance::Stop_Sound(const wstring& soundFile)
+{
+    if (_soundManager)
+        _soundManager->Stop_Sound(soundFile);
+}
+
+void GameInstance::Stop_AllSounds(float fadeOutDuration)
+{
+    if (_soundManager)
+        _soundManager->Stop_All(fadeOutDuration);
+}
+
+void GameInstance::Set_SoundChannelVolume(SoundChannel channel, float volume)
+{
+    if (_soundManager)
+        _soundManager->Set_ChannelVolume(channel, volume);
+}
+
+float GameInstance::Get_SoundChannelVolume(SoundChannel channel) const
+{
+    return _soundManager ? _soundManager->Get_ChannelVolume(channel) : 0.f;
+}
+
+bool GameInstance::Has_Sound(const wstring& soundFile) const
+{
+    return _soundManager ? _soundManager->Has_Sound(soundFile) : false;
 }
 
 string GameInstance::Find_AssetGUID(const wstring& filePath) const
@@ -1442,6 +1693,96 @@ string GameInstance::Ensure_AssetGUID(const wstring& filePath, const string& typ
         return existingGuid;
 
     return _assetManager->Register_Asset(filePath, type);
+}
+
+bool GameInstance::Build_DebugResourceMemorySummary(DebugResourceMemorySummary& outSummary) const
+{
+    outSummary = {};
+
+    if (nullptr == _prototypeManager)
+        return false;
+
+    unordered_set<ID3D11ShaderResourceView*> countedSrvs{};
+
+    auto addTextureSrv = [&](ID3D11ShaderResourceView* srv)
+    {
+        if (srv == nullptr)
+            return;
+
+        if (!countedSrvs.insert(srv).second)
+            return;
+
+        ++outSummary.textureSrvCount;
+        outSummary.textureEstimatedBytes += Estimate_TextureSrv_Bytes(srv);
+    };
+
+    _prototypeManager->Visit_Prototypes(
+        [&](uint32, const wstring&, const Shared<Base>& prototype)
+        {
+            if (prototype == nullptr)
+                return;
+
+            if (const Shared<Texture> texture = dynamic_pointer_cast<Texture>(prototype))
+            {
+                ++outSummary.texturePrototypeCount;
+                for (const auto& srv : texture->Get_SRVs())
+                    addTextureSrv(srv.Get());
+                return;
+            }
+
+            if (const Shared<ModelCom> model = dynamic_pointer_cast<ModelCom>(prototype))
+            {
+                ++outSummary.modelPrototypeCount;
+                outSummary.modelMeshCount += static_cast<uint32>(model->Get_NumMeshes());
+                outSummary.modelMaterialCount += static_cast<uint32>(model->Get_NumMaterials());
+                outSummary.modelBoneCount += static_cast<uint32>(model->Get_NumBones());
+                outSummary.modelAnimationCount += static_cast<uint32>(model->Get_NumAnimations());
+
+                for (const Shared<Mesh>& mesh : model->Get_Meshes())
+                {
+                    if (mesh)
+                        outSummary.modelEstimatedBytes += mesh->Get_DebugEstimatedBufferBytes();
+                }
+
+                for (uint32 materialIndex = 0; materialIndex < model->Get_NumMaterials(); ++materialIndex)
+                {
+                    const Shared<Material> material = model->Get_Material(materialIndex);
+                    if (!material)
+                        continue;
+
+                    for (const auto& slots : material->Get_TextureSlots())
+                    {
+                        for (const Material::TextureSlot& slot : slots)
+                            addTextureSrv(slot.shaderResourceView.Get());
+                    }
+                }
+
+                return;
+            }
+
+            if (const Shared<VIBuffer> viBuffer = dynamic_pointer_cast<VIBuffer>(prototype))
+            {
+                ++outSummary.standaloneBufferPrototypeCount;
+                outSummary.standaloneBufferEstimatedBytes += viBuffer->Get_DebugEstimatedBufferBytes();
+            }
+        });
+
+    Visit_CurrentLevelObjects(
+        [&](const wstring&, const Shared<GameObject>& gameObject)
+        {
+            if (gameObject == nullptr)
+                return;
+
+            ++outSummary.currentLevelObjectCount;
+            gameObject->Visit_Components(
+                [&](const wstring&, const Shared<Component>& component)
+                {
+                    if (component)
+                        ++outSummary.currentLevelComponentCount;
+                });
+        });
+
+    return true;
 }
 
 uint32 GameInstance::Get_Handle(const string& name) const
@@ -1758,6 +2099,11 @@ HRESULT GameInstance::Bind_UINoDepthStencilState()
     _context->OMSetDepthStencilState(_uiNoDepthStencilState.Get(), 0);
 
     return S_OK;
+}
+
+ComPtr<ID3D11Texture2D> GameInstance::Get_RT_Texture(const wstring& targetTag)
+{
+    return _targetManager->Get_RT_Texture(targetTag);
 }
 
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
@@ -2121,6 +2467,7 @@ void GameInstance::Release_Engine()
     ReleaseManager(_debugManager);
     ReleaseManager(_cameraManager);
     ReleaseManager(_assetManager);
+    ReleaseManager(_soundManager);
 
     ReleaseManager(_targetManager);
     ReleaseManager(_shadow);

@@ -11,18 +11,22 @@ public:
 	{
 		const Matrix* parentMatrix = { nullptr };
 	}PARTOBJECT_DESC;
+
 public:
 	PartObject(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	PartObject(const PartObject& prototype);
 	virtual ~PartObject() override = default;
+
 public:
 	virtual HRESULT Initialize_Prototype();
 	virtual HRESULT Initialize(void* arg);
-	virtual void Priority_Update(float timeDelta);
-	virtual void Update(float timeDelta);
-	virtual void Late_Update(float timeDelta);
+	virtual void    Priority_Update(float timeDelta);
+	virtual void    Update(float timeDelta);
+	virtual void    Late_Update(float timeDelta);
 	virtual HRESULT Render();
 
+public:
+    const Matrix& Get_CombinedWorldMatrix() const { return _combinedWorldMatrix; }
 
 protected:
 	const Matrix*			_parentMatrix = { nullptr };

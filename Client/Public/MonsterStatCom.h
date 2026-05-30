@@ -13,6 +13,8 @@ public:
     // 초기 세팅 값
     struct MonsterCombatStatDesc : CombatStatCom::CombatStatDesc
     {
+        wstring battleAnnounceName = L"";
+
         bool isBoss = false;
         bool isAir = false;
 
@@ -49,6 +51,7 @@ public:
 public:
     CombatStatDesc& Get_StatInfo() override { return _monsterDesc; };
     RuntimeCombatStat& Get_RuntimeStat() override { return _MRuntimeStat; };
+    MonsterCombatStatDesc& Get_MonsterDesc() { return _monsterDesc; }
     const MonsterCombatStatDesc& Get_MonsterDesc() const { return _monsterDesc; }
     const MRuntimeCombatStat& Get_MonsterRuntimeStat() const { return _MRuntimeStat; }
     MRuntimeCombatStat& Get_MonsterRuntimeStat() { return _MRuntimeStat; }
@@ -57,14 +60,17 @@ public:
     bool IsBreak() const { return _MRuntimeStat.isBreak; }
     void SetBreak(bool value) { _MRuntimeStat.isBreak = value; }
 
-
-
     void Set_RuntimeCombatProfile(
         float maxHp,
         uint32 maxAp,
         float physicalAttack,
         float physicalDefense,
         float speed);
+
+    const wstring& Get_BattleAnnounceSubjectName() const override
+    {
+        return _monsterDesc.battleAnnounceName;
+    }
 
 private:
     MonsterCombatStatDesc _monsterDesc;

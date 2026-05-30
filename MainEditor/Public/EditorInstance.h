@@ -8,6 +8,7 @@ class ICommand;
 class GameObject;
 class Component;
 class Camera;
+class UI_Base;
 NS_END
 
 NS_BEGIN(MainEditor)
@@ -25,6 +26,14 @@ class EditorPickingSystem;
 class EditorInstance final : public Base
 {
     DECLARE_SINGLETON(EditorInstance)
+
+public:
+    enum class MouseLockOverrideMode : uint8
+    {
+        Auto,
+        Locked,
+        Unlocked,
+    };
 
 public:
     EditorInstance();
@@ -59,11 +68,25 @@ public: /* For.Window */
     bool                    Consume_WindowFocusRequest(EDITOR_VIEWPORT_TARGET target);
     Shared<Editor_Window>   Get_Window(const wstring& windowName) const;
 
+public: /* For.Preview */
+    PreviewOwner            Get_ActivePreviewOwner() const;
+    bool                    Is_ActivePreviewOwner(PreviewOwner owner) const;
+
 public: /* For.Editor Selection */
     const Editor_Context*   Get_EditorContext() const { return _editorContext.get(); }
     Shared<GameObject>      Selected_Object() const;
+    Shared<UI_Base>         Selected_UI() const;
+    string                  Selected_UIGroup() const;
+    string                  Selected_UIDisplayName() const;
+    bool                    Selected_UIPositionDrivenByCode() const;
     void                    Select_Object(const Shared<GameObject>& gameObject);
+    void                    Select_UI(
+        const Shared<UI_Base>& ui,
+        const string& groupName,
+        const string& displayName,
+        bool positionDrivenByCode = false);
     void                    Clear_SelectedObject();
+    void                    Clear_SelectedUI();
     uint32                  Selection_Revision() const;
     void                    Copy_SelectedObject();
     Shared<GameObject>      Paste_CopiedObject();
@@ -99,9 +122,13 @@ public: /* For.Camera */
 
 public: /* For.Viewport */
     Shared<RenderTarget>      Prepare_SharedViewportRenderTarget(uint32 width, uint32 height);
+    Shared<RenderTarget>      Prepare_SharedPreviewRenderTarget(uint32 width, uint32 height);
     void                      Request_ViewportSize(EDITOR_VIEWPORT_TARGET targetType, uint32 width, uint32 height);
     ID3D11ShaderResourceView* Get_SharedViewportSRV() const;
+    ID3D11ShaderResourceView* Get_SharedPreviewSRV() const;
     void                      Capture_BackBuffer_ToViewport();
+    void                      Capture_BackBuffer_ToPreview();
+    void                      Capture_BackBuffer_ToRenderTarget(const Shared<RenderTarget>& renderTarget);
     void                      Invalidate_BackBufferCache();
     void                      EndImGuiFrameIfBegun();
     ComPtr<Device>            Get_Device() const { return _device; }
@@ -119,6 +146,8 @@ public: /* For.Viewport */
     float                    Get_EffectiveViewportAspect() const;
 
     void                     Apply_RuntimeInputPolicy();
+    void                     Toggle_MouseLockOverride();
+    MouseLockOverrideMode    Get_MouseLockOverrideMode() const { return _mouseLockOverrideMode; }
 
 public: // for pickingSystem
     void DoPickAt(const ImVec2& mousePos, const ImVec2& vpMin, const ImVec2& vpMax);
@@ -180,6 +209,7 @@ private: /* 저장 */
 
 private:
     bool                        _isTargetCameraEditMode = false;
+    MouseLockOverrideMode       _mouseLockOverrideMode = MouseLockOverrideMode::Auto;
 
 private: /* Core Data */
     ComPtr<Device>               _device = {};
@@ -197,6 +227,7 @@ private: /* Manager */
 
 private: /* Viewport Data */
     Shared<RenderTarget> _sharedViewportRenderTarget = nullptr;
+    Shared<RenderTarget> _sharedPreviewRenderTarget = nullptr;
     ComPtr<ID3D11Texture2D> _cachedBackBufferTexture = nullptr;
     uint32 _cachedBackBufferWidth = 0;
     uint32 _cachedBackBufferHeight = 0;
@@ -223,6 +254,7 @@ private: /* Runtime Data */
 
     bool _hasPendingWindowFocus = false;
     EDITOR_VIEWPORT_TARGET _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;
+    mutable PreviewOwner _stickyPreviewOwner = PreviewOwner::None;
 
     bool _pendingSingleFrameStep = false;
     string _copiedObjectJson = {};

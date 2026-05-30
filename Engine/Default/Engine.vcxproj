@@ -150,7 +150,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>d3d11.lib;dxguid.lib;assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d11.lib;dxguid.lib;assimp-vc143-mtd.lib;fmodL_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\..\EngineSDK\lib\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
@@ -179,7 +179,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>d3d11.lib;dxguid.lib;assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d11.lib;dxguid.lib;assimp-vc143-mt.lib;fmod_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\..\EngineSDK\lib\$(Configuration)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
@@ -256,7 +256,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Picking.h" />
     <None Include="..\Bin\ShaderFiles\Engine_Shader_ComputeAnimTypes.hlsli" />
     <None Include="..\Public\PostProcessPipeline.h" />
-    <None Include="..\Public\SSAOPipeline.h" />
+    <None Include="..\Public\LightingPipeline.h" />
     <ClInclude Include="..\Public\Print_Manager.h" />
     <ClInclude Include="..\Public\PathFollower.h" />
     <ClInclude Include="..\Public\Reflection_JsonUtil.h" />
@@ -266,12 +266,11 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Reflection_Types.h" />
     <ClInclude Include="..\Public\Renderer_Define.h" />
     <ClInclude Include="..\Public\RenderTarget.h" />
-    <ClInclude Include="..\Public\ScreenFx_Instance.h" />
-    <ClInclude Include="..\Public\ScreenFx_Manager.h" />
     <ClInclude Include="..\Public\ShaderPassFinder.h" />
     <ClInclude Include="..\Public\ShaderResourceRegistry.h" />
     <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
     <ClInclude Include="..\Public\Shadow.h" />
+    <ClInclude Include="..\Public\Sound_Manager.h" />
     <ClInclude Include="..\Public\StaticCollisionData.h" />
     <ClInclude Include="..\Public\Target_Manager.h" />
     <ClInclude Include="..\Public\RegistorFactory.h" />
@@ -294,7 +293,9 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\VIBufferCom_ComputePointParticle.h" />
     <ClInclude Include="..\Public\VIBufferCom_Instance.h" />
     <ClInclude Include="..\Public\VIBufferCom_PointParticle.h" />
+    <ClInclude Include="..\Public\VIBuffer_Landscape.h" />
     <ClInclude Include="..\Public\VIBuffer_MeshInstance.h" />
+    <ClInclude Include="..\Public\VIBuffer_TerrainUE.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\Animation.h" />
     <ClInclude Include="..\public\Asset_Manager.h" />
@@ -393,9 +394,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\PhysX_Manager.cpp" />
     <ClCompile Include="..\Private\Picking.cpp" />
     <ClCompile Include="..\Private\PostProcessPipeline.cpp" />
-    <ClCompile Include="..\Private\ScreenFx_Instance.cpp" />
-    <ClCompile Include="..\Private\ScreenFx_Manager.cpp" />
-    <ClCompile Include="..\Private\SSAOPipeline.cpp" />
+    <ClCompile Include="..\Private\Sound_Manager.cpp" />
+    <ClCompile Include="..\Private\LightingPipeline.cpp" />
     <ClCompile Include="..\Private\Print_Manager.cpp" />
     <ClCompile Include="..\Private\RenderTarget.cpp" />
     <ClCompile Include="..\Private\Shadow.cpp" />
@@ -421,7 +421,9 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\VIBufferCom_ComputePointParticle.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_Instance.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_Landscape.cpp" />
     <ClCompile Include="..\Private\VIBuffer_MeshInstance.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_TerrainUE.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>

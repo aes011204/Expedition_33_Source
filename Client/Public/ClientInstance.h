@@ -102,6 +102,7 @@ public: /* For.Hero Manager */
 public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);
     void    Clear_GameplayUI();
+    Shared<GameplayUI> Get_GameplayUI() const { return _gamePlayUI; }
 
     void    Play_BattleEnterTransition();
     void    Stop_BattleEnterTransition();

@@ -7,7 +7,7 @@
 
 HRESULT OffsetAnimationModifier::Initialize(AnimationModifierDesc* desc)
 {
-    CHECK_FAILED(__super::Initialize(desc), E_FAIL)
+    CHECK_FAILED(__super::Initialize(desc), E_FAIL);
     _desc = *static_cast<OffsetModifierDesc*>(desc);
     auto baseModel = _desc.baseModelCom;
     if (nullptr == baseModel || _desc.offsetBoneRanges.empty())

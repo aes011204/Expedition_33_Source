@@ -12,11 +12,15 @@
 #include "MEStaticMeshActor.h"
 #include "MEModelManager.h"
 #include "CmdAddObject.h"
-#include "CmdDeleteObject.h"
-#include "CmdTransformObject.h"
 #include "MEInstancedMeshActor.h"
 #include "MEBridgeCamera.h"
 #include "ComputeShaderCom.h"
+#include "MELandscapeActor.h"
+#include "MELandscapeManager.h"
+#include "MEMaterialApplicator.h"
+
+// test
+#include "METerrainActor.h"
 
 extern HWND g_hWnd;
 extern HINSTANCE g_hInst;
@@ -61,11 +65,43 @@ HRESULT MapEditorApp::Initialize()
     _viewport = PanelViewport::Create(_camera, _rt, &_scene);
     CHECK_NULL(_viewport, E_FAIL);
 
-    _manager = MEManager::Create(_viewport, &_scene, _camera.get());
+    _sculptState = make_shared<LandscapeSculptState>();
+    _viewport->Set_SculpState(_sculptState);
+
+    MELandscapeManager::LandMG_Desc landDesc{};
+    landDesc.device = _device;
+    landDesc.context = _context;
+    landDesc.scene = &_scene;
+    landDesc.camera = _camera.get();
+    landDesc.sculptState = _sculptState;
+    landDesc.resourceRoot = Get_ClientResourceRoot();
+
+    _landscapeManager = MELandscapeManager::Create(landDesc);
+    CHECK_NULL(_landscapeManager, E_FAIL);
+
+    MEMaterialApplicator::Material_Desc matDesc{};
+    matDesc.scene = &_scene;
+    _materialApplicator = MEMaterialApplicator::Create(matDesc);
+    CHECK_NULL(_materialApplicator, E_FAIL);
+
+    LandscapePanelContext landscapeCtx{};
+    landscapeCtx.sculptState = _sculptState;
+    landscapeCtx.onAdd = [this](const LandscapeConfig& cfg) { _landscapeManager->Add_Landscape(cfg); };
+    landscapeCtx.onRemove = [this](int32 idx) { _landscapeManager->Remove_Landscape(idx); };
+    landscapeCtx.onSave = [this](int32 idx, const WCHAR* path) { _landscapeManager->Save_Landscape(idx, path); };
+    landscapeCtx.onLoad = [this](int32 idx, const WCHAR* path) { _landscapeManager->Load_Landscape(idx, path); };
+    landscapeCtx.onApplyNoise = [this](int32 idx, const LandscapeNoiseParams& params) { _landscapeManager->Apply_Noise(idx, params); };
+    landscapeCtx.onApplyErosion = [this](int32 idx, const LandscapeErosionParams& params) { _landscapeManager->Apply_Erosion(idx, params); };
+    landscapeCtx.onAddLayer = [this](int32 idx, const WCHAR* path) { _landscapeManager->Add_LandscapeLayer(idx, path); };
+    landscapeCtx.onModify = [this](int32 idx, const LandscapeConfig& cfg) { _landscapeManager->Modify_Landscape(idx, cfg); };
+
+    _manager = MEManager::Create(_viewport, &_scene, _camera.get(), landscapeCtx);
     CHECK_NULL(_manager, E_FAIL);
 
     _pickingSystem = MEPickingSystem::Create(_device, _context, g_iWinSizeX, g_iWinSizeY);
     CHECK_NULL(_pickingSystem, E_FAIL);
+    _viewport->Set_PickingSystem(_pickingSystem.get());
+
     _debugRenderer = MEDebugRenderer::Create();
     CHECK_NULL(_debugRenderer, E_FAIL);
 
@@ -79,6 +115,12 @@ HRESULT MapEditorApp::Initialize()
         VtxMeshInstanceExactLayout::Elements, VtxMeshInstanceExactLayout::numElements, ShaderType::VtxInstanceMeshExact);
     CHECK_NULL(instanceShader, E_FAIL);
     CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxMeshInstanceExact", instanceShader), E_FAIL);
+
+    CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_VtxNorTex",
+        ShaderCom::Create(_device, _context,
+            L"../../../Client/Bin/ShaderFiles/Shader_VtxNorTex.hlsl",
+            VTXNORTEX::Elements, VTXNORTEX::numElements, ShaderType::VtxNorTex)), E_FAIL);
+
 
     CHECK_FAILED(GAME->Add_Prototype(0, L"MEInstancedMeshActor",
         MEInstancedMeshActor::Create(_device, _context)), E_FAIL);
@@ -119,6 +161,12 @@ void MapEditorApp::Update(float timeDelta)
     _manager->Update(timeDelta);
     Update_RenderHandles();
 
+    if (_scene._terrainDirty)
+    {
+        _scene._terrainDirty = false;
+        _terrain.reset();
+        Build_TerrainFromScene();
+    }
 
     if (_scene._octreeDirty)
     {
@@ -166,6 +214,12 @@ HRESULT MapEditorApp::Render()
         _pickingSystem->SetCursorAt(_scene, *_camera, mousePos, vpPos, vpSize, *_rt);
     }
 
+    ImVec2 sculptMouse{}, sculptVpPos{}, sculptVpSize{};
+    if (_viewport->ConsumeSculpt(sculptMouse, sculptVpPos, sculptVpSize))
+    {
+        _landscapeManager->Do_SculptAt(sculptMouse, sculptVpPos, sculptVpSize, 0.016f);
+    }
+
     string spawnPath{};
     ImVec2 spawnMouse{}, spawnVpPos{}, spawnVpSize{};
     if (_viewport->ConsumeSpawn(spawnPath, spawnMouse, spawnVpPos, spawnVpSize))
@@ -180,27 +234,80 @@ HRESULT MapEditorApp::Render()
     vector<uint32> visibleIndices;
     GAME->QueryVisible(visibleIndices);
 
-    for (uint32 idx : visibleIndices)
+    if (_scene._objectBBoxMode)
     {
-        auto& obj = _scene._staticMeshes[idx];
-        if (!obj->_renderHandle)
+        for (uint32 idx : visibleIndices)
         {
-            continue;
-        }
+            auto& obj = _scene._staticMeshes[idx];
+            if (!obj->_renderHandle)
+            {
+                continue;
+            }
 
-        obj->_renderHandle->Set_CameraFar(_camera->GetFar());
-        obj->_renderHandle->Late_Update(0.f);
+            const auto& model = obj->_renderHandle->GetModel();
+            Vec3 localMin{}, localMax{};
+            BoundingBox worldBox{};
+            if (model->Try_Get_LocalBounds(localMin, localMax))
+            {
+                BoundingBox localBox;
+                BoundingBox::CreateFromPoints(localBox, localMin, localMax);
+                localBox.Transform(worldBox, model->Get_PreLocalTransformMatrix() * obj->_worldMatrix);
+            }
+            else
+            {
+                worldBox.Center = obj->_position;
+                worldBox.Extents = Vec3(0.3f, 0.3f, 0.3f);
+            }
+
+            DebugBoxDesc box;
+            box.center = worldBox.Center;
+            box.extents = worldBox.Extents;
+            box.style.color = (obj == _scene._selected) ? Color(1.f, 1.f, 0.f, 1.f) : Color(0.5f, 0.8f, 1.f, 1.f);
+            box.style.depthEnabled = true;
+            GAME->Draw_DebugBox(box);
+        }
+    }
+    else
+    {
+        for (uint32 idx : visibleIndices)
+        {
+            auto& obj = _scene._staticMeshes[idx];
+            if (!obj->_renderHandle)
+            {
+                continue;
+            }
+
+            obj->_renderHandle->Set_CameraFar(_camera->GetFar());
+            obj->_renderHandle->Late_Update(0.f);
+        }
     }
 
-    for (auto& obj : _scene._instancedMeshes)
+    if (!_scene._hideInstancedMesh)
     {
-        if (!obj->_instancedRenderHandle)
+        for (auto& obj : _scene._instancedMeshes)
         {
-            continue;
-        }
+            if (!obj->_instancedRenderHandle)
+            {
+                continue;
+            }
 
-        obj->_instancedRenderHandle->Set_CameraFar(_camera->GetFar());
-        obj->_instancedRenderHandle->Late_Update(0.f);
+            obj->_instancedRenderHandle->Set_CameraFar(_camera->GetFar());
+            obj->_instancedRenderHandle->Late_Update(0.f);
+        }
+    }
+
+    // test
+    if (_terrain)
+    {
+        _terrain->Set_CameraFar(_camera->GetFar());
+        _terrain->Late_Update(0.f);
+    }
+
+    for (auto& landscape : _scene._landscapes)
+    {
+        landscape->Set_CameraFar(_camera->GetFar());
+        landscape->Set_CameraPos(_camera->GetPosition());
+        landscape->Late_Update(0.f);
     }
 
     GAME->Bind_BackBuffer();
@@ -229,7 +336,7 @@ void MapEditorApp::Update_RenderHandles()
 {
     Update_StaticMeshHandles();
     Update_InstancedMeshHandles();
-    Apply_PassOverrides();
+    _materialApplicator->Apply_PassOverrides();
 }
 
 void MapEditorApp::Update_StaticMeshHandles()
@@ -264,11 +371,11 @@ void MapEditorApp::Update_StaticMeshHandles()
 
         actor->Set_Model(model);
 
-        const string bundleKey = Resolve_BundleKey(obj->_modelPath);
-        Apply_MaterialFromJson(obj->_modelPath, bundleKey, model);
+        const string bundleKey = _materialApplicator->Resolve_BundleKey(obj->_modelPath);
+        _materialApplicator->Apply_MaterialFromJson(obj->_modelPath, bundleKey, model);
 
         const string modelFilename = String::ToString(fs::path(obj->_modelPath).filename().wstring());
-        Apply_PassOverrideToModel(*model, modelFilename);
+        _materialApplicator->Apply_PassOverrideToModel(*model, modelFilename, obj->_position, String::ToString(obj->_modelPath));
 
         obj->_renderHandle = actor;
         _scene._octreeDirty = true;
@@ -313,11 +420,11 @@ void MapEditorApp::Update_InstancedMeshHandles()
             continue;
         }
 
-        const string bundleKey = Resolve_BundleKey(obj->_instancedModelPath);
-        Apply_MaterialFromJson(obj->_instancedModelPath, bundleKey, model);
+        const string bundleKey = _materialApplicator->Resolve_BundleKey(obj->_instancedModelPath);
+        _materialApplicator->Apply_MaterialFromJson(obj->_instancedModelPath, bundleKey, model);
 
         const string modelFilename = String::ToString(fs::path(obj->_instancedModelPath).filename().wstring());
-        Apply_PassOverrideToModel(*model, modelFilename);
+        _materialApplicator->Apply_PassOverrideToModel(*model, modelFilename);
     }
 }
 
@@ -429,138 +536,40 @@ wstring MapEditorApp::Get_ClientResourceRoot() const
     return fs::absolute(runtimeRoot / L"../../../Client/Bin/Resources/").lexically_normal().wstring();
 }
 
-void MapEditorApp::Apply_MaterialFromJson(const fs::path& modelPath, const string& bundleKey, Shared<ModelCom>& model)
+HRESULT MapEditorApp::Build_TerrainFromScene()
 {
-    fs::path jsonPath = modelPath;
-    jsonPath.replace_extension(L".json");
-
-    ifstream ifs(jsonPath);
-    if (!ifs.is_open())
+    if (!_scene._terrainConfig.IsValid())
     {
-        return;
+        return S_OK;
     }
 
-    try
+    const auto& cfg = _scene._terrainConfig;
+
+    Engine::VIBuffer_TerrainUE::TerrainDesc desc{};
+    desc.worldOffsetX = cfg.worldOffsetX;
+    desc.worldOffsetY = cfg.worldOffsetY;
+    desc.worldOffsetZ = cfg.worldOffsetZ;
+    desc.scaleXZ = cfg.scaleXZ;
+    desc.scaleY = cfg.scaleY;
+
+    const wstring folder = String::ToWString(cfg.heightmapFolder);
+    for (const auto& t : cfg.tiles)
     {
-        json modelJson = json::parse(ifs);
-        for (auto& entry : modelJson)
-        {
-            if (entry.value("Type", "") != "StaticMesh")
-            {
-                continue;
-            }
-
-            if (!entry.contains("Properties") || !entry["Properties"].contains("StaticMaterials"))
-            {
-                break;
-            }
-
-            const auto& staticMats = entry["Properties"]["StaticMaterials"];
-            for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
-            {
-                const auto& mat = staticMats[i];
-                if (!mat.contains("MaterialInterface"))
-                {
-                    continue;
-                }
-
-                const auto& mi = mat["MaterialInterface"];
-                if (!mi.is_object())
-                {
-                    continue;
-                }
-
-                string objectPath = mi.value("ObjectPath", "");
-                if (objectPath.empty())
-                {
-                    continue;
-                }
-
-                size_t dot = objectPath.find('.');
-                string packagePath = (dot != string::npos) ? objectPath.substr(0, dot) : objectPath;
-                size_t slash = packagePath.rfind('/');
-                string miName = (slash != string::npos) ? packagePath.substr(slash + 1) : packagePath;
-
-                model->Apply_MaterialByAssetName(i, bundleKey, miName);
-            }
-            break;
-        }
-    }
-    catch (...) {}
-}
-
-string MapEditorApp::Resolve_BundleKey(const fs::path& modelPath) const
-{
-    string bundleKey = {};
-    if (!_scene._modelFolder.empty())
-    {
-        bundleKey = String::ToString(_scene._modelFolder);
-    }
-    else
-    {
-        bundleKey = String::ToString(modelPath.parent_path().filename().wstring());
-    }
-    transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
-    return bundleKey;
-}
-
-void MapEditorApp::Apply_PassOverrideToModel(ModelCom& model, const string& modelFilename)
-{
-    auto it = _scene._modelOverrides.find(modelFilename);
-    int32 passIndex = (it != _scene._modelOverrides.end()) ? it->second.passIndex : -1;
-
-    for (uint32 i = 0; i < static_cast<uint32>(model.Get_NumMaterials()); ++i)
-    {
-        auto mat = model.Get_Material(i);
-        if (mat)
-        {
-            mat->Set_ForcedPassIndex(passIndex);
-        }
-    }
-}
-
-void MapEditorApp::Apply_PassOverrides()
-{
-    if (!_scene._dirtyPassOverrides)
-    {
-        return;
+        Engine::VIBuffer_TerrainUE::TileDesc td;
+        td.heightmapPath = folder + String::ToWString(t.file);
+        td.gridX = t.gridX;
+        td.gridY = t.gridY;
+        desc.tiles.push_back(td);
     }
 
-    _scene._dirtyPassOverrides = false;
-
-    for (auto& obj : _scene._staticMeshes)
+    _terrain = METerrainActor::Create(_device, _context, desc);
+    if (!_terrain)
     {
-        if (!obj->_renderHandle)
-        {
-            continue;
-        }
-
-        auto model = obj->_renderHandle->GetModel();
-        if (!model)
-        {
-            continue;
-        }
-
-        const string modelFilename = String::ToString(fs::path(obj->_modelPath).filename().wstring());
-        Apply_PassOverrideToModel(*model, modelFilename);
+        LOG_WARN("Build_TerrainFromScene: Failed to create METerrainActor");
+        return E_FAIL;
     }
 
-    for (auto& obj : _scene._instancedMeshes)
-    {
-        if (!obj->_instancedRenderHandle)
-        {
-            continue;
-        }
-
-        auto model = obj->_instancedRenderHandle->GetModel();
-        if (!model)
-        {
-            continue;
-        }
-
-        const string modelFilename = String::ToString(fs::path(obj->_instancedModelPath).filename().wstring());
-        Apply_PassOverrideToModel(*model, modelFilename);
-    }
+    return S_OK;
 }
 
 Unique<MapEditorApp> MapEditorApp::Create()
@@ -580,6 +589,11 @@ Unique<MapEditorApp> MapEditorApp::Create()
 void MapEditorApp::Free()
 {
     _instanceCullShader.reset();
+    _landscapeManager.reset();
+    _materialApplicator.reset();
+    //test
+    _terrain.reset();
+    //
     _scene.ClearScene();
     _modelManager.reset();
 

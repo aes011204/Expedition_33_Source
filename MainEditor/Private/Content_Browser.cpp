@@ -247,26 +247,34 @@ void Content_Browser::Render()
                 char pathBuffer[512] = {};
                 strncpy_s(pathBuffer, pathStr.c_str(), _TRUNCATE);
 
-                float pathWidth = min(500.f, ImGui::GetContentRegionAvail().x - 220.f);
-                if (pathWidth < 150.f)
-                    pathWidth = 150.f;
+                const float refreshWidth = 60.f;
+                const float settingsWidth = 28.f;
+                const float controlSpacing = 8.f;
+                const float minPathWidth = 80.f;
+                const float preferredPathWidth = 150.f;
+                const float minSearchWidth = 120.f;
+                const bool isLargeTextureFolder = Is_LargeTextureFolder();
+                const float statusWidth = isLargeTextureFolder ? 170.f : 0.f;
+                const float toolbarAvailWidth = ImGui::GetContentRegionAvail().x;
+                const float rightControlWidth = refreshWidth + settingsWidth + statusWidth + controlSpacing * 2.f;
+
+                float searchWidth = 0.f;
+                if (toolbarAvailWidth >= rightControlWidth + preferredPathWidth + controlSpacing + minSearchWidth)
+                    searchWidth = min(220.f, toolbarAvailWidth - rightControlWidth - preferredPathWidth - controlSpacing);
+
+                float pathWidth = toolbarAvailWidth - rightControlWidth;
+                if (searchWidth > 0.f)
+                    pathWidth -= controlSpacing + searchWidth;
+
+                pathWidth = clamp(pathWidth, minPathWidth, 500.f);
 
                 ImGui::SetNextItemWidth(pathWidth);
                 ImGui::InputText("##CurrentPath", pathBuffer, IM_ARRAYSIZE(pathBuffer), ImGuiInputTextFlags_ReadOnly);
 
-                const float refreshWidth = 120.f;
-                const float settingsWidth = 28.f;
-                const float controlSpacing = 8.f;
-                const bool isLargeTextureFolder = Is_LargeTextureFolder();
-                const float statusWidth = isLargeTextureFolder ? 170.f : 0.f;
-
-                float remainingWidth = ImGui::GetContentRegionAvail().x;
-                float searchSlotWidth = remainingWidth - refreshWidth - settingsWidth - statusWidth - controlSpacing * 3.f;
-
-                if (searchSlotWidth > 120.f)
+                if (searchWidth > 0.f)
                 {
                     ImGui::SameLine();
-                    ImGui::SetNextItemWidth(min(220.f, searchSlotWidth));
+                    ImGui::SetNextItemWidth(searchWidth);
                     ImGui::InputTextWithHint("##AssetNameSearch", "Search files...", _assetSearchBuffer, IM_ARRAYSIZE(_assetSearchBuffer));
                 }
 
@@ -293,7 +301,7 @@ void Content_Browser::Render()
 
                 ImGui::SameLine();
 
-                if (ImGui::Button(ICON_FA_ROTATE_RIGHT " 새로고침", ImVec2(refreshWidth, 24.f)))
+                if (ImGui::Button(ICON_FA_ROTATE_RIGHT "##ContentBrowserRefresh", ImVec2(refreshWidth, 24.f)))
                     Refresh_AssetState();
 
                 if (ImGui::IsItemHovered())

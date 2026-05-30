@@ -43,6 +43,7 @@ void UI_DamageFont::Play_DamageFont(const Vec2& screenPos, float damage, uint32 
     const int32 damageValue = max(0, static_cast<int32>(damage));
 
     _startScreenPos = screenPos;
+    Apply_EditorOffsets(_startScreenPos);
     _hasStartScreenPos = true;
     _stackIndex = stackIndex;
     _elapsed = 0.f;

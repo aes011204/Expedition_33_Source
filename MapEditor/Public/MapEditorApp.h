@@ -6,7 +6,6 @@
 
 NS_BEGIN(Engine)
 class RenderTarget;
-class ModelCom;
 class ComputeShaderCom;
 NS_END
 
@@ -20,6 +19,11 @@ class MEModelManager;
 class MEPickingSystem;
 class MEDebugRenderer;
 class MEBridgeCamera;
+class MELandscapeManager;
+class MEMaterialApplicator;
+
+// test
+class METerrainActor;
 
 class MapEditorApp final : public Base
 {
@@ -56,6 +60,12 @@ private:
 
     bool _octreeDirty = true;
 
+    Shared<METerrainActor> _terrain;
+    Shared<LandscapeSculptState> _sculptState;
+
+    Unique<MELandscapeManager> _landscapeManager;
+    Unique<MEMaterialApplicator> _materialApplicator;
+
 private:
     HRESULT Ready_Light();
 
@@ -67,10 +77,8 @@ private:
     void RebuildOctreeIfDirty();
 
     wstring Get_ClientResourceRoot() const;
-    void Apply_MaterialFromJson(const fs::path& modelPath, const string& bundleKey, Shared<ModelCom>& model);
-    string Resolve_BundleKey(const fs::path& modelPath) const;
-    void Apply_PassOverrideToModel(ModelCom& model, const string& modelFilename);
-    void Apply_PassOverrides();
+
+    HRESULT Build_TerrainFromScene();
 
 public:
     static Unique<MapEditorApp> Create();

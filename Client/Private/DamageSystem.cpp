@@ -28,8 +28,16 @@ void DamageSystem::Heal(float amount, const BattleChar& target)
     OnHealApplied.Broadcast(target, healedAmount);
 }
 
-void DamageSystem::ApplyDamage(float damage, const BattleChar& target)
+void DamageSystem::ApplyDamage(float damage, const BattleChar& target, AttackType attackType)
 {
+
+    if(target.statCom->Get_CurrentShield()!=0)
+    {
+        target.statCom->Remove_Shield(1);
+        return;
+    }
+
+
     auto& runtimeStat = target.statCom->Get_RuntimeStat();
     LOG_DEBUG("ApplyDamage: before hp={:.2f}, damage={:.2f}", runtimeStat.CurHp, damage);
     runtimeStat.CurHp -= damage;
@@ -44,7 +52,15 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& target)
         runtimeStat.CurHp,
         static_cast<int>(runtimeStat.CurAliveState));
 
-    OnDamageApplied.Broadcast(target, damage);
+    OnDamageApplied.Broadcast(target, damage,attackType);
+}
+
+void DamageSystem::ApplyDamage(float damage, const vector<BattleChar>& target, AttackType attackType)
+{
+    for(auto character : target)
+    {
+        ApplyDamage(damage, character, attackType);
+    }
 }
 
 void DamageSystem::Free()

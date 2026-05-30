@@ -5,6 +5,7 @@
 #include "MECamera.h"
 #include "SceneContext.h"
 #include "CmdTransformObject.h"
+#include "MEPickingSystem.h"
 
 PanelViewport::PanelViewport(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx)
     : MEWindow{ L"Viewport" }, _camera{ camera }, _rt{ rt }, _ctx{ ctx }
@@ -87,6 +88,8 @@ void PanelViewport::Render()
                     float& sens = _camera->GetRotateSensitivityRef();
                     ImGui::SetNextItemWidth(160.f);
                     ImGui::SliderFloat("Rotate", &sens, 0.001f, 0.01f, "%.4f");
+                    ImGui::Checkbox("BBox", &_ctx->_objectBBoxMode);
+                    ImGui::Checkbox("Instance 숨기기", &_ctx->_hideInstancedMesh);
                 }
                 ImGui::End();
             }
@@ -105,8 +108,17 @@ void PanelViewport::Render()
                 ImGui::EndDragDropTarget();
             }
 
-            if (_ctx && ImGui::IsItemClicked(ImGuiMouseButton_Left) &&
-                !ImGuizmo::IsOver() && !ImGuizmo::IsUsing())
+            const bool sculptActive = _sculptState && _sculptState->mode != ESculptMode::None;
+
+            if (_ctx && ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Left) && !ImGuizmo::IsOver() && !ImGuizmo::IsUsing() && sculptActive)
+            {
+                _sculptRequested = true;
+                _sculptMousePos = ImGui::GetIO().MousePos;
+                _sculptVpPos = ImGui::GetItemRectMin();
+                _sculptVpSize = ImGui::GetItemRectSize();
+            }
+            else if (_ctx && ImGui::IsItemClicked(ImGuiMouseButton_Left) &&
+                !ImGuizmo::IsOver() && !ImGuizmo::IsUsing() && !sculptActive)
             {
                 const bool shiftHeld = ImGui::GetIO().KeyShift;
                 if (shiftHeld)
@@ -116,7 +128,6 @@ void PanelViewport::Render()
                     _cursorVpPos = ImGui::GetItemRectMin();
                     _cursorVpSize = ImGui::GetItemRectSize();
                 }
-
                 else
                 {
                     _pickRequested = true;
@@ -204,6 +215,45 @@ void PanelViewport::Render()
 
                 _gizmoWasUsing = gizmoUsing;
             }
+
+            if (sculptActive && ImGui::IsItemHovered() && _camera && _ctx && _pickingSystem)
+            {
+                const ImVec2 vpMin = ImGui::GetItemRectMin();
+                const ImVec2 vpMax = ImGui::GetItemRectMax();
+                const ImVec2 vpSz = ImVec2(vpMax.x - vpMin.x, vpMax.y - vpMin.y);
+                const ImVec2 mouse = ImGui::GetIO().MousePos;
+
+                Vec3 hitPos{};
+                if (_pickingSystem->SampleWorldPos(*_camera, mouse, vpMin, vpSz, hitPos))
+                {
+                    Matrix viewProj = Matrix(_camera->GetView()) * Matrix(_camera->GetProj());
+
+                    auto WorldToScreen = [&](Vec3 wp, ImVec2& out) -> bool
+                        {
+                            Vec4 clip = Vec4::Transform(Vec4(wp.x, wp.y, wp.z, 1.f), viewProj);
+                            if (clip.w <= 0.f) return false;
+                            out.x = vpMin.x + ((clip.x / clip.w) + 1.f) * 0.5f * vpSz.x;
+                            out.y = vpMin.y + (1.f - (clip.y / clip.w)) * 0.5f * vpSz.y;
+                            return true;
+                        };
+
+                    ImVec2 center;
+                    if (WorldToScreen(hitPos, center))
+                    {
+                        float screenRadius = 8.f;
+                        ImVec2 edge;
+                        if (WorldToScreen(Vec3(hitPos.x + _sculptState->brushRadius, hitPos.y, hitPos.z), edge))
+                        {
+                            float dx = edge.x - center.x;
+                            float dy = edge.y - center.y;
+                            screenRadius = sqrtf(dx * dx + dy * dy);
+                        }
+
+                        ImDrawList* dl = ImGui::GetWindowDrawList();
+                        dl->AddCircle(center, max(2.f, screenRadius), IM_COL32(255, 220, 0, 220), 64, 2.f);
+                    }
+                }
+            }
         }
 
         else
@@ -217,6 +267,49 @@ void PanelViewport::Render()
 }
 
 
+
+bool PanelViewport::Ray_Hit_Landscape(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSz, Vec3& outHit)
+{
+    if (!_ctx || _ctx->_activeLandscapeIdx < 0 || _ctx->_activeLandscapeIdx >= static_cast<int32>(_ctx->_landscapes.size()))
+    {
+        return false;
+    }
+
+    auto& actor = _ctx->_landscapes[_ctx->_activeLandscapeIdx];
+    auto vb = actor->Get_VIBuffer();
+    if (!vb)
+    {
+        return false;
+    }
+
+    float u = (mousePos.x - vpPos.x) / vpSz.x;
+    float v = (mousePos.y - vpPos.y) / vpSz.y;
+    float ndcX = u * 2.f - 1.f;
+    float ndcY = 1.f - v * 2.f;
+
+    Matrix viewProjInv = (Matrix(_camera->GetView()) * Matrix(_camera->GetProj())).Invert();
+    Vec3 nearP = Vec3::Transform(Vec3(ndcX, ndcY, 0.f), viewProjInv);
+    Vec3 farP = Vec3::Transform(Vec3(ndcX, ndcY, 1.f), viewProjInv);
+    Vec3 dir = farP - nearP;
+    dir.Normalize();
+
+    Vec3 landscapePos = actor->Get_Transform()->Get_Position();
+    float step = min(vb->Get_SizeX(), vb->Get_SizeZ()) * 0.5f;
+
+    float camFar = _camera->GetFar();
+    for (float t = 0.f; t < camFar; t += step)
+    {
+        Vec3 p = nearP + dir * t;
+        float terrainY = vb->Sample_Height(p.x - landscapePos.x, p.z - landscapePos.z) + landscapePos.y;
+        if (p.y <= terrainY)
+        {
+            outHit = p;
+            return true;
+        }
+    }
+
+    return false;
+}
 
 bool PanelViewport::ConsumePick(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize)
 {
@@ -259,6 +352,21 @@ bool PanelViewport::ConsumeCursorSet(ImVec2& outMousePos, ImVec2& outVpPos, ImVe
     outMousePos = _cursorMousePos;
     outVpPos = _cursorVpPos;
     outVpSize = _cursorVpSize;
+
+    return true;
+}
+
+bool PanelViewport::ConsumeSculpt(ImVec2& outMousePos, ImVec2& outVpPos, ImVec2& outVpSize)
+{
+    if (!_sculptRequested)
+    {
+        return false;
+    }
+
+    _sculptRequested = false;
+    outMousePos = _sculptMousePos;
+    outVpPos = _sculptVpPos;
+    outVpSize = _sculptVpSize;
 
     return true;
 }

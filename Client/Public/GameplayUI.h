@@ -7,6 +7,7 @@ NS_BEGIN(Client)
 
 class GameplayUI_World;
 class GameplayUI_Battle;
+class IRuntimeUI_EditorTarget;
 
 // 실제로 렌더링되는 UI 가 아니라, 플레이 중 UI 들을 로드/토글/바인딩 등 처리할 컨트롤러라고 생각
 class GameplayUI : public Base
@@ -26,6 +27,13 @@ public:
     HRESULT Initialize(uint32 levelIndex);
     void    Update(float timeDelta);
 
+public:
+    void                Handle_EditorStopRuntime();
+
+    vector<RuntimeUIEntry> Get_WorldRuntimeUIEntries() const;
+    vector<RuntimeUIEntry> Get_BattleRuntimeUIEntries() const;
+    IRuntimeUI_EditorTarget* Find_RuntimeUIEditorTarget(const Shared<Engine::UI_Base>& rootUI) const; // Battle UI 루트에서 오프셋 소유자를 찾는다.
+
     void    Play_BattleEnterTransition();
     void    Stop_BattleEnterTransition();
     bool    Is_BattleEnterTransitionPlaying() const;
@@ -37,6 +45,7 @@ private:
     // 이번 프레임에 어떤 UI 입력인지. World ? Battle ?
     GameplayUIInputMode Resolve_InputMode() const;
     void                Handle_InputModeChanged(GameplayUIInputMode previousMode, GameplayUIInputMode currentMode);
+
 
 private:
     Unique<GameplayUI_World>    _worldUI;  // 월드 UI는 GameplayUI 하나만 소유

@@ -24,6 +24,7 @@ public:
 protected:
     HRESULT Ready_Collider(const wstring& prototypeTag, void* colliderDesc, Collision_Preset preset);
     void    Update_Collider();
+    //virtual void    ChangeAnimByState();
 
 protected:
     Shared<ColliderCom> _colliderCom;

@@ -11,6 +11,8 @@
 
 namespace
 {
+    constexpr size_t kCookedCollisionWarnBytes = 256 * 1024;
+
     Vec4 ToVec4(const json& arr)
     {
         return Vec4(arr[0].get<float>(), arr[1].get<float>(), arr[2].get<float>(), arr[3].get<float>());
@@ -238,9 +240,16 @@ void SceneContext::SaveToFile(const string& filePath)
     json modelOverrides = json::object();
     for (auto& [filename, entry] : _modelOverrides)
     {
+        json slots = json::object();
+        for (auto& [slotIdx, texPath] : entry.textureSlots)
+        {
+            slots[to_string(slotIdx)] = texPath;
+        }
+
         modelOverrides[filename] = {
         {"PassIndex",  entry.passIndex},
-        {"ShaderType", static_cast<int>(entry.shaderType)}
+        {"ShaderType", static_cast<int>(entry.shaderType)},
+        {"TextureSlots", slots},
         };
     }
 
@@ -257,22 +266,38 @@ void SceneContext::SaveToFile(const string& filePath)
             json collisionEntry = json::object();
 
             json cookedMeshArray = json::array();
+            size_t totalCookedBytes = 0;
             for (auto& mesh : colData->triangleMeshes) // triangle mesh collision은 기존처럼 cooked binary를 저장한다.
             {
                 vector<uint8_t> cookedData;
                 if (physxManager->Cook_TriangleMesh(mesh, colData->preLocalTransform, cookedData))
                 {
+                    totalCookedBytes += cookedData.size();
                     string base64Str = String::Base64_Encode(cookedData);
                     cookedMeshArray.push_back(base64Str);
                 }
             }
 
             json primitiveProxyArray = json::array();
-            for (const ModelCollisionProxy& proxy : colData->primitiveProxies) // box/sphere/capsule 같은 primitive collision도 같이 저장한다.
+            for (const ModelCollisionProxy& proxy : colData->primitiveProxies)
+            {
                 primitiveProxyArray.push_back(Serialize_CollisionProxy(proxy));
+            }
+
+            if (primitiveProxyArray.empty() &&
+                totalCookedBytes >= kCookedCollisionWarnBytes)
+            {
+                LOG_WARN(
+                    "[SceneContext::SaveToFile] Large cooked collision saved without primitive proxies. model={}, cookedBytes={}, cookedMeshCount={}",
+                    relativePath,
+                    totalCookedBytes,
+                    cookedMeshArray.size());
+            }
 
             if (cookedMeshArray.empty() && primitiveProxyArray.empty())
+            {
                 continue;
+            }
 
             collisionEntry["CookedTriangleMeshes"] = cookedMeshArray;
             collisionEntry["PrimitiveProxies"] = primitiveProxyArray;
@@ -298,9 +323,8 @@ void SceneContext::SaveToFile(const string& filePath)
     Write_MapBinaryFile(filePath, root); // 런타임이 .bin을 우선 로드하므로 저장 시 json/bin을 같이 갱신한다.
 }
 
-void SceneContext::LoadFromFile(const string& filePath)
+void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
 {
-    _currentFilePath = filePath;
     ifstream ifs(filePath);
     if (!ifs.is_open())
     {
@@ -310,14 +334,32 @@ void SceneContext::LoadFromFile(const string& filePath)
     json root = json::parse(ifs);
     const json& map = root["MapData"];
 
-    _mapName = String::ToWString(map["MapName"].get<string>());
-    _modelFolder = String::ToWString(map.value("ModelFolder", string{}));
+    wstring fileModelFolder = String::ToWString(map.value("ModelFolder", string{}));
 
-    _objects.erase(remove_if(_objects.begin(), _objects.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _objects.end());
-    _staticMeshes.clear();
-    _lights.erase(remove_if(_lights.begin(), _lights.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _lights.end());
-    _instancedMeshes.clear();
-    _modelOverrides.clear();
+    if (!bMerge)
+    {
+        _currentFilePath = filePath;
+        _mapName = String::ToWString(map["MapName"].get<string>());
+        _modelFolder = fileModelFolder;
+
+        _objects.erase(remove_if(_objects.begin(), _objects.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _objects.end());
+        _staticMeshes.clear();
+        _lights.erase(remove_if(_lights.begin(), _lights.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _lights.end());
+        _instancedMeshes.clear();
+        _modelOverrides.clear();
+        _undoStack.clear();
+        _redoStack.clear();
+        _selected = nullptr;
+    }
+
+    _dirtyRenderHandles = true;
+    _lightDirty = true;
+
+    wstring prevFolder = _modelFolder;
+    if (bMerge)
+    {
+        _modelFolder = fileModelFolder;
+    }
 
     if (map.contains("ModelOverrides"))
     {
@@ -326,16 +368,16 @@ void SceneContext::LoadFromFile(const string& filePath)
             ModelOverrideEntry entry;
             entry.passIndex = data.value("PassIndex", -1);
             entry.shaderType = static_cast<ShaderType>(data.value("ShaderType", static_cast<int>(ShaderType::VtxMesh)));
+            if (data.contains("TextureSlots"))
+            {
+                for (auto& [slotStr, texPath] : data["TextureSlots"].items())
+                {
+                    entry.textureSlots[stoi(slotStr)] = texPath.get<string>();
+                }
+            }
             _modelOverrides[filename] = entry;
         }
     }
-
-    _dirtyRenderHandles = true;
-    _lightDirty = true;
-    _selected = nullptr;
-
-    _undoStack.clear();
-    _redoStack.clear();
 
     auto LoadTransform = [](const json& e, EditorObject& obj) {
         auto& pos = e["Position"];
@@ -496,7 +538,7 @@ void SceneContext::LoadFromFile(const string& filePath)
         }
     }
 
-    if (map.contains("DefaultLight"))
+    if (!bMerge && map.contains("DefaultLight"))
     {
         const json& dl = map["DefaultLight"];
         auto it = find_if(_objects.begin(), _objects.end(), [](const Shared<EditorObject>& o) { return o->_isDefaultLight; });
@@ -568,6 +610,11 @@ void SceneContext::LoadFromFile(const string& filePath)
             }
             Add(obj);
         }
+    }
+
+    if (bMerge)
+    {
+        _modelFolder = prevFolder;
     }
 
     _octreeDirty = true;
@@ -855,6 +902,8 @@ void SceneContext::ClearScene()
     _staticMeshes.clear();
     _lights.erase(remove_if(_lights.begin(), _lights.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _lights.end());
     _instancedMeshes.clear();
+    _landscapes.clear();
+    _activeLandscapeIdx = -1;
     _selected = nullptr;
     _undoStack.clear();
     _redoStack.clear();
@@ -908,5 +957,55 @@ void SceneContext::LoadCamData(const string& filePath)
         _cameraBookmarks[i].yaw = b.value("Yaw", 0.f);
         _cameraBookmarks[i].pitch = b.value("Pitch", 0.f);
     }
+}
+
+void SceneContext::LoadTerrainConfig(const string& filePath)
+{
+    ifstream ifs(filePath);
+    if (!ifs.is_open())
+    {
+        return;
+    }
+
+    json root = json::parse(ifs);
+    if (!root.contains("Terrain"))
+    {
+        return;
+    }
+
+    const json& t = root["Terrain"];
+    _terrainConfig = {};
+    _terrainConfig.heightmapFolder = t.value("HeightmapFolder", string{});
+    _terrainConfig.worldOffsetX = t.value("WorldOffsetX", 0.f);
+    _terrainConfig.worldOffsetY = t.value("WorldOffsetY", 0.f);
+    _terrainConfig.worldOffsetZ = t.value("WorldOffsetZ", 0.f);
+    _terrainConfig.scaleXZ = t.value("ScaleXZ", 1.f);
+    _terrainConfig.scaleY = t.value("ScaleY", 1.f);
+
+    if (t.contains("Tiles"))
+    {
+        for (const auto& tile : t["Tiles"])
+        {
+            TerrainTile tt;
+            tt.file = tile.value("File", string{});
+            tt.gridX = tile.value("GridX", 0);
+            tt.gridY = tile.value("GridY", 0);
+            _terrainConfig.tiles.push_back(tt);
+        }
+    }
+
+    _objects.erase(remove_if(_objects.begin(), _objects.end(),
+        [](const Shared<EditorObject>& o) { return o->_type == EObjectType::Terrain; }), _objects.end());
+
+    auto terrainObj = make_shared<EditorObject>();
+    terrainObj->_type = EObjectType::Terrain;
+    terrainObj->_name = L"Terrain";
+    terrainObj->_position = Vec3(_terrainConfig.worldOffsetX, _terrainConfig.worldOffsetY, _terrainConfig.worldOffsetZ);
+    terrainObj->_scale = Vec3(_terrainConfig.scaleXZ, _terrainConfig.scaleY, _terrainConfig.scaleXZ);
+    terrainObj->_rotation = Quat::Identity;
+    terrainObj->UpdateWorldMatrix();
+    Add(terrainObj);
+
+    _terrainDirty = true;
 }
 

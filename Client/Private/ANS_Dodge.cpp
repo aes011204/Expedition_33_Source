@@ -25,7 +25,8 @@ void ANS_Dodge::On_Begin(const AnimNotifyContext& context)
 void ANS_Dodge::On_Tick(const AnimNotifyContext& context)
 {
     UNREFERENCED_PARAMETER(context);
- 
+    LOG_DEBUG("dodgeeeeeeeeeeeeeeeee");
+
 }
 
 void ANS_Dodge::On_End(const AnimNotifyContext& context)

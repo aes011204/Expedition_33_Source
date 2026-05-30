@@ -109,6 +109,7 @@ void DrawBattleClipKeyMarkers(
     bool* requestRemoveKeyPopup,
     int* contextTrackIndex,
     int* contextFrame,
+    int* displayFrameMax,
     int index,
     ImDrawList* drawList,
     const ImRect& rc,
@@ -126,8 +127,12 @@ void DrawBattleClipKeyMarkers(
         g_battleClipKeyDragState = {};
 
     const int frameMin = 0;
-    const int frameMax = std::max(TimeToFrame(clip->duration), 1);
+    const int clipFrameMax = std::max(TimeToFrame(clip->duration), 1);
+    const int frameMax = (displayFrameMax != nullptr)
+        ? std::max(*displayFrameMax, clipFrameMax)
+        : clipFrameMax;
     const int frameRange = std::max(frameMax - frameMin, 1);
+    const float authoringDurationSec = FrameToTime(frameMax);
     bool isHoveringAnyKey = false;
 
     drawList->PushClipRect(clippingRect.Min, clippingRect.Max, true);
@@ -204,7 +209,9 @@ void DrawBattleClipKeyMarkers(
                 maxFrame = std::min(maxFrame, TimeToFrame(track->keyframes[keyIndex + 1].time));
 
             const int clampedFrame = std::clamp(rawFrame, minFrame, maxFrame);
-            keyframe.time = std::clamp(FrameToTime(clampedFrame), 0.f, clip->duration);
+            keyframe.time = std::clamp(FrameToTime(clampedFrame), 0.f, authoringDurationSec);
+            if (keyframe.time > clip->duration)
+                clip->duration = keyframe.time;
 
             if (currentFrame != nullptr)
                 *currentFrame = clampedFrame;
@@ -417,6 +424,7 @@ void BattleClipSequencerAdapter::CustomDraw(int index, ImDrawList* drawList, con
         _requestRemoveKeyPopup,
         _contextTrackIndex,
         _contextFrame,
+        _displayFrameMax,
         index,
         drawList,
         rc,
@@ -436,6 +444,7 @@ void BattleClipSequencerAdapter::CustomDrawCompact(int index, ImDrawList* drawLi
         _requestRemoveKeyPopup,
         _contextTrackIndex,
         _contextFrame,
+        _displayFrameMax,
         index,
         drawList,
         rc,

@@ -258,6 +258,36 @@ PS_OUT PS_PackedAR_NME(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_LandscapeBlend(PS_IN In)
+{
+    PS_OUT Out;
+
+    // temporary using slot
+    float tileSize = 238.636f;
+    float2 weightmapUV = saturate((In.WorldPos.xz - g_UVOffset.xy) / tileSize);
+    float4 wm = g_MaterialTextures[MATERIAL_SLOT_HAIR_ID].Sample(LinearWrapSampler, weightmapUV);
+
+    float2 layerUV = In.WorldPos.xz * 0.01f * g_UVScale;
+
+    float4 layer1AR = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, layerUV);
+    float4 layer2AR = g_MaterialTextures[MATERIAL_SLOT_HAIR_DEPTH].Sample(LinearWrapSampler, layerUV);
+
+    float w1 = dot(wm, g_BaseColorTint);
+    float w2 = dot(wm, g_EmissiveColor);
+    float wTotal = w1 + w2;
+    float3 blendedColor = lerp(layer1AR.rgb, (layer1AR.rgb * w1 + layer2AR.rgb * w2) / max(wTotal, 0.0001f), saturate(wTotal * 1000.f));
+
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, layerUV);
+    
+    Out.Diffuse = float4(blendedColor, 1.f);
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = float4(1.f, 0.8f, 0.f, 1.f);
+    Out.Emissive = float4(0.f, 0.f, 0.f, 1.f);
+
+    return Out;
+}
+
 PS_OUT_ID PS_ID(PS_IN In)
 {
     PS_OUT_ID Out;
@@ -283,4 +313,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(OpaqueARTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_OpaqueAR)         // 8
     PASS_RS_DS_BS_VP(PackedAR_NMEPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME)          // 9
     PASS_RS_DS_BS_VP(PackedAR_NMETwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME) // 10
+    PASS_RS_DS_BS_VP(LandscapeBlendPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_LandscapeBlend)      // 11
 }

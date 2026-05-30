@@ -25,9 +25,13 @@ echo.
 echo  5. Run All  (step 2 then 3 then 4)
 echo     Run steps 2, 3, 4 in sequence.
 echo.
+echo  6. Extract Terrain
+echo     Scans Heightmap_*.png from OriginJson/_Generated_/
+echo     and saves terrain tile config to SaveJson/[Level]_terrain.json.
+echo.
 echo =============================================
 echo.
-set /p CHOICE="Select [1-5]: "
+set /p CHOICE="Select [1-6]: "
 echo.
 
 if "%CHOICE%"=="1" goto step1
@@ -35,8 +39,9 @@ if "%CHOICE%"=="2" goto step2
 if "%CHOICE%"=="3" goto step3
 if "%CHOICE%"=="4" goto step4
 if "%CHOICE%"=="5" goto step_all
+if "%CHOICE%"=="6" goto step6
 
-echo Invalid choice. Please enter 1-5.
+echo Invalid choice. Please enter 1-6.
 pause
 goto menu
 
@@ -87,6 +92,20 @@ echo Output : Map\[Level]\Textures\
 echo.
 echo Usage  : python CollectMapTextures.py --level-dir [LevelName]
 echo Example: python CollectMapTextures.py --level-dir SmallLevel_SimonArea
+echo.
+cd /d "%~dp0"
+set /p CMD=">> "
+%CMD%
+goto done
+
+:step6
+echo [Step 6] Extract Terrain
+echo.
+echo Scans Heightmap_*.png from OriginJson/[Level]/_Generated_/
+echo and saves terrain tile config to SaveJson/[Level]_terrain.json.
+echo.
+echo Usage  : python extract_terrain.py [LevelName]
+echo Example: python extract_terrain.py Level_SpringMeadows_Main_V2
 echo.
 cd /d "%~dp0"
 set /p CMD=">> "

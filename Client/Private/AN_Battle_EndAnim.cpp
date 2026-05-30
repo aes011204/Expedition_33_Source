@@ -27,5 +27,15 @@ void AN_Battle_EndAnim::Execute(const AnimNotifyContext& context)
     if (Battle->Is_BattleStarted() == false)
         return;
 
+    const BattleAction& action = Battle->Get_TurnAction();
+
+    if (dynamic_pointer_cast<GameObject>(action.Get_CurChar().actor) != context.owner->Get_Owner())
+        return;
+
+    if (action.Get_CurChar().ModelCom.get() != context.model)
+        return;
+
+
+
     Battle->OnActionEndNotify();
 }

@@ -106,9 +106,28 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
         ifstream testBin(binPathA, ios::binary);
         if (testBin.is_open())
         {
-            actualPath = binPath;
-            pathA = binPathA;
-            isBinary = true;
+            bool preferBin = true;
+
+            try
+            {
+                const fs::path jsonFsPath = fs::path(filePath);
+                const fs::path binFsPath = fs::path(binPath);
+                if (fs::exists(jsonFsPath) && fs::exists(binFsPath))
+                {
+                    // If the json was edited after the bin was generated, prefer the fresher source of truth.
+                    preferBin = fs::last_write_time(binFsPath) >= fs::last_write_time(jsonFsPath);
+                }
+            }
+            catch (...)
+            {
+            }
+
+            if (preferBin)
+            {
+                actualPath = binPath;
+                pathA = binPathA;
+                isBinary = true;
+            }
         }
     }
     else if (filePath.find(L".bin") != wstring::npos)

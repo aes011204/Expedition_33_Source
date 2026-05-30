@@ -80,6 +80,8 @@ public: //## Accessor::PreviewOption
     bool Is_TrailPreviewVisible() const { return _isTrailPreviewVisible; }
     // Trail preview anchor marker/line 표시 여부다.
     bool Is_TrailPreviewDebugRenderEnabled() const { return _isTrailPreviewDebugRenderEnabled; }
+    // Effect shader 기준 influence 범위 외곽선 표시 여부다.
+    bool Is_EffectInfluenceOutlineEnabled() const { return _isEffectInfluenceOutlineEnabled; }
     // Trail preview weapon-local base marker의 editor-session offset이다.
     Vec3 Get_TrailPreviewBaseLocalOffset() const { return _trailPreviewBaseLocalOffset; }
     // Trail preview weapon-local tip marker의 editor-session offset이다.
@@ -118,6 +120,8 @@ public: //## Behavior::PreviewOption
     void Set_TrailPreviewVisible(bool visible);
     // Trail preview anchor marker/line 표시 여부만 바꾼다.
     void Set_TrailPreviewDebugRenderEnabled(bool enabled);
+    // EffectEditor 세션 전용 influence outline debug 표시를 켜고 끈다.
+    void Set_EffectInfluenceOutlineEnabled(bool enabled);
     // Detail_View의 Trail Preview 조정값을 현재 editor session에만 반영한다.
     void Set_TrailPreviewLocalOffsets(const Vec3& baseLocalOffset, const Vec3& tipLocalOffset);
     // Trail Preview 조정값을 기본 weapon-local marker 위치로 되돌린다.
@@ -220,6 +224,7 @@ private: //## Data::Runtime
 private: //## Data::PreviewOption
     bool _isTrailPreviewVisible{ false };
     bool _isTrailPreviewDebugRenderEnabled{ true };
+    bool _isEffectInfluenceOutlineEnabled{ false };
     Vec3 _trailPreviewBaseLocalOffset{ kDefaultTrailPreviewBaseLocalOffset };
     Vec3 _trailPreviewTipLocalOffset{ kDefaultTrailPreviewTipLocalOffset };
     EffectEditorPostProcessOptions _postProcessOptions{};
