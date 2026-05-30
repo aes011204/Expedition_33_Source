@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ScreenFx_View.h"
 #include "GameInstance.h"
 #include "ScreenFx_Manager.h"
@@ -68,7 +68,9 @@ void ScreenFx_View::Render()
                 if (_previewInstance)
                 {
                     _previewInstance->Initialize(nullptr);
+#ifdef _DEBUG
                     GAME->Get_ScreenFxManager()->Set_PreviewEffect(_previewInstance);
+#endif
                 }
             }
             if (isSelected) ImGui::SetItemDefaultFocus();
@@ -81,7 +83,9 @@ void ScreenFx_View::Render()
     {
         _selectedEffectName = "";
         _previewInstance = nullptr;
+#ifdef _DEBUG
         GAME->Get_ScreenFxManager()->Clear_PreviewEffect();
+#endif
     }
 
     // 2. 리플렉션 렌더링 (프로퍼티 에디터)

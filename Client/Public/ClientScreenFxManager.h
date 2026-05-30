@@ -8,7 +8,7 @@ class RadialBlur_ScreenFx;
 class ClientScreenFxManager final : public Base
 {
 public:
-    ClientScreenFxManager();
+    ClientScreenFxManager() = default;
     ~ClientScreenFxManager() override = default;
 public:
     enum class ScreenFx_Type
@@ -22,6 +22,9 @@ public:
         BattleTransition,
     };
 
+private:
+    HRESULT Initialize();
+
 public:
     void Play_BattleInCounterFx();
     void Transition_To_BattleField();
@@ -32,6 +35,7 @@ private:
 
 public:
     static Shared<ClientScreenFxManager> Create();
+    void Free() override;
 };
 
 NS_END

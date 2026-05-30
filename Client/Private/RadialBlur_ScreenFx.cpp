@@ -1,10 +1,14 @@
 ﻿#include "pch.h"
 #include "RadialBlur_ScreenFx.h"
+
+#include <Camera.h>
+
 #include "Shader_CBuffer_Define.h"
 #include "ShaderCom.h"
-#include <algorithm>
-
+#include "GameInstance.h"
+#include "ClientInstance.h"
 #include "ClientScreenFxManager.h"
+#include "Player_WorldBase.h"
 
 NS_BEGIN(Client)
 
@@ -41,34 +45,39 @@ HRESULT RadialBlur_ScreenFx::Initialize(ScreenFxDesc* desc)
 
 void RadialBlur_ScreenFx::Update_ScreenFx(float timeDelta)
 {
-    Shared<RadialBlur_ScreenFx> blurFx = _activeActionBlur.lock();
+    _elapsedTime += timeDelta;
 
-    // 1. 이미 블러 이펙트가 화면에 살아있다면? -> "수명 연장 및 강도 갱신"
-    if (blurFx && !blurFx->Check_EndCondition())
+    Compute_LeaderHeroPosToProjection();
+
+    if (auto mainCamera = GAME->Get_ActiveCamera())
     {
-        blurFx->Refresh_ActionBlur(intensity, fadeOutTime);
+        Vec3 currentLookDir = mainCamera->Get_Transform()->Get_WorldForward();
+        currentLookDir.Normalize();
+
+        if (_prevLookDir.Length() > 0.001f)
+        {
+            float dotProduct = currentLookDir.Dot(_prevLookDir);
+            dotProduct = clamp(dotProduct, -1.f, 1.f);
+            float angleChange = acos(dotProduct);
+            float angularSpeed = angleChange / timeDelta;
+
+            if (angularSpeed > _requireSpeed)
+                _targetIntensity = clamp(angularSpeed * 0.02f, 0.05f, 0.15f);
+            else
+                _targetIntensity = 0.f;
+        }
+        _prevLookDir = currentLookDir;
     }
-    // 2. 블러 이펙트가 없거나 이미 끝났다면? -> "새로 생성"
     else
     {
-        RadialBlur_ScreenFx::RadialBlurDesc desc{};
-        desc.center = Vec2(0.5f, 0.5f);
-        desc.intensity = intensity;
-
-        // 만약 정말 화면 전체에 블러를 골고루 먹이고 싶다면 radius를 0.0f로 주세요.
-        // 외곽에만 먹이고 싶다면 0.7f 정도 유지.
-        desc.radius = 0.0f;
-
-        desc.duration = fadeOutTime;
-        desc.fadeOutTime = fadeOutTime;
-
-        auto newBlur = RadialBlur_ScreenFx::Create(&desc);
-        if (newBlur)
-        {
-            GAME->Get_ScreenFxManager()->Play_ScreenEffect(newBlur);
-            _activeActionBlur = newBlur; // 매니저가 이펙트를 기억함
-        }
+        _targetIntensity = 0.f;
     }
+
+    float lerpSpeed = _targetIntensity > _currentIntensity ? 10.f : 3.f;
+    _currentIntensity += (_targetIntensity - _currentIntensity) * (timeDelta * lerpSpeed);
+
+    if (_currentIntensity < 0.001f)
+        _currentIntensity = 0.0f;
 }
 
 HRESULT RadialBlur_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
@@ -103,6 +112,38 @@ void RadialBlur_ScreenFx::Evaluate_At(float elapsedTime)
             _currentIntensity = _originalDesc.intensity;
         }
     }
+}
+
+void RadialBlur_ScreenFx::Compute_LeaderHeroPosToProjection()
+{
+    if (auto leaderPlayer = CLIENT->Get_ActiveHero())
+    {
+        Vec3 worldPos = leaderPlayer->Get_Transform()->Get_WorldPosition();
+        worldPos.y += 1.575f;
+
+        const Matrix* viewMat = GAME->Get_Transform(D3DTS::View);
+        const Matrix* projMat = GAME->Get_Transform(D3DTS::Proj);
+        Vec2 curViewport = Vec2{
+            static_cast<float>(GAME->Get_ViewportWidth()),
+            static_cast<float>(GAME->Get_ViewportHeight())
+        };
+
+        Vec3 screenPos = XMVector3Project(
+            worldPos, 0.f, 0.f,
+            curViewport.x, curViewport.y,
+            0.f, 1.f,
+            *projMat, *viewMat, Matrix::Identity
+        );
+
+        if (screenPos.z < 1.0f)
+        {
+            Vec2 playerScreenUv{};
+            playerScreenUv.x = screenPos.x / curViewport.x;
+            playerScreenUv.y = screenPos.y / curViewport.y;
+            _originalDesc.center = playerScreenUv;
+        }
+    }
+
 }
 
 Shared<RadialBlur_ScreenFx> RadialBlur_ScreenFx::Create(RadialBlurDesc* desc)

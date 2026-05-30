@@ -11,7 +11,21 @@
 
 NS_BEGIN(Client)
 
+HRESULT ClientScreenFxManager::Initialize()
+{
+    {
+        RadialBlur_ScreenFx::RadialBlurDesc desc{};
+        desc.center = Vec2(0.5f, 0.5f);
+        desc.intensity = 0.25f;
+        desc.radius = 1.25f;             // 화면 외곽 쪽에 집중되도록 반경 설정
+        desc.duration = 0.2f;
+        desc.fadeOutTime = 0.1f;
 
+        GAME->Play_ScreenFx(RadialBlur_ScreenFx::Create(&desc));
+    }
+
+    return S_OK;
+}
 
 void ClientScreenFxManager::Play_BattleInCounterFx()
 {
@@ -48,20 +62,24 @@ void ClientScreenFxManager::Transition_To_BattleField()
 
 void ClientScreenFxManager::Play_ActionCameraBlur()
 {
-    RadialBlur_ScreenFx::RadialBlurDesc desc{};
-    desc.center = Vec2(0.5f, 0.5f); 
-    desc.intensity = 0.75f;     
-    desc.radius = 0.85f;             // 화면 외곽 쪽에 집중되도록 반경 설정
-    desc.duration = 0.3f;       
-    desc.fadeOutTime = 0.2f;
-
-    GAME->Play_ScreenFx(RadialBlur_ScreenFx::Create(&desc));
+  
 }
 
 
 Shared<ClientScreenFxManager> ClientScreenFxManager::Create()
 {
-    return make_shared<ClientScreenFxManager>();
+    auto instance = make_shared<ClientScreenFxManager>();
+
+    CHECK_FAILED(instance->Initialize(), nullptr);
+
+    return instance;
+}
+
+void ClientScreenFxManager::Free()
+{
+    _cameraBlur.reset();
+
+    Base::Free();
 }
 
 NS_END

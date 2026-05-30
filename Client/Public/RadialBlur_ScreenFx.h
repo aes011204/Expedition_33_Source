@@ -30,8 +30,14 @@ public:
     void Evaluate_At(float elapsedTime) override;
 
 private:
+    void Compute_LeaderHeroPosToProjection();
+
+private:
     RadialBlurDesc _originalDesc{};
     float _currentIntensity{};
+    float _targetIntensity{ 0.0f };
+    Vec3 _prevLookDir{};
+    float _requireSpeed = 2.5f;
 
 public:
     static Shared<RadialBlur_ScreenFx> Create(RadialBlurDesc* desc);
