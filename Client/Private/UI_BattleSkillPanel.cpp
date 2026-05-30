@@ -22,8 +22,12 @@ namespace
     constexpr wchar_t UI_BattleSkillTooltip_OffensiveSwitch_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_OffensiveSwitch.json";
     constexpr wchar_t UI_BattleSkillTooltip_Percee_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_Percee.json";
     constexpr wchar_t UI_BattleSkillTooltip_FireRise_Path[] = L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_FireRise.json";
+
+    constexpr wchar_t UI_BattleSkillTooltip_FleureFury_Path[] =
+        L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_FleuretFury.json";
+
 }
-    
+
 HRESULT UI_BattleSkillPanel::Initialize(uint32 levelIndex)
 {
     _levelIndex = levelIndex;
@@ -47,6 +51,7 @@ void UI_BattleSkillPanel::Open_MainPanel(PlayerCharacterType playerType)
 {
     Close_MainPanels();
     Close_Tooltips();
+    _activeHeroId = Resolve_HeroId(playerType);
 
     switch (playerType)
     {
@@ -64,6 +69,7 @@ void UI_BattleSkillPanel::Open_MainPanel(PlayerCharacterType playerType)
 
     default:
         _root = nullptr;
+        _activeHeroId = HeroId::END;
         break;
     }
 
@@ -76,12 +82,14 @@ void UI_BattleSkillPanel::Open_MainPanel(PlayerCharacterType playerType)
     }
 
     UI_RuntimePanelBase::Open();
+    Apply_CurrentRootEditorOffsets();
 }
 
 void UI_BattleSkillPanel::Open_Tooltip(const string& skillKey)
 {
     Close_MainPanels();
     Close_Tooltips();
+    _activeHeroId = HeroId::END;
 
     auto iter = _tooltipRoots.find(skillKey);
     if (iter == _tooltipRoots.end() || iter->second == nullptr)
@@ -103,8 +111,47 @@ void UI_BattleSkillPanel::Close()
     Close_Tooltips();
 
     _root = nullptr;
+    _activeHeroId = HeroId::END;
     Reset_EditorDesignPositionCache(); // 다음 Open 때 새 루트 기준으로 다시 시작
     _isOpen = false;
+}
+
+void UI_BattleSkillPanel::Set_EditorDefaultTestOffset(const Vec2& offset)
+{
+    UI_RuntimePanelBase::Set_EditorDefaultTestOffset(offset);
+
+    if (_isOpen && _activeHeroId != HeroId::END)
+        Apply_CurrentRootEditorOffsets();
+}
+
+Vec2 UI_BattleSkillPanel::Get_EditorHeroTestOffset(HeroId heroId) const
+{
+    return Resolve_HeroTestOffset(heroId);
+}
+
+void UI_BattleSkillPanel::Set_EditorHeroTestOffset(HeroId heroId, const Vec2& offset)
+{
+    switch (heroId)
+    {
+    case HeroId::Gustave:
+        _gustaveTestOffset = offset;
+        break;
+
+    case HeroId::Lune:
+        _luneTestOffset = offset;
+        break;
+
+    case HeroId::Maelle:
+        _maelleTestOffset = offset;
+        break;
+
+    case HeroId::END:
+    default:
+        break;
+    }
+
+    if (_isOpen && _activeHeroId == heroId)
+        Apply_CurrentRootEditorOffsets();
 }
 
 HRESULT UI_BattleSkillPanel::Load_UI(uint32 levelIndex)
@@ -112,22 +159,22 @@ HRESULT UI_BattleSkillPanel::Load_UI(uint32 levelIndex)
     _uiByName.clear();
 
     auto Load_AndMerge = [&](const wchar_t* jsonPath, const wchar_t* prototypeTagPrefix) -> HRESULT
-    {
-        UI_RuntimeLoader::UI_LoadDesc desc{};
-        desc.levelIndex = levelIndex;
-        desc.jsonPath = jsonPath;
-        desc.prototypeTagPrefix = prototypeTagPrefix;
+        {
+            UI_RuntimeLoader::UI_LoadDesc desc{};
+            desc.levelIndex = levelIndex;
+            desc.jsonPath = jsonPath;
+            desc.prototypeTagPrefix = prototypeTagPrefix;
 
-        umap<wstring, Shared<UI_Base>> loadedUIByName{};
-        desc.outUIByName = &loadedUIByName;
+            umap<wstring, Shared<UI_Base>> loadedUIByName{};
+            desc.outUIByName = &loadedUIByName;
 
-        CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
+            CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
-        for (auto& [name, ui] : loadedUIByName)
-            _uiByName[name] = ui;
+            for (auto& [name, ui] : loadedUIByName)
+                _uiByName[name] = ui;
 
-        return S_OK;
-    };
+            return S_OK;
+        };
 
     CHECK_FAILED(Load_AndMerge(UI_Battle_GustaveSkillPanel_Path, L"BattleSkillPanelGustave"), E_FAIL);
     CHECK_FAILED(Load_AndMerge(UI_Battle_LuneSkillPanel_Path, L"BattleSkillPanelLune"), E_FAIL);
@@ -143,7 +190,9 @@ HRESULT UI_BattleSkillPanel::Load_UI(uint32 levelIndex)
 
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_OffensiveSwitch_Path, L"BattleSkillTooltipOffensiveSwitch"), E_FAIL);
     CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_Percee_Path, L"BattleSkillTooltipPercee"), E_FAIL);
-    CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_FireRise_Path, L"BattleSkillTooltipFireRise"), E_FAIL);
+    CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_FleureFury_Path, L"BattleSkillTooltipFleureFury"), E_FAIL);
+    //CHECK_FAILED(Load_AndMerge(UI_BattleSkillTooltip_FireRise_Path, L"BattleSkillTooltipFireRise"), E_FAIL);
+
 
     return S_OK;
 }
@@ -159,13 +208,13 @@ HRESULT UI_BattleSkillPanel::Bind_UI()
     CHECK_NULL(_maellePanel, E_FAIL);
 
     auto Bind_Tooltip = [&](const string& skillKey, const wchar_t* rootName) -> HRESULT
-    {
-        Shared<UI_Base> root = Find_UI(_uiByName, rootName);
-        CHECK_NULL(root, E_FAIL);
+        {
+            Shared<UI_Base> root = Find_UI(_uiByName, rootName);
+            CHECK_NULL(root, E_FAIL);
 
-        _tooltipRoots[skillKey] = root;
-        return S_OK;
-    };
+            _tooltipRoots[skillKey] = root;
+            return S_OK;
+        };
 
     CHECK_FAILED(Bind_Tooltip("LumiereAssault", L"Panel_BattleSystem_SkillTooltip_LumiereAssault"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("UnleashedCharge", L"Panel_BattleSystem_SkillTooltip_UnleashedCharge"), E_FAIL);
@@ -177,7 +226,10 @@ HRESULT UI_BattleSkillPanel::Bind_UI()
 
     CHECK_FAILED(Bind_Tooltip("OffensiveSwitch", L"Panel_BattleSystem_SkillTooltip_OffensiveSwitch"), E_FAIL);
     CHECK_FAILED(Bind_Tooltip("Percee", L"Panel_BattleSystem_SkillTooltip_Percee"), E_FAIL);
-    CHECK_FAILED(Bind_Tooltip("FireRise", L"Panel_BattleSystem_SkillTooltip_FireRise"), E_FAIL);
+    CHECK_FAILED(Bind_Tooltip("FleureFury", L"Panel_BattleSystem_SkillTooltip_FleuretFury"), E_FAIL);
+
+
+    //CHECK_FAILED(Bind_Tooltip("FireRise", L"Panel_BattleSystem_SkillTooltip_FireRise"), E_FAIL);
 
     return S_OK;
 }
@@ -198,6 +250,55 @@ void UI_BattleSkillPanel::Close_Tooltips()
         if (tooltipRoot)
             tooltipRoot->Close();
     }
+}
+
+HeroId UI_BattleSkillPanel::Resolve_HeroId(PlayerCharacterType playerType) const
+{
+    switch (playerType)
+    {
+    case PlayerCharacterType::Gustave:
+        return HeroId::Gustave;
+
+    case PlayerCharacterType::Lune:
+        return HeroId::Lune;
+
+    case PlayerCharacterType::Maelle:
+        return HeroId::Maelle;
+
+    default:
+        return HeroId::END;
+    }
+}
+
+Vec2 UI_BattleSkillPanel::Resolve_HeroTestOffset(HeroId heroId) const
+{
+    switch (heroId)
+    {
+    case HeroId::Gustave:
+        return _gustaveTestOffset;
+
+    case HeroId::Lune:
+        return _luneTestOffset;
+
+    case HeroId::Maelle:
+        return _maelleTestOffset;
+
+    case HeroId::END:
+    default:
+        return Vec2::Zero;
+    }
+}
+
+void UI_BattleSkillPanel::Apply_CurrentRootEditorOffsets()
+{
+    if (_root == nullptr || _root->Get_Transform() == nullptr)
+        return;
+
+    Apply_EditorDefaultOffsetToRoot();
+
+    Vec2 rootPosition = _root->Get_Transform()->Get_Position();
+    rootPosition += Resolve_HeroTestOffset(_activeHeroId);
+    _root->Get_Transform()->Set_Position(rootPosition);
 }
 
 Unique<UI_BattleSkillPanel> UI_BattleSkillPanel::Create(uint32 levelIndex)

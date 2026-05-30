@@ -2103,11 +2103,6 @@ HRESULT GameInstance::Bind_UINoDepthStencilState()
     return S_OK;
 }
 
-ComPtr<ID3D11Texture2D> GameInstance::Get_RT_Texture(const wstring& targetTag)
-{
-    return _targetManager->Get_RT_Texture(targetTag);
-}
-
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
 {
     CHECK_NULL(collider);
@@ -2510,6 +2505,11 @@ void GameInstance::Release_Engine()
 }
 
 #ifdef _DEBUG
+ComPtr<ID3D11Texture2D> GameInstance::Get_RT_Texture(const wstring& targetTag)
+{
+    return _targetManager->Get_RT_Texture(targetTag);
+}
+
 HRESULT GameInstance::Initialize_Debug(float sizeX, float sizeY)
 {
     return _targetManager->Initialize_Debug(sizeX, sizeY);

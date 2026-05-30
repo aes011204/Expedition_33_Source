@@ -39,8 +39,8 @@ private:
 
 private:
     wstring _partTag = L"Part_WeaponL";      // 구스타브 총 기본값
-    WeaponRotateAxis _axis = WeaponRotateAxis::Forward; // 사용자는 보통 축 이름만 고르면 된다.
-    Vec3    _customAxisLocal = Vec3(0.f, 0.f, 1.f);    // Custom일 때만 직접 축 벡터를 쓴다.
+    WeaponRotateAxis _axis = WeaponRotateAxis::Custom;
+    Vec3    _customAxisLocal = Vec3(-0.8f, 0.5f, 0.5f);    // Custom일 때만 직접 축 벡터를 쓴다.
     float   _degreesPerSecond = 720.f;
     float   _startAngleDegree = 0.f;
 
