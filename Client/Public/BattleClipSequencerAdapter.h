@@ -3,6 +3,8 @@
 #include <ImSequencer.h>
 #include "BattleCameraClipTypes.h"
 
+constexpr int kBattleClipTrackCount = 15;
+
 class BattleClipSequencerAdapter : public ImSequencer::SequenceInterface
 {
 public:
@@ -17,6 +19,7 @@ public:
         int* contextTrackIndex,
         int* contextFrame,
         int* displayFrameMax = nullptr,
+        bool normalizedTime = false,
         bool* previewDirty = nullptr,
         bool* distanceEnabled = nullptr,
         bool* fovEnabled = nullptr,
@@ -27,7 +30,12 @@ public:
         bool* orbitYawEnabled = nullptr,
         bool* orbitRadiusEnabled = nullptr,
         bool* orbitHeightEnabled = nullptr,
-        bool* orbitLookHeightEnabled = nullptr);
+        bool* orbitLookHeightEnabled = nullptr,
+        bool* shakeFrequencyXEnabled = nullptr,
+        bool* shakeFrequencyYEnabled = nullptr,
+        bool* shakeDecayRateEnabled = nullptr,
+        bool* shakeVerticalRatioEnabled = nullptr,
+        bool* shakeStrengthScaleEnabled = nullptr);
 
 public:
     int GetFrameMin() const override;
@@ -49,13 +57,14 @@ private:
     int* _selectedKeyIndex = nullptr;
     int* _currentFrame = nullptr;
     int* _displayFrameMax = nullptr;
+    bool _normalizedTime = false;
     bool* _consumedKeyClick = nullptr;
     bool* _requestOpenInsertPopup = nullptr;
     bool* _requestRemoveKeyPopup = nullptr;
     int* _contextTrackIndex = nullptr;
     int* _contextFrame = nullptr;
     bool* _previewDirty = nullptr;
-    bool* _trackEnabledFlags[10] = {};
+    bool* _trackEnabledFlags[kBattleClipTrackCount] = {};
     mutable int _frameMin = 0;
     mutable int _frameMax = 1;
 };

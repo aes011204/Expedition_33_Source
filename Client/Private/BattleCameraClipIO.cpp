@@ -1,5 +1,6 @@
 ﻿#include "BattleCameraClipTypes.h"
 #include "BattleCameraClipIO.h"
+#include <algorithm>
 
 BattleCameraClipIO::BattleCameraClipIO()
 {
@@ -52,6 +53,44 @@ void Sort_BattleCameraTrack(BattleCameraTrack& track)
         });
 }
 
+void Normalize_BattleCameraTrack(BattleCameraTrack& track, float durationSec)
+{
+    if (durationSec <= 0.f)
+        return;
+
+    for (BattleCameraKeyframe& keyframe : track.keyframes)
+        keyframe.time = std::clamp(keyframe.time / durationSec, 0.f, 1.f);
+
+    Sort_BattleCameraTrack(track);
+}
+
+void Normalize_AnimationSyncClip(BattleCameraClip& clip)
+{
+    const float legacyDurationSec = clip.duration;
+    if (legacyDurationSec <= 1.f)
+    {
+        clip.duration = 1.f;
+        return;
+    }
+
+    Normalize_BattleCameraTrack(clip.distanceOffset, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.fovOffset, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.sideOffset, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.pivotOffset, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.yawOffset, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.shakeAmplitude, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.orbitYaw, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.orbitRadius, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.orbitHeight, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.orbitLookHeight, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.shakeFrequencyX, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.shakeFrequencyY, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.shakeDecayRate, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.shakeVerticalRatio, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.shakeStrengthScale, legacyDurationSec);
+    clip.duration = 1.f;
+}
+
 void Deserialize_BattleCameraTrack(const json& jsonData, const char* keyName, BattleCameraTrack& outTrack)
 {
     if (!jsonData.contains(keyName))
@@ -79,7 +118,7 @@ void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode,
 
     json jsonData {};
 
-    jsonData["duration"] = clip.duration;
+    jsonData["duration"] = clip.timeMode == BattleCameraClipTimeMode::AnimationSync ? 1.f : clip.duration;
     jsonData["timeMode"] = string(magic_enum::enum_name(clip.timeMode));
 
     jsonData["distanceOffset"] = Serialize_BattleCameraTrack(clip.distanceOffset);
@@ -92,6 +131,11 @@ void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode,
     jsonData["orbitRadius"] = Serialize_BattleCameraTrack(clip.orbitRadius);
     jsonData["orbitHeight"] = Serialize_BattleCameraTrack(clip.orbitHeight);
     jsonData["orbitLookHeight"] = Serialize_BattleCameraTrack(clip.orbitLookHeight);
+    jsonData["shakeFrequencyX"] = Serialize_BattleCameraTrack(clip.shakeFrequencyX);
+    jsonData["shakeFrequencyY"] = Serialize_BattleCameraTrack(clip.shakeFrequencyY);
+    jsonData["shakeDecayRate"] = Serialize_BattleCameraTrack(clip.shakeDecayRate);
+    jsonData["shakeVerticalRatio"] = Serialize_BattleCameraTrack(clip.shakeVerticalRatio);
+    jsonData["shakeStrengthScale"] = Serialize_BattleCameraTrack(clip.shakeStrengthScale);
 
     
     const fs::path savePath = filePath;
@@ -141,6 +185,14 @@ bool BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode cameraMod
     Deserialize_BattleCameraTrack(jsonData, "orbitRadius", loadedClip.orbitRadius);
     Deserialize_BattleCameraTrack(jsonData, "orbitHeight", loadedClip.orbitHeight);
     Deserialize_BattleCameraTrack(jsonData, "orbitLookHeight", loadedClip.orbitLookHeight);
+    Deserialize_BattleCameraTrack(jsonData, "shakeFrequencyX", loadedClip.shakeFrequencyX);
+    Deserialize_BattleCameraTrack(jsonData, "shakeFrequencyY", loadedClip.shakeFrequencyY);
+    Deserialize_BattleCameraTrack(jsonData, "shakeDecayRate", loadedClip.shakeDecayRate);
+    Deserialize_BattleCameraTrack(jsonData, "shakeVerticalRatio", loadedClip.shakeVerticalRatio);
+    Deserialize_BattleCameraTrack(jsonData, "shakeStrengthScale", loadedClip.shakeStrengthScale);
+
+    if (loadedClip.timeMode == BattleCameraClipTimeMode::AnimationSync)
+        Normalize_AnimationSyncClip(loadedClip);
 
     clip = loadedClip;
     return true;
