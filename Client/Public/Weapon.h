@@ -49,6 +49,11 @@ public:
     const Matrix* Get_SocketBoneMatrixPtr(const string& boneName) const;
     Shared<ModelCom> Get_Model() const { return _model; }
 
+    // 구스타브 총돌리기
+    bool    Begin_NotifyRotation();
+    void    Apply_NotifyRotation(const Vec3 axisLocal, float degree);
+    void    End_NotifyRotation();
+
 private:
     HRESULT Ready_Components(const WEAPON_DESC& desc);
     HRESULT Ready_DefaultComponents(); // desc 없이 생성
@@ -63,6 +68,9 @@ private:
 
 private:
     const Matrix*       _socketMatrix = { nullptr };
+
+    bool _notifyRotationActive = false;
+    Quat _notifyRotationBaseLocal = Quat::Identity;
 
 public:
     static Shared<Weapon> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

@@ -420,6 +420,7 @@ void Prefab_View::Close_Prefab()
     _previewGridEffect.reset();
     _previewGridInputLayout.Reset();
     _previewGridDepthState.Reset();
+    _previewOverlayDepthState.Reset();
 
     _previewWidth = 512;
     _previewHeight = 512;
@@ -1382,7 +1383,7 @@ void Prefab_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)
 
 void Prefab_View::Ensure_PreviewGridResources()
 {
-    if (_previewGridBatch && _previewGridEffect && _previewGridInputLayout && _previewGridDepthState)
+    if (_previewGridBatch && _previewGridEffect && _previewGridInputLayout && _previewGridDepthState && _previewOverlayDepthState)
         return;
 
     static constexpr D3D11_INPUT_ELEMENT_DESC kGridInputElements[] =
@@ -1432,6 +1433,23 @@ void Prefab_View::Ensure_PreviewGridResources()
         _previewGridEffect.reset();
         _previewGridInputLayout.Reset();
         _previewGridDepthState.Reset();
+        _previewOverlayDepthState.Reset();
+        return;
+    }
+
+    D3D11_DEPTH_STENCIL_DESC overlayDepthDesc{};
+    overlayDepthDesc.DepthEnable = FALSE;
+    overlayDepthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    overlayDepthDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+    overlayDepthDesc.StencilEnable = FALSE;
+
+    if (FAILED(GAME->Get_Device()->CreateDepthStencilState(&overlayDepthDesc, _previewOverlayDepthState.GetAddressOf())))
+    {
+        _previewGridBatch.reset();
+        _previewGridEffect.reset();
+        _previewGridInputLayout.Reset();
+        _previewGridDepthState.Reset();
+        _previewOverlayDepthState.Reset();
     }
 }
 
@@ -1578,7 +1596,7 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPreview() const
     if (!Try_ResolveTrailAnchorWorldPosition(selectedObject, _selectedWeaponTrailAnchor.tip, tipWorld))
         return;
 
-    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewGridDepthState)
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
         return;
 
     ComPtr<Context> context = GAME->Get_Context();
@@ -1589,8 +1607,15 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPreview() const
     _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
     _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
 
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
     context->IASetInputLayout(_previewGridInputLayout.Get());
-    context->OMSetDepthStencilState(_previewGridDepthState.Get(), 0);
+    context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
     context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
     _previewGridEffect->Apply(context.Get());
 

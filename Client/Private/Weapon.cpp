@@ -193,6 +193,46 @@ const Matrix* Weapon::Get_SocketBoneMatrixPtr(const string& boneName) const
     return _model->Get_BoneMatrixPtr(boneName.c_str());
 }
 
+bool Weapon::Begin_NotifyRotation()
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    if (_notifyRotationActive)
+        return false;
+
+    _notifyRotationBaseLocal = _transformCom->Get_RotationQuaternion();
+    _notifyRotationActive = true;
+
+    return true;
+}
+
+void Weapon::Apply_NotifyRotation(const Vec3 axisLocal, float degree)
+{
+    if (_transformCom == nullptr || !_notifyRotationActive)
+        return;
+
+    Vec3 normalizeAxis = axisLocal;
+    if (normalizeAxis.LengthSquared() <= 0.00001f)
+        return;
+
+    normalizeAxis.Normalize();
+
+    const Quat deltaRotation = Quat::CreateFromAxisAngle(normalizeAxis, XMConvertToRadians(degree));
+    _transformCom->Set_RotationQuaternion(_notifyRotationBaseLocal * deltaRotation); // notify 시작 시점 무기 로컬축 기준으로 회전한다.
+}
+
+void Weapon::End_NotifyRotation()
+{
+    if (_transformCom == nullptr || !_notifyRotationActive)
+        return;
+
+    // 노티파이 시작 전 회전값으로 맞추기
+    _transformCom->Set_RotationQuaternion(_notifyRotationBaseLocal);
+    _notifyRotationBaseLocal = Quat::Identity;
+    _notifyRotationActive = false;
+}
+
 HRESULT Weapon::Ready_Components(const WEAPON_DESC& desc)
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader), E_FAIL);

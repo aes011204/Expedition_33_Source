@@ -238,6 +238,9 @@
   <ItemGroup>
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\Private\Player_FreeAim.cpp" />
+    <ClCompile Include="..\Private\TrailSampleProvider_ByPart.cpp">
+      <Filter>02.GameObject\Effect</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BattleTurnCamera.cpp">
       <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClCompile>
@@ -387,6 +390,12 @@
     <ClCompile Include="..\Private\Skill_Maelle_Battle.cpp">
       <Filter>Skill</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\CA_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\ClientScreenFxManager.cpp" />
+    <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\ANS_WeaponRotate.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -958,6 +967,9 @@
     <ClInclude Include="..\Public\EffectInstancePool.h">
       <Filter>06. Pool\Effect Pool</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h">
+      <Filter>02.GameObject\Effect</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\Level_GameEntry.h">
       <Filter>01.Levels\Logo</Filter>
     </ClInclude>
@@ -1094,6 +1106,12 @@
     <ClInclude Include="..\Public\Skill_Maelle_Battle.h">
       <Filter>Skill</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
+    <ClInclude Include="..\Public\CA_ScreenFx.h" />
+    <ClInclude Include="..\Public\ClientScreenFxManager.h" />
+    <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
+    <ClInclude Include="..\Public\RadialBlur_ScreenFx.h" />
+    <ClInclude Include="..\Public\ANS_WeaponRotate.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
