@@ -23,7 +23,7 @@ void ClientScreenFxManager::Play_BattleInCounterFx()
     distDesc.passType = ETOI(ScreenFx_Type::Distortion);
     distDesc.duration = 2.f;
     distDesc.endPredicate = killCondition;
-    distDesc.bulgeIntensity = 0.075f;
+    distDesc.bulgeIntensity = 0.575f;
     distDesc.pullDirection = Vec2{ 0.f, 0.f };
     distDesc.pullIntensity = 0.25f;
     distDesc.isReverse = true;
