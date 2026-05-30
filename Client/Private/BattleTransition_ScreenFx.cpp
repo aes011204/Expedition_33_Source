@@ -65,6 +65,7 @@ HRESULT BattleTransition_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
 
     cbData.wipeRadius = _currentRadius;
     cbData.edgeSoftness = _originalDesc.edgeSoftness;
+    cbData.transitionProgress = _elapsedTime / _duration;
     return shader->Bind_CBufferData(cbData);
 }
 

@@ -193,6 +193,9 @@ PS_OUT_BACKBUFFER PS_CircularWipeTransition(PS_IN In)
     float4 currentSceneColor = g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord);
     float4 capturedSceneColor = g_ScreenMaskTexture.Sample(LinearClampSampler, In.Texcoord);
 
+    float blackFade = saturate((g_wipeRadius - 0.4f) * 2.f);
+    capturedSceneColor.rgb = lerp(capturedSceneColor.rgb, float3(0.f, 0.f, 0.f), blackFade);
+
     float2 center = float2(0.5, 0.5);
     float aspect = g_ScreenSize.x / max(1.0, g_ScreenSize.y);
     float2 diff = In.Texcoord - center;
