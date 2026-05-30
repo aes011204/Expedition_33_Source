@@ -63,10 +63,10 @@ void Level_GamePlay::Update(float fTimeDelta)
              HeroId::Gustave,
          };
 
-         vector<string> battleMonster;
-         battleMonster.push_back(Constants::Prefab::MB_Lancelier);
-         battleMonster.push_back(Constants::Prefab::MB_Lancelier);
-         battleMonster.push_back(Constants::Prefab::MB_Lancelier);
+         vector<BattleMonsterSpawnDesc> battleMonster;
+         battleMonster.push_back({ Constants::Prefab::MB_Lancelier });
+         battleMonster.push_back({ Constants::Prefab::MB_Lancelier });
+         battleMonster.push_back({ Constants::Prefab::MB_Lancelier });
 
          CLIENT->OnEnterBattleField(1, true, heroes, battleMonster);
      }

@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Base.h"
+#include "BattleMonsterSpawnDesc.h"
 #include "GameDataTable.h"
 #include "Delegate.h"
 #include "PreviewShotTable.h"
@@ -115,7 +116,7 @@ public: /* For.Battle_Controller */
         uint32 FieldID,
         bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
-        const vector<string>& MonsterProtoTag,
+        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
         const Shared<GameObject>& sourceObject = nullptr);
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };

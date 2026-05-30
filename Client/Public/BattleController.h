@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "BattleMonsterSpawnDesc.h"
 #include "Delegate.h"
 #include "BattleAction.h"
 #include "Battle_Enum.h"
@@ -63,7 +64,7 @@ public:
         uint32 FieldID,
         bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
-        const vector<string>& battleMonsterPrefabNames,
+        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
         const Shared<GameObject>& sourceObject = nullptr);
 
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
@@ -79,7 +80,7 @@ public:
 
     EAPChangeReason FinishBattle();
 
-    void Create_BattleChar(const vector<HeroId>& heroIds, vector<string>& battleMonsterPrefabNames);
+    void Create_BattleChar(const vector<HeroId>& heroIds, const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs);
     void Build_InitialTurnQueue(bool isPlayerAdvantage);
     // 부활하면 턴 큐 한번 다시 리빌드
     void Rebuild_TurnQueue(const BattleChar& revivedActor);
@@ -311,7 +312,7 @@ private:
     uint32  _pendingBattleFieldID = 0;
     bool    _pendingBattleIsPlayerAdvantage = false;
     vector<HeroId> _pendingBattleHeroIds = {};
-    vector<string> _pendingBattleMonsterPrefabNames = {};
+    vector<BattleMonsterSpawnDesc> _pendingBattleMonsterSpawnDescs = {};
 
     bool _isFreeAimShotPlaying = false;
     BattleAction _freeAimShotAction {};

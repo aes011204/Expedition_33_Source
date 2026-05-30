@@ -69,6 +69,7 @@ private:
 
     void Draw_PreviewColliders(const Shared<GameObject>& gameObject) const;
     void Draw_PreviewGrid() const;
+    void Draw_MonsterBattleSpawnPreview() const;
     void Draw_SelectedWeaponTrailAnchorPreview() const;
 
     Shared<ModelCom> Find_FirstModelComponent() const;

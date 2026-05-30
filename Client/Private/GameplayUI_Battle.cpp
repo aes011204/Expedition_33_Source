@@ -701,6 +701,7 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
     _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Lune, 0.f, 1.f, 0u, 1u);
     _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Maelle, 0.f, 1.f, 0u, 1u);
     _battleSystemHUD->Clear_GustaveMechanismCharge();
+    _battleSystemHUD->Clear_LuneMechanismStains(); // 이번 프레임 루네 상태를 현재 mechanism 값으로 다시 연다.
     _battleSystemHUD->Clear_MaelleMechanismStance();
 
     const vector<BattleChar>& heroes = battleController->Get_BattleHeroes();
@@ -722,7 +723,7 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
         }
         else if (hero.heroId == HeroId::Lune)
         {
-            // TODO : 루네
+            _battleSystemHUD->Set_LuneMechanismStains(hero.mechanismCom);
         }
         else if (hero.heroId == HeroId::Maelle)
         {

@@ -35,8 +35,9 @@ HRESULT Weapon::Initialize(void* arg)
 {
     auto* desc = static_cast<WEAPON_DESC*>(arg);
 
-    // body socketMatrix 사용
     _socketMatrix = (desc != nullptr) ? desc->socketMatrix : nullptr;
+    _useBodyFollow = (desc != nullptr) ? desc->useBodyFollow : false;
+    _bodyFollowOffset = (desc != nullptr) ? desc->bodyFollowOffset : Vec3::Zero;
 
     CHECK_FAILED(PartObject::Initialize(arg), E_FAIL);
 
@@ -60,12 +61,21 @@ void Weapon::Priority_Update(float timeDelta)
 
 void Weapon::Update(float timeDelta)
 {
+    // 루네
+    if (_useBodyFollow)
+    {
+        Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+        Matrix bodyFollowMatrix = Matrix::CreateTranslation(_bodyFollowOffset) * parentMatrix;
+
+        Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * bodyFollowMatrix);
+        return;
+    }
+
     if (_socketMatrix == nullptr)
     {
         Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
         return;
     }
-
 
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * (*_socketMatrix));
 }
@@ -87,6 +97,13 @@ Matrix Weapon::Get_GizmoWorldMatrix() const
         return _combinedWorldMatrix;
 
     const Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+
+    if (_useBodyFollow)
+    {
+        const Matrix bodyFollowMatrix = Matrix::CreateTranslation(_bodyFollowOffset) * parentMatrix;
+        return _transformCom->Get_WorldMatrix() * bodyFollowMatrix;
+    }
+
     const Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
     return _transformCom->Get_WorldMatrix() * socketMatrix * parentMatrix;
 }
@@ -96,9 +113,21 @@ bool Weapon::Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix)
     if (_transformCom == nullptr)
         return false;
 
-    Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
-    Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
-    Matrix localWorldMatrix = gizmoWorldMatrix * (socketMatrix * parentMatrix).Invert();
+    Matrix anchorMatrix = Matrix::Identity;
+
+    if (_useBodyFollow)
+    {
+        Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+        anchorMatrix = Matrix::CreateTranslation(_bodyFollowOffset) * parentMatrix;
+    }
+    else
+    {
+        Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+        Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
+        anchorMatrix = socketMatrix * parentMatrix;
+    }
+
+    Matrix localWorldMatrix = gizmoWorldMatrix * anchorMatrix.Invert();
 
     Vec3 scale = Vec3::One;
     Quat rotation = Quat::Identity;
@@ -247,6 +276,8 @@ HRESULT Weapon::Ready_DefaultComponents()
     defaultDesc.modelType = ModelType::NonAnim;
     defaultDesc.modelTag = L"Model_Lanceram";
     defaultDesc.socketMatrix = _socketMatrix;
+    defaultDesc.useBodyFollow = _useBodyFollow;
+    defaultDesc.bodyFollowOffset = _bodyFollowOffset;
 
     return Ready_Components(defaultDesc);
 }

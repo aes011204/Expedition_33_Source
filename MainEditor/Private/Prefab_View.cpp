@@ -158,6 +158,7 @@ void Prefab_View::Pre_Render()
         Draw_PreviewColliders(_previewObject);
 
     Draw_PreviewGrid();
+    Draw_MonsterBattleSpawnPreview();
     Draw_SelectedWeaponTrailAnchorPreview();
     EDITOR->Capture_BackBuffer_ToPreview();
 
@@ -1003,7 +1004,7 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
         Rebuild_MonsterBattlePrefabEntries();
 
     bool changed = false;
-    vector<string>& prefabNames = monster->Get_BattleMonsterPrefabNames_ForEdit();
+    vector<Client::BattleMonsterSpawnDesc>& spawnDescs = monster->Get_BattleMonsterSpawnDescs_ForEdit();
 
     // 프리팹에 저장되는 전투 소환 목록이다.
     if (!ImGui::CollapsingHeader("Battle Monster Prefabs", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1014,7 +1015,7 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
     constexpr float BattlePrefabLabelWidth = 110.f;
 
     int32 removeIndex = -1;
-    for (int32 i = 0; i < static_cast<int32>(prefabNames.size()); ++i)
+    for (int32 i = 0; i < static_cast<int32>(spawnDescs.size()); ++i)
     {
         ImGui::PushID(i);
 
@@ -1024,22 +1025,22 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
 
         ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x - 74.f));
         const char* previewLabel =
-            prefabNames[i].empty() ? "(select prefab)" : prefabNames[i].c_str();
+            spawnDescs[i].prefabName.empty() ? "(select prefab)" : spawnDescs[i].prefabName.c_str();
         if (ImGui::BeginCombo("##BattleMonsterPrefabName", previewLabel))
         {
-            bool hasCurrentPrefab = prefabNames[i].empty();
+            bool hasCurrentPrefab = spawnDescs[i].prefabName.empty();
             for (const auto& entry : _monsterBattlePrefabEntries)
             {
-                const bool isSelected = (prefabNames[i] == entry.prefabName);
+                const bool isSelected = (spawnDescs[i].prefabName == entry.prefabName);
                 if (isSelected)
                     hasCurrentPrefab = true;
 
                 const string label = entry.prefabName + "##" + entry.className;
                 if (ImGui::Selectable(label.c_str(), isSelected))
                 {
-                    if (prefabNames[i] != entry.prefabName)
+                    if (spawnDescs[i].prefabName != entry.prefabName)
                     {
-                        prefabNames[i] = entry.prefabName; // 저장값은 실제 prefab 이름으로 유지한다.
+                        spawnDescs[i].prefabName = entry.prefabName; // 저장값은 실제 prefab 이름으로 유지한다.
                         changed = true;
                     }
                 }
@@ -1048,10 +1049,10 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
                     ImGui::SetItemDefaultFocus();
             }
 
-            if (!hasCurrentPrefab && !prefabNames[i].empty())
+            if (!hasCurrentPrefab && !spawnDescs[i].prefabName.empty())
             {
                 ImGui::Separator();
-                ImGui::TextDisabled("Missing: %s", prefabNames[i].c_str());
+                ImGui::TextDisabled("Missing: %s", spawnDescs[i].prefabName.c_str());
             }
 
             ImGui::EndCombo();
@@ -1061,28 +1062,48 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
         if (ImGui::Button("Remove", ImVec2(68.f, 0.f)))
             removeIndex = i;
 
+        Vec3 offset = spawnDescs[i].offset;
+        ImGui::Text("Offset");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat3("##BattleMonsterOffset", &offset.x, 0.05f))
+        {
+            spawnDescs[i].offset = offset;
+            changed = true;
+        }
+
+        Vec3 rotation = spawnDescs[i].rotation;
+        ImGui::Text("Rotation");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat3("##BattleMonsterRotation", &rotation.x, 0.25f))
+        {
+            spawnDescs[i].rotation = rotation;
+            changed = true;
+        }
+
         ImGui::PopID();
     }
 
-    if (removeIndex >= 0 && removeIndex < static_cast<int32>(prefabNames.size()))
+    if (removeIndex >= 0 && removeIndex < static_cast<int32>(spawnDescs.size()))
     {
-        prefabNames.erase(prefabNames.begin() + removeIndex);
+        spawnDescs.erase(spawnDescs.begin() + removeIndex);
         changed = true;
     }
 
     if (ImGui::Button("Add", ImVec2(70.f, 0.f)))
     {
         if (!_monsterBattlePrefabEntries.empty())
-            prefabNames.emplace_back(_monsterBattlePrefabEntries.front().prefabName);
+            spawnDescs.push_back({ _monsterBattlePrefabEntries.front().prefabName });
         else
-            prefabNames.emplace_back();
+            spawnDescs.emplace_back();
         changed = true;
     }
 
     ImGui::SameLine();
     if (ImGui::Button("Clear", ImVec2(70.f, 0.f)))
     {
-        prefabNames.clear();
+        spawnDescs.clear();
         changed = true;
     }
 
@@ -1645,6 +1666,82 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPreview() const
     _previewGridBatch->DrawLine(
         DirectX::VertexPositionColor(tipWorld + Vec3(0.f, 0.f, -markerSize), DirectX::Colors::Cyan),
         DirectX::VertexPositionColor(tipWorld + Vec3(0.f, 0.f, markerSize), DirectX::Colors::Cyan));
+
+    _previewGridBatch->End();
+}
+
+void Prefab_View::Draw_MonsterBattleSpawnPreview() const
+{
+    Shared<GameObject> selectedObject = Find_GameObjectByKey(_previewObject, _selectedObjectKey);
+    if (selectedObject == nullptr)
+        selectedObject = _previewObject;
+
+    Shared<Client::Monster_WorldBase> monster = dynamic_pointer_cast<Client::Monster_WorldBase>(selectedObject);
+    if (monster == nullptr)
+        return;
+
+    const vector<Client::BattleMonsterSpawnDesc>& spawnDescs = monster->Get_BattleMonsterSpawnDescs();
+    if (spawnDescs.empty())
+        return;
+
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
+        return;
+
+    ComPtr<Context> context = GAME->Get_Context();
+    if (context == nullptr)
+        return;
+
+    _previewGridEffect->SetWorld(Matrix::Identity);
+    _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
+    _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
+
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
+    context->IASetInputLayout(_previewGridInputLayout.Get());
+    context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
+    context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    _previewGridEffect->Apply(context.Get());
+
+    const Vec3 previewOrigin = Vec3(22.f, 2.5f, -10.24f);
+    const Vec3 enemyBasePos[3] =
+    {
+        { -3.f, 0.f, 10.f },
+        {  0.f, 0.f, 10.f },
+        {  3.f, 0.f, 10.f },
+    };
+
+    constexpr float markerHalfSize = 0.3f;
+    constexpr float markerHeight = 0.2f;
+
+    const XMVECTOR markerColors[3] =
+    {
+        XMVectorSet(1.f, 0.35f, 0.35f, 1.f),
+        XMVectorSet(1.f, 0.82f, 0.25f, 1.f),
+        XMVectorSet(0.3f, 0.85f, 1.f, 1.f),
+    };
+
+    _previewGridBatch->Begin();
+
+    for (size_t i = 0; i < spawnDescs.size() && i < 3; ++i)
+    {
+        const Vec3 markerPos = previewOrigin + enemyBasePos[i] + spawnDescs[i].offset;
+        const XMVECTOR color = markerColors[i % 3];
+
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(markerPos + Vec3(-markerHalfSize, markerHeight, 0.f), color),
+            DirectX::VertexPositionColor(markerPos + Vec3(markerHalfSize, markerHeight, 0.f), color));
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(markerPos + Vec3(0.f, markerHeight, -markerHalfSize), color),
+            DirectX::VertexPositionColor(markerPos + Vec3(0.f, markerHeight, markerHalfSize), color));
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(markerPos, color),
+            DirectX::VertexPositionColor(markerPos + Vec3(0.f, 0.9f, 0.f), color));
+    }
 
     _previewGridBatch->End();
 }

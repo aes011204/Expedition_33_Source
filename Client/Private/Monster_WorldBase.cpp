@@ -10,6 +10,51 @@
 #include "ClientScreenFxManager.h"
 #include "Monster_Part.h"
 
+namespace
+{
+    json Vec3_ToJson(const Vec3& value)
+    {
+        return json::array({ value.x, value.y, value.z });
+    }
+
+    bool Json_ToVec3(const json& value, Vec3& outVec3)
+    {
+        if (!value.is_array() || value.size() != 3)
+            return false;
+
+        outVec3.x = value[0].get<float>();
+        outVec3.y = value[1].get<float>();
+        outVec3.z = value[2].get<float>();
+        return true;
+    }
+
+    json BattleMonsterSpawnDesc_ToJson(const Client::BattleMonsterSpawnDesc& desc)
+    {
+        return {
+            { "prefab_name", desc.prefabName },
+            { "offset", Vec3_ToJson(desc.offset) },
+            { "rotation", Vec3_ToJson(desc.rotation) },
+        };
+    }
+
+    bool Json_ToBattleMonsterSpawnDesc(const json& value, Client::BattleMonsterSpawnDesc& outDesc)
+    {
+        if (!value.is_object())
+            return false;
+
+        outDesc = {};
+        outDesc.prefabName = value.value("prefab_name", "");
+
+        if (value.contains("offset"))
+            (void)Json_ToVec3(value["offset"], outDesc.offset);
+
+        if (value.contains("rotation"))
+            (void)Json_ToVec3(value["rotation"], outDesc.rotation);
+
+        return true;
+    }
+}
+
 REGISTER_GLOBAL_ENUM(Monster_WorldBase::MonsterWorldAnim, "MonsterWorldAnim")
 
 Monster_WorldBase::Monster_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -127,7 +172,11 @@ json Monster_WorldBase::To_Json() const
     json data = Character_WorldBase::To_Json();
 
     json& customProperties = data["custom_properties"];
-    customProperties["battle_monster_prefab_names"] = _battleMonsterPrefabNames;
+    json& battleMonsterSpawns = customProperties["battle_monster_spawns"];
+    battleMonsterSpawns = json::array();
+
+    for (const BattleMonsterSpawnDesc& spawnDesc : _battleMonsterSpawnDescs)
+        battleMonsterSpawns.push_back(BattleMonsterSpawnDesc_ToJson(spawnDesc));
 
     return data;
 }
@@ -136,19 +185,34 @@ void Monster_WorldBase::From_Json(const json& data)
 {
     Character_WorldBase::From_Json(data);
 
-    _battleMonsterPrefabNames.clear();
+    _battleMonsterSpawnDescs.clear();
 
     if (!data.contains("custom_properties") || !data["custom_properties"].is_object())
         return;
 
     const json& customProperties = data["custom_properties"];
+    if (customProperties.contains("battle_monster_spawns") && customProperties["battle_monster_spawns"].is_array())
+    {
+        for (const json& spawnNode : customProperties["battle_monster_spawns"])
+        {
+            BattleMonsterSpawnDesc spawnDesc{};
+            if (Json_ToBattleMonsterSpawnDesc(spawnNode, spawnDesc))
+                _battleMonsterSpawnDescs.push_back(spawnDesc);
+        }
+        return;
+    }
+
     if (!customProperties.contains("battle_monster_prefab_names") || !customProperties["battle_monster_prefab_names"].is_array())
         return;
 
     for (const json& prefabName : customProperties["battle_monster_prefab_names"])
     {
         if (prefabName.is_string())
-            _battleMonsterPrefabNames.push_back(prefabName.get<string>());
+        {
+            BattleMonsterSpawnDesc spawnDesc{};
+            spawnDesc.prefabName = prefabName.get<string>();
+            _battleMonsterSpawnDescs.push_back(spawnDesc);
+        }
     }
 }
 
@@ -193,11 +257,11 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         HeroId::Maelle,
     };
 
-    vector<string> battleMonsterPrefabNames;
-    Set_BattleMonsterPrefabNames(battleMonsterPrefabNames);
+    vector<BattleMonsterSpawnDesc> battleMonsterSpawnDescs{};
+    Set_BattleMonsterSpawnDescs(battleMonsterSpawnDescs);
     CLIENT->Get_ScreenFxManager()->Play_BattleInCounterFx();
 
-    if (battleMonsterPrefabNames.empty())
+    if (battleMonsterSpawnDescs.empty())
     {
         LOG_ERROR("Battle monster prefab list is empty.");
         _isBattleStart = false;
@@ -209,7 +273,7 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     }
 
     // 이제, 턴 진입 조건에 따라서 플레이어, 몬스터 턴 관리
-    CLIENT->OnEnterBattleField(1, isPlayerAdvantage, heroes, battleMonsterPrefabNames, GetSharedPtr<GameObject>());
+    CLIENT->OnEnterBattleField(1, isPlayerAdvantage, heroes, battleMonsterSpawnDescs, GetSharedPtr<GameObject>());
 }
 
 void Monster_WorldBase::On_EditorStopRuntime()
@@ -223,9 +287,9 @@ void Monster_WorldBase::On_EditorStopRuntime()
     }
 }
 
-void Monster_WorldBase::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
+void Monster_WorldBase::Set_BattleMonsterSpawnDescs(vector<BattleMonsterSpawnDesc>& outSpawnDescs) const
 {
-    outPrefabNames = _battleMonsterPrefabNames;
+    outSpawnDescs = _battleMonsterSpawnDescs;
 }
 
 HRESULT Monster_WorldBase::Ready_Components()

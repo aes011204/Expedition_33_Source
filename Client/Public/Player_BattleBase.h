@@ -23,6 +23,8 @@ public:
         wstring         partTag{};              // 어떤 파트 태그로 생성할지. 오른손은 기존 Part_Weapon 유지
         string          weaponPrefabName{};     // 어떤 무기 프리펩을 세팅할건지
         const char*     socketName = nullptr;   // 어디 소켓에 붙일건지
+        bool            useBodyFollow = false;
+        Vec3            bodyFollowOffset = Vec3::Zero;
     };
 
 public:

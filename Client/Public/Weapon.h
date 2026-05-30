@@ -22,8 +22,9 @@ public:
         const wchar_t*  modelTag{ nullptr };
         const Matrix*   socketMatrix{ nullptr };
 
-        // TODO : 각 무기별 크기, 위치는 프리펩에서 조절하십쇼
-
+        // 각 무기별 크기, 위치는 프리펩에서 조절하십쇼
+        bool            useBodyFollow{ false };
+        Vec3            bodyFollowOffset{ Vec3::Zero };
 
     }WEAPON_DESC;
 
@@ -68,6 +69,8 @@ private:
 
 private:
     const Matrix*       _socketMatrix = { nullptr };
+    bool                _useBodyFollow = false;
+    Vec3                _bodyFollowOffset = Vec3::Zero;
 
     bool _notifyRotationActive = false;
     Quat _notifyRotationBaseLocal = Quat::Identity;

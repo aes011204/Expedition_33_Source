@@ -226,7 +226,7 @@ void BattleController::OnEnterBattleField(
     uint32 FieldID,
     bool isPlayerAdvantage,
     const vector<HeroId>& heroIds,
-    const vector<string>& battleMonsterPrefabNames,
+    const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
     const Shared<GameObject>& sourceObject)
 {
     if (_isBattleActive || _isBattleEntering)
@@ -245,7 +245,7 @@ void BattleController::OnEnterBattleField(
     _pendingBattleFieldID = FieldID;
     _pendingBattleIsPlayerAdvantage = isPlayerAdvantage;
     _pendingBattleHeroIds = heroIds;
-    _pendingBattleMonsterPrefabNames = battleMonsterPrefabNames;
+    _pendingBattleMonsterSpawnDescs = battleMonsterSpawnDescs;
 
     // 월드 캐릭터 입력 막기
     GAME->Set_PlayerInputBlocked(true);
@@ -514,7 +514,7 @@ void BattleController::StartTurn()
     }
 }
 
-void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<string>& battleMonsterPrefabNames)
+void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs)
 {
     if (_battleSpawnRegistry)
         _battleSpawnRegistry->Clear_BattleReward();
@@ -569,10 +569,11 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, vector<s
         // battleChar.ModelCom->Set_RootMotionEnabled(false);
     }
 
-    for (int i = 0; i < battleMonsterPrefabNames.size(); ++i)
+    for (int i = 0; i < battleMonsterSpawnDescs.size(); ++i)
     {
+        const BattleMonsterSpawnDesc& spawnDesc = battleMonsterSpawnDescs[i];
         Shared<GameObject> enemy = Spawn_Prefab::Spawn(
-            battleMonsterPrefabNames[i],
+            spawnDesc.prefabName,
             GAME->Current_LevelIndex(),
             L"BattleLayer"
         );
@@ -692,23 +693,59 @@ void BattleController::SetCharInitPos()
         { 3.f, 0.f, 10.f },
     };
 
+    Vec3 heroCenter = Vec3::Zero;
+    uint32 heroCount = 0;
+
     // 임시
-    for (size_t i = 0; i < _heroes.size(); ++i)
+    for (size_t i = 0; i < _heroes.size() && i < 3; ++i)
     {
         const auto& hero = _heroes[i];
         if (!hero.actor)
             continue;
 
-        hero.actor->Get_Transform()->Set_Position(startPos + playerPos[i]);
+        const Vec3 placedPos = startPos + playerPos[i];
+        hero.actor->Get_Transform()->Set_Position(placedPos);
+        heroCenter += placedPos;
+        ++heroCount;
     }
 
-    for (size_t i = 0; i < _enemies.size(); ++i)
+    if (heroCount > 0)
+        heroCenter /= static_cast<float>(heroCount);
+
+    for (size_t i = 0; i < _enemies.size() && i < 3; ++i)
     {
         const auto& enemy = _enemies[i];
         if (!enemy.actor)
             continue;
 
-        enemy.actor->Get_Transform()->Set_Position(startPos + enemyPos[i]);
+        const Shared<TransformCom> transform = enemy.actor->Get_Transform();
+        Vec3 placedPos = startPos + enemyPos[i];
+        Vec3 rotationOffset = Vec3::Zero;
+
+        if (i < _pendingBattleMonsterSpawnDescs.size())
+        {
+            placedPos += _pendingBattleMonsterSpawnDescs[i].offset;
+            rotationOffset = _pendingBattleMonsterSpawnDescs[i].rotation;
+        }
+
+        transform->Set_Position(placedPos);
+
+        if (heroCount == 0)
+            continue;
+
+        Vec3 dir = heroCenter - placedPos;
+        dir.y = 0.f;
+
+        if (dir.LengthSquared() <= 0.0001f)
+            continue;
+
+        dir.Normalize();
+
+        Vec3 rot = transform->Get_RotationEuler();
+        rot.x += rotationOffset.x;
+        rot.y = XMConvertToDegrees(atan2f(dir.x, dir.z)) + rotationOffset.y;
+        rot.z += rotationOffset.z;
+        transform->Set_RotationEuler(rot);
     }
 }
 
@@ -722,7 +759,7 @@ void BattleController::Request_WidePresentationMode()
     EvtBattlePresentation event;
     event.cameraMode = BattleCameraMode::WIDE;
     event.subject = nullptr;
-    GAME->Get_EventBus().Publish(event); 
+    GAME->Get_EventBus().Publish(event);
 
     return;
 }
@@ -1039,11 +1076,11 @@ void BattleController::Execute_Item()
     const BattleChar& actor = action.Get_CurChar();
 
     // 아이템은 광역 콤보 등이 없으니 다 초기 타겟으로 함 
-    if(action.GetInitTarget().actor==nullptr)
+    if (action.GetInitTarget().actor == nullptr)
     {
         assert("Execute_Item_GetInitTarget==0");
     }
-;
+    ;
     CHECK_NULL(actor.statCom);
     const Item_Data& itemData = action.GetItemData();
 
@@ -1075,8 +1112,8 @@ void BattleController::Execute_Item()
             if (!action.GetInitTarget().ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
             {
                 BattleAnimUtils::Play_BattleIdle(
-            action.GetInitTarget(),
-            0.2f); // Revive 매핑이 없으면 부활된 대상 기준 idle로 복귀한다.
+                    action.GetInitTarget(),
+                    0.2f); // Revive 매핑이 없으면 부활된 대상 기준 idle로 복귀한다.
             }
         }
 
@@ -1189,7 +1226,7 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
     if (_freeAimShotAction.GetInitTarget().actor != nullptr && _freeAimShotAction.GetInitTarget().statCom != nullptr)
     {
         constexpr float freeAimDamage = 20.f; // 우선 테스트용 데미지
-        DamageSystem::ApplyDamage(freeAimDamage, _freeAimShotAction.GetInitTarget(),AttackType::FreeAimLight);
+        DamageSystem::ApplyDamage(freeAimDamage, _freeAimShotAction.GetInitTarget(), AttackType::FreeAimLight);
     }
 
     _freeAimShotAction.InitActionDirection();
@@ -1275,33 +1312,33 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
         if (_enemies.size() == 3)
             return;
 
-            Shared<GameObject> enemy = Spawn_Prefab::Spawn(
-                prefabName,
-                GAME->Current_LevelIndex(),
-                L"BattleLayer"
-            );
+        Shared<GameObject> enemy = Spawn_Prefab::Spawn(
+            prefabName,
+            GAME->Current_LevelIndex(),
+            L"BattleLayer"
+        );
 
-            CHECK_NULL(enemy);
+        CHECK_NULL(enemy);
 
-            const auto ply = dynamic_pointer_cast<Character_BattleBase>(enemy);
-            BattleChar battleChar{};
-            battleChar.actor = ply;
-            battleChar.statCom = enemy->Get_Component<CombatStatCom>();
+        const auto ply = dynamic_pointer_cast<Character_BattleBase>(enemy);
+        BattleChar battleChar{};
+        battleChar.actor = ply;
+        battleChar.statCom = enemy->Get_Component<CombatStatCom>();
 
-            PartObject* body = ply ? ply->Get_PartObject(L"Part_Body") : nullptr;
-            battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // 몬스터 종류와 무관하게 Part_Body의 ModelCom를 사용한다.
+        PartObject* body = ply ? ply->Get_PartObject(L"Part_Body") : nullptr;
+        battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // 몬스터 종류와 무관하게 Part_Body의 ModelCom를 사용한다.
 
-            _enemies.push_back(battleChar);
+        _enemies.push_back(battleChar);
 
-            battleChar.actor->Get_Transform()->Set_Position(pos);
-
-
-            TurnEntry turn = {};
-            turn.nextTime = _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f);
-                turn.hero = battleChar;
+        battleChar.actor->Get_Transform()->Set_Position(pos);
 
 
-            _turnQueue.push(turn);
+        TurnEntry turn = {};
+        turn.nextTime = _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f);
+        turn.hero = battleChar;
+
+
+        _turnQueue.push(turn);
     }
 }
 
@@ -1621,7 +1658,7 @@ void BattleController::Complete_BattleField()
     const bool isPlayerAdvantage = _pendingBattleIsPlayerAdvantage;
 
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
-    Create_BattleChar(_pendingBattleHeroIds, _pendingBattleMonsterPrefabNames);
+    Create_BattleChar(_pendingBattleHeroIds, _pendingBattleMonsterSpawnDescs);
 
     // 초기 플레이 순서 지정
     Build_InitialTurnQueue(_pendingBattleIsPlayerAdvantage);
@@ -1673,7 +1710,7 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleFieldID = 0;
     _pendingBattleIsPlayerAdvantage = false;
     _pendingBattleHeroIds.clear();
-    _pendingBattleMonsterPrefabNames.clear();
+    _pendingBattleMonsterSpawnDescs.clear();
 }
 
 void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<CombatStatCom>& battleStat,
@@ -1708,6 +1745,8 @@ void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<
 
 vector<string> BattleController::Get_DefaultBattleSkillKeys(HeroId heroId)
 {
+    // TODO : TEMP TEMP TEMP TEMP TEMP
+    // 나중에, 해금된 스킬에 EquipSkillCom? 뭐 이런거 만들어서 장착된 스킬 기준으로 가져오기
     switch (heroId)
     {
     case HeroId::Gustave:

@@ -180,15 +180,10 @@ HRESULT Player_BattleBase::Ready_WeaponParts(Body_Player* body)
 
     for (const auto& attachDesc : attachDescs)
     {
-        CHECK_NULL(attachDesc.socketName, E_FAIL);
-
         if (attachDesc.partTag.empty())
             return E_FAIL;
         if (attachDesc.weaponPrefabName.empty())
             return E_FAIL;
-
-        const Matrix* socketMatrix = body->Get_SocketBoneMatrixPtr(attachDesc.socketName);
-        CHECK_NULL(socketMatrix, E_FAIL);
 
         WeaponPrefabLoader::LoadedWeaponPrefab loadedPrefab{};
         if (!WeaponPrefabLoader::Load(attachDesc.weaponPrefabName, loadedPrefab))
@@ -198,7 +193,25 @@ HRESULT Player_BattleBase::Ready_WeaponParts(Body_Player* body)
         weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
         weaponDesc.modelType = loadedPrefab.modelType;
         weaponDesc.modelTag = loadedPrefab.modelTag.c_str();
-        weaponDesc.socketMatrix = socketMatrix;
+        weaponDesc.socketMatrix = nullptr;
+        weaponDesc.useBodyFollow = attachDesc.useBodyFollow;
+        weaponDesc.bodyFollowOffset = attachDesc.bodyFollowOffset;
+
+        if (attachDesc.useBodyFollow)
+        {
+            // 루네처럼 손 소켓이 아니라 Body 기준 위치를 따라가게 할 때는 socket 경로를 타지 않는다.
+            weaponDesc.socketMatrix = nullptr;
+        }
+        else
+        {
+            CHECK_NULL(attachDesc.socketName, E_FAIL);
+
+            const Matrix* socketMatrix = body->Get_SocketBoneMatrixPtr(attachDesc.socketName);
+            CHECK_NULL(socketMatrix, E_FAIL);
+
+            // 기존 캐릭터들은 그대로 socket 따라가기 유지
+            weaponDesc.socketMatrix = socketMatrix;
+        }
 
         // 무기별 세부 transform/model guid는 WP_*에서 덮어쓴다.
         CHECK_FAILED(Add_PartObject(
