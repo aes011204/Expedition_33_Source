@@ -35,7 +35,7 @@ BNode::NODE_STATE BT_SetSkill::Logic_Update(float deltaTime)
 
     if (stat->Get_SkillKey().empty())
         return BNode::NODE_STATE::FAILED;
-    int32 SkillNum = stat->Get_SkillKey().size();
+    int32 SkillNum = static_cast<int32>(stat->Get_SkillKey().size());
 
     int32 RandNum = Math::RandNum(0, SkillNum-1);
 

@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "PanelAssetBrowser.h"
 #include "SceneContext.h"
 
@@ -95,7 +95,27 @@ void PanelAssetBrowser::Render()
             {
                 if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
                 {
-                    _ctx->LoadFromFile(file.string());
+                    if (filename.size() > 13 && filename.substr(filename.size() - 13) == "_terrain.json")
+                    {
+                        _ctx->LoadTerrainConfig(file.string());
+                    }
+                    else
+                    {
+                        _ctx->LoadFromFile(file.string());
+                    }
+                }
+
+                if (ImGui::BeginPopupContextItem())
+                {
+                    if (ImGui::MenuItem("Load (Replace)"))
+                    {
+                        _ctx->LoadFromFile(file.string());
+                    }
+                    if (ImGui::MenuItem("Load (Apped)"))
+                    {
+                        _ctx->LoadFromFile(file.string(), true);
+                    }
+                    ImGui::EndPopup();
                 }
             }
         }

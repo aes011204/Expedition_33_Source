@@ -194,6 +194,12 @@ HRESULT MainEditorApp::Render()
         }
 
         {
+            ENGINE_PROFILE_SCOPE_DETAIL("Editor::ClearBackBuffer");
+            if (FAILED(GAME->Clear_Buffers(Vec4(0.018f, 0.020f, 0.024f, 1.f))))
+                return fail();
+        }
+
+        {
             ENGINE_PROFILE_SCOPE_DETAIL("Editor::Render_Editor");
             EDITOR->Render_Editor();
         }

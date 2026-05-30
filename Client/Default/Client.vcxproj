@@ -352,6 +352,7 @@
     <ClInclude Include="..\Public\StreamingLevel.h" />
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
+    <ClInclude Include="..\Public\Terrain_UE.h" />
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
     <ClInclude Include="..\Public\Trigger_WorldAction.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
@@ -595,6 +596,7 @@
     <ClCompile Include="..\Private\StreamingLevel.cpp" />
     <ClCompile Include="..\Private\TargetCamera.cpp" />
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
+    <ClCompile Include="..\Private\Terrain_UE.cpp" />
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
     <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
