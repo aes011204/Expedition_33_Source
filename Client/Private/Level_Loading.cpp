@@ -2,6 +2,7 @@
 #include "Loader.h"
 
 #include "Client_Constants.h"
+#include "ClientInstance.h"
 #include "GameInstance.h"
 #include "UI_RuntimeLoader.h"
 
@@ -23,6 +24,7 @@ HRESULT Level_Loading::Initialize(LevelType eNextLevelID)
     _printedLoadCompleteLog = false;
     _hasRenderedFirstFrame = false;
     _postFirstRenderFrameCount = 0;
+    _requestedNextLevelTransition = false;
 
     if (FAILED(Ready_LoadingUIRenderResources()))
         return E_FAIL;
@@ -75,6 +77,12 @@ void Level_Loading::Update(float fTimeDelta)
 
     if (_loader->isFinished())
     {
+        if (_requestedNextLevelTransition)
+            return;
+
+        if (CLIENT->Is_FadeTransitionPlaying())
+            return;
+
         Shared<Level> pNextLevel = nullptr;
 
         switch (_nextLevel)
@@ -102,11 +110,18 @@ void Level_Loading::Update(float fTimeDelta)
             return;
         }
 
-        if (FAILED(GAME->Change_Level(ETOI(_nextLevel), pNextLevel)))
+        _requestedNextLevelTransition = true;
+
+        if (!CLIENT->Request_LoadedLevelTransition(_nextLevel, pNextLevel))
         {
-            MSG_BOX("Failed to Changed : NextLevel");
-            return;
+            if (FAILED(GAME->Change_Level(ETOI(_nextLevel), pNextLevel)))
+            {
+                MSG_BOX("Failed to Changed : NextLevel");
+                _requestedNextLevelTransition = false;
+                return;
+            }
         }
+
         return;
     }
 }

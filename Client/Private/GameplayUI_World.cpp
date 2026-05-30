@@ -79,7 +79,7 @@ void GameplayUI_World::Update(float timeDelta)
 
     Update_CrossHair(timeDelta);
 
-    if (_savePointPanel && _savePointPanel->Is_Open())
+    if (!CLIENT->Is_FadeTransitionPlaying() && _savePointPanel && _savePointPanel->Is_Open())
     {
         const SavePoint_Panel::SavePointAction action = _savePointPanel->Consume_LastAction();
         Handle_SavePointAction(action);
@@ -88,6 +88,9 @@ void GameplayUI_World::Update(float timeDelta)
 
 void GameplayUI_World::Update_Input()
 {
+    if (CLIENT->Is_FadeTransitionPlaying())
+        return;
+
     Handle_TabInput(); // Tab은 root 메뉴인 SavePoint 진입/종료만 담당
     Handle_BackInput();
     Handle_ExpeditionStat();
@@ -237,13 +240,16 @@ void GameplayUI_World::Push_Menu(GameplayMenu menu)
     if (currentMenu == menu)
         return; // 같은 메뉴 중복 방지
 
-    if (currentMenu != GameplayMenu::None)
+    const auto applyMenuChange = [this, currentMenu, menu]()
     {
-        Close_Menu(currentMenu);
-    }
+        if (currentMenu != GameplayMenu::None)
+            Close_Menu(currentMenu);
 
-    _menuStack.push_back(menu);
-    Open_Menu(menu);
+        _menuStack.push_back(menu);
+        Open_Menu(menu);
+    };
+
+    _menuFade.Request_MenuTransition(currentMenu, menu, applyMenuChange);
 }
 
 void GameplayUI_World::Pop_Menu()
@@ -252,13 +258,20 @@ void GameplayUI_World::Pop_Menu()
         return;
 
     const GameplayMenu currentMenu = _menuStack.back();
-    Close_Menu(currentMenu); // 현재 top 메뉴 종료
-    _menuStack.pop_back();
+    const GameplayMenu previousMenu = _menuStack.size() >= 2 ? _menuStack[_menuStack.size() - 2] : GameplayMenu::None;
 
-    if (_menuStack.empty())
-        return;
+    const auto applyMenuChange = [this, currentMenu]()
+    {
+        Close_Menu(currentMenu); // 현재 top 메뉴 종료
+        _menuStack.pop_back();
 
-    Open_Menu(_menuStack.back());
+        if (_menuStack.empty())
+            return;
+
+        Open_Menu(_menuStack.back());
+    };
+
+    _menuFade.Request_MenuTransition(currentMenu, previousMenu, applyMenuChange);
 }
 
 void GameplayUI_World::Close_AllMenus()
