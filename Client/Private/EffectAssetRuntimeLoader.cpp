@@ -859,6 +859,69 @@ void EffectAssetRuntimeLoader::Fill_RotationOverLifePayload(PointParticleRotatio
     }
 }
 
+void EffectAssetRuntimeLoader::Fill_RotationRateScaleByLifePayload(PointParticleRotationDesc& desc, const json& rotationRateScaleByLife)
+{
+    const auto scaleOverLifeIter = rotationRateScaleByLife.find("scaleOverLife");
+    if (scaleOverLifeIter == rotationRateScaleByLife.end())
+    {
+        desc.rotationRateScaleByLife = Vec2{
+            Read_Float(rotationRateScaleByLife, "scaleStart", desc.rotationRateScaleByLife.x),
+            Read_Float(rotationRateScaleByLife, "scaleEnd", desc.rotationRateScaleByLife.y)
+        };
+        desc.rotationRateScaleByLifeCurveKeyCount = 2;
+        desc.rotationRateScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.rotationRateScaleByLifeCurveValues = Vec4{ desc.rotationRateScaleByLife.x, desc.rotationRateScaleByLife.y, 0.f, 0.f };
+        return;
+    }
+
+    const float startValue = Evaluate_FloatDistributionMin(*scaleOverLifeIter, 1.f);
+    const float endValue = Evaluate_FloatDistributionMax(*scaleOverLifeIter, 1.f);
+    desc.rotationRateScaleByLife = Vec2{ startValue, endValue };
+    desc.rotationRateScaleByLifeCurveKeyCount = 2;
+    desc.rotationRateScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.rotationRateScaleByLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
+
+    const json* payload = Find_DistributionPayload(*scaleOverLifeIter);
+    if (payload == nullptr || "ConstantCurve" != Read_String(*scaleOverLifeIter, "mode"))
+        return;
+
+    const auto keysIter = payload->find("keys");
+    if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+        return;
+
+    vector<const json*> keys{};
+    keys.reserve(keysIter->size());
+    for (const json& key : *keysIter)
+        keys.push_back(&key);
+    ranges::sort(
+        keys,
+        [](const json* lhs, const json* rhs)
+        {
+            return Read_Float(*lhs, "time") < Read_Float(*rhs, "time");
+        }
+    );
+
+    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
+    desc.rotationRateScaleByLifeCurveKeyCount = keyCount;
+    desc.rotationRateScaleByLifeCurveTimes = Vec4{};
+    desc.rotationRateScaleByLifeCurveValues = Vec4{};
+
+    for (uint32 index = 0; index < keyCount; ++index)
+    {
+        const json& key = *keys[index];
+        Set_SubUVFrameCurveComponent(
+            desc.rotationRateScaleByLifeCurveTimes,
+            index,
+            clamp(Read_Float(key, "time"), 0.f, 1.f)
+        );
+        Set_SubUVFrameCurveComponent(
+            desc.rotationRateScaleByLifeCurveValues,
+            index,
+            Read_Float(key, "value", 1.f)
+        );
+    }
+}
+
 string EffectAssetRuntimeLoader::Resolve_RendererType(const json& emitter)
 {
     string rendererType = Read_String(emitter, "rendererType");
@@ -909,6 +972,18 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     materialDesc.noiseStrength = Read_Float(material, "noiseStrength", materialDesc.noiseStrength);
     materialDesc.alphaCutoff = Read_Float(material, "alphaCutoff", materialDesc.alphaCutoff);
     materialDesc.alphaErosion = Read_Float(material, "alphaErosion", materialDesc.alphaErosion);
+
+    if (const auto coreEmissiveIter = material.find("coreEmissive"); coreEmissiveIter != material.end() && coreEmissiveIter->is_object())
+    {
+        const json& coreEmissive = *coreEmissiveIter;
+        materialDesc.coreEmissive.enabled = Read_Bool(coreEmissive, "enabled", materialDesc.coreEmissive.enabled);
+        if (const auto coreColorIter = coreEmissive.find("coreColor"); coreColorIter != coreEmissive.end())
+            Read_Color(*coreColorIter, materialDesc.coreEmissive.coreColor);
+        materialDesc.coreEmissive.corePower = Read_Float(coreEmissive, "corePower", materialDesc.coreEmissive.corePower);
+        materialDesc.coreEmissive.coreIntensity = Read_Float(coreEmissive, "coreIntensity", materialDesc.coreEmissive.coreIntensity);
+        materialDesc.coreEmissive.outerPower = Read_Float(coreEmissive, "outerPower", materialDesc.coreEmissive.outerPower);
+        materialDesc.coreEmissive.outerIntensity = Read_Float(coreEmissive, "outerIntensity", materialDesc.coreEmissive.outerIntensity);
+    }
 
     if (const auto mainUVOffsetIter = material.find("mainUVOffset"); mainUVOffsetIter != material.end())
         Read_Vec2(*mainUVOffsetIter, materialDesc.mainUVOffset);
@@ -1336,10 +1411,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
     if (const json* rotationRateScaleByLife = Find_ModuleData(emitter, "RotationRateScaleByLife"))
     {
         desc.rotation.enabled = true;
-        desc.rotation.rotationRateScaleByLife = Vec2{
-            Read_Float(*rotationRateScaleByLife, "scaleStart", desc.rotation.rotationRateScaleByLife.x),
-            Read_Float(*rotationRateScaleByLife, "scaleEnd", desc.rotation.rotationRateScaleByLife.y)
-        };
+        Fill_RotationRateScaleByLifePayload(desc.rotation, *rotationRateScaleByLife);
     }
 
     outDefinition.concreteDesc = desc;

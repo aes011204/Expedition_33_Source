@@ -627,8 +627,7 @@ struct InitialRotationRateModuleData
 
 struct RotationRateScaleByLifeModuleData
 {
-    float scaleStart{ 1.f };
-    float scaleEnd{ 1.f };
+    FloatDistributionData scaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f, 1.f) };
 };
 
 struct InitialColorModuleData

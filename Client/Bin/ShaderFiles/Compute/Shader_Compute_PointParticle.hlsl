@@ -72,6 +72,9 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_RotationOverLifeCurveTimes;  // rotationOverLife key times
     float4 g_RotationOverLifeCurveValues; // rotationOverLife degree values
     float4 g_RotationOverLifeCurveParams; // x: key count
+    float4 g_RotationRateScaleByLifeCurveTimes;  // rotationRateScaleByLife key times
+    float4 g_RotationRateScaleByLifeCurveValues; // rotationRateScaleByLife multiplier values
+    float4 g_RotationRateScaleByLifeCurveParams; // x: key count
 };
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
@@ -190,6 +193,67 @@ float EvaluateRotationOverLifeDegrees(float lifeProgress)
     }
 
     return rotationDegrees;
+}
+
+float IntegrateLinearCurveSegment(float leftTime, float leftValue, float rightTime, float rightValue, float startTime, float endTime)
+{
+    const float width = max(0.0001f, rightTime - leftTime);
+    const float t0 = saturate((startTime - leftTime) / width);
+    const float t1 = saturate((endTime - leftTime) / width);
+    const float valueDelta = rightValue - leftValue;
+    return width * (leftValue * (t1 - t0) + 0.5f * valueDelta * (t1 * t1 - t0 * t0));
+}
+
+// RotationRateScaleByLife curve payload를 0..lifeProgress 구간의 평균 배율로 적분 평가한다.
+float EvaluateRotationRateScaleByLifeAverage(float lifeProgress)
+{
+    const uint keyCount = max(1u, min(4u, (uint)g_RotationRateScaleByLifeCurveParams.x));
+    const float clampedProgress = saturate(lifeProgress);
+    const float firstTime = saturate(ReadVec4Component(g_RotationRateScaleByLifeCurveTimes, 0u));
+    const float firstValue = ReadVec4Component(g_RotationRateScaleByLifeCurveValues, 0u);
+
+    if (keyCount == 1u || clampedProgress <= 0.0001f)
+        return firstValue;
+    if (clampedProgress <= firstTime)
+        return firstValue;
+
+    float area = firstValue * firstTime;
+    float previousTime = firstTime;
+    float previousValue = firstValue;
+    bool done = false;
+
+    [unroll]
+    for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+    {
+        if (keyIndex >= keyCount || done)
+            continue;
+
+        const float rightTime = max(previousTime, saturate(ReadVec4Component(g_RotationRateScaleByLifeCurveTimes, keyIndex)));
+        const float rightValue = ReadVec4Component(g_RotationRateScaleByLifeCurveValues, keyIndex);
+        const float segmentEnd = min(clampedProgress, rightTime);
+        if (segmentEnd > previousTime)
+        {
+            area += IntegrateLinearCurveSegment(
+                previousTime,
+                previousValue,
+                rightTime,
+                rightValue,
+                previousTime,
+                segmentEnd
+            );
+        }
+
+        if (clampedProgress <= rightTime)
+            done = true;
+
+        previousTime = rightTime;
+        previousValue = rightValue;
+    }
+
+    if (!done && clampedProgress > previousTime)
+        area += previousValue * (clampedProgress - previousTime);
+
+    return area / max(0.0001f, clampedProgress);
 }
 
 // 정수 seed를 0~1 사이의 pseudo-random float 값으로 바꾼다.
@@ -406,7 +470,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float initialRotation = radians(lerp(g_RotationInitialRate.x, g_RotationInitialRate.y, Hash01(seed + 809u)));
     const float rotationOverLife = radians(EvaluateRotationOverLifeDegrees(lifeProgress));
     const float rotationRate = radians(lerp(g_RotationInitialRate.z, g_RotationInitialRate.w, Hash01(seed + 907u)));
-    const float rotationRateScale = IntegrateLifeScale(g_RotationByLife.z, g_RotationByLife.w, lifeProgress);
+    const float rotationRateScale = EvaluateRotationRateScaleByLifeAverage(lifeProgress);
     const float rotation = initialRotation + rotationOverLife + rotationRate * rotationRateScale * lifeAge;
     const float rotationCos = cos(rotation);
     const float rotationSin = sin(rotation);

@@ -1215,6 +1215,44 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
         }
     }
 
+    if (ImGui::CollapsingHeader("Core Emissive", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceCoreEmissive"))
+        {
+            changed |= _detailPropertyContext.Draw_BoolProperty(
+                "Enabled",
+                material.coreEmissive.enabled,
+                defaultData.coreEmissive.enabled
+            );
+            changed |= _detailPropertyContext.Draw_ColorProperty(
+                "Core Color",
+                material.coreEmissive.coreColor,
+                defaultData.coreEmissive.coreColor
+            );
+            changed |= _detailPropertyContext.Draw_FloatProperty(
+                "Core Power",
+                material.coreEmissive.corePower,
+                defaultData.coreEmissive.corePower
+            );
+            changed |= _detailPropertyContext.Draw_FloatProperty(
+                "Core Intensity",
+                material.coreEmissive.coreIntensity,
+                defaultData.coreEmissive.coreIntensity
+            );
+            changed |= _detailPropertyContext.Draw_FloatProperty(
+                "Outer Power",
+                material.coreEmissive.outerPower,
+                defaultData.coreEmissive.outerPower
+            );
+            changed |= _detailPropertyContext.Draw_FloatProperty(
+                "Outer Intensity",
+                material.coreEmissive.outerIntensity,
+                defaultData.coreEmissive.outerIntensity
+            );
+            _detailPropertyContext.End_PropertyTable();
+        }
+    }
+
     if (ImGui::CollapsingHeader("UV", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceUV"))

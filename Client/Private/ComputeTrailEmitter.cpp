@@ -999,6 +999,7 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
 
     const EffectMaterialAdditiveContributionData& additive = _desc.material.additive;
+    const EffectMaterialCoreEmissiveData& coreEmissive = _desc.material.coreEmissive;
     const Vec4 effectTrailAdditiveParams = Vec4(
         static_cast<float>(static_cast<uint32>(additive.colorSource)),
         static_cast<float>(static_cast<uint32>(additive.amountSource)),
@@ -1006,10 +1007,24 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         additive.intensityScale
     );
     const Vec4 effectTrailAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
+    const Vec4 effectTrailCoreEmissiveParams = Vec4(
+        coreEmissive.enabled ? 1.f : 0.f,
+        coreEmissive.corePower,
+        coreEmissive.coreIntensity,
+        coreEmissive.outerPower
+    );
+    const Vec4 effectTrailCoreEmissiveColor = Vec4(
+        coreEmissive.coreColor.x,
+        coreEmissive.coreColor.y,
+        coreEmissive.coreColor.z,
+        coreEmissive.outerIntensity
+    );
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAdditiveParams", &effectTrailAdditiveParams, sizeof(effectTrailAdditiveParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAdditiveFlags", &effectTrailAdditiveFlags, sizeof(effectTrailAdditiveFlags)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailCoreEmissiveParams", &effectTrailCoreEmissiveParams, sizeof(effectTrailCoreEmissiveParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailCoreEmissiveColor", &effectTrailCoreEmissiveColor, sizeof(effectTrailCoreEmissiveColor)), E_FAIL);
     return S_OK;
 }
 

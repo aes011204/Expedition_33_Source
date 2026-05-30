@@ -152,6 +152,9 @@ struct PointParticleRotationDesc
     uint32 rotationOverLifeCurveKeyCount{ 2 };                 // RotationOverLife compact curve key 수다.
     Vec4 rotationOverLifeCurveTimes{ 0.f, 1.f, 0.f, 0.f };     // RotationOverLife key time 0..1 값이다.
     Vec4 rotationOverLifeCurveValues{ 0.f, 0.f, 0.f, 0.f };    // RotationOverLife key별 추가 회전각 degree 값이다.
+    uint32 rotationRateScaleByLifeCurveKeyCount{ 2 };          // RotationRateScaleByLife compact curve key 수다.
+    Vec4 rotationRateScaleByLifeCurveTimes{ 0.f, 1.f, 0.f, 0.f }; // RotationRateScaleByLife key time 0..1 값이다.
+    Vec4 rotationRateScaleByLifeCurveValues{ 1.f, 1.f, 0.f, 0.f }; // RotationRateScaleByLife key별 배율 값이다.
 };
 
 // Spawn 모듈의 burst 항목을 runtime emitter가 소비할 수 있게 압축한 payload다.

@@ -102,6 +102,7 @@ struct EffectRequiredMaterialRuntimeDesc
     EffectTextureUVTilingMode flowUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // flow texture UV tiling 해석 방식이다.
 
     EffectMaterialAdditiveContributionData additive{}; // Additive blend에서 더할 contribution 해석 규칙이다.
+    EffectMaterialCoreEmissiveData coreEmissive{};     // alpha-derived inner core/outer halo shaping 값이다.
     float refractionIntensity{ 0.f };                  // SpriteDistortion screen UV offset 강도다.
     float refractionPresence{ 1.f };                   // SpriteDistortion refraction 영향도 scalar다.
     EffectDistortionShapeMode distortionShapeMode{ EffectDistortionShapeMode::None }; // SpriteDistortion 영향 범위 weight mode다.
