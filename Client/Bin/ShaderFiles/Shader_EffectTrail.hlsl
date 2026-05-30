@@ -257,15 +257,16 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     );
 
     surface.color = baseColor * energyVariation;
-    surface.coverage = Effect_BuildCoverage(
+    const float shapeCoverage = Effect_BuildCoverage(
         selectedOpacity,
         opacityPower,
         coverage,
         breakupNoise,
-        segmentColor.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha
+        1.f
     );
+    surface.coverage = shapeCoverage * saturate(segmentColor.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
 
-    if (surface.coverage < max(alphaCutoff, 0.01f))
+    if (shapeCoverage < max(alphaCutoff, 0.01f))
         discard;
 
     return surface;
@@ -316,7 +317,8 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float breakupNoise = lerp(1.f, noiseRaw, noiseStrength);
     const float edgeBreakup = lerp(1.f, noiseRaw, noiseStrength * edgeWeight);
     float coverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * edgeBreakup, alphaErosion);
-    const float coverageBase = saturate(coverage * breakupNoise * segmentColor.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
+    const float coverageBase = saturate(coverage * breakupNoise);
+    const float additiveLifeAlpha = saturate(segmentColor.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
     const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
     const int colorSource = (int)g_EffectTrailAdditiveParams.x;
     const int amountSource = (int)g_EffectTrailAdditiveParams.y;
@@ -344,7 +346,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
         g_EffectTrailCoreEmissiveParams
     );
     const float additiveEnergyScalar = max(g_EffectTrailParams.x, 0.f) * max(g_EffectTrailAdditiveParams.w, 0.f);
-    const float3 contribution = shapedMaterialColor * energyVariation * policyAmount * additiveEnergyScalar * blackGate;
+    const float3 contribution = shapedMaterialColor * energyVariation * policyAmount * additiveEnergyScalar * blackGate * additiveLifeAlpha;
     Out.color = float4(contribution, 1.f);
     return Out;
 }

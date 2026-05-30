@@ -306,6 +306,101 @@ namespace Internal
         Set_SubUVFrameCurveComponent(desc.rotationRateScaleByLifeCurveValues, index, value);
     }
 
+    float To_RuntimeCurveInterpolationMode(FloatCurveInterpolationMode mode)
+    {
+        switch (mode)
+        {
+        case FloatCurveInterpolationMode::Constant:
+            return 0.f;
+        case FloatCurveInterpolationMode::CurveAutoClamped:
+            return 2.f;
+        case FloatCurveInterpolationMode::Linear:
+        default:
+            return 1.f;
+        }
+    }
+
+    void Fill_ColorOverLifeColorCurveComponent(
+        PointParticleColorOverLifeCurveDesc& desc,
+        uint32 index,
+        const ColorCurveKeyData& key)
+    {
+        Set_SubUVFrameCurveComponent(desc.colorCurveTimes, index, clamp(key.time, 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.colorCurveValuesR, index, key.value.R());
+        Set_SubUVFrameCurveComponent(desc.colorCurveValuesG, index, key.value.G());
+        Set_SubUVFrameCurveComponent(desc.colorCurveValuesB, index, key.value.B());
+        Set_SubUVFrameCurveComponent(desc.colorCurveArriveR, index, key.arriveTangent.R());
+        Set_SubUVFrameCurveComponent(desc.colorCurveArriveG, index, key.arriveTangent.G());
+        Set_SubUVFrameCurveComponent(desc.colorCurveArriveB, index, key.arriveTangent.B());
+        Set_SubUVFrameCurveComponent(desc.colorCurveLeaveR, index, key.leaveTangent.R());
+        Set_SubUVFrameCurveComponent(desc.colorCurveLeaveG, index, key.leaveTangent.G());
+        Set_SubUVFrameCurveComponent(desc.colorCurveLeaveB, index, key.leaveTangent.B());
+        Set_SubUVFrameCurveComponent(desc.colorCurveModes, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+    }
+
+    void Fill_ColorOverLifeAlphaCurveComponent(
+        PointParticleColorOverLifeCurveDesc& desc,
+        uint32 index,
+        const FloatCurveKeyData& key)
+    {
+        Set_SubUVFrameCurveComponent(desc.alphaCurveTimes, index, clamp(key.time, 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.alphaCurveValues, index, key.value);
+        Set_SubUVFrameCurveComponent(desc.alphaCurveArrive, index, key.arriveTangent);
+        Set_SubUVFrameCurveComponent(desc.alphaCurveLeave, index, key.leaveTangent);
+        Set_SubUVFrameCurveComponent(desc.alphaCurveModes, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+    }
+
+    void Fill_ColorOverLifeCurvePayload(
+        PointParticleColorOverLifeCurveDesc& desc,
+        const ColorOverLifeModuleData& data)
+    {
+        constexpr uint32 maxColorOverLifeCurveKeys{ 4 };
+
+        if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&data.colorOverLife.payload))
+        {
+            vector<ColorCurveKeyData> keys = curve->keys;
+            ranges::sort(keys, {}, &ColorCurveKeyData::time);
+            const uint32 keyCount = min(maxColorOverLifeCurveKeys, static_cast<uint32>(keys.size()));
+            if (keyCount > 0)
+            {
+                desc.colorCurveEnabled = true;
+                desc.colorCurveKeyCount = keyCount;
+                desc.colorCurveTimes = Vec4{};
+                desc.colorCurveValuesR = Vec4{};
+                desc.colorCurveValuesG = Vec4{};
+                desc.colorCurveValuesB = Vec4{};
+                desc.colorCurveArriveR = Vec4{};
+                desc.colorCurveArriveG = Vec4{};
+                desc.colorCurveArriveB = Vec4{};
+                desc.colorCurveLeaveR = Vec4{};
+                desc.colorCurveLeaveG = Vec4{};
+                desc.colorCurveLeaveB = Vec4{};
+                desc.colorCurveModes = Vec4{};
+                for (uint32 index = 0; index < keyCount; ++index)
+                    Fill_ColorOverLifeColorCurveComponent(desc, index, keys[index]);
+            }
+        }
+
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.alphaOverLife.payload))
+        {
+            vector<FloatCurveKeyData> keys = curve->keys;
+            ranges::sort(keys, {}, &FloatCurveKeyData::time);
+            const uint32 keyCount = min(maxColorOverLifeCurveKeys, static_cast<uint32>(keys.size()));
+            if (keyCount > 0)
+            {
+                desc.alphaCurveEnabled = true;
+                desc.alphaCurveKeyCount = keyCount;
+                desc.alphaCurveTimes = Vec4{};
+                desc.alphaCurveValues = Vec4{};
+                desc.alphaCurveArrive = Vec4{};
+                desc.alphaCurveLeave = Vec4{};
+                desc.alphaCurveModes = Vec4{};
+                for (uint32 index = 0; index < keyCount; ++index)
+                    Fill_ColorOverLifeAlphaCurveComponent(desc, index, keys[index]);
+            }
+        }
+    }
+
     void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const FloatDistributionData& frameIndex)
     {
         desc.frameCurveKeyCount = 1;
@@ -551,6 +646,56 @@ namespace Internal
         }
 
         return Clamp_PreviewColor(fallbackValue);
+    }
+
+    Color Evaluate_ColorOverLifeEndpointColorMin(const ColorDistributionData& data, const Color& fallbackValue)
+    {
+        if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&data.payload))
+        {
+            if (!curve->keys.empty())
+            {
+                vector<ColorCurveKeyData> keys = curve->keys;
+                ranges::sort(keys, {}, &ColorCurveKeyData::time);
+                Color value = keys.back().value;
+                value.w = fallbackValue.w;
+                return Clamp_PreviewColor(value);
+            }
+        }
+
+        return Evaluate_ColorDistributionMin(data, fallbackValue);
+    }
+
+    Color Evaluate_ColorOverLifeEndpointColorMax(const ColorDistributionData& data, const Color& fallbackValue)
+    {
+        if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&data.payload))
+        {
+            if (!curve->keys.empty())
+            {
+                vector<ColorCurveKeyData> keys = curve->keys;
+                ranges::sort(keys, {}, &ColorCurveKeyData::time);
+                Color value = keys.back().value;
+                value.w = fallbackValue.w;
+                return Clamp_PreviewColor(value);
+            }
+        }
+
+        return Evaluate_ColorDistributionMax(data, fallbackValue);
+    }
+
+    float Evaluate_ColorOverLifeEndpointAlphaMin(const FloatDistributionData& data, float fallbackValue)
+    {
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload))
+            return Evaluate_FloatConstantCurve(*curve, 1.f, fallbackValue);
+
+        return Evaluate_FloatDistributionMin(data, fallbackValue);
+    }
+
+    float Evaluate_ColorOverLifeEndpointAlphaMax(const FloatDistributionData& data, float fallbackValue)
+    {
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload))
+            return Evaluate_FloatConstantCurve(*curve, 1.f, fallbackValue);
+
+        return Evaluate_FloatDistributionMax(data, fallbackValue);
     }
 }
 
@@ -853,27 +998,28 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
     if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
     {
-        const Color minEndColor = Internal::Evaluate_ColorDistributionMin(
+        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
             colorOverLife->colorOverLife,
             Color{ desc.colorOverLife.endColorMin.x, desc.colorOverLife.endColorMin.y, desc.colorOverLife.endColorMin.z, desc.colorOverLife.endColorMin.w }
         );
-        const Color maxEndColor = Internal::Evaluate_ColorDistributionMax(
+        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
             colorOverLife->colorOverLife,
             Color{ desc.colorOverLife.endColorMax.x, desc.colorOverLife.endColorMax.y, desc.colorOverLife.endColorMax.z, desc.colorOverLife.endColorMax.w }
         );
         const float minEndAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMin(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMin.w),
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMin.w),
             0.f,
             1.f
         );
         const float maxEndAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMax(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMax.w),
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMax.w),
             0.f,
             1.f
         );
 
         desc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         desc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+        Internal::Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
     }
 
     if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
@@ -1116,7 +1262,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
 
     if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
     {
-        const Color minEndColor = Internal::Evaluate_ColorDistributionMin(
+        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMin.x,
@@ -1125,7 +1271,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
                 emitterDesc.colorOverLife.endColorMin.w
             }
         );
-        const Color maxEndColor = Internal::Evaluate_ColorDistributionMax(
+        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMax.x,
@@ -1135,18 +1281,19 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
             }
         );
         const float minEndAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
             0.f,
             1.f
         );
         const float maxEndAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
             0.f,
             1.f
         );
 
         emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+        Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
     }
 
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
