@@ -253,6 +253,9 @@
     <Filter Include="01.Utility\04.Component\VIBuffer\Landscape">
       <UniqueIdentifier>{8b2838d7-5ee3-4c26-a1f3-6eb4e9100b13}</UniqueIdentifier>
     </Filter>
+    <Filter Include="97. Manager\ScreenFx">
+      <UniqueIdentifier>{c92959ac-4c8b-403c-96ee-3710e5b38cc4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -446,6 +449,12 @@
     </ClInclude>
     <ClInclude Include="..\Public\Sound_Manager.h">
       <Filter>01.Utility\03.GameObjects\Manager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ScreenFx_Manager.h">
+      <Filter>97. Manager\ScreenFx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ScreenFx_Instance.h">
+      <Filter>97. Manager\ScreenFx</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1048,7 +1057,6 @@
       <Filter>01.Utility\04.Component\Model\Animation\Modifier</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\MapStaticCollisionBuilder.cpp" />
-    <ClCompile Include="..\Private\SSAOPipeline.cpp" />
     <ClCompile Include="..\Private\VIBuffer_Landscape.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Landscape</Filter>
     </ClCompile>
@@ -1056,6 +1064,12 @@
       <Filter>01.Utility\03.GameObjects\Manager</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\LightingPipeline.cpp" />
+    <ClCompile Include="..\Private\ScreenFx_Manager.cpp">
+      <Filter>97. Manager\ScreenFx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ScreenFx_Instance.cpp">
+      <Filter>97. Manager\ScreenFx</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Engine_Shader_Defines.hlsli">

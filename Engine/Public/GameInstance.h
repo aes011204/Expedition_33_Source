@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #pragma region INCLUDE
 
@@ -57,6 +57,7 @@ class LightingPipeline;
 class ScreenFx_Manager;
 class ShaderResourceRegistry;
 struct StaticCollisionData;
+class ScreenFx_Instance;
 NS_END
 #pragma endregion
 
@@ -220,7 +221,7 @@ public: /* For.Object_Manager */
 
     uint64 Get_CurrentLevelObjectRevision() const;
 
-    
+
 
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
@@ -229,7 +230,8 @@ public: /* For.Renderer */
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
     const Shared<LightingPipeline>      Get_LightingPipeline() const;
     Shared<LightingPipeline>            Get_LightingPipeline();
-    const ScreenFx_Manager*             Get_ScreenFxManager() const;
+    ScreenFx_Manager*                   Get_ScreenFxManager();
+    void                                Request_ScreenCapture(bool saveToFile = false);
     RenderGroup                         Get_CurrentRenderGroup() const;
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
@@ -255,7 +257,7 @@ public: /* For.Input_Manager */
 	void  Lock_Mouse();
 	void  Unlock_Mouse();
     bool  Is_MouseLocked() const;
-    
+
     // 에디터 뷰 전환 중 포커스가 흔들려도 마우스 락을 유지할 때 시작한다.
 	void  Begin_EditorMouseLockSession();
     // 에디터 뷰 전환용 마우스 락 유지 상태를 끝낸다.
@@ -298,7 +300,7 @@ public: /* For.Font_Manager */
         float rotationRadians = 0.f,
         const Vec2& pivot = Vec2(0.f, 0.f),
         float scale = 1.f);
-        
+
 public: /* For.Asset_Manager */
     HRESULT Initialize_AssetManager(const wstring& resourceRoot);
 
@@ -378,17 +380,20 @@ public: /* For.TypeRegistry */
     const TypeRegistry::BTNodeTypeInfo*          Find_BTNodeType(const string& className) const;
     const TypeRegistry::AnimNotifyTypeInfo*      Find_AnimNotifyType(const string& className) const;
     const TypeRegistry::AnimNotifyStateTypeInfo* Find_AnimNotifyStateType(const string& className) const;
+    const TypeRegistry::ScreenFxTypeInfo*        Find_ScreenFxType(const string& className) const;
 
     void Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const;
     void Visit_AnimNotifyTypes(const function<void(const TypeRegistry::AnimNotifyTypeInfo&)>& visitor) const;
     void Visit_AnimNotifyStateTypes(const function<void(const TypeRegistry::AnimNotifyStateTypeInfo&)>& visitor) const;
 	void Visit_GlobalEnums(const function<void(const TypeRegistry::GlobalEnumInfo&)>& visitor) const;
+    void Visit_ScreenFxTypes(const function<void(const TypeRegistry::ScreenFxTypeInfo&)>& visitor) const;
 
     Shared<Component>       Create_ComponentPrototype(const string& className) const;
     Shared<GameObject>      Create_GameObjectPrototype(const string& className) const;
     Shared<Base>            Create_BTNodePrototype(const string& className) const;
     Shared<AnimNotify>      Create_AnimNotifyPrototype(const string& className) const;
     Shared<AnimNotifyState> Create_AnimNotifyStatePrototype(const string& className) const;
+    Shared<ScreenFx_Instance> Create_ScreenFxInstance(const string& className) const;
 
 
 public : /* For.Target_Manager */
@@ -482,7 +487,7 @@ public: // For. PhysX_Manager
         float probeDistance,
         PhysXQueryHit& outHit) const;
 
-public: // For. Culling_Manager 
+public: // For. Culling_Manager
     void UpdateFrustum(const Matrix& view, const Matrix& proj);
     bool IsVisible(const BoundingBox& worldAABB) const;
     void BuildOctree(const vector<BoundingBox>& worldAABBs);
@@ -557,6 +562,9 @@ public: /* For.Delegate Hub */
 public: /* For.Event Bus */
     Event_Bus& Get_EventBus() { return *_eventBus; }
 
+public: /* ScreenFx Manager */
+    void Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX) const;
+
 private:
     Unique<Log_Manager>         _logManager{};
     Unique<Graphic_Device>      _graphicDevice{};
@@ -589,7 +597,7 @@ private:
 #ifdef _DEBUG
     Unique<Print_Manager>       _printManager{};
 #endif
-    
+
 
 private:
     ComPtr<Device>               _device = {};
