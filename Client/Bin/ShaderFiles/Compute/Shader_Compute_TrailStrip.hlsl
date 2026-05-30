@@ -51,15 +51,13 @@ RWStructuredBuffer<DrawIndexedInstancedIndirectArgs> ArgsData : register(u1);
 void ApplyTrailWidth(inout float3 basePosition, inout float3 tipPosition)
 {
     const float3 center = (basePosition + tipPosition) * 0.5f;
-    float3 widthDirection = tipPosition - basePosition;
-    const float widthLength = length(widthDirection);
-    if (widthLength <= 0.0001f)
+    const float3 halfSpan = (tipPosition - basePosition) * 0.5f;
+    if (length(halfSpan) <= 0.0001f)
         return;
 
-    widthDirection /= widthLength;
-    const float halfWidth = max(g_Width, 0.0001f) * 0.5f;
-    basePosition = center - widthDirection * halfWidth;
-    tipPosition = center + widthDirection * halfWidth;
+    const float widthRatio = max(g_Width, 0.0001f);
+    basePosition = center - halfSpan * widthRatio;
+    tipPosition = center + halfSpan * widthRatio;
 }
 
 float ReadVec4Component(float4 values, uint index)
