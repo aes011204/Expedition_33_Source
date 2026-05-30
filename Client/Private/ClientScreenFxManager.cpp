@@ -11,6 +11,8 @@
 
 NS_BEGIN(Client)
 
+
+
 void ClientScreenFxManager::Play_BattleInCounterFx()
 {
     auto killCondition = [&](bool& outShouldEnd) {
@@ -36,12 +38,24 @@ void ClientScreenFxManager::Transition_To_BattleField()
     BattleTransition_ScreenFx::BattleTransitionDesc wipeDesc;
     wipeDesc.passType = ETOI(ScreenFx_Type::BattleTransition);
     wipeDesc.duration = 2.5f;       
-    wipeDesc.edgeSoftness = 0.075f;  
+    wipeDesc.edgeSoftness = 0.1f;  
     wipeDesc.maxRadius = 2.f;      
     
     wipeDesc.endPredicate = nullptr;
     
     GAME->Play_ScreenFx(BattleTransition_ScreenFx::Create(&wipeDesc));
+}
+
+void ClientScreenFxManager::Play_ActionCameraBlur()
+{
+    RadialBlur_ScreenFx::RadialBlurDesc desc{};
+    desc.center = Vec2(0.5f, 0.5f); 
+    desc.intensity = 0.75f;     
+    desc.radius = 0.85f;             // 화면 외곽 쪽에 집중되도록 반경 설정
+    desc.duration = 0.3f;       
+    desc.fadeOutTime = 0.2f;
+
+    GAME->Play_ScreenFx(RadialBlur_ScreenFx::Create(&desc));
 }
 
 

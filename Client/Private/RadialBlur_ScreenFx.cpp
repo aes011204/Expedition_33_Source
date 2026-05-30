@@ -41,19 +41,32 @@ HRESULT RadialBlur_ScreenFx::Initialize(ScreenFxDesc* desc)
 
 void RadialBlur_ScreenFx::Update_ScreenFx(float timeDelta)
 {
-    _elapsedTime += timeDelta;
-    
-    if (_originalDesc.fadeOutTime > 0.f)
+    Shared<RadialBlur_ScreenFx> blurFx = _activeActionBlur.lock();
+
+    // 1. 이미 블러 이펙트가 화면에 살아있다면? -> "수명 연장 및 강도 갱신"
+    if (blurFx && !blurFx->Check_EndCondition())
     {
-        float remainTime = _originalDesc.duration - _elapsedTime;
-        if (remainTime <= _originalDesc.fadeOutTime && remainTime > 0.f)
+        blurFx->Refresh_ActionBlur(intensity, fadeOutTime);
+    }
+    // 2. 블러 이펙트가 없거나 이미 끝났다면? -> "새로 생성"
+    else
+    {
+        RadialBlur_ScreenFx::RadialBlurDesc desc{};
+        desc.center = Vec2(0.5f, 0.5f);
+        desc.intensity = intensity;
+
+        // 만약 정말 화면 전체에 블러를 골고루 먹이고 싶다면 radius를 0.0f로 주세요.
+        // 외곽에만 먹이고 싶다면 0.7f 정도 유지.
+        desc.radius = 0.0f;
+
+        desc.duration = fadeOutTime;
+        desc.fadeOutTime = fadeOutTime;
+
+        auto newBlur = RadialBlur_ScreenFx::Create(&desc);
+        if (newBlur)
         {
-            float ratio = remainTime / _originalDesc.fadeOutTime;
-            _currentIntensity = _originalDesc.intensity * ratio;
-        }
-        else if (remainTime <= 0.f)
-        {
-            _currentIntensity = 0.f;
+            GAME->Get_ScreenFxManager()->Play_ScreenEffect(newBlur);
+            _activeActionBlur = newBlur; // 매니저가 이펙트를 기억함
         }
     }
 }

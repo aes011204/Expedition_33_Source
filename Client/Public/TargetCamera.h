@@ -156,6 +156,9 @@ private:
     Vec3 _lastCollisionDesiredPos = Vec3::Zero;
     Vec3 _lastCollisionResolvedPos = Vec3::Zero;
 
+    Vec3  _prevLookDir{};       // 이전 프레임의 카메라 바라보는 방향(Look)
+    float _actionBlurCooldown{ 0.f }; // 블러가 프레임마다 연사되는 것을 막는 쿨다운
+
 public:
     static Shared<TargetCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual Shared<GameObject> Clone(void* arg) override;

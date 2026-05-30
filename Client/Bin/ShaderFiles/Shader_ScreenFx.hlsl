@@ -67,25 +67,23 @@ PS_OUT_BACKBUFFER PS_RadialBlur(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
 
-    float2 dir = g_radialBlurCenter - In.Texcoord;
+    float2 dir = In.Texcoord - g_radialBlurCenter;
     float dist = length(dir);
-    dir = normalize(dir);
 
-    // 외곽일수록 블러 강도가 커지도록 거리 기반 가중치 적용
-    float intensity = saturate(dist / max(0.001f, g_radialBlurRadius)) * g_radialBlurIntensity;
+    float weight = smoothstep(0.f, g_radialBlurRadius, dist);
+    float blurAmount = clamp(g_radialBlurIntensity * weight, 0.f, 0.5f);
 
-    float4 color = float4(0, 0, 0, 0);
-    const int SAMPLES = 10;
+    Out.Color = float4(0, 0, 0, 0);
+    int samples = 3;
 
-    for (int i = 0; i < SAMPLES; ++i)
+    for (int i = 0; i < samples; i++)
     {
-        float scale = 1.0f - intensity * (float(i) / (float(SAMPLES) - 1.0f));
-        float2 sampleUV = g_radialBlurCenter + (In.Texcoord - g_radialBlurCenter) * scale;
-        color += g_ScreenFxTexture.Sample(LinearClampSampler, sampleUV);
+        float scale = 1.0f - blurAmount * (i / (float) (samples - 1));
+        float2 sampleUV = g_radialBlurCenter + dir * scale;
+        Out.Color += g_ScreenFxTexture.Sample(LinearSampler, sampleUV);
     }
-    color /= float(SAMPLES);
-
-    Out.Color = color;
+    
+    Out.Color /= samples;
     return Out;
 }
 
@@ -106,6 +104,7 @@ PS_OUT_BACKBUFFER PS_ChromaticAberration(PS_IN In)
 
     float r = g_ScreenFxTexture.Sample(LinearClampSampler, redUV).r;
     float g = g_ScreenFxTexture.Sample(LinearClampSampler, greenUV).g;
+
     float b = g_ScreenFxTexture.Sample(LinearClampSampler, blueUV).b;
     float a = g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord).a;
 
