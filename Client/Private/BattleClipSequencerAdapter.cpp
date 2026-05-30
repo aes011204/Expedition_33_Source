@@ -38,6 +38,22 @@ float FrameToTime(int frame)
     return static_cast<float>(frame) / static_cast<float>(kBattleClipFps);
 }
 
+int KeyTimeToFrame(float keyTime, int frameMax, bool normalizedTime)
+{
+    if (normalizedTime)
+        return static_cast<int>(std::lround(std::clamp(keyTime, 0.f, 1.f) * static_cast<float>(std::max(frameMax, 1))));
+
+    return TimeToFrame(keyTime);
+}
+
+float FrameToKeyTime(int frame, int frameMax, bool normalizedTime)
+{
+    if (normalizedTime)
+        return std::clamp(static_cast<float>(frame) / static_cast<float>(std::max(frameMax, 1)), 0.f, 1.f);
+
+    return FrameToTime(frame);
+}
+
 BattleCameraTrack* GetTrackByIndex(BattleCameraClip* clip, int index)
 {
     if (clip == nullptr)
@@ -110,6 +126,7 @@ void DrawBattleClipKeyMarkers(
     int* contextTrackIndex,
     int* contextFrame,
     int* displayFrameMax,
+    bool normalizedTime,
     int index,
     ImDrawList* drawList,
     const ImRect& rc,
@@ -127,12 +144,13 @@ void DrawBattleClipKeyMarkers(
         g_battleClipKeyDragState = {};
 
     const int frameMin = 0;
-    const int clipFrameMax = std::max(TimeToFrame(clip->duration), 1);
+    const int normalizedFrameMax = (displayFrameMax != nullptr) ? std::max(*displayFrameMax, 1) : 1;
+    const int clipFrameMax = normalizedTime ? normalizedFrameMax : std::max(TimeToFrame(clip->duration), 1);
     const int frameMax = (displayFrameMax != nullptr)
         ? std::max(*displayFrameMax, clipFrameMax)
         : clipFrameMax;
     const int frameRange = std::max(frameMax - frameMin, 1);
-    const float authoringDurationSec = FrameToTime(frameMax);
+    const float authoringDurationSec = normalizedTime ? 1.f : FrameToTime(frameMax);
     bool isHoveringAnyKey = false;
 
     drawList->PushClipRect(clippingRect.Min, clippingRect.Max, true);
@@ -140,7 +158,7 @@ void DrawBattleClipKeyMarkers(
     for (int keyIndex = 0; keyIndex < static_cast<int>(track->keyframes.size()); ++keyIndex)
     {
         BattleCameraKeyframe& keyframe = track->keyframes[keyIndex];
-        const int keyFrame = std::clamp(TimeToFrame(keyframe.time), frameMin, frameMax);
+        const int keyFrame = std::clamp(KeyTimeToFrame(keyframe.time, frameMax, normalizedTime), frameMin, frameMax);
         const float normalized = static_cast<float>(keyFrame - frameMin) / static_cast<float>(frameRange);
         const float markerX = std::max(rc.Min.x, std::min(rc.Min.x + normalized * (rc.Max.x - rc.Min.x), rc.Max.x));
         const float centerY = (rc.Min.y + rc.Max.y) * 0.5f;
@@ -203,14 +221,14 @@ void DrawBattleClipKeyMarkers(
             int maxFrame = frameMax;
 
             if (keyIndex > 0)
-                minFrame = std::max(minFrame, TimeToFrame(track->keyframes[keyIndex - 1].time));
+                minFrame = std::max(minFrame, KeyTimeToFrame(track->keyframes[keyIndex - 1].time, frameMax, normalizedTime));
 
             if (keyIndex + 1 < static_cast<int>(track->keyframes.size()))
-                maxFrame = std::min(maxFrame, TimeToFrame(track->keyframes[keyIndex + 1].time));
+                maxFrame = std::min(maxFrame, KeyTimeToFrame(track->keyframes[keyIndex + 1].time, frameMax, normalizedTime));
 
             const int clampedFrame = std::clamp(rawFrame, minFrame, maxFrame);
-            keyframe.time = std::clamp(FrameToTime(clampedFrame), 0.f, authoringDurationSec);
-            if (keyframe.time > clip->duration)
+            keyframe.time = std::clamp(FrameToKeyTime(clampedFrame, frameMax, normalizedTime), 0.f, authoringDurationSec);
+            if (!normalizedTime && keyframe.time > clip->duration)
                 clip->duration = keyframe.time;
 
             if (currentFrame != nullptr)
@@ -274,6 +292,7 @@ BattleClipSequencerAdapter::BattleClipSequencerAdapter(
     int* contextTrackIndex,
     int* contextFrame,
     int* displayFrameMax,
+    bool normalizedTime,
     bool* previewDirty,
     bool* distanceEnabled,
     bool* fovEnabled,
@@ -295,6 +314,7 @@ BattleClipSequencerAdapter::BattleClipSequencerAdapter(
     , _contextTrackIndex(contextTrackIndex)
     , _contextFrame(contextFrame)
     , _displayFrameMax(displayFrameMax)
+    , _normalizedTime(normalizedTime)
     , _previewDirty(previewDirty)
 {
     _trackEnabledFlags[0] = distanceEnabled;
@@ -322,6 +342,9 @@ int BattleClipSequencerAdapter::GetFrameMax() const
     const int clipFrameMax = std::max(TimeToFrame(GetClip()->duration), 1);
     if (_displayFrameMax == nullptr)
         return clipFrameMax;
+
+    if (_normalizedTime)
+        return std::max(*_displayFrameMax, 1);
 
     return std::max(clipFrameMax, std::max(*_displayFrameMax, 1));
 }
@@ -425,6 +448,7 @@ void BattleClipSequencerAdapter::CustomDraw(int index, ImDrawList* drawList, con
         _contextTrackIndex,
         _contextFrame,
         _displayFrameMax,
+        _normalizedTime,
         index,
         drawList,
         rc,
@@ -445,6 +469,7 @@ void BattleClipSequencerAdapter::CustomDrawCompact(int index, ImDrawList* drawLi
         _contextTrackIndex,
         _contextFrame,
         _displayFrameMax,
+        _normalizedTime,
         index,
         drawList,
         rc,

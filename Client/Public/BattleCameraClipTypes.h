@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 enum class BattleCameraClipTimeMode : uint8
 {
@@ -12,10 +12,20 @@ struct BattleCameraKeyframe
     float value = 0.f;
 };
 
+//struct BattleCameraShakeKeyframe
+//{
+// 
+//};
+
 struct BattleCameraTrack
 {
     vector<BattleCameraKeyframe> keyframes;
 };
+
+//struct BattleCameraShakeTrack
+//{
+//    vector<BattleCameraShakeKeyframe> keyframes;
+//};
 
 struct BattleCameraClip
 {

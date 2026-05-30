@@ -30,6 +30,7 @@
 namespace
 {
 constexpr float kBattleClipPreviewFps = 30.f;
+constexpr float kBattleAnimationPreviewFps = 60.f;
 constexpr float kLeftPanelComboWidth = 170.f;
 constexpr float kLeftPanelWideComboWidth = 210.f;
 constexpr float kSlotSideComboWidth = 86.f;
@@ -342,13 +343,26 @@ void BattleCameraPreview_View::Update(float timeDelta)
 
     if (_timelinePlaying)
     {
-        _battleClipCurrentFrame += std::max(1, static_cast<int>(std::round(timeDelta * kBattleClipPreviewFps)));
+        const float clipTimeDelta = (_editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync)
+            ? timeDelta * kBattleAnimationPreviewFps
+            : timeDelta;
+        const float frameDelta = (_editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync)
+            ? clipTimeDelta
+            : clipTimeDelta * kBattleClipPreviewFps;
+        _battleClipPlaybackFrameAccumulator += std::max(0.f, frameDelta);
+        const int frameAdvance = static_cast<int>(std::floor(_battleClipPlaybackFrameAccumulator));
+        if (frameAdvance > 0)
+        {
+            _battleClipCurrentFrame += frameAdvance;
+            _battleClipPlaybackFrameAccumulator -= static_cast<float>(frameAdvance);
+        }
 
         const int frameMax = Get_BattleClipPreviewFrameMax();
         if (_battleClipCurrentFrame >= frameMax)
         {
             _battleClipCurrentFrame = frameMax;
             _timelinePlaying = false;
+            _battleClipPlaybackFrameAccumulator = 0.f;
         }
 
         Sync_PreviewTimeFromTimeline();
@@ -384,6 +398,8 @@ void BattleCameraPreview_View::Pre_Render()
     }
     else if (_previewEnabled)
     {
+        Position_PreviewObjects();
+        Update_PreviewAttackActorMotion(_previewContext.timeSec);
         Apply_BattleCameraPreviewPose(_previewContext.timeSec);
     }
 
@@ -791,6 +807,37 @@ void BattleCameraPreview_View::Render_ContextPanel()
         }
     }
 
+    if (ImGui::Checkbox("Use Manual Authoring Target", &_useManualBattleAuthoringTarget))
+    {
+        RetargetLoadedBattleAuthoringDataToCurrentTarget();
+    }
+
+    char manualPresetBuffer[128] = {};
+    const size_t manualPresetLength = std::min(_manualBattleAuthoringPresetId.size(), static_cast<size_t>(127));
+    memcpy(manualPresetBuffer, _manualBattleAuthoringPresetId.data(), manualPresetLength);
+    manualPresetBuffer[manualPresetLength] = '\0';
+    char manualClipBuffer[128] = {};
+    const size_t manualClipLength = std::min(_manualBattleAuthoringClipId.size(), static_cast<size_t>(127));
+    memcpy(manualClipBuffer, _manualBattleAuthoringClipId.data(), manualClipLength);
+    manualClipBuffer[manualClipLength] = '\0';
+    ImGui::BeginDisabled(!_useManualBattleAuthoringTarget);
+    ImGui::SetNextItemWidth(kLeftPanelWideComboWidth);
+    if (ImGui::InputText("Authoring Preset Id", manualPresetBuffer, 128))
+    {
+        _manualBattleAuthoringPresetId = manualPresetBuffer;
+        RetargetLoadedBattleAuthoringDataToCurrentTarget();
+    }
+    ImGui::SetNextItemWidth(kLeftPanelWideComboWidth);
+    if (ImGui::InputText("Authoring Clip Id", manualClipBuffer, 128))
+    {
+        _manualBattleAuthoringClipId = manualClipBuffer;
+        RetargetLoadedBattleAuthoringDataToCurrentTarget();
+    }
+    ImGui::EndDisabled();
+
+    if (_useManualBattleAuthoringTarget)
+        ImGui::TextDisabled("Manual authoring preset/clip ids override selected shot block ids for load/save.");
+
     Render_PreviewActorSelector();
 
     Render_SlotSelector("Subject", _previewContext.subjectSide, _previewContext.subjectSlot);
@@ -1029,7 +1076,8 @@ void BattleCameraPreview_View::Render_PreviewPanel()
 
     ImGui::Text("Mode : %s", magic_enum::enum_name(_previewContext.mode).data());
     ImGui::Text("Skill : %s", Get_SelectedSkillId().empty() ? "(default)" : Get_SelectedSkillId().c_str());
-    ImGui::Text("Profile : %s", Get_CurrentBattleAuthoringOverrideId().empty() ? "(default)" : Get_CurrentBattleAuthoringOverrideId().c_str());
+    ImGui::Text("Preset Id : %s", Get_CurrentBattlePresetAuthoringOverrideId().empty() ? "(default)" : Get_CurrentBattlePresetAuthoringOverrideId().c_str());
+    ImGui::Text("Clip Id : %s", Get_CurrentBattleClipAuthoringOverrideId().empty() ? "(default)" : Get_CurrentBattleClipAuthoringOverrideId().c_str());
     ImGui::Text("Hero Prefab : %s", Get_SelectedHeroPrefabName().empty() ? "(none)" : Get_SelectedHeroPrefabName().c_str());
     ImGui::Text("Enemy Prefab : %s", Get_SelectedEnemyPrefabName().empty() ? "(none)" : Get_SelectedEnemyPrefabName().c_str());
 
@@ -1259,10 +1307,10 @@ void BattleCameraPreview_View::Render_TransitionPreviewPanel()
 void BattleCameraPreview_View::Render_BattlePresetEditor()
 {
     const BattleCameraMode editorMode = Get_BattlePresetEditorMode();
-    const string selectedSkillId = Get_CurrentBattleAuthoringOverrideId();
+    const string selectedPresetId = Get_CurrentBattlePresetAuthoringOverrideId();
     if (!_hasLoadedBattlePreset ||
         _loadedBattlePresetMode != editorMode ||
-        _loadedBattlePresetSkillId != selectedSkillId)
+        _loadedBattlePresetSkillId != selectedPresetId)
     {
         Load_BattlePresetForMode(editorMode);
     }
@@ -1285,8 +1333,7 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
         Load_BattlePresetForMode(editorMode);
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
             battleTurnCamera->Set_Preset(editorMode, _editingBattlePreset);
-        if (editorMode == _previewContext.mode)
-            _previewDirty = true;
+        _previewDirty = true;
     }
 
     ImGui::SameLine();
@@ -1295,15 +1342,14 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
         Load_BattlePresetForMode(editorMode, true);
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
             battleTurnCamera->Set_Preset(editorMode, _editingBattlePreset);
-        if (editorMode == _previewContext.mode)
-            _previewDirty = true;
+        _previewDirty = true;
     }
 
-    ImGui::TextDisabled("Load Preset starts from fallback and only applies the current shot/profile override. Load Base Preset explicitly includes the mode default first.");
+    ImGui::TextDisabled("Load Preset starts from fallback and only applies the current shot/preset id override. Load Base Preset explicitly includes the mode default first.");
 
     if (ImGui::Button("Save Preset"))
     {
-        Client::CameraPresetIO::SaveBattlePresetToFile(editorMode, _editingBattlePreset, selectedSkillId);
+        Client::CameraPresetIO::SaveBattlePresetToFile(editorMode, _editingBattlePreset, selectedPresetId);
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
             battleTurnCamera->Set_Preset(editorMode, _editingBattlePreset);
     }
@@ -1351,8 +1397,7 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
         if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
             battleTurnCamera->Set_Preset(editorMode, _editingBattlePreset);
 
-        if (editorMode == _previewContext.mode)
-            _previewDirty = true;
+        _previewDirty = true;
     }
 }
 
@@ -1368,12 +1413,17 @@ void BattleCameraPreview_View::Render_TimelinePanel()
             ImGui::TextDisabled("Battle Clip Timeline");
             ImGui::Separator();
 
-            const string selectedSkillId = Get_CurrentBattleAuthoringOverrideId();
+            const BattleCameraMode editorMode = Get_CurrentBattleAuthoringMode();
+            const string selectedClipId = Get_CurrentBattleClipAuthoringOverrideId();
+            ImGui::TextDisabled(
+                "Clip Target : %s / %s",
+                magic_enum::enum_name(editorMode).data(),
+                selectedClipId.empty() ? "(default)" : selectedClipId.c_str());
             if (!_hasLoadedBattleClip ||
-                _loadedBattleClipMode != _previewContext.mode ||
-                _loadedBattleClipSkillId != selectedSkillId)
+                _loadedBattleClipMode != editorMode ||
+                _loadedBattleClipSkillId != selectedClipId)
             {
-                Load_BattleClipForCurrentMode();
+                Load_BattleClipForMode(editorMode);
                 _previewDirty = true;
             }
 
@@ -1403,6 +1453,8 @@ void BattleCameraPreview_View::Render_TimelinePanel()
                     if (ImGui::Selectable(Get_BattleClipTimeModeLabel(timeMode), isSelected))
                     {
                         _editingBattleClip.timeMode = timeMode;
+                        if (timeMode == BattleCameraClipTimeMode::AnimationSync)
+                            _editingBattleClip.duration = 1.f;
                         _battleClipCurrentFrame = std::clamp(_battleClipCurrentFrame, 0, Get_BattleClipPreviewFrameMax());
                         Sync_PreviewTimeFromTimeline();
                         _previewDirty = true;
@@ -1417,21 +1469,25 @@ void BattleCameraPreview_View::Render_TimelinePanel()
 
             if (ImGui::Button("Load Clip"))
             {
-                Load_BattleClipForCurrentMode();
+                Load_BattleClipForMode(editorMode);
                 _previewDirty = true;
             }
 
             ImGui::SameLine();
             if (ImGui::Button("Load Base Clip"))
             {
-                Load_BattleClipForCurrentMode(true);
+                Load_BattleClipForMode(editorMode, true);
                 _previewDirty = true;
             }
 
-            ImGui::TextDisabled("Load Clip starts empty and only applies the current shot/profile override. Load Base Clip explicitly pulls in the mode default first.");
+            ImGui::TextDisabled("Load Clip starts empty and only applies the current shot/clip id override. Load Base Clip explicitly pulls in the mode default first.");
 
             if (ImGui::Button("Save Clip"))
-                Client::BattleCameraClipIO::SaveBattleCameraClipToFile(_previewContext.mode, _editingBattleClip, selectedSkillId);
+            {
+                Client::BattleCameraClipIO::SaveBattleCameraClipToFile(editorMode, _editingBattleClip, selectedClipId);
+                if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
+                    battleTurnCamera->Set_Clip(editorMode, _editingBattleClip, selectedClipId);
+            }
 
             ImGui::SameLine();
             if (ImGui::Button(_timelinePlaying ? "Pause" : "Play"))
@@ -1447,7 +1503,7 @@ void BattleCameraPreview_View::Render_TimelinePanel()
             }
 
             ImGui::SameLine();
-            ImGui::TextDisabled("Frame %d | Time %.3f s", _battleClipCurrentFrame, _previewContext.timeSec);
+            ImGui::TextDisabled("Frame %d | Time %.3f s", _battleClipCurrentFrame, Get_CurrentBattleClipPreviewTimeSec());
 
             ImGui::Separator();
             ImGui::TextDisabled("Animation");
@@ -1516,6 +1572,8 @@ void BattleCameraPreview_View::Render_SkillShotTimeline()
     ImGui::Separator();
     ImGui::TextDisabled("Skill Shot Timeline");
     ImGui::Checkbox("Use Skill Timeline Preview", &_useSkillShotTimeline);
+    ImGui::SameLine();
+    ImGui::Checkbox("Preview Attack Movement", &_previewAttackMovementEnabled);
     bool shotTimingChanged = false;
 
     ImGui::SameLine();
@@ -1570,15 +1628,49 @@ void BattleCameraPreview_View::Render_SkillShotTimeline()
     };
 
     const float phaseTop = canvasMin.y + 10.f;
-    for (const PreviewSkillPhaseBlock& block : _previewSkillPhaseBlocks)
+    bool interactedWithPhase = false;
+    for (int i = 0; i < static_cast<int>(_previewSkillPhaseBlocks.size()); ++i)
     {
+        const PreviewSkillPhaseBlock& block = _previewSkillPhaseBlocks[i];
         const float x0 = timeToX(block.startTimeSec);
         const float x1 = timeToX(block.startTimeSec + block.durationSec);
-        drawList->AddRectFilled(ImVec2(x0, phaseTop), ImVec2(x1, phaseTop + phaseHeight), IM_COL32(58, 64, 74, 255), 4.f);
-        drawList->AddRect(ImVec2(x0, phaseTop), ImVec2(x1, phaseTop + phaseHeight), IM_COL32(110, 118, 134, 255), 4.f);
+        const bool isSelectedPhase = _selectedPreviewSkillPhaseIndex == i;
+        const PreviewSkillPhaseBlock* activePhase = Resolve_ActivePreviewSkillPhase(_previewContext.timeSec);
+        const bool isActivePhase = activePhase == &block;
+        ImU32 fillColor = IM_COL32(58, 64, 74, 255);
+        ImU32 outlineColor = IM_COL32(110, 118, 134, 255);
+        if (isSelectedPhase && isActivePhase)
+        {
+            fillColor = IM_COL32(92, 126, 175, 255);
+            outlineColor = IM_COL32(194, 225, 255, 255);
+        }
+        else if (isSelectedPhase)
+        {
+            fillColor = IM_COL32(76, 98, 134, 255);
+            outlineColor = IM_COL32(194, 225, 255, 255);
+        }
+        else if (isActivePhase)
+        {
+            fillColor = IM_COL32(58, 64, 74, 255);
+            outlineColor = IM_COL32(140, 208, 255, 255);
+        }
+
+        const ImRect phaseRect(ImVec2(x0, phaseTop), ImVec2(x1, phaseTop + phaseHeight));
+        drawList->AddRectFilled(phaseRect.Min, phaseRect.Max, fillColor, 4.f);
+        drawList->AddRect(phaseRect.Min, phaseRect.Max, outlineColor, 4.f, 0, isActivePhase ? 2.f : 1.f);
 
         const string label = "P" + std::to_string(block.phaseIndex) + " " + block.animationKey;
         drawList->AddText(ImVec2(x0 + 6.f, phaseTop + 6.f), IM_COL32(225, 229, 236, 255), label.c_str());
+
+        if (ImGui::IsMouseHoveringRect(phaseRect.Min, phaseRect.Max, false) &&
+            ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        {
+            _selectedPreviewSkillPhaseIndex = i;
+            _previewContext.timeSec = block.startTimeSec;
+            Sync_BattleClipFrameFromPreviewTime();
+            _previewDirty = true;
+            interactedWithPhase = true;
+        }
     }
 
     const float shotTop = phaseTop + phaseHeight + 18.f;
@@ -1618,9 +1710,14 @@ void BattleCameraPreview_View::Render_SkillShotTimeline()
         drawList->AddRectFilled(leftHandleRect.Min, leftHandleRect.Max, IM_COL32(238, 220, 175, 180), 3.f);
         drawList->AddRectFilled(rightHandleRect.Min, rightHandleRect.Max, IM_COL32(238, 220, 175, 180), 3.f);
 
-        const string label = block.profileId.empty()
-            ? string(magic_enum::enum_name(block.mode))
-            : string(magic_enum::enum_name(block.mode)) + " / " + block.profileId;
+        string label = string(magic_enum::enum_name(block.mode));
+        if (!block.presetId.empty() || !block.clipId.empty())
+        {
+            label += " / P:";
+            label += block.presetId.empty() ? "-" : block.presetId;
+            label += " / C:";
+            label += block.clipId.empty() ? "-" : block.clipId;
+        }
         drawList->AddText(ImVec2(rect.Min.x + 6.f, rect.Min.y + 8.f), IM_COL32(18, 18, 18, 255), label.c_str());
 
         const bool hoverLeftHandle = ImGui::IsMouseHoveringRect(leftHandleRect.Min, leftHandleRect.Max, false);
@@ -1700,17 +1797,40 @@ void BattleCameraPreview_View::Render_SkillShotTimeline()
     drawList->AddLine(ImVec2(playheadX, phaseTop - 4.f), ImVec2(playheadX, shotBottom + 4.f), IM_COL32(140, 208, 255, 255), 2.f);
 
     const ImRect timelineRect(ImVec2(innerMinX, phaseTop), ImVec2(innerMinX + innerWidth, shotBottom));
-    if (!interactedWithBlock &&
+    if (!interactedWithPhase &&
+        !interactedWithBlock &&
         ImGui::IsMouseHoveringRect(timelineRect.Min, timelineRect.Max, false) &&
         ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
         _previewContext.timeSec = xToTime(ImGui::GetIO().MousePos.x);
-        _battleClipCurrentFrame = std::max(0, static_cast<int>(std::lround(_previewContext.timeSec * kBattleClipPreviewFps)));
+        const PreviewSkillPhaseBlock* activePhase = Resolve_ActivePreviewSkillPhase(_previewContext.timeSec);
+        if (activePhase != nullptr)
+        {
+            for (int i = 0; i < static_cast<int>(_previewSkillPhaseBlocks.size()); ++i)
+            {
+                if (&_previewSkillPhaseBlocks[i] == activePhase)
+                {
+                    _selectedPreviewSkillPhaseIndex = i;
+                    break;
+                }
+            }
+        }
+        Sync_BattleClipFrameFromPreviewTime();
         _previewDirty = true;
     }
 
     ImGui::Dummy(canvasSize);
     ImGui::EndChild();
+
+    if (const PreviewSkillPhaseBlock* selectedPhase = Get_SelectedPreviewSkillPhase())
+    {
+        ImGui::TextDisabled(
+            "Selected Phase: P%d %s | Start %.3f s | Duration %.3f s",
+            selectedPhase->phaseIndex,
+            selectedPhase->animationKey.c_str(),
+            selectedPhase->startTimeSec,
+            selectedPhase->durationSec);
+    }
 
     if (PreviewCameraShotBlock* selectedBlock = Get_SelectedPreviewShotBlock())
     {
@@ -1735,19 +1855,42 @@ void BattleCameraPreview_View::Render_SkillShotTimeline()
 
         if (Select_EnumCombo("Shot Mode", selectedBlock->mode, 180.f))
         {
-            _hasLoadedBattlePreset = false;
-            _hasLoadedBattleClip = false;
+            const bool wasActiveBlock = Resolve_ActivePreviewShotBlock(_previewContext.timeSec) == selectedBlock;
+            const BattleCameraMode previousMode = _previewContext.mode;
+            if (wasActiveBlock)
+            {
+                _previewContext.mode = selectedBlock->mode;
+                _activePreviewShotMode = selectedBlock->mode;
+                if (previousMode != selectedBlock->mode)
+                    Apply_DefaultPreviewSlotsForMode(_previewContext.mode);
+            }
+            RetargetLoadedBattleAuthoringDataToCurrentTarget();
             _previewDirty = true;
         }
-        char profileBuffer[128] = {};
-        const size_t profileCopyLength = std::min(selectedBlock->profileId.size(), static_cast<size_t>(127));
-        memcpy(profileBuffer, selectedBlock->profileId.data(), profileCopyLength);
-        profileBuffer[profileCopyLength] = '\0';
-        if (ImGui::InputText("Shot Profile Id", profileBuffer, 128))
+        char presetBuffer[128] = {};
+        const size_t presetCopyLength = std::min(selectedBlock->presetId.size(), static_cast<size_t>(127));
+        memcpy(presetBuffer, selectedBlock->presetId.data(), presetCopyLength);
+        presetBuffer[presetCopyLength] = '\0';
+        if (ImGui::InputText("Shot Preset Id", presetBuffer, 128))
         {
-            selectedBlock->profileId = profileBuffer;
-            _hasLoadedBattlePreset = false;
-            _hasLoadedBattleClip = false;
+            selectedBlock->presetId = presetBuffer;
+            const bool wasActiveBlock = Resolve_ActivePreviewShotBlock(_previewContext.timeSec) == selectedBlock;
+            if (wasActiveBlock)
+                _activePreviewShotPresetId = selectedBlock->presetId;
+            RetargetLoadedBattleAuthoringDataToCurrentTarget();
+            _previewDirty = true;
+        }
+        char clipBuffer[128] = {};
+        const size_t clipCopyLength = std::min(selectedBlock->clipId.size(), static_cast<size_t>(127));
+        memcpy(clipBuffer, selectedBlock->clipId.data(), clipCopyLength);
+        clipBuffer[clipCopyLength] = '\0';
+        if (ImGui::InputText("Shot Clip Id", clipBuffer, 128))
+        {
+            selectedBlock->clipId = clipBuffer;
+            const bool wasActiveBlock = Resolve_ActivePreviewShotBlock(_previewContext.timeSec) == selectedBlock;
+            if (wasActiveBlock)
+                _activePreviewShotClipId = selectedBlock->clipId;
+            RetargetLoadedBattleAuthoringDataToCurrentTarget();
             _previewDirty = true;
         }
 
@@ -1783,7 +1926,8 @@ void BattleCameraPreview_View::Render_SkillShotTimeline()
             if (fabsf(candidate.startTimeSec - selectedSnapshot.startTimeSec) <= 0.0001f &&
                 fabsf(candidate.endTimeSec - selectedSnapshot.endTimeSec) <= 0.0001f &&
                 candidate.mode == selectedSnapshot.mode &&
-                candidate.profileId == selectedSnapshot.profileId)
+                candidate.presetId == selectedSnapshot.presetId &&
+                candidate.clipId == selectedSnapshot.clipId)
             {
                 _selectedPreviewShotBlockIndex = i;
                 break;
@@ -1814,6 +1958,7 @@ void BattleCameraPreview_View::Render_BattleClipSequencer()
         &_battleClipContextTrackIndex,
         &_battleClipContextFrame,
         &previewFrameMax,
+        _editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync,
         &_previewDirty,
         &_previewDistanceOffsetEnabled,
         &_previewFovOffsetEnabled,
@@ -1860,8 +2005,11 @@ void BattleCameraPreview_View::Render_SelectedBattleClipKeyframe()
     ImGui::TextDisabled("Selected Key | Track %d | Key %d", _battleClipSelectedTrackIndex, _battleClipSelectedKeyIndex);
 
     const float authoringDurationSec = Get_BattleClipAuthoringDurationSec();
+    const char* timeLabel = _editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync
+        ? "Key Time (Norm)"
+        : "Key Time";
     ImGui::SetNextItemWidth(140.f);
-    if (ImGui::DragFloat("Key Time", &keyframe->time, 0.01f, 0.f, authoringDurationSec))
+    if (ImGui::DragFloat(timeLabel, &keyframe->time, 0.01f, 0.f, authoringDurationSec))
     {
         keyframe->time = std::clamp(keyframe->time, 0.f, authoringDurationSec);
         if (keyframe->time > _editingBattleClip.duration)
@@ -1880,7 +2028,7 @@ void BattleCameraPreview_View::Render_SelectedBattleClipKeyframe()
             }
         }
 
-        _battleClipCurrentFrame = static_cast<int>(std::lround(keyframe->time * kBattleClipPreviewFps));
+        _battleClipCurrentFrame = Get_BattleClipFrameFromTime(keyframe->time);
         Sync_PreviewTimeFromTimeline();
         _previewDirty = true;
     }
@@ -1902,17 +2050,27 @@ void BattleCameraPreview_View::Render_BattleClipDebugPanel()
         return;
 
     const float previewTimeSec = _previewContext.timeSec;
+    const float previewClipTimeSec = Get_CurrentBattleClipPreviewTimeSec();
     const float animationDurationSec = Get_CurrentPreviewAnimationDurationSec();
     const int previewFrameMax = Get_BattleClipPreviewFrameMax();
-    const BattleCameraClipSample clipSample = Client::Sample_BattleCameraClip(_editingBattleClip, previewTimeSec);
-    const float trackSample = Client::Sample_BattleCameraTrack(*debugTrack, previewTimeSec);
+    const BattleCameraClipSample clipSample = Client::Sample_BattleCameraClip(_editingBattleClip, previewClipTimeSec);
+    const float trackSample = Client::Sample_BattleCameraTrack(*debugTrack, previewClipTimeSec);
     const bool isSorted = Is_BattleClipTrackSorted(*debugTrack);
 
     ImGui::Separator();
     ImGui::TextDisabled("Clip Debug");
     ImGui::Text("Frame: %d / %d", _battleClipCurrentFrame, previewFrameMax);
     ImGui::Text("Preview Time: %.3f s", previewTimeSec);
-    ImGui::Text("Clip Duration: %.3f s", _editingBattleClip.duration);
+    if (_editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync)
+    {
+        ImGui::Text("Clip Time: %.3f", previewClipTimeSec);
+        ImGui::Text("Clip Duration: %.3f", 1.f);
+    }
+    else
+    {
+        ImGui::Text("Clip Time: %.3f s", previewClipTimeSec);
+        ImGui::Text("Clip Duration: %.3f s", _editingBattleClip.duration);
+    }
     ImGui::Text("Skill Sequence Duration: %.3f s", Get_PreviewSkillSequenceDuration());
     ImGui::Text("Time Mode: %s", Get_BattleClipTimeModeLabel(_editingBattleClip.timeMode));
     ImGui::Text("Animation Duration: %.3f s", animationDurationSec);
@@ -2067,6 +2225,7 @@ void BattleCameraPreview_View::Apply_PreviewContext()
         Rebuild_PreviewObjects();
 
     Apply_ActivePreviewShotBlock(_previewContext.timeSec);
+    Sync_BattleClipFrameFromPreviewTime();
     Apply_PreviewAnimation(_previewContext.timeSec);
     Update_PreviewAttackActorMotion(_previewContext.timeSec);
     Apply_BattleCameraPreviewPose(_previewContext.timeSec);
@@ -2082,8 +2241,8 @@ void BattleCameraPreview_View::Apply_PreviewAnimation(float previewTimeSec) cons
     string animationName{};
     if (_useSkillShotTimeline)
     {
-        if (const PreviewSkillPhaseBlock* activePhase = Resolve_ActivePreviewSkillPhase(previewTimeSec))
-            animationName = activePhase->animationKey;
+        if (const PreviewSkillPhaseBlock* currentPhase = Resolve_CurrentPreviewSkillPhase(previewTimeSec))
+            animationName = currentPhase->animationKey;
     }
 
     if (animationName.empty() &&
@@ -2104,11 +2263,13 @@ void BattleCameraPreview_View::Apply_PreviewAnimation(float previewTimeSec) cons
     float animationTimeSec = previewTimeSec;
     if (_useSkillShotTimeline)
     {
-        if (const PreviewSkillPhaseBlock* activePhase = Resolve_ActivePreviewSkillPhase(previewTimeSec))
-            animationTimeSec = std::max(0.f, previewTimeSec - activePhase->startTimeSec);
+        if (const PreviewSkillPhaseBlock* currentPhase = Resolve_CurrentPreviewSkillPhase(previewTimeSec))
+            animationTimeSec = std::max(0.f, previewTimeSec - currentPhase->startTimeSec);
     }
 
-    if (_editingBattleClip.timeMode == BattleCameraClipTimeMode::Independent)
+    const BattleCameraClipTimeMode previewTimeMode = _editingBattleClip.timeMode;
+
+    if (previewTimeMode == BattleCameraClipTimeMode::Independent)
         animationTimeSec = std::clamp(animationTimeSec, 0.f, std::max(0.f, model->Get_CurrentAnimationDurationSec()));
 
     model->Set_CurrentAnimationTimeSec(animationTimeSec);
@@ -2121,10 +2282,11 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
         return;
 
     Ensure_BattlePresetLoaded();
+    const BattleCameraMode previewMode = _previewContext.mode;
     const BattleCameraPreset& preset = _editingBattlePreset;
-
-    const BattleCameraClipSample clipSample = Uses_RuntimeBattleClip(_previewContext.mode)
-        ? Client::Sample_BattleCameraClip(_editingBattleClip, previewTimeSec)
+    const float previewClipTimeSec = Get_CurrentBattleClipPreviewTimeSec();
+    const BattleCameraClipSample clipSample = Uses_RuntimeBattleClip(previewMode)
+        ? Client::Sample_BattleCameraClip(_editingBattleClip, previewClipTimeSec)
         : BattleCameraClipSample{};
     BattleCameraClipSample previewClipSample = clipSample;
     if (!_previewFovOffsetEnabled)
@@ -2153,8 +2315,7 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
     Vec3 subjectPos = Get_PreviewSlotWorldPosition(_previewContext.subjectSide, _previewContext.subjectSlot);
     Vec3 opponentPos = Get_PreviewSlotWorldPosition(_previewContext.opponentSide, _previewContext.opponentSlot);
 
-    if (_previewContext.mode == BattleCameraMode::PLAYERATTACK ||
-        _previewContext.mode == BattleCameraMode::ENEMYATTACK)
+    if (previewMode != BattleCameraMode::WIDE)
     {
         if (Shared<GameObject> subjectObject = Resolve_PreviewBattleActor(_previewContext.subjectSide))
         {
@@ -2171,7 +2332,7 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
 
     const bool isPoseStateChanged =
         !_previewHasSmoothedTarget ||
-        _previewPoseMode != _previewContext.mode ||
+        _previewPoseMode != previewMode ||
         _previewPoseSubjectSide != _previewContext.subjectSide ||
         _previewPoseSubjectSlot != _previewContext.subjectSlot ||
         previewTimeSec < _previewPoseLastTimeSec;
@@ -2182,21 +2343,32 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
         _previewHasSmoothedTarget = true;
     }
 
-    const float poseTimeDelta = isPoseStateChanged ? 0.f : std::max(0.f, previewTimeSec - _previewPoseLastTimeSec);
-    _previewSmoothedTargetPos = Vec3::Lerp(
-        _previewSmoothedTargetPos,
-        subjectPos,
-        poseTimeDelta * preset.followSpeed);
+    if (previewMode == BattleCameraMode::WIDE)
+    {
+        const float poseTimeDelta = isPoseStateChanged ? 0.f : std::max(0.f, previewTimeSec - _previewPoseLastTimeSec);
+        _previewSmoothedTargetPos = Vec3::Lerp(
+            _previewSmoothedTargetPos,
+            subjectPos,
+            poseTimeDelta * preset.followSpeed);
+    }
+    else
+    {
+        // Match current runtime behavior in BattleTurnCamera::Update_FromCurrentPreset():
+        // subject focus modes use the actor's current world position directly.
+        _previewSmoothedTargetPos = subjectPos;
+    }
 
-    _previewPoseMode = _previewContext.mode;
+    _previewPoseMode = previewMode;
     _previewPoseSubjectSide = _previewContext.subjectSide;
     _previewPoseSubjectSlot = _previewContext.subjectSlot;
     _previewPoseLastTimeSec = previewTimeSec;
 
     Vec3 desiredPos = Vec3::Zero;
     Vec3 lookTarget = Vec3::Zero;
+    float evaluatedFovY = finalFovY;
+    float evaluatedRollOffset = preset.rollOffset;
 
-    if (_previewContext.mode == BattleCameraMode::WIDE)
+    if (previewMode == BattleCameraMode::WIDE)
     {
         Vec3 heroCenter = Vec3::Zero;
         uint32 heroCount = 0;
@@ -2248,14 +2420,40 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
             backDir * (preset.distance + previewClipSample.distanceOffset) +
             rightDir * (2.0f + previewClipSample.sideOffset) +
             Vec3(2.f, 3.f, -2.f);
+
+        Vec3 cameraForward = lookTarget - desiredPos;
+        if (cameraForward.LengthSquared() <= 0.0001f)
+            cameraForward = Vec3::Look;
+        else
+            cameraForward.Normalize();
+
+        Vec3 cameraRight = Vec3::Up.Cross(cameraForward);
+        if (cameraRight.LengthSquared() <= 0.0001f)
+            cameraRight = Vec3::Right;
+        else
+            cameraRight.Normalize();
+
+        Vec3 cameraUp = cameraForward.Cross(cameraRight);
+        if (cameraUp.LengthSquared() <= 0.0001f)
+            cameraUp = Vec3::Up;
+        else
+            cameraUp.Normalize();
+
+        desiredPos += Client::Sample_BattleCameraShakeOffset(
+            previewClipSample.shakeAmplitude,
+            previewClipTimeSec,
+            cameraRight,
+            cameraUp);
     }
-    else if (_previewContext.mode == BattleCameraMode::ENEMYATTACK && _previewContext.opponentSide != _previewContext.subjectSide)
+    else if (previewMode == BattleCameraMode::ENEMYATTACK && _previewContext.opponentSide != _previewContext.subjectSide)
     {
         Client::BattleTurnCameraEvaluatedPose pose{};
-        if (Client::Evaluate_BattleTurnEnemyAttackPose(subjectPos, opponentPos, preset, previewClipSample, 0.f, pose))
+        if (Client::Evaluate_BattleTurnEnemyAttackPose(subjectPos, opponentPos, preset, previewClipSample, previewClipTimeSec, pose))
         {
             desiredPos = pose.cameraPos;
             lookTarget = pose.lookTarget;
+            evaluatedFovY = pose.fovY;
+            evaluatedRollOffset = pose.rollOffset;
         }
     }
     else
@@ -2268,40 +2466,22 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
             0.f,
             0.f,
             &_previewSmoothedTargetPos,
-            0.f,
+            previewClipTimeSec,
             pose))
         {
             desiredPos = pose.cameraPos;
             lookTarget = pose.lookTarget;
+            evaluatedFovY = pose.fovY;
+            evaluatedRollOffset = pose.rollOffset;
         }
     }
 
-    Vec3 cameraForward = lookTarget - desiredPos;
-    if (cameraForward.LengthSquared() <= 0.0001f)
-        cameraForward = Vec3::Look;
-    else
-        cameraForward.Normalize();
-
-    Vec3 cameraRight = Vec3::Up.Cross(cameraForward);
-    if (cameraRight.LengthSquared() <= 0.0001f)
-        cameraRight = Vec3::Right;
-    else
-        cameraRight.Normalize();
-
-    Vec3 cameraUp = cameraForward.Cross(cameraRight);
-    if (cameraUp.LengthSquared() <= 0.0001f)
-        cameraUp = Vec3::Up;
-    else
-        cameraUp.Normalize();
-
-    desiredPos += Client::Sample_BattleCameraShakeOffset(clipSample.shakeAmplitude, previewTimeSec, cameraRight, cameraUp);
-
-    _previewCamera->Set_FovY(finalFovY);
+    _previewCamera->Set_FovY(evaluatedFovY);
     if (Shared<TransformCom> transform = _previewCamera->Get_Transform())
     {
         transform->Set_WorldPosition(desiredPos);
         transform->LookAt(lookTarget);
-        transform->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, preset.rollOffset));
+        transform->Add_LocalRotationQuaternion(Quat::CreateFromAxisAngle(Vec3::Forward, evaluatedRollOffset));
     }
 }
 
@@ -2309,8 +2489,8 @@ float BattleCameraPreview_View::Get_CurrentPreviewAnimationDurationSec() const
 {
     if (_useSkillShotTimeline)
     {
-        if (const PreviewSkillPhaseBlock* activePhase = Resolve_ActivePreviewSkillPhase(_previewContext.timeSec))
-            return std::max(0.f, activePhase->durationSec);
+        if (const PreviewSkillPhaseBlock* currentPhase = Resolve_CurrentPreviewSkillPhase(_previewContext.timeSec))
+            return std::max(0.f, currentPhase->durationSec);
     }
 
     Shared<ModelCom> model = Resolve_PreviewSubjectModel();
@@ -2322,23 +2502,112 @@ float BattleCameraPreview_View::Get_CurrentPreviewAnimationDurationSec() const
 
 float BattleCameraPreview_View::Get_BattleClipAuthoringDurationSec() const
 {
-    const float previewSequenceDuration = Get_PreviewSkillSequenceDuration();
-    if (_editingBattleClip.timeMode == BattleCameraClipTimeMode::Independent)
-        return std::max(_editingBattleClip.duration, previewSequenceDuration);
+    if (_editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync)
+        return 1.f;
 
-    return std::max(_editingBattleClip.duration, std::max(Get_CurrentPreviewAnimationDurationSec(), previewSequenceDuration));
+    float referenceDurationSec = Get_CurrentPreviewAnimationDurationSec();
+
+    if (const PreviewCameraShotBlock* selectedBlock = Get_SelectedPreviewShotBlock())
+    {
+        referenceDurationSec = std::max(
+            referenceDurationSec,
+            std::max(0.01f, selectedBlock->endTimeSec - selectedBlock->startTimeSec));
+    }
+    else if (const PreviewCameraShotBlock* activeBlock = Resolve_ActivePreviewShotBlock(_previewContext.timeSec))
+    {
+        referenceDurationSec = std::max(
+            referenceDurationSec,
+            std::max(0.01f, activeBlock->endTimeSec - activeBlock->startTimeSec));
+    }
+    else if (_useSkillShotTimeline)
+    {
+        referenceDurationSec = std::max(referenceDurationSec, Get_PreviewSkillSequenceDuration());
+    }
+
+    return std::max(_editingBattleClip.duration, referenceDurationSec);
 }
 
 int BattleCameraPreview_View::Get_BattleClipPreviewFrameMax() const
 {
+    if (_editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync)
+        return std::max(1, static_cast<int>(std::lround(Get_CurrentBattleClipTimeRangeSec() * kBattleAnimationPreviewFps)));
+
     const float previewDurationSec = Get_BattleClipAuthoringDurationSec();
     return std::max(0, static_cast<int>(std::lround(previewDurationSec * kBattleClipPreviewFps)));
+}
+
+float BattleCameraPreview_View::Get_CurrentBattleClipTimeOriginSec() const
+{
+    if (const PreviewSkillPhaseBlock* selectedPhase = Get_SelectedPreviewSkillPhase())
+        return selectedPhase->startTimeSec;
+
+    if (const PreviewCameraShotBlock* selectedBlock = Get_SelectedPreviewShotBlock())
+        return selectedBlock->startTimeSec;
+
+    if (const PreviewCameraShotBlock* activeBlock = Resolve_ActivePreviewShotBlock(_previewContext.timeSec))
+        return activeBlock->startTimeSec;
+
+    return 0.f;
+}
+
+float BattleCameraPreview_View::Get_CurrentBattleClipTimeRangeSec() const
+{
+    if (const PreviewSkillPhaseBlock* selectedPhase = Get_SelectedPreviewSkillPhase())
+        return std::max(0.0001f, selectedPhase->durationSec);
+
+    if (const PreviewSkillPhaseBlock* activePhase = Resolve_ActivePreviewSkillPhase(_previewContext.timeSec))
+        return std::max(0.0001f, activePhase->durationSec);
+
+    return std::max(0.0001f, Get_CurrentPreviewAnimationDurationSec());
+}
+
+float BattleCameraPreview_View::Get_CurrentBattleClipPreviewTimeSec() const
+{
+    if (_editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync)
+    {
+        const float localTimeSec = std::max(0.f, _previewContext.timeSec - Get_CurrentBattleClipTimeOriginSec());
+        return std::clamp(localTimeSec / Get_CurrentBattleClipTimeRangeSec(), 0.f, 1.f);
+    }
+
+    return std::max(0.f, _previewContext.timeSec - Get_CurrentBattleClipTimeOriginSec());
+}
+
+float BattleCameraPreview_View::Get_BattleClipTimeFromFrame(int frame) const
+{
+    if (_editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync)
+    {
+        const int frameMax = std::max(1, Get_BattleClipPreviewFrameMax());
+        return std::clamp(static_cast<float>(frame) / static_cast<float>(frameMax), 0.f, 1.f);
+    }
+
+    return std::max(0.f, static_cast<float>(frame) / kBattleClipPreviewFps);
+}
+
+int BattleCameraPreview_View::Get_BattleClipFrameFromTime(float clipTime) const
+{
+    if (_editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync)
+    {
+        const int frameMax = std::max(1, Get_BattleClipPreviewFrameMax());
+        return std::clamp(static_cast<int>(std::lround(std::clamp(clipTime, 0.f, 1.f) * static_cast<float>(frameMax))), 0, frameMax);
+    }
+
+    return std::max(0, static_cast<int>(std::lround(std::max(0.f, clipTime) * kBattleClipPreviewFps)));
+}
+
+void BattleCameraPreview_View::Sync_BattleClipFrameFromPreviewTime()
+{
+    const float previewClipTimeSec = Get_CurrentBattleClipPreviewTimeSec();
+    _battleClipCurrentFrame = std::clamp(
+        Get_BattleClipFrameFromTime(previewClipTimeSec),
+        0,
+        Get_BattleClipPreviewFrameMax());
 }
 
 void BattleCameraPreview_View::Clear_PreviewContext()
 {
     _previewEnabled = false;
-    _activePreviewShotProfileId.clear();
+    _activePreviewShotPresetId.clear();
+    _activePreviewShotClipId.clear();
     Reset_PreviewPoseState();
     Clear_PreviewObjects();
     _previewObjectsDirty = true;
@@ -2348,11 +2617,11 @@ void BattleCameraPreview_View::Clear_PreviewContext()
 
 void BattleCameraPreview_View::Ensure_BattlePresetLoaded()
 {
-    const string selectedSkillId = Get_CurrentBattleAuthoringOverrideId();
+    const string selectedPresetId = Get_CurrentBattlePresetAuthoringOverrideId();
 
     if (_hasLoadedBattlePreset &&
         _loadedBattlePresetMode == _previewContext.mode &&
-        _loadedBattlePresetSkillId == selectedSkillId)
+        _loadedBattlePresetSkillId == selectedPresetId)
         return;
 
     Load_BattlePresetForCurrentMode();
@@ -2361,16 +2630,16 @@ void BattleCameraPreview_View::Ensure_BattlePresetLoaded()
 void BattleCameraPreview_View::Load_BattlePresetForMode(BattleCameraMode mode, bool loadBase)
 {
     _editingBattlePreset = Make_FallbackBattleCameraPreset();
-    const string selectedSkillId = Get_CurrentBattleAuthoringOverrideId();
+    const string selectedPresetId = Get_CurrentBattlePresetAuthoringOverrideId();
 
     if (loadBase)
         Client::CameraPresetIO::LoadBattlePresetFromFile(mode, _editingBattlePreset);
 
-    if (!selectedSkillId.empty())
-        Client::CameraPresetIO::LoadBattlePresetFromFile(mode, _editingBattlePreset, selectedSkillId);
+    if (!selectedPresetId.empty())
+        Client::CameraPresetIO::LoadBattlePresetFromFile(mode, _editingBattlePreset, selectedPresetId);
 
     _loadedBattlePresetMode = mode;
-    _loadedBattlePresetSkillId = selectedSkillId;
+    _loadedBattlePresetSkillId = selectedPresetId;
     _hasLoadedBattlePreset = true;
 }
 
@@ -2379,21 +2648,23 @@ void BattleCameraPreview_View::Load_BattlePresetForCurrentMode(bool loadBase)
     Load_BattlePresetForMode(_previewContext.mode, loadBase);
 }
 
-void BattleCameraPreview_View::Load_BattleClipForCurrentMode(bool loadBase, bool resetTimeline)
+void BattleCameraPreview_View::Load_BattleClipForMode(BattleCameraMode mode, bool loadBase, bool resetTimeline)
 {
     const float preservedTimeSec = _previewContext.timeSec;
-    const int preservedFrame = _battleClipCurrentFrame;
-    const string selectedSkillId = Get_CurrentBattleAuthoringOverrideId();
+    const string selectedClipId = Get_CurrentBattleClipAuthoringOverrideId();
     _editingBattleClip = BattleCameraClip{ 1.f };
-    _editingBattleClip.timeMode = Get_DefaultBattleCameraClipTimeMode(_previewContext.mode);
+    _editingBattleClip.timeMode = Get_DefaultBattleCameraClipTimeMode(mode);
     if (loadBase)
-        Client::BattleCameraClipIO::LoadBattleCameraClipFromFile(_previewContext.mode, _editingBattleClip);
+        Client::BattleCameraClipIO::LoadBattleCameraClipFromFile(mode, _editingBattleClip);
 
-    if (!selectedSkillId.empty())
-        Client::BattleCameraClipIO::LoadBattleCameraClipFromFile(_previewContext.mode, _editingBattleClip, selectedSkillId);
+    if (!selectedClipId.empty())
+        Client::BattleCameraClipIO::LoadBattleCameraClipFromFile(mode, _editingBattleClip, selectedClipId);
 
-    _loadedBattleClipMode = _previewContext.mode;
-    _loadedBattleClipSkillId = selectedSkillId;
+    if (_editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync)
+        _editingBattleClip.duration = 1.f;
+
+    _loadedBattleClipMode = mode;
+    _loadedBattleClipSkillId = selectedClipId;
     _hasLoadedBattleClip = true;
     _battleClipSelectedKeyIndex = -1;
 
@@ -2404,8 +2675,13 @@ void BattleCameraPreview_View::Load_BattleClipForCurrentMode(bool loadBase, bool
         return;
     }
 
-    _battleClipCurrentFrame = std::clamp(preservedFrame, 0, Get_BattleClipPreviewFrameMax());
-    _previewContext.timeSec = std::clamp(preservedTimeSec, 0.f, Get_BattleClipAuthoringDurationSec());
+    _previewContext.timeSec = std::max(0.f, preservedTimeSec);
+    Sync_BattleClipFrameFromPreviewTime();
+}
+
+void BattleCameraPreview_View::Load_BattleClipForCurrentMode(bool loadBase, bool resetTimeline)
+{
+    Load_BattleClipForMode(_previewContext.mode, loadBase, resetTimeline);
 }
 
 void BattleCameraPreview_View::Refresh_AuthoringFileList()
@@ -2450,7 +2726,7 @@ bool BattleCameraPreview_View::Apply_AuthoringFileSelection(const fs::path& file
     if (!parsed.has_value())
         return false;
 
-    Apply_AuthoringFileContext(parsed->mode, parsed->skillId);
+    Apply_AuthoringFileContext(parsed->mode, parsed->kind == BattleAuthoringFileKind::Preset, parsed->skillId);
     Try_AutoSelectPreviewActorAndAnimation();
     Load_BattlePresetForCurrentMode();
     Load_BattleClipForCurrentMode();
@@ -2458,7 +2734,7 @@ bool BattleCameraPreview_View::Apply_AuthoringFileSelection(const fs::path& file
     if (Shared<Client::BattleTurnCamera> battleTurnCamera = Get_BattleTurnCamera())
     {
         battleTurnCamera->Set_Preset(_previewContext.mode, _editingBattlePreset);
-        battleTurnCamera->Set_Clip(_previewContext.mode, _editingBattleClip);
+        battleTurnCamera->Set_Clip(_previewContext.mode, _editingBattleClip, Get_CurrentBattleClipAuthoringOverrideId());
     }
 
     Apply_PreviewContext();
@@ -2466,22 +2742,45 @@ bool BattleCameraPreview_View::Apply_AuthoringFileSelection(const fs::path& file
     return true;
 }
 
-void BattleCameraPreview_View::Apply_AuthoringFileContext(BattleCameraMode mode, const string& skillId)
+void BattleCameraPreview_View::Apply_AuthoringFileContext(BattleCameraMode mode, bool isPresetFile, const string& authoringId)
 {
+    const string previousSkillId = Get_SelectedSkillId();
     _previewContext.mode = mode;
-    _previewContext.skillId = skillId;
-    _useSkillOverride = !skillId.empty();
     _selectedSkillIndex = -1;
 
-    if (_useSkillOverride)
+    auto iter = std::find(_skillIds.begin(), _skillIds.end(), authoringId);
+    const bool isKnownSkillId = (iter != _skillIds.end());
+
+    if (isKnownSkillId)
     {
-        auto iter = std::find(_skillIds.begin(), _skillIds.end(), skillId);
-        if (iter != _skillIds.end())
-            _selectedSkillIndex = static_cast<int>(std::distance(_skillIds.begin(), iter));
+        _previewContext.skillId = authoringId;
+        _useSkillOverride = true;
+        _selectedSkillIndex = static_cast<int>(std::distance(_skillIds.begin(), iter));
+        _useManualBattleAuthoringTarget = false;
+        _manualBattleAuthoringPresetId.clear();
+        _manualBattleAuthoringClipId.clear();
+    }
+    else
+    {
+        _previewContext.skillId = previousSkillId;
+        _useSkillOverride = !previousSkillId.empty();
+        if (_useSkillOverride)
+        {
+            auto previousIter = std::find(_skillIds.begin(), _skillIds.end(), previousSkillId);
+            if (previousIter != _skillIds.end())
+                _selectedSkillIndex = static_cast<int>(std::distance(_skillIds.begin(), previousIter));
+        }
+
+        _useManualBattleAuthoringTarget = !authoringId.empty();
+        if (isPresetFile)
+            _manualBattleAuthoringPresetId = authoringId;
+        else
+            _manualBattleAuthoringClipId = authoringId;
     }
 
     _hasLoadedBattlePreset = false;
     _hasLoadedBattleClip = false;
+    _selectedPreviewSkillPhaseIndex = -1;
     Reset_PreviewPoseState();
 }
 
@@ -2666,6 +2965,7 @@ void BattleCameraPreview_View::Refresh_PreviewSkillPhaseBlocks()
     if (!_previewSkillPhaseBlocksDirty)
         return;
 
+    const int previousSelectedPhaseIndex = _selectedPreviewSkillPhaseIndex;
     _previewSkillPhaseBlocks.clear();
 
     const string selectedSkillId = Get_SelectedSkillId();
@@ -2694,6 +2994,26 @@ void BattleCameraPreview_View::Refresh_PreviewSkillPhaseBlocks()
         block.durationSec = std::max(0.01f, Resolve_PreviewAnimationDurationByName(phase.animationKey));
         accumulatedTimeSec += block.durationSec;
         _previewSkillPhaseBlocks.push_back(block);
+    }
+
+    if (_previewSkillPhaseBlocks.empty())
+        _selectedPreviewSkillPhaseIndex = -1;
+    else if (previousSelectedPhaseIndex >= 0 &&
+        previousSelectedPhaseIndex < static_cast<int>(_previewSkillPhaseBlocks.size()))
+    {
+        _selectedPreviewSkillPhaseIndex = previousSelectedPhaseIndex;
+    }
+    else
+    {
+        const PreviewSkillPhaseBlock* activePhase = Resolve_ActivePreviewSkillPhase(_previewContext.timeSec);
+        if (activePhase != nullptr)
+        {
+            _selectedPreviewSkillPhaseIndex = static_cast<int>(activePhase - _previewSkillPhaseBlocks.data());
+        }
+        else
+        {
+            _selectedPreviewSkillPhaseIndex = 0;
+        }
     }
 
     _previewSkillPhaseBlocksDirty = false;
@@ -2732,6 +3052,36 @@ float BattleCameraPreview_View::Get_PreviewSkillSequenceDuration() const
 
     const PreviewSkillPhaseBlock& lastBlock = _previewSkillPhaseBlocks.back();
     return lastBlock.startTimeSec + lastBlock.durationSec;
+}
+
+BattleCameraPreview_View::PreviewSkillPhaseBlock* BattleCameraPreview_View::Get_SelectedPreviewSkillPhase()
+{
+    if (_selectedPreviewSkillPhaseIndex < 0 ||
+        _selectedPreviewSkillPhaseIndex >= static_cast<int>(_previewSkillPhaseBlocks.size()))
+    {
+        return nullptr;
+    }
+
+    return &_previewSkillPhaseBlocks[_selectedPreviewSkillPhaseIndex];
+}
+
+const BattleCameraPreview_View::PreviewSkillPhaseBlock* BattleCameraPreview_View::Get_SelectedPreviewSkillPhase() const
+{
+    if (_selectedPreviewSkillPhaseIndex < 0 ||
+        _selectedPreviewSkillPhaseIndex >= static_cast<int>(_previewSkillPhaseBlocks.size()))
+    {
+        return nullptr;
+    }
+
+    return &_previewSkillPhaseBlocks[_selectedPreviewSkillPhaseIndex];
+}
+
+const BattleCameraPreview_View::PreviewSkillPhaseBlock* BattleCameraPreview_View::Resolve_CurrentPreviewSkillPhase(float previewTimeSec) const
+{
+    if (const PreviewSkillPhaseBlock* selectedPhase = Get_SelectedPreviewSkillPhase())
+        return selectedPhase;
+
+    return Resolve_ActivePreviewSkillPhase(previewTimeSec);
 }
 
 const BattleCameraPreview_View::PreviewSkillPhaseBlock* BattleCameraPreview_View::Resolve_ActivePreviewSkillPhase(float previewTimeSec) const
@@ -2774,15 +3124,25 @@ const BattleCameraPreview_View::PreviewCameraShotBlock* BattleCameraPreview_View
     return &_previewShotBlocks[_selectedPreviewShotBlockIndex];
 }
 
-const BattleCameraPreview_View::PreviewCameraShotBlock* BattleCameraPreview_View::Resolve_ActivePreviewShotBlock(float previewTimeSec) const
+int BattleCameraPreview_View::Find_ActivePreviewShotBlockIndex(float previewTimeSec) const
 {
-    for (const PreviewCameraShotBlock& block : _previewShotBlocks)
+    for (int i = 0; i < static_cast<int>(_previewShotBlocks.size()); ++i)
     {
+        const PreviewCameraShotBlock& block = _previewShotBlocks[i];
         if (previewTimeSec >= block.startTimeSec && previewTimeSec <= block.endTimeSec)
-            return &block;
+            return i;
     }
 
-    return nullptr;
+    return -1;
+}
+
+const BattleCameraPreview_View::PreviewCameraShotBlock* BattleCameraPreview_View::Resolve_ActivePreviewShotBlock(float previewTimeSec) const
+{
+    const int activeBlockIndex = Find_ActivePreviewShotBlockIndex(previewTimeSec);
+    if (activeBlockIndex < 0)
+        return nullptr;
+
+    return &_previewShotBlocks[activeBlockIndex];
 }
 
 void BattleCameraPreview_View::Apply_ActivePreviewShotBlock(float previewTimeSec)
@@ -2792,32 +3152,88 @@ void BattleCameraPreview_View::Apply_ActivePreviewShotBlock(float previewTimeSec
         return;
 
     const bool modeChanged = _previewContext.mode != activeBlock->mode;
-    const bool profileChanged = _activePreviewShotProfileId != activeBlock->profileId;
+    const bool presetChanged = _activePreviewShotPresetId != activeBlock->presetId;
+    const bool clipChanged = _activePreviewShotClipId != activeBlock->clipId;
 
     _previewContext.mode = activeBlock->mode;
     _activePreviewShotMode = activeBlock->mode;
-    _activePreviewShotProfileId = activeBlock->profileId;
+    _activePreviewShotPresetId = activeBlock->presetId;
+    _activePreviewShotClipId = activeBlock->clipId;
 
     if (modeChanged)
         Apply_DefaultPreviewSlotsForMode(_previewContext.mode);
 
-    if (modeChanged || profileChanged)
+    if (modeChanged || presetChanged)
+        _hasLoadedBattlePreset = false;
+
+    if (modeChanged || clipChanged)
+        _hasLoadedBattleClip = false;
+}
+
+bool BattleCameraPreview_View::Does_BattleAuthoringTargetMatchPreview() const
+{
+    return true;
+}
+
+void BattleCameraPreview_View::Sync_BattleAuthoringTargetToPreview()
+{
+    const int activeBlockIndex = Find_ActivePreviewShotBlockIndex(_previewContext.timeSec);
+    _useManualBattleAuthoringTarget = false;
+
+    if (activeBlockIndex >= 0)
+    {
+        Select_PreviewShotBlock(activeBlockIndex, false);
+    }
+    else
     {
         _hasLoadedBattlePreset = false;
         _hasLoadedBattleClip = false;
     }
+
+    if (activeBlockIndex < 0)
+        _selectedPreviewShotBlockIndex = -1;
+
+    _hasLoadedBattlePreset = false;
+    _hasLoadedBattleClip = false;
 }
 
-string BattleCameraPreview_View::Get_CurrentBattleAuthoringOverrideId() const
+void BattleCameraPreview_View::RetargetLoadedBattleAuthoringDataToCurrentTarget()
 {
-    if (const PreviewCameraShotBlock* selectedBlock = Get_SelectedPreviewShotBlock())
+    const BattleCameraMode authoringMode = Get_CurrentBattleAuthoringMode();
+    const string authoringPresetId = Get_CurrentBattlePresetAuthoringOverrideId();
+    const string authoringClipId = Get_CurrentBattleClipAuthoringOverrideId();
+
+    if (_hasLoadedBattlePreset)
     {
-        if (!selectedBlock->profileId.empty())
-            return selectedBlock->profileId;
+        _loadedBattlePresetMode = authoringMode;
+        _loadedBattlePresetSkillId = authoringPresetId;
     }
 
-    if (!_activePreviewShotProfileId.empty())
-        return _activePreviewShotProfileId;
+    if (_hasLoadedBattleClip)
+    {
+        _loadedBattleClipMode = authoringMode;
+        _loadedBattleClipSkillId = authoringClipId;
+    }
+}
+
+string BattleCameraPreview_View::Get_CurrentBattlePresetAuthoringOverrideId() const
+{
+    if (_useManualBattleAuthoringTarget && !_manualBattleAuthoringPresetId.empty())
+        return _manualBattleAuthoringPresetId;
+
+    if (!_activePreviewShotPresetId.empty())
+        return _activePreviewShotPresetId;
+
+    return Get_SelectedSkillId();
+}
+
+string BattleCameraPreview_View::Get_CurrentBattleClipAuthoringOverrideId() const
+{
+    if (_useManualBattleAuthoringTarget && !_manualBattleAuthoringClipId.empty())
+        return _manualBattleAuthoringClipId;
+
+    if (!_activePreviewShotClipId.empty())
+        return _activePreviewShotClipId;
 
     return Get_SelectedSkillId();
 }
@@ -2825,13 +3241,13 @@ string BattleCameraPreview_View::Get_CurrentBattleAuthoringOverrideId() const
 void BattleCameraPreview_View::Add_PreviewShotBlockFromSelectedPhase()
 {
     Refresh_PreviewSkillPhaseBlocks();
-    const PreviewSkillPhaseBlock* activePhase = Resolve_ActivePreviewSkillPhase(_previewContext.timeSec);
-    if (activePhase == nullptr)
+    const PreviewSkillPhaseBlock* selectedPhase = Resolve_CurrentPreviewSkillPhase(_previewContext.timeSec);
+    if (selectedPhase == nullptr)
         return;
 
     PreviewCameraShotBlock block{};
-    block.startTimeSec = activePhase->startTimeSec;
-    block.endTimeSec = activePhase->startTimeSec + activePhase->durationSec;
+    block.startTimeSec = selectedPhase->startTimeSec;
+    block.endTimeSec = selectedPhase->startTimeSec + selectedPhase->durationSec;
     block.mode = _previewContext.mode;
     _previewShotBlocks.push_back(block);
     std::sort(_previewShotBlocks.begin(), _previewShotBlocks.end(),
@@ -2845,7 +3261,7 @@ void BattleCameraPreview_View::Add_PreviewShotBlockFromSelectedPhase()
             fabsf(_previewShotBlocks[i].endTimeSec - block.endTimeSec) <= 0.0001f &&
             _previewShotBlocks[i].mode == block.mode)
         {
-            Select_PreviewShotBlock(i, false);
+            Select_PreviewShotBlock(i, true);
             break;
         }
     }
@@ -2869,7 +3285,7 @@ void BattleCameraPreview_View::Add_PreviewShotBlockAtCurrentTime()
             fabsf(_previewShotBlocks[i].endTimeSec - block.endTimeSec) <= 0.0001f &&
             _previewShotBlocks[i].mode == block.mode)
         {
-            Select_PreviewShotBlock(i, false);
+            Select_PreviewShotBlock(i, true);
             break;
         }
     }
@@ -2908,10 +3324,11 @@ void BattleCameraPreview_View::Duplicate_SelectedPreviewShotBlock()
     {
         if (fabsf(_previewShotBlocks[i].startTimeSec - duplicated.startTimeSec) <= 0.0001f &&
             fabsf(_previewShotBlocks[i].endTimeSec - duplicated.endTimeSec) <= 0.0001f &&
-            _previewShotBlocks[i].profileId == duplicated.profileId &&
+            _previewShotBlocks[i].presetId == duplicated.presetId &&
+            _previewShotBlocks[i].clipId == duplicated.clipId &&
             _previewShotBlocks[i].mode == duplicated.mode)
         {
-            Select_PreviewShotBlock(i, false);
+            Select_PreviewShotBlock(i, true);
             break;
         }
     }
@@ -2920,12 +3337,12 @@ void BattleCameraPreview_View::Duplicate_SelectedPreviewShotBlock()
 void BattleCameraPreview_View::Fit_SelectedPreviewShotBlockToActivePhase()
 {
     PreviewCameraShotBlock* selectedBlock = Get_SelectedPreviewShotBlock();
-    const PreviewSkillPhaseBlock* activePhase = Resolve_ActivePreviewSkillPhase(_previewContext.timeSec);
-    if (selectedBlock == nullptr || activePhase == nullptr)
+    const PreviewSkillPhaseBlock* selectedPhase = Resolve_CurrentPreviewSkillPhase(_previewContext.timeSec);
+    if (selectedBlock == nullptr || selectedPhase == nullptr)
         return;
 
-    selectedBlock->startTimeSec = activePhase->startTimeSec;
-    selectedBlock->endTimeSec = activePhase->startTimeSec + activePhase->durationSec;
+    selectedBlock->startTimeSec = selectedPhase->startTimeSec;
+    selectedBlock->endTimeSec = selectedPhase->startTimeSec + selectedPhase->durationSec;
     _previewDirty = true;
 }
 
@@ -2938,14 +3355,15 @@ void BattleCameraPreview_View::Select_PreviewShotBlock(int blockIndex, bool sync
     const PreviewCameraShotBlock& block = _previewShotBlocks[blockIndex];
     _previewContext.mode = block.mode;
     _activePreviewShotMode = block.mode;
-    _activePreviewShotProfileId = block.profileId;
+    _activePreviewShotPresetId = block.presetId;
+    _activePreviewShotClipId = block.clipId;
     _hasLoadedBattlePreset = false;
     _hasLoadedBattleClip = false;
 
     if (syncPreviewTime)
     {
         _previewContext.timeSec = block.startTimeSec;
-        _battleClipCurrentFrame = std::max(0, static_cast<int>(std::lround(_previewContext.timeSec * kBattleClipPreviewFps)));
+        _battleClipCurrentFrame = 0;
     }
 
     _previewDirty = true;
@@ -3023,8 +3441,8 @@ void BattleCameraPreview_View::Insert_BattleClipKeyAtFrame(int trackIndex, int f
         return;
     }
 
-    const float keyTime = std::clamp(static_cast<float>(frame) / kBattleClipPreviewFps, 0.f, Get_BattleClipAuthoringDurationSec());
-    if (keyTime > _editingBattleClip.duration)
+    const float keyTime = std::clamp(Get_BattleClipTimeFromFrame(frame), 0.f, Get_BattleClipAuthoringDurationSec());
+    if (_editingBattleClip.timeMode != BattleCameraClipTimeMode::AnimationSync && keyTime > _editingBattleClip.duration)
         _editingBattleClip.duration = keyTime;
 
     for (int i = 0; i < static_cast<int>(track->keyframes.size()); ++i)
@@ -3059,7 +3477,11 @@ void BattleCameraPreview_View::Insert_BattleClipKeyAtFrame(int trackIndex, int f
 void BattleCameraPreview_View::Sync_PreviewTimeFromTimeline()
 {
     _battleClipCurrentFrame = std::clamp(_battleClipCurrentFrame, 0, Get_BattleClipPreviewFrameMax());
-    _previewContext.timeSec = static_cast<float>(_battleClipCurrentFrame) / kBattleClipPreviewFps;
+    const float clipTimelineTime = Get_BattleClipTimeFromFrame(_battleClipCurrentFrame);
+    if (_editingBattleClip.timeMode == BattleCameraClipTimeMode::AnimationSync)
+        _previewContext.timeSec = Get_CurrentBattleClipTimeOriginSec() + clipTimelineTime * Get_CurrentBattleClipTimeRangeSec();
+    else
+        _previewContext.timeSec = Get_CurrentBattleClipTimeOriginSec() + clipTimelineTime;
 }
 
 void BattleCameraPreview_View::Refresh_SelectedBattleClipKey()
@@ -3083,7 +3505,7 @@ void BattleCameraPreview_View::Refresh_SelectedBattleClipKey()
         return;
     }
 
-    const float currentTime = static_cast<float>(_battleClipCurrentFrame) / kBattleClipPreviewFps;
+    const float currentTime = Get_BattleClipTimeFromFrame(_battleClipCurrentFrame);
     int nearestKeyIndex = 0;
     float nearestTimeDelta = FLT_MAX;
 
@@ -3194,6 +3616,7 @@ void BattleCameraPreview_View::Apply_PreviewSkillContext(const string& skillId)
     _previewSkillPhaseBlocksDirty = true;
     _previewShotBlocks.clear();
     _selectedPreviewShotBlockIndex = -1;
+    _selectedPreviewSkillPhaseIndex = -1;
     _selectedSkillIndex = -1;
 
     if (_useSkillOverride)
@@ -3274,9 +3697,9 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
     BattleCameraPreset preset = Make_FallbackBattleCameraPreset();
     Client::CameraPresetIO::LoadBattlePresetFromFile(mode, preset);
 
-    const string selectedSkillId = Get_CurrentBattleAuthoringOverrideId();
-    if (!selectedSkillId.empty())
-        Client::CameraPresetIO::LoadBattlePresetFromFile(mode, preset, selectedSkillId);
+    const string selectedPresetId = Get_CurrentBattlePresetAuthoringOverrideId();
+    if (!selectedPresetId.empty())
+        Client::CameraPresetIO::LoadBattlePresetFromFile(mode, preset, selectedPresetId);
 
     if (mode == BattleCameraMode::WIDE)
     {
@@ -3561,12 +3984,121 @@ void BattleCameraPreview_View::Set_TransitionEditTargetStep(int stepIndex)
 
 void BattleCameraPreview_View::Update_PreviewAttackActorMotion(float previewTimeSec)
 {
-    UNREFERENCED_PARAMETER(previewTimeSec);
     Position_PreviewObjects();
 
-    // Preview-only comparison mode:
-    // keep actors anchored to their formation slots and do not apply phase/root-motion
-    // driven subject movement to the camera target.
+    if (!_previewAttackMovementEnabled)
+        return;
+
+    if (_previewContext.mode != BattleCameraMode::ENEMYATTACK &&
+        _previewContext.mode != BattleCameraMode::PLAYERATTACK)
+        return;
+
+    string skillId = _previewContext.skillId;
+    if (skillId.empty())
+        skillId = Get_SelectedSkillId();
+
+    if (skillId.empty())
+        return;
+
+    const Client::Skill_Data* skill = CLIENT->Get_Skill(skillId);
+    if (skill == nullptr || skill->AnimPhases.empty())
+        return;
+
+    Shared<GameObject> subjectObject = Resolve_PreviewBattleActor(_previewContext.subjectSide);
+    Shared<GameObject> opponentObject = Resolve_PreviewBattleActor(_previewContext.opponentSide);
+    if (subjectObject == nullptr || opponentObject == nullptr)
+        return;
+
+    Shared<TransformCom> subjectTransform = subjectObject->Get_Transform();
+    if (subjectTransform == nullptr)
+        return;
+
+    Shared<ModelCom> subjectModel = Resolve_PreviewSubjectModel();
+    if (subjectModel == nullptr)
+        return;
+
+    _previewContext.subjectOriginPos = Get_PreviewSlotWorldPosition(_previewContext.subjectSide, _previewContext.subjectSlot);
+
+    string currentAnimationName{};
+    if (_useSkillShotTimeline)
+    {
+        if (const PreviewSkillPhaseBlock* activePhaseBlock = Resolve_ActivePreviewSkillPhase(previewTimeSec))
+            currentAnimationName = activePhaseBlock->animationKey;
+    }
+
+    if (currentAnimationName.empty() &&
+        _selectedPreviewAnimationIndex >= 0 &&
+        _selectedPreviewAnimationIndex < static_cast<int>(_previewAnimationNames.size()))
+    {
+        currentAnimationName = _previewAnimationNames[_selectedPreviewAnimationIndex];
+    }
+
+    const Client::BattleActionPhase* currentPhase = &skill->AnimPhases.front();
+    for (const Client::BattleActionPhase& phase : skill->AnimPhases)
+    {
+        if (!currentAnimationName.empty() && phase.animationKey == currentAnimationName)
+        {
+            currentPhase = &phase;
+            break;
+        }
+    }
+
+    if (currentPhase == nullptr)
+        return;
+
+    float phaseRatio = 0.f;
+    if (_useSkillShotTimeline)
+    {
+        if (const PreviewSkillPhaseBlock* activePhase = Resolve_ActivePreviewSkillPhase(previewTimeSec))
+        {
+            const float phaseDuration = std::max(0.0001f, activePhase->durationSec);
+            phaseRatio = std::clamp((previewTimeSec - activePhase->startTimeSec) / phaseDuration, 0.f, 1.f);
+        }
+    }
+    else
+    {
+        const float animationDuration = std::max(0.0001f, subjectModel->Get_CurrentAnimationDurationSec());
+        phaseRatio = std::clamp(subjectModel->Get_CurrentAnimationTimeSec() / animationDuration, 0.f, 1.f);
+    }
+
+    const Vec3 phaseGoalPos = Resolve_PhaseGoalPosition(_previewContext, *currentPhase);
+    Vec3 desiredPos = _previewContext.subjectOriginPos;
+
+    if (currentPhase->faceTarget)
+    {
+        Vec3 faceDir = phaseGoalPos - desiredPos;
+        faceDir.y = 0.f;
+        if (faceDir.LengthSquared() > 0.0001f)
+        {
+            faceDir.Normalize();
+            const float yawRad = atan2f(faceDir.x, faceDir.z);
+            Vec3 rot = subjectTransform->Get_WorldRotationEuler();
+            rot.y = XMConvertToDegrees(yawRad);
+            subjectTransform->Set_WorldRotationEuler(rot);
+        }
+    }
+
+    switch (currentPhase->movementPolicy)
+    {
+    case Client::BattleMovementPolicy::SnapToTarget:
+        desiredPos = phaseGoalPos;
+        break;
+
+    case Client::BattleMovementPolicy::MoveToTarget:
+    case Client::BattleMovementPolicy::ReturnToOrigin:
+    case Client::BattleMovementPolicy::RootMotionToTarget:
+        desiredPos = Vec3::Lerp(_previewContext.subjectOriginPos, phaseGoalPos, phaseRatio);
+        break;
+
+    case Client::BattleMovementPolicy::None:
+    case Client::BattleMovementPolicy::Custom:
+    default:
+        desiredPos = _previewContext.subjectOriginPos;
+        break;
+    }
+
+    desiredPos.y = _previewContext.subjectOriginPos.y;
+    subjectTransform->Set_WorldPosition(desiredPos);
 }
 
 Shared<GameObject> BattleCameraPreview_View::Resolve_PreviewBattleActor(PreviewSlotSide side)
@@ -3691,6 +4223,24 @@ string BattleCameraPreview_View::Get_SelectedEnemyPrefabName() const
         return "";
 
     return _enemyPrefabNames[_selectedEnemyPrefabIndex];
+}
+
+BattleCameraMode BattleCameraPreview_View::Get_CurrentBattleAuthoringMode() const
+{
+    if (_activeTimelineEditorTab != TimelineEditorTab::TransitionPreview)
+        return _previewContext.mode;
+
+    return Get_BattlePresetEditorMode();
+}
+
+string BattleCameraPreview_View::Get_CurrentPreviewPresetId() const
+{
+    return Get_CurrentBattlePresetAuthoringOverrideId();
+}
+
+string BattleCameraPreview_View::Get_CurrentPreviewClipId() const
+{
+    return Get_CurrentBattleClipAuthoringOverrideId();
 }
 
 BattleCameraMode BattleCameraPreview_View::Get_BattlePresetEditorMode() const
@@ -3830,7 +4380,7 @@ Vec3 BattleCameraPreview_View::Resolve_PhaseGoalPosition(const PreviewContext& c
 
     const Vec3 anchorPos = Resolve_AnchorPosition(context, phase.targetAnchor);
 
-    if (!phase.useDistance)
+    if (!phase.useDistance || phase.targetAnchor == Client::BattleTargetAnchor::Origin)
         return anchorPos;
 
     if (phase.targetAnchor == Client::BattleTargetAnchor::Self)
@@ -3869,6 +4419,9 @@ Vec3 BattleCameraPreview_View::Resolve_AnchorPosition(const PreviewContext& cont
         if (opponent && opponent->Get_Transform())
             return opponent->Get_Transform()->Get_WorldPosition();
         break;
+
+    case Client::BattleTargetAnchor::Origin:
+        return context.subjectOriginPos;
 
     default:
         break;

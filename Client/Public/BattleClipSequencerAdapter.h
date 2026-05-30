@@ -17,6 +17,7 @@ public:
         int* contextTrackIndex,
         int* contextFrame,
         int* displayFrameMax = nullptr,
+        bool normalizedTime = false,
         bool* previewDirty = nullptr,
         bool* distanceEnabled = nullptr,
         bool* fovEnabled = nullptr,
@@ -49,6 +50,7 @@ private:
     int* _selectedKeyIndex = nullptr;
     int* _currentFrame = nullptr;
     int* _displayFrameMax = nullptr;
+    bool _normalizedTime = false;
     bool* _consumedKeyClick = nullptr;
     bool* _requestOpenInsertPopup = nullptr;
     bool* _requestRemoveKeyPopup = nullptr;

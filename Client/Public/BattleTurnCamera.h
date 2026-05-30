@@ -22,7 +22,8 @@ public:
         Shared<Engine::Character> subject = nullptr;
         Shared<Engine::Character> opponent = nullptr;
         string          skillId;
-        string          profileId;
+        string          presetId;
+        string          clipId;
         bool            useClip = false;
         bool            restartClip = false;
     };
@@ -42,7 +43,7 @@ public:
     void Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies);
     const BattleCameraPreset& Get_Preset(BattleCameraMode mode) const;
     void Set_Preset(BattleCameraMode mode, const BattleCameraPreset& preset);
-    void Set_Clip(BattleCameraMode mode, const BattleCameraClip& clip);
+    void Set_Clip(BattleCameraMode mode, const BattleCameraClip& clip, const string& clipId = "");
     void Set_ClipScrubPreviewEnabled(bool enabled) { _isClipPreview = enabled; }
     void Apply_PreviewPreset(const BattleCameraPreset& preset);
     void Apply_ShotRequest(const BattleShotRequest& request);
@@ -53,7 +54,6 @@ public:
     bool Is_LiveEditEnabled() const { return _isLiveEditEnabled; }
     void Set_Participants(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies);
     void Reset_RuntimeState();
-    const BattleCameraProfile* Resolve_BattleCameraProfile(const BattleShotRequest& request) const;
     void Set_IsClipPreview(bool boolean) { _isClipPreview = boolean; }
 
     void Update_FreeAimRotation(float timeDelta);
@@ -78,7 +78,8 @@ private:
     };
 
 private:
-    const BattleCameraProfile* Resolve_BattleCameraProfileById(BattleCameraMode mode, const string& profileId) const;
+    const BattleCameraPreset* Resolve_BattleCameraPresetById(BattleCameraMode mode, const string& presetId) const;
+    const BattleCameraClip* Resolve_BattleCameraClipById(BattleCameraMode mode, const string& clipId) const;
     void Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt);
     void Apply_FreeAimCamera();                
     void Apply_EvaluatedPose(const EvaluatedPose& pose);
@@ -87,6 +88,7 @@ private:
         const BattleShotRequest& request,
         const BattleCameraPreset& preset,
         const Vec3* smoothedTargetPos,
+        const BattleCameraClipSample& clipSample,
         float clipTime,
         EvaluatedPose& outPose) const;
     bool Should_StartPoseTransition(const BattleShotRequest& request) const;
@@ -141,10 +143,11 @@ public:
 
     BattleCameraPreset* Get_MutablePreset(BattleCameraMode cameraMode);
     BattleCameraClip* Get_MutableClip(BattleCameraMode cameraMode);
+    void Reset_ClipPlaybackState();
 
 
 private:
-    BattleCameraClipSample   Advance_ActiveClip(float timeDelta);
+    BattleCameraClipSample   Advance_ActiveClip(float timeDelta, const BattleShotRequest& request);
 
 private:
     bool                  _isClipPreview = false;
@@ -178,10 +181,17 @@ private:
     BattleCameraClip      _enemyFocusClip {};
     BattleCameraClip*     _activeClip {};
     float                _clipTime {};
+    float                _clipSyncBaseTime = 0.f;
+    float                _clipSyncPrevAnimationTime = 0.f;
+    float                _clipSyncAnimationDuration = 0.f;
+    string               _clipSyncAnimationName {};
+    int                  _clipDebugSampleLogCount = 0;
+    bool                 _clipDebugLoggedShake = false;
 
     BattleCameraProfile   _playerAttackDefaultProfile{};
     umap<string, BattleCameraProfile> _playerAttackProfilesBySkill;
-    mutable umap<string, BattleCameraProfile> _profilesById;
+    mutable umap<string, BattleCameraPreset> _presetsById;
+    mutable umap<string, BattleCameraClip> _clipsById;
     PoseTransitionState   _poseTransition{};
 
 public:
