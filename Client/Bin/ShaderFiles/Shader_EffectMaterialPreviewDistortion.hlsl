@@ -98,7 +98,12 @@ struct PS_OUT
     float4 color : SV_TARGET0;
 };
 
-float Compute_PreviewDistortionShapeWeight(float2 cardUV)
+float Compute_PreviewShockwavePixelUvWidth(float2 cardUV)
+{
+    return max(max(fwidth(cardUV.x), fwidth(cardUV.y)), 0.0001f);
+}
+
+float Compute_PreviewDistortionShapeWeight(float2 cardUV, float lifeProgress)
 {
     const float mode = g_EffectMaterialPreviewDistortionShapeParams.x;
     float shapeWeight = 1.f;
@@ -112,10 +117,20 @@ float Compute_PreviewDistortionShapeWeight(float2 cardUV)
 
         if (mode < 1.5f)
             shapeWeight = 1.f - smoothstep(radius, radius + softness, distanceFromCenter);
-        else
+        else if (mode < 2.5f)
         {
             const float ringDistance = abs(distanceFromCenter - radius);
             shapeWeight = 1.f - smoothstep(thickness, thickness + softness, ringDistance);
+        }
+        else
+        {
+            const float pixelUvWidth = Compute_PreviewShockwavePixelUvWidth(cardUV);
+            const float shockwaveThickness = max(thickness, 0.f) * pixelUvWidth;
+            const float shockwaveSoftness = max(softness, 0.0001f) * pixelUvWidth;
+            const float shockwaveRadiusMax = max(0.f, 0.5f - shockwaveThickness - shockwaveSoftness);
+            const float shockwaveRadius = saturate(lifeProgress) * shockwaveRadiusMax;
+            const float ringDistance = abs(distanceFromCenter - shockwaveRadius);
+            shapeWeight = 1.f - smoothstep(shockwaveThickness, shockwaveThickness + shockwaveSoftness, ringDistance);
         }
     }
 
@@ -165,7 +180,7 @@ PS_OUT PS_MAIN(PS_IN In)
         max(g_EffectMaterialPreviewDistortionParams.x, 0.f) *
         max(g_EffectMaterialPreviewDistortionParams.y, 0.f) *
         saturate(coverage) *
-        Compute_PreviewDistortionShapeWeight(In.texCoord);
+        Compute_PreviewDistortionShapeWeight(In.texCoord, frac(g_EffectMaterialPreviewDistortionParams.w));
     const float4 distortedColor = g_DistortionSourceTexture.Sample(LinearClampSampler, screenUV + flow * strength);
 
     Out.color = float4(distortedColor.rgb, saturate(coverage));

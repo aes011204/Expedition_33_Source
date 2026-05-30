@@ -626,7 +626,8 @@ struct BattleActionPhase;
     struct BattleActionPhase
     {
         string animationKey = "";
-        string cameraProfileId = "";
+        string cameraPresetId = "";
+        string cameraClipId = "";
       //  string sequenceKey = "";
         uint32 phaseIndex={};
         BattleMovementPolicy movementPolicy = BattleMovementPolicy::None;

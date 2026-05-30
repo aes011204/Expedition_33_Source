@@ -18,7 +18,10 @@ void CameraDirector::Request_GamePlay()
     auto camera = GAME->Get_ActiveCamera();
 
     if(camera == nullptr)
+    {
+        GAME->Activate_CameraByType(ObjectType::TargetCamera);
         return;
+    }
 
     if(GAME->Activate_CameraByType(ObjectType::TargetCamera))
     {

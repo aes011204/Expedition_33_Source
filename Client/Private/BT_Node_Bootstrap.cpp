@@ -3,6 +3,7 @@
 #include "BT_Idle.h"
 #include "BT_CheckDistance.h"
 #include "BT_FinishDecision.h"
+#include "BT_LookRange.h"
 #include "BT_RotateToTarget.h"
 #include "BT_SetSkill.h"
 #include "BT_Set_Target.h"
@@ -18,6 +19,7 @@ void Force_Register_ClientBTNodes()
     (void)BT_FinishDecision::StaticClassNameA();
     (void)BT_Set_Target::StaticClassNameA();
     (void)BT_SetSkill::StaticClassNameA();
+    (void)BT_LookRange::StaticClassNameA();
 }
 
 NS_END

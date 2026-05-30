@@ -45,7 +45,7 @@ HRESULT TrailPreviewPlayerObject::Initialize(void*)
 
     _deferPreviewWeaponCreation = false;
     if (auto* body = dynamic_cast<Body_Player*>(Get_PartObject(L"Part_Body")))
-        CHECK_FAILED(Ready_WeaponPart(body), E_FAIL);
+        CHECK_FAILED(Ready_WeaponParts(body), E_FAIL);
 
     Set_Name(L"TrailPreview_Player");
     Set_SourcePrefabName(Internal::kSourcePrefabName);
@@ -169,13 +169,12 @@ HairChainPhysicsDesc TrailPreviewPlayerObject::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
-bool TrailPreviewPlayerObject::Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const
+void TrailPreviewPlayerObject::Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const
 {
-    outDesc = {};
-    return false;
+    outDescs.clear();
 }
 
-HRESULT TrailPreviewPlayerObject::Ready_WeaponPart(Body_Player* body)
+HRESULT TrailPreviewPlayerObject::Ready_WeaponParts(Body_Player* body)
 {
     CHECK_NULL(body, E_FAIL);
     if (_deferPreviewWeaponCreation)

@@ -101,6 +101,67 @@ void BattleMechanismCom::Clear_GustaveCharge()
     _gustave.currentCharge = 0;
 }
 
+ElementalType BattleMechanismCom::Get_LuneStain(uint32 index) const
+{
+    if (!Is_Lune() || index >= _lune.stainCount)
+        return ElementalType::None;
+
+    return _lune.stains[index];
+}
+
+void BattleMechanismCom::Add_LuneStains(initializer_list<ElementalType> elements)
+{
+    if (!Is_Lune())
+        return;
+
+    bool changed = false;
+
+    for (ElementalType element : elements)
+    {
+        if (!Is_LuneStainElement(element))
+            continue;
+
+        if (_lune.stainCount < kLuneMaxStains)
+        {
+            _lune.stains[_lune.stainCount++] = element;
+        }
+        else
+        {
+            for (uint32 i = 1; i < kLuneMaxStains; ++i)
+                _lune.stains[i - 1] = _lune.stains[i];
+
+            _lune.stains[kLuneMaxStains - 1] = element;
+        }
+
+        changed = true;
+    }
+
+    if (changed)
+        ++_lune.visualRevision; 
+}
+
+void BattleMechanismCom::Clear_LuneStains()
+{
+    if (!Is_Lune())
+        return;
+
+    _lune = {};
+}
+
+bool BattleMechanismCom::Is_LuneStainElement(ElementalType element)
+{
+    switch (element)
+    {
+    case ElementalType::Fire:
+    case ElementalType::Ice:
+    case ElementalType::Lightning:
+    case ElementalType::Light:
+        return true;
+    default:
+        return false;
+    }
+}
+
 void BattleMechanismCom::Set_MaelleStance(MaelleStance stance)
 {
     if (!Is_Maelle())

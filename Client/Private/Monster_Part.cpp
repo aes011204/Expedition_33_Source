@@ -205,12 +205,20 @@ void Monster_Part::Set_Animation(const string& animName, float blendDuration, bo
     _model->Set_Animation(animName, blendDuration, isLoop, startFrame);
 }
 
-void Monster_Part::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop, float startFrame)
+bool Monster_Part::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop, float startFrame)
 {
     if (_model == nullptr)
-        return;
+        return false;
 
-    _model->Set_AnimationByState(stateIndex, blendDuration, isLoop, startFrame);
+    const bool applied = _model->Set_AnimationByState(stateIndex, blendDuration, isLoop, startFrame);
+    const char* animName = _model->Get_AnimationName(_model->Get_CurrentAnimationIndex());
+
+    LOG_DEBUG("Monster_Part::Set_AnimationByState state={} applied={} currentAnim={}",
+        stateIndex,
+        applied,
+        animName != nullptr ? animName : "<null>");
+
+    return applied;
 }
 
 bool Monster_Part::Play_Animation(float timeDelta)

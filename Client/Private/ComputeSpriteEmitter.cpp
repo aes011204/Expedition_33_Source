@@ -528,6 +528,7 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
     if (!Is_DistortionFamily())
     {
         const EffectMaterialAdditiveContributionData& additive = material.additive;
+        const EffectMaterialCoreEmissiveData& coreEmissive = material.coreEmissive;
         const Vec4 effectSpriteAdditiveParams = Vec4(
             static_cast<float>(static_cast<uint32>(additive.colorSource)),
             static_cast<float>(static_cast<uint32>(additive.amountSource)),
@@ -535,10 +536,24 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
             additive.intensityScale
         );
         const Vec4 effectSpriteAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
+        const Vec4 effectSpriteCoreEmissiveParams = Vec4(
+            coreEmissive.enabled ? 1.f : 0.f,
+            coreEmissive.corePower,
+            coreEmissive.coreIntensity,
+            coreEmissive.outerPower
+        );
+        const Vec4 effectSpriteCoreEmissiveColor = Vec4(
+            coreEmissive.coreColor.x,
+            coreEmissive.coreColor.y,
+            coreEmissive.coreColor.z,
+            coreEmissive.outerIntensity
+        );
         CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveParams", &effectSpriteAdditiveParams, sizeof(effectSpriteAdditiveParams)), E_FAIL);
         CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
         CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
         CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveFlags", &effectSpriteAdditiveFlags, sizeof(effectSpriteAdditiveFlags)), E_FAIL);
+        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteCoreEmissiveParams", &effectSpriteCoreEmissiveParams, sizeof(effectSpriteCoreEmissiveParams)), E_FAIL);
+        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteCoreEmissiveColor", &effectSpriteCoreEmissiveColor, sizeof(effectSpriteCoreEmissiveColor)), E_FAIL);
     }
 
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), E_FAIL);
@@ -660,6 +675,7 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.startColorMax = _desc.initialColor.startColorMax;
     desc.endColorMin = _desc.colorOverLife.endColorMin;
     desc.endColorMax = _desc.colorOverLife.endColorMax;
+    desc.colorOverLifeCurve = _desc.colorOverLife.curve;
     desc.subUVRows = max(1u, _desc.required.material.subUVRows);
     desc.subUVCols = max(1u, _desc.required.material.subUVCols);
     desc.subUvFrameOverLife = _desc.subUVFrameOverLife;

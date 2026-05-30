@@ -43,8 +43,6 @@ public:
 
     void    Update_HeroManager(float timeDelta);
 
-
-
     void    Set_TargetCamera(const Shared<TargetCamera>& camera);
     void    Clear_Party();
 
@@ -68,6 +66,9 @@ public:
     // Idle 상태로 되돌리기 : 전환 후, 게임 종료
     void    Reset_AllHeroesToIdle();
     void    Handle_EditorStopRuntime();
+
+    // Active Hero인가?
+    bool    Is_ActiveHero(const Shared<GameObject>& target) const;
 
 private:
     void    Switch_NextHero();

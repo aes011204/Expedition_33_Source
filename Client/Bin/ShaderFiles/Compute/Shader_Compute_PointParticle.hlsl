@@ -48,27 +48,50 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_StartColorMax;
     float4 g_EndColorMin;
     float4 g_EndColorMax;
-    float4 g_SubUVParams;           // x/y: rows/cols, z: playback mode, w: frames per second
-    float4 g_SubUVFrameParams;      // x/y: start/end frame, z: loop, w: enabled
-    float4 g_SubUVFrameCurveTimes;  // Reserved frame curve key times for later Curve Editor work
-    float4 g_SubUVFrameCurveValues; // Reserved frame curve frame values for later Curve Editor work
-    float4 g_SubUVFrameCurveParams; // x: key count
-    float4 g_SizeByLifeParams;      // x/y: width start/end, z/w: height start/end
-    float4 g_SizeByLifeCurveTimes;  // scaleOverLife key times
+    float4 g_ColorOverLifeCurveParams; // x: color key count, y: alpha key count, z: color enabled, w: alpha enabled
+    float4 g_ColorOverLifeColorCurveTimes;
+    float4 g_ColorOverLifeColorCurveValuesR;
+    float4 g_ColorOverLifeColorCurveValuesG;
+    float4 g_ColorOverLifeColorCurveValuesB;
+    float4 g_ColorOverLifeColorCurveArriveR;
+    float4 g_ColorOverLifeColorCurveArriveG;
+    float4 g_ColorOverLifeColorCurveArriveB;
+    float4 g_ColorOverLifeColorCurveLeaveR;
+    float4 g_ColorOverLifeColorCurveLeaveG;
+    float4 g_ColorOverLifeColorCurveLeaveB;
+    float4 g_ColorOverLifeColorCurveModes;
+    float4 g_ColorOverLifeAlphaCurveTimes;
+    float4 g_ColorOverLifeAlphaCurveValues;
+    float4 g_ColorOverLifeAlphaCurveArrive;
+    float4 g_ColorOverLifeAlphaCurveLeave;
+    float4 g_ColorOverLifeAlphaCurveModes;
+    float4 g_SubUVParams;            // x/y: rows/cols, z: playback mode, w: frames per second
+    float4 g_SubUVFrameParams;       // x/y: start/end frame, z: loop, w: enabled
+    float4 g_SubUVFrameCurveTimes;   // Reserved frame curve key times for later Curve Editor work
+    float4 g_SubUVFrameCurveValues;  // Reserved frame curve frame values for later Curve Editor work
+    float4 g_SubUVFrameCurveParams;  // x: key count
+    float4 g_SizeByLifeParams;       // x/y: width start/end, z/w: height start/end
+    float4 g_SizeByLifeCurveTimes;   // scaleOverLife key times
     float4 g_SizeByLifeCurveValuesX; // scaleOverLife X multipliers
     float4 g_SizeByLifeCurveValuesY; // scaleOverLife Y multipliers
-    float4 g_SizeByLifeCurveParams; // x: key count, y: multiplyX, z: multiplyY, w: axisLock
-    float4 g_MotionFlags;           // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled
-    float4 g_MotionSpaceFlags;      // x: radial world
-    float4 g_InitialVelocityMin;    // xyz: vector velocity min
-    float4 g_InitialVelocityMax;    // xyz: vector velocity max
-    float4 g_MotionRadialPivot;     // xyz: radial pivot
-    float4 g_MotionRadialSpeedDrag; // x/y: radial speed min/max, z/w: drag min/max
+    float4 g_SizeByLifeCurveParams;  // x: key count, y: multiplyX, z: multiplyY, w: axisLock
+    float4 g_MotionFlags;            // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled
+    float4 g_MotionSpaceFlags;       // x: radial world
+    float4 g_InitialVelocityMin;     // xyz: vector velocity min
+    float4 g_InitialVelocityMax;     // xyz: vector velocity max
+    float4 g_MotionRadialPivot;      // xyz: radial pivot
+    float4 g_MotionRadialSpeedDrag;  // x/y: radial speed min/max, z/w: drag min/max
     float4 g_AccelerationMin;
     float4 g_AccelerationMax;
     float4 g_VelocityScaleByLife;
-    float4 g_RotationInitialRate; // x/y: initial rotation min/max, z/w: rate min/max
-    float4 g_RotationByLife;      // x/y: rotation start/end, z/w: rate scale start/end
+    float4 g_RotationInitialRate;         // x/y: initial rotation min/max, z/w: rate min/max
+    float4 g_RotationByLife;              // (Legacy) x/y: rotation start/end, z/w: rate scale start/end
+    float4 g_RotationOverLifeCurveTimes;  // rotationOverLife key times
+    float4 g_RotationOverLifeCurveValues; // rotationOverLife degree values
+    float4 g_RotationOverLifeCurveParams; // x: key count
+    float4 g_RotationRateScaleByLifeCurveTimes;  // rotationRateScaleByLife key times
+    float4 g_RotationRateScaleByLifeCurveValues; // rotationRateScaleByLife multiplier values
+    float4 g_RotationRateScaleByLifeCurveParams; // x: key count
 };
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
@@ -83,6 +106,103 @@ float ReadVec4Component(float4 values, uint index)
     if (index == 2u)
         return values.z;
     return values.w;
+}
+
+float EvaluateCompactCurve(
+    float lifeProgress,
+    uint keyCount,
+    float4 times,
+    float4 values,
+    float4 arriveTangents,
+    float4 leaveTangents,
+    float4 modes,
+    float fallbackValue)
+{
+    keyCount = max(1u, min(4u, keyCount));
+
+    if (keyCount == 1u || lifeProgress <= ReadVec4Component(times, 0u))
+        return ReadVec4Component(values, 0u);
+
+    bool found = false;
+    float result = fallbackValue;
+    [unroll]
+    for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+    {
+        if (keyIndex >= keyCount || found)
+            continue;
+
+        const float rightTime = ReadVec4Component(times, keyIndex);
+        if (lifeProgress > rightTime)
+            continue;
+
+        const float leftTime = ReadVec4Component(times, keyIndex - 1u);
+        const float leftValue = ReadVec4Component(values, keyIndex - 1u);
+        const float rightValue = ReadVec4Component(values, keyIndex);
+        const float mode = ReadVec4Component(modes, keyIndex - 1u);
+        const float width = max(0.0001f, rightTime - leftTime);
+        const float ratio = saturate((lifeProgress - leftTime) / width);
+
+        if (mode < 0.5f)
+        {
+            result = leftValue;
+        }
+        else if (mode >= 1.5f)
+        {
+            const float t2 = ratio * ratio;
+            const float t3 = t2 * ratio;
+            const float leftLeave = ReadVec4Component(leaveTangents, keyIndex - 1u) * width;
+            const float rightArrive = ReadVec4Component(arriveTangents, keyIndex) * width;
+            result =
+                (2.0f * t3 - 3.0f * t2 + 1.0f) * leftValue +
+                (t3 - 2.0f * t2 + ratio) * leftLeave +
+                (-2.0f * t3 + 3.0f * t2) * rightValue +
+                (t3 - t2) * rightArrive;
+        }
+        else
+        {
+            result = lerp(leftValue, rightValue, ratio);
+        }
+
+        found = true;
+    }
+
+    const float lastTime = ReadVec4Component(times, keyCount - 1u);
+    if (!found && lifeProgress > lastTime)
+        result = ReadVec4Component(values, keyCount - 1u);
+
+    return result;
+}
+
+float4 EvaluateColorOverLife(float lifeProgress, float4 fallbackColor)
+{
+    float4 result = fallbackColor;
+
+    if (g_ColorOverLifeCurveParams.z != 0.0f)
+    {
+        const uint colorKeyCount = (uint)g_ColorOverLifeCurveParams.x;
+        result.rgb = saturate(float3(
+            EvaluateCompactCurve(lifeProgress, colorKeyCount, g_ColorOverLifeColorCurveTimes, g_ColorOverLifeColorCurveValuesR, g_ColorOverLifeColorCurveArriveR, g_ColorOverLifeColorCurveLeaveR, g_ColorOverLifeColorCurveModes, fallbackColor.r),
+            EvaluateCompactCurve(lifeProgress, colorKeyCount, g_ColorOverLifeColorCurveTimes, g_ColorOverLifeColorCurveValuesG, g_ColorOverLifeColorCurveArriveG, g_ColorOverLifeColorCurveLeaveG, g_ColorOverLifeColorCurveModes, fallbackColor.g),
+            EvaluateCompactCurve(lifeProgress, colorKeyCount, g_ColorOverLifeColorCurveTimes, g_ColorOverLifeColorCurveValuesB, g_ColorOverLifeColorCurveArriveB, g_ColorOverLifeColorCurveLeaveB, g_ColorOverLifeColorCurveModes, fallbackColor.b)
+        ));
+    }
+
+    if (g_ColorOverLifeCurveParams.w != 0.0f)
+    {
+        const uint alphaKeyCount = (uint)g_ColorOverLifeCurveParams.y;
+        result.a = saturate(EvaluateCompactCurve(
+            lifeProgress,
+            alphaKeyCount,
+            g_ColorOverLifeAlphaCurveTimes,
+            g_ColorOverLifeAlphaCurveValues,
+            g_ColorOverLifeAlphaCurveArrive,
+            g_ColorOverLifeAlphaCurveLeave,
+            g_ColorOverLifeAlphaCurveModes,
+            fallbackColor.a
+        ));
+    }
+
+    return result;
 }
 
 float2 EvaluateSizeByLifeMultiplier(float lifeProgress)
@@ -148,6 +268,106 @@ float2 EvaluateSizeByLifeMultiplier(float lifeProgress)
         multiplier.y = 1.0f;
 
     return multiplier;
+}
+
+// RotationOverLife curve payload를 평가해 life-progress 시점의 추가 회전각을 반환한다.
+float EvaluateRotationOverLifeDegrees(float lifeProgress)
+{
+    const uint keyCount = max(1u, min(4u, (uint)g_RotationOverLifeCurveParams.x));
+    float rotationDegrees = g_RotationByLife.x;
+
+    if (keyCount == 1u || lifeProgress <= ReadVec4Component(g_RotationOverLifeCurveTimes, 0u))
+        rotationDegrees = ReadVec4Component(g_RotationOverLifeCurveValues, 0u);
+    else
+    {
+        bool found = false;
+        [unroll]
+        for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+        {
+            if (keyIndex >= keyCount || found)
+                continue;
+
+            const float rightTime = ReadVec4Component(g_RotationOverLifeCurveTimes, keyIndex);
+            if (lifeProgress > rightTime)
+                continue;
+
+            const float leftTime = ReadVec4Component(g_RotationOverLifeCurveTimes, keyIndex - 1u);
+            const float ratio = saturate((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime));
+            rotationDegrees = lerp(
+                ReadVec4Component(g_RotationOverLifeCurveValues, keyIndex - 1u),
+                ReadVec4Component(g_RotationOverLifeCurveValues, keyIndex),
+                ratio
+            );
+            found = true;
+        }
+
+        const float lastTime = ReadVec4Component(g_RotationOverLifeCurveTimes, keyCount - 1u);
+        if (!found && lifeProgress > lastTime)
+            rotationDegrees = ReadVec4Component(g_RotationOverLifeCurveValues, keyCount - 1u);
+    }
+
+    return rotationDegrees;
+}
+
+float IntegrateLinearCurveSegment(float leftTime, float leftValue, float rightTime, float rightValue, float startTime, float endTime)
+{
+    const float width = max(0.0001f, rightTime - leftTime);
+    const float t0 = saturate((startTime - leftTime) / width);
+    const float t1 = saturate((endTime - leftTime) / width);
+    const float valueDelta = rightValue - leftValue;
+    return width * (leftValue * (t1 - t0) + 0.5f * valueDelta * (t1 * t1 - t0 * t0));
+}
+
+// RotationRateScaleByLife curve payload를 0..lifeProgress 구간의 평균 배율로 적분 평가한다.
+float EvaluateRotationRateScaleByLifeAverage(float lifeProgress)
+{
+    const uint keyCount = max(1u, min(4u, (uint)g_RotationRateScaleByLifeCurveParams.x));
+    const float clampedProgress = saturate(lifeProgress);
+    const float firstTime = saturate(ReadVec4Component(g_RotationRateScaleByLifeCurveTimes, 0u));
+    const float firstValue = ReadVec4Component(g_RotationRateScaleByLifeCurveValues, 0u);
+
+    if (keyCount == 1u || clampedProgress <= 0.0001f)
+        return firstValue;
+    if (clampedProgress <= firstTime)
+        return firstValue;
+
+    float area = firstValue * firstTime;
+    float previousTime = firstTime;
+    float previousValue = firstValue;
+    bool done = false;
+
+    [unroll]
+    for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+    {
+        if (keyIndex >= keyCount || done)
+            continue;
+
+        const float rightTime = max(previousTime, saturate(ReadVec4Component(g_RotationRateScaleByLifeCurveTimes, keyIndex)));
+        const float rightValue = ReadVec4Component(g_RotationRateScaleByLifeCurveValues, keyIndex);
+        const float segmentEnd = min(clampedProgress, rightTime);
+        if (segmentEnd > previousTime)
+        {
+            area += IntegrateLinearCurveSegment(
+                previousTime,
+                previousValue,
+                rightTime,
+                rightValue,
+                previousTime,
+                segmentEnd
+            );
+        }
+
+        if (clampedProgress <= rightTime)
+            done = true;
+
+        previousTime = rightTime;
+        previousValue = rightValue;
+    }
+
+    if (!done && clampedProgress > previousTime)
+        area += previousValue * (clampedProgress - previousTime);
+
+    return area / max(0.0001f, clampedProgress);
 }
 
 // 정수 seed를 0~1 사이의 pseudo-random float 값으로 바꾼다.
@@ -362,9 +582,9 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                                          : currentVelocity / currentVelocityLength;
 
     const float initialRotation = radians(lerp(g_RotationInitialRate.x, g_RotationInitialRate.y, Hash01(seed + 809u)));
-    const float rotationOverLife = radians(lerp(g_RotationByLife.x, g_RotationByLife.y, lifeProgress));
+    const float rotationOverLife = radians(EvaluateRotationOverLifeDegrees(lifeProgress));
     const float rotationRate = radians(lerp(g_RotationInitialRate.z, g_RotationInitialRate.w, Hash01(seed + 907u)));
-    const float rotationRateScale = IntegrateLifeScale(g_RotationByLife.z, g_RotationByLife.w, lifeProgress);
+    const float rotationRateScale = EvaluateRotationRateScaleByLifeAverage(lifeProgress);
     const float rotation = initialRotation + rotationOverLife + rotationRate * rotationRateScale * lifeAge;
     const float rotationCos = cos(rotation);
     const float rotationSin = sin(rotation);
@@ -429,8 +649,11 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     instance.look = float4(velocityAlignmentHint, 0.0f);
     instance.translation = float4(spawnPosition + motionOffset, 1.0f);
     instance.lifeTime = float2(lifeMax, lifeAge);
-    instance.startColor = lerp(g_StartColorMin, g_StartColorMax, colorRatio);
-    instance.endColor = lerp(g_EndColorMin, g_EndColorMax, colorRatio);
+    const float4 legacyStartColor = lerp(g_StartColorMin, g_StartColorMax, colorRatio);
+    const float4 legacyEndColor = lerp(g_EndColorMin, g_EndColorMax, colorRatio);
+    const float4 particleColor = EvaluateColorOverLife(lifeProgress, lerp(legacyStartColor, legacyEndColor, lifeProgress));
+    instance.startColor = particleColor;
+    instance.endColor = particleColor;
     instance.subUVRect = float4(u0, v0, u0 + invCols, v0 + invRows);
 
     if (index >= stableDrawCount)

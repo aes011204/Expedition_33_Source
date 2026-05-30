@@ -1,9 +1,9 @@
-﻿
-#include "Level_GameEntry.h"
+﻿#include "Level_GameEntry.h"
 
 #include "GameInstance.h"
 #include "Level_Loading.h"
 #include "Client_Constants.h"
+#include "Level_MainTitle.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Utils.h"
 #include "UI_Button.h"
@@ -41,7 +41,7 @@ void Level_GameEntry::Handle_Button()
 {
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
-        if (FAILED(GAME->Change_Level(ETOI(LevelType::Loading), Level_Loading::Create(_device.Get(), _context.Get(), LevelType::MainTitle))))
+        if (FAILED(GAME->Change_Level(ETOI(LevelType::MainTitle), Level_MainTitle::Create(_device.Get(), _context.Get()))))
             return;
 
         return;

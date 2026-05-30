@@ -925,6 +925,8 @@ namespace Internal
             return "Radial";
         case EffectDistortionShapeMode::Ring:
             return "Ring";
+        case EffectDistortionShapeMode::ShockwaveRing:
+            return "ShockwaveRing";
         default:
             return "None";
         }
@@ -938,7 +940,8 @@ namespace Internal
         static constexpr EffectDistortionShapeMode kModes[]{
             EffectDistortionShapeMode::None,
             EffectDistortionShapeMode::Radial,
-            EffectDistortionShapeMode::Ring
+            EffectDistortionShapeMode::Ring,
+            EffectDistortionShapeMode::ShockwaveRing
         };
 
         return Draw_EnumComboProperty(
@@ -1212,6 +1215,44 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
         }
     }
 
+    if (ImGui::CollapsingHeader("Core Emissive", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceCoreEmissive"))
+        {
+            changed |= _detailPropertyContext.Draw_BoolProperty(
+                "Enabled",
+                material.coreEmissive.enabled,
+                defaultData.coreEmissive.enabled
+            );
+            changed |= _detailPropertyContext.Draw_ColorProperty(
+                "Core Color",
+                material.coreEmissive.coreColor,
+                defaultData.coreEmissive.coreColor
+            );
+            changed |= _detailPropertyContext.Draw_FloatProperty(
+                "Core Power",
+                material.coreEmissive.corePower,
+                defaultData.coreEmissive.corePower
+            );
+            changed |= _detailPropertyContext.Draw_FloatProperty(
+                "Core Intensity",
+                material.coreEmissive.coreIntensity,
+                defaultData.coreEmissive.coreIntensity
+            );
+            changed |= _detailPropertyContext.Draw_FloatProperty(
+                "Outer Power",
+                material.coreEmissive.outerPower,
+                defaultData.coreEmissive.outerPower
+            );
+            changed |= _detailPropertyContext.Draw_FloatProperty(
+                "Outer Intensity",
+                material.coreEmissive.outerIntensity,
+                defaultData.coreEmissive.outerIntensity
+            );
+            _detailPropertyContext.End_PropertyTable();
+        }
+    }
+
     if (ImGui::CollapsingHeader("UV", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceUV"))
@@ -1304,11 +1345,20 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
             changed |= _detailPropertyContext.Draw_Vec2Property("Flow UV Scroll Speed", material.flowUVScrollSpeed, defaultData.flowUVScrollSpeed);
             changed |= _detailPropertyContext.Draw_FloatProperty("Refraction Intensity", material.refractionIntensity, defaultData.refractionIntensity);
             changed |= _detailPropertyContext.Draw_FloatProperty("Refraction Presence", material.refractionPresence, defaultData.refractionPresence);
-            changed |= Internal::Draw_DistortionShapeModeProperty(
+            const EffectDistortionShapeMode previousShapeMode = material.distortionShapeMode;
+            const bool shapeModeChanged = Internal::Draw_DistortionShapeModeProperty(
                 _detailPropertyContext,
                 material.distortionShapeMode,
                 defaultData.distortionShapeMode
             );
+            changed |= shapeModeChanged;
+            if (shapeModeChanged &&
+                previousShapeMode != EffectDistortionShapeMode::ShockwaveRing &&
+                material.distortionShapeMode == EffectDistortionShapeMode::ShockwaveRing)
+            {
+                material.distortionShapeThickness = 14.f;
+                material.distortionShapeSoftness = 4.f;
+            }
             if (material.distortionShapeMode == EffectDistortionShapeMode::Radial ||
                 material.distortionShapeMode == EffectDistortionShapeMode::Ring)
             {
@@ -1327,6 +1377,19 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
                 }
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "Shape Softness",
+                    material.distortionShapeSoftness,
+                    defaultData.distortionShapeSoftness
+                );
+            }
+            else if (material.distortionShapeMode == EffectDistortionShapeMode::ShockwaveRing)
+            {
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "Shape Thickness (px)",
+                    material.distortionShapeThickness,
+                    defaultData.distortionShapeThickness
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "Shape Softness (px)",
                     material.distortionShapeSoftness,
                     defaultData.distortionShapeSoftness
                 );

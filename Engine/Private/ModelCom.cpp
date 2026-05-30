@@ -1248,6 +1248,7 @@ void ModelCom::Stop_AllNotifyStates(bool executeEndCheck)
         context.previousTimeSec = 0.f;
         context.currentTimeSec = 0.f;
         context.notifyStateProgress = 1.f; // 강제 종료여도 End에서는 완료 상태로 사용하려면 1.f
+        context.notifyStateDurationSec = 0.f;
         context.deltaTime = 0.f;
         context.isLooping = false;
         context.wrapped = false;
@@ -1287,6 +1288,7 @@ void ModelCom::Stop_NotifyStates_ExceptAnimation(const string& keepAnimationName
             context.currentTimeSec = 0.f;
             context.deltaTime = 0.f;
             context.notifyStateProgress = 1.f;
+            context.notifyStateDurationSec = 0.f;
             context.isLooping = false;
             context.wrapped = false;
             context.isPreview = !_isAnimNotifyExecutionEnabled;
@@ -1330,6 +1332,7 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
         const int32 activeIndex = Find_ActiveNotifyStateIndex(_activeNotifyStates, context.animationName, stateIndex);
 
         AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
 
         if (entry.durationSec > 0.f)
         {

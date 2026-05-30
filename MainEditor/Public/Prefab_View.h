@@ -105,9 +105,12 @@ private:
     Shared<DirectX::BasicEffect> _previewGridEffect{};
     ComPtr<ID3D11InputLayout> _previewGridInputLayout{};
     ComPtr<ID3D11DepthStencilState> _previewGridDepthState{};
+    ComPtr<ID3D11DepthStencilState> _previewOverlayDepthState{};
 
     bool                _isPreviewHovered = false;
     bool                _isPreviewActive = false;
+    bool                _isGizmoHovered = false;
+    bool                _isGizmoUsing = false;
     bool                _applyDefaultWindowLayout = false;
     bool                _openAnimationViewWithPrefab = false;
 

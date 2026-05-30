@@ -36,6 +36,20 @@ HRESULT MW_Lancelier::Initialize(void* arg)
     CHECK_FAILED(Monster_WorldBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
+    vector<Vec3> po = {
+        { 0.f, 1.f, 32.f },
+        { 8.f, 1.f, 25.f },
+        { 12.f, 1.f, 32.f },
+        { 8.f, 1.f, 39.f },
+        { 0.f, 1.f, 32.f },
+        { -8.f, 1.f, 25.f },
+        { -12.f, 1.f, 32.f },
+        { -8.f, 1.f, 39.f },
+        { 0.f, 1.f, 32.f }
+    };
+
+    Set_PatrolPoints(po);
+
     return S_OK;
 }
 
@@ -62,7 +76,13 @@ void MW_Lancelier::Update(float timeDelta)
         // Lancelier 월드 이동은 기존 Monster와 동일하게 body root motion 속도를 사용한다.
         const auto rootVelocity = _body->Get_RootTransformVelocity();
         _transformCom->Set_SpeedPerSec(rootVelocity.position.z *0.4f/*Constants::Charcter::scaleOffset*/);
+
+
+        /*LOG_DEBUG("speed={} rootZ={}",
+            _transformCom->Get_SpeedPerSec(),
+            rootVelocity.position.z);*/
     }
+
 }
 
 HRESULT MW_Lancelier::Render()

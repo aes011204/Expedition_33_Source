@@ -11,7 +11,6 @@ class CharacterStatus_Panel;
 class ChangeWeapon_Panel;
 class ExpeditionStat_Panel;
 class UI_CrossHair;
-class Monster_WorldBase;
 
 class GameplayUI_World final : public Base
 {
@@ -28,7 +27,6 @@ public:
     bool    Is_AnyMenuOpen() const;
     GameplayMenu Get_CurrentMenu() const; // 현재 최상위 메뉴 확인용
     void    Force_CloseAllMenus();
-
     void    Handle_EditorStopRuntime();
 
 private:
@@ -47,10 +45,7 @@ private:
     void    Open_Menu(GameplayMenu menu);  // 메뉴 enum -> 실제 panel open
     void    Close_Menu(GameplayMenu menu); // 메뉴 enum -> 실제 panel close
 
-    // 월드에서 CrossHair를 보여줘야하는 상태인지?
     bool    Is_WorldFreeAimActive() const;
-    // Hit 판정
-    bool    Has_FreeAimHitMonster() const;
 
 private:
     Unique<SavePoint_Panel>       _savePointPanel;

@@ -40,12 +40,19 @@ public:
     void    Late_Update(float timeDelta) override;
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
+    Matrix  Get_GizmoWorldMatrix() const override;
+    bool    Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix) override;
 
     void    From_Json(const json& data) override;
 
 public:
     const Matrix* Get_SocketBoneMatrixPtr(const string& boneName) const;
     Shared<ModelCom> Get_Model() const { return _model; }
+
+    // 구스타브 총돌리기
+    bool    Begin_NotifyRotation();
+    void    Apply_NotifyRotation(const Vec3 axisLocal, float degree);
+    void    End_NotifyRotation();
 
 private:
     HRESULT Ready_Components(const WEAPON_DESC& desc);
@@ -61,6 +68,9 @@ private:
 
 private:
     const Matrix*       _socketMatrix = { nullptr };
+
+    bool _notifyRotationActive = false;
+    Quat _notifyRotationBaseLocal = Quat::Identity;
 
 public:
     static Shared<Weapon> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

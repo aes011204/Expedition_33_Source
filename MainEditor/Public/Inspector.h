@@ -40,6 +40,14 @@ public:
 
 
 private:
+    struct FGameObjectClassPickerEntry
+    {
+        string className{};
+        string displayName{};
+        string category{};
+    };
+
+private:
     void Draw_PrimaryShadowLightInspector();
     static void Draw_UIInspector(
         const Shared<Engine::UI_Base>& ui,
@@ -59,12 +67,19 @@ private:
 
     static bool Draw_ColorPropertyRow(const string& idPrefix, Vec4& value);
     static bool Draw_EnumPropertyRow(const string& idPrefix, const PropertyInfo& property, int& value);
+    static bool Draw_SpawnActorClassPropertyRow(
+        const string& hiddenId,
+        std::string& value);
+    static void Rebuild_GameObjectClassPickerEntries();
+    static bool Matches_GameObjectClassPickerSearch(const FGameObjectClassPickerEntry& entry, const string& searchText);
 
     static bool Draw_VecAxis(const char* axisLabel, const ImVec4& color, float& value, float speed, const string& uniqueId, float width);
 
 private:
     static constexpr float InspectorLabelWidth = 110.f;
     static const vector<Engine::BTBlackboardKeyView>* _btBlackboardKeys;
+    static vector<FGameObjectClassPickerEntry> _gameObjectClassPickerEntries;
+    static char _spawnActorClassSearchBuffer[256];
     bool _isPrimaryShadowLightTarget = false;
 public:
     static Shared<Inspector> Create();

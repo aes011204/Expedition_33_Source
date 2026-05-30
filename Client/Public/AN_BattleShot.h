@@ -18,8 +18,10 @@ public:
 
 private:
     BattleCameraMode _cameraMode = BattleCameraMode::PLAYERATTACK;
-    bool             _restartClip;
-    bool             _useClip;
+    string           _presetId = {};
+    string           _clipId = {};
+    bool             _restartClip = false;
+    bool             _useClip = false;
 };
 
 NS_END

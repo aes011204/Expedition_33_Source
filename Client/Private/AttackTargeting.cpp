@@ -65,6 +65,8 @@ void AttackTargeting::Update(float timeDelta)
         return;
 
     const auto enemies = owner->Get_AliveEnemies();
+    const auto heroes = owner->Get_AliveHeroes();
+
     if (enemies.empty())
         return;
 
@@ -72,6 +74,12 @@ void AttackTargeting::Update(float timeDelta)
     {
         owner->Clear_TargetPreview();
         battleFSM->Change_State(BattleTurnState::ChooseAction);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
+        event.subject = owner->Get_TurnActionRequest().actor.actor;
+        GAME->Get_EventBus().Publish(event);
+
         return;
     }
 
