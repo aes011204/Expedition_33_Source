@@ -59,7 +59,7 @@ private:
     {
         uint32 segmentCount{};   // 이번 frame에 유효한 trail segment 수다.
         float segmentLifetime{}; // age fade 기준 lifetime이다.
-        float width{};           // strip 폭이다.
+        float width{};           // base/tip span에 곱할 strip 폭 비율이다.
         float uvTiling{};        // trail noise/breakup 길이 방향 UV 반복 배율이다.
         float sideFade{};        // 폭 방향 alpha edge 감소 강도다.
         Vec3 padding{};          // constant buffer 16-byte 정렬 유지용 padding이다.
