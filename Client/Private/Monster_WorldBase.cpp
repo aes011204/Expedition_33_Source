@@ -31,6 +31,8 @@ HRESULT Monster_WorldBase::Initialize(void* arg)
     CHECK_FAILED(Character_WorldBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
 
+
+
     return S_OK;
 }
 
@@ -56,7 +58,7 @@ void Monster_WorldBase::Update(float timeDelta)
     if (CLIENT->Is_BattleActive())
         return;
 
-    if (_aiCtrl)
+    if (_aiCtrl )
     {
         const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
         const Shared<GameObject> player = CLIENT->Find_Player(GAME->Current_LevelIndex());
@@ -64,6 +66,7 @@ void Monster_WorldBase::Update(float timeDelta)
         if (bb && player)
         {
             bb->Set_Value("playerPos", player->Get_Transform()->Get_Position());
+            bb->Set_Value("isStun", _isStun);
         }
 
         _aiCtrl->Update(timeDelta);
@@ -71,6 +74,11 @@ void Monster_WorldBase::Update(float timeDelta)
 
     if (_combatStat)
         _combatStat->Update(timeDelta);
+
+    if (_isStun)
+        _currentAction = MonsterWorldAnim::Stun;
+    else
+        _currentAction = _desiredAction;
 
 
     //if (_aiCtrl && _aiCtrl->Get_IsMoving())
@@ -89,6 +97,10 @@ void Monster_WorldBase::Update(float timeDelta)
 
             switch (_currentAction)
             {
+            case MonsterWorldAnim::Stun:
+              applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Stun), 0.3f, true);
+                break;
+
             case MonsterWorldAnim::Idle:
                 applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Idle), 0.3f, true);
                 break;
@@ -111,12 +123,35 @@ void Monster_WorldBase::Update(float timeDelta)
                     animName != nullptr ? animName : "<null>");
             }
 
-            _previousAction = _currentAction;
+            
+            if (applied)
+                _previousAction = _currentAction;
+
         }
     }
 
+    if(_isStun == true)
+    {
+        _stunTime -= timeDelta;
+
+        if(_stunTime<=0.f )
+        {
+            _isStun = false;
+
+        }
+    }
 
     Character_WorldBase::Update(timeDelta);
+}
+
+
+void Monster_WorldBase::Apply_Stun(float duration)
+{
+    if (_isStun == true)
+        return;
+    _isStun = true;
+    _stunTime = _maxStunTime;
+    
 }
 
 void Monster_WorldBase::Late_Update(float timeDelta)

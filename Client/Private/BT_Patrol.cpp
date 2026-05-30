@@ -1,9 +1,9 @@
-﻿#include "BT_Patroll.h"
+﻿#include "BT_Patrol.h"
 #include "AIController.h"
 #include "MW_Lancelier.h"
 #include "BlackBoard.h"
 
-IMPLEMENT_REFLECTION(BT_Patroll)
+IMPLEMENT_REFLECTION(BT_Patrol)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
@@ -12,23 +12,28 @@ IMPLEMENT_REFLECTION(BT_Patroll)
     return true;
 }
 
-BT_Patroll::BT_Patroll()
+BT_Patrol::BT_Patrol()
 {
 }
 
-BT_Patroll::~BT_Patroll()
+BT_Patrol::~BT_Patrol()
 {
 }
 
-void BT_Patroll::OnStart()
+void BT_Patrol::OnStart()
 {
 
     Shared<Monster_WorldBase> monster = dynamic_pointer_cast<Monster_WorldBase>(Get_Owner()->Get_Owner());
-    monster->Set_CurrentAction(MW_Lancelier::MonsterWorldAnim::Patrol);
+    if (!monster)
+        return;
+
     _patrolPoints = monster->Get_PatrolPoints();
 
     if (_patrolPoints.empty())
         return;
+
+    if (monster)
+        monster->Set_DesiredAction(Monster_WorldBase::MonsterWorldAnim::Patrol);
 
     curIndex = 0;
     Get_Owner()->Get_BlackBoard()->Set_Value("PatrolPos", _patrolPoints[curIndex]);
@@ -37,7 +42,7 @@ void BT_Patroll::OnStart()
 
 }
 
-BNode::NODE_STATE BT_Patroll::Logic_Update(float deltaTime)
+BNode::NODE_STATE BT_Patrol::Logic_Update(float deltaTime)
 {
     if(_patrolPoints.empty() == true)
         return BNode::NODE_STATE::FAILED ;
@@ -76,13 +81,13 @@ BNode::NODE_STATE BT_Patroll::Logic_Update(float deltaTime)
     return BNode::NODE_STATE::RUN;
 }
 
-void BT_Patroll::OnFinish()
+void BT_Patrol::OnFinish()
 {
 }
 
-Shared<BT_Patroll> BT_Patroll::Create()
+Shared<BT_Patrol> BT_Patrol::Create()
 {
-    auto instance = make_shared<BT_Patroll>();
+    auto instance = make_shared<BT_Patrol>();
 
     /*if (FAILED(instance->Initialize_Prototype()))
     {
@@ -93,7 +98,7 @@ Shared<BT_Patroll> BT_Patroll::Create()
     return instance;
 }
 
-void BT_Patroll::Free()
+void BT_Patrol::Free()
 {
     __super::Free();
 }

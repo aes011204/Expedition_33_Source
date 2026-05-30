@@ -18,7 +18,8 @@ public:
     {
         Idle,
         Patrol,
-        Chase
+        Chase,
+        Stun
     };
 
 public:
@@ -50,15 +51,20 @@ public:
     const vector<string>& Get_BattleMonsterPrefabNames() const { return _battleMonsterPrefabNames; }
 
     void Set_CurrentAction(MonsterWorldAnim action) { _currentAction = action; }
+    void Set_DesiredAction(MonsterWorldAnim action) { _desiredAction = action; }
+    void Apply_Stun(float duration);
     MonsterWorldAnim Get_CurrentAction() const { return _currentAction; }
+    MonsterWorldAnim Get_DesiredAction() const { return _desiredAction; }
+    bool Is_Stunned() const { return _isStun; }
 
     //일단 셋은 임시 
-    void Set_PatrollPoints(vector<Vec3> patrollPoint) { _patrollPoints = patrollPoint; };
-    const vector<Vec3>& Get_PatrolPoints() { return _patrollPoints; };
+    void Set_PatrolPoints(vector<Vec3> PatrolPoint) { _PatrolPoints = PatrolPoint; };
+    const vector<Vec3>& Get_PatrolPoints() { return _PatrolPoints; };
 protected:
     virtual HRESULT Ready_Components();
 
 private:
+    MonsterWorldAnim _desiredAction = MonsterWorldAnim::Idle;
     MonsterWorldAnim _currentAction = MonsterWorldAnim::Idle;
     MonsterWorldAnim _previousAction = MonsterWorldAnim::Idle;
 
@@ -71,7 +77,12 @@ protected:
     bool                         _isBattleStart = false;
     FDelegateHandle              _editorStopHandle = {};
 
-    vector<Vec3>                 _patrollPoints;
+    vector<Vec3>                 _PatrolPoints;
+
+    bool _isStun = {false};
+    float _maxStunTime = {3.f};
+    float _stunTime = {};
+
 public:
     void Free() override;
 

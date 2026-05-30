@@ -45,8 +45,9 @@ void BT_RotateToTarget::OnFinish()
 
 BNode::NODE_STATE BT_RotateToTarget::Logic_Update(float deltaTime)
 {
-
     auto bb = Get_Owner()->Get_BlackBoard();
+    if (!bb || _targetKey.empty() || !bb->Has_Value(_targetKey))
+        return BNode::NODE_STATE::FAILED;
 
 
     Vec3 target = bb->Get_Value<Vec3>(_targetKey);

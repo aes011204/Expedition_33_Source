@@ -23,15 +23,19 @@ BT_Chase::~BT_Chase()
 
 void BT_Chase::OnStart()
 {
-    LOG_DEBUG("BT_Chase::OnStart");
+
     const Shared<Monster_WorldBase> monster = dynamic_pointer_cast<Monster_WorldBase>(Get_Owner()->Get_Owner());
-     monster->Set_CurrentAction(MW_Lancelier::MonsterWorldAnim::Chase);
+    if (monster)
+        monster->Set_DesiredAction(Monster_WorldBase::MonsterWorldAnim::Chase);
 
     const auto bb = Get_Owner()->Get_BlackBoard();
 
     Vec3 target = bb->Get_Value<Vec3>(_targetKey);
     Get_Owner()->Request_Move(target);
     _prevPos = target;
+
+    LOG_DEBUG("BT_Chase RequestMove target=({}, {}, {})", target.x, target.y, target.z);
+
     // _started = true;
 }
 
