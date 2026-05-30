@@ -7,6 +7,7 @@
 #include "Battle_Event.h"
 #include "CameraPresetTypes.h"
 #include "Event_Bus.h"
+#include <format>
 
 NS_BEGIN(Client)
 
@@ -79,6 +80,12 @@ void ChooseAction::Update(float timeDelta)
     {
         owner->Get_TurnActionRequest().type = EBattleContext::ConsumableItem;
         battleFSM->Change_State(BattleTurnState::ChooseItem);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::SELECTITEM;
+        event.subject = owner->Get_TurnActionRequest().actor.actor;
+        event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
+        GAME->Get_EventBus().Publish(event);
         return;
     }
 

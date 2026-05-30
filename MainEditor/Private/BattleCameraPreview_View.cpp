@@ -3504,6 +3504,7 @@ void BattleCameraPreview_View::Insert_BattleClipKeyAtFrame(int trackIndex, int f
 
     BattleCameraKeyframe keyframe{};
     keyframe.time = keyTime;
+    keyframe.value = Get_DefaultBattleClipValue(trackIndex);
     track->keyframes.push_back(keyframe);
     Sort_BattleClipTrackKeyframes(*track);
 
@@ -4382,6 +4383,19 @@ float BattleCameraPreview_View::Get_TransitionSequenceDuration() const
     }
 
     return total;
+}
+
+float BattleCameraPreview_View::Get_DefaultBattleClipValue(int trackIndex)
+{
+    switch (trackIndex)
+    {
+        case 10: return 32.f;   // shakeFrequencyX
+        case 11: return 47.f;   // shakeFrequencyY
+        case 12: return 8.f;    // shakeDecayRate
+        case 13: return 0.8f;   // shakeVerticalRatio
+        case 14: return 0.05f;  // shakeStrengthScale
+        default: return 0.f;
+    }
 }
 
 void BattleCameraPreview_View::Resolve_TransitionSequenceTime(float time, int& outStepIndex, float& outStepLocalTime)

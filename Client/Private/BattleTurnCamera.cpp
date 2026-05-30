@@ -153,6 +153,22 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
                     request.presetId = event.presetId;
                     request.clipId = event.clipId;
                     break;
+
+                case BattleCameraMode::SELECTITEM:
+                    request.mode = event.cameraMode;
+                    request.subject = event.subject;
+                    request.skillId = event.skillId;
+                    request.presetId = event.presetId;
+                    request.clipId = event.clipId;
+                    break;
+
+                case BattleCameraMode::SELECTSKILL:
+                    request.mode = event.cameraMode;
+                    request.subject = event.subject;
+                    request.skillId = event.skillId;
+                    request.presetId = event.presetId;
+                    request.clipId = event.clipId;
+                    break;
             }
 
             request.useClip = event.useClip;
@@ -520,27 +536,6 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
         outPose.rollOffset = 0.f;
         return true;
     }
-
-    case BattleCameraMode::BATTLEINTRO:
-    case BattleCameraMode::PLAYERFOCUS:
-    case BattleCameraMode::ENEMYFOCUS:
-    case BattleCameraMode::PLAYERATTACK:
-    {
-        if (request.subject == nullptr)
-            return false;
-
-        const Vec3 subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
-        return Evaluate_BattleTurnPresetPose(
-            subjectPos,
-            preset,
-            clipSample,
-            _yaw,
-            _pitch,
-            smoothedTargetPos,
-            clipTime,
-            outPose);
-    }
-
     case BattleCameraMode::ENEMYATTACK:
     {
         if (request.subject == nullptr || request.opponent == nullptr)
@@ -561,7 +556,19 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
             outPose);
     }
     default:
-        return false;
+        if (request.subject == nullptr)
+            return false;
+
+        const Vec3 subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+        return Evaluate_BattleTurnPresetPose(
+            subjectPos,
+            preset,
+            clipSample,
+            _yaw,
+            _pitch,
+            smoothedTargetPos,
+            clipTime,
+            outPose);
     }
 }
 
@@ -845,6 +852,12 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         else
             nextActiveClip = &_playerAttackDefaultProfile.clip;
         break;
+
+    case BattleCameraMode::SELECTITEM:
+        if(resolvedPresetById != nullptr)
+        {
+            nextPreset = *resolvedPresetById;   
+        }
     }
 
     if(request.useClip == false)
