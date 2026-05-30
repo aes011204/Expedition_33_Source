@@ -1094,6 +1094,14 @@ namespace UIEditor
             [&]() { return _objectEditService.Set_ObjectFontBinding(_document, objectId, fontGuid, fontPath, fontTag); });
     }
 
+    bool UI_Editor_Manager::Set_UIObjectStateAnimationPath(ObjectId objectId, const string& stateAnimationPath)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectStateAnimationPath(_document, objectId, stateAnimationPath); },
+            [&]() { return _objectEditService.Set_ObjectStateAnimationPath(_document, objectId, stateAnimationPath); });
+    }
+
     bool UI_Editor_Manager::Set_UIObjectWorldPosition(ObjectId objectId, const ImVec2& worldPosition)
     {
         if (Is_ObjectEffectivelyLocked(objectId))

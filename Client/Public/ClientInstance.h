@@ -19,6 +19,7 @@ class PersistentObjectManager;
 class Hero_Manager;
 class CameraDirector;
 class EffectInstancePool;
+class ClientScreenFxManager;
 
 class ClientInstance : public Base
 {
@@ -132,6 +133,9 @@ public:
     void Set_TargetCameraEditMode(bool enable) { _isTargetCameraEditMode = enable; }
     bool Is_TargetCameraEditMode() { return _isTargetCameraEditMode;}
 
+public:
+    Shared<ClientScreenFxManager> Get_ScreenFxManager() const;
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
@@ -153,9 +157,10 @@ private:
     Unique<PreviewShotTable>    _previewShotTable;
     Unique<EffectInstancePool>  _effectInstancePool;
 
-    Shared<GameplayUI>          _gamePlayUI;
-    Unique<PersistentObjectManager> _persistentObjectManager;
-    Unique<Hero_Manager>        _heroManager;
+    Shared<GameplayUI>                  _gamePlayUI;
+    Unique<PersistentObjectManager>     _persistentObjectManager;
+    Unique<Hero_Manager>                _heroManager;
+    Shared<ClientScreenFxManager>       _screenFxManager;
 
     Shared<BattleController>    _battleController;
 

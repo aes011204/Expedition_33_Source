@@ -356,12 +356,15 @@ namespace Internal
     {
         json root = json::object();
         root["sourcePresetName"] = data.sourcePresetName;
+        root["materialFamily"] = To_EnumToken(data.materialFamily);
         root["mainTextureGuid"] = Make_TextureGuidForSave(data.mainTextureGuid, data.mainTexturePath);
         root["mainTexturePath"] = data.mainTexturePath;
         root["noiseTextureGuid"] = Make_TextureGuidForSave(data.noiseTextureGuid, data.noiseTexturePath);
         root["noiseTexturePath"] = data.noiseTexturePath;
         root["maskTextureGuid"] = Make_TextureGuidForSave(data.maskTextureGuid, data.maskTexturePath);
         root["maskTexturePath"] = data.maskTexturePath;
+        root["flowTextureGuid"] = Make_TextureGuidForSave(data.flowTextureGuid, data.flowTexturePath);
+        root["flowTexturePath"] = data.flowTexturePath;
         root["tint"] = To_Json(data.tint);
         root["intensity"] = data.intensity;
         root["opacityPower"] = data.opacityPower;
@@ -380,10 +383,20 @@ namespace Internal
         root["maskUVOffset"] = To_Json(data.maskUVOffset);
         root["maskUVScrollSpeed"] = To_Json(data.maskUVScrollSpeed);
         root["maskUVTilingMode"] = To_EnumToken(data.maskUVTilingMode);
+        root["flowUVScale"] = To_Json(data.flowUVScale);
+        root["flowUVOffset"] = To_Json(data.flowUVOffset);
+        root["flowUVScrollSpeed"] = To_Json(data.flowUVScrollSpeed);
+        root["flowUVTilingMode"] = To_EnumToken(data.flowUVTilingMode);
         root["blendMode"] = To_EnumToken(data.blendMode);
         root["opacitySource"] = data.opacitySource;
         if (data.blendMode == EffectMaterialBlendMode::Additive || !Is_DefaultAdditiveContribution(data.additive))
             root["additive"] = To_Json(data.additive);
+        root["refractionIntensity"] = data.refractionIntensity;
+        root["refractionPresence"] = data.refractionPresence;
+        root["distortionShapeMode"] = To_EnumToken(data.distortionShapeMode);
+        root["distortionShapeRadius"] = data.distortionShapeRadius;
+        root["distortionShapeThickness"] = data.distortionShapeThickness;
+        root["distortionShapeSoftness"] = data.distortionShapeSoftness;
         root["twoSided"] = data.twoSided;
         root["subUVRows"] = data.subUVRows;
         root["subUVCols"] = data.subUVCols;
@@ -396,12 +409,16 @@ namespace Internal
             return;
 
         Read_StringField(root, "sourcePresetName", outData.sourcePresetName);
+        if (const auto materialFamilyIter = root.find("materialFamily"); materialFamilyIter != root.end())
+            Try_ReadEnumToken(*materialFamilyIter, outData.materialFamily);
         Read_StringField(root, "mainTextureGuid", outData.mainTextureGuid);
         Read_StringField(root, "mainTexturePath", outData.mainTexturePath);
         Read_StringField(root, "noiseTextureGuid", outData.noiseTextureGuid);
         Read_StringField(root, "noiseTexturePath", outData.noiseTexturePath);
         Read_StringField(root, "maskTextureGuid", outData.maskTextureGuid);
         Read_StringField(root, "maskTexturePath", outData.maskTexturePath);
+        Read_StringField(root, "flowTextureGuid", outData.flowTextureGuid);
+        Read_StringField(root, "flowTexturePath", outData.flowTexturePath);
         if (outData.mainTextureGuid.empty() && outData.mainTexturePath.empty())
         {
             string legacyMainTextureId{};
@@ -417,9 +434,11 @@ namespace Internal
         Fill_TextureGuidFromPath(outData.mainTextureGuid, outData.mainTexturePath);
         Fill_TextureGuidFromPath(outData.noiseTextureGuid, outData.noiseTexturePath);
         Fill_TextureGuidFromPath(outData.maskTextureGuid, outData.maskTexturePath);
+        Fill_TextureGuidFromPath(outData.flowTextureGuid, outData.flowTexturePath);
         Fill_TexturePathHintFromGuid(outData.mainTextureGuid, outData.mainTexturePath);
         Fill_TexturePathHintFromGuid(outData.noiseTextureGuid, outData.noiseTexturePath);
         Fill_TexturePathHintFromGuid(outData.maskTextureGuid, outData.maskTexturePath);
+        Fill_TexturePathHintFromGuid(outData.flowTextureGuid, outData.flowTexturePath);
         Read_NumberField(root, "intensity", outData.intensity);
         Read_NumberField(root, "opacityPower", outData.opacityPower);
         Read_NumberField(root, "noiseStrength", outData.noiseStrength);
@@ -434,46 +453,64 @@ namespace Internal
         Read_NumberField(root, "subUVRows", outData.subUVRows);
         Read_NumberField(root, "subUVCols", outData.subUVCols);
 
-        const auto tintIter = root.find("tint");
-        if (tintIter != root.end())
+        if (const auto tintIter = root.find("tint"); tintIter != root.end())
             Read_Color(*tintIter, outData.tint);
 
-        const auto mainUVScaleIter = root.find("mainUVScale");
-        if (mainUVScaleIter != root.end())
+        if (const auto mainUVScaleIter = root.find("mainUVScale"); mainUVScaleIter != root.end())
             Read_Vec2(*mainUVScaleIter, outData.mainUVScale);
-        const auto mainUVOffsetIter = root.find("mainUVOffset");
-        if (mainUVOffsetIter != root.end())
+
+        if (const auto mainUVOffsetIter = root.find("mainUVOffset"); mainUVOffsetIter != root.end())
             Read_Vec2(*mainUVOffsetIter, outData.mainUVOffset);
-        const auto mainUVScrollSpeedIter = root.find("mainUVScrollSpeed");
-        if (mainUVScrollSpeedIter != root.end())
+
+        if (const auto mainUVScrollSpeedIter = root.find("mainUVScrollSpeed"); mainUVScrollSpeedIter != root.end())
             Read_Vec2(*mainUVScrollSpeedIter, outData.mainUVScrollSpeed);
-        const auto mainUVTilingModeIter = root.find("mainUVTilingMode");
-        if (mainUVTilingModeIter != root.end())
+
+        if (const auto mainUVTilingModeIter = root.find("mainUVTilingMode"); mainUVTilingModeIter != root.end())
             Try_ReadEnumToken(*mainUVTilingModeIter, outData.mainUVTilingMode);
-        const auto noiseUVScaleIter = root.find("noiseUVScale");
-        if (noiseUVScaleIter != root.end())
+
+        if (const auto noiseUVScaleIter = root.find("noiseUVScale"); noiseUVScaleIter != root.end())
             Read_Vec2(*noiseUVScaleIter, outData.noiseUVScale);
-        const auto noiseUVOffsetIter = root.find("noiseUVOffset");
-        if (noiseUVOffsetIter != root.end())
+
+        if (const auto noiseUVOffsetIter = root.find("noiseUVOffset"); noiseUVOffsetIter != root.end())
             Read_Vec2(*noiseUVOffsetIter, outData.noiseUVOffset);
-        const auto noiseUVScrollSpeedIter = root.find("noiseUVScrollSpeed");
-        if (noiseUVScrollSpeedIter != root.end())
+
+        if (const auto noiseUVScrollSpeedIter = root.find("noiseUVScrollSpeed"); noiseUVScrollSpeedIter != root.end())
             Read_Vec2(*noiseUVScrollSpeedIter, outData.noiseUVScrollSpeed);
-        const auto noiseUVTilingModeIter = root.find("noiseUVTilingMode");
-        if (noiseUVTilingModeIter != root.end())
+
+        if (const auto noiseUVTilingModeIter = root.find("noiseUVTilingMode"); noiseUVTilingModeIter != root.end())
             Try_ReadEnumToken(*noiseUVTilingModeIter, outData.noiseUVTilingMode);
-        const auto maskUVScaleIter = root.find("maskUVScale");
-        if (maskUVScaleIter != root.end())
+
+        if (const auto maskUVScaleIter = root.find("maskUVScale"); maskUVScaleIter != root.end())
             Read_Vec2(*maskUVScaleIter, outData.maskUVScale);
-        const auto maskUVOffsetIter = root.find("maskUVOffset");
-        if (maskUVOffsetIter != root.end())
+
+        if (const auto maskUVOffsetIter = root.find("maskUVOffset"); maskUVOffsetIter != root.end())
             Read_Vec2(*maskUVOffsetIter, outData.maskUVOffset);
-        const auto maskUVScrollSpeedIter = root.find("maskUVScrollSpeed");
-        if (maskUVScrollSpeedIter != root.end())
+
+        if (const auto maskUVScrollSpeedIter = root.find("maskUVScrollSpeed"); maskUVScrollSpeedIter != root.end())
             Read_Vec2(*maskUVScrollSpeedIter, outData.maskUVScrollSpeed);
-        const auto maskUVTilingModeIter = root.find("maskUVTilingMode");
-        if (maskUVTilingModeIter != root.end())
+
+        if (const auto maskUVTilingModeIter = root.find("maskUVTilingMode"); maskUVTilingModeIter != root.end())
             Try_ReadEnumToken(*maskUVTilingModeIter, outData.maskUVTilingMode);
+
+        if (const auto flowUVScaleIter = root.find("flowUVScale"); flowUVScaleIter != root.end())
+            Read_Vec2(*flowUVScaleIter, outData.flowUVScale);
+
+        if (const auto flowUVOffsetIter = root.find("flowUVOffset"); flowUVOffsetIter != root.end())
+            Read_Vec2(*flowUVOffsetIter, outData.flowUVOffset);
+
+        if (const auto flowUVScrollSpeedIter = root.find("flowUVScrollSpeed"); flowUVScrollSpeedIter != root.end())
+            Read_Vec2(*flowUVScrollSpeedIter, outData.flowUVScrollSpeed);
+
+        if (const auto flowUVTilingModeIter = root.find("flowUVTilingMode"); flowUVTilingModeIter != root.end())
+            Try_ReadEnumToken(*flowUVTilingModeIter, outData.flowUVTilingMode);
+
+        Read_NumberField(root, "refractionIntensity", outData.refractionIntensity);
+        Read_NumberField(root, "refractionPresence", outData.refractionPresence);
+        if (const auto shapeModeIter = root.find("distortionShapeMode"); shapeModeIter != root.end())
+            Try_ReadEnumToken(*shapeModeIter, outData.distortionShapeMode);
+        Read_NumberField(root, "distortionShapeRadius", outData.distortionShapeRadius);
+        Read_NumberField(root, "distortionShapeThickness", outData.distortionShapeThickness);
+        Read_NumberField(root, "distortionShapeSoftness", outData.distortionShapeSoftness);
     }
 
     json To_Json(const FloatCurveKeyData& data)
@@ -500,6 +537,181 @@ namespace Internal
         const auto interpolationIter = root.find("interpolationMode");
         if (interpolationIter != root.end())
             Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
+    }
+
+    json To_Json(const Vector2CurveKeyData& data)
+    {
+        json root = json::object();
+        root["time"] = data.time;
+        root["value"] = To_Json(data.value);
+        root["arriveTangent"] = To_Json(data.arriveTangent);
+        root["leaveTangent"] = To_Json(data.leaveTangent);
+        root["interpolationMode"] = To_EnumToken(data.interpolationMode);
+        return root;
+    }
+
+    void From_Json(const json& root, Vector2CurveKeyData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "time", outData.time);
+
+        const auto valueIter = root.find("value");
+        if (valueIter != root.end())
+            Read_Vec2(*valueIter, outData.value);
+
+        const auto arriveTangentIter = root.find("arriveTangent");
+        if (arriveTangentIter != root.end())
+            Read_Vec2(*arriveTangentIter, outData.arriveTangent);
+
+        const auto leaveTangentIter = root.find("leaveTangent");
+        if (leaveTangentIter != root.end())
+            Read_Vec2(*leaveTangentIter, outData.leaveTangent);
+
+        const auto interpolationIter = root.find("interpolationMode");
+        if (interpolationIter != root.end())
+            Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
+    }
+
+    json To_Json(const Vector3CurveKeyData& data)
+    {
+        json root = json::object();
+        root["time"] = data.time;
+        root["value"] = To_Json(data.value);
+        root["arriveTangent"] = To_Json(data.arriveTangent);
+        root["leaveTangent"] = To_Json(data.leaveTangent);
+        root["interpolationMode"] = To_EnumToken(data.interpolationMode);
+        return root;
+    }
+
+    void From_Json(const json& root, Vector3CurveKeyData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "time", outData.time);
+
+        const auto valueIter = root.find("value");
+        if (valueIter != root.end())
+            Read_Vec3(*valueIter, outData.value);
+
+        const auto arriveTangentIter = root.find("arriveTangent");
+        if (arriveTangentIter != root.end())
+            Read_Vec3(*arriveTangentIter, outData.arriveTangent);
+
+        const auto leaveTangentIter = root.find("leaveTangent");
+        if (leaveTangentIter != root.end())
+            Read_Vec3(*leaveTangentIter, outData.leaveTangent);
+
+        const auto interpolationIter = root.find("interpolationMode");
+        if (interpolationIter != root.end())
+            Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
+    }
+
+    json To_ColorRgbJson(const Color& value)
+    {
+        return json::array({ value.x, value.y, value.z });
+    }
+
+    void Read_ColorRgb(const json& node, Color& outValue)
+    {
+        if (!node.is_array() || node.size() < 3 || !node[0].is_number() || !node[1].is_number() || !node[2].is_number())
+            return;
+
+        outValue.x = node[0].get<float>();
+        outValue.y = node[1].get<float>();
+        outValue.z = node[2].get<float>();
+    }
+
+    json To_Json(const ColorCurveKeyData& data)
+    {
+        json root = json::object();
+        root["time"] = data.time;
+        root["value"] = To_ColorRgbJson(data.value);
+        root["arriveTangent"] = To_ColorRgbJson(data.arriveTangent);
+        root["leaveTangent"] = To_ColorRgbJson(data.leaveTangent);
+        root["interpolationMode"] = To_EnumToken(data.interpolationMode);
+        return root;
+    }
+
+    void From_Json(const json& root, ColorCurveKeyData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "time", outData.time);
+
+        const auto valueIter = root.find("value");
+        if (valueIter != root.end())
+            Read_ColorRgb(*valueIter, outData.value);
+
+        const auto arriveTangentIter = root.find("arriveTangent");
+        if (arriveTangentIter != root.end())
+            Read_ColorRgb(*arriveTangentIter, outData.arriveTangent);
+
+        const auto leaveTangentIter = root.find("leaveTangent");
+        if (leaveTangentIter != root.end())
+            Read_ColorRgb(*leaveTangentIter, outData.leaveTangent);
+
+        const auto interpolationIter = root.find("interpolationMode");
+        if (interpolationIter != root.end())
+            Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
+    }
+
+    static float Evaluate_FloatCurveSegmentLinear(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
+    {
+        const float width = max(0.0001f, rightKey.time - leftKey.time);
+        const float t = clamp((x - leftKey.time) / width, 0.f, 1.f);
+        return lerp(leftKey.value, rightKey.value, t);
+    }
+
+    static float Evaluate_FloatCurveSegmentAutoClamped(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
+    {
+        const float width = max(0.0001f, rightKey.time - leftKey.time);
+        const float t = clamp((x - leftKey.time) / width, 0.f, 1.f);
+        const float m0 = leftKey.leaveTangent * width;
+        const float m1 = rightKey.arriveTangent * width;
+        const float t2 = t * t;
+        const float t3 = t2 * t;
+
+        return (2.f * t3 - 3.f * t2 + 1.f) * leftKey.value +
+               (t3 - 2.f * t2 + t) * m0 +
+               (-2.f * t3 + 3.f * t2) * rightKey.value +
+               (t3 - t2) * m1;
+    }
+
+    static float Evaluate_FloatConstantCurve(const ConstantCurveFloatDistributionData& curve, float x, float fallbackValue)
+    {
+        if (curve.keys.empty())
+            return fallbackValue;
+
+        if (curve.keys.size() == 1)
+            return curve.keys.front().value;
+
+        const float clampedX = clamp(x, 0.f, 1.f);
+        for (size_t index = 1; index < curve.keys.size(); ++index)
+        {
+            const FloatCurveKeyData& leftKey = curve.keys[index - 1];
+            const FloatCurveKeyData& rightKey = curve.keys[index];
+            if (clampedX > rightKey.time)
+                continue;
+
+            if (leftKey.interpolationMode == FloatCurveInterpolationMode::Constant)
+                return leftKey.value;
+
+            if (leftKey.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
+                return Evaluate_FloatCurveSegmentAutoClamped(leftKey, rightKey, clampedX);
+
+            return Evaluate_FloatCurveSegmentLinear(leftKey, rightKey, clampedX);
+        }
+
+        return curve.keys.back().value;
+    }
+
+    static Vec2 Lerp_Vec2(const Vec2& left, const Vec2& right, float t)
+    {
+        return Vec2{ lerp(left.x, right.x, t), lerp(left.y, right.y, t) };
     }
 
     //## Distribution Codec
@@ -610,6 +822,12 @@ namespace Internal
             payload["minValue"] = To_Json(uniformData->minValue);
             payload["maxValue"] = To_Json(uniformData->maxValue);
         }
+        else if (const auto* constantCurveData = get_if<ConstantCurveVector2DistributionData>(&data.payload))
+        {
+            payload["keys"] = json::array();
+            for (const Vector2CurveKeyData& key : constantCurveData->keys)
+                payload["keys"].push_back(To_Json(key));
+        }
 
         root["payload"] = move(payload);
         return root;
@@ -624,7 +842,9 @@ namespace Internal
         const auto modeIter = root.find("mode");
         if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
         {
-            if (parsedMode == DistributionMode::Constant || parsedMode == DistributionMode::Uniform)
+            if (parsedMode == DistributionMode::Constant ||
+                parsedMode == DistributionMode::Uniform ||
+                parsedMode == DistributionMode::ConstantCurve)
                 outData.mode = parsedMode;
         }
 
@@ -659,6 +879,30 @@ namespace Internal
             outData.payload = payload;
             break;
         }
+        case DistributionMode::ConstantCurve:
+        {
+            ConstantCurveVector2DistributionData payload{};
+            const auto keysIter = payloadIter->find("keys");
+            if (keysIter != payloadIter->end() && keysIter->is_array())
+            {
+                payload.keys.clear();
+                for (const json& keyNode : *keysIter)
+                {
+                    Vector2CurveKeyData key{};
+                    From_Json(keyNode, key);
+                    payload.keys.push_back(key);
+                }
+            }
+
+            if (payload.keys.empty())
+            {
+                if (const auto* existingPayload = get_if<ConstantCurveVector2DistributionData>(&outData.payload))
+                    payload.keys = existingPayload->keys;
+            }
+
+            outData.payload = payload;
+            break;
+        }
         default:
             break;
         }
@@ -677,6 +921,12 @@ namespace Internal
             payload["minValue"] = To_Json(uniformData->minValue);
             payload["maxValue"] = To_Json(uniformData->maxValue);
         }
+        else if (const auto* constantCurveData = get_if<ConstantCurveVector3DistributionData>(&data.payload))
+        {
+            payload["keys"] = json::array();
+            for (const Vector3CurveKeyData& key : constantCurveData->keys)
+                payload["keys"].push_back(To_Json(key));
+        }
 
         root["payload"] = move(payload);
         return root;
@@ -691,7 +941,9 @@ namespace Internal
         const auto modeIter = root.find("mode");
         if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
         {
-            if (parsedMode == DistributionMode::Constant || parsedMode == DistributionMode::Uniform)
+            if (parsedMode == DistributionMode::Constant ||
+                parsedMode == DistributionMode::Uniform ||
+                parsedMode == DistributionMode::ConstantCurve)
                 outData.mode = parsedMode;
         }
 
@@ -726,6 +978,30 @@ namespace Internal
             outData.payload = payload;
             break;
         }
+        case DistributionMode::ConstantCurve:
+        {
+            ConstantCurveVector3DistributionData payload{};
+            const auto keysIter = payloadIter->find("keys");
+            if (keysIter != payloadIter->end() && keysIter->is_array())
+            {
+                payload.keys.clear();
+                for (const json& keyNode : *keysIter)
+                {
+                    Vector3CurveKeyData key{};
+                    From_Json(keyNode, key);
+                    payload.keys.push_back(key);
+                }
+            }
+
+            if (payload.keys.empty())
+            {
+                if (const auto* existingPayload = get_if<ConstantCurveVector3DistributionData>(&outData.payload))
+                    payload.keys = existingPayload->keys;
+            }
+
+            outData.payload = payload;
+            break;
+        }
         default:
             break;
         }
@@ -744,6 +1020,12 @@ namespace Internal
             payload["minValue"] = To_Json(uniformData->minValue);
             payload["maxValue"] = To_Json(uniformData->maxValue);
         }
+        else if (const auto* constantCurveData = get_if<ConstantCurveColorDistributionData>(&data.payload))
+        {
+            payload["keys"] = json::array();
+            for (const ColorCurveKeyData& key : constantCurveData->keys)
+                payload["keys"].push_back(To_Json(key));
+        }
 
         root["payload"] = move(payload);
         return root;
@@ -758,7 +1040,9 @@ namespace Internal
         const auto modeIter = root.find("mode");
         if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
         {
-            if (parsedMode == DistributionMode::Constant || parsedMode == DistributionMode::Uniform)
+            if (parsedMode == DistributionMode::Constant ||
+                parsedMode == DistributionMode::Uniform ||
+                parsedMode == DistributionMode::ConstantCurve)
                 outData.mode = parsedMode;
         }
 
@@ -790,6 +1074,30 @@ namespace Internal
             const auto maxIter = payloadIter->find("maxValue");
             if (maxIter != payloadIter->end())
                 Read_Color(*maxIter, payload.maxValue);
+            outData.payload = payload;
+            break;
+        }
+        case DistributionMode::ConstantCurve:
+        {
+            ConstantCurveColorDistributionData payload{};
+            const auto keysIter = payloadIter->find("keys");
+            if (keysIter != payloadIter->end() && keysIter->is_array())
+            {
+                payload.keys.clear();
+                for (const json& keyNode : *keysIter)
+                {
+                    ColorCurveKeyData key{};
+                    From_Json(keyNode, key);
+                    payload.keys.push_back(key);
+                }
+            }
+
+            if (payload.keys.empty())
+            {
+                if (const auto* existingPayload = get_if<ConstantCurveColorDistributionData>(&outData.payload))
+                    payload.keys = existingPayload->keys;
+            }
+
             outData.payload = payload;
             break;
         }
@@ -1105,8 +1413,7 @@ namespace Internal
     json To_Json(const RotationOverLifeModuleData& data)
     {
         json root = json::object();
-        root["rotationStartDegrees"] = data.rotationStartDegrees;
-        root["rotationEndDegrees"] = data.rotationEndDegrees;
+        root["rotationOverLife"] = To_Json(data.rotationOverLife);
         return root;
     }
 
@@ -1115,8 +1422,18 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_NumberField(root, "rotationStartDegrees", outData.rotationStartDegrees);
-        Read_NumberField(root, "rotationEndDegrees", outData.rotationEndDegrees);
+        const auto rotationOverLifeIter = root.find("rotationOverLife");
+        if (rotationOverLifeIter != root.end())
+        {
+            From_Json(*rotationOverLifeIter, outData.rotationOverLife);
+            return;
+        }
+
+        float rotationStartDegrees{ 0.f };
+        float rotationEndDegrees{ 0.f };
+        Read_NumberField(root, "rotationStartDegrees", rotationStartDegrees);
+        Read_NumberField(root, "rotationEndDegrees", rotationEndDegrees);
+        outData.rotationOverLife = FloatDistributionData::Make_ConstantCurve(rotationStartDegrees, rotationEndDegrees);
     }
 
     json To_Json(const InitialRotationRateModuleData& data)
@@ -1226,10 +1543,10 @@ namespace Internal
     json To_Json(const SizeByLifeModuleData& data)
     {
         json root = json::object();
-        root["multiplyXStart"] = data.multiplyXStart;
-        root["multiplyXEnd"] = data.multiplyXEnd;
-        root["multiplyYStart"] = data.multiplyYStart;
-        root["multiplyYEnd"] = data.multiplyYEnd;
+        root["scaleOverLife"] = To_Json(data.scaleOverLife);
+        root["multiplyX"] = data.multiplyX;
+        root["multiplyY"] = data.multiplyY;
+        root["axisLock"] = To_EnumToken(data.axisLock);
         return root;
     }
 
@@ -1238,10 +1555,72 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_NumberField(root, "multiplyXStart", outData.multiplyXStart);
-        Read_NumberField(root, "multiplyXEnd", outData.multiplyXEnd);
-        Read_NumberField(root, "multiplyYStart", outData.multiplyYStart);
-        Read_NumberField(root, "multiplyYEnd", outData.multiplyYEnd);
+        Read_BoolField(root, "multiplyX", outData.multiplyX);
+        Read_BoolField(root, "multiplyY", outData.multiplyY);
+
+        const auto axisLockIter = root.find("axisLock");
+        if (axisLockIter != root.end())
+            Try_ReadEnumToken(*axisLockIter, outData.axisLock);
+
+        const auto scaleOverLifeIter = root.find("scaleOverLife");
+        if (scaleOverLifeIter != root.end())
+        {
+            From_Json(*scaleOverLifeIter, outData.scaleOverLife);
+            return;
+        }
+
+        float multiplyXStart{ 1.f };
+        float multiplyXEnd{ 1.f };
+        float multiplyYStart{ 1.f };
+        float multiplyYEnd{ 1.f };
+        Read_NumberField(root, "multiplyXStart", multiplyXStart);
+        Read_NumberField(root, "multiplyXEnd", multiplyXEnd);
+        Read_NumberField(root, "multiplyYStart", multiplyYStart);
+        Read_NumberField(root, "multiplyYEnd", multiplyYEnd);
+
+        const auto responseCurveIter = root.find("responseCurve");
+        if (responseCurveIter == root.end())
+        {
+            outData.scaleOverLife = Vector2DistributionData::Make_ConstantCurve(
+                Vec2{ multiplyXStart, multiplyYStart },
+                Vec2{ multiplyXEnd, multiplyYEnd }
+            );
+            return;
+        }
+
+        FloatDistributionData responseCurve{ FloatDistributionData::Make_ConstantCurve(0.f, 1.f) };
+        From_Json(*responseCurveIter, responseCurve);
+
+        ConstantCurveVector2DistributionData bakedCurve{};
+        bakedCurve.keys.clear();
+
+        const auto* curve = get_if<ConstantCurveFloatDistributionData>(&responseCurve.payload);
+        if (responseCurve.mode == DistributionMode::ConstantCurve && curve != nullptr && !curve->keys.empty())
+        {
+            for (const FloatCurveKeyData& responseKey : curve->keys)
+            {
+                const float ratio = Evaluate_FloatConstantCurve(*curve, responseKey.time, responseKey.value);
+                bakedCurve.keys.push_back(Vector2CurveKeyData{
+                    responseKey.time,
+                    Lerp_Vec2(Vec2{ multiplyXStart, multiplyYStart }, Vec2{ multiplyXEnd, multiplyYEnd }, ratio),
+                    Vec2{},
+                    Vec2{},
+                    responseKey.interpolationMode
+                });
+            }
+        }
+
+        if (bakedCurve.keys.empty())
+        {
+            bakedCurve.keys = get<ConstantCurveVector2DistributionData>(
+                Vector2DistributionData::Make_ConstantCurve(
+                    Vec2{ multiplyXStart, multiplyYStart },
+                    Vec2{ multiplyXEnd, multiplyYEnd }
+                ).payload).keys;
+        }
+
+        outData.scaleOverLife.mode = DistributionMode::ConstantCurve;
+        outData.scaleOverLife.payload = bakedCurve;
     }
 
     json To_Json(const SpawnPerUnitModuleData& data)

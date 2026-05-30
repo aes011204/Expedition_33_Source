@@ -94,6 +94,25 @@ void PanelModelOverride::Render()
             _ctx->_dirtyPassOverrides = true;
         }
 
+        if (entry.passIndex == static_cast<int32>(VtxMeshPassIndex::LandscapeBlendPass))
+        {
+            auto DrawSlot = [&](int32 slot, const char* label)
+                {
+                    string& path = entry.textureSlots[slot];
+                    char buf[256] = {};
+                    strncpy_s(buf, path.c_str(), sizeof(buf) - 1);
+                    if (ImGui::InputText(label, buf, sizeof(buf)))
+                    {
+                        path = buf;
+                        _ctx->_dirtyPassOverrides = true;
+                    }
+                };
+
+            DrawSlot(0, "Layer1 AR (Slot 0)");
+            DrawSlot(5, "Layer2 AR (Slot 5)");
+            DrawSlot(6, "Weightmap (Slot 6)");
+        }
+
         ImGui::PopID();
     }
 

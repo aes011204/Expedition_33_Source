@@ -7,7 +7,17 @@ namespace Engine
 
     enum class Prototype { GameObject, UI, Comopnent };
 
-    enum class RenderGroup { Priority, Shadow, NonBlend, NonLight, Blend, UI, END };
+    enum class RenderGroup
+    {
+        Priority,
+        Shadow,
+        NonBlend,
+        NonLight,
+        Distortion, // Effect용 Distortion
+        Blend,
+        UI,
+        END
+    };
 
     enum class ShadowCasterType : uint8
     {
@@ -92,15 +102,6 @@ namespace Engine
         END
     };
 
-    enum class ScreenFxPass : uint8
-    {
-        Vignette = 0,
-        Ghosting,
-        BattleTransition,
-
-        END
-    };
-
     enum class CollisionShape : uint8_t
     {
         AABB,
@@ -135,6 +136,7 @@ namespace Engine
         PostProcess     = 8,
         Hair            = 9,
         DrawFeature     = 10,
+        ScreenFx        = 11,
 
         END
     };

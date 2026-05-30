@@ -19,6 +19,7 @@ namespace UIEditor
     private:
         void Render_LayoutPresets(const UI_Object& object);
         void Render_TexturePicker(const UI_Object& object, ObjectId& outCreatePatternOverlaySourceId);
+        void Render_StateAnimationPicker(const UI_Object& object);
         void Render_FontPicker(const UI_Object& object);
         bool Draw_UITextureSlotPicker(const char* label, const char* popupId, string& textureGuid, string& texturePath);
         void Draw_FontSlotPicker(const char* label, const char* popupId, const UI_Object& object);

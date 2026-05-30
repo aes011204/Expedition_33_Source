@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "MapEditorDefines.h"
 #include "MEWindow.h"
 
@@ -16,7 +16,7 @@ public:
     ~MEManager();
 
 public:
-    HRESULT Initialize(Shared<PanelViewport> viewport, SceneContext* ctx, MECamera* camera);
+    HRESULT Initialize(Shared<PanelViewport> viewport, SceneContext* ctx, MECamera* camera, const LandscapePanelContext& landscapeCtx);
     void Update(float timeDelta);
     void Render();
 
@@ -42,7 +42,7 @@ public:
     void AddWindow(Shared<MEWindow> w);
 
 public:
-    static Unique<MEManager> Create(Shared<PanelViewport> viewport, SceneContext* ctx, MECamera* camera);
+    static Unique<MEManager> Create(Shared<PanelViewport> viewport, SceneContext* ctx, MECamera* camera, const LandscapePanelContext& landscapeCtx);
 };
 
 NS_END

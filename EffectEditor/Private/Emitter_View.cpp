@@ -1,6 +1,7 @@
 ﻿#include "Emitter_View.h"
 
 #include "Action_Command.h"
+#include "CurveEditor_View.h"
 #include "Editor_Context.h"
 #include "EffectAuthoringJsonSerializer.h"
 #include "EffectAuthoringModuleMetadata.h"
@@ -570,6 +571,11 @@ bool Emitter_View::Restore_AuthoringDocumentJson(const json& root)
     Mark_AllPreviewDirty();
     Clamp_Selection();
     Sync_SelectionContext();
+    if (EDITOR != nullptr)
+    {
+        if (const Shared<CurveEditor_View> curveEditor = dynamic_pointer_cast<CurveEditor_View>(EDITOR->Get_Window(L"Curve Editor")))
+            curveEditor->Clear_PinnedTracks();
+    }
     MarkDirty();
     return true;
 }
@@ -1031,6 +1037,33 @@ void Emitter_View::Clear_Selection()
         EDITOR->Get_EditorContext()->Clear_EffectSelection();
 }
 
+void Emitter_View::Clamp_Selection()
+{
+    if (_emitters.empty())
+    {
+        _selectedEmitterIndex.reset();
+        _selectedTypeData = false;
+        _selectedModuleIndex.reset();
+        return;
+    }
+
+    if (!_selectedEmitterIndex.has_value())
+    {
+        _selectedTypeData = false;
+        _selectedModuleIndex.reset();
+        return;
+    }
+
+    _selectedEmitterIndex = min(_selectedEmitterIndex.value(), _emitters.size() - 1);
+
+    const auto& modules = _emitters[_selectedEmitterIndex.value()].modules;
+    if (_selectedModuleIndex.has_value() && _selectedModuleIndex.value() >= modules.size())
+        _selectedModuleIndex.reset();
+
+    if (_selectedTypeData)
+        _selectedModuleIndex.reset();
+}
+
 void Emitter_View::Select_Emitter(size_t emitterIndex)
 {
     if (emitterIndex >= _emitters.size())
@@ -1045,6 +1078,22 @@ void Emitter_View::Select_Emitter(size_t emitterIndex)
 
     if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
         EDITOR->Get_EditorContext()->Set_SelectEffectEmitter(_emitters[emitterIndex].id);
+}
+
+void Emitter_View::Select_Module(size_t emitterIndex, size_t moduleIndex)
+{
+    if (emitterIndex >= _emitters.size() || moduleIndex >= _emitters[emitterIndex].modules.size())
+    {
+        Clear_Selection();
+        return;
+    }
+
+    _selectedEmitterIndex = emitterIndex;
+    _selectedTypeData = false;
+    _selectedModuleIndex = moduleIndex;
+
+    if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
+        EDITOR->Get_EditorContext()->Set_SelectEffectModule(_emitters[emitterIndex].id, _emitters[emitterIndex].modules[moduleIndex].id);
 }
 
 void Emitter_View::Select_TypeData(size_t emitterIndex)
@@ -1063,28 +1112,35 @@ void Emitter_View::Select_TypeData(size_t emitterIndex)
         EDITOR->Get_EditorContext()->Set_SelectEffectTypeData(_emitters[emitterIndex].id);
 }
 
-void Emitter_View::Insert_NewEmitter(size_t insertIndex)
+void Emitter_View::Sync_SelectionContext()
 {
-    Close_ModulePicker();
-    const size_t clampedIndex = min(insertIndex, _emitters.size());
-    _emitters.insert(_emitters.begin() + static_cast<ptrdiff_t>(clampedIndex), Make_DefaultSpriteEmitter());
-    Select_Emitter(clampedIndex);
-    MarkDirty();
-}
-
-void Emitter_View::Duplicate_Emitter(size_t emitterIndex)
-{
-    if (emitterIndex >= _emitters.size())
+    if (EDITOR == nullptr || EDITOR->Get_EditorContext() == nullptr)
         return;
 
-    Close_ModulePicker();
-    const size_t insertIndex = emitterIndex + 1;
-    _emitters.insert(
-        _emitters.begin() + static_cast<ptrdiff_t>(insertIndex),
-        Clone_Emitter(_emitters[emitterIndex])
-    );
-    Select_Emitter(insertIndex);
-    MarkDirty();
+    if (!_selectedEmitterIndex.has_value() || _selectedEmitterIndex.value() >= _emitters.size())
+    {
+        EDITOR->Get_EditorContext()->Clear_EffectSelection();
+        return;
+    }
+
+    const AuthoringEmitter& emitter = _emitters[_selectedEmitterIndex.value()];
+
+    if (_selectedTypeData)
+    {
+        EDITOR->Get_EditorContext()->Set_SelectEffectTypeData(emitter.id);
+        return;
+    }
+
+    if (_selectedModuleIndex.has_value() && _selectedModuleIndex.value() < emitter.modules.size())
+    {
+        EDITOR->Get_EditorContext()->Set_SelectEffectModule(
+            emitter.id,
+            emitter.modules[_selectedModuleIndex.value()].id
+        );
+        return;
+    }
+
+    EDITOR->Get_EditorContext()->Set_SelectEffectEmitter(emitter.id);
 }
 
 void Emitter_View::Delete_Emitter(size_t emitterIndex)
@@ -1107,10 +1163,28 @@ void Emitter_View::Delete_Emitter(size_t emitterIndex)
     MarkDirty();
 }
 
-void Emitter_View::Queue_EmitterAction(PendingEmitterAction action, size_t emitterIndex)
+void Emitter_View::Duplicate_Emitter(size_t emitterIndex)
 {
-    _pendingEmitterAction = action;
-    _pendingEmitterActionIndex = emitterIndex;
+    if (emitterIndex >= _emitters.size())
+        return;
+
+    Close_ModulePicker();
+    const size_t insertIndex = emitterIndex + 1;
+    _emitters.insert(
+        _emitters.begin() + static_cast<ptrdiff_t>(insertIndex),
+        Clone_Emitter(_emitters[emitterIndex])
+    );
+    Select_Emitter(insertIndex);
+    MarkDirty();
+}
+
+void Emitter_View::Insert_NewEmitter(size_t insertIndex)
+{
+    Close_ModulePicker();
+    const size_t clampedIndex = min(insertIndex, _emitters.size());
+    _emitters.insert(_emitters.begin() + static_cast<ptrdiff_t>(clampedIndex), Make_DefaultSpriteEmitter());
+    Select_Emitter(clampedIndex);
+    MarkDirty();
 }
 
 void Emitter_View::Process_PendingEmitterAction()
@@ -1166,20 +1240,10 @@ void Emitter_View::Process_PendingEmitterAction()
     _pendingEmitterActionIndex.reset();
 }
 
-void Emitter_View::Select_Module(size_t emitterIndex, size_t moduleIndex)
+void Emitter_View::Queue_EmitterAction(PendingEmitterAction action, size_t emitterIndex)
 {
-    if (emitterIndex >= _emitters.size() || moduleIndex >= _emitters[emitterIndex].modules.size())
-    {
-        Clear_Selection();
-        return;
-    }
-
-    _selectedEmitterIndex = emitterIndex;
-    _selectedTypeData = false;
-    _selectedModuleIndex = moduleIndex;
-
-    if (EDITOR != nullptr && EDITOR->Get_EditorContext() != nullptr)
-        EDITOR->Get_EditorContext()->Set_SelectEffectModule(_emitters[emitterIndex].id, _emitters[emitterIndex].modules[moduleIndex].id);
+    _pendingEmitterAction = action;
+    _pendingEmitterActionIndex = emitterIndex;
 }
 
 void Emitter_View::Delete_Module(size_t emitterIndex, size_t moduleIndex)
@@ -1208,6 +1272,52 @@ void Emitter_View::Delete_Module(size_t emitterIndex, size_t moduleIndex)
 
     emitter.previewDirty = true;
     MarkDirty();
+}
+
+void Emitter_View::Process_PendingModuleAction()
+{
+    if (_pendingModuleAction == PendingModuleAction::None ||
+        !_pendingModuleEmitterIndex.has_value() ||
+        !_pendingModuleIndex.has_value())
+        return;
+
+    const size_t emitterIndex = _pendingModuleEmitterIndex.value();
+    const size_t moduleIndex = _pendingModuleIndex.value();
+    switch (_pendingModuleAction)
+    {
+    case PendingModuleAction::Delete:
+        Execute_AuthoringEdit(
+            "Delete Module",
+            [this, emitterIndex, moduleIndex]
+            {
+                Delete_Module(emitterIndex, moduleIndex);
+            }
+        );
+        break;
+    case PendingModuleAction::ResetData:
+        Execute_AuthoringEdit(
+            "Reset Module Data",
+            [this, emitterIndex, moduleIndex]
+            {
+                Reset_ModuleData(emitterIndex, moduleIndex);
+            }
+        );
+        break;
+    case PendingModuleAction::None:
+    default:
+        break;
+    }
+
+    _pendingModuleAction = PendingModuleAction::None;
+    _pendingModuleEmitterIndex.reset();
+    _pendingModuleIndex.reset();
+}
+
+void Emitter_View::Queue_ModuleAction(PendingModuleAction action, size_t emitterIndex, size_t moduleIndex)
+{
+    _pendingModuleAction = action;
+    _pendingModuleEmitterIndex = emitterIndex;
+    _pendingModuleIndex = moduleIndex;
 }
 
 void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
@@ -1315,52 +1425,6 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
     MarkDirty();
 }
 
-void Emitter_View::Queue_ModuleAction(PendingModuleAction action, size_t emitterIndex, size_t moduleIndex)
-{
-    _pendingModuleAction = action;
-    _pendingModuleEmitterIndex = emitterIndex;
-    _pendingModuleIndex = moduleIndex;
-}
-
-void Emitter_View::Process_PendingModuleAction()
-{
-    if (_pendingModuleAction == PendingModuleAction::None ||
-        !_pendingModuleEmitterIndex.has_value() ||
-        !_pendingModuleIndex.has_value())
-        return;
-
-    const size_t emitterIndex = _pendingModuleEmitterIndex.value();
-    const size_t moduleIndex = _pendingModuleIndex.value();
-    switch (_pendingModuleAction)
-    {
-    case PendingModuleAction::Delete:
-        Execute_AuthoringEdit(
-            "Delete Module",
-            [this, emitterIndex, moduleIndex]
-            {
-                Delete_Module(emitterIndex, moduleIndex);
-            }
-        );
-        break;
-    case PendingModuleAction::ResetData:
-        Execute_AuthoringEdit(
-            "Reset Module Data",
-            [this, emitterIndex, moduleIndex]
-            {
-                Reset_ModuleData(emitterIndex, moduleIndex);
-            }
-        );
-        break;
-    case PendingModuleAction::None:
-    default:
-        break;
-    }
-
-    _pendingModuleAction = PendingModuleAction::None;
-    _pendingModuleEmitterIndex.reset();
-    _pendingModuleIndex.reset();
-}
-
 void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emitterIndex)
 {
     if (emitterIndex >= _emitters.size())
@@ -1386,12 +1450,6 @@ void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emi
     Sync_EmitterMirror(emitter);
     emitter.previewDirty = true;
     MarkDirty();
-}
-
-void Emitter_View::Queue_TypeDataAction(PendingTypeDataAction action, size_t emitterIndex)
-{
-    _pendingTypeDataAction = action;
-    _pendingTypeDataEmitterIndex = emitterIndex;
 }
 
 void Emitter_View::Process_PendingTypeDataAction()
@@ -1429,6 +1487,43 @@ void Emitter_View::Process_PendingTypeDataAction()
 
     _pendingTypeDataAction = PendingTypeDataAction::None;
     _pendingTypeDataEmitterIndex.reset();
+}
+
+void Emitter_View::Queue_TypeDataAction(PendingTypeDataAction action, size_t emitterIndex)
+{
+    _pendingTypeDataAction = action;
+    _pendingTypeDataEmitterIndex = emitterIndex;
+}
+
+void Emitter_View::Mark_AllPreviewDirty()
+{
+    for (AuthoringEmitter& emitter : _emitters)
+        emitter.previewDirty = true;
+}
+
+void Emitter_View::Sync_EmitterMirror(AuthoringEmitter& emitter)
+{
+    emitter.rendererType = Authoring::Resolve_RendererType(emitter.typeData);
+
+    for (const AuthoringModule& module : emitter.modules)
+    {
+        if (module.type != AuthoringModuleType::Required)
+            continue;
+
+        const RequiredModuleData* requiredData = get_if<RequiredModuleData>(&module.data);
+        if (requiredData == nullptr)
+            return;
+
+        emitter.textureId = requiredData->material.mainTexturePath;
+        emitter.resourceSummary = requiredData->material.mainTexturePath;
+        return;
+    }
+}
+
+void Emitter_View::Sync_AllEmitterMirrors()
+{
+    for (AuthoringEmitter& emitter : _emitters)
+        Sync_EmitterMirror(emitter);
 }
 
 vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(const AuthoringEmitter& emitter) const
@@ -1615,16 +1710,6 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     return entries;
 }
 
-void Emitter_View::Open_ModulePicker(size_t emitterIndex)
-{
-    if (emitterIndex >= _emitters.size())
-        return;
-
-    _modulePickerEmitterIndex = emitterIndex;
-    _modulePickerPendingOpen = true;
-    _modulePickerSearchBuffer[0] = '\0';
-}
-
 void Emitter_View::Close_ModulePicker()
 {
     _modulePickerEmitterIndex.reset();
@@ -1741,93 +1826,14 @@ void Emitter_View::Draw_ModulePickerPopup()
     }
 }
 
-void Emitter_View::Clamp_Selection()
+void Emitter_View::Open_ModulePicker(size_t emitterIndex)
 {
-    if (_emitters.empty())
-    {
-        _selectedEmitterIndex.reset();
-        _selectedTypeData = false;
-        _selectedModuleIndex.reset();
-        return;
-    }
-
-    if (!_selectedEmitterIndex.has_value())
-    {
-        _selectedTypeData = false;
-        _selectedModuleIndex.reset();
-        return;
-    }
-
-    _selectedEmitterIndex = min(_selectedEmitterIndex.value(), _emitters.size() - 1);
-
-    const auto& modules = _emitters[_selectedEmitterIndex.value()].modules;
-    if (_selectedModuleIndex.has_value() && _selectedModuleIndex.value() >= modules.size())
-        _selectedModuleIndex.reset();
-
-    if (_selectedTypeData)
-        _selectedModuleIndex.reset();
-}
-
-void Emitter_View::Sync_EmitterMirror(AuthoringEmitter& emitter)
-{
-    emitter.rendererType = Authoring::Resolve_RendererType(emitter.typeData);
-
-    for (const AuthoringModule& module : emitter.modules)
-    {
-        if (module.type != AuthoringModuleType::Required)
-            continue;
-
-        const RequiredModuleData* requiredData = get_if<RequiredModuleData>(&module.data);
-        if (requiredData == nullptr)
-            return;
-
-        emitter.textureId = requiredData->material.mainTexturePath;
-        emitter.resourceSummary = requiredData->material.mainTexturePath;
-        return;
-    }
-}
-
-void Emitter_View::Sync_AllEmitterMirrors()
-{
-    for (AuthoringEmitter& emitter : _emitters)
-        Sync_EmitterMirror(emitter);
-}
-
-void Emitter_View::Mark_AllPreviewDirty()
-{
-    for (AuthoringEmitter& emitter : _emitters)
-        emitter.previewDirty = true;
-}
-
-void Emitter_View::Sync_SelectionContext()
-{
-    if (EDITOR == nullptr || EDITOR->Get_EditorContext() == nullptr)
+    if (emitterIndex >= _emitters.size())
         return;
 
-    if (!_selectedEmitterIndex.has_value() || _selectedEmitterIndex.value() >= _emitters.size())
-    {
-        EDITOR->Get_EditorContext()->Clear_EffectSelection();
-        return;
-    }
-
-    const AuthoringEmitter& emitter = _emitters[_selectedEmitterIndex.value()];
-
-    if (_selectedTypeData)
-    {
-        EDITOR->Get_EditorContext()->Set_SelectEffectTypeData(emitter.id);
-        return;
-    }
-
-    if (_selectedModuleIndex.has_value() && _selectedModuleIndex.value() < emitter.modules.size())
-    {
-        EDITOR->Get_EditorContext()->Set_SelectEffectModule(
-            emitter.id,
-            emitter.modules[_selectedModuleIndex.value()].id
-        );
-        return;
-    }
-
-    EDITOR->Get_EditorContext()->Set_SelectEffectEmitter(emitter.id);
+    _modulePickerEmitterIndex = emitterIndex;
+    _modulePickerPendingOpen = true;
+    _modulePickerSearchBuffer[0] = '\0';
 }
 
 void Emitter_View::Execute_AuthoringEdit(const string& description, const function<void()>& edit)
@@ -2146,6 +2152,8 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
     constexpr float rowHeight = 28.f;
     constexpr float rowPaddingX = 10.f;
     constexpr float moduleCheckboxRightPadding = 34.f;
+    constexpr float curveButtonSize = 22.f;
+    constexpr float curveButtonGap = 4.f;
 
     const bool isSelected =
         _selectedEmitterIndex.has_value() &&
@@ -2171,6 +2179,26 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
                                ? To_ImVec4(kEmitterCategoryTextColor)
                                : ImGui::GetStyleColorVec4(ImGuiCol_Text);
     const bool moduleCompatible = Is_ModuleCompatibleWithEmitter(_emitters[emitterIndex], module.type);
+    const bool canPinCurve = [&module]
+    {
+        switch (module.type)
+        {
+        case AuthoringModuleType::Spawn:
+        case AuthoringModuleType::Lifetime:
+        case AuthoringModuleType::InitialSize:
+        case AuthoringModuleType::InitialRadialVelocity:
+        case AuthoringModuleType::Drag:
+        case AuthoringModuleType::InitialRotation:
+        case AuthoringModuleType::InitialRotationRate:
+        case AuthoringModuleType::InitialColor:
+        case AuthoringModuleType::ColorOverLife:
+        case AuthoringModuleType::SizeByLife:
+        case AuthoringModuleType::SpawnPerUnit:
+            return true;
+        default:
+            return false;
+        }
+    }();
     const ImVec4 moduleNameTextColor =
         !isSelected && module.enabled && !moduleCompatible
         ? To_ImVec4(kEmitterUnsupportedModuleTextColor)
@@ -2209,6 +2237,32 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
 
     if (!isRequiredRow)
     {
+        const float curveButtonRightPadding = canPinCurve ? moduleCheckboxRightPadding + curveButtonSize + curveButtonGap : moduleCheckboxRightPadding;
+        if (canPinCurve)
+        {
+            ImGui::SetCursorPos(
+                ImVec2(
+                    rowCursor.x + kEmitterColumnWidth - curveButtonRightPadding,
+                    rowCursor.y + (rowHeight - curveButtonSize) * 0.5f
+                )
+            );
+            ImGui::PushID("PinCurves");
+            ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.42f, 0.5f });
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.f, 0.f });
+            if (ImGui::Button(ICON_FA_CHART_LINE, ImVec2(curveButtonSize, curveButtonSize)))
+            {
+                if (EDITOR != nullptr)
+                {
+                    if (const Shared<CurveEditor_View> curveEditor = dynamic_pointer_cast<CurveEditor_View>(EDITOR->Get_Window(L"Curve Editor")))
+                        curveEditor->Pin_ModuleTargets(_emitters[emitterIndex].id, module.id);
+                }
+            }
+            ImGui::PopStyleVar(2);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Pin module curves");
+            ImGui::PopID();
+        }
+
         ImGui::SetCursorPos(
             ImVec2(
                 rowCursor.x + kEmitterColumnWidth - moduleCheckboxRightPadding,

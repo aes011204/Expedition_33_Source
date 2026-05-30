@@ -3,6 +3,7 @@
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
 #include "GameInstance.h"
+#include "Renderer_Define.h"
 #include "Texture.h"
 
 namespace Client::Internal
@@ -214,14 +215,14 @@ void ComputeTrailEmitter::Update(float timeDelta)
 void ComputeTrailEmitter::Late_Update(float)
 {
     if (_drawSegmentCount > 0 && Is_Visible())
-        GAME->Add_RenderGroup(RenderGroup::Blend, GetSharedPtr<GameObject>());
+        GAME->Add_RenderGroup(Resolve_RenderGroup(), GetSharedPtr<GameObject>());
 }
 
 HRESULT ComputeTrailEmitter::Render()
 {
     CHECK_FAILED_THROTTLED(Bind_ShaderResources(), 60, E_FAIL);
 
-    CHECK_FAILED_THROTTLED(_shader->Begin(Resolve_BlendPassIndex()), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Begin(Resolve_ShaderPassIndex()), 60, E_FAIL);
 
     constexpr uint32 stride0 = sizeof(Vec3);
     constexpr uint32 offset0 = 0;
@@ -269,11 +270,12 @@ void ComputeTrailEmitter::Bind_TrailSampleProvider(const Weak<IEffectTrailSample
 
 HRESULT ComputeTrailEmitter::Ready_Components()
 {
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), String::ToWString(kTrailShaderId), _shader), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), String::ToWString(Resolve_ShaderId()), _shader), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), String::ToWString(kTrailComputeShaderId), _computeShader), E_FAIL);
     CHECK_FAILED(Ready_Texture(), E_FAIL);
     CHECK_FAILED(Ready_NoiseTexture(), E_FAIL);
     CHECK_FAILED(Ready_MaskTexture(), E_FAIL);
+    CHECK_FAILED(Ready_FlowTexture(), E_FAIL);
     CHECK_FAILED(Ready_DrawBuffers(), E_FAIL);
     CHECK_FAILED(Ready_ComputeBuffers(), E_FAIL);
     return S_OK;
@@ -442,6 +444,67 @@ HRESULT ComputeTrailEmitter::Ready_MaskTexture()
             "ComputeTrailEmitter mask texture create failed. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'.",
             _desc.material.maskTextureGuid,
             _desc.material.maskTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+
+    return S_OK;
+}
+
+HRESULT ComputeTrailEmitter::Ready_FlowTexture()
+{
+    if (!Is_DistortionFamily())
+        return S_OK;
+
+    if (_desc.material.flowTextureGuid.empty() && _desc.material.flowTexturePath.empty())
+        return S_OK;
+
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
+    const wstring resolvedPath = Internal::Resolve_TrailTexturePath(
+        _desc.material.flowTextureGuid,
+        _desc.material.flowTexturePath,
+        usedPathFallback,
+        guidPathMismatch
+    );
+
+    if (resolvedPath.empty())
+    {
+        _flowTexture = nullptr;
+        LOG_WARN(
+            "ComputeTrailEmitter flow texture resolve failed. flowTextureGuid='{}', flowTexturePath='{}'.",
+            _desc.material.flowTextureGuid,
+            _desc.material.flowTexturePath
+        );
+        return S_OK;
+    }
+
+    if (guidPathMismatch)
+    {
+        LOG_WARN(
+            "ComputeTrailEmitter flow texture GUID/path mismatch. flowTextureGuid='{}', flowTexturePath='{}', guidResolvedPath='{}'.",
+            _desc.material.flowTextureGuid,
+            _desc.material.flowTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "ComputeTrailEmitter flow texture fell back to path. flowTextureGuid='{}', flowTexturePath='{}', resolvedPath='{}'.",
+            _desc.material.flowTextureGuid,
+            _desc.material.flowTexturePath,
+            String::ToString(resolvedPath)
+        );
+    }
+
+    _flowTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
+    if (nullptr == _flowTexture)
+    {
+        LOG_WARN(
+            "ComputeTrailEmitter flow texture create failed. flowTextureGuid='{}', flowTexturePath='{}', resolvedPath='{}'.",
+            _desc.material.flowTextureGuid,
+            _desc.material.flowTexturePath,
             String::ToString(resolvedPath)
         );
     }
@@ -796,6 +859,14 @@ HRESULT ComputeTrailEmitter::Update_ComputeConstants()
         _desc.sizeByLife.enabled ? 1.f : 0.f,
         0.f
     };
+    params.sizeByLifeCurveTimes = _desc.sizeByLife.curveKeyTimes;
+    params.sizeByLifeCurveValuesX = _desc.sizeByLife.curveKeyValuesX;
+    params.sizeByLifeCurveParams = Vec4{
+        static_cast<float>(max(1u, min(4u, _desc.sizeByLife.curveKeyCount))),
+        _desc.sizeByLife.multiplyX ? 1.f : 0.f,
+        0.f,
+        0.f
+    };
     params.lengthParams = Vec4{ _desc.maxTrailLength, _desc.tailFadeLength, 0.f, 0.f };
 
     _context->UpdateSubresource(_computeConstantBuffer.Get(), 0, nullptr, &params, 0, 0);
@@ -830,6 +901,14 @@ HRESULT ComputeTrailEmitter::Copy_ComputeOutput()
 HRESULT ComputeTrailEmitter::Bind_ShaderResources()
 {
     CHECK_FAILED(GAME->Bind_CameraCB(_shader), E_FAIL);
+
+    if (Is_DistortionFamily())
+    {
+        CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &_desc.material.tint, sizeof(Vec4)), E_FAIL);
+        CHECK_FAILED(Bind_DistortionResources(), E_FAIL);
+        return S_OK;
+    }
+
     CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
 
     if (nullptr != _noiseTexture)
@@ -906,15 +985,6 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         static_cast<float>(static_cast<uint32>(_desc.material.maskUVTilingMode)),
         0.f
     );
-    const EffectMaterialAdditiveContributionData& additive = _desc.material.additive;
-    const Vec4 effectTrailAdditiveParams = Vec4(
-        static_cast<float>(static_cast<uint32>(additive.colorSource)),
-        static_cast<float>(static_cast<uint32>(additive.amountSource)),
-        static_cast<float>(static_cast<uint32>(additive.coveragePolicy)),
-        additive.intensityScale
-    );
-    const Vec4 effectTrailAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
-
     const int opacitySourceIndex = Resolve_OpacitySourceIndex();
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailParams", &effectTrailParams, sizeof(effectTrailParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAlphaParams", &effectTrailAlphaParams, sizeof(effectTrailAlphaParams)), E_FAIL);
@@ -925,12 +995,55 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaskUVOffsetParams", &effectTrailMaskUVOffsetParams, sizeof(effectTrailMaskUVOffsetParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVPolicyParams", &effectTrailUVPolicyParams, sizeof(effectTrailUVPolicyParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVModeParams", &effectTrailUVModeParams, sizeof(effectTrailUVModeParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
+
+    const EffectMaterialAdditiveContributionData& additive = _desc.material.additive;
+    const Vec4 effectTrailAdditiveParams = Vec4(
+        static_cast<float>(static_cast<uint32>(additive.colorSource)),
+        static_cast<float>(static_cast<uint32>(additive.amountSource)),
+        static_cast<float>(static_cast<uint32>(additive.coveragePolicy)),
+        additive.intensityScale
+    );
+    const Vec4 effectTrailAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAdditiveParams", &effectTrailAdditiveParams, sizeof(effectTrailAdditiveParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAdditiveFlags", &effectTrailAdditiveFlags, sizeof(effectTrailAdditiveFlags)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
+    return S_OK;
+}
+
+HRESULT ComputeTrailEmitter::Bind_DistortionResources()
+{
+    const auto& material = _desc.material;
+
+    CHECK_FAILED(GAME->Bind_RT_ShaderResource(_shader, "g_DistortionSourceTexture", RT::DistortionSource), E_FAIL);
+
+    if (nullptr != _flowTexture)
+        CHECK_FAILED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);
+    else
+        CHECK_FAILED(_shader->Bind_SRV("g_FlowTexture", nullptr), E_FAIL);
+
+    D3D11_VIEWPORT viewport{};
+    uint32 viewportCount = 1u;
+    _context->RSGetViewports(&viewportCount, &viewport);
+
+    const Vec4 distortionParams(
+        max(0.f, material.refractionIntensity),
+        max(0.f, material.refractionPresence),
+        nullptr != _flowTexture ? 1.f : 0.f,
+        _materialElapsedTime
+    );
+    const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
+    const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), E_FAIL);
+
     return S_OK;
 }
 
@@ -951,6 +1064,26 @@ int ComputeTrailEmitter::Resolve_OpacitySourceIndex() const
 uint32 ComputeTrailEmitter::Resolve_BlendPassIndex() const
 {
     return _desc.material.blendMode == EffectMaterialBlendMode::Additive ? 1u : 0u;
+}
+
+bool ComputeTrailEmitter::Is_DistortionFamily() const
+{
+    return _desc.material.materialFamily == EffectMaterialFamily::SpriteDistortion;
+}
+
+RenderGroup ComputeTrailEmitter::Resolve_RenderGroup() const
+{
+    return Is_DistortionFamily() ? RenderGroup::Distortion : RenderGroup::Blend;
+}
+
+const char* ComputeTrailEmitter::Resolve_ShaderId() const
+{
+    return Is_DistortionFamily() ? kTrailDistortionShaderId : kTrailShaderId;
+}
+
+uint32 ComputeTrailEmitter::Resolve_ShaderPassIndex() const
+{
+    return Is_DistortionFamily() ? 0u : Resolve_BlendPassIndex();
 }
 
 Shared<ComputeTrailEmitter> ComputeTrailEmitter::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

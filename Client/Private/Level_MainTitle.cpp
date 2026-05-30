@@ -39,18 +39,17 @@ HRESULT Level_MainTitle::Render()
 
 void Level_MainTitle::Handle_Button()
 {
-    if (_continueButton && _continueButton->Was_Clicked() || GAME->KeyDown(KEY_TYPE::KEY_1))
+    if ((_continueButton && _continueButton->Was_Clicked()) || GAME->KeyDown(KEY_TYPE::KEY_1))
     {
-        if (FAILED(GAME->Change_Level(ETOI(LevelType::Loading), Level_Loading::Create(_device.Get(), _context.Get(), LevelType::GamePlay))))
+        if (FAILED(GAME->Change_Level(ETOI(LevelType::Loading), Level_Loading::Create(_device.Get(), _context.Get(), LevelType::GameEntry))))
             return;
 
         return; 
     }
 
-    if (_testMap1Button && _testMap1Button->Was_Clicked())
+    if (_exitButton && _exitButton->Was_Clicked())
     {
-        if (FAILED(GAME->Change_Level(ETOI(LevelType::Loading), Level_Loading::Create(_device.Get(), _context.Get(), LevelType::MapTest))))
-            return;
+        PostQuitMessage(0);
 
         return;
     }
@@ -70,9 +69,9 @@ HRESULT Level_MainTitle::Ready_Layer_UI(const wstring& strLayerTag)
         L"Button_MainTitle_Continue",
         "Level_MainTitle"); 
 
-    _testMap1Button = Find_TypedUI<UI_Button>(
+    _exitButton = Find_TypedUI<UI_Button>(
         _uiByName,
-        L"Button_MainTitle_TestMap1",
+        L"Button_MainTitle_Exit",
         "Level_MainTitle"); 
 
     return S_OK;

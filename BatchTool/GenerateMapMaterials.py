@@ -70,6 +70,54 @@ def load_json(path: Path) -> dict | list:
         return json.load(f)
 
 
+def normalize_mi_data(mi_data: dict | list) -> dict:
+    """Convert raw UE export list format to the expected dict format.
+
+    UE raw export: [{"Type": "MaterialInstanceConstant", "Properties": {...}}]
+    Expected:      {"Textures": {...}, "Parameters": {...}}
+    """
+    if isinstance(mi_data, dict):
+        return mi_data
+
+    raw = mi_data[0] if mi_data else {}
+    props = raw.get("Properties", {})
+
+    textures: dict[str, str] = {}
+    for tv in props.get("TextureParameterValues", []):
+        name = tv.get("ParameterInfo", {}).get("Name", "")
+        obj = tv.get("ParameterValue", {})
+        obj_path = obj.get("ObjectPath", "")         # e.g. /Game/.../Asset.0
+        obj_name_raw = obj.get("ObjectName", "")     # e.g. Texture2D'AssetName'
+        asset_name = obj_name_raw.split("'")[1] if "'" in obj_name_raw else ""
+        if name and obj_path and asset_name:
+            base_path = obj_path.rsplit(".", 1)[0]   # strip trailing .0 index
+            textures[name] = f"{base_path}.{asset_name}"
+
+    scalars: dict[str, float] = {}
+    for sv in props.get("ScalarParameterValues", []):
+        name = sv.get("ParameterInfo", {}).get("Name", "")
+        if name:
+            scalars[name] = float(sv.get("ParameterValue", 0.0))
+
+    colors: dict[str, dict] = {}
+    for vv in props.get("VectorParameterValues", []):
+        name = vv.get("ParameterInfo", {}).get("Name", "")
+        if name:
+            colors[name] = vv.get("ParameterValue", {})
+
+    return {
+        "Textures": textures,
+        "Parameters": {
+            "BlendMode": 0,
+            "Scalars": scalars,
+            "Colors": colors,
+            "Properties": {
+                "BasePropertyOverrides": props.get("BasePropertyOverrides", {}),
+            },
+        },
+    }
+
+
 def ue_path_to_texture_name(ue_path: str) -> str:
     """'/Game/Meshes/Manor/T_Candle.T_Candle' -> 'T_Candle'"""
     if not ue_path:
@@ -129,9 +177,17 @@ def parse_cb(mi_data: dict) -> dict:
 
     colors = mi_data.get("Parameters", {}).get("Colors", {})
     for param_name, color_val in colors.items():
-        if param_name.lower() == "base tiling/offset":
+        key = param_name.lower()
+        if key == "base tiling/offset":
             cb["uvScale"]  = [color_val.get("R", 1.0), color_val.get("G", 1.0)]
             cb["uvOffset"] = [color_val.get("B", 0.0), color_val.get("A", 0.0)]
+        elif key == "albedo tint":
+            cb["baseColorTint"] = [
+                color_val.get("R", 1.0),
+                color_val.get("G", 1.0),
+                color_val.get("B", 1.0),
+                color_val.get("A", 1.0),
+            ]
 
     return cb
 
@@ -188,7 +244,7 @@ def build_bundle(level_name: str, mi_files: list[Path]) -> tuple[dict, dict]:
     for mi_path in sorted(mi_files):
         mi_name = mi_path.stem
         try:
-            mi_data = load_json(mi_path)
+            mi_data = normalize_mi_data(load_json(mi_path))
         except Exception as e:
             print(f"  WARN: Could not read {mi_path.name}: {e}")
             continue

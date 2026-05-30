@@ -8,6 +8,7 @@
 #include "SceneContext.h"
 #include "MECamera.h"
 #include "PanelModelOverride.h"
+#include "PanelLandscape.h"
 
 extern HWND g_hWnd;
 
@@ -16,7 +17,7 @@ MEManager::~MEManager()
 
 }
 
-HRESULT MEManager::Initialize(Shared<PanelViewport> viewport, SceneContext* ctx, MECamera* camera)
+HRESULT MEManager::Initialize(Shared<PanelViewport> viewport, SceneContext* ctx, MECamera* camera, const LandscapePanelContext& landscapeCtx)
 {
     auto Add = [this](Shared<MEWindow> w) {
         if (w)
@@ -32,6 +33,7 @@ HRESULT MEManager::Initialize(Shared<PanelViewport> viewport, SceneContext* ctx,
     Add(PanelInspector::Create(ctx, camera));
     Add(PanelAssetBrowser::Create(ctx));
     Add(PanelModelOverride::Create(ctx));
+    Add(PanelLandscape::Create(ctx, landscapeCtx));
 
     _snapSettings = make_shared<SnapSettings>();
     viewport->SetSnapSettings(_snapSettings);
@@ -149,6 +151,22 @@ void MEManager::RenderDockSpace()
                 if (GetOpenFileNameA(&ofn))
                 {
                     _ctx->LoadFromFile(buf);
+                }
+            }
+
+            if (ImGui::MenuItem("Append Map..."))
+            {
+                char buf[MAX_PATH] = {};
+                OPENFILENAMEA ofn{};
+                ofn.lStructSize = sizeof(ofn);
+                ofn.lpstrFilter = "JSON Files\0*.json\0All Files\0*.*\0";
+                ofn.lpstrFile = buf;
+                ofn.nMaxFile = MAX_PATH;
+                ofn.lpstrInitialDir = _mapSavePath;
+                ofn.Flags = OFN_FILEMUSTEXIST;
+                if (GetOpenFileNameA(&ofn))
+                {
+                    _ctx->LoadFromFile(buf, true);
                 }
             }
 
@@ -275,11 +293,11 @@ void MEManager::AddWindow(Shared<MEWindow> w)
     }
 }
 
-Unique<MEManager> MEManager::Create(Shared<PanelViewport> viewport, SceneContext* ctx, MECamera* camera)
+Unique<MEManager> MEManager::Create(Shared<PanelViewport> viewport, SceneContext* ctx, MECamera* camera, const LandscapePanelContext& landscapeCtx)
 {
     auto instance = make_unique<MEManager>();
 
-    CHECK_FAILED(instance->Initialize(viewport, ctx, camera), nullptr);
+    CHECK_FAILED(instance->Initialize(viewport, ctx, camera, landscapeCtx), nullptr);
 
     return instance;
 }

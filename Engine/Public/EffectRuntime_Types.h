@@ -62,36 +62,55 @@ enum class EffectSpriteTextureAxis : uint32
 // Required 모듈에서 material binding에 필요한 값만 접은 runtime payload다.
 struct EffectRequiredMaterialRuntimeDesc
 {
-    string mainTextureGuid{};            // main particle texture asset identity다.
-    string mainTexturePath{};            // main particle texture resource-relative fallback/debug hint다.
-    string noiseTextureGuid{};           // (선택) noise texture asset identity다.
-    string noiseTexturePath{};           // (선택) noise texture resource-relative fallback/debug hint다.
-    string maskTextureGuid{};            // (선택) mask texture asset identity다.
-    string maskTexturePath{};            // (선택) mask texture resource-relative fallback/debug hint다.
+    EffectMaterialFamily materialFamily{ EffectMaterialFamily::Default }; // runtime material shader/pass family를 고르는 분류다.
+    string mainTextureGuid{};                                             // main particle texture asset identity다.
+    string mainTexturePath{};                                             // main particle texture resource-relative fallback/debug hint다.
+    string noiseTextureGuid{};                                            // (선택) noise texture asset identity다.
+    string noiseTexturePath{};                                            // (선택) noise texture resource-relative fallback/debug hint다.
+    string maskTextureGuid{};                                             // (선택) mask texture asset identity다.
+    string maskTexturePath{};                                             // (선택) mask texture resource-relative fallback/debug hint다.
+    string flowTextureGuid{};                                             // SpriteDistortion flow texture asset identity다.
+    string flowTexturePath{};                                             // SpriteDistortion flow texture resource-relative fallback/debug hint다.
+
     EffectMaterialBlendMode blendMode{ EffectMaterialBlendMode::AlphaBlend }; // effect material blend/compose mode다.
-    string opacitySource{ "Alpha" };     // opacity source selector다.
-    Vec4 tint{ 1.f, 1.f, 1.f, 1.f };     // texture sample에 곱할 tint다.
-    float intensity{ 1.f };              // sprite 색상 밝기/발광감 계수다.
-    float opacityPower{ 1.f };           // opacity sharpening 계수다.
-    float noiseStrength{ 0.f };          // noise modulation 강도다.
-    float alphaCutoff{ 0.f };            // Trail 등 지원 renderer가 사용할 alpha discard threshold다.
-    float alphaErosion{ 0.f };           // mask/noise 기반 alpha erosion 후보 값이다.
-    Vec2 mainUVScale{ 1.f, 1.f };        // main texture UV 반복/확대 배율 후보 값이다.
-    Vec2 mainUVOffset{ 0.f, 0.f };       // main texture 샘플 시작 위치를 정적으로 민다.
-    Vec2 mainUVScrollSpeed{ 0.f, 0.f };  // main texture 샘플 좌표를 시간에 따라 밀어 흐름감을 만드는 속도 후보 값이다.
+    string opacitySource{ "Alpha" };                                          // opacity source selector다.
+    Vec4 tint{ 1.f, 1.f, 1.f, 1.f };                                          // texture sample에 곱할 tint다.
+    float intensity{ 1.f };                                                   // sprite 색상 밝기/발광감 계수다.
+    float opacityPower{ 1.f };                                                // opacity sharpening 계수다.
+    float noiseStrength{ 0.f };                                               // noise modulation 강도다.
+    float alphaCutoff{ 0.f };                                                 // Trail 등 지원 renderer가 사용할 alpha discard threshold다.
+    float alphaErosion{ 0.f };                                                // mask/noise 기반 alpha erosion 후보 값이다.
+
+    Vec2 mainUVScale{ 1.f, 1.f };                                                  // main texture UV 반복/확대 배율 후보 값이다.
+    Vec2 mainUVOffset{ 0.f, 0.f };                                                 // main texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 mainUVScrollSpeed{ 0.f, 0.f };                                            // main texture 샘플 좌표를 시간에 따라 밀어 흐름감을 만드는 속도 후보 값이다.
     EffectTextureUVTilingMode mainUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // main texture UV tiling 해석 방식이다.
-    Vec2 noiseUVScale{ 1.f, 1.f };       // noise texture UV 반복/확대 배율 후보 값이다.
-    Vec2 noiseUVOffset{ 0.f, 0.f };      // noise texture 샘플 시작 위치를 정적으로 민다.
-    Vec2 noiseUVScrollSpeed{ 0.f, 0.f }; // noise를 frame 교체가 아니라 UV 좌표 이동으로 흘려 불규칙한 modulation 흐름을 만드는 속도 후보 값이다.
+
+    Vec2 noiseUVScale{ 1.f, 1.f };                                                  // noise texture UV 반복/확대 배율 후보 값이다.
+    Vec2 noiseUVOffset{ 0.f, 0.f };                                                 // noise texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 noiseUVScrollSpeed{ 0.f, 0.f };                                            // noise를 frame 교체가 아니라 UV 좌표 이동으로 흘려 불규칙한 modulation 흐름을 만드는 속도 후보 값이다.
     EffectTextureUVTilingMode noiseUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // noise texture UV tiling 해석 방식이다.
-    Vec2 maskUVScale{ 1.f, 1.f };        // mask texture UV 반복/확대 배율 후보 값이다.
-    Vec2 maskUVOffset{ 0.f, 0.f };       // mask texture 샘플 시작 위치를 정적으로 민다.
-    Vec2 maskUVScrollSpeed{ 0.f, 0.f };  // mask를 frame 교체가 아니라 UV 좌표 이동으로 흘려 alpha/erosion 변화를 만드는 속도 후보 값이다.
+
+    Vec2 maskUVScale{ 1.f, 1.f };                                                  // mask texture UV 반복/확대 배율 후보 값이다.
+    Vec2 maskUVOffset{ 0.f, 0.f };                                                 // mask texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 maskUVScrollSpeed{ 0.f, 0.f };                                            // mask를 frame 교체가 아니라 UV 좌표 이동으로 흘려 alpha/erosion 변화를 만드는 속도 후보 값이다.
     EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // mask texture UV tiling 해석 방식이다.
+
+    Vec2 flowUVScale{ 1.f, 1.f };                                                  // SpriteDistortion flow texture UV 반복/확대 배율 후보 값이다.
+    Vec2 flowUVOffset{ 0.f, 0.f };                                                 // SpriteDistortion flow texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 flowUVScrollSpeed{ 0.f, 0.f };                                            // SpriteDistortion flow texture UV scroll speed 후보 값이다.
+    EffectTextureUVTilingMode flowUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // flow texture UV tiling 해석 방식이다.
+
     EffectMaterialAdditiveContributionData additive{}; // Additive blend에서 더할 contribution 해석 규칙이다.
-    bool twoSided{ false };              // 지원 renderer가 사용할 양면 렌더 힌트다.
-    uint32 subUVRows{ 1 };               // flipbook row 수다.
-    uint32 subUVCols{ 1 };               // flipbook column 수다.
+    float refractionIntensity{ 0.f };                  // SpriteDistortion screen UV offset 강도다.
+    float refractionPresence{ 1.f };                   // SpriteDistortion refraction 영향도 scalar다.
+    EffectDistortionShapeMode distortionShapeMode{ EffectDistortionShapeMode::None }; // SpriteDistortion 영향 범위 weight mode다.
+    float distortionShapeRadius{ 0.45f };              // sprite UV 중심에서 shape 기준 반경이다.
+    float distortionShapeThickness{ 0.10f };           // Ring은 UV 폭, ShockwaveRing은 screen pixel half-width다.
+    float distortionShapeSoftness{ 0.15f };            // Ring은 UV falloff, ShockwaveRing은 screen pixel falloff다.
+    bool twoSided{ false };                            // 지원 renderer가 사용할 양면 렌더 힌트다.
+    uint32 subUVRows{ 1 };                             // flipbook row 수다.
+    uint32 subUVCols{ 1 };                             // flipbook column 수다.
 };
 
 // Required 모듈에서 sprite render alignment에 필요한 값만 접은 runtime payload다.
@@ -200,12 +219,12 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
 // compute trail emitter가 clone 시점에 받는 trail 전용 runtime payload다.
 struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
-    EffectRequiredMaterialRuntimeDesc material{}; // trail 기본 material/tint/blend 값이다.
-    EffectEmitterPlaybackRuntimeDesc playback{};  // duration/loop/delay 같은 공통 재생 규칙이다.
-    EffectLifetimeRuntimeDesc lifetime{};         // Lifetime 모듈에서 trail이 소비하는 age fade 기준 값이다.
-    EffectInitialColorRuntimeDesc initialColor{}; // InitialColor 모듈에서 trail segment 시작 색상으로 소비하는 값이다.
-    EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 trail segment 끝 색상으로 소비하는 값이다.
-    PointParticleSizeByLifeDesc sizeByLife{};        // SizeByLife 모듈에서 trail 폭 배율로 소비하는 값이다.
+    EffectRequiredMaterialRuntimeDesc material{};      // trail 기본 material/tint/blend 값이다.
+    EffectEmitterPlaybackRuntimeDesc playback{};       // duration/loop/delay 같은 공통 재생 규칙이다.
+    EffectLifetimeRuntimeDesc lifetime{};              // Lifetime 모듈에서 trail이 소비하는 age fade 기준 값이다.
+    EffectInitialColorRuntimeDesc initialColor{};      // InitialColor 모듈에서 trail segment 시작 색상으로 소비하는 값이다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{};    // ColorOverLife 모듈에서 trail segment 끝 색상으로 소비하는 값이다.
+    PointParticleSizeByLifeDesc sizeByLife{};          // SizeByLife 모듈에서 trail 폭 배율로 소비하는 값이다.
     EffectTrailSpawnPerUnitRuntimeDesc spawnPerUnit{}; // SpawnPerUnit 모듈에서 trail sample density를 보강하는 값이다.
 
     float width{ 0.1f };            // render sample의 center 기준으로 적용할 world-space strip 폭이다.

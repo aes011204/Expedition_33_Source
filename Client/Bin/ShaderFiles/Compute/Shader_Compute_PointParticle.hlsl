@@ -33,9 +33,9 @@ cbuffer ComputePointParticleParams : register(b0)
     uint g_MaxDrawCount;
     uint g_KillActiveParticles;
     float4 g_Center;
-    float4 g_EmitterBasisRight;          // xyz: emitter local X axis in world space
-    float4 g_EmitterBasisUp;             // xyz: emitter local Y axis in world space
-    float4 g_EmitterBasisLook;           // xyz: emitter local Z axis in world space
+    float4 g_EmitterBasisRight; // xyz: emitter local X axis in world space
+    float4 g_EmitterBasisUp;    // xyz: emitter local Y axis in world space
+    float4 g_EmitterBasisLook;  // xyz: emitter local Z axis in world space
     float4 g_SpawnRange;
     float4 g_InitialLocationMin;         // xyz: InitialLocation min offset, w: enabled
     float4 g_InitialLocationMax;         // xyz: InitialLocation max offset
@@ -48,27 +48,149 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_StartColorMax;
     float4 g_EndColorMin;
     float4 g_EndColorMax;
-    float4 g_SubUVParams;           // x/y: rows/cols, z: playback mode, w: frames per second
-    float4 g_SubUVFrameParams;      // x/y: start/end frame, z: loop, w: enabled
-    float4 g_SubUVFrameCurveTimes;  // Reserved frame curve key times for later Curve Editor work
-    float4 g_SubUVFrameCurveValues; // Reserved frame curve frame values for later Curve Editor work
-    float4 g_SubUVFrameCurveParams; // x: key count
-    float4 g_SizeByLifeParams;      // x/y: width start/end, z/w: height start/end
-    float4 g_MotionFlags;           // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled
-    float4 g_MotionSpaceFlags;      // x: radial world
-    float4 g_InitialVelocityMin;    // xyz: vector velocity min
-    float4 g_InitialVelocityMax;    // xyz: vector velocity max
-    float4 g_MotionRadialPivot;     // xyz: radial pivot
-    float4 g_MotionRadialSpeedDrag; // x/y: radial speed min/max, z/w: drag min/max
+    float4 g_SubUVParams;            // x/y: rows/cols, z: playback mode, w: frames per second
+    float4 g_SubUVFrameParams;       // x/y: start/end frame, z: loop, w: enabled
+    float4 g_SubUVFrameCurveTimes;   // Reserved frame curve key times for later Curve Editor work
+    float4 g_SubUVFrameCurveValues;  // Reserved frame curve frame values for later Curve Editor work
+    float4 g_SubUVFrameCurveParams;  // x: key count
+    float4 g_SizeByLifeParams;       // x/y: width start/end, z/w: height start/end
+    float4 g_SizeByLifeCurveTimes;   // scaleOverLife key times
+    float4 g_SizeByLifeCurveValuesX; // scaleOverLife X multipliers
+    float4 g_SizeByLifeCurveValuesY; // scaleOverLife Y multipliers
+    float4 g_SizeByLifeCurveParams;  // x: key count, y: multiplyX, z: multiplyY, w: axisLock
+    float4 g_MotionFlags;            // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled
+    float4 g_MotionSpaceFlags;       // x: radial world
+    float4 g_InitialVelocityMin;     // xyz: vector velocity min
+    float4 g_InitialVelocityMax;     // xyz: vector velocity max
+    float4 g_MotionRadialPivot;      // xyz: radial pivot
+    float4 g_MotionRadialSpeedDrag;  // x/y: radial speed min/max, z/w: drag min/max
     float4 g_AccelerationMin;
     float4 g_AccelerationMax;
     float4 g_VelocityScaleByLife;
-    float4 g_RotationInitialRate; // x/y: initial rotation min/max, z/w: rate min/max
-    float4 g_RotationByLife;      // x/y: rotation start/end, z/w: rate scale start/end
+    float4 g_RotationInitialRate;         // x/y: initial rotation min/max, z/w: rate min/max
+    float4 g_RotationByLife;              // (Legacy) x/y: rotation start/end, z/w: rate scale start/end
+    float4 g_RotationOverLifeCurveTimes;  // rotationOverLife key times
+    float4 g_RotationOverLifeCurveValues; // rotationOverLife degree values
+    float4 g_RotationOverLifeCurveParams; // x: key count
 };
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
 RWStructuredBuffer<ParticleLifecycleState> LifecycleState : register(u2);
+
+float ReadVec4Component(float4 values, uint index)
+{
+    if (index == 0u)
+        return values.x;
+    if (index == 1u)
+        return values.y;
+    if (index == 2u)
+        return values.z;
+    return values.w;
+}
+
+float2 EvaluateSizeByLifeMultiplier(float lifeProgress)
+{
+    const uint keyCount = max(1u, min(4u, (uint)g_SizeByLifeCurveParams.x));
+    float2 multiplier = float2(g_SizeByLifeParams.x, g_SizeByLifeParams.z);
+
+    if (keyCount == 1u || lifeProgress <= ReadVec4Component(g_SizeByLifeCurveTimes, 0u))
+    {
+        multiplier = float2(
+            ReadVec4Component(g_SizeByLifeCurveValuesX, 0u),
+            ReadVec4Component(g_SizeByLifeCurveValuesY, 0u)
+        );
+    }
+    else
+    {
+        bool found = false;
+        [unroll]
+        for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+        {
+            if (keyIndex >= keyCount || found)
+                continue;
+
+            const float rightTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyIndex);
+            if (lifeProgress > rightTime)
+                continue;
+
+            const float leftTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyIndex - 1u);
+            const float ratio = saturate((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime));
+            multiplier = float2(
+                lerp(
+                    ReadVec4Component(g_SizeByLifeCurveValuesX, keyIndex - 1u),
+                    ReadVec4Component(g_SizeByLifeCurveValuesX, keyIndex),
+                    ratio
+                ),
+                lerp(
+                    ReadVec4Component(g_SizeByLifeCurveValuesY, keyIndex - 1u),
+                    ReadVec4Component(g_SizeByLifeCurveValuesY, keyIndex),
+                    ratio
+                )
+            );
+            found = true;
+        }
+
+        const float lastTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyCount - 1u);
+        if (!found && lifeProgress > lastTime)
+        {
+            multiplier = float2(
+                ReadVec4Component(g_SizeByLifeCurveValuesX, keyCount - 1u),
+                ReadVec4Component(g_SizeByLifeCurveValuesY, keyCount - 1u)
+            );
+        }
+    }
+
+    if ((uint)g_SizeByLifeCurveParams.w == 1u)
+        multiplier.y = multiplier.x;
+    else if ((uint)g_SizeByLifeCurveParams.w == 2u)
+        multiplier.x = multiplier.y;
+
+    if (g_SizeByLifeCurveParams.y == 0.0f)
+        multiplier.x = 1.0f;
+    if (g_SizeByLifeCurveParams.z == 0.0f)
+        multiplier.y = 1.0f;
+
+    return multiplier;
+}
+
+// RotationOverLife curve payload를 평가해 life-progress 시점의 추가 회전각을 반환한다.
+float EvaluateRotationOverLifeDegrees(float lifeProgress)
+{
+    const uint keyCount = max(1u, min(4u, (uint)g_RotationOverLifeCurveParams.x));
+    float rotationDegrees = g_RotationByLife.x;
+
+    if (keyCount == 1u || lifeProgress <= ReadVec4Component(g_RotationOverLifeCurveTimes, 0u))
+        rotationDegrees = ReadVec4Component(g_RotationOverLifeCurveValues, 0u);
+    else
+    {
+        bool found = false;
+        [unroll]
+        for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+        {
+            if (keyIndex >= keyCount || found)
+                continue;
+
+            const float rightTime = ReadVec4Component(g_RotationOverLifeCurveTimes, keyIndex);
+            if (lifeProgress > rightTime)
+                continue;
+
+            const float leftTime = ReadVec4Component(g_RotationOverLifeCurveTimes, keyIndex - 1u);
+            const float ratio = saturate((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime));
+            rotationDegrees = lerp(
+                ReadVec4Component(g_RotationOverLifeCurveValues, keyIndex - 1u),
+                ReadVec4Component(g_RotationOverLifeCurveValues, keyIndex),
+                ratio
+            );
+            found = true;
+        }
+
+        const float lastTime = ReadVec4Component(g_RotationOverLifeCurveTimes, keyCount - 1u);
+        if (!found && lifeProgress > lastTime)
+            rotationDegrees = ReadVec4Component(g_RotationOverLifeCurveValues, keyCount - 1u);
+    }
+
+    return rotationDegrees;
+}
 
 // 정수 seed를 0~1 사이의 pseudo-random float 값으로 바꾼다.
 float Hash01(uint seed)
@@ -152,9 +274,13 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const uint maxInstanceCount = (uint)g_InstanceCount;
     const uint maxActiveCount = min(maxInstanceCount, max(1u, g_MaxActiveCount));
     const uint maxDrawCount = min(maxInstanceCount, max(1u, g_MaxDrawCount));
+    const uint stableDrawCount = min(maxActiveCount, maxDrawCount);
 
     if (index >= (uint)g_InstanceCount)
         return;
+
+    if (index == 0u)
+        ArgsData[0].instanceCount = stableDrawCount;
 
     ParticleLifecycleState lifecycle = LifecycleState[index];
 
@@ -166,7 +292,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         return;
     }
 
-    if (index >= maxActiveCount)
+    if (index >= stableDrawCount)
     {
         lifecycle.active = 0u;
         LifecycleState[index] = lifecycle;
@@ -199,6 +325,8 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     if (lifecycle.active == 0u)
     {
         lifecycle.lifeAge = 0.0f;
+        if (index < stableDrawCount)
+            OutputData[index] = (ParticleInstanceVertex)0;
         LifecycleState[index] = lifecycle;
         return;
     }
@@ -211,8 +339,9 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float lifeMax = max(lifecycle.lifeMax, 0.0001f);
     const float lifeAge = max(0.0f, lifecycle.lifeAge);
     const float lifeProgress = saturate(lifeAge / lifeMax);
-    const float sizeX = baseSize.x * lerp(g_SizeByLifeParams.x, g_SizeByLifeParams.y, lifeProgress);
-    const float sizeY = baseSize.y * lerp(g_SizeByLifeParams.z, g_SizeByLifeParams.w, lifeProgress);
+    const float2 sizeByLifeMultiplier = EvaluateSizeByLifeMultiplier(lifeProgress);
+    const float sizeX = baseSize.x * sizeByLifeMultiplier.x;
+    const float sizeY = baseSize.y * sizeByLifeMultiplier.y;
 
     // particle index에서 만든 deterministic seed다.
     // 같은 particle 생애 안에서는 같은 seed를 사용하므로 spawn offset, speed, rotation 랜덤값이 흔들리지 않는다.
@@ -242,11 +371,13 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                                          : ResolveEmitterBasisVector(g_MotionRadialPivot.xyz);
         const float3 pivotPosition = g_Center.xyz + radialPivotOffset;
         float3 radialDirection = spawnPosition - pivotPosition;
-        const float3 fallbackRadialDirection = ResolveEmitterBasisVector(float3(
-            Hash01(seed + 307u) * 2.0f - 1.0f,
-            0.25f,
-            Hash01(seed + 401u) * 2.0f - 1.0f
-        ));
+        const float3 fallbackRadialDirection = ResolveEmitterBasisVector(
+            float3(
+                Hash01(seed + 307u) * 2.0f - 1.0f,
+                0.25f,
+                Hash01(seed + 401u) * 2.0f - 1.0f
+            )
+        );
         const float fallbackRadialLength = length(fallbackRadialDirection);
         const float3 normalizedFallbackRadialDirection = fallbackRadialLength < 0.0001f
                                                          ? float3(0.0f, 1.0f, 0.0f)
@@ -273,7 +404,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                                          : currentVelocity / currentVelocityLength;
 
     const float initialRotation = radians(lerp(g_RotationInitialRate.x, g_RotationInitialRate.y, Hash01(seed + 809u)));
-    const float rotationOverLife = radians(lerp(g_RotationByLife.x, g_RotationByLife.y, lifeProgress));
+    const float rotationOverLife = radians(EvaluateRotationOverLifeDegrees(lifeProgress));
     const float rotationRate = radians(lerp(g_RotationInitialRate.z, g_RotationInitialRate.w, Hash01(seed + 907u)));
     const float rotationRateScale = IntegrateLifeScale(g_RotationByLife.z, g_RotationByLife.w, lifeProgress);
     const float rotation = initialRotation + rotationOverLife + rotationRate * rotationRateScale * lifeAge;
@@ -344,14 +475,12 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     instance.endColor = lerp(g_EndColorMin, g_EndColorMax, colorRatio);
     instance.subUVRect = float4(u0, v0, u0 + invCols, v0 + invRows);
 
-    if (index >= maxDrawCount)
+    if (index >= stableDrawCount)
     {
         LifecycleState[index] = lifecycle;
         return;
     }
 
-    uint drawIndex = 0u;
-    InterlockedAdd(ArgsData[0].instanceCount, 1u, drawIndex);
-    OutputData[drawIndex] = instance;
+    OutputData[index] = instance;
     LifecycleState[index] = lifecycle;
 }

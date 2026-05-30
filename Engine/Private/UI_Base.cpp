@@ -49,6 +49,10 @@ UI_Base::UI_Base()
 UI_Base::UI_Base(const UI_Base& Prototype)
     : _isOpen{ false }
     , _sortOrder{ Prototype._sortOrder }
+    , _openBasePosition{ Prototype._openBasePosition }
+    , _openBaseScale{ Prototype._openBaseScale }
+    , _openBaseRotationRadians{ Prototype._openBaseRotationRadians }
+    , _hasOpenBaseTransform{ Prototype._hasOpenBaseTransform }
     , _renderGroup{Prototype._renderGroup }
 {
     Set_Name(Prototype.Get_Name());
@@ -79,10 +83,15 @@ HRESULT UI_Base::Initialize(void* Arg)
     _transform = UI_Transform::Create(&Desc.transformDesc);
     CHECK_NULL(_transform, E_FAIL);
 
+    _openBasePosition = _transform->Get_Position();
+    _openBaseScale = _transform->Get_Scale();
+    _openBaseRotationRadians = _transform->Get_RotationRadians();
+    _hasOpenBaseTransform = true;
+
     _animationPlayer.Set_BaseTransformState(
-        _transform->Get_Position(),
-        _transform->Get_Scale(),
-        _transform->Get_RotationRadians());
+        _openBasePosition,
+        _openBaseScale,
+        _openBaseRotationRadians);
     _animationPlayer.Set_Clips(Desc.animationClips);
     _animationPlayer.Set_KeyframeAssets(Desc.keyframeAnimationAssets);
     if (_isOpen)
@@ -94,7 +103,35 @@ HRESULT UI_Base::Initialize(void* Arg)
 void UI_Base::Open()
 {
     _isOpen = true;
+
+    if (nullptr != _transform && _hasOpenBaseTransform)
+    {
+        _transform->Set_Position(_openBasePosition);
+        _transform->Set_Scale(_openBaseScale);
+        _transform->Set_RotationRadians(_openBaseRotationRadians);
+        _animationPlayer.Set_TransitionStartState(
+            _openBasePosition,
+            _openBaseScale,
+            _openBaseRotationRadians);
+    }
+
     _animationPlayer.Play_OnOpen();
+}
+
+void UI_Base::Refresh_OpenBaseTransform()
+{
+    if (nullptr == _transform)
+        return;
+
+    _openBasePosition = _transform->Get_Position();
+    _openBaseScale = _transform->Get_Scale();
+    _openBaseRotationRadians = _transform->Get_RotationRadians();
+    _hasOpenBaseTransform = true;
+
+    _animationPlayer.Set_BaseTransformState(
+        _openBasePosition,
+        _openBaseScale,
+        _openBaseRotationRadians);
 }
 
 void UI_Base::Close()
@@ -137,12 +174,25 @@ HRESULT UI_Base::Render()
 
 bool UI_Base::Play_UIAnimation(const wstring& animationName, bool restart)
 {
+    if (nullptr != _transform)
+    {
+        _animationPlayer.Set_TransitionStartState(
+            _transform->Get_Position(),
+            _transform->Get_Scale(),
+            _transform->Get_RotationRadians());
+    }
+
     return _animationPlayer.Play_KeyframeAnimation(animationName, restart); // 실제 선택 재생은 AnimationPlayer가 맡는다.
 }
 
 void UI_Base::Stop_UIAnimation()
 {
     _animationPlayer.Stop();
+}
+
+void UI_Base::Add_UIAnimationAsset(const UI_KeyframeAnimationAsset& animationAsset)
+{
+    _animationPlayer.Add_KeyframeAsset(animationAsset);
 }
 
 bool UI_Base::Is_EffectivelyOpen() const
@@ -279,17 +329,26 @@ Vec2 UI_Base::Get_ScaledLocalCenter(const Vec2& localScale) const
 Vec2 UI_Base::Transform_LocalPointToWorld(const Vec2& localPoint) const
 {
     Vec2 worldPoint = localPoint;
-    unordered_set<const UI_Base*> visitedParents;
     Shared<UI_Base> parent = _parent.lock();
+#ifdef _DEBUG
+    uint32 depth = 0;
+#endif
+
     while (nullptr != parent)
     {
-        if (!visitedParents.insert(parent.get()).second)
-            break;
-
         if (nullptr != parent->_transform)
             worldPoint = Transform_PointByParent(worldPoint, *parent);
 
         parent = parent->_parent.lock();
+
+#ifdef _DEBUG
+        ++depth;
+        if (depth > 256)
+        {
+            LOG_WARN("UI_Base::Transform_LocalPointToWorld stopped by excessive parent depth.");
+            break;
+        }
+#endif
     }
 
     return worldPoint;
@@ -299,13 +358,13 @@ Vec2 UI_Base::Get_WorldScale() const
 {
     Vec2 worldScale = nullptr != _transform ? _transform->Get_Scale() : Vec2(1.f, 1.f);
 
-    unordered_set<const UI_Base*> visitedParents;
     Shared<UI_Base> parent = _parent.lock();
+#ifdef _DEBUG
+    uint32 depth = 0;
+#endif
+
     while (nullptr != parent)
     {
-        if (!visitedParents.insert(parent.get()).second)
-            break;
-
         if (nullptr != parent->_transform)
         {
             const Vec2& parentScale = parent->_transform->Get_Scale();
@@ -314,6 +373,15 @@ Vec2 UI_Base::Get_WorldScale() const
         }
 
         parent = parent->_parent.lock();
+
+#ifdef _DEBUG
+        ++depth;
+        if (depth > 256)
+        {
+            LOG_WARN("UI_Base::Get_WorldScale stopped by excessive parent depth.");
+            break;
+        }
+#endif
     }
 
     return worldScale;
@@ -323,17 +391,26 @@ float UI_Base::Get_WorldRotationRadians() const
 {
     float worldRotationRadians = nullptr != _transform ? _transform->Get_RotationRadians() : 0.f;
 
-    unordered_set<const UI_Base*> visitedParents;
     Shared<UI_Base> parent = _parent.lock();
+#ifdef _DEBUG
+    uint32 depth = 0;
+#endif
+
     while (nullptr != parent)
     {
-        if (!visitedParents.insert(parent.get()).second)
-            break;
-
         if (nullptr != parent->_transform)
             worldRotationRadians += parent->_transform->Get_RotationRadians();
 
         parent = parent->_parent.lock();
+
+#ifdef _DEBUG
+        ++depth;
+        if (depth > 256)
+        {
+            LOG_WARN("UI_Base::Get_WorldRotationRadians stopped by excessive parent depth.");
+            break;
+        }
+#endif
     }
 
     return worldRotationRadians;

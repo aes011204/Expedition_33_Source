@@ -2,8 +2,11 @@
 #include "Player_WorldAction.h"
 
 #include "Body_Player.h"
+#include "EffectCom.h"
+#include "GameInstance.h"
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
+#include "PW_Gustave.h"
 
 Player_WorldAction::Player_WorldAction(const Shared<Player_WorldBase>& owner)
     : Player_State{ owner }
@@ -23,6 +26,23 @@ bool Player_WorldAction::EnterInvoke()
     if (state == PlayerState::WorldAction) return false;
 
     _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Explo), 0.2f, false);
+
+    const Shared<Player_WorldBase> owner = _owner.lock();
+    if (dynamic_pointer_cast<PW_Gustave>(owner))
+    {
+        const Shared<EffectCom> effectCom = owner->Get_Component<EffectCom>();
+        if (effectCom == nullptr ||
+            FAILED(effectCom->Play_AttachedEffect(
+                GAME->Current_LevelIndex(),
+                L"Distortion_v1",
+                L"Part_Body",
+                "FX_Hand_R1",
+                L"Layer_Effect",
+                Vec3::Zero)))
+        {
+            LOG_WARN("Player_WorldAction DistortionTest hand attach failed.");
+        }
+    }
 
     return true;
 }

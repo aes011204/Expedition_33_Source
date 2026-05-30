@@ -45,19 +45,19 @@ void UI_BattleTransition::Update(float timeDelta)
 
 void UI_BattleTransition::Play_BattleEnter()
 {
-    CHECK_NULL(_root);
-
-    _elapsed = 0.f;
-    _isPlaying = true;
-    _skipFirstUpdate = false;
-
-    _holeMaskImage->Set_MaskMode(UI_Image::MaskMode::CircularHole);
-    _holeMaskImage->Set_HoleCenterUV(Vec2(0.5f, 0.5f));
-    _holeMaskImage->Set_HoleRadius(_startRadius);
-    _holeMaskImage->Set_HoleFeather(_holeFeather);
-    _holeMaskImage->Set_Color(Vec4(0.f, 0.f, 0.f, 1.f));
-
-    UI_RuntimePanelBase::Open();
+    //CHECK_NULL(_root);
+    //
+    //_elapsed = 0.f;
+    //_isPlaying = true;
+    //_skipFirstUpdate = false;
+    //
+    //_holeMaskImage->Set_MaskMode(UI_Image::MaskMode::CircularHole);
+    //_holeMaskImage->Set_HoleCenterUV(Vec2(0.5f, 0.5f));
+    //_holeMaskImage->Set_HoleRadius(_startRadius);
+    //_holeMaskImage->Set_HoleFeather(_holeFeather);
+    //_holeMaskImage->Set_Color(Vec4(0.f, 0.f, 0.f, 1.f)); 
+    //
+    //UI_RuntimePanelBase::Open();
 }
 
 void UI_BattleTransition::Close()

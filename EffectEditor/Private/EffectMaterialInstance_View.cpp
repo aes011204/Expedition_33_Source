@@ -901,6 +901,67 @@ namespace Internal
         ImGui::PopID();
         return changed;
     }
+
+    const char* Get_MaterialFamilyLabel(EffectMaterialFamily value)
+    {
+        switch (value)
+        {
+        case EffectMaterialFamily::Default:
+            return "Default";
+        case EffectMaterialFamily::SpriteDistortion:
+            return "SpriteDistortion";
+        default:
+            return "Unknown";
+        }
+    }
+
+    const char* Get_DistortionShapeModeLabel(EffectDistortionShapeMode value)
+    {
+        switch (value)
+        {
+        case EffectDistortionShapeMode::None:
+            return "None";
+        case EffectDistortionShapeMode::Radial:
+            return "Radial";
+        case EffectDistortionShapeMode::Ring:
+            return "Ring";
+        case EffectDistortionShapeMode::ShockwaveRing:
+            return "ShockwaveRing";
+        default:
+            return "None";
+        }
+    }
+
+    bool Draw_DistortionShapeModeProperty(
+        DetailPropertyContext& detailContext,
+        EffectDistortionShapeMode& value,
+        EffectDistortionShapeMode defaultValue)
+    {
+        static constexpr EffectDistortionShapeMode kModes[]{
+            EffectDistortionShapeMode::None,
+            EffectDistortionShapeMode::Radial,
+            EffectDistortionShapeMode::Ring,
+            EffectDistortionShapeMode::ShockwaveRing
+        };
+
+        return Draw_EnumComboProperty(
+            detailContext,
+            "Shape Mode",
+            value,
+            defaultValue,
+            kModes,
+            sizeof(kModes) / sizeof(kModes[0]),
+            Get_DistortionShapeModeLabel
+        );
+    }
+
+    void Draw_ReadOnlyTextProperty(DetailPropertyContext& detailContext, const char* label, const char* value)
+    {
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::TextDisabled("%s", value);
+        ImGui::PopID();
+    }
 }
 
 EffectMaterialInstance_View::EffectMaterialInstance_View()
@@ -1074,6 +1135,22 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
     bool changed = false;
     bool restartPreview = false;
 
+    if (ImGui::CollapsingHeader("Material Family", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceFamily"))
+        {
+            Internal::Draw_ReadOnlyTextProperty(
+                _detailPropertyContext,
+                "Family",
+                Internal::Get_MaterialFamilyLabel(material.materialFamily)
+            );
+            _detailPropertyContext.End_PropertyTable();
+        }
+
+        if (material.materialFamily != EffectMaterialFamily::SpriteDistortion)
+            ImGui::TextDisabled("Distortion fields are shown only when the embedded material family is SpriteDistortion.");
+    }
+
     if (ImGui::CollapsingHeader("Texture", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceTexture"))
@@ -1105,6 +1182,18 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
                 defaultData.maskTextureGuid,
                 defaultData.maskTexturePath
             );
+            if (material.materialFamily == EffectMaterialFamily::SpriteDistortion)
+            {
+                changed |= Internal::Draw_TextureProperty(
+                    _textureThumbnailCache,
+                    _detailPropertyContext,
+                    "Flow Texture",
+                    material.flowTextureGuid,
+                    material.flowTexturePath,
+                    defaultData.flowTextureGuid,
+                    defaultData.flowTexturePath
+                );
+            }
             _detailPropertyContext.End_PropertyTable();
         }
 
@@ -1196,6 +1285,77 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
             changed |= _detailPropertyContext.Draw_BoolProperty("Two Sided (미소비)", material.twoSided, defaultData.twoSided);
             changed |= _detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
             changed |= _detailPropertyContext.Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
+            _detailPropertyContext.End_PropertyTable();
+        }
+    }
+
+    if (material.materialFamily == EffectMaterialFamily::SpriteDistortion &&
+        ImGui::CollapsingHeader("Distortion", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceDistortion"))
+        {
+            const bool flowModeChanged = Internal::Draw_UVTilingModeProperty(
+                _detailPropertyContext,
+                "Flow UV Tiling Mode",
+                material.flowUVTilingMode,
+                defaultData.flowUVTilingMode
+            );
+            changed |= flowModeChanged;
+            restartPreview |= flowModeChanged;
+            changed |= _detailPropertyContext.Draw_Vec2Property("Flow UV Scale", material.flowUVScale, defaultData.flowUVScale);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Flow UV Offset", material.flowUVOffset, defaultData.flowUVOffset);
+            changed |= _detailPropertyContext.Draw_Vec2Property("Flow UV Scroll Speed", material.flowUVScrollSpeed, defaultData.flowUVScrollSpeed);
+            changed |= _detailPropertyContext.Draw_FloatProperty("Refraction Intensity", material.refractionIntensity, defaultData.refractionIntensity);
+            changed |= _detailPropertyContext.Draw_FloatProperty("Refraction Presence", material.refractionPresence, defaultData.refractionPresence);
+            const EffectDistortionShapeMode previousShapeMode = material.distortionShapeMode;
+            const bool shapeModeChanged = Internal::Draw_DistortionShapeModeProperty(
+                _detailPropertyContext,
+                material.distortionShapeMode,
+                defaultData.distortionShapeMode
+            );
+            changed |= shapeModeChanged;
+            if (shapeModeChanged &&
+                previousShapeMode != EffectDistortionShapeMode::ShockwaveRing &&
+                material.distortionShapeMode == EffectDistortionShapeMode::ShockwaveRing)
+            {
+                material.distortionShapeThickness = 14.f;
+                material.distortionShapeSoftness = 4.f;
+            }
+            if (material.distortionShapeMode == EffectDistortionShapeMode::Radial ||
+                material.distortionShapeMode == EffectDistortionShapeMode::Ring)
+            {
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "Shape Radius",
+                    material.distortionShapeRadius,
+                    defaultData.distortionShapeRadius
+                );
+                if (material.distortionShapeMode == EffectDistortionShapeMode::Ring)
+                {
+                    changed |= _detailPropertyContext.Draw_FloatProperty(
+                        "Shape Thickness",
+                        material.distortionShapeThickness,
+                        defaultData.distortionShapeThickness
+                    );
+                }
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "Shape Softness",
+                    material.distortionShapeSoftness,
+                    defaultData.distortionShapeSoftness
+                );
+            }
+            else if (material.distortionShapeMode == EffectDistortionShapeMode::ShockwaveRing)
+            {
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "Shape Thickness (px)",
+                    material.distortionShapeThickness,
+                    defaultData.distortionShapeThickness
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "Shape Softness (px)",
+                    material.distortionShapeSoftness,
+                    defaultData.distortionShapeSoftness
+                );
+            }
             _detailPropertyContext.End_PropertyTable();
         }
     }

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Base.h"
 #include "Delegate.h"
@@ -302,6 +302,7 @@ private:
 
     bool _isPendingVictorySlow = false;
     bool _isWaitingVictoryConfirm = false;
+    bool _hasRequestedTransitionCapture = false;
 
 private:
     uint32  _pendingBattleFieldID = 0;
