@@ -257,7 +257,6 @@
     <ClCompile Include="..\private\Level_GameEntry.cpp">
       <Filter>01.Levels\Logo</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\BT_LookRange.cpp" />
     <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
     <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
@@ -392,16 +391,31 @@
     <ClCompile Include="..\Private\ClientScreenFxManager.cpp" />
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
     <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp" />
-    <ClCompile Include="..\Private\ANS_WeaponRotate.cpp" />
-    <ClCompile Include="..\Private\ANS_Visible_Parts.cpp" />
-    <ClCompile Include="..\Private\Base_Gustave_Attack.cpp" />
-    <ClCompile Include="..\private\BT_IsStun.cpp" />
-    <ClCompile Include="..\private\BT_Stun.cpp" />
-    <ClCompile Include="..\private\BT_Patrol.cpp" />
     <ClCompile Include="..\private\MB_Simon.cpp" />
     <ClCompile Include="..\private\Mon_Simon_Body.cpp" />
     <ClCompile Include="..\private\MW_Simon.cpp" />
     <ClCompile Include="Mon_Simon_Weapon.cpp" />
+    <ClCompile Include="..\private\BT_IsStun.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_LookRange.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_Patrol.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BT_Stun.cpp">
+      <Filter>BehavoirTree</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_Visible_Parts.cpp">
+      <Filter>95. AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_WeaponRotate.cpp">
+      <Filter>95. AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Base_Gustave_Attack.cpp">
+      <Filter>Skill</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -977,7 +991,6 @@
     <ClInclude Include="..\public\Level_GameEntry.h">
       <Filter>01.Levels\Logo</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\BT_LookRange.h" />
     <ClInclude Include="..\Public\IRuntimeUI_EditorTarget.h" />
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
     <ClInclude Include="..\Public\Trigger_WorldAction.h" />
@@ -1112,17 +1125,32 @@
     <ClInclude Include="..\Public\ClientScreenFxManager.h" />
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\RadialBlur_ScreenFx.h" />
-    <ClInclude Include="..\Public\ANS_WeaponRotate.h" />
-    <ClInclude Include="..\Public\ANS_Visible_Parts.h" />
-    <ClInclude Include="..\Public\Base_Gustave_Attack.h" />
-    <ClInclude Include="..\public\BT_IsStun.h" />
-    <ClInclude Include="..\public\BT_Stun.h" />
-    <ClInclude Include="..\public\BT_Patrol.h" />
     <ClInclude Include="..\public\MB_Simon.h" />
     <ClInclude Include="..\public\Mon_Simon_Body.h" />
     <ClInclude Include="..\public\MW_Simon.h" />
     <ClInclude Include="Battle_Enum.h" />
     <ClInclude Include="Mon_Simon_Weapon.h" />
+    <ClInclude Include="..\public\BT_IsStun.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_LookRange.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_Patrol.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BT_Stun.h">
+      <Filter>BehavoirTree</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_Visible_Parts.h">
+      <Filter>95. AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_WeaponRotate.h">
+      <Filter>95. AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Base_Gustave_Attack.h">
+      <Filter>Skill</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
