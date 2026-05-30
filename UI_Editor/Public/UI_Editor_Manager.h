@@ -97,6 +97,7 @@ public:
     bool Set_UIObjectTextAlign(ObjectId objectId, UI_TextAlign textAlign);
     bool Set_UIObjectTextWrap(ObjectId objectId, bool textWrap);
     bool Set_UIObjectFontBinding(ObjectId objectId, const string& fontGuid, const string& fontPath, const string& fontTag);
+    bool Set_UIObjectStateAnimationPath(ObjectId objectId, const string& stateAnimationPath);
     bool Set_UIObjectWorldPosition(ObjectId objectId, const ImVec2& worldPosition);
     bool Set_UIObjectWorldRect(ObjectId objectId, const ImVec2& worldPosition, const ImVec2& worldSize);
     bool Set_UIObjectPivotKeepWorldRect(ObjectId objectId, const ImVec2& pivot);

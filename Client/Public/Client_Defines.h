@@ -18,7 +18,7 @@ namespace Client
     const unsigned int		g_iWinSizeX = { 1600 };
     const unsigned int		g_iWinSizeY = { 900 };
 
-    enum class LevelType { Static, Loading, MainTitle, GamePlay, MapTest, Stage01, END }; 
+    enum class LevelType { Static, Loading, MainTitle, GameEntry, GamePlay, MapTest, Stage01, END }; 
 }
 
 using namespace Client;

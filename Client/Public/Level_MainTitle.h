@@ -30,7 +30,7 @@ private:
 private:
     umap<wstring, Shared<UI_Base>> _uiByName{};
 	Shared<UI_Button> _continueButton = nullptr; // "계속하기" 버튼
-	Shared<UI_Button> _testMap1Button = nullptr; // "테스트 맵 1" 버튼
+	Shared<UI_Button> _exitButton = nullptr;
 
 public:
 	static Shared<Level_MainTitle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

@@ -53,10 +53,10 @@ PS_OUT_BACKBUFFER PS_Vignette(PS_IN In)
     float2 center = float2(0.5f, 0.5f);
     float dist = distance(In.Texcoord, center);
     float vignette = smoothstep(g_vignetteRadius, g_vignetteRadius - g_vignetteSoftness, dist);
-    
+
     // 대비(Contrast) 살짝 증가시켜 밝기를 더 돋보이게 함
     color.rgb = (color.rgb - 0.5f) * 1.1f + 0.5f;
-    
+
     color.rgb = lerp(g_vignetteColor * color.rgb, color.rgb, vignette);
 
     Out.Color = color;
@@ -66,17 +66,17 @@ PS_OUT_BACKBUFFER PS_Vignette(PS_IN In)
 PS_OUT_BACKBUFFER PS_RadialBlur(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
-    
+
     float2 dir = g_radialBlurCenter - In.Texcoord;
     float dist = length(dir);
     dir = normalize(dir);
-    
+
     // 외곽일수록 블러 강도가 커지도록 거리 기반 가중치 적용
     float intensity = saturate(dist / max(0.001f, g_radialBlurRadius)) * g_radialBlurIntensity;
-    
+
     float4 color = float4(0, 0, 0, 0);
     const int SAMPLES = 10;
-    
+
     for (int i = 0; i < SAMPLES; ++i)
     {
         float scale = 1.0f - intensity * (float(i) / (float(SAMPLES) - 1.0f));
@@ -84,7 +84,7 @@ PS_OUT_BACKBUFFER PS_RadialBlur(PS_IN In)
         color += g_ScreenFxTexture.Sample(LinearClampSampler, sampleUV);
     }
     color /= float(SAMPLES);
-    
+
     Out.Color = color;
     return Out;
 }
@@ -92,23 +92,23 @@ PS_OUT_BACKBUFFER PS_RadialBlur(PS_IN In)
 PS_OUT_BACKBUFFER PS_ChromaticAberration(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
-    
+
     float2 center = float2(0.5f, 0.5f);
     float2 dir = In.Texcoord - center;
     float dist = length(dir);
-    
+
     // 중심부보다 외곽에서 색수차가 더 강하게 일어나도록 설정
     float offsetAmount = dist * g_chromaticAberrationIntensity;
-    
+
     float2 redUV = In.Texcoord - dir * offsetAmount;
     float2 greenUV = In.Texcoord;
     float2 blueUV = In.Texcoord + dir * offsetAmount;
-    
+
     float r = g_ScreenFxTexture.Sample(LinearClampSampler, redUV).r;
     float g = g_ScreenFxTexture.Sample(LinearClampSampler, greenUV).g;
     float b = g_ScreenFxTexture.Sample(LinearClampSampler, blueUV).b;
     float a = g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord).a;
-    
+
     Out.Color = float4(r, g, b, a);
     return Out;
 }
@@ -117,21 +117,21 @@ PS_OUT_BACKBUFFER PS_Glow(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
     float4 baseColor = g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord);
-    
+
     // 간단한 박스 블러 형태의 글로우 (임시 가짜 블룸)
     float4 blurColor = float4(0,0,0,0);
     float2 texOffset = float2(1.0f / g_ScreenSize.x, 1.0f / g_ScreenSize.y) * 2.0f;
-    
+
     blurColor += g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord + float2( texOffset.x,  texOffset.y));
     blurColor += g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord + float2(-texOffset.x,  texOffset.y));
     blurColor += g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord + float2( texOffset.x, -texOffset.y));
     blurColor += g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord + float2(-texOffset.x, -texOffset.y));
     blurColor *= 0.25f;
-    
+
     // 밝은 부분만 글로우가 되도록 Threshold 적용
     float luminance = dot(blurColor.rgb, float3(0.299f, 0.587f, 0.114f));
     float glowMask = saturate((luminance - 0.5f) * 2.0f);
-    
+
     Out.Color = baseColor + (blurColor * glowMask * 0.5f); // 강도는 외부 CBuffer 연동가능
     return Out;
 }
@@ -164,7 +164,7 @@ PS_OUT_BACKBUFFER PS_Distortion(PS_IN In)
     float2 pullOffset = float2(0.f, 0.f);
     float pullLen = length(g_pullDirection);
     float2 pullDir = (pullLen > 0.0001f) ? (g_pullDirection / pullLen) : float2(0.f, 0.f);
-    
+
     if (pullLen > 0.0001f)
     {
         pullOffset = pullDir * g_pullIntensity * distFromCenter;
@@ -189,7 +189,7 @@ PS_OUT_BACKBUFFER PS_Distortion(PS_IN In)
 PS_OUT_BACKBUFFER PS_CircularWipeTransition(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
-    
+
     float4 currentSceneColor = g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord);
     float4 capturedSceneColor = g_ScreenMaskTexture.Sample(LinearClampSampler, In.Texcoord);
 
@@ -210,10 +210,10 @@ PS_OUT_BACKBUFFER PS_CircularWipeTransition(PS_IN In)
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VP(Vignette,                  RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)          
-    PASS_RS_DS_BS_VP(RadialBlur,                RS_Default, DSS_None, BS_Default, VS_MAIN, PS_RadialBlur)        
-    PASS_RS_DS_BS_VP(ChromaticAberration,       RS_Default, DSS_None, BS_Default, VS_MAIN, PS_ChromaticAberration) 
-    PASS_RS_DS_BS_VP(Glow,                      RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Glow)              
+    PASS_RS_DS_BS_VP(Vignette,                  RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Vignette)
+    PASS_RS_DS_BS_VP(RadialBlur,                RS_Default, DSS_None, BS_Default, VS_MAIN, PS_RadialBlur)
+    PASS_RS_DS_BS_VP(ChromaticAberration,       RS_Default, DSS_None, BS_Default, VS_MAIN, PS_ChromaticAberration)
+    PASS_RS_DS_BS_VP(Glow,                      RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Glow)
     PASS_RS_DS_BS_VP(Ghosting,                  RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Ghosting)
     PASS_RS_DS_BS_VP(Distortion,                RS_Default, DSS_None, BS_Default, VS_MAIN, PS_Distortion)
     PASS_RS_DS_BS_VP(PS_CircularWipeTransition, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_CircularWipeTransition)

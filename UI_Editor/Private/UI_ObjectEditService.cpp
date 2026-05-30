@@ -402,4 +402,20 @@ namespace UIEditor
         object->fontTag = fontTag;
         return true;
     }
+
+    bool UI_ObjectEditService::Can_SetObjectStateAnimationPath(const UI_Document& document, ObjectId objectId, const string& stateAnimationPath) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object && object->type == UI_ObjectType::Button && object->stateAnimationPath != stateAnimationPath;
+    }
+
+    bool UI_ObjectEditService::Set_ObjectStateAnimationPath(UI_Document& document, ObjectId objectId, const string& stateAnimationPath) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::Button || object->stateAnimationPath == stateAnimationPath)
+            return false;
+
+        object->stateAnimationPath = stateAnimationPath;
+        return true;
+    }
 }

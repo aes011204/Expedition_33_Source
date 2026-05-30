@@ -255,25 +255,25 @@ HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clear
         renderTargets[renderTargetCount++] = rt->Get_RTV();
     }
 
-    //dsv = dsv ? dsv : _originalDSV.Get();
+    dsv = dsv ? dsv : _originalDSV.Get();
     // ^ fix to down
 
-    if (!useDSV)
-    {
-        dsv = nullptr;
-    }
-    else if (!dsv && hasMRTViewport && _originalDSV)
-    {
-        // RTV 크기와 DSV 크기가 같을 때만 fallback 사용
-        // 크기가 다르면(bloom half/quarter 등) depth 불필요하므로 nullptr
-        D3D11_TEXTURE2D_DESC dsvDesc{};
-        if (Try_GetViewTexture(_originalDSV.Get(), dsvDesc) &&
-            static_cast<uint32>(mrtViewport.Width) == dsvDesc.Width &&
-            static_cast<uint32>(mrtViewport.Height) == dsvDesc.Height)
-        {
-            dsv = _originalDSV.Get();
-        }
-    }
+    //if (!useDSV)
+    //{
+    //    dsv = nullptr;
+    //}
+    //else if (!dsv && hasMRTViewport && _originalDSV)
+    //{
+    //    // RTV 크기와 DSV 크기가 같을 때만 fallback 사용
+    //    // 크기가 다르면(bloom half/quarter 등) depth 불필요하므로 nullptr
+    //    D3D11_TEXTURE2D_DESC dsvDesc{};
+    //    if (Try_GetViewTexture(_originalDSV.Get(), dsvDesc) &&
+    //        static_cast<uint32>(mrtViewport.Width) == dsvDesc.Width &&
+    //        static_cast<uint32>(mrtViewport.Height) == dsvDesc.Height)
+    //    {
+    //        dsv = _originalDSV.Get();
+    //    }
+    //}
     //
 
     //if (!useDSV)

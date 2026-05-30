@@ -187,7 +187,7 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
         color = pow(saturate(color), 1.f / gamma);
     }
     // 최종 출력 화면은 LDR
-    Out.Color = float4(saturate(color), hdr.a);
+    Out.Color = float4(saturate(color), 1.f);
     return Out;
 }
 
