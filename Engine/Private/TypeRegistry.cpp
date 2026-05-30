@@ -1,4 +1,4 @@
-#include "TypeRegistry.h"
+﻿#include "TypeRegistry.h"
 
 HRESULT TypeRegistry::Register_ComponentType(const ComponentTypeInfo& info)
 {
@@ -112,6 +112,18 @@ HRESULT TypeRegistry::Register_GlobalEnum(const GlobalEnumInfo& info)
 	return S_OK;
 }
 
+HRESULT TypeRegistry::Register_ScreenFxType(const ScreenFxTypeInfo& info)
+{
+    if (info.className.empty() || !info.createFn)
+        return E_FAIL;
+
+    if (_screenFxTypes.contains(info.className))
+        return E_FAIL;
+
+    _screenFxTypes.emplace(info.className, info);
+    return S_OK;
+}
+
 const TypeRegistry::ComponentTypeInfo* TypeRegistry::Find_ComponentType(const string& className) const
 {
     auto iter = _componentTypes.find(className);
@@ -160,6 +172,15 @@ void TypeRegistry::Visit_GlobalEnums(const function<void(const GlobalEnumInfo&)>
 		visitor(info);
 }
 
+void TypeRegistry::Visit_ScreenFxTypes(const function<void(const ScreenFxTypeInfo&)>& visitor) const
+{
+    if (!visitor)
+        return;
+
+    for (const auto& [_, info]: _screenFxTypes)
+        visitor(info);
+}
+
 const TypeRegistry::BTNodeTypeInfo* TypeRegistry::Find_BTNodeType(const string& className) const
 {
     auto iter = _btNodeTypes.find(className);
@@ -182,6 +203,12 @@ const TypeRegistry::GlobalEnumInfo* TypeRegistry::Find_GlobalEnum(const string& 
 {
 	auto iter = _globalEnums.find(displayName);
 	return (iter == _globalEnums.end()) ? nullptr : &iter->second;
+}
+
+const TypeRegistry::ScreenFxTypeInfo* TypeRegistry::Find_ScreenFxType(const string& className) const
+{
+    auto iter = _screenFxTypes.find(className);
+    return (iter == _screenFxTypes.end()) ? nullptr : &iter->second;
 }
 
 Shared<Component> TypeRegistry::Create_Component(
@@ -217,6 +244,12 @@ Shared<AnimNotify> TypeRegistry::Create_AnimNotify(const string& className) cons
 Shared<AnimNotifyState> TypeRegistry::Create_AnimNotifyState(const string& className) const
 {
     const auto* info = Find_AnimNotifyStateType(className);
+    return (info == nullptr) ? nullptr : info->createFn();
+}
+
+Shared<ScreenFx_Instance> TypeRegistry::Create_ScreenFxInstance(const string& className) const
+{
+    const auto* info = Find_ScreenFxType(className);
     return (info == nullptr) ? nullptr : info->createFn();
 }
 

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Reflection_Types.h"
 #include "RegistorFactory.h"
@@ -141,6 +141,18 @@ public:                                                                         
             []() -> Shared<Engine::AnimNotifyState>                                \
             {                                                                      \
                 return Engine::Create_AnimNotifyStatePrototypeInstance<ClassName>(); \
+            },                                                                     \
+            &ClassName::GetStaticReflectionInfo());
+
+#define GENERATED_SCREEN_FX(ClassName)                                             \
+    GENERATED_BASE_TYPE_BODY(ClassName)                                            \
+public:                                                                            \
+    inline static const bool _auto_register_screenfx_ =                            \
+        Engine::Register_ScreenFxType_Pending(                                     \
+            STRINGIZE(ClassName),                                                  \
+            []() -> Shared<Engine::ScreenFx_Instance>                              \
+            {                                                                      \
+                return make_shared<ClassName>();                                   \
             },                                                                     \
             &ClassName::GetStaticReflectionInfo());
 

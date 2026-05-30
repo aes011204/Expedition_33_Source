@@ -50,7 +50,10 @@ struct ComputePointParticleParams
     Vec4 accelerationMax{};       // xyz: acceleration max, w: unused.
     Vec4 velocityScaleByLife{};   // x/y: scale start/end, z/w: unused.
     Vec4 rotationInitialRate{};   // x/y: initial rotation min/max, z/w: rate min/max.
-    Vec4 rotationByLife{};        // x/y: rotation start/end, z/w: rate scale start/end.
+    Vec4 rotationByLife{};        // x/y: legacy rotation start/end, z/w: rate scale start/end.
+    Vec4 rotationOverLifeCurveTimes{};  // RotationOverLife key times.
+    Vec4 rotationOverLifeCurveValues{}; // RotationOverLife degree key values.
+    Vec4 rotationOverLifeCurveParams{}; // x: key count, y/z/w: unused.
 };
 
 VIBufferCom_ComputePointParticle::VIBufferCom_ComputePointParticle(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -491,6 +494,14 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.rotation.rotationOverLifeDegrees.y,
             _desc.rotation.rotationRateScaleByLife.x,
             _desc.rotation.rotationRateScaleByLife.y
+        },
+        .rotationOverLifeCurveTimes = _desc.rotation.rotationOverLifeCurveTimes,
+        .rotationOverLifeCurveValues = _desc.rotation.rotationOverLifeCurveValues,
+        .rotationOverLifeCurveParams = Vec4{
+            static_cast<float>(_desc.rotation.rotationOverLifeCurveKeyCount),
+            0.f,
+            0.f,
+            0.f
         }
     };
 

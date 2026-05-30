@@ -20,7 +20,7 @@ public:
     void On_End(const AnimNotifyContext& context) override;
 
 private:
-    wstring _effectName = L"Trail_Gustave_v1";
+    wstring _effectName = L"Trail_Gustave_v2";
     wstring _partTag = L"Part_Weapon";
     wstring _layerTag = L"Layer_Effect";
 };

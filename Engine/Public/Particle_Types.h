@@ -144,11 +144,14 @@ struct PointParticleMotionDesc
 // rotation 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
 struct PointParticleRotationDesc
 {
-    bool enabled{ false };                       // rotation 계열 모듈이 하나라도 preview에 연결되었는지 나타낸다.
-    Vec2 initialRotationDegrees{ 0.f, 0.f };     // InitialRotation 분포의 min/max 각도다.
-    Vec2 rotationOverLifeDegrees{ 0.f, 0.f };    // RotationOverLife의 시작/종료 추가 각도다.
-    Vec2 initialRotationRateDegrees{ 0.f, 0.f }; // InitialRotationRate 분포의 min/max 초당 각도다.
-    Vec2 rotationRateScaleByLife{ 1.f, 1.f };    // RotationRateScaleByLife의 시작/종료 배율이다.
+    bool enabled{ false };                                     // rotation 계열 모듈이 하나라도 preview에 연결되었는지 나타낸다.
+    Vec2 initialRotationDegrees{ 0.f, 0.f };                   // InitialRotation 분포의 min/max 각도다.
+    Vec2 rotationOverLifeDegrees{ 0.f, 0.f };                  // RotationOverLife curve의 시작/종료 fallback 추가 각도다.
+    Vec2 initialRotationRateDegrees{ 0.f, 0.f };               // InitialRotationRate 분포의 min/max 초당 각도다.
+    Vec2 rotationRateScaleByLife{ 1.f, 1.f };                  // RotationRateScaleByLife의 시작/종료 배율이다.
+    uint32 rotationOverLifeCurveKeyCount{ 2 };                 // RotationOverLife compact curve key 수다.
+    Vec4 rotationOverLifeCurveTimes{ 0.f, 1.f, 0.f, 0.f };     // RotationOverLife key time 0..1 값이다.
+    Vec4 rotationOverLifeCurveValues{ 0.f, 0.f, 0.f, 0.f };    // RotationOverLife key별 추가 회전각 degree 값이다.
 };
 
 // Spawn 모듈의 burst 항목을 runtime emitter가 소비할 수 있게 압축한 payload다.

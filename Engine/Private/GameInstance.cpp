@@ -568,7 +568,18 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
             cameraMs = chrono::duration<double, milli>(chrono::steady_clock::now() - cameraBegin).count();
 #endif
     }
-    
+
+#ifdef _DEBUG
+    chrono::steady_clock::time_point screenFx{};
+    if (sampleRuntimePerf)
+        screenFx = chrono::steady_clock::now();
+#endif
+    _screenFxManager->Update(timeDelta);
+#ifdef _DEBUG
+    if (sampleRuntimePerf)
+        uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - screenFx).count();
+#endif
+
 #ifdef _DEBUG
     chrono::steady_clock::time_point uiBegin{};
     if (sampleRuntimePerf)
@@ -640,6 +651,12 @@ HRESULT GameInstance::Draw()
         return E_FAIL;
 #pragma endregion
 
+    if (_screenFxManager->Is_CaptureRequested())
+    {
+        GAME->Bind_BackBuffer(); // 오염된 RTV 상태를 메인 백버퍼로 복구
+        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
+        _screenFxManager->Clear_CaptureRequested();
+    }
 
 #ifdef _DEBUG
       _printManager->Render();
@@ -1324,9 +1341,14 @@ Shared<LightingPipeline> GameInstance::Get_LightingPipeline()
     return _renderer->Get_LightingPipeline();
 }
 
-const ScreenFx_Manager* GameInstance::Get_ScreenFxManager() const
+ScreenFx_Manager* GameInstance::Get_ScreenFxManager() 
 {
     return _screenFxManager.get();
+}
+
+void GameInstance::Request_ScreenCapture(bool saveToFile)
+{
+    _screenFxManager->Request_ScreenCapture(saveToFile);
 }
 
 RenderGroup GameInstance::Get_CurrentRenderGroup() const
@@ -1889,6 +1911,11 @@ const TypeRegistry::AnimNotifyStateTypeInfo* GameInstance::Find_AnimNotifyStateT
     return _typeRegistry->Find_AnimNotifyStateType(className);
 }
 
+const TypeRegistry::ScreenFxTypeInfo* GameInstance::Find_ScreenFxType(const string& className) const
+{
+    return _typeRegistry->Find_ScreenFxType(className);
+}
+
 void GameInstance::Visit_GameObjectTypes(const function<void(const TypeRegistry::GameObjectTypeInfo&)>& visitor) const
 {
     CHECK_NULL(_typeRegistry);
@@ -1910,6 +1937,12 @@ void GameInstance::Visit_GlobalEnums(const function<void(const TypeRegistry::Glo
 {
 	CHECK_NULL(_typeRegistry);
 	_typeRegistry->Visit_GlobalEnums(visitor);
+}
+
+void GameInstance::Visit_ScreenFxTypes(const function<void(const TypeRegistry::ScreenFxTypeInfo&)>& visitor) const
+{
+    CHECK_NULL(_typeRegistry);
+    _typeRegistry->Visit_ScreenFxTypes(visitor);
 }
 
 Shared<Component> GameInstance::Create_ComponentPrototype(const string& className) const
@@ -1935,6 +1968,11 @@ Shared<AnimNotify> GameInstance::Create_AnimNotifyPrototype(const string& classN
 Shared<AnimNotifyState> GameInstance::Create_AnimNotifyStatePrototype(const string& className) const
 {
     return _typeRegistry->Create_AnimNotifyState(className);
+}
+
+Shared<ScreenFx_Instance> GameInstance::Create_ScreenFxInstance(const string& className) const
+{
+    return _typeRegistry->Create_ScreenFxInstance(className);
 }
 
 HRESULT GameInstance::Ready_AllRenderTargets()
@@ -2061,6 +2099,11 @@ HRESULT GameInstance::Bind_UINoDepthStencilState()
     _context->OMSetDepthStencilState(_uiNoDepthStencilState.Get(), 0);
 
     return S_OK;
+}
+
+ComPtr<ID3D11Texture2D> GameInstance::Get_RT_Texture(const wstring& targetTag)
+{
+    return _targetManager->Get_RT_Texture(targetTag);
 }
 
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
@@ -2399,6 +2442,14 @@ size_t GameInstance::Get_PendingThreadJobCount() const
         return 0;
 
     return _threadPool->Get_PendingJobCount();
+}
+
+void GameInstance::Play_ScreenFx(const Shared<class ScreenFx_Instance>& screenFX) const
+{
+    if (_screenFxManager == nullptr)
+        return;
+
+    _screenFxManager->Play_ScreenEffect(screenFX);
 }
 
 void GameInstance::Release_Engine()

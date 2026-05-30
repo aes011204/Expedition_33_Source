@@ -191,6 +191,7 @@
     <ClInclude Include="..\Public\BattleMechanismCom.h" />
     <ClInclude Include="..\Public\BattleReactionController.h" />
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
+    <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
     <ClInclude Include="..\public\BT_IsStun.h" />
@@ -200,10 +201,14 @@
     <ClInclude Include="..\Public\CameraPresetIO.h" />
     <ClInclude Include="..\Public\CameraPresetTypes.h" />
     <ClInclude Include="..\public\BT_Patrol.h" />
+    <ClInclude Include="..\public\BT_Patroll.h" />
+    <ClInclude Include="..\Public\CA_ScreenFx.h" />
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
+    <ClInclude Include="..\Public\ClientScreenFxManager.h" />
+    <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
@@ -211,6 +216,7 @@
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
+    <ClInclude Include="..\public\Level_GameEntry.h" />
     <ClInclude Include="..\public\MB_Bishop.h" />
     <ClInclude Include="..\public\MB_Portier.h" />
     <ClInclude Include="..\public\MB_Simon.h" />
@@ -327,6 +333,7 @@
     <ClInclude Include="..\public\Mon_Portier_Body.h" />
     <ClInclude Include="..\public\PreviewShotTable.h" />
     <ClInclude Include="..\Public\IRuntimeUI_EditorTarget.h" />
+    <ClInclude Include="..\Public\RadialBlur_ScreenFx.h" />
     <ClInclude Include="..\public\SkillScript.h" />
     <ClInclude Include="..\Public\PW_Gustave.h" />
     <ClInclude Include="..\Public\PW_Lune.h" />
@@ -356,6 +363,7 @@
     <ClInclude Include="..\Public\StreamingLevel.h" />
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
+    <ClInclude Include="..\Public\Terrain_UE.h" />
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
@@ -393,6 +401,7 @@
     <ClInclude Include="..\Public\BattleCameraProfileTypes.h" />
     <ClInclude Include="Battle_Enum.h" />
     <ClInclude Include="Mon_Simon_Weapon.h" />
+    <ClInclude Include="Base_Gustave_Attack.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\BackGround.h" />
     <ClInclude Include="..\public\Body_Player.h" />
@@ -446,16 +455,21 @@
     <ClCompile Include="..\Private\BattleMechanismCom.cpp" />
     <ClCompile Include="..\Private\BattleReactionController.cpp" />
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
+    <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
     <ClCompile Include="..\private\BT_IsStun.cpp" />
     <ClCompile Include="..\private\BT_LookRange.cpp" />
     <ClCompile Include="..\private\BT_Stun.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />
+    <ClCompile Include="..\private\BT_Patroll.cpp" />
+    <ClCompile Include="..\Private\CA_ScreenFx.cpp" />
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />
     <ClCompile Include="..\private\BT_FinishDecision.cpp" />
     <ClCompile Include="..\private\BT_SetSkill.cpp" />
     <ClCompile Include="..\private\BT_Set_Target.cpp" />
+    <ClCompile Include="..\Private\ClientScreenFxManager.cpp" />
+    <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
     <ClCompile Include="..\Private\EffectCom.cpp" />
     <ClCompile Include="..\Private\EffectInstancePool.cpp" />
     <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
@@ -463,6 +477,7 @@
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
+    <ClCompile Include="..\private\Level_GameEntry.cpp" />
     <ClCompile Include="..\private\MB_Bishop.cpp" />
     <ClCompile Include="..\private\MB_Portier.cpp" />
     <ClCompile Include="..\private\MB_Simon.cpp" />
@@ -582,6 +597,7 @@
     <ClCompile Include="..\Private\PreviewCamera.cpp" />
     <ClCompile Include="..\Private\Player_WorldAction.cpp" />
     <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />
+    <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\private\SkillScript.cpp" />
     <ClCompile Include="..\private\SkillTargeting.cpp">
@@ -601,6 +617,7 @@
     <ClCompile Include="..\Private\StreamingLevel.cpp" />
     <ClCompile Include="..\Private\TargetCamera.cpp" />
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
+    <ClCompile Include="..\Private\Terrain_UE.cpp" />
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
@@ -679,6 +696,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrailDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />

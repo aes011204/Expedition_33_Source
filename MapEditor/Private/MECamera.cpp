@@ -61,7 +61,7 @@ void MECamera::UpdateInput(float timeDelta)
 
     if (io.MouseWheel != 0.f)
     {
-        _moveSpeed = clamp(_moveSpeed + io.MouseWheel, 1.f, 100.f);
+        _moveSpeed = clamp(_moveSpeed + io.MouseWheel, 1.f, 1000.f);
     }
 
     ComputeMatrices();

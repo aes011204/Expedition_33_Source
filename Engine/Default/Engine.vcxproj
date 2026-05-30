@@ -266,6 +266,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\Reflection_Types.h" />
     <ClInclude Include="..\Public\Renderer_Define.h" />
     <ClInclude Include="..\Public\RenderTarget.h" />
+    <ClInclude Include="..\Public\ScreenFx_Instance.h" />
+    <ClInclude Include="..\Public\ScreenFx_Manager.h" />
     <ClInclude Include="..\Public\ShaderPassFinder.h" />
     <ClInclude Include="..\Public\ShaderResourceRegistry.h" />
     <ClInclude Include="..\Public\Shader_CBuffer_Define.h" />
@@ -293,7 +295,9 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\VIBufferCom_ComputePointParticle.h" />
     <ClInclude Include="..\Public\VIBufferCom_Instance.h" />
     <ClInclude Include="..\Public\VIBufferCom_PointParticle.h" />
+    <ClInclude Include="..\Public\VIBuffer_Landscape.h" />
     <ClInclude Include="..\Public\VIBuffer_MeshInstance.h" />
+    <ClInclude Include="..\Public\VIBuffer_TerrainUE.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\Animation.h" />
     <ClInclude Include="..\public\Asset_Manager.h" />
@@ -392,6 +396,8 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\PhysX_Manager.cpp" />
     <ClCompile Include="..\Private\Picking.cpp" />
     <ClCompile Include="..\Private\PostProcessPipeline.cpp" />
+    <ClCompile Include="..\Private\ScreenFx_Instance.cpp" />
+    <ClCompile Include="..\Private\ScreenFx_Manager.cpp" />
     <ClCompile Include="..\Private\Sound_Manager.cpp" />
     <ClCompile Include="..\Private\LightingPipeline.cpp" />
     <ClCompile Include="..\Private\Print_Manager.cpp" />
@@ -419,7 +425,9 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\VIBufferCom_ComputePointParticle.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_Instance.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_Landscape.cpp" />
     <ClCompile Include="..\Private\VIBuffer_MeshInstance.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_TerrainUE.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>

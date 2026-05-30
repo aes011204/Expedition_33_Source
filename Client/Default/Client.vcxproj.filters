@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="98.Default">
@@ -234,6 +234,12 @@
     <Filter Include="06. Pool\Effect Pool">
       <UniqueIdentifier>{c1313e91-9b45-46ca-9845-0762d62c53ba}</UniqueIdentifier>
     </Filter>
+    <Filter Include="96. Manager\ClientScreenFxManager">
+      <UniqueIdentifier>{34a8d9e6-4090-4304-a1ef-1e7524a99c20}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="96. Manager\ClientScreenFxManager\ScreenFxInstance">
+      <UniqueIdentifier>{2d6d84e0-596c-48ff-b2bb-4068321716a3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CameraDirector.cpp" />
@@ -393,6 +399,36 @@
     <ClCompile Include="..\private\MB_Simon.cpp" />
     <ClCompile Include="..\private\Mon_Simon_Body.cpp" />
     <ClCompile Include="Mon_Simon_Weapon.cpp" />
+    <ClCompile Include="..\Private\ANS_Trail.cpp" />
+    <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
+    <ClCompile Include="..\Private\UI_BattleAnnounce.cpp" />
+    <ClCompile Include="..\Private\WeaponPrefabLoader.cpp" />
+    <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />
+    <ClCompile Include="..\Private\BattleMechanismCom.cpp" />
+    <ClCompile Include="..\Private\Skill_Gustave_Battle.cpp" />
+    <ClCompile Include="..\Private\Skill_Lune_Battle.cpp" />
+    <ClCompile Include="..\Private\Skill_Maelle_Battle.cpp" />
+    <ClCompile Include="..\Private\BattleHitSequenceRunner.cpp" />
+    <ClCompile Include="..\Private\BattleAnimutils.cpp" />
+    <ClCompile Include="..\private\BattleAction.cpp" />
+    <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
+    <ClCompile Include="..\private\BT_LookRange.cpp" />
+    <ClCompile Include="..\private\Level_GameEntry.cpp" />
+    <ClCompile Include="..\Private\ClientScreenFxManager.cpp">
+      <Filter>96. Manager\ClientScreenFxManager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Distortion_ScreenFx.cpp">
+      <Filter>96. Manager\ClientScreenFxManager\ScreenFxInstance</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp">
+      <Filter>96. Manager\ClientScreenFxManager\ScreenFxInstance</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp">
+      <Filter>96. Manager\ClientScreenFxManager\ScreenFxInstance</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\CA_ScreenFx.cpp">
+      <Filter>96. Manager\ClientScreenFxManager\ScreenFxInstance</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -477,11 +513,201 @@
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectDistortionSprite.hlsl">
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrailDistortion.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectDistortionSprite.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\ANS_Dodge.h">
@@ -893,6 +1119,10 @@
     <ClInclude Include="..\Public\ClientInstance.h">
       <Filter>00.Core</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Player_GameMenu.h" />
+    <ClInclude Include="..\Public\Terrain_UE.h">
+      <Filter>02.GameObject\Terrain_UE</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\Client_Defines.h">
       <Filter>99.Defines</Filter>
     </ClInclude>
@@ -954,6 +1184,19 @@
     <ClInclude Include="..\Public\BattleCameraClipUtils.h">
       <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClInclude>
+    <ClInclude Include="..\public\ANS_Emissive.h" />
+    <ClInclude Include="..\public\AN_Change_Anim.h" />
+    <ClInclude Include="..\Public\AN_CounterDamage.h" />
+    <ClInclude Include="..\Public\AN_StartCounter.h" />
+    <ClInclude Include="..\public\Base_Mon_Defense.h" />
+    <ClInclude Include="..\public\Base_Mon_Spawn.h" />
+    <ClInclude Include="..\Public\BattleReactionController.h" />
+    <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
+    <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h" />
+    <ClInclude Include="..\Public\UI_BattleMechanism.h" />
+    <ClInclude Include="..\Public\UI_ReactionResult.h" />
+    <ClInclude Include="ANS_Visible_Parts.h" />
+    <ClInclude Include="..\Public\UI_PlayerHpBar.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h">
       <Filter>06. Pool\Effect Pool</Filter>
@@ -1101,6 +1344,30 @@
     <ClInclude Include="..\public\MB_Simon.h" />
     <ClInclude Include="..\public\Mon_Simon_Body.h" />
     <ClInclude Include="Mon_Simon_Weapon.h" />
+    <ClInclude Include="..\Public\BattleMechanismCom.h" />
+    <ClInclude Include="..\Public\Skill_Gustave_Battle.h" />
+    <ClInclude Include="..\Public\Skill_Lune_Battle.h" />
+    <ClInclude Include="..\Public\Skill_Maelle_Battle.h" />
+    <ClInclude Include="..\Public\BattleHitSequenceRunner.h" />
+    <ClInclude Include="..\Public\BattleAnimUtils.h" />
+    <ClInclude Include="..\public\BattleAction.h" />
+    <ClInclude Include="..\public\BT_LookRange.h" />
+    <ClInclude Include="..\public\Level_GameEntry.h" />
+    <ClInclude Include="..\Public\ClientScreenFxManager.h">
+      <Filter>96. Manager\ClientScreenFxManager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Distortion_ScreenFx.h">
+      <Filter>96. Manager\ClientScreenFxManager\ScreenFxInstance</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleTransition_ScreenFx.h">
+      <Filter>96. Manager\ClientScreenFxManager\ScreenFxInstance</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\RadialBlur_ScreenFx.h">
+      <Filter>96. Manager\ClientScreenFxManager\ScreenFxInstance</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\CA_ScreenFx.h">
+      <Filter>96. Manager\ClientScreenFxManager\ScreenFxInstance</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
@@ -1522,6 +1789,10 @@
     </ClCompile>
     <ClCompile Include="..\Private\Weapon.cpp">
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Player_GameMenu.cpp" />
+    <ClCompile Include="..\Private\Terrain_UE.cpp">
+      <Filter>02.GameObject\Terrain_UE</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

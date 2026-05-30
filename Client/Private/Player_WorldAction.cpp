@@ -34,7 +34,7 @@ bool Player_WorldAction::EnterInvoke()
         if (effectCom == nullptr ||
             FAILED(effectCom->Play_AttachedEffect(
                 GAME->Current_LevelIndex(),
-                L"DistortionTest",
+                L"Distortion_v1",
                 L"Part_Body",
                 "FX_Hand_R1",
                 L"Layer_Effect",
