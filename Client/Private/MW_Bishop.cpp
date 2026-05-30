@@ -73,6 +73,13 @@ void MW_Bishop::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> oth
     Monster_WorldBase::OnBeginOverlap(self, other);
 }
 
+void MW_Bishop::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
+{
+    outPrefabNames.clear();
+
+    outPrefabNames.push_back(Constants::Prefab::MB_Bishop);
+
+}
 HRESULT MW_Bishop::Ready_Components()
 {
     Monster_WorldBase::Ready_Components();
@@ -92,19 +99,12 @@ HRESULT MW_Bishop::Ready_PartObjects()
     CHECK_NULL(_body, E_FAIL);
 
 
-   // Mon_Lancelier_Weapon::WEAPON_DESC weaponDesc{};
-   // weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-   // weaponDesc.modelType = ModelType::NonAnim;
-   // weaponDesc.modelTag = L"Model_Lancelier_Weapon";
-   // //TODO
-   //// weaponDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Weapon_R");
+return S_OK;
 
-   // CHECK_FAILED(Add_PartObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Lancelier_Weapon"), TEXT("Part_Weapon"), &weaponDesc), E_FAIL);
-
-   // _weapon = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_Weapon")]);
-   // CHECK_NULL(_weapon, E_FAIL);
-
+    return S_OK;
 }
+
+
 
 Shared<MW_Bishop> MW_Bishop::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {

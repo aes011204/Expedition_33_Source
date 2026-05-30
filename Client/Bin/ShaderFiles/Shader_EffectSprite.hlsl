@@ -4,32 +4,80 @@
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
 #include "Engine_Shader_EffectMaterial.hlsl"
+#include "Shader_EffectSpriteCommon.hlsli"
 
 cbuffer cbEffectSpriteMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f }; // x: emissive-like intensity, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f }; // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f };         // x: emissive-like intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f };    // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectSpriteMainUVParams = { 1.f, 1.f, 0.f, 0.f };   // xy: scale, zw: scroll speed
+    float4 g_EffectSpriteNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };
+    float4 g_EffectSpriteMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
+    float4 g_EffectSpriteUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: noise offset
+    float4 g_EffectSpriteMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectSpriteUVModeParams = { 0.f, 0.f, 0.f, 0.f };   // x: main, y: noise, z: mask
     float4 g_EffectSpriteAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectSpriteAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectSpriteAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
+    float4 g_EffectSpriteAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };   // x: blackNeutral
+    float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f }; // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
     int g_OpacitySource = 0;
+    float g_EffectSpriteMaterialTime = 0.f;
     float3 g_EffectSpritePadding;
-};
-
-cbuffer cbEffectSpriteRuntime : register(b3)
-{
-    int g_ScreenAlignmentMode = 0;
-    int g_DirectionalAlignmentMode = 1;
-    int g_SpriteTextureAxis = 1;
-    float g_SpriteRollOffsetRadians = 0.f;
-    float4 g_EffectSpriteEmitterCenter = { 0.f, 0.f, 0.f, 1.f };
 };
 
 Texture2D g_Texture : register(t0); // sprite effect의 primary texture다. 현재 경로에서는 RGB를 emissive-like color source로 해석한다.
 Texture2D g_NoiseTexture : register(t1);
 Texture2D g_MaskTexture : register(t2);
+
+static const float3 kInfluenceOutlineColor = float3(1.f, 0.f, 0.f);
+
+bool Use_EffectSpriteClampSampler(float mode)
+{
+    return mode >= 0.5f && mode < 2.5f;
+}
+
+float2 Build_EffectSpriteUV(float2 baseUV, float4 uvParams, float2 uvOffset, float mode)
+{
+    const float2 transformedUV = baseUV * uvParams.xy + uvOffset + uvParams.zw * g_EffectSpriteMaterialTime;
+    return mode >= 2.5f ? baseUV : transformedUV;
+}
+
+float4 Sample_EffectSpriteMainTexture(float2 uv, float mode)
+{
+    return Use_EffectSpriteClampSampler(mode)
+           ? g_Texture.Sample(LinearClampSampler, uv)
+           : g_Texture.Sample(LinearWrapSampler, uv);
+}
+
+float Sample_EffectSpriteNoiseTexture(float2 uv, float mode)
+{
+    return Use_EffectSpriteClampSampler(mode)
+           ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
+           : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
+}
+
+float Sample_EffectSpriteMaskTexture(float2 uv, float mode)
+{
+    return Use_EffectSpriteClampSampler(mode)
+           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
+           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+}
+
+float Compute_InfluenceOutlineWidth(float2 cardUV)
+{
+    const float pixelUvWidth = max(fwidth(cardUV.x), fwidth(cardUV.y));
+    const float pixelScale = max(g_EffectInfluenceDebugParams.z, 0.0001f);
+    return clamp(pixelUvWidth * pixelScale, 0.0001f, 0.035f);
+}
+
+float Compute_CardInfluenceOutline(float2 cardUV)
+{
+    const float outlineWidth = Compute_InfluenceOutlineWidth(cardUV);
+    const float edgeDistance = min(min(cardUV.x, 1.f - cardUV.x), min(cardUV.y, 1.f - cardUV.y));
+    return 1.f - smoothstep(outlineWidth, outlineWidth * 1.5f, edgeDistance);
+}
 
 struct VS_IN
 {
@@ -273,7 +321,10 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     const float lifeProgress = saturate(In.lifeTime.y / lifeMax);
     const float4 particleColor = lerp(In.startColor, In.endColor, lifeProgress);
     const float2 sampleUV = lerp(In.subUVRect.xy, In.subUVRect.zw, In.texCoord);
-    const float4 symbol = g_Texture.Sample(LinearClampSampler, sampleUV);
+    const float2 mainUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMainUVParams, g_EffectSpriteUVOffsetParams.xy, g_EffectSpriteUVModeParams.x);
+    const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, g_EffectSpriteUVModeParams.y);
+    const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, g_EffectSpriteUVModeParams.z);
+    const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, g_EffectSpriteUVModeParams.x);
     const float opacityPower = max(g_EffectSpriteParams.y, 0.0001f);
     const float alphaCutoff = saturate(g_EffectSpriteAlphaParams.x);
     const float alphaErosion = saturate(g_EffectSpriteAlphaParams.y);
@@ -283,12 +334,12 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
 
     if (0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f)
     {
-        const float noise = g_NoiseTexture.Sample(LinearClampSampler, sampleUV).r;
+        const float noise = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
         noiseFactor = lerp(1.f, noise, saturate(g_EffectSpriteParams.z));
     }
 
     if (0 != g_EffectSpriteAlphaParams.z)
-        maskAlpha = g_MaskTexture.Sample(LinearClampSampler, sampleUV).a;
+        maskAlpha = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
     surface.color = symbol.rgb * particleColor.rgb * g_Tint.rgb * noiseFactor;
@@ -305,6 +356,12 @@ PS_OUT PS_MAIN(PS_IN In)
     PS_OUT Out = (PS_OUT)0;
     const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
     Out.color = Effect_ComposeAlphaBlend(surface, g_EffectSpriteParams.x);
+    if (g_EffectInfluenceDebugParams.x > 0.5f)
+    {
+        const float outlineMask = Compute_CardInfluenceOutline(In.texCoord);
+        Out.color.rgb = lerp(Out.color.rgb, kInfluenceOutlineColor, outlineMask);
+        Out.color.a = max(Out.color.a, outlineMask);
+    }
     return Out;
 }
 
@@ -316,7 +373,10 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float lifeProgress = saturate(In.lifeTime.y / lifeMax);
     const float4 particleColor = lerp(In.startColor, In.endColor, lifeProgress);
     const float2 sampleUV = lerp(In.subUVRect.xy, In.subUVRect.zw, In.texCoord);
-    const float4 symbol = g_Texture.Sample(LinearClampSampler, sampleUV);
+    const float2 mainUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMainUVParams, g_EffectSpriteUVOffsetParams.xy, g_EffectSpriteUVModeParams.x);
+    const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, g_EffectSpriteUVModeParams.y);
+    const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, g_EffectSpriteUVModeParams.z);
+    const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, g_EffectSpriteUVModeParams.x);
     const float alphaCutoff = saturate(g_EffectSpriteAlphaParams.x);
     const float alphaErosion = saturate(g_EffectSpriteAlphaParams.y);
     float noiseFactor = 1.f;
@@ -324,12 +384,12 @@ PS_OUT PS_ADDITIVE(PS_IN In)
 
     if (0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f)
     {
-        const float noise = g_NoiseTexture.Sample(LinearClampSampler, sampleUV).r;
+        const float noise = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
         noiseFactor = lerp(1.f, noise, saturate(g_EffectSpriteParams.z));
     }
 
     if (0 != g_EffectSpriteAlphaParams.z)
-        maskAlpha = g_MaskTexture.Sample(LinearClampSampler, sampleUV).a;
+        maskAlpha = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
     const float coverageBase = saturate(maskCoverage * noiseFactor * particleColor.a * g_Tint.a);
@@ -354,6 +414,11 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float intensity = max(g_EffectSpriteParams.x, 0.f) * max(g_EffectSpriteAdditiveParams.w, 0.f);
     const float3 contribution = materialColor * particleColor.rgb * noiseFactor * policyAmount * intensity * blackGate;
     Out.color = float4(contribution, 1.f);
+    if (g_EffectInfluenceDebugParams.x > 0.5f)
+    {
+        const float outlineMask = Compute_CardInfluenceOutline(In.texCoord);
+        Out.color.rgb = lerp(Out.color.rgb, kInfluenceOutlineColor, outlineMask);
+    }
     return Out;
 }
 

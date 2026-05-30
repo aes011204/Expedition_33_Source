@@ -2,7 +2,7 @@
 
 #include "Editor_Window.h"
 #include "PostProcessPipeline.h"
-#include "SSAOPipeline.h"
+#include "LightingPipeline.h"
 
 NS_BEGIN(MainEditor)
 
@@ -21,13 +21,14 @@ public:
 private:
     void    Draw_FeatureControl(Shared<PostProcessPipeline> pipeline, bool& dirty);
     void    Draw_ParameterControl(PostProcessCB& params, bool& dirty);
-    void    Draw_QuickAction(PostProcessCB& params, Shared<SSAOPipeline> ssaoPipeline, bool& dirty, bool& ssaoDirty);
-    void    Draw_SSAOControl(Shared<SSAOPipeline> pipeline, bool& dirty);
+    void    Draw_QuickAction(PostProcessCB& params, Shared<LightingPipeline> lightingPipeline, bool& dirty, bool& lightingDirty);
+    void    Draw_LightingControl(Shared<LightingPipeline> pipeline, bool& dirty);
     void    Draw_StatusBadge();
 
 private:
     static PostProcessCB Make_DefaultParams();
     static SSAOCB Make_DefaultSSAOParams();
+    static DeferredLightingCB Make_DefaultDeferredLightingParams();
 
 public:
     static Shared<PostProcess_View> Create();

@@ -17,7 +17,7 @@ public:
     void On_End(const AnimNotifyContext& context) override;
 
 private:
-    Vec3 _originPos ={};
+    Vec3 _goalPos ={};
     Vec3 _startPos = {};
 };
 

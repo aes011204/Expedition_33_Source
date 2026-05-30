@@ -34,7 +34,9 @@ namespace Internal
             prototypeTag == L"Shader_VtxMesh" ||
             prototypeTag == L"Shader_VtxAnimMesh" ||
             prototypeTag == L"Shader_EffectMaterialPreview" ||
+            prototypeTag == L"Shader_EffectMaterialPreviewDistortion" ||
             prototypeTag == L"Shader_EffectSprite" ||
+            prototypeTag == L"Shader_EffectDistortionSprite" ||
             prototypeTag == L"Shader_EffectTrail";
     }
 

@@ -1,7 +1,48 @@
-#include "MapStaticCollisionBuilder.h"
+﻿#include "MapStaticCollisionBuilder.h"
 #include "StaticCollisionData.h"
 #include "ModelCom.h"
 #include <fstream>
+
+namespace
+{
+    Vec3 Convert_UePointToEngine(const Vec3& uePoint)
+    {
+        // UE source json is Z-up. Runtime world/collision code here treats Y as up.
+        return Vec3(uePoint.x, uePoint.z, -uePoint.y);
+    }
+
+    Vec3 Convert_UeExtentsToEngine(const Vec3& ueExtents)
+    {
+        return Vec3(
+            fabsf(ueExtents.x),
+            fabsf(ueExtents.z),
+            fabsf(ueExtents.y));
+    }
+
+    Quat Convert_UeRotationToEngine(const Quat& ueRotation)
+    {
+        const Matrix basisToEngine = Matrix::CreateRotationX(-XM_PIDIV2);
+        const Matrix basisToUe = Matrix::CreateRotationX(XM_PIDIV2);
+        const Matrix ueRotationMatrix = Matrix::CreateFromQuaternion(ueRotation);
+        const Matrix engineRotationMatrix = basisToEngine * ueRotationMatrix * basisToUe;
+
+        Vec3 scale = Vec3::One;
+        Quat rotation = Quat::Identity;
+        Vec3 translation = Vec3::Zero;
+
+        Matrix tempMat = engineRotationMatrix;
+        tempMat.Decompose(scale, rotation, translation);
+        return rotation;
+    }
+
+    Quat Parse_UePrimitiveRotation(const json& rotationNode)
+    {
+        return Quat::CreateFromYawPitchRoll(
+            XMConvertToRadians(rotationNode.value("Yaw", 0.f)),
+            XMConvertToRadians(rotationNode.value("Pitch", 0.f)),
+            XMConvertToRadians(rotationNode.value("Roll", 0.f)));
+    }
+}
 
 NS_BEGIN(Engine)
 
@@ -233,18 +274,18 @@ bool MapStaticCollisionBuilder::Build_PrimitiveProxies_FromSourceJson(const wstr
         {
             ModelCollisionProxy proxy{};
             proxy.type = ModelCollisionProxyType::Box;
-            proxy.center = Vec3(
+            const Vec3 ueCenter(
                 boxElem["Center"].value("X", 0.f),
                 boxElem["Center"].value("Y", 0.f),
                 boxElem["Center"].value("Z", 0.f));
-            proxy.rotation = Quat::CreateFromYawPitchRoll(
-                XMConvertToRadians(boxElem["Rotation"].value("Yaw", 0.f)),
-                XMConvertToRadians(boxElem["Rotation"].value("Pitch", 0.f)),
-                XMConvertToRadians(boxElem["Rotation"].value("Roll", 0.f)));
-            proxy.extents = Vec3(
+            const Quat ueRotation = Parse_UePrimitiveRotation(boxElem["Rotation"]);
+            const Vec3 ueExtents(
                 boxElem.value("X", 0.f) * 0.5f,
                 boxElem.value("Y", 0.f) * 0.5f,
                 boxElem.value("Z", 0.f) * 0.5f);
+            proxy.center = Convert_UePointToEngine(ueCenter);
+            proxy.rotation = Convert_UeRotationToEngine(ueRotation);
+            proxy.extents = Convert_UeExtentsToEngine(ueExtents);
             outPrimitiveProxies.push_back(std::move(proxy));
             addedAny = true;
         };
@@ -253,10 +294,11 @@ bool MapStaticCollisionBuilder::Build_PrimitiveProxies_FromSourceJson(const wstr
         {
             ModelCollisionProxy proxy{};
             proxy.type = ModelCollisionProxyType::Sphere;
-            proxy.center = Vec3(
+            const Vec3 ueCenter(
                 sphereElem["Center"].value("X", 0.f),
                 sphereElem["Center"].value("Y", 0.f),
                 sphereElem["Center"].value("Z", 0.f));
+            proxy.center = Convert_UePointToEngine(ueCenter);
             proxy.radius = sphereElem.value("Radius", 0.f);
             outPrimitiveProxies.push_back(std::move(proxy));
             addedAny = true;
@@ -266,14 +308,13 @@ bool MapStaticCollisionBuilder::Build_PrimitiveProxies_FromSourceJson(const wstr
         {
             ModelCollisionProxy proxy{};
             proxy.type = ModelCollisionProxyType::Capsule;
-            proxy.center = Vec3(
+            const Vec3 ueCenter(
                 sphylElem["Center"].value("X", 0.f),
                 sphylElem["Center"].value("Y", 0.f),
                 sphylElem["Center"].value("Z", 0.f));
-            proxy.rotation = Quat::CreateFromYawPitchRoll(
-                XMConvertToRadians(sphylElem["Rotation"].value("Yaw", 0.f)),
-                XMConvertToRadians(sphylElem["Rotation"].value("Pitch", 0.f)),
-                XMConvertToRadians(sphylElem["Rotation"].value("Roll", 0.f)));
+            const Quat ueRotation = Parse_UePrimitiveRotation(sphylElem["Rotation"]);
+            proxy.center = Convert_UePointToEngine(ueCenter);
+            proxy.rotation = Convert_UeRotationToEngine(ueRotation);
             proxy.radius = sphylElem.value("Radius", 0.f);
             proxy.halfHeight = max(0.f, sphylElem.value("Length", 0.f) * 0.5f - proxy.radius);
             outPrimitiveProxies.push_back(std::move(proxy));

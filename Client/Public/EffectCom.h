@@ -3,6 +3,7 @@
 #include "Component.h"
 #include "EffectInstancePool.h"
 #include "SwitchDissolveFeature.h"
+#include "TrailAnchor_Asset.h"
 
 NS_BEGIN(Engine)
 class GameObject;
@@ -12,17 +13,25 @@ NS_END
 
 NS_BEGIN(Client)
 
-class EffectCom : public Component
+class Weapon;
+
+class EffectCom : public Component, public IEffectTrailSampleProvider
 {
     GENERATED_COMPONENT(EffectCom);
 
 private:
     struct AttachedEffect
     {
-        EffectInstancePool::AttachedHandle poolHandle{}; // pool acquire/release 추적과 effect root 접근을 함께 담는다.
-        wstring partTag{};                               // 어느 파츠 소켓을 따라갈지 나타낸다.
-        string socketName{};                             // follow 기준이 되는 소켓 이름이다.
-        Vec3 localOffset{ Vec3::Zero };                  // socket 월드 위치에 더할 local offset이다.
+        EffectInstancePool::AttachedHandle poolHandle{};
+
+        wstring effectName{};
+        wstring partTag{};
+
+        string  socketName{};
+        wstring layerTag{};
+        Vec3    localOffset{ Vec3::Zero };
+        bool    isTrail = false;
+        TrailAnchorAsset trailAnchorAsset{};
     };
 
 public:
@@ -47,6 +56,8 @@ public:
     // Render 쪽에서는 owner만 세팅
     static HRESULT Bind_DrawFeatures(const Shared<GameObject>& owner, ShaderCom* shader, uint32 supportFeatureMask);
 
+public:
+#pragma region Effect 특정 파츠, 소켓에 붙이기
     HRESULT Play_AttachedEffect(
                 uint32 levelIndex,
 				const wstring& effectName,
@@ -55,6 +66,21 @@ public:
 				const wstring& layerTag,
 				const Vec3& localOffset = Vec3::Zero,
                 const Weak<IEffectTrailSampleProvider>& trailSampleProvider = {});
+#pragma endregion
+
+#pragma region ANS_Trail에서 사용할 Play, Stop Trail
+     HRESULT Play_TrailEffect(
+                const wstring& effectName,
+                const wstring& partTag,
+                const wstring& layerTag);
+
+    void    Stop_TrailEffect(
+                const wstring& effectName,
+                const wstring& partTag);
+
+    bool    Try_GetTrailSample(EffectTrailSample& outSample) const override;
+#pragma endregion
+
 
 private:
     void Update_AttachedEffects();                                           // socket follow와 자동 release 후보 정리를 함께 수행한다.
@@ -63,9 +89,21 @@ private:
     void Prune_ReleasedAttachedEffects();                                    // 반환이 끝난 attached entry를 목록에서 제거한다.
 
     bool Try_GetSocketWorldPosition(
-        const wstring& partTag,
-        const string& socketName,
+            const wstring& partTag,
+            const string& socketName,
+            Vec3& outWorldPosition) const;
+
+    bool Try_BuildTrailSample(
+        const AttachedEffect& attached,
+        EffectTrailSample& outSample) const;
+
+    bool Try_ResolveTrailAnchorWorldPosition(
+        const Weapon& weaponPart,
+        const TrailAnchorPointDesc& anchor,
         Vec3& outWorldPosition) const;
+
+    const AttachedEffect* Find_ActiveTrailEffect() const;
+
 
 private:
     SwitchDissolveRuntime       _switchDissolve{};		// 디졸브

@@ -31,6 +31,7 @@ public:
         const string& preferredAnimationName = "",
         uint32 preferredDockId = 0,
         bool focusOnOpen = true);
+    void Clear_LivePreviewBinding(const Shared<GameObject>& previewRoot = nullptr);
 
 private:
     struct AnimationEntry

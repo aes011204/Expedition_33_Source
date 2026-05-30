@@ -2,10 +2,11 @@
 #include "Camera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
+#include "LightingPipeline.h"
 #include "PostProcessPipeline.h"
-#include "SSAOPipeline.h"
 #include "ScreenFx_Manager.h"
 #include "ShaderCom.h"
+#include "Texture.h"
 #include "VIBuffer_Rect.h"
 #include "Debug_Profile.h"
 
@@ -75,8 +76,8 @@ HRESULT Renderer::Initialize()
     _ppPipeline = PostProcessPipeline::Create(_device, _context);
     CHECK_NULL(_ppPipeline, E_FAIL);
 
-    _ssaoPipeline = SSAOPipeline::Create(_device, _context);
-    CHECK_NULL(_ssaoPipeline, E_FAIL);
+    _lightingPipeline = LightingPipeline::Create(_device, _context);
+    CHECK_NULL(_lightingPipeline, E_FAIL);
 
 	return S_OK;
 }
@@ -184,6 +185,14 @@ void Renderer::Draw()
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonLight:After");
     nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
+    DumpCurrentOMState(L"Render_Distortion:Before");
+#endif
+
+    // ========================================= //
+    Render_Distortion();
+    // ========================================= //
+#ifdef _DEBUG
+    DumpCurrentOMState(L"Render_Distortion:After");
     const auto blendBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_Blend:Before");
 #endif
@@ -235,43 +244,6 @@ void Renderer::Draw()
     const auto renderMs = chrono::duration<double, milli>(chrono::steady_clock::now() - renderBegin).count();
     Accumulate_RenderPerf(renderMs, priorityMs, shadowMs, nonBlendMs, lightsMs, combinedHDRMs, postProcessMs,nonlightMs, blendMs, uiMs, debugMs);
 #endif
-}
-
-void Renderer::Draw_Preview()
-{
-#ifdef _DEBUG
-    Reset_RenderCall();
-#endif
-
-    Render_Priority();
-    _renderGroups[ETOI(RenderGroup::Shadow)].clear();
-
-    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonBlend)])
-    {
-        Shared<GameObject> gameObject = renderObject.lock();
-        if (nullptr != gameObject)
-        {
-            gameObject->Render();
-            Add_RenderCall();
-        }
-    }
-
-    _renderGroups[ETOI(RenderGroup::NonBlend)].clear();
-
-    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonLight)])
-    {
-        Shared<GameObject> gameObject = renderObject.lock();
-        if (nullptr != gameObject)
-        {
-            gameObject->Render();
-            Add_RenderCall();
-        }
-    }
-
-    _renderGroups[ETOI(RenderGroup::NonLight)].clear();
-
-    Render_Blend();
-    _renderGroups[ETOI(RenderGroup::UI)].clear();
 }
 
 void Renderer::Backup_RenderGroups()
@@ -330,8 +302,8 @@ void Renderer::Render_Shadow()
 
 void Renderer::Render_NonBlend()
 {
-    // Diffuse + Normal
-    CHECK_FAILED(GAME->Begin_MRT(MRT::GameObjects, NotUseDSV, ClearRTV));
+    // Diffuse + Normal / NotUseDSV -> UseDSV
+    CHECK_FAILED(GAME->Begin_MRT(MRT::GameObjects, UseDSV, ClearRTV));
 
     _currentGroup = RenderGroup::NonBlend;
 
@@ -357,7 +329,7 @@ void Renderer::Render_SSAO()
         return;
 
     // SSAO 사용 여부 
-    const bool ssaoEnabled = (_ssaoPipeline != nullptr) && _ssaoPipeline->Is_Enabled();
+    const bool ssaoEnabled = (_lightingPipeline != nullptr) && _lightingPipeline->Is_Enabled();
     if (!ssaoEnabled)
     {
         // SSAO를 끈 프레임에는 이전 AO 결과가 남지 않도록 RT만 기본값(1.0)으로 초기화한다.
@@ -399,8 +371,8 @@ void Renderer::Render_SSAO()
             GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
 
         SSAOCB ssaoParams{};
-        if (_ssaoPipeline)
-            ssaoParams = _ssaoPipeline->Get_Params();
+        if (_lightingPipeline)
+            ssaoParams = _lightingPipeline->Get_Params();
 
         ENDMRT_RETURN_IF_FAILED(_deferredShader->Bind_CBufferData(ssaoParams));
 
@@ -421,7 +393,7 @@ void Renderer::Render_SSAO()
 
     // SSAO Blur 패스 : AO 값을 경계 보존하며 부드럽게 만들기
     {
-        if (_ssaoPipeline == nullptr || _ssaoPipeline->Get_Params().SSAOBilateralEnabled == 0u)
+        if (_lightingPipeline == nullptr || _lightingPipeline->Get_Params().SSAOBilateralEnabled == 0u)
             return;
 
         // MRT 바뀌었으니 다시 바인딩
@@ -445,7 +417,7 @@ void Renderer::Render_SSAO()
             GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth));
 
         ENDMRT_RETURN_IF_FAILED(
-            _deferredShader->Bind_CBufferData(_ssaoPipeline->Get_Params()));
+            _deferredShader->Bind_CBufferData(_lightingPipeline->Get_Params()));
 
         ENDMRT_RETURN_IF_FAILED(
             _viBuffer->Bind_Resources());
@@ -479,6 +451,8 @@ void Renderer::Render_Lights()
     ENDMRT_RETURN_IF_FAILED(Bind_ScreenSpaceCB(_deferredShader));
 
     // 명암 연산을 위한 SRV
+    ENDMRT_RETURN_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_deferredShader, "g_DiffuseTexture", RT::Diffuse));
     ENDMRT_RETURN_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_NormalTexture", RT::Normal));
     ENDMRT_RETURN_IF_FAILED(
@@ -560,14 +534,74 @@ void Renderer::Render_CombinedHDR()
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_EmissiveTexture)");
 
     // Bilateral Blur : 거리, 깊이, 노말에 따라 Blur 가중치를 조절하는 기능
-    const bool ssaoEnabled = (_ssaoPipeline != nullptr) && _ssaoPipeline->Is_Enabled();
-    const wchar_t* ssaoResult = (ssaoEnabled && _ssaoPipeline->Get_Params().SSAOBilateralEnabled != 0u)
+    const bool ssaoEnabled = (_lightingPipeline != nullptr) && _lightingPipeline->Is_Enabled();
+    const wchar_t* ssaoResult = (ssaoEnabled && _lightingPipeline->Get_Params().SSAOBilateralEnabled != 0u)
         ? RT::SSAOBlur
         : RT::SSAO;
 
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_SSAOTexture", ssaoResult),
         L"Render_CombinedHDR:FAIL Bind_RT_ShaderRender_CombinedHDRResource(g_SSAOTexture)");
+
+    if (_iblIrradianceTexture != nullptr)
+    {
+        COMBINEDHDR_RETURN_LOG_IF_FAILED(
+            _iblIrradianceTexture->Bind_ShaderResourceView(_deferredShader.get(), "g_IrradianceMap", 0),
+            L"Render_CombinedHDR:FAIL Bind_ShaderResourceView(g_IrradianceMap)");
+    }
+    else
+    {
+        COMBINEDHDR_RETURN_LOG_IF_FAILED(
+            _deferredShader->Bind_SRV("g_IrradianceMap", nullptr),
+            L"Render_CombinedHDR:FAIL ClearSRV(g_IrradianceMap)");
+    }
+
+    if (_iblPrefilterTexture != nullptr)
+    {
+        COMBINEDHDR_RETURN_LOG_IF_FAILED(
+            _iblPrefilterTexture->Bind_ShaderResourceView(_deferredShader.get(), "g_PrefilterMap", 0),
+            L"Render_CombinedHDR:FAIL Bind_ShaderResourceView(g_PrefilterMap)");
+    }
+    else
+    {
+        COMBINEDHDR_RETURN_LOG_IF_FAILED(
+            _deferredShader->Bind_SRV("g_PrefilterMap", nullptr),
+            L"Render_CombinedHDR:FAIL ClearSRV(g_PrefilterMap)");
+    }
+
+    if (_iblBrdfLutTexture != nullptr)
+    {
+        COMBINEDHDR_RETURN_LOG_IF_FAILED(
+            _iblBrdfLutTexture->Bind_ShaderResourceView(_deferredShader.get(), "g_BRDFLUT", 0),
+            L"Render_CombinedHDR:FAIL Bind_ShaderResourceView(g_BRDFLUT)");
+    }
+    else
+    {
+        COMBINEDHDR_RETURN_LOG_IF_FAILED(
+            _deferredShader->Bind_SRV("g_BRDFLUT", nullptr),
+            L"Render_CombinedHDR:FAIL ClearSRV(g_BRDFLUT)");
+    }
+
+    DeferredLightingCB deferredLightingParams{};
+    if (_lightingPipeline)
+        deferredLightingParams = _lightingPipeline->Get_DeferredLightingParams();
+
+    if (_iblDebugMode == IBLDebugMode::SpecularOnly)
+    {
+        deferredLightingParams.iblIntensity = 1.0f;
+        deferredLightingParams.iblDiffuseIntensity = 0.0f;
+        deferredLightingParams.iblSpecularIntensity = 1.0f;
+    }
+    else if (_iblDebugMode == IBLDebugMode::DiffuseOnly)
+    {
+        deferredLightingParams.iblIntensity = 1.0f;
+        deferredLightingParams.iblDiffuseIntensity = 1.0f;
+        deferredLightingParams.iblSpecularIntensity = 0.0f;
+    }
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        _deferredShader->Bind_CBufferData(deferredLightingParams),
+        L"Render_CombinedHDR:FAIL Bind_CBufferData(DeferredLightingCB)");
 
     // Light 기록
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
@@ -591,7 +625,6 @@ void Renderer::Render_CombinedHDR()
 
     Add_RenderCall();
 }
-
 void Renderer::Render_NonLight()
 {
     RETURN_LOG_IF_FAILED(
@@ -611,6 +644,39 @@ void Renderer::Render_NonLight()
     }
 
     _renderGroups[ETOI(RenderGroup::NonLight)].clear();
+
+    GAME->End_MRT();
+}
+
+void Renderer::Render_Distortion()
+{
+    auto& distortionGroup = _renderGroups[ETOI(RenderGroup::Distortion)];
+    if (distortionGroup.empty())
+        return;
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Copy_RTV(RT::HDRColor, RT::DistortionSource),
+        L"Render_Distortion:FAIL Copy_RTV(HDRColor -> DistortionSource)"
+    );
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Render_Distortion:FAIL Begin_MRT(HDR)"
+    );
+
+    _currentGroup = RenderGroup::Distortion;
+
+    for (auto& renderObject : distortionGroup)
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (nullptr != gameObject)
+        {
+            gameObject->Render();
+            Add_RenderCall();
+        }
+    }
+
+    distortionGroup.clear();
 
     GAME->End_MRT();
 }
@@ -791,10 +857,6 @@ void Renderer::Render_PostProcess()
         _postprocessShader->Begin(ETOI(PostProcessPass::ToneMapping)),
         L"Render_PostProcess:FAIL ShaderBegin(ToneMapping)");
 
-    const uint32 passIndex = _usePreviewDeferredCombine
-        ? ETOI(DeferredPass::CombinedPreview)
-        : ETOI(DeferredPass::CombinedHDR);       // 일반 runtime/gameplay는 기존 shadow combine 유지
-
     RETURN_LOG_IF_FAILED(
         _viBuffer->Render(),
         L"Render_PostProcess:FAIL RenderRect(ToneMapping)");
@@ -866,6 +928,25 @@ HRESULT Renderer::Ready_Shaders()
     _screenSize = {
         GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight()
     };
+
+    // IBL 3분리 자산 로드. 누락 시 nullptr로 남고 셰이더에서 안전 fallback(0 기여) 처리한다.
+    _iblIrradianceTexture = Texture::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_sunset.dds",
+        1);
+
+    _iblPrefilterTexture = Texture::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_sunset.dds",
+        1);
+
+    _iblBrdfLutTexture = Texture::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/BRDF_LUT.dds",
+        1);
 
     Sync_ViewportDependentState(_screenSize.width, _screenSize.height);
 

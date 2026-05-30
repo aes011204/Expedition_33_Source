@@ -34,6 +34,7 @@ class PipeLine;
 class Light_Manager;
 class Font_Manager;
 class Asset_Manager;
+class Sound_Manager;
 class Log_Manager;
 class Target_Manager;
 class Camera_Manager;
@@ -52,7 +53,7 @@ class Picking;
 class Culling_Manager;
 class ThreadPool;
 class PostProcessPipeline;
-class SSAOPipeline;
+class LightingPipeline;
 class ScreenFx_Manager;
 class ShaderResourceRegistry;
 struct StaticCollisionData;
@@ -103,11 +104,8 @@ public:
 
     HRESULT Draw();
     HRESULT Draw_RendererOnly(); // 에디터용
-    HRESULT Draw_Preview(); // 에디터 프리뷰용
     void    Backup_RenderGroup();
     void    Restore_RenderGroup();
-    // 프리뷰 창에서만 shadow 없는 pass 사용
-    void    Set_PreviewDeferredCombine(bool enable);
 
     void    Clear_Resources(uint32 levelIndex);
 
@@ -229,11 +227,10 @@ public: /* For.Renderer */
     uint32 Get_RenderCall() const;
     const Shared<PostProcessPipeline>   Get_PostProcessPipeline() const;
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
-    const Shared<SSAOPipeline>          Get_SSAOPipeline() const;
-    Shared<SSAOPipeline>                Get_SSAOPipeline();
+    const Shared<LightingPipeline>      Get_LightingPipeline() const;
+    Shared<LightingPipeline>            Get_LightingPipeline();
     const ScreenFx_Manager*             Get_ScreenFxManager() const;
     RenderGroup                         Get_CurrentRenderGroup() const;
-
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
     HRESULT Bind_TransformMatrix(D3DTS transformState, ShaderCom* shader, const char* constantName);
@@ -257,6 +254,7 @@ public: /* For.Input_Manager */
     void  Set_MouseWheel(float mouseWheel);
 	void  Lock_Mouse();
 	void  Unlock_Mouse();
+    bool  Is_MouseLocked() const;
     
     // 에디터 뷰 전환 중 포커스가 흔들려도 마우스 락을 유지할 때 시작한다.
 	void  Begin_EditorMouseLockSession();
@@ -320,6 +318,26 @@ public: /* For.Asset_Manager (access) */
     const Asset_Manager* Get_AssetManager() const { return _assetManager.get(); }
     Asset_Manager*       Get_AssetManager() { return _assetManager.get(); }
 
+public: /* For.Sound_Manager */
+    bool    Play_Sound(const wstring& soundFile, SoundChannel channel, float volume = 1.f);
+    bool    Play_Sound_Pitched(const wstring& soundFile, SoundChannel channel, float volume, float pitch);
+    bool    Play_BGM(
+        const wstring& soundFile,
+        float volume = 1.f,
+        bool stopPrevBGM = true,
+        float fadeOutDuration = 0.f);
+    bool    Play_LoopSound(
+        const wstring& soundFile,
+        SoundChannel channel,
+        float volume = 1.f,
+        bool stopPrevChannel = false,
+        float fadeOutDuration = 0.f);
+    void    Stop_SoundChannel(SoundChannel channel, float fadeOutDuration = 0.f);
+    void    Stop_Sound(const wstring& soundFile);
+    void    Stop_AllSounds(float fadeOutDuration = 0.f);
+    void    Set_SoundChannelVolume(SoundChannel channel, float volume);
+    float   Get_SoundChannelVolume(SoundChannel channel) const;
+    bool    Has_Sound(const wstring& soundFile) const;
 public: /* For.Debug Profile */
     // Profile View에서 현재 등록 prototype/object의 대략적인 리소스 메모리 사용량을 요약할 때 사용한다.
     bool Build_DebugResourceMemorySummary(DebugResourceMemorySummary& outSummary) const;
@@ -390,6 +408,7 @@ public : /* For.Target_Manager */
     HRESULT Bind_PlayerStencilWriteState(bool depthWrite);
     HRESULT Bind_BackgroundUIBehindPlayerStencilState();
     HRESULT Bind_UINoDepthStencilState();
+    ComPtr<ID3D11Texture2D> Get_RT_Texture(const wstring& targetTag);
 
 #ifdef _DEBUG
     HRESULT Initialize_Debug(float sizeX, float sizeY);
@@ -553,6 +572,7 @@ private:
     Unique<Light_Manager>       _lightManager{};
     Unique<Font_Manager>        _fontManager{};
     Unique<Asset_Manager>       _assetManager{}; /* GUID 기반 에셋 registry와 meta/cache를 관리하는 매니저 */
+    Unique<Sound_Manager>       _soundManager{};
     Unique<ShaderResourceRegistry> _shaderResourceRegistry{};
     Unique<Camera_Manager>      _cameraManager{};
     Unique<TypeRegistry>        _typeRegistry{};

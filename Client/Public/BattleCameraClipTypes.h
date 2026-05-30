@@ -1,4 +1,11 @@
-﻿#pragma once
+#pragma once
+
+enum class BattleCameraClipTimeMode : uint8
+{
+    AnimationSync,
+    Independent
+};
+
 struct BattleCameraKeyframe
 {
     float time = 0.f;
@@ -12,7 +19,8 @@ struct BattleCameraTrack
 
 struct BattleCameraClip
 {
-    float duration;
+    float duration = 1.f;
+    BattleCameraClipTimeMode timeMode = BattleCameraClipTimeMode::AnimationSync;
 
     BattleCameraTrack distanceOffset;
     BattleCameraTrack fovOffset;
@@ -39,4 +47,3 @@ struct BattleCameraClipSample
     float orbitHeight = 0.f;
     float orbitLookHeight = 0.f;
 };
-

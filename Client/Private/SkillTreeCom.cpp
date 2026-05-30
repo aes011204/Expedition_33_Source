@@ -4,7 +4,9 @@
 #include "CombatStatCom.h"
 #include "PlayerStatCom.h"
 
-SkillTreeCom::SkillTreeCom(const ComPtr<Device>& device, const ComPtr<Context>& context) : Component {device, context}
+SkillTreeCom::SkillTreeCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
+    : Component {device, context}
+
 {
 }
 
@@ -14,7 +16,7 @@ SkillTreeCom::~SkillTreeCom()
 
 HRESULT SkillTreeCom::Initialize(void* arg)
 {
-    CHECK_FAILED(__super::Initialize(arg), E_FAIL)
+    CHECK_FAILED(__super::Initialize(arg), E_FAIL);
    
     return S_OK;
 }
@@ -91,6 +93,21 @@ bool SkillTreeCom::HasEnoughSkillPoint(const string& skillId)
         return false;
 
     return  skillTreeDesc->unlockCost <=playerStatCom->Get_PlayerRuntimeStat().CurSkillPoint;
+}
+
+void SkillTreeCom::ForceUnlock(const string& skillId)
+{
+    if (skillId.empty())
+        return;
+
+    if (IsUnlocked(skillId))
+        return;
+
+    auto skillTreeDesc = CLIENT->Get_SkillTreeDesc(skillId);
+    if (!skillTreeDesc)
+        return;
+
+    _unlockedSkillId.push_back(skillId);
 }
 
 bool SkillTreeCom::HasRequiredSkill(const string& skillId)

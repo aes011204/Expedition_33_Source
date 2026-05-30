@@ -1,21 +1,86 @@
-﻿#include "Editor_Context.h"
+#include "Editor_Context.h"
 
 void Editor_Context::Set_SelectObject(const Shared<GameObject>& gameObject)
 {
     if (_selection.selectedObject == gameObject)
         return;
 
-    // 선택된 오브젝트랑 다르면 Revision 증가
+    _selection.selectedUI.reset();
+    _selection.selectedUIGroup.clear();
+    _selection.selectedUIDisplayName.clear();
+    _selection.selectedUIPositionDrivenByCode = false;
     _selection.selectedObject = gameObject;
     ++_selectionRevision;
 }
 
-void Editor_Context::Clear_Selection()
+void Editor_Context::Set_SelectUI(
+    const Shared<UI_Base>& ui,
+    const string& groupName,
+    const string& displayName,
+    bool positionDrivenByCode)
+{
+    if (_selection.selectedObject == nullptr)
+    {
+        const Shared<UI_Base> selectedUI = _selection.selectedUI.lock();
+        if (selectedUI == ui &&
+            _selection.selectedUIGroup == groupName &&
+            _selection.selectedUIDisplayName == displayName &&
+            _selection.selectedUIPositionDrivenByCode == positionDrivenByCode)
+        {
+            return;
+        }
+    }
+
+    _selection.selectedObject.reset();
+    _selection.selectedUI = ui;
+    _selection.selectedUIGroup = groupName;
+    _selection.selectedUIDisplayName = displayName;
+    _selection.selectedUIPositionDrivenByCode = positionDrivenByCode;
+    ++_selectionRevision;
+}
+
+void Editor_Context::Clear_SelectedObject()
 {
     if (_selection.selectedObject == nullptr)
         return;
 
     _selection.selectedObject.reset();
+    ++_selectionRevision;
+}
+
+void Editor_Context::Clear_SelectedUI()
+{
+    const bool hasUI = !_selection.selectedUI.expired() ||
+        !_selection.selectedUIGroup.empty() ||
+        !_selection.selectedUIDisplayName.empty() ||
+        _selection.selectedUIPositionDrivenByCode;
+
+    if (!hasUI)
+        return;
+
+    _selection.selectedUI.reset();
+    _selection.selectedUIGroup.clear();
+    _selection.selectedUIDisplayName.clear();
+    _selection.selectedUIPositionDrivenByCode = false;
+    ++_selectionRevision;
+}
+
+void Editor_Context::Clear_Selection()
+{
+    const bool hasObject = (_selection.selectedObject != nullptr);
+    const bool hasUI = !_selection.selectedUI.expired() ||
+        !_selection.selectedUIGroup.empty() ||
+        !_selection.selectedUIDisplayName.empty() ||
+        _selection.selectedUIPositionDrivenByCode;
+
+    if (!hasObject && !hasUI)
+        return;
+
+    _selection.selectedObject.reset();
+    _selection.selectedUI.reset();
+    _selection.selectedUIGroup.clear();
+    _selection.selectedUIDisplayName.clear();
+    _selection.selectedUIPositionDrivenByCode = false;
     ++_selectionRevision;
 }
 

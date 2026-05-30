@@ -12,13 +12,15 @@ public:
     virtual ~Base_Mon_Attack() = default;
 public:
     virtual void Execute(const Skill_Data& skill,
-        const BattleChar& attacker,
-        const BattleChar& target);
+ const BattleAction& action, AttackType attackType) override;
 public:
     static Shared<Base_Mon_Attack> Create();
     //Shared<Component> Clone(void* arg) override;
     void Free() override;
 
+
+private:
+    uint32 CurIndex = {};
 };
 
 NS_END

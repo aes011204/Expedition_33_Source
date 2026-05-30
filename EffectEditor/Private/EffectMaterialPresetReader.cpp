@@ -81,7 +81,30 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         return parsed.value_or(defaultValue);
     };
 
-    const auto read_additive_color_source = [](const json& node, const char* key, EffectMaterialAdditiveColorSource defaultValue) -> EffectMaterialAdditiveColorSource
+    const auto read_material_family = [&](const char* key, EffectMaterialFamily defaultValue) -> EffectMaterialFamily
+    {
+        const auto iter = root.find(key);
+        if (iter == root.end() || !iter->is_string())
+            return defaultValue;
+
+        const optional<EffectMaterialFamily> parsed = magic_enum::enum_cast<EffectMaterialFamily>(iter->get<string>());
+        return parsed.value_or(defaultValue);
+    };
+
+    const auto read_distortion_shape_mode = [&](const char* key, EffectDistortionShapeMode defaultValue) -> EffectDistortionShapeMode
+    {
+        const auto iter = root.find(key);
+        if (iter == root.end() || !iter->is_string())
+            return defaultValue;
+
+        const optional<EffectDistortionShapeMode> parsed = magic_enum::enum_cast<EffectDistortionShapeMode>(iter->get<string>());
+        return parsed.value_or(defaultValue);
+    };
+
+    const auto read_additive_color_source = [](
+        const json& node,
+        const char* key,
+        EffectMaterialAdditiveColorSource defaultValue) -> EffectMaterialAdditiveColorSource
     {
         const auto iter = node.find(key);
         if (iter == node.end() || !iter->is_string())
@@ -92,7 +115,10 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         return parsed.value_or(defaultValue);
     };
 
-    const auto read_additive_amount_source = [](const json& node, const char* key, EffectMaterialAdditiveAmountSource defaultValue) -> EffectMaterialAdditiveAmountSource
+    const auto read_additive_amount_source = [](
+        const json& node,
+        const char* key,
+        EffectMaterialAdditiveAmountSource defaultValue) -> EffectMaterialAdditiveAmountSource
     {
         const auto iter = node.find(key);
         if (iter == node.end() || !iter->is_string())
@@ -103,7 +129,10 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         return parsed.value_or(defaultValue);
     };
 
-    const auto read_additive_coverage_policy = [](const json& node, const char* key, EffectMaterialAdditiveCoveragePolicy defaultValue) -> EffectMaterialAdditiveCoveragePolicy
+    const auto read_additive_coverage_policy = [](
+        const json& node,
+        const char* key,
+        EffectMaterialAdditiveCoveragePolicy defaultValue) -> EffectMaterialAdditiveCoveragePolicy
     {
         const auto iter = node.find(key);
         if (iter == node.end() || !iter->is_string())
@@ -218,12 +247,16 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     EffectMaterialInstanceData material = defaultMaterial;
 
     material.sourcePresetName = ResolveDisplayName(filePath);
+    material.materialFamily = read_material_family("materialFamily", defaultMaterial.materialFamily);
     material.mainTextureGuid = read_string("mainTextureGuid", defaultMaterial.mainTextureGuid);
     material.mainTexturePath = read_string("mainTexturePath", defaultMaterial.mainTexturePath);
     material.noiseTextureGuid = read_string("noiseTextureGuid", defaultMaterial.noiseTextureGuid);
     material.noiseTexturePath = read_string("noiseTexturePath", defaultMaterial.noiseTexturePath);
     material.maskTextureGuid = read_string("maskTextureGuid", defaultMaterial.maskTextureGuid);
     material.maskTexturePath = read_string("maskTexturePath", defaultMaterial.maskTexturePath);
+    material.flowTextureGuid = read_string("flowTextureGuid", defaultMaterial.flowTextureGuid);
+    material.flowTexturePath = read_string("flowTexturePath", defaultMaterial.flowTexturePath);
+
     if (material.mainTextureGuid.empty() && material.mainTexturePath.empty())
     {
         const string legacyMainTextureId = read_string("mainTextureId", {});
@@ -234,12 +267,16 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         const string legacyNoiseTextureId = read_string("noiseTextureId", {});
         migrate_legacy_texture_id(legacyNoiseTextureId, material.noiseTextureGuid, material.noiseTexturePath);
     }
+
     fill_texture_guid_from_path(material.mainTextureGuid, material.mainTexturePath);
     fill_texture_guid_from_path(material.noiseTextureGuid, material.noiseTexturePath);
     fill_texture_guid_from_path(material.maskTextureGuid, material.maskTexturePath);
+    fill_texture_guid_from_path(material.flowTextureGuid, material.flowTexturePath);
     fill_texture_path_hint_from_guid(material.mainTextureGuid, material.mainTexturePath);
     fill_texture_path_hint_from_guid(material.noiseTextureGuid, material.noiseTexturePath);
     fill_texture_path_hint_from_guid(material.maskTextureGuid, material.maskTexturePath);
+    fill_texture_path_hint_from_guid(material.flowTextureGuid, material.flowTexturePath);
+
     material.tint = read_color("tint", defaultMaterial.tint);
     material.intensity = read_float("intensity", defaultMaterial.intensity);
     material.opacityPower = read_float("opacityPower", defaultMaterial.opacityPower);
@@ -258,8 +295,19 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.maskUVOffset = read_vec2("maskUVOffset", defaultMaterial.maskUVOffset);
     material.maskUVScrollSpeed = read_vec2("maskUVScrollSpeed", defaultMaterial.maskUVScrollSpeed);
     material.maskUVTilingMode = read_uv_tiling_mode("maskUVTilingMode", defaultMaterial.maskUVTilingMode);
+    material.flowUVScale = read_vec2("flowUVScale", defaultMaterial.flowUVScale);
+    material.flowUVOffset = read_vec2("flowUVOffset", defaultMaterial.flowUVOffset);
+    material.flowUVScrollSpeed = read_vec2("flowUVScrollSpeed", defaultMaterial.flowUVScrollSpeed);
+    material.flowUVTilingMode = read_uv_tiling_mode("flowUVTilingMode", defaultMaterial.flowUVTilingMode);
     material.blendMode = read_blend_mode("blendMode", defaultMaterial.blendMode);
     material.opacitySource = read_string("opacitySource", defaultMaterial.opacitySource);
+    material.refractionIntensity = read_float("refractionIntensity", defaultMaterial.refractionIntensity);
+    material.refractionPresence = read_float("refractionPresence", defaultMaterial.refractionPresence);
+    material.distortionShapeMode = read_distortion_shape_mode("distortionShapeMode", defaultMaterial.distortionShapeMode);
+    material.distortionShapeRadius = read_float("distortionShapeRadius", defaultMaterial.distortionShapeRadius);
+    material.distortionShapeThickness = read_float("distortionShapeThickness", defaultMaterial.distortionShapeThickness);
+    material.distortionShapeSoftness = read_float("distortionShapeSoftness", defaultMaterial.distortionShapeSoftness);
+
     if (const auto additiveIter = root.find("additive"); additiveIter != root.end() && additiveIter->is_object())
     {
         const json& additive = *additiveIter;

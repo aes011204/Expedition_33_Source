@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Task.h"
+NS_BEGIN(Client)
 class BT_RotateToTarget :
     public Task
 {
@@ -37,3 +38,4 @@ public:
     static Shared<BT_RotateToTarget> Create();
     virtual void Free()override;
 };
+NS_END

@@ -1,8 +1,10 @@
 ﻿#include "pch.h"
 #include "Base_Gustave_Attack.h"
 
+#include "BattleMechanismCom.h"
 #include "Character.h"
 #include "CombatStatCom.h"
+#include "ClientInstance.h"
 #include "DamageSystem.h"
 
 NS_BEGIN(Client)
@@ -11,10 +13,30 @@ Base_Gustave_Attack::Base_Gustave_Attack()
 {
 }
 
-void Base_Gustave_Attack::Execute(const Skill_Data& skill, const BattleChar& attacker, const BattleChar& target)
+void Base_Gustave_Attack::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
     float Damage = 40;
-    DamageSystem::ApplyDamage(Damage, target);
+
+    const auto enemy = CLIENT->Get_BattleController()->Get_AliveEnemies();
+
+    if (CurIndex >= skill.targetingType.size())
+    {
+        LOG_ERROR("ERROR_Base_Mon_Attack_ OutofRange");
+        return;
+    }
+
+    DamageSystem::ApplyDamage(Damage, action.GetCurStepTarget(), attackType);
+
+    auto attacker = action.Get_CurChar();
+
+    if (attacker.heroId == HeroId::Gustave &&
+        attacker.mechanismCom != nullptr &&
+        skill.skillKey == "Gustave_Default_Attack")
+    {
+        attacker.mechanismCom->Add_GustaveCharge(1);
+    }
+
+    CurIndex++;
 }
 
 Shared<Base_Gustave_Attack> Base_Gustave_Attack::Create()

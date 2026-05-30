@@ -48,6 +48,13 @@ void MB_Portier::Update(float timeDelta)
         {
             _body->Play_Animation(timeDelta);
         }
+
+        //for (int i = 0; i < _body->Get_Model()->Get_NumMaterials(); i++)
+        //{
+        //    auto cb = _body->Get_Model()->Get_Material(i)->Get_CB();
+        //    cb.emissiveIntensity = 0;
+        //    _body->Get_Model()->Get_Material(i)->Set_CB(cb);
+        //}
 }
 
 HRESULT MB_Portier::Ready_PartObjects()
@@ -61,6 +68,9 @@ HRESULT MB_Portier::Ready_PartObjects()
 
     _body = dynamic_pointer_cast<Mon_Portier_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
+
+
+
 
     return S_OK;
 }

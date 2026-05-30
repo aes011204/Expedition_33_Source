@@ -1,19 +1,22 @@
 ﻿#pragma once
 
+#include "EffectRuntime_Types.h"
 #include "Editor_Window.h"
 #include "AnimNotify_Types.h"
 #include "Editor_Camera_Free.h"
+#include "TrailAnchor_Asset.h"
 
 NS_BEGIN(Engine)
 class ModelCom;
 class GameObject;
 class RenderTarget;
+class EffectInstance;
 NS_END
 
 NS_BEGIN(MainEditor)
 
 class AnimSequencerAdapter;
-class Animation_View final : public Editor_Window
+class Animation_View final : public Editor_Window, public Engine::IEffectTrailSampleProvider
 {
     friend class AnimSequencerAdapter;
 
@@ -41,10 +44,13 @@ public:
 
     // Prefab / Scene의 실제 ModelCom를 대상으로 열 때
     void Open_FromModelComponent(const Shared<ModelCom>& modelCom, const string& preferredAnimationName = "", uint32 preferredDockId = 0, bool focusOnOpen = true);
+    void Clear_LivePreviewBinding(const Shared<GameObject>& previewRoot = nullptr);
 
 public:
     const string& Get_ModelGuid() const { return _modelGuid; }
     const string& Get_CurrentAnimationName() const { return _currentAnimationName; }
+    bool Try_GetTrailSample(EffectTrailSample& outSample) const override;
+    void Refresh_PreviewTrailAnchorAsset();
 
     int32 Get_CurrentAnimationFps() const;
     float Get_CurrentAnimationLengthSec() const;
@@ -85,12 +91,22 @@ public:
     };
 
 private:
+    enum class TrailAnchorSlot : uint8
+    {
+        Base,
+        Tip
+    };
+
+private:
     void Refresh_Source();
     void Refresh_AssetAnimationList();
     void Refresh_LiveAnimationList();
 
     void Load_NotifyAsset();
     void Save_NotifyAsset();
+    void Load_TrailAnchorAsset();
+    void Save_TrailAnchorAsset() const;
+    void Load_PreviewTrailAnchorAsset();
     void Refresh_OpenModelNotifyAssets() const;
 
     void Draw_Header();
@@ -100,7 +116,8 @@ private:
     void Draw_PreviewPanel();
     void Draw_Sequencer();
     void Draw_SelectedDetail();
-    void Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel) const;
+    void Draw_SelectedBoneDetail(const Shared<ModelCom>& playbackModel);
+    void Draw_TrailAnchorPanel();
     void Draw_EventListPanel();
     void Draw_NotifyList();
     void Draw_StateList();
@@ -135,8 +152,21 @@ private:
     void Fit_PreviewCameraToModel();
     void Draw_PreviewGrid() const;
     void Draw_SelectedBoneMarker() const;
+    void Draw_TrailAnchorPreview() const;
+    void Update_PreviewTrailEffect(float timeDelta);
+    void Reset_PreviewTrailEffect();
+    const AnimNotifyStateEntry* Find_ActivePreviewTrailState() const;
+    bool Ensure_PreviewTrailEffect(const wstring& effectName);
     void Sync_PreviewAnimationSelection(bool keepCurrentTime = false);
     void Validate_SelectedBoneSelection();
+    void Assign_SelectedBoneToTrailAnchor(const Shared<ModelCom>& playbackModel, TrailAnchorSlot slot);
+    bool Try_ResolveTrailAnchorWorldPosition(
+        const Shared<ModelCom>& playbackModel,
+        const Client::TrailAnchorPointDesc& anchor,
+        Vec3& outWorldPosition) const;
+    bool Try_ResolvePreviewTrailAnchorWorldPosition(
+        const Client::TrailAnchorPointDesc& anchor,
+        Vec3& outWorldPosition) const;
 
     AnimNotifyData* Get_CurrentAnimation();
     const AnimNotifyData* Get_CurrentAnimation() const;
@@ -178,6 +208,14 @@ private:
     char _boneSearchBuffer[128] = "";
 
     AnimNotifyAsset _asset{};
+    Client::TrailAnchorAsset _trailAnchorAsset{};
+    Client::TrailAnchorAsset _previewTrailAnchorAsset{};
+    string _previewTrailModelGuid{};
+    Shared<EffectInstance> _previewTrailEffect{};
+    wstring _previewTrailEffectName{};
+    int32 _activePreviewTrailStateId = -1;
+    bool _isPreviewTrailPlaying = false;
+    float _previewTrailLastTimeSec = -1.f;
     bool _isDirty = false;
     int32 _selectedBoneIndex = -1;
 
