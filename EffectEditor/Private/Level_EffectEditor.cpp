@@ -552,6 +552,56 @@ namespace Internal
 
         return Clamp_PreviewColor(fallbackValue);
     }
+
+    Color Evaluate_ColorOverLifeEndpointColorMin(const ColorDistributionData& data, const Color& fallbackValue)
+    {
+        if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&data.payload))
+        {
+            if (!curve->keys.empty())
+            {
+                vector<ColorCurveKeyData> keys = curve->keys;
+                ranges::sort(keys, {}, &ColorCurveKeyData::time);
+                Color value = keys.back().value;
+                value.w = fallbackValue.w;
+                return Clamp_PreviewColor(value);
+            }
+        }
+
+        return Evaluate_ColorDistributionMin(data, fallbackValue);
+    }
+
+    Color Evaluate_ColorOverLifeEndpointColorMax(const ColorDistributionData& data, const Color& fallbackValue)
+    {
+        if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&data.payload))
+        {
+            if (!curve->keys.empty())
+            {
+                vector<ColorCurveKeyData> keys = curve->keys;
+                ranges::sort(keys, {}, &ColorCurveKeyData::time);
+                Color value = keys.back().value;
+                value.w = fallbackValue.w;
+                return Clamp_PreviewColor(value);
+            }
+        }
+
+        return Evaluate_ColorDistributionMax(data, fallbackValue);
+    }
+
+    float Evaluate_ColorOverLifeEndpointAlphaMin(const FloatDistributionData& data, float fallbackValue)
+    {
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload))
+            return Evaluate_FloatConstantCurve(*curve, 1.f, fallbackValue);
+
+        return Evaluate_FloatDistributionMin(data, fallbackValue);
+    }
+
+    float Evaluate_ColorOverLifeEndpointAlphaMax(const FloatDistributionData& data, float fallbackValue)
+    {
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload))
+            return Evaluate_FloatConstantCurve(*curve, 1.f, fallbackValue);
+
+        return Evaluate_FloatDistributionMax(data, fallbackValue);
+    }
 }
 
 Level_EffectEditor::Level_EffectEditor(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -853,21 +903,21 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
     if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
     {
-        const Color minEndColor = Internal::Evaluate_ColorDistributionMin(
+        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
             colorOverLife->colorOverLife,
             Color{ desc.colorOverLife.endColorMin.x, desc.colorOverLife.endColorMin.y, desc.colorOverLife.endColorMin.z, desc.colorOverLife.endColorMin.w }
         );
-        const Color maxEndColor = Internal::Evaluate_ColorDistributionMax(
+        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
             colorOverLife->colorOverLife,
             Color{ desc.colorOverLife.endColorMax.x, desc.colorOverLife.endColorMax.y, desc.colorOverLife.endColorMax.z, desc.colorOverLife.endColorMax.w }
         );
         const float minEndAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMin(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMin.w),
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMin.w),
             0.f,
             1.f
         );
         const float maxEndAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMax(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMax.w),
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, desc.colorOverLife.endColorMax.w),
             0.f,
             1.f
         );
@@ -1116,7 +1166,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
 
     if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
     {
-        const Color minEndColor = Internal::Evaluate_ColorDistributionMin(
+        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMin.x,
@@ -1125,7 +1175,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
                 emitterDesc.colorOverLife.endColorMin.w
             }
         );
-        const Color maxEndColor = Internal::Evaluate_ColorDistributionMax(
+        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
             colorOverLife->colorOverLife,
             Color{
                 emitterDesc.colorOverLife.endColorMax.x,
@@ -1135,12 +1185,12 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
             }
         );
         const float minEndAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
             0.f,
             1.f
         );
         const float maxEndAlpha = clamp(
-            Internal::Evaluate_FloatDistributionMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
             0.f,
             1.f
         );

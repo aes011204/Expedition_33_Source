@@ -344,6 +344,7 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
         maskAlpha = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
+    const float shapeCoverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, 1.f);
     const float3 baseColor = Effect_ApplyCoreEmissiveShaping(
         symbol.rgb * particleColor.rgb * g_Tint.rgb,
         g_EffectSpriteCoreEmissiveColor,
@@ -351,9 +352,9 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
         g_EffectSpriteCoreEmissiveParams
     );
     surface.color = baseColor * noiseFactor;
-    surface.coverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, particleColor.a * g_Tint.a);
+    surface.coverage = shapeCoverage * saturate(particleColor.a * g_Tint.a);
 
-    if (surface.coverage < max(alphaCutoff, 0.01f))
+    if (shapeCoverage < max(alphaCutoff, 0.01f))
         discard;
 
     return surface;

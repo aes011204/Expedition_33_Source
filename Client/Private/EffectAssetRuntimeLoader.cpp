@@ -694,6 +694,66 @@ Vec4 EffectAssetRuntimeLoader::Evaluate_ColorDistributionMax(const json& distrib
     return Clamp_Color(value);
 }
 
+Vec4 EffectAssetRuntimeLoader::Evaluate_ColorOverLifeEndpointColorMin(const json& distribution, const Vec4& fallbackValue)
+{
+    const json* payload = Find_DistributionPayload(distribution);
+    if (nullptr == payload)
+        return Clamp_Color(fallbackValue);
+
+    if ("ConstantCurve" == Read_String(distribution, "mode"))
+    {
+        const auto keysIter = payload->find("keys");
+        return Clamp_Color(keysIter != payload->end() ? Evaluate_ColorConstantCurve(*keysIter, 1.f, fallbackValue) : fallbackValue);
+    }
+
+    return Evaluate_ColorDistributionMin(distribution, fallbackValue);
+}
+
+Vec4 EffectAssetRuntimeLoader::Evaluate_ColorOverLifeEndpointColorMax(const json& distribution, const Vec4& fallbackValue)
+{
+    const json* payload = Find_DistributionPayload(distribution);
+    if (nullptr == payload)
+        return Clamp_Color(fallbackValue);
+
+    if ("ConstantCurve" == Read_String(distribution, "mode"))
+    {
+        const auto keysIter = payload->find("keys");
+        return Clamp_Color(keysIter != payload->end() ? Evaluate_ColorConstantCurve(*keysIter, 1.f, fallbackValue) : fallbackValue);
+    }
+
+    return Evaluate_ColorDistributionMax(distribution, fallbackValue);
+}
+
+float EffectAssetRuntimeLoader::Evaluate_ColorOverLifeEndpointAlphaMin(const json& distribution, float fallbackValue)
+{
+    const json* payload = Find_DistributionPayload(distribution);
+    if (nullptr == payload)
+        return fallbackValue;
+
+    if ("ConstantCurve" == Read_String(distribution, "mode"))
+    {
+        const auto keysIter = payload->find("keys");
+        return keysIter != payload->end() ? Evaluate_FloatConstantCurve(*keysIter, 1.f, fallbackValue) : fallbackValue;
+    }
+
+    return Evaluate_FloatDistributionMin(distribution, fallbackValue);
+}
+
+float EffectAssetRuntimeLoader::Evaluate_ColorOverLifeEndpointAlphaMax(const json& distribution, float fallbackValue)
+{
+    const json* payload = Find_DistributionPayload(distribution);
+    if (nullptr == payload)
+        return fallbackValue;
+
+    if ("ConstantCurve" == Read_String(distribution, "mode"))
+    {
+        const auto keysIter = payload->find("keys");
+        return keysIter != payload->end() ? Evaluate_FloatConstantCurve(*keysIter, 1.f, fallbackValue) : fallbackValue;
+    }
+
+    return Evaluate_FloatDistributionMax(distribution, fallbackValue);
+}
+
 void EffectAssetRuntimeLoader::Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value)
 {
     switch (index)
@@ -1264,17 +1324,17 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         const auto colorIter = colorOverLife->find("colorOverLife");
         if (colorIter != colorOverLife->end())
         {
-            desc.colorOverLife.endColorMin = Evaluate_ColorDistributionMin(*colorIter, desc.colorOverLife.endColorMin);
-            desc.colorOverLife.endColorMax = Evaluate_ColorDistributionMax(*colorIter, desc.colorOverLife.endColorMax);
+            desc.colorOverLife.endColorMin = Evaluate_ColorOverLifeEndpointColorMin(*colorIter, desc.colorOverLife.endColorMin);
+            desc.colorOverLife.endColorMax = Evaluate_ColorOverLifeEndpointColorMax(*colorIter, desc.colorOverLife.endColorMax);
         }
 
         const auto alphaIter = colorOverLife->find("alphaOverLife");
         if (alphaIter != colorOverLife->end())
         {
             desc.colorOverLife.endColorMin.w =
-                clamp(Evaluate_FloatDistributionMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
+                clamp(Evaluate_ColorOverLifeEndpointAlphaMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
             desc.colorOverLife.endColorMax.w =
-                clamp(Evaluate_FloatDistributionMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
+                clamp(Evaluate_ColorOverLifeEndpointAlphaMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
         }
     }
 
@@ -1491,17 +1551,17 @@ bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter,
         const auto colorIter = colorOverLife->find("colorOverLife");
         if (colorIter != colorOverLife->end())
         {
-            desc.colorOverLife.endColorMin = Evaluate_ColorDistributionMin(*colorIter, desc.colorOverLife.endColorMin);
-            desc.colorOverLife.endColorMax = Evaluate_ColorDistributionMax(*colorIter, desc.colorOverLife.endColorMax);
+            desc.colorOverLife.endColorMin = Evaluate_ColorOverLifeEndpointColorMin(*colorIter, desc.colorOverLife.endColorMin);
+            desc.colorOverLife.endColorMax = Evaluate_ColorOverLifeEndpointColorMax(*colorIter, desc.colorOverLife.endColorMax);
         }
 
         const auto alphaIter = colorOverLife->find("alphaOverLife");
         if (alphaIter != colorOverLife->end())
         {
             desc.colorOverLife.endColorMin.w =
-                clamp(Evaluate_FloatDistributionMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
+                clamp(Evaluate_ColorOverLifeEndpointAlphaMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
             desc.colorOverLife.endColorMax.w =
-                clamp(Evaluate_FloatDistributionMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
+                clamp(Evaluate_ColorOverLifeEndpointAlphaMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
         }
     }
 
