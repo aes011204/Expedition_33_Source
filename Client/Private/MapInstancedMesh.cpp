@@ -1,4 +1,4 @@
-#include "MapInstancedMesh.h"
+﻿#include "MapInstancedMesh.h"
 #include "GameInstance.h"
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
@@ -98,6 +98,7 @@ void MapInstancedMesh::Late_Update(float timeDelta)
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT MapInstancedMesh::Render()
@@ -427,6 +428,40 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
 
             _context->UpdateSubresource(_indirectArgsBuffers[i].Get(), 0, nullptr, args, 0, 0);
         }
+    }
+
+    return S_OK;
+}
+
+HRESULT MapInstancedMesh::Render_Shadow()
+{
+    if (_shader == nullptr || _model == nullptr || _transformCom == nullptr)
+    {
+        return S_OK;
+    }
+
+    if (FAILED(_shader->Bind_ObjectCB(_transformCom->Get_WorldMatrix())))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(GAME->Bind_ShadowCB(_shader)))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(_shader->Reset_DrawFeatures()))
+    {
+        return E_FAIL;
+    }
+
+    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        if (FAILED(_shader->Begin(1)))
+            return E_FAIL;
+        _model->Render(i);
     }
 
     return S_OK;

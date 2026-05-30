@@ -1943,9 +1943,9 @@ HRESULT GameInstance::Ready_AllRenderTargets()
 }
 
 HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
-                                       const Color& clearColor, bool resizeWithViewport, bool useDSV)
+                                       const Color& clearColor, bool resizeWithViewport, bool useDSV, uint32 arraySize)
 {
-    return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport, useDSV);
+    return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport, useDSV, arraySize);
 }
 
 HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
@@ -1953,9 +1953,9 @@ HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
     return _targetManager->Add_MRT(mrtTag, targetTag);
 }
 
-HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV)
+HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV, uint32 arraySlice)
 {
-    return _targetManager->Begin_MRT(mrtTag, useDSV, clearRTV);
+    return _targetManager->Begin_MRT(mrtTag, useDSV, clearRTV, arraySlice);
 }
 
 HRESULT GameInstance::End_MRT()
@@ -2511,6 +2511,30 @@ HRESULT GameInstance::Bind_StaticShadowCB(Shared<ShaderCom> shader)
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Bind_StaticShadowCB(shader);
+}
+
+HRESULT GameInstance::Set_ActiveShadowCascade(uint32 cascadeIndex)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Set_ActiveCascade(cascadeIndex);
+}
+
+void GameInstance::Set_ActiveStaticShadow()
+{
+    CHECK_NULL(_shadow);
+    _shadow->Set_ActiveStaticShadow();
+}
+
+void GameInstance::Set_ShadowEnabled(bool enabled)
+{
+    CHECK_NULL(_renderer);
+    _renderer->Set_ShadowEnabled(enabled);
+}
+
+uint32 GameInstance::Get_ShadowCascadeCount() const
+{
+    CHECK_NULL(_shadow, 0u);
+    return _shadow->Get_CascadeCount();
 }
 
 HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)

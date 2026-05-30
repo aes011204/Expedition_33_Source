@@ -393,10 +393,10 @@ public: /* For.TypeRegistry */
 
 public : /* For.Target_Manager */
     HRESULT Ready_AllRenderTargets();
-    HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);
+    HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false, uint32 arraySize = 1);
     HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
 
-    HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV = false, bool clearRTV = true);
+    HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV = false, bool clearRTV = true, uint32 arraySlice = 0);
     HRESULT End_MRT();
     HRESULT Resize_MRTs(uint32 width, uint32 height);
     HRESULT Bind_RT_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);
@@ -423,6 +423,10 @@ public: /* For.Shadow */
     HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
     HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
     HRESULT                 Bind_StaticShadowCB(Shared<ShaderCom> shader);
+    HRESULT                 Set_ActiveShadowCascade(uint32 cascadeIndex);
+    void                    Set_ActiveStaticShadow();
+    void                    Set_ShadowEnabled(bool enabled);
+    uint32                  Get_ShadowCascadeCount() const;
 
     HRESULT                 Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc*  Get_ShadowLightDesc() const;

@@ -10,6 +10,7 @@
 
 #define MIN_SSAO_RADIUS 0.05f           // View Space에서 샘플링 반경의 최소값
 #define MIN_SSAO_DEPTH_BIAS  0.0001f    // 같은 표면을 occluder로 오판하지 않도록 최소 depth bias를 보장
+#define SHADOW_DEBUG_MODE 0             // 0: off, 1: dynamic shadow grayscale, 2: cascade color
 
 //==================================================
 // TEXTURE
@@ -21,7 +22,7 @@ Texture2D g_ShadeTexture;
 Texture2D g_AmbientTexture;
 Texture2D g_SpecularTexture;
 Texture2D g_DepthTexture;
-Texture2D g_LightDepthTexture;
+Texture2DArray g_LightDepthTexture;
 Texture2D g_MaterialTexture;
 Texture2D g_EmissiveTexture;
 Texture2D g_StaticLightDepthTexture;
@@ -61,29 +62,118 @@ float4 Reconstruct_WorldPos(float2 Texcoord)
     return WorldPos;
 }
 
-float SampleShadowAmount(Texture2D shadowTexture, float4 worldPos, float4x4 lightView, float4x4 lightProj, float bias)
+float SampleShadowMapPCF(Texture2DArray shadowTexture, float2 shadowUV, float currentDepth, uint cascadeIndex, float bias)
 {
-    float4 shadowPos = mul(worldPos, lightView); // world -> view
-    shadowPos = mul(shadowPos, lightProj); // view -> clip
+    uint shadowWidth, shadowHeight, shadowLayers;
+    shadowTexture.GetDimensions(shadowWidth, shadowHeight, shadowLayers);
 
-    //-1 ~ 1 -> 0 ~ 1
-    float2 shadowUV;
+    float2 shadowTexel = 1.f / float2(max(1u, shadowWidth), max(1u, shadowHeight));
+    float shadowAmount = 0.f;
+
+    // 3x3 PCF로 샘플링
+    [unroll]
+    for (int y = -1; y <= 1; ++y)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            float2 sampleUV = shadowUV + float2(x, y) * shadowTexel;
+            float storedDepth = shadowTexture.Sample(PointClampSampler, float3(sampleUV, cascadeIndex)).x;
+            shadowAmount += (storedDepth + bias < currentDepth) ? 1.f : 0.f;
+        }
+    }
+
+    return shadowAmount / 9.f;
+}
+
+// worldPos를 빛 기준 좌표로 변환하여 shadow map에서 샘플링할 UV와 현재 깊이를 계산한다.
+bool ComputeShadowCoords(float4 worldPos, row_major float4x4 lightView, row_major float4x4 lightProj, out float2 shadowUV, out float currentDepth)
+{
+    float4 shadowPos = mul(worldPos, lightView);
+    shadowPos = mul(shadowPos, lightProj);
+
+    // -> NDC space
     shadowUV.x = (shadowPos.x / shadowPos.w) * 0.5f + 0.5f;
     shadowUV.y = (shadowPos.y / shadowPos.w) * -0.5f + 0.5f;
+    currentDepth = shadowPos.z / shadowPos.w;
 
-    float currentDepth = shadowPos.z / shadowPos.w;
+    return shadowPos.w > 0.f && all(shadowUV >= 0.f) && all(shadowUV <= 1.f);
+}
 
-    // 범위 밖이면 그림자 없음 처리
-    if (shadowPos.w <= 0.f || any(shadowUV < 0.f) || any(shadowUV > 1.f))
+// 현재 픽셀이 몇 번째 cascade에 속하는지 선택한다. viewDepth는 view space에서의 z값이다.
+uint SelectShadowCascade(float viewDepth)
+{
+    const uint cascadeCount = max(1u, g_ShadowCascadeCount);
+
+    [loop]
+    for (uint cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+    {
+        if (viewDepth <= g_CascadeSplits[cascadeIndex])
+            return cascadeIndex;
+    }
+
+    return cascadeCount - 1u;
+}
+
+// 현재 픽셀이 몇 번째 Cascade에 속하는지 선택한 뒤, 해당 Cascade의 shadow map에서 PCF로 그림자 양을 샘플링한다.
+// 또한, Cascade Blending이 켜져 있다면 다음 Cascade에서도 샘플링하여 두 값을 블렌딩한다. (경계를 완화하기 위함)
+float SampleDynamicShadowAmount(float4 worldPos, float viewDepth)
+{
+    uint cascadeIndex = SelectShadowCascade(viewDepth);
+
+    float2 shadowUV = 0.f;
+    float shadowDepth = 0.f;
+    if (!ComputeShadowCoords(worldPos, g_CascadeLightViewMatrices[cascadeIndex], g_CascadeLightProjMatrices[cascadeIndex], shadowUV, shadowDepth))
+        return 0.f;
+
+    float shadowAmount = SampleShadowMapPCF(g_LightDepthTexture, shadowUV, shadowDepth, cascadeIndex, g_Bias);
+
+    // cascade 경계 근처면 다음 cascade와 blend
+    const uint cascadeCount = max(1u, g_ShadowCascadeCount);
+    if (cascadeIndex + 1u < cascadeCount && g_CascadeBlendDistance > 0.f)
+    {
+        const float cascadeFar = g_CascadeSplits[cascadeIndex];
+        const float blendStart = max(0.f, cascadeFar - g_CascadeBlendDistance);
+        const float blendFactor = saturate((viewDepth - blendStart) / max(g_CascadeBlendDistance, 0.0001f));
+
+        if (blendFactor > 0.f)
+        {
+            float2 nextShadowUV = 0.f;
+            float nextShadowDepth = 0.f;
+            if (ComputeShadowCoords(worldPos, g_CascadeLightViewMatrices[cascadeIndex + 1u], g_CascadeLightProjMatrices[cascadeIndex + 1u], nextShadowUV, nextShadowDepth))
+            {
+                const float nextShadowAmount =
+                    SampleShadowMapPCF(g_LightDepthTexture, nextShadowUV, nextShadowDepth, cascadeIndex + 1u, g_Bias);
+                shadowAmount = lerp(shadowAmount, nextShadowAmount, blendFactor);
+            }
+        }
+    }
+
+    return shadowAmount;
+}
+
+float3 GetCascadeDebugColor(uint cascadeIndex)
+{
+    switch (cascadeIndex)
+    {
+    case 0u: return float3(1.f, 0.25f, 0.25f);
+    case 1u: return float3(0.25f, 1.f, 0.25f);
+    case 2u: return float3(0.25f, 0.6f, 1.f);
+    default: return float3(1.f, 0.9f, 0.25f);
+    }
+}
+
+float SampleStaticShadowAmount(Texture2D shadowTexture, float4 worldPos, float4x4 lightView, float4x4 lightProj, float bias)
+{
+    float2 shadowUV = 0.f;
+    float shadowDepth = 0.f;
+    if (!ComputeShadowCoords(worldPos, lightView, lightProj, shadowUV, shadowDepth))
         return 0.f;
 
     uint shadowWidth, shadowHeight;
     shadowTexture.GetDimensions(shadowWidth, shadowHeight);
 
     float2 shadowTexel = 1.f / float2(max(1u, shadowWidth), max(1u, shadowHeight));
-
-    // 0이면 그림자 없음, 1이면 완전 그림자.
-    // 3x3 PCF 결과를 누적해서 부드럽게 만든다.
     float shadowAmount = 0.f;
 
     [unroll]
@@ -93,18 +183,17 @@ float SampleShadowAmount(Texture2D shadowTexture, float4 worldPos, float4x4 ligh
         for (int x = -1; x <= 1; ++x)
         {
             float2 sampleUV = shadowUV + float2(x, y) * shadowTexel;
-
-            // shadow map에 저장된 depth.
             float storedDepth = shadowTexture.Sample(PointClampSampler, sampleUV).x;
-            shadowAmount += (storedDepth + bias < currentDepth) ? 1.f : 0.f;
+            shadowAmount += (storedDepth + bias < shadowDepth) ? 1.f : 0.f;
         }
     }
 
-    // 9번 샘플 중 몇 개가 그림자인지 평균낸다.
-    // 0.0 = 그림자 없음, 1.0 = 완전 그림자, 중간값 = 경계가 부드러운 그림자.
     return shadowAmount / 9.f;
 }
 
+// ==================================================
+// SSAO 계산을 위한 유틸리티 함수들
+// ==================================================
 // hemisphere sample kernel
 static const float3 SSAOKernel[16] =
 {

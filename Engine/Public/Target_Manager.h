@@ -19,6 +19,7 @@ private :
         Color                   clearColor;
         bool                    hasDepth = false;
         bool                    resizeWithViewport = true;
+        uint32                  arraySize = 1;
     };
 
 public :
@@ -29,11 +30,11 @@ public :
     HRESULT Ready_AllRenderTargets();
 
     HRESULT Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY,
-        DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false);
+        DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport = true, bool useDSV = false, uint32 arraySize = 1);
     HRESULT Add_MRT(const wstring& mrtTag, const wstring& targetTag);
 
     HRESULT Bind_ShaderResource(Shared<ShaderCom> shader, const char* constantName, const wstring& targetTag);
-    HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV);
+    HRESULT Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV, uint32 arraySlice = 0);
     HRESULT End_MRT();
 
     HRESULT Resize_MRTs(uint32 width, uint32 height);
