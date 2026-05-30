@@ -910,6 +910,18 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     materialDesc.alphaCutoff = Read_Float(material, "alphaCutoff", materialDesc.alphaCutoff);
     materialDesc.alphaErosion = Read_Float(material, "alphaErosion", materialDesc.alphaErosion);
 
+    if (const auto coreEmissiveIter = material.find("coreEmissive"); coreEmissiveIter != material.end() && coreEmissiveIter->is_object())
+    {
+        const json& coreEmissive = *coreEmissiveIter;
+        materialDesc.coreEmissive.enabled = Read_Bool(coreEmissive, "enabled", materialDesc.coreEmissive.enabled);
+        if (const auto coreColorIter = coreEmissive.find("coreColor"); coreColorIter != coreEmissive.end())
+            Read_Color(*coreColorIter, materialDesc.coreEmissive.coreColor);
+        materialDesc.coreEmissive.corePower = Read_Float(coreEmissive, "corePower", materialDesc.coreEmissive.corePower);
+        materialDesc.coreEmissive.coreIntensity = Read_Float(coreEmissive, "coreIntensity", materialDesc.coreEmissive.coreIntensity);
+        materialDesc.coreEmissive.outerPower = Read_Float(coreEmissive, "outerPower", materialDesc.coreEmissive.outerPower);
+        materialDesc.coreEmissive.outerIntensity = Read_Float(coreEmissive, "outerIntensity", materialDesc.coreEmissive.outerIntensity);
+    }
+
     if (const auto mainUVOffsetIter = material.find("mainUVOffset"); mainUVOffsetIter != material.end())
         Read_Vec2(*mainUVOffsetIter, materialDesc.mainUVOffset);
 

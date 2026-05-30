@@ -301,6 +301,23 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.flowUVTilingMode = read_uv_tiling_mode("flowUVTilingMode", defaultMaterial.flowUVTilingMode);
     material.blendMode = read_blend_mode("blendMode", defaultMaterial.blendMode);
     material.opacitySource = read_string("opacitySource", defaultMaterial.opacitySource);
+
+    if (const auto coreEmissiveIter = root.find("coreEmissive"); coreEmissiveIter != root.end() && coreEmissiveIter->is_object())
+    {
+        const json& coreEmissive = *coreEmissiveIter;
+        material.coreEmissive.enabled = coreEmissive.value("enabled", defaultMaterial.coreEmissive.enabled);
+        if (const auto coreColorIter = coreEmissive.find("coreColor"); coreColorIter != coreEmissive.end())
+            material.coreEmissive.coreColor = read_color_node(*coreColorIter, defaultMaterial.coreEmissive.coreColor);
+        if (const auto corePowerIter = coreEmissive.find("corePower"); corePowerIter != coreEmissive.end() && corePowerIter->is_number())
+            material.coreEmissive.corePower = corePowerIter->get<float>();
+        if (const auto coreIntensityIter = coreEmissive.find("coreIntensity"); coreIntensityIter != coreEmissive.end() && coreIntensityIter->is_number())
+            material.coreEmissive.coreIntensity = coreIntensityIter->get<float>();
+        if (const auto outerPowerIter = coreEmissive.find("outerPower"); outerPowerIter != coreEmissive.end() && outerPowerIter->is_number())
+            material.coreEmissive.outerPower = outerPowerIter->get<float>();
+        if (const auto outerIntensityIter = coreEmissive.find("outerIntensity"); outerIntensityIter != coreEmissive.end() && outerIntensityIter->is_number())
+            material.coreEmissive.outerIntensity = outerIntensityIter->get<float>();
+    }
+
     material.refractionIntensity = read_float("refractionIntensity", defaultMaterial.refractionIntensity);
     material.refractionPresence = read_float("refractionPresence", defaultMaterial.refractionPresence);
     material.distortionShapeMode = read_distortion_shape_mode("distortionShapeMode", defaultMaterial.distortionShapeMode);

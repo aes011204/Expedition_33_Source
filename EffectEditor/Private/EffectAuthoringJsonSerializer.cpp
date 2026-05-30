@@ -214,6 +214,44 @@ namespace Internal
             Is_SameColor(data.constantColor, defaultData.constantColor);
     }
 
+    bool Is_DefaultCoreEmissive(const EffectMaterialCoreEmissiveData& data)
+    {
+        const EffectMaterialCoreEmissiveData defaultData{};
+        return
+            data.enabled == defaultData.enabled &&
+            Is_SameColor(data.coreColor, defaultData.coreColor) &&
+            data.corePower == defaultData.corePower &&
+            data.coreIntensity == defaultData.coreIntensity &&
+            data.outerPower == defaultData.outerPower &&
+            data.outerIntensity == defaultData.outerIntensity;
+    }
+
+    json To_Json(const EffectMaterialCoreEmissiveData& data)
+    {
+        json root = json::object();
+        root["enabled"] = data.enabled;
+        root["coreColor"] = To_Json(data.coreColor);
+        root["corePower"] = data.corePower;
+        root["coreIntensity"] = data.coreIntensity;
+        root["outerPower"] = data.outerPower;
+        root["outerIntensity"] = data.outerIntensity;
+        return root;
+    }
+
+    void From_Json(const json& root, EffectMaterialCoreEmissiveData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_BoolField(root, "enabled", outData.enabled);
+        if (const auto coreColorIter = root.find("coreColor"); coreColorIter != root.end())
+            Read_Color(*coreColorIter, outData.coreColor);
+        Read_NumberField(root, "corePower", outData.corePower);
+        Read_NumberField(root, "coreIntensity", outData.coreIntensity);
+        Read_NumberField(root, "outerPower", outData.outerPower);
+        Read_NumberField(root, "outerIntensity", outData.outerIntensity);
+    }
+
     json To_Json(const EffectMaterialAdditiveContributionData& data)
     {
         json root = json::object();
@@ -391,6 +429,8 @@ namespace Internal
         root["opacitySource"] = data.opacitySource;
         if (data.blendMode == EffectMaterialBlendMode::Additive || !Is_DefaultAdditiveContribution(data.additive))
             root["additive"] = To_Json(data.additive);
+        if (!Is_DefaultCoreEmissive(data.coreEmissive))
+            root["coreEmissive"] = To_Json(data.coreEmissive);
         root["refractionIntensity"] = data.refractionIntensity;
         root["refractionPresence"] = data.refractionPresence;
         root["distortionShapeMode"] = To_EnumToken(data.distortionShapeMode);
@@ -449,6 +489,8 @@ namespace Internal
         Read_StringField(root, "opacitySource", outData.opacitySource);
         if (const auto additiveIter = root.find("additive"); additiveIter != root.end())
             From_Json(*additiveIter, outData.additive);
+        if (const auto coreEmissiveIter = root.find("coreEmissive"); coreEmissiveIter != root.end())
+            From_Json(*coreEmissiveIter, outData.coreEmissive);
         Read_BoolField(root, "twoSided", outData.twoSided);
         Read_NumberField(root, "subUVRows", outData.subUVRows);
         Read_NumberField(root, "subUVCols", outData.subUVCols);

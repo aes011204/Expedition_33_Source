@@ -695,6 +695,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.flowUVTilingMode = material.flowUVTilingMode;
 
         desc.required.material.additive = material.additive;
+        desc.required.material.coreEmissive = material.coreEmissive;
         desc.required.material.refractionIntensity = material.refractionIntensity;
         desc.required.material.refractionPresence = material.refractionPresence;
         desc.required.material.distortionShapeMode = material.distortionShapeMode;
@@ -1017,6 +1018,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         emitterDesc.material.flowUVTilingMode = material.flowUVTilingMode;
 
         emitterDesc.material.additive = material.additive;
+        emitterDesc.material.coreEmissive = material.coreEmissive;
         emitterDesc.material.refractionIntensity = material.refractionIntensity;
         emitterDesc.material.refractionPresence = material.refractionPresence;
         emitterDesc.material.distortionShapeMode = material.distortionShapeMode;

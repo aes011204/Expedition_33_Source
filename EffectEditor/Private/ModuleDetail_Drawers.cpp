@@ -285,6 +285,12 @@ namespace Internal
             lhs.blendMode == rhs.blendMode &&
             lhs.opacitySource == rhs.opacitySource &&
             Is_SameAdditiveContribution(lhs.additive, rhs.additive) &&
+            lhs.coreEmissive.enabled == rhs.coreEmissive.enabled &&
+            Is_SameColor(lhs.coreEmissive.coreColor, rhs.coreEmissive.coreColor) &&
+            NearlyEqual(lhs.coreEmissive.corePower, rhs.coreEmissive.corePower) &&
+            NearlyEqual(lhs.coreEmissive.coreIntensity, rhs.coreEmissive.coreIntensity) &&
+            NearlyEqual(lhs.coreEmissive.outerPower, rhs.coreEmissive.outerPower) &&
+            NearlyEqual(lhs.coreEmissive.outerIntensity, rhs.coreEmissive.outerIntensity) &&
             lhs.twoSided == rhs.twoSided &&
             lhs.subUVRows == rhs.subUVRows &&
             lhs.subUVCols == rhs.subUVCols;

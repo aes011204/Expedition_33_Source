@@ -8,7 +8,7 @@
 cbuffer cbEffectTrailMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectTrailParams = { 1.f, 1.f, 0.f, 0.f };             // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectTrailParams = { 1.f, 1.f, 0.f, 0.f };             // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
     float4 g_EffectTrailAlphaParams = { 0.f, 0.f, 0.f, 0.f };        // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
     float4 g_EffectTrailMainUVParams = { 1.f, 1.f, 0.f, 0.f };       // xy: scale, zw: scroll speed
     float4 g_EffectTrailNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };      // xy: scale, zw: scroll speed
@@ -328,8 +328,8 @@ PS_OUT PS_ADDITIVE(PS_IN In)
         g_EffectTrailAdditiveConstantColor,
         colorSource
     );
-    const float intensity = max(g_EffectTrailParams.x, 0.f) * max(g_EffectTrailAdditiveParams.w, 0.f);
-    const float3 contribution = materialColor * segmentColor.rgb * energyVariation * policyAmount * intensity * blackGate;
+    const float additiveEnergyScalar = max(g_EffectTrailParams.x, 0.f) * max(g_EffectTrailAdditiveParams.w, 0.f);
+    const float3 contribution = materialColor * segmentColor.rgb * energyVariation * policyAmount * additiveEnergyScalar * blackGate;
     Out.color = float4(contribution, 1.f);
     return Out;
 }

@@ -9,7 +9,7 @@
 cbuffer cbEffectSpriteMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f };         // x: emissive-like intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f };         // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
     float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f };    // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
     float4 g_EffectSpriteMainUVParams = { 1.f, 1.f, 0.f, 0.f };   // xy: scale, zw: scroll speed
     float4 g_EffectSpriteNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };
@@ -21,6 +21,8 @@ cbuffer cbEffectSpriteMaterial : register(b2)
     float4 g_EffectSpriteAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };   // x: blackNeutral
+    float4 g_EffectSpriteCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f }; // x: enabled, y: corePower, z: coreIntensity, w: outerPower
+    float4 g_EffectSpriteCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f }; // rgb: coreColor, a: outerIntensity
     float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f }; // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
     int g_OpacitySource = 0;
     float g_EffectSpriteMaterialTime = 0.f;
@@ -342,7 +344,13 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
         maskAlpha = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
-    surface.color = symbol.rgb * particleColor.rgb * g_Tint.rgb * noiseFactor;
+    const float3 baseColor = Effect_ApplyCoreEmissiveShaping(
+        symbol.rgb * particleColor.rgb * g_Tint.rgb,
+        g_EffectSpriteCoreEmissiveColor,
+        selectedOpacity,
+        g_EffectSpriteCoreEmissiveParams
+    );
+    surface.color = baseColor * noiseFactor;
     surface.coverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, particleColor.a * g_Tint.a);
 
     if (surface.coverage < max(alphaCutoff, 0.01f))
@@ -396,6 +404,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const int colorSource = (int)g_EffectSpriteAdditiveParams.x;
     const int amountSource = (int)g_EffectSpriteAdditiveParams.y;
     const int coveragePolicy = (int)g_EffectSpriteAdditiveParams.z;
+    const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
     const float amount = Effect_SelectAdditiveAmount(symbol, maskAlpha, amountSource);
     const float policyAmount = Effect_ResolveAdditivePolicyAmount(amount, coverageBase, coveragePolicy);
     const float discardSource = Effect_ResolveAdditiveDiscardSource(amount, coverageBase, coveragePolicy);
@@ -411,8 +420,14 @@ PS_OUT PS_ADDITIVE(PS_IN In)
         g_EffectSpriteAdditiveConstantColor,
         colorSource
     );
-    const float intensity = max(g_EffectSpriteParams.x, 0.f) * max(g_EffectSpriteAdditiveParams.w, 0.f);
-    const float3 contribution = materialColor * particleColor.rgb * noiseFactor * policyAmount * intensity * blackGate;
+    const float3 shapedMaterialColor = Effect_ApplyCoreEmissiveShaping(
+        materialColor * particleColor.rgb,
+        g_EffectSpriteCoreEmissiveColor,
+        selectedOpacity,
+        g_EffectSpriteCoreEmissiveParams
+    );
+    const float additiveEnergyScalar = max(g_EffectSpriteParams.x, 0.f) * max(g_EffectSpriteAdditiveParams.w, 0.f);
+    const float3 contribution = shapedMaterialColor * noiseFactor * policyAmount * additiveEnergyScalar * blackGate;
     Out.color = float4(contribution, 1.f);
     if (g_EffectInfluenceDebugParams.x > 0.5f)
     {
