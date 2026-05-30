@@ -294,6 +294,26 @@ void MELandscapeManager::Add_LandscapeLayer(int32 idx, const WCHAR* path)
     _scene->_landscapes[idx]->Add_LayerTexture(wstring(path));
 }
 
+void MELandscapeManager::Remove_LandscapeLayer(int32 landscapeIdx, uint32 layerIdx)
+{
+    if (landscapeIdx < 0 || landscapeIdx >= static_cast<int32>(_scene->_landscapes.size()))
+    {
+        return;
+    }
+
+    _scene->_landscapes[landscapeIdx]->Remove_LayerTexture(layerIdx);
+}
+
+void MELandscapeManager::Set_LandscapeBaseLayer(int32 landscapeIdx, uint32 layerIdx)
+{
+    if (landscapeIdx < 0 || landscapeIdx >= static_cast<int32>(_scene->_landscapes.size()))
+    {
+        return;
+    }
+
+    _scene->_landscapes[landscapeIdx]->Set_BaseLayer(layerIdx);
+}
+
 void MELandscapeManager::Modify_Landscape(int32 idx, const LandscapeConfig& cfg)
 {
     if (idx < 0 || idx >= static_cast<int32>(_scene->_landscapes.size()))

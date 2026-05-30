@@ -48,6 +48,9 @@ private:
 
     wstring _layerPaths[MAX_LAYERS];
 
+    ComPtr<ID3D11Texture2D> _dummyWeightTex;
+    ComPtr<ID3D11ShaderResourceView> _dummyWeightSRV;
+
 private:
     HRESULT Bind_ShaderResources();
 
@@ -55,6 +58,8 @@ public:
     HRESULT Add_LayerTexture(const wstring& texturePath);
     void Flush_WeightMap(uint32 layerIdx);
     void Clear_Layers();
+    void Remove_LayerTexture(uint32 idx);
+    void Set_BaseLayer(uint32 idx);
 
 public:
     static Shared<MELandscapeActor> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const VIBuffer_Landscape::LAND_DESC& desc);
