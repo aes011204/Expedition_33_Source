@@ -853,6 +853,29 @@ HRESULT ComputeTrailEmitter::Update_ComputeConstants()
     params.sideFade = _desc.sideFade;
     params.startColor = Internal::Average_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax);
     params.endColor = Internal::Average_Color(_desc.colorOverLife.endColorMin, _desc.colorOverLife.endColorMax);
+    const PointParticleColorOverLifeCurveDesc& colorCurve = _desc.colorOverLife.curve;
+    params.colorOverLifeCurveParams = Vec4{
+        static_cast<float>(max(1u, min(4u, colorCurve.colorCurveKeyCount))),
+        static_cast<float>(max(1u, min(4u, colorCurve.alphaCurveKeyCount))),
+        colorCurve.colorCurveEnabled ? 1.f : 0.f,
+        colorCurve.alphaCurveEnabled ? 1.f : 0.f
+    };
+    params.colorOverLifeColorCurveTimes = colorCurve.colorCurveTimes;
+    params.colorOverLifeColorCurveValuesR = colorCurve.colorCurveValuesR;
+    params.colorOverLifeColorCurveValuesG = colorCurve.colorCurveValuesG;
+    params.colorOverLifeColorCurveValuesB = colorCurve.colorCurveValuesB;
+    params.colorOverLifeColorCurveArriveR = colorCurve.colorCurveArriveR;
+    params.colorOverLifeColorCurveArriveG = colorCurve.colorCurveArriveG;
+    params.colorOverLifeColorCurveArriveB = colorCurve.colorCurveArriveB;
+    params.colorOverLifeColorCurveLeaveR = colorCurve.colorCurveLeaveR;
+    params.colorOverLifeColorCurveLeaveG = colorCurve.colorCurveLeaveG;
+    params.colorOverLifeColorCurveLeaveB = colorCurve.colorCurveLeaveB;
+    params.colorOverLifeColorCurveModes = colorCurve.colorCurveModes;
+    params.colorOverLifeAlphaCurveTimes = colorCurve.alphaCurveTimes;
+    params.colorOverLifeAlphaCurveValues = colorCurve.alphaCurveValues;
+    params.colorOverLifeAlphaCurveArrive = colorCurve.alphaCurveArrive;
+    params.colorOverLifeAlphaCurveLeave = colorCurve.alphaCurveLeave;
+    params.colorOverLifeAlphaCurveModes = colorCurve.alphaCurveModes;
     params.sizeByLifeParams = Vec4{
         _desc.sizeByLife.multiplyXStart,
         _desc.sizeByLife.multiplyXEnd,

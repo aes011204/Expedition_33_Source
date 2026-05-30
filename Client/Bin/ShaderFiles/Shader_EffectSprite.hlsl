@@ -401,7 +401,8 @@ PS_OUT PS_ADDITIVE(PS_IN In)
         maskAlpha = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
-    const float coverageBase = saturate(maskCoverage * noiseFactor * particleColor.a * g_Tint.a);
+    const float coverageBase = saturate(maskCoverage * noiseFactor);
+    const float additiveLifeAlpha = saturate(particleColor.a * g_Tint.a);
     const int colorSource = (int)g_EffectSpriteAdditiveParams.x;
     const int amountSource = (int)g_EffectSpriteAdditiveParams.y;
     const int coveragePolicy = (int)g_EffectSpriteAdditiveParams.z;
@@ -428,7 +429,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
         g_EffectSpriteCoreEmissiveParams
     );
     const float additiveEnergyScalar = max(g_EffectSpriteParams.x, 0.f) * max(g_EffectSpriteAdditiveParams.w, 0.f);
-    const float3 contribution = shapedMaterialColor * noiseFactor * policyAmount * additiveEnergyScalar * blackGate;
+    const float3 contribution = shapedMaterialColor * noiseFactor * policyAmount * additiveEnergyScalar * blackGate * additiveLifeAlpha;
     Out.color = float4(contribution, 1.f);
     if (g_EffectInfluenceDebugParams.x > 0.5f)
     {

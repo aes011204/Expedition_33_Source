@@ -306,6 +306,101 @@ namespace Internal
         Set_SubUVFrameCurveComponent(desc.rotationRateScaleByLifeCurveValues, index, value);
     }
 
+    float To_RuntimeCurveInterpolationMode(FloatCurveInterpolationMode mode)
+    {
+        switch (mode)
+        {
+        case FloatCurveInterpolationMode::Constant:
+            return 0.f;
+        case FloatCurveInterpolationMode::CurveAutoClamped:
+            return 2.f;
+        case FloatCurveInterpolationMode::Linear:
+        default:
+            return 1.f;
+        }
+    }
+
+    void Fill_ColorOverLifeColorCurveComponent(
+        PointParticleColorOverLifeCurveDesc& desc,
+        uint32 index,
+        const ColorCurveKeyData& key)
+    {
+        Set_SubUVFrameCurveComponent(desc.colorCurveTimes, index, clamp(key.time, 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.colorCurveValuesR, index, key.value.R());
+        Set_SubUVFrameCurveComponent(desc.colorCurveValuesG, index, key.value.G());
+        Set_SubUVFrameCurveComponent(desc.colorCurveValuesB, index, key.value.B());
+        Set_SubUVFrameCurveComponent(desc.colorCurveArriveR, index, key.arriveTangent.R());
+        Set_SubUVFrameCurveComponent(desc.colorCurveArriveG, index, key.arriveTangent.G());
+        Set_SubUVFrameCurveComponent(desc.colorCurveArriveB, index, key.arriveTangent.B());
+        Set_SubUVFrameCurveComponent(desc.colorCurveLeaveR, index, key.leaveTangent.R());
+        Set_SubUVFrameCurveComponent(desc.colorCurveLeaveG, index, key.leaveTangent.G());
+        Set_SubUVFrameCurveComponent(desc.colorCurveLeaveB, index, key.leaveTangent.B());
+        Set_SubUVFrameCurveComponent(desc.colorCurveModes, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+    }
+
+    void Fill_ColorOverLifeAlphaCurveComponent(
+        PointParticleColorOverLifeCurveDesc& desc,
+        uint32 index,
+        const FloatCurveKeyData& key)
+    {
+        Set_SubUVFrameCurveComponent(desc.alphaCurveTimes, index, clamp(key.time, 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.alphaCurveValues, index, key.value);
+        Set_SubUVFrameCurveComponent(desc.alphaCurveArrive, index, key.arriveTangent);
+        Set_SubUVFrameCurveComponent(desc.alphaCurveLeave, index, key.leaveTangent);
+        Set_SubUVFrameCurveComponent(desc.alphaCurveModes, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+    }
+
+    void Fill_ColorOverLifeCurvePayload(
+        PointParticleColorOverLifeCurveDesc& desc,
+        const ColorOverLifeModuleData& data)
+    {
+        constexpr uint32 maxColorOverLifeCurveKeys{ 4 };
+
+        if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&data.colorOverLife.payload))
+        {
+            vector<ColorCurveKeyData> keys = curve->keys;
+            ranges::sort(keys, {}, &ColorCurveKeyData::time);
+            const uint32 keyCount = min(maxColorOverLifeCurveKeys, static_cast<uint32>(keys.size()));
+            if (keyCount > 0)
+            {
+                desc.colorCurveEnabled = true;
+                desc.colorCurveKeyCount = keyCount;
+                desc.colorCurveTimes = Vec4{};
+                desc.colorCurveValuesR = Vec4{};
+                desc.colorCurveValuesG = Vec4{};
+                desc.colorCurveValuesB = Vec4{};
+                desc.colorCurveArriveR = Vec4{};
+                desc.colorCurveArriveG = Vec4{};
+                desc.colorCurveArriveB = Vec4{};
+                desc.colorCurveLeaveR = Vec4{};
+                desc.colorCurveLeaveG = Vec4{};
+                desc.colorCurveLeaveB = Vec4{};
+                desc.colorCurveModes = Vec4{};
+                for (uint32 index = 0; index < keyCount; ++index)
+                    Fill_ColorOverLifeColorCurveComponent(desc, index, keys[index]);
+            }
+        }
+
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.alphaOverLife.payload))
+        {
+            vector<FloatCurveKeyData> keys = curve->keys;
+            ranges::sort(keys, {}, &FloatCurveKeyData::time);
+            const uint32 keyCount = min(maxColorOverLifeCurveKeys, static_cast<uint32>(keys.size()));
+            if (keyCount > 0)
+            {
+                desc.alphaCurveEnabled = true;
+                desc.alphaCurveKeyCount = keyCount;
+                desc.alphaCurveTimes = Vec4{};
+                desc.alphaCurveValues = Vec4{};
+                desc.alphaCurveArrive = Vec4{};
+                desc.alphaCurveLeave = Vec4{};
+                desc.alphaCurveModes = Vec4{};
+                for (uint32 index = 0; index < keyCount; ++index)
+                    Fill_ColorOverLifeAlphaCurveComponent(desc, index, keys[index]);
+            }
+        }
+    }
+
     void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const FloatDistributionData& frameIndex)
     {
         desc.frameCurveKeyCount = 1;
@@ -924,6 +1019,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
         desc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         desc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+        Internal::Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
     }
 
     if (const auto* subUvFrameOverLife = Internal::Find_ModuleData<SubUVFrameOverLifeModuleData>(emitter, AuthoringModuleType::SubUVFrameOverLife))
@@ -1197,6 +1293,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
 
         emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+        Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
     }
 
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))

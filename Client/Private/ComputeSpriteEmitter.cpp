@@ -675,6 +675,7 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.startColorMax = _desc.initialColor.startColorMax;
     desc.endColorMin = _desc.colorOverLife.endColorMin;
     desc.endColorMax = _desc.colorOverLife.endColorMax;
+    desc.colorOverLifeCurve = _desc.colorOverLife.curve;
     desc.subUVRows = max(1u, _desc.required.material.subUVRows);
     desc.subUVCols = max(1u, _desc.required.material.subUVCols);
     desc.subUvFrameOverLife = _desc.subUVFrameOverLife;

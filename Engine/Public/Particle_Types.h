@@ -123,6 +123,31 @@ struct PointParticleSizeByLifeDesc
     Vec4 curveKeyValuesY{ 1.f, 1.f, 0.f, 0.f };                        // scaleOverLife Y multiplier 값이다.
 };
 
+// ColorOverLife 모듈의 ConstantCurve payload를 compute shader가 평가할 수 있게 압축한 desc다.
+struct PointParticleColorOverLifeCurveDesc
+{
+    bool colorCurveEnabled{ false };             // true면 RGB를 lifeProgress 기준 curve로 평가한다.
+    bool alphaCurveEnabled{ false };             // true면 alpha를 lifeProgress 기준 curve로 평가한다.
+    uint32 colorCurveKeyCount{ 2 };              // RGB compact curve key 수다.
+    uint32 alphaCurveKeyCount{ 2 };              // alpha compact curve key 수다.
+    Vec4 colorCurveTimes{ 0.f, 1.f, 0.f, 0.f };  // RGB key time 0..1 값이다.
+    Vec4 colorCurveValuesR{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 colorCurveValuesG{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 colorCurveValuesB{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 colorCurveArriveR{};
+    Vec4 colorCurveArriveG{};
+    Vec4 colorCurveArriveB{};
+    Vec4 colorCurveLeaveR{};
+    Vec4 colorCurveLeaveG{};
+    Vec4 colorCurveLeaveB{};
+    Vec4 colorCurveModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 alphaCurveTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 alphaCurveValues{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 alphaCurveArrive{};
+    Vec4 alphaCurveLeave{};
+    Vec4 alphaCurveModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+};
+
 // motion 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
 struct PointParticleMotionDesc
 {
@@ -237,6 +262,7 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f };                 // compute sprite preview 시작 색상/알파 상한.
     Vec4 endColorMin{ 1.f, 1.f, 1.f, 1.f };                   // compute sprite preview 종료 색상/알파 하한.
     Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f };                   // compute sprite preview 종료 색상/알파 상한.
+    PointParticleColorOverLifeCurveDesc colorOverLifeCurve{}; // ConstantCurve ColorOverLife payload다.
     Vec2 radius{};                                            // 화면 확인용 원형 이동 반경 범위. authoring 의미로 승격하지 않는다.
     uint32 subUVRows{ 1 };                                    // atlas row 수다.
     uint32 subUVCols{ 1 };                                    // atlas column 수다.

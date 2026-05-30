@@ -42,6 +42,8 @@ private:
     static Vec4 Evaluate_ColorOverLifeEndpointColorMax(const json& distribution, const Vec4& fallbackValue);
     static float Evaluate_ColorOverLifeEndpointAlphaMin(const json& distribution, float fallbackValue);
     static float Evaluate_ColorOverLifeEndpointAlphaMax(const json& distribution, float fallbackValue);
+    static float Resolve_CurveInterpolationMode(const json& key);
+    static void Fill_ColorOverLifeCurvePayload(PointParticleColorOverLifeCurveDesc& desc, const json& colorOverLife);
     static void Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value);
     static void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const json& frameIndex);
     static void Fill_SizeByLifePayload(PointParticleSizeByLifeDesc& desc, const json& sizeByLife);

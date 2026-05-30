@@ -65,6 +65,23 @@ private:
         Vec3 padding{};          // constant buffer 16-byte 정렬 유지용 padding이다.
         Vec4 startColor{};       // InitialColor 모듈에서 낮춘 segment 시작 색상이다.
         Vec4 endColor{};         // ColorOverLife 모듈에서 낮춘 segment 끝 색상이다.
+        Vec4 colorOverLifeCurveParams{};  // x: color key count, y: alpha key count, z/w: enabled flags.
+        Vec4 colorOverLifeColorCurveTimes{};
+        Vec4 colorOverLifeColorCurveValuesR{};
+        Vec4 colorOverLifeColorCurveValuesG{};
+        Vec4 colorOverLifeColorCurveValuesB{};
+        Vec4 colorOverLifeColorCurveArriveR{};
+        Vec4 colorOverLifeColorCurveArriveG{};
+        Vec4 colorOverLifeColorCurveArriveB{};
+        Vec4 colorOverLifeColorCurveLeaveR{};
+        Vec4 colorOverLifeColorCurveLeaveG{};
+        Vec4 colorOverLifeColorCurveLeaveB{};
+        Vec4 colorOverLifeColorCurveModes{};
+        Vec4 colorOverLifeAlphaCurveTimes{};
+        Vec4 colorOverLifeAlphaCurveValues{};
+        Vec4 colorOverLifeAlphaCurveArrive{};
+        Vec4 colorOverLifeAlphaCurveLeave{};
+        Vec4 colorOverLifeAlphaCurveModes{};
         Vec4 sizeByLifeParams{};       // x/y: width start/end, z: enabled, w: reserved.
         Vec4 sizeByLifeCurveTimes{};   // SizeByLife scaleOverLife key times다.
         Vec4 sizeByLifeCurveValuesX{}; // SizeByLife scaleOverLife X multiplier 값이다.

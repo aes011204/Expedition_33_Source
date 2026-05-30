@@ -754,6 +754,115 @@ float EffectAssetRuntimeLoader::Evaluate_ColorOverLifeEndpointAlphaMax(const jso
     return Evaluate_FloatDistributionMax(distribution, fallbackValue);
 }
 
+float EffectAssetRuntimeLoader::Resolve_CurveInterpolationMode(const json& key)
+{
+    const string interpolationMode = Read_String(key, "interpolationMode", "Linear");
+    if ("Constant" == interpolationMode)
+        return 0.f;
+    if ("CurveAutoClamped" == interpolationMode)
+        return 2.f;
+    return 1.f;
+}
+
+void EffectAssetRuntimeLoader::Fill_ColorOverLifeCurvePayload(
+    PointParticleColorOverLifeCurveDesc& desc,
+    const json& colorOverLife)
+{
+    constexpr uint32 maxColorOverLifeCurveKeys{ 4 };
+
+    if (const auto colorIter = colorOverLife.find("colorOverLife"); colorIter != colorOverLife.end())
+    {
+        const json* payload = Find_DistributionPayload(*colorIter);
+        if (payload != nullptr && "ConstantCurve" == Read_String(*colorIter, "mode"))
+        {
+            const auto keysIter = payload->find("keys");
+            if (keysIter != payload->end() && keysIter->is_array() && !keysIter->empty())
+            {
+                vector<const json*> keys{};
+                keys.reserve(keysIter->size());
+                for (const json& key : *keysIter)
+                    keys.push_back(&key);
+                ranges::sort(keys, [](const json* lhs, const json* rhs) { return Read_Float(*lhs, "time") < Read_Float(*rhs, "time"); });
+
+                const uint32 keyCount = min(maxColorOverLifeCurveKeys, static_cast<uint32>(keys.size()));
+                desc.colorCurveEnabled = true;
+                desc.colorCurveKeyCount = keyCount;
+                desc.colorCurveTimes = Vec4{};
+                desc.colorCurveValuesR = Vec4{};
+                desc.colorCurveValuesG = Vec4{};
+                desc.colorCurveValuesB = Vec4{};
+                desc.colorCurveArriveR = Vec4{};
+                desc.colorCurveArriveG = Vec4{};
+                desc.colorCurveArriveB = Vec4{};
+                desc.colorCurveLeaveR = Vec4{};
+                desc.colorCurveLeaveG = Vec4{};
+                desc.colorCurveLeaveB = Vec4{};
+                desc.colorCurveModes = Vec4{};
+                for (uint32 index = 0; index < keyCount; ++index)
+                {
+                    const json& key = *keys[index];
+                    Vec3 value{ 1.f, 1.f, 1.f };
+                    Vec3 arriveTangent{};
+                    Vec3 leaveTangent{};
+                    if (const auto valueIter = key.find("value"); valueIter != key.end())
+                        Read_Vec3(*valueIter, value);
+                    if (const auto arriveIter = key.find("arriveTangent"); arriveIter != key.end())
+                        Read_Vec3(*arriveIter, arriveTangent);
+                    if (const auto leaveIter = key.find("leaveTangent"); leaveIter != key.end())
+                        Read_Vec3(*leaveIter, leaveTangent);
+
+                    Set_SubUVFrameCurveComponent(desc.colorCurveTimes, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+                    Set_SubUVFrameCurveComponent(desc.colorCurveValuesR, index, value.x);
+                    Set_SubUVFrameCurveComponent(desc.colorCurveValuesG, index, value.y);
+                    Set_SubUVFrameCurveComponent(desc.colorCurveValuesB, index, value.z);
+                    Set_SubUVFrameCurveComponent(desc.colorCurveArriveR, index, arriveTangent.x);
+                    Set_SubUVFrameCurveComponent(desc.colorCurveArriveG, index, arriveTangent.y);
+                    Set_SubUVFrameCurveComponent(desc.colorCurveArriveB, index, arriveTangent.z);
+                    Set_SubUVFrameCurveComponent(desc.colorCurveLeaveR, index, leaveTangent.x);
+                    Set_SubUVFrameCurveComponent(desc.colorCurveLeaveG, index, leaveTangent.y);
+                    Set_SubUVFrameCurveComponent(desc.colorCurveLeaveB, index, leaveTangent.z);
+                    Set_SubUVFrameCurveComponent(desc.colorCurveModes, index, Resolve_CurveInterpolationMode(key));
+                }
+            }
+        }
+    }
+
+    if (const auto alphaIter = colorOverLife.find("alphaOverLife"); alphaIter != colorOverLife.end())
+    {
+        const json* payload = Find_DistributionPayload(*alphaIter);
+        if (payload != nullptr && "ConstantCurve" == Read_String(*alphaIter, "mode"))
+        {
+            const auto keysIter = payload->find("keys");
+            if (keysIter != payload->end() && keysIter->is_array() && !keysIter->empty())
+            {
+                vector<const json*> keys{};
+                keys.reserve(keysIter->size());
+                for (const json& key : *keysIter)
+                    keys.push_back(&key);
+                ranges::sort(keys, [](const json* lhs, const json* rhs) { return Read_Float(*lhs, "time") < Read_Float(*rhs, "time"); });
+
+                const uint32 keyCount = min(maxColorOverLifeCurveKeys, static_cast<uint32>(keys.size()));
+                desc.alphaCurveEnabled = true;
+                desc.alphaCurveKeyCount = keyCount;
+                desc.alphaCurveTimes = Vec4{};
+                desc.alphaCurveValues = Vec4{};
+                desc.alphaCurveArrive = Vec4{};
+                desc.alphaCurveLeave = Vec4{};
+                desc.alphaCurveModes = Vec4{};
+                for (uint32 index = 0; index < keyCount; ++index)
+                {
+                    const json& key = *keys[index];
+                    Set_SubUVFrameCurveComponent(desc.alphaCurveTimes, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+                    Set_SubUVFrameCurveComponent(desc.alphaCurveValues, index, Read_Float(key, "value", 1.f));
+                    Set_SubUVFrameCurveComponent(desc.alphaCurveArrive, index, Read_Float(key, "arriveTangent"));
+                    Set_SubUVFrameCurveComponent(desc.alphaCurveLeave, index, Read_Float(key, "leaveTangent"));
+                    Set_SubUVFrameCurveComponent(desc.alphaCurveModes, index, Resolve_CurveInterpolationMode(key));
+                }
+            }
+        }
+    }
+}
+
 void EffectAssetRuntimeLoader::Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value)
 {
     switch (index)
@@ -1336,6 +1445,8 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
             desc.colorOverLife.endColorMax.w =
                 clamp(Evaluate_ColorOverLifeEndpointAlphaMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
         }
+
+        Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
     }
 
     if (const json* subUvFrameOverLife = Find_ModuleData(emitter, "SubUVFrameOverLife"))
@@ -1563,6 +1674,8 @@ bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter,
             desc.colorOverLife.endColorMax.w =
                 clamp(Evaluate_ColorOverLifeEndpointAlphaMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
         }
+
+        Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
     }
 
     if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
