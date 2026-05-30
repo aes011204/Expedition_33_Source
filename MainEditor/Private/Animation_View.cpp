@@ -393,7 +393,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
 
     _modelGuid = modelGuid;
     _currentAnimationName = preferredAnimationName;
-    _selectedNotifyId = -1;
+    Clear_SelectedNotifySelection();
     _selectedStateId = -1;
     _selectedNotifyTrackIndex = 0;
     _selectedNotifyStateTrackIndex = 0;
@@ -426,7 +426,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
 
     _modelGuid = _sourceModelPath.empty() ? string{} : GAME->Ensure_AssetGUID(_sourceModelPath, "Model");
     _currentAnimationName = preferredAnimationName;
-    _selectedNotifyId = -1;
+    Clear_SelectedNotifySelection();
     _selectedStateId = -1;
     _selectedNotifyTrackIndex = 0;
     _selectedNotifyStateTrackIndex = 0;
@@ -467,7 +467,7 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     _modelGuid.clear();
     _currentAnimationName.clear();
     _availableAnimations.clear();
-    _selectedNotifyId = -1;
+    Clear_SelectedNotifySelection();
     _selectedStateId = -1;
     _selectedNotifyTrackIndex = 0;
     _selectedNotifyStateTrackIndex = 0;
@@ -809,7 +809,7 @@ void Animation_View::Draw_AnimationSelector()
                     {
                         _currentAnimationName = entry.displayName;
                         Find_OrNormalize_NotifyAnimation(_asset, entry);
-                        _selectedNotifyId = -1;
+                        Clear_SelectedNotifySelection();
                         _selectedStateId = -1;
                         _selectedNotifyTrackIndex = 0;
                         _selectedNotifyStateTrackIndex = 0;
@@ -944,7 +944,7 @@ void Animation_View::Draw_BoneTree()
         if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
         {
             _selectedBoneIndex = static_cast<int32>(boneIndex);
-            _selectedNotifyId = -1;
+            Clear_SelectedNotifySelection();
             _selectedStateId = -1;
         }
 
@@ -954,14 +954,14 @@ void Animation_View::Draw_BoneTree()
             {
                 ImGui::SetClipboardText(playbackModel->Get_BoneName(boneIndex).c_str());
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
-                _selectedNotifyId = -1;
+                Clear_SelectedNotifySelection();
                 _selectedStateId = -1;
             }
 
             if (ImGui::MenuItem("Trail Base로 지정"))
             {
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
-                _selectedNotifyId = -1;
+                Clear_SelectedNotifySelection();
                 _selectedStateId = -1;
                 Assign_SelectedBoneToTrailAnchor(playbackModel, TrailAnchorSlot::Base);
             }
@@ -969,7 +969,7 @@ void Animation_View::Draw_BoneTree()
             if (ImGui::MenuItem("Trail Tip으로 지정"))
             {
                 _selectedBoneIndex = static_cast<int32>(boneIndex);
-                _selectedNotifyId = -1;
+                Clear_SelectedNotifySelection();
                 _selectedStateId = -1;
                 Assign_SelectedBoneToTrailAnchor(playbackModel, TrailAnchorSlot::Tip);
             }
@@ -1344,7 +1344,7 @@ void Animation_View::Draw_NotifyList()
         if (ImGui::Selectable(("Select Track##NotifyTrackSelect" + to_string(trackIndex)).c_str(), _selectedNotifyTrackIndex == trackIndex))
         {
             _selectedNotifyTrackIndex = trackIndex;
-            _selectedNotifyId = -1;
+            Clear_SelectedNotifySelection();
         }
 
         for (const auto& entry : animationData->notifies)
@@ -1354,10 +1354,32 @@ void Animation_View::Draw_NotifyList()
 
             const int32 frame = static_cast<int32>(std::round(entry.timeSec * fps));
             const string label = entry.notify->Get_TypeName() + " (" + to_string(frame) + ")";
-            const bool isSelected = (_selectedNotifyId == entry.id);
+            const bool isSelected = Is_NotifySelected(entry.id);
             if (ImGui::Selectable((label + "##NotifyEntry" + to_string(entry.id)).c_str(), isSelected))
             {
-                _selectedNotifyId = entry.id;
+                const bool ctrlPressed = ImGui::GetIO().KeyCtrl;
+
+                if (ctrlPressed)
+                {
+                    if (Is_NotifySelected(entry.id))
+                    {
+                        _selectedNotifyIds.erase(entry.id);
+                        if (_selectedNotifyId == entry.id)
+                            _selectedNotifyId = _selectedNotifyIds.empty() ? -1 : *_selectedNotifyIds.begin();
+                    }
+                    else
+                    {
+                        _selectedNotifyIds.insert(entry.id);
+                        _selectedNotifyId = entry.id;
+                    }
+                }
+                else
+                {
+                    _selectedNotifyIds.clear();
+                    _selectedNotifyIds.insert(entry.id);
+                    _selectedNotifyId = entry.id;
+                }
+
                 _selectedStateId = -1;
                 _selectedNotifyTrackIndex = trackIndex;
             }
@@ -1394,6 +1416,7 @@ void Animation_View::Draw_StateList()
         if (ImGui::Selectable(("Select Track##NotifyStateTrackSelect" + to_string(trackIndex)).c_str(), _selectedNotifyStateTrackIndex == trackIndex))
         {
             _selectedNotifyStateTrackIndex = trackIndex;
+            Clear_SelectedNotifySelection();
             _selectedStateId = -1;
         }
 
@@ -1409,7 +1432,7 @@ void Animation_View::Draw_StateList()
             if (ImGui::Selectable((label + "##NotifyStateEntry" + to_string(entry.id)).c_str(), isSelected))
             {
                 _selectedStateId = entry.id;
-                _selectedNotifyId = -1;
+                Clear_SelectedNotifySelection();
                 _selectedNotifyStateTrackIndex = trackIndex;
             }
         }
@@ -1448,7 +1471,7 @@ void Animation_View::Draw_TrackSection()
         if (ImGui::Selectable((displayName + "##NotifyTrack" + to_string(i)).c_str(), selected))
         {
             _selectedNotifyTrackIndex = i;
-            _selectedNotifyId = -1;
+            Clear_SelectedNotifySelection();
         }
     }
     ImGui::PopStyleColor(3);
@@ -1478,6 +1501,7 @@ void Animation_View::Draw_TrackSection()
         if (ImGui::Selectable((displayName + "##NotifyStateTrack" + to_string(i)).c_str(), selected))
         {
             _selectedNotifyStateTrackIndex = i;
+            Clear_SelectedNotifySelection();
             _selectedStateId = -1;
         }
     }
@@ -1550,6 +1574,8 @@ void Animation_View::Add_Notify_AtFrame(int32 frame, const string& typeName)
 
     animationData->notifies.push_back(std::move(entry));
     AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+    _selectedNotifyIds.clear();
+    _selectedNotifyIds.insert(createdId);
     _selectedNotifyId = createdId;
     _selectedNotifyTrackIndex = std::clamp(_sequencerContextHasTrack && !_sequencerContextIsStateTrack ? _sequencerContextTrackIndex : _selectedNotifyTrackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
     _isDirty = true;
@@ -1590,7 +1616,7 @@ void Animation_View::Add_State_ByFrameRange(int32 startFrame, int32 endFrame, co
 void Animation_View::Delete_SelectedNotify()
 {
     AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _selectedNotifyId == -1)
+    if (animationData == nullptr || _selectedNotifyIds.empty())
         return;
 
     auto it = std::remove_if(
@@ -1598,13 +1624,13 @@ void Animation_View::Delete_SelectedNotify()
         animationData->notifies.end(),
         [this](const AnimNotifyEventEntry& entry)
         {
-            return entry.id == _selectedNotifyId;
+            return Is_NotifySelected(entry.id);
         });
 
     if (it != animationData->notifies.end())
     {
         animationData->notifies.erase(it, animationData->notifies.end());
-        _selectedNotifyId = -1;
+        Clear_SelectedNotifySelection();
         _isDirty = true;
     }
 }
@@ -1643,7 +1669,7 @@ void Animation_View::Delete_SelectedNotifyTrack()
     Remove_NotifyTrackEntries(*animationData, _selectedNotifyTrackIndex);
     animationData->notifyTracks.erase(animationData->notifyTracks.begin() + _selectedNotifyTrackIndex);
     _selectedNotifyTrackIndex = animationData->notifyTracks.empty() ? 0 : min(_selectedNotifyTrackIndex, static_cast<int32>(animationData->notifyTracks.size()) - 1);
-    _selectedNotifyId = -1;
+    Clear_SelectedNotifySelection();
     _isDirty = true;
 }
 
@@ -1674,7 +1700,7 @@ void Animation_View::Handle_ClipboardShortcuts()
 
     if (ImGui::IsKeyPressed(ImGuiKey_Delete, false))
     {
-        if (_selectedNotifyId != -1)
+        if (!_selectedNotifyIds.empty())
             Delete_SelectedNotify();
         else if (_selectedStateId != -1)
             Delete_SelectedState();
@@ -1685,7 +1711,7 @@ void Animation_View::Handle_ClipboardShortcuts()
 
     if (ImGui::IsKeyPressed(ImGuiKey_C, false))
     {
-        if (_selectedNotifyId != -1)
+        if (!_selectedNotifyIds.empty())
             Copy_SelectedNotify();
         else if (_selectedStateId != -1)
             Copy_SelectedState();
@@ -1702,19 +1728,39 @@ void Animation_View::Handle_ClipboardShortcuts()
 
 void Animation_View::Copy_SelectedNotify()
 {
-    AnimNotifyEventEntry* selectedNotify = Find_SelectedNotify();
-    if (selectedNotify == nullptr || selectedNotify->notify == nullptr)
+    AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr || _selectedNotifyIds.empty())
         return;
 
     _notifyClipboardKind = NotifyClipboardKind::Notify;
-    _copiedNotify = {};
+    _copiedNotifies.clear();
     _copiedNotifyState = {};
-    _copiedNotify.typeName = selectedNotify->notify->Get_TypeName();
-    _copiedNotify.payload = selectedNotify->notify->To_Json();
-    _copiedNotify.timeSec = selectedNotify->timeSec;
-    _copiedNotify.trackIndex = selectedNotify->trackIndex;
 
-    NOTIFY("노티파이 복사: {}", _copiedNotify.typeName);
+    for (const AnimNotifyEventEntry& entry : animationData->notifies)
+    {
+        if (!Is_NotifySelected(entry.id) || entry.notify == nullptr)
+            continue;
+
+        CopiedNotifyEntry copiedEntry{};
+        copiedEntry.typeName = entry.notify->Get_TypeName();
+        copiedEntry.payload = entry.notify->To_Json();
+        copiedEntry.timeSec = entry.timeSec;
+        copiedEntry.trackIndex = entry.trackIndex;
+        _copiedNotifies.emplace_back(std::move(copiedEntry));
+    }
+
+    if (_copiedNotifies.empty())
+        return;
+
+    std::sort(_copiedNotifies.begin(), _copiedNotifies.end(),
+        [](const CopiedNotifyEntry& a, const CopiedNotifyEntry& b)
+        {
+            if (a.timeSec != b.timeSec)
+                return a.timeSec < b.timeSec;
+            return a.trackIndex < b.trackIndex;
+        });
+
+    NOTIFY("노티파이 복사: {}개", static_cast<int32>(_copiedNotifies.size()));
 }
 
 void Animation_View::Copy_SelectedState()
@@ -1724,7 +1770,7 @@ void Animation_View::Copy_SelectedState()
         return;
 
     _notifyClipboardKind = NotifyClipboardKind::State;
-    _copiedNotify = {};
+    _copiedNotifies.clear();
     _copiedNotifyState = {};
     _copiedNotifyState.typeName = selectedState->notifyState->Get_TypeName();
     _copiedNotifyState.payload = selectedState->notifyState->To_Json();
@@ -1738,37 +1784,50 @@ void Animation_View::Copy_SelectedState()
 void Animation_View::Paste_CopiedNotify()
 {
     AnimNotifyData* animationData = Get_CurrentAnimation();
-    if (animationData == nullptr || _copiedNotify.typeName.empty())
+    if (animationData == nullptr || _copiedNotifies.empty())
         return;
-
-    Shared<AnimNotify> notifyInstance = GAME->Create_AnimNotifyPrototype(_copiedNotify.typeName);
-    if (notifyInstance == nullptr)
-        return;
-
-    notifyInstance->From_Json(_copiedNotify.payload);
 
     if (animationData->notifyTracks.empty())
         Add_NotifyTrack("Notify");
 
     const int32 fps = max(1, Get_CurrentAnimationFps());
-    const int32 trackIndex = std::clamp(_selectedNotifyTrackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
+    const float pasteTimeSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
+    const float baseTimeSec = _copiedNotifies.front().timeSec;
 
-    AnimNotifyEventEntry entry{};
-    const int32 createdId = animationData->nextNotifyId++;
-    entry.id = createdId;
-    entry.timeSec = static_cast<float>(_sequencerCurrentFrame) / static_cast<float>(fps);
-    entry.trackIndex = trackIndex;
-    entry.notify = notifyInstance;
+    _selectedNotifyIds.clear();
+    int32 lastCreatedId = -1;
+    int32 lastTrackIndex = _selectedNotifyTrackIndex;
 
-    animationData->notifies.push_back(std::move(entry));
+    for (const CopiedNotifyEntry& copiedEntry : _copiedNotifies)
+    {
+        Shared<AnimNotify> notifyInstance = GAME->Create_AnimNotifyPrototype(copiedEntry.typeName);
+        if (notifyInstance == nullptr)
+            continue;
+
+        notifyInstance->From_Json(copiedEntry.payload);
+
+        AnimNotifyEventEntry entry{};
+        const int32 createdId = animationData->nextNotifyId++;
+        entry.id = createdId;
+        entry.timeSec = max(0.f, pasteTimeSec + (copiedEntry.timeSec - baseTimeSec));
+        entry.trackIndex = std::clamp(copiedEntry.trackIndex, 0, static_cast<int32>(animationData->notifyTracks.size()) - 1);
+        entry.notify = notifyInstance;
+
+        animationData->notifies.push_back(std::move(entry));
+        _selectedNotifyIds.insert(createdId);
+        lastCreatedId = createdId;
+        lastTrackIndex = entry.trackIndex;
+    }
+
     AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
 
-    _selectedNotifyId = createdId;
+    _selectedNotifyId = lastCreatedId;
     _selectedStateId = -1;
-    _selectedNotifyTrackIndex = trackIndex;
+    _selectedNotifyTrackIndex = lastTrackIndex;
     _isDirty = true;
 
-    NOTIFY("노티파이 붙여넣기: {}", _copiedNotify.typeName);
+    if (!_selectedNotifyIds.empty())
+        NOTIFY("노티파이 붙여넣기: {}개", static_cast<int32>(_selectedNotifyIds.size()));
 }
 
 void Animation_View::Paste_CopiedState()
@@ -1800,8 +1859,8 @@ void Animation_View::Paste_CopiedState()
     animationData->notifyStates.push_back(std::move(entry));
     AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
 
+    Clear_SelectedNotifySelection();
     _selectedStateId = createdId;
-    _selectedNotifyId = -1;
     _selectedNotifyStateTrackIndex = trackIndex;
     _isDirty = true;
 
@@ -2849,6 +2908,17 @@ AnimNotifyStateEntry* Animation_View::Find_SelectedState()
     }
 
     return nullptr;
+}
+
+void Animation_View::Clear_SelectedNotifySelection()
+{
+    _selectedNotifyId = -1;
+    _selectedNotifyIds.clear();
+}
+
+bool Animation_View::Is_NotifySelected(int32 notifyId) const
+{
+    return _selectedNotifyIds.find(notifyId) != _selectedNotifyIds.end();
 }
 
 Shared<Animation_View> Animation_View::Create()

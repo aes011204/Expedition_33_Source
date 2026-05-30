@@ -4,7 +4,9 @@
 #include "Camera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
+#include "PartObject.h"
 #include "RenderTarget.h"
+#include "Transform_Inspector.h"
 #include "Client_Defines.h"
 #include "Spawn_Prefab.h"
 
@@ -13,6 +15,21 @@
 
 namespace MainEditor::Internal
 {
+    static ImGuizmo::MODE Resolve_GizmoModeFromTransformSpace()
+    {
+        return Transform_Inspector::Get_Space() == Transform_Inspector::ETransformSpace::World
+            ? ImGuizmo::WORLD
+            : ImGuizmo::LOCAL;
+    }
+
+    static void Sync_TransformSpaceFromGizmoMode(ImGuizmo::MODE gizmoMode)
+    {
+        Transform_Inspector::Set_Space(
+            gizmoMode == ImGuizmo::WORLD
+                ? Transform_Inspector::ETransformSpace::World
+                : Transform_Inspector::ETransformSpace::Local);
+    }
+
     struct ViewportImageRect
     {
         ImVec2 imageMin;
@@ -182,6 +199,8 @@ void Scene_View::Handle_GizmoShortcut()
 
 void Scene_View::Render_GizmoOverlay()
 {
+    _gizmoMode = Internal::Resolve_GizmoModeFromTransformSpace();
+
     const float viewportWidth = _viewportCanvasMax.x - _viewportCanvasMin.x;
     const float viewportHeight = _viewportCanvasMax.y - _viewportCanvasMin.y;
     if (viewportWidth <= 1.f || viewportHeight <= 1.f)
@@ -289,7 +308,10 @@ void Scene_View::Render_GizmoOverlay()
         ImGui::PushStyleColor(ImGuiCol_Text, activeTextColor);
     }
     if (ImGui::Button("Local", ImVec2(56.f, 22.f)))
+    {
         _gizmoMode = ImGuizmo::LOCAL;
+        Internal::Sync_TransformSpaceFromGizmoMode(_gizmoMode);
+    }
     if (isLocal)
         ImGui::PopStyleColor(3);
 
@@ -302,7 +324,10 @@ void Scene_View::Render_GizmoOverlay()
         ImGui::PushStyleColor(ImGuiCol_Text, activeTextColor);
     }
     if (ImGui::Button("World", ImVec2(56.f, 22.f)))
+    {
         _gizmoMode = ImGuizmo::WORLD;
+        Internal::Sync_TransformSpaceFromGizmoMode(_gizmoMode);
+    }
     if (isWorld)
         ImGui::PopStyleColor(3);
 
@@ -688,6 +713,8 @@ void Scene_View::Handle_FocusRequest()
 
 void Scene_View::Render_SelectedObjectGizmo()
 {
+    _gizmoMode = Internal::Resolve_GizmoModeFromTransformSpace();
+
     Shared<GameObject> selectedObject = EDITOR->Selected_Object();
     if (selectedObject == nullptr)
         return;
@@ -706,7 +733,8 @@ void Scene_View::Render_SelectedObjectGizmo()
     if (viewportWidth <= 1.f || viewportHeight <= 1.f)
         return;
 
-    Matrix worldMatrix = transform->Get_WorldMatrix();
+    Shared<PartObject> selectedPartObject = dynamic_pointer_cast<PartObject>(selectedObject);
+    Matrix worldMatrix = selectedPartObject ? selectedPartObject->Get_GizmoWorldMatrix() : transform->Get_WorldMatrix();
 
     ImGuizmo::SetOrthographic(false);
     ImGuizmo::SetRect(_viewportMin.x, _viewportMin.y, viewportWidth, viewportHeight);
@@ -762,6 +790,12 @@ void Scene_View::Render_SelectedObjectGizmo()
 
     if (!manipulated)
         return;
+
+    if (selectedPartObject != nullptr)
+    {
+        selectedPartObject->Apply_GizmoWorldMatrix(worldMatrix);
+        return;
+    }
 
     Vec3 scale = Vec3::One;
     Quat rotation = Quat::Identity;

@@ -1,5 +1,4 @@
-﻿
-#include "Level_GameEntry.h"
+﻿#include "Level_GameEntry.h"
 
 #include "GameInstance.h"
 #include "Level_Loading.h"

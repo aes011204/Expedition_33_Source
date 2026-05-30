@@ -58,6 +58,10 @@ protected:
     virtual const wchar_t* Get_HeadModelTag() const { return L"Model_LuneHead"; }
     virtual const wchar_t* Get_HairModelTag() const { return L"Model_LuneHair"; }
 
+    // 구스타브 수염
+    virtual const wchar_t* Get_BeardModelTag() const { return nullptr; }
+    virtual const wchar_t* Get_MustacheModelTag() const { return nullptr; }
+
 protected:
     Shared<MovementCom>             _movementCom;
     Shared<InputCom>                _inputCom;

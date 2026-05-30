@@ -40,6 +40,8 @@ public:
     void    Late_Update(float timeDelta) override;
     HRESULT Render() override;
     HRESULT Render_Shadow() override;
+    Matrix  Get_GizmoWorldMatrix() const override;
+    bool    Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix) override;
 
     void    From_Json(const json& data) override;
 

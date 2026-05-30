@@ -679,6 +679,8 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
     _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Gustave, 0.f, 1.f, 0u, 1u);
     _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Lune, 0.f, 1.f, 0u, 1u);
     _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Maelle, 0.f, 1.f, 0u, 1u);
+    _battleSystemHUD->Clear_GustaveMechanismCharge();
+    _battleSystemHUD->Clear_MaelleMechanismStance();
 
     const vector<BattleChar>& heroes = battleController->Get_BattleHeroes();
     for (const BattleChar& hero : heroes)
@@ -699,7 +701,7 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
         }
         else if (hero.heroId == HeroId::Lune)
         {
-            // TODO : 루네 얼룩
+            // TODO : 루네
         }
         else if (hero.heroId == HeroId::Maelle)
         {

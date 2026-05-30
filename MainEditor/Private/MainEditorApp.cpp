@@ -122,12 +122,13 @@ void MainEditorApp::Update(float timeDelta)
     }
 
     const uint32 currentLevelIndex = GAME->Current_LevelIndex();
-    const bool finishedLoadingIntoNonMainTitle =
+    const bool finishedLoadingIntoEditorAutoPlayLevel =
         previousLevelIndex == ETOI(LevelType::Loading) &&
         currentLevelIndex != ETOI(LevelType::Loading) &&
-        currentLevelIndex != ETOI(LevelType::MainTitle);
+        currentLevelIndex != ETOI(LevelType::MainTitle) &&
+        currentLevelIndex != ETOI(LevelType::GameEntry);
 
-    if (finishedLoadingIntoNonMainTitle)
+    if (finishedLoadingIntoEditorAutoPlayLevel)
         EDITOR->Enter_EditAfterLoading();
 
     EDITOR->Apply_RuntimeInputPolicy();

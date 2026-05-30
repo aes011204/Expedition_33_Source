@@ -5,6 +5,7 @@
 #include "AnimNotify_Types.h"
 #include "Editor_Camera_Free.h"
 #include "TrailAnchor_Asset.h"
+#include <unordered_set>
 
 NS_BEGIN(Engine)
 class ModelCom;
@@ -140,6 +141,8 @@ private:
     void Copy_SelectedState();
     void Paste_CopiedNotify();
     void Paste_CopiedState();
+    void Clear_SelectedNotifySelection();
+    bool Is_NotifySelected(int32 notifyId) const;
 
     void Begin_SequencerContextMenu(int32 frame, bool hasTrackContext, bool isStateTrack, int32 trackIndex);
     bool Try_GetSequencerTrackContext(const ImVec2& sequencerRectMin, const ImVec2& mousePos, bool& outIsStateTrack, int32& outTrackIndex) const;
@@ -223,6 +226,7 @@ private:
     int32 _selectedStateId = -1;
     int32 _selectedNotifyTrackIndex = 0;
     int32 _selectedNotifyStateTrackIndex = 0;
+    std::unordered_set<int32> _selectedNotifyIds{};
 
     int32 _sequencerCurrentFrame = 0;
     int32 _sequencerSelectedRow = -1;
@@ -263,7 +267,7 @@ private:
     string _newNotifyStateTrackName{};
 
     NotifyClipboardKind _notifyClipboardKind = NotifyClipboardKind::None;
-    CopiedNotifyEntry _copiedNotify{};
+    vector<CopiedNotifyEntry> _copiedNotifies{};
     CopiedNotifyStateEntry _copiedNotifyState{};
 
     Unique<AnimSequencerAdapter> _sequencer{};

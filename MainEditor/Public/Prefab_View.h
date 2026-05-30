@@ -108,6 +108,8 @@ private:
 
     bool                _isPreviewHovered = false;
     bool                _isPreviewActive = false;
+    bool                _isGizmoHovered = false;
+    bool                _isGizmoUsing = false;
     bool                _applyDefaultWindowLayout = false;
     bool                _openAnimationViewWithPrefab = false;
 

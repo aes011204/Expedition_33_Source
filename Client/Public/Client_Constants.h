@@ -161,6 +161,7 @@ namespace Client::Constants::Prefab
 
 #pragma region 무기
     inline constexpr char Gustave_Lanceram[]    = "WP_Gustave_Lanceram";
+    inline constexpr char Gustave_Lanceram_Gun[]    = "WP_Gustave_Lanceram_Gun";
     inline constexpr char Lune_Colim[]          = "WP_Lune_Colim";
     inline constexpr char Maelle_Medalum[]      = "WP_Maelle_Medalum";
 #pragma endregion
