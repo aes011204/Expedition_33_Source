@@ -35,7 +35,7 @@ void ClientScreenFxManager::Transition_To_BattleField()
 {
     BattleTransition_ScreenFx::BattleTransitionDesc wipeDesc;
     wipeDesc.passType = ETOI(ScreenFx_Type::BattleTransition);
-    wipeDesc.duration = 3.f;       
+    wipeDesc.duration = 2.5f;       
     wipeDesc.edgeSoftness = 0.075f;  
     wipeDesc.maxRadius = 2.f;      
     
