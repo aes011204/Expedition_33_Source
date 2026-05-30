@@ -40,7 +40,7 @@ bool BT_LookRange::Check_Condition()
     dir.Normalize();
 
     const float dot = forward.Dot(dir);
-    const float limit = cosf(XMConvertToRadians(90.f * 0.5f)); // cos(45도)
+    const float limit = cosf(XMConvertToRadians(_range * 0.5f)); // cos(45도)
 
 
     if(dot >= limit)

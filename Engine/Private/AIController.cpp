@@ -243,6 +243,7 @@ Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& 
     unordered_map<uint64, FLoadedNode> loadedNodes;
     unordered_map<uint64, uint64> inputPinToNodeId;
     unordered_map<uint64, uint64> outputPinToNodeId;
+    unordered_map<uint64, uint64> childNodeIdByOutputPin;
     unordered_set<uint64> childNodeIds;
 
     for (auto& n : root["nodes"])
@@ -287,18 +288,53 @@ Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& 
         if (parentIt == outputPinToNodeId.end() || childIt == inputPinToNodeId.end())
             continue;
 
-        Shared<BNode> parent = loadedNodes[parentIt->second].runtimeNode;
-        Shared<BNode> child = loadedNodes[childIt->second].runtimeNode;
+        childNodeIdByOutputPin[startPin] = childIt->second;
+        childNodeIds.insert(childIt->second);
+    }
 
-        if (!parent || !child)
+    for (auto& [id, loaded] : loadedNodes)
+    {
+        Shared<BNode> parent = loaded.runtimeNode;
+        if (!parent)
             continue;
 
         if (auto composite = dynamic_pointer_cast<Composite>(parent))
-            composite->Add_Child(child);
-        else if (auto decorator = dynamic_pointer_cast<Decorator>(parent))
-            decorator->Set_Child(child);
+        {
+            for (const uint64 outputPin : loaded.outputPins)
+            {
+                auto childNodeIt = childNodeIdByOutputPin.find(outputPin);
+                if (childNodeIt == childNodeIdByOutputPin.end())
+                    continue;
 
-        childNodeIds.insert(childIt->second);
+                auto childLoadedIt = loadedNodes.find(childNodeIt->second);
+                if (childLoadedIt == loadedNodes.end())
+                    continue;
+
+                Shared<BNode> child = childLoadedIt->second.runtimeNode;
+                if (child)
+                    composite->Add_Child(child);
+            }
+        }
+        else if (auto decorator = dynamic_pointer_cast<Decorator>(parent))
+        {
+            for (const uint64 outputPin : loaded.outputPins)
+            {
+                auto childNodeIt = childNodeIdByOutputPin.find(outputPin);
+                if (childNodeIt == childNodeIdByOutputPin.end())
+                    continue;
+
+                auto childLoadedIt = loadedNodes.find(childNodeIt->second);
+                if (childLoadedIt == loadedNodes.end())
+                    continue;
+
+                Shared<BNode> child = childLoadedIt->second.runtimeNode;
+                if (child)
+                {
+                    decorator->Set_Child(child);
+                    break;
+                }
+            }
+        }
     }
 
     Shared<BNode> rootNode = nullptr;
