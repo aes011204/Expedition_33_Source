@@ -79,6 +79,24 @@ void UI_BattleSystemHUD::Clear_GustaveMechanismCharge()
     Set_TextPair(_gustaveMaxChargeText, _gustaveMaxChargeTextBg, L"10");
 }
 
+void UI_BattleSystemHUD::Set_MaelleMechanismStance(const Shared<BattleMechanismCom>& mechanismCom)
+{
+    if (mechanismCom == nullptr || !mechanismCom->Is_Maelle())
+    {
+        Clear_MaelleMechanismStance();
+        return;
+    }
+
+    // 뱃지까지 적용
+    Apply_MaelleStanceBadge(mechanismCom->Get_MaelleStance());
+}
+
+void UI_BattleSystemHUD::Clear_MaelleMechanismStance()
+{
+    // 태세없음으로 전환
+    Apply_MaelleStanceBadge(BattleMechanismCom::MaelleStance::Stanceless);
+}
+
 HRESULT UI_BattleSystemHUD::Load_UI(uint32 levelIndex)
 {
     UI_RuntimeLoader::UI_LoadDesc desc{};
@@ -140,6 +158,19 @@ HRESULT UI_BattleSystemHUD::Bind_UI()
     CHECK_NULL(_gustaveCurrentChargeTextBg, E_FAIL);
     CHECK_NULL(_gustaveMaxChargeText, E_FAIL);
     CHECK_NULL(_gustaveMaxChargeTextBg, E_FAIL);
+
+    // 마엘
+    _maelleCurrentStanceRoot = Find_UI(_uiByName, L"Panel_BattlePortrait_Maelle_Current_Stance");
+    _maelleStanceless = Find_UI(_uiByName, L"Panel_BattlePortrait_Maelle_Stanceless");
+    _maelleDefensive = Find_UI(_uiByName, L"Panel_BattlePortrait_Maelle_Defensive");
+    _maelleOffensive = Find_UI(_uiByName, L"Panel_BattlePortrait_Maelle_Offensive");
+    _maelleVirtuose = Find_UI(_uiByName, L"Panel_BattlePortrait_Maelle_Virtuose");
+
+    CHECK_NULL(_maelleCurrentStanceRoot, E_FAIL);
+    CHECK_NULL(_maelleStanceless, E_FAIL);
+    CHECK_NULL(_maelleDefensive, E_FAIL);
+    CHECK_NULL(_maelleOffensive, E_FAIL);
+    CHECK_NULL(_maelleVirtuose, E_FAIL);
 
     return S_OK;
 }
@@ -217,6 +248,53 @@ void UI_BattleSystemHUD::Set_ApText(PartyBattleStatSlot& slot, uint32 ap)
     Set_TextPair(slot.apText, slot.apTextBg, to_wstring(ap));
 }
 
+void UI_BattleSystemHUD::Apply_MaelleStanceBadge(BattleMechanismCom::MaelleStance stance)
+{
+    if (_maelleCurrentStanceRoot)
+        _maelleCurrentStanceRoot->Open();
+
+    Close_AllMaelleStanceBadges();
+
+    switch (stance)
+    {
+    case BattleMechanismCom::MaelleStance::Offensive:
+        if (_maelleOffensive)
+            _maelleOffensive->Open();
+        break;
+
+    case BattleMechanismCom::MaelleStance::Defensive:
+        if (_maelleDefensive)
+            _maelleDefensive->Open();
+        break;
+
+    case BattleMechanismCom::MaelleStance::Virtuose:
+        if (_maelleVirtuose)
+            _maelleVirtuose->Open();
+        break;
+
+    case BattleMechanismCom::MaelleStance::Stanceless:
+    default:
+        if (_maelleStanceless)
+            _maelleStanceless->Open();
+        break;
+    }
+}
+
+void UI_BattleSystemHUD::Close_AllMaelleStanceBadges()
+{
+    if (_maelleStanceless)
+        _maelleStanceless->Close();
+
+    if (_maelleDefensive)
+        _maelleDefensive->Close();
+
+    if (_maelleOffensive)
+        _maelleOffensive->Close();
+
+    if (_maelleVirtuose)
+        _maelleVirtuose->Close();
+}
+
 Unique<UI_BattleSystemHUD> UI_BattleSystemHUD::Create(uint32 levelIndex)
 {
     auto instance = make_unique<UI_BattleSystemHUD>();
@@ -255,6 +333,13 @@ void UI_BattleSystemHUD::Free()
     _gustaveCurrentChargeTextBg.reset();
     _gustaveMaxChargeText.reset();
     _gustaveMaxChargeTextBg.reset();
+
+    _maelleCurrentStanceRoot.reset();
+    _maelleStanceless.reset();
+    _maelleDefensive.reset();
+    _maelleOffensive.reset();
+    _maelleVirtuose.reset();
+
 
     _root.reset();
     _uiByName.clear();

@@ -52,6 +52,8 @@ public:
     virtual void    Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
+    Matrix          Get_GizmoWorldMatrix() const override;
+    bool            Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix) override;
 
     // 머리 붙이기
     void Set_LeaderPoseComponent(const PlayableParts* leaderPart) const;

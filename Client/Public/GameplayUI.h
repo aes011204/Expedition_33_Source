@@ -41,6 +41,9 @@ public:
     bool    Is_AnyMenuOpen() const;
     GameplayMenu Get_CurrentMenu() const; // 현재 최상위 메뉴 확인용
 
+    GameplayUI_World*           Get_WorldUI() const { return _worldUI.get(); }
+    Shared<GameplayUI_Battle>   Get_BattleUI() const { return _battleUI; }
+
 private:
     // 이번 프레임에 어떤 UI 입력인지. World ? Battle ?
     GameplayUIInputMode Resolve_InputMode() const;

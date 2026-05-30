@@ -12,6 +12,7 @@
 #include "PlayerStateMachineCom.h"
 #include "Body_Player.h"
 #include "EffectCom.h"
+#include "FaceAccessory_Player.h"
 #include "Hair_Player.h"
 #include "Head_Player.h"
 #include "Player_GameMenu.h"
@@ -217,9 +218,43 @@ HRESULT Player_WorldBase::Ready_PartObjects()
 
     // 머리붙이기
     head->Set_LeaderPoseComponent(mainBody);
-    //head->Initialize_RigidAttachmentFromLeaderPose(
-    //    mainBody,
-    //    mainBody->Get_SocketBoneMatrixPtr("Metahuman_Head"));
+
+    // 콧수염
+    if (const wchar_t* beardModelTag = Get_BeardModelTag())
+    {
+        FaceAccessory_Player::FACE_ACCESSORY_DESC beardPartDesc{};
+        beardPartDesc.parentMatrix = playableDesc.parentMatrix;
+        beardPartDesc.modelType = ModelType::NonAnim;
+        beardPartDesc.modelTag = beardModelTag;
+        beardPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
+
+        if (FAILED(
+            __super::Add_PartObject(
+                ETOI(LevelType::Static),
+                TEXT("GameObject_FaceAccessory_Player"),
+                TEXT("Part_Beard"),
+                &beardPartDesc)))
+            return E_FAIL;
+    }
+
+    // 턱수염
+    if (const wchar_t* mustacheModelTag = Get_MustacheModelTag())
+    {
+        FaceAccessory_Player::FACE_ACCESSORY_DESC mustachePartDesc{};
+        mustachePartDesc.parentMatrix = playableDesc.parentMatrix;
+        mustachePartDesc.modelType = ModelType::NonAnim;
+        mustachePartDesc.modelTag = mustacheModelTag;
+        mustachePartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
+
+        if (FAILED(
+            __super::Add_PartObject(
+                ETOI(LevelType::Static),
+                TEXT("GameObject_FaceAccessory_Player"),
+                TEXT("Part_Mustache"),
+                &mustachePartDesc)))
+            return E_FAIL;
+    }
+
 
     //>> Hair Part
     Hair_Player::HAIR_PLAYER_DESC hairPartDesc{};

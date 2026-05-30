@@ -8,6 +8,8 @@ NS_END
 
 NS_BEGIN(Client)
 
+class Monster_WorldBase;
+
 class Player_FreeAim final : public Player_State
 {
 public:
@@ -22,9 +24,15 @@ public:
     void LateUpdate(float timeDelta) override;
     void ExitInvoke() override;
 
+public:
+    bool Is_HitMonster() const { return _hasHitMonster; }
+    Shared<Monster_WorldBase> Get_HitMonster() const { return _hitMonster.lock(); }
+
 private:
     void Update_DirectionalModifiers();
     void Update_EnterTurnBurst();
+    void Update_FreeAimHitState();
+    Shared<Monster_WorldBase> Find_FreeAimHitMonster() const;
 
 private:
     Shared<OffsetAnimationModifier> _offsetModifier = nullptr;
@@ -38,6 +46,10 @@ private:
     bool _isEnterTurnBurstActive = false;
 
     float _rotationSensitivity = 0.5f; 
+
+private:
+    bool _hasHitMonster = false;
+    Weak<Monster_WorldBase> _hitMonster{};
 
 public:
     static Shared<Player_FreeAim> Create(const Shared<Player_WorldBase>& owner);

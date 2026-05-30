@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "Battle_Enum.h"
 #include "Component.h"
 
 NS_BEGIN(Client)
@@ -10,6 +11,8 @@ class BattleMechanismCom : public Component
     GENERATED_COMPONENT(BattleMechanismCom)
 
 public:
+    static constexpr uint32 kLuneMaxStains = 4;
+
     struct GustaveMechanism
     {
         int32 currentCharge = 0;
@@ -18,7 +21,13 @@ public:
 
     struct LuneMechanism
     {
-        // TODO : 루네 얼룩
+        array<ElementalType, kLuneMaxStains> stains
+        {
+            ElementalType::None, ElementalType::None, ElementalType::None, ElementalType::None 
+        };
+
+        uint32 stainCount = 0;
+        uint32 visualRevision = 0;
     };
 
     enum class MaelleStance
@@ -67,13 +76,21 @@ public: /* 구스타브 */
     void    Clear_GustaveCharge();
 
 public: /* 루네 */
+    uint32        Get_LuneStainCount() const { return _lune.stainCount; }
+    ElementalType Get_LuneStain(uint32 index) const;
+    uint32        Get_LuneVisualRevision() const { return _lune.visualRevision; }
 
+    void          Add_LuneStains(initializer_list<ElementalType> elements);
+    void          Clear_LuneStains();
+
+    bool          Is_LuneStainElement(ElementalType element);
 
 public: /* 마엘 */
     MaelleStance Get_MaelleStance() const { return _maelle.currentStance; }
 
     void    Set_MaelleStance(MaelleStance stance);
     void    Reset_MaelleStance(); // 전투 시작 시 태세 없음으로 초기화
+
 
 private:
     GustaveMechanism _gustave{};

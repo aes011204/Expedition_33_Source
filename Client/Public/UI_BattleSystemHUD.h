@@ -2,6 +2,7 @@
 
 #include "UI_RuntimePanelBase.h"
 #include "Client_Enum.h"
+#include "BattleMechanismCom.h"
 
 NS_BEGIN(Engine)
 class UI_Image;
@@ -44,6 +45,9 @@ public:
     void    Set_GustaveMechanismCharge(const Shared<BattleMechanismCom>& mechanismCom);
     void    Clear_GustaveMechanismCharge();
 
+    void    Set_MaelleMechanismStance(const Shared<BattleMechanismCom>& mechanismCom);
+    void    Clear_MaelleMechanismStance();
+
 private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
@@ -57,6 +61,10 @@ private:
     static void Set_HpText(PartyBattleStatSlot& slot, float hp, float maxHp);
     static void Set_ApText(PartyBattleStatSlot& slot, uint32 ap);
 
+    void    Apply_MaelleStanceBadge(BattleMechanismCom::MaelleStance stance);
+    void    Close_AllMaelleStanceBadges();
+
+
 private:
     PartyBattleStatSlot _partySlots[3]{};
 
@@ -66,6 +74,14 @@ private: /* 구스타브 */
     Shared<UI_Text> _gustaveCurrentChargeTextBg{};
     Shared<UI_Text> _gustaveMaxChargeText{};
     Shared<UI_Text> _gustaveMaxChargeTextBg{};
+
+
+private: /* 마엘 */
+    Shared<UI_Base> _maelleCurrentStanceRoot{};
+    Shared<UI_Base> _maelleStanceless{};
+    Shared<UI_Base> _maelleDefensive{};
+    Shared<UI_Base> _maelleOffensive{};
+    Shared<UI_Base> _maelleVirtuose{};
 
 private:
     static constexpr const wchar_t* kPortraitNames[3] =

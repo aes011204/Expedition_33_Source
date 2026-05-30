@@ -119,28 +119,18 @@ bool Object_Manager::Remove_GameObject(uint32 levelIndex, const Shared<GameObjec
     if (gameObject == nullptr || levelIndex >= _numLevels)
         return false;
 
-    auto& layers = _layers[levelIndex];
-    for (auto iter = layers.begin(); iter != layers.end(); )
-    {
-        Shared<Layer>& layer = iter->second;
-        bool removed = false;
+    // 중복등록 방지
+    if (gameObject->Is_MarkDestroy())
+        return true;
 
-        if (layer != nullptr)
-            removed = layer->Remove_GameObject(gameObject);
+    gameObject->Set_MarkDestroy(true);
 
-        if (layer != nullptr && layer->Get_GameObjects().empty())
-            iter = layers.erase(iter);
-        else
-            ++iter;
+    PendingRemoveGameObject pending{};
+    pending.levelIndex = levelIndex;
+    pending.gameObject = gameObject;
+    _pendingRemoveGameObjects.push_back(pending);
 
-        if (removed)
-        {
-            ++_objectRevision;
-            return true;
-        }
-    }
-
-    return false;
+    return true;
 }
 
 void Object_Manager::Priority_Update(float timeDelta)
@@ -281,6 +271,41 @@ void Object_Manager::Visit_LevelObjects(uint32 levelIndex,
         }
     }
 
+}
+
+void Object_Manager::Flush_RemovedGameObjects()
+{
+    if (_pendingRemoveGameObjects.empty())
+        return;
+
+    for (const auto& pending : _pendingRemoveGameObjects)
+    {
+        if (pending.gameObject == nullptr || pending.levelIndex >= _numLevels)
+            continue;
+
+        auto& layers = _layers[pending.levelIndex];
+        for (auto iter = layers.begin(); iter != layers.end(); )
+        {
+            Shared<Layer>& layer = iter->second;
+            bool removed = false;
+
+            if (layer != nullptr)
+                removed = layer->Remove_GameObject(pending.gameObject);
+
+            if (layer != nullptr && layer->Get_GameObjects().empty())
+                iter = layers.erase(iter);
+            else
+                ++iter;
+
+            if (removed)
+            {
+                ++_objectRevision;
+                break;
+            }
+        }
+    }
+
+    _pendingRemoveGameObjects.clear();
 }
 
 Shared<Layer> Object_Manager::Find_Layer(uint32 layerLevelIndex, const wstring& layerTag)

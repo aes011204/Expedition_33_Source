@@ -292,6 +292,11 @@ void ClientInstance::Reset_AllHeroesToIdle()
     return _heroManager->Reset_AllHeroesToIdle();
 }
 
+bool ClientInstance::Is_ActiveHero(const Shared<GameObject>& target) const
+{
+    return _heroManager->Is_ActiveHero(target);
+}
+
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 {
     Clear_GameplayUI();
@@ -330,10 +335,10 @@ bool ClientInstance::Is_BattleEnterTransitionPlaying() const
     return _gamePlayUI && _gamePlayUI->Is_BattleEnterTransitionPlaying();
 }
 
-void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
+void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
                                         const vector<string>& MonsterProtoTag, const Shared<GameObject>& sourceObject)
 {
-    return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag, sourceObject);
+    return _battleController->OnEnterBattleField(FieldID, isPlayerAdvantage, heroIds, MonsterProtoTag, sourceObject);
 }
 
 bool ClientInstance::Is_BattleActive() const

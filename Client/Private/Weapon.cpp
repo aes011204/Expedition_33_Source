@@ -81,6 +81,38 @@ void Weapon::Late_Update(float timeDelta)
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
+Matrix Weapon::Get_GizmoWorldMatrix() const
+{
+    if (_transformCom == nullptr)
+        return _combinedWorldMatrix;
+
+    const Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+    const Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
+    return _transformCom->Get_WorldMatrix() * socketMatrix * parentMatrix;
+}
+
+bool Weapon::Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix)
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+    Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
+    Matrix localWorldMatrix = gizmoWorldMatrix * (socketMatrix * parentMatrix).Invert();
+
+    Vec3 scale = Vec3::One;
+    Quat rotation = Quat::Identity;
+    Vec3 translation = Vec3::Zero;
+
+    if (!localWorldMatrix.Decompose(scale, rotation, translation))
+        return false;
+
+    _transformCom->Set_WorldPosition(translation);
+    _transformCom->Set_RotationQuaternion(rotation);
+    _transformCom->Set_Scale(scale);
+    return true;
+}
+
 HRESULT Weapon::Render()
 {
     if (_shader == nullptr || _model == nullptr)
@@ -159,6 +191,46 @@ const Matrix* Weapon::Get_SocketBoneMatrixPtr(const string& boneName) const
         return nullptr;
 
     return _model->Get_BoneMatrixPtr(boneName.c_str());
+}
+
+bool Weapon::Begin_NotifyRotation()
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    if (_notifyRotationActive)
+        return false;
+
+    _notifyRotationBaseLocal = _transformCom->Get_RotationQuaternion();
+    _notifyRotationActive = true;
+
+    return true;
+}
+
+void Weapon::Apply_NotifyRotation(const Vec3 axisLocal, float degree)
+{
+    if (_transformCom == nullptr || !_notifyRotationActive)
+        return;
+
+    Vec3 normalizeAxis = axisLocal;
+    if (normalizeAxis.LengthSquared() <= 0.00001f)
+        return;
+
+    normalizeAxis.Normalize();
+
+    const Quat deltaRotation = Quat::CreateFromAxisAngle(normalizeAxis, XMConvertToRadians(degree));
+    _transformCom->Set_RotationQuaternion(_notifyRotationBaseLocal * deltaRotation); // notify 시작 시점 무기 로컬축 기준으로 회전한다.
+}
+
+void Weapon::End_NotifyRotation()
+{
+    if (_transformCom == nullptr || !_notifyRotationActive)
+        return;
+
+    // 노티파이 시작 전 회전값으로 맞추기
+    _transformCom->Set_RotationQuaternion(_notifyRotationBaseLocal);
+    _notifyRotationBaseLocal = Quat::Identity;
+    _notifyRotationActive = false;
 }
 
 HRESULT Weapon::Ready_Components(const WEAPON_DESC& desc)
