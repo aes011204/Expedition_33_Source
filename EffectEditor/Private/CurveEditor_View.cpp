@@ -638,6 +638,10 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(Au
         if (auto* data = get_if<InitialRotationRateModuleData>(&module.data))
             Add_FloatTarget(targets, emitter, module, data->rotationRateDegrees, "rotationRateDegrees", "Rotation Rate", IM_COL32(245, 205, 95, 255));
         break;
+    case AuthoringModuleType::RotationRateScaleByLife:
+        if (auto* data = get_if<RotationRateScaleByLifeModuleData>(&module.data))
+            Add_FloatTarget(targets, emitter, module, data->scaleOverLife, "scaleOverLife", "Rotation Rate Scale", IM_COL32(245, 205, 95, 255));
+        break;
     case AuthoringModuleType::InitialColor:
         if (auto* data = get_if<InitialColorModuleData>(&module.data))
         {

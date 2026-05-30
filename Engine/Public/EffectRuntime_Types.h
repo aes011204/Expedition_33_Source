@@ -102,6 +102,7 @@ struct EffectRequiredMaterialRuntimeDesc
     EffectTextureUVTilingMode flowUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // flow texture UV tiling 해석 방식이다.
 
     EffectMaterialAdditiveContributionData additive{}; // Additive blend에서 더할 contribution 해석 규칙이다.
+    EffectMaterialCoreEmissiveData coreEmissive{};     // alpha-derived inner core/outer halo shaping 값이다.
     float refractionIntensity{ 0.f };                  // SpriteDistortion screen UV offset 강도다.
     float refractionPresence{ 1.f };                   // SpriteDistortion refraction 영향도 scalar다.
     EffectDistortionShapeMode distortionShapeMode{ EffectDistortionShapeMode::None }; // SpriteDistortion 영향 범위 weight mode다.
@@ -182,6 +183,7 @@ struct EffectColorOverLifeRuntimeDesc
 {
     Vec4 endColorMin{ 1.f, 1.f, 1.f, 1.f }; // Color Over Life 하한이다.
     Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f }; // Color Over Life 상한이다.
+    PointParticleColorOverLifeCurveDesc curve{}; // ConstantCurve ColorOverLife runtime payload다.
 };
 
 // Trail 전용 SpawnPerUnit 모듈에서 이동 거리 기반 보강 sample 생성에 필요한 값만 접은 payload다.

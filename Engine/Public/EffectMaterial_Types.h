@@ -75,6 +75,16 @@ struct EffectMaterialAdditiveContributionData
     Color constantColor{ 1.f, 1.f, 1.f, 1.f };
 };
 
+struct EffectMaterialCoreEmissiveData
+{
+    bool enabled{ false };
+    Color coreColor{ 1.f, 0.85f, 0.45f, 1.f };
+    float corePower{ 4.f };
+    float coreIntensity{ 2.f };
+    float outerPower{ 1.f };
+    float outerIntensity{ 1.f };
+};
+
 // effect material preset/source에서 복사되어 runtime/authoring 쪽이 함께 보는 최소 material instance 값이다.
 // sprite effect 경로에서는 mainTexturePath를 lit base color가 아니라 emissive color + opacity source로 해석한다.
 struct EffectMaterialInstanceData
@@ -118,6 +128,7 @@ struct EffectMaterialInstanceData
     EffectMaterialBlendMode blendMode{ EffectMaterialBlendMode::AlphaBlend }; // effect material blend/compose mode다.
     string opacitySource{ "Alpha" };                                          // main texture에서 opacity를 뽑을 채널/방식이다.
     EffectMaterialAdditiveContributionData additive{};                        // Additive blend에서 더할 contribution 해석 규칙이다.
+    EffectMaterialCoreEmissiveData coreEmissive{};                            // alpha-derived inner core/outer halo shaping 값이다.
     float refractionIntensity{ 0.f };                                         // SpriteDistortion screen UV offset 강도다.
     float refractionPresence{ 1.f };                                          // SpriteDistortion refraction 영향도를 켜고 줄이는 authored scalar다.
     EffectDistortionShapeMode distortionShapeMode{ EffectDistortionShapeMode::None }; // SpriteDistortion 영향 범위 weight mode다.

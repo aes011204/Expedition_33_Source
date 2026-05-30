@@ -8,7 +8,7 @@
 cbuffer cbEffectTrailMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectTrailParams = { 1.f, 1.f, 0.f, 0.f };             // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectTrailParams = { 1.f, 1.f, 0.f, 0.f };             // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
     float4 g_EffectTrailAlphaParams = { 0.f, 0.f, 0.f, 0.f };        // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
     float4 g_EffectTrailMainUVParams = { 1.f, 1.f, 0.f, 0.f };       // xy: scale, zw: scroll speed
     float4 g_EffectTrailNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };      // xy: scale, zw: scroll speed
@@ -21,6 +21,8 @@ cbuffer cbEffectTrailMaterial : register(b2)
     float4 g_EffectTrailAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectTrailAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectTrailAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
+    float4 g_EffectTrailCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f }; // x: enabled, y: corePower, z: coreIntensity, w: outerPower
+    float4 g_EffectTrailCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f }; // rgb: coreColor, a: outerIntensity
     float g_EffectTrailMaterialTime = 0.f;
     int g_OpacitySource = 0;
     float2 g_EffectTrailPadding;
@@ -247,17 +249,24 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     coverage = Effect_ApplyAlphaErosion(coverage, maskAlpha * edgeBreakup, alphaErosion);
 
     const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
+    const float3 baseColor = Effect_ApplyCoreEmissiveShaping(
+        segmentColor.rgb * g_Tint.rgb * tex.rgb,
+        g_EffectTrailCoreEmissiveColor,
+        selectedOpacity,
+        g_EffectTrailCoreEmissiveParams
+    );
 
-    surface.color = segmentColor.rgb * g_Tint.rgb * tex.rgb * energyVariation;
-    surface.coverage = Effect_BuildCoverage(
+    surface.color = baseColor * energyVariation;
+    const float shapeCoverage = Effect_BuildCoverage(
         selectedOpacity,
         opacityPower,
         coverage,
         breakupNoise,
-        segmentColor.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha
+        1.f
     );
+    surface.coverage = shapeCoverage * saturate(segmentColor.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
 
-    if (surface.coverage < max(alphaCutoff, 0.01f))
+    if (shapeCoverage < max(alphaCutoff, 0.01f))
         discard;
 
     return surface;
@@ -308,11 +317,13 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float breakupNoise = lerp(1.f, noiseRaw, noiseStrength);
     const float edgeBreakup = lerp(1.f, noiseRaw, noiseStrength * edgeWeight);
     float coverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * edgeBreakup, alphaErosion);
-    const float coverageBase = saturate(coverage * breakupNoise * segmentColor.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
+    const float coverageBase = saturate(coverage * breakupNoise);
+    const float additiveLifeAlpha = saturate(segmentColor.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
     const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
     const int colorSource = (int)g_EffectTrailAdditiveParams.x;
     const int amountSource = (int)g_EffectTrailAdditiveParams.y;
     const int coveragePolicy = (int)g_EffectTrailAdditiveParams.z;
+    const float selectedOpacity = Effect_SelectOpacity(tex, g_OpacitySource);
     const float amount = Effect_SelectAdditiveAmount(tex, maskAlpha, amountSource);
     const float policyAmount = Effect_ResolveAdditivePolicyAmount(amount, coverageBase, coveragePolicy);
     const float discardSource = Effect_ResolveAdditiveDiscardSource(amount, coverageBase, coveragePolicy);
@@ -328,8 +339,14 @@ PS_OUT PS_ADDITIVE(PS_IN In)
         g_EffectTrailAdditiveConstantColor,
         colorSource
     );
-    const float intensity = max(g_EffectTrailParams.x, 0.f) * max(g_EffectTrailAdditiveParams.w, 0.f);
-    const float3 contribution = materialColor * segmentColor.rgb * energyVariation * policyAmount * intensity * blackGate;
+    const float3 shapedMaterialColor = Effect_ApplyCoreEmissiveShaping(
+        materialColor * segmentColor.rgb,
+        g_EffectTrailCoreEmissiveColor,
+        selectedOpacity,
+        g_EffectTrailCoreEmissiveParams
+    );
+    const float additiveEnergyScalar = max(g_EffectTrailParams.x, 0.f) * max(g_EffectTrailAdditiveParams.w, 0.f);
+    const float3 contribution = shapedMaterialColor * energyVariation * policyAmount * additiveEnergyScalar * blackGate * additiveLifeAlpha;
     Out.color = float4(contribution, 1.f);
     return Out;
 }

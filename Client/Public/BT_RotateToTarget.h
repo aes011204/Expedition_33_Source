@@ -29,6 +29,8 @@ private:
     Vec3 _target = {};
 
     Vec3 _prevPos = {};
+
+    float _speed = {4.f};
 protected:
     string _targetKey = "playerPos";
 public:
