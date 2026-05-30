@@ -329,7 +329,7 @@ void PanelLandscape::Render_SaveLoad()
             ofn.Flags = OFN_FILEMUSTEXIST;
             if (GetOpenFileNameW(&ofn))
             {
-                _onLoad(_ctx->_activeLandscapeIdx, buf);
+                _onLoad(-1, buf);
             }
         }
     }
