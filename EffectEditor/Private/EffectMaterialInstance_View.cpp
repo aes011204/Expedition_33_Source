@@ -1309,7 +1309,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
                     material.opacitySource,
                     defaultData.opacitySource,
                     opacitySourceOptions,
-                    sizeof(opacitySourceOptions) / sizeof(opacitySourceOptions[0])
+                    std::size(opacitySourceOptions)
                 );
             }
             _detailPropertyContext.End_PropertyTable();
@@ -1320,7 +1320,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(EffectMaterialInstance
 
         if (_detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceOptionsTail"))
         {
-            changed |= _detailPropertyContext.Draw_BoolProperty("Two Sided (미소비)", material.twoSided, defaultData.twoSided);
+            changed |= _detailPropertyContext.Draw_BoolProperty("Two Sided (미구현)", material.twoSided, defaultData.twoSided);
             changed |= _detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
             changed |= _detailPropertyContext.Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
             _detailPropertyContext.End_PropertyTable();
