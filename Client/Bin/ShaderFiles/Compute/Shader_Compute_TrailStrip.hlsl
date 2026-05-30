@@ -37,8 +37,11 @@ cbuffer TrailComputeParams : register(b0)
     float3 g_TrailParamsPadding;
     float4 g_StartColor;
     float4 g_EndColor;
-    float4 g_SizeByLifeParams; // x/y: width start/end, z: enabled, w: reserved
-    float4 g_LengthParams;     // x: maxTrailLength, y: tailFadeLength, zw: reserved
+    float4 g_SizeByLifeParams;       // x/y: width start/end, z: enabled, w: reserved
+    float4 g_SizeByLifeCurveTimes;   // scaleOverLife key times
+    float4 g_SizeByLifeCurveValuesX; // scaleOverLife X multipliers
+    float4 g_SizeByLifeCurveParams;  // x: key count, y: multiplyX, zw: reserved
+    float4 g_LengthParams;           // x: maxTrailLength, y: tailFadeLength, zw: reserved
 };
 
 StructuredBuffer<TrailSamplePayload> HistoryData : register(t0);
@@ -48,15 +51,67 @@ RWStructuredBuffer<DrawIndexedInstancedIndirectArgs> ArgsData : register(u1);
 void ApplyTrailWidth(inout float3 basePosition, inout float3 tipPosition)
 {
     const float3 center = (basePosition + tipPosition) * 0.5f;
-    float3 widthDirection = tipPosition - basePosition;
-    const float widthLength = length(widthDirection);
-    if (widthLength <= 0.0001f)
+    const float3 halfSpan = (tipPosition - basePosition) * 0.5f;
+    if (length(halfSpan) <= 0.0001f)
         return;
 
-    widthDirection /= widthLength;
-    const float halfWidth = max(g_Width, 0.0001f) * 0.5f;
-    basePosition = center - widthDirection * halfWidth;
-    tipPosition = center + widthDirection * halfWidth;
+    const float widthRatio = max(g_Width, 0.0001f);
+    basePosition = center - halfSpan * widthRatio;
+    tipPosition = center + halfSpan * widthRatio;
+}
+
+float ReadVec4Component(float4 values, uint index)
+{
+    if (index == 0u)
+        return values.x;
+    if (index == 1u)
+        return values.y;
+    if (index == 2u)
+        return values.z;
+    return values.w;
+}
+
+float EvaluateSizeByLifeWidthScale(float lifeProgress)
+{
+    if (g_SizeByLifeCurveParams.y == 0.0f)
+        return 1.0f;
+
+    const uint keyCount = max(1u, min(4u, (uint)g_SizeByLifeCurveParams.x));
+    float multiplier = g_SizeByLifeParams.x;
+
+    if (keyCount == 1u || lifeProgress <= ReadVec4Component(g_SizeByLifeCurveTimes, 0u))
+    {
+        multiplier = ReadVec4Component(g_SizeByLifeCurveValuesX, 0u);
+    }
+    else
+    {
+        bool found = false;
+        [unroll]
+        for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+        {
+            if (keyIndex >= keyCount || found)
+                continue;
+
+            const float rightTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyIndex);
+            if (lifeProgress > rightTime)
+                continue;
+
+            const float leftTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyIndex - 1u);
+            const float ratio = saturate((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime));
+            multiplier = lerp(
+                ReadVec4Component(g_SizeByLifeCurveValuesX, keyIndex - 1u),
+                ReadVec4Component(g_SizeByLifeCurveValuesX, keyIndex),
+                ratio
+            );
+            found = true;
+        }
+
+        const float lastTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyCount - 1u);
+        if (!found && lifeProgress > lastTime)
+            multiplier = ReadVec4Component(g_SizeByLifeCurveValuesX, keyCount - 1u);
+    }
+
+    return multiplier;
 }
 
 [numthreads(64, 1, 1)]
@@ -89,7 +144,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float lifeProgress = saturate(age / max(g_SegmentLifetime, 0.0001f));
     const float ageAlpha = saturate(1.0f - lifeProgress);
     const float fallbackWidthScale = lerp(0.25f, 1.0f, ageAlpha);
-    const float sizeByLifeWidthScale = lerp(g_SizeByLifeParams.x, g_SizeByLifeParams.y, lifeProgress);
+    const float sizeByLifeWidthScale = EvaluateSizeByLifeWidthScale(lifeProgress);
     const float widthScale = g_SizeByLifeParams.z != 0.0f ? sizeByLifeWidthScale : fallbackWidthScale;
     const float currentDistance = current.sampleParams.y;
     const float nextDistance = next.sampleParams.y;

@@ -106,6 +106,24 @@
     <Filter Include="03. Manager\MEModelManager">
       <UniqueIdentifier>{3fbe4ead-0c55-43ec-b46f-f0d86a03c5b1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="07. MeshActor\TerrainActor">
+      <UniqueIdentifier>{9882e47e-2430-4e05-b5ef-02bbc3c36fbf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="07. MeshActor\LandscapeActor">
+      <UniqueIdentifier>{6322c119-e50c-430c-b8f1-4243a5a4e5aa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="04. Panel\PanelLandscape">
+      <UniqueIdentifier>{4720604d-4ff4-498f-9807-5010edc8d1f6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="06. EditorUtil\NoiseUtil">
+      <UniqueIdentifier>{d8a7e132-93ca-4f8a-bc6d-44a32fb66afd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="03. Manager\MELandscapeManager">
+      <UniqueIdentifier>{6940058e-b4a4-417f-bd15-7037c31768c3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="10. System\MEMaterialApplicator">
+      <UniqueIdentifier>{00437c28-a8d3-4d86-8b01-1ff655d439b2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -198,6 +216,24 @@
     <ClInclude Include="..\Public\PanelModelOverride.h">
       <Filter>04. Panel\PanelModelOverride</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\METerrainActor.h">
+      <Filter>07. MeshActor\TerrainActor</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MELandscapeActor.h">
+      <Filter>07. MeshActor\LandscapeActor</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\PanelLandscape.h">
+      <Filter>04. Panel\PanelLandscape</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\NoiseUtil.h">
+      <Filter>06. EditorUtil\NoiseUtil</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MELandscapeManager.h">
+      <Filter>03. Manager\MELandscapeManager</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MEMaterialApplicator.h">
+      <Filter>10. System\MEMaterialApplicator</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="MapEditor.ico">
@@ -282,14 +318,29 @@
     <ClCompile Include="..\Private\MEInstancedMeshActor.cpp">
       <Filter>07. MeshActor\InstancedMeshActor</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\MEBridgeCamera.cpp">
-      <Filter>05. Camera\MEBridgeCamera</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\MECamera.cpp">
       <Filter>05. Camera</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\PanelModelOverride.cpp">
       <Filter>04. Panel\PanelModelOverride</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\METerrainActor.cpp">
+      <Filter>07. MeshActor\TerrainActor</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEBridgeCamera.cpp">
+      <Filter>05. Camera\MEBridgeCamera</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MELandscapeActor.cpp">
+      <Filter>07. MeshActor\LandscapeActor</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\PanelLandscape.cpp">
+      <Filter>04. Panel\PanelLandscape</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MELandscapeManager.cpp">
+      <Filter>03. Manager\MELandscapeManager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEMaterialApplicator.cpp">
+      <Filter>10. System\MEMaterialApplicator</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

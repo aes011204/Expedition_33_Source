@@ -52,5 +52,8 @@ namespace UIEditor
         bool Set_ObjectTextWrap(UI_Document& document, ObjectId objectId, bool textWrap) const;
         bool Can_SetObjectFontBinding(const UI_Document& document, ObjectId objectId, const string& fontGuid, const string& fontPath, const string& fontTag) const;
         bool Set_ObjectFontBinding(UI_Document& document, ObjectId objectId, const string& fontGuid, const string& fontPath, const string& fontTag) const;
+
+        bool Can_SetObjectStateAnimationPath(const UI_Document& document, ObjectId objectId, const string& stateAnimationPath) const;
+        bool Set_ObjectStateAnimationPath(UI_Document& document, ObjectId objectId, const string& stateAnimationPath) const;
     };
 }

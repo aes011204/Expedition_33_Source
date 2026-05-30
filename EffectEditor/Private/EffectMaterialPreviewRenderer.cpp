@@ -117,6 +117,7 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
 {
     _statusMessage.clear();
     _hasRenderedPreview = false;
+    const bool isDistortionPreview = material.materialFamily == EffectMaterialFamily::SpriteDistortion;
 
     if (EDITOR == nullptr || GAME == nullptr)
     {
@@ -125,15 +126,29 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
     }
 
     if (!Ready_RenderTarget() ||
+        (isDistortionPreview && !Ready_DistortionSourceTarget()) ||
         !Ready_Shader() ||
+        (isDistortionPreview && !Ready_DistortionShader()) ||
         !Ready_Texture(material.mainTextureGuid, material.mainTexturePath) ||
         !Ready_NoiseTexture(material.noiseTextureGuid, material.noiseTexturePath) ||
         !Ready_MaskTexture(material.maskTextureGuid, material.maskTexturePath) ||
+        (isDistortionPreview && !Ready_FlowTexture(material.flowTextureGuid, material.flowTexturePath)) ||
         !Ready_Meshes())
         return;
 
     ShaderResourceView* nullSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
     EDITOR->Get_Context()->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, nullSRVs);
+
+    if (isDistortionPreview)
+    {
+        if (FAILED(_distortionSourceTarget->Begin(true, true)) ||
+            FAILED(Render_CheckerBackground()))
+        {
+            GAME->Bind_BackBuffer();
+            _statusMessage = "Distortion preview source draw failed.";
+            return;
+        }
+    }
 
     if (FAILED(_renderTarget->Begin(true, true)))
     {
@@ -141,7 +156,14 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
         return;
     }
 
-    const HRESULT hr = Render_PreviewMesh(material);
+    HRESULT hr = Render_CheckerBackground();
+    if (SUCCEEDED(hr))
+    {
+        hr = isDistortionPreview
+             ? Render_DistortionPreviewMesh(material)
+             : Render_PreviewMesh(material);
+    }
+
     GAME->Bind_BackBuffer();
 
     if (FAILED(hr))
@@ -249,6 +271,31 @@ bool EffectMaterialPreviewRenderer::Ready_RenderTarget()
     return true;
 }
 
+bool EffectMaterialPreviewRenderer::Ready_DistortionSourceTarget()
+{
+    if (_distortionSourceTarget != nullptr)
+        return true;
+
+    _distortionSourceTarget = RenderTarget::Create(
+        L"EffectMaterialPreviewDistortionSource",
+        EDITOR->Get_Device(),
+        EDITOR->Get_Context(),
+        _previewTextureWidth,
+        _previewTextureHeight,
+        DXGI_FORMAT_R8G8B8A8_UNORM,
+        Vec4{ 0.18f, 0.18f, 0.18f, 1.f },
+        true
+    );
+
+    if (_distortionSourceTarget == nullptr)
+    {
+        _statusMessage = "Distortion preview source target creation failed.";
+        return false;
+    }
+
+    return true;
+}
+
 bool EffectMaterialPreviewRenderer::Ready_Shader()
 {
     if (_shader != nullptr)
@@ -258,6 +305,21 @@ bool EffectMaterialPreviewRenderer::Ready_Shader()
     if (_shader == nullptr)
     {
         _statusMessage = "Shader_EffectMaterialPreview prototype is missing.";
+        return false;
+    }
+
+    return true;
+}
+
+bool EffectMaterialPreviewRenderer::Ready_DistortionShader()
+{
+    if (_distortionShader != nullptr)
+        return true;
+
+    _distortionShader = Internal::Clone_Component<ShaderCom>(ETOI(LevelType::Static), kEffectMaterialPreviewDistortionShaderId);
+    if (_distortionShader == nullptr)
+    {
+        _statusMessage = "Shader_EffectMaterialPreviewDistortion prototype is missing.";
         return false;
     }
 
@@ -384,6 +446,75 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
         LOG_WARN_THROTTLED(
             60,
             "EffectMaterialPreview noise texture create failed. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Preview continues without noise.",
+            textureGuid,
+            texturePath,
+            requestedTextureKey
+        );
+    }
+
+    return true;
+}
+
+bool EffectMaterialPreviewRenderer::Ready_FlowTexture(const string& textureGuid, const string& texturePath)
+{
+    if (textureGuid.empty() && texturePath.empty())
+    {
+        _flowTexture = nullptr;
+        _loadedFlowTextureKey.clear();
+        return true;
+    }
+
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
+    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
+
+    if (resolvedPath.empty())
+    {
+        _flowTexture = nullptr;
+        _loadedFlowTextureKey.clear();
+        _statusMessage = "Flow texture missing. Distortion preview uses neutral flow.";
+        LOG_WARN_THROTTLED(
+            60,
+            "EffectMaterialPreview flow texture missing. flowTextureGuid='{}', flowTexturePath='{}'. Distortion preview uses neutral flow.",
+            textureGuid,
+            texturePath
+        );
+        return true;
+    }
+
+    const string requestedTextureKey = String::ToString(resolvedPath);
+    if (_flowTexture != nullptr && _loadedFlowTextureKey == requestedTextureKey)
+        return true;
+
+    if (guidPathMismatch)
+    {
+        LOG_WARN(
+            "EffectMaterialPreview flow texture GUID/path mismatch. flowTextureGuid='{}', flowTexturePath='{}', guidResolvedPath='{}'. Distortion preview continues with GUID texture.",
+            textureGuid,
+            texturePath,
+            requestedTextureKey
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "EffectMaterialPreview flow texture fell back to path. flowTextureGuid='{}', flowTexturePath='{}', resolvedPath='{}'. Distortion preview continues with fallback texture.",
+            textureGuid,
+            texturePath,
+            requestedTextureKey
+        );
+    }
+
+    _flowTexture = Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), resolvedPath.c_str(), 1);
+    _loadedFlowTextureKey = requestedTextureKey;
+
+    if (_flowTexture == nullptr)
+    {
+        _loadedFlowTextureKey.clear();
+        _statusMessage = "Flow texture missing. Distortion preview uses neutral flow.";
+        LOG_WARN_THROTTLED(
+            60,
+            "EffectMaterialPreview flow texture create failed. flowTextureGuid='{}', flowTexturePath='{}', resolvedPath='{}'. Distortion preview uses neutral flow.",
             textureGuid,
             texturePath,
             requestedTextureKey
@@ -669,6 +800,19 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         additive.intensityScale
     );
     const Vec4 effectMaterialPreviewAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
+    const EffectMaterialCoreEmissiveData& coreEmissive = material.coreEmissive;
+    const Vec4 effectMaterialPreviewCoreEmissiveParams = Vec4(
+        coreEmissive.enabled ? 1.f : 0.f,
+        coreEmissive.corePower,
+        coreEmissive.coreIntensity,
+        coreEmissive.outerPower
+    );
+    const Vec4 effectMaterialPreviewCoreEmissiveColor = Vec4(
+        coreEmissive.coreColor.x,
+        coreEmissive.coreColor.y,
+        coreEmissive.coreColor.z,
+        coreEmissive.outerIntensity
+    );
     const int opacitySource = Internal::Resolve_OpacitySourceIndex(material.opacitySource);
 
     CHECK_FAILED(_shader->Bind_ObjectCB(worldMatrix), E_FAIL);
@@ -746,6 +890,14 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         E_FAIL
     );
     CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewCoreEmissiveParams", &effectMaterialPreviewCoreEmissiveParams, sizeof(effectMaterialPreviewCoreEmissiveParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewCoreEmissiveColor", &effectMaterialPreviewCoreEmissiveColor, sizeof(effectMaterialPreviewCoreEmissiveColor)),
+        E_FAIL
+    );
+    CHECK_FAILED(
         _shader->Bind_RawValue("g_EffectMaterialPreviewTime", &_materialPreviewElapsedTime, sizeof(_materialPreviewElapsedTime)),
         E_FAIL
     );
@@ -757,6 +909,153 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
     const uint32 blendPassOffset = material.blendMode == EffectMaterialBlendMode::Additive ? 2u : 0u;
     const uint32 passIndex = blendPassOffset + meshPassOffset;
     CHECK_FAILED(_shader->Begin(passIndex), E_FAIL);
+
+    const PreviewMeshResource& mesh =
+        _meshMode == EffectMaterialPreviewMeshMode::Sphere ? _sphereMesh : _planeMesh;
+    CHECK_FAILED(Render_Mesh(mesh), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT EffectMaterialPreviewRenderer::Render_CheckerBackground() const
+{
+    CHECK_NULL(_shader, E_FAIL);
+    CHECK_NULL(_planeMesh.vertexBuffer, E_FAIL);
+    CHECK_NULL(_planeMesh.indexBuffer, E_FAIL);
+
+    const Vec4 checkerParams = Vec4(
+        static_cast<float>(_previewTextureWidth),
+        static_cast<float>(_previewTextureHeight),
+        _materialPreviewElapsedTime,
+        0.f
+    );
+
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewCheckerParams", &checkerParams, sizeof(checkerParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(_shader->Begin(4), E_FAIL);
+    CHECK_FAILED(Render_Mesh(_planeMesh), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const EffectMaterialInstanceData& material) const
+{
+    CHECK_NULL(_distortionShader, E_FAIL);
+    CHECK_NULL(_distortionSourceTarget, E_FAIL);
+
+    const float aspect = static_cast<float>(_previewTextureWidth) / static_cast<float>(max(1u, _previewTextureHeight));
+    constexpr float nearPlane = 0.1f;
+    constexpr float farPlane = 100.f;
+    const EffectPreviewOrbitCameraFrame cameraFrame = EffectPreviewOrbitCamera::Build_Frame(
+        _cameraState,
+        aspect,
+        XMConvertToRadians(35.f),
+        nearPlane,
+        farPlane
+    );
+    const Matrix worldMatrix = XMMatrixIdentity();
+    CameraCB cameraCB{};
+    cameraCB.viewMatrix = cameraFrame.view;
+    cameraCB.projMatrix = cameraFrame.proj;
+    cameraCB.viewInverseMatrix = XMMatrixInverse(nullptr, cameraFrame.view);
+    cameraCB.projInverseMatrix = XMMatrixInverse(nullptr, cameraFrame.proj);
+    cameraCB.cameraPosition = Vec4(cameraFrame.eye.x, cameraFrame.eye.y, cameraFrame.eye.z, 1.f);
+    cameraCB.farPlane = farPlane;
+
+    const Vec4 alphaParams = Vec4(
+        clamp(material.alphaCutoff, 0.f, 1.f),
+        clamp(material.alphaErosion, 0.f, 1.f),
+        _maskTexture != nullptr ? 1.f : 0.f,
+        0.f
+    );
+    const Vec4 mainUVParams = Vec4(
+        material.mainUVScale.x,
+        material.mainUVScale.y,
+        material.mainUVScrollSpeed.x,
+        material.mainUVScrollSpeed.y
+    );
+    const Vec4 maskUVParams = Vec4(
+        material.maskUVScale.x,
+        material.maskUVScale.y,
+        material.maskUVScrollSpeed.x,
+        material.maskUVScrollSpeed.y
+    );
+    const Vec4 flowUVParams = Vec4(
+        material.flowUVScale.x,
+        material.flowUVScale.y,
+        material.flowUVScrollSpeed.x,
+        material.flowUVScrollSpeed.y
+    );
+    const Vec4 uvOffsetParams = Vec4(
+        material.mainUVOffset.x,
+        material.mainUVOffset.y,
+        material.flowUVOffset.x,
+        material.flowUVOffset.y
+    );
+    const Vec4 maskUVOffsetParams = Vec4(
+        material.maskUVOffset.x,
+        material.maskUVOffset.y,
+        0.f,
+        0.f
+    );
+    const Vec4 uvModeParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(material.flowUVTilingMode)),
+        0.f
+    );
+    const Vec4 distortionParams = Vec4(
+        max(0.f, material.refractionIntensity),
+        max(0.f, material.refractionPresence),
+        _flowTexture != nullptr ? 1.f : 0.f,
+        _materialPreviewElapsedTime
+    );
+    const Vec4 distortionShapeParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.distortionShapeMode)),
+        max(0.f, material.distortionShapeRadius),
+        max(0.f, material.distortionShapeThickness),
+        max(0.f, material.distortionShapeSoftness)
+    );
+    const Vec4 screenSize = Vec4(
+        static_cast<float>(_previewTextureWidth),
+        static_cast<float>(_previewTextureHeight),
+        0.f,
+        0.f
+    );
+    const int opacitySource = Internal::Resolve_OpacitySourceIndex(material.opacitySource);
+
+    CHECK_FAILED(_distortionShader->Bind_ObjectCB(worldMatrix), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_CBufferData(cameraCB), E_FAIL);
+    CHECK_FAILED(_texture->Bind_ShaderResourceView(_distortionShader.get(), "g_Texture", 0), E_FAIL);
+
+    if (_maskTexture != nullptr)
+        CHECK_FAILED(_maskTexture->Bind_ShaderResourceView(_distortionShader.get(), "g_MaskTexture", 0), E_FAIL);
+    else
+        CHECK_FAILED(_distortionShader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
+
+    if (_flowTexture != nullptr)
+        CHECK_FAILED(_flowTexture->Bind_ShaderResourceView(_distortionShader.get(), "g_FlowTexture", 0), E_FAIL);
+    else
+        CHECK_FAILED(_distortionShader->Bind_SRV("g_FlowTexture", nullptr), E_FAIL);
+
+    CHECK_FAILED(_distortionSourceTarget->Bind_ShaderResource(_distortionShader.get(), "g_DistortionSourceTexture"), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewAlphaParams", &alphaParams, sizeof(alphaParams)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewMainUVParams", &mainUVParams, sizeof(mainUVParams)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewMaskUVParams", &maskUVParams, sizeof(maskUVParams)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewFlowUVParams", &flowUVParams, sizeof(flowUVParams)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVOffsetParams", &uvOffsetParams, sizeof(uvOffsetParams)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewMaskUVOffsetParams", &maskUVOffsetParams, sizeof(maskUVOffsetParams)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVModeParams", &uvModeParams, sizeof(uvModeParams)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewDistortionShapeParams", &distortionShapeParams, sizeof(distortionShapeParams)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewScreenSize", &screenSize, sizeof(screenSize)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)), E_FAIL);
+
+    const uint32 passIndex = _meshMode == EffectMaterialPreviewMeshMode::Sphere ? 1u : 0u;
+    CHECK_FAILED(_distortionShader->Begin(passIndex), E_FAIL);
 
     const PreviewMeshResource& mesh =
         _meshMode == EffectMaterialPreviewMeshMode::Sphere ? _sphereMesh : _planeMesh;
@@ -793,6 +1092,7 @@ void EffectMaterialPreviewRenderer::Resize_RenderTarget(uint32 width, uint32 hei
     _previewTextureWidth = width;
     _previewTextureHeight = height;
     _renderTarget.reset();
+    _distortionSourceTarget.reset();
     _hasRenderedPreview = false;
 }
 
@@ -989,9 +1289,13 @@ void EffectMaterialPreviewRenderer::Cleanup()
     End_ViewportDrag();
     _isViewportDragging = false;
     _renderTarget.reset();
+    _distortionSourceTarget.reset();
     _shader.reset();
+    _distortionShader.reset();
     _texture.reset();
     _noiseTexture.reset();
+    _maskTexture.reset();
+    _flowTexture.reset();
     _planeMesh.vertexBuffer.Reset();
     _planeMesh.indexBuffer.Reset();
     _planeMesh.indexCount = 0;
@@ -1000,6 +1304,8 @@ void EffectMaterialPreviewRenderer::Cleanup()
     _sphereMesh.indexCount = 0;
     _loadedTextureKey.clear();
     _loadedNoiseTextureKey.clear();
+    _loadedMaskTextureKey.clear();
+    _loadedFlowTextureKey.clear();
     _statusMessage.clear();
     _hasRenderedPreview = false;
     _hasPendingHome = false;

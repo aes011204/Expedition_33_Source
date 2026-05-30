@@ -647,6 +647,18 @@ void Hero_Manager::Handle_EditorStopRuntime()
     Reset_AllHeroesToIdle();
 }
 
+bool Hero_Manager::Is_ActiveHero(const Shared<GameObject>& target) const
+{
+    if (target == nullptr)
+        return false;
+
+    const Shared<Player_WorldBase> activeHero = Get_ActiveHero();
+    if (activeHero == nullptr)
+        return false;
+
+    return target == static_pointer_cast<GameObject>(activeHero);
+}
+
 Unique<Hero_Manager> Hero_Manager::Create()
 {
     auto instance = make_unique<Hero_Manager>();

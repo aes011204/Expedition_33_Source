@@ -36,6 +36,10 @@ struct ComputePointParticleParams
     Vec4 subUVFrameCurveValues{}; // 후속 Curve Editor용 frame curve frame values.
     Vec4 subUVFrameCurveParams{}; // x: key count, y/z/w: unused.
     Vec4 sizeByLifeParams{};      // x/y: width start/end, z/w: height start/end.
+    Vec4 sizeByLifeCurveTimes{};  // SizeByLife scale curve key times.
+    Vec4 sizeByLifeCurveValuesX{}; // SizeByLife X multiplier key values.
+    Vec4 sizeByLifeCurveValuesY{}; // SizeByLife Y multiplier key values.
+    Vec4 sizeByLifeCurveParams{}; // x: key count, y: multiplyX, z: multiplyY, w: axisLock.
     Vec4 motionFlags{};           // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled.
     Vec4 motionSpaceFlags{};      // x: radial world, y/z/w: unused.
     Vec4 initialVelocityMin{};    // xyz: vector velocity min, w: unused.
@@ -46,7 +50,13 @@ struct ComputePointParticleParams
     Vec4 accelerationMax{};       // xyz: acceleration max, w: unused.
     Vec4 velocityScaleByLife{};   // x/y: scale start/end, z/w: unused.
     Vec4 rotationInitialRate{};   // x/y: initial rotation min/max, z/w: rate min/max.
-    Vec4 rotationByLife{};        // x/y: rotation start/end, z/w: rate scale start/end.
+    Vec4 rotationByLife{};        // x/y: legacy rotation start/end, z/w: rate scale start/end.
+    Vec4 rotationOverLifeCurveTimes{};  // RotationOverLife key times.
+    Vec4 rotationOverLifeCurveValues{}; // RotationOverLife degree key values.
+    Vec4 rotationOverLifeCurveParams{}; // x: key count, y/z/w: unused.
+    Vec4 rotationRateScaleByLifeCurveTimes{};  // RotationRateScaleByLife key times.
+    Vec4 rotationRateScaleByLifeCurveValues{}; // RotationRateScaleByLife multiplier values.
+    Vec4 rotationRateScaleByLifeCurveParams{}; // x: key count, y/z/w: unused.
 };
 
 VIBufferCom_ComputePointParticle::VIBufferCom_ComputePointParticle(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -418,6 +428,15 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.sizeByLife.multiplyYStart,
             _desc.sizeByLife.multiplyYEnd
         },
+        .sizeByLifeCurveTimes = _desc.sizeByLife.curveKeyTimes,
+        .sizeByLifeCurveValuesX = _desc.sizeByLife.curveKeyValuesX,
+        .sizeByLifeCurveValuesY = _desc.sizeByLife.curveKeyValuesY,
+        .sizeByLifeCurveParams = Vec4{
+            static_cast<float>(max(1u, min(4u, _desc.sizeByLife.curveKeyCount))),
+            _desc.sizeByLife.multiplyX ? 1.f : 0.f,
+            _desc.sizeByLife.multiplyY ? 1.f : 0.f,
+            static_cast<float>(ETOI(_desc.sizeByLife.axisLock))
+        },
         .motionFlags = Vec4{
             _desc.motion.enabled ? 1.f : 0.f,
             _desc.motion.initialVelocityEnabled ? 1.f : 0.f,
@@ -478,6 +497,22 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.rotation.rotationOverLifeDegrees.y,
             _desc.rotation.rotationRateScaleByLife.x,
             _desc.rotation.rotationRateScaleByLife.y
+        },
+        .rotationOverLifeCurveTimes = _desc.rotation.rotationOverLifeCurveTimes,
+        .rotationOverLifeCurveValues = _desc.rotation.rotationOverLifeCurveValues,
+        .rotationOverLifeCurveParams = Vec4{
+            static_cast<float>(_desc.rotation.rotationOverLifeCurveKeyCount),
+            0.f,
+            0.f,
+            0.f
+        },
+        .rotationRateScaleByLifeCurveTimes = _desc.rotation.rotationRateScaleByLifeCurveTimes,
+        .rotationRateScaleByLifeCurveValues = _desc.rotation.rotationRateScaleByLifeCurveValues,
+        .rotationRateScaleByLifeCurveParams = Vec4{
+            static_cast<float>(_desc.rotation.rotationRateScaleByLifeCurveKeyCount),
+            0.f,
+            0.f,
+            0.f
         }
     };
 

@@ -8,18 +8,21 @@
 cbuffer cbEffectMaterialPreview : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectMaterialPreviewParams = { 1.f, 1.f, 0.f, 0.f };        // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectMaterialPreviewAlphaParams = { 0.f, 0.f, 0.f, 0.f };   // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
-    float4 g_EffectMaterialPreviewMainUVParams = { 1.f, 1.f, 0.f, 0.f };  // xy: scale, zw: scroll speed
-    float4 g_EffectMaterialPreviewNoiseUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
-    float4 g_EffectMaterialPreviewMaskUVParams = { 1.f, 1.f, 0.f, 0.f };  // xy: scale, zw: scroll speed
-    float4 g_EffectMaterialPreviewUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: noise offset
+    float4 g_EffectMaterialPreviewParams = { 1.f, 1.f, 0.f, 0.f };             // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectMaterialPreviewAlphaParams = { 0.f, 0.f, 0.f, 0.f };        // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectMaterialPreviewMainUVParams = { 1.f, 1.f, 0.f, 0.f };       // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };      // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewMaskUVParams = { 1.f, 1.f, 0.f, 0.f };       // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main offset, zw: noise offset
     float4 g_EffectMaterialPreviewMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask offset, zw: reserved
-    float4 g_EffectMaterialPreviewUVModeParams = { 0.f, 0.f, 0.f, 0.f };  // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
-    float4 g_EffectMaterialPreviewAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
+    float4 g_EffectMaterialPreviewUVModeParams = { 0.f, 0.f, 0.f, 0.f };       // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
+    float4 g_EffectMaterialPreviewAdditiveParams = { 0.f, 0.f, 0.f, 1.f };     // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectMaterialPreviewAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectMaterialPreviewAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectMaterialPreviewAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
+    float4 g_EffectMaterialPreviewCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f }; // x: enabled, y: corePower, z: coreIntensity, w: outerPower
+    float4 g_EffectMaterialPreviewCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f }; // rgb: coreColor, a: outerIntensity
+    float4 g_EffectMaterialPreviewCheckerParams = { 512.f, 512.f, 0.f, 0.f }; // xy: target size, z: time, w: reserved
     float g_EffectMaterialPreviewTime = 0.f;
     int g_OpacitySource = 0;
     float2 g_EffectMaterialPreviewPadding;
@@ -43,22 +46,22 @@ bool Use_PreviewClampSampler(float mode)
 float4 Sample_PreviewMainTexture(float2 uv, float mode)
 {
     return Use_PreviewClampSampler(mode)
-        ? g_Texture.Sample(LinearClampSampler, uv)
-        : g_Texture.Sample(LinearWrapSampler, uv);
+           ? g_Texture.Sample(LinearClampSampler, uv)
+           : g_Texture.Sample(LinearWrapSampler, uv);
 }
 
 float Sample_PreviewNoiseTexture(float2 uv, float mode)
 {
     return Use_PreviewClampSampler(mode)
-        ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
-        : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
+           ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
+           : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
 }
 
 float Sample_PreviewMaskTexture(float2 uv, float mode)
 {
     return Use_PreviewClampSampler(mode)
-        ? g_MaskTexture.Sample(LinearClampSampler, uv).a
-        : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
+           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
 }
 
 struct VS_IN
@@ -84,6 +87,17 @@ VS_OUT VS_MAIN(VS_IN In)
 
     Out.position = mul(float4(In.position, 1.f), matWVP);
     Out.normal = normalize(mul(float4(In.normal, 0.f), g_WorldMatrix).xyz);
+    Out.texCoord = In.texCoord;
+
+    return Out;
+}
+
+VS_OUT VS_CHECKER(VS_IN In)
+{
+    VS_OUT Out = (VS_OUT)0;
+
+    Out.position = float4(In.position.xy, 0.5f, 1.f);
+    Out.normal = float3(0.f, 0.f, -1.f);
     Out.texCoord = In.texCoord;
 
     return Out;
@@ -133,7 +147,13 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
 
     const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
     const float facing = saturate(abs(In.normal.z) * 0.35f + 0.65f);
-    surface.color = symbol.rgb * g_Tint.rgb * energyVariation * facing;
+    const float3 baseColor = Effect_ApplyCoreEmissiveShaping(
+        symbol.rgb * g_Tint.rgb,
+        g_EffectMaterialPreviewCoreEmissiveColor,
+        selectedOpacity,
+        g_EffectMaterialPreviewCoreEmissiveParams
+    );
+    surface.color = baseColor * energyVariation * facing;
     surface.coverage = Effect_BuildCoverage(selectedOpacity, opacityPower, coverage, breakupNoise, g_Tint.a);
 
     if (surface.coverage < max(alphaCutoff, 0.01f))
@@ -181,6 +201,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const int colorSource = (int)g_EffectMaterialPreviewAdditiveParams.x;
     const int amountSource = (int)g_EffectMaterialPreviewAdditiveParams.y;
     const int coveragePolicy = (int)g_EffectMaterialPreviewAdditiveParams.z;
+    const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
     const float amount = Effect_SelectAdditiveAmount(symbol, maskAlpha, amountSource);
     const float policyAmount = Effect_ResolveAdditivePolicyAmount(amount, coverageBase, coveragePolicy);
     const float discardSource = Effect_ResolveAdditiveDiscardSource(amount, coverageBase, coveragePolicy);
@@ -196,9 +217,37 @@ PS_OUT PS_ADDITIVE(PS_IN In)
         g_EffectMaterialPreviewAdditiveConstantColor,
         colorSource
     );
-    const float intensity = max(g_EffectMaterialPreviewParams.x, 0.f) * max(g_EffectMaterialPreviewAdditiveParams.w, 0.f);
-    const float3 contribution = materialColor * energyVariation * facing * policyAmount * intensity * blackGate;
+    const float3 shapedMaterialColor = Effect_ApplyCoreEmissiveShaping(
+        materialColor,
+        g_EffectMaterialPreviewCoreEmissiveColor,
+        selectedOpacity,
+        g_EffectMaterialPreviewCoreEmissiveParams
+    );
+    const float additiveEnergyScalar = max(g_EffectMaterialPreviewParams.x, 0.f) * max(g_EffectMaterialPreviewAdditiveParams.w, 0.f);
+    const float3 contribution = shapedMaterialColor * energyVariation * facing * policyAmount * additiveEnergyScalar * blackGate;
     Out.color = float4(contribution, 1.f);
+    return Out;
+}
+
+PS_OUT PS_CHECKER(PS_IN In)
+{
+    PS_OUT Out = (PS_OUT)0;
+
+    const float2 targetSize = max(g_EffectMaterialPreviewCheckerParams.xy, float2(1.f, 1.f));
+    const float2 aspectUV = float2(In.texCoord.x * targetSize.x / targetSize.y, In.texCoord.y);
+    const float2 coarseCell = floor(aspectUV * 10.f);
+    const float checker = fmod(coarseCell.x + coarseCell.y, 2.f);
+    const float2 grid = abs(frac(aspectUV * 10.f) - 0.5f);
+    const float gridLine = 1.f - smoothstep(0.455f, 0.495f, max(grid.x, grid.y));
+    const float vignette = saturate(1.f - length(In.texCoord - 0.5f) * 0.95f);
+    const float3 darkColor = float3(0.10f, 0.12f, 0.16f);
+    const float3 lightColor = float3(0.34f, 0.39f, 0.46f);
+    float3 color = lerp(darkColor, lightColor, checker);
+
+    color = lerp(color, float3(0.72f, 0.78f, 0.86f), gridLine * 0.24f);
+    color *= lerp(0.72f, 1.08f, vignette);
+
+    Out.color = float4(color, 1.f);
     return Out;
 }
 
@@ -215,4 +264,7 @@ technique11 DefaultTechnique
 
     // Sphere additive preview
     PASS_RS_DS_BS_VP(SphereAdditivePass, RS_Default, DSS_Default, BS_EffectAdditive, VS_MAIN, PS_ADDITIVE) // 3
+
+    // Preview-local checker source/background
+    PASS_RS_DS_BS_VP(CheckerBackgroundPass, RS_CullNone, DSS_None, BS_Default, VS_CHECKER, PS_CHECKER) // 4
 }

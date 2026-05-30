@@ -1,6 +1,8 @@
 ﻿#include "ComputeSpriteEmitter.h"
 
+#include "Battle_Enum.h"
 #include "GameInstance.h"
+#include "Renderer_Define.h"
 #include "ShaderCom.h"
 #include "Texture.h"
 #include "VIBufferCom_ComputePointParticle.h"
@@ -14,6 +16,16 @@ IMPLEMENT_REFLECTION(ComputeSpriteEmitter)
     info.category = "EffectEmitter";
 
     return true;
+}
+
+void ComputeSpriteEmitter::Set_InfluenceOutlineDebugEnabled(bool enabled)
+{
+    _isInfluenceOutlineDebugEnabled = enabled;
+}
+
+bool ComputeSpriteEmitter::Is_InfluenceOutlineDebugEnabled()
+{
+    return _isInfluenceOutlineDebugEnabled;
 }
 
 namespace Client::Internal
@@ -130,13 +142,13 @@ void ComputeSpriteEmitter::Update(float timeDelta)
 void ComputeSpriteEmitter::Late_Update(float timeDelta)
 {
     if (Can_SubmitRender())
-        GAME->Add_RenderGroup(RenderGroup::Blend, GetSharedPtr<GameObject>());
+        GAME->Add_RenderGroup(Resolve_RenderGroup(), GetSharedPtr<GameObject>());
 }
 
 HRESULT ComputeSpriteEmitter::Render()
 {
     CHECK_FAILED_ONCE(Bind_ShaderResources(), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Begin(Resolve_BlendPassIndex()), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Begin(Resolve_ShaderPassIndex()), E_FAIL);
     CHECK_FAILED_ONCE(_viBuffer->Bind_Resources(), E_FAIL);
     CHECK_FAILED_ONCE(_viBuffer->Render(), E_FAIL);
 
@@ -170,6 +182,7 @@ HRESULT ComputeSpriteEmitter::Ready_Components()
     CHECK_FAILED(Ready_ShaderComponent(), E_FAIL);
     CHECK_FAILED(Ready_NoiseTextureComponent(resolvedTexturePath), E_FAIL);
     CHECK_FAILED(Ready_MaskTextureComponent(resolvedTexturePath), E_FAIL);
+    CHECK_FAILED(Ready_FlowTextureComponent(resolvedTexturePath), E_FAIL);
 
     ComputePointParticleDesc desc = Make_ComputePointParticleDesc();
     CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect_ComputePointParticleBuffer"), _viBuffer, &desc), E_FAIL);
@@ -251,7 +264,7 @@ HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureP
 
 HRESULT ComputeSpriteEmitter::Ready_ShaderComponent()
 {
-    CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), String::ToWString(kEffectSpriteShaderId), _shader), E_FAIL);
+    CHECK_FAILED(__super::Add_Component(ETOI(LevelType::Static), String::ToWString(Resolve_ShaderId()), _shader), E_FAIL);
     _opacitySourceIndex = Resolve_OpacitySourceIndex();
     return S_OK;
 }
@@ -273,7 +286,7 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
     {
         _noiseTexture = nullptr;
         LOG_WARN(
-            "ComputeSpriteEmitter noise texture resolve failed. noiseTextureGuid='{}', noiseTexturePath='{}'. Noise modulation is disabled.",
+            "ComputeSpriteEmitter noise texture resolve failed. noiseTextureGuid='{}', noiseTexturePath='{}'.",
             _desc.required.material.noiseTextureGuid,
             _desc.required.material.noiseTexturePath
         );
@@ -309,7 +322,7 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
     if (_noiseTexture == nullptr)
     {
         LOG_WARN(
-            "ComputeSpriteEmitter noise texture create failed. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'. Noise modulation is disabled.",
+            "ComputeSpriteEmitter noise texture create failed. noiseTextureGuid='{}', noiseTexturePath='{}', resolvedPath='{}'.",
             _desc.required.material.noiseTextureGuid,
             _desc.required.material.noiseTexturePath,
             noiseTexturePath
@@ -336,7 +349,7 @@ HRESULT ComputeSpriteEmitter::Ready_MaskTextureComponent(const string& resolvedT
     {
         _maskTexture = nullptr;
         LOG_WARN(
-            "ComputeSpriteEmitter mask texture resolve failed. maskTextureGuid='{}', maskTexturePath='{}'. Alpha mask is disabled.",
+            "ComputeSpriteEmitter mask texture resolve failed. maskTextureGuid='{}', maskTexturePath='{}'.",
             _desc.required.material.maskTextureGuid,
             _desc.required.material.maskTexturePath
         );
@@ -372,10 +385,58 @@ HRESULT ComputeSpriteEmitter::Ready_MaskTextureComponent(const string& resolvedT
     if (_maskTexture == nullptr)
     {
         LOG_WARN(
-            "ComputeSpriteEmitter mask texture create failed. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'. Alpha mask is disabled.",
+            "ComputeSpriteEmitter mask texture create failed. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'.",
             _desc.required.material.maskTextureGuid,
             _desc.required.material.maskTexturePath,
             maskTexturePath
+        );
+    }
+
+    return S_OK;
+}
+
+HRESULT ComputeSpriteEmitter::Ready_FlowTextureComponent(const string& resolvedTexturePath)
+{
+    if (!Is_DistortionFamily())
+        return S_OK;
+
+    if (_desc.required.material.flowTextureGuid.empty() && _desc.required.material.flowTexturePath.empty())
+        return S_OK;
+
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
+    const wstring resolvedPath = Internal::Resolve_TexturePath(
+        _desc.required.material.flowTextureGuid,
+        _desc.required.material.flowTexturePath,
+        usedPathFallback,
+        guidPathMismatch
+    );
+
+    if (resolvedPath.empty())
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter flow texture resolve failed. flowTextureGuid='{}', flowTexturePath='{}'.",
+            _desc.required.material.flowTextureGuid,
+            _desc.required.material.flowTexturePath
+        );
+        return S_OK;
+    }
+
+    const string flowTexturePath = String::ToString(resolvedPath);
+    if (flowTexturePath == resolvedTexturePath && nullptr != _texture)
+    {
+        _flowTexture = _texture;
+        return S_OK;
+    }
+
+    _flowTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
+    if (nullptr == _flowTexture)
+    {
+        LOG_WARN(
+            "ComputeSpriteEmitter flow texture create failed. flowTextureGuid='{}', flowTexturePath='{}', resolvedPath='{}'.",
+            _desc.required.material.flowTextureGuid,
+            _desc.required.material.flowTexturePath,
+            flowTexturePath
         );
     }
 
@@ -400,61 +461,186 @@ HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
     // 현재 sprite effect 경로에서는 주 텍스처를 lit base color가 아니라 emissive-like color + opacity source로 해석한다.
     CHECK_FAILED_ONCE(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
     CHECK_FAILED_ONCE(Bind_MaterialResources(), E_FAIL);
+    if (Is_DistortionFamily())
+        CHECK_FAILED_ONCE(Bind_DistortionResources(), E_FAIL);
 
     return S_OK;
 }
 
 HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
 {
+    const auto& material = _desc.required.material;
+
     if (nullptr != _noiseTexture)
-    {
         CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
-    }
     else
-    {
         CHECK_FAILED_ONCE(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
-    }
 
     if (nullptr != _maskTexture)
-    {
         CHECK_FAILED_ONCE(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
-    }
     else
-    {
         CHECK_FAILED_ONCE(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
-    }
 
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_Tint", &_desc.required.material.tint, sizeof(_desc.required.material.tint)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
 
     const Vec4 effectSpriteParams = Vec4(
-        _desc.required.material.intensity,
-        _desc.required.material.opacityPower,
-        _desc.required.material.noiseStrength,
+        material.intensity,
+        material.opacityPower,
+        material.noiseStrength,
         nullptr != _noiseTexture ? 1.f : 0.f
     );
     const Vec4 effectSpriteAlphaParams = Vec4(
-        clamp(_desc.required.material.alphaCutoff, 0.f, 1.f),
-        clamp(_desc.required.material.alphaErosion, 0.f, 1.f),
+        clamp(material.alphaCutoff, 0.f, 1.f),
+        clamp(material.alphaErosion, 0.f, 1.f),
         nullptr != _maskTexture ? 1.f : 0.f,
         0.f
     );
-    const EffectMaterialAdditiveContributionData& additive = _desc.required.material.additive;
-    const Vec4 effectSpriteAdditiveParams = Vec4(
-        static_cast<float>(static_cast<uint32>(additive.colorSource)),
-        static_cast<float>(static_cast<uint32>(additive.amountSource)),
-        static_cast<float>(static_cast<uint32>(additive.coveragePolicy)),
-        additive.intensityScale
+    const Vec4 effectSpriteMainUVParams = Vec4(material.mainUVScale.x, material.mainUVScale.y, material.mainUVScrollSpeed.x, material.mainUVScrollSpeed.y);
+    const Vec4 effectSpriteNoiseUVParams = Vec4(material.noiseUVScale.x, material.noiseUVScale.y, material.noiseUVScrollSpeed.x, material.noiseUVScrollSpeed.y);
+    const Vec4 effectSpriteMaskUVParams = Vec4(material.maskUVScale.x, material.maskUVScale.y, material.maskUVScrollSpeed.x, material.maskUVScrollSpeed.y);
+    const Vec4 effectSpriteUVOffsetParams = Vec4(material.mainUVOffset.x, material.mainUVOffset.y, material.noiseUVOffset.x, material.noiseUVOffset.y);
+    const Vec4 effectSpriteMaskUVOffsetParams = Vec4(material.maskUVOffset.x, material.maskUVOffset.y, 0.f, 0.f);
+    const Vec4 effectSpriteUVModeParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
+        0.f
     );
-    const Vec4 effectSpriteAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
+
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteParams", &effectSpriteParams, sizeof(effectSpriteParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAlphaParams", &effectSpriteAlphaParams, sizeof(effectSpriteAlphaParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveParams", &effectSpriteAdditiveParams, sizeof(effectSpriteAdditiveParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveFlags", &effectSpriteAdditiveFlags, sizeof(effectSpriteAdditiveFlags)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMainUVParams", &effectSpriteMainUVParams, sizeof(effectSpriteMainUVParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteNoiseUVParams", &effectSpriteNoiseUVParams, sizeof(effectSpriteNoiseUVParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaskUVParams", &effectSpriteMaskUVParams, sizeof(effectSpriteMaskUVParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteUVOffsetParams", &effectSpriteUVOffsetParams, sizeof(effectSpriteUVOffsetParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaskUVOffsetParams", &effectSpriteMaskUVOffsetParams, sizeof(effectSpriteMaskUVOffsetParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteUVModeParams", &effectSpriteUVModeParams, sizeof(effectSpriteUVModeParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)), E_FAIL);
+
+    const Vec4 effectInfluenceDebugParams = Vec4(
+        _isInfluenceOutlineDebugEnabled ? 1.f : 0.f,
+        0.5f,
+        kInfluenceOutlinePixelWidthScale,
+        0.f
+    );
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectInfluenceDebugParams", &effectInfluenceDebugParams, sizeof(effectInfluenceDebugParams)), E_FAIL);
+
+    if (!Is_DistortionFamily())
+    {
+        const EffectMaterialAdditiveContributionData& additive = material.additive;
+        const EffectMaterialCoreEmissiveData& coreEmissive = material.coreEmissive;
+        const Vec4 effectSpriteAdditiveParams = Vec4(
+            static_cast<float>(static_cast<uint32>(additive.colorSource)),
+            static_cast<float>(static_cast<uint32>(additive.amountSource)),
+            static_cast<float>(static_cast<uint32>(additive.coveragePolicy)),
+            additive.intensityScale
+        );
+        const Vec4 effectSpriteAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
+        const Vec4 effectSpriteCoreEmissiveParams = Vec4(
+            coreEmissive.enabled ? 1.f : 0.f,
+            coreEmissive.corePower,
+            coreEmissive.coreIntensity,
+            coreEmissive.outerPower
+        );
+        const Vec4 effectSpriteCoreEmissiveColor = Vec4(
+            coreEmissive.coreColor.x,
+            coreEmissive.coreColor.y,
+            coreEmissive.coreColor.z,
+            coreEmissive.outerIntensity
+        );
+        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveParams", &effectSpriteAdditiveParams, sizeof(effectSpriteAdditiveParams)), E_FAIL);
+        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
+        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
+        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveFlags", &effectSpriteAdditiveFlags, sizeof(effectSpriteAdditiveFlags)), E_FAIL);
+        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteCoreEmissiveParams", &effectSpriteCoreEmissiveParams, sizeof(effectSpriteCoreEmissiveParams)), E_FAIL);
+        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteCoreEmissiveColor", &effectSpriteCoreEmissiveColor, sizeof(effectSpriteCoreEmissiveColor)), E_FAIL);
+    }
+
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), E_FAIL);
 
     return S_OK;
+}
+
+HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
+{
+    const auto& material = _desc.required.material;
+
+    CHECK_FAILED_ONCE(GAME->Bind_RT_ShaderResource(_shader, "g_DistortionSourceTexture", RT::DistortionSource), E_FAIL);
+
+    if (nullptr != _flowTexture)
+        CHECK_FAILED_ONCE(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);
+    else
+        CHECK_FAILED_ONCE(_shader->Bind_SRV("g_FlowTexture", nullptr), E_FAIL);
+
+    D3D11_VIEWPORT viewport{};
+    uint32 viewportCount = 1u;
+    _context->RSGetViewports(&viewportCount, &viewport);
+
+    const Vec4 distortionParams(
+        max(0.f, material.refractionIntensity),
+        max(0.f, material.refractionPresence),
+        nullptr != _flowTexture ? 1.f : 0.f,
+        _emitterElapsedTime
+    );
+    const Vec4 distortionShapeParams(
+        static_cast<float>(static_cast<uint32>(material.distortionShapeMode)),
+        max(0.f, material.distortionShapeRadius),
+        max(0.f, material.distortionShapeThickness),
+        max(0.f, material.distortionShapeSoftness)
+    );
+    const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
+    const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_EffectDistortionShapeParams", &distortionShapeParams, sizeof(distortionShapeParams)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)),
+        E_FAIL
+    );
+
+    return S_OK;
+}
+
+bool ComputeSpriteEmitter::Is_DistortionFamily() const
+{
+    return _desc.required.material.materialFamily == EffectMaterialFamily::SpriteDistortion;
+}
+
+RenderGroup ComputeSpriteEmitter::Resolve_RenderGroup() const
+{
+    return Is_DistortionFamily() ? RenderGroup::Distortion : RenderGroup::Blend;
+}
+
+const char* ComputeSpriteEmitter::Resolve_ShaderId() const
+{
+    return Is_DistortionFamily() ? kEffectDistortionSpriteShaderId : kEffectSpriteShaderId;
+}
+
+uint32 ComputeSpriteEmitter::Resolve_ShaderPassIndex() const
+{
+    return Is_DistortionFamily() ? 0u : Resolve_BlendPassIndex();
 }
 
 int ComputeSpriteEmitter::Resolve_OpacitySourceIndex() const
@@ -542,7 +728,7 @@ uint32 ComputeSpriteEmitter::Consume_SpawnRequest(float timeDelta)
         const float spawnRate = max(0.f, _desc.spawn.particleSpawn.spawnRate * _desc.spawn.particleSpawn.spawnRateScale);
         _spawnAccumulator += spawnRate * safeDeltaTime;
 
-        const float wholeSpawn = floorf(_spawnAccumulator);
+        const float wholeSpawn = floorf(_spawnAccumulator + 0.0001f);
         if (wholeSpawn > 0.f)
         {
             spawnRequest += static_cast<uint32>(wholeSpawn);
@@ -659,7 +845,6 @@ void ComputeSpriteEmitter::Start_NextLoop()
     ++_loopIndex;
     _loopElapsedTime = 0.f;
     _emitterElapsedTime = 0.f;
-    _spawnAccumulator = 0.f;
     _burstExecuted.assign(_desc.spawn.particleSpawn.bursts.size(), false);
     _playbackState = Resolve_CurrentLoopDelay() > 0.f ? PlaybackState::Delayed : PlaybackState::Playing;
 }

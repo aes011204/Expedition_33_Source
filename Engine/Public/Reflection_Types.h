@@ -11,6 +11,7 @@ namespace Engine
         BTNode,
         AnimNotify,
         AnimNotifyState,
+        ScreenFx,
     };
 
     // 리플렉션 프로퍼티 종류

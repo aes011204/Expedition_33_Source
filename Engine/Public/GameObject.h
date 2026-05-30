@@ -68,6 +68,9 @@ public:
     bool Is_Visible() const { return _isVisible; }
     void Set_Visible(bool visible) { _isVisible = visible; }
 
+    bool Is_MarkDestroy() const { return _markDestroy; }
+    void Set_MarkDestroy(bool markDestroy) { _markDestroy = markDestroy; }
+
 public: /* 그림자 */
     void Set_ShadowCasterType(ShadowCasterType type) { _shadowCasterType = type; }
     ShadowCasterType Get_ShadowCasterType() const { return _shadowCasterType; }
@@ -168,8 +171,10 @@ protected:
 
 protected:
     Weak<GameObject> _owner;
+
     bool _hasBegunPlay = false;
     bool _isVisible = true;
+    bool _markDestroy = false;
 
 public:
     virtual Shared<GameObject> Clone(void* arg) = 0;

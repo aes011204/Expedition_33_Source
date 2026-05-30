@@ -19,6 +19,7 @@ class PersistentObjectManager;
 class Hero_Manager;
 class CameraDirector;
 class EffectInstancePool;
+class ClientScreenFxManager;
 
 class ClientInstance : public Base
 {
@@ -98,6 +99,8 @@ public: /* For.Hero Manager */
 
     void Reset_AllHeroesToIdle();
 
+    bool    Is_ActiveHero(const Shared<GameObject>& target) const;
+
 public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);
     void    Clear_GameplayUI();
@@ -110,7 +113,7 @@ public: /* For.Gameplay UI */
 public: /* For.Battle_Controller */
     void OnEnterBattleField(
         uint32 FieldID,
-        bool IsFirstHero,
+        bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
         const vector<string>& MonsterProtoTag,
         const Shared<GameObject>& sourceObject = nullptr);
@@ -131,6 +134,9 @@ public: /*For.Camera Director*/
 public:
     void Set_TargetCameraEditMode(bool enable) { _isTargetCameraEditMode = enable; }
     bool Is_TargetCameraEditMode() { return _isTargetCameraEditMode;}
+
+public:
+    Shared<ClientScreenFxManager> Get_ScreenFxManager() const;
 
 private:
 	HRESULT Ready_ResourceLoader();
@@ -153,9 +159,10 @@ private:
     Unique<PreviewShotTable>    _previewShotTable;
     Unique<EffectInstancePool>  _effectInstancePool;
 
-    Shared<GameplayUI>          _gamePlayUI;
-    Unique<PersistentObjectManager> _persistentObjectManager;
-    Unique<Hero_Manager>        _heroManager;
+    Shared<GameplayUI>                  _gamePlayUI;
+    Unique<PersistentObjectManager>     _persistentObjectManager;
+    Unique<Hero_Manager>                _heroManager;
+    Shared<ClientScreenFxManager>       _screenFxManager;
 
     Shared<BattleController>    _battleController;
 

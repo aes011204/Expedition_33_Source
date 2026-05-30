@@ -122,12 +122,13 @@ void MainEditorApp::Update(float timeDelta)
     }
 
     const uint32 currentLevelIndex = GAME->Current_LevelIndex();
-    const bool finishedLoadingIntoNonMainTitle =
+    const bool finishedLoadingIntoEditorAutoPlayLevel =
         previousLevelIndex == ETOI(LevelType::Loading) &&
         currentLevelIndex != ETOI(LevelType::Loading) &&
-        currentLevelIndex != ETOI(LevelType::MainTitle);
+        currentLevelIndex != ETOI(LevelType::MainTitle) &&
+        currentLevelIndex != ETOI(LevelType::GameEntry);
 
-    if (finishedLoadingIntoNonMainTitle)
+    if (finishedLoadingIntoEditorAutoPlayLevel)
         EDITOR->Enter_EditAfterLoading();
 
     EDITOR->Apply_RuntimeInputPolicy();
@@ -190,6 +191,12 @@ HRESULT MainEditorApp::Render()
         {
             ENGINE_PROFILE_SCOPE_DETAIL("Editor::BindBackBuffer");
             GAME->Bind_BackBuffer();
+        }
+
+        {
+            ENGINE_PROFILE_SCOPE_DETAIL("Editor::ClearBackBuffer");
+            if (FAILED(GAME->Clear_Buffers(Vec4(0.018f, 0.020f, 0.024f, 1.f))))
+                return fail();
         }
 
         {

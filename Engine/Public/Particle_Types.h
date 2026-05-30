@@ -99,14 +99,28 @@ struct PointParticleSubUVFrameOverLifeDesc
     Vec4 frameCurveValues{};                                                   // 후속 Curve Editor용 frame index 값이다.
 };
 
+enum class PointParticleSizeByLifeAxisLock : uint8
+{
+    None,
+    X,
+    Y,
+};
+
 // SizeByLife 모듈의 최소 preview runtime desc다.
 struct PointParticleSizeByLifeDesc
 {
-    bool enabled{ false };       // Size By Life 모듈이 실제로 켜져 있는지 나타낸다.
-    float multiplyXStart{ 1.f }; // 수명 시작 시 X축에 곱할 배율이다.
-    float multiplyXEnd{ 1.f };   // 수명 종료 시 X축에 곱할 배율이다.
-    float multiplyYStart{ 1.f }; // 수명 시작 시 Y축에 곱할 배율이다.
-    float multiplyYEnd{ 1.f };   // 수명 종료 시 Y축에 곱할 배율이다.
+    bool enabled{ false };                                             // Size By Life 모듈이 실제로 켜져 있는지 나타낸다.
+    float multiplyXStart{ 1.f };                                       // legacy endpoint fallback: 수명 시작 시 X축 배율이다.
+    float multiplyXEnd{ 1.f };                                         // legacy endpoint fallback: 수명 종료 시 X축 배율이다.
+    float multiplyYStart{ 1.f };                                       // legacy endpoint fallback: 수명 시작 시 Y축 배율이다.
+    float multiplyYEnd{ 1.f };                                         // legacy endpoint fallback: 수명 종료 시 Y축 배율이다.
+    bool multiplyX{ true };                                            // false면 평가된 X 대신 1을 사용한다.
+    bool multiplyY{ true };                                            // false면 평가된 Y 대신 1을 사용한다.
+    PointParticleSizeByLifeAxisLock axisLock{};                        // Sprite 2D 범위의 X/Y 축 잠금 정책이다.
+    uint32 curveKeyCount{ 2 };                                         // scaleOverLife compact curve key 수다.
+    Vec4 curveKeyTimes{ 0.f, 1.f, 0.f, 0.f };                          // scaleOverLife key time 0..1 값이다.
+    Vec4 curveKeyValuesX{ 1.f, 1.f, 0.f, 0.f };                        // scaleOverLife X multiplier 값이다.
+    Vec4 curveKeyValuesY{ 1.f, 1.f, 0.f, 0.f };                        // scaleOverLife Y multiplier 값이다.
 };
 
 // motion 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
@@ -130,11 +144,17 @@ struct PointParticleMotionDesc
 // rotation 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
 struct PointParticleRotationDesc
 {
-    bool enabled{ false };                       // rotation 계열 모듈이 하나라도 preview에 연결되었는지 나타낸다.
-    Vec2 initialRotationDegrees{ 0.f, 0.f };     // InitialRotation 분포의 min/max 각도다.
-    Vec2 rotationOverLifeDegrees{ 0.f, 0.f };    // RotationOverLife의 시작/종료 추가 각도다.
-    Vec2 initialRotationRateDegrees{ 0.f, 0.f }; // InitialRotationRate 분포의 min/max 초당 각도다.
-    Vec2 rotationRateScaleByLife{ 1.f, 1.f };    // RotationRateScaleByLife의 시작/종료 배율이다.
+    bool enabled{ false };                                     // rotation 계열 모듈이 하나라도 preview에 연결되었는지 나타낸다.
+    Vec2 initialRotationDegrees{ 0.f, 0.f };                   // InitialRotation 분포의 min/max 각도다.
+    Vec2 rotationOverLifeDegrees{ 0.f, 0.f };                  // RotationOverLife curve의 시작/종료 fallback 추가 각도다.
+    Vec2 initialRotationRateDegrees{ 0.f, 0.f };               // InitialRotationRate 분포의 min/max 초당 각도다.
+    Vec2 rotationRateScaleByLife{ 1.f, 1.f };                  // RotationRateScaleByLife의 시작/종료 배율이다.
+    uint32 rotationOverLifeCurveKeyCount{ 2 };                 // RotationOverLife compact curve key 수다.
+    Vec4 rotationOverLifeCurveTimes{ 0.f, 1.f, 0.f, 0.f };     // RotationOverLife key time 0..1 값이다.
+    Vec4 rotationOverLifeCurveValues{ 0.f, 0.f, 0.f, 0.f };    // RotationOverLife key별 추가 회전각 degree 값이다.
+    uint32 rotationRateScaleByLifeCurveKeyCount{ 2 };          // RotationRateScaleByLife compact curve key 수다.
+    Vec4 rotationRateScaleByLifeCurveTimes{ 0.f, 1.f, 0.f, 0.f }; // RotationRateScaleByLife key time 0..1 값이다.
+    Vec4 rotationRateScaleByLifeCurveValues{ 1.f, 1.f, 0.f, 0.f }; // RotationRateScaleByLife key별 배율 값이다.
 };
 
 // Spawn 모듈의 burst 항목을 runtime emitter가 소비할 수 있게 압축한 payload다.

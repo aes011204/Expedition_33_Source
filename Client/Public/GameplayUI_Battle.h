@@ -31,6 +31,7 @@ class UI_BattleMechanism;
 class UI_BattleItemPanel;
 class UI_BattleSkillPanel;
 class UI_BattleAnnounce;
+class UI_SuddenAttack;
 
 class GameplayUI_Battle final : public Base
 {
@@ -57,7 +58,7 @@ private:
     void    Bind_BattleDelegates();        // 턴 관련 델리게이트 구독
     void    Unbind_BattleDelegates();      // 턴 관련 델리게이트 구독 해제
 
-    void    Handle_BattleStarted(uint32 fieldId, bool isFirstHero);
+    void    Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvantage);
     void    Handle_BattleEnded(EBattleEndResult result);
     void    Handle_TurnStarted(const BattleChar& actor, BattleTurnState state);
     void    Handle_TurnEnded(const BattleChar& actor);
@@ -86,6 +87,7 @@ private:
     void    Update_BattleItemPanel(float timeDelta);
     void    Update_BattleSkillPanel(float timeDelta);
     void    Update_BattleAnnounce(float timeDelta);
+    void    Update_SuddenAttack(float timeDelta);
 
 private:
 #pragma region UI 위치맞추기
@@ -130,6 +132,7 @@ private:
     Unique<UI_BattleItemPanel>              _battleItemPanel;
     Unique<UI_BattleSkillPanel>             _battleSkillPanel;
     Unique<UI_BattleAnnounce>               _battleAnnounce;
+    Unique<UI_SuddenAttack>                 _suddenAttack;
 
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
@@ -164,6 +167,9 @@ private:
 
     vector<VictoryStatDesc>  _battleStartVictoryStats{};
 
+    bool                     _isPlayerAdvantageStart = false; // 플레이어 선제공격?
+    bool                     _hasPlayedSuddenAttack = false;  // 이미 보여줬는지?  
+    
 private:
     BattleChar               _currentPlayerTurnActor{}; // 현재 턴 진행중인 플레이어
     bool                     _hasCurrentPlayerTurnActor = false;

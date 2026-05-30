@@ -6,13 +6,15 @@
 /* 제물 */
 void Skill_Lune_Immolation::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
-    const BattleChar& attacker = action.Get_CurChar();
-
     const auto& curTargets = action.GetCurStepTarget();
     if (curTargets.empty())
         return;
 
+    const BattleChar& attacker = action.Get_CurChar();
     const BattleChar& target = curTargets.front();
+
+    if (attacker.mechanismCom)
+        attacker.mechanismCom->Add_LuneStains({ ElementalType::Fire });
 
     DamageSystem::ApplyDamage(15.f, target, attackType);
 }
@@ -25,13 +27,15 @@ Shared<Skill_Lune_Immolation> Skill_Lune_Immolation::Create()
 /* 얼음 창 */
 void Skill_Lune_IceGust::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
-    const BattleChar& attacker = action.Get_CurChar();
-
     const auto& curTargets = action.GetCurStepTarget();
     if (curTargets.empty())
         return;
 
+    const BattleChar& attacker = action.Get_CurChar();
     const BattleChar& target = curTargets.front();
+
+    if (attacker.mechanismCom)
+        attacker.mechanismCom->Add_LuneStains({ ElementalType::Ice, ElementalType::Light });
 
     DamageSystem::ApplyDamage(15.f, target, attackType);
 }
@@ -44,13 +48,15 @@ Shared<Skill_Lune_IceGust> Skill_Lune_IceGust::Create()
 /* 천둥 내림 */
 void Skill_Lune_Thunderfall::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
-    const BattleChar& attacker = action.Get_CurChar();
-
     const auto& curTargets = action.GetCurStepTarget();
     if (curTargets.empty())
         return;
 
+    const BattleChar& attacker = action.Get_CurChar();
     const BattleChar& target = curTargets.front();
+
+    if (attacker.mechanismCom)
+        attacker.mechanismCom->Add_LuneStains({ ElementalType::Lightning, ElementalType::Light });
 
     const int32 hitCount = skill.AttackCount > 0 ? skill.AttackCount : 6;
     const float totalDamage = 80.f;

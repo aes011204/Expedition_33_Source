@@ -28,6 +28,10 @@ protected:
     const wchar_t* Get_HeadModelTag() const override { return L"Model_GustaveHead"; }
     const wchar_t* Get_HairModelTag() const override { return L"Model_GustaveHair"; }
 
+    // 구스타브 수염
+    virtual const wchar_t* Get_BeardModelTag() const { return L"Model_GustaveBeard"; }
+    virtual const wchar_t* Get_MustacheModelTag() const { return L"Model_GustaveMustache"; }
+
 public:
 	static Shared<PW_Gustave> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;

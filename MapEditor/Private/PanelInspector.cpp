@@ -356,6 +356,18 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
         }
         break;
 
+    case EObjectType::Terrain:
+        if (ImGui::CollapsingHeader("Terrain", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::LabelText("Tiles", "%d", (int)_ctx->_terrainConfig.tiles.size());
+            ImGui::LabelText("WorldOffsetX", "%.4f", _ctx->_terrainConfig.worldOffsetX);
+            ImGui::LabelText("WorldOffsetY", "%.4f", _ctx->_terrainConfig.worldOffsetY);
+            ImGui::LabelText("WorldOffsetZ", "%.4f", _ctx->_terrainConfig.worldOffsetZ);
+            ImGui::LabelText("ScaleXZ", "%.6f", _ctx->_terrainConfig.scaleXZ);
+            ImGui::LabelText("ScaleY", "%.4f", _ctx->_terrainConfig.scaleY);
+        }
+        break;
+
     default:
         break;
     }

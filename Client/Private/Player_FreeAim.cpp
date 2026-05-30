@@ -5,9 +5,12 @@
 
 #include "OffsetAnimationModifier.h"
 #include "Body_Player.h"
+#include "Monster_WorldBase.h"
+#include "PhysX_Types.h"
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
+#include "TargetCamera.h"
 
 Player_FreeAim::Player_FreeAim(const Shared<Player_WorldBase>& owner)
     : Player_State{ owner } {}
@@ -50,6 +53,9 @@ bool Player_FreeAim::EnterInvoke()
     _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Idle), 0.1f, true);
     if (_offsetModifier) _offsetModifier->Set_Active(true);
 
+    _hasHitMonster = false;
+    _hitMonster.reset();
+
     auto owner = _owner.lock();
     if (owner)
     {
@@ -75,6 +81,9 @@ void Player_FreeAim::Update(float timeDelta)
 {
     if (false == IsEnterFreeAim())
     {
+        _hasHitMonster = false;
+        _hitMonster.reset();
+
         if (IsEnterMove())
         {
             _stateCom->Change_State(PlayerState::Move);
@@ -88,10 +97,18 @@ void Player_FreeAim::Update(float timeDelta)
     }
 
     Update_EnterTurnBurst();
+    Update_FreeAimHitState();
 
     uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
+
     if (IsFreeAimShoot())
     {
+        if (Shared<Monster_WorldBase> hitMonster = _hitMonster.lock())
+        {
+            // TODO : Hit Monster 로그. 여기서 몬스터 상태전환해서 Stun으로 만들면 됩니다.
+            LOG_DEBUG("World FreeAim Shoot Hit Monster: {}", String::ToString(hitMonster->Get_Name()).c_str());
+        }
+
         if (animIndex != ETOI(plAnim::Pl_FreeAim_Shoot))
         {
             _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Shoot), 0.25f, false);
@@ -130,6 +147,9 @@ void Player_FreeAim::LateUpdate(float timeDelta)
 
 void Player_FreeAim::ExitInvoke()
 {
+    _hasHitMonster = false;
+    _hitMonster.reset();
+
     if (_offsetModifier)
     {
         _offsetModifier->Set_Active(false);
@@ -142,6 +162,65 @@ void Player_FreeAim::ExitInvoke()
     }
 
     _isEnterTurnBurstActive = false;
+}
+
+void Player_FreeAim::Update_FreeAimHitState()
+{
+    Shared<Monster_WorldBase> hitMonster = Find_FreeAimHitMonster();
+    _hasHitMonster = (hitMonster != nullptr);
+    _hitMonster = hitMonster;
+}
+
+Shared<Monster_WorldBase> Player_FreeAim::Find_FreeAimHitMonster() const
+{
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    if (activeCamera == nullptr)
+        return nullptr;
+
+    const Shared<TargetCamera> targetCamera = dynamic_pointer_cast<TargetCamera>(activeCamera);
+    if (targetCamera == nullptr)
+        return nullptr;
+
+    const Vec3 queryOrigin = targetCamera->Get_FreeAimQueryOrigin();
+    Vec3 direction = targetCamera->Get_FreeAimQueryDirection();
+
+    if (direction.LengthSquared() <= 0.0001f)
+        return nullptr;
+
+    direction.Normalize();
+
+    constexpr float traceDistance = 200.f;
+    constexpr float monsterSweepRadius = 0.3f;
+
+    PhysXQueryHit envHit{};
+    const bool hasEnvBlock = GAME->Sweep_Sphere(
+        queryOrigin,
+        direction,
+        traceDistance,
+        monsterSweepRadius,
+        Collision_Preset::Camera,
+        envHit);
+
+    PhysXQueryHit monsterHit{};
+    const bool hasMonsterHit = GAME->Sweep_Sphere(
+        queryOrigin,
+        direction,
+        traceDistance,
+        monsterSweepRadius,
+        Collision_Preset::Player_Target,
+        monsterHit);
+
+    if (!hasMonsterHit || monsterHit.owner == nullptr)
+        return nullptr;
+
+    Monster_WorldBase* hitMonster = dynamic_cast<Monster_WorldBase*>(monsterHit.owner);
+    if (hitMonster == nullptr)
+        return nullptr;
+
+    if (hasEnvBlock && envHit.distance < monsterHit.distance)
+        return nullptr;
+
+    return hitMonster->GetSharedPtr<Monster_WorldBase>();
 }
 
 void Player_FreeAim::Update_DirectionalModifiers()

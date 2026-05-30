@@ -1,5 +1,6 @@
-#pragma once
+﻿#pragma once
 #include "EditorObject.h"
+#include "MELandscapeActor.h"
 
 NS_BEGIN(MapEditor)
 
@@ -35,7 +36,7 @@ struct SceneContext
     bool _dirtyPassOverrides = false;
 
     void SaveToFile(const string& filePath);
-    void LoadFromFile(const string& filePath);
+    void LoadFromFile(const string& filePath, bool bMerge = false);
     Shared<EditorObject> SpawnObject(const wstring& modelPath, const Vec3& pos);
     Shared<EditorObject> SpawnFromPrefab(const string& prefabPath, const Vec3& pos);
 
@@ -53,6 +54,19 @@ struct SceneContext
 
     void SaveCamData(const string& filePath);
     void LoadCamData(const string& filePath);
+
+    TerrainConfig _terrainConfig;
+
+    void LoadTerrainConfig(const string& filePath);
+
+    bool _terrainDirty = false;
+
+    vector<LandscapeConfig> _landscapeConfigs;
+    vector<Shared<MELandscapeActor>> _landscapes;
+    int32 _activeLandscapeIdx = -1;
+
+    bool _objectBBoxMode = false;
+    bool _hideInstancedMesh = false;
 };
 
 NS_END

@@ -22,7 +22,15 @@ namespace UIEditor
         vector<TimelineRow> Build_Rows(const UI_AnimationAsset& asset)
         {
             vector<TimelineRow> rows;
-            rows.reserve(asset.targets.size() * 2);
+            rows.reserve(asset.targets.size() * 2 + asset.tracks.size());
+
+            if (Is_PublicAnimation(asset))
+            {
+                for (int32 trackIndex = 0; trackIndex < static_cast<int32>(asset.tracks.size()); ++trackIndex)
+                    rows.push_back({ -1, trackIndex, false });
+
+                return rows;
+            }
 
             for (int32 targetIndex = 0; targetIndex < static_cast<int32>(asset.targets.size()); ++targetIndex)
             {
@@ -34,6 +42,29 @@ namespace UIEditor
             }
 
             return rows;
+        }
+
+        const UI_AnimationKeyframeTrack* Find_RowTrack(const UI_AnimationAsset& asset, const TimelineRow& row)
+        {
+            if (row.trackIndex < 0)
+                return nullptr;
+
+            if (Is_PublicAnimation(asset))
+            {
+                if (row.trackIndex >= static_cast<int32>(asset.tracks.size()))
+                    return nullptr;
+
+                return &asset.tracks[row.trackIndex];
+            }
+
+            if (row.targetIndex < 0 || row.targetIndex >= static_cast<int32>(asset.targets.size()))
+                return nullptr;
+
+            const UI_AnimationTargetBinding& target = asset.targets[row.targetIndex];
+            if (row.trackIndex >= static_cast<int32>(target.tracks.size()))
+                return nullptr;
+
+            return &target.tracks[row.trackIndex];
         }
     }
 
@@ -111,14 +142,19 @@ namespace UIEditor
                 return false;
 
             const TimelineRow& row = rows[rowIndex];
-            if (row.isTargetRow || row.targetIndex < 0 || row.trackIndex < 0)
+            if (row.isTargetRow || row.trackIndex < 0)
                 return false;
 
-            const UI_AnimationTargetBinding& target = asset.targets[row.targetIndex];
-            const UI_AnimationKeyframeTrack& track = target.tracks[row.trackIndex];
-            for (int32 keyIndex = 0; keyIndex < static_cast<int32>(track.keys.size()); ++keyIndex)
+            if (!Is_PublicAnimation(asset) && row.targetIndex < 0)
+                return false;
+
+            const UI_AnimationKeyframeTrack* track = Find_RowTrack(asset, row);
+            if (nullptr == track)
+                return false;
+
+            for (int32 keyIndex = 0; keyIndex < static_cast<int32>(track->keys.size()); ++keyIndex)
             {
-                const float keyX = frameToX(track.keys[keyIndex].frame);
+                const float keyX = frameToX(track->keys[keyIndex].frame);
                 if (fabsf(screenPos.x - keyX) <= 7.f)
                 {
                     outTargetIndex = row.targetIndex;
@@ -158,7 +194,9 @@ namespace UIEditor
             const float rowMinY = origin.y + kRulerHeight + static_cast<float>(rowIndex) * kTrackRowHeight;
             const float rowMaxY = rowMinY + kTrackRowHeight;
             const bool isSelectedTarget = selectedTargetIndex == row.targetIndex;
-            const bool isSelectedTrack = isSelectedTarget && !row.isTargetRow && selectedTrackIndex == row.trackIndex;
+            const bool isSelectedTrack = !row.isTargetRow &&
+                selectedTrackIndex == row.trackIndex &&
+                (Is_PublicAnimation(asset) || isSelectedTarget);
 
             const ImU32 rowColor = row.isTargetRow
                 ? (isSelectedTarget ? IM_COL32(42, 71, 92, 255) : IM_COL32(34, 54, 68, 255))
@@ -173,16 +211,18 @@ namespace UIEditor
                 continue;
             }
 
-            const UI_AnimationTargetBinding& target = asset.targets[row.targetIndex];
-            const UI_AnimationKeyframeTrack& track = target.tracks[row.trackIndex];
-            drawList->AddText(
-                ImVec2(origin.x + 24.f, rowMinY + 9.f),
-                IM_COL32(222, 224, 232, 235),
-                Get_AnimationKeyframeTrackTypeName(track.type));
+            const UI_AnimationKeyframeTrack* track = Find_RowTrack(asset, row);
+            if (nullptr == track)
+                continue;
 
-            for (int32 keyIndex = 0; keyIndex < static_cast<int32>(track.keys.size()); ++keyIndex)
+            drawList->AddText(
+                ImVec2(origin.x + (Is_PublicAnimation(asset) ? 8.f : 24.f), rowMinY + 9.f),
+                IM_COL32(222, 224, 232, 235),
+                Get_AnimationKeyframeTrackTypeName(track->type));
+
+            for (int32 keyIndex = 0; keyIndex < static_cast<int32>(track->keys.size()); ++keyIndex)
             {
-                const UI_AnimationKeyframe& key = track.keys[keyIndex];
+                const UI_AnimationKeyframe& key = track->keys[keyIndex];
                 const float x = frameToX(key.frame);
                 const float y = rowMinY + kTrackRowHeight * 0.5f;
                 const bool isSelectedKey = isSelectedTrack && selectedKeyIndex == keyIndex;
@@ -218,7 +258,7 @@ namespace UIEditor
                 result.trackIndex = row.trackIndex;
             }
 
-            if (result.targetIndex >= 0 && result.trackIndex >= 0)
+            if (result.trackIndex >= 0)
             {
                 int32 hitTargetIndex = -1;
                 int32 hitTrackIndex = -1;
@@ -229,7 +269,9 @@ namespace UIEditor
                     result.targetIndex = hitTargetIndex;
                     result.trackIndex = hitTrackIndex;
                     result.keyIndex = hitKeyIndex;
-                    result.frame = asset.targets[hitTargetIndex].tracks[hitTrackIndex].keys[hitKeyIndex].frame;
+                    result.frame = Is_PublicAnimation(asset)
+                        ? asset.tracks[hitTrackIndex].keys[hitKeyIndex].frame
+                        : asset.targets[hitTargetIndex].tracks[hitTrackIndex].keys[hitKeyIndex].frame;
 
                     _draggingKey = true;
                     _dragStarted = false;
@@ -253,22 +295,30 @@ namespace UIEditor
 
                 const bool useSelectedKey =
                     _dragStarted &&
-                    selectedTargetIndex == _dragTargetIndex &&
+                    (Is_PublicAnimation(asset) || selectedTargetIndex == _dragTargetIndex) &&
                     selectedTrackIndex == _dragTrackIndex &&
                     selectedKeyIndex >= 0;
-                const int32 targetTargetIndex = useSelectedKey ? selectedTargetIndex : _dragTargetIndex;
+                const int32 targetTargetIndex = Is_PublicAnimation(asset)
+                    ? -1
+                    : (useSelectedKey ? selectedTargetIndex : _dragTargetIndex);
                 const int32 targetTrackIndex = useSelectedKey ? selectedTrackIndex : _dragTrackIndex;
                 const int32 targetKeyIndex = useSelectedKey ? selectedKeyIndex : _dragKeyIndex;
                 const int32 targetFrame = xToFrame(mousePos.x);
 
-                if (targetTargetIndex >= 0 &&
-                    targetTargetIndex < static_cast<int32>(asset.targets.size()) &&
+                if ((Is_PublicAnimation(asset) ||
+                        (targetTargetIndex >= 0 && targetTargetIndex < static_cast<int32>(asset.targets.size()))) &&
                     targetTrackIndex >= 0 &&
-                    targetTrackIndex < static_cast<int32>(asset.targets[targetTargetIndex].tracks.size()) &&
                     targetKeyIndex >= 0 &&
-                    targetKeyIndex < static_cast<int32>(asset.targets[targetTargetIndex].tracks[targetTrackIndex].keys.size()))
+                    targetTrackIndex < static_cast<int32>(Is_PublicAnimation(asset)
+                        ? asset.tracks.size()
+                        : asset.targets[targetTargetIndex].tracks.size()) &&
+                    targetKeyIndex < static_cast<int32>(Is_PublicAnimation(asset)
+                        ? asset.tracks[targetTrackIndex].keys.size()
+                        : asset.targets[targetTargetIndex].tracks[targetTrackIndex].keys.size()))
                 {
-                    const int32 currentKeyFrame = asset.targets[targetTargetIndex].tracks[targetTrackIndex].keys[targetKeyIndex].frame;
+                    const int32 currentKeyFrame = Is_PublicAnimation(asset)
+                        ? asset.tracks[targetTrackIndex].keys[targetKeyIndex].frame
+                        : asset.targets[targetTargetIndex].tracks[targetTrackIndex].keys[targetKeyIndex].frame;
                     int32 rowIndex = -1;
                     for (int32 index = 0; index < static_cast<int32>(rows.size()); ++index)
                     {

@@ -593,6 +593,11 @@ namespace UIEditor
             if (!object.fontTag.empty())
                 item["fontTag"] = object.fontTag;
         }
+        else if (object.type == UI_ObjectType::Button)
+        {
+            if (!object.stateAnimationPath.empty())
+                item["stateAnimationPath"] = object.stateAnimationPath;
+        }
 
         if (!object.animationClips.empty())
         {
@@ -681,6 +686,10 @@ namespace UIEditor
             object.fontTag = Read_String(item, "fontTag", Make_FontTagFromPath(object.fontPath));
             if (object.fontTag.empty())
                 object.fontTag = Make_FontTagFromPath(object.fontPath);
+        }
+        else if (object.type == UI_ObjectType::Button)
+        {
+            object.stateAnimationPath = Read_String(item, "stateAnimationPath", "");
         }
 
         const auto animationsIter = item.find("animations");

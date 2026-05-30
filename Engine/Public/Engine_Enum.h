@@ -7,7 +7,17 @@ namespace Engine
 
     enum class Prototype { GameObject, UI, Comopnent };
 
-    enum class RenderGroup { Priority, Shadow, NonBlend, NonLight, Blend, UI, END };
+    enum class RenderGroup
+    {
+        Priority,
+        Shadow,
+        NonBlend,
+        NonLight,
+        Distortion, // Effect용 Distortion
+        Blend,
+        UI,
+        END
+    };
 
     enum class ShadowCasterType : uint8
     {
@@ -61,6 +71,7 @@ namespace Engine
         Weapon,
         PartObject,
         Projectile,
+        WorldActionTrigger,
         Effect,
         EffectEmitter,
         Trigger,
@@ -88,15 +99,6 @@ namespace Engine
         BloomBlurV,
         BloomUpsampleAdd,
         ToneMapping,
-
-        END
-    };
-
-    enum class ScreenFxPass : uint8
-    {
-        Vignette = 0,
-        Ghosting,
-        BattleTransition,
 
         END
     };
@@ -135,6 +137,7 @@ namespace Engine
         PostProcess     = 8,
         Hair            = 9,
         DrawFeature     = 10,
+        ScreenFx        = 11,
 
         END
     };

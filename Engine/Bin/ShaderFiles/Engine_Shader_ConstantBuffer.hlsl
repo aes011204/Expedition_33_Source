@@ -56,10 +56,10 @@ cbuffer ScreenSpaceBuffer
 
     float4  g_DeferredCamPosition;                  // 272
 
-    float   g_DeferredFar;                          // 276
-    float2  g_TexelSize;                            // 284
-    float2  g_ScreenSize;                           // 292
-    float3  g_DeferredPadding0;                     // 304
+    float2 g_TexelSize;                             // 272
+    float2 g_ScreenSize;                            // 280
+    float g_DeferredFar;                            // 288
+    float3 g_DeferredPadding0;                      // 292
 };
 
 cbuffer LightBuffer
@@ -185,6 +185,32 @@ cbuffer HairDescBuffer
     float g_HairGradientHeight;
     float g_HairEdgeContrast;
     float g_HairEdgeMin;
+};
+
+cbuffer ScreenFxBuffer
+{
+    float3 g_vignetteColor;
+    float g_vignetteIntensity;
+
+    float g_vignetteRadius;
+    float g_vignetteSoftness;
+    float g_ghostingIntensity;
+    float g_transitionProgress;
+
+    float3 g_transitionColor;
+    float g_radialBlurIntensity;
+
+    float2 g_radialBlurCenter;
+    float g_radialBlurRadius;
+    float g_chromaticAberrationIntensity;
+
+    float g_bulgeIntensity;
+    float g_pullIntensity;
+    float2 g_pullDirection;
+
+    float g_wipeRadius;
+    float g_edgeSoftness;
+    float2 pad;
 };
 
 #endif

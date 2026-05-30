@@ -160,14 +160,18 @@
     <ClInclude Include="..\Public\ANS_IdleOffset.h" />
     <ClInclude Include="..\public\ANS_Move.h" />
     <ClInclude Include="..\public\ANS_Parry.h" />
+    <ClInclude Include="..\Public\ANS_PlayEffect.h" />
     <ClInclude Include="..\public\ANS_QTE.h" />
     <ClInclude Include="..\Public\ANS_Trail.h" />
+    <ClInclude Include="..\Public\ANS_WeaponRotate.h" />
     <ClInclude Include="..\public\AN_Attack.h" />
     <ClInclude Include="..\public\AN_BattleShot.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
     <ClInclude Include="..\public\AN_Change_Anim.h" />
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\Public\AN_EndTurn.h" />
+    <ClInclude Include="..\Public\AN_PlayEffect.h" />
+    <ClInclude Include="..\Public\AN_SpawnActor.h" />
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
     <ClInclude Include="..\public\AN_EnterAnim.h" />
     <ClInclude Include="..\Public\AN_StartCounter.h" />
@@ -187,6 +191,7 @@
     <ClInclude Include="..\Public\BattleMechanismCom.h" />
     <ClInclude Include="..\Public\BattleReactionController.h" />
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
+    <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
     <ClInclude Include="..\public\BT_LookRange.h" />
@@ -194,17 +199,23 @@
     <ClInclude Include="..\Public\CameraPresetIO.h" />
     <ClInclude Include="..\Public\CameraPresetTypes.h" />
     <ClInclude Include="..\public\BT_Patroll.h" />
+    <ClInclude Include="..\Public\CA_ScreenFx.h" />
     <ClInclude Include="..\public\ChangeWeapon_Panel.h" />
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
+    <ClInclude Include="..\Public\ClientScreenFxManager.h" />
+    <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
+    <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h" />
+    <ClInclude Include="..\Public\FaceAccessory_Player.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
+    <ClInclude Include="..\public\Level_GameEntry.h" />
     <ClInclude Include="..\public\MB_Bishop.h" />
     <ClInclude Include="..\public\MB_Portier.h" />
     <ClInclude Include="..\public\MB_Volester.h" />
@@ -318,6 +329,7 @@
     <ClInclude Include="..\public\Mon_Portier_Body.h" />
     <ClInclude Include="..\public\PreviewShotTable.h" />
     <ClInclude Include="..\Public\IRuntimeUI_EditorTarget.h" />
+    <ClInclude Include="..\Public\RadialBlur_ScreenFx.h" />
     <ClInclude Include="..\public\SkillScript.h" />
     <ClInclude Include="..\Public\PW_Gustave.h" />
     <ClInclude Include="..\Public\PW_Lune.h" />
@@ -347,7 +359,9 @@
     <ClInclude Include="..\Public\StreamingLevel.h" />
     <ClInclude Include="..\Public\TargetCamera.h" />
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
+    <ClInclude Include="..\Public\Terrain_UE.h" />
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
+    <ClInclude Include="..\Public\Trigger_WorldAction.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
     <ClInclude Include="..\Public\UI_BattleAnnounce.h" />
@@ -373,6 +387,7 @@
     <ClInclude Include="..\Public\SavePoint_Panel.h" />
     <ClInclude Include="..\Public\UI_RuntimePanelBase.h" />
     <ClInclude Include="..\Public\UI_BattleSkillPanel.h" />
+    <ClInclude Include="..\Public\UI_SuddenAttack.h" />
     <ClInclude Include="..\Public\UI_Utils.h" />
     <ClInclude Include="..\public\UltimateTargeting.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
@@ -383,7 +398,6 @@
     <ClInclude Include="..\public\WeaponUI_Common.h" />
     <ClInclude Include="ANS_Visible_Parts.h" />
     <ClInclude Include="..\Public\BattleCameraProfileTypes.h" />
-    <ClInclude Include="Battle_Enum.h" />
     <ClInclude Include="Base_Gustave_Attack.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\BackGround.h" />
@@ -409,14 +423,18 @@
     <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
     <ClCompile Include="..\private\ANS_Move.cpp" />
     <ClCompile Include="..\private\ANS_Parry.cpp" />
+    <ClCompile Include="..\Private\ANS_PlayEffect.cpp" />
     <ClCompile Include="..\Private\ANS_QTE.cpp" />
     <ClCompile Include="..\Private\ANS_Trail.cpp" />
+    <ClCompile Include="..\Private\ANS_WeaponRotate.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_BattleShot.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
+    <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
+    <ClCompile Include="..\Private\AN_SpawnActor.cpp" />
     <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
     <ClCompile Include="..\Private\AN_StartCounter.cpp" />
@@ -434,21 +452,28 @@
     <ClCompile Include="..\Private\BattleMechanismCom.cpp" />
     <ClCompile Include="..\Private\BattleReactionController.cpp" />
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
+    <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
     <ClCompile Include="..\private\BT_LookRange.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
+    <ClCompile Include="..\Private\TrailSampleProvider_ByPart.cpp" />
     <ClCompile Include="..\private\BT_Patroll.cpp" />
+    <ClCompile Include="..\Private\CA_ScreenFx.cpp" />
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />
     <ClCompile Include="..\private\BT_FinishDecision.cpp" />
     <ClCompile Include="..\private\BT_SetSkill.cpp" />
     <ClCompile Include="..\private\BT_Set_Target.cpp" />
+    <ClCompile Include="..\Private\ClientScreenFxManager.cpp" />
+    <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
     <ClCompile Include="..\Private\EffectCom.cpp" />
     <ClCompile Include="..\Private\EffectInstancePool.cpp" />
     <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
+    <ClCompile Include="..\Private\FaceAccessory_Player.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
+    <ClCompile Include="..\private\Level_GameEntry.cpp" />
     <ClCompile Include="..\private\MB_Bishop.cpp" />
     <ClCompile Include="..\private\MB_Portier.cpp" />
     <ClCompile Include="..\private\MB_Volester.cpp" />
@@ -565,6 +590,7 @@
     <ClCompile Include="..\Private\PreviewCamera.cpp" />
     <ClCompile Include="..\Private\Player_WorldAction.cpp" />
     <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />
+    <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp" />
     <ClCompile Include="..\Private\SimpleMath.cpp" />
     <ClCompile Include="..\private\SkillScript.cpp" />
     <ClCompile Include="..\private\SkillTargeting.cpp">
@@ -584,7 +610,9 @@
     <ClCompile Include="..\Private\StreamingLevel.cpp" />
     <ClCompile Include="..\Private\TargetCamera.cpp" />
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
+    <ClCompile Include="..\Private\Terrain_UE.cpp" />
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
+    <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
     <ClCompile Include="..\Private\UI_BattleAnnounce.cpp" />
@@ -610,6 +638,7 @@
     <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
     <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
     <ClCompile Include="..\Private\UI_BattleSkillPanel.cpp" />
+    <ClCompile Include="..\Private\UI_SuddenAttack.cpp" />
     <ClCompile Include="..\private\UltimateTargeting.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
@@ -639,6 +668,7 @@
     <ClCompile Include="..\Private\Weapon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimEvaluate.hlsl" />
@@ -657,9 +687,12 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectDistortionSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrailDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />

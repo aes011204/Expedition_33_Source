@@ -90,10 +90,13 @@
     <ClCompile Include="..\Private\UI_AnimationAssetService_Legacy.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_AnimationAssetService_Presets.cpp">
+    <ClCompile Include="..\Private\UI_AnimationTimelineView.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\UI_AnimationTimelineView.cpp">
+    <ClCompile Include="..\Private\UI_StateAnimationAssetService.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_StateAnimationAssetService_FileDialog.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_EditorApp.cpp">
@@ -165,6 +168,15 @@
     <ClCompile Include="..\Private\UI_Animation_View.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_Animation_View_Keyframe.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Animation_View_Shortcuts.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Animation_View_State.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_Hierarchy_View.cpp">
       <Filter>02. View\Hierarchy</Filter>
     </ClCompile>
@@ -209,7 +221,13 @@
     <ClInclude Include="..\Public\UI_AnimationAssetService.h">
       <Filter>02. View\Animation</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_AnimationEditHistory.h">
+      <Filter>02. View\Animation</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\UI_AnimationTimelineView.h">
+      <Filter>02. View\Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_StateAnimationAssetService.h">
       <Filter>02. View\Animation</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_EditorApp.h">

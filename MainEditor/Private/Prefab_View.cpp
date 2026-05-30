@@ -14,9 +14,29 @@
 #include "ModelCom.h"
 #include "Monster_WorldBase.h"
 #include "RenderTarget.h"
+#include "Transform_Inspector.h"
 #include "Weapon.h"
+#include "PartObject.h"
 #include "imgui_internal.h"
 #include "AnimState_View.h"
+
+namespace
+{
+ImGuizmo::MODE Resolve_GizmoModeFromTransformSpace()
+{
+    return MainEditor::Transform_Inspector::Get_Space() == MainEditor::Transform_Inspector::ETransformSpace::World
+        ? ImGuizmo::WORLD
+        : ImGuizmo::LOCAL;
+}
+
+void Sync_TransformSpaceFromGizmoMode(ImGuizmo::MODE gizmoMode)
+{
+    MainEditor::Transform_Inspector::Set_Space(
+        gizmoMode == ImGuizmo::WORLD
+            ? MainEditor::Transform_Inspector::ETransformSpace::World
+            : MainEditor::Transform_Inspector::ETransformSpace::Local);
+}
+}
 
 Prefab_View::Prefab_View()
     : Editor_Window(L"Prefab")
@@ -38,7 +58,7 @@ void Prefab_View::Update(float timeDelta)
     if (Should_DeferToCompanionPreview())
         return;
 
-    if (_isPreviewHovered && _previewCamera)
+    if (_isPreviewHovered && !_isGizmoHovered && !_isGizmoUsing && _previewCamera)
         _previewCamera->Priority_Update(timeDelta);
 }
 
@@ -176,6 +196,9 @@ void Prefab_View::Render()
         ImGuiWindowFlags_NoScrollbar |
         ImGuiWindowFlags_NoScrollWithMouse;
 
+    if (_isGizmoUsing || (_isPreviewHovered && ImGui::IsMouseDown(ImGuiMouseButton_Left)))
+        windowFlags |= ImGuiWindowFlags_NoMove;
+
     if (_pendingDockId != 0)
         ImGui::SetNextWindowDockID(_pendingDockId, ImGuiCond_Always);
 
@@ -201,6 +224,8 @@ void Prefab_View::Render()
     _isFocused = false;
     _isHovered = false;
     _isVisible = false;
+    _isGizmoHovered = false;
+    _isGizmoUsing = false;
 
     if (ImGui::Begin(title.c_str(), &isOpen, windowFlags))
     {
@@ -242,8 +267,6 @@ void Prefab_View::Render()
             ImGui::EndTable();
         }
 
-        Render_SelectedObjectGizmo();
-        Render_GizmoOverlay();
     }
 
     Set_Open(isOpen);
@@ -397,6 +420,7 @@ void Prefab_View::Close_Prefab()
     _previewGridEffect.reset();
     _previewGridInputLayout.Reset();
     _previewGridDepthState.Reset();
+    _previewOverlayDepthState.Reset();
 
     _previewWidth = 512;
     _previewHeight = 512;
@@ -404,6 +428,8 @@ void Prefab_View::Close_Prefab()
     _requestResetPreviewCamera = false;
     _isPreviewHovered = false;
     _isPreviewActive = false;
+    _isGizmoHovered = false;
+    _isGizmoUsing = false;
     _applyDefaultWindowLayout = false;
     _openAnimationViewWithPrefab = false;
     _pendingOpenAnimationView = false;
@@ -433,6 +459,15 @@ bool Prefab_View::Is_PreviewPrefab(const string& prefabName) const
 
 Shared<ModelCom> Prefab_View::Find_FirstModelComponent() const
 {
+    if (Shared<ContainerObject> rootContainer = dynamic_pointer_cast<ContainerObject>(_previewObject))
+    {
+        if (PartObject* bodyPart = rootContainer->Get_PartObject(L"Part_Body"))
+        {
+            if (Shared<ModelCom> bodyModel = bodyPart->Get_Component<ModelCom>())
+                return bodyModel;
+        }
+    }
+
     function<Shared<ModelCom>(const Shared<GameObject>&)> findRecursive =
         [&](const Shared<GameObject>& gameObject) -> Shared<ModelCom>
     {
@@ -442,8 +477,19 @@ Shared<ModelCom> Prefab_View::Find_FirstModelComponent() const
         Shared<ModelCom> foundModel = nullptr;
         gameObject->Visit_Components([&](const wstring&, const Shared<Component>& component)
         {
+            Shared<ModelCom> modelCom = dynamic_pointer_cast<ModelCom>(component);
+            if (modelCom == nullptr)
+                return;
+
+            // 액세서리/비애니메이션 모델보다 실제 재생 가능한 모델을 우선 잡는다.
+            if (modelCom->Get_NumAnimations() > 0)
+            {
+                foundModel = modelCom;
+                return;
+            }
+
             if (foundModel == nullptr)
-                foundModel = dynamic_pointer_cast<ModelCom>(component);
+                foundModel = modelCom;
         });
 
         if (foundModel != nullptr)
@@ -627,13 +673,6 @@ void Prefab_View::Draw_PreviewPanel()
     const ImVec2 previewPos = ImGui::GetCursorScreenPos();
     _previewCanvasMin = previewPos;
     _previewCanvasMax = ImVec2(previewPos.x + previewSize.x, previewPos.y + previewSize.y);
-    ImGui::InvisibleButton(
-        "PrefabPreviewCanvas",
-        previewSize,
-        ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
-
-    _isPreviewHovered = ImGui::IsItemHovered();
-    _isPreviewActive = ImGui::IsItemActive();
 
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
@@ -643,27 +682,26 @@ void Prefab_View::Draw_PreviewPanel()
         ImTextureID textureId =
             static_cast<ImTextureID>(reinterpret_cast<intptr_t>(previewSRV));
 
-        drawList->AddImage(
-            textureId,
-            previewPos,
-            ImVec2(previewPos.x + previewSize.x, previewPos.y + previewSize.y));
+        ImGui::Image(textureId, previewSize);
     }
     else
     {
-        drawList->AddRectFilled(
-            previewPos,
-            ImVec2(previewPos.x + previewSize.x, previewPos.y + previewSize.y),
-            IM_COL32(34, 38, 44, 255));
-
-        drawList->AddRect(
-            previewPos,
-            ImVec2(previewPos.x + previewSize.x, previewPos.y + previewSize.y),
-            IM_COL32(85, 95, 110, 255));
-
+        ImGui::Button("##PrefabPreviewFallback", previewSize);
         drawList->AddText(
             ImVec2(previewPos.x + 12.f, previewPos.y + 12.f),
             IM_COL32(210, 216, 224, 255),
             "Preview RenderTarget is not ready.");
+    }
+
+    _isPreviewHovered = ImGui::IsItemHovered();
+    _isPreviewActive = _isPreviewHovered &&
+        (ImGui::IsMouseDown(ImGuiMouseButton_Left) || ImGui::IsMouseDown(ImGuiMouseButton_Right));
+
+    if (_previewCanvasMax.x > _previewCanvasMin.x && _previewCanvasMax.y > _previewCanvasMin.y)
+    {
+        ImGuizmo::SetDrawlist();
+        Render_SelectedObjectGizmo();
+        Render_GizmoOverlay();
     }
 
     ImGui::EndChild();
@@ -671,6 +709,8 @@ void Prefab_View::Draw_PreviewPanel()
 
 void Prefab_View::Render_SelectedObjectGizmo()
 {
+    _gizmoMode = Resolve_GizmoModeFromTransformSpace();
+
     if (_previewObject == nullptr || _previewCamera == nullptr)
         return;
 
@@ -694,7 +734,8 @@ void Prefab_View::Render_SelectedObjectGizmo()
         _previewCamera->Get_Near(),
         _previewCamera->Get_Far());
 
-    Matrix worldMatrix = transform->Get_WorldMatrix();
+    Shared<PartObject> selectedPartObject = dynamic_pointer_cast<PartObject>(selectedObject);
+    Matrix worldMatrix = selectedPartObject ? selectedPartObject->Get_GizmoWorldMatrix() : transform->Get_WorldMatrix();
 
     ImGuizmo::SetOrthographic(false);
     ImGuizmo::SetRect(_previewCanvasMin.x, _previewCanvasMin.y, viewportWidth, viewportHeight);
@@ -706,24 +747,38 @@ void Prefab_View::Render_SelectedObjectGizmo()
         _gizmoMode,
         reinterpret_cast<float*>(&worldMatrix));
 
+    _isGizmoHovered = ImGuizmo::IsOver();
+    _isGizmoUsing = ImGuizmo::IsUsing();
+
     if (!manipulated)
         return;
 
-    Vec3 scale = Vec3::One;
-    Quat rotation = Quat::Identity;
-    Vec3 translation = Vec3::Zero;
+    if (selectedPartObject != nullptr)
+    {
+        if (!selectedPartObject->Apply_GizmoWorldMatrix(worldMatrix))
+            return;
+    }
+    else
+    {
+        Vec3 scale = Vec3::One;
+        Quat rotation = Quat::Identity;
+        Vec3 translation = Vec3::Zero;
 
-    if (!worldMatrix.Decompose(scale, rotation, translation))
-        return;
+        if (!worldMatrix.Decompose(scale, rotation, translation))
+            return;
 
-    transform->Set_WorldPosition(translation);
-    transform->Set_RotationQuaternion(rotation);
-    transform->Set_Scale(scale);
+        transform->Set_WorldPosition(translation);
+        transform->Set_RotationQuaternion(rotation);
+        transform->Set_Scale(scale);
+    }
+
     MarkDirty();
 }
 
 void Prefab_View::Render_GizmoOverlay()
 {
+    _gizmoMode = Resolve_GizmoModeFromTransformSpace();
+
     const float viewportWidth = _previewCanvasMax.x - _previewCanvasMin.x;
     const float viewportHeight = _previewCanvasMax.y - _previewCanvasMin.y;
     if (viewportWidth <= 1.f || viewportHeight <= 1.f)
@@ -779,12 +834,18 @@ void Prefab_View::Render_GizmoOverlay()
     ImGui::SameLine(0.f, 8.f);
 
     if (drawModeButton("Local", ImVec2(56.f, 22.f), _gizmoMode == ImGuizmo::LOCAL))
+    {
         _gizmoMode = ImGuizmo::LOCAL;
+        Sync_TransformSpaceFromGizmoMode(_gizmoMode);
+    }
 
     ImGui::SameLine();
 
     if (drawModeButton("World", ImVec2(56.f, 22.f), _gizmoMode == ImGuizmo::WORLD))
+    {
         _gizmoMode = ImGuizmo::WORLD;
+        Sync_TransformSpaceFromGizmoMode(_gizmoMode);
+    }
 
     ImGui::PopStyleVar();
     ImGui::PopID();
@@ -1322,7 +1383,7 @@ void Prefab_View::Ensure_PreviewRenderTarget(uint32 width, uint32 height)
 
 void Prefab_View::Ensure_PreviewGridResources()
 {
-    if (_previewGridBatch && _previewGridEffect && _previewGridInputLayout && _previewGridDepthState)
+    if (_previewGridBatch && _previewGridEffect && _previewGridInputLayout && _previewGridDepthState && _previewOverlayDepthState)
         return;
 
     static constexpr D3D11_INPUT_ELEMENT_DESC kGridInputElements[] =
@@ -1372,6 +1433,23 @@ void Prefab_View::Ensure_PreviewGridResources()
         _previewGridEffect.reset();
         _previewGridInputLayout.Reset();
         _previewGridDepthState.Reset();
+        _previewOverlayDepthState.Reset();
+        return;
+    }
+
+    D3D11_DEPTH_STENCIL_DESC overlayDepthDesc{};
+    overlayDepthDesc.DepthEnable = FALSE;
+    overlayDepthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+    overlayDepthDesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+    overlayDepthDesc.StencilEnable = FALSE;
+
+    if (FAILED(GAME->Get_Device()->CreateDepthStencilState(&overlayDepthDesc, _previewOverlayDepthState.GetAddressOf())))
+    {
+        _previewGridBatch.reset();
+        _previewGridEffect.reset();
+        _previewGridInputLayout.Reset();
+        _previewGridDepthState.Reset();
+        _previewOverlayDepthState.Reset();
     }
 }
 
@@ -1518,7 +1596,7 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPreview() const
     if (!Try_ResolveTrailAnchorWorldPosition(selectedObject, _selectedWeaponTrailAnchor.tip, tipWorld))
         return;
 
-    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewGridDepthState)
+    if (!_previewGridBatch || !_previewGridEffect || !_previewGridInputLayout || !_previewOverlayDepthState)
         return;
 
     ComPtr<Context> context = GAME->Get_Context();
@@ -1529,8 +1607,15 @@ void Prefab_View::Draw_SelectedWeaponTrailAnchorPreview() const
     _previewGridEffect->SetView(*GAME->Get_Transform(D3DTS::View));
     _previewGridEffect->SetProjection(*GAME->Get_Transform(D3DTS::Proj));
 
+    ID3D11GeometryShader* nullGeometryShader = nullptr;
+    context->GSSetShader(nullGeometryShader, nullptr, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, nullSRVs);
+
+    context->RSSetState(nullptr);
     context->IASetInputLayout(_previewGridInputLayout.Get());
-    context->OMSetDepthStencilState(_previewGridDepthState.Get(), 0);
+    context->OMSetDepthStencilState(_previewOverlayDepthState.Get(), 0);
     context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
     _previewGridEffect->Apply(context.Get());
 

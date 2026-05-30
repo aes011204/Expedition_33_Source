@@ -23,6 +23,8 @@ public:
 
 public:
     void Draw_Inspector(const Shared<Component>& component) override;
+    static ETransformSpace Get_Space() { return _space; }
+    static void Set_Space(ETransformSpace space) { _space = space; }
 
 private:
     enum class EClipboardTarget : uint8

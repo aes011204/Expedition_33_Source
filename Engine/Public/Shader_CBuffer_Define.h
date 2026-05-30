@@ -144,9 +144,9 @@ struct alignas(16) ScreenSpaceCB
 
     Vec4    cameraPosition;
 
-    float   farPlane = 0.f;
     Vec2    texelSize = { 1.f/1600.f, 1.f/900.f };
     Vec2    screenSize = { 1600.f, 900.f };
+    float   farPlane = 0.f;
     float   pad[3];
 };
 
@@ -253,6 +253,34 @@ struct alignas(16) DrawFeatureCB
     Vec4 param1{ 0.f, 0.f, 0.f, 0.f };
 };
 
+struct alignas(16) ScreenFxCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::ScreenFx;
+
+    Vec3 vignetteColor{ 0.f, 0.f, 0.f };
+    float vignetteIntensity{ 1.0f };
+    float vignetteRadius{ 0.75f };
+    float vignetteSoftness{ 0.5f };
+    float ghostingIntensity{ 0.5f };
+    float transitionProgress{ 0.0f };
+
+    Vec3 transitionColor{ 0.f, 0.f, 0.f };
+    float radialBlurIntensity{ 0.0f };
+
+    // Distortion
+    Vec2 radialBlurCenter{ 0.5f, 0.5f }; 
+    float radialBlurRadius{ 1.0f };      
+    float chromaticAberrationIntensity{ 0.0f }; 
+    float bulgeIntensity{ 0.f };
+    float pullIntensity{ 0.f };
+    Vec2 pullDirection{ -1.f, 1.f };
+
+    // Transition
+    float wipeRadius{ 0.f };
+    float edgeSoftness{ 0.05f };
+    Vec2 pad;
+};
+
 // 패딩이 제대로 됐나 마지막 확인용
 static_assert(sizeof(MaterialCB) % 16 == 0);
 static_assert(sizeof(HairCB) % 16 == 0);
@@ -265,6 +293,7 @@ static_assert(sizeof(PostProcessCB) % 16 == 0);
 static_assert(sizeof(SSAOCB) % 16 == 0);
 static_assert(sizeof(DeferredLightingCB) % 16 == 0);
 static_assert(sizeof(DrawFeatureCB) % 16 == 0);
+static_assert(sizeof(ScreenFxCB) % 16 == 0);
 
 NS_END
 
