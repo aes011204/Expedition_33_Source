@@ -303,7 +303,7 @@ void Renderer::Render_Shadow()
 void Renderer::Render_NonBlend()
 {
     // Diffuse + Normal / NotUseDSV -> UseDSV
-    CHECK_FAILED(GAME->Begin_MRT(MRT::GameObjects, UseDSV, ClearRTV));
+    CHECK_FAILED(GAME->Begin_MRT(MRT::GameObjects, NotUseDSV, ClearRTV));
 
     _currentGroup = RenderGroup::NonBlend;
 
