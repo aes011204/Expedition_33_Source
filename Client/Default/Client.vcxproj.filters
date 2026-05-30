@@ -496,6 +496,9 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrailDistortion.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>

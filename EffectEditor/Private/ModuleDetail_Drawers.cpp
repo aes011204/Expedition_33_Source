@@ -1055,14 +1055,7 @@ bool RotationOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Rot
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 회전", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailContext.Begin_PropertyTable("RotationOverLife"))
-        {
-            changed |= detailContext.Draw_FloatProperty("시작 회전각", data.rotationStartDegrees, defaultData.rotationStartDegrees);
-            changed |= detailContext.Draw_FloatProperty("종료 회전각", data.rotationEndDegrees, defaultData.rotationEndDegrees);
-            detailContext.End_PropertyTable();
-        }
-    }
+        changed |= detailContext.Draw_FloatDistributionGroup("추가 회전각", data.rotationOverLife, defaultData.rotationOverLife);
 
     return changed;
 }

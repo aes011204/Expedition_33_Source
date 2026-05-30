@@ -318,7 +318,12 @@ struct PS_OUT
     float4 color : SV_TARGET0;
 };
 
-float Compute_DistortionShapeWeight(float2 cardUV)
+float Compute_ShockwavePixelUvWidth(float2 cardUV)
+{
+    return max(max(fwidth(cardUV.x), fwidth(cardUV.y)), 0.0001f);
+}
+
+float Compute_DistortionShapeWeight(float2 cardUV, float lifeProgress)
 {
     const float mode = g_EffectDistortionShapeParams.x;
     float shapeWeight = 1.f;
@@ -332,17 +337,27 @@ float Compute_DistortionShapeWeight(float2 cardUV)
 
         if (mode < 1.5f)
             shapeWeight = 1.f - smoothstep(radius, radius + softness, distanceFromCenter);
-        else
+        else if (mode < 2.5f)
         {
             const float ringDistance = abs(distanceFromCenter - radius);
             shapeWeight = 1.f - smoothstep(thickness, thickness + softness, ringDistance);
+        }
+        else
+        {
+            const float pixelUvWidth = Compute_ShockwavePixelUvWidth(cardUV);
+            const float shockwaveThickness = max(thickness, 0.f) * pixelUvWidth;
+            const float shockwaveSoftness = max(softness, 0.0001f) * pixelUvWidth;
+            const float shockwaveRadiusMax = max(0.f, 0.5f - shockwaveThickness - shockwaveSoftness);
+            const float shockwaveRadius = saturate(lifeProgress) * shockwaveRadiusMax;
+            const float ringDistance = abs(distanceFromCenter - shockwaveRadius);
+            shapeWeight = 1.f - smoothstep(shockwaveThickness, shockwaveThickness + shockwaveSoftness, ringDistance);
         }
     }
 
     return saturate(shapeWeight);
 }
 
-float Compute_DistortionInfluenceOutline(float2 cardUV)
+float Compute_DistortionInfluenceOutline(float2 cardUV, float lifeProgress)
 {
     const float mode = g_EffectDistortionShapeParams.x;
     const float outlineWidth = Compute_InfluenceOutlineWidth(cardUV);
@@ -351,10 +366,19 @@ float Compute_DistortionInfluenceOutline(float2 cardUV)
 
     if (mode >= 0.5f && mode < 1.5f)
         edgeDistance = abs(distanceFromCenter - max(g_EffectDistortionShapeParams.y, 0.f));
-    else if (mode >= 1.5f)
+    else if (mode >= 1.5f && mode < 2.5f)
     {
         const float radius = max(g_EffectDistortionShapeParams.y, 0.f);
         const float thickness = max(g_EffectDistortionShapeParams.z, 0.f);
+        edgeDistance = abs(abs(distanceFromCenter - radius) - thickness);
+    }
+    else if (mode >= 2.5f)
+    {
+        const float pixelUvWidth = Compute_ShockwavePixelUvWidth(cardUV);
+        const float thickness = max(g_EffectDistortionShapeParams.z, 0.f) * pixelUvWidth;
+        const float softness = max(g_EffectDistortionShapeParams.w, 0.0001f) * pixelUvWidth;
+        const float radiusMax = max(0.f, 0.5f - thickness - softness);
+        const float radius = saturate(lifeProgress) * radiusMax;
         edgeDistance = abs(abs(distanceFromCenter - radius) - thickness);
     }
 
@@ -400,13 +424,13 @@ PS_OUT PS_MAIN(PS_IN In)
                         ? Sample_EffectSpriteFlowTexture(flowUV, g_FlowUVTilingMode) * 2.f - 1.f
                         : float2(0.f, 0.f);
 
-    const float shapeWeight = Compute_DistortionShapeWeight(In.texCoord);
+    const float shapeWeight = Compute_DistortionShapeWeight(In.texCoord, lifeProgress);
     const float strength = g_EffectDistortionParams.x * g_EffectDistortionParams.y * coverage * shapeWeight;
     const float4 distortedColor = g_DistortionSourceTexture.Sample(LinearClampSampler, screenUV + flow * strength);
     Out.color = float4(distortedColor.rgb, coverage);
     if (g_EffectInfluenceDebugParams.x > 0.5f)
     {
-        const float outlineMask = saturate(Compute_DistortionInfluenceOutline(In.texCoord));
+        const float outlineMask = saturate(Compute_DistortionInfluenceOutline(In.texCoord, lifeProgress));
         Out.color.rgb = lerp(Out.color.rgb, kInfluenceOutlineColor, outlineMask);
         Out.color.a = max(Out.color.a, outlineMask);
     }
