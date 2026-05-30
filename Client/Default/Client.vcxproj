@@ -164,6 +164,7 @@
     <ClInclude Include="..\public\ANS_QTE.h" />
     <ClInclude Include="..\Public\ANS_Trail.h" />
     <ClInclude Include="..\Public\ANS_Visible_Parts.h" />
+    <ClInclude Include="..\Public\ANS_WeaponRotate.h" />
     <ClInclude Include="..\public\AN_Attack.h" />
     <ClInclude Include="..\public\AN_BattleShot.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
@@ -171,6 +172,7 @@
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\Public\AN_EndTurn.h" />
     <ClInclude Include="..\Public\AN_PlayEffect.h" />
+    <ClInclude Include="..\Public\AN_SpawnActor.h" />
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
     <ClInclude Include="..\public\AN_EnterAnim.h" />
     <ClInclude Include="..\Public\AN_StartCounter.h" />
@@ -212,6 +214,8 @@
     <ClInclude Include="..\Public\EffectInstancePool.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
+    <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h" />
+    <ClInclude Include="..\Public\FaceAccessory_Player.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
@@ -364,6 +368,7 @@
     <ClInclude Include="..\Public\CharacterStatus_Panel.h" />
     <ClInclude Include="..\Public\Terrain_UE.h" />
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
+    <ClInclude Include="..\Public\Trigger_WorldAction.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
     <ClInclude Include="..\Public\UI_BattleAnnounce.h" />
@@ -389,6 +394,7 @@
     <ClInclude Include="..\Public\SavePoint_Panel.h" />
     <ClInclude Include="..\Public\UI_RuntimePanelBase.h" />
     <ClInclude Include="..\Public\UI_BattleSkillPanel.h" />
+    <ClInclude Include="..\Public\UI_SuddenAttack.h" />
     <ClInclude Include="..\Public\UI_Utils.h" />
     <ClInclude Include="..\public\UltimateTargeting.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
@@ -429,6 +435,7 @@
     <ClCompile Include="..\Private\ANS_QTE.cpp" />
     <ClCompile Include="..\Private\ANS_Trail.cpp" />
     <ClCompile Include="..\Private\ANS_Visible_Parts.cpp" />
+    <ClCompile Include="..\Private\ANS_WeaponRotate.cpp" />
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_BattleShot.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
@@ -436,6 +443,7 @@
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
     <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
+    <ClCompile Include="..\Private\AN_SpawnActor.cpp" />
     <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
     <ClCompile Include="..\Private\AN_StartCounter.cpp" />
@@ -461,6 +469,8 @@
     <ClCompile Include="..\private\BT_Stun.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />
+    <ClCompile Include="..\Private\TrailSampleProvider_ByPart.cpp" />
+    <ClCompile Include="..\private\BT_Patroll.cpp" />
     <ClCompile Include="..\Private\CA_ScreenFx.cpp" />
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />
     <ClCompile Include="..\private\BT_FinishDecision.cpp" />
@@ -472,6 +482,7 @@
     <ClCompile Include="..\Private\EffectInstancePool.cpp" />
     <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
+    <ClCompile Include="..\Private\FaceAccessory_Player.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
@@ -617,6 +628,7 @@
     <ClCompile Include="..\Private\CharacterStatus_Panel.cpp" />
     <ClCompile Include="..\Private\Terrain_UE.cpp" />
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
+    <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
     <ClCompile Include="..\Private\UI_BattleAnnounce.cpp" />
@@ -642,6 +654,7 @@
     <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
     <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
     <ClCompile Include="..\Private\UI_BattleSkillPanel.cpp" />
+    <ClCompile Include="..\Private\UI_SuddenAttack.cpp" />
     <ClCompile Include="..\private\UltimateTargeting.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>

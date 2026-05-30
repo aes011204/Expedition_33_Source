@@ -75,6 +75,7 @@ private: /* 구스타브 */
     Shared<UI_Text> _gustaveMaxChargeText{};
     Shared<UI_Text> _gustaveMaxChargeTextBg{};
 
+
 private: /* 마엘 */
     Shared<UI_Base> _maelleCurrentStanceRoot{};
     Shared<UI_Base> _maelleStanceless{};

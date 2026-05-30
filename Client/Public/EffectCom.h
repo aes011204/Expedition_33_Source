@@ -15,7 +15,7 @@ NS_BEGIN(Client)
 
 class Weapon;
 
-class EffectCom : public Component, public IEffectTrailSampleProvider
+class EffectCom : public Component
 {
     GENERATED_COMPONENT(EffectCom);
 
@@ -57,6 +57,7 @@ private:
         bool followTarget = false; // true면 Update에서 owner/socket 위치를 계속 따라간다.
         bool    isTrail = false;
         TrailAnchorAsset trailAnchorAsset{};
+        Shared<IEffectTrailSampleProvider> trailSampleProvider{}; // 각 trail instance가 자기 sample source를 유지한다.
     };
 
 public:
@@ -118,7 +119,10 @@ public:
                 const wstring& effectName,
                 const wstring& partTag);
 
-    bool    Try_GetTrailSample(EffectTrailSample& outSample) const override;
+    bool    Try_GetTrailSampleForPart(
+                const wstring& partTag,
+                const TrailAnchorAsset& trailAnchorAsset,
+                EffectTrailSample& outSample) const;
 #pragma endregion
 
 
@@ -143,15 +147,14 @@ private:
             Vec3& outWorldPosition) const;
 
     bool Try_BuildTrailSample(
-        const AttachedEffect& attached,
+        const wstring& partTag,
+        const TrailAnchorAsset& trailAnchorAsset,
         EffectTrailSample& outSample) const;
 
     bool Try_ResolveTrailAnchorWorldPosition(
         const Weapon& weaponPart,
         const TrailAnchorPointDesc& anchor,
         Vec3& outWorldPosition) const;
-
-    const AttachedEffect* Find_ActiveTrailEffect() const;
 
 
 private:

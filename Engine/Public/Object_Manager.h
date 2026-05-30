@@ -40,6 +40,7 @@ public:
                     const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const;
 
    uint64 Get_ObjectRevision() const { return _objectRevision; }
+    void  Flush_RemovedGameObjects();
 
 private:
 	uint32 _numLevels = {};
@@ -48,6 +49,16 @@ private:
 	vector<LayerType> _layers;
 
     uint64 _objectRevision = 0;
+
+private:
+    // 삭제 대기중인 객체들 한번에 삭제하기
+    struct PendingRemoveGameObject
+    {
+        uint32 levelIndex = 0;
+        Shared<GameObject> gameObject{};
+    };
+
+    vector<PendingRemoveGameObject> _pendingRemoveGameObjects = {};
 
 private:
 	Shared<Layer> Find_Layer(uint32 layerLevelIndex, const wstring& layerTag);

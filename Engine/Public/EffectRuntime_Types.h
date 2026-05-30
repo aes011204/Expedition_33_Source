@@ -102,6 +102,7 @@ struct EffectRequiredMaterialRuntimeDesc
     EffectTextureUVTilingMode flowUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // flow texture UV tiling 해석 방식이다.
 
     EffectMaterialAdditiveContributionData additive{}; // Additive blend에서 더할 contribution 해석 규칙이다.
+    EffectMaterialCoreEmissiveData coreEmissive{};     // alpha-derived inner core/outer halo shaping 값이다.
     float refractionIntensity{ 0.f };                  // SpriteDistortion screen UV offset 강도다.
     float refractionPresence{ 1.f };                   // SpriteDistortion refraction 영향도 scalar다.
     EffectDistortionShapeMode distortionShapeMode{ EffectDistortionShapeMode::None }; // SpriteDistortion 영향 범위 weight mode다.
@@ -227,7 +228,7 @@ struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleSizeByLifeDesc sizeByLife{};          // SizeByLife 모듈에서 trail 폭 배율로 소비하는 값이다.
     EffectTrailSpawnPerUnitRuntimeDesc spawnPerUnit{}; // SpawnPerUnit 모듈에서 trail sample density를 보강하는 값이다.
 
-    float width{ 0.1f };            // render sample의 center 기준으로 적용할 world-space strip 폭이다.
+    float width{ 1.f };             // render sample의 base/tip span에 곱할 폭 비율이다. 1이면 원본 base/tip 폭을 유지한다.
     float segmentLifetime{ 0.25f }; // history sample 하나가 화면에 남는 시간이다.
     uint32 historyCount{ 32 };      // trail이 유지할 최대 sample 개수다.
     float uvTiling{ 1.f };          // trail noise/breakup 진행 방향의 기본 UV 반복값이다.

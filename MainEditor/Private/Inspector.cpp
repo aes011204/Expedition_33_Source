@@ -19,6 +19,8 @@
 #include "UI_Transform.h"
 
 const vector<Engine::BTBlackboardKeyView>* Inspector::_btBlackboardKeys = nullptr;
+vector<Inspector::FGameObjectClassPickerEntry> Inspector::_gameObjectClassPickerEntries{};
+char Inspector::_spawnActorClassSearchBuffer[256]{};
 
 
 Inspector::Inspector()
@@ -652,6 +654,10 @@ void Inspector::Draw_ReflectionProperty(
                 ImGui::EndCombo();
             }
         }
+        else if (idPrefix == "AN_SpawnActor" && property.name == "_staticClass")
+        {
+            Draw_SpawnActorClassPropertyRow(hiddenId, *value);
+        }
         else
         {
             char buffer[512]{};
@@ -707,6 +713,122 @@ void Inspector::Draw_ReflectionProperty(
         break;
     }
     }
+}
+
+bool Inspector::Draw_SpawnActorClassPropertyRow(
+    const string& hiddenId,
+    std::string& value)
+{
+    if (_gameObjectClassPickerEntries.empty())
+        Rebuild_GameObjectClassPickerEntries();
+
+    string previewLabel = "(select class)";
+    for (const FGameObjectClassPickerEntry& entry : _gameObjectClassPickerEntries)
+    {
+        if (entry.className != value)
+            continue;
+
+        previewLabel = entry.displayName.empty() ? entry.className : entry.displayName;
+        break;
+    }
+
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+    if (!ImGui::BeginCombo(hiddenId.c_str(), previewLabel.c_str()))
+        return false;
+
+    ImGui::InputTextWithHint(
+        ("##Search" + hiddenId).c_str(),
+        "Search class...",
+        _spawnActorClassSearchBuffer,
+        IM_ARRAYSIZE(_spawnActorClassSearchBuffer));
+    ImGui::Separator();
+
+    const string searchText = _spawnActorClassSearchBuffer;
+    string currentCategory{};
+    bool hasVisibleEntry = false;
+
+    for (const FGameObjectClassPickerEntry& entry : _gameObjectClassPickerEntries)
+    {
+        if (!Matches_GameObjectClassPickerSearch(entry, searchText))
+            continue;
+
+        hasVisibleEntry = true;
+
+        if (currentCategory != entry.category)
+        {
+            currentCategory = entry.category;
+            ImGui::Separator();
+            ImGui::TextDisabled("%s", currentCategory.c_str());
+            ImGui::Separator();
+        }
+
+        const bool isSelected = (value == entry.className);
+        const string selectableLabel = entry.displayName + "##" + entry.className;
+        if (ImGui::Selectable(selectableLabel.c_str(), isSelected))
+            value = entry.className; // 저장값은 runtime이 쓰는 실제 className으로 유지한다.
+
+        if (isSelected)
+            ImGui::SetItemDefaultFocus();
+    }
+
+    if (!hasVisibleEntry)
+        ImGui::TextDisabled("No registered GameObject classes.");
+
+    ImGui::EndCombo();
+    return true;
+}
+
+void Inspector::Rebuild_GameObjectClassPickerEntries()
+{
+    _gameObjectClassPickerEntries.clear();
+
+    GAME->Visit_GameObjectTypes([&](const Engine::TypeRegistry::GameObjectTypeInfo& info)
+    {
+        if (info.className.empty() || info.reflectionInfo == nullptr)
+            return;
+
+        const string category = info.reflectionInfo->category;
+        if (category.empty())
+            return;
+
+        const string displayName =
+            info.reflectionInfo->displayName.empty() ? info.className : info.reflectionInfo->displayName;
+
+        _gameObjectClassPickerEntries.push_back({
+            info.className,
+            displayName,
+            category,
+        });
+    });
+
+    sort(_gameObjectClassPickerEntries.begin(), _gameObjectClassPickerEntries.end(),
+        [](const FGameObjectClassPickerEntry& a, const FGameObjectClassPickerEntry& b)
+        {
+            if (a.category != b.category)
+                return a.category < b.category;
+
+            return a.displayName < b.displayName;
+        });
+}
+
+bool Inspector::Matches_GameObjectClassPickerSearch(const FGameObjectClassPickerEntry& entry, const string& searchText)
+{
+    if (searchText.empty())
+        return true;
+
+    string loweredSearch = searchText;
+    string loweredClass = entry.className;
+    string loweredDisplay = entry.displayName;
+    string loweredCategory = entry.category;
+
+    transform(loweredSearch.begin(), loweredSearch.end(), loweredSearch.begin(), ::tolower);
+    transform(loweredClass.begin(), loweredClass.end(), loweredClass.begin(), ::tolower);
+    transform(loweredDisplay.begin(), loweredDisplay.end(), loweredDisplay.begin(), ::tolower);
+    transform(loweredCategory.begin(), loweredCategory.end(), loweredCategory.begin(), ::tolower);
+
+    return loweredClass.find(loweredSearch) != string::npos ||
+        loweredDisplay.find(loweredSearch) != string::npos ||
+        loweredCategory.find(loweredSearch) != string::npos;
 }
 
 

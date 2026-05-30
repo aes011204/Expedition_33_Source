@@ -42,6 +42,7 @@ private:
     static void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const json& frameIndex);
     static void Fill_SizeByLifePayload(PointParticleSizeByLifeDesc& desc, const json& sizeByLife);
     static void Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife);
+    static void Fill_RotationRateScaleByLifePayload(PointParticleRotationDesc& desc, const json& rotationRateScaleByLife);
     static string Resolve_RendererType(const json& emitter);
     static void Apply_MaterialPayload(
         const json& material,

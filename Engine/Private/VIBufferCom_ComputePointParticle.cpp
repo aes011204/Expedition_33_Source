@@ -54,6 +54,9 @@ struct ComputePointParticleParams
     Vec4 rotationOverLifeCurveTimes{};  // RotationOverLife key times.
     Vec4 rotationOverLifeCurveValues{}; // RotationOverLife degree key values.
     Vec4 rotationOverLifeCurveParams{}; // x: key count, y/z/w: unused.
+    Vec4 rotationRateScaleByLifeCurveTimes{};  // RotationRateScaleByLife key times.
+    Vec4 rotationRateScaleByLifeCurveValues{}; // RotationRateScaleByLife multiplier values.
+    Vec4 rotationRateScaleByLifeCurveParams{}; // x: key count, y/z/w: unused.
 };
 
 VIBufferCom_ComputePointParticle::VIBufferCom_ComputePointParticle(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -499,6 +502,14 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .rotationOverLifeCurveValues = _desc.rotation.rotationOverLifeCurveValues,
         .rotationOverLifeCurveParams = Vec4{
             static_cast<float>(_desc.rotation.rotationOverLifeCurveKeyCount),
+            0.f,
+            0.f,
+            0.f
+        },
+        .rotationRateScaleByLifeCurveTimes = _desc.rotation.rotationRateScaleByLifeCurveTimes,
+        .rotationRateScaleByLifeCurveValues = _desc.rotation.rotationRateScaleByLifeCurveValues,
+        .rotationRateScaleByLifeCurveParams = Vec4{
+            static_cast<float>(_desc.rotation.rotationRateScaleByLifeCurveKeyCount),
             0.f,
             0.f,
             0.f

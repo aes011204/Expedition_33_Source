@@ -9,6 +9,7 @@
 #include "ShaderCom.h"
 #include "Shader_CBuffer_Define.h"
 #include "TrailAnchor_Asset.h"
+#include "TrailSampleProvider_ByPart.h"
 #include "Weapon.h"
 
 IMPLEMENT_REFLECTION(EffectCom)
@@ -299,8 +300,14 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
         return E_FAIL;
 
     EffectTrailSample initialSample{};
-    if (!Try_BuildTrailSample(attached, initialSample))
+    if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, initialSample))
         return E_FAIL;
+
+    attached.trailSampleProvider = make_shared<TrailSampleProvider_ByPart>(
+        static_pointer_cast<EffectCom>(GetSharedPtr<EffectCom>()),
+        partTag,
+        attached.trailAnchorAsset);
+    CHECK_NULL(attached.trailSampleProvider, E_FAIL);
 
     EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool();
     CHECK_NULL(effectPool, E_FAIL);
@@ -309,7 +316,7 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     acquireDesc.effectName = effectName;
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = initialSample.baseWorldPosition;
-    acquireDesc.trailSampleProvider = static_pointer_cast<IEffectTrailSampleProvider>(GetSharedPtr<EffectCom>());
+    acquireDesc.trailSampleProvider = attached.trailSampleProvider;
 
     CHECK_FAILED(effectPool->Acquire(acquireDesc, attached.poolHandle), E_FAIL);
 
@@ -335,13 +342,12 @@ void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partT
     Prune_ReleasedAttachedEffects();
 }
 
-bool EffectCom::Try_GetTrailSample(EffectTrailSample& outSample) const
+bool EffectCom::Try_GetTrailSampleForPart(
+    const wstring& partTag,
+    const TrailAnchorAsset& trailAnchorAsset,
+    EffectTrailSample& outSample) const
 {
-    const AttachedEffect* activeTrail = Find_ActiveTrailEffect();
-    if (activeTrail == nullptr)
-        return false;
-
-    return Try_BuildTrailSample(*activeTrail, outSample);
+    return Try_BuildTrailSample(partTag, trailAnchorAsset, outSample);
 }
 
 void EffectCom::Update_AttachedEffects()
@@ -360,7 +366,7 @@ void EffectCom::Update_AttachedEffects()
         if (attached.isTrail)
         {
             EffectTrailSample trailSample{};
-            if (!Try_BuildTrailSample(attached, trailSample))
+            if (!Try_BuildTrailSample(attached.partTag, attached.trailAnchorAsset, trailSample))
                 continue;
 
             const Shared<TransformCom> effectTransform = attached.poolHandle.effectObject->Get_Transform();
@@ -491,22 +497,25 @@ bool EffectCom::Try_GetSocketWorldPosition(const wstring& partTag, const string&
     return false;
 }
 
-bool EffectCom::Try_BuildTrailSample(const AttachedEffect& attached, EffectTrailSample& outSample) const
+bool EffectCom::Try_BuildTrailSample(
+    const wstring& partTag,
+    const TrailAnchorAsset& trailAnchorAsset,
+    EffectTrailSample& outSample) const
 {
     const Shared<GameObject> ownerObject = Get_Owner();
     const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
     if (ownerContainer == nullptr)
         return false;
 
-    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(attached.partTag));
+    Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
     if (weaponPart == nullptr)
         return false;
 
     Vec3 baseWorld{};
     Vec3 tipWorld{};
-    if (!Try_ResolveTrailAnchorWorldPosition(*weaponPart, attached.trailAnchorAsset.base, baseWorld))
+    if (!Try_ResolveTrailAnchorWorldPosition(*weaponPart, trailAnchorAsset.base, baseWorld))
         return false;
-    if (!Try_ResolveTrailAnchorWorldPosition(*weaponPart, attached.trailAnchorAsset.tip, tipWorld))
+    if (!Try_ResolveTrailAnchorWorldPosition(*weaponPart, trailAnchorAsset.tip, tipWorld))
         return false;
 
     outSample.baseWorldPosition = baseWorld;
@@ -536,23 +545,6 @@ bool EffectCom::Try_ResolveTrailAnchorWorldPosition(
     outWorldPosition = Vec3::Transform(anchor.localPosition, anchorWorldMatrix);
     return true;
 }
-
-const EffectCom::AttachedEffect* EffectCom::Find_ActiveTrailEffect() const
-{
-    for (const auto& attached : _attachedEffects)
-    {
-        if (!attached.isTrail)
-            continue;
-
-        if (attached.poolHandle.effectObject == nullptr)
-            continue;
-
-        return &attached;
-    }
-
-    return nullptr;
-}
-
 Shared<EffectCom> EffectCom::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
     auto instance = make_shared<EffectCom>(device, context);

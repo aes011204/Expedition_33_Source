@@ -42,7 +42,7 @@ HRESULT MainApp::Initialize()
     if (FAILED(Ready_Fonts()))
         return E_FAIL;
 
-    if (FAILED(Ready_StartLevel(LevelType::GamePlay)))
+    if (FAILED(Ready_StartLevel(LevelType::MainTitle)))
         return E_FAIL;
 
     return S_OK;
@@ -58,6 +58,8 @@ void MainApp::Update(float fTimeDelta)
 
 HRESULT MainApp::Render()
 {
+    GAME->Bind_BackBuffer();
+
     const bool isLoading = GAME->Current_LevelIndex() == ETOI(LevelType::Loading);
     const Vec4 clearColor = isLoading
         ? Vec4(0.f, 0.f, 0.f, 1.f)

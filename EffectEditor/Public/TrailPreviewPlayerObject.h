@@ -38,8 +38,8 @@ private: //## Hook::PlayerParts
     const wchar_t* Get_BodyModelTag() const override { return L"Model_GustaveBody"; }
     const wchar_t* Get_HeadModelTag() const override { return L"Model_GustaveHead"; }
     const wchar_t* Get_HairModelTag() const override { return L"Model_GustaveHair"; }
-    bool Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const override;
-    HRESULT Ready_WeaponPart(Body_Player* body) override;
+    void Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const override;
+    HRESULT Ready_WeaponParts(Body_Player* body) override;
 
 public:
     static Shared<TrailPreviewPlayerObject> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
