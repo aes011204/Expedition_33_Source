@@ -81,6 +81,7 @@ public :
     HRESULT Display_AllRTs(bool render);
     HRESULT Render_Debug(Shared<ShaderCom> shader, Shared<VIBuffer_Rect> viBuffer);
     const map<wstring, bool>&  Get_RTs() const;
+    ComPtr<ID3D11Texture2D> Get_RT_Texture(const wstring& targetTag);
 
 private :
     struct DebugDrawArea

@@ -9,7 +9,6 @@ namespace UIEditor
     {
         constexpr wchar_t kDefaultAnimationName[] = L"NewUIAnimation";
         constexpr wchar_t kDefaultAnimationFileName[] = L"NewUIAnimation.uianim.json";
-
         fs::path Get_ModuleDirectory()
         {
             wchar_t modulePath[MAX_PATH] = {};
@@ -146,6 +145,60 @@ namespace UIEditor
 
             return safeName + L".uianim.json";
         }
+
+        wstring Resolve_DefaultPublicAnimationDirectory()
+        {
+            vector<fs::path> startPaths;
+
+            const fs::path moduleDirectory = Get_ModuleDirectory();
+            if (!moduleDirectory.empty())
+                startPaths.push_back(moduleDirectory);
+
+            try
+            {
+                startPaths.push_back(fs::current_path());
+            }
+            catch (const exception& exception)
+            {
+                LOG_WARN("UI animation current path query failed: {}", exception.what());
+            }
+
+            for (const fs::path& startPath : startPaths)
+            {
+                fs::path resourceRoot = {};
+                if (Try_FindResourceRootFromStart(startPath, resourceRoot))
+                {
+                    const fs::path animationDirectory = (resourceRoot / L"UI" / L"UI_Animations").lexically_normal();
+                    if (Try_CreateDirectory(animationDirectory))
+                        return animationDirectory.wstring();
+                }
+            }
+
+            const vector<fs::path> fallbackCandidates = {
+                L"..\\Bin\\Resources\\UI\\UI_Animations",
+                L"..\\Client\\Bin\\Resources\\UI\\UI_Animations",
+                L"..\\..\\Client\\Bin\\Resources\\UI\\UI_Animations",
+                L"..\\..\\..\\Client\\Bin\\Resources\\UI\\UI_Animations",
+                L"Client\\Bin\\Resources\\UI\\UI_Animations",
+            };
+
+            for (const fs::path& candidate : fallbackCandidates)
+            {
+                try
+                {
+                    const fs::path normalizedCandidate = fs::absolute(candidate).lexically_normal();
+                    if (Try_CreateDirectory(normalizedCandidate))
+                        return normalizedCandidate.wstring();
+                }
+                catch (const exception& exception)
+                {
+                    LOG_WARN("UI animation fallback directory failed: {} ({})", exception.what(), String::ToString(candidate.wstring()));
+                }
+            }
+
+            return {};
+        }
+
     }
 
     bool UI_AnimationAssetService::Show_SaveAssetDialog(wstring& outFilePath) const
@@ -203,55 +256,7 @@ namespace UIEditor
 
     wstring UI_AnimationAssetService::Resolve_DefaultAnimationDirectory() const
     {
-        vector<fs::path> startPaths;
-
-        const fs::path moduleDirectory = Get_ModuleDirectory();
-        if (!moduleDirectory.empty())
-            startPaths.push_back(moduleDirectory);
-
-        try
-        {
-            startPaths.push_back(fs::current_path());
-        }
-        catch (const exception& exception)
-        {
-            LOG_WARN("UI animation current path query failed: {}", exception.what());
-        }
-
-        for (const fs::path& startPath : startPaths)
-        {
-            fs::path resourceRoot = {};
-            if (Try_FindResourceRootFromStart(startPath, resourceRoot))
-            {
-                const fs::path animationDirectory = (resourceRoot / L"UI" / L"UI_Animations").lexically_normal();
-                if (Try_CreateDirectory(animationDirectory))
-                    return animationDirectory.wstring();
-            }
-        }
-
-        const vector<fs::path> fallbackCandidates = {
-            L"..\\Bin\\Resources\\UI\\UI_Animations",
-            L"..\\Client\\Bin\\Resources\\UI\\UI_Animations",
-            L"..\\..\\Client\\Bin\\Resources\\UI\\UI_Animations",
-            L"..\\..\\..\\Client\\Bin\\Resources\\UI\\UI_Animations",
-            L"Client\\Bin\\Resources\\UI\\UI_Animations",
-        };
-
-        for (const fs::path& candidate : fallbackCandidates)
-        {
-            try
-            {
-                const fs::path normalizedCandidate = fs::absolute(candidate).lexically_normal();
-                if (Try_CreateDirectory(normalizedCandidate))
-                    return normalizedCandidate.wstring();
-            }
-            catch (const exception& exception)
-            {
-                LOG_WARN("UI animation fallback directory failed: {} ({})", exception.what(), String::ToString(candidate.wstring()));
-            }
-        }
-
-        return {};
+        return Resolve_DefaultPublicAnimationDirectory();
     }
 
     void UI_AnimationAssetService::Ensure_AnimationExtension(wstring& filePath) const
@@ -267,4 +272,5 @@ namespace UIEditor
         path.replace_extension(L".uianim.json");
         filePath = path.wstring();
     }
+
 }

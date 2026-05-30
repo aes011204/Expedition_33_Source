@@ -5,6 +5,7 @@
 #include "GameInstance.h"
 #include "MEStaticMeshActor.h"
 #include "MEInstancedMeshActor.h"
+#include "Renderer_Define.h"
 
 HRESULT MEPickingSystem::Initialize(ComPtr<Device> device, ComPtr<Context> context, uint32 w, uint32 h)
 {
@@ -24,6 +25,17 @@ HRESULT MEPickingSystem::Initialize(ComPtr<Device> device, ComPtr<Context> conte
     stagingDesc.Usage = D3D11_USAGE_STAGING;
     stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
     CHECK_FAILED(_device->CreateTexture2D(&stagingDesc, nullptr, _idStagingTex.GetAddressOf()), E_FAIL);
+
+    D3D11_TEXTURE2D_DESC depthStagingDesc{};
+    depthStagingDesc.Width = 1;
+    depthStagingDesc.Height = 1;
+    depthStagingDesc.MipLevels = 1;
+    depthStagingDesc.ArraySize = 1;
+    depthStagingDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    depthStagingDesc.SampleDesc.Count = 1;
+    depthStagingDesc.Usage = D3D11_USAGE_STAGING;
+    depthStagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    CHECK_FAILED(_device->CreateTexture2D(&depthStagingDesc, nullptr, _depthStagingTex.GetAddressOf()), E_FAIL);
 
     return S_OK;
 }
@@ -168,6 +180,58 @@ void MEPickingSystem::SetCursorAt(SceneContext& scene, const MECamera& camera, c
     }
 
     scene._cursorVisible = true;
+}
+
+bool MEPickingSystem::SampleWorldPos(const MECamera& camera, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, Vec3& outWorldPos)
+{
+    if (!_depthStagingTex || vpSize.x <= 0.f || vpSize.y <= 0.f)
+    {
+        return false;
+    }
+
+    auto depthTex = GAME->Get_RT_Texture(RT::Depth);
+    if (!depthTex)
+    {
+        return false;
+    }
+
+    const uint32 rtW = GAME->Get_ViewportWidth();
+    const uint32 rtH = GAME->Get_ViewportHeight();
+    const uint32 px = min(static_cast<uint32>((mousePos.x - vpPos.x) / vpSize.x * rtW), rtW - 1);
+    const uint32 py = min(static_cast<uint32>((mousePos.y - vpPos.y) / vpSize.y * rtH), rtH - 1);
+
+    D3D11_BOX box = { px, py, 0, px + 1, py + 1, 1 };
+    _context->CopySubresourceRegion(_depthStagingTex.Get(), 0, 0, 0, 0, depthTex.Get(), 0, &box);
+
+    float ndcDepth = {};
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    if (FAILED(_context->Map(_depthStagingTex.Get(), 0, D3D11_MAP_READ, 0, &mapped)))
+    {
+        return false;
+    }
+
+    ndcDepth = static_cast<const float*>(mapped.pData)[0];
+    _context->Unmap(_depthStagingTex.Get(), 0);
+
+    if (ndcDepth <= 0.f)
+    {
+        return false;
+    }
+
+    const float ndcX = ((mousePos.x - vpPos.x) / vpSize.x) * 2.f - 1.f;
+    const float ndcY = -((mousePos.y - vpPos.y) / vpSize.y) * 2.f + 1.f;
+
+    const Matrix viewProjInv = (camera.GetView() * camera.GetProj()).Invert();
+    const Vec4 clip = Vec4(ndcX, ndcY, ndcDepth, 1.f);
+    const Vec4 world = Vec4::Transform(clip, viewProjInv);
+
+    if (world.w == 0.f)
+    {
+        return false;
+    }
+
+    outWorldPos = Vec3(world.x / world.w, world.y / world.w, world.z / world.w);
+    return true;
 }
 
 

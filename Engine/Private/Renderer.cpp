@@ -221,14 +221,10 @@ void Renderer::Draw()
     // ScreenFX
     // ========================================= //
     const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
-    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && _screenFxShader;
+    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
     if (useScreenFx)
     {
-        // BackBuffer(지금까지 그린 화면) -> ScreenFx 로 복사
-        if (FAILED(GAME->Copy_CurrentRTV_To(RT::ScreenFxColor)))
-            DEBUG_LOG_FAIL(L"Render_ScreenFx:FAIL Copy_CurrentRTV_To(ScreenFxColor)");
-        else
-            Render_ScreenFx();
+        Render_ScreenFx();
     }
 
 #ifdef _DEBUG
@@ -302,7 +298,7 @@ void Renderer::Render_Shadow()
 
 void Renderer::Render_NonBlend()
 {
-    // Diffuse + Normal
+    // Diffuse + Normal / NotUseDSV -> UseDSV
     CHECK_FAILED(GAME->Begin_MRT(MRT::GameObjects, NotUseDSV, ClearRTV));
 
     _currentGroup = RenderGroup::NonBlend;
@@ -328,7 +324,7 @@ void Renderer::Render_SSAO()
     if (!_deferredShader || !_viBuffer)
         return;
 
-    // SSAO 사용 여부 
+    // SSAO 사용 여부
     const bool ssaoEnabled = (_lightingPipeline != nullptr) && _lightingPipeline->Is_Enabled();
     if (!ssaoEnabled)
     {
@@ -346,6 +342,7 @@ void Renderer::Render_SSAO()
 
         if (FAILED(GAME->End_MRT()))
             return;
+
         return;
     }
 
@@ -384,7 +381,7 @@ void Renderer::Render_SSAO()
 
         ENDMRT_RETURN_IF_FAILED(
             _viBuffer->Render());
-        
+
         if (FAILED(GAME->End_MRT()))
             return;
 
@@ -884,27 +881,8 @@ void Renderer::Render_ScreenFx()
         L"Render_ScreenFx:FAIL Bind_Resources");
 
     RETURN_LOG_IF_FAILED(
-        GAME->Bind_RT_ShaderResource(_screenFxShader, "g_ScreenFxTexture", RT::ScreenFxColor),
-        L"Render_ScreenFx:FAIL Bind_RT_ShaderResource(g_ScreenFxTexture)");
-
-    // 테스트 코드. S 를 누르면 Ghosting, D를 누르면 BattleTransition, A 를 누르면 Vignette 
-    //uint32 passIndex = ETOI(ScreenFxPass::Vignette);
-    //if (GAME->KeyPress(KEY_TYPE::S))
-    //    passIndex = ETOI(ScreenFxPass::Ghosting);
-    //else if (GAME->KeyPress(KEY_TYPE::D))
-    //    passIndex = ETOI(ScreenFxPass::BattleTransition);
-    //else if (GAME->KeyPress(KEY_TYPE::A))
-    //    passIndex = ETOI(ScreenFxPass::Vignette);
-
-    //RETURN_LOG_IF_FAILED(
-    //    _screenFxShader->Begin(passIndex),
-    //    L"Render_ScreenFx:FAIL ShaderBegin");
-
-    RETURN_LOG_IF_FAILED(
-        _viBuffer->Render(),
-        L"Render_ScreenFx:FAIL RenderRect");
-
-    Add_RenderCall();
+        GAME->Get_ScreenFxManager()->Render_ScreenFx(_screenFxShader, _viBuffer),
+        L"Render_ScreenFx:FAIL Manager->Render_ScreenFx");
 }
 
 HRESULT Renderer::Ready_Shaders()

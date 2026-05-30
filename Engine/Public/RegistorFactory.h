@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Reflection_Types.h"
 
@@ -19,12 +19,16 @@ namespace Engine
 
     class AnimNotify;
     class AnimNotifyState;
+    
+    class ScreenFx_Instance;
 
     using ComponentCreateFn = std::function<Shared<Component>(const ComPtr<Device>&, const ComPtr<Context>&)>;
     using GameObjectCreateFn = std::function<Shared<GameObject>(const ComPtr<Device>&, const ComPtr<Context>&)>;
     using BTNodeCreateFn = std::function<Shared<Base>()>;
     using AnimNotifyCreateFn = std::function<Shared<AnimNotify>()>;
     using AnimNotifyStateCreateFn = std::function<Shared<AnimNotifyState>()>;
+    using ScreenFxCreateFn = std::function<Shared<class ScreenFx_Instance>()>;
+    using ScreenFxCreateFn = std::function<Shared<ScreenFx_Instance>()>;
 
     struct ComponentRegistorInfo
     {
@@ -60,6 +64,13 @@ namespace Engine
     {
         std::string className = {};
         AnimNotifyStateCreateFn createFn = {};
+        ClassReflectionInfo* reflectionInfo = nullptr;
+    };
+
+    struct ScreenFxRegistorInfo
+    {
+        std::string className = {};
+        ScreenFxCreateFn createFn = {};
         ClassReflectionInfo* reflectionInfo = nullptr;
     };
 
@@ -104,14 +115,15 @@ namespace Engine
         return static_pointer_cast<AnimNotifyState>(instance);
     }
 
-
     ENGINE_DLL bool Register_ComponentType_Pending(const char* className, const ComponentCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
     ENGINE_DLL bool Register_GameObjectType_Pending(const char* className, ObjectType objectType, const GameObjectCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
     ENGINE_DLL bool Register_BTNodeType_Pending(const char* className, const std::string& nodeCategory, const BTNodeCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
 
     ENGINE_DLL bool Register_AnimNotifyType_Pending(const char* className, const AnimNotifyCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
     ENGINE_DLL bool Register_AnimNotifyStateType_Pending(const char* className, const AnimNotifyStateCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
+    ENGINE_DLL bool Register_ScreenFxType_Pending(const char* className, const ScreenFxCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
 	ENGINE_DLL bool Register_GlobalEnum_Pending(const char* displayName, const std::vector<std::string>& enumNames, const std::vector<int>& enumValues);
+    ENGINE_DLL bool Register_ScreenFxType_Pending(const char* className, const ScreenFxCreateFn& createFn, ClassReflectionInfo* reflectionInfo);
 
     ENGINE_DLL HRESULT Flush_PendingTypeRegistrations(TypeRegistry& registry);
 }

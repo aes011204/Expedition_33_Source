@@ -39,6 +39,8 @@ namespace MapEditor
         PostProcessVolume,
         Light,
         InstancedMesh,
+        Terrain,
+        Landscape,
         Fail
     };
 
@@ -68,6 +70,10 @@ namespace MapEditor
             return "[LT]";
         case MapEditor::EObjectType::InstancedMesh:
             return "[IM]";
+        case MapEditor::EObjectType::Terrain:
+            return "[TR]";
+        case MapEditor::EObjectType::Landscape:
+            return "[LS]";
         case MapEditor::EObjectType::Fail:
         default:
             return "[??]";
@@ -100,6 +106,7 @@ namespace MapEditor
     {
         ShaderType shaderType = ShaderType::VtxMesh;
         int32 passIndex = -1;
+        map<int32, string> textureSlots;
     };
 
     inline constexpr pair<const char*, uint32> g_staticMeshPassOptions[] = {
@@ -111,8 +118,9 @@ namespace MapEditor
     { "MaskedTwoSided", VtxMeshPassIndex::MaskedTwoSidedPass },
     { "OpaqueAR", VtxMeshPassIndex::OpaqueARPass },
     { "OpaqueARTwoSided", VtxMeshPassIndex::OpaqueARTwoSidedPass },
+    { "LandscapeBlend", VtxMeshPassIndex::LandscapeBlendPass },
     };
-    inline constexpr int32 g_staticMeshPassOptionCount = 8;
+    inline constexpr int32 g_staticMeshPassOptionCount = 9;
 
     inline constexpr pair<const char*, uint32> g_instanceMeshPassOptions[] = {
     { "Default", VtxInstanceMeshExactPassIndex::DefaultPass },
@@ -141,6 +149,88 @@ namespace MapEditor
         bool valid = false;
     };
     inline constexpr int CameraBookmarkCount = 5;
+
+    struct TerrainTile
+    {
+        string file;
+        int32 gridX = 0;
+        int32 gridY = 0;
+    };
+
+    struct TerrainConfig
+    {
+        string heightmapFolder;
+        float worldOffsetX = 0.f;
+        float worldOffsetY = 0.f;
+        float worldOffsetZ = 0.f;
+        float scaleXZ = 1.f;
+        float scaleY = 1.f;
+        vector<TerrainTile> tiles;
+        bool IsValid() const { return !tiles.empty(); }
+    };
+
+    enum class ESculptMode
+    {
+        None,
+        Raise,
+        Lower,
+        Smooth,
+        Flatten,
+        Paint
+    };
+
+    struct LandscapeSculptState
+    {
+        ESculptMode mode = ESculptMode::None;
+        float brushRadius = 5.f;
+        float brushStrength = 0.5f;
+        float flattenHeight = 0.f;
+        uint32 paintLayerIdx = 0;
+    };
+
+    struct LandscapeConfig
+    {
+        string name = "Landscape_0";
+        uint32 countX = 64;
+        uint32 countZ = 64;
+        float sizeX = 1.f;
+        float sizeZ = 1.f;
+        float worldOffsetX = 0.f;
+        float worldOffsetY = 0.f;
+        float worldOffsetZ = 0.f;
+        uint32 chunkSize = 16;
+        vector<float> heights;
+    };
+
+    struct LandscapeNoiseParams
+    {
+        float scale = 0.05f;
+        float amplitude = 10.f;
+        int32 octaves = 4;
+        float persistence = 0.5f;
+        int32 seed = 42;
+        bool additive = true;
+    };
+
+    struct LandscapeErosionParams
+    {
+        int32 iterations = 50;
+        float talusAngle = 0.5f;
+        float erosionRate = 0.5f;
+    };
+
+    struct LandscapePanelContext
+    {
+        Shared<LandscapeSculptState> sculptState;
+        function<void(const LandscapeConfig&)> onAdd;
+        function<void(int32)> onRemove;
+        function<void(int32, const WCHAR*)> onSave;
+        function<void(int32, const WCHAR*)> onLoad;
+        function<void(int32, const LandscapeNoiseParams&)> onApplyNoise;
+        function<void(int32, const LandscapeErosionParams&)> onApplyErosion;
+        function<void(int32, const WCHAR*)> onAddLayer;
+        function<void(int32, const LandscapeConfig&)> onModify;
+    };
 };
 
 using namespace MapEditor;

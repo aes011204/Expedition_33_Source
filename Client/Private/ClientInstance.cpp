@@ -17,6 +17,7 @@
 #include "UIPreviewManager.h"
 #include "CameraDirector.h"
 #include "MapLoader.h"
+#include "ClientScreenFxManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -64,6 +65,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     CHECK_NULL(_cameraDirector, E_FAIL);
     _effectInstancePool = EffectInstancePool::Create();
     CHECK_NULL(_effectInstancePool, E_FAIL);
+
+    _screenFxManager = ClientScreenFxManager::Create();
+    CHECK_NULL(_screenFxManager, E_FAIL);
 
 	_isInitialized = true;
 
@@ -372,6 +376,11 @@ void ClientInstance::Restore_PreviousCamera()
     return _cameraDirector->Restore_PreviousCamera();
 }
 
+Shared<ClientScreenFxManager> ClientInstance::Get_ScreenFxManager() const
+{
+    return _screenFxManager;
+}
+
 bool ClientInstance::Is_GameplayMenuOpen() const
 {
     return _gamePlayUI && _gamePlayUI->Is_AnyMenuOpen();
@@ -443,6 +452,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_heroManager);
     ReleaseManager(_battleController);
     ReleaseManager(_gamePlayUI);
+    ReleaseManager(_screenFxManager);
 
     _context.Reset();
     _device.Reset();

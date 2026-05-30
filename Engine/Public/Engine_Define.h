@@ -33,7 +33,6 @@
 #include <vector>
 #include <set>
 #include <atomic>
-#include <mutex>
 #include <queue>
 #include <system_error>
 #include <type_traits>
@@ -72,11 +71,15 @@
 #include "Engine_Model_Struct.h"
 #include "Engine_Constants.h"
 
+// height map
+#include <wincodec.h>
+
 //## Windows SDK 라이브러리 링커
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxguid.lib")
+#pragma comment(lib, "windowscodecs.lib")
 
 //## 외부 라이브러리 링커
 // FMOD: Configuration에 따라 Debug 또는 Release 라이브러리 링크

@@ -1,25 +1,11 @@
 #pragma once
 
 #include "UI_AnimationAssetSerializer.h"
+#include "UI_AnimationEditHistory.h"
 #include "UI_Document.h"
 
 namespace UIEditor
 {
-    enum class UI_AnimationPresetType
-    {
-        FadeIn,
-        FadeOut,
-        SlideInUp,
-        SlideInDown,
-        SlideInLeft,
-        SlideInRight,
-        PopIn,
-        TooltipAppear,
-        ButtonHoverPulse,
-        ButtonPressPop,
-        SkillNodeReveal,
-    };
-
     class UI_AnimationAssetService final
     {
     public:
@@ -31,6 +17,8 @@ namespace UIEditor
         UI_AnimationAsset& Get_MutableAsset() { return _asset; }
         const wstring& Get_AssetFilePath() const { return _assetFilePath; }
         bool Is_Dirty() const { return _assetDirty; }
+        bool Can_UndoAssetEdit() const { return _editHistory.Can_Undo(); }
+        bool Can_RedoAssetEdit() const { return _editHistory.Can_Redo(); }
         bool Is_PreviewEnabled() const { return _previewEnabled; }
         void Set_PreviewEnabled(bool previewEnabled) { _previewEnabled = previewEnabled; }
         int32 Get_CurrentFrame() const { return _currentFrame; }
@@ -39,6 +27,7 @@ namespace UIEditor
         int32 Get_SelectedKeyIndex() const { return _selectedKeyIndex; }
         UI_AnimationKeyframeTrackType Get_PendingTrackType() const { return _pendingTrackType; }
         void Set_PendingTrackType(UI_AnimationKeyframeTrackType trackType) { _pendingTrackType = trackType; }
+        bool Is_PublicAnimationMode() const;
         bool Has_AnyResolvedTarget() const;
         bool Has_SelectedResolvedTarget() const;
 
@@ -46,11 +35,14 @@ namespace UIEditor
         bool Save_Asset(bool forceSaveAs);
         bool Load_Asset();
         bool Confirm_DiscardDirtyAsset(const wchar_t* actionName);
+        bool Undo_AssetEdit();
+        bool Redo_AssetEdit();
 
         bool Bind_SelectedUI(const UI_Object* selectedObject);
         void Clear_Target();
         void Resolve_TargetObject(const UI_Document& document, bool forceResolve = false);
         void Set_AssetName(const string& assetName);
+        void Set_AnimationType(UI_AnimationAssetType animationType);
         void Set_TargetName(const string& targetName, const UI_Document& document);
         void Set_CurrentFrame(int32 frame);
         void Clamp_Asset();
@@ -70,7 +62,6 @@ namespace UIEditor
         bool Add_KeyToSelectedTrack(const UI_Document& document);
         bool Add_CurrentValueKeyToTrack(const UI_Document& document, UI_AnimationKeyframeTrackType trackType);
         bool Add_CurrentValueKeysToTransformTracks(const UI_Document& document);
-        bool Apply_Preset(const UI_Document& document, UI_AnimationPresetType presetType, int32 durationFrames, float distance, float scaleAmount);
         bool Copy_SelectedKey();
         bool Paste_CopiedKey();
         bool Has_CopiedKey() const { return _hasCopiedKey; }
@@ -94,8 +85,11 @@ namespace UIEditor
         int32 Find_TargetIndexByName(const string& targetName) const;
         int32 Find_TargetIndexByObjectId(uint32 targetObjectId) const;
         int32 Find_TrackIndex(const UI_AnimationTargetBinding& target, UI_AnimationKeyframeTrackType trackType) const;
+        int32 Find_TrackIndex(const vector<UI_AnimationKeyframeTrack>& tracks, UI_AnimationKeyframeTrackType trackType) const;
         int32 Find_KeyIndexAtFrame(const UI_AnimationKeyframeTrack& track, int32 frame) const;
         int32 Ensure_Track(UI_AnimationKeyframeTrackType trackType);
+        vector<UI_AnimationKeyframeTrack>& Get_EditableTracks();
+        const vector<UI_AnimationKeyframeTrack>& Get_EditableTracks() const;
         void Migrate_LegacyAlphaTracks(const UI_Document& document);
         bool Upsert_CurrentValueKey(const UI_Document& document, int32 trackIndex, bool selectKey);
         bool Upsert_KeyValue(UI_AnimationKeyframeTrackType trackType, int32 frame, float value, UI_AnimationEasing easing, bool selectKey);
@@ -104,6 +98,19 @@ namespace UIEditor
         void Sort_TrackKeys(UI_AnimationKeyframeTrack& track);
         void Clamp_AssetRange();
         void Clamp_SelectedIndices();
+        struct UI_AnimationAssetHistoryState
+        {
+            UI_AnimationAsset asset = {};
+            int32 currentFrame = 0;
+            int32 selectedTargetIndex = -1;
+            int32 selectedTrackIndex = -1;
+            int32 selectedKeyIndex = -1;
+            UI_AnimationKeyframeTrackType pendingTrackType = UI_AnimationKeyframeTrackType::PositionX;
+        };
+        UI_AnimationAssetHistoryState Capture_HistoryState() const;
+        void Restore_HistoryState(const UI_AnimationAssetHistoryState& historyState);
+        bool Is_SameHistoryAsset(const UI_AnimationAssetHistoryState& lhs, const UI_AnimationAssetHistoryState& rhs) const;
+        void Reset_EditHistory();
 
     private:
         UI_AnimationAsset _asset = {};
@@ -120,5 +127,6 @@ namespace UIEditor
         bool _hasCopiedKey = false;
         UI_AnimationKeyframeTrackType _copiedKeyTrackType = UI_AnimationKeyframeTrackType::PositionX;
         UI_AnimationKeyframe _copiedKey = {};
+        UI_AnimationEditHistory<UI_AnimationAssetHistoryState> _editHistory = {};
     };
 }
