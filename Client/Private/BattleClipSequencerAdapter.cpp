@@ -81,6 +81,16 @@ BattleCameraTrack* GetTrackByIndex(BattleCameraClip* clip, int index)
         return &clip->orbitHeight;
     case 9:
         return &clip->orbitLookHeight;
+    case 10:
+        return &clip->shakeFrequencyX;
+    case 11:
+        return &clip->shakeFrequencyY;
+    case 12:
+        return &clip->shakeDecayRate;
+    case 13:
+        return &clip->shakeVerticalRatio;
+    case 14:
+        return &clip->shakeStrengthScale;
     default:
         return nullptr;
     }
@@ -110,6 +120,16 @@ const char* GetTrackLabel(int index)
         return "Orbit Height";
     case 9:
         return "Orbit Look Height";
+    case 10:
+        return "Shake Frequency X";
+    case 11:
+        return "Shake Frequency Y";
+    case 12:
+        return "Shake Decay Rate";
+    case 13:
+        return "Shake Vertical Ratio";
+    case 14:
+        return "Shake Strength Scale";
     default:
         return "";
     }
@@ -303,7 +323,12 @@ BattleClipSequencerAdapter::BattleClipSequencerAdapter(
     bool* orbitYawEnabled,
     bool* orbitRadiusEnabled,
     bool* orbitHeightEnabled,
-    bool* orbitLookHeightEnabled)
+    bool* orbitLookHeightEnabled,
+    bool* shakeFrequencyXEnabled,
+    bool* shakeFrequencyYEnabled,
+    bool* shakeDecayRateEnabled,
+    bool* shakeVerticalRatioEnabled,
+    bool* shakeStrengthScaleEnabled)
     : _clip(clip)
     , _selectedTrackIndex(selectedTrackIndex)
     , _selectedKeyIndex(selectedKeyIndex)
@@ -327,6 +352,11 @@ BattleClipSequencerAdapter::BattleClipSequencerAdapter(
     _trackEnabledFlags[7] = orbitRadiusEnabled;
     _trackEnabledFlags[8] = orbitHeightEnabled;
     _trackEnabledFlags[9] = orbitLookHeightEnabled;
+    _trackEnabledFlags[10] = shakeFrequencyXEnabled;
+    _trackEnabledFlags[11] = shakeFrequencyYEnabled;
+    _trackEnabledFlags[12] = shakeDecayRateEnabled;
+    _trackEnabledFlags[13] = shakeVerticalRatioEnabled;
+    _trackEnabledFlags[14] = shakeStrengthScaleEnabled;
 }
 
 int BattleClipSequencerAdapter::GetFrameMin() const
@@ -351,7 +381,7 @@ int BattleClipSequencerAdapter::GetFrameMax() const
 
 int BattleClipSequencerAdapter::GetItemCount() const
 {
-    return 10;
+    return kBattleClipTrackCount;
 }
 
 const char* BattleClipSequencerAdapter::GetItemLabel(int index) const

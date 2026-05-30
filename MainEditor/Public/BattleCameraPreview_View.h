@@ -242,6 +242,11 @@ private:
     bool _previewOrbitRadiusEnabled = true;
     bool _previewOrbitHeightEnabled = true;
     bool _previewOrbitLookHeightEnabled = true;
+    bool _previewShakeFrequencyXEnabled = true;
+    bool _previewShakeFrequencyYEnabled = true;
+    bool _previewShakeDecayRateEnabled = true;
+    bool _previewShakeVerticalRatioEnabled = true;
+    bool _previewShakeStrengthScaleEnabled = true;
     bool _previewEnabled = true;
     bool _previewDirty = false;
     bool _previewObjectsDirty = true;

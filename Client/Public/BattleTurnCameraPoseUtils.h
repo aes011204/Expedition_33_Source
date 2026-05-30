@@ -96,7 +96,13 @@ inline bool Evaluate_BattleTurnPresetPose(
     Vec3 cameraUp = cameraForward.Cross(cameraRight);
     cameraUp.Normalize();
 
-    desiredPos += Sample_BattleCameraShakeOffset(clipSample.shakeAmplitude, clipTime, cameraRight, cameraUp);
+    desiredPos += Sample_BattleCameraShakeOffset(clipSample.
+        shakeAmplitude, clipSample.shakeVerticalRatio,
+        clipSample.shakeStrengthScale,
+        clipSample.shakeFrequencyX,
+        clipSample.shakeFrequencyY,
+        clipSample.shakeDecayRate,
+        clipTime, cameraRight, cameraUp);
 
     outPose.cameraPos = desiredPos;
     outPose.lookTarget = lookTarget;
@@ -147,7 +153,13 @@ inline bool Evaluate_BattleTurnEnemyAttackPose(
     Vec3 cameraUp = cameraForward.Cross(cameraRight);
     cameraUp.Normalize();
 
-    cameraPos += Sample_BattleCameraShakeOffset(clipSample.shakeAmplitude, clipTime, cameraRight, cameraUp);
+    cameraPos += Sample_BattleCameraShakeOffset(clipSample.
+    shakeAmplitude, clipSample.shakeVerticalRatio,
+    clipSample.shakeStrengthScale,
+    clipSample.shakeFrequencyX,
+    clipSample.shakeFrequencyY,
+    clipSample.shakeDecayRate,
+    clipTime, cameraRight, cameraUp);
 
     outPose.cameraPos = cameraPos;
     outPose.lookTarget = lookTarget;

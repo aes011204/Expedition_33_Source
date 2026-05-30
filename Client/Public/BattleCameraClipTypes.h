@@ -12,20 +12,10 @@ struct BattleCameraKeyframe
     float value = 0.f;
 };
 
-//struct BattleCameraShakeKeyframe
-//{
-// 
-//};
-
 struct BattleCameraTrack
 {
     vector<BattleCameraKeyframe> keyframes;
 };
-
-//struct BattleCameraShakeTrack
-//{
-//    vector<BattleCameraShakeKeyframe> keyframes;
-//};
 
 struct BattleCameraClip
 {
@@ -37,11 +27,16 @@ struct BattleCameraClip
     BattleCameraTrack yawOffset;
     BattleCameraTrack sideOffset;
     BattleCameraTrack pivotOffset;
-    BattleCameraTrack shakeAmplitude;
     BattleCameraTrack orbitYaw;
     BattleCameraTrack orbitRadius;
     BattleCameraTrack orbitHeight;
     BattleCameraTrack orbitLookHeight;
+    BattleCameraTrack shakeAmplitude;
+    BattleCameraTrack shakeFrequencyX;
+    BattleCameraTrack shakeFrequencyY;
+    BattleCameraTrack shakeDecayRate;
+    BattleCameraTrack shakeVerticalRatio;
+    BattleCameraTrack shakeStrengthScale;
 };
 
 struct BattleCameraClipSample
@@ -51,9 +46,14 @@ struct BattleCameraClipSample
     float sideOffset = 0.f;
     float pivotOffset = 0.f;
     float yawOffset = 0.f;
-    float shakeAmplitude = 0.f;
     float orbitYaw = 0.f;
     float orbitRadius = 0.f;
     float orbitHeight = 0.f;
     float orbitLookHeight = 0.f;
+    float shakeAmplitude = 0.f;
+    float shakeFrequencyX = 32.f;
+    float shakeFrequencyY = 47.f;
+    float shakeDecayRate = 8.f;
+    float shakeVerticalRatio = 0.8f;
+    float shakeStrengthScale = 0.05f;
 };
