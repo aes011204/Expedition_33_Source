@@ -160,14 +160,16 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
                     request.skillId = event.skillId;
                     request.presetId = event.presetId;
                     request.clipId = event.clipId;
+                    request.freezeSubjectDuringTransition = true;
                     break;
 
                 case BattleCameraMode::SELECTSKILL:
                     request.mode = event.cameraMode;
                     request.subject = event.subject;
                     request.skillId = event.skillId;
-                    request.presetId = event.presetId;
-                    request.clipId = event.clipId;
+                   // request.presetId = event.presetId;
+                   // request.clipId = event.clipId;
+                    request.freezeSubjectDuringTransition = true;
                     break;
             }
 
@@ -370,8 +372,8 @@ void BattleTurnCamera::Reset_RuntimeState()
 
 const BattleCameraPreset* BattleTurnCamera::Resolve_BattleCameraPresetById(BattleCameraMode mode, const string& presetId) const
 {
-    if (presetId.empty())
-        return nullptr;
+    //if (presetId.empty())
+    //    return nullptr;
 
     const string cacheKey = string(magic_enum::enum_name(mode)) + ":" + presetId;
     if (auto iter = _presetsById.find(cacheKey); iter != _presetsById.end())
@@ -387,8 +389,8 @@ const BattleCameraPreset* BattleTurnCamera::Resolve_BattleCameraPresetById(Battl
 
 const BattleCameraClip* BattleTurnCamera::Resolve_BattleCameraClipById(BattleCameraMode mode, const string& clipId) const
 {
-    if (clipId.empty())
-        return nullptr;
+    //if (clipId.empty())
+    //    return nullptr;
 
     const string cacheKey = string(magic_enum::enum_name(mode)) + ":" + clipId;
     if (auto iter = _clipsById.find(cacheKey); iter != _clipsById.end())
@@ -591,9 +593,40 @@ bool BattleTurnCamera::Start_PoseTransition(
     const Vec3& targetPrevTargetPos)
 {
     EvaluatedPose fromPose = Capture_CurrentPose();
+
+    _poseTransition.hasFrozenPos = false;
+    if (request.freezeSubjectDuringTransition == true &&
+        request.subject != nullptr &&
+        request.subject->Get_Transform() != nullptr)
+    {
+        _poseTransition.frozenSubjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+        _poseTransition.hasFrozenPos = true;
+    }
+
     EvaluatedPose toPose{};
-    if (!Evaluate_ShotRequestPose(request, preset, &targetSmoothedTargetPos, BattleCameraClipSample{}, 0.f, toPose))
+    const bool shouldUseFrozenSelectItemPose =
+        request.freezeSubjectDuringTransition &&
+        request.mode == BattleCameraMode::SELECTITEM &&
+        _poseTransition.hasFrozenPos;
+
+    if (shouldUseFrozenSelectItemPose)
+    {
+        if (!Evaluate_CurrentPresetPose(
+            _poseTransition.frozenSubjectPos,
+            preset,
+            BattleCameraClipSample{},
+            _yaw,
+            _pitch,
+            &targetSmoothedTargetPos,
+            toPose))
+        {
+            return false;
+        }
+    }
+    else if (!Evaluate_ShotRequestPose(request, preset, &targetSmoothedTargetPos, BattleCameraClipSample{}, 0.f, toPose))
+    {
         return false;
+    }
 
     _activeClip = activeClip;
     Reset_ClipPlaybackState();
@@ -610,6 +643,7 @@ bool BattleTurnCamera::Start_PoseTransition(
     _poseTransition.targetSmoothedTargetPos = targetSmoothedTargetPos;
     _poseTransition.targetPrevTargetPos = targetPrevTargetPos;
     _isClipPreview = false;
+
     return true;
 }
 
@@ -627,15 +661,33 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     blended.lookTarget = Vec3::Lerp(_poseTransition.fromPose.lookTarget, _poseTransition.toPose.lookTarget, easedT);
     blended.fovY = lerp(_poseTransition.fromPose.fovY, _poseTransition.toPose.fovY, easedT);
     blended.rollOffset = lerp(_poseTransition.fromPose.rollOffset, _poseTransition.toPose.rollOffset, easedT);
-
     EvaluatedPose clippedTargetPose{};
-    if (Evaluate_ShotRequestPose(
-        _poseTransition.targetRequest,
-        _poseTransition.targetPreset,
-        &_poseTransition.targetSmoothedTargetPos,
-        clipSample,
-        _clipTime,
-        clippedTargetPose))
+    bool hasClippedTargetPose = false;
+    if (_poseTransition.targetRequest.freezeSubjectDuringTransition &&
+        _poseTransition.targetRequest.mode == BattleCameraMode::SELECTITEM &&
+        _poseTransition.hasFrozenPos)
+    {
+        hasClippedTargetPose = Evaluate_CurrentPresetPose(
+            _poseTransition.frozenSubjectPos,
+            _poseTransition.targetPreset,
+            clipSample,
+            _yaw,
+            _pitch,
+            &_poseTransition.targetSmoothedTargetPos,
+            clippedTargetPose);
+    }
+    else
+    {
+        hasClippedTargetPose = Evaluate_ShotRequestPose(
+            _poseTransition.targetRequest,
+            _poseTransition.targetPreset,
+            &_poseTransition.targetSmoothedTargetPos,
+            clipSample,
+            _clipTime,
+            clippedTargetPose);
+    }
+
+    if (hasClippedTargetPose)
     {
         blended.cameraPos += clippedTargetPose.cameraPos - _poseTransition.toPose.cameraPos;
         blended.lookTarget += clippedTargetPose.lookTarget - _poseTransition.toPose.lookTarget;
@@ -705,7 +757,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         _currentRequest.clipId == request.clipId &&
         _currentRequest.useClip == request.useClip;
 
-    const bool isSameClip = _currentRequest.clipId == request.clipId && _currentRequest.useClip == request.useClip;
+    const bool isSameClip = _currentRequest.clipId == request.clipId && _currentRequest.useClip == request.useClip && _currentRequest.mode == request.mode;
     const bool shouldDisableClip = request.useClip == false;
     const bool shouldRestartClip = request.restartClip || !isSameClip;
 
@@ -858,6 +910,15 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         {
             nextPreset = *resolvedPresetById;   
         }
+
+    case BattleCameraMode::SELECTSKILL:
+        if(resolvedPresetById != nullptr)
+        {
+            nextPreset = *resolvedPresetById;   
+        }
+
+        if (resolvedClipById != nullptr)
+            nextActiveClip = const_cast<BattleCameraClip*>(resolvedClipById);
     }
 
     if(request.useClip == false)

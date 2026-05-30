@@ -1,6 +1,6 @@
 ﻿#include "pch.h"
 #include "ChooseSkill.h"
-
+#include <Battle_Event.h>
 #include "BattleAnimutils.h"
 #include "Input_Manager.h"
 #include "GameInstance.h"
@@ -8,6 +8,7 @@
 #include "BattleController.h"
 #include "BattleStateMachine.h"
 #include "CombatStatCom.h"
+#include "Event_Bus.h"
 
 ChooseSkill::ChooseSkill(const Shared<BattleController>& owner)
     : Battle_State{ owner }
@@ -71,6 +72,12 @@ void ChooseSkill::Update(float timeDelta)
     {
         request.skillKey.clear(); // 스킬 메뉴 취소
         BattleAnimUtils::Play_BattleIdle(request.actor, 0.3f);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
+        event.subject = owner->Get_TurnActionRequest().actor.actor;
+        GAME->Get_EventBus().Publish(event);
+
 
         battleFSM->Change_State(BattleTurnState::ChooseAction);
         return;

@@ -15,7 +15,8 @@ enum class BattleCameraMode
   PLAYERFOCUS, //플레이어 공격 선택시 줌
   PLAYERATTACK,
   SELECTITEM,
-  SELECTSKILL
+  SELECTSKILL,
+  AIM
 };
 
 enum class BattleCameraTransitionEasing

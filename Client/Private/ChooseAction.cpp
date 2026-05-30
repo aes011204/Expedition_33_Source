@@ -54,8 +54,7 @@ void ChooseAction::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::F)) // 기본 공격
     {
         owner->Get_TurnActionRequest().type = EBattleContext::BaseAttack;
-        //공격 시 이벤트 발행 (카메라, UI 전환 등) TODO 플레이어로 바꾸기
-        ////////////////////////////////////////
+
         const auto enemies = owner->Get_AliveEnemies();
         if (!enemies.empty())
         {
@@ -64,7 +63,7 @@ void ChooseAction::Update(float timeDelta)
             event.subject = enemies[0].actor;
             GAME->Get_EventBus().Publish(event);
         }
-        ////////////////////////////////////////
+  
         battleFSM->Change_State(BattleTurnState::AttackTargeting);
         return;
     }
@@ -73,6 +72,13 @@ void ChooseAction::Update(float timeDelta)
     {
         owner->Get_TurnActionRequest().type = EBattleContext::Skill;
         battleFSM->Change_State(BattleTurnState::ChooseSkill);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::SELECTSKILL;
+        event.subject = owner->Get_TurnActionRequest().actor.actor;
+        event.useClip = true;
+        GAME->Get_EventBus().Publish(event);
+
         return;
     }
 

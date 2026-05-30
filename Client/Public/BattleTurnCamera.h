@@ -26,6 +26,7 @@ public:
         string          clipId;
         bool            useClip = false;
         bool            restartClip = false;
+        bool            freezeSubjectDuringTransition = false;
     };
 
 public:
@@ -75,6 +76,8 @@ private:
         BattleCameraClip* targetActiveClip = nullptr;
         Vec3 targetSmoothedTargetPos = Vec3::Zero;
         Vec3 targetPrevTargetPos = Vec3::Zero;
+        Vec3 frozenSubjectPos = {};
+        bool hasFrozenPos = false;
     };
 
 private:
