@@ -183,6 +183,7 @@ struct EffectColorOverLifeRuntimeDesc
 {
     Vec4 endColorMin{ 1.f, 1.f, 1.f, 1.f }; // Color Over Life 하한이다.
     Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f }; // Color Over Life 상한이다.
+    PointParticleColorOverLifeCurveDesc curve{}; // ConstantCurve ColorOverLife runtime payload다.
 };
 
 // Trail 전용 SpawnPerUnit 모듈에서 이동 거리 기반 보강 sample 생성에 필요한 값만 접은 payload다.
