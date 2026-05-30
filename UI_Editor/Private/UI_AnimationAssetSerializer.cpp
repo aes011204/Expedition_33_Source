@@ -5,7 +5,8 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kCurrentAnimationAssetJsonVersion = 3;
+        constexpr int32 kAnimationAssetJsonVersion = 4;
+        constexpr int32 kStateAnimationAssetJsonVersion = 1;
 
         string Read_String(const json& item, const char* key, const string& defaultValue)
         {
@@ -149,8 +150,8 @@ namespace UIEditor
         {
             json item = json::object();
             item["targetName"] = target.targetName;
-            item["tracks"] = json::array();
 
+            item["tracks"] = json::array();
             for (const UI_AnimationKeyframeTrack& track : target.tracks)
                 item["tracks"].push_back(Track_ToJson(track));
 
@@ -299,16 +300,27 @@ namespace UIEditor
             for (UI_AnimationKeyframeTrack& track : target.tracks)
                 Normalize_Track(track, normalizedAsset);
         }
+        for (UI_AnimationKeyframeTrack& track : normalizedAsset.tracks)
+            Normalize_Track(track, normalizedAsset);
 
         json root = json::object();
-        root["version"] = kCurrentAnimationAssetJsonVersion;
+        root["version"] = kAnimationAssetJsonVersion;
+        root["animationType"] = Get_AnimationAssetTypeName(normalizedAsset.animationType);
         root["name"] = normalizedAsset.name;
         root["fps"] = normalizedAsset.fps;
         root["startFrame"] = normalizedAsset.startFrame;
         root["endFrame"] = normalizedAsset.endFrame;
         root["loop"] = normalizedAsset.loop;
-        root["targets"] = json::array();
 
+        if (Is_PublicAnimation(normalizedAsset))
+        {
+            root["tracks"] = json::array();
+            for (const UI_AnimationKeyframeTrack& track : normalizedAsset.tracks)
+                root["tracks"].push_back(Track_ToJson(track));
+            return root;
+        }
+
+        root["targets"] = json::array();
         for (const UI_AnimationTargetBinding& target : normalizedAsset.targets)
             root["targets"].push_back(Target_ToJson(target));
 
@@ -322,11 +334,25 @@ namespace UIEditor
 
         UI_AnimationAsset loadedAsset = {};
         loadedAsset.name = Read_String(root, "name", "NewUIAnimation");
+        UI_AnimationAssetType animationType = UI_AnimationAssetType::Target_Animation;
+        if (Try_ParseAnimationAssetType(Read_String(root, "animationType", ""), animationType))
+            loadedAsset.animationType = animationType;
+        else if (Try_ParseAnimationAssetType(Read_String(root, "bindingMode", ""), animationType))
+            loadedAsset.animationType = animationType;
+        else
+            loadedAsset.animationType = UI_AnimationAssetType::Target_Animation;
         loadedAsset.fps = Read_Int(root, "fps", 60);
         loadedAsset.startFrame = Read_Int(root, "startFrame", 0);
         loadedAsset.endFrame = Read_Int(root, "endFrame", 60);
         loadedAsset.loop = Read_Bool(root, "loop", false);
         Normalize_AssetRange(loadedAsset);
+
+        if (Is_PublicAnimation(loadedAsset))
+        {
+            Read_Tracks(root, loadedAsset, loadedAsset.tracks);
+            asset = move(loadedAsset);
+            return true;
+        }
 
         const auto targetIter = root.find("targets");
         if (targetIter != root.end() && targetIter->is_array())
@@ -349,6 +375,92 @@ namespace UIEditor
 
             if (!legacyTarget.targetName.empty() || !legacyTarget.tracks.empty())
                 loadedAsset.targets.push_back(move(legacyTarget));
+        }
+
+        asset = move(loadedAsset);
+        return true;
+    }
+
+    bool UI_StateAnimationAssetSerializer::Save_ToJsonFile(const UI_StateAnimationAsset& asset, const wstring& filePath)
+    {
+        try
+        {
+            ofstream file(filePath);
+            if (!file.is_open())
+                return false;
+
+            file << To_Json(asset).dump(4);
+            return true;
+        }
+        catch (const exception& exception)
+        {
+            LOG_WARN("UI state animation asset save failed: {} ({})", exception.what(), String::ToString(filePath));
+            return false;
+        }
+    }
+
+    bool UI_StateAnimationAssetSerializer::Load_FromJsonFile(UI_StateAnimationAsset& asset, const wstring& filePath)
+    {
+        try
+        {
+            ifstream file(filePath);
+            if (!file.is_open())
+                return false;
+
+            json root = json::parse(file, nullptr, false);
+            if (root.is_discarded())
+                return false;
+
+            return From_Json(asset, root);
+        }
+        catch (const exception& exception)
+        {
+            LOG_WARN("UI state animation asset load failed: {} ({})", exception.what(), String::ToString(filePath));
+            return false;
+        }
+    }
+
+    json UI_StateAnimationAssetSerializer::To_Json(const UI_StateAnimationAsset& asset)
+    {
+        json root = json::object();
+        root["version"] = kStateAnimationAssetJsonVersion;
+        root["animationType"] = "State_Animation";
+        root["name"] = asset.name;
+        root["events"] = json::object();
+
+        for (int32 index = 0; index < static_cast<int32>(UI_StateAnimationEvent::Count); ++index)
+        {
+            const UI_StateAnimationEvent eventType = static_cast<UI_StateAnimationEvent>(index);
+            const string& animationPath = asset.eventAnimationPaths[static_cast<size_t>(eventType)];
+            if (!animationPath.empty())
+                root["events"][Get_StateAnimationEventName(eventType)] = animationPath;
+        }
+
+        return root;
+    }
+
+    bool UI_StateAnimationAssetSerializer::From_Json(UI_StateAnimationAsset& asset, const json& root)
+    {
+        if (!root.is_object())
+            return false;
+
+        UI_StateAnimationAsset loadedAsset = {};
+        loadedAsset.name = Read_String(root, "name", "NewUIStateAnimation");
+
+        const auto eventsIter = root.find("events");
+        if (eventsIter != root.end() && eventsIter->is_object())
+        {
+            for (auto iter = eventsIter->begin(); iter != eventsIter->end(); ++iter)
+            {
+                if (!iter.value().is_string())
+                    continue;
+
+                UI_StateAnimationEvent eventType = UI_StateAnimationEvent::HoverEnter;
+                if (!Try_ParseStateAnimationEvent(iter.key(), eventType))
+                    continue;
+
+                loadedAsset.eventAnimationPaths[static_cast<size_t>(eventType)] = iter.value().get<string>();
+            }
         }
 
         asset = move(loadedAsset);

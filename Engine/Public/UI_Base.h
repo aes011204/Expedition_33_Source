@@ -36,6 +36,7 @@ public:
     virtual HRESULT Render();
     bool Play_UIAnimation(const wstring& animationName, bool restart = true); // 붙어 있는 keyframe animation asset 중 이름으로 골라 재생
     void Stop_UIAnimation();                                                   // 현재 재생 중인 UI animation 정지
+    void Add_UIAnimationAsset(const UI_KeyframeAnimationAsset& animationAsset);
 
 public:
     bool Is_Open() const { return _isOpen; }
@@ -54,6 +55,7 @@ public:
     float Get_WorldRotationRadians() const;
     void Set_Parent(const Shared<UI_Base>& parent);
     void Clear_Parent();
+    void Refresh_OpenBaseTransform();
     virtual void Set_Color(const Vec4& color);
     virtual Vec4 Get_Color() const;
 
@@ -65,6 +67,10 @@ protected:
     UI_AnimationPlayer _animationPlayer{};
     bool _isOpen{ false };
     int32 _sortOrder{ 0 };
+    Vec2 _openBasePosition{ 0.f, 0.f };
+    Vec2 _openBaseScale{ 1.f, 1.f };
+    float _openBaseRotationRadians{ 0.f };
+    bool _hasOpenBaseTransform{ false };
 
     UI_RenderGroup _renderGroup { UI_RenderGroup::Foreground };
 

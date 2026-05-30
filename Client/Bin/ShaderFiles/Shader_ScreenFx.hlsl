@@ -51,7 +51,7 @@ PS_OUT_BACKBUFFER PS_Vignette(PS_IN In)
     if (In.Texcoord.x <= (1.f / 3.f))
         color.rgb = float3(1.f, 0.f, 0.f);
 
-    Out.Color = color;
+    Out.Color = float4(color.rgb, 1.f);
     return Out;
 }
 
@@ -63,7 +63,7 @@ PS_OUT_BACKBUFFER PS_Ghosting(PS_IN In)
     if (In.Texcoord.x > (1.f / 3.f) && In.Texcoord.x <= (2.f / 3.f))
         color.rgb = float3(0.f, 1.f, 0.f);
 
-    Out.Color = color;
+    Out.Color = float4(color.rgb, 1.f);
     return Out;
 }
 
@@ -75,7 +75,7 @@ PS_OUT_BACKBUFFER PS_BattleTransition(PS_IN In)
     if (In.Texcoord.x > (2.f / 3.f))
         color.rgb = float3(0.f, 0.f, 1.f);
 
-    Out.Color = color;
+    Out.Color = float4(color.rgb, 1.f);
     return Out;
 }
 
