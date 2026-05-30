@@ -514,7 +514,7 @@ struct RequiredModuleData
 
     float minCameraBlendDistance{ 0.f };
     float maxCameraBlendDistance{ 0.f };
-    bool useLocalSpace{ false };
+    bool useLocalSpace{ true };
     EmitterSortMode sortMode{ EmitterSortMode::None };
     float cameraMotionBlurAmount{ 0.f };
     bool clearExistingParticlesOnInit{ false };
