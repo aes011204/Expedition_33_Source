@@ -65,6 +65,23 @@ private:
         Vec3 padding{};          // constant buffer 16-byte 정렬 유지용 padding이다.
         Vec4 startColor{};       // InitialColor 모듈에서 낮춘 segment 시작 색상이다.
         Vec4 endColor{};         // ColorOverLife 모듈에서 낮춘 segment 끝 색상이다.
+        Vec4 colorOverLifeCurveParams{};  // x: color key count, y: alpha key count, z/w: enabled flags.
+        Vec4 colorOverLifeColorCurveTimes{};
+        Vec4 colorOverLifeColorCurveValuesR{};
+        Vec4 colorOverLifeColorCurveValuesG{};
+        Vec4 colorOverLifeColorCurveValuesB{};
+        Vec4 colorOverLifeColorCurveArriveR{};
+        Vec4 colorOverLifeColorCurveArriveG{};
+        Vec4 colorOverLifeColorCurveArriveB{};
+        Vec4 colorOverLifeColorCurveLeaveR{};
+        Vec4 colorOverLifeColorCurveLeaveG{};
+        Vec4 colorOverLifeColorCurveLeaveB{};
+        Vec4 colorOverLifeColorCurveModes{};
+        Vec4 colorOverLifeAlphaCurveTimes{};
+        Vec4 colorOverLifeAlphaCurveValues{};
+        Vec4 colorOverLifeAlphaCurveArrive{};
+        Vec4 colorOverLifeAlphaCurveLeave{};
+        Vec4 colorOverLifeAlphaCurveModes{};
         Vec4 sizeByLifeParams{};       // x/y: width start/end, z: enabled, w: reserved.
         Vec4 sizeByLifeCurveTimes{};   // SizeByLife scaleOverLife key times다.
         Vec4 sizeByLifeCurveValuesX{}; // SizeByLife scaleOverLife X multiplier 값이다.
@@ -140,7 +157,7 @@ private:
     HRESULT Reset_IndirectArgs();           // indirect draw args를 draw count 0 상태로 초기화한다.
     HRESULT Copy_ComputeOutput();           // compute 결과 instance/args buffer를 draw용 buffer로 복사한다.
     HRESULT Bind_ShaderResources();         // trail draw shader가 사용할 camera/texture/tint 리소스를 바인딩한다.
-    HRESULT Bind_DistortionResources();     // trail distortion shader가 사용할 scene snapshot과 flow 파라미터를 바인딩한다.
+    HRESULT Bind_DistortionResources();     // trail distortion field shader가 사용할 flow 파라미터를 바인딩한다.
     bool Is_DistortionFamily() const;       // 현재 trail material family가 distortion 경로인지 확인한다.
     RenderGroup Resolve_RenderGroup() const; // material family에 맞는 render group을 반환한다.
     const char* Resolve_ShaderId() const;   // material family에 맞는 shader prototype id를 반환한다.

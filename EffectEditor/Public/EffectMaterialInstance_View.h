@@ -24,6 +24,11 @@ public:
     void Update(float timeDelta) override; // material instance preview UV motion 시간을 갱신한다.
     void Pre_Render() override;
     void Render() override;
+    static bool Draw_InstanceProperties(
+        DetailPropertyContext& detailPropertyContext,
+        map<string, Shared<Engine::Texture>>& textureThumbnailCache,
+        EffectMaterialInstanceData& material,
+        bool* outRestartPreview);
 
 public: //## Behavior::Selection
     void Open_Instance(uint32 emitterId, uint32 moduleId);
@@ -33,11 +38,10 @@ private: //## Data
     uint32 _targetModuleId{ 0 };
     DetailPropertyContext _detailPropertyContext{};
     Unique<EffectMaterialPreviewRenderer> _previewRenderer{};
-    map<string, Shared<Texture>> _textureThumbnailCache{};
+    map<string, Shared<Engine::Texture>> _textureThumbnailCache{};
 
 private: //## Helpers
     bool Resolve_Target(Shared<Emitter_View>& outEmitterView, AuthoringEmitter*& outEmitter, RequiredModuleData*& outRequiredData) const;
-    bool Draw_InstanceProperties(EffectMaterialInstanceData& material, bool* outRestartPreview);
     void Apply_MaterialChanged(const Shared<Emitter_View>& emitterView, AuthoringEmitter& emitter, const RequiredModuleData& requiredData);
     void Begin_PendingAuthoringEdit(
         const Shared<Emitter_View>& emitterView,

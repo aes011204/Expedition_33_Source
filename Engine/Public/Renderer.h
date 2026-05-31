@@ -72,7 +72,7 @@ private:
     void Render_SSAO();
     void Render_Lights();
     void Render_NonLight();
-    void Render_Distortion(); // HDRColor snapshot을 source로 쓰는 particle-local 왜곡 pass를 그린다.
+    void Render_Distortion(); // HDRColor snapshot과 distortion field를 사용해 fullscreen 왜곡 resolve를 수행한다.
 	void Render_Blend();
     void Render_ScreenFx();
 
@@ -87,6 +87,7 @@ private:
 private :
     HRESULT Render_BloomPass(const wchar_t* dstMrt, const wchar_t* srcRt, PostProcessPass pass);
     HRESULT Render_BloomUpsamplePass(const wchar_t* dstMrt, const wchar_t* smallRt, const wchar_t* baseRt);
+    HRESULT Render_DistortionResolve();
 
 private: /* 그림자 */
     void Update_DynamicShadowCamera();  // 카메라가 플레이어 위치 추적

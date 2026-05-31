@@ -38,6 +38,12 @@ private:
     static Vec4 Clamp_Color(Vec4 value);
     static Vec4 Evaluate_ColorDistributionMin(const json& distribution, const Vec4& fallbackValue);
     static Vec4 Evaluate_ColorDistributionMax(const json& distribution, const Vec4& fallbackValue);
+    static Vec4 Evaluate_ColorOverLifeEndpointColorMin(const json& distribution, const Vec4& fallbackValue);
+    static Vec4 Evaluate_ColorOverLifeEndpointColorMax(const json& distribution, const Vec4& fallbackValue);
+    static float Evaluate_ColorOverLifeEndpointAlphaMin(const json& distribution, float fallbackValue);
+    static float Evaluate_ColorOverLifeEndpointAlphaMax(const json& distribution, float fallbackValue);
+    static float Resolve_CurveInterpolationMode(const json& key);
+    static void Fill_ColorOverLifeCurvePayload(PointParticleColorOverLifeCurveDesc& desc, const json& colorOverLife);
     static void Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value);
     static void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const json& frameIndex);
     static void Fill_SizeByLifePayload(PointParticleSizeByLifeDesc& desc, const json& sizeByLife);
@@ -50,9 +56,12 @@ private:
         bool includeTrailMaterialFields);
     static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeSpriteEmitterDesc& desc);
     static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeTrailEmitterDesc& desc);
+    static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, MeshEmitterDesc& desc);
     static void Apply_SpawnModule(const json& data, ComputeSpriteEmitterDesc& desc);
+    static void Apply_SpawnModule(const json& data, MeshEmitterDesc& desc);
     static bool Build_EmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
     static bool Build_TrailEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
+    static bool Build_MeshEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
     static bool Try_MakeResourceRelativePath(
         const fs::path& fullPath,
         const char* logContext,

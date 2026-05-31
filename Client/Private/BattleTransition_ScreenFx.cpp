@@ -54,7 +54,11 @@ void BattleTransition_ScreenFx::Evaluate_At(float elapsedTime)
 
     float time = std::clamp(_elapsedTime / max(0.001f, _duration), 0.0f, 1.0f);
 
-    float easeTime = time < 0.5f ? 2.f * time * time : 1.f - powf(-2.f * time + 2.f, 2.f) / 2.f;
+    /*float easeTime = time < 0.5f ? 
+        2.f * powf(time, 4.f) : 
+        1.f - powf(-2.f * time + 2.f, 4.f) / 2.f;*/
+
+	float easeTime = powf(time, 4.f);
 
     _currentRadius = _originalDesc.maxRadius * easeTime;
 }
@@ -65,6 +69,7 @@ HRESULT BattleTransition_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
 
     cbData.wipeRadius = _currentRadius;
     cbData.edgeSoftness = _originalDesc.edgeSoftness;
+    cbData.transitionProgress = _elapsedTime / _duration;
     return shader->Bind_CBufferData(cbData);
 }
 

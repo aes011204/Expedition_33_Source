@@ -1,10 +1,15 @@
-#pragma once
+﻿#pragma once
 #include "Base.h"
 
 NS_BEGIN(Client)
 
+class RadialBlur_ScreenFx;
+
 class ClientScreenFxManager final : public Base
 {
+public:
+    ClientScreenFxManager() = default;
+    ~ClientScreenFxManager() override = default;
 public:
     enum class ScreenFx_Type
     {
@@ -17,14 +22,19 @@ public:
         BattleTransition,
     };
 
+private:
+    HRESULT Initialize();
+
 public:
     void Play_BattleInCounterFx();
     void Transition_To_BattleField();
 
 private:
+    Shared<RadialBlur_ScreenFx> _cameraBlur{ nullptr };
 
 public:
     static Shared<ClientScreenFxManager> Create();
+    void Free() override;
 };
 
 NS_END

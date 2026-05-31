@@ -655,7 +655,13 @@ public: //## Distribution Controls
         return changed;
     }
 
-    bool Draw_Vector3DistributionGroup(const char* label, Vector3DistributionData& value, const Vector3DistributionData& defaultValue, float speed = 0.01f)
+    bool Draw_Vector3DistributionGroup(
+        const char* label,
+        Vector3DistributionData& value,
+        const Vector3DistributionData& defaultValue,
+        float speed = 0.01f,
+        bool allowConstantCurve = true,
+        bool showConstantCurveAsUnimplemented = false)
     {
         bool changed = false;
 
@@ -665,7 +671,13 @@ public: //## Distribution Controls
         {
             if (_basicDrawer.Begin_PropertyTable("Distribution"))
             {
-                changed |= Draw_Vector3DistributionProperty("분포 타입", value, defaultValue, speed);
+                changed |= Draw_Vector3DistributionProperty(
+                    "분포 타입",
+                    value,
+                    defaultValue,
+                    speed,
+                    allowConstantCurve,
+                    showConstantCurveAsUnimplemented);
                 _basicDrawer.End_PropertyTable();
             }
 
@@ -781,8 +793,8 @@ private: //## Label Helpers
             case DistributionMode::Constant: return "float 고정값";
             case DistributionMode::Uniform: return "float 랜덤값";
             case DistributionMode::ConstantCurve: return "float 고정값 커브 " ICON_FA_CHART_LINE;
-            case DistributionMode::UniformCurve: return "float 랜덤 커브 (예정)";
-            case DistributionMode::ParticleParameter: return "float 파티클 파라미터 (예정)";
+            case DistributionMode::UniformCurve: return "float 랜덤 커브 (미구현)";
+            case DistributionMode::ParticleParameter: return "float 파티클 파라미터 (미구현)";
             default: return "float 고정값";
             }
 
@@ -792,8 +804,8 @@ private: //## Label Helpers
             case DistributionMode::Constant: return "Vec2 고정값";
             case DistributionMode::Uniform: return "Vec2 랜덤값";
             case DistributionMode::ConstantCurve: return "Vec2 고정값 커브 " ICON_FA_CHART_LINE;
-            case DistributionMode::UniformCurve: return "Vec2 랜덤 커브 (예정)";
-            case DistributionMode::ParticleParameter: return "Vec2 파티클 파라미터 (예정)";
+            case DistributionMode::UniformCurve: return "Vec2 랜덤 커브 (미구현)";
+            case DistributionMode::ParticleParameter: return "Vec2 파티클 파라미터 (미구현)";
             default: return "Vec2 고정값";
             }
 
@@ -803,8 +815,8 @@ private: //## Label Helpers
             case DistributionMode::Constant: return "Vec3 고정값";
             case DistributionMode::Uniform: return "Vec3 랜덤값";
             case DistributionMode::ConstantCurve: return "Vec3 고정값 커브 " ICON_FA_CHART_LINE;
-            case DistributionMode::UniformCurve: return "Vec3 랜덤 커브 (예정)";
-            case DistributionMode::ParticleParameter: return "Vec3 파티클 파라미터 (예정)";
+            case DistributionMode::UniformCurve: return "Vec3 랜덤 커브 (미구현)";
+            case DistributionMode::ParticleParameter: return "Vec3 파티클 파라미터 (미구현)";
             default: return "Vec3 고정값";
             }
 
@@ -814,8 +826,8 @@ private: //## Label Helpers
             case DistributionMode::Constant: return "Color 고정값";
             case DistributionMode::Uniform: return "Color 랜덤값";
             case DistributionMode::ConstantCurve: return "Color 고정값 커브 " ICON_FA_CHART_LINE;
-            case DistributionMode::UniformCurve: return "Color 랜덤 커브 (예정)";
-            case DistributionMode::ParticleParameter: return "Color 파티클 파라미터 (예정)";
+            case DistributionMode::UniformCurve: return "Color 랜덤 커브 (미구현)";
+            case DistributionMode::ParticleParameter: return "Color 파티클 파라미터 (미구현)";
             default: return "Color 고정값";
             }
 
@@ -830,9 +842,9 @@ private: //## Label Helpers
         {
         case FloatCurveInterpolationMode::Linear: return "Linear";
         case FloatCurveInterpolationMode::Constant: return "Constant";
-        case FloatCurveInterpolationMode::CurveAuto: return "Curve Auto (예정)";
-        case FloatCurveInterpolationMode::CurveUser: return "Curve User (예정)";
-        case FloatCurveInterpolationMode::CurveBreak: return "Curve Break (예정)";
+        case FloatCurveInterpolationMode::CurveAuto: return "Curve Auto (미구현)";
+        case FloatCurveInterpolationMode::CurveUser: return "Curve User (미구현)";
+        case FloatCurveInterpolationMode::CurveBreak: return "Curve Break (미구현)";
         case FloatCurveInterpolationMode::CurveAutoClamped: return "Curve Auto Clamped";
         default: return "Linear";
         }
@@ -1286,6 +1298,16 @@ private: //## Label Helpers
         }
 
         return changed;
+    }
+
+    const char* Get_Vector3DistributionModeLabel(
+        DistributionMode mode,
+        bool showConstantCurveAsUnimplemented)
+    {
+        if (showConstantCurveAsUnimplemented && mode == DistributionMode::ConstantCurve)
+            return "Vec3 고정값 커브 (미구현)";
+
+        return Get_DistributionModeLabel(DistributionValueKind::Vec3, mode);
     }
 
     bool Draw_Vector2CurveKeyListProperty(
@@ -1755,7 +1777,9 @@ private: //## Label Helpers
         const char* label,
         Vector3DistributionData& value,
         const Vector3DistributionData& defaultValue,
-        float speed = 0.01f)
+        float speed = 0.01f,
+        bool allowConstantCurve = true,
+        bool showConstantCurveAsUnimplemented = false)
     {
         bool changed = false;
 
@@ -1765,14 +1789,14 @@ private: //## Label Helpers
         _basicDrawer.Draw_PropertyLabel(label);
         bool modeChanged = false;
         ImGui::SetNextItemWidth(-FLT_MIN);
-        if (ImGui::BeginCombo("##Value", Get_DistributionModeLabel(DistributionValueKind::Vec3, nextMode)))
+        if (ImGui::BeginCombo("##Value", Get_Vector3DistributionModeLabel(nextMode, showConstantCurveAsUnimplemented)))
         {
             auto draw_selectable = [&](DistributionMode mode, bool enabled)
             {
                 if (!enabled)
                     ImGui::BeginDisabled();
                 const bool isSelected = nextMode == mode;
-                if (ImGui::Selectable(Get_DistributionModeLabel(DistributionValueKind::Vec3, mode), isSelected) && enabled)
+                if (ImGui::Selectable(Get_Vector3DistributionModeLabel(mode, showConstantCurveAsUnimplemented), isSelected) && enabled)
                 {
                     nextMode = mode;
                     modeChanged = true;
@@ -1785,7 +1809,7 @@ private: //## Label Helpers
 
             draw_selectable(DistributionMode::Constant, true);
             draw_selectable(DistributionMode::Uniform, true);
-            draw_selectable(DistributionMode::ConstantCurve, true);
+            draw_selectable(DistributionMode::ConstantCurve, allowConstantCurve);
             draw_selectable(DistributionMode::UniformCurve, false);
             draw_selectable(DistributionMode::ParticleParameter, false);
             ImGui::EndCombo();
@@ -1827,14 +1851,19 @@ private: //## Label Helpers
             }
             break;
         case DistributionMode::ConstantCurve:
-            if (auto* curve = get_if<ConstantCurveVector3DistributionData>(&value.payload))
+            if (allowConstantCurve)
             {
-                const auto* defaultCurve = get_if<ConstantCurveVector3DistributionData>(&defaultValue.payload);
-                const Vector3DistributionData fallbackCurveData = Vector3DistributionData::Make_ConstantCurve(Vec3{ 0.f, 0.f, 0.f });
-                const auto* fallbackDefault = get_if<ConstantCurveVector3DistributionData>(&fallbackCurveData.payload);
-                changed |= Draw_Vector3CurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
-                Normalize_Vector3CurveKeys(*curve);
+                if (auto* curve = get_if<ConstantCurveVector3DistributionData>(&value.payload))
+                {
+                    const auto* defaultCurve = get_if<ConstantCurveVector3DistributionData>(&defaultValue.payload);
+                    const Vector3DistributionData fallbackCurveData = Vector3DistributionData::Make_ConstantCurve(Vec3{ 0.f, 0.f, 0.f });
+                    const auto* fallbackDefault = get_if<ConstantCurveVector3DistributionData>(&fallbackCurveData.payload);
+                    changed |= Draw_Vector3CurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
+                    Normalize_Vector3CurveKeys(*curve);
+                }
             }
+            else
+                ImGui::TextDisabled("이 모듈에서는 미구현");
             break;
         default:
             break;
@@ -2496,9 +2525,11 @@ bool DetailPropertyContext::Draw_Vector3DistributionGroup(
     const char* label,
     Vector3DistributionData& value,
     const Vector3DistributionData& defaultValue,
-    float speed)
+    float speed,
+    bool allowConstantCurve,
+    bool showConstantCurveAsUnimplemented)
 {
-    return _distributionDrawer->Draw_Vector3DistributionGroup(label, value, defaultValue, speed);
+    return _distributionDrawer->Draw_Vector3DistributionGroup(label, value, defaultValue, speed, allowConstantCurve, showConstantCurveAsUnimplemented);
 }
 
 bool DetailPropertyContext::Draw_ColorDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue)
@@ -2552,7 +2583,7 @@ bool DetailPropertyContext::Draw_DirectionalAlignmentModeProperty(
                 ImGui::SetTooltip(
                     index == 0
                     ? "기준 방향을 sprite 카드의 normal/look 방향으로 사용합니다."
-                    : "sprite는 카메라를 향하게 두고, texture의 X/Y 축만 기준 방향으로 눕힙니다."
+                    : "texture의 X/Y 축을 기준 방향에 맞추고, 나머지 축은 카메라 가시성을 유지합니다."
                 );
             }
 

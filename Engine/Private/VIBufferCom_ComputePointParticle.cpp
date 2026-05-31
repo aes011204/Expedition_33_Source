@@ -30,6 +30,23 @@ struct ComputePointParticleParams
     Vec4 startColorMax{};
     Vec4 endColorMin{};
     Vec4 endColorMax{};
+    Vec4 colorOverLifeCurveParams{};  // x: color key count, y: alpha key count, z: color enabled, w: alpha enabled.
+    Vec4 colorOverLifeColorCurveTimes{};
+    Vec4 colorOverLifeColorCurveValuesR{};
+    Vec4 colorOverLifeColorCurveValuesG{};
+    Vec4 colorOverLifeColorCurveValuesB{};
+    Vec4 colorOverLifeColorCurveArriveR{};
+    Vec4 colorOverLifeColorCurveArriveG{};
+    Vec4 colorOverLifeColorCurveArriveB{};
+    Vec4 colorOverLifeColorCurveLeaveR{};
+    Vec4 colorOverLifeColorCurveLeaveG{};
+    Vec4 colorOverLifeColorCurveLeaveB{};
+    Vec4 colorOverLifeColorCurveModes{};
+    Vec4 colorOverLifeAlphaCurveTimes{};
+    Vec4 colorOverLifeAlphaCurveValues{};
+    Vec4 colorOverLifeAlphaCurveArrive{};
+    Vec4 colorOverLifeAlphaCurveLeave{};
+    Vec4 colorOverLifeAlphaCurveModes{};
     Vec4 subUVParams{};           // x/y: rows/cols, z: playback mode, w: frames per second.
     Vec4 subUVFrameParams{};      // x/y: start/end frame, z: loop, w: enabled.
     Vec4 subUVFrameCurveTimes{};  // 후속 Curve Editor용 frame curve key times.
@@ -402,6 +419,28 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .startColorMax = _desc.startColorMax,
         .endColorMin = _desc.endColorMin,
         .endColorMax = _desc.endColorMax,
+        .colorOverLifeCurveParams = Vec4{
+            static_cast<float>(max(1u, min(4u, _desc.colorOverLifeCurve.colorCurveKeyCount))),
+            static_cast<float>(max(1u, min(4u, _desc.colorOverLifeCurve.alphaCurveKeyCount))),
+            _desc.colorOverLifeCurve.colorCurveEnabled ? 1.f : 0.f,
+            _desc.colorOverLifeCurve.alphaCurveEnabled ? 1.f : 0.f
+        },
+        .colorOverLifeColorCurveTimes = _desc.colorOverLifeCurve.colorCurveTimes,
+        .colorOverLifeColorCurveValuesR = _desc.colorOverLifeCurve.colorCurveValuesR,
+        .colorOverLifeColorCurveValuesG = _desc.colorOverLifeCurve.colorCurveValuesG,
+        .colorOverLifeColorCurveValuesB = _desc.colorOverLifeCurve.colorCurveValuesB,
+        .colorOverLifeColorCurveArriveR = _desc.colorOverLifeCurve.colorCurveArriveR,
+        .colorOverLifeColorCurveArriveG = _desc.colorOverLifeCurve.colorCurveArriveG,
+        .colorOverLifeColorCurveArriveB = _desc.colorOverLifeCurve.colorCurveArriveB,
+        .colorOverLifeColorCurveLeaveR = _desc.colorOverLifeCurve.colorCurveLeaveR,
+        .colorOverLifeColorCurveLeaveG = _desc.colorOverLifeCurve.colorCurveLeaveG,
+        .colorOverLifeColorCurveLeaveB = _desc.colorOverLifeCurve.colorCurveLeaveB,
+        .colorOverLifeColorCurveModes = _desc.colorOverLifeCurve.colorCurveModes,
+        .colorOverLifeAlphaCurveTimes = _desc.colorOverLifeCurve.alphaCurveTimes,
+        .colorOverLifeAlphaCurveValues = _desc.colorOverLifeCurve.alphaCurveValues,
+        .colorOverLifeAlphaCurveArrive = _desc.colorOverLifeCurve.alphaCurveArrive,
+        .colorOverLifeAlphaCurveLeave = _desc.colorOverLifeCurve.alphaCurveLeave,
+        .colorOverLifeAlphaCurveModes = _desc.colorOverLifeCurve.alphaCurveModes,
         .subUVParams = Vec4{
             static_cast<float>(max(1u, _desc.subUVRows)),
             static_cast<float>(max(1u, _desc.subUVCols)),

@@ -132,10 +132,10 @@ struct ConstantCurveFloatDistributionData
 // 분포 Vec2 상수 커브의 필요 값들이다.
 struct Vector2CurveKeyData
 {
-    float time{ 0.f };          // 0..1 공통축에서 이 key의 위치다.
-    Vec2 value{ 0.f, 0.f };     // 이 key 시점의 X/Y 출력값이다.
-    Vec2 arriveTangent{};       // key로 들어오는 X/Y 곡선 기울기다.
-    Vec2 leaveTangent{};        // key에서 나가는 X/Y 곡선 기울기다.
+    float time{ 0.f };      // 0..1 공통축에서 이 key의 위치다.
+    Vec2 value{ 0.f, 0.f }; // 이 key 시점의 X/Y 출력값이다.
+    Vec2 arriveTangent{};   // key로 들어오는 X/Y 곡선 기울기다.
+    Vec2 leaveTangent{};    // key에서 나가는 X/Y 곡선 기울기다.
     FloatCurveInterpolationMode interpolationMode{
         FloatCurveInterpolationMode::Linear
     }; // 이 key 이후 구간의 보간 방식을 결정한다.
@@ -154,10 +154,10 @@ struct ConstantCurveVector2DistributionData
 // 분포 Vec3 상수 커브의 필요 값들이다.
 struct Vector3CurveKeyData
 {
-    float time{ 0.f };          // 0..1 공통축에서 이 key의 위치다.
+    float time{ 0.f };           // 0..1 공통축에서 이 key의 위치다.
     Vec3 value{ 0.f, 0.f, 0.f }; // 이 key 시점의 X/Y/Z 출력값이다.
-    Vec3 arriveTangent{};       // key로 들어오는 X/Y/Z 곡선 기울기다.
-    Vec3 leaveTangent{};        // key에서 나가는 X/Y/Z 곡선 기울기다.
+    Vec3 arriveTangent{};        // key로 들어오는 X/Y/Z 곡선 기울기다.
+    Vec3 leaveTangent{};         // key에서 나가는 X/Y/Z 곡선 기울기다.
     FloatCurveInterpolationMode interpolationMode{
         FloatCurveInterpolationMode::Linear
     }; // 이 key 이후 구간의 보간 방식을 결정한다.
@@ -176,10 +176,10 @@ struct ConstantCurveVector3DistributionData
 // Color 분포는 alpha를 별도 Float distribution에서 유지하므로 curve key의 w는 저장/편집하지 않는다.
 struct ColorCurveKeyData
 {
-    float time{ 0.f };                  // 0..1 공통축에서 이 key의 위치다.
-    Color value{ 1.f, 1.f, 1.f, 1.f };  // 이 key 시점의 RGB 출력값이다. alpha는 별도 분포가 정본이다.
-    Color arriveTangent{};              // key로 들어오는 RGB 곡선 기울기다.
-    Color leaveTangent{};               // key에서 나가는 RGB 곡선 기울기다.
+    float time{ 0.f };                 // 0..1 공통축에서 이 key의 위치다.
+    Color value{ 1.f, 1.f, 1.f, 1.f }; // 이 key 시점의 RGB 출력값이다. alpha는 별도 분포가 정본이다.
+    Color arriveTangent{};             // key로 들어오는 RGB 곡선 기울기다.
+    Color leaveTangent{};              // key에서 나가는 RGB 곡선 기울기다.
     FloatCurveInterpolationMode interpolationMode{
         FloatCurveInterpolationMode::Linear
     }; // 이 key 이후 구간의 보간 방식을 결정한다.
@@ -460,6 +460,7 @@ enum class AuthoringTypeDataKind : uint8
 {
     None,
     Trail,
+    Mesh,
 };
 
 enum class TrailCurveQuality : uint8
@@ -483,12 +484,24 @@ struct TrailTypeData
     float tailFadeLength{ 0.1f };                               // maxTrailLength 끝으로 갈수록 alpha를 줄이는 거리다.
     TrailCurveQuality curveQuality{ TrailCurveQuality::Basic }; // trail 곡선 품질 preset 선택값이다.
     float sampleSpacing{ 0.08f };                               // 이동 거리 기준 중간 sample 삽입 간격이다.
-    uint32 curveSubdivision{ 4 };                                // 한 frame에서 보강할 최대 중간 sample 수다.
-    bool smoothTangent{ true };                                  // 앞뒤 sample 평균으로 곡선을 완만하게 보정할지 결정한다.
-    float sideFade{ 0.08f };                                     // 폭 방향 alpha edge 감소 강도다.
+    uint32 curveSubdivision{ 4 };                               // 한 frame에서 보강할 최대 중간 sample 수다.
+    bool smoothTangent{ true };                                 // 앞뒤 sample 평균으로 곡선을 완만하게 보정할지 결정한다.
+    float sideFade{ 0.08f };                                    // 폭 방향 alpha edge 감소 강도다.
 };
 
-using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData>;
+struct MeshTypeData
+{
+    string modelGuid{};
+    string modelPath{};
+    string assignedEffectMaterialGuid{};
+    string assignedEffectMaterialPath{};
+    bool hasAssignedMaterialInstance{ false };
+    EffectMaterialInstanceData assignedMaterial{};
+    Vec3 previewScale{ 1.f, 1.f, 1.f };
+    bool useModelMaterials{ false };
+};
+
+using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData, MeshTypeData>;
 
 struct AuthoringTypeData
 {
@@ -514,7 +527,7 @@ struct RequiredModuleData
 
     float minCameraBlendDistance{ 0.f };
     float maxCameraBlendDistance{ 0.f };
-    bool useLocalSpace{ false };
+    bool useLocalSpace{ true };
     EmitterSortMode sortMode{ EmitterSortMode::None };
     float cameraMotionBlurAmount{ 0.f };
     bool clearExistingParticlesOnInit{ false };

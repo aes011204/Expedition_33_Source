@@ -43,29 +43,9 @@ float Effect_BuildCoverage(
     return saturate(opacity * saturate(maskCoverage) * saturate(coverageVariation) * saturate(alphaMultiplier));
 }
 
-float4 Effect_ComposeAlphaBlend(EffectMaterialSurface surface, float energyScalar)
+float4 Effect_ComposeAlphaBlend(EffectMaterialSurface surface, float intensity)
 {
-    return float4(surface.color * max(energyScalar, 0.f), surface.coverage);
-}
-
-float3 Effect_ApplyCoreEmissiveShaping(
-    float3 outerColor,
-    float4 coreColor,
-    float selectedOpacity,
-    float4 coreEmissiveParams)
-{
-    if (coreEmissiveParams.x < 0.5f)
-        return outerColor;
-
-    const float opacity = saturate(selectedOpacity);
-    const float outerPower = max(coreEmissiveParams.w, 0.0001f);
-    const float corePower = max(coreEmissiveParams.y, 0.0001f);
-    const float outer = pow(opacity, outerPower);
-    const float inner = pow(opacity, corePower);
-    const float coreIntensity = max(coreEmissiveParams.z, 0.f);
-    const float outerIntensity = max(coreColor.a, 0.f);
-
-    return outerColor * outer * outerIntensity + coreColor.rgb * inner * coreIntensity;
+    return float4(surface.color * max(intensity, 0.f), surface.coverage);
 }
 
 float Effect_SelectAdditiveAmount(float4 texel, float maskAlpha, int amountSource)
