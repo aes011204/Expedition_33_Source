@@ -11,6 +11,7 @@
 #include "ImGui_Manager.h"
 #include "Level_EffectEditor.h"
 #include "Notification_Manager.h"
+#include "PostProcessPipeline.h"
 #include "RenderTarget.h"
 
 NS_BEGIN(EffectEditor)
@@ -19,6 +20,32 @@ IMPLEMENT_SINGLETON(EffectEditorInstance)
 
 namespace Internal
 {
+    bool Is_SamePostProcessCB(const PostProcessCB& lhs, const PostProcessCB& rhs)
+    {
+        return
+            lhs.exposure == rhs.exposure &&
+            lhs.invWhitePoint == rhs.invWhitePoint &&
+            lhs.gamma == rhs.gamma &&
+            lhs.bloomRadius == rhs.bloomRadius &&
+            lhs.bloomThreshold == rhs.bloomThreshold &&
+            lhs.bloomIntensity == rhs.bloomIntensity &&
+            lhs.bloomSoftKnee == rhs.bloomSoftKnee &&
+            lhs.bloomClamp == rhs.bloomClamp &&
+            lhs.bloomScatter == rhs.bloomScatter &&
+            lhs.toneMapMode == rhs.toneMapMode &&
+            lhs.featureMask == rhs.featureMask &&
+            lhs.useBackgroundFallback == rhs.useBackgroundFallback &&
+            lhs.backgroundFallbackColor.x == rhs.backgroundFallbackColor.x &&
+            lhs.backgroundFallbackColor.y == rhs.backgroundFallbackColor.y &&
+            lhs.backgroundFallbackColor.z == rhs.backgroundFallbackColor.z &&
+            lhs.backgroundFallbackColor.w == rhs.backgroundFallbackColor.w;
+    }
+
+    bool Is_SamePostProcessOptions(const EffectEditorPostProcessOptions& lhs, const EffectEditorPostProcessOptions& rhs)
+    {
+        return lhs.features == rhs.features && Is_SamePostProcessCB(lhs.params, rhs.params);
+    }
+
     static bool Is_PreviewCameraDragInputHeld()
     {
         const bool altHeld = GAME->KeyPress(KEY_TYPE::ALT) || GAME->KeyDown(KEY_TYPE::ALT);
@@ -69,7 +96,22 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
     _isTrailPreviewVisible = false;
     _isEffectInfluenceOutlineEnabled = false;
     ComputeSpriteEmitter::Set_InfluenceOutlineDebugEnabled(false);
-    _postProcessOptions = Get_DefaultPostProcessOptions();
+    _hasClientPostProcessSnapshot = false;
+    _clientPostProcessSnapshot = {};
+
+    if (const Shared<PostProcessPipeline> pipeline = GAME->Get_PostProcessPipeline())
+    {
+        EffectEditorPostProcessOptions clientOptions{};
+        clientOptions.features = pipeline->Get_PostProcessFeatures();
+        clientOptions.params = pipeline->Get_PostProcessParams();
+        clientOptions.params.featureMask = To_Underlying(clientOptions.features);
+        Capture_ClientPostProcessSnapshot(clientOptions);
+    }
+
+    _postProcessOptions = _hasClientPostProcessSnapshot ? _clientPostProcessSnapshot : Get_DefaultPostProcessOptions();
+    _postProcessPreset = _hasClientPostProcessSnapshot
+        ? EffectEditorPostProcessPreset::ClientCurrent
+        : EffectEditorPostProcessPreset::PreviewFriendly;
     Queue_PreviewViewportSize(kDefaultPreviewViewportWidth, kDefaultPreviewViewportHeight);
 
     return S_OK;
@@ -117,6 +159,9 @@ void EffectEditorInstance::Release_Editor()
     _runtimeTimeScale = 1.f;
     _isTrailPreviewVisible = false;
     _postProcessOptions = Get_DefaultPostProcessOptions();
+    _hasClientPostProcessSnapshot = false;
+    _clientPostProcessSnapshot = {};
+    _postProcessPreset = EffectEditorPostProcessPreset::PreviewFriendly;
     _hasPendingWindowFocus = false;
     _pendingWindowFocus = EditorViewportTarget::Game;
     _pendingSingleFrameStep = false;
@@ -216,6 +261,33 @@ EffectEditorPostProcessOptions EffectEditorInstance::Get_DefaultPostProcessOptio
 
     options.params.featureMask = To_Underlying(options.features);
     return options;
+}
+
+void EffectEditorInstance::Apply_PostProcessOptions(const EffectEditorPostProcessOptions& options)
+{
+    _postProcessOptions = options;
+    _postProcessOptions.params.featureMask = To_Underlying(_postProcessOptions.features);
+
+    if (_hasClientPostProcessSnapshot && Internal::Is_SamePostProcessOptions(_postProcessOptions, _clientPostProcessSnapshot))
+    {
+        _postProcessPreset = EffectEditorPostProcessPreset::ClientCurrent;
+        return;
+    }
+
+    if (Internal::Is_SamePostProcessOptions(_postProcessOptions, Get_DefaultPostProcessOptions()))
+    {
+        _postProcessPreset = EffectEditorPostProcessPreset::PreviewFriendly;
+        return;
+    }
+
+    _postProcessPreset = EffectEditorPostProcessPreset::Custom;
+}
+
+void EffectEditorInstance::Capture_ClientPostProcessSnapshot(const EffectEditorPostProcessOptions& options)
+{
+    _clientPostProcessSnapshot = options;
+    _clientPostProcessSnapshot.params.featureMask = To_Underlying(_clientPostProcessSnapshot.features);
+    _hasClientPostProcessSnapshot = true;
 }
 
 ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
@@ -369,12 +441,14 @@ void EffectEditorInstance::Set_PostProcessFeature(PostProcessFeature feature, bo
 {
     Set_Flag(_postProcessOptions.features, feature, enabled);
     _postProcessOptions.params.featureMask = To_Underlying(_postProcessOptions.features);
+    Apply_PostProcessOptions(_postProcessOptions);
 }
 
 void EffectEditorInstance::Set_PostProcessParams(const PostProcessCB& params)
 {
-    _postProcessOptions.params = params;
-    _postProcessOptions.params.featureMask = To_Underlying(_postProcessOptions.features);
+    EffectEditorPostProcessOptions options = _postProcessOptions;
+    options.params = params;
+    Apply_PostProcessOptions(options);
 }
 
 void EffectEditorInstance::Request_WindowFocus(EditorViewportTarget target)

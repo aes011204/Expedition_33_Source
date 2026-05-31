@@ -117,6 +117,56 @@ namespace
         return Has_Flag(features, feature);
     }
 
+    const char* Get_PostProcessPresetLabel(EffectEditorPostProcessPreset preset)
+    {
+        switch (preset)
+        {
+        case EffectEditorPostProcessPreset::PreviewFriendly:
+            return "Preview Friendly";
+        case EffectEditorPostProcessPreset::ClientCurrent:
+            return "Client Current";
+        case EffectEditorPostProcessPreset::Custom:
+        default:
+            return "Custom";
+        }
+    }
+
+    void Draw_PostProcessPresetProperty(DetailPropertyContext& detailContext)
+    {
+        if (EDITOR == nullptr)
+            return;
+
+        const EffectEditorPostProcessPreset currentPreset = EDITOR->Get_PostProcessPreset();
+
+        ImGui::PushID("PostProcessPreset");
+        detailContext.Draw_PropertyLabel("Preset");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_PostProcessPresetLabel(currentPreset)))
+        {
+            const bool previewSelected = currentPreset == EffectEditorPostProcessPreset::PreviewFriendly;
+            if (ImGui::Selectable("Preview Friendly", previewSelected))
+                EDITOR->Apply_PostProcessOptions(EDITOR->Get_DefaultPostProcessOptions());
+
+            if (previewSelected)
+                ImGui::SetItemDefaultFocus();
+
+            if (EDITOR->Has_ClientPostProcessSnapshot())
+            {
+                const bool clientSelected = currentPreset == EffectEditorPostProcessPreset::ClientCurrent;
+                if (ImGui::Selectable("Client Current", clientSelected))
+                    EDITOR->Apply_PostProcessOptions(EDITOR->Get_ClientPostProcessSnapshot());
+
+                if (clientSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        detailContext.Draw_ResetButton(false);
+        ImGui::PopID();
+    }
+
     bool Draw_TrailCurveQualityProperty(DetailPropertyContext& detailContext, TrailTypeData& data, const TrailTypeData& defaultData)
     {
         bool changed = false;
@@ -332,6 +382,12 @@ void Detail_View::Render_PostProcessShaderDetail()
     const bool defaultToneMapping = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::ToneMapping);
     const bool defaultBloom = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Bloom);
     const bool defaultGamma = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Gamma);
+
+    if (_detailPropertyContext.Begin_PropertyTable("PostProcessPreset"))
+    {
+        Draw_PostProcessPresetProperty(_detailPropertyContext);
+        _detailPropertyContext.End_PropertyTable();
+    }
 
     if (_detailPropertyContext.Begin_PropertyTable("PostProcessFeatures"))
     {
