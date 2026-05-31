@@ -34,7 +34,6 @@ Texture2D g_Texture : register(t0);
 Texture2D g_NoiseTexture : register(t1);
 Texture2D g_MaskTexture : register(t2);
 Texture2D g_FlowTexture : register(t3);
-Texture2D g_DistortionSourceTexture : register(t4);
 
 static const float3 kInfluenceOutlineColor = float3(1.f, 0.f, 0.f);
 
@@ -445,26 +444,20 @@ PS_OUT PS_MAIN(PS_IN In)
     if (coverage < max(alphaCutoff, 0.01f))
         discard;
 
-    const float2 screenUV = In.position.xy / max(g_DistortionScreenSize.xy, float2(1.f, 1.f));
     const float2 flowUV = Build_EffectSpriteUV(sampleUV, float4(g_FlowUVScale, g_FlowUVScrollSpeed), g_FlowUVOffset, g_FlowUVTilingMode);
     const float2 flow = 0 != g_EffectDistortionParams.z
                         ? Sample_EffectSpriteFlowTexture(flowUV, g_FlowUVTilingMode) * 2.f - 1.f
                         : float2(0.f, 0.f);
 
     const float shapeWeight = Compute_DistortionShapeWeight(In.texCoord, lifeProgress);
-    const float strength = g_EffectDistortionParams.x * g_EffectDistortionParams.y * coverage * shapeWeight;
-    const float4 distortedColor = g_DistortionSourceTexture.Sample(LinearClampSampler, screenUV + flow * strength);
-    Out.color = float4(distortedColor.rgb, coverage);
-    if (g_EffectInfluenceDebugParams.x > 0.5f)
-    {
-        const float outlineMask = saturate(Compute_DistortionInfluenceOutline(In.texCoord, lifeProgress));
-        Out.color.rgb = lerp(Out.color.rgb, kInfluenceOutlineColor, outlineMask);
-        Out.color.a = max(Out.color.a, outlineMask);
-    }
+    const float weight = saturate(coverage * shapeWeight * g_EffectDistortionParams.y);
+    const float2 offset = flow * g_EffectDistortionParams.x;
+    const float distortionDepth = saturate(In.position.z);
+    Out.color = float4(offset * weight, weight, distortionDepth);
     return Out;
 }
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VGP(DistortionPass, RS_CullNone, DSS_DepthRead, BS_EffectAlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN)
+    PASS_RS_DS_BS_VGP(DistortionPass, RS_CullNone, DSS_DepthRead, BS_DistortionField, VS_MAIN, GS_MAIN, PS_MAIN)
 }

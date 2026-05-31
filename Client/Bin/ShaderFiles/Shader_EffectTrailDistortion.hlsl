@@ -17,7 +17,6 @@ cbuffer cbEffectTrailDistortion : register(b2)
 };
 
 Texture2D g_FlowTexture : register(t3);
-Texture2D g_DistortionSourceTexture : register(t4);
 
 float2 Build_FlowUV(float2 rawUV)
 {
@@ -172,19 +171,19 @@ PS_OUT PS_MAIN(PS_IN In)
     const float segmentAlpha = lerp(In.startColor.a, In.endColor.a, lifeProgress);
     const float coverage = saturate(segmentAlpha * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
 
-    const float2 screenUV = In.position.xy / max(g_DistortionScreenSize.xy, float2(1.f, 1.f));
     const float2 flowUV = Build_FlowUV(In.texCoord);
     const float2 flow = 0 != g_EffectDistortionParams.z
                         ? Sample_FlowTexture(flowUV) * 2.f - 1.f
                         : float2(0.f, 0.f);
 
-    const float strength = g_EffectDistortionParams.x * g_EffectDistortionParams.y * coverage;
-    const float4 distortedColor = g_DistortionSourceTexture.Sample(LinearClampSampler, screenUV + flow * strength);
-    Out.color = float4(distortedColor.rgb, coverage);
+    const float weight = saturate(coverage * g_EffectDistortionParams.y);
+    const float2 offset = flow * g_EffectDistortionParams.x;
+    const float distortionDepth = saturate(In.position.z);
+    Out.color = float4(offset * weight, weight, distortionDepth);
     return Out;
 }
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VGP(DistortionPass, RS_CullNone, DSS_DepthRead, BS_EffectAlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN)
+    PASS_RS_DS_BS_VGP(DistortionPass, RS_CullNone, DSS_DepthRead, BS_DistortionField, VS_MAIN, GS_MAIN, PS_MAIN)
 }

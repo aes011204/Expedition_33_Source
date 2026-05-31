@@ -79,6 +79,8 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::DistortionSource,
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::DistortionField,
+        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::BackgroundMask,
         width, height, DXGI_FORMAT_R8_UNORM, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::ScreenFxColorA,
@@ -112,6 +114,7 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     // PostProcess
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::DistortionField, RT::DistortionField), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::ScreenFxA, RT::ScreenFxColorA), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::ScreenFxB, RT::ScreenFxColorB), E_FAIL);
 

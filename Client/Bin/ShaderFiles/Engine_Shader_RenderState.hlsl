@@ -100,6 +100,19 @@ BlendState BS_Blend
     BlendOp = Add;
 };
 
+BlendState BS_DistortionField
+{
+    BlendEnable[0] = true;
+
+    SrcBlend = One;
+    DestBlend = One;
+    BlendOp = Add;
+
+    SrcBlendAlpha = One;
+    DestBlendAlpha = One;
+    BlendOpAlpha = Min;
+};
+
 BlendState BS_Multiply
 {
     BlendEnable[0] = true;

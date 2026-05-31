@@ -157,7 +157,7 @@ private:
     HRESULT Reset_IndirectArgs();           // indirect draw args를 draw count 0 상태로 초기화한다.
     HRESULT Copy_ComputeOutput();           // compute 결과 instance/args buffer를 draw용 buffer로 복사한다.
     HRESULT Bind_ShaderResources();         // trail draw shader가 사용할 camera/texture/tint 리소스를 바인딩한다.
-    HRESULT Bind_DistortionResources();     // trail distortion shader가 사용할 scene snapshot과 flow 파라미터를 바인딩한다.
+    HRESULT Bind_DistortionResources();     // trail distortion field shader가 사용할 flow 파라미터를 바인딩한다.
     bool Is_DistortionFamily() const;       // 현재 trail material family가 distortion 경로인지 확인한다.
     RenderGroup Resolve_RenderGroup() const; // material family에 맞는 render group을 반환한다.
     const char* Resolve_ShaderId() const;   // material family에 맞는 shader prototype id를 반환한다.
