@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ScreenFx_Manager.h"
 #include "GameInstance.h"
 #include "Renderer_Define.h"
@@ -62,10 +62,9 @@ HRESULT ScreenFx_Manager::Render_ScreenFx(const Shared<ShaderCom>& shader, const
 
         if (isLast && _captureRequested)
         {
-            // 1. 에디터 해상도 불일치 문제를 우회하기 위해, BackBuffer 대신 MRT에 렌더링
             const wchar_t* writeMRT = readFromA ? MRT::ScreenFxB : MRT::ScreenFxA;
             if (FAILED(GAME->Begin_MRT(writeMRT, false, true))) return E_FAIL;
-            
+
             const wchar_t* readRT = readFromA ? RT::ScreenFxColorA : RT::ScreenFxColorB;
             if (FAILED(GAME->Bind_RT_ShaderResource(shader, "g_ScreenFxTexture", readRT))) return E_FAIL;
             if (FAILED(effect->Bind_FxConstantBuffer(shader.get()))) return E_FAIL;
@@ -74,43 +73,45 @@ HRESULT ScreenFx_Manager::Render_ScreenFx(const Shared<ShaderCom>& shader, const
             if (FAILED(rtBuffer->Render())) return E_FAIL;
             if (FAILED(GAME->End_MRT())) return E_FAIL;
 
-            // 2. 뷰포트 해상도가 동일한 MRT를 ScreenCapture로 안전하게 복사
             const wchar_t* writtenRT = readFromA ? RT::ScreenFxColorB : RT::ScreenFxColorA;
             GAME->Copy_RTV(writtenRT, RT::ScreenCapture);
-            _captureRequested = false; // 캡처 완료 처리 (GameInstance에서 중복 캡처 방지)
-
-            // 3. 실제 화면(BackBuffer)에도 보여주기 위해 동일한 내용으로 한 번 더 렌더링
-            GAME->Bind_BackBuffer();
-            if (FAILED(GAME->Bind_RT_ShaderResource(shader, "g_ScreenFxTexture", readRT))) return E_FAIL;
-            if (FAILED(effect->Bind_FxConstantBuffer(shader.get()))) return E_FAIL;
-            if (FAILED(effect->Bind_ShaderResources(shader))) return E_FAIL;
-            if (FAILED(shader->Begin(effect->Get_PassIndex()))) return E_FAIL;
-            if (FAILED(rtBuffer->Render())) return E_FAIL;
+            _captureRequested = false;
         }
         else if (isLast)
         {
             // 일반적인 마지막 패스
-            GAME->Bind_BackBuffer();
             const wchar_t* readRT = readFromA ? RT::ScreenFxColorA : RT::ScreenFxColorB;
-            if (FAILED(GAME->Bind_RT_ShaderResource(shader, "g_ScreenFxTexture", readRT))) return E_FAIL;
-            if (FAILED(effect->Bind_FxConstantBuffer(shader.get()))) return E_FAIL;
-            if (FAILED(effect->Bind_ShaderResources(shader))) return E_FAIL;
-            if (FAILED(shader->Begin(effect->Get_PassIndex()))) return E_FAIL;
-            if (FAILED(rtBuffer->Render())) return E_FAIL;
+            if (FAILED(GAME->Bind_RT_ShaderResource(shader, "g_ScreenFxTexture", readRT)))
+                return E_FAIL;
+            if (FAILED(effect->Bind_FxConstantBuffer(shader.get())))
+                return E_FAIL;
+            if (FAILED(effect->Bind_ShaderResources(shader)))
+                return E_FAIL;
+            if (FAILED(shader->Begin(effect->Get_PassIndex())))
+                return E_FAIL;
+            if (FAILED(rtBuffer->Render()))
+                return E_FAIL;
         }
         else
         {
             // 중간 패스
             const wchar_t* writeMRT = readFromA ? MRT::ScreenFxB : MRT::ScreenFxA;
-            if (FAILED(GAME->Begin_MRT(writeMRT, false, true))) return E_FAIL;
+            if (FAILED(GAME->Begin_MRT(writeMRT, false, true)))
+                return E_FAIL;
             
             const wchar_t* readRT = readFromA ? RT::ScreenFxColorA : RT::ScreenFxColorB;
-            if (FAILED(GAME->Bind_RT_ShaderResource(shader, "g_ScreenFxTexture", readRT))) return E_FAIL;
-            if (FAILED(effect->Bind_FxConstantBuffer(shader.get()))) return E_FAIL;
-            if (FAILED(effect->Bind_ShaderResources(shader))) return E_FAIL;
-            if (FAILED(shader->Begin(effect->Get_PassIndex()))) return E_FAIL;
-            if (FAILED(rtBuffer->Render())) return E_FAIL;
-            if (FAILED(GAME->End_MRT())) return E_FAIL;
+            if (FAILED(GAME->Bind_RT_ShaderResource(shader, "g_ScreenFxTexture", readRT)))
+                return E_FAIL;
+            if (FAILED(effect->Bind_FxConstantBuffer(shader.get())))
+                return E_FAIL;
+            if (FAILED(effect->Bind_ShaderResources(shader)))
+                return E_FAIL;
+            if (FAILED(shader->Begin(effect->Get_PassIndex())))
+                return E_FAIL;
+            if (FAILED(rtBuffer->Render()))
+                return E_FAIL;
+            if (FAILED(GAME->End_MRT()))
+                return E_FAIL;
             
             readFromA = !readFromA; // 타겟 스왑(Ping-Pong)
         }
@@ -121,8 +122,6 @@ HRESULT ScreenFx_Manager::Render_ScreenFx(const Shared<ShaderCom>& shader, const
     {
         const wchar_t* readRT = readFromA ? RT::ScreenFxColorA : RT::ScreenFxColorB;
         GAME->Bind_RT_ShaderResource(shader, "g_ScreenFxTexture", readRT);
-        GAME->Bind_BackBuffer();
-
         _previewEffect->Bind_FxConstantBuffer(shader.get());
         _previewEffect->Bind_ShaderResources(shader);
         shader->Begin(_previewEffect->Get_PassIndex());

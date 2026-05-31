@@ -217,14 +217,15 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_ScreenFX:Before");
 #endif
 
-    // ========================================= //
-    // ScreenFX
-    // ========================================= //
+    //GAME->Bind_BackBuffer();
+
     const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
     const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
     if (useScreenFx)
     {
+        // ========================================= //
         Render_ScreenFx();
+        // ========================================= //
     }
 
 #ifdef _DEBUG
@@ -866,23 +867,33 @@ void Renderer::Render_ScreenFx()
     if (!_screenFxShader || !_viBuffer)
         return;
 
-    GAME->Bind_BackBuffer();
+    HRESULT hr = S_OK;
 
-    RETURN_LOG_IF_FAILED(
-        _screenFxShader->Bind_ObjectCB(_pipelineWorldMatrix),
-        L"Render_ScreenFx:FAIL Bind_ObjectCB");
+    if (SUCCEEDED(hr))
+    {
+        hr = _screenFxShader->Bind_ObjectCB(_pipelineWorldMatrix);
+        if (FAILED(hr))
+            LOG_ERROR("Render_ScreenFx:FAIL Bind_ObjectCB");
+    }
 
-    RETURN_LOG_IF_FAILED(
-        Bind_ScreenSpaceCB(_screenFxShader, max(1u, _screenSize.width), max(1u, _screenSize.height)),
-        L"Render_ScreenFx:FAIL Bind_ScreenSpaceCB");
+    if (SUCCEEDED(hr))
+    {
+        hr = Bind_ScreenSpaceCB(_screenFxShader, max(1u, _screenSize.width), max(1u, _screenSize.height));
+        if (FAILED(hr))
+            LOG_ERROR("Render_ScreenFx:FAIL Bind_ScreenSpaceCB");
+    }
 
-    RETURN_LOG_IF_FAILED(
-        _viBuffer->Bind_Resources(),
-        L"Render_ScreenFx:FAIL Bind_Resources");
+    if (SUCCEEDED(hr))
+    {
+        hr = _viBuffer->Bind_Resources();
+        if (FAILED(hr)) LOG_ERROR("Render_ScreenFx:FAIL Bind_Resources");
+    }
 
-    RETURN_LOG_IF_FAILED(
-        GAME->Get_ScreenFxManager()->Render_ScreenFx(_screenFxShader, _viBuffer),
-        L"Render_ScreenFx:FAIL Manager->Render_ScreenFx");
+    if (SUCCEEDED(hr))
+    {
+        hr = GAME->Get_ScreenFxManager()->Render_ScreenFx(_screenFxShader, _viBuffer);
+        if (FAILED(hr)) LOG_ERROR("Render_ScreenFx:FAIL Manager->Render_ScreenFx");
+    }
 }
 
 HRESULT Renderer::Ready_Shaders()

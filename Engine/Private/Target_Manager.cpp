@@ -368,14 +368,24 @@ HRESULT Target_Manager::Copy_CurrentRTV_To(const wstring& targetTag)
     srcTexture->GetDesc(&srcDesc);
     dstTexture->GetDesc(&dstDesc);
 
-    if (srcDesc.Width != dstDesc.Width
-        || srcDesc.Height != dstDesc.Height
-        || srcDesc.Format != dstDesc.Format)
+    if (srcDesc.Format != dstDesc.Format)
     {
         return E_FAIL;
     }
 
-    // src 를 dst 에 그대로 덮어쓴다
+    if (srcDesc.Width != dstDesc.Width || srcDesc.Height != dstDesc.Height)
+    {
+        D3D11_BOX box{};
+        box.left = 0;
+        box.top = 0;
+        box.front = 0;
+        box.right = min(srcDesc.Width, dstDesc.Width);
+        box.bottom = min(srcDesc.Height, dstDesc.Height);
+        box.back = 1;
+        _context->CopySubresourceRegion(dstTexture.Get(), 0, 0, 0, 0, srcTexture.Get(), 0, &box);
+        return S_OK;
+    }
+
     _context->CopyResource(dstTexture.Get(), srcTexture.Get());
 
     return S_OK;
@@ -405,11 +415,22 @@ HRESULT Target_Manager::Copy_RTV(const wstring& srcTargetTag, const wstring& dst
     srcTexture->GetDesc(&srcDesc);
     dstTexture->GetDesc(&dstDesc);
 
-    if (srcDesc.Width != dstDesc.Width
-        || srcDesc.Height != dstDesc.Height
-        || srcDesc.Format != dstDesc.Format)
+    if (srcDesc.Format != dstDesc.Format)
     {
         return E_FAIL;
+    }
+
+    if (srcDesc.Width != dstDesc.Width || srcDesc.Height != dstDesc.Height)
+    {
+        D3D11_BOX box{};
+        box.left = 0;
+        box.top = 0;
+        box.front = 0;
+        box.right = min(srcDesc.Width, dstDesc.Width);
+        box.bottom = min(srcDesc.Height, dstDesc.Height);
+        box.back = 1;
+        _context->CopySubresourceRegion(dstTexture.Get(), 0, 0, 0, 0, srcTexture.Get(), 0, &box);
+        return S_OK;
     }
 
     // src 를 dst 에 그대로 덮어쓴다
