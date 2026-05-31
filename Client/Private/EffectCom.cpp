@@ -29,6 +29,11 @@ EffectCom::EffectCom(const ComPtr<Device>& device, const ComPtr<Context>& contex
 {
 }
 
+EffectCom::~EffectCom()
+{
+    Stop_AllAttachedEffects();
+}
+
 HRESULT EffectCom::Initialize_Prototype()
 {
     return Component::Initialize_Prototype();

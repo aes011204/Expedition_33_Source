@@ -675,6 +675,14 @@ void Prefab_View::Draw_PreviewPanel()
     _previewCanvasMin = previewPos;
     _previewCanvasMax = ImVec2(previewPos.x + previewSize.x, previewPos.y + previewSize.y);
 
+    ImGui::InvisibleButton(
+        "PrefabPreviewCanvas",
+        previewSize,
+        ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+
+    _isPreviewHovered = ImGui::IsItemHovered();
+    _isPreviewActive = ImGui::IsItemActive();
+
     ImDrawList* drawList = ImGui::GetWindowDrawList();
 
     ID3D11ShaderResourceView* previewSRV = EDITOR->Get_SharedPreviewSRV();
@@ -683,26 +691,36 @@ void Prefab_View::Draw_PreviewPanel()
         ImTextureID textureId =
             static_cast<ImTextureID>(reinterpret_cast<intptr_t>(previewSRV));
 
-        ImGui::Image(textureId, previewSize);
+        drawList->AddImage(
+            textureId,
+            previewPos,
+            ImVec2(previewPos.x + previewSize.x, previewPos.y + previewSize.y));
     }
     else
     {
-        ImGui::Button("##PrefabPreviewFallback", previewSize);
+        drawList->AddRectFilled(
+            previewPos,
+            ImVec2(previewPos.x + previewSize.x, previewPos.y + previewSize.y),
+            IM_COL32(34, 38, 44, 255));
+        drawList->AddRect(
+            previewPos,
+            ImVec2(previewPos.x + previewSize.x, previewPos.y + previewSize.y),
+            IM_COL32(85, 95, 110, 255));
         drawList->AddText(
             ImVec2(previewPos.x + 12.f, previewPos.y + 12.f),
             IM_COL32(210, 216, 224, 255),
             "Preview RenderTarget is not ready.");
     }
 
-    _isPreviewHovered = ImGui::IsItemHovered();
-    _isPreviewActive = _isPreviewHovered &&
-        (ImGui::IsMouseDown(ImGuiMouseButton_Left) || ImGui::IsMouseDown(ImGuiMouseButton_Right));
-
     if (_previewCanvasMax.x > _previewCanvasMin.x && _previewCanvasMax.y > _previewCanvasMin.y)
     {
-        ImGuizmo::SetDrawlist();
+        ImDrawList* windowDrawList = ImGui::GetWindowDrawList();
+        // 프리뷰 rect 밖 입력과 섞이지 않게 gizmo 표시/입력을 preview 캔버스 안으로 제한한다.
+        windowDrawList->PushClipRect(_previewCanvasMin, _previewCanvasMax, true);
+        ImGuizmo::SetDrawlist(windowDrawList);
         Render_SelectedObjectGizmo();
         Render_GizmoOverlay();
+        windowDrawList->PopClipRect();
     }
 
     ImGui::EndChild();
@@ -711,6 +729,10 @@ void Prefab_View::Draw_PreviewPanel()
 void Prefab_View::Render_SelectedObjectGizmo()
 {
     _gizmoMode = Resolve_GizmoModeFromTransformSpace();
+
+    // 우클릭 카메라 조작 중에는 gizmo가 입력을 소비하지 않게 막는다.
+    if (ImGui::IsMouseDown(ImGuiMouseButton_Right))
+        return;
 
     if (_previewObject == nullptr || _previewCamera == nullptr)
         return;

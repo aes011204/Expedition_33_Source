@@ -63,7 +63,7 @@ private:
 
 public:
     EffectCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    ~EffectCom() override = default;
+    ~EffectCom() override;
 
 public:
     HRESULT Initialize_Prototype() override;
