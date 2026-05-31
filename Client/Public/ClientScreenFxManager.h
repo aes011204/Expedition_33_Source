@@ -28,7 +28,6 @@ private:
 public:
     void Play_BattleInCounterFx();
     void Transition_To_BattleField();
-    void Play_ActionCameraBlur();
 
 private:
     Shared<RadialBlur_ScreenFx> _cameraBlur{ nullptr };
