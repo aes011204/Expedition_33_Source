@@ -450,6 +450,9 @@
     <ClInclude Include="..\Public\Sound_Manager.h">
       <Filter>01.Utility\03.GameObjects\Manager</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\Engine_Static.h">
+      <Filter>99. Defines</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\ScreenFx_Manager.h">
       <Filter>97. Manager\ScreenFx</Filter>
     </ClInclude>

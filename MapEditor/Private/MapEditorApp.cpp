@@ -93,6 +93,8 @@ HRESULT MapEditorApp::Initialize()
     landscapeCtx.onApplyNoise = [this](int32 idx, const LandscapeNoiseParams& params) { _landscapeManager->Apply_Noise(idx, params); };
     landscapeCtx.onApplyErosion = [this](int32 idx, const LandscapeErosionParams& params) { _landscapeManager->Apply_Erosion(idx, params); };
     landscapeCtx.onAddLayer = [this](int32 idx, const WCHAR* path) { _landscapeManager->Add_LandscapeLayer(idx, path); };
+    landscapeCtx.onRemoveLayer = [this](int32 landscapeIdx, uint32 layerIdx) { _landscapeManager->Remove_LandscapeLayer(landscapeIdx, layerIdx); };
+    landscapeCtx.onSetBaseLayer = [this](int32 landscapeIdx, uint32 layerIdx) { _landscapeManager->Set_LandscapeBaseLayer(landscapeIdx, layerIdx); };
     landscapeCtx.onModify = [this](int32 idx, const LandscapeConfig& cfg) { _landscapeManager->Modify_Landscape(idx, cfg); };
 
     _manager = MEManager::Create(_viewport, &_scene, _camera.get(), landscapeCtx);

@@ -123,18 +123,31 @@ void MELandscapeManager::Load_Landscape(int32 idx, const WCHAR* path)
     Vec3 pos{};
     fread(&pos, sizeof(Vec3), 1, f);
 
-    if (idx < 0 || idx >= static_cast<int32>(_scene->_landscapes.size()))
     {
-        LandscapeConfig cfg{};
-        cfg.countX = countX;
-        cfg.countZ = countZ;
-        cfg.sizeX = sizeX;
-        cfg.sizeZ = sizeZ;
-        cfg.worldOffsetX = pos.x;
-        cfg.worldOffsetY = pos.y;
-        cfg.worldOffsetZ = pos.z;
-        Add_Landscape(cfg);
-        idx = static_cast<int32>(_scene->_landscapes.size()) - 1;
+        VIBuffer_Landscape::LAND_DESC desc{};
+        desc.countX = countX;
+        desc.countZ = countZ;
+        desc.sizeX = sizeX;
+        desc.sizeZ = sizeZ;
+
+        auto newActor = MELandscapeActor::Create(_device, _context, desc);
+        if (!newActor)
+        {
+            fclose(f);
+            return;
+        }
+        newActor->Get_Transform()->Set_Position(pos);
+
+        if (idx < 0 || idx >= static_cast<int32>(_scene->_landscapes.size()))
+        {
+            _scene->_landscapes.push_back(newActor);
+            idx = static_cast<int32>(_scene->_landscapes.size()) - 1;
+            _scene->_activeLandscapeIdx = idx;
+        }
+        else
+        {
+            _scene->_landscapes[idx] = newActor;
+        }
     }
 
     auto vb = _scene->_landscapes[idx]->Get_VIBuffer();
@@ -292,6 +305,26 @@ void MELandscapeManager::Add_LandscapeLayer(int32 idx, const WCHAR* path)
     }
 
     _scene->_landscapes[idx]->Add_LayerTexture(wstring(path));
+}
+
+void MELandscapeManager::Remove_LandscapeLayer(int32 landscapeIdx, uint32 layerIdx)
+{
+    if (landscapeIdx < 0 || landscapeIdx >= static_cast<int32>(_scene->_landscapes.size()))
+    {
+        return;
+    }
+
+    _scene->_landscapes[landscapeIdx]->Remove_LayerTexture(layerIdx);
+}
+
+void MELandscapeManager::Set_LandscapeBaseLayer(int32 landscapeIdx, uint32 layerIdx)
+{
+    if (landscapeIdx < 0 || landscapeIdx >= static_cast<int32>(_scene->_landscapes.size()))
+    {
+        return;
+    }
+
+    _scene->_landscapes[landscapeIdx]->Set_BaseLayer(layerIdx);
 }
 
 void MELandscapeManager::Modify_Landscape(int32 idx, const LandscapeConfig& cfg)
