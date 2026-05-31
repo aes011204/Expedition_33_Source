@@ -313,6 +313,7 @@ private:
     bool    _pendingBattleIsPlayerAdvantage = false;
     vector<HeroId> _pendingBattleHeroIds = {};
     vector<BattleMonsterSpawnDesc> _pendingBattleMonsterSpawnDescs = {};
+    int32   _pendingBattleStartSpawnerId = 0;
 
     bool _isFreeAimShotPlaying = false;
     BattleAction _freeAimShotAction {};

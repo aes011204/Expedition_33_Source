@@ -12,7 +12,6 @@ NS_BEGIN(MapEditor)
 class MELandscapeActor final : public GameObject 
 {
 private:
-    static constexpr uint32 MAX_LAYERS = 4;
     static constexpr const char* layerNames[MAX_LAYERS] = { "g_Layer0",  "g_Layer1",  "g_Layer2",  "g_Layer3" };
     static constexpr const char* weightNames[MAX_LAYERS] = { "g_Weight0", "g_Weight1", "g_Weight2", "g_Weight3" };
 
@@ -48,6 +47,9 @@ private:
 
     wstring _layerPaths[MAX_LAYERS];
 
+    ComPtr<ID3D11Texture2D> _dummyWeightTex;
+    ComPtr<ID3D11ShaderResourceView> _dummyWeightSRV;
+
 private:
     HRESULT Bind_ShaderResources();
 
@@ -55,6 +57,8 @@ public:
     HRESULT Add_LayerTexture(const wstring& texturePath);
     void Flush_WeightMap(uint32 layerIdx);
     void Clear_Layers();
+    void Remove_LayerTexture(uint32 idx);
+    void Set_BaseLayer(uint32 idx);
 
 public:
     static Shared<MELandscapeActor> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const VIBuffer_Landscape::LAND_DESC& desc);

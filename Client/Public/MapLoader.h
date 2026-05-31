@@ -28,11 +28,13 @@ public:
         unordered_map<string, int32> modelOverrides;
         vector<json> staticMeshes = {};
         vector<json> instancedMeshes = {};
+        vector<json> prefabInstances = {};
         vector<string> preloadModelPaths = {};
 
         size_t nextPreloadModelIndex = 0;
         size_t nextStaticMeshIndex = 0;
         size_t nextInstancedMeshIndex = 0;
+        size_t nextPrefabInstanceIndex = 0;
 
         umap<string, Shared<ModelCom>> preloadedModelCache = {};
         umap<string, Shared<StaticCollisionData>> preloadedCollisionCache = {};
@@ -46,6 +48,7 @@ public:
         bool preloadModelsDone = false;
         bool staticMeshesDone = false;
         bool instancedMeshesDone = false;
+        bool prefabInstancesDone = false;
 
         chrono::milliseconds beginSessionDuration{ 0 };
         chrono::milliseconds modelCreateDuration{ 0 };
@@ -54,6 +57,7 @@ public:
         chrono::milliseconds staticAddDuration{ 0 };
         chrono::milliseconds instancedTransformDuration{ 0 };
         chrono::milliseconds instancedAddDuration{ 0 };
+        chrono::milliseconds prefabInstanceAddDuration{ 0 };
 
         size_t processCallCount = 0;
         size_t modelCreateCount = 0;
@@ -61,6 +65,7 @@ public:
         size_t collisionBuildCount = 0;
         size_t staticAddCount = 0;
         size_t instancedAddCount = 0;
+        size_t prefabInstanceAddCount = 0;
         size_t autoInstancedStaticCount = 0;
         size_t autoInstancedGroupCount = 0;
 

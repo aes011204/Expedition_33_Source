@@ -14,6 +14,7 @@ NS_BEGIN(Client)
 HRESULT ClientScreenFxManager::Initialize()
 {
     {
+<<<<<<< HEAD
         RadialBlur_ScreenFx::RadialBlurDesc desc{};
         desc.center = Vec2(0.5f, 0.5f);
         desc.intensity = 0.25f;
@@ -22,6 +23,16 @@ HRESULT ClientScreenFxManager::Initialize()
         desc.fadeOutTime = 0.1f;
 
         GAME->Play_ScreenFx(RadialBlur_ScreenFx::Create(&desc));
+=======
+        //RadialBlur_ScreenFx::RadialBlurDesc desc{};
+        //desc.center = Vec2(0.5f, 0.5f);
+        //desc.intensity = 0.25f;
+        //desc.radius = 1.25f;             // 화면 외곽 쪽에 집중되도록 반경 설정
+        //desc.duration = 0.2f;
+        //desc.fadeOutTime = 0.1f;
+        //
+        //GAME->Play_ScreenFx(RadialBlur_ScreenFx::Create(&desc));
+>>>>>>> feat/main-framework
     }
 
     return S_OK;

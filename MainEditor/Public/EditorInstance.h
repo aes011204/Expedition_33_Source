@@ -205,8 +205,14 @@ private: /* 저장 */
     bool Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const;
     bool Apply_CameraPoseToCameraType(ObjectType objectType, const CameraPoseSnapshot& pose) const;
     bool Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const;
-    vector<EditorWorldObjectSnapshot> Capture_CurrentLevelObjects(int32* outSelectedIndex = nullptr) const;
-    HRESULT Restore_CurrentLevelObjects(const vector<EditorWorldObjectSnapshot>& snapshots, int32 selectedIndex);
+    bool Is_PlaySnapshotExcludedObject(const wstring& layerTag, const Shared<GameObject>& gameObject) const;
+    vector<EditorWorldObjectSnapshot> Capture_CurrentLevelObjects(
+        int32* outSelectedIndex = nullptr,
+        bool excludeMapStaticMesh = false) const;
+    HRESULT Restore_CurrentLevelObjects(
+        const vector<EditorWorldObjectSnapshot>& snapshots,
+        int32 selectedIndex,
+        bool excludeMapStaticMesh = false);
 
 private:
     bool                        _isTargetCameraEditMode = false;

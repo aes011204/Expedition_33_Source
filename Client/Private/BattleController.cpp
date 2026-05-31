@@ -38,6 +38,8 @@
 #include "BattleSpawnRegistry.h"
 #include "SkillTreeCom.h"
 #include "BattleReactionController.h"
+#include "BattleStartSpawner.h"
+#include "Monster_WorldBase.h"
 
 REGISTER_GLOBAL_ENUM(BattleAnimType, "BattleAnimType")
 
@@ -246,6 +248,12 @@ void BattleController::OnEnterBattleField(
     _pendingBattleIsPlayerAdvantage = isPlayerAdvantage;
     _pendingBattleHeroIds = heroIds;
     _pendingBattleMonsterSpawnDescs = battleMonsterSpawnDescs;
+    _pendingBattleStartSpawnerId = 0;
+
+    if (Shared<Monster_WorldBase> worldMonster = dynamic_pointer_cast<Monster_WorldBase>(sourceObject))
+    {
+        _pendingBattleStartSpawnerId = worldMonster->Get_BattleStartSpawnerId();
+    }
 
     // 월드 캐릭터 입력 막기
     GAME->Set_PlayerInputBlocked(true);
@@ -674,36 +682,76 @@ void BattleController::Rebuild_TurnQueue(const BattleChar& revivedActor)
 
 void BattleController::SetCharInitPos()
 {
-    /*INFO = FiledMgr->GetFiledInfo(FieldID)
-    INFO.
-    */
-    const Vec3 startPos = Vec3(22.f, 2.5f, -10.24f);
+    Vec3 startPos = Vec3(145.f, 23.5f, 7.24f);
+    Vec3 right = Vec3::Right;
+    Vec3 forward = Vec3::Forward;
 
-    const Vec3 playerPos[3] =
+    if (_pendingBattleStartSpawnerId > 0)
     {
-        { -3.f, 0.f, 0.f },
-        { 0.f, 0.f, 0.f },
-        { 3.f, 0.f, 0.f },
-    };
+        bool foundSpawner = false;
 
-    const Vec3 enemyPos[3] =
+        GAME->Visit_LevelObjects(
+            GAME->Current_LevelIndex(),
+            [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+            {
+                if (foundSpawner)
+                    return;
+
+                if (layerTag != TEXT("Layer_BattleStartSpawner"))
+                    return;
+
+                Shared<BattleStartSpawner> spawner = dynamic_pointer_cast<BattleStartSpawner>(gameObject);
+                if (spawner == nullptr)
+                    return;
+
+                if (spawner->Get_SpawnerId() != _pendingBattleStartSpawnerId)
+                    return;
+
+                Shared<TransformCom> spawnerTransform = spawner->Get_Transform();
+                if (spawnerTransform == nullptr)
+                    return;
+
+                startPos = spawnerTransform->Get_WorldPosition();
+                right = spawnerTransform->Get_WorldRight();
+                forward = spawnerTransform->Get_WorldForward();
+                foundSpawner = true;
+            });
+    }
+
+    right.y = 0.f;
+    if (right.LengthSquared() <= 0.0001f)
+        right = Vec3::Right;
+    else
+        right.Normalize();
+
+    forward.y = 0.f;
+    if (forward.LengthSquared() <= 0.0001f)
+        forward = Vec3::Forward;
+    else
+        forward.Normalize();
+
+    const Vec3 playerLocalPos[3] =
     {
-        { -3.f, 0.f, 10.f },
-        { 0.f, 0.f, 10.f },
-        { 3.f, 0.f, 10.f },
+        { -2.5f, 0.f, 0.f },
+        {  0.f, 0.f, 0.f },
+        {  2.5f, 0.f, 0.f },
     };
+    const Vec3 enemyBasePos = startPos + forward * 6.f; // 몬스터 위치 조절
 
     Vec3 heroCenter = Vec3::Zero;
     uint32 heroCount = 0;
 
-    // 임시
     for (size_t i = 0; i < _heroes.size() && i < 3; ++i)
     {
         const auto& hero = _heroes[i];
         if (!hero.actor)
             continue;
 
-        const Vec3 placedPos = startPos + playerPos[i];
+        const Vec3 placedPos =
+            startPos +
+            right * playerLocalPos[i].x +
+            Vec3::Up * playerLocalPos[i].y +
+            forward * playerLocalPos[i].z;
         hero.actor->Get_Transform()->Set_Position(placedPos);
         heroCenter += placedPos;
         ++heroCount;
@@ -712,19 +760,24 @@ void BattleController::SetCharInitPos()
     if (heroCount > 0)
         heroCenter /= static_cast<float>(heroCount);
 
-    for (size_t i = 0; i < _enemies.size() && i < 3; ++i)
+    for (size_t i = 0; i < _enemies.size(); ++i)
     {
         const auto& enemy = _enemies[i];
         if (!enemy.actor)
             continue;
 
         const Shared<TransformCom> transform = enemy.actor->Get_Transform();
-        Vec3 placedPos = startPos + enemyPos[i];
+
+        Vec3 placedPos = enemyBasePos;
         Vec3 rotationOffset = Vec3::Zero;
 
         if (i < _pendingBattleMonsterSpawnDescs.size())
         {
-            placedPos += _pendingBattleMonsterSpawnDescs[i].offset;
+            const Vec3 localOffset = _pendingBattleMonsterSpawnDescs[i].offset;
+            placedPos +=
+                right * localOffset.x +
+                Vec3::Up * localOffset.y +
+                forward * localOffset.z;
             rotationOffset = _pendingBattleMonsterSpawnDescs[i].rotation;
         }
 
@@ -1711,6 +1764,7 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleIsPlayerAdvantage = false;
     _pendingBattleHeroIds.clear();
     _pendingBattleMonsterSpawnDescs.clear();
+    _pendingBattleStartSpawnerId = 0;
 }
 
 void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<CombatStatCom>& battleStat,

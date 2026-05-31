@@ -1,9 +1,11 @@
-#include "MapInstancedMesh.h"
+﻿#include "MapInstancedMesh.h"
 #include "GameInstance.h"
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
 #include "InstanceCullParams.h"
 #include "Camera.h"
+#include "StaticCollisionData.h"
+#include "Collision_Define.h"
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
 {
@@ -48,6 +50,7 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
 
         _modelPath = pDesc->modelPath;
         _transforms = pDesc->transforms;
+        _collisionData = pDesc->collisionData;
 
         if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
         {
@@ -70,6 +73,24 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         }
 
         CreateCullBuffers(matrices, pDesc->transforms);
+
+        if (_collisionData != nullptr)
+        {
+            _physxStaticHandles.reserve(matrices.size());
+
+            for (const Matrix& worldMatrix : matrices)
+            {
+                PhysXStaticActorHandle handle = GAME->Register_PhysXStaticCollision(
+                    *_collisionData,
+                    worldMatrix,
+                    Collision_Preset::Enviroment);
+
+                if (handle.Is_Valid())
+                {
+                    _physxStaticHandles.push_back(handle);
+                }
+            }
+        }
     }
 
     Set_ShadowCasterType(ShadowCasterType::Static);
@@ -377,8 +398,6 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         bd.ByteWidth = sizeof(Matrix) * count;
         bd.Usage = D3D11_USAGE_DEFAULT;
         bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-        bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-        bd.StructureByteStride = sizeof(Matrix);
 
         _visibleVB.Reset();
         if (FAILED(_device->CreateBuffer(&bd, nullptr, _visibleVB.GetAddressOf())))
@@ -455,6 +474,10 @@ void MapInstancedMesh::DispatchCull()
         params.planes[i] = planes[i];
     }
     params.totalCount = _instanceCount;
+    params.maxDist = INSTANCE_CULL_DIST;
+
+    const Vec4* cam4 = GAME->Get_CamPosition();
+    params.camPos = Vec3(cam4->x, cam4->y, cam4->z);
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (FAILED(_context->Map(_cullCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
@@ -533,6 +556,16 @@ Shared<GameObject> MapInstancedMesh::Clone(void* arg)
 
 void MapInstancedMesh::Free()
 {
+    for (const PhysXStaticActorHandle& handle : _physxStaticHandles)
+    {
+        if (handle.Is_Valid())
+        {
+            GAME->Unregister_PhysXStaticActor(handle);
+        }
+    }
+    _physxStaticHandles.clear();
+    _collisionData.reset();
+
     _visibleStructured.Reset();
     _visibleUAV.Reset();
     _visibleVB.Reset();

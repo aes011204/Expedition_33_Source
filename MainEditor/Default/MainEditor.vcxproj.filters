@@ -119,20 +119,9 @@
     <ClCompile Include="..\private\Cinematic_Tool.cpp">
       <Filter>01. View</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\CombatStat_Inspector.cpp">
-      <Filter>02. Inspector</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\MonsterStat_Inspector.cpp">
-      <Filter>02. Inspector</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PlayerStat_Inspector.cpp">
-      <Filter>02. Inspector</Filter>
     <ClCompile Include="..\Private\CombatStat_Inspector.cpp" />
     <ClCompile Include="..\Private\PlayerStat_Inspector.cpp" />
     <ClCompile Include="..\Private\MonsterStat_Inspector.cpp" />
-    <ClCompile Include="..\Private\ScreenFx_View.cpp">
-      <Filter>01. View</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -268,20 +257,9 @@
     <ClInclude Include="..\Public\AnimSequencerAdapter.h">
       <Filter>97. Utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\CombatStat_Inspector.h">
-      <Filter>02. Inspector</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\MonsterStat_Inspector.h">
-      <Filter>02. Inspector</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PlayerStat_Inspector.h">
-      <Filter>02. Inspector</Filter>
     <ClInclude Include="..\Public\CombatStat_Inspector.h" />
     <ClInclude Include="..\Public\PlayerStat_Inspector.h" />
     <ClInclude Include="..\Public\MonsterStat_Inspector.h" />
-    <ClInclude Include="..\Public\ScreenFx_View.h">
-      <Filter>01. View</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="00. Main">

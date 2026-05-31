@@ -54,10 +54,17 @@ public:
         const wstring& layerTag,
         const Vec3& position);
 
+    static Shared<GameObject> SpawnForEditorPlacement(
+        const string& prefabName,
+        uint32 levelIndex,
+        const Vec3& position);
+
     static fs::path Resolve_PrefabPath(const string& prefabName);
 
 private:
     static void Apply_Overrides(const Shared<GameObject>& gameObject, const json& overrides);
+    static wstring Resolve_DefaultLayerTagFromPrefabFile(const fs::path& prefabPath);
+    static wstring Resolve_DefaultLayerTag(const Shared<GameObject>& gameObject);
     static Shared<GameObject> Spawn_Implementation(const FSpawnDesc& desc);
 };
 

@@ -308,7 +308,7 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(MaskedPass,          RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Mask)              // 3
     PASS_RS_DS_BS_VP(TwoSidedPass,        RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Opaque)            // 4
     PASS_RS_DS_BS_VP(MaskedTwoSidedPass,  RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Mask)              // 5
-    PASS_RS_DS_BS_VP(IDPass,              RS_Default,  DSS_Default, BS_Default, VS_Default, PS_ID)                // 6
+    PASS_RS_DS_BS_VP(IDPass,              RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_ID)                // 6
     PASS_RS_DS_BS_VP(OpaqueARPass,        RS_Default, DSS_Default,  BS_Default, VS_Default, PS_OpaqueAR)          // 7
     PASS_RS_DS_BS_VP(OpaqueARTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_OpaqueAR)         // 8
     PASS_RS_DS_BS_VP(PackedAR_NMEPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME)          // 9

@@ -61,8 +61,12 @@ HRESULT Mon_AIController::Initialize(void* arg)
 
 void Mon_AIController::Update(float timeDelta)
 {
-   auto pos =  CLIENT->Find_Player(GAME->Current_LevelIndex())->Get_Transform()->Get_Position();
-    _BB->Set_Value("playerPos", pos);
+    const Shared<GameObject> player = CLIENT->Find_Player(GAME->Current_LevelIndex());
+    if (player != nullptr)
+    {
+        const Vec3 pos = player->Get_Transform()->Get_Position();
+        _BB->Set_Value("playerPos", pos);
+    }
 
     __super::Update(timeDelta);
 }

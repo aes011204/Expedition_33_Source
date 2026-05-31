@@ -46,6 +46,8 @@ public:
     void Apply_Erosion(int32 idx, const LandscapeErosionParams& params);
 
     void Add_LandscapeLayer(int32 idx, const WCHAR* path);
+    void Remove_LandscapeLayer(int32 landscapeIdx, uint32 layerIdx);
+    void Set_LandscapeBaseLayer(int32 landscapeIdx, uint32 layerIdx);
 
     void Do_SculptAt(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSize, float timeDelta);
 

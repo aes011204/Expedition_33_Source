@@ -6,6 +6,7 @@
 
 NS_BEGIN(Engine)
 class AIController;
+class MovementCom;
 NS_END
 
 NS_BEGIN(Client)
@@ -61,6 +62,10 @@ public:
     //일단 셋은 임시 
     void Set_PatrolPoints(vector<Vec3> PatrolPoint) { _PatrolPoints = PatrolPoint; };
     const vector<Vec3>& Get_PatrolPoints() { return _PatrolPoints; };
+
+    int32 Get_BattleStartSpawnerId() const { return _battleStartSpawnerId; }
+    void  Set_BattleStartSpawnerId(int32 spawnerId) { _battleStartSpawnerId = spawnerId; }
+
 protected:
     virtual HRESULT Ready_Components();
 
@@ -71,6 +76,7 @@ private:
 
 protected:
     Shared<AIController>         _aiCtrl;
+    Shared<MovementCom>          _movementCom;
     Shared<MonsterStatCom>       _combatStat;
 
     vector<BattleMonsterSpawnDesc> _battleMonsterSpawnDescs = {};
@@ -83,6 +89,10 @@ protected:
     bool _isStun = {false};
     float _maxStunTime = {3.f};
     float _stunTime = {};
+    // 기본 월드 몬스터 root motion -> 이동 속도 환산값
+    float _worldMoveSpeedScale = 0.4f;
+
+    int32 _battleStartSpawnerId = 0; // 배틀 시작 스포너 ID
 
 public:
     void Free() override;

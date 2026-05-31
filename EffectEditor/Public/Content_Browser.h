@@ -91,6 +91,8 @@ private: //## Helper::SettingsSearch
     ImTextureID Get_IconTextureId(IconType iconType) const;
 
 private: //## Helper::NavigationHistory
+    bool Can_GoParentFolder() const;
+    void Go_ParentFolder();
     void Go_BackFolder();
     void Go_ForwardFolder();
     void Handle_SideButtonEvent();

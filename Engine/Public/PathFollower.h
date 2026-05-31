@@ -9,8 +9,8 @@ public:
     PathFollower();
     virtual ~PathFollower();
 public:
-    void Update(float deltaTime, Vec3& position, float speed);
-   
+    bool Update(const Vec3& position, float reachDistance, Vec3& outWorldDir);
+
     bool Is_Finished();
     void Request_Move(Vec3& start, Vec3& target);
     void Stop_Move(const Vec3& currentPos);
@@ -24,7 +24,6 @@ private:
 public:
 
     static Shared<PathFollower> Create();
-   // virtual Shared<Component> Clone(void* arg) override;
     virtual void Free() override;
     
 };

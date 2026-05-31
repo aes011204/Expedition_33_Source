@@ -27,6 +27,8 @@ private:
     function<void(int32, const LandscapeNoiseParams&)> _onApplyNoise;
     function<void(int32, const LandscapeErosionParams&)> _onApplyErosion;
     function<void(int32, const WCHAR*)> _onAddLayer;
+    function<void(int32, uint32)> _onRemoveLayer;
+    function<void(int32, uint32)> _onSetBaseLayer;
     function<void(int32, const LandscapeConfig&)> _onModify;
 
     bool   _showCreateDialog = false;
