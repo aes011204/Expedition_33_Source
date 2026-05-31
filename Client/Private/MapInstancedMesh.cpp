@@ -4,6 +4,8 @@
 #include "ComputeStructuredBuffer.h"
 #include "InstanceCullParams.h"
 #include "Camera.h"
+#include "StaticCollisionData.h"
+#include "Collision_Define.h"
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
 {
@@ -48,6 +50,7 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
 
         _modelPath = pDesc->modelPath;
         _transforms = pDesc->transforms;
+        _collisionData = pDesc->collisionData;
 
         if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
         {
@@ -70,6 +73,24 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         }
 
         CreateCullBuffers(matrices, pDesc->transforms);
+
+        if (_collisionData != nullptr)
+        {
+            _physxStaticHandles.reserve(matrices.size());
+
+            for (const Matrix& worldMatrix : matrices)
+            {
+                PhysXStaticActorHandle handle = GAME->Register_PhysXStaticCollision(
+                    *_collisionData,
+                    worldMatrix,
+                    Collision_Preset::Enviroment);
+
+                if (handle.Is_Valid())
+                {
+                    _physxStaticHandles.push_back(handle);
+                }
+            }
+        }
     }
 
     Set_ShadowCasterType(ShadowCasterType::Static);
@@ -535,6 +556,16 @@ Shared<GameObject> MapInstancedMesh::Clone(void* arg)
 
 void MapInstancedMesh::Free()
 {
+    for (const PhysXStaticActorHandle& handle : _physxStaticHandles)
+    {
+        if (handle.Is_Valid())
+        {
+            GAME->Unregister_PhysXStaticActor(handle);
+        }
+    }
+    _physxStaticHandles.clear();
+    _collisionData.reset();
+
     _visibleStructured.Reset();
     _visibleUAV.Reset();
     _visibleVB.Reset();

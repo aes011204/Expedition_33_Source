@@ -975,12 +975,17 @@ ID3D11Texture2D* EditorInstance::Get_CachedBackBufferTexture()
 
 void EditorInstance::Capture_PlayStartSnapshot()
 {
-    _playStartWorldSnapshot = Capture_CurrentLevelObjects(&_playStartSelectedObjectIndex);
+    _playStartWorldSnapshot = Capture_CurrentLevelObjects(
+        &_playStartSelectedObjectIndex,
+        true); // Play/Stop에서는 맵 static mesh 레이어를 건드리지 않는다.
 }
 
 void EditorInstance::Restore_PlayStartSnapshot()
 {
-    Restore_CurrentLevelObjects(_playStartWorldSnapshot, _playStartSelectedObjectIndex);
+    Restore_CurrentLevelObjects(
+        _playStartWorldSnapshot,
+        _playStartSelectedObjectIndex,
+        true); // Play/Stop에서는 맵 static mesh 레이어를 복원 대상에서 제외한다.
 
     _playStartWorldSnapshot.clear();
     _playStartSelectedObjectIndex = -1;
@@ -995,8 +1000,19 @@ bool EditorInstance::Is_SnapshotExcludedObject(const Shared<GameObject>& gameObj
         gameObject->Get_ObjectType() == ObjectType::TargetCamera;
 }
 
+bool EditorInstance::Is_PlaySnapshotExcludedObject(
+    const wstring& layerTag,
+    const Shared<GameObject>& gameObject) const
+{
+    if (Is_SnapshotExcludedObject(gameObject))
+        return true;
+
+    return layerTag == L"Layer_MapStaticMesh";
+}
+
 vector<EditorInstance::EditorWorldObjectSnapshot> EditorInstance::Capture_CurrentLevelObjects(
-    int32* outSelectedIndex) const
+    int32* outSelectedIndex,
+    bool excludeMapStaticMesh) const
 {
     vector<EditorWorldObjectSnapshot> snapshots;
     Shared<GameObject> selectedObject = Selected_Object();
@@ -1008,7 +1024,10 @@ vector<EditorInstance::EditorWorldObjectSnapshot> EditorInstance::Capture_Curren
     GAME->Visit_CurrentLevelObjects(
         [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
         {
-            if (Is_SnapshotExcludedObject(gameObject))
+            const bool excluded = excludeMapStaticMesh
+                ? Is_PlaySnapshotExcludedObject(layerTag, gameObject)
+                : Is_SnapshotExcludedObject(gameObject);
+            if (excluded)
                 return;
 
             if (outSelectedIndex != nullptr && gameObject == selectedObject)
@@ -1026,7 +1045,8 @@ vector<EditorInstance::EditorWorldObjectSnapshot> EditorInstance::Capture_Curren
 }
 
 HRESULT EditorInstance::Restore_CurrentLevelObjects(const vector<EditorWorldObjectSnapshot>& snapshots,
-    int32 selectedIndex)
+    int32 selectedIndex,
+    bool excludeMapStaticMesh)
 {
     Clear_SelectedObject();
 
@@ -1044,9 +1064,10 @@ HRESULT EditorInstance::Restore_CurrentLevelObjects(const vector<EditorWorldObje
     GAME->Visit_CurrentLevelObjects(
         [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
         {
-            UNREFERENCED_PARAMETER(layerTag);
-
-            if (Is_SnapshotExcludedObject(gameObject))
+            const bool excluded = excludeMapStaticMesh
+                ? Is_PlaySnapshotExcludedObject(layerTag, gameObject)
+                : Is_SnapshotExcludedObject(gameObject);
+            if (excluded)
                 return;
 
             const auto iter = find(snapshotObjects.begin(), snapshotObjects.end(), gameObject);

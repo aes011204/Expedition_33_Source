@@ -101,7 +101,8 @@ void MovementCom::Update_Movement(float timeDelta)
 {
     ENGINE_PROFILE_SCOPE_DETAIL("Movement::Update");
 
-    CHECK_NULL(_transformCom);
+    if (!_transformCom)
+        return;
 
     Update_Rotation(timeDelta);
     Start_Jump();
@@ -740,7 +741,7 @@ void MovementCom::Create_CharacterController()
     desc.contactOffset = _moveDesc.cct.contactOffset;
     desc.slopeLimitDeg = _moveDesc.cct.slopeLimitDeg;
     desc.groundLerpSpeed = _moveDesc.cct.groundLerpSpeed;
-    desc.preset = Collision_Preset::Player_WorldBody;
+    desc.preset = _colliderCom ? _colliderCom->Get_CollisionPreset() : Collision_Preset::Player_WorldBody;
 
     _characterController = PhysicsCharacterController::Create(
         GAME->Get_PhysXManager(), desc, Get_CCTFootPosition_FromTransform());

@@ -6,7 +6,6 @@
 #include "Player_WorldBase.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
-#include "MapLoader.h"
 
 Level_GamePlay::Level_GamePlay(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : StreamingLevel{ device, context }
@@ -235,57 +234,25 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
 {
-    //if (FAILED(
-    //    GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Monster"),
-    //        ETOI(LevelType::GamePlay), strLayerTag)
-    //))
-    //    return E_FAIL;
+    Vec3 startPos = Vec3(-77.f, 19.1f, -117.94f);
 
-
-    Vec3 startPos = Vec3(180.f, -4020.47f, -1.94f);
-
-    //Lancelier
     const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Lancelier, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
+        Constants::Prefab::MW_Lancelier,
         ETOI(LevelType::GamePlay),
         strLayerTag);
 
     CHECK_NULL(monster, E_FAIL);
     monster->Get_Transform()->Set_Position(startPos);
 
-    //Portier
-    const Shared<GameObject> monsterPortier = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Portier, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
-        ETOI(LevelType::GamePlay),
-        strLayerTag);
+    // 이제 여기서 스폰안하고, 에디터에서 스폰&저장 진행
 
-    CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f,0.f, 10.f));
-
-    //Volester
-    const Shared<GameObject> monsterVolester = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Volester, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
-        ETOI(LevelType::GamePlay),
-        strLayerTag);
-
-    CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 20.f));
-
-    //
-    const Shared<GameObject> monsterBishop = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Bishop, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
-        ETOI(LevelType::GamePlay),
-        strLayerTag);
-
-    CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 30.f));
     return S_OK;
 }
 
 HRESULT Level_GamePlay::Ready_Layer_Player(const wstring& strLayerTag)
 {
     //Vec3 startPos = Vec3(-465.f, 50.f, 65.f);
-    Vec3 startPos = Vec3(-85.f, 51.f, -74.f);
+    Vec3 startPos = Vec3(-87.f, 19.47f, -132.94f);
     CHECK_FAILED(CLIENT->Initialize_Hero(ETOI(LevelType::GamePlay), strLayerTag, startPos), E_FAIL);
 
     return S_OK;

@@ -1,10 +1,12 @@
-﻿#pragma once
+#pragma once
 #include "Client_Defines.h"
 #include "GameObject.h"
+#include "PhysX_Handle.h"
 
 NS_BEGIN(Engine)
 class ShaderCom;
 class VIBuffer_Landscape;
+struct StaticCollisionData;
 NS_END
 
 NS_BEGIN(Client)
@@ -38,6 +40,9 @@ public:
 private:
     Shared<ShaderCom> _shader;
     Shared<VIBuffer_Landscape> _vibuffer;
+    Shared<StaticCollisionData> _collisionData;
+    PhysXStaticActorHandle _physxStaticHandle{};
+    wstring _collisionCacheKey{};
 
     ComPtr<ID3D11ShaderResourceView> _layerSRVs[MAX_LAYERS];
     ComPtr<ID3D11Texture2D> _weightTextures[MAX_LAYERS];
@@ -54,6 +59,7 @@ private:
     HRESULT Add_LayerTexture(const wstring& fullTexPath, uint32 idx);
     void Flush_WeightMap(uint32 idx);
     HRESULT Bind_ShaderResources();
+    HRESULT Build_CollisionData();
 
 public:
     static Shared<MapLandscape> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

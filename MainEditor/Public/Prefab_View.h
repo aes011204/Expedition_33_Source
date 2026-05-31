@@ -55,6 +55,7 @@ private:
     void Render_GizmoOverlay();
     void Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& selectedObject);
     bool Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject);
+    bool Draw_BattleStartSpawnerSelector(const Shared<GameObject>& selectedObject);
     void Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey);
     void Draw_ComponentEntries(const Shared<GameObject>& gameObject, const wstring& objectKey);
 
@@ -95,6 +96,8 @@ private:
 private:
     string              _prefabName {};
     fs::path            _prefabPath{};
+    wstring             _defaultSpawnLayerTag = TEXT("Layer_GameObject");
+    char                _defaultSpawnLayerTagBuffer[128] = "Layer_GameObject";
 
     // 프리펩이 어떤 클래스로 만들어졌는지 구별용
     string              _sourceStaticClass{};

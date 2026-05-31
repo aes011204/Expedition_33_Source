@@ -1,6 +1,11 @@
-﻿#pragma once
+#pragma once
 #include "Editor_Window.h"
 #include "Client_Defines.h"
+#include <filesystem>
+
+NS_BEGIN(Engine)
+class GameObject;
+NS_END
 
 NS_BEGIN(MainEditor)
 
@@ -22,12 +27,25 @@ private:
     void Render_LevelSwitcher();
     void Render_MapLoader();
 
+    void Refresh_MapJsonFiles();
+    std::filesystem::path Resolve_MapSaveJsonDir() const;
+    std::filesystem::path Resolve_SelectedMapJsonPath() const;
+
+    void Load_SelectedMap();
+    void Reload_SelectedMap();
+    void Reload_SelectedPrefabInstances();
+    void Save_SelectedMapPrefabInstances();
+
+    void Remove_CurrentLevelMapObjects();
+    void Remove_CurrentLevelAuthoredPrefabInstances();
+
     void Change_To(LevelType targetLevel);
 
 private:
     int _selectedLevelIndex = { 0 };
     int _selectedJsonIndex = { -1 };
-    vector<string> _jsonFiles;
+    vector<string> _jsonFiles = {};
+    vector<Weak<GameObject>> _reloadedMonsterObjects = {};
 
 public:
     static Shared<Level_Tool> Create();

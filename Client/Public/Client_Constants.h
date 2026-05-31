@@ -108,6 +108,7 @@ namespace Client::Constants::Map
     inline constexpr wchar_t SmallLevel_SimonArea_Remake_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_SimonArea_Mk1.json";
     inline constexpr wchar_t TestMap_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/TestMap.json";
     inline constexpr wchar_t SaveJson_Dir[] = L"../../../Client/Bin/Resources/Map/SaveJson/";
+    inline constexpr wchar_t GamePlay_DefaultAuthoringMap_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_MF_Zone_01_Mk1.json";
 
     inline constexpr wchar_t SpringChunk_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/Chunks/Level_SpringMeadows_Main_V2";
     inline constexpr wchar_t SpringChunk_00_03_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/Chunks/Level_SpringMeadows_Main_V2/chunk_00_03.json";
@@ -147,6 +148,12 @@ namespace Client::Constants::Charcter
 
 namespace Client::Constants::Prefab
 {
+    inline constexpr wchar_t Root_Dir[] = L"Data/json/Prefabs";
+    inline constexpr wchar_t Player_Dir[] = L"Data/json/Prefabs/Player";
+    inline constexpr wchar_t Monster_Dir[] = L"Data/json/Prefabs/Monster";
+    inline constexpr wchar_t Weapon_Dir[] = L"Data/json/Prefabs/Weapons";
+    inline constexpr wchar_t BattleStartSpawner_Dir[] = L"Data/json/Prefabs/BattleStartSpawner";
+
 #pragma region 플레이어
     inline constexpr char PW_Gustave[]  = "PW_Gustave";
     inline constexpr char PW_Lune[]     = "PW_Lune";

@@ -25,7 +25,7 @@ public:
 
     struct FollowerRuntime
     {
-        Vec3    desiredTargetPos = Vec3::Zero; // follower 목표 위치
+        Vec3    desiredTargetPos = Vec3::Zero; // follower가 실제로 쫓는 지면 보정 목표 위치
         float   lastMoveDistance = 0.f;        // 목표까지 남은 거리
 
         bool    sprintFollow = false;          // 추격 이동 여부
@@ -79,6 +79,10 @@ private:
                 Vec3 anchorRight);
 
     Vec3    Resolve_SnapPosition(
+                const Shared<Player_WorldBase>& hero,
+                const Vec3& fromPos,
+                const Vec3& desiredPos) const;
+    Vec3    Resolve_FollowTargetPosition(
                 const Shared<Player_WorldBase>& hero,
                 const Vec3& fromPos,
                 const Vec3& desiredPos) const;
