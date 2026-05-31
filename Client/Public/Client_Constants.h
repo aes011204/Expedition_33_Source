@@ -50,9 +50,11 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_NormalDamageFont_Path[] = L"UI/UI_Json/BattleSystem/UI_NormalDamageFont.json";
     inline constexpr wchar_t UI_CriticalDamageFont_Path[] = L"UI/UI_Json/BattleSystem/UI_CriticalDamageFont.json";
     inline constexpr wchar_t UI_HealFont_Path[] = L"UI/UI_Json/BattleSystem/UI_HealFont.json";
+    inline constexpr wchar_t UI_BattleSystem_Add_AP_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Add_AP.json";
 
     inline constexpr wchar_t UI_Escape_SkipTurnBack_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Escape_SkipTurn_Back.json";
     inline constexpr wchar_t UI_Attack_Tooltip_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_AttackTooltip.json";
+
 
     // 플레이어 메커니즘
     inline constexpr wchar_t UI_Gustave_Mechanism_Path[] = L"UI/UI_Json/BattleSystem/Gustave/UI_BattleSystem_Gustave_Mechanism.json";
@@ -75,6 +77,7 @@ namespace Client::Constants::UI
     // Battle Announce
     inline constexpr wchar_t UI_BattleSystem_Announce_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Announce.json";
     inline constexpr wchar_t UI_FirstStrike_Path[] = L"UI/UI_Json/BattleSystem/UI_FirstStrike.json";
+
 
 
 #pragma endregion
@@ -101,6 +104,8 @@ namespace Client::Constants::UI_Anim
 
     inline constexpr wchar_t UI_BattleSystem_AnnounceAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Announce";
     inline constexpr wchar_t UI_FirstStrikeAnim_Path[] = L"UI/UI_Animations/BattleSystem/FirstStrike";
+
+    inline constexpr wchar_t UI_AddAPAnim_Path[] = L"UI/UI_Animations/BattleSystem/Add_AP";
 }
 
 namespace Client::Constants::Map

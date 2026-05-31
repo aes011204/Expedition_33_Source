@@ -180,8 +180,8 @@ HRESULT Level_MapTest::Ready_Layer_Monster(const wstring& strLayerTag)
     // 전투 시작 위치
     auto spawner = Spawn_Prefab::Prefab("BSS_GamePlay_Boss")
         .AtLevel(ETOI(LevelType::MapTest))
-        .InLayer(strLayerTag)
-        .Position(Vec3(17.f, 0.f, 3.2f))
+        .InLayer(TEXT("Layer_BattleStartSpawner"))
+        .Position(Vec3(17.f, 0.46f, -3.2f))
         .Spawn();
 
     return S_OK;

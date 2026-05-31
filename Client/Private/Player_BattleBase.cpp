@@ -72,6 +72,7 @@ void Player_BattleBase::Late_Update(float timeDelta)
 json Player_BattleBase::To_Json() const
 {
     json root = GameObject::To_Json();
+    root["custom_properties"]["battle_ground_offset_y"] = _battleGroundOffsetY;
     json parts = json::array();
 
     for (const auto& [partTag, partObject] : _partObjects)
@@ -92,6 +93,14 @@ json Player_BattleBase::To_Json() const
 void Player_BattleBase::From_Json(const json& data)
 {
     Character_BattleBase::From_Json(data);
+
+    _battleGroundOffsetY = 0.f;
+
+    if (data.contains("custom_properties") && data["custom_properties"].is_object())
+    {
+        const json& customProperties = data["custom_properties"];
+        _battleGroundOffsetY = customProperties.value("battle_ground_offset_y", 0.f);
+    }
 }
 
 HRESULT Player_BattleBase::Ready_PartObjects()

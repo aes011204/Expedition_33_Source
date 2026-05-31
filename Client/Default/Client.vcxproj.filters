@@ -409,6 +409,7 @@
       <Filter>02.GameObject\Map\MapLandscape</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
+    <ClCompile Include="..\Private\UI_AddAP.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1171,6 +1172,7 @@
       <Filter>02.GameObject\Map\MapLandscape</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\BattleStartSpawner.h" />
+    <ClInclude Include="..\Public\UI_AddAP.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

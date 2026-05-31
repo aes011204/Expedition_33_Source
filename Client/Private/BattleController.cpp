@@ -680,6 +680,17 @@ void BattleController::Rebuild_TurnQueue(const BattleChar& revivedActor)
     _turnQueue = std::move(rebuiltQueue);
 }
 
+float BattleController::Resolve_PrefabGroundOffsetY(const Shared<GameObject>& actor) const
+{
+    if (Shared<Player_BattleBase> player = dynamic_pointer_cast<Player_BattleBase>(actor))
+        return player->Get_BattleGroundOffsetY();
+
+    if (Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(actor))
+        return monster->Get_BattleGroundOffsetY();
+
+    return 0.f;
+}
+
 void BattleController::SetCharInitPos()
 {
     Vec3 startPos = Vec3(145.f, 23.5f, 7.24f);
@@ -733,10 +744,11 @@ void BattleController::SetCharInitPos()
     const Vec3 playerLocalPos[3] =
     {
         { -2.5f, 0.f, 0.f },
-        {  0.f, 0.f, 0.f },
-        {  2.5f, 0.f, 0.f },
+        {  0.f, 0.1f, 0.f },
+        {  2.5f, 0.1f, 0.f },
     };
-    const Vec3 enemyBasePos = startPos + (-forward * 6.f); // 몬스터 위치 조절
+    const Vec3 enemyBasePos = startPos + (forward * 6.f); // 몬스터 위치 조절
+    const float battlePlaneY = startPos.y;
 
     Vec3 heroCenter = Vec3::Zero;
     uint32 heroCount = 0;
@@ -752,8 +764,13 @@ void BattleController::SetCharInitPos()
             right * playerLocalPos[i].x +
             Vec3::Up * playerLocalPos[i].y +
             forward * playerLocalPos[i].z;
-        hero.actor->Get_Transform()->Set_Position(placedPos);
-        heroCenter += placedPos;
+
+        Vec3 finalPos = placedPos;
+        finalPos.y = battlePlaneY
+            + Resolve_PrefabGroundOffsetY(hero.actor);
+
+        hero.actor->Get_Transform()->Set_Position(finalPos);
+        heroCenter += finalPos;
         ++heroCount;
     }
 
@@ -767,19 +784,25 @@ void BattleController::SetCharInitPos()
             continue;
 
         const Shared<TransformCom> transform = enemy.actor->Get_Transform();
+        if (transform == nullptr)
+            continue;
 
         Vec3 placedPos = enemyBasePos;
         Vec3 rotationOffset = Vec3::Zero;
+        Vec3 localOffset = Vec3::Zero;
 
         if (i < _pendingBattleMonsterSpawnDescs.size())
         {
-            const Vec3 localOffset = _pendingBattleMonsterSpawnDescs[i].offset;
+            localOffset = _pendingBattleMonsterSpawnDescs[i].offset;
             placedPos +=
                 right * localOffset.x +
-                Vec3::Up * localOffset.y +
                 forward * localOffset.z;
             rotationOffset = _pendingBattleMonsterSpawnDescs[i].rotation;
         }
+
+        placedPos.y = battlePlaneY
+            + Resolve_PrefabGroundOffsetY(enemy.actor)
+            + localOffset.y;
 
         transform->Set_Position(placedPos);
 
@@ -935,9 +958,29 @@ void BattleController::UpdateReactionInput()
     const ReactionResult result =
         _reactionController.UpdateInput(_turnAction);
 
+    if (!result.success)
+        return;
+
     // Reaction 성공 브로드캐스트
-    if (result.success)
-        OnReactionSucceeded.Broadcast(result.type, _turnAction.GetCurStepTarget());
+    if (result.apRewardAmount > 0 &&
+        result.apRewardTarget.actor != nullptr &&
+        result.apRewardTarget.statCom != nullptr)
+    {
+        const uint32 beforeAp = result.apRewardTarget.statCom->Get_CurAP();
+
+        result.apRewardTarget.statCom->Add_AP(result.apRewardAmount);
+
+        const uint32 afterAp = result.apRewardTarget.statCom->Get_CurAP();
+        const uint32 gainedAp = afterAp - beforeAp;
+
+        if (gainedAp > 0)
+        {
+            // Max치면 증가 X
+            OnBattleApChanged.Broadcast(result.apRewardTarget, gainedAp, result.apRewardReason);
+        }
+    }
+
+    OnReactionSucceeded.Broadcast(result.type, _turnAction.GetCurStepTarget());
 }
 
 bool BattleController::Try_ConsumeReactionGuard(const BattleChar& target)

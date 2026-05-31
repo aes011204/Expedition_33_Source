@@ -42,6 +42,9 @@ public:
     json    To_Json() const override;
     void    From_Json(const json& data) override;
 
+    float   Get_BattleGroundOffsetY() const { return _battleGroundOffsetY; }
+    void    Set_BattleGroundOffsetY(float value) { _battleGroundOffsetY = value; }
+
 protected:
     HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
@@ -66,6 +69,7 @@ protected:
     Shared<PlayerStatCom>       _combatStatCom;
     Shared<EffectCom>           _effectCom;
     Shared<BattleMechanismCom>  _battleMechanismCom;
+    float                       _battleGroundOffsetY = 0.f;
 
 };
 

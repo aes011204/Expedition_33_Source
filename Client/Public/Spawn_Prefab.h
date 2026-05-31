@@ -17,6 +17,7 @@ public:
         string  prefabName;
         uint32  levelIndex = ETOI(LevelType::GamePlay);
         wstring layerTag = TEXT("Layer_GameObject");
+        bool    hasExplicitLayerTag = false;
 
         json    overrides{};
     };

@@ -99,7 +99,6 @@ bool BattleReactionController::IsWindowOpen(BattleReactionType type) const
 
 BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateInput(const BattleAction& turnAction)
 {
-
     UpdateAnimation();
 
     BattleReactionInputResult result{};
@@ -161,11 +160,18 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
                 continue;
 
             PlayReactionAnimation(
-                target,
-                BattleReactionType::Parry,
-                success,
-                counterTarget,
-                curStepIndex);
+                target, BattleReactionType::Parry, success, counterTarget, curStepIndex);
+
+            if (success &&
+                result.apRewardAmount == 0 &&
+                target.actor != nullptr &&
+                target.statCom != nullptr &&
+                target.statCom->Is_Player())
+            {
+                result.apRewardTarget = target;
+                result.apRewardAmount = 1;
+                result.apRewardReason = EAPChangeReason::Parry;
+            }
         }
     }
 
@@ -183,8 +189,6 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
 {
 
     BattleReactionInputResult result{};
-
-
 
     //// 회피
     //if (pressedQ)

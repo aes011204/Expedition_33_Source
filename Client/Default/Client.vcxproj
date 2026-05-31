@@ -373,6 +373,7 @@
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
     <ClInclude Include="..\Public\Trigger_WorldAction.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
+    <ClInclude Include="..\Public\UI_AddAP.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
     <ClInclude Include="..\Public\UI_BattleAnnounce.h" />
     <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
@@ -635,6 +636,7 @@
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
     <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
+    <ClCompile Include="..\Private\UI_AddAP.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
     <ClCompile Include="..\Private\UI_BattleAnnounce.cpp" />
     <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />

@@ -49,6 +49,8 @@ public: /* Delegate 선언 */
     DECLARE_DELEGATE(FOnActionStarted, const BattleAction&);
     // Reaction (Dodge, Parry)
     DECLARE_DELEGATE(FOnReactionSucceeded, ReactionType,const vector<BattleChar>&);
+    // AP ++
+    DECLARE_DELEGATE(FOnBattleApChanged, const BattleChar&, uint32, EAPChangeReason);
 
 public:
     BattleController();
@@ -174,6 +176,7 @@ private:
     void    Activate_BattleTurnCamera();
     void    Restore_WorldCamera();
     void    Clear_BattleRuntimeState();
+    float   Resolve_PrefabGroundOffsetY(const Shared<GameObject>& actor) const;
 
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
@@ -206,6 +209,7 @@ public: /* Delegate */
     FOnTargetPreviewChanged         OnTargetPreviewChanged; // Targeting 중일 때
     FOnActionStarted                OnActionStarted;        // 공격, 스킬 시작
     FOnReactionSucceeded            OnReactionSucceeded;    // 회피, 패링 성공
+    FOnBattleApChanged              OnBattleApChanged;
 
     FDelegateHandle                 _damageAppliedHandle{};
     FDelegateHandle                 _editorStopHandle = {};

@@ -77,6 +77,7 @@ Spawn_Prefab::Builder& Spawn_Prefab::Builder::AtLevel(uint32 levelIndex)
 Spawn_Prefab::Builder& Spawn_Prefab::Builder::InLayer(const wstring& layerTag)
 {
     _spawnDesc.layerTag = layerTag;
+    _spawnDesc.hasExplicitLayerTag = true;
     return *this;
 }
 
@@ -112,6 +113,7 @@ Shared<GameObject> Spawn_Prefab::Spawn(
     desc.prefabName = prefabName;
     desc.levelIndex = levelIndex;
     desc.layerTag = layerTag;
+    desc.hasExplicitLayerTag = true;
 
     return Spawn_Implementation(desc);
 }
@@ -126,6 +128,7 @@ Shared<GameObject> Spawn_Prefab::SpawnAt(
     desc.prefabName = prefabName;
     desc.levelIndex = levelIndex;
     desc.layerTag = layerTag;
+    desc.hasExplicitLayerTag = true;
     desc.overrides["position"] = { position.x, position.y, position.z };
 
     return Spawn_Implementation(desc);
@@ -265,7 +268,15 @@ Shared<GameObject> Spawn_Prefab::Spawn_Implementation(const FSpawnDesc& desc)
 
     Apply_Overrides(gameObject, desc.overrides);
 
-    CHECK_FAILED(GAME->Add_GameObject(desc.levelIndex, desc.layerTag, gameObject), nullptr);
+    wstring layerTag = desc.layerTag;
+    if (!desc.hasExplicitLayerTag)
+    {
+        layerTag = Resolve_DefaultLayerTagFromPrefabFile(prefabPath);
+        if (layerTag.empty())
+            layerTag = Resolve_DefaultLayerTag(gameObject);
+    }
+
+    CHECK_FAILED(GAME->Add_GameObject(desc.levelIndex, layerTag, gameObject), nullptr);
 
     return gameObject;
 }
