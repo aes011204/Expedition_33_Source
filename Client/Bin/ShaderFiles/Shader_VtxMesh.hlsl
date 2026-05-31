@@ -82,6 +82,7 @@ struct PS_IN
     float2 Texcoord : TEXCOORD0;
     float4 WorldPos : TEXCOORD1;
     float4 ProjPos  : TEXCOORD2;
+    bool IsFrontFace : SV_IsFrontFace;
 };
 
 struct PS_OUT
@@ -300,6 +301,43 @@ PS_OUT_ID PS_ID(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_FaceAccessoryBeard(PS_IN In)
+{
+    PS_OUT Out;
+
+    // 수염 카드 주변을 넓게 샘플링할 좌표를 준비한다.
+    float2 centerUV = ApplyUVTransform(In.Texcoord);
+    BeardSampleCoords coords = BuildBeardSampleCoords(centerUV);
+
+    // 여러 위치의 수염 텍스처를 한 번에 읽어 풍부함 계산에 재사용한다.
+    BeardTextureSamples samples = SampleBeardTextures(coords);
+
+    // 수염 두께를 결정하는 고정 coverage를 계산한다.
+    float baseCoverage = ComputeBeardCoverage(coords, samples);
+    if (baseCoverage < 0.02f)
+        discard;
+
+    // 노멀은 표면 방향 출력만 담당하고, 두께에는 더 이상 관여하지 않는다.
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, centerUV);
+    if (!In.IsFrontFace)
+        worldNormal *= -1.f;
+
+    // coverage와 같은 범위의 밀도를 따라가며 색 끊김을 줄인다.
+    float density = ComputeBeardDensity(samples);
+
+    // 살아남은 픽셀을 하나의 짙은 수염 톤으로 묶는다.
+    float3 finalBeardColor = ComputeBeardColor(density);
+
+    // 수염 풍부함을 더 만지려면 helper 쪽 coverage와 density 함수를 먼저 조정한다.
+    Out.Diffuse = float4(finalBeardColor, baseCoverage);
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = float4(1.f, g_HairRoughness, 0.f, 1.f);
+    Out.Emissive = float4(0.f, 0.f, 0.f, 1.f);
+
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass,         RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Opaque)            // 0
@@ -314,4 +352,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(PackedAR_NMEPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME)          // 9
     PASS_RS_DS_BS_VP(PackedAR_NMETwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME) // 10
     PASS_RS_DS_BS_VP(LandscapeBlendPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_LandscapeBlend)      // 11
+    PASS_RS_DS_BS_VP(FaceAccessoryBeardPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_FaceAccessoryBeard) // 12
 }

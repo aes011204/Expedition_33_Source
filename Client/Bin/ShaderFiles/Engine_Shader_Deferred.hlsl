@@ -86,13 +86,11 @@ float SampleShadowMapPCF(Texture2DArray shadowTexture, float2 shadowUV, float cu
     return shadowAmount / 9.f;
 }
 
-// worldPos를 빛 기준 좌표로 변환하여 shadow map에서 샘플링할 UV와 현재 깊이를 계산한다.
 bool ComputeShadowCoords(float4 worldPos, row_major float4x4 lightView, row_major float4x4 lightProj, out float2 shadowUV, out float currentDepth)
 {
     float4 shadowPos = mul(worldPos, lightView);
     shadowPos = mul(shadowPos, lightProj);
 
-    // -> NDC space
     shadowUV.x = (shadowPos.x / shadowPos.w) * 0.5f + 0.5f;
     shadowUV.y = (shadowPos.y / shadowPos.w) * -0.5f + 0.5f;
     currentDepth = shadowPos.z / shadowPos.w;
@@ -100,7 +98,6 @@ bool ComputeShadowCoords(float4 worldPos, row_major float4x4 lightView, row_majo
     return shadowPos.w > 0.f && all(shadowUV >= 0.f) && all(shadowUV <= 1.f);
 }
 
-// 현재 픽셀이 몇 번째 cascade에 속하는지 선택한다. viewDepth는 view space에서의 z값이다.
 uint SelectShadowCascade(float viewDepth)
 {
     const uint cascadeCount = max(1u, g_ShadowCascadeCount);
@@ -115,20 +112,17 @@ uint SelectShadowCascade(float viewDepth)
     return cascadeCount - 1u;
 }
 
-// 현재 픽셀이 몇 번째 Cascade에 속하는지 선택한 뒤, 해당 Cascade의 shadow map에서 PCF로 그림자 양을 샘플링한다.
-// 또한, Cascade Blending이 켜져 있다면 다음 Cascade에서도 샘플링하여 두 값을 블렌딩한다. (경계를 완화하기 위함)
 float SampleDynamicShadowAmount(float4 worldPos, float viewDepth)
 {
     uint cascadeIndex = SelectShadowCascade(viewDepth);
 
     float2 shadowUV = 0.f;
-    float shadowDepth = 0.f;
-    if (!ComputeShadowCoords(worldPos, g_CascadeLightViewMatrices[cascadeIndex], g_CascadeLightProjMatrices[cascadeIndex], shadowUV, shadowDepth))
+    float currentDepth = 0.f;
+    if (!ComputeShadowCoords(worldPos, g_CascadeLightViewMatrices[cascadeIndex], g_CascadeLightProjMatrices[cascadeIndex], shadowUV, currentDepth))
         return 0.f;
 
-    float shadowAmount = SampleShadowMapPCF(g_LightDepthTexture, shadowUV, shadowDepth, cascadeIndex, g_Bias);
+    float shadowAmount = SampleShadowMapPCF(g_LightDepthTexture, shadowUV, currentDepth, cascadeIndex, g_Bias);
 
-    // cascade 경계 근처면 다음 cascade와 blend
     const uint cascadeCount = max(1u, g_ShadowCascadeCount);
     if (cascadeIndex + 1u < cascadeCount && g_CascadeBlendDistance > 0.f)
     {
@@ -139,11 +133,11 @@ float SampleDynamicShadowAmount(float4 worldPos, float viewDepth)
         if (blendFactor > 0.f)
         {
             float2 nextShadowUV = 0.f;
-            float nextShadowDepth = 0.f;
-            if (ComputeShadowCoords(worldPos, g_CascadeLightViewMatrices[cascadeIndex + 1u], g_CascadeLightProjMatrices[cascadeIndex + 1u], nextShadowUV, nextShadowDepth))
+            float nextCurrentDepth = 0.f;
+            if (ComputeShadowCoords(worldPos, g_CascadeLightViewMatrices[cascadeIndex + 1u], g_CascadeLightProjMatrices[cascadeIndex + 1u], nextShadowUV, nextCurrentDepth))
             {
                 const float nextShadowAmount =
-                    SampleShadowMapPCF(g_LightDepthTexture, nextShadowUV, nextShadowDepth, cascadeIndex + 1u, g_Bias);
+                    SampleShadowMapPCF(g_LightDepthTexture, nextShadowUV, nextCurrentDepth, cascadeIndex + 1u, g_Bias);
                 shadowAmount = lerp(shadowAmount, nextShadowAmount, blendFactor);
             }
         }
@@ -166,8 +160,8 @@ float3 GetCascadeDebugColor(uint cascadeIndex)
 float SampleStaticShadowAmount(Texture2D shadowTexture, float4 worldPos, float4x4 lightView, float4x4 lightProj, float bias)
 {
     float2 shadowUV = 0.f;
-    float shadowDepth = 0.f;
-    if (!ComputeShadowCoords(worldPos, lightView, lightProj, shadowUV, shadowDepth))
+    float currentDepth = 0.f;
+    if (!ComputeShadowCoords(worldPos, lightView, lightProj, shadowUV, currentDepth))
         return 0.f;
 
     uint shadowWidth, shadowHeight;
@@ -184,16 +178,13 @@ float SampleStaticShadowAmount(Texture2D shadowTexture, float4 worldPos, float4x
         {
             float2 sampleUV = shadowUV + float2(x, y) * shadowTexel;
             float storedDepth = shadowTexture.Sample(PointClampSampler, sampleUV).x;
-            shadowAmount += (storedDepth + bias < shadowDepth) ? 1.f : 0.f;
+            shadowAmount += (storedDepth + bias < currentDepth) ? 1.f : 0.f;
         }
     }
 
     return shadowAmount / 9.f;
 }
 
-// ==================================================
-// SSAO 계산을 위한 유틸리티 함수들
-// ==================================================
 // hemisphere sample kernel
 static const float3 SSAOKernel[16] =
 {
