@@ -184,6 +184,7 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
     acquireDesc.layerLevelIndex = desc.levelIndex;
     acquireDesc.layerTag = desc.layerTag;
     acquireDesc.worldPosition = spawnWorldPosition;
+    acquireDesc.scale = desc.scale;
     acquireDesc.trailSampleProvider = desc.trailSampleProvider;
 
     EffectInstancePool::AttachedHandle handle{};

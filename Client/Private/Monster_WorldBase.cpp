@@ -135,9 +135,9 @@ void Monster_WorldBase::Update(float timeDelta)
     {
         if (_currentAction != _previousAction)
         {
-            LOG_DEBUG("Monster_WorldBase action change current={} previous={}",
-                ETOI(_currentAction),
-                ETOI(_previousAction));
+            //LOG_DEBUG("Monster_WorldBase action change current={} previous={}",
+            //    ETOI(_currentAction),
+            //    ETOI(_previousAction));
 
             bool applied = false;
 
@@ -163,10 +163,10 @@ void Monster_WorldBase::Update(float timeDelta)
             if (Shared<ModelCom> model = bodyPart->Get_Model())
             {
                 const char* animName = model->Get_AnimationName(model->Get_CurrentAnimationIndex());
-                LOG_DEBUG("Monster_WorldBase action applied={} currentAction={} currentAnim={}",
-                    applied,
-                    ETOI(_currentAction),
-                    animName != nullptr ? animName : "<null>");
+                //LOG_DEBUG("Monster_WorldBase action applied={} currentAction={} currentAnim={}",
+                //    applied,
+                //    ETOI(_currentAction),
+                //    animName != nullptr ? animName : "<null>");
             }
 
             
