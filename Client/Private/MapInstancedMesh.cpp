@@ -1,4 +1,4 @@
-#include "MapInstancedMesh.h"
+﻿#include "MapInstancedMesh.h"
 #include "GameInstance.h"
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
@@ -377,8 +377,6 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         bd.ByteWidth = sizeof(Matrix) * count;
         bd.Usage = D3D11_USAGE_DEFAULT;
         bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-        bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-        bd.StructureByteStride = sizeof(Matrix);
 
         _visibleVB.Reset();
         if (FAILED(_device->CreateBuffer(&bd, nullptr, _visibleVB.GetAddressOf())))
@@ -455,6 +453,10 @@ void MapInstancedMesh::DispatchCull()
         params.planes[i] = planes[i];
     }
     params.totalCount = _instanceCount;
+    params.maxDist = INSTANCE_CULL_DIST;
+
+    const Vec4* cam4 = GAME->Get_CamPosition();
+    params.camPos = Vec3(cam4->x, cam4->y, cam4->z);
 
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (FAILED(_context->Map(_cullCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))

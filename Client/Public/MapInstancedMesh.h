@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Client_Defines.h"
 #include "GameObject.h"
 
@@ -21,6 +21,9 @@ struct InstanceTransform
 class MapInstancedMesh final : public GameObject
 {
     GENERATED_GAMEOBJECT(MapInstancedMesh, ObjectType::StaticMesh)
+
+private:
+    static constexpr float INSTANCE_CULL_DIST = 100.f;
 
 public:
     typedef struct tagMapInstancedMeshDesc final : public GameObject::GAMEOBJECT_DESC
