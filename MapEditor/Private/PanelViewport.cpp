@@ -6,6 +6,8 @@
 #include "SceneContext.h"
 #include "CmdTransformObject.h"
 #include "MEPickingSystem.h"
+#include "GameInstance.h"
+#include "LightingPipeline.h"
 
 PanelViewport::PanelViewport(Shared<MECamera> camera, Shared<RenderTarget> rt, SceneContext* ctx)
     : MEWindow{ L"Viewport" }, _camera{ camera }, _rt{ rt }, _ctx{ ctx }
@@ -90,6 +92,19 @@ void PanelViewport::Render()
                     ImGui::SliderFloat("Rotate", &sens, 0.001f, 0.01f, "%.4f");
                     ImGui::Checkbox("BBox", &_ctx->_objectBBoxMode);
                     ImGui::Checkbox("Instance 숨기기", &_ctx->_hideInstancedMesh);
+
+                    if (auto lp = GAME->Get_LightingPipeline())
+                    {
+                        bool iblOn = lp->Is_IBLEnabled();
+                        if (ImGui::Checkbox("IBL", &iblOn))
+                            lp->Set_IBLEnabled(iblOn);
+                        if (iblOn)
+                        {
+                            auto& params = lp->Get_DeferredLightingParams();
+                            ImGui::SetNextItemWidth(160.f);
+                            ImGui::DragFloat("IBL Intensity", &params.iblIntensity, 0.01f, 0.f, 8.f, "%.2f");
+                        }
+                    }
                 }
                 ImGui::End();
             }

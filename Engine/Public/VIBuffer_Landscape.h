@@ -78,6 +78,8 @@ public:
     float Sample_Height(float worldX, float worldZ) const;
     void Paint_Layer(uint32 layerIdx, float worldX, float worldZ, float radius, float strength);
     void Clear_Layers();
+    void Remove_Layer(uint32 idx);
+    void Swap_Layer(uint32 a, uint32 b);
 
 public:
     static Shared<VIBuffer_Landscape> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const LAND_DESC& desc);

@@ -22,6 +22,16 @@ private:
         const wchar_t* layerTag = nullptr;
     };
 
+    // land
+    struct LevelLandscapeDesc
+    {
+        LevelType level = LevelType::END;
+        array<const WCHAR*, 8> hmapPaths = {};
+        size_t hmapPathCount = {};
+        const WCHAR* texRoot = {};
+        const WCHAR* layerTag = {};
+    };
+
 public:
     Loader(const ComPtr<Device>& device, const ComPtr<Context>& context);
     virtual ~Loader() = default;
@@ -87,6 +97,9 @@ private: /* 맵 로딩 */
     HRESULT         Process_LevelMapLoad(size_t maxMeshesPerFrame, chrono::milliseconds maxTimePerFrame);
 
     const LevelMapLoadDesc* Find_MapLoadDesc() const;
+
+    HRESULT Process_LevelLandscapeLoad();
+    const LevelLandscapeDesc* Find_LandscapeDesc() const;
 
 private:
     struct LoadJobStats
@@ -159,6 +172,10 @@ private: /* 맵 로딩 */
     MapLoader::LoadSession _mapLoadSession{};
     umap<string, Shared<ModelCom>> _mapPreloadedModelCache = {};
     umap<string, Shared<StaticCollisionData>> _mapPreloadedCollisionCache = {};
+
+    // add
+    bool _landscapeLoadFinished = false;
+    size_t _landscapeLoadIndex = {};
 
 public:
     static Shared<Loader> Create(const ComPtr<Device>& device, const ComPtr<Context>& context, LevelType eNextLevelID);
