@@ -1009,14 +1009,26 @@ void EffectAssetRuntimeLoader::Fill_RotationOverLifePayload(PointParticleRotatio
     if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
         return;
 
-    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
+    vector<const json*> keys{};
+    keys.reserve(keysIter->size());
+    for (const json& key : *keysIter)
+        keys.push_back(&key);
+    ranges::sort(
+        keys,
+        [](const json* lhs, const json* rhs)
+        {
+            return Read_Float(*lhs, "time") < Read_Float(*rhs, "time");
+        }
+    );
+
+    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
     desc.rotationOverLifeCurveKeyCount = keyCount;
     desc.rotationOverLifeCurveTimes = Vec4{};
     desc.rotationOverLifeCurveValues = Vec4{};
 
     for (uint32 index = 0; index < keyCount; ++index)
     {
-        const json& key = (*keysIter)[index];
+        const json& key = *keys[index];
         Set_SubUVFrameCurveComponent(
             desc.rotationOverLifeCurveTimes,
             index,
@@ -1810,40 +1822,16 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
     if (const json* spawn = Find_ModuleData(emitter, "Spawn"))
         Apply_SpawnModule(*spawn, desc);
 
-    if (const json* initialSize = Find_ModuleData(emitter, "InitialSize"))
+    if (const json* initialMeshSize = Find_ModuleData(emitter, "InitialMeshSize"))
     {
-        desc.initialSize.enabled = true;
-        const auto sizeIter = initialSize->find("size");
-        if (sizeIter != initialSize->end())
+        const auto sizeIter = initialMeshSize->find("size");
+        if (sizeIter != initialMeshSize->end())
         {
-            const Vec2 minSize = Evaluate_Vector2DistributionMin(*sizeIter, desc.initialSize.sizeMin);
-            const Vec2 maxSize = Evaluate_Vector2DistributionMax(*sizeIter, desc.initialSize.sizeMax);
-            desc.initialSize.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
-            desc.initialSize.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
-        }
-
-        desc.meshTransform.initialScaleEnabled = true;
-        const json* meshSizeIter = nullptr;
-        if (const auto iter = initialSize->find("meshSize"); iter != initialSize->end())
-            meshSizeIter = &*iter;
-
-        if (meshSizeIter != nullptr)
-        {
-            const Vec3 minSize = Evaluate_Vector3DistributionMin(
-                *meshSizeIter,
-                Vec3{ desc.initialSize.sizeMin.x, desc.initialSize.sizeMin.y, desc.initialSize.sizeMin.x }
-            );
-            const Vec3 maxSize = Evaluate_Vector3DistributionMax(
-                *meshSizeIter,
-                Vec3{ desc.initialSize.sizeMax.x, desc.initialSize.sizeMax.y, desc.initialSize.sizeMax.x }
-            );
+            desc.meshTransform.initialScaleEnabled = true;
+            const Vec3 minSize = Evaluate_Vector3DistributionMin(*sizeIter, desc.meshTransform.initialScaleMin);
+            const Vec3 maxSize = Evaluate_Vector3DistributionMax(*sizeIter, desc.meshTransform.initialScaleMax);
             desc.meshTransform.initialScaleMin = Vec3{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y), min(minSize.z, maxSize.z) };
             desc.meshTransform.initialScaleMax = Vec3{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y), max(minSize.z, maxSize.z) };
-        }
-        else
-        {
-            desc.meshTransform.initialScaleMin = Vec3{ desc.initialSize.sizeMin.x, desc.initialSize.sizeMin.y, desc.initialSize.sizeMin.x };
-            desc.meshTransform.initialScaleMax = Vec3{ desc.initialSize.sizeMax.x, desc.initialSize.sizeMax.y, desc.initialSize.sizeMax.x };
         }
     }
 
@@ -1935,29 +1923,18 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
     }
 
-    if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
+    if (const json* meshSizeByLife = Find_ModuleData(emitter, "MeshSizeByLife"))
     {
-        Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
-        if (const auto meshScaleIter = sizeByLife->find("meshScaleOverLife"); meshScaleIter != sizeByLife->end())
+        const auto scaleIter = meshSizeByLife->find("scaleOverLife");
+        if (scaleIter != meshSizeByLife->end())
         {
-            Fill_MeshVector3CurvePayload(desc.meshTransform.scaleByLife, *meshScaleIter, Vec3{ 1.f, 1.f, 1.f });
-            if (!Read_Bool(*sizeByLife, "multiplyX", true))
+            Fill_MeshVector3CurvePayload(desc.meshTransform.scaleByLife, *scaleIter, Vec3{ 1.f, 1.f, 1.f });
+            if (!Read_Bool(*meshSizeByLife, "multiplyX", true))
                 desc.meshTransform.scaleByLife.curveKeyValuesX = Vec4{ 1.f, 1.f, 1.f, 1.f };
-            if (!Read_Bool(*sizeByLife, "multiplyY", true))
+            if (!Read_Bool(*meshSizeByLife, "multiplyY", true))
                 desc.meshTransform.scaleByLife.curveKeyValuesY = Vec4{ 1.f, 1.f, 1.f, 1.f };
-            if (!Read_Bool(*sizeByLife, "multiplyZ", true))
+            if (!Read_Bool(*meshSizeByLife, "multiplyZ", true))
                 desc.meshTransform.scaleByLife.curveKeyValuesZ = Vec4{ 1.f, 1.f, 1.f, 1.f };
-        }
-        else if (const auto scaleIter = sizeByLife->find("scaleOverLife"); scaleIter != sizeByLife->end())
-        {
-            const Vec2 startValue = Evaluate_Vector2DistributionMin(*scaleIter, Vec2{ 1.f, 1.f });
-            const Vec2 endValue = Evaluate_Vector2DistributionMax(*scaleIter, Vec2{ 1.f, 1.f });
-            desc.meshTransform.scaleByLife.enabled = true;
-            desc.meshTransform.scaleByLife.start = Vec3{ startValue.x, startValue.y, startValue.x };
-            desc.meshTransform.scaleByLife.end = Vec3{ endValue.x, endValue.y, endValue.x };
-            desc.meshTransform.scaleByLife.curveKeyValuesX = Vec4{ startValue.x, endValue.x, 0.f, 0.f };
-            desc.meshTransform.scaleByLife.curveKeyValuesY = Vec4{ startValue.y, endValue.y, 0.f, 0.f };
-            desc.meshTransform.scaleByLife.curveKeyValuesZ = Vec4{ startValue.x, endValue.x, 0.f, 0.f };
         }
     }
 
@@ -2029,76 +2006,50 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         };
     }
 
-    if (const json* initialRotation = Find_ModuleData(emitter, "InitialRotation"))
+    if (const json* initialMeshRotation = Find_ModuleData(emitter, "InitialMeshRotation"))
     {
-        desc.rotation.enabled = true;
-        const auto rotationIter = initialRotation->find("rotationDegrees");
-        if (rotationIter != initialRotation->end())
+        const auto rotationIter = initialMeshRotation->find("rotationDegrees");
+        if (rotationIter != initialMeshRotation->end())
         {
-            desc.rotation.initialRotationDegrees = Vec2{
-                Evaluate_FloatDistributionMin(*rotationIter, desc.rotation.initialRotationDegrees.x),
-                Evaluate_FloatDistributionMax(*rotationIter, desc.rotation.initialRotationDegrees.y)
-            };
-        }
-
-        desc.meshTransform.rotationEnabled = true;
-        if (const auto meshRotationIter = initialRotation->find("meshRotationDegrees"); meshRotationIter != initialRotation->end())
-        {
-            const Vec3 minRotation = Evaluate_Vector3DistributionMin(*meshRotationIter, Vec3{});
-            const Vec3 maxRotation = Evaluate_Vector3DistributionMax(*meshRotationIter, Vec3{});
+            const Vec3 minRotation = Evaluate_Vector3DistributionMin(*rotationIter, Vec3{});
+            const Vec3 maxRotation = Evaluate_Vector3DistributionMax(*rotationIter, Vec3{});
+            desc.meshTransform.rotationEnabled = true;
             desc.meshTransform.initialRotationDegreesMin = Vec3{ min(minRotation.x, maxRotation.x), min(minRotation.y, maxRotation.y), min(minRotation.z, maxRotation.z) };
             desc.meshTransform.initialRotationDegreesMax = Vec3{ max(minRotation.x, maxRotation.x), max(minRotation.y, maxRotation.y), max(minRotation.z, maxRotation.z) };
         }
-        else
+    }
+
+    if (const json* meshRotationOverLife = Find_ModuleData(emitter, "MeshRotationOverLife"))
+    {
+        const auto rotationIter = meshRotationOverLife->find("rotationOverLife");
+        if (rotationIter != meshRotationOverLife->end())
         {
-            desc.meshTransform.initialRotationDegreesMin = Vec3{ desc.rotation.initialRotationDegrees.x, desc.rotation.initialRotationDegrees.x, desc.rotation.initialRotationDegrees.x };
-            desc.meshTransform.initialRotationDegreesMax = Vec3{ desc.rotation.initialRotationDegrees.y, desc.rotation.initialRotationDegrees.y, desc.rotation.initialRotationDegrees.y };
+            desc.meshTransform.rotationEnabled = true;
+            Fill_MeshVector3CurvePayload(desc.meshTransform.rotationByLife, *rotationIter, Vec3{});
         }
     }
 
-    if (const json* rotationOverLife = Find_ModuleData(emitter, "RotationOverLife"))
+    if (const json* initialMeshRotationRate = Find_ModuleData(emitter, "InitialMeshRotationRate"))
     {
-        desc.rotation.enabled = true;
-        Fill_RotationOverLifePayload(desc.rotation, *rotationOverLife);
-        desc.meshTransform.rotationEnabled = true;
-        if (const auto meshRotationIter = rotationOverLife->find("meshRotationOverLife"); meshRotationIter != rotationOverLife->end())
-            Fill_MeshVector3CurvePayload(desc.meshTransform.rotationByLife, *meshRotationIter, Vec3{});
-    }
-
-    if (const json* initialRotationRate = Find_ModuleData(emitter, "InitialRotationRate"))
-    {
-        desc.rotation.enabled = true;
-        const auto rotationRateIter = initialRotationRate->find("rotationRateDegrees");
-        if (rotationRateIter != initialRotationRate->end())
+        const auto rotationRateIter = initialMeshRotationRate->find("rotationRateDegrees");
+        if (rotationRateIter != initialMeshRotationRate->end())
         {
-            desc.rotation.initialRotationRateDegrees = Vec2{
-                Evaluate_FloatDistributionMin(*rotationRateIter, desc.rotation.initialRotationRateDegrees.x),
-                Evaluate_FloatDistributionMax(*rotationRateIter, desc.rotation.initialRotationRateDegrees.y)
-            };
-        }
-
-        desc.meshTransform.rotationEnabled = true;
-        if (const auto meshRateIter = initialRotationRate->find("meshRotationRateDegrees"); meshRateIter != initialRotationRate->end())
-        {
-            const Vec3 minRate = Evaluate_Vector3DistributionMin(*meshRateIter, Vec3{});
-            const Vec3 maxRate = Evaluate_Vector3DistributionMax(*meshRateIter, Vec3{});
+            const Vec3 minRate = Evaluate_Vector3DistributionMin(*rotationRateIter, Vec3{});
+            const Vec3 maxRate = Evaluate_Vector3DistributionMax(*rotationRateIter, Vec3{});
+            desc.meshTransform.rotationEnabled = true;
             desc.meshTransform.initialAngularVelocityDegreesMin = Vec3{ min(minRate.x, maxRate.x), min(minRate.y, maxRate.y), min(minRate.z, maxRate.z) };
             desc.meshTransform.initialAngularVelocityDegreesMax = Vec3{ max(minRate.x, maxRate.x), max(minRate.y, maxRate.y), max(minRate.z, maxRate.z) };
         }
-        else
-        {
-            desc.meshTransform.initialAngularVelocityDegreesMin = Vec3{ desc.rotation.initialRotationRateDegrees.x, desc.rotation.initialRotationRateDegrees.x, desc.rotation.initialRotationRateDegrees.x };
-            desc.meshTransform.initialAngularVelocityDegreesMax = Vec3{ desc.rotation.initialRotationRateDegrees.y, desc.rotation.initialRotationRateDegrees.y, desc.rotation.initialRotationRateDegrees.y };
-        }
     }
 
-    if (const json* rotationRateScaleByLife = Find_ModuleData(emitter, "RotationRateScaleByLife"))
+    if (const json* meshRotationRateScaleByLife = Find_ModuleData(emitter, "MeshRotationRateScaleByLife"))
     {
-        desc.rotation.enabled = true;
-        Fill_RotationRateScaleByLifePayload(desc.rotation, *rotationRateScaleByLife);
-        desc.meshTransform.rotationEnabled = true;
-        if (const auto meshScaleIter = rotationRateScaleByLife->find("meshScaleOverLife"); meshScaleIter != rotationRateScaleByLife->end())
-            Fill_MeshVector3CurvePayload(desc.meshTransform.angularVelocityScaleByLife, *meshScaleIter, Vec3{ 1.f, 1.f, 1.f });
+        const auto scaleIter = meshRotationRateScaleByLife->find("scaleOverLife");
+        if (scaleIter != meshRotationRateScaleByLife->end())
+        {
+            desc.meshTransform.rotationEnabled = true;
+            Fill_MeshVector3CurvePayload(desc.meshTransform.angularVelocityScaleByLife, *scaleIter, Vec3{ 1.f, 1.f, 1.f });
+        }
     }
 
     if (desc.modelGuid.empty() && desc.modelPath.empty())

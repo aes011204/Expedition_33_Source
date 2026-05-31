@@ -261,10 +261,10 @@ struct MeshVector3CurveRuntimeDesc
 // mesh emitter 전용 Vec3 scale/rotation runtime payload다.
 struct MeshTransformRuntimeDesc
 {
-    bool initialScaleEnabled{ false };                         // InitialSize mesh Vec3 payload 연결 여부다.
+    bool initialScaleEnabled{ false };                         // InitialMeshSize Vec3 payload 연결 여부다.
     Vec3 initialScaleMin{ 0.12f, 0.12f, 0.12f };                // spawn 시 mesh scale 하한이다.
     Vec3 initialScaleMax{ 0.28f, 0.28f, 0.28f };                // spawn 시 mesh scale 상한이다.
-    MeshVector3CurveRuntimeDesc scaleByLife{};                 // SizeByLife mesh Vec3 multiplier다.
+    MeshVector3CurveRuntimeDesc scaleByLife{};                 // MeshSizeByLife Vec3 multiplier다.
 
     bool rotationEnabled{ false };                             // rotation 계열 모듈 연결 여부다.
     Vec3 initialRotationDegreesMin{ 0.f, 0.f, 0.f };            // spawn 시 Euler rotation 하한이다.
@@ -287,12 +287,9 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
     EffectDrawLimitRuntimeDesc drawLimit{};        // Required 모듈에서 mesh draw 제출 상한으로 소비하는 규칙이다.
     EffectSpawnRuntimeDesc spawn{};                // Spawn 모듈에서 mesh particle 활성화 규칙으로 소비하는 payload다.
     EffectLifetimeRuntimeDesc lifetime{};          // Lifetime 모듈에서 mesh particle age/max life로 소비하는 payload다.
-    EffectInitialSizeRuntimeDesc initialSize{};    // InitialSize 모듈에서 mesh uniform scale로 낮춰 소비하는 payload다.
     EffectInitialColorRuntimeDesc initialColor{};  // InitialColor 모듈에서 mesh particle 시작 색으로 소비하는 payload다.
     EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 mesh particle color/fade로 소비하는 payload다.
-    PointParticleSizeByLifeDesc sizeByLife{};      // SizeByLife 모듈에서 mesh uniform scale multiplier로 낮춰 소비하는 payload다.
     PointParticleMotionDesc motion{};              // InitialVelocity/RadialVelocity 모듈에서 mesh particle 위치 갱신으로 소비하는 payload다.
-    PointParticleRotationDesc rotation{};          // InitialRotation/InitialRotationRate 모듈에서 mesh Z roll로 낮춰 소비하는 payload다.
     PointParticleInitialLocationDesc initialLocation{}; // InitialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
     PointParticleSphereLocationDesc sphereLocation{};   // SphereLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
     MeshTransformRuntimeDesc meshTransform{};       // Mesh 전용 Vec3 scale/rotation payload다.

@@ -1,7 +1,6 @@
 ﻿#include "MeshEmitter.h"
 
 #include "GameInstance.h"
-#include "Material.h"
 #include "ModelCom.h"
 #include "Renderer_Define.h"
 #include "ShaderCom.h"
@@ -11,20 +10,6 @@
 
 namespace Internal
 {
-constexpr D3D11_INPUT_ELEMENT_DESC kEffectMeshInputElements[] = {
-    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    { "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    { "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    { "INST_WORLD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-    { "INST_WORLD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-    { "INST_WORLD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-    { "INST_WORLD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-    { "INST_COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-    { "INST_LIFE", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 80, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-};
-
 float Read_Vec4Component(const Vec4& values, uint32 index)
 {
     switch (index)
@@ -241,7 +226,7 @@ void MeshEmitter::On_EffectTransformSynced()
 void MeshEmitter::Log_DescPayload(const char* context) const
 {
     LOG_INFO(
-        "MeshEmitter desc payload. context={}, emitter='{}', spawnCount={}, spawnRate={}, bursts={}, life=({}, {}), initialSize={}, sizeByLife={}, motion={}, acceleration={}, drag=({}, {}), velocityScale=({}, {}), rotation={}, colorCurve={}, alphaCurve={}",
+        "MeshEmitter desc payload. context={}, emitter='{}', spawnCount={}, spawnRate={}, bursts={}, life=({}, {}), meshInitialScale={}, meshScaleByLife={}, motion={}, acceleration={}, drag=({}, {}), velocityScale=({}, {}), meshRotation={}, meshRotationMin=({}, {}, {}), meshRotationMax=({}, {}, {}), colorCurve={}, alphaCurve={}",
         context,
         _emitterName,
         _desc.spawn.instanceCount,
@@ -249,8 +234,8 @@ void MeshEmitter::Log_DescPayload(const char* context) const
         static_cast<uint32>(_desc.spawn.particleSpawn.bursts.size()),
         _desc.lifetime.lifeTime.x,
         _desc.lifetime.lifeTime.y,
-        _desc.initialSize.enabled,
-        _desc.sizeByLife.enabled,
+        _desc.meshTransform.initialScaleEnabled,
+        _desc.meshTransform.scaleByLife.enabled,
         _desc.motion.enabled,
         Internal::Has_NonZeroVector(_desc.motion.accelerationMin) ||
         Internal::Has_NonZeroVector(_desc.motion.accelerationMax),
@@ -258,7 +243,13 @@ void MeshEmitter::Log_DescPayload(const char* context) const
         _desc.motion.drag.y,
         _desc.motion.velocityScaleByLife.x,
         _desc.motion.velocityScaleByLife.y,
-        _desc.rotation.enabled,
+        _desc.meshTransform.rotationEnabled,
+        _desc.meshTransform.initialRotationDegreesMin.x,
+        _desc.meshTransform.initialRotationDegreesMin.y,
+        _desc.meshTransform.initialRotationDegreesMin.z,
+        _desc.meshTransform.initialRotationDegreesMax.x,
+        _desc.meshTransform.initialRotationDegreesMax.y,
+        _desc.meshTransform.initialRotationDegreesMax.z,
         _desc.colorOverLife.curve.colorCurveEnabled,
         _desc.colorOverLife.curve.alphaCurveEnabled
     );
@@ -317,7 +308,6 @@ HRESULT MeshEmitter::Apply_DescForReload(const MeshEmitterDesc& desc)
 {
     const auto totalBegin = std::chrono::steady_clock::now();
     _desc = desc;
-    Log_DescPayload("reload");
     Reset_PlaybackRuntime();
 
     const auto materialBegin = std::chrono::steady_clock::now();
@@ -420,31 +410,13 @@ HRESULT MeshEmitter::Ready_Components()
 
 HRESULT MeshEmitter::Ready_Shader()
 {
-    const wstring shaderPath = Resolve_ShaderPath();
-    if (shaderPath.empty())
-    {
-        LOG_WARN(
-            "MeshEmitter shader missing: effect mesh shader path could not be resolved. emitter='{}', shader='{}'",
-            _emitterName,
-            kMeshShaderPath
-        );
-        return E_FAIL;
-    }
-
-    _shader = ShaderCom::Create(
-        _device,
-        _context,
-        shaderPath.c_str(),
-        Internal::kEffectMeshInputElements,
-        static_cast<uint32>(_countof(Internal::kEffectMeshInputElements)),
-        ShaderType::VtxInstanceMeshExact
-    );
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), String::ToWString(kEffectMeshShaderId), _shader), E_FAIL);
     if (_shader == nullptr)
     {
         LOG_WARN(
-            "MeshEmitter shader missing: effect mesh shader create failed. emitter='{}', shaderPath='{}'",
+            "MeshEmitter shader missing: effect mesh shader prototype is missing. emitter='{}', shaderId='{}'",
             _emitterName,
-            String::ToString(shaderPath)
+            kEffectMeshShaderId
         );
         return E_FAIL;
     }
@@ -965,31 +937,6 @@ wstring MeshEmitter::Resolve_MaterialTexturePath(const string& textureGuid, cons
     return fs::exists(resolvedPath) ? resolvedPath.wstring() : wstring{};
 }
 
-wstring MeshEmitter::Resolve_ShaderPath() const
-{
-    const fs::path configuredPath = String::ToWString(kMeshShaderPath);
-    vector<fs::path> candidates{};
-    candidates.push_back(configuredPath);
-
-    if (configuredPath.is_relative())
-    {
-        candidates.push_back(fs::current_path() / configuredPath);
-        candidates.push_back(fs::current_path() / L"Client/Bin/ShaderFiles/Shader_EffectMesh.hlsl");
-        candidates.push_back(fs::current_path() / L"../Client/Bin/ShaderFiles/Shader_EffectMesh.hlsl");
-        if (GAME != nullptr)
-            candidates.push_back(fs::path(GAME->Get_AssetRoot()).parent_path().parent_path() / L"Bin/ShaderFiles/Shader_EffectMesh.hlsl");
-    }
-
-    for (const fs::path& candidate : candidates)
-    {
-        const fs::path normalized = candidate.lexically_normal();
-        if (fs::exists(normalized))
-            return normalized.wstring();
-    }
-
-    return {};
-}
-
 Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) const
 {
     const float lifeProgress = clamp(particle.age / max(0.0001f, particle.lifeMax), 0.f, 1.f);
@@ -1007,11 +954,12 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
         particle.rotationRadians.z + XMConvertToRadians(rotationByLife.z)
     };
 
+    Quat rotation = Quat::CreateFromYawPitchRoll(rotationRadians.y, rotationRadians.x, rotationRadians.z);
+    rotation.Normalize();
+
     return
         Matrix::CreateScale(scale) *
-        Matrix::CreateRotationX(rotationRadians.x) *
-        Matrix::CreateRotationY(rotationRadians.y) *
-        Matrix::CreateRotationZ(rotationRadians.z) *
+        Matrix::CreateFromQuaternion(rotation) *
         Matrix::CreateTranslation(position);
 }
 
@@ -1143,9 +1091,15 @@ Vec3 MeshEmitter::Sample_InitialAngularVelocity(uint32 seed) const
         return Vec3{};
 
     return Vec3{
-        XMConvertToRadians(RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.x, _desc.meshTransform.initialAngularVelocityDegreesMax.x, seed + 1u)),
-        XMConvertToRadians(RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.y, _desc.meshTransform.initialAngularVelocityDegreesMax.y, seed + 2u)),
-        XMConvertToRadians(RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.z, _desc.meshTransform.initialAngularVelocityDegreesMax.z, seed + 3u))
+        XMConvertToRadians(
+            RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.x, _desc.meshTransform.initialAngularVelocityDegreesMax.x, seed + 1u)
+        ),
+        XMConvertToRadians(
+            RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.y, _desc.meshTransform.initialAngularVelocityDegreesMax.y, seed + 2u)
+        ),
+        XMConvertToRadians(
+            RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.z, _desc.meshTransform.initialAngularVelocityDegreesMax.z, seed + 3u)
+        )
     };
 }
 
@@ -1326,6 +1280,9 @@ float MeshEmitter::Random01(uint32 seed) const
 
 float MeshEmitter::RandomRange(float minValue, float maxValue, uint32 seed) const
 {
+    if (minValue > maxValue)
+        std::swap(minValue, maxValue);
+
     return lerp(minValue, maxValue, Random01(seed));
 }
 

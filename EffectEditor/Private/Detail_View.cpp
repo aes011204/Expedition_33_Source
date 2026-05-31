@@ -918,6 +918,11 @@ void Detail_View::Render_ModuleDetail(
             changed = _initialSizeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::InitialMeshSize:
+        if (auto* data = get_if<InitialMeshSizeModuleData>(&module.data))
+            changed = _initialMeshSizeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialLocation:
         if (auto* data = get_if<InitialLocationModuleData>(&module.data))
             changed = _initialLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
@@ -973,6 +978,26 @@ void Detail_View::Render_ModuleDetail(
             changed = _rotationRateScaleByLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::InitialMeshRotation:
+        if (auto* data = get_if<InitialMeshRotationModuleData>(&module.data))
+            changed = _initialMeshRotationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::MeshRotationOverLife:
+        if (auto* data = get_if<MeshRotationOverLifeModuleData>(&module.data))
+            changed = _meshRotationOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::InitialMeshRotationRate:
+        if (auto* data = get_if<InitialMeshRotationRateModuleData>(&module.data))
+            changed = _initialMeshRotationRateModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::MeshRotationRateScaleByLife:
+        if (auto* data = get_if<MeshRotationRateScaleByLifeModuleData>(&module.data))
+            changed = _meshRotationRateScaleByLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialColor:
         if (auto* data = get_if<InitialColorModuleData>(&module.data))
             changed = _initialColorModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
@@ -991,6 +1016,11 @@ void Detail_View::Render_ModuleDetail(
     case AuthoringModuleType::SizeByLife:
         if (auto* data = get_if<SizeByLifeModuleData>(&module.data))
             changed = _sizeByLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::MeshSizeByLife:
+        if (auto* data = get_if<MeshSizeByLifeModuleData>(&module.data))
+            changed = _meshSizeByLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::SpawnPerUnit:
