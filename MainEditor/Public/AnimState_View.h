@@ -43,6 +43,8 @@ private:
 
 private:
     void Refresh_AnimationList();
+    void Rebuild_PreviewClone();
+    void Reset_PreviewClone();
 
     void Draw_Header();
     void Draw_AnimationSelector();
@@ -92,6 +94,8 @@ private:
 private:
     wstring _sourceModelPath{};
     Shared<ModelCom> _liveModelCom{};
+    Shared<GameObject> _previewRootObject{};
+    Shared<ModelCom> _previewModelCom{};
     Shared<RenderTarget> _previewRenderTarget{};
     Shared<Editor_Camera_Free> _previewCamera{};
     Shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> _previewGridBatch{};
@@ -113,6 +117,7 @@ private:
 
     uint32 _previewWidth = 640;
     uint32 _previewHeight = 360;
+    wstring _previewOwnerObjectKey{};
 
 private:
     string _enumTypeName{};

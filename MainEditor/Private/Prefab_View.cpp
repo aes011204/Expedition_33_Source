@@ -14,6 +14,7 @@
 #include "ColliderCom.h"
 #include "ModelCom.h"
 #include "Monster_WorldBase.h"
+#include "PreviewObjectHelpers.h"
 #include "RenderTarget.h"
 #include "Transform_Inspector.h"
 #include "Weapon.h"
@@ -93,7 +94,6 @@ void Prefab_View::Pre_Render()
     const Shared<Camera> savedActiveCamera = GAME->Get_ActiveCamera();
     const uint32 savedViewportWidth = GAME->Get_ViewportWidth();
     const uint32 savedViewportHeight = GAME->Get_ViewportHeight();
-
     vector<LIGHT_DESC> savedLightDescs{};
     GAME->Get_LightDescs(savedLightDescs);
     const bool wasPlayerInputBlocked = GAME->Is_PlayerInputBlocked();
@@ -140,11 +140,14 @@ void Prefab_View::Pre_Render()
     const float dt = ImGui::GetIO().DeltaTime;
     GAME->Set_PlayerInputBlocked(true);
 
-    _previewObject->Priority_Update(dt);
-    _previewObject->Update(dt);
+    if (!_previewHasBegunPlay)
+    {
+        PreviewObjectHelpers::Prime_PreviewObject(_previewObject);
+        _previewHasBegunPlay = true;
+    }
+
     GAME->Backup_RenderGroup();
-    _previewObject->Late_Update(dt);
-    Lock_PreviewObjectToOrigin();
+    PreviewObjectHelpers::Update_PreviewObject(_previewObject, dt);
 
     function<void(const Shared<GameObject>&)> forceVisibleRecursive =
         [&](const Shared<GameObject>& gameObject)
@@ -403,7 +406,9 @@ void Prefab_View::Open_Prefab(const string& prefabName, const fs::path& prefabPa
 
     if (_previewObject)
     {
-        Disable_PreviewAnimNotifyExecution(_previewObject);
+        PreviewObjectHelpers::Disable_PreviewAnimNotifyExecution(_previewObject);
+        PreviewObjectHelpers::Prime_PreviewObject(_previewObject);
+        _previewHasBegunPlay = true;
         _sourceStaticClass = _previewObject->Get_ReflectionInfo().className;
 
         if (_sourceStaticClass.empty())

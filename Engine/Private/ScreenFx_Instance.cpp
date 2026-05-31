@@ -28,11 +28,7 @@ HRESULT ScreenFx_Instance::Initialize(ScreenFxDesc* desc)
 
 bool ScreenFx_Instance::Check_EndCondition()
 {
-<<<<<<< HEAD
     //if (_endCondition.GetBindingCount() == 0) return false;
-=======
-    if (_endCondition.GetBindingCount() == 0) return false;
->>>>>>> feat/main-framework
 
     bool endDuration = _duration > 0.f && _elapsedTime >= _duration;
 
