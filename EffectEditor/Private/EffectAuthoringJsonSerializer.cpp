@@ -377,6 +377,83 @@ namespace Internal
         Read_BoolField(root, "useModelMaterials", outData.useModelMaterials);
     }
 
+    Vec3 Expand_Vec2ToMeshVec3(const Vec2& value)
+    {
+        return Vec3{ value.x, value.y, (value.x + value.y) * 0.5f };
+    }
+
+    Vector3DistributionData Make_MeshVector3Fallback(const Vector2DistributionData& source)
+    {
+        Vector3DistributionData fallback{};
+        fallback.mode = source.mode;
+
+        if (const auto* constant = get_if<ConstantVector2DistributionData>(&source.payload))
+        {
+            fallback.payload = ConstantVector3DistributionData{ Expand_Vec2ToMeshVec3(constant->value) };
+        }
+        else if (const auto* uniform = get_if<UniformVector2DistributionData>(&source.payload))
+        {
+            fallback.payload = UniformVector3DistributionData{
+                Expand_Vec2ToMeshVec3(uniform->minValue),
+                Expand_Vec2ToMeshVec3(uniform->maxValue)
+            };
+        }
+        else if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&source.payload))
+        {
+            ConstantCurveVector3DistributionData meshCurve{};
+            meshCurve.keys.reserve(curve->keys.size());
+            for (const Vector2CurveKeyData& key : curve->keys)
+            {
+                meshCurve.keys.push_back(Vector3CurveKeyData{
+                    key.time,
+                    Expand_Vec2ToMeshVec3(key.value),
+                    Expand_Vec2ToMeshVec3(key.arriveTangent),
+                    Expand_Vec2ToMeshVec3(key.leaveTangent),
+                    key.interpolationMode
+                });
+            }
+            fallback.payload = meshCurve;
+        }
+
+        return fallback;
+    }
+
+    Vector3DistributionData Make_MeshVector3Fallback(const FloatDistributionData& source)
+    {
+        Vector3DistributionData fallback{};
+        fallback.mode = source.mode;
+
+        if (const auto* constant = get_if<ConstantFloatDistributionData>(&source.payload))
+        {
+            fallback.payload = ConstantVector3DistributionData{ Vec3{ constant->value, constant->value, constant->value } };
+        }
+        else if (const auto* uniform = get_if<UniformFloatDistributionData>(&source.payload))
+        {
+            fallback.payload = UniformVector3DistributionData{
+                Vec3{ uniform->minValue, uniform->minValue, uniform->minValue },
+                Vec3{ uniform->maxValue, uniform->maxValue, uniform->maxValue }
+            };
+        }
+        else if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&source.payload))
+        {
+            ConstantCurveVector3DistributionData meshCurve{};
+            meshCurve.keys.reserve(curve->keys.size());
+            for (const FloatCurveKeyData& key : curve->keys)
+            {
+                meshCurve.keys.push_back(Vector3CurveKeyData{
+                    key.time,
+                    Vec3{ key.value, key.value, key.value },
+                    Vec3{ key.arriveTangent, key.arriveTangent, key.arriveTangent },
+                    Vec3{ key.leaveTangent, key.leaveTangent, key.leaveTangent },
+                    key.interpolationMode
+                });
+            }
+            fallback.payload = meshCurve;
+        }
+
+        return fallback;
+    }
+
     json To_Json(const AuthoringTypeData& data)
     {
         json root = json::object();
@@ -1397,6 +1474,7 @@ namespace Internal
     {
         json root = json::object();
         root["size"] = To_Json(data.size);
+        root["meshSize"] = To_Json(data.meshSize);
         return root;
     }
 
@@ -1405,6 +1483,11 @@ namespace Internal
         const auto iter = root.find("size");
         if (root.is_object() && iter != root.end())
             From_Json(*iter, outData.size);
+        const auto meshIter = root.find("meshSize");
+        if (root.is_object() && meshIter != root.end())
+            From_Json(*meshIter, outData.meshSize);
+        else
+            outData.meshSize = Make_MeshVector3Fallback(outData.size);
     }
 
     json To_Json(const InitialVelocityModuleData& data)
@@ -1498,6 +1581,7 @@ namespace Internal
     {
         json root = json::object();
         root["rotationDegrees"] = To_Json(data.rotationDegrees);
+        root["meshRotationDegrees"] = To_Json(data.meshRotationDegrees);
         return root;
     }
 
@@ -1506,12 +1590,18 @@ namespace Internal
         const auto iter = root.find("rotationDegrees");
         if (root.is_object() && iter != root.end())
             From_Json(*iter, outData.rotationDegrees);
+        const auto meshIter = root.find("meshRotationDegrees");
+        if (root.is_object() && meshIter != root.end())
+            From_Json(*meshIter, outData.meshRotationDegrees);
+        else
+            outData.meshRotationDegrees = Make_MeshVector3Fallback(outData.rotationDegrees);
     }
 
     json To_Json(const RotationOverLifeModuleData& data)
     {
         json root = json::object();
         root["rotationOverLife"] = To_Json(data.rotationOverLife);
+        root["meshRotationOverLife"] = To_Json(data.meshRotationOverLife);
         return root;
     }
 
@@ -1524,20 +1614,28 @@ namespace Internal
         if (rotationOverLifeIter != root.end())
         {
             From_Json(*rotationOverLifeIter, outData.rotationOverLife);
-            return;
+        }
+        else
+        {
+            float rotationStartDegrees{ 0.f };
+            float rotationEndDegrees{ 0.f };
+            Read_NumberField(root, "rotationStartDegrees", rotationStartDegrees);
+            Read_NumberField(root, "rotationEndDegrees", rotationEndDegrees);
+            outData.rotationOverLife = FloatDistributionData::Make_ConstantCurve(rotationStartDegrees, rotationEndDegrees);
         }
 
-        float rotationStartDegrees{ 0.f };
-        float rotationEndDegrees{ 0.f };
-        Read_NumberField(root, "rotationStartDegrees", rotationStartDegrees);
-        Read_NumberField(root, "rotationEndDegrees", rotationEndDegrees);
-        outData.rotationOverLife = FloatDistributionData::Make_ConstantCurve(rotationStartDegrees, rotationEndDegrees);
+        const auto meshIter = root.find("meshRotationOverLife");
+        if (meshIter != root.end())
+            From_Json(*meshIter, outData.meshRotationOverLife);
+        else
+            outData.meshRotationOverLife = Make_MeshVector3Fallback(outData.rotationOverLife);
     }
 
     json To_Json(const InitialRotationRateModuleData& data)
     {
         json root = json::object();
         root["rotationRateDegrees"] = To_Json(data.rotationRateDegrees);
+        root["meshRotationRateDegrees"] = To_Json(data.meshRotationRateDegrees);
         return root;
     }
 
@@ -1546,12 +1644,18 @@ namespace Internal
         const auto iter = root.find("rotationRateDegrees");
         if (root.is_object() && iter != root.end())
             From_Json(*iter, outData.rotationRateDegrees);
+        const auto meshIter = root.find("meshRotationRateDegrees");
+        if (root.is_object() && meshIter != root.end())
+            From_Json(*meshIter, outData.meshRotationRateDegrees);
+        else
+            outData.meshRotationRateDegrees = Make_MeshVector3Fallback(outData.rotationRateDegrees);
     }
 
     json To_Json(const RotationRateScaleByLifeModuleData& data)
     {
         json root = json::object();
         root["scaleOverLife"] = To_Json(data.scaleOverLife);
+        root["meshScaleOverLife"] = To_Json(data.meshScaleOverLife);
         return root;
     }
 
@@ -1564,14 +1668,21 @@ namespace Internal
         if (scaleOverLifeIter != root.end())
         {
             From_Json(*scaleOverLifeIter, outData.scaleOverLife);
-            return;
+        }
+        else
+        {
+            float scaleStart{ 1.f };
+            float scaleEnd{ 1.f };
+            Read_NumberField(root, "scaleStart", scaleStart);
+            Read_NumberField(root, "scaleEnd", scaleEnd);
+            outData.scaleOverLife = FloatDistributionData::Make_ConstantCurve(scaleStart, scaleEnd);
         }
 
-        float scaleStart{ 1.f };
-        float scaleEnd{ 1.f };
-        Read_NumberField(root, "scaleStart", scaleStart);
-        Read_NumberField(root, "scaleEnd", scaleEnd);
-        outData.scaleOverLife = FloatDistributionData::Make_ConstantCurve(scaleStart, scaleEnd);
+        const auto meshIter = root.find("meshScaleOverLife");
+        if (meshIter != root.end())
+            From_Json(*meshIter, outData.meshScaleOverLife);
+        else
+            outData.meshScaleOverLife = Make_MeshVector3Fallback(outData.scaleOverLife);
     }
 
     json To_Json(const InitialColorModuleData& data)
@@ -1651,8 +1762,10 @@ namespace Internal
     {
         json root = json::object();
         root["scaleOverLife"] = To_Json(data.scaleOverLife);
+        root["meshScaleOverLife"] = To_Json(data.meshScaleOverLife);
         root["multiplyX"] = data.multiplyX;
         root["multiplyY"] = data.multiplyY;
+        root["multiplyZ"] = data.multiplyZ;
         root["axisLock"] = To_EnumToken(data.axisLock);
         return root;
     }
@@ -1664,6 +1777,7 @@ namespace Internal
 
         Read_BoolField(root, "multiplyX", outData.multiplyX);
         Read_BoolField(root, "multiplyY", outData.multiplyY);
+        Read_BoolField(root, "multiplyZ", outData.multiplyZ);
 
         const auto axisLockIter = root.find("axisLock");
         if (axisLockIter != root.end())
@@ -1673,61 +1787,69 @@ namespace Internal
         if (scaleOverLifeIter != root.end())
         {
             From_Json(*scaleOverLifeIter, outData.scaleOverLife);
-            return;
         }
-
-        float multiplyXStart{ 1.f };
-        float multiplyXEnd{ 1.f };
-        float multiplyYStart{ 1.f };
-        float multiplyYEnd{ 1.f };
-        Read_NumberField(root, "multiplyXStart", multiplyXStart);
-        Read_NumberField(root, "multiplyXEnd", multiplyXEnd);
-        Read_NumberField(root, "multiplyYStart", multiplyYStart);
-        Read_NumberField(root, "multiplyYEnd", multiplyYEnd);
-
-        const auto responseCurveIter = root.find("responseCurve");
-        if (responseCurveIter == root.end())
+        else
         {
-            outData.scaleOverLife = Vector2DistributionData::Make_ConstantCurve(
-                Vec2{ multiplyXStart, multiplyYStart },
-                Vec2{ multiplyXEnd, multiplyYEnd }
-            );
-            return;
-        }
+            float multiplyXStart{ 1.f };
+            float multiplyXEnd{ 1.f };
+            float multiplyYStart{ 1.f };
+            float multiplyYEnd{ 1.f };
+            Read_NumberField(root, "multiplyXStart", multiplyXStart);
+            Read_NumberField(root, "multiplyXEnd", multiplyXEnd);
+            Read_NumberField(root, "multiplyYStart", multiplyYStart);
+            Read_NumberField(root, "multiplyYEnd", multiplyYEnd);
 
-        FloatDistributionData responseCurve{ FloatDistributionData::Make_ConstantCurve(0.f, 1.f) };
-        From_Json(*responseCurveIter, responseCurve);
-
-        ConstantCurveVector2DistributionData bakedCurve{};
-        bakedCurve.keys.clear();
-
-        const auto* curve = get_if<ConstantCurveFloatDistributionData>(&responseCurve.payload);
-        if (responseCurve.mode == DistributionMode::ConstantCurve && curve != nullptr && !curve->keys.empty())
-        {
-            for (const FloatCurveKeyData& responseKey : curve->keys)
+            const auto responseCurveIter = root.find("responseCurve");
+            if (responseCurveIter == root.end())
             {
-                const float ratio = Evaluate_FloatConstantCurve(*curve, responseKey.time, responseKey.value);
-                bakedCurve.keys.push_back(Vector2CurveKeyData{
-                    responseKey.time,
-                    Lerp_Vec2(Vec2{ multiplyXStart, multiplyYStart }, Vec2{ multiplyXEnd, multiplyYEnd }, ratio),
-                    Vec2{},
-                    Vec2{},
-                    responseKey.interpolationMode
-                });
+                outData.scaleOverLife = Vector2DistributionData::Make_ConstantCurve(
+                    Vec2{ multiplyXStart, multiplyYStart },
+                    Vec2{ multiplyXEnd, multiplyYEnd }
+                );
+            }
+            else
+            {
+                FloatDistributionData responseCurve{ FloatDistributionData::Make_ConstantCurve(0.f, 1.f) };
+                From_Json(*responseCurveIter, responseCurve);
+
+                ConstantCurveVector2DistributionData bakedCurve{};
+                bakedCurve.keys.clear();
+
+                const auto* curve = get_if<ConstantCurveFloatDistributionData>(&responseCurve.payload);
+                if (responseCurve.mode == DistributionMode::ConstantCurve && curve != nullptr && !curve->keys.empty())
+                {
+                    for (const FloatCurveKeyData& responseKey : curve->keys)
+                    {
+                        const float ratio = Evaluate_FloatConstantCurve(*curve, responseKey.time, responseKey.value);
+                        bakedCurve.keys.push_back(Vector2CurveKeyData{
+                            responseKey.time,
+                            Lerp_Vec2(Vec2{ multiplyXStart, multiplyYStart }, Vec2{ multiplyXEnd, multiplyYEnd }, ratio),
+                            Vec2{},
+                            Vec2{},
+                            responseKey.interpolationMode
+                        });
+                    }
+                }
+
+                if (bakedCurve.keys.empty())
+                {
+                    bakedCurve.keys = get<ConstantCurveVector2DistributionData>(
+                        Vector2DistributionData::Make_ConstantCurve(
+                            Vec2{ multiplyXStart, multiplyYStart },
+                            Vec2{ multiplyXEnd, multiplyYEnd }
+                        ).payload).keys;
+                }
+
+                outData.scaleOverLife.mode = DistributionMode::ConstantCurve;
+                outData.scaleOverLife.payload = bakedCurve;
             }
         }
 
-        if (bakedCurve.keys.empty())
-        {
-            bakedCurve.keys = get<ConstantCurveVector2DistributionData>(
-                Vector2DistributionData::Make_ConstantCurve(
-                    Vec2{ multiplyXStart, multiplyYStart },
-                    Vec2{ multiplyXEnd, multiplyYEnd }
-                ).payload).keys;
-        }
-
-        outData.scaleOverLife.mode = DistributionMode::ConstantCurve;
-        outData.scaleOverLife.payload = bakedCurve;
+        const auto meshIter = root.find("meshScaleOverLife");
+        if (meshIter != root.end())
+            From_Json(*meshIter, outData.meshScaleOverLife);
+        else
+            outData.meshScaleOverLife = Make_MeshVector3Fallback(outData.scaleOverLife);
     }
 
     json To_Json(const SpawnPerUnitModuleData& data)
