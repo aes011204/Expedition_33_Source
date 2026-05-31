@@ -19,10 +19,10 @@ cbuffer cbEffectMaterialPreview : register(b2)
     float4 g_EffectMaterialPreviewAdditiveParams = { 0.f, 0.f, 0.f, 1.f };     // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectMaterialPreviewAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectMaterialPreviewAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectMaterialPreviewAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
-    float4 g_EffectMaterialPreviewCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f }; // x: enabled, y: corePower, z: coreIntensity, w: outerPower
+    float4 g_EffectMaterialPreviewAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };         // x: blackNeutral
+    float4 g_EffectMaterialPreviewCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f };    // x: enabled, y: corePower, z: coreIntensity, w: outerPower
     float4 g_EffectMaterialPreviewCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f }; // rgb: coreColor, a: outerIntensity
-    float4 g_EffectMaterialPreviewCheckerParams = { 512.f, 512.f, 0.f, 0.f }; // xy: target size, z: time, w: reserved
+    float4 g_EffectMaterialPreviewCheckerParams = { 512.f, 512.f, 0.f, 0.f };     // xy: target size, z: time, w: reserved
     float g_EffectMaterialPreviewTime = 0.f;
     int g_OpacitySource = 0;
     float2 g_EffectMaterialPreviewPadding;

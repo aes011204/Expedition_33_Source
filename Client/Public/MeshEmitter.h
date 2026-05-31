@@ -6,6 +6,7 @@
 NS_BEGIN(Engine)
 class ModelCom;
 class ShaderCom;
+class Texture;
 NS_END
 
 NS_BEGIN(Client)
@@ -37,6 +38,10 @@ protected:
 
 private:
     static constexpr auto kMeshShaderPath{ "../../../Client/Bin/ShaderFiles/Shader_EffectMesh.hlsl" };
+    static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
+    static constexpr int kOpacitySourceAlpha{ 0 };
+    static constexpr int kOpacitySourceRed{ 1 };
+    static constexpr int kOpacitySourceLuminance{ 2 };
 
 private:
     enum class PlaybackState : uint8
@@ -64,8 +69,8 @@ private:
         Vec3 acceleration{};
         float drag{};
         Vec3 baseScale{ 1.f, 1.f, 1.f };
-        float rollRadians{};
-        float rollRateRadians{};
+        Vec3 rotationRadians{};
+        Vec3 angularVelocityRadians{};
         Vec4 startColor{ 1.f, 1.f, 1.f, 1.f };
         Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };
         uint32 seed{};
@@ -75,6 +80,9 @@ private:
     MeshEmitterDesc _desc{};
     Shared<ModelCom> _model{};
     Shared<ShaderCom> _shader{};
+    Shared<Texture> _texture{};
+    Shared<Texture> _noiseTexture{};
+    Shared<Texture> _maskTexture{};
     ComPtr<Buffer> _instanceBuffer{};
     vector<MeshParticleState> _particles{};
     vector<MeshInstanceVertex> _instancePayload{};
@@ -88,6 +96,7 @@ private:
     uint32 _activeInstanceCount{};
     uint32 _nextSpawnCursor{};
     uint32 _instanceCapacity{};
+    int _opacitySourceIndex{ kOpacitySourceAlpha };
     bool _isReady{ false };
 
 private:
@@ -107,6 +116,9 @@ private:
     HRESULT Ready_Shader();
     HRESULT Ready_InstanceBuffer();
     HRESULT Apply_EffectMaterialOverride();
+    HRESULT Ready_EffectMaterialTextures();
+    HRESULT Ready_OptionalTexture(const string& textureGuid, const string& texturePath, Shared<Texture>& outTexture);
+    HRESULT Bind_EffectMaterialResources();
     void Reset_PlaybackRuntime();
     void Advance_Playback(float timeDelta);
     void Start_NextLoop();
@@ -128,13 +140,19 @@ private:
     Vec3 Sample_Acceleration(uint32 seed) const;
     float Sample_Drag(uint32 seed) const;
     Vec4 Sample_Color(const Vec4& minColor, const Vec4& maxColor, uint32 seed) const;
-    float Sample_InitialScale(uint32 seed) const;
+    Vec3 Sample_InitialScale(uint32 seed) const;
+    Vec3 Sample_InitialRotation(uint32 seed) const;
+    Vec3 Sample_InitialAngularVelocity(uint32 seed) const;
     float Evaluate_VelocityScaleByLife(float lifeProgress) const;
-    float Evaluate_SizeByLife(float lifeProgress) const;
-    float Evaluate_RotationOverLife(float lifeProgress) const;
-    float Evaluate_RotationRateScaleByLife(float lifeProgress) const;
+    Vec3 Evaluate_ScaleByLife(float lifeProgress) const;
+    Vec3 Evaluate_RotationByLife(float lifeProgress) const;
+    Vec3 Evaluate_AngularVelocityScaleByLife(float lifeProgress) const;
     Vec4 Evaluate_ColorOverLife(const MeshParticleState& particle, float lifeProgress) const;
     float Evaluate_CompactCurve(float lifeProgress, const Vec4& times, const Vec4& values, uint32 keyCount, float fallbackValue) const;
+    Vec3 Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& desc, float lifeProgress, const Vec3& fallbackValue) const;
+    RenderGroup Resolve_RenderGroup() const;
+    uint32 Resolve_ShaderPassIndex() const;
+    int Resolve_OpacitySourceIndex() const;
     Vec3 Resolve_LocalVector(const Vec3& localVector) const;
     float Random01(uint32 seed) const;
     float RandomRange(float minValue, float maxValue, uint32 seed) const;
