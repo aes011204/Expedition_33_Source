@@ -48,6 +48,8 @@ public:
 public:
     // 기존 instance 재사용 또는 신규 spawn 후 ready 상태로 돌려준다.
     HRESULT Acquire(const AcquireDesc& desc, AttachedHandle& outHandle);
+    // 이미 acquired 된 instance root를 유지한 채 새 definition으로 preview/runtime 내용을 갱신한다.
+    HRESULT Reload_Attached(const AcquireDesc& desc, AttachedHandle& handle);
     // acquired instance를 Stop 후 inactive 상태로 반환한다.
     void Release(const AttachedHandle& handle);
     // 자동 완료 가능한 instance들을 순회하며 pool로 되돌린다.
@@ -86,6 +88,8 @@ private:
         Shared<EffectInstance>& outInstance);
     // 다음 재생 전에 Reset/position/Play를 적용한다.
     HRESULT Prepare_AcquiredInstance(const AcquireDesc& desc, const Shared<EffectInstance>& instance);
+    // definition 내용에 따라 handle 반환 정책을 갱신한다.
+    void Populate_Handle(const AcquireDesc& desc, const Shared<const EffectDefinition>& definition, const Shared<EffectInstance>& instance, AttachedHandle& outHandle) const;
     // 같은 key의 inactive entry를 찾는다. direct definition acquire는 definition identity까지 맞춘다.
     PooledInstance* Find_AvailableEntry(const AcquireDesc& desc, const Shared<const EffectDefinition>& definition);
     // 반환 대상 object에 대응하는 pool entry를 찾는다.

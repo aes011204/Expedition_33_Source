@@ -658,8 +658,8 @@ void Renderer::Render_Distortion()
     );
 
     RETURN_LOG_IF_FAILED(
-        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
-        L"Render_Distortion:FAIL Begin_MRT(HDR)"
+        GAME->Begin_MRT(MRT::DistortionField, NotUseDSV, ClearRTV),
+        L"Render_Distortion:FAIL Begin_MRT(DistortionField)"
     );
 
     _currentGroup = RenderGroup::Distortion;
@@ -677,6 +677,11 @@ void Renderer::Render_Distortion()
     distortionGroup.clear();
 
     GAME->End_MRT();
+
+    RETURN_LOG_IF_FAILED(
+        Render_DistortionResolve(),
+        L"Render_Distortion:FAIL Render_DistortionResolve"
+    );
 }
 
 void Renderer::Render_Blend()
@@ -1078,6 +1083,52 @@ HRESULT Renderer::Render_BloomUpsamplePass(const wchar_t* dstMrt, const wchar_t*
     RETURN_FAIL_LOG_IF_FAILED(
         GAME->End_MRT(),
         endLog.c_str());
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
+HRESULT Renderer::Render_DistortionResolve()
+{
+    if (!_postprocessShader || !_viBuffer)
+        return E_FAIL;
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Bind_ObjectCB(_pipelineWorldMatrix),
+        L"Render_DistortionResolve:FAIL Bind_ObjectCB");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        Bind_ScreenSpaceCB(_postprocessShader, max(1u, _screenSize.width), max(1u, _screenSize.height)),
+        L"Render_DistortionResolve:FAIL Bind_ScreenSpaceCB");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Bind_Resources(),
+        L"Render_DistortionResolve:FAIL Bind_Resources");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Render_DistortionResolve:FAIL Begin_MRT(HDR)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DistortionSourceTexture", RT::DistortionSource),
+        L"Render_DistortionResolve:FAIL Bind_RT_ShaderResource(g_DistortionSourceTexture)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DistortionFieldTexture", RT::DistortionField),
+        L"Render_DistortionResolve:FAIL Bind_RT_ShaderResource(g_DistortionFieldTexture)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(PostProcessPass::DistortionResolve)),
+        L"Render_DistortionResolve:FAIL ShaderBegin(DistortionResolve)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_DistortionResolve:FAIL RenderRect");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        L"Render_DistortionResolve:FAIL End_MRT(HDR)");
 
     Add_RenderCall();
 

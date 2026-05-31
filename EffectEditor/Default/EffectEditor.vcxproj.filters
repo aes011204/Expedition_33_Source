@@ -103,6 +103,9 @@
     <ClCompile Include="..\Private\EffectMaterialPreviewRenderer.cpp">
       <Filter>02. View\Effect Material View\Preview Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MeshDataPreview_View.cpp">
+      <Filter>02. View</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\TrailPreviewController.cpp">
       <Filter>05. EditorOnly Object\Trail Preview Object\Controller</Filter>
     </ClCompile>
@@ -242,6 +245,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialPreviewRenderer.h">
       <Filter>02. View\Effect Material View\Preview Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MeshDataPreview_View.h">
+      <Filter>02. View</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\TrailPreviewController.h">
       <Filter>05. EditorOnly Object\Trail Preview Object\Controller</Filter>

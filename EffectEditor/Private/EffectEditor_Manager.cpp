@@ -11,6 +11,7 @@
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "Hierarchy_View.h"
+#include "MeshDataPreview_View.h"
 #include "Profile_View.h"
 #include "Scene_View.h"
 
@@ -38,6 +39,11 @@ HRESULT EffectEditor_Manager::Initialize()
     if (effectMaterialInstanceView)
         effectMaterialInstanceView->Set_Open(false);
     Add_Window(effectMaterialInstanceView);
+
+    const Shared<MeshDataPreview_View> meshDataPreviewView = MeshDataPreview_View::Create();
+    if (meshDataPreviewView)
+        meshDataPreviewView->Set_Open(false);
+    Add_Window(meshDataPreviewView);
 
     Add_Window(Console_View::Create());
     Add_Window(Profile_View::Create());

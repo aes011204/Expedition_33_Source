@@ -191,6 +191,27 @@ PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
     return Out;
 }
 
+PS_OUT_COLOR PS_DistortionResolve(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+
+    const float4 source = g_DistortionSourceTexture.Sample(LinearClampSampler, In.Texcoord);
+    const float4 field = g_DistortionFieldTexture.Sample(LinearClampSampler, In.Texcoord);
+    const float weight = saturate(field.b);
+
+    if (weight <= EPSILON)
+    {
+        Out.Color = source;
+        return Out;
+    }
+
+    const float2 offset = field.rg / max(field.b, EPSILON);
+    const float4 distorted = g_DistortionSourceTexture.Sample(LinearClampSampler, In.Texcoord + offset);
+
+    Out.Color = lerp(source, distorted, weight);
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(HDRDebug,          RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 0
@@ -200,4 +221,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(BloomBlurV,        RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomBlur_V)             // 4
     PASS_RS_DS_BS_VP(BloomUpsampleAdd,  RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomUpsampleAdd)        // 5
     PASS_RS_DS_BS_VP(ToneMapping,       RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 6
+    PASS_RS_DS_BS_VP(DistortionResolve, RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_DistortionResolve)       // 7
 }
