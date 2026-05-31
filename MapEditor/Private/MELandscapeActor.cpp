@@ -24,6 +24,28 @@ HRESULT MELandscapeActor::Initialize(const VIBuffer_Landscape::LAND_DESC& desc)
         return E_FAIL;
     }
 
+    D3D11_TEXTURE2D_DESC td = {};
+    td.Width = td.Height = 1;
+    td.MipLevels = td.ArraySize = 1;
+    td.Format = DXGI_FORMAT_R32_FLOAT;
+    td.SampleDesc.Count = 1;
+    td.Usage = D3D11_USAGE_IMMUTABLE;
+    td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+    float zero = 0.f;
+    D3D11_SUBRESOURCE_DATA initData = {};
+    initData.pSysMem = &zero;
+    initData.SysMemPitch = sizeof(float);
+
+    if (FAILED(_device->CreateTexture2D(&td, &initData, _dummyWeightTex.GetAddressOf())))
+    {
+        return E_FAIL;
+    }
+    if (FAILED(_device->CreateShaderResourceView(_dummyWeightTex.Get(), nullptr, _dummyWeightSRV.GetAddressOf())))
+    {
+        return E_FAIL;
+    }
+
     return S_OK;
 }
 
@@ -91,6 +113,12 @@ HRESULT MELandscapeActor::Bind_ShaderResources()
         {
             return E_FAIL;
         }
+    }
+
+    for (uint32 i = _layerCount; i < MAX_LAYERS; ++i)
+    {
+        _shader->Bind_SRV(layerNames[i], _layerSRVs[0].Get());
+        _shader->Bind_SRV(weightNames[i], _dummyWeightSRV.Get());
     }
 
     return S_OK;
@@ -190,6 +218,47 @@ void MELandscapeActor::Clear_Layers()
     }
     _layerCount = 0;
     _vibuffer->Clear_Layers();
+}
+
+void MELandscapeActor::Remove_LayerTexture(uint32 idx)
+{
+    if (idx >= _layerCount || _layerCount <= 1)
+    {
+        return;
+    }
+
+    for (uint32 i = idx; i < _layerCount - 1; ++i)
+    {
+        _layerSRVs[i] = _layerSRVs[i + 1];
+        _weightTextures[i] = _weightTextures[i + 1];
+        _weightSRVs[i] = _weightSRVs[i + 1];
+        _layerPaths[i] = _layerPaths[i + 1];
+    }
+
+    uint32 last = _layerCount - 1;
+    _layerSRVs[last].Reset();
+    _weightTextures[last].Reset();
+    _weightSRVs[last].Reset();
+    _layerPaths[last].clear();
+
+    --_layerCount;
+
+    _vibuffer->Remove_Layer(idx);
+
+    Flush_WeightMap(0);
+}
+
+void MELandscapeActor::Set_BaseLayer(uint32 idx)
+{
+    if (idx == 0 || idx >= _layerCount)
+        return;
+
+    swap(_layerSRVs[0], _layerSRVs[idx]);
+    swap(_layerPaths[0], _layerPaths[idx]);
+    swap(_weightTextures[0], _weightTextures[idx]);
+    swap(_weightSRVs[0], _weightSRVs[idx]);
+
+    _vibuffer->Swap_Layer(0, idx);
 }
 
 Shared<MELandscapeActor> MELandscapeActor::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const VIBuffer_Landscape::LAND_DESC& desc)

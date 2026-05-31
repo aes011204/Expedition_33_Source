@@ -525,6 +525,44 @@ void VIBuffer_Landscape::Clear_Layers()
     _layerCount = 0;
 }
 
+void VIBuffer_Landscape::Remove_Layer(uint32 idx)
+{
+    if (idx >= _layerCount || _layerCount <= 1)
+    {
+        return;
+    }
+
+    const uint32 numVerts = (_desc.countX + 1) * (_desc.countZ + 1);
+
+    if (idx != 0)
+    {
+        for (uint32 v = 0; v < numVerts; ++v)
+        {
+            _weightMaps[0][v] += _weightMaps[idx][v];
+        }
+    }
+    else
+    {
+        for (uint32 v = 0; v < numVerts; ++v)
+        {
+            _weightMaps[1][v] += _weightMaps[0][v];
+        }
+    }
+
+    _weightMaps.erase(_weightMaps.begin() + idx);
+    --_layerCount;
+}
+
+void VIBuffer_Landscape::Swap_Layer(uint32 a, uint32 b)
+{
+    if (a >= _layerCount || b >= _layerCount || a == b)
+    {
+        return;
+    }
+
+    swap(_weightMaps[a], _weightMaps[b]);
+}
+
 Shared<VIBuffer_Landscape> VIBuffer_Landscape::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const LAND_DESC& desc)
 {
     auto instance = make_shared<VIBuffer_Landscape>(device, context, desc);
