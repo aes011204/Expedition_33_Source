@@ -153,12 +153,49 @@ float3 ResolveFacingLookDirection(float3 particlePosition)
     return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
 }
 
-// emitter 중심에서 바깥쪽을 향하는 정규화 look 방향을 구한다.
-float3 ResolveAwayFromCenterLookDirection(float3 particlePosition)
+bool TryNormalizeDirection(float3 direction, out float3 normalizedDirection)
 {
-    float3 lookDir = particlePosition - g_EffectSpriteEmitterCenter.xyz;
-    const float lookLength = length(lookDir);
-    return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
+    const float directionLength = length(direction);
+    if (directionLength < 0.0001f)
+    {
+        normalizedDirection = float3(0.f, 0.f, 0.f);
+        return false;
+    }
+
+    normalizedDirection = direction / directionLength;
+    return true;
+}
+
+bool TryResolveAwayFromCenterLookDirection(float3 particlePosition, out float3 lookDir)
+{
+    return TryNormalizeDirection(particlePosition - g_EffectSpriteEmitterCenter.xyz, lookDir);
+}
+
+bool TryResolveVelocityLookDirection(float3 velocityDirection, out float3 lookDir)
+{
+    return TryNormalizeDirection(velocityDirection, lookDir);
+}
+
+bool TryResolveDirectionalLookDirection(float3 particlePosition, float3 velocityDirection, out float3 lookDir)
+{
+    if (g_ScreenAlignmentMode == 3)
+    {
+        if (TryResolveAwayFromCenterLookDirection(particlePosition, lookDir))
+            return true;
+
+        return TryResolveVelocityLookDirection(velocityDirection, lookDir);
+    }
+
+    if (g_ScreenAlignmentMode == 4)
+    {
+        if (TryResolveVelocityLookDirection(velocityDirection, lookDir))
+            return true;
+
+        return TryResolveAwayFromCenterLookDirection(particlePosition, lookDir);
+    }
+
+    lookDir = float3(0.f, 0.f, 0.f);
+    return false;
 }
 
 // look 방향을 기준으로 billboard right/up 축을 만든다.
@@ -181,28 +218,28 @@ void ResolveCameraPlaneBasis(out float3 rightDir, out float3 upDir)
     upDir = normalize(float3(g_ViewMatrix[0].y, g_ViewMatrix[1].y, g_ViewMatrix[2].y));
 }
 
-// texture 축 하나를 지정 방향에 맞추는 billboard basis를 시도한다.
-bool TryResolveTextureAxisBasis(float3 axisDir, out float3 rightDir, out float3 upDir)
+// texture 축 하나를 지정 방향에 맞추고, 나머지 축은 카메라 가시성을 유지하도록 만든다.
+bool TryResolveTextureAxisBasis(float3 axisDir, float3 particlePosition, out float3 rightDir, out float3 upDir)
 {
-    ResolveCameraPlaneBasis(rightDir, upDir);
-
-    const float3 planeNormal = normalize(cross(rightDir, upDir));
-    float3 projectedAxis = axisDir - planeNormal * dot(axisDir, planeNormal);
-    const float projectedLength = length(projectedAxis);
-    if (projectedLength < 0.0001f)
+    float3 axis = float3(0.f, 0.f, 0.f);
+    if (!TryNormalizeDirection(axisDir, axis))
         return false;
 
-    projectedAxis /= projectedLength;
+    float3 cameraLook = float3(0.f, 0.f, 0.f);
+    if (!TryNormalizeDirection(g_CamPosition.xyz - particlePosition, cameraLook))
+        return false;
 
     if (g_SpriteTextureAxis == 0)
     {
-        rightDir = projectedAxis;
-        upDir = normalize(cross(planeNormal, rightDir));
+        rightDir = axis;
+        if (!TryNormalizeDirection(cross(rightDir, cameraLook), upDir))
+            return false;
     }
     else
     {
-        upDir = projectedAxis;
-        rightDir = normalize(cross(upDir, planeNormal));
+        upDir = axis;
+        if (!TryNormalizeDirection(cross(cameraLook, upDir), rightDir))
+            return false;
     }
 
     return true;
@@ -216,32 +253,22 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     float3 upDir = float3(0.f, 1.f, 0.f);
     if (g_ScreenAlignmentMode == 1 || g_ScreenAlignmentMode == 2)
         ResolveCameraPlaneBasis(rightDir, upDir);
-    else if (g_ScreenAlignmentMode == 3)
+    else if (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4)
     {
-        const float3 lookDir = ResolveAwayFromCenterLookDirection(particlePosition);
+        float3 lookDir = float3(0.f, 0.f, 0.f);
+        const bool hasLookDir = TryResolveDirectionalLookDirection(particlePosition, In[0].velocityDirection, lookDir);
 
         if (g_DirectionalAlignmentMode == 1) // 스프라이트의 X 또는 Y 가 바라보도록
         {
-            if (!TryResolveTextureAxisBasis(lookDir, rightDir, upDir))
+            if (!hasLookDir || !TryResolveTextureAxisBasis(lookDir, particlePosition, rightDir, upDir))
                 ResolveCameraPlaneBasis(rightDir, upDir);
         }
         else // 스프라이트의 look 이 바라보도록
-            ResolveLookAlignedBasis(lookDir, rightDir, upDir);
-    }
-    else if (g_ScreenAlignmentMode == 4)
-    {
-        const float velocityLength = length(In[0].velocityDirection);
-        const float3 lookDir = velocityLength < 0.0001f
-                               ? ResolveFacingLookDirection(particlePosition)
-                               : In[0].velocityDirection / velocityLength;
-
-        if (g_DirectionalAlignmentMode == 1 && velocityLength >= 0.0001f)
         {
-            if (!TryResolveTextureAxisBasis(lookDir, rightDir, upDir))
-                ResolveLookAlignedBasis(lookDir, rightDir, upDir);
-        }
-        else
+            if (!hasLookDir)
+                lookDir = ResolveFacingLookDirection(particlePosition);
             ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+        }
     }
     else
     {

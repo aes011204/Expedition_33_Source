@@ -30,7 +30,7 @@ namespace Internal
         const char* directionName = alignment == EmitterScreenAlignment::AwayFromCenter ? "Away from Center" : "Velocity";
         const char* modeHelp = mode == EmitterDirectionalAlignmentMode::LookDirection
                                ? "기준 방향을 sprite 카드의 바라보는 방향으로 사용합니다."
-                               : "sprite는 카메라를 향하게 두고 texture 축만 기준 방향으로 눕힙니다.";
+                               : "texture 축을 기준 방향에 맞추고 나머지 축은 카메라 가시성을 유지합니다.";
 
         NOTIFY("{}: {}", directionName, modeHelp);
     }
@@ -757,7 +757,7 @@ bool RequiredModuleDetail::Draw(
         }
     }
 
-    if (ImGui::CollapsingHeader("공간 / 정렬 (일부 미구현)", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("공간 / 정렬", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("RequiredSpaceSort"))
         {
@@ -797,7 +797,7 @@ bool RequiredModuleDetail::Draw(
         if (Internal::Uses_DirectionalAlignmentOptions(data.screenAlignment))
         {
             if (data.directionalAlignmentMode == EmitterDirectionalAlignmentMode::TextureAxis)
-                ImGui::TextDisabled("Texture Axis는 world X/Y/Z가 아니라 texture 가로/세로 축입니다. Z는 sprite normal이므로 별도 facing 개념입니다.");
+                ImGui::TextDisabled("Texture Axis는 world X/Y/Z가 아니라 texture 가로/세로 축입니다. 나머지 축은 카메라 가시성을 유지합니다.");
             else
                 ImGui::TextDisabled("Look Direction은 기준 방향을 sprite 카드의 바라보는 방향으로 사용합니다.");
         }
@@ -984,6 +984,7 @@ bool InitialRadialVelocityModuleDetail::Draw(
     {
         ImGui::SetTooltip(
             "생성 위치와 방사 기준점의 방향으로 더하는 초기 속도입니다.\n"
+            "중앙 발산/흡입형 sprite streak의 1차 후보입니다.\n"
             "양수는 기준점에서 멀어지고, 음수는 기준점 쪽으로 이동합니다.\n"
             "지속 attractor가 아니라 생성 시점의 속도 항입니다."
         );
