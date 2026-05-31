@@ -136,7 +136,8 @@ public: /* For.Viewport */
 
 
     void                     Request_PreviewViewportSize(uint32 width, uint32 height);
-                             
+    void                     Apply_PreviewViewportSizeImmediate(uint32 width, uint32 height);
+
     void                     Enable_AutoPreviewViewport();
     void                     Enable_ManualPreviewViewport();
     void                     Set_ManualPreviewViewportSize(uint32 width, uint32 height);

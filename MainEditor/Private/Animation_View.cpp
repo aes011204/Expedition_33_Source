@@ -182,12 +182,12 @@ void Animation_View::Pre_Render()
     GAME->Get_LightDescs(savedLightDescs);
     const bool wasPlayerInputBlocked = GAME->Is_PlayerInputBlocked();
 
-    EDITOR->Request_PreviewViewportSize(_previewWidth, _previewHeight);
+    EDITOR->Apply_PreviewViewportSizeImmediate(_previewWidth, _previewHeight);
 
     GAME->Bind_BackBuffer();
     if (FAILED(GAME->Clear_Buffers(Vec4(0.f, 0.f, 0.f, 1.f))))
     {
-        EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
+        EDITOR->Apply_PreviewViewportSizeImmediate(savedViewportWidth, savedViewportHeight);
         return;
     }
 
@@ -257,7 +257,8 @@ void Animation_View::Pre_Render()
         GAME->Change_ActiveCamera(savedActiveCamera);
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(savedView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(savedProj));
-    EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
+    GAME->UpdateFrustum(savedView, savedProj);
+    EDITOR->Apply_PreviewViewportSizeImmediate(savedViewportWidth, savedViewportHeight);
 }
 
 void Animation_View::Render()

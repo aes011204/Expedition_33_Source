@@ -1099,7 +1099,13 @@ HRESULT EditorInstance::Restore_CurrentLevelObjects(const vector<EditorWorldObje
 
 void EditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
 {
-    GAME->Apply_LogicalViewportSize(max(1u, width), max(1u, height));
+    Queue_PreviewViewportSize(width, height);
+}
+
+void EditorInstance::Apply_PreviewViewportSizeImmediate(uint32 width, uint32 height)
+{
+    Queue_PreviewViewportSize(width, height);
+    Apply_PendingPreviewViewportSize();
 }
 
 void EditorInstance::Enable_AutoPreviewViewport()
