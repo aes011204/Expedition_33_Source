@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "ScreenFx_Instance.h"
 #include "GameInstance.h"
 
@@ -27,6 +27,8 @@ HRESULT ScreenFx_Instance::Initialize(ScreenFxDesc* desc)
 
 bool ScreenFx_Instance::Check_EndCondition()
 {
+    if (_endCondition.GetBindingCount() == 0) return false;
+
     bool endDuration = _duration > 0.f && _elapsedTime >= _duration;
 
     if (_endCondition.IsBound())
