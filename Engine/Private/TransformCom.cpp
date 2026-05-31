@@ -105,6 +105,8 @@ void TransformCom::From_Json(const json& data)
 {
     __super::From_Json(data);
 
+    const bool hasTransformParent = !_parent.expired();
+
     if (data.contains("scale"))
     {
         const json& arr = data["scale"];
@@ -125,13 +127,18 @@ void TransformCom::From_Json(const json& data)
         const json& arr = data["rotation"];
         if (arr.is_array() && arr.size() >= 3)
         {
-            Set_WorldRotationEuler(
-                Vec3(
-                    arr[0].get<float>(),
-                    arr[1].get<float>(),
-                    arr[2].get<float>()
-                )
+            const Vec3 serializedRotation(
+                arr[0].get<float>(),
+                arr[1].get<float>(),
+                arr[2].get<float>()
             );
+
+            // 부모가 없는 프리팹/파츠는 저장된 Euler를 그대로 다시 넣어야
+            // 재오픈 후에도 인스펙터 표기가 쿼터니언 정규화값으로 바뀌지 않는다.
+            if (hasTransformParent)
+                Set_WorldRotationEuler(serializedRotation);
+            else
+                Set_RotationEuler(serializedRotation);
         }
     }
 
@@ -140,13 +147,16 @@ void TransformCom::From_Json(const json& data)
         const json& arr = data["position"];
         if (arr.is_array() && arr.size() >= 3)
         {
-            Set_WorldPosition(
-                Vec3(
-                    arr[0].get<float>(),
-                    arr[1].get<float>(),
-                    arr[2].get<float>()
-                )
+            const Vec3 serializedPosition(
+                arr[0].get<float>(),
+                arr[1].get<float>(),
+                arr[2].get<float>()
             );
+
+            if (hasTransformParent)
+                Set_WorldPosition(serializedPosition);
+            else
+                Set_Position(serializedPosition);
         }
     }
 }
@@ -399,6 +409,11 @@ void TransformCom::Set_RotationQuaternion(const Quat& rotation)
         _localRotationCache = rotation;
         _localRotationCache.Normalize();
     }
+
+    // gizmo는 quaternion 경로를 타므로, 여기서 Euler 표시 캐시까지 같이 갱신해야
+    // 인스펙터 숫자가 실제 회전값과 같은 프레임에 따라온다.
+    const Matrix rotationMatrix = Matrix::CreateFromQuaternion(_localRotationCache);
+    _localEulerDegreeCache = Extract_EulerDegreeFromRotationMatrix(rotationMatrix);
 
     Rebuild_LocalBasis_FromRotationCache();
     Clear_Dirty(TRANSFORM_DIRTY_FLAG::ROTATION);

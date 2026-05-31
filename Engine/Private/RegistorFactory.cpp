@@ -1,4 +1,4 @@
-#include "RegistorFactory.h"
+﻿#include "RegistorFactory.h"
 #include "TypeRegistry.h"
 
 namespace Engine
@@ -38,6 +38,12 @@ namespace Engine
 		static vector<TypeRegistry::GlobalEnumInfo> infos{};
 		return infos;
 	}
+
+    vector<ScreenFxRegistorInfo>& Get_PendingScreenFxInfos()
+    {
+        static vector<ScreenFxRegistorInfo> infos{};
+        return infos;
+    }
 
     bool Register_ComponentType_Pending(const char* className, const ComponentCreateFn& createFn, ClassReflectionInfo* reflectionInfo)
     {
@@ -91,6 +97,15 @@ namespace Engine
 		Get_PendingGlobalEnumInfos().push_back(std::move(info));
 		return true;
 	}
+
+    bool Register_ScreenFxType_Pending(const char* className, const ScreenFxCreateFn& createFn, ClassReflectionInfo* reflectionInfo)
+    {
+        if (nullptr == className)
+            return false;
+
+        Get_PendingScreenFxInfos().push_back({ className, createFn, reflectionInfo });
+        return true;
+    }
 
     HRESULT Flush_PendingTypeRegistrations(TypeRegistry& registry)
     {
@@ -156,6 +171,17 @@ namespace Engine
 			if (FAILED(registry.Register_GlobalEnum(info)))
 				return E_FAIL;
 		}
+
+        for (const auto& info : Get_PendingScreenFxInfos())
+        {
+            TypeRegistry::ScreenFxTypeInfo typeInfo{};
+            typeInfo.className = info.className;
+            typeInfo.createFn = info.createFn;
+            typeInfo.reflectionInfo = info.reflectionInfo;
+
+            if (FAILED(registry.Register_ScreenFxType(typeInfo)))
+                return E_FAIL;
+        }
 
 		return S_OK;
     }

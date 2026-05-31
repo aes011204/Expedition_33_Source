@@ -153,12 +153,49 @@ float3 ResolveFacingLookDirection(float3 particlePosition)
     return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
 }
 
-// emitter 중심에서 바깥쪽을 향하는 정규화 look 방향을 구한다.
-float3 ResolveAwayFromCenterLookDirection(float3 particlePosition)
+bool TryNormalizeDirection(float3 direction, out float3 normalizedDirection)
 {
-    float3 lookDir = particlePosition - g_EffectSpriteEmitterCenter.xyz;
-    const float lookLength = length(lookDir);
-    return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
+    const float directionLength = length(direction);
+    if (directionLength < 0.0001f)
+    {
+        normalizedDirection = float3(0.f, 0.f, 0.f);
+        return false;
+    }
+
+    normalizedDirection = direction / directionLength;
+    return true;
+}
+
+bool TryResolveAwayFromCenterLookDirection(float3 particlePosition, out float3 lookDir)
+{
+    return TryNormalizeDirection(particlePosition - g_EffectSpriteEmitterCenter.xyz, lookDir);
+}
+
+bool TryResolveVelocityLookDirection(float3 velocityDirection, out float3 lookDir)
+{
+    return TryNormalizeDirection(velocityDirection, lookDir);
+}
+
+bool TryResolveDirectionalLookDirection(float3 particlePosition, float3 velocityDirection, out float3 lookDir)
+{
+    if (g_ScreenAlignmentMode == 3)
+    {
+        if (TryResolveAwayFromCenterLookDirection(particlePosition, lookDir))
+            return true;
+
+        return TryResolveVelocityLookDirection(velocityDirection, lookDir);
+    }
+
+    if (g_ScreenAlignmentMode == 4)
+    {
+        if (TryResolveVelocityLookDirection(velocityDirection, lookDir))
+            return true;
+
+        return TryResolveAwayFromCenterLookDirection(particlePosition, lookDir);
+    }
+
+    lookDir = float3(0.f, 0.f, 0.f);
+    return false;
 }
 
 // look 방향을 기준으로 billboard right/up 축을 만든다.
@@ -181,28 +218,28 @@ void ResolveCameraPlaneBasis(out float3 rightDir, out float3 upDir)
     upDir = normalize(float3(g_ViewMatrix[0].y, g_ViewMatrix[1].y, g_ViewMatrix[2].y));
 }
 
-// texture 축 하나를 지정 방향에 맞추는 billboard basis를 시도한다.
-bool TryResolveTextureAxisBasis(float3 axisDir, out float3 rightDir, out float3 upDir)
+// texture 축 하나를 지정 방향에 맞추고, 나머지 축은 카메라 가시성을 유지하도록 만든다.
+bool TryResolveTextureAxisBasis(float3 axisDir, float3 particlePosition, out float3 rightDir, out float3 upDir)
 {
-    ResolveCameraPlaneBasis(rightDir, upDir);
-
-    const float3 planeNormal = normalize(cross(rightDir, upDir));
-    float3 projectedAxis = axisDir - planeNormal * dot(axisDir, planeNormal);
-    const float projectedLength = length(projectedAxis);
-    if (projectedLength < 0.0001f)
+    float3 axis = float3(0.f, 0.f, 0.f);
+    if (!TryNormalizeDirection(axisDir, axis))
         return false;
 
-    projectedAxis /= projectedLength;
+    float3 cameraLook = float3(0.f, 0.f, 0.f);
+    if (!TryNormalizeDirection(g_CamPosition.xyz - particlePosition, cameraLook))
+        return false;
 
     if (g_SpriteTextureAxis == 0)
     {
-        rightDir = projectedAxis;
-        upDir = normalize(cross(planeNormal, rightDir));
+        rightDir = axis;
+        if (!TryNormalizeDirection(cross(rightDir, cameraLook), upDir))
+            return false;
     }
     else
     {
-        upDir = projectedAxis;
-        rightDir = normalize(cross(upDir, planeNormal));
+        upDir = axis;
+        if (!TryNormalizeDirection(cross(cameraLook, upDir), rightDir))
+            return false;
     }
 
     return true;
@@ -216,32 +253,22 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     float3 upDir = float3(0.f, 1.f, 0.f);
     if (g_ScreenAlignmentMode == 1 || g_ScreenAlignmentMode == 2)
         ResolveCameraPlaneBasis(rightDir, upDir);
-    else if (g_ScreenAlignmentMode == 3)
+    else if (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4)
     {
-        const float3 lookDir = ResolveAwayFromCenterLookDirection(particlePosition);
+        float3 lookDir = float3(0.f, 0.f, 0.f);
+        const bool hasLookDir = TryResolveDirectionalLookDirection(particlePosition, In[0].velocityDirection, lookDir);
 
         if (g_DirectionalAlignmentMode == 1) // 스프라이트의 X 또는 Y 가 바라보도록
         {
-            if (!TryResolveTextureAxisBasis(lookDir, rightDir, upDir))
+            if (!hasLookDir || !TryResolveTextureAxisBasis(lookDir, particlePosition, rightDir, upDir))
                 ResolveCameraPlaneBasis(rightDir, upDir);
         }
         else // 스프라이트의 look 이 바라보도록
-            ResolveLookAlignedBasis(lookDir, rightDir, upDir);
-    }
-    else if (g_ScreenAlignmentMode == 4)
-    {
-        const float velocityLength = length(In[0].velocityDirection);
-        const float3 lookDir = velocityLength < 0.0001f
-                               ? ResolveFacingLookDirection(particlePosition)
-                               : In[0].velocityDirection / velocityLength;
-
-        if (g_DirectionalAlignmentMode == 1 && velocityLength >= 0.0001f)
         {
-            if (!TryResolveTextureAxisBasis(lookDir, rightDir, upDir))
-                ResolveLookAlignedBasis(lookDir, rightDir, upDir);
-        }
-        else
+            if (!hasLookDir)
+                lookDir = ResolveFacingLookDirection(particlePosition);
             ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+        }
     }
     else
     {
@@ -318,7 +345,12 @@ struct PS_OUT
     float4 color : SV_TARGET0;
 };
 
-float Compute_DistortionShapeWeight(float2 cardUV)
+float Compute_ShockwavePixelUvWidth(float2 cardUV)
+{
+    return max(max(fwidth(cardUV.x), fwidth(cardUV.y)), 0.0001f);
+}
+
+float Compute_DistortionShapeWeight(float2 cardUV, float lifeProgress)
 {
     const float mode = g_EffectDistortionShapeParams.x;
     float shapeWeight = 1.f;
@@ -332,17 +364,27 @@ float Compute_DistortionShapeWeight(float2 cardUV)
 
         if (mode < 1.5f)
             shapeWeight = 1.f - smoothstep(radius, radius + softness, distanceFromCenter);
-        else
+        else if (mode < 2.5f)
         {
             const float ringDistance = abs(distanceFromCenter - radius);
             shapeWeight = 1.f - smoothstep(thickness, thickness + softness, ringDistance);
+        }
+        else
+        {
+            const float pixelUvWidth = Compute_ShockwavePixelUvWidth(cardUV);
+            const float shockwaveThickness = max(thickness, 0.f) * pixelUvWidth;
+            const float shockwaveSoftness = max(softness, 0.0001f) * pixelUvWidth;
+            const float shockwaveRadiusMax = max(0.f, 0.5f - shockwaveThickness - shockwaveSoftness);
+            const float shockwaveRadius = saturate(lifeProgress) * shockwaveRadiusMax;
+            const float ringDistance = abs(distanceFromCenter - shockwaveRadius);
+            shapeWeight = 1.f - smoothstep(shockwaveThickness, shockwaveThickness + shockwaveSoftness, ringDistance);
         }
     }
 
     return saturate(shapeWeight);
 }
 
-float Compute_DistortionInfluenceOutline(float2 cardUV)
+float Compute_DistortionInfluenceOutline(float2 cardUV, float lifeProgress)
 {
     const float mode = g_EffectDistortionShapeParams.x;
     const float outlineWidth = Compute_InfluenceOutlineWidth(cardUV);
@@ -351,10 +393,19 @@ float Compute_DistortionInfluenceOutline(float2 cardUV)
 
     if (mode >= 0.5f && mode < 1.5f)
         edgeDistance = abs(distanceFromCenter - max(g_EffectDistortionShapeParams.y, 0.f));
-    else if (mode >= 1.5f)
+    else if (mode >= 1.5f && mode < 2.5f)
     {
         const float radius = max(g_EffectDistortionShapeParams.y, 0.f);
         const float thickness = max(g_EffectDistortionShapeParams.z, 0.f);
+        edgeDistance = abs(abs(distanceFromCenter - radius) - thickness);
+    }
+    else if (mode >= 2.5f)
+    {
+        const float pixelUvWidth = Compute_ShockwavePixelUvWidth(cardUV);
+        const float thickness = max(g_EffectDistortionShapeParams.z, 0.f) * pixelUvWidth;
+        const float softness = max(g_EffectDistortionShapeParams.w, 0.0001f) * pixelUvWidth;
+        const float radiusMax = max(0.f, 0.5f - thickness - softness);
+        const float radius = saturate(lifeProgress) * radiusMax;
         edgeDistance = abs(abs(distanceFromCenter - radius) - thickness);
     }
 
@@ -400,13 +451,13 @@ PS_OUT PS_MAIN(PS_IN In)
                         ? Sample_EffectSpriteFlowTexture(flowUV, g_FlowUVTilingMode) * 2.f - 1.f
                         : float2(0.f, 0.f);
 
-    const float shapeWeight = Compute_DistortionShapeWeight(In.texCoord);
+    const float shapeWeight = Compute_DistortionShapeWeight(In.texCoord, lifeProgress);
     const float strength = g_EffectDistortionParams.x * g_EffectDistortionParams.y * coverage * shapeWeight;
     const float4 distortedColor = g_DistortionSourceTexture.Sample(LinearClampSampler, screenUV + flow * strength);
     Out.color = float4(distortedColor.rgb, coverage);
     if (g_EffectInfluenceDebugParams.x > 0.5f)
     {
-        const float outlineMask = saturate(Compute_DistortionInfluenceOutline(In.texCoord));
+        const float outlineMask = saturate(Compute_DistortionInfluenceOutline(In.texCoord, lifeProgress));
         Out.color.rgb = lerp(Out.color.rgb, kInfluenceOutlineColor, outlineMask);
         Out.color.a = max(Out.color.a, outlineMask);
     }

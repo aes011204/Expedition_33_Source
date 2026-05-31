@@ -71,6 +71,7 @@ private:
     HRESULT Load_ResourceJobsForNextLevel();
 
     HRESULT Loading_For_LogoLevel();
+    HRESULT Loading_For_GameEntryLevel();
     HRESULT Loading_For_GamePlayLevel();
     HRESULT Loading_For_MapTestLevel();
     HRESULT Loading_For_Stage01Level();

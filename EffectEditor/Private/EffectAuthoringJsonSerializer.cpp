@@ -214,6 +214,44 @@ namespace Internal
             Is_SameColor(data.constantColor, defaultData.constantColor);
     }
 
+    bool Is_DefaultCoreEmissive(const EffectMaterialCoreEmissiveData& data)
+    {
+        const EffectMaterialCoreEmissiveData defaultData{};
+        return
+            data.enabled == defaultData.enabled &&
+            Is_SameColor(data.coreColor, defaultData.coreColor) &&
+            data.corePower == defaultData.corePower &&
+            data.coreIntensity == defaultData.coreIntensity &&
+            data.outerPower == defaultData.outerPower &&
+            data.outerIntensity == defaultData.outerIntensity;
+    }
+
+    json To_Json(const EffectMaterialCoreEmissiveData& data)
+    {
+        json root = json::object();
+        root["enabled"] = data.enabled;
+        root["coreColor"] = To_Json(data.coreColor);
+        root["corePower"] = data.corePower;
+        root["coreIntensity"] = data.coreIntensity;
+        root["outerPower"] = data.outerPower;
+        root["outerIntensity"] = data.outerIntensity;
+        return root;
+    }
+
+    void From_Json(const json& root, EffectMaterialCoreEmissiveData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_BoolField(root, "enabled", outData.enabled);
+        if (const auto coreColorIter = root.find("coreColor"); coreColorIter != root.end())
+            Read_Color(*coreColorIter, outData.coreColor);
+        Read_NumberField(root, "corePower", outData.corePower);
+        Read_NumberField(root, "coreIntensity", outData.coreIntensity);
+        Read_NumberField(root, "outerPower", outData.outerPower);
+        Read_NumberField(root, "outerIntensity", outData.outerIntensity);
+    }
+
     json To_Json(const EffectMaterialAdditiveContributionData& data)
     {
         json root = json::object();
@@ -391,6 +429,8 @@ namespace Internal
         root["opacitySource"] = data.opacitySource;
         if (data.blendMode == EffectMaterialBlendMode::Additive || !Is_DefaultAdditiveContribution(data.additive))
             root["additive"] = To_Json(data.additive);
+        if (!Is_DefaultCoreEmissive(data.coreEmissive))
+            root["coreEmissive"] = To_Json(data.coreEmissive);
         root["refractionIntensity"] = data.refractionIntensity;
         root["refractionPresence"] = data.refractionPresence;
         root["distortionShapeMode"] = To_EnumToken(data.distortionShapeMode);
@@ -449,6 +489,8 @@ namespace Internal
         Read_StringField(root, "opacitySource", outData.opacitySource);
         if (const auto additiveIter = root.find("additive"); additiveIter != root.end())
             From_Json(*additiveIter, outData.additive);
+        if (const auto coreEmissiveIter = root.find("coreEmissive"); coreEmissiveIter != root.end())
+            From_Json(*coreEmissiveIter, outData.coreEmissive);
         Read_BoolField(root, "twoSided", outData.twoSided);
         Read_NumberField(root, "subUVRows", outData.subUVRows);
         Read_NumberField(root, "subUVCols", outData.subUVCols);
@@ -568,6 +610,91 @@ namespace Internal
         const auto leaveTangentIter = root.find("leaveTangent");
         if (leaveTangentIter != root.end())
             Read_Vec2(*leaveTangentIter, outData.leaveTangent);
+
+        const auto interpolationIter = root.find("interpolationMode");
+        if (interpolationIter != root.end())
+            Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
+    }
+
+    json To_Json(const Vector3CurveKeyData& data)
+    {
+        json root = json::object();
+        root["time"] = data.time;
+        root["value"] = To_Json(data.value);
+        root["arriveTangent"] = To_Json(data.arriveTangent);
+        root["leaveTangent"] = To_Json(data.leaveTangent);
+        root["interpolationMode"] = To_EnumToken(data.interpolationMode);
+        return root;
+    }
+
+    void From_Json(const json& root, Vector3CurveKeyData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "time", outData.time);
+
+        const auto valueIter = root.find("value");
+        if (valueIter != root.end())
+            Read_Vec3(*valueIter, outData.value);
+
+        const auto arriveTangentIter = root.find("arriveTangent");
+        if (arriveTangentIter != root.end())
+            Read_Vec3(*arriveTangentIter, outData.arriveTangent);
+
+        const auto leaveTangentIter = root.find("leaveTangent");
+        if (leaveTangentIter != root.end())
+            Read_Vec3(*leaveTangentIter, outData.leaveTangent);
+
+        const auto interpolationIter = root.find("interpolationMode");
+        if (interpolationIter != root.end())
+            Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
+    }
+
+    json To_ColorRgbJson(const Color& value)
+    {
+        return json::array({ value.x, value.y, value.z });
+    }
+
+    void Read_ColorRgb(const json& node, Color& outValue)
+    {
+        if (!node.is_array() || node.size() < 3 || !node[0].is_number() || !node[1].is_number() || !node[2].is_number())
+            return;
+
+        outValue.x = node[0].get<float>();
+        outValue.y = node[1].get<float>();
+        outValue.z = node[2].get<float>();
+    }
+
+    json To_Json(const ColorCurveKeyData& data)
+    {
+        json root = json::object();
+        root["time"] = data.time;
+        root["value"] = To_ColorRgbJson(data.value);
+        root["arriveTangent"] = To_ColorRgbJson(data.arriveTangent);
+        root["leaveTangent"] = To_ColorRgbJson(data.leaveTangent);
+        root["interpolationMode"] = To_EnumToken(data.interpolationMode);
+        return root;
+    }
+
+    void From_Json(const json& root, ColorCurveKeyData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "time", outData.time);
+
+        const auto valueIter = root.find("value");
+        if (valueIter != root.end())
+            Read_ColorRgb(*valueIter, outData.value);
+
+        const auto arriveTangentIter = root.find("arriveTangent");
+        if (arriveTangentIter != root.end())
+            Read_ColorRgb(*arriveTangentIter, outData.arriveTangent);
+
+        const auto leaveTangentIter = root.find("leaveTangent");
+        if (leaveTangentIter != root.end())
+            Read_ColorRgb(*leaveTangentIter, outData.leaveTangent);
 
         const auto interpolationIter = root.find("interpolationMode");
         if (interpolationIter != root.end())
@@ -836,6 +963,12 @@ namespace Internal
             payload["minValue"] = To_Json(uniformData->minValue);
             payload["maxValue"] = To_Json(uniformData->maxValue);
         }
+        else if (const auto* constantCurveData = get_if<ConstantCurveVector3DistributionData>(&data.payload))
+        {
+            payload["keys"] = json::array();
+            for (const Vector3CurveKeyData& key : constantCurveData->keys)
+                payload["keys"].push_back(To_Json(key));
+        }
 
         root["payload"] = move(payload);
         return root;
@@ -850,7 +983,9 @@ namespace Internal
         const auto modeIter = root.find("mode");
         if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
         {
-            if (parsedMode == DistributionMode::Constant || parsedMode == DistributionMode::Uniform)
+            if (parsedMode == DistributionMode::Constant ||
+                parsedMode == DistributionMode::Uniform ||
+                parsedMode == DistributionMode::ConstantCurve)
                 outData.mode = parsedMode;
         }
 
@@ -885,6 +1020,30 @@ namespace Internal
             outData.payload = payload;
             break;
         }
+        case DistributionMode::ConstantCurve:
+        {
+            ConstantCurveVector3DistributionData payload{};
+            const auto keysIter = payloadIter->find("keys");
+            if (keysIter != payloadIter->end() && keysIter->is_array())
+            {
+                payload.keys.clear();
+                for (const json& keyNode : *keysIter)
+                {
+                    Vector3CurveKeyData key{};
+                    From_Json(keyNode, key);
+                    payload.keys.push_back(key);
+                }
+            }
+
+            if (payload.keys.empty())
+            {
+                if (const auto* existingPayload = get_if<ConstantCurveVector3DistributionData>(&outData.payload))
+                    payload.keys = existingPayload->keys;
+            }
+
+            outData.payload = payload;
+            break;
+        }
         default:
             break;
         }
@@ -903,6 +1062,12 @@ namespace Internal
             payload["minValue"] = To_Json(uniformData->minValue);
             payload["maxValue"] = To_Json(uniformData->maxValue);
         }
+        else if (const auto* constantCurveData = get_if<ConstantCurveColorDistributionData>(&data.payload))
+        {
+            payload["keys"] = json::array();
+            for (const ColorCurveKeyData& key : constantCurveData->keys)
+                payload["keys"].push_back(To_Json(key));
+        }
 
         root["payload"] = move(payload);
         return root;
@@ -917,7 +1082,9 @@ namespace Internal
         const auto modeIter = root.find("mode");
         if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
         {
-            if (parsedMode == DistributionMode::Constant || parsedMode == DistributionMode::Uniform)
+            if (parsedMode == DistributionMode::Constant ||
+                parsedMode == DistributionMode::Uniform ||
+                parsedMode == DistributionMode::ConstantCurve)
                 outData.mode = parsedMode;
         }
 
@@ -949,6 +1116,30 @@ namespace Internal
             const auto maxIter = payloadIter->find("maxValue");
             if (maxIter != payloadIter->end())
                 Read_Color(*maxIter, payload.maxValue);
+            outData.payload = payload;
+            break;
+        }
+        case DistributionMode::ConstantCurve:
+        {
+            ConstantCurveColorDistributionData payload{};
+            const auto keysIter = payloadIter->find("keys");
+            if (keysIter != payloadIter->end() && keysIter->is_array())
+            {
+                payload.keys.clear();
+                for (const json& keyNode : *keysIter)
+                {
+                    ColorCurveKeyData key{};
+                    From_Json(keyNode, key);
+                    payload.keys.push_back(key);
+                }
+            }
+
+            if (payload.keys.empty())
+            {
+                if (const auto* existingPayload = get_if<ConstantCurveColorDistributionData>(&outData.payload))
+                    payload.keys = existingPayload->keys;
+            }
+
             outData.payload = payload;
             break;
         }
@@ -1264,8 +1455,7 @@ namespace Internal
     json To_Json(const RotationOverLifeModuleData& data)
     {
         json root = json::object();
-        root["rotationStartDegrees"] = data.rotationStartDegrees;
-        root["rotationEndDegrees"] = data.rotationEndDegrees;
+        root["rotationOverLife"] = To_Json(data.rotationOverLife);
         return root;
     }
 
@@ -1274,8 +1464,18 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_NumberField(root, "rotationStartDegrees", outData.rotationStartDegrees);
-        Read_NumberField(root, "rotationEndDegrees", outData.rotationEndDegrees);
+        const auto rotationOverLifeIter = root.find("rotationOverLife");
+        if (rotationOverLifeIter != root.end())
+        {
+            From_Json(*rotationOverLifeIter, outData.rotationOverLife);
+            return;
+        }
+
+        float rotationStartDegrees{ 0.f };
+        float rotationEndDegrees{ 0.f };
+        Read_NumberField(root, "rotationStartDegrees", rotationStartDegrees);
+        Read_NumberField(root, "rotationEndDegrees", rotationEndDegrees);
+        outData.rotationOverLife = FloatDistributionData::Make_ConstantCurve(rotationStartDegrees, rotationEndDegrees);
     }
 
     json To_Json(const InitialRotationRateModuleData& data)
@@ -1295,8 +1495,7 @@ namespace Internal
     json To_Json(const RotationRateScaleByLifeModuleData& data)
     {
         json root = json::object();
-        root["scaleStart"] = data.scaleStart;
-        root["scaleEnd"] = data.scaleEnd;
+        root["scaleOverLife"] = To_Json(data.scaleOverLife);
         return root;
     }
 
@@ -1305,8 +1504,18 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_NumberField(root, "scaleStart", outData.scaleStart);
-        Read_NumberField(root, "scaleEnd", outData.scaleEnd);
+        const auto scaleOverLifeIter = root.find("scaleOverLife");
+        if (scaleOverLifeIter != root.end())
+        {
+            From_Json(*scaleOverLifeIter, outData.scaleOverLife);
+            return;
+        }
+
+        float scaleStart{ 1.f };
+        float scaleEnd{ 1.f };
+        Read_NumberField(root, "scaleStart", scaleStart);
+        Read_NumberField(root, "scaleEnd", scaleEnd);
+        outData.scaleOverLife = FloatDistributionData::Make_ConstantCurve(scaleStart, scaleEnd);
     }
 
     json To_Json(const InitialColorModuleData& data)

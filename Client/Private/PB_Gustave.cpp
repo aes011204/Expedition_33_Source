@@ -45,12 +45,21 @@ HairChainPhysicsDesc PB_Gustave::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
-bool PB_Gustave::Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const
+void PB_Gustave::Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const
 {
-    outDesc.weaponPrefabName = Constants::Prefab::Gustave_Lanceram;
-    outDesc.socketName = "Weapon_R";
+    outDescs.clear();
 
-    return true;
+    WeaponAttachDesc rightHandDesc{};
+    rightHandDesc.partTag = L"Part_Weapon";
+    rightHandDesc.weaponPrefabName = Constants::Prefab::Gustave_Lanceram;
+    rightHandDesc.socketName = "Weapon_R";
+    outDescs.emplace_back(std::move(rightHandDesc));
+
+    WeaponAttachDesc leftHandDesc{};
+    leftHandDesc.partTag = L"Part_WeaponL";
+    leftHandDesc.weaponPrefabName = Constants::Prefab::Gustave_Lanceram_Gun;
+    leftHandDesc.socketName = "Weapon_L";
+    outDescs.emplace_back(std::move(leftHandDesc));
 }
 
 Shared<PB_Gustave> PB_Gustave::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

@@ -27,6 +27,8 @@ public:
 
 public:
     const Matrix& Get_CombinedWorldMatrix() const { return _combinedWorldMatrix; }
+    virtual Matrix Get_GizmoWorldMatrix() const;
+    virtual bool Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix);
 
 protected:
 	const Matrix*			_parentMatrix = { nullptr };

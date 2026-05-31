@@ -37,7 +37,8 @@ namespace Internal
             prototypeTag == L"Shader_EffectMaterialPreviewDistortion" ||
             prototypeTag == L"Shader_EffectSprite" ||
             prototypeTag == L"Shader_EffectDistortionSprite" ||
-            prototypeTag == L"Shader_EffectTrail";
+            prototypeTag == L"Shader_EffectTrail" ||
+            prototypeTag == L"Shader_EffectTrailDistortion";
     }
 
     bool Is_EffectEditorPreviewComputeShaderAllowed(const wstring& prototypeTag)

@@ -72,6 +72,7 @@ namespace Engine
         Weapon,
         PartObject,
         Projectile,
+        WorldActionTrigger,
         Effect,
         EffectEmitter,
         Trigger,
@@ -99,15 +100,6 @@ namespace Engine
         BloomBlurV,
         BloomUpsampleAdd,
         ToneMapping,
-
-        END
-    };
-
-    enum class ScreenFxPass : uint8
-    {
-        Vignette = 0,
-        Ghosting,
-        BattleTransition,
 
         END
     };
@@ -146,6 +138,7 @@ namespace Engine
         PostProcess     = 8,
         Hair            = 9,
         DrawFeature     = 10,
+        ScreenFx        = 11,
 
         END
     };

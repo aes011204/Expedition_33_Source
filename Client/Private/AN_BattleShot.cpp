@@ -15,6 +15,8 @@ IMPLEMENT_REFLECTION(AN_BattleShot)
     PROPERTY_ENUM("Camera Mode", _cameraMode, BattleCameraMode);
     PROPERTY_BOOL("Use Clip", _useClip);
     PROPERTY_BOOL("Restart Clip", _restartClip);
+    PROPERTY_STRING("Preset ID", _presetId);
+    PROPERTY_STRING("Clip ID", _clipId);
 
     return true;
 }
@@ -48,8 +50,41 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     {
         const auto& action = battle->Get_TurnAction();
         event.skillId = action.GetSkillData().skillKey;
+        event.opponent = action.GetInitTarget().actor;
+        const auto& steps = action.GetSteps();
+        const uint32 curStepIndex = action.GetCurStepIndex();
+
+        if (curStepIndex < steps.size() && !steps[curStepIndex].targets.empty())
+        {
+            const auto& targets = steps[curStepIndex].targets;
+            const size_t centerIndex = targets.size() / 2;
+            event.opponent =targets[centerIndex].actor;
+        }
+
         if (action.GetCurAnimIndex() < action.GetSkillData().AnimPhases.size())
-            event.profileId = action.GetSkillData().AnimPhases[action.GetCurAnimIndex()].cameraProfileId;
+        {
+            const Client::BattleActionPhase& phase = action.GetSkillData().AnimPhases[action.GetCurAnimIndex()];
+            event.presetId = !_presetId.empty()? _presetId : phase.cameraPresetId;
+            event.clipId = !_clipId.empty() ? _clipId : phase.cameraClipId;
+
+            if(!_presetId.empty())
+            {
+                int a = 10;
+            }
+        }
+
+        LOG_DEBUG(
+            "[BattleShotNotify] anim={} prev={:.3f} cur={:.3f} mode={} skill={} phase={} presetId={} clipId={} useClip={} restartClip={}",
+            context.animationName,
+            context.previousTimeSec,
+            context.currentTimeSec,
+            static_cast<int>(event.cameraMode),
+            event.skillId,
+            action.GetCurAnimIndex(),
+            event.presetId,
+            event.clipId,
+            _useClip,
+            _restartClip);
     }
     event.useClip = _useClip;
     event.restartClip = _restartClip;

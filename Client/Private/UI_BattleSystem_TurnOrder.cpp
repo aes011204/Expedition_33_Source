@@ -278,6 +278,8 @@ void UI_BattleSystem_TurnOrder::Place_OnSlot(
 
     if (!keepOriginalSize)
         transform->Set_Size(Vec2(200.f, 100.f));
+
+    ui->Refresh_OpenBaseTransform();
 }
 
 void UI_BattleSystem_TurnOrder::Open_UI(const Shared<UI_Base>& ui) const

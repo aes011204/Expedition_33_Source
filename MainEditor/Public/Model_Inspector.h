@@ -24,6 +24,21 @@ private:
         int32 selectedAnimIndex = -1;
         bool loop = true;
         float blendDuration = 0.1f;
+        string filterText{};
+    };
+
+    struct AnimationListItem
+    {
+        int32 playbackIndex = -1;
+        string displayName{};
+        string playbackName{};
+    };
+
+    struct AnimListCache
+    {
+        wstring sourceModelPath{};
+        uint32 numAnimations = 0;
+        vector<AnimationListItem> items{};
     };
 
 private:
@@ -37,6 +52,8 @@ private:
     static ID3D11ShaderResourceView* Get_TexturePreviewSRV(const fs::path& texturePath);
     static int32 Get_TextureMipCount(const fs::path& texturePath, ID3D11ShaderResourceView* shaderResourceView);
     static AnimPreviewState& Get_AnimPreviewState(const Engine::ModelCom* model);
+    static AnimListCache& Get_AnimListCache(const Engine::ModelCom* model);
+    static void Refresh_AnimListCache(const Shared<Engine::ModelCom>& model, AnimListCache& cache, uint32 numAnimations);
     static void Draw_AnimationSection(const Shared<Engine::ModelCom>& model);
 
 public:

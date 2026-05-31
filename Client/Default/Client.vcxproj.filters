@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="98.Default">
@@ -178,9 +178,6 @@
     <Filter Include="02.GameObject\Monster\01. Battle">
       <UniqueIdentifier>{67722be3-2fa7-4894-aada-eddadce9c2e6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="AnimNotify">
-      <UniqueIdentifier>{52ff958b-6d54-48df-a876-809550f14095}</UniqueIdentifier>
-    </Filter>
     <Filter Include="BehavoirTree\battle">
       <UniqueIdentifier>{292bb4f3-1a9f-4b3b-aef8-1d9d3507d618}</UniqueIdentifier>
     </Filter>
@@ -192,9 +189,6 @@
     </Filter>
     <Filter Include="02.GameObject\UI\CharacterStatus_Panel">
       <UniqueIdentifier>{ee7b5bd8-e9bc-4acd-91ee-92cc1ca9e59b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02.GameObject\Map\MapInstancedMesh">
-      <UniqueIdentifier>{48582af2-9fa3-4baf-bee3-b247fe81d3f0}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Camera\Preview">
       <UniqueIdentifier>{2e34842e-b1f0-4652-925c-5877a9a340a6}</UniqueIdentifier>
@@ -229,59 +223,8 @@
     <Filter Include="04. GamePlayUI\SkillTree_Panel">
       <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Terrain_UE">
-      <UniqueIdentifier>{4d67b62f-7bd5-43ab-9c10-693a9e78aa72}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\Effect\Emitters\ComputeTrail" />
-    <Filter Include="02.GameObject\Effect\Emitters\PointParticle %28deprecated%29" />
-    <Filter Include="02.GameObject\InstancedMeshActor" />
-    <Filter Include="02.GameObject\Map" />
-    <Filter Include="02.GameObject\Map\MapInstancedMesh" />
-    <Filter Include="02.GameObject\Map\MapLoader" />
-    <Filter Include="02.GameObject\Map\MapStaticMesh" />
-    <Filter Include="02.GameObject\Monster" />
-    <Filter Include="02.GameObject\Monster\00. World" />
-    <Filter Include="02.GameObject\Monster\01. Battle" />
-    <Filter Include="02.GameObject\Player" />
-    <Filter Include="02.GameObject\Player\00. World" />
-    <Filter Include="02.GameObject\Player\01. Battle" />
-    <Filter Include="02.GameObject\Player\PlayerParts" />
-    <Filter Include="02.GameObject\Player\PlayerParts\Body" />
-    <Filter Include="02.GameObject\Player\PlayerParts\Hair" />
-    <Filter Include="02.GameObject\Player\PlayerParts\Head" />
-    <Filter Include="02.GameObject\Player\PlayerParts\Weapon" />
-    <Filter Include="02.GameObject\Player\PlayerStateMachine" />
-    <Filter Include="02.GameObject\Player\PlayerStateMachine\State" />
-    <Filter Include="02.GameObject\Sky" />
-    <Filter Include="02.GameObject\Terrain" />
-    <Filter Include="02.GameObject\UI" />
-    <Filter Include="02.GameObject\UI\BackGround" />
-    <Filter Include="03. Component" />
-    <Filter Include="03. Component\CombatStat" />
-    <Filter Include="03. Component\Input" />
-    <Filter Include="03. Component\PlayerController" />
-    <Filter Include="03. Component\StateMachine" />
-    <Filter Include="03. Component\StateMachine\State" />
-    <Filter Include="04. GamePlayUI" />
-    <Filter Include="04. GamePlayUI\Weapon" />
     <Filter Include="90.EditorSupport" />
-    <Filter Include="05. BattleSystem" />
-    <Filter Include="95. AnimNotify" />
-    <Filter Include="95. AnimNotify\00. Notifies" />
-    <Filter Include="95. AnimNotify\01. NotifyStates" />
-    <Filter Include="96. Manager" />
-    <Filter Include="98.Default" />
-    <Filter Include="99.Defines" />
-    <Filter Include="99.Defines\Helper" />
-    <Filter Include="Ailment" />
-    <Filter Include="AnimNotify" />
-    <Filter Include="BattleState" />
-    <Filter Include="BattleState\Battle" />
-    <Filter Include="BattleState\Battle\BattleController" />
-    <Filter Include="BehavoirTree" />
-    <Filter Include="BehavoirTree\battle" />
-    <Filter Include="BehavoirTree\world" />
-    <Filter Include="Skill" />
     <Filter Include="02.GameObject\Camera\BattleCamera">
       <UniqueIdentifier>{a140d5ff-7aa8-44da-b19f-d406017bc23e}</UniqueIdentifier>
     </Filter>
@@ -296,70 +239,187 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\private\AN_BattleShot.cpp" />
-    <ClCompile Include="..\Private\BattleClipSequencerAdapter.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\Private\Player_FreeAim.cpp" />
-    <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
-    <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
-    <ClCompile Include="..\Private\UI_BattleVictory.cpp" />
-    <ClCompile Include="..\Private\UI_DamageFont.cpp" />
+    <ClCompile Include="..\Private\TrailSampleProvider_ByPart.cpp">
+      <Filter>02.GameObject\Effect</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\BattleTurnCamera.cpp">
       <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\BattleCameraClipIO.cpp">
       <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\ANS_Emissive.cpp" />
-    <ClCompile Include="..\private\AN_Change_Anim.cpp" />
-    <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
-    <ClCompile Include="..\Private\AN_StartCounter.cpp" />
-    <ClCompile Include="..\private\Base_Mon_Defense.cpp" />
-    <ClCompile Include="..\private\Base_Mon_Spawn.cpp" />
-    <ClCompile Include="..\Private\BattleReactionController.cpp" />
-    <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
-    <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp" />
-    <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
-    <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
-    <ClCompile Include="ANS_Visible_Parts.cpp" />
     <ClCompile Include="..\Private\ANS_QTE.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\AN_Change_Anim.cpp" />
-    <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
-    <ClCompile Include="..\Private\AN_StartCounter.cpp" />
-    <ClCompile Include="..\private\Base_Mon_Defense.cpp" />
-    <ClCompile Include="..\private\Base_Mon_Spawn.cpp" />
-    <ClCompile Include="..\Private\BattleReactionController.cpp" />
-    <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
-    <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp" />
-    <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
-    <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
-    <ClCompile Include="..\Private\UI_PlayerHpBar.cpp" />
     <ClCompile Include="..\Private\EffectCom.cpp" />
-    <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
-    <ClCompile Include="..\Private\ANS_IdleOffset.cpp" />
-    <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
-    <ClCompile Include="..\Private\AN_EndTurn.cpp" />
-    <ClCompile Include="..\Private\UI_HealFont.cpp" />
-    <ClCompile Include="..\Private\UI_BattleSkillPanel.cpp" />
     <ClCompile Include="..\Private\EffectInstancePool.cpp">
       <Filter>06. Pool\Effect Pool</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\ANS_Trail.cpp" />
-    <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
-    <ClCompile Include="..\Private\UI_BattleAnnounce.cpp" />
-    <ClCompile Include="..\Private\WeaponPrefabLoader.cpp" />
-    <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />
-    <ClCompile Include="..\Private\BattleMechanismCom.cpp" />
-    <ClCompile Include="..\Private\Skill_Gustave_Battle.cpp" />
-    <ClCompile Include="..\Private\Skill_Lune_Battle.cpp" />
-    <ClCompile Include="..\Private\Skill_Maelle_Battle.cpp" />
-    <ClCompile Include="..\Private\BattleHitSequenceRunner.cpp" />
-    <ClCompile Include="..\Private\BattleAnimutils.cpp" />
-    <ClCompile Include="..\private\BattleAction.cpp" />
-    <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
+    <ClCompile Include="..\private\Level_GameEntry.cpp">
+      <Filter>01.Levels\Logo</Filter>
+    </ClCompile>
+
     <ClCompile Include="..\private\BT_LookRange.cpp" />
+
+    <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />
+
+    <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
+
+    <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
+    <ClCompile Include="..\Private\WeaponPrefabLoader.cpp" />
+    <ClCompile Include="..\Private\FaceAccessory_Player.cpp" />
+    <ClCompile Include="..\Private\Terrain_UE.cpp" />
+
+    <ClCompile Include="..\private\ANS_Emissive.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_IdleOffset.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_PlayEffect.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_Trail.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+
+    <ClCompile Include="..\private\AN_Attack.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\AN_BattleShot.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\AN_Change_Anim.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_CounterDamage.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_EndTurn.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\AN_EnterAnim.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_PlayEffect.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_SpawnActor.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_StartCounter.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\AN_VanishDissolve.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\ANS_Move.cpp">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClCompile>
+
+    <ClCompile Include="..\Private\UI_AttackTooltip.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleAnnounce.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleItemPanel.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleMechanism.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleSkillPanel.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_BattleVictory.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_DamageFont.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_HealFont.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_PlayerHpBar.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_ReactionResult.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_SuddenAttack.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+
+    <ClCompile Include="..\private\Base_Mon_Defense.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\Base_Mon_Spawn.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\BattleAction.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleAnimutils.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleClipSequencerAdapter.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleHitSequenceRunner.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleMechanismCom.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleReactionController.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\BattleSpawnRegistry.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
+
+    <ClCompile Include="..\private\Skill_Bishop_Ground_Att.cpp">
+      <Filter>Skill</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Skill_Gustave_Battle.cpp">
+      <Filter>Skill</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Skill_Lune_Battle.cpp">
+      <Filter>Skill</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\Skill_Maelle_Battle.cpp">
+      <Filter>Skill</Filter>
+    </ClCompile>
+
+    <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\CA_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\ClientScreenFxManager.cpp" />
+    <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
+    <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp" />
+
+    <ClCompile Include="..\Private\ANS_WeaponRotate.cpp" />
+    <ClCompile Include="..\Private\ANS_Visible_Parts.cpp" />
+
+    <ClCompile Include="..\Private\Base_Gustave_Attack.cpp" />
+
+    <ClCompile Include="..\private\BT_IsStun.cpp" />
+    <ClCompile Include="..\private\BT_Stun.cpp" />
+    <ClCompile Include="..\private\BT_Patrol.cpp" />
+
+    <ClCompile Include="..\private\MB_Simon.cpp" />
+    <ClCompile Include="..\private\Mon_Simon_Body.cpp" />
+    <ClCompile Include="..\private\MW_Simon.cpp" />
+    <ClCompile Include="Mon_Simon_Weapon.cpp" />
+
     <ClCompile Include="..\Private\MapLandscape.cpp">
       <Filter>02.GameObject\Map\MapLandscape</Filter>
     </ClCompile>
@@ -383,209 +443,137 @@
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneCombine.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
-      <Filter>97.ShaderFiles\Effect</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl" />
+
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
-      <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
+
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BufferSmoke.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectDistortionSprite.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
-      <Filter>97.ShaderFiles\Effect</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
-      <Filter>97.ShaderFiles\Effect</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectDistortionSprite.hlsl">
-      <Filter>97.ShaderFiles\Effect</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxTex.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMesh.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstance.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxMeshInstanceExact.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxNorTex.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
-      <Filter>97.ShaderFiles\Effect</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl">
-      <Filter>97.ShaderFiles</Filter>
-    </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
+
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
+
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrailDistortion.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+
   </ItemGroup>
+
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli">
       <Filter>97.ShaderFiles\Effect</Filter>
@@ -595,23 +583,14 @@
     <ClInclude Include="..\public\ANS_Dodge.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\ANS_Move.h">
-      <Filter>AnimNotify</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\ANS_Parry.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
     <ClInclude Include="..\public\ANS_QTE.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\AN_Attack.h">
-      <Filter>AnimNotify</Filter>
-    </ClInclude>
     <ClInclude Include="..\public\AN_Battle_EndAnim.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\AN_EnterAnim.h">
-      <Filter>AnimNotify</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_Test2.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
@@ -627,9 +606,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Battle_Enum.h">
       <Filter>BattleState\Battle</Filter>
-    </ClInclude>
-    <ClInclude Include="..\public\BT_Patroll.h">
-      <Filter>BehavoirTree\world</Filter>
     </ClInclude>
     <ClInclude Include="..\public\ChangeWeapon_Panel.h">
       <Filter>04. GamePlayUI\Weapon</Filter>
@@ -1016,10 +992,6 @@
     <ClInclude Include="..\Public\ClientInstance.h">
       <Filter>00.Core</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\Player_GameMenu.h" />
-    <ClInclude Include="..\Public\Terrain_UE.h">
-      <Filter>02.GameObject\Terrain_UE</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Client_Defines.h">
       <Filter>99.Defines</Filter>
     </ClInclude>
@@ -1059,16 +1031,10 @@
     <ClInclude Include="..\Public\Weapon.h">
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\AN_BattleShot.h" />
-    <ClInclude Include="..\Public\BattleClipSequencerAdapter.h" />
     <ClInclude Include="..\Public\CameraDirector.h" />
     <ClInclude Include="..\Public\CameraPresetIO.h" />
     <ClInclude Include="..\Public\CameraPresetTypes.h" />
     <ClInclude Include="..\Public\Player_FreeAim.h" />
-    <ClInclude Include="..\Public\UI_AttackTooltip.h" />
-    <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
-    <ClInclude Include="..\Public\UI_BattleVictory.h" />
-    <ClInclude Include="..\Public\UI_DamageFont.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h">
       <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClInclude>
@@ -1087,45 +1053,178 @@
     <ClInclude Include="..\Public\BattleCameraClipUtils.h">
       <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClInclude>
-    <ClInclude Include="..\public\ANS_Emissive.h" />
-    <ClInclude Include="..\public\AN_Change_Anim.h" />
-    <ClInclude Include="..\Public\AN_CounterDamage.h" />
-    <ClInclude Include="..\Public\AN_StartCounter.h" />
-    <ClInclude Include="..\public\Base_Mon_Defense.h" />
-    <ClInclude Include="..\public\Base_Mon_Spawn.h" />
-    <ClInclude Include="..\Public\BattleReactionController.h" />
-    <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
-    <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h" />
-    <ClInclude Include="..\Public\UI_BattleMechanism.h" />
-    <ClInclude Include="..\Public\UI_ReactionResult.h" />
-    <ClInclude Include="ANS_Visible_Parts.h" />
-    <ClInclude Include="Battle_Enum.h" />
-    <ClInclude Include="..\Public\UI_PlayerHpBar.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
-    <ClInclude Include="..\Public\AN_VanishDissolve.h" />
-    <ClInclude Include="..\Public\ANS_IdleOffset.h" />
-    <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
-    <ClInclude Include="..\Public\AN_EndTurn.h" />
-    <ClInclude Include="..\Public\UI_HealFont.h" />
-    <ClInclude Include="..\Public\UI_BattleSkillPanel.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h">
       <Filter>06. Pool\Effect Pool</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\ANS_Trail.h" />
-    <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
-    <ClInclude Include="..\Public\UI_BattleAnnounce.h" />
-    <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h" />
-    <ClInclude Include="..\Public\WeaponPrefabLoader.h" />
-    <ClInclude Include="Battle_Enum.h" />
-    <ClInclude Include="..\Public\IRuntimeUI_EditorTarget.h" />
-    <ClInclude Include="..\Public\BattleMechanismCom.h" />
-    <ClInclude Include="..\Public\Skill_Gustave_Battle.h" />
-    <ClInclude Include="..\Public\Skill_Lune_Battle.h" />
-    <ClInclude Include="..\Public\Skill_Maelle_Battle.h" />
-    <ClInclude Include="..\Public\BattleHitSequenceRunner.h" />
-    <ClInclude Include="..\Public\BattleAnimUtils.h" />
-    <ClInclude Include="..\public\BattleAction.h" />
+    <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h">
+      <Filter>02.GameObject\Effect</Filter>
+    </ClInclude>
+
+    <ClInclude Include="..\public\Level_GameEntry.h">
+      <Filter>01.Levels\Logo</Filter>
+    </ClInclude>
+
     <ClInclude Include="..\public\BT_LookRange.h" />
+
+    <ClInclude Include="..\Public\IRuntimeUI_EditorTarget.h" />
+    <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
+    <ClInclude Include="..\Public\Trigger_WorldAction.h" />
+    <ClInclude Include="..\Public\WeaponPrefabLoader.h" />
+    <ClInclude Include="..\Public\FaceAccessory_Player.h" />
+    <ClInclude Include="..\Public\Terrain_UE.h" />
+
+    <ClInclude Include="..\public\ANS_Emissive.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_IdleOffset.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_PlayEffect.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_Trail.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+
+    <ClInclude Include="..\public\AN_Attack.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\AN_BattleShot.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\AN_Change_Anim.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_CounterDamage.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_EndTurn.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\AN_EnterAnim.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_PlayEffect.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_SpawnActor.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_StartCounter.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_VanishDissolve.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+
+    <ClInclude Include="..\public\ANS_Move.h">
+      <Filter>95. AnimNotify\01. NotifyStates</Filter>
+    </ClInclude>
+
+    <ClInclude Include="..\Public\UI_AttackTooltip.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleAnnounce.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleItemPanel.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleMechanism.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleSkillPanel.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BattleVictory.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_DamageFont.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_HealFont.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_PlayerHpBar.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_ReactionResult.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_SuddenAttack.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+
+    <ClInclude Include="..\public\Base_Mon_Defense.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\Base_Mon_Spawn.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\BattleAction.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleAnimUtils.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleClipSequencerAdapter.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleHitSequenceRunner.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleMechanismCom.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleReactionController.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\BattleSpawnRegistry.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
+
+    <ClInclude Include="..\public\Skill_Bishop_Ground_Att.h">
+      <Filter>Skill</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Skill_Gustave_Battle.h">
+      <Filter>Skill</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Skill_Lune_Battle.h">
+      <Filter>Skill</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\Skill_Maelle_Battle.h">
+      <Filter>Skill</Filter>
+    </ClInclude>
+
+    <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
+    <ClInclude Include="..\Public\CA_ScreenFx.h" />
+    <ClInclude Include="..\Public\ClientScreenFxManager.h" />
+    <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
+    <ClInclude Include="..\Public\RadialBlur_ScreenFx.h" />
+
+    <ClInclude Include="..\Public\ANS_WeaponRotate.h" />
+    <ClInclude Include="..\Public\ANS_Visible_Parts.h" />
+
+    <ClInclude Include="..\Public\Base_Gustave_Attack.h" />
+
+    <ClInclude Include="..\public\BT_IsStun.h" />
+    <ClInclude Include="..\public\BT_Stun.h" />
+    <ClInclude Include="..\public\BT_Patrol.h" />
+
+    <ClInclude Include="..\public\MB_Simon.h" />
+    <ClInclude Include="..\public\Mon_Simon_Body.h" />
+    <ClInclude Include="..\public\MW_Simon.h" />
+
+    <ClInclude Include="Battle_Enum.h" />
+    <ClInclude Include="Mon_Simon_Weapon.h" />
+
     <ClInclude Include="..\Public\MapLandscape.h">
       <Filter>02.GameObject\Map\MapLandscape</Filter>
     </ClInclude>
@@ -1134,20 +1233,11 @@
     <ClCompile Include="..\private\ANS_Dodge.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\ANS_Move.cpp">
-      <Filter>AnimNotify</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\ANS_Parry.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
-    <ClCompile Include="..\private\AN_Attack.cpp">
-      <Filter>AnimNotify</Filter>
-    </ClCompile>
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\AN_EnterAnim.cpp">
-      <Filter>AnimNotify</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_Test2.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
@@ -1160,9 +1250,6 @@
     </ClCompile>
     <ClCompile Include="..\private\BattleActionExecutor.cpp">
       <Filter>BattleState\Battle</Filter>
-    </ClCompile>
-    <ClCompile Include="..\private\BT_Patroll.cpp">
-      <Filter>BehavoirTree\world</Filter>
     </ClCompile>
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp">
       <Filter>04. GamePlayUI\Weapon</Filter>
@@ -1515,9 +1602,6 @@
     <ClCompile Include="..\private\WeaponUI_Common.cpp">
       <Filter>04. GamePlayUI\Weapon</Filter>
     </ClCompile>
-    <ClCompile Include="Base_Gustave_Attack.cpp">
-      <Filter>Skill</Filter>
-    </ClCompile>
     <ClCompile Include="pch.cpp">
       <Filter>98.Default</Filter>
     </ClCompile>
@@ -1566,10 +1650,6 @@
     <ClCompile Include="..\Private\Weapon.cpp">
       <Filter>02.GameObject\Player\PlayerParts\Weapon</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\Player_GameMenu.cpp" />
-    <ClCompile Include="..\Private\Terrain_UE.cpp">
-      <Filter>02.GameObject\Terrain_UE</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\ContentBrowserCore.h">
@@ -1578,5 +1658,10 @@
     <ClCompile Include="..\Private\ContentBrowserCore.cpp">
       <Filter>90.EditorSupport</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </None>
   </ItemGroup>
 </Project>

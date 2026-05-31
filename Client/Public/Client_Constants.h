@@ -5,6 +5,7 @@ namespace Client::Constants::UI
 {
     inline constexpr wchar_t Loading_UI_Json_Path[] = L"UI/UI_Json/Scene/Loading/UI_LoadingScean.json";
     inline constexpr wchar_t UI_MainTitle_Path[] = L"UI/UI_Json/Scene/MainTitle/UI_MainTitle.json";
+    inline constexpr wchar_t UI_GameEntry_Path[] = L"UI/UI_Json/Scene/GameEntry/UI_GameEntryScene.json";
     inline constexpr wchar_t UI_CharacterStatus_Path[] = L"UI/UI_Json/Character/UI_CharacterStatus.json";
     inline constexpr wchar_t UI_SavePoint_Path[] = L"UI/UI_Json/CommonSystem/UI_SavePoint.json";
     inline constexpr wchar_t UI_ExpeditionStatus_Path[] = L"UI/UI_Json/CommonSystem/UI_ExpeditionStatus.json";
@@ -73,6 +74,8 @@ namespace Client::Constants::UI
 
     // Battle Announce
     inline constexpr wchar_t UI_BattleSystem_Announce_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Announce.json";
+    inline constexpr wchar_t UI_FirstStrike_Path[] = L"UI/UI_Json/BattleSystem/UI_FirstStrike.json";
+
 
 #pragma endregion
 
@@ -97,6 +100,7 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_HealFontAnim_Path[] = L"UI/UI_Animations/BattleSystem/DamageFont/HealFont";
 
     inline constexpr wchar_t UI_BattleSystem_AnnounceAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Announce";
+    inline constexpr wchar_t UI_FirstStrikeAnim_Path[] = L"UI/UI_Animations/BattleSystem/FirstStrike";
 }
 
 namespace Client::Constants::Map
@@ -169,6 +173,7 @@ namespace Client::Constants::Prefab
 
 #pragma region 무기
     inline constexpr char Gustave_Lanceram[]    = "WP_Gustave_Lanceram";
+    inline constexpr char Gustave_Lanceram_Gun[]    = "WP_Gustave_Lanceram_Gun";
     inline constexpr char Lune_Colim[]          = "WP_Lune_Colim";
     inline constexpr char Maelle_Medalum[]      = "WP_Maelle_Medalum";
 #pragma endregion

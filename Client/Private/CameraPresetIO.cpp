@@ -11,16 +11,16 @@ CameraPresetIO::~CameraPresetIO()
 
 namespace
 {
-string Build_BattlePresetFilePath(BattleCameraMode cameraMode, const string& skillId)
-{
-    const string modeName = string(magic_enum::enum_name(cameraMode));
-    string fileName = "BattlePreset_" + modeName;
-
-    if (!skillId.empty())
-        fileName += "_" + skillId;
-
-    return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
-}
+    string Build_BattlePresetFilePath(BattleCameraMode cameraMode, const string& skillId)
+    {
+        const string modeName = string(magic_enum::enum_name(cameraMode));
+        string fileName = "BattlePreset_" + modeName;
+    
+        if (!skillId.empty())
+            fileName += "_" + skillId;
+    
+        return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
+    }
 }
 
 void CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode cameraMode, const TargetCameraPreset& preset)

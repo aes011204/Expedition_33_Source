@@ -800,6 +800,19 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         additive.intensityScale
     );
     const Vec4 effectMaterialPreviewAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
+    const EffectMaterialCoreEmissiveData& coreEmissive = material.coreEmissive;
+    const Vec4 effectMaterialPreviewCoreEmissiveParams = Vec4(
+        coreEmissive.enabled ? 1.f : 0.f,
+        coreEmissive.corePower,
+        coreEmissive.coreIntensity,
+        coreEmissive.outerPower
+    );
+    const Vec4 effectMaterialPreviewCoreEmissiveColor = Vec4(
+        coreEmissive.coreColor.x,
+        coreEmissive.coreColor.y,
+        coreEmissive.coreColor.z,
+        coreEmissive.outerIntensity
+    );
     const int opacitySource = Internal::Resolve_OpacitySourceIndex(material.opacitySource);
 
     CHECK_FAILED(_shader->Bind_ObjectCB(worldMatrix), E_FAIL);
@@ -874,6 +887,14 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
     );
     CHECK_FAILED(
         _shader->Bind_RawValue("g_EffectMaterialPreviewAdditiveFlags", &effectMaterialPreviewAdditiveFlags, sizeof(effectMaterialPreviewAdditiveFlags)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewCoreEmissiveParams", &effectMaterialPreviewCoreEmissiveParams, sizeof(effectMaterialPreviewCoreEmissiveParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewCoreEmissiveColor", &effectMaterialPreviewCoreEmissiveColor, sizeof(effectMaterialPreviewCoreEmissiveColor)),
         E_FAIL
     );
     CHECK_FAILED(

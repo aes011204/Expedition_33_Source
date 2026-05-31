@@ -22,6 +22,7 @@
 #include "AnimState_View.h"
 #include "ClientInstance.h"
 #include "PostProcess_View.h"
+#include "ScreenFx_View.h"
 
 namespace fs = std::filesystem;
 
@@ -58,7 +59,7 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(Material_View::Create());
     Add_Window(AnimState_View::Create());
     Add_Window(PostProcess_View::Create());
-
+    Add_Window(ScreenFx_View::Create());
     return S_OK;
 }
 

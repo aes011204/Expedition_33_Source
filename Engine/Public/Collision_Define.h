@@ -6,20 +6,23 @@ NS_BEGIN(Engine)
 
 enum class Collision_Channel : uint32
 {
-    NONE            = 0,
-    Player          = 1 << 0,
-    Player_Body     = 1 << 1,
-    Player_Attack   = 1 << 2,
-    Monster         = 1 << 3,
-    Monster_Body    = 1 << 4,
-    Monster_Attack  = 1 << 5,
-    Weapon          = 1 << 6,
-    Projectile      = 1 << 7,
-    Item            = 1 << 8,
-    Trigger         = 1 << 9,
-    Enviroment      = 1 << 10,
-    Player_Target   = 1 << 11,
-    Camera          = 1 << 12,
+    NONE = 0,
+    Player = 1 << 0,
+    Player_Body = 1 << 1,
+    Player_WorldBody = 1 << 2,
+    Player_Attack = 1 << 3,
+    Monster = 1 << 4,
+    Monster_Body = 1 << 5,
+    Monster_WorldBody = 1 << 6,
+    Monster_Attack = 1 << 7,
+    Weapon = 1 << 8,
+    Projectile = 1 << 9,
+    Item = 1 << 10,
+    Trigger = 1 << 11,
+    Enviroment = 1 << 12,
+    Player_Target = 1 << 13,
+    Camera = 1 << 14,
+    WorldActionTrigger = 1 << 15,
 
     CHANNEL_ALL = 0xFFFFFFFF,   // 모든 충돌 OK
     CHANNEL_NONE = 0x00000000,  // 모든 충돌 ㄴㄴ
@@ -35,6 +38,7 @@ enum class Collision_Preset
 
     Weapon,
     Projectile, // 투사체
+    WorldActionTrigger, // 월드액션 전투 진입용 트리거
 
     Item,
     Trigger,
@@ -123,17 +127,21 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)
     },
 
-    { Collision_Channel::Player_Body,
-    /* overlapMask */ ETOI(Collision_Channel::Monster_Body),
+    { Collision_Channel::Player_WorldBody,
+    /* overlapMask */ ETOI(Collision_Channel::Monster_Attack) |
+                      ETOI(Collision_Channel::Item) |
+                      ETOI(Collision_Channel::Trigger) |
+                      ETOI(Collision_Channel::Monster_WorldBody),
+
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)
     },
-    
+
     { Collision_Channel::Player_Attack,
     /* overlapMask */ ETOI(Collision_Channel::Monster) |
                       ETOI(Collision_Channel::Monster_Body),
     /* blockMask   */ 0
     },
-    
+
     { Collision_Channel::Monster,
     /* overlapMask */ ETOI(Collision_Channel::Player_Attack) |
                       ETOI(Collision_Channel::Weapon) |
@@ -141,7 +149,7 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
                       ETOI(Collision_Channel::Player_Target),
     /* blockMask   */ 0
     },
-    
+
     { Collision_Channel::Monster_Body,
     /* overlapMask */ ETOI(Collision_Channel::Player_Attack) |
                       ETOI(Collision_Channel::Weapon) |
@@ -151,58 +159,71 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)
     },
 
-    { Collision_Channel::Monster_Body,
-    /* overlapMask */ ETOI(Collision_Channel::Player_Body),
+    { Collision_Channel::Monster_WorldBody,
+    /* overlapMask */ ETOI(Collision_Channel::Player_Body) |
+                      ETOI(Collision_Channel::Player_WorldBody) |
+                      ETOI(Collision_Channel::Projectile) |
+                      ETOI(Collision_Channel::Player_Target) |
+                      ETOI(Collision_Channel::WorldActionTrigger),
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)
-    },
-    
-    { Collision_Channel::Monster_Attack,
+   },
+
+
+       { Collision_Channel::Monster_Attack,
     /* overlapMask */ ETOI(Collision_Channel::Player) |
                       ETOI(Collision_Channel::Player_Body),
     /* blockMask   */ 0
     },
-    
+
     { Collision_Channel::Weapon,
     /* overlapMask */ ETOI(Collision_Channel::Monster) |
                       ETOI(Collision_Channel::Monster_Body),
     /* blockMask   */ 0
     },
-    
+
     { Collision_Channel::Projectile,
     /* overlapMask */ ETOI(Collision_Channel::Monster) |
                       ETOI(Collision_Channel::Player),
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)
     },
-    
+
+    { Collision_Channel::WorldActionTrigger,
+    /* overlapMask */ ETOI(Collision_Channel::Monster_WorldBody),
+    /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    },
+
     { Collision_Channel::Item,
     /* overlapMask */ ETOI(Collision_Channel::Player),
     /* blockMask   */ 0
     },
-    
+
     { Collision_Channel::Trigger,
     /* overlapMask */ ETOI(Collision_Channel::Player) |
                       ETOI(Collision_Channel::Player_Body),
     /* blockMask   */ 0
     },
-    
+
     // Enviroment — 환경물. 플레이어/투사체를 Block
     { Collision_Channel::Enviroment,
     /* overlapMask */ 0,
     /* blockMask   */ ETOI(Collision_Channel::Player) |
                       ETOI(Collision_Channel::Player_Body) |
+                      ETOI(Collision_Channel::Player_WorldBody) |
                       ETOI(Collision_Channel::Projectile) |
                       ETOI(Collision_Channel::Monster_Body) |
+                      ETOI(Collision_Channel::Monster_WorldBody) |
                       ETOI(Collision_Channel::Camera)
     },
-    
+
     // Player_Target — 타겟팅용. 몬스터/몬스터 몸체에 Overlap
     { Collision_Channel::Player_Target,
     /* overlapMask */ ETOI(Collision_Channel::Monster) |
-                      ETOI(Collision_Channel::Monster_Body),
+                      ETOI(Collision_Channel::Monster_Body) |
+                      ETOI(Collision_Channel::Monster_WorldBody),
     /* blockMask   */ 0
     },
 
-    // Camera — 카메라 충돌 환경물만 Block
+    // Camera — 카메라 충돌 환경물만 Block`
     { Collision_Channel::Camera,
     /* overlapMask */ 0,
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)

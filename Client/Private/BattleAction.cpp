@@ -115,7 +115,7 @@ void BattleAction::SetupStep()
             return;
         }
 
-        const int num = Math::RandNum(0, charter.size() - 1);
+        const int num = Math::RandNum(0, static_cast<int>(charter.size() - 1));
 
         step.targets.push_back(charter[num]);
     }

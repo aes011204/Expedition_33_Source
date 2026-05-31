@@ -84,7 +84,8 @@ private:
         float startTimeSec = 0.f;
         float endTimeSec = 0.75f;
         BattleCameraMode mode = BattleCameraMode::PLAYERATTACK;
-        string profileId{};
+        string presetId{};
+        string clipId{};
     };
 
     enum class TimelineEditorTab : uint8
@@ -132,6 +133,12 @@ private:
     float Get_CurrentPreviewAnimationDurationSec() const;
     float Get_BattleClipAuthoringDurationSec() const;
     int  Get_BattleClipPreviewFrameMax() const;
+    float Get_CurrentBattleClipTimeOriginSec() const;
+    float Get_CurrentBattleClipTimeRangeSec() const;
+    float Get_CurrentBattleClipPreviewTimeSec() const;
+    float Get_BattleClipTimeFromFrame(int frame) const;
+    int Get_BattleClipFrameFromTime(float clipTime) const;
+    void Sync_BattleClipFrameFromPreviewTime();
     void Clear_PreviewContext();
     void Refresh_PreviewAnimationList();
     void Try_AutoSelectPreviewActorAndAnimation();
@@ -141,11 +148,12 @@ private:
     void Ensure_BattlePresetLoaded();
     void Load_BattlePresetForMode(BattleCameraMode mode, bool loadBase = false);
     void Load_BattlePresetForCurrentMode(bool loadBase = false);
+    void Load_BattleClipForMode(BattleCameraMode mode, bool loadBase = false, bool resetTimeline = false);
     void Load_BattleClipForCurrentMode(bool loadBase = false, bool resetTimeline = false);
     void Refresh_AuthoringFileList();
     void Load_SelectedAuthoringFile();
     bool Apply_AuthoringFileSelection(const fs::path& filePath);
-    void Apply_AuthoringFileContext(BattleCameraMode mode, const string& skillId);
+    void Apply_AuthoringFileContext(BattleCameraMode mode, bool isPresetFile, const string& authoringId);
     void Update_BattlePresetAuthoringInput(float timeDelta);
     void Refresh_SelectedBattleClipKey();
     void Reset_PreviewPoseState();
@@ -168,12 +176,20 @@ private:
     void Refresh_PreviewSkillPhaseBlocks();
     float Resolve_PreviewAnimationDurationByName(const string& animationName) const;
     float Get_PreviewSkillSequenceDuration() const;
+    PreviewSkillPhaseBlock* Get_SelectedPreviewSkillPhase();
+    const PreviewSkillPhaseBlock* Get_SelectedPreviewSkillPhase() const;
+    const PreviewSkillPhaseBlock* Resolve_CurrentPreviewSkillPhase(float previewTimeSec) const;
     const PreviewSkillPhaseBlock* Resolve_ActivePreviewSkillPhase(float previewTimeSec) const;
     PreviewCameraShotBlock* Get_SelectedPreviewShotBlock();
     const PreviewCameraShotBlock* Get_SelectedPreviewShotBlock() const;
+    int Find_ActivePreviewShotBlockIndex(float previewTimeSec) const;
     const PreviewCameraShotBlock* Resolve_ActivePreviewShotBlock(float previewTimeSec) const;
     void Apply_ActivePreviewShotBlock(float previewTimeSec);
-    string Get_CurrentBattleAuthoringOverrideId() const;
+    bool Does_BattleAuthoringTargetMatchPreview() const;
+    void Sync_BattleAuthoringTargetToPreview();
+    void RetargetLoadedBattleAuthoringDataToCurrentTarget();
+    string Get_CurrentBattlePresetAuthoringOverrideId() const;
+    string Get_CurrentBattleClipAuthoringOverrideId() const;
     void Add_PreviewShotBlockFromSelectedPhase();
     void Add_PreviewShotBlockAtCurrentTime();
     void Remove_SelectedPreviewShotBlock();
@@ -191,6 +207,9 @@ private:
     Vec3 Get_PreviewSlotWorldPosition(PreviewSlotSide side, int slotIndex) const;
     string Get_SelectedHeroPrefabName() const;
     string Get_SelectedEnemyPrefabName() const;
+    BattleCameraMode Get_CurrentBattleAuthoringMode() const;
+    string Get_CurrentPreviewPresetId() const;
+    string Get_CurrentPreviewClipId() const;
     BattleCameraMode Get_BattlePresetEditorMode() const;
     BattleCameraTrack* Get_SelectedBattleClipTrack();
     BattleCameraKeyframe* Get_SelectedBattleClipKeyframe();
@@ -223,6 +242,11 @@ private:
     bool _previewOrbitRadiusEnabled = true;
     bool _previewOrbitHeightEnabled = true;
     bool _previewOrbitLookHeightEnabled = true;
+    bool _previewShakeFrequencyXEnabled = true;
+    bool _previewShakeFrequencyYEnabled = true;
+    bool _previewShakeDecayRateEnabled = true;
+    bool _previewShakeVerticalRatioEnabled = true;
+    bool _previewShakeStrengthScaleEnabled = true;
     bool _previewEnabled = true;
     bool _previewDirty = false;
     bool _previewObjectsDirty = true;
@@ -242,9 +266,14 @@ private:
     vector<string> _previewAnimationNames{};
     int _selectedPreviewAnimationIndex = -1;
     vector<PreviewSkillPhaseBlock> _previewSkillPhaseBlocks{};
+    int _selectedPreviewSkillPhaseIndex = -1;
     vector<PreviewCameraShotBlock> _previewShotBlocks{};
     int _selectedPreviewShotBlockIndex = -1;
+    bool _useManualBattleAuthoringTarget = false;
+    string _manualBattleAuthoringPresetId{};
+    string _manualBattleAuthoringClipId{};
     bool _useSkillShotTimeline = true;
+    bool _previewAttackMovementEnabled = false;
     PreviewShotDragMode _previewShotDragMode = PreviewShotDragMode::None;
     int _previewShotDragBlockIndex = -1;
     float _previewShotDragGrabOffsetSec = 0.f;
@@ -261,6 +290,7 @@ private:
     int _battleClipSelectedTrackIndex = 0;
     int _battleClipSelectedKeyIndex = -1;
     int _battleClipCurrentFrame = 0;
+    float _battleClipPlaybackFrameAccumulator = 0.f;
     bool _requestOpenBattleClipInsertPopup = false;
     bool _requestRemoveBattleClipKeyPopup = false;
     int _battleClipContextTrackIndex = -1;
@@ -274,7 +304,8 @@ private:
     int _previewPoseSubjectSlot = 1;
     float _previewPoseLastTimeSec = 0.f;
     BattleCameraMode _activePreviewShotMode = BattleCameraMode::PLAYERATTACK;
-    string _activePreviewShotProfileId{};
+    string _activePreviewShotPresetId{};
+    string _activePreviewShotClipId{};
     vector<PreviewTransitionStep> _transitionPreviewSteps
     {
         { BattleCameraMode::PLAYERFOCUS, {}, {}, 0.75f },

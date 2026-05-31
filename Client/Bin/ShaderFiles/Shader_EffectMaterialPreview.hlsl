@@ -8,7 +8,7 @@
 cbuffer cbEffectMaterialPreview : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectMaterialPreviewParams = { 1.f, 1.f, 0.f, 0.f };             // x: intensity, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectMaterialPreviewParams = { 1.f, 1.f, 0.f, 0.f };             // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
     float4 g_EffectMaterialPreviewAlphaParams = { 0.f, 0.f, 0.f, 0.f };        // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
     float4 g_EffectMaterialPreviewMainUVParams = { 1.f, 1.f, 0.f, 0.f };       // xy: scale, zw: scroll speed
     float4 g_EffectMaterialPreviewNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };      // xy: scale, zw: scroll speed
@@ -20,6 +20,8 @@ cbuffer cbEffectMaterialPreview : register(b2)
     float4 g_EffectMaterialPreviewAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectMaterialPreviewAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectMaterialPreviewAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
+    float4 g_EffectMaterialPreviewCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f }; // x: enabled, y: corePower, z: coreIntensity, w: outerPower
+    float4 g_EffectMaterialPreviewCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f }; // rgb: coreColor, a: outerIntensity
     float4 g_EffectMaterialPreviewCheckerParams = { 512.f, 512.f, 0.f, 0.f }; // xy: target size, z: time, w: reserved
     float g_EffectMaterialPreviewTime = 0.f;
     int g_OpacitySource = 0;
@@ -145,7 +147,13 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
 
     const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
     const float facing = saturate(abs(In.normal.z) * 0.35f + 0.65f);
-    surface.color = symbol.rgb * g_Tint.rgb * energyVariation * facing;
+    const float3 baseColor = Effect_ApplyCoreEmissiveShaping(
+        symbol.rgb * g_Tint.rgb,
+        g_EffectMaterialPreviewCoreEmissiveColor,
+        selectedOpacity,
+        g_EffectMaterialPreviewCoreEmissiveParams
+    );
+    surface.color = baseColor * energyVariation * facing;
     surface.coverage = Effect_BuildCoverage(selectedOpacity, opacityPower, coverage, breakupNoise, g_Tint.a);
 
     if (surface.coverage < max(alphaCutoff, 0.01f))
@@ -193,6 +201,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const int colorSource = (int)g_EffectMaterialPreviewAdditiveParams.x;
     const int amountSource = (int)g_EffectMaterialPreviewAdditiveParams.y;
     const int coveragePolicy = (int)g_EffectMaterialPreviewAdditiveParams.z;
+    const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
     const float amount = Effect_SelectAdditiveAmount(symbol, maskAlpha, amountSource);
     const float policyAmount = Effect_ResolveAdditivePolicyAmount(amount, coverageBase, coveragePolicy);
     const float discardSource = Effect_ResolveAdditiveDiscardSource(amount, coverageBase, coveragePolicy);
@@ -208,8 +217,14 @@ PS_OUT PS_ADDITIVE(PS_IN In)
         g_EffectMaterialPreviewAdditiveConstantColor,
         colorSource
     );
-    const float intensity = max(g_EffectMaterialPreviewParams.x, 0.f) * max(g_EffectMaterialPreviewAdditiveParams.w, 0.f);
-    const float3 contribution = materialColor * energyVariation * facing * policyAmount * intensity * blackGate;
+    const float3 shapedMaterialColor = Effect_ApplyCoreEmissiveShaping(
+        materialColor,
+        g_EffectMaterialPreviewCoreEmissiveColor,
+        selectedOpacity,
+        g_EffectMaterialPreviewCoreEmissiveParams
+    );
+    const float additiveEnergyScalar = max(g_EffectMaterialPreviewParams.x, 0.f) * max(g_EffectMaterialPreviewAdditiveParams.w, 0.f);
+    const float3 contribution = shapedMaterialColor * energyVariation * facing * policyAmount * additiveEnergyScalar * blackGate;
     Out.color = float4(contribution, 1.f);
     return Out;
 }

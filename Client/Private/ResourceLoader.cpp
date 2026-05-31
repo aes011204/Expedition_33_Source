@@ -953,6 +953,9 @@ uint32 ResourceLoader::Get_LevelIndex_FromString(const string& strLevel)
     if ("MainTitle" == strLevel) // || "MainTitle" == strLevel)
         return ETOI(LevelType::MainTitle);
 
+    if ("GameEntry" == strLevel)
+        return ETOI(LevelType::GameEntry);
+
     if ("GamePlay" == strLevel || "Gameplay" == strLevel || "GamePlay" == strLevel)
         return ETOI(LevelType::GamePlay);
 

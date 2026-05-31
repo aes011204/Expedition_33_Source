@@ -4,6 +4,8 @@
 
 NS_BEGIN(Engine)
 
+class UI_Base;
+
 enum class UI_AnimationTrackType
 {
     Fade,
@@ -56,6 +58,27 @@ enum class UI_KeyframeAnimationTrackType
     Alpha,
 };
 
+enum class UI_KeyframeAnimationValueMode
+{
+    Absolute,
+    RelativeTransform,
+    TransitionFromCurrent,
+    TransitionFromCurrentRelativeTransform,
+};
+
+enum class UI_StateAnimationEvent
+{
+    HoverEnter,
+    HoverExit,
+    PressedEnter,
+    PressedExit,
+    FocusedEnter,
+    FocusedExit,
+    DisabledEnter,
+    DisabledExit,
+    Count,
+};
+
 struct UI_KeyframeAnimationKey
 {
     int32 frame = 0;
@@ -77,11 +100,24 @@ struct UI_KeyframeAnimationAsset
     wstring name = L"NewUIAnimation";
     bool enabled = true;
     bool playOnOpen = true;
+    UI_KeyframeAnimationValueMode valueMode = UI_KeyframeAnimationValueMode::Absolute;
     int32 fps = 60;
     int32 startFrame = 0;
     int32 endFrame = 60;
     bool loop = false;
     vector<UI_KeyframeAnimationTrack> tracks = {};
+};
+
+struct UI_StateAnimationTargetAction
+{
+    Weak<UI_Base> target = {};
+    wstring animationName = {};
+};
+
+struct UI_StateAnimationProfile
+{
+    array<wstring, static_cast<size_t>(UI_StateAnimationEvent::Count)> eventAnimationNames = {};
+    array<vector<UI_StateAnimationTargetAction>, static_cast<size_t>(UI_StateAnimationEvent::Count)> eventTargetActions = {};
 };
 
 struct UI_AnimationSample
@@ -107,7 +143,9 @@ public:
 public:
     void Set_Clips(const vector<UI_AnimationClip>& clips);
     void Set_KeyframeAssets(const vector<UI_KeyframeAnimationAsset>& assets);
+    void Add_KeyframeAsset(const UI_KeyframeAnimationAsset& asset);
     void Set_BaseTransformState(const Vec2& position, const Vec2& scale, float rotationRadians);
+    void Set_TransitionStartState(const Vec2& position, const Vec2& scale, float rotationRadians);
     void Play_OnOpen();
     void Stop();
     bool Play_KeyframeAnimation(const wstring& animationName, bool restart = true); // 이름으로 keyframe animation 하나를 선택 재생
@@ -128,6 +166,9 @@ private:
     Vec2 _basePosition{ 0.f, 0.f };
     Vec2 _baseScale{ 1.f, 1.f };
     float _baseRotationRadians = 0.f;
+    Vec2 _transitionStartPosition{ 0.f, 0.f };
+    Vec2 _transitionStartScale{ 1.f, 1.f };
+    float _transitionStartRotationRadians = 0.f;
 };
 
 inline bool Try_ParseUIAnimationTrackType(const string& typeName, UI_AnimationTrackType& outType)

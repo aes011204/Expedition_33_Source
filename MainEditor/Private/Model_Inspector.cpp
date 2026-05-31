@@ -6,11 +6,11 @@
 #include "Material.h"
 #include <filesystem>
 #include "EditorInstance.h"
-#include "Animation_View.h"
 #include "Editor_Context.h"
-#include "Editor_Window.h"
-#include "Prefab_View.h"
 #include <fstream>
+#include "GameObject.h"
+
+#include "ShaderCom.h"
 
 using TexturePreviewCache   = umap<wstring, ComPtr<ID3D11ShaderResourceView>>;
 using TextureSearchCache    = umap<string, string>;
@@ -21,6 +21,54 @@ static TexturePreviewCache  g_TexturePreviewCache {};
 static TextureSearchCache   g_TextureSearchCache  {};
 static TextureFolderCache   g_TextureFolderCache  {};
 static TextureMipCache      g_TextureMipCache     {};
+
+namespace
+{
+    string Build_ClippedButtonLabel(const string& visibleText, float buttonWidth, const char* hiddenIdSuffix)
+    {
+        const float horizontalPadding = ImGui::GetStyle().FramePadding.x * 2.f;
+        const float availableTextWidth = max(0.f, buttonWidth - horizontalPadding);
+        const float fullTextWidth = ImGui::CalcTextSize(visibleText.c_str()).x;
+
+        if (fullTextWidth <= availableTextWidth)
+            return visibleText + hiddenIdSuffix;
+
+        static constexpr char kEllipsis[] = "...";
+        const float ellipsisWidth = ImGui::CalcTextSize(kEllipsis).x;
+
+        string clippedText{};
+        clippedText.reserve(visibleText.size());
+
+        for (char ch : visibleText)
+        {
+            const string candidate = clippedText + ch;
+            if (ImGui::CalcTextSize(candidate.c_str()).x + ellipsisWidth > availableTextWidth)
+                break;
+
+            clippedText.push_back(ch);
+        }
+
+        if (clippedText.empty())
+            clippedText = kEllipsis;
+        else
+            clippedText += kEllipsis;
+
+        return clippedText + hiddenIdSuffix;
+    }
+
+    bool Matches_AnimationFilter(const string& displayName, const string& playbackName, const string& filterText)
+    {
+        if (filterText.empty())
+            return true;
+
+        const string loweredFilter = String::ToLowerCopy(filterText);
+        const string loweredDisplayName = String::ToLowerCopy(displayName);
+        const string loweredPlaybackName = String::ToLowerCopy(playbackName);
+
+        return loweredDisplayName.find(loweredFilter) != string::npos ||
+            loweredPlaybackName.find(loweredFilter) != string::npos;
+    }
+}
 
 void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
 {
@@ -349,8 +397,14 @@ void ModelCom_Inspector::Draw_ModelPicker(const Shared<Engine::ModelCom>& model)
     ImGui::TextDisabled("Mesh");
     ImGui::SameLine(120.f);
 
-    if (ImGui::Button(displayName.c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0.f)))
+    const float buttonWidth = ImGui::GetContentRegionAvail().x;
+    const string buttonLabel = Build_ClippedButtonLabel(displayName, buttonWidth, "##ModelComModelPickerButton");
+
+    if (ImGui::Button(buttonLabel.c_str(), ImVec2(buttonWidth, 0.f)))
         ImGui::OpenPopup("##ModelComModelPicker");
+
+    if (buttonLabel != displayName + "##ModelComModelPickerButton" && ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", displayName.c_str());
 
     if (ImGui::BeginPopup("##ModelComModelPicker"))
     {
@@ -630,6 +684,85 @@ ModelCom_Inspector::AnimPreviewState& ModelCom_Inspector::Get_AnimPreviewState(c
     return s_AnimPreviewStates[model];
 }
 
+ModelCom_Inspector::AnimListCache& ModelCom_Inspector::Get_AnimListCache(const Engine::ModelCom* model)
+{
+    static umap<const ModelCom*, AnimListCache> s_AnimListCaches{};
+    return s_AnimListCaches[model];
+}
+
+void ModelCom_Inspector::Refresh_AnimListCache(const Shared<Engine::ModelCom>& model, AnimListCache& cache, uint32 numAnimations)
+{
+    cache.items.clear();
+
+    if (model == nullptr)
+        return;
+
+    cache.sourceModelPath = model->Get_SourceModelPath();
+    cache.numAnimations = numAnimations;
+
+    vector<string> playbackNames{};
+    playbackNames.reserve(numAnimations);
+
+    for (uint32 i = 0; i < numAnimations; ++i)
+    {
+        const char* animName = model->Get_AnimationName(i);
+        if (!animName)
+            continue;
+
+        playbackNames.push_back(animName);
+    }
+
+    const vector<AnimationNameUtils::AssetAnimationInfo> assetInfos =
+        AnimationNameUtils::Collect_AssetAnimationInfos(cache.sourceModelPath);
+
+    if (!assetInfos.empty())
+    {
+        vector<bool> usedPlayback(playbackNames.size(), false);
+        cache.items.reserve(assetInfos.size() + playbackNames.size());
+
+        for (const auto& assetInfo : assetInfos)
+        {
+            AnimationListItem item{};
+            item.displayName = assetInfo.displayName;
+
+            const int32 matchedPlaybackListIndex =
+                AnimationNameUtils::Find_BestPlaybackMatchIndex(assetInfo, playbackNames, usedPlayback);
+            if (matchedPlaybackListIndex >= 0)
+            {
+                item.playbackIndex = matchedPlaybackListIndex;
+                item.playbackName = playbackNames[matchedPlaybackListIndex];
+                usedPlayback[matchedPlaybackListIndex] = true;
+            }
+
+            cache.items.push_back(move(item));
+        }
+
+        for (int32 i = 0; i < static_cast<int32>(playbackNames.size()); ++i)
+        {
+            if (i < static_cast<int32>(usedPlayback.size()) && usedPlayback[i])
+                continue;
+
+            AnimationListItem item{};
+            item.playbackIndex = i;
+            item.displayName = AnimationNameUtils::Make_DisplayNameFallback(playbackNames[i]);
+            item.playbackName = playbackNames[i];
+            cache.items.push_back(move(item));
+        }
+
+        return;
+    }
+
+    cache.items.reserve(playbackNames.size());
+    for (int32 i = 0; i < static_cast<int32>(playbackNames.size()); ++i)
+    {
+        AnimationListItem item{};
+        item.playbackIndex = i;
+        item.displayName = AnimationNameUtils::Make_DisplayNameFallback(playbackNames[i]);
+        item.playbackName = playbackNames[i];
+        cache.items.push_back(move(item));
+    }
+}
+
 void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& model)
 {
     if (model == nullptr)
@@ -644,71 +777,11 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
     }
 
     const uint32 numAnimations = static_cast<uint32>(model->Get_NumAnimations());
-    const vector<AnimationNameUtils::AssetAnimationInfo> assetInfos =
-        AnimationNameUtils::Collect_AssetAnimationInfos(model->Get_SourceModelPath());
-    vector<string> playbackNames{};
-    playbackNames.reserve(numAnimations);
+    AnimListCache& animListCache = Get_AnimListCache(model.get());
+    if (animListCache.sourceModelPath != model->Get_SourceModelPath() || animListCache.numAnimations != numAnimations)
+        Refresh_AnimListCache(model, animListCache, numAnimations);
 
-    for (uint32 i = 0; i < numAnimations; ++i)
-    {
-        const char* animName = model->Get_AnimationName(i);
-        if (!animName)
-            continue;
-
-        playbackNames.push_back(animName);
-    }
-
-    struct AnimationListItem
-    {
-        int32 playbackIndex = -1;
-        string displayName{};
-    };
-
-    vector<AnimationListItem> animationItems{};
-    if (!assetInfos.empty())
-    {
-        vector<bool> usedPlayback(playbackNames.size(), false);
-        animationItems.reserve(assetInfos.size() + playbackNames.size());
-
-        for (const auto& assetInfo : assetInfos)
-        {
-            AnimationListItem item{};
-            item.displayName = assetInfo.displayName;
-
-            const int32 matchedPlaybackListIndex =
-                AnimationNameUtils::Find_BestPlaybackMatchIndex(assetInfo, playbackNames, usedPlayback);
-            if (matchedPlaybackListIndex >= 0)
-            {
-                item.playbackIndex = matchedPlaybackListIndex;
-                usedPlayback[matchedPlaybackListIndex] = true;
-            }
-
-            animationItems.push_back(move(item));
-        }
-
-        for (int32 i = 0; i < static_cast<int32>(playbackNames.size()); ++i)
-        {
-            if (i < static_cast<int32>(usedPlayback.size()) && usedPlayback[i])
-                continue;
-
-            AnimationListItem item{};
-            item.playbackIndex = i;
-            item.displayName = AnimationNameUtils::Make_DisplayNameFallback(playbackNames[i]);
-            animationItems.push_back(move(item));
-        }
-
-    }
-    else
-    {
-        animationItems.reserve(playbackNames.size());
-        for (int32 i = 0; i < static_cast<int32>(playbackNames.size()); ++i)
-        {
-            AnimationListItem item{};
-            item.playbackIndex = i;
-            item.displayName = AnimationNameUtils::Make_DisplayNameFallback(playbackNames[i]);
-            animationItems.push_back(move(item));
-        }
-    }
+    const vector<AnimationListItem>& animationItems = animListCache.items;
 
     AnimPreviewState& state = Get_AnimPreviewState(model.get());
 
@@ -724,10 +797,29 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
     ImGui::SetNextItemWidth(120.f);
     ImGui::DragFloat("Blend", &state.blendDuration, 0.01f, 0.f, 5.f, "%.2f");
 
+    char filterBuffer[256]{};
+    strncpy_s(filterBuffer, state.filterText.c_str(), _TRUNCATE);
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::InputTextWithHint("##ModelAnimFilter", "Search animation...", filterBuffer, IM_ARRAYSIZE(filterBuffer)))
+        state.filterText = filterBuffer;
+
     if (numAnimations == 0)
     {
         ImGui::TextDisabled("No animations found.");
         return;
+    }
+
+    vector<int32> filteredAnimationIndices{};
+    filteredAnimationIndices.reserve(animationItems.size());
+    for (int32 itemIndex = 0; itemIndex < static_cast<int32>(animationItems.size()); ++itemIndex)
+    {
+        const AnimationListItem& item = animationItems[itemIndex];
+        if (item.playbackIndex < 0 || item.playbackIndex >= static_cast<int32>(numAnimations))
+            continue;
+        if (!Matches_AnimationFilter(item.displayName, item.playbackName, state.filterText))
+            continue;
+
+        filteredAnimationIndices.push_back(itemIndex);
     }
 
     const char* selectedAnimName = "None";
@@ -748,17 +840,12 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (ImGui::BeginCombo("Animation Clip", selectedAnimName))
     {
-        for (const auto& item : animationItems)
+        for (int32 filteredIndex : filteredAnimationIndices)
         {
-            if (item.playbackIndex < 0 || item.playbackIndex >= static_cast<int32>(numAnimations))
-                continue;
-
-            const char* animName = model->Get_AnimationName(static_cast<uint32>(item.playbackIndex));
-            if (!animName)
-                continue;
+            const AnimationListItem& item = animationItems[filteredIndex];
 
             const bool isSelected = state.selectedAnimIndex == item.playbackIndex;
-            const string label = item.displayName + "##" + animName;
+            const string label = item.displayName + "##" + item.playbackName;
             if (ImGui::Selectable(label.c_str(), isSelected))
                 state.selectedAnimIndex = item.playbackIndex;
 
@@ -777,61 +864,56 @@ void ModelCom_Inspector::Draw_AnimationSection(const Shared<Engine::ModelCom>& m
                 model->Set_Animation(static_cast<uint32>(state.selectedAnimIndex), state.blendDuration, state.loop);
             else
                 model->Set_Animation(static_cast<uint32>(state.selectedAnimIndex), state.loop);
+
+            model->Set_AnimationPaused(false); // Stop으로 멈춘 뒤 다시 눌렀을 때 즉시 재생되게 한다.
         }
 
         ImGui::SameLine();
 
         if (ImGui::Button("Restart", ImVec2(100.f, 0.f)))
+        {
             model->Set_Animation(static_cast<uint32>(state.selectedAnimIndex), state.loop);
+            model->Set_AnimationPaused(false); // 처음 프레임부터 다시 재생한다.
+        }
 
         ImGui::SameLine();
 
-        if (ImGui::Button("Open Animation View", ImVec2(180.f, 0.f)))
+        if (ImGui::Button("Stop", ImVec2(100.f, 0.f)))
         {
-            Shared<Editor_Window> viewBase = EDITOR->Get_Window(L"Animation");
-            Shared<Animation_View> animationView = dynamic_pointer_cast<Animation_View>(viewBase);
-
-            if (animationView)
-            {
-                const char* animationName = model->Get_AnimationName(static_cast<uint32>(state.selectedAnimIndex));
-                uint32 preferredDockId = ImGui::GetWindowDockID();
-
-                Shared<Editor_Window> prefabBase = EDITOR->Get_Window(L"Prefab");
-                Shared<Prefab_View> prefabView = dynamic_pointer_cast<Prefab_View>(prefabBase);
-                if (prefabView != nullptr && prefabView->Is_Open() && prefabView->Get_DockId() != 0)
-                    preferredDockId = prefabView->Get_DockId();
-
-                animationView->Open_FromModelComponent(model, animationName ? animationName : "", preferredDockId);
-            }
+            model->Set_AnimationPaused(true); // 현재 포즈를 그대로 멈춰서 무기 위치를 맞출 수 있게 한다.
+            model->Refresh_CurrentAnimationPose();
         }
     }
 
     if (ImGui::BeginChild("ModelAnimList", ImVec2(0.f, 180.f), true, ImGuiWindowFlags_HorizontalScrollbar))
     {
-        for (const auto& item : animationItems)
+        ImGuiListClipper clipper;
+        clipper.Begin(static_cast<int>(filteredAnimationIndices.size()));
+
+        while (clipper.Step())
         {
-            if (item.playbackIndex < 0 || item.playbackIndex >= static_cast<int32>(numAnimations))
-                continue;
-
-            const char* animName = model->Get_AnimationName(static_cast<uint32>(item.playbackIndex));
-            if (!animName)
-                continue;
-
-            const bool isSelected = state.selectedAnimIndex == item.playbackIndex;
-            const string label = item.displayName + "##List" + animName;
-            if (ImGui::Selectable(label.c_str(), isSelected))
-                state.selectedAnimIndex = item.playbackIndex;
-
-            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            for (int displayIndex = clipper.DisplayStart; displayIndex < clipper.DisplayEnd; ++displayIndex)
             {
-                state.selectedAnimIndex = item.playbackIndex;
+                const AnimationListItem& item = animationItems[filteredAnimationIndices[displayIndex]];
 
-                if (state.blendDuration > 0.f)
-                    model->Set_Animation(static_cast<uint32>(item.playbackIndex), state.blendDuration, state.loop);
-                else
-                    model->Set_Animation(static_cast<uint32>(item.playbackIndex), state.loop);
+                const bool isSelected = state.selectedAnimIndex == item.playbackIndex;
+                const string label = item.displayName + "##List" + item.playbackName;
+                if (ImGui::Selectable(label.c_str(), isSelected))
+                    state.selectedAnimIndex = item.playbackIndex;
+
+                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+                {
+                    state.selectedAnimIndex = item.playbackIndex;
+
+                    if (state.blendDuration > 0.f)
+                        model->Set_Animation(static_cast<uint32>(item.playbackIndex), state.blendDuration, state.loop);
+                    else
+                        model->Set_Animation(static_cast<uint32>(item.playbackIndex), state.loop);
+                }
             }
         }
+
+        clipper.End();
     }
     ImGui::EndChild();
 }

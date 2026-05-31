@@ -17,6 +17,7 @@
 #include "UIPreviewManager.h"
 #include "CameraDirector.h"
 #include "MapLoader.h"
+#include "ClientScreenFxManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -64,6 +65,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     CHECK_NULL(_cameraDirector, E_FAIL);
     _effectInstancePool = EffectInstancePool::Create();
     CHECK_NULL(_effectInstancePool, E_FAIL);
+
+    _screenFxManager = ClientScreenFxManager::Create();
+    CHECK_NULL(_screenFxManager, E_FAIL);
 
 	_isInitialized = true;
 
@@ -288,6 +292,11 @@ void ClientInstance::Reset_AllHeroesToIdle()
     return _heroManager->Reset_AllHeroesToIdle();
 }
 
+bool ClientInstance::Is_ActiveHero(const Shared<GameObject>& target) const
+{
+    return _heroManager->Is_ActiveHero(target);
+}
+
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 {
     Clear_GameplayUI();
@@ -326,10 +335,10 @@ bool ClientInstance::Is_BattleEnterTransitionPlaying() const
     return _gamePlayUI && _gamePlayUI->Is_BattleEnterTransitionPlaying();
 }
 
-void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
+void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
                                         const vector<string>& MonsterProtoTag, const Shared<GameObject>& sourceObject)
 {
-    return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag, sourceObject);
+    return _battleController->OnEnterBattleField(FieldID, isPlayerAdvantage, heroIds, MonsterProtoTag, sourceObject);
 }
 
 bool ClientInstance::Is_BattleActive() const
@@ -370,6 +379,11 @@ void ClientInstance::Request_TargetCameraMode(TargetCameraMode cameraMode)
 void ClientInstance::Restore_PreviousCamera()
 {
     return _cameraDirector->Restore_PreviousCamera();
+}
+
+Shared<ClientScreenFxManager> ClientInstance::Get_ScreenFxManager() const
+{
+    return _screenFxManager;
 }
 
 bool ClientInstance::Is_GameplayMenuOpen() const
@@ -443,6 +457,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_heroManager);
     ReleaseManager(_battleController);
     ReleaseManager(_gamePlayUI);
+    ReleaseManager(_screenFxManager);
 
     _context.Reset();
     _device.Reset();

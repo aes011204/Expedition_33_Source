@@ -47,7 +47,7 @@ private: //## Static Values
     };
     static constexpr auto kWeaponSocketName{ "Weapon_R" };
 
-    inline static const Vec3 kWeaponAttachRotationDegrees{ -90.f, 0.f, 180.f }; // 이 각도로 돌려야 무기가 제대로 장착된다.
+    inline static const Vec3 kWeaponAttachRotationDegrees{ -90.f, -60.f, 210.f }; // 이 각도로 돌려야 무기가 제대로 장착된다.
     inline static const Vec3 kFallbackLocalPosition{ 0.65f, 0.9f, 0.15f };
     inline static const float kTrailAnchorMarkerRadius{ 0.03f };
 

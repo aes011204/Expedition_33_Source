@@ -126,6 +126,10 @@ HRESULT Loader::Loading()
         hr = Loading_For_LogoLevel();
         break;
 
+    case LevelType::GameEntry:
+        hr = Loading_For_GameEntryLevel();
+        break;
+
     case LevelType::GamePlay:
         hr = Loading_For_GamePlayLevel();
         break;
@@ -344,6 +348,19 @@ HRESULT Loader::Loading_For_GamePlayLevel()
     if (FAILED(Load_ResourceJobsForNextLevel()))
     {
         MSG_BOX("Faild to Load Resource Tables : GamePlay");
+        return E_FAIL;
+    }
+
+    return S_OK;
+}
+
+HRESULT Loader::Loading_For_GameEntryLevel()
+{
+    lstrcpy(_loadingText, TEXT("GameEntry 로딩 중..."));
+
+    if (FAILED(Load_ResourceJobsForNextLevel()))
+    {
+        MSG_BOX("Faild to Load Resource Tables : GameEntry");
         return E_FAIL;
     }
 

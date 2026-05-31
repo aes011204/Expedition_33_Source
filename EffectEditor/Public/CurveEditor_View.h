@@ -1,6 +1,7 @@
-#pragma once
+﻿#pragma once
 
 #include "Editor_Window.h"
+#include "Emitter_View.h"
 #include "EffectAuthoring_Types.h"
 
 NS_BEGIN(EffectEditor)
@@ -24,12 +25,18 @@ private:
         Value,
         X,
         Y,
+        Z,
+        R,
+        G,
+        B,
     };
 
     enum class CurveTargetPayloadKind : uint8
     {
         Float,
         Vector2,
+        Vector3,
+        Color,
     };
 
     struct CurveTargetIdentity
@@ -54,7 +61,7 @@ private:
         CurveTargetIdentity identity{};
         AuthoringEmitter* emitter{};
         AuthoringModule* module{};
-        variant<FloatDistributionData*, Vector2DistributionData*> distribution{};
+        variant<FloatDistributionData*, Vector2DistributionData*, Vector3DistributionData*, ColorDistributionData*> distribution{};
         string label{};
         string propertyLabel{};
         CurveTargetPayloadKind payloadKind{ CurveTargetPayloadKind::Float };
@@ -67,20 +74,36 @@ private:
     static const char* Get_ChannelLabel(CurveTargetChannel channel);
     static float Read_Vector2Channel(const Vec2& value, CurveTargetChannel channel);
     static void Write_Vector2Channel(Vec2& value, CurveTargetChannel channel, float channelValue);
+    static float Read_Vector3Channel(const Vec3& value, CurveTargetChannel channel);
+    static void Write_Vector3Channel(Vec3& value, CurveTargetChannel channel, float channelValue);
+    static float Read_ColorChannel(const Color& value, CurveTargetChannel channel);
+    static void Write_ColorChannel(Color& value, CurveTargetChannel channel, float channelValue);
     static string Build_Label(const AuthoringEmitter& emitter, const AuthoringModule& module, const string& propertyLabel, CurveTargetChannel channel);
     static ImU32 Get_TargetColor(const CurveTarget& target);
     static float Get_TargetValue(const CurveTarget& target, const FloatCurveKeyData& key);
     static float Get_TargetValue(const CurveTarget& target, const Vector2CurveKeyData& key);
+    static float Get_TargetValue(const CurveTarget& target, const Vector3CurveKeyData& key);
+    static float Get_TargetValue(const CurveTarget& target, const ColorCurveKeyData& key);
     static void Set_TargetValue(const CurveTarget& target, FloatCurveKeyData& key, float value);
     static void Set_TargetValue(const CurveTarget& target, Vector2CurveKeyData& key, float value);
+    static void Set_TargetValue(const CurveTarget& target, Vector3CurveKeyData& key, float value);
+    static void Set_TargetValue(const CurveTarget& target, ColorCurveKeyData& key, float value);
     static float Get_DefaultValue(const FloatDistributionData& distribution);
     static Vec2 Get_DefaultValue(const Vector2DistributionData& distribution);
+    static Vec3 Get_DefaultValue(const Vector3DistributionData& distribution);
+    static Color Get_DefaultValue(const ColorDistributionData& distribution);
     static ConstantCurveFloatDistributionData* Resolve_CurvePayload(FloatDistributionData& distribution);
     static ConstantCurveVector2DistributionData* Resolve_CurvePayload(Vector2DistributionData& distribution);
+    static ConstantCurveVector3DistributionData* Resolve_CurvePayload(Vector3DistributionData& distribution);
+    static ConstantCurveColorDistributionData* Resolve_CurvePayload(ColorDistributionData& distribution);
     static void Normalize_CurveKeys(ConstantCurveFloatDistributionData& curve);
     static void Normalize_CurveKeys(ConstantCurveVector2DistributionData& curve);
+    static void Normalize_CurveKeys(ConstantCurveVector3DistributionData& curve);
+    static void Normalize_CurveKeys(ConstantCurveColorDistributionData& curve);
     static float Evaluate_Curve(const ConstantCurveFloatDistributionData& curve, float x);
     static Vec2 Evaluate_Curve(const ConstantCurveVector2DistributionData& curve, float x);
+    static Vec3 Evaluate_Curve(const ConstantCurveVector3DistributionData& curve, float x);
+    static Color Evaluate_Curve(const ConstantCurveColorDistributionData& curve, float x);
 
     Shared<Emitter_View> Resolve_EmitterView() const;
     vector<CurveTarget> Collect_ModuleTargets(AuthoringEmitter& emitter, AuthoringModule& module) const;
@@ -92,9 +115,16 @@ private:
 
     void Add_FloatTarget(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, FloatDistributionData& distribution, const string& propertyId, const string& label, ImU32 color) const;
     void Add_Vector2Target(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, Vector2DistributionData& distribution, const string& propertyId, const string& label) const;
+    void Add_Vector3Target(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, Vector3DistributionData& distribution, const string& propertyId, const string& label) const;
+    void Add_ColorTarget(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, ColorDistributionData& distribution, const string& propertyId, const string& label) const;
     void Pin_Targets(const vector<CurveTarget>& targets);
     void Remove_StalePinnedTracks(const vector<CurveTarget>& targets);
     void Ensure_ActiveTrack(const vector<CurveTarget>& targets);
+
+    void Begin_CurveAuthoringEdit(const CurveTarget& target, const string& description);
+    void Commit_CurveAuthoringEdit();
+    bool Execute_CurveAuthoringEdit(const CurveTarget& target, const string& description, const function<bool()>& edit);
+    void Mark_CurveChanged(CurveTarget& target);
 
     bool Convert_ActiveTargetToConstantCurve(CurveTarget& target);
     void Draw_EmptyState();
@@ -110,6 +140,11 @@ private:
     vector<PinnedTrack> _pinnedTracks{};
     optional<CurveTargetIdentity> _activeTrack{};
     optional<size_t> _selectedKeyIndex{};
+    bool _hasPendingCurveEdit{ false };
+    Emitter_View::AuthoringSnapshot _pendingCurveBeforeSnapshot{};
+    CurveTargetIdentity _pendingCurveTarget{};
+    string _pendingCurveDescription{};
+    float _trackListWidth{ 230.f };
 };
 
 NS_END

@@ -172,6 +172,60 @@ void PlayableParts::Late_Update(float timeDelta)
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
+Matrix PlayableParts::Get_GizmoWorldMatrix() const
+{
+    if (_transformCom == nullptr)
+        return _combinedWorldMatrix;
+
+    Matrix parentMatrix = Matrix::Identity;
+
+    if (const Shared<GameObject> owner = Get_Owner())
+    {
+        if (const Shared<TransformCom> ownerTransform = owner->Get_Transform())
+            parentMatrix = ownerTransform->Get_WorldMatrix();
+    }
+    else if (nullptr != _parentMatrix)
+    {
+        parentMatrix = *_parentMatrix;
+    }
+
+    const Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
+    return _offsetMatrix * _transformCom->Get_WorldMatrix() * socketMatrix * parentMatrix;
+}
+
+bool PlayableParts::Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix)
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    Matrix parentMatrix = Matrix::Identity;
+
+    if (const Shared<GameObject> owner = Get_Owner())
+    {
+        if (const Shared<TransformCom> ownerTransform = owner->Get_Transform())
+            parentMatrix = ownerTransform->Get_WorldMatrix();
+    }
+    else if (nullptr != _parentMatrix)
+    {
+        parentMatrix = *_parentMatrix;
+    }
+
+    Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
+    Matrix localWorldMatrix = _offsetMatrix.Invert() * gizmoWorldMatrix * (socketMatrix * parentMatrix).Invert();
+
+    Vec3 scale = Vec3::One;
+    Quat rotation = Quat::Identity;
+    Vec3 translation = Vec3::Zero;
+
+    if (!localWorldMatrix.Decompose(scale, rotation, translation))
+        return false;
+
+    _transformCom->Set_WorldPosition(translation);
+    _transformCom->Set_RotationQuaternion(rotation);
+    _transformCom->Set_Scale(scale);
+    return true;
+}
+
 HRESULT PlayableParts::Render()
 {
     if (FAILED(Bind_ShaderResources()))
