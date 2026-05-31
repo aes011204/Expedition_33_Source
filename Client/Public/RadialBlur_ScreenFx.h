@@ -37,7 +37,7 @@ private:
     float _currentIntensity{};
     float _targetIntensity{ 0.0f };
     Vec3 _prevLookDir{};
-    float _requireSpeed = 2.5f;
+    float _requireSpeed = 3.f;
 
 public:
     static Shared<RadialBlur_ScreenFx> Create(RadialBlurDesc* desc);
