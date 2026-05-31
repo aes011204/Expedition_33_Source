@@ -852,7 +852,6 @@ fs::path MeshDataPreview_View::Resolve_AuthoredAssetPath(const string& guid, con
 void MeshDataPreview_View::Render_Inspector(Emitter_View& emitterView, AuthoringEmitter& emitter, MeshTypeData& meshData)
 {
     bool changed = false;
-    bool restartPreview = false;
     const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView.Capture_AuthoringSnapshot();
 
     ImGui::TextUnformatted("MeshData");
@@ -862,7 +861,7 @@ void MeshDataPreview_View::Render_Inspector(Emitter_View& emitterView, Authoring
     changed |= Render_ModelAssetSection(meshData);
     changed |= Render_MaterialAssetSection(meshData);
     changed |= Render_TransformSection(meshData);
-    changed |= Render_MaterialInstanceSection(meshData, &restartPreview);
+    changed |= Render_MaterialInstanceSection(meshData, nullptr);
 
     if (ImGui::CollapsingHeader("Validation", ImGuiTreeNodeFlags_DefaultOpen))
         Render_ValidationSummary(meshData);
@@ -871,8 +870,6 @@ void MeshDataPreview_View::Render_Inspector(Emitter_View& emitterView, Authoring
     {
         Apply_MeshDataChanged(emitterView, emitter);
         Begin_PendingAuthoringEdit(emitterView, beforeSnapshot, "Edit MeshData");
-        if (EDITOR != nullptr)
-            EDITOR->Request_RestartPreview();
     }
 
     Commit_PendingAuthoringEditIfIdle(emitterView);
@@ -997,9 +994,6 @@ bool MeshDataPreview_View::Render_TransformSection(MeshTypeData& meshData)
 
 bool MeshDataPreview_View::Render_MaterialInstanceSection(MeshTypeData& meshData, bool* outRestartPreview)
 {
-    if (!ImGui::CollapsingHeader("Material Instance", ImGuiTreeNodeFlags_DefaultOpen))
-        return false;
-
     if (!meshData.hasAssignedMaterialInstance)
     {
         ImGui::TextDisabled("Assign an effect material source before editing the MeshData material instance.");

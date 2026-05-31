@@ -64,6 +64,16 @@ HRESULT EffectEmitter::Reset_ForEffectReplay()
     return S_OK;
 }
 
+bool EffectEmitter::Can_ReloadDefinition(const EffectEmitterDefinition&) const
+{
+    return false;
+}
+
+HRESULT EffectEmitter::Reload_Definition(const EffectEmitterDefinition&)
+{
+    return E_FAIL;
+}
+
 bool EffectEmitter::Is_EffectFinished() const
 {
     return false;

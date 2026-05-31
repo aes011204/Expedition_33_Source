@@ -20,24 +20,7 @@ HRESULT EffectInstancePool::Acquire(const AcquireDesc& desc, AttachedHandle& out
     CHECK_FAILED(Acquire_Instance(desc, definition, instance), E_FAIL);
     CHECK_FAILED(Prepare_AcquiredInstance(desc, instance), E_FAIL);
 
-    outHandle.effectObject = static_pointer_cast<GameObject>(instance);
-    outHandle.effectName = desc.effectName;
-    outHandle.requiresManualRelease = false;
-
-    if (definition)
-    {
-        for (const EffectEmitterDefinition& emitter : definition->emitters)
-        {
-            if (!emitter.enabled)
-                continue;
-
-            if (emitter.kind == EffectEmitterKind::ComputeTrail)
-            {
-                outHandle.requiresManualRelease = true;
-                break;
-            }
-        }
-    }
+    Populate_Handle(desc, definition, instance, outHandle);
 
     uint32 enabledEmitterCount = 0;
     if (definition)
@@ -54,6 +37,37 @@ HRESULT EffectInstancePool::Acquire(const AcquireDesc& desc, AttachedHandle& out
         String::ToString(desc.effectName),
         outHandle.requiresManualRelease,
         enabledEmitterCount);
+
+    return S_OK;
+}
+
+HRESULT EffectInstancePool::Reload_Attached(const AcquireDesc& desc, AttachedHandle& handle)
+{
+    if (handle.effectObject == nullptr)
+        return E_FAIL;
+
+    PooledInstance* entry = Find_EntryByObject(handle.effectObject);
+    if (nullptr == entry || nullptr == entry->instance)
+        return E_FAIL;
+
+    Shared<const EffectDefinition> definition = desc.definition ? desc.definition : EffectAssetRuntimeLoader::Load_DefinitionByName(desc.effectName);
+    CHECK_NULL(definition, E_FAIL);
+
+    CHECK_FAILED(entry->instance->Reload_Definition(definition), E_FAIL);
+
+    entry->effectName = desc.effectName;
+    entry->definition = definition;
+    entry->layerLevelIndex = desc.layerLevelIndex;
+    entry->inUse = true;
+
+    CHECK_FAILED(Prepare_AcquiredInstance(desc, entry->instance), E_FAIL);
+    Populate_Handle(desc, definition, entry->instance, handle);
+
+    LOG_INFO(
+        "[EffectPool] reloaded attached instance. key={}, emitters={}, entries={}",
+        String::ToString(desc.effectName),
+        definition->emitters.size(),
+        _entries.size());
 
     return S_OK;
 }
@@ -272,6 +286,32 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(const AcquireDesc& desc, co
 
     CHECK_FAILED(instance->Play(), E_FAIL);
     return S_OK;
+}
+
+void EffectInstancePool::Populate_Handle(
+    const AcquireDesc& desc,
+    const Shared<const EffectDefinition>& definition,
+    const Shared<EffectInstance>& instance,
+    AttachedHandle& outHandle) const
+{
+    outHandle.effectObject = static_pointer_cast<GameObject>(instance);
+    outHandle.effectName = desc.effectName;
+    outHandle.requiresManualRelease = false;
+
+    if (definition == nullptr)
+        return;
+
+    for (const EffectEmitterDefinition& emitter : definition->emitters)
+    {
+        if (!emitter.enabled)
+            continue;
+
+        if (emitter.kind == EffectEmitterKind::ComputeTrail)
+        {
+            outHandle.requiresManualRelease = true;
+            return;
+        }
+    }
 }
 
 EffectInstancePool::PooledInstance* EffectInstancePool::Find_AvailableEntry(

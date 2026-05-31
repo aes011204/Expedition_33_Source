@@ -1898,6 +1898,39 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         }
     }
 
+    if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
+    {
+        desc.motion.enabled = true;
+        const auto accelerationIter = acceleration->find("acceleration");
+        if (accelerationIter != acceleration->end())
+        {
+            desc.motion.accelerationMin = Evaluate_Vector3DistributionMin(*accelerationIter, desc.motion.accelerationMin);
+            desc.motion.accelerationMax = Evaluate_Vector3DistributionMax(*accelerationIter, desc.motion.accelerationMax);
+        }
+    }
+
+    if (const json* drag = Find_ModuleData(emitter, "Drag"))
+    {
+        desc.motion.enabled = true;
+        const auto dragIter = drag->find("drag");
+        if (dragIter != drag->end())
+        {
+            desc.motion.drag = Vec2{
+                max(0.f, Evaluate_FloatDistributionMin(*dragIter, desc.motion.drag.x)),
+                max(0.f, Evaluate_FloatDistributionMax(*dragIter, desc.motion.drag.y))
+            };
+        }
+    }
+
+    if (const json* velocityOverLife = Find_ModuleData(emitter, "VelocityOverLife"))
+    {
+        desc.motion.enabled = true;
+        desc.motion.velocityScaleByLife = Vec2{
+            Read_Float(*velocityOverLife, "scaleStart", desc.motion.velocityScaleByLife.x),
+            Read_Float(*velocityOverLife, "scaleEnd", desc.motion.velocityScaleByLife.y)
+        };
+    }
+
     if (const json* initialRotation = Find_ModuleData(emitter, "InitialRotation"))
     {
         desc.rotation.enabled = true;
@@ -1911,6 +1944,12 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         }
     }
 
+    if (const json* rotationOverLife = Find_ModuleData(emitter, "RotationOverLife"))
+    {
+        desc.rotation.enabled = true;
+        Fill_RotationOverLifePayload(desc.rotation, *rotationOverLife);
+    }
+
     if (const json* initialRotationRate = Find_ModuleData(emitter, "InitialRotationRate"))
     {
         desc.rotation.enabled = true;
@@ -1922,6 +1961,12 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
                 Evaluate_FloatDistributionMax(*rotationRateIter, desc.rotation.initialRotationRateDegrees.y)
             };
         }
+    }
+
+    if (const json* rotationRateScaleByLife = Find_ModuleData(emitter, "RotationRateScaleByLife"))
+    {
+        desc.rotation.enabled = true;
+        Fill_RotationRateScaleByLifePayload(desc.rotation, *rotationRateScaleByLife);
     }
 
     if (desc.modelGuid.empty() && desc.modelPath.empty())

@@ -6,6 +6,8 @@
 #include "Renderer_Define.h"
 #include "ShaderCom.h"
 
+#include <chrono>
+
 namespace
 {
 constexpr D3D11_INPUT_ELEMENT_DESC kEffectMeshInputElements[] = {
@@ -32,6 +34,16 @@ float Read_Vec4Component(const Vec4& values, uint32 index)
     case 3: return values.w;
     default: return values.x;
     }
+}
+
+bool Has_NonZeroVector(const Vec3& value)
+{
+    return fabsf(value.x) > 0.0001f || fabsf(value.y) > 0.0001f || fabsf(value.z) > 0.0001f;
+}
+
+double Elapsed_Milliseconds(const std::chrono::steady_clock::time_point& begin, const std::chrono::steady_clock::time_point& end)
+{
+    return std::chrono::duration<double, std::milli>(end - begin).count();
 }
 }
 
@@ -65,6 +77,7 @@ HRESULT MeshEmitter::Initialize(void* arg)
         _desc = *static_cast<MeshEmitterDesc*>(arg);
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
+    Log_DescPayload("initialize");
     Reset_PlaybackRuntime();
 
     if (FAILED(Ready_Components()))
@@ -80,8 +93,9 @@ HRESULT MeshEmitter::Initialize(void* arg)
     }
 
     _isReady = true;
-    _particles.resize(max(1u, _desc.spawn.instanceCount));
-    _instancePayload.resize(_particles.size());
+    const uint32 instanceCapacity = max(1u, _desc.spawn.instanceCount);
+    _particles.assign(instanceCapacity, MeshParticleState{});
+    _instancePayload.resize(instanceCapacity);
     Update_InstanceBuffer();
     return S_OK;
 }
@@ -218,6 +232,43 @@ HRESULT MeshEmitter::Reset_ForEffectReplay()
     return S_OK;
 }
 
+bool MeshEmitter::Can_ReloadDefinition(const EffectEmitterDefinition& emitterDefinition) const
+{
+    if (emitterDefinition.kind != EffectEmitterKind::Mesh)
+        return false;
+
+    const MeshEmitterDesc* desc = get_if<MeshEmitterDesc>(&emitterDefinition.concreteDesc);
+    return desc != nullptr && Is_CompatibleReloadDesc(*desc);
+}
+
+HRESULT MeshEmitter::Reload_Definition(const EffectEmitterDefinition& emitterDefinition)
+{
+    if (!Can_ReloadDefinition(emitterDefinition))
+        return E_FAIL;
+
+    const MeshEmitterDesc* desc = get_if<MeshEmitterDesc>(&emitterDefinition.concreteDesc);
+    CHECK_NULL(desc, E_FAIL);
+
+    _emitterId = emitterDefinition.id;
+    _emitterName = emitterDefinition.name;
+    _localPosition = emitterDefinition.localPosition;
+    _localRotationDegrees = emitterDefinition.localRotationDegrees;
+    _useLocalSpace = emitterDefinition.useLocalSpace;
+    _enabled = emitterDefinition.enabled;
+
+    CHECK_FAILED(Apply_DescForReload(*desc), E_FAIL);
+    Sync_FromEffectOwner();
+
+    LOG_INFO(
+        "MeshEmitter reused for definition reload. emitter='{}', modelGuid='{}', modelPath='{}', capacity={}",
+        _emitterName,
+        _desc.modelGuid,
+        _desc.modelPath,
+        _instanceCapacity
+    );
+    return S_OK;
+}
+
 bool MeshEmitter::Is_EffectFinished() const
 {
     return !_isReady || (PlaybackState::Completed == _playbackState && _activeInstanceCount == 0u);
@@ -229,11 +280,126 @@ void MeshEmitter::On_EffectTransformSynced()
         Update_InstanceBuffer();
 }
 
+void MeshEmitter::Log_DescPayload(const char* context) const
+{
+    LOG_INFO(
+        "MeshEmitter desc payload. context={}, emitter='{}', spawnCount={}, spawnRate={}, bursts={}, life=({}, {}), initialSize={}, sizeByLife={}, motion={}, acceleration={}, drag=({}, {}), velocityScale=({}, {}), rotation={}, colorCurve={}, alphaCurve={}",
+        context,
+        _emitterName,
+        _desc.spawn.instanceCount,
+        _desc.spawn.particleSpawn.spawnRate,
+        static_cast<uint32>(_desc.spawn.particleSpawn.bursts.size()),
+        _desc.lifetime.lifeTime.x,
+        _desc.lifetime.lifeTime.y,
+        _desc.initialSize.enabled,
+        _desc.sizeByLife.enabled,
+        _desc.motion.enabled,
+        Has_NonZeroVector(_desc.motion.accelerationMin) || Has_NonZeroVector(_desc.motion.accelerationMax),
+        _desc.motion.drag.x,
+        _desc.motion.drag.y,
+        _desc.motion.velocityScaleByLife.x,
+        _desc.motion.velocityScaleByLife.y,
+        _desc.rotation.enabled,
+        _desc.colorOverLife.curve.colorCurveEnabled,
+        _desc.colorOverLife.curve.alphaCurveEnabled
+    );
+}
+
+void MeshEmitter::Log_InitializeTiming(
+    const char* context,
+    double shaderMs,
+    double resolveModelMs,
+    double modelMs,
+    double materialMs,
+    double bufferMs,
+    double totalMs) const
+{
+    LOG_INFO(
+        "MeshEmitter initialize timing. context={}, emitter='{}', shader_ms={:.3f}, resolve_model_ms={:.3f}, model_ms={:.3f}, material_ms={:.3f}, buffer_ms={:.3f}, total_ms={:.3f}, modelGuid='{}', modelPath='{}'",
+        context,
+        _emitterName,
+        shaderMs,
+        resolveModelMs,
+        modelMs,
+        materialMs,
+        bufferMs,
+        totalMs,
+        _desc.modelGuid,
+        _desc.modelPath
+    );
+}
+
+bool MeshEmitter::Is_CompatibleReloadDesc(const MeshEmitterDesc& desc) const
+{
+    if (!_isReady || _model == nullptr || _shader == nullptr)
+        return false;
+    if (desc.modelGuid != _desc.modelGuid || desc.modelPath != _desc.modelPath)
+        return false;
+    if (desc.useModelMaterials != _desc.useModelMaterials)
+        return false;
+    if (Has_MaterialOverride(_desc) && !Has_MaterialOverride(desc))
+        return false;
+
+    return true;
+}
+
+bool MeshEmitter::Has_MaterialOverride(const MeshEmitterDesc& desc) const
+{
+    return !desc.material.mainTextureGuid.empty() || !desc.material.mainTexturePath.empty();
+}
+
+HRESULT MeshEmitter::Apply_DescForReload(const MeshEmitterDesc& desc)
+{
+    const auto totalBegin = std::chrono::steady_clock::now();
+    _desc = desc;
+    Log_DescPayload("reload");
+    Reset_PlaybackRuntime();
+
+    const auto materialBegin = std::chrono::steady_clock::now();
+    CHECK_FAILED(Apply_EffectMaterialOverride(), E_FAIL);
+    const auto materialEnd = std::chrono::steady_clock::now();
+
+    const auto bufferBegin = std::chrono::steady_clock::now();
+    CHECK_FAILED(Ready_InstanceBuffer(), E_FAIL);
+    const auto bufferEnd = std::chrono::steady_clock::now();
+
+    const uint32 instanceCapacity = max(1u, _desc.spawn.instanceCount);
+    if (_particles.size() != instanceCapacity)
+        _particles.assign(instanceCapacity, MeshParticleState{});
+    else
+    {
+        for (MeshParticleState& particle : _particles)
+            particle = {};
+    }
+
+    _instancePayload.resize(instanceCapacity);
+    _isReady = _model != nullptr && _shader != nullptr && _instanceBuffer != nullptr;
+    Update_InstanceBuffer();
+
+    const auto totalEnd = std::chrono::steady_clock::now();
+    Log_InitializeTiming(
+        "reload_reuse",
+        0.0,
+        0.0,
+        0.0,
+        Elapsed_Milliseconds(materialBegin, materialEnd),
+        Elapsed_Milliseconds(bufferBegin, bufferEnd),
+        Elapsed_Milliseconds(totalBegin, totalEnd)
+    );
+    return _isReady ? S_OK : E_FAIL;
+}
+
 HRESULT MeshEmitter::Ready_Components()
 {
-    CHECK_FAILED(Ready_Shader(), E_FAIL);
+    const auto totalBegin = std::chrono::steady_clock::now();
 
+    const auto shaderBegin = std::chrono::steady_clock::now();
+    CHECK_FAILED(Ready_Shader(), E_FAIL);
+    const auto shaderEnd = std::chrono::steady_clock::now();
+
+    const auto resolveModelBegin = std::chrono::steady_clock::now();
     const wstring modelPath = Resolve_ModelPath();
+    const auto resolveModelEnd = std::chrono::steady_clock::now();
     if (modelPath.empty())
     {
         LOG_WARN(
@@ -245,6 +411,7 @@ HRESULT MeshEmitter::Ready_Components()
         return E_FAIL;
     }
 
+    const auto modelBegin = std::chrono::steady_clock::now();
     _model = ModelCom::Create(
         _device,
         _context,
@@ -263,10 +430,27 @@ HRESULT MeshEmitter::Ready_Components()
         );
         return E_FAIL;
     }
+    const auto modelEnd = std::chrono::steady_clock::now();
 
+    const auto materialBegin = std::chrono::steady_clock::now();
     CHECK_FAILED(Apply_EffectMaterialOverride(), E_FAIL);
+    const auto materialEnd = std::chrono::steady_clock::now();
 
-    return Ready_InstanceBuffer();
+    const auto bufferBegin = std::chrono::steady_clock::now();
+    CHECK_FAILED(Ready_InstanceBuffer(), E_FAIL);
+    const auto bufferEnd = std::chrono::steady_clock::now();
+    const auto totalEnd = std::chrono::steady_clock::now();
+
+    Log_InitializeTiming(
+        "initialize",
+        Elapsed_Milliseconds(shaderBegin, shaderEnd),
+        Elapsed_Milliseconds(resolveModelBegin, resolveModelEnd),
+        Elapsed_Milliseconds(modelBegin, modelEnd),
+        Elapsed_Milliseconds(materialBegin, materialEnd),
+        Elapsed_Milliseconds(bufferBegin, bufferEnd),
+        Elapsed_Milliseconds(totalBegin, totalEnd)
+    );
+    return S_OK;
 }
 
 HRESULT MeshEmitter::Ready_Shader()
@@ -367,6 +551,8 @@ HRESULT MeshEmitter::Apply_EffectMaterialOverride()
 HRESULT MeshEmitter::Ready_InstanceBuffer()
 {
     const uint32 instanceCapacity = max(1u, _desc.spawn.instanceCount);
+    if (_instanceBuffer != nullptr && _instanceCapacity == instanceCapacity)
+        return S_OK;
 
     D3D11_BUFFER_DESC bufferDesc{};
     bufferDesc.ByteWidth = sizeof(MeshInstanceVertex) * instanceCapacity;
@@ -375,9 +561,11 @@ HRESULT MeshEmitter::Ready_InstanceBuffer()
     bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
     _instanceBuffer.Reset();
+    _instanceCapacity = 0u;
     if (FAILED(_device->CreateBuffer(&bufferDesc, nullptr, _instanceBuffer.GetAddressOf())))
         return E_FAIL;
 
+    _instanceCapacity = instanceCapacity;
     return S_OK;
 }
 
@@ -632,10 +820,12 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed)
     particle.active = true;
     particle.age = 0.f;
     particle.lifeMax = RandomRange(lifeMin, lifeMax, seed + 11u);
-    particle.startPosition = spawnPosition;
+    particle.position = spawnPosition;
     particle.velocity = Sample_InitialVelocity(spawnPosition, seed + 23u);
+    particle.acceleration = Sample_Acceleration(seed + 29u);
+    particle.drag = Sample_Drag(seed + 31u);
     particle.baseScale = _desc.previewScale * Sample_InitialScale(seed + 37u);
-    particle.initialRollRadians = XMConvertToRadians(
+    particle.rollRadians = XMConvertToRadians(
         RandomRange(
             min(_desc.rotation.initialRotationDegrees.x, _desc.rotation.initialRotationDegrees.y),
             max(_desc.rotation.initialRotationDegrees.x, _desc.rotation.initialRotationDegrees.y),
@@ -664,7 +854,23 @@ void MeshEmitter::Update_Particles(float timeDelta)
 
         particle.age += safeDeltaTime;
         if (particle.age >= particle.lifeMax)
+        {
             particle.active = false;
+            continue;
+        }
+
+        const float lifeProgress = clamp(particle.age / max(0.0001f, particle.lifeMax), 0.f, 1.f);
+        const float velocityScale = Evaluate_VelocityScaleByLife(lifeProgress);
+        const Vec3 acceleration = particle.acceleration * velocityScale;
+        particle.velocity += acceleration * safeDeltaTime;
+
+        if (particle.drag > 0.f)
+            particle.velocity *= expf(-particle.drag * safeDeltaTime);
+
+        particle.position += particle.velocity * velocityScale * safeDeltaTime;
+
+        const float rotationRateScale = Evaluate_RotationRateScaleByLife(lifeProgress);
+        particle.rollRadians += particle.rollRateRadians * rotationRateScale * safeDeltaTime;
     }
 }
 
@@ -750,8 +956,8 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
         max(0.0001f, particle.baseScale.y * sizeByLife),
         max(0.0001f, particle.baseScale.z * sizeByLife)
     };
-    const Vec3 position = particle.startPosition + particle.velocity * particle.age;
-    const float rollRadians = particle.initialRollRadians + particle.rollRateRadians * particle.age;
+    const Vec3 position = particle.position;
+    const float rollRadians = particle.rollRadians + XMConvertToRadians(Evaluate_RotationOverLife(lifeProgress));
 
     return Matrix::CreateScale(scale) * Matrix::CreateRotationZ(rollRadians) * Matrix::CreateTranslation(position);
 }
@@ -827,6 +1033,23 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed)
     return velocity;
 }
 
+Vec3 MeshEmitter::Sample_Acceleration(uint32 seed) const
+{
+    const Vec3 sampledAcceleration{
+        RandomRange(_desc.motion.accelerationMin.x, _desc.motion.accelerationMax.x, seed + 1u),
+        RandomRange(_desc.motion.accelerationMin.y, _desc.motion.accelerationMax.y, seed + 2u),
+        RandomRange(_desc.motion.accelerationMin.z, _desc.motion.accelerationMax.z, seed + 3u)
+    };
+    return Resolve_LocalVector(sampledAcceleration);
+}
+
+float MeshEmitter::Sample_Drag(uint32 seed) const
+{
+    const float minDrag = min(_desc.motion.drag.x, _desc.motion.drag.y);
+    const float maxDrag = max(_desc.motion.drag.x, _desc.motion.drag.y);
+    return max(0.f, RandomRange(minDrag, maxDrag, seed));
+}
+
 Vec4 MeshEmitter::Sample_Color(const Vec4& minColor, const Vec4& maxColor, uint32 seed) const
 {
     return Vec4{
@@ -845,6 +1068,11 @@ float MeshEmitter::Sample_InitialScale(uint32 seed) const
     const float minScale = min(_desc.initialSize.sizeMin.x, _desc.initialSize.sizeMax.x);
     const float maxScale = max(_desc.initialSize.sizeMin.x, _desc.initialSize.sizeMax.x);
     return max(0.0001f, RandomRange(minScale, maxScale, seed));
+}
+
+float MeshEmitter::Evaluate_VelocityScaleByLife(float lifeProgress) const
+{
+    return max(0.f, lerp(_desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, lifeProgress));
 }
 
 float MeshEmitter::Evaluate_SizeByLife(float lifeProgress) const
@@ -912,6 +1140,34 @@ float MeshEmitter::Evaluate_SizeByLife(float lifeProgress) const
         multiplier.y = 1.f;
 
     return max(0.0001f, (multiplier.x + multiplier.y) * 0.5f);
+}
+
+float MeshEmitter::Evaluate_RotationOverLife(float lifeProgress) const
+{
+    if (!_desc.rotation.enabled)
+        return 0.f;
+
+    return Evaluate_CompactCurve(
+        lifeProgress,
+        _desc.rotation.rotationOverLifeCurveTimes,
+        _desc.rotation.rotationOverLifeCurveValues,
+        _desc.rotation.rotationOverLifeCurveKeyCount,
+        lerp(_desc.rotation.rotationOverLifeDegrees.x, _desc.rotation.rotationOverLifeDegrees.y, lifeProgress)
+    );
+}
+
+float MeshEmitter::Evaluate_RotationRateScaleByLife(float lifeProgress) const
+{
+    if (!_desc.rotation.enabled)
+        return 1.f;
+
+    return Evaluate_CompactCurve(
+        lifeProgress,
+        _desc.rotation.rotationRateScaleByLifeCurveTimes,
+        _desc.rotation.rotationRateScaleByLifeCurveValues,
+        _desc.rotation.rotationRateScaleByLifeCurveKeyCount,
+        lerp(_desc.rotation.rotationRateScaleByLife.x, _desc.rotation.rotationRateScaleByLife.y, lifeProgress)
+    );
 }
 
 Vec4 MeshEmitter::Evaluate_ColorOverLife(const MeshParticleState& particle, float lifeProgress) const
@@ -985,6 +1241,28 @@ Vec4 MeshEmitter::Evaluate_ColorOverLife(const MeshParticleState& particle, floa
     return color;
 }
 
+float MeshEmitter::Evaluate_CompactCurve(float lifeProgress, const Vec4& times, const Vec4& values, uint32 keyCount, float fallbackValue) const
+{
+    const uint32 clampedKeyCount = max(1u, min(4u, keyCount));
+    if (clampedKeyCount == 1u || lifeProgress <= Read_Vec4Component(times, 0u))
+        return Read_Vec4Component(values, 0u);
+
+    for (uint32 index = 1u; index < clampedKeyCount; ++index)
+    {
+        const float rightTime = Read_Vec4Component(times, index);
+        if (lifeProgress > rightTime)
+            continue;
+
+        const float leftTime = Read_Vec4Component(times, index - 1u);
+        const float ratio = clamp((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime), 0.f, 1.f);
+        return lerp(Read_Vec4Component(values, index - 1u), Read_Vec4Component(values, index), ratio);
+    }
+
+    return lifeProgress > Read_Vec4Component(times, clampedKeyCount - 1u)
+           ? Read_Vec4Component(values, clampedKeyCount - 1u)
+           : fallbackValue;
+}
+
 Vec3 MeshEmitter::Resolve_LocalVector(const Vec3& localVector) const
 {
     if (_transformCom == nullptr)
@@ -1054,6 +1332,7 @@ void MeshEmitter::Free()
     _completedKillDispatched = false;
     _activeInstanceCount = 0u;
     _nextSpawnCursor = 0u;
+    _instanceCapacity = 0u;
     _isReady = false;
 
     __super::Free();

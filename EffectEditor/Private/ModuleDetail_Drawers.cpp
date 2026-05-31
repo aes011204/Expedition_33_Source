@@ -924,7 +924,7 @@ bool InitialLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     bool changed = false;
 
     if (ImGui::CollapsingHeader("위치", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_Vector3DistributionGroup("위치", data.location, defaultData.location);
+        changed |= detailContext.Draw_Vector3DistributionGroup("위치", data.location, defaultData.location, 0.01f, false, true);
 
     return changed;
 }

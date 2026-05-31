@@ -1,4 +1,4 @@
-#include "CurveEditor_View.h"
+﻿#include "CurveEditor_View.h"
 
 #include "EffectEditorInstance.h"
 #include "Emitter_View.h"
@@ -27,11 +27,11 @@ namespace
         case FloatCurveInterpolationMode::CurveAutoClamped:
             return "Curve Auto Clamped";
         case FloatCurveInterpolationMode::CurveAuto:
-            return "Curve Auto (예정)";
+            return "Curve Auto (미구현)";
         case FloatCurveInterpolationMode::CurveUser:
-            return "Curve User (예정)";
+            return "Curve User (미구현)";
         case FloatCurveInterpolationMode::CurveBreak:
-            return "Curve Break (예정)";
+            return "Curve Break (미구현)";
         default:
             return "Linear";
         }
