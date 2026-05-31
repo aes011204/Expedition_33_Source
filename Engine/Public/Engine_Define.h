@@ -70,6 +70,7 @@
 #include "Vertex_Types.h"
 #include "Engine_Model_Struct.h"
 #include "Engine_Constants.h"
+#include "Engine_Static.h"
 
 // height map
 #include <wincodec.h>

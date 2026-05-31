@@ -291,6 +291,9 @@
     <Filter Include="06. Pool\Effect Pool">
       <UniqueIdentifier>{c1313e91-9b45-46ca-9845-0762d62c53ba}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Map\MapLandscape">
+      <UniqueIdentifier>{34ac92ad-0d2f-498a-bb00-886921a6ae55}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\AN_BattleShot.cpp" />
@@ -357,6 +360,9 @@
     <ClCompile Include="..\private\BattleAction.cpp" />
     <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
     <ClCompile Include="..\private\BT_LookRange.cpp" />
+    <ClCompile Include="..\Private\MapLandscape.cpp">
+      <Filter>02.GameObject\Map\MapLandscape</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1120,6 +1126,9 @@
     <ClInclude Include="..\Public\BattleAnimUtils.h" />
     <ClInclude Include="..\public\BattleAction.h" />
     <ClInclude Include="..\public\BT_LookRange.h" />
+    <ClInclude Include="..\Public\MapLandscape.h">
+      <Filter>02.GameObject\Map\MapLandscape</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

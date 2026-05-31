@@ -10,6 +10,7 @@
 #include "Body_Player.h"
 #include "Weapon.h"
 #include "Sky.h"
+#include "MapLandscape.h"
 
 // 레벨 추가되면 여기에 추가로 세팅해줘야함
 auto Loader::Find_MapLoadDesc() const -> const LevelMapLoadDesc*
@@ -20,12 +21,13 @@ auto Loader::Find_MapLoadDesc() const -> const LevelMapLoadDesc*
         {
             LevelType::GamePlay,
             {
-                Constants::Map::SpringChunk_00_03_Path,
-                Constants::Map::SpringChunk_00_04_Path,
-                Constants::Map::SpringChunk_01_00_Path,
-                Constants::Map::SpringChunk_01_01_Path,
+                //Constants::Map::SpringChunk_00_03_Path,
+                //Constants::Map::SpringChunk_00_04_Path,
+                //Constants::Map::SpringChunk_01_00_Path,
+                //Constants::Map::SpringChunk_01_01_Path,
+                Constants::Map::SmallLevel_MF_Zone_01_Path
             },
-            4,
+            1,
             L"Layer_MapStaticMesh"
         },
 
@@ -38,6 +40,36 @@ auto Loader::Find_MapLoadDesc() const -> const LevelMapLoadDesc*
     {
         if (desc.level == _nextLevel)
             return &desc;
+    }
+
+    return nullptr;
+}
+
+auto Loader::Find_LandscapeDesc() const -> const LevelLandscapeDesc*
+{
+    static const LevelLandscapeDesc descs[] =
+    {
+        {
+            LevelType::GamePlay,
+            {
+                Constants::Map::MF_Zone_Boss_HMap,
+                Constants::Map::MF_Zone_Main_HMap,
+                Constants::Map::MF_Zone_Stair_1_HMap,
+                Constants::Map::MF_Zone_Stair_2_HMap,
+                Constants::Map::MF_Zone_Stair_3_HMap,
+            },
+            5,
+            Constants::Map::LandscapeTextures_Dir,
+            L"Layer_BackGround"
+        },
+    };
+
+    for (const LevelLandscapeDesc& desc : descs)
+    {
+        if (desc.level == _nextLevel)
+        {
+            return &desc;
+        }
     }
 
     return nullptr;
@@ -680,6 +712,13 @@ HRESULT Loader::Try_FinishLoading()
     if (!_mapLoadFinished)
         return S_OK;
 
+    // land
+    CHECK_FAILED(Process_LevelLandscapeLoad(), E_FAIL);
+
+    if (!_landscapeLoadFinished)
+        return S_OK;
+    //
+
     lstrcpy(_loadingText, TEXT("Loading completed."));
     _isFinished.store(true);
 
@@ -742,6 +781,42 @@ HRESULT Loader::Process_LevelMapLoad(size_t maxMeshesPerFrame, chrono::milliseco
         _mapLoadStarted = false;
         _mapLoadSession = {};
         _mapLoadFinished = _mapLoadPathIndex >= desc->mapPathCount;
+    }
+
+    return S_OK;
+}
+
+HRESULT Loader::Process_LevelLandscapeLoad()
+{
+    const LevelLandscapeDesc* desc = Find_LandscapeDesc();
+    if (!desc)
+    {
+        _landscapeLoadFinished = true;
+        return S_OK;
+    }
+
+    if (_landscapeLoadIndex >= desc->hmapPathCount)
+    {
+        _landscapeLoadFinished = true;
+        return S_OK;
+    }
+
+    MapLandscape::LANDSCAPE_DESC landscapeDesc{};
+    landscapeDesc.hmapPath = desc->hmapPaths[_landscapeLoadIndex];
+    landscapeDesc.texRoot = desc->texRoot;
+
+    GAME->Add_GameObject(
+        ETOI(LevelType::Static),
+        TEXT("GameObject_MapLandscape"),
+        ETOI(desc->level),
+        desc->layerTag,
+        &landscapeDesc);
+
+    ++_landscapeLoadIndex;
+
+    if (_landscapeLoadIndex >= desc->hmapPathCount)
+    {
+        _landscapeLoadFinished = true;
     }
 
     return S_OK;

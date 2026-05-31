@@ -65,6 +65,7 @@ namespace Engine
         BattleTurnCamera,
 
         Terrain,
+        Landscape,
         Sky,
         StaticMesh,
         Foliage,
