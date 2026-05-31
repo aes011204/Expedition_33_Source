@@ -5,6 +5,7 @@
 #include "Collision_Define.h"
 #include "PhysX_Types.h"
 #include "CameraPresetTypes.h"
+#include "ClientScreenFxManager.h"
 
 TargetCamera::TargetCamera(const ComPtr<Device>& device, const ComPtr<Context>& context) :  Camera {device, context}
 {

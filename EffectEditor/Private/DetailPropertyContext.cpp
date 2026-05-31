@@ -2552,7 +2552,7 @@ bool DetailPropertyContext::Draw_DirectionalAlignmentModeProperty(
                 ImGui::SetTooltip(
                     index == 0
                     ? "기준 방향을 sprite 카드의 normal/look 방향으로 사용합니다."
-                    : "sprite는 카메라를 향하게 두고, texture의 X/Y 축만 기준 방향으로 눕힙니다."
+                    : "texture의 X/Y 축을 기준 방향에 맞추고, 나머지 축은 카메라 가시성을 유지합니다."
                 );
             }
 

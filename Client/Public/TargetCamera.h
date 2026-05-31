@@ -159,7 +159,7 @@ private:
     Vec3 _lastCollisionDesiredPos = Vec3::Zero;
     Vec3 _lastCollisionResolvedPos = Vec3::Zero;
 
-    
+
     // 매 프레임 계산된 화면 중앙 look target을 저장해 두고
     // world crosshair hit query가 같은 기준을 쓰게 한다.
     Vec3               _currentLookTarget = Vec3::Zero;
