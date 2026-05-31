@@ -10,6 +10,7 @@ namespace UIEditor
         const char* const kEditorModeNames[] = {
             "Keyframe Animation",
             "State Animation",
+            "Sequence Preview",
         };
     }
 
@@ -55,6 +56,10 @@ namespace UIEditor
             if (_editorMode == UI_AnimationEditorMode::StateAnimation)
             {
                 Render_StateAnimationEditor();
+            }
+            else if (_editorMode == UI_AnimationEditorMode::SequencePreview)
+            {
+                Render_SequencePreviewEditor();
             }
             else
             {
@@ -145,6 +150,42 @@ namespace UIEditor
         _lastStaticPreviewFrame = currentFrame;
     }
 
+    void UI_Animation_View::Mark_SequenceStaticPreviewDirty()
+    {
+        _sequenceStaticPreviewDirty = true;
+    }
+
+    void UI_Animation_View::Request_SequenceStaticPreviewRefresh()
+    {
+        Mark_SequenceStaticPreviewDirty();
+        Refresh_SequenceStaticPreview();
+    }
+
+    void UI_Animation_View::Refresh_SequenceStaticPreview()
+    {
+        _sequenceService.Resolve_TargetObjects(_editorManager.Get_Document());
+        if (_sequenceService.Is_Empty() || !_sequenceService.Has_AnyResolvedTarget())
+        {
+            _lastSequencePreviewFrame = INT_MIN;
+            return;
+        }
+
+        if (_editorManager.Is_AnimationPreviewPlaying())
+            return;
+
+        const int32 currentFrame = _sequenceService.Get_CurrentFrame();
+        if (!_sequenceStaticPreviewDirty &&
+            _lastSequencePreviewFrame == currentFrame &&
+            _editorManager.Is_AnimationPreviewActive())
+        {
+            return;
+        }
+
+        _editorManager.Preview_AnimationSequence(_sequenceService.Get_Sequence(), currentFrame);
+        _sequenceStaticPreviewDirty = false;
+        _lastSequencePreviewFrame = currentFrame;
+    }
+
     void UI_Animation_View::Handle_TimelineClick(const UI_AnimationTimelineClickResult& clickResult)
     {
         if (!clickResult.clicked)
@@ -184,6 +225,16 @@ namespace UIEditor
         }
 
         Set_CurrentFrame(clickResult.frame);
+    }
+
+    void UI_Animation_View::Handle_SequenceTimelineClick(const UI_AnimationSequenceTimelineClickResult& clickResult)
+    {
+        if (!clickResult.clicked)
+            return;
+
+        _sequenceService.Select_Clip(clickResult.clipIndex);
+        _sequenceService.Set_CurrentFrame(clickResult.frame);
+        Request_SequenceStaticPreviewRefresh();
     }
 
     Shared<UI_Animation_View> UI_Animation_View::Create(UI_Editor_Manager& editorManager)

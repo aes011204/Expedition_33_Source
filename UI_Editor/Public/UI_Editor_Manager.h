@@ -127,7 +127,9 @@ public:
         const D3D11_RECT& clipRect);
     void Play_AnimationPreview(ObjectId objectId);
     void Play_AnimationAssetPreview(const UI_AnimationAsset& asset, int32 startFrame);
+    void Play_AnimationSequencePreview(const UI_AnimationSequenceAsset& sequence, int32 startFrame);
     void Preview_AnimationAsset(const UI_AnimationAsset& asset, int32 frame);
+    void Preview_AnimationSequence(const UI_AnimationSequenceAsset& sequence, int32 frame);
     void Pause_AnimationPreview();
     void Stop_AnimationPreview();
     void Restart_AnimationPreview(ObjectId objectId);

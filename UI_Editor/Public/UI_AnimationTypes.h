@@ -98,6 +98,22 @@ struct UI_AnimationAsset
     vector<UI_AnimationTargetBinding> targets = {};
 };
 
+struct UI_AnimationSequenceClip
+{
+    string displayName = "";
+    wstring filePath = {};
+    UI_AnimationAsset asset = {};
+    int32 startFrame = 0;
+    int32 durationFrames = 1;
+    int32 resolvedTargetCount = 0;
+};
+
+struct UI_AnimationSequenceAsset
+{
+    int32 fps = 60;
+    vector<UI_AnimationSequenceClip> clips = {};
+};
+
 enum class UI_StateAnimationEvent
 {
     HoverEnter,

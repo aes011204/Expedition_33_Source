@@ -1301,9 +1301,19 @@ namespace UIEditor
         _animationPreviewService.Play_KeyframeAsset(asset, startFrame);
     }
 
+    void UI_Editor_Manager::Play_AnimationSequencePreview(const UI_AnimationSequenceAsset& sequence, int32 startFrame)
+    {
+        _animationPreviewService.Play_SequenceAsset(sequence, startFrame);
+    }
+
     void UI_Editor_Manager::Preview_AnimationAsset(const UI_AnimationAsset& asset, int32 frame)
     {
         _animationPreviewService.Preview_KeyframeAsset(asset, frame);
+    }
+
+    void UI_Editor_Manager::Preview_AnimationSequence(const UI_AnimationSequenceAsset& sequence, int32 frame)
+    {
+        _animationPreviewService.Preview_SequenceAsset(sequence, frame);
     }
 
     void UI_Editor_Manager::Pause_AnimationPreview()
