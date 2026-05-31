@@ -206,19 +206,9 @@ PS_OUT_COLOR PS_DistortionResolve(PS_IN In)
     }
 
     const float2 offset = field.rg / max(field.b, EPSILON);
-    const float2 distortedUV = In.Texcoord + offset;
-    const float sceneDepthRaw = g_DepthTexture.Sample(PointClampSampler, In.Texcoord).x;
-    const float sceneDepth = sceneDepthRaw <= EPSILON ? 1.f : sceneDepthRaw;
-    const float sampleDepthRaw = g_DepthTexture.Sample(PointClampSampler, distortedUV).x;
-    const float sampleDepth = sampleDepthRaw <= EPSILON ? 1.f : sampleDepthRaw;
-    const float distortionDepth = saturate(field.a);
-    const float depthBias = 0.0005f;
-    const float depthSoftness = 0.002f;
-    const float destinationDepthGate = smoothstep(depthBias, depthBias + depthSoftness, sceneDepth - distortionDepth);
-    const float sampleDepthGate = smoothstep(depthBias, depthBias + depthSoftness, sampleDepth - distortionDepth);
-    const float4 distorted = g_DistortionSourceTexture.Sample(LinearClampSampler, distortedUV);
+    const float4 distorted = g_DistortionSourceTexture.Sample(LinearClampSampler, In.Texcoord + offset);
 
-    Out.Color = lerp(source, distorted, weight * destinationDepthGate * sampleDepthGate);
+    Out.Color = lerp(source, distorted, weight);
     return Out;
 }
 

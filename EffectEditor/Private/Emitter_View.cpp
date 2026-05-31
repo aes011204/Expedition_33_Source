@@ -1434,9 +1434,21 @@ void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emi
     switch (action)
     {
     case PendingTypeDataAction::AddTrail:
-    case PendingTypeDataAction::ResetData:
         emitter.typeData.kind = AuthoringTypeDataKind::Trail;
         emitter.typeData.payload = TrailTypeData{};
+        break;
+    case PendingTypeDataAction::AddMesh:
+        emitter.typeData.kind = AuthoringTypeDataKind::Mesh;
+        emitter.typeData.payload = MeshTypeData{};
+        break;
+    case PendingTypeDataAction::ResetData:
+        if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
+            emitter.typeData.payload = MeshTypeData{};
+        else
+        {
+            emitter.typeData.kind = AuthoringTypeDataKind::Trail;
+            emitter.typeData.payload = TrailTypeData{};
+        }
         break;
     case PendingTypeDataAction::Remove:
         emitter.typeData.kind = AuthoringTypeDataKind::None;
@@ -1465,6 +1477,9 @@ void Emitter_View::Process_PendingTypeDataAction()
     {
     case PendingTypeDataAction::AddTrail:
         description = "Add Trail TypeData";
+        break;
+    case PendingTypeDataAction::AddMesh:
+        description = "Add Mesh TypeData";
         break;
     case PendingTypeDataAction::ResetData:
         description = "Reset TypeData";
@@ -1910,6 +1925,8 @@ void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
     {
         if (ImGui::MenuItem("Trail TypeData 추가"))
             Queue_TypeDataAction(PendingTypeDataAction::AddTrail, emitterIndex);
+        if (ImGui::MenuItem("Mesh TypeData 추가"))
+            Queue_TypeDataAction(PendingTypeDataAction::AddMesh, emitterIndex);
         return;
     }
 
@@ -2140,7 +2157,21 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
     ImGui::SetCursorPos(ImVec2(rowCursor.x + rowPaddingX, rowCursor.y + textOffsetY));
     ImGui::PushStyleColor(ImGuiCol_Text, textColor);
     if (hasTypeData)
-        ImGui::TextUnformatted(typeDataKind == AuthoringTypeDataKind::Trail ? "트레일 데이터" : "타입 데이터");
+    {
+        switch (typeDataKind)
+        {
+        case AuthoringTypeDataKind::Trail:
+            ImGui::TextUnformatted("트레일 데이터");
+            break;
+        case AuthoringTypeDataKind::Mesh:
+            ImGui::TextUnformatted("메시 데이터");
+            break;
+        case AuthoringTypeDataKind::None:
+        default:
+            ImGui::TextUnformatted("타입 데이터");
+            break;
+        }
+    }
     else
         ImGui::TextUnformatted("타입 데이터 (미장착)");
     ImGui::PopStyleColor();

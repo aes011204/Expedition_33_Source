@@ -1108,10 +1108,6 @@ HRESULT Renderer::Render_DistortionResolve()
         L"Render_DistortionResolve:FAIL Bind_RT_ShaderResource(g_DistortionFieldTexture)");
 
     ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
-        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DepthTexture", RT::Depth),
-        L"Render_DistortionResolve:FAIL Bind_RT_ShaderResource(g_DepthTexture)");
-
-    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
         _postprocessShader->Begin(ETOI(PostProcessPass::DistortionResolve)),
         L"Render_DistortionResolve:FAIL ShaderBegin(DistortionResolve)");
 

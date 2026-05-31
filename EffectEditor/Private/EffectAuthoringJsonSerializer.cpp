@@ -7,6 +7,9 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
+    json To_Json(const EffectMaterialInstanceData& data);
+    void From_Json(const json& root, EffectMaterialInstanceData& outData);
+
     //## Common Codec Helpers
 
     template <typename EnumType>
@@ -338,6 +341,42 @@ namespace Internal
         Read_NumberField(root, "sideFade", outData.sideFade);
     }
 
+    json To_Json(const MeshTypeData& data)
+    {
+        json root = json::object();
+        root["modelGuid"] = data.modelGuid;
+        root["modelPath"] = data.modelPath;
+        root["assignedEffectMaterialGuid"] = data.assignedEffectMaterialGuid;
+        root["assignedEffectMaterialPath"] = data.assignedEffectMaterialPath;
+        root["hasAssignedMaterialInstance"] = data.hasAssignedMaterialInstance;
+        if (data.hasAssignedMaterialInstance)
+            root["assignedMaterial"] = To_Json(data.assignedMaterial);
+        root["previewScale"] = To_Json(data.previewScale);
+        root["useModelMaterials"] = data.useModelMaterials;
+        return root;
+    }
+
+    void From_Json(const json& root, MeshTypeData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_StringField(root, "modelGuid", outData.modelGuid);
+        Read_StringField(root, "modelPath", outData.modelPath);
+        Read_StringField(root, "assignedEffectMaterialGuid", outData.assignedEffectMaterialGuid);
+        Read_StringField(root, "assignedEffectMaterialPath", outData.assignedEffectMaterialPath);
+        Read_BoolField(root, "hasAssignedMaterialInstance", outData.hasAssignedMaterialInstance);
+        if (const auto assignedMaterialIter = root.find("assignedMaterial");
+            assignedMaterialIter != root.end() && assignedMaterialIter->is_object())
+        {
+            From_Json(*assignedMaterialIter, outData.assignedMaterial);
+            outData.hasAssignedMaterialInstance = true;
+        }
+        if (const auto previewScaleIter = root.find("previewScale"); previewScaleIter != root.end())
+            Read_Vec3(*previewScaleIter, outData.previewScale);
+        Read_BoolField(root, "useModelMaterials", outData.useModelMaterials);
+    }
+
     json To_Json(const AuthoringTypeData& data)
     {
         json root = json::object();
@@ -349,6 +388,12 @@ namespace Internal
         {
             const TrailTypeData* trailData = get_if<TrailTypeData>(&data.payload);
             root["data"] = To_Json(trailData != nullptr ? *trailData : TrailTypeData{});
+            break;
+        }
+        case AuthoringTypeDataKind::Mesh:
+        {
+            const MeshTypeData* meshData = get_if<MeshTypeData>(&data.payload);
+            root["data"] = To_Json(meshData != nullptr ? *meshData : MeshTypeData{});
             break;
         }
         case AuthoringTypeDataKind::None:
@@ -379,6 +424,17 @@ namespace Internal
                 From_Json(*dataIter, data);
 
             outData.kind = AuthoringTypeDataKind::Trail;
+            outData.payload = data;
+            break;
+        }
+        case AuthoringTypeDataKind::Mesh:
+        {
+            MeshTypeData data{};
+            const auto dataIter = root.find("data");
+            if (dataIter != root.end())
+                From_Json(*dataIter, data);
+
+            outData.kind = AuthoringTypeDataKind::Mesh;
             outData.payload = data;
             break;
         }

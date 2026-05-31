@@ -14,6 +14,7 @@ enum class EffectEmitterKind : uint8
 {
     ComputeSprite, // compute-first sprite emitter runtime이다.
     ComputeTrail,  // compute-first trail/ribbon emitter runtime이다.
+    Mesh,          // model mesh를 instance buffer로 그리는 mesh emitter runtime이다.
 };
 
 //## Trail
@@ -167,6 +168,7 @@ struct EffectLifetimeRuntimeDesc
 // InitialSize 모듈에서 compute payload에 필요한 값만 접은 runtime payload다.
 struct EffectInitialSizeRuntimeDesc
 {
+    bool enabled{ false };          // InitialSize 모듈이 runtime에 연결되었는지 나타낸다.
     Vec2 sizeMin{ 0.12f, 0.12f }; // InitialSize의 가로/세로 크기 하한이다.
     Vec2 sizeMax{ 0.28f, 0.28f }; // InitialSize의 가로/세로 크기 상한이다.
 };
@@ -243,7 +245,29 @@ struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
     Weak<IEffectTrailSampleProvider> sampleProvider{}; // attachment 계산 owner가 공급하는 sample source다.
 };
 
-using EffectEmitterConcreteDesc = variant<ComputeSpriteEmitterDesc, ComputeTrailEmitterDesc>;
+// mesh emitter가 clone 시점에 받는 model/instance draw용 runtime payload다.
+struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
+{
+    string modelGuid{};                            // 선택 model asset identity다.
+    string modelPath{};                            // asset-root 기준 model path fallback/debug hint다.
+    Vec3 previewScale{ 1.f, 1.f, 1.f };            // Phase 3 단일 mesh particle preview scale이다.
+    bool useModelMaterials{ false };               // true면 source model material을 우선 사용한다.
+    EffectRequiredMaterialRuntimeDesc material{};  // Phase 3에서는 tint/debug payload로 보존하고 material override는 후속에서 소비한다.
+    EffectEmitterPlaybackRuntimeDesc playback{};   // Required 모듈에서 mesh emitter가 소비하는 재생 규칙이다.
+    EffectDrawLimitRuntimeDesc drawLimit{};        // Required 모듈에서 mesh draw 제출 상한으로 소비하는 규칙이다.
+    EffectSpawnRuntimeDesc spawn{};                // Spawn 모듈에서 mesh particle 활성화 규칙으로 소비하는 payload다.
+    EffectLifetimeRuntimeDesc lifetime{};          // Lifetime 모듈에서 mesh particle age/max life로 소비하는 payload다.
+    EffectInitialSizeRuntimeDesc initialSize{};    // InitialSize 모듈에서 mesh uniform scale로 낮춰 소비하는 payload다.
+    EffectInitialColorRuntimeDesc initialColor{};  // InitialColor 모듈에서 mesh particle 시작 색으로 소비하는 payload다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 mesh particle color/fade로 소비하는 payload다.
+    PointParticleSizeByLifeDesc sizeByLife{};      // SizeByLife 모듈에서 mesh uniform scale multiplier로 낮춰 소비하는 payload다.
+    PointParticleMotionDesc motion{};              // InitialVelocity/RadialVelocity 모듈에서 mesh particle 위치 갱신으로 소비하는 payload다.
+    PointParticleRotationDesc rotation{};          // InitialRotation/InitialRotationRate 모듈에서 mesh Z roll로 낮춰 소비하는 payload다.
+    PointParticleInitialLocationDesc initialLocation{}; // InitialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+    PointParticleSphereLocationDesc sphereLocation{};   // SphereLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+};
+
+using EffectEmitterConcreteDesc = variant<ComputeSpriteEmitterDesc, ComputeTrailEmitterDesc, MeshEmitterDesc>;
 
 struct EffectEmitterDefinition
 {

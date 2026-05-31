@@ -110,8 +110,8 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
 
     _postProcessOptions = _hasClientPostProcessSnapshot ? _clientPostProcessSnapshot : Get_DefaultPostProcessOptions();
     _postProcessPreset = _hasClientPostProcessSnapshot
-        ? EffectEditorPostProcessPreset::ClientCurrent
-        : EffectEditorPostProcessPreset::PreviewFriendly;
+                         ? EffectEditorPostProcessPreset::ClientCurrent
+                         : EffectEditorPostProcessPreset::PreviewFriendly;
     Queue_PreviewViewportSize(kDefaultPreviewViewportWidth, kDefaultPreviewViewportHeight);
 
     return S_OK;
@@ -263,33 +263,6 @@ EffectEditorPostProcessOptions EffectEditorInstance::Get_DefaultPostProcessOptio
     return options;
 }
 
-void EffectEditorInstance::Apply_PostProcessOptions(const EffectEditorPostProcessOptions& options)
-{
-    _postProcessOptions = options;
-    _postProcessOptions.params.featureMask = To_Underlying(_postProcessOptions.features);
-
-    if (_hasClientPostProcessSnapshot && Internal::Is_SamePostProcessOptions(_postProcessOptions, _clientPostProcessSnapshot))
-    {
-        _postProcessPreset = EffectEditorPostProcessPreset::ClientCurrent;
-        return;
-    }
-
-    if (Internal::Is_SamePostProcessOptions(_postProcessOptions, Get_DefaultPostProcessOptions()))
-    {
-        _postProcessPreset = EffectEditorPostProcessPreset::PreviewFriendly;
-        return;
-    }
-
-    _postProcessPreset = EffectEditorPostProcessPreset::Custom;
-}
-
-void EffectEditorInstance::Capture_ClientPostProcessSnapshot(const EffectEditorPostProcessOptions& options)
-{
-    _clientPostProcessSnapshot = options;
-    _clientPostProcessSnapshot.params.featureMask = To_Underlying(_clientPostProcessSnapshot.features);
-    _hasClientPostProcessSnapshot = true;
-}
-
 ShaderResourceView* EffectEditorInstance::Get_SharedViewportSRV() const
 {
     if (nullptr == _sharedViewportRenderTarget)
@@ -435,6 +408,33 @@ void EffectEditorInstance::Reset_TrailPreviewLocalOffsets()
 {
     _trailPreviewBaseLocalOffset = kDefaultTrailPreviewBaseLocalOffset;
     _trailPreviewTipLocalOffset = kDefaultTrailPreviewTipLocalOffset;
+}
+
+void EffectEditorInstance::Apply_PostProcessOptions(const EffectEditorPostProcessOptions& options)
+{
+    _postProcessOptions = options;
+    _postProcessOptions.params.featureMask = To_Underlying(_postProcessOptions.features);
+
+    if (_hasClientPostProcessSnapshot && Internal::Is_SamePostProcessOptions(_postProcessOptions, _clientPostProcessSnapshot))
+    {
+        _postProcessPreset = EffectEditorPostProcessPreset::ClientCurrent;
+        return;
+    }
+
+    if (Internal::Is_SamePostProcessOptions(_postProcessOptions, Get_DefaultPostProcessOptions()))
+    {
+        _postProcessPreset = EffectEditorPostProcessPreset::PreviewFriendly;
+        return;
+    }
+
+    _postProcessPreset = EffectEditorPostProcessPreset::Custom;
+}
+
+void EffectEditorInstance::Capture_ClientPostProcessSnapshot(const EffectEditorPostProcessOptions& options)
+{
+    _clientPostProcessSnapshot = options;
+    _clientPostProcessSnapshot.params.featureMask = To_Underlying(_clientPostProcessSnapshot.features);
+    _hasClientPostProcessSnapshot = true;
 }
 
 void EffectEditorInstance::Set_PostProcessFeature(PostProcessFeature feature, bool enabled)

@@ -317,6 +317,7 @@
     <ClInclude Include="..\Public\MapInstancedMesh.h" />
     <ClInclude Include="..\Public\MapLoader.h" />
     <ClInclude Include="..\Public\MapStaticMesh.h" />
+    <ClInclude Include="..\Public\MeshEmitter.h" />
     <ClInclude Include="..\public\MonsterStatCom.h" />
     <ClInclude Include="..\Public\Monster_BattleBase.h" />
     <ClInclude Include="..\public\Monster_Part.h" />
@@ -577,6 +578,7 @@
     <ClCompile Include="..\Private\MapInstancedMesh.cpp" />
     <ClCompile Include="..\Private\MapLoader.cpp" />
     <ClCompile Include="..\Private\MapStaticMesh.cpp" />
+    <ClCompile Include="..\Private\MeshEmitter.cpp" />
     <ClCompile Include="..\private\MonsterStatCom.cpp" />
     <ClCompile Include="..\Private\Monster_BattleBase.cpp" />
     <ClCompile Include="..\private\Monster_Part.cpp" />

@@ -56,9 +56,12 @@ private:
         bool includeTrailMaterialFields);
     static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeSpriteEmitterDesc& desc);
     static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeTrailEmitterDesc& desc);
+    static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, MeshEmitterDesc& desc);
     static void Apply_SpawnModule(const json& data, ComputeSpriteEmitterDesc& desc);
+    static void Apply_SpawnModule(const json& data, MeshEmitterDesc& desc);
     static bool Build_EmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
     static bool Build_TrailEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
+    static bool Build_MeshEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
     static bool Try_MakeResourceRelativePath(
         const fs::path& fullPath,
         const char* logContext,

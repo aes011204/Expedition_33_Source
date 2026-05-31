@@ -6,6 +6,7 @@
 #include "EffectMaterialPreviewRenderer.h"
 #include "EffectMaterial_View.h"
 #include "EffectMaterialPresetReader.h"
+#include "Helper_EffectAuthoring.h"
 #include "Notification_Manager.h"
 
 NS_BEGIN(EffectEditor)
@@ -844,7 +845,9 @@ bool RequiredModuleDetail::Draw(
 
     if (changed)
     {
-        emitter.rendererType = emitter.typeData.kind == AuthoringTypeDataKind::Trail ? "Trail" : data.rendererType;
+        emitter.rendererType = emitter.typeData.kind == AuthoringTypeDataKind::None
+                               ? data.rendererType
+                               : Authoring::Resolve_RendererType(emitter.typeData);
         emitter.textureId = data.material.mainTexturePath;
         emitter.resourceSummary = data.material.mainTexturePath;
     }

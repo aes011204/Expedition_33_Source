@@ -6,6 +6,7 @@
 #include "EffectEditorInstance.h"
 #include "EffectEditorSceneGrid.h"
 #include "EffectEditorSkybox.h"
+#include "EffectMaterialPresetReader.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -52,6 +53,75 @@ namespace Internal
     uint32 Resolve_SubUVFrameCount(const RequiredModuleData& required)
     {
         return max(1u, max(1u, required.material.subUVRows) * max(1u, required.material.subUVCols));
+    }
+
+    void Copy_MaterialToRuntimeDesc(const EffectMaterialInstanceData& material, EffectRequiredMaterialRuntimeDesc& outMaterial)
+    {
+        outMaterial.materialFamily = material.materialFamily;
+        outMaterial.mainTextureGuid = material.mainTextureGuid;
+        outMaterial.mainTexturePath = material.mainTexturePath;
+        outMaterial.noiseTextureGuid = material.noiseTextureGuid;
+        outMaterial.noiseTexturePath = material.noiseTexturePath;
+        outMaterial.maskTextureGuid = material.maskTextureGuid;
+        outMaterial.maskTexturePath = material.maskTexturePath;
+        outMaterial.flowTextureGuid = material.flowTextureGuid;
+        outMaterial.flowTexturePath = material.flowTexturePath;
+
+        outMaterial.blendMode = material.blendMode;
+        outMaterial.opacitySource = material.opacitySource.empty() ? "Alpha" : material.opacitySource;
+        outMaterial.tint = material.tint;
+        outMaterial.intensity = material.intensity;
+        outMaterial.opacityPower = material.opacityPower;
+        outMaterial.noiseStrength = material.noiseStrength;
+        outMaterial.alphaCutoff = material.alphaCutoff;
+        outMaterial.alphaErosion = material.alphaErosion;
+        outMaterial.mainUVScale = material.mainUVScale;
+        outMaterial.mainUVOffset = material.mainUVOffset;
+        outMaterial.mainUVScrollSpeed = material.mainUVScrollSpeed;
+        outMaterial.mainUVTilingMode = material.mainUVTilingMode;
+        outMaterial.noiseUVScale = material.noiseUVScale;
+        outMaterial.noiseUVOffset = material.noiseUVOffset;
+        outMaterial.noiseUVScrollSpeed = material.noiseUVScrollSpeed;
+        outMaterial.noiseUVTilingMode = material.noiseUVTilingMode;
+        outMaterial.maskUVScale = material.maskUVScale;
+        outMaterial.maskUVOffset = material.maskUVOffset;
+        outMaterial.maskUVScrollSpeed = material.maskUVScrollSpeed;
+        outMaterial.maskUVTilingMode = material.maskUVTilingMode;
+        outMaterial.flowUVScale = material.flowUVScale;
+        outMaterial.flowUVOffset = material.flowUVOffset;
+        outMaterial.flowUVScrollSpeed = material.flowUVScrollSpeed;
+        outMaterial.flowUVTilingMode = material.flowUVTilingMode;
+
+        outMaterial.additive = material.additive;
+        outMaterial.coreEmissive = material.coreEmissive;
+        outMaterial.refractionIntensity = material.refractionIntensity;
+        outMaterial.refractionPresence = material.refractionPresence;
+        outMaterial.distortionShapeMode = material.distortionShapeMode;
+        outMaterial.distortionShapeRadius = material.distortionShapeRadius;
+        outMaterial.distortionShapeThickness = material.distortionShapeThickness;
+        outMaterial.distortionShapeSoftness = material.distortionShapeSoftness;
+        outMaterial.twoSided = material.twoSided;
+        outMaterial.subUVRows = material.subUVRows;
+        outMaterial.subUVCols = material.subUVCols;
+    }
+
+    fs::path Resolve_AuthoredAssetPath(const string& guid, const string& path)
+    {
+        if (GAME == nullptr)
+            return fs::path(String::ToWString(path));
+
+        if (!guid.empty())
+        {
+            const wstring resolvedPath = GAME->Resolve_AssetPath(guid);
+            if (!resolvedPath.empty())
+                return fs::path(resolvedPath).lexically_normal();
+        }
+
+        fs::path resolvedPath = fs::path(String::ToWString(path));
+        if (resolvedPath.is_relative())
+            resolvedPath = fs::path(GAME->Get_AssetRoot()) / resolvedPath;
+
+        return resolvedPath.lexically_normal();
     }
 
     EffectSpriteScreenAlignment Resolve_EffectSpriteScreenAlignment(EmitterScreenAlignment alignment)
@@ -808,6 +878,10 @@ Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition
             definition->emitters.push_back(Build_PreviewTrailEmitterDefinition(emitter));
             break;
 
+        case AuthoringTypeDataKind::Mesh:
+            definition->emitters.push_back(Build_PreviewMeshEmitterDefinition(emitter));
+            break;
+
         case AuthoringTypeDataKind::None:
         default:
             definition->emitters.push_back(Build_PreviewEmitterDefinition(emitter));
@@ -1310,6 +1384,48 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
     }
 
     emitterDesc.sampleProvider = _trailPreviewSampleProvider;
+    definition.concreteDesc = emitterDesc;
+    return definition;
+}
+
+EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(const AuthoringEmitter& emitter) const
+{
+    EffectEmitterDefinition definition{};
+    definition.id = emitter.id;
+    definition.name = emitter.name;
+    definition.kind = EffectEmitterKind::Mesh;
+    definition.enabled = emitter.enabled;
+
+    MeshEmitterDesc emitterDesc{};
+
+    if (const auto* meshData = get_if<MeshTypeData>(&emitter.typeData.payload))
+    {
+        emitterDesc.modelGuid = meshData->modelGuid;
+        emitterDesc.modelPath = meshData->modelPath;
+        emitterDesc.previewScale = meshData->previewScale;
+        emitterDesc.useModelMaterials = meshData->useModelMaterials;
+
+        if (meshData->hasAssignedMaterialInstance)
+            Internal::Copy_MaterialToRuntimeDesc(meshData->assignedMaterial, emitterDesc.material);
+        else
+        {
+            const fs::path assignedMaterialPath = Internal::Resolve_AuthoredAssetPath(
+                meshData->assignedEffectMaterialGuid,
+                meshData->assignedEffectMaterialPath
+            );
+            EffectMaterialInstanceData assignedMaterial{};
+            if (!assignedMaterialPath.empty() && EffectMaterialPresetReader::Read(assignedMaterialPath, assignedMaterial))
+                Internal::Copy_MaterialToRuntimeDesc(assignedMaterial, emitterDesc.material);
+        }
+    }
+
+    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    {
+        definition.localPosition = required->emitterOrigin;
+        definition.localRotationDegrees = required->emitterRotationDegrees;
+        definition.useLocalSpace = required->useLocalSpace;
+    }
+
     definition.concreteDesc = emitterDesc;
     return definition;
 }

@@ -178,12 +178,11 @@ PS_OUT PS_MAIN(PS_IN In)
 
     const float weight = saturate(coverage * g_EffectDistortionParams.y);
     const float2 offset = flow * g_EffectDistortionParams.x;
-    const float distortionDepth = saturate(In.position.z);
-    Out.color = float4(offset * weight, weight, distortionDepth);
+    Out.color = float4(offset * weight, weight, 0.f);
     return Out;
 }
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VGP(DistortionPass, RS_CullNone, DSS_DepthRead, BS_DistortionField, VS_MAIN, GS_MAIN, PS_MAIN)
+    PASS_RS_DS_BS_VGP(DistortionPass, RS_CullNone, DSS_DepthRead, BS_Blend, VS_MAIN, GS_MAIN, PS_MAIN)
 }

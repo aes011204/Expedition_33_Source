@@ -38,7 +38,8 @@ namespace Internal
             prototypeTag == L"Shader_EffectSprite" ||
             prototypeTag == L"Shader_EffectDistortionSprite" ||
             prototypeTag == L"Shader_EffectTrail" ||
-            prototypeTag == L"Shader_EffectTrailDistortion";
+            prototypeTag == L"Shader_EffectTrailDistortion" ||
+            prototypeTag == L"Shader_VtxMeshInstanceExact";
     }
 
     bool Is_EffectEditorPreviewComputeShaderAllowed(const wstring& prototypeTag)
@@ -74,7 +75,8 @@ namespace Internal
             prototypeTag == L"GameObject_Hair_Player" ||
             prototypeTag == L"GameObject_EffectInstance" ||
             prototypeTag == L"GameObject_Effect_ComputeSpriteEmitter" ||
-            prototypeTag == L"GameObject_Effect_ComputeTrailEmitter";
+            prototypeTag == L"GameObject_Effect_ComputeTrailEmitter" ||
+            prototypeTag == L"GameObject_Effect_MeshEmitter";
     }
 
     bool Is_EffectEditorStaticLoadJobAllowed(const FLoadJob& loadJob)
