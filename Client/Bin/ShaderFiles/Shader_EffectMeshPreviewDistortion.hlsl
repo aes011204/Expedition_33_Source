@@ -3,6 +3,7 @@
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
+#include "Shader_EffectDistortionCommon.hlsli"
 
 cbuffer cbEffectMeshPreviewDistortion : register(b2)
 {
@@ -90,11 +91,13 @@ PS_OUT PS_MAIN(VS_OUT In)
     const float2 flowUV = Build_FlowUV(In.vTexcoord);
     const bool useFlow = (0 != g_EffectDistortionParams.z);
     const float2 flow = useFlow ? Sample_FlowTexture(flowUV) * 2.f - 1.f : float2(0.f, 0.f);
-    const float strength = max(0.f, g_EffectDistortionParams.x) * max(0.f, g_EffectDistortionParams.y);
+    const float lensCoverage = EffectDistortion_ComputeLensCoverage(g_Tint.a, 1.f, g_EffectDistortionParams.y);
+    const float2 offset = EffectDistortion_ComputeScreenOffset(flow, g_EffectDistortionParams.x);
     const float2 screenUV = In.vPosition.xy / max(g_DistortionScreenSize.xy, float2(1.f, 1.f));
-    const float3 distortedSource = Sample_CheckerSource(screenUV + flow * strength);
+    const float3 distortedSource = Sample_CheckerSource(screenUV + offset);
+    const float edgeAlpha = EffectDistortion_ComputeLensEdgeAlpha(lensCoverage);
 
-    Out.color = float4(distortedSource * g_Tint.rgb, 1.f);
+    Out.color = float4(distortedSource * g_Tint.rgb, edgeAlpha);
     return Out;
 }
 

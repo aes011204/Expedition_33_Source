@@ -5,6 +5,7 @@
 #include "Engine_Shader_Samplers.hlsl"
 #include "Engine_Shader_EffectMaterial.hlsl"
 #include "Shader_EffectSpriteCommon.hlsli"
+#include "Shader_EffectDistortionCommon.hlsli"
 
 cbuffer cbEffectDistortionSpriteMaterial : register(b2)
 {
@@ -344,45 +345,6 @@ struct PS_OUT
     float4 color : SV_TARGET0;
 };
 
-float Compute_ShockwavePixelUvWidth(float2 cardUV)
-{
-    return max(max(fwidth(cardUV.x), fwidth(cardUV.y)), 0.0001f);
-}
-
-float Compute_DistortionShapeWeight(float2 cardUV, float lifeProgress)
-{
-    const float mode = g_EffectDistortionShapeParams.x;
-    float shapeWeight = 1.f;
-
-    if (mode >= 0.5f)
-    {
-        const float radius = max(g_EffectDistortionShapeParams.y, 0.f);
-        const float thickness = max(g_EffectDistortionShapeParams.z, 0.f);
-        const float softness = max(g_EffectDistortionShapeParams.w, 0.0001f);
-        const float distanceFromCenter = distance(cardUV, float2(0.5f, 0.5f));
-
-        if (mode < 1.5f)
-            shapeWeight = 1.f - smoothstep(radius, radius + softness, distanceFromCenter);
-        else if (mode < 2.5f)
-        {
-            const float ringDistance = abs(distanceFromCenter - radius);
-            shapeWeight = 1.f - smoothstep(thickness, thickness + softness, ringDistance);
-        }
-        else
-        {
-            const float pixelUvWidth = Compute_ShockwavePixelUvWidth(cardUV);
-            const float shockwaveThickness = max(thickness, 0.f) * pixelUvWidth;
-            const float shockwaveSoftness = max(softness, 0.0001f) * pixelUvWidth;
-            const float shockwaveRadiusMax = max(0.f, 0.5f - shockwaveThickness - shockwaveSoftness);
-            const float shockwaveRadius = saturate(lifeProgress) * shockwaveRadiusMax;
-            const float ringDistance = abs(distanceFromCenter - shockwaveRadius);
-            shapeWeight = 1.f - smoothstep(shockwaveThickness, shockwaveThickness + shockwaveSoftness, ringDistance);
-        }
-    }
-
-    return saturate(shapeWeight);
-}
-
 float Compute_DistortionInfluenceOutline(float2 cardUV, float lifeProgress)
 {
     const float mode = g_EffectDistortionShapeParams.x;
@@ -400,7 +362,7 @@ float Compute_DistortionInfluenceOutline(float2 cardUV, float lifeProgress)
     }
     else if (mode >= 2.5f)
     {
-        const float pixelUvWidth = Compute_ShockwavePixelUvWidth(cardUV);
+        const float pixelUvWidth = EffectDistortion_ComputeShockwavePixelUvWidth(cardUV);
         const float thickness = max(g_EffectDistortionShapeParams.z, 0.f) * pixelUvWidth;
         const float softness = max(g_EffectDistortionShapeParams.w, 0.0001f) * pixelUvWidth;
         const float radiusMax = max(0.f, 0.5f - thickness - softness);
@@ -440,8 +402,8 @@ PS_OUT PS_MAIN(PS_IN In)
         maskAlpha = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
-    const float coverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, particleColor.a * g_Tint.a);
-    if (coverage < max(alphaCutoff, 0.01f))
+    const float materialCoverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, particleColor.a * g_Tint.a);
+    if (materialCoverage < max(alphaCutoff, 0.01f))
         discard;
 
     const float2 flowUV = Build_EffectSpriteUV(sampleUV, float4(g_FlowUVScale, g_FlowUVScrollSpeed), g_FlowUVOffset, g_FlowUVTilingMode);
@@ -449,10 +411,10 @@ PS_OUT PS_MAIN(PS_IN In)
                         ? Sample_EffectSpriteFlowTexture(flowUV, g_FlowUVTilingMode) * 2.f - 1.f
                         : float2(0.f, 0.f);
 
-    const float shapeWeight = Compute_DistortionShapeWeight(In.texCoord, lifeProgress);
-    const float weight = saturate(coverage * shapeWeight * g_EffectDistortionParams.y);
-    const float2 offset = flow * g_EffectDistortionParams.x;
-    Out.color = float4(offset * weight, weight, 0.f);
+    const float shapeCoverage = EffectDistortion_ComputeShapeCoverage(g_EffectDistortionShapeParams, In.texCoord, lifeProgress);
+    const float lensCoverage = EffectDistortion_ComputeLensCoverage(materialCoverage, shapeCoverage, g_EffectDistortionParams.y);
+    const float2 offset = EffectDistortion_ComputeScreenOffset(flow, g_EffectDistortionParams.x);
+    Out.color = EffectDistortion_PackField(offset, lensCoverage);
     return Out;
 }
 

@@ -686,6 +686,7 @@
     <ClCompile Include="..\Private\Weapon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl" />

@@ -3,6 +3,7 @@
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
+#include "Shader_EffectDistortionCommon.hlsli"
 
 float4x4 g_PreTransformMatrix;
 
@@ -75,13 +76,14 @@ struct PS_OUT
 PS_OUT PS_MAIN(VS_OUT In)
 {
     PS_OUT Out = (PS_OUT)0;
-    const float coverage = saturate(In.vInstanceColor.a * g_Tint.a * g_EffectDistortionParams.y);
+    const float surfaceCoverage = saturate(In.vInstanceColor.a * g_Tint.a);
+    const float lensCoverage = EffectDistortion_ComputeLensCoverage(surfaceCoverage, 1.f, g_EffectDistortionParams.y);
     const float2 flowUV = Build_FlowUV(In.vTexcoord);
     const float2 flow = (0 != g_EffectDistortionParams.z)
                         ? Sample_FlowTexture(flowUV) * 2.f - 1.f
                         : float2(0.f, 0.f);
-    const float2 offset = flow * max(0.f, g_EffectDistortionParams.x);
-    Out.color = float4(offset * coverage, coverage, 0.f);
+    const float2 offset = EffectDistortion_ComputeScreenOffset(flow, g_EffectDistortionParams.x);
+    Out.color = EffectDistortion_PackField(offset, lensCoverage);
     return Out;
 }
 
