@@ -671,16 +671,19 @@ void BattleCameraPreview_View::Reset_DefaultFormation()
 
     _previewFormation.heroes =
     {
-        PreviewSlot{ "Hero 0", Vec3(-3.f, 0.f, 0.f), Vec3::Zero },
-        PreviewSlot{ "Hero 1", Vec3(0.f, 0.f, 0.f), Vec3::Zero },
-        PreviewSlot{ "Hero 2", Vec3(3.f, 0.f, 0.f), Vec3::Zero },
+        // Match BattleController::SetCharInitPos playerLocalPos.
+        PreviewSlot{ "Hero 0", Vec3(-2.5f, 0.f, 0.f), Vec3::Zero },
+        PreviewSlot{ "Hero 1", Vec3(0.f, 0.1f, 0.f), Vec3::Zero },
+        PreviewSlot{ "Hero 2", Vec3(2.5f, 0.1f, 0.f), Vec3::Zero },
     };
 
     _previewFormation.enemies =
     {
-        PreviewSlot{ "Enemy 0", Vec3(-3.f, 0.f, 10.f), Vec3(0.f, 180.f, 0.f) },
-        PreviewSlot{ "Enemy 1", Vec3(0.f, 0.f, 10.f), Vec3(0.f, 180.f, 0.f) },
-        PreviewSlot{ "Enemy 2", Vec3(3.f, 0.f, 10.f), Vec3(0.f, 180.f, 0.f) },
+        // Runtime enemies start from startPos + forward * 6, then apply per-encounter local offsets.
+        // Use the common 3-enemy lateral spread seen in world monster battle_monster_spawns.
+        PreviewSlot{ "Enemy 0", Vec3(-5.85f, 0.f, 6.f), Vec3(0.f, 180.f, 0.f) },
+        PreviewSlot{ "Enemy 1", Vec3(0.f, 0.f, 6.f), Vec3(0.f, 180.f, 0.f) },
+        PreviewSlot{ "Enemy 2", Vec3(5.85f, 0.f, 6.f), Vec3(0.f, 180.f, 0.f) },
     };
 }
 
@@ -3615,6 +3618,7 @@ void BattleCameraPreview_View::Apply_DefaultPreviewSlotsForMode(BattleCameraMode
 
     case BattleCameraMode::PLAYERFOCUS:
     case BattleCameraMode::PLAYERATTACK:
+    case BattleCameraMode::PARRY:
         _previewContext.subjectSide = PreviewSlotSide::Hero;
         _previewContext.subjectSlot = 1;
         _previewContext.opponentSide = PreviewSlotSide::Enemy;
@@ -3842,6 +3846,7 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
 
     case BattleCameraMode::PLAYERFOCUS:
     case BattleCameraMode::PLAYERATTACK:
+    case BattleCameraMode::PARRY:
     default:
         break;
     }

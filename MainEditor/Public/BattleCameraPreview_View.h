@@ -118,6 +118,7 @@ private:
     void Render_PreviewCanvas();
     void Render_PreviewPanel();
     void Render_TransitionPreviewPanel();
+    void Render_CounterPreviewPanel();
     void Render_BattlePresetEditor();
     void Render_TimelinePanel();
     void Render_BattleClipSequencer();
@@ -220,15 +221,14 @@ private:
 
     Vec3 Resolve_PhaseGoalPosition(const PreviewContext& context, const Client::BattleActionPhase& phase);
     Vec3 Resolve_AnchorPosition(const PreviewContext& context, Client::BattleTargetAnchor anchor);
-    void Update_RootMotionToTarget();
-    void Update_RatioMoveTo();
 
 private:
-    PreviewContext _previewContext{};
+    PreviewContext   _previewContext{};
     PreviewFormation _previewFormation{};
-    vector<string> _skillIds{};
-    vector<string> _enemyPrefabNames{};
-    Client::HeroId _selectedHeroId = Client::HeroId::Gustave;
+    vector<string>   _skillIds{};
+    vector<string>   _enemyPrefabNames{};
+    Client::HeroId   _selectedHeroId = Client::HeroId::Gustave;
+
     int _selectedEnemyPrefabIndex = 0;
     int _selectedSkillIndex = -1;
     bool _useSkillOverride = false;

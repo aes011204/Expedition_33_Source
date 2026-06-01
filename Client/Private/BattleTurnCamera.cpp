@@ -181,6 +181,7 @@ void BattleTurnCamera::Update(float timeDelta)
     case BattleCameraMode::PLAYERATTACK:
     case BattleCameraMode::SELECTITEM:
     case BattleCameraMode::SELECTSKILL:
+    case BattleCameraMode::PARRY:
         Update_FromCurrentPreset(timeDelta);
         break;
     case BattleCameraMode::ENEMYATTACK:
