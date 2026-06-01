@@ -47,11 +47,11 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     // MRT_ShadowObjects
     CHECK_FAILED(Add_RenderTarget(RT::LightDepth,
         _shadowMapWidth, _shadowMapHeight,
-        DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV, ShadowLightDesc::SHADOW_CASCADE_COUNT), E_FAIL);
+        DXGI_FORMAT_R32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV, ShadowLightDesc::SHADOW_CASCADE_COUNT), E_FAIL);
 
     CHECK_FAILED(Add_RenderTarget(RT::StaticLightDepth,
         _staticShadowMapWidth, _staticShadowMapHeight,
-        DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
+        DXGI_FORMAT_R32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
 
 
     // MRT_PostProcess

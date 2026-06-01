@@ -101,7 +101,7 @@ struct PS_OUT_ID
 
 struct PS_OUT_SHADOW
 {
-    vector LightDepth : SV_TARGET0;
+    float LightDepth : SV_TARGET0;
 };
 
 PS_OUT PS_Opaque(PS_IN In)
@@ -168,7 +168,7 @@ PS_OUT_SHADOW PS_Shadow(PS_IN In)
 {
     PS_OUT_SHADOW Out;
 
-    Out.LightDepth = vector(In.ProjPos.z / In.ProjPos.w, 0.f, 0.f, 1.f);
+    Out.LightDepth = In.ProjPos.z / In.ProjPos.w;
 
     return Out;
 }

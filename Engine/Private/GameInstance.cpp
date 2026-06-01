@@ -2675,6 +2675,31 @@ uint32 GameInstance::Get_ShadowCascadeCount() const
     return _shadow->Get_CascadeCount();
 }
 
+HRESULT GameInstance::Set_ShadowCascadeLevel(CascadeLevel level)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Set_CascadeLevel(level);
+}
+
+CascadeLevel GameInstance::Get_ShadowCascadeLevel() const
+{
+    CHECK_NULL(_shadow, CascadeLevel::Normal);
+    return _shadow->Get_CascadeLevel();
+}
+
+HRESULT GameInstance::Set_ShadowCascadePresets(const ShadowCascadePresetSet& presets)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    _shadow->Set_CascadePresets(presets);
+    return S_OK;
+}
+
+const ShadowCascadePresetSet* GameInstance::Get_ShadowCascadePresets() const
+{
+    CHECK_NULL(_shadow, nullptr);
+    return _shadow->Get_CascadePresets();
+}
+
 void GameInstance::Free()
 {
     Release_Engine();

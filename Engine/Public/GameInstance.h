@@ -430,6 +430,10 @@ public: /* For.Shadow */
     void                    Set_ActiveStaticShadow();
     void                    Set_ShadowEnabled(bool enabled);
     uint32                  Get_ShadowCascadeCount() const;
+    HRESULT                 Set_ShadowCascadeLevel(CascadeLevel level);
+    CascadeLevel            Get_ShadowCascadeLevel() const;
+    HRESULT                 Set_ShadowCascadePresets(const ShadowCascadePresetSet& presets);
+    const ShadowCascadePresetSet* Get_ShadowCascadePresets() const;
 
     HRESULT Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc* Get_ShadowLightDesc() const;
