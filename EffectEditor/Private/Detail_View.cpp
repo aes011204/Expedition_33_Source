@@ -1028,6 +1028,11 @@ void Detail_View::Render_ModuleDetail(
             changed = _spawnPerUnitModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::MaterialScalarModulation:
+        if (auto* data = get_if<MaterialScalarModulationModuleData>(&module.data))
+            changed = _materialScalarModulationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     default:
         ImGui::TextDisabled("Unsupported module type.");
         break;

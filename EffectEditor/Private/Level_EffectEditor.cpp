@@ -404,6 +404,120 @@ namespace Internal
         }
     }
 
+    EffectMaterialScalarModulationTarget To_RuntimeMaterialScalarTarget(MaterialScalarModulationTargetField target)
+    {
+        switch (target)
+        {
+        case MaterialScalarModulationTargetField::OpacityPower:
+            return EffectMaterialScalarModulationTarget::OpacityPower;
+        case MaterialScalarModulationTargetField::NoiseStrength:
+            return EffectMaterialScalarModulationTarget::NoiseStrength;
+        case MaterialScalarModulationTargetField::AlphaErosion:
+            return EffectMaterialScalarModulationTarget::AlphaErosion;
+        case MaterialScalarModulationTargetField::CoreIntensity:
+            return EffectMaterialScalarModulationTarget::CoreIntensity;
+        case MaterialScalarModulationTargetField::OuterIntensity:
+            return EffectMaterialScalarModulationTarget::OuterIntensity;
+        case MaterialScalarModulationTargetField::Intensity:
+        default:
+            return EffectMaterialScalarModulationTarget::Intensity;
+        }
+    }
+
+    EffectMaterialScalarModulationOperation To_RuntimeMaterialScalarOperation(MaterialScalarModulationOperation operation)
+    {
+        switch (operation)
+        {
+        case MaterialScalarModulationOperation::Multiply:
+        default:
+            return EffectMaterialScalarModulationOperation::Multiply;
+        }
+    }
+
+    EffectMaterialScalarModulationTimeSource To_RuntimeMaterialScalarTimeSource(MaterialScalarModulationTimeSource timeSource)
+    {
+        switch (timeSource)
+        {
+        case MaterialScalarModulationTimeSource::EmitterTime:
+            return EffectMaterialScalarModulationTimeSource::EmitterTime;
+        case MaterialScalarModulationTimeSource::ParticleLife:
+        default:
+            return EffectMaterialScalarModulationTimeSource::ParticleLife;
+        }
+    }
+
+    void Fill_MaterialScalarCurveComponent(
+        EffectMaterialScalarModulationCurveDesc& desc,
+        uint32 index,
+        const FloatCurveKeyData& key)
+    {
+        Set_SubUVFrameCurveComponent(desc.keyTimes, index, clamp(key.time, 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.keyValues, index, key.value);
+        Set_SubUVFrameCurveComponent(desc.keyArriveTangents, index, key.arriveTangent);
+        Set_SubUVFrameCurveComponent(desc.keyLeaveTangents, index, key.leaveTangent);
+        Set_SubUVFrameCurveComponent(desc.keyModes, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+    }
+
+    void Fill_MaterialScalarCurvePayload(
+        EffectMaterialScalarModulationCurveDesc& desc,
+        const FloatDistributionData& distribution)
+    {
+        constexpr uint32 maxCurveKeys{ 4 };
+        desc = EffectMaterialScalarModulationCurveDesc{};
+
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&distribution.payload);
+            distribution.mode == DistributionMode::ConstantCurve && curve != nullptr && !curve->keys.empty())
+        {
+            const uint32 keyCount = min(maxCurveKeys, static_cast<uint32>(curve->keys.size()));
+            desc.enabled = true;
+            desc.keyCount = keyCount;
+            desc.keyTimes = Vec4{};
+            desc.keyValues = Vec4{};
+            desc.keyArriveTangents = Vec4{};
+            desc.keyLeaveTangents = Vec4{};
+            desc.keyModes = Vec4{};
+
+            for (uint32 index = 0; index < keyCount; ++index)
+                Fill_MaterialScalarCurveComponent(desc, index, curve->keys[index]);
+
+            return;
+        }
+
+        float value = 1.f;
+        if (const auto* constant = get_if<ConstantFloatDistributionData>(&distribution.payload))
+            value = constant->value;
+        else if (const auto* uniform = get_if<UniformFloatDistributionData>(&distribution.payload))
+            value = (uniform->minValue + uniform->maxValue) * 0.5f;
+
+        desc.enabled = true;
+        desc.keyCount = 2;
+        desc.keyValues = Vec4{ value, value, 0.f, 0.f };
+    }
+
+    void Fill_MaterialScalarModulationPayload(
+        EffectMaterialScalarModulationRuntimeDesc& desc,
+        const MaterialScalarModulationModuleData& data)
+    {
+        desc = EffectMaterialScalarModulationRuntimeDesc{};
+
+        const uint32 count = min(
+            EffectMaterialScalarModulationRuntimeDesc::kMaxModulators,
+            static_cast<uint32>(data.modulators.size())
+        );
+        desc.count = count;
+
+        for (uint32 index = 0; index < count; ++index)
+        {
+            const MaterialScalarModulatorData& source = data.modulators[index];
+            EffectMaterialScalarModulatorRuntimeDesc& target = desc.modulators[index];
+            target.enabled = source.enabled;
+            target.targetField = To_RuntimeMaterialScalarTarget(source.targetField);
+            target.operation = To_RuntimeMaterialScalarOperation(source.operation);
+            target.timeSource = To_RuntimeMaterialScalarTimeSource(source.timeSource);
+            Fill_MaterialScalarCurvePayload(target.curve, source.distribution);
+        }
+    }
+
     void Fill_ColorOverLifeColorCurveComponent(
         PointParticleColorOverLifeCurveDesc& desc,
         uint32 index,
@@ -1063,6 +1177,17 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         definition.useLocalSpace = required->useLocalSpace;
     }
 
+    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+        emitter,
+        AuthoringModuleType::MaterialScalarModulation
+    ))
+    {
+        Internal::Fill_MaterialScalarModulationPayload(
+            desc.required.material.scalarModulation,
+            *materialScalarModulation
+        );
+    }
+
     if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
     {
         desc.spawn.instanceCount = max(1u, spawn->maxParticleCount);
@@ -1376,6 +1501,17 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         definition.useLocalSpace = required->useLocalSpace;
     }
 
+    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+        emitter,
+        AuthoringModuleType::MaterialScalarModulation
+    ))
+    {
+        Internal::Fill_MaterialScalarModulationPayload(
+            emitterDesc.material.scalarModulation,
+            *materialScalarModulation
+        );
+    }
+
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
         emitterDesc.lifetime.lifeTime = Vec2{
@@ -1523,6 +1659,17 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
         definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+        emitter,
+        AuthoringModuleType::MaterialScalarModulation
+    ))
+    {
+        Internal::Fill_MaterialScalarModulationPayload(
+            emitterDesc.material.scalarModulation,
+            *materialScalarModulation
+        );
     }
 
     if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))

@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <array>
 #include <variant>
 #include "EffectMaterial_Types.h"
 #include "Engine_Typedef.h"
@@ -62,6 +63,60 @@ enum class EffectSpriteTextureAxis : uint32
     Y = 1, // texture의 세로 축을 기준 방향에 맞춘다.
 };
 
+// Material scalar modulation이 조절할 기본 material scalar field다.
+enum class EffectMaterialScalarModulationTarget : uint32
+{
+    Intensity = 0,
+    OpacityPower = 1,
+    NoiseStrength = 2,
+    AlphaErosion = 3,
+    CoreIntensity = 4,
+    OuterIntensity = 5,
+};
+
+// Material scalar modulation의 base value 적용 방식이다.
+enum class EffectMaterialScalarModulationOperation : uint32
+{
+    Multiply = 0,
+};
+
+// Material scalar modulation이 평가할 시간 축이다.
+enum class EffectMaterialScalarModulationTimeSource : uint32
+{
+    ParticleLife = 0,
+    EmitterTime = 1,
+};
+
+// Material scalar modulation의 float curve payload다.
+struct EffectMaterialScalarModulationCurveDesc
+{
+    bool enabled{ false };
+    uint32 keyCount{ 2 };
+    Vec4 keyTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 keyValues{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 keyArriveTangents{};
+    Vec4 keyLeaveTangents{};
+    Vec4 keyModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+};
+
+struct EffectMaterialScalarModulatorRuntimeDesc
+{
+    bool enabled{ true };
+    EffectMaterialScalarModulationTarget targetField{ EffectMaterialScalarModulationTarget::Intensity };
+    EffectMaterialScalarModulationOperation operation{ EffectMaterialScalarModulationOperation::Multiply };
+    EffectMaterialScalarModulationTimeSource timeSource{ EffectMaterialScalarModulationTimeSource::ParticleLife };
+    EffectMaterialScalarModulationCurveDesc curve{};
+};
+
+// Material scalar modulation module에서 shader/renderer가 공유할 compact payload다.
+struct EffectMaterialScalarModulationRuntimeDesc
+{
+    static constexpr uint32 kMaxModulators{ 8 };
+
+    uint32 count{ 0 };
+    std::array<EffectMaterialScalarModulatorRuntimeDesc, kMaxModulators> modulators{};
+};
+
 // Required 모듈에서 material binding에 필요한 값만 접은 runtime payload다.
 struct EffectRequiredMaterialRuntimeDesc
 {
@@ -115,6 +170,7 @@ struct EffectRequiredMaterialRuntimeDesc
     bool twoSided{ false };                            // 지원 renderer가 사용할 양면 렌더 힌트다.
     uint32 subUVRows{ 1 };                             // flipbook row 수다.
     uint32 subUVCols{ 1 };                             // flipbook column 수다.
+    EffectMaterialScalarModulationRuntimeDesc scalarModulation{}; // material scalar modulation compact payload다.
 };
 
 // Required 모듈에서 sprite render alignment에 필요한 값만 접은 runtime payload다.

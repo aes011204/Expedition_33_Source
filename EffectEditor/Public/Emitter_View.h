@@ -175,6 +175,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_SizeByLifeModule();
     AuthoringModule Make_MeshSizeByLifeModule();
     AuthoringModule Make_SpawnPerUnitModule();
+    AuthoringModule Make_MaterialScalarModulationModule();
 
 private: //## Helper::ModulePolicy
     bool Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;                 // 이미터가 특정 모듈 타입을 이미 가지고 있는지 확인한다.

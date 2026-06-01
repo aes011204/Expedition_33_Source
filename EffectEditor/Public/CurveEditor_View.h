@@ -23,12 +23,8 @@ private:
     enum class CurveTargetChannel : uint8
     {
         Value,
-        X,
-        Y,
-        Z,
-        R,
-        G,
-        B,
+        X, Y, Z,
+        R, G, B,
     };
 
     enum class CurveTargetPayloadKind : uint8
@@ -113,10 +109,35 @@ private:
     optional<size_t> Find_ResolvedTargetIndex(const vector<CurveTarget>& targets, const CurveTargetIdentity& identity) const;
     optional<CurveTarget> Get_ActiveTarget(const vector<CurveTarget>& targets) const;
 
-    void Add_FloatTarget(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, FloatDistributionData& distribution, const string& propertyId, const string& label, ImU32 color) const;
-    void Add_Vector2Target(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, Vector2DistributionData& distribution, const string& propertyId, const string& label) const;
-    void Add_Vector3Target(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, Vector3DistributionData& distribution, const string& propertyId, const string& label) const;
-    void Add_ColorTarget(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, ColorDistributionData& distribution, const string& propertyId, const string& label) const;
+    void Add_FloatTarget(
+        vector<CurveTarget>& targets,
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        FloatDistributionData& distribution,
+        const string& propertyId,
+        const string& label,
+        ImU32 color) const;
+    void Add_Vector2Target(
+        vector<CurveTarget>& targets,
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        Vector2DistributionData& distribution,
+        const string& propertyId,
+        const string& label) const;
+    void Add_Vector3Target(
+        vector<CurveTarget>& targets,
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        Vector3DistributionData& distribution,
+        const string& propertyId,
+        const string& label) const;
+    void Add_ColorTarget(
+        vector<CurveTarget>& targets,
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        ColorDistributionData& distribution,
+        const string& propertyId,
+        const string& label) const;
     void Pin_Targets(const vector<CurveTarget>& targets);
     void Remove_StalePinnedTracks(const vector<CurveTarget>& targets);
     void Ensure_ActiveTrack(const vector<CurveTarget>& targets);

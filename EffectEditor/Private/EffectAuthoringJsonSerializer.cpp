@@ -1865,6 +1865,68 @@ namespace Internal
                 outData.spawnPerUnit = FloatDistributionData::Make_Constant(max(0.0001f, outData.unitScalar) / legacyUnitDistance);
         }
     }
+
+    json To_Json(const MaterialScalarModulatorData& data)
+    {
+        json root = json::object();
+        root["enabled"] = data.enabled;
+        root["targetField"] = To_EnumToken(data.targetField);
+        root["operation"] = To_EnumToken(data.operation);
+        root["timeSource"] = To_EnumToken(data.timeSource);
+        root["distribution"] = To_Json(data.distribution);
+        return root;
+    }
+
+    void From_Json(const json& root, MaterialScalarModulatorData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_BoolField(root, "enabled", outData.enabled);
+
+        const auto targetIter = root.find("targetField");
+        if (targetIter != root.end())
+            Try_ReadEnumToken(*targetIter, outData.targetField);
+
+        const auto operationIter = root.find("operation");
+        if (operationIter != root.end())
+            Try_ReadEnumToken(*operationIter, outData.operation);
+
+        const auto timeSourceIter = root.find("timeSource");
+        if (timeSourceIter != root.end())
+            Try_ReadEnumToken(*timeSourceIter, outData.timeSource);
+
+        const auto distributionIter = root.find("distribution");
+        if (distributionIter != root.end())
+            From_Json(*distributionIter, outData.distribution);
+    }
+
+    json To_Json(const MaterialScalarModulationModuleData& data)
+    {
+        json root = json::object();
+        root["modulators"] = json::array();
+        for (const MaterialScalarModulatorData& modulator : data.modulators)
+            root["modulators"].push_back(To_Json(modulator));
+        return root;
+    }
+
+    void From_Json(const json& root, MaterialScalarModulationModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        const auto modulatorsIter = root.find("modulators");
+        if (modulatorsIter == root.end() || !modulatorsIter->is_array())
+            return;
+
+        outData.modulators.clear();
+        for (const json& modulatorNode : *modulatorsIter)
+        {
+            MaterialScalarModulatorData modulator{};
+            From_Json(modulatorNode, modulator);
+            outData.modulators.push_back(modulator);
+        }
+    }
 }
 
 json EffectAuthoringJsonSerializer::To_Json(const EffectAuthoringDocument& document)
@@ -2000,6 +2062,9 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::SpawnPerUnit:
         root["data"] = Internal::To_Json(get<SpawnPerUnitModuleData>(module.data));
         break;
+    case AuthoringModuleType::MaterialScalarModulation:
+        root["data"] = Internal::To_Json(get<MaterialScalarModulationModuleData>(module.data));
+        break;
     }
 
     return root;
@@ -2121,6 +2186,9 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::SpawnPerUnit:
             Internal::From_Json(*dataIter, get<SpawnPerUnitModuleData>(module.data));
             break;
+        case AuthoringModuleType::MaterialScalarModulation:
+            Internal::From_Json(*dataIter, get<MaterialScalarModulationModuleData>(module.data));
+            break;
         }
     }
 
@@ -2232,6 +2300,8 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return MeshSizeByLifeModuleData{};
     case AuthoringModuleType::SpawnPerUnit:
         return SpawnPerUnitModuleData{};
+    case AuthoringModuleType::MaterialScalarModulation:
+        return MaterialScalarModulationModuleData{};
     }
 
     return RequiredModuleData{};
