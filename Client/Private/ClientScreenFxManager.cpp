@@ -16,10 +16,10 @@ HRESULT ClientScreenFxManager::Initialize()
     {
         RadialBlur_ScreenFx::RadialBlurDesc desc{};
         desc.center = Vec2(0.5f, 0.5f);
-        desc.intensity = 0.25f;
+        desc.intensity = 0.05f;
         desc.radius = 1.25f;             // 화면 외곽 쪽에 집중되도록 반경 설정
-        desc.duration = 0.2f;
-        desc.fadeOutTime = 0.1f;
+        desc.duration = 0.15f;
+        desc.fadeOutTime = 0.05f;
 
         GAME->Play_ScreenFx(RadialBlur_ScreenFx::Create(&desc));
     }
