@@ -99,6 +99,13 @@ void ChooseAction::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::RBUTTON)) // 조준
     {
         owner->Get_TurnActionRequest().type = EBattleContext::FreeAimShoot;
+        
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::AIM;
+        event.subject = owner->Get_TurnActionRequest().actor.actor;
+        //event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
+        GAME->Get_EventBus().Publish(event);
+
         battleFSM->Change_State(BattleTurnState::FreeAimTargeting);
         return;
     }

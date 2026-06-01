@@ -77,6 +77,12 @@ void SkillTargeting::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
         owner->Clear_TargetPreview();
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
+        event.subject = owner->Get_TurnActionRequest().actor.actor;
+        GAME->Get_EventBus().Publish(event);
+
         battleFSM->Change_State(BattleTurnState::ChooseSkill);
         return;
     }

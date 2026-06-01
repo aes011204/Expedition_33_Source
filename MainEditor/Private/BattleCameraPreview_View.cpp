@@ -2445,9 +2445,15 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
 
     if (previewMode == BattleCameraMode::WIDE)
     {
+        const PreviewSlot* yawBaseSlot = Get_PreviewSlot(PreviewSlotSide::Hero, 1);
+        if (yawBaseSlot == nullptr)
+            yawBaseSlot = Get_PreviewSlot(PreviewSlotSide::Hero, 0);
+
+        if (yawBaseSlot == nullptr)
+            return;
+
         Vec3 heroCenter = Vec3::Zero;
         uint32 heroCount = 0;
-
         for (int i = 0; i < static_cast<int>(_previewFormation.heroes.size()); ++i)
         {
             heroCenter += Get_PreviewSlotWorldPosition(PreviewSlotSide::Hero, i);
@@ -2459,73 +2465,14 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
 
         heroCenter /= static_cast<float>(heroCount);
 
-        const PreviewSlot* yawBaseSlot = Get_PreviewSlot(PreviewSlotSide::Hero, 1);
-        if (yawBaseSlot == nullptr)
-            yawBaseSlot = Get_PreviewSlot(PreviewSlotSide::Hero, 0);
-
-        if (yawBaseSlot == nullptr)
-            return;
-
-        const float cameraYawDeg = yawBaseSlot->rotation.y;
-        const float cameraYawRad = XMConvertToRadians(cameraYawDeg + previewClipSample.yawOffset);
-
-        Vec3 forwardDir;
-        forwardDir.x = sinf(cameraYawRad);
-        forwardDir.y = 0.f;
-        forwardDir.z = cosf(cameraYawRad);
-        if (forwardDir.LengthSquared() <= 0.0001f)
-            forwardDir = Vec3::Look;
-        else
-            forwardDir.Normalize();
-
-        const Vec3 backDir = -forwardDir;
-
-        Vec3 rightDir;
-        rightDir.x = cosf(cameraYawRad);
-        rightDir.y = 0.f;
-        rightDir.z = -sinf(cameraYawRad);
-        if (rightDir.LengthSquared() <= 0.0001f)
-            rightDir = Vec3::Right;
-        else
-            rightDir.Normalize();
-
-        lookTarget = heroCenter + Vec3(0.f, 2.2f, 0.f);
-        desiredPos =
-            heroCenter +
-            backDir * (preset.distance + previewClipSample.distanceOffset) +
-            rightDir * (2.0f + previewClipSample.sideOffset) +
-            Vec3(2.f, 3.f, -2.f);
-
-        Vec3 cameraForward = lookTarget - desiredPos;
-        if (cameraForward.LengthSquared() <= 0.0001f)
-            cameraForward = Vec3::Look;
-        else
-            cameraForward.Normalize();
-
-        Vec3 cameraRight = Vec3::Up.Cross(cameraForward);
-        if (cameraRight.LengthSquared() <= 0.0001f)
-            cameraRight = Vec3::Right;
-        else
-            cameraRight.Normalize();
-
-        Vec3 cameraUp = cameraForward.Cross(cameraRight);
-        if (cameraUp.LengthSquared() <= 0.0001f)
-            cameraUp = Vec3::Up;
-        else
-            cameraUp.Normalize();
-
-        desiredPos += Client::Sample_BattleCameraShakeOffset(
-            previewClipSample.shakeAmplitude,
-            previewClipSample.shakeVerticalRatio,
-            previewClipSample.shakeStrengthScale,
-            previewClipSample.shakeFrequencyX,
-            previewClipSample.shakeFrequencyY,
-            previewClipSample.shakeDecayRateX,
-            previewClipSample.shakeDecayRate,
-            previewClipTimeSec,
-            cameraRight,
-            cameraUp);
-
+        Client::BattleTurnCameraEvaluatedPose pose{};
+        if (Client::Evaluate_BattleTurnWidePose(heroCenter, yawBaseSlot->rotation.y, preset.camera.fovy, pose))
+        {
+            desiredPos = pose.cameraPos;
+            lookTarget = pose.lookTarget;
+            evaluatedFovY = pose.fovY;
+            evaluatedRollOffset = pose.rollOffset;
+        }
     }
     else if (previewMode == BattleCameraMode::ENEMYATTACK && _previewContext.opponentSide != _previewContext.subjectSide)
     {
@@ -3834,35 +3781,7 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
         if (yawBaseSlot == nullptr)
             return false;
 
-        const float cameraYawRad = XMConvertToRadians(yawBaseSlot->rotation.y);
-        Vec3 forwardDir{};
-        forwardDir.x = sinf(cameraYawRad);
-        forwardDir.y = 0.f;
-        forwardDir.z = cosf(cameraYawRad);
-        if (forwardDir.LengthSquared() <= 0.0001f)
-            forwardDir = Vec3::Look;
-        else
-            forwardDir.Normalize();
-
-        const Vec3 backDir = -forwardDir;
-        Vec3 rightDir{};
-        rightDir.x = cosf(cameraYawRad);
-        rightDir.y = 0.f;
-        rightDir.z = -sinf(cameraYawRad);
-        if (rightDir.LengthSquared() <= 0.0001f)
-            rightDir = Vec3::Right;
-        else
-            rightDir.Normalize();
-
-        outPose.cameraPos =
-            heroCenter +
-            backDir * 8.5f +
-            rightDir * 2.0f +
-            Vec3(2.f, 3.f, -2.f);
-        outPose.lookTarget = heroCenter + Vec3(0.f, 2.2f, 0.f);
-        outPose.fovY = preset.camera.fovy;
-        outPose.rollOffset = 0.f;
-        return true;
+        return Client::Evaluate_BattleTurnWidePose(heroCenter, yawBaseSlot->rotation.y, preset.camera.fovy, outPose);
     }
 
     BattleCameraClipSample clipSample{};
