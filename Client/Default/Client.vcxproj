@@ -396,6 +396,7 @@
     <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h" />
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
     <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
+    <ClInclude Include="..\Public\UI_QTE.h" />
     <ClInclude Include="..\Public\UI_ReactionResult.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
     <ClInclude Include="..\Public\SavePoint_Panel.h" />
@@ -664,6 +665,7 @@
     <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
     <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
     <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />
+    <ClCompile Include="..\Private\UI_QTE.cpp" />
     <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
     <ClCompile Include="..\Private\SavePoint_Panel.cpp" />

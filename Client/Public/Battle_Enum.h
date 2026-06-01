@@ -10,8 +10,8 @@ namespace Engine
 
 namespace Client
 {
-class Character_BattleBase;
-struct BattleActionPhase;
+    class Character_BattleBase;
+    struct BattleActionPhase;
     struct Skill_Data;
     enum class Buffs;
     enum class ElementalType;
@@ -397,9 +397,9 @@ struct BattleActionPhase;
 
     //------------------------------------------
 
-    
- 
- 
+
+
+
     struct FEnemyPortraitData
     {
         //Texture2D* TimelinePortrait;
@@ -466,7 +466,7 @@ struct BattleActionPhase;
         double LootPercentageChance;// 100.0
         int LootContextLevelOffset; // 0
     };
-   
+
     struct FCommonCharacterStats
     {
         double BurnPercentage;//Burn 데미지 계산 배율(최대 HP의)
@@ -541,13 +541,13 @@ struct BattleActionPhase;
     enum class TargetType
     {
         Invalid,
-        Primary,       
+        Primary,
         RandomEnemy,
         AllEnemies,
         Self,
         ETC, //스폰 , 쉴드 등 
     };
-    
+
     struct TurnEntry
     {
         BattleChar hero;
@@ -580,7 +580,7 @@ struct BattleActionPhase;
 
         vector<TargetType> targetingType = {};
 
-    
+
         int32 apCost = 0;
         int32 AttackCount = 0;
         //ECharacterTeamSelector targetingType = ECharacterTeamSelector::Invalid;
@@ -599,8 +599,8 @@ struct BattleActionPhase;
         string skillKey = "";
         BattleItemType itemType = BattleItemType::Invalid;
     };
-    
-//
+
+    //
     enum class BattleMovementPolicy
     {
         None,               // 제자리
@@ -628,14 +628,14 @@ struct BattleActionPhase;
         string animationKey = "";
         string cameraPresetId = "";
         string cameraClipId = "";
-      //  string sequenceKey = "";
-        uint32 phaseIndex={};
+        //  string sequenceKey = "";
+        uint32 phaseIndex = {};
         BattleMovementPolicy movementPolicy = BattleMovementPolicy::None;
         BattleTargetAnchor targetAnchor = BattleTargetAnchor::PrimaryTarget;
         bool useDistance = false;
         float offsetDistance = {};
         bool faceTarget = true;
-     //   bool disableSequenceSnapping = false;
+        //   bool disableSequenceSnapping = false;
     };
 
     struct BattleSlowDesc
@@ -687,5 +687,19 @@ struct BattleActionPhase;
     enum class BattleReactionType
     {
         None, Parry, Dodge, QTE, END
+    };
+
+    enum class BattleQTEResult
+    {
+        None, Fail, SuccessNormal, SuccessPerfect, END
+    };
+
+    struct BattleQTERequest
+    {
+        // 일단은 애니메이션에 맞춰서 초기값만 세팅
+        float introDuration = 21.f / 63.f;      // QTE_Intro.uianim 기준
+        float progressDuration = 80.f / 120.f;  // QTE_Progress.uianim 기준
+        float perfectStartRatio = 61.f / 80.f;  // 노란 구간 시작
+        float perfectEndRatio = 1.f;            // 노란 구간 끝
     };
 }
