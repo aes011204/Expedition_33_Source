@@ -32,6 +32,8 @@ HRESULT Monster_WorldBase::Initialize(void* arg)
     CHECK_FAILED(Character_WorldBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_Components(), E_FAIL);
 
+
+
     return S_OK;
 }
 
@@ -57,7 +59,7 @@ void Monster_WorldBase::Update(float timeDelta)
     if (CLIENT->Is_BattleActive())
         return;
 
-    if (_aiCtrl)
+    if (_aiCtrl )
     {
         const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
         const Shared<GameObject> player = CLIENT->Find_Player(GAME->Current_LevelIndex());
@@ -65,6 +67,7 @@ void Monster_WorldBase::Update(float timeDelta)
         if (bb && player)
         {
             bb->Set_Value("playerPos", player->Get_Transform()->Get_Position());
+            bb->Set_Value("isStun", _isStun);
         }
 
         _aiCtrl->Update(timeDelta);
@@ -72,6 +75,11 @@ void Monster_WorldBase::Update(float timeDelta)
 
     if (_combatStat)
         _combatStat->Update(timeDelta);
+
+    if (_isStun)
+        _currentAction = MonsterWorldAnim::Stun;
+    else
+        _currentAction = _desiredAction;
 
 
     //if (_aiCtrl && _aiCtrl->Get_IsMoving())
@@ -82,27 +90,69 @@ void Monster_WorldBase::Update(float timeDelta)
     {
         if (_currentAction != _previousAction)
         {
+            LOG_DEBUG("Monster_WorldBase action change current={} previous={}",
+                ETOI(_currentAction),
+                ETOI(_previousAction));
+
+            bool applied = false;
+
             switch (_currentAction)
             {
+            case MonsterWorldAnim::Stun:
+              applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Stun), 0.3f, true);
+                break;
+
             case MonsterWorldAnim::Idle:
-                bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Idle), 0.3f, true);
+                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Idle), 0.3f, true);
                 break;
 
             case MonsterWorldAnim::Patrol:
-                bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Patrol), 0.3f, true);
+                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Patrol), 0.3f, true);
                 break;
 
             case MonsterWorldAnim::Chase:
-                bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Chase), 0.3f, true);
+                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Chase), 0.3f, true);
                 break;
             }
 
-            _previousAction = _currentAction;
+            if (Shared<ModelCom> model = bodyPart->Get_Model())
+            {
+                const char* animName = model->Get_AnimationName(model->Get_CurrentAnimationIndex());
+                LOG_DEBUG("Monster_WorldBase action applied={} currentAction={} currentAnim={}",
+                    applied,
+                    ETOI(_currentAction),
+                    animName != nullptr ? animName : "<null>");
+            }
+
+            
+            if (applied)
+                _previousAction = _currentAction;
+
         }
     }
 
+    if(_isStun == true)
+    {
+        _stunTime -= timeDelta;
+
+        if(_stunTime<=0.f )
+        {
+            _isStun = false;
+
+        }
+    }
 
     Character_WorldBase::Update(timeDelta);
+}
+
+
+void Monster_WorldBase::Apply_Stun(float duration)
+{
+    if (_isStun == true)
+        return;
+    _isStun = true;
+    _stunTime = _maxStunTime;
+    
 }
 
 void Monster_WorldBase::Late_Update(float timeDelta)
@@ -163,6 +213,23 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     if (CLIENT->Is_BattleActive() || CLIENT->Is_BattleEntering())
         return;
 
+    const Shared<GameObject> overlapOwner = other ? other->Get_Owner() : nullptr;
+    if (!overlapOwner)
+        return;
+
+    Shared<GameObject> heroOwner = overlapOwner;
+
+    // 충돌된 플레이어가 Active 플레이어가 아니라면 배틀 진입 X
+    // 월드액션 충돌체는 AN_SpawnActor가 owner를 플레이어로 심어주므로 한 단계 위 owner의 owner까지 가야함
+    if (!CLIENT->Is_ActiveHero(heroOwner))
+        heroOwner = overlapOwner->Get_Owner();
+
+    if (!CLIENT->Is_ActiveHero(heroOwner))
+        return;
+
+    const bool isPlayerAdvantage =
+        other->Get_CollisionPreset() == Collision_Preset::WorldActionTrigger; // 월드액션 트리거로 먼저 맞춘 경우만 플레이어 선턴
+
     _isBattleStart = true;
 
     if (self)
@@ -191,7 +258,8 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         return;
     }
 
-    CLIENT->OnEnterBattleField(1, true, heroes, battleMonsterPrefabNames, GetSharedPtr<GameObject>());
+    // 이제, 턴 진입 조건에 따라서 플레이어, 몬스터 턴 관리
+    CLIENT->OnEnterBattleField(1, isPlayerAdvantage, heroes, battleMonsterPrefabNames, GetSharedPtr<GameObject>());
 }
 
 void Monster_WorldBase::On_EditorStopRuntime()

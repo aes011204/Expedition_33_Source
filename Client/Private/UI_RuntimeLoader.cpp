@@ -602,7 +602,7 @@ namespace
         UI_KeyframeAnimationAsset asset{};
         asset.name = String::ToWString(Read_String(root, "name", "NewUIAnimation"));
         asset.enabled = true;
-        asset.playOnOpen = true;
+        asset.playOnOpen = Read_Bool(root, "playOnOpen", true);
         asset.fps = max(1, Read_Int(root, "fps", 60));
         asset.startFrame = Read_Int(root, "startFrame", 0);
         asset.endFrame = max(asset.startFrame + 1, Read_Int(root, "endFrame", 60));

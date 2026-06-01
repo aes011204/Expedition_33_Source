@@ -1,0 +1,228 @@
+﻿#pragma once
+#include "Client_Defines.h"
+#include "EffectEmitter.h"
+#include "EffectRuntime_Types.h"
+
+NS_BEGIN(Engine)
+class ModelCom;
+class ShaderCom;
+class Texture;
+NS_END
+
+NS_BEGIN(Client)
+
+class MeshEmitter final : public EffectEmitter
+{
+    GENERATED_GAMEOBJECT(MeshEmitter, ObjectType::EffectEmitter);
+
+public:
+    MeshEmitter(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    MeshEmitter(const MeshEmitter& prototype);
+    ~MeshEmitter() override = default;
+
+public:
+    HRESULT Initialize_Prototype() override;
+    HRESULT Initialize(void* arg) override;
+    void Update(float timeDelta) override;
+    void Late_Update(float timeDelta) override;
+    HRESULT Render() override;
+
+public:
+    // effect root 재사용 시 mesh playback runtime과 particle state를 초기화한다.
+    HRESULT Reset_ForEffectReplay() override;
+    // 현재 instance buffer 재사용이 가능한 mesh desc인지 확인한다.
+    bool Can_ReloadDefinition(const EffectEmitterDefinition& emitterDefinition) const override;
+    // 호환되는 mesh desc를 기존 runtime 인스턴스에 다시 적용한다.
+    HRESULT Reload_Definition(const EffectEmitterDefinition& emitterDefinition) override;
+    // 마지막 loop 완료와 active particle 소진 여부를 반환한다.
+    bool Is_EffectFinished() const override;
+
+protected:
+    void On_EffectTransformSynced() override; // root/local-space sync 직후 active instance world matrix를 다시 계산한다.
+
+private: //## Types::PlaybackRuntime
+    enum class PlaybackState : uint8
+    {
+        Delayed,
+        Playing,
+        Completed,
+    };
+
+    struct MeshInstanceVertex
+    {
+        Matrix world{};                   // instanced mesh draw가 읽는 particle world matrix다.
+        Vec4 color{ 1.f, 1.f, 1.f, 1.f }; // life 평가까지 반영된 최종 particle color다.
+        Vec2 lifeTime{};                  // x: particle 수명, y: 현재 age다.
+        Vec2 padding{};                   // instance layout 16-byte 정렬 유지용 padding이다.
+    };
+
+    struct MeshParticleState
+    {
+        bool active{ false };                  // 현재 slot이 살아 있는 particle인지 나타낸다.
+        float age{};                           // spawn 이후 누적된 particle age다.
+        float lifeMax{ 1.f };                  // 이 particle에 배정된 최대 lifetime이다.
+        Vec3 position{};                       // effect owner 기준 현재 particle 위치다.
+        Vec3 velocity{};                       // drag/acceleration 적용 전후로 누적되는 현재 속도다.
+        Vec3 acceleration{};                   // particle별 초기 acceleration sample 값이다.
+        float drag{};                          // 매 frame velocity 감쇠에 사용할 drag 계수다.
+        Vec3 baseScale{ 1.f, 1.f, 1.f };       // life curve 적용 전 초기 mesh scale이다.
+        Vec3 rotationRadians{};                // 현재 particle 회전값이다.
+        Vec3 angularVelocityRadians{};         // 현재 particle 회전 속도다.
+        Vec4 startColor{ 1.f, 1.f, 1.f, 1.f }; // InitialColor에서 정한 particle 시작 색상이다.
+        Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };   // ColorOverLife endpoint 보간에 사용할 particle 끝 색상이다.
+        uint32 seed{};                         // particle별 deterministic random sample seed다.
+    };
+
+private: //## Static Values
+    // mesh effect draw shader id다.
+    static constexpr auto kEffectMeshShaderId{ "Shader_EffectMesh" };
+    // main texture 미지정 시 사용할 fallback texture다.
+    static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
+    // main texture alpha를 opacity로 사용한다.
+    static constexpr int kOpacitySourceAlpha{ 0 };
+    // main texture red를 opacity로 사용한다.
+    static constexpr int kOpacitySourceRed{ 1 };
+    // main texture luminance를 opacity로 사용한다.
+    static constexpr int kOpacitySourceLuminance{ 2 };
+
+private: //## Data::Components
+    Shared<ModelCom> _model{};        // instanced draw에 사용할 non-anim model component다.
+    Shared<ShaderCom> _shader{};      // mesh effect material shader component다.
+    Shared<Texture> _texture{};       // mesh effect main texture다.
+    Shared<Texture> _noiseTexture{};  // 선택 noise texture. 없으면 material noise를 비활성화한다.
+    Shared<Texture> _maskTexture{};   // 선택 mask texture. 없으면 mask alpha 소비를 비활성화한다.
+    ComPtr<Buffer> _instanceBuffer{}; // MeshInstanceVertex payload를 GPU에 제출하는 dynamic instance buffer다.
+
+private: //## Data::Desc
+    MeshEmitterDesc _desc{};                        // clone 생성 시 전달받은 mesh emitter runtime 규칙이다.
+    int _opacitySourceIndex{ kOpacitySourceAlpha }; // shader opacity source selector다.
+    bool _isReady{ false };                         // model/shader/buffer가 모두 준비돼 render 가능한지 나타낸다.
+
+private: //## Data::ParticleRuntime
+    vector<MeshParticleState> _particles{};        // active/inactive mesh particle slot 배열이다.
+    vector<MeshInstanceVertex> _instancePayload{}; // draw 직전 GPU instance buffer에 복사할 CPU payload다.
+    uint32 _activeInstanceCount{};                 // 이번 frame에 실제로 그릴 active instance 수다.
+    uint32 _nextSpawnCursor{};                     // ring-style slot 재사용을 위한 다음 spawn 시작 index다.
+    uint32 _instanceCapacity{};                    // 현재 instance buffer와 particle 배열 capacity다.
+
+private: //## Data::SpawnRuntime
+    vector<bool> _burstExecuted{}; // burst 목록의 1회 실행 여부를 emitter runtime 동안 유지한다.
+    float _emitterElapsedTime{};   // spawn/material time 평가에 사용할 emitter-local 누적 시간이다.
+    float _spawnAccumulator{};     // fractional spawn rate를 프레임 사이에 보존한다.
+
+private: //## Data::PlaybackRuntime
+    PlaybackState _playbackState{ PlaybackState::Delayed }; // delay/playing/completed 중 현재 emitter 재생 상태다.
+    float _loopElapsedTime{};                               // 현재 loop 안에서 delay를 포함해 흐른 시간이다.
+    uint32 _loopIndex{};                                    // 0부터 시작하는 현재 loop index다.
+    bool _completedKillDispatched{};                        // 완료 kill 요청을 한 번만 보내기 위한 latch다.
+
+private: //## Helper::ReloadDesc
+    // 현재 mesh runtime desc 핵심 payload를 로그로 남긴다.
+    void Log_DescPayload(const char* context) const;
+    // initialize/reload 단계별 준비 시간을 로그로 남긴다.
+    void Log_InitializeTiming(
+        const char* context,
+        double shaderMs,
+        double resolveModelMs,
+        double modelMs,
+        double materialMs,
+        double bufferMs,
+        double totalMs) const;
+    // 기존 component 재사용이 가능한 reload desc인지 확인한다.
+    bool Is_CompatibleReloadDesc(const MeshEmitterDesc& desc) const;
+    // effect material override texture가 하나라도 지정됐는지 확인한다.
+    bool Has_MaterialOverride(const MeshEmitterDesc& desc) const;
+    // 호환되는 reload desc를 현재 runtime 리소스에 다시 적용한다.
+    HRESULT Apply_DescForReload(const MeshEmitterDesc& desc);
+
+private: //## Helper::Setup
+    // mesh effect가 사용할 shader/model/material/buffer를 준비한다.
+    HRESULT Ready_Components();
+    // mesh effect draw shader를 준비한다.
+    HRESULT Ready_Shader();
+    // spawn capacity에 맞는 dynamic instance buffer를 준비한다.
+    HRESULT Ready_InstanceBuffer();
+    // desc material override를 현재 texture component에 반영한다.
+    HRESULT Apply_EffectMaterialOverride();
+    // main/noise/mask texture를 resolve하고 준비한다.
+    HRESULT Ready_EffectMaterialTextures();
+    // 선택 texture를 resolve하고 있으면 component를 만든다.
+    HRESULT Ready_OptionalTexture(const string& textureGuid, const string& texturePath, Shared<Texture>& outTexture);
+    // modelGuid/modelPath에서 실제 model resource 경로를 resolve한다.
+    wstring Resolve_ModelPath() const;
+    // effect material texture guid/path를 실제 resource 경로로 resolve한다.
+    wstring Resolve_MaterialTexturePath(const string& textureGuid, const string& texturePath) const;
+
+private: //## Helper::Render
+    HRESULT Bind_EffectMaterialResources();                               // mesh effect shader에 texture와 material 파라미터를 바인딩한다.
+    Matrix Build_InstanceMatrix(const MeshParticleState& particle) const; // particle state를 instanced draw world matrix로 변환한다.
+    RenderGroup Resolve_RenderGroup() const;                              // material family/blend mode에 맞는 render group을 반환한다.
+    uint32 Resolve_ShaderPassIndex() const;                               // 현재 shader에서 사용할 mesh effect pass index를 반환한다.
+    int Resolve_OpacitySourceIndex() const;                               // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
+
+private: //## Helper::PlaybackRuntime
+    void Reset_PlaybackRuntime();           // emitter timing/burst/playback runtime state를 초기화한다.
+    void Advance_Playback(float timeDelta); // delay/duration/loop 정책을 진행하고 particle simulation을 갱신한다.
+    void Start_NextLoop();                  // loop-local spawn/burst state를 초기화하고 다음 loop로 넘어간다.
+    float Resolve_CurrentLoopDelay() const; // 현재 loop에 적용할 delay를 반환한다.
+    float Resolve_Duration() const;         // 0 이하 duration으로 인한 무한 루프를 막는 안전 duration을 반환한다.
+    bool Has_NextLoop() const;              // loopCount 정책상 다음 loop가 있는지 확인한다.
+    bool Can_SubmitRender() const;          // delay/completed kill 정책상 render 제출 가능한지 확인한다.
+
+private: //## Helper::ParticleRuntime
+    // 이번 frame에 새로 활성화할 particle 수를 계산한다.
+    uint32 Consume_SpawnRequest(float timeDelta);
+    // spawn request만큼 particle slot을 활성화한다.
+    void Spawn_Particles(uint32 spawnRequest);
+    // 단일 particle slot에 초기 위치/속도/색/회전을 채운다.
+    void Activate_Particle(MeshParticleState& particle, uint32 seed);
+    // active particle의 age, motion, color/scale 기반 상태를 진행한다.
+    void Update_Particles(float timeDelta);
+    // active particle을 MeshInstanceVertex payload로 다시 작성한다.
+    void Update_InstanceBuffer();
+
+private: //## Helper::SamplingEvaluation
+    // location module에서 초기 local offset을 sample한다.
+    Vec3 Sample_InitialOffset(uint32 seed) const;
+    // velocity/radial velocity를 합친 초기 속도를 sample한다.
+    Vec3 Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed) const;
+    // motion acceleration range에서 particle acceleration을 sample한다.
+    Vec3 Sample_Acceleration(uint32 seed) const;
+    // motion drag range에서 particle drag를 sample한다.
+    float Sample_Drag(uint32 seed) const;
+    // min/max color 범위에서 particle color를 sample한다.
+    Vec4 Sample_Color(const Vec4& minColor, const Vec4& maxColor, uint32 seed) const;
+    // mesh initial scale range에서 base scale을 sample한다.
+    Vec3 Sample_InitialScale(uint32 seed) const;
+    // mesh initial rotation range에서 시작 회전을 sample한다.
+    Vec3 Sample_InitialRotation(uint32 seed) const;
+    // mesh initial rotation rate range에서 시작 각속도를 sample한다.
+    Vec3 Sample_InitialAngularVelocity(uint32 seed) const;
+    // velocity scale-by-life curve를 평가한다.
+    float Evaluate_VelocityScaleByLife(float lifeProgress) const;
+    // mesh scale-by-life curve를 평가한다.
+    Vec3 Evaluate_ScaleByLife(float lifeProgress) const;
+    // mesh rotation-over-life curve를 평가한다.
+    Vec3 Evaluate_RotationByLife(float lifeProgress) const;
+    // mesh rotation-rate scale-by-life curve를 평가한다.
+    Vec3 Evaluate_AngularVelocityScaleByLife(float lifeProgress) const;
+    // particle start/end color와 curve를 합쳐 현재 색을 계산한다.
+    Vec4 Evaluate_ColorOverLife(const MeshParticleState& particle, float lifeProgress) const;
+    // compact Vec4 curve payload를 life 진행도에 맞춰 평가한다.
+    float Evaluate_CompactCurve(float lifeProgress, const Vec4& times, const Vec4& values, uint32 keyCount, float fallbackValue) const;
+    // mesh vector3 curve runtime desc를 life 진행도에 맞춰 평가한다.
+    Vec3 Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& desc, float lifeProgress, const Vec3& fallbackValue) const;
+    // local/world space 정책에 따라 벡터 기준 좌표계를 변환한다.
+    Vec3 Resolve_LocalVector(const Vec3& localVector) const;
+    // deterministic seed 기반 0..1 난수를 반환한다.
+    float Random01(uint32 seed) const;
+    // deterministic seed 기반 범위 난수를 반환한다.
+    float RandomRange(float minValue, float maxValue, uint32 seed) const;
+
+public:
+    static Shared<MeshEmitter> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
+    Shared<GameObject> Clone(void* arg) override;
+    void Free() override;
+};
+
+NS_END

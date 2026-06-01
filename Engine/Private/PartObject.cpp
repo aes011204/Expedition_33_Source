@@ -47,6 +47,36 @@ HRESULT PartObject::Render()
 	return S_OK;
 }
 
+Matrix PartObject::Get_GizmoWorldMatrix() const
+{
+    const Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+
+    if (_transformCom == nullptr)
+        return parentMatrix;
+
+    return _transformCom->Get_WorldMatrix() * parentMatrix;
+}
+
+bool PartObject::Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix)
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+    Matrix localWorldMatrix = gizmoWorldMatrix * parentMatrix.Invert();
+
+    Vec3 scale = Vec3::One;
+    Quat rotation = Quat::Identity;
+    Vec3 translation = Vec3::Zero;
+
+    if (!localWorldMatrix.Decompose(scale, rotation, translation))
+        return false;
+
+    _transformCom->Set_WorldPosition(translation);
+    _transformCom->Set_RotationQuaternion(rotation);
+    _transformCom->Set_Scale(scale);
+    return true;
+}
 
 void PartObject::Free()
 {

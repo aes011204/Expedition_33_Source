@@ -17,6 +17,8 @@ HRESULT PanelLandscape::Initialize(SceneContext* ctx, const LandscapePanelContex
     _onApplyNoise = landscapeCtx.onApplyNoise;
     _onApplyErosion = landscapeCtx.onApplyErosion;
     _onAddLayer = landscapeCtx.onAddLayer;
+    _onRemoveLayer = landscapeCtx.onRemoveLayer;
+    _onSetBaseLayer = landscapeCtx.onSetBaseLayer;
     _onModify = landscapeCtx.onModify;
 
     return S_OK;
@@ -327,7 +329,7 @@ void PanelLandscape::Render_SaveLoad()
             ofn.Flags = OFN_FILEMUSTEXIST;
             if (GetOpenFileNameW(&ofn))
             {
-                _onLoad(_ctx->_activeLandscapeIdx, buf);
+                _onLoad(-1, buf);
             }
         }
     }
@@ -412,12 +414,43 @@ void PanelLandscape::Render_PaintTools()
         ImGui::PushID(static_cast<int32>(i));
         int32 sel = static_cast<int32>(_sculptState->paintLayerIdx);
         string label = "Layer " + to_string(i);
+
         if (ImGui::RadioButton(label.c_str(), &sel, static_cast<int32>(i)))
         {
             _sculptState->paintLayerIdx = static_cast<uint32>(sel);
         }
+        ImGui::SameLine();
+
+        string layerFile = String::ToString(actor->Get_LayerPath(i));
+        ImGui::TextDisabled("(%s)", layerFile.c_str());
+        if (i > 0)
+        {
+            ImGui::SameLine();
+            if (ImGui::SmallButton("x"))
+            {
+                if (_onRemoveLayer)
+                {
+                    if (_sculptState->paintLayerIdx >= i)
+                    {
+                        _sculptState->paintLayerIdx = i - 1;
+                    }
+                    _onRemoveLayer(_ctx->_activeLandscapeIdx, i);
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::SmallButton("!"))
+            {
+                if (_onSetBaseLayer)
+                {
+                    _sculptState->paintLayerIdx = 0;
+                    _onSetBaseLayer(_ctx->_activeLandscapeIdx, i);
+                }
+            }
+        }
+
         ImGui::PopID();
     }
+
 
     if (layerCount < 4)
     {

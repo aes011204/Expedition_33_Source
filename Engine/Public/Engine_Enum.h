@@ -65,12 +65,14 @@ namespace Engine
         BattleTurnCamera,
 
         Terrain,
+        Landscape,
         Sky,
         StaticMesh,
         Foliage,
         Weapon,
         PartObject,
         Projectile,
+        WorldActionTrigger,
         Effect,
         EffectEmitter,
         Trigger,
@@ -98,6 +100,7 @@ namespace Engine
         BloomBlurV,
         BloomUpsampleAdd,
         ToneMapping,
+        DistortionResolve,
 
         END
     };

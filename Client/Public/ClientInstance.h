@@ -99,6 +99,8 @@ public: /* For.Hero Manager */
 
     void Reset_AllHeroesToIdle();
 
+    bool    Is_ActiveHero(const Shared<GameObject>& target) const;
+
 public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);
     void    Clear_GameplayUI();
@@ -111,7 +113,7 @@ public: /* For.Gameplay UI */
 public: /* For.Battle_Controller */
     void OnEnterBattleField(
         uint32 FieldID,
-        bool IsFirstHero,
+        bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
         const vector<string>& MonsterProtoTag,
         const Shared<GameObject>& sourceObject = nullptr);

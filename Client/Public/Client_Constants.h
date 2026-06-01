@@ -74,6 +74,8 @@ namespace Client::Constants::UI
 
     // Battle Announce
     inline constexpr wchar_t UI_BattleSystem_Announce_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Announce.json";
+    inline constexpr wchar_t UI_FirstStrike_Path[] = L"UI/UI_Json/BattleSystem/UI_FirstStrike.json";
+
 
 #pragma endregion
 
@@ -98,6 +100,7 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_HealFontAnim_Path[] = L"UI/UI_Animations/BattleSystem/DamageFont/HealFont";
 
     inline constexpr wchar_t UI_BattleSystem_AnnounceAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Announce";
+    inline constexpr wchar_t UI_FirstStrikeAnim_Path[] = L"UI/UI_Animations/BattleSystem/FirstStrike";
 }
 
 namespace Client::Constants::Map
@@ -126,6 +129,15 @@ namespace Client::Constants::Map
     inline constexpr wchar_t SpringChunk_04_01_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/Chunks/Level_SpringMeadows_Main_V2/chunk_04_01.json";
     inline constexpr wchar_t SpringChunk_04_02_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/Chunks/Level_SpringMeadows_Main_V2/chunk_04_02.json";
     inline constexpr wchar_t SpringChunk_04_03_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/Chunks/Level_SpringMeadows_Main_V2/chunk_04_03.json";
+
+    // multiface
+    inline constexpr wchar_t SmallLevel_MF_Zone_01_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_MF_Zone_01_Mk1.json";
+    inline constexpr wchar_t LandscapeTextures_Dir[] = L"../../../Client/Bin/Resources/Map/LandscapeTextures/";
+    inline constexpr wchar_t MF_Zone_Boss_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Boss.hmap";
+    inline constexpr wchar_t MF_Zone_Main_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Main.hmap";
+    inline constexpr wchar_t MF_Zone_Stair_1_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_1.hmap";
+    inline constexpr wchar_t MF_Zone_Stair_2_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_2.hmap";
+    inline constexpr wchar_t MF_Zone_Stair_3_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_3.hmap";
 }
 
 namespace Client::Constants::Charcter
@@ -161,6 +173,7 @@ namespace Client::Constants::Prefab
 
 #pragma region 무기
     inline constexpr char Gustave_Lanceram[]    = "WP_Gustave_Lanceram";
+    inline constexpr char Gustave_Lanceram_Gun[]    = "WP_Gustave_Lanceram_Gun";
     inline constexpr char Lune_Colim[]          = "WP_Lune_Colim";
     inline constexpr char Maelle_Medalum[]      = "WP_Maelle_Medalum";
 #pragma endregion

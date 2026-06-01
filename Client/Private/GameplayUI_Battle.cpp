@@ -27,6 +27,7 @@
 #include "UI_BattleSkillPanel.h"
 #include "UI_HealFont.h"
 #include "UI_BattleAnnounce.h"
+#include "UI_SuddenAttack.h"
 
 #include "UI_Utils.h"
 
@@ -53,7 +54,7 @@ namespace
                 "Battle",
                 name,
                 root,
-                panel, // Inspector가 실제 오프셋 값을 읽고 쓸 Battle UI 소유자다.
+                panel,
                 panel->Is_EditorPositionDrivenByCode()
             });
     }
@@ -87,6 +88,7 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_battleItemPanel, UI_BattleItemPanel::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleSkillPanel, UI_BattleSkillPanel::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleAnnounce, UI_BattleAnnounce::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_suddenAttack, UI_SuddenAttack::Create), E_FAIL);
 
     // 데미지 폰트 최대 8개
     for (auto& damageFont : _damageFonts)
@@ -127,6 +129,7 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_BattleItemPanel(timeDelta);  // 아이템
     Update_BattleSkillPanel(timeDelta); // 스킬
     Update_BattleAnnounce(timeDelta);   // 스킬
+    Update_SuddenAttack(timeDelta);     // 선제 공격
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -160,6 +163,7 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     Append_RuntimePanelEntry(entries, "BattleItemPanel", _battleItemPanel.get());
     Append_RuntimePanelEntry(entries, "BattleSkillPanel", _battleSkillPanel.get());
     Append_RuntimePanelEntry(entries, "BattleAnnounce", _battleAnnounce.get());
+    Append_RuntimePanelEntry(entries, "SuddenAttack", _suddenAttack.get());
 
     for (uint32 i = 0; i < _damageFonts.size(); ++i)
         Append_RuntimePanelEntry(entries, ("DamageFont_" + to_string(i)).c_str(), _damageFonts[i].get());
@@ -285,7 +289,7 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     _battleController.reset();
 }
 
-void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isFirstHero)
+void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvantage)
 {
     _isBattleUiActive = true;
     _isPlayerTurnUiActive = false;
@@ -297,6 +301,10 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isFirstHero)
     _activePlayerId = HeroId::END;
     _battleStartVictoryStats.clear();
     _battleStartVictoryStats = Build_BattleVictoryPlayerStats();
+
+    // 플레이어 선제공격인지
+    _isPlayerAdvantageStart = isPlayerAdvantage;
+    _hasPlayedSuddenAttack = false;
 
     UI_RuntimePanelBase* panelsToClose[] =
     {
@@ -312,6 +320,7 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isFirstHero)
         _reactionResult.get(),
         _battleMechanism.get(),
         _battleAnnounce.get(),
+        _suddenAttack.get(),
     };
 
     for (UI_RuntimePanelBase* panel : panelsToClose)
@@ -387,6 +396,17 @@ void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnSt
         else
             _battleCommandHUD->Close();
     }
+
+    if (_suddenAttack &&
+        _isPlayerAdvantageStart &&
+        !_hasPlayedSuddenAttack &&
+        actor.statCom != nullptr &&
+        actor.statCom->Is_Player())
+    {
+        _suddenAttack->Play_SuddenAttack();
+        _hasPlayedSuddenAttack = true; // 첫 플레이어 턴에서 1회만 재생
+    }
+
 }
 
 void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
@@ -408,6 +428,7 @@ void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
         _reactionResult.get(),
         _battleMechanism.get(),
         _battleAnnounce.get(),
+        _suddenAttack.get(),
     };
 
     for (auto* panel : panelsToClose)
@@ -679,6 +700,8 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
     _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Gustave, 0.f, 1.f, 0u, 1u);
     _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Lune, 0.f, 1.f, 0u, 1u);
     _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Maelle, 0.f, 1.f, 0u, 1u);
+    _battleSystemHUD->Clear_GustaveMechanismCharge();
+    _battleSystemHUD->Clear_MaelleMechanismStance();
 
     const vector<BattleChar>& heroes = battleController->Get_BattleHeroes();
     for (const BattleChar& hero : heroes)
@@ -699,11 +722,11 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
         }
         else if (hero.heroId == HeroId::Lune)
         {
-            // TODO : 루네 얼룩
+            // TODO : 루네
         }
         else if (hero.heroId == HeroId::Maelle)
         {
-            // TODO : 마엘 전투태세 연동
+            _battleSystemHUD->Set_MaelleMechanismStance(hero.mechanismCom);
         }
     }
 
@@ -974,7 +997,9 @@ void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
     const BattleTurnState turnState = battleController->Get_CurrentTurnState();
 
     if (turnState != BattleTurnState::ChooseAction &&
-        turnState != BattleTurnState::ChooseItem)
+        turnState != BattleTurnState::ChooseItem &&
+        turnState != BattleTurnState::ChooseSkill &&
+        turnState != BattleTurnState::SkillTargeting)
     {
         _escapeSkipTurn->Close();
         return;
@@ -1078,7 +1103,9 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
     const BattleTurnState state = battleController->Get_CurrentTurnState();
 
     if (state == BattleTurnState::ChooseAction ||
-        state == BattleTurnState::AttackTargeting)
+        state == BattleTurnState::AttackTargeting ||
+        state == BattleTurnState::ChooseSkill ||
+        state == BattleTurnState::SkillTargeting)
     {
         _battleMechanism->Show_Hero(_activePlayerId);
         _battleMechanism->Sync_BattleChar(_currentPlayerTurnActor);
@@ -1097,17 +1124,6 @@ void GameplayUI_Battle::Update_BattleMechanism(float timeDelta)
 
     if (action.Get_CurChar().actor == nullptr || phases.empty() || action.GetCurAnimIndex() >= phases.size())
     {
-        _battleMechanism->Close();
-        return;
-    }
-
-    const BattleActionPhase& phase = phases[action.GetCurAnimIndex()];
-
-    // 대쉬 Out 시작하면 메커니즘 UI 닫기
-    if (phase.movementPolicy == BattleMovementPolicy::ReturnToOrigin)
-    {
-        _isMechanismActionActive = false;
-        _activePlayerId = HeroId::END;
         _battleMechanism->Close();
         return;
     }
@@ -1203,6 +1219,14 @@ void GameplayUI_Battle::Update_BattleAnnounce(float timeDelta)
         return;
 
     _battleAnnounce->Update(timeDelta);
+}
+
+void GameplayUI_Battle::Update_SuddenAttack(float timeDelta)
+{
+    if (_suddenAttack == nullptr)
+        return;
+
+    _suddenAttack->Update(timeDelta);
 }
 
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
@@ -1364,6 +1388,7 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
         _battleItemPanel.get(),
         _battleSkillPanel.get(),
         _battleAnnounce.get(),
+        _suddenAttack.get(),
     };
 
     for (auto* panel : panelsToClose)
@@ -1433,6 +1458,7 @@ void GameplayUI_Battle::Free()
     Release_UI(_battleItemPanel);
     Release_UI(_battleSkillPanel);
     Release_UI(_battleAnnounce);
+    Release_UI(_suddenAttack);
 
     for (auto& damageFont : _damageFonts)
         Release_UI(damageFont);

@@ -27,22 +27,23 @@ bool Player_WorldAction::EnterInvoke()
 
     _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_Explo), 0.2f, false);
 
-    const Shared<Player_WorldBase> owner = _owner.lock();
-    if (dynamic_pointer_cast<PW_Gustave>(owner))
-    {
-        const Shared<EffectCom> effectCom = owner->Get_Component<EffectCom>();
-        if (effectCom == nullptr ||
-            FAILED(effectCom->Play_AttachedEffect(
-                GAME->Current_LevelIndex(),
-                L"Distortion_v1",
-                L"Part_Body",
-                "FX_Hand_R1",
-                L"Layer_Effect",
-                Vec3::Zero)))
-        {
-            LOG_WARN("Player_WorldAction DistortionTest hand attach failed.");
-        }
-    }
+    // 코드 스폰
+    //const Shared<Player_WorldBase> owner = _owner.lock();
+    //if (dynamic_pointer_cast<PW_Gustave>(owner))
+    //{
+    //    const Shared<EffectCom> effectCom = owner->Get_Component<EffectCom>();
+    //    if (effectCom == nullptr ||
+    //        FAILED(effectCom->Play_AttachedEffect(
+    //            GAME->Current_LevelIndex(),
+    //            L"DistortionTest",
+    //            L"Part_Body",
+    //            "FX_Hand_R1",
+    //            L"Layer_Effect",
+    //            Vec3::Zero)))
+    //    {
+    //        LOG_WARN("Player_WorldAction DistortionTest hand attach failed.");
+    //    }
+    //}
 
     return true;
 }

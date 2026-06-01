@@ -61,7 +61,7 @@ public:
     // 진입 시 데이터만 기록 -> 실제 전환은 슬로우모션 끝난 후 Complete_BattleFiled 함수
     void OnEnterBattleField(
         uint32 FieldID,
-        bool IsFirstHero,
+        bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
         const vector<string>& battleMonsterPrefabNames,
         const Shared<GameObject>& sourceObject = nullptr);
@@ -80,7 +80,7 @@ public:
     EAPChangeReason FinishBattle();
 
     void Create_BattleChar(const vector<HeroId>& heroIds, vector<string>& battleMonsterPrefabNames);
-    void Build_InitialTurnQueue(bool IsFirstHero);
+    void Build_InitialTurnQueue(bool isPlayerAdvantage);
     // 부활하면 턴 큐 한번 다시 리빌드
     void Rebuild_TurnQueue(const BattleChar& revivedActor);
     void SetCharInitPos();
@@ -306,7 +306,7 @@ private:
 
 private:
     uint32  _pendingBattleFieldID = 0;
-    bool    _pendingBattleIsFirstHero = false;
+    bool    _pendingBattleIsPlayerAdvantage = false;
     vector<HeroId> _pendingBattleHeroIds = {};
     vector<string> _pendingBattleMonsterPrefabNames = {};
 

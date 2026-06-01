@@ -97,7 +97,7 @@ private: //## Helper::Setup
 private: //## Helper::Render
     HRESULT Bind_ShaderResources();          // EffectSprite shader에 camera/texture resource를 바인딩한다.
     HRESULT Bind_MaterialResources();        // EffectSprite material 파라미터를 shader에 바인딩한다.
-    HRESULT Bind_DistortionResources();      // SpriteDistortion shader에 scene snapshot과 flow 파라미터를 바인딩한다.
+    HRESULT Bind_DistortionResources();      // SpriteDistortion field shader에 flow 파라미터를 바인딩한다.
     bool Is_DistortionFamily() const;        // 현재 material family가 sprite distortion 경로인지 확인한다.
     RenderGroup Resolve_RenderGroup() const; // material family에 맞는 renderer group을 반환한다.
     const char* Resolve_ShaderId() const;    // material family에 맞는 shader prototype id를 반환한다.

@@ -37,6 +37,23 @@ cbuffer TrailComputeParams : register(b0)
     float3 g_TrailParamsPadding;
     float4 g_StartColor;
     float4 g_EndColor;
+    float4 g_ColorOverLifeCurveParams; // x: color key count, y: alpha key count, z: color enabled, w: alpha enabled
+    float4 g_ColorOverLifeColorCurveTimes;
+    float4 g_ColorOverLifeColorCurveValuesR;
+    float4 g_ColorOverLifeColorCurveValuesG;
+    float4 g_ColorOverLifeColorCurveValuesB;
+    float4 g_ColorOverLifeColorCurveArriveR;
+    float4 g_ColorOverLifeColorCurveArriveG;
+    float4 g_ColorOverLifeColorCurveArriveB;
+    float4 g_ColorOverLifeColorCurveLeaveR;
+    float4 g_ColorOverLifeColorCurveLeaveG;
+    float4 g_ColorOverLifeColorCurveLeaveB;
+    float4 g_ColorOverLifeColorCurveModes;
+    float4 g_ColorOverLifeAlphaCurveTimes;
+    float4 g_ColorOverLifeAlphaCurveValues;
+    float4 g_ColorOverLifeAlphaCurveArrive;
+    float4 g_ColorOverLifeAlphaCurveLeave;
+    float4 g_ColorOverLifeAlphaCurveModes;
     float4 g_SizeByLifeParams;       // x/y: width start/end, z: enabled, w: reserved
     float4 g_SizeByLifeCurveTimes;   // scaleOverLife key times
     float4 g_SizeByLifeCurveValuesX; // scaleOverLife X multipliers
@@ -51,15 +68,13 @@ RWStructuredBuffer<DrawIndexedInstancedIndirectArgs> ArgsData : register(u1);
 void ApplyTrailWidth(inout float3 basePosition, inout float3 tipPosition)
 {
     const float3 center = (basePosition + tipPosition) * 0.5f;
-    float3 widthDirection = tipPosition - basePosition;
-    const float widthLength = length(widthDirection);
-    if (widthLength <= 0.0001f)
+    const float3 halfSpan = (tipPosition - basePosition) * 0.5f;
+    if (length(halfSpan) <= 0.0001f)
         return;
 
-    widthDirection /= widthLength;
-    const float halfWidth = max(g_Width, 0.0001f) * 0.5f;
-    basePosition = center - widthDirection * halfWidth;
-    tipPosition = center + widthDirection * halfWidth;
+    const float widthRatio = max(g_Width, 0.0001f);
+    basePosition = center - halfSpan * widthRatio;
+    tipPosition = center + halfSpan * widthRatio;
 }
 
 float ReadVec4Component(float4 values, uint index)
@@ -71,6 +86,103 @@ float ReadVec4Component(float4 values, uint index)
     if (index == 2u)
         return values.z;
     return values.w;
+}
+
+float EvaluateCompactCurve(
+    float lifeProgress,
+    uint keyCount,
+    float4 times,
+    float4 values,
+    float4 arriveTangents,
+    float4 leaveTangents,
+    float4 modes,
+    float fallbackValue)
+{
+    keyCount = max(1u, min(4u, keyCount));
+
+    if (keyCount == 1u || lifeProgress <= ReadVec4Component(times, 0u))
+        return ReadVec4Component(values, 0u);
+
+    bool found = false;
+    float result = fallbackValue;
+    [unroll]
+    for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+    {
+        if (keyIndex >= keyCount || found)
+            continue;
+
+        const float rightTime = ReadVec4Component(times, keyIndex);
+        if (lifeProgress > rightTime)
+            continue;
+
+        const float leftTime = ReadVec4Component(times, keyIndex - 1u);
+        const float leftValue = ReadVec4Component(values, keyIndex - 1u);
+        const float rightValue = ReadVec4Component(values, keyIndex);
+        const float mode = ReadVec4Component(modes, keyIndex - 1u);
+        const float width = max(0.0001f, rightTime - leftTime);
+        const float ratio = saturate((lifeProgress - leftTime) / width);
+
+        if (mode < 0.5f)
+        {
+            result = leftValue;
+        }
+        else if (mode >= 1.5f)
+        {
+            const float t2 = ratio * ratio;
+            const float t3 = t2 * ratio;
+            const float leftLeave = ReadVec4Component(leaveTangents, keyIndex - 1u) * width;
+            const float rightArrive = ReadVec4Component(arriveTangents, keyIndex) * width;
+            result =
+                (2.0f * t3 - 3.0f * t2 + 1.0f) * leftValue +
+                (t3 - 2.0f * t2 + ratio) * leftLeave +
+                (-2.0f * t3 + 3.0f * t2) * rightValue +
+                (t3 - t2) * rightArrive;
+        }
+        else
+        {
+            result = lerp(leftValue, rightValue, ratio);
+        }
+
+        found = true;
+    }
+
+    const float lastTime = ReadVec4Component(times, keyCount - 1u);
+    if (!found && lifeProgress > lastTime)
+        result = ReadVec4Component(values, keyCount - 1u);
+
+    return result;
+}
+
+float4 EvaluateColorOverLife(float lifeProgress, float4 fallbackColor)
+{
+    float4 result = fallbackColor;
+
+    if (g_ColorOverLifeCurveParams.z != 0.0f)
+    {
+        const uint colorKeyCount = (uint)g_ColorOverLifeCurveParams.x;
+        result.rgb = saturate(float3(
+            EvaluateCompactCurve(lifeProgress, colorKeyCount, g_ColorOverLifeColorCurveTimes, g_ColorOverLifeColorCurveValuesR, g_ColorOverLifeColorCurveArriveR, g_ColorOverLifeColorCurveLeaveR, g_ColorOverLifeColorCurveModes, fallbackColor.r),
+            EvaluateCompactCurve(lifeProgress, colorKeyCount, g_ColorOverLifeColorCurveTimes, g_ColorOverLifeColorCurveValuesG, g_ColorOverLifeColorCurveArriveG, g_ColorOverLifeColorCurveLeaveG, g_ColorOverLifeColorCurveModes, fallbackColor.g),
+            EvaluateCompactCurve(lifeProgress, colorKeyCount, g_ColorOverLifeColorCurveTimes, g_ColorOverLifeColorCurveValuesB, g_ColorOverLifeColorCurveArriveB, g_ColorOverLifeColorCurveLeaveB, g_ColorOverLifeColorCurveModes, fallbackColor.b)
+        ));
+    }
+
+    if (g_ColorOverLifeCurveParams.w != 0.0f)
+    {
+        const uint alphaKeyCount = (uint)g_ColorOverLifeCurveParams.y;
+        result.a = saturate(EvaluateCompactCurve(
+            lifeProgress,
+            alphaKeyCount,
+            g_ColorOverLifeAlphaCurveTimes,
+            g_ColorOverLifeAlphaCurveValues,
+            g_ColorOverLifeAlphaCurveArrive,
+            g_ColorOverLifeAlphaCurveLeave,
+            g_ColorOverLifeAlphaCurveModes,
+            fallbackColor.a
+        ));
+    }
+
+    return result;
 }
 
 float EvaluateSizeByLifeWidthScale(float lifeProgress)
@@ -164,8 +276,9 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     output.look = float4(nextBase, 1.f);
     output.translation = float4(nextTip, 1.f);
     output.lifeTime = float2(max(g_SegmentLifetime, 0.0001f), age);
-    output.startColor = g_StartColor;
-    output.endColor = g_EndColor;
+    const float4 segmentColor = EvaluateColorOverLife(lifeProgress, lerp(g_StartColor, g_EndColor, lifeProgress));
+    output.startColor = segmentColor;
+    output.endColor = segmentColor;
     output.subUVRect = float4(0.0f, currentDistance, 1.0f, nextDistance);
     output.segmentParams = float4(lifeProgress, widthScale, ageAlpha * lengthAlpha, g_SideFade); // x: 수명 진행률, y: 폭 배율, z: 알파 배율, w: 가장자리 페이드
 

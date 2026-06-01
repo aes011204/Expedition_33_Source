@@ -8,10 +8,11 @@
 #include "CameraPresetTypes.h"
 #include "Event_Bus.h"
 #include <format>
+#include "BattleAnimUtils.h"
 
 NS_BEGIN(Client)
 
-    ChooseAction::ChooseAction(const Shared<BattleController>& owner)
+ChooseAction::ChooseAction(const Shared<BattleController>& owner)
     : Battle_State{ owner }
 {
 }
@@ -32,6 +33,14 @@ void ChooseAction::Begin_Play()
 
 bool ChooseAction::EnterInvoke()
 {
+    auto owner = Get_Owner();
+    if (!owner)
+        return false;
+
+    const BattleChar& actor = owner->Get_TurnActionRequest().actor;
+
+    BattleAnimUtils::Play_BattleIdle(actor, 0.2f);
+
     return Battle_State::EnterInvoke();
 }
 

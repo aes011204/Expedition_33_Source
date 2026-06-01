@@ -328,8 +328,10 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
     bool isSuccess, const BattleChar& counterTarget, uint32 curAttackIndex)
 {
 
-
     if (target.ModelCom == nullptr)
+        return;
+
+    if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
         return;
 
     BattleAnimType animType = BattleAnimType::Base_Idle;
@@ -354,6 +356,8 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
         return;
     }
 
+    target.ModelCom->Set_RootMotionEnabled(false);
+
     if (!target.ModelCom->Set_AnimationByState(ETOI(animType), 0.1f, false))
         return;
 
@@ -370,6 +374,10 @@ void BattleReactionController::FinishReactionAnimation()
     {
         if (target.ModelCom == nullptr)
             continue;
+        if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+            continue;
+
+        target.ModelCom->Set_RootMotionEnabled(true);
 
         target.ModelCom->Set_FrameSpeed(1.f);
         target.ModelCom->Set_AnimationByState(

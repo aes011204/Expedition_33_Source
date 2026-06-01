@@ -6,6 +6,7 @@
 #include "EffectMaterialPreviewRenderer.h"
 #include "EffectMaterial_View.h"
 #include "EffectMaterialPresetReader.h"
+#include "Helper_EffectAuthoring.h"
 #include "Notification_Manager.h"
 
 NS_BEGIN(EffectEditor)
@@ -30,7 +31,7 @@ namespace Internal
         const char* directionName = alignment == EmitterScreenAlignment::AwayFromCenter ? "Away from Center" : "Velocity";
         const char* modeHelp = mode == EmitterDirectionalAlignmentMode::LookDirection
                                ? "기준 방향을 sprite 카드의 바라보는 방향으로 사용합니다."
-                               : "sprite는 카메라를 향하게 두고 texture 축만 기준 방향으로 눕힙니다.";
+                               : "texture 축을 기준 방향에 맞추고 나머지 축은 카메라 가시성을 유지합니다.";
 
         NOTIFY("{}: {}", directionName, modeHelp);
     }
@@ -285,6 +286,12 @@ namespace Internal
             lhs.blendMode == rhs.blendMode &&
             lhs.opacitySource == rhs.opacitySource &&
             Is_SameAdditiveContribution(lhs.additive, rhs.additive) &&
+            lhs.coreEmissive.enabled == rhs.coreEmissive.enabled &&
+            Is_SameColor(lhs.coreEmissive.coreColor, rhs.coreEmissive.coreColor) &&
+            NearlyEqual(lhs.coreEmissive.corePower, rhs.coreEmissive.corePower) &&
+            NearlyEqual(lhs.coreEmissive.coreIntensity, rhs.coreEmissive.coreIntensity) &&
+            NearlyEqual(lhs.coreEmissive.outerPower, rhs.coreEmissive.outerPower) &&
+            NearlyEqual(lhs.coreEmissive.outerIntensity, rhs.coreEmissive.outerIntensity) &&
             lhs.twoSided == rhs.twoSided &&
             lhs.subUVRows == rhs.subUVRows &&
             lhs.subUVCols == rhs.subUVCols;
@@ -751,7 +758,7 @@ bool RequiredModuleDetail::Draw(
         }
     }
 
-    if (ImGui::CollapsingHeader("공간 / 정렬 (일부 미구현)", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("공간 / 정렬", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("RequiredSpaceSort"))
         {
@@ -791,7 +798,7 @@ bool RequiredModuleDetail::Draw(
         if (Internal::Uses_DirectionalAlignmentOptions(data.screenAlignment))
         {
             if (data.directionalAlignmentMode == EmitterDirectionalAlignmentMode::TextureAxis)
-                ImGui::TextDisabled("Texture Axis는 world X/Y/Z가 아니라 texture 가로/세로 축입니다. Z는 sprite normal이므로 별도 facing 개념입니다.");
+                ImGui::TextDisabled("Texture Axis는 world X/Y/Z가 아니라 texture 가로/세로 축입니다. 나머지 축은 카메라 가시성을 유지합니다.");
             else
                 ImGui::TextDisabled("Look Direction은 기준 방향을 sprite 카드의 바라보는 방향으로 사용합니다.");
         }
@@ -838,7 +845,9 @@ bool RequiredModuleDetail::Draw(
 
     if (changed)
     {
-        emitter.rendererType = emitter.typeData.kind == AuthoringTypeDataKind::Trail ? "Trail" : data.rendererType;
+        emitter.rendererType = emitter.typeData.kind == AuthoringTypeDataKind::None
+                               ? data.rendererType
+                               : Authoring::Resolve_RendererType(emitter.typeData);
         emitter.textureId = data.material.mainTexturePath;
         emitter.resourceSummary = data.material.mainTexturePath;
     }
@@ -909,13 +918,24 @@ bool InitialSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialS
     return changed;
 }
 
+bool InitialMeshSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialMeshSizeModuleData& data, DetailPropertyContext& detailContext)
+{
+    const InitialMeshSizeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("메시 크기", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("크기 XYZ", data.size, defaultData.size);
+
+    return changed;
+}
+
 bool InitialLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialLocationModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialLocationModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("위치", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_Vector3DistributionGroup("위치", data.location, defaultData.location);
+        changed |= detailContext.Draw_Vector3DistributionGroup("위치", data.location, defaultData.location, 0.01f, false, true);
 
     return changed;
 }
@@ -978,6 +998,7 @@ bool InitialRadialVelocityModuleDetail::Draw(
     {
         ImGui::SetTooltip(
             "생성 위치와 방사 기준점의 방향으로 더하는 초기 속도입니다.\n"
+            "중앙 발산/흡입형 sprite streak의 1차 후보입니다.\n"
             "양수는 기준점에서 멀어지고, 음수는 기준점 쪽으로 이동합니다.\n"
             "지속 attractor가 아니라 생성 시점의 속도 항입니다."
         );
@@ -1081,14 +1102,67 @@ bool RotationRateScaleByLifeModuleDetail::Draw(
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailContext.Begin_PropertyTable("RotationRateScaleByLife"))
-        {
-            changed |= detailContext.Draw_FloatProperty("시작 배율", data.scaleStart, defaultData.scaleStart);
-            changed |= detailContext.Draw_FloatProperty("종료 배율", data.scaleEnd, defaultData.scaleEnd);
-            detailContext.End_PropertyTable();
-        }
-    }
+        changed |= detailContext.Draw_FloatDistributionGroup("회전 속도 배율", data.scaleOverLife, defaultData.scaleOverLife);
+
+    return changed;
+}
+
+bool InitialMeshRotationModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    InitialMeshRotationModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const InitialMeshRotationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("초기 메시 회전", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("회전 XYZ", data.rotationDegrees, defaultData.rotationDegrees);
+
+    return changed;
+}
+
+bool MeshRotationOverLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    MeshRotationOverLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshRotationOverLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 회전", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("추가 회전 XYZ", data.rotationOverLife, defaultData.rotationOverLife);
+
+    return changed;
+}
+
+bool InitialMeshRotationRateModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    InitialMeshRotationRateModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const InitialMeshRotationRateModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("초기 메시 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("회전 속도 XYZ", data.rotationRateDegrees, defaultData.rotationRateDegrees);
+
+    return changed;
+}
+
+bool MeshRotationRateScaleByLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    MeshRotationRateScaleByLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshRotationRateScaleByLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("회전 속도 배율 XYZ", data.scaleOverLife, defaultData.scaleOverLife);
 
     return changed;
 }
@@ -1171,7 +1245,7 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
 }
 
 bool SizeByLifeModuleDetail::Draw(
-    AuthoringEmitter&,
+    AuthoringEmitter& emitter,
     AuthoringModule&,
     SizeByLifeModuleData& data,
     DetailPropertyContext& detailContext)
@@ -1228,6 +1302,31 @@ bool SizeByLifeModuleDetail::Draw(
         ImGui::PopID();
 
         changed |= detailContext.Draw_Vector2DistributionGroup("수명 배율", data.scaleOverLife, defaultData.scaleOverLife, 0.01f);
+    }
+
+    return changed;
+}
+
+bool MeshSizeByLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    MeshSizeByLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshSizeByLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 크기", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("MeshSizeByLife"))
+        {
+            changed |= detailContext.Draw_BoolProperty("X축 적용", data.multiplyX, defaultData.multiplyX);
+            changed |= detailContext.Draw_BoolProperty("Y축 적용", data.multiplyY, defaultData.multiplyY);
+            changed |= detailContext.Draw_BoolProperty("Z축 적용", data.multiplyZ, defaultData.multiplyZ);
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_Vector3DistributionGroup("수명 배율 XYZ", data.scaleOverLife, defaultData.scaleOverLife, 0.01f);
     }
 
     return changed;

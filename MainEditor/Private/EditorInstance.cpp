@@ -1274,8 +1274,9 @@ void EditorInstance::Apply_RuntimeInputPolicy()
     const bool isTargetCamera =
         GAME->Is_ActiveCameraType(ObjectType::TargetCamera);
 
-    const bool isLogoLevel =
-        GAME->Current_LevelIndex() == ETOI(LevelType::MainTitle);
+    const bool isMenuAutoPlayLevel =
+        GAME->Current_LevelIndex() == ETOI(LevelType::MainTitle) ||
+        GAME->Current_LevelIndex() == ETOI(LevelType::GameEntry);
 
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play)
     {
@@ -1288,7 +1289,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
             return;
         }
 
-        if (isLogoLevel)
+        if (isMenuAutoPlayLevel)
         {
             GAME->Set_PlayerInputBlocked(true);      
             GAME->Set_FreeCameraInputEnabled(false);

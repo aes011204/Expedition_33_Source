@@ -217,14 +217,15 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_ScreenFX:Before");
 #endif
 
-    // ========================================= //
-    // ScreenFX
-    // ========================================= //
+    //GAME->Bind_BackBuffer();
+
     const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
     const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
     if (useScreenFx)
     {
+        // ========================================= //
         Render_ScreenFx();
+        // ========================================= //
     }
 
 #ifdef _DEBUG
@@ -657,8 +658,8 @@ void Renderer::Render_Distortion()
     );
 
     RETURN_LOG_IF_FAILED(
-        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
-        L"Render_Distortion:FAIL Begin_MRT(HDR)"
+        GAME->Begin_MRT(MRT::DistortionField, NotUseDSV, ClearRTV),
+        L"Render_Distortion:FAIL Begin_MRT(DistortionField)"
     );
 
     _currentGroup = RenderGroup::Distortion;
@@ -676,6 +677,11 @@ void Renderer::Render_Distortion()
     distortionGroup.clear();
 
     GAME->End_MRT();
+
+    RETURN_LOG_IF_FAILED(
+        Render_DistortionResolve(),
+        L"Render_Distortion:FAIL Render_DistortionResolve"
+    );
 }
 
 void Renderer::Render_Blend()
@@ -866,23 +872,33 @@ void Renderer::Render_ScreenFx()
     if (!_screenFxShader || !_viBuffer)
         return;
 
-    GAME->Bind_BackBuffer();
+    HRESULT hr = S_OK;
 
-    RETURN_LOG_IF_FAILED(
-        _screenFxShader->Bind_ObjectCB(_pipelineWorldMatrix),
-        L"Render_ScreenFx:FAIL Bind_ObjectCB");
+    if (SUCCEEDED(hr))
+    {
+        hr = _screenFxShader->Bind_ObjectCB(_pipelineWorldMatrix);
+        if (FAILED(hr))
+            LOG_ERROR("Render_ScreenFx:FAIL Bind_ObjectCB");
+    }
 
-    RETURN_LOG_IF_FAILED(
-        Bind_ScreenSpaceCB(_screenFxShader, max(1u, _screenSize.width), max(1u, _screenSize.height)),
-        L"Render_ScreenFx:FAIL Bind_ScreenSpaceCB");
+    if (SUCCEEDED(hr))
+    {
+        hr = Bind_ScreenSpaceCB(_screenFxShader, max(1u, _screenSize.width), max(1u, _screenSize.height));
+        if (FAILED(hr))
+            LOG_ERROR("Render_ScreenFx:FAIL Bind_ScreenSpaceCB");
+    }
 
-    RETURN_LOG_IF_FAILED(
-        _viBuffer->Bind_Resources(),
-        L"Render_ScreenFx:FAIL Bind_Resources");
+    if (SUCCEEDED(hr))
+    {
+        hr = _viBuffer->Bind_Resources();
+        if (FAILED(hr)) LOG_ERROR("Render_ScreenFx:FAIL Bind_Resources");
+    }
 
-    RETURN_LOG_IF_FAILED(
-        GAME->Get_ScreenFxManager()->Render_ScreenFx(_screenFxShader, _viBuffer),
-        L"Render_ScreenFx:FAIL Manager->Render_ScreenFx");
+    if (SUCCEEDED(hr))
+    {
+        hr = GAME->Get_ScreenFxManager()->Render_ScreenFx(_screenFxShader, _viBuffer);
+        if (FAILED(hr)) LOG_ERROR("Render_ScreenFx:FAIL Manager->Render_ScreenFx");
+    }
 }
 
 HRESULT Renderer::Ready_Shaders()
@@ -963,8 +979,6 @@ HRESULT Renderer::Bind_ScreenSpaceCB(Shared<ShaderCom> shader, uint32 width, uin
     CHECK_NULL(shader, E_FAIL);
 
     Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    if (activeCamera == nullptr)
-        return E_FAIL;
 
     ScreenSpaceCB screenSpaceCB{};
     screenSpaceCB.screenViewMatrix = _PipelineViewMatrix;
@@ -974,7 +988,7 @@ HRESULT Renderer::Bind_ScreenSpaceCB(Shared<ShaderCom> shader, uint32 width, uin
     screenSpaceCB.projInverseMatrix = *GAME->Get_Transform_Inverse(D3DTS::Proj);
 
     screenSpaceCB.cameraPosition = *GAME->Get_CamPosition();
-    screenSpaceCB.farPlane = activeCamera->Get_Far();
+    screenSpaceCB.farPlane = activeCamera != nullptr ? activeCamera->Get_Far() : 500.f;
 
     const uint32 resolvedWidth = max(1u, (width == 0u) ? _screenSize.width : width);
     const uint32 resolvedHeight = max(1u, (height == 0u) ? _screenSize.height : height);
@@ -1067,6 +1081,52 @@ HRESULT Renderer::Render_BloomUpsamplePass(const wchar_t* dstMrt, const wchar_t*
     RETURN_FAIL_LOG_IF_FAILED(
         GAME->End_MRT(),
         endLog.c_str());
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
+HRESULT Renderer::Render_DistortionResolve()
+{
+    if (!_postprocessShader || !_viBuffer)
+        return E_FAIL;
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Bind_ObjectCB(_pipelineWorldMatrix),
+        L"Render_DistortionResolve:FAIL Bind_ObjectCB");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        Bind_ScreenSpaceCB(_postprocessShader, max(1u, _screenSize.width), max(1u, _screenSize.height)),
+        L"Render_DistortionResolve:FAIL Bind_ScreenSpaceCB");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Bind_Resources(),
+        L"Render_DistortionResolve:FAIL Bind_Resources");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Render_DistortionResolve:FAIL Begin_MRT(HDR)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DistortionSourceTexture", RT::DistortionSource),
+        L"Render_DistortionResolve:FAIL Bind_RT_ShaderResource(g_DistortionSourceTexture)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DistortionFieldTexture", RT::DistortionField),
+        L"Render_DistortionResolve:FAIL Bind_RT_ShaderResource(g_DistortionFieldTexture)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(PostProcessPass::DistortionResolve)),
+        L"Render_DistortionResolve:FAIL ShaderBegin(DistortionResolve)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_DistortionResolve:FAIL RenderRect");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        L"Render_DistortionResolve:FAIL End_MRT(HDR)");
 
     Add_RenderCall();
 
