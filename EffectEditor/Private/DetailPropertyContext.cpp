@@ -14,6 +14,8 @@ namespace
         EmitterScreenAlignment::Square,
         EmitterScreenAlignment::AwayFromCenter,
         EmitterScreenAlignment::Velocity,
+        EmitterScreenAlignment::WorldPlaneXY,
+        EmitterScreenAlignment::WorldPlaneXZ,
     };
 
     constexpr const char* kVisibleScreenAlignmentLabels[] = {
@@ -22,6 +24,8 @@ namespace
         "Square",
         "Away from Center",
         "Velocity",
+        "World Plane XY",
+        "World Plane XZ",
     };
 
     static_assert(IM_ARRAYSIZE(kVisibleScreenAlignmentValues) == IM_ARRAYSIZE(kVisibleScreenAlignmentLabels));
@@ -51,6 +55,10 @@ namespace
             return "Velocity";
         case EmitterScreenAlignment::AwayFromCenter:
             return "Away from Center";
+        case EmitterScreenAlignment::WorldPlaneXY:
+            return "World Plane XY";
+        case EmitterScreenAlignment::WorldPlaneXZ:
+            return "World Plane XZ";
         case EmitterScreenAlignment::TypeSpecific:
             return "Type Specific";
         case EmitterScreenAlignment::FacingCameraDistanceBlend:
@@ -78,6 +86,12 @@ namespace
 
         case EmitterScreenAlignment::Velocity:
             return "파티클의 현재 속도 방향을 사용합니다. 하위 정렬 방식에서 look 또는 texture 축 정렬을 고릅니다.";
+
+        case EmitterScreenAlignment::WorldPlaneXY:
+            return "월드 XY 평면에 고정합니다. Mesh는 local XY 평면을 카드 기준으로 봅니다.";
+
+        case EmitterScreenAlignment::WorldPlaneXZ:
+            return "월드 바닥 XZ 평면에 고정합니다. Mesh는 local XY 평면을 카드 기준으로 봅니다.";
 
         default:
             return "";

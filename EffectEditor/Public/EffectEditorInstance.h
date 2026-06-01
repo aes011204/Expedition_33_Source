@@ -198,7 +198,7 @@ private: //## Static Values
     static constexpr int kSceneGridDivisions{ 40 };
     static constexpr float kSceneGridHalfExtent{ 30.f };
     static constexpr float kSceneGridHeight{ 0.f };
-    inline static const Vec3 kDefaultTrailPreviewBaseLocalOffset{ 0.f, 1.f, 20.f };
+    inline static const Vec3 kDefaultTrailPreviewBaseLocalOffset{ 0.f, 1.f, 35.f };
     inline static const Vec3 kDefaultTrailPreviewTipLocalOffset{ 0.f, 1.f, 85.f };
 
 private: //## Data::Core
