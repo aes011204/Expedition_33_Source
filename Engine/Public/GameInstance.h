@@ -632,7 +632,7 @@ private:
 
 #ifdef _DEBUG
 
-private:                                                                                      //## 디버그 성능 평가용
+private: //## 디버그 성능 평가용
     static constexpr float runtimePerfSampleWindowSec{ DebugPerf::kRuntimePerfLogWindowSec }; // RuntimePerfDetail을 몇 초마다 출력할건지
 
     chrono::steady_clock::time_point _runtimePerfWindowStartTime{};
