@@ -1,12 +1,15 @@
 ﻿#include "pch.h"
 #include "SkillTargeting.h"
+#include <Battle_Event.h>
 #include "GameInstance.h"
 #include "BattleController.h"
 #include "BattleStateMachine.h"
+#include "CameraPresetTypes.h"
+#include "Event_Bus.h"
 
 NS_BEGIN(Client)
 
-SkillTargeting::SkillTargeting(const Shared<BattleController>& owner)
+    SkillTargeting::SkillTargeting(const Shared<BattleController>& owner)
     : Battle_State{ owner }
 {
 }
@@ -41,6 +44,11 @@ bool SkillTargeting::EnterInvoke()
     }
 
     owner->Set_TargetPreview(enemies[_targetIndex]);
+
+    EvtBattlePresentation event;
+    event.cameraMode = BattleCameraMode::ENEMYFOCUS;
+    event.subject = enemies[_targetIndex].actor;
+    GAME->Get_EventBus().Publish(event);
 
     return Battle_State::EnterInvoke();
 }
@@ -78,6 +86,12 @@ void SkillTargeting::Update(float timeDelta)
         if (Try_MoveTargetIndex(-1, enemies.size()))
             owner->Set_TargetPreview(enemies[_targetIndex]);
 
+        owner->Set_TargetPreview(enemies[_targetIndex]);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::ENEMYFOCUS;
+        event.subject = enemies[_targetIndex].actor;
+        GAME->Get_EventBus().Publish(event);
         return;
     }
 
@@ -85,6 +99,13 @@ void SkillTargeting::Update(float timeDelta)
     {
         if (Try_MoveTargetIndex(+1, enemies.size()))
             owner->Set_TargetPreview(enemies[_targetIndex]);
+
+        owner->Set_TargetPreview(enemies[_targetIndex]);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::ENEMYFOCUS;
+        event.subject = enemies[_targetIndex].actor;
+        GAME->Get_EventBus().Publish(event);
 
         return;
     }

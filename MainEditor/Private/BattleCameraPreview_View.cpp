@@ -39,6 +39,7 @@ constexpr float kFormationVec3InputWidth = 190.f;
 constexpr float kPresetInputWidth = 150.f;
 constexpr wchar_t kBattleCameraPresetFolder[] = L"../../../Client/Bin/Resources/Data/json/CameraPreset";
 constexpr int kBattleClipDebugFallbackTrackIndex = 5;
+constexpr int kBattleClipTimelineTrackCount = 16;
 
 enum class BattleAuthoringFileKind : uint8
 {
@@ -60,7 +61,8 @@ int Get_BattleClipFrameMax(const BattleCameraClip& clip)
 
 BattleCameraClipTimeMode Get_DefaultBattleCameraClipTimeMode(BattleCameraMode cameraMode)
 {
-    return cameraMode == BattleCameraMode::BATTLEINTRO
+    return cameraMode == BattleCameraMode::BATTLEINTRO ||
+        cameraMode == BattleCameraMode::SELECTSKILL
         ? BattleCameraClipTimeMode::Independent
         : BattleCameraClipTimeMode::AnimationSync;
 }
@@ -94,9 +96,35 @@ const BattleCameraTrack* Get_BattleClipTrackByIndex(const BattleCameraClip& clip
     case 9: return &clip.orbitLookHeight;
     case 10: return &clip.shakeFrequencyX;
     case 11: return &clip.shakeFrequencyY;
-    case 12: return &clip.shakeDecayRate;
-    case 13: return &clip.shakeVerticalRatio;
-    case 14: return &clip.shakeStrengthScale;
+    case 12: return &clip.shakeDecayRateX;
+    case 13: return &clip.shakeDecayRate;
+    case 14: return &clip.shakeVerticalRatio;
+    case 15: return &clip.shakeStrengthScale;
+    default:
+        return nullptr;
+    }
+}
+
+BattleCameraTrack* Get_BattleClipTrackByIndex(BattleCameraClip& clip, int trackIndex)
+{
+    switch (trackIndex)
+    {
+    case 0: return &clip.distanceOffset;
+    case 1: return &clip.fovOffset;
+    case 2: return &clip.shakeAmplitude;
+    case 3: return &clip.sideOffset;
+    case 4: return &clip.pivotOffset;
+    case 5: return &clip.yawOffset;
+    case 6: return &clip.orbitYaw;
+    case 7: return &clip.orbitRadius;
+    case 8: return &clip.orbitHeight;
+    case 9: return &clip.orbitLookHeight;
+    case 10: return &clip.shakeFrequencyX;
+    case 11: return &clip.shakeFrequencyY;
+    case 12: return &clip.shakeDecayRateX;
+    case 13: return &clip.shakeDecayRate;
+    case 14: return &clip.shakeVerticalRatio;
+    case 15: return &clip.shakeStrengthScale;
     default:
         return nullptr;
     }
@@ -118,9 +146,10 @@ const char* Get_BattleClipTrackLabel(int trackIndex)
     case 9: return "Orbit Look Height";
     case 10: return "Shake Frequency X";
     case 11: return "Shake Frequency Y";
-    case 12: return "Shake Decay Rate";
-    case 13: return "Shake Vertical Ratio";
-    case 14: return "Shake Strength Scale";
+    case 12: return "Shake Decay Rate X";
+    case 13: return "Shake Decay Rate Y";
+    case 14: return "Shake Vertical Ratio";
+    case 15: return "Shake Strength Scale";
     default:
         return "Unknown";
     }
@@ -1514,6 +1543,24 @@ void BattleCameraPreview_View::Render_TimelinePanel()
             }
 
             ImGui::SameLine();
+            if (ImGui::Button("Clear All Keys"))
+            {
+                _timelinePlaying = false;
+                _battleClipCurrentFrame = 0;
+                for (int trackIndex = 0; trackIndex < kBattleClipTimelineTrackCount; ++trackIndex)
+                {
+                    BattleCameraTrack* track = Get_BattleClipTrackByIndex(_editingBattleClip, trackIndex);
+                    if (track != nullptr)
+                        track->keyframes.clear();
+                }
+
+                _battleClipSelectedTrackIndex = 0;
+                _battleClipSelectedKeyIndex = -1;
+                Sync_PreviewTimeFromTimeline();
+                _previewDirty = true;
+            }
+
+            ImGui::SameLine();
             ImGui::TextDisabled("Frame %d | Time %.3f s", _battleClipCurrentFrame, Get_CurrentBattleClipPreviewTimeSec());
 
             ImGui::Separator();
@@ -1983,6 +2030,7 @@ void BattleCameraPreview_View::Render_BattleClipSequencer()
         &_previewOrbitLookHeightEnabled,
         &_previewShakeFrequencyXEnabled,
         &_previewShakeFrequencyYEnabled,
+        &_previewShakeDecayRateXEnabled,
         &_previewShakeDecayRateEnabled,
         &_previewShakeVerticalRatioEnabled,
         &_previewShakeStrengthScaleEnabled);
@@ -2314,6 +2362,8 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
         previewClipSample.shakeFrequencyX = BattleCameraClipSample{}.shakeFrequencyX;
     if (!_previewShakeFrequencyYEnabled)
         previewClipSample.shakeFrequencyY = BattleCameraClipSample{}.shakeFrequencyY;
+    if (!_previewShakeDecayRateXEnabled)
+        previewClipSample.shakeDecayRateX = BattleCameraClipSample{}.shakeDecayRateX;
     if (!_previewShakeDecayRateEnabled)
         previewClipSample.shakeDecayRate = BattleCameraClipSample{}.shakeDecayRate;
     if (!_previewShakeVerticalRatioEnabled)
@@ -2470,6 +2520,7 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
             previewClipSample.shakeStrengthScale,
             previewClipSample.shakeFrequencyX,
             previewClipSample.shakeFrequencyY,
+            previewClipSample.shakeDecayRateX,
             previewClipSample.shakeDecayRate,
             previewClipTimeSec,
             cameraRight,
@@ -2662,8 +2713,9 @@ void BattleCameraPreview_View::Load_BattlePresetForMode(BattleCameraMode mode, b
 {
     _editingBattlePreset = Make_FallbackBattleCameraPreset();
     const string selectedPresetId = Get_CurrentBattlePresetAuthoringOverrideId();
+    const bool shouldLoadBasePreset = loadBase || selectedPresetId.empty();
 
-    if (loadBase)
+    if (shouldLoadBasePreset)
         Client::CameraPresetIO::LoadBattlePresetFromFile(mode, _editingBattlePreset);
 
     if (!selectedPresetId.empty())
@@ -2685,7 +2737,8 @@ void BattleCameraPreview_View::Load_BattleClipForMode(BattleCameraMode mode, boo
     const string selectedClipId = Get_CurrentBattleClipAuthoringOverrideId();
     _editingBattleClip = BattleCameraClip{ 1.f };
     _editingBattleClip.timeMode = Get_DefaultBattleCameraClipTimeMode(mode);
-    if (loadBase)
+    const bool shouldLoadBaseClip = loadBase || selectedClipId.empty();
+    if (shouldLoadBaseClip)
         Client::BattleCameraClipIO::LoadBattleCameraClipFromFile(mode, _editingBattleClip);
 
     if (!selectedClipId.empty())
@@ -2793,20 +2846,31 @@ void BattleCameraPreview_View::Apply_AuthoringFileContext(BattleCameraMode mode,
     }
     else
     {
-        _previewContext.skillId = previousSkillId;
-        _useSkillOverride = !previousSkillId.empty();
-        if (_useSkillOverride)
+        if (authoringId.empty())
         {
-            auto previousIter = std::find(_skillIds.begin(), _skillIds.end(), previousSkillId);
-            if (previousIter != _skillIds.end())
-                _selectedSkillIndex = static_cast<int>(std::distance(_skillIds.begin(), previousIter));
+            _previewContext.skillId.clear();
+            _useSkillOverride = false;
+            _useManualBattleAuthoringTarget = false;
+            _manualBattleAuthoringPresetId.clear();
+            _manualBattleAuthoringClipId.clear();
         }
-
-        _useManualBattleAuthoringTarget = !authoringId.empty();
-        if (isPresetFile)
-            _manualBattleAuthoringPresetId = authoringId;
         else
-            _manualBattleAuthoringClipId = authoringId;
+        {
+            _previewContext.skillId = previousSkillId;
+            _useSkillOverride = !previousSkillId.empty();
+            if (_useSkillOverride)
+            {
+                auto previousIter = std::find(_skillIds.begin(), _skillIds.end(), previousSkillId);
+                if (previousIter != _skillIds.end())
+                    _selectedSkillIndex = static_cast<int>(std::distance(_skillIds.begin(), previousIter));
+            }
+
+            _useManualBattleAuthoringTarget = true;
+            if (isPresetFile)
+                _manualBattleAuthoringPresetId = authoringId;
+            else
+                _manualBattleAuthoringClipId = authoringId;
+        }
     }
 
     _hasLoadedBattlePreset = false;
@@ -3475,12 +3539,15 @@ void BattleCameraPreview_View::Insert_BattleClipKeyAtFrame(int trackIndex, int f
         track = &_editingBattleClip.shakeFrequencyY;
         break;
     case 12:
-        track = &_editingBattleClip.shakeDecayRate;
+        track = &_editingBattleClip.shakeDecayRateX;
         break;
     case 13:
-        track = &_editingBattleClip.shakeVerticalRatio;
+        track = &_editingBattleClip.shakeDecayRate;
         break;
     case 14:
+        track = &_editingBattleClip.shakeVerticalRatio;
+        break;
+    case 15:
         track = &_editingBattleClip.shakeStrengthScale;
         break;
     default:
@@ -3813,6 +3880,8 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
             clipSample.shakeFrequencyX = BattleCameraClipSample{}.shakeFrequencyX;
         if (!_previewShakeFrequencyYEnabled)
             clipSample.shakeFrequencyY = BattleCameraClipSample{}.shakeFrequencyY;
+        if (!_previewShakeDecayRateXEnabled)
+            clipSample.shakeDecayRateX = BattleCameraClipSample{}.shakeDecayRateX;
         if (!_previewShakeDecayRateEnabled)
             clipSample.shakeDecayRate = BattleCameraClipSample{}.shakeDecayRate;
         if (!_previewShakeVerticalRatioEnabled)
@@ -4351,10 +4420,12 @@ BattleCameraTrack* BattleCameraPreview_View::Get_SelectedBattleClipTrack()
     case 11:
         return &_editingBattleClip.shakeFrequencyY;
     case 12:
-        return &_editingBattleClip.shakeDecayRate;
+        return &_editingBattleClip.shakeDecayRateX;
     case 13:
-        return &_editingBattleClip.shakeVerticalRatio;
+        return &_editingBattleClip.shakeDecayRate;
     case 14:
+        return &_editingBattleClip.shakeVerticalRatio;
+    case 15:
         return &_editingBattleClip.shakeStrengthScale;
     default:
         return nullptr;
@@ -4391,9 +4462,10 @@ float BattleCameraPreview_View::Get_DefaultBattleClipValue(int trackIndex)
     {
         case 10: return 32.f;   // shakeFrequencyX
         case 11: return 47.f;   // shakeFrequencyY
-        case 12: return 8.f;    // shakeDecayRate
-        case 13: return 0.8f;   // shakeVerticalRatio
-        case 14: return 0.05f;  // shakeStrengthScale
+        case 12: return 0.f;    // shakeDecayRateX
+        case 13: return 8.f;    // shakeDecayRate
+        case 14: return 0.8f;   // shakeVerticalRatio
+        case 15: return 0.05f;  // shakeStrengthScale
         default: return 0.f;
     }
 }

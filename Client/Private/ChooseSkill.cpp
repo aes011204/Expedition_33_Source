@@ -68,6 +68,8 @@ void ChooseSkill::Update(float timeDelta)
     if (request.actor.statCom == nullptr)
         return;
 
+    const auto enemies = owner->Get_AliveEnemies();
+
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
         request.skillKey.clear(); // 스킬 메뉴 취소

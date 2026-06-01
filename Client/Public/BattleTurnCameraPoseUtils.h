@@ -101,6 +101,7 @@ inline bool Evaluate_BattleTurnPresetPose(
         clipSample.shakeStrengthScale,
         clipSample.shakeFrequencyX,
         clipSample.shakeFrequencyY,
+        clipSample.shakeDecayRateX,
         clipSample.shakeDecayRate,
         clipTime, cameraRight, cameraUp);
 
@@ -158,6 +159,7 @@ inline bool Evaluate_BattleTurnEnemyAttackPose(
     clipSample.shakeStrengthScale,
     clipSample.shakeFrequencyX,
     clipSample.shakeFrequencyY,
+    clipSample.shakeDecayRateX,
     clipSample.shakeDecayRate,
     clipTime, cameraRight, cameraUp);
 

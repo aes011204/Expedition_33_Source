@@ -76,6 +76,7 @@ void ChooseAction::Update(float timeDelta)
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::SELECTSKILL;
         event.subject = owner->Get_TurnActionRequest().actor.actor;
+        event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
         event.useClip = true;
         GAME->Get_EventBus().Publish(event);
 

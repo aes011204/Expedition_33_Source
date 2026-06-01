@@ -245,6 +245,7 @@ private:
     bool _previewOrbitLookHeightEnabled = true;
     bool _previewShakeFrequencyXEnabled = true;
     bool _previewShakeFrequencyYEnabled = true;
+    bool _previewShakeDecayRateXEnabled = true;
     bool _previewShakeDecayRateEnabled = true;
     bool _previewShakeVerticalRatioEnabled = true;
     bool _previewShakeStrengthScaleEnabled = true;

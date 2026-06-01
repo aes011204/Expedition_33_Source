@@ -16,7 +16,8 @@ namespace
 {
 BattleCameraClipTimeMode Get_DefaultBattleCameraClipTimeMode(BattleCameraMode cameraMode)
 {
-    return cameraMode == BattleCameraMode::BATTLEINTRO
+    return cameraMode == BattleCameraMode::BATTLEINTRO ||
+        cameraMode == BattleCameraMode::SELECTSKILL
         ? BattleCameraClipTimeMode::Independent
         : BattleCameraClipTimeMode::AnimationSync;
 }
@@ -167,8 +168,8 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
                     request.mode = event.cameraMode;
                     request.subject = event.subject;
                     request.skillId = event.skillId;
-                   // request.presetId = event.presetId;
-                   // request.clipId = event.clipId;
+                    request.presetId = event.presetId;
+                    request.clipId = event.clipId;
                     request.freezeSubjectDuringTransition = true;
                     break;
             }
@@ -196,7 +197,6 @@ void BattleTurnCamera::BeginPlay()
 
 void BattleTurnCamera::Update(float timeDelta)
 {
-    LOG_DEBUG("Battle Camera Mode = {} ", magic_enum::enum_name(_currentRequest.mode));
 
     if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
@@ -301,8 +301,8 @@ void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vect
     const Vec3 cameraPos =
         heroCenter +
         backDir * 8.5f +          
-        rightDir * 2.0f +         
-        Vec3(2.f, 3.f, -2.f);     // 테스트용 임시 위치 보정
+        rightDir +         
+        Vec3(0.f, 3.f, 2.f);  // 테스트용 임시 위치 보정
 
     Apply_LookAt(cameraPos, lookAt);
 
@@ -394,43 +394,13 @@ const BattleCameraClip* BattleTurnCamera::Resolve_BattleCameraClipById(BattleCam
 
     const string cacheKey = string(magic_enum::enum_name(mode)) + ":" + clipId;
     if (auto iter = _clipsById.find(cacheKey); iter != _clipsById.end())
-    {
-        LOG_DEBUG(
-            "[BattleCameraClip] cache mode={} clipId={} duration={:.3f} timeMode={} shakeKeys={}",
-            string(magic_enum::enum_name(mode)),
-            clipId,
-            iter->second.duration,
-            string(magic_enum::enum_name(iter->second.timeMode)),
-            iter->second.shakeAmplitude.keyframes.size());
         return &iter->second;
-    }
 
     BattleCameraClip clip{};
     if (!BattleCameraClipIO::LoadBattleCameraClipFromFile(mode, clip, clipId))
     {
-        LOG_WARN(
-            "[BattleCameraClip] load failed mode={} clipId={}",
-            string(magic_enum::enum_name(mode)),
-            clipId);
         return nullptr;
     }
-
-    const BattleCameraTrack& shakeTrack = clip.shakeAmplitude;
-    const float firstShakeTime = shakeTrack.keyframes.empty() ? -1.f : shakeTrack.keyframes.front().time;
-    const float firstShakeValue = shakeTrack.keyframes.empty() ? 0.f : shakeTrack.keyframes.front().value;
-    const float lastShakeTime = shakeTrack.keyframes.empty() ? -1.f : shakeTrack.keyframes.back().time;
-    const float lastShakeValue = shakeTrack.keyframes.empty() ? 0.f : shakeTrack.keyframes.back().value;
-    LOG_DEBUG(
-        "[BattleCameraClip] loaded mode={} clipId={} duration={:.3f} timeMode={} shakeKeys={} first={:.3f}:{:.3f} last={:.3f}:{:.3f}",
-        string(magic_enum::enum_name(mode)),
-        clipId,
-        clip.duration,
-        string(magic_enum::enum_name(clip.timeMode)),
-        shakeTrack.keyframes.size(),
-        firstShakeTime,
-        firstShakeValue,
-        lastShakeTime,
-        lastShakeValue);
 
     _clipsById[cacheKey] = clip;
     return &_clipsById[cacheKey];
@@ -531,11 +501,13 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
         outPose.cameraPos =
             heroCenter +
             backDir * 8.5f +
-            rightDir * 2.0f +
-            Vec3(2.f, 3.f, -2.f);
+            rightDir +         
+            Vec3(0.f, 3.f, 2.f);
+
         outPose.lookTarget = heroCenter + Vec3(0.f, 2.2f, 0.f);
         outPose.fovY = preset.camera.fovy;
         outPose.rollOffset = 0.f;
+
         return true;
     }
     case BattleCameraMode::ENEMYATTACK:
@@ -765,14 +737,6 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         request.restartClip == false &&
         (!request.useClip || _activeClip != nullptr))
     {
-        LOG_DEBUG(
-            "[BattleCameraRequest] ignored same request mode={} presetId={} clipId={} useClip={} restartClip={} activeClip={}",
-            string(magic_enum::enum_name(request.mode)),
-            request.presetId,
-            request.clipId,
-            request.useClip,
-            request.restartClip,
-            _activeClip != nullptr);
         return;
     }
 
@@ -787,14 +751,6 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     if (!request.presetId.empty() && resolvedPresetById == nullptr)
         return;
-
-    if (!request.clipId.empty() && resolvedClipById == nullptr)
-    {
-        LOG_DEBUG(
-        "[BattleCameraClip] missing clip, continue with preset only mode={} clipId={}",
-        string(magic_enum::enum_name(request.mode)),
-        request.clipId);
-    }
 
     BattleCameraClip* nextActiveClip = nullptr;
     BattleCameraPreset nextPreset{};
@@ -997,6 +953,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     }
 
     _poseTransition.active = false;
+
     if(shouldRestartClip)
     {
         _activeClip = nextActiveClip;
@@ -1007,6 +964,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         _activeClip = nullptr;
         Reset_ClipPlaybackState();
     }
+
     _isClipPreview = false;
     _isFirstUpdate = true;
     _currentRequest = request;
@@ -1097,7 +1055,9 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
 
     // Clip이 있을 시 적용
     const BattleCameraClipSample clip  = Advance_ActiveClip(timeDelta, _currentRequest);
-    if (_currentRequest.mode != BattleCameraMode::PLAYERATTACK)
+
+    //if (_currentRequest.mode != BattleCameraMode::PLAYERATTACK)// && _currentRequest.mode != BattleCameraMode::SELECTSKILL)
+    if(_currentPreset.snapOnEnter == false)
         _smoothedTargetPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
     
     EvaluatedPose pose{};
@@ -1427,11 +1387,6 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
         }
         else if (!_clipSyncAnimationName.empty() && currentAnimationName != _clipSyncAnimationName)
         {
-            LOG_DEBUG(
-                "[BattleCameraClipSync] stop animation changed clipId={} captured={} current={}",
-                request.clipId,
-                _clipSyncAnimationName,
-                currentAnimationName);
             _activeClip = nullptr;
             Reset_ClipPlaybackState();
             return sample;
@@ -1439,11 +1394,6 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
 
         if (currentAnimationTimeSec + 0.0001f < _clipSyncPrevAnimationTime)
         {
-            LOG_DEBUG(
-                "[BattleCameraClipSync] stop animation time rewound clipId={} prev={:.3f} current={:.3f}",
-                request.clipId,
-                _clipSyncPrevAnimationTime,
-                currentAnimationTimeSec);
             _activeClip = nullptr;
             Reset_ClipPlaybackState();
             return sample;
@@ -1460,32 +1410,6 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
         _clipSyncPrevAnimationTime = currentAnimationTimeSec;
 
         sample = Sample_BattleCameraClip(*_activeClip, sampleTime);
-
-        if (_clipDebugSampleLogCount < 20 || (!_clipDebugLoggedShake && sample.shakeAmplitude > 0.f))
-        {
-            const BattleCameraTrack& shakeTrack = _activeClip->shakeAmplitude;
-            const float firstShakeTime = shakeTrack.keyframes.empty() ? -1.f : shakeTrack.keyframes.front().time;
-            const float firstShakeValue = shakeTrack.keyframes.empty() ? 0.f : shakeTrack.keyframes.front().value;
-            const float lastShakeTime = shakeTrack.keyframes.empty() ? -1.f : shakeTrack.keyframes.back().time;
-            const float lastShakeValue = shakeTrack.keyframes.empty() ? 0.f : shakeTrack.keyframes.back().value;
-            LOG_DEBUG(
-                "[BattleCameraClipSync] clipId={} anim={} animTime={:.3f}/{:.3f} base={:.3f} sample={:.3f} shake={:.3f} keys={} first={:.3f}:{:.3f} last={:.3f}:{:.3f}",
-                request.clipId,
-                currentAnimationName,
-                currentAnimationTimeSec,
-                syncDurationSec,
-                _clipSyncBaseTime,
-                sampleTime,
-                sample.shakeAmplitude,
-                shakeTrack.keyframes.size(),
-                firstShakeTime,
-                firstShakeValue,
-                lastShakeTime,
-                lastShakeValue);
-            ++_clipDebugSampleLogCount;
-            if (sample.shakeAmplitude > 0.f)
-                _clipDebugLoggedShake = true;
-        }
 
         if (sampleTime >= 1.f)
         {

@@ -16,6 +16,7 @@ enum class BattleCameraMode
   PLAYERATTACK,
   SELECTITEM,
   SELECTSKILL,
+  PARRY,
   AIM
 };
 
