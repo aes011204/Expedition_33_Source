@@ -8,38 +8,27 @@ PathFollower::~PathFollower()
 {
 }
 
-void PathFollower::Update(float deltaTime, Vec3& position, float speed)
+bool PathFollower::Update(const Vec3& position, float reachDistance, Vec3& outWorldDir)
 {
+    outWorldDir = Vec3::Zero;
+
     if (_fin)
-        return;
+        return false;
 
     Vec3 dir = _target - position;
-    float dist = dir.Length();
+    dir.y = 0.f;
 
-
-    //if (dist <= 0.5f)
-    //{
-    //    //position = _target;
-    //    _fin = true;
-    //    return;
-    //}
-
-    float moveDist = speed * deltaTime;
-
-    if (dist <= moveDist)
+    const float dist = dir.Length();
+    if (dist <= reachDistance)
     {
-        //position = _target;
         _fin = true;
-        return;
+        return false;
     }
 
-
-   ;
-
     dir.Normalize();
-    position += dir * speed * deltaTime;
+    outWorldDir = dir;
+    return true;
 }
-
 
 bool PathFollower::Is_Finished()
 {

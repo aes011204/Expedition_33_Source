@@ -50,24 +50,28 @@ struct TargetCameraPreset
     CommonCameraPreset camera;
     bool         snapOnEnter = false;
 
-    float        followSpeed;
-    float        distance;
+    float        followSpeed = 8.f;
+    float        targetFollowSpeed = 4.f; // 플레이어의 위치를 카메라가 따라가는 속도
+    float        verticalFollowSpeed = 10.f; // 플레이어의 높이를 카메라가 따라가는 속도
+    BattleCameraTransitionEasing targetFollowEasing = BattleCameraTransitionEasing::EaseOut; // 수평 추적 곡선
 
-    float        sideOffset;
-    float        heightOffset;
-    float        aimOffset;
+    float        distance = 2.51f;
 
-    float        pitchLookScale;
+    float        sideOffset = 0.f;
+    float        heightOffset = 0.65f;
+    float        aimOffset = 0.5f;
 
-    float        pitchMin;
-    float        pitchMax;
+    float        pitchLookScale = 0.5f;
+
+    float        pitchMin = -60.f;
+    float        pitchMax = 60.f;
 
     float        yawOffset = 0.f;
     float        pitchOffset = 0.f;
     float        rollOffset = 0.f;
 
-    float        lookHeight;
-    float        pivotHeight;
+    float        lookHeight = 1.13f;
+    float        pivotHeight = 0.4f;
 
     bool         allowMouseRotation = true;
 

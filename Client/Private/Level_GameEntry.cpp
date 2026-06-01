@@ -30,9 +30,7 @@ void Level_GameEntry::Update(float timeDelta)
 
 HRESULT Level_GameEntry::Render()
 {
-#ifdef _DEBUG
-    SetWindowText(g_hWnd, TEXT("GameEntry Level"));
-#endif
+    Update_WindowTitleFps(_windowTitleFps, L"GameEntry Level");
 
     return S_OK;
 }

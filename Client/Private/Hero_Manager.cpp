@@ -391,6 +391,51 @@ Vec3 Hero_Manager::Resolve_SnapPosition(const Shared<Player_WorldBase>& hero, co
     return candidatePos;
 }
 
+Vec3 Hero_Manager::Resolve_FollowTargetPosition(const Shared<Player_WorldBase>& hero, const Vec3& fromPos, const Vec3& desiredPos) const
+{
+    if (hero == nullptr)
+        return desiredPos;
+
+    auto collider = hero->Get_Component<ColliderCom>();
+    if (collider == nullptr || collider->Get_PxShape() == nullptr)
+        return desiredPos;
+
+    auto movement = hero->Get_Component<MovementCom>();
+
+    float skinWidth = 0.03f;
+    float groundSnapUp = 0.35f;
+    float groundSnapDown = 0.65f;
+
+    if (movement)
+    {
+        const auto& moveDesc = movement->Get_MoveDesc();
+
+        skinWidth = moveDesc.sweep.skinWidth;
+        groundSnapUp = moveDesc.sweep.groundSnapUp;
+        groundSnapDown = moveDesc.sweep.groundSnapDown;
+    }
+
+    Vec3 candidatePos = desiredPos;
+    candidatePos.y = fromPos.y;
+
+    Matrix probeWorld = hero->Get_Transform()->Get_WorldMatrix();
+    probeWorld.Translation(candidatePos + Vec3(0.f, groundSnapUp, 0.f));
+
+    PhysXQueryHit groundHit{};
+    const float probeDistance = groundSnapUp + groundSnapDown;
+
+    const bool hasGround = GAME->Probe_Ground(
+        collider.get(),
+        probeWorld,
+        probeDistance,
+        groundHit);
+
+    if (hasGround)
+        candidatePos.y += groundSnapUp - max(0.f, groundHit.distance - skinWidth);
+
+    return candidatePos;
+}
+
 void Hero_Manager::Apply_ControlRoles()
 {
     for (uint32 i = 0; i < _heroes.size(); ++i)
@@ -479,18 +524,19 @@ void Hero_Manager::Update_Followers(float timeDelta)
             followerSlot == 0 ? _snapBackDistanceA : _snapBackDistanceB;
 
         const float sideOffset = followerSlot == 0 ? -_followerSideOffset : _followerSideOffset;
-        const Vec3 targetPos =
+        const Vec3 rawTargetPos =
             trailPoint.position - forward * backDistance + right * sideOffset;
 
-        // Movement
         auto& runtime = _followerRuntime[i];
-        runtime.desiredTargetPos = targetPos;
+        Vec3 targetPos = rawTargetPos;
 
         if (_heroes[i].hero && _heroes[i].hero->Get_Transform())
         {
-            Vec3 delta = targetPos - _heroes[i].hero->Get_Transform()->Get_WorldPosition();
-            delta.y = 0.f;
+            const Vec3 currentPos = _heroes[i].hero->Get_Transform()->Get_WorldPosition();
+            targetPos = Resolve_FollowTargetPosition(_heroes[i].hero, currentPos, rawTargetPos);
+            runtime.desiredTargetPos = targetPos;
 
+            const Vec3 delta = targetPos - currentPos;
             runtime.lastMoveDistance = delta.Length();
 
             runtime.sprintFollowHoldTime = max(0.f, runtime.sprintFollowHoldTime - timeDelta);
@@ -510,6 +556,7 @@ void Hero_Manager::Update_Followers(float timeDelta)
         }
         else
         {
+            runtime.desiredTargetPos = targetPos;
             runtime.lastMoveDistance = 0.f;
             runtime.sprintFollow = false;
             runtime.sprintFollowHoldTime = 0.f;
@@ -559,17 +606,13 @@ void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uin
     auto tr = follower->Get_Transform();
     CHECK_NULL(tr);
 
-    Vec3 delta = targetPos - tr->Get_WorldPosition();
-    delta.y = 0.f;
-
+    const Vec3 currentPos = tr->Get_WorldPosition();
+    const Vec3 delta = targetPos - currentPos;
     const float distance = delta.Length();
 
     if (distance >= _teleportReseatDistance)
     {
-        const Vec3 reseatPos = Resolve_SnapPosition(
-            follower, tr->Get_WorldPosition(), targetPos);
-
-        tr->Set_WorldPosition(reseatPos); // 너무 멀어지면 재배치
+        tr->Set_WorldPosition(targetPos); // 너무 멀어지면, follow가 쓰던 같은 지면 보정 위치로 재배치
 
         movement->Clear_FollowMoveCommand();
         movement->Apply_Input({});
@@ -582,12 +625,15 @@ void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uin
     PlayerControllerCom::FollowControl follow{};
     follow.enabled = true;
 
-    if (distance > _followStopDistance)
+    Vec3 moveDelta = delta;
+    moveDelta.y = 0.f;
+
+    if (moveDelta.Length() > _followStopDistance)
     {
-        delta.Normalize();
+        moveDelta.Normalize();
 
         follow.hasMoveIntent = true;
-        follow.worldDir = delta;
+        follow.worldDir = moveDelta;
         follow.sprintFollow = _followerRuntime[followerIndex].sprintFollow;
     }
 

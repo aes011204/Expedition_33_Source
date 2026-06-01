@@ -42,9 +42,7 @@ void Level_MapTest::Update(float fTimeDelta)
 
 HRESULT Level_MapTest::Render()
 {
-#ifdef _DEBUG
-    SetWindowText(g_hWnd, L"Level_MapTest");
-#endif
+    Update_WindowTitleFps(_windowTitleFps, L"Level_MapTest");
 
     return S_OK;
 }
@@ -94,6 +92,7 @@ HRESULT Level_MapTest::Ready_Layer_Camera(const wstring& strLayerTag)
     cameraDesc.farPlane = 500.f;
     cameraDesc.mouseSensor = 0.06f;
     cameraDesc.followSpeed = 4.f;
+    cameraDesc.targetFollowSpeed = 4.f;
     cameraDesc.distance = 1.8f;
     cameraDesc.sideOffset = 0.f;
     cameraDesc.heightOffset = 0.5f;
@@ -156,8 +155,8 @@ HRESULT Level_MapTest::Ready_Layer_Monster(const wstring& strLayerTag)
         ETOI(LevelType::MapTest),
         strLayerTag);
 
-    CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, -10.f));
+    CHECK_NULL(monsterPortier, E_FAIL);
+    monsterPortier->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, -10.f));
 
     //Volester
     const Shared<GameObject> monsterVolester = Client::Spawn_Prefab::Spawn(
@@ -165,8 +164,8 @@ HRESULT Level_MapTest::Ready_Layer_Monster(const wstring& strLayerTag)
         ETOI(LevelType::MapTest),
         strLayerTag);
 
-    CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 20.f));
+    CHECK_NULL(monsterVolester, E_FAIL);
+    monsterVolester->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 20.f));
 
     //Bishop
     const Shared<GameObject> monsterBishop = Client::Spawn_Prefab::Spawn(
@@ -174,8 +173,15 @@ HRESULT Level_MapTest::Ready_Layer_Monster(const wstring& strLayerTag)
         ETOI(LevelType::MapTest),
         strLayerTag);
 
-    CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 30.f));
+    CHECK_NULL(monsterBishop, E_FAIL);
+    monsterBishop->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 30.f));
+
+    // 전투 시작 위치
+    auto spawner = Spawn_Prefab::Prefab("BSS_GamePlay_Boss")
+        .AtLevel(ETOI(LevelType::MapTest))
+        .InLayer(TEXT("Layer_BattleStartSpawner"))
+        .Position(Vec3(17.f, 0.46f, -3.2f))
+        .Spawn();
 
     return S_OK;
 }

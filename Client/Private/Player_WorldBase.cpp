@@ -72,6 +72,26 @@ void Player_WorldBase::Priority_Update(float timeDelta)
     _playerControllerCom->Update_InputState();
     _playerStateMachineCom->Update_CurrentState(timeDelta);
     _playerControllerCom->Update_Movement(timeDelta);
+
+    if (_movementCom && _movementCom->Did_InputJumpStart())
+    {
+        _playerStateMachineCom->Change_State(PlayerState::Jump);
+    }
+    else if (_movementCom)
+    {
+        const PlayerState currentState = _playerStateMachineCom->Get_CurrentPlayerState();
+        const bool canEnterFallState =
+            currentState == PlayerState::Idle ||
+            currentState == PlayerState::Move;
+
+        if (canEnterFallState &&
+            !_movementCom->Is_Grounded() &&
+            _movementCom->Get_Velocity().y < -1.f)
+        {
+            _playerStateMachineCom->Change_State(PlayerState::Jump);
+        }
+    }
+
     _playerStateMachineCom->LateUpdate_CurrentState(timeDelta);
 }
 

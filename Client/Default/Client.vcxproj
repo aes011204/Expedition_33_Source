@@ -193,6 +193,7 @@
     <ClInclude Include="..\Public\BattleMechanismCom.h" />
     <ClInclude Include="..\Public\BattleReactionController.h" />
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
+    <ClInclude Include="..\Public\BattleStartSpawner.h" />
     <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
@@ -315,6 +316,7 @@
     <ClInclude Include="..\Public\Level_MapTest.h" />
     <ClInclude Include="..\Public\Level_Stage01.h" />
     <ClInclude Include="..\Public\MapInstancedMesh.h" />
+    <ClInclude Include="..\Public\MapAuthoringIO.h" />
     <ClInclude Include="..\Public\MapLoader.h" />
     <ClInclude Include="..\Public\MapStaticMesh.h" />
     <ClInclude Include="..\Public\MeshEmitter.h" />
@@ -372,6 +374,7 @@
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
     <ClInclude Include="..\Public\Trigger_WorldAction.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
+    <ClInclude Include="..\Public\UI_AddAP.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
     <ClInclude Include="..\Public\UI_BattleAnnounce.h" />
     <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
@@ -464,6 +467,7 @@
     <ClCompile Include="..\Private\BattleMechanismCom.cpp" />
     <ClCompile Include="..\Private\BattleReactionController.cpp" />
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
+    <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
     <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
     <ClCompile Include="..\private\BT_IsStun.cpp" />
@@ -576,6 +580,7 @@
     <ClCompile Include="..\Private\Level_MapTest.cpp" />
     <ClCompile Include="..\Private\Level_Stage01.cpp" />
     <ClCompile Include="..\Private\MapInstancedMesh.cpp" />
+    <ClCompile Include="..\Private\MapAuthoringIO.cpp" />
     <ClCompile Include="..\Private\MapLoader.cpp" />
     <ClCompile Include="..\Private\MapStaticMesh.cpp" />
     <ClCompile Include="..\Private\MeshEmitter.cpp" />
@@ -633,6 +638,7 @@
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
     <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
+    <ClCompile Include="..\Private\UI_AddAP.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
     <ClCompile Include="..\Private\UI_BattleAnnounce.cpp" />
     <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />

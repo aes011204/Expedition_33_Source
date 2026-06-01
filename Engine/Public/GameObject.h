@@ -49,6 +49,8 @@ public:
 
     void            Set_SourcePrefabName(const string& prefabName) { _sourcePrefabName = prefabName; }
     const string&   Get_SourcePrefabName() const { return _sourcePrefabName; }
+    void            Set_RuntimeAuthoringLoaded(bool loaded) { _runtimeAuthoringLoaded = loaded; }
+    bool            Is_RuntimeAuthoringLoaded() const { return _runtimeAuthoringLoaded; }
 
 public:
     virtual void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
@@ -165,6 +167,7 @@ protected:
     ShadowCasterType        _shadowCasterType = ShadowCasterType::None;
 
     string                  _sourcePrefabName = {};
+    bool                    _runtimeAuthoringLoaded = false;
 
 protected:
     map<const wstring, Shared<Component>> _components;

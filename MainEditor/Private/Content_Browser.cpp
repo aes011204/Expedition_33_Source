@@ -229,6 +229,13 @@ void Content_Browser::Render()
         {
             if (_currentFolder)
             {
+                ImGui::BeginDisabled(!Can_GoParentFolder());
+                if (ImGui::ArrowButton("##ParentFolder", ImGuiDir_Up))
+                    Go_ParentFolder();
+                ImGui::EndDisabled();
+
+                ImGui::SameLine();
+
                 ImGui::BeginDisabled(!Can_GoBack());
                 if (ImGui::ArrowButton("##BackFolder", ImGuiDir_Left))
                     Go_BackFolder();
@@ -587,10 +594,11 @@ void Content_Browser::Draw_AssetView()
             {
                 if (ImGui::BeginDragDropSource())
                 {
+                    const string prefabAssetKey = !fileEntry.guid.empty() ? fileEntry.guid : pureName; // guid가 있으면 경로 대신 guid를 payload로 싣고, 없을 때만 기존 prefab 이름 fallback을 쓴다.
                     ImGui::SetDragDropPayload(
                         "CONTENT_BROWSER_PREFAB",
-                        pureName.c_str(),
-                        pureName.size() + 1);
+                        prefabAssetKey.c_str(),
+                        prefabAssetKey.size() + 1);
 
                     ImGui::Text("Prefab");
                     ImGui::Separator();
@@ -1140,6 +1148,33 @@ void Content_Browser::Go_BackFolder()
     _suppressHistoryRecord = true;
     Open_Folder(target);
     _suppressHistoryRecord = false;
+}
+
+bool Content_Browser::Can_GoParentFolder() const
+{
+    if (_currentFolder == nullptr || _rootFolder.fullPath.empty())
+        return false;
+
+    const fs::path currentPath(_currentFolder->fullPath);
+    const fs::path rootPath(_rootFolder.fullPath);
+    if (currentPath.empty() || currentPath == rootPath)
+        return false;
+
+    const fs::path parentPath = currentPath.parent_path();
+    return !parentPath.empty() && parentPath != currentPath;
+}
+
+void Content_Browser::Go_ParentFolder()
+{
+    if (!Can_GoParentFolder())
+        return;
+
+    const fs::path parentPath = fs::path(_currentFolder->fullPath).parent_path();
+    FFolderNode* target = Find_FolderNode(_rootFolder, parentPath.wstring());
+    if (!target)
+        return;
+
+    Open_Folder(target);
 }
 
 void Content_Browser::Go_ForwardFolder()

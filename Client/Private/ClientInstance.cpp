@@ -336,9 +336,9 @@ bool ClientInstance::Is_BattleEnterTransitionPlaying() const
 }
 
 void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
-                                        const vector<string>& MonsterProtoTag, const Shared<GameObject>& sourceObject)
+                                        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject)
 {
-    return _battleController->OnEnterBattleField(FieldID, isPlayerAdvantage, heroIds, MonsterProtoTag, sourceObject);
+    return _battleController->OnEnterBattleField(FieldID, isPlayerAdvantage, heroIds, battleMonsterSpawnDescs, sourceObject);
 }
 
 bool ClientInstance::Is_BattleActive() const

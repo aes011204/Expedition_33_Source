@@ -678,6 +678,10 @@ struct BattleActionPhase;
         Offensive_Idle, // 마엘 공격 태세 idle
         Defensive_Idle, // 마엘 방어 태세 idle
         Virtuose_Idle,  // 마엘 명인 태세 idle
+
+        Targeted_Start, // 적 턴 시작할 때
+        Targeted_Idle,
+        Targeted_End,
     };
 
     enum class BattleReactionType

@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Client_Defines.h"
+#include "Level_WindowTitleFps.h"
 #include "Level.h"
 
 NS_BEGIN(Engine)
@@ -19,6 +20,9 @@ public:
     virtual HRESULT Initialize() override;
     virtual void Update(float timeDelta) override;
     virtual HRESULT Render() override;
+
+private:
+    WindowTitleFpsState _windowTitleFps = {};
 
 private:
     void    Handle_Button();

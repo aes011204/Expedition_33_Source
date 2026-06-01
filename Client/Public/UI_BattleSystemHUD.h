@@ -45,6 +45,9 @@ public:
     void    Set_GustaveMechanismCharge(const Shared<BattleMechanismCom>& mechanismCom);
     void    Clear_GustaveMechanismCharge();
 
+    void    Set_LuneMechanismStains(const Shared<BattleMechanismCom>& mechanismCom);
+    void    Clear_LuneMechanismStains();
+
     void    Set_MaelleMechanismStance(const Shared<BattleMechanismCom>& mechanismCom);
     void    Clear_MaelleMechanismStance();
 
@@ -61,6 +64,10 @@ private:
     static void Set_HpText(PartyBattleStatSlot& slot, float hp, float maxHp);
     static void Set_ApText(PartyBattleStatSlot& slot, uint32 ap);
 
+    void    Apply_LuneState(const Shared<BattleMechanismCom>& mechanismCom);
+    Shared<UI_Base> Resolve_LuneStainImage(int32 slotIndex, ElementalType element) const;
+    void    Close_AllLuneStains();
+
     void    Apply_MaelleStanceBadge(BattleMechanismCom::MaelleStance stance);
     void    Close_AllMaelleStanceBadges();
 
@@ -75,6 +82,8 @@ private: /* 구스타브 */
     Shared<UI_Text> _gustaveMaxChargeText{};
     Shared<UI_Text> _gustaveMaxChargeTextBg{};
 
+private: /* 루네 */
+    array<array<Shared<UI_Base>, 4>, BattleMechanismCom::kLuneMaxStains> _luneStainImages{};
 
 private: /* 마엘 */
     Shared<UI_Base> _maelleCurrentStanceRoot{};

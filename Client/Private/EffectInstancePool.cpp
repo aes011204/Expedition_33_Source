@@ -283,6 +283,7 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(const AcquireDesc& desc, co
     const Shared<TransformCom> transform = instance->Get_Transform();
     CHECK_NULL(transform, E_FAIL);
     transform->Set_WorldPosition(desc.worldPosition);
+    transform->Set_Scale(desc.scale);
 
     CHECK_FAILED(instance->Play(), E_FAIL);
     return S_OK;

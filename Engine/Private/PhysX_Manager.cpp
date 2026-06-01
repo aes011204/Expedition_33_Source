@@ -39,10 +39,11 @@ namespace
         Vec3 translation{};
         tempMatix.Decompose(scale, rotation, translation);
 
+        // Triangle mesh는 음수 스케일을 지원하므로 부호를 유지해야 mirrored 배치의 winding/normal이 맞는다.
         return PxMeshScale(PxVec3(
-            max(0.0001f, fabsf(scale.x)),
-            max(0.0001f, fabsf(scale.y)),
-            max(0.0001f, fabsf(scale.z))));
+            (scale.x >= 0.f ? 1.f : -1.f) * max(0.0001f, fabsf(scale.x)),
+            (scale.y >= 0.f ? 1.f : -1.f) * max(0.0001f, fabsf(scale.y)),
+            (scale.z >= 0.f ? 1.f : -1.f) * max(0.0001f, fabsf(scale.z))));
     }
 
     Vec3 Multiply_AbsComponents(const Vec3& value, const Vec3& scale)
