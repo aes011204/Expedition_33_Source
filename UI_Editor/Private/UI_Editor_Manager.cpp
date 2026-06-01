@@ -1010,6 +1010,14 @@ namespace UIEditor
             [&]() { return _objectEditService.Set_ObjectColor(_document, objectId, color); });
     }
 
+    bool UI_Editor_Manager::Set_UIObjectAlphaMultiplier(ObjectId objectId, float alphaMultiplier)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectAlphaMultiplier(_document, objectId, alphaMultiplier); },
+            [&]() { return _objectEditService.Set_ObjectAlphaMultiplier(_document, objectId, alphaMultiplier); });
+    }
+
     bool UI_Editor_Manager::Set_UIObjectImageRenderMode(ObjectId objectId, UI_ImageRenderMode imageRenderMode)
     {
         return Apply_UIObjectEdit(
@@ -1301,9 +1309,19 @@ namespace UIEditor
         _animationPreviewService.Play_KeyframeAsset(asset, startFrame);
     }
 
+    void UI_Editor_Manager::Play_AnimationSequencePreview(const UI_AnimationSequenceAsset& sequence, int32 startFrame)
+    {
+        _animationPreviewService.Play_SequenceAsset(sequence, startFrame);
+    }
+
     void UI_Editor_Manager::Preview_AnimationAsset(const UI_AnimationAsset& asset, int32 frame)
     {
         _animationPreviewService.Preview_KeyframeAsset(asset, frame);
+    }
+
+    void UI_Editor_Manager::Preview_AnimationSequence(const UI_AnimationSequenceAsset& sequence, int32 frame)
+    {
+        _animationPreviewService.Preview_SequenceAsset(sequence, frame);
     }
 
     void UI_Editor_Manager::Pause_AnimationPreview()

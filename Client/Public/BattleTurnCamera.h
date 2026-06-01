@@ -26,6 +26,7 @@ public:
         string          clipId;
         bool            useClip = false;
         bool            restartClip = false;
+        bool            freezeSubjectDuringTransition = false;
     };
 
 public:
@@ -64,6 +65,12 @@ public:
     const BattleShotRequest& Get_CurrentRequest() const { return _currentRequest; }
 
 private:
+    struct ResolvedShotAssets
+    {
+        BattleCameraPreset preset{};
+        BattleCameraClip* clip = nullptr;
+    };
+
     struct PoseTransitionState
     {
         bool active = false;
@@ -77,9 +84,15 @@ private:
         BattleCameraClip* targetActiveClip = nullptr;
         Vec3 targetSmoothedTargetPos = Vec3::Zero;
         Vec3 targetPrevTargetPos = Vec3::Zero;
+        Vec3 frozenSubjectPos = {};
+        bool hasFrozenPos = false;
     };
 
 private:
+    ResolvedShotAssets Resolve_ShotAssets(
+        const BattleShotRequest& request,
+        const BattleCameraPreset* resolvedPresetById,
+        const BattleCameraClip* resolvedClipById) const;
     const BattleCameraPreset* Resolve_BattleCameraPresetById(BattleCameraMode mode, const string& presetId) const;
     const BattleCameraClip* Resolve_BattleCameraClipById(BattleCameraMode mode, const string& clipId) const;
     void Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt);
@@ -93,6 +106,7 @@ private:
         const BattleCameraClipSample& clipSample,
         float clipTime,
         EvaluatedPose& outPose) const;
+    bool Evaluate_WidePose(float fovY, EvaluatedPose& outPose) const;
     bool Should_StartPoseTransition(const BattleShotRequest& request) const;
     bool Start_PoseTransition(
         const BattleShotRequest& request,
@@ -115,32 +129,19 @@ private:
         const BattleCameraPreset& preset,
         const BattleCameraClipSample& clipSample,
         EvaluatedPose& outPose) const;
+    BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode);
+    const BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode) const;
+    BattleCameraClip* Find_ClipStorage(BattleCameraMode cameraMode);
+    const BattleCameraClip* Find_ClipStorage(BattleCameraMode cameraMode) const;
 
 private:
-    void Update_WideMode(float timeDelta);
-    void Update_PlayerFocusMode(float timeDelta);
-    void Update_EnemyFocusMode(float timeDelta);
     void Update_EnemyAttackMode(float timeDelta);
     void Update_FromCurrentPreset(float timeDelta);
     void Preview_CurrentPresetAtTime(float time);
     void Preview_EnemyAttackAtTime(float time);
     void Update_LiveEditInput(float timeDelta);
-    void Update_PlayerAttackMode(float timeDelta);
-public:
-    bool Evaluate_PreviewCurrentPresetPose(
-        const Vec3& targetPos,
-        const BattleCameraPreset& preset,
-        const BattleCameraClipSample& clipSample,
-        float yawBase,
-        float pitchBase,
-        EvaluatedPose& outPose) const;
-    bool Evaluate_PreviewEnemyAttackPose(
-        const Vec3& subjectPos,
-        const Vec3& opponentPos,
-        const BattleCameraPreset& preset,
-        const BattleCameraClipSample& clipSample,
-        EvaluatedPose& outPose) const;
 
+public:
     static float Evaluate_CameraTransitionT(BattleCameraTransitionEasing easing, float t);
 
     BattleCameraPreset* Get_MutablePreset(BattleCameraMode cameraMode);

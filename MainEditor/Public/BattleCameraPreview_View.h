@@ -214,6 +214,7 @@ private:
     BattleCameraTrack* Get_SelectedBattleClipTrack();
     BattleCameraKeyframe* Get_SelectedBattleClipKeyframe();
     float Get_TransitionSequenceDuration() const;
+    float Get_DefaultBattleClipValue(int trackIndex);
     void Resolve_TransitionSequenceTime(float time, int& outStepIndex, float& outStepLocalTime);
     void Scrub_TransitionSequence(float timeSec);
 
@@ -244,6 +245,7 @@ private:
     bool _previewOrbitLookHeightEnabled = true;
     bool _previewShakeFrequencyXEnabled = true;
     bool _previewShakeFrequencyYEnabled = true;
+    bool _previewShakeDecayRateXEnabled = true;
     bool _previewShakeDecayRateEnabled = true;
     bool _previewShakeVerticalRatioEnabled = true;
     bool _previewShakeStrengthScaleEnabled = true;

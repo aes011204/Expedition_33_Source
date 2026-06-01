@@ -119,7 +119,7 @@ HRESULT UI_Panel::Render()
 
 Vec4 UI_Panel::Resolve_RenderColor() const
 {
-    return _color;
+    return Get_EffectiveRenderColor(_color);
 }
 
 HRESULT UI_Panel::Ready_RenderResources()

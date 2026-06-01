@@ -35,12 +35,6 @@ void Player_Move::Update(float timeDelta)
 {
     uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
 
-    //if (IsFalling())
-    //{
-    //    _stateCom->Change_State(PlayerState::Jump);
-    //    return;
-    //}
-
     if (IsEnterFreeAim())
     {
         _stateCom->Change_State(PlayerState::FreeAim);
@@ -50,12 +44,6 @@ void Player_Move::Update(float timeDelta)
     if (IsEnterIdle())
     {
         _stateCom->Change_State(PlayerState::Idle);
-        return;
-    }
-
-    if (IsEnterJump())
-    {
-        _stateCom->Change_State(PlayerState::Jump);
         return;
     }
 

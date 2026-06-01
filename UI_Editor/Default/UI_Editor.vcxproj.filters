@@ -90,6 +90,12 @@
     <ClCompile Include="..\Private\UI_AnimationAssetService_Legacy.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationSequenceService.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationSequenceTimelineView.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_AnimationTimelineView.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
@@ -171,6 +177,9 @@
     <ClCompile Include="..\Private\UI_Animation_View_Keyframe.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_Animation_View_Sequence.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_Animation_View_Shortcuts.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
@@ -222,6 +231,12 @@
       <Filter>02. View\Animation</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_AnimationEditHistory.h">
+      <Filter>02. View\Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_AnimationSequenceService.h">
+      <Filter>02. View\Animation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_AnimationSequenceTimelineView.h">
       <Filter>02. View\Animation</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_AnimationTimelineView.h">

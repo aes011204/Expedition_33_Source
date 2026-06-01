@@ -72,6 +72,7 @@ void Player_BattleBase::Late_Update(float timeDelta)
 json Player_BattleBase::To_Json() const
 {
     json root = GameObject::To_Json();
+    root["custom_properties"]["battle_ground_offset_y"] = _battleGroundOffsetY;
     json parts = json::array();
 
     for (const auto& [partTag, partObject] : _partObjects)
@@ -92,6 +93,14 @@ json Player_BattleBase::To_Json() const
 void Player_BattleBase::From_Json(const json& data)
 {
     Character_BattleBase::From_Json(data);
+
+    _battleGroundOffsetY = 0.f;
+
+    if (data.contains("custom_properties") && data["custom_properties"].is_object())
+    {
+        const json& customProperties = data["custom_properties"];
+        _battleGroundOffsetY = customProperties.value("battle_ground_offset_y", 0.f);
+    }
 }
 
 HRESULT Player_BattleBase::Ready_PartObjects()
@@ -119,7 +128,7 @@ HRESULT Player_BattleBase::Ready_PartObjects()
 
     head->Set_LeaderPoseComponent(body);
 
-    // 수염/콧수염도 PW와 같은 FaceMesh 계열 accessory 규칙을 쓴다.
+    // 수염/콧수염
     if (const wchar_t* beardModelTag = Get_BeardModelTag())
     {
         FaceAccessory_Player::FACE_ACCESSORY_DESC beardPartDesc{};
@@ -138,7 +147,6 @@ HRESULT Player_BattleBase::Ready_PartObjects()
             return E_FAIL;
     }
 
-    // 콧수염도 PW와 동일하게 NonAnim accessory로 head 소켓에 붙인다.
     if (const wchar_t* mustacheModelTag = Get_MustacheModelTag())
     {
         FaceAccessory_Player::FACE_ACCESSORY_DESC mustachePartDesc{};
@@ -180,15 +188,10 @@ HRESULT Player_BattleBase::Ready_WeaponParts(Body_Player* body)
 
     for (const auto& attachDesc : attachDescs)
     {
-        CHECK_NULL(attachDesc.socketName, E_FAIL);
-
         if (attachDesc.partTag.empty())
             return E_FAIL;
         if (attachDesc.weaponPrefabName.empty())
             return E_FAIL;
-
-        const Matrix* socketMatrix = body->Get_SocketBoneMatrixPtr(attachDesc.socketName);
-        CHECK_NULL(socketMatrix, E_FAIL);
 
         WeaponPrefabLoader::LoadedWeaponPrefab loadedPrefab{};
         if (!WeaponPrefabLoader::Load(attachDesc.weaponPrefabName, loadedPrefab))
@@ -198,9 +201,26 @@ HRESULT Player_BattleBase::Ready_WeaponParts(Body_Player* body)
         weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
         weaponDesc.modelType = loadedPrefab.modelType;
         weaponDesc.modelTag = loadedPrefab.modelTag.c_str();
-        weaponDesc.socketMatrix = socketMatrix;
+        weaponDesc.socketMatrix = nullptr;
+        weaponDesc.useBodyFollow = attachDesc.useBodyFollow;
+        weaponDesc.bodyFollowOffset = attachDesc.bodyFollowOffset;
 
-        // 무기별 세부 transform/model guid는 WP_*에서 덮어쓴다.
+        if (attachDesc.useBodyFollow)
+        {
+            weaponDesc.socketMatrix = nullptr;
+        }
+        else if (attachDesc.socketName != nullptr)
+        {
+            const Matrix* socketMatrix = body->Get_SocketBoneMatrixPtr(attachDesc.socketName);
+            CHECK_NULL(socketMatrix, E_FAIL);
+
+            weaponDesc.socketMatrix = socketMatrix;
+        }
+        else
+        {
+            weaponDesc.socketMatrix = nullptr;
+        }
+
         CHECK_FAILED(Add_PartObject(
             ETOI(LevelType::Static),
             TEXT("GameObject_Weapon"),

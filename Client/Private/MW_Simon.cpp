@@ -17,6 +17,7 @@ IMPLEMENT_REFLECTION(MW_Simon)
 
 MW_Simon::MW_Simon(const ComPtr<Device>& device, const ComPtr<Context>& context) :Monster_WorldBase(device, context)
 {
+    _worldMoveSpeedScale = 0.1f;
 }
 
 MW_Simon::MW_Simon(const MW_Simon& prototype) : Monster_WorldBase(prototype)
@@ -47,15 +48,6 @@ void MW_Simon::Update(float timeDelta)
         return;
 
     Monster_WorldBase::Update(timeDelta);
-
-    if (_body)
-    {
-        _body->Play_Animation(timeDelta);
-
-        // Lancelier 월드 이동은 기존 Monster와 동일하게 body root motion 속도를 사용한다.
-        const auto rootVelocity = _body->Get_RootTransformVelocity();
-        _transformCom->Set_SpeedPerSec(rootVelocity.position.z * 0.1f/*Constants::Charcter::scaleOffset*/);
-    }
 }
 
 HRESULT MW_Simon::Render()

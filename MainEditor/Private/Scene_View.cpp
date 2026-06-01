@@ -601,10 +601,9 @@ void Scene_View::Render_ViewportCanvas()
                         {
                             worldPos.y += 0.1f;
 
-                            Shared<GameObject> spawned = Client::Spawn_Prefab::SpawnAt(
+                            Shared<GameObject> spawned = Client::Spawn_Prefab::SpawnForEditorPlacement(
                                 prefabName,
                                 GAME->Current_LevelIndex(),
-                                TEXT("Layer_GameObject"),
                                 worldPos);
 
                             if (spawned)

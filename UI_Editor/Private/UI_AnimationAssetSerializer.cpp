@@ -5,7 +5,7 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kAnimationAssetJsonVersion = 4;
+        constexpr int32 kAnimationAssetJsonVersion = 5;
         constexpr int32 kStateAnimationAssetJsonVersion = 1;
 
         string Read_String(const json& item, const char* key, const string& defaultValue)

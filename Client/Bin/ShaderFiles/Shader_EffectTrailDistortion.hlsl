@@ -3,6 +3,7 @@
 #include "Engine_Shader_Passes.hlsl"
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
+#include "Shader_EffectDistortionCommon.hlsli"
 
 cbuffer cbEffectTrailDistortion : register(b2)
 {
@@ -169,16 +170,16 @@ PS_OUT PS_MAIN(PS_IN In)
         smoothstep(0.0f, sideFade, 1.0f - In.edgeCoord.y);
     const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
     const float segmentAlpha = lerp(In.startColor.a, In.endColor.a, lifeProgress);
-    const float coverage = saturate(segmentAlpha * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
+    const float trailCoverage = saturate(segmentAlpha * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
 
     const float2 flowUV = Build_FlowUV(In.texCoord);
     const float2 flow = 0 != g_EffectDistortionParams.z
                         ? Sample_FlowTexture(flowUV) * 2.f - 1.f
                         : float2(0.f, 0.f);
 
-    const float weight = saturate(coverage * g_EffectDistortionParams.y);
-    const float2 offset = flow * g_EffectDistortionParams.x;
-    Out.color = float4(offset * weight, weight, 0.f);
+    const float lensCoverage = EffectDistortion_ComputeLensCoverage(trailCoverage, 1.f, g_EffectDistortionParams.y);
+    const float2 offset = EffectDistortion_ComputeScreenOffset(flow, g_EffectDistortionParams.x);
+    Out.color = EffectDistortion_PackField(offset, lensCoverage);
     return Out;
 }
 

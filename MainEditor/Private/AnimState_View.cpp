@@ -7,6 +7,7 @@
 #include "GameObject.h"
 #include "ModelCom.h"
 #include "PartObject.h"
+#include "PreviewObjectHelpers.h"
 #include "RenderTarget.h"
 #include "TransformCom.h"
 #include "AnimState_Parser.h"
@@ -81,12 +82,12 @@ void AnimState_View::Pre_Render()
 
     const bool wasPlayerInputBlocked = GAME->Is_PlayerInputBlocked();
 
-    EDITOR->Request_PreviewViewportSize(_previewWidth, _previewHeight);
+    EDITOR->Apply_PreviewViewportSizeImmediate(_previewWidth, _previewHeight);
 
     GAME->Bind_BackBuffer();
     if (FAILED(GAME->Clear_Buffers(Vec4(0.f, 0.f, 0.f, 1.f))))
     {
-        EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
+        EDITOR->Apply_PreviewViewportSizeImmediate(savedViewportWidth, savedViewportHeight);
         return;
     }
 
@@ -125,10 +126,8 @@ void AnimState_View::Pre_Render()
     GAME->Set_PlayerInputBlocked(true);
 
     const float dt = ImGui::GetIO().DeltaTime;
-    previewRenderObject->Priority_Update(dt);
-    previewRenderObject->Update(dt);
     GAME->Backup_RenderGroup();
-    previewRenderObject->Late_Update(dt);
+    PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
 
     GAME->Draw_RendererOnly();
     GAME->Restore_RenderGroup();
@@ -147,7 +146,8 @@ void AnimState_View::Pre_Render()
 
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(savedView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(savedProj));
-    EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
+    GAME->UpdateFrustum(savedView, savedProj);
+    EDITOR->Apply_PreviewViewportSizeImmediate(savedViewportWidth, savedViewportHeight);
 }
 
 void AnimState_View::Render()
@@ -257,6 +257,7 @@ void AnimState_View::Open_FromModelComponent(
 {
     const wstring sourceModelPath = modelCom ? modelCom->Get_SourceModelPath() : wstring{};
 
+    Reset_PreviewClone();
     _liveModelCom = modelCom;
     _sourceModelPath = sourceModelPath;
     _modelGuid = _sourceModelPath.empty() ? string{} : GAME->Ensure_AssetGUID(_sourceModelPath, "Model");
@@ -266,6 +267,7 @@ void AnimState_View::Open_FromModelComponent(
 
     Refresh_AnimmapFiles();
     Refresh_AnimationList();
+    Rebuild_PreviewClone();
 
     if (!preferredAnimationName.empty())
         _currentAnimationName = preferredAnimationName;
@@ -282,11 +284,13 @@ void AnimState_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
 {
     if (previewRoot != nullptr)
     {
-        const Shared<GameObject> currentPreviewRoot = Get_PreviewRenderObject();
+        const Shared<GameObject> currentPreviewRoot =
+            _liveModelCom ? Resolve_RootPreviewObject(_liveModelCom->Get_Owner()) : nullptr;
         if (currentPreviewRoot != previewRoot)
             return;
     }
 
+    Reset_PreviewClone();
     _sourceModelPath.clear();
     _liveModelCom.reset();
     _modelGuid.clear();
@@ -297,6 +301,45 @@ void AnimState_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     _stateIndices.clear();
     _animationMapping.clear();
     _selectedAnimmapFileIndex = -1;
+}
+
+void AnimState_View::Rebuild_PreviewClone()
+{
+    Reset_PreviewClone();
+
+    if (_liveModelCom == nullptr)
+        return;
+
+    const Shared<GameObject> liveOwnerObject = _liveModelCom->Get_Owner();
+    const Shared<GameObject> liveRootObject = Resolve_RootPreviewObject(liveOwnerObject);
+    if (liveOwnerObject == nullptr || liveRootObject == nullptr)
+        return;
+
+    if (!PreviewObjectHelpers::Try_BuildGameObjectKey(liveRootObject, liveOwnerObject, _previewOwnerObjectKey))
+        return;
+
+    _previewRootObject = GAME->Instantiate_GameObjectJson(liveRootObject->To_Json());
+    if (_previewRootObject == nullptr)
+        return;
+
+    PreviewObjectHelpers::Disable_PreviewAnimNotifyExecution(_previewRootObject);
+    PreviewObjectHelpers::Prime_PreviewObject(_previewRootObject);
+
+    Shared<TransformCom> previewTransform = _previewRootObject->Get_Transform();
+    if (previewTransform != nullptr)
+        previewTransform->Set_WorldPosition(Vec3::Zero);
+
+    const Shared<GameObject> previewOwnerObject =
+        PreviewObjectHelpers::Find_GameObjectByKey(_previewRootObject, _previewOwnerObjectKey);
+    _previewModelCom =
+        PreviewObjectHelpers::Find_ModelComponentBySourcePath(previewOwnerObject, _sourceModelPath);
+}
+
+void AnimState_View::Reset_PreviewClone()
+{
+    _previewRootObject.reset();
+    _previewModelCom.reset();
+    _previewOwnerObjectKey.clear();
 }
 
 bool AnimState_View::Should_DeferToCompanionPreview()
@@ -550,11 +593,17 @@ void AnimState_View::Draw_PlaybackToolbar()
 
 Shared<ModelCom> AnimState_View::Get_PlaybackModel() const
 {
+    if (_previewModelCom != nullptr)
+        return _previewModelCom;
+
     return _liveModelCom;
 }
 
 Shared<GameObject> AnimState_View::Get_PreviewRenderObject() const
 {
+    if (_previewRootObject != nullptr)
+        return _previewRootObject;
+
     if (_liveModelCom == nullptr)
         return nullptr;
 

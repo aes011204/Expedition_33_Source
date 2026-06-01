@@ -36,6 +36,7 @@ public:
         string socketName{};
         wstring layerTag = L"Layer_Effect";
         Vec3 localOffset = Vec3::Zero;
+        Vec3 scale = Vec3::One;
 
         bool followTarget = false; // AN은 false, ANS는 true로 사용
         Weak<IEffectTrailSampleProvider> trailSampleProvider{};
@@ -62,7 +63,7 @@ private:
 
 public:
     EffectCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    ~EffectCom() override = default;
+    ~EffectCom() override;
 
 public:
     HRESULT Initialize_Prototype() override;

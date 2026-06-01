@@ -1,6 +1,7 @@
-#pragma once
+﻿#pragma once
 
 #include "Base.h"
+#include "BattleMonsterSpawnDesc.h"
 #include "Delegate.h"
 #include "BattleAction.h"
 #include "Battle_Enum.h"
@@ -48,6 +49,8 @@ public: /* Delegate 선언 */
     DECLARE_DELEGATE(FOnActionStarted, const BattleAction&);
     // Reaction (Dodge, Parry)
     DECLARE_DELEGATE(FOnReactionSucceeded, ReactionType,const vector<BattleChar>&);
+    // AP ++
+    DECLARE_DELEGATE(FOnBattleApChanged, const BattleChar&, uint32, EAPChangeReason);
 
 public:
     BattleController();
@@ -63,7 +66,7 @@ public:
         uint32 FieldID,
         bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
-        const vector<string>& battleMonsterPrefabNames,
+        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
         const Shared<GameObject>& sourceObject = nullptr);
 
     EBattleEndResult OnExitBattleField(EBattleEndResult result);
@@ -79,7 +82,7 @@ public:
 
     EAPChangeReason FinishBattle();
 
-    void Create_BattleChar(const vector<HeroId>& heroIds, vector<string>& battleMonsterPrefabNames);
+    void Create_BattleChar(const vector<HeroId>& heroIds, const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs);
     void Build_InitialTurnQueue(bool isPlayerAdvantage);
     // 부활하면 턴 큐 한번 다시 리빌드
     void Rebuild_TurnQueue(const BattleChar& revivedActor);
@@ -173,6 +176,7 @@ private:
     void    Activate_BattleTurnCamera();
     void    Restore_WorldCamera();
     void    Clear_BattleRuntimeState();
+    float   Resolve_PrefabGroundOffsetY(const Shared<GameObject>& actor) const;
 
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
@@ -205,6 +209,7 @@ public: /* Delegate */
     FOnTargetPreviewChanged         OnTargetPreviewChanged; // Targeting 중일 때
     FOnActionStarted                OnActionStarted;        // 공격, 스킬 시작
     FOnReactionSucceeded            OnReactionSucceeded;    // 회피, 패링 성공
+    FOnBattleApChanged              OnBattleApChanged;
 
     FDelegateHandle                 _damageAppliedHandle{};
     FDelegateHandle                 _editorStopHandle = {};
@@ -241,6 +246,9 @@ private: /* 전투 AP */
     bool Apply_FreeAimShootAP(const BattleChar& actor); // Free Aim시 사용되는 AP
 
     void Apply_VictoryRewardExp(uint32 rewardExp);
+
+    void Play_EnemyTargetedStart(const BattleChar& target);
+    void Play_EnemyTargetedEnd();
 
 private:
     bool _battleEnded = {};
@@ -308,12 +316,16 @@ private:
     uint32  _pendingBattleFieldID = 0;
     bool    _pendingBattleIsPlayerAdvantage = false;
     vector<HeroId> _pendingBattleHeroIds = {};
-    vector<string> _pendingBattleMonsterPrefabNames = {};
+    vector<BattleMonsterSpawnDesc> _pendingBattleMonsterSpawnDescs = {};
+    int32   _pendingBattleStartSpawnerId = 0;
 
     bool _isFreeAimShotPlaying = false;
     BattleAction _freeAimShotAction {};
 
     uint32 _lastVictoryRewardExp = 0;
+
+    BattleChar  _enemyTurnTargetedActor = {};
+    bool        _hasEnemyTurnTargetedActor = false;
 
 public:
     static Shared<BattleController> Create();

@@ -20,9 +20,7 @@ void Level_Stage01::Update(float fTimeDelta)
 
 HRESULT Level_Stage01::Render()
 {
-#ifdef _DEBUG
-    SetWindowText(g_hWnd, L"Level_Stage01");
-#endif
+    Update_WindowTitleFps(_windowTitleFps, L"Level_Stage01");
 
     return S_OK;
 }

@@ -91,12 +91,12 @@ void UI_Button::Update(float timeDelta)
 Vec4 UI_Button::Resolve_RenderColor() const
 {
     if (_isPressed && _isHovered)
-        return Scale_RGB(_color, 0.78f);
+        return Get_EffectiveRenderColor(Scale_RGB(_color, 0.78f));
 
     if (_isHovered)
-        return Scale_RGB(_color, 1.18f);
+        return Get_EffectiveRenderColor(Scale_RGB(_color, 1.18f));
 
-    return _color;
+    return Get_EffectiveRenderColor(_color);
 }
 
 void UI_Button::Set_Focused(bool isFocused)
