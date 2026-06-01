@@ -53,6 +53,8 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
         event.opponent = action.GetInitTarget().actor;
         const auto& steps = action.GetSteps();
         const uint32 curStepIndex = action.GetCurStepIndex();
+        event.presetId = _presetId;
+        event.clipId = _clipId;
 
         if (curStepIndex < steps.size() && !steps[curStepIndex].targets.empty())
         {
@@ -64,13 +66,8 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
         if (action.GetCurAnimIndex() < action.GetSkillData().AnimPhases.size())
         {
             const Client::BattleActionPhase& phase = action.GetSkillData().AnimPhases[action.GetCurAnimIndex()];
-            event.presetId = !_presetId.empty()? _presetId : phase.cameraPresetId;
+             event.presetId = !_presetId.empty()? _presetId: phase.cameraPresetId;
             event.clipId = !_clipId.empty() ? _clipId : phase.cameraClipId;
-
-            if(!_presetId.empty())
-            {
-                int a = 10;
-            }
         }
 
         LOG_DEBUG(

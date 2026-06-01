@@ -14,7 +14,8 @@ namespace
 {
 BattleCameraClipTimeMode Get_DefaultBattleCameraClipTimeMode(BattleCameraMode cameraMode)
 {
-    return cameraMode == BattleCameraMode::BATTLEINTRO
+    return cameraMode == BattleCameraMode::BATTLEINTRO ||
+        cameraMode == BattleCameraMode::SELECTSKILL
         ? BattleCameraClipTimeMode::Independent
         : BattleCameraClipTimeMode::AnimationSync;
 }
@@ -85,6 +86,7 @@ void Normalize_AnimationSyncClip(BattleCameraClip& clip)
     Normalize_BattleCameraTrack(clip.orbitLookHeight, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.shakeFrequencyX, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.shakeFrequencyY, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.shakeDecayRateX, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.shakeDecayRate, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.shakeVerticalRatio, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.shakeStrengthScale, legacyDurationSec);
@@ -133,6 +135,7 @@ void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode,
     jsonData["orbitLookHeight"] = Serialize_BattleCameraTrack(clip.orbitLookHeight);
     jsonData["shakeFrequencyX"] = Serialize_BattleCameraTrack(clip.shakeFrequencyX);
     jsonData["shakeFrequencyY"] = Serialize_BattleCameraTrack(clip.shakeFrequencyY);
+    jsonData["shakeDecayRateX"] = Serialize_BattleCameraTrack(clip.shakeDecayRateX);
     jsonData["shakeDecayRate"] = Serialize_BattleCameraTrack(clip.shakeDecayRate);
     jsonData["shakeVerticalRatio"] = Serialize_BattleCameraTrack(clip.shakeVerticalRatio);
     jsonData["shakeStrengthScale"] = Serialize_BattleCameraTrack(clip.shakeStrengthScale);
@@ -187,6 +190,7 @@ bool BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode cameraMod
     Deserialize_BattleCameraTrack(jsonData, "orbitLookHeight", loadedClip.orbitLookHeight);
     Deserialize_BattleCameraTrack(jsonData, "shakeFrequencyX", loadedClip.shakeFrequencyX);
     Deserialize_BattleCameraTrack(jsonData, "shakeFrequencyY", loadedClip.shakeFrequencyY);
+    Deserialize_BattleCameraTrack(jsonData, "shakeDecayRateX", loadedClip.shakeDecayRateX);
     Deserialize_BattleCameraTrack(jsonData, "shakeDecayRate", loadedClip.shakeDecayRate);
     Deserialize_BattleCameraTrack(jsonData, "shakeVerticalRatio", loadedClip.shakeVerticalRatio);
     Deserialize_BattleCameraTrack(jsonData, "shakeStrengthScale", loadedClip.shakeStrengthScale);

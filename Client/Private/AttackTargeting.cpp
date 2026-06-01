@@ -108,7 +108,7 @@ void AttackTargeting::Update(float timeDelta)
         // 왼쪽 끝
         if (Try_MoveTargetIndex(-1, enemies.size()) == false)
             return;
-
+        
         owner->Set_TargetPreview(enemies[TargetIndex]);
 
         EvtBattlePresentation event;
