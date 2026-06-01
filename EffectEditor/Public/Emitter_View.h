@@ -72,6 +72,7 @@ private: //## Types::PendingAction
     {
         None,
         AddTrail,
+        AddMesh,
         ResetData,
         Remove
     };
@@ -154,6 +155,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_InitialLocationModule();
     AuthoringModule Make_SphereLocationModule();
     AuthoringModule Make_InitialSizeModule();
+    AuthoringModule Make_InitialMeshSizeModule();
     AuthoringModule Make_InitialVelocityModule();
     AuthoringModule Make_InitialRadialVelocityModule();
     AuthoringModule Make_AccelerationModule();
@@ -163,10 +165,15 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_RotationOverLifeModule();
     AuthoringModule Make_InitialRotationRateModule();
     AuthoringModule Make_RotationRateScaleByLifeModule();
+    AuthoringModule Make_InitialMeshRotationModule();
+    AuthoringModule Make_MeshRotationOverLifeModule();
+    AuthoringModule Make_InitialMeshRotationRateModule();
+    AuthoringModule Make_MeshRotationRateScaleByLifeModule();
     AuthoringModule Make_InitialColorModule();
     AuthoringModule Make_ColorOverLifeModule();
     AuthoringModule Make_SubUVFrameOverLifeModule();
     AuthoringModule Make_SizeByLifeModule();
+    AuthoringModule Make_MeshSizeByLifeModule();
     AuthoringModule Make_SpawnPerUnitModule();
 
 private: //## Helper::ModulePolicy

@@ -6,6 +6,7 @@
 #include "EffectMaterialPreviewRenderer.h"
 #include "EffectMaterial_View.h"
 #include "EffectMaterialPresetReader.h"
+#include "Helper_EffectAuthoring.h"
 #include "Notification_Manager.h"
 
 NS_BEGIN(EffectEditor)
@@ -844,7 +845,9 @@ bool RequiredModuleDetail::Draw(
 
     if (changed)
     {
-        emitter.rendererType = emitter.typeData.kind == AuthoringTypeDataKind::Trail ? "Trail" : data.rendererType;
+        emitter.rendererType = emitter.typeData.kind == AuthoringTypeDataKind::None
+                               ? data.rendererType
+                               : Authoring::Resolve_RendererType(emitter.typeData);
         emitter.textureId = data.material.mainTexturePath;
         emitter.resourceSummary = data.material.mainTexturePath;
     }
@@ -915,13 +918,24 @@ bool InitialSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialS
     return changed;
 }
 
+bool InitialMeshSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialMeshSizeModuleData& data, DetailPropertyContext& detailContext)
+{
+    const InitialMeshSizeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("메시 크기", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("크기 XYZ", data.size, defaultData.size);
+
+    return changed;
+}
+
 bool InitialLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialLocationModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialLocationModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("위치", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_Vector3DistributionGroup("위치", data.location, defaultData.location);
+        changed |= detailContext.Draw_Vector3DistributionGroup("위치", data.location, defaultData.location, 0.01f, false, true);
 
     return changed;
 }
@@ -1093,6 +1107,66 @@ bool RotationRateScaleByLifeModuleDetail::Draw(
     return changed;
 }
 
+bool InitialMeshRotationModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    InitialMeshRotationModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const InitialMeshRotationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("초기 메시 회전", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("회전 XYZ", data.rotationDegrees, defaultData.rotationDegrees);
+
+    return changed;
+}
+
+bool MeshRotationOverLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    MeshRotationOverLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshRotationOverLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 회전", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("추가 회전 XYZ", data.rotationOverLife, defaultData.rotationOverLife);
+
+    return changed;
+}
+
+bool InitialMeshRotationRateModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    InitialMeshRotationRateModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const InitialMeshRotationRateModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("초기 메시 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("회전 속도 XYZ", data.rotationRateDegrees, defaultData.rotationRateDegrees);
+
+    return changed;
+}
+
+bool MeshRotationRateScaleByLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    MeshRotationRateScaleByLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshRotationRateScaleByLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("회전 속도 배율 XYZ", data.scaleOverLife, defaultData.scaleOverLife);
+
+    return changed;
+}
+
 bool InitialColorModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialColorModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialColorModuleData defaultData{};
@@ -1171,7 +1245,7 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
 }
 
 bool SizeByLifeModuleDetail::Draw(
-    AuthoringEmitter&,
+    AuthoringEmitter& emitter,
     AuthoringModule&,
     SizeByLifeModuleData& data,
     DetailPropertyContext& detailContext)
@@ -1228,6 +1302,31 @@ bool SizeByLifeModuleDetail::Draw(
         ImGui::PopID();
 
         changed |= detailContext.Draw_Vector2DistributionGroup("수명 배율", data.scaleOverLife, defaultData.scaleOverLife, 0.01f);
+    }
+
+    return changed;
+}
+
+bool MeshSizeByLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    MeshSizeByLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshSizeByLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 크기", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("MeshSizeByLife"))
+        {
+            changed |= detailContext.Draw_BoolProperty("X축 적용", data.multiplyX, defaultData.multiplyX);
+            changed |= detailContext.Draw_BoolProperty("Y축 적용", data.multiplyY, defaultData.multiplyY);
+            changed |= detailContext.Draw_BoolProperty("Z축 적용", data.multiplyZ, defaultData.multiplyZ);
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_Vector3DistributionGroup("수명 배율 XYZ", data.scaleOverLife, defaultData.scaleOverLife, 0.01f);
     }
 
     return changed;

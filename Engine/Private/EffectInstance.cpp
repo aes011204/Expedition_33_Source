@@ -135,6 +135,20 @@ HRESULT EffectInstance::Reset()
     return S_OK;
 }
 
+HRESULT EffectInstance::Reload_Definition(const Shared<const EffectDefinition>& definition)
+{
+    CHECK_NULL(definition, E_FAIL);
+
+    Stop();
+    _definition = definition;
+    _desc.definition = definition;
+
+    if (!Try_ReloadEmitters(definition))
+        CHECK_FAILED(Ready_Emitters(), E_FAIL);
+
+    return S_OK;
+}
+
 bool EffectInstance::Is_Playing() const
 {
     return EffectPlaybackState::Playing == _playbackState;
@@ -187,6 +201,43 @@ HRESULT EffectInstance::Ready_Emitters()
     }
 
     return S_OK;
+}
+
+bool EffectInstance::Try_ReloadEmitters(const Shared<const EffectDefinition>& definition)
+{
+    if (nullptr == definition)
+        return false;
+
+    vector<const EffectEmitterDefinition*> enabledDefinitions{};
+    enabledDefinitions.reserve(definition->emitters.size());
+    for (const EffectEmitterDefinition& emitterDefinition : definition->emitters)
+    {
+        if (emitterDefinition.enabled)
+            enabledDefinitions.push_back(&emitterDefinition);
+    }
+
+    if (enabledDefinitions.size() != _emitters.size())
+        return false;
+
+    for (size_t index = 0; index < enabledDefinitions.size(); ++index)
+    {
+        const Shared<EffectEmitter>& emitter = _emitters[index];
+        const EffectEmitterDefinition& emitterDefinition = *enabledDefinitions[index];
+        if (nullptr == emitter)
+            return false;
+        if (emitter->Get_EmitterId() != emitterDefinition.id)
+            return false;
+        if (!emitter->Can_ReloadDefinition(emitterDefinition))
+            return false;
+    }
+
+    for (size_t index = 0; index < enabledDefinitions.size(); ++index)
+    {
+        if (FAILED(_emitters[index]->Reload_Definition(*enabledDefinitions[index])))
+            return false;
+    }
+
+    return true;
 }
 
 void EffectInstance::Sync_Emitters()

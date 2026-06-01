@@ -11,6 +11,8 @@ NS_END
 
 NS_BEGIN(Client)
 
+class EffectCom;
+
 class Monster_Part abstract : public PartObject
 {
 public:
@@ -53,6 +55,7 @@ protected:
     Shared<ShaderCom>           _shader = nullptr;
     Shared<ModelCom>            _model = nullptr;
     Shared<AnimComputeRuntime>  _animComputeRuntime = nullptr;
+    Shared<EffectCom>  _effectCom = nullptr;
 
 public:
     virtual Shared<GameObject> Clone(void* arg) override PURE;

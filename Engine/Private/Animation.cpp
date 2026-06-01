@@ -13,6 +13,7 @@ Animation::Animation(const Animation& prototype)
 	, _tickPerSecond{ prototype._tickPerSecond }
 	, _currentTrackPosition{ 0.f }
     , _channelIndexByBoneIndex{ prototype._channelIndexByBoneIndex }
+    , _animationSpeed{ 1.f }
 {
     _animationName = prototype._animationName;
 	for (auto& ch : prototype._channels)
@@ -154,7 +155,7 @@ bool Animation::Update_TransformationMatrices(float timeDelta, const vector<Shar
 {
     ENGINE_PROFILE_SCOPE_DETAIL("Animation::UpdatePose");
 
-	_currentTrackPosition += _tickPerSecond * timeDelta;
+	_currentTrackPosition += _tickPerSecond * timeDelta * _animationSpeed;
 
 	if (_currentTrackPosition >= _duration)
 	{
@@ -181,7 +182,7 @@ void Animation::Blend_TransformMatrix(float currentTimeDelta, const Shared<Anima
     ENGINE_PROFILE_SCOPE_DETAIL("Animation::BlendPose");
 
 	// 현재 애니메이션 시간 갱신 
-	_currentTrackPosition += _tickPerSecond * currentTimeDelta;
+	_currentTrackPosition += _tickPerSecond * currentTimeDelta * _animationSpeed;
     if (_currentTrackPosition >= _duration)
         _currentTrackPosition = _duration;
 		//_currentTrackPosition = isLoop ? std::fmod(_currentTrackPosition, _duration) : _duration;

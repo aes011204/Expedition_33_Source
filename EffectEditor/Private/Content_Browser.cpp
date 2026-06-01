@@ -13,11 +13,17 @@ NS_BEGIN(EffectEditor)
 namespace Internal
 {
     constexpr const char* kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
+    constexpr const char* kEffectModelPayloadType = "CONTENT_BROWSER_EFFECT_MODEL";
 
     bool Is_TexturePayloadFile(const fs::path& filePath)
     {
         const string extension = String::ToLowerCopy(filePath.extension().string());
         return extension == ".png" || extension == ".dds";
+    }
+
+    bool Is_ModelPayloadFile(const fs::path& filePath)
+    {
+        return String::ToLowerCopy(filePath.extension().string()) == ".model";
     }
 
     static ImTextureID ToImTextureId(const Shared<Texture>& texture)
@@ -503,6 +509,24 @@ void Content_Browser::Draw_AssetView()
                 );
 
                 ImGui::TextUnformatted("Effect Material");
+                ImGui::Separator();
+                ImGui::Text("%s", fileName.c_str());
+
+                ImGui::EndDragDropSource();
+            }
+        }
+        else if (Internal::Is_ModelPayloadFile(path))
+        {
+            if (ImGui::BeginDragDropSource())
+            {
+                const wstring payloadPath = fileEntry.filePath;
+                ImGui::SetDragDropPayload(
+                    Internal::kEffectModelPayloadType,
+                    payloadPath.c_str(),
+                    (payloadPath.size() + 1) * sizeof(wchar_t)
+                );
+
+                ImGui::TextUnformatted("Effect Model");
                 ImGui::Separator();
                 ImGui::Text("%s", fileName.c_str());
 

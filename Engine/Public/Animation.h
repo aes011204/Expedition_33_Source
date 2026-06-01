@@ -28,6 +28,9 @@ public:
     void    Set_StartFrame(float startFrame);
 	void    Reset();
 
+    float   Get_AnimationSpeed() const { return _animationSpeed; }
+    void    Set_AnimationSpeed(float speed) { _animationSpeed = speed; }
+
 	const RootMotionFrame& Get_TransformVelocity(int32 rootNodeIndex) const;
     const string& Get_AnimationName() const { return _animationName; }
     Vec3 Get_RootTranslation(int32 rootNodeIndex) const;
@@ -60,6 +63,7 @@ private:
 	float						_duration{};
 	float						_tickPerSecond{};
 	float						_currentTrackPosition{};
+    float                       _animationSpeed{ 1.f };
 
     vector<int32>               _channelIndexByBoneIndex{};
 

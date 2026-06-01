@@ -101,6 +101,7 @@ namespace Engine
         BloomBlurV,
         BloomUpsampleAdd,
         ToneMapping,
+        DistortionResolve,
 
         END
     };

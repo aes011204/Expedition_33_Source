@@ -49,6 +49,7 @@ private:
     static void Fill_SizeByLifePayload(PointParticleSizeByLifeDesc& desc, const json& sizeByLife);
     static void Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife);
     static void Fill_RotationRateScaleByLifePayload(PointParticleRotationDesc& desc, const json& rotationRateScaleByLife);
+    static void Fill_MeshVector3CurvePayload(MeshVector3CurveRuntimeDesc& desc, const json& distribution, const Vec3& fallbackValue);
     static string Resolve_RendererType(const json& emitter);
     static void Apply_MaterialPayload(
         const json& material,
@@ -56,9 +57,12 @@ private:
         bool includeTrailMaterialFields);
     static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeSpriteEmitterDesc& desc);
     static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeTrailEmitterDesc& desc);
+    static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, MeshEmitterDesc& desc);
     static void Apply_SpawnModule(const json& data, ComputeSpriteEmitterDesc& desc);
+    static void Apply_SpawnModule(const json& data, MeshEmitterDesc& desc);
     static bool Build_EmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
     static bool Build_TrailEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
+    static bool Build_MeshEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition);
     static bool Try_MakeResourceRelativePath(
         const fs::path& fullPath,
         const char* logContext,

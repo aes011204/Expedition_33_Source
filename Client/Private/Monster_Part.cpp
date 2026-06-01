@@ -52,7 +52,7 @@ void Monster_Part::Update(float timeDelta)
 void Monster_Part::Late_Update(float timeDelta)
 {
     // culling
-    if (!Get_Owner() || !Get_Owner()->Is_Visible()||!Is_Visible())
+    if (!Get_Owner() || !Get_Owner()->Is_Visible()/*||!Is_Visible()*/)
     {
         return;
     }
@@ -276,6 +276,10 @@ HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
         _animComputeRuntime = AnimComputeRuntime::Create(_device, _context, runtimeDesc);
         CHECK_NULL(_animComputeRuntime, E_FAIL);
     }
+
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
+
 
     return S_OK;
 }

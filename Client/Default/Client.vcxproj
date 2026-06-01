@@ -319,6 +319,7 @@
     <ClInclude Include="..\Public\MapAuthoringIO.h" />
     <ClInclude Include="..\Public\MapLoader.h" />
     <ClInclude Include="..\Public\MapStaticMesh.h" />
+    <ClInclude Include="..\Public\MeshEmitter.h" />
     <ClInclude Include="..\public\MonsterStatCom.h" />
     <ClInclude Include="..\Public\Monster_BattleBase.h" />
     <ClInclude Include="..\public\Monster_Part.h" />
@@ -582,6 +583,7 @@
     <ClCompile Include="..\Private\MapAuthoringIO.cpp" />
     <ClCompile Include="..\Private\MapLoader.cpp" />
     <ClCompile Include="..\Private\MapStaticMesh.cpp" />
+    <ClCompile Include="..\Private\MeshEmitter.cpp" />
     <ClCompile Include="..\private\MonsterStatCom.cpp" />
     <ClCompile Include="..\Private\Monster_BattleBase.cpp" />
     <ClCompile Include="..\private\Monster_Part.cpp" />
@@ -712,6 +714,8 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectDistortionSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreview.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrailDistortion.hlsl" />
