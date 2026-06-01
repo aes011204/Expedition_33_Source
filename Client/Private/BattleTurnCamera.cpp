@@ -218,7 +218,7 @@ void BattleTurnCamera::Update_FreeAimRotation(float timeDelta)
     _yaw += mouseDelta.x * _mouseSensor;
     _pitch += mouseDelta.y * _mouseSensor;
     _pitch = std::clamp(_pitch, -25.f, 20.f); // 상하 각도 제한
-
+    _yaw = std::clamp(_yaw, -90.f, 90.f); // 상하 각도 제한
     _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
     Update_TransformMatrices();
 }
