@@ -4,6 +4,7 @@
 #include "Engine_Shader_RenderState.hlsl"
 #include "Engine_Shader_Samplers.hlsl"
 #include "Engine_Shader_EffectMaterial.hlsl"
+#include "Shader_EffectDistortionCommon.hlsli"
 
 cbuffer cbEffectMaterialPreviewDistortion : register(b2)
 {
@@ -98,45 +99,6 @@ struct PS_OUT
     float4 color : SV_TARGET0;
 };
 
-float Compute_PreviewShockwavePixelUvWidth(float2 cardUV)
-{
-    return max(max(fwidth(cardUV.x), fwidth(cardUV.y)), 0.0001f);
-}
-
-float Compute_PreviewDistortionShapeWeight(float2 cardUV, float lifeProgress)
-{
-    const float mode = g_EffectMaterialPreviewDistortionShapeParams.x;
-    float shapeWeight = 1.f;
-
-    if (mode >= 0.5f)
-    {
-        const float radius = max(g_EffectMaterialPreviewDistortionShapeParams.y, 0.f);
-        const float thickness = max(g_EffectMaterialPreviewDistortionShapeParams.z, 0.f);
-        const float softness = max(g_EffectMaterialPreviewDistortionShapeParams.w, 0.0001f);
-        const float distanceFromCenter = distance(cardUV, float2(0.5f, 0.5f));
-
-        if (mode < 1.5f)
-            shapeWeight = 1.f - smoothstep(radius, radius + softness, distanceFromCenter);
-        else if (mode < 2.5f)
-        {
-            const float ringDistance = abs(distanceFromCenter - radius);
-            shapeWeight = 1.f - smoothstep(thickness, thickness + softness, ringDistance);
-        }
-        else
-        {
-            const float pixelUvWidth = Compute_PreviewShockwavePixelUvWidth(cardUV);
-            const float shockwaveThickness = max(thickness, 0.f) * pixelUvWidth;
-            const float shockwaveSoftness = max(softness, 0.0001f) * pixelUvWidth;
-            const float shockwaveRadiusMax = max(0.f, 0.5f - shockwaveThickness - shockwaveSoftness);
-            const float shockwaveRadius = saturate(lifeProgress) * shockwaveRadiusMax;
-            const float ringDistance = abs(distanceFromCenter - shockwaveRadius);
-            shapeWeight = 1.f - smoothstep(shockwaveThickness, shockwaveThickness + shockwaveSoftness, ringDistance);
-        }
-    }
-
-    return saturate(shapeWeight);
-}
-
 PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out = (PS_OUT)0;
@@ -168,22 +130,29 @@ PS_OUT PS_MAIN(PS_IN In)
     if (g_EffectMaterialPreviewAlphaParams.z != 0)
         maskAlpha = Sample_PreviewMaskTexture(maskUV, maskUVMode);
 
-    const float coverage = Effect_ApplyAlphaErosion(selectedOpacity * g_Tint.a, maskAlpha, alphaErosion);
-    if (coverage < max(alphaCutoff, 0.01f))
+    const float materialCoverage = Effect_ApplyAlphaErosion(selectedOpacity * g_Tint.a, maskAlpha, alphaErosion);
+    if (materialCoverage < max(alphaCutoff, 0.01f))
         discard;
 
     const float2 flow = g_EffectMaterialPreviewDistortionParams.z != 0
                         ? Sample_PreviewFlowTexture(flowUV, flowUVMode) * 2.f - 1.f
                         : float2(0.f, 0.f);
     const float2 screenUV = In.position.xy / max(g_EffectMaterialPreviewScreenSize.xy, float2(1.f, 1.f));
-    const float strength =
-        max(g_EffectMaterialPreviewDistortionParams.x, 0.f) *
-        max(g_EffectMaterialPreviewDistortionParams.y, 0.f) *
-        saturate(coverage) *
-        Compute_PreviewDistortionShapeWeight(In.texCoord, frac(g_EffectMaterialPreviewDistortionParams.w));
-    const float4 distortedColor = g_DistortionSourceTexture.Sample(LinearClampSampler, screenUV + flow * strength);
+    const float shapeCoverage = EffectDistortion_ComputeShapeCoverage(
+        g_EffectMaterialPreviewDistortionShapeParams,
+        In.texCoord,
+        frac(g_EffectMaterialPreviewDistortionParams.w)
+    );
+    const float lensCoverage = EffectDistortion_ComputeLensCoverage(
+        materialCoverage,
+        shapeCoverage,
+        g_EffectMaterialPreviewDistortionParams.y
+    );
+    const float2 offset = EffectDistortion_ComputeScreenOffset(flow, g_EffectMaterialPreviewDistortionParams.x);
+    const float4 distortedColor = g_DistortionSourceTexture.Sample(LinearClampSampler, screenUV + offset);
+    const float edgeAlpha = EffectDistortion_ComputeLensEdgeAlpha(lensCoverage);
 
-    Out.color = float4(distortedColor.rgb, saturate(coverage));
+    Out.color = float4(distortedColor.rgb, edgeAlpha);
     return Out;
 }
 

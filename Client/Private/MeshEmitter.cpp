@@ -31,6 +31,19 @@ double Elapsed_Milliseconds(const std::chrono::steady_clock::time_point& begin, 
 {
     return std::chrono::duration<double, std::milli>(end - begin).count();
 }
+
+Matrix Resolve_MeshPlaneAlignmentMatrix(EffectScreenAlignment alignment)
+{
+    switch (alignment)
+    {
+    case EffectScreenAlignment::WorldPlaneXZ:
+        return Matrix::CreateRotationX(-XM_PIDIV2);
+
+    case EffectScreenAlignment::WorldPlaneXY:
+    default:
+        return Matrix::Identity;
+    }
+}
 }
 
 IMPLEMENT_REFLECTION(MeshEmitter)
@@ -110,7 +123,8 @@ HRESULT MeshEmitter::Render()
 
     if (FAILED(GAME->Bind_CameraCB(_shader)))
     {
-        LOG_WARN_ONCE(
+        LOG_WARN_THROTTLED(
+            60,
             "MeshEmitter render failed: camera binding failed. emitter='{}', modelGuid='{}', modelPath='{}'",
             _emitterName,
             _desc.modelGuid,
@@ -122,7 +136,8 @@ HRESULT MeshEmitter::Render()
     const Matrix identity = Matrix::Identity;
     if (FAILED(_shader->Bind_Matrix("g_PreTransformMatrix", &identity)))
     {
-        LOG_WARN_ONCE(
+        LOG_WARN_THROTTLED(
+            60,
             "MeshEmitter render failed: pre-transform binding failed. emitter='{}', modelGuid='{}', modelPath='{}'",
             _emitterName,
             _desc.modelGuid,
@@ -131,7 +146,11 @@ HRESULT MeshEmitter::Render()
         return E_FAIL;
     }
 
-    CHECK_FAILED(Bind_EffectMaterialResources(), E_FAIL);
+    if (Is_DistortionFamily())
+        CHECK_FAILED_THROTTLED(Bind_DistortionResources(), 60, E_FAIL);
+    else
+        CHECK_FAILED_THROTTLED(Bind_EffectMaterialResources(), 60, E_FAIL);
+
     const uint32 passIndex = Resolve_ShaderPassIndex();
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
@@ -140,7 +159,8 @@ HRESULT MeshEmitter::Render()
 
         if (FAILED(_shader->Begin(passIndex)))
         {
-            LOG_WARN_ONCE(
+            LOG_WARN_THROTTLED(
+                60,
                 "MeshEmitter draw failed: shader pass begin failed. emitter='{}', meshIndex={}, materialIndex={}, passIndex={}",
                 _emitterName,
                 meshIndex,
@@ -152,7 +172,8 @@ HRESULT MeshEmitter::Render()
 
         if (FAILED(_model->RenderInstanced(meshIndex, _instanceBuffer.Get(), sizeof(MeshInstanceVertex), _activeInstanceCount)))
         {
-            LOG_WARN_ONCE(
+            LOG_WARN_THROTTLED(
+                60,
                 "MeshEmitter draw failed: instanced mesh render failed. emitter='{}', meshIndex={}, materialIndex={}, passIndex={}",
                 _emitterName,
                 meshIndex,
@@ -226,7 +247,7 @@ void MeshEmitter::On_EffectTransformSynced()
 void MeshEmitter::Log_DescPayload(const char* context) const
 {
     LOG_INFO(
-        "MeshEmitter desc payload. context={}, emitter='{}', spawnCount={}, spawnRate={}, bursts={}, life=({}, {}), meshInitialScale={}, meshScaleByLife={}, motion={}, acceleration={}, drag=({}, {}), velocityScale=({}, {}), meshRotation={}, meshRotationMin=({}, {}, {}), meshRotationMax=({}, {}, {}), colorCurve={}, alphaCurve={}",
+        "MeshEmitter desc payload. context={}, emitter='{}', spawnCount={}, spawnRate={}, bursts={}, life=({}, {}), meshAlignment={}, meshInitialScale={}, meshScaleByLife={}, motion={}, acceleration={}, drag=({}, {}), velocityScale=({}, {}), meshRotation={}, meshRotationMin=({}, {}, {}), meshRotationMax=({}, {}, {}), colorCurve={}, alphaCurve={}",
         context,
         _emitterName,
         _desc.spawn.instanceCount,
@@ -234,6 +255,7 @@ void MeshEmitter::Log_DescPayload(const char* context) const
         static_cast<uint32>(_desc.spawn.particleSpawn.bursts.size()),
         _desc.lifetime.lifeTime.x,
         _desc.lifetime.lifeTime.y,
+        static_cast<uint32>(_desc.meshTransform.alignment),
         _desc.meshTransform.initialScaleEnabled,
         _desc.meshTransform.scaleByLife.enabled,
         _desc.motion.enabled,
@@ -289,6 +311,8 @@ bool MeshEmitter::Is_CompatibleReloadDesc(const MeshEmitterDesc& desc) const
         return false;
     if (Has_MaterialOverride(_desc) && !Has_MaterialOverride(desc))
         return false;
+    if (desc.meshTransform.alignment != _desc.meshTransform.alignment)
+        return false;
 
     return true;
 }
@@ -309,6 +333,10 @@ HRESULT MeshEmitter::Apply_DescForReload(const MeshEmitterDesc& desc)
     const auto totalBegin = std::chrono::steady_clock::now();
     _desc = desc;
     Reset_PlaybackRuntime();
+
+    const auto shaderBegin = std::chrono::steady_clock::now();
+    CHECK_FAILED(Ready_Shader(), E_FAIL);
+    const auto shaderEnd = std::chrono::steady_clock::now();
 
     const auto materialBegin = std::chrono::steady_clock::now();
     CHECK_FAILED(Apply_EffectMaterialOverride(), E_FAIL);
@@ -334,7 +362,7 @@ HRESULT MeshEmitter::Apply_DescForReload(const MeshEmitterDesc& desc)
     const auto totalEnd = std::chrono::steady_clock::now();
     Log_InitializeTiming(
         "reload_reuse",
-        0.0,
+        Internal::Elapsed_Milliseconds(shaderBegin, shaderEnd),
         0.0,
         0.0,
         Internal::Elapsed_Milliseconds(materialBegin, materialEnd),
@@ -410,17 +438,30 @@ HRESULT MeshEmitter::Ready_Components()
 
 HRESULT MeshEmitter::Ready_Shader()
 {
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), String::ToWString(kEffectMeshShaderId), _shader), E_FAIL);
-    if (_shader == nullptr)
+    const wstring shaderId = String::ToWString(Is_DistortionFamily() ? kEffectMeshDistortionShaderId : kEffectMeshShaderId);
+    if (nullptr != _shader && _loadedShaderPrototypeTag == shaderId)
+        return S_OK;
+
+    if (const Shared<ShaderCom> existingShader = Get_Component<ShaderCom>(shaderId))
+    {
+        _shader = existingShader;
+        _loadedShaderPrototypeTag = shaderId;
+        return S_OK;
+    }
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), shaderId, _shader), E_FAIL);
+
+    if (nullptr == _shader)
     {
         LOG_WARN(
             "MeshEmitter shader missing: effect mesh shader prototype is missing. emitter='{}', shaderId='{}'",
             _emitterName,
-            kEffectMeshShaderId
+            String::ToString(shaderId)
         );
         return E_FAIL;
     }
 
+    _loadedShaderPrototypeTag = shaderId;
     return S_OK;
 }
 
@@ -431,10 +472,23 @@ HRESULT MeshEmitter::Apply_EffectMaterialOverride()
 
 HRESULT MeshEmitter::Ready_EffectMaterialTextures()
 {
+    if (Is_DistortionFamily())
+    {
+        _texture.reset();
+        _noiseTexture.reset();
+        _maskTexture.reset();
+        CHECK_FAILED(Ready_OptionalTexture(_desc.material.flowTextureGuid, _desc.material.flowTexturePath, _flowTexture), E_FAIL);
+        _opacitySourceIndex = Resolve_OpacitySourceIndex();
+        return S_OK;
+    }
+
+    _flowTexture.reset();
+
     wstring mainTexturePath = Resolve_MaterialTexturePath(_desc.material.mainTextureGuid, _desc.material.mainTexturePath);
     if (mainTexturePath.empty())
     {
-        LOG_WARN_ONCE(
+        LOG_WARN_THROTTLED(
+            60,
             "MeshEmitter assigned effect material has no resolvable main texture. emitter='{}', materialMainGuid='{}', materialMainPath='{}'. fallback='{}'",
             _emitterName,
             _desc.material.mainTextureGuid,
@@ -465,7 +519,8 @@ HRESULT MeshEmitter::Ready_OptionalTexture(const string& textureGuid, const stri
     const wstring resolvedPath = Resolve_MaterialTexturePath(textureGuid, texturePath);
     if (resolvedPath.empty())
     {
-        LOG_WARN_ONCE(
+        LOG_WARN_THROTTLED(
+            60,
             "MeshEmitter optional effect material texture missing. emitter='{}', textureGuid='{}', texturePath='{}'",
             _emitterName,
             textureGuid,
@@ -477,7 +532,8 @@ HRESULT MeshEmitter::Ready_OptionalTexture(const string& textureGuid, const stri
     outTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
     if (outTexture == nullptr)
     {
-        LOG_WARN_ONCE(
+        LOG_WARN_THROTTLED(
+            60,
             "MeshEmitter optional effect material texture create failed. emitter='{}', textureGuid='{}', texturePath='{}', resolvedPath='{}'",
             _emitterName,
             textureGuid,
@@ -493,19 +549,20 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
     const EffectRequiredMaterialRuntimeDesc& material = _desc.material;
 
     CHECK_NULL(_texture, E_FAIL);
-    CHECK_FAILED_ONCE(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
+
+    CHECK_FAILED_THROTTLED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), 60, E_FAIL);
 
     if (_noiseTexture != nullptr)
-        CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
+        CHECK_FAILED_THROTTLED(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), 60, E_FAIL);
     else
-        CHECK_FAILED_ONCE(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
+        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_NoiseTexture", nullptr), 60, E_FAIL);
 
     if (_maskTexture != nullptr)
-        CHECK_FAILED_ONCE(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
+        CHECK_FAILED_THROTTLED(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), 60, E_FAIL);
     else
-        CHECK_FAILED_ONCE(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
+        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_MaskTexture", nullptr), 60, E_FAIL);
 
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), 60, E_FAIL);
 
     const Vec4 effectMeshParams = Vec4(
         material.intensity,
@@ -552,29 +609,130 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
         coreEmissive.outerIntensity
     );
 
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshParams", &effectMeshParams, sizeof(effectMeshParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshAlphaParams", &effectMeshAlphaParams, sizeof(effectMeshAlphaParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshMainUVParams", &effectMeshMainUVParams, sizeof(effectMeshMainUVParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshNoiseUVParams", &effectMeshNoiseUVParams, sizeof(effectMeshNoiseUVParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshMaskUVParams", &effectMeshMaskUVParams, sizeof(effectMeshMaskUVParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), E_FAIL);
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshParams", &effectMeshParams, sizeof(effectMeshParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshAlphaParams", &effectMeshAlphaParams, sizeof(effectMeshAlphaParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshMainUVParams", &effectMeshMainUVParams, sizeof(effectMeshMainUVParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshNoiseUVParams", &effectMeshNoiseUVParams, sizeof(effectMeshNoiseUVParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshMaskUVParams", &effectMeshMaskUVParams, sizeof(effectMeshMaskUVParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)),
+        60,
+        E_FAIL
+    );
     return S_OK;
+}
+
+HRESULT MeshEmitter::Bind_DistortionResources()
+{
+    const EffectRequiredMaterialRuntimeDesc& material = _desc.material;
+
+    if (nullptr != _flowTexture)
+        CHECK_FAILED_THROTTLED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), 60, E_FAIL);
+    else
+        CHECK_FAILED_THROTTLED(_shader->Bind_SRV("g_FlowTexture", nullptr), 60, E_FAIL);
+
+    D3D11_VIEWPORT viewport{};
+    uint32 viewportCount = 1u;
+    _context->RSGetViewports(&viewportCount, &viewport);
+
+    const Vec4 distortionParams{
+        max(0.f, material.refractionIntensity),
+        max(0.f, material.refractionPresence),
+        nullptr != _flowTexture ? 1.f : 0.f,
+        _emitterElapsedTime
+    };
+    const Vec4 distortionScreenSize{ max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f };
+    const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), 60, E_FAIL);
+    return S_OK;
+}
+
+bool MeshEmitter::Is_DistortionFamily() const
+{
+    return _desc.material.materialFamily == EffectMaterialFamily::SpriteDistortion;
 }
 
 HRESULT MeshEmitter::Ready_InstanceBuffer()
 {
     const uint32 instanceCapacity = max(1u, _desc.spawn.instanceCount);
-    if (_instanceBuffer != nullptr && _instanceCapacity == instanceCapacity)
+    if (nullptr != _instanceBuffer && _instanceCapacity == instanceCapacity)
         return S_OK;
 
     D3D11_BUFFER_DESC bufferDesc{};
@@ -872,7 +1030,7 @@ void MeshEmitter::Update_Particles(float timeDelta)
 
         const float lifeProgress = clamp(particle.age / max(0.0001f, particle.lifeMax), 0.f, 1.f);
         const float velocityScale = Evaluate_VelocityScaleByLife(lifeProgress);
-        const Vec3 acceleration = particle.acceleration * velocityScale;
+        const Vec3 acceleration = Evaluate_AccelerationByLife(particle, lifeProgress) * velocityScale;
         particle.velocity += acceleration * safeDeltaTime;
 
         if (particle.drag > 0.f)
@@ -960,6 +1118,7 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
     return
         Matrix::CreateScale(scale) *
         Matrix::CreateFromQuaternion(rotation) *
+        Internal::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment) *
         Matrix::CreateTranslation(position);
 }
 
@@ -1108,6 +1267,20 @@ float MeshEmitter::Evaluate_VelocityScaleByLife(float lifeProgress) const
     return max(0.f, lerp(_desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, lifeProgress));
 }
 
+Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle, float lifeProgress) const
+{
+    if (!_desc.motion.accelerationCurveEnabled)
+        return particle.acceleration;
+
+    const uint32 keyCount = max(1u, min(4u, _desc.motion.accelerationCurveKeyCount));
+    const Vec3 acceleration{
+        Evaluate_CompactCurve(lifeProgress, _desc.motion.accelerationCurveTimes, _desc.motion.accelerationCurveValuesX, keyCount, particle.acceleration.x),
+        Evaluate_CompactCurve(lifeProgress, _desc.motion.accelerationCurveTimes, _desc.motion.accelerationCurveValuesY, keyCount, particle.acceleration.y),
+        Evaluate_CompactCurve(lifeProgress, _desc.motion.accelerationCurveTimes, _desc.motion.accelerationCurveValuesZ, keyCount, particle.acceleration.z)
+    };
+    return Resolve_LocalVector(acceleration);
+}
+
 Vec3 MeshEmitter::Evaluate_ScaleByLife(float lifeProgress) const
 {
     return Evaluate_MeshVector3Curve(_desc.meshTransform.scaleByLife, lifeProgress, Vec3{ 1.f, 1.f, 1.f });
@@ -1230,6 +1403,9 @@ Vec3 MeshEmitter::Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& d
 
 RenderGroup MeshEmitter::Resolve_RenderGroup() const
 {
+    if (Is_DistortionFamily())
+        return RenderGroup::Distortion;
+
     return _desc.material.blendMode == EffectMaterialBlendMode::Modulate
            ? RenderGroup::NonBlend
            : RenderGroup::Blend;
@@ -1237,6 +1413,9 @@ RenderGroup MeshEmitter::Resolve_RenderGroup() const
 
 uint32 MeshEmitter::Resolve_ShaderPassIndex() const
 {
+    if (Is_DistortionFamily())
+        return 0u;
+
     const bool additive = _desc.material.blendMode == EffectMaterialBlendMode::Additive;
     const bool twoSided = _desc.material.twoSided;
     if (additive)

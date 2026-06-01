@@ -552,7 +552,7 @@ namespace Internal
         }
         drawList->AddRect(thumbnailMin, thumbnailMax, IM_COL32(85, 96, 116, 255), 4.f);
 
-        const string& resolvedName = Internal::Resolve_MaterialDisplayName(data);
+        const string& resolvedName = Resolve_MaterialDisplayName(data);
         const string displayName = resolvedName.empty() ? "(drop material here)" : resolvedName;
         const string blendModeName = string(magic_enum::enum_name(data.material.blendMode));
         const string sourceSummary =

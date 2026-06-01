@@ -3,6 +3,7 @@
 
 NS_BEGIN(Engine)
 class ShaderCom;
+class TransformCom;
 NS_END
 
 NS_BEGIN(Client)
@@ -30,14 +31,15 @@ public:
     void Evaluate_At(float elapsedTime) override;
 
 private:
-    void Compute_LeaderHeroPosToProjection();
+    Shared<TransformCom> Get_CurrentTarget();
+    void Compute_LeaderHeroPosToProjection(const Shared<TransformCom>& targetTransform);
 
 private:
     RadialBlurDesc _originalDesc{};
     float _currentIntensity{};
     float _targetIntensity{ 0.0f };
     Vec3 _prevLookDir{};
-    float _requireSpeed = 3.f;
+    float _requireSpeed = 2.f;
 
 public:
     static Shared<RadialBlur_ScreenFx> Create(RadialBlurDesc* desc);

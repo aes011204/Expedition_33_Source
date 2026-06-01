@@ -281,7 +281,7 @@ void Content_Browser::Refresh_CurrentFolder()
 {
     _gridItemCache.clear();
     _gridItemCacheFolder = nullptr;
-    Client::ContentBrowserCore::Refresh_CurrentFolder(
+    ContentBrowserCore::Refresh_CurrentFolder(
         [](const wstring& filePath)
         {
             return GAME->Find_AssetGUID(filePath);

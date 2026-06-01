@@ -238,13 +238,13 @@ void Profile_View::Frame_End()
         activeView->_fpsAvg = activeView->_frameMsAvg > 0.0001 ? 1000.0 / activeView->_frameMsAvg : 0.0;
     }
 
-    vector<Engine::DebugProfileSample> debugSamples = {};
-    Engine::Debug_Profile::Consume_Samples(debugSamples);
+    vector<DebugProfileSample> debugSamples = {};
+    Debug_Profile::Consume_Samples(debugSamples);
 
     if (runtime.capture)
     {
         unordered_map<string, double> debugSampleSums = {};
-        for (const Engine::DebugProfileSample& sample : debugSamples)
+        for (const DebugProfileSample& sample : debugSamples)
             debugSampleSums[sample.name] += sample.elapsedMs;
 
         for (const auto& [scopeName, elapsedMs] : debugSampleSums)
@@ -548,7 +548,7 @@ void Profile_View::Log_Snapshot() const
 
     if (_hasResourceMemorySample && _resourceMemory.hasData)
     {
-        const Engine::DebugResourceMemorySummary& summary = _resourceMemory.engine;
+        const DebugResourceMemorySummary& summary = _resourceMemory.engine;
         Internal::Log_Profile_Snapshot_Line(sourceLoc, fmt::format(
             "resource textures={} textures_mb={:.1f} texture_srvs={} "
             "models={} models_mb={:.1f} model_meshes={} model_materials={} model_bones={} model_anims={} "
@@ -627,7 +627,7 @@ void Profile_View::Draw_Resource_Memory()
         return;
     }
 
-    const Engine::DebugResourceMemorySummary& summary = _resourceMemory.engine;
+    const DebugResourceMemorySummary& summary = _resourceMemory.engine;
 
     if (ImGui::BeginTable("ResourceMemoryTable", 4, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg))
     {
@@ -837,10 +837,10 @@ Profile_View::ResourceMemory Profile_View::Get_Resource_Memory() const
     ResourceMemory result{};
     result.hasData = GAME->Build_DebugResourceMemorySummary(result.engine);
 
-    const Shared<Client::ClientInstance>& client = Client::ClientInstance::GetInstance();
+    const Shared<ClientInstance>& client = ClientInstance::GetInstance();
     if (client && client->Get_EffectInstancePool())
     {
-        const Client::EffectInstancePool::DebugSummary poolSummary =
+        const EffectInstancePool::DebugSummary poolSummary =
             client->Get_EffectInstancePool()->Get_DebugSummary();
         result.effectPoolEntryCount = poolSummary.entryCount;
         result.effectPoolActiveCount = poolSummary.activeCount;

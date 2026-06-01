@@ -50,6 +50,8 @@ enum class EmitterScreenAlignment : uint8
     Rectangle,
     Velocity,
     AwayFromCenter,
+    WorldPlaneXY,
+    WorldPlaneXZ,
     TypeSpecific,
     FacingCameraDistanceBlend,
 };

@@ -32,7 +32,7 @@ namespace Internal
             value.begin(),
             [](wchar_t character)
             {
-                return static_cast<wchar_t>(::towlower(character));
+                return static_cast<wchar_t>(towlower(character));
             }
         );
         return value;
@@ -963,6 +963,17 @@ namespace Internal
         ImGui::TextDisabled("%s", value);
         ImGui::PopID();
     }
+
+    void Draw_ReadOnlyCheckedBoolProperty(DetailPropertyContext& detailContext, const char* label, bool value, const char* tooltip = nullptr)
+    {
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label, tooltip);
+        ImGui::BeginDisabled();
+        ImGui::Checkbox("##Value", &value);
+        ImGui::EndDisabled();
+        detailContext.Draw_ResetButton(false);
+        ImGui::PopID();
+    }
 }
 
 EffectMaterialInstance_View::EffectMaterialInstance_View()
@@ -1035,6 +1046,12 @@ void EffectMaterialInstance_View::Render()
                 _targetModuleId
             };
             const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
+            const EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode =
+                emitter->typeData.kind == AuthoringTypeDataKind::None
+                    ? EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly
+                    : emitter->typeData.kind == AuthoringTypeDataKind::Trail
+                          ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
+                          : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
 
             if (useSideBySideLayout)
             {
@@ -1062,7 +1079,8 @@ void EffectMaterialInstance_View::Render()
                         _detailPropertyContext,
                         _textureThumbnailCache,
                         requiredData->material,
-                        &restartPreview
+                        &restartPreview,
+                        twoSidedDisplayMode
                     );
                 }
                 ImGui::EndChild();
@@ -1079,12 +1097,13 @@ void EffectMaterialInstance_View::Render()
                     ImGui::Separator();
                 }
 
-            changed |= Draw_InstanceProperties(
-                _detailPropertyContext,
-                _textureThumbnailCache,
-                requiredData->material,
-                &restartPreview
-            );
+                changed |= Draw_InstanceProperties(
+                    _detailPropertyContext,
+                    _textureThumbnailCache,
+                    requiredData->material,
+                    &restartPreview,
+                    twoSidedDisplayMode
+                );
             }
 
             if (changed)
@@ -1104,47 +1123,13 @@ void EffectMaterialInstance_View::Render()
     ImGui::End();
 }
 
-void EffectMaterialInstance_View::Open_Instance(uint32 emitterId, uint32 moduleId)
-{
-    _targetEmitterId = emitterId;
-    _targetModuleId = moduleId;
-    Set_Open(true);
-}
-
-bool EffectMaterialInstance_View::Resolve_Target(
-    Shared<Emitter_View>& outEmitterView,
-    AuthoringEmitter*& outEmitter,
-    RequiredModuleData*& outRequiredData) const
-{
-    outEmitterView.reset();
-    outEmitter = nullptr;
-    outRequiredData = nullptr;
-
-    if (EDITOR == nullptr)
-        return false;
-
-    const Shared<Editor_Window> emitterWindow = EDITOR->Get_Window(L"Emitter");
-    outEmitterView = dynamic_pointer_cast<Emitter_View>(emitterWindow);
-    if (outEmitterView == nullptr)
-        return false;
-
-    outEmitter = outEmitterView->Find_Emitter(_targetEmitterId);
-    if (outEmitter == nullptr)
-        return false;
-
-    AuthoringModule* module = outEmitterView->Find_Module(_targetEmitterId, _targetModuleId);
-    if (module == nullptr || module->type != AuthoringModuleType::Required)
-        return false;
-
-    outRequiredData = get_if<RequiredModuleData>(&module->data);
-    return outRequiredData != nullptr;
-}
-
 bool EffectMaterialInstance_View::Draw_InstanceProperties(
     DetailPropertyContext& detailPropertyContext,
-    map<string, Shared<Engine::Texture>>& textureThumbnailCache,
+    map<string, Shared<Texture>>& textureThumbnailCache,
     EffectMaterialInstanceData& material,
-    bool* outRestartPreview)
+    bool* outRestartPreview,
+    EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode,
+    bool disableMeshDistortionShapeControls)
 {
     const EffectMaterialInstanceData defaultData{};
     bool changed = false;
@@ -1335,11 +1320,33 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
 
         if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceOptionsTail"))
         {
-            changed |= detailPropertyContext.Draw_BoolProperty("Two Sided (미구현)", material.twoSided, defaultData.twoSided);
+            switch (twoSidedDisplayMode)
+            {
+            case EffectMaterialTwoSidedDisplayMode::EditableImplemented:
+                changed |= detailPropertyContext.Draw_BoolProperty("Two Sided", material.twoSided, defaultData.twoSided);
+                break;
+
+            case EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly:
+                Internal::Draw_ReadOnlyCheckedBoolProperty(
+                    detailPropertyContext,
+                    "Two Sided",
+                    true,
+                    "현재 sprite renderer는 항상 양면 렌더라서 이 옵션을 개별 제어하지 않습니다."
+                );
+                break;
+
+            case EffectMaterialTwoSidedDisplayMode::EditableUnimplemented:
+            default:
+                changed |= detailPropertyContext.Draw_BoolProperty("Two Sided (미구현)", material.twoSided, defaultData.twoSided);
+                break;
+            }
             changed |= detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
             changed |= detailPropertyContext.Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
             detailPropertyContext.End_PropertyTable();
         }
+
+        if (twoSidedDisplayMode == EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly)
+            ImGui::TextDisabled("Sprite는 현재 항상 양면 렌더입니다.");
     }
 
     if (material.materialFamily == EffectMaterialFamily::SpriteDistortion &&
@@ -1360,56 +1367,68 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             changed |= detailPropertyContext.Draw_Vec2Property("Flow UV Scroll Speed", material.flowUVScrollSpeed, defaultData.flowUVScrollSpeed);
             changed |= detailPropertyContext.Draw_FloatProperty("Refraction Intensity", material.refractionIntensity, defaultData.refractionIntensity);
             changed |= detailPropertyContext.Draw_FloatProperty("Refraction Presence", material.refractionPresence, defaultData.refractionPresence);
-            const EffectDistortionShapeMode previousShapeMode = material.distortionShapeMode;
-            const bool shapeModeChanged = Internal::Draw_DistortionShapeModeProperty(
-                detailPropertyContext,
-                material.distortionShapeMode,
-                defaultData.distortionShapeMode
-            );
-            changed |= shapeModeChanged;
-            if (shapeModeChanged &&
-                previousShapeMode != EffectDistortionShapeMode::ShockwaveRing &&
-                material.distortionShapeMode == EffectDistortionShapeMode::ShockwaveRing)
+            if (disableMeshDistortionShapeControls)
             {
-                material.distortionShapeThickness = 14.f;
-                material.distortionShapeSoftness = 4.f;
-            }
-            if (material.distortionShapeMode == EffectDistortionShapeMode::Radial ||
-                material.distortionShapeMode == EffectDistortionShapeMode::Ring)
-            {
-                changed |= detailPropertyContext.Draw_FloatProperty(
-                    "Shape Radius",
-                    material.distortionShapeRadius,
-                    defaultData.distortionShapeRadius
+                Internal::Draw_ReadOnlyTextProperty(
+                    detailPropertyContext,
+                    "Shape Mode",
+                    "Mesh Distortion v0에서는 Shape 미지원"
                 );
-                if (material.distortionShapeMode == EffectDistortionShapeMode::Ring)
+                detailPropertyContext.End_PropertyTable();
+            }
+            else
+            {
+                const EffectDistortionShapeMode previousShapeMode = material.distortionShapeMode;
+                const bool shapeModeChanged = Internal::Draw_DistortionShapeModeProperty(
+                    detailPropertyContext,
+                    material.distortionShapeMode,
+                    defaultData.distortionShapeMode
+                );
+                changed |= shapeModeChanged;
+                if (shapeModeChanged &&
+                    previousShapeMode != EffectDistortionShapeMode::ShockwaveRing &&
+                    material.distortionShapeMode == EffectDistortionShapeMode::ShockwaveRing)
+                {
+                    material.distortionShapeThickness = 14.f;
+                    material.distortionShapeSoftness = 4.f;
+                }
+                if (material.distortionShapeMode == EffectDistortionShapeMode::Radial ||
+                    material.distortionShapeMode == EffectDistortionShapeMode::Ring)
                 {
                     changed |= detailPropertyContext.Draw_FloatProperty(
-                        "Shape Thickness",
+                        "Shape Radius",
+                        material.distortionShapeRadius,
+                        defaultData.distortionShapeRadius
+                    );
+                    if (material.distortionShapeMode == EffectDistortionShapeMode::Ring)
+                    {
+                        changed |= detailPropertyContext.Draw_FloatProperty(
+                            "Shape Thickness",
+                            material.distortionShapeThickness,
+                            defaultData.distortionShapeThickness
+                        );
+                    }
+                    changed |= detailPropertyContext.Draw_FloatProperty(
+                        "Shape Softness",
+                        material.distortionShapeSoftness,
+                        defaultData.distortionShapeSoftness
+                    );
+                }
+                else if (material.distortionShapeMode == EffectDistortionShapeMode::ShockwaveRing)
+                {
+                    changed |= detailPropertyContext.Draw_FloatProperty(
+                        "Shape Thickness (px)",
                         material.distortionShapeThickness,
                         defaultData.distortionShapeThickness
                     );
+                    changed |= detailPropertyContext.Draw_FloatProperty(
+                        "Shape Softness (px)",
+                        material.distortionShapeSoftness,
+                        defaultData.distortionShapeSoftness
+                    );
                 }
-                changed |= detailPropertyContext.Draw_FloatProperty(
-                    "Shape Softness",
-                    material.distortionShapeSoftness,
-                    defaultData.distortionShapeSoftness
-                );
+                detailPropertyContext.End_PropertyTable();
             }
-            else if (material.distortionShapeMode == EffectDistortionShapeMode::ShockwaveRing)
-            {
-                changed |= detailPropertyContext.Draw_FloatProperty(
-                    "Shape Thickness (px)",
-                    material.distortionShapeThickness,
-                    defaultData.distortionShapeThickness
-                );
-                changed |= detailPropertyContext.Draw_FloatProperty(
-                    "Shape Softness (px)",
-                    material.distortionShapeSoftness,
-                    defaultData.distortionShapeSoftness
-                );
-            }
-            detailPropertyContext.End_PropertyTable();
         }
     }
 
@@ -1417,6 +1436,42 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
         *outRestartPreview = restartPreview;
 
     return changed;
+}
+
+void EffectMaterialInstance_View::Open_Instance(uint32 emitterId, uint32 moduleId)
+{
+    _targetEmitterId = emitterId;
+    _targetModuleId = moduleId;
+    Set_Open(true);
+}
+
+bool EffectMaterialInstance_View::Resolve_Target(
+    Shared<Emitter_View>& outEmitterView,
+    AuthoringEmitter*& outEmitter,
+    RequiredModuleData*& outRequiredData) const
+{
+    outEmitterView.reset();
+    outEmitter = nullptr;
+    outRequiredData = nullptr;
+
+    if (EDITOR == nullptr)
+        return false;
+
+    const Shared<Editor_Window> emitterWindow = EDITOR->Get_Window(L"Emitter");
+    outEmitterView = dynamic_pointer_cast<Emitter_View>(emitterWindow);
+    if (outEmitterView == nullptr)
+        return false;
+
+    outEmitter = outEmitterView->Find_Emitter(_targetEmitterId);
+    if (outEmitter == nullptr)
+        return false;
+
+    AuthoringModule* module = outEmitterView->Find_Module(_targetEmitterId, _targetModuleId);
+    if (module == nullptr || module->type != AuthoringModuleType::Required)
+        return false;
+
+    outRequiredData = get_if<RequiredModuleData>(&module->data);
+    return outRequiredData != nullptr;
 }
 
 void EffectMaterialInstance_View::Apply_MaterialChanged(

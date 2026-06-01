@@ -124,27 +124,33 @@ namespace Internal
         return resolvedPath.lexically_normal();
     }
 
-    EffectSpriteScreenAlignment Resolve_EffectSpriteScreenAlignment(EmitterScreenAlignment alignment)
+    EffectScreenAlignment Resolve_EffectScreenAlignment(EmitterScreenAlignment alignment)
     {
         switch (alignment)
         {
         case EmitterScreenAlignment::Rectangle:
-            return EffectSpriteScreenAlignment::Rectangle;
+            return EffectScreenAlignment::Rectangle;
 
         case EmitterScreenAlignment::Square:
-            return EffectSpriteScreenAlignment::Square;
+            return EffectScreenAlignment::Square;
 
         case EmitterScreenAlignment::AwayFromCenter:
-            return EffectSpriteScreenAlignment::AwayFromCenter;
+            return EffectScreenAlignment::AwayFromCenter;
 
         case EmitterScreenAlignment::Velocity:
-            return EffectSpriteScreenAlignment::Velocity;
+            return EffectScreenAlignment::Velocity;
+
+        case EmitterScreenAlignment::WorldPlaneXY:
+            return EffectScreenAlignment::WorldPlaneXY;
+
+        case EmitterScreenAlignment::WorldPlaneXZ:
+            return EffectScreenAlignment::WorldPlaneXZ;
 
         case EmitterScreenAlignment::FacingCameraPosition:
         case EmitterScreenAlignment::TypeSpecific:
         case EmitterScreenAlignment::FacingCameraDistanceBlend:
         default:
-            return EffectSpriteScreenAlignment::FacingCameraPosition;
+            return EffectScreenAlignment::FacingCameraPosition;
         }
     }
 
@@ -715,6 +721,41 @@ namespace Internal
         }
     }
 
+    void Fill_AccelerationCurvePayload(PointParticleMotionDesc& desc, const Vector3DistributionData& data)
+    {
+        desc.accelerationCurveEnabled = false;
+        desc.accelerationCurveKeyCount = 2;
+        desc.accelerationCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.accelerationCurveValuesX = Vec4{ desc.accelerationMin.x, desc.accelerationMax.x, 0.f, 0.f };
+        desc.accelerationCurveValuesY = Vec4{ desc.accelerationMin.y, desc.accelerationMax.y, 0.f, 0.f };
+        desc.accelerationCurveValuesZ = Vec4{ desc.accelerationMin.z, desc.accelerationMax.z, 0.f, 0.f };
+
+        const auto* curve = get_if<ConstantCurveVector3DistributionData>(&data.payload);
+        if (curve == nullptr)
+            return;
+
+        vector<Vector3CurveKeyData> keys = curve->keys;
+        ranges::sort(keys, {}, &Vector3CurveKeyData::time);
+        constexpr uint32 maxAccelerationCurveKeys{ 4 };
+        const uint32 keyCount = min(maxAccelerationCurveKeys, static_cast<uint32>(keys.size()));
+        if (keyCount == 0)
+            return;
+
+        desc.accelerationCurveEnabled = true;
+        desc.accelerationCurveKeyCount = keyCount;
+        desc.accelerationCurveTimes = Vec4{};
+        desc.accelerationCurveValuesX = Vec4{};
+        desc.accelerationCurveValuesY = Vec4{};
+        desc.accelerationCurveValuesZ = Vec4{};
+        for (uint32 index = 0; index < keyCount; ++index)
+        {
+            Set_SubUVFrameCurveComponent(desc.accelerationCurveTimes, index, clamp(keys[index].time, 0.f, 1.f));
+            Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesX, index, keys[index].value.x);
+            Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesY, index, keys[index].value.y);
+            Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesZ, index, keys[index].value.z);
+        }
+    }
+
     Color Evaluate_ColorDistributionMin(const ColorDistributionData& data, const Color& fallbackValue)
     {
         if (const auto* constant = get_if<ConstantColorDistributionData>(&data.payload))
@@ -1003,7 +1044,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.subUVRows = max(1u, material.subUVRows);
         desc.required.material.subUVCols = max(1u, material.subUVCols);
 
-        desc.required.spriteRender.screenAlignment = Internal::Resolve_EffectSpriteScreenAlignment(required->screenAlignment);
+        desc.required.spriteRender.screenAlignment = Internal::Resolve_EffectScreenAlignment(required->screenAlignment);
         desc.required.spriteRender.directionalAlignmentMode = Internal::Resolve_EffectSpriteDirectionalAlignmentMode(required->directionalAlignmentMode);
         desc.required.spriteRender.spriteTextureAxis = Internal::Resolve_EffectSpriteTextureAxis(required->spriteTextureAxis);
         desc.required.spriteRender.spriteRollOffsetDegrees = required->spriteRollOffsetDegrees;
@@ -1198,6 +1239,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.motion.enabled = true;
         desc.motion.accelerationMin = Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, desc.motion.accelerationMin);
         desc.motion.accelerationMax = Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, desc.motion.accelerationMax);
+        Internal::Fill_AccelerationCurvePayload(desc.motion, acceleration->acceleration);
     }
 
     if (const auto* drag = Internal::Find_ModuleData<DragModuleData>(emitter, AuthoringModuleType::Drag))
@@ -1476,6 +1518,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
 
         emitterDesc.drawLimit.useMaxDrawCount = required->useMaxDrawCount;
         emitterDesc.drawLimit.maxDrawCount = max(1u, required->maxDrawCount);
+        emitterDesc.meshTransform.alignment = Internal::Resolve_EffectScreenAlignment(required->screenAlignment);
 
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
@@ -1699,6 +1742,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
             Internal::Evaluate_Vector3DistributionMin(acceleration->acceleration, emitterDesc.motion.accelerationMin);
         emitterDesc.motion.accelerationMax =
             Internal::Evaluate_Vector3DistributionMax(acceleration->acceleration, emitterDesc.motion.accelerationMax);
+        Internal::Fill_AccelerationCurvePayload(emitterDesc.motion, acceleration->acceleration);
     }
 
     if (const auto* drag = Internal::Find_ModuleData<DragModuleData>(emitter, AuthoringModuleType::Drag))
