@@ -36,14 +36,16 @@ public:
 
 //## Module::Sprite
 
-// EffectSprite shader가 어떤 기준으로 sprite facing 축을 고를지 결정한다.
-enum class EffectSpriteScreenAlignment : uint32
+// Effect runtime이 어떤 기준으로 sprite/mesh facing 축을 고를지 결정한다.
+enum class EffectScreenAlignment : uint32
 {
     FacingCameraPosition = 0, // particle 위치에서 camera position을 바라보는 기본 billboard다.
     Rectangle = 1,            // 카메라 화면 평면 right/up을 따라가는 직사각형 billboard다.
     Square = 2,               // 카메라 화면 평면 기준에서 더 큰 축으로 정사각형을 만든다.
     AwayFromCenter = 3,       // emitter 중심에서 particle 바깥으로 향하는 radial 방향을 기준 방향으로 쓴다.
     Velocity = 4,             // compute가 기록한 현재 속도 방향을 기준 방향으로 쓴다.
+    WorldPlaneXY = 5,         // 월드 XY 평면에 고정되는 2D plane 정렬이다.
+    WorldPlaneXZ = 6,         // 월드 XZ 평면에 고정되는 바닥형 2D plane 정렬이다.
 };
 
 // AwayFromCenter/Velocity가 기준 방향을 어떻게 쓸지 결정한다.
@@ -118,7 +120,7 @@ struct EffectRequiredMaterialRuntimeDesc
 // Required 모듈에서 sprite render alignment에 필요한 값만 접은 runtime payload다.
 struct EffectSpriteRenderRuntimeDesc
 {
-    EffectSpriteScreenAlignment screenAlignment{ EffectSpriteScreenAlignment::FacingCameraPosition }; // sprite 축 선택 기준이다.
+    EffectScreenAlignment screenAlignment{ EffectScreenAlignment::FacingCameraPosition }; // sprite 축 선택 기준이다.
     EffectSpriteDirectionalAlignmentMode directionalAlignmentMode{ EffectSpriteDirectionalAlignmentMode::TextureAxis }; // 방향 기준 사용 방식이다.
     EffectSpriteTextureAxis spriteTextureAxis{ EffectSpriteTextureAxis::Y }; // TextureAxis mode에서 맞출 texture 축이다.
     float spriteRollOffsetDegrees{ 0.f }; // authored texture 방향 차이를 보정하는 정적 roll offset이다.
@@ -261,6 +263,8 @@ struct MeshVector3CurveRuntimeDesc
 // mesh emitter 전용 Vec3 scale/rotation runtime payload다.
 struct MeshTransformRuntimeDesc
 {
+    EffectScreenAlignment alignment{ EffectScreenAlignment::FacingCameraPosition }; // mesh instance의 기본 plane/facing 정렬 기준이다.
+
     bool initialScaleEnabled{ false };                         // InitialMeshSize Vec3 payload 연결 여부다.
     Vec3 initialScaleMin{ 0.12f, 0.12f, 0.12f };                // spawn 시 mesh scale 하한이다.
     Vec3 initialScaleMax{ 0.28f, 0.28f, 0.28f };                // spawn 시 mesh scale 상한이다.
