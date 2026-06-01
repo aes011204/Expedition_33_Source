@@ -1014,7 +1014,7 @@ void MeshEmitter::Update_Particles(float timeDelta)
 
         const float lifeProgress = clamp(particle.age / max(0.0001f, particle.lifeMax), 0.f, 1.f);
         const float velocityScale = Evaluate_VelocityScaleByLife(lifeProgress);
-        const Vec3 acceleration = particle.acceleration * velocityScale;
+        const Vec3 acceleration = Evaluate_AccelerationByLife(particle, lifeProgress) * velocityScale;
         particle.velocity += acceleration * safeDeltaTime;
 
         if (particle.drag > 0.f)
@@ -1248,6 +1248,20 @@ Vec3 MeshEmitter::Sample_InitialAngularVelocity(uint32 seed) const
 float MeshEmitter::Evaluate_VelocityScaleByLife(float lifeProgress) const
 {
     return max(0.f, lerp(_desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, lifeProgress));
+}
+
+Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle, float lifeProgress) const
+{
+    if (!_desc.motion.accelerationCurveEnabled)
+        return particle.acceleration;
+
+    const uint32 keyCount = max(1u, min(4u, _desc.motion.accelerationCurveKeyCount));
+    const Vec3 acceleration{
+        Evaluate_CompactCurve(lifeProgress, _desc.motion.accelerationCurveTimes, _desc.motion.accelerationCurveValuesX, keyCount, particle.acceleration.x),
+        Evaluate_CompactCurve(lifeProgress, _desc.motion.accelerationCurveTimes, _desc.motion.accelerationCurveValuesY, keyCount, particle.acceleration.y),
+        Evaluate_CompactCurve(lifeProgress, _desc.motion.accelerationCurveTimes, _desc.motion.accelerationCurveValuesZ, keyCount, particle.acceleration.z)
+    };
+    return Resolve_LocalVector(acceleration);
 }
 
 Vec3 MeshEmitter::Evaluate_ScaleByLife(float lifeProgress) const
