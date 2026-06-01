@@ -1,5 +1,6 @@
 ﻿#include "Level_GameEntry.h"
 
+#include "ClientInstance.h"
 #include "GameInstance.h"
 #include "Level_Loading.h"
 #include "Client_Constants.h"
@@ -37,6 +38,9 @@ HRESULT Level_GameEntry::Render()
 
 void Level_GameEntry::Handle_Button()
 {
+    if (CLIENT->Is_FadeTransitionPlaying())
+        return;
+
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
         if (FAILED(GAME->Change_Level(ETOI(LevelType::MainTitle), Level_MainTitle::Create(_device.Get(), _context.Get()))))
@@ -47,7 +51,7 @@ void Level_GameEntry::Handle_Button()
 
     if (_firstLevelButton && _firstLevelButton->Was_Clicked())
     {
-        if (FAILED(GAME->Change_Level(ETOI(LevelType::Loading), Level_Loading::Create(_device.Get(), _context.Get(), LevelType::MapTest))))
+        if (!CLIENT->Request_LevelTransition(LevelType::MapTest))
             return;
 
         return;
@@ -55,7 +59,7 @@ void Level_GameEntry::Handle_Button()
 
     if (_secondLevelButton && _secondLevelButton->Was_Clicked())
     {
-        if (FAILED(GAME->Change_Level(ETOI(LevelType::Loading), Level_Loading::Create(_device.Get(), _context.Get(), LevelType::GamePlay))))
+        if (!CLIENT->Request_LevelTransition(LevelType::GamePlay))
             return;
 
         return;

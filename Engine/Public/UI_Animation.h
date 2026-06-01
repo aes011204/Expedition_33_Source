@@ -56,6 +56,7 @@ enum class UI_KeyframeAnimationTrackType
     Rotation,
     Color,
     Alpha,
+    AlphaMultiplier,
 };
 
 enum class UI_KeyframeAnimationValueMode
@@ -128,10 +129,12 @@ struct UI_AnimationSample
     bool hasColor = false;
     bool hasColorTrack = false;
     bool hasFadeTrack = false;
+    bool hasAlphaMultiplier = false;
     Vec2 position{ 0.f, 0.f };
     Vec2 scale{ 1.f, 1.f };
     float rotationRadians = 0.f;
     Vec4 color{ 1.f, 1.f, 1.f, 1.f };
+    float alphaMultiplier = 1.f;
 };
 
 class ENGINE_DLL UI_AnimationPlayer final
@@ -144,8 +147,8 @@ public:
     void Set_Clips(const vector<UI_AnimationClip>& clips);
     void Set_KeyframeAssets(const vector<UI_KeyframeAnimationAsset>& assets);
     void Add_KeyframeAsset(const UI_KeyframeAnimationAsset& asset);
-    void Set_BaseTransformState(const Vec2& position, const Vec2& scale, float rotationRadians);
-    void Set_TransitionStartState(const Vec2& position, const Vec2& scale, float rotationRadians);
+    void Set_BaseTransformState(const Vec2& position, const Vec2& scale, float rotationRadians, float alphaMultiplier = 1.f);
+    void Set_TransitionStartState(const Vec2& position, const Vec2& scale, float rotationRadians, float alphaMultiplier = 1.f);
     void Play_OnOpen();
     void Stop();
     bool Play_KeyframeAnimation(const wstring& animationName, bool restart = true); // 이름으로 keyframe animation 하나를 선택 재생
@@ -166,9 +169,11 @@ private:
     Vec2 _basePosition{ 0.f, 0.f };
     Vec2 _baseScale{ 1.f, 1.f };
     float _baseRotationRadians = 0.f;
+    float _baseAlphaMultiplier = 1.f;
     Vec2 _transitionStartPosition{ 0.f, 0.f };
     Vec2 _transitionStartScale{ 1.f, 1.f };
     float _transitionStartRotationRadians = 0.f;
+    float _transitionStartAlphaMultiplier = 1.f;
 };
 
 inline bool Try_ParseUIAnimationTrackType(const string& typeName, UI_AnimationTrackType& outType)
@@ -247,6 +252,12 @@ inline bool Try_ParseUIKeyframeAnimationTrackType(const string& typeName, UI_Key
     if (typeName == "Alpha")
     {
         outType = UI_KeyframeAnimationTrackType::Alpha;
+        return true;
+    }
+
+    if (typeName == "AlphaMultiplier")
+    {
+        outType = UI_KeyframeAnimationTrackType::AlphaMultiplier;
         return true;
     }
 

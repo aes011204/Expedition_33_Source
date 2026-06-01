@@ -411,6 +411,7 @@
     </ClCompile>
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
     <ClCompile Include="..\Private\UI_AddAP.cpp" />
+    <ClCompile Include="..\Private\UI_QTE.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -536,8 +537,17 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrailDistortion.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshDistortion.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewDistortion.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </None>
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli">
       <Filter>97.ShaderFiles\Effect</Filter>
     </None>
@@ -1183,6 +1193,7 @@
     </ClInclude>
     <ClInclude Include="..\Public\BattleStartSpawner.h" />
     <ClInclude Include="..\Public\UI_AddAP.h" />
+    <ClInclude Include="..\Public\UI_QTE.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
@@ -1226,6 +1237,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\FreeAimTargeting.cpp">
       <Filter>BattleState</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\GamePlayMenuFade.cpp">
+      <Filter>04. GamePlayUI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp">
       <Filter>02.GameObject\UI</Filter>
@@ -1385,6 +1399,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\Level_MapTest.cpp">
       <Filter>01.Levels\MapTest</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\LevelTransitionFade.cpp">
+      <Filter>01.Levels</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Level_Stage01.cpp">
       <Filter>01.Levels\Stage\Stage01</Filter>
@@ -1551,7 +1568,13 @@
     <ClCompile Include="..\Private\SavePoint_Panel.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\ScreenFadeTransition.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_ScreenFade.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\private\UltimateTargeting.cpp">
@@ -1615,6 +1638,18 @@
   <ItemGroup>
     <ClInclude Include="..\Public\ContentBrowserCore.h">
       <Filter>90.EditorSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\GamePlayMenuFade.h">
+      <Filter>04. GamePlayUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\LevelTransitionFade.h">
+      <Filter>01.Levels</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ScreenFadeTransition.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_ScreenFade.h">
+      <Filter>02.GameObject\UI</Filter>
     </ClInclude>
     <ClCompile Include="..\Private\ContentBrowserCore.cpp">
       <Filter>90.EditorSupport</Filter>

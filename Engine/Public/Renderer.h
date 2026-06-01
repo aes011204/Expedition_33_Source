@@ -32,7 +32,7 @@ public:
     void    Sync_ViewportDependentState(uint32 width, uint32 height);
     uint32  Get_RenderCall() const;
 
-    const Shared<PostProcessPipeline>   Get_PostProcessPipeline() const
+    const Shared<PostProcessPipeline>&   Get_PostProcessPipeline() const
     {
         return _ppPipeline;
     }
@@ -40,7 +40,7 @@ public:
     {
         return _ppPipeline;
     }
-    const Shared<LightingPipeline> Get_LightingPipeline() const
+    const Shared<LightingPipeline>& Get_LightingPipeline() const
     {
         return _lightingPipeline;
     }
@@ -54,7 +54,6 @@ public:
     }
 
 #ifdef _DEBUG
-public:
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);
 #endif
 

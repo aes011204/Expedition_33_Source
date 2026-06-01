@@ -83,6 +83,11 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_MotionRadialSpeedDrag;  // x/y: radial speed min/max, z/w: drag min/max
     float4 g_AccelerationMin;
     float4 g_AccelerationMax;
+    float4 g_AccelerationCurveTimes;   // Acceleration key times
+    float4 g_AccelerationCurveValuesX; // Acceleration X key values
+    float4 g_AccelerationCurveValuesY; // Acceleration Y key values
+    float4 g_AccelerationCurveValuesZ; // Acceleration Z key values
+    float4 g_AccelerationCurveParams;  // x: key count, y: enabled
     float4 g_VelocityScaleByLife;
     float4 g_RotationInitialRate;         // x/y: initial rotation min/max, z/w: rate min/max
     float4 g_RotationByLife;              // (Legacy) x/y: rotation start/end, z/w: rate scale start/end
@@ -106,6 +111,91 @@ float ReadVec4Component(float4 values, uint index)
     if (index == 2u)
         return values.z;
     return values.w;
+}
+
+void AccumulateAccelerationSegment(
+    float leftTime,
+    float rightTime,
+    float leftValue,
+    float rightValue,
+    float lifeProgress,
+    inout float integral,
+    inout float weightedIntegral)
+{
+    const float segmentEnd = min(lifeProgress, rightTime);
+    if (segmentEnd <= leftTime)
+        return;
+
+    const float width = max(0.0001f, rightTime - leftTime);
+    const float slope = (rightValue - leftValue) / width;
+    const float dt = segmentEnd - leftTime;
+    const float start2 = leftTime * leftTime;
+    const float end2 = segmentEnd * segmentEnd;
+    const float start3 = start2 * leftTime;
+    const float end3 = end2 * segmentEnd;
+
+    integral += leftValue * dt + 0.5f * slope * dt * dt;
+    weightedIntegral +=
+        0.5f * leftValue * (end2 - start2) +
+        slope * ((end3 - start3) / 3.0f - 0.5f * leftTime * (end2 - start2));
+}
+
+void IntegrateAccelerationAxis(
+    float lifeProgress,
+    uint keyCount,
+    float4 times,
+    float4 values,
+    out float velocityProgress,
+    out float displacementProgress)
+{
+    keyCount = max(1u, min(4u, keyCount));
+    lifeProgress = saturate(lifeProgress);
+
+    float integral = 0.0f;
+    float weightedIntegral = 0.0f;
+    const float firstTime = saturate(ReadVec4Component(times, 0u));
+    const float firstValue = ReadVec4Component(values, 0u);
+
+    AccumulateAccelerationSegment(0.0f, firstTime, firstValue, firstValue, lifeProgress, integral, weightedIntegral);
+
+    [unroll]
+    for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+    {
+        if (keyIndex >= keyCount)
+            continue;
+
+        const float leftTime = saturate(ReadVec4Component(times, keyIndex - 1u));
+        const float rightTime = saturate(ReadVec4Component(times, keyIndex));
+        const float leftValue = ReadVec4Component(values, keyIndex - 1u);
+        const float rightValue = ReadVec4Component(values, keyIndex);
+        AccumulateAccelerationSegment(leftTime, rightTime, leftValue, rightValue, lifeProgress, integral, weightedIntegral);
+    }
+
+    const float lastTime = saturate(ReadVec4Component(times, keyCount - 1u));
+    const float lastValue = ReadVec4Component(values, keyCount - 1u);
+    AccumulateAccelerationSegment(lastTime, lifeProgress, lastValue, lastValue, lifeProgress, integral, weightedIntegral);
+
+    velocityProgress = integral;
+    displacementProgress = lifeProgress * integral - weightedIntegral;
+}
+
+void IntegrateAccelerationCurve(
+    float lifeProgress,
+    out float3 velocityProgress,
+    out float3 displacementProgress)
+{
+    const uint keyCount = (uint)g_AccelerationCurveParams.x;
+    float velocityX = 0.0f;
+    float velocityY = 0.0f;
+    float velocityZ = 0.0f;
+    float displacementX = 0.0f;
+    float displacementY = 0.0f;
+    float displacementZ = 0.0f;
+    IntegrateAccelerationAxis(lifeProgress, keyCount, g_AccelerationCurveTimes, g_AccelerationCurveValuesX, velocityX, displacementX);
+    IntegrateAccelerationAxis(lifeProgress, keyCount, g_AccelerationCurveTimes, g_AccelerationCurveValuesY, velocityY, displacementY);
+    IntegrateAccelerationAxis(lifeProgress, keyCount, g_AccelerationCurveTimes, g_AccelerationCurveValuesZ, velocityZ, displacementZ);
+    velocityProgress = float3(velocityX, velocityY, velocityZ);
+    displacementProgress = float3(displacementX, displacementY, displacementZ);
 }
 
 float EvaluateCompactCurve(
@@ -573,9 +663,20 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float dragTime = drag > 0.0001f ? (1.0f - exp(-drag * lifeAge)) / drag : lifeAge;
     const float dragDecay = drag > 0.0001f ? exp(-drag * lifeAge) : 1.0f;
     const float3 acceleration = SampleRange3(g_AccelerationMin.xyz, g_AccelerationMax.xyz, seed + 701u);
-    const float3 motionOffset = initialVelocity * velocityScale * dragTime + acceleration * 0.5f * lifeAge * lifeAge;
+    float3 accelerationVelocity = acceleration * lifeAge;
+    float3 accelerationOffset = acceleration * 0.5f * lifeAge * lifeAge;
+    if (g_AccelerationCurveParams.y != 0.0f)
+    {
+        float3 accelerationVelocityProgress = float3(0.0f, 0.0f, 0.0f);
+        float3 accelerationOffsetProgress = float3(0.0f, 0.0f, 0.0f);
+        IntegrateAccelerationCurve(lifeProgress, accelerationVelocityProgress, accelerationOffsetProgress);
+        accelerationVelocity = accelerationVelocityProgress * lifeMax;
+        accelerationOffset = accelerationOffsetProgress * lifeMax * lifeMax;
+    }
+
+    const float3 motionOffset = initialVelocity * velocityScale * dragTime + accelerationOffset;
     const float currentVelocityScale = lerp(g_VelocityScaleByLife.x, g_VelocityScaleByLife.y, lifeProgress);
-    const float3 currentVelocity = initialVelocity * currentVelocityScale * dragDecay + acceleration * lifeAge;
+    const float3 currentVelocity = initialVelocity * currentVelocityScale * dragDecay + accelerationVelocity;
     const float currentVelocityLength = length(currentVelocity);
     const float3 velocityAlignmentHint = currentVelocityLength < 0.0001f
                                          ? float3(0.0f, 0.0f, 0.0f)

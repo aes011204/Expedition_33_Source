@@ -188,6 +188,7 @@ HRESULT UI_Text::Render()
     {
         const vector<wstring> lines = Wrap_TextLines(_fontTag, _text, max(1.f, boxWidth), localTextScale);
         const float lineHeight = max(1.f, GAME->Measure_Font(_fontTag, L"Mg").y * localTextScale);
+        const Vec4 renderColor = Get_EffectiveRenderColor(_color);
 
         for (size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex)
         {
@@ -209,7 +210,7 @@ HRESULT UI_Text::Render()
                 _fontTag,
                 line.c_str(),
                 pivotWorldPosition,
-                XMVectorSet(_color.x, _color.y, _color.z, _color.w),
+                XMVectorSet(renderColor.x, renderColor.y, renderColor.z, renderColor.w),
                 worldRotationRadians,
                 pivot,
                 worldTextScale);
@@ -231,12 +232,13 @@ HRESULT UI_Text::Render()
     const Vec2 pivot(
         (localPivotPosition.x - alignedTopLeft.x) / localTextScale,
         (localPivotPosition.y - alignedTopLeft.y) / localTextScale);
+    const Vec4 renderColor = Get_EffectiveRenderColor(_color);
 
     GAME->Draw_Font(
         _fontTag,
         _text.c_str(),
         pivotWorldPosition,
-        XMVectorSet(_color.x, _color.y, _color.z, _color.w),
+        XMVectorSet(renderColor.x, renderColor.y, renderColor.z, renderColor.w),
         worldRotationRadians,
         pivot,
         worldTextScale);

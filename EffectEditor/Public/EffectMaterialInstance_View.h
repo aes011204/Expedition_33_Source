@@ -14,6 +14,13 @@ NS_BEGIN(EffectEditor)
 class EffectMaterial_View;
 class EffectMaterialPreviewRenderer;
 
+enum class EffectMaterialTwoSidedDisplayMode : uint8
+{
+    EditableImplemented,
+    EditableUnimplemented,
+    ForcedEnabledReadOnly,
+};
+
 class EffectMaterialInstance_View final : public Editor_Window
 {
 public:
@@ -26,9 +33,11 @@ public:
     void Render() override;
     static bool Draw_InstanceProperties(
         DetailPropertyContext& detailPropertyContext,
-        map<string, Shared<Engine::Texture>>& textureThumbnailCache,
+        map<string, Shared<Texture>>& textureThumbnailCache,
         EffectMaterialInstanceData& material,
-        bool* outRestartPreview);
+        bool* outRestartPreview,
+        EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode = EffectMaterialTwoSidedDisplayMode::EditableImplemented,
+        bool disableMeshDistortionShapeControls = false); // MeshData에서 지원하지 않는 distortion shape 편집을 막는다.
 
 public: //## Behavior::Selection
     void Open_Instance(uint32 emitterId, uint32 moduleId);
@@ -38,7 +47,7 @@ private: //## Data
     uint32 _targetModuleId{ 0 };
     DetailPropertyContext _detailPropertyContext{};
     Unique<EffectMaterialPreviewRenderer> _previewRenderer{};
-    map<string, Shared<Engine::Texture>> _textureThumbnailCache{};
+    map<string, Shared<Texture>> _textureThumbnailCache{};
 
 private: //## Helpers
     bool Resolve_Target(Shared<Emitter_View>& outEmitterView, AuthoringEmitter*& outEmitter, RequiredModuleData*& outRequiredData) const;

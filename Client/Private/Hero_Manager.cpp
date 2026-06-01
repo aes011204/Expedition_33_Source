@@ -63,6 +63,9 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
         pos.z -= static_cast<float>(i) * 1.5f;
 
         hero->Get_Transform()->Set_WorldPosition(pos);
+        if (auto movement = hero->Get_Component<MovementCom>())
+            movement->Sync_RuntimePositionToTransform();
+
         _heroes.push_back(HeroPartyEntry { desc.heroId, hero });
     }
 
@@ -278,6 +281,11 @@ void Hero_Manager::Snap_AllHeroesToFormation(const Vec3& anchorPos, const Vec3& 
             // 새 active는 이전 active가 있던 메인 자리로 즉시 이동
             tr->Set_WorldPosition(anchorPos);
             tr->Set_WorldRotationEuler(anchorRot);
+
+            auto movement = hero->Get_Component<MovementCom>();
+            if (movement)
+                movement->Sync_RuntimePositionToTransform();
+
             continue;
         }
 
@@ -301,6 +309,7 @@ void Hero_Manager::Snap_AllHeroesToFormation(const Vec3& anchorPos, const Vec3& 
         auto movement = hero->Get_Component<MovementCom>();
         if (movement)
         {
+            movement->Sync_RuntimePositionToTransform();
             movement->Clear_FollowMoveCommand();
             movement->Apply_Input({});
             movement->Stop_AllMovement();
@@ -533,8 +542,28 @@ void Hero_Manager::Update_Followers(float timeDelta)
         if (_heroes[i].hero && _heroes[i].hero->Get_Transform())
         {
             const Vec3 currentPos = _heroes[i].hero->Get_Transform()->Get_WorldPosition();
-            targetPos = Resolve_FollowTargetPosition(_heroes[i].hero, currentPos, rawTargetPos);
-            runtime.desiredTargetPos = targetPos;
+            runtime.followTargetRefreshTime += timeDelta;
+
+            const Vec3 rawTargetDelta = rawTargetPos - runtime.lastRawTargetPos;
+            const float rawTargetMoveThresholdSq =
+                _followTargetProbeMoveThreshold * _followTargetProbeMoveThreshold;
+            const bool shouldRefreshFollowTarget =
+                !runtime.hasFollowTargetCache ||
+                runtime.followTargetRefreshTime >= _followTargetProbeInterval ||
+                rawTargetDelta.LengthSquared() >= rawTargetMoveThresholdSq;
+
+            if (shouldRefreshFollowTarget)
+            {
+                targetPos = Resolve_FollowTargetPosition(_heroes[i].hero, currentPos, rawTargetPos);
+                runtime.desiredTargetPos = targetPos;
+                runtime.lastRawTargetPos = rawTargetPos;
+                runtime.followTargetRefreshTime = 0.f;
+                runtime.hasFollowTargetCache = true;
+            }
+            else
+            {
+                targetPos = runtime.desiredTargetPos;
+            }
 
             const Vec3 delta = targetPos - currentPos;
             runtime.lastMoveDistance = delta.Length();
@@ -614,6 +643,7 @@ void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uin
     {
         tr->Set_WorldPosition(targetPos); // 너무 멀어지면, follow가 쓰던 같은 지면 보정 위치로 재배치
 
+        movement->Sync_RuntimePositionToTransform();
         movement->Clear_FollowMoveCommand();
         movement->Apply_Input({});
         movement->Stop_AllMovement();
