@@ -219,6 +219,8 @@ void Hero_Manager::Switch_NextHero()
     const Vec3 anchorForward = oldActiveTr->Get_WorldForward();
     const Vec3 anchorRight = oldActiveTr->Get_WorldRight();
 
+    CLIENT->Play_Effect(L"Player_Change", Vec3(anchorPos.x, anchorPos.y + 0.5f, anchorPos.z));
+
     _activeIndex = newIndex;
 
     Apply_ControlRoles();
