@@ -21,11 +21,19 @@ public:
     void On_End(const AnimNotifyContext& context) override;
 
 private:
+    BattleQTERequest Make_Request() const;
+    Vec2             Resolve_ScreenPosition(BattleQTEPreset preset) const;
+    float            Resolve_ScreenScale(BattleQTEPreset preset) const;
+
+
+private:
     // QTE 애니메이션에서 세팅된 값
     float _introDuration = 21.f / 63.f;
     float _progressDuration = 80.f / 120.f;
     float _perfectStartRatio = 61.f / 80.f;
     float _perfectEndRatio = 1.f;
+
+    BattleQTEPreset _qtePreset = BattleQTEPreset::Center;
 };
 
 NS_END

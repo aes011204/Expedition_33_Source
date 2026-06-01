@@ -24,8 +24,6 @@ void UI_QTE::Update(float timeDelta)
     if (!Is_Open() || _root == nullptr)
         return;
 
-    _root->Update(timeDelta);
-
     // QTE 시작
     if (_stage == QTE_Stage::Intro)
     {
@@ -88,8 +86,8 @@ void UI_QTE::Close()
     _elapsed = 0.f;
     _resultElapsed = 0.f;
 
-    if (_root)
-        _root->Stop_UIAnimation();
+    Stop_QTEAnimations();
+    Close_AllQTEVisuals();
 
     UI_RuntimePanelBase::Close();
 }
@@ -104,10 +102,13 @@ void UI_QTE::Play_QTE(const BattleQTERequest& request)
     _resultElapsed = 0.f;
 
     UI_RuntimePanelBase::Open();
+    Open_AllQTEVisuals();
+    Close_ResultVisuals();
 
-    // Intro 애니메이션으로 시작
-    if (_root)
-        _root->Play_UIAnimation(L"QTE_Intro", true);
+    Apply_PresetPlacement(request);
+
+    // Intro는 targetName으로 바인딩된 모든 UI에 같은 이름으로 재생해야 한다.
+    Play_QTEAnimation(L"QTE_Intro");
 }
 
 void UI_QTE::Apply_ExternalResult(BattleQTEResult  result)
@@ -162,7 +163,105 @@ HRESULT UI_QTE::Load_UI(uint32 levelIndex)
     _root = UI_Utils::Find_UI(_uiByName, L"Panel_QTE");
     CHECK_NULL(_root, E_FAIL);
 
+    CHECK_FAILED(Bind_UIReferences(), E_FAIL);
+
     return S_OK;
+}
+
+HRESULT UI_QTE::Bind_UIReferences()
+{
+    _areaLineRoot = UI_Utils::Find_UI(_uiByName, L"Panel_QTE_Area_Line");
+    _decoAngleRoot = UI_Utils::Find_UI(_uiByName, L"Panel_QTE_Deco_Angle");
+
+    _keySpaceRoot = UI_Utils::Find_UI(_uiByName, L"Panel_Key_Space");
+    _cursorProgressRoot = UI_Utils::Find_UI(_uiByName, L"Image_QTE_CursorProgress");
+
+    _normalDecoRoot = UI_Utils::Find_UI(_uiByName, L"Panel_QTE_Normal_Deco");
+    _perfectDecoRoot = UI_Utils::Find_UI(_uiByName, L"Panel_QTE_Perfect_Deco");
+    _perfectTextRoot = UI_Utils::Find_UI(_uiByName, L"Panel_QTE_Perfect_Text");
+
+    CHECK_NULL(_areaLineRoot, E_FAIL);
+    CHECK_NULL(_decoAngleRoot, E_FAIL);
+    CHECK_NULL(_keySpaceRoot, E_FAIL);
+    CHECK_NULL(_cursorProgressRoot, E_FAIL);
+    CHECK_NULL(_normalDecoRoot, E_FAIL);
+    CHECK_NULL(_perfectDecoRoot, E_FAIL);
+    CHECK_NULL(_perfectTextRoot, E_FAIL);
+
+    return S_OK;
+}
+
+void UI_QTE::Reset_VisualState()
+{
+    Stop_QTEAnimations();
+    Close_ResultVisuals();
+}
+
+void UI_QTE::Open_AllQTEVisuals()
+{
+    for (auto& [name, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(name);
+
+        if (ui)
+            ui->Open();
+    }
+}
+
+void UI_QTE::Close_AllQTEVisuals()
+{
+    for (auto& [name, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(name);
+
+        if (ui)
+            ui->Close();
+    }
+}
+
+void UI_QTE::Close_ResultVisuals()
+{
+    Set_UIOpen(_normalDecoRoot, false);
+    Set_UIOpen(_perfectDecoRoot, false);
+    Set_UIOpen(_perfectTextRoot, false);
+}
+
+void UI_QTE::Play_QTEAnimation(const wstring& animationName)
+{
+    for (auto& [name, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(name);
+
+        if (ui == nullptr)
+            continue;
+
+        if (!ui->Play_UIAnimation(animationName, true))
+            ui->Stop_UIAnimation();
+    }
+}
+
+void UI_QTE::Stop_QTEAnimations()
+{
+    for (auto& [name, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(name);
+
+        if (ui == nullptr)
+            continue;
+
+        ui->Stop_UIAnimation();
+    }
+}
+
+void UI_QTE::Set_UIOpen(const Shared<UI_Base>& ui, bool isOpen) const
+{
+    if (ui == nullptr)
+        return;
+
+    if (isOpen)
+        ui->Open();
+    else
+        ui->Close();
 }
 
 void UI_QTE::Begin_Progress()
@@ -170,8 +269,11 @@ void UI_QTE::Begin_Progress()
     _stage = QTE_Stage::Progress;
     _elapsed = 0.f;
 
-    if (_root)
-        _root->Play_UIAnimation(L"QTE_Progress", true);
+    Open_AllQTEVisuals();
+    Close_ResultVisuals();
+
+    // Progress도 루트가 아니라 모든 바인딩 타겟에 재생 요청한다.
+    Play_QTEAnimation(L"QTE_Progress");
 }
 
 void UI_QTE::Resolve(BattleQTEResult result)
@@ -195,23 +297,45 @@ void UI_QTE::Play_ResultAnimation(BattleQTEResult result)
     if (_root == nullptr)
         return;
 
+    Open_AllQTEVisuals();
+
     switch (result)
     {
     case BattleQTEResult::SuccessPerfect:
-        _root->Play_UIAnimation(L"QTE_Success_Perfect", true);
+        Set_UIOpen(_perfectDecoRoot, true);
+        Set_UIOpen(_perfectTextRoot, true);
+        Set_UIOpen(_normalDecoRoot, false);
+        Play_QTEAnimation(L"QTE_Success_Perfect");
         break;
 
     case BattleQTEResult::SuccessNormal:
-        _root->Play_UIAnimation(L"QTE_Success_Normal", true);
+        Set_UIOpen(_normalDecoRoot, true);
+        Set_UIOpen(_perfectDecoRoot, false);
+        Set_UIOpen(_perfectTextRoot, false);
+        Play_QTEAnimation(L"QTE_Success_Normal");
         break;
 
     case BattleQTEResult::Fail:
-        _root->Play_UIAnimation(L"QTE_Fail", true);
+        Close_ResultVisuals();
+        Play_QTEAnimation(L"QTE_Fail");
         break;
 
     default:
         break;
     }
+}
+
+void UI_QTE::Apply_PresetPlacement(const BattleQTERequest& request)
+{
+     if (_root == nullptr || _root->Get_Transform() == nullptr)
+        return;
+
+    auto rootTr = _root->Get_Transform();
+
+    rootTr->Set_Position(request.screenPosition);
+    rootTr->Set_Scale(Vec2(request.screenScale, request.screenScale));
+
+    _root->Refresh_OpenBaseTransform();
 }
 
 Unique<UI_QTE> UI_QTE::Create(uint32 levelIndex)

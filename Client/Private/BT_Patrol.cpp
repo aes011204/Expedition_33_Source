@@ -25,6 +25,29 @@ Vec3 Make_FlatRight(const Vec3& forward)
     return right;
 }
 
+bool Is_BlockedTowardTarget(const Shared<Monster_WorldBase>& monster, const Vec3& currentTarget)
+{
+    if (monster == nullptr)
+        return false;
+
+    const Shared<TransformCom> transform = monster->Get_Transform();
+    const Shared<ColliderCom> collider = monster->Get_Component<ColliderCom>();
+    if (transform == nullptr || collider == nullptr)
+        return false;
+
+    Vec3 toTarget = currentTarget - transform->Get_Position();
+    toTarget.y = 0.f;
+
+    const float distance = toTarget.Length();
+    if (distance <= 0.75f)
+        return false;
+
+    Vec3 direction = toTarget / distance;
+    PhysXQueryHit hit{};
+
+    return GAME->Sweep_Collider(collider.get(), transform->Get_WorldMatrix(), direction, 0.8f, hit);
+}
+
 bool Try_FindBypassTarget(const Shared<Monster_WorldBase>& monster, const Vec3& currentTarget, Vec3& outBypassTarget)
 {
     if (monster == nullptr)
@@ -197,7 +220,9 @@ BNode::NODE_STATE BT_Patrol::Logic_Update(float deltaTime)
     Vec3 moved = ownerPos - _lastSamplePos;
     moved.y = 0.f;
 
-    if (Get_Owner()->Has_MoveIntent() && moved.LengthSquared() <= kStuckMoveEpsilonSq)
+    const bool blockedAhead = Is_BlockedTowardTarget(monster, currentTarget);
+
+    if (Get_Owner()->Has_MoveIntent() && blockedAhead && moved.LengthSquared() <= kStuckMoveEpsilonSq)
         _stuckAccum += deltaTime;
     else
         _stuckAccum = 0.f;
