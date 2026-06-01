@@ -43,9 +43,9 @@ float Effect_BuildCoverage(
     return saturate(opacity * saturate(maskCoverage) * saturate(coverageVariation) * saturate(alphaMultiplier));
 }
 
-float4 Effect_ComposeAlphaBlend(EffectMaterialSurface surface, float energyScalar)
+float4 Effect_ComposeAlphaBlend(EffectMaterialSurface surface, float intensity)
 {
-    return float4(surface.color * max(energyScalar, 0.f), surface.coverage);
+    return float4(surface.color * max(intensity, 0.f), surface.coverage);
 }
 
 float3 Effect_ApplyCoreEmissiveShaping(

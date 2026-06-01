@@ -565,8 +565,6 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
 {
     const auto& material = _desc.required.material;
 
-    CHECK_FAILED_ONCE(GAME->Bind_RT_ShaderResource(_shader, "g_DistortionSourceTexture", RT::DistortionSource), E_FAIL);
-
     if (nullptr != _flowTexture)
         CHECK_FAILED_ONCE(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);
     else

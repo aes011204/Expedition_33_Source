@@ -79,6 +79,8 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::DistortionSource,
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::DistortionField,
+        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::BackgroundMask,
         width, height, DXGI_FORMAT_R8_UNORM, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::ScreenFxColorA,
@@ -112,6 +114,7 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     // PostProcess
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::DistortionField, RT::DistortionField), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::ScreenFxA, RT::ScreenFxColorA), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::ScreenFxB, RT::ScreenFxColorB), E_FAIL);
 
@@ -368,14 +371,24 @@ HRESULT Target_Manager::Copy_CurrentRTV_To(const wstring& targetTag)
     srcTexture->GetDesc(&srcDesc);
     dstTexture->GetDesc(&dstDesc);
 
-    if (srcDesc.Width != dstDesc.Width
-        || srcDesc.Height != dstDesc.Height
-        || srcDesc.Format != dstDesc.Format)
+    if (srcDesc.Format != dstDesc.Format)
     {
         return E_FAIL;
     }
 
-    // src 를 dst 에 그대로 덮어쓴다
+    if (srcDesc.Width != dstDesc.Width || srcDesc.Height != dstDesc.Height)
+    {
+        D3D11_BOX box{};
+        box.left = 0;
+        box.top = 0;
+        box.front = 0;
+        box.right = min(srcDesc.Width, dstDesc.Width);
+        box.bottom = min(srcDesc.Height, dstDesc.Height);
+        box.back = 1;
+        _context->CopySubresourceRegion(dstTexture.Get(), 0, 0, 0, 0, srcTexture.Get(), 0, &box);
+        return S_OK;
+    }
+
     _context->CopyResource(dstTexture.Get(), srcTexture.Get());
 
     return S_OK;
@@ -405,11 +418,22 @@ HRESULT Target_Manager::Copy_RTV(const wstring& srcTargetTag, const wstring& dst
     srcTexture->GetDesc(&srcDesc);
     dstTexture->GetDesc(&dstDesc);
 
-    if (srcDesc.Width != dstDesc.Width
-        || srcDesc.Height != dstDesc.Height
-        || srcDesc.Format != dstDesc.Format)
+    if (srcDesc.Format != dstDesc.Format)
     {
         return E_FAIL;
+    }
+
+    if (srcDesc.Width != dstDesc.Width || srcDesc.Height != dstDesc.Height)
+    {
+        D3D11_BOX box{};
+        box.left = 0;
+        box.top = 0;
+        box.front = 0;
+        box.right = min(srcDesc.Width, dstDesc.Width);
+        box.bottom = min(srcDesc.Height, dstDesc.Height);
+        box.back = 1;
+        _context->CopySubresourceRegion(dstTexture.Get(), 0, 0, 0, 0, srcTexture.Get(), 0, &box);
+        return S_OK;
     }
 
     // src 를 dst 에 그대로 덮어쓴다

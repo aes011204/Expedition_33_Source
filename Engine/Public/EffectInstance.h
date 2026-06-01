@@ -27,6 +27,8 @@ public: //## Behavior::Lifecycle
     HRESULT Play();           // effect root를 활성 재생 상태로 전환한다.
     void Stop();              // effect root를 명시 정지 상태로 전환한다.
     HRESULT Reset();          // 같은 definition으로 다시 재생할 수 있도록 root와 child runtime 상태를 초기화한다.
+    // 기존 root object를 유지한 채 새 definition으로 child emitter 구성을 다시 만든다.
+    HRESULT Reload_Definition(const Shared<const EffectDefinition>& definition);
     bool Is_Playing() const;  // 현재 update/render fan-out 대상인지 반환한다.
     bool Is_Finished() const; // one-shot 완료 후 pool 반환 후보인지 반환한다.
     void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider); // 현재 acquire context가 공급한 trail sample provider를 child emitter에 다시 전파한다.
@@ -51,6 +53,7 @@ private: //## Data::Children
 
 private: //## Helpers
     HRESULT Ready_Emitters(); // definition emitters를 concrete runtime child로 생성한다.
+    bool Try_ReloadEmitters(const Shared<const EffectDefinition>& definition); // 기존 child가 새 definition을 받을 수 있으면 재생성 없이 갱신한다.
     void Sync_Emitters();     // root visibility/transform을 child emitter에 fan-out한다.
     void Evaluate_Finished(); // child emitter 완료 상태를 종합해 root 완료 상태를 갱신한다.
     void Clear_Emitters();    // root가 소유한 child 목록을 정리한다.

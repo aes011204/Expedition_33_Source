@@ -4,6 +4,7 @@
 #include "ComputeTrailEmitter.h"
 #include "EffectEmitterFactory.h"
 #include "GameInstance.h"
+#include "MeshEmitter.h"
 
 NS_BEGIN(Client)
 
@@ -47,6 +48,32 @@ namespace Internal
                     &concreteDesc
                 )
             );
+
+            return dynamic_pointer_cast<EffectEmitter>(clonedObject);
+        }
+
+        case EffectEmitterKind::Mesh:
+        {
+            const auto* desc = get_if<MeshEmitterDesc>(&emitterDefinition.concreteDesc);
+            if (nullptr == desc)
+                return nullptr;
+
+            MeshEmitterDesc concreteDesc = *desc;
+            const Shared<GameObject> clonedObject = dynamic_pointer_cast<GameObject>(
+                GAME->Clone_Prototype(
+                    Prototype::GameObject,
+                    ETOI(LevelType::Static),
+                    L"GameObject_Effect_MeshEmitter",
+                    &concreteDesc
+                )
+            );
+            if (clonedObject == nullptr)
+            {
+                LOG_WARN(
+                    "MeshEmitter prototype missing: failed to clone mesh emitter prototype. emitter='{}'",
+                    emitterDefinition.name
+                );
+            }
 
             return dynamic_pointer_cast<EffectEmitter>(clonedObject);
         }

@@ -65,6 +65,7 @@ namespace Engine
         BattleTurnCamera,
 
         Terrain,
+        Landscape,
         Sky,
         StaticMesh,
         Foliage,
@@ -99,6 +100,7 @@ namespace Engine
         BloomBlurV,
         BloomUpsampleAdd,
         ToneMapping,
+        DistortionResolve,
 
         END
     };

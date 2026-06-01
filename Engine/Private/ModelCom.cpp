@@ -320,6 +320,66 @@ void ModelCom::Rebuild_BoneCombinedMatrices()
     Mark_BoneMatricesDirty();
 }
 
+void ModelCom::Set_AnimationSpeedByState(uint32 stateIndex, float speed)
+{
+    uint32 animIndex = Get_AnimIndexByState(stateIndex);
+    if (animIndex != UINT32_MAX && animIndex < _animations.size())
+    {
+        _animations[animIndex]->Set_AnimationSpeed(speed);
+    }
+}
+
+float ModelCom::Get_AnimationSpeedByState(uint32 stateIndex) const
+{
+    uint32 animIndex = Get_AnimIndexByState(stateIndex);
+    if (animIndex != UINT32_MAX && animIndex < _animations.size())
+    {
+        return _animations[animIndex]->Get_AnimationSpeed();
+    }
+    return FLT_MAX;
+}
+
+void ModelCom::Set_AnimationSpeedByName(const string& animName, float speed)
+{
+    uint32 animIndex = Get_AnimationIndexByName(animName);
+
+    if (animIndex != UINT_MAX && animIndex < _animations.size())
+    {
+        _animations[animIndex]->Set_AnimationSpeed(speed);
+    }
+}
+
+float ModelCom::Get_AnimationSpeedByName(const string& animName) const
+{
+    uint32 animIndex = Get_AnimationIndexByName(animName);
+
+    if (animIndex != UINT_MAX && animIndex < _animations.size())
+    {
+        return _animations[animIndex]->Get_AnimationSpeed();
+    }
+
+    return FLT_MAX;
+}
+
+void ModelCom::Set_CurrentAnimationSpeed(float speed)
+{
+    uint32 animIndex = _isBlending ? _nextAnimIndex : _currentAnimIndex;
+    if (animIndex < _animations.size() && _animations[animIndex] != nullptr)
+    {
+        _animations[animIndex]->Set_AnimationSpeed(speed);
+    }
+}
+
+float ModelCom::Get_CurrentAnimationSpeed() const
+{
+    uint32 animIndex = _isBlending ? _nextAnimIndex : _currentAnimIndex;
+    if (animIndex < _animations.size() && _animations[animIndex] != nullptr)
+    {
+        return _animations[animIndex]->Get_AnimationSpeed();
+    }
+    return FLT_MAX;
+}
+
 float ModelCom::Get_CurrentProgress() const
 {
 	uint32 index = _isBlending ? _nextAnimIndex : _currentAnimIndex;

@@ -89,6 +89,14 @@ public:
     float Get_FrameSpeed() const { return _frameSpeed; }
     void Set_FrameSpeed(float speed) { _frameSpeed = speed; }
 
+public: /* Animation Speed Control (Per-Animation) */
+    void    Set_AnimationSpeedByState(uint32 stateIndex, float speed);
+    float   Get_AnimationSpeedByState(uint32 stateIndex) const;
+    void    Set_AnimationSpeedByName(const string& animName, float speed);
+    float   Get_AnimationSpeedByName(const string& animName) const;
+    void    Set_CurrentAnimationSpeed(float speed);
+    float   Get_CurrentAnimationSpeed() const;
+
     float Get_CurrentProgress() const;
     float Get_CurrentFrame() const;
 

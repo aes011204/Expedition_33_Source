@@ -27,7 +27,13 @@ public:
         float speed = 0.01f,
         bool allowUniform = true);
     bool Draw_Vector2DistributionGroup(const char* label, Vector2DistributionData& value, const Vector2DistributionData& defaultValue, float speed = 0.01f);
-    bool Draw_Vector3DistributionGroup(const char* label, Vector3DistributionData& value, const Vector3DistributionData& defaultValue, float speed = 0.01f);
+    bool Draw_Vector3DistributionGroup(
+        const char* label,
+        Vector3DistributionData& value,
+        const Vector3DistributionData& defaultValue,
+        float speed = 0.01f,
+        bool allowConstantCurve = true,
+        bool showConstantCurveAsUnimplemented = false);
     bool Draw_ColorDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue);
     bool Draw_ColorRgbDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue);
     bool Draw_BurstListProperty(vector<SpawnModuleData::ParticleBurstData>& burstList, const vector<SpawnModuleData::ParticleBurstData>& defaultValue);
