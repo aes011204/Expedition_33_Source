@@ -11,6 +11,7 @@
 #include "TrailAnchor_Asset.h"
 #include "TrailSampleProvider_ByPart.h"
 #include "Weapon.h"
+#include "ContainerObject.h"
 
 IMPLEMENT_REFLECTION(EffectCom)
 {
@@ -79,6 +80,8 @@ void EffectCom::Update(float timeDelta)
 
 void EffectCom::Start_SwitchDissolve(float durationSec, const string& noiseName)
 {
+
+
     const uint32 noiseHandle = GAME->Get_Handle(noiseName);
 
     _vanishComplete = false;
