@@ -1343,6 +1343,12 @@ Shared<LightingPipeline> GameInstance::Get_LightingPipeline()
     return _renderer->Get_LightingPipeline();
 }
 
+HRESULT GameInstance::Reload_RendererShaders()
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Reload_RendererShaders();
+}
+
 ScreenFx_Manager* GameInstance::Get_ScreenFxManager() 
 {
     return _screenFxManager.get();

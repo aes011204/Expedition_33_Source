@@ -986,6 +986,67 @@ HRESULT Renderer::Ready_Shaders()
     return S_OK;
 }
 
+HRESULT Renderer::Reload_RendererShaders()
+{
+    uint32 reloadSuccessCount = 0;
+
+    if (Shared<ShaderCom> deferredShader = ShaderCom::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl",
+        VTXTEX::Elements,
+        VTXTEX::numElements,
+        ShaderType::Deferred))
+    {
+        _deferredShader = std::move(deferredShader);
+        ++reloadSuccessCount;
+    }
+    else
+    {
+        LOG_WARN("Renderer shader reload failed: Shader_Deferred.hlsl");
+    }
+
+    if (Shared<ShaderCom> postprocessShader = ShaderCom::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_PostProcess.hlsl",
+        VTXTEX::Elements,
+        VTXTEX::numElements,
+        ShaderType::PostProcess))
+    {
+        _postprocessShader = std::move(postprocessShader);
+        ++reloadSuccessCount;
+    }
+    else
+    {
+        LOG_WARN("Renderer shader reload failed: Shader_PostProcess.hlsl");
+    }
+
+    if (Shared<ShaderCom> screenFxShader = ShaderCom::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_ScreenFx.hlsl",
+        VTXTEX::Elements,
+        VTXTEX::numElements,
+        ShaderType::PostProcess))
+    {
+        _screenFxShader = std::move(screenFxShader);
+        ++reloadSuccessCount;
+    }
+    else
+    {
+        LOG_WARN("Renderer shader reload failed: Shader_ScreenFx.hlsl");
+    }
+
+    if (reloadSuccessCount == 3u)
+        return S_OK;
+
+    if (reloadSuccessCount > 0u)
+        return S_FALSE;
+
+    return E_FAIL;
+}
+
 void Renderer::Sync_ViewportDependentState(uint32 width, uint32 height)
 {
     width = max(1u, width);

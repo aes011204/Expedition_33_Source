@@ -262,7 +262,7 @@ void PostProcess_View::Draw_LightingControl(Shared<LightingPipeline> pipeline, b
 
 void PostProcess_View::Draw_QuickAction(PostProcessCB& params, Shared<LightingPipeline> lightingPipeline, bool& dirty, bool& lightingDirty)
 {
-    if (ImGui::BeginChild("##QuickAction", ImVec2(0.f, 70.f), true))
+    if (ImGui::BeginChild("##QuickAction", ImVec2(0.f, 110.f), true))
     {
         ImGui::Text("Quick Actions");
 
@@ -279,6 +279,34 @@ void PostProcess_View::Draw_QuickAction(PostProcessCB& params, Shared<LightingPi
             lightingPipeline->Get_Params() = Make_DefaultSSAOParams();
             lightingPipeline->Get_DeferredLightingParams() = Make_DefaultDeferredLightingParams();
             lightingDirty = true;
+        }
+
+        if (ImGui::Button("Reload Renderer Shaders"))
+        {
+            const HRESULT hr = GAME->Reload_RendererShaders();
+            if (hr == S_OK)
+            {
+                _reloadShaderStatusText = "Reloaded Deferred/PostProcess/ScreenFx shaders";
+                _reloadShaderStatusIsError = false;
+            }
+            else if (hr == S_FALSE)
+            {
+                _reloadShaderStatusText = "Renderer shader reload partially succeeded; failed shaders kept previous version";
+                _reloadShaderStatusIsError = true;
+            }
+            else
+            {
+                _reloadShaderStatusText = "Renderer shader reload failed; previous shaders kept";
+                _reloadShaderStatusIsError = true;
+            }
+        }
+
+        if (!_reloadShaderStatusText.empty())
+        {
+            const ImVec4 statusColor = _reloadShaderStatusIsError
+                ? ImVec4(0.95f, 0.8f, 0.35f, 1.f)
+                : ImVec4(0.35f, 0.9f, 0.45f, 1.f);
+            ImGui::TextColored(statusColor, "%s", _reloadShaderStatusText.c_str());
         }
     }
 

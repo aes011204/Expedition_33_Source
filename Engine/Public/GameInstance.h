@@ -230,6 +230,7 @@ public: /* For.Renderer */
     Shared<PostProcessPipeline>         Get_PostProcessPipeline();
     const Shared<LightingPipeline>      Get_LightingPipeline() const;
     Shared<LightingPipeline>            Get_LightingPipeline();
+    HRESULT                             Reload_RendererShaders();
     ScreenFx_Manager*                   Get_ScreenFxManager();
     void                                Request_ScreenCapture(bool saveToFile = false);
     RenderGroup                         Get_CurrentRenderGroup() const;

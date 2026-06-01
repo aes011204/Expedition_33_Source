@@ -50,6 +50,7 @@ public:
     {
         return _lightingPipeline;
     }
+    HRESULT Reload_RendererShaders();
     RenderGroup Get_CurrentGroup() const
     {
         return _currentGroup;
