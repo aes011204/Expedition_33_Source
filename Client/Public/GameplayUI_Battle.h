@@ -33,6 +33,7 @@ class UI_BattleSkillPanel;
 class UI_BattleAnnounce;
 class UI_SuddenAttack;
 class UI_AddAP;
+class UI_QTE;
 
 class GameplayUI_Battle final : public Base
 {
@@ -69,6 +70,8 @@ private:
     void    Handle_HealApplied(const BattleChar& target, float healAmount);
     void    Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const vector<BattleChar>& target);
     void    Handle_BattleApChanged(const BattleChar& actor, uint32 amount, EAPChangeReason reason);
+    void    Handle_QTEStarted(const BattleQTERequest& request);
+    void    Handle_QTEResolved(BattleQTEResult result);
 
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
@@ -92,6 +95,7 @@ private:
     void    Update_BattleSkillPanel(float timeDelta);
     void    Update_BattleAnnounce(float timeDelta);
     void    Update_SuddenAttack(float timeDelta);
+    void    Update_QTE(float timeDelta);
 
 private:
 #pragma region UI 위치맞추기
@@ -138,6 +142,7 @@ private:
     Unique<UI_BattleSkillPanel>             _battleSkillPanel;
     Unique<UI_BattleAnnounce>               _battleAnnounce;
     Unique<UI_SuddenAttack>                 _suddenAttack;
+    Unique<UI_QTE>                          _qte;
 
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
@@ -161,6 +166,10 @@ private:
     FDelegateHandle          _healAppliedHandle{};
     FDelegateHandle          _battleApChangedHandle{};
     FDelegateHandle          _reactionSucceededHandle{};
+
+    // QTE
+    FDelegateHandle _qteStartedHandle{};
+    FDelegateHandle _qteResolvedHandle{};
 
 private:
     BattleChar               _targetPreviewSnapshot{};

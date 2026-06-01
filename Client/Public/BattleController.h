@@ -7,6 +7,7 @@
 #include "Battle_Enum.h"
 #include "BattleReactionController.h"
 #include "BattleHitSequenceRunner.h"
+#include "BattleQTEController.h"
 
 NS_BEGIN(Engine)
 class Character;
@@ -51,6 +52,10 @@ public: /* Delegate 선언 */
     DECLARE_DELEGATE(FOnReactionSucceeded, ReactionType,const vector<BattleChar>&);
     // AP ++
     DECLARE_DELEGATE(FOnBattleApChanged, const BattleChar&, uint32, EAPChangeReason);
+    // QTE UI 시작/결과
+    DECLARE_DELEGATE(FOnQTEStarted, const BattleQTERequest&);
+    DECLARE_DELEGATE(FOnQTEResolved, BattleQTEResult);
+
 
 public:
     BattleController();
@@ -171,6 +176,16 @@ public:
      // 스킬 스크립트가 다단히트를 예약할 때 사용
     BattleHitSequenceRunner& Get_HitSequenceRunner() { return _hitSequenceRunner; }
 
+    // QTE
+    void Begin_QTE(const BattleQTERequest& request);
+    void Resolve_QTE(BattleQTEResult result);
+    void Fail_QTEIfActive();
+    void Clear_QTEState();
+    
+    bool Is_QTEActive() const;
+    bool Has_LastQTEResult() const;
+    BattleQTEResult Get_LastQTEResult() const;
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
@@ -210,6 +225,9 @@ public: /* Delegate */
     FOnActionStarted                OnActionStarted;        // 공격, 스킬 시작
     FOnReactionSucceeded            OnReactionSucceeded;    // 회피, 패링 성공
     FOnBattleApChanged              OnBattleApChanged;
+
+    FOnQTEStarted                   OnQTEStarted;
+    FOnQTEResolved                  OnQTEResolved;
 
     FDelegateHandle                 _damageAppliedHandle{};
     FDelegateHandle                 _editorStopHandle = {};
@@ -275,14 +293,14 @@ private:
     vector<BattleChar> _heroes;
     vector<BattleChar> _enemies;
 
-    Shared<BattleStateMachine> _battleFSM;
-    Shared<BuffSystem> _buffSystem;
+    Shared<BattleStateMachine>   _battleFSM;
+    Shared<BuffSystem>           _buffSystem;
     Shared<BattleActionExecutor> _battleActionExe;
 
-    // 전투 시작 시 스폰되는 객체들 저장소
-    Shared<BattleSpawnRegistry> _battleSpawnRegistry;
+    Shared<BattleSpawnRegistry> _battleSpawnRegistry;   // 전투 시작 시 스폰되는 객체들 저장소
+    Shared<BattleQTEController> _qteController{};
     BattleReactionController    _reactionController{};
-    BattleHitSequenceRunner _hitSequenceRunner{};
+    BattleHitSequenceRunner     _hitSequenceRunner{};   // 루네 천둥번개 같은 다단히트 관리
 
     bool _firstAnimflag = { false };
     int  _firstAnimCount = {0};
