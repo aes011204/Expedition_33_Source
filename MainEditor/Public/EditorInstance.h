@@ -261,6 +261,7 @@ private: /* Runtime Data */
 
     bool _hasPendingWindowFocus = false;
     EDITOR_VIEWPORT_TARGET _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;
+    uint32 _runtimeGameFocusRecoveryFrames = 0;
     mutable PreviewOwner _stickyPreviewOwner = PreviewOwner::None;
 
     bool _pendingSingleFrameStep = false;

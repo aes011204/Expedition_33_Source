@@ -50,8 +50,6 @@ void Level_GamePlay::BeginPlay()
 void Level_GamePlay::Update(float fTimeDelta)
 {
     //Update_MapStreaming(fTimeDelta);
-    Update_WindowTitleFps();
-
      //테스트
      if (GAME->KeyDown(KEY_TYPE::KEY_0))
      {
@@ -74,35 +72,9 @@ void Level_GamePlay::Update(float fTimeDelta)
 
 HRESULT Level_GamePlay::Render()
 {
+    Update_WindowTitleFps(_windowTitleFps, L"StreamingLevel GamePlay");
+
     return S_OK;
-}
-
-void Level_GamePlay::Update_WindowTitleFps()
-{
-    const auto now = chrono::steady_clock::now();
-    if (_fpsSampleBegin.time_since_epoch().count() == 0)
-    {
-        _fpsSampleBegin = now;
-        _fpsFrameCount = 0;
-    }
-
-    ++_fpsFrameCount;
-
-    const auto elapsed = chrono::duration_cast<chrono::milliseconds>(now - _fpsSampleBegin);
-    if (elapsed < chrono::milliseconds(500))
-    {
-        return;
-    }
-
-    _displayFps = static_cast<int32>(
-        (_fpsFrameCount * 1000ull) / static_cast<uint64>(elapsed.count()));
-
-    wchar_t title[128] = {};
-    swprintf_s(title, L"StreamingLevel GamePlay | FPS : %d", _displayFps);
-    SetWindowText(g_hWnd, title);
-
-    _fpsSampleBegin = now;
-    _fpsFrameCount = 0;
 }
 
 HRESULT Level_GamePlay::Ready_ChunkMap()
@@ -190,6 +162,7 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
     TargetCameraDesc.farPlane = 500.f;
     TargetCameraDesc.mouseSensor = 0.06f;
     TargetCameraDesc.followSpeed = 4.f;
+    TargetCameraDesc.targetFollowSpeed = 4.f;
     TargetCameraDesc.distance = 1.8f;
     TargetCameraDesc.sideOffset = 0.f;
     TargetCameraDesc.heightOffset = 0.5f;

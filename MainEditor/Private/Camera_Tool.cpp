@@ -358,6 +358,17 @@ void Camera_Tool::Edit_TargetCameraPreset()
     auto preset = targetCamera->Get_Preset(_editingCameraState);
 
     bool isChanged = Edit_OrbitPresetFields(preset);
+    isChanged |= ImGui::DragFloat("target follow speed##TargetCamera", &preset.targetFollowSpeed, 0.01f, 0.01f, 30.f);
+    isChanged |= ImGui::DragFloat("vertical follow speed##TargetCamera", &preset.verticalFollowSpeed, 0.01f, 0.01f, 30.f);
+
+    BattleCameraTransitionEasing followEasing = preset.targetFollowEasing;
+    Select_PresetEnum("target follow easing", followEasing);
+    if (followEasing != preset.targetFollowEasing)
+    {
+        preset.targetFollowEasing = followEasing;
+        isChanged = true;
+    }
+
     isChanged |= ImGui::Checkbox("allow mouse rotation", &preset.allowMouseRotation);
 
     if (isChanged)

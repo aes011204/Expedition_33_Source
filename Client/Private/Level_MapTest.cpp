@@ -42,9 +42,7 @@ void Level_MapTest::Update(float fTimeDelta)
 
 HRESULT Level_MapTest::Render()
 {
-#ifdef _DEBUG
-    SetWindowText(g_hWnd, L"Level_MapTest");
-#endif
+    Update_WindowTitleFps(_windowTitleFps, L"Level_MapTest");
 
     return S_OK;
 }
@@ -94,6 +92,7 @@ HRESULT Level_MapTest::Ready_Layer_Camera(const wstring& strLayerTag)
     cameraDesc.farPlane = 500.f;
     cameraDesc.mouseSensor = 0.06f;
     cameraDesc.followSpeed = 4.f;
+    cameraDesc.targetFollowSpeed = 4.f;
     cameraDesc.distance = 1.8f;
     cameraDesc.sideOffset = 0.f;
     cameraDesc.heightOffset = 0.5f;

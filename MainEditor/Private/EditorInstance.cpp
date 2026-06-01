@@ -29,6 +29,7 @@ namespace
 {
 constexpr uint32 kDefaultPreviewViewportWidth = 1600;
 constexpr uint32 kDefaultPreviewViewportHeight = 900;
+constexpr uint32 kRuntimeGameFocusRecoveryFrameCount = 3;
 
 void Refresh_PlayerBodyAnimMapping(const Shared<GameObject>& gameObject)
 {
@@ -154,6 +155,7 @@ void EditorInstance::Release_Editor()
     _runtimeTimeScale = 1.f;
     _hasPendingWindowFocus = false;
     _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;
+    _runtimeGameFocusRecoveryFrames = 0;
     _pendingSingleFrameStep = false;
 }
 
@@ -229,6 +231,7 @@ void EditorInstance::Play()
     GAME->Unlock_Mouse();
 
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
+    _runtimeGameFocusRecoveryFrames = kRuntimeGameFocusRecoveryFrameCount; // Render보다 먼저 입력 정책이 돌아서, Game 포커스가 적용되기 전 몇 프레임은 입력을 유지한다.
 }
 
 void EditorInstance::Pause()
@@ -244,6 +247,7 @@ void EditorInstance::Pause()
     GAME->Unlock_Mouse();
 
     _runtimeState = EDITOR_RUNTIME_STATE::Pause;
+    _runtimeGameFocusRecoveryFrames = 0;
     Sync_ViewportWindowState();
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
 }
@@ -270,6 +274,7 @@ void EditorInstance::Stop()
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
+    _runtimeGameFocusRecoveryFrames = 0;
 
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
 }
@@ -289,6 +294,7 @@ void EditorInstance::Resume()
     GAME->Unlock_Mouse();
 
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
+    _runtimeGameFocusRecoveryFrames = kRuntimeGameFocusRecoveryFrameCount; // F9 Resume 직후 Game 창 포커스가 실제로 반영될 때까지 월드 입력이 끊기지 않게 한다.
 }
 
 void EditorInstance::Enter_EditAfterLoading()
@@ -304,6 +310,7 @@ void EditorInstance::Enter_EditAfterLoading()
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
+    _runtimeGameFocusRecoveryFrames = 0;
 
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
 }
@@ -1292,8 +1299,21 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         sceneView && sceneView->Is_Open() &&
         (sceneView->Is_Focused() || sceneView->Is_Hovered());
 
-    const bool gameFocused =
+    const bool gameFocusedActual =
         gameView && gameView->Is_Open() && gameView->Is_Focused();
+
+    const bool hasPendingGameFocus =
+        _hasPendingWindowFocus &&
+        _pendingWindowFocus == EDITOR_VIEWPORT_TARGET::Game;
+
+    const bool gameFocusRecoveryActive =
+        gameView && gameView->Is_Open() &&
+        _runtimeGameFocusRecoveryFrames > 0;
+
+    const bool gameFocused =
+        gameFocusedActual ||
+        hasPendingGameFocus ||
+        gameFocusRecoveryActive;
 
     const bool isFreeCamera =
         GAME->Is_ActiveCameraType(ObjectType::FreeCamera);
@@ -1307,6 +1327,15 @@ void EditorInstance::Apply_RuntimeInputPolicy()
 
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play)
     {
+        if (gameFocusedActual)
+        {
+            _runtimeGameFocusRecoveryFrames = 0;
+        }
+        else if (gameFocusRecoveryActive)
+        {
+            --_runtimeGameFocusRecoveryFrames; // Request_WindowFocus가 Render 단계에서 소비되는 동안만 짧게 유지한다.
+        }
+
         if (GAME->Is_GameplayPaused())
         {
             GAME->Set_PlayerInputBlocked(true);
@@ -1339,7 +1368,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
             const bool freeCameraControl =
                 gameFocused && GAME->KeyPress(KEY_TYPE::RBUTTON);
 
-            //GAME->Set_PlayerInputBlocked(true);
+            GAME->Set_PlayerInputBlocked(false); // Play 중 FreeCamera에 잠깐 남아 있어도 이전 blocked 상태를 끌고 가지 않게 바로 푼다.
             GAME->Set_FreeCameraInputEnabled(freeCameraControl);
 
             if (freeCameraControl||isTargetCamera)
@@ -1349,7 +1378,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         }
         else
         {
-            GAME->Set_PlayerInputBlocked(!gameFocused || _isTargetCameraEditMode);
+            GAME->Set_PlayerInputBlocked(_isTargetCameraEditMode); // Play가 시작됐으면 포커스와 무관하게 플레이어 입력은 열어 두고, 타겟 카메라 편집 모드일 때만 막는다.
             GAME->Set_FreeCameraInputEnabled(false);
 
             if(_isTargetCameraEditMode)
