@@ -17,12 +17,12 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr const wchar_t* kDefaultEffectMaterialFileName = L"M_DefaultMaterial.effectmaterial.json";
-    constexpr const char* kDefaultEffectMaterialName = "M_DefaultMaterial";
-    constexpr const char* kDefaultEffectMaterialTexturePath = "Effects/Textures/Shared/DefaultTexture.dds";
-    constexpr const wchar_t* kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
-    constexpr const wchar_t* kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
-    constexpr const wchar_t* kEffectAuthoringExtension = L".effect.json";
+    constexpr auto kDefaultEffectMaterialFileName = L"M_DefaultMaterial.effectmaterial.json";
+    constexpr auto kDefaultEffectMaterialName = "M_DefaultMaterial";
+    constexpr auto kDefaultEffectMaterialTexturePath = "Effects/Textures/Shared/DefaultTexture.dds";
+    constexpr auto kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
+    constexpr auto kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
+    constexpr auto kEffectAuthoringExtension = L".effect.json";
 
     fs::path Normalize_EffectSaveDialogPath(const fs::path& filePath)
     {
