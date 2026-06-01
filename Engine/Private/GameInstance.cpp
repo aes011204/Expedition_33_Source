@@ -2171,6 +2171,78 @@ const map<wstring, bool>& GameInstance::Get_RTs() const
     return _targetManager->Get_RTs();
 }
 
+HRESULT GameInstance::Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_TransformStateMatrix(shader, viewName, projName);
+}
+
+HRESULT GameInstance::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_ShadowLightDesc(shader, lightFarName, biasName, intensityName);
+}
+
+HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_ShadowCB(shader);
+}
+
+HRESULT GameInstance::Bind_StaticShadowCB(Shared<ShaderCom> shader)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Bind_StaticShadowCB(shader);
+}
+
+HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)
+{
+    return _shadow->Update_ShadowLight(desc);
+}
+
+const ShadowLightDesc* GameInstance::Get_ShadowLightDesc() const
+{
+    CHECK_NULL(_shadow, nullptr);
+    return _shadow->Get_ShadowLightDesc();
+}
+
+const Matrix* GameInstance::Get_ShadowTransformMatrix(D3DTS eType) const
+{
+    CHECK_NULL(_shadow, nullptr);
+    if (eType == D3DTS::View)
+        return _shadow->Get_ViewMatrix();
+    if (eType == D3DTS::Proj)
+        return _shadow->Get_ProjMatrix();
+
+    return nullptr;
+}
+
+HRESULT GameInstance::Update_ShadowFromCameraFrustum(
+    const ShadowLightDesc& desc,
+    const Shared<Camera>& camera,
+    const Vec3& lightDir)
+{
+    return _shadow->Update_FromCameraFrustum(desc, camera, lightDir);
+}
+
+HRESULT GameInstance::Update_StaticShadowFromBounds(
+    const ShadowLightDesc& desc,
+    const BoundingBox& bounds,
+    const Vec3& lightDir)
+{
+    return _shadow->Update_StaticShadowFromBounds(desc, bounds, lightDir);
+}
+
+void GameInstance::Register_StaticShadowCaster(Shared<GameObject> gameObject)
+{
+    return _renderer->Register_StaticShadowCaster(gameObject);
+}
+
+void GameInstance::Mark_StaticShadowDirty()
+{
+    return _renderer->Mark_StaticShadowDirty();
+}
+
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
 {
     CHECK_NULL(collider);
@@ -2576,78 +2648,6 @@ void GameInstance::Release_Engine()
 
     ReleaseManager(_graphicDevice);
     ReleaseManager(_logManager);
-}
-
-HRESULT GameInstance::Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName)
-{
-    CHECK_NULL(_shadow, E_FAIL);
-    return _shadow->Bind_TransformStateMatrix(shader, viewName, projName);
-}
-
-HRESULT GameInstance::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName, const char* intensityName)
-{
-    CHECK_NULL(_shadow, E_FAIL);
-    return _shadow->Bind_ShadowLightDesc(shader, lightFarName, biasName, intensityName);
-}
-
-HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
-{
-    CHECK_NULL(_shadow, E_FAIL);
-    return _shadow->Bind_ShadowCB(shader);
-}
-
-HRESULT GameInstance::Bind_StaticShadowCB(Shared<ShaderCom> shader)
-{
-    CHECK_NULL(_shadow, E_FAIL);
-    return _shadow->Bind_StaticShadowCB(shader);
-}
-
-HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)
-{
-    return _shadow->Update_ShadowLight(desc);
-}
-
-const ShadowLightDesc* GameInstance::Get_ShadowLightDesc() const
-{
-    CHECK_NULL(_shadow, nullptr);
-    return _shadow->Get_ShadowLightDesc();
-}
-
-const Matrix* GameInstance::Get_ShadowTransformMatrix(D3DTS eType) const
-{
-    CHECK_NULL(_shadow, nullptr);
-    if (eType == D3DTS::View)
-        return _shadow->Get_ViewMatrix();
-    if (eType == D3DTS::Proj)
-        return _shadow->Get_ProjMatrix();
-
-    return nullptr;
-}
-
-HRESULT GameInstance::Update_ShadowFromCameraFrustum(
-    const ShadowLightDesc& desc,
-    const Shared<Camera>& camera,
-    const Vec3& lightDir)
-{
-    return _shadow->Update_FromCameraFrustum(desc, camera, lightDir);
-}
-
-HRESULT GameInstance::Update_StaticShadowFromBounds(
-    const ShadowLightDesc& desc,
-    const BoundingBox& bounds,
-    const Vec3& lightDir)
-{
-    return _shadow->Update_StaticShadowFromBounds(desc, bounds, lightDir);
-}
-
-void GameInstance::Register_StaticShadowCaster(Shared<GameObject> gameObject)
-{
-    return _renderer->Register_StaticShadowCaster(gameObject);
-}
-
-void GameInstance::Mark_StaticShadowDirty()
-{
-    return _renderer->Mark_StaticShadowDirty();
 }
 
 void GameInstance::Free()
