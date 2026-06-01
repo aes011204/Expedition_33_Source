@@ -134,7 +134,12 @@ cbuffer DeferredLightingBuffer
     float g_IBLSpecularIntensity;
     float g_IBLPrefilterMaxMip;
 
+    float g_SpecAAStrength;
+    float g_SpecAAMinVariance;
+    float g_SpecAAMaxAddedRoughness;
     uint g_IBLEnabled;
+
+    uint g_SpecAAEnabled;
     uint3 g_IBLPadding0;
 };
 

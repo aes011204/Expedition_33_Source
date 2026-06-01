@@ -489,5 +489,25 @@ float3 FresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
         pow(saturate(1.0f - cosTheta), 5.0f);
 }
 
+float ComputeSpecAANormalVariance(float3 worldNormal)
+{
+    float3 dndx = ddx(worldNormal);
+    float3 dndy = ddy(worldNormal);
+    return max(dot(dndx, dndx), dot(dndy, dndy));
+}
+
+float ApplySpecAA(float3 worldNormal, float baseRoughness)
+{
+    float roughness = clamp(baseRoughness, 0.05f, 1.f);
+    if (g_SpecAAEnabled == 0u)
+        return roughness;
+
+    float variance = ComputeSpecAANormalVariance(normalize(worldNormal));
+    float filteredVariance = max(variance - g_SpecAAMinVariance, 0.f);
+    float addedRoughness = sqrt(filteredVariance) * g_SpecAAStrength;
+    addedRoughness = min(addedRoughness, g_SpecAAMaxAddedRoughness);
+    return clamp(roughness + addedRoughness, 0.05f, 1.f);
+}
+
 
 #endif

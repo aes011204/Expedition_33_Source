@@ -493,6 +493,13 @@ void Renderer::Render_Lights()
     ENDMRT_RETURN_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_MaterialTexture", RT::Material));
 
+    DeferredLightingCB deferredLightingParams{};
+    if (_lightingPipeline)
+        deferredLightingParams = _lightingPipeline->Get_DeferredLightingParams();
+
+    ENDMRT_RETURN_IF_FAILED(
+        _deferredShader->Bind_CBufferData(deferredLightingParams));
+
     // Light 기록
     ENDMRT_RETURN_IF_FAILED(
         _viBuffer->Bind_Resources());

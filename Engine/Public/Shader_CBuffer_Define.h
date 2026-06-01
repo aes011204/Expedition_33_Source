@@ -229,10 +229,15 @@ struct alignas(16) DeferredLightingCB
 
     float iblIntensity{ 1.f };
     float iblDiffuseIntensity{ 1.f };
-    float iblSpecularIntensity{ 1.f };
+    float iblSpecularIntensity{ 0.8f };
     float iblPrefilterMaxMip{ 8.f };
 
+    float specAAStrength{ 1.f };
+    float specAAMinVariance{ 0.01f };
+    float specAAMaxAddedRoughness{ 0.35f };
     uint32 iblEnabled{ 1u };
+
+    uint32 specAAEnabled{ 1u };
     uint32 _pad0[3]{};
 };
 

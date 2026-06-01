@@ -197,7 +197,7 @@ void PostProcess_View::Draw_ParameterControl(PostProcessCB& params, bool& dirty)
 
 void PostProcess_View::Draw_LightingControl(Shared<LightingPipeline> pipeline, bool& dirty)
 {
-    if (ImGui::BeginChild("##LightingControl", ImVec2(0.f, 340.f), true))
+    if (ImGui::BeginChild("##LightingControl", ImVec2(0.f, 460.f), true))
     {
         ImGui::Text("Lighting");
 
@@ -254,6 +254,20 @@ void PostProcess_View::Draw_LightingControl(Shared<LightingPipeline> pipeline, b
             dirty |= ImGui::DragFloat("IBL Diffuse Intensity", &lightingParams.iblDiffuseIntensity, 0.01f, 0.f, 8.f, "%.2f");
             dirty |= ImGui::DragFloat("IBL Specular Intensity", &lightingParams.iblSpecularIntensity, 0.01f, 0.f, 8.f, "%.2f");
             dirty |= ImGui::DragFloat("IBL Prefilter MaxMip", &lightingParams.iblPrefilterMaxMip, 0.1f, 0.f, 16.f, "%.2f");
+        }
+
+        if (ImGui::CollapsingHeader("Specular AA / Deferred", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            bool specAAEnabled = lightingParams.specAAEnabled != 0u;
+            if (ImGui::Checkbox("Enable Spec AA", &specAAEnabled))
+            {
+                lightingParams.specAAEnabled = specAAEnabled ? 1u : 0u;
+                dirty = true;
+            }
+
+            dirty |= ImGui::DragFloat("Spec AA Strength", &lightingParams.specAAStrength, 0.01f, 0.f, 4.f, "%.3f");
+            dirty |= ImGui::DragFloat("Spec AA Min Variance", &lightingParams.specAAMinVariance, 0.001f, 0.f, 1.f, "%.4f");
+            dirty |= ImGui::DragFloat("Spec AA Max Added Roughness", &lightingParams.specAAMaxAddedRoughness, 0.01f, 0.f, 1.f, "%.3f");
         }
     }
 
