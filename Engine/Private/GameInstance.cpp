@@ -350,8 +350,10 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
         _threadPool = ThreadPool::Create(workerCount);
         CHECK_NULL(_threadPool, E_FAIL);
 
-        LOG_ERROR("[GameInstance::Initialize_Engine] ThreadPool created. workerCount={}",
-        static_cast<int>(workerCount));
+        LOG_ERROR(
+            "[GameInstance::Initialize_Engine] ThreadPool created. workerCount={}",
+            static_cast<int>(workerCount)
+        );
     }
 
 #ifdef _DEBUG
@@ -612,7 +614,8 @@ void GameInstance::Update_Engine(float timeDelta, const function<void(float)>& c
             physxGatherMs,
             collFromPhysxMs,
             cameraMs,
-            uiMs);
+            uiMs
+        );
     }
 #endif
 }
@@ -661,7 +664,7 @@ HRESULT GameInstance::Draw()
     }
 
 #ifdef _DEBUG
-      _printManager->Render();
+    _printManager->Render();
 #endif
 
     return S_OK;
@@ -1028,15 +1031,17 @@ void GameInstance::Try_FlushRuntimePerfLog()
 void GameInstance::Clear_Resources(uint32 levelIndex)
 {
     _uiManager->Clear_Level(levelIndex);
-    _objectManager->Visit_LevelObjects(levelIndex,
+    _objectManager->Visit_LevelObjects(
+        levelIndex,
         [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
         {
             UNREFERENCED_PARAMETER(layerTag);
 
-            Shared<Camera> camera = dynamic_pointer_cast<Camera>(gameObject);
+            const Shared<Camera> camera = dynamic_pointer_cast<Camera>(gameObject);
             if (camera != nullptr)
                 _cameraManager->Remove_Camera(camera);
-        });
+        }
+    );
 
     _objectManager->Clear_Layers(levelIndex);
     _prototypeManager->Clear_Prototypes(levelIndex);
@@ -1250,26 +1255,37 @@ void GameInstance::Pop_UI()
 }
 
 HRESULT GameInstance::Add_GameObject(
-    uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex, const wstring& layerTag, void* arg)
+    uint32 prototypeLevelIndex,
+    const wstring& prototypeTag,
+    uint32 layerLevelIndex,
+    const wstring& layerTag,
+    void* arg)
 {
     return _objectManager->Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, arg);
 }
 
-HRESULT GameInstance::Add_GameObject(uint32 prototypeLevelIndex, const wstring& prototypeTag, uint32 layerLevelIndex,
-                                     const wstring& layerTag, Shared<GameObject>& outGameObject, void* arg)
+HRESULT GameInstance::Add_GameObject(
+    uint32 prototypeLevelIndex,
+    const wstring& prototypeTag,
+    uint32 layerLevelIndex,
+    const wstring& layerTag,
+    Shared<GameObject>& outGameObject,
+    void* arg)
 {
     return _objectManager->Add_GameObject(prototypeLevelIndex, prototypeTag, layerLevelIndex, layerTag, outGameObject, arg);
 }
 
-HRESULT GameInstance::Add_GameObject(uint32 layerLevelIndex, const wstring& layerTag,
-                                     const Shared<GameObject>& gameObject)
+HRESULT GameInstance::Add_GameObject(
+    uint32 layerLevelIndex,
+    const wstring& layerTag,
+    const Shared<GameObject>& gameObject)
 {
     return _objectManager->Add_GameObject(layerLevelIndex, layerTag, gameObject);
 }
 
 bool GameInstance::Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject)
 {
-    Shared<Camera> camera = dynamic_pointer_cast<Camera>(gameObject);
+    const Shared<Camera> camera = dynamic_pointer_cast<Camera>(gameObject);
     if (camera != nullptr)
         _cameraManager->Remove_Camera(camera);
 
@@ -1278,15 +1294,17 @@ bool GameInstance::Remove_GameObject(uint32 levelIndex, const Shared<GameObject>
 
 HRESULT GameInstance::Clear_LevelObjects(uint32 levelIndex)
 {
-    _objectManager->Visit_LevelObjects(levelIndex,
+    _objectManager->Visit_LevelObjects(
+        levelIndex,
         [this](const wstring& layerTag, const Shared<GameObject>& gameObject)
         {
             UNREFERENCED_PARAMETER(layerTag);
 
-            Shared<Camera> camera = dynamic_pointer_cast<Camera>(gameObject);
+            const Shared<Camera> camera = dynamic_pointer_cast<Camera>(gameObject);
             if (camera != nullptr)
                 _cameraManager->Remove_Camera(camera);
-        });
+        }
+    );
 
     return _objectManager->Clear_Layers(levelIndex);
 }
@@ -1296,7 +1314,8 @@ Shared<GameObject> GameInstance::Find_FirstObject(uint32 levelIndex, const wstri
     return _objectManager->Find_FirstObject(levelIndex, layerTag);
 }
 
-void GameInstance::Visit_LevelObjects(uint32 levelIndex,
+void GameInstance::Visit_LevelObjects(
+    uint32 levelIndex,
     const function<void(const wstring& layerTag, const Shared<GameObject>& gameObject)>& visitor) const
 {
     return _objectManager->Visit_LevelObjects(levelIndex, visitor);
@@ -1323,7 +1342,7 @@ uint32 GameInstance::Get_RenderCall() const
     return _renderer->Get_RenderCall();
 }
 
-const Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
+const Shared<PostProcessPipeline>& GameInstance::Get_PostProcessPipeline() const
 {
     return _renderer->Get_PostProcessPipeline();
 }
@@ -1333,7 +1352,7 @@ Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
     return _renderer->Get_PostProcessPipeline();
 }
 
-const Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
+const Shared<LightingPipeline>& GameInstance::Get_LightingPipeline() const
 {
     return _renderer->Get_LightingPipeline();
 }
@@ -1343,7 +1362,7 @@ Shared<LightingPipeline> GameInstance::Get_LightingPipeline()
     return _renderer->Get_LightingPipeline();
 }
 
-ScreenFx_Manager* GameInstance::Get_ScreenFxManager() 
+ScreenFx_Manager* GameInstance::Get_ScreenFxManager()
 {
     return _screenFxManager.get();
 }
@@ -1399,7 +1418,7 @@ HRESULT GameInstance::Bind_CameraCB(Shared<ShaderCom> shader) const
     CHECK_NULL(_pipeLine, E_FAIL);
     CHECK_NULL(_cameraManager, E_FAIL);
 
-    Shared<Camera> activeCamera = _cameraManager->Get_ActiveCamera();
+    const Shared<Camera> activeCamera = _cameraManager->Get_ActiveCamera();
     if (activeCamera == nullptr)
         return E_FAIL;
 
@@ -1590,61 +1609,6 @@ HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
     return S_OK;
 }
 
-bool GameInstance::Play_Sound(const wstring& soundFile, SoundChannel channel, float volume)
-{
-    return _soundManager ? _soundManager->Play_Once(soundFile, channel, volume) : false;
-}
-
-bool GameInstance::Play_Sound_Pitched(const wstring& soundFile, SoundChannel channel, float volume, float pitch)
-{
-    return _soundManager ? _soundManager->Play_Once_Pitched(soundFile, channel, volume, pitch) : false;
-}
-
-bool GameInstance::Play_BGM(const wstring& soundFile, float volume, bool stopPrevBGM, float fadeOutDuration)
-{
-    return _soundManager ? _soundManager->Play_BGM(soundFile, volume, stopPrevBGM, fadeOutDuration) : false;
-}
-
-bool GameInstance::Play_LoopSound(const wstring& soundFile, SoundChannel channel, float volume, bool stopPrevChannel,
-    float fadeOutDuration)
-{
-    return _soundManager ? _soundManager->Play_Loop(soundFile, channel, volume, stopPrevChannel, fadeOutDuration) : false;
-}
-
-void GameInstance::Stop_SoundChannel(SoundChannel channel, float fadeOutDuration)
-{
-    if (_soundManager)
-        _soundManager->Stop_Channel(channel, fadeOutDuration);
-}
-
-void GameInstance::Stop_Sound(const wstring& soundFile)
-{
-    if (_soundManager)
-        _soundManager->Stop_Sound(soundFile);
-}
-
-void GameInstance::Stop_AllSounds(float fadeOutDuration)
-{
-    if (_soundManager)
-        _soundManager->Stop_All(fadeOutDuration);
-}
-
-void GameInstance::Set_SoundChannelVolume(SoundChannel channel, float volume)
-{
-    if (_soundManager)
-        _soundManager->Set_ChannelVolume(channel, volume);
-}
-
-float GameInstance::Get_SoundChannelVolume(SoundChannel channel) const
-{
-    return _soundManager ? _soundManager->Get_ChannelVolume(channel) : 0.f;
-}
-
-bool GameInstance::Has_Sound(const wstring& soundFile) const
-{
-    return _soundManager ? _soundManager->Has_Sound(soundFile) : false;
-}
-
 string GameInstance::Find_AssetGUID(const wstring& filePath) const
 {
     if (nullptr == _assetManager)
@@ -1695,6 +1659,65 @@ string GameInstance::Ensure_AssetGUID(const wstring& filePath, const string& typ
         return existingGuid;
 
     return _assetManager->Register_Asset(filePath, type);
+}
+
+bool GameInstance::Play_Sound(const wstring& soundFile, SoundChannel channel, float volume)
+{
+    return _soundManager ? _soundManager->Play_Once(soundFile, channel, volume) : false;
+}
+
+bool GameInstance::Play_Sound_Pitched(const wstring& soundFile, SoundChannel channel, float volume, float pitch)
+{
+    return _soundManager ? _soundManager->Play_Once_Pitched(soundFile, channel, volume, pitch) : false;
+}
+
+bool GameInstance::Play_BGM(const wstring& soundFile, float volume, bool stopPrevBGM, float fadeOutDuration)
+{
+    return _soundManager ? _soundManager->Play_BGM(soundFile, volume, stopPrevBGM, fadeOutDuration) : false;
+}
+
+bool GameInstance::Play_LoopSound(
+    const wstring& soundFile,
+    SoundChannel channel,
+    float volume,
+    bool stopPrevChannel,
+    float fadeOutDuration)
+{
+    return _soundManager ? _soundManager->Play_Loop(soundFile, channel, volume, stopPrevChannel, fadeOutDuration) : false;
+}
+
+void GameInstance::Stop_SoundChannel(SoundChannel channel, float fadeOutDuration)
+{
+    if (_soundManager)
+        _soundManager->Stop_Channel(channel, fadeOutDuration);
+}
+
+void GameInstance::Stop_Sound(const wstring& soundFile)
+{
+    if (_soundManager)
+        _soundManager->Stop_Sound(soundFile);
+}
+
+void GameInstance::Stop_AllSounds(float fadeOutDuration)
+{
+    if (_soundManager)
+        _soundManager->Stop_All(fadeOutDuration);
+}
+
+void GameInstance::Set_SoundChannelVolume(SoundChannel channel, float volume)
+{
+    if (_soundManager)
+        _soundManager->Set_ChannelVolume(channel, volume);
+}
+
+float GameInstance::Get_SoundChannelVolume(SoundChannel channel) const
+{
+    return _soundManager ? _soundManager->Get_ChannelVolume(channel) : 0.f;
+}
+
+bool GameInstance::Has_Sound(const wstring& soundFile) const
+{
+    return _soundManager ? _soundManager->Has_Sound(soundFile) : false;
 }
 
 bool GameInstance::Build_DebugResourceMemorySummary(DebugResourceMemorySummary& outSummary) const
@@ -1767,7 +1790,8 @@ bool GameInstance::Build_DebugResourceMemorySummary(DebugResourceMemorySummary& 
                 ++outSummary.standaloneBufferPrototypeCount;
                 outSummary.standaloneBufferEstimatedBytes += viBuffer->Get_DebugEstimatedBufferBytes();
             }
-        });
+        }
+    );
 
     Visit_CurrentLevelObjects(
         [&](const wstring&, const Shared<GameObject>& gameObject)
@@ -1781,8 +1805,10 @@ bool GameInstance::Build_DebugResourceMemorySummary(DebugResourceMemorySummary& 
                 {
                     if (component)
                         ++outSummary.currentLevelComponentCount;
-                });
-        });
+                }
+            );
+        }
+    );
 
     return true;
 }
@@ -1887,7 +1913,6 @@ HRESULT GameInstance::Bind_CameraFar(Shared<ShaderCom> shader, const char* const
     return _cameraManager->Bind_CameraFar(shader, constantName);
 }
 
-
 const TypeRegistry::ComponentTypeInfo* GameInstance::Find_ComponentType(const string& className) const
 {
     return _typeRegistry->Find_ComponentType(className);
@@ -1937,8 +1962,8 @@ void GameInstance::Visit_AnimNotifyStateTypes(
 
 void GameInstance::Visit_GlobalEnums(const function<void(const TypeRegistry::GlobalEnumInfo&)>& visitor) const
 {
-	CHECK_NULL(_typeRegistry);
-	_typeRegistry->Visit_GlobalEnums(visitor);
+    CHECK_NULL(_typeRegistry);
+    _typeRegistry->Visit_GlobalEnums(visitor);
 }
 
 void GameInstance::Visit_ScreenFxTypes(const function<void(const TypeRegistry::ScreenFxTypeInfo&)>& visitor) const
@@ -1982,8 +2007,14 @@ HRESULT GameInstance::Ready_AllRenderTargets()
     return _targetManager->Ready_AllRenderTargets();
 }
 
-HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
-                                       const Color& clearColor, bool resizeWithViewport, bool useDSV)
+HRESULT GameInstance::Add_RenderTarget(
+    const wstring& targetTag,
+    uint32 sizeX,
+    uint32 sizeY,
+    DXGI_FORMAT pixelFormat,
+    const Color& clearColor,
+    bool resizeWithViewport,
+    bool useDSV)
 {
     return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport, useDSV);
 }
@@ -2110,6 +2141,36 @@ ComPtr<ID3D11Texture2D> GameInstance::Get_RT_Texture(const wstring& targetTag)
 }
 #endif
 
+HRESULT GameInstance::Initialize_Debug(float sizeX, float sizeY)
+{
+    return _targetManager->Initialize_Debug(sizeX, sizeY);
+}
+
+HRESULT GameInstance::Resize_DrawArea(float sizeX, float sizeY)
+{
+    return _targetManager->Resize_DrawArea(sizeX, sizeY);
+}
+
+HRESULT GameInstance::Display_RT(const wstring& targetTag, bool render)
+{
+    return _targetManager->Display_RT(targetTag, render);
+}
+
+HRESULT GameInstance::Display_AllRTs(bool render)
+{
+    return _targetManager->Display_AllRTs(render);
+}
+
+HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader)
+{
+    return _targetManager->Render_Debug(shader, viBuffer);
+}
+
+const map<wstring, bool>& GameInstance::Get_RTs() const
+{
+    return _targetManager->Get_RTs();
+}
+
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
 {
     CHECK_NULL(collider);
@@ -2118,10 +2179,10 @@ void GameInstance::Add_Collider(Shared<ColliderCom> collider)
 
     _collisionManager->Add_Collider(collider);
 
-    Shared<GameObject> owner = collider->Get_Owner();
+    const Shared<GameObject> owner = collider->Get_Owner();
     CHECK_NULL(owner);
 
-    Shared<TransformCom> transform = owner->Get_Transform();
+    const Shared<TransformCom> transform = owner->Get_Transform();
     CHECK_NULL(transform);
 
     _physxManager->Register_OrSync_Collider(collider, transform->Get_WorldMatrix());
@@ -2144,8 +2205,10 @@ PxScene* GameInstance::Get_PhysXScene() const
     return _physxManager->Get_Scene();
 }
 
-PhysXStaticActorHandle GameInstance::Register_PhysXStaticCollision(const StaticCollisionData& collisionData,
-    const Matrix& worldMatrix, Collision_Preset preset)
+PhysXStaticActorHandle GameInstance::Register_PhysXStaticCollision(
+    const StaticCollisionData& collisionData,
+    const Matrix& worldMatrix,
+    Collision_Preset preset)
 {
     CHECK_NULL(_physxManager, {});
     return _physxManager->Register_StaticCollision(collisionData, worldMatrix, preset);
@@ -2157,22 +2220,34 @@ void GameInstance::Unregister_PhysXStaticActor(PhysXStaticActorHandle handle)
     _physxManager->Unregister_StaticActor(handle);
 }
 
-bool GameInstance::Sweep_Collider(ColliderCom* collider, const Matrix& worldMatrix, const Vec3& direction,
-    float distance, PhysXQueryHit& outHit) const
+bool GameInstance::Sweep_Collider(
+    ColliderCom* collider,
+    const Matrix& worldMatrix,
+    const Vec3& direction,
+    float distance,
+    PhysXQueryHit& outHit) const
 {
     CHECK_NULL(_physxManager, false);
     return _physxManager->Sweep_Collider(collider, worldMatrix, direction, distance, outHit);
 }
 
-bool GameInstance::Sweep_Sphere(const Vec3& origin, const Vec3& direction, float distance, float radius,
-    Collision_Preset queryPreset, PhysXQueryHit& outHit) const
+bool GameInstance::Sweep_Sphere(
+    const Vec3& origin,
+    const Vec3& direction,
+    float distance,
+    float radius,
+    Collision_Preset queryPreset,
+    PhysXQueryHit& outHit) const
 {
     CHECK_NULL(_physxManager, false);
     return _physxManager->Sweep_Sphere(origin, direction, distance, radius, queryPreset, outHit);
 }
 
-bool GameInstance::Probe_Ground(ColliderCom* collider, const Matrix& worldMatrix, float probeDistance,
-                                PhysXQueryHit& outHit) const
+bool GameInstance::Probe_Ground(
+    ColliderCom* collider,
+    const Matrix& worldMatrix,
+    float probeDistance,
+    PhysXQueryHit& outHit) const
 {
     CHECK_NULL(_physxManager, false);
     return _physxManager->Probe_Ground(collider, worldMatrix, probeDistance, outHit);
@@ -2181,17 +2256,13 @@ bool GameInstance::Probe_Ground(ColliderCom* collider, const Matrix& worldMatrix
 void GameInstance::UpdateFrustum(const Matrix& view, const Matrix& proj)
 {
     if (_cullingManager)
-    {
         _cullingManager->UpdateFrustum(view, proj);
-    }
 }
 
 bool GameInstance::IsVisible(const BoundingBox& worldAABB) const
 {
     if (_cullingManager)
-    {
         return _cullingManager->IsVisible(worldAABB);
-    }
 
     return true;
 }
@@ -2199,17 +2270,13 @@ bool GameInstance::IsVisible(const BoundingBox& worldAABB) const
 void GameInstance::BuildOctree(const vector<BoundingBox>& worldAABBs)
 {
     if (_cullingManager)
-    {
         _cullingManager->BuildOctree(worldAABBs);
-    }
 }
 
 void GameInstance::QueryVisible(vector<uint32>& outIndices) const
 {
     if (_cullingManager)
-    {
         _cullingManager->QueryVisible(outIndices);
-    }
 }
 
 void GameInstance::Visit_BTNodeTypes(const function<void(const TypeRegistry::BTNodeTypeInfo&)>& visitor) const
@@ -2272,7 +2339,6 @@ void GameInstance::Clear_Prints()
 #endif
 }
 
-
 void GameInstance::Clear_Print(const wstring& slot)
 {
 #ifdef _DEBUG
@@ -2317,7 +2383,7 @@ HRESULT GameInstance::Save_GameObjectJson(const fs::path& path, const Shared<Gam
 {
     CHECK_NULL(gameObject, E_FAIL);
 
-    json root = gameObject->To_Json();
+    const json root = gameObject->To_Json();
 
     if (root.is_null() || !root.is_object())
         return E_FAIL;
@@ -2358,7 +2424,7 @@ HRESULT GameInstance::Load_GameObjectJson(const fs::path& path, const Shared<Gam
 {
     CHECK_NULL(gameObject, E_FAIL);
 
-    json root = Load_JsonFile(path);
+    const json root = Load_JsonFile(path);
     if (root.is_null() || !root.is_object())
         return E_FAIL;
 
@@ -2391,7 +2457,7 @@ Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const json& root)
 
 Shared<GameObject> GameInstance::Instantiate_GameObjectJson(const fs::path& path)
 {
-    json root = Load_JsonFile(path);
+    const json root = Load_JsonFile(path);
 
     return Instantiate_GameObjectJson(root);
 }
@@ -2401,7 +2467,7 @@ HRESULT GameInstance::Create_PrefabAsset(const fs::path& path, const string& sta
     if (staticClass.empty() || prefabName.empty())
         return E_FAIL;
 
-    Shared<GameObject> gameObject = Create_GameObjectPrototype(staticClass);
+    const Shared<GameObject> gameObject = Create_GameObjectPrototype(staticClass);
     CHECK_NULL(gameObject, E_FAIL);
 
     CHECK_FAILED(gameObject->Initialize(nullptr), E_FAIL);
@@ -2512,44 +2578,6 @@ void GameInstance::Release_Engine()
     ReleaseManager(_logManager);
 }
 
-#ifdef _DEBUG
-ComPtr<ID3D11Texture2D> GameInstance::Get_RT_Texture(const wstring& targetTag)
-{
-    return _targetManager->Get_RT_Texture(targetTag);
-}
-
-HRESULT GameInstance::Initialize_Debug(float sizeX, float sizeY)
-{
-    return _targetManager->Initialize_Debug(sizeX, sizeY);
-}
-
-HRESULT GameInstance::Resize_DrawArea(float sizeX, float sizeY)
-{
-    return _targetManager->Resize_DrawArea(sizeX, sizeY);
-}
-
-HRESULT GameInstance::Display_RT(const wstring& targetTag, bool render)
-{
-    return _targetManager->Display_RT(targetTag, render);
-}
-
-HRESULT GameInstance::Display_AllRTs(bool render)
-{
-    return _targetManager->Display_AllRTs(render);
-}
-
-HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader)
-{
-    return _targetManager->Render_Debug(shader, viBuffer);
-}
-
-const map<wstring, bool>& GameInstance::Get_RTs() const
-{
-    return _targetManager->Get_RTs();
-}
-
-#endif
-
 HRESULT GameInstance::Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName)
 {
     CHECK_NULL(_shadow, E_FAIL);
@@ -2596,13 +2624,17 @@ const Matrix* GameInstance::Get_ShadowTransformMatrix(D3DTS eType) const
     return nullptr;
 }
 
-HRESULT GameInstance::Update_ShadowFromCameraFrustum(const ShadowLightDesc& desc, const Shared<Camera>& camera,
+HRESULT GameInstance::Update_ShadowFromCameraFrustum(
+    const ShadowLightDesc& desc,
+    const Shared<Camera>& camera,
     const Vec3& lightDir)
 {
     return _shadow->Update_FromCameraFrustum(desc, camera, lightDir);
 }
 
-HRESULT GameInstance::Update_StaticShadowFromBounds(const ShadowLightDesc& desc, const BoundingBox& bounds,
+HRESULT GameInstance::Update_StaticShadowFromBounds(
+    const ShadowLightDesc& desc,
+    const BoundingBox& bounds,
     const Vec3& lightDir)
 {
     return _shadow->Update_StaticShadowFromBounds(desc, bounds, lightDir);
