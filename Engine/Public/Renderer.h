@@ -63,6 +63,7 @@ public:
 public:
     void Register_StaticShadowCaster(const Shared<GameObject>& gameObject);
     void Mark_StaticShadowDirty();
+    void PostDraw();
 
 private:
 	void Render_Priority();
@@ -75,9 +76,11 @@ private:
     void Render_Distortion(); // HDRColor snapshot과 distortion field를 사용해 fullscreen 왜곡 resolve를 수행한다.
 	void Render_Blend();
     void Render_ScreenFx();
+    void Render_UIEffect();
 
     void Render_CombinedHDR();
     void Render_PostProcess();
+    
 
     HRESULT Ready_Shaders();
     void Change_ViewportDesc(uint32 width, uint32 height);

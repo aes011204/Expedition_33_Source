@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "EffectInstancePool.h"
 #include "ScreenFx_Instance.h"
 
@@ -35,6 +35,8 @@ private:
 private:
     EffectInstancePool::AttachedHandle _roseFlareHandle{};
     bool _isRoseFlare{ false };
+    
+    ID3D11ShaderResourceView* _smudgeMaskSRV = nullptr;
 
     BattleTransitionDesc _originalDesc{};
     float _currentRadius{};

@@ -191,9 +191,9 @@ cbuffer ScreenFxBuffer
 {
     float3 g_vignetteColor;
     float g_vignetteIntensity;
-
     float g_vignetteRadius;
     float g_vignetteSoftness;
+
     float g_ghostingIntensity;
     float g_transitionProgress;
 
