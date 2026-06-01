@@ -1,5 +1,6 @@
 ﻿#include "Renderer.h"
 #include "Camera.h"
+#include "EffectEmitter.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "LightingPipeline.h"
@@ -731,7 +732,54 @@ void Renderer::Render_Blend()
 
     _currentGroup = RenderGroup::Blend;
 
-    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Blend)])
+    auto& blendObjects = _renderGroups[ETOI(RenderGroup::Blend)];
+    const Vec4* cameraPosition4 = GAME->Get_CamPosition();
+    if (cameraPosition4 != nullptr)
+    {
+        const Vec3 cameraPosition{ cameraPosition4->x, cameraPosition4->y, cameraPosition4->z };
+
+        const auto try_get_sort_depth = [&](const Weak<GameObject>& renderObject, float& outSortDepth) -> bool
+        {
+            const Shared<GameObject> gameObject = renderObject.lock();
+            if (gameObject == nullptr)
+                return false;
+
+            Vec3 objectWorldPosition{};
+            const Shared<EffectEmitter> effectEmitter = dynamic_pointer_cast<EffectEmitter>(gameObject);
+            if (effectEmitter != nullptr)
+            {
+                if (!effectEmitter->Try_Get_BlendSortWorldPosition(objectWorldPosition))
+                    return false;
+            }
+            else
+            {
+                const Shared<TransformCom> transform = gameObject->Get_Transform();
+                if (transform == nullptr)
+                    return false;
+
+                objectWorldPosition = transform->Get_WorldPosition();
+            }
+
+            outSortDepth = (objectWorldPosition - cameraPosition).LengthSquared();
+            return true;
+        };
+
+        // Blend 전체 정책으로 카메라 거리 정렬을 적용한다. 향후 non-effect blend object도 동일 정책을 탄다.
+        blendObjects.sort([&](const Weak<GameObject>& lhs, const Weak<GameObject>& rhs)
+            {
+                float lhsSortDepth = 0.f;
+                float rhsSortDepth = 0.f;
+                const bool lhsValid = try_get_sort_depth(lhs, lhsSortDepth);
+                const bool rhsValid = try_get_sort_depth(rhs, rhsSortDepth);
+
+                if (!lhsValid || !rhsValid || lhsSortDepth == rhsSortDepth)
+                    return false;
+
+                return lhsSortDepth > rhsSortDepth;
+            });
+    }
+
+    for (auto& renderObject : blendObjects)
     {
         Shared<GameObject> gameObject = renderObject.lock();
         if (nullptr != gameObject)
@@ -741,7 +789,7 @@ void Renderer::Render_Blend()
         }
     }
 
-    _renderGroups[ETOI(RenderGroup::Blend)].clear();
+    blendObjects.clear();
 
     GAME->End_MRT();
 }
