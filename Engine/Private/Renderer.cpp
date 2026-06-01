@@ -1,4 +1,4 @@
-﻿#include "Renderer.h"
+#include "Renderer.h"
 #include "Camera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -216,17 +216,6 @@ void Renderer::Draw()
     const auto uiBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_ScreenFX:Before");
 #endif
-
-    //GAME->Bind_BackBuffer();
-
-    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
-    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
-    if (useScreenFx)
-    {
-        // ========================================= //
-        Render_ScreenFx();
-        // ========================================= //
-    }
 
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_ScreenFX:After");
@@ -744,6 +733,48 @@ void Renderer::Render_Blend()
     _renderGroups[ETOI(RenderGroup::Blend)].clear();
 
     GAME->End_MRT();
+}
+
+void Renderer::Render_UIEffect()
+{
+    GAME->Bind_BackBuffer();
+    _currentGroup = RenderGroup::UIEffect;
+
+    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::UIEffect)])
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (nullptr != gameObject)
+        {
+            gameObject->Render();
+            Add_RenderCall();
+        }
+    }
+
+    _renderGroups[ETOI(RenderGroup::UIEffect)].clear();
+}
+
+void Renderer::PostDraw()
+{
+    // 1. ScreenFx 렌더링
+    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
+    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
+    if (useScreenFx)
+    {
+        Render_ScreenFx();
+    }
+
+    // 2. 화면 캡처 로직 (UI와 ScreenFx가 적용된 직후 상태)
+    if (screenFxManager && screenFxManager->Is_CaptureRequested())
+    {
+        GAME->Bind_BackBuffer(); 
+        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
+        
+        // _screenFxManager 캡처 요청 플래그 클리어
+        const_cast<ScreenFx_Manager*>(screenFxManager)->Clear_CaptureRequested();
+    }
+
+    // 3. 마지막으로 화면 맨 앞에 띄울 UIEffect 렌더링
+    Render_UIEffect();
 }
 
 void Renderer::Render_PostProcess()
