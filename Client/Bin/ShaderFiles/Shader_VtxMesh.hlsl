@@ -208,7 +208,6 @@ PS_OUT PS_OpaqueAR(PS_IN In)
 
     float3 emissive = SampleEmissive(finalUV);
     emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
-    baseColor.rgb = baseColor.rgb * orm.r + emissive;
 
     Out.Diffuse = baseColor;
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);

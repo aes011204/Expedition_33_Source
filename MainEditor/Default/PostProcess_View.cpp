@@ -288,16 +288,6 @@ void PostProcess_View::Draw_QuickAction(PostProcessCB& params, Shared<LightingPi
 PostProcessCB PostProcess_View::Make_DefaultParams()
 {
     PostProcessCB defaults{};
-    defaults.exposure = 1.f;
-    defaults.invWhitePoint = 1.f;
-    defaults.gamma = 2.2f;
-    defaults.bloomRadius = 1.f;
-    defaults.bloomThreshold = 1.f;
-    defaults.bloomIntensity = 0.5f;
-    defaults.bloomSoftKnee = 0.5f;
-    defaults.bloomClamp = 10.f;
-    defaults.bloomScatter = 0.7f;
-    defaults.toneMapMode = 0;
     return defaults;
 }
 

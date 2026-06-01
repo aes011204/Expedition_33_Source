@@ -87,7 +87,7 @@ PS_OUT_BACKBUFFER PS_BloomExtractHalf(PS_IN In)
     float soft = saturate(x / knee);                            // else if (x < knee)   bloomWeight = x * x / knee;
     float bloomWeight = max(x, 0.f) * lerp(0.2f, 1.f, soft);    // else                 bloomWeight = x;
 
-    float3 bloomColor = color * bloomWeight * g_PP_BloomIntensity;
+    float3 bloomColor = color * bloomWeight;
     bloomColor = min(bloomColor, g_PP_BloomClamp);
 
     Out.Color = float4(bloomColor, 1.f);
