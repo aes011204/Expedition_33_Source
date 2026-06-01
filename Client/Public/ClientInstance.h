@@ -23,6 +23,7 @@ class CameraDirector;
 class EffectInstancePool;
 class ScreenFadeTransition;
 class LevelTransitionFade;
+class ClientScreenFxManager;
 
 class ClientInstance : public Base
 {

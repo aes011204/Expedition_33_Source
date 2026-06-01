@@ -414,8 +414,8 @@ bool ClientInstance::Is_FadeTransitionPlaying() const
     return isScreenFadePlaying || isLevelFadePlaying;
 }
 
-void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
-                                        const vector<string>& MonsterProtoTag, const Shared<GameObject>& sourceObject)
+void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
+                                        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject)
 {
     return _battleController->OnEnterBattleField(FieldID, isPlayerAdvantage, heroIds, battleMonsterSpawnDescs, sourceObject);
 }
