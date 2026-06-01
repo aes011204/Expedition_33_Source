@@ -487,6 +487,7 @@ namespace UIEditor
         sample.scale = object.scale;
         sample.rotationRadians = object.rotationRadians;
         sample.color = object.color;
+        sample.alphaMultiplier = object.alphaMultiplier;
 
         bool hasSampledTrack = false;
         const bool useRelativeTracks = Is_PublicAnimation(asset);
@@ -533,6 +534,10 @@ namespace UIEditor
                 break;
             case UI_AnimationKeyframeTrackType::Alpha:
                 sample.color.w = value;
+                break;
+            case UI_AnimationKeyframeTrackType::AlphaMultiplier:
+                sample.hasAlphaMultiplier = true;
+                sample.alphaMultiplier = value;
                 break;
             default:
                 break;

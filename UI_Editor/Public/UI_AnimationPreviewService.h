@@ -10,6 +10,8 @@ struct UI_AnimationPreviewSample
     ImVec2 scale = ImVec2(1.f, 1.f);
     float rotationRadians = 0.f;
     ImVec4 color = ImVec4(1.f, 1.f, 1.f, 1.f);
+    bool hasAlphaMultiplier = false;
+    float alphaMultiplier = 1.f;
 };
 
 class UI_AnimationPreviewService final

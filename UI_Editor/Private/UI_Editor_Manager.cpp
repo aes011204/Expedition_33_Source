@@ -1010,6 +1010,14 @@ namespace UIEditor
             [&]() { return _objectEditService.Set_ObjectColor(_document, objectId, color); });
     }
 
+    bool UI_Editor_Manager::Set_UIObjectAlphaMultiplier(ObjectId objectId, float alphaMultiplier)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectAlphaMultiplier(_document, objectId, alphaMultiplier); },
+            [&]() { return _objectEditService.Set_ObjectAlphaMultiplier(_document, objectId, alphaMultiplier); });
+    }
+
     bool UI_Editor_Manager::Set_UIObjectImageRenderMode(ObjectId objectId, UI_ImageRenderMode imageRenderMode)
     {
         return Apply_UIObjectEdit(

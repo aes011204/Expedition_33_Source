@@ -61,6 +61,7 @@ enum class UI_AnimationKeyframeTrackType
     Rotation,
     Color,
     Alpha,
+    AlphaMultiplier,
 };
 
 struct UI_AnimationKeyframe
@@ -215,6 +216,8 @@ inline const char* Get_AnimationKeyframeTrackTypeName(UI_AnimationKeyframeTrackT
         return "Color";
     case UI_AnimationKeyframeTrackType::Alpha:
         return "Alpha";
+    case UI_AnimationKeyframeTrackType::AlphaMultiplier:
+        return "AlphaMultiplier";
     default:
         return "PositionX";
     }
@@ -264,6 +267,12 @@ inline bool Try_ParseAnimationKeyframeTrackType(const string& typeName, UI_Anima
         return true;
     }
 
+    if (typeName == "AlphaMultiplier")
+    {
+        outType = UI_AnimationKeyframeTrackType::AlphaMultiplier;
+        return true;
+    }
+
     return false;
 }
 
@@ -275,6 +284,7 @@ inline float Clamp_AnimationKeyframeTrackValue(UI_AnimationKeyframeTrackType typ
     case UI_AnimationKeyframeTrackType::ScaleY:
         return max(0.01f, value);
     case UI_AnimationKeyframeTrackType::Alpha:
+    case UI_AnimationKeyframeTrackType::AlphaMultiplier:
         return min(max(value, 0.f), 1.f);
     default:
         return value;

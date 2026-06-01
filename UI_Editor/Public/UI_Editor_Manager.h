@@ -87,6 +87,7 @@ public:
     bool Set_UIObjectSortOrder(ObjectId objectId, int32 sortOrder);
     bool Set_UIObjectRenderGroup(ObjectId objectId, UI_RenderGroup renderGroup);
     bool Set_UIObjectColor(ObjectId objectId, const ImVec4& color);
+    bool Set_UIObjectAlphaMultiplier(ObjectId objectId, float alphaMultiplier);
     bool Set_UIObjectImageRenderMode(ObjectId objectId, UI_ImageRenderMode imageRenderMode);
     bool Set_UIObjectTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath);
     bool Set_UIObjectMaskTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath);
