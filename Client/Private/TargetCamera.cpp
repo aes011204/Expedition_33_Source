@@ -161,28 +161,7 @@ void TargetCamera::Update(float timeDelta)
         break;
     }
 
-    // 1. 현재 카메라가 바라보는 방향 벡터 추출
-    Vec3 currentLookDir = GAME->Get_Transform(D3DTS::View)->Backward();
-    currentLookDir.Normalize();
-
-    if (_prevLookDir.Length() > 0.1f)
-    {
-        float dotProduct = currentLookDir.Dot(_prevLookDir);
-        dotProduct = std::clamp(dotProduct, -1.0f, 1.0f);
-        float angleChange = acos(dotProduct);
-        float angularSpeed = angleChange / timeDelta;
-        // 쿨다운 검사 삭제! 그냥 임계속도(예: 1.5f) 이상이면 매 프레임 호출
-        if (angularSpeed > 1.5f)
-        {
-            float blurIntensity = std::clamp(angularSpeed * 0.02f, 0.05f, 0.15f);
-
-            // 움직일 때는 매 프레임 호출되어 타이머가 0으로 리셋되고 강도가 유지됨.
-            // 멈추면 더 이상 이 함수가 안 불리므로, 0.3초 동안 서서히 페이드아웃되며 사라짐.
-            CLIENT->Get_ScreenFxManager()->Play_ActionCameraBlur();
-        }
-    }
-
-    _prevLookDir = currentLookDir;
+    
 }
 
 void TargetCamera::Late_Update(float timeDelta)
