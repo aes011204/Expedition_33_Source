@@ -122,7 +122,6 @@ HRESULT FaceAccessory_Player::Render_Shadow()
 
     CHECK_FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix), E_FAIL);
     CHECK_FAILED(GAME->Bind_ShadowCB(_shader), E_FAIL);
-    CHECK_FAILED(_shader->Reset_DrawFeatures(), E_FAIL);
 
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 

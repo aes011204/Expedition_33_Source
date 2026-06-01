@@ -1320,9 +1320,10 @@ void Renderer::Render_DynamicShadow()
     {
         if (FAILED(GAME->Set_ActiveShadowCascade(cascadeIndex)))
             continue;
-        // cascade에 따라 특정 프레임만 업데이트
-        if (!Should_UpdateDynamicShadowCascade(cascadeIndex))
-            continue;
+
+        // cascade에 따라 특정 프레임만 업데이트 하려고 했는데 mismtach 가 심해서 주석 처리.
+        //if (!Should_UpdateDynamicShadowCascade(cascadeIndex))
+        //    continue;
 
         // 활성화된 cascade의 view, proj 행렬을 받아온다.
         const Matrix* shadowViewMatrix = GAME->Get_ShadowTransformMatrix(D3DTS::View);

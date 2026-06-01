@@ -320,11 +320,6 @@ HRESULT MapStaticMesh::Render_Shadow()
         return E_FAIL;
     }
 
-    if (FAILED(_shader->Reset_DrawFeatures()))
-    {
-        return E_FAIL;
-    }
-
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; ++i)

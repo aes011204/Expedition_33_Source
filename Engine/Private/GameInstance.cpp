@@ -1342,7 +1342,7 @@ uint32 GameInstance::Get_RenderCall() const
     return _renderer->Get_RenderCall();
 }
 
-const Shared<PostProcessPipeline>& GameInstance::Get_PostProcessPipeline() const
+const Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
 {
     return _renderer->Get_PostProcessPipeline();
 }
@@ -1352,7 +1352,7 @@ Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
     return _renderer->Get_PostProcessPipeline();
 }
 
-const Shared<LightingPipeline>& GameInstance::Get_LightingPipeline() const
+const Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
 {
     return _renderer->Get_LightingPipeline();
 }
@@ -2673,50 +2673,6 @@ uint32 GameInstance::Get_ShadowCascadeCount() const
 {
     CHECK_NULL(_shadow, 0u);
     return _shadow->Get_CascadeCount();
-}
-
-HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)
-{
-    return _shadow->Update_ShadowLight(desc);
-}
-
-const ShadowLightDesc* GameInstance::Get_ShadowLightDesc() const
-{
-    CHECK_NULL(_shadow, nullptr);
-    return _shadow->Get_ShadowLightDesc();
-}
-
-const Matrix* GameInstance::Get_ShadowTransformMatrix(D3DTS eType) const
-{
-    CHECK_NULL(_shadow, nullptr);
-    if (eType == D3DTS::View)
-        return _shadow->Get_ViewMatrix();
-    if (eType == D3DTS::Proj)
-        return _shadow->Get_ProjMatrix();
-
-    return nullptr;
-}
-
-HRESULT GameInstance::Update_ShadowFromCameraFrustum(const ShadowLightDesc& desc, const Shared<Camera>& camera,
-    const Vec3& lightDir)
-{
-    return _shadow->Update_FromCameraFrustum(desc, camera, lightDir);
-}
-
-HRESULT GameInstance::Update_StaticShadowFromBounds(const ShadowLightDesc& desc, const BoundingBox& bounds,
-    const Vec3& lightDir)
-{
-    return _shadow->Update_StaticShadowFromBounds(desc, bounds, lightDir);
-}
-
-void GameInstance::Register_StaticShadowCaster(Shared<GameObject> gameObject)
-{
-    return _renderer->Register_StaticShadowCaster(gameObject);
-}
-
-void GameInstance::Mark_StaticShadowDirty()
-{
-    return _renderer->Mark_StaticShadowDirty();
 }
 
 void GameInstance::Free()
