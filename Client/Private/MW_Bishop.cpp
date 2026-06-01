@@ -65,12 +65,6 @@ void MW_Bishop::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> oth
     Monster_WorldBase::OnBeginOverlap(self, other);
 }
 
-void MW_Bishop::Set_BattleMonsterSpawnDescs(vector<BattleMonsterSpawnDesc>& outSpawnDescs) const
-{
-    outSpawnDescs.clear();
-    outSpawnDescs.push_back({ Constants::Prefab::MB_Bishop });
-
-}
 HRESULT MW_Bishop::Ready_Components()
 {
     Monster_WorldBase::Ready_Components();
@@ -89,13 +83,8 @@ HRESULT MW_Bishop::Ready_PartObjects()
     _body = dynamic_pointer_cast<Mon_Bishop_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
 
-
-return S_OK;
-
     return S_OK;
 }
-
-
 
 Shared<MW_Bishop> MW_Bishop::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {

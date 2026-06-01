@@ -70,6 +70,43 @@ Monster_WorldBase::Monster_WorldBase(const Monster_WorldBase& prototype)
 {
 }
 
+const vector<Vec3>& Monster_WorldBase::Get_EffectivePatrolPoints()
+{
+    if (!_PatrolPoints.empty())
+        return _PatrolPoints;
+
+    if (_defaultPatrolPoints.empty())
+        Build_DefaultPatrolPoints();
+
+    return _defaultPatrolPoints;
+}
+
+void Monster_WorldBase::Build_DefaultPatrolPoints()
+{
+    _defaultPatrolPoints.clear();
+
+    if (_transformCom == nullptr)
+        return;
+
+    const Vec3 origin = _transformCom->Get_Position();
+    static const Vec3 offsets[] =
+    {
+        {  0.f, 0.f,  0.f },
+        {  3.f, 0.f, -2.f },
+        {  5.f, 0.f,  0.f },
+        {  3.f, 0.f,  2.f },
+        {  0.f, 0.f,  0.f },
+        { -3.f, 0.f, -2.f },
+        { -5.f, 0.f,  0.f },
+        { -3.f, 0.f,  2.f },
+        {  0.f, 0.f,  0.f },
+    };
+
+    _defaultPatrolPoints.reserve(_countof(offsets));
+    for (const Vec3& offset : offsets)
+        _defaultPatrolPoints.push_back(origin + offset);
+}
+
 HRESULT Monster_WorldBase::Initialize_Prototype()
 {
     return Character_WorldBase::Initialize_Prototype();

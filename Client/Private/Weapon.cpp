@@ -2,6 +2,7 @@
 #include "GameInstance.h"
 #include "Material_Types.h"
 #include "Player_WorldBase.h"
+#include "Client_Constants.h"
 #include "AnimComputeRuntime.h" 
 #include "ComputeShaderCom.h"   
 
@@ -38,6 +39,7 @@ HRESULT Weapon::Initialize(void* arg)
     _socketMatrix = (desc != nullptr) ? desc->socketMatrix : nullptr;
     _useBodyFollow = (desc != nullptr) ? desc->useBodyFollow : false;
     _bodyFollowOffset = (desc != nullptr) ? desc->bodyFollowOffset : Vec3::Zero;
+    _hoverTimeSec = 0.f;
 
     CHECK_FAILED(PartObject::Initialize(arg), E_FAIL);
 
@@ -61,23 +63,29 @@ void Weapon::Priority_Update(float timeDelta)
 
 void Weapon::Update(float timeDelta)
 {
-    // 루네
+    if (Is_LuneHoverWeapon())
+        _hoverTimeSec += max(timeDelta, 0.f);
+
+    const Matrix hoverMatrix = Is_LuneHoverWeapon()
+        ? Matrix::CreateTranslation(0.f, Get_LuneHoverOffsetY(), 0.f)
+        : Matrix::Identity;
+
     if (_useBodyFollow)
     {
         Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
         Matrix bodyFollowMatrix = Matrix::CreateTranslation(_bodyFollowOffset) * parentMatrix;
 
-        Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * bodyFollowMatrix);
+        Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * bodyFollowMatrix * hoverMatrix);
         return;
     }
 
     if (_socketMatrix == nullptr)
     {
-        Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+        Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * hoverMatrix);
         return;
     }
 
-    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * (*_socketMatrix));
+    Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix() * (*_socketMatrix) * hoverMatrix);
 }
 
 void Weapon::Late_Update(float timeDelta)
@@ -97,15 +105,18 @@ Matrix Weapon::Get_GizmoWorldMatrix() const
         return _combinedWorldMatrix;
 
     const Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+    const Matrix hoverMatrix = Is_LuneHoverWeapon()
+        ? Matrix::CreateTranslation(0.f, Get_LuneHoverOffsetY(), 0.f)
+        : Matrix::Identity;
 
     if (_useBodyFollow)
     {
         const Matrix bodyFollowMatrix = Matrix::CreateTranslation(_bodyFollowOffset) * parentMatrix;
-        return _transformCom->Get_WorldMatrix() * bodyFollowMatrix;
+        return _transformCom->Get_WorldMatrix() * bodyFollowMatrix * hoverMatrix;
     }
 
     const Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
-    return _transformCom->Get_WorldMatrix() * socketMatrix * parentMatrix;
+    return _transformCom->Get_WorldMatrix() * socketMatrix * parentMatrix * hoverMatrix;
 }
 
 bool Weapon::Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix)
@@ -114,17 +125,20 @@ bool Weapon::Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix)
         return false;
 
     Matrix anchorMatrix = Matrix::Identity;
+    const Matrix hoverMatrix = Is_LuneHoverWeapon()
+        ? Matrix::CreateTranslation(0.f, Get_LuneHoverOffsetY(), 0.f)
+        : Matrix::Identity;
 
     if (_useBodyFollow)
     {
         Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
-        anchorMatrix = Matrix::CreateTranslation(_bodyFollowOffset) * parentMatrix;
+        anchorMatrix = Matrix::CreateTranslation(_bodyFollowOffset) * parentMatrix * hoverMatrix;
     }
     else
     {
         Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
         Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
-        anchorMatrix = socketMatrix * parentMatrix;
+        anchorMatrix = socketMatrix * parentMatrix * hoverMatrix;
     }
 
     Matrix localWorldMatrix = gizmoWorldMatrix * anchorMatrix.Invert();
@@ -260,6 +274,17 @@ void Weapon::End_NotifyRotation()
     _transformCom->Set_RotationQuaternion(_notifyRotationBaseLocal);
     _notifyRotationBaseLocal = Quat::Identity;
     _notifyRotationActive = false;
+}
+
+bool Weapon::Is_LuneHoverWeapon() const
+{
+    // 일단은 임시로. 클래스 분리하니까 터져서 일단 대충 처리하고 다른거하기
+    return Get_SourcePrefabName() == Constants::Prefab::Lune_Colim;
+}
+
+float Weapon::Get_LuneHoverOffsetY() const
+{
+    return sinf(_hoverTimeSec * 1.8f) * 0.06f;
 }
 
 HRESULT Weapon::Ready_Components(const WEAPON_DESC& desc)

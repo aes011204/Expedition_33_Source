@@ -58,10 +58,10 @@ public:
 private:
     HRESULT Ready_Components(const WEAPON_DESC& desc);
     HRESULT Ready_DefaultComponents(); // desc 없이 생성
-
     HRESULT Bind_ShaderResources();
-
     HRESULT Ensure_RuntimeComponentsFromJson(const json& data);
+    bool    Is_LuneHoverWeapon() const;
+    float   Get_LuneHoverOffsetY() const;
 
 private:
     Shared<ShaderCom>    _shader = { nullptr };
@@ -74,6 +74,7 @@ private:
 
     bool _notifyRotationActive = false;
     Quat _notifyRotationBaseLocal = Quat::Identity;
+    float _hoverTimeSec = 0.f;
 
 public:
     static Shared<Weapon> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

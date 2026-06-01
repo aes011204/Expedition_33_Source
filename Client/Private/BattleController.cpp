@@ -40,6 +40,7 @@
 #include "BattleReactionController.h"
 #include "BattleStartSpawner.h"
 #include "Monster_WorldBase.h"
+#include "ScreenFx_Manager.h"
 
 REGISTER_GLOBAL_ENUM(BattleAnimType, "BattleAnimType")
 
@@ -864,6 +865,7 @@ vector<BattleChar> BattleController::Get_AliveHeroes()
 
 void BattleController::Handle_EditorStopRuntime()
 {
+    GAME->Get_ScreenFxManager()->Clear_ScreenEffect();
     CLIENT->Stop_BattleEnterTransition();
     GAME->Stop_WorldTimeSlow();
     GAME->Set_WorldTimeScale(1.f);
@@ -1917,7 +1919,6 @@ void BattleController::PlayerStartAnim()
     {
         it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.3f, true);
     }
-
 }
 
 void BattleController::HitAction(BattleChar target, AttackType attackType)

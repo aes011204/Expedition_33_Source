@@ -37,19 +37,26 @@ HRESULT MW_Lancelier::Initialize(void* arg)
     CHECK_FAILED(Monster_WorldBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
-    vector<Vec3> po = {
-        { 0.f, 1.f, 32.f },
-        { 8.f, 1.f, 25.f },
-        { 12.f, 1.f, 32.f },
-        { 8.f, 1.f, 39.f },
-        { 0.f, 1.f, 32.f },
-        { -8.f, 1.f, 25.f },
-        { -12.f, 1.f, 32.f },
-        { -8.f, 1.f, 39.f },
-        { 0.f, 1.f, 32.f }
+    const Vec3 patrolOrigin = _transformCom->Get_Position();
+    static const Vec3 patrolOffsets[] = {
+        { 0.f, 0.f, 0.f },
+        { 8.f, 0.f, -7.f },
+        { 12.f, 0.f, 0.f },
+        { 8.f, 0.f, 7.f },
+        { 0.f, 0.f, 0.f },
+        { -8.f, 0.f, -7.f },
+        { -12.f, 0.f, 0.f },
+        { -8.f, 0.f, 7.f },
+        { 0.f, 0.f, 0.f }
     };
 
-    Set_PatrolPoints(po);
+    vector<Vec3> patrolPoints;
+    patrolPoints.reserve(_countof(patrolOffsets));
+
+    for (const Vec3& offset : patrolOffsets)
+        patrolPoints.push_back(patrolOrigin + offset);
+
+    Set_PatrolPoints(std::move(patrolPoints));
 
     return S_OK;
 }

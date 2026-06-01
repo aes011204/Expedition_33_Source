@@ -6,6 +6,7 @@
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
 #include "PlayerStatCom.h"
+#include "ScreenFx_Manager.h"
 
 #include "UI_AttackTooltip.h"
 #include "UI_BattleCommandHUD.h"
@@ -324,6 +325,8 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
     _activePlayerId = HeroId::END;
     _battleStartVictoryStats.clear();
     _battleStartVictoryStats = Build_BattleVictoryPlayerStats();
+
+    GAME->Get_ScreenFxManager()->Clear_ScreenEffect();
 
     // 플레이어 선제공격인지
     _isPlayerAdvantageStart = isPlayerAdvantage;

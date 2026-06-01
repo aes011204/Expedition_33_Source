@@ -128,7 +128,7 @@ HRESULT Player_BattleBase::Ready_PartObjects()
 
     head->Set_LeaderPoseComponent(body);
 
-    // 수염/콧수염도 PW와 같은 FaceMesh 계열 accessory 규칙을 쓴다.
+    // 수염/콧수염
     if (const wchar_t* beardModelTag = Get_BeardModelTag())
     {
         FaceAccessory_Player::FACE_ACCESSORY_DESC beardPartDesc{};
@@ -147,7 +147,6 @@ HRESULT Player_BattleBase::Ready_PartObjects()
             return E_FAIL;
     }
 
-    // 콧수염도 PW와 동일하게 NonAnim accessory로 head 소켓에 붙인다.
     if (const wchar_t* mustacheModelTag = Get_MustacheModelTag())
     {
         FaceAccessory_Player::FACE_ACCESSORY_DESC mustachePartDesc{};
@@ -208,21 +207,20 @@ HRESULT Player_BattleBase::Ready_WeaponParts(Body_Player* body)
 
         if (attachDesc.useBodyFollow)
         {
-            // 루네처럼 손 소켓이 아니라 Body 기준 위치를 따라가게 할 때는 socket 경로를 타지 않는다.
             weaponDesc.socketMatrix = nullptr;
         }
-        else
+        else if (attachDesc.socketName != nullptr)
         {
-            CHECK_NULL(attachDesc.socketName, E_FAIL);
-
             const Matrix* socketMatrix = body->Get_SocketBoneMatrixPtr(attachDesc.socketName);
             CHECK_NULL(socketMatrix, E_FAIL);
 
-            // 기존 캐릭터들은 그대로 socket 따라가기 유지
             weaponDesc.socketMatrix = socketMatrix;
         }
+        else
+        {
+            weaponDesc.socketMatrix = nullptr;
+        }
 
-        // 무기별 세부 transform/model guid는 WP_*에서 덮어쓴다.
         CHECK_FAILED(Add_PartObject(
             ETOI(LevelType::Static),
             TEXT("GameObject_Weapon"),

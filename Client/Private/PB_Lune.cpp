@@ -48,9 +48,8 @@ void PB_Lune::Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const
     desc.partTag = L"Part_Weapon";
     desc.weaponPrefabName = Constants::Prefab::Lune_Colim;
 
-    desc.useBodyFollow = true;
+    desc.useBodyFollow = false;
     desc.bodyFollowOffset = Vec3::Zero;
-
     desc.socketName = nullptr;
 
     outDescs.emplace_back(std::move(desc));
