@@ -132,6 +132,7 @@ Shared<TransformCom> RadialBlur_ScreenFx::Get_CurrentTarget()
         switch (req.mode)
         {
         case BattleCameraMode::PLAYERATTACK: case BattleCameraMode::ENEMYATTACK:
+        case BattleCameraMode::WIDE: case BattleCameraMode::PLAYERFOCUS:
             if (req.subject != nullptr)
             {
                 return req.subject->Get_Transform();
@@ -141,18 +142,6 @@ Shared<TransformCom> RadialBlur_ScreenFx::Get_CurrentTarget()
             if (req.opponent != nullptr)
             {
                 return req.opponent->Get_Transform();
-            }
-            break;
-        case BattleCameraMode::PLAYERFOCUS:
-            if (req.subject != nullptr)
-            {
-                return req.subject->Get_Transform();
-            }
-            break;
-        case BattleCameraMode::WIDE:
-            if (req.subject != nullptr)
-            {
-                return req.subject->Get_Transform();
             }
             break;
         case BattleCameraMode::BATTLEINTRO:
