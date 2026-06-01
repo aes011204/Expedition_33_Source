@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Engine_Define.h"
 #include "Engine_Model_Struct.h"
@@ -21,7 +21,6 @@ private:
     static bool Build_ConvexTriangleMeshes_FromSourceJson(
         const wstring& sourceModelPath,
         vector<ModelCollisionMesh>& outTriangleMeshes);
-
     static bool Build_PrimitiveProxies_FromSourceJson(
         const wstring& sourceModelPath,
         vector<ModelCollisionProxy>& outPrimitiveProxies);

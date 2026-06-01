@@ -465,33 +465,6 @@ Shared<ClientScreenFxManager> ClientInstance::Get_ScreenFxManager() const
     return _screenFxManager;
 }
 
-bool ClientInstance::Play_Effect(const wstring& effectName, const Vec3& worldPosition, const Vec3& scale)
-{
-    if (_effectInstancePool == nullptr)
-        return false;
-
-    wstring resolvedName = effectName;
-
-    if (!resolvedName.ends_with(L".effect.json"))
-        resolvedName += L".effect.json";
-
-    EffectInstancePool::AcquireDesc acquireDesc{};
-    acquireDesc.effectName = resolvedName;
-    acquireDesc.layerLevelIndex = GAME->Current_LevelIndex();
-    acquireDesc.layerTag = L"Layer_Effect";
-    acquireDesc.worldPosition = worldPosition;
-    acquireDesc.scale = scale;
-
-    EffectInstancePool::AttachedHandle handle{};
-    if (FAILED(_effectInstancePool->Acquire(acquireDesc, handle)))
-    {
-        LOG_WARN("Play effect failed. effect={}", String::ToString(resolvedName).c_str());
-        return false;
-    }
-
-    return true;
-}
-
 bool ClientInstance::Is_GameplayMenuOpen() const
 {
     return _gamePlayUI && _gamePlayUI->Is_AnyMenuOpen();

@@ -68,9 +68,6 @@ HRESULT BattleController::Initialize()
     _battleSpawnRegistry = BattleSpawnRegistry::Create();
     CHECK_NULL(_battleSpawnRegistry, E_FAIL);
 
-    _qteController = BattleQTEController::Create();
-    CHECK_NULL(_qteController, E_FAIL);
-
     //    _targetPreviewChangedHandle = OnTargetPreviewChanged.Add(this,&BattleController::Handle_TargetPreviewChanged);
 
     return S_OK;
@@ -345,8 +342,6 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
 void BattleController::ExecuteAction(const BattleAction& turnAction)
 {
-    Clear_QTEState(); // 새 액션 시작 시 이전 QTE 결과가 다음 스킬에 섞이지 않게 초기화한다.
-
     const auto BattleChar = turnAction.Get_CurChar();
     if (!BattleChar.actor)
         return;
@@ -396,8 +391,6 @@ void BattleController::ExecuteActionRequest(const ActionRequest& request)
 
 void BattleController::EndTurn()
 {
-    Fail_QTEIfActive(); // 턴이 먼저 끝나면 열린 QTE는 실패로 확정한다.
-
     _isActionExecuting = false;
 
     // 이번 적 턴에서 공격하는 플레이어 Targeted End 애니메이션 재생
@@ -1627,63 +1620,6 @@ void BattleController::Clear_FreeAimHitTarget()
     _hasFreeAimHitTarget = false;
 }
 
-void BattleController::Begin_QTE(const BattleQTERequest& request)
-{
-    CHECK_NULL(_qteController);
-
-    if (!_isBattleActive || _battleEnded)
-        return;
-
-    _qteController->Begin(request);
-
-    // QTE UI는 GameplayUI_Battle이 소유하므로 시작 신호만 보낸다.
-    OnQTEStarted.Broadcast(request);
-}
-
-void BattleController::Resolve_QTE(BattleQTEResult result)
-{
-    CHECK_NULL(_qteController);
-
-    if (!_qteController->Resolve(result))
-        return;
-
-    OnQTEResolved.Broadcast(result);
-}
-
-void BattleController::Fail_QTEIfActive()
-{
-    CHECK_NULL(_qteController);
-
-    if (!_qteController->FailIfActive())
-        return;
-
-    OnQTEResolved.Broadcast(BattleQTEResult::Fail);
-}
-
-void BattleController::Clear_QTEState()
-{
-    if (_qteController)
-        _qteController->Clear();
-}
-
-bool BattleController::Is_QTEActive() const
-{
-    return _qteController != nullptr && _qteController->Is_Active();
-}
-
-bool BattleController::Has_LastQTEResult() const
-{
-    return _qteController != nullptr && _qteController->Has_LastResult();
-}
-
-BattleQTEResult BattleController::Get_LastQTEResult() const
-{
-    if (_qteController == nullptr)
-        return BattleQTEResult::None;
-
-    return _qteController->Get_LastResult();
-}
-
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
     if (_battleTurnCamera)
@@ -1779,7 +1715,6 @@ void BattleController::Clear_BattleRuntimeState()
     _pendingNextTurn = false;
     _requestEndTurnOnCurrentActorDeath = false;
     _reactionController.Clear_RuntimeState();
-    Clear_QTEState();
     _isFreeAimShotPlaying = false;
     _freeAimShotAction = {};
     Clear_FreeAimHitTarget();
@@ -2054,12 +1989,6 @@ void BattleController::Free()
     {
         _battleSpawnRegistry->Free();
         _battleSpawnRegistry.reset();
-    }
-
-    if (_qteController)
-    {
-        _qteController->Free();
-        _qteController.reset();
     }
 
     Base::Free();

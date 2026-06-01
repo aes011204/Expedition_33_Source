@@ -148,9 +148,6 @@ public:
 public:
     Shared<ClientScreenFxManager> Get_ScreenFxManager() const;
 
-public: /* Effect 재생 */
-    bool Play_Effect(const wstring& effectName, const Vec3& worldPosition, const Vec3& scale = Vec3::One);
-
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();

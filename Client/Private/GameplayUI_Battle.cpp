@@ -30,7 +30,6 @@
 #include "UI_BattleAnnounce.h"
 #include "UI_SuddenAttack.h"
 #include "UI_AddAP.h"
-#include "UI_QTE.h"
 
 #include "UI_Utils.h"
 
@@ -92,7 +91,6 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_battleSkillPanel, UI_BattleSkillPanel::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleAnnounce, UI_BattleAnnounce::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_suddenAttack, UI_SuddenAttack::Create), E_FAIL);
-    CHECK_FAILED(Create_UI(_qte, UI_QTE::Create), E_FAIL);
 
     // 데미지 폰트 최대 8개
     for (auto& damageFont : _damageFonts)
@@ -142,7 +140,6 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_BattleAnnounce(timeDelta);   // 스킬
     Update_SuddenAttack(timeDelta);     // 선제 공격
     Update_AddAPs(timeDelta);           // AP 증가
-    Update_QTE(GAME->Get_UnscaledTimeDelta());
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -157,7 +154,7 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
 {
     vector<RuntimeUIEntry> entries{};
     entries.reserve(
-        20 +
+        19 +
         static_cast<uint32>(_damageFonts.size()) +
         static_cast<uint32>(_healFonts.size()) +
         static_cast<uint32>(_addAPs.size()));
@@ -181,7 +178,6 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     Append_RuntimePanelEntry(entries, "BattleSkillPanel", _battleSkillPanel.get());
     Append_RuntimePanelEntry(entries, "BattleAnnounce", _battleAnnounce.get());
     Append_RuntimePanelEntry(entries, "SuddenAttack", _suddenAttack.get());
-    Append_RuntimePanelEntry(entries, "QTE", _qte.get());
 
     for (uint32 i = 0; i < _damageFonts.size(); ++i)
         Append_RuntimePanelEntry(entries, ("DamageFont_" + to_string(i)).c_str(), _damageFonts[i].get());
@@ -267,12 +263,6 @@ void GameplayUI_Battle::Bind_BattleDelegates()
 
     _reactionSucceededHandle =
         _battleController->OnReactionSucceeded.Add(this, &GameplayUI_Battle::Handle_ReactionSucceeded);
-
-    _qteStartedHandle =
-        _battleController->OnQTEStarted.Add(this, &GameplayUI_Battle::Handle_QTEStarted);
-
-    _qteResolvedHandle =
-        _battleController->OnQTEResolved.Add(this, &GameplayUI_Battle::Handle_QTEResolved);
 }
 
 void GameplayUI_Battle::Unbind_BattleDelegates()
@@ -309,12 +299,6 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     if (_battleApChangedHandle.IsValid())
         _battleController->OnBattleApChanged.Remove(_battleApChangedHandle);
 
-    if (_qteStartedHandle.IsValid())
-        _battleController->OnQTEStarted.Remove(_qteStartedHandle);
-
-    if (_qteResolvedHandle.IsValid())
-        _battleController->OnQTEResolved.Remove(_qteResolvedHandle);
-
     _battleStartedHandle.Reset();
     _battleEndedHandle.Reset();
     _turnStartedHandle.Reset();
@@ -326,11 +310,7 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     _battleApChangedHandle.Reset();
     _reactionSucceededHandle.Reset();
 
-    _qteStartedHandle.Reset();
-    _qteResolvedHandle.Reset();
-
     _battleController.reset();
-
 }
 
 void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvantage)
@@ -367,7 +347,6 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
         _battleMechanism.get(),
         _battleAnnounce.get(),
         _suddenAttack.get(),
-        _qte.get(),
     };
 
     for (UI_RuntimePanelBase* panel : panelsToClose)
@@ -482,7 +461,6 @@ void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
         _battleMechanism.get(),
         _battleAnnounce.get(),
         _suddenAttack.get(),
-        _qte.get(),
     };
 
     for (auto* panel : panelsToClose)
@@ -731,18 +709,6 @@ void GameplayUI_Battle::Handle_BattleApChanged(const BattleChar& actor, uint32 a
 
     stackIndex = min(stackIndex, kAddAPPoolSize - 1);
     selectedSlot->Play_AddAP(screenPos, amount, stackIndex);
-}
-
-void GameplayUI_Battle::Handle_QTEStarted(const BattleQTERequest& request)
-{
-    if (_qte)
-        _qte->Play_QTE(request);
-}
-
-void GameplayUI_Battle::Handle_QTEResolved(BattleQTEResult result)
-{
-    if (_qte)
-        _qte->Apply_ExternalResult(result);
 }
 
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
@@ -1361,28 +1327,6 @@ void GameplayUI_Battle::Update_SuddenAttack(float timeDelta)
     _suddenAttack->Update(timeDelta);
 }
 
-void GameplayUI_Battle::Update_QTE(float timeDelta)
-{
-    if (_qte == nullptr)
-        return;
-
-    if (!_isBattleUiActive || _battleController == nullptr)
-    {
-        _qte->Close();
-        return;
-    }
-
-    _qte->Update(timeDelta);
-
-    BattleQTEResult result = BattleQTEResult::None;
-
-    if (_qte->Try_ConsumeResult(result))
-    {
-        _battleController->Resolve_QTE(result);
-    }
-
-}
-
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
 {
     if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
@@ -1553,7 +1497,6 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
         _battleSkillPanel.get(),
         _battleAnnounce.get(),
         _suddenAttack.get(),
-        _qte.get(),
     };
 
     for (auto* panel : panelsToClose)
@@ -1631,7 +1574,6 @@ void GameplayUI_Battle::Free()
     Release_UI(_battleSkillPanel);
     Release_UI(_battleAnnounce);
     Release_UI(_suddenAttack);
-    Release_UI(_qte);
 
     for (auto& damageFont : _damageFonts)
         Release_UI(damageFont);
