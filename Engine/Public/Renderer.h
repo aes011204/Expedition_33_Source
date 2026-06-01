@@ -66,7 +66,8 @@ private:
 	void Render_Priority();
     void Render_Shadow();
 
-	void Render_NonBlend();
+    void Split_NonBlendRenderGroups(list<Weak<GameObject>>& outBackground, list<Weak<GameObject>>& outForeground);
+	void Render_NonBlend(const list<Weak<GameObject>>& renderObjects, bool clearGBuffer);
     void Render_SSAO();
     void Render_Lights();
     void Render_NonLight();

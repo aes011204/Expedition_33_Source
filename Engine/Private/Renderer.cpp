@@ -11,9 +11,25 @@
 #include "Debug_Profile.h"
 
 #pragma region DEBUG
-#ifdef _DEBUG
 namespace
 {
+    bool Is_ForegroundDistortionObject(ObjectType objectType)
+    {
+        switch (objectType)
+        {
+        case ObjectType::Player:
+        case ObjectType::Monster:
+        case ObjectType::Character:
+        case ObjectType::PartObject:
+        case ObjectType::Weapon:
+        case ObjectType::Projectile:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+#ifdef _DEBUG
     wstring PtrToWString(const void* ptr)
     {
         wchar_t buffer[32] = {};
@@ -58,8 +74,8 @@ namespace
 
         return false;
     }
-}
 #endif
+}
 #pragma endregion
 
 Renderer::Renderer(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -137,17 +153,21 @@ void Renderer::Draw()
     // ========================================= //
      Render_Shadow();
     // ========================================= //
+    list<Weak<GameObject>> backgroundNonBlend;
+    list<Weak<GameObject>> foregroundNonBlend;
+    Split_NonBlendRenderGroups(backgroundNonBlend, foregroundNonBlend);
+
 #ifdef _DEBUG
     shadowMs = chrono::duration<double, milli>(chrono::steady_clock::now() - shadowBegin).count();
     const auto nonBlendBegin = chrono::steady_clock::now();
-    DumpCurrentOMState(L"Render_NonBlend:Before");
+    DumpCurrentOMState(L"Render_BackgroundNonBlend:Before");
 #endif
 
     // ========================================= //
-    Render_NonBlend();
+    Render_NonBlend(backgroundNonBlend, ClearRTV);
     // ========================================= //
 #ifdef _DEBUG
-    DumpCurrentOMState(L"Render_NonBlend:After");
+    DumpCurrentOMState(L"Render_BackgroundNonBlend:After");
     nonBlendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonBlendBegin).count();
     DumpCurrentOMState(L"Render_SSAO:Before");
 #endif
@@ -182,6 +202,14 @@ void Renderer::Draw()
     // ========================================= //
     Render_NonLight();
     // ========================================= //
+    if (!_renderGroups[ETOI(RenderGroup::Distortion)].empty())
+    {
+        RETURN_LOG_IF_FAILED(
+            GAME->Copy_RTV(RT::HDRColor, RT::DistortionSource),
+            L"Renderer::Draw:FAIL Copy_RTV(HDRColor -> DistortionSource)"
+        );
+    }
+
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonLight:After");
     nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
@@ -191,6 +219,38 @@ void Renderer::Draw()
     // ========================================= //
     Render_Distortion();
     // ========================================= //
+    if (!foregroundNonBlend.empty())
+    {
+#ifdef _DEBUG
+        const auto foregroundNonBlendBegin = chrono::steady_clock::now();
+        DumpCurrentOMState(L"Render_ForegroundNonBlend:Before");
+#endif
+        Render_NonBlend(foregroundNonBlend, ClearRTV);
+#ifdef _DEBUG
+        DumpCurrentOMState(L"Render_ForegroundNonBlend:After");
+        nonBlendMs += chrono::duration<double, milli>(chrono::steady_clock::now() - foregroundNonBlendBegin).count();
+        DumpCurrentOMState(L"Render_ForegroundSSAO:Before");
+#endif
+        Render_SSAO();
+#ifdef _DEBUG
+        DumpCurrentOMState(L"Render_ForegroundSSAO:After");
+        const auto foregroundLightsBegin = chrono::steady_clock::now();
+        DumpCurrentOMState(L"Render_ForegroundLights:Before");
+#endif
+        Render_Lights();
+#ifdef _DEBUG
+        DumpCurrentOMState(L"Render_ForegroundLights:After");
+        lightsMs += chrono::duration<double, milli>(chrono::steady_clock::now() - foregroundLightsBegin).count();
+        const auto foregroundCombinedHDRBegin = chrono::steady_clock::now();
+        DumpCurrentOMState(L"Render_ForegroundCombinedHDR:Before");
+#endif
+        Render_CombinedHDR();
+#ifdef _DEBUG
+        DumpCurrentOMState(L"Render_ForegroundCombinedHDR:After");
+        combinedHDRMs += chrono::duration<double, milli>(chrono::steady_clock::now() - foregroundCombinedHDRBegin).count();
+#endif
+    }
+
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Distortion:After");
     const auto blendBegin = chrono::steady_clock::now();
@@ -297,15 +357,34 @@ void Renderer::Render_Shadow()
     Render_DynamicShadow();
 }
 
-void Renderer::Render_NonBlend()
+void Renderer::Split_NonBlendRenderGroups(list<Weak<GameObject>>& outBackground, list<Weak<GameObject>>& outForeground)
+{
+    auto& nonBlendGroup = _renderGroups[ETOI(RenderGroup::NonBlend)];
+
+    for (const Weak<GameObject>& renderObject : nonBlendGroup)
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (gameObject == nullptr)
+            continue;
+
+        if (Is_ForegroundDistortionObject(gameObject->Get_ObjectType()))
+            outForeground.push_back(renderObject);
+        else
+            outBackground.push_back(renderObject);
+    }
+
+    nonBlendGroup.clear();
+}
+
+void Renderer::Render_NonBlend(const list<Weak<GameObject>>& renderObjects, bool clearGBuffer)
 {
     // Diffuse + Normal / NotUseDSV -> UseDSV
-    CHECK_FAILED(GAME->Begin_MRT(MRT::GameObjects, NotUseDSV, ClearRTV));
+    CHECK_FAILED(GAME->Begin_MRT(MRT::GameObjects, NotUseDSV, clearGBuffer));
 
     _currentGroup = RenderGroup::NonBlend;
 
     // TODO 필요 시 정렬
-	for (auto& renderObject : _renderGroups[ETOI(RenderGroup::NonBlend)])
+	for (auto& renderObject : renderObjects)
 	{
 		Shared<GameObject> gameObject = renderObject.lock();
 		if (nullptr != gameObject)
@@ -314,8 +393,6 @@ void Renderer::Render_NonBlend()
             Add_RenderCall();
         }
 	}
-
-	_renderGroups[ETOI(RenderGroup::NonBlend)].clear();
 
     CHECK_FAILED(GAME->End_MRT());
 }
@@ -651,11 +728,6 @@ void Renderer::Render_Distortion()
     auto& distortionGroup = _renderGroups[ETOI(RenderGroup::Distortion)];
     if (distortionGroup.empty())
         return;
-
-    RETURN_LOG_IF_FAILED(
-        GAME->Copy_RTV(RT::HDRColor, RT::DistortionSource),
-        L"Render_Distortion:FAIL Copy_RTV(HDRColor -> DistortionSource)"
-    );
 
     RETURN_LOG_IF_FAILED(
         GAME->Begin_MRT(MRT::DistortionField, NotUseDSV, ClearRTV),
