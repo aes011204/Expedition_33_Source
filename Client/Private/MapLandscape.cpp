@@ -212,6 +212,8 @@ HRESULT MapLandscape::Load_HMap(const wstring& hmapPath, const wstring& texRoot)
             fread(&tiling, sizeof(float), 1, f);
             fread(&tint, sizeof(Vec4), 1, f);
             fread(&control, sizeof(Vec4), 1, f);
+            Vec4 albedo = { 1.f, 1.f, 1.f, 0.f };
+            fread(&albedo, sizeof(Vec4), 1, f);
 
             auto& weights = _vibuffer->Get_WeightMap(i);
             fread(weights.data(), sizeof(float), vertCount, f);
@@ -229,6 +231,7 @@ HRESULT MapLandscape::Load_HMap(const wstring& hmapPath, const wstring& texRoot)
             _tiling[i] = tiling;
             _groundTint[i] = tint;
             _layerControl[i] = control;
+            _albedoControl[i] = albedo;
 
             Flush_WeightMap(i);
         }
@@ -407,6 +410,17 @@ HRESULT MapLandscape::Bind_ShaderResources()
     }
 
     if (FAILED(_shader->Bind_RawValue("g_LayerControl", controlArr, sizeof(controlArr))))
+    {
+        return E_FAIL;
+    }
+
+    Vec4 albedoArr[MAX_LAYERS];
+    for (uint32 i = 0; i < MAX_LAYERS; ++i)
+    {
+        albedoArr[i] = _albedoControl[i];
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_AlbedoControl", albedoArr, sizeof(albedoArr))))
     {
         return E_FAIL;
     }

@@ -457,6 +457,7 @@ void PanelLandscape::Render_PaintTools()
         string tintLabel = "Tint##" + to_string(i);
         string normalLabel = "Normal Intensity##" + to_string(i);
         string roughLabel = "Roughness x##" + to_string(i);
+        string metallicLabel = "Metallic##" + to_string(i);
 
         float tiling = actor->Get_LayerTiling(i);
         if (ImGui::DragFloat(tilingLabel.c_str(), &tiling, 0.01f, 0.1f, 50.f, "%.2f"))
@@ -479,6 +480,30 @@ void PanelLandscape::Render_PaintTools()
         if (ImGui::DragFloat(roughLabel.c_str(), &ctrl.y, 0.01f, 0.f, 10.f, "%.2f"))
         {
             actor->Set_LayerControl(i, ctrl);
+        }
+
+        if (ImGui::DragFloat(metallicLabel.c_str(), &ctrl.w, 0.01f, 0.f, 1.f, "%.2f"))
+        {
+            actor->Set_LayerControl(i, ctrl);
+        }
+
+        Vec4 albedo = actor->Get_AlbedoControl(i);
+        string satLabel= "Saturation##" + to_string(i);
+        string briLabel = "Brightness##" + to_string(i);
+        string conLabel = "Contrast##" + to_string(i);
+        if (ImGui::DragFloat(satLabel.c_str(), &albedo.x, 0.01f, 0.f, 5.f, "%.3f"))
+        {
+            actor->Set_AlbedoControl(i, albedo);
+        }
+
+        if (ImGui::DragFloat(briLabel.c_str(), &albedo.y, 0.01f, 0.f, 20.f, "%.3f"))
+        {
+            actor->Set_AlbedoControl(i, albedo);
+        }
+
+        if (ImGui::DragFloat(conLabel.c_str(), &albedo.z, 0.01f, 0.f, 5.f, "%.3f"))
+        {
+            actor->Set_AlbedoControl(i, albedo);
         }
 
         ImGui::PopID();

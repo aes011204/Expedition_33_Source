@@ -196,6 +196,17 @@ HRESULT MELandscapeActor::Bind_ShaderResources()
         return E_FAIL;
     }
 
+    Vec4 albedoArr[MAX_LAYERS];
+    for (uint32 i = 0; i < MAX_LAYERS; ++i)
+    {
+        albedoArr[i] = _albedoControl[i];
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_AlbedoControl", albedoArr, sizeof(albedoArr))))
+    {
+        return E_FAIL;
+    }
+
     return S_OK;
 }
 

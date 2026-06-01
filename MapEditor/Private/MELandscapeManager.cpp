@@ -123,6 +123,8 @@ void MELandscapeManager::Save_Landscape(int32 idx, const WCHAR* path)
         fwrite(&tiling, sizeof(float), 1, f);
         fwrite(&tint, sizeof(Vec4), 1, f);
         fwrite(&control, sizeof(Vec4), 1, f);
+        Vec4 albedo = _scene->_landscapes[idx]->Get_AlbedoControl(i);
+        fwrite(&albedo, sizeof(Vec4), 1, f);
 
         // Weights
         const auto& weights = vb->Get_WeightMap(i);
@@ -227,6 +229,8 @@ void MELandscapeManager::Load_Landscape(int32 idx, const WCHAR* path)
             fread(&tiling, sizeof(float), 1, f);
             fread(&tint, sizeof(Vec4), 1, f);
             fread(&control, sizeof(Vec4), 1, f);
+            Vec4 albedo{};
+            fread(&albedo, sizeof(Vec4), 1, f);
 
             // Weights
             auto& weights = vb->Get_WeightMap(i);
@@ -242,6 +246,7 @@ void MELandscapeManager::Load_Landscape(int32 idx, const WCHAR* path)
             land->Set_LayerTiling(i, tiling);
             land->Set_LayerGroundTint(i, tint);
             land->Set_LayerControl(i, control);
+            land->Set_AlbedoControl(i, albedo);
             land->Flush_WeightMap(i);
         }
     }
