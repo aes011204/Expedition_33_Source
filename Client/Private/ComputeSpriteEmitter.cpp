@@ -170,6 +170,63 @@ bool ComputeSpriteEmitter::Is_EffectFinished() const
     return PlaybackState::Completed == _playbackState;
 }
 
+bool ComputeSpriteEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    const Vec4* cameraPosition4 = GAME != nullptr ? GAME->Get_CamPosition() : nullptr;
+    if (cameraPosition4 == nullptr)
+    {
+        outWorldPosition = _transformCom->Get_WorldPosition();
+        return true;
+    }
+
+    const auto max_abs = [](float a, float b) -> float
+    {
+        return max(fabsf(a), fabsf(b));
+    };
+
+    const auto max_curve_value = [](const Vec4& values, uint32 keyCount) -> float
+    {
+        float result = values.x;
+        const uint32 safeKeyCount = min(keyCount, 4u);
+        for (uint32 index = 1u; index < safeKeyCount; ++index)
+        {
+            switch (index)
+            {
+            case 1u: result = max(result, values.y);
+                break;
+            case 2u: result = max(result, values.z);
+                break;
+            case 3u: result = max(result, values.w);
+                break;
+            default: break;
+            }
+        }
+        return result;
+    };
+
+    const Vec3 emitterWorldPosition = _transformCom->Get_WorldPosition();
+
+    Vec3 localOffset{};
+    if (_desc.initialLocation.enabled)
+        localOffset += (_desc.initialLocation.minOffset + _desc.initialLocation.maxOffset) * 0.5f;
+
+    if (_desc.sphereLocation.enabled)
+        localOffset += _desc.sphereLocation.offset;
+
+    const Vec3 worldOffset =
+        _transformCom->Get_WorldRight() * localOffset.x +
+        _transformCom->Get_WorldUp() * localOffset.y +
+        _transformCom->Get_WorldForward() * localOffset.z;
+
+    const Vec3 representativeCenter = emitterWorldPosition + worldOffset;
+
+    outWorldPosition = representativeCenter;
+    return true;
+}
+
 void ComputeSpriteEmitter::On_EffectTransformSynced()
 {
     Sync_WorldCenterToComputeBuffer();
@@ -513,7 +570,10 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteNoiseUVParams", &effectSpriteNoiseUVParams, sizeof(effectSpriteNoiseUVParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaskUVParams", &effectSpriteMaskUVParams, sizeof(effectSpriteMaskUVParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteUVOffsetParams", &effectSpriteUVOffsetParams, sizeof(effectSpriteUVOffsetParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaskUVOffsetParams", &effectSpriteMaskUVOffsetParams, sizeof(effectSpriteMaskUVOffsetParams)), E_FAIL);
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_EffectSpriteMaskUVOffsetParams", &effectSpriteMaskUVOffsetParams, sizeof(effectSpriteMaskUVOffsetParams)),
+        E_FAIL
+    );
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteUVModeParams", &effectSpriteUVModeParams, sizeof(effectSpriteUVModeParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)), E_FAIL);
 
@@ -552,8 +612,14 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
         CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
         CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveFlags", &effectSpriteAdditiveFlags, sizeof(effectSpriteAdditiveFlags)), E_FAIL);
-        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteCoreEmissiveParams", &effectSpriteCoreEmissiveParams, sizeof(effectSpriteCoreEmissiveParams)), E_FAIL);
-        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteCoreEmissiveColor", &effectSpriteCoreEmissiveColor, sizeof(effectSpriteCoreEmissiveColor)), E_FAIL);
+        CHECK_FAILED_ONCE(
+            _shader->Bind_RawValue("g_EffectSpriteCoreEmissiveParams", &effectSpriteCoreEmissiveParams, sizeof(effectSpriteCoreEmissiveParams)),
+            E_FAIL
+        );
+        CHECK_FAILED_ONCE(
+            _shader->Bind_RawValue("g_EffectSpriteCoreEmissiveColor", &effectSpriteCoreEmissiveColor, sizeof(effectSpriteCoreEmissiveColor)),
+            E_FAIL
+        );
     }
 
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), E_FAIL);
