@@ -6,7 +6,7 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kCurrentUIJsonVersion = 6;
+        constexpr int32 kCurrentUIJsonVersion = 7;
         constexpr const char* kDefaultCanvasName = "MainCanvas";
         constexpr const char* kDefaultFontPath = "../Bin/Resources/Fonts/33_MainKR_Font.spritefont";
 
@@ -428,6 +428,7 @@ namespace UIEditor
             object.sortOrder = 0;
             object.renderGroup = UI_RenderGroup::Foreground;
             object.color = ImVec4(1.f, 1.f, 1.f, 1.f);
+            object.alphaMultiplier = 1.f;
 
             if (objectType == UI_ObjectType::Text)
             {
@@ -560,6 +561,7 @@ namespace UIEditor
         if (object.renderGroup != UI_RenderGroup::Foreground)
             item["renderLayer"] = Get_RenderGroupName(object.renderGroup);
         item["color"] = Color_ToJson(object.color);
+        item["alphaMultiplier"] = min(max(object.alphaMultiplier, 0.f), 1.f);
         item["visible"] = object.visible;
         item["locked"] = object.locked;
 
@@ -653,6 +655,7 @@ namespace UIEditor
         object.sortOrder = Read_Int(item, "sortOrder", 0);
         object.renderGroup = Parse_RenderGroup(Read_String(item, "renderLayer", "Foreground"));
         object.color = Read_Color(item, "color", ImVec4(1.f, 1.f, 1.f, 1.f));
+        object.alphaMultiplier = min(max(Read_Float(item, "alphaMultiplier", 1.f), 0.f), 1.f);
         object.visible = Read_Bool(item, "visible", true);
         object.locked = Read_Bool(item, "locked", false);
 

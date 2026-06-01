@@ -218,6 +218,7 @@
     <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h" />
     <ClInclude Include="..\Public\FaceAccessory_Player.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
+    <ClInclude Include="..\Public\GamePlayMenuFade.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\MapLandscape.h" />
@@ -314,6 +315,7 @@
     </ClInclude>
     <ClInclude Include="..\Public\InstancedMeshActor.h" />
     <ClInclude Include="..\Public\Level_MapTest.h" />
+    <ClInclude Include="..\Public\LevelTransitionFade.h" />
     <ClInclude Include="..\Public\Level_Stage01.h" />
     <ClInclude Include="..\Public\MapInstancedMesh.h" />
     <ClInclude Include="..\Public\MapAuthoringIO.h" />
@@ -397,7 +399,9 @@
     <ClInclude Include="..\Public\UI_ReactionResult.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
     <ClInclude Include="..\Public\SavePoint_Panel.h" />
+    <ClInclude Include="..\Public\ScreenFadeTransition.h" />
     <ClInclude Include="..\Public\UI_RuntimePanelBase.h" />
+    <ClInclude Include="..\Public\UI_ScreenFade.h" />
     <ClInclude Include="..\Public\UI_BattleSkillPanel.h" />
     <ClInclude Include="..\Public\UI_SuddenAttack.h" />
     <ClInclude Include="..\Public\UI_Utils.h" />
@@ -489,6 +493,7 @@
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
     <ClCompile Include="..\Private\FaceAccessory_Player.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
+    <ClCompile Include="..\Private\GamePlayMenuFade.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
     <ClCompile Include="..\Private\MapLandscape.cpp" />
@@ -578,6 +583,7 @@
     </ClCompile>
     <ClCompile Include="..\Private\InstancedMeshActor.cpp" />
     <ClCompile Include="..\Private\Level_MapTest.cpp" />
+    <ClCompile Include="..\Private\LevelTransitionFade.cpp" />
     <ClCompile Include="..\Private\Level_Stage01.cpp" />
     <ClCompile Include="..\Private\MapInstancedMesh.cpp" />
     <ClCompile Include="..\Private\MapAuthoringIO.cpp" />
@@ -661,7 +667,9 @@
     <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
     <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
+    <ClCompile Include="..\Private\ScreenFadeTransition.cpp" />
     <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
+    <ClCompile Include="..\Private\UI_ScreenFade.cpp" />
     <ClCompile Include="..\Private\UI_BattleSkillPanel.cpp" />
     <ClCompile Include="..\Private\UI_SuddenAttack.cpp" />
     <ClCompile Include="..\private\UltimateTargeting.cpp">

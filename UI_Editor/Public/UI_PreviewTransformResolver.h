@@ -31,6 +31,8 @@ namespace UIEditor
         ImVec2 Get_WorldCenter(ObjectId objectId) const;
         ImVec2 Get_WorldPosition(ObjectId objectId) const;
         ImVec2 Get_WorldPivot(ObjectId objectId) const;
+        float Get_EffectiveAlphaMultiplier(ObjectId objectId) const;
+        ImVec4 Get_EffectiveRenderColor(ObjectId objectId, const ImVec4& color) const;
         UI_WorldObjectFrame Get_WorldFrame(ObjectId objectId) const;
 
     private:
@@ -38,6 +40,7 @@ namespace UIEditor
         ImVec2 Resolve_ResolvedLocalPosition(ObjectId objectId, unordered_set<ObjectId>& resolvingIds) const;
         ImVec2 Resolve_WorldScale(ObjectId objectId, unordered_set<ObjectId>& resolvingIds) const;
         float Resolve_WorldRotation(ObjectId objectId, unordered_set<ObjectId>& resolvingIds) const;
+        float Resolve_EffectiveAlphaMultiplier(ObjectId objectId, unordered_set<ObjectId>& resolvingIds) const;
         ImVec2 Get_PivotOffset(const UI_Object& object, const ImVec2& resolvedSize) const;
         ImVec2 Get_LocalRuntimePointFromPivot(const UI_Object& object, const ImVec2& offsetFromPivot) const;
 

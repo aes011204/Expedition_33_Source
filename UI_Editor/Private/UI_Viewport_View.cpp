@@ -311,6 +311,7 @@ namespace UIEditor
                     continue;
 
                 UI_Object renderObject = previewTransformResolver.Make_PreviewObject(object);
+                renderObject.color = previewTransformResolver.Get_EffectiveRenderColor(object.id, renderObject.color);
                 const ImVec2 resolvedLocalSize = previewTransformResolver.Get_ResolvedLocalSize(object.id);
                 const ImVec2 objectWorldPivot = previewTransformResolver.Get_WorldPivot(object.id);
                 const UI_WorldObjectFrame objectFrame = previewTransformResolver.Get_WorldFrame(object.id);
