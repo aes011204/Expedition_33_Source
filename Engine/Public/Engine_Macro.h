@@ -236,29 +236,29 @@ do                                                                              
 #define EVENT	GET_SINGLE(Event_Manager) // 아직 없음
 
 #define NO_COPY(CLASSNAME)											            \
-	        private:													        \
-	        CLASSNAME(const CLASSNAME&) = delete;						        \
-	        CLASSNAME& operator=(const CLASSNAME&) = delete;
+            private:													        \
+            CLASSNAME(const CLASSNAME&) = delete;						        \
+            CLASSNAME& operator=(const CLASSNAME&) = delete;
 
-#define DECLARE_SINGLETON(CLASSNAME)								     \
-	        NO_COPY(CLASSNAME)											 \
-	        private:													 \
-	        static std::shared_ptr<CLASSNAME> m_pInstance;				 \
-	        public:														 \
-	        static std::shared_ptr<CLASSNAME>& GetInstance();			 \
-	        static void DestroyInstance();
+#define DECLARE_SINGLETON(CLASSNAME)								            \
+            NO_COPY(CLASSNAME)											        \
+            private:													        \
+            static std::shared_ptr<CLASSNAME> m_pInstance;				        \
+            public:														        \
+            static std::shared_ptr<CLASSNAME>& GetInstance();			        \
+            static void DestroyInstance();
 
-#define IMPLEMENT_SINGLETON(CLASSNAME)                                         \
-            std::shared_ptr<CLASSNAME> CLASSNAME::m_pInstance = nullptr;               \
-            std::shared_ptr<CLASSNAME>& CLASSNAME::GetInstance()                       \
-            {                                                                          \
-                if (m_pInstance == nullptr)                                            \
-                    m_pInstance = std::make_shared<CLASSNAME>();                       \
-                return m_pInstance;                                                    \
-            }                                                                          \
-            void CLASSNAME::DestroyInstance()                                          \
-            {                                                                          \
-                if (m_pInstance != nullptr)                                            \
-                    m_pInstance->Free();                                               \
-                m_pInstance.reset();                                                   \
+#define IMPLEMENT_SINGLETON(CLASSNAME)                                          \
+            std::shared_ptr<CLASSNAME> CLASSNAME::m_pInstance = nullptr;        \
+            std::shared_ptr<CLASSNAME>& CLASSNAME::GetInstance()                \
+            {                                                                   \
+                if (m_pInstance == nullptr)                                     \
+                    m_pInstance = std::make_shared<CLASSNAME>();                \
+                return m_pInstance;                                             \
+            }                                                                   \
+            void CLASSNAME::DestroyInstance()                                   \
+            {                                                                   \
+                if (m_pInstance != nullptr)                                     \
+                    m_pInstance->Free();                                        \
+                m_pInstance.reset();                                            \
             }
