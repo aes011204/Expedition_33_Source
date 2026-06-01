@@ -225,9 +225,9 @@ public: /* For.Object_Manager */
 public: /* For.Renderer */
     void Add_RenderGroup(RenderGroup renderGroup, Shared<GameObject> gameObject);
     uint32 Get_RenderCall() const;
-    const Shared<PostProcessPipeline> Get_PostProcessPipeline() const;
+    const Shared<PostProcessPipeline>& Get_PostProcessPipeline() const;
     Shared<PostProcessPipeline> Get_PostProcessPipeline();
-    const Shared<LightingPipeline> Get_LightingPipeline() const;
+    const Shared<LightingPipeline>& Get_LightingPipeline() const;
     Shared<LightingPipeline> Get_LightingPipeline();
     ScreenFx_Manager* Get_ScreenFxManager();
     void Request_ScreenCapture(bool saveToFile = false);
@@ -632,7 +632,7 @@ private:
 
 #ifdef _DEBUG
 
-private:                                                                                      //## 디버그 성능 평가용
+private: //## 디버그 성능 평가용
     static constexpr float runtimePerfSampleWindowSec{ DebugPerf::kRuntimePerfLogWindowSec }; // RuntimePerfDetail을 몇 초마다 출력할건지
 
     chrono::steady_clock::time_point _runtimePerfWindowStartTime{};

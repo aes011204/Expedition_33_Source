@@ -2423,6 +2423,7 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
         case AuthoringModuleType::InitialSize:
         case AuthoringModuleType::InitialMeshSize:
         case AuthoringModuleType::InitialRadialVelocity:
+        case AuthoringModuleType::Acceleration:
         case AuthoringModuleType::Drag:
         case AuthoringModuleType::InitialRotation:
         case AuthoringModuleType::RotationOverLife:

@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "EffectInstancePool.h"
 #include "ScreenFx_Instance.h"
 
 NS_BEGIN(Engine)
@@ -29,6 +30,12 @@ public:
     HRESULT Bind_ShaderResources(const Shared<ShaderCom>& shader) override;
 
 private:
+    void RoseFlare();
+
+private:
+    EffectInstancePool::AttachedHandle _roseFlareHandle{};
+    bool _isRoseFlare{ false };
+
     BattleTransitionDesc _originalDesc{};
     float _currentRadius{};
 
