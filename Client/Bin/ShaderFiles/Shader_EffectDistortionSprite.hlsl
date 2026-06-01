@@ -254,7 +254,17 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     float3 rightDir = float3(0.f, 0.f, 0.f);
     float3 upDir = float3(0.f, 0.f, 0.f);
     ResolveCameraPlaneBasis(rightDir, upDir);
-    if (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4)
+    if (g_ScreenAlignmentMode == 5)
+    {
+        rightDir = float3(1.f, 0.f, 0.f);
+        upDir = float3(0.f, 1.f, 0.f);
+    }
+    else if (g_ScreenAlignmentMode == 6)
+    {
+        rightDir = float3(1.f, 0.f, 0.f);
+        upDir = float3(0.f, 0.f, 1.f);
+    }
+    else if (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4)
     {
         float3 lookDir = float3(0.f, 0.f, 0.f);
         const bool hasLookDir = TryResolveDirectionalLookDirection(particlePosition, In[0].velocityDirection, lookDir);

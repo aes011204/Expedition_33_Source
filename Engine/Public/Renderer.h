@@ -34,11 +34,11 @@ public:
     void    Set_ShadowEnabled(bool enabled) { _shadowEnabled = enabled; }
     bool    Is_ShadowEnabled() const { return _shadowEnabled; }
 
-    const Shared<PostProcessPipeline>&   Get_PostProcessPipeline() const
+    const Shared<PostProcessPipeline>& Get_PostProcessPipeline() const
     {
         return _ppPipeline;
     }
-    Shared<PostProcessPipeline>    Get_PostProcessPipeline()
+    const Shared<PostProcessPipeline>& Get_PostProcessPipeline()
     {
         return _ppPipeline;
     }
@@ -46,7 +46,7 @@ public:
     {
         return _lightingPipeline;
     }
-    Shared<LightingPipeline> Get_LightingPipeline()
+    const Shared<LightingPipeline>& Get_LightingPipeline()
     {
         return _lightingPipeline;
     }
