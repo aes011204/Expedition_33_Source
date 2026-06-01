@@ -1,8 +1,7 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "RadialBlur_ScreenFx.h"
 
 #include <Camera.h>
-#include <shobjidl_core.h>
 
 #include "BattleController.h"
 #include "BattleTurnCamera.h"
@@ -93,7 +92,16 @@ HRESULT RadialBlur_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
     cbData.radialBlurIntensity = _currentIntensity;
     cbData.radialBlurRadius = _originalDesc.radius;
 
+    cbData.vignetteRadius = 0.8f;
+    cbData.vignetteSoftness = 0.5f;
+    cbData.vignetteColor = Vec3::Zero;
+
     return shader->Bind_CBufferData(cbData);
+}
+
+HRESULT RadialBlur_ScreenFx::Bind_ShaderResources(const Shared<ShaderCom>& shader)
+{
+    return S_OK;
 }
 
 void RadialBlur_ScreenFx::Evaluate_At(float elapsedTime)
