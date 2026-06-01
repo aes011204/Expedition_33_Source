@@ -7,7 +7,6 @@ NS_BEGIN(Client)
 
 class BattleAction;// Dodge, Parry, QTE 전투 리액션을 컨트롤할 클래스. BattleController에서 분리ㄴ
 
-
 class BattleReactionController : public Base
 {
 private:
@@ -26,6 +25,10 @@ public:
         bool success = false;   // 성공 여부
 
         BattleReactionType type = BattleReactionType::None;
+
+        BattleChar apRewardTarget{};
+        uint32 apRewardAmount = 0;
+        EAPChangeReason apRewardReason = EAPChangeReason::Invalid;
     };
 
 public:

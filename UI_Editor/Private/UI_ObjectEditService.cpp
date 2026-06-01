@@ -45,6 +45,11 @@ namespace UIEditor
         {
             return max(4.f, fontSize);
         }
+
+        float Resolve_ClampedAlphaMultiplier(float alphaMultiplier)
+        {
+            return min(max(alphaMultiplier, 0.f), 1.f);
+        }
     }
 
     bool UI_ObjectEditService::Can_SetObjectVisible(const UI_Document& document, ObjectId objectId, bool visible) const
@@ -202,6 +207,26 @@ namespace UIEditor
             return false;
 
         object->color = color;
+        return true;
+    }
+
+    bool UI_ObjectEditService::Can_SetObjectAlphaMultiplier(const UI_Document& document, ObjectId objectId, float alphaMultiplier) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object && !NearlyEqual(object->alphaMultiplier, Resolve_ClampedAlphaMultiplier(alphaMultiplier));
+    }
+
+    bool UI_ObjectEditService::Set_ObjectAlphaMultiplier(UI_Document& document, ObjectId objectId, float alphaMultiplier) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object)
+            return false;
+
+        const float clampedAlphaMultiplier = Resolve_ClampedAlphaMultiplier(alphaMultiplier);
+        if (NearlyEqual(object->alphaMultiplier, clampedAlphaMultiplier))
+            return false;
+
+        object->alphaMultiplier = clampedAlphaMultiplier;
         return true;
     }
 

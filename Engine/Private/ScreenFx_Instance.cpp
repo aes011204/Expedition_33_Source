@@ -10,24 +10,25 @@ ScreenFx_Instance::ScreenFx_Instance()
 
 HRESULT ScreenFx_Instance::Initialize(ScreenFxDesc* desc)
 {
-    if (desc)
-    {
-        _passType = desc->passType;
-        _duration = desc->duration;
-        if (desc->endPredicate)
-        {
-            _endCondition.Add(desc->endPredicate);
-        }
-        return S_OK;
-    }
+    //if (desc)
+    //{
+    //    _passType = desc->passType;
+    //    _duration = desc->duration;
+    //    if (desc->endPredicate)
+    //    {
+    //        _endCondition.Add(desc->endPredicate);
+    //    }
+    //    return S_OK;
+    //}
+    //
+    //LOG_ERROR("[SCREEN FX INSTANCE] : Failed to Initialize ScreenFx");
 
-    LOG_ERROR("[SCREEN FX INSTANCE] : Failed to Initialize ScreenFx");
-    return E_FAIL;
+    return S_OK;
 }
 
 bool ScreenFx_Instance::Check_EndCondition()
 {
-    if (_endCondition.GetBindingCount() == 0) return false;
+    //if (_endCondition.GetBindingCount() == 0) return false;
 
     bool endDuration = _duration > 0.f && _elapsedTime >= _duration;
 

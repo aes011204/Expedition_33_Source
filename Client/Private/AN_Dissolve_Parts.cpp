@@ -5,15 +5,13 @@
 #include "GameObject.h"
 #include "PartObject.h"
 
-
-
 IMPLEMENT_REFLECTION(AN_Dissolve_Parts)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
     PROPERTY_ENUM("Dissolve Type", _type, DissolveType);
-    PROPERTY_FLOAT("지속시간", _duration);
+    PROPERTY_FLOAT("지속시간", _duration);  
     PROPERTY_WSTRING("partName", _partName);
     return true;
 }

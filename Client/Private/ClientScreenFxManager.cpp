@@ -20,7 +20,7 @@ HRESULT ClientScreenFxManager::Initialize()
         desc.radius = 1.25f;             // 화면 외곽 쪽에 집중되도록 반경 설정
         desc.duration = 0.2f;
         desc.fadeOutTime = 0.1f;
-
+        
         GAME->Play_ScreenFx(RadialBlur_ScreenFx::Create(&desc));
     }
 

@@ -25,6 +25,7 @@ private:
 	bool                    _printedLoadCompleteLog = false;
 	bool                    _hasRenderedFirstFrame = false;
 	uint32                  _postFirstRenderFrameCount = 0;
+    bool                    _requestedNextLevelTransition = false;
 
 private:
     HRESULT Ready_LoadingUIRenderResources();

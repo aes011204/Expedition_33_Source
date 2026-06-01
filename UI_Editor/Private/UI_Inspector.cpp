@@ -266,6 +266,16 @@ namespace UIEditor
                 if (ImGui::ColorEdit4("Color", &nextColor.x))
                     _editorManager.Set_UIObjectColor(selectedObject->id, nextColor);
 
+                float nextAlphaMultiplier = selectedObject->alphaMultiplier;
+                if (ImGui::SliderFloat("Alpha Multiplier", &nextAlphaMultiplier, 0.f, 1.f, "%.3f"))
+                    _editorManager.Set_UIObjectAlphaMultiplier(selectedObject->id, nextAlphaMultiplier);
+
+                bool alphaMultiplierHidden = selectedObject->alphaMultiplier <= 0.0001f;
+                if (ImGui::Checkbox("Force Alpha 0", &alphaMultiplierHidden))
+                    _editorManager.Set_UIObjectAlphaMultiplier(selectedObject->id, alphaMultiplierHidden ? 0.f : 1.f);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Sets this object and its children to AlphaMultiplier 0 or 1 without changing their Color alpha.");
+
                 Render_LayoutPresets(*selectedObject);
 
                 if (selectedObject->type == UI_ObjectType::Image)

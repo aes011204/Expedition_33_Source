@@ -42,7 +42,8 @@ HRESULT PW_Maelle::Initialize(void* arg)
 	skilltreeCom->TryUnlock("OffensiveSwitch");
 	skilltreeCom->TryUnlock("Percee");
 
-	skilltreeCom->ForceUnlock("FireRise");
+	//skilltreeCom->ForceUnlock("FireRise");
+    skilltreeCom->ForceUnlock("FleureFury");
 
 	CHECK_FAILED(Ready_Modifier(), E_FAIL);
 

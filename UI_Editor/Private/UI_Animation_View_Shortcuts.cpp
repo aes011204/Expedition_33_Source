@@ -18,6 +18,17 @@ namespace UIEditor
             return;
         }
 
+        if (_editorMode == UI_AnimationEditorMode::SequencePreview)
+        {
+            if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) || ImGui::IsKeyPressed(ImGuiKey_Backspace, false))
+            {
+                _editorManager.Stop_AnimationPreview();
+                if (_sequenceService.Remove_SelectedClip())
+                    Request_SequenceStaticPreviewRefresh();
+            }
+            return;
+        }
+
         if (io.KeyCtrl && io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z, false))
         {
             if (_editorMode == UI_AnimationEditorMode::StateAnimation)

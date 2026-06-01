@@ -114,6 +114,7 @@ HRESULT EffectInstance::Play()
 
 void EffectInstance::Stop()
 {
+    Bind_TrailSampleProvider({});
     _playbackState = EffectPlaybackState::Stopped;
     Set_Visible(false);
 }

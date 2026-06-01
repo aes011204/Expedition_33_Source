@@ -58,6 +58,7 @@ inline BattleCameraClipSample Sample_BattleCameraClip(const BattleCameraClip& cl
     sample.orbitLookHeight = Sample_BattleCameraTrack(clip.orbitLookHeight, sampleTime);
     sample.shakeFrequencyX = sampleTrackOrDefault(clip.shakeFrequencyX, sample.shakeFrequencyX);
     sample.shakeFrequencyY = sampleTrackOrDefault(clip.shakeFrequencyY, sample.shakeFrequencyY);
+    sample.shakeDecayRateX = sampleTrackOrDefault(clip.shakeDecayRateX, sample.shakeDecayRateX);
     sample.shakeDecayRate = sampleTrackOrDefault(clip.shakeDecayRate, sample.shakeDecayRate);
     sample.shakeVerticalRatio = sampleTrackOrDefault(clip.shakeVerticalRatio, sample.shakeVerticalRatio);
     sample.shakeStrengthScale = sampleTrackOrDefault(clip.shakeStrengthScale, sample.shakeStrengthScale);
@@ -65,16 +66,17 @@ inline BattleCameraClipSample Sample_BattleCameraClip(const BattleCameraClip& cl
     return sample;
 }
 
-inline Vec3 Sample_BattleCameraShakeOffset(float amplitude, float verticalRatio, float strengthScale, float frequencyX, float frequencyY, float decayRate, float time, const Vec3& right, const Vec3& up)
+inline Vec3 Sample_BattleCameraShakeOffset(float amplitude, float verticalRatio, float strengthScale, float frequencyX, float frequencyY, float decayRateX, float decayRateY, float time, const Vec3& right, const Vec3& up)
 {
     if (amplitude <= 0.f)
         return Vec3::Zero;
 
     float scaledAmplitude = amplitude * strengthScale;
-    float decay = expf(- time * decayRate);
+    float decayX = decayRateX > 0.f ? expf(- time * decayRateX) : 1.f;
+    float decayY = decayRateY > 0.f ? expf(- time * decayRateY) : 1.f;
 
-    const float x = sinf(time * frequencyX) * scaledAmplitude;
-    const float y = cosf(time * frequencyY) * scaledAmplitude * verticalRatio * decay;
+    const float x = sinf(time * frequencyX) * scaledAmplitude * decayX;
+    const float y = cosf(time * frequencyY) * scaledAmplitude * verticalRatio * decayY;
     return right * x + up * y;
 }
 
