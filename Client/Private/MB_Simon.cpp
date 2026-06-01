@@ -38,8 +38,6 @@ HRESULT MB_Simon::Initialize(void* arg)
 
     //_body->Set_Animation("Simon_Idle", 0.3f, true);
 
-
-
     return S_OK;
 }
 

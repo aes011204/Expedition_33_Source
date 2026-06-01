@@ -160,6 +160,8 @@ void TargetCamera::Update(float timeDelta)
         Update_BattleEnterState(timeDelta);
         break;
     }
+
+    
 }
 
 void TargetCamera::Late_Update(float timeDelta)
