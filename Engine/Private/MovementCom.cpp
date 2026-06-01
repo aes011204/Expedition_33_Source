@@ -8,6 +8,15 @@
 #include "PhysicsCharacterController.h"
 #include "PhysX_Types.h"
 
+namespace
+{
+    constexpr float kJumpInputGraceSec = 0.10f;
+    constexpr float kGroundJumpGraceSec = 0.08f;
+    constexpr float kStillGroundJitterSpeedSq = 0.01f;
+    constexpr float kStillGroundXZDeadZone = 0.02f;
+    constexpr float kStillGroundYDeadZone = 0.06f;
+}
+
 IMPLEMENT_REFLECTION(MovementCom)
 {
     auto& info = GetStaticReflectionInfo();
@@ -40,11 +49,15 @@ MovementCom::MovementCom(const MovementCom& Prototype)
     , _velocity{ Prototype._velocity }
     , _currentTurnSpeedDegree{ 0.f }
     , _idleGroundProbeAccum{ 0.f }
+    , _jumpInputGraceRemain{ 0.f }
+    , _groundJumpGraceRemain{ 0.f }
 #ifdef _DEBUG
     , _idleGroundProbeDebugLogAccum{ 0.f }
 #endif
     , _isGrounded{ Prototype._isGrounded }
     , _isJumping{ Prototype._isJumping }
+    , _didInputJumpStart{ false }
+    , _jumpStartHorizontalVelocity{ Vec3::Zero }
 {
 }
 
@@ -70,6 +83,8 @@ HRESULT MovementCom::Initialize(void* arg)
     _velocity = Vec3::Zero;
     _currentTurnSpeedDegree = 0.f;
     _idleGroundProbeAccum = 0.f;
+    _jumpInputGraceRemain = 0.f;
+    _groundJumpGraceRemain = 0.f;
 
 #ifdef _DEBUG
     _idleGroundProbeDebugLogAccum = 0.f;
@@ -77,6 +92,8 @@ HRESULT MovementCom::Initialize(void* arg)
 
     _isGrounded = true;
     _isJumping = false;
+    _didInputJumpStart = false;
+    _jumpStartHorizontalVelocity = Vec3::Zero;
 
     return S_OK;
 }
@@ -101,7 +118,20 @@ void MovementCom::Update_Movement(float timeDelta)
 {
     ENGINE_PROFILE_SCOPE_DETAIL("Movement::Update");
 
-    CHECK_NULL(_transformCom);
+    if (!_transformCom)
+        return;
+
+    _didInputJumpStart = false;
+
+    if (_input.isJumpDown)
+        _jumpInputGraceRemain = kJumpInputGraceSec;
+    else
+        _jumpInputGraceRemain = max(0.f, _jumpInputGraceRemain - timeDelta);
+
+    if (_isGrounded)
+        _groundJumpGraceRemain = kGroundJumpGraceSec;
+    else
+        _groundJumpGraceRemain = max(0.f, _groundJumpGraceRemain - timeDelta);
 
     Update_Rotation(timeDelta);
     Start_Jump();
@@ -251,16 +281,24 @@ void MovementCom::Start_Jump()
 {
     CHECK_NULL(_transformCom);
 
-    // 바닥에 충돌 중이 아니면, 점프 불가능
-    if (!_isGrounded)
+    if (_groundJumpGraceRemain <= 0.f)
         return;
 
-    if (!_input.isJumpDown)
+    if (_jumpInputGraceRemain <= 0.f)
         return;
+
+    Update_HorizontalVelocity();
+
+    _jumpStartHorizontalVelocity = _velocity;
+    _jumpStartHorizontalVelocity.y = 0.f; // 점프 시작 순간의 공중 XZ를 그대로 유지한다.
 
     _velocity.y = _moveDesc.jumpVelocity;
     _isGrounded = false;
     _isJumping = true;
+    _didInputJumpStart = true;
+
+    _jumpInputGraceRemain = 0.f;
+    _groundJumpGraceRemain = 0.f;
 }
 
 void MovementCom::Update_Rotation(float timeDelta)
@@ -269,7 +307,13 @@ void MovementCom::Update_Rotation(float timeDelta)
 
     Vec3 desiredDir = Vec3::Zero;
 
-    if (_input.forcedDirection.LengthSquared() > 0.f)
+    if (_isJumping && _jumpStartHorizontalVelocity.LengthSquared() > 0.f)
+    {
+        desiredDir = _jumpStartHorizontalVelocity;
+        desiredDir.y = 0.f;
+        desiredDir.Normalize(); // 공중에서는 점프 시작 방향 기준으로만 yaw를 유지한다.
+    }
+    else if (_input.forcedDirection.LengthSquared() > 0.f)
     {
         desiredDir = _input.forcedDirection;
         desiredDir.y = 0.f;
@@ -324,6 +368,13 @@ void MovementCom::Update_Rotation(float timeDelta)
 
 void MovementCom::Update_HorizontalVelocity()
 {
+    if (_isJumping)
+    {
+        _velocity.x = _jumpStartHorizontalVelocity.x;
+        _velocity.z = _jumpStartHorizontalVelocity.z;
+        return; // 점프 중에는 입력을 다시 읽지 않고 jump start XZ를 그대로 쓴다.
+    }
+
     if (_input.isLockLook)
     {
         Vec3 velocity = _velocity;
@@ -356,18 +407,9 @@ void MovementCom::Update_HorizontalVelocity()
     }
     else if (_input.moveX != 0.f || _input.moveZ != 0.f)
     {
-        if (_input.isRunPressed)
-        {
-            moveSpeed = _moveDesc.sprintSpeed;
-        }
-        else if (_input.isWalkDown)
-        {
-            moveSpeed = _moveDesc.walkSpeed;
-        }
-        else
-        {
-            moveSpeed = _moveDesc.runSpeed;
-        }
+        moveSpeed =
+            _input.isRunPressed ? _moveDesc.sprintSpeed :
+            (_input.isWalkDown ? _moveDesc.walkSpeed : _moveDesc.runSpeed);
     }
 
     _velocity.x = desiredDir.x * moveSpeed;
@@ -403,14 +445,22 @@ void MovementCom::Apply_Velocity(float timeDelta)
             _characterController->Move(displacement, timeDelta);
 
         const bool smoothGrounding = moveResult.collisionDown && _velocity.y <= 0.f;
-        Sync_Transform_FromCCT(moveResult.footPosition, timeDelta, smoothGrounding);
+        const Vec3 horizontalVelocity(_velocity.x, 0.f, _velocity.z);
+        const bool suppressSmallGroundAdjust =
+            smoothGrounding &&
+            horizontalVelocity.LengthSquared() <= kStillGroundJitterSpeedSq;
 
-        _isGrounded = moveResult.collisionDown;
+        Sync_Transform_FromCCT(moveResult.footPosition, timeDelta, smoothGrounding, suppressSmallGroundAdjust);
+
+        // 점프 중 ceiling/ledge 접촉으로 down flag가 잠깐 서도,
+        // 실제로 하강 중이 아니면 grounded로 되돌리지 않는다.
+        _isGrounded = moveResult.collisionDown && _velocity.y <= 0.f;
 
         if (moveResult.collisionDown && _velocity.y <= 0.f)
         {
             _velocity.y = 0.f;      // 착지 후 하강 속도 제거
             _isJumping = false;
+            _jumpStartHorizontalVelocity = Vec3::Zero;
         }
 
         if (moveResult.collisionUp && _velocity.y > 0.f)
@@ -445,6 +495,7 @@ void MovementCom::Resolve_Ground()
     _velocity.y = 0.f;
     _isGrounded = true;
     _isJumping = false;
+    _jumpStartHorizontalVelocity = Vec3::Zero;
 }
 
 bool MovementCom::Resolve_MoveDirection(Vec3& outWorldDir) const
@@ -655,6 +706,7 @@ bool MovementCom::Sweep_Move(const Vec3& displacement, bool passWalkableGround, 
         _velocity.y = 0.f;
         _isGrounded = true;
         _isJumping = false;
+        _jumpStartHorizontalVelocity = Vec3::Zero;
     }
     else if (direction.y > 0.f)
     {
@@ -724,6 +776,7 @@ void MovementCom::Resolve_Ground_WithSnap()
     _velocity.y = 0.f;
     _isGrounded = true;
     _isJumping = false;
+    _jumpStartHorizontalVelocity = Vec3::Zero;
 }
 
 bool MovementCom::Is_WalkableGround(const Vec3& normal) const
@@ -740,7 +793,7 @@ void MovementCom::Create_CharacterController()
     desc.contactOffset = _moveDesc.cct.contactOffset;
     desc.slopeLimitDeg = _moveDesc.cct.slopeLimitDeg;
     desc.groundLerpSpeed = _moveDesc.cct.groundLerpSpeed;
-    desc.preset = Collision_Preset::Player_WorldBody;
+    desc.preset = _colliderCom ? _colliderCom->Get_CollisionPreset() : Collision_Preset::Player_WorldBody;
 
     _characterController = PhysicsCharacterController::Create(
         GAME->Get_PhysXManager(), desc, Get_CCTFootPosition_FromTransform());
@@ -767,11 +820,37 @@ Vec3 MovementCom::Get_CCTFootPosition_FromTransform() const
     return _transformCom->Get_WorldPosition();
 }
 
-void MovementCom::Sync_Transform_FromCCT(const Vec3& footPosition, float timeDelta, bool smoothGrounding)
+void MovementCom::Sync_Transform_FromCCT(const Vec3& footPosition, float timeDelta, bool smoothGrounding, bool suppressSmallGroundAdjust)
 {
     CHECK_NULL(_transformCom);
 
     Vec3 position = _transformCom->Get_WorldPosition();
+
+    if (suppressSmallGroundAdjust)
+    {
+        if (fabsf(footPosition.x - position.x) > kStillGroundXZDeadZone)
+            position.x = footPosition.x;
+
+        if (fabsf(footPosition.z - position.z) > kStillGroundXZDeadZone)
+            position.z = footPosition.z;
+
+        if (fabsf(footPosition.y - position.y) > kStillGroundYDeadZone)
+        {
+            if (smoothGrounding)
+            {
+                const float t = clamp(timeDelta * _moveDesc.cct.groundLerpSpeed, 0.f, 1.f);
+                position.y = lerp(position.y, footPosition.y, t);
+            }
+            else
+            {
+                position.y = footPosition.y;
+            }
+        }
+
+        _transformCom->Set_WorldPosition(position);
+        return; // 제자리/저속 grounded 상태의 작은 CCT 흔들림은 카메라까지 전달하지 않는다.
+    }
+
     position.x = footPosition.x;
     position.z = footPosition.z;
 

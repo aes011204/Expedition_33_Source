@@ -103,6 +103,9 @@ Shared<StaticCollisionData> MapStaticCollisionBuilder::Build(const Shared<ModelC
     else
     {
         Build_PrimitiveProxies_FromSourceJson(data->cacheKey, data->primitiveProxies);
+
+        if (data->primitiveProxies.empty())
+            Build_ConvexTriangleMeshes_FromSourceJson(data->cacheKey, data->triangleMeshes);
     }
 
     if (data->primitiveProxies.empty() && data->triangleMeshes.empty())
@@ -345,6 +348,125 @@ bool MapStaticCollisionBuilder::Build_PrimitiveProxies_FromSourceJson(const wstr
 
     // simple-only인데 primitive를 못 읽었으면 triangle fallback 안 하고 충돌 생략
     return handledSimpleOnlyWithoutFallback;
+}
+
+bool MapStaticCollisionBuilder::Build_ConvexTriangleMeshes_FromSourceJson(const wstring& sourceModelPath,
+    vector<ModelCollisionMesh>& outTriangleMeshes)
+{
+    const fs::path jsonPath = fs::path(sourceModelPath).replace_extension(".json");
+    if (!fs::exists(jsonPath))
+        return false;
+
+    ifstream ifs(jsonPath);
+    if (!ifs.is_open())
+        return false;
+
+    json root = json::parse(ifs, nullptr, false);
+    if (root.is_discarded() || !root.is_array())
+        return false;
+
+    bool addedAny = false;
+
+    for (const json& entry : root)
+    {
+        if (entry.value("Type", "") != "BodySetup")
+            continue;
+
+        const json* props = entry.contains("Properties") ? &entry["Properties"] : nullptr;
+        if (props == nullptr || !props->is_object())
+            continue;
+
+        if (!props->contains("AggGeom") || !(*props)["AggGeom"].is_object())
+            continue;
+
+        const json& aggGeom = (*props)["AggGeom"];
+        if (!aggGeom.contains("ConvexElems") || !aggGeom["ConvexElems"].is_array())
+            continue;
+
+        for (const json& convexElem : aggGeom["ConvexElems"])
+        {
+            const json* vertexData = convexElem.contains("VertexData") ? &convexElem["VertexData"] : nullptr;
+            const json* indexData = convexElem.contains("IndexData") ? &convexElem["IndexData"] : nullptr;
+            if (vertexData == nullptr || !vertexData->is_array() || indexData == nullptr || !indexData->is_array())
+                continue;
+
+            Vec3 ueTranslation = Vec3::Zero;
+            Vec3 ueScale = Vec3::One;
+            Quat ueRotation = Quat::Identity;
+
+            if (convexElem.contains("Transform") && convexElem["Transform"].is_object())
+            {
+                const json& transformNode = convexElem["Transform"];
+
+                if (transformNode.contains("Translation") && transformNode["Translation"].is_object())
+                {
+                    const json& translationNode = transformNode["Translation"];
+                    ueTranslation = Vec3(
+                        translationNode.value("X", 0.f),
+                        translationNode.value("Y", 0.f),
+                        translationNode.value("Z", 0.f));
+                }
+
+                if (transformNode.contains("Scale3D") && transformNode["Scale3D"].is_object())
+                {
+                    const json& scaleNode = transformNode["Scale3D"];
+                    ueScale = Vec3(
+                        scaleNode.value("X", 1.f),
+                        scaleNode.value("Y", 1.f),
+                        scaleNode.value("Z", 1.f));
+                }
+
+                if (transformNode.contains("Rotation") && transformNode["Rotation"].is_object())
+                {
+                    const json& rotationNode = transformNode["Rotation"];
+                    ueRotation = Quat(
+                        rotationNode.value("X", 0.f),
+                        rotationNode.value("Y", 0.f),
+                        rotationNode.value("Z", 0.f),
+                        rotationNode.value("W", 1.f));
+                }
+            }
+
+            const Matrix ueLocalTransform =
+                Matrix::CreateScale(ueScale) *
+                Matrix::CreateFromQuaternion(ueRotation) *
+                Matrix::CreateTranslation(ueTranslation);
+
+            ModelCollisionMesh mesh{};
+            mesh.name = convexElem.value("Name", string("ConvexElem"));
+            mesh.positions.reserve(vertexData->size());
+            mesh.indices.reserve(indexData->size());
+
+            for (const json& vertexNode : *vertexData)
+            {
+                const Vec3 ueVertex(
+                    vertexNode.value("X", 0.f),
+                    vertexNode.value("Y", 0.f),
+                    vertexNode.value("Z", 0.f));
+
+                const Vec3 transformedUeVertex = Vec3::Transform(ueVertex, ueLocalTransform);
+                mesh.positions.push_back(Convert_UePointToEngine(transformedUeVertex));
+            }
+
+            for (const json& indexNode : *indexData)
+            {
+                const uint32 index = indexNode.get<uint32>();
+                if (index < mesh.positions.size())
+                    mesh.indices.push_back(index);
+            }
+
+            if (mesh.indices.size() % 3 != 0)
+                mesh.indices.resize(mesh.indices.size() - (mesh.indices.size() % 3));
+
+            if (mesh.positions.size() >= 3 && mesh.indices.size() >= 3)
+            {
+                outTriangleMeshes.push_back(std::move(mesh));
+                addedAny = true;
+            }
+        }
+    }
+
+    return addedAny;
 }
 
 NS_END

@@ -11,6 +11,7 @@
 #include "TrailAnchor_Asset.h"
 #include "TrailSampleProvider_ByPart.h"
 #include "Weapon.h"
+#include "ContainerObject.h"
 
 IMPLEMENT_REFLECTION(EffectCom)
 {
@@ -27,6 +28,11 @@ IMPLEMENT_REFLECTION(EffectCom)
 EffectCom::EffectCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component(device, context)
 {
+}
+
+EffectCom::~EffectCom()
+{
+    Stop_AllAttachedEffects();
 }
 
 HRESULT EffectCom::Initialize_Prototype()
@@ -74,6 +80,8 @@ void EffectCom::Update(float timeDelta)
 
 void EffectCom::Start_SwitchDissolve(float durationSec, const string& noiseName)
 {
+
+
     const uint32 noiseHandle = GAME->Get_Handle(noiseName);
 
     _vanishComplete = false;
@@ -184,6 +192,7 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
     acquireDesc.layerLevelIndex = desc.levelIndex;
     acquireDesc.layerTag = desc.layerTag;
     acquireDesc.worldPosition = spawnWorldPosition;
+    acquireDesc.scale = desc.scale;
     acquireDesc.trailSampleProvider = desc.trailSampleProvider;
 
     EffectInstancePool::AttachedHandle handle{};

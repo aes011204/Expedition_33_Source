@@ -64,7 +64,7 @@ private: //## Types
 
     struct ResourceMemory
     {
-        Engine::DebugResourceMemorySummary engine{};
+        DebugResourceMemorySummary engine{};
         uint32 effectPoolEntryCount{ 0 };
         uint32 effectPoolActiveCount{ 0 };
         uint32 effectPoolIdleCount{ 0 };

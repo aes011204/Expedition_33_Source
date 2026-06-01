@@ -24,9 +24,12 @@
     <ClCompile Include="..\Private\UI_AnimationAssetService.cpp" />
     <ClCompile Include="..\Private\UI_AnimationAssetService_FileDialog.cpp" />
     <ClCompile Include="..\Private\UI_AnimationAssetService_Legacy.cpp" />
+    <ClCompile Include="..\Private\UI_AnimationSequenceService.cpp" />
+    <ClCompile Include="..\Private\UI_AnimationSequenceTimelineView.cpp" />
     <ClCompile Include="..\Private\UI_AnimationTimelineView.cpp" />
     <ClCompile Include="..\Private\UI_Animation_View.cpp" />
     <ClCompile Include="..\Private\UI_Animation_View_Keyframe.cpp" />
+    <ClCompile Include="..\Private\UI_Animation_View_Sequence.cpp" />
     <ClCompile Include="..\Private\UI_Animation_View_Shortcuts.cpp" />
     <ClCompile Include="..\Private\UI_Animation_View_State.cpp" />
     <ClCompile Include="..\Private\UI_AnimationPreviewService.cpp" />
@@ -69,6 +72,8 @@
     <ClInclude Include="..\Public\UI_AnimationAssetSerializer.h" />
     <ClInclude Include="..\Public\UI_AnimationAssetService.h" />
     <ClInclude Include="..\Public\UI_AnimationEditHistory.h" />
+    <ClInclude Include="..\Public\UI_AnimationSequenceService.h" />
+    <ClInclude Include="..\Public\UI_AnimationSequenceTimelineView.h" />
     <ClInclude Include="..\Public\UI_AnimationTimelineView.h" />
     <ClInclude Include="..\Public\UI_Animation_View.h" />
     <ClInclude Include="..\Public\UI_AnimationPreviewService.h" />

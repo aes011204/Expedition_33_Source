@@ -29,6 +29,8 @@ namespace UIEditor
             previewObject.scale = sample.scale;
             previewObject.rotationRadians = sample.rotationRadians;
             previewObject.color = sample.color;
+            if (sample.hasAlphaMultiplier)
+                previewObject.alphaMultiplier = sample.alphaMultiplier;
         }
 
         return previewObject;
@@ -175,6 +177,19 @@ namespace UIEditor
         return Transform_LocalPointToWorld(objectId, Get_ResolvedLocalPosition(objectId));
     }
 
+    float UI_PreviewTransformResolver::Get_EffectiveAlphaMultiplier(ObjectId objectId) const
+    {
+        unordered_set<ObjectId> resolvingIds;
+        return min(max(Resolve_EffectiveAlphaMultiplier(objectId, resolvingIds), 0.f), 1.f);
+    }
+
+    ImVec4 UI_PreviewTransformResolver::Get_EffectiveRenderColor(ObjectId objectId, const ImVec4& color) const
+    {
+        ImVec4 renderColor = color;
+        renderColor.w = min(max(renderColor.w, 0.f), 1.f) * Get_EffectiveAlphaMultiplier(objectId);
+        return renderColor;
+    }
+
     UI_WorldObjectFrame UI_PreviewTransformResolver::Get_WorldFrame(ObjectId objectId) const
     {
         return Build_UIWorldObjectFrame(
@@ -266,6 +281,24 @@ namespace UIEditor
 
         resolvingIds.erase(objectId);
         return worldRotation;
+    }
+
+    float UI_PreviewTransformResolver::Resolve_EffectiveAlphaMultiplier(ObjectId objectId, unordered_set<ObjectId>& resolvingIds) const
+    {
+        const UI_Object* object = Find_Object(objectId);
+        if (nullptr == object)
+            return 1.f;
+
+        if (!resolvingIds.insert(objectId).second)
+            return 1.f;
+
+        const UI_Object previewObject = Make_PreviewObject(*object);
+        float alphaMultiplier = min(max(previewObject.alphaMultiplier, 0.f), 1.f);
+        if (previewObject.parentId != 0)
+            alphaMultiplier *= Resolve_EffectiveAlphaMultiplier(previewObject.parentId, resolvingIds);
+
+        resolvingIds.erase(objectId);
+        return alphaMultiplier;
     }
 
     ImVec2 UI_PreviewTransformResolver::Get_PivotOffset(const UI_Object& object, const ImVec2& resolvedSize) const

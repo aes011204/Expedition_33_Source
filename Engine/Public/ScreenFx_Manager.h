@@ -2,12 +2,13 @@
 
 #include "Shader_CBuffer_Define.h"
 #include "ScreenFx_Instance.h"
+
 NS_BEGIN(Engine)
 
 class ShaderCom;
 class VIBuffer_Rect;
 
-class ScreenFx_Manager final : Base
+class ENGINE_DLL ScreenFx_Manager final : Base
 {
 public:
     ScreenFx_Manager() = default;

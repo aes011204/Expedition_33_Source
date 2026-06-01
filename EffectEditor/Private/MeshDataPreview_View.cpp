@@ -18,6 +18,7 @@ namespace Internal
 {
     constexpr auto kWindowName = L"MeshData Preview";
     constexpr auto kMeshShaderId = L"Shader_EffectMeshPreview";
+    constexpr auto kMeshDistortionShaderId = L"Shader_EffectMeshPreviewDistortion";
     constexpr auto kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
     constexpr auto kEffectModelPayloadType = "CONTENT_BROWSER_EFFECT_MODEL";
     constexpr auto kModelDialogDefaultFolder = L"Effects\\Models";
@@ -206,6 +207,11 @@ namespace Internal
         return kOpacitySourceAlpha;
     }
 
+    bool Is_MeshDistortionPreviewFamily(const EffectMaterialInstanceData& material)
+    {
+        return material.materialFamily == EffectMaterialFamily::SpriteDistortion;
+    }
+
     void Draw_CheckerRect(ImDrawList& drawList, const ImVec2& minPos, const ImVec2& maxPos)
     {
         constexpr float cellSize = 54.f;
@@ -308,10 +314,13 @@ struct MeshDataPreview_View::PreviewRenderer
     Shared<Texture> mainTexture{};
     Shared<Texture> noiseTexture{};
     Shared<Texture> maskTexture{};
+    Shared<Texture> flowTexture{};
     string loadedModelKey{};
+    wstring loadedShaderKey{};
     string loadedMainTextureKey{};
     string loadedNoiseTextureKey{};
     string loadedMaskTextureKey{};
+    string loadedFlowTextureKey{};
     string statusMessage{};
     bool hasRendered{ false };
     EffectPreviewOrbitCameraState cameraState{};
@@ -346,15 +355,15 @@ struct MeshDataPreview_View::PreviewRenderer
             return;
         }
 
-        if (!Ready_RenderTarget() || !Ready_Shader() || !Ready_Model(modelPath))
-            return;
-
         EffectMaterialInstanceData effectMaterial{};
         if (!Internal::Resolve_EffectiveMaterial(meshData, effectMaterial))
         {
             statusMessage = "Assigned effect material is missing.";
             return;
         }
+
+        if (!Ready_RenderTarget() || !Ready_Shader(effectMaterial) || !Ready_Model(modelPath))
+            return;
 
         if (!Ready_EffectMaterialTextures(effectMaterial))
             return;
@@ -449,18 +458,27 @@ struct MeshDataPreview_View::PreviewRenderer
         return true;
     }
 
-    bool Ready_Shader()
+    bool Ready_Shader(const EffectMaterialInstanceData& material)
     {
-        if (shader != nullptr)
+        const wstring requestedShaderId = Internal::Is_MeshDistortionPreviewFamily(material)
+                                          ? Internal::kMeshDistortionShaderId
+                                          : Internal::kMeshShaderId;
+        if (shader != nullptr && loadedShaderKey == requestedShaderId)
             return true;
 
-        shader = Internal::Clone_Component<ShaderCom>(ETOI(LevelType::Static), Internal::kMeshShaderId);
+        shader.reset();
+        loadedShaderKey.clear();
+
+        shader = Internal::Clone_Component<ShaderCom>(ETOI(LevelType::Static), requestedShaderId);
         if (shader == nullptr)
         {
-            statusMessage = "Shader_EffectMeshPreview prototype is missing.";
+            statusMessage = requestedShaderId == Internal::kMeshDistortionShaderId
+                            ? "Shader_EffectMeshPreviewDistortion prototype is missing."
+                            : "Shader_EffectMeshPreview prototype is missing.";
             return false;
         }
 
+        loadedShaderKey = requestedShaderId;
         return true;
     }
 
@@ -535,6 +553,29 @@ struct MeshDataPreview_View::PreviewRenderer
 
     bool Ready_EffectMaterialTextures(const EffectMaterialInstanceData& material)
     {
+        if (Internal::Is_MeshDistortionPreviewFamily(material))
+        {
+            mainTexture.reset();
+            noiseTexture.reset();
+            maskTexture.reset();
+            loadedMainTextureKey.clear();
+            loadedNoiseTextureKey.clear();
+            loadedMaskTextureKey.clear();
+
+            Ready_Texture(
+                material.flowTextureGuid,
+                material.flowTexturePath,
+                false,
+                flowTexture,
+                loadedFlowTextureKey,
+                "Flow texture missing. Distortion preview continues without offset."
+            );
+            return true;
+        }
+
+        flowTexture.reset();
+        loadedFlowTextureKey.clear();
+
         if (!Ready_Texture(
             material.mainTextureGuid,
             material.mainTexturePath,
@@ -564,6 +605,34 @@ struct MeshDataPreview_View::PreviewRenderer
         );
 
         return true;
+    }
+
+    HRESULT Bind_DistortionPreviewResources(const EffectMaterialInstanceData& material)
+    {
+        CHECK_NULL(shader, E_FAIL);
+
+        if (flowTexture != nullptr)
+            CHECK_FAILED(flowTexture->Bind_ShaderResourceView(shader.get(), "g_FlowTexture", 0), E_FAIL);
+        else
+            CHECK_FAILED(shader->Bind_SRV("g_FlowTexture", nullptr), E_FAIL);
+
+        const Vec4 distortionParams(
+            max(0.f, material.refractionIntensity),
+            max(0.f, material.refractionPresence),
+            flowTexture != nullptr ? 1.f : 0.f,
+            materialElapsedTime
+        );
+        const Vec4 screenSize(static_cast<float>(max(1u, width)), static_cast<float>(max(1u, height)), 0.f, 0.f);
+        const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+
+        CHECK_FAILED(shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_DistortionScreenSize", &screenSize, sizeof(screenSize)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)), E_FAIL);
+        return S_OK;
     }
 
     HRESULT Bind_EffectMaterialResources(const EffectMaterialInstanceData& material)
@@ -657,6 +726,9 @@ struct MeshDataPreview_View::PreviewRenderer
 
     uint32 Resolve_ShaderPassIndex(const EffectMaterialInstanceData& material) const
     {
+        if (Internal::Is_MeshDistortionPreviewFamily(material))
+            return 0u;
+
         const bool additive = material.blendMode == EffectMaterialBlendMode::Additive;
         const bool twoSided = material.twoSided;
         if (additive)
@@ -693,7 +765,10 @@ struct MeshDataPreview_View::PreviewRenderer
 
         CHECK_FAILED(shader->Bind_ObjectCB(world), E_FAIL);
         CHECK_FAILED(shader->Bind_CBufferData(cameraCB), E_FAIL);
-        CHECK_FAILED(Bind_EffectMaterialResources(material), E_FAIL);
+        if (Internal::Is_MeshDistortionPreviewFamily(material))
+            CHECK_FAILED(Bind_DistortionPreviewResources(material), E_FAIL);
+        else
+            CHECK_FAILED(Bind_EffectMaterialResources(material), E_FAIL);
 
         const uint32 passIndex = Resolve_ShaderPassIndex(material);
         const uint32 numMeshes = static_cast<uint32>(model->Get_NumMeshes());
@@ -1143,7 +1218,9 @@ bool MeshDataPreview_View::Render_MaterialInstanceSection(MeshTypeData& meshData
         _detailPropertyContext,
         _textureThumbnailCache,
         meshData.assignedMaterial,
-        outRestartPreview
+        outRestartPreview,
+        EffectMaterialTwoSidedDisplayMode::EditableImplemented,
+        true
     );
 }
 

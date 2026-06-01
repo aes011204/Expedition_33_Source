@@ -77,6 +77,7 @@ namespace Engine
         EffectEmitter,
         Trigger,
         UI,
+        BattleStartSpawner,
     };
 
     enum class DeferredPass : uint8

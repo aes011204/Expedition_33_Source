@@ -147,13 +147,13 @@ public:                                                                         
 #define GENERATED_SCREEN_FX(ClassName)                                             \
     GENERATED_BASE_TYPE_BODY(ClassName)                                            \
 public:                                                                            \
+    static Shared<Engine::ScreenFx_Instance> _Create_Reflection_Instance() {       \
+        return make_shared<ClassName>();                                           \
+    }                                                                              \
     inline static const bool _auto_register_screenfx_ =                            \
         Engine::Register_ScreenFxType_Pending(                                     \
             STRINGIZE(ClassName),                                                  \
-            []() -> Shared<Engine::ScreenFx_Instance>                              \
-            {                                                                      \
-                return make_shared<ClassName>();                                   \
-            },                                                                     \
+            &ClassName::_Create_Reflection_Instance,                               \
             &ClassName::GetStaticReflectionInfo());
 
 #define SELECT_PROPERTY_FLOAT_MACRO(_1, _2, _3, _4, _5, NAME, ...) NAME

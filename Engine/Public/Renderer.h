@@ -34,7 +34,7 @@ public:
     void    Set_ShadowEnabled(bool enabled) { _shadowEnabled = enabled; }
     bool    Is_ShadowEnabled() const { return _shadowEnabled; }
 
-    const Shared<PostProcessPipeline>   Get_PostProcessPipeline() const
+    const Shared<PostProcessPipeline>&   Get_PostProcessPipeline() const
     {
         return _ppPipeline;
     }
@@ -42,7 +42,7 @@ public:
     {
         return _ppPipeline;
     }
-    const Shared<LightingPipeline> Get_LightingPipeline() const
+    const Shared<LightingPipeline>& Get_LightingPipeline() const
     {
         return _lightingPipeline;
     }
@@ -57,7 +57,6 @@ public:
     }
 
 #ifdef _DEBUG
-public:
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);
 #endif
 

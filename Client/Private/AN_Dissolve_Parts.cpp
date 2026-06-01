@@ -5,15 +5,13 @@
 #include "GameObject.h"
 #include "PartObject.h"
 
-
-
 IMPLEMENT_REFLECTION(AN_Dissolve_Parts)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
     PROPERTY_ENUM("Dissolve Type", _type, DissolveType);
-    PROPERTY_FLOAT("지속시간", _duration);
+    PROPERTY_FLOAT("지속시간", _duration);  
     PROPERTY_WSTRING("partName", _partName);
     return true;
 }
@@ -45,9 +43,15 @@ void AN_Dissolve_Parts::Execute(const AnimNotifyContext& context)
     switch (_type)
     {
     case DissolveType::Switch:
+        if (Part->Is_Visible() == false)
+        {
+            Part->Set_Visible(true);
+        }
+
         effectCom->Start_SwitchDissolve(_duration, "T_Perlin_Noise_M");
         break;
     case DissolveType::Vanish:
+
         effectCom->Start_VanishDissolve(_duration, "T_Perlin_Noise_M", true);
         break;
 

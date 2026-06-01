@@ -1156,6 +1156,51 @@ void EffectAssetRuntimeLoader::Fill_MeshVector3CurvePayload(
     }
 }
 
+void EffectAssetRuntimeLoader::Fill_AccelerationCurvePayload(PointParticleMotionDesc& desc, const json& distribution)
+{
+    desc.accelerationCurveEnabled = false;
+    desc.accelerationCurveKeyCount = 2;
+    desc.accelerationCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.accelerationCurveValuesX = Vec4{ desc.accelerationMin.x, desc.accelerationMax.x, 0.f, 0.f };
+    desc.accelerationCurveValuesY = Vec4{ desc.accelerationMin.y, desc.accelerationMax.y, 0.f, 0.f };
+    desc.accelerationCurveValuesZ = Vec4{ desc.accelerationMin.z, desc.accelerationMax.z, 0.f, 0.f };
+
+    const json* payload = Find_DistributionPayload(distribution);
+    if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
+        return;
+
+    const auto keysIter = payload->find("keys");
+    if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+        return;
+
+    vector<const json*> keys{};
+    keys.reserve(keysIter->size());
+    for (const json& key : *keysIter)
+        keys.push_back(&key);
+    ranges::sort(keys, [](const json* lhs, const json* rhs) { return Read_Float(*lhs, "time") < Read_Float(*rhs, "time"); });
+
+    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
+    desc.accelerationCurveEnabled = true;
+    desc.accelerationCurveKeyCount = keyCount;
+    desc.accelerationCurveTimes = Vec4{};
+    desc.accelerationCurveValuesX = Vec4{};
+    desc.accelerationCurveValuesY = Vec4{};
+    desc.accelerationCurveValuesZ = Vec4{};
+
+    for (uint32 index = 0; index < keyCount; ++index)
+    {
+        const json& key = *keys[index];
+        Vec3 value{};
+        if (const auto valueIter = key.find("value"); valueIter != key.end())
+            Read_Vec3(*valueIter, value);
+
+        Set_SubUVFrameCurveComponent(desc.accelerationCurveTimes, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesX, index, value.x);
+        Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesY, index, value.y);
+        Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesZ, index, value.z);
+    }
+}
+
 string EffectAssetRuntimeLoader::Resolve_RendererType(const json& emitter)
 {
     string rendererType = Read_String(emitter, "rendererType");
@@ -1662,6 +1707,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         {
             desc.motion.accelerationMin = Evaluate_Vector3DistributionMin(*accelerationIter, desc.motion.accelerationMin);
             desc.motion.accelerationMax = Evaluate_Vector3DistributionMax(*accelerationIter, desc.motion.accelerationMax);
+            Fill_AccelerationCurvePayload(desc.motion, *accelerationIter);
         }
     }
 
@@ -1981,6 +2027,7 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         {
             desc.motion.accelerationMin = Evaluate_Vector3DistributionMin(*accelerationIter, desc.motion.accelerationMin);
             desc.motion.accelerationMax = Evaluate_Vector3DistributionMax(*accelerationIter, desc.motion.accelerationMax);
+            Fill_AccelerationCurvePayload(desc.motion, *accelerationIter);
         }
     }
 

@@ -297,12 +297,28 @@ string AnimState_Parser::Get_PrefabGuid(const string &prefabName)
 		return "";
 	}
 	wstring assetRoot = GAME->Get_AssetRoot();
-	fs::path metaPath = fs::path(assetRoot) / "Data" / "json" / "Prefabs" / (prefabName + ".prefab.json.meta");
+    fs::path prefabsDir = fs::path(assetRoot) / "Data" / "json" / "Prefabs";
+    fs::path metaPath = prefabsDir / (prefabName + ".prefab.json.meta");
 
-	if (!fs::exists(metaPath))
-	{
-		return "";
-	}
+    if (!fs::exists(metaPath))
+    {
+        for (const auto& entry : fs::recursive_directory_iterator(prefabsDir))
+        {
+            if (!entry.is_regular_file())
+                continue;
+
+            if (entry.path().filename() == (prefabName + ".prefab.json.meta"))
+            {
+                metaPath = entry.path(); // 프리팹이 Player/Monster 같은 하위 폴더로 이동해도 meta를 찾을 수 있게 한다.
+                break;
+            }
+        }
+    }
+
+    if (!fs::exists(metaPath))
+    {
+        return "";
+    }
 
 	std::ifstream file(metaPath);
 	if (!file.is_open())
@@ -350,7 +366,7 @@ string AnimState_Parser::Find_PrefabName_ByStaticClass(const string &ownerClassN
 	}
 
 	// 2. 2차 폴더 전체 탐색 (Fallback)
-	for (const auto &entry : fs::directory_iterator(prefabsDir))
+	for (const auto &entry : fs::recursive_directory_iterator(prefabsDir))
 	{
 		if (!entry.is_regular_file())
 		{

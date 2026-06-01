@@ -76,6 +76,8 @@ private: //## Types::PlaybackRuntime
 private: //## Static Values
     // mesh effect draw shader id다.
     static constexpr auto kEffectMeshShaderId{ "Shader_EffectMesh" };
+    // mesh distortion field output 전용 shader id다.
+    static constexpr auto kEffectMeshDistortionShaderId{ "Shader_EffectMeshDistortion" };
     // main texture 미지정 시 사용할 fallback texture다.
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     // main texture alpha를 opacity로 사용한다.
@@ -88,9 +90,11 @@ private: //## Static Values
 private: //## Data::Components
     Shared<ModelCom> _model{};        // instanced draw에 사용할 non-anim model component다.
     Shared<ShaderCom> _shader{};      // mesh effect material shader component다.
+    wstring _loadedShaderPrototypeTag{}; // 현재 material family에 맞춰 선택된 shader prototype tag다.
     Shared<Texture> _texture{};       // mesh effect main texture다.
     Shared<Texture> _noiseTexture{};  // 선택 noise texture. 없으면 material noise를 비활성화한다.
     Shared<Texture> _maskTexture{};   // 선택 mask texture. 없으면 mask alpha 소비를 비활성화한다.
+    Shared<Texture> _flowTexture{};   // 선택 distortion flow texture. 없으면 distortion offset을 0으로 처리한다.
     ComPtr<Buffer> _instanceBuffer{}; // MeshInstanceVertex payload를 GPU에 제출하는 dynamic instance buffer다.
 
 private: //## Data::Desc
@@ -155,6 +159,8 @@ private: //## Helper::Setup
 
 private: //## Helper::Render
     HRESULT Bind_EffectMaterialResources();                               // mesh effect shader에 texture와 material 파라미터를 바인딩한다.
+    HRESULT Bind_DistortionResources();                                   // mesh distortion field shader에 flow 파라미터를 바인딩한다.
+    bool Is_DistortionFamily() const;                                     // 현재 material family가 mesh distortion 경로인지 확인한다.
     Matrix Build_InstanceMatrix(const MeshParticleState& particle) const; // particle state를 instanced draw world matrix로 변환한다.
     RenderGroup Resolve_RenderGroup() const;                              // material family/blend mode에 맞는 render group을 반환한다.
     uint32 Resolve_ShaderPassIndex() const;                               // 현재 shader에서 사용할 mesh effect pass index를 반환한다.
@@ -200,6 +206,8 @@ private: //## Helper::SamplingEvaluation
     Vec3 Sample_InitialAngularVelocity(uint32 seed) const;
     // velocity scale-by-life curve를 평가한다.
     float Evaluate_VelocityScaleByLife(float lifeProgress) const;
+    // acceleration curve가 있으면 lifeProgress 기준 절대 가속을 평가한다.
+    Vec3 Evaluate_AccelerationByLife(const MeshParticleState& particle, float lifeProgress) const;
     // mesh scale-by-life curve를 평가한다.
     Vec3 Evaluate_ScaleByLife(float lifeProgress) const;
     // mesh rotation-over-life curve를 평가한다.
