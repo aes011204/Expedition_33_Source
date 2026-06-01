@@ -13,7 +13,11 @@ enum class BattleCameraMode
   ENEMYFOCUS, //공격 대상 선택시 줌
   ENEMYATTACK, //적 공격
   PLAYERFOCUS, //플레이어 공격 선택시 줌
-  PLAYERATTACK
+  PLAYERATTACK,
+  SELECTITEM,
+  SELECTSKILL,
+  PARRY,
+  AIM
 };
 
 enum class BattleCameraTransitionEasing

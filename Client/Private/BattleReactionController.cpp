@@ -1,11 +1,12 @@
 ﻿#include "BattleReactionController.h"
-
+#include <Battle_Event.h>
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
+#include "Event_Bus.h"
 
 void BattleReactionController::OpenWindow(BattleReactionType type)
 {
@@ -256,6 +257,10 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleS
     //if (!ownsSource)
     //    return;
 
+   // EvtBattlePresentation event;
+   // event.cameraMode = BattleCameraMode::PARRY;
+   // event.subject = _reactionAnimTargets.front().actor;
+   // GAME->Get_EventBus().Publish(event);
 
     GAME->Slow_WorldTime(slowDesc.worldTimeScale, slowDesc.duration);
     sourceModel->Set_FrameSpeed(counterPlayRate); // 플레이어 속도 증가
