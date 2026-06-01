@@ -34,6 +34,7 @@ struct BattleCameraClip
     BattleCameraTrack shakeAmplitude;
     BattleCameraTrack shakeFrequencyX;
     BattleCameraTrack shakeFrequencyY;
+    BattleCameraTrack shakeDecayRateX;
     BattleCameraTrack shakeDecayRate;
     BattleCameraTrack shakeVerticalRatio;
     BattleCameraTrack shakeStrengthScale;
@@ -53,6 +54,7 @@ struct BattleCameraClipSample
     float shakeAmplitude = 0.f;
     float shakeFrequencyX = 32.f;
     float shakeFrequencyY = 47.f;
+    float shakeDecayRateX = 0.f;
     float shakeDecayRate = 8.f;
     float shakeVerticalRatio = 0.8f;
     float shakeStrengthScale = 0.05f;

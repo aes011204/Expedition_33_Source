@@ -22,8 +22,9 @@ public:
         const wchar_t*  modelTag{ nullptr };
         const Matrix*   socketMatrix{ nullptr };
 
-        // TODO : 각 무기별 크기, 위치는 프리펩에서 조절하십쇼
-
+        // 각 무기별 크기, 위치는 프리펩에서 조절하십쇼
+        bool            useBodyFollow{ false };
+        Vec3            bodyFollowOffset{ Vec3::Zero };
 
     }WEAPON_DESC;
 
@@ -57,10 +58,10 @@ public:
 private:
     HRESULT Ready_Components(const WEAPON_DESC& desc);
     HRESULT Ready_DefaultComponents(); // desc 없이 생성
-
     HRESULT Bind_ShaderResources();
-
     HRESULT Ensure_RuntimeComponentsFromJson(const json& data);
+    bool    Is_LuneHoverWeapon() const;
+    float   Get_LuneHoverOffsetY() const;
 
 private:
     Shared<ShaderCom>    _shader = { nullptr };
@@ -68,9 +69,12 @@ private:
 
 private:
     const Matrix*       _socketMatrix = { nullptr };
+    bool                _useBodyFollow = false;
+    Vec3                _bodyFollowOffset = Vec3::Zero;
 
     bool _notifyRotationActive = false;
     Quat _notifyRotationBaseLocal = Quat::Identity;
+    float _hoverTimeSec = 0.f;
 
 public:
     static Shared<Weapon> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

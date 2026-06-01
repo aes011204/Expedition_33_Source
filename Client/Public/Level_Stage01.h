@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Client_Defines.h"
+#include "Level_WindowTitleFps.h"
 #include "Level.h"
 
 // SmallLevel_SimonArea
@@ -16,6 +17,9 @@ public:
     virtual HRESULT Initialize() override;
     virtual void Update(float fTimeDelta) override;
     virtual HRESULT Render() override;
+
+private:
+    WindowTitleFpsState _windowTitleFps = {};
 
 private:
     HRESULT Ready_Lights();

@@ -11,7 +11,9 @@ class TargetCamera final : public Camera
 public:
     typedef struct tagTargetCamera final : public Camera::CAMERA_DESC
     {
-        float        followSpeed;
+        float        followSpeed;       // 이건 지금 카메라 세팅값 보간 속도
+        float        targetFollowSpeed; // 플레이어 위치 추적 속도
+        float        verticalFollowSpeed = 10.f; // 플레이어 높이 추적 속도
         float        distance;
 
         float        sideOffset;
@@ -60,6 +62,7 @@ private:
     bool Try_GetTargetTransform(Shared<TransformCom>& outTargetTransformCom) const;
     void Update_FromCurrentSettings(float timeDelta);
 private:
+    void Update_SmoothedTargetPosition(const Vec3& targetPos, float timeDelta);
     void Update_NormalState(float timeDelta);
     void Update_AimState(float timeDelta);
     void Update_BattleEnterState(float timeDelta);

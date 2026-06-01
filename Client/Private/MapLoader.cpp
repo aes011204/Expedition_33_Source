@@ -1,5 +1,6 @@
 #include "MapLoader.h"
 #include "GameInstance.h"
+#include "MapAuthoringIO.h"
 #include "MapStaticMesh.h"
 #include "MapInstancedMesh.h"
 #include "MapStaticCollisionBuilder.h"
@@ -214,6 +215,12 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
         }
     }
 
+    if (mapData.contains("PrefabInstances") && mapData["PrefabInstances"].is_array())
+    {
+        for (const json& item : mapData["PrefabInstances"])
+            outSession.prefabInstances.push_back(item);
+    }
+
     if (mapData.contains("ModelCollisions") && mapData["ModelCollisions"].is_object())
     {
         for (const auto& [modelPath, collisionEntry] : mapData["ModelCollisions"].items())
@@ -283,6 +290,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
     outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
+    outSession.prefabInstancesDone = outSession.prefabInstances.empty();
     outSession.beginSessionDuration =
         chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - sessionBegin);
 
@@ -432,6 +440,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.staticAutoInstancingPrepared = true;
         session.staticMeshesDone = session.staticMeshes.empty();
         session.instancedMeshesDone = session.instancedMeshes.empty();
+        session.prefabInstancesDone = session.prefabInstances.empty();
     }
 
     while (!session.staticMeshesDone)
@@ -583,7 +592,9 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             desc.model = model;
         }
 
-        // InstancedMeshes는 collision data를 만들지 않는다.
+        // InstancedMeshes도 static mesh와 같은 collision cache를 재사용한다.
+        desc.collisionData = GetOrCreateCookedCollision(session, desc.model, modelPathStr);
+
         if (e.contains("Instances"))
         {
             const auto instancedTransformBegin = chrono::steady_clock::now();
@@ -643,15 +654,46 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         ++processedCount;
     }
 
+    while (!session.prefabInstancesDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        if (session.nextPrefabInstanceIndex >= session.prefabInstances.size())
+        {
+            session.prefabInstancesDone = true;
+            break;
+        }
+
+        json singleMapData = json::object();
+        singleMapData["PrefabInstances"] = json::array(
+            { session.prefabInstances[session.nextPrefabInstanceIndex++] });
+
+        const auto prefabBegin = chrono::steady_clock::now();
+        if (MapAuthoringIO::Load_PrefabInstances_FromMapData(
+            singleMapData,
+            session.levelIndex,
+            session.spawnedObjects))
+        {
+            ++session.prefabInstanceAddCount;
+        }
+
+        session.prefabInstanceAddDuration +=
+            chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - prefabBegin);
+
+        ++processedCount;
+    }
+
     outFinished =
         session.preloadModelsDone &&
         session.staticMeshesDone &&
-        session.instancedMeshesDone;
+        session.instancedMeshesDone &&
+        session.prefabInstancesDone;
 
     if (outFinished && !session.summaryLogged)
     {
         LOG_DEBUG(
-            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{}) autoInstanced(groups={}, statics={})",
+            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{}) prefabInstances(data={}, add={}ms/{}) autoInstanced(groups={}, statics={})",
             session.processCallCount,
             session.beginSessionDuration.count(),
             session.preloadModelPaths.size(),
@@ -668,6 +710,9 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             session.instancedTransformDuration.count(),
             session.instancedAddDuration.count(),
             session.instancedAddCount,
+            session.prefabInstances.size(),
+            session.prefabInstanceAddDuration.count(),
+            session.prefabInstanceAddCount,
             session.autoInstancedGroupCount,
             session.autoInstancedStaticCount);
 
@@ -679,72 +724,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
 void MapLoader::Prepare_StaticAutoInstancing(LoadSession& session)
 {
-    unordered_map<string, vector<size_t>> indicesByModelPath;
-    indicesByModelPath.reserve(session.staticMeshes.size());
-
-    for (size_t i = 0; i < session.staticMeshes.size(); ++i)
-    {
-        const string modelPath = session.staticMeshes[i].value("ModelPath", string{});
-        if (!modelPath.empty())
-        {
-            indicesByModelPath[modelPath].push_back(i);
-        }
-    }
-
-    vector<json> remainingStaticMeshes;
-    remainingStaticMeshes.reserve(session.staticMeshes.size());
-
-    for (const auto& item : session.staticMeshes)
-    {
-        const string modelPath = item.value("ModelPath", string{});
-        const auto groupIt = indicesByModelPath.find(modelPath);
-        if (modelPath.empty() || groupIt == indicesByModelPath.end() || groupIt->second.size() < 2)
-        {
-            remainingStaticMeshes.push_back(item);
-            continue;
-        }
-
-        auto modelIt = session.preloadedModelCache.find(modelPath);
-        if (modelIt == session.preloadedModelCache.end() || modelIt->second == nullptr)
-        {
-            remainingStaticMeshes.push_back(item);
-            continue;
-        }
-
-        Shared<StaticCollisionData> collisionData = GetOrCreateCookedCollision(session, modelIt->second, modelPath);
-        if (collisionData != nullptr)
-        {
-            remainingStaticMeshes.push_back(item);
-            continue;
-        }
-
-        const vector<size_t>& groupIndices = groupIt->second;
-        if (groupIndices.front() != (&item - session.staticMeshes.data()))
-        {
-            continue;
-        }
-
-        json instancedItem;
-        instancedItem["Id"] = modelPath;
-        instancedItem["ModelPath"] = modelPath;
-        instancedItem["Instances"] = json::array();
-
-        for (const size_t sourceIndex : groupIndices)
-        {
-            const json& source = session.staticMeshes[sourceIndex];
-            json instance;
-            instance["Position"] = source["Position"];
-            instance["Rotation"] = source["Rotation"];
-            instance["Scale"] = source["Scale"];
-            instancedItem["Instances"].push_back(std::move(instance));
-        }
-
-        session.autoInstancedStaticCount += groupIndices.size();
-        ++session.autoInstancedGroupCount;
-        session.instancedMeshes.push_back(std::move(instancedItem));
-    }
-
-    session.staticMeshes = std::move(remainingStaticMeshes);
+    // 개별 하이어라키/피킹/충돌 확인이 우선이라 런타임 static auto-instancing은 잠시 끈다.
     session.nextStaticMeshIndex = 0;
     session.nextInstancedMeshIndex = 0;
 }
@@ -1029,15 +1009,40 @@ Shared<StaticCollisionData> MapLoader::GetOrCreateCookedCollision(
     if (model == nullptr || modelPathStr.empty())
         return nullptr;
 
+    auto ensureTriangleMeshes = [&](const Shared<StaticCollisionData>& collisionData)
+    {
+        if (collisionData == nullptr)
+            return;
+
+        if (!collisionData->cookedTriangleMeshes.empty() || !collisionData->triangleMeshes.empty())
+            return;
+
+        const wstring sourceModelPath = !model->Get_SourceModelPath().empty()
+            ? model->Get_SourceModelPath()
+            : String::ToWString(modelPathStr);
+
+        if (sourceModelPath.empty())
+            return;
+
+        // 저장된 collision이 proxy-only 또는 empty여도 gameplay에서는 .model triangle mesh를 우선 보강한다.
+        MapStaticCollisionBuilder::Build_TriangleMeshes_FromModelFile(
+            sourceModelPath,
+            collisionData->triangleMeshes);
+    };
+
     auto sessionIt = session.preloadedCollisionCache.find(modelPathStr);
     if (sessionIt != session.preloadedCollisionCache.end())
+    {
+        ensureTriangleMeshes(sessionIt->second);
         return sessionIt->second;
+    }
 
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
         auto globalIt = g_globalCollisionCache.find(modelPathStr);
         if (globalIt != g_globalCollisionCache.end())
         {
+            ensureTriangleMeshes(globalIt->second);
             session.preloadedCollisionCache[modelPathStr] = globalIt->second;
             return globalIt->second;
         }
@@ -1045,30 +1050,27 @@ Shared<StaticCollisionData> MapLoader::GetOrCreateCookedCollision(
 
     auto cookedIt = session.cookedCollisionCache.find(modelPathStr);
     auto primitiveIt = session.primitiveCollisionCache.find(modelPathStr);
+    const bool hasCollisionEntry =
+        (cookedIt != session.cookedCollisionCache.end() || primitiveIt != session.primitiveCollisionCache.end());
 
     const bool hasCookedTriangles =
         (cookedIt != session.cookedCollisionCache.end() && !cookedIt->second.empty());
     const bool hasPrimitiveProxies =
         (primitiveIt != session.primitiveCollisionCache.end() && !primitiveIt->second.empty());
 
-    if (!hasCookedTriangles && !hasPrimitiveProxies)
+    if (!hasCollisionEntry)
     {
-        // MapTest는 저장 collision이 비어 있어도 테스트 진행을 위해 런타임 메쉬/프리미티브 빌드를 허용한다.
-        if (session.levelIndex == ETOI(LevelType::MapTest))
-        {
-            Shared<StaticCollisionData> collisionData = GetOrBuildCollision(
-                model,
-                modelPathStr,
-                &session.collisionBuildDuration,
-                &session.collisionBuildCount);
+        // 저장 collision entry가 아예 없는 모델도 런타임에서 triangle/proxy collision을 보강한다.
+        Shared<StaticCollisionData> collisionData = GetOrBuildCollision(
+            model,
+            modelPathStr,
+            &session.collisionBuildDuration,
+            &session.collisionBuildCount);
 
-            if (collisionData != nullptr)
-                session.preloadedCollisionCache[modelPathStr] = collisionData;
+        if (collisionData != nullptr)
+            session.preloadedCollisionCache[modelPathStr] = collisionData;
 
-            return collisionData;
-        }
-
-        return nullptr;
+        return collisionData;
     }
 
     auto collisionData = make_shared<StaticCollisionData>();
@@ -1080,6 +1082,14 @@ Shared<StaticCollisionData> MapLoader::GetOrCreateCookedCollision(
         collisionData->cookedTriangleMeshes = cookedIt->second;
     if (hasPrimitiveProxies)
         collisionData->primitiveProxies = primitiveIt->second;
+    ensureTriangleMeshes(collisionData);
+
+    if (collisionData->cookedTriangleMeshes.empty() &&
+        collisionData->primitiveProxies.empty() &&
+        collisionData->triangleMeshes.empty())
+    {
+        return nullptr;
+    }
 
     session.preloadedCollisionCache[modelPathStr] = collisionData;
 

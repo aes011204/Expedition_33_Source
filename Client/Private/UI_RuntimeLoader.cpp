@@ -45,6 +45,7 @@ namespace
         Vec2 anchorMax{ 0.f, 0.f };
         float rotationRadians = 0.f;
         Vec4 color{ 1.f, 1.f, 1.f, 1.f };
+        float alphaMultiplier = 1.f;
         int32 sortOrder = 0;
         bool visible = true;
 
@@ -487,7 +488,8 @@ namespace
             }
             else if (track.type == UI_KeyframeAnimationTrackType::ScaleX || track.type == UI_KeyframeAnimationTrackType::ScaleY)
                 key.value = max(0.01f, key.value);
-            else if (track.type == UI_KeyframeAnimationTrackType::Alpha)
+            else if (track.type == UI_KeyframeAnimationTrackType::Alpha ||
+                track.type == UI_KeyframeAnimationTrackType::AlphaMultiplier)
                 key.value = min(max(key.value, 0.f), 1.f);
         }
 
@@ -1154,6 +1156,7 @@ namespace
         object.anchorMax = Read_Vec2(item, "anchorMax", Vec2(0.f, 0.f));
         object.rotationRadians = Read_RotationRadians(item);
         object.color = Read_Color(item, "color", Vec4(1.f, 1.f, 1.f, 1.f));
+        object.alphaMultiplier = min(max(Read_Float(item, "alphaMultiplier", 1.f), 0.f), 1.f);
         object.sortOrder = Read_Int(item, "sortOrder", 0);
         object.visible = Read_Bool(item, "visible", true);
         object.renderGroup = Parse_RenderLayer(Read_String(item, "renderLayer", "Foreground"));
@@ -1427,6 +1430,7 @@ namespace
             LOG_WARN("UI RuntimeLoader image pattern mask skipped: missing pattern mask texture. id={}", object.id);
 
         desc.color = object.color;
+        desc.alphaMultiplier = object.alphaMultiplier;
         desc.transformDesc.position = object.position;
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = object.scale;
@@ -1485,6 +1489,7 @@ namespace
         desc.text = String::ToWString(object.text);
         desc.fontTag = fontTag;
         desc.color = Make_PremultipliedSpriteFontColor(object.color);
+        desc.alphaMultiplier = object.alphaMultiplier;
         desc.textAlign = object.textAlign;
         desc.textWrap = object.textWrap;
         desc.transformDesc.position = object.position;
@@ -1523,6 +1528,7 @@ namespace
     {
         UI_Panel::UI_PANEL_DESC desc{};
         desc.color = object.color;
+        desc.alphaMultiplier = object.alphaMultiplier;
         desc.transformDesc.position = object.position;
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = object.scale;
@@ -1559,6 +1565,7 @@ namespace
     {
         UI_Button::UI_BUTTON_DESC desc{};
         desc.color = object.color;
+        desc.alphaMultiplier = object.alphaMultiplier;
         desc.transformDesc.position = object.position;
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = object.scale;

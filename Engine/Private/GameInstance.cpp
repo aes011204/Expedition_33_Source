@@ -2408,6 +2408,7 @@ HRESULT GameInstance::Create_PrefabAsset(const fs::path& path, const string& sta
 
     json root = gameObject->To_Json();
     root["prefab_name"] = prefabName;
+    root["default_layer_tag"] = "Layer_GameObject"; // 새 프리펩도 즉시 드래그 배치 가능한 기본 레이어 메타를 가진다.
 
     std::error_code ec;
     fs::create_directories(path.parent_path(), ec);
@@ -2512,6 +2513,11 @@ void GameInstance::Release_Engine()
 }
 
 #ifdef _DEBUG
+ComPtr<ID3D11Texture2D> GameInstance::Get_RT_Texture(const wstring& targetTag)
+{
+    return _targetManager->Get_RT_Texture(targetTag);
+}
+
 HRESULT GameInstance::Initialize_Debug(float sizeX, float sizeY)
 {
     return _targetManager->Initialize_Debug(sizeX, sizeY);

@@ -154,7 +154,9 @@ HRESULT UI_Image::Render()
     if (FAILED(_shader->Bind_Matrix("g_ProjMatrix", &projMatrix)))
         return E_FAIL;
 
-    if (FAILED(_shader->Bind_RawValue("g_Color", &_color, sizeof(Vec4))))
+    const Vec4 renderColor = Get_EffectiveRenderColor(_color);
+
+    if (FAILED(_shader->Bind_RawValue("g_Color", &renderColor, sizeof(Vec4))))
         return E_FAIL;
 
     if (FAILED(_shader->Bind_RawValue("g_UseGrayScale", &_useGrayScale, sizeof(bool))))

@@ -63,12 +63,6 @@ void Player_Idle::Update(float timeDelta)
 {
     uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
 
-    //if (IsFalling())
-    //{
-    //    _stateCom->Change_State(PlayerState::Jump);
-    //    return;
-    //}
-
     if (IsEnterFreeAim())
     {
         _stateCom->Change_State(PlayerState::FreeAim);
@@ -78,12 +72,6 @@ void Player_Idle::Update(float timeDelta)
     if (IsEnterWorldAction())
     {
         _stateCom->Change_State(PlayerState::WorldAction);
-        return;
-    }
-
-    if (IsEnterJump())
-    {
-        _stateCom->Change_State(PlayerState::Jump);
         return;
     }
 

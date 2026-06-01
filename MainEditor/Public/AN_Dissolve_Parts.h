@@ -5,7 +5,6 @@ class GameObject;
 NS_END
 NS_BEGIN(Client)
 
-
 class AN_Dissolve_Parts : public AnimNotify
 {
     GENERATED_ANIM_NOTIFY(AN_Dissolve_Parts)
