@@ -245,6 +245,36 @@ struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
     Weak<IEffectTrailSampleProvider> sampleProvider{}; // attachment 계산 owner가 공급하는 sample source다.
 };
 
+// mesh emitter가 Vec3 transform curve를 CPU instance update에서 평가하기 위한 payload다.
+struct MeshVector3CurveRuntimeDesc
+{
+    bool enabled{ false };                       // true면 lifeProgress 기준 curve를 평가한다.
+    Vec3 start{ 1.f, 1.f, 1.f };                 // distribution/legacy fallback 시작값이다.
+    Vec3 end{ 1.f, 1.f, 1.f };                   // distribution/legacy fallback 종료값이다.
+    uint32 curveKeyCount{ 2 };                   // compact curve key 수다.
+    Vec4 curveKeyTimes{ 0.f, 1.f, 0.f, 0.f };    // key time 0..1 값이다.
+    Vec4 curveKeyValuesX{ 1.f, 1.f, 0.f, 0.f };  // key별 X 값이다.
+    Vec4 curveKeyValuesY{ 1.f, 1.f, 0.f, 0.f };  // key별 Y 값이다.
+    Vec4 curveKeyValuesZ{ 1.f, 1.f, 0.f, 0.f };  // key별 Z 값이다.
+};
+
+// mesh emitter 전용 Vec3 scale/rotation runtime payload다.
+struct MeshTransformRuntimeDesc
+{
+    bool initialScaleEnabled{ false };                         // InitialMeshSize Vec3 payload 연결 여부다.
+    Vec3 initialScaleMin{ 0.12f, 0.12f, 0.12f };                // spawn 시 mesh scale 하한이다.
+    Vec3 initialScaleMax{ 0.28f, 0.28f, 0.28f };                // spawn 시 mesh scale 상한이다.
+    MeshVector3CurveRuntimeDesc scaleByLife{};                 // MeshSizeByLife Vec3 multiplier다.
+
+    bool rotationEnabled{ false };                             // rotation 계열 모듈 연결 여부다.
+    Vec3 initialRotationDegreesMin{ 0.f, 0.f, 0.f };            // spawn 시 Euler rotation 하한이다.
+    Vec3 initialRotationDegreesMax{ 0.f, 0.f, 0.f };            // spawn 시 Euler rotation 상한이다.
+    MeshVector3CurveRuntimeDesc rotationByLife{};              // lifeProgress 기준 추가 Euler degree다.
+    Vec3 initialAngularVelocityDegreesMin{ 0.f, 0.f, 0.f };     // 초당 Euler angular velocity 하한이다.
+    Vec3 initialAngularVelocityDegreesMax{ 0.f, 0.f, 0.f };     // 초당 Euler angular velocity 상한이다.
+    MeshVector3CurveRuntimeDesc angularVelocityScaleByLife{};  // angular velocity Vec3 배율이다.
+};
+
 // mesh emitter가 clone 시점에 받는 model/instance draw용 runtime payload다.
 struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
@@ -257,14 +287,12 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
     EffectDrawLimitRuntimeDesc drawLimit{};        // Required 모듈에서 mesh draw 제출 상한으로 소비하는 규칙이다.
     EffectSpawnRuntimeDesc spawn{};                // Spawn 모듈에서 mesh particle 활성화 규칙으로 소비하는 payload다.
     EffectLifetimeRuntimeDesc lifetime{};          // Lifetime 모듈에서 mesh particle age/max life로 소비하는 payload다.
-    EffectInitialSizeRuntimeDesc initialSize{};    // InitialSize 모듈에서 mesh uniform scale로 낮춰 소비하는 payload다.
     EffectInitialColorRuntimeDesc initialColor{};  // InitialColor 모듈에서 mesh particle 시작 색으로 소비하는 payload다.
     EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 mesh particle color/fade로 소비하는 payload다.
-    PointParticleSizeByLifeDesc sizeByLife{};      // SizeByLife 모듈에서 mesh uniform scale multiplier로 낮춰 소비하는 payload다.
     PointParticleMotionDesc motion{};              // InitialVelocity/RadialVelocity 모듈에서 mesh particle 위치 갱신으로 소비하는 payload다.
-    PointParticleRotationDesc rotation{};          // InitialRotation/InitialRotationRate 모듈에서 mesh Z roll로 낮춰 소비하는 payload다.
     PointParticleInitialLocationDesc initialLocation{}; // InitialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
     PointParticleSphereLocationDesc sphereLocation{};   // SphereLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+    MeshTransformRuntimeDesc meshTransform{};       // Mesh 전용 Vec3 scale/rotation payload다.
 };
 
 using EffectEmitterConcreteDesc = variant<ComputeSpriteEmitterDesc, ComputeTrailEmitterDesc, MeshEmitterDesc>;

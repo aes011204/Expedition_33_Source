@@ -376,6 +376,14 @@ namespace Internal
         Set_SubUVFrameCurveComponent(desc.rotationRateScaleByLifeCurveValues, index, value);
     }
 
+    void Fill_MeshVector3CurveComponent(MeshVector3CurveRuntimeDesc& desc, uint32 index, float time, const Vec3& value)
+    {
+        Set_SubUVFrameCurveComponent(desc.curveKeyTimes, index, clamp(time, 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.curveKeyValuesX, index, value.x);
+        Set_SubUVFrameCurveComponent(desc.curveKeyValuesY, index, value.y);
+        Set_SubUVFrameCurveComponent(desc.curveKeyValuesZ, index, value.z);
+    }
+
     float To_RuntimeCurveInterpolationMode(FloatCurveInterpolationMode mode)
     {
         switch (mode)
@@ -670,6 +678,41 @@ namespace Internal
         }
 
         return fallbackValue;
+    }
+
+    void Fill_MeshVector3CurvePayload(
+        MeshVector3CurveRuntimeDesc& desc,
+        const Vector3DistributionData& data,
+        const Vec3& fallbackValue)
+    {
+        desc.enabled = true;
+        const Vec3 startValue = Evaluate_Vector3DistributionMin(data, fallbackValue);
+        const Vec3 endValue = Evaluate_Vector3DistributionMax(data, fallbackValue);
+        desc.start = startValue;
+        desc.end = endValue;
+        desc.curveKeyCount = 2;
+        desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.curveKeyValuesX = Vec4{ startValue.x, endValue.x, 0.f, 0.f };
+        desc.curveKeyValuesY = Vec4{ startValue.y, endValue.y, 0.f, 0.f };
+        desc.curveKeyValuesZ = Vec4{ startValue.z, endValue.z, 0.f, 0.f };
+
+        if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&data.payload))
+        {
+            vector<Vector3CurveKeyData> keys = curve->keys;
+            ranges::sort(keys, {}, &Vector3CurveKeyData::time);
+            constexpr uint32 maxMeshCurveKeys{ 4 };
+            const uint32 keyCount = min(maxMeshCurveKeys, static_cast<uint32>(keys.size()));
+            if (keyCount == 0)
+                return;
+
+            desc.curveKeyCount = keyCount;
+            desc.curveKeyTimes = Vec4{};
+            desc.curveKeyValuesX = Vec4{};
+            desc.curveKeyValuesY = Vec4{};
+            desc.curveKeyValuesZ = Vec4{};
+            for (uint32 index = 0; index < keyCount; ++index)
+                Fill_MeshVector3CurveComponent(desc, index, keys[index].time, keys[index].value);
+        }
     }
 
     Color Evaluate_ColorDistributionMin(const ColorDistributionData& data, const Color& fallbackValue)
@@ -1471,13 +1514,21 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         }
     }
 
-    if (const auto* initialSize = Internal::Find_ModuleData<InitialSizeModuleData>(emitter, AuthoringModuleType::InitialSize))
+    if (const auto* initialMeshSize = Internal::Find_ModuleData<InitialMeshSizeModuleData>(emitter, AuthoringModuleType::InitialMeshSize))
     {
-        emitterDesc.initialSize.enabled = true;
-        const Vec2 minSize = Internal::Evaluate_Vector2DistributionMin(initialSize->size, emitterDesc.initialSize.sizeMin);
-        const Vec2 maxSize = Internal::Evaluate_Vector2DistributionMax(initialSize->size, emitterDesc.initialSize.sizeMax);
-        emitterDesc.initialSize.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
-        emitterDesc.initialSize.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
+        emitterDesc.meshTransform.initialScaleEnabled = true;
+        const Vec3 meshMinSize = Internal::Evaluate_Vector3DistributionMin(initialMeshSize->size, emitterDesc.meshTransform.initialScaleMin);
+        const Vec3 meshMaxSize = Internal::Evaluate_Vector3DistributionMax(initialMeshSize->size, emitterDesc.meshTransform.initialScaleMax);
+        emitterDesc.meshTransform.initialScaleMin = Vec3{
+            min(meshMinSize.x, meshMaxSize.x),
+            min(meshMinSize.y, meshMaxSize.y),
+            min(meshMinSize.z, meshMaxSize.z)
+        };
+        emitterDesc.meshTransform.initialScaleMax = Vec3{
+            max(meshMinSize.x, meshMaxSize.x),
+            max(meshMinSize.y, meshMaxSize.y),
+            max(meshMinSize.z, meshMaxSize.z)
+        };
     }
 
     if (const auto* initialLocation = Internal::Find_ModuleData<InitialLocationModuleData>(emitter, AuthoringModuleType::InitialLocation))
@@ -1588,8 +1639,32 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
     }
 
-    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
-        Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
+    if (const auto* meshSizeByLife = Internal::Find_ModuleData<MeshSizeByLifeModuleData>(emitter, AuthoringModuleType::MeshSizeByLife))
+    {
+        Internal::Fill_MeshVector3CurvePayload(
+            emitterDesc.meshTransform.scaleByLife,
+            meshSizeByLife->scaleOverLife,
+            Vec3{ 1.f, 1.f, 1.f }
+        );
+        if (!meshSizeByLife->multiplyX)
+        {
+            emitterDesc.meshTransform.scaleByLife.start.x = 1.f;
+            emitterDesc.meshTransform.scaleByLife.end.x = 1.f;
+            emitterDesc.meshTransform.scaleByLife.curveKeyValuesX = Vec4{ 1.f, 1.f, 1.f, 1.f };
+        }
+        if (!meshSizeByLife->multiplyY)
+        {
+            emitterDesc.meshTransform.scaleByLife.start.y = 1.f;
+            emitterDesc.meshTransform.scaleByLife.end.y = 1.f;
+            emitterDesc.meshTransform.scaleByLife.curveKeyValuesY = Vec4{ 1.f, 1.f, 1.f, 1.f };
+        }
+        if (!meshSizeByLife->multiplyZ)
+        {
+            emitterDesc.meshTransform.scaleByLife.start.z = 1.f;
+            emitterDesc.meshTransform.scaleByLife.end.z = 1.f;
+            emitterDesc.meshTransform.scaleByLife.curveKeyValuesZ = Vec4{ 1.f, 1.f, 1.f, 1.f };
+        }
+    }
 
     if (const auto* initialVelocity = Internal::Find_ModuleData<InitialVelocityModuleData>(emitter, AuthoringModuleType::InitialVelocity))
     {
@@ -1641,37 +1716,57 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         emitterDesc.motion.velocityScaleByLife = Vec2{ velocityOverLife->scaleStart, velocityOverLife->scaleEnd };
     }
 
-    if (const auto* initialRotation = Internal::Find_ModuleData<InitialRotationModuleData>(emitter, AuthoringModuleType::InitialRotation))
+    if (const auto* initialMeshRotation = Internal::Find_ModuleData<InitialMeshRotationModuleData>(emitter, AuthoringModuleType::InitialMeshRotation))
     {
-        emitterDesc.rotation.enabled = true;
-        emitterDesc.rotation.initialRotationDegrees = Vec2{
-            Internal::Evaluate_FloatDistributionMin(initialRotation->rotationDegrees, emitterDesc.rotation.initialRotationDegrees.x),
-            Internal::Evaluate_FloatDistributionMax(initialRotation->rotationDegrees, emitterDesc.rotation.initialRotationDegrees.y)
+        emitterDesc.meshTransform.rotationEnabled = true;
+        const Vec3 meshMinRotation = Internal::Evaluate_Vector3DistributionMin(initialMeshRotation->rotationDegrees, Vec3{});
+        const Vec3 meshMaxRotation = Internal::Evaluate_Vector3DistributionMax(initialMeshRotation->rotationDegrees, Vec3{});
+        emitterDesc.meshTransform.initialRotationDegreesMin = Vec3{
+            min(meshMinRotation.x, meshMaxRotation.x),
+            min(meshMinRotation.y, meshMaxRotation.y),
+            min(meshMinRotation.z, meshMaxRotation.z)
+        };
+        emitterDesc.meshTransform.initialRotationDegreesMax = Vec3{
+            max(meshMinRotation.x, meshMaxRotation.x),
+            max(meshMinRotation.y, meshMaxRotation.y),
+            max(meshMinRotation.z, meshMaxRotation.z)
         };
     }
 
-    if (const auto* rotationOverLife = Internal::Find_ModuleData<RotationOverLifeModuleData>(emitter, AuthoringModuleType::RotationOverLife))
+    if (const auto* meshRotationOverLife = Internal::Find_ModuleData<MeshRotationOverLifeModuleData>(emitter, AuthoringModuleType::MeshRotationOverLife))
     {
-        emitterDesc.rotation.enabled = true;
-        Internal::Fill_RotationOverLifePayload(emitterDesc.rotation, *rotationOverLife);
+        emitterDesc.meshTransform.rotationEnabled = true;
+        Internal::Fill_MeshVector3CurvePayload(emitterDesc.meshTransform.rotationByLife, meshRotationOverLife->rotationOverLife, Vec3{});
     }
 
-    if (const auto* initialRotationRate = Internal::Find_ModuleData<InitialRotationRateModuleData>(emitter, AuthoringModuleType::InitialRotationRate))
+    if (const auto* initialMeshRotationRate = Internal::Find_ModuleData<InitialMeshRotationRateModuleData>(emitter, AuthoringModuleType::InitialMeshRotationRate))
     {
-        emitterDesc.rotation.enabled = true;
-        emitterDesc.rotation.initialRotationRateDegrees = Vec2{
-            Internal::Evaluate_FloatDistributionMin(initialRotationRate->rotationRateDegrees, emitterDesc.rotation.initialRotationRateDegrees.x),
-            Internal::Evaluate_FloatDistributionMax(initialRotationRate->rotationRateDegrees, emitterDesc.rotation.initialRotationRateDegrees.y)
+        emitterDesc.meshTransform.rotationEnabled = true;
+        const Vec3 meshMinRate = Internal::Evaluate_Vector3DistributionMin(initialMeshRotationRate->rotationRateDegrees, Vec3{});
+        const Vec3 meshMaxRate = Internal::Evaluate_Vector3DistributionMax(initialMeshRotationRate->rotationRateDegrees, Vec3{});
+        emitterDesc.meshTransform.initialAngularVelocityDegreesMin = Vec3{
+            min(meshMinRate.x, meshMaxRate.x),
+            min(meshMinRate.y, meshMaxRate.y),
+            min(meshMinRate.z, meshMaxRate.z)
+        };
+        emitterDesc.meshTransform.initialAngularVelocityDegreesMax = Vec3{
+            max(meshMinRate.x, meshMaxRate.x),
+            max(meshMinRate.y, meshMaxRate.y),
+            max(meshMinRate.z, meshMaxRate.z)
         };
     }
 
-    if (const auto* rotationRateScaleByLife = Internal::Find_ModuleData<RotationRateScaleByLifeModuleData>(
+    if (const auto* meshRotationRateScaleByLife = Internal::Find_ModuleData<MeshRotationRateScaleByLifeModuleData>(
         emitter,
-        AuthoringModuleType::RotationRateScaleByLife
+        AuthoringModuleType::MeshRotationRateScaleByLife
     ))
     {
-        emitterDesc.rotation.enabled = true;
-        Internal::Fill_RotationRateScaleByLifePayload(emitterDesc.rotation, *rotationRateScaleByLife);
+        emitterDesc.meshTransform.rotationEnabled = true;
+        Internal::Fill_MeshVector3CurvePayload(
+            emitterDesc.meshTransform.angularVelocityScaleByLife,
+            meshRotationRateScaleByLife->scaleOverLife,
+            Vec3{ 1.f, 1.f, 1.f }
+        );
     }
 
     definition.concreteDesc = emitterDesc;

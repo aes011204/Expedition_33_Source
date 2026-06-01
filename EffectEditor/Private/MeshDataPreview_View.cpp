@@ -7,7 +7,6 @@
 #include "GameInstance.h"
 #include "Helper_EffectAuthoring.h"
 #include "Helper_Math.h"
-#include "Material.h"
 #include "ModelCom.h"
 #include "RenderTarget.h"
 #include "ShaderCom.h"
@@ -18,7 +17,7 @@ NS_BEGIN(EffectEditor)
 namespace Internal
 {
     constexpr auto kWindowName = L"MeshData Preview";
-    constexpr auto kMeshShaderId = L"Shader_VtxMesh";
+    constexpr auto kMeshShaderId = L"Shader_EffectMeshPreview";
     constexpr auto kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
     constexpr auto kEffectModelPayloadType = "CONTENT_BROWSER_EFFECT_MODEL";
     constexpr auto kModelDialogDefaultFolder = L"Effects\\Models";
@@ -29,6 +28,9 @@ namespace Internal
     constexpr float kMeshPreviewHomePitchDegrees{ 30.f };
     constexpr float kMeshPreviewHomeTransitionSpeed{ 10.f };
     constexpr float kMeshPreviewOrbitSensor{ 0.105f };
+    constexpr int kOpacitySourceAlpha{ 0 };
+    constexpr int kOpacitySourceRed{ 1 };
+    constexpr int kOpacitySourceLuminance{ 2 };
 
     template <typename T>
     Shared<T> Clone_Component(uint32 levelIndex, const wstring& prototypeTag, void* arg = nullptr)
@@ -193,6 +195,17 @@ namespace Internal
         return !materialPath.empty() && EffectMaterialPresetReader::Read(materialPath, outMaterial);
     }
 
+    int Resolve_OpacitySourceIndex(const EffectMaterialInstanceData& material)
+    {
+        if (material.opacitySource == "Red" || material.opacitySource == "red")
+            return kOpacitySourceRed;
+
+        if (material.opacitySource == "Luminance" || material.opacitySource == "luminance")
+            return kOpacitySourceLuminance;
+
+        return kOpacitySourceAlpha;
+    }
+
     void Draw_CheckerRect(ImDrawList& drawList, const ImVec2& minPos, const ImVec2& maxPos)
     {
         constexpr float cellSize = 54.f;
@@ -292,10 +305,17 @@ struct MeshDataPreview_View::PreviewRenderer
     Shared<RenderTarget> renderTarget{};
     Shared<ModelCom> model{};
     Shared<ShaderCom> shader{};
+    Shared<Texture> mainTexture{};
+    Shared<Texture> noiseTexture{};
+    Shared<Texture> maskTexture{};
     string loadedModelKey{};
+    string loadedMainTextureKey{};
+    string loadedNoiseTextureKey{};
+    string loadedMaskTextureKey{};
     string statusMessage{};
     bool hasRendered{ false };
     EffectPreviewOrbitCameraState cameraState{};
+    float materialElapsedTime{};
     bool isViewportDragging{ false };
     bool hasPendingHome{ false };
 
@@ -329,7 +349,14 @@ struct MeshDataPreview_View::PreviewRenderer
         if (!Ready_RenderTarget() || !Ready_Shader() || !Ready_Model(modelPath))
             return;
 
-        if (!meshData.useModelMaterials && !Apply_EffectMaterialOverride(meshData))
+        EffectMaterialInstanceData effectMaterial{};
+        if (!Internal::Resolve_EffectiveMaterial(meshData, effectMaterial))
+        {
+            statusMessage = "Assigned effect material is missing.";
+            return;
+        }
+
+        if (!Ready_EffectMaterialTextures(effectMaterial))
             return;
 
         ShaderResourceView* nullSRVs[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = {};
@@ -341,7 +368,7 @@ struct MeshDataPreview_View::PreviewRenderer
             return;
         }
 
-        const HRESULT hr = Draw_Model(meshData.previewScale);
+        const HRESULT hr = Draw_Model(meshData.previewScale, effectMaterial);
         GAME->Bind_BackBuffer();
 
         if (FAILED(hr))
@@ -364,6 +391,7 @@ struct MeshDataPreview_View::PreviewRenderer
             innerSize.x = max(1.f, innerSize.x);
             innerSize.y = max(1.f, innerSize.y);
             Resize_RenderTarget(static_cast<uint32>(innerSize.x), static_cast<uint32>(innerSize.y));
+            materialElapsedTime += max(ImGui::GetIO().DeltaTime, 0.f);
             Render_Model(meshData, modelPath);
 
             const ImVec2 canvasMin = ImGui::GetCursorScreenPos();
@@ -429,7 +457,7 @@ struct MeshDataPreview_View::PreviewRenderer
         shader = Internal::Clone_Component<ShaderCom>(ETOI(LevelType::Static), Internal::kMeshShaderId);
         if (shader == nullptr)
         {
-            statusMessage = "Preview mesh shader is missing.";
+            statusMessage = "Shader_EffectMeshPreview prototype is missing.";
             return false;
         }
 
@@ -463,58 +491,180 @@ struct MeshDataPreview_View::PreviewRenderer
         return true;
     }
 
-    bool Apply_EffectMaterialOverride(const MeshTypeData& meshData)
+    bool Ready_Texture(
+        const string& textureGuid,
+        const string& texturePath,
+        bool required,
+        Shared<Texture>& outTexture,
+        string& loadedTextureKey,
+        const char* missingMessage)
     {
-        EffectMaterialInstanceData effectMaterial{};
-        if (!Internal::Resolve_EffectiveMaterial(meshData, effectMaterial))
+        if (textureGuid.empty() && texturePath.empty())
         {
-            statusMessage = "Assigned effect material is missing.";
+            outTexture.reset();
+            loadedTextureKey.clear();
+            if (required)
+                statusMessage = missingMessage;
+            return !required;
+        }
+
+        const fs::path texturePathResolved = Internal::Resolve_AssetPath(textureGuid, texturePath);
+        if (texturePathResolved.empty() || !fs::exists(texturePathResolved))
+        {
+            outTexture.reset();
+            loadedTextureKey.clear();
+            statusMessage = missingMessage;
+            return !required;
+        }
+
+        const string requestedKey = String::ToString(texturePathResolved.lexically_normal().wstring());
+        if (outTexture != nullptr && loadedTextureKey == requestedKey)
             return true;
-        }
 
-        const fs::path mainTexturePath = Internal::Resolve_AssetPath(effectMaterial.mainTextureGuid, effectMaterial.mainTexturePath);
-        if (mainTexturePath.empty() || !fs::exists(mainTexturePath))
+        outTexture = Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), texturePathResolved.wstring().c_str(), 1);
+        if (outTexture == nullptr)
         {
-            statusMessage = "Assigned effect material main texture is missing.";
-            return true;
+            loadedTextureKey.clear();
+            statusMessage = missingMessage;
+            return !required;
         }
 
-        const uint32 numMaterials = static_cast<uint32>(model->Get_NumMaterials());
-        if (numMaterials == 0)
-        {
-            statusMessage = "Model has no material slots to override.";
-            return true;
-        }
+        loadedTextureKey = requestedKey;
+        return true;
+    }
 
-        for (uint32 materialIndex = 0; materialIndex < numMaterials; ++materialIndex)
-        {
-            const Shared<Material> material = model->Get_Material(materialIndex);
-            if (material == nullptr)
-                continue;
+    bool Ready_EffectMaterialTextures(const EffectMaterialInstanceData& material)
+    {
+        if (!Ready_Texture(
+            material.mainTextureGuid,
+            material.mainTexturePath,
+            true,
+            mainTexture,
+            loadedMainTextureKey,
+            "Assigned effect material main texture is missing."
+        ))
+            return false;
 
-            if (FAILED(material->Override_TextureSlot(MaterialTextureSlot::BaseColor, 0u, mainTexturePath.wstring())))
-            {
-                statusMessage = "Assigned effect material texture binding failed.";
-                return false;
-            }
+        Ready_Texture(
+            material.noiseTextureGuid,
+            material.noiseTexturePath,
+            false,
+            noiseTexture,
+            loadedNoiseTextureKey,
+            "Noise texture missing. Preview continues without noise."
+        );
 
-            MaterialCB materialCB = material->Get_CB();
-            materialCB.baseColorTint = Vec4{
-                effectMaterial.tint.x * effectMaterial.intensity,
-                effectMaterial.tint.y * effectMaterial.intensity,
-                effectMaterial.tint.z * effectMaterial.intensity,
-                effectMaterial.tint.w
-            };
-            materialCB.uvScale = effectMaterial.mainUVScale;
-            materialCB.uvOffset = effectMaterial.mainUVOffset;
-            material->Set_CB(materialCB);
-            material->Set_ForcedPassIndex(effectMaterial.alphaCutoff > 0.f ? 3 : 0);
-        }
+        Ready_Texture(
+            material.maskTextureGuid,
+            material.maskTexturePath,
+            false,
+            maskTexture,
+            loadedMaskTextureKey,
+            "Mask texture missing. Preview continues without mask."
+        );
 
         return true;
     }
 
-    HRESULT Draw_Model(const Vec3& previewScale)
+    HRESULT Bind_EffectMaterialResources(const EffectMaterialInstanceData& material)
+    {
+        CHECK_NULL(shader, E_FAIL);
+        CHECK_NULL(mainTexture, E_FAIL);
+
+        CHECK_FAILED(mainTexture->Bind_ShaderResourceView(shader.get(), "g_Texture", 0), E_FAIL);
+
+        if (noiseTexture != nullptr)
+            CHECK_FAILED(noiseTexture->Bind_ShaderResourceView(shader.get(), "g_NoiseTexture", 0), E_FAIL);
+        else
+            CHECK_FAILED(shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
+
+        if (maskTexture != nullptr)
+            CHECK_FAILED(maskTexture->Bind_ShaderResourceView(shader.get(), "g_MaskTexture", 0), E_FAIL);
+        else
+            CHECK_FAILED(shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
+
+        CHECK_FAILED(shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
+
+        const Vec4 effectMeshParams = Vec4(
+            material.intensity,
+            material.opacityPower,
+            material.noiseStrength,
+            noiseTexture != nullptr ? 1.f : 0.f
+        );
+        const Vec4 effectMeshAlphaParams = Vec4(
+            clamp(material.alphaCutoff, 0.f, 1.f),
+            clamp(material.alphaErosion, 0.f, 1.f),
+            maskTexture != nullptr ? 1.f : 0.f,
+            0.f
+        );
+        const Vec4 effectMeshMainUVParams = Vec4(material.mainUVScale.x, material.mainUVScale.y, material.mainUVScrollSpeed.x, material.mainUVScrollSpeed.y);
+        const Vec4 effectMeshNoiseUVParams = Vec4(
+            material.noiseUVScale.x,
+            material.noiseUVScale.y,
+            material.noiseUVScrollSpeed.x,
+            material.noiseUVScrollSpeed.y
+        );
+        const Vec4 effectMeshMaskUVParams = Vec4(material.maskUVScale.x, material.maskUVScale.y, material.maskUVScrollSpeed.x, material.maskUVScrollSpeed.y);
+        const Vec4 effectMeshUVOffsetParams = Vec4(material.mainUVOffset.x, material.mainUVOffset.y, material.noiseUVOffset.x, material.noiseUVOffset.y);
+        const Vec4 effectMeshMaskUVOffsetParams = Vec4(material.maskUVOffset.x, material.maskUVOffset.y, 0.f, 0.f);
+        const Vec4 effectMeshUVModeParams = Vec4(
+            static_cast<float>(static_cast<uint32>(material.mainUVTilingMode)),
+            static_cast<float>(static_cast<uint32>(material.noiseUVTilingMode)),
+            static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
+            0.f
+        );
+        const EffectMaterialAdditiveContributionData& additive = material.additive;
+        const EffectMaterialCoreEmissiveData& coreEmissive = material.coreEmissive;
+        const Vec4 effectMeshAdditiveParams = Vec4(
+            static_cast<float>(static_cast<uint32>(additive.colorSource)),
+            static_cast<float>(static_cast<uint32>(additive.amountSource)),
+            static_cast<float>(static_cast<uint32>(additive.coveragePolicy)),
+            additive.intensityScale
+        );
+        const Vec4 effectMeshAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
+        const Vec4 effectMeshCoreEmissiveParams = Vec4(
+            coreEmissive.enabled ? 1.f : 0.f,
+            coreEmissive.corePower,
+            coreEmissive.coreIntensity,
+            coreEmissive.outerPower
+        );
+        const Vec4 effectMeshCoreEmissiveColor = Vec4(
+            coreEmissive.coreColor.x,
+            coreEmissive.coreColor.y,
+            coreEmissive.coreColor.z,
+            coreEmissive.outerIntensity
+        );
+        const int opacitySource = Internal::Resolve_OpacitySourceIndex(material);
+
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshParams", &effectMeshParams, sizeof(effectMeshParams)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAlphaParams", &effectMeshAlphaParams, sizeof(effectMeshAlphaParams)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMainUVParams", &effectMeshMainUVParams, sizeof(effectMeshMainUVParams)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshNoiseUVParams", &effectMeshNoiseUVParams, sizeof(effectMeshNoiseUVParams)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaskUVParams", &effectMeshMaskUVParams, sizeof(effectMeshMaskUVParams)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaterialTime", &materialElapsedTime, sizeof(materialElapsedTime)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)), E_FAIL);
+        return S_OK;
+    }
+
+    uint32 Resolve_ShaderPassIndex(const EffectMaterialInstanceData& material) const
+    {
+        const bool additive = material.blendMode == EffectMaterialBlendMode::Additive;
+        const bool twoSided = material.twoSided;
+        if (additive)
+            return twoSided ? 3u : 1u;
+        return twoSided ? 2u : 0u;
+    }
+
+    HRESULT Draw_Model(const Vec3& previewScale, const EffectMaterialInstanceData& material)
     {
         CHECK_NULL(shader, E_FAIL);
         CHECK_NULL(model, E_FAIL);
@@ -543,23 +693,12 @@ struct MeshDataPreview_View::PreviewRenderer
 
         CHECK_FAILED(shader->Bind_ObjectCB(world), E_FAIL);
         CHECK_FAILED(shader->Bind_CBufferData(cameraCB), E_FAIL);
+        CHECK_FAILED(Bind_EffectMaterialResources(material), E_FAIL);
 
+        const uint32 passIndex = Resolve_ShaderPassIndex(material);
         const uint32 numMeshes = static_cast<uint32>(model->Get_NumMeshes());
         for (uint32 meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
         {
-            const uint32 materialIndex = model->Get_MeshMaterialIndex(meshIndex);
-            const Shared<Material> material = model->Get_Material(materialIndex);
-            uint32 passIndex = 2u;
-
-            if (material != nullptr)
-            {
-                if (FAILED(shader->Bind_MaterialTextures(*material)))
-                    continue;
-
-                CHECK_FAILED(shader->Bind_CBufferData(material->Get_CB()), E_FAIL);
-                passIndex = static_cast<uint32>(material->Get_PassIndex());
-            }
-
             CHECK_FAILED(shader->Begin(passIndex), E_FAIL);
             CHECK_FAILED(model->Render(meshIndex), E_FAIL);
         }

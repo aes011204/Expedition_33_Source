@@ -1018,8 +1018,6 @@ HRESULT Renderer::Bind_ScreenSpaceCB(Shared<ShaderCom> shader, uint32 width, uin
     CHECK_NULL(shader, E_FAIL);
 
     Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    if (activeCamera == nullptr)
-        return E_FAIL;
 
     ScreenSpaceCB screenSpaceCB{};
     screenSpaceCB.screenViewMatrix = _PipelineViewMatrix;
@@ -1029,7 +1027,7 @@ HRESULT Renderer::Bind_ScreenSpaceCB(Shared<ShaderCom> shader, uint32 width, uin
     screenSpaceCB.projInverseMatrix = *GAME->Get_Transform_Inverse(D3DTS::Proj);
 
     screenSpaceCB.cameraPosition = *GAME->Get_CamPosition();
-    screenSpaceCB.farPlane = activeCamera->Get_Far();
+    screenSpaceCB.farPlane = activeCamera != nullptr ? activeCamera->Get_Far() : 500.f;
 
     const uint32 resolvedWidth = max(1u, (width == 0u) ? _screenSize.width : width);
     const uint32 resolvedHeight = max(1u, (height == 0u) ? _screenSize.height : height);

@@ -1,29 +1,15 @@
 ﻿#include "MeshEmitter.h"
 
 #include "GameInstance.h"
-#include "Material.h"
 #include "ModelCom.h"
 #include "Renderer_Define.h"
 #include "ShaderCom.h"
+#include "Texture.h"
 
 #include <chrono>
 
-namespace
+namespace Internal
 {
-constexpr D3D11_INPUT_ELEMENT_DESC kEffectMeshInputElements[] = {
-    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    { "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    { "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    { "INST_WORLD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-    { "INST_WORLD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-    { "INST_WORLD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-    { "INST_WORLD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-    { "INST_COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-    { "INST_LIFE", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 80, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
-};
-
 float Read_Vec4Component(const Vec4& values, uint32 index)
 {
     switch (index)
@@ -114,7 +100,7 @@ void MeshEmitter::Late_Update(float)
     if (!Can_SubmitRender())
         return;
 
-    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    GAME->Add_RenderGroup(Resolve_RenderGroup(), GetSharedPtr<GameObject>());
 }
 
 HRESULT MeshEmitter::Render()
@@ -145,55 +131,12 @@ HRESULT MeshEmitter::Render()
         return E_FAIL;
     }
 
+    CHECK_FAILED(Bind_EffectMaterialResources(), E_FAIL);
+    const uint32 passIndex = Resolve_ShaderPassIndex();
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
     for (uint32 meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
     {
         const uint32 materialIndex = _model->Get_MeshMaterialIndex(meshIndex);
-        const Shared<Material> material = _model->Get_Material(materialIndex);
-        uint32 passIndex = 2u;
-
-        if (nullptr != material)
-        {
-            if (FAILED(_shader->Bind_MaterialTextures(*material)))
-            {
-                LOG_WARN_ONCE(
-                    "MeshEmitter material binding skip: texture binding failed. emitter='{}', meshIndex={}, materialIndex={}, modelGuid='{}', modelPath='{}'",
-                    _emitterName,
-                    meshIndex,
-                    materialIndex,
-                    _desc.modelGuid,
-                    _desc.modelPath
-                );
-                continue;
-            }
-
-            if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
-            {
-                LOG_WARN_ONCE(
-                    "MeshEmitter render failed: material constant binding failed. emitter='{}', meshIndex={}, materialIndex={}, modelGuid='{}', modelPath='{}'",
-                    _emitterName,
-                    meshIndex,
-                    materialIndex,
-                    _desc.modelGuid,
-                    _desc.modelPath
-                );
-                return E_FAIL;
-            }
-
-            passIndex = static_cast<uint32>(material->Get_PassIndex());
-        }
-        else
-        {
-            LOG_WARN_ONCE(
-                "MeshEmitter material binding skip: mesh material is missing. emitter='{}', meshIndex={}, materialIndex={}, numMaterials={}, modelGuid='{}', modelPath='{}'",
-                _emitterName,
-                meshIndex,
-                materialIndex,
-                static_cast<uint32>(_model->Get_NumMaterials()),
-                _desc.modelGuid,
-                _desc.modelPath
-            );
-        }
 
         if (FAILED(_shader->Begin(passIndex)))
         {
@@ -283,7 +226,7 @@ void MeshEmitter::On_EffectTransformSynced()
 void MeshEmitter::Log_DescPayload(const char* context) const
 {
     LOG_INFO(
-        "MeshEmitter desc payload. context={}, emitter='{}', spawnCount={}, spawnRate={}, bursts={}, life=({}, {}), initialSize={}, sizeByLife={}, motion={}, acceleration={}, drag=({}, {}), velocityScale=({}, {}), rotation={}, colorCurve={}, alphaCurve={}",
+        "MeshEmitter desc payload. context={}, emitter='{}', spawnCount={}, spawnRate={}, bursts={}, life=({}, {}), meshInitialScale={}, meshScaleByLife={}, motion={}, acceleration={}, drag=({}, {}), velocityScale=({}, {}), meshRotation={}, meshRotationMin=({}, {}, {}), meshRotationMax=({}, {}, {}), colorCurve={}, alphaCurve={}",
         context,
         _emitterName,
         _desc.spawn.instanceCount,
@@ -291,15 +234,22 @@ void MeshEmitter::Log_DescPayload(const char* context) const
         static_cast<uint32>(_desc.spawn.particleSpawn.bursts.size()),
         _desc.lifetime.lifeTime.x,
         _desc.lifetime.lifeTime.y,
-        _desc.initialSize.enabled,
-        _desc.sizeByLife.enabled,
+        _desc.meshTransform.initialScaleEnabled,
+        _desc.meshTransform.scaleByLife.enabled,
         _desc.motion.enabled,
-        Has_NonZeroVector(_desc.motion.accelerationMin) || Has_NonZeroVector(_desc.motion.accelerationMax),
+        Internal::Has_NonZeroVector(_desc.motion.accelerationMin) ||
+        Internal::Has_NonZeroVector(_desc.motion.accelerationMax),
         _desc.motion.drag.x,
         _desc.motion.drag.y,
         _desc.motion.velocityScaleByLife.x,
         _desc.motion.velocityScaleByLife.y,
-        _desc.rotation.enabled,
+        _desc.meshTransform.rotationEnabled,
+        _desc.meshTransform.initialRotationDegreesMin.x,
+        _desc.meshTransform.initialRotationDegreesMin.y,
+        _desc.meshTransform.initialRotationDegreesMin.z,
+        _desc.meshTransform.initialRotationDegreesMax.x,
+        _desc.meshTransform.initialRotationDegreesMax.y,
+        _desc.meshTransform.initialRotationDegreesMax.z,
         _desc.colorOverLife.curve.colorCurveEnabled,
         _desc.colorOverLife.curve.alphaCurveEnabled
     );
@@ -345,14 +295,19 @@ bool MeshEmitter::Is_CompatibleReloadDesc(const MeshEmitterDesc& desc) const
 
 bool MeshEmitter::Has_MaterialOverride(const MeshEmitterDesc& desc) const
 {
-    return !desc.material.mainTextureGuid.empty() || !desc.material.mainTexturePath.empty();
+    return
+        !desc.material.mainTextureGuid.empty() ||
+        !desc.material.mainTexturePath.empty() ||
+        !desc.material.noiseTextureGuid.empty() ||
+        !desc.material.noiseTexturePath.empty() ||
+        !desc.material.maskTextureGuid.empty() ||
+        !desc.material.maskTexturePath.empty();
 }
 
 HRESULT MeshEmitter::Apply_DescForReload(const MeshEmitterDesc& desc)
 {
     const auto totalBegin = std::chrono::steady_clock::now();
     _desc = desc;
-    Log_DescPayload("reload");
     Reset_PlaybackRuntime();
 
     const auto materialBegin = std::chrono::steady_clock::now();
@@ -382,9 +337,9 @@ HRESULT MeshEmitter::Apply_DescForReload(const MeshEmitterDesc& desc)
         0.0,
         0.0,
         0.0,
-        Elapsed_Milliseconds(materialBegin, materialEnd),
-        Elapsed_Milliseconds(bufferBegin, bufferEnd),
-        Elapsed_Milliseconds(totalBegin, totalEnd)
+        Internal::Elapsed_Milliseconds(materialBegin, materialEnd),
+        Internal::Elapsed_Milliseconds(bufferBegin, bufferEnd),
+        Internal::Elapsed_Milliseconds(totalBegin, totalEnd)
     );
     return _isReady ? S_OK : E_FAIL;
 }
@@ -443,43 +398,25 @@ HRESULT MeshEmitter::Ready_Components()
 
     Log_InitializeTiming(
         "initialize",
-        Elapsed_Milliseconds(shaderBegin, shaderEnd),
-        Elapsed_Milliseconds(resolveModelBegin, resolveModelEnd),
-        Elapsed_Milliseconds(modelBegin, modelEnd),
-        Elapsed_Milliseconds(materialBegin, materialEnd),
-        Elapsed_Milliseconds(bufferBegin, bufferEnd),
-        Elapsed_Milliseconds(totalBegin, totalEnd)
+        Internal::Elapsed_Milliseconds(shaderBegin, shaderEnd),
+        Internal::Elapsed_Milliseconds(resolveModelBegin, resolveModelEnd),
+        Internal::Elapsed_Milliseconds(modelBegin, modelEnd),
+        Internal::Elapsed_Milliseconds(materialBegin, materialEnd),
+        Internal::Elapsed_Milliseconds(bufferBegin, bufferEnd),
+        Internal::Elapsed_Milliseconds(totalBegin, totalEnd)
     );
     return S_OK;
 }
 
 HRESULT MeshEmitter::Ready_Shader()
 {
-    const wstring shaderPath = Resolve_ShaderPath();
-    if (shaderPath.empty())
-    {
-        LOG_WARN(
-            "MeshEmitter shader missing: effect mesh shader path could not be resolved. emitter='{}', shader='{}'",
-            _emitterName,
-            kMeshShaderPath
-        );
-        return E_FAIL;
-    }
-
-    _shader = ShaderCom::Create(
-        _device,
-        _context,
-        shaderPath.c_str(),
-        kEffectMeshInputElements,
-        static_cast<uint32>(_countof(kEffectMeshInputElements)),
-        ShaderType::VtxInstanceMeshExact
-    );
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), String::ToWString(kEffectMeshShaderId), _shader), E_FAIL);
     if (_shader == nullptr)
     {
         LOG_WARN(
-            "MeshEmitter shader missing: effect mesh shader create failed. emitter='{}', shaderPath='{}'",
+            "MeshEmitter shader missing: effect mesh shader prototype is missing. emitter='{}', shaderId='{}'",
             _emitterName,
-            String::ToString(shaderPath)
+            kEffectMeshShaderId
         );
         return E_FAIL;
     }
@@ -489,62 +426,148 @@ HRESULT MeshEmitter::Ready_Shader()
 
 HRESULT MeshEmitter::Apply_EffectMaterialOverride()
 {
-    if (_model == nullptr)
-        return E_FAIL;
+    return Ready_EffectMaterialTextures();
+}
 
-    const wstring mainTexturePath = Resolve_MaterialTexturePath(_desc.material.mainTextureGuid, _desc.material.mainTexturePath);
+HRESULT MeshEmitter::Ready_EffectMaterialTextures()
+{
+    wstring mainTexturePath = Resolve_MaterialTexturePath(_desc.material.mainTextureGuid, _desc.material.mainTexturePath);
     if (mainTexturePath.empty())
     {
         LOG_WARN_ONCE(
-            "MeshEmitter assigned effect material has no resolvable main texture. emitter='{}', materialMainGuid='{}', materialMainPath='{}'",
+            "MeshEmitter assigned effect material has no resolvable main texture. emitter='{}', materialMainGuid='{}', materialMainPath='{}'. fallback='{}'",
             _emitterName,
             _desc.material.mainTextureGuid,
-            _desc.material.mainTexturePath
+            _desc.material.mainTexturePath,
+            kFallbackTexturePath
         );
-        return S_OK;
+        mainTexturePath = Resolve_MaterialTexturePath({}, kFallbackTexturePath);
     }
 
-    const uint32 numMaterials = static_cast<uint32>(_model->Get_NumMaterials());
-    if (numMaterials == 0)
+    if (mainTexturePath.empty())
+        return E_FAIL;
+
+    _texture = Texture::Create(_device, _context, mainTexturePath.c_str(), 1);
+    CHECK_NULL(_texture, E_FAIL);
+
+    CHECK_FAILED(Ready_OptionalTexture(_desc.material.noiseTextureGuid, _desc.material.noiseTexturePath, _noiseTexture), E_FAIL);
+    CHECK_FAILED(Ready_OptionalTexture(_desc.material.maskTextureGuid, _desc.material.maskTexturePath, _maskTexture), E_FAIL);
+    _opacitySourceIndex = Resolve_OpacitySourceIndex();
+    return S_OK;
+}
+
+HRESULT MeshEmitter::Ready_OptionalTexture(const string& textureGuid, const string& texturePath, Shared<Texture>& outTexture)
+{
+    outTexture.reset();
+    if (textureGuid.empty() && texturePath.empty())
+        return S_OK;
+
+    const wstring resolvedPath = Resolve_MaterialTexturePath(textureGuid, texturePath);
+    if (resolvedPath.empty())
     {
         LOG_WARN_ONCE(
-            "MeshEmitter assigned effect material override skipped: model has no material slots. emitter='{}', modelGuid='{}', modelPath='{}'",
+            "MeshEmitter optional effect material texture missing. emitter='{}', textureGuid='{}', texturePath='{}'",
             _emitterName,
-            _desc.modelGuid,
-            _desc.modelPath
+            textureGuid,
+            texturePath
         );
         return S_OK;
     }
 
-    for (uint32 materialIndex = 0; materialIndex < numMaterials; ++materialIndex)
+    outTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
+    if (outTexture == nullptr)
     {
-        const Shared<Material> material = _model->Get_Material(materialIndex);
-        if (material == nullptr)
-            continue;
-
-        CHECK_FAILED(material->Override_TextureSlot(MaterialTextureSlot::BaseColor, 0u, mainTexturePath), E_FAIL);
-
-        MaterialCB materialCB = material->Get_CB();
-        materialCB.baseColorTint = Vec4{
-            _desc.material.tint.x * _desc.material.intensity,
-            _desc.material.tint.y * _desc.material.intensity,
-            _desc.material.tint.z * _desc.material.intensity,
-            _desc.material.tint.w
-        };
-        materialCB.uvScale = _desc.material.mainUVScale;
-        materialCB.uvOffset = _desc.material.mainUVOffset;
-        material->Set_CB(materialCB);
-
-        const bool useMaskedPass = _desc.material.alphaCutoff > 0.f;
-        material->Set_ForcedPassIndex(useMaskedPass ? 3 : 0);
+        LOG_WARN_ONCE(
+            "MeshEmitter optional effect material texture create failed. emitter='{}', textureGuid='{}', texturePath='{}', resolvedPath='{}'",
+            _emitterName,
+            textureGuid,
+            texturePath,
+            String::ToString(resolvedPath)
+        );
     }
+    return S_OK;
+}
 
-    LOG_INFO_ONCE(
-        "MeshEmitter assigned effect material override applied. emitter='{}', materialMainPath='{}', materialCount={}",
-        _emitterName,
-        String::ToString(mainTexturePath),
-        numMaterials
+HRESULT MeshEmitter::Bind_EffectMaterialResources()
+{
+    const EffectRequiredMaterialRuntimeDesc& material = _desc.material;
+
+    CHECK_NULL(_texture, E_FAIL);
+    CHECK_FAILED_ONCE(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
+
+    if (_noiseTexture != nullptr)
+        CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
+    else
+        CHECK_FAILED_ONCE(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
+
+    if (_maskTexture != nullptr)
+        CHECK_FAILED_ONCE(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
+    else
+        CHECK_FAILED_ONCE(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
+
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
+
+    const Vec4 effectMeshParams = Vec4(
+        material.intensity,
+        material.opacityPower,
+        material.noiseStrength,
+        _noiseTexture != nullptr ? 1.f : 0.f
     );
+    const Vec4 effectMeshAlphaParams = Vec4(
+        clamp(material.alphaCutoff, 0.f, 1.f),
+        clamp(material.alphaErosion, 0.f, 1.f),
+        _maskTexture != nullptr ? 1.f : 0.f,
+        0.f
+    );
+    const Vec4 effectMeshMainUVParams = Vec4(material.mainUVScale.x, material.mainUVScale.y, material.mainUVScrollSpeed.x, material.mainUVScrollSpeed.y);
+    const Vec4 effectMeshNoiseUVParams = Vec4(material.noiseUVScale.x, material.noiseUVScale.y, material.noiseUVScrollSpeed.x, material.noiseUVScrollSpeed.y);
+    const Vec4 effectMeshMaskUVParams = Vec4(material.maskUVScale.x, material.maskUVScale.y, material.maskUVScrollSpeed.x, material.maskUVScrollSpeed.y);
+    const Vec4 effectMeshUVOffsetParams = Vec4(material.mainUVOffset.x, material.mainUVOffset.y, material.noiseUVOffset.x, material.noiseUVOffset.y);
+    const Vec4 effectMeshMaskUVOffsetParams = Vec4(material.maskUVOffset.x, material.maskUVOffset.y, 0.f, 0.f);
+    const Vec4 effectMeshUVModeParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVTilingMode)),
+        static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
+        0.f
+    );
+    const EffectMaterialAdditiveContributionData& additive = material.additive;
+    const EffectMaterialCoreEmissiveData& coreEmissive = material.coreEmissive;
+    const Vec4 effectMeshAdditiveParams = Vec4(
+        static_cast<float>(static_cast<uint32>(additive.colorSource)),
+        static_cast<float>(static_cast<uint32>(additive.amountSource)),
+        static_cast<float>(static_cast<uint32>(additive.coveragePolicy)),
+        additive.intensityScale
+    );
+    const Vec4 effectMeshAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
+    const Vec4 effectMeshCoreEmissiveParams = Vec4(
+        coreEmissive.enabled ? 1.f : 0.f,
+        coreEmissive.corePower,
+        coreEmissive.coreIntensity,
+        coreEmissive.outerPower
+    );
+    const Vec4 effectMeshCoreEmissiveColor = Vec4(
+        coreEmissive.coreColor.x,
+        coreEmissive.coreColor.y,
+        coreEmissive.coreColor.z,
+        coreEmissive.outerIntensity
+    );
+
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshParams", &effectMeshParams, sizeof(effectMeshParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshAlphaParams", &effectMeshAlphaParams, sizeof(effectMeshAlphaParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshMainUVParams", &effectMeshMainUVParams, sizeof(effectMeshMainUVParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshNoiseUVParams", &effectMeshNoiseUVParams, sizeof(effectMeshNoiseUVParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshMaskUVParams", &effectMeshMaskUVParams, sizeof(effectMeshMaskUVParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshAdditiveFlags", &effectMeshAdditiveFlags, sizeof(effectMeshAdditiveFlags)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveParams", &effectMeshCoreEmissiveParams, sizeof(effectMeshCoreEmissiveParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectMeshCoreEmissiveColor", &effectMeshCoreEmissiveColor, sizeof(effectMeshCoreEmissiveColor)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), E_FAIL);
     return S_OK;
 }
 
@@ -825,20 +848,8 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed)
     particle.acceleration = Sample_Acceleration(seed + 29u);
     particle.drag = Sample_Drag(seed + 31u);
     particle.baseScale = _desc.previewScale * Sample_InitialScale(seed + 37u);
-    particle.rollRadians = XMConvertToRadians(
-        RandomRange(
-            min(_desc.rotation.initialRotationDegrees.x, _desc.rotation.initialRotationDegrees.y),
-            max(_desc.rotation.initialRotationDegrees.x, _desc.rotation.initialRotationDegrees.y),
-            seed + 41u
-        )
-    );
-    particle.rollRateRadians = XMConvertToRadians(
-        RandomRange(
-            min(_desc.rotation.initialRotationRateDegrees.x, _desc.rotation.initialRotationRateDegrees.y),
-            max(_desc.rotation.initialRotationRateDegrees.x, _desc.rotation.initialRotationRateDegrees.y),
-            seed + 43u
-        )
-    );
+    particle.rotationRadians = Sample_InitialRotation(seed + 41u);
+    particle.angularVelocityRadians = Sample_InitialAngularVelocity(seed + 43u);
     particle.startColor = Sample_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax, seed + 47u);
     particle.endColor = Sample_Color(_desc.colorOverLife.endColorMin, _desc.colorOverLife.endColorMax, seed + 53u);
     particle.seed = seed;
@@ -869,8 +880,12 @@ void MeshEmitter::Update_Particles(float timeDelta)
 
         particle.position += particle.velocity * velocityScale * safeDeltaTime;
 
-        const float rotationRateScale = Evaluate_RotationRateScaleByLife(lifeProgress);
-        particle.rollRadians += particle.rollRateRadians * rotationRateScale * safeDeltaTime;
+        const Vec3 angularVelocityScale = Evaluate_AngularVelocityScaleByLife(lifeProgress);
+        particle.rotationRadians += Vec3{
+            particle.angularVelocityRadians.x * angularVelocityScale.x,
+            particle.angularVelocityRadians.y * angularVelocityScale.y,
+            particle.angularVelocityRadians.z * angularVelocityScale.z
+        } * safeDeltaTime;
     }
 }
 
@@ -922,44 +937,30 @@ wstring MeshEmitter::Resolve_MaterialTexturePath(const string& textureGuid, cons
     return fs::exists(resolvedPath) ? resolvedPath.wstring() : wstring{};
 }
 
-wstring MeshEmitter::Resolve_ShaderPath() const
-{
-    const fs::path configuredPath = String::ToWString(kMeshShaderPath);
-    vector<fs::path> candidates{};
-    candidates.push_back(configuredPath);
-
-    if (configuredPath.is_relative())
-    {
-        candidates.push_back(fs::current_path() / configuredPath);
-        candidates.push_back(fs::current_path() / L"Client/Bin/ShaderFiles/Shader_EffectMesh.hlsl");
-        candidates.push_back(fs::current_path() / L"../Client/Bin/ShaderFiles/Shader_EffectMesh.hlsl");
-        if (GAME != nullptr)
-            candidates.push_back(fs::path(GAME->Get_AssetRoot()).parent_path().parent_path() / L"Bin/ShaderFiles/Shader_EffectMesh.hlsl");
-    }
-
-    for (const fs::path& candidate : candidates)
-    {
-        const fs::path normalized = candidate.lexically_normal();
-        if (fs::exists(normalized))
-            return normalized.wstring();
-    }
-
-    return {};
-}
-
 Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) const
 {
     const float lifeProgress = clamp(particle.age / max(0.0001f, particle.lifeMax), 0.f, 1.f);
-    const float sizeByLife = Evaluate_SizeByLife(lifeProgress);
+    const Vec3 sizeByLife = Evaluate_ScaleByLife(lifeProgress);
     const Vec3 scale{
-        max(0.0001f, particle.baseScale.x * sizeByLife),
-        max(0.0001f, particle.baseScale.y * sizeByLife),
-        max(0.0001f, particle.baseScale.z * sizeByLife)
+        max(0.0001f, particle.baseScale.x * sizeByLife.x),
+        max(0.0001f, particle.baseScale.y * sizeByLife.y),
+        max(0.0001f, particle.baseScale.z * sizeByLife.z)
     };
     const Vec3 position = particle.position;
-    const float rollRadians = particle.rollRadians + XMConvertToRadians(Evaluate_RotationOverLife(lifeProgress));
+    const Vec3 rotationByLife = Evaluate_RotationByLife(lifeProgress);
+    const Vec3 rotationRadians{
+        particle.rotationRadians.x + XMConvertToRadians(rotationByLife.x),
+        particle.rotationRadians.y + XMConvertToRadians(rotationByLife.y),
+        particle.rotationRadians.z + XMConvertToRadians(rotationByLife.z)
+    };
 
-    return Matrix::CreateScale(scale) * Matrix::CreateRotationZ(rollRadians) * Matrix::CreateTranslation(position);
+    Quat rotation = Quat::CreateFromYawPitchRoll(rotationRadians.y, rotationRadians.x, rotationRadians.z);
+    rotation.Normalize();
+
+    return
+        Matrix::CreateScale(scale) *
+        Matrix::CreateFromQuaternion(rotation) *
+        Matrix::CreateTranslation(position);
 }
 
 Vec3 MeshEmitter::Sample_InitialOffset(uint32 seed) const
@@ -1060,14 +1061,46 @@ Vec4 MeshEmitter::Sample_Color(const Vec4& minColor, const Vec4& maxColor, uint3
     };
 }
 
-float MeshEmitter::Sample_InitialScale(uint32 seed) const
+Vec3 MeshEmitter::Sample_InitialScale(uint32 seed) const
 {
-    if (!_desc.initialSize.enabled)
-        return 1.f;
+    if (!_desc.meshTransform.initialScaleEnabled)
+        return Vec3{ 1.f, 1.f, 1.f };
 
-    const float minScale = min(_desc.initialSize.sizeMin.x, _desc.initialSize.sizeMax.x);
-    const float maxScale = max(_desc.initialSize.sizeMin.x, _desc.initialSize.sizeMax.x);
-    return max(0.0001f, RandomRange(minScale, maxScale, seed));
+    return Vec3{
+        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.x, _desc.meshTransform.initialScaleMax.x, seed + 1u)),
+        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.y, _desc.meshTransform.initialScaleMax.y, seed + 2u)),
+        max(0.0001f, RandomRange(_desc.meshTransform.initialScaleMin.z, _desc.meshTransform.initialScaleMax.z, seed + 3u))
+    };
+}
+
+Vec3 MeshEmitter::Sample_InitialRotation(uint32 seed) const
+{
+    if (!_desc.meshTransform.rotationEnabled)
+        return Vec3{};
+
+    return Vec3{
+        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.x, _desc.meshTransform.initialRotationDegreesMax.x, seed + 1u)),
+        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.y, _desc.meshTransform.initialRotationDegreesMax.y, seed + 2u)),
+        XMConvertToRadians(RandomRange(_desc.meshTransform.initialRotationDegreesMin.z, _desc.meshTransform.initialRotationDegreesMax.z, seed + 3u))
+    };
+}
+
+Vec3 MeshEmitter::Sample_InitialAngularVelocity(uint32 seed) const
+{
+    if (!_desc.meshTransform.rotationEnabled)
+        return Vec3{};
+
+    return Vec3{
+        XMConvertToRadians(
+            RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.x, _desc.meshTransform.initialAngularVelocityDegreesMax.x, seed + 1u)
+        ),
+        XMConvertToRadians(
+            RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.y, _desc.meshTransform.initialAngularVelocityDegreesMax.y, seed + 2u)
+        ),
+        XMConvertToRadians(
+            RandomRange(_desc.meshTransform.initialAngularVelocityDegreesMin.z, _desc.meshTransform.initialAngularVelocityDegreesMax.z, seed + 3u)
+        )
+    };
 }
 
 float MeshEmitter::Evaluate_VelocityScaleByLife(float lifeProgress) const
@@ -1075,99 +1108,19 @@ float MeshEmitter::Evaluate_VelocityScaleByLife(float lifeProgress) const
     return max(0.f, lerp(_desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, lifeProgress));
 }
 
-float MeshEmitter::Evaluate_SizeByLife(float lifeProgress) const
+Vec3 MeshEmitter::Evaluate_ScaleByLife(float lifeProgress) const
 {
-    if (!_desc.sizeByLife.enabled)
-        return 1.f;
-
-    const uint32 keyCount = max(1u, min(4u, _desc.sizeByLife.curveKeyCount));
-    Vec2 multiplier{
-        _desc.sizeByLife.multiplyXStart,
-        _desc.sizeByLife.multiplyYStart
-    };
-
-    if (keyCount == 1u || lifeProgress <= Read_Vec4Component(_desc.sizeByLife.curveKeyTimes, 0u))
-    {
-        multiplier = Vec2{
-            Read_Vec4Component(_desc.sizeByLife.curveKeyValuesX, 0u),
-            Read_Vec4Component(_desc.sizeByLife.curveKeyValuesY, 0u)
-        };
-    }
-    else
-    {
-        bool found = false;
-        for (uint32 index = 1u; index < keyCount; ++index)
-        {
-            const float rightTime = Read_Vec4Component(_desc.sizeByLife.curveKeyTimes, index);
-            if (lifeProgress > rightTime)
-                continue;
-
-            const float leftTime = Read_Vec4Component(_desc.sizeByLife.curveKeyTimes, index - 1u);
-            const float ratio = clamp((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime), 0.f, 1.f);
-            multiplier = Vec2{
-                lerp(
-                    Read_Vec4Component(_desc.sizeByLife.curveKeyValuesX, index - 1u),
-                    Read_Vec4Component(_desc.sizeByLife.curveKeyValuesX, index),
-                    ratio
-                ),
-                lerp(
-                    Read_Vec4Component(_desc.sizeByLife.curveKeyValuesY, index - 1u),
-                    Read_Vec4Component(_desc.sizeByLife.curveKeyValuesY, index),
-                    ratio
-                )
-            };
-            found = true;
-            break;
-        }
-
-        if (!found)
-        {
-            multiplier = Vec2{
-                Read_Vec4Component(_desc.sizeByLife.curveKeyValuesX, keyCount - 1u),
-                Read_Vec4Component(_desc.sizeByLife.curveKeyValuesY, keyCount - 1u)
-            };
-        }
-    }
-
-    if (_desc.sizeByLife.axisLock == PointParticleSizeByLifeAxisLock::X)
-        multiplier.y = multiplier.x;
-    else if (_desc.sizeByLife.axisLock == PointParticleSizeByLifeAxisLock::Y)
-        multiplier.x = multiplier.y;
-
-    if (!_desc.sizeByLife.multiplyX)
-        multiplier.x = 1.f;
-    if (!_desc.sizeByLife.multiplyY)
-        multiplier.y = 1.f;
-
-    return max(0.0001f, (multiplier.x + multiplier.y) * 0.5f);
+    return Evaluate_MeshVector3Curve(_desc.meshTransform.scaleByLife, lifeProgress, Vec3{ 1.f, 1.f, 1.f });
 }
 
-float MeshEmitter::Evaluate_RotationOverLife(float lifeProgress) const
+Vec3 MeshEmitter::Evaluate_RotationByLife(float lifeProgress) const
 {
-    if (!_desc.rotation.enabled)
-        return 0.f;
-
-    return Evaluate_CompactCurve(
-        lifeProgress,
-        _desc.rotation.rotationOverLifeCurveTimes,
-        _desc.rotation.rotationOverLifeCurveValues,
-        _desc.rotation.rotationOverLifeCurveKeyCount,
-        lerp(_desc.rotation.rotationOverLifeDegrees.x, _desc.rotation.rotationOverLifeDegrees.y, lifeProgress)
-    );
+    return Evaluate_MeshVector3Curve(_desc.meshTransform.rotationByLife, lifeProgress, Vec3{});
 }
 
-float MeshEmitter::Evaluate_RotationRateScaleByLife(float lifeProgress) const
+Vec3 MeshEmitter::Evaluate_AngularVelocityScaleByLife(float lifeProgress) const
 {
-    if (!_desc.rotation.enabled)
-        return 1.f;
-
-    return Evaluate_CompactCurve(
-        lifeProgress,
-        _desc.rotation.rotationRateScaleByLifeCurveTimes,
-        _desc.rotation.rotationRateScaleByLifeCurveValues,
-        _desc.rotation.rotationRateScaleByLifeCurveKeyCount,
-        lerp(_desc.rotation.rotationRateScaleByLife.x, _desc.rotation.rotationRateScaleByLife.y, lifeProgress)
-    );
+    return Evaluate_MeshVector3Curve(_desc.meshTransform.angularVelocityScaleByLife, lifeProgress, Vec3{ 1.f, 1.f, 1.f });
 }
 
 Vec4 MeshEmitter::Evaluate_ColorOverLife(const MeshParticleState& particle, float lifeProgress) const
@@ -1185,22 +1138,22 @@ Vec4 MeshEmitter::Evaluate_ColorOverLife(const MeshParticleState& particle, floa
         const uint32 keyCount = max(1u, min(4u, curve.colorCurveKeyCount));
         auto evaluate_curve = [lifeProgress, keyCount](const Vec4& times, const Vec4& values, float fallbackValue)
         {
-            if (keyCount == 1u || lifeProgress <= Read_Vec4Component(times, 0u))
-                return Read_Vec4Component(values, 0u);
+            if (keyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, 0u))
+                return Internal::Read_Vec4Component(values, 0u);
 
             for (uint32 index = 1u; index < keyCount; ++index)
             {
-                const float rightTime = Read_Vec4Component(times, index);
+                const float rightTime = Internal::Read_Vec4Component(times, index);
                 if (lifeProgress > rightTime)
                     continue;
 
-                const float leftTime = Read_Vec4Component(times, index - 1u);
+                const float leftTime = Internal::Read_Vec4Component(times, index - 1u);
                 const float ratio = clamp((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime), 0.f, 1.f);
-                return lerp(Read_Vec4Component(values, index - 1u), Read_Vec4Component(values, index), ratio);
+                return lerp(Internal::Read_Vec4Component(values, index - 1u), Internal::Read_Vec4Component(values, index), ratio);
             }
 
-            return lifeProgress > Read_Vec4Component(times, keyCount - 1u)
-                   ? Read_Vec4Component(values, keyCount - 1u)
+            return lifeProgress > Internal::Read_Vec4Component(times, keyCount - 1u)
+                   ? Internal::Read_Vec4Component(values, keyCount - 1u)
                    : fallbackValue;
         };
 
@@ -1212,28 +1165,28 @@ Vec4 MeshEmitter::Evaluate_ColorOverLife(const MeshParticleState& particle, floa
     if (curve.alphaCurveEnabled)
     {
         const uint32 keyCount = max(1u, min(4u, curve.alphaCurveKeyCount));
-        if (keyCount == 1u || lifeProgress <= Read_Vec4Component(curve.alphaCurveTimes, 0u))
-            color.w = Read_Vec4Component(curve.alphaCurveValues, 0u);
+        if (keyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(curve.alphaCurveTimes, 0u))
+            color.w = Internal::Read_Vec4Component(curve.alphaCurveValues, 0u);
         else
         {
             for (uint32 index = 1u; index < keyCount; ++index)
             {
-                const float rightTime = Read_Vec4Component(curve.alphaCurveTimes, index);
+                const float rightTime = Internal::Read_Vec4Component(curve.alphaCurveTimes, index);
                 if (lifeProgress > rightTime)
                     continue;
 
-                const float leftTime = Read_Vec4Component(curve.alphaCurveTimes, index - 1u);
+                const float leftTime = Internal::Read_Vec4Component(curve.alphaCurveTimes, index - 1u);
                 const float ratio = clamp((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime), 0.f, 1.f);
                 color.w = lerp(
-                    Read_Vec4Component(curve.alphaCurveValues, index - 1u),
-                    Read_Vec4Component(curve.alphaCurveValues, index),
+                    Internal::Read_Vec4Component(curve.alphaCurveValues, index - 1u),
+                    Internal::Read_Vec4Component(curve.alphaCurveValues, index),
                     ratio
                 );
                 break;
             }
 
-            if (lifeProgress > Read_Vec4Component(curve.alphaCurveTimes, keyCount - 1u))
-                color.w = Read_Vec4Component(curve.alphaCurveValues, keyCount - 1u);
+            if (lifeProgress > Internal::Read_Vec4Component(curve.alphaCurveTimes, keyCount - 1u))
+                color.w = Internal::Read_Vec4Component(curve.alphaCurveValues, keyCount - 1u);
         }
     }
 
@@ -1244,23 +1197,65 @@ Vec4 MeshEmitter::Evaluate_ColorOverLife(const MeshParticleState& particle, floa
 float MeshEmitter::Evaluate_CompactCurve(float lifeProgress, const Vec4& times, const Vec4& values, uint32 keyCount, float fallbackValue) const
 {
     const uint32 clampedKeyCount = max(1u, min(4u, keyCount));
-    if (clampedKeyCount == 1u || lifeProgress <= Read_Vec4Component(times, 0u))
-        return Read_Vec4Component(values, 0u);
+    if (clampedKeyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, 0u))
+        return Internal::Read_Vec4Component(values, 0u);
 
     for (uint32 index = 1u; index < clampedKeyCount; ++index)
     {
-        const float rightTime = Read_Vec4Component(times, index);
+        const float rightTime = Internal::Read_Vec4Component(times, index);
         if (lifeProgress > rightTime)
             continue;
 
-        const float leftTime = Read_Vec4Component(times, index - 1u);
+        const float leftTime = Internal::Read_Vec4Component(times, index - 1u);
         const float ratio = clamp((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime), 0.f, 1.f);
-        return lerp(Read_Vec4Component(values, index - 1u), Read_Vec4Component(values, index), ratio);
+        return lerp(Internal::Read_Vec4Component(values, index - 1u), Internal::Read_Vec4Component(values, index), ratio);
     }
 
-    return lifeProgress > Read_Vec4Component(times, clampedKeyCount - 1u)
-           ? Read_Vec4Component(values, clampedKeyCount - 1u)
+    return lifeProgress > Internal::Read_Vec4Component(times, clampedKeyCount - 1u)
+           ? Internal::Read_Vec4Component(values, clampedKeyCount - 1u)
            : fallbackValue;
+}
+
+Vec3 MeshEmitter::Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& desc, float lifeProgress, const Vec3& fallbackValue) const
+{
+    if (!desc.enabled)
+        return fallbackValue;
+
+    return Vec3{
+        Evaluate_CompactCurve(lifeProgress, desc.curveKeyTimes, desc.curveKeyValuesX, desc.curveKeyCount, lerp(desc.start.x, desc.end.x, lifeProgress)),
+        Evaluate_CompactCurve(lifeProgress, desc.curveKeyTimes, desc.curveKeyValuesY, desc.curveKeyCount, lerp(desc.start.y, desc.end.y, lifeProgress)),
+        Evaluate_CompactCurve(lifeProgress, desc.curveKeyTimes, desc.curveKeyValuesZ, desc.curveKeyCount, lerp(desc.start.z, desc.end.z, lifeProgress))
+    };
+}
+
+RenderGroup MeshEmitter::Resolve_RenderGroup() const
+{
+    return _desc.material.blendMode == EffectMaterialBlendMode::Modulate
+           ? RenderGroup::NonBlend
+           : RenderGroup::Blend;
+}
+
+uint32 MeshEmitter::Resolve_ShaderPassIndex() const
+{
+    const bool additive = _desc.material.blendMode == EffectMaterialBlendMode::Additive;
+    const bool twoSided = _desc.material.twoSided;
+    if (additive)
+        return twoSided ? 3u : 1u;
+    return twoSided ? 2u : 0u;
+}
+
+int MeshEmitter::Resolve_OpacitySourceIndex() const
+{
+    if (_desc.material.opacitySource == "Alpha" || _desc.material.opacitySource == "alpha")
+        return kOpacitySourceAlpha;
+
+    if (_desc.material.opacitySource == "Red" || _desc.material.opacitySource == "red")
+        return kOpacitySourceRed;
+
+    if (_desc.material.opacitySource == "Luminance" || _desc.material.opacitySource == "luminance")
+        return kOpacitySourceLuminance;
+
+    return kOpacitySourceAlpha;
 }
 
 Vec3 MeshEmitter::Resolve_LocalVector(const Vec3& localVector) const
@@ -1285,6 +1280,9 @@ float MeshEmitter::Random01(uint32 seed) const
 
 float MeshEmitter::RandomRange(float minValue, float maxValue, uint32 seed) const
 {
+    if (minValue > maxValue)
+        std::swap(minValue, maxValue);
+
     return lerp(minValue, maxValue, Random01(seed));
 }
 
@@ -1320,6 +1318,9 @@ void MeshEmitter::Free()
     _desc = {};
     _model.reset();
     _shader.reset();
+    _texture.reset();
+    _noiseTexture.reset();
+    _maskTexture.reset();
     _instanceBuffer.Reset();
     _particles.clear();
     _instancePayload.clear();
@@ -1333,6 +1334,7 @@ void MeshEmitter::Free()
     _activeInstanceCount = 0u;
     _nextSpawnCursor = 0u;
     _instanceCapacity = 0u;
+    _opacitySourceIndex = kOpacitySourceAlpha;
     _isReady = false;
 
     __super::Free();

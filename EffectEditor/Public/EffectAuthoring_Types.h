@@ -13,6 +13,7 @@ enum class AuthoringModuleType : uint8
     InitialLocation,
     SphereLocation,
     InitialSize,
+    InitialMeshSize,
     InitialVelocity,
     InitialRadialVelocity,
     Acceleration,
@@ -22,10 +23,15 @@ enum class AuthoringModuleType : uint8
     RotationOverLife,
     InitialRotationRate,
     RotationRateScaleByLife,
+    InitialMeshRotation,
+    MeshRotationOverLife,
+    InitialMeshRotationRate,
+    MeshRotationRateScaleByLife,
     InitialColor,
     ColorOverLife,
     SubUVFrameOverLife,
     SizeByLife,
+    MeshSizeByLife,
     SpawnPerUnit,
 };
 
@@ -594,6 +600,11 @@ struct InitialSizeModuleData
     Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.1f, 0.1f }) };
 };
 
+struct InitialMeshSizeModuleData
+{
+    Vector3DistributionData size{ Vector3DistributionData::Make_Constant(Vec3{ 0.1f, 0.1f, 0.1f }) };
+};
+
 struct InitialVelocityModuleData
 {
     Vector3DistributionData velocity{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
@@ -643,6 +654,26 @@ struct RotationRateScaleByLifeModuleData
     FloatDistributionData scaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f, 1.f) };
 };
 
+struct InitialMeshRotationModuleData
+{
+    Vector3DistributionData rotationDegrees{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+};
+
+struct MeshRotationOverLifeModuleData
+{
+    Vector3DistributionData rotationOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 0.f, 0.f, 0.f }) };
+};
+
+struct InitialMeshRotationRateModuleData
+{
+    Vector3DistributionData rotationRateDegrees{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+};
+
+struct MeshRotationRateScaleByLifeModuleData
+{
+    Vector3DistributionData scaleOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 1.f, 1.f, 1.f }) };
+};
+
 struct InitialColorModuleData
 {
     // 색상 RGB와 별도로 생성 시점 alpha를 편집하기 위한 축이다.
@@ -682,6 +713,14 @@ struct SizeByLifeModuleData
     AxisLock axisLock{ AxisLock::None };
 };
 
+struct MeshSizeByLifeModuleData
+{
+    Vector3DistributionData scaleOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 1.f, 1.f, 1.f }) };
+    bool multiplyX{ true };
+    bool multiplyY{ true };
+    bool multiplyZ{ true };
+};
+
 struct SpawnPerUnitModuleData
 {
     bool enabled{ true };
@@ -698,6 +737,7 @@ using AuthoringModuleData = std::variant<
     InitialLocationModuleData,
     SphereLocationModuleData,
     InitialSizeModuleData,
+    InitialMeshSizeModuleData,
     InitialVelocityModuleData,
     InitialRadialVelocityModuleData,
     AccelerationModuleData,
@@ -707,10 +747,15 @@ using AuthoringModuleData = std::variant<
     RotationOverLifeModuleData,
     InitialRotationRateModuleData,
     RotationRateScaleByLifeModuleData,
+    InitialMeshRotationModuleData,
+    MeshRotationOverLifeModuleData,
+    InitialMeshRotationRateModuleData,
+    MeshRotationRateScaleByLifeModuleData,
     InitialColorModuleData,
     ColorOverLifeModuleData,
     SubUVFrameOverLifeModuleData,
     SizeByLifeModuleData,
+    MeshSizeByLifeModuleData,
     SpawnPerUnitModuleData>;
 
 struct AuthoringModule
