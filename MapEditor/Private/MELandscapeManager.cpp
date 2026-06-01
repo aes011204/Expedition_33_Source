@@ -527,7 +527,11 @@ void MELandscapeManager::Do_SculptAt(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSiz
     if (mode == ESculptMode::Paint)
     {
         vb->Paint_Layer(_sculptState->paintLayerIdx, localHitX, localHitZ, radius, strength * timeDelta * 10.f);
-        actor->Flush_WeightMap(_sculptState->paintLayerIdx);
+        for (uint32 i = 0; i < actor->Get_LayerCount(); ++i)
+        {
+            actor->Flush_WeightMap(i);
+        }
+
         return;
     }
 

@@ -489,7 +489,7 @@ void VIBuffer_Landscape::Paint_Layer(uint32 layerIdx, float worldX, float worldZ
             uint32 idx = z * numVX + x;
 
             float& w = _weightMaps[layerIdx][idx];
-            w = min(1.f, w + strength * t * t);
+            w = min(1.f, w + strength * t);
 
             float remaining = 1.f - w;
             float otherSum = 0.f;

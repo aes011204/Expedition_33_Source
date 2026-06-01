@@ -453,6 +453,34 @@ void PanelLandscape::Render_PaintTools()
             }
         }
 
+        string tilingLabel = "Tiling##" + to_string(i);
+        string tintLabel = "Tint##" + to_string(i);
+        string normalLabel = "Normal Intensity##" + to_string(i);
+        string roughLabel = "Roughness x##" + to_string(i);
+
+        float tiling = actor->Get_LayerTiling(i);
+        if (ImGui::DragFloat(tilingLabel.c_str(), &tiling, 0.01f, 0.1f, 50.f, "%.2f"))
+        {
+            actor->Set_LayerTiling(i, tiling);
+        }
+
+        Vec4 tint = actor->Get_LayerGroundTint(i);
+        if (ImGui::ColorEdit3(tintLabel.c_str(), reinterpret_cast<float*>(&tint)))
+        {
+            actor->Set_LayerGroundTint(i, tint);
+        }
+
+        Vec4 ctrl = actor->Get_LayerControl(i);
+        if (ImGui::DragFloat(normalLabel.c_str(), &ctrl.x, 0.01f, 0.f, 10.f, "%.2f"))
+        {
+            actor->Set_LayerControl(i, ctrl);
+        }
+
+        if (ImGui::DragFloat(roughLabel.c_str(), &ctrl.y, 0.01f, 0.f, 10.f, "%.2f"))
+        {
+            actor->Set_LayerControl(i, ctrl);
+        }
+
         ImGui::PopID();
     }
 
