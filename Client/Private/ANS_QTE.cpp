@@ -65,27 +65,27 @@ Vec2 ANS_QTE::Resolve_ScreenPosition(BattleQTEPreset preset) const
 
 	switch (preset)
 	{
-	case BattleQTEPreset::LumiereAssault_QTE1: return Vec2(1000.f, 450.f);
-	case BattleQTEPreset::LumiereAssault_QTE2: return Vec2(800.f, 450.f);
+	case BattleQTEPreset::LumiereAssault_QTE1:  return Vec2(1000.f, 450.f);
+	case BattleQTEPreset::LumiereAssault_QTE2:  return Vec2(800.f, 450.f);
 
-	case BattleQTEPreset::UnleashedCharge_QTE1: Vec2(800.f, 450.f);
-    case BattleQTEPreset::UnleashedCharge_QTE2: break;
+	case BattleQTEPreset::UnleashedCharge_QTE1: return Vec2(850.f, 500.f);
+    case BattleQTEPreset::UnleashedCharge_QTE2: return Vec2(950.f, 400.f);
 
-    case BattleQTEPreset::MarkingShot: return Vec2(815.f, 455.f);
+    case BattleQTEPreset::MarkingShot:          return Vec2(815.f, 455.f);
 
-    case BattleQTEPreset::Immolation_QTE1: return Vec2(850.f, 500.f);
-    case BattleQTEPreset::Immolation_QTE2: return Vec2(950.f, 400.f);
+    case BattleQTEPreset::Immolation_QTE1:      return Vec2(850.f, 500.f);
+    case BattleQTEPreset::Immolation_QTE2:      return Vec2(950.f, 400.f);
 
-    case BattleQTEPreset::IceGust_QTE1: return Vec2(815.f, 455.f);
+    case BattleQTEPreset::IceGust_QTE1:         return Vec2(815.f, 455.f);
 
-    case BattleQTEPreset::Thunderfall_QTE1: return Vec2(850.f, 500.f);
-    case BattleQTEPreset::Thunderfall_QTE2: return Vec2(950.f, 400.f);
+    case BattleQTEPreset::Thunderfall_QTE1:     return Vec2(850.f, 500.f);
+    case BattleQTEPreset::Thunderfall_QTE2:     return Vec2(950.f, 400.f);
 
     case BattleQTEPreset::OffensiveSwitch_QTE1: return Vec2(815.f, 455.f);
 
-    case BattleQTEPreset::Percee_QTE1: return Vec2(815.f, 455.f);
+    case BattleQTEPreset::Percee_QTE1:          return Vec2(815.f, 455.f);
 
-    case BattleQTEPreset::FleureFury_QTE1: return Vec2(900.f, 500.f);
+    case BattleQTEPreset::FleureFury_QTE1:      return Vec2(900.f, 500.f);
 
 	case BattleQTEPreset::Center:
 	default:
