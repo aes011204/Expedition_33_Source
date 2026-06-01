@@ -73,8 +73,8 @@ Vec2 ANS_QTE::Resolve_ScreenPosition(BattleQTEPreset preset) const
 
     case BattleQTEPreset::MarkingShot: return Vec2(815.f, 455.f);
 
-    case BattleQTEPreset::Immolation_QTE1: Vec2(850.f, 500.f);
-    case BattleQTEPreset::Immolation_QTE2: Vec2(950.f, 400.f);
+    case BattleQTEPreset::Immolation_QTE1: return Vec2(850.f, 500.f);
+    case BattleQTEPreset::Immolation_QTE2: return Vec2(950.f, 400.f);
 
     case BattleQTEPreset::IceGust_QTE1: return Vec2(815.f, 455.f);
 
