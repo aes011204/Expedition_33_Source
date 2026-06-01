@@ -1,36 +1,41 @@
-﻿
-#include "ANS_QTE.h"
-#include "GameInstance.h"
+﻿#include "ANS_QTE.h"
+
+#include "BattleController.h"
+#include "ClientInstance.h"
 
 IMPLEMENT_REFLECTION(ANS_QTE)
 {
-    auto& info = GetStaticReflectionInfo();
-    info.properties.clear();
+	auto& info = GetStaticReflectionInfo();
+	info.properties.clear();
 
-    PROPERTY_FLOAT("테스트 값", _testValue);
+	PROPERTY_FLOAT("Intro Duration", _introDuration);
+	PROPERTY_FLOAT("Progress Duration", _progressDuration);
+	PROPERTY_FLOAT("Perfect Start Ratio", _perfectStartRatio);
+	PROPERTY_FLOAT("Perfect End Ratio", _perfectEndRatio);
 
-    return true;
+	PROPERTY_ENUM("QTE 프리셋을 골라", _qtePreset, BattleQTEPreset);
+
+	return true;
 }
 
 void ANS_QTE::On_Begin(const AnimNotifyContext& context)
 {
+	if (context.isPreview)
+		return;
+
+	auto battle = CLIENT->Get_BattleController();
+	CHECK_NULL(battle);
+
+	battle->Begin_QTE(Make_Request());
 }
 
 void ANS_QTE::On_Tick(const AnimNotifyContext& context)
 {
-    LOG_INFO({ "QTE TIME" });
-
-    if (GAME->KeyDown(KEY_TYPE::SPACE))
-    {
-        LOG_ERROR({ " SUCCESS  QTE" });
-
-    }
+	UNREFERENCED_PARAMETER(context);
 }
 
 void ANS_QTE::On_End(const AnimNotifyContext& context)
 {
-<<<<<<< HEAD
-=======
 	UNREFERENCED_PARAMETER(context);
 
 	// QTE 실패 판정은 NotifyState 길이가 아니라 UI_QTE의 progressDuration 기준으로 처리한다.
@@ -60,27 +65,27 @@ Vec2 ANS_QTE::Resolve_ScreenPosition(BattleQTEPreset preset) const
 
 	switch (preset)
 	{
-	case BattleQTEPreset::LumiereAssault_QTE1: return Vec2(1000.f, 450.f);
-	case BattleQTEPreset::LumiereAssault_QTE2: return Vec2(800.f, 450.f);
+	case BattleQTEPreset::LumiereAssault_QTE1:  return Vec2(1000.f, 450.f);
+	case BattleQTEPreset::LumiereAssault_QTE2:  return Vec2(800.f, 450.f);
 
-	case BattleQTEPreset::UnleashedCharge_QTE1: Vec2(800.f, 450.f);
-    case BattleQTEPreset::UnleashedCharge_QTE2: break;
+	case BattleQTEPreset::UnleashedCharge_QTE1: return Vec2(850.f, 500.f);
+    case BattleQTEPreset::UnleashedCharge_QTE2: return Vec2(950.f, 400.f);
 
-    case BattleQTEPreset::MarkingShot: return Vec2(815.f, 455.f);
+    case BattleQTEPreset::MarkingShot:          return Vec2(815.f, 455.f);
 
-    case BattleQTEPreset::Immolation_QTE1: return Vec2(850.f, 500.f);
-    case BattleQTEPreset::Immolation_QTE2: return Vec2(950.f, 400.f);
+    case BattleQTEPreset::Immolation_QTE1:      return Vec2(850.f, 500.f);
+    case BattleQTEPreset::Immolation_QTE2:      return Vec2(950.f, 400.f);
 
-    case BattleQTEPreset::IceGust_QTE1: return Vec2(815.f, 455.f);
+    case BattleQTEPreset::IceGust_QTE1:         return Vec2(815.f, 455.f);
 
-    case BattleQTEPreset::Thunderfall_QTE1: return Vec2(850.f, 500.f);
-    case BattleQTEPreset::Thunderfall_QTE2: return Vec2(950.f, 400.f);
+    case BattleQTEPreset::Thunderfall_QTE1:     return Vec2(850.f, 500.f);
+    case BattleQTEPreset::Thunderfall_QTE2:     return Vec2(950.f, 400.f);
 
     case BattleQTEPreset::OffensiveSwitch_QTE1: return Vec2(815.f, 455.f);
 
-    case BattleQTEPreset::Percee_QTE1: return Vec2(815.f, 455.f);
+    case BattleQTEPreset::Percee_QTE1:          return Vec2(815.f, 455.f);
 
-    case BattleQTEPreset::FleureFury_QTE1: return Vec2(900.f, 500.f);
+    case BattleQTEPreset::FleureFury_QTE1:      return Vec2(900.f, 500.f);
 
 	case BattleQTEPreset::Center:
 	default:
@@ -100,5 +105,4 @@ float ANS_QTE::Resolve_ScreenScale(BattleQTEPreset preset) const
 	default:
 		return 1.f;
 	}
->>>>>>> parent of 0722d00c (feat : World Free Aim Hit, Player Change Effect)
 }

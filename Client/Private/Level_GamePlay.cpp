@@ -21,7 +21,7 @@ HRESULT Level_GamePlay::Initialize()
         return E_FAIL;
 
     if (FAILED(Ready_Layer_Player(TEXT("Layer_Player"))))
-        return E_FAIL; 
+        return E_FAIL;
 
     //if (FAILED(Ready_Layer_Effect(TEXT("Layer_Effect"))))
     //    return E_FAIL;
@@ -32,8 +32,8 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_BackGround(TEXT("Layer_BackGround"))))
         return E_FAIL;
 
-	if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
-		return E_FAIL;
+    if (FAILED(Ready_Layer_Camera(TEXT("Layer_Camera"))))
+        return E_FAIL;
 
     if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
         return E_FAIL;
@@ -50,29 +50,13 @@ void Level_GamePlay::BeginPlay()
 void Level_GamePlay::Update(float fTimeDelta)
 {
     //Update_MapStreaming(fTimeDelta);
-     //테스트
-     if (GAME->KeyDown(KEY_TYPE::KEY_0))
-     {
-         vector<HeroId> heroes =
-         {
-             HeroId::Lune,
-             HeroId::Maelle,
-             HeroId::Gustave,
-         };
-
-         vector<BattleMonsterSpawnDesc> battleMonster;
-         battleMonster.push_back({ Constants::Prefab::MB_Lancelier });
-         battleMonster.push_back({ Constants::Prefab::MB_Lancelier });
-         battleMonster.push_back({ Constants::Prefab::MB_Lancelier });
-
-         CLIENT->OnEnterBattleField(1, true, heroes, battleMonster);
-     }
+    
 
 }
 
 HRESULT Level_GamePlay::Render()
 {
-    Update_WindowTitleFps(_windowTitleFps, L"StreamingLevel GamePlay");
+    Update_WindowTitleFps(_windowTitleFps, L"Level GamePlay");
 
     return S_OK;
 }
@@ -86,7 +70,7 @@ HRESULT Level_GamePlay::Ready_ChunkMap()
     streamingDesc.gridWidth = 6;
     streamingDesc.gridHeight = 6;
     streamingDesc.initialChunkX = 3; // chunkX = 0, chunkZ = 2면 02_00 기준으로 4개 스폰
-    streamingDesc.initialChunkZ = 0; 
+    streamingDesc.initialChunkZ = 0;
     streamingDesc.activeChunkRadius = 1;
     streamingDesc.maxMeshesPerFrame = 2;
     streamingDesc.maxTimePerFrame = chrono::milliseconds(2);
@@ -147,7 +131,7 @@ HRESULT Level_GamePlay::Ready_Layer_UI(const wstring& strLayerTag)
 
     //CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
     CHECK_FAILED(CLIENT->Initialize_GameplayUI(ETOI(LevelType::GamePlay)), E_FAIL);
-     
+
     return S_OK;
 }
 
@@ -201,7 +185,7 @@ HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
     if (FAILED(
         GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky_GamePlay"),
             ETOI(LevelType::GamePlay), strLayerTag)))
-                return E_FAIL;
+        return E_FAIL;
 
     return S_OK;
 }
