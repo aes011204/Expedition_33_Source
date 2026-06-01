@@ -45,9 +45,15 @@ void AN_Dissolve_Parts::Execute(const AnimNotifyContext& context)
     switch (_type)
     {
     case DissolveType::Switch:
+        if (Part->Is_Visible() == false)
+        {
+            Part->Set_Visible(true);
+        }
+
         effectCom->Start_SwitchDissolve(_duration, "T_Perlin_Noise_M");
         break;
     case DissolveType::Vanish:
+
         effectCom->Start_VanishDissolve(_duration, "T_Perlin_Noise_M", true);
         break;
 

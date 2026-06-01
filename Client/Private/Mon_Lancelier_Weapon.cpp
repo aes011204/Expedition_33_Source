@@ -1,4 +1,5 @@
 ﻿#include "Mon_Lancelier_Weapon.h"
+#include "EffectCom.h"
 
 NS_BEGIN(Client)
 
@@ -40,7 +41,10 @@ void Mon_Lancelier_Weapon::Priority_Update(float timeDelta)
 
 void Mon_Lancelier_Weapon::Update(float timeDelta)
 {
-    Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * *_socketMatrix);
+    Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*_socketMatrix));
+
+    if (_effectCom)
+        _effectCom->Update(timeDelta);
 }
 
 void Mon_Lancelier_Weapon::Late_Update(float timeDelta)

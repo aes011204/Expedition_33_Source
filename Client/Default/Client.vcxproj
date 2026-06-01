@@ -443,6 +443,7 @@
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
+    <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
     <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
     <ClCompile Include="..\Private\AN_SpawnActor.cpp" />

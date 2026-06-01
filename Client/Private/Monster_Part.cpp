@@ -47,12 +47,14 @@ void Monster_Part::Priority_Update(float timeDelta)
 void Monster_Part::Update(float timeDelta)
 {
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+
+
 }
 
 void Monster_Part::Late_Update(float timeDelta)
 {
     // culling
-    if (!Get_Owner() || !Get_Owner()->Is_Visible()/*||!Is_Visible()*/)
+    if (!Get_Owner() || !Get_Owner()->Is_Visible()||!Is_Visible())
     {
         return;
     }
@@ -68,20 +70,20 @@ HRESULT Monster_Part::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
-    CHECK_FAILED(EffectCom::Bind_DrawFeatures(
-        Get_Owner(),
+    CHECK_FAILED_ONCE(EffectCom::Bind_DrawFeatures(
+        GetSharedPtr<Monster_Part>(),
         _shader.get(),
         DrawFeatureFlagDissolve), E_FAIL);
 
     // runtime compute 경로가 있으면 runtime buffer 준비
     if (_animComputeRuntime != nullptr)
     {
-        CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
+        CHECK_FAILED_ONCE(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
     }
     // runtime이 없는 anim/noncompute 경로는 ModelCom 기본 bone buffer 사용S
     else if (_model->Get_NumAnimations() != 0)
     {
-        CHECK_FAILED(_model->Prepare_BoneMatrixBuffers(), E_FAIL);
+        CHECK_FAILED_ONCE(_model->Prepare_BoneMatrixBuffers(), E_FAIL);
     }
 
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
