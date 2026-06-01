@@ -3,6 +3,7 @@
 #include "Editor_Window.h"
 #include "PostProcessPipeline.h"
 #include "LightingPipeline.h"
+#include <string>
 
 NS_BEGIN(MainEditor)
 
@@ -29,6 +30,10 @@ private:
     static PostProcessCB Make_DefaultParams();
     static SSAOCB Make_DefaultSSAOParams();
     static DeferredLightingCB Make_DefaultDeferredLightingParams();
+
+private:
+    std::string _reloadShaderStatusText{};
+    bool        _reloadShaderStatusIsError = false;
 
 public:
     static Shared<PostProcess_View> Create();

@@ -293,6 +293,41 @@ void Renderer::Render_Shadow()
 {
     _currentGroup = RenderGroup::Shadow;
 
+    if (_shadowEnabled == false)
+    {
+        const uint32 cascadeCount = max(1u, GAME->Get_ShadowCascadeCount());
+
+        for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+        {
+            if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV, cascadeIndex)))
+                continue;
+
+            CHECK_FAILED(GAME->End_MRT());
+        }
+
+        _renderGroups[ETOI(RenderGroup::Shadow)].clear();
+        GAME->Set_ActiveShadowCascade(0);
+        return;
+    }
+
+    const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
+    if (shadowDesc != nullptr && !shadowDesc->enabled)
+    {
+        const uint32 cascadeCount = max(1u, GAME->Get_ShadowCascadeCount());
+
+        for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+        {
+            if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV, cascadeIndex)))
+                continue;
+
+            CHECK_FAILED(GAME->End_MRT());
+        }
+
+        _renderGroups[ETOI(RenderGroup::Shadow)].clear();
+        GAME->Set_ActiveShadowCascade(0);
+        return;
+    }
+
     Render_StaticShadowOnce();
     Render_DynamicShadow();
 }
@@ -492,6 +527,10 @@ void Renderer::Render_CombinedHDR()
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
         Bind_ScreenSpaceCB(_deferredShader),
         L"Render_CombinedHDR:FAIL Bind_ScreenSpaceCB");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_CameraCB(_deferredShader),
+        L"Render_CombinedHDR:FAIL Bind_CameraCB");
 
     // 그림자
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
@@ -947,6 +986,67 @@ HRESULT Renderer::Ready_Shaders()
     return S_OK;
 }
 
+HRESULT Renderer::Reload_RendererShaders()
+{
+    uint32 reloadSuccessCount = 0;
+
+    if (Shared<ShaderCom> deferredShader = ShaderCom::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl",
+        VTXTEX::Elements,
+        VTXTEX::numElements,
+        ShaderType::Deferred))
+    {
+        _deferredShader = std::move(deferredShader);
+        ++reloadSuccessCount;
+    }
+    else
+    {
+        LOG_WARN("Renderer shader reload failed: Shader_Deferred.hlsl");
+    }
+
+    if (Shared<ShaderCom> postprocessShader = ShaderCom::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_PostProcess.hlsl",
+        VTXTEX::Elements,
+        VTXTEX::numElements,
+        ShaderType::PostProcess))
+    {
+        _postprocessShader = std::move(postprocessShader);
+        ++reloadSuccessCount;
+    }
+    else
+    {
+        LOG_WARN("Renderer shader reload failed: Shader_PostProcess.hlsl");
+    }
+
+    if (Shared<ShaderCom> screenFxShader = ShaderCom::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_ScreenFx.hlsl",
+        VTXTEX::Elements,
+        VTXTEX::numElements,
+        ShaderType::PostProcess))
+    {
+        _screenFxShader = std::move(screenFxShader);
+        ++reloadSuccessCount;
+    }
+    else
+    {
+        LOG_WARN("Renderer shader reload failed: Shader_ScreenFx.hlsl");
+    }
+
+    if (reloadSuccessCount == 3u)
+        return S_OK;
+
+    if (reloadSuccessCount > 0u)
+        return S_FALSE;
+
+    return E_FAIL;
+}
+
 void Renderer::Sync_ViewportDependentState(uint32 width, uint32 height)
 {
     width = max(1u, width);
@@ -1172,6 +1272,7 @@ void Renderer::Render_StaticShadowOnce()
         return;
 
     Update_StaticShadowCamera(staticBounds);
+    GAME->Set_ActiveStaticShadow();
 
     if (FAILED(GAME->Begin_MRT(MRT::StaticShadowObjects, UseDSV, ClearRTV)))
         return;
@@ -1207,30 +1308,85 @@ void Renderer::Render_DynamicShadow()
     ENGINE_PROFILE_SCOPE_DETAIL("Render::DynamicShadow");
 
     Update_DynamicShadowCamera();
+    ++_shadowFrameIndex;
 
-    if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV)))
-        return;
-
+    const uint32 cascadeCount = max(1u, GAME->Get_ShadowCascadeCount());
     const uint32 originWidth = _screenSize.width;
     const uint32 originHeight = _screenSize.height;
 
     Change_ViewportDesc(_shadowMapSize.width, _shadowMapSize.height);
 
-    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Shadow)])
+    for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
     {
-        Shared<GameObject> gameObject = renderObject.lock();
-        if (nullptr != gameObject)
+        if (FAILED(GAME->Set_ActiveShadowCascade(cascadeIndex)))
+            continue;
+
+        // cascade에 따라 특정 프레임만 업데이트 하려고 했는데 mismtach 가 심해서 주석 처리.
+        //if (!Should_UpdateDynamicShadowCascade(cascadeIndex))
+        //    continue;
+
+        // 활성화된 cascade의 view, proj 행렬을 받아온다.
+        const Matrix* shadowViewMatrix = GAME->Get_ShadowTransformMatrix(D3DTS::View);
+        const Matrix* shadowProjMatrix = GAME->Get_ShadowTransformMatrix(D3DTS::Proj);
+        if (shadowViewMatrix == nullptr || shadowProjMatrix == nullptr)
+            continue;
+
+        // 컬링 되게
+        GAME->UpdateFrustum(*shadowViewMatrix, *shadowProjMatrix);
+
+        if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV, cascadeIndex)))
+            continue;
+
+        for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Shadow)])
         {
-            gameObject->Render_Shadow();
-            Add_RenderCall();
+            Shared<GameObject> gameObject = renderObject.lock();
+            if (gameObject != nullptr && Should_RenderDynamicShadowObject(gameObject))
+            {
+                gameObject->Render_Shadow();
+                Add_RenderCall();
+            }
         }
+
+        CHECK_FAILED(GAME->End_MRT());
     }
 
     _renderGroups[ETOI(RenderGroup::Shadow)].clear();
-
-    CHECK_FAILED(GAME->End_MRT());
+    GAME->Set_ActiveShadowCascade(0);
 
     Change_ViewportDesc(originWidth, originHeight);
+}
+
+bool Renderer::Should_UpdateDynamicShadowCascade(uint32 cascadeIndex) const
+{
+    // 초기 1~2 프레임은 모든 Cascade 업데이트. Shadow Map이 완전히 채워져야 해서
+    if (_shadowFrameIndex <= 1ull)
+        return true;
+
+    // 0~1 Cascade는 매 프레임 업데이트. 가장 가까운 영역이자 가장 눈에 띄는 영역
+    if (cascadeIndex < 2u)
+        return true;
+
+    // 2 Cascade는 2프레임마다 업데이트
+    if (cascadeIndex == 2u)
+        return (_shadowFrameIndex % 2ull) == 0ull;
+    
+    // 4 Cascade는 4프레임마다 업데이트
+    return (_shadowFrameIndex % 4ull) == 0ull;
+}
+
+bool Renderer::Should_RenderDynamicShadowObject(const Shared<GameObject>& gameObject) const
+{
+    if (gameObject == nullptr)
+        return false;
+
+    if (gameObject->Get_Transform() == nullptr)
+        return true;
+
+    BoundingBox objectBounds{};
+    if (!gameObject->Try_Get_ShadowWorldBounds(objectBounds))
+        return true;
+
+    return GAME->IsVisible(objectBounds);
 }
 
 bool Renderer::Build_StaticShadowBounds(BoundingBox& outBounds) const

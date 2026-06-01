@@ -31,6 +31,19 @@ double Elapsed_Milliseconds(const std::chrono::steady_clock::time_point& begin, 
 {
     return std::chrono::duration<double, std::milli>(end - begin).count();
 }
+
+Matrix Resolve_MeshPlaneAlignmentMatrix(EffectScreenAlignment alignment)
+{
+    switch (alignment)
+    {
+    case EffectScreenAlignment::WorldPlaneXZ:
+        return Matrix::CreateRotationX(-XM_PIDIV2);
+
+    case EffectScreenAlignment::WorldPlaneXY:
+    default:
+        return Matrix::Identity;
+    }
+}
 }
 
 IMPLEMENT_REFLECTION(MeshEmitter)
@@ -234,7 +247,7 @@ void MeshEmitter::On_EffectTransformSynced()
 void MeshEmitter::Log_DescPayload(const char* context) const
 {
     LOG_INFO(
-        "MeshEmitter desc payload. context={}, emitter='{}', spawnCount={}, spawnRate={}, bursts={}, life=({}, {}), meshInitialScale={}, meshScaleByLife={}, motion={}, acceleration={}, drag=({}, {}), velocityScale=({}, {}), meshRotation={}, meshRotationMin=({}, {}, {}), meshRotationMax=({}, {}, {}), colorCurve={}, alphaCurve={}",
+        "MeshEmitter desc payload. context={}, emitter='{}', spawnCount={}, spawnRate={}, bursts={}, life=({}, {}), meshAlignment={}, meshInitialScale={}, meshScaleByLife={}, motion={}, acceleration={}, drag=({}, {}), velocityScale=({}, {}), meshRotation={}, meshRotationMin=({}, {}, {}), meshRotationMax=({}, {}, {}), colorCurve={}, alphaCurve={}",
         context,
         _emitterName,
         _desc.spawn.instanceCount,
@@ -242,6 +255,7 @@ void MeshEmitter::Log_DescPayload(const char* context) const
         static_cast<uint32>(_desc.spawn.particleSpawn.bursts.size()),
         _desc.lifetime.lifeTime.x,
         _desc.lifetime.lifeTime.y,
+        static_cast<uint32>(_desc.meshTransform.alignment),
         _desc.meshTransform.initialScaleEnabled,
         _desc.meshTransform.scaleByLife.enabled,
         _desc.motion.enabled,
@@ -296,6 +310,8 @@ bool MeshEmitter::Is_CompatibleReloadDesc(const MeshEmitterDesc& desc) const
     if (desc.useModelMaterials != _desc.useModelMaterials)
         return false;
     if (Has_MaterialOverride(_desc) && !Has_MaterialOverride(desc))
+        return false;
+    if (desc.meshTransform.alignment != _desc.meshTransform.alignment)
         return false;
 
     return true;
@@ -1102,6 +1118,7 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
     return
         Matrix::CreateScale(scale) *
         Matrix::CreateFromQuaternion(rotation) *
+        Internal::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment) *
         Matrix::CreateTranslation(position);
 }
 

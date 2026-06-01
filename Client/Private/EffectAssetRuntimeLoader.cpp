@@ -1400,6 +1400,7 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
     if (materialIter != data.end() && materialIter->is_object())
         Apply_MaterialPayload(*materialIter, desc.material, false);
 
+    Read_Enum(data, "screenAlignment", desc.meshTransform.alignment);
     desc.playback.duration = max(0.0001f, Read_Float(data, "duration", desc.playback.duration));
     desc.playback.loopCount = Read_UInt(data, "loopCount", desc.playback.loopCount);
     desc.playback.delay = max(0.f, Read_Float(data, "delay", desc.playback.delay));

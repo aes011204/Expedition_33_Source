@@ -78,7 +78,8 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_BattleSystem_Announce_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Announce.json";
     inline constexpr wchar_t UI_FirstStrike_Path[] = L"UI/UI_Json/BattleSystem/UI_FirstStrike.json";
 
-
+    // QTE
+    inline constexpr wchar_t UI_QTE_Path[] = L"UI/UI_Json/BattleSystem/UI_QTE.json";
 
 #pragma endregion
 
@@ -106,6 +107,15 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_FirstStrikeAnim_Path[] = L"UI/UI_Animations/BattleSystem/FirstStrike";
 
     inline constexpr wchar_t UI_AddAPAnim_Path[] = L"UI/UI_Animations/BattleSystem/Add_AP";
+
+#pragma region QTE 애니메이션
+    inline constexpr wchar_t UI_QTEIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/QTE/QTE_Intro";
+    inline constexpr wchar_t UI_QTEProgressAnim_Path[] = L"UI/UI_Animations/BattleSystem/QTE/QTE_Progress";
+    inline constexpr wchar_t UI_QTEFailAnim_Path[] = L"UI/UI_Animations/BattleSystem/QTE/QTE_Fail";
+    inline constexpr wchar_t UI_QTESuccessNormalAnim_Path[] = L"UI/UI_Animations/BattleSystem/QTE/QTE_Success_Normal";
+    inline constexpr wchar_t UI_QTESuccessPerfectAnim_Path[] = L"UI/UI_Animations/BattleSystem/QTE/QTE_Success_Perfect";
+#pragma endregion
+
 }
 
 namespace Client::Constants::Map
