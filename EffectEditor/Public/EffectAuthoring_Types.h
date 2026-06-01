@@ -13,6 +13,7 @@ enum class AuthoringModuleType : uint8
     InitialLocation,
     SphereLocation,
     InitialSize,
+    InitialMeshSize,
     InitialVelocity,
     InitialRadialVelocity,
     Acceleration,
@@ -22,10 +23,15 @@ enum class AuthoringModuleType : uint8
     RotationOverLife,
     InitialRotationRate,
     RotationRateScaleByLife,
+    InitialMeshRotation,
+    MeshRotationOverLife,
+    InitialMeshRotationRate,
+    MeshRotationRateScaleByLife,
     InitialColor,
     ColorOverLife,
     SubUVFrameOverLife,
     SizeByLife,
+    MeshSizeByLife,
     SpawnPerUnit,
 };
 
@@ -592,7 +598,11 @@ struct SphereLocationModuleData
 struct InitialSizeModuleData
 {
     Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.1f, 0.1f }) };
-    Vector3DistributionData meshSize{ Vector3DistributionData::Make_Constant(Vec3{ 0.1f, 0.1f, 0.1f }) };
+};
+
+struct InitialMeshSizeModuleData
+{
+    Vector3DistributionData size{ Vector3DistributionData::Make_Constant(Vec3{ 0.1f, 0.1f, 0.1f }) };
 };
 
 struct InitialVelocityModuleData
@@ -627,25 +637,41 @@ struct VelocityOverLifeModuleData
 struct InitialRotationModuleData
 {
     FloatDistributionData rotationDegrees{ FloatDistributionData::Make_Constant(0.f) };
-    Vector3DistributionData meshRotationDegrees{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
 };
 
 struct RotationOverLifeModuleData
 {
     FloatDistributionData rotationOverLife{ FloatDistributionData::Make_ConstantCurve(0.f, 0.f) };
-    Vector3DistributionData meshRotationOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 0.f, 0.f, 0.f }) };
 };
 
 struct InitialRotationRateModuleData
 {
     FloatDistributionData rotationRateDegrees{ FloatDistributionData::Make_Constant(0.f) };
-    Vector3DistributionData meshRotationRateDegrees{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
 };
 
 struct RotationRateScaleByLifeModuleData
 {
     FloatDistributionData scaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f, 1.f) };
-    Vector3DistributionData meshScaleOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 1.f, 1.f, 1.f }) };
+};
+
+struct InitialMeshRotationModuleData
+{
+    Vector3DistributionData rotationDegrees{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+};
+
+struct MeshRotationOverLifeModuleData
+{
+    Vector3DistributionData rotationOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 0.f, 0.f, 0.f }) };
+};
+
+struct InitialMeshRotationRateModuleData
+{
+    Vector3DistributionData rotationRateDegrees{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+};
+
+struct MeshRotationRateScaleByLifeModuleData
+{
+    Vector3DistributionData scaleOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 1.f, 1.f, 1.f }) };
 };
 
 struct InitialColorModuleData
@@ -682,11 +708,17 @@ struct SizeByLifeModuleData
     };
 
     Vector2DistributionData scaleOverLife{ Vector2DistributionData::Make_ConstantCurve(Vec2{ 1.f, 1.f }) };
-    Vector3DistributionData meshScaleOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 1.f, 1.f, 1.f }) };
+    bool multiplyX{ true };
+    bool multiplyY{ true };
+    AxisLock axisLock{ AxisLock::None };
+};
+
+struct MeshSizeByLifeModuleData
+{
+    Vector3DistributionData scaleOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 1.f, 1.f, 1.f }) };
     bool multiplyX{ true };
     bool multiplyY{ true };
     bool multiplyZ{ true };
-    AxisLock axisLock{ AxisLock::None };
 };
 
 struct SpawnPerUnitModuleData
@@ -705,6 +737,7 @@ using AuthoringModuleData = std::variant<
     InitialLocationModuleData,
     SphereLocationModuleData,
     InitialSizeModuleData,
+    InitialMeshSizeModuleData,
     InitialVelocityModuleData,
     InitialRadialVelocityModuleData,
     AccelerationModuleData,
@@ -714,10 +747,15 @@ using AuthoringModuleData = std::variant<
     RotationOverLifeModuleData,
     InitialRotationRateModuleData,
     RotationRateScaleByLifeModuleData,
+    InitialMeshRotationModuleData,
+    MeshRotationOverLifeModuleData,
+    InitialMeshRotationRateModuleData,
+    MeshRotationRateScaleByLifeModuleData,
     InitialColorModuleData,
     ColorOverLifeModuleData,
     SubUVFrameOverLifeModuleData,
     SizeByLifeModuleData,
+    MeshSizeByLifeModuleData,
     SpawnPerUnitModuleData>;
 
 struct AuthoringModule

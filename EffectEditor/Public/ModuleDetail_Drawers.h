@@ -50,6 +50,16 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class InitialMeshSizeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        InitialMeshSizeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class InitialLocationModuleDetail
 {
 public:
@@ -160,6 +170,46 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class InitialMeshRotationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        InitialMeshRotationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class MeshRotationOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        MeshRotationOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class InitialMeshRotationRateModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        InitialMeshRotationRateModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class MeshRotationRateScaleByLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        MeshRotationRateScaleByLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class InitialColorModuleDetail
 {
 public:
@@ -197,6 +247,16 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         SizeByLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class MeshSizeByLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        MeshSizeByLifeModuleData& data,
         DetailPropertyContext& detailContext);
 };
 

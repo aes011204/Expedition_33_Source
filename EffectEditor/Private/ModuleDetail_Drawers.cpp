@@ -907,17 +907,24 @@ bool LifetimeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, LifetimeMod
     return changed;
 }
 
-bool InitialSizeModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, InitialSizeModuleData& data, DetailPropertyContext& detailContext)
+bool InitialSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialSizeModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialSizeModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("크기", ImGuiTreeNodeFlags_DefaultOpen))
-    {
         changed |= detailContext.Draw_Vector2DistributionGroup("크기", data.size, defaultData.size);
-        if (get_if<MeshTypeData>(&emitter.typeData.payload) != nullptr)
-            changed |= detailContext.Draw_Vector3DistributionGroup("Mesh 크기 XYZ", data.meshSize, defaultData.meshSize);
-    }
+
+    return changed;
+}
+
+bool InitialMeshSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialMeshSizeModuleData& data, DetailPropertyContext& detailContext)
+{
+    const InitialMeshSizeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("메시 크기", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("크기 XYZ", data.size, defaultData.size);
 
     return changed;
 }
@@ -1052,53 +1059,41 @@ bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Vel
     return changed;
 }
 
-bool InitialRotationModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, InitialRotationModuleData& data, DetailPropertyContext& detailContext)
+bool InitialRotationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialRotationModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialRotationModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("초기 회전", ImGuiTreeNodeFlags_DefaultOpen))
-    {
         changed |= detailContext.Draw_FloatDistributionGroup("회전각", data.rotationDegrees, defaultData.rotationDegrees);
-        if (get_if<MeshTypeData>(&emitter.typeData.payload) != nullptr)
-            changed |= detailContext.Draw_Vector3DistributionGroup("Mesh 회전 XYZ", data.meshRotationDegrees, defaultData.meshRotationDegrees);
-    }
 
     return changed;
 }
 
-bool RotationOverLifeModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, RotationOverLifeModuleData& data, DetailPropertyContext& detailContext)
+bool RotationOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, RotationOverLifeModuleData& data, DetailPropertyContext& detailContext)
 {
     const RotationOverLifeModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 회전", ImGuiTreeNodeFlags_DefaultOpen))
-    {
         changed |= detailContext.Draw_FloatDistributionGroup("추가 회전각", data.rotationOverLife, defaultData.rotationOverLife);
-        if (get_if<MeshTypeData>(&emitter.typeData.payload) != nullptr)
-            changed |= detailContext.Draw_Vector3DistributionGroup("Mesh 추가 회전 XYZ", data.meshRotationOverLife, defaultData.meshRotationOverLife);
-    }
 
     return changed;
 }
 
-bool InitialRotationRateModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, InitialRotationRateModuleData& data, DetailPropertyContext& detailContext)
+bool InitialRotationRateModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialRotationRateModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialRotationRateModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("초기 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
-    {
         changed |= detailContext.Draw_FloatDistributionGroup("회전 속도", data.rotationRateDegrees, defaultData.rotationRateDegrees);
-        if (get_if<MeshTypeData>(&emitter.typeData.payload) != nullptr)
-            changed |= detailContext.Draw_Vector3DistributionGroup("Mesh 회전 속도 XYZ", data.meshRotationRateDegrees, defaultData.meshRotationRateDegrees);
-    }
 
     return changed;
 }
 
 bool RotationRateScaleByLifeModuleDetail::Draw(
-    AuthoringEmitter& emitter,
+    AuthoringEmitter&,
     AuthoringModule&,
     RotationRateScaleByLifeModuleData& data,
     DetailPropertyContext& detailContext)
@@ -1107,11 +1102,67 @@ bool RotationRateScaleByLifeModuleDetail::Draw(
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
-    {
         changed |= detailContext.Draw_FloatDistributionGroup("회전 속도 배율", data.scaleOverLife, defaultData.scaleOverLife);
-        if (get_if<MeshTypeData>(&emitter.typeData.payload) != nullptr)
-            changed |= detailContext.Draw_Vector3DistributionGroup("Mesh 회전 속도 배율 XYZ", data.meshScaleOverLife, defaultData.meshScaleOverLife);
-    }
+
+    return changed;
+}
+
+bool InitialMeshRotationModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    InitialMeshRotationModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const InitialMeshRotationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("초기 메시 회전", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("회전 XYZ", data.rotationDegrees, defaultData.rotationDegrees);
+
+    return changed;
+}
+
+bool MeshRotationOverLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    MeshRotationOverLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshRotationOverLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 회전", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("추가 회전 XYZ", data.rotationOverLife, defaultData.rotationOverLife);
+
+    return changed;
+}
+
+bool InitialMeshRotationRateModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    InitialMeshRotationRateModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const InitialMeshRotationRateModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("초기 메시 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("회전 속도 XYZ", data.rotationRateDegrees, defaultData.rotationRateDegrees);
+
+    return changed;
+}
+
+bool MeshRotationRateScaleByLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    MeshRotationRateScaleByLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshRotationRateScaleByLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("회전 속도 배율 XYZ", data.scaleOverLife, defaultData.scaleOverLife);
 
     return changed;
 }
@@ -1204,13 +1255,10 @@ bool SizeByLifeModuleDetail::Draw(
 
     if (ImGui::CollapsingHeader("수명에 따른 크기", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        const bool isMeshEmitter = get_if<MeshTypeData>(&emitter.typeData.payload) != nullptr;
         if (detailContext.Begin_PropertyTable("SizeByLife"))
         {
             changed |= detailContext.Draw_BoolProperty("X축 적용", data.multiplyX, defaultData.multiplyX);
             changed |= detailContext.Draw_BoolProperty("Y축 적용", data.multiplyY, defaultData.multiplyY);
-            if (isMeshEmitter)
-                changed |= detailContext.Draw_BoolProperty("Z축 적용", data.multiplyZ, defaultData.multiplyZ);
             detailContext.End_PropertyTable();
         }
 
@@ -1254,8 +1302,31 @@ bool SizeByLifeModuleDetail::Draw(
         ImGui::PopID();
 
         changed |= detailContext.Draw_Vector2DistributionGroup("수명 배율", data.scaleOverLife, defaultData.scaleOverLife, 0.01f);
-        if (isMeshEmitter)
-            changed |= detailContext.Draw_Vector3DistributionGroup("Mesh 수명 배율 XYZ", data.meshScaleOverLife, defaultData.meshScaleOverLife, 0.01f);
+    }
+
+    return changed;
+}
+
+bool MeshSizeByLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    MeshSizeByLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshSizeByLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 크기", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("MeshSizeByLife"))
+        {
+            changed |= detailContext.Draw_BoolProperty("X축 적용", data.multiplyX, defaultData.multiplyX);
+            changed |= detailContext.Draw_BoolProperty("Y축 적용", data.multiplyY, defaultData.multiplyY);
+            changed |= detailContext.Draw_BoolProperty("Z축 적용", data.multiplyZ, defaultData.multiplyZ);
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_Vector3DistributionGroup("수명 배율 XYZ", data.scaleOverLife, defaultData.scaleOverLife, 0.01f);
     }
 
     return changed;
