@@ -1,4 +1,4 @@
-﻿#pragma region INCLUDE
+#pragma region INCLUDE
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
@@ -656,12 +656,8 @@ HRESULT GameInstance::Draw()
         return E_FAIL;
 #pragma endregion
 
-    if (_screenFxManager->Is_CaptureRequested())
-    {
-        GAME->Bind_BackBuffer(); // 오염된 RTV 상태를 메인 백버퍼로 복구
-        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
-        _screenFxManager->Clear_CaptureRequested();
-    }
+    // UI 이후의 모든 화면 효과(ScreenFx, 캡처, UIEffect)를 단일 함수로 캡슐화하여 렌더링
+    _renderer->PostDraw();
 
 #ifdef _DEBUG
     _printManager->Render();
