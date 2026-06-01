@@ -62,6 +62,8 @@ public:
     Vec3 Get_AimDirection() const;             // 히트스캔 방향
     bool Is_FreeAimActive() const { return _isFreeAimActive; }
 
+    const BattleShotRequest& Get_CurrentRequest() const { return _currentRequest; }
+
 private:
     struct ResolvedShotAssets
     {
