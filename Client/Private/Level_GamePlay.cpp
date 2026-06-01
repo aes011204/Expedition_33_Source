@@ -119,7 +119,7 @@ HRESULT Level_GamePlay::Ready_Lights()
         // Camera 따라다니게
         ShadowDesc.followCameraFrustum = true;
         ShadowDesc.focusNear = 0.1f;
-        ShadowDesc.focusFar = 40.f;
+        ShadowDesc.focusFar = 110.f;
         ShadowDesc.lightDistancePadding = 30.f;
         ShadowDesc.xyPadding = 2.f;
         ShadowDesc.zPadding = 40.f;
@@ -127,6 +127,7 @@ HRESULT Level_GamePlay::Ready_Lights()
         ShadowDesc.shadowMapWidth = 4096;
         ShadowDesc.shadowMapHeight = 4096;
 
+        ShadowDesc.cascadeSplitLambda = 0.8f;
         ShadowDesc.bias = 0.0002f;
         ShadowDesc.intensity = 0.45f;
 

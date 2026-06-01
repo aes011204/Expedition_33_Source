@@ -273,9 +273,6 @@ HRESULT PlayableParts::Render_Shadow()
     if (FAILED(GAME->Bind_ShadowCB(_shaderCom)))
         return E_FAIL;
 
-    if (FAILED(_shaderCom->Reset_DrawFeatures()))
-        return E_FAIL;
-
     // shadow pass 전에도 bone buffer 최신화
     CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
 

@@ -1342,7 +1342,7 @@ uint32 GameInstance::Get_RenderCall() const
     return _renderer->Get_RenderCall();
 }
 
-const Shared<PostProcessPipeline>& GameInstance::Get_PostProcessPipeline() const
+const Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline() const
 {
     return _renderer->Get_PostProcessPipeline();
 }
@@ -1352,7 +1352,7 @@ Shared<PostProcessPipeline> GameInstance::Get_PostProcessPipeline()
     return _renderer->Get_PostProcessPipeline();
 }
 
-const Shared<LightingPipeline>& GameInstance::Get_LightingPipeline() const
+const Shared<LightingPipeline> GameInstance::Get_LightingPipeline() const
 {
     return _renderer->Get_LightingPipeline();
 }
@@ -1362,7 +1362,13 @@ Shared<LightingPipeline> GameInstance::Get_LightingPipeline()
     return _renderer->Get_LightingPipeline();
 }
 
-ScreenFx_Manager* GameInstance::Get_ScreenFxManager()
+HRESULT GameInstance::Reload_RendererShaders()
+{
+    CHECK_NULL(_renderer, E_FAIL);
+    return _renderer->Reload_RendererShaders();
+}
+
+ScreenFx_Manager* GameInstance::Get_ScreenFxManager() 
 {
     return _screenFxManager.get();
 }
@@ -2007,16 +2013,10 @@ HRESULT GameInstance::Ready_AllRenderTargets()
     return _targetManager->Ready_AllRenderTargets();
 }
 
-HRESULT GameInstance::Add_RenderTarget(
-    const wstring& targetTag,
-    uint32 sizeX,
-    uint32 sizeY,
-    DXGI_FORMAT pixelFormat,
-    const Color& clearColor,
-    bool resizeWithViewport,
-    bool useDSV)
+HRESULT GameInstance::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat,
+                                       const Color& clearColor, bool resizeWithViewport, bool useDSV, uint32 arraySize)
 {
-    return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport, useDSV);
+    return _targetManager->Add_RenderTarget(targetTag, sizeX, sizeY, pixelFormat, clearColor, resizeWithViewport, useDSV, arraySize);
 }
 
 HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
@@ -2024,9 +2024,9 @@ HRESULT GameInstance::Add_MRT(const wstring& mrtTag, const wstring& targetTag)
     return _targetManager->Add_MRT(mrtTag, targetTag);
 }
 
-HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV)
+HRESULT GameInstance::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV, uint32 arraySlice)
 {
-    return _targetManager->Begin_MRT(mrtTag, useDSV, clearRTV);
+    return _targetManager->Begin_MRT(mrtTag, useDSV, clearRTV, arraySlice);
 }
 
 HRESULT GameInstance::End_MRT()
@@ -2132,43 +2132,6 @@ HRESULT GameInstance::Bind_UINoDepthStencilState()
     _context->OMSetDepthStencilState(_uiNoDepthStencilState.Get(), 0);
 
     return S_OK;
-}
-
-#ifdef _DEBUG
-ComPtr<ID3D11Texture2D> GameInstance::Get_RT_Texture(const wstring& targetTag)
-{
-    return _targetManager->Get_RT_Texture(targetTag);
-}
-#endif
-
-HRESULT GameInstance::Initialize_Debug(float sizeX, float sizeY)
-{
-    return _targetManager->Initialize_Debug(sizeX, sizeY);
-}
-
-HRESULT GameInstance::Resize_DrawArea(float sizeX, float sizeY)
-{
-    return _targetManager->Resize_DrawArea(sizeX, sizeY);
-}
-
-HRESULT GameInstance::Display_RT(const wstring& targetTag, bool render)
-{
-    return _targetManager->Display_RT(targetTag, render);
-}
-
-HRESULT GameInstance::Display_AllRTs(bool render)
-{
-    return _targetManager->Display_AllRTs(render);
-}
-
-HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader)
-{
-    return _targetManager->Render_Debug(shader, viBuffer);
-}
-
-const map<wstring, bool>& GameInstance::Get_RTs() const
-{
-    return _targetManager->Get_RTs();
 }
 
 HRESULT GameInstance::Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName)
@@ -2648,6 +2611,68 @@ void GameInstance::Release_Engine()
 
     ReleaseManager(_graphicDevice);
     ReleaseManager(_logManager);
+}
+
+#ifdef _DEBUG
+ComPtr<ID3D11Texture2D> GameInstance::Get_RT_Texture(const wstring& targetTag)
+{
+    return _targetManager->Get_RT_Texture(targetTag);
+}
+
+HRESULT GameInstance::Initialize_Debug(float sizeX, float sizeY)
+{
+    return _targetManager->Initialize_Debug(sizeX, sizeY);
+}
+
+HRESULT GameInstance::Resize_DrawArea(float sizeX, float sizeY)
+{
+    return _targetManager->Resize_DrawArea(sizeX, sizeY);
+}
+
+HRESULT GameInstance::Display_RT(const wstring& targetTag, bool render)
+{
+    return _targetManager->Display_RT(targetTag, render);
+}
+
+HRESULT GameInstance::Display_AllRTs(bool render)
+{
+    return _targetManager->Display_AllRTs(render);
+}
+
+HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader)
+{
+    return _targetManager->Render_Debug(shader, viBuffer);
+}
+
+const map<wstring, bool>& GameInstance::Get_RTs() const
+{
+    return _targetManager->Get_RTs();
+}
+
+#endif
+
+HRESULT GameInstance::Set_ActiveShadowCascade(uint32 cascadeIndex)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Set_ActiveCascade(cascadeIndex);
+}
+
+void GameInstance::Set_ActiveStaticShadow()
+{
+    CHECK_NULL(_shadow);
+    _shadow->Set_ActiveStaticShadow();
+}
+
+void GameInstance::Set_ShadowEnabled(bool enabled)
+{
+    CHECK_NULL(_renderer);
+    _renderer->Set_ShadowEnabled(enabled);
+}
+
+uint32 GameInstance::Get_ShadowCascadeCount() const
+{
+    CHECK_NULL(_shadow, 0u);
+    return _shadow->Get_CascadeCount();
 }
 
 void GameInstance::Free()

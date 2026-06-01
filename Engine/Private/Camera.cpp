@@ -108,6 +108,9 @@ void Camera::Update_TransformMatrices()
         XMMatrixInverse(nullptr, _transformCom->Get_WorldMatrix())
     );
 
+    if (_near <= 0.f)
+        _near = 0.0001f;
+
     GAME->Set_Transform(
         D3DTS::Proj,
         XMMatrixPerspectiveFovLH(_fovY, _aspect, _near, _far)
