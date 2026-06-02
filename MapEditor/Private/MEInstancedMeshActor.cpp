@@ -330,6 +330,10 @@ void MEInstancedMeshActor::DispatchCull()
     }
     params.totalCount = _instanceCount;
 
+    params.maxDist = 300.f;
+    const Vec4* cam4 = GAME->Get_CamPosition();
+    params.camPos = Vec3(cam4->x, cam4->y, cam4->z);
+
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (FAILED(_context->Map(_cullCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
     {
@@ -478,8 +482,18 @@ HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const ve
 
     for (auto& t : transforms)
     {
+        Quat q(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w);
+        if (q.Length() < 1e-6f)
+        {
+            q = Quat::Identity;
+        }
+        else
+        {
+            q.Normalize();
+        }
+
         Matrix world = Matrix::CreateScale(t._scale)
-            * Matrix::CreateFromQuaternion(Quat(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w))
+            * Matrix::CreateFromQuaternion(q)
             * Matrix::CreateTranslation(t._position);
         matrices.push_back(world);
     }
