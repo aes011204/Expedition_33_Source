@@ -46,6 +46,43 @@ HRESULT MELandscapeActor::Initialize(const VIBuffer_Landscape::LAND_DESC& desc)
         return E_FAIL;
     }
 
+    D3D11_TEXTURE2D_DESC ndesc = {};
+    ndesc.Width = ndesc.Height = 1;
+    ndesc.MipLevels = ndesc.ArraySize = 1;
+    ndesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    ndesc.SampleDesc.Count = 1;
+    ndesc.Usage = D3D11_USAGE_IMMUTABLE;
+    ndesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+    uint8_t flatNormal[4] = { 128, 128, 255, 255 };
+    D3D11_SUBRESOURCE_DATA ndata{};
+    ndata.pSysMem = flatNormal;
+    ndata.SysMemPitch = 4;
+
+    if (FAILED(_device->CreateTexture2D(&ndesc, &ndata, _dummyNormalTex.GetAddressOf())))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(_device->CreateShaderResourceView(_dummyNormalTex.Get(), nullptr, _dummyNormalSRV.GetAddressOf())))
+    {
+        return E_FAIL;
+    }
+
+    uint8_t flatRough[4] = { 128, 128, 128, 255 };
+    D3D11_SUBRESOURCE_DATA rdata = {};
+    rdata.pSysMem = flatRough;
+    rdata.SysMemPitch = 4;
+
+    if (FAILED(_device->CreateTexture2D(&ndesc, &rdata, _dummyRoughnessTex.GetAddressOf())))
+    {
+        return E_FAIL;
+    }
+    if (FAILED(_device->CreateShaderResourceView(_dummyRoughnessTex.Get(), nullptr, _dummyRoughnessSRV.GetAddressOf())))
+    {
+        return E_FAIL;
+    }
+
     return S_OK;
 }
 
@@ -121,10 +158,59 @@ HRESULT MELandscapeActor::Bind_ShaderResources()
         _shader->Bind_SRV(weightNames[i], _dummyWeightSRV.Get());
     }
 
+    // Normal / Roughness
+    for (uint32 i = 0; i < _layerCount; ++i)
+    {
+        _shader->Bind_SRV(normalNames[i], _normalSRVs[i] ? _normalSRVs[i].Get() : _dummyNormalSRV.Get());
+        _shader->Bind_SRV(roughnessNames[i], _roughnessSRVs[i] ? _roughnessSRVs[i].Get() : _dummyRoughnessSRV.Get());
+    }
+    for (uint32 i = _layerCount; i < MAX_LAYERS; ++i)
+    {
+        _shader->Bind_SRV(normalNames[i], _dummyNormalSRV.Get());
+        _shader->Bind_SRV(roughnessNames[i], _dummyRoughnessSRV.Get());
+    }
+
+    // LayerParams cbuffer
+    Vec4 tilingArr[MAX_LAYERS];
+    Vec4 tintArr[MAX_LAYERS];
+    Vec4 controlArr[MAX_LAYERS];
+    for (uint32 i = 0; i < MAX_LAYERS; ++i)
+    {
+        tilingArr[i] = Vec4(_tiling[i], 0.f, 0.f, 0.f);
+        tintArr[i] = _groundTint[i];
+        controlArr[i] = _layerControl[i];
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_Tiling", tilingArr, sizeof(tilingArr))))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_GroundTint", tintArr, sizeof(tintArr))))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_LayerControl", controlArr, sizeof(controlArr))))
+    {
+        return E_FAIL;
+    }
+
+    Vec4 albedoArr[MAX_LAYERS];
+    for (uint32 i = 0; i < MAX_LAYERS; ++i)
+    {
+        albedoArr[i] = _albedoControl[i];
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_AlbedoControl", albedoArr, sizeof(albedoArr))))
+    {
+        return E_FAIL;
+    }
+
     return S_OK;
 }
 
-HRESULT MELandscapeActor::Add_LayerTexture(const wstring& texturePath)
+HRESULT MELandscapeActor::Add_LayerTexture(const wstring& albedoPath, const wstring& normalPath, const wstring& roughnessPath)
 {
     if (_layerCount >= MAX_LAYERS)
     {
@@ -132,18 +218,50 @@ HRESULT MELandscapeActor::Add_LayerTexture(const wstring& texturePath)
     }
 
     WCHAR ext[MAX_PATH] = {};
-    _wsplitpath_s(texturePath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, ext, MAX_PATH);
+    _wsplitpath_s(albedoPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, ext, MAX_PATH);
 
     ComPtr<ID3D11ShaderResourceView> srv;
     HRESULT hr = (lstrcmp(ext, L".dds") == 0)
-        ? CreateDDSTextureFromFile(_device.Get(), texturePath.c_str(), nullptr, srv.GetAddressOf())
-        : CreateWICTextureFromFile(_device.Get(), texturePath.c_str(), nullptr, srv.GetAddressOf());
+        ? CreateDDSTextureFromFile(_device.Get(), albedoPath.c_str(), nullptr, srv.GetAddressOf())
+        : CreateWICTextureFromFile(_device.Get(), albedoPath.c_str(), nullptr, srv.GetAddressOf());
 
     if (FAILED(hr))
     {
         return E_FAIL;
     }
+
     _layerSRVs[_layerCount] = srv;
+
+    if (!normalPath.empty())
+    {
+        WCHAR nExt[MAX_PATH] = {};
+        _wsplitpath_s(normalPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, nExt, MAX_PATH);
+        ComPtr<ID3D11ShaderResourceView> nsrv;
+        hr = (lstrcmp(nExt, L".dds") == 0)
+            ? CreateDDSTextureFromFile(_device.Get(), normalPath.c_str(), nullptr, nsrv.GetAddressOf())
+            : CreateWICTextureFromFile(_device.Get(), normalPath.c_str(), nullptr, nsrv.GetAddressOf());
+        if (SUCCEEDED(hr))
+        {
+            _normalSRVs[_layerCount] = nsrv;
+        }
+        _normalPaths[_layerCount] = fs::path(normalPath).filename().wstring();
+    }
+
+    if (!roughnessPath.empty())
+    {
+        WCHAR rExt[MAX_PATH] = {};
+        _wsplitpath_s(roughnessPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, rExt, MAX_PATH);
+        ComPtr<ID3D11ShaderResourceView> rsrv;
+        hr = (lstrcmp(rExt, L".dds") == 0)
+            ? CreateDDSTextureFromFile(_device.Get(), roughnessPath.c_str(), nullptr, rsrv.GetAddressOf())
+            : CreateWICTextureFromFile(_device.Get(), roughnessPath.c_str(), nullptr, rsrv.GetAddressOf());
+
+        if (SUCCEEDED(hr))
+        {
+            _roughnessSRVs[_layerCount] = rsrv;
+        }
+        _roughnessPaths[_layerCount] = fs::path(roughnessPath).filename().wstring();
+    }
 
     uint32 w = _vibuffer->Get_CountX() + 1;
     uint32 h = _vibuffer->Get_CountZ() + 1;
@@ -163,14 +281,13 @@ HRESULT MELandscapeActor::Add_LayerTexture(const wstring& texturePath)
         return E_FAIL;
     }
 
-    if (FAILED(_device->CreateShaderResourceView(_weightTextures[_layerCount].Get(), nullptr,
-        _weightSRVs[_layerCount].GetAddressOf())))
+    if (FAILED(_device->CreateShaderResourceView(_weightTextures[_layerCount].Get(), nullptr, _weightSRVs[_layerCount].GetAddressOf())))
     {
         return E_FAIL;
     }
 
     _vibuffer->Set_LayerCount(_layerCount + 1);
-    _layerPaths[_layerCount] = fs::path(texturePath).filename().wstring();
+    _layerPaths[_layerCount] = fs::path(albedoPath).filename().wstring();
     ++_layerCount;
 
     Flush_WeightMap(_layerCount - 1);
@@ -215,6 +332,11 @@ void MELandscapeActor::Clear_Layers()
         _weightTextures[i].Reset();
         _weightSRVs[i].Reset();
         _layerPaths[i].clear();
+
+        _normalSRVs[i].Reset();
+        _roughnessSRVs[i].Reset();
+        _normalPaths[i].clear();
+        _roughnessPaths[i].clear();
     }
     _layerCount = 0;
     _vibuffer->Clear_Layers();
@@ -233,6 +355,11 @@ void MELandscapeActor::Remove_LayerTexture(uint32 idx)
         _weightTextures[i] = _weightTextures[i + 1];
         _weightSRVs[i] = _weightSRVs[i + 1];
         _layerPaths[i] = _layerPaths[i + 1];
+
+        _normalSRVs[i] = _normalSRVs[i + 1];
+        _roughnessSRVs[i] = _roughnessSRVs[i + 1];
+        _normalPaths[i] = _normalPaths[i + 1];
+        _roughnessPaths[i] = _roughnessPaths[i + 1];
     }
 
     uint32 last = _layerCount - 1;
@@ -240,6 +367,10 @@ void MELandscapeActor::Remove_LayerTexture(uint32 idx)
     _weightTextures[last].Reset();
     _weightSRVs[last].Reset();
     _layerPaths[last].clear();
+    _normalSRVs[last].Reset();
+    _roughnessSRVs[last].Reset();
+    _normalPaths[last].clear();
+    _roughnessPaths[last].clear();
 
     --_layerCount;
 
@@ -257,6 +388,10 @@ void MELandscapeActor::Set_BaseLayer(uint32 idx)
     swap(_layerPaths[0], _layerPaths[idx]);
     swap(_weightTextures[0], _weightTextures[idx]);
     swap(_weightSRVs[0], _weightSRVs[idx]);
+    swap(_normalSRVs[0], _normalSRVs[idx]);
+    swap(_roughnessSRVs[0], _roughnessSRVs[idx]);
+    swap(_normalPaths[0], _normalPaths[idx]);
+    swap(_roughnessPaths[0], _roughnessPaths[idx]);
 
     _vibuffer->Swap_Layer(0, idx);
 }
