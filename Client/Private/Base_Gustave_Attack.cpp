@@ -25,9 +25,9 @@ void Base_Gustave_Attack::Execute(const Skill_Data& skill, const BattleAction& a
         return;
     }
 
-    DamageSystem::ApplyDamage(Damage, action.GetCurStepTarget(), attackType);
-
     auto attacker = action.Get_CurChar();
+
+    DamageSystem::ApplyDamage(Damage, attacker, action.GetCurStepTarget(), attackType);
 
     if (attacker.heroId == HeroId::Gustave &&
         attacker.mechanismCom != nullptr &&

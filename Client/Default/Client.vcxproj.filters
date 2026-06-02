@@ -415,6 +415,8 @@
     <ClCompile Include="..\Private\BattleQTEController.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
+    <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1200,6 +1202,7 @@
     <ClInclude Include="..\Public\BattleQTEController.h">
       <Filter>BattleState</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_MarkEffect.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

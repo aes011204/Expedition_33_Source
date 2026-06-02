@@ -495,6 +495,7 @@ namespace Client
 
 
     enum class BuffType { beforeTurn, changeStat, dot, SLogic };
+
     enum class Buffs
     {
         //버프
@@ -524,8 +525,6 @@ namespace Client
 
         Slow,
         Rush,
-
-
 
         Exhausted,
         Bound,
