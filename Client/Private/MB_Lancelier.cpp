@@ -86,7 +86,7 @@ HRESULT MB_Lancelier::Ready_PartObjects()
     Mon_WeakPoint::WEAK_DESC weakDesc{};
     weakDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
     weakDesc.allowMissingModel = true;
-    weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("neck_01");
+    weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("neck_02");
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weaponDesc), E_FAIL); // 배틀 몬스터 무기 파츠도 Static prototype을 재사용한다.
 

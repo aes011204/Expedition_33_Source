@@ -32,14 +32,17 @@ HRESULT Mon_WeakPoint::Initialize(void* arg)
     if (FAILED(Monster_Part::Initialize(desc)))
         return E_FAIL;
 
-    PlayEffectDesc effectDesc{};
-    effectDesc.effectName = L"Monster_Weak";
-    effectDesc.layerTag = L"Layer_Effect";
-    effectDesc.spawnBasisTarget = GetSharedPtr<Mon_WeakPoint>();
-
-    CLIENT->Play_Effect(effectDesc);
-
     return S_OK;
+}
+
+void Mon_WeakPoint::BeginPlay()
+{
+    Monster_Part::BeginPlay();
+
+    if (!CLIENT->Play_AttachPartEffect(Get_Owner(), L"Monster_Weak", L"Part_Weak"), E_FAIL)
+    {
+        return;
+    }
 }
 
 void Mon_WeakPoint::Priority_Update(float timeDelta)
@@ -54,7 +57,7 @@ void Mon_WeakPoint::Update(float timeDelta)
     if (_effectCom)
         _effectCom->Update(timeDelta);
 
-    // CLIENT->Play_AttachPartEffect(Get_Owner(), L"Monster_Weak", L"Part_Weak");
+    
  
 }
 

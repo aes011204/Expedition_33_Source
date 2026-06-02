@@ -11,6 +11,7 @@
 #include "MovementCom.h"
 #include "Monster_Part.h"
 #include "BattleStartSpawner.h"
+#include "EffectCom.h"
 
 REGISTER_GLOBAL_ENUM(Monster_WorldBase::MonsterWorldAnim, "MonsterWorldAnim")
 
@@ -168,6 +169,9 @@ void Monster_WorldBase::Update(float timeDelta)
 
     if (_combatStat)
         _combatStat->Update(timeDelta);
+
+    if (_effectCom)
+        _effectCom->Update(timeDelta);
 
     if (_isStun)
         _currentAction = MonsterWorldAnim::Stun;
@@ -458,6 +462,8 @@ HRESULT Monster_WorldBase::Ready_Components()
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_MonsterStat"), _combatStat), E_FAIL);
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
 
     Bounding_OBB::BoundingOBBDesc obbDesc{};
     obbDesc.center = Vec3(0.f, 0.6f, 0.f);
