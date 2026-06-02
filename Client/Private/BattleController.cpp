@@ -1212,23 +1212,23 @@ void BattleController::Execute_Item()
         if (action.GetInitTarget().statCom->Get_AliveStatus() != EAliveStatus::Dead)
             return; // 부활 틴트는 죽어있는 대상에게만 적용한다.
 
-        action.GetInitTarget().statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
-        Restore_BattleTargetCollision(action.GetInitTarget()); // 부활 직후 다시 충돌 가능 상태로 전환
+        //action.GetInitTarget().statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
+        //Restore_BattleTargetCollision(action.GetInitTarget()); // 부활 직후 다시 충돌 가능 상태로 전환
 
-        DamageSystem::Heal(action.GetInitTarget().statCom->Get_StatInfo().maxHp * static_cast<float>(itemData.reviveHp) * 0.01f, action.GetInitTarget());
+        //DamageSystem::Heal(action.GetInitTarget().statCom->Get_StatInfo().maxHp * static_cast<float>(itemData.reviveHp) * 0.01f, action.GetInitTarget());
 
-        if (action.GetInitTarget().ModelCom)
-        {
-            if (!action.GetInitTarget().ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
-            {
-                BattleAnimUtils::Play_BattleIdle(
-                    action.GetInitTarget(),
-                    0.2f); // Revive 매핑이 없으면 부활된 대상 기준 idle로 복귀한다.
-            }
-        }
+        //if (action.GetInitTarget().ModelCom)
+        //{
+        //    if (!action.GetInitTarget().ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
+        //    {
+        //        BattleAnimUtils::Play_BattleIdle(
+        //            action.GetInitTarget(),
+        //            0.2f); // Revive 매핑이 없으면 부활된 대상 기준 idle로 복귀한다.
+        //    }
+        //}
 
-        Rebuild_TurnQueue(action.GetInitTarget());
-
+        //Rebuild_TurnQueue(action.GetInitTarget());
+        Revive_BattleMon(action.GetInitTarget(), static_cast<float>(itemData.reviveHp) * 0.01f);
         break;
 
     default:
@@ -1237,6 +1237,27 @@ void BattleController::Execute_Item()
 
     CLIENT->Consume_Item(itemData.itemType);
     Clear_TargetPreview();
+}
+
+
+void BattleController::Revive_BattleMon(const BattleChar& battleChar, float MultipleHp)
+{
+    battleChar.statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
+    Restore_BattleTargetCollision(battleChar); // 부활 직후 다시 충돌 가능 상태로 전환
+
+    DamageSystem::Heal(battleChar.statCom->Get_StatInfo().maxHp * MultipleHp, battleChar);
+
+    if (battleChar.ModelCom)
+    {
+        if (!battleChar.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
+        {
+            BattleAnimUtils::Play_BattleIdle(
+                battleChar,
+                0.2f); // Revive 매핑이 없으면 부활된 대상 기준 idle로 복귀한다.
+        }
+    }
+
+    Rebuild_TurnQueue(battleChar);
 }
 
 void BattleController::Apply_BaseAttackAP(const BattleChar& actor)

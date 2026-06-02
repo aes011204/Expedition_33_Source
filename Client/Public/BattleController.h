@@ -266,6 +266,7 @@ private:
     void Execute_BaseAttack();
     void Execute_Skill();
     void Execute_Item();
+    void Revive_BattleMon(const BattleChar& battleChar, float hp);
 
 private: /* 전투 AP */
     void Apply_BaseAttackAP(const BattleChar& actor); // Base Attack시 얻는 AP
