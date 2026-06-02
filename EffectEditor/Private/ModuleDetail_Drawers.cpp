@@ -1657,15 +1657,15 @@ bool MaterialScalarModulationModuleDetail::Draw(
 
             const MaterialScalarModulationTimeSource timeSource =
                 row.isCoreColorRgb
-                    ? data.coreColorRgbModulators[row.index].timeSource
-                    : data.modulators[row.index].timeSource;
+                ? data.coreColorRgbModulators[row.index].timeSource
+                : data.modulators[row.index].timeSource;
             const string header =
                 string("#") + to_string(rowIndex + 1) + " " +
                 Internal::Get_MaterialModulationTargetLabel(
                     row.isCoreColorRgb,
                     row.isCoreColorRgb
-                        ? MaterialScalarModulationTargetField::CoreColor
-                        : data.modulators[row.index].targetField
+                    ? MaterialScalarModulationTargetField::CoreColor
+                    : data.modulators[row.index].targetField
                 ) + " / " +
                 Internal::Get_MaterialScalarTimeSourceLabel(timeSource);
             bool structureChanged = false;
@@ -1765,9 +1765,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
                                 structureChanged = true;
                             }
                             else
-                            {
                                 modulator.targetField = nextTarget;
-                            }
                         }
 
                         if (!structureChanged)
