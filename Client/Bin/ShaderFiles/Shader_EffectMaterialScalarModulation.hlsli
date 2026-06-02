@@ -10,6 +10,7 @@ static const int EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR = 7;
 static const int EFFECT_MATERIAL_SCALAR_TIME_PARTICLE_LIFE = 0;
 static const int EFFECT_MATERIAL_SCALAR_TIME_EMITTER_TIME = 1;
 
+// float4에 패킹된 키 데이터에서 지정한 채널 값을 꺼낸다.
 float EffectMaterialScalar_ReadComponent(float4 values, uint index)
 {
     float result = values.x;
@@ -22,6 +23,7 @@ float EffectMaterialScalar_ReadComponent(float4 values, uint index)
     return result;
 }
 
+// 모듈레이터 한 개의 커브를 현재 phase 기준으로 평가한다.
 float EffectMaterialScalar_EvaluateCurve(uint modulatorIndex, float phase)
 {
     float result = 1.f;
@@ -32,7 +34,7 @@ float EffectMaterialScalar_EvaluateCurve(uint modulatorIndex, float phase)
         if (keyCount > 1u)
         {
             const float clampedPhase = saturate(phase);
-            [unroll]
+            [loop]
             for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
             {
                 if (keyIndex >= keyCount)
@@ -80,12 +82,13 @@ float EffectMaterialScalar_EvaluateCurve(uint modulatorIndex, float phase)
     return result;
 }
 
+// 대상 필드에 연결된 모든 모듈레이터를 곱해 최종 배율을 만든다.
 float EffectMaterialScalar_ResolveMultiplier(int targetField, float lifeProgress)
 {
     float multiplier = 1.f;
     const uint count = min(8u, (uint)g_EffectMaterialScalarModulationParams.x);
 
-    [unroll]
+    [loop]
     for (uint index = 0u; index < 8u; ++index)
     {
         if (index >= count)
