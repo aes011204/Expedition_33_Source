@@ -4,9 +4,31 @@
 #include "Material_Types.h"
 #include "ModelCom.h"
 
+namespace
+{
+    // 구스타브 수염 일단 여기서 만드는 거로... 
+    HairCB Make_GustaveBeardCardHairCB()
+    {
+        HairCB cb{};
+        cb.g_HairColorTop = { 0.286458f, 0.161008f, 0.088026f, 1.f };
+        cb.g_HairColorDown = { 0.046875f, 0.025220f, 0.012695f, 1.f };
+        cb.hairHighlightColor = { 0.177888f, 0.111932f, 0.072272f, 0.f };
+        cb.opacityMaskClipValue = 0.3333f;
+        cb.roughness = 0.65f;
+        cb.specular = 0.3f;
+        cb.brightness = 0.8f;
+        cb.gradientColor = 0.614571f;
+        cb.gradientContrast = 0.203904f;
+        cb.gradientHardness = 1.0f;
+        cb.gradientHeight = 0.462f;
+        return cb;
+    }
+}
+
 FaceAccessory_Player::FaceAccessory_Player(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : PartObject{ device, context }
 {
+    _hairCB = Make_GustaveBeardCardHairCB();
 }
 
 FaceAccessory_Player::FaceAccessory_Player(const FaceAccessory_Player& prototype)
@@ -56,7 +78,7 @@ void FaceAccessory_Player::Late_Update(float timeDelta)
     if (_shader == nullptr || _model == nullptr)
         return;
 
-    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    GAME->Add_RenderGroup(RenderGroup::NonLight, GetSharedPtr<GameObject>());
 
     if (Casts_DynamicShadow())
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
@@ -67,7 +89,7 @@ HRESULT FaceAccessory_Player::Render()
     if (_shader == nullptr || _model == nullptr)
         return S_OK;
 
-    CHECK_FAILED(Bind_ShaderResources(), E_FAIL);
+    CHECK_FAILED(Bind_ShaderResources(), E_FAIL); 
     CHECK_FAILED(_shader->Reset_DrawFeatures(), E_FAIL);
 
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
@@ -100,7 +122,6 @@ HRESULT FaceAccessory_Player::Render_Shadow()
 
     CHECK_FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix), E_FAIL);
     CHECK_FAILED(GAME->Bind_ShadowCB(_shader), E_FAIL);
-    CHECK_FAILED(_shader->Reset_DrawFeatures(), E_FAIL);
 
     const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
@@ -154,6 +175,7 @@ HRESULT FaceAccessory_Player::Bind_ShaderResources()
 
     CHECK_FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix), E_FAIL);
     CHECK_FAILED(GAME->Bind_CameraCB(_shader), E_FAIL);
+    CHECK_FAILED(_shader->Bind_CBufferData(_hairCB), E_FAIL);
     return S_OK;
 }
 

@@ -412,6 +412,9 @@
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
     <ClCompile Include="..\Private\UI_AddAP.cpp" />
     <ClCompile Include="..\Private\UI_QTE.cpp" />
+    <ClCompile Include="..\Private\BattleQTEController.cpp">
+      <Filter>BattleState</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1194,6 +1197,9 @@
     <ClInclude Include="..\Public\BattleStartSpawner.h" />
     <ClInclude Include="..\Public\UI_AddAP.h" />
     <ClInclude Include="..\Public\UI_QTE.h" />
+    <ClInclude Include="..\Public\BattleQTEController.h">
+      <Filter>BattleState</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

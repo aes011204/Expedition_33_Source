@@ -191,6 +191,7 @@
     <ClInclude Include="..\Public\BattleCameraClipTypes.h" />
     <ClInclude Include="..\Public\BattleHitSequenceRunner.h" />
     <ClInclude Include="..\Public\BattleMechanismCom.h" />
+    <ClInclude Include="..\Public\BattleQTEController.h" />
     <ClInclude Include="..\Public\BattleReactionController.h" />
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
     <ClInclude Include="..\Public\BattleStartSpawner.h" />
@@ -471,6 +472,7 @@
     <ClCompile Include="..\Private\BattleClipSequencerAdapter.cpp" />
     <ClCompile Include="..\Private\BattleHitSequenceRunner.cpp" />
     <ClCompile Include="..\Private\BattleMechanismCom.cpp" />
+    <ClCompile Include="..\Private\BattleQTEController.cpp" />
     <ClCompile Include="..\Private\BattleReactionController.cpp" />
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />

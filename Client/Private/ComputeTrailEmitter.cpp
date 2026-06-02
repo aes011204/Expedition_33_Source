@@ -1109,6 +1109,9 @@ bool ComputeTrailEmitter::Is_DistortionFamily() const
 
 RenderGroup ComputeTrailEmitter::Resolve_RenderGroup() const
 {
+    if (_desc.renderLayerOverride == EffectEmitterRenderLayerOverride::UIEffect)
+        return RenderGroup::UIEffect;
+
     return Is_DistortionFamily() ? RenderGroup::Distortion : RenderGroup::Blend;
 }
 

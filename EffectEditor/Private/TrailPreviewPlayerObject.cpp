@@ -85,9 +85,9 @@ void TrailPreviewPlayerObject::Set_PreviewVisible(bool visible)
 
 HRESULT TrailPreviewPlayerObject::Restore_VisualPartsFromPrefab()
 {
-    const std::filesystem::path prefabRootPath =
-        std::filesystem::path(GAME->Get_AssetRoot()) / L"Data" / L"json" / L"Prefabs";
-    std::filesystem::path prefabPath = prefabRootPath / L"PB_Gustave.prefab.json";
+    const filesystem::path prefabRootPath =
+        filesystem::path(GAME->Get_AssetRoot()) / L"Data" / L"json" / L"Prefabs";
+    filesystem::path prefabPath = prefabRootPath / L"PB_Gustave.prefab.json";
 
     json prefabRoot = GAME->Load_JsonFile(prefabPath);
     if (!prefabRoot.is_object())

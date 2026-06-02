@@ -281,6 +281,11 @@ void Inspector::Draw_PrimaryShadowLightInspector()
         ImGui::SameLine(InspectorLabelWidth);
         lightChanged |= ImGui::Checkbox("##CastShadow", &lightDesc.castShadow);
 
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Shadow Enabled");
+        ImGui::SameLine(InspectorLabelWidth);
+        shadowChanged |= ImGui::Checkbox("##ShadowEnabled", &shadowDesc.enabled);
+
         float direction[3] = { lightDesc.direction.x, lightDesc.direction.y, lightDesc.direction.z };
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("Direction");

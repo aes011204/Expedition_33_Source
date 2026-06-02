@@ -82,3 +82,12 @@ bool EffectEmitter::Is_EffectFinished() const
 void EffectEmitter::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>&)
 {
 }
+
+bool EffectEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    outWorldPosition = _transformCom->Get_WorldPosition();
+    return true;
+}

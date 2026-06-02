@@ -164,6 +164,15 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         false,
         true
     };
+    static const AuthoringModuleMetadata materialScalarModulation{
+        "MaterialScalarModulation",
+        L"머티리얼 변조",
+        L"머티리얼 scalar 시간 변화",
+        true,
+        true,
+        true,
+        true
+    };
 
     switch (type)
     {
@@ -219,6 +228,8 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return meshSizeByLife;
     case AuthoringModuleType::SpawnPerUnit:
         return spawnPerUnit;
+    case AuthoringModuleType::MaterialScalarModulation:
+        return materialScalarModulation;
     }
 
     return required;
