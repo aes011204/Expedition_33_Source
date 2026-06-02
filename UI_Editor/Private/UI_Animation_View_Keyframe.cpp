@@ -9,13 +9,20 @@ namespace UIEditor
     {
         constexpr float kPi = 3.14159265358979323846f;
 
-        const char* const kTrackTypeNames[] = {
-            "PositionX",
-            "PositionY",
-            "ScaleX",
-            "ScaleY",
-            "Rotation",
-            "Color",
+        struct TrackTypeOption
+        {
+            const char* label = "";
+            UI_AnimationKeyframeTrackType type = UI_AnimationKeyframeTrackType::PositionX;
+        };
+
+        const TrackTypeOption kTrackTypeOptions[] = {
+            { "PositionX", UI_AnimationKeyframeTrackType::PositionX },
+            { "PositionY", UI_AnimationKeyframeTrackType::PositionY },
+            { "ScaleX", UI_AnimationKeyframeTrackType::ScaleX },
+            { "ScaleY", UI_AnimationKeyframeTrackType::ScaleY },
+            { "Rotation", UI_AnimationKeyframeTrackType::Rotation },
+            { "Color", UI_AnimationKeyframeTrackType::Color },
+            { "AlphaMultiplier", UI_AnimationKeyframeTrackType::AlphaMultiplier },
         };
 
         const char* const kEasingNames[] = {
@@ -38,9 +45,15 @@ namespace UIEditor
         int32 Get_TrackTypeIndex(UI_AnimationKeyframeTrackType type)
         {
             if (type == UI_AnimationKeyframeTrackType::Alpha)
-                return static_cast<int32>(UI_AnimationKeyframeTrackType::Color);
+                type = UI_AnimationKeyframeTrackType::Color;
 
-            return min(max(static_cast<int32>(type), 0), static_cast<int32>(size(kTrackTypeNames)) - 1);
+            for (int32 index = 0; index < static_cast<int32>(size(kTrackTypeOptions)); ++index)
+            {
+                if (kTrackTypeOptions[index].type == type)
+                    return index;
+            }
+
+            return 0;
         }
 
         int32 Get_EasingIndex(UI_AnimationEasing easing)
@@ -432,8 +445,22 @@ namespace UIEditor
         }
 
         int32 trackTypeIndex = Get_TrackTypeIndex(_assetService.Get_PendingTrackType());
-        if (ImGui::Combo("Add Track Type", &trackTypeIndex, kTrackTypeNames, static_cast<int32>(size(kTrackTypeNames))))
-            _assetService.Set_PendingTrackType(static_cast<UI_AnimationKeyframeTrackType>(trackTypeIndex));
+        if (ImGui::BeginCombo("Add Track Type", kTrackTypeOptions[trackTypeIndex].label))
+        {
+            for (int32 optionIndex = 0; optionIndex < static_cast<int32>(size(kTrackTypeOptions)); ++optionIndex)
+            {
+                const bool selected = optionIndex == trackTypeIndex;
+                if (ImGui::Selectable(kTrackTypeOptions[optionIndex].label, selected))
+                {
+                    trackTypeIndex = optionIndex;
+                    _assetService.Set_PendingTrackType(kTrackTypeOptions[optionIndex].type);
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
 
         ImGui::BeginDisabled(!hasTarget);
         if (ImGui::Button("Add Track"))
@@ -466,7 +493,7 @@ namespace UIEditor
         if (ImGui::Button("Key Transform Set") && _assetService.Add_CurrentValueKeysToTransformTracks(_editorManager.Get_Document()))
             Request_StaticPreviewRefresh();
         ImGui::EndDisabled();
-        Show_ItemTooltip("Create or update Position, Scale, Rotation, and Color keys at the current frame.");
+        Show_ItemTooltip("Create or update Position, Scale, Rotation, Color, and AlphaMultiplier keys at the current frame.");
 
         ImGui::BeginDisabled(nullptr == _assetService.Get_SelectedKey());
         if (ImGui::Button("Copy Key"))

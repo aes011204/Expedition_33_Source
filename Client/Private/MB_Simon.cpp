@@ -12,6 +12,7 @@ IMPLEMENT_REFLECTION(MB_Simon)
 
     info.displayName = "MB_Simon";
     info.category = "Monster";
+    PROPERTY_FLOAT("Battle Ground Offset Y", _battleGroundOffsetY, -5.f, 5.f, 0.01f);
 
     return true;
 }
@@ -37,8 +38,6 @@ HRESULT MB_Simon::Initialize(void* arg)
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
     //_body->Set_Animation("Simon_Idle", 0.3f, true);
-
-
 
     return S_OK;
 }

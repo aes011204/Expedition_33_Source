@@ -30,6 +30,8 @@ namespace UIEditor
         bool Set_ObjectRenderGroup(UI_Document& document, ObjectId objectId, UI_RenderGroup renderGroup) const;
         bool Can_SetObjectColor(const UI_Document& document, ObjectId objectId, const ImVec4& color) const;
         bool Set_ObjectColor(UI_Document& document, ObjectId objectId, const ImVec4& color) const;
+        bool Can_SetObjectAlphaMultiplier(const UI_Document& document, ObjectId objectId, float alphaMultiplier) const;
+        bool Set_ObjectAlphaMultiplier(UI_Document& document, ObjectId objectId, float alphaMultiplier) const;
 
         bool Can_SetObjectImageRenderMode(const UI_Document& document, ObjectId objectId, UI_ImageRenderMode imageRenderMode) const;
         bool Set_ObjectImageRenderMode(UI_Document& document, ObjectId objectId, UI_ImageRenderMode imageRenderMode) const;

@@ -86,17 +86,23 @@ void AIController::Update(float timeDelta)
     if (_BT)
         _BT->Update(timeDelta);
 
-        Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
+    _moveWorldDir = Vec3::Zero;
+
     if (_PF)
     {
-        auto tmp = Get_Owner()->Get_Transform()->Get_SpeedPerSec() ;
-
-       //LOG_DEBUG("{}", tmp);
-        _PF->Update(timeDelta, pos, tmp);
-        Get_Owner()->Get_Transform()->Set_Position(pos);
-
+        const Shared<GameObject> owner = Get_Owner();
+        const Shared<TransformCom> transform = owner ? owner->Get_Transform() : nullptr;
+        if (transform)
+        {
+            const Vec3 pos = transform->Get_Position();
+            const float reachDistance = transform->Get_SpeedPerSec() * timeDelta;
+            _isMoving = _PF->Update(pos, reachDistance, _moveWorldDir);
+        }
+        else
+        {
+            _isMoving = false;
+        }
     }
-
 }
 
 
@@ -141,6 +147,7 @@ void AIController::Request_Move(Vec3& target)
     Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
     _PF->Request_Move(pos,target);
 
+    _moveWorldDir = Vec3::Zero;
     _isMoving = true;
 }
 
@@ -156,6 +163,7 @@ void AIController::Stop_Move()
 
     Vec3 pos = transform->Get_Position();
     _PF->Stop_Move(pos);
+    _moveWorldDir = Vec3::Zero;
     _isMoving = false;
 }
 

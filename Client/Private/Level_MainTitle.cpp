@@ -30,9 +30,7 @@ void Level_MainTitle::Update(float timeDelta)
 
 HRESULT Level_MainTitle::Render()
 {
-#ifdef _DEBUG
-    SetWindowText(g_hWnd, TEXT("MainTitle Level"));
-#endif
+    Update_WindowTitleFps(_windowTitleFps, L"MainTitle Level");
 
     return S_OK;
 }

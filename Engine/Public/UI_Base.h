@@ -14,6 +14,7 @@ public:
         UI_Transform::UI_TRANSFORM_DESC transformDesc{};
         bool isOpenOnCreate{ true };
         int32 sortOrder{ 0 };
+        float alphaMultiplier{ 1.f };
         vector<UI_AnimationClip> animationClips = {};
         vector<UI_KeyframeAnimationAsset> keyframeAnimationAssets = {};
 
@@ -58,8 +59,14 @@ public:
     void Refresh_OpenBaseTransform();
     virtual void Set_Color(const Vec4& color);
     virtual Vec4 Get_Color() const;
+    void Set_AlphaMultiplier(float alphaMultiplier);
+    float Get_AlphaMultiplier() const { return _alphaMultiplier; }
+    float Get_EffectiveAlphaMultiplier() const;
 
     UI_RenderGroup Get_RenderGroup() const { return _renderGroup; }
+
+protected:
+    Vec4 Get_EffectiveRenderColor(const Vec4& color) const;
 
 protected:
     Unique<UI_Transform> _transform{};
@@ -67,9 +74,11 @@ protected:
     UI_AnimationPlayer _animationPlayer{};
     bool _isOpen{ false };
     int32 _sortOrder{ 0 };
+    float _alphaMultiplier{ 1.f };
     Vec2 _openBasePosition{ 0.f, 0.f };
     Vec2 _openBaseScale{ 1.f, 1.f };
     float _openBaseRotationRadians{ 0.f };
+    float _openBaseAlphaMultiplier{ 1.f };
     bool _hasOpenBaseTransform{ false };
 
     UI_RenderGroup _renderGroup { UI_RenderGroup::Foreground };

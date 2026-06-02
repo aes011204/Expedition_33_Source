@@ -191,8 +191,10 @@
     <ClInclude Include="..\Public\BattleCameraClipTypes.h" />
     <ClInclude Include="..\Public\BattleHitSequenceRunner.h" />
     <ClInclude Include="..\Public\BattleMechanismCom.h" />
+    <ClInclude Include="..\Public\BattleQTEController.h" />
     <ClInclude Include="..\Public\BattleReactionController.h" />
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
+    <ClInclude Include="..\Public\BattleStartSpawner.h" />
     <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
@@ -217,6 +219,7 @@
     <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h" />
     <ClInclude Include="..\Public\FaceAccessory_Player.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
+    <ClInclude Include="..\Public\GamePlayMenuFade.h" />
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\MapLandscape.h" />
@@ -313,8 +316,10 @@
     </ClInclude>
     <ClInclude Include="..\Public\InstancedMeshActor.h" />
     <ClInclude Include="..\Public\Level_MapTest.h" />
+    <ClInclude Include="..\Public\LevelTransitionFade.h" />
     <ClInclude Include="..\Public\Level_Stage01.h" />
     <ClInclude Include="..\Public\MapInstancedMesh.h" />
+    <ClInclude Include="..\Public\MapAuthoringIO.h" />
     <ClInclude Include="..\Public\MapLoader.h" />
     <ClInclude Include="..\Public\MapStaticMesh.h" />
     <ClInclude Include="..\Public\MeshEmitter.h" />
@@ -372,11 +377,13 @@
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
     <ClInclude Include="..\Public\Trigger_WorldAction.h" />
     <ClInclude Include="..\public\UIPreviewManager.h" />
+    <ClInclude Include="..\Public\UI_AddAP.h" />
     <ClInclude Include="..\Public\UI_AttackTooltip.h" />
     <ClInclude Include="..\Public\UI_BattleAnnounce.h" />
     <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
     <ClInclude Include="..\Public\UI_BattleMechanism.h" />
     <ClInclude Include="..\Public\UI_HealFont.h" />
+    <ClInclude Include="..\Public\UI_MarkEffect.h" />
     <ClInclude Include="..\Public\UI_PlayerHpBar.h" />
     <ClInclude Include="..\Public\UI_BattleSystemHUD.h" />
     <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
@@ -391,10 +398,13 @@
     <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h" />
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
     <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
+    <ClInclude Include="..\Public\UI_QTE.h" />
     <ClInclude Include="..\Public\UI_ReactionResult.h" />
     <ClInclude Include="..\Public\UI_RuntimeLoader.h" />
     <ClInclude Include="..\Public\SavePoint_Panel.h" />
+    <ClInclude Include="..\Public\ScreenFadeTransition.h" />
     <ClInclude Include="..\Public\UI_RuntimePanelBase.h" />
+    <ClInclude Include="..\Public\UI_ScreenFade.h" />
     <ClInclude Include="..\Public\UI_BattleSkillPanel.h" />
     <ClInclude Include="..\Public\UI_SuddenAttack.h" />
     <ClInclude Include="..\Public\UI_Utils.h" />
@@ -443,6 +453,7 @@
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
+    <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
     <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
     <ClCompile Include="..\Private\AN_SpawnActor.cpp" />
@@ -462,8 +473,10 @@
     <ClCompile Include="..\Private\BattleClipSequencerAdapter.cpp" />
     <ClCompile Include="..\Private\BattleHitSequenceRunner.cpp" />
     <ClCompile Include="..\Private\BattleMechanismCom.cpp" />
+    <ClCompile Include="..\Private\BattleQTEController.cpp" />
     <ClCompile Include="..\Private\BattleReactionController.cpp" />
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
+    <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
     <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
     <ClCompile Include="..\private\BT_IsStun.cpp" />
@@ -485,6 +498,7 @@
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
     <ClCompile Include="..\Private\FaceAccessory_Player.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
+    <ClCompile Include="..\Private\GamePlayMenuFade.cpp" />
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
     <ClCompile Include="..\Private\MapLandscape.cpp" />
@@ -574,8 +588,10 @@
     </ClCompile>
     <ClCompile Include="..\Private\InstancedMeshActor.cpp" />
     <ClCompile Include="..\Private\Level_MapTest.cpp" />
+    <ClCompile Include="..\Private\LevelTransitionFade.cpp" />
     <ClCompile Include="..\Private\Level_Stage01.cpp" />
     <ClCompile Include="..\Private\MapInstancedMesh.cpp" />
+    <ClCompile Include="..\Private\MapAuthoringIO.cpp" />
     <ClCompile Include="..\Private\MapLoader.cpp" />
     <ClCompile Include="..\Private\MapStaticMesh.cpp" />
     <ClCompile Include="..\Private\MeshEmitter.cpp" />
@@ -633,11 +649,13 @@
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
     <ClCompile Include="..\Private\Trigger_WorldAction.cpp" />
     <ClCompile Include="..\private\UIPreviewManager.cpp" />
+    <ClCompile Include="..\Private\UI_AddAP.cpp" />
     <ClCompile Include="..\Private\UI_AttackTooltip.cpp" />
     <ClCompile Include="..\Private\UI_BattleAnnounce.cpp" />
     <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
     <ClCompile Include="..\Private\UI_HealFont.cpp" />
+    <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
     <ClCompile Include="..\Private\UI_PlayerHpBar.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
@@ -652,10 +670,13 @@
     <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
     <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
     <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />
+    <ClCompile Include="..\Private\UI_QTE.cpp" />
     <ClCompile Include="..\Private\UI_ReactionResult.cpp" />
     <ClCompile Include="..\Private\UI_RuntimeLoader.cpp" />
     <ClCompile Include="..\Private\SavePoint_Panel.cpp" />
+    <ClCompile Include="..\Private\ScreenFadeTransition.cpp" />
     <ClCompile Include="..\Private\UI_RuntimePanelBase.cpp" />
+    <ClCompile Include="..\Private\UI_ScreenFade.cpp" />
     <ClCompile Include="..\Private\UI_BattleSkillPanel.cpp" />
     <ClCompile Include="..\Private\UI_SuddenAttack.cpp" />
     <ClCompile Include="..\private\UltimateTargeting.cpp">
@@ -686,6 +707,7 @@
     <ClCompile Include="..\Private\Weapon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl" />
@@ -708,6 +730,10 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectDistortionSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMesh.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreview.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrailDistortion.hlsl" />

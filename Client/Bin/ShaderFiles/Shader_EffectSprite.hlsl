@@ -9,9 +9,9 @@
 cbuffer cbEffectSpriteMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f };         // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f };    // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
-    float4 g_EffectSpriteMainUVParams = { 1.f, 1.f, 0.f, 0.f };   // xy: scale, zw: scroll speed
+    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f };       // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f };  // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectSpriteMainUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
     float4 g_EffectSpriteNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectSpriteMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectSpriteUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: noise offset
@@ -20,10 +20,10 @@ cbuffer cbEffectSpriteMaterial : register(b2)
     float4 g_EffectSpriteAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectSpriteAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectSpriteAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };   // x: blackNeutral
-    float4 g_EffectSpriteCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f }; // x: enabled, y: corePower, z: coreIntensity, w: outerPower
+    float4 g_EffectSpriteAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };         // x: blackNeutral
+    float4 g_EffectSpriteCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f };    // x: enabled, y: corePower, z: coreIntensity, w: outerPower
     float4 g_EffectSpriteCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f }; // rgb: coreColor, a: outerIntensity
-    float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f }; // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
+    float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f };       // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
     int g_OpacitySource = 0;
     float g_EffectSpriteMaterialTime = 0.f;
     float3 g_EffectSpritePadding;
@@ -152,12 +152,11 @@ float3 ResolveFacingLookDirection(float3 particlePosition)
 
 bool TryNormalizeDirection(float3 direction, out float3 normalizedDirection)
 {
+    normalizedDirection = float3(0.f, 0.f, 0.f);
+
     const float directionLength = length(direction);
     if (directionLength < 0.0001f)
-    {
-        normalizedDirection = float3(0.f, 0.f, 0.f);
         return false;
-    }
 
     normalizedDirection = direction / directionLength;
     return true;
@@ -175,6 +174,8 @@ bool TryResolveVelocityLookDirection(float3 velocityDirection, out float3 lookDi
 
 bool TryResolveDirectionalLookDirection(float3 particlePosition, float3 velocityDirection, out float3 lookDir)
 {
+    lookDir = float3(0.f, 0.f, 0.f);
+
     if (g_ScreenAlignmentMode == 3)
     {
         if (TryResolveAwayFromCenterLookDirection(particlePosition, lookDir))
@@ -191,7 +192,6 @@ bool TryResolveDirectionalLookDirection(float3 particlePosition, float3 velocity
         return TryResolveAwayFromCenterLookDirection(particlePosition, lookDir);
     }
 
-    lookDir = float3(0.f, 0.f, 0.f);
     return false;
 }
 
@@ -218,6 +218,8 @@ void ResolveCameraPlaneBasis(out float3 rightDir, out float3 upDir)
 // texture 축 하나를 지정 방향에 맞추고, 나머지 축은 카메라 가시성을 유지하도록 만든다.
 bool TryResolveTextureAxisBasis(float3 axisDir, float3 particlePosition, out float3 rightDir, out float3 upDir)
 {
+    ResolveCameraPlaneBasis(rightDir, upDir);
+
     float3 axis = float3(0.f, 0.f, 0.f);
     if (!TryNormalizeDirection(axisDir, axis))
         return false;
@@ -246,10 +248,19 @@ bool TryResolveTextureAxisBasis(float3 axisDir, float3 particlePosition, out flo
 void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
 {
     const float3 particlePosition = In[0].worldPosition.xyz;
-    float3 rightDir = float3(1.f, 0.f, 0.f);
-    float3 upDir = float3(0.f, 1.f, 0.f);
-    if (g_ScreenAlignmentMode == 1 || g_ScreenAlignmentMode == 2)
-        ResolveCameraPlaneBasis(rightDir, upDir);
+    float3 rightDir = float3(0.f, 0.f, 0.f);
+    float3 upDir = float3(0.f, 0.f, 0.f);
+    ResolveCameraPlaneBasis(rightDir, upDir);
+    if (g_ScreenAlignmentMode == 5)
+    {
+        rightDir = float3(1.f, 0.f, 0.f);
+        upDir = float3(0.f, 1.f, 0.f);
+    }
+    else if (g_ScreenAlignmentMode == 6)
+    {
+        rightDir = float3(1.f, 0.f, 0.f);
+        upDir = float3(0.f, 0.f, 1.f);
+    }
     else if (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4)
     {
         float3 lookDir = float3(0.f, 0.f, 0.f);
@@ -257,8 +268,8 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
 
         if (g_DirectionalAlignmentMode == 1) // 스프라이트의 X 또는 Y 가 바라보도록
         {
-            if (!hasLookDir || !TryResolveTextureAxisBasis(lookDir, particlePosition, rightDir, upDir))
-                ResolveCameraPlaneBasis(rightDir, upDir);
+            if (hasLookDir)
+                TryResolveTextureAxisBasis(lookDir, particlePosition, rightDir, upDir);
         }
         else // 스프라이트의 look 이 바라보도록
         {
@@ -267,7 +278,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
             ResolveLookAlignedBasis(lookDir, rightDir, upDir);
         }
     }
-    else
+    else if (g_ScreenAlignmentMode != 1 && g_ScreenAlignmentMode != 2)
     {
         const float3 lookDir = ResolveFacingLookDirection(particlePosition);
         ResolveLookAlignedBasis(lookDir, rightDir, upDir);
@@ -291,7 +302,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     upDir *= spriteSize.y * 0.5f;
 
     const matrix ViewProjMatrix = mul(g_ViewMatrix, g_ProjMatrix);
-    GS_OUT Out[4];
+    GS_OUT Out[4] = (GS_OUT[4])0;
 
     Out[0].position = mul(float4(particlePosition - rightDir + upDir, 1.f), ViewProjMatrix);
     Out[0].texCoord = float2(0.f, 0.f);

@@ -25,8 +25,11 @@ public:
 
     struct FollowerRuntime
     {
-        Vec3    desiredTargetPos = Vec3::Zero; // follower 목표 위치
+        Vec3    desiredTargetPos = Vec3::Zero; // follower가 실제로 쫓는 지면 보정 목표 위치
+        Vec3    lastRawTargetPos = Vec3::Zero; // 지면 보정 전 목표. 이 값이 크게 바뀔 때만 probe 갱신
         float   lastMoveDistance = 0.f;        // 목표까지 남은 거리
+        float   followTargetRefreshTime = 0.f; // follower ground probe 갱신 주기
+        bool    hasFollowTargetCache = false;
 
         bool    sprintFollow = false;          // 추격 이동 여부
         float   sprintFollowHoldTime = 0.f;    // Sprint 유지 시간. Run으로 바로 안바뀌게
@@ -82,6 +85,10 @@ private:
                 const Shared<Player_WorldBase>& hero,
                 const Vec3& fromPos,
                 const Vec3& desiredPos) const;
+    Vec3    Resolve_FollowTargetPosition(
+                const Shared<Player_WorldBase>& hero,
+                const Vec3& fromPos,
+                const Vec3& desiredPos) const;
 
     void    Apply_ControlRoles();
 
@@ -131,6 +138,8 @@ private:
     float _sprintFollowReleaseDistance = 1.2f;   // sprint 해제는 더 가까워졌을 때만
     float _sprintFollowMinHoldTime = 0.25f;      // sprint에 들어가면 최소 이 시간은 유지
     float _teleportReseatDistance  = 10.f;
+    float _followTargetProbeInterval = 0.05f;
+    float _followTargetProbeMoveThreshold = 0.15f;
 
     FDelegateHandle _editorStopHandle = {};
 

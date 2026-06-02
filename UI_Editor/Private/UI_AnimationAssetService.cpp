@@ -19,6 +19,7 @@ namespace UIEditor
             case UI_AnimationKeyframeTrackType::ScaleX:
             case UI_AnimationKeyframeTrackType::ScaleY:
             case UI_AnimationKeyframeTrackType::Alpha:
+            case UI_AnimationKeyframeTrackType::AlphaMultiplier:
                 return 1.f;
             case UI_AnimationKeyframeTrackType::PositionX:
             case UI_AnimationKeyframeTrackType::PositionY:
@@ -510,7 +511,10 @@ namespace UIEditor
         const UI_Object* targetObject = nullptr != target ? document.Find_Object(target->targetObjectId) : nullptr;
         if (nullptr == targetObject)
         {
-            if (trackType == UI_AnimationKeyframeTrackType::ScaleX || trackType == UI_AnimationKeyframeTrackType::ScaleY || trackType == UI_AnimationKeyframeTrackType::Alpha)
+            if (trackType == UI_AnimationKeyframeTrackType::ScaleX ||
+                trackType == UI_AnimationKeyframeTrackType::ScaleY ||
+                trackType == UI_AnimationKeyframeTrackType::Alpha ||
+                trackType == UI_AnimationKeyframeTrackType::AlphaMultiplier)
                 return 1.f;
 
             return 0.f;
@@ -530,6 +534,8 @@ namespace UIEditor
             return targetObject->rotationRadians;
         case UI_AnimationKeyframeTrackType::Alpha:
             return targetObject->color.w;
+        case UI_AnimationKeyframeTrackType::AlphaMultiplier:
+            return targetObject->alphaMultiplier;
         case UI_AnimationKeyframeTrackType::Color:
             return 0.f;
         default:
@@ -620,6 +626,7 @@ namespace UIEditor
             UI_AnimationKeyframeTrackType::ScaleY,
             UI_AnimationKeyframeTrackType::Rotation,
             UI_AnimationKeyframeTrackType::Color,
+            UI_AnimationKeyframeTrackType::AlphaMultiplier,
         };
 
         const int32 previousTrackIndex = _selectedTrackIndex;

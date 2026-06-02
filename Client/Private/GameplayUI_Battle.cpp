@@ -1,11 +1,14 @@
 ﻿#include "GameplayUI_Battle.h"
 
+#include "BuffSystem.h"
 #include "Monster_BattleBase.h"
 #include "ClientInstance.h"
 #include "ClientScreenFxManager.h"
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
 #include "PlayerStatCom.h"
+#include "ScreenFx_Manager.h"
+#include "Skill_Gustave_Battle.h"
 
 #include "UI_AttackTooltip.h"
 #include "UI_BattleCommandHUD.h"
@@ -28,6 +31,9 @@
 #include "UI_HealFont.h"
 #include "UI_BattleAnnounce.h"
 #include "UI_SuddenAttack.h"
+#include "UI_AddAP.h"
+#include "UI_QTE.h"
+#include "UI_MarkEffect.h"
 
 #include "UI_Utils.h"
 
@@ -89,6 +95,8 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_battleSkillPanel, UI_BattleSkillPanel::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_battleAnnounce, UI_BattleAnnounce::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_suddenAttack, UI_SuddenAttack::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_qte, UI_QTE::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_markEffect, UI_MarkEffect::Create), E_FAIL);
 
     // 데미지 폰트 최대 8개
     for (auto& damageFont : _damageFonts)
@@ -101,6 +109,13 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     {
         healFont = UI_HealFont::Create(levelIndex);
         CHECK_NULL(healFont, E_FAIL);
+    }
+
+    // Ap 폰트
+    for (auto& addAP : _addAPs)
+    {
+        addAP = UI_AddAP::Create(levelIndex);
+        CHECK_NULL(addAP, E_FAIL);
     }
 
     Bind_BattleDelegates();
@@ -130,6 +145,9 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_BattleSkillPanel(timeDelta); // 스킬
     Update_BattleAnnounce(timeDelta);   // 스킬
     Update_SuddenAttack(timeDelta);     // 선제 공격
+    Update_AddAPs(timeDelta);           // AP 증가
+    Update_QTE(GAME->Get_UnscaledTimeDelta());
+    Update_MarkEffect(timeDelta);
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -143,7 +161,11 @@ void GameplayUI_Battle::Update_Input()
 vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
 {
     vector<RuntimeUIEntry> entries{};
-    entries.reserve(18 + static_cast<uint32>(_damageFonts.size()) + static_cast<uint32>(_healFonts.size()));
+    entries.reserve(
+        20 +
+        static_cast<uint32>(_damageFonts.size()) +
+        static_cast<uint32>(_healFonts.size()) +
+        static_cast<uint32>(_addAPs.size()));
 
     Append_RuntimePanelEntry(entries, "BattleTransition", _battleTransition.get());
     Append_RuntimePanelEntry(entries, "BattleCommandHUD", _battleCommandHUD.get());
@@ -164,12 +186,17 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     Append_RuntimePanelEntry(entries, "BattleSkillPanel", _battleSkillPanel.get());
     Append_RuntimePanelEntry(entries, "BattleAnnounce", _battleAnnounce.get());
     Append_RuntimePanelEntry(entries, "SuddenAttack", _suddenAttack.get());
+    Append_RuntimePanelEntry(entries, "QTE", _qte.get());
+    Append_RuntimePanelEntry(entries, "MarkEffect", _markEffect.get());
 
     for (uint32 i = 0; i < _damageFonts.size(); ++i)
         Append_RuntimePanelEntry(entries, ("DamageFont_" + to_string(i)).c_str(), _damageFonts[i].get());
 
     for (uint32 i = 0; i < _healFonts.size(); ++i)
         Append_RuntimePanelEntry(entries, ("HealFont_" + to_string(i)).c_str(), _healFonts[i].get());
+
+    for (uint32 i = 0; i < _addAPs.size(); ++i)
+        Append_RuntimePanelEntry(entries, ("AddAP_" + to_string(i)).c_str(), _addAPs[i].get());
 
     return entries;
 }
@@ -241,8 +268,27 @@ void GameplayUI_Battle::Bind_BattleDelegates()
     _healAppliedHandle =
         DamageSystem::OnHealApplied.Add(this, &GameplayUI_Battle::Handle_HealApplied);
 
+    _battleApChangedHandle =
+        _battleController->OnBattleApChanged.Add(this, &GameplayUI_Battle::Handle_BattleApChanged);
+
     _reactionSucceededHandle =
         _battleController->OnReactionSucceeded.Add(this, &GameplayUI_Battle::Handle_ReactionSucceeded);
+
+    _qteStartedHandle =
+        _battleController->OnQTEStarted.Add(this, &GameplayUI_Battle::Handle_QTEStarted);
+
+    _qteResolvedHandle =
+        _battleController->OnQTEResolved.Add(this, &GameplayUI_Battle::Handle_QTEResolved);
+
+    if (auto buffSystem = _battleController->Get_BuffSystem())
+    {
+        _buffAppliedHandle =
+            buffSystem->OnBuffApplied.Add(this, &GameplayUI_Battle::Handle_BuffApplied);
+
+        _buffConsumedHandle =
+            buffSystem->OnBuffConsumed.Add(this, &GameplayUI_Battle::Handle_BuffConsumed);
+    }
+
 }
 
 void GameplayUI_Battle::Unbind_BattleDelegates()
@@ -276,6 +322,24 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     if (_reactionSucceededHandle.IsValid())
         _battleController->OnReactionSucceeded.Remove(_reactionSucceededHandle);
 
+    if (_battleApChangedHandle.IsValid())
+        _battleController->OnBattleApChanged.Remove(_battleApChangedHandle);
+
+    if (_qteStartedHandle.IsValid())
+        _battleController->OnQTEStarted.Remove(_qteStartedHandle);
+
+    if (_qteResolvedHandle.IsValid())
+        _battleController->OnQTEResolved.Remove(_qteResolvedHandle);
+
+    if (auto buffSystem = _battleController->Get_BuffSystem())
+    {
+        if (_buffAppliedHandle.IsValid())
+            buffSystem->OnBuffApplied.Remove(_buffAppliedHandle);
+
+        if (_buffConsumedHandle.IsValid())
+            buffSystem->OnBuffConsumed.Remove(_buffConsumedHandle);
+    }
+
     _battleStartedHandle.Reset();
     _battleEndedHandle.Reset();
     _turnStartedHandle.Reset();
@@ -284,9 +348,17 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     _actionStartedHandle.Reset();
     _damageAppliedHandle.Reset();
     _healAppliedHandle.Reset();
+    _battleApChangedHandle.Reset();
     _reactionSucceededHandle.Reset();
 
+    _qteStartedHandle.Reset();
+    _qteResolvedHandle.Reset();
+
+    _buffAppliedHandle.Reset();
+    _buffConsumedHandle.Reset();
+
     _battleController.reset();
+
 }
 
 void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvantage)
@@ -301,6 +373,8 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
     _activePlayerId = HeroId::END;
     _battleStartVictoryStats.clear();
     _battleStartVictoryStats = Build_BattleVictoryPlayerStats();
+
+    GAME->Get_ScreenFxManager()->Clear_ScreenEffect();
 
     // 플레이어 선제공격인지
     _isPlayerAdvantageStart = isPlayerAdvantage;
@@ -321,6 +395,8 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
         _battleMechanism.get(),
         _battleAnnounce.get(),
         _suddenAttack.get(),
+        _qte.get(),
+        _markEffect.get(),
     };
 
     for (UI_RuntimePanelBase* panel : panelsToClose)
@@ -329,11 +405,20 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
             panel->Close();
     }
 
+    if (_markEffect)
+        _markEffect->Clear_Target();
+
     // 이전 전투에서 남은 배틀 슬롯 정리
     for (auto& damageFont : _damageFonts)
     {
         if (damageFont)
             damageFont->Close();
+    }
+
+    for (auto& addAP : _addAPs)
+    {
+        if (addAP)
+            addAP->Close();
     }
 
     Play_BattleEnterTransition(); // 전투 진입 연출은 battle UI 쪽에서 시작한다.
@@ -429,6 +514,8 @@ void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
         _battleMechanism.get(),
         _battleAnnounce.get(),
         _suddenAttack.get(),
+        _qte.get(),
+        // MarkingShot 징표는 다음 플레이어 공격이 시작될 때까지 유지한다.
     };
 
     for (auto* panel : panelsToClose)
@@ -479,6 +566,7 @@ void GameplayUI_Battle::Handle_ActionStarted(const BattleAction& action)
 
     if (_battleAnnounce && isAttackAction)
         _battleAnnounce->Show_TurnStart(action.Get_CurChar(), BattleTurnState::AttackPlaying);
+
 }
 
 void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float damage, AttackType attackType)
@@ -608,11 +696,11 @@ void GameplayUI_Battle::Handle_ReactionSucceeded(BattleController::ReactionType 
         return;
 
     Vec3 worldPos{};
-    for(auto& targetChar: target)
+    for (auto& targetChar : target)
     {
-    if (!Try_GetReactionResultWorldPos(targetChar, worldPos))
-        return;
-        
+        if (!Try_GetReactionResultWorldPos(targetChar, worldPos))
+            return;
+
     }
 
 
@@ -621,6 +709,92 @@ void GameplayUI_Battle::Handle_ReactionSucceeded(BattleController::ReactionType 
         return;
 
     _reactionResult->Show_Reaction(reactionType, screenPos);
+}
+
+void GameplayUI_Battle::Handle_BattleApChanged(const BattleChar& actor, uint32 amount, EAPChangeReason reason)
+{
+    if (!_isBattleUiActive)
+        return;
+
+    if (reason != EAPChangeReason::Parry)
+        return;
+
+    if (amount == 0)
+        return;
+
+    Vec3 worldPos{};
+    if (!Try_GetAddAPWorldPos(actor, worldPos))
+        return;
+
+    Vec2 screenPos{};
+    if (!UI_Utils::Try_ProjectWorldToScreen(worldPos, screenPos))
+        return;
+
+    UI_AddAP* selectedSlot = nullptr;
+    UI_AddAP* oldestSlot = nullptr;
+    float longestElapsed = -1.f;
+    uint32 stackIndex = 0;
+
+    for (auto& addAP : _addAPs)
+    {
+        if (!addAP)
+            continue;
+
+        if (addAP->Is_Playing())
+        {
+            ++stackIndex;
+
+            if (addAP->Get_Elapsed() > longestElapsed)
+            {
+                longestElapsed = addAP->Get_Elapsed();
+                oldestSlot = addAP.get();
+            }
+
+            continue;
+        }
+
+        if (selectedSlot == nullptr)
+            selectedSlot = addAP.get();
+    }
+
+    if (selectedSlot == nullptr)
+        selectedSlot = oldestSlot;
+
+    if (selectedSlot == nullptr)
+        return;
+
+    stackIndex = min(stackIndex, kAddAPPoolSize - 1);
+    selectedSlot->Play_AddAP(screenPos, amount, stackIndex);
+}
+
+void GameplayUI_Battle::Handle_QTEStarted(const BattleQTERequest& request)
+{
+    if (_qte)
+        _qte->Play_QTE(request);
+}
+
+void GameplayUI_Battle::Handle_QTEResolved(BattleQTEResult result)
+{
+    if (_qte)
+        _qte->Apply_ExternalResult(result);
+}
+
+void GameplayUI_Battle::Handle_BuffApplied(const BattleChar& target, Buffs buffId)
+{
+    // 일단 마크만
+    if (!_isBattleUiActive || buffId != Buffs::Mark || _markEffect == nullptr)
+        return;
+
+    _markEffect->Show_Target(target);
+}
+
+void GameplayUI_Battle::Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage)
+{
+    if (!_isBattleUiActive)
+        return;
+
+    if (_markEffect)
+        _markEffect->Clear_Target();
 }
 
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
@@ -701,6 +875,7 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
     _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Lune, 0.f, 1.f, 0u, 1u);
     _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Maelle, 0.f, 1.f, 0u, 1u);
     _battleSystemHUD->Clear_GustaveMechanismCharge();
+    _battleSystemHUD->Clear_LuneMechanismStains(); // 이번 프레임 루네 상태를 현재 mechanism 값으로 다시 연다.
     _battleSystemHUD->Clear_MaelleMechanismStance();
 
     const vector<BattleChar>& heroes = battleController->Get_BattleHeroes();
@@ -722,7 +897,7 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
         }
         else if (hero.heroId == HeroId::Lune)
         {
-            // TODO : 루네
+            _battleSystemHUD->Set_LuneMechanismStains(hero.mechanismCom);
         }
         else if (hero.heroId == HeroId::Maelle)
         {
@@ -973,6 +1148,15 @@ void GameplayUI_Battle::Update_HealFonts(float timeDelta)
     {
         if (healFont)
             healFont->Update(timeDelta);
+    }
+}
+
+void GameplayUI_Battle::Update_AddAPs(float timeDelta)
+{
+    for (auto& addAP : _addAPs)
+    {
+        if (addAP)
+            addAP->Update(timeDelta);
     }
 }
 
@@ -1229,6 +1413,34 @@ void GameplayUI_Battle::Update_SuddenAttack(float timeDelta)
     _suddenAttack->Update(timeDelta);
 }
 
+void GameplayUI_Battle::Update_QTE(float timeDelta)
+{
+    if (_qte == nullptr)
+        return;
+
+    if (!_isBattleUiActive || _battleController == nullptr)
+    {
+        _qte->Close();
+        return;
+    }
+
+    _qte->Update(timeDelta);
+
+    BattleQTEResult result = BattleQTEResult::None;
+
+    if (_qte->Try_ConsumeResult(result))
+    {
+        _battleController->Resolve_QTE(result);
+    }
+
+}
+
+void GameplayUI_Battle::Update_MarkEffect(float timeDelta)
+{
+    if (_markEffect)
+        _markEffect->Update(timeDelta);
+}
+
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
 {
     if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
@@ -1280,6 +1492,16 @@ bool GameplayUI_Battle::Try_GetHealFontWorldPos(const BattleChar& target, Vec3& 
     outWorldPos = target.actor->Get_Transform()->Get_WorldPosition();
     outWorldPos.y += 1.0f;
 
+    return true;
+}
+
+bool GameplayUI_Battle::Try_GetAddAPWorldPos(const BattleChar& target, Vec3& outWorldPos) const
+{
+    if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
+        return false;
+
+    outWorldPos = target.actor->Get_Transform()->Get_WorldPosition();
+    outWorldPos.y += 1.15f;
     return true;
 }
 
@@ -1359,7 +1581,7 @@ vector<GameplayUI_Battle::VictoryStatDesc> GameplayUI_Battle::Build_BattleVictor
 
 void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
 {
-    _isBattleUiActive = false;      
+    _isBattleUiActive = false;
     _isPlayerTurnUiActive = false;
     _hasTargetPreviewSnapshot = false;
     _targetPreviewSnapshot = {};
@@ -1389,6 +1611,8 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
         _battleSkillPanel.get(),
         _battleAnnounce.get(),
         _suddenAttack.get(),
+        _qte.get(),
+        _markEffect.get(),
     };
 
     for (auto* panel : panelsToClose)
@@ -1396,6 +1620,9 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
         if (panel)
             panel->Close();
     }
+
+    if (_markEffect)
+        _markEffect->Clear_Target();
 
     for (auto& damageFont : _damageFonts)
     {
@@ -1408,6 +1635,13 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
         if (healFont)
             healFont->Close();
     }
+
+    for (auto& addAP : _addAPs)
+    {
+        if (addAP)
+            addAP->Close();
+    }
+
 
     Stop_BattleEnterTransition(); // 진입 중 F4에서도 페이드 잔상을 남기지 않는다.
 
@@ -1459,9 +1693,17 @@ void GameplayUI_Battle::Free()
     Release_UI(_battleSkillPanel);
     Release_UI(_battleAnnounce);
     Release_UI(_suddenAttack);
+    Release_UI(_qte);
+    Release_UI(_markEffect);
 
     for (auto& damageFont : _damageFonts)
         Release_UI(damageFont);
+
+    for (auto& healFont : _healFonts)
+        Release_UI(healFont);
+
+    for (auto& addAP : _addAPs)
+        Release_UI(addAP);
 
     Base::Free();
 }

@@ -162,6 +162,12 @@ struct PointParticleMotionDesc
     Vec2 radialSpeed{ 0.f, 0.f };                    // InitialRadialVelocity speed 분포의 min/max다.
     Vec3 accelerationMin{ 0.f, 0.f, 0.f };           // Acceleration 분포의 하한이다.
     Vec3 accelerationMax{ 0.f, 0.f, 0.f };           // Acceleration 분포의 상한이다.
+    bool accelerationCurveEnabled{ false };          // true면 Acceleration ConstantCurve를 lifeProgress 기준 절대 가속으로 평가한다.
+    uint32 accelerationCurveKeyCount{ 2 };           // Acceleration compact curve key 수다.
+    Vec4 accelerationCurveTimes{ 0.f, 1.f, 0.f, 0.f }; // Acceleration key time 0..1 값이다.
+    Vec4 accelerationCurveValuesX{ 0.f, 0.f, 0.f, 0.f }; // Acceleration key별 X 값이다.
+    Vec4 accelerationCurveValuesY{ 0.f, 0.f, 0.f, 0.f }; // Acceleration key별 Y 값이다.
+    Vec4 accelerationCurveValuesZ{ 0.f, 0.f, 0.f, 0.f }; // Acceleration key별 Z 값이다.
     Vec2 drag{ 0.f, 0.f };                           // Drag 분포의 min/max 감쇠값이다.
     Vec2 velocityScaleByLife{ 1.f, 1.f };            // VelocityOverLife의 시작/종료 배율이다.
 };

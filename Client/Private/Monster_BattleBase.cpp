@@ -63,6 +63,26 @@ void Monster_BattleBase::Late_Update(float timeDelta)
     Character_BattleBase::Late_Update(timeDelta);
 }
 
+json Monster_BattleBase::To_Json() const
+{
+    json root = Character_BattleBase::To_Json();
+    root["custom_properties"]["battle_ground_offset_y"] = _battleGroundOffsetY;
+    return root;
+}
+
+void Monster_BattleBase::From_Json(const json& data)
+{
+    Character_BattleBase::From_Json(data);
+
+    _battleGroundOffsetY = 0.f;
+
+    if (data.contains("custom_properties") && data["custom_properties"].is_object())
+    {
+        const json& customProperties = data["custom_properties"];
+        _battleGroundOffsetY = customProperties.value("battle_ground_offset_y", 0.f);
+    }
+}
+
 void Monster_BattleBase::ActionFromDecision(ActionRequest& request, const BattleDecision decision, const vector<BattleChar>& heroes)
 {
     auto stat = Get_Component<MonsterStatCom>();

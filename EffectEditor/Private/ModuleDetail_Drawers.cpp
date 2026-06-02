@@ -129,6 +129,143 @@ namespace Internal
         }
     }
 
+    static const char* Get_MaterialScalarTargetLabel(MaterialScalarModulationTargetField target)
+    {
+        switch (target)
+        {
+        case MaterialScalarModulationTargetField::Intensity:
+            return "Intensity";
+        case MaterialScalarModulationTargetField::OpacityPower:
+            return "OpacityPower";
+        case MaterialScalarModulationTargetField::NoiseStrength:
+            return "NoiseStrength";
+        case MaterialScalarModulationTargetField::AlphaErosion:
+            return "AlphaErosion";
+        case MaterialScalarModulationTargetField::CoreIntensity:
+            return "CoreIntensity";
+        case MaterialScalarModulationTargetField::OuterIntensity:
+            return "OuterIntensity";
+        default:
+            return "Intensity";
+        }
+    }
+
+    static const char* Get_MaterialScalarOperationLabel(MaterialScalarModulationOperation operation)
+    {
+        switch (operation)
+        {
+        case MaterialScalarModulationOperation::Multiply:
+            return "Multiply";
+        default:
+            return "Multiply";
+        }
+    }
+
+    static const char* Get_MaterialScalarTimeSourceLabel(MaterialScalarModulationTimeSource timeSource)
+    {
+        switch (timeSource)
+        {
+        case MaterialScalarModulationTimeSource::ParticleLife:
+            return "ParticleLife";
+        case MaterialScalarModulationTimeSource::EmitterTime:
+            return "EmitterTime";
+        default:
+            return "ParticleLife";
+        }
+    }
+
+    static bool Draw_MaterialScalarTargetProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        MaterialScalarModulationTargetField& value,
+        MaterialScalarModulationTargetField defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_MaterialScalarTargetLabel(value)))
+        {
+            const MaterialScalarModulationTargetField candidates[] = {
+                MaterialScalarModulationTargetField::Intensity,
+                MaterialScalarModulationTargetField::OpacityPower,
+                MaterialScalarModulationTargetField::NoiseStrength,
+                MaterialScalarModulationTargetField::AlphaErosion,
+                MaterialScalarModulationTargetField::CoreIntensity,
+                MaterialScalarModulationTargetField::OuterIntensity,
+            };
+
+            for (const MaterialScalarModulationTargetField candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_MaterialScalarTargetLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_MaterialScalarTimeSourceProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        MaterialScalarModulationTimeSource& value,
+        MaterialScalarModulationTimeSource defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_MaterialScalarTimeSourceLabel(value)))
+        {
+            const MaterialScalarModulationTimeSource candidates[] = {
+                MaterialScalarModulationTimeSource::ParticleLife,
+                MaterialScalarModulationTimeSource::EmitterTime,
+            };
+
+            for (const MaterialScalarModulationTimeSource candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_MaterialScalarTimeSourceLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
     static bool Draw_SphereLocationSpawnModeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
@@ -552,7 +689,7 @@ namespace Internal
         }
         drawList->AddRect(thumbnailMin, thumbnailMax, IM_COL32(85, 96, 116, 255), 4.f);
 
-        const string& resolvedName = Internal::Resolve_MaterialDisplayName(data);
+        const string& resolvedName = Resolve_MaterialDisplayName(data);
         const string displayName = resolvedName.empty() ? "(drop material here)" : resolvedName;
         const string blendModeName = string(magic_enum::enum_name(data.material.blendMode));
         const string sourceSummary =
@@ -907,17 +1044,24 @@ bool LifetimeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, LifetimeMod
     return changed;
 }
 
-bool InitialSizeModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, InitialSizeModuleData& data, DetailPropertyContext& detailContext)
+bool InitialSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialSizeModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialSizeModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("크기", ImGuiTreeNodeFlags_DefaultOpen))
-    {
         changed |= detailContext.Draw_Vector2DistributionGroup("크기", data.size, defaultData.size);
-        if (get_if<MeshTypeData>(&emitter.typeData.payload) != nullptr)
-            changed |= detailContext.Draw_Vector3DistributionGroup("Mesh 크기 XYZ", data.meshSize, defaultData.meshSize);
-    }
+
+    return changed;
+}
+
+bool InitialMeshSizeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialMeshSizeModuleData& data, DetailPropertyContext& detailContext)
+{
+    const InitialMeshSizeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("메시 크기", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("크기 XYZ", data.size, defaultData.size);
 
     return changed;
 }
@@ -1052,53 +1196,41 @@ bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Vel
     return changed;
 }
 
-bool InitialRotationModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, InitialRotationModuleData& data, DetailPropertyContext& detailContext)
+bool InitialRotationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialRotationModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialRotationModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("초기 회전", ImGuiTreeNodeFlags_DefaultOpen))
-    {
         changed |= detailContext.Draw_FloatDistributionGroup("회전각", data.rotationDegrees, defaultData.rotationDegrees);
-        if (get_if<MeshTypeData>(&emitter.typeData.payload) != nullptr)
-            changed |= detailContext.Draw_Vector3DistributionGroup("Mesh 회전 XYZ", data.meshRotationDegrees, defaultData.meshRotationDegrees);
-    }
 
     return changed;
 }
 
-bool RotationOverLifeModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, RotationOverLifeModuleData& data, DetailPropertyContext& detailContext)
+bool RotationOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, RotationOverLifeModuleData& data, DetailPropertyContext& detailContext)
 {
     const RotationOverLifeModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 회전", ImGuiTreeNodeFlags_DefaultOpen))
-    {
         changed |= detailContext.Draw_FloatDistributionGroup("추가 회전각", data.rotationOverLife, defaultData.rotationOverLife);
-        if (get_if<MeshTypeData>(&emitter.typeData.payload) != nullptr)
-            changed |= detailContext.Draw_Vector3DistributionGroup("Mesh 추가 회전 XYZ", data.meshRotationOverLife, defaultData.meshRotationOverLife);
-    }
 
     return changed;
 }
 
-bool InitialRotationRateModuleDetail::Draw(AuthoringEmitter& emitter, AuthoringModule&, InitialRotationRateModuleData& data, DetailPropertyContext& detailContext)
+bool InitialRotationRateModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialRotationRateModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialRotationRateModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("초기 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
-    {
         changed |= detailContext.Draw_FloatDistributionGroup("회전 속도", data.rotationRateDegrees, defaultData.rotationRateDegrees);
-        if (get_if<MeshTypeData>(&emitter.typeData.payload) != nullptr)
-            changed |= detailContext.Draw_Vector3DistributionGroup("Mesh 회전 속도 XYZ", data.meshRotationRateDegrees, defaultData.meshRotationRateDegrees);
-    }
 
     return changed;
 }
 
 bool RotationRateScaleByLifeModuleDetail::Draw(
-    AuthoringEmitter& emitter,
+    AuthoringEmitter&,
     AuthoringModule&,
     RotationRateScaleByLifeModuleData& data,
     DetailPropertyContext& detailContext)
@@ -1107,11 +1239,67 @@ bool RotationRateScaleByLifeModuleDetail::Draw(
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
-    {
         changed |= detailContext.Draw_FloatDistributionGroup("회전 속도 배율", data.scaleOverLife, defaultData.scaleOverLife);
-        if (get_if<MeshTypeData>(&emitter.typeData.payload) != nullptr)
-            changed |= detailContext.Draw_Vector3DistributionGroup("Mesh 회전 속도 배율 XYZ", data.meshScaleOverLife, defaultData.meshScaleOverLife);
-    }
+
+    return changed;
+}
+
+bool InitialMeshRotationModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    InitialMeshRotationModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const InitialMeshRotationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("초기 메시 회전", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("회전 XYZ", data.rotationDegrees, defaultData.rotationDegrees);
+
+    return changed;
+}
+
+bool MeshRotationOverLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    MeshRotationOverLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshRotationOverLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 회전", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("추가 회전 XYZ", data.rotationOverLife, defaultData.rotationOverLife);
+
+    return changed;
+}
+
+bool InitialMeshRotationRateModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    InitialMeshRotationRateModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const InitialMeshRotationRateModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("초기 메시 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("회전 속도 XYZ", data.rotationRateDegrees, defaultData.rotationRateDegrees);
+
+    return changed;
+}
+
+bool MeshRotationRateScaleByLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    MeshRotationRateScaleByLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshRotationRateScaleByLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 회전 속도", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_Vector3DistributionGroup("회전 속도 배율 XYZ", data.scaleOverLife, defaultData.scaleOverLife);
 
     return changed;
 }
@@ -1204,13 +1392,10 @@ bool SizeByLifeModuleDetail::Draw(
 
     if (ImGui::CollapsingHeader("수명에 따른 크기", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        const bool isMeshEmitter = get_if<MeshTypeData>(&emitter.typeData.payload) != nullptr;
         if (detailContext.Begin_PropertyTable("SizeByLife"))
         {
             changed |= detailContext.Draw_BoolProperty("X축 적용", data.multiplyX, defaultData.multiplyX);
             changed |= detailContext.Draw_BoolProperty("Y축 적용", data.multiplyY, defaultData.multiplyY);
-            if (isMeshEmitter)
-                changed |= detailContext.Draw_BoolProperty("Z축 적용", data.multiplyZ, defaultData.multiplyZ);
             detailContext.End_PropertyTable();
         }
 
@@ -1254,8 +1439,31 @@ bool SizeByLifeModuleDetail::Draw(
         ImGui::PopID();
 
         changed |= detailContext.Draw_Vector2DistributionGroup("수명 배율", data.scaleOverLife, defaultData.scaleOverLife, 0.01f);
-        if (isMeshEmitter)
-            changed |= detailContext.Draw_Vector3DistributionGroup("Mesh 수명 배율 XYZ", data.meshScaleOverLife, defaultData.meshScaleOverLife, 0.01f);
+    }
+
+    return changed;
+}
+
+bool MeshSizeByLifeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    MeshSizeByLifeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const MeshSizeByLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 메시 크기", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("MeshSizeByLife"))
+        {
+            changed |= detailContext.Draw_BoolProperty("X축 적용", data.multiplyX, defaultData.multiplyX);
+            changed |= detailContext.Draw_BoolProperty("Y축 적용", data.multiplyY, defaultData.multiplyY);
+            changed |= detailContext.Draw_BoolProperty("Z축 적용", data.multiplyZ, defaultData.multiplyZ);
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_Vector3DistributionGroup("수명 배율 XYZ", data.scaleOverLife, defaultData.scaleOverLife, 0.01f);
     }
 
     return changed;
@@ -1310,6 +1518,96 @@ bool SpawnPerUnitModuleDetail::Draw(
     data.unitScalar = max(0.0001f, data.unitScalar);
     data.movementTolerance = max(0.f, data.movementTolerance);
     data.maxFrameDistance = max(0.f, data.maxFrameDistance);
+    return changed;
+}
+
+bool MaterialScalarModulationModuleDetail::Draw(
+    const AuthoringEmitter& emitter,
+    AuthoringModule&,
+    MaterialScalarModulationModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("머티리얼 변조", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        constexpr uint32 kMaxMaterialScalarModulators{ 8 };
+        if (ImGui::Button("+ 변조 추가"))
+        {
+            data.modulators.push_back(MaterialScalarModulatorData{});
+            changed = true;
+        }
+
+        ImGui::SameLine();
+        ImGui::TextDisabled("%zu / %u", data.modulators.size(), kMaxMaterialScalarModulators);
+
+        if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
+            ImGui::TextDisabled("Mesh는 Phase 4에서 EmitterTime부터 runtime 소비합니다.");
+
+        size_t removeIndex = numeric_limits<size_t>::max();
+        for (size_t index = 0; index < data.modulators.size(); ++index)
+        {
+            MaterialScalarModulatorData& modulator = data.modulators[index];
+            const MaterialScalarModulatorData defaultData{};
+            ImGui::PushID(static_cast<int>(index));
+
+            const string header =
+                string("#") + to_string(index + 1) + " " +
+                Internal::Get_MaterialScalarTargetLabel(modulator.targetField) + " / " +
+                Internal::Get_MaterialScalarTimeSourceLabel(modulator.timeSource);
+            if (ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                if (detailContext.Begin_PropertyTable("MaterialScalarModulator"))
+                {
+                    changed |= detailContext.Draw_BoolProperty("사용", modulator.enabled, defaultData.enabled);
+                    changed |= Internal::Draw_MaterialScalarTargetProperty(
+                        detailContext,
+                        "대상",
+                        modulator.targetField,
+                        defaultData.targetField
+                    );
+                    detailContext.Draw_PropertyLabel("연산");
+                    ImGui::TextUnformatted(Internal::Get_MaterialScalarOperationLabel(modulator.operation));
+                    if (detailContext.Draw_ResetButton(modulator.operation != defaultData.operation))
+                    {
+                        modulator.operation = defaultData.operation;
+                        changed = true;
+                    }
+                    changed |= Internal::Draw_MaterialScalarTimeSourceProperty(
+                        detailContext,
+                        "시간 축",
+                        modulator.timeSource,
+                        defaultData.timeSource
+                    );
+                    detailContext.End_PropertyTable();
+                }
+
+                changed |= detailContext.Draw_FloatDistributionGroup(
+                    "분포",
+                    modulator.distribution,
+                    defaultData.distribution
+                );
+
+                if (modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife &&
+                    emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
+                {
+                    ImGui::TextDisabled("Mesh ParticleLife material scalar는 Phase 1.5 계약만 보존하고 후속에서 소비합니다.");
+                }
+
+                if (ImGui::Button("삭제"))
+                    removeIndex = index;
+            }
+
+            ImGui::PopID();
+        }
+
+        if (removeIndex < data.modulators.size())
+        {
+            data.modulators.erase(data.modulators.begin() + static_cast<ptrdiff_t>(removeIndex));
+            changed = true;
+        }
+    }
+
     return changed;
 }
 

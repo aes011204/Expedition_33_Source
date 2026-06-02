@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Base.h"
+#include "BattleMonsterSpawnDesc.h"
 #include "GameDataTable.h"
 #include "Delegate.h"
 #include "PreviewShotTable.h"
@@ -7,6 +8,7 @@
 
 NS_BEGIN(Engine)
     class GameInstance;
+    class Level;
 NS_END
 
 NS_BEGIN(Client)
@@ -19,6 +21,8 @@ class PersistentObjectManager;
 class Hero_Manager;
 class CameraDirector;
 class EffectInstancePool;
+class ScreenFadeTransition;
+class LevelTransitionFade;
 class ClientScreenFxManager;
 
 class ClientInstance : public Base
@@ -27,7 +31,7 @@ class ClientInstance : public Base
 
 public:
 	ClientInstance();
-	virtual ~ClientInstance() = default;
+	~ClientInstance() override;
 
 public:
 	HRESULT Initialize_Client(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -110,12 +114,18 @@ public: /* For.Gameplay UI */
     void    Stop_BattleEnterTransition();
     bool    Is_BattleEnterTransitionPlaying() const;
 
+public: /* For.Fade Transition */
+    bool Request_ScreenFadeTransition(const function<void()>& CoveredAction);
+    bool Request_LevelTransition(LevelType TargetLevel);
+    bool Request_LoadedLevelTransition(LevelType TargetLevel, Shared<Level> TargetLevelInstance);
+    bool Is_FadeTransitionPlaying() const;
+
 public: /* For.Battle_Controller */
     void OnEnterBattleField(
         uint32 FieldID,
         bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
-        const vector<string>& MonsterProtoTag,
+        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
         const Shared<GameObject>& sourceObject = nullptr);
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
@@ -138,6 +148,9 @@ public:
 public:
     Shared<ClientScreenFxManager> Get_ScreenFxManager() const;
 
+public: /* Effect 재생 */
+    bool Play_Effect(const wstring& effectName, const Vec3& worldPosition, const Vec3& scale = Vec3::One);
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
@@ -158,6 +171,8 @@ private:
     Unique<GameDataTable>       _gameDataTable;
     Unique<PreviewShotTable>    _previewShotTable;
     Unique<EffectInstancePool>  _effectInstancePool;
+    Unique<ScreenFadeTransition> _screenFadeTransition;
+    Unique<LevelTransitionFade>  _levelTransitionFade;
 
     Shared<GameplayUI>                  _gamePlayUI;
     Unique<PersistentObjectManager>     _persistentObjectManager;

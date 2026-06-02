@@ -1258,12 +1258,7 @@ bool ModelCom::Ensure_AnimNotifyAssetLoaded()
     const string modelGuid = GAME->Ensure_AssetGUID(_sourceModelPath, "Model");
     _animNotifyAsset.modelGuid = modelGuid;
 
-    const fs::path filePath = AnimNotify_Parser::Get_ModelNotifyFilePath(modelGuid);
-    if (!AnimNotify_Parser::Load_FromFile(filePath.wstring(), _animNotifyAsset))
-    {
-        const fs::path legacyFilePath = AnimNotify_Parser::Get_LegacyModelNotifyFilePath(modelGuid);
-        AnimNotify_Parser::Load_FromFile(legacyFilePath.wstring(), _animNotifyAsset);
-    }
+    AnimNotify_Parser::Load_ModelAsset(modelGuid, _animNotifyAsset);
 
     if (_animNotifyAsset.modelGuid.empty())
         _animNotifyAsset.modelGuid = modelGuid;

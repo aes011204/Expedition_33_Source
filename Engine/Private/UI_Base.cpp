@@ -49,9 +49,11 @@ UI_Base::UI_Base()
 UI_Base::UI_Base(const UI_Base& Prototype)
     : _isOpen{ false }
     , _sortOrder{ Prototype._sortOrder }
+    , _alphaMultiplier{ Prototype._alphaMultiplier }
     , _openBasePosition{ Prototype._openBasePosition }
     , _openBaseScale{ Prototype._openBaseScale }
     , _openBaseRotationRadians{ Prototype._openBaseRotationRadians }
+    , _openBaseAlphaMultiplier{ Prototype._openBaseAlphaMultiplier }
     , _hasOpenBaseTransform{ Prototype._hasOpenBaseTransform }
     , _renderGroup{Prototype._renderGroup }
 {
@@ -79,6 +81,7 @@ HRESULT UI_Base::Initialize(void* Arg)
     _sortOrder = Desc.sortOrder;
     _isOpen = Desc.isOpenOnCreate;
     _renderGroup = Desc.renderGroup;
+    _alphaMultiplier = min(max(Desc.alphaMultiplier, 0.f), 1.f);
 
     _transform = UI_Transform::Create(&Desc.transformDesc);
     CHECK_NULL(_transform, E_FAIL);
@@ -86,12 +89,14 @@ HRESULT UI_Base::Initialize(void* Arg)
     _openBasePosition = _transform->Get_Position();
     _openBaseScale = _transform->Get_Scale();
     _openBaseRotationRadians = _transform->Get_RotationRadians();
+    _openBaseAlphaMultiplier = _alphaMultiplier;
     _hasOpenBaseTransform = true;
 
     _animationPlayer.Set_BaseTransformState(
         _openBasePosition,
         _openBaseScale,
-        _openBaseRotationRadians);
+        _openBaseRotationRadians,
+        _openBaseAlphaMultiplier);
     _animationPlayer.Set_Clips(Desc.animationClips);
     _animationPlayer.Set_KeyframeAssets(Desc.keyframeAnimationAssets);
     if (_isOpen)
@@ -109,10 +114,12 @@ void UI_Base::Open()
         _transform->Set_Position(_openBasePosition);
         _transform->Set_Scale(_openBaseScale);
         _transform->Set_RotationRadians(_openBaseRotationRadians);
+        _alphaMultiplier = _openBaseAlphaMultiplier;
         _animationPlayer.Set_TransitionStartState(
             _openBasePosition,
             _openBaseScale,
-            _openBaseRotationRadians);
+            _openBaseRotationRadians,
+            _openBaseAlphaMultiplier);
     }
 
     _animationPlayer.Play_OnOpen();
@@ -126,12 +133,14 @@ void UI_Base::Refresh_OpenBaseTransform()
     _openBasePosition = _transform->Get_Position();
     _openBaseScale = _transform->Get_Scale();
     _openBaseRotationRadians = _transform->Get_RotationRadians();
+    _openBaseAlphaMultiplier = _alphaMultiplier;
     _hasOpenBaseTransform = true;
 
     _animationPlayer.Set_BaseTransformState(
         _openBasePosition,
         _openBaseScale,
-        _openBaseRotationRadians);
+        _openBaseRotationRadians,
+        _openBaseAlphaMultiplier);
 }
 
 void UI_Base::Close()
@@ -165,6 +174,9 @@ void UI_Base::Update(float TimeDelta)
             color.w = sample.color.w;
         Set_Color(color);
     }
+
+    if (sample.hasAlphaMultiplier)
+        Set_AlphaMultiplier(sample.alphaMultiplier);
 }
 
 HRESULT UI_Base::Render()
@@ -179,7 +191,8 @@ bool UI_Base::Play_UIAnimation(const wstring& animationName, bool restart)
         _animationPlayer.Set_TransitionStartState(
             _transform->Get_Position(),
             _transform->Get_Scale(),
-            _transform->Get_RotationRadians());
+            _transform->Get_RotationRadians(),
+            _alphaMultiplier);
     }
 
     return _animationPlayer.Play_KeyframeAnimation(animationName, restart); // 실제 선택 재생은 AnimationPlayer가 맡는다.
@@ -454,6 +467,44 @@ void UI_Base::Set_Color(const Vec4&)
 Vec4 UI_Base::Get_Color() const
 {
     return Vec4(1.f, 1.f, 1.f, 1.f);
+}
+
+void UI_Base::Set_AlphaMultiplier(float alphaMultiplier)
+{
+    _alphaMultiplier = min(max(alphaMultiplier, 0.f), 1.f);
+}
+
+float UI_Base::Get_EffectiveAlphaMultiplier() const
+{
+    float alphaMultiplier = _alphaMultiplier;
+    Shared<UI_Base> parent = _parent.lock();
+#ifdef _DEBUG
+    uint32 depth = 0;
+#endif
+
+    while (nullptr != parent)
+    {
+        alphaMultiplier *= parent->_alphaMultiplier;
+        parent = parent->_parent.lock();
+
+#ifdef _DEBUG
+        ++depth;
+        if (depth > 256)
+        {
+            LOG_WARN("UI_Base::Get_EffectiveAlphaMultiplier stopped by excessive parent depth.");
+            break;
+        }
+#endif
+    }
+
+    return min(max(alphaMultiplier, 0.f), 1.f);
+}
+
+Vec4 UI_Base::Get_EffectiveRenderColor(const Vec4& color) const
+{
+    Vec4 renderColor = color;
+    renderColor.w = min(max(renderColor.w, 0.f), 1.f) * Get_EffectiveAlphaMultiplier();
+    return renderColor;
 }
 
 void UI_Base::Free()

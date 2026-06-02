@@ -65,6 +65,11 @@ struct ComputePointParticleParams
     Vec4 motionRadialSpeedDrag{}; // x/y: radial speed min/max, z/w: drag min/max.
     Vec4 accelerationMin{};       // xyz: acceleration min, w: unused.
     Vec4 accelerationMax{};       // xyz: acceleration max, w: unused.
+    Vec4 accelerationCurveTimes{};   // Acceleration key times.
+    Vec4 accelerationCurveValuesX{}; // Acceleration X key values.
+    Vec4 accelerationCurveValuesY{}; // Acceleration Y key values.
+    Vec4 accelerationCurveValuesZ{}; // Acceleration Z key values.
+    Vec4 accelerationCurveParams{};  // x: key count, y: enabled, z/w: unused.
     Vec4 velocityScaleByLife{};   // x/y: scale start/end, z/w: unused.
     Vec4 rotationInitialRate{};   // x/y: initial rotation min/max, z/w: rate min/max.
     Vec4 rotationByLife{};        // x/y: legacy rotation start/end, z/w: rate scale start/end.
@@ -522,6 +527,16 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.motion.accelerationMax.x,
             _desc.motion.accelerationMax.y,
             _desc.motion.accelerationMax.z,
+            0.f
+        },
+        .accelerationCurveTimes = _desc.motion.accelerationCurveTimes,
+        .accelerationCurveValuesX = _desc.motion.accelerationCurveValuesX,
+        .accelerationCurveValuesY = _desc.motion.accelerationCurveValuesY,
+        .accelerationCurveValuesZ = _desc.motion.accelerationCurveValuesZ,
+        .accelerationCurveParams = Vec4{
+            static_cast<float>(_desc.motion.accelerationCurveKeyCount),
+            _desc.motion.accelerationCurveEnabled ? 1.f : 0.f,
+            0.f,
             0.f
         },
         .velocityScaleByLife = Vec4{ _desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, 0.f, 0.f },

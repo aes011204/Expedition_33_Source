@@ -47,6 +47,8 @@ void Monster_Part::Priority_Update(float timeDelta)
 void Monster_Part::Update(float timeDelta)
 {
     Update_CombinedWorldMatrix(_transformCom->Get_WorldMatrix());
+
+
 }
 
 void Monster_Part::Late_Update(float timeDelta)
@@ -68,20 +70,20 @@ HRESULT Monster_Part::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
-    CHECK_FAILED(EffectCom::Bind_DrawFeatures(
-        Get_Owner(),
+    CHECK_FAILED_ONCE(EffectCom::Bind_DrawFeatures(
+        GetSharedPtr<Monster_Part>(),
         _shader.get(),
         DrawFeatureFlagDissolve), E_FAIL);
 
     // runtime compute 경로가 있으면 runtime buffer 준비
     if (_animComputeRuntime != nullptr)
     {
-        CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
+        CHECK_FAILED_ONCE(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
     }
     // runtime이 없는 anim/noncompute 경로는 ModelCom 기본 bone buffer 사용S
     else if (_model->Get_NumAnimations() != 0)
     {
-        CHECK_FAILED(_model->Prepare_BoneMatrixBuffers(), E_FAIL);
+        CHECK_FAILED_ONCE(_model->Prepare_BoneMatrixBuffers(), E_FAIL);
     }
 
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
@@ -136,9 +138,6 @@ HRESULT Monster_Part::Render_Shadow()
         return E_FAIL;
 
     if (FAILED(GAME->Bind_ShadowCB(_shader)))
-        return E_FAIL;
-
-    if (FAILED(_shader->Reset_DrawFeatures()))
         return E_FAIL;
 
     // runtime compute 경로가 있으면 runtime buffer 준비
@@ -213,10 +212,10 @@ bool Monster_Part::Set_AnimationByState(uint32 stateIndex, float blendDuration, 
     const bool applied = _model->Set_AnimationByState(stateIndex, blendDuration, isLoop, startFrame);
     const char* animName = _model->Get_AnimationName(_model->Get_CurrentAnimationIndex());
 
-    LOG_DEBUG("Monster_Part::Set_AnimationByState state={} applied={} currentAnim={}",
-        stateIndex,
-        applied,
-        animName != nullptr ? animName : "<null>");
+    //LOG_DEBUG("Monster_Part::Set_AnimationByState state={} applied={} currentAnim={}",
+    //    stateIndex,
+    //    applied,
+    //    animName != nullptr ? animName : "<null>");
 
     return applied;
 }
@@ -276,6 +275,10 @@ HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
         _animComputeRuntime = AnimComputeRuntime::Create(_device, _context, runtimeDesc);
         CHECK_NULL(_animComputeRuntime, E_FAIL);
     }
+
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
+
 
     return S_OK;
 }

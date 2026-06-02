@@ -32,6 +32,7 @@ struct UI_Object
     ImVec2 anchorMax = ImVec2(0.f, 0.f);
     float rotationRadians = 0.f;
     ImVec4 color = ImVec4(1.f, 1.f, 1.f, 1.f);
+    float alphaMultiplier = 1.f;
     bool isOpenOnCreate = true;
     bool visible = true;
     bool locked = false;

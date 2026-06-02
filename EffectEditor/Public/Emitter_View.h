@@ -155,6 +155,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_InitialLocationModule();
     AuthoringModule Make_SphereLocationModule();
     AuthoringModule Make_InitialSizeModule();
+    AuthoringModule Make_InitialMeshSizeModule();
     AuthoringModule Make_InitialVelocityModule();
     AuthoringModule Make_InitialRadialVelocityModule();
     AuthoringModule Make_AccelerationModule();
@@ -164,11 +165,17 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_RotationOverLifeModule();
     AuthoringModule Make_InitialRotationRateModule();
     AuthoringModule Make_RotationRateScaleByLifeModule();
+    AuthoringModule Make_InitialMeshRotationModule();
+    AuthoringModule Make_MeshRotationOverLifeModule();
+    AuthoringModule Make_InitialMeshRotationRateModule();
+    AuthoringModule Make_MeshRotationRateScaleByLifeModule();
     AuthoringModule Make_InitialColorModule();
     AuthoringModule Make_ColorOverLifeModule();
     AuthoringModule Make_SubUVFrameOverLifeModule();
     AuthoringModule Make_SizeByLifeModule();
+    AuthoringModule Make_MeshSizeByLifeModule();
     AuthoringModule Make_SpawnPerUnitModule();
+    AuthoringModule Make_MaterialScalarModulationModule();
 
 private: //## Helper::ModulePolicy
     bool Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;                 // 이미터가 특정 모듈 타입을 이미 가지고 있는지 확인한다.

@@ -44,6 +44,11 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         L"초기 크기",
         L"생성 시점 크기"
     };
+    static const AuthoringModuleMetadata initialMeshSize{
+        "Initial Mesh Size",
+        L"초기 메시 크기",
+        L"생성 시점 메시 XYZ 크기"
+    };
     static const AuthoringModuleMetadata initialVelocity{
         "Initial Velocity",
         L"초기 속도",
@@ -89,6 +94,26 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         L"수명에 따른 회전 속도",
         L"수명 진행률 기준 회전 속도 배율"
     };
+    static const AuthoringModuleMetadata initialMeshRotation{
+        "Initial Mesh Rotation",
+        L"초기 메시 회전",
+        L"생성 시점 메시 XYZ 회전"
+    };
+    static const AuthoringModuleMetadata meshRotationOverLife{
+        "Mesh Rotation Over Life",
+        L"수명에 따른 메시 회전",
+        L"수명 진행률 기준 메시 XYZ 추가 회전"
+    };
+    static const AuthoringModuleMetadata initialMeshRotationRate{
+        "Initial Mesh Rotation Rate",
+        L"초기 메시 회전 속도",
+        L"초당 메시 XYZ 회전 속도"
+    };
+    static const AuthoringModuleMetadata meshRotationRateScaleByLife{
+        "Mesh Rotation Rate Scale By Life",
+        L"수명에 따른 메시 회전 속도",
+        L"수명 진행률 기준 메시 XYZ 회전 속도 배율"
+    };
     static const AuthoringModuleMetadata initialColor{
         "Initial Color",
         L"초기 컬러",
@@ -121,6 +146,15 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         true,
         true
     };
+    static const AuthoringModuleMetadata meshSizeByLife{
+        "Mesh Size By Life",
+        L"수명에 따른 메시 크기",
+        L"수명 진행률 기준 메시 XYZ 크기 배율",
+        true,
+        true,
+        true,
+        false
+    };
     static const AuthoringModuleMetadata spawnPerUnit{
         "Spawn Per Unit",
         L"거리당 스폰",
@@ -128,6 +162,15 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         true,
         true,
         false,
+        true
+    };
+    static const AuthoringModuleMetadata materialScalarModulation{
+        "MaterialScalarModulation",
+        L"머티리얼 변조",
+        L"머티리얼 scalar 시간 변화",
+        true,
+        true,
+        true,
         true
     };
 
@@ -145,6 +188,8 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return sphereLocation;
     case AuthoringModuleType::InitialSize:
         return initialSize;
+    case AuthoringModuleType::InitialMeshSize:
+        return initialMeshSize;
     case AuthoringModuleType::InitialVelocity:
         return initialVelocity;
     case AuthoringModuleType::InitialRadialVelocity:
@@ -163,6 +208,14 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return initialRotationRate;
     case AuthoringModuleType::RotationRateScaleByLife:
         return rotationRateScaleByLife;
+    case AuthoringModuleType::InitialMeshRotation:
+        return initialMeshRotation;
+    case AuthoringModuleType::MeshRotationOverLife:
+        return meshRotationOverLife;
+    case AuthoringModuleType::InitialMeshRotationRate:
+        return initialMeshRotationRate;
+    case AuthoringModuleType::MeshRotationRateScaleByLife:
+        return meshRotationRateScaleByLife;
     case AuthoringModuleType::InitialColor:
         return initialColor;
     case AuthoringModuleType::ColorOverLife:
@@ -171,8 +224,12 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return subUVFrameOverLife;
     case AuthoringModuleType::SizeByLife:
         return sizeByLife;
+    case AuthoringModuleType::MeshSizeByLife:
+        return meshSizeByLife;
     case AuthoringModuleType::SpawnPerUnit:
         return spawnPerUnit;
+    case AuthoringModuleType::MaterialScalarModulation:
+        return materialScalarModulation;
     }
 
     return required;

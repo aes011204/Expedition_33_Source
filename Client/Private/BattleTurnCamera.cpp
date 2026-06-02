@@ -16,7 +16,8 @@ namespace
 {
 BattleCameraClipTimeMode Get_DefaultBattleCameraClipTimeMode(BattleCameraMode cameraMode)
 {
-    return cameraMode == BattleCameraMode::BATTLEINTRO
+    return cameraMode == BattleCameraMode::BATTLEINTRO ||
+        cameraMode == BattleCameraMode::SELECTSKILL
         ? BattleCameraClipTimeMode::Independent
         : BattleCameraClipTimeMode::AnimationSync;
 }
@@ -28,6 +29,27 @@ Shared<ModelCom> Resolve_BattleCameraSubjectModel(const Shared<Character>& chara
 
     PartObject* body = character->Get_PartObject(L"Part_Body");
     return body ? body->Get_Component<ModelCom>() : nullptr;
+}
+
+BattleTurnCamera::BattleShotRequest Build_BattleShotRequestFromEvent(const EvtBattlePresentation& event)
+{
+    BattleTurnCamera::BattleShotRequest request{};
+    request.mode = event.cameraMode;
+    request.subject = event.subject;
+    request.opponent = event.opponent;
+    request.skillId = event.skillId;
+    request.presetId = event.presetId;
+    request.clipId = event.clipId;
+    request.useClip = event.useClip;
+    request.restartClip = event.restartClip;
+
+    if (event.cameraMode == BattleCameraMode::SELECTITEM ||
+        event.cameraMode == BattleCameraMode::SELECTSKILL)
+    {
+        request.freezeSubjectDuringTransition = true;
+    }
+
+    return request;
 }
 }
 
@@ -106,59 +128,7 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
    _battlePresentationHandle = GAME->Get_EventBus().Subscribe<EvtBattlePresentation>
     ([this](const EvtBattlePresentation& event)
         {
-            BattleShotRequest request;
-
-            switch(event.cameraMode)
-            {
-                case BattleCameraMode::ENEMYFOCUS:
-                    request.mode = event.cameraMode;
-                    request.subject = event.subject;
-                    request.presetId = event.presetId;
-                    request.clipId = event.clipId;
-                    break;
-
-                case BattleCameraMode::PLAYERFOCUS:
-                    request.mode = event.cameraMode;
-                    request.subject = event.subject;
-                    request.presetId = event.presetId;
-                    request.clipId = event.clipId;
-                    break;
-
-                case BattleCameraMode::WIDE:
-                    request.mode = event.cameraMode;
-                    request.subject = event.subject;
-                    request.presetId = event.presetId;
-                    request.clipId = event.clipId;
-                    break;
-                        
-                case BattleCameraMode::BATTLEINTRO:
-                    request.mode = event.cameraMode;
-                    request.subject = event.subject;
-                    request.presetId = event.presetId;
-                    request.clipId = event.clipId;
-                    break;
-
-                case BattleCameraMode::ENEMYATTACK:
-                    request.mode = event.cameraMode;
-                    request.subject = event.subject;
-                    request.opponent = event.opponent;
-                    request.presetId = event.presetId;
-                    request.clipId = event.clipId;
-                    break;
-
-                case BattleCameraMode::PLAYERATTACK:
-                    request.mode = event.cameraMode;
-                    request.subject = event.subject;
-                    request.skillId = event.skillId;
-                    request.presetId = event.presetId;
-                    request.clipId = event.clipId;
-                    break;
-            }
-
-            request.useClip = event.useClip;
-            request.restartClip = event.restartClip;
-
-            Apply_ShotRequest(request);
+            Apply_ShotRequest(Build_BattleShotRequestFromEvent(event));
         }
     );
 
@@ -178,7 +148,6 @@ void BattleTurnCamera::BeginPlay()
 
 void BattleTurnCamera::Update(float timeDelta)
 {
-    LOG_DEBUG("Battle Camera Mode = {} ", magic_enum::enum_name(_currentRequest.mode));
 
     if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
         return;
@@ -207,19 +176,15 @@ void BattleTurnCamera::Update(float timeDelta)
         }
         break;
     case BattleCameraMode::BATTLEINTRO:
-        Update_FromCurrentPreset(timeDelta);
-        break;
     case BattleCameraMode::PLAYERFOCUS:
-        Update_PlayerFocusMode(timeDelta);
-        break;
     case BattleCameraMode::ENEMYFOCUS:
-        Update_EnemyFocusMode(timeDelta);
+    case BattleCameraMode::PLAYERATTACK:
+    case BattleCameraMode::SELECTITEM:
+    case BattleCameraMode::SELECTSKILL:
+        Update_FromCurrentPreset(timeDelta);
         break;
     case BattleCameraMode::ENEMYATTACK:
         Update_EnemyAttackMode(timeDelta);
-        break;
-    case BattleCameraMode::PLAYERATTACK:
-        Update_PlayerAttackMode(timeDelta);
         break;
 
     default:
@@ -231,64 +196,15 @@ void BattleTurnCamera::Update(float timeDelta)
 
 void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies)
 {
-    // 위치는 일단 임시
-    Vec3 heroCenter = Vec3::Zero;
-    uint32 heroCount = 0;
+    UNREFERENCED_PARAMETER(heroes);
+    UNREFERENCED_PARAMETER(enemies);
 
-    for (size_t i = 0; i < heroes.size(); ++i)
-    {
-        if (heroes[i].actor && heroes[i].actor->Get_Transform())
-        {
-            // 플레이어 3명 위치 누적
-            heroCenter += heroes[i].actor->Get_Transform()->Get_WorldPosition();
-            ++heroCount;
-        }
-    }
-
-    if (heroCount == 0)
+    EvaluatedPose pose{};
+    if (!Evaluate_WidePose(_currentPreset.camera.fovy, pose))
         return;
 
-    heroCenter /= static_cast<float>(heroCount);
-
-    // 시작 위치 기준점으로 잡을 플레이어
-    Shared<GameObject> yawBaseActor = nullptr;
-
-    if (heroes.size() > 1 && heroes[1].actor && heroes[1].actor->Get_Transform())
-        yawBaseActor = heroes[1].actor; 
-    else if (!heroes.empty() && heroes[0].actor && heroes[0].actor->Get_Transform())
-        yawBaseActor = heroes[0].actor; // hero[1]이 없으면 hero[0] fallback
-
-    CHECK_NULL(yawBaseActor);
-
-    const Vec3 baseRot = yawBaseActor->Get_Transform()->Get_RotationEuler();
-    const float cameraYawDeg = baseRot.y;
-    const float cameraYawRad = XMConvertToRadians(cameraYawDeg);
-
-    Vec3 forwardDir{};
-    forwardDir.x = sinf(cameraYawRad);
-    forwardDir.y = 0.f;
-    forwardDir.z = cosf(cameraYawRad);
-    forwardDir.Normalize();
-
-    // 카메라 위치는 플레이어 뒤쪽
-    Vec3 backDir = -forwardDir;
-    Vec3 rightDir{};
-    rightDir.x = cosf(cameraYawRad); // 카메라를 정면 중앙보다 약간 옆으로 빼기 위한 right 방향
-    rightDir.y = 0.f;
-    rightDir.z = -sinf(cameraYawRad);
-    rightDir.Normalize();
-
-    const Vec3 lookAt = heroCenter + Vec3(0.f, 2.2f, 0.f);
-
-    const Vec3 cameraPos =
-        heroCenter +
-        backDir * 8.5f +          
-        rightDir * 2.0f +         
-        Vec3(2.f, 3.f, -2.f);     // 테스트용 임시 위치 보정
-
-    Apply_LookAt(cameraPos, lookAt);
-
-    _smoothedTargetPos = cameraPos;
+    Apply_EvaluatedPose(pose);
+    _smoothedTargetPos = pose.cameraPos;
 }
 
 void BattleTurnCamera::Update_FreeAimRotation(float timeDelta)
@@ -352,10 +268,133 @@ void BattleTurnCamera::Reset_RuntimeState()
     _isWideMode = false;
 }
 
+BattleTurnCamera::ResolvedShotAssets BattleTurnCamera::Resolve_ShotAssets(
+    const BattleShotRequest& request,
+    const BattleCameraPreset* resolvedPresetById,
+    const BattleCameraClip* resolvedClipById) const
+{
+    ResolvedShotAssets resolved{};
+
+    if (resolvedPresetById != nullptr)
+    {
+        resolved.preset = *resolvedPresetById;
+    }
+    else if (request.mode == BattleCameraMode::PLAYERATTACK)
+    {
+        if (!request.skillId.empty())
+        {
+            auto iter = _playerAttackProfilesBySkill.find(request.skillId);
+            resolved.preset = (iter != _playerAttackProfilesBySkill.end())
+                ? iter->second.preset
+                : _playerAttackDefaultProfile.preset;
+        }
+        else
+        {
+            resolved.preset = _playerAttackDefaultProfile.preset;
+        }
+    }
+    else if (const BattleCameraPreset* presetStorage = Find_PresetStorage(request.mode))
+    {
+        resolved.preset = *presetStorage;
+    }
+
+    if (resolvedClipById != nullptr)
+    {
+        resolved.clip = const_cast<BattleCameraClip*>(resolvedClipById);
+    }
+    else if (request.mode == BattleCameraMode::PLAYERATTACK)
+    {
+        if (!request.skillId.empty())
+        {
+            auto iter = _playerAttackProfilesBySkill.find(request.skillId);
+            resolved.clip = (iter != _playerAttackProfilesBySkill.end())
+                ? const_cast<BattleCameraClip*>(&iter->second.clip)
+                : const_cast<BattleCameraClip*>(&_playerAttackDefaultProfile.clip);
+        }
+        else
+        {
+            resolved.clip = const_cast<BattleCameraClip*>(&_playerAttackDefaultProfile.clip);
+        }
+    }
+    else if (request.mode == BattleCameraMode::BATTLEINTRO ||
+        request.mode == BattleCameraMode::ENEMYATTACK)
+    {
+        resolved.clip = const_cast<BattleCameraClip*>(Find_ClipStorage(request.mode));
+    }
+
+    return resolved;
+}
+
+BattleCameraPreset* BattleTurnCamera::Find_PresetStorage(BattleCameraMode cameraMode)
+{
+    return const_cast<BattleCameraPreset*>(
+        static_cast<const BattleTurnCamera*>(this)->Find_PresetStorage(cameraMode));
+}
+
+const BattleCameraPreset* BattleTurnCamera::Find_PresetStorage(BattleCameraMode cameraMode) const
+{
+    switch (cameraMode)
+    {
+    case BattleCameraMode::WIDE:
+        return &_wideModePreset;
+
+    case BattleCameraMode::BATTLEINTRO:
+        return &_battleIntroPreset;
+
+    case BattleCameraMode::PLAYERFOCUS:
+        return &_playerFocusPreset;
+
+    case BattleCameraMode::ENEMYFOCUS:
+        return &_enemyFocusPreset;
+
+    case BattleCameraMode::ENEMYATTACK:
+        return &_enemyAttackPreset;
+
+    case BattleCameraMode::PLAYERATTACK:
+        return &_playerAttackPreset;
+
+    default:
+        return nullptr;
+    }
+}
+
+BattleCameraClip* BattleTurnCamera::Find_ClipStorage(BattleCameraMode cameraMode)
+{
+    return const_cast<BattleCameraClip*>(
+        static_cast<const BattleTurnCamera*>(this)->Find_ClipStorage(cameraMode));
+}
+
+const BattleCameraClip* BattleTurnCamera::Find_ClipStorage(BattleCameraMode cameraMode) const
+{
+    switch (cameraMode)
+    {
+    case BattleCameraMode::WIDE:
+        return &_wideModeClip;
+
+    case BattleCameraMode::BATTLEINTRO:
+        return &_battleIntroClip;
+
+    case BattleCameraMode::PLAYERFOCUS:
+        return &_playerFocusClip;
+
+    case BattleCameraMode::ENEMYFOCUS:
+        return &_enemyFocusClip;
+
+    case BattleCameraMode::ENEMYATTACK:
+        return &_enemyAttackClip;
+
+    case BattleCameraMode::PLAYERATTACK:
+        return &_playerAttackClip;
+
+    default:
+        return nullptr;
+    }
+}
+
 const BattleCameraPreset* BattleTurnCamera::Resolve_BattleCameraPresetById(BattleCameraMode mode, const string& presetId) const
 {
-    if (presetId.empty())
-        return nullptr;
+    //if (presetId.empty())
+    //    return nullptr;
 
     const string cacheKey = string(magic_enum::enum_name(mode)) + ":" + presetId;
     if (auto iter = _presetsById.find(cacheKey); iter != _presetsById.end())
@@ -371,48 +410,18 @@ const BattleCameraPreset* BattleTurnCamera::Resolve_BattleCameraPresetById(Battl
 
 const BattleCameraClip* BattleTurnCamera::Resolve_BattleCameraClipById(BattleCameraMode mode, const string& clipId) const
 {
-    if (clipId.empty())
-        return nullptr;
+    //if (clipId.empty())
+    //    return nullptr;
 
     const string cacheKey = string(magic_enum::enum_name(mode)) + ":" + clipId;
     if (auto iter = _clipsById.find(cacheKey); iter != _clipsById.end())
-    {
-        LOG_DEBUG(
-            "[BattleCameraClip] cache mode={} clipId={} duration={:.3f} timeMode={} shakeKeys={}",
-            string(magic_enum::enum_name(mode)),
-            clipId,
-            iter->second.duration,
-            string(magic_enum::enum_name(iter->second.timeMode)),
-            iter->second.shakeAmplitude.keyframes.size());
         return &iter->second;
-    }
 
     BattleCameraClip clip{};
     if (!BattleCameraClipIO::LoadBattleCameraClipFromFile(mode, clip, clipId))
     {
-        LOG_WARN(
-            "[BattleCameraClip] load failed mode={} clipId={}",
-            string(magic_enum::enum_name(mode)),
-            clipId);
         return nullptr;
     }
-
-    const BattleCameraTrack& shakeTrack = clip.shakeAmplitude;
-    const float firstShakeTime = shakeTrack.keyframes.empty() ? -1.f : shakeTrack.keyframes.front().time;
-    const float firstShakeValue = shakeTrack.keyframes.empty() ? 0.f : shakeTrack.keyframes.front().value;
-    const float lastShakeTime = shakeTrack.keyframes.empty() ? -1.f : shakeTrack.keyframes.back().time;
-    const float lastShakeValue = shakeTrack.keyframes.empty() ? 0.f : shakeTrack.keyframes.back().value;
-    LOG_DEBUG(
-        "[BattleCameraClip] loaded mode={} clipId={} duration={:.3f} timeMode={} shakeKeys={} first={:.3f}:{:.3f} last={:.3f}:{:.3f}",
-        string(magic_enum::enum_name(mode)),
-        clipId,
-        clip.duration,
-        string(magic_enum::enum_name(clip.timeMode)),
-        shakeTrack.keyframes.size(),
-        firstShakeTime,
-        firstShakeValue,
-        lastShakeTime,
-        lastShakeValue);
 
     _clipsById[cacheKey] = clip;
     return &_clipsById[cacheKey];
@@ -456,6 +465,38 @@ BattleTurnCamera::EvaluatedPose BattleTurnCamera::Capture_CurrentPose()
     return pose;
 }
 
+bool BattleTurnCamera::Evaluate_WidePose(float fovY, EvaluatedPose& outPose) const
+{
+    Vec3 heroCenter = Vec3::Zero;
+    uint32 heroCount = 0;
+
+    for (const BattleChar& hero : _heroes)
+    {
+        if (hero.actor == nullptr || hero.actor->Get_Transform() == nullptr)
+            continue;
+
+        heroCenter += hero.actor->Get_Transform()->Get_WorldPosition();
+        ++heroCount;
+    }
+
+    if (heroCount == 0)
+        return false;
+
+    heroCenter /= static_cast<float>(heroCount);
+
+    Shared<GameObject> yawBaseActor = nullptr;
+    if (_heroes.size() > 1 && _heroes[1].actor && _heroes[1].actor->Get_Transform())
+        yawBaseActor = _heroes[1].actor;
+    else if (!_heroes.empty() && _heroes[0].actor && _heroes[0].actor->Get_Transform())
+        yawBaseActor = _heroes[0].actor;
+
+    if (yawBaseActor == nullptr)
+        return false;
+
+    const Vec3 baseRot = yawBaseActor->Get_Transform()->Get_RotationEuler();
+    return Evaluate_BattleTurnWidePose(heroCenter, baseRot.y, fovY, outPose);
+}
+
 bool BattleTurnCamera::Evaluate_ShotRequestPose(
     const BattleShotRequest& request,
     const BattleCameraPreset& preset,
@@ -467,80 +508,7 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
     switch (request.mode)
     {
     case BattleCameraMode::WIDE:
-    {
-        Vec3 heroCenter = Vec3::Zero;
-        uint32 heroCount = 0;
-
-        for (const BattleChar& hero : _heroes)
-        {
-            if (hero.actor == nullptr || hero.actor->Get_Transform() == nullptr)
-                continue;
-
-            heroCenter += hero.actor->Get_Transform()->Get_WorldPosition();
-            ++heroCount;
-        }
-
-        if (heroCount == 0)
-            return false;
-
-        heroCenter /= static_cast<float>(heroCount);
-
-        Shared<GameObject> yawBaseActor = nullptr;
-        if (_heroes.size() > 1 && _heroes[1].actor && _heroes[1].actor->Get_Transform())
-            yawBaseActor = _heroes[1].actor;
-        else if (!_heroes.empty() && _heroes[0].actor && _heroes[0].actor->Get_Transform())
-            yawBaseActor = _heroes[0].actor;
-
-        if (yawBaseActor == nullptr)
-            return false;
-
-        const Vec3 baseRot = yawBaseActor->Get_Transform()->Get_RotationEuler();
-        const float cameraYawRad = XMConvertToRadians(baseRot.y);
-
-        Vec3 forwardDir{};
-        forwardDir.x = sinf(cameraYawRad);
-        forwardDir.y = 0.f;
-        forwardDir.z = cosf(cameraYawRad);
-        forwardDir.Normalize();
-
-        const Vec3 backDir = -forwardDir;
-        Vec3 rightDir{};
-        rightDir.x = cosf(cameraYawRad);
-        rightDir.y = 0.f;
-        rightDir.z = -sinf(cameraYawRad);
-        rightDir.Normalize();
-
-        outPose.cameraPos =
-            heroCenter +
-            backDir * 8.5f +
-            rightDir * 2.0f +
-            Vec3(2.f, 3.f, -2.f);
-        outPose.lookTarget = heroCenter + Vec3(0.f, 2.2f, 0.f);
-        outPose.fovY = preset.camera.fovy;
-        outPose.rollOffset = 0.f;
-        return true;
-    }
-
-    case BattleCameraMode::BATTLEINTRO:
-    case BattleCameraMode::PLAYERFOCUS:
-    case BattleCameraMode::ENEMYFOCUS:
-    case BattleCameraMode::PLAYERATTACK:
-    {
-        if (request.subject == nullptr)
-            return false;
-
-        const Vec3 subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
-        return Evaluate_BattleTurnPresetPose(
-            subjectPos,
-            preset,
-            clipSample,
-            _yaw,
-            _pitch,
-            smoothedTargetPos,
-            clipTime,
-            outPose);
-    }
-
+        return Evaluate_WidePose(preset.camera.fovy, outPose);
     case BattleCameraMode::ENEMYATTACK:
     {
         if (request.subject == nullptr || request.opponent == nullptr)
@@ -561,7 +529,19 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
             outPose);
     }
     default:
-        return false;
+        if (request.subject == nullptr)
+            return false;
+
+        const Vec3 subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+        return Evaluate_BattleTurnPresetPose(
+            subjectPos,
+            preset,
+            clipSample,
+            _yaw,
+            _pitch,
+            smoothedTargetPos,
+            clipTime,
+            outPose);
     }
 }
 
@@ -584,9 +564,40 @@ bool BattleTurnCamera::Start_PoseTransition(
     const Vec3& targetPrevTargetPos)
 {
     EvaluatedPose fromPose = Capture_CurrentPose();
+
+    _poseTransition.hasFrozenPos = false;
+    if (request.freezeSubjectDuringTransition == true &&
+        request.subject != nullptr &&
+        request.subject->Get_Transform() != nullptr)
+    {
+        _poseTransition.frozenSubjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+        _poseTransition.hasFrozenPos = true;
+    }
+
     EvaluatedPose toPose{};
-    if (!Evaluate_ShotRequestPose(request, preset, &targetSmoothedTargetPos, BattleCameraClipSample{}, 0.f, toPose))
+    const bool shouldUseFrozenSelectItemPose =
+        request.freezeSubjectDuringTransition &&
+        request.mode == BattleCameraMode::SELECTITEM &&
+        _poseTransition.hasFrozenPos;
+
+    if (shouldUseFrozenSelectItemPose)
+    {
+        if (!Evaluate_CurrentPresetPose(
+            _poseTransition.frozenSubjectPos,
+            preset,
+            BattleCameraClipSample{},
+            _yaw,
+            _pitch,
+            &targetSmoothedTargetPos,
+            toPose))
+        {
+            return false;
+        }
+    }
+    else if (!Evaluate_ShotRequestPose(request, preset, &targetSmoothedTargetPos, BattleCameraClipSample{}, 0.f, toPose))
+    {
         return false;
+    }
 
     _activeClip = activeClip;
     Reset_ClipPlaybackState();
@@ -603,6 +614,7 @@ bool BattleTurnCamera::Start_PoseTransition(
     _poseTransition.targetSmoothedTargetPos = targetSmoothedTargetPos;
     _poseTransition.targetPrevTargetPos = targetPrevTargetPos;
     _isClipPreview = false;
+
     return true;
 }
 
@@ -620,15 +632,33 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     blended.lookTarget = Vec3::Lerp(_poseTransition.fromPose.lookTarget, _poseTransition.toPose.lookTarget, easedT);
     blended.fovY = lerp(_poseTransition.fromPose.fovY, _poseTransition.toPose.fovY, easedT);
     blended.rollOffset = lerp(_poseTransition.fromPose.rollOffset, _poseTransition.toPose.rollOffset, easedT);
-
     EvaluatedPose clippedTargetPose{};
-    if (Evaluate_ShotRequestPose(
-        _poseTransition.targetRequest,
-        _poseTransition.targetPreset,
-        &_poseTransition.targetSmoothedTargetPos,
-        clipSample,
-        _clipTime,
-        clippedTargetPose))
+    bool hasClippedTargetPose = false;
+    if (_poseTransition.targetRequest.freezeSubjectDuringTransition &&
+        _poseTransition.targetRequest.mode == BattleCameraMode::SELECTITEM &&
+        _poseTransition.hasFrozenPos)
+    {
+        hasClippedTargetPose = Evaluate_CurrentPresetPose(
+            _poseTransition.frozenSubjectPos,
+            _poseTransition.targetPreset,
+            clipSample,
+            _yaw,
+            _pitch,
+            &_poseTransition.targetSmoothedTargetPos,
+            clippedTargetPose);
+    }
+    else
+    {
+        hasClippedTargetPose = Evaluate_ShotRequestPose(
+            _poseTransition.targetRequest,
+            _poseTransition.targetPreset,
+            &_poseTransition.targetSmoothedTargetPos,
+            clipSample,
+            _clipTime,
+            clippedTargetPose);
+    }
+
+    if (hasClippedTargetPose)
     {
         blended.cameraPos += clippedTargetPose.cameraPos - _poseTransition.toPose.cameraPos;
         blended.lookTarget += clippedTargetPose.lookTarget - _poseTransition.toPose.lookTarget;
@@ -698,7 +728,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         _currentRequest.clipId == request.clipId &&
         _currentRequest.useClip == request.useClip;
 
-    const bool isSameClip = _currentRequest.clipId == request.clipId && _currentRequest.useClip == request.useClip;
+    const bool isSameClip = _currentRequest.clipId == request.clipId && _currentRequest.useClip == request.useClip && _currentRequest.mode == request.mode;
     const bool shouldDisableClip = request.useClip == false;
     const bool shouldRestartClip = request.restartClip || !isSameClip;
 
@@ -706,22 +736,24 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         request.restartClip == false &&
         (!request.useClip || _activeClip != nullptr))
     {
-        LOG_DEBUG(
-            "[BattleCameraRequest] ignored same request mode={} presetId={} clipId={} useClip={} restartClip={} activeClip={}",
-            string(magic_enum::enum_name(request.mode)),
-            request.presetId,
-            request.clipId,
-            request.useClip,
-            request.restartClip,
-            _activeClip != nullptr);
         return;
     }
 
     bool wasWide = _currentRequest.mode == BattleCameraMode::WIDE;
     bool willWide = request.mode == BattleCameraMode::WIDE;
+    const bool wasAim = _currentRequest.mode == BattleCameraMode::AIM;
+    const bool willAim = request.mode == BattleCameraMode::AIM;
 
     if(wasWide && !willWide)
         _isWideMode = false;
+
+    if (wasAim && !willAim)
+    {
+        // Free aim rotates the runtime yaw/pitch bases directly, so reset them
+        // before resolving the next authored preset pose.
+        _yaw = 0.f;
+        _pitch = 0.f;
+    }
 
     const BattleCameraPreset* resolvedPresetById = Resolve_BattleCameraPresetById(request.mode, request.presetId);
     const BattleCameraClip* resolvedClipById = Resolve_BattleCameraClipById(request.mode, request.clipId);
@@ -729,123 +761,9 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     if (!request.presetId.empty() && resolvedPresetById == nullptr)
         return;
 
-    if (!request.clipId.empty() && resolvedClipById == nullptr)
-    {
-        LOG_DEBUG(
-        "[BattleCameraClip] missing clip, continue with preset only mode={} clipId={}",
-        string(magic_enum::enum_name(request.mode)),
-        request.clipId);
-    }
-
-    BattleCameraClip* nextActiveClip = nullptr;
-    BattleCameraPreset nextPreset{};
-
-    switch(request.mode)
-    {
-    case BattleCameraMode::WIDE:
-        if (resolvedPresetById != nullptr)
-        {
-            nextPreset = *resolvedPresetById;
-        }
-        else
-        {
-            nextPreset = _wideModePreset;
-        }
-
-        if (resolvedClipById != nullptr)
-            nextActiveClip = const_cast<BattleCameraClip*>(resolvedClipById);
-        break;
-
-    case BattleCameraMode::BATTLEINTRO:
-        if (resolvedPresetById != nullptr)
-        {
-            nextPreset = *resolvedPresetById;
-        }
-        else
-        {
-            nextPreset = _battleIntroPreset;
-        }
-
-        if (resolvedClipById != nullptr)
-            nextActiveClip = const_cast<BattleCameraClip*>(resolvedClipById);
-        else
-            nextActiveClip = &_battleIntroClip;
-        break;
-
-    case BattleCameraMode::PLAYERFOCUS: 
-        if (resolvedPresetById != nullptr)
-        {
-            nextPreset = *resolvedPresetById;
-        }
-        else
-        {
-            nextPreset = _playerFocusPreset;
-        }
-            
-        if (resolvedClipById != nullptr)
-            nextActiveClip = const_cast<BattleCameraClip*>(resolvedClipById);
-        break;
-
-    case BattleCameraMode::ENEMYFOCUS:
-        if (resolvedPresetById != nullptr)
-        {
-            nextPreset = *resolvedPresetById;
-        }
-        else
-        {
-            nextPreset = _enemyFocusPreset;
-        }
-
-        if (resolvedClipById != nullptr)
-            nextActiveClip = const_cast<BattleCameraClip*>(resolvedClipById);
-        break;
-
-    case BattleCameraMode::ENEMYATTACK:
-        if (resolvedPresetById != nullptr)
-        {
-            nextPreset = *resolvedPresetById;
-        }
-        else
-        {
-            nextPreset = _enemyAttackPreset;
-        }
-
-        if (resolvedClipById != nullptr)
-            nextActiveClip = const_cast<BattleCameraClip*>(resolvedClipById);
-        else
-            nextActiveClip = &_enemyAttackClip;
-        break;
-
-    case BattleCameraMode::PLAYERATTACK:
-        if (resolvedPresetById != nullptr)
-        {
-            nextPreset = *resolvedPresetById;
-        }
-        else if (!request.skillId.empty())
-        {
-            auto iter = _playerAttackProfilesBySkill.find(request.skillId);
-            nextPreset = (iter != _playerAttackProfilesBySkill.end())
-                ? iter->second.preset
-                : _playerAttackDefaultProfile.preset;
-        }
-        else
-        {
-            nextPreset = _playerAttackDefaultProfile.preset;
-        }
-
-        if (resolvedClipById != nullptr)
-            nextActiveClip = const_cast<BattleCameraClip*>(resolvedClipById);
-        else if (!request.skillId.empty())
-        {
-            auto iter = _playerAttackProfilesBySkill.find(request.skillId);
-            nextActiveClip = (iter != _playerAttackProfilesBySkill.end())
-                ? const_cast<BattleCameraClip*>(&iter->second.clip)
-                : &_playerAttackDefaultProfile.clip;
-        }
-        else
-            nextActiveClip = &_playerAttackDefaultProfile.clip;
-        break;
-    }
+    ResolvedShotAssets resolvedAssets = Resolve_ShotAssets(request, resolvedPresetById, resolvedClipById);
+    BattleCameraClip* nextActiveClip = resolvedAssets.clip;
+    BattleCameraPreset nextPreset = resolvedAssets.preset;
 
     if(request.useClip == false)
         nextActiveClip = nullptr;
@@ -894,7 +812,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     _enemyPos = nextEnemyAttackSubjectPos;
     _playerPos = nextEnemyAttackOpponentPos;
 
-    if(nextPreset.snapOnEnter || request.mode == BattleCameraMode::WIDE)
+    if (nextPreset.snapOnEnter || request.mode == BattleCameraMode::WIDE)
     {
         _poseTransition.active = false;
         _activeClip = nextActiveClip;
@@ -923,6 +841,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     }
 
     _poseTransition.active = false;
+
     if(shouldRestartClip)
     {
         _activeClip = nextActiveClip;
@@ -933,6 +852,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         _activeClip = nullptr;
         Reset_ClipPlaybackState();
     }
+
     _isClipPreview = false;
     _isFirstUpdate = true;
     _currentRequest = request;
@@ -969,21 +889,6 @@ void BattleTurnCamera::End_LiveEdit()
     _isLiveEditEnabled = false;
 }
 
-void BattleTurnCamera::Update_WideMode(float timeDelta)
-{
-    Update_FromCurrentPreset(timeDelta);
-}
-
-void BattleTurnCamera::Update_PlayerFocusMode(float timeDelta)
-{
-    Update_FromCurrentPreset(timeDelta);
-}
-
-void BattleTurnCamera::Update_EnemyFocusMode(float timeDelta)
-{
-    Update_FromCurrentPreset(timeDelta);
-}
-
 void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
 {
     if (_currentRequest.subject == nullptr || _currentRequest.opponent == nullptr)
@@ -1011,11 +916,6 @@ void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
     _prevTargetPos = enemyPos;
 }
 
-void BattleTurnCamera::Update_PlayerAttackMode(float timeDelta)
-{
-    Update_FromCurrentPreset(timeDelta);
-}
-
 void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
 {
     if(_currentRequest.subject == nullptr)
@@ -1023,7 +923,9 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
 
     // Clip이 있을 시 적용
     const BattleCameraClipSample clip  = Advance_ActiveClip(timeDelta, _currentRequest);
-    if (_currentRequest.mode != BattleCameraMode::PLAYERATTACK)
+
+    //if (_currentRequest.mode != BattleCameraMode::PLAYERATTACK)// && _currentRequest.mode != BattleCameraMode::SELECTSKILL)
+    if(_currentPreset.snapOnEnter == false)
         _smoothedTargetPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
     
     EvaluatedPose pose{};
@@ -1083,63 +985,21 @@ void BattleTurnCamera::Update_LiveEditInput(float timeDelta)
 
 const BattleCameraPreset& BattleTurnCamera::Get_Preset(BattleCameraMode mode) const
 {
-    switch (mode)
-    {
-    case BattleCameraMode::WIDE:
-        return _wideModePreset;
+    if (const BattleCameraPreset* preset = Find_PresetStorage(mode))
+        return *preset;
 
-    case BattleCameraMode::BATTLEINTRO:
-        return _battleIntroPreset;
-
-    case BattleCameraMode::PLAYERFOCUS:
-        return _playerFocusPreset;
-
-    case BattleCameraMode::ENEMYFOCUS:
-        return _enemyFocusPreset;
-
-    case BattleCameraMode::ENEMYATTACK:
-        return _enemyAttackPreset;
-
-    case BattleCameraMode::PLAYERATTACK:
-        return _playerAttackPreset;
-
-    default:
-        return _wideModePreset;
-    }
+    return _wideModePreset;
 }
 
 void BattleTurnCamera::Set_Preset(BattleCameraMode mode, const BattleCameraPreset& preset)
 {
-    switch (mode)
-    {
-    case BattleCameraMode::WIDE:
-        _wideModePreset = preset;
-        break;
+    BattleCameraPreset* targetPreset = Find_PresetStorage(mode);
+    if (targetPreset == nullptr)
+        return;
 
-    case BattleCameraMode::BATTLEINTRO:
-        _battleIntroPreset = preset;
-        break;
-
-    case BattleCameraMode::PLAYERFOCUS:
-        _playerFocusPreset = preset;
-        break;
-
-    case BattleCameraMode::ENEMYFOCUS:
-        _enemyFocusPreset = preset;
-        break;
-
-    case BattleCameraMode::ENEMYATTACK:
-        _enemyAttackPreset = preset;
-        break;
-
-    case BattleCameraMode::PLAYERATTACK:
-        _playerAttackPreset = preset;
+    *targetPreset = preset;
+    if (mode == BattleCameraMode::PLAYERATTACK)
         _playerAttackDefaultProfile.preset = preset;
-        break;
-
-    default:
-        break;
-    }
 }
 
 void BattleTurnCamera::Set_Clip(BattleCameraMode mode, const BattleCameraClip& clip, const string& clipId)
@@ -1194,56 +1054,12 @@ void BattleTurnCamera::Preview_ClipAtTime(const BattleShotRequest& request, floa
 
 BattleCameraPreset* BattleTurnCamera::Get_MutablePreset(BattleCameraMode cameraMode)
 {
-    switch (cameraMode)
-    {
-    case BattleCameraMode::WIDE:
-        return &_wideModePreset;
-
-    case BattleCameraMode::BATTLEINTRO:
-        return &_battleIntroPreset;
-
-    case BattleCameraMode::PLAYERFOCUS:
-        return &_playerFocusPreset;
-
-    case BattleCameraMode::ENEMYFOCUS:
-        return &_enemyFocusPreset;
-
-    case BattleCameraMode::ENEMYATTACK:
-        return &_enemyAttackPreset;
-
-    case BattleCameraMode::PLAYERATTACK:
-        return &_playerAttackPreset;
-
-    default:
-        return nullptr;
-    }
+    return Find_PresetStorage(cameraMode);
 }
 
 BattleCameraClip* BattleTurnCamera::Get_MutableClip(BattleCameraMode cameraMode)
 {
-    switch (cameraMode)
-    {
-    case BattleCameraMode::WIDE:
-        return &_wideModeClip;
-
-    case BattleCameraMode::BATTLEINTRO:
-        return &_battleIntroClip;
-
-    case BattleCameraMode::PLAYERFOCUS:
-        return &_playerFocusClip;
-
-    case BattleCameraMode::ENEMYFOCUS:
-        return &_enemyFocusClip;
-
-    case BattleCameraMode::ENEMYATTACK:
-        return &_enemyAttackClip;
-
-    case BattleCameraMode::PLAYERATTACK:
-        return &_playerAttackClip;
-
-    default:
-        return nullptr;
-    }
+    return Find_ClipStorage(cameraMode);
 }
 
 void BattleTurnCamera::Preview_CurrentPresetAtTime(float time)
@@ -1278,27 +1094,6 @@ void BattleTurnCamera::Preview_EnemyAttackAtTime(float time)
         return;
 
     Apply_EvaluatedPose(pose);
-}
-
-bool BattleTurnCamera::Evaluate_PreviewCurrentPresetPose(
-    const Vec3& targetPos,
-    const BattleCameraPreset& preset,
-    const BattleCameraClipSample& clipSample,
-    float yawBase,
-    float pitchBase,
-    EvaluatedPose& outPose) const
-{
-    return Evaluate_CurrentPresetPose(targetPos, preset, clipSample, yawBase, pitchBase, nullptr, outPose);
-}
-
-bool BattleTurnCamera::Evaluate_PreviewEnemyAttackPose(
-    const Vec3& subjectPos,
-    const Vec3& opponentPos,
-    const BattleCameraPreset& preset,
-    const BattleCameraClipSample& clipSample,
-    EvaluatedPose& outPose) const
-{
-    return Evaluate_EnemyAttackPose(subjectPos, opponentPos, preset, clipSample, outPose);
 }
 
 float BattleTurnCamera::Evaluate_CameraTransitionT(BattleCameraTransitionEasing easing, float t)
@@ -1353,11 +1148,6 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
         }
         else if (!_clipSyncAnimationName.empty() && currentAnimationName != _clipSyncAnimationName)
         {
-            LOG_DEBUG(
-                "[BattleCameraClipSync] stop animation changed clipId={} captured={} current={}",
-                request.clipId,
-                _clipSyncAnimationName,
-                currentAnimationName);
             _activeClip = nullptr;
             Reset_ClipPlaybackState();
             return sample;
@@ -1365,11 +1155,6 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
 
         if (currentAnimationTimeSec + 0.0001f < _clipSyncPrevAnimationTime)
         {
-            LOG_DEBUG(
-                "[BattleCameraClipSync] stop animation time rewound clipId={} prev={:.3f} current={:.3f}",
-                request.clipId,
-                _clipSyncPrevAnimationTime,
-                currentAnimationTimeSec);
             _activeClip = nullptr;
             Reset_ClipPlaybackState();
             return sample;
@@ -1386,32 +1171,6 @@ BattleCameraClipSample BattleTurnCamera::Advance_ActiveClip(float timeDelta, con
         _clipSyncPrevAnimationTime = currentAnimationTimeSec;
 
         sample = Sample_BattleCameraClip(*_activeClip, sampleTime);
-
-        if (_clipDebugSampleLogCount < 20 || (!_clipDebugLoggedShake && sample.shakeAmplitude > 0.f))
-        {
-            const BattleCameraTrack& shakeTrack = _activeClip->shakeAmplitude;
-            const float firstShakeTime = shakeTrack.keyframes.empty() ? -1.f : shakeTrack.keyframes.front().time;
-            const float firstShakeValue = shakeTrack.keyframes.empty() ? 0.f : shakeTrack.keyframes.front().value;
-            const float lastShakeTime = shakeTrack.keyframes.empty() ? -1.f : shakeTrack.keyframes.back().time;
-            const float lastShakeValue = shakeTrack.keyframes.empty() ? 0.f : shakeTrack.keyframes.back().value;
-            LOG_DEBUG(
-                "[BattleCameraClipSync] clipId={} anim={} animTime={:.3f}/{:.3f} base={:.3f} sample={:.3f} shake={:.3f} keys={} first={:.3f}:{:.3f} last={:.3f}:{:.3f}",
-                request.clipId,
-                currentAnimationName,
-                currentAnimationTimeSec,
-                syncDurationSec,
-                _clipSyncBaseTime,
-                sampleTime,
-                sample.shakeAmplitude,
-                shakeTrack.keyframes.size(),
-                firstShakeTime,
-                firstShakeValue,
-                lastShakeTime,
-                lastShakeValue);
-            ++_clipDebugSampleLogCount;
-            if (sample.shakeAmplitude > 0.f)
-                _clipDebugLoggedShake = true;
-        }
 
         if (sampleTime >= 1.f)
         {

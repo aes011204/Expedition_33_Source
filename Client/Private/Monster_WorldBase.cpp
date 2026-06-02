@@ -8,9 +8,57 @@
 #include "MonsterStatCom.h"
 #include "Bounding_OBB.h"
 #include "ClientScreenFxManager.h"
+#include "MovementCom.h"
 #include "Monster_Part.h"
+#include "BattleStartSpawner.h"
 
 REGISTER_GLOBAL_ENUM(Monster_WorldBase::MonsterWorldAnim, "MonsterWorldAnim")
+
+namespace
+{
+    json Vec3_ToJson(const Vec3& value)
+    {
+        return json::array({ value.x, value.y, value.z });
+    }
+
+    bool Json_ToVec3(const json& value, Vec3& outVec3)
+    {
+        if (!value.is_array() || value.size() != 3)
+            return false;
+
+        outVec3.x = value[0].get<float>();
+        outVec3.y = value[1].get<float>();
+        outVec3.z = value[2].get<float>();
+        return true;
+    }
+
+    json BattleMonsterSpawnDesc_ToJson(const Client::BattleMonsterSpawnDesc& desc)
+    {
+        return {
+            { "prefab_name", desc.prefabName },
+            { "offset", Vec3_ToJson(desc.offset) },
+            { "rotation", Vec3_ToJson(desc.rotation) },
+        };
+    }
+
+    bool Json_ToBattleMonsterSpawnDesc(const json& value, Client::BattleMonsterSpawnDesc& outDesc)
+    {
+        if (!value.is_object())
+            return false;
+
+        outDesc = {};
+        outDesc.prefabName = value.value("prefab_name", "");
+
+        if (value.contains("offset"))
+            (void)Json_ToVec3(value["offset"], outDesc.offset);
+
+        if (value.contains("rotation"))
+            (void)Json_ToVec3(value["rotation"], outDesc.rotation);
+
+        return true;
+    }
+}
+
 
 Monster_WorldBase::Monster_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_WorldBase(device, context)
@@ -20,6 +68,43 @@ Monster_WorldBase::Monster_WorldBase(const ComPtr<Device>& device, const ComPtr<
 Monster_WorldBase::Monster_WorldBase(const Monster_WorldBase& prototype)
     : Character_WorldBase(prototype)
 {
+}
+
+const vector<Vec3>& Monster_WorldBase::Get_EffectivePatrolPoints()
+{
+    if (!_PatrolPoints.empty())
+        return _PatrolPoints;
+
+    if (_defaultPatrolPoints.empty())
+        Build_DefaultPatrolPoints();
+
+    return _defaultPatrolPoints;
+}
+
+void Monster_WorldBase::Build_DefaultPatrolPoints()
+{
+    _defaultPatrolPoints.clear();
+
+    if (_transformCom == nullptr)
+        return;
+
+    const Vec3 origin = _transformCom->Get_Position();
+    static const Vec3 offsets[] =
+    {
+        {  0.f, 0.f,  0.f },
+        {  3.f, 0.f, -2.f },
+        {  5.f, 0.f,  0.f },
+        {  3.f, 0.f,  2.f },
+        {  0.f, 0.f,  0.f },
+        { -3.f, 0.f, -2.f },
+        { -5.f, 0.f,  0.f },
+        { -3.f, 0.f,  2.f },
+        {  0.f, 0.f,  0.f },
+    };
+
+    _defaultPatrolPoints.reserve(_countof(offsets));
+    for (const Vec3& offset : offsets)
+        _defaultPatrolPoints.push_back(origin + offset);
 }
 
 HRESULT Monster_WorldBase::Initialize_Prototype()
@@ -40,6 +125,14 @@ HRESULT Monster_WorldBase::Initialize(void* arg)
 void Monster_WorldBase::BeginPlay()
 {
     Character_WorldBase::BeginPlay();
+
+    if (_movementCom)
+    {
+        _movementCom->Sync_RuntimePositionToTransform();
+        _movementCom->Stop_AllMovement();
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+    }
 
     if (!_editorStopHandle.IsValid())
         _editorStopHandle = GAME->Get_DelegateHub().OnEditorStopRuntime.Add(this, &Monster_WorldBase::On_EditorStopRuntime);
@@ -68,9 +161,9 @@ void Monster_WorldBase::Update(float timeDelta)
         {
             bb->Set_Value("playerPos", player->Get_Transform()->Get_Position());
             bb->Set_Value("isStun", _isStun);
-        }
 
-        _aiCtrl->Update(timeDelta);
+            _aiCtrl->Update(timeDelta); // 플레이어가 있을 때만 BT를 갱신해서 editor authored 배치 중 blackboard key 누락을 막는다.
+        }
     }
 
     if (_combatStat)
@@ -86,13 +179,14 @@ void Monster_WorldBase::Update(float timeDelta)
     //    Set_CurrentAction(MonsterAction::Move);
 
 
-    if (auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body")))
+    auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
+    if (bodyPart)
     {
         if (_currentAction != _previousAction)
         {
-            LOG_DEBUG("Monster_WorldBase action change current={} previous={}",
-                ETOI(_currentAction),
-                ETOI(_previousAction));
+            //LOG_DEBUG("Monster_WorldBase action change current={} previous={}",
+            //    ETOI(_currentAction),
+            //    ETOI(_previousAction));
 
             bool applied = false;
 
@@ -118,16 +212,47 @@ void Monster_WorldBase::Update(float timeDelta)
             if (Shared<ModelCom> model = bodyPart->Get_Model())
             {
                 const char* animName = model->Get_AnimationName(model->Get_CurrentAnimationIndex());
-                LOG_DEBUG("Monster_WorldBase action applied={} currentAction={} currentAnim={}",
-                    applied,
-                    ETOI(_currentAction),
-                    animName != nullptr ? animName : "<null>");
+                //LOG_DEBUG("Monster_WorldBase action applied={} currentAction={} currentAnim={}",
+                //    applied,
+                //    ETOI(_currentAction),
+                //    animName != nullptr ? animName : "<null>");
             }
 
             
             if (applied)
                 _previousAction = _currentAction;
 
+        }
+
+        bodyPart->Play_Animation(timeDelta);
+
+        const auto rootVelocity = bodyPart->Get_RootTransformVelocity();
+        _transformCom->Set_SpeedPerSec(rootVelocity.position.z * _worldMoveSpeedScale);
+    }
+
+    if (_movementCom)
+    {
+        const float moveSpeed = max(_transformCom->Get_SpeedPerSec(), 0.f);
+        _movementCom->Set_WalkSpeed(moveSpeed);
+        _movementCom->Set_RunSpeed(moveSpeed);
+        _movementCom->Set_SprintSpeed(moveSpeed);
+
+        if (_isStun || !_aiCtrl || !_aiCtrl->Has_MoveIntent())
+        {
+            _movementCom->Clear_FollowMoveCommand();
+            _movementCom->Apply_Input({});
+            _movementCom->Stop_HorizontalMovement();
+            _movementCom->Update_Movement(timeDelta);
+        }
+        else
+        {
+            MovementCom::FollowMoveCommand command{};
+            command.enabled = true;
+            command.worldDir = _aiCtrl->Get_MoveWorldDir();
+
+            _movementCom->Set_FollowMoveCommand(command);
+            _movementCom->Apply_Input({});
+            _movementCom->Update_Movement(timeDelta);
         }
     }
 
@@ -152,6 +277,9 @@ void Monster_WorldBase::Apply_Stun(float duration)
         return;
     _isStun = true;
     _stunTime = _maxStunTime;
+
+    if (_aiCtrl)
+        _aiCtrl->Stop_Move();
     
 }
 
@@ -177,7 +305,13 @@ json Monster_WorldBase::To_Json() const
     json data = Character_WorldBase::To_Json();
 
     json& customProperties = data["custom_properties"];
-    customProperties["battle_monster_prefab_names"] = _battleMonsterPrefabNames;
+    customProperties["battle_start_spawner_id"] = _battleStartSpawnerId;
+
+    json& battleMonsterSpawns = customProperties["battle_monster_spawns"];
+    battleMonsterSpawns = json::array();
+
+    for (const BattleMonsterSpawnDesc& spawnDesc : _battleMonsterSpawnDescs)
+        battleMonsterSpawns.push_back(BattleMonsterSpawnDesc_ToJson(spawnDesc));
 
     return data;
 }
@@ -186,19 +320,37 @@ void Monster_WorldBase::From_Json(const json& data)
 {
     Character_WorldBase::From_Json(data);
 
-    _battleMonsterPrefabNames.clear();
+    _battleMonsterSpawnDescs.clear();
+    _battleStartSpawnerId = 0;
 
     if (!data.contains("custom_properties") || !data["custom_properties"].is_object())
         return;
 
     const json& customProperties = data["custom_properties"];
+    _battleStartSpawnerId = customProperties.value("battle_start_spawner_id", 0);
+
+    if (customProperties.contains("battle_monster_spawns") && customProperties["battle_monster_spawns"].is_array())
+    {
+        for (const json& spawnNode : customProperties["battle_monster_spawns"])
+        {
+            BattleMonsterSpawnDesc spawnDesc{};
+            if (Json_ToBattleMonsterSpawnDesc(spawnNode, spawnDesc))
+                _battleMonsterSpawnDescs.push_back(spawnDesc);
+        }
+        return;
+    }
+
     if (!customProperties.contains("battle_monster_prefab_names") || !customProperties["battle_monster_prefab_names"].is_array())
         return;
 
     for (const json& prefabName : customProperties["battle_monster_prefab_names"])
     {
         if (prefabName.is_string())
-            _battleMonsterPrefabNames.push_back(prefabName.get<string>());
+        {
+            BattleMonsterSpawnDesc spawnDesc{};
+            spawnDesc.prefabName = prefabName.get<string>();
+            _battleMonsterSpawnDescs.push_back(spawnDesc);
+        }
     }
 }
 
@@ -243,11 +395,11 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         HeroId::Maelle,
     };
 
-    vector<string> battleMonsterPrefabNames;
-    Set_BattleMonsterPrefabNames(battleMonsterPrefabNames);
+    vector<BattleMonsterSpawnDesc> battleMonsterSpawnDescs{};
+    Set_BattleMonsterSpawnDescs(battleMonsterSpawnDescs);
     CLIENT->Get_ScreenFxManager()->Play_BattleInCounterFx();
 
-    if (battleMonsterPrefabNames.empty())
+    if (battleMonsterSpawnDescs.empty())
     {
         LOG_ERROR("Battle monster prefab list is empty.");
         _isBattleStart = false;
@@ -259,7 +411,7 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     }
 
     // 이제, 턴 진입 조건에 따라서 플레이어, 몬스터 턴 관리
-    CLIENT->OnEnterBattleField(1, isPlayerAdvantage, heroes, battleMonsterPrefabNames, GetSharedPtr<GameObject>());
+    CLIENT->OnEnterBattleField(1, isPlayerAdvantage, heroes, battleMonsterSpawnDescs, GetSharedPtr<GameObject>());
 }
 
 void Monster_WorldBase::On_EditorStopRuntime()
@@ -273,9 +425,9 @@ void Monster_WorldBase::On_EditorStopRuntime()
     }
 }
 
-void Monster_WorldBase::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
+void Monster_WorldBase::Set_BattleMonsterSpawnDescs(vector<BattleMonsterSpawnDesc>& outSpawnDescs) const
 {
-    outPrefabNames = _battleMonsterPrefabNames;
+    outSpawnDescs = _battleMonsterSpawnDescs;
 }
 
 HRESULT Monster_WorldBase::Ready_Components()
@@ -283,10 +435,32 @@ HRESULT Monster_WorldBase::Ready_Components()
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_AIController"), _aiCtrl), E_FAIL);
     _aiCtrl->Set_Owner(static_pointer_cast<Monster_WorldBase>(shared_from_this()));
 
+    MovementCom::MoveDesc moveDesc{};
+    moveDesc.walkSpeed = 2.f;
+    moveDesc.runSpeed = 2.f;
+    moveDesc.sprintSpeed = 2.f;
+    moveDesc.turnSpeedDegree = 540.f;
+    moveDesc.turnResponse = 10.f;
+    moveDesc.jumpVelocity = 0.f;
+    moveDesc.gravity = -40.f;
+    moveDesc.backend = MovementCom::MoveBackend::PhysXCCT;
+    moveDesc.sweep.skinWidth = 0.03f;
+    moveDesc.sweep.groundSnapUp = 0.35f;
+    moveDesc.sweep.groundSnapDown = 0.65f;
+    moveDesc.sweep.walkableNormalY = 0.65f;
+    moveDesc.sweep.groundY = 0.f;
+    moveDesc.cct.radius = 0.32f;
+    moveDesc.cct.height = 1.50f;
+    moveDesc.cct.stepOffset = 0.45f;
+    moveDesc.cct.contactOffset = 0.05f;
+    moveDesc.cct.slopeLimitDeg = 55.f;
+    moveDesc.cct.groundLerpSpeed = 15.f;
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_MonsterStat"), _combatStat), E_FAIL);
 
     Bounding_OBB::BoundingOBBDesc obbDesc{};
-    obbDesc.center = Vec3(0.f, 0.5f, 0.f);
+    obbDesc.center = Vec3(0.f, 0.6f, 0.f);
     obbDesc.extents = Vec3(0.5f, 0.6f, 0.5f);
 
     CHECK_FAILED(Ready_Collider(L"Com_Collider_OBB", &obbDesc, Collision_Preset::Monster_WorldBody), E_FAIL);

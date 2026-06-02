@@ -4,6 +4,8 @@
 #include "ComputeStructuredBuffer.h"
 #include "InstanceCullParams.h"
 #include "Camera.h"
+#include "StaticCollisionData.h"
+#include "Collision_Define.h"
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
 {
@@ -48,6 +50,7 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
 
         _modelPath = pDesc->modelPath;
         _transforms = pDesc->transforms;
+        _collisionData = pDesc->collisionData;
 
         if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
         {
@@ -70,6 +73,24 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         }
 
         CreateCullBuffers(matrices, pDesc->transforms);
+
+        if (_collisionData != nullptr)
+        {
+            _physxStaticHandles.reserve(matrices.size());
+
+            for (const Matrix& worldMatrix : matrices)
+            {
+                PhysXStaticActorHandle handle = GAME->Register_PhysXStaticCollision(
+                    *_collisionData,
+                    worldMatrix,
+                    Collision_Preset::Enviroment);
+
+                if (handle.Is_Valid())
+                {
+                    _physxStaticHandles.push_back(handle);
+                }
+            }
+        }
     }
 
     Set_ShadowCasterType(ShadowCasterType::Static);
@@ -98,6 +119,7 @@ void MapInstancedMesh::Late_Update(float timeDelta)
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT MapInstancedMesh::Render()
@@ -430,6 +452,35 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
     return S_OK;
 }
 
+HRESULT MapInstancedMesh::Render_Shadow()
+{
+    if (_shader == nullptr || _model == nullptr || _transformCom == nullptr)
+    {
+        return S_OK;
+    }
+
+    if (FAILED(_shader->Bind_ObjectCB(_transformCom->Get_WorldMatrix())))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(GAME->Bind_ShadowCB(_shader)))
+    {
+        return E_FAIL;
+    }
+
+    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        if (FAILED(_shader->Begin(1)))
+            return E_FAIL;
+        _model->Render(i);
+    }
+
+    return S_OK;
+}
+
 void MapInstancedMesh::DispatchCull()
 {
     if (!_cullShader || !_cullCB || !_visibleUAV || !_instanceSrcBuffer || !_sphereBuffer || _indirectArgsBuffers.empty())
@@ -535,6 +586,16 @@ Shared<GameObject> MapInstancedMesh::Clone(void* arg)
 
 void MapInstancedMesh::Free()
 {
+    for (const PhysXStaticActorHandle& handle : _physxStaticHandles)
+    {
+        if (handle.Is_Valid())
+        {
+            GAME->Unregister_PhysXStaticActor(handle);
+        }
+    }
+    _physxStaticHandles.clear();
+    _collisionData.reset();
+
     _visibleStructured.Reset();
     _visibleUAV.Reset();
     _visibleVB.Reset();

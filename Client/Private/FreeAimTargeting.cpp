@@ -1,4 +1,5 @@
 ﻿#include "FreeAimTargeting.h"
+#include <Battle_Event.h>
 #include "BattleController.h"
 #include "BattleStateMachine.h"
 #include "BattleTurnCamera.h"
@@ -10,6 +11,7 @@
 #include "GameObject.h"
 #include "Monster_BattleBase.h"
 #include "ModelCom.h"
+#include "Event_Bus.h"
 
 FreeAimTargeting::FreeAimTargeting(const Shared<BattleController>& owner)
     : Battle_State{ owner }
@@ -87,6 +89,12 @@ void FreeAimTargeting::Update(float timeDelta)
     {
         Play_CurrentActorBattleAnim(BattleAnimType::Base_Idle, 0.2f, true); // 취소 시에는 기본 Idle로 전환
         Clear_HitTarget();
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
+        event.subject = owner->Get_TurnActionRequest().actor.actor;
+        GAME->Get_EventBus().Publish(event);
+
         battleFSM->Change_State(BattleTurnState::ChooseAction);
         return;
     }

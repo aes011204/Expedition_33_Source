@@ -10,9 +10,12 @@
 #include "GameObject.h"
 #include "GameplayUI.h"
 #include "Hero_Manager.h"
+#include "Level_Loading.h"
+#include "LevelTransitionFade.h"
 #include "PersistentObjectManager.h"
 #include "Player_WorldBase.h"
 #include "ResourceLoader.h"
+#include "ScreenFadeTransition.h"
 #include "PreviewShotTable.h"
 #include "UIPreviewManager.h"
 #include "CameraDirector.h"
@@ -24,6 +27,8 @@ IMPLEMENT_SINGLETON(ClientInstance)
 ClientInstance::ClientInstance()
 {
 }
+
+ClientInstance::~ClientInstance() = default;
 
 HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {
@@ -69,6 +74,14 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _screenFxManager = ClientScreenFxManager::Create();
     CHECK_NULL(_screenFxManager, E_FAIL);
 
+    _screenFadeTransition = ScreenFadeTransition::Create();
+    if (_screenFadeTransition == nullptr)
+        LOG_WARN("ScreenFadeTransition is not available. Screen fade requests will run immediately.");
+
+    _levelTransitionFade = LevelTransitionFade::Create(_device, _context);
+    if (_levelTransitionFade == nullptr)
+        LOG_WARN("LevelTransitionFade is not available. Level transition requests will fall back to immediate changes.");
+
 	_isInitialized = true;
 
 	return S_OK;
@@ -89,6 +102,14 @@ HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& 
     _effectInstancePool = EffectInstancePool::Create();
     CHECK_NULL(_effectInstancePool, E_FAIL);
 
+    _screenFadeTransition = ScreenFadeTransition::Create();
+    if (_screenFadeTransition == nullptr)
+        LOG_WARN("ScreenFadeTransition is not available. Screen fade requests will run immediately.");
+
+    _levelTransitionFade = LevelTransitionFade::Create(_device, _context);
+    if (_levelTransitionFade == nullptr)
+        LOG_WARN("LevelTransitionFade is not available. Level transition requests will fall back to immediate changes.");
+
     _isInitialized = true;
 
     return S_OK;
@@ -96,6 +117,12 @@ HRESULT ClientInstance::Initialize_Client_ForEffectEditor(const ComPtr<Device>& 
 
 void ClientInstance::Update_Client(float timeDelta)
 {
+    if (_screenFadeTransition)
+        _screenFadeTransition->Update(timeDelta);
+
+    if (_levelTransitionFade)
+        _levelTransitionFade->Update(timeDelta);
+
     if (_heroManager)
         _heroManager->Update_HeroManager(timeDelta);
 
@@ -335,10 +362,62 @@ bool ClientInstance::Is_BattleEnterTransitionPlaying() const
     return _gamePlayUI && _gamePlayUI->Is_BattleEnterTransitionPlaying();
 }
 
-void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
-                                        const vector<string>& MonsterProtoTag, const Shared<GameObject>& sourceObject)
+bool ClientInstance::Request_ScreenFadeTransition(const function<void()>& CoveredAction)
 {
-    return _battleController->OnEnterBattleField(FieldID, isPlayerAdvantage, heroIds, MonsterProtoTag, sourceObject);
+    if (_levelTransitionFade && _levelTransitionFade->Is_Playing())
+        return false;
+
+    if (_screenFadeTransition == nullptr)
+    {
+        if (CoveredAction)
+            CoveredAction();
+        return true;
+    }
+
+    return _screenFadeTransition->Request_Transition(CoveredAction);
+}
+
+bool ClientInstance::Request_LevelTransition(LevelType TargetLevel)
+{
+    if (_screenFadeTransition && _screenFadeTransition->Is_Playing())
+        return false;
+
+    if (_levelTransitionFade)
+        return _levelTransitionFade->Request_LevelTransition(TargetLevel);
+
+    Shared<Level_Loading> loadingLevel = Level_Loading::Create(_device.Get(), _context.Get(), TargetLevel);
+    if (loadingLevel == nullptr)
+        return false;
+
+    return SUCCEEDED(GAME->Change_Level(ETOI(LevelType::Loading), loadingLevel));
+}
+
+bool ClientInstance::Request_LoadedLevelTransition(LevelType TargetLevel, Shared<Level> TargetLevelInstance)
+{
+    if (_screenFadeTransition && _screenFadeTransition->Is_Playing())
+        return false;
+
+    if (_levelTransitionFade)
+        return _levelTransitionFade->Request_LoadedLevelTransition(TargetLevel, TargetLevelInstance);
+
+    if (TargetLevelInstance == nullptr)
+        return false;
+
+    return SUCCEEDED(GAME->Change_Level(ETOI(TargetLevel), TargetLevelInstance));
+}
+
+bool ClientInstance::Is_FadeTransitionPlaying() const
+{
+    const bool isScreenFadePlaying = _screenFadeTransition && _screenFadeTransition->Is_Playing();
+    const bool isLevelFadePlaying = _levelTransitionFade && _levelTransitionFade->Is_Playing();
+
+    return isScreenFadePlaying || isLevelFadePlaying;
+}
+
+void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
+                                        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject)
+{
+    return _battleController->OnEnterBattleField(FieldID, isPlayerAdvantage, heroIds, battleMonsterSpawnDescs, sourceObject);
 }
 
 bool ClientInstance::Is_BattleActive() const
@@ -384,6 +463,33 @@ void ClientInstance::Restore_PreviousCamera()
 Shared<ClientScreenFxManager> ClientInstance::Get_ScreenFxManager() const
 {
     return _screenFxManager;
+}
+
+bool ClientInstance::Play_Effect(const wstring& effectName, const Vec3& worldPosition, const Vec3& scale)
+{
+    if (_effectInstancePool == nullptr)
+        return false;
+
+    wstring resolvedName = effectName;
+
+    if (!resolvedName.ends_with(L".effect.json"))
+        resolvedName += L".effect.json";
+
+    EffectInstancePool::AcquireDesc acquireDesc{};
+    acquireDesc.effectName = resolvedName;
+    acquireDesc.layerLevelIndex = GAME->Current_LevelIndex();
+    acquireDesc.layerTag = L"Layer_Effect";
+    acquireDesc.worldPosition = worldPosition;
+    acquireDesc.scale = scale;
+
+    EffectInstancePool::AttachedHandle handle{};
+    if (FAILED(_effectInstancePool->Acquire(acquireDesc, handle)))
+    {
+        LOG_WARN("Play effect failed. effect={}", String::ToString(resolvedName).c_str());
+        return false;
+    }
+
+    return true;
 }
 
 bool ClientInstance::Is_GameplayMenuOpen() const
@@ -452,6 +558,8 @@ void ClientInstance::Release_Client()
     ReleaseManager(_previewShotTable);
     ReleaseManager(_previewManager);
     ReleaseManager(_effectInstancePool);
+    ReleaseManager(_screenFadeTransition);
+    ReleaseManager(_levelTransitionFade);
     ReleaseManager(_persistentObjectManager);
     ReleaseManager(_resourceLoader);
     ReleaseManager(_heroManager);

@@ -176,6 +176,3 @@ void Hair_Player::Free()
 {
     __super::Free();
 }
-
-
-

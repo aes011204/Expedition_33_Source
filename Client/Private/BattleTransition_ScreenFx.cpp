@@ -1,11 +1,14 @@
 ﻿#include "pch.h"
 #include "BattleTransition_ScreenFx.h"
 
-#include "CA_ScreenFx.h"
+#include <Camera.h>
+
 #include "ClientScreenFxManager.h"
+#include "EffectInstancePool.h"
 #include "GameInstance.h"
 #include "Shader_CBuffer_Define.h"
 #include "Renderer_Define.h"
+#include "ClientInstance.h"
 
 NS_BEGIN(Client)
 
@@ -38,6 +41,8 @@ HRESULT BattleTransition_ScreenFx::Initialize(ScreenFxDesc* desc)
     }
 
     _currentRadius = 0.0f;
+    _smudgeMaskSRV = GAME->Get_SRV("T_Noise02");
+
     return S_OK;
 }
 
@@ -46,6 +51,27 @@ void BattleTransition_ScreenFx::Update_ScreenFx(float timeDelta)
     _elapsedTime += timeDelta;
     
     Evaluate_At(_elapsedTime);
+
+    if (_isRoseFlare == false)
+    {
+        RoseFlare(); 
+        _isRoseFlare = true;
+    }
+
+    if (_roseFlareHandle.effectObject == nullptr) return;
+    
+    if (auto mainCamera = GAME->Get_ActiveCamera())
+    {
+        auto camTransform = mainCamera->Get_Transform();
+        auto effectTransform = _roseFlareHandle.effectObject->Get_Transform();
+
+        if (camTransform != nullptr && effectTransform != nullptr)
+        {
+            Vec3 pos = camTransform->Get_WorldForward() * 3.f + camTransform->Get_WorldPosition();
+
+            effectTransform->Set_WorldPosition(pos);
+        }
+    }
 }
 void BattleTransition_ScreenFx::Evaluate_At(float elapsedTime)
 {
@@ -53,10 +79,6 @@ void BattleTransition_ScreenFx::Evaluate_At(float elapsedTime)
     _duration = _originalDesc.duration;
 
     float time = std::clamp(_elapsedTime / max(0.001f, _duration), 0.0f, 1.0f);
-
-    /*float easeTime = time < 0.5f ? 
-        2.f * powf(time, 4.f) : 
-        1.f - powf(-2.f * time + 2.f, 4.f) / 2.f;*/
 
 	float easeTime = powf(time, 4.f);
 
@@ -70,12 +92,36 @@ HRESULT BattleTransition_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
     cbData.wipeRadius = _currentRadius;
     cbData.edgeSoftness = _originalDesc.edgeSoftness;
     cbData.transitionProgress = _elapsedTime / _duration;
+
+    cbData.vignetteRadius = 0.8f;
+    cbData.vignetteSoftness = 0.5f;
+    cbData.vignetteColor = Vec3(0.f, 0.f, 0.f);
+
     return shader->Bind_CBufferData(cbData);
 }
 
 HRESULT BattleTransition_ScreenFx::Bind_ShaderResources(const Shared<ShaderCom>& shader)
 {
-    return GAME->Bind_RT_ShaderResource(shader, "g_ScreenMaskTexture", RT::ScreenCapture);
+    HRESULT hr = GAME->Bind_RT_ShaderResource(shader, "g_ScreenMaskTexture", RT::ScreenCapture);
+
+    if (_smudgeMaskSRV != nullptr)
+        shader->Bind_SRV("g_SmudgeTexture", _smudgeMaskSRV);
+
+    return hr;
+}
+
+void BattleTransition_ScreenFx::RoseFlare()
+{
+    EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool();
+    if (effectPool != nullptr)
+    {
+        EffectInstancePool::AcquireDesc acquireDesc{};
+        acquireDesc.effectName = L"Effects\\Assets\\Screen\\RoseFlare.effect.json";
+        acquireDesc.layerTag = L"Layer_UI_Effect";
+
+        acquireDesc.worldPosition = Vec3(0.f, 0.f, 0.f);
+        effectPool->Acquire(acquireDesc, _roseFlareHandle);
+    }
 }
 
 Shared<BattleTransition_ScreenFx> BattleTransition_ScreenFx::Create(BattleTransitionDesc* desc)

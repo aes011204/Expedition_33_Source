@@ -4,6 +4,7 @@
 #include "Engine_Shader_Samplers.hlsl"
 #include "Engine_Shader_Utils.hlsl"
 #include "Engine_Shader_PostProcess.hlsl"
+#include "Shader_EffectDistortionCommon.hlsli"
 
 //==================================================
 // VS
@@ -87,7 +88,7 @@ PS_OUT_BACKBUFFER PS_BloomExtractHalf(PS_IN In)
     float soft = saturate(x / knee);                            // else if (x < knee)   bloomWeight = x * x / knee;
     float bloomWeight = max(x, 0.f) * lerp(0.2f, 1.f, soft);    // else                 bloomWeight = x;
 
-    float3 bloomColor = color * bloomWeight * g_PP_BloomIntensity;
+    float3 bloomColor = color * bloomWeight;
     bloomColor = min(bloomColor, g_PP_BloomClamp);
 
     Out.Color = float4(bloomColor, 1.f);
@@ -197,18 +198,21 @@ PS_OUT_COLOR PS_DistortionResolve(PS_IN In)
 
     const float4 source = g_DistortionSourceTexture.Sample(LinearClampSampler, In.Texcoord);
     const float4 field = g_DistortionFieldTexture.Sample(LinearClampSampler, In.Texcoord);
-    const float weight = saturate(field.b);
+    // DistortionField: rg = offset * coverage, b = lens coverage, a = reserved.
+    const float accumulatedLensCoverage = field.b;
+    const float lensCoverage = saturate(accumulatedLensCoverage);
 
-    if (weight <= EPSILON)
+    if (lensCoverage <= EPSILON)
     {
         Out.Color = source;
         return Out;
     }
 
-    const float2 offset = field.rg / max(field.b, EPSILON);
+    const float2 offset = EffectDistortion_ResolveFieldOffset(field.rg, accumulatedLensCoverage);
     const float4 distorted = g_DistortionSourceTexture.Sample(LinearClampSampler, In.Texcoord + offset);
+    const float edgeAlpha = EffectDistortion_ComputeLensEdgeAlpha(lensCoverage);
 
-    Out.Color = lerp(source, distorted, weight);
+    Out.Color = lerp(source, distorted, edgeAlpha);
     return Out;
 }
 

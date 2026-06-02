@@ -1,5 +1,7 @@
 ﻿#include "MapLandscape.h"
 #include "GameInstance.h"
+#include "StaticCollisionData.h"
+#include "Collision_Define.h"
 
 IMPLEMENT_REFLECTION(MapLandscape)
 {
@@ -43,7 +45,6 @@ HRESULT MapLandscape::Initialize(void* arg)
         return E_FAIL;
     }
 
-    // dummy
     D3D11_TEXTURE2D_DESC td = {};
     td.Width = td.Height = 1;
     td.MipLevels = td.ArraySize = 1;
@@ -82,8 +83,20 @@ HRESULT MapLandscape::Initialize(void* arg)
     {
         return E_FAIL;
     }
-
+    
     if (FAILED(_device->CreateShaderResourceView(_dummyNormalTex.Get(), nullptr, _dummyNormalSRV.GetAddressOf())))
+    {
+        return E_FAIL;
+    }
+
+    _collisionCacheKey = desc->hmapPath;
+
+    if (FAILED(Load_HMap(desc->hmapPath, desc->texRoot)))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(Build_CollisionData()))
     {
         return E_FAIL;
     }
@@ -102,7 +115,15 @@ HRESULT MapLandscape::Initialize(void* arg)
         return E_FAIL;
     }
 
-    return Load_HMap(desc->hmapPath, desc->texRoot);
+    if (_collisionData != nullptr)
+    {
+        _physxStaticHandle = GAME->Register_PhysXStaticCollision(
+            *_collisionData,
+            _transformCom->Get_WorldMatrix(),
+            Collision_Preset::Enviroment);
+    }
+
+    return S_OK;
 }
 
 void MapLandscape::Late_Update(float timeDelta)
@@ -238,6 +259,69 @@ HRESULT MapLandscape::Load_HMap(const wstring& hmapPath, const wstring& texRoot)
     }
 
     fclose(f);
+    return S_OK;
+}
+
+HRESULT MapLandscape::Build_CollisionData()
+{
+    if (_vibuffer == nullptr)
+    {
+        return E_FAIL;
+    }
+
+    const uint32 countX = _vibuffer->Get_CountX();
+    const uint32 countZ = _vibuffer->Get_CountZ();
+    const uint32 numVX = countX + 1;
+    const uint32 numVZ = countZ + 1;
+
+    const vector<float>& heights = _vibuffer->Get_Heights();
+    if (heights.size() != static_cast<size_t>(numVX * numVZ))
+    {
+        return E_FAIL;
+    }
+
+    auto collisionData = make_shared<StaticCollisionData>();
+    collisionData->cacheKey = _collisionCacheKey;
+    collisionData->preLocalTransform = Matrix::Identity;
+
+    ModelCollisionMesh mesh{};
+    mesh.positions.reserve(static_cast<size_t>(numVX * numVZ));
+    mesh.indices.reserve(static_cast<size_t>(countX * countZ * 6));
+
+    for (uint32 z = 0; z < numVZ; ++z)
+    {
+        for (uint32 x = 0; x < numVX; ++x)
+        {
+            const uint32 index = z * numVX + x;
+            mesh.positions.push_back(Vec3(
+                static_cast<float>(x) * _vibuffer->Get_SizeX(),
+                heights[index],
+                static_cast<float>(z) * _vibuffer->Get_SizeZ()));
+        }
+    }
+
+    for (uint32 z = 0; z < countZ; ++z)
+    {
+        for (uint32 x = 0; x < countX; ++x)
+        {
+            const uint32 tl = z * numVX + x;
+            const uint32 tr = tl + 1;
+            const uint32 bl = (z + 1) * numVX + x;
+            const uint32 br = bl + 1;
+
+            mesh.indices.push_back(bl);
+            mesh.indices.push_back(br);
+            mesh.indices.push_back(tr);
+
+            mesh.indices.push_back(bl);
+            mesh.indices.push_back(tr);
+            mesh.indices.push_back(tl);
+        }
+    }
+
+    collisionData->triangleMeshes.push_back(std::move(mesh));
+    _collisionData = collisionData;
+
     return S_OK;
 }
 
@@ -450,5 +534,13 @@ Shared<GameObject> MapLandscape::Clone(void* pArg)
 
 void MapLandscape::Free()
 {
+    if (_physxStaticHandle.Is_Valid())
+    {
+        GAME->Unregister_PhysXStaticActor(_physxStaticHandle);
+        _physxStaticHandle = {};
+    }
+
+    _collisionData.reset();
+
     GameObject::Free();
 }

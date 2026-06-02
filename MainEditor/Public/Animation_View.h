@@ -126,6 +126,8 @@ private:
     void Refresh_Source();
     void Refresh_AssetAnimationList();
     void Refresh_LiveAnimationList();
+    void Rebuild_PreviewClone();
+    void Reset_PreviewClone();
 
     void Load_NotifyAsset();
     void Save_NotifyAsset();
@@ -229,6 +231,8 @@ private:
 
     wstring _sourceModelPath{};
     Shared<ModelCom> _liveModelCom{};
+    Shared<GameObject> _previewRootObject{};
+    Shared<ModelCom> _previewModelCom{};
     Shared<RenderTarget> _previewRenderTarget{};
     Shared<Editor_Camera_Free> _previewCamera{};
     Shared<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> _previewGridBatch{};
@@ -268,6 +272,7 @@ private:
     bool _isPreviewActive = false;
     bool _showPreviewGrid = true;
     float _topSectionHeight = 500.f;
+    wstring _previewOwnerObjectKey{};
     
     // 사이즈 조절
     uint32 _previewWidth = 640;
