@@ -558,6 +558,10 @@ bool Asset_Manager::Save_Meta(const wstring& metaPath, const AssetMeta& assetMet
 {
     try
     {
+        const string extension = String::ToLowerCopy(String::ToString(fs::path(assetMeta.fullPath).extension().wstring()));
+        if (extension == ".wav")
+            return true;
+
         json root = {};
 
         root["guid"] = assetMeta.guid;
@@ -566,7 +570,6 @@ bool Asset_Manager::Save_Meta(const wstring& metaPath, const AssetMeta& assetMet
         if (!assetMeta.modelType.empty())
             root["modelType"] = assetMeta.modelType;
 
-        const string extension = String::ToLowerCopy(String::ToString(fs::path(assetMeta.fullPath).extension().wstring()));
         if (assetMeta.type == "Model" && extension == ".model")
         {
             vector<ModelMetaBoneEntry> bones{};

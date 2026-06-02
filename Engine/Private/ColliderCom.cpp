@@ -764,6 +764,9 @@ Shared<Component> ColliderCom::Clone(void* arg)
 
 void ColliderCom::Free()
 {
+    if (_physxRegistered && GAME != nullptr)
+        GAME->Unregister_PhysXCollider(this);
+
     Component::Free();
 
     Release_PhysX();

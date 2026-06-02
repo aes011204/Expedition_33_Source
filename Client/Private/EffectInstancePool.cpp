@@ -305,7 +305,6 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(
 {
     CHECK_NULL(instance, E_FAIL);
     instance->Bind_TrailSampleProvider(desc.trailSampleProvider);
-    CHECK_FAILED(instance->Reset(), E_FAIL);
     instance->Set_Name(Make_EffectInstanceDisplayName(desc, definition));
 
     const Shared<TransformCom> transform = instance->Get_Transform();
@@ -314,6 +313,7 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(
     transform->Set_WorldRotationEuler(desc.worldRotation);
     transform->Set_Scale(desc.scale);
 
+    CHECK_FAILED(instance->Reset(), E_FAIL);
     CHECK_FAILED(instance->Play(), E_FAIL);
     return S_OK;
 }

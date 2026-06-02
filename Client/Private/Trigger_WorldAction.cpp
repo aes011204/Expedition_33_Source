@@ -80,7 +80,7 @@ void Trigger_WorldAction::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collid
         return;
 
     auto hitTr = hitMonster->Get_Transform();
-    CHECK_NULL(hitTr);
+    CHECK_NULL(hitTr); 
 
     PlayEffectDesc desc{};
     desc.effectName = khitEffect;

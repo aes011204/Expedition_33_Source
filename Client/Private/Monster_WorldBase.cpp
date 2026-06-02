@@ -126,6 +126,7 @@ HRESULT Monster_WorldBase::Initialize(void* arg)
 void Monster_WorldBase::BeginPlay()
 {
     Character_WorldBase::BeginPlay();
+    _hasAppliedAction = false;
 
     if (_movementCom)
     {
@@ -170,9 +171,6 @@ void Monster_WorldBase::Update(float timeDelta)
     if (_combatStat)
         _combatStat->Update(timeDelta);
 
-    if (_effectCom)
-        _effectCom->Update(timeDelta);
-
     if (_isStun)
         _currentAction = MonsterWorldAnim::Stun;
     else
@@ -186,7 +184,7 @@ void Monster_WorldBase::Update(float timeDelta)
     auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
     if (bodyPart)
     {
-        if (_currentAction != _previousAction)
+        if (!_hasAppliedAction || _currentAction != _previousAction)
         {
             //LOG_DEBUG("Monster_WorldBase action change current={} previous={}",
             //    ETOI(_currentAction),
@@ -224,7 +222,10 @@ void Monster_WorldBase::Update(float timeDelta)
 
             
             if (applied)
+            {
                 _previousAction = _currentAction;
+                _hasAppliedAction = true;
+            }
 
         }
 
@@ -272,6 +273,9 @@ void Monster_WorldBase::Update(float timeDelta)
     }
 
     Character_WorldBase::Update(timeDelta);
+
+    if (_effectCom)
+        _effectCom->Update(timeDelta);
 }
 
 

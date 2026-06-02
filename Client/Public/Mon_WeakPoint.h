@@ -12,7 +12,8 @@ class Mon_WeakPoint :
 public:
     struct  WEAK_DESC : Monster_Part::MONSTER_PART_DESC
     {
-        const  Matrix* socketMatrix = nullptr;
+        const Matrix* socketMatrix = nullptr;
+        string socketName{};
     };
 
 public:
@@ -34,7 +35,11 @@ private:
     virtual uint32 Decide_PassIndex(Shared<Material> mat) override;
 
 private:
+    const Matrix* Resolve_SocketMatrix();
+
+private:
     const Matrix* _socketMatrix = nullptr;
+    string _socketName{};
     Matrix _offsetMatrix = {};
 
 public:

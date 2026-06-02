@@ -28,6 +28,15 @@ string Make_Layer_Profile_Name(const char* phaseName, size_t levelIndex, const w
 }
 #endif
 
+namespace
+{
+bool Is_PostUpdateLayer(const wstring& layerTag)
+{
+    // Effect는 owner/socket transform 갱신 이후 tick되어야 한다.
+    return layerTag == TEXT("Layer_Effect");
+}
+}
+
 Object_Manager::Object_Manager()
 {
 }
@@ -142,12 +151,31 @@ void Object_Manager::Priority_Update(float timeDelta)
         auto& layers = _layers[levelIndex];
         for (auto& Pair : layers)
         {
+            if (Is_PostUpdateLayer(Pair.first))
+                continue;
+
             if (nullptr != Pair.second)
             {
 #if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
                 const string profileName = Make_Layer_Profile_Name("Priority", levelIndex, Pair.first);
                 ENGINE_PROFILE_SCOPE_DETAIL(profileName.c_str());
 #endif
+                Pair.second->Priority_Update(timeDelta);
+            }
+        }
+
+        for (auto& Pair : layers)
+        {
+            if (!Is_PostUpdateLayer(Pair.first))
+                continue;
+
+            if (nullptr != Pair.second)
+            {
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+                const string profileName = Make_Layer_Profile_Name("Priority", levelIndex, Pair.first);
+                ENGINE_PROFILE_SCOPE_DETAIL(profileName.c_str());
+#endif
+                // owner Priority_Update가 끝난 뒤 effect Priority_Update를 수행한다.
                 Pair.second->Priority_Update(timeDelta);
             }
         }
@@ -163,12 +191,31 @@ void Object_Manager::Update(float timeDelta)
         auto& layers = _layers[levelIndex];
         for (auto& Pair : layers)
         {
+            if (Is_PostUpdateLayer(Pair.first))
+                continue;
+
             if (nullptr != Pair.second)
             {
 #if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
                 const string profileName = Make_Layer_Profile_Name("Update", levelIndex, Pair.first);
                 ENGINE_PROFILE_SCOPE_DETAIL(profileName.c_str());
 #endif
+                Pair.second->Update(timeDelta);
+            }
+        }
+
+        for (auto& Pair : layers)
+        {
+            if (!Is_PostUpdateLayer(Pair.first))
+                continue;
+
+            if (nullptr != Pair.second)
+            {
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+                const string profileName = Make_Layer_Profile_Name("Update", levelIndex, Pair.first);
+                ENGINE_PROFILE_SCOPE_DETAIL(profileName.c_str());
+#endif
+                // owner update가 끝난 뒤 effect compute/update를 수행한다.
                 Pair.second->Update(timeDelta);
             }
         }
@@ -184,12 +231,31 @@ void Object_Manager::Late_Update(float timeDelta)
         auto& layers = _layers[levelIndex];
         for (auto& Pair : layers)
         {
+            if (Is_PostUpdateLayer(Pair.first))
+                continue;
+
             if (nullptr != Pair.second)
             {
 #if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
                 const string profileName = Make_Layer_Profile_Name("Late", levelIndex, Pair.first);
                 ENGINE_PROFILE_SCOPE_DETAIL(profileName.c_str());
 #endif
+                Pair.second->Late_Update(timeDelta);
+            }
+        }
+
+        for (auto& Pair : layers)
+        {
+            if (!Is_PostUpdateLayer(Pair.first))
+                continue;
+
+            if (nullptr != Pair.second)
+            {
+#if ENGINE_PROFILE_LEVEL >= ENGINE_PROFILE_LEVEL_DETAIL
+                const string profileName = Make_Layer_Profile_Name("Late", levelIndex, Pair.first);
+                ENGINE_PROFILE_SCOPE_DETAIL(profileName.c_str());
+#endif
+                // owner Late_Update 이후 최종 위치 기준으로 effect render 등록을 수행한다.
                 Pair.second->Late_Update(timeDelta);
             }
         }
@@ -331,6 +397,17 @@ Unique<Object_Manager> Object_Manager::Create(uint32 numLevels)
 
 void Object_Manager::Free()
 {
+    for (auto& levelLayers : _layers)
+    {
+        for (auto& [layerTag, layer] : levelLayers)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            if (layer)
+                layer->Free();
+        }
+    }
+
     __super::Free();
     _layers.clear();
 }

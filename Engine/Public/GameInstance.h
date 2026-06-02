@@ -458,6 +458,7 @@ public: // For. PhysX_Manager
     PxPhysics* Get_PhysXPhysics() const;
     PxScene* Get_PhysXScene() const;
     PhysX_Manager* Get_PhysXManager() const { return _physxManager.get(); }
+    void Unregister_PhysXCollider(ColliderCom* collider);
 
     PhysXStaticActorHandle Register_PhysXStaticCollision(
         const StaticCollisionData& collisionData,

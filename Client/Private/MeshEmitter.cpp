@@ -250,7 +250,7 @@ bool MeshEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
         if (!particle.active)
             continue;
 
-        accumulatedPosition += particle.position;
+        accumulatedPosition += Resolve_ParticleWorldPosition(particle);
         ++activeParticleCount;
         hasActiveParticle = true;
     }
@@ -814,7 +814,7 @@ void MeshEmitter::Update_InstanceBuffer()
             {
                 const auto compute_particle_depth_sq = [&](const MeshParticleState& particle) -> float
                 {
-                    return (particle.position - cameraPosition).LengthSquared();
+                    return (Resolve_ParticleWorldPosition(particle) - cameraPosition).LengthSquared();
                 };
 
                 return compute_particle_depth_sq(*lhs) > compute_particle_depth_sq(*rhs);
@@ -836,6 +836,26 @@ void MeshEmitter::Update_InstanceBuffer()
 
     if (_activeInstanceCount == 0u)
         return;
+
+    if (const Shared<GameObject> effectOwner = _effectOwner.lock(); effectOwner && effectOwner->Get_Name() == L"Monster_Weak")
+    {
+        const Vec3 emitterWorldPosition = _transformCom->Get_WorldPosition();
+        const Vec3 firstParticleWorldPosition = !sortedParticles.empty() && sortedParticles.front() != nullptr
+                                                ? Resolve_ParticleWorldPosition(*sortedParticles.front())
+                                                : emitterWorldPosition;
+        LOG_DEBUG_THROTTLED(
+            60,
+            "[MonsterWeakMeshEmitter] emitter={} localSpace={} active={} root=({:.3f},{:.3f},{:.3f}) first=({:.3f},{:.3f},{:.3f})",
+            _emitterId,
+            _useLocalSpace,
+            _activeInstanceCount,
+            emitterWorldPosition.x,
+            emitterWorldPosition.y,
+            emitterWorldPosition.z,
+            firstParticleWorldPosition.x,
+            firstParticleWorldPosition.y,
+            firstParticleWorldPosition.z);
+    }
 
     D3D11_MAPPED_SUBRESOURCE mappedResource{};
     if (FAILED(_context->Map(_instanceBuffer.Get(), 0u, D3D11_MAP_WRITE_DISCARD, 0u, &mappedResource)))
@@ -1058,9 +1078,10 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed)
 {
     const float lifeMin = max(0.0001f, min(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
     const float lifeMax = max(lifeMin, max(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
-    const Vec3 emitterPosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
     const Vec3 spawnOffset = Sample_InitialOffset(seed);
-    const Vec3 spawnPosition = emitterPosition + spawnOffset;
+    Vec3 spawnPosition = spawnOffset;
+    if (!_useLocalSpace && _transformCom != nullptr)
+        spawnPosition += _transformCom->Get_WorldPosition();
 
     particle.active = true;
     particle.age = 0.f;
@@ -1168,7 +1189,6 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
         max(0.0001f, particle.baseScale.y * sizeByLife.y),
         max(0.0001f, particle.baseScale.z * sizeByLife.z)
     };
-    const Vec3 position = particle.position;
     const Vec3 rotationByLife = Evaluate_RotationByLife(lifeProgress);
     const Vec3 rotationRadians{
         particle.rotationRadians.x + XMConvertToRadians(rotationByLife.x),
@@ -1179,11 +1199,24 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
     Quat rotation = Quat::CreateFromYawPitchRoll(rotationRadians.y, rotationRadians.x, rotationRadians.z);
     rotation.Normalize();
 
-    return
+    const Matrix localMatrix =
         Matrix::CreateScale(scale) *
         Matrix::CreateFromQuaternion(rotation) *
         Internal::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment) *
-        Matrix::CreateTranslation(position);
+        Matrix::CreateTranslation(particle.position);
+
+    if (_useLocalSpace && _transformCom != nullptr)
+        return localMatrix * _transformCom->Get_WorldMatrix();
+
+    return localMatrix;
+}
+
+Vec3 MeshEmitter::Resolve_ParticleWorldPosition(const MeshParticleState& particle) const
+{
+    if (!_useLocalSpace || _transformCom == nullptr)
+        return particle.position;
+
+    return Vec3::Transform(particle.position, _transformCom->Get_WorldMatrix());
 }
 
 Vec3 MeshEmitter::Sample_InitialOffset(uint32 seed) const
@@ -1231,19 +1264,27 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed)
             RandomRange(_desc.motion.initialVelocityMin.y, _desc.motion.initialVelocityMax.y, seed + 2u),
             RandomRange(_desc.motion.initialVelocityMin.z, _desc.motion.initialVelocityMax.z, seed + 3u)
         };
-        velocity += _desc.motion.initialVelocityInWorldSpace ? sampledVelocity : Resolve_LocalVector(sampledVelocity);
+        velocity += _desc.motion.initialVelocityInWorldSpace
+            ? Resolve_WorldVectorToSimulation(sampledVelocity)
+            : Resolve_LocalVector(sampledVelocity);
     }
 
     if (_desc.motion.initialRadialVelocityEnabled)
     {
         const Vec3 radialPivotOffset = _desc.motion.initialRadialVelocityInWorldSpace
-                                       ? _desc.motion.radialPivot
+                                       ? Resolve_WorldVectorToSimulation(_desc.motion.radialPivot)
                                        : Resolve_LocalVector(_desc.motion.radialPivot);
-        const Vec3 emitterPosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
+        Vec3 emitterPosition{};
+        if (!_useLocalSpace && _transformCom != nullptr)
+            emitterPosition = _transformCom->Get_WorldPosition();
         const Vec3 pivotPosition = emitterPosition + radialPivotOffset;
         Vec3 radialDirection = spawnPosition - pivotPosition;
         if (radialDirection.LengthSquared() < 0.0001f)
-            radialDirection = _transformCom != nullptr ? _transformCom->Get_WorldForward() : Vec3{ 0.f, 0.f, 1.f };
+        {
+            radialDirection = Vec3{ 0.f, 0.f, 1.f };
+            if (!_useLocalSpace && _transformCom != nullptr)
+                radialDirection = _transformCom->Get_WorldForward();
+        }
         radialDirection.Normalize();
 
         const float radialSpeed = RandomRange(
@@ -1506,12 +1547,21 @@ int MeshEmitter::Resolve_OpacitySourceIndex() const
 
 Vec3 MeshEmitter::Resolve_LocalVector(const Vec3& localVector) const
 {
-    if (_transformCom == nullptr)
+    if (_useLocalSpace || _transformCom == nullptr)
         return localVector;
 
     return _transformCom->Get_WorldRight() * localVector.x +
            _transformCom->Get_WorldUp() * localVector.y +
            _transformCom->Get_WorldForward() * localVector.z;
+}
+
+Vec3 MeshEmitter::Resolve_WorldVectorToSimulation(const Vec3& worldVector) const
+{
+    if (!_useLocalSpace || _transformCom == nullptr)
+        return worldVector;
+
+    const Matrix inverseWorld = _transformCom->Get_WorldMatrix().Invert();
+    return Vec3::TransformNormal(worldVector, inverseWorld);
 }
 
 float MeshEmitter::Random01(uint32 seed) const

@@ -2255,6 +2255,14 @@ PxScene* GameInstance::Get_PhysXScene() const
     return _physxManager->Get_Scene();
 }
 
+void GameInstance::Unregister_PhysXCollider(ColliderCom* collider)
+{
+    CHECK_NULL(collider);
+    CHECK_NULL(_physxManager);
+
+    _physxManager->Unregister_Collider(collider);
+}
+
 PhysXStaticActorHandle GameInstance::Register_PhysXStaticCollision(
     const StaticCollisionData& collisionData,
     const Matrix& worldMatrix,

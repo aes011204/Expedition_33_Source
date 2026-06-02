@@ -52,10 +52,10 @@ void Monster_BattleBase::Update(float timeDelta)
     if (_combatStat)
         _combatStat->Update(timeDelta);
 
-     if (_effectCom)
-        _effectCom->Update(timeDelta); // 몬스터 사망 시 디졸브용
-
     Character_BattleBase::Update(timeDelta);
+
+    if (_effectCom)
+        _effectCom->Update(timeDelta); // 몬스터 사망 시 디졸브용
 }
 
 void Monster_BattleBase::Late_Update(float timeDelta)
