@@ -51,6 +51,7 @@ namespace
         case UI_KeyframeAnimationTrackType::ScaleY:
             return max(0.01f, value);
         case UI_KeyframeAnimationTrackType::Alpha:
+        case UI_KeyframeAnimationTrackType::AlphaMultiplier:
             return min(max(value, 0.f), 1.f);
         default:
             return value;
@@ -116,6 +117,12 @@ namespace
                 outSample.hasFadeTrack = true;
                 outSample.color.w = sample.color.w;
             }
+        }
+
+        if (sample.hasAlphaMultiplier)
+        {
+            outSample.hasAlphaMultiplier = true;
+            outSample.alphaMultiplier = sample.alphaMultiplier;
         }
     }
 
@@ -383,9 +390,11 @@ namespace
         const Vec2& basePosition,
         const Vec2& baseScale,
         float baseRotationRadians,
+        float baseAlphaMultiplier,
         const Vec2& transitionStartPosition,
         const Vec2& transitionStartScale,
         float transitionStartRotationRadians,
+        float transitionStartAlphaMultiplier,
         UI_AnimationSample& outSample,
         bool& outReachedEnd)
     {
@@ -404,6 +413,7 @@ namespace
         sample.position = basePosition;
         sample.scale = baseScale;
         sample.rotationRadians = baseRotationRadians;
+        sample.alphaMultiplier = baseAlphaMultiplier;
         bool hasSampledTrack = false;
         const bool useRelativeTracks = asset.valueMode == UI_KeyframeAnimationValueMode::RelativeTransform;
         const bool useCurrentStart =
@@ -449,6 +459,9 @@ namespace
                 break;
             case UI_KeyframeAnimationTrackType::Rotation:
                 currentValue = transitionStartRotationRadians;
+                break;
+            case UI_KeyframeAnimationTrackType::AlphaMultiplier:
+                currentValue = transitionStartAlphaMultiplier;
                 break;
             default:
                 break;
@@ -497,6 +510,10 @@ namespace
                 sample.hasFadeTrack = true;
                 sample.color.w = value;
                 break;
+            case UI_KeyframeAnimationTrackType::AlphaMultiplier:
+                sample.hasAlphaMultiplier = true;
+                sample.alphaMultiplier = value;
+                break;
             default:
                 break;
             }
@@ -537,19 +554,21 @@ void UI_AnimationPlayer::Add_KeyframeAsset(const UI_KeyframeAnimationAsset& asse
     _keyframeAssets.push_back(asset);
 }
 
-void UI_AnimationPlayer::Set_BaseTransformState(const Vec2& position, const Vec2& scale, float rotationRadians)
+void UI_AnimationPlayer::Set_BaseTransformState(const Vec2& position, const Vec2& scale, float rotationRadians, float alphaMultiplier)
 {
     _basePosition = position;
     _baseScale = scale;
     _baseRotationRadians = rotationRadians;
-    Set_TransitionStartState(position, scale, rotationRadians);
+    _baseAlphaMultiplier = min(max(alphaMultiplier, 0.f), 1.f);
+    Set_TransitionStartState(position, scale, rotationRadians, _baseAlphaMultiplier);
 }
 
-void UI_AnimationPlayer::Set_TransitionStartState(const Vec2& position, const Vec2& scale, float rotationRadians)
+void UI_AnimationPlayer::Set_TransitionStartState(const Vec2& position, const Vec2& scale, float rotationRadians, float alphaMultiplier)
 {
     _transitionStartPosition = position;
     _transitionStartScale = scale;
     _transitionStartRotationRadians = rotationRadians;
+    _transitionStartAlphaMultiplier = min(max(alphaMultiplier, 0.f), 1.f);
 }
 
 void UI_AnimationPlayer::Play_OnOpen()
@@ -620,9 +639,11 @@ bool UI_AnimationPlayer::Update(float deltaTime, UI_AnimationSample& outSample)
             _basePosition,
             _baseScale,
             _baseRotationRadians,
+            _baseAlphaMultiplier,
             _transitionStartPosition,
             _transitionStartScale,
             _transitionStartRotationRadians,
+            _transitionStartAlphaMultiplier,
             keyframeSample,
             reachedEnd))
         {

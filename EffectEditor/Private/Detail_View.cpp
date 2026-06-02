@@ -56,6 +56,64 @@ namespace
         }
     }
 
+    const char* Get_RenderLayerOverrideLabel(EmitterRenderLayerOverride value)
+    {
+        switch (value)
+        {
+        case EmitterRenderLayerOverride::UIEffect:
+            return "UIEffect";
+        case EmitterRenderLayerOverride::Auto:
+        default:
+            return "Auto";
+        }
+    }
+
+    bool Draw_RenderLayerOverrideProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        EmitterRenderLayerOverride& value,
+        EmitterRenderLayerOverride defaultValue)
+    {
+        static constexpr EmitterRenderLayerOverride kValues[] = {
+            EmitterRenderLayerOverride::Auto,
+            EmitterRenderLayerOverride::UIEffect,
+        };
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_RenderLayerOverrideLabel(value)))
+        {
+            for (const EmitterRenderLayerOverride candidate : kValues)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_RenderLayerOverrideLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value = defaultValue;
+            return true;
+        }
+
+        return changed;
+    }
+
     TrailTypeData Build_TrailCurvePreset(TrailCurveQuality quality)
     {
         TrailTypeData preset{};
@@ -386,6 +444,20 @@ namespace
         }
     }
 
+    const char* Get_ToneMapModeLabel(uint32 toneMapMode)
+    {
+        switch (toneMapMode)
+        {
+        case 0:
+            return "Reinhard";
+        case 1:
+            return "ACES";
+        case 2:
+        default:
+            return "Uncharted2";
+        }
+    }
+
     void Draw_PostProcessPresetProperty(DetailPropertyContext& detailContext)
     {
         if (EDITOR == nullptr)
@@ -420,6 +492,45 @@ namespace
 
         detailContext.Draw_ResetButton(false);
         ImGui::PopID();
+    }
+
+    bool Draw_ToneMapModeProperty(DetailPropertyContext& detailContext, uint32& toneMapMode, uint32 defaultToneMapMode)
+    {
+        static constexpr uint32 kToneMapModes[] = { 0u, 1u, 2u };
+
+        ImGui::PushID("ToneMapMode");
+        detailContext.Draw_PropertyLabel("ToneMap Mode");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_ToneMapModeLabel(toneMapMode)))
+        {
+            for (const uint32 candidate : kToneMapModes)
+            {
+                const bool selected = toneMapMode == candidate;
+                if (ImGui::Selectable(Get_ToneMapModeLabel(candidate), selected))
+                {
+                    toneMapMode = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(toneMapMode != defaultToneMapMode);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            toneMapMode = defaultToneMapMode;
+            return true;
+        }
+
+        return changed;
     }
 
     bool Draw_TrailCurveQualityProperty(DetailPropertyContext& detailContext, TrailTypeData& data, const TrailTypeData& defaultData)
@@ -664,12 +775,14 @@ void Detail_View::Render_PostProcessShaderDetail()
     if (_detailPropertyContext.Begin_PropertyTable("PostProcessParams"))
     {
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Exposure", params.exposure, defaultOptions.params.exposure);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Inv White Point", params.invWhitePoint, defaultOptions.params.invWhitePoint);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Gamma", params.gamma, defaultOptions.params.gamma);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Radius", params.bloomRadius, defaultOptions.params.bloomRadius);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Threshold", params.bloomThreshold, defaultOptions.params.bloomThreshold);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Intensity", params.bloomIntensity, defaultOptions.params.bloomIntensity);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Soft Knee", params.bloomSoftKnee, defaultOptions.params.bloomSoftKnee);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Clamp", params.bloomClamp, defaultOptions.params.bloomClamp, 0.05f);
+        paramsChanged |= Draw_ToneMapModeProperty(_detailPropertyContext, params.toneMapMode, defaultOptions.params.toneMapMode);
         _detailPropertyContext.End_PropertyTable();
     }
 
@@ -698,6 +811,13 @@ void Detail_View::Render_EmitterDetail(
         ImGui::TextDisabled("%s", emitter.rendererType.c_str());
         _detailPropertyContext.Draw_ResetButton(false);
         ImGui::PopID();
+
+        changed |= Draw_RenderLayerOverrideProperty(
+            _detailPropertyContext,
+            "렌더 레이어",
+            emitter.renderLayerOverride,
+            defaultData.renderLayerOverride
+        );
 
         _detailPropertyContext.End_PropertyTable();
     }
@@ -828,7 +948,7 @@ void Detail_View::Render_TypeDataDetail(
     }
     case AuthoringTypeDataKind::Mesh:
     {
-        MeshTypeData* data = get_if<MeshTypeData>(&emitter.typeData.payload);
+        const MeshTypeData* data = get_if<MeshTypeData>(&emitter.typeData.payload);
         if (data == nullptr)
         {
             ImGui::TextDisabled("Mesh TypeData payload is invalid.");
@@ -918,6 +1038,11 @@ void Detail_View::Render_ModuleDetail(
             changed = _initialSizeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::InitialMeshSize:
+        if (auto* data = get_if<InitialMeshSizeModuleData>(&module.data))
+            changed = _initialMeshSizeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialLocation:
         if (auto* data = get_if<InitialLocationModuleData>(&module.data))
             changed = _initialLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
@@ -973,6 +1098,26 @@ void Detail_View::Render_ModuleDetail(
             changed = _rotationRateScaleByLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::InitialMeshRotation:
+        if (auto* data = get_if<InitialMeshRotationModuleData>(&module.data))
+            changed = _initialMeshRotationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::MeshRotationOverLife:
+        if (auto* data = get_if<MeshRotationOverLifeModuleData>(&module.data))
+            changed = _meshRotationOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::InitialMeshRotationRate:
+        if (auto* data = get_if<InitialMeshRotationRateModuleData>(&module.data))
+            changed = _initialMeshRotationRateModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::MeshRotationRateScaleByLife:
+        if (auto* data = get_if<MeshRotationRateScaleByLifeModuleData>(&module.data))
+            changed = _meshRotationRateScaleByLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialColor:
         if (auto* data = get_if<InitialColorModuleData>(&module.data))
             changed = _initialColorModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
@@ -993,9 +1138,19 @@ void Detail_View::Render_ModuleDetail(
             changed = _sizeByLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::MeshSizeByLife:
+        if (auto* data = get_if<MeshSizeByLifeModuleData>(&module.data))
+            changed = _meshSizeByLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::SpawnPerUnit:
         if (auto* data = get_if<SpawnPerUnitModuleData>(&module.data))
             changed = _spawnPerUnitModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::MaterialScalarModulation:
+        if (auto* data = get_if<MaterialScalarModulationModuleData>(&module.data))
+            changed = _materialScalarModulationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     default:

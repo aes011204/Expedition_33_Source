@@ -1,10 +1,14 @@
 ﻿#pragma once
 
+#include "BattleMonsterSpawnDesc.h"
 #include "Character_WorldBase.h"
 #include "Delegate.h"
 
+#include <utility>
+
 NS_BEGIN(Engine)
 class AIController;
+class MovementCom;
 NS_END
 
 NS_BEGIN(Client)
@@ -43,12 +47,12 @@ public:
     void            OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) override;
     void            On_EditorStopRuntime();
 
-    // 이 월드 몬스터와 충돌했을 때 생성할 배틀 몬스터 프리팹 목록을 넘긴다.
-    virtual void    Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const;
+    // 이 월드 몬스터와 충돌했을 때 생성할 배틀 몬스터 목록을 넘긴다.
+    virtual void    Set_BattleMonsterSpawnDescs(vector<BattleMonsterSpawnDesc>& outSpawnDescs) const;
 
     // Prefab_View가 배틀 소환 목록을 직접 편집할 때 사용한다.
-    vector<string>& Get_BattleMonsterPrefabNames_ForEdit() { return _battleMonsterPrefabNames; }
-    const vector<string>& Get_BattleMonsterPrefabNames() const { return _battleMonsterPrefabNames; }
+    vector<BattleMonsterSpawnDesc>& Get_BattleMonsterSpawnDescs_ForEdit() { return _battleMonsterSpawnDescs; }
+    const vector<BattleMonsterSpawnDesc>& Get_BattleMonsterSpawnDescs() const { return _battleMonsterSpawnDescs; }
 
     void Set_CurrentAction(MonsterWorldAnim action) { _currentAction = action; }
     void Set_DesiredAction(MonsterWorldAnim action) { _desiredAction = action; }
@@ -57,31 +61,43 @@ public:
     MonsterWorldAnim Get_DesiredAction() const { return _desiredAction; }
     bool Is_Stunned() const { return _isStun; }
 
-    //일단 셋은 임시 
-    void Set_PatrolPoints(vector<Vec3> PatrolPoint) { _PatrolPoints = PatrolPoint; };
-    const vector<Vec3>& Get_PatrolPoints() { return _PatrolPoints; };
+    void Set_PatrolPoints(vector<Vec3> patrolPoints) { _PatrolPoints = std::move(patrolPoints); }
+    const vector<Vec3>& Get_PatrolPoints() const { return _PatrolPoints; }
+    const vector<Vec3>& Get_EffectivePatrolPoints();
+
+    int32 Get_BattleStartSpawnerId() const { return _battleStartSpawnerId; }
+    void  Set_BattleStartSpawnerId(int32 spawnerId) { _battleStartSpawnerId = spawnerId; }
+
 protected:
     virtual HRESULT Ready_Components();
 
 private:
+    void Build_DefaultPatrolPoints();
+
     MonsterWorldAnim _desiredAction = MonsterWorldAnim::Idle;
     MonsterWorldAnim _currentAction = MonsterWorldAnim::Idle;
     MonsterWorldAnim _previousAction = MonsterWorldAnim::Idle;
 
 protected:
     Shared<AIController>         _aiCtrl;
+    Shared<MovementCom>          _movementCom;
     Shared<MonsterStatCom>       _combatStat;
 
-    vector<string>               _battleMonsterPrefabNames = {};
+    vector<BattleMonsterSpawnDesc> _battleMonsterSpawnDescs = {};
 
     bool                         _isBattleStart = false;
     FDelegateHandle              _editorStopHandle = {};
 
     vector<Vec3>                 _PatrolPoints;
+    vector<Vec3>                 _defaultPatrolPoints;
 
     bool _isStun = {false};
     float _maxStunTime = {3.f};
     float _stunTime = {};
+    // 기본 월드 몬스터 root motion -> 이동 속도 환산값
+    float _worldMoveSpeedScale = 0.4f;
+
+    int32 _battleStartSpawnerId = 0; // 배틀 시작 스포너 ID
 
 public:
     void Free() override;

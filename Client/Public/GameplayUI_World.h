@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include "GamePlayMenuFade.h"
 #include "GameplayUI_Types.h"
 #include "SavePoint_Panel.h"
 
@@ -56,6 +57,7 @@ private:
     Unique<UI_CrossHair>          _crossHair;
 
     vector<GameplayMenu>          _menuStack{};
+    GamePlayMenuFade              _menuFade{};
 
 public:
     static Unique<GameplayUI_World> Create(uint32 levelIndex);

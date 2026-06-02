@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "PartObject.h"
+#include "Shader_CBuffer_Define.h"
 
 NS_BEGIN(Engine)
 class ShaderCom;
@@ -45,6 +46,7 @@ private:
 private:
     Shared<ShaderCom>    _shader{};
     Shared<ModelCom>     _model{};
+    HairCB               _hairCB{};
 
     const Matrix*        _socketMatrix = nullptr;
 

@@ -73,6 +73,9 @@ void CameraDirector::Restore_PreviousCamera()
     if(_previousCamera == nullptr)
         return;
 
+    if (const auto targetCamera = dynamic_pointer_cast<TargetCamera>(_previousCamera))
+        targetCamera->Change_Mode(TargetCameraMode::NORMAL);
+
     GAME->Change_ActiveCamera(_previousCamera);
 
     _previousCamera.reset();

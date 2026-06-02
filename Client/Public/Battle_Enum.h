@@ -10,8 +10,8 @@ namespace Engine
 
 namespace Client
 {
-class Character_BattleBase;
-struct BattleActionPhase;
+    class Character_BattleBase;
+    struct BattleActionPhase;
     struct Skill_Data;
     enum class Buffs;
     enum class ElementalType;
@@ -397,9 +397,9 @@ struct BattleActionPhase;
 
     //------------------------------------------
 
-    
- 
- 
+
+
+
     struct FEnemyPortraitData
     {
         //Texture2D* TimelinePortrait;
@@ -466,7 +466,7 @@ struct BattleActionPhase;
         double LootPercentageChance;// 100.0
         int LootContextLevelOffset; // 0
     };
-   
+
     struct FCommonCharacterStats
     {
         double BurnPercentage;//Burn 데미지 계산 배율(최대 HP의)
@@ -495,6 +495,7 @@ struct BattleActionPhase;
 
 
     enum class BuffType { beforeTurn, changeStat, dot, SLogic };
+
     enum class Buffs
     {
         //버프
@@ -525,8 +526,6 @@ struct BattleActionPhase;
         Slow,
         Rush,
 
-
-
         Exhausted,
         Bound,
         Silence,
@@ -541,13 +540,13 @@ struct BattleActionPhase;
     enum class TargetType
     {
         Invalid,
-        Primary,       
+        Primary,
         RandomEnemy,
         AllEnemies,
         Self,
         ETC, //스폰 , 쉴드 등 
     };
-    
+
     struct TurnEntry
     {
         BattleChar hero;
@@ -580,7 +579,7 @@ struct BattleActionPhase;
 
         vector<TargetType> targetingType = {};
 
-    
+
         int32 apCost = 0;
         int32 AttackCount = 0;
         //ECharacterTeamSelector targetingType = ECharacterTeamSelector::Invalid;
@@ -599,8 +598,8 @@ struct BattleActionPhase;
         string skillKey = "";
         BattleItemType itemType = BattleItemType::Invalid;
     };
-    
-//
+
+    //
     enum class BattleMovementPolicy
     {
         None,               // 제자리
@@ -628,14 +627,14 @@ struct BattleActionPhase;
         string animationKey = "";
         string cameraPresetId = "";
         string cameraClipId = "";
-      //  string sequenceKey = "";
-        uint32 phaseIndex={};
+        //  string sequenceKey = "";
+        uint32 phaseIndex = {};
         BattleMovementPolicy movementPolicy = BattleMovementPolicy::None;
         BattleTargetAnchor targetAnchor = BattleTargetAnchor::PrimaryTarget;
         bool useDistance = false;
         float offsetDistance = {};
         bool faceTarget = true;
-     //   bool disableSequenceSnapping = false;
+        //   bool disableSequenceSnapping = false;
     };
 
     struct BattleSlowDesc
@@ -678,10 +677,67 @@ struct BattleActionPhase;
         Offensive_Idle, // 마엘 공격 태세 idle
         Defensive_Idle, // 마엘 방어 태세 idle
         Virtuose_Idle,  // 마엘 명인 태세 idle
+
+        Targeted_Start, // 적 턴 시작할 때
+        Targeted_Idle,
+        Targeted_End,
     };
 
     enum class BattleReactionType
     {
         None, Parry, Dodge, QTE, END
     };
+
+    enum class BattleQTEResult
+    {
+        None, Fail, SuccessNormal, SuccessPerfect, END
+    };
+
+    enum class BattleQTEPreset
+    {
+        Center,
+
+        // 구
+        LumiereAssault_QTE1,
+        LumiereAssault_QTE2,
+
+        UnleashedCharge_QTE1,
+        UnleashedCharge_QTE2,
+
+        MarkingShot,
+
+        // 루
+        Immolation_QTE1,
+        Immolation_QTE2,
+
+        IceGust_QTE1,
+
+        Thunderfall_QTE1,
+        Thunderfall_QTE2,
+
+        // 마
+        OffensiveSwitch_QTE1,
+
+        Percee_QTE1,
+
+        FleureFury_QTE1,
+
+        END
+    };
+
+    struct BattleQTERequest
+    {
+        // 일단은 애니메이션에 맞춰서 초기값만 세팅
+        float introDuration = 21.f / 63.f;      // QTE_Intro.uianim 기준
+        float progressDuration = 80.f / 120.f;  // QTE_Progress.uianim 기준
+        float perfectStartRatio = 61.f / 80.f;  // 노란 구간 시작
+        float perfectEndRatio = 1.f;            // 노란 구간 끝
+
+        // QTE 화면 배치. ANS_QTE에서 preset 고르고, request에는 실제 적용값
+        BattleQTEPreset placementPreset = BattleQTEPreset::Center;
+        Vec2 screenPosition = Vec2(800.f, 450.f);
+        float screenScale = 1.f;
+
+    };
+
 }

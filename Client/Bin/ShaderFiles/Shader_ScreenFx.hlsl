@@ -6,7 +6,9 @@
 #include "Engine_Shader_ConstantBuffer.hlsl"
 
 Texture2D g_ScreenFxTexture;
+Texture2D g_NoiseTexture;
 Texture2D g_ScreenMaskTexture;
+Texture2D g_SmudgeTexture;
 
 struct VS_IN
 {
@@ -49,17 +51,18 @@ PS_OUT_BACKBUFFER PS_Vignette(PS_IN In)
     PS_OUT_BACKBUFFER Out;
     float4 color = g_ScreenFxTexture.Sample(LinearClampSampler, In.Texcoord);
 
-    // 비네팅 (Vignetting): 화면 외곽을 어둡게 처리하여 중심부 강조
     float2 center = float2(0.5f, 0.5f);
     float dist = distance(In.Texcoord, center);
     float vignette = smoothstep(g_vignetteRadius, g_vignetteRadius - g_vignetteSoftness, dist);
 
     // 대비(Contrast) 살짝 증가시켜 밝기를 더 돋보이게 함
+    float smudgeMask = g_SmudgeTexture.Sample(LinearClampSampler, In.Texcoord).r;
+    vignette *= smudgeMask;
+
     color.rgb = (color.rgb - 0.5f) * 1.1f + 0.5f;
-
     color.rgb = lerp(g_vignetteColor * color.rgb, color.rgb, vignette);
-
     Out.Color = color;
+
     return Out;
 }
 
@@ -74,7 +77,7 @@ PS_OUT_BACKBUFFER PS_RadialBlur(PS_IN In)
     float blurAmount = clamp(g_radialBlurIntensity * weight, 0.f, 0.5f);
 
     Out.Color = float4(0, 0, 0, 0);
-    int samples = 3;
+    int samples = 2;
 
     for (int i = 0; i < samples; i++)
     {
@@ -196,6 +199,17 @@ PS_OUT_BACKBUFFER PS_CircularWipeTransition(PS_IN In)
     capturedSceneColor.rgb = lerp(capturedSceneColor.rgb, float3(0.f, 0.f, 0.f), blackFade);
 
     float2 center = float2(0.5, 0.5);
+    float distForVignette = distance(In.Texcoord, center);
+    float vignette = smoothstep(g_vignetteRadius, g_vignetteRadius - g_vignetteSoftness, distForVignette);
+
+    float smudgeMask = g_SmudgeTexture.Sample(LinearSampler, In.Texcoord).r;
+    vignette *= smudgeMask;
+    
+    // 기존 blackFade(0.4부터) 보다 조금 더 일찍(0.2부터) 등장하고 빠르게 진해지도록 조절
+    float smudgeFade = saturate((g_wipeRadius - 0.2f) * 1.5f);
+    float currentVignette = lerp(1.0f, vignette, smudgeFade);
+    capturedSceneColor.rgb = lerp(g_vignetteColor * capturedSceneColor.rgb, capturedSceneColor.rgb, currentVignette);
+    
     float aspect = g_ScreenSize.x / max(1.0, g_ScreenSize.y);
     float2 diff = In.Texcoord - center;
     diff.x *= aspect;

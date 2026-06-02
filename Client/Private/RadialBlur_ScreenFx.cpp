@@ -1,8 +1,10 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "RadialBlur_ScreenFx.h"
 
 #include <Camera.h>
 
+#include "BattleController.h"
+#include "BattleTurnCamera.h"
 #include "Shader_CBuffer_Define.h"
 #include "ShaderCom.h"
 #include "GameInstance.h"
@@ -47,7 +49,9 @@ void RadialBlur_ScreenFx::Update_ScreenFx(float timeDelta)
 {
     _elapsedTime += timeDelta;
 
-    Compute_LeaderHeroPosToProjection();
+    auto transform = Get_CurrentTarget();
+    Compute_LeaderHeroPosToProjection(transform);
+    
 
     if (auto mainCamera = GAME->Get_ActiveCamera())
     {
@@ -88,7 +92,16 @@ HRESULT RadialBlur_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
     cbData.radialBlurIntensity = _currentIntensity;
     cbData.radialBlurRadius = _originalDesc.radius;
 
+    cbData.vignetteRadius = 0.8f;
+    cbData.vignetteSoftness = 0.5f;
+    cbData.vignetteColor = Vec3::Zero;
+
     return shader->Bind_CBufferData(cbData);
+}
+
+HRESULT RadialBlur_ScreenFx::Bind_ShaderResources(const Shared<ShaderCom>& shader)
+{
+    return S_OK;
 }
 
 void RadialBlur_ScreenFx::Evaluate_At(float elapsedTime)
@@ -114,11 +127,50 @@ void RadialBlur_ScreenFx::Evaluate_At(float elapsedTime)
     }
 }
 
-void RadialBlur_ScreenFx::Compute_LeaderHeroPosToProjection()
+Shared<TransformCom> RadialBlur_ScreenFx::Get_CurrentTarget()
 {
-    if (auto leaderPlayer = CLIENT->Get_ActiveHero())
+    auto bt = CLIENT->Get_BattleController();
+    auto btCam = bt->Get_BattleTurnCamera();
+
+    if (CLIENT->Is_BattleActive())
     {
-        Vec3 worldPos = leaderPlayer->Get_Transform()->Get_WorldPosition();
+        auto req = btCam->Get_CurrentRequest();
+
+        Shared<TransformCom> trans{ nullptr };
+        switch (req.mode)
+        {
+        case BattleCameraMode::PLAYERATTACK: case BattleCameraMode::ENEMYATTACK:
+        case BattleCameraMode::WIDE: case BattleCameraMode::PLAYERFOCUS:
+            if (req.subject != nullptr)
+            {
+                return req.subject->Get_Transform();
+            }
+            break;
+        case BattleCameraMode::ENEMYFOCUS:
+            if (req.opponent != nullptr)
+            {
+                return req.opponent->Get_Transform();
+            }
+            break;
+        case BattleCameraMode::BATTLEINTRO:
+        default:
+            return nullptr;
+        }
+    }
+    if (auto leaderHero = CLIENT->Get_ActiveHero())
+    {
+        auto trans = leaderHero->Get_Transform();
+        return trans;
+    }
+    
+    return nullptr;
+}
+
+void RadialBlur_ScreenFx::Compute_LeaderHeroPosToProjection(const Shared<TransformCom>& targetTransform)
+{
+    if (targetTransform != nullptr)
+    {
+        Vec3 worldPos = targetTransform->Get_WorldPosition();
         worldPos.y += 1.575f;
 
         const Matrix* viewMat = GAME->Get_Transform(D3DTS::View);

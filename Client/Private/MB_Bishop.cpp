@@ -12,6 +12,7 @@ IMPLEMENT_REFLECTION(MB_Bishop)
 
     info.displayName = "MB_Bishop";
     info.category = "Monster";
+    PROPERTY_FLOAT("Battle Ground Offset Y", _battleGroundOffsetY, -5.f, 5.f, 0.01f);
 
     return true;
 }
@@ -54,15 +55,11 @@ void MB_Bishop::Update(float timeDelta)
 {
     Monster_BattleBase::Update(timeDelta);
 
-
-
     if (_body)
     {
         _body->Play_Animation(timeDelta);
     }
 }
-
-
 
 HRESULT MB_Bishop::Ready_PartObjects()
 {

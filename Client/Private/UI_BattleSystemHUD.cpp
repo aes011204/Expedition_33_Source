@@ -18,6 +18,10 @@ HRESULT UI_BattleSystemHUD::Initialize(uint32 levelIndex)
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
 
+    Clear_GustaveMechanismCharge();   // HUD json 기본 visible/text 상태를 코드 기준값으로 덮어쓴다.
+    Clear_LuneMechanismStains();      // 루네 portrait 얼룩은 시작 시 모두 닫힌 상태여야 한다.
+    Clear_MaelleMechanismStance();    // 마엘도 기본 태세로 맞춘다.
+
     Close();
     return S_OK;
 }
@@ -35,6 +39,9 @@ void UI_BattleSystemHUD::Open()
 void UI_BattleSystemHUD::Close()
 {
     UI_RuntimePanelBase::Close();
+
+    Close_AllLuneStains();            // 다시 열릴 때 데이터 기본 visible 값이 남지 않게 즉시 정리한다.
+    Close_AllMaelleStanceBadges();
 }
 
 void UI_BattleSystemHUD::Set_PartyBattleStat(PlayerCharacterType playerType, float curHp, float maxHp, uint32 curAp, uint32 maxAp)
@@ -71,6 +78,22 @@ void UI_BattleSystemHUD::Set_GustaveMechanismCharge(const Shared<BattleMechanism
 
     Set_TextPair(_gustaveCurrentChargeText, _gustaveCurrentChargeTextBg, to_wstring(currentCharge));
     Set_TextPair(_gustaveMaxChargeText, _gustaveMaxChargeTextBg, to_wstring(maxCharge));
+}
+
+void UI_BattleSystemHUD::Set_LuneMechanismStains(const Shared<BattleMechanismCom>& mechanismCom)
+{
+    if (mechanismCom == nullptr || !mechanismCom->Is_Lune())
+    {
+        Clear_LuneMechanismStains();
+        return;
+    }
+
+    Apply_LuneState(mechanismCom); // mechanism 패널과 같은 규칙으로 portrait HUD를 갱신한다.
+}
+
+void UI_BattleSystemHUD::Clear_LuneMechanismStains()
+{
+    Close_AllLuneStains();
 }
 
 void UI_BattleSystemHUD::Clear_GustaveMechanismCharge()
@@ -158,6 +181,37 @@ HRESULT UI_BattleSystemHUD::Bind_UI()
     CHECK_NULL(_gustaveCurrentChargeTextBg, E_FAIL);
     CHECK_NULL(_gustaveMaxChargeText, E_FAIL);
     CHECK_NULL(_gustaveMaxChargeTextBg, E_FAIL);
+
+    static constexpr const wchar_t* kLuneSlotPrefixes[BattleMechanismCom::kLuneMaxStains] =
+    {
+        L"First",
+        L"Second",
+        L"Third",
+        L"Fourth",
+    };
+
+    static constexpr const wchar_t* kLuneElementSuffixes[4] =
+    {
+        L"Fire",
+        L"Ice",
+        L"Lightning",
+        L"Light",
+    };
+
+    for (uint32 slotIndex = 0; slotIndex < BattleMechanismCom::kLuneMaxStains; ++slotIndex)
+    {
+        for (uint32 elementIndex = 0; elementIndex < 4; ++elementIndex)
+        {
+            const wstring imageName =
+                L"Image_" +
+                wstring(kLuneSlotPrefixes[slotIndex]) +
+                L"_" +
+                kLuneElementSuffixes[elementIndex];
+
+            _luneStainImages[slotIndex][elementIndex] = Find_UI(_uiByName, imageName);
+            CHECK_NULL(_luneStainImages[slotIndex][elementIndex], E_FAIL);
+        }
+    }
 
     // 마엘
     _maelleCurrentStanceRoot = Find_UI(_uiByName, L"Panel_BattlePortrait_Maelle_Current_Stance");
@@ -248,6 +302,66 @@ void UI_BattleSystemHUD::Set_ApText(PartyBattleStatSlot& slot, uint32 ap)
     Set_TextPair(slot.apText, slot.apTextBg, to_wstring(ap));
 }
 
+void UI_BattleSystemHUD::Apply_LuneState(const Shared<BattleMechanismCom>& mechanismCom)
+{
+    if (mechanismCom == nullptr || !mechanismCom->Is_Lune())
+        return;
+
+    Close_AllLuneStains(); // 매 프레임 현재 얼룩 배열 그대로 다시 연다.
+
+    for (uint32 i = 0; i < mechanismCom->Get_LuneStainCount(); ++i)
+    {
+        if (Shared<UI_Base> image = Resolve_LuneStainImage(i, mechanismCom->Get_LuneStain(i)))
+            image->Open();
+    }
+}
+
+Shared<UI_Base> UI_BattleSystemHUD::Resolve_LuneStainImage(int32 slotIndex, ElementalType element) const
+{
+    if (slotIndex < 0 || slotIndex >= static_cast<int32>(BattleMechanismCom::kLuneMaxStains))
+        return nullptr;
+
+    uint32 elementIndex = 0;
+
+    switch (element)
+    {
+    case ElementalType::Fire:
+        elementIndex = 0;
+        break;
+
+    case ElementalType::Ice:
+        elementIndex = 1;
+        break;
+
+    case ElementalType::Lightning:
+        elementIndex = 2;
+        break;
+
+    case ElementalType::Light:
+        elementIndex = 3;
+        break;
+
+    case ElementalType::None:
+    case ElementalType::Dark:
+    default:
+        return nullptr;
+    }
+
+    return _luneStainImages[slotIndex][elementIndex];
+}
+
+void UI_BattleSystemHUD::Close_AllLuneStains()
+{
+    for (uint32 slotIndex = 0; slotIndex < BattleMechanismCom::kLuneMaxStains; ++slotIndex)
+    {
+        for (uint32 elementIndex = 0; elementIndex < 4; ++elementIndex)
+        {
+            if (_luneStainImages[slotIndex][elementIndex])
+                _luneStainImages[slotIndex][elementIndex]->Close();
+        }
+    }
+}
+
 void UI_BattleSystemHUD::Apply_MaelleStanceBadge(BattleMechanismCom::MaelleStance stance)
 {
     if (_maelleCurrentStanceRoot)
@@ -333,6 +447,12 @@ void UI_BattleSystemHUD::Free()
     _gustaveCurrentChargeTextBg.reset();
     _gustaveMaxChargeText.reset();
     _gustaveMaxChargeTextBg.reset();
+
+    for (uint32 slotIndex = 0; slotIndex < BattleMechanismCom::kLuneMaxStains; ++slotIndex)
+    {
+        for (uint32 elementIndex = 0; elementIndex < 4; ++elementIndex)
+            _luneStainImages[slotIndex][elementIndex].reset();
+    }
 
     _maelleCurrentStanceRoot.reset();
     _maelleStanceless.reset();

@@ -85,10 +85,17 @@ void TrailPreviewPlayerObject::Set_PreviewVisible(bool visible)
 
 HRESULT TrailPreviewPlayerObject::Restore_VisualPartsFromPrefab()
 {
-    const std::filesystem::path prefabPath =
-        std::filesystem::path(GAME->Get_AssetRoot()) / L"Data" / L"json" / L"Prefabs" / L"PB_Gustave.prefab.json";
+    const filesystem::path prefabRootPath =
+        filesystem::path(GAME->Get_AssetRoot()) / L"Data" / L"json" / L"Prefabs";
+    filesystem::path prefabPath = prefabRootPath / L"PB_Gustave.prefab.json";
 
-    const json prefabRoot = GAME->Load_JsonFile(prefabPath);
+    json prefabRoot = GAME->Load_JsonFile(prefabPath);
+    if (!prefabRoot.is_object())
+    {
+        prefabPath = prefabRootPath / L"Player" / L"PB_Gustave.prefab.json";
+        prefabRoot = GAME->Load_JsonFile(prefabPath);
+    }
+
     if (!prefabRoot.is_object())
     {
         LOG_ERROR("[TrailPreview] failed to load visual fixture prefab. path={}", prefabPath.string());

@@ -22,6 +22,25 @@
 namespace fs = std::filesystem;
 namespace
 {
+    struct EffectMeshInstanceLayout
+    {
+        static constexpr uint32 numElements = 11;
+
+        static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "INST_WORLD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "INST_WORLD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "INST_WORLD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "INST_WORLD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "INST_COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "INST_LIFE", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 80, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        };
+    };
+
     string Get_TableLabel(const wstring& tablePath)
     {
         return fs::path(tablePath).filename().string();
@@ -577,6 +596,9 @@ ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& s
     // Mesh Instance (for real)
     if ("VTXINSTMESHEXACT" == strName || "VtxInstMeshExact" == strName)
         return { VtxMeshInstanceExactLayout::Elements, VtxMeshInstanceExactLayout::numElements, ShaderType::VtxInstanceMeshExact };
+
+    if ("EffectMeshInstance" == strName || "EFFECTMESHINSTANCE" == strName)
+        return { EffectMeshInstanceLayout::Elements, EffectMeshInstanceLayout::numElements, ShaderType::VtxInstanceMeshExact };
 
     return { VTXTEX::Elements, VTXTEX::numElements, ShaderType::VtxTex };
 }

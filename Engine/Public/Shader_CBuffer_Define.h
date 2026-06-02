@@ -112,13 +112,21 @@ struct alignas(16) ShadowCB
     Matrix  lightViewMatrix;
     Matrix  lightProjMatrix;
 
+    Matrix  cascadeLightViewMatrices[ShadowLightDesc::SHADOW_CASCADE_COUNT];
+    Matrix  cascadeLightProjMatrices[ShadowLightDesc::SHADOW_CASCADE_COUNT];
+
     Matrix  staticLightViewMatrix;
     Matrix  staticLightProjMatrix;
 
+    Vec4    cascadeSplits = Vec4::Zero;
+    float   cascadeBlendDistance = 0.f;
     float   lightFar = 0.f;
     float   bias = 0.f;
+
     float   intensity = 0.f;
     float   staticShadowEnabled = 0.f;
+    uint32  cascadeCount = 0;
+    uint32  activeCascadeIndex = 0;
 }; 
 
 /* ------------------------------------------ */
@@ -169,7 +177,7 @@ struct alignas(16) PostProcessCB
 
     float exposure = 1.f;                   // 키우면 밝아짐
     float invWhitePoint = 1.f;              // 어느 밝기 이상을 거의 흰색으로 볼 건지
-    float gamma = 2.2f;                     // 선형 색상을 sRGB에 가깝게 변환함
+    float gamma = 1.6f;                     // 선형 색상을 sRGB에 가깝게 변환함
     float bloomRadius = 1.6f;               // 블러 커널의 샘플 간격을 늘리는 배율
 
     float bloomThreshold = 0.9f;            // Bloom 추출 기준

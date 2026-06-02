@@ -1,12 +1,14 @@
 ﻿#pragma once
 #include "Client_Defines.h"
 #include "GameObject.h"
+#include "PhysX_Handle.h"
 
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
 class ComputeShaderCom;
 class ComputeStructuredBuffer;
+struct StaticCollisionData;
 NS_END
 
 NS_BEGIN(Client)
@@ -29,6 +31,7 @@ public:
     typedef struct tagMapInstancedMeshDesc final : public GameObject::GAMEOBJECT_DESC
     {
         Shared<ModelCom> model;
+        Shared<StaticCollisionData> collisionData = nullptr;
         wstring modelPath = {};
         vector<InstanceTransform> transforms;
     } MAPINSTANCEDMESH_DESC;
@@ -46,6 +49,7 @@ public:
     virtual void Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
     virtual HRESULT RenderPickingID(uint32 id) override;
+    HRESULT Render_Shadow() override;
 
     virtual json To_Json() const override;
     virtual void From_Json(const json& node) override;
@@ -53,6 +57,7 @@ public:
 private:
     Shared<ShaderCom> _shader;
     Shared<ModelCom> _model;
+    Shared<StaticCollisionData> _collisionData;
     ComPtr<Buffer> _instanceVB;
     uint32 _instanceCount = {};
     uint32 _instanceCapacity = {};
@@ -68,6 +73,7 @@ private:
     ComPtr<Buffer> _visibleVB;
     ComPtr<Buffer> _cullCB;
     vector<ComPtr<Buffer>> _indirectArgsBuffers;
+    vector<PhysXStaticActorHandle> _physxStaticHandles;
     BoundingBox _groupBounds = {};
 
 private:

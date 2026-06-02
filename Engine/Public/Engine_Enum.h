@@ -16,6 +16,7 @@ namespace Engine
         Distortion, // Effect용 Distortion
         Blend,
         UI,
+        UIEffect,
         END
     };
 
@@ -77,6 +78,7 @@ namespace Engine
         EffectEmitter,
         Trigger,
         UI,
+        BattleStartSpawner,
     };
 
     enum class DeferredPass : uint8

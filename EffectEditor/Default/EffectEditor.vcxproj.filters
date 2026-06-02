@@ -62,10 +62,10 @@
       <Filter>01. Manager\00. Effect Editor Instance</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectMaterial_View.cpp">
-      <Filter>02. View\Effect Material View</Filter>
+      <Filter>02. View\Effect Material Preview</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectMaterialInstance_View.cpp">
-      <Filter>02. View\Effect Material View</Filter>
+      <Filter>02. View\Effect Material Preview</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Profile_View.cpp">
       <Filter>02. View\Profile View</Filter>
@@ -98,13 +98,10 @@
       <Filter>05. EditorOnly Object\EffectEditor Grid</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectMaterialPresetReader.cpp">
-      <Filter>02. View\Effect Material View\Support</Filter>
+      <Filter>02. View\Effect Material Preview\Support</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\EffectMaterialPreviewRenderer.cpp">
-      <Filter>02. View\Effect Material View\Preview Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\MeshDataPreview_View.cpp">
-      <Filter>02. View</Filter>
+      <Filter>02. View\Effect Material Preview\Preview Renderer</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\TrailPreviewController.cpp">
       <Filter>05. EditorOnly Object\Trail Preview Object\Controller</Filter>
@@ -114,6 +111,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\TrailPreviewPlayerObject.cpp">
       <Filter>05. EditorOnly Object\Trail Preview Object\Preview Player</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MeshDataPreview_View.cpp">
+      <Filter>02. View\Mesh Effect Preview</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -202,10 +202,10 @@
       <Filter>99. Defines\Types</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterial_View.h">
-      <Filter>02. View\Effect Material View</Filter>
+      <Filter>02. View\Effect Material Preview</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialInstance_View.h">
-      <Filter>02. View\Effect Material View</Filter>
+      <Filter>02. View\Effect Material Preview</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\Helper_ImGui.h">
       <Filter>99. Defines\Helper</Filter>
@@ -241,13 +241,10 @@
       <Filter>05. EditorOnly Object\EffectEditor Grid</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialPresetReader.h">
-      <Filter>02. View\Effect Material View\Support</Filter>
+      <Filter>02. View\Effect Material Preview\Support</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\EffectMaterialPreviewRenderer.h">
-      <Filter>02. View\Effect Material View\Preview Renderer</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\MeshDataPreview_View.h">
-      <Filter>02. View</Filter>
+      <Filter>02. View\Effect Material Preview\Preview Renderer</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\TrailPreviewController.h">
       <Filter>05. EditorOnly Object\Trail Preview Object\Controller</Filter>
@@ -257,6 +254,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\TrailPreviewPlayerObject.h">
       <Filter>05. EditorOnly Object\Trail Preview Object\Preview Player</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MeshDataPreview_View.h">
+      <Filter>02. View\Mesh Effect Preview</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -338,15 +338,6 @@
     <Filter Include="02. View\Curve Editor View">
       <UniqueIdentifier>{3219b55f-d9b4-495e-9bd5-7eeaeac6ae15}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02. View\Effect Material View">
-      <UniqueIdentifier>{30fa983f-cb74-4d4b-8ce3-d3553eac628d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02. View\Effect Material View\Support">
-      <UniqueIdentifier>{8189297c-702f-4e33-8bfd-927fc7c98955}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="02. View\Effect Material View\Preview Renderer">
-      <UniqueIdentifier>{94faf53c-b720-4e98-9432-3e20c343d149}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02. View\Emitter View">
       <UniqueIdentifier>{37d38b16-ebfc-4358-ace7-2ff7f458a3f3}</UniqueIdentifier>
     </Filter>
@@ -376,6 +367,18 @@
     </Filter>
     <Filter Include="02. View\Detail View\Drawers">
       <UniqueIdentifier>{89aacff8-7bb2-41de-832f-51ed470948d4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Effect Material Preview">
+      <UniqueIdentifier>{30fa983f-cb74-4d4b-8ce3-d3553eac628d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Effect Material Preview\Support">
+      <UniqueIdentifier>{8189297c-702f-4e33-8bfd-927fc7c98955}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Effect Material Preview\Preview Renderer">
+      <UniqueIdentifier>{94faf53c-b720-4e98-9432-3e20c343d149}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="02. View\Mesh Effect Preview">
+      <UniqueIdentifier>{4cef3f45-c637-4449-9069-8e695140c66b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

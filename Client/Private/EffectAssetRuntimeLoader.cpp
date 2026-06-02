@@ -336,13 +336,13 @@ Vec2 EffectAssetRuntimeLoader::Evaluate_Vector2CurveSegmentAutoClamped(const jso
     const Vec2 m1{ rightTangent.x * width, rightTangent.y * width };
     return Vec2{
         (2.f * t3 - 3.f * t2 + 1.f) * leftValue.x +
-            (t3 - 2.f * t2 + t) * m0.x +
-            (-2.f * t3 + 3.f * t2) * rightValue.x +
-            (t3 - t2) * m1.x,
+        (t3 - 2.f * t2 + t) * m0.x +
+        (-2.f * t3 + 3.f * t2) * rightValue.x +
+        (t3 - t2) * m1.x,
         (2.f * t3 - 3.f * t2 + 1.f) * leftValue.y +
-            (t3 - 2.f * t2 + t) * m0.y +
-            (-2.f * t3 + 3.f * t2) * rightValue.y +
-            (t3 - t2) * m1.y
+        (t3 - 2.f * t2 + t) * m0.y +
+        (-2.f * t3 + 3.f * t2) * rightValue.y +
+        (t3 - t2) * m1.y
     };
 }
 
@@ -979,6 +979,77 @@ void EffectAssetRuntimeLoader::Fill_SizeByLifePayload(PointParticleSizeByLifeDes
     }
 }
 
+void EffectAssetRuntimeLoader::Fill_MaterialScalarModulationPayload(
+    EffectMaterialScalarModulationRuntimeDesc& desc,
+    const json& materialScalarModulation)
+{
+    desc = EffectMaterialScalarModulationRuntimeDesc{};
+
+    const auto modulatorsIter = materialScalarModulation.find("modulators");
+    if (modulatorsIter == materialScalarModulation.end() || !modulatorsIter->is_array())
+        return;
+
+    const uint32 count = min(
+        EffectMaterialScalarModulationRuntimeDesc::kMaxModulators,
+        static_cast<uint32>(modulatorsIter->size())
+    );
+    desc.count = count;
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const json& source = (*modulatorsIter)[index];
+        EffectMaterialScalarModulatorRuntimeDesc& target = desc.modulators[index];
+        target.enabled = Read_Bool(source, "enabled", target.enabled);
+        Read_Enum(source, "targetField", target.targetField);
+        Read_Enum(source, "operation", target.operation);
+        Read_Enum(source, "timeSource", target.timeSource);
+
+        const auto distributionIter = source.find("distribution");
+        if (distributionIter == source.end() || !distributionIter->is_object())
+            continue;
+
+        target.curve = EffectMaterialScalarModulationCurveDesc{};
+        target.curve.enabled = true;
+
+        const string mode = Read_String(*distributionIter, "mode");
+        const json* payload = Find_DistributionPayload(*distributionIter);
+        if (payload != nullptr && mode == "ConstantCurve")
+        {
+            const auto keysIter = payload->find("keys");
+            if (keysIter != payload->end() && keysIter->is_array() && !keysIter->empty())
+            {
+                const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
+                target.curve.keyCount = keyCount;
+                target.curve.keyTimes = Vec4{};
+                target.curve.keyValues = Vec4{};
+                target.curve.keyArriveTangents = Vec4{};
+                target.curve.keyLeaveTangents = Vec4{};
+                target.curve.keyModes = Vec4{};
+
+                for (uint32 keyIndex = 0; keyIndex < keyCount; ++keyIndex)
+                {
+                    const json& key = (*keysIter)[keyIndex];
+                    Set_SubUVFrameCurveComponent(target.curve.keyTimes, keyIndex, clamp(Read_Float(key, "time"), 0.f, 1.f));
+                    Set_SubUVFrameCurveComponent(target.curve.keyValues, keyIndex, Read_Float(key, "value", 1.f));
+                    Set_SubUVFrameCurveComponent(target.curve.keyArriveTangents, keyIndex, Read_Float(key, "arriveTangent"));
+                    Set_SubUVFrameCurveComponent(target.curve.keyLeaveTangents, keyIndex, Read_Float(key, "leaveTangent"));
+                    Set_SubUVFrameCurveComponent(target.curve.keyModes, keyIndex, Resolve_CurveInterpolationMode(key));
+                }
+                continue;
+            }
+        }
+
+        float value = 1.f;
+        if (payload != nullptr && mode == "Constant")
+            value = Read_Float(*payload, "value", value);
+        else if (payload != nullptr && mode == "Uniform")
+            value = (Read_Float(*payload, "minValue", value) + Read_Float(*payload, "maxValue", value)) * 0.5f;
+
+        target.curve.keyCount = 2;
+        target.curve.keyValues = Vec4{ value, value, 0.f, 0.f };
+    }
+}
+
 void EffectAssetRuntimeLoader::Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife)
 {
     const auto rotationOverLifeIter = rotationOverLife.find("rotationOverLife");
@@ -1009,14 +1080,26 @@ void EffectAssetRuntimeLoader::Fill_RotationOverLifePayload(PointParticleRotatio
     if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
         return;
 
-    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
+    vector<const json*> keys{};
+    keys.reserve(keysIter->size());
+    for (const json& key : *keysIter)
+        keys.push_back(&key);
+    ranges::sort(
+        keys,
+        [](const json* lhs, const json* rhs)
+        {
+            return Read_Float(*lhs, "time") < Read_Float(*rhs, "time");
+        }
+    );
+
+    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
     desc.rotationOverLifeCurveKeyCount = keyCount;
     desc.rotationOverLifeCurveTimes = Vec4{};
     desc.rotationOverLifeCurveValues = Vec4{};
 
     for (uint32 index = 0; index < keyCount; ++index)
     {
-        const json& key = (*keysIter)[index];
+        const json& key = *keys[index];
         Set_SubUVFrameCurveComponent(
             desc.rotationOverLifeCurveTimes,
             index,
@@ -1090,6 +1173,51 @@ void EffectAssetRuntimeLoader::Fill_RotationRateScaleByLifePayload(PointParticle
             index,
             Read_Float(key, "value", 1.f)
         );
+    }
+}
+
+void EffectAssetRuntimeLoader::Fill_AccelerationCurvePayload(PointParticleMotionDesc& desc, const json& distribution)
+{
+    desc.accelerationCurveEnabled = false;
+    desc.accelerationCurveKeyCount = 2;
+    desc.accelerationCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.accelerationCurveValuesX = Vec4{ desc.accelerationMin.x, desc.accelerationMax.x, 0.f, 0.f };
+    desc.accelerationCurveValuesY = Vec4{ desc.accelerationMin.y, desc.accelerationMax.y, 0.f, 0.f };
+    desc.accelerationCurveValuesZ = Vec4{ desc.accelerationMin.z, desc.accelerationMax.z, 0.f, 0.f };
+
+    const json* payload = Find_DistributionPayload(distribution);
+    if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
+        return;
+
+    const auto keysIter = payload->find("keys");
+    if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+        return;
+
+    vector<const json*> keys{};
+    keys.reserve(keysIter->size());
+    for (const json& key : *keysIter)
+        keys.push_back(&key);
+    ranges::sort(keys, [](const json* lhs, const json* rhs) { return Read_Float(*lhs, "time") < Read_Float(*rhs, "time"); });
+
+    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
+    desc.accelerationCurveEnabled = true;
+    desc.accelerationCurveKeyCount = keyCount;
+    desc.accelerationCurveTimes = Vec4{};
+    desc.accelerationCurveValuesX = Vec4{};
+    desc.accelerationCurveValuesY = Vec4{};
+    desc.accelerationCurveValuesZ = Vec4{};
+
+    for (uint32 index = 0; index < keyCount; ++index)
+    {
+        const json& key = *keys[index];
+        Vec3 value{};
+        if (const auto valueIter = key.find("value"); valueIter != key.end())
+            Read_Vec3(*valueIter, value);
+
+        Set_SubUVFrameCurveComponent(desc.accelerationCurveTimes, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesX, index, value.x);
+        Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesY, index, value.y);
+        Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesZ, index, value.z);
     }
 }
 
@@ -1343,6 +1471,7 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
     if (materialIter != data.end() && materialIter->is_object())
         Apply_MaterialPayload(*materialIter, desc.material, false);
 
+    Read_Enum(data, "screenAlignment", desc.meshTransform.alignment);
     desc.playback.duration = max(0.0001f, Read_Float(data, "duration", desc.playback.duration));
     desc.playback.loopCount = Read_UInt(data, "loopCount", desc.playback.loopCount);
     desc.playback.delay = max(0.f, Read_Float(data, "delay", desc.playback.delay));
@@ -1466,12 +1595,17 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
     outDefinition.name = Read_String(emitter, "name");
     outDefinition.kind = EffectEmitterKind::ComputeSprite;
     outDefinition.enabled = true;
+    Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
 
     ComputeSpriteEmitterDesc desc{};
     desc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
+    desc.renderLayerOverride = outDefinition.renderLayerOverride;
 
     if (const json* required = Find_ModuleData(emitter, "Required"))
         Apply_RequiredModule(*required, outDefinition, desc);
+
+    if (const json* materialScalarModulation = Find_ModuleData(emitter, "MaterialScalarModulation"))
+        Fill_MaterialScalarModulationPayload(desc.required.material.scalarModulation, *materialScalarModulation);
 
     if (const json* spawn = Find_ModuleData(emitter, "Spawn"))
         Apply_SpawnModule(*spawn, desc);
@@ -1603,9 +1737,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
     }
 
     if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
-    {
         Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
-    }
 
     if (const json* initialVelocity = Find_ModuleData(emitter, "InitialVelocity"))
     {
@@ -1650,6 +1782,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         {
             desc.motion.accelerationMin = Evaluate_Vector3DistributionMin(*accelerationIter, desc.motion.accelerationMin);
             desc.motion.accelerationMax = Evaluate_Vector3DistributionMax(*accelerationIter, desc.motion.accelerationMax);
+            Fill_AccelerationCurvePayload(desc.motion, *accelerationIter);
         }
     }
 
@@ -1717,6 +1850,125 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
     return true;
 }
 
+bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition)
+{
+    outDefinition = EffectEmitterDefinition{};
+    outDefinition.id = Read_UInt(emitter, "id");
+    outDefinition.name = Read_String(emitter, "name");
+    outDefinition.kind = EffectEmitterKind::ComputeTrail;
+    outDefinition.enabled = true;
+    Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
+
+    ComputeTrailEmitterDesc desc{};
+    desc.renderLayerOverride = outDefinition.renderLayerOverride;
+
+    const auto typeDataIter = emitter.find("typeData");
+    if (typeDataIter != emitter.end() && typeDataIter->is_object())
+    {
+        const auto dataIter = typeDataIter->find("data");
+        if (dataIter != typeDataIter->end() && dataIter->is_object())
+        {
+            const json& typeData = *dataIter;
+            desc.width = max(0.001f, Read_Float(typeData, "width", desc.width));
+            desc.segmentLifetime = max(0.001f, Read_Float(typeData, "segmentLifetime", desc.segmentLifetime));
+            desc.historyCount = max(2u, Read_UInt(typeData, "historyCount", desc.historyCount));
+            desc.uvTiling = max(0.001f, Read_Float(typeData, "uvTiling", desc.uvTiling));
+            desc.maxTrailLength = max(0.f, Read_Float(typeData, "maxTrailLength", desc.maxTrailLength));
+            desc.tailFadeLength = max(0.f, Read_Float(typeData, "tailFadeLength", desc.tailFadeLength));
+            desc.sampleSpacing = max(0.001f, Read_Float(typeData, "sampleSpacing", desc.sampleSpacing));
+            desc.curveSubdivision = max(0u, Read_UInt(typeData, "curveSubdivision", desc.curveSubdivision));
+            desc.smoothTangent = Read_Bool(typeData, "smoothTangent", desc.smoothTangent);
+            desc.sideFade = clamp(Read_Float(typeData, "sideFade", desc.sideFade), 0.001f, 0.49f);
+        }
+    }
+
+    if (const json* required = Find_ModuleData(emitter, "Required"))
+        Apply_RequiredModule(*required, outDefinition, desc);
+
+    if (const json* materialScalarModulation = Find_ModuleData(emitter, "MaterialScalarModulation"))
+        Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
+
+    if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
+    {
+        const auto lifeTimeIter = lifetime->find("lifeTime");
+        if (lifeTimeIter != lifetime->end())
+        {
+            desc.lifetime.lifeTime = Vec2{
+                Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
+                Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
+            };
+            desc.segmentLifetime = max(0.001f, desc.lifetime.lifeTime.y);
+        }
+    }
+
+    if (const json* initialColor = Find_ModuleData(emitter, "InitialColor"))
+    {
+        const auto colorIter = initialColor->find("color");
+        if (colorIter != initialColor->end())
+        {
+            desc.initialColor.startColorMin = Evaluate_ColorDistributionMin(*colorIter, desc.initialColor.startColorMin);
+            desc.initialColor.startColorMax = Evaluate_ColorDistributionMax(*colorIter, desc.initialColor.startColorMax);
+        }
+
+        const auto alphaIter = initialColor->find("alpha");
+        if (alphaIter != initialColor->end())
+        {
+            desc.initialColor.startColorMin.w =
+                clamp(Evaluate_FloatDistributionMin(*alphaIter, desc.initialColor.startColorMin.w), 0.f, 1.f);
+            desc.initialColor.startColorMax.w =
+                clamp(Evaluate_FloatDistributionMax(*alphaIter, desc.initialColor.startColorMax.w), 0.f, 1.f);
+        }
+
+        desc.colorOverLife.endColorMin = desc.initialColor.startColorMin;
+        desc.colorOverLife.endColorMax = desc.initialColor.startColorMax;
+    }
+
+    if (const json* colorOverLife = Find_ModuleData(emitter, "ColorOverLife"))
+    {
+        const auto colorIter = colorOverLife->find("colorOverLife");
+        if (colorIter != colorOverLife->end())
+        {
+            desc.colorOverLife.endColorMin = Evaluate_ColorOverLifeEndpointColorMin(*colorIter, desc.colorOverLife.endColorMin);
+            desc.colorOverLife.endColorMax = Evaluate_ColorOverLifeEndpointColorMax(*colorIter, desc.colorOverLife.endColorMax);
+        }
+
+        const auto alphaIter = colorOverLife->find("alphaOverLife");
+        if (alphaIter != colorOverLife->end())
+        {
+            desc.colorOverLife.endColorMin.w =
+                clamp(Evaluate_ColorOverLifeEndpointAlphaMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
+            desc.colorOverLife.endColorMax.w =
+                clamp(Evaluate_ColorOverLifeEndpointAlphaMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
+        }
+
+        Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
+    }
+
+    if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
+        Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
+
+    if (const json* spawnPerUnit = Find_ModuleData(emitter, "SpawnPerUnit"))
+    {
+        desc.spawnPerUnit.enabled = Read_Bool(*spawnPerUnit, "enabled", true);
+
+        const auto spawnPerUnitIter = spawnPerUnit->find("spawnPerUnit");
+        if (spawnPerUnitIter != spawnPerUnit->end())
+        {
+            desc.spawnPerUnit.spawnPerUnit =
+                max(0.f, Evaluate_FloatDistributionMax(*spawnPerUnitIter, desc.spawnPerUnit.spawnPerUnit));
+        }
+
+        desc.spawnPerUnit.unitScalar = max(0.0001f, Read_Float(*spawnPerUnit, "unitScalar", desc.spawnPerUnit.unitScalar));
+        desc.spawnPerUnit.movementTolerance =
+            max(0.f, Read_Float(*spawnPerUnit, "movementTolerance", desc.spawnPerUnit.movementTolerance));
+        desc.spawnPerUnit.maxFrameDistance =
+            max(0.f, Read_Float(*spawnPerUnit, "maxFrameDistance", desc.spawnPerUnit.maxFrameDistance));
+    }
+
+    outDefinition.concreteDesc = desc;
+    return true;
+}
+
 bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition)
 {
     outDefinition = EffectEmitterDefinition{};
@@ -1724,8 +1976,10 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
     outDefinition.name = Read_String(emitter, "name");
     outDefinition.kind = EffectEmitterKind::Mesh;
     outDefinition.enabled = true;
+    Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
 
     MeshEmitterDesc desc{};
+    desc.renderLayerOverride = outDefinition.renderLayerOverride;
     string assignedEffectMaterialGuid{};
     string assignedEffectMaterialPath{};
     bool hasAssignedMaterialInstance = false;
@@ -1760,10 +2014,11 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
     if (const json* required = Find_ModuleData(emitter, "Required"))
         Apply_RequiredModule(*required, outDefinition, desc);
 
+    if (const json* materialScalarModulation = Find_ModuleData(emitter, "MaterialScalarModulation"))
+        Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
+
     if (hasAssignedMaterialInstance && assignedMaterialPayload.is_object())
-    {
         Apply_MaterialPayload(assignedMaterialPayload, desc.material, false);
-    }
     else
     {
         fs::path assignedMaterialResolvedPath{};
@@ -1810,40 +2065,16 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
     if (const json* spawn = Find_ModuleData(emitter, "Spawn"))
         Apply_SpawnModule(*spawn, desc);
 
-    if (const json* initialSize = Find_ModuleData(emitter, "InitialSize"))
+    if (const json* initialMeshSize = Find_ModuleData(emitter, "InitialMeshSize"))
     {
-        desc.initialSize.enabled = true;
-        const auto sizeIter = initialSize->find("size");
-        if (sizeIter != initialSize->end())
+        const auto sizeIter = initialMeshSize->find("size");
+        if (sizeIter != initialMeshSize->end())
         {
-            const Vec2 minSize = Evaluate_Vector2DistributionMin(*sizeIter, desc.initialSize.sizeMin);
-            const Vec2 maxSize = Evaluate_Vector2DistributionMax(*sizeIter, desc.initialSize.sizeMax);
-            desc.initialSize.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
-            desc.initialSize.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
-        }
-
-        desc.meshTransform.initialScaleEnabled = true;
-        const json* meshSizeIter = nullptr;
-        if (const auto iter = initialSize->find("meshSize"); iter != initialSize->end())
-            meshSizeIter = &*iter;
-
-        if (meshSizeIter != nullptr)
-        {
-            const Vec3 minSize = Evaluate_Vector3DistributionMin(
-                *meshSizeIter,
-                Vec3{ desc.initialSize.sizeMin.x, desc.initialSize.sizeMin.y, desc.initialSize.sizeMin.x }
-            );
-            const Vec3 maxSize = Evaluate_Vector3DistributionMax(
-                *meshSizeIter,
-                Vec3{ desc.initialSize.sizeMax.x, desc.initialSize.sizeMax.y, desc.initialSize.sizeMax.x }
-            );
+            desc.meshTransform.initialScaleEnabled = true;
+            const Vec3 minSize = Evaluate_Vector3DistributionMin(*sizeIter, desc.meshTransform.initialScaleMin);
+            const Vec3 maxSize = Evaluate_Vector3DistributionMax(*sizeIter, desc.meshTransform.initialScaleMax);
             desc.meshTransform.initialScaleMin = Vec3{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y), min(minSize.z, maxSize.z) };
             desc.meshTransform.initialScaleMax = Vec3{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y), max(minSize.z, maxSize.z) };
-        }
-        else
-        {
-            desc.meshTransform.initialScaleMin = Vec3{ desc.initialSize.sizeMin.x, desc.initialSize.sizeMin.y, desc.initialSize.sizeMin.x };
-            desc.meshTransform.initialScaleMax = Vec3{ desc.initialSize.sizeMax.x, desc.initialSize.sizeMax.y, desc.initialSize.sizeMax.x };
         }
     }
 
@@ -1935,29 +2166,18 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
     }
 
-    if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
+    if (const json* meshSizeByLife = Find_ModuleData(emitter, "MeshSizeByLife"))
     {
-        Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
-        if (const auto meshScaleIter = sizeByLife->find("meshScaleOverLife"); meshScaleIter != sizeByLife->end())
+        const auto scaleIter = meshSizeByLife->find("scaleOverLife");
+        if (scaleIter != meshSizeByLife->end())
         {
-            Fill_MeshVector3CurvePayload(desc.meshTransform.scaleByLife, *meshScaleIter, Vec3{ 1.f, 1.f, 1.f });
-            if (!Read_Bool(*sizeByLife, "multiplyX", true))
+            Fill_MeshVector3CurvePayload(desc.meshTransform.scaleByLife, *scaleIter, Vec3{ 1.f, 1.f, 1.f });
+            if (!Read_Bool(*meshSizeByLife, "multiplyX", true))
                 desc.meshTransform.scaleByLife.curveKeyValuesX = Vec4{ 1.f, 1.f, 1.f, 1.f };
-            if (!Read_Bool(*sizeByLife, "multiplyY", true))
+            if (!Read_Bool(*meshSizeByLife, "multiplyY", true))
                 desc.meshTransform.scaleByLife.curveKeyValuesY = Vec4{ 1.f, 1.f, 1.f, 1.f };
-            if (!Read_Bool(*sizeByLife, "multiplyZ", true))
+            if (!Read_Bool(*meshSizeByLife, "multiplyZ", true))
                 desc.meshTransform.scaleByLife.curveKeyValuesZ = Vec4{ 1.f, 1.f, 1.f, 1.f };
-        }
-        else if (const auto scaleIter = sizeByLife->find("scaleOverLife"); scaleIter != sizeByLife->end())
-        {
-            const Vec2 startValue = Evaluate_Vector2DistributionMin(*scaleIter, Vec2{ 1.f, 1.f });
-            const Vec2 endValue = Evaluate_Vector2DistributionMax(*scaleIter, Vec2{ 1.f, 1.f });
-            desc.meshTransform.scaleByLife.enabled = true;
-            desc.meshTransform.scaleByLife.start = Vec3{ startValue.x, startValue.y, startValue.x };
-            desc.meshTransform.scaleByLife.end = Vec3{ endValue.x, endValue.y, endValue.x };
-            desc.meshTransform.scaleByLife.curveKeyValuesX = Vec4{ startValue.x, endValue.x, 0.f, 0.f };
-            desc.meshTransform.scaleByLife.curveKeyValuesY = Vec4{ startValue.y, endValue.y, 0.f, 0.f };
-            desc.meshTransform.scaleByLife.curveKeyValuesZ = Vec4{ startValue.x, endValue.x, 0.f, 0.f };
         }
     }
 
@@ -2004,6 +2224,7 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         {
             desc.motion.accelerationMin = Evaluate_Vector3DistributionMin(*accelerationIter, desc.motion.accelerationMin);
             desc.motion.accelerationMax = Evaluate_Vector3DistributionMax(*accelerationIter, desc.motion.accelerationMax);
+            Fill_AccelerationCurvePayload(desc.motion, *accelerationIter);
         }
     }
 
@@ -2029,76 +2250,54 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         };
     }
 
-    if (const json* initialRotation = Find_ModuleData(emitter, "InitialRotation"))
+    if (const json* initialMeshRotation = Find_ModuleData(emitter, "InitialMeshRotation"))
     {
-        desc.rotation.enabled = true;
-        const auto rotationIter = initialRotation->find("rotationDegrees");
-        if (rotationIter != initialRotation->end())
+        const auto rotationIter = initialMeshRotation->find("rotationDegrees");
+        if (rotationIter != initialMeshRotation->end())
         {
-            desc.rotation.initialRotationDegrees = Vec2{
-                Evaluate_FloatDistributionMin(*rotationIter, desc.rotation.initialRotationDegrees.x),
-                Evaluate_FloatDistributionMax(*rotationIter, desc.rotation.initialRotationDegrees.y)
+            const Vec3 minRotation = Evaluate_Vector3DistributionMin(*rotationIter, Vec3{});
+            const Vec3 maxRotation = Evaluate_Vector3DistributionMax(*rotationIter, Vec3{});
+            desc.meshTransform.rotationEnabled = true;
+            desc.meshTransform.initialRotationDegreesMin = Vec3{
+                min(minRotation.x, maxRotation.x), min(minRotation.y, maxRotation.y), min(minRotation.z, maxRotation.z)
             };
-        }
-
-        desc.meshTransform.rotationEnabled = true;
-        if (const auto meshRotationIter = initialRotation->find("meshRotationDegrees"); meshRotationIter != initialRotation->end())
-        {
-            const Vec3 minRotation = Evaluate_Vector3DistributionMin(*meshRotationIter, Vec3{});
-            const Vec3 maxRotation = Evaluate_Vector3DistributionMax(*meshRotationIter, Vec3{});
-            desc.meshTransform.initialRotationDegreesMin = Vec3{ min(minRotation.x, maxRotation.x), min(minRotation.y, maxRotation.y), min(minRotation.z, maxRotation.z) };
-            desc.meshTransform.initialRotationDegreesMax = Vec3{ max(minRotation.x, maxRotation.x), max(minRotation.y, maxRotation.y), max(minRotation.z, maxRotation.z) };
-        }
-        else
-        {
-            desc.meshTransform.initialRotationDegreesMin = Vec3{ desc.rotation.initialRotationDegrees.x, desc.rotation.initialRotationDegrees.x, desc.rotation.initialRotationDegrees.x };
-            desc.meshTransform.initialRotationDegreesMax = Vec3{ desc.rotation.initialRotationDegrees.y, desc.rotation.initialRotationDegrees.y, desc.rotation.initialRotationDegrees.y };
+            desc.meshTransform.initialRotationDegreesMax = Vec3{
+                max(minRotation.x, maxRotation.x), max(minRotation.y, maxRotation.y), max(minRotation.z, maxRotation.z)
+            };
         }
     }
 
-    if (const json* rotationOverLife = Find_ModuleData(emitter, "RotationOverLife"))
+    if (const json* meshRotationOverLife = Find_ModuleData(emitter, "MeshRotationOverLife"))
     {
-        desc.rotation.enabled = true;
-        Fill_RotationOverLifePayload(desc.rotation, *rotationOverLife);
-        desc.meshTransform.rotationEnabled = true;
-        if (const auto meshRotationIter = rotationOverLife->find("meshRotationOverLife"); meshRotationIter != rotationOverLife->end())
-            Fill_MeshVector3CurvePayload(desc.meshTransform.rotationByLife, *meshRotationIter, Vec3{});
+        const auto rotationIter = meshRotationOverLife->find("rotationOverLife");
+        if (rotationIter != meshRotationOverLife->end())
+        {
+            desc.meshTransform.rotationEnabled = true;
+            Fill_MeshVector3CurvePayload(desc.meshTransform.rotationByLife, *rotationIter, Vec3{});
+        }
     }
 
-    if (const json* initialRotationRate = Find_ModuleData(emitter, "InitialRotationRate"))
+    if (const json* initialMeshRotationRate = Find_ModuleData(emitter, "InitialMeshRotationRate"))
     {
-        desc.rotation.enabled = true;
-        const auto rotationRateIter = initialRotationRate->find("rotationRateDegrees");
-        if (rotationRateIter != initialRotationRate->end())
+        const auto rotationRateIter = initialMeshRotationRate->find("rotationRateDegrees");
+        if (rotationRateIter != initialMeshRotationRate->end())
         {
-            desc.rotation.initialRotationRateDegrees = Vec2{
-                Evaluate_FloatDistributionMin(*rotationRateIter, desc.rotation.initialRotationRateDegrees.x),
-                Evaluate_FloatDistributionMax(*rotationRateIter, desc.rotation.initialRotationRateDegrees.y)
-            };
-        }
-
-        desc.meshTransform.rotationEnabled = true;
-        if (const auto meshRateIter = initialRotationRate->find("meshRotationRateDegrees"); meshRateIter != initialRotationRate->end())
-        {
-            const Vec3 minRate = Evaluate_Vector3DistributionMin(*meshRateIter, Vec3{});
-            const Vec3 maxRate = Evaluate_Vector3DistributionMax(*meshRateIter, Vec3{});
+            const Vec3 minRate = Evaluate_Vector3DistributionMin(*rotationRateIter, Vec3{});
+            const Vec3 maxRate = Evaluate_Vector3DistributionMax(*rotationRateIter, Vec3{});
+            desc.meshTransform.rotationEnabled = true;
             desc.meshTransform.initialAngularVelocityDegreesMin = Vec3{ min(minRate.x, maxRate.x), min(minRate.y, maxRate.y), min(minRate.z, maxRate.z) };
             desc.meshTransform.initialAngularVelocityDegreesMax = Vec3{ max(minRate.x, maxRate.x), max(minRate.y, maxRate.y), max(minRate.z, maxRate.z) };
         }
-        else
-        {
-            desc.meshTransform.initialAngularVelocityDegreesMin = Vec3{ desc.rotation.initialRotationRateDegrees.x, desc.rotation.initialRotationRateDegrees.x, desc.rotation.initialRotationRateDegrees.x };
-            desc.meshTransform.initialAngularVelocityDegreesMax = Vec3{ desc.rotation.initialRotationRateDegrees.y, desc.rotation.initialRotationRateDegrees.y, desc.rotation.initialRotationRateDegrees.y };
-        }
     }
 
-    if (const json* rotationRateScaleByLife = Find_ModuleData(emitter, "RotationRateScaleByLife"))
+    if (const json* meshRotationRateScaleByLife = Find_ModuleData(emitter, "MeshRotationRateScaleByLife"))
     {
-        desc.rotation.enabled = true;
-        Fill_RotationRateScaleByLifePayload(desc.rotation, *rotationRateScaleByLife);
-        desc.meshTransform.rotationEnabled = true;
-        if (const auto meshScaleIter = rotationRateScaleByLife->find("meshScaleOverLife"); meshScaleIter != rotationRateScaleByLife->end())
-            Fill_MeshVector3CurvePayload(desc.meshTransform.angularVelocityScaleByLife, *meshScaleIter, Vec3{ 1.f, 1.f, 1.f });
+        const auto scaleIter = meshRotationRateScaleByLife->find("scaleOverLife");
+        if (scaleIter != meshRotationRateScaleByLife->end())
+        {
+            desc.meshTransform.rotationEnabled = true;
+            Fill_MeshVector3CurvePayload(desc.meshTransform.angularVelocityScaleByLife, *scaleIter, Vec3{ 1.f, 1.f, 1.f });
+        }
     }
 
     if (desc.modelGuid.empty() && desc.modelPath.empty())
@@ -2138,122 +2337,6 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
             desc.modelPath
         );
         return false;
-    }
-
-    outDefinition.concreteDesc = desc;
-    return true;
-}
-
-bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition)
-{
-    outDefinition = EffectEmitterDefinition{};
-    outDefinition.id = Read_UInt(emitter, "id");
-    outDefinition.name = Read_String(emitter, "name");
-    outDefinition.kind = EffectEmitterKind::ComputeTrail;
-    outDefinition.enabled = true;
-
-    ComputeTrailEmitterDesc desc{};
-
-    const auto typeDataIter = emitter.find("typeData");
-    if (typeDataIter != emitter.end() && typeDataIter->is_object())
-    {
-        const auto dataIter = typeDataIter->find("data");
-        if (dataIter != typeDataIter->end() && dataIter->is_object())
-        {
-            const json& typeData = *dataIter;
-            desc.width = max(0.001f, Read_Float(typeData, "width", desc.width));
-            desc.segmentLifetime = max(0.001f, Read_Float(typeData, "segmentLifetime", desc.segmentLifetime));
-            desc.historyCount = max(2u, Read_UInt(typeData, "historyCount", desc.historyCount));
-            desc.uvTiling = max(0.001f, Read_Float(typeData, "uvTiling", desc.uvTiling));
-            desc.maxTrailLength = max(0.f, Read_Float(typeData, "maxTrailLength", desc.maxTrailLength));
-            desc.tailFadeLength = max(0.f, Read_Float(typeData, "tailFadeLength", desc.tailFadeLength));
-            desc.sampleSpacing = max(0.001f, Read_Float(typeData, "sampleSpacing", desc.sampleSpacing));
-            desc.curveSubdivision = max(0u, Read_UInt(typeData, "curveSubdivision", desc.curveSubdivision));
-            desc.smoothTangent = Read_Bool(typeData, "smoothTangent", desc.smoothTangent);
-            desc.sideFade = clamp(Read_Float(typeData, "sideFade", desc.sideFade), 0.001f, 0.49f);
-        }
-    }
-
-    if (const json* required = Find_ModuleData(emitter, "Required"))
-        Apply_RequiredModule(*required, outDefinition, desc);
-
-    if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
-    {
-        const auto lifeTimeIter = lifetime->find("lifeTime");
-        if (lifeTimeIter != lifetime->end())
-        {
-            desc.lifetime.lifeTime = Vec2{
-                Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
-                Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
-            };
-            desc.segmentLifetime = max(0.001f, desc.lifetime.lifeTime.y);
-        }
-    }
-
-    if (const json* initialColor = Find_ModuleData(emitter, "InitialColor"))
-    {
-        const auto colorIter = initialColor->find("color");
-        if (colorIter != initialColor->end())
-        {
-            desc.initialColor.startColorMin = Evaluate_ColorDistributionMin(*colorIter, desc.initialColor.startColorMin);
-            desc.initialColor.startColorMax = Evaluate_ColorDistributionMax(*colorIter, desc.initialColor.startColorMax);
-        }
-
-        const auto alphaIter = initialColor->find("alpha");
-        if (alphaIter != initialColor->end())
-        {
-            desc.initialColor.startColorMin.w =
-                clamp(Evaluate_FloatDistributionMin(*alphaIter, desc.initialColor.startColorMin.w), 0.f, 1.f);
-            desc.initialColor.startColorMax.w =
-                clamp(Evaluate_FloatDistributionMax(*alphaIter, desc.initialColor.startColorMax.w), 0.f, 1.f);
-        }
-
-        desc.colorOverLife.endColorMin = desc.initialColor.startColorMin;
-        desc.colorOverLife.endColorMax = desc.initialColor.startColorMax;
-    }
-
-    if (const json* colorOverLife = Find_ModuleData(emitter, "ColorOverLife"))
-    {
-        const auto colorIter = colorOverLife->find("colorOverLife");
-        if (colorIter != colorOverLife->end())
-        {
-            desc.colorOverLife.endColorMin = Evaluate_ColorOverLifeEndpointColorMin(*colorIter, desc.colorOverLife.endColorMin);
-            desc.colorOverLife.endColorMax = Evaluate_ColorOverLifeEndpointColorMax(*colorIter, desc.colorOverLife.endColorMax);
-        }
-
-        const auto alphaIter = colorOverLife->find("alphaOverLife");
-        if (alphaIter != colorOverLife->end())
-        {
-            desc.colorOverLife.endColorMin.w =
-                clamp(Evaluate_ColorOverLifeEndpointAlphaMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
-            desc.colorOverLife.endColorMax.w =
-                clamp(Evaluate_ColorOverLifeEndpointAlphaMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
-        }
-
-        Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
-    }
-
-    if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
-    {
-        Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
-    }
-
-    if (const json* spawnPerUnit = Find_ModuleData(emitter, "SpawnPerUnit"))
-    {
-        desc.spawnPerUnit.enabled = Read_Bool(*spawnPerUnit, "enabled", true);
-
-        const auto spawnPerUnitIter = spawnPerUnit->find("spawnPerUnit");
-        if (spawnPerUnitIter != spawnPerUnit->end())
-        {
-            desc.spawnPerUnit.spawnPerUnit =
-                max(0.f, Evaluate_FloatDistributionMax(*spawnPerUnitIter, desc.spawnPerUnit.spawnPerUnit));
-        }
-
-        desc.spawnPerUnit.unitScalar = max(0.0001f, Read_Float(*spawnPerUnit, "unitScalar", desc.spawnPerUnit.unitScalar));
-        desc.spawnPerUnit.movementTolerance =
-            max(0.f, Read_Float(*spawnPerUnit, "movementTolerance", desc.spawnPerUnit.movementTolerance));
-        desc.spawnPerUnit.maxFrameDistance =
-            max(0.f, Read_Float(*spawnPerUnit, "maxFrameDistance", desc.spawnPerUnit.maxFrameDistance));
     }
 
     outDefinition.concreteDesc = desc;

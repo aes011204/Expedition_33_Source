@@ -4,6 +4,7 @@
 #include "Body_Player.h"
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
+#include "Player_WorldBase.h"
 
 Player_Jump::Player_Jump(const Shared<Player_WorldBase>& owner)
 	: Player_State{ owner } {}
@@ -48,7 +49,7 @@ void Player_Jump::Update(float timeDelta)
 	{
 		_fallTime += timeDelta;
 
-		if (isFinished)
+		if (isFinished) 
 		{
 			if (animIndex == ETOI(plAnim::Pl_JumpWalk) || animIndex == ETOI(plAnim::Pl_JumpRun))
 			{
@@ -60,7 +61,7 @@ void Player_Jump::Update(float timeDelta)
 	{
 		if (animIndex != ETOI(plAnim::Pl_LandLight) && animIndex != ETOI(plAnim::Pl_LandHeavy))
 		{
-			if (_fallTime >= 0.5f)
+			if (_fallTime >= 1.f)
 			{
 				_bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_LandHeavy), 0.2f, false);
                 _bodyPlayer->Set_AnimationSpeed(1.5f);

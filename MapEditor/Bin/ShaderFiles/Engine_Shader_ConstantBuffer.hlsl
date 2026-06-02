@@ -29,13 +29,21 @@ cbuffer ShadowBuffer
     row_major float4x4 g_LightViewMatrix;
     row_major float4x4 g_LightProjMatrix;
 
+    row_major float4x4 g_CascadeLightViewMatrices[4];
+    row_major float4x4 g_CascadeLightProjMatrices[4];
+
     row_major float4x4 g_StaticLightViewMatrix;
     row_major float4x4 g_StaticLightProjMatrix;
 
-    float g_LightFar;           
-    float g_Bias;               
-    float g_ShadowIntensity;    
+    float4 g_CascadeSplits;
+    float g_CascadeBlendDistance;
+    float g_LightFar;
+    float g_Bias;
+
+    float g_ShadowIntensity;
     float g_StaticShadowEnabled;
+    uint g_ShadowCascadeCount;
+    uint g_ActiveShadowCascadeIndex;
 };
 
 cbuffer ScreenSpaceBuffer
@@ -183,9 +191,9 @@ cbuffer ScreenFxBuffer
 {
     float3 g_vignetteColor;
     float g_vignetteIntensity;
-
     float g_vignetteRadius;
     float g_vignetteSoftness;
+
     float g_ghostingIntensity;
     float g_transitionProgress;
 

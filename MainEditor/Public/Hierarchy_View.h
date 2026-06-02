@@ -44,6 +44,7 @@ private:
     uint64  _cachedObjectRevision = UINT64_MAX;
     bool    _dirtyHierarchyCache = true;
     bool    _isPrimaryShadowLightSelected = false;
+    bool    _scrollSelectionIntoView = false;
 
 public:
     static Shared<Hierarchy_View> Create();
