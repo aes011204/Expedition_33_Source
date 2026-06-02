@@ -52,14 +52,14 @@ void BattleTransition_ScreenFx::Update_ScreenFx(float timeDelta)
     
     Evaluate_At(_elapsedTime);
 
-    if (_elapsedTime >= 0.75f && _isRoseFlare == false)
+    if (_isRoseFlare == false)
     {
         RoseFlare(); 
         _isRoseFlare = true;
     }
 
     if (_roseFlareHandle.effectObject == nullptr) return;
-
+    
     if (auto mainCamera = GAME->Get_ActiveCamera())
     {
         auto camTransform = mainCamera->Get_Transform();
