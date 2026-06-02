@@ -21,6 +21,7 @@ namespace Internal
                 return nullptr;
 
             ComputeSpriteEmitterDesc concreteDesc = *desc;
+            concreteDesc.renderLayerOverride = emitterDefinition.renderLayerOverride;
             const Shared<GameObject> clonedObject = dynamic_pointer_cast<GameObject>(
                 GAME->Clone_Prototype(
                     Prototype::GameObject,
@@ -40,6 +41,7 @@ namespace Internal
                 return nullptr;
 
             ComputeTrailEmitterDesc concreteDesc = *desc;
+            concreteDesc.renderLayerOverride = emitterDefinition.renderLayerOverride;
             const Shared<GameObject> clonedObject = dynamic_pointer_cast<GameObject>(
                 GAME->Clone_Prototype(
                     Prototype::GameObject,
@@ -59,6 +61,7 @@ namespace Internal
                 return nullptr;
 
             MeshEmitterDesc concreteDesc = *desc;
+            concreteDesc.renderLayerOverride = emitterDefinition.renderLayerOverride;
             const Shared<GameObject> clonedObject = dynamic_pointer_cast<GameObject>(
                 GAME->Clone_Prototype(
                     Prototype::GameObject,

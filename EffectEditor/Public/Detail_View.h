@@ -87,6 +87,7 @@ private: //## Data::ModuleDetail
     SizeByLifeModuleDetail _sizeByLifeModuleDetail{};
     MeshSizeByLifeModuleDetail _meshSizeByLifeModuleDetail{};
     SpawnPerUnitModuleDetail _spawnPerUnitModuleDetail{};
+    MaterialScalarModulationModuleDetail _materialScalarModulationModuleDetail{};
 
 private: //## Data::AuthoringHistory
     // selection 전환이나 입력 종료 시점까지 하나의 authoring edit command를 지연 관리한다.
