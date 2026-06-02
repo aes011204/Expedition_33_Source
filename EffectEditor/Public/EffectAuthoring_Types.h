@@ -17,6 +17,7 @@ enum class AuthoringModuleType : uint8
     InitialMeshSize,
     InitialVelocity,
     InitialRadialVelocity,
+    VelocityCone,
     Acceleration,
     Drag,
     VelocityOverLife,
@@ -588,9 +589,7 @@ struct LifetimeModuleData
 
 struct InitialLocationModuleData
 {
-    Vector3DistributionData location{
-        Vector3DistributionData::Make_Uniform(Vec3{ -0.5f, -0.5f, -0.5f }, Vec3{ 0.5f, 0.5f, 0.5f })
-    };
+    Vector3DistributionData location{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
 };
 
 enum class SphereLocationSpawnMode : uint8
@@ -681,7 +680,7 @@ struct PlaneRadialOrientationModuleData
 
 struct InitialSizeModuleData
 {
-    Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.1f, 0.1f }) };
+    Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.3f, 0.3f }) };
 };
 
 struct InitialMeshSizeModuleData
@@ -697,8 +696,16 @@ struct InitialVelocityModuleData
 
 struct InitialRadialVelocityModuleData
 {
-    FloatDistributionData speed{ FloatDistributionData::Make_Uniform(0.5f, 1.5f) };
+    FloatDistributionData speed{ FloatDistributionData::Make_Uniform(1.f, 2.f) };
     Vec3 radialPivot{ 0.f, 0.f, 0.f };
+    bool inWorldSpace{ false };
+};
+
+struct VelocityConeModuleData
+{
+    Vec3 axis{ 0.f, 1.f, 0.f };
+    float angleDegrees{ 30.f };
+    FloatDistributionData speed{ FloatDistributionData::Make_Uniform(1.f, 2.f) };
     bool inWorldSpace{ false };
 };
 
@@ -714,8 +721,7 @@ struct DragModuleData
 
 struct VelocityOverLifeModuleData
 {
-    float scaleStart{ 1.f };
-    float scaleEnd{ 1.f };
+    FloatDistributionData scaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f, 1.f) };
 };
 
 struct InitialRotationModuleData
@@ -870,6 +876,7 @@ using AuthoringModuleData = std::variant<
     InitialMeshSizeModuleData,
     InitialVelocityModuleData,
     InitialRadialVelocityModuleData,
+    VelocityConeModuleData,
     AccelerationModuleData,
     DragModuleData,
     VelocityOverLifeModuleData,

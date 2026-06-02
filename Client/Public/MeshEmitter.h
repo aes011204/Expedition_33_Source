@@ -68,6 +68,7 @@ private: //## Types::PlaybackRuntime
         float drag{};                          // 매 frame velocity 감쇠에 사용할 drag 계수다.
         Vec3 baseScale{ 1.f, 1.f, 1.f };       // life curve 적용 전 초기 mesh scale이다.
         Quat planeRadialOrientation{ Quat::Identity }; // PlaneRadialOrientation에서 만든 spawn 기준 mesh 회전이다.
+        bool planeRadialOrientationEnabled{ false }; // spawn 기준 radial mesh 회전이 실제 적용 가능한지 나타낸다.
         Vec3 rotationRadians{};                // 현재 particle 회전값이다.
         Vec3 angularVelocityRadians{};         // 현재 particle 회전 속도다.
         Vec4 startColor{ 1.f, 1.f, 1.f, 1.f }; // InitialColor에서 정한 particle 시작 색상이다.
@@ -205,7 +206,7 @@ private: //## Helper::SamplingEvaluation
     // location module에서 초기 local offset을 sample한다.
     Vec3 Sample_InitialOffset(uint32 seed, uint32 particleIndex, uint32 maxActiveCount, PlaneRadialSample& outPlaneRadialSample) const;
     // PlaneRadialLocation sample frame을 mesh radial orientation용 회전으로 낮춘다.
-    Quat Build_PlaneRadialMeshOrientation(const PlaneRadialSample& sample) const;
+    Quat Build_PlaneRadialMeshOrientation(const PlaneRadialSample& sample, bool& outEnabled) const;
     // velocity/radial velocity를 합친 초기 속도를 sample한다.
     Vec3 Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed) const;
     // motion acceleration range에서 particle acceleration을 sample한다.

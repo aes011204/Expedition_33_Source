@@ -63,11 +63,13 @@ struct ComputePointParticleParams
     Vec4 sizeByLifeCurveValuesY{}; // SizeByLife Y multiplier key values.
     Vec4 sizeByLifeCurveParams{}; // x: key count, y: multiplyX, z: multiplyY, w: axisLock.
     Vec4 motionFlags{};           // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled.
-    Vec4 motionSpaceFlags{};      // x: radial world, y/z/w: unused.
+    Vec4 motionSpaceFlags{};      // x: radial world, y: cone enabled, z: cone world, w: unused.
     Vec4 initialVelocityMin{};    // xyz: vector velocity min, w: unused.
     Vec4 initialVelocityMax{};    // xyz: vector velocity max, w: unused.
     Vec4 motionRadialPivot{};     // xyz: radial pivot, w: unused.
     Vec4 motionRadialSpeedDrag{}; // x/y: radial speed min/max, z/w: drag min/max.
+    Vec4 velocityConeAxisAngle{}; // xyz: cone axis, w: half-angle degrees.
+    Vec4 velocityConeSpeed{};     // x/y: cone speed min/max, z/w: unused.
     Vec4 accelerationMin{};       // xyz: acceleration min, w: unused.
     Vec4 accelerationMax{};       // xyz: acceleration max, w: unused.
     Vec4 accelerationCurveTimes{};   // Acceleration key times.
@@ -76,6 +78,9 @@ struct ComputePointParticleParams
     Vec4 accelerationCurveValuesZ{}; // Acceleration Z key values.
     Vec4 accelerationCurveParams{};  // x: key count, y: enabled, z/w: unused.
     Vec4 velocityScaleByLife{};   // x/y: scale start/end, z/w: unused.
+    Vec4 velocityScaleByLifeCurveTimes{};  // VelocityOverLife key times.
+    Vec4 velocityScaleByLifeCurveValues{}; // VelocityOverLife multiplier values.
+    Vec4 velocityScaleByLifeCurveParams{}; // x: key count, y/z/w: unused.
     Vec4 rotationInitialRate{};   // x/y: initial rotation min/max, z/w: rate min/max.
     Vec4 rotationByLife{};        // x/y: legacy rotation start/end, z/w: rate scale start/end.
     Vec4 rotationOverLifeCurveTimes{};  // RotationOverLife key times.
@@ -524,8 +529,8 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         },
         .motionSpaceFlags = Vec4{
             _desc.motion.initialRadialVelocityInWorldSpace ? 1.f : 0.f,
-            0.f,
-            0.f,
+            _desc.motion.velocityConeEnabled ? 1.f : 0.f,
+            _desc.motion.velocityConeInWorldSpace ? 1.f : 0.f,
             0.f
         },
         .initialVelocityMin = Vec4{
@@ -552,6 +557,18 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.motion.drag.x,
             _desc.motion.drag.y
         },
+        .velocityConeAxisAngle = Vec4{
+            _desc.motion.velocityConeAxis.x,
+            _desc.motion.velocityConeAxis.y,
+            _desc.motion.velocityConeAxis.z,
+            clamp(_desc.motion.velocityConeAngleDegrees, 0.f, 180.f)
+        },
+        .velocityConeSpeed = Vec4{
+            _desc.motion.velocityConeSpeed.x,
+            _desc.motion.velocityConeSpeed.y,
+            0.f,
+            0.f
+        },
         .accelerationMin = Vec4{
             _desc.motion.accelerationMin.x,
             _desc.motion.accelerationMin.y,
@@ -575,6 +592,14 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             0.f
         },
         .velocityScaleByLife = Vec4{ _desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, 0.f, 0.f },
+        .velocityScaleByLifeCurveTimes = _desc.motion.velocityScaleByLifeCurveTimes,
+        .velocityScaleByLifeCurveValues = _desc.motion.velocityScaleByLifeCurveValues,
+        .velocityScaleByLifeCurveParams = Vec4{
+            static_cast<float>(_desc.motion.velocityScaleByLifeCurveKeyCount),
+            0.f,
+            0.f,
+            0.f
+        },
         .rotationInitialRate = Vec4{
             _desc.rotation.initialRotationDegrees.x,
             _desc.rotation.initialRotationDegrees.y,

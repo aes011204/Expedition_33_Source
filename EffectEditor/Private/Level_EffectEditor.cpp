@@ -554,6 +554,12 @@ namespace Internal
         Set_SubUVFrameCurveComponent(desc.rotationRateScaleByLifeCurveValues, index, value);
     }
 
+    void Fill_VelocityScaleByLifeCurveComponent(PointParticleMotionDesc& desc, uint32 index, float time, float value)
+    {
+        Set_SubUVFrameCurveComponent(desc.velocityScaleByLifeCurveTimes, index, clamp(time, 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.velocityScaleByLifeCurveValues, index, value);
+    }
+
     void Fill_MeshVector3CurveComponent(MeshVector3CurveRuntimeDesc& desc, uint32 index, float time, const Vec3& value)
     {
         Set_SubUVFrameCurveComponent(desc.curveKeyTimes, index, clamp(time, 0.f, 1.f));
@@ -1130,6 +1136,45 @@ namespace Internal
         }
     }
 
+    void Fill_VelocityScaleByLifePayload(PointParticleMotionDesc& desc, const FloatDistributionData& data)
+    {
+        const float startValue = Evaluate_FloatDistributionMin(data, desc.velocityScaleByLife.x);
+        const float endValue = Evaluate_FloatDistributionMax(data, desc.velocityScaleByLife.y);
+        desc.velocityScaleByLife = Vec2{ startValue, endValue };
+        desc.velocityScaleByLifeCurveKeyCount = 2;
+        desc.velocityScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.velocityScaleByLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
+
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload))
+        {
+            vector<FloatCurveKeyData> keys = curve->keys;
+            ranges::sort(keys, {}, &FloatCurveKeyData::time);
+            constexpr uint32 maxVelocityScaleByLifeCurveKeys{ 4 };
+            const uint32 keyCount = min(maxVelocityScaleByLifeCurveKeys, static_cast<uint32>(keys.size()));
+            if (keyCount == 0)
+                return;
+
+            desc.velocityScaleByLifeCurveKeyCount = keyCount;
+            desc.velocityScaleByLifeCurveTimes = Vec4{};
+            desc.velocityScaleByLifeCurveValues = Vec4{};
+            for (uint32 index = 0; index < keyCount; ++index)
+                Fill_VelocityScaleByLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
+        }
+    }
+
+    void Fill_VelocityConePayload(PointParticleMotionDesc& desc, const VelocityConeModuleData& data)
+    {
+        desc.enabled = true;
+        desc.velocityConeEnabled = true;
+        desc.velocityConeInWorldSpace = data.inWorldSpace;
+        desc.velocityConeAxis = data.axis;
+        desc.velocityConeAngleDegrees = clamp(data.angleDegrees, 0.f, 180.f);
+        desc.velocityConeSpeed = Vec2{
+            Evaluate_FloatDistributionMin(data.speed, desc.velocityConeSpeed.x),
+            Evaluate_FloatDistributionMax(data.speed, desc.velocityConeSpeed.y)
+        };
+    }
+
     Color Evaluate_ColorDistributionMin(const ColorDistributionData& data, const Color& fallbackValue)
     {
         if (const auto* constant = get_if<ConstantColorDistributionData>(&data.payload))
@@ -1632,6 +1677,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         };
     }
 
+    if (const auto* velocityCone = Internal::Find_ModuleData<VelocityConeModuleData>(emitter, AuthoringModuleType::VelocityCone))
+        Internal::Fill_VelocityConePayload(desc.motion, *velocityCone);
+
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
         desc.motion.enabled = true;
@@ -1652,7 +1700,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     if (const auto* velocityOverLife = Internal::Find_ModuleData<VelocityOverLifeModuleData>(emitter, AuthoringModuleType::VelocityOverLife))
     {
         desc.motion.enabled = true;
-        desc.motion.velocityScaleByLife = Vec2{ velocityOverLife->scaleStart, velocityOverLife->scaleEnd };
+        Internal::Fill_VelocityScaleByLifePayload(desc.motion, velocityOverLife->scaleOverLife);
     }
 
     if (const auto* initialRotation = Internal::Find_ModuleData<InitialRotationModuleData>(emitter, AuthoringModuleType::InitialRotation))
@@ -2177,6 +2225,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         };
     }
 
+    if (const auto* velocityCone = Internal::Find_ModuleData<VelocityConeModuleData>(emitter, AuthoringModuleType::VelocityCone))
+        Internal::Fill_VelocityConePayload(emitterDesc.motion, *velocityCone);
+
     if (const auto* acceleration = Internal::Find_ModuleData<AccelerationModuleData>(emitter, AuthoringModuleType::Acceleration))
     {
         emitterDesc.motion.enabled = true;
@@ -2199,7 +2250,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
     if (const auto* velocityOverLife = Internal::Find_ModuleData<VelocityOverLifeModuleData>(emitter, AuthoringModuleType::VelocityOverLife))
     {
         emitterDesc.motion.enabled = true;
-        emitterDesc.motion.velocityScaleByLife = Vec2{ velocityOverLife->scaleStart, velocityOverLife->scaleEnd };
+        Internal::Fill_VelocityScaleByLifePayload(emitterDesc.motion, velocityOverLife->scaleOverLife);
     }
 
     if (const auto* initialMeshRotation = Internal::Find_ModuleData<InitialMeshRotationModuleData>(emitter, AuthoringModuleType::InitialMeshRotation))

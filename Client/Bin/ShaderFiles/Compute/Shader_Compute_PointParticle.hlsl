@@ -81,11 +81,13 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_SizeByLifeCurveValuesY; // scaleOverLife Y multipliers
     float4 g_SizeByLifeCurveParams;  // x: key count, y: multiplyX, z: multiplyY, w: axisLock
     float4 g_MotionFlags;            // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled
-    float4 g_MotionSpaceFlags;       // x: radial world
+    float4 g_MotionSpaceFlags;       // x: radial world, y: cone enabled, z: cone world
     float4 g_InitialVelocityMin;     // xyz: vector velocity min
     float4 g_InitialVelocityMax;     // xyz: vector velocity max
     float4 g_MotionRadialPivot;      // xyz: radial pivot
     float4 g_MotionRadialSpeedDrag;  // x/y: radial speed min/max, z/w: drag min/max
+    float4 g_VelocityConeAxisAngle;  // xyz: cone axis, w: half-angle degrees
+    float4 g_VelocityConeSpeed;      // x/y: speed min/max
     float4 g_AccelerationMin;
     float4 g_AccelerationMax;
     float4 g_AccelerationCurveTimes;   // Acceleration key times
@@ -94,6 +96,9 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_AccelerationCurveValuesZ; // Acceleration Z key values
     float4 g_AccelerationCurveParams;  // x: key count, y: enabled
     float4 g_VelocityScaleByLife;
+    float4 g_VelocityScaleByLifeCurveTimes;  // VelocityOverLife key times
+    float4 g_VelocityScaleByLifeCurveValues; // VelocityOverLife multiplier values
+    float4 g_VelocityScaleByLifeCurveParams; // x: key count
     float4 g_RotationInitialRate;         // x/y: initial rotation min/max, z/w: rate min/max
     float4 g_RotationByLife;              // (Legacy) x/y: rotation start/end, z/w: rate scale start/end
     float4 g_RotationOverLifeCurveTimes;  // rotationOverLife key times
@@ -469,6 +474,97 @@ float EvaluateRotationRateScaleByLifeAverage(float lifeProgress)
     return result;
 }
 
+float EvaluateVelocityScaleByLife(float lifeProgress)
+{
+    const uint keyCount = max(1u, min(4u, (uint)g_VelocityScaleByLifeCurveParams.x));
+    const float clampedProgress = saturate(lifeProgress);
+    float velocityScale = g_VelocityScaleByLife.x;
+
+    if (keyCount == 1u || clampedProgress <= ReadVec4Component(g_VelocityScaleByLifeCurveTimes, 0u))
+        velocityScale = ReadVec4Component(g_VelocityScaleByLifeCurveValues, 0u);
+    else
+    {
+        bool found = false;
+        [unroll]
+        for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+        {
+            if (keyIndex >= keyCount || found)
+                continue;
+
+            const float rightTime = ReadVec4Component(g_VelocityScaleByLifeCurveTimes, keyIndex);
+            if (clampedProgress > rightTime)
+                continue;
+
+            const float leftTime = ReadVec4Component(g_VelocityScaleByLifeCurveTimes, keyIndex - 1u);
+            const float ratio = saturate((clampedProgress - leftTime) / max(0.0001f, rightTime - leftTime));
+            velocityScale = lerp(
+                ReadVec4Component(g_VelocityScaleByLifeCurveValues, keyIndex - 1u),
+                ReadVec4Component(g_VelocityScaleByLifeCurveValues, keyIndex),
+                ratio
+            );
+            found = true;
+        }
+
+        const float lastTime = ReadVec4Component(g_VelocityScaleByLifeCurveTimes, keyCount - 1u);
+        if (!found && clampedProgress > lastTime)
+            velocityScale = ReadVec4Component(g_VelocityScaleByLifeCurveValues, keyCount - 1u);
+    }
+
+    return velocityScale;
+}
+
+float EvaluateVelocityScaleByLifeAverage(float lifeProgress)
+{
+    const uint keyCount = max(1u, min(4u, (uint)g_VelocityScaleByLifeCurveParams.x));
+    const float clampedProgress = saturate(lifeProgress);
+    const float firstTime = saturate(ReadVec4Component(g_VelocityScaleByLifeCurveTimes, 0u));
+    const float firstValue = ReadVec4Component(g_VelocityScaleByLifeCurveValues, 0u);
+
+    float result = firstValue;
+    if (keyCount > 1u && clampedProgress > firstTime && clampedProgress > 0.0001f)
+    {
+        float area = firstValue * firstTime;
+        float previousTime = firstTime;
+        float previousValue = firstValue;
+        bool done = false;
+
+        [unroll]
+        for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+        {
+            if (keyIndex >= keyCount || done)
+                continue;
+
+            const float rightTime = max(previousTime, saturate(ReadVec4Component(g_VelocityScaleByLifeCurveTimes, keyIndex)));
+            const float rightValue = ReadVec4Component(g_VelocityScaleByLifeCurveValues, keyIndex);
+            const float segmentEnd = min(clampedProgress, rightTime);
+            if (segmentEnd > previousTime)
+            {
+                area += IntegrateLinearCurveSegment(
+                    previousTime,
+                    previousValue,
+                    rightTime,
+                    rightValue,
+                    previousTime,
+                    segmentEnd
+                );
+            }
+
+            if (clampedProgress <= rightTime)
+                done = true;
+
+            previousTime = rightTime;
+            previousValue = rightValue;
+        }
+
+        if (!done && clampedProgress > previousTime)
+            area += previousValue * (clampedProgress - previousTime);
+
+        result = area / max(0.0001f, clampedProgress);
+    }
+
+    return result;
+}
+
 // 정수 seed를 0~1 사이의 pseudo-random float 값으로 바꾼다.
 float Hash01(uint seed)
 {
@@ -500,6 +596,33 @@ float3 ResolveEmitterBasisVector(float3 localValue)
     const float3 up = upLength < 0.0001f ? float3(0.0f, 1.0f, 0.0f) : g_EmitterBasisUp.xyz / upLength;
     const float3 look = lookLength < 0.0001f ? float3(0.0f, 0.0f, 1.0f) : g_EmitterBasisLook.xyz / lookLength;
     return right * localValue.x + up * localValue.y + look * localValue.z;
+}
+
+float3 NormalizeOrUp(float3 value)
+{
+    const float valueLength = length(value);
+    return valueLength < 0.0001f ? float3(0.0f, 1.0f, 0.0f) : value / valueLength;
+}
+
+float3 SampleConeDirection(float3 axis, float angleDegrees, uint seed)
+{
+    axis = NormalizeOrUp(axis);
+    const float clampedAngleDegrees = clamp(angleDegrees, 0.0f, 180.0f);
+    float3 sampledDirection = axis;
+
+    if (clampedAngleDegrees > 0.0001f)
+    {
+        const float cosMax = cos(radians(clampedAngleDegrees));
+        const float cosTheta = lerp(1.0f, cosMax, Hash01(seed + 1703u));
+        const float sinTheta = sqrt(max(0.0f, 1.0f - cosTheta * cosTheta));
+        const float phi = Hash01(seed + 1721u) * 6.28318530718f;
+        const float3 helper = abs(axis.y) < 0.999f ? float3(0.0f, 1.0f, 0.0f) : float3(1.0f, 0.0f, 0.0f);
+        const float3 tangent = normalize(cross(helper, axis));
+        const float3 bitangent = cross(axis, tangent);
+        sampledDirection = axis * cosTheta + (tangent * cos(phi) + bitangent * sin(phi)) * sinTheta;
+    }
+
+    return sampledDirection;
 }
 
 struct PlaneRadialFrame
@@ -627,12 +750,6 @@ float3 SampleSphereLocationOffset(uint seed)
     const float enabled = g_SphereLocationParams.x != 0.0f && radius > 0.0001f ? 1.0f : 0.0f;
 
     return ResolveEmitterBasisVector(g_SphereLocationOffsetRadius.xyz + direction * radius * distanceScale) * enabled;
-}
-
-// life에 따라 선형 변화하는 배율을 누적 이동/회전에 쓸 평균값으로 바꾼다.
-float IntegrateLifeScale(float scaleStart, float scaleEnd, float lifeProgress)
-{
-    return scaleStart + 0.5f * (scaleEnd - scaleStart) * lifeProgress;
 }
 
 // 수명 min/max 범위에서 이번 particle의 최대 수명을 샘플링한다.
@@ -785,8 +902,18 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         initialVelocity += radialDirection * radialSpeed;
     }
 
+    if (g_MotionSpaceFlags.y != 0.0f)
+    {
+        const float3 sampledConeDirection = SampleConeDirection(g_VelocityConeAxisAngle.xyz, g_VelocityConeAxisAngle.w, seed);
+        const float3 coneDirection = g_MotionSpaceFlags.z != 0.0f
+                                     ? sampledConeDirection
+                                     : ResolveEmitterBasisVector(sampledConeDirection);
+        const float coneSpeed = lerp(g_VelocityConeSpeed.x, g_VelocityConeSpeed.y, Hash01(seed + 1747u));
+        initialVelocity += coneDirection * coneSpeed;
+    }
+
     const float drag = max(0.0f, lerp(g_MotionRadialSpeedDrag.z, g_MotionRadialSpeedDrag.w, Hash01(seed + 607u)));
-    const float velocityScale = IntegrateLifeScale(g_VelocityScaleByLife.x, g_VelocityScaleByLife.y, lifeProgress);
+    const float velocityScale = EvaluateVelocityScaleByLifeAverage(lifeProgress);
     const float dragTime = drag > 0.0001f ? (1.0f - exp(-drag * lifeAge)) / drag : lifeAge;
     const float dragDecay = drag > 0.0001f ? exp(-drag * lifeAge) : 1.0f;
     const float3 acceleration = SampleRange3(g_AccelerationMin.xyz, g_AccelerationMax.xyz, seed + 701u);
@@ -802,7 +929,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     const float3 motionOffset = initialVelocity * velocityScale * dragTime + accelerationOffset;
-    const float currentVelocityScale = lerp(g_VelocityScaleByLife.x, g_VelocityScaleByLife.y, lifeProgress);
+    const float currentVelocityScale = EvaluateVelocityScaleByLife(lifeProgress);
     const float3 currentVelocity = initialVelocity * currentVelocityScale * dragDecay + accelerationVelocity;
     const float currentVelocityLength = length(currentVelocity);
     const float3 velocityAlignmentHint = currentVelocityLength < 0.0001f

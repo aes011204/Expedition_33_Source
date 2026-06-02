@@ -1194,7 +1194,10 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
     particle.acceleration = Sample_Acceleration(seed + 29u);
     particle.drag = Sample_Drag(seed + 31u);
     particle.baseScale = _desc.previewScale * Sample_InitialScale(seed + 37u);
-    particle.planeRadialOrientation = Build_PlaneRadialMeshOrientation(planeRadialSample);
+    particle.planeRadialOrientation = Build_PlaneRadialMeshOrientation(
+        planeRadialSample,
+        particle.planeRadialOrientationEnabled
+    );
     particle.rotationRadians = Sample_InitialRotation(seed + 41u);
     particle.angularVelocityRadians = Sample_InitialAngularVelocity(seed + 43u);
     particle.startColor = Sample_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax, seed + 47u);
@@ -1304,12 +1307,24 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
     Quat rotation = Quat::CreateFromYawPitchRoll(rotationRadians.y, rotationRadians.x, rotationRadians.z);
     rotation.Normalize();
 
+    const Matrix scaleMatrix = Matrix::CreateScale(scale);
+    const Matrix rotationMatrix = Matrix::CreateFromQuaternion(rotation);
+    const Matrix translationMatrix = Matrix::CreateTranslation(position);
+
+    if (particle.planeRadialOrientationEnabled)
+    {
+        return
+            scaleMatrix *
+            Matrix::CreateFromQuaternion(particle.planeRadialOrientation) *
+            rotationMatrix *
+            translationMatrix;
+    }
+
     return
-        Matrix::CreateScale(scale) *
-        Matrix::CreateFromQuaternion(particle.planeRadialOrientation) *
-        Matrix::CreateFromQuaternion(rotation) *
+        scaleMatrix *
+        rotationMatrix *
         Internal::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment) *
-        Matrix::CreateTranslation(position);
+        translationMatrix;
 }
 
 Vec3 MeshEmitter::Sample_InitialOffset(
@@ -1395,8 +1410,10 @@ Vec3 MeshEmitter::Sample_InitialOffset(
     return Resolve_LocalVector(offset);
 }
 
-Quat MeshEmitter::Build_PlaneRadialMeshOrientation(const PlaneRadialSample& sample) const
+Quat MeshEmitter::Build_PlaneRadialMeshOrientation(const PlaneRadialSample& sample, bool& outEnabled) const
 {
+    outEnabled = false;
+
     if (!sample.enabled ||
         !_desc.planeRadialOrientation.enabled ||
         _desc.planeRadialOrientation.orientationMode == PointParticlePlaneRadialOrientationMode::None)
@@ -1474,6 +1491,7 @@ Quat MeshEmitter::Build_PlaneRadialMeshOrientation(const PlaneRadialSample& samp
     }
 
     orientation.Normalize();
+    outEnabled = true;
     return orientation;
 }
 
@@ -1500,7 +1518,15 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed)
         const Vec3 pivotPosition = emitterPosition + radialPivotOffset;
         Vec3 radialDirection = spawnPosition - pivotPosition;
         if (radialDirection.LengthSquared() < 0.0001f)
-            radialDirection = _transformCom != nullptr ? _transformCom->Get_WorldForward() : Vec3{ 0.f, 0.f, 1.f };
+        {
+            radialDirection = Resolve_LocalVector(
+                Vec3{
+                    Random01(seed + 307u) * 2.f - 1.f,
+                    0.25f,
+                    Random01(seed + 401u) * 2.f - 1.f
+                }
+            );
+        }
         radialDirection.Normalize();
 
         const float radialSpeed = RandomRange(
@@ -1509,6 +1535,33 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed)
             seed + 5u
         );
         velocity += radialDirection * radialSpeed;
+    }
+
+    if (_desc.motion.velocityConeEnabled)
+    {
+        Vec3 axis = Internal::Normalize_OrFallback(_desc.motion.velocityConeAxis, Vec3{ 0.f, 1.f, 0.f });
+        Vec3 sampledDirection = axis;
+        const float angleDegrees = clamp(_desc.motion.velocityConeAngleDegrees, 0.f, 180.f);
+        if (angleDegrees > 0.0001f)
+        {
+            const float cosMax = cosf(XMConvertToRadians(angleDegrees));
+            const float cosTheta = lerp(1.f, cosMax, Random01(seed + 1703u));
+            const float sinTheta = sqrtf(max(0.f, 1.f - cosTheta * cosTheta));
+            const float phi = XM_2PI * Random01(seed + 1721u);
+            const Vec3 helper = fabsf(axis.y) < 0.999f ? Vec3{ 0.f, 1.f, 0.f } : Vec3{ 1.f, 0.f, 0.f };
+            Vec3 tangent = helper.Cross(axis);
+            tangent.Normalize();
+            const Vec3 bitangent = axis.Cross(tangent);
+            sampledDirection = axis * cosTheta + (tangent * cosf(phi) + bitangent * sinf(phi)) * sinTheta;
+        }
+
+        const Vec3 coneDirection = _desc.motion.velocityConeInWorldSpace ? sampledDirection : Resolve_LocalVector(sampledDirection);
+        const float coneSpeed = RandomRange(
+            min(_desc.motion.velocityConeSpeed.x, _desc.motion.velocityConeSpeed.y),
+            max(_desc.motion.velocityConeSpeed.x, _desc.motion.velocityConeSpeed.y),
+            seed + 1747u
+        );
+        velocity += coneDirection * coneSpeed;
     }
 
     return velocity;
@@ -1585,7 +1638,15 @@ Vec3 MeshEmitter::Sample_InitialAngularVelocity(uint32 seed) const
 
 float MeshEmitter::Evaluate_VelocityScaleByLife(float lifeProgress) const
 {
-    return max(0.f, lerp(_desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, lifeProgress));
+    const float fallbackScale = lerp(_desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, lifeProgress);
+    const float curveScale = Evaluate_CompactCurve(
+        lifeProgress,
+        _desc.motion.velocityScaleByLifeCurveTimes,
+        _desc.motion.velocityScaleByLifeCurveValues,
+        _desc.motion.velocityScaleByLifeCurveKeyCount,
+        fallbackScale
+    );
+    return max(0.f, curveScale);
 }
 
 Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle, float lifeProgress) const

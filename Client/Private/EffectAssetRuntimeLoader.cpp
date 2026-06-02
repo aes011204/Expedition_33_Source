@@ -1280,6 +1280,89 @@ void EffectAssetRuntimeLoader::Fill_RotationRateScaleByLifePayload(PointParticle
     }
 }
 
+void EffectAssetRuntimeLoader::Fill_VelocityScaleByLifePayload(PointParticleMotionDesc& desc, const json& velocityOverLife)
+{
+    const auto scaleOverLifeIter = velocityOverLife.find("scaleOverLife");
+    if (scaleOverLifeIter == velocityOverLife.end())
+    {
+        desc.velocityScaleByLife = Vec2{
+            Read_Float(velocityOverLife, "scaleStart", desc.velocityScaleByLife.x),
+            Read_Float(velocityOverLife, "scaleEnd", desc.velocityScaleByLife.y)
+        };
+        desc.velocityScaleByLifeCurveKeyCount = 2;
+        desc.velocityScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.velocityScaleByLifeCurveValues = Vec4{ desc.velocityScaleByLife.x, desc.velocityScaleByLife.y, 0.f, 0.f };
+        return;
+    }
+
+    const float startValue = Evaluate_FloatDistributionMin(*scaleOverLifeIter, 1.f);
+    const float endValue = Evaluate_FloatDistributionMax(*scaleOverLifeIter, 1.f);
+    desc.velocityScaleByLife = Vec2{ startValue, endValue };
+    desc.velocityScaleByLifeCurveKeyCount = 2;
+    desc.velocityScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.velocityScaleByLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
+
+    const json* payload = Find_DistributionPayload(*scaleOverLifeIter);
+    if (payload == nullptr || "ConstantCurve" != Read_String(*scaleOverLifeIter, "mode"))
+        return;
+
+    const auto keysIter = payload->find("keys");
+    if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+        return;
+
+    vector<const json*> keys{};
+    keys.reserve(keysIter->size());
+    for (const json& key : *keysIter)
+        keys.push_back(&key);
+    ranges::sort(
+        keys,
+        [](const json* lhs, const json* rhs)
+        {
+            return Read_Float(*lhs, "time") < Read_Float(*rhs, "time");
+        }
+    );
+
+    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
+    desc.velocityScaleByLifeCurveKeyCount = keyCount;
+    desc.velocityScaleByLifeCurveTimes = Vec4{};
+    desc.velocityScaleByLifeCurveValues = Vec4{};
+
+    for (uint32 index = 0; index < keyCount; ++index)
+    {
+        const json& key = *keys[index];
+        Set_SubUVFrameCurveComponent(
+            desc.velocityScaleByLifeCurveTimes,
+            index,
+            clamp(Read_Float(key, "time"), 0.f, 1.f)
+        );
+        Set_SubUVFrameCurveComponent(
+            desc.velocityScaleByLifeCurveValues,
+            index,
+            Read_Float(key, "value", 1.f)
+        );
+    }
+}
+
+void EffectAssetRuntimeLoader::Fill_VelocityConePayload(PointParticleMotionDesc& desc, const json& velocityCone)
+{
+    desc.velocityConeEnabled = true;
+    desc.velocityConeInWorldSpace = Read_Bool(velocityCone, "inWorldSpace", desc.velocityConeInWorldSpace);
+    desc.velocityConeAngleDegrees = clamp(Read_Float(velocityCone, "angleDegrees", desc.velocityConeAngleDegrees), 0.f, 180.f);
+
+    const auto axisIter = velocityCone.find("axis");
+    if (axisIter != velocityCone.end())
+        Read_Vec3(*axisIter, desc.velocityConeAxis);
+
+    const auto speedIter = velocityCone.find("speed");
+    if (speedIter != velocityCone.end())
+    {
+        desc.velocityConeSpeed = Vec2{
+            Evaluate_FloatDistributionMin(*speedIter, desc.velocityConeSpeed.x),
+            Evaluate_FloatDistributionMax(*speedIter, desc.velocityConeSpeed.y)
+        };
+    }
+}
+
 void EffectAssetRuntimeLoader::Fill_AccelerationCurvePayload(PointParticleMotionDesc& desc, const json& distribution)
 {
     desc.accelerationCurveEnabled = false;
@@ -1946,6 +2029,12 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         }
     }
 
+    if (const json* velocityCone = Find_ModuleData(emitter, "VelocityCone"))
+    {
+        desc.motion.enabled = true;
+        Fill_VelocityConePayload(desc.motion, *velocityCone);
+    }
+
     if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
     {
         desc.motion.enabled = true;
@@ -1974,10 +2063,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
     if (const json* velocityOverLife = Find_ModuleData(emitter, "VelocityOverLife"))
     {
         desc.motion.enabled = true;
-        desc.motion.velocityScaleByLife = Vec2{
-            Read_Float(*velocityOverLife, "scaleStart", desc.motion.velocityScaleByLife.x),
-            Read_Float(*velocityOverLife, "scaleEnd", desc.motion.velocityScaleByLife.y)
-        };
+        Fill_VelocityScaleByLifePayload(desc.motion, *velocityOverLife);
     }
 
     if (const json* initialRotation = Find_ModuleData(emitter, "InitialRotation"))
@@ -2400,6 +2486,12 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         }
     }
 
+    if (const json* velocityCone = Find_ModuleData(emitter, "VelocityCone"))
+    {
+        desc.motion.enabled = true;
+        Fill_VelocityConePayload(desc.motion, *velocityCone);
+    }
+
     if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
     {
         desc.motion.enabled = true;
@@ -2428,10 +2520,7 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
     if (const json* velocityOverLife = Find_ModuleData(emitter, "VelocityOverLife"))
     {
         desc.motion.enabled = true;
-        desc.motion.velocityScaleByLife = Vec2{
-            Read_Float(*velocityOverLife, "scaleStart", desc.motion.velocityScaleByLife.x),
-            Read_Float(*velocityOverLife, "scaleEnd", desc.motion.velocityScaleByLife.y)
-        };
+        Fill_VelocityScaleByLifePayload(desc.motion, *velocityOverLife);
     }
 
     if (const json* initialMeshRotation = Find_ModuleData(emitter, "InitialMeshRotation"))

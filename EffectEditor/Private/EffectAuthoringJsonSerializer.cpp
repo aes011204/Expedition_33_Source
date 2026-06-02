@@ -1571,6 +1571,31 @@ namespace Internal
         Read_BoolField(root, "inWorldSpace", outData.inWorldSpace);
     }
 
+    json To_Json(const VelocityConeModuleData& data)
+    {
+        json root = json::object();
+        root["axis"] = To_Json(data.axis);
+        root["angleDegrees"] = data.angleDegrees;
+        root["speed"] = To_Json(data.speed);
+        root["inWorldSpace"] = data.inWorldSpace;
+        return root;
+    }
+
+    void From_Json(const json& root, VelocityConeModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        const auto axisIter = root.find("axis");
+        if (axisIter != root.end())
+            Read_Vec3(*axisIter, outData.axis);
+        Read_NumberField(root, "angleDegrees", outData.angleDegrees);
+        const auto speedIter = root.find("speed");
+        if (speedIter != root.end())
+            From_Json(*speedIter, outData.speed);
+        Read_BoolField(root, "inWorldSpace", outData.inWorldSpace);
+    }
+
     json To_Json(const AccelerationModuleData& data)
     {
         json root = json::object();
@@ -1602,8 +1627,7 @@ namespace Internal
     json To_Json(const VelocityOverLifeModuleData& data)
     {
         json root = json::object();
-        root["scaleStart"] = data.scaleStart;
-        root["scaleEnd"] = data.scaleEnd;
+        root["scaleOverLife"] = To_Json(data.scaleOverLife);
         return root;
     }
 
@@ -1612,8 +1636,18 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_NumberField(root, "scaleStart", outData.scaleStart);
-        Read_NumberField(root, "scaleEnd", outData.scaleEnd);
+        const auto scaleOverLifeIter = root.find("scaleOverLife");
+        if (scaleOverLifeIter != root.end())
+        {
+            From_Json(*scaleOverLifeIter, outData.scaleOverLife);
+            return;
+        }
+
+        float scaleStart{ 1.f };
+        float scaleEnd{ 1.f };
+        Read_NumberField(root, "scaleStart", scaleStart);
+        Read_NumberField(root, "scaleEnd", scaleEnd);
+        outData.scaleOverLife = FloatDistributionData::Make_ConstantCurve(scaleStart, scaleEnd);
     }
 
     json To_Json(const InitialRotationModuleData& data)
@@ -2157,6 +2191,9 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::InitialRadialVelocity:
         root["data"] = Internal::To_Json(get<InitialRadialVelocityModuleData>(module.data));
         break;
+    case AuthoringModuleType::VelocityCone:
+        root["data"] = Internal::To_Json(get<VelocityConeModuleData>(module.data));
+        break;
     case AuthoringModuleType::Acceleration:
         root["data"] = Internal::To_Json(get<AccelerationModuleData>(module.data));
         break;
@@ -2287,6 +2324,9 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
             break;
         case AuthoringModuleType::InitialRadialVelocity:
             Internal::From_Json(*dataIter, get<InitialRadialVelocityModuleData>(module.data));
+            break;
+        case AuthoringModuleType::VelocityCone:
+            Internal::From_Json(*dataIter, get<VelocityConeModuleData>(module.data));
             break;
         case AuthoringModuleType::Acceleration:
             Internal::From_Json(*dataIter, get<AccelerationModuleData>(module.data));
@@ -2425,6 +2465,8 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return InitialVelocityModuleData{};
     case AuthoringModuleType::InitialRadialVelocity:
         return InitialRadialVelocityModuleData{};
+    case AuthoringModuleType::VelocityCone:
+        return VelocityConeModuleData{};
     case AuthoringModuleType::Acceleration:
         return AccelerationModuleData{};
     case AuthoringModuleType::Drag:

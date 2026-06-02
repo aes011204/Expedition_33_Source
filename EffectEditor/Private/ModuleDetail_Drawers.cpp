@@ -1710,6 +1710,48 @@ bool InitialRadialVelocityModuleDetail::Draw(
     return changed;
 }
 
+bool VelocityConeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    VelocityConeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const VelocityConeModuleData defaultData{};
+    bool changed = false;
+
+    const bool coneVelocityOpen = ImGui::CollapsingHeader("속도 원뿔", ImGuiTreeNodeFlags_DefaultOpen);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+    {
+        ImGui::SetTooltip(
+            "생성 위치와 무관하게 축 기준 원뿔 안에서 뽑은 방향으로 더하는 초기 속도입니다.\n"
+            "InitialVelocity, InitialRadialVelocity와 누적됩니다.\n"
+            "각도는 중심축 기준 half-angle입니다."
+        );
+    }
+
+    if (coneVelocityOpen)
+    {
+        if (detailContext.Begin_PropertyTable("VelocityCone"))
+        {
+            changed |= detailContext.Draw_Vec3Property("축", data.axis, defaultData.axis);
+            changed |= detailContext.Draw_FloatProperty("각도", data.angleDegrees, defaultData.angleDegrees, 0.1f);
+            changed |= detailContext.Draw_BoolProperty("월드 스페이스", data.inWorldSpace, defaultData.inWorldSpace);
+            detailContext.End_PropertyTable();
+        }
+
+        const float clampedAngle = clamp(data.angleDegrees, 0.f, 180.f);
+        if (data.angleDegrees != clampedAngle)
+        {
+            data.angleDegrees = clampedAngle;
+            changed = true;
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup("속도", data.speed, defaultData.speed);
+    }
+
+    return changed;
+}
+
 bool AccelerationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, AccelerationModuleData& data, DetailPropertyContext& detailContext)
 {
     const AccelerationModuleData defaultData{};
@@ -1738,14 +1780,7 @@ bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Vel
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 속도", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailContext.Begin_PropertyTable("VelocityOverLife"))
-        {
-            changed |= detailContext.Draw_FloatProperty("시작 배율", data.scaleStart, defaultData.scaleStart);
-            changed |= detailContext.Draw_FloatProperty("종료 배율", data.scaleEnd, defaultData.scaleEnd);
-            detailContext.End_PropertyTable();
-        }
-    }
+        changed |= detailContext.Draw_FloatDistributionGroup("속도 배율", data.scaleOverLife, defaultData.scaleOverLife);
 
     return changed;
 }

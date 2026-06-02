@@ -664,6 +664,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_InitialVelocityModule();
     case AuthoringModuleType::InitialRadialVelocity:
         return Make_InitialRadialVelocityModule();
+    case AuthoringModuleType::VelocityCone:
+        return Make_VelocityConeModule();
     case AuthoringModuleType::Acceleration:
         return Make_AccelerationModule();
     case AuthoringModuleType::Drag:
@@ -814,6 +816,17 @@ AuthoringModule Emitter_View::Make_InitialRadialVelocityModule()
     module.enabled = true;
     Apply_AuthoringModuleMetadata(module);
     module.data = InitialRadialVelocityModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_VelocityConeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::VelocityCone;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = VelocityConeModuleData{};
     return module;
 }
 
@@ -1091,6 +1104,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::InitialMeshSize:
     case AuthoringModuleType::InitialVelocity:
     case AuthoringModuleType::InitialRadialVelocity:
+    case AuthoringModuleType::VelocityCone:
     case AuthoringModuleType::Acceleration:
     case AuthoringModuleType::Drag:
     case AuthoringModuleType::VelocityOverLife:
@@ -1152,6 +1166,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::InitialRadialVelocity:
         module = Make_InitialRadialVelocityModule();
+        break;
+    case AuthoringModuleType::VelocityCone:
+        module = Make_VelocityConeModule();
         break;
     case AuthoringModuleType::Acceleration:
         module = Make_AccelerationModule();
@@ -1573,6 +1590,10 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = InitialRadialVelocityModuleData{};
         break;
 
+    case AuthoringModuleType::VelocityCone:
+        module.data = VelocityConeModuleData{};
+        break;
+
     case AuthoringModuleType::Acceleration:
         module.data = AccelerationModuleData{};
         break;
@@ -1861,6 +1882,14 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialRadialVelocity,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRadialVelocity),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::VelocityCone,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::VelocityCone),
             "이미 장착됨"
         )
     );
