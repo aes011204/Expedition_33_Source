@@ -1,4 +1,4 @@
-#include "Renderer.h"
+﻿#include "Renderer.h"
 #include "Camera.h"
 #include "EffectEmitter.h"
 #include "GameInstance.h"
@@ -788,6 +788,9 @@ void Renderer::Render_UIEffect()
     GAME->Bind_BackBuffer();
     _currentGroup = RenderGroup::UIEffect;
 
+    if (auto activeCamera = GAME->Get_ActiveCamera())
+        activeCamera->Apply_View();
+
     for (auto& renderObject : _renderGroups[ETOI(RenderGroup::UIEffect)])
     {
         Shared<GameObject> gameObject = renderObject.lock();
@@ -803,7 +806,6 @@ void Renderer::Render_UIEffect()
 
 void Renderer::PostDraw()
 {
-    // 1. ScreenFx 렌더링
     const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
     const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
     if (useScreenFx)
@@ -811,17 +813,14 @@ void Renderer::PostDraw()
         Render_ScreenFx();
     }
 
-    // 2. 화면 캡처 로직 (UI와 ScreenFx가 적용된 직후 상태)
     if (screenFxManager && screenFxManager->Is_CaptureRequested())
     {
         GAME->Bind_BackBuffer(); 
         GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
-        
-        // _screenFxManager 캡처 요청 플래그 클리어
+
         const_cast<ScreenFx_Manager*>(screenFxManager)->Clear_CaptureRequested();
     }
 
-    // 3. 마지막으로 화면 맨 앞에 띄울 UIEffect 렌더링
     Render_UIEffect();
 }
 
