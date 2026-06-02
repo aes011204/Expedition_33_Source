@@ -71,6 +71,9 @@ HRESULT BattleController::Initialize()
     _qteController = BattleQTEController::Create();
     CHECK_NULL(_qteController, E_FAIL);
 
+    _buffSystem = BuffSystem::Create();
+    CHECK_NULL(_buffSystem, E_FAIL);
+
     //    _targetPreviewChangedHandle = OnTargetPreviewChanged.Add(this,&BattleController::Handle_TargetPreviewChanged);
 
     return S_OK;
@@ -1210,6 +1213,8 @@ void BattleController::Execute_Item()
             return; // 부활 틴트는 죽어있는 대상에게만 적용한다.
 
         action.GetInitTarget().statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
+        Restore_BattleTargetCollision(action.GetInitTarget()); // 부활 직후 다시 충돌 가능 상태로 전환
+
         DamageSystem::Heal(action.GetInitTarget().statCom->Get_StatInfo().maxHp * static_cast<float>(itemData.reviveHp) * 0.01f, action.GetInitTarget());
 
         if (action.GetInitTarget().ModelCom)
@@ -1332,7 +1337,11 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
     if (_freeAimShotAction.GetInitTarget().actor != nullptr && _freeAimShotAction.GetInitTarget().statCom != nullptr)
     {
         constexpr float freeAimDamage = 20.f; // 우선 테스트용 데미지
-        DamageSystem::ApplyDamage(freeAimDamage, _freeAimShotAction.GetInitTarget(), AttackType::FreeAimLight);
+
+        const BattleChar& attacker = _freeAimShotAction.Get_CurChar();
+        const BattleChar& target = _freeAimShotAction.GetInitTarget();
+
+        DamageSystem::ApplyDamage(freeAimDamage, attacker, target, AttackType::FreeAimLight);
     }
 
     _freeAimShotAction.InitActionDirection();
@@ -1538,6 +1547,15 @@ void BattleController::Handle_DamageApplied(const BattleChar& damagedTarget, flo
         HitAction(damagedTarget, attackType);
     }
 
+    if (damage > 0.f &&
+        damagedTarget.actor != nullptr &&
+        damagedTarget.statCom != nullptr &&
+        damagedTarget.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+    {
+        // 충돌체 끄기
+        Handle_BattleTargetDeathCollision(damagedTarget);
+    }
+
     Try_RequestEndTurnOnCurrentActorDeath(damagedTarget, damage);
     Try_BeginVictorySlowOnDamage(damagedTarget, damage);
 }
@@ -1683,6 +1701,41 @@ BattleQTEResult BattleController::Get_LastQTEResult() const
         return BattleQTEResult::None;
 
     return _qteController->Get_LastResult();
+}
+
+void BattleController::Handle_BattleTargetDeathCollision(const BattleChar& deadTarget)
+{
+    if (deadTarget.actor == nullptr)
+        return;
+
+    deadTarget.actor->Set_BattleColliderActive(false);
+
+    if (_hasTargetPreview && _targetPreview.actor == deadTarget.actor)
+        Clear_TargetPreview();
+
+    if (_hasFreeAimHitTarget && _freeAimHitTarget.actor == deadTarget.actor)
+        Clear_FreeAimHitTarget(); 
+}
+
+void BattleController::Restore_BattleTargetCollision(const BattleChar& revivedTarget)
+{
+    if (revivedTarget.actor == nullptr)
+        return;
+
+    revivedTarget.actor->Set_BattleColliderActive(true);
+}
+
+void BattleController::Apply_Buff(const BattleChar& target, Buffs buffId, uint32 stack, int32 durationTurn)
+{
+    if (_buffSystem == nullptr)
+        return;
+
+    _buffSystem->Apply_Buff(target, buffId, stack, durationTurn);
+}
+
+bool BattleController::Has_Buff(const BattleChar& target, Buffs buffId) const
+{
+    return _buffSystem != nullptr && _buffSystem->Has_Buff(target, buffId);
 }
 
 HRESULT BattleController::Ready_BattleTurnCamera()
@@ -2027,17 +2080,18 @@ void BattleController::Free()
         _damageAppliedHandle.Reset();
     }
 
-    if (_battleSpawnRegistry)
+    auto ReleaseCtrl = [](auto& ctrl)
     {
-        _battleSpawnRegistry->Free();
-        _battleSpawnRegistry.reset();
-    }
+        if (ctrl)
+        {
+            ctrl->Free();
+            ctrl.reset();
+        }
+    };
 
-    if (_qteController)
-    {
-        _qteController->Free();
-        _qteController.reset();
-    }
+    ReleaseCtrl(_battleSpawnRegistry);
+    ReleaseCtrl(_qteController);
+    ReleaseCtrl(_buffSystem);
 
     Base::Free();
 }

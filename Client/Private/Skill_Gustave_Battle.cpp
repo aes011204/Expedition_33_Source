@@ -1,6 +1,7 @@
 ﻿#include "Skill_Gustave_Battle.h"
 #include "BattleMechanismCom.h"
 #include "DamageSystem.h"
+#include "ClientInstance.h"
 
 // TODO : 프로토타입 이후, 데미지 계산식 제대로
 
@@ -15,7 +16,7 @@ void Skill_Gustave_LumiereAssault::Execute(const Skill_Data& skill, const Battle
 
     const BattleChar& target = curTargets.front();
 
-    DamageSystem::ApplyDamage(15.f, target, attackType);
+    DamageSystem::ApplyDamage(15.f, attacker, target, attackType);
 
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_GustaveCharge(1);
@@ -37,7 +38,7 @@ void Skill_Gustave_UnleashedCharge::Execute(const Skill_Data& skill, const Battl
 
     const BattleChar& target = curTargets.front();
 
-    DamageSystem::ApplyDamage(40.f, target, attackType);
+    DamageSystem::ApplyDamage(40.f, attacker, target, attackType);
 
     if (!attacker.mechanismCom)
         return;
@@ -55,6 +56,8 @@ Shared<Skill_Gustave_UnleashedCharge> Skill_Gustave_UnleashedCharge::Create()
 void Skill_Gustave_MarkingShot::Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType)
 {
     const BattleChar& attacker = action.Get_CurChar();
+    auto battle = CLIENT->Get_BattleController();
+    CHECK_NULL(battle);
 
     const auto& curTargets = action.GetCurStepTarget();
     if (curTargets.empty())
@@ -62,7 +65,9 @@ void Skill_Gustave_MarkingShot::Execute(const Skill_Data& skill, const BattleAct
 
     const BattleChar& target = curTargets.front();
 
-    DamageSystem::ApplyDamage(25.f, target, attackType);
+    DamageSystem::ApplyDamage(25.f, attacker, target, attackType);
+
+    battle->Apply_Buff(target, Buffs::Mark);
 
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_GustaveCharge(1);

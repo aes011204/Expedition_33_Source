@@ -383,6 +383,7 @@
     <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
     <ClInclude Include="..\Public\UI_BattleMechanism.h" />
     <ClInclude Include="..\Public\UI_HealFont.h" />
+    <ClInclude Include="..\Public\UI_MarkEffect.h" />
     <ClInclude Include="..\Public\UI_PlayerHpBar.h" />
     <ClInclude Include="..\Public\UI_BattleSystemHUD.h" />
     <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
@@ -654,6 +655,7 @@
     <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
     <ClCompile Include="..\Private\UI_HealFont.cpp" />
+    <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
     <ClCompile Include="..\Private\UI_PlayerHpBar.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />
