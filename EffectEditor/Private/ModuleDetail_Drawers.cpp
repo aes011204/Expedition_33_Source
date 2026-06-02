@@ -4,6 +4,7 @@
 #include "EffectEditor_Macro.h"
 #include "EffectMaterialInstance_View.h"
 #include "EffectMaterialPreviewRenderer.h"
+#include "EffectMaterialScalarModulationPreview.h"
 #include "EffectMaterial_View.h"
 #include "EffectMaterialPresetReader.h"
 #include "Helper_EffectAuthoring.h"
@@ -141,13 +142,22 @@ namespace Internal
             return "NoiseStrength";
         case MaterialScalarModulationTargetField::AlphaErosion:
             return "AlphaErosion";
+        case MaterialScalarModulationTargetField::AlphaCutoff:
+            return "AlphaCutoff";
         case MaterialScalarModulationTargetField::CoreIntensity:
             return "CoreIntensity";
         case MaterialScalarModulationTargetField::OuterIntensity:
             return "OuterIntensity";
+        case MaterialScalarModulationTargetField::CoreColor:
+            return "CoreColor Multiplier";
         default:
             return "Intensity";
         }
+    }
+
+    static const char* Get_MaterialModulationTargetLabel(bool isCoreColorRgb, MaterialScalarModulationTargetField target)
+    {
+        return isCoreColorRgb ? "Core Color RGB" : Get_MaterialScalarTargetLabel(target);
     }
 
     static const char* Get_MaterialScalarOperationLabel(MaterialScalarModulationOperation operation)
@@ -166,42 +176,54 @@ namespace Internal
         switch (timeSource)
         {
         case MaterialScalarModulationTimeSource::ParticleLife:
-            return "ParticleLife";
+            return "ParticleLife (미구현)";
         case MaterialScalarModulationTimeSource::EmitterTime:
             return "EmitterTime";
         default:
-            return "ParticleLife";
+            return "EmitterTime";
         }
     }
 
-    static bool Draw_MaterialScalarTargetProperty(
+    static bool Is_MaterialScalarTimeSourceSelectable(MaterialScalarModulationTimeSource timeSource)
+    {
+        return timeSource != MaterialScalarModulationTimeSource::ParticleLife;
+    }
+
+    static bool Draw_MaterialModulationTargetProperty(
         DetailPropertyContext& detailContext,
         const char* label,
-        MaterialScalarModulationTargetField& value,
-        MaterialScalarModulationTargetField defaultValue)
+        bool isCoreColorRgb,
+        MaterialScalarModulationTargetField scalarTarget,
+        bool& outNextCoreColorRgb,
+        MaterialScalarModulationTargetField& outNextScalarTarget)
     {
         bool changed = false;
+        outNextCoreColorRgb = isCoreColorRgb;
+        outNextScalarTarget = scalarTarget;
 
         ImGui::PushID(label);
         detailContext.Draw_PropertyLabel(label);
         ImGui::SetNextItemWidth(-FLT_MIN);
-        if (ImGui::BeginCombo("##Value", Get_MaterialScalarTargetLabel(value)))
+        if (ImGui::BeginCombo("##Value", Get_MaterialModulationTargetLabel(isCoreColorRgb, scalarTarget)))
         {
             const MaterialScalarModulationTargetField candidates[] = {
                 MaterialScalarModulationTargetField::Intensity,
                 MaterialScalarModulationTargetField::OpacityPower,
                 MaterialScalarModulationTargetField::NoiseStrength,
                 MaterialScalarModulationTargetField::AlphaErosion,
+                MaterialScalarModulationTargetField::AlphaCutoff,
                 MaterialScalarModulationTargetField::CoreIntensity,
                 MaterialScalarModulationTargetField::OuterIntensity,
+                MaterialScalarModulationTargetField::CoreColor,
             };
 
             for (const MaterialScalarModulationTargetField candidate : candidates)
             {
-                const bool isSelected = value == candidate;
+                const bool isSelected = !isCoreColorRgb && scalarTarget == candidate;
                 if (ImGui::Selectable(Get_MaterialScalarTargetLabel(candidate), isSelected))
                 {
-                    value = candidate;
+                    outNextCoreColorRgb = false;
+                    outNextScalarTarget = candidate;
                     changed = true;
                 }
 
@@ -209,12 +231,25 @@ namespace Internal
                     ImGui::SetItemDefaultFocus();
             }
 
+            const bool isRgbSelected = isCoreColorRgb;
+            if (ImGui::Selectable("Core Color RGB", isRgbSelected))
+            {
+                outNextCoreColorRgb = true;
+                outNextScalarTarget = MaterialScalarModulationTargetField::CoreColor;
+                changed = true;
+            }
+
+            if (isRgbSelected)
+                ImGui::SetItemDefaultFocus();
+
             ImGui::EndCombo();
         }
 
-        if (detailContext.Draw_ResetButton(value != defaultValue))
+        const bool canReset = isCoreColorRgb || scalarTarget != MaterialScalarModulationTargetField::Intensity;
+        if (detailContext.Draw_ResetButton(canReset))
         {
-            value = defaultValue;
+            outNextCoreColorRgb = false;
+            outNextScalarTarget = MaterialScalarModulationTargetField::Intensity;
             changed = true;
         }
         ImGui::PopID();
@@ -243,11 +278,18 @@ namespace Internal
             for (const MaterialScalarModulationTimeSource candidate : candidates)
             {
                 const bool isSelected = value == candidate;
-                if (ImGui::Selectable(Get_MaterialScalarTimeSourceLabel(candidate), isSelected))
+                const bool selectable = Is_MaterialScalarTimeSourceSelectable(candidate);
+                if (!selectable)
+                    ImGui::BeginDisabled();
+
+                if (ImGui::Selectable(Get_MaterialScalarTimeSourceLabel(candidate), isSelected) && selectable)
                 {
                     value = candidate;
                     changed = true;
                 }
+
+                if (!selectable)
+                    ImGui::EndDisabled();
 
                 if (isSelected)
                     ImGui::SetItemDefaultFocus();
@@ -624,6 +666,7 @@ namespace Internal
     }
 
     bool Draw_MaterialDropSlot(
+        const AuthoringEmitter& emitter,
         RequiredModuleData& data,
         EffectMaterialPreviewRenderer* materialSlotPreview,
         float timeDelta)
@@ -672,7 +715,18 @@ namespace Internal
         if (materialSlotPreview != nullptr)
         {
             materialSlotPreview->Update_MaterialTime(timeDelta);
-            materialSlotPreview->Render_Material(data.material);
+            if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(emitter))
+            {
+                materialSlotPreview->Render_Material(
+                    data.material,
+                    Build_CoreColorRgbModulationRuntimeDesc(*modulation),
+                    Build_MaterialScalarModulationRuntimeDesc(*modulation),
+                    data.duration,
+                    false
+                );
+            }
+            else
+                materialSlotPreview->Render_Material(data.material);
             previewSrv = materialSlotPreview->Get_SRV();
         }
         const ImVec2 thumbnailMin{ slotMin.x + 7.f, slotMin.y + 7.f };
@@ -780,6 +834,34 @@ namespace Internal
             NearlyEqual(lhs.z, rhs.z);
     }
 
+    static Vec3 Resolve_CoreColorRgbDefault(const AuthoringEmitter& emitter)
+    {
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type != AuthoringModuleType::Required)
+                continue;
+
+            const RequiredModuleData* requiredData = get_if<RequiredModuleData>(&module.data);
+            if (requiredData == nullptr)
+                break;
+
+            return Vec3{
+                requiredData->material.coreEmissive.coreColor.x,
+                requiredData->material.coreEmissive.coreColor.y,
+                requiredData->material.coreEmissive.coreColor.z
+            };
+        }
+
+        return Vec3{ 1.f, 0.85f, 0.45f };
+    }
+
+    static MaterialCoreColorRgbModulatorData Make_CoreColorRgbModulator(const AuthoringEmitter& emitter)
+    {
+        MaterialCoreColorRgbModulatorData data{};
+        data.distribution = Vector3DistributionData::Make_Constant(Resolve_CoreColorRgbDefault(emitter));
+        return data;
+    }
+
     static bool Draw_RadialPivotProperty(
         DetailPropertyContext& detailContext,
         Vec3& value,
@@ -857,7 +939,7 @@ bool RequiredModuleDetail::Draw(
         {
             ImGui::PushID("MaterialDropSlot");
             detailContext.Draw_PropertyLabel("머티리얼");
-            changed |= Internal::Draw_MaterialDropSlot(data, _materialSlotPreview.get(), timeDelta);
+            changed |= Internal::Draw_MaterialDropSlot(emitter, data, _materialSlotPreview.get(), timeDelta);
             detailContext.Draw_ResetButton(false);
             ImGui::PopID();
 
@@ -943,21 +1025,23 @@ bool RequiredModuleDetail::Draw(
         detailContext.Draw_ScreenAlignmentImplementationNote(data.screenAlignment);
     }
 
-    if (ImGui::CollapsingHeader("시간", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("이미터 재생 / 스폰 시간", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("RequiredTime"))
         {
             changed |= detailContext.Draw_UintProperty("루프 횟수", data.loopCount, defaultData.loopCount);
-            changed |= detailContext.Draw_FloatProperty("지속 시간", data.duration, defaultData.duration);
-            changed |= detailContext.Draw_FloatProperty("지속 시간 최소값 (범위 미구현)", data.durationLow, defaultData.durationLow);
-            changed |= detailContext.Draw_BoolProperty("지속 시간 범위 사용 (미구현)", data.useDurationRange, defaultData.useDurationRange);
-            changed |= detailContext.Draw_BoolProperty("루프마다 기간 재계산 (미구현)", data.recalculateDurationEachLoop, defaultData.recalculateDurationEachLoop);
-            changed |= detailContext.Draw_FloatProperty("딜레이", data.delay, defaultData.delay);
-            changed |= detailContext.Draw_FloatProperty("딜레이 최소값 (범위 미구현)", data.delayLow, defaultData.delayLow);
+            changed |= detailContext.Draw_FloatProperty("스폰 활성 시간", data.duration, defaultData.duration);
+            changed |= detailContext.Draw_FloatProperty("스폰 활성 시간 최소값 (범위 미구현)", data.durationLow, defaultData.durationLow);
+            changed |= detailContext.Draw_BoolProperty("스폰 활성 시간 범위 사용 (미구현)", data.useDurationRange, defaultData.useDurationRange);
+            changed |= detailContext.Draw_BoolProperty("루프마다 스폰 시간 재계산 (미구현)", data.recalculateDurationEachLoop, defaultData.recalculateDurationEachLoop);
+            changed |= detailContext.Draw_FloatProperty("스폰 시작 딜레이", data.delay, defaultData.delay);
+            changed |= detailContext.Draw_FloatProperty("스폰 시작 딜레이 최소값 (범위 미구현)", data.delayLow, defaultData.delayLow);
             changed |= detailContext.Draw_BoolProperty("딜레이 범위 사용 (미구현)", data.useDelayRange, defaultData.useDelayRange);
-            changed |= detailContext.Draw_BoolProperty("첫 루프만 딜레이", data.delayFirstLoopOnly, defaultData.delayFirstLoopOnly);
+            changed |= detailContext.Draw_BoolProperty("첫 루프만 스폰 딜레이", data.delayFirstLoopOnly, defaultData.delayFirstLoopOnly);
             detailContext.End_PropertyTable();
         }
+
+        ImGui::TextDisabled("스폰 활성 시간은 새 파티클을 만들 수 있는 emitter loop 구간입니다. 이미 태어난 파티클은 Particle Lifetime이 끝날 때까지 남을 수 있습니다.");
     }
 
     if (ImGui::CollapsingHeader("종료 / 킬", ImGuiTreeNodeFlags_DefaultOpen))
@@ -968,6 +1052,9 @@ bool RequiredModuleDetail::Draw(
             changed |= detailContext.Draw_BoolProperty("완료 시 킬", data.killOnCompleted, defaultData.killOnCompleted);
             detailContext.End_PropertyTable();
         }
+
+        if (data.killOnCompleted)
+            ImGui::TextDisabled("완료 시 active particle도 즉시 종료합니다.");
     }
 
     if (ImGui::CollapsingHeader("렌더링 제한", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1038,8 +1125,11 @@ bool LifetimeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, LifetimeMod
     const LifetimeModuleData defaultData{};
     bool changed = false;
 
-    if (ImGui::CollapsingHeader("수명", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_FloatDistributionGroup("수명", data.lifeTime, defaultData.lifeTime);
+    if (ImGui::CollapsingHeader("파티클 생존 시간", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        changed |= detailContext.Draw_FloatDistributionGroup("파티클 생존 시간", data.lifeTime, defaultData.lifeTime);
+        ImGui::TextDisabled("각 particle이 spawn된 뒤 살아 있는 시간입니다. Over Life 계열 curve의 기준이 됩니다.");
+    }
 
     return changed;
 }
@@ -1532,6 +1622,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
     if (ImGui::CollapsingHeader("머티리얼 변조", ImGuiTreeNodeFlags_DefaultOpen))
     {
         constexpr uint32 kMaxMaterialScalarModulators{ 8 };
+        constexpr uint32 kMaxCoreColorRgbModulators{ 8 };
         if (ImGui::Button("+ 변조 추가"))
         {
             data.modulators.push_back(MaterialScalarModulatorData{});
@@ -1539,72 +1630,188 @@ bool MaterialScalarModulationModuleDetail::Draw(
         }
 
         ImGui::SameLine();
-        ImGui::TextDisabled("%zu / %u", data.modulators.size(), kMaxMaterialScalarModulators);
+        ImGui::TextDisabled(
+            "%zu / %u",
+            data.modulators.size() + data.coreColorRgbModulators.size(),
+            kMaxMaterialScalarModulators + kMaxCoreColorRgbModulators
+        );
 
-        if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
-            ImGui::TextDisabled("Mesh는 Phase 4에서 EmitterTime부터 runtime 소비합니다.");
-
-        size_t removeIndex = numeric_limits<size_t>::max();
-        for (size_t index = 0; index < data.modulators.size(); ++index)
+        struct MaterialModulationUiRow
         {
-            MaterialScalarModulatorData& modulator = data.modulators[index];
-            const MaterialScalarModulatorData defaultData{};
-            ImGui::PushID(static_cast<int>(index));
+            bool isCoreColorRgb{};
+            size_t index{};
+        };
 
+        vector<MaterialModulationUiRow> rows{};
+        rows.reserve(data.modulators.size() + data.coreColorRgbModulators.size());
+        for (size_t index = 0; index < data.modulators.size(); ++index)
+            rows.push_back(MaterialModulationUiRow{ false, index });
+        for (size_t index = 0; index < data.coreColorRgbModulators.size(); ++index)
+            rows.push_back(MaterialModulationUiRow{ true, index });
+
+        for (size_t rowIndex = 0; rowIndex < rows.size(); ++rowIndex)
+        {
+            const MaterialModulationUiRow row = rows[rowIndex];
+            ImGui::PushID(row.isCoreColorRgb ? "CoreColorRgb" : "Scalar");
+            ImGui::PushID(static_cast<int>(row.index));
+
+            const MaterialScalarModulationTimeSource timeSource =
+                row.isCoreColorRgb
+                    ? data.coreColorRgbModulators[row.index].timeSource
+                    : data.modulators[row.index].timeSource;
             const string header =
-                string("#") + to_string(index + 1) + " " +
-                Internal::Get_MaterialScalarTargetLabel(modulator.targetField) + " / " +
-                Internal::Get_MaterialScalarTimeSourceLabel(modulator.timeSource);
+                string("#") + to_string(rowIndex + 1) + " " +
+                Internal::Get_MaterialModulationTargetLabel(
+                    row.isCoreColorRgb,
+                    row.isCoreColorRgb
+                        ? MaterialScalarModulationTargetField::CoreColor
+                        : data.modulators[row.index].targetField
+                ) + " / " +
+                Internal::Get_MaterialScalarTimeSourceLabel(timeSource);
+            bool structureChanged = false;
+
             if (ImGui::CollapsingHeader(header.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
             {
-                if (detailContext.Begin_PropertyTable("MaterialScalarModulator"))
+                if (row.isCoreColorRgb)
                 {
-                    changed |= detailContext.Draw_BoolProperty("사용", modulator.enabled, defaultData.enabled);
-                    changed |= Internal::Draw_MaterialScalarTargetProperty(
-                        detailContext,
-                        "대상",
-                        modulator.targetField,
-                        defaultData.targetField
-                    );
-                    detailContext.Draw_PropertyLabel("연산");
-                    ImGui::TextUnformatted(Internal::Get_MaterialScalarOperationLabel(modulator.operation));
-                    if (detailContext.Draw_ResetButton(modulator.operation != defaultData.operation))
+                    MaterialCoreColorRgbModulatorData& modulator = data.coreColorRgbModulators[row.index];
+                    MaterialCoreColorRgbModulatorData defaultData = Internal::Make_CoreColorRgbModulator(emitter);
+
+                    if (detailContext.Begin_PropertyTable("MaterialCoreColorRgbModulator"))
                     {
-                        modulator.operation = defaultData.operation;
-                        changed = true;
+                        changed |= detailContext.Draw_BoolProperty("사용", modulator.enabled, defaultData.enabled);
+
+                        bool nextCoreColorRgb = true;
+                        MaterialScalarModulationTargetField nextTarget = MaterialScalarModulationTargetField::CoreColor;
+                        if (Internal::Draw_MaterialModulationTargetProperty(
+                            detailContext,
+                            "대상",
+                            true,
+                            MaterialScalarModulationTargetField::CoreColor,
+                            nextCoreColorRgb,
+                            nextTarget
+                        ))
+                        {
+                            changed = true;
+                            if (!nextCoreColorRgb)
+                            {
+                                MaterialScalarModulatorData scalarModulator{};
+                                scalarModulator.enabled = modulator.enabled;
+                                scalarModulator.timeSource = modulator.timeSource;
+                                scalarModulator.targetField = nextTarget;
+                                scalarModulator.distribution = FloatDistributionData::Make_Constant(1.f);
+                                data.modulators.push_back(scalarModulator);
+                                data.coreColorRgbModulators.erase(data.coreColorRgbModulators.begin() + static_cast<ptrdiff_t>(row.index));
+                                structureChanged = true;
+                            }
+                        }
+
+                        if (!structureChanged)
+                        {
+                            changed |= Internal::Draw_MaterialScalarTimeSourceProperty(
+                                detailContext,
+                                "시간 축",
+                                modulator.timeSource,
+                                defaultData.timeSource
+                            );
+                        }
+                        detailContext.End_PropertyTable();
                     }
-                    changed |= Internal::Draw_MaterialScalarTimeSourceProperty(
-                        detailContext,
-                        "시간 축",
-                        modulator.timeSource,
-                        defaultData.timeSource
-                    );
-                    detailContext.End_PropertyTable();
+
+                    if (!structureChanged)
+                    {
+                        changed |= detailContext.Draw_Vector3DistributionGroup(
+                            "분포",
+                            modulator.distribution,
+                            defaultData.distribution
+                        );
+
+                        if (ImGui::Button("삭제"))
+                        {
+                            data.coreColorRgbModulators.erase(data.coreColorRgbModulators.begin() + static_cast<ptrdiff_t>(row.index));
+                            changed = true;
+                            structureChanged = true;
+                        }
+                    }
                 }
-
-                changed |= detailContext.Draw_FloatDistributionGroup(
-                    "분포",
-                    modulator.distribution,
-                    defaultData.distribution
-                );
-
-                if (modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife &&
-                    emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
+                else
                 {
-                    ImGui::TextDisabled("Mesh ParticleLife material scalar는 Phase 1.5 계약만 보존하고 후속에서 소비합니다.");
-                }
+                    MaterialScalarModulatorData& modulator = data.modulators[row.index];
+                    const MaterialScalarModulatorData defaultData{};
 
-                if (ImGui::Button("삭제"))
-                    removeIndex = index;
+                    if (detailContext.Begin_PropertyTable("MaterialScalarModulator"))
+                    {
+                        changed |= detailContext.Draw_BoolProperty("사용", modulator.enabled, defaultData.enabled);
+
+                        bool nextCoreColorRgb = false;
+                        MaterialScalarModulationTargetField nextTarget = modulator.targetField;
+                        if (Internal::Draw_MaterialModulationTargetProperty(
+                            detailContext,
+                            "대상",
+                            false,
+                            modulator.targetField,
+                            nextCoreColorRgb,
+                            nextTarget
+                        ))
+                        {
+                            changed = true;
+                            if (nextCoreColorRgb)
+                            {
+                                MaterialCoreColorRgbModulatorData coreColorRgbModulator = Internal::Make_CoreColorRgbModulator(emitter);
+                                coreColorRgbModulator.enabled = modulator.enabled;
+                                coreColorRgbModulator.timeSource = modulator.timeSource;
+                                data.coreColorRgbModulators.push_back(coreColorRgbModulator);
+                                data.modulators.erase(data.modulators.begin() + static_cast<ptrdiff_t>(row.index));
+                                structureChanged = true;
+                            }
+                            else
+                            {
+                                modulator.targetField = nextTarget;
+                            }
+                        }
+
+                        if (!structureChanged)
+                        {
+                            detailContext.Draw_PropertyLabel("연산");
+                            ImGui::TextUnformatted(Internal::Get_MaterialScalarOperationLabel(modulator.operation));
+                            if (detailContext.Draw_ResetButton(modulator.operation != defaultData.operation))
+                            {
+                                modulator.operation = defaultData.operation;
+                                changed = true;
+                            }
+                            changed |= Internal::Draw_MaterialScalarTimeSourceProperty(
+                                detailContext,
+                                "시간 축",
+                                modulator.timeSource,
+                                defaultData.timeSource
+                            );
+                        }
+                        detailContext.End_PropertyTable();
+                    }
+
+                    if (!structureChanged)
+                    {
+                        changed |= detailContext.Draw_FloatDistributionGroup(
+                            "분포",
+                            modulator.distribution,
+                            defaultData.distribution
+                        );
+
+                        if (ImGui::Button("삭제"))
+                        {
+                            data.modulators.erase(data.modulators.begin() + static_cast<ptrdiff_t>(row.index));
+                            changed = true;
+                            structureChanged = true;
+                        }
+                    }
+                }
             }
 
             ImGui::PopID();
-        }
+            ImGui::PopID();
 
-        if (removeIndex < data.modulators.size())
-        {
-            data.modulators.erase(data.modulators.begin() + static_cast<ptrdiff_t>(removeIndex));
-            changed = true;
+            if (structureChanged)
+                break;
         }
     }
 

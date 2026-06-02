@@ -1,5 +1,6 @@
 ﻿#include "MeshEmitter.h"
 
+#include "EffectMaterialScalarModulationRuntime.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
 #include "Renderer_Define.h"
@@ -573,7 +574,9 @@ HRESULT MeshEmitter::Ready_OptionalTexture(const string& textureGuid, const stri
 
 HRESULT MeshEmitter::Bind_EffectMaterialResources()
 {
-    const EffectRequiredMaterialRuntimeDesc& material = _desc.material;
+    const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.playback.duration);
+    const EffectRequiredMaterialRuntimeDesc material =
+        Client::Resolve_EmitterTimeMaterialScalarModulation(_desc.material, emitterPhase);
 
     CHECK_NULL(_texture, E_FAIL);
 

@@ -3,6 +3,7 @@
 #include "EffectEditorInstance.h"
 #include "EffectMaterialInstance_View.h"
 #include "EffectMaterialPresetReader.h"
+#include "EffectMaterialScalarModulationPreview.h"
 #include "EffectPreviewOrbitCamera.h"
 #include "GameInstance.h"
 #include "Helper_EffectAuthoring.h"
@@ -338,7 +339,7 @@ struct MeshDataPreview_View::PreviewRenderer
         End_ViewportDrag();
     }
 
-    void Render_Model(const MeshTypeData& meshData, const fs::path& modelPath)
+    void Render_Model(const AuthoringEmitter& emitter, const MeshTypeData& meshData, const fs::path& modelPath)
     {
         statusMessage.clear();
         hasRendered = false;
@@ -360,6 +361,21 @@ struct MeshDataPreview_View::PreviewRenderer
         {
             statusMessage = "Assigned effect material is missing.";
             return;
+        }
+
+        if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(emitter))
+        {
+            const RequiredModuleData* required = Find_RequiredModuleData(emitter);
+            const float previewDuration = required != nullptr ? required->duration : 1.f;
+            const MaterialScalarModulationPreviewResult previewMaterial =
+                Evaluate_MaterialScalarModulationPreview(
+                    effectMaterial,
+                    Build_CoreColorRgbModulationRuntimeDesc(*modulation),
+                    Build_MaterialScalarModulationRuntimeDesc(*modulation),
+                    Compute_MaterialScalarPreviewPhase(materialElapsedTime, previewDuration),
+                    false
+                );
+            effectMaterial = previewMaterial.material;
         }
 
         if (!Ready_RenderTarget() || !Ready_Shader(effectMaterial) || !Ready_Model(modelPath))
@@ -389,7 +405,7 @@ struct MeshDataPreview_View::PreviewRenderer
         hasRendered = true;
     }
 
-    void Draw_Viewport(const char* id, const MeshTypeData& meshData, const fs::path& modelPath)
+    void Draw_Viewport(const char* id, const AuthoringEmitter& emitter, const MeshTypeData& meshData, const fs::path& modelPath)
     {
         const ImVec2 availableSize = ImGui::GetContentRegionAvail();
         const ImVec2 canvasSize{ max(1.f, availableSize.x), max(260.f, availableSize.y) };
@@ -401,7 +417,7 @@ struct MeshDataPreview_View::PreviewRenderer
             innerSize.y = max(1.f, innerSize.y);
             Resize_RenderTarget(static_cast<uint32>(innerSize.x), static_cast<uint32>(innerSize.y));
             materialElapsedTime += max(ImGui::GetIO().DeltaTime, 0.f);
-            Render_Model(meshData, modelPath);
+            Render_Model(emitter, meshData, modelPath);
 
             const ImVec2 canvasMin = ImGui::GetCursorScreenPos();
             const ImVec2 canvasMax{ canvasMin.x + innerSize.x, canvasMin.y + innerSize.y };
@@ -1005,7 +1021,7 @@ void MeshDataPreview_View::Render()
                 ImGui::BeginChild("MeshDataPreviewViewportPane", ImVec2(previewPaneWidth, 0.f), false);
                 {
                     if (_previewRenderer != nullptr)
-                        _previewRenderer->Draw_Viewport("MeshDataPreviewViewport", *meshData, modelPath);
+                        _previewRenderer->Draw_Viewport("MeshDataPreviewViewport", *emitter, *meshData, modelPath);
                 }
                 ImGui::EndChild();
 
@@ -1019,7 +1035,7 @@ void MeshDataPreview_View::Render()
             else
             {
                 if (_previewRenderer != nullptr)
-                    _previewRenderer->Draw_Viewport("MeshDataPreviewViewport", *meshData, modelPath);
+                    _previewRenderer->Draw_Viewport("MeshDataPreviewViewport", *emitter, *meshData, modelPath);
                 ImGui::Separator();
                 Render_Inspector(*emitterView, *emitter, *meshData);
             }

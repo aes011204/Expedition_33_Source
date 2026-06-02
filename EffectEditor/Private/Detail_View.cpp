@@ -12,9 +12,6 @@ NS_BEGIN(EffectEditor)
 
 namespace
 {
-    constexpr auto kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
-    constexpr auto kEffectModelPayloadType = "CONTENT_BROWSER_EFFECT_MODEL";
-
     constexpr TrailCurveQuality kTrailCurveQualityValues[] = {
         TrailCurveQuality::Basic,
         TrailCurveQuality::Smooth,

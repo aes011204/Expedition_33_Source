@@ -2194,27 +2194,33 @@ void Emitter_View::Draw_EmitterBoard()
             boardMin.y + ImGui::GetWindowHeight()
         };
         const float columnHeight = max(1.f, ImGui::GetContentRegionAvail().y);
-        float lastColumnRight = ImGui::GetCursorScreenPos().x;
 
         for (size_t emitterIndex = 0; emitterIndex < _emitters.size(); ++emitterIndex)
         {
             ImGui::PushID(static_cast<int>(emitterIndex));
             Draw_EmitterColumn(emitterIndex, _emitters[emitterIndex], columnHeight);
-            lastColumnRight = ImGui::GetItemRectMax().x;
             ImGui::PopID();
 
             if (emitterIndex + 1 < _emitters.size())
                 ImGui::SameLine(0.f, 0.f);
         }
 
+        if (!_emitters.empty())
+            ImGui::SameLine(0.f, 0.f);
+
+        ImGui::Dummy(ImVec2(kEmitterRightBlankWidth, columnHeight));
+        const bool isRightGutterHovered = ImGui::IsItemHovered();
+        const float blankRegionLeft = ImGui::GetItemRectMax().x;
+
         const ImVec2 mousePos = ImGui::GetMousePos();
-        const bool isRightBlankHovered =
+        const bool isTrailingBlankHovered =
             ImGui::IsWindowHovered() &&
             !ImGui::IsAnyItemHovered() &&
-            mousePos.x > lastColumnRight &&
+            mousePos.x > blankRegionLeft &&
             mousePos.x < boardMax.x &&
             mousePos.y >= boardMin.y &&
             mousePos.y < boardMax.y;
+        const bool isRightBlankHovered = isRightGutterHovered || isTrailingBlankHovered;
 
         if (isRightBlankHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             Clear_Selection();

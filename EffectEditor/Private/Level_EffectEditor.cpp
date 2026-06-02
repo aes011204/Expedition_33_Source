@@ -426,10 +426,14 @@ namespace Internal
             return EffectMaterialScalarModulationTarget::NoiseStrength;
         case MaterialScalarModulationTargetField::AlphaErosion:
             return EffectMaterialScalarModulationTarget::AlphaErosion;
+        case MaterialScalarModulationTargetField::AlphaCutoff:
+            return EffectMaterialScalarModulationTarget::AlphaCutoff;
         case MaterialScalarModulationTargetField::CoreIntensity:
             return EffectMaterialScalarModulationTarget::CoreIntensity;
         case MaterialScalarModulationTargetField::OuterIntensity:
             return EffectMaterialScalarModulationTarget::OuterIntensity;
+        case MaterialScalarModulationTargetField::CoreColor:
+            return EffectMaterialScalarModulationTarget::CoreColor;
         case MaterialScalarModulationTargetField::Intensity:
         default:
             return EffectMaterialScalarModulationTarget::Intensity;
@@ -527,6 +531,90 @@ namespace Internal
             target.operation = To_RuntimeMaterialScalarOperation(source.operation);
             target.timeSource = To_RuntimeMaterialScalarTimeSource(source.timeSource);
             Fill_MaterialScalarCurvePayload(target.curve, source.distribution);
+        }
+    }
+
+    void Fill_CoreColorRgbCurveComponent(
+        EffectMaterialCoreColorRgbModulationCurveDesc& desc,
+        uint32 index,
+        const Vector3CurveKeyData& key)
+    {
+        Set_SubUVFrameCurveComponent(desc.keyTimes, index, clamp(key.time, 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.keyValuesR, index, key.value.x);
+        Set_SubUVFrameCurveComponent(desc.keyValuesG, index, key.value.y);
+        Set_SubUVFrameCurveComponent(desc.keyValuesB, index, key.value.z);
+        Set_SubUVFrameCurveComponent(desc.keyArriveTangentsR, index, key.arriveTangent.x);
+        Set_SubUVFrameCurveComponent(desc.keyArriveTangentsG, index, key.arriveTangent.y);
+        Set_SubUVFrameCurveComponent(desc.keyArriveTangentsB, index, key.arriveTangent.z);
+        Set_SubUVFrameCurveComponent(desc.keyLeaveTangentsR, index, key.leaveTangent.x);
+        Set_SubUVFrameCurveComponent(desc.keyLeaveTangentsG, index, key.leaveTangent.y);
+        Set_SubUVFrameCurveComponent(desc.keyLeaveTangentsB, index, key.leaveTangent.z);
+        Set_SubUVFrameCurveComponent(desc.keyModes, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+    }
+
+    void Fill_CoreColorRgbCurvePayload(
+        EffectMaterialCoreColorRgbModulationCurveDesc& desc,
+        const Vector3DistributionData& distribution)
+    {
+        constexpr uint32 maxCurveKeys{ 4 };
+        desc = EffectMaterialCoreColorRgbModulationCurveDesc{};
+
+        if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&distribution.payload);
+            distribution.mode == DistributionMode::ConstantCurve && curve != nullptr && !curve->keys.empty())
+        {
+            const uint32 keyCount = min(maxCurveKeys, static_cast<uint32>(curve->keys.size()));
+            desc.enabled = true;
+            desc.keyCount = keyCount;
+            desc.keyTimes = Vec4{};
+            desc.keyValuesR = Vec4{};
+            desc.keyValuesG = Vec4{};
+            desc.keyValuesB = Vec4{};
+            desc.keyArriveTangentsR = Vec4{};
+            desc.keyArriveTangentsG = Vec4{};
+            desc.keyArriveTangentsB = Vec4{};
+            desc.keyLeaveTangentsR = Vec4{};
+            desc.keyLeaveTangentsG = Vec4{};
+            desc.keyLeaveTangentsB = Vec4{};
+            desc.keyModes = Vec4{};
+
+            for (uint32 index = 0; index < keyCount; ++index)
+                Fill_CoreColorRgbCurveComponent(desc, index, curve->keys[index]);
+
+            return;
+        }
+
+        Vec3 value{ 1.f, 0.85f, 0.45f };
+        if (const auto* constant = get_if<ConstantVector3DistributionData>(&distribution.payload))
+            value = constant->value;
+        else if (const auto* uniform = get_if<UniformVector3DistributionData>(&distribution.payload))
+            value = (uniform->minValue + uniform->maxValue) * 0.5f;
+
+        desc.enabled = true;
+        desc.keyCount = 2;
+        desc.keyValuesR = Vec4{ value.x, value.x, 0.f, 0.f };
+        desc.keyValuesG = Vec4{ value.y, value.y, 0.f, 0.f };
+        desc.keyValuesB = Vec4{ value.z, value.z, 0.f, 0.f };
+    }
+
+    void Fill_CoreColorRgbModulationPayload(
+        EffectMaterialCoreColorRgbModulationRuntimeDesc& desc,
+        const MaterialScalarModulationModuleData& data)
+    {
+        desc = EffectMaterialCoreColorRgbModulationRuntimeDesc{};
+
+        const uint32 count = min(
+            EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators,
+            static_cast<uint32>(data.coreColorRgbModulators.size())
+        );
+        desc.count = count;
+
+        for (uint32 index = 0; index < count; ++index)
+        {
+            const MaterialCoreColorRgbModulatorData& source = data.coreColorRgbModulators[index];
+            EffectMaterialCoreColorRgbModulatorRuntimeDesc& target = desc.modulators[index];
+            target.enabled = source.enabled;
+            target.timeSource = To_RuntimeMaterialScalarTimeSource(source.timeSource);
+            Fill_CoreColorRgbCurvePayload(target.curve, source.distribution);
         }
     }
 
@@ -1200,6 +1288,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
             desc.required.material.scalarModulation,
             *materialScalarModulation
         );
+        Internal::Fill_CoreColorRgbModulationPayload(
+            desc.required.material.coreColorRgbModulation,
+            *materialScalarModulation
+        );
     }
 
     if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
@@ -1526,6 +1618,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
             emitterDesc.material.scalarModulation,
             *materialScalarModulation
         );
+        Internal::Fill_CoreColorRgbModulationPayload(
+            emitterDesc.material.coreColorRgbModulation,
+            *materialScalarModulation
+        );
     }
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
@@ -1686,6 +1782,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
     {
         Internal::Fill_MaterialScalarModulationPayload(
             emitterDesc.material.scalarModulation,
+            *materialScalarModulation
+        );
+        Internal::Fill_CoreColorRgbModulationPayload(
+            emitterDesc.material.coreColorRgbModulation,
             *materialScalarModulation
         );
     }

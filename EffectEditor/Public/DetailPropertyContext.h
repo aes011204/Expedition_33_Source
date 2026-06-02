@@ -20,6 +20,7 @@ public:
     bool Draw_BoolProperty(const char* label, bool& value, bool defaultValue, const char* tooltip = nullptr);
     bool Draw_FloatProperty(const char* label, float& value, float defaultValue, float speed = 0.01f, const char* tooltip = nullptr);
     bool Draw_ColorProperty(const char* label, Color& value, const Color& defaultValue);
+    bool Draw_ColorRgbProperty(const char* label, Color& value, const Color& defaultValue);
     bool Draw_FloatDistributionGroup(
         const char* label,
         FloatDistributionData& value,
