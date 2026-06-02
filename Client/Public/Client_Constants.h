@@ -55,7 +55,6 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Escape_SkipTurnBack_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Escape_SkipTurn_Back.json";
     inline constexpr wchar_t UI_Attack_Tooltip_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_AttackTooltip.json";
 
-
     // 플레이어 메커니즘
     inline constexpr wchar_t UI_Gustave_Mechanism_Path[] = L"UI/UI_Json/BattleSystem/Gustave/UI_BattleSystem_Gustave_Mechanism.json";
     inline constexpr wchar_t UI_Lune_Mechanism_Path[] = L"UI/UI_Json/BattleSystem/Lune/UI_BattleSystem_Lune_Mechanism.json";
@@ -80,6 +79,10 @@ namespace Client::Constants::UI
 
     // QTE
     inline constexpr wchar_t UI_QTE_Path[] = L"UI/UI_Json/BattleSystem/UI_QTE.json";
+
+    // 징표
+    inline constexpr wchar_t UI_MarkEffect_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Mark_Effect.json";
+    inline constexpr wchar_t UI_Mark_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Mark.json";
 
 #pragma endregion
 
@@ -115,6 +118,8 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_QTESuccessNormalAnim_Path[] = L"UI/UI_Animations/BattleSystem/QTE/QTE_Success_Normal";
     inline constexpr wchar_t UI_QTESuccessPerfectAnim_Path[] = L"UI/UI_Animations/BattleSystem/QTE/QTE_Success_Perfect";
 #pragma endregion
+
+    inline constexpr wchar_t UI_MarkEffectLoopAnim_Path[] = L"UI/UI_Animations/BattleSystem/Mark_Effect_Loop";
 
 }
 
