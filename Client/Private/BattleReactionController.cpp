@@ -276,6 +276,8 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleS
 
 void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
 {
+    UNREFERENCED_PARAMETER(sourceModel);
+
     if (_animPhase != ReactionAnimPhase::Counter)
         return;
 
@@ -287,20 +289,8 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
         return;
 
     constexpr float counterDamage = 50.f;
-
-    uint32 hitCount = 0;
-
-    for (const BattleChar& target : _reactionAnimTargets)
-    {
-        if (target.actor == nullptr || target.statCom == nullptr)
-            continue;
-
-        DamageSystem::ApplyDamage(counterDamage, _counterDamageTarget, AttackType::Counter);
-        ++hitCount;
-    }
-
-    if (hitCount > 0)
-        _isCounterDamageApplied = true;
+    DamageSystem::ApplyDamage(counterDamage, _counterDamageTarget, AttackType::Counter);
+    _isCounterDamageApplied = true;
 }
 
 bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
@@ -364,6 +354,12 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
 
     if (!target.ModelCom->Set_AnimationByState(ETOI(animType), 0.1f, false))
         return;
+
+    for (const BattleChar& reactionTarget : _reactionAnimTargets)
+    {
+        if (reactionTarget.actor == target.actor)
+            return;
+    }
 
     _reactionAnimTargets.push_back(target);
     _animPhase = ReactionAnimPhase::Reaction;

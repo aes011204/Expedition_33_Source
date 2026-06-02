@@ -1290,9 +1290,10 @@ void BattleController::Play_EnemyTargetedEnd()
     _enemyTurnTargetedActor = {};
     _hasEnemyTurnTargetedActor = false;
 
-    if (target.actor == nullptr || target.ModelCom == nullptr)
+    if (target.actor == nullptr || target.ModelCom == nullptr )
         return;
-
+    if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+        return;
     if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_End), 0.2f, false))
         BattleAnimUtils::Play_BattleIdle(target, 0.2f);
 }
@@ -1671,42 +1672,6 @@ void BattleController::Restore_WorldCamera()
     //  _worldCamera.reset();
 }
 
-//BattleAction BattleController::BuildActionFromRequest(const ActionRequest& request) const
-//{
-//    BattleAction action{};
-//    action.type = request.type;
-//    action._curChar = request.actor;
-//    action.target = request.InitTarget;
-//    action._InitTarget = request.InitTarget;
-//
-//    if (!request.skillKey.empty())
-//    {
-//        if (const Skill_Data* skillData = CLIENT->Get_Skill(request.skillKey))
-//            action._selected_SkillKey = *skillData;
-//        else
-//            LOG_WARN("BuildActionFromRequest: skill data not found. skillKey={}", request.skillKey.c_str());
-//    }
-//
-//    if (request.itemType != BattleItemType::Invalid)
-//    {
-//        if (const Item_Data* itemData = CLIENT->Get_Item(request.itemType))
-//            action._selected_ItemKey = *itemData;
-//        else
-//            LOG_WARN("BuildActionFromRequest: item data not found. itemType={}", static_cast<int>(request.itemType));
-//    }
-//
-//    action._curAnimIndex = 0;
-//    action._curStepIndex = 0;
-//    action._curAttackIndex = 0;
-//    action.originPos = {};
-//    action.phaseStartPos = {};
-//    action.phaseGoalPos = {};
-//    action.phaseReachedGoal = false;
-//    action.phasePrevRootRatio = 0.f;
-//    action._isFinished = false;
-//    return action;
-//}
-
 void BattleController::Clear_BattleRuntimeState()
 {
     _turnAction = {};
@@ -1923,9 +1888,21 @@ void BattleController::PlayerStartAnim()
 
 void BattleController::HitAction(BattleChar target, AttackType attackType)
 {
+    if (target.ModelCom == nullptr || target.statCom == nullptr)
+    {
+        LOG_WARN("HitAction: missing components. model={}, stat={}",
+            target.ModelCom != nullptr,
+            target.statCom != nullptr);
+        return;
+    }
+
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
     {
-        target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Dead), 0.3f, false);
+        const bool playedDead = target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Dead), 0.3f, false);
+        LOG_DEBUG("HitAction: dead anim result={}, attackType={}, actor={}",
+            playedDead,
+            static_cast<int>(attackType),
+            target.actor ? String::ToString(target.actor->Get_Name()).c_str() : "null");
         return;
     }
 
