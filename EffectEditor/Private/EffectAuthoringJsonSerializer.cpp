@@ -1536,9 +1536,7 @@ namespace Internal
 
         const auto rotationOverLifeIter = root.find("rotationOverLife");
         if (rotationOverLifeIter != root.end())
-        {
             From_Json(*rotationOverLifeIter, outData.rotationOverLife);
-        }
         else
         {
             float rotationStartDegrees{ 0.f };
@@ -1547,7 +1545,6 @@ namespace Internal
             Read_NumberField(root, "rotationEndDegrees", rotationEndDegrees);
             outData.rotationOverLife = FloatDistributionData::Make_ConstantCurve(rotationStartDegrees, rotationEndDegrees);
         }
-
     }
 
     json To_Json(const InitialRotationRateModuleData& data)
@@ -1578,9 +1575,7 @@ namespace Internal
 
         const auto scaleOverLifeIter = root.find("scaleOverLife");
         if (scaleOverLifeIter != root.end())
-        {
             From_Json(*scaleOverLifeIter, outData.scaleOverLife);
-        }
         else
         {
             float scaleStart{ 1.f };
@@ -1589,7 +1584,6 @@ namespace Internal
             Read_NumberField(root, "scaleEnd", scaleEnd);
             outData.scaleOverLife = FloatDistributionData::Make_ConstantCurve(scaleStart, scaleEnd);
         }
-
     }
 
     json To_Json(const InitialMeshRotationModuleData& data)
@@ -1745,9 +1739,7 @@ namespace Internal
 
         const auto scaleOverLifeIter = root.find("scaleOverLife");
         if (scaleOverLifeIter != root.end())
-        {
             From_Json(*scaleOverLifeIter, outData.scaleOverLife);
-        }
         else
         {
             float multiplyXStart{ 1.f };
@@ -1781,13 +1773,15 @@ namespace Internal
                     for (const FloatCurveKeyData& responseKey : curve->keys)
                     {
                         const float ratio = Evaluate_FloatConstantCurve(*curve, responseKey.time, responseKey.value);
-                        bakedCurve.keys.push_back(Vector2CurveKeyData{
-                            responseKey.time,
-                            Lerp_Vec2(Vec2{ multiplyXStart, multiplyYStart }, Vec2{ multiplyXEnd, multiplyYEnd }, ratio),
-                            Vec2{},
-                            Vec2{},
-                            responseKey.interpolationMode
-                        });
+                        bakedCurve.keys.push_back(
+                            Vector2CurveKeyData{
+                                responseKey.time,
+                                Lerp_Vec2(Vec2{ multiplyXStart, multiplyYStart }, Vec2{ multiplyXEnd, multiplyYEnd }, ratio),
+                                Vec2{},
+                                Vec2{},
+                                responseKey.interpolationMode
+                            }
+                        );
                     }
                 }
 
@@ -1797,14 +1791,14 @@ namespace Internal
                         Vector2DistributionData::Make_ConstantCurve(
                             Vec2{ multiplyXStart, multiplyYStart },
                             Vec2{ multiplyXEnd, multiplyYEnd }
-                        ).payload).keys;
+                        ).payload
+                    ).keys;
                 }
 
                 outData.scaleOverLife.mode = DistributionMode::ConstantCurve;
                 outData.scaleOverLife.payload = bakedCurve;
             }
         }
-
     }
 
     json To_Json(const MeshSizeByLifeModuleData& data)
@@ -2076,6 +2070,7 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringEmitter& emitter)
     root["id"] = emitter.id;
     root["name"] = emitter.name;
     root["rendererType"] = Authoring::Resolve_RendererType(emitter.typeData);
+    root["renderLayerOverride"] = Internal::To_EnumToken(emitter.renderLayerOverride);
     root["enabled"] = emitter.enabled;
     if (emitter.typeData.kind != AuthoringTypeDataKind::None)
         root["typeData"] = Internal::To_Json(emitter.typeData);
@@ -2205,6 +2200,8 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringEmitter
     emitter.id = root.value("id", 0u);
     emitter.name = root.value("name", string{});
     emitter.rendererType = root.value("rendererType", emitter.rendererType);
+    if (const auto renderLayerOverrideIter = root.find("renderLayerOverride"); renderLayerOverrideIter != root.end())
+        Internal::Try_ReadEnumToken(*renderLayerOverrideIter, emitter.renderLayerOverride);
     emitter.enabled = root.value("enabled", emitter.enabled);
     emitter.previewDirty = true;
 
@@ -2224,7 +2221,6 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringEmitter
             if (From_Json(moduleNode, module))
                 emitter.modules.push_back(move(module));
         }
-
     }
 
     outEmitter = move(emitter);

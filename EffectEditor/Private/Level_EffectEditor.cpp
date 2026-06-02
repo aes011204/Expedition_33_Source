@@ -55,6 +55,18 @@ namespace Internal
         return max(1u, max(1u, required.material.subUVRows) * max(1u, required.material.subUVCols));
     }
 
+    EffectEmitterRenderLayerOverride Resolve_EffectRenderLayerOverride(EmitterRenderLayerOverride value)
+    {
+        switch (value)
+        {
+        case EmitterRenderLayerOverride::UIEffect:
+            return EffectEmitterRenderLayerOverride::UIEffect;
+        case EmitterRenderLayerOverride::Auto:
+        default:
+            return EffectEmitterRenderLayerOverride::Auto;
+        }
+    }
+
     void Copy_MaterialToRuntimeDesc(const EffectMaterialInstanceData& material, EffectRequiredMaterialRuntimeDesc& outMaterial)
     {
         outMaterial.materialFamily = material.materialFamily;
@@ -1100,9 +1112,11 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     definition.name = emitter.name;
     definition.kind = EffectEmitterKind::ComputeSprite;
     definition.enabled = emitter.enabled;
+    definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
     ComputeSpriteEmitterDesc desc{};
     desc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
+    desc.renderLayerOverride = definition.renderLayerOverride;
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
@@ -1426,8 +1440,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
     definition.name = emitter.name;
     definition.kind = EffectEmitterKind::ComputeTrail;
     definition.enabled = emitter.enabled;
+    definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
     ComputeTrailEmitterDesc emitterDesc{};
+    emitterDesc.renderLayerOverride = definition.renderLayerOverride;
 
     if (const auto* trailData = get_if<TrailTypeData>(&emitter.typeData.payload))
     {
@@ -1619,8 +1635,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
     definition.name = emitter.name;
     definition.kind = EffectEmitterKind::Mesh;
     definition.enabled = emitter.enabled;
+    definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
     MeshEmitterDesc emitterDesc{};
+    emitterDesc.renderLayerOverride = definition.renderLayerOverride;
 
     if (const auto* meshData = get_if<MeshTypeData>(&emitter.typeData.payload))
     {

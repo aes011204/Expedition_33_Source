@@ -1595,9 +1595,11 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
     outDefinition.name = Read_String(emitter, "name");
     outDefinition.kind = EffectEmitterKind::ComputeSprite;
     outDefinition.enabled = true;
+    Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
 
     ComputeSpriteEmitterDesc desc{};
     desc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
+    desc.renderLayerOverride = outDefinition.renderLayerOverride;
 
     if (const json* required = Find_ModuleData(emitter, "Required"))
         Apply_RequiredModule(*required, outDefinition, desc);
@@ -1855,8 +1857,10 @@ bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter,
     outDefinition.name = Read_String(emitter, "name");
     outDefinition.kind = EffectEmitterKind::ComputeTrail;
     outDefinition.enabled = true;
+    Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
 
     ComputeTrailEmitterDesc desc{};
+    desc.renderLayerOverride = outDefinition.renderLayerOverride;
 
     const auto typeDataIter = emitter.find("typeData");
     if (typeDataIter != emitter.end() && typeDataIter->is_object())
@@ -1972,8 +1976,10 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
     outDefinition.name = Read_String(emitter, "name");
     outDefinition.kind = EffectEmitterKind::Mesh;
     outDefinition.enabled = true;
+    Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
 
     MeshEmitterDesc desc{};
+    desc.renderLayerOverride = outDefinition.renderLayerOverride;
     string assignedEffectMaterialGuid{};
     string assignedEffectMaterialPath{};
     bool hasAssignedMaterialInstance = false;

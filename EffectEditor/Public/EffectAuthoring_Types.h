@@ -44,6 +44,12 @@ enum class EffectAuthoringSelectionKind : uint8
     Module,
 };
 
+enum class EmitterRenderLayerOverride : uint8
+{
+    Auto,
+    UIEffect,
+};
+
 enum class EmitterScreenAlignment : uint8
 {
     Square,
@@ -815,6 +821,7 @@ struct AuthoringEmitter
     uint32 id{};
     string name{};
     string rendererType{ "Sprite" };
+    EmitterRenderLayerOverride renderLayerOverride{ EmitterRenderLayerOverride::Auto };
     string resourceSummary{};
     string textureId{ "Effects/Textures/Shared/DefaultTexture.dds" };
     bool enabled{ true };
