@@ -204,7 +204,13 @@ namespace Client::Constants::Prefab
     inline constexpr char Lune_Colim[]          = "WP_Lune_Colim";
     inline constexpr char Maelle_Medalum[]      = "WP_Maelle_Medalum";
 #pragma endregion
+}
 
+namespace Client::Constants::Sound
+{
+    constexpr const wchar_t* MainTitleBGM = L"MainTitle/MainTitle_BGM.wav";
 
-    
+    constexpr const wchar_t* MainMenuLoading = L"MainTitle/MainMenu_Loading.wav";
+    constexpr const wchar_t* MainMenuNewGame = L"MainTitle/MainMenu_NewGame.wav";
+    constexpr const wchar_t* MainMenuQuitGame = L"MainTitle/MainMenu_QuitGame.wav";
 }
