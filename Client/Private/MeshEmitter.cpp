@@ -1467,6 +1467,9 @@ Vec3 MeshEmitter::Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& d
 
 RenderGroup MeshEmitter::Resolve_RenderGroup() const
 {
+    if (_desc.renderLayerOverride == EffectEmitterRenderLayerOverride::UIEffect)
+        return RenderGroup::UIEffect;
+
     if (Is_DistortionFamily())
         return RenderGroup::Distortion;
 

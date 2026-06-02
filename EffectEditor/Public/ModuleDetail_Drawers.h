@@ -270,4 +270,14 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class MaterialScalarModulationModuleDetail
+{
+public:
+    bool Draw(
+        const AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        MaterialScalarModulationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 NS_END
