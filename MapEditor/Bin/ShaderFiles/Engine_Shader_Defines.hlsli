@@ -58,6 +58,7 @@
 // Draw Feature Flags
 #define FEATURE_FLAG_DISSOLVE        (1u << 0)
 #define FEATURE_FLAG_DISTORTION      (1u << 1)
+#define FEATURE_FLAG_PREVIEW_RIM     (1u << 2)
 
 // PostProcess Feature Flags
 // PostProcess Feature Flags

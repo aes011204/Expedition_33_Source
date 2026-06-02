@@ -2,9 +2,12 @@
 #include "ClientInstance.h"
 #include "Client_Constants.h"
 #include "CombatStatCom.h"
+#include "EffectCom.h"
 #include "GameInstance.h"
+#include "LightingPipeline.h"
 #include "Player_WorldBase.h"
 #include "PlayerStatCom.h"
+#include "PostProcessPipeline.h"
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
@@ -16,6 +19,16 @@ using namespace UI_Utils;
 
 namespace
 {
+    // UI Preview에서 사용할 조명과 림 라이트의 기본값들
+    constexpr Vec4 kCharacterStatusPreviewLightAmbient = Vec4(0.02f, 0.02f, 0.025f, 1.f);
+    constexpr Vec4 kCharacterStatusPreviewLightSpecular = Vec4(1.45f, 1.30f, 1.08f, 1.f);
+    constexpr Vec3 kCharacterStatusPreviewLightDirection = Vec3(1.572f, 0.319f, -1.061f);
+    constexpr Vec4 kCharacterStatusPreviewLightDiffuse = Vec4(5.f, 4.f, 4.f, 1.f);
+    constexpr Vec3 kCharacterStatusPreviewRimColor = Vec3(1.0f, 0.90f, 0.62f);
+    constexpr float kCharacterStatusPreviewRimIntensity = 1.2f;
+    constexpr float kCharacterStatusPreviewRimPower = 2.55f;
+    constexpr float kCharacterStatusPreviewHairRimIntensity = 0.55f;
+
 	constexpr std::array<HeroId, 3> characterStatusOrder =
 	{
 		HeroId::Lune,
@@ -82,6 +95,7 @@ void CharacterStatus_Panel::Open()
     auto previewLayout = Build_PreviewLayout();
     CLIENT->Apply_PreviewLayout(previewLayout);
     CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotPanel::CharacterStatus);
+    Apply_PreviewOverrides();
 	//const HeroId activeHeroId = CLIENT->Get_HeroId(CLIENT->Get_ActiveHeroSlot());
 	//_selectedHeroIndex = Get_CharacterStatusIndex(activeHeroId);
 
@@ -103,6 +117,7 @@ void CharacterStatus_Panel::Close()
 	UI_RuntimePanelBase::Close();
 
 	Clear_PendingStats();
+    Restore_PreviewOverrides();
 
 	CLIENT->Hide_Preview();
 
@@ -142,6 +157,8 @@ void CharacterStatus_Panel::Handle_SelectionInput()
 		auto previewLayout = Build_PreviewLayout();
 		CLIENT->Apply_PreviewLayout(previewLayout);
 		CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotPanel::CharacterStatus);
+        // Update_PreviewHeroVisibility();
+        Apply_PreviewOverrides();
 	}
 }
 
@@ -554,6 +571,194 @@ vector<UIPreviewManager::PreviewSlotDesc> CharacterStatus_Panel::Build_PreviewLa
 	return layout;
 }
 
+// UI Preview용 조명과 포스트프로세스 세팅을 적용한다. 닫을 때 원래 세팅으로 돌아갈 수 있게 현재 세팅을 저장해 둔다.
+void CharacterStatus_Panel::Apply_PreviewOverrides()
+{
+    const Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
+    const Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager();
+    const LIGHT_DESC* primaryLightDesc = GAME->Get_PrimaryShadowLightDesc();
+    if (primaryLightDesc == nullptr)
+    {
+        const uint32 lightCount = GAME->Get_LightCount();
+        for (uint32 lightIndex = 0; lightIndex < lightCount; ++lightIndex)
+        {
+            const LIGHT_DESC* lightDesc = GAME->Get_LightDesc(lightIndex);
+            if (lightDesc == nullptr || lightDesc->type != LightType::Directional)
+                continue;
+
+            primaryLightDesc = lightDesc;
+            break;
+        }
+    }
+
+    if (previewManager == nullptr)
+        return;
+
+    if (_previewOverrideState.isCaptured == false)
+    {
+        // 닫을 때 원래 월드 조명으로 정확히 돌아가게 한 번만 저장한다.
+        _previewOverrideState.isCaptured = true;
+        _previewOverrideState.cascadeLevel = GAME->Get_ShadowCascadeLevel();
+        _previewOverrideState.hasPrimaryLight = (primaryLightDesc != nullptr);
+        _previewOverrideState.hasPostProcess = (postProcessPipeline != nullptr);
+        _previewOverrideState.hasLighting = (lightingPipeline != nullptr);
+
+        if (primaryLightDesc != nullptr)
+            _previewOverrideState.primaryLight = *primaryLightDesc;
+
+        if (postProcessPipeline != nullptr)
+        {
+            _previewOverrideState.postProcess = postProcessPipeline->Get_PostProcessParams();
+            _previewOverrideState.postProcessFeatures = postProcessPipeline->Get_PostProcessFeatures();
+        }
+
+        if (lightingPipeline != nullptr)
+        {
+            _previewOverrideState.deferredLighting = lightingPipeline->Get_DeferredLightingParams();
+            _previewOverrideState.iblEnabled = lightingPipeline->Is_IBLEnabled();
+        }
+    }
+
+    if (_previewOverrideState.hasPrimaryLight)
+    {
+        LIGHT_DESC previewLight = _previewOverrideState.primaryLight;
+        Vec3 previewLightDir = kCharacterStatusPreviewLightDirection;
+        if (previewLightDir.LengthSquared() > 0.0001f)
+            previewLightDir.Normalize();
+
+        previewLight.direction = Vec4(previewLightDir.x, previewLightDir.y, previewLightDir.z, 0.f);
+        previewLight.diffuse = kCharacterStatusPreviewLightDiffuse;
+        previewLight.ambient = kCharacterStatusPreviewLightAmbient;
+        previewLight.specular = kCharacterStatusPreviewLightSpecular;
+        GAME->Update_PrimaryShadowLightDesc(previewLight);
+        GAME->Set_ShadowCascadeLevel(Engine::CascadeLevel::Close);
+    }
+
+    if (_previewOverrideState.hasPostProcess && postProcessPipeline != nullptr)
+    {
+        Engine::PostProcessCB previewPostProcess = _previewOverrideState.postProcess;
+        previewPostProcess.exposure = 0.60f;
+        previewPostProcess.gamma = 1.33f;
+        previewPostProcess.bloomThreshold = 0.78f;
+        previewPostProcess.bloomIntensity = 0.64f;
+        previewPostProcess.bloomScatter = 0.88f;
+        postProcessPipeline->Set_PostProcessFeatures(
+            Engine::PostProcessFeature::HDR |
+            Engine::PostProcessFeature::ToneMapping |
+            Engine::PostProcessFeature::Exposure |
+            Engine::PostProcessFeature::Bloom |
+            Engine::PostProcessFeature::Gamma);
+        postProcessPipeline->Set_PostProcessParams(previewPostProcess);
+    }
+
+    if (_previewOverrideState.hasLighting && lightingPipeline != nullptr)
+    {
+        Engine::DeferredLightingCB previewDeferredLighting = _previewOverrideState.deferredLighting;
+        previewDeferredLighting.iblIntensity = 0.64f;
+        previewDeferredLighting.iblDiffuseIntensity = 0.34f;
+        previewDeferredLighting.iblSpecularIntensity = 1.18f;
+        lightingPipeline->Set_DeferredLightingParams(previewDeferredLighting);
+        lightingPipeline->Set_IBLEnabled(true);
+    }
+
+    Apply_PreviewRimState();
+}
+
+// UI Preview용으로 변경한 조명과 포스트프로세스 세팅을 원래대로 돌려놓는다.
+void CharacterStatus_Panel::Restore_PreviewOverrides()
+{
+    if (!_previewOverrideState.isCaptured)
+        return;
+
+    Clear_PreviewRimState();
+
+    const Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
+    const Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+
+    if (_previewOverrideState.hasPrimaryLight)
+    {
+        GAME->Update_PrimaryShadowLightDesc(_previewOverrideState.primaryLight);
+        GAME->Set_ShadowCascadeLevel(_previewOverrideState.cascadeLevel);
+    }
+
+    if (_previewOverrideState.hasPostProcess && postProcessPipeline != nullptr)
+    {
+        postProcessPipeline->Set_PostProcessFeatures(_previewOverrideState.postProcessFeatures);
+        postProcessPipeline->Set_PostProcessParams(_previewOverrideState.postProcess);
+    }
+
+    if (_previewOverrideState.hasLighting && lightingPipeline != nullptr)
+    {
+        lightingPipeline->Set_DeferredLightingParams(_previewOverrideState.deferredLighting);
+        lightingPipeline->Set_IBLEnabled(_previewOverrideState.iblEnabled);
+    }
+
+    _previewOverrideState = PreviewOverrideState{};
+}
+
+// 선택된 캐릭터에게 림 라이트 효과를 적용한다. 다른 캐릭터들은 림 라이트를 끈다.
+void CharacterStatus_Panel::Apply_PreviewRimState()
+{
+    const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager();
+    if (previewManager == nullptr)
+        return;
+
+    const HeroId selectedHeroId = Get_SelectedCharacterStatusHeroId(_selectedHeroIndex);
+    for (const auto& previewHero : previewManager->Get_PreviewHeroes())
+    {
+        if (previewHero.player == nullptr)
+            continue;
+
+        const Shared<EffectCom> effectCom = previewHero.player->Get_Component<EffectCom>();
+        if (effectCom == nullptr)
+            continue;
+
+        if (previewHero.heroId == selectedHeroId)
+            effectCom->Set_PreviewRim(
+                kCharacterStatusPreviewRimColor,
+                kCharacterStatusPreviewRimIntensity,
+                kCharacterStatusPreviewRimPower,
+                kCharacterStatusPreviewHairRimIntensity);
+        else
+            effectCom->Clear_PreviewRim();
+    }
+}
+
+ // 모든 미리보기 캐릭터에서 림 라이트 효과를 제거한다.
+void CharacterStatus_Panel::Clear_PreviewRimState()
+{
+    const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager();
+    if (previewManager == nullptr)
+        return;
+
+    for (const auto& previewHero : previewManager->Get_PreviewHeroes())
+    {
+        if (previewHero.player == nullptr)
+            continue;
+
+        if (const Shared<EffectCom> effectCom = previewHero.player->Get_Component<EffectCom>())
+            effectCom->Clear_PreviewRim();
+    }
+}
+
+ // 선택된 캐릭터는 보이게, 나머지 캐릭터는 안 보이게 설정한다. 
+void CharacterStatus_Panel::Update_PreviewHeroVisibility()
+{
+    const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager();
+    if (previewManager == nullptr)
+        return;
+
+    const HeroId selectedHeroId = Get_SelectedCharacterStatusHeroId(_selectedHeroIndex);
+    for (const auto& previewHero : previewManager->Get_PreviewHeroes())
+    {
+        if (previewHero.player == nullptr)
+            continue;
+
+        previewHero.player->Set_Visible(previewHero.heroId == selectedHeroId);
+    }
+}
+
 Unique<CharacterStatus_Panel> CharacterStatus_Panel::Create(uint32 levelIndex)
 {
 	auto instance = make_unique<CharacterStatus_Panel>();
@@ -570,6 +775,8 @@ Unique<CharacterStatus_Panel> CharacterStatus_Panel::Create(uint32 levelIndex)
 
 void CharacterStatus_Panel::Free()
 {
+    Restore_PreviewOverrides();
+
 	if (_root)
         _root->Close();
 

@@ -45,6 +45,7 @@ HRESULT EffectCom::Initialize(void* arg)
     CHECK_FAILED(Component::Initialize(arg), E_FAIL);
 
     _switchDissolve = {}; // 디졸브 런타임은 clone마다 새 상태로 시작
+    _previewRim = {};
     _attachedEffects.clear();
     _vanishComplete = false;
 
@@ -96,6 +97,16 @@ void EffectCom::Start_VanishDissolve(float durationSec, const string& noiseName,
     _switchDissolve.Start_Vanish(durationSec, noiseHandle, 0.08f, 0.02f, Vec3(0.10f, 0.10f, 0.10f));
 }
 
+void EffectCom::Set_PreviewRim(const Vec3& color, float intensity, float power, float hairIntensity)
+{
+    _previewRim.Start(color, intensity, power, hairIntensity);
+}
+
+void EffectCom::Clear_PreviewRim()
+{
+    _previewRim.Stop();
+}
+
 void EffectCom::Stop_AllAttachedEffects()
 {
     for (AttachedEffect& attached : _attachedEffects)
@@ -119,7 +130,7 @@ HRESULT EffectCom::Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMas
     if (_switchDissolve.enabled == true &&
             (supportFeatureMask & DrawFeatureFlagDissolve) != 0u)
     {
-        drawFeatureCB.activeFeatureMask = DrawFeatureFlagDissolve;
+        drawFeatureCB.activeFeatureMask |= DrawFeatureFlagDissolve;
         drawFeatureCB.param0.x = _switchDissolve.progress;
         drawFeatureCB.param0.y = _switchDissolve.edgeWidth;
         drawFeatureCB.param0.z = _switchDissolve.edgeSoftness;
@@ -132,6 +143,14 @@ HRESULT EffectCom::Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMas
             featureSrvs[DrawFeatureTexDissolveNoise] = noiseSRV;
             drawFeatureCB.textureSlotMask |= (1u << DrawFeatureTexDissolveNoise);
         }
+    }
+
+    if (_previewRim.enabled == true &&
+        (supportFeatureMask & DrawFeatureFlagPreviewRim) != 0u)
+    {
+        drawFeatureCB.activeFeatureMask |= DrawFeatureFlagPreviewRim;
+        drawFeatureCB.param2 = Vec4(_previewRim.color.x, _previewRim.color.y, _previewRim.color.z, _previewRim.intensity);
+        drawFeatureCB.param3 = Vec4(_previewRim.power, _previewRim.hairIntensity, 0.f, 0.f);
     }
 
     return shader->Bind_DrawFeatures(drawFeatureCB, featureSrvs.data(), featureTextureCount);

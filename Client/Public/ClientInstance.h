@@ -147,6 +147,7 @@ public:
 
 public:
     Shared<ClientScreenFxManager> Get_ScreenFxManager() const;
+    Shared<UIPreviewManager> Get_PreviewManager() const { return _previewManager; }
 
 private:
 	HRESULT Ready_ResourceLoader();

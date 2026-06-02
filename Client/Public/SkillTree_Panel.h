@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Base.h"
 #include "Client_Defines.h"
+#include "Shader_CBuffer_Define.h"
 #include "UIPreviewManager.h"
 
 NS_BEGIN(Engine)
@@ -111,17 +112,29 @@ private:
 
 private:
     void    Change_ToSelectedViewState();
+    void    Apply_PreviewOverrides();           // UI Preview에서 조명과 포스트프로세스 세팅을 SkillTree_Panel용으로 바꿔준다
+    void    Restore_PreviewOverrides();         // UI Preview에서 조명과 포스트프로세스 세팅을 원래대로 돌려준다.
+    void    Apply_PreviewRimState();            // UI Preview에서 캐릭터에 역광 효과를 입히는 상태로 만든다. 스킬트리 패널에서만 사용한다.
+    void    Clear_PreviewRimState();            // UI Preview에서 캐릭터 역광 효과 상태를 해제한다.
+    void    Update_PreviewHeroVisibility();
 
 
 public:
     vector<UIPreviewManager::PreviewSlotDesc> Build_PreviewLayout();
 
 private:
-    struct StatusPreviewHero
+    struct PreviewOverrideState
     {
-        Shared<Player_WorldBase> player{};
-
-        // 
+        bool                        isCaptured = false;
+        bool                        hasPrimaryLight = false;
+        bool                        hasPostProcess = false;
+        bool                        hasLighting = false;
+        Engine::CascadeLevel        cascadeLevel = Engine::CascadeLevel::Normal;
+        Engine::LIGHT_DESC          primaryLight{};
+        Engine::PostProcessCB       postProcess{};
+        Engine::PostProcessFeature  postProcessFeatures = Engine::PostProcessFeature::None;
+        Engine::DeferredLightingCB  deferredLighting{};
+        bool                        iblEnabled = false;
     };
 
     uint32                                   _selectedHeroIndex = 0;
@@ -136,6 +149,7 @@ private:
     Vec2                                     _hoveredSize;
     umap<HeroId,SkillTreeViewState>          _viewByPlayerId;
     SkillTreeViewState*                      _currentView;
+    PreviewOverrideState                     _previewOverrideState{};
 
 
 

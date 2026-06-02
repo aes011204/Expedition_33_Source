@@ -50,6 +50,38 @@ bool IsSwitchDissolveEnabled()
            HasFeatureTexture(FEATURE_TEX_DISSOLVE_NOISE);
 }
 
+// UI Preview에서 역광 효과가 활성화되었는지 확인
+bool HasPreviewRim()
+{
+    return HasDrawFeature(FEATURE_FLAG_PREVIEW_RIM);
+}
+
+// UI Preview에서 역광 효과 계산하는 함수. rimPower가 클수록 카툰 렌더링처럼 극적인 효과가 난다.
+float ComputePreviewRim(float3 worldNormal, float3 viewDir, float rimPower)
+{
+    const float safePower = max(rimPower, 0.0001f);
+    const float ndotv = saturate(dot(normalize(worldNormal), normalize(viewDir)));
+    return pow(1.f - ndotv, safePower);
+}
+
+// UI Preview에서 역광 효과 색상과 강도 가져오는 함수
+float3 GetPreviewRimColor()
+{
+    return g_FeatureParam2.rgb;
+}
+
+// UI Preview에서 역광 효과 강도 가져오는 함수
+float GetPreviewRimIntensity()
+{
+    return g_FeatureParam2.a;
+}
+
+// UI Preview에서 머리카락 역광 효과 강도 가져오는 함수
+float GetPreviewHairRimIntensity()
+{
+    return g_FeatureParam3.y;
+}
+
 float SampleSwitchDissolveNoise(float2 uv)
 {
     // noiseScale이 클수록 노이즈 패턴이 촘촘해진다.

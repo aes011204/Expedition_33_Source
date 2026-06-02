@@ -3,6 +3,7 @@
 #include "UI_RuntimePanelBase.h"
 #include "Client_Defines.h"
 #include "UIPreviewManager.h"
+#include "Shader_CBuffer_Define.h"
 
 NS_BEGIN(Engine)
 class UI_Base;
@@ -54,6 +55,26 @@ private:
 
 private:
     vector<UIPreviewManager::PreviewSlotDesc>  Build_PreviewLayout();
+    void    Apply_PreviewOverrides();       // UI Preview에서 조명과 포스트프로세스 세팅을 SkillTree_Panel용으로 바꿔준다
+    void    Restore_PreviewOverrides();     // UI Preview에서 조명과 포스트프로세스 세팅을 원래대로 돌려준다.
+    void    Apply_PreviewRimState();        // UI Preview에서 캐릭터에 역광 효과를 입히는 상태로 만든다. 스킬트리 패널에서만 사용한다.
+    void    Clear_PreviewRimState();        // UI Preview에서 캐릭터 역광 효과 상태를 해제한다.
+    void    Update_PreviewHeroVisibility();
+
+private:
+    struct PreviewOverrideState
+    {
+        bool                        isCaptured = false;
+        bool                        hasPrimaryLight = false;
+        bool                        hasPostProcess = false;
+        bool                        hasLighting = false;
+        Engine::CascadeLevel        cascadeLevel = Engine::CascadeLevel::Normal;
+        Engine::LIGHT_DESC          primaryLight{};
+        Engine::PostProcessCB       postProcess{};
+        Engine::PostProcessFeature  postProcessFeatures = Engine::PostProcessFeature::None;
+        Engine::DeferredLightingCB  deferredLighting{};
+        bool                        iblEnabled = false;
+    };
 
 private:
     uint32 _selectedHeroIndex = 0;
@@ -109,6 +130,7 @@ private:
     array<Shared<UI_Button>, static_cast<size_t>(StatType::END)> _statDecreaseButtons{};
     // 각 스탯 우 버튼
     array<Shared<UI_Button>, static_cast<size_t>(StatType::END)> _statIncreaseButtons{};
+    PreviewOverrideState _previewOverrideState{};
 
 public:
     static Unique<CharacterStatus_Panel> Create(uint32 levelIndex);

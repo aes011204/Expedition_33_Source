@@ -127,6 +127,14 @@ PS_OUT PS_Opaque(PS_IN In)
 
     float3 emissive = SampleEmissive(finalUV);
     emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+
+    if (HasPreviewRim())
+    {
+        float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+        float rim = ComputePreviewRim(worldNormal, viewDir, g_FeatureParam3.x);
+        emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
+    }
+
     Out.Emissive = float4(emissive.xyz, 1.f);
 
     return Out;
@@ -159,6 +167,14 @@ PS_OUT PS_Mask(PS_IN In)
 
     float3 emissive = SampleEmissive(finalUV);
     emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+
+    if (HasPreviewRim())
+    {
+        float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+        float rim = ComputePreviewRim(worldNormal, viewDir, g_FeatureParam3.x);
+        emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
+    }
+
     Out.Emissive = float4(emissive.xyz, 1.f);
 
     return Out;
@@ -209,6 +225,13 @@ PS_OUT PS_OpaqueAR(PS_IN In)
     float3 emissive = SampleEmissive(finalUV);
     emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
 
+    if (HasPreviewRim())
+    {
+        float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+        float rim = ComputePreviewRim(worldNormal, viewDir, g_FeatureParam3.x);
+        emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
+    }
+
     Out.Diffuse = baseColor;
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
@@ -248,6 +271,13 @@ PS_OUT PS_PackedAR_NME(PS_IN In)
         saturate(nmeTex.b * g_MetalnessScale));
 
     float3 emissive = g_EmissiveColor.rgb * g_EmissiveIntensity * nmeTex.a * g_EmissiveMaskMul;
+    if (HasPreviewRim())
+    {
+        float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+        float rim = ComputePreviewRim(worldNormal, viewDir, g_FeatureParam3.x);
+        emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
+    }
+
     float4 baseColor = float4(arTex.rgb * g_BaseColorTint.rgb, 1.f);
 
     Out.Diffuse = baseColor;
