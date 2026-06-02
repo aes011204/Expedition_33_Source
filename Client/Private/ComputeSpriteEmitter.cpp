@@ -41,21 +41,84 @@ static HRESULT Bind_MaterialScalarModulationPayload(
     const EffectMaterialScalarModulationShaderPayload payload =
         Build_MaterialScalarModulationShaderPayload(modulation, emitterPhase);
 
-    CHECK_FAILED_ONCE(shader->Bind_RawValue("g_EffectMaterialScalarModulationParams", &payload.params, sizeof(payload.params)), E_FAIL);
-    CHECK_FAILED_ONCE(shader->Bind_RawValue("g_EffectMaterialScalarModulationMeta", payload.meta.data(), sizeof(Vec4) * payload.meta.size()), E_FAIL);
-    CHECK_FAILED_ONCE(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyTimes", payload.keyTimes.data(), sizeof(Vec4) * payload.keyTimes.size()), E_FAIL);
-    CHECK_FAILED_ONCE(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyValues", payload.keyValues.data(), sizeof(Vec4) * payload.keyValues.size()), E_FAIL);
-    CHECK_FAILED_ONCE(
-        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyArriveTangents", payload.keyArriveTangents.data(), sizeof(Vec4) * payload.keyArriveTangents.size()),
-        E_FAIL
+    HRESULT hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationParams",
+        &payload.params,
+        sizeof(payload.params)
     );
-    CHECK_FAILED_ONCE(
-        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyLeaveTangents", payload.keyLeaveTangents.data(), sizeof(Vec4) * payload.keyLeaveTangents.size()),
-        E_FAIL
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationMeta",
+        payload.meta.data(),
+        sizeof(Vec4) * payload.meta.size()
     );
-    CHECK_FAILED_ONCE(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyModes", payload.keyModes.data(), sizeof(Vec4) * payload.keyModes.size()), E_FAIL);
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyTimes",
+        payload.keyTimes.data(),
+        sizeof(Vec4) * payload.keyTimes.size()
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyValues",
+        payload.keyValues.data(),
+        sizeof(Vec4) * payload.keyValues.size()
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyArriveTangents",
+        payload.keyArriveTangents.data(),
+        sizeof(Vec4) * payload.keyArriveTangents.size()
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyLeaveTangents",
+        payload.keyLeaveTangents.data(),
+        sizeof(Vec4) * payload.keyLeaveTangents.size()
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyModes",
+        payload.keyModes.data(),
+        sizeof(Vec4) * payload.keyModes.size()
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
 
     return S_OK;
+}
+
+static EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeCoreColorRgbModulation(
+    const EffectRequiredMaterialRuntimeDesc& baseMaterial,
+    float emitterPhase)
+{
+    auto material = baseMaterial;
+    const auto& modulation = baseMaterial.coreColorRgbModulation;
+    const uint32 count = min(EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators, modulation.count);
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const auto& modulator = modulation.modulators[index];
+        if (!modulator.enabled || modulator.timeSource != EffectMaterialScalarModulationTimeSource::EmitterTime)
+            continue;
+
+        const Vec3 fallbackValue{
+            material.coreEmissive.coreColor.x,
+            material.coreEmissive.coreColor.y,
+            material.coreEmissive.coreColor.z
+        };
+        const Vec3 coreColorRgb = Evaluate_CoreColorRgbModulationCurve(modulator.curve, emitterPhase, fallbackValue);
+        material.coreEmissive.coreColor.x = coreColorRgb.x;
+        material.coreEmissive.coreColor.y = coreColorRgb.y;
+        material.coreEmissive.coreColor.z = coreColorRgb.z;
+    }
+
+    return material;
 }
 
 wstring Resolve_TexturePathByGuid(const string& textureGuid)
@@ -279,7 +342,7 @@ HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureP
 {
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    wstring resolvedPath = Client::Internal::Resolve_TexturePath(
+    wstring resolvedPath = Internal::Resolve_TexturePath(
         _desc.required.material.mainTextureGuid,
         _desc.required.material.mainTexturePath,
         usedPathFallback,
@@ -314,7 +377,7 @@ HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureP
             kFallbackTexturePath
         );
 
-        resolvedPath = Client::Internal::Resolve_TexturePathByPath(kFallbackTexturePath);
+        resolvedPath = Internal::Resolve_TexturePathByPath(kFallbackTexturePath);
         usedFallback = true;
     }
 
@@ -361,7 +424,7 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Client::Internal::Resolve_TexturePath(
+    const wstring resolvedPath = Internal::Resolve_TexturePath(
         _desc.required.material.noiseTextureGuid,
         _desc.required.material.noiseTexturePath,
         usedPathFallback,
@@ -424,7 +487,7 @@ HRESULT ComputeSpriteEmitter::Ready_MaskTextureComponent(const string& resolvedT
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Client::Internal::Resolve_TexturePath(
+    const wstring resolvedPath = Internal::Resolve_TexturePath(
         _desc.required.material.maskTextureGuid,
         _desc.required.material.maskTexturePath,
         usedPathFallback,
@@ -554,7 +617,9 @@ HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
 
 HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
 {
-    const auto& material = _desc.required.material;
+    const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
+    const EffectRequiredMaterialRuntimeDesc material =
+        Internal::Resolve_EmitterTimeCoreColorRgbModulation(_desc.required.material, emitterPhase);
 
     if (nullptr != _noiseTexture)
         CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
@@ -604,9 +669,8 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
     );
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteUVModeParams", &effectSpriteUVModeParams, sizeof(effectSpriteUVModeParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)), E_FAIL);
-    const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
     CHECK_FAILED_ONCE(
-        Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase),
+        Internal::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.required.material.scalarModulation, emitterPhase),
         E_FAIL
     );
 
@@ -712,7 +776,7 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
         _shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)),
         E_FAIL
     );
-    const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
+    const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
     CHECK_FAILED_ONCE(
         Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase),
         E_FAIL
