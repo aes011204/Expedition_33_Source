@@ -11,7 +11,6 @@
 #include "Player_WorldBase.h"
 #include "TargetCamera.h"
 #include "ClientInstance.h"
-#include "EffectInstancePool.h"
 
 namespace
 {
@@ -20,7 +19,6 @@ namespace
     constexpr float FREE_AIM_HIT_EFFECT_NORMAL_OFFSET = 0.05f;
 
     const wstring   WORLD_FREE_AIM_HIT_EFFECT_NAME = L"World_FreeAim_Hit.effect.json";
-    const wstring   WORLD_FREE_AIM_HIT_EFFECT_LAYER = L"Layer_Effect";
 }
 
 Player_FreeAim::Player_FreeAim(const Shared<Player_WorldBase>& owner)
@@ -251,10 +249,6 @@ Shared<Monster_WorldBase> Player_FreeAim::Find_FreeAimHitMonster(FreeAimHitInfo*
 
 void Player_FreeAim::Play_FreeAimHitEffect() const
 {
-    EffectInstancePool* effectPool = CLIENT->Get_EffectInstancePool();
-    if (effectPool == nullptr)
-        return;
-
     Vec3 hitNormal = _currentHitInfo.hitNormal;
     if (hitNormal.LengthSquared() > 0.0001f)
         hitNormal.Normalize();
@@ -264,7 +258,10 @@ void Player_FreeAim::Play_FreeAimHitEffect() const
     const Vec3 effectPosition =
         _currentHitInfo.hitPosition + hitNormal * FREE_AIM_HIT_EFFECT_NORMAL_OFFSET;
 
-    CLIENT->Play_Effect(L"World_FreeAim_Hit", effectPosition, Vec3::One);
+    PlayEffectDesc effectDesc{};
+    effectDesc.effectName = WORLD_FREE_AIM_HIT_EFFECT_NAME;
+    effectDesc.worldPosition = effectPosition;
+    CLIENT->Play_Effect(effectDesc);
 }
 
 void Player_FreeAim::Update_DirectionalModifiers()

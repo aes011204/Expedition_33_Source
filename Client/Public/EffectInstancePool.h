@@ -25,6 +25,7 @@ public:
         wstring layerTag{};                                     // acquire 실패 시 신규 spawn을 넣을 레이어다.
         Vec3 worldPosition{ Vec3::Zero };                       // acquire 직후 root에 반영할 월드 위치다.
         Vec3 scale{ Vec3::One };                                // acquire 직후 root에 반영할 스케일이다.
+        Vec3 worldRotation = Vec3::Zero;
         Weak<IEffectTrailSampleProvider> trailSampleProvider{}; // attachment/gameplay owner가 공급하는 trail sample provider weak ref다.
     };
 

@@ -219,7 +219,11 @@ void Hero_Manager::Switch_NextHero()
     const Vec3 anchorForward = oldActiveTr->Get_WorldForward();
     const Vec3 anchorRight = oldActiveTr->Get_WorldRight();
 
-    CLIENT->Play_Effect(L"Player_Change", Vec3(anchorPos.x, anchorPos.y + 0.5f, anchorPos.z));
+    PlayEffectDesc effectDesc{};
+    effectDesc.effectName = L"Player_Change";
+    effectDesc.spawnBasisTarget = oldActive;
+    effectDesc.localOffset = Vec3(0.f, 0.5f, 0.f);
+    CLIENT->Play_Effect(effectDesc);
 
     _activeIndex = newIndex;
 

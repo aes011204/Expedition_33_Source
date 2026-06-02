@@ -14,6 +14,7 @@ IMPLEMENT_REFLECTION(ANS_PlayEffect)
     PROPERTY_STRING("소켓 이름", _socketName);
     PROPERTY_WSTRING("레이어 태그", _layerTag);
     PROPERTY_VEC3("로컬 오프셋", _localOffset);
+    PROPERTY_VEC3("로컬 회전", _localRotation);
     PROPERTY_VEC3("스케일", _scale);
 
     return true;
@@ -36,8 +37,9 @@ void ANS_PlayEffect::On_Begin(const AnimNotifyContext& context)
     desc.socketName = _socketName;
     desc.layerTag = _layerTag;
     desc.localOffset = _localOffset;
+    desc.localRotation = _localRotation;
     desc.scale = _scale;
-    desc.followTarget = true;
+    desc.followTarget = true; // ANS는 EffectCom::_attachedEffects에서 계속 follow한다.
 
     effectCom->Play_Effect(desc);
 }

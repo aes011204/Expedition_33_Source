@@ -668,12 +668,7 @@ void Animation_View::Load_NotifyAsset()
     _asset = {};
     _asset.modelGuid = _modelGuid;
 
-    const fs::path filePath = AnimNotify_Parser::Get_ModelNotifyFilePath(_modelGuid);
-    if (!AnimNotify_Parser::Load_FromFile(filePath.wstring(), _asset))
-    {
-        const fs::path legacyFilePath = AnimNotify_Parser::Get_LegacyModelNotifyFilePath(_modelGuid);
-        AnimNotify_Parser::Load_FromFile(legacyFilePath.wstring(), _asset);
-    }
+    AnimNotify_Parser::Load_ModelAsset(_modelGuid, _asset);
 
     if (_asset.modelGuid.empty())
         _asset.modelGuid = _modelGuid;
@@ -747,11 +742,14 @@ void Animation_View::Save_NotifyAsset()
     if (_modelGuid.empty())
         return;
 
-    if (AnimNotifyData* animationData = Get_CurrentAnimation())
-        AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+    AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+        return;
 
-    const fs::path filePath = AnimNotify_Parser::Get_ModelNotifyFilePath(_modelGuid);
-    if (AnimNotify_Parser::Save_ToFile(filePath.wstring(), _asset))
+    const float animationLengthSec = Get_CurrentAnimationLengthSec();
+    AnimNotify_Parser::Sort_And_Clamp(*animationData, animationLengthSec);
+
+    if (AnimNotify_Parser::Save_AnimationToSplitFile(_modelGuid, *animationData, animationLengthSec))
     {
         Refresh_OpenModelNotifyAssets();
         _isDirty = false;
