@@ -1,6 +1,7 @@
 ﻿#include "EffectMaterialPreviewRenderer.h"
 
 #include "EffectEditorInstance.h"
+#include "EffectMaterialScalarModulationPreview.h"
 #include "GameInstance.h"
 #include "Helper_Math.h"
 #include "RenderTarget.h"
@@ -115,9 +116,26 @@ EffectMaterialPreviewRenderer::~EffectMaterialPreviewRenderer()
 
 void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstanceData& material)
 {
+    Render_Material(material, EffectMaterialScalarModulationRuntimeDesc{}, 1.f, false);
+}
+
+void EffectMaterialPreviewRenderer::Render_Material(
+    const EffectMaterialInstanceData& material,
+    const EffectMaterialScalarModulationRuntimeDesc& modulation,
+    float previewDuration,
+    bool evaluateParticleLife)
+{
     _statusMessage.clear();
     _hasRenderedPreview = false;
-    const bool isDistortionPreview = material.materialFamily == EffectMaterialFamily::SpriteDistortion;
+    const MaterialScalarModulationPreviewResult modulationResult =
+        Evaluate_MaterialScalarModulationPreview(
+            material,
+            modulation,
+            Compute_MaterialScalarPreviewPhase(_materialPreviewElapsedTime, previewDuration),
+            evaluateParticleLife
+        );
+    const EffectMaterialInstanceData& previewMaterial = modulationResult.material;
+    const bool isDistortionPreview = previewMaterial.materialFamily == EffectMaterialFamily::SpriteDistortion;
 
     if (EDITOR == nullptr || GAME == nullptr)
     {
@@ -129,10 +147,10 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
         (isDistortionPreview && !Ready_DistortionSourceTarget()) ||
         !Ready_Shader() ||
         (isDistortionPreview && !Ready_DistortionShader()) ||
-        !Ready_Texture(material.mainTextureGuid, material.mainTexturePath) ||
-        !Ready_NoiseTexture(material.noiseTextureGuid, material.noiseTexturePath) ||
-        !Ready_MaskTexture(material.maskTextureGuid, material.maskTexturePath) ||
-        (isDistortionPreview && !Ready_FlowTexture(material.flowTextureGuid, material.flowTexturePath)) ||
+        !Ready_Texture(previewMaterial.mainTextureGuid, previewMaterial.mainTexturePath) ||
+        !Ready_NoiseTexture(previewMaterial.noiseTextureGuid, previewMaterial.noiseTexturePath) ||
+        !Ready_MaskTexture(previewMaterial.maskTextureGuid, previewMaterial.maskTexturePath) ||
+        (isDistortionPreview && !Ready_FlowTexture(previewMaterial.flowTextureGuid, previewMaterial.flowTexturePath)) ||
         !Ready_Meshes())
         return;
 
@@ -160,8 +178,8 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
     if (SUCCEEDED(hr))
     {
         hr = isDistortionPreview
-             ? Render_DistortionPreviewMesh(material)
-             : Render_PreviewMesh(material);
+             ? Render_DistortionPreviewMesh(previewMaterial)
+             : Render_PreviewMesh(previewMaterial);
     }
 
     GAME->Bind_BackBuffer();

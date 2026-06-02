@@ -4,6 +4,7 @@
 #include "EffectEditor_Macro.h"
 #include "EffectMaterialInstance_View.h"
 #include "EffectMaterialPreviewRenderer.h"
+#include "EffectMaterialScalarModulationPreview.h"
 #include "EffectMaterial_View.h"
 #include "EffectMaterialPresetReader.h"
 #include "Helper_EffectAuthoring.h"
@@ -624,6 +625,7 @@ namespace Internal
     }
 
     bool Draw_MaterialDropSlot(
+        const AuthoringEmitter& emitter,
         RequiredModuleData& data,
         EffectMaterialPreviewRenderer* materialSlotPreview,
         float timeDelta)
@@ -672,7 +674,19 @@ namespace Internal
         if (materialSlotPreview != nullptr)
         {
             materialSlotPreview->Update_MaterialTime(timeDelta);
-            materialSlotPreview->Render_Material(data.material);
+            if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(emitter))
+            {
+                materialSlotPreview->Render_Material(
+                    data.material,
+                    Build_MaterialScalarModulationRuntimeDesc(*modulation),
+                    data.duration,
+                    false
+                );
+            }
+            else
+            {
+                materialSlotPreview->Render_Material(data.material);
+            }
             previewSrv = materialSlotPreview->Get_SRV();
         }
         const ImVec2 thumbnailMin{ slotMin.x + 7.f, slotMin.y + 7.f };
@@ -857,7 +871,7 @@ bool RequiredModuleDetail::Draw(
         {
             ImGui::PushID("MaterialDropSlot");
             detailContext.Draw_PropertyLabel("머티리얼");
-            changed |= Internal::Draw_MaterialDropSlot(data, _materialSlotPreview.get(), timeDelta);
+            changed |= Internal::Draw_MaterialDropSlot(emitter, data, _materialSlotPreview.get(), timeDelta);
             detailContext.Draw_ResetButton(false);
             ImGui::PopID();
 
@@ -943,21 +957,23 @@ bool RequiredModuleDetail::Draw(
         detailContext.Draw_ScreenAlignmentImplementationNote(data.screenAlignment);
     }
 
-    if (ImGui::CollapsingHeader("시간", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("이미터 재생 / 스폰 시간", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("RequiredTime"))
         {
             changed |= detailContext.Draw_UintProperty("루프 횟수", data.loopCount, defaultData.loopCount);
-            changed |= detailContext.Draw_FloatProperty("지속 시간", data.duration, defaultData.duration);
-            changed |= detailContext.Draw_FloatProperty("지속 시간 최소값 (범위 미구현)", data.durationLow, defaultData.durationLow);
-            changed |= detailContext.Draw_BoolProperty("지속 시간 범위 사용 (미구현)", data.useDurationRange, defaultData.useDurationRange);
-            changed |= detailContext.Draw_BoolProperty("루프마다 기간 재계산 (미구현)", data.recalculateDurationEachLoop, defaultData.recalculateDurationEachLoop);
-            changed |= detailContext.Draw_FloatProperty("딜레이", data.delay, defaultData.delay);
-            changed |= detailContext.Draw_FloatProperty("딜레이 최소값 (범위 미구현)", data.delayLow, defaultData.delayLow);
+            changed |= detailContext.Draw_FloatProperty("스폰 활성 시간", data.duration, defaultData.duration);
+            changed |= detailContext.Draw_FloatProperty("스폰 활성 시간 최소값 (범위 미구현)", data.durationLow, defaultData.durationLow);
+            changed |= detailContext.Draw_BoolProperty("스폰 활성 시간 범위 사용 (미구현)", data.useDurationRange, defaultData.useDurationRange);
+            changed |= detailContext.Draw_BoolProperty("루프마다 스폰 시간 재계산 (미구현)", data.recalculateDurationEachLoop, defaultData.recalculateDurationEachLoop);
+            changed |= detailContext.Draw_FloatProperty("스폰 시작 딜레이", data.delay, defaultData.delay);
+            changed |= detailContext.Draw_FloatProperty("스폰 시작 딜레이 최소값 (범위 미구현)", data.delayLow, defaultData.delayLow);
             changed |= detailContext.Draw_BoolProperty("딜레이 범위 사용 (미구현)", data.useDelayRange, defaultData.useDelayRange);
-            changed |= detailContext.Draw_BoolProperty("첫 루프만 딜레이", data.delayFirstLoopOnly, defaultData.delayFirstLoopOnly);
+            changed |= detailContext.Draw_BoolProperty("첫 루프만 스폰 딜레이", data.delayFirstLoopOnly, defaultData.delayFirstLoopOnly);
             detailContext.End_PropertyTable();
         }
+
+        ImGui::TextDisabled("스폰 활성 시간은 새 파티클을 만들 수 있는 emitter loop 구간입니다. 이미 태어난 파티클은 Particle Lifetime이 끝날 때까지 남을 수 있습니다.");
     }
 
     if (ImGui::CollapsingHeader("종료 / 킬", ImGuiTreeNodeFlags_DefaultOpen))
@@ -968,6 +984,9 @@ bool RequiredModuleDetail::Draw(
             changed |= detailContext.Draw_BoolProperty("완료 시 킬", data.killOnCompleted, defaultData.killOnCompleted);
             detailContext.End_PropertyTable();
         }
+
+        if (data.killOnCompleted)
+            ImGui::TextDisabled("완료 시 active particle도 즉시 종료합니다.");
     }
 
     if (ImGui::CollapsingHeader("렌더링 제한", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1038,8 +1057,11 @@ bool LifetimeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, LifetimeMod
     const LifetimeModuleData defaultData{};
     bool changed = false;
 
-    if (ImGui::CollapsingHeader("수명", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_FloatDistributionGroup("수명", data.lifeTime, defaultData.lifeTime);
+    if (ImGui::CollapsingHeader("파티클 생존 시간", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        changed |= detailContext.Draw_FloatDistributionGroup("파티클 생존 시간", data.lifeTime, defaultData.lifeTime);
+        ImGui::TextDisabled("각 particle이 spawn된 뒤 살아 있는 시간입니다. Over Life 계열 curve의 기준이 됩니다.");
+    }
 
     return changed;
 }
@@ -1541,8 +1563,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
         ImGui::SameLine();
         ImGui::TextDisabled("%zu / %u", data.modulators.size(), kMaxMaterialScalarModulators);
 
-        if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
-            ImGui::TextDisabled("Mesh는 Phase 4에서 EmitterTime부터 runtime 소비합니다.");
+        ImGui::TextDisabled("Phase 2 preview는 머티리얼 슬롯 / MeshData preview에서 EmitterTime만 평가합니다. 월드 viewport와 ParticleLife는 후속 runtime 연결 범위입니다.");
 
         size_t removeIndex = numeric_limits<size_t>::max();
         for (size_t index = 0; index < data.modulators.size(); ++index)
@@ -1588,11 +1609,8 @@ bool MaterialScalarModulationModuleDetail::Draw(
                     defaultData.distribution
                 );
 
-                if (modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife &&
-                    emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
-                {
-                    ImGui::TextDisabled("Mesh ParticleLife material scalar는 Phase 1.5 계약만 보존하고 후속에서 소비합니다.");
-                }
+                if (modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife)
+                    ImGui::TextDisabled("ParticleLife material scalar는 Phase 2 preview에서 평가하지 않고 후속 runtime 연결까지 payload만 보존합니다.");
 
                 if (ImGui::Button("삭제"))
                     removeIndex = index;

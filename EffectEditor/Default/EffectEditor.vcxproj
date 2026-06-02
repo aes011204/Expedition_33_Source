@@ -197,6 +197,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\EffectEditorInstance.cpp" />
     <ClCompile Include="..\Private\EffectEditorSceneGrid.cpp" />
     <ClCompile Include="..\Private\EffectEditorSkybox.cpp" />
+    <ClCompile Include="..\Private\EffectMaterialScalarModulationPreview.cpp" />
     <ClCompile Include="..\Private\EffectMaterialPreviewRenderer.cpp" />
     <ClCompile Include="..\Private\EffectMaterial_View.cpp" />
     <ClCompile Include="..\Private\EffectMaterialInstance_View.cpp" />
@@ -237,6 +238,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\EffectAuthoringModuleMetadata.h" />
     <ClInclude Include="..\Public\EffectAuthoringJsonSerializer.h" />
     <ClInclude Include="..\Public\EffectMaterialAuthoring_Types.h" />
+    <ClInclude Include="..\Public\EffectMaterialScalarModulationPreview.h" />
     <ClInclude Include="..\Public\EffectMaterialPreviewRenderer.h" />
     <ClInclude Include="..\Public\EffectMaterial_View.h" />
     <ClInclude Include="..\Public\EffectMaterialInstance_View.h" />
