@@ -327,6 +327,7 @@ void Emitter_View::Save()
 
     const json documentJson = Build_AuthoringDocumentJson();
     file << documentJson.dump(4);
+    file.close();
     if (!file.good())
     {
         if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
@@ -340,15 +341,28 @@ void Emitter_View::Save()
         return;
     }
 
+    const string effectGuid = GAME != nullptr ? GAME->Ensure_AssetGUID(savePath.wstring(), "Effect") : string{};
+
     ClearDirty();
 
     if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
     {
-        EDITOR->Get_Notification()->Add_Notification_With_Type(
-            NotifyType::Success,
-            "Effect 저장 완료: {}",
-            String::ToString(savePath.filename().wstring())
-        );
+        if (!effectGuid.empty())
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Success,
+                "Effect 저장 완료: {}",
+                String::ToString(savePath.filename().wstring())
+            );
+        }
+        else
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect 저장 완료, meta 생성 실패: {}",
+                String::ToString(savePath.filename().wstring())
+            );
+        }
     }
 }
 
@@ -2315,9 +2329,11 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
         )
     );
     ImGui::PushID("EmitterEnabled");
-    const AuthoringSnapshot beforeEmitterEnabledSnapshot = Capture_AuthoringSnapshot();
-    if (ImGui::Checkbox("##Enabled", &emitter.enabled))
+    bool nextEmitterEnabled = emitter.enabled;
+    if (ImGui::Checkbox("##Enabled", &nextEmitterEnabled))
     {
+        const AuthoringSnapshot beforeEmitterEnabledSnapshot = Capture_AuthoringSnapshot();
+        emitter.enabled = nextEmitterEnabled;
         emitter.previewDirty = true;
         MarkDirty();
         const AuthoringSnapshot afterSnapshot = Capture_AuthoringSnapshot();
@@ -2447,7 +2463,8 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
                              : usesCategoryColor
                                ? To_ImVec4(kEmitterCategoryTextColor)
                                : ImGui::GetStyleColorVec4(ImGuiCol_Text);
-    const bool moduleCompatible = Is_ModuleCompatibleWithEmitter(_emitters[emitterIndex], module.type);
+    AuthoringEmitter& emitter = _emitters[emitterIndex];
+    const bool moduleCompatible = Is_ModuleCompatibleWithEmitter(emitter, module.type);
     const bool canPinCurve = [&module]
     {
         switch (module.type)
@@ -2478,6 +2495,7 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
             return false;
         }
     }();
+    const string displayNameUtf8 = String::ToString(module.displayName);
     const ImVec4 moduleNameTextColor =
         !isSelected && module.enabled && !moduleCompatible
         ? To_ImVec4(kEmitterUnsupportedModuleTextColor)
@@ -2505,13 +2523,12 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
         ImGui::EndPopup();
     }
     ImGui::PopID();
-    const string warningTooltip = Build_ModuleWarningTooltip(_emitters[emitterIndex], module);
 
     const ImVec2 afterRowCursor = ImGui::GetCursorPos();
     const float textOffsetY = (rowHeight - ImGui::GetTextLineHeight()) * 0.5f;
     ImGui::SetCursorPos(ImVec2(rowCursor.x + rowPaddingX, rowCursor.y + textOffsetY));
     ImGui::PushStyleColor(ImGuiCol_Text, moduleNameTextColor);
-    ImGui::TextUnformatted(String::ToString(module.displayName).c_str());
+    ImGui::TextUnformatted(displayNameUtf8.c_str());
     ImGui::PopStyleColor();
 
     if (!isRequiredRow)
@@ -2533,7 +2550,7 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
                 if (EDITOR != nullptr)
                 {
                     if (const Shared<CurveEditor_View> curveEditor = dynamic_pointer_cast<CurveEditor_View>(EDITOR->Get_Window(L"Curve Editor")))
-                        curveEditor->Pin_ModuleTargets(_emitters[emitterIndex].id, module.id);
+                        curveEditor->Pin_ModuleTargets(emitter.id, module.id);
                 }
             }
             ImGui::PopStyleVar(2);
@@ -2549,10 +2566,12 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
             )
         );
         ImGui::PushID("ModuleEnabled");
-        const AuthoringSnapshot beforeModuleEnabledSnapshot = Capture_AuthoringSnapshot();
-        if (ImGui::Checkbox("##Enabled", &module.enabled))
+        bool nextModuleEnabled = module.enabled;
+        if (ImGui::Checkbox("##Enabled", &nextModuleEnabled))
         {
-            _emitters[emitterIndex].previewDirty = true;
+            const AuthoringSnapshot beforeModuleEnabledSnapshot = Capture_AuthoringSnapshot();
+            module.enabled = nextModuleEnabled;
+            emitter.previewDirty = true;
             MarkDirty();
             const AuthoringSnapshot afterSnapshot = Capture_AuthoringSnapshot();
             Execute_AuthoringSnapshotCommand(beforeModuleEnabledSnapshot, afterSnapshot, "Toggle Module Enabled");
@@ -2562,8 +2581,19 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
 
     ImGui::SetCursorPos(afterRowCursor);
 
-    if (isRowHovered && !warningTooltip.empty())
-        ImGui::SetTooltip("%s", warningTooltip.c_str());
+    if (isRowHovered)
+    {
+        const bool warningTooltipNeeded =
+            !emitter.enabled ||
+            (!module.enabled && module.type != AuthoringModuleType::Required) ||
+            !moduleCompatible;
+        if (warningTooltipNeeded)
+        {
+            const string warningTooltip = Build_ModuleWarningTooltip(emitter, module);
+            if (!warningTooltip.empty())
+                ImGui::SetTooltip("%s", warningTooltip.c_str());
+        }
+    }
 }
 
 Shared<Emitter_View> Emitter_View::Create()

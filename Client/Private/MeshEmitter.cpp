@@ -9,6 +9,9 @@
 
 namespace Internal
 {
+constexpr double kMeshEmitterInitializeInfoThresholdMs = 8.0;
+constexpr double kMeshEmitterReloadReuseInfoThresholdMs = 4.0;
+
 float Read_Vec4Component(const Vec4& values, uint32 index)
 {
     switch (index)
@@ -274,7 +277,7 @@ void MeshEmitter::On_EffectTransformSynced()
 
 void MeshEmitter::Log_DescPayload(const char* context) const
 {
-    LOG_INFO(
+    LOG_DEBUG(
         "MeshEmitter desc payload. context={}, emitter='{}', spawnCount={}, spawnRate={}, bursts={}, life=({}, {}), meshAlignment={}, meshInitialScale={}, meshScaleByLife={}, motion={}, acceleration={}, drag=({}, {}), velocityScale=({}, {}), meshRotation={}, meshRotationMin=({}, {}, {}), meshRotationMax=({}, {}, {}), colorCurve={}, alphaCurve={}",
         context,
         _emitterName,
@@ -314,19 +317,43 @@ void MeshEmitter::Log_InitializeTiming(
     double bufferMs,
     double totalMs) const
 {
-    LOG_INFO(
-        "MeshEmitter initialize timing. context={}, emitter='{}', shader_ms={:.3f}, resolve_model_ms={:.3f}, model_ms={:.3f}, material_ms={:.3f}, buffer_ms={:.3f}, total_ms={:.3f}, modelGuid='{}', modelPath='{}'",
-        context,
-        _emitterName,
-        shaderMs,
-        resolveModelMs,
-        modelMs,
-        materialMs,
-        bufferMs,
-        totalMs,
-        _desc.modelGuid,
-        _desc.modelPath
-    );
+    const bool isReloadReuse = std::strcmp(context, "reload_reuse") == 0;
+    const double infoThresholdMs = isReloadReuse
+                                   ? Internal::kMeshEmitterReloadReuseInfoThresholdMs
+                                   : Internal::kMeshEmitterInitializeInfoThresholdMs;
+
+    if (totalMs >= infoThresholdMs)
+    {
+        LOG_INFO(
+            "MeshEmitter initialize timing. context={}, emitter='{}', shader_ms={:.3f}, resolve_model_ms={:.3f}, model_ms={:.3f}, material_ms={:.3f}, buffer_ms={:.3f}, total_ms={:.3f}, modelGuid='{}', modelPath='{}'",
+            context,
+            _emitterName,
+            shaderMs,
+            resolveModelMs,
+            modelMs,
+            materialMs,
+            bufferMs,
+            totalMs,
+            _desc.modelGuid,
+            _desc.modelPath
+        );
+    }
+    else
+    {
+        LOG_DEBUG(
+            "MeshEmitter initialize timing. context={}, emitter='{}', shader_ms={:.3f}, resolve_model_ms={:.3f}, model_ms={:.3f}, material_ms={:.3f}, buffer_ms={:.3f}, total_ms={:.3f}, modelGuid='{}', modelPath='{}'",
+            context,
+            _emitterName,
+            shaderMs,
+            resolveModelMs,
+            modelMs,
+            materialMs,
+            bufferMs,
+            totalMs,
+            _desc.modelGuid,
+            _desc.modelPath
+        );
+    }
 }
 
 bool MeshEmitter::Is_CompatibleReloadDesc(const MeshEmitterDesc& desc) const
