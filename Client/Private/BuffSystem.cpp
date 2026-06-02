@@ -85,7 +85,8 @@ bool BuffSystem::Try_ConsumeMarkOnDamage(const BattleChar& attacker, const Battl
         return false;
 
     auto mark = Find_Buff(target, Buffs::Mark);
-    CHECK_NULL(mark, false);
+    if (mark == nullptr)
+        return false;
 
     inOutDamage += MARK_BONUS_DAMAGE;
     Remove_Buff(target, Buffs::Mark);
