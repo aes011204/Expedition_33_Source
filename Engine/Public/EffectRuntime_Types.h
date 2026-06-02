@@ -277,6 +277,7 @@ struct EffectInitialSizeRuntimeDesc
     bool enabled{ false };        // InitialSize 모듈이 runtime에 연결되었는지 나타낸다.
     Vec2 sizeMin{ 0.12f, 0.12f }; // InitialSize의 가로/세로 크기 하한이다.
     Vec2 sizeMax{ 0.28f, 0.28f }; // InitialSize의 가로/세로 크기 상한이다.
+    PointParticleRandomSeedRuntimeDesc sizeSeed{};
 };
 
 // InitialColor 모듈에서 compute payload에 필요한 값만 접은 runtime payload다.
@@ -284,6 +285,8 @@ struct EffectInitialColorRuntimeDesc
 {
     Vec4 startColorMin{ 1.f, 1.f, 1.f, 1.f }; // Initial Color 하한이다.
     Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f }; // Initial Color 상한이다.
+    PointParticleRandomSeedRuntimeDesc colorSeed{};
+    PointParticleRandomSeedRuntimeDesc alphaSeed{};
 };
 
 // ColorOverLife 모듈에서 compute payload에 필요한 값만 접은 runtime payload다.
@@ -292,6 +295,8 @@ struct EffectColorOverLifeRuntimeDesc
     Vec4 endColorMin{ 1.f, 1.f, 1.f, 1.f };      // Color Over Life 하한이다.
     Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f };      // Color Over Life 상한이다.
     PointParticleColorOverLifeCurveDesc curve{}; // ConstantCurve ColorOverLife runtime payload다.
+    PointParticleRandomSeedRuntimeDesc colorSeed{};
+    PointParticleRandomSeedRuntimeDesc alphaSeed{};
 };
 
 // Trail 전용 SpawnPerUnit 모듈에서 이동 거리 기반 보강 sample 생성에 필요한 값만 접은 payload다.
@@ -322,10 +327,14 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleSizeByLifeDesc sizeByLife{};                         // 수명 진행률 기준 크기 배율 규칙이다.
     PointParticleMotionDesc motion{};                                 // motion authoring module을 compute payload로 압축한 규칙이다.
     PointParticleRotationDesc rotation{};                             // rotation authoring module을 compute payload로 압축한 규칙이다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                 // Lifetime random sample seed salt다.
     PointParticleInitialLocationDesc initialLocation{};               // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
     PointParticleSphereLocationDesc sphereLocation{};                 // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
     PointParticlePlaneRadialLocationDesc planeRadialLocation{};       // PlaneRadialLocation 모듈이 만든 시작 위치 평면/방사 offset 분포다.
     PointParticlePlaneRadialOrientationDesc planeRadialOrientation{}; // PlaneRadialOrientation 모듈이 만든 radial frame 기반 초기 회전 payload다.
+    PointParticleRandomSeedRuntimeDesc initialLocationSeed{};          // InitialLocation random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc sphereLocationSeed{};           // SphereLocation random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};         // SubUV RandomFrame random sample seed salt다.
     Vec3 center{ 0.f, 0.f, 0.f };                                     // concrete emitter 내부 fallback/초기 center다. root transform이 있으면 후속 sync가 덮어쓴다.
 };
 

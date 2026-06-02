@@ -27,6 +27,7 @@ struct ComputePointParticleParams
     Vec4 planeRadialLocationOffsetThickness{}; // xyz: offset, w: thickness.
     Vec4 planeRadialLocationRectRange{};       // x/y: U range, z/w: V range.
     Vec4 planeRadialLocationPolarRange{};      // x/y: radius range, z/w: angle degree range.
+    DirectX::XMUINT4 planeRadialLocationSeedSalts{}; // x: U/radius, y: V/angle, z/w: unused.
     Vec4 planeRadialOrientationParams{};       // x: enabled, y: target kind, z: orientation mode, w: unused.
     Vec4 sizeMin{};                    // x/y: width/height min, z/w: unused.
     Vec4 sizeMax{};                    // x/y: width/height max, z/w: unused.
@@ -57,6 +58,10 @@ struct ComputePointParticleParams
     Vec4 subUVFrameCurveTimes{};  // 후속 Curve Editor용 frame curve key times.
     Vec4 subUVFrameCurveValues{}; // 후속 Curve Editor용 frame curve frame values.
     Vec4 subUVFrameCurveParams{}; // x: key count, y/z/w: unused.
+    DirectX::XMUINT4 spawnSeedSalts{}; // x: Lifetime, y: InitialLocation, z: SphereLocation, w: PlaneRadialLocation.
+    DirectX::XMUINT4 subUVSeedSalts{}; // x: SubUV RandomFrame, y/z/w: unused.
+    DirectX::XMUINT4 appearanceSeedSalts0{}; // x: InitialSize, y: InitialColor RGB, z: InitialColor Alpha, w: ColorOverLife RGB.
+    DirectX::XMUINT4 appearanceSeedSalts1{}; // x: ColorOverLife Alpha, y/z/w: unused.
     Vec4 sizeByLifeParams{};      // x/y: width start/end, z/w: height start/end.
     Vec4 sizeByLifeCurveTimes{};  // SizeByLife scale curve key times.
     Vec4 sizeByLifeCurveValuesX{}; // SizeByLife X multiplier key values.
@@ -81,6 +86,8 @@ struct ComputePointParticleParams
     Vec4 velocityScaleByLifeCurveTimes{};  // VelocityOverLife key times.
     Vec4 velocityScaleByLifeCurveValues{}; // VelocityOverLife multiplier values.
     Vec4 velocityScaleByLifeCurveParams{}; // x: key count, y/z/w: unused.
+    DirectX::XMUINT4 motionSeedSalts0{}; // x: InitialVelocity, y: InitialRadialVelocity, z: VelocityCone, w: Acceleration.
+    DirectX::XMUINT4 motionSeedSalts1{}; // x: Drag, y/z/w: unused.
     Vec4 rotationInitialRate{};   // x/y: initial rotation min/max, z/w: rate min/max.
     Vec4 rotationByLife{};        // x/y: legacy rotation start/end, z/w: rate scale start/end.
     Vec4 rotationOverLifeCurveTimes{};  // RotationOverLife key times.
@@ -89,7 +96,23 @@ struct ComputePointParticleParams
     Vec4 rotationRateScaleByLifeCurveTimes{};  // RotationRateScaleByLife key times.
     Vec4 rotationRateScaleByLifeCurveValues{}; // RotationRateScaleByLife multiplier values.
     Vec4 rotationRateScaleByLifeCurveParams{}; // x: key count, y/z/w: unused.
+    DirectX::XMUINT4 rotationSeedSalts{}; // x: InitialRotation, y: InitialRotationRate, z/w: unused.
 };
+
+static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed)
+{
+    return seed.manualSeedEnabled ? seed.seed : 0u;
+}
+
+static float Hash01(uint32 seed)
+{
+    seed ^= 2747636419u;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
+}
 
 VIBufferCom_ComputePointParticle::VIBufferCom_ComputePointParticle(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : VIBufferCom_Instance{ device, context }
@@ -451,6 +474,16 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.planeRadialLocation.angleDegreesRange.x,
             _desc.planeRadialLocation.angleDegreesRange.y
         },
+        .planeRadialLocationSeedSalts = DirectX::XMUINT4{
+            _desc.planeRadialLocation.shape == PointParticlePlaneRadialLocationShape::Rectangle
+            ? Resolve_SeedSalt(_desc.planeRadialLocation.uSeed)
+            : Resolve_SeedSalt(_desc.planeRadialLocation.radiusSeed),
+            _desc.planeRadialLocation.shape == PointParticlePlaneRadialLocationShape::Rectangle
+            ? Resolve_SeedSalt(_desc.planeRadialLocation.vSeed)
+            : Resolve_SeedSalt(_desc.planeRadialLocation.angleDegreesSeed),
+            0u,
+            0u
+        },
         .planeRadialOrientationParams = Vec4{
             _desc.planeRadialOrientation.enabled ? 1.f : 0.f,
             static_cast<float>(ETOI(_desc.planeRadialOrientation.targetKind)),
@@ -505,6 +538,30 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             0.f,
             0.f,
             0.f
+        },
+        .spawnSeedSalts = DirectX::XMUINT4{
+            Resolve_SeedSalt(_desc.lifetimeSeed),
+            Resolve_SeedSalt(_desc.initialLocationSeed),
+            Resolve_SeedSalt(_desc.sphereLocationSeed),
+            0u
+        },
+        .subUVSeedSalts = DirectX::XMUINT4{
+            Resolve_SeedSalt(_desc.subUVRandomFrameSeed),
+            0u,
+            0u,
+            0u
+        },
+        .appearanceSeedSalts0 = DirectX::XMUINT4{
+            Resolve_SeedSalt(_desc.initialSizeSeed),
+            Resolve_SeedSalt(_desc.initialColorSeed),
+            Resolve_SeedSalt(_desc.initialAlphaSeed),
+            Resolve_SeedSalt(_desc.colorOverLifeSeed)
+        },
+        .appearanceSeedSalts1 = DirectX::XMUINT4{
+            Resolve_SeedSalt(_desc.alphaOverLifeSeed),
+            0u,
+            0u,
+            0u
         },
         .sizeByLifeParams = Vec4{
             _desc.sizeByLife.multiplyXStart,
@@ -600,6 +657,18 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             0.f,
             0.f
         },
+        .motionSeedSalts0 = DirectX::XMUINT4{
+            Resolve_SeedSalt(_desc.motion.initialVelocitySeed),
+            Resolve_SeedSalt(_desc.motion.initialRadialVelocitySeed),
+            Resolve_SeedSalt(_desc.motion.velocityConeSeed),
+            Resolve_SeedSalt(_desc.motion.accelerationSeed)
+        },
+        .motionSeedSalts1 = DirectX::XMUINT4{
+            Resolve_SeedSalt(_desc.motion.dragSeed),
+            0u,
+            0u,
+            0u
+        },
         .rotationInitialRate = Vec4{
             _desc.rotation.initialRotationDegrees.x,
             _desc.rotation.initialRotationDegrees.y,
@@ -627,6 +696,12 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             0.f,
             0.f,
             0.f
+        },
+        .rotationSeedSalts = DirectX::XMUINT4{
+            Resolve_SeedSalt(_desc.rotation.initialRotationSeed),
+            Resolve_SeedSalt(_desc.rotation.initialRotationRateSeed),
+            0u,
+            0u
         }
     };
 
@@ -690,12 +765,16 @@ VIBufferCom_ComputePointParticle::ParticleLifecycleState VIBufferCom_ComputePoin
     const float ratio = (static_cast<float>(index) + 0.5f) / max(1.f, static_cast<float>(_instanceCount));
     const float lifeMin = max(0.0001f, min(_desc.lifeTime.x, _desc.lifeTime.y));
     const float lifeMax = max(lifeMin, max(_desc.lifeTime.x, _desc.lifeTime.y));
-    const float sampledLifeMax = lerp(lifeMin, lifeMax, ratio);
+    const uint32 respawnSeed = index * 9781u + 1u;
+    const float lifeSample = _desc.lifetimeSeed.manualSeedEnabled
+                             ? Hash01(respawnSeed + _desc.lifetimeSeed.seed + 43u)
+                             : ratio;
+    const float sampledLifeMax = lerp(lifeMin, lifeMax, lifeSample);
 
     return ParticleLifecycleState{
         .lifeAge = 0.f,
         .lifeMax = sampledLifeMax,
-        .respawnSeed = index * 9781u + 1u,
+        .respawnSeed = respawnSeed,
         .active = 0u
     };
 }

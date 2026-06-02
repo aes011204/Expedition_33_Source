@@ -30,6 +30,21 @@ bool Has_NonZeroVector(const Vec3& value)
     return fabsf(value.x) > 0.0001f || fabsf(value.y) > 0.0001f || fabsf(value.z) > 0.0001f;
 }
 
+uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed)
+{
+    return seed.manualSeedEnabled ? seed.seed : 0u;
+}
+
+float Hash01(uint32 seed)
+{
+    seed ^= 2747636419u;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
+}
+
 Vec3 Normalize_OrFallback(const Vec3& value, const Vec3& fallback)
 {
     if (value.LengthSquared() <= kPlaneRadialEpsilon * kPlaneRadialEpsilon)
@@ -977,6 +992,7 @@ void MeshEmitter::Reset_PlaybackRuntime()
     _activeInstanceCount = 0u;
     _nextSpawnCursor = 0u;
     _playbackState = Resolve_CurrentLoopDelay() > 0.f ? PlaybackState::Delayed : PlaybackState::Playing;
+    Resample_LoopSpawnDistributions();
 }
 
 void MeshEmitter::Advance_Playback(float timeDelta)
@@ -1066,6 +1082,7 @@ void MeshEmitter::Start_NextLoop()
     _spawnAccumulator = 0.f;
     _burstExecuted.assign(_desc.spawn.particleSpawn.bursts.size(), false);
     _playbackState = Resolve_CurrentLoopDelay() > 0.f ? PlaybackState::Delayed : PlaybackState::Playing;
+    Resample_LoopSpawnDistributions();
 }
 
 float MeshEmitter::Resolve_CurrentLoopDelay() const
@@ -1102,7 +1119,7 @@ uint32 MeshEmitter::Consume_SpawnRequest(float timeDelta)
 
     if (_desc.spawn.particleSpawn.processSpawnRate)
     {
-        const float spawnRate = max(0.f, _desc.spawn.particleSpawn.spawnRate * _desc.spawn.particleSpawn.spawnRateScale);
+        const float spawnRate = max(0.f, _sampledSpawnRate * _sampledSpawnRateScale);
         _spawnAccumulator += spawnRate * safeDeltaTime;
 
         const float wholeSpawn = floorf(_spawnAccumulator + 0.0001f);
@@ -1127,13 +1144,46 @@ uint32 MeshEmitter::Consume_SpawnRequest(float timeDelta)
             if (previousTime > burst.time || _emitterElapsedTime < burst.time)
                 continue;
 
-            const float scaledCount = static_cast<float>(burst.count) * max(0.f, _desc.spawn.particleSpawn.burstScale);
+            const float sampledBurstScale = Sample_SpawnDistribution(
+                _desc.spawn.particleSpawn.burstScaleRange,
+                _desc.spawn.particleSpawn.burstScaleSeed,
+                static_cast<uint32>(0xB851u + index * 131u)
+            );
+            const float scaledCount = static_cast<float>(burst.count) * max(0.f, sampledBurstScale);
             spawnRequest += static_cast<uint32>(floorf(scaledCount));
             _burstExecuted[index] = true;
         }
     }
 
     return min(spawnRequest, max(1u, _desc.spawn.particleSpawn.maxActiveCount));
+}
+
+float MeshEmitter::Sample_SpawnDistribution(
+    const Vec2& range,
+    const PointParticleRandomSeedRuntimeDesc& seed,
+    uint32 salt) const
+{
+    const float minValue = min(range.x, range.y);
+    const float maxValue = max(range.x, range.y);
+    if (minValue == maxValue)
+        return minValue;
+
+    const uint32 baseSeed = (_loopIndex + 1u) * 9781u + salt + Internal::Resolve_SeedSalt(seed);
+    return lerp(minValue, maxValue, Internal::Hash01(baseSeed));
+}
+
+void MeshEmitter::Resample_LoopSpawnDistributions()
+{
+    _sampledSpawnRate = Sample_SpawnDistribution(
+        _desc.spawn.particleSpawn.spawnRateRange,
+        _desc.spawn.particleSpawn.spawnRateSeed,
+        0x31B7u
+    );
+    _sampledSpawnRateScale = Sample_SpawnDistribution(
+        _desc.spawn.particleSpawn.spawnRateScaleRange,
+        _desc.spawn.particleSpawn.spawnRateScaleSeed,
+        0x45D9u
+    );
 }
 
 void MeshEmitter::Spawn_Particles(uint32 spawnRequest)
@@ -1374,8 +1424,16 @@ Vec3 MeshEmitter::Sample_InitialOffset(
         float sampleAngle = 0.f;
         if (_desc.planeRadialLocation.shape == PointParticlePlaneRadialLocationShape::Rectangle)
         {
-            u = RandomRange(_desc.planeRadialLocation.uRange.x, _desc.planeRadialLocation.uRange.y, seed + 1601u);
-            v = RandomRange(_desc.planeRadialLocation.vRange.x, _desc.planeRadialLocation.vRange.y, seed + 1613u);
+            u = RandomRange(
+                _desc.planeRadialLocation.uRange.x,
+                _desc.planeRadialLocation.uRange.y,
+                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.uSeed) + 1601u
+            );
+            v = RandomRange(
+                _desc.planeRadialLocation.vRange.x,
+                _desc.planeRadialLocation.vRange.y,
+                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.vSeed) + 1613u
+            );
             sampleAngle = atan2f(v, u);
         }
         else
@@ -1384,10 +1442,14 @@ Vec3 MeshEmitter::Sample_InitialOffset(
             const float radiusMax = max(_desc.planeRadialLocation.radiusRange.x, _desc.planeRadialLocation.radiusRange.y);
             const float angleMin = XMConvertToRadians(_desc.planeRadialLocation.angleDegreesRange.x);
             const float angleMax = XMConvertToRadians(_desc.planeRadialLocation.angleDegreesRange.y);
-            const float radius = RandomRange(radiusMin, radiusMax, seed + 1601u);
+            const float radius = RandomRange(
+                radiusMin,
+                radiusMax,
+                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.radiusSeed) + 1601u
+            );
             const float angleRatio = _desc.planeRadialLocation.placementMode == PointParticlePlaneRadialLocationPlacementMode::EvenByParticleIndex
                                      ? static_cast<float>(particleIndex) / static_cast<float>(max(1u, maxActiveCount))
-                                     : Random01(seed + 1613u);
+                                     : Random01(seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.angleDegreesSeed) + 1613u);
             sampleAngle = lerp(angleMin, angleMax, angleRatio);
             u = cosf(sampleAngle) * radius;
             v = sinf(sampleAngle) * radius;

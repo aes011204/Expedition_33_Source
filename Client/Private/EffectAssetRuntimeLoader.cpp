@@ -104,6 +104,44 @@ namespace Internal
         if (parsed.has_value())
             outValue = parsed.value();
     }
+
+    PointParticleRandomSeedRuntimeDesc Read_RandomSeedDesc(const json& moduleData)
+    {
+        const auto randomSeedIter = moduleData.find("randomSeed");
+        if (randomSeedIter == moduleData.end() || !randomSeedIter->is_object())
+            return {};
+
+        const string mode = Read_String(*randomSeedIter, "mode");
+        uint32 manualSeed = 0u;
+        if (const auto seedIter = randomSeedIter->find("manualSeed"); seedIter != randomSeedIter->end())
+        {
+            if (seedIter->is_number_unsigned())
+                manualSeed = seedIter->get<uint32>();
+            else if (seedIter->is_number_integer())
+                manualSeed = static_cast<uint32>(max<int64_t>(0, seedIter->get<int64_t>()));
+        }
+
+        return PointParticleRandomSeedRuntimeDesc{
+            .manualSeedEnabled = mode == "Manual",
+            .seed = mode == "Manual" ? manualSeed : 0u
+        };
+    }
+
+    PointParticleRandomSeedRuntimeDesc Read_DistributionRandomSeedDesc(const json& distribution, const json* legacyModuleData = nullptr)
+    {
+        if (distribution.is_object())
+        {
+            const auto payloadIter = distribution.find("payload");
+            if (payloadIter != distribution.end() && payloadIter->is_object())
+            {
+                const auto randomSeedIter = payloadIter->find("randomSeed");
+                if (randomSeedIter != payloadIter->end() && randomSeedIter->is_object())
+                    return Read_RandomSeedDesc(*payloadIter);
+            }
+        }
+
+        return legacyModuleData != nullptr ? Read_RandomSeedDesc(*legacyModuleData) : PointParticleRandomSeedRuntimeDesc{};
+    }
 }
 
 using Internal::Read_Bool;
@@ -1445,11 +1483,23 @@ void EffectAssetRuntimeLoader::Fill_PlaneRadialLocationPayload(PointParticlePlan
     };
 
     desc.uRange = read_range("uDistribution", "rangeU", desc.uRange);
+    if (const auto distributionIter = planeRadialLocation.find("uDistribution");
+        distributionIter != planeRadialLocation.end() && distributionIter->is_object())
+        desc.uSeed = Internal::Read_DistributionRandomSeedDesc(*distributionIter, &planeRadialLocation);
     desc.vRange = read_range("vDistribution", "rangeV", desc.vRange);
+    if (const auto distributionIter = planeRadialLocation.find("vDistribution");
+        distributionIter != planeRadialLocation.end() && distributionIter->is_object())
+        desc.vSeed = Internal::Read_DistributionRandomSeedDesc(*distributionIter, &planeRadialLocation);
 
     const Vec2 radiusRange = read_range("radiusDistribution", "radiusRange", desc.radiusRange);
     desc.radiusRange = Vec2{ max(0.f, radiusRange.x), max(0.f, radiusRange.y) };
+    if (const auto distributionIter = planeRadialLocation.find("radiusDistribution");
+        distributionIter != planeRadialLocation.end() && distributionIter->is_object())
+        desc.radiusSeed = Internal::Read_DistributionRandomSeedDesc(*distributionIter, &planeRadialLocation);
     desc.angleDegreesRange = read_range("angleDegreesDistribution", "angleDegreesRange", desc.angleDegreesRange);
+    if (const auto distributionIter = planeRadialLocation.find("angleDegreesDistribution");
+        distributionIter != planeRadialLocation.end() && distributionIter->is_object())
+        desc.angleDegreesSeed = Internal::Read_DistributionRandomSeedDesc(*distributionIter, &planeRadialLocation);
     desc.thickness = max(0.f, Read_Float(planeRadialLocation, "thickness", desc.thickness));
 }
 
@@ -1748,26 +1798,38 @@ void EffectAssetRuntimeLoader::Apply_SpawnModule(const json& data, ComputeSprite
     desc.spawn.particleSpawn.processBurstList = Read_Bool(data, "processBurstList", desc.spawn.particleSpawn.processBurstList);
     desc.spawn.particleSpawn.maxActiveCount = desc.spawn.instanceCount;
 
-    const auto spawnRateIter = data.find("spawnRate");
-    if (spawnRateIter != data.end())
-    {
-        desc.spawn.particleSpawn.spawnRate =
-            max(0.f, Evaluate_FloatDistributionMax(*spawnRateIter, desc.spawn.particleSpawn.spawnRate));
-    }
+        const auto spawnRateIter = data.find("spawnRate");
+        if (spawnRateIter != data.end())
+        {
+            desc.spawn.particleSpawn.spawnRateRange = Vec2{
+                max(0.f, Evaluate_FloatDistributionMin(*spawnRateIter, desc.spawn.particleSpawn.spawnRate)),
+                max(0.f, Evaluate_FloatDistributionMax(*spawnRateIter, desc.spawn.particleSpawn.spawnRate))
+            };
+            desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
+            desc.spawn.particleSpawn.spawnRateSeed = Internal::Read_DistributionRandomSeedDesc(*spawnRateIter, &data);
+        }
 
     const auto spawnRateScaleIter = data.find("spawnRateScale");
-    if (spawnRateScaleIter != data.end())
-    {
-        desc.spawn.particleSpawn.spawnRateScale =
-            max(0.f, Evaluate_FloatDistributionMax(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale));
-    }
+        if (spawnRateScaleIter != data.end())
+        {
+            desc.spawn.particleSpawn.spawnRateScaleRange = Vec2{
+                max(0.f, Evaluate_FloatDistributionMin(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale)),
+                max(0.f, Evaluate_FloatDistributionMax(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale))
+            };
+            desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
+            desc.spawn.particleSpawn.spawnRateScaleSeed = Internal::Read_DistributionRandomSeedDesc(*spawnRateScaleIter, &data);
+        }
 
     const auto burstScaleIter = data.find("burstScale");
-    if (burstScaleIter != data.end())
-    {
-        desc.spawn.particleSpawn.burstScale =
-            max(0.f, Evaluate_FloatDistributionMax(*burstScaleIter, desc.spawn.particleSpawn.burstScale));
-    }
+        if (burstScaleIter != data.end())
+        {
+            desc.spawn.particleSpawn.burstScaleRange = Vec2{
+                max(0.f, Evaluate_FloatDistributionMin(*burstScaleIter, desc.spawn.particleSpawn.burstScale)),
+                max(0.f, Evaluate_FloatDistributionMax(*burstScaleIter, desc.spawn.particleSpawn.burstScale))
+            };
+            desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
+            desc.spawn.particleSpawn.burstScaleSeed = Internal::Read_DistributionRandomSeedDesc(*burstScaleIter, &data);
+        }
 
     const auto burstListIter = data.find("burstList");
     if (burstListIter == data.end() || !burstListIter->is_array())
@@ -1799,22 +1861,34 @@ void EffectAssetRuntimeLoader::Apply_SpawnModule(const json& data, MeshEmitterDe
     const auto spawnRateIter = data.find("spawnRate");
     if (spawnRateIter != data.end())
     {
-        desc.spawn.particleSpawn.spawnRate =
-            max(0.f, Evaluate_FloatDistributionMax(*spawnRateIter, desc.spawn.particleSpawn.spawnRate));
+        desc.spawn.particleSpawn.spawnRateRange = Vec2{
+            max(0.f, Evaluate_FloatDistributionMin(*spawnRateIter, desc.spawn.particleSpawn.spawnRate)),
+            max(0.f, Evaluate_FloatDistributionMax(*spawnRateIter, desc.spawn.particleSpawn.spawnRate))
+        };
+        desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
+        desc.spawn.particleSpawn.spawnRateSeed = Internal::Read_DistributionRandomSeedDesc(*spawnRateIter, &data);
     }
 
     const auto spawnRateScaleIter = data.find("spawnRateScale");
     if (spawnRateScaleIter != data.end())
     {
-        desc.spawn.particleSpawn.spawnRateScale =
-            max(0.f, Evaluate_FloatDistributionMax(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale));
+        desc.spawn.particleSpawn.spawnRateScaleRange = Vec2{
+            max(0.f, Evaluate_FloatDistributionMin(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale)),
+            max(0.f, Evaluate_FloatDistributionMax(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale))
+        };
+        desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
+        desc.spawn.particleSpawn.spawnRateScaleSeed = Internal::Read_DistributionRandomSeedDesc(*spawnRateScaleIter, &data);
     }
 
     const auto burstScaleIter = data.find("burstScale");
     if (burstScaleIter != data.end())
     {
-        desc.spawn.particleSpawn.burstScale =
-            max(0.f, Evaluate_FloatDistributionMax(*burstScaleIter, desc.spawn.particleSpawn.burstScale));
+        desc.spawn.particleSpawn.burstScaleRange = Vec2{
+            max(0.f, Evaluate_FloatDistributionMin(*burstScaleIter, desc.spawn.particleSpawn.burstScale)),
+            max(0.f, Evaluate_FloatDistributionMax(*burstScaleIter, desc.spawn.particleSpawn.burstScale))
+        };
+        desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
+        desc.spawn.particleSpawn.burstScaleSeed = Internal::Read_DistributionRandomSeedDesc(*burstScaleIter, &data);
     }
 
     const auto burstListIter = data.find("burstList");
@@ -1872,6 +1946,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
             const Vec2 maxSize = Evaluate_Vector2DistributionMax(*sizeIter, desc.initialSize.sizeMax);
             desc.initialSize.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
             desc.initialSize.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
+            desc.initialSize.sizeSeed = Internal::Read_DistributionRandomSeedDesc(*sizeIter, initialSize);
         }
     }
 
@@ -1894,6 +1969,8 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 max(minOffset.z, maxOffset.z)
             };
         }
+        if (locationIter != initialLocation->end())
+            desc.initialLocationSeed = Internal::Read_DistributionRandomSeedDesc(*locationIter, initialLocation);
     }
 
     if (const json* sphereLocation = Find_ModuleData(emitter, "SphereLocation"))
@@ -1906,6 +1983,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
 
         desc.sphereLocation.radius = max(0.f, Read_Float(*sphereLocation, "radius", desc.sphereLocation.radius));
         Read_Enum(*sphereLocation, "spawnMode", desc.sphereLocation.mode);
+        desc.sphereLocationSeed = Internal::Read_RandomSeedDesc(*sphereLocation);
     }
 
     if (const json* planeRadialLocation = Find_ModuleData(emitter, "PlaneRadialLocation"))
@@ -1920,6 +1998,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
                 Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
             };
+            desc.lifetimeSeed = Internal::Read_DistributionRandomSeedDesc(*lifeTimeIter, lifetime);
         }
     }
 
@@ -1930,6 +2009,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         {
             desc.initialColor.startColorMin = Evaluate_ColorDistributionMin(*colorIter, desc.initialColor.startColorMin);
             desc.initialColor.startColorMax = Evaluate_ColorDistributionMax(*colorIter, desc.initialColor.startColorMax);
+            desc.initialColor.colorSeed = Internal::Read_DistributionRandomSeedDesc(*colorIter, initialColor);
         }
 
         const auto alphaIter = initialColor->find("alpha");
@@ -1939,6 +2019,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 clamp(Evaluate_FloatDistributionMin(*alphaIter, desc.initialColor.startColorMin.w), 0.f, 1.f);
             desc.initialColor.startColorMax.w =
                 clamp(Evaluate_FloatDistributionMax(*alphaIter, desc.initialColor.startColorMax.w), 0.f, 1.f);
+            desc.initialColor.alphaSeed = Internal::Read_DistributionRandomSeedDesc(*alphaIter, initialColor);
         }
 
         desc.colorOverLife.endColorMin = desc.initialColor.startColorMin;
@@ -1952,6 +2033,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         {
             desc.colorOverLife.endColorMin = Evaluate_ColorOverLifeEndpointColorMin(*colorIter, desc.colorOverLife.endColorMin);
             desc.colorOverLife.endColorMax = Evaluate_ColorOverLifeEndpointColorMax(*colorIter, desc.colorOverLife.endColorMax);
+            desc.colorOverLife.colorSeed = Internal::Read_DistributionRandomSeedDesc(*colorIter, colorOverLife);
         }
 
         const auto alphaIter = colorOverLife->find("alphaOverLife");
@@ -1961,6 +2043,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 clamp(Evaluate_ColorOverLifeEndpointAlphaMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
             desc.colorOverLife.endColorMax.w =
                 clamp(Evaluate_ColorOverLifeEndpointAlphaMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
+            desc.colorOverLife.alphaSeed = Internal::Read_DistributionRandomSeedDesc(*alphaIter, colorOverLife);
         }
 
         Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
@@ -1979,6 +2062,8 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         const auto frameIndexIter = subUvFrameOverLife->find("frameIndex");
         if (frameIndexIter != subUvFrameOverLife->end())
             Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, *frameIndexIter);
+        if (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+            desc.subUVRandomFrameSeed = Internal::Read_RandomSeedDesc(*subUvFrameOverLife);
 
         const uint32 frameCount = max(1u, desc.required.material.subUVRows * desc.required.material.subUVCols);
         const uint32 lastFrame = frameCount - 1u;
@@ -2006,6 +2091,8 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
             desc.motion.initialVelocityMin = Evaluate_Vector3DistributionMin(*velocityIter, desc.motion.initialVelocityMin);
             desc.motion.initialVelocityMax = Evaluate_Vector3DistributionMax(*velocityIter, desc.motion.initialVelocityMax);
         }
+        if (velocityIter != initialVelocity->end())
+            desc.motion.initialVelocitySeed = Internal::Read_DistributionRandomSeedDesc(*velocityIter, initialVelocity);
     }
 
     if (const json* initialRadialVelocity = Find_ModuleData(emitter, "InitialRadialVelocity"))
@@ -2027,12 +2114,16 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 Evaluate_FloatDistributionMax(*speedIter, desc.motion.radialSpeed.y)
             };
         }
+        if (speedIter != initialRadialVelocity->end())
+            desc.motion.initialRadialVelocitySeed = Internal::Read_DistributionRandomSeedDesc(*speedIter, initialRadialVelocity);
     }
 
     if (const json* velocityCone = Find_ModuleData(emitter, "VelocityCone"))
     {
         desc.motion.enabled = true;
         Fill_VelocityConePayload(desc.motion, *velocityCone);
+        if (const auto speedIter = velocityCone->find("speed"); speedIter != velocityCone->end())
+            desc.motion.velocityConeSeed = Internal::Read_DistributionRandomSeedDesc(*speedIter, velocityCone);
     }
 
     if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
@@ -2045,6 +2136,8 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
             desc.motion.accelerationMax = Evaluate_Vector3DistributionMax(*accelerationIter, desc.motion.accelerationMax);
             Fill_AccelerationCurvePayload(desc.motion, *accelerationIter);
         }
+        if (accelerationIter != acceleration->end())
+            desc.motion.accelerationSeed = Internal::Read_DistributionRandomSeedDesc(*accelerationIter, acceleration);
     }
 
     if (const json* drag = Find_ModuleData(emitter, "Drag"))
@@ -2058,6 +2151,8 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 max(0.f, Evaluate_FloatDistributionMax(*dragIter, desc.motion.drag.y))
             };
         }
+        if (dragIter != drag->end())
+            desc.motion.dragSeed = Internal::Read_DistributionRandomSeedDesc(*dragIter, drag);
     }
 
     if (const json* velocityOverLife = Find_ModuleData(emitter, "VelocityOverLife"))
@@ -2077,6 +2172,8 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 Evaluate_FloatDistributionMax(*rotationIter, desc.rotation.initialRotationDegrees.y)
             };
         }
+        if (rotationIter != initialRotation->end())
+            desc.rotation.initialRotationSeed = Internal::Read_DistributionRandomSeedDesc(*rotationIter, initialRotation);
     }
 
     if (const json* planeRadialOrientation = Find_ModuleData(emitter, "PlaneRadialOrientation"))
@@ -2099,6 +2196,8 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 Evaluate_FloatDistributionMax(*rotationRateIter, desc.rotation.initialRotationRateDegrees.y)
             };
         }
+        if (rotationRateIter != initialRotationRate->end())
+            desc.rotation.initialRotationRateSeed = Internal::Read_DistributionRandomSeedDesc(*rotationRateIter, initialRotationRate);
     }
 
     if (const json* rotationRateScaleByLife = Find_ModuleData(emitter, "RotationRateScaleByLife"))

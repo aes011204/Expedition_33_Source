@@ -117,6 +117,88 @@ namespace Internal
         }
     }
 
+    static const char* Get_DistributionRandomSeedModeLabel(DistributionRandomSeedMode mode)
+    {
+        switch (mode)
+        {
+        case DistributionRandomSeedMode::Default:
+            return "기본값";
+        case DistributionRandomSeedMode::Manual:
+            return "수동";
+        default:
+            return "기본값";
+        }
+    }
+
+    static uint32 Generate_RandomSeedValue()
+    {
+        static uint32 state{ 0xA341316Cu };
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        return state != 0u ? state : 0x6D2B79F5u;
+    }
+
+    static bool Draw_RandomSeedProperty(
+        DetailPropertyContext& detailContext,
+        DistributionRandomSeedData& data)
+    {
+        bool changed = false;
+
+        if (!detailContext.Begin_PropertyTable("DistributionRandomSeed"))
+            return false;
+
+        ImGui::PushID("RandomSeedMode");
+        detailContext.Draw_PropertyLabel("시드 모드", "같은 시드는 같은 랜덤 분포를 재현합니다.");
+        DistributionRandomSeedMode nextMode = data.mode;
+        if (ImGui::BeginCombo("##Value", Get_DistributionRandomSeedModeLabel(nextMode)))
+        {
+            const DistributionRandomSeedMode candidates[] = {
+                DistributionRandomSeedMode::Default,
+                DistributionRandomSeedMode::Manual,
+            };
+
+            for (const DistributionRandomSeedMode candidate : candidates)
+            {
+                const bool selected = nextMode == candidate;
+                if (ImGui::Selectable(Get_DistributionRandomSeedModeLabel(candidate), selected))
+                    nextMode = candidate;
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (data.mode != nextMode)
+        {
+            data.mode = nextMode;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        ImGui::PushID("ManualSeed");
+        detailContext.Draw_PropertyLabel("시드");
+        const float randomizeButtonWidth = ImGui::CalcTextSize("무작위").x + ImGui::GetStyle().FramePadding.x * 2.f;
+        const float seedInputWidth = max(1.f, ImGui::GetContentRegionAvail().x - randomizeButtonWidth - ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SetNextItemWidth(seedInputWidth);
+        const bool manualMode = data.mode == DistributionRandomSeedMode::Manual;
+        if (!manualMode)
+            ImGui::BeginDisabled();
+        changed |= ImGui::InputScalar("##Value", ImGuiDataType_U32, &data.manualSeed);
+        if (!manualMode)
+            ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("무작위"))
+        {
+            data.manualSeed = Generate_RandomSeedValue();
+            data.mode = DistributionRandomSeedMode::Manual;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        detailContext.End_PropertyTable();
+        return changed;
+    }
+
     static const char* Get_SphereLocationSpawnModeLabel(SphereLocationSpawnMode mode)
     {
         switch (mode)
@@ -1577,6 +1659,8 @@ bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Spher
             );
             detailContext.End_PropertyTable();
         }
+
+        changed |= Internal::Draw_RandomSeedProperty(detailContext, data.randomSeed);
     }
 
     data.radius = max(0.f, data.radius);
@@ -2006,6 +2090,9 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
             }
             detailContext.End_PropertyTable();
         }
+
+        if (data.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+            changed |= Internal::Draw_RandomSeedProperty(detailContext, data.randomSeed);
 
         const uint32 frameCount = Internal::Resolve_SubUvFrameCount(emitter);
         const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;

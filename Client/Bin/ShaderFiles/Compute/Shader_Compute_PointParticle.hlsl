@@ -45,6 +45,7 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_PlaneRadialLocationOffsetThickness; // xyz: offset, w: thickness
     float4 g_PlaneRadialLocationRectRange;       // x/y: U range, z/w: V range
     float4 g_PlaneRadialLocationPolarRange;      // x/y: radius range, z/w: angle degree range
+    uint4 g_PlaneRadialLocationSeedSalts;        // x: U/radius, y: V/angle, z/w: unused
     float4 g_PlaneRadialOrientationParams;       // x: enabled, y: target kind, z: orientation mode
     float4 g_SizeMin;                    // x/y: width/height min
     float4 g_SizeMax;                    // x/y: width/height max
@@ -75,6 +76,10 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_SubUVFrameCurveTimes;   // Reserved frame curve key times for later Curve Editor work
     float4 g_SubUVFrameCurveValues;  // Reserved frame curve frame values for later Curve Editor work
     float4 g_SubUVFrameCurveParams;  // x: key count
+    uint4 g_SpawnSeedSalts;          // x: Lifetime, y: InitialLocation, z: SphereLocation, w: unused
+    uint4 g_SubUVSeedSalts;          // x: SubUV RandomFrame
+    uint4 g_AppearanceSeedSalts0;    // x: InitialSize, y: InitialColor RGB, z: InitialColor Alpha, w: ColorOverLife RGB
+    uint4 g_AppearanceSeedSalts1;    // x: ColorOverLife Alpha
     float4 g_SizeByLifeParams;       // x/y: width start/end, z/w: height start/end
     float4 g_SizeByLifeCurveTimes;   // scaleOverLife key times
     float4 g_SizeByLifeCurveValuesX; // scaleOverLife X multipliers
@@ -99,6 +104,8 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_VelocityScaleByLifeCurveTimes;  // VelocityOverLife key times
     float4 g_VelocityScaleByLifeCurveValues; // VelocityOverLife multiplier values
     float4 g_VelocityScaleByLifeCurveParams; // x: key count
+    uint4 g_MotionSeedSalts0; // x: InitialVelocity, y: InitialRadialVelocity, z: VelocityCone, w: Acceleration
+    uint4 g_MotionSeedSalts1; // x: Drag
     float4 g_RotationInitialRate;         // x/y: initial rotation min/max, z/w: rate min/max
     float4 g_RotationByLife;              // (Legacy) x/y: rotation start/end, z/w: rate scale start/end
     float4 g_RotationOverLifeCurveTimes;  // rotationOverLife key times
@@ -107,6 +114,7 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_RotationRateScaleByLifeCurveTimes;  // rotationRateScaleByLife key times
     float4 g_RotationRateScaleByLifeCurveValues; // rotationRateScaleByLife multiplier values
     float4 g_RotationRateScaleByLifeCurveParams; // x: key count
+    uint4 g_RotationSeedSalts; // x: InitialRotation, y: InitialRotationRate
 };
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
@@ -681,8 +689,8 @@ void SamplePlaneRadialFrame(uint seed, uint particleIndex, uint maxActiveCount, 
 
     if (shape == 0u)
     {
-        u = lerp(g_PlaneRadialLocationRectRange.x, g_PlaneRadialLocationRectRange.y, Hash01(seed + 1601u));
-        v = lerp(g_PlaneRadialLocationRectRange.z, g_PlaneRadialLocationRectRange.w, Hash01(seed + 1613u));
+        u = lerp(g_PlaneRadialLocationRectRange.x, g_PlaneRadialLocationRectRange.y, Hash01(seed + g_PlaneRadialLocationSeedSalts.x + 1601u));
+        v = lerp(g_PlaneRadialLocationRectRange.z, g_PlaneRadialLocationRectRange.w, Hash01(seed + g_PlaneRadialLocationSeedSalts.y + 1613u));
         frame.sampleAngle = atan2(v, u);
     }
     else
@@ -691,10 +699,10 @@ void SamplePlaneRadialFrame(uint seed, uint particleIndex, uint maxActiveCount, 
         const float radiusMax = max(g_PlaneRadialLocationPolarRange.x, g_PlaneRadialLocationPolarRange.y);
         const float angleMin = radians(g_PlaneRadialLocationPolarRange.z);
         const float angleMax = radians(g_PlaneRadialLocationPolarRange.w);
-        const float radius = lerp(radiusMin, radiusMax, Hash01(seed + 1601u));
+        const float radius = lerp(radiusMin, radiusMax, Hash01(seed + g_PlaneRadialLocationSeedSalts.x + 1601u));
         const float angleRatio = placementMode == 1u
                                  ? (float)particleIndex / max(1.0f, (float)maxActiveCount)
-                                 : Hash01(seed + 1613u);
+                                 : Hash01(seed + g_PlaneRadialLocationSeedSalts.y + 1613u);
         const float angle = lerp(angleMin, angleMax, angleRatio);
         frame.sampleAngle = angle;
         u = cos(angle) * radius;
@@ -820,7 +828,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         if (spawnCandidate < g_SpawnRequest)
         {
             lifecycle.respawnSeed += 4093u;
-            lifecycle.lifeMax = SampleLifeMax(lifecycle.respawnSeed);
+            lifecycle.lifeMax = SampleLifeMax(lifecycle.respawnSeed + g_SpawnSeedSalts.x);
             lifecycle.lifeAge = 0.0f;
             lifecycle.active = 1u;
         }
@@ -835,10 +843,16 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         return;
     }
 
+    const uint seed = lifecycle.respawnSeed;
     const float ratio = ((float)index + 0.5f) / max(1.0f, g_InstanceCount);
     const float scaleRatio = frac(ratio * 7.0f);
     const float colorRatio = frac(ratio * 11.0f);
-    const float2 baseSize = lerp(g_SizeMin.xy, g_SizeMax.xy, scaleRatio);
+    const float sizeRatio = g_AppearanceSeedSalts0.x != 0u ? Hash01(seed + g_AppearanceSeedSalts0.x + 233u) : scaleRatio;
+    const float initialColorRatio = g_AppearanceSeedSalts0.y != 0u ? Hash01(seed + g_AppearanceSeedSalts0.y + 347u) : colorRatio;
+    const float initialAlphaRatio = g_AppearanceSeedSalts0.z != 0u ? Hash01(seed + g_AppearanceSeedSalts0.z + 359u) : colorRatio;
+    const float colorOverLifeRatio = g_AppearanceSeedSalts0.w != 0u ? Hash01(seed + g_AppearanceSeedSalts0.w + 367u) : colorRatio;
+    const float alphaOverLifeRatio = g_AppearanceSeedSalts1.x != 0u ? Hash01(seed + g_AppearanceSeedSalts1.x + 373u) : colorRatio;
+    const float2 baseSize = lerp(g_SizeMin.xy, g_SizeMax.xy, sizeRatio);
 
     const float lifeMax = max(lifecycle.lifeMax, 0.0001f);
     const float lifeAge = max(0.0f, lifecycle.lifeAge);
@@ -850,13 +864,23 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     // particle index에서 만든 deterministic seed다.
     // 같은 particle 생애 안에서는 같은 seed를 사용하므로 spawn offset, speed, rotation 랜덤값이 흔들리지 않는다.
     // 뒤의 +101u, +211u 같은 offset은 X/Y/Z나 속성별 샘플이 서로 같은 패턴을 공유하지 않게 분리하기 위한 값이다.
-    const uint seed = lifecycle.respawnSeed;
+    const uint initialLocationSeed = seed + g_SpawnSeedSalts.y;
+    const uint sphereLocationSeed = seed + g_SpawnSeedSalts.z;
+    const uint planeRadialLocationSeed = seed;
+    const uint initialVelocitySeed = seed + g_MotionSeedSalts0.x;
+    const uint initialRadialVelocitySeed = seed + g_MotionSeedSalts0.y;
+    const uint velocityConeSeed = seed + g_MotionSeedSalts0.z;
+    const uint accelerationSeed = seed + g_MotionSeedSalts0.w;
+    const uint dragSeed = seed + g_MotionSeedSalts1.x;
+    const uint initialRotationSeed = seed + g_RotationSeedSalts.x;
+    const uint initialRotationRateSeed = seed + g_RotationSeedSalts.y;
+    const uint subUVRandomFrameSeed = seed + g_SubUVSeedSalts.x;
 
-    const float3 locationRandom = float3(Hash01(seed), Hash01(seed + 101u), Hash01(seed + 211u));
+    const float3 locationRandom = float3(Hash01(initialLocationSeed), Hash01(initialLocationSeed + 101u), Hash01(initialLocationSeed + 211u));
     const float3 fallbackSpawnOffset = ResolveEmitterBasisVector((locationRandom * 2.0f - 1.0f) * g_SpawnRange.xyz * 0.5f);
     const float3 initialLocationOffset = ResolveEmitterBasisVector(lerp(g_InitialLocationMin.xyz, g_InitialLocationMax.xyz, locationRandom));
     PlaneRadialFrame planeRadialFrame;
-    SamplePlaneRadialFrame(seed, index, maxActiveCount, planeRadialFrame);
+    SamplePlaneRadialFrame(planeRadialLocationSeed, index, maxActiveCount, planeRadialFrame);
     const bool hasExplicitLocation = g_InitialLocationMin.w != 0.0f ||
                                      g_SphereLocationParams.x != 0.0f ||
                                      planeRadialFrame.enabled != 0.0f;
@@ -865,14 +889,14 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                                      ? ResolveEmitterBasisVector(planeRadialFrame.localOffset)
                                      : float3(0.0f, 0.0f, 0.0f);
     const float3 spawnOffset = (hasExplicitLocation ? baseLocationOffset : fallbackSpawnOffset) +
-                               SampleSphereLocationOffset(seed) +
+                               SampleSphereLocationOffset(sphereLocationSeed) +
                                planeRadialOffset;
     const float3 spawnPosition = g_Center.xyz + spawnOffset;
     float3 initialVelocity = float3(0.0f, 0.0f, 0.0f);
 
     if (g_MotionFlags.y != 0.0f)
     {
-        const float3 sampledVelocity = SampleRange3(g_InitialVelocityMin.xyz, g_InitialVelocityMax.xyz, seed + 503u);
+        const float3 sampledVelocity = SampleRange3(g_InitialVelocityMin.xyz, g_InitialVelocityMax.xyz, initialVelocitySeed + 503u);
         initialVelocity += g_MotionFlags.z != 0.0f ? sampledVelocity : ResolveEmitterBasisVector(sampledVelocity);
     }
 
@@ -885,9 +909,9 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         float3 radialDirection = spawnPosition - pivotPosition;
         const float3 fallbackRadialDirection = ResolveEmitterBasisVector(
             float3(
-                Hash01(seed + 307u) * 2.0f - 1.0f,
+                Hash01(initialRadialVelocitySeed + 307u) * 2.0f - 1.0f,
                 0.25f,
-                Hash01(seed + 401u) * 2.0f - 1.0f
+                Hash01(initialRadialVelocitySeed + 401u) * 2.0f - 1.0f
             )
         );
         const float fallbackRadialLength = length(fallbackRadialDirection);
@@ -898,25 +922,25 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         radialDirection = radialDirectionLength < 0.0001f
                           ? normalizedFallbackRadialDirection
                           : radialDirection / radialDirectionLength;
-        const float radialSpeed = lerp(g_MotionRadialSpeedDrag.x, g_MotionRadialSpeedDrag.y, Hash01(seed + 509u));
+        const float radialSpeed = lerp(g_MotionRadialSpeedDrag.x, g_MotionRadialSpeedDrag.y, Hash01(initialRadialVelocitySeed + 509u));
         initialVelocity += radialDirection * radialSpeed;
     }
 
     if (g_MotionSpaceFlags.y != 0.0f)
     {
-        const float3 sampledConeDirection = SampleConeDirection(g_VelocityConeAxisAngle.xyz, g_VelocityConeAxisAngle.w, seed);
+        const float3 sampledConeDirection = SampleConeDirection(g_VelocityConeAxisAngle.xyz, g_VelocityConeAxisAngle.w, velocityConeSeed);
         const float3 coneDirection = g_MotionSpaceFlags.z != 0.0f
                                      ? sampledConeDirection
                                      : ResolveEmitterBasisVector(sampledConeDirection);
-        const float coneSpeed = lerp(g_VelocityConeSpeed.x, g_VelocityConeSpeed.y, Hash01(seed + 1747u));
+        const float coneSpeed = lerp(g_VelocityConeSpeed.x, g_VelocityConeSpeed.y, Hash01(velocityConeSeed + 1747u));
         initialVelocity += coneDirection * coneSpeed;
     }
 
-    const float drag = max(0.0f, lerp(g_MotionRadialSpeedDrag.z, g_MotionRadialSpeedDrag.w, Hash01(seed + 607u)));
+    const float drag = max(0.0f, lerp(g_MotionRadialSpeedDrag.z, g_MotionRadialSpeedDrag.w, Hash01(dragSeed + 607u)));
     const float velocityScale = EvaluateVelocityScaleByLifeAverage(lifeProgress);
     const float dragTime = drag > 0.0001f ? (1.0f - exp(-drag * lifeAge)) / drag : lifeAge;
     const float dragDecay = drag > 0.0001f ? exp(-drag * lifeAge) : 1.0f;
-    const float3 acceleration = SampleRange3(g_AccelerationMin.xyz, g_AccelerationMax.xyz, seed + 701u);
+    const float3 acceleration = SampleRange3(g_AccelerationMin.xyz, g_AccelerationMax.xyz, accelerationSeed + 701u);
     float3 accelerationVelocity = acceleration * lifeAge;
     float3 accelerationOffset = acceleration * 0.5f * lifeAge * lifeAge;
     if (g_AccelerationCurveParams.y != 0.0f)
@@ -936,10 +960,10 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                                          ? float3(0.0f, 0.0f, 0.0f)
                                          : currentVelocity / currentVelocityLength;
 
-    const float initialRotation = radians(lerp(g_RotationInitialRate.x, g_RotationInitialRate.y, Hash01(seed + 809u))) +
+    const float initialRotation = radians(lerp(g_RotationInitialRate.x, g_RotationInitialRate.y, Hash01(initialRotationSeed + 809u))) +
                                   ResolvePlaneRadialSpriteRotation(planeRadialFrame.enabled, planeRadialFrame.sampleAngle);
     const float rotationOverLife = radians(EvaluateRotationOverLifeDegrees(lifeProgress));
-    const float rotationRate = radians(lerp(g_RotationInitialRate.z, g_RotationInitialRate.w, Hash01(seed + 907u)));
+    const float rotationRate = radians(lerp(g_RotationInitialRate.z, g_RotationInitialRate.w, Hash01(initialRotationRateSeed + 907u)));
     const float rotationRateScale = EvaluateRotationRateScaleByLifeAverage(lifeProgress);
     const float rotation = initialRotation + rotationOverLife + rotationRate * rotationRateScale * lifeAge;
     const float rotationCos = cos(rotation);
@@ -983,7 +1007,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         else if ((uint)g_SubUVParams.z == 3u)
         {
             const uint frameOffset = min(
-                (uint)floor(Hash01(seed + 1201u) * (float)rangeCount),
+                (uint)floor(Hash01(subUVRandomFrameSeed + 1201u) * (float)rangeCount),
                 rangeCount - 1u
             );
             frameIndex = startFrame + frameOffset;
@@ -1005,8 +1029,14 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     instance.look = float4(velocityAlignmentHint, 0.0f);
     instance.translation = float4(spawnPosition + motionOffset, 1.0f);
     instance.lifeTime = float2(lifeMax, lifeAge);
-    const float4 legacyStartColor = lerp(g_StartColorMin, g_StartColorMax, colorRatio);
-    const float4 legacyEndColor = lerp(g_EndColorMin, g_EndColorMax, colorRatio);
+    const float4 legacyStartColor = float4(
+        lerp(g_StartColorMin.rgb, g_StartColorMax.rgb, initialColorRatio),
+        lerp(g_StartColorMin.a, g_StartColorMax.a, initialAlphaRatio)
+    );
+    const float4 legacyEndColor = float4(
+        lerp(g_EndColorMin.rgb, g_EndColorMax.rgb, colorOverLifeRatio),
+        lerp(g_EndColorMin.a, g_EndColorMax.a, alphaOverLifeRatio)
+    );
     const float4 particleColor = EvaluateColorOverLife(lifeProgress, lerp(legacyStartColor, legacyEndColor, lifeProgress));
     instance.startColor = particleColor;
     instance.endColor = particleColor;

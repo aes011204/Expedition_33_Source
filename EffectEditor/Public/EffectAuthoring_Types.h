@@ -114,6 +114,19 @@ constexpr bool Is_DistributionModeEditable(DistributionMode mode)
            mode == DistributionMode::ConstantCurve;
 }
 
+enum class DistributionRandomSeedMode : uint8
+{
+    Default,
+    Manual,
+};
+
+// 분포/random consumer 모듈이 같은 범위 안에서 재현 가능한 다른 draw를 만들기 위한 seed 설정이다.
+struct DistributionRandomSeedData
+{
+    DistributionRandomSeedMode mode{ DistributionRandomSeedMode::Default };
+    uint32 manualSeed{ 0 };
+};
+
 // 분포 플로트에서의 보간 모드 설정이다.
 enum class FloatCurveInterpolationMode : uint8
 {
@@ -222,6 +235,7 @@ struct UniformFloatDistributionData
 {
     float minValue{ 0.f };
     float maxValue{ 0.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct FloatDistributionData
@@ -246,7 +260,7 @@ struct FloatDistributionData
     {
         FloatDistributionData data{};
         data.mode = DistributionMode::Uniform;
-        data.payload = UniformFloatDistributionData{ minValue, maxValue };
+        data.payload = UniformFloatDistributionData{ .minValue = minValue, .maxValue = maxValue };
         return data;
     }
 
@@ -286,6 +300,7 @@ struct UniformVector2DistributionData
 {
     Vec2 minValue{ 0.f, 0.f };
     Vec2 maxValue{ 0.f, 0.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct Vector2DistributionData
@@ -310,7 +325,7 @@ struct Vector2DistributionData
     {
         Vector2DistributionData data{};
         data.mode = DistributionMode::Uniform;
-        data.payload = UniformVector2DistributionData{ minValue, maxValue };
+        data.payload = UniformVector2DistributionData{ .minValue = minValue, .maxValue = maxValue };
         return data;
     }
 
@@ -350,6 +365,7 @@ struct UniformVector3DistributionData
 {
     Vec3 minValue{ 0.f, 0.f, 0.f };
     Vec3 maxValue{ 0.f, 0.f, 0.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct Vector3DistributionData
@@ -374,7 +390,7 @@ struct Vector3DistributionData
     {
         Vector3DistributionData data{};
         data.mode = DistributionMode::Uniform;
-        data.payload = UniformVector3DistributionData{ minValue, maxValue };
+        data.payload = UniformVector3DistributionData{ .minValue = minValue, .maxValue = maxValue };
         return data;
     }
 
@@ -414,6 +430,7 @@ struct UniformColorDistributionData
 {
     Color minValue{ 1.f, 1.f, 1.f, 1.f };
     Color maxValue{ 1.f, 1.f, 1.f, 1.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct ColorDistributionData
@@ -438,7 +455,7 @@ struct ColorDistributionData
     {
         ColorDistributionData data{};
         data.mode = DistributionMode::Uniform;
-        data.payload = UniformColorDistributionData{ minValue, maxValue };
+        data.payload = UniformColorDistributionData{ .minValue = minValue, .maxValue = maxValue };
         return data;
     }
 
@@ -603,6 +620,7 @@ struct SphereLocationModuleData
     Vec3 offset{ 0.f, 0.f, 0.f };
     float radius{ 1.f };
     SphereLocationSpawnMode spawnMode{ SphereLocationSpawnMode::Volume };
+    DistributionRandomSeedData randomSeed{};
 };
 
 enum class PlaneRadialLocationPlane : uint8
@@ -786,6 +804,7 @@ struct SubUVFrameOverLifeModuleData
     bool loop{ false };
     SubUVFramePlaybackMode playbackMode{ SubUVFramePlaybackMode::FixedFrame };
     float framesPerSecond{ 12.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct SizeByLifeModuleData

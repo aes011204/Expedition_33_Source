@@ -148,6 +148,13 @@ struct PointParticleColorOverLifeCurveDesc
     Vec4 alphaCurveModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
 };
 
+// 모듈별 random consumer가 lifecycle seed에 더할 수동 seed salt다.
+struct PointParticleRandomSeedRuntimeDesc
+{
+    bool manualSeedEnabled{ false }; // true면 seed를 해당 consumer random sample에 더한다.
+    uint32 seed{ 0 };                // 모듈 authoring에서 저장된 수동 seed 값이다. 0도 유효 seed다.
+};
+
 // motion 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
 struct PointParticleMotionDesc
 {
@@ -178,6 +185,11 @@ struct PointParticleMotionDesc
     uint32 velocityScaleByLifeCurveKeyCount{ 2 };              // VelocityOverLife compact curve key 수다.
     Vec4 velocityScaleByLifeCurveTimes{ 0.f, 1.f, 0.f, 0.f };  // VelocityOverLife key time 0..1 값이다.
     Vec4 velocityScaleByLifeCurveValues{ 1.f, 1.f, 0.f, 0.f }; // VelocityOverLife key별 속도 배율 값이다.
+    PointParticleRandomSeedRuntimeDesc initialVelocitySeed{};       // InitialVelocity random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc initialRadialVelocitySeed{}; // InitialRadialVelocity random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc velocityConeSeed{};          // VelocityCone random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc accelerationSeed{};          // Acceleration random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc dragSeed{};                  // Drag random sample seed salt다.
 };
 
 // rotation 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
@@ -194,6 +206,8 @@ struct PointParticleRotationDesc
     uint32 rotationRateScaleByLifeCurveKeyCount{ 2 };              // RotationRateScaleByLife compact curve key 수다.
     Vec4 rotationRateScaleByLifeCurveTimes{ 0.f, 1.f, 0.f, 0.f };  // RotationRateScaleByLife key time 0..1 값이다.
     Vec4 rotationRateScaleByLifeCurveValues{ 1.f, 1.f, 0.f, 0.f }; // RotationRateScaleByLife key별 배율 값이다.
+    PointParticleRandomSeedRuntimeDesc initialRotationSeed{};      // InitialRotation random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc initialRotationRateSeed{};  // InitialRotationRate random sample seed salt다.
 };
 
 // Spawn 모듈의 burst 항목을 runtime emitter가 소비할 수 있게 압축한 payload다.
@@ -208,10 +222,16 @@ struct PointParticleSpawnDesc
 {
     bool processSpawnRate{ true };           // 연속 spawn rate를 적용할지 나타낸다.
     float spawnRate{ 10.f };                 // 초당 생성할 particle 수다.
+    Vec2 spawnRateRange{ 10.f, 10.f };       // loop 시작 시 seed 기반으로 샘플할 spawn rate 범위다.
+    PointParticleRandomSeedRuntimeDesc spawnRateSeed{};
     float spawnRateScale{ 1.f };             // spawn rate에 곱할 배율이다.
+    Vec2 spawnRateScaleRange{ 1.f, 1.f };    // loop 시작 시 seed 기반으로 샘플할 spawn rate scale 범위다.
+    PointParticleRandomSeedRuntimeDesc spawnRateScaleSeed{};
     bool processBurstList{ true };           // burst 목록을 적용할지 나타낸다.
     vector<PointParticleBurstDesc> bursts{}; // emitter time 기준 1회성 burst 목록이다.
     float burstScale{ 1.f };                 // burst count에 곱할 배율이다.
+    Vec2 burstScaleRange{ 1.f, 1.f };        // burst 실행 시점에 seed 기반으로 샘플할 burst scale 범위다.
+    PointParticleRandomSeedRuntimeDesc burstScaleSeed{};
     uint32 maxActiveCount{ 64u };            // 동시에 살아 있을 수 있는 particle 상한이다.
 };
 
@@ -275,6 +295,10 @@ struct PointParticlePlaneRadialLocationDesc
     Vec2 vRange{ -0.5f, 0.5f };           // Rectangle 샘플링에서 plane V축 범위다.
     Vec2 radiusRange{ 0.f, 1.f };         // Disc/Ring/Arc 샘플링 반지름 범위다.
     Vec2 angleDegreesRange{ 0.f, 360.f }; // Disc/Ring/Arc 샘플링 각도 범위다.
+    PointParticleRandomSeedRuntimeDesc uSeed{};            // Rectangle U random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc vSeed{};            // Rectangle V random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc radiusSeed{};       // Polar radius random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc angleDegreesSeed{}; // Polar angle random sample seed salt다.
     float thickness{ 0.f };               // plane normal 방향 두께다. 0이면 평면에 붙는다.
 };
 
@@ -352,11 +376,16 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
 {
     Vec2 sizeMin{ 0.12f, 0.12f };                                     // particle 기본 가로/세로 크기 하한이다.
     Vec2 sizeMax{ 0.28f, 0.28f };                                     // particle 기본 가로/세로 크기 상한이다.
+    PointParticleRandomSeedRuntimeDesc initialSizeSeed{};              // InitialSize random sample seed salt다.
     Vec2 lifeTime{};                                                  // compute shader가 누적 시간을 계산할 때 사용할 생존 시간 범위.
     Vec4 startColorMin{ 1.f, 1.f, 1.f, 1.f };                         // compute sprite preview 시작 색상/알파 하한.
     Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f };                         // compute sprite preview 시작 색상/알파 상한.
+    PointParticleRandomSeedRuntimeDesc initialColorSeed{};             // InitialColor RGB random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc initialAlphaSeed{};             // InitialColor Alpha random sample seed salt다.
     Vec4 endColorMin{ 1.f, 1.f, 1.f, 1.f };                           // compute sprite preview 종료 색상/알파 하한.
     Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f };                           // compute sprite preview 종료 색상/알파 상한.
+    PointParticleRandomSeedRuntimeDesc colorOverLifeSeed{};            // ColorOverLife RGB random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc alphaOverLifeSeed{};            // ColorOverLife Alpha random sample seed salt다.
     PointParticleColorOverLifeCurveDesc colorOverLifeCurve{};         // ConstantCurve ColorOverLife payload다.
     Vec2 radius{};                                                    // 화면 확인용 원형 이동 반경 범위. authoring 의미로 승격하지 않는다.
     uint32 subUVRows{ 1 };                                            // atlas row 수다.
@@ -366,10 +395,14 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     PointParticleMotionDesc motion{};                                 // motion 모듈들이 만든 compute update 규칙이다.
     PointParticleRotationDesc rotation{};                             // rotation 모듈들이 만든 sprite 회전 규칙이다.
     PointParticleSpawnDesc spawn{};                                   // Spawn 모듈이 만든 활성화/버스트 생성 규칙이다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                 // Lifetime random sample seed salt다.
     PointParticleInitialLocationDesc initialLocation{};               // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
     PointParticleSphereLocationDesc sphereLocation{};                 // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
     PointParticlePlaneRadialLocationDesc planeRadialLocation{};       // PlaneRadialLocation 모듈이 만든 시작 위치 평면/방사 offset 분포다.
     PointParticlePlaneRadialOrientationDesc planeRadialOrientation{}; // PlaneRadialOrientation 모듈이 만든 sprite 2D 초기 회전 payload다.
+    PointParticleRandomSeedRuntimeDesc initialLocationSeed{};          // InitialLocation random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc sphereLocationSeed{};           // SphereLocation random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};         // SubUV RandomFrame random sample seed salt다.
     Vec3 emitterRight{ 1.f, 0.f, 0.f };                               // emitter local X축을 world 방향으로 변환할 basis다.
     Vec3 emitterUp{ 0.f, 1.f, 0.f };                                  // emitter local Y축을 world 방향으로 변환할 basis다.
     Vec3 emitterLook{ 0.f, 0.f, 1.f };                                // emitter local Z축을 world 방향으로 변환할 basis다.

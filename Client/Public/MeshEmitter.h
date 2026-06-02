@@ -128,6 +128,8 @@ private: //## Data::SpawnRuntime
     vector<bool> _burstExecuted{}; // burst 목록의 1회 실행 여부를 emitter runtime 동안 유지한다.
     float _emitterElapsedTime{};   // spawn/material time 평가에 사용할 emitter-local 누적 시간이다.
     float _spawnAccumulator{};     // fractional spawn rate를 프레임 사이에 보존한다.
+    float _sampledSpawnRate{ 10.f };
+    float _sampledSpawnRateScale{ 1.f };
 
 private: //## Data::PlaybackRuntime
     PlaybackState _playbackState{ PlaybackState::Delayed }; // delay/playing/completed 중 현재 emitter 재생 상태다.
@@ -193,6 +195,8 @@ private: //## Helper::PlaybackRuntime
 private: //## Helper::ParticleRuntime
     // 이번 frame에 새로 활성화할 particle 수를 계산한다.
     uint32 Consume_SpawnRequest(float timeDelta);
+    void Resample_LoopSpawnDistributions();
+    float Sample_SpawnDistribution(const Vec2& range, const PointParticleRandomSeedRuntimeDesc& seed, uint32 salt) const;
     // spawn request만큼 particle slot을 활성화한다.
     void Spawn_Particles(uint32 spawnRequest);
     // 단일 particle slot에 초기 위치/속도/색/회전을 채운다.
