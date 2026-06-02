@@ -1,8 +1,7 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "RadialBlur_ScreenFx.h"
 
 #include <Camera.h>
-#include <shobjidl_core.h>
 
 #include "BattleController.h"
 #include "BattleTurnCamera.h"
@@ -93,7 +92,16 @@ HRESULT RadialBlur_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
     cbData.radialBlurIntensity = _currentIntensity;
     cbData.radialBlurRadius = _originalDesc.radius;
 
+    cbData.vignetteRadius = 0.8f;
+    cbData.vignetteSoftness = 0.5f;
+    cbData.vignetteColor = Vec3::Zero;
+
     return shader->Bind_CBufferData(cbData);
+}
+
+HRESULT RadialBlur_ScreenFx::Bind_ShaderResources(const Shared<ShaderCom>& shader)
+{
+    return S_OK;
 }
 
 void RadialBlur_ScreenFx::Evaluate_At(float elapsedTime)
@@ -132,6 +140,7 @@ Shared<TransformCom> RadialBlur_ScreenFx::Get_CurrentTarget()
         switch (req.mode)
         {
         case BattleCameraMode::PLAYERATTACK: case BattleCameraMode::ENEMYATTACK:
+        case BattleCameraMode::WIDE: case BattleCameraMode::PLAYERFOCUS:
             if (req.subject != nullptr)
             {
                 return req.subject->Get_Transform();
@@ -141,18 +150,6 @@ Shared<TransformCom> RadialBlur_ScreenFx::Get_CurrentTarget()
             if (req.opponent != nullptr)
             {
                 return req.opponent->Get_Transform();
-            }
-            break;
-        case BattleCameraMode::PLAYERFOCUS:
-            if (req.subject != nullptr)
-            {
-                return req.subject->Get_Transform();
-            }
-            break;
-        case BattleCameraMode::WIDE:
-            if (req.subject != nullptr)
-            {
-                return req.subject->Get_Transform();
             }
             break;
         case BattleCameraMode::BATTLEINTRO:

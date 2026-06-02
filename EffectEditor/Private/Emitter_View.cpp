@@ -682,6 +682,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_MeshSizeByLifeModule();
     case AuthoringModuleType::SpawnPerUnit:
         return Make_SpawnPerUnitModule();
+    case AuthoringModuleType::MaterialScalarModulation:
+        return Make_MaterialScalarModulationModule();
     }
 
     return Make_RequiredModule();
@@ -973,6 +975,17 @@ AuthoringModule Emitter_View::Make_SpawnPerUnitModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_MaterialScalarModulationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::MaterialScalarModulation;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = MaterialScalarModulationModuleData{};
+    return module;
+}
+
 bool Emitter_View::Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const
 {
     for (const AuthoringModule& module : emitter.modules)
@@ -1054,6 +1067,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::SizeByLife:
     case AuthoringModuleType::MeshSizeByLife:
     case AuthoringModuleType::SpawnPerUnit:
+    case AuthoringModuleType::MaterialScalarModulation:
         return Is_ModuleCompatibleWithEmitter(emitter, type) && !Has_ModuleType(emitter, type);
 
     default:
@@ -1144,6 +1158,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::SpawnPerUnit:
         module = Make_SpawnPerUnitModule();
+        break;
+    case AuthoringModuleType::MaterialScalarModulation:
+        module = Make_MaterialScalarModulationModule();
         break;
     default:
         return;
@@ -1569,6 +1586,9 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
     case AuthoringModuleType::SpawnPerUnit:
         module.data = SpawnPerUnitModuleData{};
         break;
+    case AuthoringModuleType::MaterialScalarModulation:
+        module.data = MaterialScalarModulationModuleData{};
+        break;
 
     default:
         return;
@@ -1913,6 +1933,14 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::SpawnPerUnit,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SpawnPerUnit),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::MaterialScalarModulation,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::MaterialScalarModulation),
             "이미 장착됨"
         )
     );
@@ -2438,6 +2466,7 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
         case AuthoringModuleType::SizeByLife:
         case AuthoringModuleType::MeshSizeByLife:
         case AuthoringModuleType::SpawnPerUnit:
+        case AuthoringModuleType::MaterialScalarModulation:
             return true;
         default:
             return false;
@@ -2503,7 +2532,7 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
             }
             ImGui::PopStyleVar(2);
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Pin module curves");
+                ImGui::SetTooltip("모듈 커브 고정");
             ImGui::PopID();
         }
 

@@ -694,6 +694,9 @@ bool ComputeSpriteEmitter::Is_DistortionFamily() const
 
 RenderGroup ComputeSpriteEmitter::Resolve_RenderGroup() const
 {
+    if (_desc.renderLayerOverride == EffectEmitterRenderLayerOverride::UIEffect)
+        return RenderGroup::UIEffect;
+
     return Is_DistortionFamily() ? RenderGroup::Distortion : RenderGroup::Blend;
 }
 

@@ -275,6 +275,27 @@ ImU32 CurveEditor_View::Get_TargetColor(const CurveTarget& target)
     return target.color != 0 ? target.color : IM_COL32(245, 205, 95, 255);
 }
 
+static const char* Get_MaterialScalarTargetLabel(MaterialScalarModulationTargetField target)
+{
+    switch (target)
+    {
+    case MaterialScalarModulationTargetField::Intensity:
+        return "Intensity";
+    case MaterialScalarModulationTargetField::OpacityPower:
+        return "OpacityPower";
+    case MaterialScalarModulationTargetField::NoiseStrength:
+        return "NoiseStrength";
+    case MaterialScalarModulationTargetField::AlphaErosion:
+        return "AlphaErosion";
+    case MaterialScalarModulationTargetField::CoreIntensity:
+        return "CoreIntensity";
+    case MaterialScalarModulationTargetField::OuterIntensity:
+        return "OuterIntensity";
+    default:
+        return "Intensity";
+    }
+}
+
 float CurveEditor_View::Get_TargetValue(const CurveTarget& target, const FloatCurveKeyData& key)
 {
     return target.payloadKind == CurveTargetPayloadKind::Float ? key.value : 0.f;
@@ -688,6 +709,24 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(Au
         if (auto* data = get_if<SpawnPerUnitModuleData>(&module.data))
             Add_FloatTarget(targets, emitter, module, data->spawnPerUnit, "spawnPerUnit", "Spawn Per Unit", IM_COL32(245, 205, 95, 255));
         break;
+    case AuthoringModuleType::MaterialScalarModulation:
+        if (auto* data = get_if<MaterialScalarModulationModuleData>(&module.data))
+        {
+            for (size_t index = 0; index < data->modulators.size(); ++index)
+            {
+                MaterialScalarModulatorData& modulator = data->modulators[index];
+                Add_FloatTarget(
+                    targets,
+                    emitter,
+                    module,
+                    modulator.distribution,
+                    "modulator" + to_string(index) + ".distribution",
+                    "#" + to_string(index + 1) + " " + Get_MaterialScalarTargetLabel(modulator.targetField),
+                    IM_COL32(255, 145, 70, 255)
+                );
+            }
+        }
+        break;
     default:
         break;
     }
@@ -1049,7 +1088,7 @@ bool CurveEditor_View::Convert_ActiveTargetToConstantCurve(CurveTarget& target)
 
 void CurveEditor_View::Draw_EmptyState()
 {
-    ImGui::TextDisabled("Use a module curve button in the Emitter view to pin editable curves.");
+    ImGui::TextDisabled("Emitter 창의 모듈 커브 버튼으로 편집할 커브를 고정하세요.");
 }
 
 void CurveEditor_View::Draw_TrackList(const vector<CurveTarget>& targets)
