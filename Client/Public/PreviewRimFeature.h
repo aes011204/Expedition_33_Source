@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Client_Defines.h"
 
@@ -29,5 +29,17 @@ struct PreviewRimRuntime
         enabled = false;
     }
 };
+
+
+// UI Preview에서 공통으로 쓰는 조명과 림 라이트 기본값들
+constexpr Vec4 kPreviewLightAmbient = Vec4(0.02f, 0.02f, 0.025f, 1.f);
+constexpr Vec4 kPreviewLightSpecular = Vec4(1.45f, 1.30f, 1.08f, 1.f);
+constexpr Vec3 kPreviewLightDirection = Vec3(1.572f, 0.319f, -1.061f);
+constexpr Vec4 kPreviewLightDiffuse = Vec4(5.f, 4.f, 4.f, 1.f);
+constexpr Vec3 kPreviewRimColor = Vec3(1.0f, 0.90f, 0.62f);
+constexpr float kPreviewRimIntensity = 1.2f;
+constexpr float kPreviewRimPower = 2.12f;
+constexpr float kPreviewHairRimIntensity = 0.55f;
+constexpr float kPreviewShadowIntensity = 1.15f;
 
 NS_END

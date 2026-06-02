@@ -67,5 +67,6 @@
 #define POSTPROCESS_FLAG_EXPOSURE    (1u << 2)
 #define POSTPROCESS_FLAG_BLOOM       (1u << 3) // 아직 미사용
 #define POSTPROCESS_FLAG_GAMMA       (1u << 4)
+#define POSTPROCESS_FLAG_LIGHTSHAFT  (1u << 5)
 
 #endif

@@ -171,7 +171,8 @@ PS_OUT PS_Opaque(PS_IN In)
     if (HasPreviewRim())
     {
         float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
-        float rim = ComputePreviewRim(worldNormal, viewDir, g_FeatureParam3.x);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
         emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
     }
 
@@ -214,7 +215,8 @@ PS_OUT PS_Mask(PS_IN In)
     if (HasPreviewRim())
     {
         float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
-        float rim = ComputePreviewRim(worldNormal, viewDir, g_FeatureParam3.x);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
         emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
     }
 
@@ -272,11 +274,11 @@ PS_OUT PS_CharacterEye(PS_IN In)
     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
     float3 eyeBaseColor = eye.baseColor;
 
-    if (HasPreviewRim())
-    {
-        // SkillTree preview에서는 얼굴이 눌리기 쉬워서 눈만 전체 밝기를 조금 더 올린다.
-        eyeBaseColor = eyeBaseColor * 1.95f + 0.085f;
-    }
+    // if (HasPreviewRim())
+    // {
+    //     // SkillTree preview에서는 얼굴이 눌리기 쉬워서 눈만 전체 밝기를 조금 더 올린다.
+    //     eyeBaseColor = eyeBaseColor * 1.95f + 0.085f;
+    // }
 
     Out.Diffuse = float4(eyeBaseColor, 1.f);
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
@@ -337,7 +339,8 @@ PS_OUT PS_CharacterHair(PS_IN In)
     if (HasPreviewRim())
     {
         float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
-        float rim = ComputePreviewRim(worldNormal, viewDir, g_FeatureParam3.x);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
         float edgeMask = saturate(1.f - coreMask);
         float hairRim = rim * saturate(hairMask) * lerp(0.35f, 1.0f, edgeMask);
         emissive += GetPreviewRimColor() * (hairRim * GetPreviewRimIntensity() * GetPreviewHairRimIntensity());

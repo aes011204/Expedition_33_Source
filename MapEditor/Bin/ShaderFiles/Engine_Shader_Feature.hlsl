@@ -56,12 +56,14 @@ bool HasPreviewRim()
     return HasDrawFeature(FEATURE_FLAG_PREVIEW_RIM);
 }
 
-// UI Preview에서 역광 효과 계산하는 함수. rimPower가 클수록 카툰 렌더링처럼 극적인 효과가 난다.
+// UI Preview에서 옷 전체가 번들거리지 않게 외곽 위주로만 림을 잡는다. 
 float ComputePreviewRim(float3 worldNormal, float3 viewDir, float rimPower)
 {
     const float safePower = max(rimPower, 0.0001f);
     const float ndotv = saturate(dot(normalize(worldNormal), normalize(viewDir)));
-    return pow(1.f - ndotv, safePower);
+    const float rimBase = 1.f - ndotv;
+    const float edgeOnly = smoothstep(0.62f, 0.90f, rimBase);
+    return pow(edgeOnly, safePower);
 }
 
 // UI Preview에서 역광 효과 색상과 강도 가져오는 함수

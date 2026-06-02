@@ -127,10 +127,12 @@ private:
     {
         bool                        isCaptured = false;
         bool                        hasPrimaryLight = false;
+        bool                        hasShadowLight = false;
         bool                        hasPostProcess = false;
         bool                        hasLighting = false;
         Engine::CascadeLevel        cascadeLevel = Engine::CascadeLevel::Normal;
         Engine::LIGHT_DESC          primaryLight{};
+        Engine::ShadowLightDesc     shadowLight{};
         Engine::PostProcessCB       postProcess{};
         Engine::PostProcessFeature  postProcessFeatures = Engine::PostProcessFeature::None;
         Engine::DeferredLightingCB  deferredLighting{};

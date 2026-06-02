@@ -19,16 +19,6 @@ using namespace UI_Utils;
 
 namespace
 {
-    // UI Preview에서 사용할 조명과 림 라이트의 기본값들
-    constexpr Vec4 kCharacterStatusPreviewLightAmbient = Vec4(0.02f, 0.02f, 0.025f, 1.f);
-    constexpr Vec4 kCharacterStatusPreviewLightSpecular = Vec4(1.45f, 1.30f, 1.08f, 1.f);
-    constexpr Vec3 kCharacterStatusPreviewLightDirection = Vec3(1.572f, 0.319f, -1.061f);
-    constexpr Vec4 kCharacterStatusPreviewLightDiffuse = Vec4(5.f, 4.f, 4.f, 1.f);
-    constexpr Vec3 kCharacterStatusPreviewRimColor = Vec3(1.0f, 0.90f, 0.62f);
-    constexpr float kCharacterStatusPreviewRimIntensity = 1.2f;
-    constexpr float kCharacterStatusPreviewRimPower = 2.55f;
-    constexpr float kCharacterStatusPreviewHairRimIntensity = 0.55f;
-
 	constexpr std::array<HeroId, 3> characterStatusOrder =
 	{
 		HeroId::Lune,
@@ -578,6 +568,7 @@ void CharacterStatus_Panel::Apply_PreviewOverrides()
     const Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
     const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager();
     const LIGHT_DESC* primaryLightDesc = GAME->Get_PrimaryShadowLightDesc();
+    const ShadowLightDesc* shadowLightDesc = GAME->Get_ShadowLightDesc();
     if (primaryLightDesc == nullptr)
     {
         const uint32 lightCount = GAME->Get_LightCount();
@@ -601,11 +592,15 @@ void CharacterStatus_Panel::Apply_PreviewOverrides()
         _previewOverrideState.isCaptured = true;
         _previewOverrideState.cascadeLevel = GAME->Get_ShadowCascadeLevel();
         _previewOverrideState.hasPrimaryLight = (primaryLightDesc != nullptr);
+        _previewOverrideState.hasShadowLight = (shadowLightDesc != nullptr);
         _previewOverrideState.hasPostProcess = (postProcessPipeline != nullptr);
         _previewOverrideState.hasLighting = (lightingPipeline != nullptr);
 
         if (primaryLightDesc != nullptr)
             _previewOverrideState.primaryLight = *primaryLightDesc;
+
+        if (shadowLightDesc != nullptr)
+            _previewOverrideState.shadowLight = *shadowLightDesc;
 
         if (postProcessPipeline != nullptr)
         {
@@ -623,16 +618,23 @@ void CharacterStatus_Panel::Apply_PreviewOverrides()
     if (_previewOverrideState.hasPrimaryLight)
     {
         LIGHT_DESC previewLight = _previewOverrideState.primaryLight;
-        Vec3 previewLightDir = kCharacterStatusPreviewLightDirection;
+        Vec3 previewLightDir = kPreviewLightDirection;
         if (previewLightDir.LengthSquared() > 0.0001f)
             previewLightDir.Normalize();
 
         previewLight.direction = Vec4(previewLightDir.x, previewLightDir.y, previewLightDir.z, 0.f);
-        previewLight.diffuse = kCharacterStatusPreviewLightDiffuse;
-        previewLight.ambient = kCharacterStatusPreviewLightAmbient;
-        previewLight.specular = kCharacterStatusPreviewLightSpecular;
+        previewLight.diffuse = kPreviewLightDiffuse;
+        previewLight.ambient = kPreviewLightAmbient;
+        previewLight.specular = kPreviewLightSpecular;
         GAME->Update_PrimaryShadowLightDesc(previewLight);
         GAME->Set_ShadowCascadeLevel(Engine::CascadeLevel::Close);
+    }
+
+    if (_previewOverrideState.hasShadowLight)
+    {
+        ShadowLightDesc previewShadow = _previewOverrideState.shadowLight;
+        previewShadow.intensity = max(previewShadow.intensity, kPreviewShadowIntensity);
+        GAME->Update_ShadowLight(previewShadow);
     }
 
     if (_previewOverrideState.hasPostProcess && postProcessPipeline != nullptr)
@@ -682,6 +684,9 @@ void CharacterStatus_Panel::Restore_PreviewOverrides()
         GAME->Set_ShadowCascadeLevel(_previewOverrideState.cascadeLevel);
     }
 
+    if (_previewOverrideState.hasShadowLight)
+        GAME->Update_ShadowLight(_previewOverrideState.shadowLight);
+
     if (_previewOverrideState.hasPostProcess && postProcessPipeline != nullptr)
     {
         postProcessPipeline->Set_PostProcessFeatures(_previewOverrideState.postProcessFeatures);
@@ -704,7 +709,6 @@ void CharacterStatus_Panel::Apply_PreviewRimState()
     if (previewManager == nullptr)
         return;
 
-    const HeroId selectedHeroId = Get_SelectedCharacterStatusHeroId(_selectedHeroIndex);
     for (const auto& previewHero : previewManager->Get_PreviewHeroes())
     {
         if (previewHero.player == nullptr)
@@ -714,12 +718,12 @@ void CharacterStatus_Panel::Apply_PreviewRimState()
         if (effectCom == nullptr)
             continue;
 
-        if (previewHero.heroId == selectedHeroId)
+        if (previewHero.player->Is_Visible())
             effectCom->Set_PreviewRim(
-                kCharacterStatusPreviewRimColor,
-                kCharacterStatusPreviewRimIntensity,
-                kCharacterStatusPreviewRimPower,
-                kCharacterStatusPreviewHairRimIntensity);
+                kPreviewRimColor,
+                kPreviewRimIntensity,
+                kPreviewRimPower,
+                kPreviewHairRimIntensity);
         else
             effectCom->Clear_PreviewRim();
     }

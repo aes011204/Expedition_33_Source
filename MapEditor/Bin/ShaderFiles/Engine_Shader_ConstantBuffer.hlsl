@@ -167,6 +167,25 @@ cbuffer PostProcessBuffer
     float4 g_PP_BackgroundFallbackColor; // 64 ~ 79
 }; // 80 bytes
 
+cbuffer LightShaftBuffer
+{
+    float2 g_LS_LightScreenUV;
+    float g_LS_LightVisible;
+    float g_LS_LightFacingCamera;
+
+    float3 g_LS_ShaftColor;
+    float g_LS_Intensity;
+
+    uint g_LS_SampleCount;
+    float g_LS_RayLength;
+    float g_LS_Decay;
+    float g_LS_SunDiscRadius;
+
+    float g_LS_EdgeFade;
+    float g_LS_DepthEmptyThreshold;
+    float2 g_LS_Padding0;
+};
+
 cbuffer HairDescBuffer
 {
     float4 g_HairColorTop;

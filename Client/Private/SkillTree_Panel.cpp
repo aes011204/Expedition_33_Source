@@ -17,21 +17,12 @@
 #include "PreviewCamera.h"
 #include "UI_Base.h"
 #include "UI_Utils.h"
+#include "PreviewRimFeature.h"
 
 using namespace UI_Utils;
 
 namespace
 {
-    // UI PreView에서 사용할 조명과 림 라이트의 기본값들
-    constexpr Vec4 kSkillTreePreviewLightAmbient = Vec4(0.02f, 0.02f, 0.025f, 1.f);
-    constexpr Vec4 kSkillTreePreviewLightSpecular = Vec4(1.45f, 1.30f, 1.08f, 1.f);
-    constexpr Vec3 kSkillTreePreviewLightDirection = Vec3(1.572f, 0.319f, -1.061f);
-    constexpr Vec4 kSkillTreePreviewLightDiffuseStrong = Vec4(5.f, 4.f, 4.f, 1.f);
-    constexpr Vec3 kSkillTreePreviewRimColor = Vec3(1.0f, 0.90f, 0.62f);
-    constexpr float kSkillTreePreviewRimIntensity = 1.2f;
-    constexpr float kSkillTreePreviewRimPower = 2.55f;
-    constexpr float kSkillTreePreviewHairRimIntensity = 0.55f;
-
     constexpr HeroId characterStatusOrder[] =
     {
         HeroId::Lune,
@@ -758,6 +749,7 @@ void SkillTree_Panel::Apply_PreviewOverrides()
     const Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
     const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager();
     const LIGHT_DESC* primaryLightDesc = GAME->Get_PrimaryShadowLightDesc();
+    const ShadowLightDesc* shadowLightDesc = GAME->Get_ShadowLightDesc();
     if (primaryLightDesc == nullptr)
     {
         const uint32 lightCount = GAME->Get_LightCount();
@@ -782,11 +774,15 @@ void SkillTree_Panel::Apply_PreviewOverrides()
         _previewOverrideState.isCaptured = true;
         _previewOverrideState.cascadeLevel = GAME->Get_ShadowCascadeLevel();
         _previewOverrideState.hasPrimaryLight = (primaryLightDesc != nullptr);
+        _previewOverrideState.hasShadowLight = (shadowLightDesc != nullptr);
         _previewOverrideState.hasPostProcess = (postProcessPipeline != nullptr);
         _previewOverrideState.hasLighting = (lightingPipeline != nullptr);
 
         if (primaryLightDesc != nullptr)
             _previewOverrideState.primaryLight = *primaryLightDesc;
+
+        if (shadowLightDesc != nullptr)
+            _previewOverrideState.shadowLight = *shadowLightDesc;
 
         if (postProcessPipeline != nullptr)
         {
@@ -805,16 +801,23 @@ void SkillTree_Panel::Apply_PreviewOverrides()
     if (_previewOverrideState.hasPrimaryLight)
     {
         LIGHT_DESC previewLight = _previewOverrideState.primaryLight;
-        Vec3 previewLightDir = kSkillTreePreviewLightDirection;
+        Vec3 previewLightDir = kPreviewLightDirection;
         if (previewLightDir.LengthSquared() > 0.0001f)
             previewLightDir.Normalize();
 
         previewLight.direction = Vec4(previewLightDir.x, previewLightDir.y, previewLightDir.z, 0.f);
-        previewLight.diffuse = kSkillTreePreviewLightDiffuseStrong;
-        previewLight.ambient = kSkillTreePreviewLightAmbient;
-        previewLight.specular = kSkillTreePreviewLightSpecular;
+        previewLight.diffuse = kPreviewLightDiffuse;
+        previewLight.ambient = kPreviewLightAmbient;
+        previewLight.specular = kPreviewLightSpecular;
         GAME->Update_PrimaryShadowLightDesc(previewLight);
         GAME->Set_ShadowCascadeLevel(Engine::CascadeLevel::Close);
+    }
+
+    if (_previewOverrideState.hasShadowLight)
+    {
+        ShadowLightDesc previewShadow = _previewOverrideState.shadowLight;
+        previewShadow.intensity = max(previewShadow.intensity, kPreviewShadowIntensity);
+        GAME->Update_ShadowLight(previewShadow);
     }
 
     if (_previewOverrideState.hasPostProcess && postProcessPipeline != nullptr)
@@ -865,6 +868,9 @@ void SkillTree_Panel::Restore_PreviewOverrides()
         GAME->Set_ShadowCascadeLevel(_previewOverrideState.cascadeLevel);
     }
 
+    if (_previewOverrideState.hasShadowLight)
+        GAME->Update_ShadowLight(_previewOverrideState.shadowLight);
+
     if (_previewOverrideState.hasPostProcess && postProcessPipeline != nullptr)
     {
         postProcessPipeline->Set_PostProcessFeatures(_previewOverrideState.postProcessFeatures);
@@ -887,7 +893,6 @@ void SkillTree_Panel::Apply_PreviewRimState()
     if (previewManager == nullptr)
         return;
 
-    const HeroId selectedHeroId = Get_SelectedCharacterStatusHeroId(_selectedHeroIndex);
     for (const auto& previewHero : previewManager->Get_PreviewHeroes())
     {
         if (previewHero.player == nullptr)
@@ -896,14 +901,13 @@ void SkillTree_Panel::Apply_PreviewRimState()
         const Shared<EffectCom> effectCom = previewHero.player->Get_Component<EffectCom>();
         if (effectCom == nullptr)
             continue;
-        
-        // 선택된 영웅만 적용
-        if (previewHero.heroId == selectedHeroId)
+        // 화면에 남겨 둔 preview hero는 전부 같은 rim 톤을 쓴다.
+        if (previewHero.player->Is_Visible())
             effectCom->Set_PreviewRim(
-                kSkillTreePreviewRimColor,
-                kSkillTreePreviewRimIntensity,
-                kSkillTreePreviewRimPower,
-                kSkillTreePreviewHairRimIntensity);
+                kPreviewRimColor,
+                kPreviewRimIntensity,
+                kPreviewRimPower,
+                kPreviewHairRimIntensity);
         else // 나머지는 해제
             effectCom->Clear_PreviewRim();
     }

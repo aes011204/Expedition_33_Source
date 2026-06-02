@@ -131,7 +131,8 @@ PS_OUT PS_Opaque(PS_IN In)
     if (HasPreviewRim())
     {
         float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
-        float rim = ComputePreviewRim(worldNormal, viewDir, g_FeatureParam3.x);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
         emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
     }
 
@@ -171,7 +172,8 @@ PS_OUT PS_Mask(PS_IN In)
     if (HasPreviewRim())
     {
         float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
-        float rim = ComputePreviewRim(worldNormal, viewDir, g_FeatureParam3.x);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
         emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
     }
 
@@ -228,7 +230,8 @@ PS_OUT PS_OpaqueAR(PS_IN In)
     if (HasPreviewRim())
     {
         float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
-        float rim = ComputePreviewRim(worldNormal, viewDir, g_FeatureParam3.x);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
         emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
     }
 
@@ -274,7 +277,8 @@ PS_OUT PS_PackedAR_NME(PS_IN In)
     if (HasPreviewRim())
     {
         float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
-        float rim = ComputePreviewRim(worldNormal, viewDir, g_FeatureParam3.x);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
         emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
     }
 
