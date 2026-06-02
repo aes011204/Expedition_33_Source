@@ -287,10 +287,14 @@ static const char* Get_MaterialScalarTargetLabel(MaterialScalarModulationTargetF
         return "NoiseStrength";
     case MaterialScalarModulationTargetField::AlphaErosion:
         return "AlphaErosion";
+    case MaterialScalarModulationTargetField::AlphaCutoff:
+        return "AlphaCutoff";
     case MaterialScalarModulationTargetField::CoreIntensity:
         return "CoreIntensity";
     case MaterialScalarModulationTargetField::OuterIntensity:
         return "OuterIntensity";
+    case MaterialScalarModulationTargetField::CoreColor:
+        return "CoreColor";
     default:
         return "Intensity";
     }
@@ -723,6 +727,19 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(Au
                     "modulator" + to_string(index) + ".distribution",
                     "#" + to_string(index + 1) + " " + Get_MaterialScalarTargetLabel(modulator.targetField),
                     IM_COL32(255, 145, 70, 255)
+                );
+            }
+
+            for (size_t index = 0; index < data->coreColorRgbModulators.size(); ++index)
+            {
+                MaterialCoreColorRgbModulatorData& modulator = data->coreColorRgbModulators[index];
+                Add_Vector3Target(
+                    targets,
+                    emitter,
+                    module,
+                    modulator.distribution,
+                    "coreColorRgbModulator" + to_string(index) + ".distribution",
+                    "#" + to_string(data->modulators.size() + index + 1) + " Core Color RGB"
                 );
             }
         }

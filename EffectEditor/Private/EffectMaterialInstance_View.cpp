@@ -1,8 +1,9 @@
-#include "EffectMaterialInstance_View.h"
+﻿#include "EffectMaterialInstance_View.h"
 
 #include "DetailPropertyContext.h"
 #include "EffectEditorInstance.h"
 #include "EffectMaterialPreviewRenderer.h"
+#include "EffectMaterialScalarModulationPreview.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "Helper_EffectAuthoring.h"
@@ -1006,7 +1007,18 @@ void EffectMaterialInstance_View::Pre_Render()
     if (!Resolve_Target(emitterView, emitter, requiredData))
         return;
 
-    _previewRenderer->Render_Material(requiredData->material);
+    if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(*emitter))
+    {
+        _previewRenderer->Render_Material(
+            requiredData->material,
+            Build_CoreColorRgbModulationRuntimeDesc(*modulation),
+            Build_MaterialScalarModulationRuntimeDesc(*modulation),
+            requiredData->duration,
+            false
+        );
+    }
+    else
+        _previewRenderer->Render_Material(requiredData->material);
 }
 
 void EffectMaterialInstance_View::Render()
@@ -1048,10 +1060,10 @@ void EffectMaterialInstance_View::Render()
             const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
             const EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode =
                 emitter->typeData.kind == AuthoringTypeDataKind::None
-                    ? EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly
-                    : emitter->typeData.kind == AuthoringTypeDataKind::Trail
-                          ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
-                          : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
+                ? EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly
+                : emitter->typeData.kind == AuthoringTypeDataKind::Trail
+                  ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
+                  : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
 
             if (useSideBySideLayout)
             {
@@ -1224,7 +1236,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.coreEmissive.enabled,
                 defaultData.coreEmissive.enabled
             );
-            changed |= detailPropertyContext.Draw_ColorProperty(
+            changed |= detailPropertyContext.Draw_ColorRgbProperty(
                 "Core Color",
                 material.coreEmissive.coreColor,
                 defaultData.coreEmissive.coreColor

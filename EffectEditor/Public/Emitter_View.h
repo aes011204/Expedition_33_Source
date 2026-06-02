@@ -107,6 +107,7 @@ private: //## Static Values
     static constexpr float kEmitterHeaderHeight{ 90.f };
     static constexpr float kEmitterTypeDataRowHeight{ 28.f };
     static constexpr float kEmitterDividerWidth{ 1.f };
+    static constexpr float kEmitterRightBlankWidth{ 96.f };
 
     static constexpr float kModulePickerModalWidth{ 700.f };
     static constexpr float kModulePickerModalHeight{ 460.f };

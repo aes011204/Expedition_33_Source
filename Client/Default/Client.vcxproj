@@ -305,6 +305,7 @@
     <ClInclude Include="..\public\DamageSystem.h" />
     <ClInclude Include="..\Public\EffectAssetRuntimeLoader.h" />
     <ClInclude Include="..\Public\EffectEmitterRegistration.h" />
+    <ClInclude Include="..\Public\EffectMaterialScalarModulationRuntime.h" />
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
     <ClInclude Include="..\Public\HairChainPhysics.h" />
@@ -712,6 +713,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli" />
+    <None Include="..\Bin\ShaderFiles\Shader_EffectMaterialScalarModulation.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl" />

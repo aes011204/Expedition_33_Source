@@ -104,13 +104,15 @@ RWStructuredBuffer<ParticleLifecycleState> LifecycleState : register(u2);
 
 float ReadVec4Component(float4 values, uint index)
 {
-    if (index == 0u)
-        return values.x;
+    float result = values.x;
     if (index == 1u)
-        return values.y;
-    if (index == 2u)
-        return values.z;
-    return values.w;
+        result = values.y;
+    else if (index == 2u)
+        result = values.z;
+    else if (index == 3u)
+        result = values.w;
+
+    return result;
 }
 
 void AccumulateAccelerationSegment(
@@ -210,55 +212,56 @@ float EvaluateCompactCurve(
 {
     keyCount = max(1u, min(4u, keyCount));
 
-    if (keyCount == 1u || lifeProgress <= ReadVec4Component(times, 0u))
-        return ReadVec4Component(values, 0u);
-
     bool found = false;
-    float result = fallbackValue;
-    [unroll]
-    for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+    float result = ReadVec4Component(values, 0u);
+    if (keyCount > 1u && lifeProgress > ReadVec4Component(times, 0u))
     {
-        if (keyIndex >= keyCount || found)
-            continue;
-
-        const float rightTime = ReadVec4Component(times, keyIndex);
-        if (lifeProgress > rightTime)
-            continue;
-
-        const float leftTime = ReadVec4Component(times, keyIndex - 1u);
-        const float leftValue = ReadVec4Component(values, keyIndex - 1u);
-        const float rightValue = ReadVec4Component(values, keyIndex);
-        const float mode = ReadVec4Component(modes, keyIndex - 1u);
-        const float width = max(0.0001f, rightTime - leftTime);
-        const float ratio = saturate((lifeProgress - leftTime) / width);
-
-        if (mode < 0.5f)
+        result = fallbackValue;
+        [unroll]
+        for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
         {
-            result = leftValue;
-        }
-        else if (mode >= 1.5f)
-        {
-            const float t2 = ratio * ratio;
-            const float t3 = t2 * ratio;
-            const float leftLeave = ReadVec4Component(leaveTangents, keyIndex - 1u) * width;
-            const float rightArrive = ReadVec4Component(arriveTangents, keyIndex) * width;
-            result =
-                (2.0f * t3 - 3.0f * t2 + 1.0f) * leftValue +
-                (t3 - 2.0f * t2 + ratio) * leftLeave +
-                (-2.0f * t3 + 3.0f * t2) * rightValue +
-                (t3 - t2) * rightArrive;
-        }
-        else
-        {
-            result = lerp(leftValue, rightValue, ratio);
+            if (keyIndex >= keyCount || found)
+                continue;
+
+            const float rightTime = ReadVec4Component(times, keyIndex);
+            if (lifeProgress > rightTime)
+                continue;
+
+            const float leftTime = ReadVec4Component(times, keyIndex - 1u);
+            const float leftValue = ReadVec4Component(values, keyIndex - 1u);
+            const float rightValue = ReadVec4Component(values, keyIndex);
+            const float mode = ReadVec4Component(modes, keyIndex - 1u);
+            const float width = max(0.0001f, rightTime - leftTime);
+            const float ratio = saturate((lifeProgress - leftTime) / width);
+
+            if (mode < 0.5f)
+            {
+                result = leftValue;
+            }
+            else if (mode >= 1.5f)
+            {
+                const float t2 = ratio * ratio;
+                const float t3 = t2 * ratio;
+                const float leftLeave = ReadVec4Component(leaveTangents, keyIndex - 1u) * width;
+                const float rightArrive = ReadVec4Component(arriveTangents, keyIndex) * width;
+                result =
+                    (2.0f * t3 - 3.0f * t2 + 1.0f) * leftValue +
+                    (t3 - 2.0f * t2 + ratio) * leftLeave +
+                    (-2.0f * t3 + 3.0f * t2) * rightValue +
+                    (t3 - t2) * rightArrive;
+            }
+            else
+            {
+                result = lerp(leftValue, rightValue, ratio);
+            }
+
+            found = true;
         }
 
-        found = true;
+        const float lastTime = ReadVec4Component(times, keyCount - 1u);
+        if (!found && lifeProgress > lastTime)
+            result = ReadVec4Component(values, keyCount - 1u);
     }
-
-    const float lastTime = ReadVec4Component(times, keyCount - 1u);
-    if (!found && lifeProgress > lastTime)
-        result = ReadVec4Component(values, keyCount - 1u);
 
     return result;
 }
@@ -416,48 +419,49 @@ float EvaluateRotationRateScaleByLifeAverage(float lifeProgress)
     const float firstTime = saturate(ReadVec4Component(g_RotationRateScaleByLifeCurveTimes, 0u));
     const float firstValue = ReadVec4Component(g_RotationRateScaleByLifeCurveValues, 0u);
 
-    if (keyCount == 1u || clampedProgress <= 0.0001f)
-        return firstValue;
-    if (clampedProgress <= firstTime)
-        return firstValue;
-
-    float area = firstValue * firstTime;
-    float previousTime = firstTime;
-    float previousValue = firstValue;
-    bool done = false;
-
-    [unroll]
-    for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+    float result = firstValue;
+    if (keyCount > 1u && clampedProgress > firstTime && clampedProgress > 0.0001f)
     {
-        if (keyIndex >= keyCount || done)
-            continue;
+        float area = firstValue * firstTime;
+        float previousTime = firstTime;
+        float previousValue = firstValue;
+        bool done = false;
 
-        const float rightTime = max(previousTime, saturate(ReadVec4Component(g_RotationRateScaleByLifeCurveTimes, keyIndex)));
-        const float rightValue = ReadVec4Component(g_RotationRateScaleByLifeCurveValues, keyIndex);
-        const float segmentEnd = min(clampedProgress, rightTime);
-        if (segmentEnd > previousTime)
+        [unroll]
+        for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
         {
-            area += IntegrateLinearCurveSegment(
-                previousTime,
-                previousValue,
-                rightTime,
-                rightValue,
-                previousTime,
-                segmentEnd
-            );
+            if (keyIndex >= keyCount || done)
+                continue;
+
+            const float rightTime = max(previousTime, saturate(ReadVec4Component(g_RotationRateScaleByLifeCurveTimes, keyIndex)));
+            const float rightValue = ReadVec4Component(g_RotationRateScaleByLifeCurveValues, keyIndex);
+            const float segmentEnd = min(clampedProgress, rightTime);
+            if (segmentEnd > previousTime)
+            {
+                area += IntegrateLinearCurveSegment(
+                    previousTime,
+                    previousValue,
+                    rightTime,
+                    rightValue,
+                    previousTime,
+                    segmentEnd
+                );
+            }
+
+            if (clampedProgress <= rightTime)
+                done = true;
+
+            previousTime = rightTime;
+            previousValue = rightValue;
         }
 
-        if (clampedProgress <= rightTime)
-            done = true;
+        if (!done && clampedProgress > previousTime)
+            area += previousValue * (clampedProgress - previousTime);
 
-        previousTime = rightTime;
-        previousValue = rightValue;
+        result = area / max(0.0001f, clampedProgress);
     }
 
-    if (!done && clampedProgress > previousTime)
-        area += previousValue * (clampedProgress - previousTime);
-
-    return area / max(0.0001f, clampedProgress);
+    return result;
 }
 
 // 정수 seed를 0~1 사이의 pseudo-random float 값으로 바꾼다.

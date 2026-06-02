@@ -8,6 +8,8 @@ NS_BEGIN(Engine)
 class RenderTarget;
 class ShaderCom;
 class Texture;
+struct EffectMaterialScalarModulationRuntimeDesc;
+struct EffectMaterialCoreColorRgbModulationRuntimeDesc;
 NS_END
 
 NS_BEGIN(EffectEditor)
@@ -27,6 +29,13 @@ public:
 public:
     // 머티리얼 instance 값을 현재 preview render target에 반영할 때 호출한다.
     void Render_Material(const EffectMaterialInstanceData& material);
+    // emitter module의 material scalar modulation을 preview-local 시간으로 평가해 반영한다.
+    void Render_Material(
+        const EffectMaterialInstanceData& material,
+        const EffectMaterialCoreColorRgbModulationRuntimeDesc& coreColorRgbModulation,
+        const EffectMaterialScalarModulationRuntimeDesc& modulation,
+        float previewDuration,
+        bool evaluateParticleLife);
     // material preview의 UV scroll용 누적 시간을 외부 update tick에서 갱신한다.
     void Update_MaterialTime(float timeDelta);
     // ImGui viewport와 입력을 함께 관리하는 원본 머티리얼 preview 패널 진입점이다.

@@ -1895,12 +1895,41 @@ namespace Internal
             From_Json(*distributionIter, outData.distribution);
     }
 
+    json To_Json(const MaterialCoreColorRgbModulatorData& data)
+    {
+        json root = json::object();
+        root["enabled"] = data.enabled;
+        root["timeSource"] = To_EnumToken(data.timeSource);
+        root["distribution"] = To_Json(data.distribution);
+        return root;
+    }
+
+    void From_Json(const json& root, MaterialCoreColorRgbModulatorData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_BoolField(root, "enabled", outData.enabled);
+
+        const auto timeSourceIter = root.find("timeSource");
+        if (timeSourceIter != root.end())
+            Try_ReadEnumToken(*timeSourceIter, outData.timeSource);
+
+        const auto distributionIter = root.find("distribution");
+        if (distributionIter != root.end())
+            From_Json(*distributionIter, outData.distribution);
+    }
+
     json To_Json(const MaterialScalarModulationModuleData& data)
     {
         json root = json::object();
         root["modulators"] = json::array();
         for (const MaterialScalarModulatorData& modulator : data.modulators)
             root["modulators"].push_back(To_Json(modulator));
+
+        root["coreColorRgbModulators"] = json::array();
+        for (const MaterialCoreColorRgbModulatorData& modulator : data.coreColorRgbModulators)
+            root["coreColorRgbModulators"].push_back(To_Json(modulator));
         return root;
     }
 
@@ -1910,15 +1939,27 @@ namespace Internal
             return;
 
         const auto modulatorsIter = root.find("modulators");
-        if (modulatorsIter == root.end() || !modulatorsIter->is_array())
-            return;
-
-        outData.modulators.clear();
-        for (const json& modulatorNode : *modulatorsIter)
+        if (modulatorsIter != root.end() && modulatorsIter->is_array())
         {
-            MaterialScalarModulatorData modulator{};
-            From_Json(modulatorNode, modulator);
-            outData.modulators.push_back(modulator);
+            outData.modulators.clear();
+            for (const json& modulatorNode : *modulatorsIter)
+            {
+                MaterialScalarModulatorData modulator{};
+                From_Json(modulatorNode, modulator);
+                outData.modulators.push_back(modulator);
+            }
+        }
+
+        const auto coreColorRgbModulatorsIter = root.find("coreColorRgbModulators");
+        if (coreColorRgbModulatorsIter != root.end() && coreColorRgbModulatorsIter->is_array())
+        {
+            outData.coreColorRgbModulators.clear();
+            for (const json& modulatorNode : *coreColorRgbModulatorsIter)
+            {
+                MaterialCoreColorRgbModulatorData modulator{};
+                From_Json(modulatorNode, modulator);
+                outData.coreColorRgbModulators.push_back(modulator);
+            }
         }
     }
 }
