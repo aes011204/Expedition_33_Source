@@ -19,6 +19,7 @@ public:
 
 public:
 	virtual HRESULT Initialize() override;
+    virtual void BeginPlay() override;
 	virtual void Update(float timeDelta) override;
 	virtual HRESULT Render() override;
 
@@ -35,6 +36,8 @@ private:
     umap<wstring, Shared<UI_Base>> _uiByName{};
 	Shared<UI_Button> _continueButton = nullptr; // "계속하기" 버튼
 	Shared<UI_Button> _exitButton = nullptr;
+    bool _wasContinueHovered = false;
+    bool _wasExitHovered = false;
 
 public:
 	static Shared<Level_MainTitle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

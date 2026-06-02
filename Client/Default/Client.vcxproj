@@ -223,6 +223,7 @@
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\MapLandscape.h" />
+    <ClInclude Include="..\Public\MainTitleMenuSound.h" />
     <ClInclude Include="..\public\Level_GameEntry.h" />
     <ClInclude Include="..\public\MB_Bishop.h" />
     <ClInclude Include="..\public\MB_Portier.h" />
@@ -303,6 +304,7 @@
     <ClInclude Include="..\public\DamageSystem.h" />
     <ClInclude Include="..\Public\EffectAssetRuntimeLoader.h" />
     <ClInclude Include="..\Public\EffectEmitterRegistration.h" />
+    <ClInclude Include="..\Public\EffectMaterialScalarModulationRuntime.h" />
     <ClInclude Include="..\Public\GameDataTable.h" />
     <ClInclude Include="..\Public\GameplayUI.h" />
     <ClInclude Include="..\Public\HairChainPhysics.h" />
@@ -502,6 +504,7 @@
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
     <ClCompile Include="..\Private\MapLandscape.cpp" />
+    <ClCompile Include="..\Private\MainTitleMenuSound.cpp" />
     <ClCompile Include="..\private\Level_GameEntry.cpp" />
     <ClCompile Include="..\private\MB_Bishop.cpp" />
     <ClCompile Include="..\private\MB_Portier.cpp" />
@@ -708,6 +711,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli" />
+    <None Include="..\Bin\ShaderFiles\Shader_EffectMaterialScalarModulation.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl" />

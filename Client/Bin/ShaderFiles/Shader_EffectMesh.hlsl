@@ -18,6 +18,7 @@ cbuffer cbEffectMeshMaterial : register(b2)
     float4 g_EffectMeshUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectMeshMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectMeshUVModeParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectMeshSourceParams = { 1.f, 0.f, 0.f, 0.f };
     float4 g_EffectMeshAdditiveParams = { 0.f, 0.f, 0.f, 1.f };
     float4 g_EffectMeshAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectMeshAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
@@ -51,18 +52,18 @@ float4 Sample_EffectMeshMainTexture(float2 uv, float mode)
            : g_Texture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_EffectMeshNoiseTexture(float2 uv, float mode)
+float4 Sample_EffectMeshNoiseTexture(float2 uv, float mode)
 {
     return Use_EffectMeshClampSampler(mode)
-           ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
-           : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
+           ? g_NoiseTexture.Sample(LinearClampSampler, uv)
+           : g_NoiseTexture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_EffectMeshMaskTexture(float2 uv, float mode)
+float4 Sample_EffectMeshMaskTexture(float2 uv, float mode)
 {
     return Use_EffectMeshClampSampler(mode)
-           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
-           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+           ? g_MaskTexture.Sample(LinearClampSampler, uv)
+           : g_MaskTexture.Sample(LinearWrapSampler, uv);
 }
 
 struct VS_IN
@@ -125,12 +126,22 @@ EffectMaterialSurface Resolve_EffectMeshSurface(VS_OUT In)
 
     if (0 != g_EffectMeshParams.w && g_EffectMeshParams.z > 0.f)
     {
-        const float noise = Sample_EffectMeshNoiseTexture(noiseUV, g_EffectMeshUVModeParams.y);
+        const float4 noiseTexel = Sample_EffectMeshNoiseTexture(noiseUV, g_EffectMeshUVModeParams.y);
+        const float noise = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectMeshSourceParams.x),
+            g_EffectMeshSourceParams.z
+        );
         noiseFactor = lerp(1.f, noise, saturate(g_EffectMeshParams.z));
     }
 
     if (0 != g_EffectMeshAlphaParams.z)
-        maskAlpha = Sample_EffectMeshMaskTexture(maskUV, g_EffectMeshUVModeParams.z);
+    {
+        const float4 maskTexel = Sample_EffectMeshMaskTexture(maskUV, g_EffectMeshUVModeParams.z);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectMeshSourceParams.y),
+            g_EffectMeshSourceParams.w
+        );
+    }
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
     const float coverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, In.vInstanceColor.a * g_Tint.a);
@@ -173,12 +184,22 @@ PS_OUT PS_ADDITIVE(VS_OUT In)
 
     if (0 != g_EffectMeshParams.w && g_EffectMeshParams.z > 0.f)
     {
-        const float noise = Sample_EffectMeshNoiseTexture(noiseUV, g_EffectMeshUVModeParams.y);
+        const float4 noiseTexel = Sample_EffectMeshNoiseTexture(noiseUV, g_EffectMeshUVModeParams.y);
+        const float noise = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectMeshSourceParams.x),
+            g_EffectMeshSourceParams.z
+        );
         noiseFactor = lerp(1.f, noise, saturate(g_EffectMeshParams.z));
     }
 
     if (0 != g_EffectMeshAlphaParams.z)
-        maskAlpha = Sample_EffectMeshMaskTexture(maskUV, g_EffectMeshUVModeParams.z);
+    {
+        const float4 maskTexel = Sample_EffectMeshMaskTexture(maskUV, g_EffectMeshUVModeParams.z);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectMeshSourceParams.y),
+            g_EffectMeshSourceParams.w
+        );
+    }
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
     const float coverageBase = saturate(maskCoverage * noiseFactor * In.vInstanceColor.a * g_Tint.a);

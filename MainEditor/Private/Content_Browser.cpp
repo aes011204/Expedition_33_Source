@@ -348,8 +348,6 @@ void Content_Browser::Refresh_Resources()
 
 void Content_Browser::Refresh_AssetState()
 {
-    Refresh_Resources();
-
     const wstring assetRoot = GAME->Get_AssetRoot();
     if (assetRoot.empty())
     {
@@ -357,10 +355,15 @@ void Content_Browser::Refresh_AssetState()
         return;
     }
 
-    if (SUCCEEDED(GAME->Initialize_AssetManager(assetRoot)))
+    if (SUCCEEDED(GAME->Initialize_AssetManager(assetRoot, true)))
+    {
+        Refresh_Resources();
         NOTIFY("새로고침");
+    }
     else
+    {
         NOTIFY("새로고침 실패");
+    }
 }
 
 void Content_Browser::Load_Icons()
@@ -630,6 +633,27 @@ void Content_Browser::Draw_AssetView()
             }
         }
         //
+
+        // 드래그해서 이펙트 스폰
+        {
+            if (fileName.ends_with(".effect.json"))
+            {
+                if (ImGui::BeginDragDropSource())
+                {
+                    const string pathA = String::ToString(fileEntry.filePath);
+                    ImGui::SetDragDropPayload(
+                        "CONTENT_BROWSER_EFFECT",
+                        pathA.c_str(),
+                        pathA.size() + 1);
+
+                    ImGui::Text("Effect");
+                    ImGui::Separator();
+                    ImGui::Text("%s", pureName.c_str());
+
+                    ImGui::EndDragDropSource();
+                }
+            }
+        }
 
         const bool isFocused = ImGui::IsItemFocused();
         const bool isSelected = (_selectedFilePath == fileEntry.filePath);
