@@ -684,10 +684,12 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
 
     if (hasClippedTargetPose)
     {
-        blended.cameraPos += clippedTargetPose.cameraPos - _poseTransition.toPose.cameraPos;
-        blended.lookTarget += clippedTargetPose.lookTarget - _poseTransition.toPose.lookTarget;
-        blended.fovY += clippedTargetPose.fovY - _poseTransition.toPose.fovY;
-        blended.rollOffset += clippedTargetPose.rollOffset - _poseTransition.toPose.rollOffset;
+        float targetCorrectionWeight  = 0.25f;
+
+        blended.cameraPos += (clippedTargetPose.cameraPos - _poseTransition.toPose.cameraPos) * targetCorrectionWeight;
+        blended.lookTarget += (clippedTargetPose.lookTarget - _poseTransition.toPose.lookTarget) * targetCorrectionWeight;
+        blended.fovY += (clippedTargetPose.fovY - _poseTransition.toPose.fovY) * targetCorrectionWeight;
+        blended.rollOffset += (clippedTargetPose.rollOffset - _poseTransition.toPose.rollOffset) * targetCorrectionWeight;
     }
 
     Apply_EvaluatedPose(blended);
