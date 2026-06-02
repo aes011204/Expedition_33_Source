@@ -1011,6 +1011,7 @@ void EffectMaterialInstance_View::Pre_Render()
     {
         _previewRenderer->Render_Material(
             requiredData->material,
+            Build_CoreColorRgbModulationRuntimeDesc(*modulation),
             Build_MaterialScalarModulationRuntimeDesc(*modulation),
             requiredData->duration,
             false
@@ -1235,7 +1236,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 material.coreEmissive.enabled,
                 defaultData.coreEmissive.enabled
             );
-            changed |= detailPropertyContext.Draw_ColorProperty(
+            changed |= detailPropertyContext.Draw_ColorRgbProperty(
                 "Core Color",
                 material.coreEmissive.coreColor,
                 defaultData.coreEmissive.coreColor

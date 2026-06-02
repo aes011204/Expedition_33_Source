@@ -571,7 +571,21 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
 
         ++includedCount;
 
-        if (FAILED(resourceLoader->Register_LoadJob(loadJob)))
+        const auto jobStartTime = chrono::steady_clock::now();
+        const HRESULT registerResult = resourceLoader->Register_LoadJob(loadJob);
+        const auto jobElapsedMs = chrono::duration_cast<chrono::milliseconds>(
+            chrono::steady_clock::now() - jobStartTime
+        ).count();
+
+        LOG_INFO(
+            "[StartupResourceTiming] scope=Static type={} tag={} elapsed_ms={} path={}",
+            string(magic_enum::enum_name(loadJob.eType)),
+            String::ToString(loadJob.strPrototypeTag),
+            jobElapsedMs,
+            String::ToString(loadJob.strPath)
+        );
+
+        if (FAILED(registerResult))
         {
             ++failedCount;
             LOG_WARN(

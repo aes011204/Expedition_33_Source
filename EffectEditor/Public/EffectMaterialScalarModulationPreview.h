@@ -15,9 +15,11 @@ struct MaterialScalarModulationPreviewResult
 const RequiredModuleData* Find_RequiredModuleData(const AuthoringEmitter& emitter);
 const MaterialScalarModulationModuleData* Find_MaterialScalarModulationModuleData(const AuthoringEmitter& emitter);
 EffectMaterialScalarModulationRuntimeDesc Build_MaterialScalarModulationRuntimeDesc(const MaterialScalarModulationModuleData& data);
+EffectMaterialCoreColorRgbModulationRuntimeDesc Build_CoreColorRgbModulationRuntimeDesc(const MaterialScalarModulationModuleData& data);
 float Compute_MaterialScalarPreviewPhase(float elapsedTime, float duration);
 MaterialScalarModulationPreviewResult Evaluate_MaterialScalarModulationPreview(
     const EffectMaterialInstanceData& baseMaterial,
+    const EffectMaterialCoreColorRgbModulationRuntimeDesc& coreColorRgbModulation,
     const EffectMaterialScalarModulationRuntimeDesc& modulation,
     float previewPhase,
     bool evaluateParticleLife);

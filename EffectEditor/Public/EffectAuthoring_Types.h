@@ -745,8 +745,10 @@ enum class MaterialScalarModulationTargetField : uint8
     OpacityPower,
     NoiseStrength,
     AlphaErosion,
+    AlphaCutoff,
     CoreIntensity,
     OuterIntensity,
+    CoreColor,
 };
 
 enum class MaterialScalarModulationOperation : uint8
@@ -765,13 +767,21 @@ struct MaterialScalarModulatorData
     bool enabled{ true };
     MaterialScalarModulationTargetField targetField{ MaterialScalarModulationTargetField::Intensity };
     MaterialScalarModulationOperation operation{ MaterialScalarModulationOperation::Multiply };
-    MaterialScalarModulationTimeSource timeSource{ MaterialScalarModulationTimeSource::ParticleLife };
+    MaterialScalarModulationTimeSource timeSource{ MaterialScalarModulationTimeSource::EmitterTime };
     FloatDistributionData distribution{ FloatDistributionData::Make_Constant(1.f) };
+};
+
+struct MaterialCoreColorRgbModulatorData
+{
+    bool enabled{ true };
+    MaterialScalarModulationTimeSource timeSource{ MaterialScalarModulationTimeSource::EmitterTime };
+    Vector3DistributionData distribution{ Vector3DistributionData::Make_Constant(Vec3{ 1.f, 0.85f, 0.45f }) };
 };
 
 struct MaterialScalarModulationModuleData
 {
     vector<MaterialScalarModulatorData> modulators{};
+    vector<MaterialCoreColorRgbModulatorData> coreColorRgbModulators{};
 };
 
 using AuthoringModuleData = std::variant<

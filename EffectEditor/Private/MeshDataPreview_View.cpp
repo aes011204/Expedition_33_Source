@@ -213,22 +213,6 @@ namespace Internal
         return material.materialFamily == EffectMaterialFamily::SpriteDistortion;
     }
 
-    bool Has_ParticleLifeMaterialScalarModulation(const AuthoringEmitter& emitter)
-    {
-        const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(emitter);
-        if (modulation == nullptr)
-            return false;
-
-        return ranges::any_of(
-            modulation->modulators,
-            [](const MaterialScalarModulatorData& modulator)
-            {
-                return modulator.enabled &&
-                       modulator.timeSource == MaterialScalarModulationTimeSource::ParticleLife;
-            }
-        );
-    }
-
     void Draw_CheckerRect(ImDrawList& drawList, const ImVec2& minPos, const ImVec2& maxPos)
     {
         constexpr float cellSize = 54.f;
@@ -386,6 +370,7 @@ struct MeshDataPreview_View::PreviewRenderer
             const MaterialScalarModulationPreviewResult previewMaterial =
                 Evaluate_MaterialScalarModulationPreview(
                     effectMaterial,
+                    Build_CoreColorRgbModulationRuntimeDesc(*modulation),
                     Build_MaterialScalarModulationRuntimeDesc(*modulation),
                     Compute_MaterialScalarPreviewPhase(materialElapsedTime, previewDuration),
                     false
@@ -1107,8 +1092,6 @@ void MeshDataPreview_View::Render_Inspector(Emitter_View& emitterView, Authoring
     changed |= Render_MaterialAssetSection(meshData);
     changed |= Render_TransformSection(meshData);
     changed |= Render_MaterialInstanceSection(meshData, nullptr);
-    if (Internal::Has_ParticleLifeMaterialScalarModulation(emitter))
-        ImGui::TextDisabled("MeshData preview preserves ParticleLife material scalar modulation, but Phase 2 evaluates EmitterTime only.");
 
     if (ImGui::CollapsingHeader("Validation", ImGuiTreeNodeFlags_DefaultOpen))
         Render_ValidationSummary(meshData);

@@ -77,8 +77,10 @@ enum class EffectMaterialScalarModulationTarget : uint32
     OpacityPower = 1,
     NoiseStrength = 2,
     AlphaErosion = 3,
-    CoreIntensity = 4,
-    OuterIntensity = 5,
+    AlphaCutoff = 4,
+    CoreIntensity = 5,
+    OuterIntensity = 6,
+    CoreColor = 7,
 };
 
 // Material scalar modulation의 base value 적용 방식이다.
@@ -122,6 +124,40 @@ struct EffectMaterialScalarModulationRuntimeDesc
 
     uint32 count{ 0 };
     std::array<EffectMaterialScalarModulatorRuntimeDesc, kMaxModulators> modulators{};
+};
+
+// Core color RGB를 emitter time 기준으로 교체하기 위한 Vec3 curve payload다.
+struct EffectMaterialCoreColorRgbModulationCurveDesc
+{
+    bool enabled{ false };
+    uint32 keyCount{ 2 };
+    Vec4 keyTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 keyValuesR{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 keyValuesG{ 0.85f, 0.85f, 0.f, 0.f };
+    Vec4 keyValuesB{ 0.45f, 0.45f, 0.f, 0.f };
+    Vec4 keyArriveTangentsR{};
+    Vec4 keyArriveTangentsG{};
+    Vec4 keyArriveTangentsB{};
+    Vec4 keyLeaveTangentsR{};
+    Vec4 keyLeaveTangentsG{};
+    Vec4 keyLeaveTangentsB{};
+    Vec4 keyModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+};
+
+struct EffectMaterialCoreColorRgbModulatorRuntimeDesc
+{
+    bool enabled{ true };
+    EffectMaterialScalarModulationTimeSource timeSource{ EffectMaterialScalarModulationTimeSource::EmitterTime };
+    EffectMaterialCoreColorRgbModulationCurveDesc curve{};
+};
+
+// Core color RGB distribution module에서 renderer가 CPU로 평가할 compact payload다.
+struct EffectMaterialCoreColorRgbModulationRuntimeDesc
+{
+    static constexpr uint32 kMaxModulators{ 8 };
+
+    uint32 count{ 0 };
+    std::array<EffectMaterialCoreColorRgbModulatorRuntimeDesc, kMaxModulators> modulators{};
 };
 
 // Required 모듈에서 material binding에 필요한 값만 접은 runtime payload다.
@@ -177,6 +213,7 @@ struct EffectRequiredMaterialRuntimeDesc
     bool twoSided{ false };                                                           // 지원 renderer가 사용할 양면 렌더 힌트다.
     uint32 subUVRows{ 1 };                                                            // flipbook row 수다.
     uint32 subUVCols{ 1 };                                                            // flipbook column 수다.
+    EffectMaterialCoreColorRgbModulationRuntimeDesc coreColorRgbModulation{};         // coreColor.rgb emitter-time distribution payload다.
     EffectMaterialScalarModulationRuntimeDesc scalarModulation{};                     // material scalar modulation compact payload다.
 };
 

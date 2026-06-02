@@ -1050,6 +1050,110 @@ void EffectAssetRuntimeLoader::Fill_MaterialScalarModulationPayload(
     }
 }
 
+void EffectAssetRuntimeLoader::Fill_CoreColorRgbModulationPayload(
+    EffectMaterialCoreColorRgbModulationRuntimeDesc& desc,
+    const json& materialScalarModulation)
+{
+    desc = EffectMaterialCoreColorRgbModulationRuntimeDesc{};
+
+    const auto modulatorsIter = materialScalarModulation.find("coreColorRgbModulators");
+    if (modulatorsIter == materialScalarModulation.end() || !modulatorsIter->is_array())
+        return;
+
+    const uint32 count = min(
+        EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators,
+        static_cast<uint32>(modulatorsIter->size())
+    );
+    desc.count = count;
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const json& source = (*modulatorsIter)[index];
+        EffectMaterialCoreColorRgbModulatorRuntimeDesc& target = desc.modulators[index];
+        target.enabled = Read_Bool(source, "enabled", target.enabled);
+        Read_Enum(source, "timeSource", target.timeSource);
+
+        const auto distributionIter = source.find("distribution");
+        if (distributionIter == source.end() || !distributionIter->is_object())
+            continue;
+
+        target.curve = EffectMaterialCoreColorRgbModulationCurveDesc{};
+        target.curve.enabled = true;
+
+        const string mode = Read_String(*distributionIter, "mode");
+        const json* payload = Find_DistributionPayload(*distributionIter);
+        if (payload != nullptr && mode == "ConstantCurve")
+        {
+            const auto keysIter = payload->find("keys");
+            if (keysIter != payload->end() && keysIter->is_array() && !keysIter->empty())
+            {
+                const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
+                target.curve.keyCount = keyCount;
+                target.curve.keyTimes = Vec4{};
+                target.curve.keyValuesR = Vec4{};
+                target.curve.keyValuesG = Vec4{};
+                target.curve.keyValuesB = Vec4{};
+                target.curve.keyArriveTangentsR = Vec4{};
+                target.curve.keyArriveTangentsG = Vec4{};
+                target.curve.keyArriveTangentsB = Vec4{};
+                target.curve.keyLeaveTangentsR = Vec4{};
+                target.curve.keyLeaveTangentsG = Vec4{};
+                target.curve.keyLeaveTangentsB = Vec4{};
+                target.curve.keyModes = Vec4{};
+
+                for (uint32 keyIndex = 0; keyIndex < keyCount; ++keyIndex)
+                {
+                    const json& key = (*keysIter)[keyIndex];
+                    Vec3 value{ 1.f, 0.85f, 0.45f };
+                    Vec3 arriveTangent{};
+                    Vec3 leaveTangent{};
+                    if (const auto valueIter = key.find("value"); valueIter != key.end())
+                        Read_Vec3(*valueIter, value);
+                    if (const auto arriveIter = key.find("arriveTangent"); arriveIter != key.end())
+                        Read_Vec3(*arriveIter, arriveTangent);
+                    if (const auto leaveIter = key.find("leaveTangent"); leaveIter != key.end())
+                        Read_Vec3(*leaveIter, leaveTangent);
+
+                    Set_SubUVFrameCurveComponent(target.curve.keyTimes, keyIndex, clamp(Read_Float(key, "time"), 0.f, 1.f));
+                    Set_SubUVFrameCurveComponent(target.curve.keyValuesR, keyIndex, value.x);
+                    Set_SubUVFrameCurveComponent(target.curve.keyValuesG, keyIndex, value.y);
+                    Set_SubUVFrameCurveComponent(target.curve.keyValuesB, keyIndex, value.z);
+                    Set_SubUVFrameCurveComponent(target.curve.keyArriveTangentsR, keyIndex, arriveTangent.x);
+                    Set_SubUVFrameCurveComponent(target.curve.keyArriveTangentsG, keyIndex, arriveTangent.y);
+                    Set_SubUVFrameCurveComponent(target.curve.keyArriveTangentsB, keyIndex, arriveTangent.z);
+                    Set_SubUVFrameCurveComponent(target.curve.keyLeaveTangentsR, keyIndex, leaveTangent.x);
+                    Set_SubUVFrameCurveComponent(target.curve.keyLeaveTangentsG, keyIndex, leaveTangent.y);
+                    Set_SubUVFrameCurveComponent(target.curve.keyLeaveTangentsB, keyIndex, leaveTangent.z);
+                    Set_SubUVFrameCurveComponent(target.curve.keyModes, keyIndex, Resolve_CurveInterpolationMode(key));
+                }
+                continue;
+            }
+        }
+
+        Vec3 value{ 1.f, 0.85f, 0.45f };
+        if (payload != nullptr && mode == "Constant")
+        {
+            if (const auto valueIter = payload->find("value"); valueIter != payload->end())
+                Read_Vec3(*valueIter, value);
+        }
+        else if (payload != nullptr && mode == "Uniform")
+        {
+            Vec3 minValue = value;
+            Vec3 maxValue = value;
+            if (const auto minIter = payload->find("minValue"); minIter != payload->end())
+                Read_Vec3(*minIter, minValue);
+            if (const auto maxIter = payload->find("maxValue"); maxIter != payload->end())
+                Read_Vec3(*maxIter, maxValue);
+            value = (minValue + maxValue) * 0.5f;
+        }
+
+        target.curve.keyCount = 2;
+        target.curve.keyValuesR = Vec4{ value.x, value.x, 0.f, 0.f };
+        target.curve.keyValuesG = Vec4{ value.y, value.y, 0.f, 0.f };
+        target.curve.keyValuesB = Vec4{ value.z, value.z, 0.f, 0.f };
+    }
+}
+
 void EffectAssetRuntimeLoader::Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife)
 {
     const auto rotationOverLifeIter = rotationOverLife.find("rotationOverLife");
@@ -1605,7 +1709,10 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         Apply_RequiredModule(*required, outDefinition, desc);
 
     if (const json* materialScalarModulation = Find_ModuleData(emitter, "MaterialScalarModulation"))
+    {
         Fill_MaterialScalarModulationPayload(desc.required.material.scalarModulation, *materialScalarModulation);
+        Fill_CoreColorRgbModulationPayload(desc.required.material.coreColorRgbModulation, *materialScalarModulation);
+    }
 
     if (const json* spawn = Find_ModuleData(emitter, "Spawn"))
         Apply_SpawnModule(*spawn, desc);
@@ -1886,7 +1993,10 @@ bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter,
         Apply_RequiredModule(*required, outDefinition, desc);
 
     if (const json* materialScalarModulation = Find_ModuleData(emitter, "MaterialScalarModulation"))
+    {
         Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
+        Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+    }
 
     if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
     {
@@ -2015,7 +2125,10 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         Apply_RequiredModule(*required, outDefinition, desc);
 
     if (const json* materialScalarModulation = Find_ModuleData(emitter, "MaterialScalarModulation"))
+    {
         Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
+        Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+    }
 
     if (hasAssignedMaterialInstance && assignedMaterialPayload.is_object())
         Apply_MaterialPayload(assignedMaterialPayload, desc.material, false);

@@ -2516,6 +2516,11 @@ bool DetailPropertyContext::Draw_ColorProperty(const char* label, Color& value, 
     return _basicDrawer->Draw_ColorProperty(label, value, defaultValue);
 }
 
+bool DetailPropertyContext::Draw_ColorRgbProperty(const char* label, Color& value, const Color& defaultValue)
+{
+    return _basicDrawer->Draw_ColorRgbProperty(label, value, defaultValue);
+}
+
 bool DetailPropertyContext::Draw_FloatDistributionGroup(
     const char* label,
     FloatDistributionData& value,

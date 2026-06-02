@@ -48,6 +48,9 @@ private:
     static void Fill_MaterialScalarModulationPayload(
         EffectMaterialScalarModulationRuntimeDesc& desc,
         const json& materialScalarModulation);
+    static void Fill_CoreColorRgbModulationPayload(
+        EffectMaterialCoreColorRgbModulationRuntimeDesc& desc,
+        const json& materialScalarModulation);
     static void Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife);
     static void Fill_RotationRateScaleByLifePayload(PointParticleRotationDesc& desc, const json& rotationRateScaleByLife);
     static void Fill_AccelerationCurvePayload(PointParticleMotionDesc& desc, const json& distribution);

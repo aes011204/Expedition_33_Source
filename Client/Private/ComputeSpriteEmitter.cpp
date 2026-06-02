@@ -1,6 +1,7 @@
 ﻿#include "ComputeSpriteEmitter.h"
 
 #include "Battle_Enum.h"
+#include "EffectMaterialScalarModulationRuntime.h"
 #include "GameInstance.h"
 #include "Renderer_Define.h"
 #include "ShaderCom.h"
@@ -30,6 +31,33 @@ bool ComputeSpriteEmitter::Is_InfluenceOutlineDebugEnabled()
 
 namespace Client::Internal
 {
+static HRESULT Bind_MaterialScalarModulationPayload(
+    ShaderCom* shader,
+    const EffectMaterialScalarModulationRuntimeDesc& modulation,
+    float emitterPhase)
+{
+    CHECK_NULL(shader, E_FAIL);
+
+    const EffectMaterialScalarModulationShaderPayload payload =
+        Build_MaterialScalarModulationShaderPayload(modulation, emitterPhase);
+
+    CHECK_FAILED_ONCE(shader->Bind_RawValue("g_EffectMaterialScalarModulationParams", &payload.params, sizeof(payload.params)), E_FAIL);
+    CHECK_FAILED_ONCE(shader->Bind_RawValue("g_EffectMaterialScalarModulationMeta", payload.meta.data(), sizeof(Vec4) * payload.meta.size()), E_FAIL);
+    CHECK_FAILED_ONCE(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyTimes", payload.keyTimes.data(), sizeof(Vec4) * payload.keyTimes.size()), E_FAIL);
+    CHECK_FAILED_ONCE(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyValues", payload.keyValues.data(), sizeof(Vec4) * payload.keyValues.size()), E_FAIL);
+    CHECK_FAILED_ONCE(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyArriveTangents", payload.keyArriveTangents.data(), sizeof(Vec4) * payload.keyArriveTangents.size()),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyLeaveTangents", payload.keyLeaveTangents.data(), sizeof(Vec4) * payload.keyLeaveTangents.size()),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyModes", payload.keyModes.data(), sizeof(Vec4) * payload.keyModes.size()), E_FAIL);
+
+    return S_OK;
+}
+
 wstring Resolve_TexturePathByGuid(const string& textureGuid)
 {
     if (GAME == nullptr || textureGuid.empty())
@@ -576,6 +604,11 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
     );
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteUVModeParams", &effectSpriteUVModeParams, sizeof(effectSpriteUVModeParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)), E_FAIL);
+    const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
+    CHECK_FAILED_ONCE(
+        Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase),
+        E_FAIL
+    );
 
     const Vec4 effectInfluenceDebugParams = Vec4(
         _isInfluenceOutlineDebugEnabled ? 1.f : 0.f,
@@ -677,6 +710,11 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
     );
     CHECK_FAILED_ONCE(
         _shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)),
+        E_FAIL
+    );
+    const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
+    CHECK_FAILED_ONCE(
+        Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase),
         E_FAIL
     );
     CHECK_FAILED_ONCE(

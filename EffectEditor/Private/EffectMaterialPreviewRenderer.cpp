@@ -116,11 +116,12 @@ EffectMaterialPreviewRenderer::~EffectMaterialPreviewRenderer()
 
 void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstanceData& material)
 {
-    Render_Material(material, EffectMaterialScalarModulationRuntimeDesc{}, 1.f, false);
+    Render_Material(material, EffectMaterialCoreColorRgbModulationRuntimeDesc{}, EffectMaterialScalarModulationRuntimeDesc{}, 1.f, false);
 }
 
 void EffectMaterialPreviewRenderer::Render_Material(
     const EffectMaterialInstanceData& material,
+    const EffectMaterialCoreColorRgbModulationRuntimeDesc& coreColorRgbModulation,
     const EffectMaterialScalarModulationRuntimeDesc& modulation,
     float previewDuration,
     bool evaluateParticleLife)
@@ -130,6 +131,7 @@ void EffectMaterialPreviewRenderer::Render_Material(
     const MaterialScalarModulationPreviewResult modulationResult =
         Evaluate_MaterialScalarModulationPreview(
             material,
+            coreColorRgbModulation,
             modulation,
             Compute_MaterialScalarPreviewPhase(_materialPreviewElapsedTime, previewDuration),
             evaluateParticleLife

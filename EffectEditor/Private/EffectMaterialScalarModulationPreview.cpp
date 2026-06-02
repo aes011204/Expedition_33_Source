@@ -54,10 +54,14 @@ namespace
             return EffectMaterialScalarModulationTarget::NoiseStrength;
         case MaterialScalarModulationTargetField::AlphaErosion:
             return EffectMaterialScalarModulationTarget::AlphaErosion;
+        case MaterialScalarModulationTargetField::AlphaCutoff:
+            return EffectMaterialScalarModulationTarget::AlphaCutoff;
         case MaterialScalarModulationTargetField::CoreIntensity:
             return EffectMaterialScalarModulationTarget::CoreIntensity;
         case MaterialScalarModulationTargetField::OuterIntensity:
             return EffectMaterialScalarModulationTarget::OuterIntensity;
+        case MaterialScalarModulationTargetField::CoreColor:
+            return EffectMaterialScalarModulationTarget::CoreColor;
         case MaterialScalarModulationTargetField::Intensity:
         default:
             return EffectMaterialScalarModulationTarget::Intensity;
@@ -102,6 +106,24 @@ namespace
         Set_Component(desc.keyModes, index, To_RuntimeCurveMode(key.interpolationMode));
     }
 
+    void Fill_CoreColorRgbCurveComponent(
+        EffectMaterialCoreColorRgbModulationCurveDesc& desc,
+        uint32 index,
+        const Vector3CurveKeyData& key)
+    {
+        Set_Component(desc.keyTimes, index, clamp(key.time, 0.f, 1.f));
+        Set_Component(desc.keyValuesR, index, key.value.x);
+        Set_Component(desc.keyValuesG, index, key.value.y);
+        Set_Component(desc.keyValuesB, index, key.value.z);
+        Set_Component(desc.keyArriveTangentsR, index, key.arriveTangent.x);
+        Set_Component(desc.keyArriveTangentsG, index, key.arriveTangent.y);
+        Set_Component(desc.keyArriveTangentsB, index, key.arriveTangent.z);
+        Set_Component(desc.keyLeaveTangentsR, index, key.leaveTangent.x);
+        Set_Component(desc.keyLeaveTangentsG, index, key.leaveTangent.y);
+        Set_Component(desc.keyLeaveTangentsB, index, key.leaveTangent.z);
+        Set_Component(desc.keyModes, index, To_RuntimeCurveMode(key.interpolationMode));
+    }
+
     EffectMaterialScalarModulationCurveDesc Build_CurveDesc(const FloatDistributionData& distribution)
     {
         constexpr uint32 kMaxCurveKeys{ 4 };
@@ -134,6 +156,49 @@ namespace
         desc.enabled = true;
         desc.keyCount = 2;
         desc.keyValues = Vec4{ value, value, 0.f, 0.f };
+        return desc;
+    }
+
+    EffectMaterialCoreColorRgbModulationCurveDesc Build_CoreColorRgbCurveDesc(const Vector3DistributionData& distribution)
+    {
+        constexpr uint32 kMaxCurveKeys{ 4 };
+        EffectMaterialCoreColorRgbModulationCurveDesc desc{};
+
+        if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&distribution.payload);
+            distribution.mode == DistributionMode::ConstantCurve && curve != nullptr && !curve->keys.empty())
+        {
+            const uint32 keyCount = min(kMaxCurveKeys, static_cast<uint32>(curve->keys.size()));
+            desc.enabled = true;
+            desc.keyCount = keyCount;
+            desc.keyTimes = Vec4{};
+            desc.keyValuesR = Vec4{};
+            desc.keyValuesG = Vec4{};
+            desc.keyValuesB = Vec4{};
+            desc.keyArriveTangentsR = Vec4{};
+            desc.keyArriveTangentsG = Vec4{};
+            desc.keyArriveTangentsB = Vec4{};
+            desc.keyLeaveTangentsR = Vec4{};
+            desc.keyLeaveTangentsG = Vec4{};
+            desc.keyLeaveTangentsB = Vec4{};
+            desc.keyModes = Vec4{};
+
+            for (uint32 index = 0; index < keyCount; ++index)
+                Fill_CoreColorRgbCurveComponent(desc, index, curve->keys[index]);
+
+            return desc;
+        }
+
+        Vec3 value{ 1.f, 0.85f, 0.45f };
+        if (const auto* constant = get_if<ConstantVector3DistributionData>(&distribution.payload))
+            value = constant->value;
+        else if (const auto* uniform = get_if<UniformVector3DistributionData>(&distribution.payload))
+            value = (uniform->minValue + uniform->maxValue) * 0.5f;
+
+        desc.enabled = true;
+        desc.keyCount = 2;
+        desc.keyValuesR = Vec4{ value.x, value.x, 0.f, 0.f };
+        desc.keyValuesG = Vec4{ value.y, value.y, 0.f, 0.f };
+        desc.keyValuesB = Vec4{ value.z, value.z, 0.f, 0.f };
         return desc;
     }
 
@@ -209,6 +274,68 @@ namespace
         return Get_Component(curve.keyValues, keyCount - 1);
     }
 
+    float Evaluate_CurveComponents(
+        const Vec4& keyTimes,
+        const Vec4& keyValues,
+        const Vec4& keyArriveTangents,
+        const Vec4& keyLeaveTangents,
+        const Vec4& keyModes,
+        uint32 keyCount,
+        bool enabled,
+        float x,
+        float fallbackValue)
+    {
+        if (!enabled || keyCount == 0)
+            return fallbackValue;
+
+        const uint32 clampedKeyCount = min(4u, keyCount);
+        if (clampedKeyCount == 1)
+            return Get_Component(keyValues, 0);
+
+        const float clampedX = clamp(x, 0.f, 1.f);
+        for (uint32 index = 1; index < clampedKeyCount; ++index)
+        {
+            const float rightTime = Get_Component(keyTimes, index);
+            if (clampedX > rightTime)
+                continue;
+
+            const uint32 leftIndex = index - 1;
+            const float leftTime = Get_Component(keyTimes, leftIndex);
+            const float leftValue = Get_Component(keyValues, leftIndex);
+            const float rightValue = Get_Component(keyValues, index);
+            const int32 mode = static_cast<int32>(Get_Component(keyModes, leftIndex));
+
+            if (mode == 0)
+                return leftValue;
+
+            if (mode == 2)
+            {
+                return Evaluate_CurveAutoClamped(
+                    leftTime,
+                    leftValue,
+                    Get_Component(keyLeaveTangents, leftIndex),
+                    rightTime,
+                    rightValue,
+                    Get_Component(keyArriveTangents, index),
+                    clampedX
+                );
+            }
+
+            return Evaluate_CurveLinear(leftTime, leftValue, rightTime, rightValue, clampedX);
+        }
+
+        return Get_Component(keyValues, clampedKeyCount - 1);
+    }
+
+    Vec3 Evaluate_CoreColorRgbCurve(const EffectMaterialCoreColorRgbModulationCurveDesc& curve, float x, const Vec3& fallbackValue)
+    {
+        return Vec3{
+            Evaluate_CurveComponents(curve.keyTimes, curve.keyValuesR, curve.keyArriveTangentsR, curve.keyLeaveTangentsR, curve.keyModes, curve.keyCount, curve.enabled, x, fallbackValue.x),
+            Evaluate_CurveComponents(curve.keyTimes, curve.keyValuesG, curve.keyArriveTangentsG, curve.keyLeaveTangentsG, curve.keyModes, curve.keyCount, curve.enabled, x, fallbackValue.y),
+            Evaluate_CurveComponents(curve.keyTimes, curve.keyValuesB, curve.keyArriveTangentsB, curve.keyLeaveTangentsB, curve.keyModes, curve.keyCount, curve.enabled, x, fallbackValue.z)
+        };
+    }
+
     void Apply_Multiplier(
         EffectMaterialInstanceData& material,
         EffectMaterialScalarModulationTarget target,
@@ -225,11 +352,19 @@ namespace
         case EffectMaterialScalarModulationTarget::AlphaErosion:
             material.alphaErosion *= multiplier;
             break;
+        case EffectMaterialScalarModulationTarget::AlphaCutoff:
+            material.alphaCutoff *= multiplier;
+            break;
         case EffectMaterialScalarModulationTarget::CoreIntensity:
             material.coreEmissive.coreIntensity *= multiplier;
             break;
         case EffectMaterialScalarModulationTarget::OuterIntensity:
             material.coreEmissive.outerIntensity *= multiplier;
+            break;
+        case EffectMaterialScalarModulationTarget::CoreColor:
+            material.coreEmissive.coreColor.x *= multiplier;
+            material.coreEmissive.coreColor.y *= multiplier;
+            material.coreEmissive.coreColor.z *= multiplier;
             break;
         case EffectMaterialScalarModulationTarget::Intensity:
         default:
@@ -288,6 +423,27 @@ EffectMaterialScalarModulationRuntimeDesc Build_MaterialScalarModulationRuntimeD
     return desc;
 }
 
+EffectMaterialCoreColorRgbModulationRuntimeDesc Build_CoreColorRgbModulationRuntimeDesc(const MaterialScalarModulationModuleData& data)
+{
+    EffectMaterialCoreColorRgbModulationRuntimeDesc desc{};
+    const uint32 count = min(
+        EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators,
+        static_cast<uint32>(data.coreColorRgbModulators.size())
+    );
+    desc.count = count;
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const MaterialCoreColorRgbModulatorData& source = data.coreColorRgbModulators[index];
+        EffectMaterialCoreColorRgbModulatorRuntimeDesc& target = desc.modulators[index];
+        target.enabled = source.enabled;
+        target.timeSource = To_RuntimeTimeSource(source.timeSource);
+        target.curve = Build_CoreColorRgbCurveDesc(source.distribution);
+    }
+
+    return desc;
+}
+
 float Compute_MaterialScalarPreviewPhase(float elapsedTime, float duration)
 {
     const float safeDuration = max(duration, 0.0001f);
@@ -297,12 +453,38 @@ float Compute_MaterialScalarPreviewPhase(float elapsedTime, float duration)
 
 MaterialScalarModulationPreviewResult Evaluate_MaterialScalarModulationPreview(
     const EffectMaterialInstanceData& baseMaterial,
+    const EffectMaterialCoreColorRgbModulationRuntimeDesc& coreColorRgbModulation,
     const EffectMaterialScalarModulationRuntimeDesc& modulation,
     float previewPhase,
     bool evaluateParticleLife)
 {
     MaterialScalarModulationPreviewResult result{};
     result.material = baseMaterial;
+
+    const uint32 coreColorRgbCount = min(EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators, coreColorRgbModulation.count);
+    for (uint32 index = 0; index < coreColorRgbCount; ++index)
+    {
+        const EffectMaterialCoreColorRgbModulatorRuntimeDesc& modulator = coreColorRgbModulation.modulators[index];
+        if (!modulator.enabled)
+            continue;
+
+        if (modulator.timeSource == EffectMaterialScalarModulationTimeSource::ParticleLife)
+        {
+            result.skippedParticleLife = true;
+            continue;
+        }
+
+        const Vec3 fallbackValue{
+            result.material.coreEmissive.coreColor.x,
+            result.material.coreEmissive.coreColor.y,
+            result.material.coreEmissive.coreColor.z
+        };
+        const Vec3 coreColorRgb = Evaluate_CoreColorRgbCurve(modulator.curve, previewPhase, fallbackValue);
+        result.material.coreEmissive.coreColor.x = coreColorRgb.x;
+        result.material.coreEmissive.coreColor.y = coreColorRgb.y;
+        result.material.coreEmissive.coreColor.z = coreColorRgb.z;
+        result.applied = true;
+    }
 
     const uint32 count = min(EffectMaterialScalarModulationRuntimeDesc::kMaxModulators, modulation.count);
     for (uint32 index = 0; index < count; ++index)

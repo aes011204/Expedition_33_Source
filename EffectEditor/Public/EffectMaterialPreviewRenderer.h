@@ -9,6 +9,7 @@ class RenderTarget;
 class ShaderCom;
 class Texture;
 struct EffectMaterialScalarModulationRuntimeDesc;
+struct EffectMaterialCoreColorRgbModulationRuntimeDesc;
 NS_END
 
 NS_BEGIN(EffectEditor)
@@ -31,6 +32,7 @@ public:
     // emitter module의 material scalar modulation을 preview-local 시간으로 평가해 반영한다.
     void Render_Material(
         const EffectMaterialInstanceData& material,
+        const EffectMaterialCoreColorRgbModulationRuntimeDesc& coreColorRgbModulation,
         const EffectMaterialScalarModulationRuntimeDesc& modulation,
         float previewDuration,
         bool evaluateParticleLife);
