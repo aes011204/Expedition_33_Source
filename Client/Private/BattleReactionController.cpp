@@ -261,19 +261,6 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleS
     //if (!ownsSource)
     //    return;
 
-    EvtBattlePresentation event;
-
-    if(_reactionAnimTargets.size() == 1)
-    {
-        event.cameraMode = BattleCameraMode::PARRY;
-        event.subject = _reactionAnimTargets.front().actor;
-        event.presetId = magic_enum::enum_name(_reactionAnimTargets.front().heroId);
-        event.clipId = magic_enum::enum_name(_reactionAnimTargets.front().heroId);
-        event.useClip = true;
-    }
-
-    GAME->Get_EventBus().Publish(event);
-
     GAME->Slow_WorldTime(slowDesc.worldTimeScale, slowDesc.duration);
     sourceModel->Set_FrameSpeed(counterPlayRate); // 플레이어 속도 증가
 
@@ -356,6 +343,18 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
     {
         animType = BattleAnimType::Parray; // 성공하면 패링 애니메이션
 
+        EvtBattlePresentation event;
+        //
+        //if(_reactionAnimTargets.size() == 1)
+        //{
+        //    event.cameraMode = BattleCameraMode::PARRY;
+        //    event.subject = _reactionAnimTargets.front().actor;
+        //    event.presetId = magic_enum::enum_name(_reactionAnimTargets.front().heroId);
+        //    event.clipId = magic_enum::enum_name(_reactionAnimTargets.front().heroId);
+        //    event.useClip = true;
+        //}
+        //GAME->Get_EventBus().Publish(event);
+        //
         if (isSuccess && _curSkillData->targetingType.size() - 1 == curAttackIndex)
         {
             _isCounterPending = true;

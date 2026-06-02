@@ -2,6 +2,7 @@
 #include <Event_Struct.h>
 #include "Camera.h"
 #include "Battle_Enum.h"
+#include "BattleMonsterSpawnDesc.h"
 #include "BattleTurnCameraPoseUtils.h"
 #include "CameraPresetTypes.h"
 #include "BattleCameraClipTypes.h"
@@ -53,7 +54,10 @@ public:
     void Update_LiveEditContext(BattleCameraMode mode, const Shared<Character>& target, const Shared<Character>& opponent);
     void End_LiveEdit();
     bool Is_LiveEditEnabled() const { return _isLiveEditEnabled; }
-    void Set_Participants(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies);
+    void Set_Participants(
+        const vector<BattleChar>& heroes,
+        const vector<BattleChar>& enemies,
+        const vector<BattleMonsterSpawnDesc>& enemySpawnDescs);
     void Reset_RuntimeState();
     void Set_IsClipPreview(bool boolean) { _isClipPreview = boolean; }
 
@@ -173,6 +177,7 @@ private:
     bool                 _isFirstUpdate = true;
     vector<BattleChar>   _heroes;
     vector<BattleChar>   _enemies;
+    vector<BattleMonsterSpawnDesc> _enemySpawnDescs;
     Vec3                 _enemyPos;
     Vec3                 _playerPos;
 

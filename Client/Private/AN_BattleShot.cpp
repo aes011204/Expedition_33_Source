@@ -45,6 +45,12 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     
     EvtBattlePresentation event {};
     event.cameraMode = _cameraMode;
+
+    if(event.cameraMode == BattleCameraMode::PARRY)
+    {
+        int a = 10;
+    }
+
     event.subject = character;
     if (battle)
     {

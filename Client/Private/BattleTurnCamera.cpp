@@ -247,10 +247,14 @@ void BattleTurnCamera::Apply_FreeAimCamera()
 {
 }
 
-void BattleTurnCamera::Set_Participants(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies)
+void BattleTurnCamera::Set_Participants(
+    const vector<BattleChar>& heroes,
+    const vector<BattleChar>& enemies,
+    const vector<BattleMonsterSpawnDesc>& enemySpawnDescs)
 {
     _heroes = heroes;
     _enemies = enemies;
+    _enemySpawnDescs = enemySpawnDescs;
 }
 
 void BattleTurnCamera::Reset_RuntimeState()
@@ -264,6 +268,7 @@ void BattleTurnCamera::Reset_RuntimeState()
     _prevTargetPos = Vec3::Zero;
     _enemyPos = Vec3::Zero;
     _playerPos = Vec3::Zero;
+    _enemySpawnDescs.clear();
     _isClipPreview = false;
     _isFirstUpdate = true;
     _isWideMode = false;
@@ -468,6 +473,17 @@ BattleTurnCamera::EvaluatedPose BattleTurnCamera::Capture_CurrentPose()
 
 bool BattleTurnCamera::Evaluate_WidePose(float fovY, EvaluatedPose& outPose) const
 {
+    float wideBackOffset = 0.f;
+    float wideHeightOffset = 0.f;
+    float wideLookHeightOffset = 0.f;
+
+    for (const BattleMonsterSpawnDesc& spawnDesc : _enemySpawnDescs)
+    {
+        wideBackOffset = std::max(wideBackOffset, spawnDesc.wideBackOffset);
+        wideHeightOffset = std::max(wideHeightOffset, spawnDesc.wideHeightOffset);
+        wideLookHeightOffset = std::max(wideLookHeightOffset, spawnDesc.wideLookHeightOffset);
+    }
+
     Vec3 heroCenter = Vec3::Zero;
     uint32 heroCount = 0;
 
@@ -495,7 +511,14 @@ bool BattleTurnCamera::Evaluate_WidePose(float fovY, EvaluatedPose& outPose) con
         return false;
 
     const Vec3 baseRot = yawBaseActor->Get_Transform()->Get_RotationEuler();
-    return Evaluate_BattleTurnWidePose(heroCenter, baseRot.y, fovY, outPose);
+    return Evaluate_BattleTurnWidePose(
+        heroCenter,
+        baseRot.y,
+        fovY,
+        wideBackOffset,
+        wideHeightOffset,
+        wideLookHeightOffset,
+        outPose);
 }
 
 bool BattleTurnCamera::Evaluate_ShotRequestPose(
@@ -605,7 +628,7 @@ bool BattleTurnCamera::Start_PoseTransition(
 
     _poseTransition.active = true;
     _poseTransition.elapsed = 0.f;
-    _poseTransition.duration = 0.35f;
+    _poseTransition.duration = preset.transitionDuration;
     _poseTransition.easing = preset.transitionEasing;
     _poseTransition.fromPose = fromPose;
     _poseTransition.toPose = toPose;

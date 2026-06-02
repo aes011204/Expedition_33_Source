@@ -107,6 +107,8 @@ private:
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
     void Ensure_PreviewCamera();
     void Reset_DefaultFormation();
+    void Apply_DefaultHeroFormation();
+    void Apply_DefaultEnemyFormation();
     void Rebuild_PreviewObjects();
     void Clear_PreviewObjects();
     void Position_PreviewObjects() const;
@@ -208,6 +210,7 @@ private:
     Vec3 Get_PreviewSlotWorldPosition(PreviewSlotSide side, int slotIndex) const;
     string Get_SelectedHeroPrefabName() const;
     string Get_SelectedEnemyPrefabName() const;
+    vector<Client::BattleMonsterSpawnDesc> Resolve_SelectedEnemySpawnDescs() const;
     BattleCameraMode Get_CurrentBattleAuthoringMode() const;
     string Get_CurrentPreviewPresetId() const;
     string Get_CurrentPreviewClipId() const;
@@ -238,6 +241,7 @@ private:
     bool _previewShakeEnabled = true;
     bool _previewSideOffsetEnabled = true;
     bool _previewPivotOffsetEnabled = true;
+    bool _previewLookHeightOffsetEnabled = true;
     bool _previewYawOffsetEnabled = true;
     bool _previewOrbitYawEnabled = true;
     bool _previewOrbitRadiusEnabled = true;

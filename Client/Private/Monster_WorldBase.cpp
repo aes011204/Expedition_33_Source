@@ -38,6 +38,9 @@ namespace
             { "prefab_name", desc.prefabName },
             { "offset", Vec3_ToJson(desc.offset) },
             { "rotation", Vec3_ToJson(desc.rotation) },
+            { "wide_back_offset", desc.wideBackOffset },
+            { "wide_height_offset", desc.wideHeightOffset },
+            { "wide_look_height_offset", desc.wideLookHeightOffset },
         };
     }
 
@@ -54,6 +57,10 @@ namespace
 
         if (value.contains("rotation"))
             (void)Json_ToVec3(value["rotation"], outDesc.rotation);
+
+        outDesc.wideBackOffset = value.value("wide_back_offset", 0.f);
+        outDesc.wideHeightOffset = value.value("wide_height_offset", 0.f);
+        outDesc.wideLookHeightOffset = value.value("wide_look_height_offset", 0.f);
 
         return true;
     }
