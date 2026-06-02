@@ -7,16 +7,27 @@ struct EffectMaterialSurface
     float coverage;
 };
 
+float Effect_SelectScalarSource(float4 texel, int source)
+{
+    float selected = texel.a;
+
+    if (source == 1)
+        selected = texel.r;
+    else if (source == 2)
+        selected = dot(texel.rgb, float3(0.299f, 0.587f, 0.114f));
+
+    return selected;
+}
+
+float Effect_ApplySourceInvert(float value, float invert)
+{
+    const float saturatedValue = saturate(value);
+    return invert != 0.f ? 1.f - saturatedValue : saturatedValue;
+}
+
 float Effect_SelectOpacity(float4 texel, int opacitySource)
 {
-    float selectedOpacity = texel.a;
-
-    if (opacitySource == 1)
-        selectedOpacity = texel.r;
-    else if (opacitySource == 2)
-        selectedOpacity = dot(texel.rgb, float3(0.299f, 0.587f, 0.114f));
-
-    return selectedOpacity;
+    return Effect_SelectScalarSource(texel, opacitySource);
 }
 
 float Effect_ApplyAlphaErosion(float maskAlpha, float erosionSource, float alphaErosion)

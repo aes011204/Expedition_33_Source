@@ -1050,6 +1050,11 @@ void Detail_View::Render_ModuleDetail(
             changed = _sphereLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::PlaneRadialLocation:
+        if (auto* data = get_if<PlaneRadialLocationModuleData>(&module.data))
+            changed = _planeRadialLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialVelocity:
         if (auto* data = get_if<InitialVelocityModuleData>(&module.data))
             changed = _initialVelocityModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
@@ -1078,6 +1083,11 @@ void Detail_View::Render_ModuleDetail(
     case AuthoringModuleType::InitialRotation:
         if (auto* data = get_if<InitialRotationModuleData>(&module.data))
             changed = _initialRotationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::PlaneRadialOrientation:
+        if (auto* data = get_if<PlaneRadialOrientationModuleData>(&module.data))
+            changed = _planeRadialOrientationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::RotationOverLife:

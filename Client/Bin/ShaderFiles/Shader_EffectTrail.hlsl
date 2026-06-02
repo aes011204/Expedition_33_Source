@@ -17,6 +17,7 @@ cbuffer cbEffectTrailMaterial : register(b2)
     float4 g_EffectTrailMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask offset, zw: reserved
     float4 g_EffectTrailUVPolicyParams = { 1.f, 1.f, 0.f, 0.f };     // x: visible trail length, y: noise uv tiling, zw: reserved
     float4 g_EffectTrailUVModeParams = { 0.f, 0.f, 0.f, 0.f };       // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
+    float4 g_EffectTrailSourceParams = { 1.f, 0.f, 0.f, 0.f };       // x: noise source, y: mask source, z: noise invert, w: mask invert
     float4 g_EffectTrailAdditiveParams = { 0.f, 0.f, 0.f, 1.f };     // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectTrailAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectTrailAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
@@ -72,18 +73,18 @@ float4 Sample_MainTexture(float2 uv, float mode)
            : g_MainTexture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_NoiseTexture(float2 uv, float mode)
+float4 Sample_NoiseTexture(float2 uv, float mode)
 {
     return Use_ClampSampler(mode)
-           ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
-           : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
+           ? g_NoiseTexture.Sample(LinearClampSampler, uv)
+           : g_NoiseTexture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_MaskTexture(float2 uv, float mode)
+float4 Sample_MaskTexture(float2 uv, float mode)
 {
     return Use_ClampSampler(mode)
-           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
-           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+           ? g_MaskTexture.Sample(LinearClampSampler, uv)
+           : g_MaskTexture.Sample(LinearWrapSampler, uv);
 }
 
 struct VS_IN
@@ -267,10 +268,22 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
 
     const float noiseStrength = saturate(resolvedNoiseStrength);
     if (0 != g_EffectTrailParams.w && resolvedNoiseStrength > 0.f)
-        noiseRaw = Sample_NoiseTexture(noiseUV, noiseUVMode);
+    {
+        const float4 noiseTexel = Sample_NoiseTexture(noiseUV, noiseUVMode);
+        noiseRaw = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectTrailSourceParams.x),
+            g_EffectTrailSourceParams.z
+        );
+    }
 
     if (0 != g_EffectTrailAlphaParams.z)
-        maskAlpha = Sample_MaskTexture(maskUV, maskUVMode);
+    {
+        const float4 maskTexel = Sample_MaskTexture(maskUV, maskUVMode);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectTrailSourceParams.y),
+            g_EffectTrailSourceParams.w
+        );
+    }
 
     const float edgeDistance = abs(In.edgeCoord.y - 0.5f) * 2.f;
     const float edgeWeight = smoothstep(0.35f, 1.f, edgeDistance);
@@ -367,10 +380,22 @@ PS_OUT PS_ADDITIVE(PS_IN In)
 
     const float noiseStrength = saturate(resolvedNoiseStrength);
     if (0 != g_EffectTrailParams.w && resolvedNoiseStrength > 0.f)
-        noiseRaw = Sample_NoiseTexture(noiseUV, noiseUVMode);
+    {
+        const float4 noiseTexel = Sample_NoiseTexture(noiseUV, noiseUVMode);
+        noiseRaw = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectTrailSourceParams.x),
+            g_EffectTrailSourceParams.z
+        );
+    }
 
     if (0 != g_EffectTrailAlphaParams.z)
-        maskAlpha = Sample_MaskTexture(maskUV, maskUVMode);
+    {
+        const float4 maskTexel = Sample_MaskTexture(maskUV, maskUVMode);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectTrailSourceParams.y),
+            g_EffectTrailSourceParams.w
+        );
+    }
 
     const float edgeDistance = abs(In.edgeCoord.y - 0.5f) * 2.f;
     const float edgeWeight = smoothstep(0.35f, 1.f, edgeDistance);

@@ -17,6 +17,7 @@ cbuffer cbEffectSpriteMaterial : register(b2)
     float4 g_EffectSpriteUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: noise offset
     float4 g_EffectSpriteMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteUVModeParams = { 0.f, 0.f, 0.f, 0.f };   // x: main, y: noise, z: mask
+    float4 g_EffectSpriteSourceParams = { 1.f, 0.f, 0.f, 0.f };    // x: noise source, y: mask source, z: noise invert, w: mask invert
     float4 g_EffectSpriteAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectSpriteAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
@@ -62,18 +63,18 @@ float4 Sample_EffectSpriteMainTexture(float2 uv, float mode)
            : g_Texture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_EffectSpriteNoiseTexture(float2 uv, float mode)
+float4 Sample_EffectSpriteNoiseTexture(float2 uv, float mode)
 {
     return Use_EffectSpriteClampSampler(mode)
-           ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
-           : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
+           ? g_NoiseTexture.Sample(LinearClampSampler, uv)
+           : g_NoiseTexture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_EffectSpriteMaskTexture(float2 uv, float mode)
+float4 Sample_EffectSpriteMaskTexture(float2 uv, float mode)
 {
     return Use_EffectSpriteClampSampler(mode)
-           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
-           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+           ? g_MaskTexture.Sample(LinearClampSampler, uv)
+           : g_MaskTexture.Sample(LinearWrapSampler, uv);
 }
 
 float Compute_InfluenceOutlineWidth(float2 cardUV)
@@ -401,12 +402,22 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
 
     if (0 != g_EffectSpriteParams.w && resolvedNoiseStrength > 0.f)
     {
-        const float noise = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
+        const float4 noiseTexel = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
+        const float noise = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectSpriteSourceParams.x),
+            g_EffectSpriteSourceParams.z
+        );
         noiseFactor = lerp(1.f, noise, saturate(resolvedNoiseStrength));
     }
 
     if (0 != g_EffectSpriteAlphaParams.z)
-        maskAlpha = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
+    {
+        const float4 maskTexel = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectSpriteSourceParams.y),
+            g_EffectSpriteSourceParams.w
+        );
+    }
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
     const float shapeCoverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, 1.f);
@@ -485,12 +496,22 @@ PS_OUT PS_ADDITIVE(PS_IN In)
 
     if (0 != g_EffectSpriteParams.w && resolvedNoiseStrength > 0.f)
     {
-        const float noise = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
+        const float4 noiseTexel = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
+        const float noise = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectSpriteSourceParams.x),
+            g_EffectSpriteSourceParams.z
+        );
         noiseFactor = lerp(1.f, noise, saturate(resolvedNoiseStrength));
     }
 
     if (0 != g_EffectSpriteAlphaParams.z)
-        maskAlpha = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
+    {
+        const float4 maskTexel = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectSpriteSourceParams.y),
+            g_EffectSpriteSourceParams.w
+        );
+    }
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
     const float coverageBase = saturate(maskCoverage * noiseFactor);

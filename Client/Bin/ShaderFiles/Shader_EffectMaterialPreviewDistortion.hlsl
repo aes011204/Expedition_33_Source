@@ -16,6 +16,7 @@ cbuffer cbEffectMaterialPreviewDistortion : register(b2)
     float4 g_EffectMaterialPreviewUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };    // xy: main offset, zw: flow offset
     float4 g_EffectMaterialPreviewMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };// xy: mask offset, zw: reserved
     float4 g_EffectMaterialPreviewUVModeParams = { 0.f, 0.f, 0.f, 0.f };      // x: main, y: mask, z: flow, w: reserved
+    float4 g_EffectMaterialPreviewSourceParams = { 1.f, 0.f, 0.f, 0.f };      // y: mask source, w: mask invert
     float4 g_EffectMaterialPreviewDistortionParams = { 0.f, 1.f, 0.f, 0.f };  // x: intensity, y: presence, z: useFlow, w: time
     float4 g_EffectMaterialPreviewDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f }; // x: mode, y: radius, z: thickness, w: softness
     float4 g_EffectMaterialPreviewScreenSize = { 512.f, 512.f, 0.f, 0.f };
@@ -45,11 +46,11 @@ float4 Sample_PreviewMainTexture(float2 uv, float mode)
            : g_Texture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_PreviewMaskTexture(float2 uv, float mode)
+float4 Sample_PreviewMaskTexture(float2 uv, float mode)
 {
     return Use_PreviewClampSampler(mode)
-           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
-           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+           ? g_MaskTexture.Sample(LinearClampSampler, uv)
+           : g_MaskTexture.Sample(LinearWrapSampler, uv);
 }
 
 float2 Sample_PreviewFlowTexture(float2 uv, float mode)
@@ -128,7 +129,13 @@ PS_OUT PS_MAIN(PS_IN In)
     float maskAlpha = 1.f;
 
     if (g_EffectMaterialPreviewAlphaParams.z != 0)
-        maskAlpha = Sample_PreviewMaskTexture(maskUV, maskUVMode);
+    {
+        const float4 maskTexel = Sample_PreviewMaskTexture(maskUV, maskUVMode);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectMaterialPreviewSourceParams.y),
+            g_EffectMaterialPreviewSourceParams.w
+        );
+    }
 
     const float materialCoverage = Effect_ApplyAlphaErosion(selectedOpacity * g_Tint.a, maskAlpha, alphaErosion);
     if (materialCoverage < max(alphaCutoff, 0.01f))
