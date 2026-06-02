@@ -145,9 +145,6 @@ HRESULT Body_Player::Render_Shadow()
     if (FAILED(GAME->Bind_ShadowCB(_computeRenderShaderCom)))
         return E_FAIL;
 
-    if (FAILED(_computeRenderShaderCom->Reset_DrawFeatures()))
-        return E_FAIL;
-
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; ++i)

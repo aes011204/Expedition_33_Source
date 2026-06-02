@@ -33,6 +33,7 @@ enum class AuthoringModuleType : uint8
     SizeByLife,
     MeshSizeByLife,
     SpawnPerUnit,
+    MaterialScalarModulation,
 };
 
 enum class EffectAuthoringSelectionKind : uint8
@@ -43,6 +44,12 @@ enum class EffectAuthoringSelectionKind : uint8
     Module,
 };
 
+enum class EmitterRenderLayerOverride : uint8
+{
+    Auto,
+    UIEffect,
+};
+
 enum class EmitterScreenAlignment : uint8
 {
     Square,
@@ -50,6 +57,8 @@ enum class EmitterScreenAlignment : uint8
     Rectangle,
     Velocity,
     AwayFromCenter,
+    WorldPlaneXY,
+    WorldPlaneXZ,
     TypeSpecific,
     FacingCameraDistanceBlend,
 };
@@ -730,6 +739,41 @@ struct SpawnPerUnitModuleData
     float maxFrameDistance{ 0.f };
 };
 
+enum class MaterialScalarModulationTargetField : uint8
+{
+    Intensity,
+    OpacityPower,
+    NoiseStrength,
+    AlphaErosion,
+    CoreIntensity,
+    OuterIntensity,
+};
+
+enum class MaterialScalarModulationOperation : uint8
+{
+    Multiply,
+};
+
+enum class MaterialScalarModulationTimeSource : uint8
+{
+    ParticleLife,
+    EmitterTime,
+};
+
+struct MaterialScalarModulatorData
+{
+    bool enabled{ true };
+    MaterialScalarModulationTargetField targetField{ MaterialScalarModulationTargetField::Intensity };
+    MaterialScalarModulationOperation operation{ MaterialScalarModulationOperation::Multiply };
+    MaterialScalarModulationTimeSource timeSource{ MaterialScalarModulationTimeSource::ParticleLife };
+    FloatDistributionData distribution{ FloatDistributionData::Make_Constant(1.f) };
+};
+
+struct MaterialScalarModulationModuleData
+{
+    vector<MaterialScalarModulatorData> modulators{};
+};
+
 using AuthoringModuleData = std::variant<
     RequiredModuleData,
     SpawnModuleData,
@@ -756,7 +800,8 @@ using AuthoringModuleData = std::variant<
     SubUVFrameOverLifeModuleData,
     SizeByLifeModuleData,
     MeshSizeByLifeModuleData,
-    SpawnPerUnitModuleData>;
+    SpawnPerUnitModuleData,
+    MaterialScalarModulationModuleData>;
 
 struct AuthoringModule
 {
@@ -776,6 +821,7 @@ struct AuthoringEmitter
     uint32 id{};
     string name{};
     string rendererType{ "Sprite" };
+    EmitterRenderLayerOverride renderLayerOverride{ EmitterRenderLayerOverride::Auto };
     string resourceSummary{};
     string textureId{ "Effects/Textures/Shared/DefaultTexture.dds" };
     bool enabled{ true };

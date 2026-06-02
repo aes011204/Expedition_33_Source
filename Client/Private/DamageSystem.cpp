@@ -37,6 +37,8 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& target, AttackTyp
         return;
     }
 
+    if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+        return;
 
     auto& runtimeStat = target.statCom->Get_RuntimeStat();
     LOG_DEBUG("ApplyDamage: before hp={:.2f}, damage={:.2f}", runtimeStat.CurHp, damage);

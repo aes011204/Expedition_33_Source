@@ -6,8 +6,6 @@
 #include "ShaderCom.h"
 #include "Texture.h"
 
-#include <chrono>
-
 namespace Internal
 {
 float Read_Vec4Component(const Vec4& values, uint32 index)
@@ -30,6 +28,19 @@ bool Has_NonZeroVector(const Vec3& value)
 double Elapsed_Milliseconds(const std::chrono::steady_clock::time_point& begin, const std::chrono::steady_clock::time_point& end)
 {
     return std::chrono::duration<double, std::milli>(end - begin).count();
+}
+
+Matrix Resolve_MeshPlaneAlignmentMatrix(EffectScreenAlignment alignment)
+{
+    switch (alignment)
+    {
+    case EffectScreenAlignment::WorldPlaneXZ:
+        return Matrix::CreateRotationX(-XM_PIDIV2);
+
+    case EffectScreenAlignment::WorldPlaneXY:
+    default:
+        return Matrix::Identity;
+    }
 }
 }
 
@@ -225,6 +236,35 @@ bool MeshEmitter::Is_EffectFinished() const
     return !_isReady || (PlaybackState::Completed == _playbackState && _activeInstanceCount == 0u);
 }
 
+bool MeshEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    bool hasActiveParticle = false;
+    Vec3 accumulatedPosition{};
+    uint32 activeParticleCount = 0u;
+
+    for (const MeshParticleState& particle : _particles)
+    {
+        if (!particle.active)
+            continue;
+
+        accumulatedPosition += particle.position;
+        ++activeParticleCount;
+        hasActiveParticle = true;
+    }
+
+    if (hasActiveParticle && activeParticleCount > 0u)
+    {
+        outWorldPosition = accumulatedPosition / static_cast<float>(activeParticleCount);
+        return true;
+    }
+
+    outWorldPosition = _transformCom->Get_WorldPosition();
+    return true;
+}
+
 void MeshEmitter::On_EffectTransformSynced()
 {
     if (_activeInstanceCount > 0u)
@@ -234,7 +274,7 @@ void MeshEmitter::On_EffectTransformSynced()
 void MeshEmitter::Log_DescPayload(const char* context) const
 {
     LOG_INFO(
-        "MeshEmitter desc payload. context={}, emitter='{}', spawnCount={}, spawnRate={}, bursts={}, life=({}, {}), meshInitialScale={}, meshScaleByLife={}, motion={}, acceleration={}, drag=({}, {}), velocityScale=({}, {}), meshRotation={}, meshRotationMin=({}, {}, {}), meshRotationMax=({}, {}, {}), colorCurve={}, alphaCurve={}",
+        "MeshEmitter desc payload. context={}, emitter='{}', spawnCount={}, spawnRate={}, bursts={}, life=({}, {}), meshAlignment={}, meshInitialScale={}, meshScaleByLife={}, motion={}, acceleration={}, drag=({}, {}), velocityScale=({}, {}), meshRotation={}, meshRotationMin=({}, {}, {}), meshRotationMax=({}, {}, {}), colorCurve={}, alphaCurve={}",
         context,
         _emitterName,
         _desc.spawn.instanceCount,
@@ -242,6 +282,7 @@ void MeshEmitter::Log_DescPayload(const char* context) const
         static_cast<uint32>(_desc.spawn.particleSpawn.bursts.size()),
         _desc.lifetime.lifeTime.x,
         _desc.lifetime.lifeTime.y,
+        static_cast<uint32>(_desc.meshTransform.alignment),
         _desc.meshTransform.initialScaleEnabled,
         _desc.meshTransform.scaleByLife.enabled,
         _desc.motion.enabled,
@@ -296,6 +337,8 @@ bool MeshEmitter::Is_CompatibleReloadDesc(const MeshEmitterDesc& desc) const
     if (desc.useModelMaterials != _desc.useModelMaterials)
         return false;
     if (Has_MaterialOverride(_desc) && !Has_MaterialOverride(desc))
+        return false;
+    if (desc.meshTransform.alignment != _desc.meshTransform.alignment)
         return false;
 
     return true;
@@ -743,17 +786,51 @@ void MeshEmitter::Update_InstanceBuffer()
     const uint32 drawLimit = _desc.drawLimit.useMaxDrawCount
                              ? min(max(1u, _desc.drawLimit.maxDrawCount), static_cast<uint32>(_instancePayload.size()))
                              : static_cast<uint32>(_instancePayload.size());
+    vector<const MeshParticleState*> sortedParticles{};
+    sortedParticles.reserve(_particles.size());
 
     for (const MeshParticleState& particle : _particles)
     {
-        if (!particle.active || _activeInstanceCount >= drawLimit)
+        if (!particle.active)
             continue;
 
-        const float lifeProgress = clamp(particle.age / max(0.0001f, particle.lifeMax), 0.f, 1.f);
+        sortedParticles.push_back(&particle);
+    }
+
+    const Vec4* cameraPosition4 = Resolve_RenderGroup() == RenderGroup::Blend && GAME != nullptr
+                                  ? GAME->Get_CamPosition()
+                                  : nullptr;
+    Vec3 localBoundsMin{};
+    Vec3 localBoundsMax{};
+    const bool hasLocalBounds = _model != nullptr && _model->Try_Get_LocalBounds(localBoundsMin, localBoundsMax);
+    const Vec3 localBoundsExtent = hasLocalBounds ? (localBoundsMax - localBoundsMin) * 0.5f : Vec3{};
+    const float localBoundsRadius = hasLocalBounds ? localBoundsExtent.Length() : 0.f;
+
+    if (cameraPosition4 != nullptr && hasLocalBounds)
+    {
+        const Vec3 cameraPosition{ cameraPosition4->x, cameraPosition4->y, cameraPosition4->z };
+        stable_sort(sortedParticles.begin(), sortedParticles.end(),
+            [&](const MeshParticleState* lhs, const MeshParticleState* rhs)
+            {
+                const auto compute_particle_depth_sq = [&](const MeshParticleState& particle) -> float
+                {
+                    return (particle.position - cameraPosition).LengthSquared();
+                };
+
+                return compute_particle_depth_sq(*lhs) > compute_particle_depth_sq(*rhs);
+            });
+    }
+
+    for (const MeshParticleState* particle : sortedParticles)
+    {
+        if (particle == nullptr || _activeInstanceCount >= drawLimit)
+            continue;
+
+        const float lifeProgress = clamp(particle->age / max(0.0001f, particle->lifeMax), 0.f, 1.f);
         MeshInstanceVertex& instance = _instancePayload[_activeInstanceCount++];
-        instance.world = Build_InstanceMatrix(particle);
-        instance.color = Evaluate_ColorOverLife(particle, lifeProgress);
-        instance.lifeTime = Vec2{ particle.lifeMax, particle.age };
+        instance.world = Build_InstanceMatrix(*particle);
+        instance.color = Evaluate_ColorOverLife(*particle, lifeProgress);
+        instance.lifeTime = Vec2{ particle->lifeMax, particle->age };
         instance.padding = Vec2{};
     }
 
@@ -962,7 +1039,10 @@ void MeshEmitter::Spawn_Particles(uint32 spawnRequest)
             if (particle.active)
                 continue;
 
-            Activate_Particle(particle, index * 9781u + _nextSpawnCursor * 6271u + _loopIndex * 7919u + 1u);
+            const uint32 emitterSeed = _emitterId * 104729u;
+            Activate_Particle(
+                particle,
+                index * 9781u + _nextSpawnCursor * 6271u + _loopIndex * 7919u + emitterSeed + 1u);
             _nextSpawnCursor = (index + 1u) % static_cast<uint32>(_particles.size());
             --remainingRequest;
             activated = true;
@@ -1102,6 +1182,7 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
     return
         Matrix::CreateScale(scale) *
         Matrix::CreateFromQuaternion(rotation) *
+        Internal::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment) *
         Matrix::CreateTranslation(position);
 }
 
@@ -1386,6 +1467,9 @@ Vec3 MeshEmitter::Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& d
 
 RenderGroup MeshEmitter::Resolve_RenderGroup() const
 {
+    if (_desc.renderLayerOverride == EffectEmitterRenderLayerOverride::UIEffect)
+        return RenderGroup::UIEffect;
+
     if (Is_DistortionFamily())
         return RenderGroup::Distortion;
 

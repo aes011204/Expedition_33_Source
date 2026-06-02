@@ -266,18 +266,15 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
 
     // Shadow
     float4 worldPos = WorldPos;
+    float viewDepth = Get_ViewZ(In.Texcoord);
+    uint dynamicCascadeIndex = SelectShadowCascade(viewDepth);
 
-    float dynamicShadow = SampleShadowAmount(
-    g_LightDepthTexture,
-    worldPos,
-    g_LightViewMatrix,
-    g_LightProjMatrix,
-    g_Bias);
+    float dynamicShadow = SampleDynamicShadowAmount(worldPos, viewDepth);
 
     float staticShadow = 0.f;
     if (g_StaticShadowEnabled > 0.5f)
     {
-        staticShadow = SampleShadowAmount(
+        staticShadow = SampleStaticShadowAmount(
         g_StaticLightDepthTexture,
         worldPos,
         g_StaticLightViewMatrix,
@@ -292,6 +289,18 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
         float shadowBrightness = lerp(1.f, 0.45f, saturate(g_ShadowIntensity) * finalShadow);
         Out.Color.rgb *= shadowBrightness;
     }
+
+#if SHADOW_DEBUG_MODE == 1
+    Out.Color.rgb = dynamicShadow.xxx;
+    Out.Color.a = Diffuse.a;
+    Out.Mask = 1.f;
+    return Out;
+#elif SHADOW_DEBUG_MODE == 2
+    Out.Color.rgb = GetCascadeDebugColor(dynamicCascadeIndex);
+    Out.Color.a = Diffuse.a;
+    Out.Mask = 1.f;
+    return Out;
+#endif
 
     Out.Color.rgb += Emissive.rgb;
     Out.Color.a = Diffuse.a;

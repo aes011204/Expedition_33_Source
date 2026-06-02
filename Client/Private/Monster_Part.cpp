@@ -140,9 +140,6 @@ HRESULT Monster_Part::Render_Shadow()
     if (FAILED(GAME->Bind_ShadowCB(_shader)))
         return E_FAIL;
 
-    if (FAILED(_shader->Reset_DrawFeatures()))
-        return E_FAIL;
-
     // runtime compute 경로가 있으면 runtime buffer 준비
     if (_animComputeRuntime != nullptr)
     {

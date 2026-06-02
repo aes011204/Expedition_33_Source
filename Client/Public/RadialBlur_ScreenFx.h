@@ -28,6 +28,7 @@ public:
     HRESULT Initialize(ScreenFxDesc* desc) override;
     void Update_ScreenFx(float timeDelta) override;
     HRESULT Bind_FxConstantBuffer(ShaderCom* shader) override;
+    HRESULT Bind_ShaderResources(const Shared<ShaderCom>& shader) override;
     void Evaluate_At(float elapsedTime) override;
 
 private:

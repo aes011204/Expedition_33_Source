@@ -31,12 +31,14 @@ public:
     void    Restore_RenderGroups();
     void    Sync_ViewportDependentState(uint32 width, uint32 height);
     uint32  Get_RenderCall() const;
+    void    Set_ShadowEnabled(bool enabled) { _shadowEnabled = enabled; }
+    bool    Is_ShadowEnabled() const { return _shadowEnabled; }
 
-    const Shared<PostProcessPipeline>&   Get_PostProcessPipeline() const
+    const Shared<PostProcessPipeline>& Get_PostProcessPipeline() const
     {
         return _ppPipeline;
     }
-    Shared<PostProcessPipeline>    Get_PostProcessPipeline()
+    const Shared<PostProcessPipeline>& Get_PostProcessPipeline()
     {
         return _ppPipeline;
     }
@@ -44,10 +46,11 @@ public:
     {
         return _lightingPipeline;
     }
-    Shared<LightingPipeline> Get_LightingPipeline()
+    const Shared<LightingPipeline>& Get_LightingPipeline()
     {
         return _lightingPipeline;
     }
+    HRESULT Reload_RendererShaders();
     RenderGroup Get_CurrentGroup() const
     {
         return _currentGroup;
@@ -60,6 +63,7 @@ public:
 public:
     void Register_StaticShadowCaster(const Shared<GameObject>& gameObject);
     void Mark_StaticShadowDirty();
+    void PostDraw();
 
 private:
 	void Render_Priority();
@@ -72,9 +76,11 @@ private:
     void Render_Distortion(); // HDRColor snapshot과 distortion field를 사용해 fullscreen 왜곡 resolve를 수행한다.
 	void Render_Blend();
     void Render_ScreenFx();
+    void Render_UIEffect();
 
     void Render_CombinedHDR();
     void Render_PostProcess();
+    
 
     HRESULT Ready_Shaders();
     void Change_ViewportDesc(uint32 width, uint32 height);
@@ -90,6 +96,8 @@ private: /* 그림자 */
     void Update_DynamicShadowCamera();  // 카메라가 플레이어 위치 추적
     void Render_StaticShadowOnce();     // Static Shadow는 한번만
     void Render_DynamicShadow();        // 기존 Render Shadow 로직 이동
+    bool Should_UpdateDynamicShadowCascade(uint32 cascadeIndex) const;
+    bool Should_RenderDynamicShadowObject(const Shared<GameObject>& gameObject) const;
     bool Build_StaticShadowBounds(BoundingBox& outBounds) const;
     void Update_StaticShadowCamera(const BoundingBox& bounds);
 
@@ -117,8 +125,7 @@ private:
     enum class IBLDebugMode : uint8 { Default = 0, SpecularOnly, DiffuseOnly };
     IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
 
-    float                           _shadowScale = 1.f;
-    bool                            _shadowEnabled = false;
+    bool                            _shadowEnabled = true;
 
     Matrix                          _pipelineWorldMatrix;
     Matrix                          _PipelineViewMatrix;
@@ -131,9 +138,10 @@ private:
     list<Weak<GameObject>>          _staticShadowCasters;
     bool                            _staticShadowDirty = true;
     bool                            _staticShadowReady = false;
+    uint64                          _shadowFrameIndex = 0;
 
     ViewportSize                    _screenSize{};
-    ViewportSize                    _shadowMapSize = { 4096, 4096 };
+    ViewportSize                    _shadowMapSize = { 2048, 2048 };
     ViewportSize                    _shadowStaticSize = { 4096, 4096 };
 
     RenderGroup                     _currentGroup = RenderGroup::END;
