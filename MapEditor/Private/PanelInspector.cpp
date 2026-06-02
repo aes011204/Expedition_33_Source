@@ -94,7 +94,7 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
     Matrix rotMat = Matrix::CreateFromQuaternion(obj->_rotation);
 
     float pitch = {}, yaw = {}, roll = {};
-    pitch = asinf(-rotMat._32);
+    pitch = asinf(clamp(-rotMat._32, -1.f, 1.f));
 
     if (cosf(pitch) > 1e-6f)
     {

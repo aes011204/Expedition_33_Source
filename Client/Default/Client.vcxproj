@@ -223,6 +223,7 @@
     <ClInclude Include="..\Public\GameplayUI_Battle.h" />
     <ClInclude Include="..\Public\GameplayUI_World.h" />
     <ClInclude Include="..\Public\MapLandscape.h" />
+    <ClInclude Include="..\Public\MainTitleMenuSound.h" />
     <ClInclude Include="..\public\Level_GameEntry.h" />
     <ClInclude Include="..\public\MB_Bishop.h" />
     <ClInclude Include="..\public\MB_Portier.h" />
@@ -384,6 +385,7 @@
     <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
     <ClInclude Include="..\Public\UI_BattleMechanism.h" />
     <ClInclude Include="..\Public\UI_HealFont.h" />
+    <ClInclude Include="..\Public\UI_MarkEffect.h" />
     <ClInclude Include="..\Public\UI_PlayerHpBar.h" />
     <ClInclude Include="..\Public\UI_BattleSystemHUD.h" />
     <ClInclude Include="..\Public\UI_BattleSystem_TurnOrder.h" />
@@ -502,6 +504,7 @@
     <ClCompile Include="..\Private\GameplayUI_Battle.cpp" />
     <ClCompile Include="..\Private\GameplayUI_World.cpp" />
     <ClCompile Include="..\Private\MapLandscape.cpp" />
+    <ClCompile Include="..\Private\MainTitleMenuSound.cpp" />
     <ClCompile Include="..\private\Level_GameEntry.cpp" />
     <ClCompile Include="..\private\MB_Bishop.cpp" />
     <ClCompile Include="..\private\MB_Portier.cpp" />
@@ -655,6 +658,7 @@
     <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
     <ClCompile Include="..\Private\UI_HealFont.cpp" />
+    <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
     <ClCompile Include="..\Private\UI_PlayerHpBar.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystemHUD.cpp" />
     <ClCompile Include="..\Private\UI_BattleSystem_TurnOrder.cpp" />

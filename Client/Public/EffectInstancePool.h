@@ -30,6 +30,7 @@ public:
         wstring layerTag{};                                     // pool에 재사용 가능한 instance가 없을 때 새 EffectInstance를 등록할 layer tag다.
         Vec3 worldPosition{ Vec3::Zero };                       // acquire된 EffectInstance root GameObject에 적용할 시작 월드 위치다.
         Vec3 scale{ Vec3::One };                                // acquire된 EffectInstance root GameObject에 적용할 시작 스케일이다.
+        Vec3 worldRotation = Vec3::Zero;                        // acquire된 EffectInstance root GameObject에 적용할 시작 월드 회전이다.
         Weak<IEffectTrailSampleProvider> trailSampleProvider{}; // trail emitter가 base/tip sample을 얻는 provider다. pool이 만들지 않고 attachment owner가 넘긴다.
     };
 
@@ -104,7 +105,10 @@ private:
         const Shared<const EffectDefinition>& definition,
         Shared<EffectInstance>& outInstance);
     // 다음 재생 전에 Reset/position/Play를 적용한다.
-    HRESULT Prepare_AcquiredInstance(const AcquireDesc& desc, const Shared<EffectInstance>& instance);
+    HRESULT Prepare_AcquiredInstance(
+        const AcquireDesc& desc,
+        const Shared<const EffectDefinition>& definition,
+        const Shared<EffectInstance>& instance);
     // definition 내용에 따라 handle 반환 정책을 갱신한다.
     void Populate_Handle(
         const AcquireDesc& desc,

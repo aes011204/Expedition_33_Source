@@ -261,6 +261,9 @@
     <ClCompile Include="..\private\Level_GameEntry.cpp">
       <Filter>01.Levels\Logo</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MainTitleMenuSound.cpp">
+      <Filter>01.Levels\Logo</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\BT_LookRange.cpp" />
     <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
@@ -415,6 +418,8 @@
     <ClCompile Include="..\Private\BattleQTEController.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
+    <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1048,6 +1053,9 @@
     <ClInclude Include="..\public\Level_GameEntry.h">
       <Filter>01.Levels\Logo</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MainTitleMenuSound.h">
+      <Filter>01.Levels\Logo</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\BT_LookRange.h" />
     <ClInclude Include="..\Public\IRuntimeUI_EditorTarget.h" />
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
@@ -1203,6 +1211,7 @@
     <ClInclude Include="..\Public\BattleQTEController.h">
       <Filter>BattleState</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_MarkEffect.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

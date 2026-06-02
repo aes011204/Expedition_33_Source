@@ -1,5 +1,6 @@
 ﻿#include "GameplayUI_Battle.h"
 
+#include "BuffSystem.h"
 #include "Monster_BattleBase.h"
 #include "ClientInstance.h"
 #include "ClientScreenFxManager.h"
@@ -7,6 +8,7 @@
 #include "DamageSystem.h"
 #include "PlayerStatCom.h"
 #include "ScreenFx_Manager.h"
+#include "Skill_Gustave_Battle.h"
 
 #include "UI_AttackTooltip.h"
 #include "UI_BattleCommandHUD.h"
@@ -31,6 +33,7 @@
 #include "UI_SuddenAttack.h"
 #include "UI_AddAP.h"
 #include "UI_QTE.h"
+#include "UI_MarkEffect.h"
 
 #include "UI_Utils.h"
 
@@ -93,6 +96,7 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
     CHECK_FAILED(Create_UI(_battleAnnounce, UI_BattleAnnounce::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_suddenAttack, UI_SuddenAttack::Create), E_FAIL);
     CHECK_FAILED(Create_UI(_qte, UI_QTE::Create), E_FAIL);
+    CHECK_FAILED(Create_UI(_markEffect, UI_MarkEffect::Create), E_FAIL);
 
     // 데미지 폰트 최대 8개
     for (auto& damageFont : _damageFonts)
@@ -143,6 +147,7 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_SuddenAttack(timeDelta);     // 선제 공격
     Update_AddAPs(timeDelta);           // AP 증가
     Update_QTE(GAME->Get_UnscaledTimeDelta());
+    Update_MarkEffect(timeDelta);
 
     if (_battleTransition)
         _battleTransition->Update(timeDelta);
@@ -182,6 +187,7 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
     Append_RuntimePanelEntry(entries, "BattleAnnounce", _battleAnnounce.get());
     Append_RuntimePanelEntry(entries, "SuddenAttack", _suddenAttack.get());
     Append_RuntimePanelEntry(entries, "QTE", _qte.get());
+    Append_RuntimePanelEntry(entries, "MarkEffect", _markEffect.get());
 
     for (uint32 i = 0; i < _damageFonts.size(); ++i)
         Append_RuntimePanelEntry(entries, ("DamageFont_" + to_string(i)).c_str(), _damageFonts[i].get());
@@ -273,6 +279,16 @@ void GameplayUI_Battle::Bind_BattleDelegates()
 
     _qteResolvedHandle =
         _battleController->OnQTEResolved.Add(this, &GameplayUI_Battle::Handle_QTEResolved);
+
+    if (auto buffSystem = _battleController->Get_BuffSystem())
+    {
+        _buffAppliedHandle =
+            buffSystem->OnBuffApplied.Add(this, &GameplayUI_Battle::Handle_BuffApplied);
+
+        _buffConsumedHandle =
+            buffSystem->OnBuffConsumed.Add(this, &GameplayUI_Battle::Handle_BuffConsumed);
+    }
+
 }
 
 void GameplayUI_Battle::Unbind_BattleDelegates()
@@ -315,6 +331,15 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     if (_qteResolvedHandle.IsValid())
         _battleController->OnQTEResolved.Remove(_qteResolvedHandle);
 
+    if (auto buffSystem = _battleController->Get_BuffSystem())
+    {
+        if (_buffAppliedHandle.IsValid())
+            buffSystem->OnBuffApplied.Remove(_buffAppliedHandle);
+
+        if (_buffConsumedHandle.IsValid())
+            buffSystem->OnBuffConsumed.Remove(_buffConsumedHandle);
+    }
+
     _battleStartedHandle.Reset();
     _battleEndedHandle.Reset();
     _turnStartedHandle.Reset();
@@ -328,6 +353,9 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
 
     _qteStartedHandle.Reset();
     _qteResolvedHandle.Reset();
+
+    _buffAppliedHandle.Reset();
+    _buffConsumedHandle.Reset();
 
     _battleController.reset();
 
@@ -368,6 +396,7 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
         _battleAnnounce.get(),
         _suddenAttack.get(),
         _qte.get(),
+        _markEffect.get(),
     };
 
     for (UI_RuntimePanelBase* panel : panelsToClose)
@@ -375,6 +404,9 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
         if (panel)
             panel->Close();
     }
+
+    if (_markEffect)
+        _markEffect->Clear_Target();
 
     // 이전 전투에서 남은 배틀 슬롯 정리
     for (auto& damageFont : _damageFonts)
@@ -483,6 +515,7 @@ void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
         _battleAnnounce.get(),
         _suddenAttack.get(),
         _qte.get(),
+        // MarkingShot 징표는 다음 플레이어 공격이 시작될 때까지 유지한다.
     };
 
     for (auto* panel : panelsToClose)
@@ -533,6 +566,7 @@ void GameplayUI_Battle::Handle_ActionStarted(const BattleAction& action)
 
     if (_battleAnnounce && isAttackAction)
         _battleAnnounce->Show_TurnStart(action.Get_CurChar(), BattleTurnState::AttackPlaying);
+
 }
 
 void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float damage, AttackType attackType)
@@ -743,6 +777,24 @@ void GameplayUI_Battle::Handle_QTEResolved(BattleQTEResult result)
 {
     if (_qte)
         _qte->Apply_ExternalResult(result);
+}
+
+void GameplayUI_Battle::Handle_BuffApplied(const BattleChar& target, Buffs buffId)
+{
+    // 일단 마크만
+    if (!_isBattleUiActive || buffId != Buffs::Mark || _markEffect == nullptr)
+        return;
+
+    _markEffect->Show_Target(target);
+}
+
+void GameplayUI_Battle::Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage)
+{
+    if (!_isBattleUiActive)
+        return;
+
+    if (_markEffect)
+        _markEffect->Clear_Target();
 }
 
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
@@ -1383,6 +1435,12 @@ void GameplayUI_Battle::Update_QTE(float timeDelta)
 
 }
 
+void GameplayUI_Battle::Update_MarkEffect(float timeDelta)
+{
+    if (_markEffect)
+        _markEffect->Update(timeDelta);
+}
+
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
 {
     if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
@@ -1554,6 +1612,7 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
         _battleAnnounce.get(),
         _suddenAttack.get(),
         _qte.get(),
+        _markEffect.get(),
     };
 
     for (auto* panel : panelsToClose)
@@ -1561,6 +1620,9 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
         if (panel)
             panel->Close();
     }
+
+    if (_markEffect)
+        _markEffect->Clear_Target();
 
     for (auto& damageFont : _damageFonts)
     {
@@ -1632,6 +1694,7 @@ void GameplayUI_Battle::Free()
     Release_UI(_battleAnnounce);
     Release_UI(_suddenAttack);
     Release_UI(_qte);
+    Release_UI(_markEffect);
 
     for (auto& damageFont : _damageFonts)
         Release_UI(damageFont);

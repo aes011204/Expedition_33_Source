@@ -246,25 +246,21 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleS
 {
     if (!_isCounterPending)
         return;
+
     bool ownsSource = false;
+
     for (const BattleChar& target : _reactionAnimTargets)
     {
-        //if (target.ModelCom && target.ModelCom.get() == sourceModel)
-        //{
-         //   ownsSource = true;
-            if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Counter), 0.12f, false))
-                return;
-        //    break;
-       // }
+        target.ModelCom->Set_RootMotionEnabled(true);
+
+        if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Counter), 0.12f, false))
+            return;
     }
 
-    //if (!ownsSource)
-    //    return;
-
-   // EvtBattlePresentation event;
-   // event.cameraMode = BattleCameraMode::PARRY;
-   // event.subject = _reactionAnimTargets.front().actor;
-   // GAME->Get_EventBus().Publish(event);
+    // EvtBattlePresentation event;
+    // event.cameraMode = BattleCameraMode::PARRY;
+    // event.subject = _reactionAnimTargets.front().actor;
+    // GAME->Get_EventBus().Publish(event);
 
     GAME->Slow_WorldTime(slowDesc.worldTimeScale, slowDesc.duration);
     sourceModel->Set_FrameSpeed(counterPlayRate); // 플레이어 속도 증가
@@ -295,7 +291,7 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
         if (target.actor == nullptr || target.statCom == nullptr)
             continue;
 
-        DamageSystem::ApplyDamage(counterDamage, _counterDamageTarget, AttackType::Counter);
+        DamageSystem::ApplyDamage(counterDamage, target, _counterDamageTarget, AttackType::Counter);
         ++hitCount;
     }
 
@@ -331,7 +327,6 @@ bool BattleReactionController::IsHitOrDeadBattleAnim(BattleAnimType animType) co
 void BattleReactionController::PlayReactionAnimation(const BattleChar& target, BattleReactionType reactionType,
     bool isSuccess, const BattleChar& counterTarget, uint32 curAttackIndex)
 {
-
     if (target.ModelCom == nullptr)
         return;
 
@@ -360,16 +355,14 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
         return;
     }
 
-    target.ModelCom->Set_RootMotionEnabled(false);
+    const bool useRootMotion = (reactionType != BattleReactionType::Dodge);
+    target.ModelCom->Set_RootMotionEnabled(useRootMotion);
 
     if (!target.ModelCom->Set_AnimationByState(ETOI(animType), 0.1f, false))
         return;
 
     _reactionAnimTargets.push_back(target);
     _animPhase = ReactionAnimPhase::Reaction;
-
-
-
 }
 
 void BattleReactionController::FinishReactionAnimation()

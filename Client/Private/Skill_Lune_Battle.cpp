@@ -16,7 +16,7 @@ void Skill_Lune_Immolation::Execute(const Skill_Data& skill, const BattleAction&
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_LuneStains({ ElementalType::Fire });
 
-    DamageSystem::ApplyDamage(15.f, target, attackType);
+    DamageSystem::ApplyDamage(15.f, attacker, target, attackType);
 }
 
 Shared<Skill_Lune_Immolation> Skill_Lune_Immolation::Create()
@@ -37,7 +37,7 @@ void Skill_Lune_IceGust::Execute(const Skill_Data& skill, const BattleAction& ac
     if (attacker.mechanismCom)
         attacker.mechanismCom->Add_LuneStains({ ElementalType::Ice, ElementalType::Light });
 
-    DamageSystem::ApplyDamage(15.f, target, attackType);
+    DamageSystem::ApplyDamage(15.f, attacker, target, attackType);
 }
 
 Shared<Skill_Lune_IceGust> Skill_Lune_IceGust::Create()
@@ -62,7 +62,7 @@ void Skill_Lune_Thunderfall::Execute(const Skill_Data& skill, const BattleAction
     const float totalDamage = 80.f;
     const float hitDamage = totalDamage / static_cast<float>(hitCount);
 
-    DamageSystem::ApplyDamage(hitDamage, target, attackType); // 첫 타 호출 시점은 AN_Attack
+    DamageSystem::ApplyDamage(hitDamage, attacker, target, attackType); // 첫 타 호출 시점은 AN_Attack
 
     const int32 remainingHits = hitCount - 1; // hitCount에서 한대 때렸으니까 -1
     if (remainingHits <= 0)

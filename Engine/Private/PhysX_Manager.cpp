@@ -203,6 +203,52 @@ namespace
     private:
         PxFilterData _selfFilterData{};
     };
+
+    class TargetChannel_QueryFilterCallback final : public PxQueryFilterCallback
+    {
+    public:
+        explicit TargetChannel_QueryFilterCallback(Collision_Channel targetChannel)
+            : _targetChannel(targetChannel)
+        {
+        }
+
+        PxQueryHitType::Enum preFilter(
+            const PxFilterData& filterData,
+            const PxShape* shape,
+            const PxRigidActor* actor,
+            PxHitFlags& queryFlags) override
+        {
+            UNREFERENCED_PARAMETER(filterData);
+            UNREFERENCED_PARAMETER(actor);
+            UNREFERENCED_PARAMETER(queryFlags);
+
+            if (shape == nullptr)
+                return PxQueryHitType::eNONE;
+
+            const PxFilterData targetFilterData = shape->getQueryFilterData();
+            if ((targetFilterData.word0 & ETOI(_targetChannel)) == 0)
+                return PxQueryHitType::eNONE;
+
+            return PxQueryHitType::eBLOCK;
+        }
+
+        PxQueryHitType::Enum postFilter(
+            const PxFilterData& filterData,
+            const PxQueryHit& hit,
+            const PxShape* shape,
+            const PxRigidActor* actor) override
+        {
+            UNREFERENCED_PARAMETER(filterData);
+            UNREFERENCED_PARAMETER(hit);
+            UNREFERENCED_PARAMETER(shape);
+            UNREFERENCED_PARAMETER(actor);
+
+            return PxQueryHitType::eBLOCK;
+        }
+
+    private:
+        Collision_Channel _targetChannel{};
+    };
 }
 
 PhysX_Manager::PhysX_Manager()
@@ -759,6 +805,64 @@ bool PhysX_Manager::Sweep_Sphere(const Vec3& origin, const Vec3& direction, floa
 
     return true;
 
+}
+
+bool PhysX_Manager::Raycast_Environment(
+    const Vec3& origin,
+    const Vec3& direction,
+    float distance,
+    PhysXQueryHit& outHit) const
+{
+    outHit = {};
+
+    CHECK_NULL(_scene, false);
+
+    if (distance <= 0.f)
+        return false;
+
+    if (direction.LengthSquared() <= 0.f)
+        return false;
+
+    Vec3 unitDir = direction;
+    unitDir.Normalize();
+
+    TargetChannel_QueryFilterCallback filterCallback(Collision_Channel::Enviroment);
+
+    PxQueryFilterData queryFilterData;
+    queryFilterData.flags =
+        PxQueryFlag::eSTATIC |
+        PxQueryFlag::eDYNAMIC |
+        PxQueryFlag::ePREFILTER;
+
+    PxRaycastBuffer hitBuffer;
+    const bool hit = _scene->raycast(
+        PxVec3(origin.x, origin.y, origin.z),
+        PxVec3(unitDir.x, unitDir.y, unitDir.z),
+        distance,
+        hitBuffer,
+        PxHitFlag::eDEFAULT,
+        queryFilterData,
+        &filterCallback);
+
+    if (!hit || !hitBuffer.hasBlock)
+        return false;
+
+    const PxRaycastHit& block = hitBuffer.block;
+
+    outHit.hit = true;
+    outHit.distance = block.distance;
+    outHit.position = Vec3(block.position.x, block.position.y, block.position.z);
+    outHit.normal = Vec3(block.normal.x, block.normal.y, block.normal.z);
+
+    ColliderCom* hitCollider = nullptr;
+    if (block.shape != nullptr)
+        hitCollider = static_cast<ColliderCom*>(block.shape->userData);
+
+    outHit.collider = hitCollider;
+    outHit.owner = (hitCollider != nullptr && hitCollider->Get_Owner() != nullptr)
+        ? hitCollider->Get_Owner().get() : nullptr;
+
+    return true;
 }
 
 bool PhysX_Manager::Sweep_Collider(ColliderCom* collider, const Matrix& worldMatrix, const Vec3& direction,

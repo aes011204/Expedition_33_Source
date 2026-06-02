@@ -82,6 +82,12 @@ public: /* Camera Collision Test */
 
 	// 현재 충돌체 모양을 가져와서 주어진 방향으로, 주어진 거리만큼 query를 날려서
 	// 맞았는지, 얼마나 갔는지, 어디에 맞았는지 결과를 채워줌
+    bool Raycast_Environment(
+        const Vec3& origin,
+        const Vec3& direction,
+        float distance,
+        PhysXQueryHit& outHit) const;
+
 	bool Sweep_Collider(ColliderCom* collider, const Matrix& worldMatrix,
 		                const Vec3& direction, float distance, PhysXQueryHit& outHit) const;
 

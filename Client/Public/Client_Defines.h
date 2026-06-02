@@ -5,11 +5,6 @@
 
 #include "Engine_Define.h"
 
-#include "Client_Macro.h"
-#include "Client_Enum.h"
-#include "Client_Struct.h"
-#include "Client_Constants.h"
-
 extern HWND g_hWnd;
 extern HINSTANCE g_hInst;
 
@@ -20,5 +15,10 @@ namespace Client
 
     enum class LevelType { Static, Loading, MainTitle, GameEntry, GamePlay, MapTest, Stage01, END }; 
 }
+
+#include "Client_Macro.h"
+#include "Client_Enum.h"
+#include "Client_Struct.h"
+#include "Client_Constants.h"
 
 using namespace Client;

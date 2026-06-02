@@ -7,6 +7,30 @@
 
 NS_BEGIN(Client)
 
+namespace
+{
+    wstring Make_EffectInstanceDisplayName(
+        const EffectInstancePool::AcquireDesc& desc,
+        const Shared<const EffectDefinition>& definition)
+    {
+        if (definition && !definition->name.empty())
+            return String::ToWString(definition->name);
+
+        wstring displayName = desc.effectName;
+        const size_t slashPos = displayName.find_last_of(L"\\/");
+        if (slashPos != wstring::npos)
+            displayName = displayName.substr(slashPos + 1);
+
+        constexpr wstring_view effectSuffix = L".effect.json";
+        if (displayName.ends_with(effectSuffix))
+            displayName.erase(displayName.size() - effectSuffix.size());
+        else if (constexpr wstring_view shortEffectSuffix = L".effect"; displayName.ends_with(shortEffectSuffix))
+            displayName.erase(displayName.size() - shortEffectSuffix.size());
+
+        return displayName.empty() ? L"EffectInstance" : displayName;
+    }
+}
+
 HRESULT EffectInstancePool::Acquire(const AcquireDesc& desc, AttachedHandle& outHandle)
 {
     LOG_INFO(
@@ -18,7 +42,7 @@ HRESULT EffectInstancePool::Acquire(const AcquireDesc& desc, AttachedHandle& out
     Shared<const EffectDefinition> definition{};
     Shared<EffectInstance> instance{};
     CHECK_FAILED(Acquire_Instance(desc, definition, instance), E_FAIL);
-    CHECK_FAILED(Prepare_AcquiredInstance(desc, instance), E_FAIL);
+    CHECK_FAILED(Prepare_AcquiredInstance(desc, definition, instance), E_FAIL);
 
     Populate_Handle(desc, definition, instance, outHandle);
 
@@ -60,7 +84,7 @@ HRESULT EffectInstancePool::Reload_Attached(const AcquireDesc& desc, AttachedHan
     entry->layerLevelIndex = desc.layerLevelIndex;
     entry->inUse = true;
 
-    CHECK_FAILED(Prepare_AcquiredInstance(desc, entry->instance), E_FAIL);
+    CHECK_FAILED(Prepare_AcquiredInstance(desc, definition, entry->instance), E_FAIL);
     Populate_Handle(desc, definition, entry->instance, handle);
 
     LOG_INFO(
@@ -274,15 +298,20 @@ HRESULT EffectInstancePool::Spawn_NewInstance(
     return S_OK;
 }
 
-HRESULT EffectInstancePool::Prepare_AcquiredInstance(const AcquireDesc& desc, const Shared<EffectInstance>& instance)
+HRESULT EffectInstancePool::Prepare_AcquiredInstance(
+    const AcquireDesc& desc,
+    const Shared<const EffectDefinition>& definition,
+    const Shared<EffectInstance>& instance)
 {
     CHECK_NULL(instance, E_FAIL);
     instance->Bind_TrailSampleProvider(desc.trailSampleProvider);
     CHECK_FAILED(instance->Reset(), E_FAIL);
+    instance->Set_Name(Make_EffectInstanceDisplayName(desc, definition));
 
     const Shared<TransformCom> transform = instance->Get_Transform();
     CHECK_NULL(transform, E_FAIL);
     transform->Set_WorldPosition(desc.worldPosition);
+    transform->Set_WorldRotationEuler(desc.worldRotation);
     transform->Set_Scale(desc.scale);
 
     CHECK_FAILED(instance->Play(), E_FAIL);

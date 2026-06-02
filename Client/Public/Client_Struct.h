@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include "EffectInstancePool.h"
+
 namespace Client
 {
     class Player_WorldBase;
@@ -53,6 +55,18 @@ namespace Client
         uint32 solverIterations = 3;
     };
 
-    
+    struct PlayEffectDesc
+    {
+        wstring effectName{};
+        wstring layerTag = L"Layer_Effect";
+
+        // attach가 아니라, spawn 순간 local transform 계산에만 쓰는 기준 오브젝트다.
+        Shared<GameObject> spawnBasisTarget{};
+
+        Vec3 worldPosition  = Vec3::Zero;
+        Vec3 localOffset    = Vec3::Zero;
+        Vec3 localRotation  = Vec3::Zero;
+        Vec3 scale          = Vec3::One;
+    };
 
 }
