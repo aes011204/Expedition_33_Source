@@ -417,6 +417,7 @@
     </ClCompile>
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
+    <ClCompile Include="..\private\Mon_WeakPoint.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1203,6 +1204,7 @@
       <Filter>BattleState</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_MarkEffect.h" />
+    <ClInclude Include="..\public\Mon_WeakPoint.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
