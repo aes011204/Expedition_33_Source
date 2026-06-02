@@ -35,6 +35,13 @@ bool Is_PostUpdateLayer(const wstring& layerTag)
     // Effect는 owner/socket transform 갱신 이후 tick되어야 한다.
     return layerTag == TEXT("Layer_Effect");
 }
+
+bool Should_UpdateLevel(size_t levelIndex)
+{
+    constexpr size_t staticLevelIndex = 0;
+    return levelIndex == staticLevelIndex ||
+        levelIndex == GAME->Current_LevelIndex();
+}
 }
 
 Object_Manager::Object_Manager()
@@ -148,6 +155,9 @@ void Object_Manager::Priority_Update(float timeDelta)
 
     for (size_t levelIndex = 0; levelIndex < _layers.size(); ++levelIndex)
     {
+        if (!Should_UpdateLevel(levelIndex))
+            continue;
+
         auto& layers = _layers[levelIndex];
         for (auto& Pair : layers)
         {
@@ -188,6 +198,9 @@ void Object_Manager::Update(float timeDelta)
 
     for (size_t levelIndex = 0; levelIndex < _layers.size(); ++levelIndex)
     {
+        if (!Should_UpdateLevel(levelIndex))
+            continue;
+
         auto& layers = _layers[levelIndex];
         for (auto& Pair : layers)
         {
@@ -228,6 +241,9 @@ void Object_Manager::Late_Update(float timeDelta)
 
     for (size_t levelIndex = 0; levelIndex < _layers.size(); ++levelIndex)
     {
+        if (!Should_UpdateLevel(levelIndex))
+            continue;
+
         auto& layers = _layers[levelIndex];
         for (auto& Pair : layers)
         {

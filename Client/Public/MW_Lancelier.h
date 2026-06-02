@@ -19,6 +19,7 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
+    void    From_Json(const json& data) override;
     void    Priority_Update(float timeDelta) override;
     void    Update(float timeDelta) override;
     HRESULT Render() override;
@@ -31,6 +32,9 @@ public:
 protected:
     HRESULT Ready_Components() override;
     HRESULT Ready_PartObjects();
+
+private:
+    void    Rebuild_PatrolPointsFromCurrentPosition();
 
 private:
     Shared<Mon_Lancelier_Body>      _body = {};

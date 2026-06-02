@@ -89,6 +89,9 @@ void Trigger_WorldAction::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collid
 
     CLIENT->Play_Effect(desc);
 
+    // PhysX overlap callback은 한쪽 owner만 호출되므로, F 액션 트리거가 self로 들어온 경우에도 몬스터의 전투 진입 로직을 태운다.
+    hitMonster->OnBeginOverlap(other, self);
+
     if (self)
     {
         self->Set_IsActive(false); // 같은 프레임 다중 몬스터 중복 판정 방지

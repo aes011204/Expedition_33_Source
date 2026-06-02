@@ -52,6 +52,7 @@ void Mon_WeakPoint::BeginPlay()
         desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
         desc.layerTag = L"Layer_Effect";
         desc.followTarget = true;
+        desc.scale = Vec3(0.3f);
         desc.requiresManualRelease = true;
 
         _effectCom->Play_Effect(desc);

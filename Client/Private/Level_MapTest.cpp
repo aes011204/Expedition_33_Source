@@ -139,22 +139,15 @@ HRESULT Level_MapTest::Ready_Layer_Player(const wstring& strLayerTag)
 
 HRESULT Level_MapTest::Ready_Layer_Monster(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(0.f, 1.15f, -7.94f);
-
-    const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Lancelier,
-        ETOI(LevelType::MapTest),
-        strLayerTag);
-
-    CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, +10.f));
+    UNREFERENCED_PARAMETER(strLayerTag);
 
     // 전투 시작 위치
-    auto spawner = Spawn_Prefab::Prefab("BSS_GamePlay_Boss")
+    const Shared<GameObject> spawner = Spawn_Prefab::Prefab("BSS_GamePlay_Boss")
         .AtLevel(ETOI(LevelType::MapTest))
         .InLayer(TEXT("Layer_BattleStartSpawner"))
         .Position(Vec3(17.f, 0.46f, -3.2f))
         .Spawn();
+    CHECK_NULL(spawner, E_FAIL);
 
     return S_OK;
 }

@@ -328,6 +328,32 @@ void Monster_WorldBase::From_Json(const json& data)
 {
     Character_WorldBase::From_Json(data);
 
+    _isBattleStart = false;
+    _isStun = false;
+    _stunTime = 0.f;
+    _desiredAction = MonsterWorldAnim::Idle;
+    _currentAction = MonsterWorldAnim::Idle;
+    _previousAction = MonsterWorldAnim::Idle;
+    _hasAppliedAction = false;
+
+    if (_colliderCom)
+    {
+        _colliderCom->Set_IsActive(true);
+        _colliderCom->Clear_Overlap();
+    }
+
+    if (_movementCom)
+    {
+        _movementCom->Set_Transform(_transformCom);
+        _movementCom->Sync_RuntimePositionToTransform(); // Reload/authoring 복원 뒤 CCT 위치를 Transform과 맞춘다.
+        _movementCom->Stop_AllMovement();
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+    }
+
+    if (_aiCtrl)
+        _aiCtrl->Stop_Move();
+
     _battleMonsterSpawnDescs.clear();
     _battleStartSpawnerId = 0;
 

@@ -71,6 +71,7 @@ private:
         Shared<const EffectDefinition> definition{}; // 재생 시 재사용하는 정적 effect 정의다.
         Shared<EffectInstance> instance{};           // 실제 재사용되는 runtime root다.
         uint32 layerLevelIndex{};                    // instance가 올라간 layer index다.
+        wstring layerTag{};                          // instance가 실제 소속된 layer tag다.
         bool inUse{ false };                         // 현재 consumer가 빌려 간 상태인지 나타낸다.
     };
 

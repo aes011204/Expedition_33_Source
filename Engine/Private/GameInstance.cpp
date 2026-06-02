@@ -1288,6 +1288,11 @@ bool GameInstance::Remove_GameObject(uint32 levelIndex, const Shared<GameObject>
     return _objectManager->Remove_GameObject(levelIndex, gameObject);
 }
 
+void GameInstance::Flush_RemovedGameObjects()
+{
+    _objectManager->Flush_RemovedGameObjects();
+}
+
 HRESULT GameInstance::Clear_LevelObjects(uint32 levelIndex)
 {
     _objectManager->Visit_LevelObjects(
@@ -2619,14 +2624,18 @@ void GameInstance::Release_Engine()
 
     ReleaseManager(_lightManager);
     ReleaseManager(_inputManager);
-    ReleaseManager(_collisionManager);
-    ReleaseManager(_physxManager);
 
     ReleaseManager(_pipeLine);
     ReleaseManager(_renderer);
+
+    // Free live objects before PhysX so ColliderCom can unregister/release actors while the scene still exists.
     ReleaseManager(_levelManager);
     ReleaseManager(_objectManager);
     ReleaseManager(_uiManager);
+
+    ReleaseManager(_collisionManager);
+    ReleaseManager(_physxManager);
+
     ReleaseManager(_prototypeManager);
     ReleaseManager(_typeRegistry);
     ReleaseManager(_picking);

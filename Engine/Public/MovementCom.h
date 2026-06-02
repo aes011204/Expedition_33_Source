@@ -81,6 +81,7 @@ public:
     {
         bool enabled = false;
         Vec3 worldDir = Vec3::Zero;
+        bool walkFollow = false;     // follower가 active hero의 Walk 속도를 따라야 하는지
         bool sprintFollow = false;   // 거리 벌어져서 sprint로 전환?
     };
 

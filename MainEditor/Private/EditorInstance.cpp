@@ -15,6 +15,9 @@
 #include "Body_Player.h"
 #include "ModelCom.h"
 #include "MovementCom.h"
+#include "Monster_WorldBase.h"
+#include "MapAuthoringIO.h"
+#include "Client_Constants.h"
 #include "Profile_View.h"
 #include "Material_View.h"
 #include "Model_Inspector.h"
@@ -259,10 +262,12 @@ void EditorInstance::Stop()
     {
         GAME->Get_DelegateHub().OnEditorStopRuntime.Broadcast();
 
-         if (Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
+        if (Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
             gameplayUI->Handle_EditorStopRuntime();
 
         Restore_PlayStartSnapshot();
+        Reload_CurrentLevelMonstersFromMapJson();
+        CLIENT->Restore_PartyFormationAfterEditorStop();
     }
 
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
@@ -996,6 +1001,82 @@ void EditorInstance::Restore_PlayStartSnapshot()
 
     _playStartWorldSnapshot.clear();
     _playStartSelectedObjectIndex = -1;
+}
+
+const wchar_t* EditorInstance::Resolve_CurrentLevelAuthoringMapPath() const
+{
+    switch (static_cast<LevelType>(GAME->Current_LevelIndex()))
+    {
+    case LevelType::GamePlay:
+        return Client::Constants::Map::SmallLevel_MF_Zone_01_Path;
+    case LevelType::MapTest:
+        return Client::Constants::Map::TestMap_Path;
+    case LevelType::Stage01:
+        return Client::Constants::Map::SmallLevel_SimonArea_Remake_Path;
+    default:
+        return nullptr;
+    }
+}
+
+void EditorInstance::Reload_CurrentLevelMonstersFromMapJson()
+{
+    const wchar_t* mapPath = Resolve_CurrentLevelAuthoringMapPath();
+    if (mapPath == nullptr)
+        return;
+
+    const json root = GAME->Load_JsonFile(mapPath);
+    if (!root.is_object() || !root.contains("MapData") || !root["MapData"].is_object())
+        return;
+
+    const json& sourceMapData = root["MapData"];
+    if (!sourceMapData.contains("PrefabInstances") || !sourceMapData["PrefabInstances"].is_array())
+        return;
+
+    const uint32 levelIndex = GAME->Current_LevelIndex();
+
+    vector<Shared<GameObject>> authoredMonsters{};
+    GAME->Visit_CurrentLevelObjects(
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            if (gameObject == nullptr || !gameObject->Is_RuntimeAuthoringLoaded())
+                return;
+
+            if (dynamic_pointer_cast<Monster_WorldBase>(gameObject) == nullptr)
+                return;
+
+            authoredMonsters.push_back(gameObject);
+        });
+
+    const Shared<GameObject> selectedObject = Selected_Object();
+    if (find(authoredMonsters.begin(), authoredMonsters.end(), selectedObject) != authoredMonsters.end())
+        Clear_SelectedObject();
+
+    for (const Shared<GameObject>& monster : authoredMonsters)
+        GAME->Remove_GameObject(levelIndex, monster);
+
+    GAME->Flush_RemovedGameObjects();
+
+    json monsterMapData = json::object();
+    monsterMapData["PrefabInstances"] = json::array();
+
+    for (const json& node : sourceMapData["PrefabInstances"])
+    {
+        if (!node.is_object())
+            continue;
+
+        const string prefabName = node.value("PrefabName", string{});
+        if (!prefabName.starts_with("MW_"))
+            continue;
+
+        monsterMapData["PrefabInstances"].push_back(node);
+    }
+
+    (void)Client::MapAuthoringIO::Load_PrefabInstances_FromMapData(
+        monsterMapData,
+        levelIndex,
+        nullptr);
 }
 
 bool EditorInstance::Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const
