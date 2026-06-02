@@ -360,6 +360,8 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     PointParticleSpawnDesc spawn{};                           // Spawn 모듈이 만든 활성화/버스트 생성 규칙이다.
     PointParticleInitialLocationDesc initialLocation{};       // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
     PointParticleSphereLocationDesc sphereLocation{};         // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
+    PointParticlePlaneRadialLocationDesc planeRadialLocation{};       // PlaneRadialLocation 모듈이 만든 시작 위치 평면/방사 offset 분포다.
+    PointParticlePlaneRadialOrientationDesc planeRadialOrientation{}; // PlaneRadialOrientation 모듈이 만든 sprite 2D 초기 회전 payload다.
     Vec3 emitterRight{ 1.f, 0.f, 0.f };                       // emitter local X축을 world 방향으로 변환할 basis다.
     Vec3 emitterUp{ 0.f, 1.f, 0.f };                          // emitter local Y축을 world 방향으로 변환할 basis다.
     Vec3 emitterLook{ 0.f, 0.f, 1.f };                        // emitter local Z축을 world 방향으로 변환할 basis다.

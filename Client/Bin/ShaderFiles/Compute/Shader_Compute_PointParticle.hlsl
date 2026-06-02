@@ -41,6 +41,11 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_InitialLocationMax;         // xyz: InitialLocation max offset
     float4 g_SphereLocationOffsetRadius; // xyz: sphere center offset, w: radius
     float4 g_SphereLocationParams;       // x: enabled, y: mode(0 volume, 1 surface)
+    float4 g_PlaneRadialLocationParams;          // x: enabled, y: plane, z: shape, w: placement mode
+    float4 g_PlaneRadialLocationOffsetThickness; // xyz: offset, w: thickness
+    float4 g_PlaneRadialLocationRectRange;       // x/y: U range, z/w: V range
+    float4 g_PlaneRadialLocationPolarRange;      // x/y: radius range, z/w: angle degree range
+    float4 g_PlaneRadialOrientationParams;       // x: enabled, y: target kind, z: orientation mode
     float4 g_SizeMin;                    // x/y: width/height min
     float4 g_SizeMax;                    // x/y: width/height max
     float4 g_LifeTimeParams;             // x/y: lifetime min/max
@@ -497,6 +502,116 @@ float3 ResolveEmitterBasisVector(float3 localValue)
     return right * localValue.x + up * localValue.y + look * localValue.z;
 }
 
+struct PlaneRadialFrame
+{
+    float3 localOffset;
+    float3 radialDirection;
+    float3 tangentCW;
+    float3 tangentCCW;
+    float3 planeNormal;
+    float sampleAngle;
+    float enabled;
+};
+
+void ResolvePlaneRadialBasis(out float3 axisU, out float3 axisV, out float3 planeNormal)
+{
+    const uint plane = (uint)g_PlaneRadialLocationParams.y;
+    axisU = float3(1.0f, 0.0f, 0.0f);
+    axisV = float3(0.0f, 1.0f, 0.0f);
+    planeNormal = float3(0.0f, 0.0f, 1.0f);
+
+    if (plane == 1u)
+    {
+        axisV = float3(0.0f, 0.0f, 1.0f);
+        planeNormal = float3(0.0f, 1.0f, 0.0f);
+    }
+    else if (plane == 2u)
+    {
+        axisU = float3(0.0f, 1.0f, 0.0f);
+        axisV = float3(0.0f, 0.0f, 1.0f);
+        planeNormal = float3(1.0f, 0.0f, 0.0f);
+    }
+}
+
+void SamplePlaneRadialFrame(uint seed, uint particleIndex, uint maxActiveCount, out PlaneRadialFrame frame)
+{
+    float3 axisU = float3(1.0f, 0.0f, 0.0f);
+    float3 axisV = float3(0.0f, 1.0f, 0.0f);
+    float3 planeNormal = float3(0.0f, 0.0f, 1.0f);
+    ResolvePlaneRadialBasis(axisU, axisV, planeNormal);
+
+    frame.localOffset = float3(0.0f, 0.0f, 0.0f);
+    frame.planeNormal = planeNormal;
+    frame.radialDirection = axisU;
+    frame.tangentCW = -axisV;
+    frame.tangentCCW = axisV;
+    frame.sampleAngle = 0.0f;
+    frame.enabled = 0.0f;
+
+    if (g_PlaneRadialLocationParams.x == 0.0f)
+        return;
+
+    const uint shape = (uint)g_PlaneRadialLocationParams.z;
+    const uint placementMode = (uint)g_PlaneRadialLocationParams.w;
+    float u = 0.0f;
+    float v = 0.0f;
+
+    if (shape == 0u)
+    {
+        u = lerp(g_PlaneRadialLocationRectRange.x, g_PlaneRadialLocationRectRange.y, Hash01(seed + 1601u));
+        v = lerp(g_PlaneRadialLocationRectRange.z, g_PlaneRadialLocationRectRange.w, Hash01(seed + 1613u));
+        frame.sampleAngle = atan2(v, u);
+    }
+    else
+    {
+        const float radiusMin = min(g_PlaneRadialLocationPolarRange.x, g_PlaneRadialLocationPolarRange.y);
+        const float radiusMax = max(g_PlaneRadialLocationPolarRange.x, g_PlaneRadialLocationPolarRange.y);
+        const float angleMin = radians(g_PlaneRadialLocationPolarRange.z);
+        const float angleMax = radians(g_PlaneRadialLocationPolarRange.w);
+        const float radius = lerp(radiusMin, radiusMax, Hash01(seed + 1601u));
+        const float angleRatio = placementMode == 1u
+                                 ? (float)particleIndex / max(1.0f, (float)maxActiveCount)
+                                 : Hash01(seed + 1613u);
+        const float angle = lerp(angleMin, angleMax, angleRatio);
+        frame.sampleAngle = angle;
+        u = cos(angle) * radius;
+        v = sin(angle) * radius;
+    }
+
+    const float thickness = max(0.0f, g_PlaneRadialLocationOffsetThickness.w);
+    const float normalOffset = thickness > 0.0001f
+                               ? (Hash01(seed + 1621u) - 0.5f) * thickness
+                               : 0.0f;
+    const float3 radialVector = axisU * u + axisV * v;
+    const float radialLength = length(radialVector);
+    frame.radialDirection = radialLength < 0.0001f
+                            ? normalize(axisU * cos(frame.sampleAngle) + axisV * sin(frame.sampleAngle))
+                            : radialVector / radialLength;
+    frame.tangentCW = normalize(axisU * sin(frame.sampleAngle) - axisV * cos(frame.sampleAngle));
+    frame.tangentCCW = -frame.tangentCW;
+    frame.localOffset = g_PlaneRadialLocationOffsetThickness.xyz + radialVector + planeNormal * normalOffset;
+    frame.enabled = 1.0f;
+}
+
+float ResolvePlaneRadialSpriteRotation(float frameEnabled, float sampleAngle)
+{
+    float rotation = 0.0f;
+    const uint orientationMode = (uint)g_PlaneRadialOrientationParams.z;
+    if (frameEnabled != 0.0f && g_PlaneRadialOrientationParams.x != 0.0f && orientationMode != 0u && orientationMode != 5u)
+    {
+        if (orientationMode == 2u)
+            rotation = sampleAngle + 3.14159265359f;
+        else if (orientationMode == 3u)
+            rotation = sampleAngle - 1.57079632679f;
+        else if (orientationMode == 4u)
+            rotation = sampleAngle + 1.57079632679f;
+        else
+            rotation = sampleAngle;
+    }
+
+    return rotation;
+}
+
 // sphere location 설정에 따라 구 내부 spawn 오프셋을 샘플링한다.
 float3 SampleSphereLocationOffset(uint seed)
 {
@@ -623,10 +738,18 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float3 locationRandom = float3(Hash01(seed), Hash01(seed + 101u), Hash01(seed + 211u));
     const float3 fallbackSpawnOffset = ResolveEmitterBasisVector((locationRandom * 2.0f - 1.0f) * g_SpawnRange.xyz * 0.5f);
     const float3 initialLocationOffset = ResolveEmitterBasisVector(lerp(g_InitialLocationMin.xyz, g_InitialLocationMax.xyz, locationRandom));
-    const float3 baseLocationOffset = g_InitialLocationMin.w != 0.0f
-                                      ? initialLocationOffset
-                                      : g_SphereLocationParams.x != 0.0f ? float3(0.0f, 0.0f, 0.0f) : fallbackSpawnOffset;
-    const float3 spawnOffset = baseLocationOffset + SampleSphereLocationOffset(seed);
+    PlaneRadialFrame planeRadialFrame;
+    SamplePlaneRadialFrame(seed, index, maxActiveCount, planeRadialFrame);
+    const bool hasExplicitLocation = g_InitialLocationMin.w != 0.0f ||
+                                     g_SphereLocationParams.x != 0.0f ||
+                                     planeRadialFrame.enabled != 0.0f;
+    const float3 baseLocationOffset = g_InitialLocationMin.w != 0.0f ? initialLocationOffset : float3(0.0f, 0.0f, 0.0f);
+    const float3 planeRadialOffset = planeRadialFrame.enabled != 0.0f
+                                     ? ResolveEmitterBasisVector(planeRadialFrame.localOffset)
+                                     : float3(0.0f, 0.0f, 0.0f);
+    const float3 spawnOffset = (hasExplicitLocation ? baseLocationOffset : fallbackSpawnOffset) +
+                               SampleSphereLocationOffset(seed) +
+                               planeRadialOffset;
     const float3 spawnPosition = g_Center.xyz + spawnOffset;
     float3 initialVelocity = float3(0.0f, 0.0f, 0.0f);
 
@@ -686,7 +809,8 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                                          ? float3(0.0f, 0.0f, 0.0f)
                                          : currentVelocity / currentVelocityLength;
 
-    const float initialRotation = radians(lerp(g_RotationInitialRate.x, g_RotationInitialRate.y, Hash01(seed + 809u)));
+    const float initialRotation = radians(lerp(g_RotationInitialRate.x, g_RotationInitialRate.y, Hash01(seed + 809u))) +
+                                  ResolvePlaneRadialSpriteRotation(planeRadialFrame.enabled, planeRadialFrame.sampleAngle);
     const float rotationOverLife = radians(EvaluateRotationOverLifeDegrees(lifeProgress));
     const float rotationRate = radians(lerp(g_RotationInitialRate.z, g_RotationInitialRate.w, Hash01(seed + 907u)));
     const float rotationRateScale = EvaluateRotationRateScaleByLifeAverage(lifeProgress);

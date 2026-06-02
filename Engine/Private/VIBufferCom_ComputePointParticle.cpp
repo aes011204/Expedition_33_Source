@@ -23,6 +23,11 @@ struct ComputePointParticleParams
     Vec4 initialLocationMax{};         // xyz: InitialLocation max offset, w: unused.
     Vec4 sphereLocationOffsetRadius{}; // xyz: sphere center offset, w: radius.
     Vec4 sphereLocationParams{};       // x: enabled, y: mode, z/w: unused.
+    Vec4 planeRadialLocationParams{};          // x: enabled, y: plane, z: shape, w: placement mode.
+    Vec4 planeRadialLocationOffsetThickness{}; // xyz: offset, w: thickness.
+    Vec4 planeRadialLocationRectRange{};       // x/y: U range, z/w: V range.
+    Vec4 planeRadialLocationPolarRange{};      // x/y: radius range, z/w: angle degree range.
+    Vec4 planeRadialOrientationParams{};       // x: enabled, y: target kind, z: orientation mode, w: unused.
     Vec4 sizeMin{};                    // x/y: width/height min, z/w: unused.
     Vec4 sizeMax{};                    // x/y: width/height max, z/w: unused.
     Vec4 lifeTime{};                   // x/y: lifetime min/max, z/w: unused.
@@ -415,6 +420,36 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.sphereLocation.enabled ? 1.f : 0.f,
             static_cast<float>(ETOI(_desc.sphereLocation.mode)),
             0.f,
+            0.f
+        },
+        .planeRadialLocationParams = Vec4{
+            _desc.planeRadialLocation.enabled ? 1.f : 0.f,
+            static_cast<float>(ETOI(_desc.planeRadialLocation.plane)),
+            static_cast<float>(ETOI(_desc.planeRadialLocation.shape)),
+            static_cast<float>(ETOI(_desc.planeRadialLocation.placementMode))
+        },
+        .planeRadialLocationOffsetThickness = Vec4{
+            _desc.planeRadialLocation.offset.x,
+            _desc.planeRadialLocation.offset.y,
+            _desc.planeRadialLocation.offset.z,
+            max(0.f, _desc.planeRadialLocation.thickness)
+        },
+        .planeRadialLocationRectRange = Vec4{
+            _desc.planeRadialLocation.uRange.x,
+            _desc.planeRadialLocation.uRange.y,
+            _desc.planeRadialLocation.vRange.x,
+            _desc.planeRadialLocation.vRange.y
+        },
+        .planeRadialLocationPolarRange = Vec4{
+            _desc.planeRadialLocation.radiusRange.x,
+            _desc.planeRadialLocation.radiusRange.y,
+            _desc.planeRadialLocation.angleDegreesRange.x,
+            _desc.planeRadialLocation.angleDegreesRange.y
+        },
+        .planeRadialOrientationParams = Vec4{
+            _desc.planeRadialOrientation.enabled ? 1.f : 0.f,
+            static_cast<float>(ETOI(_desc.planeRadialOrientation.targetKind)),
+            static_cast<float>(ETOI(_desc.planeRadialOrientation.orientationMode)),
             0.f
         },
         .sizeMin = Vec4{ _desc.sizeMin.x, _desc.sizeMin.y, 0.f, 0.f },

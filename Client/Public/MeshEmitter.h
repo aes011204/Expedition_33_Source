@@ -67,11 +67,23 @@ private: //## Types::PlaybackRuntime
         Vec3 acceleration{};                   // particle별 초기 acceleration sample 값이다.
         float drag{};                          // 매 frame velocity 감쇠에 사용할 drag 계수다.
         Vec3 baseScale{ 1.f, 1.f, 1.f };       // life curve 적용 전 초기 mesh scale이다.
+        Quat planeRadialOrientation{ Quat::Identity }; // PlaneRadialOrientation에서 만든 spawn 기준 mesh 회전이다.
         Vec3 rotationRadians{};                // 현재 particle 회전값이다.
         Vec3 angularVelocityRadians{};         // 현재 particle 회전 속도다.
         Vec4 startColor{ 1.f, 1.f, 1.f, 1.f }; // InitialColor에서 정한 particle 시작 색상이다.
         Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };   // ColorOverLife endpoint 보간에 사용할 particle 끝 색상이다.
         uint32 seed{};                         // particle별 deterministic random sample seed다.
+    };
+
+    struct PlaneRadialSample
+    {
+        bool enabled{ false };             // PlaneRadialLocation이 실제 sample frame을 만들었는지 나타낸다.
+        Vec3 localOffset{};                // 기존 location module과 더할 emitter-local offset이다.
+        Vec3 radialDirection{ 1.f, 0.f, 0.f };
+        Vec3 tangentCW{ 0.f, -1.f, 0.f };
+        Vec3 tangentCCW{ 0.f, 1.f, 0.f };
+        Vec3 planeNormal{ 0.f, 0.f, 1.f };
+        float sampleAngleRadians{};
     };
 
 private: //## Static Values
@@ -102,6 +114,7 @@ private: //## Data::Desc
     MeshEmitterDesc _desc{};                        // clone 생성 시 전달받은 mesh emitter runtime 규칙이다.
     int _opacitySourceIndex{ kOpacitySourceAlpha }; // shader opacity source selector다.
     bool _isReady{ false };                         // model/shader/buffer가 모두 준비돼 render 가능한지 나타낸다.
+    mutable bool _planeRadialMeshOrientationFallbackLogged{ false }; // mesh axis fallback warning을 emitter당 한 번만 남긴다.
 
 private: //## Data::ParticleRuntime
     vector<MeshParticleState> _particles{};        // active/inactive mesh particle slot 배열이다.
@@ -182,7 +195,7 @@ private: //## Helper::ParticleRuntime
     // spawn request만큼 particle slot을 활성화한다.
     void Spawn_Particles(uint32 spawnRequest);
     // 단일 particle slot에 초기 위치/속도/색/회전을 채운다.
-    void Activate_Particle(MeshParticleState& particle, uint32 seed);
+    void Activate_Particle(MeshParticleState& particle, uint32 seed, uint32 particleIndex, uint32 maxActiveCount);
     // active particle의 age, motion, color/scale 기반 상태를 진행한다.
     void Update_Particles(float timeDelta);
     // active particle을 MeshInstanceVertex payload로 다시 작성한다.
@@ -190,7 +203,9 @@ private: //## Helper::ParticleRuntime
 
 private: //## Helper::SamplingEvaluation
     // location module에서 초기 local offset을 sample한다.
-    Vec3 Sample_InitialOffset(uint32 seed) const;
+    Vec3 Sample_InitialOffset(uint32 seed, uint32 particleIndex, uint32 maxActiveCount, PlaneRadialSample& outPlaneRadialSample) const;
+    // PlaneRadialLocation sample frame을 mesh radial orientation용 회전으로 낮춘다.
+    Quat Build_PlaneRadialMeshOrientation(const PlaneRadialSample& sample) const;
     // velocity/radial velocity를 합친 초기 속도를 sample한다.
     Vec3 Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed) const;
     // motion acceleration range에서 particle acceleration을 sample한다.

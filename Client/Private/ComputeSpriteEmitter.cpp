@@ -66,42 +66,42 @@ static HRESULT Bind_MaterialScalarModulationPayload(
     hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationMeta",
         payload.meta.data(),
-        sizeof(Vec4) * payload.meta.size()
+        sizeof(payload.meta)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
     hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationKeyTimes",
         payload.keyTimes.data(),
-        sizeof(Vec4) * payload.keyTimes.size()
+        sizeof(payload.keyTimes)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
     hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationKeyValues",
         payload.keyValues.data(),
-        sizeof(Vec4) * payload.keyValues.size()
+        sizeof(payload.keyValues)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
     hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationKeyArriveTangents",
         payload.keyArriveTangents.data(),
-        sizeof(Vec4) * payload.keyArriveTangents.size()
+        sizeof(payload.keyArriveTangents)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
     hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationKeyLeaveTangents",
         payload.keyLeaveTangents.data(),
-        sizeof(Vec4) * payload.keyLeaveTangents.size()
+        sizeof(payload.keyLeaveTangents)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
     hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationKeyModes",
         payload.keyModes.data(),
-        sizeof(Vec4) * payload.keyModes.size()
+        sizeof(payload.keyModes)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
@@ -876,6 +876,8 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.spawn = _desc.spawn.particleSpawn;
     desc.initialLocation = _desc.initialLocation;
     desc.sphereLocation = _desc.sphereLocation;
+    desc.planeRadialLocation = _desc.planeRadialLocation;
+    desc.planeRadialOrientation = _desc.planeRadialOrientation;
     if (nullptr != _transformCom)
     {
         desc.emitterRight = _transformCom->Get_WorldRight();
