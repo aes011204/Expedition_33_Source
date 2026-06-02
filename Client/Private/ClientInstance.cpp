@@ -135,6 +135,9 @@ void ClientInstance::Update_Client(float timeDelta)
 
     if (_previewManager)
         _previewManager->Update(timeDelta);
+
+    if (_effectInstancePool)
+        _effectInstancePool->Release_Finished();
 }
 
 HRESULT ClientInstance::Ready_StaticResources()

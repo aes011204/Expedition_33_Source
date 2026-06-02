@@ -89,7 +89,10 @@ private:
         const Shared<const EffectDefinition>& definition,
         Shared<EffectInstance>& outInstance);
     // 다음 재생 전에 Reset/position/Play를 적용한다.
-    HRESULT Prepare_AcquiredInstance(const AcquireDesc& desc, const Shared<EffectInstance>& instance);
+    HRESULT Prepare_AcquiredInstance(
+        const AcquireDesc& desc,
+        const Shared<const EffectDefinition>& definition,
+        const Shared<EffectInstance>& instance);
     // definition 내용에 따라 handle 반환 정책을 갱신한다.
     void Populate_Handle(const AcquireDesc& desc, const Shared<const EffectDefinition>& definition, const Shared<EffectInstance>& instance, AttachedHandle& outHandle) const;
     // 같은 key의 inactive entry를 찾는다. direct definition acquire는 definition identity까지 맞춘다.

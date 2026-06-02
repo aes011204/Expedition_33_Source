@@ -13,7 +13,7 @@ public:
 	~Asset_Manager() override;
 
 public:
-	HRESULT Initialize(const wstring& resourceRoot);
+	HRESULT Initialize(const wstring& resourceRoot, bool forceScan = false);
 	const AssetMeta* Find_ByGUID(const string& guid) const;
 	vector<AssetMeta> Get_AssetsByType(const string& type) const;
 	string Find_GUID(const wstring& filePath) const;
@@ -71,7 +71,7 @@ private:
     Unique<MaterialBuilder> _materialBuilder{};
 
 public:
-	static Unique<Asset_Manager> Create(const wstring& resourceRoot);
+	static Unique<Asset_Manager> Create(const wstring& resourceRoot, bool forceScan = false);
 	virtual void Free() override;
 };
 

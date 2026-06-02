@@ -1589,24 +1589,43 @@ void GameInstance::Draw_Font(
     _fontManager->Draw(fontTag, text, position, color, rotationRadians, pivot, scale);
 }
 
-HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
+HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot, bool forceScan)
 {
-    _assetManager = Asset_Manager::Create(resourceRoot);
+    auto stepBegin = chrono::steady_clock::now();
+    _assetManager = Asset_Manager::Create(resourceRoot, forceScan);
     if (nullptr == _assetManager)
         return E_FAIL;
+    LOG_INFO("[StartupTiming] GameInstance::Asset_Manager::Create elapsed={}ms",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count());
 
     const fs::path soundRoot = fs::path(resourceRoot) / L"Sounds";
     if (fs::exists(soundRoot) && fs::is_directory(soundRoot))
     {
+        stepBegin = chrono::steady_clock::now();
         _soundManager = Sound_Manager::Create(soundRoot.wstring());
+        const auto soundElapsedMs = chrono::duration_cast<chrono::milliseconds>(
+            chrono::steady_clock::now() - stepBegin).count();
         if (nullptr == _soundManager)
-            return E_FAIL;
+        {
+            LOG_WARN("[StartupTiming] GameInstance::Sound_Manager::Create failed elapsed={}ms; continuing without sound", soundElapsedMs);
+        }
+        else
+        {
+            LOG_INFO("[StartupTiming] GameInstance::Sound_Manager::Create elapsed={}ms", soundElapsedMs);
+        }
+    }
+    else
+    {
+        LOG_INFO("[StartupTiming] GameInstance::Sound_Manager::Create skipped missing Sounds root");
     }
 
     const fs::path shaderTextureRoot = fs::path(resourceRoot) / L"Textures" / L"Shader";
+    stepBegin = chrono::steady_clock::now();
     _shaderResourceRegistry = ShaderResourceRegistry::Create(_device, _context, shaderTextureRoot.wstring());
     if (nullptr == _shaderResourceRegistry)
         return E_FAIL;
+    LOG_INFO("[StartupTiming] GameInstance::ShaderResourceRegistry::Create elapsed={}ms",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count());
 
     return S_OK;
 }
@@ -2272,6 +2291,16 @@ bool GameInstance::Sweep_Sphere(
 {
     CHECK_NULL(_physxManager, false);
     return _physxManager->Sweep_Sphere(origin, direction, distance, radius, queryPreset, outHit);
+}
+
+bool GameInstance::Raycast_Environment(
+    const Vec3& origin,
+    const Vec3& direction,
+    float distance,
+    PhysXQueryHit& outHit) const
+{
+    CHECK_NULL(_physxManager, false);
+    return _physxManager->Raycast_Environment(origin, direction, distance, outHit);
 }
 
 bool GameInstance::Probe_Ground(

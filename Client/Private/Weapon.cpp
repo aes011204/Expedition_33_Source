@@ -405,7 +405,6 @@ Shared<Weapon> Weapon::Create(const ComPtr<Device>& device, const ComPtr<Context
     return pInstance;
 }
 
-
 Shared<GameObject> Weapon::Clone(void* pArg)
 {
     auto pInstance = make_shared<Weapon>(*this);
@@ -418,11 +417,8 @@ Shared<GameObject> Weapon::Clone(void* pArg)
     return pInstance;
 }
 
-
 void Weapon::Free()
 {
     __super::Free();
 
 }
-
-
