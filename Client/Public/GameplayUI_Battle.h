@@ -34,6 +34,7 @@ class UI_BattleAnnounce;
 class UI_SuddenAttack;
 class UI_AddAP;
 class UI_QTE;
+class UI_MarkEffect;
 
 class GameplayUI_Battle final : public Base
 {
@@ -73,6 +74,10 @@ private:
     void    Handle_QTEStarted(const BattleQTERequest& request);
     void    Handle_QTEResolved(BattleQTEResult result);
 
+    // Buff
+    void    Handle_BuffApplied(const BattleChar& target, Buffs buffId);
+    void    Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage);
+
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
     void    Update_MonsterHpBar(float timeDelta);
@@ -96,6 +101,7 @@ private:
     void    Update_BattleAnnounce(float timeDelta);
     void    Update_SuddenAttack(float timeDelta);
     void    Update_QTE(float timeDelta);
+    void    Update_MarkEffect(float timeDelta);
 
 private:
 #pragma region UI 위치맞추기
@@ -118,7 +124,7 @@ private:
     using VictoryStatDesc = UI_BattleVictory::VictoryPlayerStatDesc;
     vector<VictoryStatDesc> Build_BattleVictoryPlayerStats() const;
 
-    void    Reset_BattleUiRuntimeState(bool closeVictoryUi); 
+    void    Reset_BattleUiRuntimeState(bool closeVictoryUi);
 
 private:
     Unique<UI_BattleTransition>             _battleTransition; // 전투 진입 테스트용 페이드 UI
@@ -143,6 +149,7 @@ private:
     Unique<UI_BattleAnnounce>               _battleAnnounce;
     Unique<UI_SuddenAttack>                 _suddenAttack;
     Unique<UI_QTE>                          _qte;
+    Unique<UI_MarkEffect>                   _markEffect;
 
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
@@ -168,8 +175,12 @@ private:
     FDelegateHandle          _reactionSucceededHandle{};
 
     // QTE
-    FDelegateHandle _qteStartedHandle{};
-    FDelegateHandle _qteResolvedHandle{};
+    FDelegateHandle          _qteStartedHandle{};
+    FDelegateHandle          _qteResolvedHandle{};
+
+    // Buff
+    FDelegateHandle          _buffAppliedHandle{};
+    FDelegateHandle          _buffConsumedHandle{};
 
 private:
     BattleChar               _targetPreviewSnapshot{};
@@ -187,7 +198,7 @@ private:
 
     bool                     _isPlayerAdvantageStart = false; // 플레이어 선제공격?
     bool                     _hasPlayedSuddenAttack = false;  // 이미 보여줬는지?  
-    
+
 private:
     BattleChar               _currentPlayerTurnActor{}; // 현재 턴 진행중인 플레이어
     bool                     _hasCurrentPlayerTurnActor = false;

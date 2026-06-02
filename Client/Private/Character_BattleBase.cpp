@@ -31,6 +31,25 @@ void Character_BattleBase::Late_Update(float timeDelta)
     Update_Collider();
 }
 
+void Character_BattleBase::Set_BattleColliderActive(bool isActive)
+{
+    if (_colliderCom == nullptr)
+        return;
+
+    _colliderCom->Set_IsActive(isActive);
+
+    if (!isActive)
+        _colliderCom->Clear_Overlap();
+}
+
+bool Character_BattleBase::Is_BattleColliderActive() const
+{
+    if (_colliderCom == nullptr)
+        return false;
+
+    return _colliderCom->Get_IsActive();
+}
+
 HRESULT Character_BattleBase::Ready_Collider(const wstring& prototypeTag, void* colliderDesc, Collision_Preset preset)
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), prototypeTag, _colliderCom, colliderDesc), E_FAIL);
@@ -45,6 +64,9 @@ HRESULT Character_BattleBase::Ready_Collider(const wstring& prototypeTag, void* 
 void Character_BattleBase::Update_Collider()
 {
     if (_colliderCom == nullptr)
+        return;
+
+    if (!_colliderCom->Get_IsActive())
         return;
 
     _colliderCom->Update_Collider(_transformCom->Get_WorldMatrix());

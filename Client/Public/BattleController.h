@@ -186,6 +186,15 @@ public:
     bool Has_LastQTEResult() const;
     BattleQTEResult Get_LastQTEResult() const;
 
+    // 죽은놈, 부활한놈 충돌체 처리
+    void Handle_BattleTargetDeathCollision(const BattleChar& deadTarget);
+    void Restore_BattleTargetCollision(const BattleChar& revivedTarget);
+
+    // 버프
+    void Apply_Buff(const BattleChar& target, Buffs buffId, uint32 stack = 1, int32 durationTurn = 0);
+    bool Has_Buff(const BattleChar& target, Buffs buffId) const;
+    Shared<BuffSystem> Get_BuffSystem() const { return _buffSystem; }
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
@@ -255,7 +264,6 @@ private:
 
 private:
     void Execute_BaseAttack();
-    void Execute_FreeAimShoot();
     void Execute_Skill();
     void Execute_Item();
 
@@ -267,6 +275,7 @@ private: /* 전투 AP */
 
     void Play_EnemyTargetedStart(const BattleChar& target);
     void Play_EnemyTargetedEnd();
+
 
 private:
     bool _battleEnded = {};
@@ -310,13 +319,7 @@ private:
 
 private:
     Shared<BattleTurnCamera> _battleTurnCamera;
-  //  Shared<Camera> _worldCamera;    // 전투 시작 전 카메라 저장
-
-private:  // 슬로우 처리
-   // float _battleEnterElapsed = 0.f;
-   // float _battleEnterDuration = 3.f;
-   // float _battleEnterWorldTimeScale = 0.25f;
-
+    //  Shared<Camera> _worldCamera;    // 전투 시작 전 카메라 저장
 
 private:
     // 슬로우 처리
