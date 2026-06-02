@@ -26,8 +26,14 @@ public:
         FloatDistributionData& value,
         const FloatDistributionData& defaultValue,
         float speed = 0.01f,
-        bool allowUniform = true);
-    bool Draw_Vector2DistributionGroup(const char* label, Vector2DistributionData& value, const Vector2DistributionData& defaultValue, float speed = 0.01f);
+        bool allowUniform = true,
+        bool allowConstantCurve = true);
+    bool Draw_Vector2DistributionGroup(
+        const char* label,
+        Vector2DistributionData& value,
+        const Vector2DistributionData& defaultValue,
+        float speed = 0.01f,
+        bool allowConstantCurve = true);
     bool Draw_Vector3DistributionGroup(
         const char* label,
         Vector3DistributionData& value,

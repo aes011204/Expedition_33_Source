@@ -46,6 +46,21 @@ Matrix Resolve_MeshPlaneAlignmentMatrix(EffectScreenAlignment alignment)
         return Matrix::Identity;
     }
 }
+
+static int Resolve_MaterialSourceIndex(const string& source)
+{
+    constexpr int sourceAlpha = 0;
+    constexpr int sourceRed = 1;
+    constexpr int sourceLuminance = 2;
+
+    if (source == "Red" || source == "red")
+        return sourceRed;
+
+    if (source == "Luminance" || source == "luminance")
+        return sourceLuminance;
+
+    return sourceAlpha;
+}
 }
 
 IMPLEMENT_REFLECTION(MeshEmitter)
@@ -644,6 +659,12 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
         static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
         0.f
     );
+    const Vec4 effectMeshSourceParams = Vec4(
+        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
+        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+        material.noiseInvert ? 1.f : 0.f,
+        material.maskInvert ? 1.f : 0.f
+    );
     const EffectMaterialAdditiveContributionData& additive = material.additive;
     const EffectMaterialCoreEmissiveData& coreEmissive = material.coreEmissive;
     const Vec4 effectMeshAdditiveParams = Vec4(
@@ -703,6 +724,11 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
     );
     CHECK_FAILED_THROTTLED(
         _shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)),
         60,
         E_FAIL
     );

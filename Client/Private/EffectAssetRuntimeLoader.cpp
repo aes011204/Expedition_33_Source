@@ -1325,6 +1325,64 @@ void EffectAssetRuntimeLoader::Fill_AccelerationCurvePayload(PointParticleMotion
     }
 }
 
+namespace
+{
+    Vec2 Read_LegacyFloatRange(const json& node, const Vec2& fallbackValue)
+    {
+        Vec2 range = fallbackValue;
+        Read_Vec2(node, range);
+        return Vec2{ min(range.x, range.y), max(range.x, range.y) };
+    }
+}
+
+void EffectAssetRuntimeLoader::Fill_PlaneRadialLocationPayload(PointParticlePlaneRadialLocationDesc& desc, const json& planeRadialLocation)
+{
+    desc.enabled = Read_Bool(planeRadialLocation, "enabled", desc.enabled);
+    Read_Enum(planeRadialLocation, "plane", desc.plane);
+    Read_Enum(planeRadialLocation, "shape", desc.shape);
+    Read_Enum(planeRadialLocation, "placementMode", desc.placementMode);
+
+    if (const auto offsetIter = planeRadialLocation.find("offset"); offsetIter != planeRadialLocation.end())
+        Read_Vec3(*offsetIter, desc.offset);
+
+    auto read_range = [&](const char* distributionKey, const char* legacyRangeKey, const Vec2& fallbackValue)
+    {
+        if (const auto distributionIter = planeRadialLocation.find(distributionKey);
+            distributionIter != planeRadialLocation.end() && distributionIter->is_object())
+        {
+            const float minValue = Evaluate_FloatDistributionMin(*distributionIter, fallbackValue.x);
+            const float maxValue = Evaluate_FloatDistributionMax(*distributionIter, fallbackValue.y);
+            return Vec2{ min(minValue, maxValue), max(minValue, maxValue) };
+        }
+
+        if (const auto legacyIter = planeRadialLocation.find(legacyRangeKey); legacyIter != planeRadialLocation.end())
+            return Read_LegacyFloatRange(*legacyIter, fallbackValue);
+
+        return fallbackValue;
+    };
+
+    desc.uRange = read_range("uDistribution", "rangeU", desc.uRange);
+    desc.vRange = read_range("vDistribution", "rangeV", desc.vRange);
+
+    const Vec2 radiusRange = read_range("radiusDistribution", "radiusRange", desc.radiusRange);
+    desc.radiusRange = Vec2{ max(0.f, radiusRange.x), max(0.f, radiusRange.y) };
+    desc.angleDegreesRange = read_range("angleDegreesDistribution", "angleDegreesRange", desc.angleDegreesRange);
+    desc.thickness = max(0.f, Read_Float(planeRadialLocation, "thickness", desc.thickness));
+}
+
+void EffectAssetRuntimeLoader::Fill_PlaneRadialOrientationPayload(
+    PointParticlePlaneRadialOrientationDesc& desc,
+    const json& planeRadialOrientation)
+{
+    desc.enabled = Read_Bool(planeRadialOrientation, "enabled", desc.enabled);
+    Read_Enum(planeRadialOrientation, "targetKind", desc.targetKind);
+    Read_Enum(planeRadialOrientation, "orientationMode", desc.orientationMode);
+    Read_Enum(planeRadialOrientation, "meshForwardAxis", desc.meshForwardAxis);
+    Read_Enum(planeRadialOrientation, "meshUpAxis", desc.meshUpAxis);
+    desc.tiltDegrees = Read_Float(planeRadialOrientation, "tiltDegrees", desc.tiltDegrees);
+    desc.rollOffsetDegrees = Read_Float(planeRadialOrientation, "rollOffsetDegrees", desc.rollOffsetDegrees);
+}
+
 void EffectAssetRuntimeLoader::Fill_MeshVector3CurvePayload(
     MeshVector3CurveRuntimeDesc& desc,
     const json& distribution,
@@ -1426,6 +1484,10 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     materialDesc.noiseStrength = Read_Float(material, "noiseStrength", materialDesc.noiseStrength);
     materialDesc.alphaCutoff = Read_Float(material, "alphaCutoff", materialDesc.alphaCutoff);
     materialDesc.alphaErosion = Read_Float(material, "alphaErosion", materialDesc.alphaErosion);
+    materialDesc.noiseSource = Read_String(material, "noiseSource", materialDesc.noiseSource);
+    materialDesc.maskSource = Read_String(material, "maskSource", materialDesc.maskSource);
+    materialDesc.noiseInvert = Read_Bool(material, "noiseInvert", materialDesc.noiseInvert);
+    materialDesc.maskInvert = Read_Bool(material, "maskInvert", materialDesc.maskInvert);
 
     if (const auto coreEmissiveIter = material.find("coreEmissive"); coreEmissiveIter != material.end() && coreEmissiveIter->is_object())
     {
@@ -1763,6 +1825,9 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         Read_Enum(*sphereLocation, "spawnMode", desc.sphereLocation.mode);
     }
 
+    if (const json* planeRadialLocation = Find_ModuleData(emitter, "PlaneRadialLocation"))
+        Fill_PlaneRadialLocationPayload(desc.planeRadialLocation, *planeRadialLocation);
+
     if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
     {
         const auto lifeTimeIter = lifetime->find("lifeTime");
@@ -1927,6 +1992,9 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
             };
         }
     }
+
+    if (const json* planeRadialOrientation = Find_ModuleData(emitter, "PlaneRadialOrientation"))
+        Fill_PlaneRadialOrientationPayload(desc.planeRadialOrientation, *planeRadialOrientation);
 
     if (const json* rotationOverLife = Find_ModuleData(emitter, "RotationOverLife"))
     {
@@ -2224,6 +2292,9 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         Read_Enum(*sphereLocation, "spawnMode", desc.sphereLocation.mode);
     }
 
+    if (const json* planeRadialLocation = Find_ModuleData(emitter, "PlaneRadialLocation"))
+        Fill_PlaneRadialLocationPayload(desc.planeRadialLocation, *planeRadialLocation);
+
     if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
     {
         const auto lifeTimeIter = lifetime->find("lifeTime");
@@ -2379,6 +2450,9 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
             };
         }
     }
+
+    if (const json* planeRadialOrientation = Find_ModuleData(emitter, "PlaneRadialOrientation"))
+        Fill_PlaneRadialOrientationPayload(desc.planeRadialOrientation, *planeRadialOrientation);
 
     if (const json* meshRotationOverLife = Find_ModuleData(emitter, "MeshRotationOverLife"))
     {

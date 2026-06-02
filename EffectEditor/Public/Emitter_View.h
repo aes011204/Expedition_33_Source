@@ -155,6 +155,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_LifetimeModule();
     AuthoringModule Make_InitialLocationModule();
     AuthoringModule Make_SphereLocationModule();
+    AuthoringModule Make_PlaneRadialLocationModule();
     AuthoringModule Make_InitialSizeModule();
     AuthoringModule Make_InitialMeshSizeModule();
     AuthoringModule Make_InitialVelocityModule();
@@ -163,6 +164,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_DragModule();
     AuthoringModule Make_VelocityOverLifeModule();
     AuthoringModule Make_InitialRotationModule();
+    AuthoringModule Make_PlaneRadialOrientationModule();
     AuthoringModule Make_RotationOverLifeModule();
     AuthoringModule Make_InitialRotationRateModule();
     AuthoringModule Make_RotationRateScaleByLifeModule();
