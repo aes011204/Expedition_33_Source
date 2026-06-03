@@ -648,6 +648,26 @@ void Cinematic_Tool::Render_SelectedBattleClipKeyframe()
     ImGui::SetNextItemWidth(140.f);
     if (ImGui::DragFloat("Selected Value", &keyframe->value, 0.01f))
         _isBattleClipPreviewDirty = true;
+
+    ImGui::SetNextItemWidth(160.f);
+    const char* interpolationLabel = magic_enum::enum_name(keyframe->interpolation).data();
+    if (ImGui::BeginCombo("Interpolation", interpolationLabel))
+    {
+        for (InterpolationMode mode : magic_enum::enum_values<InterpolationMode>())
+        {
+            const bool isSelected = keyframe->interpolation == mode;
+            if (ImGui::Selectable(magic_enum::enum_name(mode).data(), isSelected))
+            {
+                keyframe->interpolation = mode;
+                _isBattleClipPreviewDirty = true;
+            }
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
 }
 
 void Cinematic_Tool::Render_BattleClipInsertKeyframePopup()

@@ -843,14 +843,10 @@ void BattleController::Request_WidePresentationMode()
     if (!_battleTurnCamera)
         return;
 
-    _battleTurnCamera->Focus_Battle(_heroes, _enemies);
-
     EvtBattlePresentation event;
     event.cameraMode = BattleCameraMode::WIDE;
     event.subject = nullptr;
     GAME->Get_EventBus().Publish(event);
-
-    return;
 }
 
 vector<BattleChar> BattleController::Get_AliveEnemies()
@@ -1833,7 +1829,7 @@ HRESULT BattleController::Ready_BattleTurnCamera()
     CHECK_NULL(_battleTurnCamera, E_FAIL);
 
     _battleTurnCamera->Try_BeginPlay();
-    _battleTurnCamera->Set_Participants(_heroes, _enemies);
+    _battleTurnCamera->Set_Participants(_heroes, _enemies, _pendingBattleMonsterSpawnDescs);
 
     return S_OK;
 }
@@ -1843,19 +1839,17 @@ void BattleController::Activate_BattleTurnCamera()
     if (_battleTurnCamera == nullptr)
         return;
 
-    _battleTurnCamera->Focus_Battle(_heroes, _enemies);
+    BattleTurnCamera::BattleShotRequest request;
+    request.mode = BattleCameraMode::WIDE;
+    _battleTurnCamera->Apply_ShotRequest(request);
 
     CLIENT->Request_BattleTurn();
-    //GAME->Change_ActiveCamera(_battleTurnCamera);
 }
 
 void BattleController::Restore_WorldCamera()
 {
-    //if (_worldCamera)
-    //    GAME->Change_ActiveCamera(_worldCamera);
     CLIENT->Restore_PreviousCamera();
     GAME->Set_PlayerInputBlocked(false);
-    //  _worldCamera.reset();
 }
 
 void BattleController::Clear_BattleRuntimeState()

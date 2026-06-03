@@ -320,7 +320,7 @@ void Editor_Manager::Handle_Shortcuts()
     }
 
     // F9 : Pause + 자유카메라 전환
-    if (ImGui::IsKeyPressed(ImGuiKey_F9, false))
+    if (!io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_F9, false))
     {
         if (EDITOR->IsPlaying())
             EDITOR->Pause();
