@@ -68,6 +68,8 @@ public:
 
     int32 Get_BattleStartSpawnerId() const { return _battleStartSpawnerId; }
     void  Set_BattleStartSpawnerId(int32 spawnerId) { _battleStartSpawnerId = spawnerId; }
+    Vec3  Get_BattleStartOffset() const { return _battleStartOffset; }
+    void  Set_BattleStartOffset(const Vec3& offset) { _battleStartOffset = offset; }
 
 protected:
     virtual HRESULT Ready_Components();
@@ -97,10 +99,12 @@ protected:
     bool _isStun = {false};
     float _maxStunTime = {3.f};
     float _stunTime = {};
+
     // 기본 월드 몬스터 root motion -> 이동 속도 환산값
     float _worldMoveSpeedScale = 0.4f;
 
     int32 _battleStartSpawnerId = 0; // 배틀 시작 스포너 ID
+    Vec3  _battleStartOffset = Vec3::Zero; // MW 프리팹에서 플레이어 기준 몬스터 시작 위치를 조절한다.
 
 public:
     void Free() override;

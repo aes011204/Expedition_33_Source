@@ -380,6 +380,9 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
     _isPlayerAdvantageStart = isPlayerAdvantage;
     _hasPlayedSuddenAttack = false;
 
+    if (_turnOrder)
+        _turnOrder->Set_AnimationPlaybackEnabled(false); // 전투 진입 직후 preview는 그리되, 애니메이션은 아직 재생하지 않는다.
+
     UI_RuntimePanelBase* panelsToClose[] =
     {
         // 턴 시작 시 닫아야할 UI들이 있다면 여기에 추가
@@ -431,6 +434,7 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
     if (result == EBattleEndResult::Victory)
     {
         _isVictoryUiActive = true; // 실제 전투 승리 때만 결과창 갱신/표시를 허용
+        _isVictoryConfirmPending = false;
 
         if (_battleVictory)
         {
@@ -450,6 +454,9 @@ void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnSt
     _isMechanismActionActive = false;
     _activePlayerId = HeroId::END;
 
+    if (_turnOrder)
+        _turnOrder->Notify_TurnStarted(); // 실제 턴이 시작된 뒤 다음 preview 갱신에서 turn order 애니메이션을 허용한다.
+
     // 턴 시작 시, 메커니즘 닫아주고
     if (_battleMechanism)
         _battleMechanism->Close();
@@ -467,6 +474,8 @@ void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnSt
         if (_battleMechanism)
             _battleMechanism->Show_Hero(_activePlayerId);
 
+        if (_battleSystemHUD)
+            _battleSystemHUD->Play_PortraitActivation(actor.heroId);
     }
     else
     {
@@ -496,6 +505,14 @@ void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnSt
 
 void GameplayUI_Battle::Handle_TurnEnded(const BattleChar& actor)
 {
+    // 턴 종료 애니메이션 먼저
+    if (_battleSystemHUD &&
+        actor.statCom != nullptr &&
+        actor.statCom->Is_Player())
+    {
+        _battleSystemHUD->Play_PortraitDeactivation(actor.heroId);
+    }
+
     _isPlayerTurnUiActive = false;
     _hasCurrentPlayerTurnActor = false;
     _currentPlayerTurnActor = {};
@@ -583,6 +600,9 @@ void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float dam
         {
             if (_playerHpBar)
                 _playerHpBar->Show_DamagedTarget(target, damage, 1.5f);
+
+            if (_battleSystemHUD)
+                _battleSystemHUD->Play_PortraitDamaged(target.heroId);
         }
         else
         {
@@ -1169,6 +1189,7 @@ void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
     if (!_isBattleUiActive || !_isPlayerTurnUiActive)
     {
         _escapeSkipTurn->Close();
+        _escapeSkipTurn->Update(timeDelta);
         return;
     }
 
@@ -1176,6 +1197,7 @@ void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
     if (battleController == nullptr || !battleController->Is_BattleStarted())
     {
         _escapeSkipTurn->Close();
+        _escapeSkipTurn->Update(timeDelta);
         return;
     }
 
@@ -1187,6 +1209,7 @@ void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
         turnState != BattleTurnState::SkillTargeting)
     {
         _escapeSkipTurn->Close();
+        _escapeSkipTurn->Update(timeDelta);
         return;
     }
 
@@ -1199,26 +1222,34 @@ void GameplayUI_Battle::Update_AttackTooltip(float timeDelta)
     if (_attackTooltip == nullptr)
         return;
 
-    if (!_isBattleUiActive || !_isPlayerTurnUiActive)
+    if (!_isBattleUiActive)
     {
-        _attackTooltip->Close();
+        _attackTooltip->Close_Immediately();
+        return;
+    }
+
+    if (!_isPlayerTurnUiActive)
+    {
+        _attackTooltip->Close();          
+        _attackTooltip->Update(timeDelta);
         return;
     }
 
     const auto battleController = CLIENT->Get_BattleController();
     if (battleController == nullptr || !battleController->Is_BattleStarted())
     {
-        _attackTooltip->Close();
+        _attackTooltip->Close_Immediately();
         return;
     }
 
     if (battleController->Get_CurrentTurnState() != BattleTurnState::AttackTargeting)
     {
-        _attackTooltip->Close();
+        _attackTooltip->Close();           
+        _attackTooltip->Update(timeDelta); 
         return;
     }
 
-    // F 기본 공격으로 AttackTargeting에 들어온 동안만 설명 툴팁을 유지
+    // AttackTargeting 동안만 open
     _attackTooltip->Open();
     _attackTooltip->Update(timeDelta);
 }
@@ -1244,26 +1275,46 @@ void GameplayUI_Battle::Update_BattleVictory(float timeDelta)
     if (_battleVictory == nullptr)
         return;
 
-    if (!_isVictoryUiActive)
+    const float uiTimeDelta = GAME->Get_UnscaledTimeDelta();
+
+    if (_isVictoryUiActive)
     {
-        _battleVictory->Close();
+        _battleVictory->Open();
+        _battleVictory->Update(uiTimeDelta);
+
+        if (!_isVictoryConfirmPending && GAME->KeyDown(KEY_TYPE::F))
+        {
+            const bool requested = CLIENT->Request_ScreenFadeTransition(
+                [this]()
+                {
+                    _isVictoryUiActive = false;
+                    _isVictoryConfirmPending = false;
+
+                    if (_battleVictory)
+                        _battleVictory->Close_Immediately();
+
+                    if (_battleController)
+                        _battleController->Confirm_Victory();
+                });
+
+            if (requested)
+                _isVictoryConfirmPending = true;
+        }
+
         return;
     }
 
-    _battleVictory->Open();
-
-    const float uiTimeDelta = GAME->Get_UnscaledTimeDelta();
+    _battleVictory->Close();
     _battleVictory->Update(uiTimeDelta);
 
-    if (GAME->KeyDown(KEY_TYPE::F))
+    if (_isVictoryConfirmPending &&
+        !_battleVictory->Is_Open() &&
+        !_battleVictory->Is_ClosingWithOutro())
     {
-        _isVictoryUiActive = false;
-        _battleVictory->Close();
+        _isVictoryConfirmPending = false;
 
         if (_battleController)
-        {
             _battleController->Confirm_Victory();
-        }
     }
 }
 
@@ -1363,9 +1414,16 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
         return;
 
     auto battleController = CLIENT->Get_BattleController();
-    if (battleController == nullptr || !battleController->Is_PlayerTurnActive())
+    if (battleController == nullptr)
+    {
+        _battleSkillPanel->Close_Immediately();
+        return;
+    }
+
+    if (!battleController->Is_PlayerTurnActive())
     {
         _battleSkillPanel->Close();
+        _battleSkillPanel->Update(timeDelta);
         return;
     }
 
@@ -1377,13 +1435,12 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
     case BattleTurnState::ChooseSkill:
         if (turnRequest.actor.statCom)
         {
-            // 캐릭터별 스킬 목록 패널
             _battleSkillPanel->Open_MainPanel(turnRequest.actor.statCom->Get_PlayerType());
             _battleSkillPanel->Update(timeDelta);
         }
         else
         {
-            _battleSkillPanel->Close();
+            _battleSkillPanel->Close_Immediately();
         }
         break;
 
@@ -1394,6 +1451,7 @@ void GameplayUI_Battle::Update_BattleSkillPanel(float timeDelta)
 
     default:
         _battleSkillPanel->Close();
+        _battleSkillPanel->Update(timeDelta);
         break;
     }
 }
@@ -1520,6 +1578,7 @@ vector<GameplayUI_Battle::TurnDesc> GameplayUI_Battle::Build_TurnOrderEntries() 
         UI_BattleSystem_TurnOrder::TurnOrderEntryDesc entry{};
         entry.portraitGuid = Resolve_TurnOrderPortraitGuid(actor);
         entry.isEnemy = actor.statCom != nullptr && !actor.statCom->Is_Player();
+        entry.actorToken = reinterpret_cast<uint64>(actor.actor.get());
 
         entries.push_back(entry);
     }
@@ -1543,6 +1602,8 @@ vector<GameplayUI_Battle::VictoryStatDesc> GameplayUI_Battle::Build_BattleVictor
     if (_battleController == nullptr)
         return victoryStats;
 
+    const uint32 rewardExp = _battleController->Get_LastVictoryRewardExp();
+
     for (const BattleChar& hero : _battleController->Get_BattleHeroes())
     {
         const Shared<PlayerStatCom> playerStat =
@@ -1563,15 +1624,50 @@ vector<GameplayUI_Battle::VictoryStatDesc> GameplayUI_Battle::Build_BattleVictor
         stat.prevExp = stat.curExp;
         stat.prevMaxExp = stat.maxExp;
 
-        for (const VictoryStatDesc& startStat : _battleStartVictoryStats)
+        if (rewardExp > 0)
         {
-            if (startStat.playerType != stat.playerType)
-                continue;
+            uint32 rewindLevel = stat.level;
+            uint32 rewindExp = stat.curExp;
+            uint32 remainingReward = rewardExp;
 
-            stat.prevLevel = startStat.level;
-            stat.prevExp = startStat.curExp;
-            stat.prevMaxExp = startStat.maxExp;
-            break;
+            while (remainingReward > 0)
+            {
+                if (remainingReward <= rewindExp)
+                {
+                    rewindExp -= remainingReward;
+                    remainingReward = 0;
+                    break;
+                }
+
+                remainingReward -= rewindExp;
+
+                if (rewindLevel <= 1)
+                {
+                    rewindExp = 0;
+                    remainingReward = 0;
+                    break;
+                }
+
+                --rewindLevel;
+                rewindExp = CLIENT->Get_NextExp(rewindLevel);
+            }
+
+            stat.prevLevel = rewindLevel;
+            stat.prevExp = rewindExp;
+            stat.prevMaxExp = CLIENT->Get_NextExp(rewindLevel);
+        }
+        else
+        {
+            for (const VictoryStatDesc& startStat : _battleStartVictoryStats)
+            {
+                if (startStat.playerType != stat.playerType)
+                    continue;
+
+                stat.prevLevel = startStat.level;
+                stat.prevExp = startStat.curExp;
+                stat.prevMaxExp = startStat.maxExp;
+                break;
+            }
         }
 
         victoryStats.push_back(stat);
@@ -1589,9 +1685,13 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
     _hasCurrentPlayerTurnActor = false;
     _currentPlayerTurnActor = {};
     _isVictoryUiActive = false;
+    _isVictoryConfirmPending = false;
     _isMechanismActionActive = false;
     _activePlayerId = HeroId::END;
     _battleStartVictoryStats.clear();
+
+    if (_turnOrder)
+        _turnOrder->Set_AnimationPlaybackEnabled(false);
 
     UI_RuntimePanelBase* panelsToClose[] =
     {
@@ -1622,6 +1722,12 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
             panel->Close();
     }
 
+    if (_attackTooltip)
+        _attackTooltip->Close_Immediately();
+
+    if (_battleSkillPanel)
+        _battleSkillPanel->Close_Immediately();
+
     if (_markEffect)
         _markEffect->Clear_Target();
 
@@ -1647,7 +1753,7 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
     Stop_BattleEnterTransition(); // 진입 중 F4에서도 페이드 잔상을 남기지 않는다.
 
     if (closeVictoryUi && _battleVictory)
-        _battleVictory->Close();
+        _battleVictory->Close_Immediately();
 }
 
 Shared<GameplayUI_Battle> GameplayUI_Battle::Create(uint32 levelIndex)

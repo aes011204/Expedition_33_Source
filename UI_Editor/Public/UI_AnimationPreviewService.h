@@ -7,11 +7,14 @@ NS_BEGIN(UIEditor)
 struct UI_AnimationPreviewSample
 {
     ImVec2 position = ImVec2(0.f, 0.f);
+    ImVec2 size = ImVec2(100.f, 100.f);
     ImVec2 scale = ImVec2(1.f, 1.f);
     float rotationRadians = 0.f;
     ImVec4 color = ImVec4(1.f, 1.f, 1.f, 1.f);
     bool hasAlphaMultiplier = false;
     float alphaMultiplier = 1.f;
+    bool hasFontSize = false;
+    float fontSize = 32.f;
 };
 
 class UI_AnimationPreviewService final

@@ -446,6 +446,7 @@ namespace Client
         Fire,
         Ice,
         Lightning,
+        Earth,
         Dark,
         Light
     };

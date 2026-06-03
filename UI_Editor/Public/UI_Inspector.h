@@ -25,6 +25,8 @@ namespace UIEditor
         void Draw_FontSlotPicker(const char* label, const char* popupId, const UI_Object& object);
         void Refresh_UITextureAssetCache();
         void Refresh_FilteredUITextureAssets(const string& searchText);
+        void Refresh_UIFontAssetCache();
+        void Refresh_FilteredUIFontAssets(const string& searchText);
 
     public:
         static Shared<UI_Inspector> Create(UI_Editor_Manager& editorManager);
@@ -35,8 +37,13 @@ namespace UIEditor
         char _fontSearchBuffer[128] = {};
         vector<AssetMeta> _uiTextureAssets = {};
         vector<const AssetMeta*> _filteredUITextureAssets = {};
+        vector<AssetMeta> _uiFontAssets = {};
+        vector<const AssetMeta*> _filteredUIFontAssets = {};
         string _lastTextureSearchText = "";
+        string _lastFontSearchText = "";
         bool _uiTextureAssetCacheDirty = true;
         bool _filteredUITextureAssetsDirty = true;
+        bool _uiFontAssetCacheDirty = true;
+        bool _filteredUIFontAssetsDirty = true;
     };
 }

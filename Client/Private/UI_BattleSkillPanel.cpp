@@ -1,6 +1,7 @@
 ﻿#include "UI_BattleSkillPanel.h"
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
+#include "UI_Animation.h"
 #include "UI_Utils.h"
 
 using namespace UI_Utils;
@@ -26,6 +27,8 @@ namespace
     constexpr wchar_t UI_BattleSkillTooltip_FleureFury_Path[] =
         L"UI/UI_Json/BattleSystem/SkillTooltip/Maelle/UI_BattleSystem_SkillTooltip_FleuretFury.json";
 
+    constexpr wchar_t kTooltipIntroAnimationName[] = L"BattleSystem_Tooltip_Intro";
+    constexpr wchar_t kTooltipOutroAnimationName[] = L"BattleSystem_Tooltip_Outro";
 }
 
 HRESULT UI_BattleSkillPanel::Initialize(uint32 levelIndex)
@@ -34,50 +37,70 @@ HRESULT UI_BattleSkillPanel::Initialize(uint32 levelIndex)
 
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
+    CHECK_FAILED(Load_TooltipAnimations(), E_FAIL);
 
-    Close();
+    Close_Immediately();
+
     return S_OK;
 }
 
 void UI_BattleSkillPanel::Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
-    if (!_isOpen)
+    if (_activeView != ActiveView::Tooltip || !_isTooltipClosingWithOutro)
         return;
+
+    _tooltipCloseElapsed += max(0.f, timeDelta);
+
+    if (_tooltipCloseElapsed >= _tooltipOutroDuration)
+        Close_TooltipImmediately();
 }
 
 void UI_BattleSkillPanel::Open_MainPanel(PlayerCharacterType playerType)
 {
-    Close_MainPanels();
-    Close_Tooltips();
-    _activeHeroId = Resolve_HeroId(playerType);
+    Shared<UI_Base> nextRoot = nullptr;
 
     switch (playerType)
     {
     case PlayerCharacterType::Gustave:
-        _root = _gustavePanel;
+        nextRoot = _gustavePanel;
         break;
 
     case PlayerCharacterType::Lune:
-        _root = _lunePanel;
+        nextRoot = _lunePanel;
         break;
 
     case PlayerCharacterType::Maelle:
-        _root = _maellePanel;
+        nextRoot = _maellePanel;
         break;
 
     default:
-        _root = nullptr;
-        _activeHeroId = HeroId::END;
         break;
     }
 
-    Reset_EditorDesignPositionCache(); // 메인 패널 루트의 원래 위치를 다시 잡게 한다.
+    _activeHeroId = Resolve_HeroId(playerType);
+
+    if (_activeView == ActiveView::MainPanel && _root == nextRoot && _isOpen)
+    {
+        Apply_CurrentRootEditorOffsets();
+        return;
+    }
+
+    if (_activeView == ActiveView::Tooltip)
+    {
+        Close();
+        return;
+    }
+
+    Close_MainPanels();
+
+    _root = nextRoot;
+    _activeView = (_root != nullptr) ? ActiveView::MainPanel : ActiveView::None;
+    Reset_EditorDesignPositionCache();
 
     if (_root == nullptr)
     {
         _isOpen = false;
+        _activeHeroId = HeroId::END;
         return;
     }
 
@@ -87,32 +110,88 @@ void UI_BattleSkillPanel::Open_MainPanel(PlayerCharacterType playerType)
 
 void UI_BattleSkillPanel::Open_Tooltip(const string& skillKey)
 {
-    Close_MainPanels();
-    Close_Tooltips();
-    _activeHeroId = HeroId::END;
-
     auto iter = _tooltipRoots.find(skillKey);
     if (iter == _tooltipRoots.end() || iter->second == nullptr)
     {
-        _root = nullptr;
-        Reset_EditorDesignPositionCache(); // 잘못된 이전 루트 위치가 남지 않게 정리
-        _isOpen = false;
+        Close_Immediately();
         return;
     }
 
-    _root = iter->second;
-    Reset_EditorDesignPositionCache(); // 툴팁 루트의 원래 위치를 다시 캡처하게 한다.
+    Shared<UI_Base> nextRoot = iter->second;
+
+    // 같은 tooltip이 이미 정상 open 상태면 intro를 다시 재생하지 않는다.
+    if (_activeView == ActiveView::Tooltip &&
+        _root == nextRoot &&
+        _isOpen &&
+        !_isTooltipClosingWithOutro)
+    {
+        return;
+    }
+
+    Close_MainPanels();
+    Close_TooltipImmediately();
+
+    _activeHeroId = HeroId::END;
+    _activeTooltipRoot = nextRoot;
+    _root = nextRoot;
+    _activeView = ActiveView::Tooltip;
+    Reset_EditorDesignPositionCache();
+
     UI_RuntimePanelBase::Open();
+
+    if (_hasTooltipIntroAnimation)
+        _root->Play_UIAnimation(kTooltipIntroAnimationName, true);
 }
 
 void UI_BattleSkillPanel::Close()
+{
+    if (_activeView == ActiveView::Tooltip)
+    {
+        if (_root == nullptr)
+        {
+            Close_TooltipImmediately();
+            return;
+        }
+
+        // outro 중 중복 Close 방지
+        if (_isTooltipClosingWithOutro)
+            return;
+
+        // outro asset이 없으면 기존처럼 즉시 닫는다.
+        if (!_hasTooltipOutroAnimation)
+        {
+            Close_TooltipImmediately();
+            return;
+        }
+
+        _isTooltipClosingWithOutro = true;
+        _tooltipCloseElapsed = 0.f;
+
+        // SkillTooltip close 시 공용 outro 재생
+        if (!_root->Play_UIAnimation(kTooltipOutroAnimationName, true))
+            Close_TooltipImmediately();
+
+        return;
+    }
+
+    // 수정: 메인 패널은 기존처럼 즉시 close
+    Close_Immediately();
+}
+
+void UI_BattleSkillPanel::Close_Immediately()
 {
     Close_MainPanels();
     Close_Tooltips();
 
     _root = nullptr;
+    _activeTooltipRoot.reset();
     _activeHeroId = HeroId::END;
-    Reset_EditorDesignPositionCache(); // 다음 Open 때 새 루트 기준으로 다시 시작
+    _activeView = ActiveView::None;
+    _isTooltipClosingWithOutro = false;
+    _tooltipCloseElapsed = 0.f;
+
+    Reset_EditorDesignPositionCache();
+
     _isOpen = false;
 }
 
@@ -234,6 +313,34 @@ HRESULT UI_BattleSkillPanel::Bind_UI()
     return S_OK;
 }
 
+HRESULT UI_BattleSkillPanel::Load_TooltipAnimations()
+{
+    _hasTooltipIntroAnimation =
+        UI_RuntimeLoader::Load_PublicAnimationAsset(
+            Constants::UI_Anim::UI_BattleTooltipIntroAnim_Path,
+            _tooltipIntroAnimation);
+    CHECK_TRUE(_hasTooltipIntroAnimation, E_FAIL);
+
+    _hasTooltipOutroAnimation =
+        UI_RuntimeLoader::Load_PublicAnimationAsset(
+            Constants::UI_Anim::UI_BattleTooltipOutroAnim_Path,
+            _tooltipOutroAnimation);
+    CHECK_TRUE(_hasTooltipOutroAnimation, E_FAIL);
+
+    _tooltipOutroDuration = Get_KeyframeAnimationDurationSec(_tooltipOutroAnimation);
+
+    for (auto& [skillKey, tooltipRoot] : _tooltipRoots)
+    {
+        if (tooltipRoot == nullptr)
+            continue;
+
+        tooltipRoot->Add_UIAnimationAsset(_tooltipIntroAnimation);
+        tooltipRoot->Add_UIAnimationAsset(_tooltipOutroAnimation);
+    }
+
+    return S_OK;
+}
+
 void UI_BattleSkillPanel::Close_MainPanels()
 {
     if (_gustavePanel) _gustavePanel->Close();
@@ -247,9 +354,28 @@ void UI_BattleSkillPanel::Close_Tooltips()
     {
         UNREFERENCED_PARAMETER(skillKey);
 
-        if (tooltipRoot)
-            tooltipRoot->Close();
+        if (tooltipRoot == nullptr)
+            continue;
+
+        tooltipRoot->Stop_UIAnimation();
+        tooltipRoot->Close();
     }
+}
+
+void UI_BattleSkillPanel::Close_TooltipImmediately()
+{
+    Close_Tooltips();
+
+    _root = nullptr;
+    _activeTooltipRoot.reset();
+    _activeView = ActiveView::None;
+    _isTooltipClosingWithOutro = false;
+    _tooltipCloseElapsed = 0.f;
+    _activeHeroId = HeroId::END;
+
+    Reset_EditorDesignPositionCache();
+
+    _isOpen = false;
 }
 
 HeroId UI_BattleSkillPanel::Resolve_HeroId(PlayerCharacterType playerType) const
@@ -317,7 +443,7 @@ Unique<UI_BattleSkillPanel> UI_BattleSkillPanel::Create(uint32 levelIndex)
 
 void UI_BattleSkillPanel::Free()
 {
-    Close();
+    Close_Immediately();
 
     _gustavePanel.reset();
     _lunePanel.reset();

@@ -1,8 +1,8 @@
 ﻿#pragma once
 
 #include "UI_RuntimePanelBase.h"
+#include "UI_Animation.h"
 #include "Battle_Enum.h"
-#include "Client_Enum.h"
 
 NS_BEGIN(Engine)
 class UI_Base;
@@ -23,6 +23,9 @@ public:
     void    Open_MainPanel(PlayerCharacterType playerType);
     void    Open_Tooltip(const string& skillKey);
     void    Close() override;
+
+    void    Close_Immediately();
+
     void    Set_EditorDefaultTestOffset(const Vec2& offset) override;
 
     bool    Supports_EditorHeroTestOffset() const override { return true; }
@@ -31,11 +34,23 @@ public:
     void    Set_EditorHeroTestOffset(HeroId heroId, const Vec2& offset) override;
 
 private:
+    enum class ActiveView
+    {
+        None,
+        MainPanel,
+        Tooltip,
+    };
+
+private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
 
+    HRESULT Load_TooltipAnimations();
+
     void    Close_MainPanels();
     void    Close_Tooltips();
+    void    Close_TooltipImmediately();
+
     HeroId  Resolve_HeroId(PlayerCharacterType playerType) const;
     Vec2    Resolve_HeroTestOffset(HeroId heroId) const;
     void    Apply_CurrentRootEditorOffsets();
@@ -47,9 +62,23 @@ private:
 
     umap<string, Shared<UI_Base>> _tooltipRoots{};
     HeroId _activeHeroId = HeroId::END;
-    Vec2 _gustaveTestOffset = Vec2::Zero;
-    Vec2 _luneTestOffset = Vec2::Zero;
-    Vec2 _maelleTestOffset = Vec2::Zero;
+    Vec2   _gustaveTestOffset = Vec2::Zero;
+    Vec2   _luneTestOffset = Vec2::Zero;
+    Vec2   _maelleTestOffset = Vec2::Zero;
+
+    ActiveView _activeView = ActiveView::None;
+
+    Shared<UI_Base> _activeTooltipRoot{};
+
+    UI_KeyframeAnimationAsset _tooltipIntroAnimation{};
+    UI_KeyframeAnimationAsset _tooltipOutroAnimation{};
+
+    bool  _hasTooltipIntroAnimation = false;
+    bool  _hasTooltipOutroAnimation = false;
+
+    bool  _isTooltipClosingWithOutro = false;
+    float _tooltipCloseElapsed = 0.f;
+    float _tooltipOutroDuration = 0.f;
 
 public:
     static Unique<UI_BattleSkillPanel> Create(uint32 levelIndex);

@@ -2,6 +2,7 @@
 #include "GameInstance.h"
 #include "Collision_Define.h"
 #include "MapStaticCollisionBuilder.h"
+#include "ModelCom.h"
 
 #include "Camera.h"
 #include "StaticCollisionData.h"
@@ -9,6 +10,7 @@
 namespace
 {
     constexpr float kCollisionDebugMaxDistance = 35.f;
+    constexpr const wchar_t* kMapStaticModelComponentTag = L"Com_Model";
 
     bool g_showCollisionDebug = false;
     const MapStaticMesh* g_toggleOwner = nullptr;
@@ -172,10 +174,22 @@ HRESULT MapStaticMesh::Initialize(void* arg)
         return E_FAIL;
     }
 
-    auto pDesc = static_cast<MAPSTATICMESH_DESC*>(arg);
-    _collisionData = pDesc->collisionData;
-
     Set_ShadowCasterType(ShadowCasterType::Static);
+
+    auto pDesc = static_cast<MAPSTATICMESH_DESC*>(arg);
+    if (pDesc == nullptr)
+    {
+        if (FAILED(Ready_EmptyModelComponent()))
+        {
+            return E_FAIL;
+        }
+
+        GAME->Register_StaticShadowCaster(GetSharedPtr<GameObject>());
+        return S_OK;
+    }
+
+    _collisionData = pDesc->collisionData;
+    _usesStaticCollision = (_collisionData != nullptr);
 
     if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
     {
@@ -223,6 +237,9 @@ void MapStaticMesh::Late_Update(float timeDelta)
 {
     UNREFERENCED_PARAMETER(timeDelta);
 
+    if (_model == nullptr)
+        return;
+
     if (g_toggleOwner == nullptr)
         g_toggleOwner = this;
 
@@ -261,6 +278,11 @@ void MapStaticMesh::Late_Update(float timeDelta)
 
 HRESULT MapStaticMesh::Render()
 {
+    if (_shader == nullptr || _model == nullptr)
+    {
+        return S_OK;
+    }
+
     if (FAILED(Bind_ShaderResources()))
     {
         return E_FAIL;
@@ -400,7 +422,9 @@ HRESULT MapStaticMesh::Ready_Components(const wstring& modelPath, Shared<ModelCo
 
     if (sharedModel)
     {
-        _model = sharedModel;
+        _model = make_shared<ModelCom>(*sharedModel);
+        if (_model == nullptr || FAILED(_model->Initialize(nullptr)))
+            return E_FAIL;
     }
     else
     {
@@ -410,7 +434,61 @@ HRESULT MapStaticMesh::Ready_Components(const wstring& modelPath, Shared<ModelCo
             return E_FAIL;
     }
 
+    Register_ModelComponent();
+
     return S_OK;
+}
+
+HRESULT MapStaticMesh::Ready_EmptyModelComponent()
+{
+    if (FAILED(__super::Add_Component(ETOI(LevelType::Static), TEXT("Shader_VtxMesh"), _shader)))
+    {
+        return E_FAIL;
+    }
+
+    _model = make_shared<ModelCom>(_device, _context);
+    if (_model == nullptr || FAILED(_model->Initialize(nullptr)))
+    {
+        return E_FAIL;
+    }
+
+    Register_ModelComponent();
+
+    return S_OK;
+}
+
+void MapStaticMesh::Register_ModelComponent()
+{
+    if (_model == nullptr)
+        return;
+
+    _model->Set_Owner(GetSharedPtr<GameObject>());
+
+    if (_components.find(kMapStaticModelComponentTag) == _components.end())
+        _components.emplace(kMapStaticModelComponentTag, static_pointer_cast<Component>(_model));
+}
+
+void MapStaticMesh::Rebuild_StaticCollisionFromModel()
+{
+    if (_physxStaticHandle.Is_Valid())
+    {
+        GAME->Unregister_PhysXStaticActor(_physxStaticHandle);
+        _physxStaticHandle = {};
+    }
+
+    _collisionData.reset();
+
+    if (!_usesStaticCollision || _model == nullptr)
+        return;
+
+    _collisionData = MapStaticCollisionBuilder::Build(_model);
+    if (_collisionData == nullptr)
+        return;
+
+    _physxStaticHandle = GAME->Register_PhysXStaticCollision(
+        *_collisionData,
+        _transformCom->Get_WorldMatrix(),
+        Collision_Preset::Enviroment);
 }
 
 HRESULT MapStaticMesh::Bind_ShaderResources()
@@ -422,6 +500,58 @@ HRESULT MapStaticMesh::Bind_ShaderResources()
         return E_FAIL;
 
     return S_OK;
+}
+
+json MapStaticMesh::To_Json() const
+{
+    json root = __super::To_Json();
+    root["map_static_collision_enabled"] = _usesStaticCollision;
+
+    bool hasModelComponentJson = false;
+    if (root.contains("components") && root["components"].is_array())
+    {
+        for (const json& componentJson : root["components"])
+        {
+            if (!componentJson.is_object())
+                continue;
+
+            if (componentJson.value("prototype_tag", string{}) == String::ToString(kMapStaticModelComponentTag))
+            {
+                hasModelComponentJson = true;
+                break;
+            }
+        }
+    }
+
+    if (!hasModelComponentJson && _model != nullptr)
+    {
+        json modelJson = _model->To_Json();
+        modelJson["prototype_tag"] = String::ToString(kMapStaticModelComponentTag);
+
+        if (!root.contains("components") || !root["components"].is_array())
+            root["components"] = json::array();
+
+        root["components"].emplace_back(modelJson);
+    }
+
+    return root;
+}
+
+void MapStaticMesh::From_Json(const json& data)
+{
+    _usesStaticCollision = data.value("map_static_collision_enabled", false);
+
+    __super::From_Json(data);
+
+    if (_model != nullptr)
+    {
+        const wstring& sourceModelPath = _model->Get_SourceModelPath();
+        if (!sourceModelPath.empty())
+            Set_Name(fs::path(sourceModelPath).stem().wstring());
+    }
+
+    Rebuild_StaticCollisionFromModel();
+    GAME->Mark_StaticShadowDirty();
 }
 
 Shared<MapStaticMesh> MapStaticMesh::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

@@ -53,9 +53,17 @@ namespace
         case UI_KeyframeAnimationTrackType::Alpha:
         case UI_KeyframeAnimationTrackType::AlphaMultiplier:
             return min(max(value, 0.f), 1.f);
+        case UI_KeyframeAnimationTrackType::FontSize:
+            return max(4.f, value);
         default:
             return value;
         }
+    }
+
+    Vec2 Clamp_KeyframeTrackVec2Value(UI_KeyframeAnimationTrackType type, const Vec2& value)
+    {
+        (void)type;
+        return value;
     }
 
     float Clamp_ColorChannel255(float value)
@@ -88,6 +96,12 @@ namespace
         {
             outSample.hasPosition = true;
             outSample.position = sample.position;
+        }
+
+        if (sample.hasSize)
+        {
+            outSample.hasSize = true;
+            outSample.size = sample.size;
         }
 
         if (sample.hasScale)
@@ -265,6 +279,38 @@ namespace
         return track.keys.back().value;
     }
 
+    Vec2 Evaluate_Vec2Keyframes(const UI_KeyframeAnimationTrack& track, float frame, bool& outHasValue)
+    {
+        outHasValue = false;
+        if (track.keys.empty())
+            return Vec2(0.f, 0.f);
+
+        outHasValue = true;
+        if (track.keys.size() == 1)
+            return track.keys.front().valueVec2;
+
+        if (frame <= static_cast<float>(track.keys.front().frame))
+            return track.keys.front().valueVec2;
+
+        if (frame >= static_cast<float>(track.keys.back().frame))
+            return track.keys.back().valueVec2;
+
+        for (size_t index = 0; index + 1 < track.keys.size(); ++index)
+        {
+            const UI_KeyframeAnimationKey& currentKey = track.keys[index];
+            const UI_KeyframeAnimationKey& nextKey = track.keys[index + 1];
+
+            if (frame < static_cast<float>(currentKey.frame) || frame > static_cast<float>(nextKey.frame))
+                continue;
+
+            const float frameRange = max(1.f, static_cast<float>(nextKey.frame - currentKey.frame));
+            const float t = min(max((frame - static_cast<float>(currentKey.frame)) / frameRange, 0.f), 1.f);
+            return Lerp_Vec2(currentKey.valueVec2, nextKey.valueVec2, Evaluate_Easing(currentKey.easing, t));
+        }
+
+        return track.keys.back().valueVec2;
+    }
+
     float Resolve_RelativeKeyframeTargetValue(
         UI_KeyframeAnimationTrackType type,
         float value,
@@ -284,6 +330,20 @@ namespace
             return baseScale.y * value;
         case UI_KeyframeAnimationTrackType::Rotation:
             return baseRotationRadians + value;
+        default:
+            return value;
+        }
+    }
+
+    Vec2 Resolve_RelativeKeyframeTargetVec2Value(
+        UI_KeyframeAnimationTrackType type,
+        const Vec2& value,
+        const Vec2& baseSize)
+    {
+        switch (type)
+        {
+        case UI_KeyframeAnimationTrackType::Size:
+            return baseSize + value;
         default:
             return value;
         }
@@ -349,6 +409,64 @@ namespace
             : value;
     }
 
+    Vec2 Evaluate_Vec2KeyframesFromCurrent(
+        const UI_KeyframeAnimationTrack& track,
+        float frame,
+        const Vec2& currentValue,
+        bool useRelativeTargets,
+        const Vec2& baseSize,
+        bool& outHasValue)
+    {
+        outHasValue = false;
+        if (track.keys.empty())
+            return currentValue;
+
+        outHasValue = true;
+        if (track.keys.size() == 1)
+        {
+            const Vec2& value = track.keys.front().valueVec2;
+            return useRelativeTargets
+                ? Resolve_RelativeKeyframeTargetVec2Value(track.type, value, baseSize)
+                : value;
+        }
+
+        if (frame <= static_cast<float>(track.keys.front().frame))
+            return currentValue;
+
+        if (frame >= static_cast<float>(track.keys.back().frame))
+        {
+            const Vec2& value = track.keys.back().valueVec2;
+            return useRelativeTargets
+                ? Resolve_RelativeKeyframeTargetVec2Value(track.type, value, baseSize)
+                : value;
+        }
+
+        for (size_t index = 0; index + 1 < track.keys.size(); ++index)
+        {
+            const UI_KeyframeAnimationKey& currentKey = track.keys[index];
+            const UI_KeyframeAnimationKey& nextKey = track.keys[index + 1];
+
+            if (frame < static_cast<float>(currentKey.frame) || frame > static_cast<float>(nextKey.frame))
+                continue;
+
+            const float frameRange = max(1.f, static_cast<float>(nextKey.frame - currentKey.frame));
+            const float t = min(max((frame - static_cast<float>(currentKey.frame)) / frameRange, 0.f), 1.f);
+            const Vec2 currentKeyValue = useRelativeTargets
+                ? Resolve_RelativeKeyframeTargetVec2Value(track.type, currentKey.valueVec2, baseSize)
+                : currentKey.valueVec2;
+            const Vec2 nextKeyValue = useRelativeTargets
+                ? Resolve_RelativeKeyframeTargetVec2Value(track.type, nextKey.valueVec2, baseSize)
+                : nextKey.valueVec2;
+            const Vec2 fromValue = (0 == index) ? currentValue : currentKeyValue;
+            return Lerp_Vec2(fromValue, nextKeyValue, Evaluate_Easing(currentKey.easing, t));
+        }
+
+        const Vec2& value = track.keys.back().valueVec2;
+        return useRelativeTargets
+            ? Resolve_RelativeKeyframeTargetVec2Value(track.type, value, baseSize)
+            : value;
+    }
+
     Vec4 Evaluate_ColorKeyframes(const UI_KeyframeAnimationTrack& track, float frame, bool& outHasValue)
     {
         outHasValue = false;
@@ -388,10 +506,12 @@ namespace
         const UI_KeyframeAnimationAsset& asset,
         float time,
         const Vec2& basePosition,
+        const Vec2& baseSize,
         const Vec2& baseScale,
         float baseRotationRadians,
         float baseAlphaMultiplier,
         const Vec2& transitionStartPosition,
+        const Vec2& transitionStartSize,
         const Vec2& transitionStartScale,
         float transitionStartRotationRadians,
         float transitionStartAlphaMultiplier,
@@ -411,6 +531,7 @@ namespace
 
         UI_AnimationSample sample = {};
         sample.position = basePosition;
+        sample.size = baseSize;
         sample.scale = baseScale;
         sample.rotationRadians = baseRotationRadians;
         sample.alphaMultiplier = baseAlphaMultiplier;
@@ -437,6 +558,28 @@ namespace
                 sample.hasColor = true;
                 sample.hasColorTrack = true;
                 sample.color = Convert_Color255To01(color);
+                hasSampledTrack = true;
+                continue;
+            }
+
+            if (track.type == UI_KeyframeAnimationTrackType::Size)
+            {
+                bool hasVec2Value = false;
+                const Vec2 rawValue = useCurrentStart
+                    ? Evaluate_Vec2KeyframesFromCurrent(
+                        track,
+                        frame,
+                        transitionStartSize,
+                        useCurrentRelativeTargets,
+                        baseSize,
+                        hasVec2Value)
+                    : Evaluate_Vec2Keyframes(track, frame, hasVec2Value);
+                if (!hasVec2Value)
+                    continue;
+
+                const Vec2 value = Clamp_KeyframeTrackVec2Value(track.type, rawValue);
+                sample.hasSize = true;
+                sample.size = useRelativeTracks ? baseSize + value : value;
                 hasSampledTrack = true;
                 continue;
             }
@@ -480,6 +623,9 @@ namespace
                 : Evaluate_Keyframes(track, frame, hasValue);
             const float value = Clamp_KeyframeTrackValue(track.type, rawValue);
             if (!hasValue)
+                continue;
+
+            if (track.type == UI_KeyframeAnimationTrackType::FontSize)
                 continue;
 
             hasSampledTrack = true;
@@ -554,18 +700,20 @@ void UI_AnimationPlayer::Add_KeyframeAsset(const UI_KeyframeAnimationAsset& asse
     _keyframeAssets.push_back(asset);
 }
 
-void UI_AnimationPlayer::Set_BaseTransformState(const Vec2& position, const Vec2& scale, float rotationRadians, float alphaMultiplier)
+void UI_AnimationPlayer::Set_BaseTransformState(const Vec2& position, const Vec2& size, const Vec2& scale, float rotationRadians, float alphaMultiplier)
 {
     _basePosition = position;
+    _baseSize = size;
     _baseScale = scale;
     _baseRotationRadians = rotationRadians;
     _baseAlphaMultiplier = min(max(alphaMultiplier, 0.f), 1.f);
-    Set_TransitionStartState(position, scale, rotationRadians, _baseAlphaMultiplier);
+    Set_TransitionStartState(position, size, scale, rotationRadians, _baseAlphaMultiplier);
 }
 
-void UI_AnimationPlayer::Set_TransitionStartState(const Vec2& position, const Vec2& scale, float rotationRadians, float alphaMultiplier)
+void UI_AnimationPlayer::Set_TransitionStartState(const Vec2& position, const Vec2& size, const Vec2& scale, float rotationRadians, float alphaMultiplier)
 {
     _transitionStartPosition = position;
+    _transitionStartSize = size;
     _transitionStartScale = scale;
     _transitionStartRotationRadians = rotationRadians;
     _transitionStartAlphaMultiplier = min(max(alphaMultiplier, 0.f), 1.f);
@@ -637,10 +785,12 @@ bool UI_AnimationPlayer::Update(float deltaTime, UI_AnimationSample& outSample)
             _keyframeAssets[_activeKeyframeAssetIndex],
             _time,
             _basePosition,
+            _baseSize,
             _baseScale,
             _baseRotationRadians,
             _baseAlphaMultiplier,
             _transitionStartPosition,
+            _transitionStartSize,
             _transitionStartScale,
             _transitionStartRotationRadians,
             _transitionStartAlphaMultiplier,
