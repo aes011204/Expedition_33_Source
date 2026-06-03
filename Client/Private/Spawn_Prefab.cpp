@@ -61,6 +61,16 @@ void Refresh_MonsterBodyAnimMapping(const Shared<GameObject>& gameObject)
     }
 }
 
+string Resolve_CanonicalPrefabName(const string& requestedPrefabName, const fs::path& prefabPath)
+{
+    string stem = String::ToString(prefabPath.stem().wstring());
+    constexpr string_view prefabSuffix = ".prefab";
+    if (stem.ends_with(prefabSuffix))
+        stem.erase(stem.size() - prefabSuffix.size());
+
+    return stem.empty() ? requestedPrefabName : stem;
+}
+
 }
 
 Spawn_Prefab::Builder::Builder(const string& prefabName)
@@ -144,7 +154,7 @@ Shared<GameObject> Spawn_Prefab::SpawnForEditorPlacement(
     Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(prefabPath);
     CHECK_NULL(gameObject, nullptr);
 
-    gameObject->Set_SourcePrefabName(prefabName);
+    gameObject->Set_SourcePrefabName(Resolve_CanonicalPrefabName(prefabName, prefabPath));
     gameObject->Set_RuntimeAuthoringLoaded(true); // 에디터 드래그 배치 프리펩은 authored 관리 대상으로 표시한다.
     Refresh_PlayerBodyAnimMapping(gameObject);
     Refresh_MonsterBodyAnimMapping(gameObject);
@@ -153,9 +163,10 @@ Shared<GameObject> Spawn_Prefab::SpawnForEditorPlacement(
     if (transform != nullptr)
         transform->Set_WorldPosition(position);
 
+    const wstring typeLayerTag = Resolve_DefaultLayerTag(gameObject);
     wstring layerTag = Resolve_DefaultLayerTagFromPrefabFile(prefabPath);
-    if (layerTag.empty())
-        layerTag = Resolve_DefaultLayerTag(gameObject); // 프리펩 메타가 없으면 기존 타입 기반 추론으로 안전하게 fallback 한다.
+    if (layerTag.empty() || (layerTag == TEXT("Layer_GameObject") && typeLayerTag != TEXT("Layer_GameObject")))
+        layerTag = typeLayerTag; // Content Browser 배치 몬스터는 generic layer 대신 runtime 몬스터 레이어로 정규화한다.
 
     CHECK_FAILED(GAME->Add_GameObject(levelIndex, layerTag, gameObject), nullptr);
 
@@ -262,19 +273,20 @@ Shared<GameObject> Spawn_Prefab::Spawn_Implementation(const FSpawnDesc& desc)
     Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(prefabPath);
     CHECK_NULL(gameObject, nullptr);
 
-    gameObject->Set_SourcePrefabName(desc.prefabName);
+    gameObject->Set_SourcePrefabName(Resolve_CanonicalPrefabName(desc.prefabName, prefabPath));
     Refresh_PlayerBodyAnimMapping(gameObject);
     Refresh_MonsterBodyAnimMapping(gameObject);
 
     Apply_Overrides(gameObject, desc.overrides);
 
     wstring layerTag = desc.layerTag;
+    const wstring typeLayerTag = Resolve_DefaultLayerTag(gameObject);
     if (!desc.hasExplicitLayerTag)
     {
         layerTag = Resolve_DefaultLayerTagFromPrefabFile(prefabPath);
-        if (layerTag.empty())
-            layerTag = Resolve_DefaultLayerTag(gameObject);
     }
+    if (layerTag.empty() || (layerTag == TEXT("Layer_GameObject") && typeLayerTag != TEXT("Layer_GameObject")))
+        layerTag = typeLayerTag; // 저장된 GUID authored prefab도 코드 spawn과 같은 몬스터 레이어로 복원한다.
 
     CHECK_FAILED(GAME->Add_GameObject(desc.levelIndex, layerTag, gameObject), nullptr);
 

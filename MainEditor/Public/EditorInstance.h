@@ -202,6 +202,8 @@ private: /* 저장 */
 
     void Capture_PlayStartSnapshot();
     void Restore_PlayStartSnapshot();
+    void Reload_CurrentLevelMonstersFromMapJson();
+    const wchar_t* Resolve_CurrentLevelAuthoringMapPath() const;
     bool Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const;
     bool Apply_CameraPoseToCameraType(ObjectType objectType, const CameraPoseSnapshot& pose) const;
     bool Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const;

@@ -113,6 +113,7 @@ HRESULT EffectInstance::Play()
 {
     _playbackState = EffectPlaybackState::Playing;
     Set_Visible(true);
+    Sync_Emitters();
 
     return S_OK;
 }
@@ -128,6 +129,7 @@ HRESULT EffectInstance::Reset()
 {
     _playbackState = EffectPlaybackState::Stopped;
     Set_Visible(false);
+    Sync_Emitters();
 
     for (const Shared<EffectEmitter>& emitter : _emitters)
     {

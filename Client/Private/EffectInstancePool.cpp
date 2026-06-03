@@ -82,6 +82,7 @@ HRESULT EffectInstancePool::Reload_Attached(const AcquireDesc& desc, AttachedHan
     entry->effectName = desc.effectName;
     entry->definition = definition;
     entry->layerLevelIndex = desc.layerLevelIndex;
+    entry->layerTag = desc.layerTag;
     entry->inUse = true;
 
     CHECK_FAILED(Prepare_AcquiredInstance(desc, definition, entry->instance), E_FAIL);
@@ -260,6 +261,7 @@ HRESULT EffectInstancePool::Acquire_Instance(
     newEntry.definition = outDefinition;
     newEntry.instance = outInstance;
     newEntry.layerLevelIndex = desc.layerLevelIndex;
+    newEntry.layerTag = desc.layerTag;
     newEntry.inUse = true;
     _entries.push_back(newEntry);
 
@@ -305,7 +307,6 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(
 {
     CHECK_NULL(instance, E_FAIL);
     instance->Bind_TrailSampleProvider(desc.trailSampleProvider);
-    CHECK_FAILED(instance->Reset(), E_FAIL);
     instance->Set_Name(Make_EffectInstanceDisplayName(desc, definition));
 
     const Shared<TransformCom> transform = instance->Get_Transform();
@@ -314,6 +315,7 @@ HRESULT EffectInstancePool::Prepare_AcquiredInstance(
     transform->Set_WorldRotationEuler(desc.worldRotation);
     transform->Set_Scale(desc.scale);
 
+    CHECK_FAILED(instance->Reset(), E_FAIL);
     CHECK_FAILED(instance->Play(), E_FAIL);
     return S_OK;
 }
@@ -354,9 +356,15 @@ EffectInstancePool::PooledInstance* EffectInstancePool::Find_AvailableEntry(
             continue;
         if (entry.effectName != desc.effectName)
             continue;
+        if (entry.layerLevelIndex != desc.layerLevelIndex)
+            continue;
+        if (entry.layerTag != desc.layerTag)
+            continue;
         if (desc.definition && entry.definition != definition)
             continue;
         if (nullptr == entry.instance)
+            continue;
+        if (entry.instance->Get_Transform() == nullptr)
             continue;
 
         return &entry;

@@ -207,6 +207,7 @@ public: /* For.Object_Manager */
         const Shared<GameObject>& gameObject);
 
     bool Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject);
+    void Flush_RemovedGameObjects();
     HRESULT Clear_LevelObjects(uint32 levelIndex);
 
     // Layer_Player의 첫번째 오브젝트 찾기
@@ -460,6 +461,7 @@ public: // For. PhysX_Manager
     PxPhysics* Get_PhysXPhysics() const;
     PxScene* Get_PhysXScene() const;
     PhysX_Manager* Get_PhysXManager() const { return _physxManager.get(); }
+    void Unregister_PhysXCollider(ColliderCom* collider);
 
     PhysXStaticActorHandle Register_PhysXStaticCollision(
         const StaticCollisionData& collisionData,

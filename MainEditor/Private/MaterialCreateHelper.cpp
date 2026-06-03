@@ -81,6 +81,41 @@ namespace
         return value;
     }
 
+    bool Is_AlbedoRoughnessTexture(const json& textures, const string& usedKey, const string& uassetPath)
+    {
+        if (uassetPath.empty())
+            return false;
+
+        const string keyLower = To_Lower(usedKey);
+        if (keyLower == "texture1_albedoroughness" ||
+            keyLower == "baselayer_albedoroughness" ||
+            keyLower == "1stlayer_albedoroughness")
+        {
+            return true;
+        }
+
+        if (textures.is_object())
+        {
+            for (const auto& [paramName, value] : textures.items())
+            {
+                if (!value.is_string() || value.get<string>() != uassetPath)
+                    continue;
+
+                const string paramLower = To_Lower(paramName);
+                if (paramLower == "texture1_albedoroughness" ||
+                    paramLower == "baselayer_albedoroughness" ||
+                    paramLower == "1stlayer_albedoroughness")
+                {
+                    return true;
+                }
+            }
+        }
+
+        const string assetLower = To_Lower(Extract_UAssetBaseName(uassetPath));
+        const bool endsWithAr = assetLower.size() >= 3 && assetLower.compare(assetLower.size() - 3, 3, "_ar") == 0;
+        return assetLower.find("roughness") != string::npos || endsWithAr;
+    }
+
     bool Try_ReadJsonFloat(const json& obj, const char* key, float& out)
     {
         if (!obj.is_object() || key == nullptr)
@@ -1123,7 +1158,12 @@ bool MaterialCreateHelper::Build_MaterialInstances(
         // 텍스처는 key 후보가 여러 개라서 우선순위로 하나를 고른다
         // 첫 번째가 아닌 다른 키를 썼으면 휴리스틱 노트로 남긴다
         string usedKey{};
-        const string baseColorU = Pick_TextureUAssetPath(textures, { "Base Color Map", "PM_Diffuse", "Color_MAIN", "Texture" }, &usedKey);        if (!baseColorU.empty() && usedKey != "Base Color Map")
+        const string baseColorU = Pick_TextureUAssetPath(
+            textures,
+            { "Base Color Map", "PM_Diffuse", "Texture1_AlbedoRoughness", "BaseLayer_AlbedoRoughness", "1stLayer_AlbedoRoughness", "Color_MAIN", "Texture" },
+            &usedKey);
+        const string baseColorUsedKey = usedKey;
+        if (!baseColorU.empty() && usedKey != "Base Color Map")
         {
             HeuristicNote note{};
             note.kind = "tex_key";
@@ -1267,6 +1307,17 @@ bool MaterialCreateHelper::Build_MaterialInstances(
         inst.renderState.opacityMaskClipValue = opacityClip;
 
         inst.cb.opacityMaskClipValue = opacityClip;
+
+        const bool useBaseAlphaAsRoughness =
+            inst.renderState.blendMode == Engine::MaterialBlendMode::Opaque &&
+            inst.baseSlotEnabledBaseColor &&
+            !inst.baseSlotEnabledOrm &&
+            Is_AlbedoRoughnessTexture(textures, baseColorUsedKey, baseColorU);
+        if (useBaseAlphaAsRoughness)
+        {
+            inst.forcedPassIndex = inst.renderState.twoSided ? 8 : 7;
+            inst.cb.metalnessScale = 0.f;
+        }
 
         {
             // GlowColor는 베이스 컬러 tint로 쓰지 않고, emissive 컬러로만 사용한다

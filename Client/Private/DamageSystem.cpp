@@ -47,6 +47,9 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
         return; // 일단 쉴드는 징표 소비 X
     }
 
+    if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+        return;
+    
     OnDamageCalculating.Broadcast(attacker, target, damage, attackType);
 
     // 데미지 적용 후 다시 판단

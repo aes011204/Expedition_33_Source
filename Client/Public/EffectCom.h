@@ -42,6 +42,7 @@ public:
         Vec3 scale = Vec3::One;
 
         bool followTarget = false; // AN은 false, ANS/attach 는 true로 사용
+        bool requiresManualRelease = false; // owner가 살아 있는 동안 붙어 있어야 하는 effect는 자동 완료 release를 막는다.
         Weak<IEffectTrailSampleProvider> trailSampleProvider{};
     };
 
@@ -76,6 +77,7 @@ public:
     HRESULT Initialize(void* arg) override;
     void    BeginPlay() override;
     void    Update(float timeDelta);
+    void    Tick_AttachedEffectInstances(float timeDelta);
 
 public:
     // World에서 Active 중인 플레이어 바꿀 때
