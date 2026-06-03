@@ -233,6 +233,8 @@ public: /* For.Renderer */
     ScreenFx_Manager*                   Get_ScreenFxManager();
     void                                Request_ScreenCapture(bool saveToFile = false);
     RenderGroup                         Get_CurrentRenderGroup() const;
+    void                                Set_FogZones(const FogZoneCB& fogZoneCB);
+
 public: /* For.PipeLine */
     HRESULT Bind_CamPosition(ShaderCom* shader, const char* constantName);
     HRESULT Bind_TransformMatrix(D3DTS transformState, ShaderCom* shader, const char* constantName);

@@ -635,6 +635,11 @@ void Renderer::Render_CombinedHDR()
         _viBuffer->Bind_Resources(),
         L"Render_CombinedHDR:FAIL Bind_Resources");
 
+    // fog
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        _deferredShader->Bind_CBufferData(_fogZoneCB),
+        L"Render_CombinedHDR:FAIL ShaderBegin(fogZoneCB)");
+
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
         _deferredShader->Begin(ETOI(DeferredPass::CombinedHDR)),
         L"Render_CombinedHDR:FAIL ShaderBegin(CombinedHDR)");

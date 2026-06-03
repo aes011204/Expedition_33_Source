@@ -213,4 +213,27 @@ cbuffer ScreenFxBuffer
     float2 pad;
 };
 
+struct FogZoneEntry
+{
+    float3 zoneMin;
+    float _pad0;
+
+    float3 zoneMax;
+    float _pad1;
+
+    float4 fogColor;
+
+    float fogDensity;
+    float fogStart;
+    float fogEnd;
+    float _pad2;
+};
+
+cbuffer FogZoneBuffer
+{
+    FogZoneEntry g_FogZones[8];
+    int g_FogZoneCount;
+    float3 g_FogZonePad0;
+};
+
 #endif

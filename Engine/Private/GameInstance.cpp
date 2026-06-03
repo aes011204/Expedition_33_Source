@@ -1,4 +1,4 @@
-#pragma region INCLUDE
+﻿#pragma region INCLUDE
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
@@ -1377,6 +1377,14 @@ void GameInstance::Request_ScreenCapture(bool saveToFile)
 RenderGroup GameInstance::Get_CurrentRenderGroup() const
 {
     return _renderer->Get_CurrentGroup();
+}
+
+void GameInstance::Set_FogZones(const FogZoneCB& fogZoneCB)
+{
+    if (_renderer)
+    {
+        _renderer->Set_FogZones(fogZoneCB);
+    }
 }
 
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)

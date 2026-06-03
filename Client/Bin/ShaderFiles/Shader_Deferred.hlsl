@@ -306,6 +306,38 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     Out.Color.a = Diffuse.a;
     Out.Mask = 1.f;
 
+    // fog
+    float3 camPos = g_DeferredCamPosition.xyz;
+    float3 wp = WorldPos.xyz;
+    float3 rayVec = wp - camPos;
+    float rayLen = length(rayVec);
+    float3 rayDir = rayVec / max(rayLen, 0.0001f);
+    
+    [loop]
+    for (int fogIdx = 0; fogIdx < g_FogZoneCount; ++fogIdx)
+    {
+        FogZoneEntry zone = g_FogZones[fogIdx];
+
+        // Ray-AABB intersection
+        float3 invD = rcp(rayDir);
+        float3 t0 = (zone.zoneMin - camPos) * invD;
+        float3 t1 = (zone.zoneMax - camPos) * invD;
+        float tNear = max(max(min(t0.x, t1.x), min(t0.y, t1.y)), min(t0.z, t1.z));
+        float tFar = min(min(max(t0.x, t1.x), max(t0.y, t1.y)), max(t0.z, t1.z));
+
+        // skip
+        if (tFar <= max(tNear, 0.0f))
+            continue;
+
+        // clamp
+        float pathLen = max(0.0f, min(tFar, rayLen) - max(tNear, zone.fogStart));
+
+        // Beer-Lambert
+        float fogFactor = 1.0f - exp(-zone.fogDensity * pathLen);
+        fogFactor = saturate(fogFactor) * zone.fogColor.a;
+        Out.Color.rgb = lerp(Out.Color.rgb, zone.fogColor.rgb, fogFactor);
+    }
+
     return Out;
 }
 

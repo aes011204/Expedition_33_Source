@@ -142,6 +142,7 @@ namespace Engine
         Hair            = 9,
         DrawFeature     = 10,
         ScreenFx        = 11,
+        FogZone         = 12,
 
         END
     };
