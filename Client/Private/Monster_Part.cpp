@@ -67,6 +67,9 @@ void Monster_Part::Late_Update(float timeDelta)
 
 HRESULT Monster_Part::Render()
 {
+    if (_model == nullptr || _shader == nullptr)
+        return S_OK;
+
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
@@ -134,6 +137,9 @@ HRESULT Monster_Part::Render()
 
 HRESULT Monster_Part::Render_Shadow()
 {
+    if (_model == nullptr || _shader == nullptr)
+        return S_OK;
+
     if (FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix)))
         return E_FAIL;
 
@@ -230,7 +236,8 @@ bool Monster_Part::Play_Animation(float timeDelta)
 
 const RootMotionFrame& Monster_Part::Get_RootTransformVelocity() const
 {
-    return _model->Get_RootTransformVelocity();
+    static RootMotionFrame empty{};
+    return _model ? _model->Get_RootTransformVelocity() : empty;
 }
 
 const Matrix* Monster_Part::Get_SocketBoneMatrixPtr(const string& boneName) const
@@ -257,9 +264,15 @@ HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
     }
 
     if (FAILED(Add_Component(ETOI(LevelType::Static), desc.modelTag, _model))) // 몬스터 파츠가 참조하는 모델 prototype은 Static에 둔다.
-        return E_FAIL;
+    {
+        if (!desc.allowMissingModel)
+            return E_FAIL;
 
-    if (desc.modelType == ModelType::Anim)
+        LOG_WARN("Monster_Part: missing model allowed. modelTag={}",
+            String::ToString(desc.modelTag).c_str());
+    }
+
+    if (desc.modelType == ModelType::Anim && _model != nullptr)
     {
         Shared<ComputeShaderCom> boneRemapShader{};
         Shared<ComputeShaderCom> skinningShader{};

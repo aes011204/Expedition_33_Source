@@ -1060,14 +1060,24 @@ BattleTurnState BattleController::Get_CurrentTurnState() const
     return _battleFSM->Get_CurrentPlayerState();
 }
 
-void BattleController::StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate)
+void BattleController::StartCounter(ModelCom* sourceModel)
 {
-    _reactionController.StartCounter(sourceModel, slowDesc, counterPlayRate);
+    _reactionController.StartCounter(sourceModel);
 }
 
 void BattleController::ApplyCounterDamage(ModelCom* sourceModel)
 {
     _reactionController.ApplyCounterDamage(sourceModel);
+}
+
+void BattleController::BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed)
+{
+    _reactionController.BeginCounterTimeSection(sourceModel, worldTimeScale, counterFrameSpeed);
+}
+
+void BattleController::EndCounterTimeSection(ModelCom* sourceModel)
+{
+    _reactionController.EndCounterTimeSection(sourceModel);
 }
 
 void BattleController::Execute_BaseAttack()
@@ -1212,23 +1222,23 @@ void BattleController::Execute_Item()
         if (action.GetInitTarget().statCom->Get_AliveStatus() != EAliveStatus::Dead)
             return; // 부활 틴트는 죽어있는 대상에게만 적용한다.
 
-        action.GetInitTarget().statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
-        Restore_BattleTargetCollision(action.GetInitTarget()); // 부활 직후 다시 충돌 가능 상태로 전환
+        //action.GetInitTarget().statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
+        //Restore_BattleTargetCollision(action.GetInitTarget()); // 부활 직후 다시 충돌 가능 상태로 전환
 
-        DamageSystem::Heal(action.GetInitTarget().statCom->Get_StatInfo().maxHp * static_cast<float>(itemData.reviveHp) * 0.01f, action.GetInitTarget());
+        //DamageSystem::Heal(action.GetInitTarget().statCom->Get_StatInfo().maxHp * static_cast<float>(itemData.reviveHp) * 0.01f, action.GetInitTarget());
 
-        if (action.GetInitTarget().ModelCom)
-        {
-            if (!action.GetInitTarget().ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
-            {
-                BattleAnimUtils::Play_BattleIdle(
-                    action.GetInitTarget(),
-                    0.2f); // Revive 매핑이 없으면 부활된 대상 기준 idle로 복귀한다.
-            }
-        }
+        //if (action.GetInitTarget().ModelCom)
+        //{
+        //    if (!action.GetInitTarget().ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
+        //    {
+        //        BattleAnimUtils::Play_BattleIdle(
+        //            action.GetInitTarget(),
+        //            0.2f); // Revive 매핑이 없으면 부활된 대상 기준 idle로 복귀한다.
+        //    }
+        //}
 
-        Rebuild_TurnQueue(action.GetInitTarget());
-
+        //Rebuild_TurnQueue(action.GetInitTarget());
+        Revive_BattleMon(action.GetInitTarget(), static_cast<float>(itemData.reviveHp) * 0.01f);
         break;
 
     default:
@@ -1237,6 +1247,27 @@ void BattleController::Execute_Item()
 
     CLIENT->Consume_Item(itemData.itemType);
     Clear_TargetPreview();
+}
+
+
+void BattleController::Revive_BattleMon(const BattleChar& battleChar, float MultipleHp)
+{
+    battleChar.statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
+    Restore_BattleTargetCollision(battleChar); // 부활 직후 다시 충돌 가능 상태로 전환
+
+    DamageSystem::Heal(battleChar.statCom->Get_StatInfo().maxHp * MultipleHp, battleChar);
+
+    if (battleChar.ModelCom)
+    {
+        if (!battleChar.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
+        {
+            BattleAnimUtils::Play_BattleIdle(
+                battleChar,
+                0.2f); // Revive 매핑이 없으면 부활된 대상 기준 idle로 복귀한다.
+        }
+    }
+
+    Rebuild_TurnQueue(battleChar);
 }
 
 void BattleController::Apply_BaseAttackAP(const BattleChar& actor)
@@ -1302,9 +1333,10 @@ void BattleController::Play_EnemyTargetedEnd()
     _enemyTurnTargetedActor = {};
     _hasEnemyTurnTargetedActor = false;
 
-    if (target.actor == nullptr || target.ModelCom == nullptr)
+    if (target.actor == nullptr || target.ModelCom == nullptr )
         return;
-
+    if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+        return;
     if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_End), 0.2f, false))
         BattleAnimUtils::Play_BattleIdle(target, 0.2f);
 }
@@ -1788,42 +1820,6 @@ void BattleController::Restore_WorldCamera()
     //  _worldCamera.reset();
 }
 
-//BattleAction BattleController::BuildActionFromRequest(const ActionRequest& request) const
-//{
-//    BattleAction action{};
-//    action.type = request.type;
-//    action._curChar = request.actor;
-//    action.target = request.InitTarget;
-//    action._InitTarget = request.InitTarget;
-//
-//    if (!request.skillKey.empty())
-//    {
-//        if (const Skill_Data* skillData = CLIENT->Get_Skill(request.skillKey))
-//            action._selected_SkillKey = *skillData;
-//        else
-//            LOG_WARN("BuildActionFromRequest: skill data not found. skillKey={}", request.skillKey.c_str());
-//    }
-//
-//    if (request.itemType != BattleItemType::Invalid)
-//    {
-//        if (const Item_Data* itemData = CLIENT->Get_Item(request.itemType))
-//            action._selected_ItemKey = *itemData;
-//        else
-//            LOG_WARN("BuildActionFromRequest: item data not found. itemType={}", static_cast<int>(request.itemType));
-//    }
-//
-//    action._curAnimIndex = 0;
-//    action._curStepIndex = 0;
-//    action._curAttackIndex = 0;
-//    action.originPos = {};
-//    action.phaseStartPos = {};
-//    action.phaseGoalPos = {};
-//    action.phaseReachedGoal = false;
-//    action.phasePrevRootRatio = 0.f;
-//    action._isFinished = false;
-//    return action;
-//}
-
 void BattleController::Clear_BattleRuntimeState()
 {
     _turnAction = {};
@@ -2041,9 +2037,21 @@ void BattleController::PlayerStartAnim()
 
 void BattleController::HitAction(BattleChar target, AttackType attackType)
 {
+    if (target.ModelCom == nullptr || target.statCom == nullptr)
+    {
+        LOG_WARN("HitAction: missing components. model={}, stat={}",
+            target.ModelCom != nullptr,
+            target.statCom != nullptr);
+        return;
+    }
+
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
     {
-        target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Dead), 0.3f, false);
+        const bool playedDead = target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Dead), 0.3f, false);
+        LOG_DEBUG("HitAction: dead anim result={}, attackType={}, actor={}",
+            playedDead,
+            static_cast<int>(attackType),
+            target.actor ? String::ToString(target.actor->Get_Name()).c_str() : "null");
         return;
     }
 

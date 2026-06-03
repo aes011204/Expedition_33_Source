@@ -178,6 +178,14 @@ bool GameObject::Rename_ComponentTag(const wstring& oldTag, const wstring& newTa
 
 void GameObject::Free()
 {
+    for (auto& [componentTag, component] : _components)
+    {
+        UNREFERENCED_PARAMETER(componentTag);
+
+        if (component)
+            component->Free();
+    }
+
     __super::Free();
 
     _components.clear();

@@ -102,6 +102,7 @@ public: /* For.Hero Manager */
     const HeroSpawnDesc* Find_HeroSpawnDesc(HeroId heroId);
 
     void Reset_AllHeroesToIdle();
+    void Restore_PartyFormationAfterEditorStop();
 
     bool    Is_ActiveHero(const Shared<GameObject>& target) const;
 

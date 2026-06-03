@@ -43,7 +43,7 @@ void EffectEmitter::Sync_FromEffectOwner()
     const Shared<TransformCom> ownerTransform =
         (effectOwner != nullptr) ? effectOwner->Get_Transform() : Shared<TransformCom>{};
 
-    if (_useLocalSpace)
+    if (ownerTransform)
     {
         _transformCom->Set_Parent(ownerTransform);
         _transformCom->Set_Position(_localPosition);

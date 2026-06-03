@@ -83,11 +83,12 @@ private:
      */
     struct PooledInstance
     {
-        wstring effectName{};                        // 이 슬롯의 EffectInstance가 어떤 effect key로 준비됐는지 나타낸다.
-        Shared<const EffectDefinition> definition{}; // 이 슬롯의 EffectInstance가 현재 재생하도록 들고 있는 definition이다.
-        Shared<EffectInstance> instance{};           // pool이 실제로 재사용하는 EffectInstance 1개다.
-        uint32 layerLevelIndex{};                    // 이 instance가 등록된 level layer index다. discard/remove 때 필요하다.
-        bool inUse{ false };                         // true면 빌려준 상태, false면 pool 안에서 재사용 대기 중인 상태다.
+        wstring effectName{};                        // 이 instance가 속한 pool bucket key다.
+        Shared<const EffectDefinition> definition{}; // 재생 시 재사용하는 정적 effect 정의다.
+        Shared<EffectInstance> instance{};           // 실제 재사용되는 runtime root다.
+        uint32 layerLevelIndex{};                    // instance가 올라간 layer index다.
+        wstring layerTag{};                          // instance가 실제 소속된 layer tag다.
+        bool inUse{ false };                         // 현재 consumer가 빌려 간 상태인지 나타낸다.
     };
 
 private:

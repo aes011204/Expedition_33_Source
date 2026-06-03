@@ -1,6 +1,6 @@
 ﻿#include "pch.h"
 #include "Player_FreeAim.h"
-
+#include "ColliderCom.h"
 #include "Camera.h"
 #include "OffsetAnimationModifier.h"
 #include "Body_Player.h"
@@ -225,17 +225,22 @@ Shared<Monster_WorldBase> Player_FreeAim::Find_FreeAimHitMonster(FreeAimHitInfo*
         Collision_Preset::Player_Target,
         monsterHit);
 
-    if (!hasMonsterHit || monsterHit.owner == nullptr)
+    if (!hasMonsterHit || monsterHit.collider == nullptr)
         return nullptr;
 
-    Monster_WorldBase* hitMonster = dynamic_cast<Monster_WorldBase*>(monsterHit.owner);
-    if (hitMonster == nullptr)
+    const Shared<GameObject> hitOwner = monsterHit.collider->Get_Owner();
+    if (!hitOwner)
         return nullptr;
 
     if (hasEnvBlock && envHit.distance < monsterHit.distance)
         return nullptr;
 
-    Shared<Monster_WorldBase> hitMonsterShared = hitMonster->GetSharedPtr<Monster_WorldBase>();
+    Shared<Monster_WorldBase> hitMonsterShared = dynamic_pointer_cast<Monster_WorldBase>(hitOwner);
+    if (!hitMonsterShared && hitOwner->Get_Owner())
+        hitMonsterShared = dynamic_pointer_cast<Monster_WorldBase>(hitOwner->Get_Owner());
+
+    if (!hitMonsterShared)
+        return nullptr;
 
     if (outHitInfo != nullptr)
     {

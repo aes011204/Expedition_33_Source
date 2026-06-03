@@ -11,6 +11,7 @@
 #include "MovementCom.h"
 #include "Monster_Part.h"
 #include "BattleStartSpawner.h"
+#include "EffectCom.h"
 
 REGISTER_GLOBAL_ENUM(Monster_WorldBase::MonsterWorldAnim, "MonsterWorldAnim")
 
@@ -125,6 +126,7 @@ HRESULT Monster_WorldBase::Initialize(void* arg)
 void Monster_WorldBase::BeginPlay()
 {
     Character_WorldBase::BeginPlay();
+    _hasAppliedAction = false;
 
     if (_movementCom)
     {
@@ -182,7 +184,7 @@ void Monster_WorldBase::Update(float timeDelta)
     auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
     if (bodyPart)
     {
-        if (_currentAction != _previousAction)
+        if (!_hasAppliedAction || _currentAction != _previousAction)
         {
             //LOG_DEBUG("Monster_WorldBase action change current={} previous={}",
             //    ETOI(_currentAction),
@@ -220,7 +222,10 @@ void Monster_WorldBase::Update(float timeDelta)
 
             
             if (applied)
+            {
                 _previousAction = _currentAction;
+                _hasAppliedAction = true;
+            }
 
         }
 
@@ -268,6 +273,9 @@ void Monster_WorldBase::Update(float timeDelta)
     }
 
     Character_WorldBase::Update(timeDelta);
+
+    if (_effectCom)
+        _effectCom->Update(timeDelta);
 }
 
 
@@ -319,6 +327,32 @@ json Monster_WorldBase::To_Json() const
 void Monster_WorldBase::From_Json(const json& data)
 {
     Character_WorldBase::From_Json(data);
+
+    _isBattleStart = false;
+    _isStun = false;
+    _stunTime = 0.f;
+    _desiredAction = MonsterWorldAnim::Idle;
+    _currentAction = MonsterWorldAnim::Idle;
+    _previousAction = MonsterWorldAnim::Idle;
+    _hasAppliedAction = false;
+
+    if (_colliderCom)
+    {
+        _colliderCom->Set_IsActive(true);
+        _colliderCom->Clear_Overlap();
+    }
+
+    if (_movementCom)
+    {
+        _movementCom->Set_Transform(_transformCom);
+        _movementCom->Sync_RuntimePositionToTransform(); // Reload/authoring 복원 뒤 CCT 위치를 Transform과 맞춘다.
+        _movementCom->Stop_AllMovement();
+        _movementCom->Clear_FollowMoveCommand();
+        _movementCom->Apply_Input({});
+    }
+
+    if (_aiCtrl)
+        _aiCtrl->Stop_Move();
 
     _battleMonsterSpawnDescs.clear();
     _battleStartSpawnerId = 0;
@@ -458,6 +492,8 @@ HRESULT Monster_WorldBase::Ready_Components()
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Movement"), _movementCom, &moveDesc), E_FAIL);
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_MonsterStat"), _combatStat), E_FAIL);
+
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
 
     Bounding_OBB::BoundingOBBDesc obbDesc{};
     obbDesc.center = Vec3(0.f, 0.6f, 0.f);
