@@ -19,7 +19,12 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
+    void    BeginPlay() override;
     void    Late_Update(float timeDelta) override;
+
+public:
+    void    Set_BattleColliderActive(bool isActive);
+    bool    Is_BattleColliderActive() const;
 
 protected:
     HRESULT Ready_Collider(const wstring& prototypeTag, void* colliderDesc, Collision_Preset preset);

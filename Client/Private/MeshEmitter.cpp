@@ -1,15 +1,17 @@
 ﻿#include "MeshEmitter.h"
 
+#include "EffectMaterialScalarModulationRuntime.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
 #include "Renderer_Define.h"
 #include "ShaderCom.h"
 #include "Texture.h"
 
-#include <chrono>
-
 namespace Internal
 {
+constexpr double kMeshEmitterInitializeInfoThresholdMs = 8.0;
+constexpr double kMeshEmitterReloadReuseInfoThresholdMs = 4.0;
+
 float Read_Vec4Component(const Vec4& values, uint32 index)
 {
     switch (index)
@@ -43,6 +45,21 @@ Matrix Resolve_MeshPlaneAlignmentMatrix(EffectScreenAlignment alignment)
     default:
         return Matrix::Identity;
     }
+}
+
+static int Resolve_MaterialSourceIndex(const string& source)
+{
+    constexpr int sourceAlpha = 0;
+    constexpr int sourceRed = 1;
+    constexpr int sourceLuminance = 2;
+
+    if (source == "Red" || source == "red")
+        return sourceRed;
+
+    if (source == "Luminance" || source == "luminance")
+        return sourceLuminance;
+
+    return sourceAlpha;
 }
 }
 
@@ -238,6 +255,35 @@ bool MeshEmitter::Is_EffectFinished() const
     return !_isReady || (PlaybackState::Completed == _playbackState && _activeInstanceCount == 0u);
 }
 
+bool MeshEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    bool hasActiveParticle = false;
+    Vec3 accumulatedPosition{};
+    uint32 activeParticleCount = 0u;
+
+    for (const MeshParticleState& particle : _particles)
+    {
+        if (!particle.active)
+            continue;
+
+        accumulatedPosition += Resolve_ParticleWorldPosition(particle);
+        ++activeParticleCount;
+        hasActiveParticle = true;
+    }
+
+    if (hasActiveParticle && activeParticleCount > 0u)
+    {
+        outWorldPosition = accumulatedPosition / static_cast<float>(activeParticleCount);
+        return true;
+    }
+
+    outWorldPosition = _transformCom->Get_WorldPosition();
+    return true;
+}
+
 void MeshEmitter::On_EffectTransformSynced()
 {
     if (_activeInstanceCount > 0u)
@@ -246,7 +292,7 @@ void MeshEmitter::On_EffectTransformSynced()
 
 void MeshEmitter::Log_DescPayload(const char* context) const
 {
-    LOG_INFO(
+    LOG_DEBUG(
         "MeshEmitter desc payload. context={}, emitter='{}', spawnCount={}, spawnRate={}, bursts={}, life=({}, {}), meshAlignment={}, meshInitialScale={}, meshScaleByLife={}, motion={}, acceleration={}, drag=({}, {}), velocityScale=({}, {}), meshRotation={}, meshRotationMin=({}, {}, {}), meshRotationMax=({}, {}, {}), colorCurve={}, alphaCurve={}",
         context,
         _emitterName,
@@ -286,19 +332,43 @@ void MeshEmitter::Log_InitializeTiming(
     double bufferMs,
     double totalMs) const
 {
-    LOG_INFO(
-        "MeshEmitter initialize timing. context={}, emitter='{}', shader_ms={:.3f}, resolve_model_ms={:.3f}, model_ms={:.3f}, material_ms={:.3f}, buffer_ms={:.3f}, total_ms={:.3f}, modelGuid='{}', modelPath='{}'",
-        context,
-        _emitterName,
-        shaderMs,
-        resolveModelMs,
-        modelMs,
-        materialMs,
-        bufferMs,
-        totalMs,
-        _desc.modelGuid,
-        _desc.modelPath
-    );
+    const bool isReloadReuse = std::strcmp(context, "reload_reuse") == 0;
+    const double infoThresholdMs = isReloadReuse
+                                   ? Internal::kMeshEmitterReloadReuseInfoThresholdMs
+                                   : Internal::kMeshEmitterInitializeInfoThresholdMs;
+
+    if (totalMs >= infoThresholdMs)
+    {
+        LOG_INFO(
+            "MeshEmitter initialize timing. context={}, emitter='{}', shader_ms={:.3f}, resolve_model_ms={:.3f}, model_ms={:.3f}, material_ms={:.3f}, buffer_ms={:.3f}, total_ms={:.3f}, modelGuid='{}', modelPath='{}'",
+            context,
+            _emitterName,
+            shaderMs,
+            resolveModelMs,
+            modelMs,
+            materialMs,
+            bufferMs,
+            totalMs,
+            _desc.modelGuid,
+            _desc.modelPath
+        );
+    }
+    else
+    {
+        LOG_DEBUG(
+            "MeshEmitter initialize timing. context={}, emitter='{}', shader_ms={:.3f}, resolve_model_ms={:.3f}, model_ms={:.3f}, material_ms={:.3f}, buffer_ms={:.3f}, total_ms={:.3f}, modelGuid='{}', modelPath='{}'",
+            context,
+            _emitterName,
+            shaderMs,
+            resolveModelMs,
+            modelMs,
+            materialMs,
+            bufferMs,
+            totalMs,
+            _desc.modelGuid,
+            _desc.modelPath
+        );
+    }
 }
 
 bool MeshEmitter::Is_CompatibleReloadDesc(const MeshEmitterDesc& desc) const
@@ -546,7 +616,9 @@ HRESULT MeshEmitter::Ready_OptionalTexture(const string& textureGuid, const stri
 
 HRESULT MeshEmitter::Bind_EffectMaterialResources()
 {
-    const EffectRequiredMaterialRuntimeDesc& material = _desc.material;
+    const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.playback.duration);
+    const EffectRequiredMaterialRuntimeDesc material =
+        Client::Resolve_EmitterTimeMaterialScalarModulation(_desc.material, emitterPhase);
 
     CHECK_NULL(_texture, E_FAIL);
 
@@ -586,6 +658,12 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
         static_cast<float>(static_cast<uint32>(material.noiseUVTilingMode)),
         static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
         0.f
+    );
+    const Vec4 effectMeshSourceParams = Vec4(
+        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
+        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+        material.noiseInvert ? 1.f : 0.f,
+        material.maskInvert ? 1.f : 0.f
     );
     const EffectMaterialAdditiveContributionData& additive = material.additive;
     const EffectMaterialCoreEmissiveData& coreEmissive = material.coreEmissive;
@@ -646,6 +724,11 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
     );
     CHECK_FAILED_THROTTLED(
         _shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)),
         60,
         E_FAIL
     );
@@ -759,22 +842,76 @@ void MeshEmitter::Update_InstanceBuffer()
     const uint32 drawLimit = _desc.drawLimit.useMaxDrawCount
                              ? min(max(1u, _desc.drawLimit.maxDrawCount), static_cast<uint32>(_instancePayload.size()))
                              : static_cast<uint32>(_instancePayload.size());
+    vector<const MeshParticleState*> sortedParticles{};
+    sortedParticles.reserve(_particles.size());
 
     for (const MeshParticleState& particle : _particles)
     {
-        if (!particle.active || _activeInstanceCount >= drawLimit)
+        if (!particle.active)
             continue;
 
-        const float lifeProgress = clamp(particle.age / max(0.0001f, particle.lifeMax), 0.f, 1.f);
+        sortedParticles.push_back(&particle);
+    }
+
+    const Vec4* cameraPosition4 = Resolve_RenderGroup() == RenderGroup::Blend && GAME != nullptr
+                                  ? GAME->Get_CamPosition()
+                                  : nullptr;
+    Vec3 localBoundsMin{};
+    Vec3 localBoundsMax{};
+    const bool hasLocalBounds = _model != nullptr && _model->Try_Get_LocalBounds(localBoundsMin, localBoundsMax);
+    const Vec3 localBoundsExtent = hasLocalBounds ? (localBoundsMax - localBoundsMin) * 0.5f : Vec3{};
+    const float localBoundsRadius = hasLocalBounds ? localBoundsExtent.Length() : 0.f;
+
+    if (cameraPosition4 != nullptr && hasLocalBounds)
+    {
+        const Vec3 cameraPosition{ cameraPosition4->x, cameraPosition4->y, cameraPosition4->z };
+        stable_sort(sortedParticles.begin(), sortedParticles.end(),
+            [&](const MeshParticleState* lhs, const MeshParticleState* rhs)
+            {
+                const auto compute_particle_depth_sq = [&](const MeshParticleState& particle) -> float
+                {
+                    return (Resolve_ParticleWorldPosition(particle) - cameraPosition).LengthSquared();
+                };
+
+                return compute_particle_depth_sq(*lhs) > compute_particle_depth_sq(*rhs);
+            });
+    }
+
+    for (const MeshParticleState* particle : sortedParticles)
+    {
+        if (particle == nullptr || _activeInstanceCount >= drawLimit)
+            continue;
+
+        const float lifeProgress = clamp(particle->age / max(0.0001f, particle->lifeMax), 0.f, 1.f);
         MeshInstanceVertex& instance = _instancePayload[_activeInstanceCount++];
-        instance.world = Build_InstanceMatrix(particle);
-        instance.color = Evaluate_ColorOverLife(particle, lifeProgress);
-        instance.lifeTime = Vec2{ particle.lifeMax, particle.age };
+        instance.world = Build_InstanceMatrix(*particle);
+        instance.color = Evaluate_ColorOverLife(*particle, lifeProgress);
+        instance.lifeTime = Vec2{ particle->lifeMax, particle->age };
         instance.padding = Vec2{};
     }
 
     if (_activeInstanceCount == 0u)
         return;
+
+    if (const Shared<GameObject> effectOwner = _effectOwner.lock(); effectOwner && effectOwner->Get_Name() == L"Monster_Weak")
+    {
+        const Vec3 emitterWorldPosition = _transformCom->Get_WorldPosition();
+        const Vec3 firstParticleWorldPosition = !sortedParticles.empty() && sortedParticles.front() != nullptr
+                                                ? Resolve_ParticleWorldPosition(*sortedParticles.front())
+                                                : emitterWorldPosition;
+        LOG_DEBUG_THROTTLED(
+            60,
+            "[MonsterWeakMeshEmitter] emitter={} localSpace={} active={} root=({:.3f},{:.3f},{:.3f}) first=({:.3f},{:.3f},{:.3f})",
+            _emitterId,
+            _useLocalSpace,
+            _activeInstanceCount,
+            emitterWorldPosition.x,
+            emitterWorldPosition.y,
+            emitterWorldPosition.z,
+            firstParticleWorldPosition.x,
+            firstParticleWorldPosition.y,
+            firstParticleWorldPosition.z);
+    }
 
     D3D11_MAPPED_SUBRESOURCE mappedResource{};
     if (FAILED(_context->Map(_instanceBuffer.Get(), 0u, D3D11_MAP_WRITE_DISCARD, 0u, &mappedResource)))
@@ -978,7 +1115,10 @@ void MeshEmitter::Spawn_Particles(uint32 spawnRequest)
             if (particle.active)
                 continue;
 
-            Activate_Particle(particle, index * 9781u + _nextSpawnCursor * 6271u + _loopIndex * 7919u + 1u);
+            const uint32 emitterSeed = _emitterId * 104729u;
+            Activate_Particle(
+                particle,
+                index * 9781u + _nextSpawnCursor * 6271u + _loopIndex * 7919u + emitterSeed + 1u);
             _nextSpawnCursor = (index + 1u) % static_cast<uint32>(_particles.size());
             --remainingRequest;
             activated = true;
@@ -994,9 +1134,10 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed)
 {
     const float lifeMin = max(0.0001f, min(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
     const float lifeMax = max(lifeMin, max(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
-    const Vec3 emitterPosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
     const Vec3 spawnOffset = Sample_InitialOffset(seed);
-    const Vec3 spawnPosition = emitterPosition + spawnOffset;
+    Vec3 spawnPosition = spawnOffset;
+    if (!_useLocalSpace && _transformCom != nullptr)
+        spawnPosition += _transformCom->Get_WorldPosition();
 
     particle.active = true;
     particle.age = 0.f;
@@ -1104,7 +1245,6 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
         max(0.0001f, particle.baseScale.y * sizeByLife.y),
         max(0.0001f, particle.baseScale.z * sizeByLife.z)
     };
-    const Vec3 position = particle.position;
     const Vec3 rotationByLife = Evaluate_RotationByLife(lifeProgress);
     const Vec3 rotationRadians{
         particle.rotationRadians.x + XMConvertToRadians(rotationByLife.x),
@@ -1115,11 +1255,24 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
     Quat rotation = Quat::CreateFromYawPitchRoll(rotationRadians.y, rotationRadians.x, rotationRadians.z);
     rotation.Normalize();
 
-    return
+    const Matrix localMatrix =
         Matrix::CreateScale(scale) *
         Matrix::CreateFromQuaternion(rotation) *
         Internal::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment) *
-        Matrix::CreateTranslation(position);
+        Matrix::CreateTranslation(particle.position);
+
+    if (_useLocalSpace && _transformCom != nullptr)
+        return localMatrix * _transformCom->Get_WorldMatrix();
+
+    return localMatrix;
+}
+
+Vec3 MeshEmitter::Resolve_ParticleWorldPosition(const MeshParticleState& particle) const
+{
+    if (!_useLocalSpace || _transformCom == nullptr)
+        return particle.position;
+
+    return Vec3::Transform(particle.position, _transformCom->Get_WorldMatrix());
 }
 
 Vec3 MeshEmitter::Sample_InitialOffset(uint32 seed) const
@@ -1167,19 +1320,27 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed)
             RandomRange(_desc.motion.initialVelocityMin.y, _desc.motion.initialVelocityMax.y, seed + 2u),
             RandomRange(_desc.motion.initialVelocityMin.z, _desc.motion.initialVelocityMax.z, seed + 3u)
         };
-        velocity += _desc.motion.initialVelocityInWorldSpace ? sampledVelocity : Resolve_LocalVector(sampledVelocity);
+        velocity += _desc.motion.initialVelocityInWorldSpace
+            ? Resolve_WorldVectorToSimulation(sampledVelocity)
+            : Resolve_LocalVector(sampledVelocity);
     }
 
     if (_desc.motion.initialRadialVelocityEnabled)
     {
         const Vec3 radialPivotOffset = _desc.motion.initialRadialVelocityInWorldSpace
-                                       ? _desc.motion.radialPivot
+                                       ? Resolve_WorldVectorToSimulation(_desc.motion.radialPivot)
                                        : Resolve_LocalVector(_desc.motion.radialPivot);
-        const Vec3 emitterPosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
+        Vec3 emitterPosition{};
+        if (!_useLocalSpace && _transformCom != nullptr)
+            emitterPosition = _transformCom->Get_WorldPosition();
         const Vec3 pivotPosition = emitterPosition + radialPivotOffset;
         Vec3 radialDirection = spawnPosition - pivotPosition;
         if (radialDirection.LengthSquared() < 0.0001f)
-            radialDirection = _transformCom != nullptr ? _transformCom->Get_WorldForward() : Vec3{ 0.f, 0.f, 1.f };
+        {
+            radialDirection = Vec3{ 0.f, 0.f, 1.f };
+            if (!_useLocalSpace && _transformCom != nullptr)
+                radialDirection = _transformCom->Get_WorldForward();
+        }
         radialDirection.Normalize();
 
         const float radialSpeed = RandomRange(
@@ -1403,6 +1564,9 @@ Vec3 MeshEmitter::Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& d
 
 RenderGroup MeshEmitter::Resolve_RenderGroup() const
 {
+    if (_desc.renderLayerOverride == EffectEmitterRenderLayerOverride::UIEffect)
+        return RenderGroup::UIEffect;
+
     if (Is_DistortionFamily())
         return RenderGroup::Distortion;
 
@@ -1439,12 +1603,21 @@ int MeshEmitter::Resolve_OpacitySourceIndex() const
 
 Vec3 MeshEmitter::Resolve_LocalVector(const Vec3& localVector) const
 {
-    if (_transformCom == nullptr)
+    if (_useLocalSpace || _transformCom == nullptr)
         return localVector;
 
     return _transformCom->Get_WorldRight() * localVector.x +
            _transformCom->Get_WorldUp() * localVector.y +
            _transformCom->Get_WorldForward() * localVector.z;
+}
+
+Vec3 MeshEmitter::Resolve_WorldVectorToSimulation(const Vec3& worldVector) const
+{
+    if (!_useLocalSpace || _transformCom == nullptr)
+        return worldVector;
+
+    const Matrix inverseWorld = _transformCom->Get_WorldMatrix().Invert();
+    return Vec3::TransformNormal(worldVector, inverseWorld);
 }
 
 float MeshEmitter::Random01(uint32 seed) const

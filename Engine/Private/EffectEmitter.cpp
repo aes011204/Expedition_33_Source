@@ -43,7 +43,7 @@ void EffectEmitter::Sync_FromEffectOwner()
     const Shared<TransformCom> ownerTransform =
         (effectOwner != nullptr) ? effectOwner->Get_Transform() : Shared<TransformCom>{};
 
-    if (_useLocalSpace)
+    if (ownerTransform)
     {
         _transformCom->Set_Parent(ownerTransform);
         _transformCom->Set_Position(_localPosition);
@@ -81,4 +81,13 @@ bool EffectEmitter::Is_EffectFinished() const
 
 void EffectEmitter::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>&)
 {
+}
+
+bool EffectEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    outWorldPosition = _transformCom->Get_WorldPosition();
+    return true;
 }

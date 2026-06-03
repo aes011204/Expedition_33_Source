@@ -20,6 +20,7 @@ public:
     {
         ModelType modelType{ ModelType::NonAnim };
         wstring modelTag{};
+        bool allowMissingModel = false;
     };
 
 public:

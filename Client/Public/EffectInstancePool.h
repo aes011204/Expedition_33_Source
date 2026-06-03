@@ -11,35 +11,48 @@ NS_END
 
 NS_BEGIN(Client)
 
-// TODO: 현재 pool은 EffectInstance 단위 reuse까지만 닫혀 있다. emitter-local finer-grained reuse와 release policy 고도화는 후속 phase에서 분리해 다룬다.
+// TODO: 추가 병목이 확인되면 emitter별 Reset_ForEffectReplay 비용을 더 줄인다.
+// 자동 완료 반환 정책은 stale handle 위험 때문에 현재 consumer별 명시 release 중심으로 유지한다.
 
 // EffectInstance 전체를 재사용 단위로 관리하는 Client-local pool helper다.
 class EffectInstancePool final : public Base
 {
 public:
+    /**
+     * Acquire()에 전달하는 "이 EffectInstance 1개를 어떻게 준비할지" 입력값이다.
+     * 여기서 instance 단위란 EffectEmitter 1개가 아니라, 여러 emitter를 소유한 EffectInstance root 1개를 뜻한다.
+     */
     struct AcquireDesc
     {
-        wstring effectName{};                                   // 어떤 effect 정의를 재생할지 식별하는 이름이다.
-        Shared<const EffectDefinition> definition{};            // editor preview처럼 저장된 asset이 아닌 definition을 직접 재생할 때 사용한다.
-        uint32 layerLevelIndex{ ETOI(LevelType::Static) };      // 신규 spawn과 stale entry 제거에 사용할 layer index다.
-        wstring layerTag{};                                     // acquire 실패 시 신규 spawn을 넣을 레이어다.
-        Vec3 worldPosition{ Vec3::Zero };                       // acquire 직후 root에 반영할 월드 위치다.
-        Vec3 scale{ Vec3::One };                                // acquire 직후 root에 반영할 스케일이다.
-        Weak<IEffectTrailSampleProvider> trailSampleProvider{}; // attachment/gameplay owner가 공급하는 trail sample provider weak ref다.
+        wstring effectName{};                                   // 저장된 effect definition을 찾는 이름이자, pool에서 같은 effect끼리 재사용하기 위한 key다.
+        Shared<const EffectDefinition> definition{};            // effectName lookup을 건너뛰고 이 definition을 직접 재생할 때 쓴다. editor preview 갱신용 입력이다.
+        uint32 layerLevelIndex{ ETOI(LevelType::Static) };      // 새 EffectInstance를 spawn하거나 inactive instance를 제거할 때 접근할 level layer index다.
+        wstring layerTag{};                                     // pool에 재사용 가능한 instance가 없을 때 새 EffectInstance를 등록할 layer tag다.
+        Vec3 worldPosition{ Vec3::Zero };                       // acquire된 EffectInstance root GameObject에 적용할 시작 월드 위치다.
+        Vec3 scale{ Vec3::One };                                // acquire된 EffectInstance root GameObject에 적용할 시작 스케일이다.
+        Vec3 worldRotation = Vec3::Zero;                        // acquire된 EffectInstance root GameObject에 적용할 시작 월드 회전이다.
+        Weak<IEffectTrailSampleProvider> trailSampleProvider{}; // trail emitter가 base/tip sample을 얻는 provider다. pool이 만들지 않고 attachment owner가 넘긴다.
     };
 
+    /**
+     * acquire 결과로 caller가 보관하는 외부 handle이다.
+     *
+     * effectObject의 C++ 타입은 GameObject지만, 실제 객체는 EffectInstance다.
+     * 즉 "GameObject 1개"를 들고 있는 동시에 "EffectInstance 1개 단위"를 가리킨다.
+     */
     struct AttachedHandle
     {
-        Shared<GameObject> effectObject{};   // 실제로 follow/release 대상이 되는 acquired effect root다.
-        wstring effectName{};                // release 시 원래 pool bucket을 찾기 위한 key다.
-        bool requiresManualRelease{ false }; // true면 자동 완료 대신 명시 Stop/release를 기다린다.
+        Shared<GameObject> effectObject{};   // acquire된 EffectInstance 1개를 GameObject로 가리킨다. 위치 갱신과 release 대상이다.
+        wstring effectName{};                // 이 handle을 만들 때 사용한 effect key다. 표시용 label이 아니라 재사용 bucket을 구분하는 이름이다.
+        bool requiresManualRelease{ false }; // true면 Is_Finished() 자동 반환 대신 owner가 Stop/release를 직접 호출해야 한다. 주로 Trail 이펙트용.
     };
 
+    // pool 내부 장부를 외부 debug UI나 로그에서 간단히 확인하기 위한 집계값이다.
     struct DebugSummary
     {
-        uint32 entryCount{};
-        uint32 activeCount{};
-        uint32 idleCount{};
+        uint32 entryCount{};  // pool 내부 슬롯 전체 개수다. 슬롯 1개는 EffectInstance 1개를 보관한다.
+        uint32 activeCount{}; // caller에게 빌려준 슬롯 수다.
+        uint32 idleCount{};   // Stop된 상태로 다음 Acquire()를 기다리는 슬롯 수다.
     };
 
 public:
@@ -64,12 +77,17 @@ public:
     DebugSummary Get_DebugSummary() const;
 
 private:
+    /**
+     * pool 내부 슬롯 1개다. 슬롯 1개는 재사용 가능한 EffectInstance 1개와, 그 instance를 다시 빌려줘도 되는지 여부를 기록한다.
+     * caller에게는 AttachedHandle만 노출하고, 실제 EffectInstance 소유/재사용 상태는 이 entry가 추적한다.
+     */
     struct PooledInstance
     {
         wstring effectName{};                        // 이 instance가 속한 pool bucket key다.
         Shared<const EffectDefinition> definition{}; // 재생 시 재사용하는 정적 effect 정의다.
         Shared<EffectInstance> instance{};           // 실제 재사용되는 runtime root다.
         uint32 layerLevelIndex{};                    // instance가 올라간 layer index다.
+        wstring layerTag{};                          // instance가 실제 소속된 layer tag다.
         bool inUse{ false };                         // 현재 consumer가 빌려 간 상태인지 나타낸다.
     };
 
@@ -88,9 +106,16 @@ private:
         const Shared<const EffectDefinition>& definition,
         Shared<EffectInstance>& outInstance);
     // 다음 재생 전에 Reset/position/Play를 적용한다.
-    HRESULT Prepare_AcquiredInstance(const AcquireDesc& desc, const Shared<EffectInstance>& instance);
+    HRESULT Prepare_AcquiredInstance(
+        const AcquireDesc& desc,
+        const Shared<const EffectDefinition>& definition,
+        const Shared<EffectInstance>& instance);
     // definition 내용에 따라 handle 반환 정책을 갱신한다.
-    void Populate_Handle(const AcquireDesc& desc, const Shared<const EffectDefinition>& definition, const Shared<EffectInstance>& instance, AttachedHandle& outHandle) const;
+    void Populate_Handle(
+        const AcquireDesc& desc,
+        const Shared<const EffectDefinition>& definition,
+        const Shared<EffectInstance>& instance,
+        AttachedHandle& outHandle) const;
     // 같은 key의 inactive entry를 찾는다. direct definition acquire는 definition identity까지 맞춘다.
     PooledInstance* Find_AvailableEntry(const AcquireDesc& desc, const Shared<const EffectDefinition>& definition);
     // 반환 대상 object에 대응하는 pool entry를 찾는다.

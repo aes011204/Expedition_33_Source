@@ -1,8 +1,7 @@
 ﻿#include "pch.h"
 #include "Player_FreeAim.h"
-
-#include <Camera.h>
-
+#include "ColliderCom.h"
+#include "Camera.h"
 #include "OffsetAnimationModifier.h"
 #include "Body_Player.h"
 #include "Monster_WorldBase.h"
@@ -11,6 +10,16 @@
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
 #include "TargetCamera.h"
+#include "ClientInstance.h"
+
+namespace
+{
+    constexpr float FREE_AIM_TRACE_DISTANCE = 200.f;
+    constexpr float FREE_AIM_MONSTER_SWEEP_RADIUS = 0.3f;
+    constexpr float FREE_AIM_HIT_EFFECT_NORMAL_OFFSET = 0.05f;
+
+    const wstring   WORLD_FREE_AIM_HIT_EFFECT_NAME = L"World_FreeAim_Hit.effect.json";
+}
 
 Player_FreeAim::Player_FreeAim(const Shared<Player_WorldBase>& owner)
     : Player_State{ owner } {}
@@ -107,6 +116,9 @@ void Player_FreeAim::Update(float timeDelta)
         {
             // TODO : Hit Monster 로그. 여기서 몬스터 상태전환해서 Stun으로 만들면 됩니다.
             LOG_DEBUG("World FreeAim Shoot Hit Monster: {}", String::ToString(hitMonster->Get_Name()).c_str());
+
+            Play_FreeAimHitEffect();
+
             hitMonster->Apply_Stun(3.f);
         }
 
@@ -167,12 +179,17 @@ void Player_FreeAim::ExitInvoke()
 
 void Player_FreeAim::Update_FreeAimHitState()
 {
-    Shared<Monster_WorldBase> hitMonster = Find_FreeAimHitMonster();
+    FreeAimHitInfo hitInfo{};
+
+    Shared<Monster_WorldBase> hitMonster = Find_FreeAimHitMonster(&hitInfo);
+
     _hasHitMonster = (hitMonster != nullptr);
     _hitMonster = hitMonster;
+
+    _currentHitInfo = _hasHitMonster ? hitInfo : FreeAimHitInfo{};
 }
 
-Shared<Monster_WorldBase> Player_FreeAim::Find_FreeAimHitMonster() const
+Shared<Monster_WorldBase> Player_FreeAim::Find_FreeAimHitMonster(FreeAimHitInfo* outHitInfo) const
 {
     const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
     if (activeCamera == nullptr)
@@ -190,15 +207,12 @@ Shared<Monster_WorldBase> Player_FreeAim::Find_FreeAimHitMonster() const
 
     direction.Normalize();
 
-    constexpr float traceDistance = 200.f;
-    constexpr float monsterSweepRadius = 0.3f;
-
     PhysXQueryHit envHit{};
     const bool hasEnvBlock = GAME->Sweep_Sphere(
         queryOrigin,
         direction,
-        traceDistance,
-        monsterSweepRadius,
+        FREE_AIM_TRACE_DISTANCE,
+        FREE_AIM_MONSTER_SWEEP_RADIUS,
         Collision_Preset::Camera,
         envHit);
 
@@ -206,22 +220,53 @@ Shared<Monster_WorldBase> Player_FreeAim::Find_FreeAimHitMonster() const
     const bool hasMonsterHit = GAME->Sweep_Sphere(
         queryOrigin,
         direction,
-        traceDistance,
-        monsterSweepRadius,
+        FREE_AIM_TRACE_DISTANCE,
+        FREE_AIM_MONSTER_SWEEP_RADIUS,
         Collision_Preset::Player_Target,
         monsterHit);
 
-    if (!hasMonsterHit || monsterHit.owner == nullptr)
+    if (!hasMonsterHit || monsterHit.collider == nullptr)
         return nullptr;
 
-    Monster_WorldBase* hitMonster = dynamic_cast<Monster_WorldBase*>(monsterHit.owner);
-    if (hitMonster == nullptr)
+    const Shared<GameObject> hitOwner = monsterHit.collider->Get_Owner();
+    if (!hitOwner)
         return nullptr;
 
     if (hasEnvBlock && envHit.distance < monsterHit.distance)
         return nullptr;
 
-    return hitMonster->GetSharedPtr<Monster_WorldBase>();
+    Shared<Monster_WorldBase> hitMonsterShared = dynamic_pointer_cast<Monster_WorldBase>(hitOwner);
+    if (!hitMonsterShared && hitOwner->Get_Owner())
+        hitMonsterShared = dynamic_pointer_cast<Monster_WorldBase>(hitOwner->Get_Owner());
+
+    if (!hitMonsterShared)
+        return nullptr;
+
+    if (outHitInfo != nullptr)
+    {
+        outHitInfo->monster = hitMonsterShared;
+        outHitInfo->hitPosition = monsterHit.position;
+        outHitInfo->hitNormal = monsterHit.normal;
+    }
+
+    return hitMonsterShared;
+}
+
+void Player_FreeAim::Play_FreeAimHitEffect() const
+{
+    Vec3 hitNormal = _currentHitInfo.hitNormal;
+    if (hitNormal.LengthSquared() > 0.0001f)
+        hitNormal.Normalize();
+    else
+        hitNormal = Vec3::Up;
+
+    const Vec3 effectPosition =
+        _currentHitInfo.hitPosition + hitNormal * FREE_AIM_HIT_EFFECT_NORMAL_OFFSET;
+
+    PlayEffectDesc effectDesc{};
+    effectDesc.effectName = WORLD_FREE_AIM_HIT_EFFECT_NAME;
+    effectDesc.worldPosition = effectPosition;
+    CLIENT->Play_Effect(effectDesc);
 }
 
 void Player_FreeAim::Update_DirectionalModifiers()

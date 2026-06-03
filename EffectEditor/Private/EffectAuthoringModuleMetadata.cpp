@@ -39,6 +39,11 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         L"구 위치",
         L"구 표면/부피 생성 위치"
     };
+    static const AuthoringModuleMetadata planeRadialLocation{
+        "PlaneRadialLocation",
+        L"평면/방사 위치",
+        L"평면 기반 사각/원반/링/호 위치"
+    };
     static const AuthoringModuleMetadata initialSize{
         "Initial Size",
         L"초기 크기",
@@ -78,6 +83,11 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         "Initial Rotation",
         L"초기 회전",
         L"생성 시점 회전각"
+    };
+    static const AuthoringModuleMetadata planeRadialOrientation{
+        "PlaneRadialOrientation",
+        L"평면/방사 회전",
+        L"평면/방사 위치 frame 기반 회전 의도"
     };
     static const AuthoringModuleMetadata rotationOverLife{
         "Rotation Over Life",
@@ -164,6 +174,15 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         false,
         true
     };
+    static const AuthoringModuleMetadata materialScalarModulation{
+        "MaterialScalarModulation",
+        L"머티리얼 변조",
+        L"머티리얼 scalar 시간 변화",
+        true,
+        true,
+        true,
+        true
+    };
 
     switch (type)
     {
@@ -177,6 +196,8 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return initialLocation;
     case AuthoringModuleType::SphereLocation:
         return sphereLocation;
+    case AuthoringModuleType::PlaneRadialLocation:
+        return planeRadialLocation;
     case AuthoringModuleType::InitialSize:
         return initialSize;
     case AuthoringModuleType::InitialMeshSize:
@@ -193,6 +214,8 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return velocityOverLife;
     case AuthoringModuleType::InitialRotation:
         return initialRotation;
+    case AuthoringModuleType::PlaneRadialOrientation:
+        return planeRadialOrientation;
     case AuthoringModuleType::RotationOverLife:
         return rotationOverLife;
     case AuthoringModuleType::InitialRotationRate:
@@ -219,6 +242,8 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return meshSizeByLife;
     case AuthoringModuleType::SpawnPerUnit:
         return spawnPerUnit;
+    case AuthoringModuleType::MaterialScalarModulation:
+        return materialScalarModulation;
     }
 
     return required;

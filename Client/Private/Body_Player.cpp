@@ -127,7 +127,6 @@ HRESULT Body_Player::Render()
     }
 
     return S_OK;
-
 }
 
 HRESULT Body_Player::Render_Shadow()

@@ -219,6 +219,12 @@ void Hero_Manager::Switch_NextHero()
     const Vec3 anchorForward = oldActiveTr->Get_WorldForward();
     const Vec3 anchorRight = oldActiveTr->Get_WorldRight();
 
+    PlayEffectDesc effectDesc{};
+    effectDesc.effectName = L"Player_Change";
+    effectDesc.spawnBasisTarget = oldActive;
+    effectDesc.localOffset = Vec3(0.f, 0.5f, 0.f);
+    CLIENT->Play_Effect(effectDesc);
+
     _activeIndex = newIndex;
 
     Apply_ControlRoles();
@@ -504,6 +510,13 @@ void Hero_Manager::Set_ActiveTrail(float timeDelta)
 void Hero_Manager::Update_Followers(float timeDelta)
 {
     uint32 followerSlot = 0;
+    bool activeWalkFollow = false;
+
+    if (auto active = Get_ActiveHero())
+    {
+        if (auto activeController = active->Get_Component<PlayerControllerCom>())
+            activeWalkFollow = activeController->Should_WalkMove();
+    }
 
     for (uint32 i = 0; i < _heroes.size(); i++)
     {
@@ -570,7 +583,12 @@ void Hero_Manager::Update_Followers(float timeDelta)
 
             runtime.sprintFollowHoldTime = max(0.f, runtime.sprintFollowHoldTime - timeDelta);
 
-            if (!runtime.sprintFollow && runtime.lastMoveDistance >= _sprintFollowDistance)
+            if (activeWalkFollow)
+            {
+                runtime.sprintFollow = false; // active가 Walk면 follower도 Walk 속도를 유지한다.
+                runtime.sprintFollowHoldTime = 0.f;
+            }
+            else if (!runtime.sprintFollow && runtime.lastMoveDistance >= _sprintFollowDistance)
             {
                 runtime.sprintFollow = true;
                 runtime.sprintFollowHoldTime = _sprintFollowMinHoldTime;
@@ -591,7 +609,7 @@ void Hero_Manager::Update_Followers(float timeDelta)
             runtime.sprintFollowHoldTime = 0.f;
         }
 
-        Move_FollowerTo(_heroes[i].hero, i, targetPos, timeDelta);
+        Move_FollowerTo(_heroes[i].hero, i, targetPos, activeWalkFollow, timeDelta);
 
         ++followerSlot;
     }
@@ -621,7 +639,7 @@ Hero_Manager::TrailPoint Hero_Manager::Get_TrailPoint(float delaySeconds) const
     return _activeTrail[clampedIndex];
 }
 
-void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uint32 followerIndex, const Vec3& targetPos, float timeDelta)
+void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uint32 followerIndex, const Vec3& targetPos, bool walkFollow, float timeDelta)
 {
     if (follower == nullptr)
         return;
@@ -664,6 +682,7 @@ void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uin
 
         follow.hasMoveIntent = true;
         follow.worldDir = moveDelta;
+        follow.walkFollow = walkFollow;
         follow.sprintFollow = _followerRuntime[followerIndex].sprintFollow;
     }
 
@@ -721,6 +740,36 @@ void Hero_Manager::Reset_AllHeroesToIdle()
 void Hero_Manager::Handle_EditorStopRuntime()
 {
     Reset_AllHeroesToIdle();
+}
+
+void Hero_Manager::Restore_PartyFormationAfterEditorStop()
+{
+    auto active = Get_ActiveHero();
+    if (active == nullptr || active->Get_Transform() == nullptr)
+    {
+        Reset_AllHeroesToIdle();
+        return;
+    }
+
+    for (uint32 i = 0; i < _followerRuntime.size(); ++i)
+    {
+        _followerRuntime[i] = {};
+    }
+
+    auto activeTr = active->Get_Transform();
+    const Vec3 anchorPos = activeTr->Get_WorldPosition();
+    const Vec3 anchorRot = activeTr->Get_WorldRotationEuler();
+    const Vec3 anchorForward = activeTr->Get_WorldForward();
+    const Vec3 anchorRight = activeTr->Get_WorldRight();
+
+    Snap_AllHeroesToFormation(anchorPos, anchorRot, anchorForward, anchorRight);
+    Reset_AllHeroesToIdle();
+
+    _activeTrail.clear();
+    _recordTimer = 0.f;
+    Set_ActiveTrail(_recordInterval);
+
+    Refresh_TargetCamera();
 }
 
 bool Hero_Manager::Is_ActiveHero(const Shared<GameObject>& target) const

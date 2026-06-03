@@ -69,6 +69,7 @@ public:
     // Idle 상태로 되돌리기 : 전환 후, 게임 종료
     void    Reset_AllHeroesToIdle();
     void    Handle_EditorStopRuntime();
+    void    Restore_PartyFormationAfterEditorStop();
 
     // Active Hero인가?
     bool    Is_ActiveHero(const Shared<GameObject>& target) const;
@@ -101,6 +102,7 @@ private:
                 const Shared<Player_WorldBase>& follower,
                 uint32 followerIndex,
                 const Vec3& targetPos,
+                bool walkFollow,
                 float timeDelta);
 
     void    Refresh_TargetCamera() const;

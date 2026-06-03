@@ -27,6 +27,7 @@ void BattleHitSequenceRunner::Update(float timeDelta)
 
         DamageSystem::ApplyDamage(
             _pending.hitDamage,
+            _pending.attacker,
             _pending.target,
             _pending.attackType);
 

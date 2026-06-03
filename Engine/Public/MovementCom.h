@@ -81,6 +81,7 @@ public:
     {
         bool enabled = false;
         Vec3 worldDir = Vec3::Zero;
+        bool walkFollow = false;     // follower가 active hero의 Walk 속도를 따라야 하는지
         bool sprintFollow = false;   // 거리 벌어져서 sprint로 전환?
     };
 
@@ -186,6 +187,7 @@ private:
     float _idleGroundProbeAccum = 0.f;
     float _jumpInputGraceRemain = 0.f;
     float _groundJumpGraceRemain = 0.f;
+    float _cctGroundDetachGraceRemain = 0.f; // 경사 보행 중 down flag가 잠깐 끊겨도 grounded를 바로 버리지 않기 위한 유예 시간
 #ifdef _DEBUG
     float _idleGroundProbeDebugLogAccum = 0.f;
 #endif

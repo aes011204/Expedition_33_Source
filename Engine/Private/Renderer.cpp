@@ -1,5 +1,6 @@
 ﻿#include "Renderer.h"
 #include "Camera.h"
+#include "EffectEmitter.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "LightingPipeline.h"
@@ -185,14 +186,6 @@ void Renderer::Draw()
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonLight:After");
     nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
-    DumpCurrentOMState(L"Render_Distortion:Before");
-#endif
-
-    // ========================================= //
-    Render_Distortion();
-    // ========================================= //
-#ifdef _DEBUG
-    DumpCurrentOMState(L"Render_Distortion:After");
     const auto blendBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_Blend:Before");
 #endif
@@ -203,6 +196,14 @@ void Renderer::Draw()
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Blend:After");
     blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
+    DumpCurrentOMState(L"Render_Distortion:Before");
+#endif
+
+    // ========================================= //
+    Render_Distortion();
+    // ========================================= //
+#ifdef _DEBUG
+    DumpCurrentOMState(L"Render_Distortion:After");
     const auto postProcesBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_PostProcess:Before");
 #endif
@@ -216,17 +217,6 @@ void Renderer::Draw()
     const auto uiBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_ScreenFX:Before");
 #endif
-
-    //GAME->Bind_BackBuffer();
-
-    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
-    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
-    if (useScreenFx)
-    {
-        // ========================================= //
-        Render_ScreenFx();
-        // ========================================= //
-    }
 
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_ScreenFX:After");
@@ -738,7 +728,54 @@ void Renderer::Render_Blend()
 
     _currentGroup = RenderGroup::Blend;
 
-    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Blend)])
+    auto& blendObjects = _renderGroups[ETOI(RenderGroup::Blend)];
+    const Vec4* cameraPosition4 = GAME->Get_CamPosition();
+    if (cameraPosition4 != nullptr)
+    {
+        const Vec3 cameraPosition{ cameraPosition4->x, cameraPosition4->y, cameraPosition4->z };
+
+        const auto try_get_sort_depth = [&](const Weak<GameObject>& renderObject, float& outSortDepth) -> bool
+        {
+            const Shared<GameObject> gameObject = renderObject.lock();
+            if (gameObject == nullptr)
+                return false;
+
+            Vec3 objectWorldPosition{};
+            const Shared<EffectEmitter> effectEmitter = dynamic_pointer_cast<EffectEmitter>(gameObject);
+            if (effectEmitter != nullptr)
+            {
+                if (!effectEmitter->Try_Get_BlendSortWorldPosition(objectWorldPosition))
+                    return false;
+            }
+            else
+            {
+                const Shared<TransformCom> transform = gameObject->Get_Transform();
+                if (transform == nullptr)
+                    return false;
+
+                objectWorldPosition = transform->Get_WorldPosition();
+            }
+
+            outSortDepth = (objectWorldPosition - cameraPosition).LengthSquared();
+            return true;
+        };
+
+        // Blend 전체 정책으로 카메라 거리 정렬을 적용한다. 향후 non-effect blend object도 동일 정책을 탄다.
+        blendObjects.sort([&](const Weak<GameObject>& lhs, const Weak<GameObject>& rhs)
+            {
+                float lhsSortDepth = 0.f;
+                float rhsSortDepth = 0.f;
+                const bool lhsValid = try_get_sort_depth(lhs, lhsSortDepth);
+                const bool rhsValid = try_get_sort_depth(rhs, rhsSortDepth);
+
+                if (!lhsValid || !rhsValid || lhsSortDepth == rhsSortDepth)
+                    return false;
+
+                return lhsSortDepth > rhsSortDepth;
+            });
+    }
+
+    for (auto& renderObject : blendObjects)
     {
         Shared<GameObject> gameObject = renderObject.lock();
         if (nullptr != gameObject)
@@ -748,9 +785,50 @@ void Renderer::Render_Blend()
         }
     }
 
-    _renderGroups[ETOI(RenderGroup::Blend)].clear();
+    blendObjects.clear();
 
     GAME->End_MRT();
+}
+
+void Renderer::Render_UIEffect()
+{
+    GAME->Bind_BackBuffer();
+    _currentGroup = RenderGroup::UIEffect;
+
+    if (auto activeCamera = GAME->Get_ActiveCamera())
+        activeCamera->Apply_View();
+
+    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::UIEffect)])
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (nullptr != gameObject)
+        {
+            gameObject->Render();
+            Add_RenderCall();
+        }
+    }
+
+    _renderGroups[ETOI(RenderGroup::UIEffect)].clear();
+}
+
+void Renderer::PostDraw()
+{
+    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
+    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
+    if (useScreenFx)
+    {
+        Render_ScreenFx();
+    }
+
+    if (screenFxManager && screenFxManager->Is_CaptureRequested())
+    {
+        GAME->Bind_BackBuffer(); 
+        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
+
+        const_cast<ScreenFx_Manager*>(screenFxManager)->Clear_CaptureRequested();
+    }
+
+    Render_UIEffect();
 }
 
 void Renderer::Render_PostProcess()

@@ -1,6 +1,7 @@
 ﻿#include "ComputeSpriteEmitter.h"
 
 #include "Battle_Enum.h"
+#include "EffectMaterialScalarModulationRuntime.h"
 #include "GameInstance.h"
 #include "Renderer_Define.h"
 #include "ShaderCom.h"
@@ -30,6 +31,111 @@ bool ComputeSpriteEmitter::Is_InfluenceOutlineDebugEnabled()
 
 namespace Client::Internal
 {
+static int Resolve_MaterialSourceIndex(const string& source)
+{
+    constexpr int sourceAlpha = 0;
+    constexpr int sourceRed = 1;
+    constexpr int sourceLuminance = 2;
+
+    if (source == "Red" || source == "red")
+        return sourceRed;
+
+    if (source == "Luminance" || source == "luminance")
+        return sourceLuminance;
+
+    return sourceAlpha;
+}
+
+static HRESULT Bind_MaterialScalarModulationPayload(
+    ShaderCom* shader,
+    const EffectMaterialScalarModulationRuntimeDesc& modulation,
+    float emitterPhase)
+{
+    CHECK_NULL(shader, E_FAIL);
+
+    const EffectMaterialScalarModulationShaderPayload payload =
+        Build_MaterialScalarModulationShaderPayload(modulation, emitterPhase);
+
+    HRESULT hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationParams",
+        &payload.params,
+        sizeof(payload.params)
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationMeta",
+        payload.meta.data(),
+        sizeof(Vec4) * payload.meta.size()
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyTimes",
+        payload.keyTimes.data(),
+        sizeof(Vec4) * payload.keyTimes.size()
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyValues",
+        payload.keyValues.data(),
+        sizeof(Vec4) * payload.keyValues.size()
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyArriveTangents",
+        payload.keyArriveTangents.data(),
+        sizeof(Vec4) * payload.keyArriveTangents.size()
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyLeaveTangents",
+        payload.keyLeaveTangents.data(),
+        sizeof(Vec4) * payload.keyLeaveTangents.size()
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyModes",
+        payload.keyModes.data(),
+        sizeof(Vec4) * payload.keyModes.size()
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    return S_OK;
+}
+
+static EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeCoreColorRgbModulation(
+    const EffectRequiredMaterialRuntimeDesc& baseMaterial,
+    float emitterPhase)
+{
+    auto material = baseMaterial;
+    const auto& modulation = baseMaterial.coreColorRgbModulation;
+    const uint32 count = min(EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators, modulation.count);
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const auto& modulator = modulation.modulators[index];
+        if (!modulator.enabled || modulator.timeSource != EffectMaterialScalarModulationTimeSource::EmitterTime)
+            continue;
+
+        const Vec3 fallbackValue{
+            material.coreEmissive.coreColor.x,
+            material.coreEmissive.coreColor.y,
+            material.coreEmissive.coreColor.z
+        };
+        const Vec3 coreColorRgb = Evaluate_CoreColorRgbModulationCurve(modulator.curve, emitterPhase, fallbackValue);
+        material.coreEmissive.coreColor.x = coreColorRgb.x;
+        material.coreEmissive.coreColor.y = coreColorRgb.y;
+        material.coreEmissive.coreColor.z = coreColorRgb.z;
+    }
+
+    return material;
+}
+
 wstring Resolve_TexturePathByGuid(const string& textureGuid)
 {
     if (GAME == nullptr || textureGuid.empty())
@@ -170,6 +276,63 @@ bool ComputeSpriteEmitter::Is_EffectFinished() const
     return PlaybackState::Completed == _playbackState;
 }
 
+bool ComputeSpriteEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    const Vec4* cameraPosition4 = GAME != nullptr ? GAME->Get_CamPosition() : nullptr;
+    if (cameraPosition4 == nullptr)
+    {
+        outWorldPosition = _transformCom->Get_WorldPosition();
+        return true;
+    }
+
+    const auto max_abs = [](float a, float b) -> float
+    {
+        return max(fabsf(a), fabsf(b));
+    };
+
+    const auto max_curve_value = [](const Vec4& values, uint32 keyCount) -> float
+    {
+        float result = values.x;
+        const uint32 safeKeyCount = min(keyCount, 4u);
+        for (uint32 index = 1u; index < safeKeyCount; ++index)
+        {
+            switch (index)
+            {
+            case 1u: result = max(result, values.y);
+                break;
+            case 2u: result = max(result, values.z);
+                break;
+            case 3u: result = max(result, values.w);
+                break;
+            default: break;
+            }
+        }
+        return result;
+    };
+
+    const Vec3 emitterWorldPosition = _transformCom->Get_WorldPosition();
+
+    Vec3 localOffset{};
+    if (_desc.initialLocation.enabled)
+        localOffset += (_desc.initialLocation.minOffset + _desc.initialLocation.maxOffset) * 0.5f;
+
+    if (_desc.sphereLocation.enabled)
+        localOffset += _desc.sphereLocation.offset;
+
+    const Vec3 worldOffset =
+        _transformCom->Get_WorldRight() * localOffset.x +
+        _transformCom->Get_WorldUp() * localOffset.y +
+        _transformCom->Get_WorldForward() * localOffset.z;
+
+    const Vec3 representativeCenter = emitterWorldPosition + worldOffset;
+
+    outWorldPosition = representativeCenter;
+    return true;
+}
+
 void ComputeSpriteEmitter::On_EffectTransformSynced()
 {
     Sync_WorldCenterToComputeBuffer();
@@ -194,7 +357,7 @@ HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureP
 {
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    wstring resolvedPath = Client::Internal::Resolve_TexturePath(
+    wstring resolvedPath = Internal::Resolve_TexturePath(
         _desc.required.material.mainTextureGuid,
         _desc.required.material.mainTexturePath,
         usedPathFallback,
@@ -229,7 +392,7 @@ HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureP
             kFallbackTexturePath
         );
 
-        resolvedPath = Client::Internal::Resolve_TexturePathByPath(kFallbackTexturePath);
+        resolvedPath = Internal::Resolve_TexturePathByPath(kFallbackTexturePath);
         usedFallback = true;
     }
 
@@ -276,7 +439,7 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Client::Internal::Resolve_TexturePath(
+    const wstring resolvedPath = Internal::Resolve_TexturePath(
         _desc.required.material.noiseTextureGuid,
         _desc.required.material.noiseTexturePath,
         usedPathFallback,
@@ -339,7 +502,7 @@ HRESULT ComputeSpriteEmitter::Ready_MaskTextureComponent(const string& resolvedT
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Client::Internal::Resolve_TexturePath(
+    const wstring resolvedPath = Internal::Resolve_TexturePath(
         _desc.required.material.maskTextureGuid,
         _desc.required.material.maskTexturePath,
         usedPathFallback,
@@ -469,7 +632,9 @@ HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
 
 HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
 {
-    const auto& material = _desc.required.material;
+    const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
+    const EffectRequiredMaterialRuntimeDesc material =
+        Internal::Resolve_EmitterTimeCoreColorRgbModulation(_desc.required.material, emitterPhase);
 
     if (nullptr != _noiseTexture)
         CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
@@ -506,6 +671,12 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
         0.f
     );
+    const Vec4 effectSpriteSourceParams = Vec4(
+        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
+        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+        material.noiseInvert ? 1.f : 0.f,
+        material.maskInvert ? 1.f : 0.f
+    );
 
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteParams", &effectSpriteParams, sizeof(effectSpriteParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAlphaParams", &effectSpriteAlphaParams, sizeof(effectSpriteAlphaParams)), E_FAIL);
@@ -513,9 +684,17 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteNoiseUVParams", &effectSpriteNoiseUVParams, sizeof(effectSpriteNoiseUVParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaskUVParams", &effectSpriteMaskUVParams, sizeof(effectSpriteMaskUVParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteUVOffsetParams", &effectSpriteUVOffsetParams, sizeof(effectSpriteUVOffsetParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaskUVOffsetParams", &effectSpriteMaskUVOffsetParams, sizeof(effectSpriteMaskUVOffsetParams)), E_FAIL);
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_EffectSpriteMaskUVOffsetParams", &effectSpriteMaskUVOffsetParams, sizeof(effectSpriteMaskUVOffsetParams)),
+        E_FAIL
+    );
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteUVModeParams", &effectSpriteUVModeParams, sizeof(effectSpriteUVModeParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteSourceParams", &effectSpriteSourceParams, sizeof(effectSpriteSourceParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)), E_FAIL);
+    CHECK_FAILED_ONCE(
+        Internal::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.required.material.scalarModulation, emitterPhase),
+        E_FAIL
+    );
 
     const Vec4 effectInfluenceDebugParams = Vec4(
         _isInfluenceOutlineDebugEnabled ? 1.f : 0.f,
@@ -552,8 +731,14 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
         CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
         CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveFlags", &effectSpriteAdditiveFlags, sizeof(effectSpriteAdditiveFlags)), E_FAIL);
-        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteCoreEmissiveParams", &effectSpriteCoreEmissiveParams, sizeof(effectSpriteCoreEmissiveParams)), E_FAIL);
-        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteCoreEmissiveColor", &effectSpriteCoreEmissiveColor, sizeof(effectSpriteCoreEmissiveColor)), E_FAIL);
+        CHECK_FAILED_ONCE(
+            _shader->Bind_RawValue("g_EffectSpriteCoreEmissiveParams", &effectSpriteCoreEmissiveParams, sizeof(effectSpriteCoreEmissiveParams)),
+            E_FAIL
+        );
+        CHECK_FAILED_ONCE(
+            _shader->Bind_RawValue("g_EffectSpriteCoreEmissiveColor", &effectSpriteCoreEmissiveColor, sizeof(effectSpriteCoreEmissiveColor)),
+            E_FAIL
+        );
     }
 
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), E_FAIL);
@@ -613,6 +798,11 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
         _shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)),
         E_FAIL
     );
+    const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
+    CHECK_FAILED_ONCE(
+        Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase),
+        E_FAIL
+    );
     CHECK_FAILED_ONCE(
         _shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)),
         E_FAIL
@@ -628,6 +818,9 @@ bool ComputeSpriteEmitter::Is_DistortionFamily() const
 
 RenderGroup ComputeSpriteEmitter::Resolve_RenderGroup() const
 {
+    if (_desc.renderLayerOverride == EffectEmitterRenderLayerOverride::UIEffect)
+        return RenderGroup::UIEffect;
+
     return Is_DistortionFamily() ? RenderGroup::Distortion : RenderGroup::Blend;
 }
 

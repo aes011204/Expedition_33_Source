@@ -24,6 +24,14 @@ HRESULT Character_WorldBase::Initialize(void* arg)
     return Character::Initialize(arg);
 }
 
+void Character_WorldBase::BeginPlay()
+{
+    Character::BeginPlay();
+
+    // 첫 클라이언트 업데이트 전에 PhysX shape/actor가 살아 있도록 BeginPlay에서 1회 선등록한다.
+    Update_Collider();
+}
+
 void Character_WorldBase::Late_Update(float timeDelta)
 {
     Character::Late_Update(timeDelta);

@@ -41,6 +41,8 @@ HRESULT BattleTransition_ScreenFx::Initialize(ScreenFxDesc* desc)
     }
 
     _currentRadius = 0.0f;
+    _smudgeMaskSRV = GAME->Get_SRV("T_Noise02");
+
     return S_OK;
 }
 
@@ -50,14 +52,14 @@ void BattleTransition_ScreenFx::Update_ScreenFx(float timeDelta)
     
     Evaluate_At(_elapsedTime);
 
-    if (_elapsedTime >= 0.75f && _isRoseFlare == false)
+    if (_isRoseFlare == false)
     {
         RoseFlare(); 
         _isRoseFlare = true;
     }
 
     if (_roseFlareHandle.effectObject == nullptr) return;
-
+    
     if (auto mainCamera = GAME->Get_ActiveCamera())
     {
         auto camTransform = mainCamera->Get_Transform();
@@ -90,12 +92,22 @@ HRESULT BattleTransition_ScreenFx::Bind_FxConstantBuffer(ShaderCom* shader)
     cbData.wipeRadius = _currentRadius;
     cbData.edgeSoftness = _originalDesc.edgeSoftness;
     cbData.transitionProgress = _elapsedTime / _duration;
+
+    cbData.vignetteRadius = 0.8f;
+    cbData.vignetteSoftness = 0.5f;
+    cbData.vignetteColor = Vec3(0.f, 0.f, 0.f);
+
     return shader->Bind_CBufferData(cbData);
 }
 
 HRESULT BattleTransition_ScreenFx::Bind_ShaderResources(const Shared<ShaderCom>& shader)
 {
-    return GAME->Bind_RT_ShaderResource(shader, "g_ScreenMaskTexture", RT::ScreenCapture);
+    HRESULT hr = GAME->Bind_RT_ShaderResource(shader, "g_ScreenMaskTexture", RT::ScreenCapture);
+
+    if (_smudgeMaskSRV != nullptr)
+        shader->Bind_SRV("g_SmudgeTexture", _smudgeMaskSRV);
+
+    return hr;
 }
 
 void BattleTransition_ScreenFx::RoseFlare()

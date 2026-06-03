@@ -68,6 +68,12 @@ HRESULT BattleController::Initialize()
     _battleSpawnRegistry = BattleSpawnRegistry::Create();
     CHECK_NULL(_battleSpawnRegistry, E_FAIL);
 
+    _qteController = BattleQTEController::Create();
+    CHECK_NULL(_qteController, E_FAIL);
+
+    _buffSystem = BuffSystem::Create();
+    CHECK_NULL(_buffSystem, E_FAIL);
+
     //    _targetPreviewChangedHandle = OnTargetPreviewChanged.Add(this,&BattleController::Handle_TargetPreviewChanged);
 
     return S_OK;
@@ -342,6 +348,8 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
 void BattleController::ExecuteAction(const BattleAction& turnAction)
 {
+    Clear_QTEState(); // 새 액션 시작 시 이전 QTE 결과가 다음 스킬에 섞이지 않게 초기화한다.
+
     const auto BattleChar = turnAction.Get_CurChar();
     if (!BattleChar.actor)
         return;
@@ -391,6 +399,8 @@ void BattleController::ExecuteActionRequest(const ActionRequest& request)
 
 void BattleController::EndTurn()
 {
+    Fail_QTEIfActive(); // 턴이 먼저 끝나면 열린 QTE는 실패로 확정한다.
+
     _isActionExecuting = false;
 
     // 이번 적 턴에서 공격하는 플레이어 Targeted End 애니메이션 재생
@@ -1050,14 +1060,24 @@ BattleTurnState BattleController::Get_CurrentTurnState() const
     return _battleFSM->Get_CurrentPlayerState();
 }
 
-void BattleController::StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate)
+void BattleController::StartCounter(ModelCom* sourceModel)
 {
-    _reactionController.StartCounter(sourceModel, slowDesc, counterPlayRate);
+    _reactionController.StartCounter(sourceModel);
 }
 
 void BattleController::ApplyCounterDamage(ModelCom* sourceModel)
 {
     _reactionController.ApplyCounterDamage(sourceModel);
+}
+
+void BattleController::BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed)
+{
+    _reactionController.BeginCounterTimeSection(sourceModel, worldTimeScale, counterFrameSpeed);
+}
+
+void BattleController::EndCounterTimeSection(ModelCom* sourceModel)
+{
+    _reactionController.EndCounterTimeSection(sourceModel);
 }
 
 void BattleController::Execute_BaseAttack()
@@ -1202,21 +1222,23 @@ void BattleController::Execute_Item()
         if (action.GetInitTarget().statCom->Get_AliveStatus() != EAliveStatus::Dead)
             return; // 부활 틴트는 죽어있는 대상에게만 적용한다.
 
-        action.GetInitTarget().statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
-        DamageSystem::Heal(action.GetInitTarget().statCom->Get_StatInfo().maxHp * static_cast<float>(itemData.reviveHp) * 0.01f, action.GetInitTarget());
+        //action.GetInitTarget().statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
+        //Restore_BattleTargetCollision(action.GetInitTarget()); // 부활 직후 다시 충돌 가능 상태로 전환
 
-        if (action.GetInitTarget().ModelCom)
-        {
-            if (!action.GetInitTarget().ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
-            {
-                BattleAnimUtils::Play_BattleIdle(
-                    action.GetInitTarget(),
-                    0.2f); // Revive 매핑이 없으면 부활된 대상 기준 idle로 복귀한다.
-            }
-        }
+        //DamageSystem::Heal(action.GetInitTarget().statCom->Get_StatInfo().maxHp * static_cast<float>(itemData.reviveHp) * 0.01f, action.GetInitTarget());
 
-        Rebuild_TurnQueue(action.GetInitTarget());
+        //if (action.GetInitTarget().ModelCom)
+        //{
+        //    if (!action.GetInitTarget().ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
+        //    {
+        //        BattleAnimUtils::Play_BattleIdle(
+        //            action.GetInitTarget(),
+        //            0.2f); // Revive 매핑이 없으면 부활된 대상 기준 idle로 복귀한다.
+        //    }
+        //}
 
+        //Rebuild_TurnQueue(action.GetInitTarget());
+        Revive_BattleMon(action.GetInitTarget(), static_cast<float>(itemData.reviveHp) * 0.01f);
         break;
 
     default:
@@ -1225,6 +1247,27 @@ void BattleController::Execute_Item()
 
     CLIENT->Consume_Item(itemData.itemType);
     Clear_TargetPreview();
+}
+
+
+void BattleController::Revive_BattleMon(const BattleChar& battleChar, float MultipleHp)
+{
+    battleChar.statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
+    Restore_BattleTargetCollision(battleChar); // 부활 직후 다시 충돌 가능 상태로 전환
+
+    DamageSystem::Heal(battleChar.statCom->Get_StatInfo().maxHp * MultipleHp, battleChar);
+
+    if (battleChar.ModelCom)
+    {
+        if (!battleChar.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Revive), 0.2f, false))
+        {
+            BattleAnimUtils::Play_BattleIdle(
+                battleChar,
+                0.2f); // Revive 매핑이 없으면 부활된 대상 기준 idle로 복귀한다.
+        }
+    }
+
+    Rebuild_TurnQueue(battleChar);
 }
 
 void BattleController::Apply_BaseAttackAP(const BattleChar& actor)
@@ -1290,9 +1333,10 @@ void BattleController::Play_EnemyTargetedEnd()
     _enemyTurnTargetedActor = {};
     _hasEnemyTurnTargetedActor = false;
 
-    if (target.actor == nullptr || target.ModelCom == nullptr)
+    if (target.actor == nullptr || target.ModelCom == nullptr )
         return;
-
+    if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+        return;
     if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_End), 0.2f, false))
         BattleAnimUtils::Play_BattleIdle(target, 0.2f);
 }
@@ -1324,7 +1368,11 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
     if (_freeAimShotAction.GetInitTarget().actor != nullptr && _freeAimShotAction.GetInitTarget().statCom != nullptr)
     {
         constexpr float freeAimDamage = 20.f; // 우선 테스트용 데미지
-        DamageSystem::ApplyDamage(freeAimDamage, _freeAimShotAction.GetInitTarget(), AttackType::FreeAimLight);
+
+        const BattleChar& attacker = _freeAimShotAction.Get_CurChar();
+        const BattleChar& target = _freeAimShotAction.GetInitTarget();
+
+        DamageSystem::ApplyDamage(freeAimDamage, attacker, target, AttackType::FreeAimLight);
     }
 
     _freeAimShotAction.InitActionDirection();
@@ -1530,6 +1578,15 @@ void BattleController::Handle_DamageApplied(const BattleChar& damagedTarget, flo
         HitAction(damagedTarget, attackType);
     }
 
+    if (damage > 0.f &&
+        damagedTarget.actor != nullptr &&
+        damagedTarget.statCom != nullptr &&
+        damagedTarget.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+    {
+        // 충돌체 끄기
+        Handle_BattleTargetDeathCollision(damagedTarget);
+    }
+
     Try_RequestEndTurnOnCurrentActorDeath(damagedTarget, damage);
     Try_BeginVictorySlowOnDamage(damagedTarget, damage);
 }
@@ -1620,6 +1677,98 @@ void BattleController::Clear_FreeAimHitTarget()
     _hasFreeAimHitTarget = false;
 }
 
+void BattleController::Begin_QTE(const BattleQTERequest& request)
+{
+    CHECK_NULL(_qteController);
+
+    if (!_isBattleActive || _battleEnded)
+        return;
+
+    _qteController->Begin(request);
+
+    // QTE UI는 GameplayUI_Battle이 소유하므로 시작 신호만 보낸다.
+    OnQTEStarted.Broadcast(request);
+}
+
+void BattleController::Resolve_QTE(BattleQTEResult result)
+{
+    CHECK_NULL(_qteController);
+
+    if (!_qteController->Resolve(result))
+        return;
+
+    OnQTEResolved.Broadcast(result);
+}
+
+void BattleController::Fail_QTEIfActive()
+{
+    CHECK_NULL(_qteController);
+
+    if (!_qteController->FailIfActive())
+        return;
+
+    OnQTEResolved.Broadcast(BattleQTEResult::Fail);
+}
+
+void BattleController::Clear_QTEState()
+{
+    if (_qteController)
+        _qteController->Clear();
+}
+
+bool BattleController::Is_QTEActive() const
+{
+    return _qteController != nullptr && _qteController->Is_Active();
+}
+
+bool BattleController::Has_LastQTEResult() const
+{
+    return _qteController != nullptr && _qteController->Has_LastResult();
+}
+
+BattleQTEResult BattleController::Get_LastQTEResult() const
+{
+    if (_qteController == nullptr)
+        return BattleQTEResult::None;
+
+    return _qteController->Get_LastResult();
+}
+
+void BattleController::Handle_BattleTargetDeathCollision(const BattleChar& deadTarget)
+{
+    if (deadTarget.actor == nullptr)
+        return;
+
+    deadTarget.actor->Set_BattleColliderActive(false);
+
+    if (_hasTargetPreview && _targetPreview.actor == deadTarget.actor)
+        Clear_TargetPreview();
+
+    if (_hasFreeAimHitTarget && _freeAimHitTarget.actor == deadTarget.actor)
+        Clear_FreeAimHitTarget(); 
+}
+
+void BattleController::Restore_BattleTargetCollision(const BattleChar& revivedTarget)
+{
+    if (revivedTarget.actor == nullptr)
+        return;
+
+    revivedTarget.actor->Set_BattleColliderActive(true);
+}
+
+void BattleController::Apply_Buff(const BattleChar& target, Buffs buffId, uint32 stack, int32 durationTurn)
+{
+    if (_buffSystem == nullptr)
+        return;
+
+    _buffSystem->Apply_Buff(target, buffId, stack, durationTurn);
+}
+
+bool BattleController::Has_Buff(const BattleChar& target, Buffs buffId) const
+{
+    return _buffSystem != nullptr && _buffSystem->Has_Buff(target, buffId);
+}
+
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
     if (_battleTurnCamera)
@@ -1671,42 +1820,6 @@ void BattleController::Restore_WorldCamera()
     //  _worldCamera.reset();
 }
 
-//BattleAction BattleController::BuildActionFromRequest(const ActionRequest& request) const
-//{
-//    BattleAction action{};
-//    action.type = request.type;
-//    action._curChar = request.actor;
-//    action.target = request.InitTarget;
-//    action._InitTarget = request.InitTarget;
-//
-//    if (!request.skillKey.empty())
-//    {
-//        if (const Skill_Data* skillData = CLIENT->Get_Skill(request.skillKey))
-//            action._selected_SkillKey = *skillData;
-//        else
-//            LOG_WARN("BuildActionFromRequest: skill data not found. skillKey={}", request.skillKey.c_str());
-//    }
-//
-//    if (request.itemType != BattleItemType::Invalid)
-//    {
-//        if (const Item_Data* itemData = CLIENT->Get_Item(request.itemType))
-//            action._selected_ItemKey = *itemData;
-//        else
-//            LOG_WARN("BuildActionFromRequest: item data not found. itemType={}", static_cast<int>(request.itemType));
-//    }
-//
-//    action._curAnimIndex = 0;
-//    action._curStepIndex = 0;
-//    action._curAttackIndex = 0;
-//    action.originPos = {};
-//    action.phaseStartPos = {};
-//    action.phaseGoalPos = {};
-//    action.phaseReachedGoal = false;
-//    action.phasePrevRootRatio = 0.f;
-//    action._isFinished = false;
-//    return action;
-//}
-
 void BattleController::Clear_BattleRuntimeState()
 {
     _turnAction = {};
@@ -1715,6 +1828,7 @@ void BattleController::Clear_BattleRuntimeState()
     _pendingNextTurn = false;
     _requestEndTurnOnCurrentActorDeath = false;
     _reactionController.Clear_RuntimeState();
+    Clear_QTEState();
     _isFreeAimShotPlaying = false;
     _freeAimShotAction = {};
     Clear_FreeAimHitTarget();
@@ -1923,9 +2037,21 @@ void BattleController::PlayerStartAnim()
 
 void BattleController::HitAction(BattleChar target, AttackType attackType)
 {
+    if (target.ModelCom == nullptr || target.statCom == nullptr)
+    {
+        LOG_WARN("HitAction: missing components. model={}, stat={}",
+            target.ModelCom != nullptr,
+            target.statCom != nullptr);
+        return;
+    }
+
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
     {
-        target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Dead), 0.3f, false);
+        const bool playedDead = target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Dead), 0.3f, false);
+        LOG_DEBUG("HitAction: dead anim result={}, attackType={}, actor={}",
+            playedDead,
+            static_cast<int>(attackType),
+            target.actor ? String::ToString(target.actor->Get_Name()).c_str() : "null");
         return;
     }
 
@@ -1985,11 +2111,18 @@ void BattleController::Free()
         _damageAppliedHandle.Reset();
     }
 
-    if (_battleSpawnRegistry)
+    auto ReleaseCtrl = [](auto& ctrl)
     {
-        _battleSpawnRegistry->Free();
-        _battleSpawnRegistry.reset();
-    }
+        if (ctrl)
+        {
+            ctrl->Free();
+            ctrl.reset();
+        }
+    };
+
+    ReleaseCtrl(_battleSpawnRegistry);
+    ReleaseCtrl(_qteController);
+    ReleaseCtrl(_buffSystem);
 
     Base::Free();
 }

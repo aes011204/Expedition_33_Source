@@ -12,9 +12,6 @@ NS_BEGIN(EffectEditor)
 
 namespace
 {
-    constexpr auto kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
-    constexpr auto kEffectModelPayloadType = "CONTENT_BROWSER_EFFECT_MODEL";
-
     constexpr TrailCurveQuality kTrailCurveQualityValues[] = {
         TrailCurveQuality::Basic,
         TrailCurveQuality::Smooth,
@@ -54,6 +51,64 @@ namespace
         default:
             return "";
         }
+    }
+
+    const char* Get_RenderLayerOverrideLabel(EmitterRenderLayerOverride value)
+    {
+        switch (value)
+        {
+        case EmitterRenderLayerOverride::UIEffect:
+            return "UIEffect";
+        case EmitterRenderLayerOverride::Auto:
+        default:
+            return "Auto";
+        }
+    }
+
+    bool Draw_RenderLayerOverrideProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        EmitterRenderLayerOverride& value,
+        EmitterRenderLayerOverride defaultValue)
+    {
+        static constexpr EmitterRenderLayerOverride kValues[] = {
+            EmitterRenderLayerOverride::Auto,
+            EmitterRenderLayerOverride::UIEffect,
+        };
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_RenderLayerOverrideLabel(value)))
+        {
+            for (const EmitterRenderLayerOverride candidate : kValues)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_RenderLayerOverrideLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value = defaultValue;
+            return true;
+        }
+
+        return changed;
     }
 
     TrailTypeData Build_TrailCurvePreset(TrailCurveQuality quality)
@@ -386,6 +441,20 @@ namespace
         }
     }
 
+    const char* Get_ToneMapModeLabel(uint32 toneMapMode)
+    {
+        switch (toneMapMode)
+        {
+        case 0:
+            return "Reinhard";
+        case 1:
+            return "ACES";
+        case 2:
+        default:
+            return "Uncharted2";
+        }
+    }
+
     void Draw_PostProcessPresetProperty(DetailPropertyContext& detailContext)
     {
         if (EDITOR == nullptr)
@@ -420,6 +489,45 @@ namespace
 
         detailContext.Draw_ResetButton(false);
         ImGui::PopID();
+    }
+
+    bool Draw_ToneMapModeProperty(DetailPropertyContext& detailContext, uint32& toneMapMode, uint32 defaultToneMapMode)
+    {
+        static constexpr uint32 kToneMapModes[] = { 0u, 1u, 2u };
+
+        ImGui::PushID("ToneMapMode");
+        detailContext.Draw_PropertyLabel("ToneMap Mode");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_ToneMapModeLabel(toneMapMode)))
+        {
+            for (const uint32 candidate : kToneMapModes)
+            {
+                const bool selected = toneMapMode == candidate;
+                if (ImGui::Selectable(Get_ToneMapModeLabel(candidate), selected))
+                {
+                    toneMapMode = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(toneMapMode != defaultToneMapMode);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            toneMapMode = defaultToneMapMode;
+            return true;
+        }
+
+        return changed;
     }
 
     bool Draw_TrailCurveQualityProperty(DetailPropertyContext& detailContext, TrailTypeData& data, const TrailTypeData& defaultData)
@@ -664,12 +772,14 @@ void Detail_View::Render_PostProcessShaderDetail()
     if (_detailPropertyContext.Begin_PropertyTable("PostProcessParams"))
     {
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Exposure", params.exposure, defaultOptions.params.exposure);
+        paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Inv White Point", params.invWhitePoint, defaultOptions.params.invWhitePoint);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Gamma", params.gamma, defaultOptions.params.gamma);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Radius", params.bloomRadius, defaultOptions.params.bloomRadius);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Threshold", params.bloomThreshold, defaultOptions.params.bloomThreshold);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Intensity", params.bloomIntensity, defaultOptions.params.bloomIntensity);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Soft Knee", params.bloomSoftKnee, defaultOptions.params.bloomSoftKnee);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Clamp", params.bloomClamp, defaultOptions.params.bloomClamp, 0.05f);
+        paramsChanged |= Draw_ToneMapModeProperty(_detailPropertyContext, params.toneMapMode, defaultOptions.params.toneMapMode);
         _detailPropertyContext.End_PropertyTable();
     }
 
@@ -698,6 +808,13 @@ void Detail_View::Render_EmitterDetail(
         ImGui::TextDisabled("%s", emitter.rendererType.c_str());
         _detailPropertyContext.Draw_ResetButton(false);
         ImGui::PopID();
+
+        changed |= Draw_RenderLayerOverrideProperty(
+            _detailPropertyContext,
+            "렌더 레이어",
+            emitter.renderLayerOverride,
+            defaultData.renderLayerOverride
+        );
 
         _detailPropertyContext.End_PropertyTable();
     }
@@ -828,7 +945,7 @@ void Detail_View::Render_TypeDataDetail(
     }
     case AuthoringTypeDataKind::Mesh:
     {
-        MeshTypeData* data = get_if<MeshTypeData>(&emitter.typeData.payload);
+        const MeshTypeData* data = get_if<MeshTypeData>(&emitter.typeData.payload);
         if (data == nullptr)
         {
             ImGui::TextDisabled("Mesh TypeData payload is invalid.");
@@ -933,6 +1050,11 @@ void Detail_View::Render_ModuleDetail(
             changed = _sphereLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::PlaneRadialLocation:
+        if (auto* data = get_if<PlaneRadialLocationModuleData>(&module.data))
+            changed = _planeRadialLocationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialVelocity:
         if (auto* data = get_if<InitialVelocityModuleData>(&module.data))
             changed = _initialVelocityModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
@@ -961,6 +1083,11 @@ void Detail_View::Render_ModuleDetail(
     case AuthoringModuleType::InitialRotation:
         if (auto* data = get_if<InitialRotationModuleData>(&module.data))
             changed = _initialRotationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::PlaneRadialOrientation:
+        if (auto* data = get_if<PlaneRadialOrientationModuleData>(&module.data))
+            changed = _planeRadialOrientationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::RotationOverLife:
@@ -1026,6 +1153,11 @@ void Detail_View::Render_ModuleDetail(
     case AuthoringModuleType::SpawnPerUnit:
         if (auto* data = get_if<SpawnPerUnitModuleData>(&module.data))
             changed = _spawnPerUnitModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::MaterialScalarModulation:
+        if (auto* data = get_if<MaterialScalarModulationModuleData>(&module.data))
+            changed = _materialScalarModulationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     default:

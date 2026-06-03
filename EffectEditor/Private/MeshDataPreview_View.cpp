@@ -3,6 +3,7 @@
 #include "EffectEditorInstance.h"
 #include "EffectMaterialInstance_View.h"
 #include "EffectMaterialPresetReader.h"
+#include "EffectMaterialScalarModulationPreview.h"
 #include "EffectPreviewOrbitCamera.h"
 #include "GameInstance.h"
 #include "Helper_EffectAuthoring.h"
@@ -196,12 +197,12 @@ namespace Internal
         return !materialPath.empty() && EffectMaterialPresetReader::Read(materialPath, outMaterial);
     }
 
-    int Resolve_OpacitySourceIndex(const EffectMaterialInstanceData& material)
+    static int Resolve_MaterialSourceIndex(const string& source)
     {
-        if (material.opacitySource == "Red" || material.opacitySource == "red")
+        if (source == "Red" || source == "red")
             return kOpacitySourceRed;
 
-        if (material.opacitySource == "Luminance" || material.opacitySource == "luminance")
+        if (source == "Luminance" || source == "luminance")
             return kOpacitySourceLuminance;
 
         return kOpacitySourceAlpha;
@@ -338,7 +339,7 @@ struct MeshDataPreview_View::PreviewRenderer
         End_ViewportDrag();
     }
 
-    void Render_Model(const MeshTypeData& meshData, const fs::path& modelPath)
+    void Render_Model(const AuthoringEmitter& emitter, const MeshTypeData& meshData, const fs::path& modelPath)
     {
         statusMessage.clear();
         hasRendered = false;
@@ -360,6 +361,21 @@ struct MeshDataPreview_View::PreviewRenderer
         {
             statusMessage = "Assigned effect material is missing.";
             return;
+        }
+
+        if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(emitter))
+        {
+            const RequiredModuleData* required = Find_RequiredModuleData(emitter);
+            const float previewDuration = required != nullptr ? required->duration : 1.f;
+            const MaterialScalarModulationPreviewResult previewMaterial =
+                Evaluate_MaterialScalarModulationPreview(
+                    effectMaterial,
+                    Build_CoreColorRgbModulationRuntimeDesc(*modulation),
+                    Build_MaterialScalarModulationRuntimeDesc(*modulation),
+                    Compute_MaterialScalarPreviewPhase(materialElapsedTime, previewDuration),
+                    false
+                );
+            effectMaterial = previewMaterial.material;
         }
 
         if (!Ready_RenderTarget() || !Ready_Shader(effectMaterial) || !Ready_Model(modelPath))
@@ -389,7 +405,7 @@ struct MeshDataPreview_View::PreviewRenderer
         hasRendered = true;
     }
 
-    void Draw_Viewport(const char* id, const MeshTypeData& meshData, const fs::path& modelPath)
+    void Draw_Viewport(const char* id, const AuthoringEmitter& emitter, const MeshTypeData& meshData, const fs::path& modelPath)
     {
         const ImVec2 availableSize = ImGui::GetContentRegionAvail();
         const ImVec2 canvasSize{ max(1.f, availableSize.x), max(260.f, availableSize.y) };
@@ -401,7 +417,7 @@ struct MeshDataPreview_View::PreviewRenderer
             innerSize.y = max(1.f, innerSize.y);
             Resize_RenderTarget(static_cast<uint32>(innerSize.x), static_cast<uint32>(innerSize.y));
             materialElapsedTime += max(ImGui::GetIO().DeltaTime, 0.f);
-            Render_Model(meshData, modelPath);
+            Render_Model(emitter, meshData, modelPath);
 
             const ImVec2 canvasMin = ImGui::GetCursorScreenPos();
             const ImVec2 canvasMax{ canvasMin.x + innerSize.x, canvasMin.y + innerSize.y };
@@ -703,7 +719,13 @@ struct MeshDataPreview_View::PreviewRenderer
             coreEmissive.coreColor.z,
             coreEmissive.outerIntensity
         );
-        const int opacitySource = Internal::Resolve_OpacitySourceIndex(material);
+        const int opacitySource = Internal::Resolve_MaterialSourceIndex(material.opacitySource);
+        const Vec4 effectMeshSourceParams = Vec4(
+            static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
+            static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+            material.noiseInvert ? 1.f : 0.f,
+            material.maskInvert ? 1.f : 0.f
+        );
 
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshParams", &effectMeshParams, sizeof(effectMeshParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAlphaParams", &effectMeshAlphaParams, sizeof(effectMeshAlphaParams)), E_FAIL);
@@ -713,6 +735,7 @@ struct MeshDataPreview_View::PreviewRenderer
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaterialTime", &materialElapsedTime, sizeof(materialElapsedTime)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
@@ -1005,7 +1028,7 @@ void MeshDataPreview_View::Render()
                 ImGui::BeginChild("MeshDataPreviewViewportPane", ImVec2(previewPaneWidth, 0.f), false);
                 {
                     if (_previewRenderer != nullptr)
-                        _previewRenderer->Draw_Viewport("MeshDataPreviewViewport", *meshData, modelPath);
+                        _previewRenderer->Draw_Viewport("MeshDataPreviewViewport", *emitter, *meshData, modelPath);
                 }
                 ImGui::EndChild();
 
@@ -1019,7 +1042,7 @@ void MeshDataPreview_View::Render()
             else
             {
                 if (_previewRenderer != nullptr)
-                    _previewRenderer->Draw_Viewport("MeshDataPreviewViewport", *meshData, modelPath);
+                    _previewRenderer->Draw_Viewport("MeshDataPreviewViewport", *emitter, *meshData, modelPath);
                 ImGui::Separator();
                 Render_Inspector(*emitterView, *emitter, *meshData);
             }

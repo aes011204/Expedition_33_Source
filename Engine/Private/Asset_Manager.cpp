@@ -175,8 +175,11 @@ Asset_Manager::Asset_Manager()
 
 Asset_Manager::~Asset_Manager() = default;
 
-HRESULT Asset_Manager::Initialize(const wstring& resourceRoot)
+HRESULT Asset_Manager::Initialize(const wstring& resourceRoot, bool forceScan)
 {
+    const auto startupBegin = chrono::steady_clock::now();
+    auto stepBegin = startupBegin;
+
 	if (resourceRoot.empty())
         return E_FAIL;
 
@@ -186,17 +189,73 @@ HRESULT Asset_Manager::Initialize(const wstring& resourceRoot)
     _cachePath = (fs::path(_assetDataFolder) / L"AssetRegistry.cache.json").wstring();
 
     _assetRegistryDirty = false;
+    const bool registryExists = fs::exists(_registryPath);
 
+    stepBegin = chrono::steady_clock::now();
     Load_Registry();
+    LOG_INFO("[StartupTiming] Asset_Manager::Load_Registry elapsed={}ms assetCount={}",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count(),
+        _guidToMeta.size());
+    const bool registryLoadedAssets = !_guidToMeta.empty();
+
     if (_guidToMeta.empty())
+    {
+        stepBegin = chrono::steady_clock::now();
         Load_Cache();
-    Scan_And_Register(_resourceRoot);
-    Refresh_Cache();
+        LOG_INFO("[StartupTiming] Asset_Manager::Load_Cache elapsed={}ms assetCount={}",
+            chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count(),
+            _guidToMeta.size());
+    }
+    else
+    {
+        LOG_INFO("[StartupTiming] Asset_Manager::Load_Cache skipped registryAssetCount={}", _guidToMeta.size());
+    }
 
-    if (_assetRegistryDirty || !fs::exists(_registryPath))
+    const bool shouldScan = forceScan || _guidToMeta.empty() || !registryExists || !registryLoadedAssets;
+    if (shouldScan)
+    {
+        stepBegin = chrono::steady_clock::now();
+        Scan_And_Register(_resourceRoot);
+        LOG_INFO("[StartupTiming] Asset_Manager::Scan_And_Register elapsed={}ms assetCount={} dirty={} forceScan={}",
+            chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count(),
+            _guidToMeta.size(),
+            _assetRegistryDirty,
+            forceScan);
+
+        stepBegin = chrono::steady_clock::now();
+        Refresh_Cache();
+        LOG_INFO("[StartupTiming] Asset_Manager::Refresh_Cache elapsed={}ms assetCount={} dirty={}",
+            chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count(),
+            _guidToMeta.size(),
+            _assetRegistryDirty);
+    }
+    else
+    {
+        LOG_INFO("[StartupTiming] Asset_Manager::Scan_And_Register skipped forceScan=false registryAssetCount={}", _guidToMeta.size());
+        LOG_INFO("[StartupTiming] Asset_Manager::Refresh_Cache skipped fastPath=true");
+    }
+
+    if (shouldScan && (_assetRegistryDirty || !fs::exists(_registryPath)))
+    {
+        stepBegin = chrono::steady_clock::now();
         Save_Registry();
+        LOG_INFO("[StartupTiming] Asset_Manager::Save_Registry elapsed={}ms assetCount={}",
+            chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count(),
+            _guidToMeta.size());
+    }
+    else
+    {
+        LOG_INFO("[StartupTiming] Asset_Manager::Save_Registry skipped dirty={} shouldScan={}", _assetRegistryDirty, shouldScan);
+    }
 
+    stepBegin = chrono::steady_clock::now();
     _materialBuilder = MaterialBuilder::Create(fs::path(_resourceRoot) / L"Materials");
+    LOG_INFO("[StartupTiming] Asset_Manager::MaterialBuilder::Create elapsed={}ms",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count());
+
+    LOG_INFO("[StartupTiming] Asset_Manager::Initialize totalElapsed={}ms assetCount={}",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - startupBegin).count(),
+        _guidToMeta.size());
     return S_OK;
 }
 
@@ -499,6 +558,10 @@ bool Asset_Manager::Save_Meta(const wstring& metaPath, const AssetMeta& assetMet
 {
     try
     {
+        const string extension = String::ToLowerCopy(String::ToString(fs::path(assetMeta.fullPath).extension().wstring()));
+        if (extension == ".wav")
+            return true;
+
         json root = {};
 
         root["guid"] = assetMeta.guid;
@@ -507,7 +570,6 @@ bool Asset_Manager::Save_Meta(const wstring& metaPath, const AssetMeta& assetMet
         if (!assetMeta.modelType.empty())
             root["modelType"] = assetMeta.modelType;
 
-        const string extension = String::ToLowerCopy(String::ToString(fs::path(assetMeta.fullPath).extension().wstring()));
         if (assetMeta.type == "Model" && extension == ".model")
         {
             vector<ModelMetaBoneEntry> bones{};
@@ -623,10 +685,10 @@ void Asset_Manager::Load_AssetList(const wstring& path)
 			AssetMeta.relativePath = String::ToWString(Item.value("relativePath", ""));
 
 			const string fullPath = Item.value("fullPath", "");
-			if (!fullPath.empty())
-				AssetMeta.fullPath = String::ToWString(fullPath);
-			else if (!AssetMeta.relativePath.empty())
+			if (!AssetMeta.relativePath.empty())
 				AssetMeta.fullPath = (fs::path(_resourceRoot) / AssetMeta.relativePath).lexically_normal().wstring();
+			else if (!fullPath.empty())
+				AssetMeta.fullPath = String::ToWString(fullPath);
 
 			if (AssetMeta.guid.empty() || AssetMeta.fullPath.empty())
 				continue;
@@ -938,11 +1000,11 @@ string Asset_Manager::Generate_GUID()
 	return guid;
 }
 
-Unique<Asset_Manager> Asset_Manager::Create(const wstring& resourceRoot)
+Unique<Asset_Manager> Asset_Manager::Create(const wstring& resourceRoot, bool forceScan)
 {
     Unique<Asset_Manager> instance(new Asset_Manager());
 
-    if (FAILED(instance->Initialize(resourceRoot)))
+    if (FAILED(instance->Initialize(resourceRoot, forceScan)))
     {
         MSG_BOX("Create Failed : Asset Manager");
 

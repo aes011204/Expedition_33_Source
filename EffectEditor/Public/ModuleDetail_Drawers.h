@@ -80,6 +80,16 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class PlaneRadialLocationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        PlaneRadialLocationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class InitialVelocityModuleDetail
 {
 public:
@@ -137,6 +147,16 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         InitialRotationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class PlaneRadialOrientationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        PlaneRadialOrientationModuleData& data,
         DetailPropertyContext& detailContext);
 };
 
@@ -267,6 +287,16 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         SpawnPerUnitModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class MaterialScalarModulationModuleDetail
+{
+public:
+    bool Draw(
+        const AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        MaterialScalarModulationModuleData& data,
         DetailPropertyContext& detailContext);
 };
 

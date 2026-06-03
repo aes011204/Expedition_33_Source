@@ -16,6 +16,7 @@ namespace Engine
         Distortion, // Effect용 Distortion
         Blend,
         UI,
+        UIEffect,
         END
     };
 

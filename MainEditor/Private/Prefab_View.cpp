@@ -85,7 +85,7 @@ void Prefab_View::Pre_Render()
 
     if (!_previewHasBegunPlay)
     {
-        _previewObject->Try_BeginPlay();
+        PreviewObjectHelpers::Prime_PreviewObject(_previewObject);
         _previewHasBegunPlay = true;
     }
 

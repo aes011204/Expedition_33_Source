@@ -17,12 +17,12 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr const wchar_t* kDefaultEffectMaterialFileName = L"M_DefaultMaterial.effectmaterial.json";
-    constexpr const char* kDefaultEffectMaterialName = "M_DefaultMaterial";
-    constexpr const char* kDefaultEffectMaterialTexturePath = "Effects/Textures/Shared/DefaultTexture.dds";
-    constexpr const wchar_t* kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
-    constexpr const wchar_t* kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
-    constexpr const wchar_t* kEffectAuthoringExtension = L".effect.json";
+    constexpr auto kDefaultEffectMaterialFileName = L"M_DefaultMaterial.effectmaterial.json";
+    constexpr auto kDefaultEffectMaterialName = "M_DefaultMaterial";
+    constexpr auto kDefaultEffectMaterialTexturePath = "Effects/Textures/Shared/DefaultTexture.dds";
+    constexpr auto kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
+    constexpr auto kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
+    constexpr auto kEffectAuthoringExtension = L".effect.json";
 
     fs::path Normalize_EffectSaveDialogPath(const fs::path& filePath)
     {
@@ -327,6 +327,7 @@ void Emitter_View::Save()
 
     const json documentJson = Build_AuthoringDocumentJson();
     file << documentJson.dump(4);
+    file.close();
     if (!file.good())
     {
         if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
@@ -340,15 +341,28 @@ void Emitter_View::Save()
         return;
     }
 
+    const string effectGuid = GAME != nullptr ? GAME->Ensure_AssetGUID(savePath.wstring(), "Effect") : string{};
+
     ClearDirty();
 
     if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
     {
-        EDITOR->Get_Notification()->Add_Notification_With_Type(
-            NotifyType::Success,
-            "Effect 저장 완료: {}",
-            String::ToString(savePath.filename().wstring())
-        );
+        if (!effectGuid.empty())
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Success,
+                "Effect 저장 완료: {}",
+                String::ToString(savePath.filename().wstring())
+            );
+        }
+        else
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect 저장 완료, meta 생성 실패: {}",
+                String::ToString(savePath.filename().wstring())
+            );
+        }
     }
 }
 
@@ -640,6 +654,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_InitialLocationModule();
     case AuthoringModuleType::SphereLocation:
         return Make_SphereLocationModule();
+    case AuthoringModuleType::PlaneRadialLocation:
+        return Make_PlaneRadialLocationModule();
     case AuthoringModuleType::InitialSize:
         return Make_InitialSizeModule();
     case AuthoringModuleType::InitialMeshSize:
@@ -656,6 +672,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_VelocityOverLifeModule();
     case AuthoringModuleType::InitialRotation:
         return Make_InitialRotationModule();
+    case AuthoringModuleType::PlaneRadialOrientation:
+        return Make_PlaneRadialOrientationModule();
     case AuthoringModuleType::RotationOverLife:
         return Make_RotationOverLifeModule();
     case AuthoringModuleType::InitialRotationRate:
@@ -682,6 +700,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_MeshSizeByLifeModule();
     case AuthoringModuleType::SpawnPerUnit:
         return Make_SpawnPerUnitModule();
+    case AuthoringModuleType::MaterialScalarModulation:
+        return Make_MaterialScalarModulationModule();
     }
 
     return Make_RequiredModule();
@@ -739,6 +759,17 @@ AuthoringModule Emitter_View::Make_SphereLocationModule()
     module.enabled = true;
     Apply_AuthoringModuleMetadata(module);
     module.data = SphereLocationModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_PlaneRadialLocationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::PlaneRadialLocation;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = PlaneRadialLocationModuleData{};
     return module;
 }
 
@@ -827,6 +858,17 @@ AuthoringModule Emitter_View::Make_InitialRotationModule()
     module.enabled = true;
     Apply_AuthoringModuleMetadata(module);
     module.data = InitialRotationModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_PlaneRadialOrientationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::PlaneRadialOrientation;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = PlaneRadialOrientationModuleData{};
     return module;
 }
 
@@ -973,6 +1015,17 @@ AuthoringModule Emitter_View::Make_SpawnPerUnitModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_MaterialScalarModulationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::MaterialScalarModulation;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = MaterialScalarModulationModuleData{};
+    return module;
+}
+
 bool Emitter_View::Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const
 {
     for (const AuthoringModule& module : emitter.modules)
@@ -1033,6 +1086,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::Lifetime:
     case AuthoringModuleType::InitialLocation:
     case AuthoringModuleType::SphereLocation:
+    case AuthoringModuleType::PlaneRadialLocation:
     case AuthoringModuleType::InitialSize:
     case AuthoringModuleType::InitialMeshSize:
     case AuthoringModuleType::InitialVelocity:
@@ -1041,6 +1095,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::Drag:
     case AuthoringModuleType::VelocityOverLife:
     case AuthoringModuleType::InitialRotation:
+    case AuthoringModuleType::PlaneRadialOrientation:
     case AuthoringModuleType::RotationOverLife:
     case AuthoringModuleType::InitialRotationRate:
     case AuthoringModuleType::RotationRateScaleByLife:
@@ -1054,6 +1109,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::SizeByLife:
     case AuthoringModuleType::MeshSizeByLife:
     case AuthoringModuleType::SpawnPerUnit:
+    case AuthoringModuleType::MaterialScalarModulation:
         return Is_ModuleCompatibleWithEmitter(emitter, type) && !Has_ModuleType(emitter, type);
 
     default:
@@ -1082,6 +1138,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
     case AuthoringModuleType::SphereLocation:
         module = Make_SphereLocationModule();
         break;
+    case AuthoringModuleType::PlaneRadialLocation:
+        module = Make_PlaneRadialLocationModule();
+        break;
     case AuthoringModuleType::InitialSize:
         module = Make_InitialSizeModule();
         break;
@@ -1105,6 +1164,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::InitialRotation:
         module = Make_InitialRotationModule();
+        break;
+    case AuthoringModuleType::PlaneRadialOrientation:
+        module = Make_PlaneRadialOrientationModule();
         break;
     case AuthoringModuleType::RotationOverLife:
         module = Make_RotationOverLifeModule();
@@ -1144,6 +1206,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::SpawnPerUnit:
         module = Make_SpawnPerUnitModule();
+        break;
+    case AuthoringModuleType::MaterialScalarModulation:
+        module = Make_MaterialScalarModulationModule();
         break;
     default:
         return;
@@ -1488,6 +1553,10 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = SphereLocationModuleData{};
         break;
 
+    case AuthoringModuleType::PlaneRadialLocation:
+        module.data = PlaneRadialLocationModuleData{};
+        break;
+
     case AuthoringModuleType::InitialSize:
         module.data = InitialSizeModuleData{};
         break;
@@ -1518,6 +1587,10 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
 
     case AuthoringModuleType::InitialRotation:
         module.data = InitialRotationModuleData{};
+        break;
+
+    case AuthoringModuleType::PlaneRadialOrientation:
+        module.data = PlaneRadialOrientationModuleData{};
         break;
 
     case AuthoringModuleType::RotationOverLife:
@@ -1568,6 +1641,9 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         break;
     case AuthoringModuleType::SpawnPerUnit:
         module.data = SpawnPerUnitModuleData{};
+        break;
+    case AuthoringModuleType::MaterialScalarModulation:
+        module.data = MaterialScalarModulationModuleData{};
         break;
 
     default:
@@ -1766,6 +1842,14 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     );
     entries.push_back(
         makeEntry(
+            AuthoringModuleType::PlaneRadialLocation,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::PlaneRadialLocation),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
             AuthoringModuleType::InitialVelocity,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialVelocity),
@@ -1809,6 +1893,14 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialRotation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRotation),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::PlaneRadialOrientation,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::PlaneRadialOrientation),
             "이미 장착됨"
         )
     );
@@ -1913,6 +2005,14 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::SpawnPerUnit,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SpawnPerUnit),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::MaterialScalarModulation,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::MaterialScalarModulation),
             "이미 장착됨"
         )
     );
@@ -2166,27 +2266,33 @@ void Emitter_View::Draw_EmitterBoard()
             boardMin.y + ImGui::GetWindowHeight()
         };
         const float columnHeight = max(1.f, ImGui::GetContentRegionAvail().y);
-        float lastColumnRight = ImGui::GetCursorScreenPos().x;
 
         for (size_t emitterIndex = 0; emitterIndex < _emitters.size(); ++emitterIndex)
         {
             ImGui::PushID(static_cast<int>(emitterIndex));
             Draw_EmitterColumn(emitterIndex, _emitters[emitterIndex], columnHeight);
-            lastColumnRight = ImGui::GetItemRectMax().x;
             ImGui::PopID();
 
             if (emitterIndex + 1 < _emitters.size())
                 ImGui::SameLine(0.f, 0.f);
         }
 
+        if (!_emitters.empty())
+            ImGui::SameLine(0.f, 0.f);
+
+        ImGui::Dummy(ImVec2(kEmitterRightBlankWidth, columnHeight));
+        const bool isRightGutterHovered = ImGui::IsItemHovered();
+        const float blankRegionLeft = ImGui::GetItemRectMax().x;
+
         const ImVec2 mousePos = ImGui::GetMousePos();
-        const bool isRightBlankHovered =
+        const bool isTrailingBlankHovered =
             ImGui::IsWindowHovered() &&
             !ImGui::IsAnyItemHovered() &&
-            mousePos.x > lastColumnRight &&
+            mousePos.x > blankRegionLeft &&
             mousePos.x < boardMax.x &&
             mousePos.y >= boardMin.y &&
             mousePos.y < boardMax.y;
+        const bool isRightBlankHovered = isRightGutterHovered || isTrailingBlankHovered;
 
         if (isRightBlankHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             Clear_Selection();
@@ -2281,9 +2387,11 @@ void Emitter_View::Draw_EmitterColumn(size_t emitterIndex, AuthoringEmitter& emi
         )
     );
     ImGui::PushID("EmitterEnabled");
-    const AuthoringSnapshot beforeEmitterEnabledSnapshot = Capture_AuthoringSnapshot();
-    if (ImGui::Checkbox("##Enabled", &emitter.enabled))
+    bool nextEmitterEnabled = emitter.enabled;
+    if (ImGui::Checkbox("##Enabled", &nextEmitterEnabled))
     {
+        const AuthoringSnapshot beforeEmitterEnabledSnapshot = Capture_AuthoringSnapshot();
+        emitter.enabled = nextEmitterEnabled;
         emitter.previewDirty = true;
         MarkDirty();
         const AuthoringSnapshot afterSnapshot = Capture_AuthoringSnapshot();
@@ -2413,36 +2521,10 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
                              : usesCategoryColor
                                ? To_ImVec4(kEmitterCategoryTextColor)
                                : ImGui::GetStyleColorVec4(ImGuiCol_Text);
-    const bool moduleCompatible = Is_ModuleCompatibleWithEmitter(_emitters[emitterIndex], module.type);
-    const bool canPinCurve = [&module]
-    {
-        switch (module.type)
-        {
-        case AuthoringModuleType::Spawn:
-        case AuthoringModuleType::Lifetime:
-        case AuthoringModuleType::InitialSize:
-        case AuthoringModuleType::InitialMeshSize:
-        case AuthoringModuleType::InitialRadialVelocity:
-        case AuthoringModuleType::Acceleration:
-        case AuthoringModuleType::Drag:
-        case AuthoringModuleType::InitialRotation:
-        case AuthoringModuleType::RotationOverLife:
-        case AuthoringModuleType::InitialRotationRate:
-        case AuthoringModuleType::RotationRateScaleByLife:
-        case AuthoringModuleType::InitialMeshRotation:
-        case AuthoringModuleType::MeshRotationOverLife:
-        case AuthoringModuleType::InitialMeshRotationRate:
-        case AuthoringModuleType::MeshRotationRateScaleByLife:
-        case AuthoringModuleType::InitialColor:
-        case AuthoringModuleType::ColorOverLife:
-        case AuthoringModuleType::SizeByLife:
-        case AuthoringModuleType::MeshSizeByLife:
-        case AuthoringModuleType::SpawnPerUnit:
-            return true;
-        default:
-            return false;
-        }
-    }();
+    AuthoringEmitter& emitter = _emitters[emitterIndex];
+    const bool moduleCompatible = Is_ModuleCompatibleWithEmitter(emitter, module.type);
+    const bool canPinCurve = CurveEditor_View::Has_ModuleCurveTargets(emitter, module);
+    const string displayNameUtf8 = String::ToString(module.displayName);
     const ImVec4 moduleNameTextColor =
         !isSelected && module.enabled && !moduleCompatible
         ? To_ImVec4(kEmitterUnsupportedModuleTextColor)
@@ -2470,13 +2552,12 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
         ImGui::EndPopup();
     }
     ImGui::PopID();
-    const string warningTooltip = Build_ModuleWarningTooltip(_emitters[emitterIndex], module);
 
     const ImVec2 afterRowCursor = ImGui::GetCursorPos();
     const float textOffsetY = (rowHeight - ImGui::GetTextLineHeight()) * 0.5f;
     ImGui::SetCursorPos(ImVec2(rowCursor.x + rowPaddingX, rowCursor.y + textOffsetY));
     ImGui::PushStyleColor(ImGuiCol_Text, moduleNameTextColor);
-    ImGui::TextUnformatted(String::ToString(module.displayName).c_str());
+    ImGui::TextUnformatted(displayNameUtf8.c_str());
     ImGui::PopStyleColor();
 
     if (!isRequiredRow)
@@ -2498,12 +2579,12 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
                 if (EDITOR != nullptr)
                 {
                     if (const Shared<CurveEditor_View> curveEditor = dynamic_pointer_cast<CurveEditor_View>(EDITOR->Get_Window(L"Curve Editor")))
-                        curveEditor->Pin_ModuleTargets(_emitters[emitterIndex].id, module.id);
+                        curveEditor->Pin_ModuleTargets(emitter.id, module.id);
                 }
             }
             ImGui::PopStyleVar(2);
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Pin module curves");
+                ImGui::SetTooltip("모듈 커브 고정");
             ImGui::PopID();
         }
 
@@ -2514,10 +2595,12 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
             )
         );
         ImGui::PushID("ModuleEnabled");
-        const AuthoringSnapshot beforeModuleEnabledSnapshot = Capture_AuthoringSnapshot();
-        if (ImGui::Checkbox("##Enabled", &module.enabled))
+        bool nextModuleEnabled = module.enabled;
+        if (ImGui::Checkbox("##Enabled", &nextModuleEnabled))
         {
-            _emitters[emitterIndex].previewDirty = true;
+            const AuthoringSnapshot beforeModuleEnabledSnapshot = Capture_AuthoringSnapshot();
+            module.enabled = nextModuleEnabled;
+            emitter.previewDirty = true;
             MarkDirty();
             const AuthoringSnapshot afterSnapshot = Capture_AuthoringSnapshot();
             Execute_AuthoringSnapshotCommand(beforeModuleEnabledSnapshot, afterSnapshot, "Toggle Module Enabled");
@@ -2527,8 +2610,19 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
 
     ImGui::SetCursorPos(afterRowCursor);
 
-    if (isRowHovered && !warningTooltip.empty())
-        ImGui::SetTooltip("%s", warningTooltip.c_str());
+    if (isRowHovered)
+    {
+        const bool warningTooltipNeeded =
+            !emitter.enabled ||
+            (!module.enabled && module.type != AuthoringModuleType::Required) ||
+            !moduleCompatible;
+        if (warningTooltipNeeded)
+        {
+            const string warningTooltip = Build_ModuleWarningTooltip(emitter, module);
+            if (!warningTooltip.empty())
+                ImGui::SetTooltip("%s", warningTooltip.c_str());
+        }
+    }
 }
 
 Shared<Emitter_View> Emitter_View::Create()

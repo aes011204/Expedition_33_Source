@@ -4,6 +4,8 @@
 
 NS_BEGIN(Client)
 
+class Mon_WeakPoint;
+
 class Mon_Lancelier_Body;
 class Mon_Lancelier_Weapon;
 
@@ -27,6 +29,7 @@ protected:
 private:
     Shared<Mon_Lancelier_Body> _body = {};
     Shared<Mon_Lancelier_Weapon> _weapon = {};
+    Shared<Mon_WeakPoint> _weak = {};
 
 public:
     static Shared<MB_Lancelier> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

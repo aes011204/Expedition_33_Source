@@ -102,6 +102,7 @@ public: /* For.Hero Manager */
     const HeroSpawnDesc* Find_HeroSpawnDesc(HeroId heroId);
 
     void Reset_AllHeroesToIdle();
+    void Restore_PartyFormationAfterEditorStop();
 
     bool    Is_ActiveHero(const Shared<GameObject>& target) const;
 
@@ -148,6 +149,30 @@ public:
 public:
     Shared<ClientScreenFxManager> Get_ScreenFxManager() const;
     Shared<UIPreviewManager> Get_PreviewManager() const { return _previewManager; }
+
+public: /* Effect 재생 */
+
+    // 단발성 1회 재생.
+    bool Play_Effect(const PlayEffectDesc& desc);
+
+    // 약점 파츠처럼 모델/소켓이 없을 때
+    bool Play_AttachPartEffect(
+        const Shared<GameObject>& effectOwner,
+        const wstring& effectName,
+        const wstring& partTag,
+        const Vec3& localOffset = Vec3::Zero,
+        const Vec3& localRotation = Vec3::Zero,
+        const Vec3& scale = Vec3::One);
+
+    // 모델 있어서, socket 추적할 때
+    bool Play_AttachPartEffect(
+        const Shared<GameObject>& effectOwner,
+        const wstring& effectName,
+        const wstring& partTag,
+        const string& socketName,
+        const Vec3& localOffset = Vec3::Zero,
+        const Vec3& localRotation = Vec3::Zero,
+        const Vec3& scale = Vec3::One);
 
 private:
 	HRESULT Ready_ResourceLoader();

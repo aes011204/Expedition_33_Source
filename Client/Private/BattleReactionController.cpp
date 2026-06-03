@@ -38,6 +38,7 @@ void BattleReactionController::Clear()
 void BattleReactionController::Clear_RuntimeState()
 {
     Clear();
+    ResetCounterTimeSection();
 
     for (const BattleChar& target : _reactionAnimTargets)
     {
@@ -242,32 +243,18 @@ void BattleReactionController::UpdateAnimation()
     FinishReactionAnimation();
 }
 
-void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate)
+void BattleReactionController::StartCounter(ModelCom* sourceModel)
 {
     if (!_isCounterPending)
         return;
-    bool ownsSource = false;
+
     for (const BattleChar& target : _reactionAnimTargets)
     {
-        //if (target.ModelCom && target.ModelCom.get() == sourceModel)
-        //{
-         //   ownsSource = true;
-            if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Counter), 0.12f, false))
-                return;
-        //    break;
-       // }
+        target.ModelCom->Set_RootMotionEnabled(true);
+
+        if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Counter), 0.12f, false))
+            return;
     }
-
-    //if (!ownsSource)
-    //    return;
-
-   // EvtBattlePresentation event;
-   // event.cameraMode = BattleCameraMode::PARRY;
-   // event.subject = _reactionAnimTargets.front().actor;
-   // GAME->Get_EventBus().Publish(event);
-
-    GAME->Slow_WorldTime(slowDesc.worldTimeScale, slowDesc.duration);
-    sourceModel->Set_FrameSpeed(counterPlayRate); // 플레이어 속도 증가
 
     _isCounterPending = false;
     _isCounterDamageApplied = false;
@@ -276,6 +263,8 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleS
 
 void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
 {
+    UNREFERENCED_PARAMETER(sourceModel);
+
     if (_animPhase != ReactionAnimPhase::Counter)
         return;
 
@@ -295,12 +284,54 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
         if (target.actor == nullptr || target.statCom == nullptr)
             continue;
 
-        DamageSystem::ApplyDamage(counterDamage, _counterDamageTarget, AttackType::Counter);
+        DamageSystem::ApplyDamage(counterDamage, target, _counterDamageTarget, AttackType::Counter);
         ++hitCount;
     }
 
     if (hitCount > 0)
         _isCounterDamageApplied = true;
+}
+
+void BattleReactionController::BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale,
+    float counterFrameSpeed)
+{
+    if (!CanApplyCounterTimeSection(sourceModel))
+        return;
+
+    if (!_isCounterTimeSectionActive)
+        _counterTimeSectionRestoreScale = GAME->Get_WorldTimeScale();
+
+    _isCounterTimeSectionActive = true;
+
+    for (const BattleChar& target : _reactionAnimTargets)
+    {
+        if (target.ModelCom.get() == sourceModel)
+        {
+            _counterTimeSectionModel = target.ModelCom;
+            break;
+        }
+    }
+
+    GAME->Set_WorldTimeScale(worldTimeScale);
+    sourceModel->Set_FrameSpeed(counterFrameSpeed);
+}
+
+void BattleReactionController::EndCounterTimeSection(ModelCom* sourceModel)
+{
+    if (!_isCounterTimeSectionActive)
+        return;
+
+    if (_counterTimeSectionModel != nullptr && sourceModel != _counterTimeSectionModel.get())
+        return;
+
+    if (_counterTimeSectionModel)
+        _counterTimeSectionModel->Set_FrameSpeed(1.f);
+
+    GAME->Set_WorldTimeScale(_counterTimeSectionRestoreScale);
+
+    _isCounterTimeSectionActive = false;
+    _counterTimeSectionRestoreScale = 1.f;
+    _counterTimeSectionModel = nullptr;
 }
 
 bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
@@ -331,7 +362,6 @@ bool BattleReactionController::IsHitOrDeadBattleAnim(BattleAnimType animType) co
 void BattleReactionController::PlayReactionAnimation(const BattleChar& target, BattleReactionType reactionType,
     bool isSuccess, const BattleChar& counterTarget, uint32 curAttackIndex)
 {
-
     if (target.ModelCom == nullptr)
         return;
 
@@ -360,20 +390,26 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
         return;
     }
 
-    target.ModelCom->Set_RootMotionEnabled(false);
+    const bool useRootMotion = (reactionType != BattleReactionType::Dodge);
+    target.ModelCom->Set_RootMotionEnabled(useRootMotion);
 
     if (!target.ModelCom->Set_AnimationByState(ETOI(animType), 0.1f, false))
         return;
 
+    for (const BattleChar& reactionTarget : _reactionAnimTargets)
+    {
+        if (reactionTarget.actor == target.actor)
+            return;
+    }
+
     _reactionAnimTargets.push_back(target);
     _animPhase = ReactionAnimPhase::Reaction;
-
-
-
 }
 
 void BattleReactionController::FinishReactionAnimation()
 {
+    ResetCounterTimeSection();
+
     for (const BattleChar& target : _reactionAnimTargets)
     {
         if (target.ModelCom == nullptr)
@@ -395,6 +431,33 @@ void BattleReactionController::FinishReactionAnimation()
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
+}
+
+bool BattleReactionController::CanApplyCounterTimeSection(ModelCom* sourceModel) const
+{
+    if (_animPhase != ReactionAnimPhase::Counter || sourceModel == nullptr)
+        return false;
+
+    for (const BattleChar& target : _reactionAnimTargets)
+    {
+        if (target.ModelCom.get() == sourceModel)
+            return true;
+    }
+
+    return false;
+}
+
+void BattleReactionController::ResetCounterTimeSection()
+{
+    if (_counterTimeSectionModel)
+        _counterTimeSectionModel->Set_FrameSpeed(1.f);
+
+    if (_isCounterTimeSectionActive)
+        GAME->Set_WorldTimeScale(_counterTimeSectionRestoreScale);
+
+    _isCounterTimeSectionActive = false;
+    _counterTimeSectionRestoreScale = 1.f;
+    _counterTimeSectionModel = nullptr;
 }
 
 Shared<BattleReactionController> BattleReactionController::Create()

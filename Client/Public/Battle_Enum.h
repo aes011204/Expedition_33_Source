@@ -495,6 +495,7 @@ namespace Client
 
 
     enum class BuffType { beforeTurn, changeStat, dot, SLogic };
+
     enum class Buffs
     {
         //버프
@@ -524,8 +525,6 @@ namespace Client
 
         Slow,
         Rush,
-
-
 
         Exhausted,
         Bound,
@@ -694,6 +693,38 @@ namespace Client
         None, Fail, SuccessNormal, SuccessPerfect, END
     };
 
+    enum class BattleQTEPreset
+    {
+        Center,
+
+        // 구
+        LumiereAssault_QTE1,
+        LumiereAssault_QTE2,
+
+        UnleashedCharge_QTE1,
+        UnleashedCharge_QTE2,
+
+        MarkingShot,
+
+        // 루
+        Immolation_QTE1,
+        Immolation_QTE2,
+
+        IceGust_QTE1,
+
+        Thunderfall_QTE1,
+        Thunderfall_QTE2,
+
+        // 마
+        OffensiveSwitch_QTE1,
+
+        Percee_QTE1,
+
+        FleureFury_QTE1,
+
+        END
+    };
+
     struct BattleQTERequest
     {
         // 일단은 애니메이션에 맞춰서 초기값만 세팅
@@ -701,5 +732,12 @@ namespace Client
         float progressDuration = 80.f / 120.f;  // QTE_Progress.uianim 기준
         float perfectStartRatio = 61.f / 80.f;  // 노란 구간 시작
         float perfectEndRatio = 1.f;            // 노란 구간 끝
+
+        // QTE 화면 배치. ANS_QTE에서 preset 고르고, request에는 실제 적용값
+        BattleQTEPreset placementPreset = BattleQTEPreset::Center;
+        Vec2 screenPosition = Vec2(800.f, 450.f);
+        float screenScale = 1.f;
+
     };
+
 }

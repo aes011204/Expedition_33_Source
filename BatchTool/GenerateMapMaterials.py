@@ -53,6 +53,12 @@ DEFAULT_CB = {
     "uvOffset":              [0.0, 0.0],
 }
 
+AR_BASECOLOR_KEYS = {
+    "texture1_albedoroughness",
+    "baselayer_albedoroughness",
+    "1stlayer_albedoroughness",
+}
+
 TEMPLATES = [
     {"id": 0, "name": "OpaquePBR",   "supportsBaseColor": True, "supportsNormal": True,
      "supportsORM": True, "supportsEmissive": True, "supportsOpacityMask": False},
@@ -125,6 +131,20 @@ def ue_path_to_texture_name(ue_path: str) -> str:
     # UE asset paths end with '.AssetName' after the last dot
     base = ue_path.rsplit(".", 1)[-1]
     return base
+
+
+def is_albedo_roughness_source(textures: dict, base_color_ue_path: str) -> bool:
+    if not base_color_ue_path:
+        return False
+
+    for param_name, ue_path in textures.items():
+        if ue_path != base_color_ue_path:
+            continue
+        if param_name.lower() in AR_BASECOLOR_KEYS:
+            return True
+
+    texture_name = ue_path_to_texture_name(base_color_ue_path).lower()
+    return "roughness" in texture_name or texture_name.endswith("_ar")
 
 
 def pick_texture_slot(textures: dict, candidates: list[str]) -> tuple[str, str]:
@@ -222,6 +242,16 @@ def build_instance(mi_name: str, mi_data: dict, level_name: str) -> tuple[dict, 
             tex_out[slot] = ""
             overrides[slot] = False
 
+    force_pass_index = -1
+    if (
+        render_state["blendMode"] == 0
+        and overrides.get("baseColor", False)
+        and not overrides.get("orm", False)
+        and is_albedo_roughness_source(textures_raw, tex_refs.get("baseColor", ("", ""))[1])
+    ):
+        force_pass_index = 8 if render_state.get("twoSided", False) else 7
+        cb["metalnessScale"] = 0.0
+
     instance = {
         "assetName":   mi_name,
         "template":    template_id,
@@ -230,6 +260,9 @@ def build_instance(mi_name: str, mi_data: dict, level_name: str) -> tuple[dict, 
         "textures":    tex_out,
         "cb":          cb,
     }
+    if force_pass_index >= 0:
+        instance["forcePassIndex"] = force_pass_index
+
     return instance, tex_refs
 
 
@@ -263,6 +296,40 @@ def build_bundle(level_name: str, mi_files: list[Path]) -> tuple[dict, dict]:
         "templates": TEMPLATES,
     }
     return bundle, texture_report
+
+
+def merge_existing_texture_slots(new_bundle: dict, existing_bundle: dict) -> int:
+    """Preserve existing texture slots when the current MI export has no texture data."""
+    existing_by_name = {
+        instance.get("assetName"): instance
+        for instance in existing_bundle.get("instances", [])
+        if instance.get("assetName")
+    }
+
+    restored_count = 0
+    for instance in new_bundle.get("instances", []):
+        existing = existing_by_name.get(instance.get("assetName"))
+        if not existing:
+            continue
+
+        textures = instance.get("textures", {})
+        overrides = instance.get("overrides", {})
+        existing_textures = existing.get("textures", {})
+        existing_overrides = existing.get("overrides", {})
+
+        for slot, old_path in existing_textures.items():
+            if not old_path:
+                continue
+            if textures.get(slot):
+                continue
+            if not existing_overrides.get(slot, False):
+                continue
+
+            textures[slot] = old_path
+            overrides[slot] = True
+            restored_count += 1
+
+    return restored_count
 
 
 def write_texture_report(report_path: Path, level_name: str,
@@ -332,6 +399,11 @@ def main():
 
     print(f"[2/3] Building material bundle...")
     bundle, texture_report = build_bundle(level_name, mi_files)
+    if out_bundle.exists() and args.overwrite:
+        existing_bundle = load_json(out_bundle)
+        restored_count = merge_existing_texture_slots(bundle, existing_bundle)
+        if restored_count:
+            print(f"  Preserved {restored_count} existing texture slots missing from current MI exports.")
 
     print(f"[3/3] Writing outputs...")
     out_bundle.parent.mkdir(parents=True, exist_ok=True)

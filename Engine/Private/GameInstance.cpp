@@ -1,4 +1,4 @@
-﻿#pragma region INCLUDE
+#pragma region INCLUDE
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "Camera_Manager.h"
@@ -656,12 +656,8 @@ HRESULT GameInstance::Draw()
         return E_FAIL;
 #pragma endregion
 
-    if (_screenFxManager->Is_CaptureRequested())
-    {
-        GAME->Bind_BackBuffer(); // 오염된 RTV 상태를 메인 백버퍼로 복구
-        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
-        _screenFxManager->Clear_CaptureRequested();
-    }
+    // UI 이후의 모든 화면 효과(ScreenFx, 캡처, UIEffect)를 단일 함수로 캡슐화하여 렌더링
+    _renderer->PostDraw();
 
 #ifdef _DEBUG
     _printManager->Render();
@@ -1292,6 +1288,11 @@ bool GameInstance::Remove_GameObject(uint32 levelIndex, const Shared<GameObject>
     return _objectManager->Remove_GameObject(levelIndex, gameObject);
 }
 
+void GameInstance::Flush_RemovedGameObjects()
+{
+    _objectManager->Flush_RemovedGameObjects();
+}
+
 HRESULT GameInstance::Clear_LevelObjects(uint32 levelIndex)
 {
     _objectManager->Visit_LevelObjects(
@@ -1593,24 +1594,43 @@ void GameInstance::Draw_Font(
     _fontManager->Draw(fontTag, text, position, color, rotationRadians, pivot, scale);
 }
 
-HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot)
+HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot, bool forceScan)
 {
-    _assetManager = Asset_Manager::Create(resourceRoot);
+    auto stepBegin = chrono::steady_clock::now();
+    _assetManager = Asset_Manager::Create(resourceRoot, forceScan);
     if (nullptr == _assetManager)
         return E_FAIL;
+    LOG_INFO("[StartupTiming] GameInstance::Asset_Manager::Create elapsed={}ms",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count());
 
     const fs::path soundRoot = fs::path(resourceRoot) / L"Sounds";
     if (fs::exists(soundRoot) && fs::is_directory(soundRoot))
     {
+        stepBegin = chrono::steady_clock::now();
         _soundManager = Sound_Manager::Create(soundRoot.wstring());
+        const auto soundElapsedMs = chrono::duration_cast<chrono::milliseconds>(
+            chrono::steady_clock::now() - stepBegin).count();
         if (nullptr == _soundManager)
-            return E_FAIL;
+        {
+            LOG_WARN("[StartupTiming] GameInstance::Sound_Manager::Create failed elapsed={}ms; continuing without sound", soundElapsedMs);
+        }
+        else
+        {
+            LOG_INFO("[StartupTiming] GameInstance::Sound_Manager::Create elapsed={}ms", soundElapsedMs);
+        }
+    }
+    else
+    {
+        LOG_INFO("[StartupTiming] GameInstance::Sound_Manager::Create skipped missing Sounds root");
     }
 
     const fs::path shaderTextureRoot = fs::path(resourceRoot) / L"Textures" / L"Shader";
+    stepBegin = chrono::steady_clock::now();
     _shaderResourceRegistry = ShaderResourceRegistry::Create(_device, _context, shaderTextureRoot.wstring());
     if (nullptr == _shaderResourceRegistry)
         return E_FAIL;
+    LOG_INFO("[StartupTiming] GameInstance::ShaderResourceRegistry::Create elapsed={}ms",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count());
 
     return S_OK;
 }
@@ -2240,6 +2260,14 @@ PxScene* GameInstance::Get_PhysXScene() const
     return _physxManager->Get_Scene();
 }
 
+void GameInstance::Unregister_PhysXCollider(ColliderCom* collider)
+{
+    CHECK_NULL(collider);
+    CHECK_NULL(_physxManager);
+
+    _physxManager->Unregister_Collider(collider);
+}
+
 PhysXStaticActorHandle GameInstance::Register_PhysXStaticCollision(
     const StaticCollisionData& collisionData,
     const Matrix& worldMatrix,
@@ -2276,6 +2304,16 @@ bool GameInstance::Sweep_Sphere(
 {
     CHECK_NULL(_physxManager, false);
     return _physxManager->Sweep_Sphere(origin, direction, distance, radius, queryPreset, outHit);
+}
+
+bool GameInstance::Raycast_Environment(
+    const Vec3& origin,
+    const Vec3& direction,
+    float distance,
+    PhysXQueryHit& outHit) const
+{
+    CHECK_NULL(_physxManager, false);
+    return _physxManager->Raycast_Environment(origin, direction, distance, outHit);
 }
 
 bool GameInstance::Probe_Ground(
@@ -2586,14 +2624,18 @@ void GameInstance::Release_Engine()
 
     ReleaseManager(_lightManager);
     ReleaseManager(_inputManager);
-    ReleaseManager(_collisionManager);
-    ReleaseManager(_physxManager);
 
     ReleaseManager(_pipeLine);
     ReleaseManager(_renderer);
+
+    // Free live objects before PhysX so ColliderCom can unregister/release actors while the scene still exists.
     ReleaseManager(_levelManager);
     ReleaseManager(_objectManager);
     ReleaseManager(_uiManager);
+
+    ReleaseManager(_collisionManager);
+    ReleaseManager(_physxManager);
+
     ReleaseManager(_prototypeManager);
     ReleaseManager(_typeRegistry);
     ReleaseManager(_picking);

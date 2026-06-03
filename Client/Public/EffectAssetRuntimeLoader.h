@@ -1,6 +1,4 @@
 ﻿#pragma once
-
-#include "Client_Defines.h"
 #include "EffectRuntime_Types.h"
 
 NS_BEGIN(Client)
@@ -47,9 +45,17 @@ private:
     static void Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value);
     static void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const json& frameIndex);
     static void Fill_SizeByLifePayload(PointParticleSizeByLifeDesc& desc, const json& sizeByLife);
+    static void Fill_MaterialScalarModulationPayload(
+        EffectMaterialScalarModulationRuntimeDesc& desc,
+        const json& materialScalarModulation);
+    static void Fill_CoreColorRgbModulationPayload(
+        EffectMaterialCoreColorRgbModulationRuntimeDesc& desc,
+        const json& materialScalarModulation);
     static void Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife);
     static void Fill_RotationRateScaleByLifePayload(PointParticleRotationDesc& desc, const json& rotationRateScaleByLife);
     static void Fill_AccelerationCurvePayload(PointParticleMotionDesc& desc, const json& distribution);
+    static void Fill_PlaneRadialLocationPayload(PointParticlePlaneRadialLocationDesc& desc, const json& planeRadialLocation);
+    static void Fill_PlaneRadialOrientationPayload(PointParticlePlaneRadialOrientationDesc& desc, const json& planeRadialOrientation);
     static void Fill_MeshVector3CurvePayload(MeshVector3CurveRuntimeDesc& desc, const json& distribution, const Vec3& fallbackValue);
     static string Resolve_RendererType(const json& emitter);
     static void Apply_MaterialPayload(

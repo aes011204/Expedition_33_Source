@@ -2,6 +2,7 @@
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "Monster_WorldBase.h"
+#include "ClientInstance.h"
 
 IMPLEMENT_REFLECTION(Trigger_WorldAction)
 {
@@ -74,8 +75,22 @@ void Trigger_WorldAction::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collid
     GameObject::OnBeginOverlap(self, other);
 
     const Shared<GameObject> otherOwner = other ? other->Get_Owner() : nullptr;
-    if (!dynamic_pointer_cast<Monster_WorldBase>(otherOwner))
+    const Shared<Monster_WorldBase> hitMonster = dynamic_pointer_cast<Monster_WorldBase>(otherOwner);
+    if (hitMonster == nullptr)
         return;
+
+    auto hitTr = hitMonster->Get_Transform();
+    CHECK_NULL(hitTr); 
+
+    PlayEffectDesc desc{};
+    desc.effectName = khitEffect;
+    desc.spawnBasisTarget = hitMonster;
+    desc.localOffset = Vec3(0.f, 0.6f, 0.f);
+
+    CLIENT->Play_Effect(desc);
+
+    // PhysX overlap callback은 한쪽 owner만 호출되므로, F 액션 트리거가 self로 들어온 경우에도 몬스터의 전투 진입 로직을 태운다.
+    hitMonster->OnBeginOverlap(other, self);
 
     if (self)
     {

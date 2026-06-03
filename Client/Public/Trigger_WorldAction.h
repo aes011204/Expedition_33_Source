@@ -31,6 +31,9 @@ private:
     bool  _pendingDestroy = false;
     uint32 _spawnedLevelIndex = 0;
 
+    static constexpr wchar_t khitEffect[] =
+         L"Effects\\Assets\\Distortion\\DIstortion_SuddenAttack.effect.json";
+
 public:
     static Shared<Trigger_WorldAction> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;

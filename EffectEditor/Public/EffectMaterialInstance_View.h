@@ -31,13 +31,14 @@ public:
     void Update(float timeDelta) override; // material instance preview UV motion 시간을 갱신한다.
     void Pre_Render() override;
     void Render() override;
+    // MeshData에서 지원하지 않는 distortion shape 편집을 막는다.
     static bool Draw_InstanceProperties(
         DetailPropertyContext& detailPropertyContext,
         map<string, Shared<Texture>>& textureThumbnailCache,
         EffectMaterialInstanceData& material,
         bool* outRestartPreview,
         EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode = EffectMaterialTwoSidedDisplayMode::EditableImplemented,
-        bool disableMeshDistortionShapeControls = false); // MeshData에서 지원하지 않는 distortion shape 편집을 막는다.
+        bool disableMeshDistortionShapeControls = false);
 
 public: //## Behavior::Selection
     void Open_Instance(uint32 emitterId, uint32 moduleId);

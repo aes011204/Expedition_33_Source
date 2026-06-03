@@ -283,6 +283,10 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.noiseStrength = read_float("noiseStrength", defaultMaterial.noiseStrength);
     material.alphaCutoff = read_float("alphaCutoff", defaultMaterial.alphaCutoff);
     material.alphaErosion = read_float("alphaErosion", defaultMaterial.alphaErosion);
+    material.noiseSource = read_string("noiseSource", defaultMaterial.noiseSource);
+    material.maskSource = read_string("maskSource", defaultMaterial.maskSource);
+    material.noiseInvert = root.value("noiseInvert", defaultMaterial.noiseInvert);
+    material.maskInvert = root.value("maskInvert", defaultMaterial.maskInvert);
     material.mainUVScale = read_vec2("mainUVScale", defaultMaterial.mainUVScale);
     material.mainUVOffset = read_vec2("mainUVOffset", defaultMaterial.mainUVOffset);
     material.mainUVScrollSpeed = read_vec2("mainUVScrollSpeed", defaultMaterial.mainUVScrollSpeed);

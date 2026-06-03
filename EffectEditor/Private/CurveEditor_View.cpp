@@ -166,6 +166,11 @@ void CurveEditor_View::Clear_PinnedTracks()
     _selectedKeyIndex.reset();
 }
 
+bool CurveEditor_View::Has_ModuleCurveTargets(AuthoringEmitter& emitter, AuthoringModule& module)
+{
+    return !Collect_ModuleTargets(emitter, module).empty();
+}
+
 bool CurveEditor_View::Is_SameIdentity(const CurveTargetIdentity& lhs, const CurveTargetIdentity& rhs)
 {
     return lhs == rhs;
@@ -273,6 +278,31 @@ ImU32 CurveEditor_View::Get_TargetColor(const CurveTarget& target)
         return IM_COL32(220, 190, 255, 255);
 
     return target.color != 0 ? target.color : IM_COL32(245, 205, 95, 255);
+}
+
+static const char* Get_MaterialScalarTargetLabel(MaterialScalarModulationTargetField target)
+{
+    switch (target)
+    {
+    case MaterialScalarModulationTargetField::Intensity:
+        return "Intensity";
+    case MaterialScalarModulationTargetField::OpacityPower:
+        return "OpacityPower";
+    case MaterialScalarModulationTargetField::NoiseStrength:
+        return "NoiseStrength";
+    case MaterialScalarModulationTargetField::AlphaErosion:
+        return "AlphaErosion";
+    case MaterialScalarModulationTargetField::AlphaCutoff:
+        return "AlphaCutoff";
+    case MaterialScalarModulationTargetField::CoreIntensity:
+        return "CoreIntensity";
+    case MaterialScalarModulationTargetField::OuterIntensity:
+        return "OuterIntensity";
+    case MaterialScalarModulationTargetField::CoreColor:
+        return "CoreColor";
+    default:
+        return "Intensity";
+    }
 }
 
 float CurveEditor_View::Get_TargetValue(const CurveTarget& target, const FloatCurveKeyData& key)
@@ -584,7 +614,7 @@ Shared<Emitter_View> CurveEditor_View::Resolve_EmitterView() const
     return dynamic_pointer_cast<Emitter_View>(emitterWindow);
 }
 
-vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(AuthoringEmitter& emitter, AuthoringModule& module) const
+vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(AuthoringEmitter& emitter, AuthoringModule& module)
 {
     vector<CurveTarget> targets{};
 
@@ -688,6 +718,37 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(Au
         if (auto* data = get_if<SpawnPerUnitModuleData>(&module.data))
             Add_FloatTarget(targets, emitter, module, data->spawnPerUnit, "spawnPerUnit", "Spawn Per Unit", IM_COL32(245, 205, 95, 255));
         break;
+    case AuthoringModuleType::MaterialScalarModulation:
+        if (auto* data = get_if<MaterialScalarModulationModuleData>(&module.data))
+        {
+            for (size_t index = 0; index < data->modulators.size(); ++index)
+            {
+                MaterialScalarModulatorData& modulator = data->modulators[index];
+                Add_FloatTarget(
+                    targets,
+                    emitter,
+                    module,
+                    modulator.distribution,
+                    "modulator" + to_string(index) + ".distribution",
+                    "#" + to_string(index + 1) + " " + Get_MaterialScalarTargetLabel(modulator.targetField),
+                    IM_COL32(255, 145, 70, 255)
+                );
+            }
+
+            for (size_t index = 0; index < data->coreColorRgbModulators.size(); ++index)
+            {
+                MaterialCoreColorRgbModulatorData& modulator = data->coreColorRgbModulators[index];
+                Add_Vector3Target(
+                    targets,
+                    emitter,
+                    module,
+                    modulator.distribution,
+                    "coreColorRgbModulator" + to_string(index) + ".distribution",
+                    "#" + to_string(data->modulators.size() + index + 1) + " Core Color RGB"
+                );
+            }
+        }
+        break;
     default:
         break;
     }
@@ -766,7 +827,7 @@ optional<CurveEditor_View::CurveTarget> CurveEditor_View::Get_ActiveTarget(const
     return nullopt;
 }
 
-void CurveEditor_View::Add_FloatTarget(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, FloatDistributionData& distribution, const string& propertyId, const string& label, ImU32 color) const
+void CurveEditor_View::Add_FloatTarget(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, FloatDistributionData& distribution, const string& propertyId, const string& label, ImU32 color)
 {
     CurveTargetIdentity identity{};
     identity.emitterId = emitter.id;
@@ -790,7 +851,7 @@ void CurveEditor_View::Add_FloatTarget(vector<CurveTarget>& targets, AuthoringEm
     );
 }
 
-void CurveEditor_View::Add_Vector2Target(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, Vector2DistributionData& distribution, const string& propertyId, const string& label) const
+void CurveEditor_View::Add_Vector2Target(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, Vector2DistributionData& distribution, const string& propertyId, const string& label)
 {
     for (CurveTargetChannel channel : { CurveTargetChannel::X, CurveTargetChannel::Y })
     {
@@ -817,7 +878,7 @@ void CurveEditor_View::Add_Vector2Target(vector<CurveTarget>& targets, Authoring
     }
 }
 
-void CurveEditor_View::Add_Vector3Target(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, Vector3DistributionData& distribution, const string& propertyId, const string& label) const
+void CurveEditor_View::Add_Vector3Target(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, Vector3DistributionData& distribution, const string& propertyId, const string& label)
 {
     for (CurveTargetChannel channel : { CurveTargetChannel::X, CurveTargetChannel::Y, CurveTargetChannel::Z })
     {
@@ -844,7 +905,7 @@ void CurveEditor_View::Add_Vector3Target(vector<CurveTarget>& targets, Authoring
     }
 }
 
-void CurveEditor_View::Add_ColorTarget(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, ColorDistributionData& distribution, const string& propertyId, const string& label) const
+void CurveEditor_View::Add_ColorTarget(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, ColorDistributionData& distribution, const string& propertyId, const string& label)
 {
     for (CurveTargetChannel channel : { CurveTargetChannel::R, CurveTargetChannel::G, CurveTargetChannel::B })
     {
@@ -1049,7 +1110,7 @@ bool CurveEditor_View::Convert_ActiveTargetToConstantCurve(CurveTarget& target)
 
 void CurveEditor_View::Draw_EmptyState()
 {
-    ImGui::TextDisabled("Use a module curve button in the Emitter view to pin editable curves.");
+    ImGui::TextDisabled("Emitter 창의 모듈 커브 버튼으로 편집할 커브를 고정하세요.");
 }
 
 void CurveEditor_View::Draw_TrackList(const vector<CurveTarget>& targets)
