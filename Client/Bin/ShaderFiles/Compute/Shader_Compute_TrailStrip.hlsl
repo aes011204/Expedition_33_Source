@@ -79,13 +79,15 @@ void ApplyTrailWidth(inout float3 basePosition, inout float3 tipPosition)
 
 float ReadVec4Component(float4 values, uint index)
 {
-    if (index == 0u)
-        return values.x;
+    float result = values.x;
     if (index == 1u)
-        return values.y;
-    if (index == 2u)
-        return values.z;
-    return values.w;
+        result = values.y;
+    else if (index == 2u)
+        result = values.z;
+    else if (index == 3u)
+        result = values.w;
+
+    return result;
 }
 
 float EvaluateCompactCurve(
@@ -100,55 +102,56 @@ float EvaluateCompactCurve(
 {
     keyCount = max(1u, min(4u, keyCount));
 
-    if (keyCount == 1u || lifeProgress <= ReadVec4Component(times, 0u))
-        return ReadVec4Component(values, 0u);
-
     bool found = false;
-    float result = fallbackValue;
-    [unroll]
-    for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+    float result = ReadVec4Component(values, 0u);
+    if (keyCount > 1u && lifeProgress > ReadVec4Component(times, 0u))
     {
-        if (keyIndex >= keyCount || found)
-            continue;
-
-        const float rightTime = ReadVec4Component(times, keyIndex);
-        if (lifeProgress > rightTime)
-            continue;
-
-        const float leftTime = ReadVec4Component(times, keyIndex - 1u);
-        const float leftValue = ReadVec4Component(values, keyIndex - 1u);
-        const float rightValue = ReadVec4Component(values, keyIndex);
-        const float mode = ReadVec4Component(modes, keyIndex - 1u);
-        const float width = max(0.0001f, rightTime - leftTime);
-        const float ratio = saturate((lifeProgress - leftTime) / width);
-
-        if (mode < 0.5f)
+        result = fallbackValue;
+        [unroll]
+        for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
         {
-            result = leftValue;
-        }
-        else if (mode >= 1.5f)
-        {
-            const float t2 = ratio * ratio;
-            const float t3 = t2 * ratio;
-            const float leftLeave = ReadVec4Component(leaveTangents, keyIndex - 1u) * width;
-            const float rightArrive = ReadVec4Component(arriveTangents, keyIndex) * width;
-            result =
-                (2.0f * t3 - 3.0f * t2 + 1.0f) * leftValue +
-                (t3 - 2.0f * t2 + ratio) * leftLeave +
-                (-2.0f * t3 + 3.0f * t2) * rightValue +
-                (t3 - t2) * rightArrive;
-        }
-        else
-        {
-            result = lerp(leftValue, rightValue, ratio);
+            if (keyIndex >= keyCount || found)
+                continue;
+
+            const float rightTime = ReadVec4Component(times, keyIndex);
+            if (lifeProgress > rightTime)
+                continue;
+
+            const float leftTime = ReadVec4Component(times, keyIndex - 1u);
+            const float leftValue = ReadVec4Component(values, keyIndex - 1u);
+            const float rightValue = ReadVec4Component(values, keyIndex);
+            const float mode = ReadVec4Component(modes, keyIndex - 1u);
+            const float width = max(0.0001f, rightTime - leftTime);
+            const float ratio = saturate((lifeProgress - leftTime) / width);
+
+            if (mode < 0.5f)
+            {
+                result = leftValue;
+            }
+            else if (mode >= 1.5f)
+            {
+                const float t2 = ratio * ratio;
+                const float t3 = t2 * ratio;
+                const float leftLeave = ReadVec4Component(leaveTangents, keyIndex - 1u) * width;
+                const float rightArrive = ReadVec4Component(arriveTangents, keyIndex) * width;
+                result =
+                    (2.0f * t3 - 3.0f * t2 + 1.0f) * leftValue +
+                    (t3 - 2.0f * t2 + ratio) * leftLeave +
+                    (-2.0f * t3 + 3.0f * t2) * rightValue +
+                    (t3 - t2) * rightArrive;
+            }
+            else
+            {
+                result = lerp(leftValue, rightValue, ratio);
+            }
+
+            found = true;
         }
 
-        found = true;
+        const float lastTime = ReadVec4Component(times, keyCount - 1u);
+        if (!found && lifeProgress > lastTime)
+            result = ReadVec4Component(values, keyCount - 1u);
     }
-
-    const float lastTime = ReadVec4Component(times, keyCount - 1u);
-    if (!found && lifeProgress > lastTime)
-        result = ReadVec4Component(values, keyCount - 1u);
 
     return result;
 }
@@ -187,42 +190,43 @@ float4 EvaluateColorOverLife(float lifeProgress, float4 fallbackColor)
 
 float EvaluateSizeByLifeWidthScale(float lifeProgress)
 {
-    if (g_SizeByLifeCurveParams.y == 0.0f)
-        return 1.0f;
-
     const uint keyCount = max(1u, min(4u, (uint)g_SizeByLifeCurveParams.x));
-    float multiplier = g_SizeByLifeParams.x;
+    float multiplier = 1.0f;
+    if (g_SizeByLifeCurveParams.y != 0.0f)
+    {
+        multiplier = g_SizeByLifeParams.x;
 
-    if (keyCount == 1u || lifeProgress <= ReadVec4Component(g_SizeByLifeCurveTimes, 0u))
-    {
-        multiplier = ReadVec4Component(g_SizeByLifeCurveValuesX, 0u);
-    }
-    else
-    {
-        bool found = false;
-        [unroll]
-        for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+        if (keyCount == 1u || lifeProgress <= ReadVec4Component(g_SizeByLifeCurveTimes, 0u))
         {
-            if (keyIndex >= keyCount || found)
-                continue;
-
-            const float rightTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyIndex);
-            if (lifeProgress > rightTime)
-                continue;
-
-            const float leftTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyIndex - 1u);
-            const float ratio = saturate((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime));
-            multiplier = lerp(
-                ReadVec4Component(g_SizeByLifeCurveValuesX, keyIndex - 1u),
-                ReadVec4Component(g_SizeByLifeCurveValuesX, keyIndex),
-                ratio
-            );
-            found = true;
+            multiplier = ReadVec4Component(g_SizeByLifeCurveValuesX, 0u);
         }
+        else
+        {
+            bool found = false;
+            [unroll]
+            for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+            {
+                if (keyIndex >= keyCount || found)
+                    continue;
 
-        const float lastTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyCount - 1u);
-        if (!found && lifeProgress > lastTime)
-            multiplier = ReadVec4Component(g_SizeByLifeCurveValuesX, keyCount - 1u);
+                const float rightTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyIndex);
+                if (lifeProgress > rightTime)
+                    continue;
+
+                const float leftTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyIndex - 1u);
+                const float ratio = saturate((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime));
+                multiplier = lerp(
+                    ReadVec4Component(g_SizeByLifeCurveValuesX, keyIndex - 1u),
+                    ReadVec4Component(g_SizeByLifeCurveValuesX, keyIndex),
+                    ratio
+                );
+                found = true;
+            }
+
+            const float lastTime = ReadVec4Component(g_SizeByLifeCurveTimes, keyCount - 1u);
+            if (!found && lifeProgress > lastTime)
+                multiplier = ReadVec4Component(g_SizeByLifeCurveValuesX, keyCount - 1u);
+        }
     }
 
     return multiplier;

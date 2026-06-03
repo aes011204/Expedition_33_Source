@@ -627,7 +627,8 @@ public: //## Distribution Controls
         FloatDistributionData& value,
         const FloatDistributionData& defaultValue,
         float speed = 0.01f,
-        bool allowUniform = true)
+        bool allowUniform = true,
+        bool allowConstantCurve = true)
     {
         bool changed = false;
 
@@ -637,7 +638,7 @@ public: //## Distribution Controls
         {
             if (_basicDrawer.Begin_PropertyTable("Distribution"))
             {
-                changed |= Draw_FloatDistributionProperty("분포 타입", value, defaultValue, speed, allowUniform);
+                changed |= Draw_FloatDistributionProperty("분포 타입", value, defaultValue, speed, allowUniform, allowConstantCurve);
                 _basicDrawer.End_PropertyTable();
             }
 
@@ -648,7 +649,12 @@ public: //## Distribution Controls
         return changed;
     }
 
-    bool Draw_Vector2DistributionGroup(const char* label, Vector2DistributionData& value, const Vector2DistributionData& defaultValue, float speed = 0.01f)
+    bool Draw_Vector2DistributionGroup(
+        const char* label,
+        Vector2DistributionData& value,
+        const Vector2DistributionData& defaultValue,
+        float speed = 0.01f,
+        bool allowConstantCurve = true)
     {
         bool changed = false;
 
@@ -658,7 +664,7 @@ public: //## Distribution Controls
         {
             if (_basicDrawer.Begin_PropertyTable("Distribution"))
             {
-                changed |= Draw_Vector2DistributionProperty("분포 타입", value, defaultValue, speed);
+                changed |= Draw_Vector2DistributionProperty("분포 타입", value, defaultValue, speed, allowConstantCurve);
                 _basicDrawer.End_PropertyTable();
             }
 
@@ -1595,7 +1601,8 @@ private: //## Label Helpers
         FloatDistributionData& value,
         const FloatDistributionData& defaultValue,
         float speed = 0.01f,
-        bool allowUniform = true)
+        bool allowUniform = true,
+        bool allowConstantCurve = true)
     {
         bool changed = false;
 
@@ -1628,7 +1635,7 @@ private: //## Label Helpers
 
             draw_selectable(DistributionMode::Constant, true);
             draw_selectable(DistributionMode::Uniform, allowUniform);
-            draw_selectable(DistributionMode::ConstantCurve, true);
+            draw_selectable(DistributionMode::ConstantCurve, allowConstantCurve);
             draw_selectable(DistributionMode::UniformCurve, false);
             draw_selectable(DistributionMode::ParticleParameter, false);
             ImGui::EndCombo();
@@ -1672,14 +1679,19 @@ private: //## Label Helpers
             break;
 
         case DistributionMode::ConstantCurve:
-            if (auto* curve = get_if<ConstantCurveFloatDistributionData>(&value.payload))
+            if (allowConstantCurve)
             {
-                const auto* defaultCurve = get_if<ConstantCurveFloatDistributionData>(&defaultValue.payload);
-                const FloatDistributionData fallbackCurveData = FloatDistributionData::Make_ConstantCurve(0.f);
-                const auto* fallbackDefault = get_if<ConstantCurveFloatDistributionData>(&fallbackCurveData.payload);
-                changed |= Draw_FloatCurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
-                Normalize_FloatCurveKeys(*curve);
+                if (auto* curve = get_if<ConstantCurveFloatDistributionData>(&value.payload))
+                {
+                    const auto* defaultCurve = get_if<ConstantCurveFloatDistributionData>(&defaultValue.payload);
+                    const FloatDistributionData fallbackCurveData = FloatDistributionData::Make_ConstantCurve(0.f);
+                    const auto* fallbackDefault = get_if<ConstantCurveFloatDistributionData>(&fallbackCurveData.payload);
+                    changed |= Draw_FloatCurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
+                    Normalize_FloatCurveKeys(*curve);
+                }
             }
+            else
+                ImGui::TextDisabled("이 분포에서는 미구현");
             break;
 
         case DistributionMode::UniformCurve:
@@ -1697,7 +1709,8 @@ private: //## Label Helpers
         const char* label,
         Vector2DistributionData& value,
         const Vector2DistributionData& defaultValue,
-        float speed = 0.01f)
+        float speed = 0.01f,
+        bool allowConstantCurve = true)
     {
         bool changed = false;
 
@@ -1727,7 +1740,7 @@ private: //## Label Helpers
 
             draw_selectable(DistributionMode::Constant, true);
             draw_selectable(DistributionMode::Uniform, true);
-            draw_selectable(DistributionMode::ConstantCurve, true);
+            draw_selectable(DistributionMode::ConstantCurve, allowConstantCurve);
             draw_selectable(DistributionMode::UniformCurve, false);
             draw_selectable(DistributionMode::ParticleParameter, false);
             ImGui::EndCombo();
@@ -1769,14 +1782,19 @@ private: //## Label Helpers
             }
             break;
         case DistributionMode::ConstantCurve:
-            if (auto* curve = get_if<ConstantCurveVector2DistributionData>(&value.payload))
+            if (allowConstantCurve)
             {
-                const auto* defaultCurve = get_if<ConstantCurveVector2DistributionData>(&defaultValue.payload);
-                const Vector2DistributionData fallbackCurveData = Vector2DistributionData::Make_ConstantCurve(Vec2{ 0.f, 0.f });
-                const auto* fallbackDefault = get_if<ConstantCurveVector2DistributionData>(&fallbackCurveData.payload);
-                changed |= Draw_Vector2CurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
-                Normalize_Vector2CurveKeys(*curve);
+                if (auto* curve = get_if<ConstantCurveVector2DistributionData>(&value.payload))
+                {
+                    const auto* defaultCurve = get_if<ConstantCurveVector2DistributionData>(&defaultValue.payload);
+                    const Vector2DistributionData fallbackCurveData = Vector2DistributionData::Make_ConstantCurve(Vec2{ 0.f, 0.f });
+                    const auto* fallbackDefault = get_if<ConstantCurveVector2DistributionData>(&fallbackCurveData.payload);
+                    changed |= Draw_Vector2CurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
+                    Normalize_Vector2CurveKeys(*curve);
+                }
             }
+            else
+                ImGui::TextDisabled("이 분포에서는 미구현");
             break;
         default:
             break;
@@ -2516,23 +2534,30 @@ bool DetailPropertyContext::Draw_ColorProperty(const char* label, Color& value, 
     return _basicDrawer->Draw_ColorProperty(label, value, defaultValue);
 }
 
+bool DetailPropertyContext::Draw_ColorRgbProperty(const char* label, Color& value, const Color& defaultValue)
+{
+    return _basicDrawer->Draw_ColorRgbProperty(label, value, defaultValue);
+}
+
 bool DetailPropertyContext::Draw_FloatDistributionGroup(
     const char* label,
     FloatDistributionData& value,
     const FloatDistributionData& defaultValue,
     float speed,
-    bool allowUniform)
+    bool allowUniform,
+    bool allowConstantCurve)
 {
-    return _distributionDrawer->Draw_FloatDistributionGroup(label, value, defaultValue, speed, allowUniform);
+    return _distributionDrawer->Draw_FloatDistributionGroup(label, value, defaultValue, speed, allowUniform, allowConstantCurve);
 }
 
 bool DetailPropertyContext::Draw_Vector2DistributionGroup(
     const char* label,
     Vector2DistributionData& value,
     const Vector2DistributionData& defaultValue,
-    float speed)
+    float speed,
+    bool allowConstantCurve)
 {
-    return _distributionDrawer->Draw_Vector2DistributionGroup(label, value, defaultValue, speed);
+    return _distributionDrawer->Draw_Vector2DistributionGroup(label, value, defaultValue, speed, allowConstantCurve);
 }
 
 bool DetailPropertyContext::Draw_Vector3DistributionGroup(

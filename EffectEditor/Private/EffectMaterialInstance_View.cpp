@@ -1,8 +1,9 @@
-#include "EffectMaterialInstance_View.h"
+﻿#include "EffectMaterialInstance_View.h"
 
 #include "DetailPropertyContext.h"
 #include "EffectEditorInstance.h"
 #include "EffectMaterialPreviewRenderer.h"
+#include "EffectMaterialScalarModulationPreview.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "Helper_EffectAuthoring.h"
@@ -1006,7 +1007,18 @@ void EffectMaterialInstance_View::Pre_Render()
     if (!Resolve_Target(emitterView, emitter, requiredData))
         return;
 
-    _previewRenderer->Render_Material(requiredData->material);
+    if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(*emitter))
+    {
+        _previewRenderer->Render_Material(
+            requiredData->material,
+            Build_CoreColorRgbModulationRuntimeDesc(*modulation),
+            Build_MaterialScalarModulationRuntimeDesc(*modulation),
+            requiredData->duration,
+            false
+        );
+    }
+    else
+        _previewRenderer->Render_Material(requiredData->material);
 }
 
 void EffectMaterialInstance_View::Render()
@@ -1048,10 +1060,10 @@ void EffectMaterialInstance_View::Render()
             const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
             const EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode =
                 emitter->typeData.kind == AuthoringTypeDataKind::None
-                    ? EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly
-                    : emitter->typeData.kind == AuthoringTypeDataKind::Trail
-                          ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
-                          : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
+                ? EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly
+                : emitter->typeData.kind == AuthoringTypeDataKind::Trail
+                  ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
+                  : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
 
             if (useSideBySideLayout)
             {
@@ -1135,128 +1147,32 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
     bool changed = false;
     bool restartPreview = false;
 
-    if (ImGui::CollapsingHeader("Material Family", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceFamily"))
-        {
-            Internal::Draw_ReadOnlyTextProperty(
-                detailPropertyContext,
-                "Family",
-                Internal::Get_MaterialFamilyLabel(material.materialFamily)
-            );
-            detailPropertyContext.End_PropertyTable();
-        }
+    constexpr const char* sourceOptions[]{ "Alpha", "Red", "Luminance" };
 
-        if (material.materialFamily != EffectMaterialFamily::SpriteDistortion)
-            ImGui::TextDisabled("Distortion fields are shown only when the embedded material family is SpriteDistortion.");
-    }
-
-    if (ImGui::CollapsingHeader("Texture", ImGuiTreeNodeFlags_DefaultOpen))
+    if (ImGui::CollapsingHeader("Main", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceTexture"))
+        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceMain"))
         {
             changed |= Internal::Draw_TextureProperty(
                 textureThumbnailCache,
                 detailPropertyContext,
-                "Main Texture (Emissive)",
+                "Main Texture",
                 material.mainTextureGuid,
                 material.mainTexturePath,
                 defaultData.mainTextureGuid,
                 defaultData.mainTexturePath
             );
-            changed |= Internal::Draw_TextureProperty(
-                textureThumbnailCache,
+            changed |= Internal::Draw_StringComboProperty(
                 detailPropertyContext,
-                "Noise Texture",
-                material.noiseTextureGuid,
-                material.noiseTexturePath,
-                defaultData.noiseTextureGuid,
-                defaultData.noiseTexturePath
+                "Opacity Source",
+                material.opacitySource,
+                defaultData.opacitySource,
+                sourceOptions,
+                std::size(sourceOptions)
             );
-            changed |= Internal::Draw_TextureProperty(
-                textureThumbnailCache,
-                detailPropertyContext,
-                "Mask Texture",
-                material.maskTextureGuid,
-                material.maskTexturePath,
-                defaultData.maskTextureGuid,
-                defaultData.maskTexturePath
-            );
-            if (material.materialFamily == EffectMaterialFamily::SpriteDistortion)
-            {
-                changed |= Internal::Draw_TextureProperty(
-                    textureThumbnailCache,
-                    detailPropertyContext,
-                    "Flow Texture",
-                    material.flowTextureGuid,
-                    material.flowTexturePath,
-                    defaultData.flowTextureGuid,
-                    defaultData.flowTexturePath
-                );
-            }
-            detailPropertyContext.End_PropertyTable();
-        }
-
-        if (!Internal::textureAssignStatus.empty())
-            ImGui::TextDisabled("%s", Internal::textureAssignStatus.c_str());
-    }
-
-    if (ImGui::CollapsingHeader("Color / Scalar", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceColorScalar"))
-        {
             changed |= detailPropertyContext.Draw_ColorProperty("Tint", material.tint, defaultData.tint);
             changed |= detailPropertyContext.Draw_FloatProperty("Intensity", material.intensity, defaultData.intensity);
             changed |= detailPropertyContext.Draw_FloatProperty("Opacity Power", material.opacityPower, defaultData.opacityPower);
-            changed |= detailPropertyContext.Draw_FloatProperty("Noise Strength", material.noiseStrength, defaultData.noiseStrength);
-            changed |= detailPropertyContext.Draw_FloatProperty("Alpha Cutoff", material.alphaCutoff, defaultData.alphaCutoff);
-            changed |= detailPropertyContext.Draw_FloatProperty("Alpha Erosion", material.alphaErosion, defaultData.alphaErosion);
-            detailPropertyContext.End_PropertyTable();
-        }
-    }
-
-    if (ImGui::CollapsingHeader("Core Emissive", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceCoreEmissive"))
-        {
-            changed |= detailPropertyContext.Draw_BoolProperty(
-                "Enabled",
-                material.coreEmissive.enabled,
-                defaultData.coreEmissive.enabled
-            );
-            changed |= detailPropertyContext.Draw_ColorProperty(
-                "Core Color",
-                material.coreEmissive.coreColor,
-                defaultData.coreEmissive.coreColor
-            );
-            changed |= detailPropertyContext.Draw_FloatProperty(
-                "Core Power",
-                material.coreEmissive.corePower,
-                defaultData.coreEmissive.corePower
-            );
-            changed |= detailPropertyContext.Draw_FloatProperty(
-                "Core Intensity",
-                material.coreEmissive.coreIntensity,
-                defaultData.coreEmissive.coreIntensity
-            );
-            changed |= detailPropertyContext.Draw_FloatProperty(
-                "Outer Power",
-                material.coreEmissive.outerPower,
-                defaultData.coreEmissive.outerPower
-            );
-            changed |= detailPropertyContext.Draw_FloatProperty(
-                "Outer Intensity",
-                material.coreEmissive.outerIntensity,
-                defaultData.coreEmissive.outerIntensity
-            );
-            detailPropertyContext.End_PropertyTable();
-        }
-    }
-
-    if (ImGui::CollapsingHeader("UV", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceUV"))
-        {
             const bool mainModeChanged = Internal::Draw_UVTilingModeProperty(
                 detailPropertyContext,
                 "Main UV Tiling Mode",
@@ -1268,6 +1184,36 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             changed |= detailPropertyContext.Draw_Vec2Property("Main UV Scale", material.mainUVScale, defaultData.mainUVScale);
             changed |= detailPropertyContext.Draw_Vec2Property("Main UV Offset", material.mainUVOffset, defaultData.mainUVOffset);
             changed |= detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed", material.mainUVScrollSpeed, defaultData.mainUVScrollSpeed);
+            detailPropertyContext.End_PropertyTable();
+        }
+
+        if (!Internal::textureAssignStatus.empty())
+            ImGui::TextDisabled("%s", Internal::textureAssignStatus.c_str());
+    }
+
+    if (ImGui::CollapsingHeader("Noise", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceNoise"))
+        {
+            changed |= Internal::Draw_TextureProperty(
+                textureThumbnailCache,
+                detailPropertyContext,
+                "Noise Texture",
+                material.noiseTextureGuid,
+                material.noiseTexturePath,
+                defaultData.noiseTextureGuid,
+                defaultData.noiseTexturePath
+            );
+            changed |= Internal::Draw_StringComboProperty(
+                detailPropertyContext,
+                "Noise Source",
+                material.noiseSource,
+                defaultData.noiseSource,
+                sourceOptions,
+                std::size(sourceOptions)
+            );
+            changed |= detailPropertyContext.Draw_BoolProperty("Noise Invert", material.noiseInvert, defaultData.noiseInvert);
+            changed |= detailPropertyContext.Draw_FloatProperty("Noise Strength", material.noiseStrength, defaultData.noiseStrength);
             const bool noiseModeChanged = Internal::Draw_UVTilingModeProperty(
                 detailPropertyContext,
                 "Noise UV Tiling Mode",
@@ -1279,6 +1225,34 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             changed |= detailPropertyContext.Draw_Vec2Property("Noise UV Scale", material.noiseUVScale, defaultData.noiseUVScale);
             changed |= detailPropertyContext.Draw_Vec2Property("Noise UV Offset", material.noiseUVOffset, defaultData.noiseUVOffset);
             changed |= detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed", material.noiseUVScrollSpeed, defaultData.noiseUVScrollSpeed);
+            detailPropertyContext.End_PropertyTable();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Mask", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceMask"))
+        {
+            changed |= Internal::Draw_TextureProperty(
+                textureThumbnailCache,
+                detailPropertyContext,
+                "Mask Texture",
+                material.maskTextureGuid,
+                material.maskTexturePath,
+                defaultData.maskTextureGuid,
+                defaultData.maskTexturePath
+            );
+            changed |= Internal::Draw_StringComboProperty(
+                detailPropertyContext,
+                "Mask Source",
+                material.maskSource,
+                defaultData.maskSource,
+                sourceOptions,
+                std::size(sourceOptions)
+            );
+            changed |= detailPropertyContext.Draw_BoolProperty("Mask Invert", material.maskInvert, defaultData.maskInvert);
+            changed |= detailPropertyContext.Draw_FloatProperty("Alpha Cutoff", material.alphaCutoff, defaultData.alphaCutoff);
+            changed |= detailPropertyContext.Draw_FloatProperty("Alpha Erosion", material.alphaErosion, defaultData.alphaErosion);
             const bool maskModeChanged = Internal::Draw_UVTilingModeProperty(
                 detailPropertyContext,
                 "Mask UV Tiling Mode",
@@ -1294,66 +1268,20 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
         }
     }
 
-    if (ImGui::CollapsingHeader("Options", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceOptions"))
-        {
-            constexpr const char* opacitySourceOptions[]{ "Alpha", "Red", "Luminance" };
-
-            changed |= Internal::Draw_BlendModeProperty(detailPropertyContext, material.blendMode, defaultData.blendMode);
-            if (material.blendMode != EffectMaterialBlendMode::Additive)
-            {
-                changed |= Internal::Draw_StringComboProperty(
-                    detailPropertyContext,
-                    "Opacity Source",
-                    material.opacitySource,
-                    defaultData.opacitySource,
-                    opacitySourceOptions,
-                    std::size(opacitySourceOptions)
-                );
-            }
-            detailPropertyContext.End_PropertyTable();
-        }
-
-        if (material.blendMode == EffectMaterialBlendMode::Additive)
-            changed |= Internal::Draw_AdditiveContributionPanel(detailPropertyContext, material.additive, defaultData.additive);
-
-        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceOptionsTail"))
-        {
-            switch (twoSidedDisplayMode)
-            {
-            case EffectMaterialTwoSidedDisplayMode::EditableImplemented:
-                changed |= detailPropertyContext.Draw_BoolProperty("Two Sided", material.twoSided, defaultData.twoSided);
-                break;
-
-            case EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly:
-                Internal::Draw_ReadOnlyCheckedBoolProperty(
-                    detailPropertyContext,
-                    "Two Sided",
-                    true,
-                    "현재 sprite renderer는 항상 양면 렌더라서 이 옵션을 개별 제어하지 않습니다."
-                );
-                break;
-
-            case EffectMaterialTwoSidedDisplayMode::EditableUnimplemented:
-            default:
-                changed |= detailPropertyContext.Draw_BoolProperty("Two Sided (미구현)", material.twoSided, defaultData.twoSided);
-                break;
-            }
-            changed |= detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
-            changed |= detailPropertyContext.Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
-            detailPropertyContext.End_PropertyTable();
-        }
-
-        if (twoSidedDisplayMode == EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly)
-            ImGui::TextDisabled("Sprite는 현재 항상 양면 렌더입니다.");
-    }
-
     if (material.materialFamily == EffectMaterialFamily::SpriteDistortion &&
-        ImGui::CollapsingHeader("Distortion", ImGuiTreeNodeFlags_DefaultOpen))
+        ImGui::CollapsingHeader("Flow / Distortion", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceDistortion"))
         {
+            changed |= Internal::Draw_TextureProperty(
+                textureThumbnailCache,
+                detailPropertyContext,
+                "Flow Texture",
+                material.flowTextureGuid,
+                material.flowTexturePath,
+                defaultData.flowTextureGuid,
+                defaultData.flowTexturePath
+            );
             const bool flowModeChanged = Internal::Draw_UVTilingModeProperty(
                 detailPropertyContext,
                 "Flow UV Tiling Mode",
@@ -1429,6 +1357,90 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 }
                 detailPropertyContext.End_PropertyTable();
             }
+        }
+    }
+    else if (material.materialFamily != EffectMaterialFamily::SpriteDistortion)
+    {
+        ImGui::TextDisabled("Flow / Distortion fields are shown only when the embedded material family is SpriteDistortion.");
+    }
+
+    if (ImGui::CollapsingHeader("Blend / Render", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceBlendRender"))
+        {
+            Internal::Draw_ReadOnlyTextProperty(
+                detailPropertyContext,
+                "Family",
+                Internal::Get_MaterialFamilyLabel(material.materialFamily)
+            );
+            changed |= Internal::Draw_BlendModeProperty(detailPropertyContext, material.blendMode, defaultData.blendMode);
+            switch (twoSidedDisplayMode)
+            {
+            case EffectMaterialTwoSidedDisplayMode::EditableImplemented:
+                changed |= detailPropertyContext.Draw_BoolProperty("Two Sided", material.twoSided, defaultData.twoSided);
+                break;
+
+            case EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly:
+                Internal::Draw_ReadOnlyCheckedBoolProperty(
+                    detailPropertyContext,
+                    "Two Sided",
+                    true,
+                    "현재 sprite renderer는 항상 양면 렌더라서 이 옵션을 개별 제어하지 않습니다."
+                );
+                break;
+
+            case EffectMaterialTwoSidedDisplayMode::EditableUnimplemented:
+            default:
+                changed |= detailPropertyContext.Draw_BoolProperty("Two Sided (미구현)", material.twoSided, defaultData.twoSided);
+                break;
+            }
+            changed |= detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
+            changed |= detailPropertyContext.Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
+            detailPropertyContext.End_PropertyTable();
+        }
+
+        if (material.blendMode == EffectMaterialBlendMode::Additive)
+            changed |= Internal::Draw_AdditiveContributionPanel(detailPropertyContext, material.additive, defaultData.additive);
+
+        if (twoSidedDisplayMode == EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly)
+            ImGui::TextDisabled("Sprite는 현재 항상 양면 렌더입니다.");
+    }
+
+    if (ImGui::CollapsingHeader("Core Emissive", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailPropertyContext.Begin_PropertyTable("EffectMaterialInstanceCoreEmissive"))
+        {
+            changed |= detailPropertyContext.Draw_BoolProperty(
+                "Enabled",
+                material.coreEmissive.enabled,
+                defaultData.coreEmissive.enabled
+            );
+            changed |= detailPropertyContext.Draw_ColorRgbProperty(
+                "Core Color",
+                material.coreEmissive.coreColor,
+                defaultData.coreEmissive.coreColor
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Core Power",
+                material.coreEmissive.corePower,
+                defaultData.coreEmissive.corePower
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Core Intensity",
+                material.coreEmissive.coreIntensity,
+                defaultData.coreEmissive.coreIntensity
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Outer Power",
+                material.coreEmissive.outerPower,
+                defaultData.coreEmissive.outerPower
+            );
+            changed |= detailPropertyContext.Draw_FloatProperty(
+                "Outer Intensity",
+                material.coreEmissive.outerIntensity,
+                defaultData.coreEmissive.outerIntensity
+            );
+            detailPropertyContext.End_PropertyTable();
         }
     }
 
