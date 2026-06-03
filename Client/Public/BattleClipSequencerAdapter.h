@@ -3,7 +3,7 @@
 #include <ImSequencer.h>
 #include "BattleCameraClipTypes.h"
 
-constexpr int kBattleClipTrackCount = 17;
+constexpr int kBattleClipTrackCount = 18;
 
 class BattleClipSequencerAdapter : public ImSequencer::SequenceInterface
 {
@@ -26,6 +26,7 @@ public:
         bool* shakeEnabled = nullptr,
         bool* sideEnabled = nullptr,
         bool* pivotEnabled = nullptr,
+        bool* heightEnabled = nullptr,
         bool* lookHeightEnabled = nullptr,
         bool* yawEnabled = nullptr,
         bool* orbitYawEnabled = nullptr,

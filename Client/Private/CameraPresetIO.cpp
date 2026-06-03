@@ -212,6 +212,7 @@ void CameraPresetIO::SaveBattlePresetToFile(BattleCameraMode cameraMode, const B
     jsonData["farPlane"]        = preset.camera.farPlane;
     jsonData["nearPlane"]       = preset.camera.nearPlane;
     jsonData["transitionEasing"]= preset.transitionEasing;
+    jsonData["transitionDuration"] = preset.transitionDuration;
     //jsonData["allowMouseRotation"] = preset.allowMouseRotation;
 
     const string filePath = Build_BattlePresetFilePath(cameraMode, skillId);
@@ -279,6 +280,7 @@ bool CameraPresetIO:: LoadBattlePresetFromFile(BattleCameraMode cameraMode, Batt
     preset.camera.fovy = jsonData.value("fovY",preset.camera.fovy);
     preset.camera.farPlane = jsonData.value("farPlane", preset.camera.farPlane);
     preset.camera.nearPlane = jsonData.value("nearPlane", preset.camera.nearPlane);
+    preset.transitionDuration = jsonData.value("transitionDuration", preset.transitionDuration);
     //preset.allowMouseRotation = jsonData.value("allowMouseRotation",false);
     outPreset = preset;
 

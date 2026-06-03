@@ -7,6 +7,31 @@
 
 NS_BEGIN(Client)
 
+inline float Evaluate_BattleCameraClipInterpolation(InterpolationMode interpolation, float t)
+{
+    const float clampedT = std::clamp(t, 0.f, 1.f);
+
+    switch (interpolation)
+    {
+    case InterpolationMode::Step:
+        return 0.f;
+    case InterpolationMode::Linear:
+        return clampedT;
+    case InterpolationMode::EaseIn:
+        return clampedT * clampedT;
+    case InterpolationMode::EaseOut:
+    {
+        const float invT = 1.f - clampedT;
+        return 1.f - invT * invT;
+    }
+    case InterpolationMode::EaseInOut:
+    default:
+        return clampedT < 0.5f
+            ? 2.f * clampedT * clampedT
+            : 1.f - powf(-2.f * clampedT + 2.f, 2.f) * 0.5f;
+    }
+}
+
 inline float Sample_BattleCameraTrack(const BattleCameraTrack& track, float time)
 {
     if (track.keyframes.empty())
@@ -28,7 +53,8 @@ inline float Sample_BattleCameraTrack(const BattleCameraTrack& track, float time
 
         const float range = std::max(rhs.time - lhs.time, 0.0001f);
         const float ratio = std::clamp((time - lhs.time) / range, 0.f, 1.f);
-        return lhs.value + (rhs.value - lhs.value) * ratio;
+        const float easedRatio = Evaluate_BattleCameraClipInterpolation(lhs.interpolation, ratio);
+        return lhs.value + (rhs.value - lhs.value) * easedRatio;
     }
 
     return track.keyframes.back().value;
@@ -51,6 +77,7 @@ inline BattleCameraClipSample Sample_BattleCameraClip(const BattleCameraClip& cl
     sample.shakeAmplitude = Sample_BattleCameraTrack(clip.shakeAmplitude, sampleTime);
     sample.sideOffset = Sample_BattleCameraTrack(clip.sideOffset, sampleTime);
     sample.pivotOffset = Sample_BattleCameraTrack(clip.pivotOffset, sampleTime);
+    sample.heightOffset = Sample_BattleCameraTrack(clip.heightOffset, sampleTime);
     sample.lookHeightOffset = Sample_BattleCameraTrack(clip.lookHeightOffset, sampleTime);
     sample.yawOffset = Sample_BattleCameraTrack(clip.yawOffset, sampleTime);
     sample.orbitYaw = Sample_BattleCameraTrack(clip.orbitYaw, sampleTime);

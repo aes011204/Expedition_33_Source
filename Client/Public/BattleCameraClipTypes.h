@@ -1,4 +1,6 @@
-﻿#pragma once
+#pragma once
+
+#include "Cinematic_Types.h"
 
 enum class BattleCameraClipTimeMode : uint8
 {
@@ -10,6 +12,7 @@ struct BattleCameraKeyframe
 {
     float time = 0.f;
     float value = 0.f;
+    InterpolationMode interpolation = InterpolationMode::Linear;
 };
 
 struct BattleCameraTrack
@@ -27,6 +30,7 @@ struct BattleCameraClip
     BattleCameraTrack yawOffset;
     BattleCameraTrack sideOffset;
     BattleCameraTrack pivotOffset;
+    BattleCameraTrack heightOffset;
     BattleCameraTrack lookHeightOffset;
     BattleCameraTrack orbitYaw;
     BattleCameraTrack orbitRadius;
@@ -47,6 +51,7 @@ struct BattleCameraClipSample
     float fovOffset = 0.f;
     float sideOffset = 0.f;
     float pivotOffset = 0.f;
+    float heightOffset = 0.f;
     float lookHeightOffset = 0.f;
     float yawOffset = 0.f;
     float orbitYaw = 0.f;

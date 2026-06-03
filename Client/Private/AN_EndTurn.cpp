@@ -23,8 +23,14 @@ void AN_EndTurn::Execute(const AnimNotifyContext& context)
     if (battle == nullptr || !battle->Is_BattleStarted())
         return;
 
-    if (battle->Get_TurnAction().Get_CurChar().statCom->Get_CurAliveState() == EAliveStatus::Dead)
+    auto curChar = battle->Get_TurnAction().Get_CurChar();
+
+    if(curChar.statCom == nullptr)
         return;
+
+    if (curChar.statCom->Get_CurAliveState() == EAliveStatus::Dead)
+        return;
+
     BattleAnimUtils::Play_BattleIdle(
         battle->Get_TurnAction().Get_CurChar(), 0.2f);
 

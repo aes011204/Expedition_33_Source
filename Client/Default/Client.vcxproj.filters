@@ -417,6 +417,7 @@
     </ClCompile>
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
+    <ClCompile Include="..\private\AN_CameraShake.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1203,6 +1204,10 @@
       <Filter>BattleState</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_MarkEffect.h" />
+    <ClInclude Include="..\Public\Battle_Event.h">
+      <Filter>02.GameObject\Camera\BattleCamera</Filter>
+    </ClInclude>
+    <ClInclude Include="..\public\AN_CameraShake.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

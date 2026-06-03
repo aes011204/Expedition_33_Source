@@ -99,16 +99,50 @@ void Resolve_MaxWideOffsets(
     float& outHeightOffset,
     float& outLookHeightOffset)
 {
+    auto selectDominantOffset = [](float current, float candidate)
+    {
+        return fabsf(candidate) > fabsf(current) ? candidate : current;
+    };
+
     outBackOffset = 0.f;
     outHeightOffset = 0.f;
     outLookHeightOffset = 0.f;
 
     for (const Client::BattleMonsterSpawnDesc& spawnDesc : spawnDescs)
     {
-        outBackOffset = std::max(outBackOffset, spawnDesc.wideBackOffset);
-        outHeightOffset = std::max(outHeightOffset, spawnDesc.wideHeightOffset);
-        outLookHeightOffset = std::max(outLookHeightOffset, spawnDesc.wideLookHeightOffset);
+        outBackOffset = selectDominantOffset(outBackOffset, spawnDesc.wideBackOffset);
+        outHeightOffset = selectDominantOffset(outHeightOffset, spawnDesc.wideHeightOffset);
+        outLookHeightOffset = selectDominantOffset(outLookHeightOffset, spawnDesc.wideLookHeightOffset);
     }
+}
+
+bool Try_EvaluateMonsterWidePreviewPose(
+    const Shared<Client::Monster_WorldBase>& monster,
+    const vector<Client::BattleMonsterSpawnDesc>& spawnDescs,
+    Client::BattleTurnCameraEvaluatedPose& outWidePose)
+{
+    if (monster == nullptr || spawnDescs.empty())
+        return false;
+
+    Vec3 previewOrigin = Vec3::Zero;
+    Vec3 right = Vec3::Right;
+    Vec3 forward = Vec3::Forward;
+    Resolve_BattlePreviewBasis(monster, previewOrigin, right, forward);
+
+    float wideBackOffset = 0.f;
+    float wideHeightOffset = 0.f;
+    float wideLookHeightOffset = 0.f;
+    Resolve_MaxWideOffsets(spawnDescs, wideBackOffset, wideHeightOffset, wideLookHeightOffset);
+
+    const float yawDegrees = XMConvertToDegrees(atan2f(forward.x, forward.z));
+    return Client::Evaluate_BattleTurnWidePose(
+        previewOrigin,
+        yawDegrees,
+        XMConvertToRadians(45.f),
+        wideBackOffset,
+        wideHeightOffset,
+        wideLookHeightOffset,
+        outWidePose);
 }
 }
 
@@ -1412,6 +1446,24 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
         changed = true;
     }
 
+    ImGui::SameLine();
+    const bool canPreviewWideCamera = _previewCamera != nullptr && !spawnDescs.empty();
+    ImGui::BeginDisabled(!canPreviewWideCamera);
+    if (ImGui::Button("Preview WIDE Camera"))
+    {
+        Client::BattleTurnCameraEvaluatedPose widePose{};
+        if (Try_EvaluateMonsterWidePreviewPose(monster, spawnDescs, widePose))
+        {
+            Shared<TransformCom> cameraTransform = _previewCamera->Get_Transform();
+            if (cameraTransform != nullptr)
+            {
+                cameraTransform->Set_WorldPosition(widePose.cameraPos);
+                cameraTransform->LookAt(widePose.lookTarget);
+            }
+        }
+    }
+    ImGui::EndDisabled();
+
     ImGui::PopID();
     ImGui::Spacing();
 
@@ -2029,21 +2081,8 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
         XMVectorSet(0.3f, 0.85f, 1.f, 1.f),
     };
 
-    float wideBackOffset = 0.f;
-    float wideHeightOffset = 0.f;
-    float wideLookHeightOffset = 0.f;
-    Resolve_MaxWideOffsets(spawnDescs, wideBackOffset, wideHeightOffset, wideLookHeightOffset);
-
-    const float yawDegrees = XMConvertToDegrees(atan2f(forward.x, forward.z));
     Client::BattleTurnCameraEvaluatedPose widePose{};
-    const bool hasWidePose = Client::Evaluate_BattleTurnWidePose(
-        previewOrigin,
-        yawDegrees,
-        XMConvertToRadians(45.f),
-        wideBackOffset,
-        wideHeightOffset,
-        wideLookHeightOffset,
-        widePose);
+    const bool hasWidePose = Try_EvaluateMonsterWidePreviewPose(monster, spawnDescs, widePose);
 
     constexpr float cameraMarkerHalfSize = 0.25f;
     constexpr float lookTargetMarkerHalfSize = 0.18f;

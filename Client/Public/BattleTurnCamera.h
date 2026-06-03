@@ -9,7 +9,10 @@
 #include "BattleCameraProfileTypes.h"
 
 NS_BEGIN(Client)
-class BattleTurnCamera final : public Camera
+
+struct EvtBattleCameraShake;
+
+    class BattleTurnCamera final : public Camera
 {
     GENERATED_GAMEOBJECT(BattleTurnCamera, ObjectType::BattleTurnCamera)
 
@@ -27,6 +30,7 @@ public:
         string          clipId;
         bool            useClip = false;
         bool            restartClip = false;
+        bool            keepCurrentClip = false;
         bool            freezeSubjectDuringTransition = false;
     };
 
@@ -92,6 +96,20 @@ private:
         bool hasFrozenPos = false;
     };
 
+    struct RuntimeShakeState
+    {
+        bool active = false;
+        float elapsed = 0.f;
+        float duration = 0.f;
+        float amplitude = 0.f;
+        float frequencyX = 32.f;
+        float frequencyY = 47.f;
+        float decayRateX = 0.f;
+        float decayRateY = 8.f;
+        float verticalRatio = 0.8f;
+        float strengthScale = 0.05f;
+    };
+
 private:
     ResolvedShotAssets Resolve_ShotAssets(
         const BattleShotRequest& request,
@@ -133,10 +151,13 @@ private:
         const BattleCameraPreset& preset,
         const BattleCameraClipSample& clipSample,
         EvaluatedPose& outPose) const;
+    bool Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawDegrees) const;
     BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode);
     const BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode) const;
     BattleCameraClip* Find_ClipStorage(BattleCameraMode cameraMode);
     const BattleCameraClip* Find_ClipStorage(BattleCameraMode cameraMode) const;
+    void Start_RuntimeShake(const EvtBattleCameraShake& event);
+    void Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta);
 
 private:
     void Update_EnemyAttackMode(float timeDelta);
@@ -174,10 +195,13 @@ private:
     EvtHandle            _battlePresentationHandle {};
     bool                 _isFreeAimActive = false;
     bool                 _isWideMode = false;
+    bool                 _hasWideAnchor = false;
     bool                 _isFirstUpdate = true;
     vector<BattleChar>   _heroes;
     vector<BattleChar>   _enemies;
     vector<BattleMonsterSpawnDesc> _enemySpawnDescs;
+    Vec3                 _wideAnchorHeroCenter = Vec3::Zero;
+    float                _wideAnchorYawDegrees = 0.f;
     Vec3                 _enemyPos;
     Vec3                 _playerPos;
 
@@ -202,6 +226,8 @@ private:
     mutable umap<string, BattleCameraClip> _clipsById;
     PoseTransitionState   _poseTransition{};
 
+    EvtHandle            _battleCameraShakeHandle {};
+    RuntimeShakeState    _runtimeShake {};
 public:
     static Shared<BattleTurnCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;

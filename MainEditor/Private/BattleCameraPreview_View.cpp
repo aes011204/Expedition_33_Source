@@ -39,8 +39,8 @@ constexpr float kSlotComboWidth = 112.f;
 constexpr float kFormationVec3InputWidth = 190.f;
 constexpr float kPresetInputWidth = 150.f;
 constexpr wchar_t kBattleCameraPresetFolder[] = L"../../../Client/Bin/Resources/Data/json/CameraPreset";
-constexpr int kBattleClipDebugFallbackTrackIndex = 5;
-constexpr int kBattleClipTimelineTrackCount = 17;
+constexpr int kBattleClipDebugFallbackTrackIndex = 6;
+constexpr int kBattleClipTimelineTrackCount = 18;
 const std::array<Vec3, 3> kDefaultHeroSlotOffsets =
 {
     Vec3(-2.5f, 0.f, 0.f),
@@ -125,18 +125,19 @@ const BattleCameraTrack* Get_BattleClipTrackByIndex(const BattleCameraClip& clip
     case 2: return &clip.shakeAmplitude;
     case 3: return &clip.sideOffset;
     case 4: return &clip.pivotOffset;
-    case 5: return &clip.lookHeightOffset;
-    case 6: return &clip.yawOffset;
-    case 7: return &clip.orbitYaw;
-    case 8: return &clip.orbitRadius;
-    case 9: return &clip.orbitHeight;
-    case 10: return &clip.orbitLookHeight;
-    case 11: return &clip.shakeFrequencyX;
-    case 12: return &clip.shakeFrequencyY;
-    case 13: return &clip.shakeDecayRateX;
-    case 14: return &clip.shakeDecayRate;
-    case 15: return &clip.shakeVerticalRatio;
-    case 16: return &clip.shakeStrengthScale;
+    case 5: return &clip.heightOffset;
+    case 6: return &clip.lookHeightOffset;
+    case 7: return &clip.yawOffset;
+    case 8: return &clip.orbitYaw;
+    case 9: return &clip.orbitRadius;
+    case 10: return &clip.orbitHeight;
+    case 11: return &clip.orbitLookHeight;
+    case 12: return &clip.shakeFrequencyX;
+    case 13: return &clip.shakeFrequencyY;
+    case 14: return &clip.shakeDecayRateX;
+    case 15: return &clip.shakeDecayRate;
+    case 16: return &clip.shakeVerticalRatio;
+    case 17: return &clip.shakeStrengthScale;
     default:
         return nullptr;
     }
@@ -151,18 +152,19 @@ BattleCameraTrack* Get_BattleClipTrackByIndex(BattleCameraClip& clip, int trackI
     case 2: return &clip.shakeAmplitude;
     case 3: return &clip.sideOffset;
     case 4: return &clip.pivotOffset;
-    case 5: return &clip.lookHeightOffset;
-    case 6: return &clip.yawOffset;
-    case 7: return &clip.orbitYaw;
-    case 8: return &clip.orbitRadius;
-    case 9: return &clip.orbitHeight;
-    case 10: return &clip.orbitLookHeight;
-    case 11: return &clip.shakeFrequencyX;
-    case 12: return &clip.shakeFrequencyY;
-    case 13: return &clip.shakeDecayRateX;
-    case 14: return &clip.shakeDecayRate;
-    case 15: return &clip.shakeVerticalRatio;
-    case 16: return &clip.shakeStrengthScale;
+    case 5: return &clip.heightOffset;
+    case 6: return &clip.lookHeightOffset;
+    case 7: return &clip.yawOffset;
+    case 8: return &clip.orbitYaw;
+    case 9: return &clip.orbitRadius;
+    case 10: return &clip.orbitHeight;
+    case 11: return &clip.orbitLookHeight;
+    case 12: return &clip.shakeFrequencyX;
+    case 13: return &clip.shakeFrequencyY;
+    case 14: return &clip.shakeDecayRateX;
+    case 15: return &clip.shakeDecayRate;
+    case 16: return &clip.shakeVerticalRatio;
+    case 17: return &clip.shakeStrengthScale;
     default:
         return nullptr;
     }
@@ -177,18 +179,19 @@ const char* Get_BattleClipTrackLabel(int trackIndex)
     case 2: return "Shake Amplitude";
     case 3: return "Side Offset";
     case 4: return "Pivot Offset";
-    case 5: return "Look Height Offset";
-    case 6: return "Yaw Offset";
-    case 7: return "Orbit Yaw";
-    case 8: return "Orbit Radius";
-    case 9: return "Orbit Height";
-    case 10: return "Orbit Look Height";
-    case 11: return "Shake Frequency X";
-    case 12: return "Shake Frequency Y";
-    case 13: return "Shake Decay Rate X";
-    case 14: return "Shake Decay Rate Y";
-    case 15: return "Shake Vertical Ratio";
-    case 16: return "Shake Strength Scale";
+    case 5: return "Height Offset";
+    case 6: return "Look Height Offset";
+    case 7: return "Yaw Offset";
+    case 8: return "Orbit Yaw";
+    case 9: return "Orbit Radius";
+    case 10: return "Orbit Height";
+    case 11: return "Orbit Look Height";
+    case 12: return "Shake Frequency X";
+    case 13: return "Shake Frequency Y";
+    case 14: return "Shake Decay Rate X";
+    case 15: return "Shake Decay Rate Y";
+    case 16: return "Shake Vertical Ratio";
+    case 17: return "Shake Strength Scale";
     default:
         return "Unknown";
     }
@@ -1512,6 +1515,7 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
     ImGui::SetNextItemWidth(kPresetInputWidth);
     if (Select_EnumCombo("Transition Easing", _editingBattlePreset.transitionEasing, kPresetInputWidth))
         changed = true;
+    dragFloat("Transition Duration", _editingBattlePreset.transitionDuration, 0.01f, 0.01f, 5.f);
     dragFloat("Near Plane", _editingBattlePreset.camera.nearPlane, 0.001f, 0.001f, 10.f);
     dragFloat("Far Plane", _editingBattlePreset.camera.farPlane, 1.f, 10.f, 5000.f, "%.1f");
     if (ImGui::Checkbox("Snap On Enter", &_editingBattlePreset.snapOnEnter))
@@ -2108,6 +2112,7 @@ void BattleCameraPreview_View::Render_BattleClipSequencer()
         &_previewShakeEnabled,
         &_previewSideOffsetEnabled,
         &_previewPivotOffsetEnabled,
+        &_previewHeightOffsetEnabled,
         &_previewLookHeightOffsetEnabled,
         &_previewYawOffsetEnabled,
         &_previewOrbitYawEnabled,
@@ -2187,6 +2192,26 @@ void BattleCameraPreview_View::Render_SelectedBattleClipKeyframe()
     ImGui::SetNextItemWidth(140.f);
     if (ImGui::DragFloat("Key Value", &keyframe->value, 0.01f))
         _previewDirty = true;
+
+    ImGui::SetNextItemWidth(160.f);
+    const char* interpolationLabel = magic_enum::enum_name(keyframe->interpolation).data();
+    if (ImGui::BeginCombo("Interpolation", interpolationLabel))
+    {
+        for (InterpolationMode mode : magic_enum::enum_values<InterpolationMode>())
+        {
+            const bool isSelected = keyframe->interpolation == mode;
+            if (ImGui::Selectable(magic_enum::enum_name(mode).data(), isSelected))
+            {
+                keyframe->interpolation = mode;
+                _previewDirty = true;
+            }
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
 }
 
 void BattleCameraPreview_View::Render_BattleClipDebugPanel()
@@ -2462,6 +2487,8 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
         previewClipSample.sideOffset = 0.f;
     if (!_previewPivotOffsetEnabled)
         previewClipSample.pivotOffset = 0.f;
+    if (!_previewHeightOffsetEnabled)
+        previewClipSample.heightOffset = 0.f;
     if (!_previewLookHeightOffsetEnabled)
         previewClipSample.lookHeightOffset = 0.f;
     if (!_previewOrbitYawEnabled)
@@ -3560,39 +3587,42 @@ void BattleCameraPreview_View::Insert_BattleClipKeyAtFrame(int trackIndex, int f
         track = &_editingBattleClip.pivotOffset;
         break;
     case 5:
-        track = &_editingBattleClip.lookHeightOffset;
+        track = &_editingBattleClip.heightOffset;
         break;
     case 6:
-        track = &_editingBattleClip.yawOffset;
+        track = &_editingBattleClip.lookHeightOffset;
         break;
     case 7:
-        track = &_editingBattleClip.orbitYaw;
+        track = &_editingBattleClip.yawOffset;
         break;
     case 8:
-        track = &_editingBattleClip.orbitRadius;
+        track = &_editingBattleClip.orbitYaw;
         break;
     case 9:
-        track = &_editingBattleClip.orbitHeight;
+        track = &_editingBattleClip.orbitRadius;
         break;
     case 10:
-        track = &_editingBattleClip.orbitLookHeight;
+        track = &_editingBattleClip.orbitHeight;
         break;
     case 11:
-        track = &_editingBattleClip.shakeFrequencyX;
+        track = &_editingBattleClip.orbitLookHeight;
         break;
     case 12:
-        track = &_editingBattleClip.shakeFrequencyY;
+        track = &_editingBattleClip.shakeFrequencyX;
         break;
     case 13:
-        track = &_editingBattleClip.shakeDecayRateX;
+        track = &_editingBattleClip.shakeFrequencyY;
         break;
     case 14:
-        track = &_editingBattleClip.shakeDecayRate;
+        track = &_editingBattleClip.shakeDecayRateX;
         break;
     case 15:
-        track = &_editingBattleClip.shakeVerticalRatio;
+        track = &_editingBattleClip.shakeDecayRate;
         break;
     case 16:
+        track = &_editingBattleClip.shakeVerticalRatio;
+        break;
+    case 17:
         track = &_editingBattleClip.shakeStrengthScale;
         break;
     default:
@@ -3919,6 +3949,8 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
             clipSample.sideOffset = 0.f;
         if (!_previewPivotOffsetEnabled)
             clipSample.pivotOffset = 0.f;
+        if (!_previewHeightOffsetEnabled)
+            clipSample.heightOffset = 0.f;
         if (!_previewLookHeightOffsetEnabled)
             clipSample.lookHeightOffset = 0.f;
         if (!_previewOrbitYawEnabled)
@@ -4013,10 +4045,6 @@ void BattleCameraPreview_View::Rebuild_TransitionPreviewStepAtTime(int stepIndex
         {
             Apply_TransitionStepContext(previousStep);
             fromPose = Capture_PreviewCurrentPose();
-        }
-        else
-        {
-            fromPose = toPose;
         }
         Apply_TransitionStepContext(step);
     }
@@ -4454,28 +4482,30 @@ BattleCameraTrack* BattleCameraPreview_View::Get_SelectedBattleClipTrack()
     case 4:
         return &_editingBattleClip.pivotOffset;
     case 5:
-        return &_editingBattleClip.lookHeightOffset;
+        return &_editingBattleClip.heightOffset;
     case 6:
-        return &_editingBattleClip.yawOffset;
+        return &_editingBattleClip.lookHeightOffset;
     case 7:
-        return &_editingBattleClip.orbitYaw;
+        return &_editingBattleClip.yawOffset;
     case 8:
-        return &_editingBattleClip.orbitRadius;
+        return &_editingBattleClip.orbitYaw;
     case 9:
-        return &_editingBattleClip.orbitHeight;
+        return &_editingBattleClip.orbitRadius;
     case 10:
-        return &_editingBattleClip.orbitLookHeight;
+        return &_editingBattleClip.orbitHeight;
     case 11:
-        return &_editingBattleClip.shakeFrequencyX;
+        return &_editingBattleClip.orbitLookHeight;
     case 12:
-        return &_editingBattleClip.shakeFrequencyY;
+        return &_editingBattleClip.shakeFrequencyX;
     case 13:
-        return &_editingBattleClip.shakeDecayRateX;
+        return &_editingBattleClip.shakeFrequencyY;
     case 14:
-        return &_editingBattleClip.shakeDecayRate;
+        return &_editingBattleClip.shakeDecayRateX;
     case 15:
-        return &_editingBattleClip.shakeVerticalRatio;
+        return &_editingBattleClip.shakeDecayRate;
     case 16:
+        return &_editingBattleClip.shakeVerticalRatio;
+    case 17:
         return &_editingBattleClip.shakeStrengthScale;
     default:
         return nullptr;
@@ -4510,12 +4540,12 @@ float BattleCameraPreview_View::Get_DefaultBattleClipValue(int trackIndex)
 {
     switch (trackIndex)
     {
-        case 11: return 32.f;   // shakeFrequencyX
-        case 12: return 47.f;   // shakeFrequencyY
-        case 13: return 0.f;    // shakeDecayRateX
-        case 14: return 8.f;    // shakeDecayRate
-        case 15: return 0.8f;   // shakeVerticalRatio
-        case 16: return 0.05f;  // shakeStrengthScale
+        case 12: return 32.f;   // shakeFrequencyX
+        case 13: return 47.f;   // shakeFrequencyY
+        case 14: return 0.f;    // shakeDecayRateX
+        case 15: return 8.f;    // shakeDecayRate
+        case 16: return 0.8f;   // shakeVerticalRatio
+        case 17: return 0.05f;  // shakeStrengthScale
         default: return 0.f;
     }
 }

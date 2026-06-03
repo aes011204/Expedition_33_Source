@@ -42,6 +42,7 @@ BattleTurnCamera::BattleShotRequest Build_BattleShotRequestFromEvent(const EvtBa
     request.clipId = event.clipId;
     request.useClip = event.useClip;
     request.restartClip = event.restartClip;
+    request.keepCurrentClip = event.keepCurrentClip;
 
     if (event.cameraMode == BattleCameraMode::SELECTITEM ||
         event.cameraMode == BattleCameraMode::SELECTSKILL)
@@ -132,6 +133,12 @@ HRESULT BattleTurnCamera::Initialize(void* arg)
         }
     );
 
+   _battleCameraShakeHandle = GAME->Get_EventBus().Subscribe<EvtBattleCameraShake>([this](const EvtBattleCameraShake& event)
+        {
+            Start_RuntimeShake(event);
+        }
+   );
+
     _currentRequest.mode = BattleCameraMode::WIDE;
     _currentPreset = _wideModePreset;
     _targetPreset = _wideModePreset;
@@ -200,6 +207,9 @@ void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vect
     UNREFERENCED_PARAMETER(heroes);
     UNREFERENCED_PARAMETER(enemies);
 
+    if (!_hasWideAnchor)
+        _hasWideAnchor = Try_CaptureWideAnchor(_wideAnchorHeroCenter, _wideAnchorYawDegrees);
+
     EvaluatedPose pose{};
     if (!Evaluate_WidePose(_currentPreset.camera.fovy, pose))
         return;
@@ -255,6 +265,7 @@ void BattleTurnCamera::Set_Participants(
     _heroes = heroes;
     _enemies = enemies;
     _enemySpawnDescs = enemySpawnDescs;
+    _hasWideAnchor = Try_CaptureWideAnchor(_wideAnchorHeroCenter, _wideAnchorYawDegrees);
 }
 
 void BattleTurnCamera::Reset_RuntimeState()
@@ -269,9 +280,45 @@ void BattleTurnCamera::Reset_RuntimeState()
     _enemyPos = Vec3::Zero;
     _playerPos = Vec3::Zero;
     _enemySpawnDescs.clear();
+    _hasWideAnchor = false;
+    _wideAnchorHeroCenter = Vec3::Zero;
+    _wideAnchorYawDegrees = 0.f;
     _isClipPreview = false;
     _isFirstUpdate = true;
     _isWideMode = false;
+}
+
+bool BattleTurnCamera::Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawDegrees) const
+{
+    outHeroCenter = Vec3::Zero;
+    outYawDegrees = 0.f;
+
+    uint32 heroCount = 0;
+    for (const BattleChar& hero : _heroes)
+    {
+        if (hero.actor == nullptr || hero.actor->Get_Transform() == nullptr)
+            continue;
+
+        outHeroCenter += hero.actor->Get_Transform()->Get_WorldPosition();
+        ++heroCount;
+    }
+
+    if (heroCount == 0)
+        return false;
+
+    outHeroCenter /= static_cast<float>(heroCount);
+
+    Shared<GameObject> yawBaseActor = nullptr;
+    if (_heroes.size() > 1 && _heroes[1].actor && _heroes[1].actor->Get_Transform())
+        yawBaseActor = _heroes[1].actor;
+    else if (!_heroes.empty() && _heroes[0].actor && _heroes[0].actor->Get_Transform())
+        yawBaseActor = _heroes[0].actor;
+
+    if (yawBaseActor == nullptr)
+        return false;
+
+    outYawDegrees = yawBaseActor->Get_Transform()->Get_RotationEuler().y;
+    return true;
 }
 
 BattleTurnCamera::ResolvedShotAssets BattleTurnCamera::Resolve_ShotAssets(
@@ -397,11 +444,61 @@ const BattleCameraClip* BattleTurnCamera::Find_ClipStorage(BattleCameraMode came
     }
 }
 
+void BattleTurnCamera::Start_RuntimeShake(const EvtBattleCameraShake& event)
+{
+    _runtimeShake.active = true;
+    _runtimeShake.elapsed = 0.f;
+    _runtimeShake.duration = event.duration;
+    _runtimeShake.amplitude = event.amplitude;
+    _runtimeShake.frequencyX = event.frequencyX;
+    _runtimeShake.frequencyY = event.frequencyY;
+    _runtimeShake.decayRateX = event.decayRateX;
+    _runtimeShake.decayRateY = event.decayRateY;
+    _runtimeShake.verticalRatio = event.verticalRatio;
+    _runtimeShake.strengthScale = event.strengthScale;
+}
+
+void BattleTurnCamera::Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta)
+{
+
+  if(!_runtimeShake.active)
+      return;
+
+    _runtimeShake.elapsed += timeDelta;
+
+    Vec3 forward = pose.lookTarget - pose.cameraPos;
+
+    forward.Normalize();
+
+    Vec3 right = Vec3::Up.Cross(forward);
+
+    right.Normalize();
+
+    Vec3 up = forward.Cross(right);
+    up.Normalize();
+
+   const Vec3 shakeOffset = Sample_BattleCameraShakeOffset(_runtimeShake.amplitude,
+       _runtimeShake.verticalRatio,
+       _runtimeShake.strengthScale,
+       _runtimeShake.frequencyX,
+       _runtimeShake.frequencyY,
+       _runtimeShake.decayRateX,
+       _runtimeShake.decayRateY,
+       _runtimeShake.elapsed,
+       right,
+       up);
+
+    pose.cameraPos += shakeOffset;
+    pose.lookTarget += shakeOffset;
+
+    if(_runtimeShake.elapsed >= _runtimeShake.duration)
+        _runtimeShake.active = false;
+}
+
 const BattleCameraPreset* BattleTurnCamera::Resolve_BattleCameraPresetById(BattleCameraMode mode, const string& presetId) const
 {
     //if (presetId.empty())
     //    return nullptr;
-
     const string cacheKey = string(magic_enum::enum_name(mode)) + ":" + presetId;
     if (auto iter = _presetsById.find(cacheKey); iter != _presetsById.end())
         return &iter->second;
@@ -473,47 +570,31 @@ BattleTurnCamera::EvaluatedPose BattleTurnCamera::Capture_CurrentPose()
 
 bool BattleTurnCamera::Evaluate_WidePose(float fovY, EvaluatedPose& outPose) const
 {
+    auto selectDominantOffset = [](float current, float candidate)
+    {
+        return fabsf(candidate) > fabsf(current) ? candidate : current;
+    };
+
     float wideBackOffset = 0.f;
     float wideHeightOffset = 0.f;
     float wideLookHeightOffset = 0.f;
 
     for (const BattleMonsterSpawnDesc& spawnDesc : _enemySpawnDescs)
     {
-        wideBackOffset = std::max(wideBackOffset, spawnDesc.wideBackOffset);
-        wideHeightOffset = std::max(wideHeightOffset, spawnDesc.wideHeightOffset);
-        wideLookHeightOffset = std::max(wideLookHeightOffset, spawnDesc.wideLookHeightOffset);
+        wideBackOffset = selectDominantOffset(wideBackOffset, spawnDesc.wideBackOffset);
+        wideHeightOffset = selectDominantOffset(wideHeightOffset, spawnDesc.wideHeightOffset);
+        wideLookHeightOffset = selectDominantOffset(wideLookHeightOffset, spawnDesc.wideLookHeightOffset);
     }
 
-    Vec3 heroCenter = Vec3::Zero;
-    uint32 heroCount = 0;
+    Vec3 heroCenter = _wideAnchorHeroCenter;
+    float yawDegrees = _wideAnchorYawDegrees;
 
-    for (const BattleChar& hero : _heroes)
-    {
-        if (hero.actor == nullptr || hero.actor->Get_Transform() == nullptr)
-            continue;
-
-        heroCenter += hero.actor->Get_Transform()->Get_WorldPosition();
-        ++heroCount;
-    }
-
-    if (heroCount == 0)
+    if (!_hasWideAnchor && !Try_CaptureWideAnchor(heroCenter, yawDegrees))
         return false;
 
-    heroCenter /= static_cast<float>(heroCount);
-
-    Shared<GameObject> yawBaseActor = nullptr;
-    if (_heroes.size() > 1 && _heroes[1].actor && _heroes[1].actor->Get_Transform())
-        yawBaseActor = _heroes[1].actor;
-    else if (!_heroes.empty() && _heroes[0].actor && _heroes[0].actor->Get_Transform())
-        yawBaseActor = _heroes[0].actor;
-
-    if (yawBaseActor == nullptr)
-        return false;
-
-    const Vec3 baseRot = yawBaseActor->Get_Transform()->Get_RotationEuler();
     return Evaluate_BattleTurnWidePose(
         heroCenter,
-        baseRot.y,
+        yawDegrees,
         fovY,
         wideBackOffset,
         wideHeightOffset,
@@ -627,7 +708,7 @@ bool BattleTurnCamera::Start_PoseTransition(
     Reset_ClipPlaybackState();
 
     _poseTransition.active = true;
-    _poseTransition.elapsed = 0.f;
+        _poseTransition.elapsed = 0.f;
     _poseTransition.duration = preset.transitionDuration;
     _poseTransition.easing = preset.transitionEasing;
     _poseTransition.fromPose = fromPose;
@@ -649,6 +730,7 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
     _poseTransition.elapsed += clampedDelta;
     const float duration = std::max(0.0001f, _poseTransition.duration);
     const float t = std::clamp(_poseTransition.elapsed / duration, 0.f, 1.f);
+
     float  easedT = Evaluate_CameraTransitionT(_poseTransition.easing, t);
     EvaluatedPose blended{};
 
@@ -684,7 +766,7 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
 
     if (hasClippedTargetPose)
     {
-        float targetCorrectionWeight  = 0.25f;
+        float targetCorrectionWeight  = 0.05f;
 
         blended.cameraPos += (clippedTargetPose.cameraPos - _poseTransition.toPose.cameraPos) * targetCorrectionWeight;
         blended.lookTarget += (clippedTargetPose.lookTarget - _poseTransition.toPose.lookTarget) * targetCorrectionWeight;
@@ -692,6 +774,7 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
         blended.rollOffset += (clippedTargetPose.rollOffset - _poseTransition.toPose.rollOffset) * targetCorrectionWeight;
     }
 
+    Apply_RuntimeShake(blended, timeDelta);
     Apply_EvaluatedPose(blended);
 
     if (t < 1.f)
@@ -754,9 +837,14 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         _currentRequest.clipId == request.clipId &&
         _currentRequest.useClip == request.useClip;
 
-    const bool isSameClip = _currentRequest.clipId == request.clipId && _currentRequest.useClip == request.useClip && _currentRequest.mode == request.mode;
-    const bool shouldDisableClip = request.useClip == false;
-    const bool shouldRestartClip = request.restartClip || !isSameClip;
+    const bool isSamePreset = _currentRequest.presetId == request.presetId && _currentRequest.mode == request.mode;
+    const bool isSameClip =
+        _currentRequest.clipId == request.clipId &&
+        _currentRequest.useClip == request.useClip &&
+        _currentRequest.mode == request.mode;
+    const bool shouldKeepCurrentClip = request.useClip == false && request.keepCurrentClip;
+    const bool shouldDisableClip = request.useClip == false && !request.keepCurrentClip;
+    const bool shouldRestartClip = !shouldKeepCurrentClip && (request.restartClip || !isSameClip);
 
     if (isSameRequest &&
         request.restartClip == false &&
@@ -780,19 +868,24 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         _yaw = 0.f;
         _pitch = 0.f;
     }
+    const BattleCameraPreset* resolvedPresetById;
+    const BattleCameraClip* resolvedClipById;
 
-    const BattleCameraPreset* resolvedPresetById = Resolve_BattleCameraPresetById(request.mode, request.presetId);
-    const BattleCameraClip* resolvedClipById = Resolve_BattleCameraClipById(request.mode, request.clipId);
+    resolvedPresetById = Resolve_BattleCameraPresetById(request.mode, request.presetId);
+    resolvedClipById = Resolve_BattleCameraClipById(request.mode, request.clipId);
 
     if (!request.presetId.empty() && resolvedPresetById == nullptr)
         return;
 
     ResolvedShotAssets resolvedAssets = Resolve_ShotAssets(request, resolvedPresetById, resolvedClipById);
     BattleCameraClip* nextActiveClip = resolvedAssets.clip;
+
     BattleCameraPreset nextPreset = resolvedAssets.preset;
 
-    if(request.useClip == false)
+    if (shouldDisableClip)
         nextActiveClip = nullptr;
+    else if (shouldKeepCurrentClip)
+        nextActiveClip = _activeClip;
 
     Vec3 targetSmoothedTargetPos = _smoothedTargetPos;
     Vec3 targetPrevTargetPos = _prevTargetPos;
@@ -860,7 +953,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         return;
     }
 
-    if (Should_StartPoseTransition(request))
+    if ((Should_StartPoseTransition(request)&&!isSamePreset)|| shouldReAnchored)
     {
         if (Start_PoseTransition(request, nextPreset, nextActiveClip, targetSmoothedTargetPos, targetPrevTargetPos))
             return;
@@ -872,6 +965,9 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     {
         _activeClip = nextActiveClip;
         Reset_ClipPlaybackState();
+    }
+    else if (shouldKeepCurrentClip)
+    {
     }
     else if(shouldDisableClip)
     {
@@ -934,7 +1030,7 @@ void BattleTurnCamera::Update_EnemyAttackMode(float timeDelta)
     EvaluatedPose pose{};
     if (!Evaluate_EnemyAttackPose(enemyPos, playerPos, _currentPreset, clip, pose))
         return;
-
+    Apply_RuntimeShake(pose,timeDelta);
     Apply_EvaluatedPose(pose);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
@@ -956,6 +1052,7 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
     
     EvaluatedPose pose{};
     Evaluate_CurrentPresetPose(_smoothedTargetPos, _currentPreset, clip, _yaw, _pitch, &_smoothedTargetPos, pose);
+    Apply_RuntimeShake(pose,timeDelta);
     Apply_EvaluatedPose(pose);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
@@ -1259,6 +1356,13 @@ void BattleTurnCamera::Free()
     {
         GAME->Get_EventBus().Unsubscribe(_battlePresentationHandle);
         _battlePresentationHandle = {};
+    }
+
+    if (_battleCameraShakeHandle.IsValid())
+    {
+        GAME->Get_EventBus().Unsubscribe(_battleCameraShakeHandle);
+        _battleCameraShakeHandle = {};
+
     }
 
     Camera::Free();
