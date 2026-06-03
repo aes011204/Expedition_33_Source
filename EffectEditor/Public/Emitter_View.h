@@ -37,6 +37,7 @@ public: //## Accessor::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
     const ParticleSystemAuthoringData& Get_ParticleSystemData() const { return _particleSystemData; }
     const vector<AuthoringEmitter>& Get_Emitters() const { return _emitters; }
+    const optional<fs::path>& Get_CurrentDocumentPath() const { return _currentDocumentPath; }
     AuthoringEmitter* Find_Emitter(uint32 emitterId);
     AuthoringModule* Find_Module(uint32 emitterId, uint32 moduleId);
     AuthoringEmitter* Get_SelectedOrFirstEmitter();
@@ -120,6 +121,8 @@ private: //## Data::Authoring
     ParticleSystemAuthoringData _particleSystemData{};
     // 현재 편집 중인 effect의 emitter 목록이다.
     vector<AuthoringEmitter> _emitters{};
+    // 현재 authoring 문서가 기존 effect 파일과 연결되어 있으면 그 경로를 보관한다.
+    optional<fs::path> _currentDocumentPath{};
     // 저장용 id가 아니라 editor 세션 안에서 emitter/module을 구분하기 위한 임시 id 발급값이다.
     uint32 _nextAuthoringId{ 1 };
 

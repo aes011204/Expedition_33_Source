@@ -45,6 +45,20 @@ float Hash01(uint32 seed)
     return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
 }
 
+float Resolve_EvenByParticleIndexAngleRatio(uint32 particleIndex, uint32 maxActiveCount, float angleMinDegrees, float angleMaxDegrees)
+{
+    const uint32 clampedCount = max(1u, maxActiveCount);
+    if (clampedCount <= 1u)
+        return 0.f;
+
+    const float angleSpanDegrees = fabsf(angleMaxDegrees - angleMinDegrees);
+    const bool isFullCircle = fabsf(angleSpanDegrees - 360.f) <= kPlaneRadialEpsilon;
+    if (isFullCircle)
+        return static_cast<float>(particleIndex) / static_cast<float>(clampedCount);
+
+    return static_cast<float>(particleIndex) / static_cast<float>(clampedCount - 1u);
+}
+
 Vec3 Normalize_OrFallback(const Vec3& value, const Vec3& fallback)
 {
     if (value.LengthSquared() <= kPlaneRadialEpsilon * kPlaneRadialEpsilon)
@@ -362,6 +376,21 @@ bool MeshEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
 
     outWorldPosition = _transformCom->Get_WorldPosition();
     return true;
+}
+
+EffectSortPolicy MeshEmitter::Get_BlendSortPolicy() const
+{
+    return _desc.sort.sortPolicy;
+}
+
+int32 MeshEmitter::Get_BlendSortLayer() const
+{
+    return _desc.sort.sortLayer;
+}
+
+float MeshEmitter::Get_BlendSortBias() const
+{
+    return _desc.sort.artistSortBias;
 }
 
 void MeshEmitter::On_EffectTransformSynced()
@@ -1224,6 +1253,8 @@ void MeshEmitter::Spawn_Particles(uint32 spawnRequest)
     }
 
     uint32 remainingRequest = min(spawnRequest, maxActiveCount > activeCount ? maxActiveCount - activeCount : 0u);
+    const uint32 placementCount = max(1u, remainingRequest);
+    uint32 placementIndex = 0u;
     while (remainingRequest > 0u)
     {
         bool activated = false;
@@ -1239,9 +1270,11 @@ void MeshEmitter::Spawn_Particles(uint32 spawnRequest)
                 particle,
                 index * 9781u + _nextSpawnCursor * 6271u + _loopIndex * 7919u + emitterSeed + 1u,
                 index,
-                maxActiveCount
+                placementIndex,
+                placementCount
             );
             _nextSpawnCursor = (index + 1u) % static_cast<uint32>(_particles.size());
+            ++placementIndex;
             --remainingRequest;
             activated = true;
             break;
@@ -1252,12 +1285,12 @@ void MeshEmitter::Spawn_Particles(uint32 spawnRequest)
     }
 }
 
-void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, uint32 particleIndex, uint32 maxActiveCount)
+void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, uint32 particleIndex, uint32 placementIndex, uint32 placementCount)
 {
     const float lifeMin = max(0.0001f, min(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
     const float lifeMax = max(lifeMin, max(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
     PlaneRadialSample planeRadialSample{};
-    const Vec3 spawnOffset = Sample_InitialOffset(seed, particleIndex, maxActiveCount, planeRadialSample);
+    const Vec3 spawnOffset = Sample_InitialOffset(seed, particleIndex, placementIndex, placementCount, planeRadialSample);
     Vec3 spawnPosition = spawnOffset;
     if (!_useLocalSpace && _transformCom != nullptr)
         spawnPosition += _transformCom->Get_WorldPosition();
@@ -1421,7 +1454,8 @@ Vec3 MeshEmitter::Resolve_ParticleWorldPosition(const MeshParticleState& particl
 Vec3 MeshEmitter::Sample_InitialOffset(
     uint32 seed,
     uint32 particleIndex,
-    uint32 maxActiveCount,
+    uint32 placementIndex,
+    uint32 placementCount,
     PlaneRadialSample& outPlaneRadialSample) const
 {
     Vec3 offset{};
@@ -1481,15 +1515,21 @@ Vec3 MeshEmitter::Sample_InitialOffset(
         {
             const float radiusMin = min(_desc.planeRadialLocation.radiusRange.x, _desc.planeRadialLocation.radiusRange.y);
             const float radiusMax = max(_desc.planeRadialLocation.radiusRange.x, _desc.planeRadialLocation.radiusRange.y);
-            const float angleMin = XMConvertToRadians(_desc.planeRadialLocation.angleDegreesRange.x);
-            const float angleMax = XMConvertToRadians(_desc.planeRadialLocation.angleDegreesRange.y);
+            const float angleMinDegrees = _desc.planeRadialLocation.angleDegreesRange.x;
+            const float angleMaxDegrees = _desc.planeRadialLocation.angleDegreesRange.y;
+            const float angleMin = XMConvertToRadians(angleMinDegrees);
+            const float angleMax = XMConvertToRadians(angleMaxDegrees);
             const float radius = RandomRange(
                 radiusMin,
                 radiusMax,
                 seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.radiusSeed) + 1601u
             );
             const float angleRatio = _desc.planeRadialLocation.placementMode == PointParticlePlaneRadialLocationPlacementMode::EvenByParticleIndex
-                                     ? static_cast<float>(particleIndex) / static_cast<float>(max(1u, maxActiveCount))
+                                     ? Internal::Resolve_EvenByParticleIndexAngleRatio(
+                                         placementIndex,
+                                         placementCount,
+                                         angleMinDegrees,
+                                         angleMaxDegrees)
                                      : Random01(seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.angleDegreesSeed) + 1613u);
             sampleAngle = lerp(angleMin, angleMax, angleRatio);
             u = cosf(sampleAngle) * radius;
@@ -1898,8 +1938,8 @@ RenderGroup MeshEmitter::Resolve_RenderGroup() const
     if (Is_DistortionFamily())
         return RenderGroup::Distortion;
 
-    return _desc.material.blendMode == EffectMaterialBlendMode::Modulate
-           ? RenderGroup::NonBlend
+    return _desc.material.blendMode == EffectMaterialBlendMode::Masked
+           ? RenderGroup::EffectMasked
            : RenderGroup::Blend;
 }
 
@@ -1909,9 +1949,12 @@ uint32 MeshEmitter::Resolve_ShaderPassIndex() const
         return 0u;
 
     const bool additive = _desc.material.blendMode == EffectMaterialBlendMode::Additive;
+    const bool masked = _desc.material.blendMode == EffectMaterialBlendMode::Masked;
     const bool twoSided = _desc.material.twoSided;
     if (additive)
         return twoSided ? 3u : 1u;
+    if (masked)
+        return twoSided ? 5u : 4u;
     return twoSided ? 2u : 0u;
 }
 

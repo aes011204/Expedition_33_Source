@@ -544,6 +544,8 @@ namespace Internal
             return "AlphaBlend";
         case EffectMaterialBlendMode::Additive:
             return "Additive";
+        case EffectMaterialBlendMode::Masked:
+            return "Masked";
         case EffectMaterialBlendMode::Modulate:
             return "Modulate";
         default:
@@ -559,6 +561,7 @@ namespace Internal
         static constexpr EffectMaterialBlendMode kModes[]{
             EffectMaterialBlendMode::AlphaBlend,
             EffectMaterialBlendMode::Additive,
+            EffectMaterialBlendMode::Masked,
             EffectMaterialBlendMode::Modulate
         };
 
@@ -574,7 +577,8 @@ namespace Internal
                 const bool selected = value == mode;
                 const bool selectable =
                     mode == EffectMaterialBlendMode::AlphaBlend ||
-                    mode == EffectMaterialBlendMode::Additive;
+                    mode == EffectMaterialBlendMode::Additive ||
+                    mode == EffectMaterialBlendMode::Masked;
 
                 if (!selectable)
                     ImGui::BeginDisabled();
@@ -965,6 +969,14 @@ namespace Internal
         ImGui::PopID();
     }
 
+    void Draw_ReadOnlyFloatProperty(DetailPropertyContext& detailContext, const char* label, float value)
+    {
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::TextDisabled("%.3f", value);
+        ImGui::PopID();
+    }
+
     void Draw_ReadOnlyCheckedBoolProperty(DetailPropertyContext& detailContext, const char* label, bool value, const char* tooltip = nullptr)
     {
         ImGui::PushID(label);
@@ -1141,9 +1153,12 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
     EffectMaterialInstanceData& material,
     bool* outRestartPreview,
     EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode,
-    bool disableMeshDistortionShapeControls)
+    bool disableMeshDistortionShapeControls,
+    const EffectMaterialRenderPolicyBinding* renderPolicyBinding)
 {
     const EffectMaterialInstanceData defaultData{};
+    const EffectMaterialBlendMode effectiveBlendMode =
+        renderPolicyBinding != nullptr ? renderPolicyBinding->blendMode : material.blendMode;
     bool changed = false;
     bool restartPreview = false;
 
@@ -1251,7 +1266,10 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 std::size(sourceOptions)
             );
             changed |= detailPropertyContext.Draw_BoolProperty("Mask Invert", material.maskInvert, defaultData.maskInvert);
-            changed |= detailPropertyContext.Draw_FloatProperty("Alpha Cutoff", material.alphaCutoff, defaultData.alphaCutoff);
+            if (renderPolicyBinding != nullptr)
+                Internal::Draw_ReadOnlyFloatProperty(detailPropertyContext, "Alpha Cutoff", renderPolicyBinding->alphaCutoff);
+            else
+                changed |= detailPropertyContext.Draw_FloatProperty("Alpha Cutoff", material.alphaCutoff, defaultData.alphaCutoff);
             changed |= detailPropertyContext.Draw_FloatProperty("Alpha Erosion", material.alphaErosion, defaultData.alphaErosion);
             const bool maskModeChanged = Internal::Draw_UVTilingModeProperty(
                 detailPropertyContext,
@@ -1373,7 +1391,21 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 "Family",
                 Internal::Get_MaterialFamilyLabel(material.materialFamily)
             );
-            changed |= Internal::Draw_BlendModeProperty(detailPropertyContext, material.blendMode, defaultData.blendMode);
+            if (renderPolicyBinding != nullptr)
+            {
+                Internal::Draw_ReadOnlyTextProperty(
+                    detailPropertyContext,
+                    "Render Policy Source",
+                    renderPolicyBinding->sourceLabel
+                );
+                Internal::Draw_ReadOnlyTextProperty(
+                    detailPropertyContext,
+                    "Blend Mode",
+                    Internal::Get_BlendModeLabel(renderPolicyBinding->blendMode)
+                );
+            }
+            else
+                changed |= Internal::Draw_BlendModeProperty(detailPropertyContext, material.blendMode, defaultData.blendMode);
             switch (twoSidedDisplayMode)
             {
             case EffectMaterialTwoSidedDisplayMode::EditableImplemented:
@@ -1399,7 +1431,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             detailPropertyContext.End_PropertyTable();
         }
 
-        if (material.blendMode == EffectMaterialBlendMode::Additive)
+        if (effectiveBlendMode == EffectMaterialBlendMode::Additive)
             changed |= Internal::Draw_AdditiveContributionPanel(detailPropertyContext, material.additive, defaultData.additive);
 
         if (twoSidedDisplayMode == EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly)

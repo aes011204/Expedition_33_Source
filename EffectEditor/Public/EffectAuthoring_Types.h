@@ -89,6 +89,12 @@ enum class EmitterSortMode : uint8
     AgeNewestFirst,
 };
 
+enum class EmitterSortPolicy : uint8
+{
+    None,
+    EmitterDepth,
+};
+
 enum class DistributionValueKind : uint8
 {
     Float,
@@ -563,6 +569,8 @@ struct RequiredModuleData
     float minCameraBlendDistance{ 0.f };
     float maxCameraBlendDistance{ 0.f };
     bool useLocalSpace{ true };
+    EmitterSortPolicy sortPolicy{ EmitterSortPolicy::None };
+    int32 sortLayer{ 0 };
     EmitterSortMode sortMode{ EmitterSortMode::None };
     float sortBias{ 0.f };
     float cameraMotionBlurAmount{ 0.f };

@@ -94,6 +94,7 @@ HRESULT EffectEditorInstance::Initialize_Editor(const EffectEditorDesc& editorDe
     _runtimeState = EffectEditorRuntimeState::Edit;
     _runtimeTimeScale = 1.f;
     _isTrailPreviewVisible = false;
+    _isPreviewPlaneVisible = false;
     _isEffectInfluenceOutlineEnabled = false;
     ComputeSpriteEmitter::Set_InfluenceOutlineDebugEnabled(false);
     _hasClientPostProcessSnapshot = false;
@@ -385,6 +386,11 @@ void EffectEditorInstance::Request_RestartPreview()
 void EffectEditorInstance::Set_TrailPreviewVisible(bool visible)
 {
     _isTrailPreviewVisible = visible;
+}
+
+void EffectEditorInstance::Set_PreviewPlaneVisible(bool visible)
+{
+    _isPreviewPlaneVisible = visible;
 }
 
 void EffectEditorInstance::Set_TrailPreviewDebugRenderEnabled(bool enabled)
