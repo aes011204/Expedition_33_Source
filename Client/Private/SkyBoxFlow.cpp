@@ -13,6 +13,31 @@ IMPLEMENT_REFLECTION(SkyBoxFlow)
     info.displayName = "SkyBoxFlow";
     info.category = "World";
 
+    info.properties.push_back(PropertyInfo{
+        "_tint", "Tint", "_tint",
+        PropertyType::Vec4, offsetof(SelfType, _tint),
+        0.f, 0.f, 0.01f });
+
+    info.properties.push_back(PropertyInfo{
+        "_brightness", "Brightness", "_brightness",
+        PropertyType::Float, offsetof(SelfType, _brightness),
+        0.f, 0.f, 1.f });
+
+    info.properties.push_back(PropertyInfo{
+        "_contrast", "Contrast", "_contrast",
+        PropertyType::Float, offsetof(SelfType, _contrast),
+        0.f, 0.f, 0.01f });
+
+    info.properties.push_back(PropertyInfo{
+        "_noiseStrength", "Noise Strength", "_noiseStrength",
+        PropertyType::Float, offsetof(SelfType, _noiseStrength),
+        0.f, 0.f, 0.01f });
+
+    info.properties.push_back(PropertyInfo{
+        "_speed", "Flow Speed", "_speed",
+        PropertyType::Float, offsetof(SelfType, _speed),
+        0.f, 0.f, 0.0001f });
+
     return true;
 }
 
@@ -33,7 +58,7 @@ HRESULT SkyBoxFlow::Initialize_Prototype()
 
 HRESULT SkyBoxFlow::Initialize(void* pArg)
 {
-    if (FAILED(__super::Initialize(pArg)))
+    if (FAILED(GameObject::Initialize(pArg)))
         return E_FAIL;
 
     SKYBOXFLOW_DESC desc{};
@@ -125,41 +150,22 @@ HRESULT SkyBoxFlow::Bind_ShaderResources()
         }
     }
 
-    if (FAILED(_transformCom->Bind_ShaderResource(_shader.get(), "g_WorldMatrix")))
-        return E_FAIL;
+    CHECK_FAILED(_shader->Bind_ObjectCB(_transformCom->Get_WorldMatrix()), E_FAIL);
+    CHECK_FAILED(GAME->Bind_CameraCB(_shader), E_FAIL);
 
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::View, _shader.get(), "g_ViewMatrix")))
-        return E_FAIL;
+    CHECK_FAILED(_skyTexture->Bind_ShaderResourceView(_shader.get(), "g_SkyTexture", 0), E_FAIL);
+    CHECK_FAILED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);
+    CHECK_FAILED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
 
-    if (FAILED(GAME->Bind_TransformMatrix(D3DTS::Proj, _shader.get(), "g_ProjMatrix")))
-        return E_FAIL;
+    DrawFeatureCB skyBoxCB{};
+    skyBoxCB.param0 = _tint; // M_Flowmap_CleasTower의 Tint.
+    skyBoxCB.param1 = Vec4(
+        _brightness,
+        _contrast,
+        _noiseStrength,
+        _materialTime * _speed); // shader는 누적된 flow offset만 소비한다.
 
-    if (FAILED(_skyTexture->Bind_ShaderResourceView(_shader.get(), "g_SkyTexture", 0)))
-        return E_FAIL;
-
-    if (FAILED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0)))
-        return E_FAIL;
-
-    if (FAILED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0)))
-        return E_FAIL;
-
-    if (FAILED(_shader->Bind_RawValue("g_Tint", &_tint, sizeof(Vec4))))
-        return E_FAIL;
-
-    if (FAILED(_shader->Bind_RawValue("g_Brightness", &_brightness, sizeof(float))))
-        return E_FAIL;
-
-    if (FAILED(_shader->Bind_RawValue("g_Contrast", &_contrast, sizeof(float))))
-        return E_FAIL;
-
-    if (FAILED(_shader->Bind_RawValue("g_NoiseStrength", &_noiseStrength, sizeof(float))))
-        return E_FAIL;
-
-    if (FAILED(_shader->Bind_RawValue("g_Speed", &_speed, sizeof(float))))
-        return E_FAIL;
-
-    if (FAILED(_shader->Bind_RawValue("g_MaterialTime", &_materialTime, sizeof(float))))
-        return E_FAIL;
+    CHECK_FAILED(_shader->Bind_CBufferData(skyBoxCB), E_FAIL);
 
     return S_OK;
 }

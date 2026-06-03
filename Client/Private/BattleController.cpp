@@ -1373,6 +1373,10 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
         const BattleChar& target = _freeAimShotAction.GetInitTarget();
 
         DamageSystem::ApplyDamage(freeAimDamage, attacker, target, AttackType::FreeAimLight);
+
+        // 약점 파츠를 맞췄을 때만 추가딜
+        if (_hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor)
+            Try_ApplyFreeAimWeakPointBonus(_freeAimHitTarget, attacker);
     }
 
     _freeAimShotAction.InitActionDirection();
@@ -1659,9 +1663,9 @@ bool BattleController::Can_TriggerVictory() const
     return true;
 }
 
-void BattleController::Set_FreeAimHitTarget(const BattleChar& target)
+void BattleController::Set_FreeAimHitTarget(const BattleFreeAimHitTarget& target)
 {
-    if (target.actor == nullptr || target.statCom == nullptr)
+    if (!target.Is_Valid())
     {
         Clear_FreeAimHitTarget();
         return;
@@ -1741,10 +1745,14 @@ void BattleController::Handle_BattleTargetDeathCollision(const BattleChar& deadT
 
     deadTarget.actor->Set_BattleColliderActive(false);
 
+    // 죽은 동안 약점 파츠 query/effect가 남지 않게 본체 owner가 같이 정리
+    if (const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(deadTarget.actor))
+        monster->Hide_FreeAimWeakPoint();
+
     if (_hasTargetPreview && _targetPreview.actor == deadTarget.actor)
         Clear_TargetPreview();
 
-    if (_hasFreeAimHitTarget && _freeAimHitTarget.actor == deadTarget.actor)
+    if (_hasFreeAimHitTarget && _freeAimHitTarget.target.actor == deadTarget.actor)
         Clear_FreeAimHitTarget(); 
 }
 
@@ -1754,6 +1762,10 @@ void BattleController::Restore_BattleTargetCollision(const BattleChar& revivedTa
         return;
 
     revivedTarget.actor->Set_BattleColliderActive(true);
+
+    // 부활하면 약점도 다시 세팅
+    if (const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(revivedTarget.actor))
+        monster->Reset_FreeAimWeakPoint();
 }
 
 void BattleController::Apply_Buff(const BattleChar& target, Buffs buffId, uint32 stack, int32 durationTurn)
@@ -1926,8 +1938,33 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleStartSpawnerId = 0;
 }
 
+bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarget& hitTarget,
+    const BattleChar& attacker)
+{
+    if (!hitTarget.Is_Valid() || hitTarget.hitPart != FreeAimHitPart::WeakPoint)
+        return false;
+
+    const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(hitTarget.target.actor);
+    if (monster == nullptr)
+        return false;
+
+    if (!monster->Try_Consume_FreeAimWeakPoint())
+        return false; // 이미 소비됐으면 추가딜 없이 본체 피격만 남긴다.
+
+    // 일단은 강제 20 추가딜
+    constexpr float freeAimWeakPointBonusDamage = 20.f;
+
+    DamageSystem::ApplyDamage(
+        freeAimWeakPointBonusDamage,
+        attacker,
+        hitTarget.target,
+        AttackType::FreeAimWeak);
+
+    return true;
+}
+
 void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<CombatStatCom>& battleStat,
-    const Shared<SkillTreeCom>& worldSkillTreeCom)
+                                                    const Shared<SkillTreeCom>& worldSkillTreeCom)
 {
     if (battleStat == nullptr)
         return;
