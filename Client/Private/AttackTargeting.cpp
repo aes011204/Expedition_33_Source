@@ -114,6 +114,7 @@ void AttackTargeting::Update(float timeDelta)
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::ENEMYFOCUS;
         event.subject = enemies[TargetIndex].actor;
+        event.presetId = enemies[TargetIndex].actor->Get_SourcePrefabName();
         GAME->Get_EventBus().Publish(event);
 
         LOG_DEBUG("TARGETTING {}", TargetIndex);
@@ -133,6 +134,7 @@ void AttackTargeting::Update(float timeDelta)
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::ENEMYFOCUS;
         event.subject = enemies[TargetIndex].actor;
+        event.presetId = enemies[TargetIndex].actor->Get_SourcePrefabName();
         GAME->Get_EventBus().Publish(event);
 
         LOG_DEBUG("TARGETTING {}", TargetIndex);

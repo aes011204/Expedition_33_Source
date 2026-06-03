@@ -839,6 +839,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         _currentRequest.clipId == request.clipId &&
         _currentRequest.useClip == request.useClip &&
         _currentRequest.mode == request.mode;
+
     const bool shouldKeepCurrentClip = request.useClip == false && request.keepCurrentClip;
     const bool shouldDisableClip = request.useClip == false && !request.keepCurrentClip;
     const bool shouldRestartClip = !shouldKeepCurrentClip && (request.restartClip || !isSameClip);

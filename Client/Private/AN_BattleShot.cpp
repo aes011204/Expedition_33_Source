@@ -45,7 +45,7 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
         return;
     
     EvtBattlePresentation event {};
-    event.cameraMode = _cameraMode;
+        event.cameraMode = _cameraMode;
 
     if(event.cameraMode == BattleCameraMode::PARRY)
     {
