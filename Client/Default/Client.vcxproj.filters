@@ -399,8 +399,6 @@
     <ClCompile Include="..\Private\ClientScreenFxManager.cpp" />
     <ClCompile Include="..\Private\Distortion_ScreenFx.cpp" />
     <ClCompile Include="..\Private\RadialBlur_ScreenFx.cpp" />
-    <ClCompile Include="..\Private\ANS_WeaponRotate.cpp" />
-    <ClCompile Include="..\Private\ANS_Visible_Parts.cpp" />
     <ClCompile Include="..\Private\Base_Gustave_Attack.cpp" />
     <ClCompile Include="..\private\BT_IsStun.cpp" />
     <ClCompile Include="..\private\BT_Stun.cpp" />
@@ -418,10 +416,23 @@
     <ClCompile Include="..\Private\BattleQTEController.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
     <ClCompile Include="..\private\Mon_WeakPoint.cpp" />
-    <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp" />
+    <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp">
+      <Filter>95. AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp">
+      <Filter>95. AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp">
+      <Filter>95. AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_Visible_Parts.cpp">
+      <Filter>95. AnimNotify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ANS_WeaponRotate.cpp">
+      <Filter>95. AnimNotify</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1193,8 +1204,6 @@
     <ClInclude Include="..\Public\ClientScreenFxManager.h" />
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\RadialBlur_ScreenFx.h" />
-    <ClInclude Include="..\Public\ANS_WeaponRotate.h" />
-    <ClInclude Include="..\Public\ANS_Visible_Parts.h" />
     <ClInclude Include="..\Public\Base_Gustave_Attack.h" />
     <ClInclude Include="..\public\BT_IsStun.h" />
     <ClInclude Include="..\public\BT_Stun.h" />
@@ -1215,7 +1224,18 @@
     </ClInclude>
     <ClInclude Include="..\Public\UI_MarkEffect.h" />
     <ClInclude Include="..\public\Mon_WeakPoint.h" />
-    <ClInclude Include="..\Public\ANS_CounterTimeScale.h" />
+    <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h">
+      <Filter>95. AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_CounterTimeScale.h">
+      <Filter>95. AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_Visible_Parts.h">
+      <Filter>95. AnimNotify</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ANS_WeaponRotate.h">
+      <Filter>95. AnimNotify</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
