@@ -924,7 +924,8 @@ void GameplayUI_Battle::Update_MonsterHpBar(float timeDelta)
 
     if (battleController != nullptr)
     {
-        trackedTarget = battleController->Get_FreeAimHitTarget();
+        if (const BattleFreeAimHitTarget* freeAimTarget = battleController->Get_FreeAimHitTarget())
+            trackedTarget = &freeAimTarget->target; // HP bar는 약점 여부가 아니라 실제 몬스터 BattleChar만 추적하면 된다.
 
         if (trackedTarget == nullptr)
             trackedTarget = battleController->Get_TargetPreview();

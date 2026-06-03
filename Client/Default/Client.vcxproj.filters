@@ -422,6 +422,9 @@
     <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
     <ClCompile Include="..\private\Mon_WeakPoint.cpp" />
     <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp" />
+    <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
+    <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp" />
+    <ClCompile Include="..\Private\SkyCloudCard.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -552,6 +555,12 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewDistortion.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_SkyBoxFlow.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_SkyCloudCard.hlsl">
+      <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1216,6 +1225,9 @@
     <ClInclude Include="..\Public\UI_MarkEffect.h" />
     <ClInclude Include="..\public\Mon_WeakPoint.h" />
     <ClInclude Include="..\Public\ANS_CounterTimeScale.h" />
+    <ClInclude Include="..\Public\SkyBoxFlow.h" />
+    <ClInclude Include="..\Public\AN_WorldFreeAimHit.h" />
+    <ClInclude Include="..\Public\SkyCloudCard.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

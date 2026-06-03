@@ -1,11 +1,17 @@
 ﻿#pragma once
+
 #include "Client_Defines.h"
 #include "Monster_Part.h"
 
+NS_BEGIN(Engine)
+class ColliderCom;
+NS_END
+
 NS_BEGIN(Client)
 
-class Mon_WeakPoint :
-    public Monster_Part
+class Monster_BattleBase;
+
+class Mon_WeakPoint : public Monster_Part
 {
     GENERATED_GAMEOBJECT(Mon_WeakPoint, ObjectType::Weapon)
 
@@ -31,16 +37,30 @@ public:
     virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
 
+public:
+    bool Try_Consume_BattleWeakPointHit();
+    void Hide_BattleWeakPoint();
+    void Reset_BattleWeakPoint();
+    bool Is_BattleWeakPointEnabled() const { return _isBattleWeakPointEnabled; }
+
+    Shared<Monster_BattleBase> Resolve_BattleMonsterOwner() const;
+
 private:
     virtual uint32 Decide_PassIndex(Shared<Material> mat) override;
 
 private:
     const Matrix* Resolve_SocketMatrix();
+    HRESULT       Ready_WeakPointCollider();
+    void          Play_WeakPointEffect();
+    Matrix        Build_CollisionWorldMatrix() const;
 
 private:
     const Matrix* _socketMatrix = nullptr;
     string _socketName{};
     Matrix _offsetMatrix = {};
+
+    Shared<ColliderCom> _colliderCom = {};
+    bool _isBattleWeakPointEnabled = true;
 
 public:
     static Shared<Mon_WeakPoint> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
