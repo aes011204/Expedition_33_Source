@@ -137,6 +137,7 @@ HRESULT MW_Lancelier::Ready_PartObjects()
     _weapon = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_Weapon")]);
     CHECK_NULL(_weapon, E_FAIL);
 
+
     Mon_WeakPoint::WEAK_DESC weakDesc{};
     weakDesc.parentMatrix = &_body->Get_CombinedWorldMatrix();
     weakDesc.allowMissingModel = true;
@@ -147,6 +148,7 @@ HRESULT MW_Lancelier::Ready_PartObjects()
 
     _weak = dynamic_pointer_cast<Mon_WeakPoint>(_partObjects[TEXT("Part_Weak")]);
     CHECK_NULL(_weak, E_FAIL);
+
 
     return S_OK;
 }

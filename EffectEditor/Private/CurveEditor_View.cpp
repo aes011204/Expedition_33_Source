@@ -652,9 +652,17 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(Au
         if (auto* data = get_if<InitialRadialVelocityModuleData>(&module.data))
             Add_FloatTarget(targets, emitter, module, data->speed, "speed", "Speed", IM_COL32(245, 205, 95, 255));
         break;
+    case AuthoringModuleType::VelocityCone:
+        if (auto* data = get_if<VelocityConeModuleData>(&module.data))
+            Add_FloatTarget(targets, emitter, module, data->speed, "speed", "Cone Speed", IM_COL32(245, 205, 95, 255));
+        break;
     case AuthoringModuleType::Drag:
         if (auto* data = get_if<DragModuleData>(&module.data))
             Add_FloatTarget(targets, emitter, module, data->drag, "drag", "Drag", IM_COL32(245, 205, 95, 255));
+        break;
+    case AuthoringModuleType::VelocityOverLife:
+        if (auto* data = get_if<VelocityOverLifeModuleData>(&module.data))
+            Add_FloatTarget(targets, emitter, module, data->scaleOverLife, "scaleOverLife", "Velocity Scale", IM_COL32(245, 205, 95, 255));
         break;
     case AuthoringModuleType::Acceleration:
         if (auto* data = get_if<AccelerationModuleData>(&module.data))

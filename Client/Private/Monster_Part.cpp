@@ -290,7 +290,7 @@ HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
     }
 
 
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _partEffectCom), E_FAIL);
 
 
     return S_OK;
