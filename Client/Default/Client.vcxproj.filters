@@ -420,11 +420,11 @@
     </ClCompile>
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
-    <ClCompile Include="..\private\Mon_WeakPoint.cpp" />
     <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp" />
     <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
     <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp" />
     <ClCompile Include="..\Private\SkyCloudCard.cpp" />
+    <ClCompile Include="..\Private\Mon_WeakPoint.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">

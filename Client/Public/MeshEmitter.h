@@ -37,6 +37,9 @@ public:
     // 마지막 loop 완료와 active particle 소진 여부를 반환한다.
     bool Is_EffectFinished() const override;
     bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override; // active mesh particle의 카메라 기준 대표 표면점을 Blend 정렬 위치로 반환한다.
+    EffectSortPolicy Get_BlendSortPolicy() const override; // Required Sort Policy authoring 값을 반환한다.
+    int32 Get_BlendSortLayer() const override;             // Required Sort Layer authoring 값을 반환한다.
+    float Get_BlendSortBias() const override;              // Required Sort Bias authoring 값을 Blend 정렬 보정값으로 반환한다.
 
 protected:
     void On_EffectTransformSynced() override; // root/local-space sync 직후 active instance world matrix를 다시 계산한다.

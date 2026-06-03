@@ -378,6 +378,21 @@ bool MeshEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
     return true;
 }
 
+EffectSortPolicy MeshEmitter::Get_BlendSortPolicy() const
+{
+    return _desc.sort.sortPolicy;
+}
+
+int32 MeshEmitter::Get_BlendSortLayer() const
+{
+    return _desc.sort.sortLayer;
+}
+
+float MeshEmitter::Get_BlendSortBias() const
+{
+    return _desc.sort.artistSortBias;
+}
+
 void MeshEmitter::On_EffectTransformSynced()
 {
     if (_activeInstanceCount > 0u)
@@ -1923,8 +1938,8 @@ RenderGroup MeshEmitter::Resolve_RenderGroup() const
     if (Is_DistortionFamily())
         return RenderGroup::Distortion;
 
-    return _desc.material.blendMode == EffectMaterialBlendMode::Modulate
-           ? RenderGroup::NonBlend
+    return _desc.material.blendMode == EffectMaterialBlendMode::Masked
+           ? RenderGroup::EffectMasked
            : RenderGroup::Blend;
 }
 
@@ -1934,9 +1949,12 @@ uint32 MeshEmitter::Resolve_ShaderPassIndex() const
         return 0u;
 
     const bool additive = _desc.material.blendMode == EffectMaterialBlendMode::Additive;
+    const bool masked = _desc.material.blendMode == EffectMaterialBlendMode::Masked;
     const bool twoSided = _desc.material.twoSided;
     if (additive)
         return twoSided ? 3u : 1u;
+    if (masked)
+        return twoSided ? 5u : 4u;
     return twoSided ? 2u : 0u;
 }
 

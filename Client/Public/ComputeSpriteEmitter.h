@@ -31,6 +31,8 @@ public:
     HRESULT Reset_ForEffectReplay() override;                                   // effect root 재사용 시 sprite playback runtime을 초기화한다.
     bool Is_EffectFinished() const override;                                    // sprite playback이 마지막 loop를 끝냈는지 반환한다.
     bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override; // sprite spawn offset까지 반영한 Blend 정렬 대표 위치를 반환한다.
+    EffectSortPolicy Get_BlendSortPolicy() const override;                      // Required Sort Policy authoring 값을 반환한다.
+    int32 Get_BlendSortLayer() const override;                                  // Required Sort Layer authoring 값을 반환한다.
     float Get_BlendSortBias() const override;                                   // Required Sort Bias authoring 값을 Blend 정렬 보정값으로 반환한다.
 
 public: //## Debug::EditorSession

@@ -1398,6 +1398,160 @@ namespace Internal
 
         return changed;
     }
+
+    static const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
+    {
+        switch (value)
+        {
+        case EffectMaterialBlendMode::AlphaBlend:
+            return "AlphaBlend";
+        case EffectMaterialBlendMode::Additive:
+            return "Additive";
+        case EffectMaterialBlendMode::Masked:
+            return "Masked";
+        case EffectMaterialBlendMode::Modulate:
+            return "Modulate";
+        default:
+            return "AlphaBlend";
+        }
+    }
+
+    static const char* Get_SortPolicyLabel(EmitterSortPolicy value)
+    {
+        switch (value)
+        {
+        case EmitterSortPolicy::EmitterDepth:
+            return "Emitter Depth";
+        case EmitterSortPolicy::None:
+        default:
+            return "None";
+        }
+    }
+
+    static bool Draw_BlendModeProperty(
+        DetailPropertyContext& detailContext,
+        const AuthoringEmitter& emitter,
+        EffectMaterialBlendMode& value,
+        EffectMaterialBlendMode defaultValue)
+    {
+        static constexpr EffectMaterialBlendMode kModes[]{
+            EffectMaterialBlendMode::AlphaBlend,
+            EffectMaterialBlendMode::Additive,
+            EffectMaterialBlendMode::Masked,
+        };
+
+        const bool trailEmitter = emitter.typeData.kind == AuthoringTypeDataKind::Trail;
+        bool changed = false;
+
+        ImGui::PushID("RequiredBlendMode");
+        detailContext.Draw_PropertyLabel("Blend Mode");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_BlendModeLabel(value)))
+        {
+            for (const EffectMaterialBlendMode mode : kModes)
+            {
+                const bool selectable = !(trailEmitter && mode == EffectMaterialBlendMode::Masked);
+                const bool selected = value == mode;
+
+                if (!selectable)
+                    ImGui::BeginDisabled();
+
+                if (ImGui::Selectable(Get_BlendModeLabel(mode), selected) && selectable)
+                {
+                    value = mode;
+                    changed = true;
+                }
+
+                if (!selectable)
+                    ImGui::EndDisabled();
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_SortPolicyProperty(
+        DetailPropertyContext& detailContext,
+        EmitterSortPolicy& value,
+        EmitterSortPolicy defaultValue)
+    {
+        static constexpr EmitterSortPolicy kPolicies[]{
+            EmitterSortPolicy::None,
+            EmitterSortPolicy::EmitterDepth,
+        };
+
+        bool changed = false;
+
+        ImGui::PushID("RequiredSortPolicy");
+        detailContext.Draw_PropertyLabel("Sort Policy");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_SortPolicyLabel(value)))
+        {
+            for (const EmitterSortPolicy policy : kPolicies)
+            {
+                const bool selected = value == policy;
+                if (ImGui::Selectable(Get_SortPolicyLabel(policy), selected))
+                {
+                    value = policy;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_IntProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        int32& value,
+        int32 defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        int inputValue = value;
+        if (ImGui::InputInt("##Value", &inputValue, 1, 10))
+        {
+            value = static_cast<int32>(inputValue);
+            changed = true;
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
 }
 
 bool RequiredModuleDetail::Draw(
@@ -1488,15 +1642,6 @@ bool RequiredModuleDetail::Draw(
             }
 
             changed |= detailContext.Draw_BoolProperty("로컬 스페이스 사용", data.useLocalSpace, defaultData.useLocalSpace);
-            detailContext.Draw_PropertyLabel("정렬");
-            ImGui::TextDisabled("Auto");
-            detailContext.Draw_ResetButton(false);
-            changed |= detailContext.Draw_FloatProperty(
-                "Sort Bias",
-                data.sortBias,
-                defaultData.sortBias,
-                0.01f,
-                "양수 = 앞으로, 음수 = 뒤로, 0 = Auto 유지");
             changed |= detailContext.Draw_FloatProperty("카메라 모션 블러 양 (미구현)", data.cameraMotionBlurAmount, defaultData.cameraMotionBlurAmount);
             changed |= detailContext.Draw_BoolProperty("초기화 시 기존 파티클 지우기 (미구현)", data.clearExistingParticlesOnInit, defaultData.clearExistingParticlesOnInit);
             detailContext.End_PropertyTable();
@@ -1511,6 +1656,35 @@ bool RequiredModuleDetail::Draw(
         }
 
         detailContext.Draw_ScreenAlignmentImplementationNote(data.screenAlignment);
+    }
+
+    if (ImGui::CollapsingHeader("렌더링 / 정렬", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("RequiredRenderingSort"))
+        {
+            changed |= Internal::Draw_BlendModeProperty(detailContext, emitter, data.material.blendMode, defaultData.material.blendMode);
+            changed |= Internal::Draw_SortPolicyProperty(detailContext, data.sortPolicy, defaultData.sortPolicy);
+            changed |= Internal::Draw_IntProperty(detailContext, "Sort Layer", data.sortLayer, defaultData.sortLayer);
+            detailContext.End_PropertyTable();
+        }
+
+        if (emitter.typeData.kind == AuthoringTypeDataKind::Trail)
+            ImGui::TextDisabled("Trail은 v1에서 Masked 선택을 막고 AlphaBlend/Additive 경로를 유지합니다.");
+
+        if (ImGui::TreeNodeEx("Advanced", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (detailContext.Begin_PropertyTable("RequiredRenderingSortAdvanced"))
+            {
+                changed |= detailContext.Draw_FloatProperty(
+                    "Sort Bias",
+                    data.sortBias,
+                    defaultData.sortBias,
+                    0.01f,
+                    "같은 Sort Layer와 같은 Sort Policy 안에서만 마지막 보정값으로 사용합니다.");
+                detailContext.End_PropertyTable();
+            }
+            ImGui::TreePop();
+        }
     }
 
     if (ImGui::CollapsingHeader("이미터 재생 / 스폰 시간", ImGuiTreeNodeFlags_DefaultOpen))
