@@ -155,7 +155,7 @@ PS_OUT PS_OpaqueAR(PS_IN In)
 
     float3 worldNormal = ComputeWorldNormal(In.vNormal.xyz, In.vTangent, In.vBinormal, finalUV);
 
-    float3 orm = float3(g_AoScale, arTex.a * g_RoughnessScale, g_MetalnessScale);
+    float3 orm = float3(g_AoScale, saturate(arTex.a * g_RoughnessScale), g_MetalnessScale);
 
     float3 emissive = SampleEmissive(finalUV);
     baseColor.rgb = baseColor.rgb * orm.r + emissive;
