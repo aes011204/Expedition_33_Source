@@ -20,8 +20,8 @@
 
 namespace
 {
-    constexpr float kFallStateEnterDelaySec = 0.08f;
-    constexpr float kFallStateEnterSpeedY = -2.0f;
+    constexpr float kFallStateEnterDelaySec = 0.10f;
+    constexpr float kFallStateEnterSpeedY = -2.4f;
 }
 
 Player_WorldBase::Player_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)

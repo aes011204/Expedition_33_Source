@@ -53,6 +53,8 @@ private:
         const json& materialScalarModulation);
     static void Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife);
     static void Fill_RotationRateScaleByLifePayload(PointParticleRotationDesc& desc, const json& rotationRateScaleByLife);
+    static void Fill_VelocityScaleByLifePayload(PointParticleMotionDesc& desc, const json& velocityOverLife);
+    static void Fill_VelocityConePayload(PointParticleMotionDesc& desc, const json& velocityCone);
     static void Fill_AccelerationCurvePayload(PointParticleMotionDesc& desc, const json& distribution);
     static void Fill_PlaneRadialLocationPayload(PointParticlePlaneRadialLocationDesc& desc, const json& planeRadialLocation);
     static void Fill_PlaneRadialOrientationPayload(PointParticlePlaneRadialOrientationDesc& desc, const json& planeRadialOrientation);

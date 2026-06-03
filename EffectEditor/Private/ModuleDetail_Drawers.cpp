@@ -117,6 +117,88 @@ namespace Internal
         }
     }
 
+    static const char* Get_DistributionRandomSeedModeLabel(DistributionRandomSeedMode mode)
+    {
+        switch (mode)
+        {
+        case DistributionRandomSeedMode::Default:
+            return "기본값";
+        case DistributionRandomSeedMode::Manual:
+            return "수동";
+        default:
+            return "기본값";
+        }
+    }
+
+    static uint32 Generate_RandomSeedValue()
+    {
+        static uint32 state{ 0xA341316Cu };
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        return state != 0u ? state : 0x6D2B79F5u;
+    }
+
+    static bool Draw_RandomSeedProperty(
+        DetailPropertyContext& detailContext,
+        DistributionRandomSeedData& data)
+    {
+        bool changed = false;
+
+        if (!detailContext.Begin_PropertyTable("DistributionRandomSeed"))
+            return false;
+
+        ImGui::PushID("RandomSeedMode");
+        detailContext.Draw_PropertyLabel("시드 모드", "같은 시드는 같은 랜덤 분포를 재현합니다.");
+        DistributionRandomSeedMode nextMode = data.mode;
+        if (ImGui::BeginCombo("##Value", Get_DistributionRandomSeedModeLabel(nextMode)))
+        {
+            const DistributionRandomSeedMode candidates[] = {
+                DistributionRandomSeedMode::Default,
+                DistributionRandomSeedMode::Manual,
+            };
+
+            for (const DistributionRandomSeedMode candidate : candidates)
+            {
+                const bool selected = nextMode == candidate;
+                if (ImGui::Selectable(Get_DistributionRandomSeedModeLabel(candidate), selected))
+                    nextMode = candidate;
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (data.mode != nextMode)
+        {
+            data.mode = nextMode;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        ImGui::PushID("ManualSeed");
+        detailContext.Draw_PropertyLabel("시드");
+        const float randomizeButtonWidth = ImGui::CalcTextSize("무작위").x + ImGui::GetStyle().FramePadding.x * 2.f;
+        const float seedInputWidth = max(1.f, ImGui::GetContentRegionAvail().x - randomizeButtonWidth - ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SetNextItemWidth(seedInputWidth);
+        const bool manualMode = data.mode == DistributionRandomSeedMode::Manual;
+        if (!manualMode)
+            ImGui::BeginDisabled();
+        changed |= ImGui::InputScalar("##Value", ImGuiDataType_U32, &data.manualSeed);
+        if (!manualMode)
+            ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("무작위"))
+        {
+            data.manualSeed = Generate_RandomSeedValue();
+            data.mode = DistributionRandomSeedMode::Manual;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        detailContext.End_PropertyTable();
+        return changed;
+    }
+
     static const char* Get_SphereLocationSpawnModeLabel(SphereLocationSpawnMode mode)
     {
         switch (mode)
@@ -199,7 +281,7 @@ namespace Internal
 
     static bool Is_PlaneRadialLocationAdvancedPlacementShape(PlaneRadialLocationShape shape)
     {
-        return shape == PlaneRadialLocationShape::Ring || shape == PlaneRadialLocationShape::Arc;
+        return shape != PlaneRadialLocationShape::Rectangle;
     }
 
     static const char* Get_PlaneRadialOrientationModeLabel(PlaneRadialOrientationMode mode)
@@ -561,13 +643,17 @@ namespace Internal
         DetailPropertyContext& detailContext,
         const char* label,
         PlaneRadialLocationPlacementMode& value,
-        PlaneRadialLocationPlacementMode defaultValue)
+        PlaneRadialLocationPlacementMode defaultValue,
+        bool enabled)
     {
         bool changed = false;
 
         ImGui::PushID(label);
         detailContext.Draw_PropertyLabel(label);
         ImGui::SetNextItemWidth(-FLT_MIN);
+        if (!enabled)
+            ImGui::BeginDisabled();
+
         if (ImGui::BeginCombo("##Value", Get_PlaneRadialLocationPlacementModeLabel(value)))
         {
             const PlaneRadialLocationPlacementMode candidates[] = {
@@ -590,6 +676,9 @@ namespace Internal
 
             ImGui::EndCombo();
         }
+
+        if (!enabled)
+            ImGui::EndDisabled();
 
         if (detailContext.Draw_ResetButton(value != defaultValue))
         {
@@ -1309,6 +1398,160 @@ namespace Internal
 
         return changed;
     }
+
+    static const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
+    {
+        switch (value)
+        {
+        case EffectMaterialBlendMode::AlphaBlend:
+            return "AlphaBlend";
+        case EffectMaterialBlendMode::Additive:
+            return "Additive";
+        case EffectMaterialBlendMode::Masked:
+            return "Masked";
+        case EffectMaterialBlendMode::Modulate:
+            return "Modulate";
+        default:
+            return "AlphaBlend";
+        }
+    }
+
+    static const char* Get_SortPolicyLabel(EmitterSortPolicy value)
+    {
+        switch (value)
+        {
+        case EmitterSortPolicy::EmitterDepth:
+            return "Emitter Depth";
+        case EmitterSortPolicy::None:
+        default:
+            return "None";
+        }
+    }
+
+    static bool Draw_BlendModeProperty(
+        DetailPropertyContext& detailContext,
+        const AuthoringEmitter& emitter,
+        EffectMaterialBlendMode& value,
+        EffectMaterialBlendMode defaultValue)
+    {
+        static constexpr EffectMaterialBlendMode kModes[]{
+            EffectMaterialBlendMode::AlphaBlend,
+            EffectMaterialBlendMode::Additive,
+            EffectMaterialBlendMode::Masked,
+        };
+
+        const bool trailEmitter = emitter.typeData.kind == AuthoringTypeDataKind::Trail;
+        bool changed = false;
+
+        ImGui::PushID("RequiredBlendMode");
+        detailContext.Draw_PropertyLabel("Blend Mode");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_BlendModeLabel(value)))
+        {
+            for (const EffectMaterialBlendMode mode : kModes)
+            {
+                const bool selectable = !(trailEmitter && mode == EffectMaterialBlendMode::Masked);
+                const bool selected = value == mode;
+
+                if (!selectable)
+                    ImGui::BeginDisabled();
+
+                if (ImGui::Selectable(Get_BlendModeLabel(mode), selected) && selectable)
+                {
+                    value = mode;
+                    changed = true;
+                }
+
+                if (!selectable)
+                    ImGui::EndDisabled();
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_SortPolicyProperty(
+        DetailPropertyContext& detailContext,
+        EmitterSortPolicy& value,
+        EmitterSortPolicy defaultValue)
+    {
+        static constexpr EmitterSortPolicy kPolicies[]{
+            EmitterSortPolicy::None,
+            EmitterSortPolicy::EmitterDepth,
+        };
+
+        bool changed = false;
+
+        ImGui::PushID("RequiredSortPolicy");
+        detailContext.Draw_PropertyLabel("Sort Policy");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_SortPolicyLabel(value)))
+        {
+            for (const EmitterSortPolicy policy : kPolicies)
+            {
+                const bool selected = value == policy;
+                if (ImGui::Selectable(Get_SortPolicyLabel(policy), selected))
+                {
+                    value = policy;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_IntProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        int32& value,
+        int32 defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        int inputValue = value;
+        if (ImGui::InputInt("##Value", &inputValue, 1, 10))
+        {
+            value = static_cast<int32>(inputValue);
+            changed = true;
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
 }
 
 bool RequiredModuleDetail::Draw(
@@ -1399,7 +1642,6 @@ bool RequiredModuleDetail::Draw(
             }
 
             changed |= detailContext.Draw_BoolProperty("로컬 스페이스 사용", data.useLocalSpace, defaultData.useLocalSpace);
-            changed |= detailContext.Draw_SortModeProperty("정렬 모드 (미구현)", data.sortMode, defaultData.sortMode);
             changed |= detailContext.Draw_FloatProperty("카메라 모션 블러 양 (미구현)", data.cameraMotionBlurAmount, defaultData.cameraMotionBlurAmount);
             changed |= detailContext.Draw_BoolProperty("초기화 시 기존 파티클 지우기 (미구현)", data.clearExistingParticlesOnInit, defaultData.clearExistingParticlesOnInit);
             detailContext.End_PropertyTable();
@@ -1414,6 +1656,35 @@ bool RequiredModuleDetail::Draw(
         }
 
         detailContext.Draw_ScreenAlignmentImplementationNote(data.screenAlignment);
+    }
+
+    if (ImGui::CollapsingHeader("렌더링 / 정렬", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("RequiredRenderingSort"))
+        {
+            changed |= Internal::Draw_BlendModeProperty(detailContext, emitter, data.material.blendMode, defaultData.material.blendMode);
+            changed |= Internal::Draw_SortPolicyProperty(detailContext, data.sortPolicy, defaultData.sortPolicy);
+            changed |= Internal::Draw_IntProperty(detailContext, "Sort Layer", data.sortLayer, defaultData.sortLayer);
+            detailContext.End_PropertyTable();
+        }
+
+        if (emitter.typeData.kind == AuthoringTypeDataKind::Trail)
+            ImGui::TextDisabled("Trail은 v1에서 Masked 선택을 막고 AlphaBlend/Additive 경로를 유지합니다.");
+
+        if (ImGui::TreeNodeEx("Advanced", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (detailContext.Begin_PropertyTable("RequiredRenderingSortAdvanced"))
+            {
+                changed |= detailContext.Draw_FloatProperty(
+                    "Sort Bias",
+                    data.sortBias,
+                    defaultData.sortBias,
+                    0.01f,
+                    "같은 Sort Layer와 같은 Sort Policy 안에서만 마지막 보정값으로 사용합니다.");
+                detailContext.End_PropertyTable();
+            }
+            ImGui::TreePop();
+        }
     }
 
     if (ImGui::CollapsingHeader("이미터 재생 / 스폰 시간", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1577,6 +1848,8 @@ bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Spher
             );
             detailContext.End_PropertyTable();
         }
+
+        changed |= Internal::Draw_RandomSeedProperty(detailContext, data.randomSeed);
     }
 
     data.radius = max(0.f, data.radius);
@@ -1635,19 +1908,23 @@ bool PlaneRadialLocationModuleDetail::Draw(
         if (data.shape == PlaneRadialLocationShape::Disc)
             ImGui::TextDisabled("원반 채움은 보통 반지름 최소값 0을 사용합니다.");
 
-        if (Internal::Is_PlaneRadialLocationAdvancedPlacementShape(data.shape) &&
-            ImGui::TreeNodeEx("고급", ImGuiTreeNodeFlags_SpanAvailWidth))
+        if (ImGui::TreeNodeEx("고급", ImGuiTreeNodeFlags_SpanAvailWidth))
         {
+            const bool placementModeEnabled = Internal::Is_PlaneRadialLocationAdvancedPlacementShape(data.shape);
             if (detailContext.Begin_PropertyTable("PlaneRadialLocationAdvanced"))
             {
                 changed |= Internal::Draw_PlaneRadialLocationPlacementModeProperty(
                     detailContext,
                     "배치 방식",
                     data.placementMode,
-                    defaultData.placementMode
+                    defaultData.placementMode,
+                    placementModeEnabled
                 );
                 detailContext.End_PropertyTable();
             }
+
+            if (!placementModeEnabled)
+                ImGui::TextDisabled("배치 방식은 Rectangle에서는 사용되지 않습니다.");
 
             ImGui::TreePop();
         }
@@ -1710,6 +1987,48 @@ bool InitialRadialVelocityModuleDetail::Draw(
     return changed;
 }
 
+bool VelocityConeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    VelocityConeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const VelocityConeModuleData defaultData{};
+    bool changed = false;
+
+    const bool coneVelocityOpen = ImGui::CollapsingHeader("속도 원뿔", ImGuiTreeNodeFlags_DefaultOpen);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+    {
+        ImGui::SetTooltip(
+            "생성 위치와 무관하게 축 기준 원뿔 안에서 뽑은 방향으로 더하는 초기 속도입니다.\n"
+            "InitialVelocity, InitialRadialVelocity와 누적됩니다.\n"
+            "각도는 중심축 기준 half-angle입니다."
+        );
+    }
+
+    if (coneVelocityOpen)
+    {
+        if (detailContext.Begin_PropertyTable("VelocityCone"))
+        {
+            changed |= detailContext.Draw_Vec3Property("축", data.axis, defaultData.axis);
+            changed |= detailContext.Draw_FloatProperty("각도", data.angleDegrees, defaultData.angleDegrees, 0.1f);
+            changed |= detailContext.Draw_BoolProperty("월드 스페이스", data.inWorldSpace, defaultData.inWorldSpace);
+            detailContext.End_PropertyTable();
+        }
+
+        const float clampedAngle = clamp(data.angleDegrees, 0.f, 180.f);
+        if (data.angleDegrees != clampedAngle)
+        {
+            data.angleDegrees = clampedAngle;
+            changed = true;
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup("속도", data.speed, defaultData.speed);
+    }
+
+    return changed;
+}
+
 bool AccelerationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, AccelerationModuleData& data, DetailPropertyContext& detailContext)
 {
     const AccelerationModuleData defaultData{};
@@ -1738,14 +2057,7 @@ bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Vel
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 속도", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailContext.Begin_PropertyTable("VelocityOverLife"))
-        {
-            changed |= detailContext.Draw_FloatProperty("시작 배율", data.scaleStart, defaultData.scaleStart);
-            changed |= detailContext.Draw_FloatProperty("종료 배율", data.scaleEnd, defaultData.scaleEnd);
-            detailContext.End_PropertyTable();
-        }
-    }
+        changed |= detailContext.Draw_FloatDistributionGroup("속도 배율", data.scaleOverLife, defaultData.scaleOverLife);
 
     return changed;
 }
@@ -1971,6 +2283,9 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
             }
             detailContext.End_PropertyTable();
         }
+
+        if (data.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+            changed |= Internal::Draw_RandomSeedProperty(detailContext, data.randomSeed);
 
         const uint32 frameCount = Internal::Resolve_SubUvFrameCount(emitter);
         const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;

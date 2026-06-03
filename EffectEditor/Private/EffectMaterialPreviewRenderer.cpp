@@ -1037,7 +1037,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
         0.f
     );
     const Vec4 distortionParams = Vec4(
-        max(0.f, material.refractionIntensity),
+        material.refractionIntensity,
         max(0.f, material.refractionPresence),
         _flowTexture != nullptr ? 1.f : 0.f,
         _materialPreviewElapsedTime

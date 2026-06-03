@@ -74,6 +74,7 @@ private:
     void Render_SSAO();
     void Render_Lights();
     void Render_NonLight();
+    void Render_EffectMasked(); // alpha cutout effect를 HDR에 depth-write opaque-like로 출력한다.
     void Render_Distortion(); // HDRColor snapshot과 distortion field를 사용해 fullscreen 왜곡 resolve를 수행한다.
 	void Render_Blend();
     void Render_ScreenFx();

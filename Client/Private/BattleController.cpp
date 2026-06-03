@@ -18,6 +18,7 @@
 #include "Player_WorldBase.h"
 #include "Player_BattleBase.h"
 #include "SkillTargeting.h"
+#include "EffectCom.h"
 #include "Spawn_Prefab.h"
 #include "UltimateTargeting.h"
 #include "SkillScript.h"
@@ -39,6 +40,7 @@
 #include "SkillTreeCom.h"
 #include "BattleReactionController.h"
 #include "BattleStartSpawner.h"
+#include "EffectCom.h"
 #include "Monster_WorldBase.h"
 #include "ScreenFx_Manager.h"
 
@@ -841,14 +843,10 @@ void BattleController::Request_WidePresentationMode()
     if (!_battleTurnCamera)
         return;
 
-    _battleTurnCamera->Focus_Battle(_heroes, _enemies);
-
     EvtBattlePresentation event;
     event.cameraMode = BattleCameraMode::WIDE;
     event.subject = nullptr;
     GAME->Get_EventBus().Publish(event);
-
-    return;
 }
 
 vector<BattleChar> BattleController::Get_AliveEnemies()
@@ -1255,7 +1253,31 @@ void BattleController::Revive_BattleMon(const BattleChar& battleChar, float Mult
     battleChar.statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
     Restore_BattleTargetCollision(battleChar); // 부활 직후 다시 충돌 가능 상태로 전환
 
+    if (battleChar.actor)
+    {
+
+        for (const auto& [partTag, partObject] : battleChar.actor->Get_PartObjects())
+        {
+            UNREFERENCED_PARAMETER(partTag);
+
+            if (partObject == nullptr)
+                continue;
+
+            partObject->Set_Visible(true);
+
+            if (const Shared<EffectCom> partEffect = partObject->Get_Component<EffectCom>())
+                partEffect->Start_SwitchDissolve(0.35f, "T_Perlin_Noise_M");
+        }
+
+        battleChar.actor->Set_Visible(true);
+
+        if (const Shared<EffectCom> actorEffect = battleChar.actor->Get_Component<EffectCom>())
+            actorEffect->Start_SwitchDissolve(0.35f, "T_Perlin_Noise_M");
+
+    }
+
     DamageSystem::Heal(battleChar.statCom->Get_StatInfo().maxHp * MultipleHp, battleChar);
+
 
     if (battleChar.ModelCom)
     {
@@ -1373,6 +1395,10 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
         const BattleChar& target = _freeAimShotAction.GetInitTarget();
 
         DamageSystem::ApplyDamage(freeAimDamage, attacker, target, AttackType::FreeAimLight);
+
+        // 약점 파츠를 맞췄을 때만 추가딜
+        if (_hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor)
+            Try_ApplyFreeAimWeakPointBonus(_freeAimHitTarget, attacker);
     }
 
     _freeAimShotAction.InitActionDirection();
@@ -1659,9 +1685,9 @@ bool BattleController::Can_TriggerVictory() const
     return true;
 }
 
-void BattleController::Set_FreeAimHitTarget(const BattleChar& target)
+void BattleController::Set_FreeAimHitTarget(const BattleFreeAimHitTarget& target)
 {
-    if (target.actor == nullptr || target.statCom == nullptr)
+    if (!target.Is_Valid())
     {
         Clear_FreeAimHitTarget();
         return;
@@ -1741,10 +1767,14 @@ void BattleController::Handle_BattleTargetDeathCollision(const BattleChar& deadT
 
     deadTarget.actor->Set_BattleColliderActive(false);
 
+    // 죽은 동안 약점 파츠 query/effect가 남지 않게 본체 owner가 같이 정리
+    if (const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(deadTarget.actor))
+        monster->Hide_FreeAimWeakPoint();
+
     if (_hasTargetPreview && _targetPreview.actor == deadTarget.actor)
         Clear_TargetPreview();
 
-    if (_hasFreeAimHitTarget && _freeAimHitTarget.actor == deadTarget.actor)
+    if (_hasFreeAimHitTarget && _freeAimHitTarget.target.actor == deadTarget.actor)
         Clear_FreeAimHitTarget(); 
 }
 
@@ -1754,6 +1784,10 @@ void BattleController::Restore_BattleTargetCollision(const BattleChar& revivedTa
         return;
 
     revivedTarget.actor->Set_BattleColliderActive(true);
+
+    // 부활하면 약점도 다시 세팅
+    if (const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(revivedTarget.actor))
+        monster->Reset_FreeAimWeakPoint();
 }
 
 void BattleController::Apply_Buff(const BattleChar& target, Buffs buffId, uint32 stack, int32 durationTurn)
@@ -1795,7 +1829,7 @@ HRESULT BattleController::Ready_BattleTurnCamera()
     CHECK_NULL(_battleTurnCamera, E_FAIL);
 
     _battleTurnCamera->Try_BeginPlay();
-    _battleTurnCamera->Set_Participants(_heroes, _enemies);
+    _battleTurnCamera->Set_Participants(_heroes, _enemies, _pendingBattleMonsterSpawnDescs);
 
     return S_OK;
 }
@@ -1805,19 +1839,17 @@ void BattleController::Activate_BattleTurnCamera()
     if (_battleTurnCamera == nullptr)
         return;
 
-    _battleTurnCamera->Focus_Battle(_heroes, _enemies);
+    BattleTurnCamera::BattleShotRequest request;
+    request.mode = BattleCameraMode::WIDE;
+    _battleTurnCamera->Apply_ShotRequest(request);
 
     CLIENT->Request_BattleTurn();
-    //GAME->Change_ActiveCamera(_battleTurnCamera);
 }
 
 void BattleController::Restore_WorldCamera()
 {
-    //if (_worldCamera)
-    //    GAME->Change_ActiveCamera(_worldCamera);
     CLIENT->Restore_PreviousCamera();
     GAME->Set_PlayerInputBlocked(false);
-    //  _worldCamera.reset();
 }
 
 void BattleController::Clear_BattleRuntimeState()
@@ -1926,8 +1958,33 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleStartSpawnerId = 0;
 }
 
+bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarget& hitTarget,
+    const BattleChar& attacker)
+{
+    if (!hitTarget.Is_Valid() || hitTarget.hitPart != FreeAimHitPart::WeakPoint)
+        return false;
+
+    const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(hitTarget.target.actor);
+    if (monster == nullptr)
+        return false;
+
+    if (!monster->Try_Consume_FreeAimWeakPoint())
+        return false; // 이미 소비됐으면 추가딜 없이 본체 피격만 남긴다.
+
+    // 일단은 강제 20 추가딜
+    constexpr float freeAimWeakPointBonusDamage = 20.f;
+
+    DamageSystem::ApplyDamage(
+        freeAimWeakPointBonusDamage,
+        attacker,
+        hitTarget.target,
+        AttackType::FreeAimWeak);
+
+    return true;
+}
+
 void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<CombatStatCom>& battleStat,
-    const Shared<SkillTreeCom>& worldSkillTreeCom)
+                                                    const Shared<SkillTreeCom>& worldSkillTreeCom)
 {
     if (battleStat == nullptr)
         return;

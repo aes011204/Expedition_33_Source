@@ -4,6 +4,7 @@
 #include "Client_Constants.h"
 #include "PlayableParts.h"
 #include "Player_WorldBase.h"
+#include "SkyBoxFlow.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 
@@ -203,10 +204,27 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 {
-    if (FAILED(
-        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky_GamePlay"),
-            ETOI(LevelType::GamePlay), strLayerTag)))
-        return E_FAIL;
+    SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
+    skyBoxDesc.modelTag = TEXT("Model_SM_Skybox_Mesh");
+    skyBoxDesc.shaderTag = TEXT("Shader_SkyBoxFlow");
+    skyBoxDesc.skyTextureTag = TEXT("Texture_SkyBox_CleasTower");
+    skyBoxDesc.flowTextureTag = TEXT("Texture_SkyBox_Flow03");
+
+    skyBoxDesc.tint = Vec4(1.604023f, 0.887117f, 0.631814f, 1.f);
+    skyBoxDesc.brightness = 500.f;
+    skyBoxDesc.contrast = 1.524392f;
+    skyBoxDesc.noiseStrength = 0.25f;   
+    skyBoxDesc.speed = 0.001f;
+    skyBoxDesc.scale = 1.f;
+
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::GamePlay),
+            TEXT("GameObject_SkyBoxFlow_GamePlay"),
+            ETOI(LevelType::GamePlay),
+            strLayerTag,
+            &skyBoxDesc),
+        E_FAIL);
 
     return S_OK;
 }

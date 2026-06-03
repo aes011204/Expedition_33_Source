@@ -88,7 +88,7 @@ struct BattleCameraPreset
     CommonCameraPreset camera;
     bool         snapOnEnter = false;
     BattleCameraTransitionEasing transitionEasing = BattleCameraTransitionEasing::EaseInOut;
-
+    float        transitionDuration = 0.35f;
     float        followSpeed;
     float        distance;
 

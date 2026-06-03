@@ -13,6 +13,7 @@ namespace Engine
         Shadow,
         NonBlend,
         NonLight,
+        EffectMasked,
         Distortion, // Effect용 Distortion
         Blend,
         UI,

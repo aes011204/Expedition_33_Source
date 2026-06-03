@@ -46,6 +46,21 @@ static int Resolve_MaterialSourceIndex(const string& source)
     return sourceAlpha;
 }
 
+static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed)
+{
+    return seed.manualSeedEnabled ? seed.seed : 0u;
+}
+
+static float Hash01(uint32 seed)
+{
+    seed ^= 2747636419u;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
+}
+
 static HRESULT Bind_MaterialScalarModulationPayload(
     ShaderCom* shader,
     const EffectMaterialScalarModulationRuntimeDesc& modulation,
@@ -66,42 +81,42 @@ static HRESULT Bind_MaterialScalarModulationPayload(
     hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationMeta",
         payload.meta.data(),
-        sizeof(Vec4) * payload.meta.size()
+        sizeof(payload.meta)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
     hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationKeyTimes",
         payload.keyTimes.data(),
-        sizeof(Vec4) * payload.keyTimes.size()
+        sizeof(payload.keyTimes)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
     hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationKeyValues",
         payload.keyValues.data(),
-        sizeof(Vec4) * payload.keyValues.size()
+        sizeof(payload.keyValues)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
     hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationKeyArriveTangents",
         payload.keyArriveTangents.data(),
-        sizeof(Vec4) * payload.keyArriveTangents.size()
+        sizeof(payload.keyArriveTangents)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
     hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationKeyLeaveTangents",
         payload.keyLeaveTangents.data(),
-        sizeof(Vec4) * payload.keyLeaveTangents.size()
+        sizeof(payload.keyLeaveTangents)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
     hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationKeyModes",
         payload.keyModes.data(),
-        sizeof(Vec4) * payload.keyModes.size()
+        sizeof(payload.keyModes)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
@@ -331,6 +346,21 @@ bool ComputeSpriteEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition
 
     outWorldPosition = representativeCenter;
     return true;
+}
+
+float ComputeSpriteEmitter::Get_BlendSortBias() const
+{
+    return _desc.required.sort.artistSortBias;
+}
+
+EffectSortPolicy ComputeSpriteEmitter::Get_BlendSortPolicy() const
+{
+    return _desc.required.sort.sortPolicy;
+}
+
+int32 ComputeSpriteEmitter::Get_BlendSortLayer() const
+{
+    return _desc.required.sort.sortLayer;
 }
 
 void ComputeSpriteEmitter::On_EffectTransformSynced()
@@ -760,7 +790,7 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
     _context->RSGetViewports(&viewportCount, &viewport);
 
     const Vec4 distortionParams(
-        max(0.f, material.refractionIntensity),
+        material.refractionIntensity,
         max(0.f, material.refractionPresence),
         nullptr != _flowTexture ? 1.f : 0.f,
         _emitterElapsedTime
@@ -821,7 +851,12 @@ RenderGroup ComputeSpriteEmitter::Resolve_RenderGroup() const
     if (_desc.renderLayerOverride == EffectEmitterRenderLayerOverride::UIEffect)
         return RenderGroup::UIEffect;
 
-    return Is_DistortionFamily() ? RenderGroup::Distortion : RenderGroup::Blend;
+    if (Is_DistortionFamily())
+        return RenderGroup::Distortion;
+
+    return _desc.required.material.blendMode == EffectMaterialBlendMode::Masked
+           ? RenderGroup::EffectMasked
+           : RenderGroup::Blend;
 }
 
 const char* ComputeSpriteEmitter::Resolve_ShaderId() const
@@ -850,7 +885,11 @@ int ComputeSpriteEmitter::Resolve_OpacitySourceIndex() const
 
 uint32 ComputeSpriteEmitter::Resolve_BlendPassIndex() const
 {
-    return _desc.required.material.blendMode == EffectMaterialBlendMode::Additive ? 1u : 0u;
+    if (_desc.required.material.blendMode == EffectMaterialBlendMode::Additive)
+        return 1u;
+    if (_desc.required.material.blendMode == EffectMaterialBlendMode::Masked)
+        return 2u;
+    return 0u;
 }
 
 ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() const
@@ -861,11 +900,16 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.range = _desc.spawn.spawnRange;
     desc.sizeMin = _desc.initialSize.sizeMin;
     desc.sizeMax = _desc.initialSize.sizeMax;
+    desc.initialSizeSeed = _desc.initialSize.sizeSeed;
     desc.lifeTime = _desc.lifetime.lifeTime;
     desc.startColorMin = _desc.initialColor.startColorMin;
     desc.startColorMax = _desc.initialColor.startColorMax;
+    desc.initialColorSeed = _desc.initialColor.colorSeed;
+    desc.initialAlphaSeed = _desc.initialColor.alphaSeed;
     desc.endColorMin = _desc.colorOverLife.endColorMin;
     desc.endColorMax = _desc.colorOverLife.endColorMax;
+    desc.colorOverLifeSeed = _desc.colorOverLife.colorSeed;
+    desc.alphaOverLifeSeed = _desc.colorOverLife.alphaSeed;
     desc.colorOverLifeCurve = _desc.colorOverLife.curve;
     desc.subUVRows = max(1u, _desc.required.material.subUVRows);
     desc.subUVCols = max(1u, _desc.required.material.subUVCols);
@@ -874,8 +918,14 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.motion = _desc.motion;
     desc.rotation = _desc.rotation;
     desc.spawn = _desc.spawn.particleSpawn;
+    desc.lifetimeSeed = _desc.lifetimeSeed;
     desc.initialLocation = _desc.initialLocation;
     desc.sphereLocation = _desc.sphereLocation;
+    desc.planeRadialLocation = _desc.planeRadialLocation;
+    desc.planeRadialOrientation = _desc.planeRadialOrientation;
+    desc.initialLocationSeed = _desc.initialLocationSeed;
+    desc.sphereLocationSeed = _desc.sphereLocationSeed;
+    desc.subUVRandomFrameSeed = _desc.subUVRandomFrameSeed;
     if (nullptr != _transformCom)
     {
         desc.emitterRight = _transformCom->Get_WorldRight();
@@ -917,7 +967,7 @@ uint32 ComputeSpriteEmitter::Consume_SpawnRequest(float timeDelta)
 
     if (_desc.spawn.particleSpawn.processSpawnRate)
     {
-        const float spawnRate = max(0.f, _desc.spawn.particleSpawn.spawnRate * _desc.spawn.particleSpawn.spawnRateScale);
+        const float spawnRate = max(0.f, _sampledSpawnRate * _sampledSpawnRateScale);
         _spawnAccumulator += spawnRate * safeDeltaTime;
 
         const float wholeSpawn = floorf(_spawnAccumulator + 0.0001f);
@@ -942,7 +992,12 @@ uint32 ComputeSpriteEmitter::Consume_SpawnRequest(float timeDelta)
             if (previousTime > burst.time || _emitterElapsedTime < burst.time)
                 continue;
 
-            const float scaledCount = static_cast<float>(burst.count) * max(0.f, _desc.spawn.particleSpawn.burstScale);
+            const float sampledBurstScale = Sample_SpawnDistribution(
+                _desc.spawn.particleSpawn.burstScaleRange,
+                _desc.spawn.particleSpawn.burstScaleSeed,
+                static_cast<uint32>(0xB851u + index * 131u)
+            );
+            const float scaledCount = static_cast<float>(burst.count) * max(0.f, sampledBurstScale);
             spawnRequest += static_cast<uint32>(floorf(scaledCount));
             _burstExecuted[index] = true;
         }
@@ -960,6 +1015,35 @@ void ComputeSpriteEmitter::Reset_PlaybackRuntime()
     _loopIndex = 0u;
     _completedKillDispatched = false;
     _playbackState = Resolve_CurrentLoopDelay() > 0.f ? PlaybackState::Delayed : PlaybackState::Playing;
+    Resample_LoopSpawnDistributions();
+}
+
+float ComputeSpriteEmitter::Sample_SpawnDistribution(
+    const Vec2& range,
+    const PointParticleRandomSeedRuntimeDesc& seed,
+    uint32 salt) const
+{
+    const float minValue = min(range.x, range.y);
+    const float maxValue = max(range.x, range.y);
+    if (minValue == maxValue)
+        return minValue;
+
+    const uint32 baseSeed = (_loopIndex + 1u) * 9781u + salt + Internal::Resolve_SeedSalt(seed);
+    return lerp(minValue, maxValue, Internal::Hash01(baseSeed));
+}
+
+void ComputeSpriteEmitter::Resample_LoopSpawnDistributions()
+{
+    _sampledSpawnRate = Sample_SpawnDistribution(
+        _desc.spawn.particleSpawn.spawnRateRange,
+        _desc.spawn.particleSpawn.spawnRateSeed,
+        0x31B7u
+    );
+    _sampledSpawnRateScale = Sample_SpawnDistribution(
+        _desc.spawn.particleSpawn.spawnRateScaleRange,
+        _desc.spawn.particleSpawn.spawnRateScaleSeed,
+        0x45D9u
+    );
 }
 
 ComputeSpriteEmitter::PlaybackTick ComputeSpriteEmitter::Advance_Playback(float timeDelta)
@@ -1037,8 +1121,10 @@ void ComputeSpriteEmitter::Start_NextLoop()
     ++_loopIndex;
     _loopElapsedTime = 0.f;
     _emitterElapsedTime = 0.f;
+    _spawnAccumulator = 0.f;
     _burstExecuted.assign(_desc.spawn.particleSpawn.bursts.size(), false);
     _playbackState = Resolve_CurrentLoopDelay() > 0.f ? PlaybackState::Delayed : PlaybackState::Playing;
+    Resample_LoopSpawnDistributions();
 }
 
 float ComputeSpriteEmitter::Resolve_CurrentLoopDelay() const
