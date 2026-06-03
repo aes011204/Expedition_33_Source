@@ -760,7 +760,7 @@ void BattleController::SetCharInitPos()
         {  0.f, 0.1f, 0.f },
         {  2.5f, 0.1f, 0.f },
     };
-    const Vec3 enemyBasePos = startPos + (forward * 6.f); // 몬스터 위치 조절
+    const Vec3 enemyBasePos = startPos + (forward * 8.f); // 몬스터 위치 조절
     const float battlePlaneY = startPos.y;
 
     Vec3 heroCenter = Vec3::Zero;

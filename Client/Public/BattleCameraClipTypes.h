@@ -31,6 +31,7 @@ struct BattleCameraClip
     BattleCameraTrack sideOffset;
     BattleCameraTrack pivotOffset;
     BattleCameraTrack heightOffset;
+    BattleCameraTrack aimOffset;
     BattleCameraTrack lookHeightOffset;
     BattleCameraTrack orbitYaw;
     BattleCameraTrack orbitRadius;
@@ -52,6 +53,7 @@ struct BattleCameraClipSample
     float sideOffset = 0.f;
     float pivotOffset = 0.f;
     float heightOffset = 0.f;
+    float aimOffset = 0.f;
     float lookHeightOffset = 0.f;
     float yawOffset = 0.f;
     float orbitYaw = 0.f;
