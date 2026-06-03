@@ -35,6 +35,8 @@ private:
     DeferredLightingCB   _defaultDeferredLightingParams{};
     std::string _reloadShaderStatusText{};
     bool        _reloadShaderStatusIsError = false;
+    std::string _reloadShaderComStatusText{};
+    bool        _reloadShaderComStatusIsError = false;
     bool        _hasDefaultSnapshots = false;
 
 public:

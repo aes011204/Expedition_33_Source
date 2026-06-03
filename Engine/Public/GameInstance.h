@@ -55,6 +55,7 @@ class ThreadPool;
 class PostProcessPipeline;
 class LightingPipeline;
 class ScreenFx_Manager;
+class ShaderCom_Controller;
 class ShaderResourceRegistry;
 struct StaticCollisionData;
 class ScreenFx_Instance;
@@ -231,7 +232,9 @@ public: /* For.Renderer */
     const Shared<LightingPipeline>      Get_LightingPipeline() const;
     Shared<LightingPipeline>            Get_LightingPipeline();
     HRESULT                             Reload_RendererShaders();
+    HRESULT                             Reload_ShaderComs();
     ScreenFx_Manager*                   Get_ScreenFxManager();
+    ShaderCom_Controller*               Get_ShaderComController();
     void                                Request_ScreenCapture(bool saveToFile = false);
     RenderGroup                         Get_CurrentRenderGroup() const;
 public: /* For.PipeLine */
@@ -586,6 +589,7 @@ private:
     Unique<Object_Manager> _objectManager{};
     Unique<Renderer> _renderer{};
     Unique<ScreenFx_Manager> _screenFxManager{};
+    Unique<ShaderCom_Controller> _shaderComController{};
     Unique<PipeLine> _pipeLine{};
     Unique<Input_Manager> _inputManager{};
     Unique<Light_Manager> _lightManager{};

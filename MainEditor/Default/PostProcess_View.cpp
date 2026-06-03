@@ -336,7 +336,7 @@ void PostProcess_View::Draw_LightingControl(Shared<LightingPipeline> pipeline, b
 
 void PostProcess_View::Draw_QuickAction(PostProcessCB& params, LightShaftCB& lightShaftParams, Shared<LightingPipeline> lightingPipeline, bool& dirty, bool& lightingDirty)
 {
-    if (ImGui::BeginChild("##QuickAction", ImVec2(0.f, 110.f), true))
+    if (ImGui::BeginChild("##QuickAction", ImVec2(0.f, 140.f), true))
     {
         ImGui::Text("Quick Actions");
 
@@ -376,12 +376,40 @@ void PostProcess_View::Draw_QuickAction(PostProcessCB& params, LightShaftCB& lig
             }
         }
 
+        if (ImGui::Button("Reload ShaderComs"))
+        {
+            const HRESULT hr = GAME->Reload_ShaderComs();
+            if (hr == S_OK)
+            {
+                _reloadShaderComStatusText = "Reloaded Shader_VtxMesh.hlsl and Shader_VtxAnimMesh.hlsl";
+                _reloadShaderComStatusIsError = false;
+            }
+            else if (hr == S_FALSE)
+            {
+                _reloadShaderComStatusText = "ShaderCom reload partially succeeded; some shaders kept previous versions";
+                _reloadShaderComStatusIsError = true;
+            }
+            else
+            {
+                _reloadShaderComStatusText = "ShaderCom reload failed; previous shaders kept";
+                _reloadShaderComStatusIsError = true;
+            }
+        }
+
         if (!_reloadShaderStatusText.empty())
         {
             const ImVec4 statusColor = _reloadShaderStatusIsError
                 ? ImVec4(0.95f, 0.8f, 0.35f, 1.f)
                 : ImVec4(0.35f, 0.9f, 0.45f, 1.f);
             ImGui::TextColored(statusColor, "%s", _reloadShaderStatusText.c_str());
+        }
+
+        if (!_reloadShaderComStatusText.empty())
+        {
+            const ImVec4 statusColor = _reloadShaderComStatusIsError
+                ? ImVec4(0.95f, 0.8f, 0.35f, 1.f)
+                : ImVec4(0.35f, 0.9f, 0.45f, 1.f);
+            ImGui::TextColored(statusColor, "%s", _reloadShaderComStatusText.c_str());
         }
     }
 

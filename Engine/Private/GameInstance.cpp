@@ -24,6 +24,7 @@
 #include "Renderer.h"
 #include "Renderer_Define.h"
 #include "ScreenFx_Manager.h"
+#include "ShaderCom_Controller.h"
 #include "Timer_Manager.h"
 #include "Target_Manager.h"
 #include "Shadow.h"
@@ -303,6 +304,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _screenFxManager = make_unique<ScreenFx_Manager>();
     CHECK_NULL(_screenFxManager, E_FAIL);
+
+    _shaderComController = ShaderCom_Controller::Create(device, context);
+    CHECK_NULL(_shaderComController, E_FAIL);
 
     _pipeLine = PipeLine::Create();
     CHECK_NULL(_pipeLine, E_FAIL);
@@ -1369,9 +1373,20 @@ HRESULT GameInstance::Reload_RendererShaders()
     return _renderer->Reload_RendererShaders();
 }
 
+HRESULT GameInstance::Reload_ShaderComs()
+{
+    CHECK_NULL(_shaderComController, E_FAIL);
+    return _shaderComController->Reload_VertexShaders();
+}
+
 ScreenFx_Manager* GameInstance::Get_ScreenFxManager() 
 {
     return _screenFxManager.get();
+}
+
+ShaderCom_Controller* GameInstance::Get_ShaderComController()
+{
+    return _shaderComController.get();
 }
 
 void GameInstance::Request_ScreenCapture(bool saveToFile)
