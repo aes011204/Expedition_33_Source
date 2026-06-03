@@ -87,6 +87,7 @@ HRESULT UI_Base::Initialize(void* Arg)
     CHECK_NULL(_transform, E_FAIL);
 
     _openBasePosition = _transform->Get_Position();
+    _openBaseSize = _transform->Get_Size();
     _openBaseScale = _transform->Get_Scale();
     _openBaseRotationRadians = _transform->Get_RotationRadians();
     _openBaseAlphaMultiplier = _alphaMultiplier;
@@ -94,6 +95,7 @@ HRESULT UI_Base::Initialize(void* Arg)
 
     _animationPlayer.Set_BaseTransformState(
         _openBasePosition,
+        _openBaseSize,
         _openBaseScale,
         _openBaseRotationRadians,
         _openBaseAlphaMultiplier);
@@ -112,11 +114,13 @@ void UI_Base::Open()
     if (nullptr != _transform && _hasOpenBaseTransform)
     {
         _transform->Set_Position(_openBasePosition);
+        _transform->Set_Size(_openBaseSize);
         _transform->Set_Scale(_openBaseScale);
         _transform->Set_RotationRadians(_openBaseRotationRadians);
         _alphaMultiplier = _openBaseAlphaMultiplier;
         _animationPlayer.Set_TransitionStartState(
             _openBasePosition,
+            _openBaseSize,
             _openBaseScale,
             _openBaseRotationRadians,
             _openBaseAlphaMultiplier);
@@ -131,6 +135,7 @@ void UI_Base::Refresh_OpenBaseTransform()
         return;
 
     _openBasePosition = _transform->Get_Position();
+    _openBaseSize = _transform->Get_Size();
     _openBaseScale = _transform->Get_Scale();
     _openBaseRotationRadians = _transform->Get_RotationRadians();
     _openBaseAlphaMultiplier = _alphaMultiplier;
@@ -138,6 +143,7 @@ void UI_Base::Refresh_OpenBaseTransform()
 
     _animationPlayer.Set_BaseTransformState(
         _openBasePosition,
+        _openBaseSize,
         _openBaseScale,
         _openBaseRotationRadians,
         _openBaseAlphaMultiplier);
@@ -160,6 +166,9 @@ void UI_Base::Update(float TimeDelta)
 
     if (sample.hasPosition)
         _transform->Set_Position(sample.position);
+
+    if (sample.hasSize)
+        _transform->Set_Size(sample.size);
 
     if (sample.hasScale)
         _transform->Set_Scale(sample.scale);
@@ -190,6 +199,7 @@ bool UI_Base::Play_UIAnimation(const wstring& animationName, bool restart)
     {
         _animationPlayer.Set_TransitionStartState(
             _transform->Get_Position(),
+            _transform->Get_Size(),
             _transform->Get_Scale(),
             _transform->Get_RotationRadians(),
             _alphaMultiplier);
