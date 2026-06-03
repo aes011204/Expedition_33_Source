@@ -91,3 +91,8 @@ bool EffectEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
     outWorldPosition = _transformCom->Get_WorldPosition();
     return true;
 }
+
+float EffectEmitter::Get_BlendSortBias() const
+{
+    return 0.f;
+}

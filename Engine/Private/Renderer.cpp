@@ -725,6 +725,7 @@ void Renderer::Render_Blend()
     const Vec4* cameraPosition4 = GAME->Get_CamPosition();
     if (cameraPosition4 != nullptr)
     {
+        constexpr float kBlendSortBiasScale = 1.f;
         const Vec3 cameraPosition{ cameraPosition4->x, cameraPosition4->y, cameraPosition4->z };
 
         const auto try_get_sort_depth = [&](const Weak<GameObject>& renderObject, float& outSortDepth) -> bool
@@ -734,11 +735,14 @@ void Renderer::Render_Blend()
                 return false;
 
             Vec3 objectWorldPosition{};
+            float artistSortBias = 0.f;
             const Shared<EffectEmitter> effectEmitter = dynamic_pointer_cast<EffectEmitter>(gameObject);
             if (effectEmitter != nullptr)
             {
                 if (!effectEmitter->Try_Get_BlendSortWorldPosition(objectWorldPosition))
                     return false;
+
+                artistSortBias = effectEmitter->Get_BlendSortBias();
             }
             else
             {
@@ -749,7 +753,7 @@ void Renderer::Render_Blend()
                 objectWorldPosition = transform->Get_WorldPosition();
             }
 
-            outSortDepth = (objectWorldPosition - cameraPosition).LengthSquared();
+            outSortDepth = (objectWorldPosition - cameraPosition).LengthSquared() - artistSortBias * kBlendSortBiasScale;
             return true;
         };
 

@@ -110,6 +110,16 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class VelocityConeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        VelocityConeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class AccelerationModuleDetail
 {
 public:
