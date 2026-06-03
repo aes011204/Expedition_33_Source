@@ -281,7 +281,7 @@ namespace Internal
 
     static bool Is_PlaneRadialLocationAdvancedPlacementShape(PlaneRadialLocationShape shape)
     {
-        return shape == PlaneRadialLocationShape::Ring || shape == PlaneRadialLocationShape::Arc;
+        return shape != PlaneRadialLocationShape::Rectangle;
     }
 
     static const char* Get_PlaneRadialOrientationModeLabel(PlaneRadialOrientationMode mode)
@@ -643,13 +643,17 @@ namespace Internal
         DetailPropertyContext& detailContext,
         const char* label,
         PlaneRadialLocationPlacementMode& value,
-        PlaneRadialLocationPlacementMode defaultValue)
+        PlaneRadialLocationPlacementMode defaultValue,
+        bool enabled)
     {
         bool changed = false;
 
         ImGui::PushID(label);
         detailContext.Draw_PropertyLabel(label);
         ImGui::SetNextItemWidth(-FLT_MIN);
+        if (!enabled)
+            ImGui::BeginDisabled();
+
         if (ImGui::BeginCombo("##Value", Get_PlaneRadialLocationPlacementModeLabel(value)))
         {
             const PlaneRadialLocationPlacementMode candidates[] = {
@@ -672,6 +676,9 @@ namespace Internal
 
             ImGui::EndCombo();
         }
+
+        if (!enabled)
+            ImGui::EndDisabled();
 
         if (detailContext.Draw_ResetButton(value != defaultValue))
         {
@@ -1727,19 +1734,23 @@ bool PlaneRadialLocationModuleDetail::Draw(
         if (data.shape == PlaneRadialLocationShape::Disc)
             ImGui::TextDisabled("원반 채움은 보통 반지름 최소값 0을 사용합니다.");
 
-        if (Internal::Is_PlaneRadialLocationAdvancedPlacementShape(data.shape) &&
-            ImGui::TreeNodeEx("고급", ImGuiTreeNodeFlags_SpanAvailWidth))
+        if (ImGui::TreeNodeEx("고급", ImGuiTreeNodeFlags_SpanAvailWidth))
         {
+            const bool placementModeEnabled = Internal::Is_PlaneRadialLocationAdvancedPlacementShape(data.shape);
             if (detailContext.Begin_PropertyTable("PlaneRadialLocationAdvanced"))
             {
                 changed |= Internal::Draw_PlaneRadialLocationPlacementModeProperty(
                     detailContext,
                     "배치 방식",
                     data.placementMode,
-                    defaultData.placementMode
+                    defaultData.placementMode,
+                    placementModeEnabled
                 );
                 detailContext.End_PropertyTable();
             }
+
+            if (!placementModeEnabled)
+                ImGui::TextDisabled("배치 방식은 Rectangle에서는 사용되지 않습니다.");
 
             ImGui::TreePop();
         }
