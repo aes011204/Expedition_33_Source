@@ -41,6 +41,15 @@ namespace Internal
         return iter->get<uint32>();
     }
 
+    int32 Read_Int(const json& node, const char* key, int32 fallbackValue = 0)
+    {
+        const auto iter = node.find(key);
+        if (iter == node.end() || !iter->is_number_integer())
+            return fallbackValue;
+
+        return iter->get<int32>();
+    }
+
     float Read_Float(const json& node, const char* key, float fallbackValue = 0.f)
     {
         const auto iter = node.find(key);
@@ -103,6 +112,32 @@ namespace Internal
         const optional<EnumType> parsed = magic_enum::enum_cast<EnumType>(token);
         if (parsed.has_value())
             outValue = parsed.value();
+    }
+
+    EffectSortPolicy Read_SortPolicy(const json& node, EffectSortPolicy fallbackValue)
+    {
+        string token = Read_String(node, "sortPolicy");
+        if (!token.empty())
+        {
+            const optional<EffectSortPolicy> parsed = magic_enum::enum_cast<EffectSortPolicy>(token);
+            if (parsed.has_value())
+                return parsed.value();
+        }
+
+        token = Read_String(node, "sortMode");
+        if (token == "ViewProjDepth" || token == "DistanceToView")
+            return EffectSortPolicy::EmitterDepth;
+        if (token == "None")
+            return EffectSortPolicy::None;
+
+        return fallbackValue;
+    }
+
+    void Apply_SortPayload(const json& data, EffectRequiredSortRuntimeDesc& sortDesc)
+    {
+        sortDesc.sortPolicy = Read_SortPolicy(data, sortDesc.sortPolicy);
+        sortDesc.sortLayer = Read_Int(data, "sortLayer", sortDesc.sortLayer);
+        sortDesc.artistSortBias = Read_Float(data, "sortBias", sortDesc.artistSortBias);
     }
 
     PointParticleRandomSeedRuntimeDesc Read_RandomSeedDesc(const json& moduleData)
@@ -1720,7 +1755,7 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
     Read_Enum(data, "spriteTextureAxis", desc.required.spriteRender.spriteTextureAxis);
     desc.required.spriteRender.spriteRollOffsetDegrees =
         Read_Float(data, "spriteRollOffsetDegrees", desc.required.spriteRender.spriteRollOffsetDegrees);
-    desc.required.sort.artistSortBias = Read_Float(data, "sortBias", desc.required.sort.artistSortBias);
+    Internal::Apply_SortPayload(data, desc.required.sort);
     desc.required.playback.duration = max(0.0001f, Read_Float(data, "duration", desc.required.playback.duration));
     desc.required.playback.loopCount = Read_UInt(data, "loopCount", desc.required.playback.loopCount);
     desc.required.playback.delay = max(0.f, Read_Float(data, "delay", desc.required.playback.delay));
@@ -1746,6 +1781,8 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
     const auto materialIter = data.find("material");
     if (materialIter != data.end() && materialIter->is_object())
         Apply_MaterialPayload(*materialIter, desc.material, true);
+    if (desc.material.blendMode == EffectMaterialBlendMode::Masked)
+        desc.material.blendMode = EffectMaterialBlendMode::AlphaBlend;
 
     desc.playback.duration = max(0.0001f, Read_Float(data, "duration", desc.playback.duration));
     desc.playback.loopCount = Read_UInt(data, "loopCount", desc.playback.loopCount);
@@ -1772,6 +1809,7 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
         Apply_MaterialPayload(*materialIter, desc.material, false);
 
     Read_Enum(data, "screenAlignment", desc.meshTransform.alignment);
+    Internal::Apply_SortPayload(data, desc.sort);
     desc.playback.duration = max(0.0001f, Read_Float(data, "duration", desc.playback.duration));
     desc.playback.loopCount = Read_UInt(data, "loopCount", desc.playback.loopCount);
     desc.playback.delay = max(0.f, Read_Float(data, "delay", desc.playback.delay));
@@ -2426,6 +2464,17 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
                     Internal::To_LogPath(assignedMaterialResolvedPath)
                 );
             }
+        }
+    }
+
+    if (const json* required = Find_ModuleData(emitter, "Required");
+        required != nullptr && required->is_object())
+    {
+        if (const auto materialIter = required->find("material");
+            materialIter != required->end() && materialIter->is_object())
+        {
+            Read_Enum(*materialIter, "blendMode", desc.material.blendMode);
+            desc.material.alphaCutoff = Read_Float(*materialIter, "alphaCutoff", desc.material.alphaCutoff);
         }
     }
 

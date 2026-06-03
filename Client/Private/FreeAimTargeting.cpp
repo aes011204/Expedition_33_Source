@@ -12,6 +12,7 @@
 #include "Monster_BattleBase.h"
 #include "ModelCom.h"
 #include "Event_Bus.h"
+#include "Mon_WeakPoint.h"
 
 FreeAimTargeting::FreeAimTargeting(const Shared<BattleController>& owner)
     : Battle_State{ owner }
@@ -110,7 +111,7 @@ void FreeAimTargeting::Update(float timeDelta)
         shotRequest.type = EBattleContext::FreeAimShoot;
 
         if (_hasCurrentHitTarget)
-            shotRequest.InitTarget = _currentHitTarget;
+            shotRequest.InitTarget = _currentHitTarget.target;
         else
             shotRequest.InitTarget = {};
 
@@ -133,7 +134,7 @@ void FreeAimTargeting::ExitInvoke()
     Battle_State::ExitInvoke();
 }
 
-bool FreeAimTargeting::Try_FindHitEnemy(BattleChar& outEnemy) const
+bool FreeAimTargeting::Try_FindHitEnemy(BattleFreeAimHitTarget& outHitTarget) const
 {
     auto owner = Get_Owner();
     if (!owner)
@@ -155,7 +156,7 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleChar& outEnemy) const
 
     PhysXQueryHit hit{};
     const bool hasHit = GAME->Sweep_Sphere(
-        cameraOrigin,                  // 실제 판정은 카메라 위치 기준 그대로 유지
+        cameraOrigin,
         direction,
         traceDistance,
         sweepRadius,
@@ -165,15 +166,34 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleChar& outEnemy) const
     if (!hasHit || hit.owner == nullptr)
         return false;
 
+    GameObject* resolvedMonsterOwner = hit.owner;
+    FreeAimHitPart hitPart = FreeAimHitPart::Body;
+
+    // 약점이 있고, 맞으면
+    auto* weakPoint = dynamic_cast<Mon_WeakPoint*>(hit.owner);
+    if (weakPoint)
+    {
+        if (!weakPoint->Is_BattleWeakPointEnabled())
+            return false;
+
+        const Shared<Monster_BattleBase> weakPointOwner = weakPoint->Resolve_BattleMonsterOwner();
+        if (weakPointOwner == nullptr)
+            return false;
+
+        resolvedMonsterOwner = weakPointOwner.get();
+        hitPart = FreeAimHitPart::WeakPoint;
+    }
+
     const vector<BattleChar> aliveEnemies = owner->Get_AliveEnemies();
     for (const auto& enemy : aliveEnemies)
     {
         if (enemy.actor == nullptr || enemy.statCom == nullptr)
             continue;
 
-        if (enemy.actor.get() == hit.owner)
+        if (enemy.actor.get() == resolvedMonsterOwner)
         {
-            outEnemy = enemy;
+            outHitTarget.target = enemy;
+            outHitTarget.hitPart = hitPart;
             return true;
         }
     }
@@ -183,19 +203,19 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleChar& outEnemy) const
 
 void FreeAimTargeting::Refresh_HitTarget()
 {
-    BattleChar hitEnemy{};
-    if (!Try_FindHitEnemy(hitEnemy))
+    BattleFreeAimHitTarget  hitTarget{};
+    if (!Try_FindHitEnemy(hitTarget))
     {
         Clear_HitTarget();
         return;
     }
 
-    _currentHitTarget = hitEnemy;
+    _currentHitTarget = hitTarget;
     _hasCurrentHitTarget = true;
 
     if (auto owner = Get_Owner())
     {
-        owner->Set_FreeAimHitTarget(hitEnemy);
+        owner->Set_FreeAimHitTarget(hitTarget);
     }
 }
 

@@ -77,7 +77,7 @@ PS_OUT_BACKBUFFER PS_RadialBlur(PS_IN In)
     float blurAmount = clamp(g_radialBlurIntensity * weight, 0.f, 0.5f);
 
     Out.Color = float4(0, 0, 0, 0);
-    int samples = 2;
+    int samples = 5;
 
     for (int i = 0; i < samples; i++)
     {

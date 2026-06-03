@@ -37,6 +37,9 @@ public:
     // 마지막 loop 완료와 active particle 소진 여부를 반환한다.
     bool Is_EffectFinished() const override;
     bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override; // active mesh particle의 카메라 기준 대표 표면점을 Blend 정렬 위치로 반환한다.
+    EffectSortPolicy Get_BlendSortPolicy() const override; // Required Sort Policy authoring 값을 반환한다.
+    int32 Get_BlendSortLayer() const override;             // Required Sort Layer authoring 값을 반환한다.
+    float Get_BlendSortBias() const override;              // Required Sort Bias authoring 값을 Blend 정렬 보정값으로 반환한다.
 
 protected:
     void On_EffectTransformSynced() override; // root/local-space sync 직후 active instance world matrix를 다시 계산한다.
@@ -201,7 +204,7 @@ private: //## Helper::ParticleRuntime
     // spawn request만큼 particle slot을 활성화한다.
     void Spawn_Particles(uint32 spawnRequest);
     // 단일 particle slot에 초기 위치/속도/색/회전을 채운다.
-    void Activate_Particle(MeshParticleState& particle, uint32 seed, uint32 particleIndex, uint32 maxActiveCount);
+    void Activate_Particle(MeshParticleState& particle, uint32 seed, uint32 particleIndex, uint32 placementIndex, uint32 placementCount);
     // active particle의 age, motion, color/scale 기반 상태를 진행한다.
     void Update_Particles(float timeDelta);
     // active particle을 MeshInstanceVertex payload로 다시 작성한다.
@@ -209,7 +212,7 @@ private: //## Helper::ParticleRuntime
 
 private: //## Helper::SamplingEvaluation
     // location module에서 초기 local offset을 sample한다.
-    Vec3 Sample_InitialOffset(uint32 seed, uint32 particleIndex, uint32 maxActiveCount, PlaneRadialSample& outPlaneRadialSample) const;
+    Vec3 Sample_InitialOffset(uint32 seed, uint32 particleIndex, uint32 placementIndex, uint32 placementCount, PlaneRadialSample& outPlaneRadialSample) const;
     // PlaneRadialLocation sample frame을 mesh radial orientation용 회전으로 낮춘다.
     Quat Build_PlaneRadialMeshOrientation(const PlaneRadialSample& sample, bool& outEnabled) const;
     // velocity/radial velocity를 합친 초기 속도를 sample한다.

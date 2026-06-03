@@ -775,7 +775,11 @@ VIBufferCom_ComputePointParticle::ParticleLifecycleState VIBufferCom_ComputePoin
         .lifeAge = 0.f,
         .lifeMax = sampledLifeMax,
         .respawnSeed = respawnSeed,
-        .active = 0u
+        .active = 0u,
+        .placementIndex = 0u,
+        .placementCount = 1u,
+        .reserved0 = 0u,
+        .reserved1 = 0u
     };
 }
 

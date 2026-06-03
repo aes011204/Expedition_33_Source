@@ -251,6 +251,8 @@ struct alignas(16) DrawFeatureCB
     // 여러 효과에서 알아서 쓰일 parameters. 기능별 .cpp과 .hlsl 간 규약 필요
     Vec4 param0{ 0.f, 0.f, 0.f, 0.f };  
     Vec4 param1{ 0.f, 0.f, 0.f, 0.f };
+    Vec4 param2{ 0.f, 0.f, 0.f, 0.f };
+    Vec4 param3{ 0.f, 0.f, 0.f, 0.f };
 };
 
 struct alignas(16) ScreenFxCB

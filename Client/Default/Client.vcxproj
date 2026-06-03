@@ -169,6 +169,7 @@
     <ClInclude Include="..\public\AN_Attack.h" />
     <ClInclude Include="..\public\AN_BattleShot.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
+    <ClInclude Include="..\public\AN_CameraShake.h" />
     <ClInclude Include="..\public\AN_Change_Anim.h" />
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\Public\AN_EndTurn.h" />
@@ -179,6 +180,7 @@
     <ClInclude Include="..\public\AN_EnterAnim.h" />
     <ClInclude Include="..\Public\AN_StartCounter.h" />
     <ClInclude Include="..\Public\AN_Test2.h" />
+    <ClInclude Include="..\Public\AN_WorldFreeAimHit.h" />
     <ClInclude Include="..\Public\AttackPlaying.h" />
     <ClInclude Include="..\Public\Base_Gustave_Attack.h" />
     <ClInclude Include="..\public\Base_Mon_Attack.h" />
@@ -200,6 +202,7 @@
     <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
+    <ClInclude Include="..\Public\Battle_Event.h" />
     <ClInclude Include="..\public\BT_IsStun.h" />
     <ClInclude Include="..\public\BT_LookRange.h" />
     <ClInclude Include="..\public\BT_Stun.h" />
@@ -219,6 +222,8 @@
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
     <ClInclude Include="..\public\Mon_WeakPoint.h" />
+    <ClInclude Include="..\Public\SkyBoxFlow.h" />
+    <ClInclude Include="..\Public\SkyCloudCard.h" />
     <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h" />
     <ClInclude Include="..\Public\FaceAccessory_Player.h" />
     <ClInclude Include="..\Public\FreeAimTargeting.h" />
@@ -457,6 +462,7 @@
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_BattleShot.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
+    <ClCompile Include="..\private\AN_CameraShake.cpp" />
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
@@ -468,6 +474,7 @@
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
     <ClCompile Include="..\Private\AN_StartCounter.cpp" />
     <ClCompile Include="..\Private\AN_Test2.cpp" />
+    <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp" />
     <ClCompile Include="..\Private\AttackPlaying.cpp" />
     <ClCompile Include="..\Private\Base_Gustave_Attack.cpp" />
     <ClCompile Include="..\private\Base_Mon_Attack.cpp" />
@@ -491,7 +498,9 @@
     <ClCompile Include="..\private\BT_Stun.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />
-    <ClCompile Include="..\private\Mon_WeakPoint.cpp" />
+    <ClCompile Include="..\Private\Mon_WeakPoint.cpp" />
+    <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
+    <ClCompile Include="..\Private\SkyCloudCard.cpp" />
     <ClCompile Include="..\Private\TrailSampleProvider_ByPart.cpp" />
     <ClCompile Include="..\Private\CA_ScreenFx.cpp" />
     <ClCompile Include="..\private\ChangeWeapon_Panel.cpp" />
@@ -749,6 +758,8 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrailDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_PostProcess.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_ScreenFx.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_SkyBoxFlow.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_SkyCloudCard.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_UI.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxAnimMesh.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_VtxCube.hlsl" />

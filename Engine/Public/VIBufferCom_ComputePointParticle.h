@@ -49,6 +49,10 @@ private: //## Types::IndirectDraw
         float lifeMax{};
         uint32 respawnSeed{};
         uint32 active{};
+        uint32 placementIndex{};
+        uint32 placementCount{};
+        uint32 reserved0{};
+        uint32 reserved1{};
     };
 
 private: //## Data::ParticleDesc
