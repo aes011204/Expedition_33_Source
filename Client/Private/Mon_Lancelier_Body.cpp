@@ -1,5 +1,6 @@
 ﻿#include "Mon_Lancelier_Body.h"
 
+#include "EffectCom.h"
 #include "ModelCom.h"
 
 NS_BEGIN(Client)
@@ -27,6 +28,8 @@ HRESULT Mon_Lancelier_Body::Initialize(void* arg)
     _rootIndex = _model->Get_BoneIndex("root");
     _model->Set_LocalRootNode(_rootIndex);
 
+
+
     return S_OK;
 }
 
@@ -38,6 +41,11 @@ void Mon_Lancelier_Body::Priority_Update(float timeDelta)
 void Mon_Lancelier_Body::Update(float timeDelta)
 {
     Monster_Part::Update(timeDelta);
+
+    if (_partEffectCom)
+    {
+        _partEffectCom->Update(timeDelta);
+    }
 }
 
 void Mon_Lancelier_Body::Late_Update(float timeDelta)

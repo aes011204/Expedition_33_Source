@@ -56,7 +56,7 @@ protected:
     Shared<ShaderCom>           _shader = nullptr;
     Shared<ModelCom>            _model = nullptr;
     Shared<AnimComputeRuntime>  _animComputeRuntime = nullptr;
-    Shared<EffectCom>           _effectCom = nullptr;
+    Shared<EffectCom>           _partEffectCom = nullptr;
 
 public:
     virtual Shared<GameObject> Clone(void* arg) override PURE;
