@@ -18,6 +18,7 @@
 #include "MELandscapeActor.h"
 #include "MELandscapeManager.h"
 #include "MEMaterialApplicator.h"
+#include "MEWaterActor.h"
 
 // test
 #include "METerrainActor.h"
@@ -123,6 +124,10 @@ HRESULT MapEditorApp::Initialize()
             L"../../../Client/Bin/ShaderFiles/Shader_VtxNorTex.hlsl",
             VTXNORTEX::Elements, VTXNORTEX::numElements, ShaderType::VtxNorTex)), E_FAIL);
 
+    CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_Water",
+        ShaderCom::Create(_device, _context,
+            L"../../../Client/Bin/ShaderFiles/Shader_Water.hlsl",
+            VTXNORTEX::Elements, VTXNORTEX::numElements, ShaderType::VtxNorTex)), E_FAIL);
 
     CHECK_FAILED(GAME->Add_Prototype(0, L"MEInstancedMeshActor",
         MEInstancedMeshActor::Create(_device, _context)), E_FAIL);
@@ -339,6 +344,8 @@ void MapEditorApp::Update_RenderHandles()
 {
     Update_StaticMeshHandles();
     Update_InstancedMeshHandles();
+    Update_WaterHandles();
+
     _materialApplicator->Apply_PassOverrides();
 }
 
@@ -431,6 +438,64 @@ void MapEditorApp::Update_InstancedMeshHandles()
     }
 }
 
+void MapEditorApp::Update_WaterHandles()
+{
+    for (auto& obj : _scene._waters)
+    {
+        if (obj->_waterRenderHandleLoaded)
+        {
+            continue;
+        }
+
+        obj->_waterRenderHandleLoaded = true;
+
+        auto actor = MEWaterActor::Create(_device, _context, obj->_waterDesc);
+        if (!actor)
+        {
+            continue;
+        }
+
+        auto LoadSRV = [&](const wstring& path) -> ComPtr<ID3D11ShaderResourceView>
+            {
+                if (path.empty())
+                {
+                    return nullptr;
+                }
+                WCHAR ext[MAX_PATH] = {};
+                _wsplitpath_s(path.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, ext, MAX_PATH);
+                ComPtr<ID3D11ShaderResourceView> srv;
+                HRESULT hr = (lstrcmp(ext, L".dds") == 0)
+                    ? CreateDDSTextureFromFile(_device.Get(), path.c_str(), nullptr, srv.GetAddressOf())
+                    : CreateWICTextureFromFile(_device.Get(), path.c_str(), nullptr, srv.GetAddressOf());
+                if (FAILED(hr))
+                {
+                    return nullptr;
+                }
+                return srv;
+            };
+
+        if (auto srv = LoadSRV(obj->_waterLargeWaveNormalPath))
+        {
+            actor->Set_LargeWaveNormalSRV(srv.Get());
+        }
+        if (auto srv = LoadSRV(obj->_waterSmallWaveNormalPath))
+        {
+            actor->Set_SmallWaveNormalSRV(srv.Get());
+        }
+        if (auto srv = LoadSRV(obj->_waterSeafoamPath))
+        {
+            actor->Set_SeafoamSRV(srv.Get());
+        }
+        if (auto srv = LoadSRV(obj->_waterCubemapPath))
+        {
+            actor->Set_CubemapSRV(srv.Get());
+        }
+
+        actor->Set_WaterParams(obj->_waterParams);
+        obj->_waterRenderHandle = actor;
+    }
+}
+
 void MapEditorApp::DoSpawnAt(const string& modelPath)
 {
     if (!_scene._cursorVisible)
@@ -520,18 +585,39 @@ void MapEditorApp::SyncFogZones()
 
     for (const auto& obj : _scene._postProcessVolumes)
     {
-        if (cb.fogZoneCount >= FogZoneCB::MAX_FOG_ZONES)
+        if (!obj || obj->_ppFogDensity <= 0.f)
         {
-            break;
+            continue;
         }
 
-        FogZoneEntry& entry = cb.zones[cb.fogZoneCount++];
-        entry.zoneMin = obj->_position - obj->_zoneExtent;
-        entry.zoneMax = obj->_position + obj->_zoneExtent;
+        FogZoneEntry entry{};
         entry.fogColor = Color(obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z, 1.f);
         entry.fogDensity = obj->_ppFogDensity;
         entry.fogStart = obj->_ppFogStart;
-        entry.fogEnd = obj->_ppFogEnd;
+
+        if (obj->_ppFogZoneType == 0) // AABB
+        {
+            if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
+            {
+                continue;
+            }
+
+            entry.zoneMin = obj->_position - obj->_zoneExtent;
+            entry.zoneMax = obj->_position + obj->_zoneExtent;
+            cb.zones[cb.aabbCount++] = entry;
+        }
+
+        else
+        {
+            if (cb.aabbCount + cb.sphereCount >= FogZoneCB::MAX_FOG_ZONES)
+            {
+                continue;
+            }
+
+            entry.zoneMin = obj->_position;
+            entry.zoneRadius = obj->_ppFogRadius;
+            cb.zones[cb.aabbCount + cb.sphereCount++] = entry;
+        }
     }
 
     GAME->Set_FogZones(cb);

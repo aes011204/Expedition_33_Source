@@ -553,6 +553,9 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewDistortion.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli">

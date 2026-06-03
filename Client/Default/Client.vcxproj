@@ -714,6 +714,7 @@
     <ClCompile Include="..\Private\Weapon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectMaterialScalarModulation.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli" />

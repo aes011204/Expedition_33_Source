@@ -249,7 +249,14 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             ImGui::DragFloat("Exposure Max", &obj->_ppExposureMax, 0.01f, -10.f, 10.f);
             ImGui::DragFloat("Fog Density", &obj->_ppFogDensity, 0.001f, 0.f, 1.f);
             ImGui::DragFloat("Fog Start", &obj->_ppFogStart, 0.1f, 0.f, 1000.f);
-            ImGui::DragFloat("Fog End", &obj->_ppFogEnd, 0.1f, 0.f, 1000.f);
+
+            const char* zoneTypes[] = { "AABB", "Sphere" };
+            ImGui::Combo("Zone Type", &obj->_ppFogZoneType, zoneTypes, 2);
+
+            if (obj->_ppFogZoneType == 1)
+            {
+                ImGui::DragFloat("Fog Radius", &obj->_ppFogRadius, 0.1f, 0.f, 1000.f);
+            }
 
             float fogColor[3] = { obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z };
             if (ImGui::ColorEdit3("Fog Color", fogColor))

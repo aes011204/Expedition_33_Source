@@ -180,6 +180,10 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_NonLight:Before");
 #endif
 
+    // fog
+    Render_Fog();
+    //
+
     // ========================================= //
     Render_NonLight();
     // ========================================= //
@@ -635,11 +639,6 @@ void Renderer::Render_CombinedHDR()
         _viBuffer->Bind_Resources(),
         L"Render_CombinedHDR:FAIL Bind_Resources");
 
-    // fog
-    COMBINEDHDR_RETURN_LOG_IF_FAILED(
-        _deferredShader->Bind_CBufferData(_fogZoneCB),
-        L"Render_CombinedHDR:FAIL ShaderBegin(fogZoneCB)");
-
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
         _deferredShader->Begin(ETOI(DeferredPass::CombinedHDR)),
         L"Render_CombinedHDR:FAIL ShaderBegin(CombinedHDR)");
@@ -657,6 +656,63 @@ void Renderer::Render_CombinedHDR()
 
     Add_RenderCall();
 }
+
+void Renderer::Render_Fog()
+{
+    if (!_deferredShader || !_viBuffer)
+    {
+        return;
+    }
+
+    if (_fogZoneCB.aabbCount + _fogZoneCB.sphereCount == 0)
+    {
+        return;
+    }
+
+    if (FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV)))
+    {
+        return;
+    }
+
+    if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
+    {
+        return;
+    }
+
+    if (FAILED(Bind_ScreenSpaceCB(_deferredShader)))
+    {
+        return;
+    }
+
+    if (FAILED(_deferredShader->Bind_CBufferData(_fogZoneCB)))
+    {
+        return;
+    }
+
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth)))
+    {
+        return;
+    }
+
+    if (FAILED(_viBuffer->Bind_Resources()))
+    {
+        return;
+    }
+
+    if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::Fog))))
+    {
+        return;
+    }
+
+    if (FAILED(_viBuffer->Render()))
+    {
+        return;
+    }
+
+    GAME->End_MRT();
+    Add_RenderCall();
+}
+
 void Renderer::Render_NonLight()
 {
     RETURN_LOG_IF_FAILED(

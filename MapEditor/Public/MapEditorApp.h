@@ -74,6 +74,7 @@ private:
     void Update_RenderHandles();
     void Update_StaticMeshHandles();
     void Update_InstancedMeshHandles();
+    void Update_WaterHandles();
     void DoSpawnAt(const string& modelPath);
     void RebuildOctreeIfDirty();
 

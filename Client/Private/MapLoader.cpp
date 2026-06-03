@@ -1,4 +1,4 @@
-#include "MapLoader.h"
+﻿#include "MapLoader.h"
 #include "GameInstance.h"
 #include "MapAuthoringIO.h"
 #include "MapStaticMesh.h"
@@ -6,6 +6,7 @@
 #include "MapStaticCollisionBuilder.h"
 #include "ModelCom.h"
 #include "StaticCollisionData.h"
+#include "Shader_CBuffer_Define.h"
 #include <mutex>
 
 // 전역 모델 및 콜리전 캐시 정적 멤버 정의 및 초기화
@@ -176,6 +177,62 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.levelIndex = levelIndex;
     outSession.layerTag = layerTag;
     outSession.modelFolder = mapData.value("ModelFolder", string{});
+
+    if (mapData.contains("PostProcessVolumes"))
+    {
+        FogZoneCB fogCB{};
+        for (const auto& e : mapData["PostProcessVolumes"])
+        {
+            if (fogCB.aabbCount + fogCB.sphereCount >= FogZoneCB::MAX_FOG_ZONES)
+            {
+                break;
+            }
+
+            float density = e.value("FogDensity", 0.f);
+            if (density <= 0.f)
+            {
+                continue;
+            }
+
+            FogZoneEntry entry{};
+            if (e.contains("FogColor"))
+            {
+                auto& c = e["FogColor"];
+                entry.fogColor = Vec4(c[0], c[1], c[2], 1.f);
+            }
+
+            entry.fogDensity = density;
+            entry.fogStart = e.value("FogStart", 0.f);
+
+            Vec3 position{};
+            if (e.contains("Position"))
+            {
+                auto& p = e["Position"];
+                position = Vec3(p[0], p[1], p[2]);
+            }
+
+            int zoneType = e.value("FogZoneType", 0);
+            if (zoneType == 0) // AABB
+            {
+                Vec3 extent{ 5.f, 5.f, 5.f };
+                if (e.contains("Extent"))
+                {
+                    auto& ex = e["Extent"];
+                    extent = Vec3(ex[0], ex[1], ex[2]);
+                }
+                entry.zoneMin = position - extent;
+                entry.zoneMax = position + extent;
+                fogCB.zones[fogCB.aabbCount++] = entry;
+            }
+            else // sphere
+            {
+                entry.zoneMin = position;
+                entry.zoneRadius = e.value("FogRadius", 10.f);
+                fogCB.zones[fogCB.aabbCount + fogCB.sphereCount++] = entry;
+            }
+        }
+        GAME->Set_FogZones(fogCB);
+    }
 
     if (mapData.contains("ModelOverrides"))
     {

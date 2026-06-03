@@ -284,16 +284,16 @@ struct alignas(16) ScreenFxCB
 struct alignas(16) FogZoneEntry
 {
     Vec3 zoneMin;
-    float _pad0{ 0.f };
+    float zoneRadius;
 
     Vec3 zoneMax;
-    float _pad1{ 0.f };
+    float _pad0;
 
     Vec4 fogColor{ 1.f, 0.2f, 0.1f, 1.f };
 
     float fogDensity{ 1.f };
     float fogStart{ 0.f };
-    float fogEnd{ 50.f };
+    float _pad1{ 0.f };
     float _pad2{ 0.f };
 };
 
@@ -303,9 +303,42 @@ struct alignas(16) FogZoneCB
     static constexpr int32 MAX_FOG_ZONES = 8;
 
     FogZoneEntry zones[MAX_FOG_ZONES]{};
-    int32 fogZoneCount{ 0 };
-    float _pad0[3]{};
+    int32 aabbCount{ 0 };
+    int32 sphereCount{ 0 };
+    float _pad0[2]{};
 };
+
+// ------------------------------------------
+//              Water CBuffer                
+// ------------------------------------------
+struct alignas(16) WaterCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::Water;
+
+    float largeWaveScale = 64.f;
+    float largeWaveSpeed = 0.1f;
+    float largeWaveAmplify = 1.f;
+    float smallWaveScale = 512.f;
+
+    float smallWaveSpeed = 1.f;
+    float smallWaveAmplify = 1.f;
+    float seafoamScale = 512.f;
+    float seafoamSpeed = 0.015f;
+
+    float seafoamHeightPower = 2.f;
+    float seafoamHeightMultiply = 3.f;
+    float foamDistortion = 0.f;
+    float depthFade = 0.f;
+
+    float cameraDistanceFade = 0.f;
+    float reflectionAmount = 0.f;
+    float luminanceBias = 0.f;
+    float elapsedTime = 0.f;
+
+    Vec4 waterColor = { 0.0324f, 0.045167f, 0.24f,  1.f };
+    Vec4 fresnelColor = { 0.1975f, 0.209646f, 0.395f, 1.f };
+};
+
 
 // 패딩이 제대로 됐나 마지막 확인용 
 static_assert(sizeof(MaterialCB) % 16 == 0);
@@ -321,6 +354,7 @@ static_assert(sizeof(DeferredLightingCB) % 16 == 0);
 static_assert(sizeof(DrawFeatureCB) % 16 == 0);
 static_assert(sizeof(ScreenFxCB) % 16 == 0);
 static_assert(sizeof(FogZoneCB) % 16 == 0);
+static_assert(sizeof(WaterCB) % 16 == 0);
 
 NS_END
 

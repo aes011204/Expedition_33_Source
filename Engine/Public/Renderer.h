@@ -82,6 +82,7 @@ private:
     void Render_UIEffect();
 
     void Render_CombinedHDR();
+    void Render_Fog();
     void Render_PostProcess();
     
 
