@@ -780,7 +780,7 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
     _context->RSGetViewports(&viewportCount, &viewport);
 
     const Vec4 distortionParams(
-        max(0.f, material.refractionIntensity),
+        material.refractionIntensity,
         max(0.f, material.refractionPresence),
         nullptr != _flowTexture ? 1.f : 0.f,
         _emitterElapsedTime

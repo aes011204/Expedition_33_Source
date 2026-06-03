@@ -59,7 +59,7 @@ float2 EffectDistortion_ResolveFieldOffset(float2 accumulatedOffset, float accum
 
 float2 EffectDistortion_ComputeScreenOffset(float2 flow, float intensity)
 {
-    return flow * max(0.f, intensity);
+    return flow * intensity;
 }
 
 float4 EffectDistortion_PackField(float2 offset, float lensCoverage)

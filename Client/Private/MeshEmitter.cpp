@@ -869,7 +869,7 @@ HRESULT MeshEmitter::Bind_DistortionResources()
     _context->RSGetViewports(&viewportCount, &viewport);
 
     const Vec4 distortionParams{
-        max(0.f, material.refractionIntensity),
+        material.refractionIntensity,
         max(0.f, material.refractionPresence),
         nullptr != _flowTexture ? 1.f : 0.f,
         _emitterElapsedTime
@@ -945,7 +945,9 @@ void MeshEmitter::Update_InstanceBuffer()
     if (cameraPosition4 != nullptr && hasLocalBounds)
     {
         const Vec3 cameraPosition{ cameraPosition4->x, cameraPosition4->y, cameraPosition4->z };
-        stable_sort(sortedParticles.begin(), sortedParticles.end(),
+        stable_sort(
+            sortedParticles.begin(),
+            sortedParticles.end(),
             [&](const MeshParticleState* lhs, const MeshParticleState* rhs)
             {
                 const auto compute_particle_depth_sq = [&](const MeshParticleState& particle) -> float
@@ -954,7 +956,8 @@ void MeshEmitter::Update_InstanceBuffer()
                 };
 
                 return compute_particle_depth_sq(*lhs) > compute_particle_depth_sq(*rhs);
-            });
+            }
+        );
     }
 
     for (const MeshParticleState* particle : sortedParticles)
@@ -990,7 +993,8 @@ void MeshEmitter::Update_InstanceBuffer()
             emitterWorldPosition.z,
             firstParticleWorldPosition.x,
             firstParticleWorldPosition.y,
-            firstParticleWorldPosition.z);
+            firstParticleWorldPosition.z
+        );
     }
 
     D3D11_MAPPED_SUBRESOURCE mappedResource{};
@@ -1235,7 +1239,8 @@ void MeshEmitter::Spawn_Particles(uint32 spawnRequest)
                 particle,
                 index * 9781u + _nextSpawnCursor * 6271u + _loopIndex * 7919u + emitterSeed + 1u,
                 index,
-                maxActiveCount);
+                maxActiveCount
+            );
             _nextSpawnCursor = (index + 1u) % static_cast<uint32>(_particles.size());
             --remainingRequest;
             activated = true;
@@ -1251,10 +1256,11 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
 {
     const float lifeMin = max(0.0001f, min(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
     const float lifeMax = max(lifeMin, max(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
-    const Vec3 emitterPosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
     PlaneRadialSample planeRadialSample{};
     const Vec3 spawnOffset = Sample_InitialOffset(seed, particleIndex, maxActiveCount, planeRadialSample);
-    const Vec3 spawnPosition = emitterPosition + spawnOffset;
+    Vec3 spawnPosition = spawnOffset;
+    if (!_useLocalSpace && _transformCom != nullptr)
+        spawnPosition += _transformCom->Get_WorldPosition();
 
     particle.active = true;
     particle.age = 0.f;
@@ -1378,22 +1384,38 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
 
     const Matrix scaleMatrix = Matrix::CreateScale(scale);
     const Matrix rotationMatrix = Matrix::CreateFromQuaternion(rotation);
-    const Matrix translationMatrix = Matrix::CreateTranslation(position);
+    const Matrix translationMatrix = Matrix::CreateTranslation(particle.position);
 
+    Matrix localMatrix{};
     if (particle.planeRadialOrientationEnabled)
     {
-        return
+        localMatrix =
             scaleMatrix *
             Matrix::CreateFromQuaternion(particle.planeRadialOrientation) *
             rotationMatrix *
             translationMatrix;
     }
+    else
+    {
+        localMatrix =
+            scaleMatrix *
+            rotationMatrix *
+            Internal::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment) *
+            translationMatrix;
+    }
 
-    return
-        scaleMatrix *
-        rotationMatrix *
-        Internal::Resolve_MeshPlaneAlignmentMatrix(_desc.meshTransform.alignment) *
-        translationMatrix;
+    if (_useLocalSpace && _transformCom != nullptr)
+        return localMatrix * _transformCom->Get_WorldMatrix();
+
+    return localMatrix;
+}
+
+Vec3 MeshEmitter::Resolve_ParticleWorldPosition(const MeshParticleState& particle) const
+{
+    if (!_useLocalSpace || _transformCom == nullptr)
+        return particle.position;
+
+    return Vec3::Transform(particle.position, _transformCom->Get_WorldMatrix());
 }
 
 Vec3 MeshEmitter::Sample_InitialOffset(
@@ -1498,9 +1520,7 @@ Quat MeshEmitter::Build_PlaneRadialMeshOrientation(const PlaneRadialSample& samp
     if (!sample.enabled ||
         !_desc.planeRadialOrientation.enabled ||
         _desc.planeRadialOrientation.orientationMode == PointParticlePlaneRadialOrientationMode::None)
-    {
         return Quat::Identity;
-    }
 
     Vec3 targetForward{};
     switch (_desc.planeRadialOrientation.orientationMode)
@@ -1588,8 +1608,8 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed)
             RandomRange(_desc.motion.initialVelocityMin.z, _desc.motion.initialVelocityMax.z, seed + 3u)
         };
         velocity += _desc.motion.initialVelocityInWorldSpace
-            ? Resolve_WorldVectorToSimulation(sampledVelocity)
-            : Resolve_LocalVector(sampledVelocity);
+                    ? Resolve_WorldVectorToSimulation(sampledVelocity)
+                    : Resolve_LocalVector(sampledVelocity);
     }
 
     if (_desc.motion.initialRadialVelocityEnabled)
@@ -1624,7 +1644,7 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed)
 
     if (_desc.motion.velocityConeEnabled)
     {
-        Vec3 axis = Internal::Normalize_OrFallback(_desc.motion.velocityConeAxis, Vec3{ 0.f, 1.f, 0.f });
+        const Vec3 axis = Internal::Normalize_OrFallback(_desc.motion.velocityConeAxis, Vec3{ 0.f, 1.f, 0.f });
         Vec3 sampledDirection = axis;
         const float angleDegrees = clamp(_desc.motion.velocityConeAngleDegrees, 0.f, 180.f);
         if (angleDegrees > 0.0001f)
@@ -1640,7 +1660,9 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed)
             sampledDirection = axis * cosTheta + (tangent * cosf(phi) + bitangent * sinf(phi)) * sinTheta;
         }
 
-        const Vec3 coneDirection = _desc.motion.velocityConeInWorldSpace ? sampledDirection : Resolve_LocalVector(sampledDirection);
+        const Vec3 coneDirection = _desc.motion.velocityConeInWorldSpace
+                                   ? Resolve_WorldVectorToSimulation(sampledDirection)
+                                   : Resolve_LocalVector(sampledDirection);
         const float coneSpeed = RandomRange(
             min(_desc.motion.velocityConeSpeed.x, _desc.motion.velocityConeSpeed.y),
             max(_desc.motion.velocityConeSpeed.x, _desc.motion.velocityConeSpeed.y),
