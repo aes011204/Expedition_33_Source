@@ -9,11 +9,14 @@
 // MATERIAL TEXTURES
 //==================================================
 Texture2D g_HDRTexture;
+Texture2D g_DepthTexture;
 Texture2D g_BloomTexture;
 Texture2D g_BloomBaseTexture;
 Texture2D g_BackgroundMaskTexture;
 Texture2D g_DistortionSourceTexture;
 Texture2D g_DistortionFieldTexture;
+Texture2D g_LightShaftMaskTexture;
+Texture2D g_LightShaftSourceTexture;
 
 // Bloom Extract 용도
 static const float3 REC_709 = float3(0.2126f, 0.7152f, 0.0722f);
@@ -73,6 +76,15 @@ float3 SampleBloomUpsampleAdd(float2 uv)
     float3 upsampled = g_BloomTexture.Sample(LinearClampSampler, uv).rgb;
     float3 baseColor = g_BloomBaseTexture.Sample(LinearClampSampler, uv).rgb;
     return min(baseColor + upsampled, g_PP_BloomClamp);
+}
+
+// god ray가 화면 경계에서 갑자기 켜지거나 꺼지는 popping을 완화.
+float ComputeLightShaftScreenFade(float2 lightScreenUV)
+{
+    const float edgeFade = max(g_LS_EdgeFade, EPSILON);
+    const float2 minFade = saturate((lightScreenUV + edgeFade) / edgeFade);
+    const float2 maxFade = saturate((1.f + edgeFade - lightScreenUV) / edgeFade);
+    return min(minFade.x, minFade.y) * min(maxFade.x, maxFade.y);
 }
 
 #endif

@@ -102,6 +102,9 @@ namespace Engine
         BloomUpsampleAdd,
         ToneMapping,
         DistortionResolve,
+        LightShaftMaskHalf,
+        LightShaftRadialBlurHalf,
+        LightShaftCompositeHDR,
 
         END
     };
@@ -138,9 +141,10 @@ namespace Engine
         SSAO            = 6,
         DeferredLighting = 7,
         PostProcess     = 8,
-        Hair            = 9,
-        DrawFeature     = 10,
-        ScreenFx        = 11,
+        LightShaft      = 9,
+        Hair            = 10,
+        DrawFeature     = 11,
+        ScreenFx        = 12,
 
         END
     };
@@ -180,8 +184,9 @@ namespace Engine
         Exposure    = 1 << 2,
         Bloom       = 1 << 3,
         Gamma       = 1 << 4,
+        LightShaft  = 1 << 5,
 
-        All = (1 << 5) - 1
+        All = (1 << 6) - 1
     };
 
     enum class GameplayInputMode

@@ -125,6 +125,87 @@ PS_OUT_COLOR PS_BloomUpsampleAdd(PS_IN In)
     return Out;
 }
 
+PS_OUT_COLOR PS_LightShaftMaskHalf(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+
+    const float active = g_LS_LightVisible * g_LS_LightFacingCamera;
+    if (active <= EPSILON)
+    {
+        Out.Color = float4(0.f, 0.f, 0.f, 1.f);
+        return Out;
+    }
+
+    // 화면 상 광원의 위치
+    const float2 lightUV = g_LS_LightScreenUV;
+    // 그 위치가 화면 경계에 가까울수록 fade 시켜서 popping 완화 (가중치)
+    const float screenFade = ComputeLightShaftScreenFade(lightUV);
+    if (screenFade <= EPSILON)
+    {
+        Out.Color = float4(0.f, 0.f, 0.f, 1.f);
+        return Out;
+    }
+
+    const float2 delta = In.Texcoord - lightUV;
+    const float dist = length(delta);
+    const float sunDisc = saturate(1.f - dist / max(g_LS_SunDiscRadius, EPSILON));
+
+    // 깊이값이 일정 이하인 부분은 빛이 통과하는 빈 공간으로 간주해서 마스크를 씌움
+    const float4 depthSample = g_DepthTexture.Sample(LinearClampSampler, In.Texcoord);
+    const float emptyMask = (depthSample.y <= g_LS_DepthEmptyThreshold) ? 1.f : 0.f;
+
+    const float mask = emptyMask * sunDisc * sunDisc * screenFade * active;
+    Out.Color = float4(mask, 0.f, 0.f, 1.f);
+    return Out;
+}
+
+PS_OUT_COLOR PS_LightShaftRadialBlurHalf(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+
+    const float active = g_LS_LightVisible * g_LS_LightFacingCamera;
+    if (active <= EPSILON || g_LS_Intensity <= EPSILON)
+    {
+        Out.Color = float4(0.f, 0.f, 0.f, 1.f);
+        return Out;
+    }
+
+    const uint sampleCount = max(g_LS_SampleCount, 1u);
+    const float2 center = g_LS_LightScreenUV;
+    const float2 stepUV = ((In.Texcoord - center) * g_LS_RayLength) / max((float) sampleCount, 1.f);
+
+    float sampleWeight = 1.f;
+    float shaft = 0.f;
+    float totalWeight = 0.f;
+    float2 sampleUV = In.Texcoord;
+
+    [loop]
+    for (uint i = 0u; i < sampleCount; ++i)
+    {
+        shaft += g_LightShaftMaskTexture.Sample(LinearClampSampler, sampleUV).r * sampleWeight;
+        totalWeight += sampleWeight;
+        sampleWeight *= g_LS_Decay;
+        sampleUV -= stepUV;
+    }
+
+    shaft = (totalWeight > EPSILON) ? (shaft / totalWeight) : 0.f;
+
+    Out.Color = float4(shaft * g_LS_Intensity, 0.f, 0.f, 1.f);
+    return Out;
+}
+
+PS_OUT_COLOR PS_LightShaftCompositeHDR(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+
+    const float4 baseColor = g_DistortionSourceTexture.Sample(LinearClampSampler, In.Texcoord);
+    const float shaft = g_LightShaftSourceTexture.Sample(LinearClampSampler, In.Texcoord).r;
+    const float3 shaftColor = shaft * g_LS_ShaftColor;
+
+    Out.Color = float4(baseColor.rgb + shaftColor, baseColor.a);
+    return Out;
+}
+
 PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
@@ -226,4 +307,7 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(BloomUpsampleAdd,  RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomUpsampleAdd)        // 5
     PASS_RS_DS_BS_VP(ToneMapping,       RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 6
     PASS_RS_DS_BS_VP(DistortionResolve, RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_DistortionResolve)       // 7
+    PASS_RS_DS_BS_VP(LightShaftMaskHalf, RS_Default, DSS_None,  BS_Default, VS_MAIN,    PS_LightShaftMaskHalf)      // 8
+    PASS_RS_DS_BS_VP(LightShaftRadialBlurHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_LightShaftRadialBlurHalf) // 9
+    PASS_RS_DS_BS_VP(LightShaftCompositeHDR, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_LightShaftCompositeHDR)  // 10
 }

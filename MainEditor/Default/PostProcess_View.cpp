@@ -10,7 +10,12 @@ PostProcess_View::PostProcess_View()
 
 HRESULT PostProcess_View::Initialize()
 {
-    return Editor_Window::Initialize();
+    const HRESULT hr = Editor_Window::Initialize();
+    if (FAILED(hr))
+        return hr;
+
+    Cache_DefaultSnapshots();
+    return S_OK;
 }
 
 void PostProcess_View::Update(float timeDelta)
@@ -38,6 +43,9 @@ void PostProcess_View::Render()
         Shared<PostProcessPipeline> pipeline = GAME->Get_PostProcessPipeline();
         Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
 
+        if (!_hasDefaultSnapshots && pipeline && lightingPipeline)
+            Cache_DefaultSnapshots();
+
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.f, 12.f));
         ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.f);
         ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, 6.f);
@@ -53,6 +61,7 @@ void PostProcess_View::Render()
             bool dirty = false;
             bool lightingDirty = false;
             PostProcessCB& params = pipeline->Get_PostProcessParams();
+            LightShaftCB& lightShaftParams = pipeline->Get_LightShaftParams();
 
             Draw_StatusBadge();
 
@@ -72,16 +81,25 @@ void PostProcess_View::Render()
             ImGui::Separator();
             ImGui::Spacing();
 
+            Draw_LightShaftControl(lightShaftParams, dirty);
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
             Draw_LightingControl(lightingPipeline, lightingDirty);
 
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
 
-            Draw_QuickAction(params, lightingPipeline, dirty, lightingDirty);
+            Draw_QuickAction(params, lightShaftParams, lightingPipeline, dirty, lightingDirty);
 
             if (dirty)
+            {
                 pipeline->Set_PostProcessParams(params);
+                pipeline->Set_LightShaftParams(lightShaftParams);
+            }
 
             if (lightingDirty)
             {
@@ -127,6 +145,7 @@ void PostProcess_View::Draw_FeatureControl(Shared<PostProcessPipeline> pipeline,
         bool useExposure = pipeline->Has_PostProcessFeature(PostProcessFeature::Exposure);
         bool useBloom = pipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
         bool useGamma = pipeline->Has_PostProcessFeature(PostProcessFeature::Gamma);
+        bool useLightShaft = pipeline->Has_PostProcessFeature(PostProcessFeature::LightShaft);
 
         if (ImGui::Checkbox("HDR", &useHDR))
         {
@@ -155,6 +174,12 @@ void PostProcess_View::Draw_FeatureControl(Shared<PostProcessPipeline> pipeline,
         if (ImGui::Checkbox("Gamma", &useGamma))
         {
             pipeline->Set_PostProcessFeature(PostProcessFeature::Gamma, useGamma);
+            dirty = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::Checkbox("LightShaft", &useLightShaft))
+        {
+            pipeline->Set_PostProcessFeature(PostProcessFeature::LightShaft, useLightShaft);
             dirty = true;
         }
     }
@@ -190,6 +215,41 @@ void PostProcess_View::Draw_ParameterControl(PostProcessCB& params, bool& dirty)
             params.toneMapMode = static_cast<uint32>(toneMapMode);
             dirty = true;
         }
+    }
+
+    ImGui::EndChild();
+}
+
+void PostProcess_View::Draw_LightShaftControl(LightShaftCB& params, bool& dirty)
+{
+    if (ImGui::BeginChild("##LightShaftControl", ImVec2(0.f, 300.f), true))
+    {
+        ImGui::Text("Light Shaft Params");
+
+        dirty |= ImGui::ColorEdit3("ShaftColor", reinterpret_cast<float*>(&params.shaftColor));
+        dirty |= ImGui::DragFloat("Intensity##LightShaft", &params.intensity, 0.01f, 0.f, 8.f, "%.3f");
+
+        int sampleCount = static_cast<int>(params.sampleCount);
+        if (ImGui::SliderInt("SampleCount##LightShaft", &sampleCount, 1, 32))
+        {
+            params.sampleCount = static_cast<uint32>(sampleCount);
+            dirty = true;
+        }
+
+        dirty |= ImGui::DragFloat("RayLength", &params.rayLength, 0.001f, 0.f, 1.f, "%.3f");
+        dirty |= ImGui::DragFloat("Decay", &params.decay, 0.001f, 0.f, 1.f, "%.3f");
+        dirty |= ImGui::DragFloat("SunDiscRadius", &params.sunDiscRadius, 0.001f, 0.001f, 0.25f, "%.3f");
+        dirty |= ImGui::DragFloat("EdgeFade", &params.edgeFade, 0.001f, 0.f, 0.5f, "%.3f");
+        dirty |= ImGui::DragFloat("DepthEmptyThreshold", &params.depthEmptyThreshold, 0.0001f, 0.f, 0.1f, "%.4f");
+
+        ImGui::Separator();
+        ImGui::TextDisabled("Runtime values");
+
+        ImGui::BeginDisabled(true);
+        ImGui::DragFloat2("LightScreenUV", reinterpret_cast<float*>(&params.lightScreenUV), 0.001f, -1.f, 2.f, "%.3f");
+        ImGui::DragFloat("LightVisible", &params.lightVisible, 0.001f, 0.f, 1.f, "%.3f");
+        ImGui::DragFloat("LightFacingCamera", &params.lightFacingCamera, 0.001f, 0.f, 1.f, "%.3f");
+        ImGui::EndDisabled();
     }
 
     ImGui::EndChild();
@@ -274,7 +334,7 @@ void PostProcess_View::Draw_LightingControl(Shared<LightingPipeline> pipeline, b
     ImGui::EndChild();
 }
 
-void PostProcess_View::Draw_QuickAction(PostProcessCB& params, Shared<LightingPipeline> lightingPipeline, bool& dirty, bool& lightingDirty)
+void PostProcess_View::Draw_QuickAction(PostProcessCB& params, LightShaftCB& lightShaftParams, Shared<LightingPipeline> lightingPipeline, bool& dirty, bool& lightingDirty)
 {
     if (ImGui::BeginChild("##QuickAction", ImVec2(0.f, 110.f), true))
     {
@@ -282,7 +342,8 @@ void PostProcess_View::Draw_QuickAction(PostProcessCB& params, Shared<LightingPi
 
         if (ImGui::Button("Reset Parameters"))
         {
-            params = Make_DefaultParams();
+            params = _defaultPostProcessParams;
+            lightShaftParams = _defaultLightShaftParams;
             dirty = true;
         }
 
@@ -290,8 +351,8 @@ void PostProcess_View::Draw_QuickAction(PostProcessCB& params, Shared<LightingPi
 
         if (ImGui::Button("Reset Lighting Params") && lightingPipeline)
         {
-            lightingPipeline->Get_Params() = Make_DefaultSSAOParams();
-            lightingPipeline->Get_DeferredLightingParams() = Make_DefaultDeferredLightingParams();
+            lightingPipeline->Get_Params() = _defaultSSAOParams;
+            lightingPipeline->Get_DeferredLightingParams() = _defaultDeferredLightingParams;
             lightingDirty = true;
         }
 
@@ -327,20 +388,18 @@ void PostProcess_View::Draw_QuickAction(PostProcessCB& params, Shared<LightingPi
     ImGui::EndChild();
 }
 
-PostProcessCB PostProcess_View::Make_DefaultParams()
+void PostProcess_View::Cache_DefaultSnapshots()
 {
-    PostProcessCB defaults{};
-    return defaults;
-}
+    Shared<PostProcessPipeline> pipeline = GAME->Get_PostProcessPipeline();
+    Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    if (!pipeline || !lightingPipeline)
+        return;
 
-SSAOCB PostProcess_View::Make_DefaultSSAOParams()
-{
-    return SSAOCB{};
-}
-
-DeferredLightingCB PostProcess_View::Make_DefaultDeferredLightingParams()
-{
-    return DeferredLightingCB{};
+    _defaultPostProcessParams = pipeline->Get_PostProcessParams();
+    _defaultLightShaftParams = pipeline->Get_LightShaftParams();
+    _defaultSSAOParams = lightingPipeline->Get_Params();
+    _defaultDeferredLightingParams = lightingPipeline->Get_DeferredLightingParams();
+    _hasDefaultSnapshots = true;
 }
 
 Shared<PostProcess_View> PostProcess_View::Create()

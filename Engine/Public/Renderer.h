@@ -4,6 +4,7 @@
 #include "Engine_Constants.h"
 #include "Log_Define.h"
 #include "Renderer_Define.h"
+#include "Shader_CBuffer_Define.h"
 
 NS_BEGIN(Engine)
 
@@ -87,6 +88,9 @@ private:
 private :
     HRESULT Render_BloomPass(const wchar_t* dstMrt, const wchar_t* srcRt, PostProcessPass pass);
     HRESULT Render_BloomUpsamplePass(const wchar_t* dstMrt, const wchar_t* smallRt, const wchar_t* baseRt);
+    HRESULT Render_LightShaftPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass);
+    HRESULT Render_LightShaftCompositePass();
+    bool Try_BuildLightShaftParams(LightShaftCB& outParams) const;
     HRESULT Render_DistortionResolve();
 
 private: /* 그림자 */
