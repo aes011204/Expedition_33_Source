@@ -18,6 +18,7 @@
 #include "Player_WorldBase.h"
 #include "Player_BattleBase.h"
 #include "SkillTargeting.h"
+#include "EffectCom.h"
 #include "Spawn_Prefab.h"
 #include "UltimateTargeting.h"
 #include "SkillScript.h"
@@ -39,6 +40,7 @@
 #include "SkillTreeCom.h"
 #include "BattleReactionController.h"
 #include "BattleStartSpawner.h"
+#include "EffectCom.h"
 #include "Monster_WorldBase.h"
 #include "ScreenFx_Manager.h"
 
@@ -1255,7 +1257,31 @@ void BattleController::Revive_BattleMon(const BattleChar& battleChar, float Mult
     battleChar.statCom->Set_AliveStatus(EAliveStatus::Alive); // 먼저 부활 상태로 복구한다.
     Restore_BattleTargetCollision(battleChar); // 부활 직후 다시 충돌 가능 상태로 전환
 
+    if (battleChar.actor)
+    {
+
+        for (const auto& [partTag, partObject] : battleChar.actor->Get_PartObjects())
+        {
+            UNREFERENCED_PARAMETER(partTag);
+
+            if (partObject == nullptr)
+                continue;
+
+            partObject->Set_Visible(true);
+
+            if (const Shared<EffectCom> partEffect = partObject->Get_Component<EffectCom>())
+                partEffect->Start_SwitchDissolve(0.35f, "T_Perlin_Noise_M");
+        }
+
+        battleChar.actor->Set_Visible(true);
+
+        if (const Shared<EffectCom> actorEffect = battleChar.actor->Get_Component<EffectCom>())
+            actorEffect->Start_SwitchDissolve(0.35f, "T_Perlin_Noise_M");
+
+    }
+
     DamageSystem::Heal(battleChar.statCom->Get_StatInfo().maxHp * MultipleHp, battleChar);
+
 
     if (battleChar.ModelCom)
     {

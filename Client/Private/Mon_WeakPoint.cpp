@@ -41,10 +41,11 @@ void Mon_WeakPoint::BeginPlay()
 {
     Monster_Part::BeginPlay();
 
+    
     if (const Matrix* socketMatrix = Resolve_SocketMatrix())
         Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*socketMatrix));
 
-    if (_effectCom)
+    if (_partEffectCom)
     {
         EffectCom::EffectPlayDesc desc{};
         desc.levelIndex = GAME->Current_LevelIndex();
@@ -55,7 +56,7 @@ void Mon_WeakPoint::BeginPlay()
         desc.scale = Vec3(0.3f);
         desc.requiresManualRelease = true;
 
-        _effectCom->Play_Effect(desc);
+        _partEffectCom->Play_Effect(desc);
     }
 }
 
@@ -69,8 +70,10 @@ void Mon_WeakPoint::Update(float timeDelta)
     if (const Matrix* socketMatrix = Resolve_SocketMatrix())
         Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*socketMatrix));
 
-    if (_effectCom)
-        _effectCom->Update(timeDelta);
+    if (_partEffectCom)
+        _partEffectCom->Update(timeDelta);
+
+    
  
 }
 
