@@ -16,6 +16,7 @@ cbuffer cbEffectMaterialPreview : register(b2)
     float4 g_EffectMaterialPreviewUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main offset, zw: noise offset
     float4 g_EffectMaterialPreviewMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask offset, zw: reserved
     float4 g_EffectMaterialPreviewUVModeParams = { 0.f, 0.f, 0.f, 0.f };       // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
+    float4 g_EffectMaterialPreviewSourceParams = { 1.f, 0.f, 0.f, 0.f };       // x: noise source, y: mask source, z: noise invert, w: mask invert
     float4 g_EffectMaterialPreviewAdditiveParams = { 0.f, 0.f, 0.f, 1.f };     // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectMaterialPreviewAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectMaterialPreviewAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
@@ -50,18 +51,18 @@ float4 Sample_PreviewMainTexture(float2 uv, float mode)
            : g_Texture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_PreviewNoiseTexture(float2 uv, float mode)
+float4 Sample_PreviewNoiseTexture(float2 uv, float mode)
 {
     return Use_PreviewClampSampler(mode)
-           ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
-           : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
+           ? g_NoiseTexture.Sample(LinearClampSampler, uv)
+           : g_NoiseTexture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_PreviewMaskTexture(float2 uv, float mode)
+float4 Sample_PreviewMaskTexture(float2 uv, float mode)
 {
     return Use_PreviewClampSampler(mode)
-           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
-           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+           ? g_MaskTexture.Sample(LinearClampSampler, uv)
+           : g_MaskTexture.Sample(LinearWrapSampler, uv);
 }
 
 struct VS_IN
@@ -135,10 +136,22 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
 
     const float noiseStrength = saturate(g_EffectMaterialPreviewParams.z);
     if (g_EffectMaterialPreviewParams.w != 0 && g_EffectMaterialPreviewParams.z > 0.f)
-        noiseRaw = Sample_PreviewNoiseTexture(noiseUV, noiseUVMode);
+    {
+        const float4 noiseTexel = Sample_PreviewNoiseTexture(noiseUV, noiseUVMode);
+        noiseRaw = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectMaterialPreviewSourceParams.x),
+            g_EffectMaterialPreviewSourceParams.z
+        );
+    }
 
     if (g_EffectMaterialPreviewAlphaParams.z != 0)
-        maskAlpha = Sample_PreviewMaskTexture(maskUV, maskUVMode);
+    {
+        const float4 maskTexel = Sample_PreviewMaskTexture(maskUV, maskUVMode);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectMaterialPreviewSourceParams.y),
+            g_EffectMaterialPreviewSourceParams.w
+        );
+    }
 
     const float breakupNoise = lerp(1.f, noiseRaw, noiseStrength);
     float coverage = maskAlpha;
@@ -188,10 +201,22 @@ PS_OUT PS_ADDITIVE(PS_IN In)
 
     const float noiseStrength = saturate(g_EffectMaterialPreviewParams.z);
     if (g_EffectMaterialPreviewParams.w != 0 && g_EffectMaterialPreviewParams.z > 0.f)
-        noiseRaw = Sample_PreviewNoiseTexture(noiseUV, noiseUVMode);
+    {
+        const float4 noiseTexel = Sample_PreviewNoiseTexture(noiseUV, noiseUVMode);
+        noiseRaw = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectMaterialPreviewSourceParams.x),
+            g_EffectMaterialPreviewSourceParams.z
+        );
+    }
 
     if (g_EffectMaterialPreviewAlphaParams.z != 0)
-        maskAlpha = Sample_PreviewMaskTexture(maskUV, maskUVMode);
+    {
+        const float4 maskTexel = Sample_PreviewMaskTexture(maskUV, maskUVMode);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectMaterialPreviewSourceParams.y),
+            g_EffectMaterialPreviewSourceParams.w
+        );
+    }
 
     const float breakupNoise = lerp(1.f, noiseRaw, noiseStrength);
     const float coverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * breakupNoise, alphaErosion);

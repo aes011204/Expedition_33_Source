@@ -14,6 +14,7 @@ struct SceneContext
     vector<Shared<EditorObject>> _objects;
     vector<Shared<EditorObject>> _staticMeshes;
     vector<Shared<EditorObject>> _lights;
+    vector<Shared<EditorObject>> _postProcessVolumes;
     vector<Shared<EditorObject>> _instancedMeshes;
 
     Shared<EditorObject> _selected;

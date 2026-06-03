@@ -4,6 +4,7 @@
 
 #include "BattleController.h"
 #include "ClientInstance.h"
+#include "CombatStatCom.h"
 
 IMPLEMENT_REFLECTION(AN_Battle_EndAnim)
 {
@@ -35,7 +36,8 @@ void AN_Battle_EndAnim::Execute(const AnimNotifyContext& context)
     if (action.Get_CurChar().ModelCom.get() != context.model)
         return;
 
-
+    if (action.Get_CurChar().statCom->Get_CurAliveState() == EAliveStatus::Dead)
+        return;
 
     Battle->OnActionEndNotify();
 }

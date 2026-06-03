@@ -24,6 +24,14 @@ HRESULT Character_BattleBase::Initialize(void* arg)
     return Character::Initialize(arg);
 }
 
+void Character_BattleBase::BeginPlay()
+{
+    Character::BeginPlay();
+
+    // 배틀 캐릭터도 첫 프레임 query 전에 PhysX 등록을 마쳐 초기 순서 문제를 피한다.
+    Update_Collider();
+}
+
 void Character_BattleBase::Late_Update(float timeDelta)
 {
     Character::Late_Update(timeDelta);

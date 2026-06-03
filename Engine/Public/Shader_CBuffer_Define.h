@@ -281,7 +281,33 @@ struct alignas(16) ScreenFxCB
     Vec2 pad;
 };
 
-// 패딩이 제대로 됐나 마지막 확인용
+struct alignas(16) FogZoneEntry
+{
+    Vec3 zoneMin;
+    float _pad0{ 0.f };
+
+    Vec3 zoneMax;
+    float _pad1{ 0.f };
+
+    Vec4 fogColor{ 1.f, 0.2f, 0.1f, 1.f };
+
+    float fogDensity{ 1.f };
+    float fogStart{ 0.f };
+    float fogEnd{ 50.f };
+    float _pad2{ 0.f };
+};
+
+struct alignas(16) FogZoneCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::FogZone;
+    static constexpr int32 MAX_FOG_ZONES = 8;
+
+    FogZoneEntry zones[MAX_FOG_ZONES]{};
+    int32 fogZoneCount{ 0 };
+    float _pad0[3]{};
+};
+
+// 패딩이 제대로 됐나 마지막 확인용 
 static_assert(sizeof(MaterialCB) % 16 == 0);
 static_assert(sizeof(HairCB) % 16 == 0);
 static_assert(sizeof(CameraCB) % 16 == 0);
@@ -294,6 +320,7 @@ static_assert(sizeof(SSAOCB) % 16 == 0);
 static_assert(sizeof(DeferredLightingCB) % 16 == 0);
 static_assert(sizeof(DrawFeatureCB) % 16 == 0);
 static_assert(sizeof(ScreenFxCB) % 16 == 0);
+static_assert(sizeof(FogZoneCB) % 16 == 0);
 
 NS_END
 

@@ -3,6 +3,7 @@
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
 #include "GameInstance.h"
+#include "Helper_String.h"
 #include "ModelCom.h"
 #include "PlayableParts.h"
 #include "Player_WorldBase.h"
@@ -12,6 +13,7 @@
 #include "TrailSampleProvider_ByPart.h"
 #include "Weapon.h"
 #include "ContainerObject.h"
+#include "PartObject.h"
 
 IMPLEMENT_REFLECTION(EffectCom)
 {
@@ -70,12 +72,43 @@ void EffectCom::Update(float timeDelta)
         !_switchDissolve.enabled)
     {
         if (const Shared<GameObject> owner = Get_Owner())
+        {
             owner->Set_Visible(false);
 
+            if (const Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(owner))
+            {
+                for (const auto& [partTag, partObject] : container->Get_PartObjects())
+                {
+                    UNREFERENCED_PARAMETER(partTag);
+
+                    if (partObject == nullptr)
+                        continue;
+
+                    if (const Shared<EffectCom> partEffectCom = partObject->Get_Component<EffectCom>())
+                        partEffectCom->Stop_AllAttachedEffects();
+                }
+            }
+        }
+
+        Stop_AllAttachedEffects();
         _vanishComplete = false;
     }
 
     Update_AttachedEffects();
+}
+
+void EffectCom::Tick_AttachedEffectInstances(float timeDelta)
+{
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        if (attached.poolHandle.effectObject == nullptr)
+            continue;
+
+        attached.poolHandle.effectObject->Try_BeginPlay();
+        attached.poolHandle.effectObject->Priority_Update(timeDelta);
+        attached.poolHandle.effectObject->Update(timeDelta);
+        attached.poolHandle.effectObject->Late_Update(timeDelta);
+    }
 }
 
 void EffectCom::Start_SwitchDissolve(float durationSec, const string& noiseName)
@@ -174,12 +207,15 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
         return E_FAIL;
 
     Vec3 spawnWorldPosition{};
-    if (!Try_ResolveEffectWorldPosition(
+    Vec3 spawnWorldRotation{};
+    if (!Try_ResolveEffectWorldTransform(
             desc.target,
             desc.partTag,
             desc.socketName,
             desc.localOffset,
-            spawnWorldPosition))
+            desc.localRotation,
+            spawnWorldPosition,
+            spawnWorldRotation))
     {
         return E_FAIL;
     }
@@ -192,11 +228,14 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
     acquireDesc.layerLevelIndex = desc.levelIndex;
     acquireDesc.layerTag = desc.layerTag;
     acquireDesc.worldPosition = spawnWorldPosition;
+    acquireDesc.worldRotation = spawnWorldRotation;
     acquireDesc.scale = desc.scale;
     acquireDesc.trailSampleProvider = desc.trailSampleProvider;
 
     EffectInstancePool::AttachedHandle handle{};
     CHECK_FAILED(effectPool->Acquire(acquireDesc, handle), E_FAIL);
+    if (desc.requiresManualRelease)
+        handle.requiresManualRelease = true;
 
     AttachedEffect attached{};
     attached.poolHandle = handle;
@@ -206,8 +245,11 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
     attached.socketName = desc.socketName;
     attached.layerTag = desc.layerTag;
     attached.localOffset = desc.localOffset;
+    attached.localRotation = desc.localRotation;
+    attached.scale = desc.scale;
     attached.followTarget = desc.followTarget;
     attached.isTrail = false;
+    attached.trailSampleProvider = desc.trailSampleProvider.lock();
     _attachedEffects.push_back(attached);
 
     return S_OK;
@@ -235,23 +277,53 @@ void EffectCom::Stop_Effect(const wstring& effectName, EffectPlayTarget target, 
     Prune_ReleasedAttachedEffects();
 }
 
-bool EffectCom::Try_ResolveEffectWorldPosition(EffectPlayTarget target, const wstring& partTag,
-    const string& socketName, const Vec3& localOffset, Vec3& outWorldPosition) const
+bool EffectCom::Try_ResolveEffectWorldTransform(EffectPlayTarget target, const wstring& partTag,
+    const string& socketName, const Vec3& localOffset, const Vec3& localRotation,
+    Vec3& outWorldPosition, Vec3& outWorldRotation) const
 {
-    Vec3 baseWorldPosition{};
+    Matrix baseWorldMatrix = Matrix::Identity;
 
     if (target == EffectPlayTarget::OwnerRoot)
     {
-        if (!Try_GetOwnerRootWorldPosition(baseWorldPosition))
+        if (!Try_GetOwnerRootWorldMatrix(baseWorldMatrix))
+            return false;
+    }
+    else if (target == EffectPlayTarget::PartSocket)
+    {
+        if (!Try_GetSocketWorldMatrix(partTag, socketName, baseWorldMatrix))
             return false;
     }
     else
     {
-        if (!Try_GetSocketWorldPosition(partTag, socketName, baseWorldPosition))
+        if (!Try_GetPartRootWorldMatrix(partTag, baseWorldMatrix))
             return false;
     }
 
-    outWorldPosition = baseWorldPosition + localOffset;
+    const Vec3 localRotationRad(
+        XMConvertToRadians(localRotation.x),
+        XMConvertToRadians(localRotation.y),
+        XMConvertToRadians(localRotation.z));
+
+    // local offset/rotation은 owner root 또는 socket matrix 기준으로 합성한다.
+    const Matrix localMatrix =
+        Matrix::CreateFromYawPitchRoll(localRotationRad.y, localRotationRad.x, localRotationRad.z) *
+        Matrix::CreateTranslation(localOffset);
+
+    Matrix finalWorldMatrix = localMatrix * baseWorldMatrix;
+
+    Vec3 decomposedScale = Vec3::One;
+    Quat decomposedRotation = Quat::Identity;
+    Vec3 decomposedTranslation = Vec3::Zero;
+    if (!finalWorldMatrix.Decompose(decomposedScale, decomposedRotation, decomposedTranslation))
+        return false;
+
+    const Vec3 eulerRad = decomposedRotation.ToEuler();
+
+    outWorldPosition = decomposedTranslation;
+    outWorldRotation = Vec3(
+        XMConvertToDegrees(eulerRad.x),
+        XMConvertToDegrees(eulerRad.y),
+        XMConvertToDegrees(eulerRad.z));
     return true;
 }
 
@@ -262,6 +334,8 @@ HRESULT EffectCom::Play_AttachedEffect(
     const string& socketName,
     const wstring& layerTag,
     const Vec3& localOffset,
+    const Vec3& localRotation,
+    const Vec3& scale,
     const Weak<IEffectTrailSampleProvider>& trailSampleProvider)
 {
     EffectPlayDesc desc{};
@@ -272,10 +346,57 @@ HRESULT EffectCom::Play_AttachedEffect(
     desc.socketName = socketName;
     desc.layerTag = layerTag;
     desc.localOffset = localOffset;
-    desc.followTarget = true;
+    desc.localRotation = localRotation;
+    desc.scale = scale;
+    desc.followTarget = true; // attached effect는 EffectCom Update에서 계속 socket transform을 따라간다.
     desc.trailSampleProvider = trailSampleProvider;
 
     return Play_Effect(desc);
+}
+
+HRESULT EffectCom::Play_AttachedPartEffect(
+    uint32 levelIndex,
+    const wstring& effectName,
+    const wstring& partTag,
+    const string& socketName,
+    const wstring& layerTag,
+    const Vec3& localOffset,
+    const Vec3& localRotation,
+    const Vec3& scale)
+{
+    EffectPlayDesc desc{};
+    desc.levelIndex = levelIndex;
+    desc.effectName = effectName;
+    desc.target = socketName.empty() ? EffectPlayTarget::PartRoot : EffectPlayTarget::PartSocket;
+    desc.partTag = partTag;
+    desc.socketName = socketName;
+    desc.layerTag = layerTag;
+    desc.localOffset = localOffset;
+    desc.localRotation = localRotation;
+    desc.scale = scale;
+    desc.followTarget = true; // socketName이 비어 있으면 part root, 있으면 socket을 계속 따라간다.
+
+    return Play_Effect(desc);
+}
+
+HRESULT EffectCom::Play_AttachedPartEffect(
+    uint32 levelIndex,
+    const wstring& effectName,
+    const wstring& partTag,
+    const wstring& layerTag,
+    const Vec3& localOffset,
+    const Vec3& localRotation,
+    const Vec3& scale)
+{
+    return Play_AttachedPartEffect(
+        levelIndex,
+        effectName,
+        partTag,
+        "",
+        layerTag,
+        localOffset,
+        localRotation,
+        scale);
 }
 
 HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& partTag, const wstring& layerTag)
@@ -389,12 +510,15 @@ void EffectCom::Update_AttachedEffects()
             continue; // AN 단발 이펙트는 시작 위치만 맞추고 더 이상 이동시키지 않는다.
 
         Vec3 targetWorldPosition{};
-        if (!Try_ResolveEffectWorldPosition(
+        Vec3 targetWorldRotation{};
+        if (!Try_ResolveEffectWorldTransform(
                 attached.target,
                 attached.partTag,
                 attached.socketName,
                 attached.localOffset,
-                targetWorldPosition))
+                attached.localRotation,
+                targetWorldPosition,
+                targetWorldRotation))
         {
             continue;
         }
@@ -403,6 +527,8 @@ void EffectCom::Update_AttachedEffects()
         CHECK_NULL(effectTransform);
 
         effectTransform->Set_WorldPosition(targetWorldPosition);
+        effectTransform->Set_WorldRotationEuler(targetWorldRotation);
+        effectTransform->Set_Scale(attached.scale);
     }
 
     Prune_ReleasedAttachedEffects();
@@ -448,22 +574,28 @@ void EffectCom::Prune_ReleasedAttachedEffects()
     );
 }
 
-bool EffectCom::Try_GetOwnerRootWorldPosition(Vec3& outWorldPosition) const
+bool EffectCom::Try_GetOwnerRootWorldMatrix(Matrix& outWorldMatrix) const
 {
     const Shared<GameObject> ownerObject = Get_Owner();
     if (ownerObject == nullptr)
         return false;
 
+    if (const Shared<PartObject> ownerPart = dynamic_pointer_cast<PartObject>(ownerObject))
+    {
+        outWorldMatrix = ownerPart->Get_CombinedWorldMatrix();
+        return true;
+    }
+
     const Shared<TransformCom> ownerTransform = ownerObject->Get_Transform();
     if (ownerTransform == nullptr)
         return false;
 
-    outWorldPosition = ownerTransform->Get_Position();
+    outWorldMatrix = ownerTransform->Get_WorldMatrix();
     return true;
 }
 
-bool EffectCom::Try_GetSocketWorldPosition(const wstring& partTag, const string& socketName,
-                                           Vec3& outWorldPosition) const
+bool EffectCom::Try_GetSocketWorldMatrix(const wstring& partTag, const string& socketName,
+                                           Matrix& outWorldMatrix) const
 {
     const Shared<GameObject> ownerObject = Get_Owner();
     const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
@@ -488,7 +620,7 @@ bool EffectCom::Try_GetSocketWorldPosition(const wstring& partTag, const string&
         const Matrix socketWorldMatrix =
             *socketMatrix * partTransform->Get_WorldMatrix() * ownerTransform->Get_WorldMatrix();
 
-        outWorldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        outWorldMatrix = socketWorldMatrix;
         return true;
     }
 
@@ -499,11 +631,26 @@ bool EffectCom::Try_GetSocketWorldPosition(const wstring& partTag, const string&
             return false;
 
         const Matrix socketWorldMatrix = *socketMatrix * weaponPart->Get_CombinedWorldMatrix();
-        outWorldPosition = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+        outWorldMatrix = socketWorldMatrix;
         return true;
     }
 
     return false;
+}
+
+bool EffectCom::Try_GetPartRootWorldMatrix(const wstring& partTag, Matrix& outWorldMatrix) const
+{
+    const Shared<GameObject> ownerObject = Get_Owner();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
+    if (ownerContainer == nullptr)
+        return false;
+
+    PartObject* partObject = ownerContainer->Get_PartObject(partTag);
+    if (partObject == nullptr)
+        return false;
+
+    outWorldMatrix = partObject->Get_CombinedWorldMatrix();
+    return true;
 }
 
 bool EffectCom::Try_BuildTrailSample(

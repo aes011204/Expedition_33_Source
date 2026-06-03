@@ -231,20 +231,20 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, BattleAction& 
 void BattleActionExecutor::Update_BasicMovement(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
 {
     //NONE
-    const auto& rm = action.Get_CurChar().ModelCom->Get_RootTransformVelocity();
-    const Vec3 delta = rm.position * 0.01f;
+    //const auto& rm = action.Get_CurChar().ModelCom->Get_RootTransformVelocity();
+    //const Vec3 delta = rm.position * 0.01f;
 
-    const Vec3 rotDeg = transform->Get_RotationEuler();
-    const Vec3 rotRad(
-        XMConvertToRadians(rotDeg.x),
-        XMConvertToRadians(rotDeg.y),
-        XMConvertToRadians(rotDeg.z)
-    );
+    //const Vec3 rotDeg = transform->Get_RotationEuler();
+    //const Vec3 rotRad(
+    //    XMConvertToRadians(rotDeg.x),
+    //    XMConvertToRadians(rotDeg.y),
+    //    XMConvertToRadians(rotDeg.z)
+    //);
 
-    const Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
-    const Vec3 worldDelta = Vec3::TransformNormal(delta, rotMat);
+    //const Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
+    //const Vec3 worldDelta = Vec3::TransformNormal(delta, rotMat);
 
-    transform->Set_Position(currentPos + worldDelta);
+    //transform->Set_Position(currentPos + worldDelta);
 }
 
 void BattleActionExecutor::Update_RootMotionToTarget(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos)

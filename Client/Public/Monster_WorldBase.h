@@ -14,6 +14,7 @@ NS_END
 NS_BEGIN(Client)
 
 class MonsterStatCom;
+class EffectCom;
 
 class Monster_WorldBase abstract : public Character_WorldBase
 {
@@ -77,11 +78,13 @@ private:
     MonsterWorldAnim _desiredAction = MonsterWorldAnim::Idle;
     MonsterWorldAnim _currentAction = MonsterWorldAnim::Idle;
     MonsterWorldAnim _previousAction = MonsterWorldAnim::Idle;
+    bool _hasAppliedAction = false;
 
 protected:
     Shared<AIController>         _aiCtrl;
     Shared<MovementCom>          _movementCom;
     Shared<MonsterStatCom>       _combatStat;
+    Shared<EffectCom>            _effectCom;
 
     vector<BattleMonsterSpawnDesc> _battleMonsterSpawnDescs = {};
 

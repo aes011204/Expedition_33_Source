@@ -346,6 +346,7 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
         _staticMeshes.clear();
         _lights.erase(remove_if(_lights.begin(), _lights.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _lights.end());
         _instancedMeshes.clear();
+        _postProcessVolumes.clear();
         _modelOverrides.clear();
         _undoStack.clear();
         _redoStack.clear();
@@ -833,6 +834,10 @@ void SceneContext::Add(Shared<EditorObject> obj)
         _lights.push_back(obj);
         _lightDirty = true;
     }
+    else if (obj->_type == EObjectType::PostProcessVolume)
+    {
+        _postProcessVolumes.push_back(obj);
+    }
     else if (obj->_type == EObjectType::InstancedMesh)
     {
         _instancedMeshes.push_back(obj);
@@ -869,6 +874,10 @@ void SceneContext::Remove(const Shared<EditorObject>& obj)
         erase(_lights, obj);
         _lightDirty = true;
     }
+    else if (obj->_type == EObjectType::PostProcessVolume)
+    {
+        erase(_postProcessVolumes, obj);
+    }
     else if (obj->_type == EObjectType::InstancedMesh)
     {
         erase(_instancedMeshes, obj);
@@ -902,6 +911,7 @@ void SceneContext::ClearScene()
     _staticMeshes.clear();
     _lights.erase(remove_if(_lights.begin(), _lights.end(), [](const Shared<EditorObject>& o) { return !o->_isDefaultLight; }), _lights.end());
     _instancedMeshes.clear();
+    _postProcessVolumes.clear();
     _landscapes.clear();
     _activeLandscapeIdx = -1;
     _selected = nullptr;

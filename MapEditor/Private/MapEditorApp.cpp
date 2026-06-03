@@ -230,6 +230,7 @@ HRESULT MapEditorApp::Render()
     }
 
     SyncSceneLights();
+    SyncFogZones();
 
     GAME->UpdateFrustum(_camera->GetView(), _camera->GetProj());
 
@@ -511,6 +512,29 @@ void MapEditorApp::SyncSceneLights()
         desc.specular = obj->_lightSpecular;
         GAME->Add_Light(desc);
     }
+}
+
+void MapEditorApp::SyncFogZones()
+{
+    FogZoneCB cb{};
+
+    for (const auto& obj : _scene._postProcessVolumes)
+    {
+        if (cb.fogZoneCount >= FogZoneCB::MAX_FOG_ZONES)
+        {
+            break;
+        }
+
+        FogZoneEntry& entry = cb.zones[cb.fogZoneCount++];
+        entry.zoneMin = obj->_position - obj->_zoneExtent;
+        entry.zoneMax = obj->_position + obj->_zoneExtent;
+        entry.fogColor = Color(obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z, 1.f);
+        entry.fogDensity = obj->_ppFogDensity;
+        entry.fogStart = obj->_ppFogStart;
+        entry.fogEnd = obj->_ppFogEnd;
+    }
+
+    GAME->Set_FogZones(cb);
 }
 
 HRESULT MapEditorApp::Ready_Light()

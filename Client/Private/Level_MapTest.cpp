@@ -139,49 +139,15 @@ HRESULT Level_MapTest::Ready_Layer_Player(const wstring& strLayerTag)
 
 HRESULT Level_MapTest::Ready_Layer_Monster(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(0.f, 1.15f, -7.94f);
-
-    const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Lancelier,
-        ETOI(LevelType::MapTest),
-        strLayerTag);
-
-    CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, +10.f));
-
-    //Portier
-    const Shared<GameObject> monsterPortier = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Portier, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
-        ETOI(LevelType::MapTest),
-        strLayerTag);
-
-    CHECK_NULL(monsterPortier, E_FAIL);
-    monsterPortier->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, -10.f));
-
-    //Volester
-    const Shared<GameObject> monsterVolester = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Volester, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
-        ETOI(LevelType::MapTest),
-        strLayerTag);
-
-    CHECK_NULL(monsterVolester, E_FAIL);
-    monsterVolester->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 20.f));
-
-    //Bishop
-    const Shared<GameObject> monsterBishop = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Bishop, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
-        ETOI(LevelType::MapTest),
-        strLayerTag);
-
-    CHECK_NULL(monsterBishop, E_FAIL);
-    monsterBishop->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 30.f));
+    UNREFERENCED_PARAMETER(strLayerTag);
 
     // 전투 시작 위치
-    auto spawner = Spawn_Prefab::Prefab("BSS_GamePlay_Boss")
+    const Shared<GameObject> spawner = Spawn_Prefab::Prefab("BSS_GamePlay_Boss")
         .AtLevel(ETOI(LevelType::MapTest))
         .InLayer(TEXT("Layer_BattleStartSpawner"))
         .Position(Vec3(17.f, 0.46f, -3.2f))
         .Spawn();
+    CHECK_NULL(spawner, E_FAIL);
 
     return S_OK;
 }

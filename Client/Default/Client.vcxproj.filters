@@ -261,6 +261,9 @@
     <ClCompile Include="..\private\Level_GameEntry.cpp">
       <Filter>01.Levels\Logo</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MainTitleMenuSound.cpp">
+      <Filter>01.Levels\Logo</Filter>
+    </ClCompile>
     <ClCompile Include="..\private\BT_LookRange.cpp" />
     <ClCompile Include="..\Private\IRuntimeUI_EditorTarget.cpp" />
     <ClCompile Include="..\Private\TrailAnchor_Asset.cpp" />
@@ -417,6 +420,8 @@
     </ClCompile>
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
+    <ClCompile Include="..\private\Mon_WeakPoint.cpp" />
+    <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -753,6 +758,9 @@
     <ClInclude Include="..\Public\EffectAssetRuntimeLoader.h">
       <Filter>02.GameObject\Effect</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\EffectMaterialScalarModulationRuntime.h">
+      <Filter>02.GameObject\Effect</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\EffectEmitterRegistration.h">
       <Filter>02.GameObject\Effect\Emitter Registration</Filter>
     </ClInclude>
@@ -1047,6 +1055,9 @@
     <ClInclude Include="..\public\Level_GameEntry.h">
       <Filter>01.Levels\Logo</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MainTitleMenuSound.h">
+      <Filter>01.Levels\Logo</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\BT_LookRange.h" />
     <ClInclude Include="..\Public\IRuntimeUI_EditorTarget.h" />
     <ClInclude Include="..\Public\TrailAnchor_Asset.h" />
@@ -1203,6 +1214,8 @@
       <Filter>BattleState</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_MarkEffect.h" />
+    <ClInclude Include="..\public\Mon_WeakPoint.h" />
+    <ClInclude Include="..\Public\ANS_CounterTimeScale.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
@@ -1665,6 +1678,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\Bin\ShaderFiles\Shader_EffectMaterialScalarModulation.hlsli">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </None>
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli">
       <Filter>97.ShaderFiles\Effect</Filter>
     </None>

@@ -60,6 +60,63 @@ static void DrawTileLabel(const string& text, float maxWidth)
     ImGui::TextUnformatted(label.c_str());
 }
 
+static bool IsPrefabFilePath(const fs::path& filePath)
+{
+    const string fileName = String::ToLowerCopy(String::ToString(filePath.filename().wstring()));
+    return fileName.ends_with(".prefab.json");
+}
+
+static string FindPortraitGuidInJson(const json& node)
+{
+    if (node.is_object())
+    {
+        for (const auto& [key, value] : node.items())
+        {
+            if (key.ends_with(".portraitGuid") && value.is_string())
+                return value.get<string>();
+
+            const string nestedGuid = FindPortraitGuidInJson(value);
+            if (!nestedGuid.empty())
+                return nestedGuid;
+        }
+    }
+    else if (node.is_array())
+    {
+        for (const json& item : node)
+        {
+            const string nestedGuid = FindPortraitGuidInJson(item);
+            if (!nestedGuid.empty())
+                return nestedGuid;
+        }
+    }
+
+    return {};
+}
+
+static fs::path ResolvePrefabPortraitThumbnailPath(const fs::path& prefabPath)
+{
+    if (!IsPrefabFilePath(prefabPath))
+        return {};
+
+    const json prefabJson = GAME->Load_JsonFile(prefabPath);
+    if (!prefabJson.is_object())
+        return {};
+
+    const string portraitGuid = FindPortraitGuidInJson(prefabJson);
+    if (portraitGuid.empty())
+        return {};
+
+    const AssetMeta* portraitAsset = GAME->Find_AssetByGUID(portraitGuid);
+    if (portraitAsset == nullptr || portraitAsset->type != "Texture" || portraitAsset->fullPath.empty())
+        return {};
+
+    const fs::path portraitPath(portraitAsset->fullPath);
+    if (!fs::exists(portraitPath))
+        return {};
+
+    return portraitPath;
+}
+
 static fs::path Resolve_ModelPath_FromAnimation(const fs::path& animPath)
 {
     const auto findModelInDirectory = [](const fs::path& directory, const string& preferredStem) -> fs::path
@@ -348,8 +405,6 @@ void Content_Browser::Refresh_Resources()
 
 void Content_Browser::Refresh_AssetState()
 {
-    Refresh_Resources();
-
     const wstring assetRoot = GAME->Get_AssetRoot();
     if (assetRoot.empty())
     {
@@ -357,10 +412,15 @@ void Content_Browser::Refresh_AssetState()
         return;
     }
 
-    if (SUCCEEDED(GAME->Initialize_AssetManager(assetRoot)))
+    if (SUCCEEDED(GAME->Initialize_AssetManager(assetRoot, true)))
+    {
+        Refresh_Resources();
         NOTIFY("새로고침");
+    }
     else
+    {
         NOTIFY("새로고침 실패");
+    }
 }
 
 void Content_Browser::Load_Icons()
@@ -630,6 +690,27 @@ void Content_Browser::Draw_AssetView()
             }
         }
         //
+
+        // 드래그해서 이펙트 스폰
+        {
+            if (fileName.ends_with(".effect.json"))
+            {
+                if (ImGui::BeginDragDropSource())
+                {
+                    const string pathA = String::ToString(fileEntry.filePath);
+                    ImGui::SetDragDropPayload(
+                        "CONTENT_BROWSER_EFFECT",
+                        pathA.c_str(),
+                        pathA.size() + 1);
+
+                    ImGui::Text("Effect");
+                    ImGui::Separator();
+                    ImGui::Text("%s", pureName.c_str());
+
+                    ImGui::EndDragDropSource();
+                }
+            }
+        }
 
         const bool isFocused = ImGui::IsItemFocused();
         const bool isSelected = (_selectedFilePath == fileEntry.filePath);
@@ -1060,6 +1141,9 @@ Shared<Texture> Content_Browser::Get_FileThumbnail(const FFileEntry& fileEntry, 
         if (!fs::exists(thumbnailPath))
             thumbnailPath.clear();
     }
+
+    if (thumbnailPath.empty())
+        thumbnailPath = ResolvePrefabPortraitThumbnailPath(sourcePath);
 
     if (thumbnailPath.empty())
     {

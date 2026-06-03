@@ -70,6 +70,7 @@ private:
     HRESULT Ready_Light();
 
     void SyncSceneLights();
+    void SyncFogZones();
     void Update_RenderHandles();
     void Update_StaticMeshHandles();
     void Update_InstancedMeshHandles();

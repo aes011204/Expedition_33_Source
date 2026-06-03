@@ -54,10 +54,14 @@ public:
     void UpdateAnimation();
 
 public:
-    void StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate);
+    void Set_CurSkillData(const Skill_Data* curSkillData) { _curSkillData = curSkillData; };
+
+    void StartCounter(ModelCom* sourceModel);
     void ApplyCounterDamage(ModelCom* sourceModel);
 
-    void Set_CurSkillData(const Skill_Data* curSkillData) { _curSkillData = curSkillData; };
+    void BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed);
+    void EndCounterTimeSection(ModelCom* sourceModel);
+
 private:
     bool CanReceiveInput(const BattleChar& target) const;
     bool IsHitOrDeadBattleAnim(BattleAnimType animType) const;
@@ -70,6 +74,8 @@ private:
 
     void FinishReactionAnimation();
 
+    bool CanApplyCounterTimeSection(ModelCom* sourceModel) const;
+    void ResetCounterTimeSection();
 
 private:
     bool _isDodgeOpen = false; 
@@ -88,6 +94,11 @@ private:
     bool _isCounterDamageApplied = false;
 
     const Skill_Data* _curSkillData = {};
+
+    // 카운터
+    bool _isCounterTimeSectionActive = false;
+    float _counterTimeSectionRestoreScale = 1.f;
+    Shared<ModelCom> _counterTimeSectionModel = nullptr;
 
 public:
     static Shared<BattleReactionController> Create();

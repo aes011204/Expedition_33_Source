@@ -109,6 +109,7 @@ void PlayerControllerCom::Update_Movement(float timeDelta)
         MovementCom::FollowMoveCommand command{};
         command.enabled = true;
         command.worldDir = _followControl.worldDir;
+        command.walkFollow = _followControl.walkFollow;
         command.sprintFollow = _followControl.sprintFollow; // 실제 속도는 Movement에서 전환
 
         auto owner = Get_Owner();
@@ -187,7 +188,7 @@ bool PlayerControllerCom::Has_LocomotionIntent() const
 bool PlayerControllerCom::Should_SprintMove() const
 {
     if (_followControl.enabled)
-        return _followControl.sprintFollow; // follower sprint는 거리 기반 sprintFollow만 따른다.
+        return !_followControl.walkFollow && _followControl.sprintFollow; // Walk 추종 중에는 Sprint로 올리지 않는다.
 
     return _currentInput.isRunPressed;
 }
@@ -195,7 +196,7 @@ bool PlayerControllerCom::Should_SprintMove() const
 bool PlayerControllerCom::Should_WalkMove() const
 {
     if (_followControl.enabled)
-        return false;
+        return _followControl.walkFollow;
 
     return _isWalkToggled;
 }

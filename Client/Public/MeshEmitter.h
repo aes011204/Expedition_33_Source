@@ -62,8 +62,8 @@ private: //## Types::PlaybackRuntime
         bool active{ false };                  // 현재 slot이 살아 있는 particle인지 나타낸다.
         float age{};                           // spawn 이후 누적된 particle age다.
         float lifeMax{ 1.f };                  // 이 particle에 배정된 최대 lifetime이다.
-        Vec3 position{};                       // effect owner 기준 현재 particle 위치다.
-        Vec3 velocity{};                       // drag/acceleration 적용 전후로 누적되는 현재 속도다.
+        Vec3 position{};                       // local-space면 emitter 기준, world-space면 world 기준 현재 위치다.
+        Vec3 velocity{};                       // position과 같은 simulation space에서 누적되는 현재 속도다.
         Vec3 acceleration{};                   // particle별 초기 acceleration sample 값이다.
         float drag{};                          // 매 frame velocity 감쇠에 사용할 drag 계수다.
         Vec3 baseScale{ 1.f, 1.f, 1.f };       // life curve 적용 전 초기 mesh scale이다.
@@ -163,6 +163,7 @@ private: //## Helper::Render
     HRESULT Bind_DistortionResources();                                   // mesh distortion field shader에 flow 파라미터를 바인딩한다.
     bool Is_DistortionFamily() const;                                     // 현재 material family가 mesh distortion 경로인지 확인한다.
     Matrix Build_InstanceMatrix(const MeshParticleState& particle) const; // particle state를 instanced draw world matrix로 변환한다.
+    Vec3 Resolve_ParticleWorldPosition(const MeshParticleState& particle) const;
     RenderGroup Resolve_RenderGroup() const;                              // material family/blend mode에 맞는 render group을 반환한다.
     uint32 Resolve_ShaderPassIndex() const;                               // 현재 shader에서 사용할 mesh effect pass index를 반환한다.
     int Resolve_OpacitySourceIndex() const;                               // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
@@ -223,6 +224,7 @@ private: //## Helper::SamplingEvaluation
     Vec3 Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& desc, float lifeProgress, const Vec3& fallbackValue) const;
     // local/world space 정책에 따라 벡터 기준 좌표계를 변환한다.
     Vec3 Resolve_LocalVector(const Vec3& localVector) const;
+    Vec3 Resolve_WorldVectorToSimulation(const Vec3& worldVector) const;
     // deterministic seed 기반 0..1 난수를 반환한다.
     float Random01(uint32 seed) const;
     // deterministic seed 기반 범위 난수를 반환한다.

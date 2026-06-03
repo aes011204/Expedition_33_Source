@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ContainerObject.h"
+#include "EffectCom.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
 #include "Monster_BattleBase.h"
@@ -178,6 +179,29 @@ namespace PreviewObjectHelpers
         }
     }
 
+    inline void Tick_AttachedPreviewEffects(const Shared<GameObject>& gameObject, float timeDelta)
+    {
+        if (gameObject == nullptr)
+            return;
+
+        gameObject->Visit_Components([&](const wstring&, const Shared<Component>& component)
+        {
+            Shared<Client::EffectCom> effectCom = dynamic_pointer_cast<Client::EffectCom>(component);
+            if (effectCom)
+                effectCom->Tick_AttachedEffectInstances(timeDelta);
+        });
+
+        Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+        if (container == nullptr)
+            return;
+
+        for (const auto& [partTag, partObject] : container->Get_PartObjects())
+        {
+            UNREFERENCED_PARAMETER(partTag);
+            Tick_AttachedPreviewEffects(partObject, timeDelta);
+        }
+    }
+
     inline void Update_PreviewObject(const Shared<GameObject>& gameObject, float timeDelta)
     {
         if (gameObject == nullptr)
@@ -191,6 +215,7 @@ namespace PreviewObjectHelpers
             Advance_MonsterPreviewAnimation(gameObject, timeDelta);
             monsterWorld->Engine::ContainerObject::Update(timeDelta);
             monsterWorld->Engine::ContainerObject::Late_Update(timeDelta);
+            Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
         }
 
@@ -200,6 +225,7 @@ namespace PreviewObjectHelpers
             Advance_MonsterPreviewAnimation(gameObject, timeDelta);
             monsterBattle->Engine::ContainerObject::Update(timeDelta);
             monsterBattle->Engine::ContainerObject::Late_Update(timeDelta);
+            Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
         }
 
@@ -208,6 +234,7 @@ namespace PreviewObjectHelpers
             playerWorld->Engine::ContainerObject::Priority_Update(timeDelta);
             playerWorld->Engine::ContainerObject::Update(timeDelta);
             playerWorld->Engine::ContainerObject::Late_Update(timeDelta);
+            Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
         }
 
@@ -216,12 +243,14 @@ namespace PreviewObjectHelpers
             playerBattle->Engine::ContainerObject::Priority_Update(timeDelta);
             playerBattle->Engine::ContainerObject::Update(timeDelta);
             playerBattle->Engine::ContainerObject::Late_Update(timeDelta);
+            Tick_AttachedPreviewEffects(gameObject, timeDelta);
             return;
         }
 
         gameObject->Priority_Update(timeDelta);
         gameObject->Update(timeDelta);
         gameObject->Late_Update(timeDelta);
+        Tick_AttachedPreviewEffects(gameObject, timeDelta);
     }
 }
 NS_END

@@ -31,6 +31,8 @@ struct EditorObject
     float _ppExposureMax = 2.f;
     float _ppFogDensity = {};
     Vec3 _ppFogColor = Vec3::One;
+    float _ppFogStart = 0.f;
+    float _ppFogEnd = 30.f;
 
     LightType _lightType = LightType::Directional;
     Vec4 _lightDiffuse = { 1.f, 1.f, 1.f, 1.f };

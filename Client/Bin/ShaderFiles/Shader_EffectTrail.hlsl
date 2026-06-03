@@ -17,16 +17,26 @@ cbuffer cbEffectTrailMaterial : register(b2)
     float4 g_EffectTrailMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask offset, zw: reserved
     float4 g_EffectTrailUVPolicyParams = { 1.f, 1.f, 0.f, 0.f };     // x: visible trail length, y: noise uv tiling, zw: reserved
     float4 g_EffectTrailUVModeParams = { 0.f, 0.f, 0.f, 0.f };       // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
+    float4 g_EffectTrailSourceParams = { 1.f, 0.f, 0.f, 0.f };       // x: noise source, y: mask source, z: noise invert, w: mask invert
     float4 g_EffectTrailAdditiveParams = { 0.f, 0.f, 0.f, 1.f };     // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectTrailAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectTrailAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectTrailAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
     float4 g_EffectTrailCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f }; // x: enabled, y: corePower, z: coreIntensity, w: outerPower
     float4 g_EffectTrailCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f }; // rgb: coreColor, a: outerIntensity
+    float4 g_EffectMaterialScalarModulationParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectMaterialScalarModulationMeta[8];
+    float4 g_EffectMaterialScalarModulationKeyTimes[8];
+    float4 g_EffectMaterialScalarModulationKeyValues[8];
+    float4 g_EffectMaterialScalarModulationKeyArriveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyLeaveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyModes[8];
     float g_EffectTrailMaterialTime = 0.f;
     int g_OpacitySource = 0;
     float2 g_EffectTrailPadding;
 };
+
+#include "Shader_EffectMaterialScalarModulation.hlsli"
 
 Texture2D g_MainTexture : register(t0);
 Texture2D g_NoiseTexture : register(t1);
@@ -63,18 +73,18 @@ float4 Sample_MainTexture(float2 uv, float mode)
            : g_MainTexture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_NoiseTexture(float2 uv, float mode)
+float4 Sample_NoiseTexture(float2 uv, float mode)
 {
     return Use_ClampSampler(mode)
-           ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
-           : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
+           ? g_NoiseTexture.Sample(LinearClampSampler, uv)
+           : g_NoiseTexture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_MaskTexture(float2 uv, float mode)
+float4 Sample_MaskTexture(float2 uv, float mode)
 {
     return Use_ClampSampler(mode)
-           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
-           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+           ? g_MaskTexture.Sample(LinearClampSampler, uv)
+           : g_MaskTexture.Sample(LinearWrapSampler, uv);
 }
 
 struct VS_IN
@@ -225,19 +235,55 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
         smoothstep(0.0f, sideFade, In.edgeCoord.y) *
         smoothstep(0.0f, sideFade, 1.0f - In.edgeCoord.y);
     const float4 segmentColor = lerp(In.startColor, In.endColor, lifeProgress);
-    const float opacityPower = max(g_EffectTrailParams.y, 0.0001f);
-    const float alphaCutoff = saturate(g_EffectTrailAlphaParams.x);
-    const float alphaErosion = saturate(g_EffectTrailAlphaParams.y);
+    const float resolvedOpacityPower = g_EffectTrailParams.y
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
+    const float resolvedNoiseStrength = g_EffectTrailParams.z
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
+    const float resolvedAlphaErosion = g_EffectTrailAlphaParams.y
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
+    const float resolvedAlphaCutoff = g_EffectTrailAlphaParams.x
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
+    const float resolvedCoreIntensity = g_EffectTrailCoreEmissiveParams.z
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
+    const float resolvedOuterIntensity = g_EffectTrailCoreEmissiveColor.a
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
+    const float resolvedCoreColorMultiplier =
+        EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
+    const float opacityPower = max(resolvedOpacityPower, 0.0001f);
+    const float alphaCutoff = saturate(resolvedAlphaCutoff);
+    const float alphaErosion = saturate(resolvedAlphaErosion);
     const float selectedOpacity = Effect_SelectOpacity(tex, g_OpacitySource);
+    const float4 resolvedCoreEmissiveParams = float4(
+        g_EffectTrailCoreEmissiveParams.x,
+        g_EffectTrailCoreEmissiveParams.y,
+        resolvedCoreIntensity,
+        g_EffectTrailCoreEmissiveParams.w
+    );
+    const float4 resolvedCoreEmissiveColor = float4(
+        g_EffectTrailCoreEmissiveColor.rgb * resolvedCoreColorMultiplier,
+        resolvedOuterIntensity
+    );
     float noiseRaw = 1.f;
     float maskAlpha = 1.f;
 
-    const float noiseStrength = saturate(g_EffectTrailParams.z);
-    if (0 != g_EffectTrailParams.w && g_EffectTrailParams.z > 0.f)
-        noiseRaw = Sample_NoiseTexture(noiseUV, noiseUVMode);
+    const float noiseStrength = saturate(resolvedNoiseStrength);
+    if (0 != g_EffectTrailParams.w && resolvedNoiseStrength > 0.f)
+    {
+        const float4 noiseTexel = Sample_NoiseTexture(noiseUV, noiseUVMode);
+        noiseRaw = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectTrailSourceParams.x),
+            g_EffectTrailSourceParams.z
+        );
+    }
 
     if (0 != g_EffectTrailAlphaParams.z)
-        maskAlpha = Sample_MaskTexture(maskUV, maskUVMode);
+    {
+        const float4 maskTexel = Sample_MaskTexture(maskUV, maskUVMode);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectTrailSourceParams.y),
+            g_EffectTrailSourceParams.w
+        );
+    }
 
     const float edgeDistance = abs(In.edgeCoord.y - 0.5f) * 2.f;
     const float edgeWeight = smoothstep(0.35f, 1.f, edgeDistance);
@@ -251,9 +297,9 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
     const float3 baseColor = Effect_ApplyCoreEmissiveShaping(
         segmentColor.rgb * g_Tint.rgb * tex.rgb,
-        g_EffectTrailCoreEmissiveColor,
+        resolvedCoreEmissiveColor,
         selectedOpacity,
-        g_EffectTrailCoreEmissiveParams
+        resolvedCoreEmissiveParams
     );
 
     surface.color = baseColor * energyVariation;
@@ -276,7 +322,10 @@ PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out = (PS_OUT)0;
     const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
-    Out.color = Effect_ComposeAlphaBlend(surface, g_EffectTrailParams.x);
+    const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
+    const float resolvedIntensity = g_EffectTrailParams.x
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+    Out.color = Effect_ComposeAlphaBlend(surface, resolvedIntensity);
     return Out;
 }
 
@@ -300,17 +349,53 @@ PS_OUT PS_ADDITIVE(PS_IN In)
         smoothstep(0.0f, sideFade, In.edgeCoord.y) *
         smoothstep(0.0f, sideFade, 1.0f - In.edgeCoord.y);
     const float4 segmentColor = lerp(In.startColor, In.endColor, lifeProgress);
-    const float alphaCutoff = saturate(g_EffectTrailAlphaParams.x);
-    const float alphaErosion = saturate(g_EffectTrailAlphaParams.y);
+    const float resolvedNoiseStrength = g_EffectTrailParams.z
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
+    const float resolvedAlphaErosion = g_EffectTrailAlphaParams.y
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
+    const float resolvedAlphaCutoff = g_EffectTrailAlphaParams.x
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
+    const float resolvedCoreIntensity = g_EffectTrailCoreEmissiveParams.z
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
+    const float resolvedOuterIntensity = g_EffectTrailCoreEmissiveColor.a
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
+    const float resolvedCoreColorMultiplier =
+        EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
+    const float resolvedIntensity = g_EffectTrailParams.x
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+    const float alphaCutoff = saturate(resolvedAlphaCutoff);
+    const float alphaErosion = saturate(resolvedAlphaErosion);
+    const float4 resolvedCoreEmissiveParams = float4(
+        g_EffectTrailCoreEmissiveParams.x,
+        g_EffectTrailCoreEmissiveParams.y,
+        resolvedCoreIntensity,
+        g_EffectTrailCoreEmissiveParams.w
+    );
+    const float4 resolvedCoreEmissiveColor = float4(
+        g_EffectTrailCoreEmissiveColor.rgb * resolvedCoreColorMultiplier,
+        resolvedOuterIntensity
+    );
     float noiseRaw = 1.f;
     float maskAlpha = 1.f;
 
-    const float noiseStrength = saturate(g_EffectTrailParams.z);
-    if (0 != g_EffectTrailParams.w && g_EffectTrailParams.z > 0.f)
-        noiseRaw = Sample_NoiseTexture(noiseUV, noiseUVMode);
+    const float noiseStrength = saturate(resolvedNoiseStrength);
+    if (0 != g_EffectTrailParams.w && resolvedNoiseStrength > 0.f)
+    {
+        const float4 noiseTexel = Sample_NoiseTexture(noiseUV, noiseUVMode);
+        noiseRaw = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectTrailSourceParams.x),
+            g_EffectTrailSourceParams.z
+        );
+    }
 
     if (0 != g_EffectTrailAlphaParams.z)
-        maskAlpha = Sample_MaskTexture(maskUV, maskUVMode);
+    {
+        const float4 maskTexel = Sample_MaskTexture(maskUV, maskUVMode);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectTrailSourceParams.y),
+            g_EffectTrailSourceParams.w
+        );
+    }
 
     const float edgeDistance = abs(In.edgeCoord.y - 0.5f) * 2.f;
     const float edgeWeight = smoothstep(0.35f, 1.f, edgeDistance);
@@ -341,11 +426,11 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     );
     const float3 shapedMaterialColor = Effect_ApplyCoreEmissiveShaping(
         materialColor * segmentColor.rgb,
-        g_EffectTrailCoreEmissiveColor,
+        resolvedCoreEmissiveColor,
         selectedOpacity,
-        g_EffectTrailCoreEmissiveParams
+        resolvedCoreEmissiveParams
     );
-    const float additiveEnergyScalar = max(g_EffectTrailParams.x, 0.f) * max(g_EffectTrailAdditiveParams.w, 0.f);
+    const float additiveEnergyScalar = max(resolvedIntensity, 0.f) * max(g_EffectTrailAdditiveParams.w, 0.f);
     const float3 contribution = shapedMaterialColor * energyVariation * policyAmount * additiveEnergyScalar * blackGate * additiveLifeAlpha;
     Out.color = float4(contribution, 1.f);
     return Out;

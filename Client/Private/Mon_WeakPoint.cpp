@@ -1,0 +1,144 @@
+﻿#include "Mon_WeakPoint.h"
+#include "ContainerObject.h"
+#include "EffectCom.h"
+#include "GameInstance.h"
+
+NS_BEGIN(Client)
+
+Mon_WeakPoint::Mon_WeakPoint(const ComPtr<Device>& device, const ComPtr<Context>& context)
+    : Monster_Part(device, context)
+{
+}
+
+Mon_WeakPoint::Mon_WeakPoint(const Mon_WeakPoint& prototype)
+    : Monster_Part(prototype)
+{
+}
+
+HRESULT Mon_WeakPoint::Initialize_Prototype()
+{
+    return Monster_Part::Initialize_Prototype();
+}
+
+HRESULT Mon_WeakPoint::Initialize(void* arg)
+{
+    auto* desc = static_cast<WEAK_DESC*>(arg);
+    if (desc == nullptr)
+        return E_FAIL;
+
+    _socketMatrix = desc->socketMatrix;
+    _socketName = desc->socketName;
+
+    _offsetMatrix = Matrix::CreateRotationX(XMConvertToRadians(-90.f));
+
+    if (FAILED(Monster_Part::Initialize(desc)))
+        return E_FAIL;
+
+    return S_OK;
+}
+
+void Mon_WeakPoint::BeginPlay()
+{
+    Monster_Part::BeginPlay();
+
+    if (const Matrix* socketMatrix = Resolve_SocketMatrix())
+        Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*socketMatrix));
+
+    if (_effectCom)
+    {
+        EffectCom::EffectPlayDesc desc{};
+        desc.levelIndex = GAME->Current_LevelIndex();
+        desc.effectName = L"Monster_Weak";
+        desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
+        desc.layerTag = L"Layer_Effect";
+        desc.followTarget = true;
+        desc.scale = Vec3(0.3f);
+        desc.requiresManualRelease = true;
+
+        _effectCom->Play_Effect(desc);
+    }
+}
+
+void Mon_WeakPoint::Priority_Update(float timeDelta)
+{
+    Monster_Part::Priority_Update(timeDelta);
+}
+
+void Mon_WeakPoint::Update(float timeDelta)
+{
+    if (const Matrix* socketMatrix = Resolve_SocketMatrix())
+        Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*socketMatrix));
+
+    if (_effectCom)
+        _effectCom->Update(timeDelta);
+ 
+}
+
+const Matrix* Mon_WeakPoint::Resolve_SocketMatrix()
+{
+    if (!_socketName.empty())
+    {
+        const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(Get_Owner());
+        if (ownerContainer)
+        {
+            if (auto* bodyPart = dynamic_cast<Monster_Part*>(ownerContainer->Get_PartObject(L"Part_Body")))
+            {
+                if (const Matrix* socketMatrix = bodyPart->Get_SocketBoneMatrixPtr(_socketName))
+                {
+                    _socketMatrix = socketMatrix;
+                    return _socketMatrix;
+                }
+            }
+        }
+    }
+
+    return _socketMatrix;
+}
+
+void Mon_WeakPoint::Late_Update(float timeDelta)
+{
+    Monster_Part::Late_Update(timeDelta);
+}
+
+HRESULT Mon_WeakPoint::Render()
+{
+    return Monster_Part::Render();
+}
+
+HRESULT Mon_WeakPoint::Render_Shadow()
+{
+    return Monster_Part::Render_Shadow();
+}
+
+uint32 Mon_WeakPoint::Decide_PassIndex(Shared<Material> mat)
+{
+    const int OPAQUE_PASS = 0;
+    return OPAQUE_PASS;
+}
+
+Shared<Mon_WeakPoint> Mon_WeakPoint::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
+{
+    auto instance = make_shared<Mon_WeakPoint>(device, context);
+
+    if (FAILED(instance->Initialize_Prototype()))
+        return nullptr;
+
+    return instance;
+}
+
+Shared<GameObject> Mon_WeakPoint::Clone(void* arg)
+{
+    auto clone = make_shared<Mon_WeakPoint>(*this);
+
+    if (FAILED(clone->Initialize(arg)))
+        return nullptr;
+
+    return clone;
+}
+
+void Mon_WeakPoint::Free()
+{
+    Monster_Part::Free();
+}
+
+NS_END
