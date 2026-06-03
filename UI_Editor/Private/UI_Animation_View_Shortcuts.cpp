@@ -72,6 +72,41 @@ namespace UIEditor
             return;
         }
 
+        if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_K, false))
+        {
+            if (_assetService.Add_KeyToSelectedTrack(_editorManager.Get_Document()))
+                Request_StaticPreviewRefresh();
+            return;
+        }
+
+        if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_B, false))
+        {
+            if (_assetService.Bind_SelectedUI(_editorManager.Get_SelectedObject()))
+            {
+                Sync_TargetNameBuffer();
+                Request_StaticPreviewRefresh();
+            }
+            return;
+        }
+
+        if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_R, false))
+        {
+            if (_assetService.Remove_SelectedTarget())
+            {
+                Sync_TargetNameBuffer();
+                _editorManager.Stop_AnimationPreview();
+                Request_StaticPreviewRefresh();
+            }
+            return;
+        }
+
+        if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_T, false))
+        {
+            if (_assetService.Add_Track(_assetService.Get_PendingTrackType(), &_editorManager.Get_Document()))
+                Request_StaticPreviewRefresh();
+            return;
+        }
+
         if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) || ImGui::IsKeyPressed(ImGuiKey_Backspace, false))
         {
             Delete_SelectedAnimationItem();

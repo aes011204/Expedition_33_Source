@@ -76,6 +76,7 @@ protected:
     int32 _sortOrder{ 0 };
     float _alphaMultiplier{ 1.f };
     Vec2 _openBasePosition{ 0.f, 0.f };
+    Vec2 _openBaseSize{ 100.f, 100.f };
     Vec2 _openBaseScale{ 1.f, 1.f };
     float _openBaseRotationRadians{ 0.f };
     float _openBaseAlphaMultiplier{ 1.f };

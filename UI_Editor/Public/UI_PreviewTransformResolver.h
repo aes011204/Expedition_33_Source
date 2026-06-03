@@ -48,5 +48,12 @@ namespace UIEditor
         const UI_Document* _document = nullptr;
         ImVec2 _canvasSize = ImVec2(0.f, 0.f);
         SampleFunc _sampleFunc = {};
+        mutable unordered_map<ObjectId, UI_Object> _previewObjectCache = {};
+        mutable unordered_map<ObjectId, ImVec2> _resolvedLocalSizeCache = {};
+        mutable unordered_map<ObjectId, ImVec2> _resolvedLocalPositionCache = {};
+        mutable unordered_map<ObjectId, ImVec2> _worldScaleCache = {};
+        mutable unordered_map<ObjectId, float> _worldRotationCache = {};
+        mutable unordered_map<ObjectId, float> _effectiveAlphaMultiplierCache = {};
+        mutable unordered_map<ObjectId, UI_WorldObjectFrame> _worldFrameCache = {};
     };
 }
