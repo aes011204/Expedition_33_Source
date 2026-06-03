@@ -169,6 +169,14 @@ PS_OUT PS_ALPHA(VS_OUT In)
     return Out;
 }
 
+PS_OUT PS_MASKED(VS_OUT In)
+{
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMeshSurface(In);
+    Out.color = float4(surface.color * max(g_EffectMeshParams.x, 0.f), 1.f);
+    return Out;
+}
+
 PS_OUT PS_ADDITIVE(VS_OUT In)
 {
     PS_OUT Out = (PS_OUT)0;
@@ -239,4 +247,6 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(AdditivePass, RS_Default, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, PS_ADDITIVE) // 1
     PASS_RS_DS_BS_VP(AlphaBlendTwoSidedPass, RS_CullNone, DSS_DepthRead, BS_EffectAlphaBlend, VS_MAIN, PS_ALPHA) // 2
     PASS_RS_DS_BS_VP(AdditiveTwoSidedPass, RS_CullNone, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, PS_ADDITIVE) // 3
+    PASS_RS_DS_BS_VP(MaskedPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_MASKED) // 4
+    PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_MASKED) // 5
 }

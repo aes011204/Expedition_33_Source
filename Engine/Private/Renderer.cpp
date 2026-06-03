@@ -185,6 +185,14 @@ void Renderer::Draw()
     // ========================================= //
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonLight:After");
+    DumpCurrentOMState(L"Render_EffectMasked:Before");
+#endif
+
+    // ========================================= //
+    Render_EffectMasked();
+    // ========================================= //
+#ifdef _DEBUG
+    DumpCurrentOMState(L"Render_EffectMasked:After");
     nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
     const auto blendBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_Blend:Before");
@@ -675,6 +683,33 @@ void Renderer::Render_NonLight()
     GAME->End_MRT();
 }
 
+void Renderer::Render_EffectMasked()
+{
+    auto& maskedGroup = _renderGroups[ETOI(RenderGroup::EffectMasked)];
+    if (maskedGroup.empty())
+        return;
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, UseDSV, NotClearRTV),
+        L"Render_EffectMasked:FAIL Begin_MRT(HDR)");
+
+    _currentGroup = RenderGroup::EffectMasked;
+
+    for (auto& renderObject : maskedGroup)
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (gameObject != nullptr)
+        {
+            gameObject->Render();
+            Add_RenderCall();
+        }
+    }
+
+    maskedGroup.clear();
+
+    GAME->End_MRT();
+}
+
 void Renderer::Render_Distortion()
 {
     auto& distortionGroup = _renderGroups[ETOI(RenderGroup::Distortion)];
@@ -723,16 +758,29 @@ void Renderer::Render_Blend()
 
     auto& blendObjects = _renderGroups[ETOI(RenderGroup::Blend)];
     const Vec4* cameraPosition4 = GAME->Get_CamPosition();
-    if (cameraPosition4 != nullptr)
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    Shared<TransformCom> cameraTransform = activeCamera != nullptr ? activeCamera->Get_Transform() : nullptr;
+    if (cameraPosition4 != nullptr && cameraTransform != nullptr)
     {
         constexpr float kBlendSortBiasScale = 1.f;
         const Vec3 cameraPosition{ cameraPosition4->x, cameraPosition4->y, cameraPosition4->z };
+        Vec3 cameraForward = cameraTransform->Get_WorldForward();
+        cameraForward.Normalize();
 
-        const auto try_get_sort_depth = [&](const Weak<GameObject>& renderObject, float& outSortDepth) -> bool
+        struct BlendSortInfo
         {
+            bool valid{ false };
+            int32 layer{ 0 };
+            EffectSortPolicy policy{ EffectSortPolicy::EmitterDepth };
+            float depth{ 0.f };
+        };
+
+        const auto resolve_sort_info = [&](const Weak<GameObject>& renderObject) -> BlendSortInfo
+        {
+            BlendSortInfo info{};
             const Shared<GameObject> gameObject = renderObject.lock();
             if (gameObject == nullptr)
-                return false;
+                return info;
 
             Vec3 objectWorldPosition{};
             float artistSortBias = 0.f;
@@ -740,35 +788,47 @@ void Renderer::Render_Blend()
             if (effectEmitter != nullptr)
             {
                 if (!effectEmitter->Try_Get_BlendSortWorldPosition(objectWorldPosition))
-                    return false;
+                    return info;
 
+                info.layer = effectEmitter->Get_BlendSortLayer();
+                info.policy = effectEmitter->Get_BlendSortPolicy();
                 artistSortBias = effectEmitter->Get_BlendSortBias();
             }
             else
             {
                 const Shared<TransformCom> transform = gameObject->Get_Transform();
                 if (transform == nullptr)
-                    return false;
+                    return info;
 
                 objectWorldPosition = transform->Get_WorldPosition();
             }
 
-            outSortDepth = (objectWorldPosition - cameraPosition).LengthSquared() - artistSortBias * kBlendSortBiasScale;
-            return true;
+            if (info.policy == EffectSortPolicy::EmitterDepth)
+                info.depth = (objectWorldPosition - cameraPosition).Dot(cameraForward) - artistSortBias * kBlendSortBiasScale;
+            info.valid = true;
+            return info;
         };
 
-        // Blend 전체 정책으로 카메라 거리 정렬을 적용한다. 향후 non-effect blend object도 동일 정책을 탄다.
+        // 낮은 layer를 먼저 그리고 같은 layer 안에서만 view-depth 정렬을 적용한다.
         blendObjects.sort([&](const Weak<GameObject>& lhs, const Weak<GameObject>& rhs)
             {
-                float lhsSortDepth = 0.f;
-                float rhsSortDepth = 0.f;
-                const bool lhsValid = try_get_sort_depth(lhs, lhsSortDepth);
-                const bool rhsValid = try_get_sort_depth(rhs, rhsSortDepth);
+                const BlendSortInfo lhsInfo = resolve_sort_info(lhs);
+                const BlendSortInfo rhsInfo = resolve_sort_info(rhs);
 
-                if (!lhsValid || !rhsValid || lhsSortDepth == rhsSortDepth)
+                if (!lhsInfo.valid || !rhsInfo.valid)
                     return false;
 
-                return lhsSortDepth > rhsSortDepth;
+                if (lhsInfo.layer != rhsInfo.layer)
+                    return lhsInfo.layer < rhsInfo.layer;
+
+                if (lhsInfo.policy != EffectSortPolicy::EmitterDepth ||
+                    rhsInfo.policy != EffectSortPolicy::EmitterDepth ||
+                    lhsInfo.depth == rhsInfo.depth)
+                {
+                    return false;
+                }
+
+                return lhsInfo.depth > rhsInfo.depth;
             });
     }
 

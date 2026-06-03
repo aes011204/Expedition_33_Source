@@ -10,6 +10,7 @@
 #include "MonsterStatCom.h"
 #include "Monster_Part.h"
 #include "EffectCom.h"
+#include "Mon_WeakPoint.h"
 
 Monster_BattleBase::Monster_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_BattleBase(device, context)
@@ -138,6 +139,24 @@ void Monster_BattleBase::Decide_Action_BTOnly(ActionRequest& request, const vect
     }
 
     ActionFromDecision(request, decision, heroes);
+}
+
+bool Monster_BattleBase::Try_Consume_FreeAimWeakPoint()
+{
+    const Shared<Mon_WeakPoint> weakPoint = Get_BattleWeakPoint();
+    return weakPoint != nullptr && weakPoint->Try_Consume_BattleWeakPointHit();
+}
+
+void Monster_BattleBase::Hide_FreeAimWeakPoint()
+{
+    if (const Shared<Mon_WeakPoint> weakPoint = Get_BattleWeakPoint())
+        weakPoint->Hide_BattleWeakPoint();
+}
+
+void Monster_BattleBase::Reset_FreeAimWeakPoint()
+{
+    if (const Shared<Mon_WeakPoint> weakPoint = Get_BattleWeakPoint())
+        weakPoint->Reset_BattleWeakPoint();
 }
 
 void Monster_BattleBase::Decide_Action(ActionRequest& request, const vector<BattleChar>& heroes)

@@ -25,6 +25,12 @@ enum class EffectEmitterRenderLayerOverride : uint8
     UIEffect,
 };
 
+enum class EffectSortPolicy : uint8
+{
+    None,
+    EmitterDepth,
+};
+
 //## Trail
 
 // Trail runtime이 한 프레임에서 소비할 base/tip world sample이다.
@@ -251,6 +257,8 @@ struct EffectDrawLimitRuntimeDesc
 // Required 모듈에서 Blend 정렬 보정에 필요한 값만 접은 runtime payload다.
 struct EffectRequiredSortRuntimeDesc
 {
+    EffectSortPolicy sortPolicy{ EffectSortPolicy::None }; // 같은 sort layer 안에서 어떤 Blend 정렬을 적용할지 결정한다.
+    int32 sortLayer{ 0 };        // 낮은 layer를 먼저 그리고 높은 layer를 나중에 그린다.
     float artistSortBias{ 0.f }; // 양수는 더 앞, 음수는 더 뒤로 보정하려는 제작자 의도 값이다.
 };
 
@@ -416,6 +424,7 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
     EffectRequiredMaterialRuntimeDesc material{};                     // Phase 3에서는 tint/debug payload로 보존하고 material override는 후속에서 소비한다.
     EffectEmitterPlaybackRuntimeDesc playback{};                      // Required 모듈에서 mesh emitter가 소비하는 재생 규칙이다.
     EffectDrawLimitRuntimeDesc drawLimit{};                           // Required 모듈에서 mesh draw 제출 상한으로 소비하는 규칙이다.
+    EffectRequiredSortRuntimeDesc sort{};                             // Required 모듈에서 mesh emitter가 소비하는 Blend 정렬 규칙이다.
     EffectSpawnRuntimeDesc spawn{};                                   // Spawn 모듈에서 mesh particle 활성화 규칙으로 소비하는 payload다.
     EffectLifetimeRuntimeDesc lifetime{};                             // Lifetime 모듈에서 mesh particle age/max life로 소비하는 payload다.
     EffectInitialColorRuntimeDesc initialColor{};                     // InitialColor 모듈에서 mesh particle 시작 색으로 소비하는 payload다.

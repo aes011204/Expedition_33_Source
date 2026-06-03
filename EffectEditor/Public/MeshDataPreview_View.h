@@ -34,7 +34,7 @@ private:
     bool Render_ModelAssetSection(MeshTypeData& meshData);
     bool Render_MaterialAssetSection(MeshTypeData& meshData);
     bool Render_TransformSection(MeshTypeData& meshData);
-    bool Render_MaterialInstanceSection(MeshTypeData& meshData, bool* outRestartPreview);
+    bool Render_MaterialInstanceSection(const AuthoringEmitter& emitter, MeshTypeData& meshData, bool* outRestartPreview);
     void Render_ValidationSummary(const MeshTypeData& meshData);
     void Apply_MeshDataChanged(Emitter_View& emitterView, AuthoringEmitter& emitter);
     void Begin_PendingAuthoringEdit(

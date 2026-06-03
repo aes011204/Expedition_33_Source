@@ -453,6 +453,7 @@ public: /* For.Shadow */
 
 public: /* For.Collision_Manager */
     void Add_Collider(Shared<ColliderCom> collider);
+    void Add_Collider(Shared<ColliderCom> collider, const Matrix& worldMatrix);
     void Clear_Colliders();
 
 public: // For. PhysX_Manager

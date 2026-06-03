@@ -342,6 +342,7 @@ void Emitter_View::Save()
     }
 
     const string effectGuid = GAME != nullptr ? GAME->Ensure_AssetGUID(savePath.wstring(), "Effect") : string{};
+    _currentDocumentPath = Internal::Normalize_EffectSaveDialogPath(savePath);
 
     ClearDirty();
 
@@ -425,6 +426,7 @@ void Emitter_View::Open()
         return;
     }
 
+    _currentDocumentPath = Internal::Normalize_EffectSaveDialogPath(openPath);
     ClearDirty();
 
     if (EDITOR != nullptr)

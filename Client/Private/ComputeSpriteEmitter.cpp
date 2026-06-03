@@ -353,6 +353,16 @@ float ComputeSpriteEmitter::Get_BlendSortBias() const
     return _desc.required.sort.artistSortBias;
 }
 
+EffectSortPolicy ComputeSpriteEmitter::Get_BlendSortPolicy() const
+{
+    return _desc.required.sort.sortPolicy;
+}
+
+int32 ComputeSpriteEmitter::Get_BlendSortLayer() const
+{
+    return _desc.required.sort.sortLayer;
+}
+
 void ComputeSpriteEmitter::On_EffectTransformSynced()
 {
     Sync_WorldCenterToComputeBuffer();
@@ -841,7 +851,12 @@ RenderGroup ComputeSpriteEmitter::Resolve_RenderGroup() const
     if (_desc.renderLayerOverride == EffectEmitterRenderLayerOverride::UIEffect)
         return RenderGroup::UIEffect;
 
-    return Is_DistortionFamily() ? RenderGroup::Distortion : RenderGroup::Blend;
+    if (Is_DistortionFamily())
+        return RenderGroup::Distortion;
+
+    return _desc.required.material.blendMode == EffectMaterialBlendMode::Masked
+           ? RenderGroup::EffectMasked
+           : RenderGroup::Blend;
 }
 
 const char* ComputeSpriteEmitter::Resolve_ShaderId() const
@@ -870,7 +885,11 @@ int ComputeSpriteEmitter::Resolve_OpacitySourceIndex() const
 
 uint32 ComputeSpriteEmitter::Resolve_BlendPassIndex() const
 {
-    return _desc.required.material.blendMode == EffectMaterialBlendMode::Additive ? 1u : 0u;
+    if (_desc.required.material.blendMode == EffectMaterialBlendMode::Additive)
+        return 1u;
+    if (_desc.required.material.blendMode == EffectMaterialBlendMode::Masked)
+        return 2u;
+    return 0u;
 }
 
 ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() const

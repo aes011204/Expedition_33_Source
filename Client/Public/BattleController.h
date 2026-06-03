@@ -176,10 +176,13 @@ public:
 
     uint32 Get_LastVictoryRewardExp() const { return _lastVictoryRewardExp; }
 
-    void Set_FreeAimHitTarget(const BattleChar& target);
+    void Set_FreeAimHitTarget(const BattleFreeAimHitTarget& target);
     void Clear_FreeAimHitTarget();
     bool Has_FreeAimHitTarget() const { return _hasFreeAimHitTarget; }
-    const BattleChar* Get_FreeAimHitTarget() const { return _hasFreeAimHitTarget ? &_freeAimHitTarget : nullptr; }
+    const BattleFreeAimHitTarget* Get_FreeAimHitTarget() const
+    {
+        return _hasFreeAimHitTarget ? &_freeAimHitTarget : nullptr;
+    }
 
      // 스킬 스크립트가 다단히트를 예약할 때 사용
     BattleHitSequenceRunner& Get_HitSequenceRunner() { return _hitSequenceRunner; }
@@ -212,6 +215,9 @@ private:
 
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
+
+    // 몬스터 약점공격 보너스 데미지
+    bool    Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarget& hitTarget, const BattleChar& attacker);
 
 private:
     // World의 SkillTree 상태를 읽어서 battle에서 사용할 기본 스킬 3개 세팅
@@ -267,8 +273,8 @@ private:
     BattleChar  _targetPreview = {};
     bool        _hasTargetPreview = false;
 
-    BattleChar  _freeAimHitTarget{};
-    bool        _hasFreeAimHitTarget = false;
+    BattleFreeAimHitTarget _freeAimHitTarget{};
+    bool _hasFreeAimHitTarget = false;
 
 private:
     void Execute_BaseAttack();

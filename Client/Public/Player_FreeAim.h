@@ -36,10 +36,17 @@ public:
     bool Is_HitMonster() const { return _hasHitMonster; }
     Shared<Monster_WorldBase> Get_HitMonster() const { return _hitMonster.lock(); }
 
+    // 여기서 맞았는지 마크하고, 애니메이션의 AnimNotify에서, 충돌 판정 세팅
+    void Trigger_PendingFreeAimShotHit();
+
 private:
     void Update_DirectionalModifiers();
     void Update_EnterTurnBurst();
     void Update_FreeAimHitState();
+
+    // 좌클릭 입력 순간의 조준 결과를 스냅샷으로 보관한다.
+    void Cache_PendingFreeAimShot();
+    void Clear_PendingFreeAimShot();
 
     Shared<Monster_WorldBase> Find_FreeAimHitMonster(FreeAimHitInfo* outHitInfo = nullptr) const;
     void Play_FreeAimHitEffect() const;
@@ -62,6 +69,12 @@ private:
     Weak<Monster_WorldBase> _hitMonster{};
 
     FreeAimHitInfo _currentHitInfo {};
+
+    // 입력 프레임의 히트 후보를 발사 notify까지 유지한다.
+    bool _hasPendingShotHit = false;
+    bool _hasConsumedPendingShotHit = false;
+    Weak<Monster_WorldBase> _pendingShotMonster{};
+    FreeAimHitInfo _pendingShotHitInfo{};
 
 public:
     static Shared<Player_FreeAim> Create(const Shared<Player_WorldBase>& owner);
