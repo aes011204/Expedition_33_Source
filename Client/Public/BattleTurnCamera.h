@@ -46,7 +46,7 @@ public:
     void    Update(float timeDelta) override;
 
 public:
-    void Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies);
+    void Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies, float timeDelta);
     const BattleCameraPreset& Get_Preset(BattleCameraMode mode) const;
     void Set_Preset(BattleCameraMode mode, const BattleCameraPreset& preset);
     void Set_Clip(BattleCameraMode mode, const BattleCameraClip& clip, const string& clipId = "");

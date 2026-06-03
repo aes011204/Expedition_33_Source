@@ -175,13 +175,10 @@ void BattleTurnCamera::Update(float timeDelta)
     {
     case BattleCameraMode::WIDE:
         {
-         if(!_isWideMode)
-         {
-            Focus_Battle(_heroes, _enemies);
-             _isWideMode = true;
-         }
+            Focus_Battle(_heroes, _enemies, timeDelta);
         }
         break;
+
     case BattleCameraMode::BATTLEINTRO:
     case BattleCameraMode::PLAYERFOCUS:
     case BattleCameraMode::ENEMYFOCUS:
@@ -202,7 +199,7 @@ void BattleTurnCamera::Update(float timeDelta)
     Update_TransformMatrices();
 }
 
-void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies)
+void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies, float timeDelta)
 {
     UNREFERENCED_PARAMETER(heroes);
     UNREFERENCED_PARAMETER(enemies);
@@ -213,7 +210,7 @@ void BattleTurnCamera::Focus_Battle(const vector<BattleChar>& heroes, const vect
     EvaluatedPose pose{};
     if (!Evaluate_WidePose(_currentPreset.camera.fovy, pose))
         return;
-
+    Apply_RuntimeShake(pose, timeDelta);
     Apply_EvaluatedPose(pose);
     _smoothedTargetPos = pose.cameraPos;
 }
@@ -461,7 +458,7 @@ void BattleTurnCamera::Start_RuntimeShake(const EvtBattleCameraShake& event)
 void BattleTurnCamera::Apply_RuntimeShake(EvaluatedPose& pose, float timeDelta)
 {
 
-  if(!_runtimeShake.active)
+   if(!_runtimeShake.active)
       return;
 
     _runtimeShake.elapsed += timeDelta;

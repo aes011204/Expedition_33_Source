@@ -23,7 +23,6 @@ private:
     float _decayRateY = 8.f;
     float _verticalRatio = 0.8f;
     float _strengthScale = 0.05f;
-
 };
 
 
