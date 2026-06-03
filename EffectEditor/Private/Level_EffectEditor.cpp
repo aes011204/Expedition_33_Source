@@ -1505,6 +1505,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.subUVRows = max(1u, material.subUVRows);
         desc.required.material.subUVCols = max(1u, material.subUVCols);
 
+        desc.required.sort.artistSortBias = required->sortBias;
+
         desc.required.spriteRender.screenAlignment = Internal::Resolve_EffectScreenAlignment(required->screenAlignment);
         desc.required.spriteRender.directionalAlignmentMode = Internal::Resolve_EffectSpriteDirectionalAlignmentMode(required->directionalAlignmentMode);
         desc.required.spriteRender.spriteTextureAxis = Internal::Resolve_EffectSpriteTextureAxis(required->spriteTextureAxis);

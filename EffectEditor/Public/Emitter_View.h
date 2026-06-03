@@ -30,6 +30,8 @@ public:
     void Save() override;          // Save As dialog를 열어 emitter/module authoring json을 저장한다.
     bool CanOpen() const;          // 현재 effect authoring document가 Open 대상으로 교체 가능함을 알린다.
     void Open();                   // Open dialog로 .effect.json을 열어 authoring 상태를 복원한다.
+    bool CanAdd() const;           // 다른 effect authoring document의 emitter들을 현재 문서에 추가할 수 있는지 알린다.
+    void Add();                    // Add dialog로 .effect.json의 emitter stack만 현재 문서 끝에 추가한다.
 
 public: //## Accessor::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
@@ -202,6 +204,7 @@ private: //## Helper::Selection
 private: //## Helper::EmitterAction
     void Delete_Emitter(size_t emitterIndex);
     void Duplicate_Emitter(size_t emitterIndex);
+    void Append_ImportedEmitters(const vector<AuthoringEmitter>& sourceEmitters);
     void Insert_NewEmitter(size_t insertIndex);
     void Process_PendingEmitterAction();
     void Queue_EmitterAction(PendingEmitterAction action, size_t emitterIndex);

@@ -1481,7 +1481,15 @@ bool RequiredModuleDetail::Draw(
             }
 
             changed |= detailContext.Draw_BoolProperty("로컬 스페이스 사용", data.useLocalSpace, defaultData.useLocalSpace);
-            changed |= detailContext.Draw_SortModeProperty("정렬 모드 (미구현)", data.sortMode, defaultData.sortMode);
+            detailContext.Draw_PropertyLabel("정렬");
+            ImGui::TextDisabled("Auto");
+            detailContext.Draw_ResetButton(false);
+            changed |= detailContext.Draw_FloatProperty(
+                "Sort Bias",
+                data.sortBias,
+                defaultData.sortBias,
+                0.01f,
+                "양수 = 앞으로, 음수 = 뒤로, 0 = Auto 유지");
             changed |= detailContext.Draw_FloatProperty("카메라 모션 블러 양 (미구현)", data.cameraMotionBlurAmount, defaultData.cameraMotionBlurAmount);
             changed |= detailContext.Draw_BoolProperty("초기화 시 기존 파티클 지우기 (미구현)", data.clearExistingParticlesOnInit, defaultData.clearExistingParticlesOnInit);
             detailContext.End_PropertyTable();

@@ -564,6 +564,7 @@ struct RequiredModuleData
     float maxCameraBlendDistance{ 0.f };
     bool useLocalSpace{ true };
     EmitterSortMode sortMode{ EmitterSortMode::None };
+    float sortBias{ 0.f };
     float cameraMotionBlurAmount{ 0.f };
     bool clearExistingParticlesOnInit{ false };
     // Cascade: Emitter Loops. 0 means infinite looping.

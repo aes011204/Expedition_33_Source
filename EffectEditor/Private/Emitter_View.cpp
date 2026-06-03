@@ -121,7 +121,7 @@ namespace Internal
         return !outFilePath.empty();
     }
 
-    bool Try_PickEffectOpenFileDialog(fs::path& outFilePath)
+    bool Try_PickEffectOpenFileDialog(fs::path& outFilePath, const wchar_t* title = L"Open Effect")
     {
         outFilePath.clear();
 
@@ -137,7 +137,7 @@ namespace Internal
             return false;
         }
 
-        dialog->SetTitle(L"Open Effect");
+        dialog->SetTitle(title);
 
         DWORD options = 0;
         dialog->GetOptions(&options);
@@ -436,6 +436,101 @@ void Emitter_View::Open()
             NotifyType::Success,
             "Effect 열기 완료: {}",
             String::ToString(openPath.filename().wstring())
+        );
+    }
+}
+
+bool Emitter_View::CanAdd() const
+{
+    return true;
+}
+
+void Emitter_View::Add()
+{
+    fs::path addPath{};
+    if (!Internal::Try_PickEffectOpenFileDialog(addPath, L"Add Effect Emitters"))
+        return;
+
+    ifstream file(addPath);
+    if (!file.is_open())
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect Add 실패: {}",
+                String::ToString(addPath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    json documentJson{};
+    try
+    {
+        file >> documentJson;
+    }
+    catch (const json::exception&)
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect JSON 해석 실패: {}",
+                String::ToString(addPath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    EffectAuthoringDocument document{};
+    if (!EffectAuthoringJsonSerializer::From_Json(documentJson, document))
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect Add 실패: {}",
+                String::ToString(addPath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    if (document.emitters.empty())
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect Add 실패: import 가능한 emitter가 없습니다."
+            );
+        }
+        return;
+    }
+
+    for (AuthoringEmitter& emitter : document.emitters)
+    {
+        for (AuthoringModule& module : emitter.modules)
+            Apply_AuthoringModuleMetadata(module);
+    }
+
+    const size_t importedCount = document.emitters.size();
+    Execute_AuthoringEdit(
+        "Add Emitters",
+        [this, sourceEmitters = document.emitters]
+        {
+            Append_ImportedEmitters(sourceEmitters);
+        }
+    );
+
+    if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+    {
+        EDITOR->Get_Notification()->Add_Notification_With_Type(
+            NotifyType::Success,
+            "Effect Add 완료: {} ({} emitters)",
+            String::ToString(addPath.filename().wstring()),
+            importedCount
         );
     }
 }
@@ -1388,6 +1483,22 @@ void Emitter_View::Duplicate_Emitter(size_t emitterIndex)
         Clone_Emitter(_emitters[emitterIndex])
     );
     Select_Emitter(insertIndex);
+    MarkDirty();
+}
+
+void Emitter_View::Append_ImportedEmitters(const vector<AuthoringEmitter>& sourceEmitters)
+{
+    if (sourceEmitters.empty())
+        return;
+
+    Close_ModulePicker();
+    const size_t firstImportedIndex = _emitters.size();
+    _emitters.reserve(_emitters.size() + sourceEmitters.size());
+
+    for (const AuthoringEmitter& sourceEmitter : sourceEmitters)
+        _emitters.push_back(Clone_Emitter(sourceEmitter));
+
+    Select_Emitter(firstImportedIndex);
     MarkDirty();
 }
 

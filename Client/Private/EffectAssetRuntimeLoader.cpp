@@ -1720,6 +1720,7 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
     Read_Enum(data, "spriteTextureAxis", desc.required.spriteRender.spriteTextureAxis);
     desc.required.spriteRender.spriteRollOffsetDegrees =
         Read_Float(data, "spriteRollOffsetDegrees", desc.required.spriteRender.spriteRollOffsetDegrees);
+    desc.required.sort.artistSortBias = Read_Float(data, "sortBias", desc.required.sort.artistSortBias);
     desc.required.playback.duration = max(0.0001f, Read_Float(data, "duration", desc.required.playback.duration));
     desc.required.playback.loopCount = Read_UInt(data, "loopCount", desc.required.playback.loopCount);
     desc.required.playback.delay = max(0.f, Read_Float(data, "delay", desc.required.playback.delay));

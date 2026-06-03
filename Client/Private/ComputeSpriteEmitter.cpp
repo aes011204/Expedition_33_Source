@@ -348,6 +348,11 @@ bool ComputeSpriteEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition
     return true;
 }
 
+float ComputeSpriteEmitter::Get_BlendSortBias() const
+{
+    return _desc.required.sort.artistSortBias;
+}
+
 void ComputeSpriteEmitter::On_EffectTransformSynced()
 {
     Sync_WorldCenterToComputeBuffer();

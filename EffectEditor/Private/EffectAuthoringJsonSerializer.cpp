@@ -1307,6 +1307,7 @@ namespace Internal
         root["maxCameraBlendDistance"] = data.maxCameraBlendDistance;
         root["useLocalSpace"] = data.useLocalSpace;
         root["sortMode"] = To_EnumToken(data.sortMode);
+        root["sortBias"] = data.sortBias;
         root["cameraMotionBlurAmount"] = data.cameraMotionBlurAmount;
         root["clearExistingParticlesOnInit"] = data.clearExistingParticlesOnInit;
         root["loopCount"] = data.loopCount;
@@ -1358,6 +1359,7 @@ namespace Internal
         Read_NumberField(root, "minCameraBlendDistance", outData.minCameraBlendDistance);
         Read_NumberField(root, "maxCameraBlendDistance", outData.maxCameraBlendDistance);
         Read_BoolField(root, "useLocalSpace", outData.useLocalSpace);
+        Read_NumberField(root, "sortBias", outData.sortBias);
         Read_NumberField(root, "cameraMotionBlurAmount", outData.cameraMotionBlurAmount);
         Read_BoolField(root, "clearExistingParticlesOnInit", outData.clearExistingParticlesOnInit);
         Read_NumberField(root, "loopCount", outData.loopCount);

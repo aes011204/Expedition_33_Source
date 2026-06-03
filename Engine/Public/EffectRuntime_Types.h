@@ -248,6 +248,12 @@ struct EffectDrawLimitRuntimeDesc
     uint32 maxDrawCount{ 500 };   // 동시에 그릴 particle 수 상한이다. buffer capacity는 바꾸지 않는다.
 };
 
+// Required 모듈에서 Blend 정렬 보정에 필요한 값만 접은 runtime payload다.
+struct EffectRequiredSortRuntimeDesc
+{
+    float artistSortBias{ 0.f }; // 양수는 더 앞, 음수는 더 뒤로 보정하려는 제작자 의도 값이다.
+};
+
 // Required 모듈의 runtime 소비 payload를 의미별로 묶은 desc다.
 struct EffectRequiredRuntimeDesc
 {
@@ -255,6 +261,7 @@ struct EffectRequiredRuntimeDesc
     EffectSpriteRenderRuntimeDesc spriteRender{};
     EffectEmitterPlaybackRuntimeDesc playback{};
     EffectDrawLimitRuntimeDesc drawLimit{};
+    EffectRequiredSortRuntimeDesc sort{};
 };
 
 // Spawn 모듈의 runtime 소비 payload와 spawn fallback shape를 묶은 desc다.
