@@ -12,7 +12,7 @@ VIBuffer_Landscape::VIBuffer_Landscape(const VIBuffer_Landscape& prototype)
 
 void VIBuffer_Landscape::Set_LayerCount(uint32 count)
 {
-    count = min(count, 4u);
+    count = min(count, MAX_LAYERS);
     uint32 oldCount = static_cast<uint32>(_weightMaps.size());
     if (count <= oldCount)
     {
@@ -489,7 +489,7 @@ void VIBuffer_Landscape::Paint_Layer(uint32 layerIdx, float worldX, float worldZ
             uint32 idx = z * numVX + x;
 
             float& w = _weightMaps[layerIdx][idx];
-            w = min(1.f, w + strength * t * t);
+            w = min(1.f, w + strength * t);
 
             float remaining = 1.f - w;
             float otherSum = 0.f;

@@ -92,11 +92,41 @@ void MELandscapeManager::Save_Landscape(int32 idx, const WCHAR* path)
 
     for (uint32 i = 0; i < layerCount; ++i)
     {
+        // Albedo
         const wstring& name = _scene->_landscapes[idx]->Get_LayerPath(i);
         uint32 nameLen = static_cast<uint32>(name.size());
         fwrite(&nameLen, sizeof(uint32), 1, f);
         fwrite(name.c_str(), sizeof(wchar_t), nameLen, f);
 
+        // Normal
+        const wstring& normalName = _scene->_landscapes[idx]->Get_NormalPath(i);
+        uint32 normalLen = static_cast<uint32>(normalName.size());
+        fwrite(&normalLen, sizeof(uint32), 1, f);
+        if (normalLen > 0)
+        {
+            fwrite(normalName.c_str(), sizeof(WCHAR), normalLen, f);
+        }
+
+        // Roughness
+        const wstring& roughName = _scene->_landscapes[idx]->Get_RoughnessPath(i);
+        uint32 roughLen = static_cast<uint32>(roughName.size());
+        fwrite(&roughLen, sizeof(uint32), 1, f);
+        if (roughLen > 0)
+        {
+            fwrite(roughName.c_str(), sizeof(WCHAR), roughLen, f);
+        }
+
+        // LayerParams
+        float tiling = _scene->_landscapes[idx]->Get_LayerTiling(i);
+        Vec4 tint = _scene->_landscapes[idx]->Get_LayerGroundTint(i);
+        Vec4 control = _scene->_landscapes[idx]->Get_LayerControl(i);
+        fwrite(&tiling, sizeof(float), 1, f);
+        fwrite(&tint, sizeof(Vec4), 1, f);
+        fwrite(&control, sizeof(Vec4), 1, f);
+        Vec4 albedo = _scene->_landscapes[idx]->Get_AlbedoControl(i);
+        fwrite(&albedo, sizeof(Vec4), 1, f);
+
+        // Weights
         const auto& weights = vb->Get_WeightMap(i);
         fwrite(weights.data(), sizeof(float), weights.size(), f);
     }
@@ -167,17 +197,57 @@ void MELandscapeManager::Load_Landscape(int32 idx, const WCHAR* path)
         vb->Set_LayerCount(layerCount);
         for (uint32 i = 0; i < layerCount; ++i)
         {
+            // Albedo
             uint32 nameLen = 0;
             fread(&nameLen, sizeof(uint32), 1, f);
             wstring name(nameLen, L'\0');
             fread(name.data(), sizeof(WCHAR), nameLen, f);
 
+            // Normal
+            uint32 normalLen = 0;
+            fread(&normalLen, sizeof(uint32), 1, f);
+            wstring normalName(normalLen, L'\0');
+            if (normalLen > 0)
+            {
+                fread(normalName.data(), sizeof(WCHAR), normalLen, f);
+            }
+
+            // Roughness
+            uint32 roughLen = 0;
+            fread(&roughLen, sizeof(uint32), 1, f);
+            wstring roughName(roughLen, L'\0');
+            if (roughLen > 0)
+            {
+                fread(roughName.data(), sizeof(WCHAR), roughLen, f);
+            }
+
+            // LayerParams
+            float tiling = 3.f;
+            Vec4 tint = { 1, 1, 1, 1 };
+            Vec4 control = { 1, 1, 0, 0 };
+
+            fread(&tiling, sizeof(float), 1, f);
+            fread(&tint, sizeof(Vec4), 1, f);
+            fread(&control, sizeof(Vec4), 1, f);
+            Vec4 albedo{};
+            fread(&albedo, sizeof(Vec4), 1, f);
+
+            // Weights
             auto& weights = vb->Get_WeightMap(i);
             fread(weights.data(), sizeof(float), expected, f);
 
-            wstring fullPath = (fs::path(_resourceRoot) / L"Map" / L"LandscapeTextures" / name).wstring();
-            _scene->_landscapes[idx]->Add_LayerTexture(fullPath);
-            _scene->_landscapes[idx]->Flush_WeightMap(i);
+            const wstring root = (fs::path(_resourceRoot) / L"Map" / L"LandscapeTextures").wstring();
+            wstring albedoPath = (fs::path(root) / name).wstring();
+            wstring normalPath = normalLen > 0 ? (fs::path(root) / normalName).wstring() : L"";
+            wstring roughPath = roughLen > 0 ? (fs::path(root) / roughName).wstring() : L"";
+
+            auto& land = _scene->_landscapes[idx];
+            land->Add_LayerTexture(albedoPath, normalPath, roughPath);
+            land->Set_LayerTiling(i, tiling);
+            land->Set_LayerGroundTint(i, tint);
+            land->Set_LayerControl(i, control);
+            land->Set_AlbedoControl(i, albedo);
+            land->Flush_WeightMap(i);
         }
     }
     fclose(f);
@@ -297,14 +367,17 @@ void MELandscapeManager::Apply_Erosion(int32 idx, const LandscapeErosionParams& 
     vb->Flush();
 }
 
-void MELandscapeManager::Add_LandscapeLayer(int32 idx, const WCHAR* path)
+void MELandscapeManager::Add_LandscapeLayer(int32 idx, const WCHAR* albedoPath, const WCHAR* normalPath, const WCHAR* roughnessPath)
 {
     if (idx < 0 || idx >= static_cast<int32>(_scene->_landscapes.size()))
     {
         return;
     }
 
-    _scene->_landscapes[idx]->Add_LayerTexture(wstring(path));
+    _scene->_landscapes[idx]->Add_LayerTexture(
+        wstring(albedoPath),
+        normalPath ? wstring(normalPath) : L"",
+        roughnessPath ? wstring(roughnessPath) : L"");
 }
 
 void MELandscapeManager::Remove_LandscapeLayer(int32 landscapeIdx, uint32 layerIdx)
@@ -459,7 +532,11 @@ void MELandscapeManager::Do_SculptAt(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSiz
     if (mode == ESculptMode::Paint)
     {
         vb->Paint_Layer(_sculptState->paintLayerIdx, localHitX, localHitZ, radius, strength * timeDelta * 10.f);
-        actor->Flush_WeightMap(_sculptState->paintLayerIdx);
+        for (uint32 i = 0; i < actor->Get_LayerCount(); ++i)
+        {
+            actor->Flush_WeightMap(i);
+        }
+
         return;
     }
 

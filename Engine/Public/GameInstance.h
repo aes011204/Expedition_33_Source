@@ -207,6 +207,7 @@ public: /* For.Object_Manager */
         const Shared<GameObject>& gameObject);
 
     bool Remove_GameObject(uint32 levelIndex, const Shared<GameObject>& gameObject);
+    void Flush_RemovedGameObjects();
     HRESULT Clear_LevelObjects(uint32 levelIndex);
 
     // Layer_Player의 첫번째 오브젝트 찾기
@@ -300,7 +301,7 @@ public: /* For.Font_Manager */
         float scale = 1.f);
 
 public: /* For.Asset_Manager */
-    HRESULT Initialize_AssetManager(const wstring& resourceRoot);
+    HRESULT Initialize_AssetManager(const wstring& resourceRoot, bool forceScan = false);
 
     /* 파일 경로를 GUID로 저장해야 하는 ResourceLoader/Editor 파이프라인에서 호출한다. */
     string Find_AssetGUID(const wstring& filePath) const;
@@ -458,6 +459,7 @@ public: // For. PhysX_Manager
     PxPhysics* Get_PhysXPhysics() const;
     PxScene* Get_PhysXScene() const;
     PhysX_Manager* Get_PhysXManager() const { return _physxManager.get(); }
+    void Unregister_PhysXCollider(ColliderCom* collider);
 
     PhysXStaticActorHandle Register_PhysXStaticCollision(
         const StaticCollisionData& collisionData,
@@ -479,6 +481,12 @@ public: // For. PhysX_Manager
         float distance,
         float radius,
         Collision_Preset queryPreset,
+        PhysXQueryHit& outHit) const;
+
+    bool Raycast_Environment(
+        const Vec3& origin,
+        const Vec3& direction,
+        float distance,
         PhysXQueryHit& outHit) const;
 
     bool Probe_Ground(

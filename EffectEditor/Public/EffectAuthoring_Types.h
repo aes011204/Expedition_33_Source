@@ -12,6 +12,7 @@ enum class AuthoringModuleType : uint8
     Lifetime,
     InitialLocation,
     SphereLocation,
+    PlaneRadialLocation,
     InitialSize,
     InitialMeshSize,
     InitialVelocity,
@@ -20,6 +21,7 @@ enum class AuthoringModuleType : uint8
     Drag,
     VelocityOverLife,
     InitialRotation,
+    PlaneRadialOrientation,
     RotationOverLife,
     InitialRotationRate,
     RotationRateScaleByLife,
@@ -604,6 +606,79 @@ struct SphereLocationModuleData
     SphereLocationSpawnMode spawnMode{ SphereLocationSpawnMode::Volume };
 };
 
+enum class PlaneRadialLocationPlane : uint8
+{
+    XY,
+    XZ,
+    YZ,
+};
+
+enum class PlaneRadialLocationShape : uint8
+{
+    Rectangle,
+    Disc,
+    Ring,
+    Arc,
+};
+
+enum class PlaneRadialLocationPlacementMode : uint8
+{
+    Random,
+    EvenByParticleIndex,
+};
+
+struct PlaneRadialLocationModuleData
+{
+    bool enabled{ true };
+    PlaneRadialLocationPlane plane{ PlaneRadialLocationPlane::XY };
+    PlaneRadialLocationShape shape{ PlaneRadialLocationShape::Disc };
+    PlaneRadialLocationPlacementMode placementMode{ PlaneRadialLocationPlacementMode::Random };
+    Vec3 offset{ 0.f, 0.f, 0.f };
+    FloatDistributionData uDistribution{ FloatDistributionData::Make_Uniform(-0.5f, 0.5f) };
+    FloatDistributionData vDistribution{ FloatDistributionData::Make_Uniform(-0.5f, 0.5f) };
+    FloatDistributionData radiusDistribution{ FloatDistributionData::Make_Uniform(0.f, 1.f) };
+    FloatDistributionData angleDegreesDistribution{ FloatDistributionData::Make_Uniform(0.f, 360.f) };
+    float thickness{ 0.f };
+};
+
+enum class PlaneRadialOrientationTargetKind : uint8
+{
+    Auto,
+    Sprite2D,
+    Mesh3D,
+};
+
+enum class PlaneRadialOrientationMode : uint8
+{
+    None,
+    FaceRadialOut,
+    FaceRadialIn,
+    FaceTangentCW,
+    FaceTangentCCW,
+    FacePlaneNormal,
+};
+
+enum class PlaneRadialOrientationAxis : uint8
+{
+    PositiveX,
+    NegativeX,
+    PositiveY,
+    NegativeY,
+    PositiveZ,
+    NegativeZ,
+};
+
+struct PlaneRadialOrientationModuleData
+{
+    bool enabled{ true };
+    PlaneRadialOrientationTargetKind targetKind{ PlaneRadialOrientationTargetKind::Auto };
+    PlaneRadialOrientationMode orientationMode{ PlaneRadialOrientationMode::None };
+    PlaneRadialOrientationAxis meshForwardAxis{ PlaneRadialOrientationAxis::PositiveZ };
+    PlaneRadialOrientationAxis meshUpAxis{ PlaneRadialOrientationAxis::PositiveY };
+    float tiltDegrees{ 0.f };
+    float rollOffsetDegrees{ 0.f };
+};
+
 struct InitialSizeModuleData
 {
     Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.1f, 0.1f }) };
@@ -745,8 +820,10 @@ enum class MaterialScalarModulationTargetField : uint8
     OpacityPower,
     NoiseStrength,
     AlphaErosion,
+    AlphaCutoff,
     CoreIntensity,
     OuterIntensity,
+    CoreColor,
 };
 
 enum class MaterialScalarModulationOperation : uint8
@@ -765,13 +842,21 @@ struct MaterialScalarModulatorData
     bool enabled{ true };
     MaterialScalarModulationTargetField targetField{ MaterialScalarModulationTargetField::Intensity };
     MaterialScalarModulationOperation operation{ MaterialScalarModulationOperation::Multiply };
-    MaterialScalarModulationTimeSource timeSource{ MaterialScalarModulationTimeSource::ParticleLife };
+    MaterialScalarModulationTimeSource timeSource{ MaterialScalarModulationTimeSource::EmitterTime };
     FloatDistributionData distribution{ FloatDistributionData::Make_Constant(1.f) };
+};
+
+struct MaterialCoreColorRgbModulatorData
+{
+    bool enabled{ true };
+    MaterialScalarModulationTimeSource timeSource{ MaterialScalarModulationTimeSource::EmitterTime };
+    Vector3DistributionData distribution{ Vector3DistributionData::Make_Constant(Vec3{ 1.f, 0.85f, 0.45f }) };
 };
 
 struct MaterialScalarModulationModuleData
 {
     vector<MaterialScalarModulatorData> modulators{};
+    vector<MaterialCoreColorRgbModulatorData> coreColorRgbModulators{};
 };
 
 using AuthoringModuleData = std::variant<
@@ -780,6 +865,7 @@ using AuthoringModuleData = std::variant<
     LifetimeModuleData,
     InitialLocationModuleData,
     SphereLocationModuleData,
+    PlaneRadialLocationModuleData,
     InitialSizeModuleData,
     InitialMeshSizeModuleData,
     InitialVelocityModuleData,
@@ -788,6 +874,7 @@ using AuthoringModuleData = std::variant<
     DragModuleData,
     VelocityOverLifeModuleData,
     InitialRotationModuleData,
+    PlaneRadialOrientationModuleData,
     RotationOverLifeModuleData,
     InitialRotationRateModuleData,
     RotationRateScaleByLifeModuleData,

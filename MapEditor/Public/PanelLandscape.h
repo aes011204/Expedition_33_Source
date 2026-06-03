@@ -26,7 +26,7 @@ private:
     function<void(int32, const WCHAR*)> _onLoad;
     function<void(int32, const LandscapeNoiseParams&)> _onApplyNoise;
     function<void(int32, const LandscapeErosionParams&)> _onApplyErosion;
-    function<void(int32, const WCHAR*)> _onAddLayer;
+    function<void(int32, const WCHAR*, const WCHAR*, const WCHAR*)> _onAddLayer;
     function<void(int32, uint32)> _onRemoveLayer;
     function<void(int32, uint32)> _onSetBaseLayer;
     function<void(int32, const LandscapeConfig&)> _onModify;
@@ -48,6 +48,11 @@ private:
     bool _isModifyMode = false;
     int32 _modifyTargetIdx = -1;
 
+    bool _showAddLayerDialog = false;
+    wstring _pendingAlbedo;
+    wstring _pendingNormal;
+    wstring _pendingRoughness;
+
 private:
     void Render_LandscapeList();
     void Render_CreateDialog();
@@ -57,6 +62,7 @@ private:
     void Render_Noise();
     void Render_Erosion();
     void Render_PaintTools();
+    void Render_AddLayerDialog();
 
 public:
     static Shared<PanelLandscape> Create(SceneContext* ctx, const LandscapePanelContext& landscapeCtx);

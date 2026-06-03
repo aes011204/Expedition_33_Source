@@ -87,6 +87,10 @@ namespace Internal
         outMaterial.noiseStrength = material.noiseStrength;
         outMaterial.alphaCutoff = material.alphaCutoff;
         outMaterial.alphaErosion = material.alphaErosion;
+        outMaterial.noiseSource = material.noiseSource.empty() ? "Red" : material.noiseSource;
+        outMaterial.maskSource = material.maskSource.empty() ? "Alpha" : material.maskSource;
+        outMaterial.noiseInvert = material.noiseInvert;
+        outMaterial.maskInvert = material.maskInvert;
         outMaterial.mainUVScale = material.mainUVScale;
         outMaterial.mainUVOffset = material.mainUVOffset;
         outMaterial.mainUVScrollSpeed = material.mainUVScrollSpeed;
@@ -202,6 +206,120 @@ namespace Internal
         case SphereLocationSpawnMode::Volume:
         default:
             return PointParticleSphereLocationMode::Volume;
+        }
+    }
+
+    PointParticlePlaneRadialLocationPlane Resolve_PointParticlePlaneRadialLocationPlane(PlaneRadialLocationPlane plane)
+    {
+        switch (plane)
+        {
+        case PlaneRadialLocationPlane::XZ:
+            return PointParticlePlaneRadialLocationPlane::XZ;
+
+        case PlaneRadialLocationPlane::YZ:
+            return PointParticlePlaneRadialLocationPlane::YZ;
+
+        case PlaneRadialLocationPlane::XY:
+        default:
+            return PointParticlePlaneRadialLocationPlane::XY;
+        }
+    }
+
+    PointParticlePlaneRadialLocationShape Resolve_PointParticlePlaneRadialLocationShape(PlaneRadialLocationShape shape)
+    {
+        switch (shape)
+        {
+        case PlaneRadialLocationShape::Rectangle:
+            return PointParticlePlaneRadialLocationShape::Rectangle;
+
+        case PlaneRadialLocationShape::Ring:
+            return PointParticlePlaneRadialLocationShape::Ring;
+
+        case PlaneRadialLocationShape::Arc:
+            return PointParticlePlaneRadialLocationShape::Arc;
+
+        case PlaneRadialLocationShape::Disc:
+        default:
+            return PointParticlePlaneRadialLocationShape::Disc;
+        }
+    }
+
+    PointParticlePlaneRadialLocationPlacementMode Resolve_PointParticlePlaneRadialLocationPlacementMode(PlaneRadialLocationPlacementMode mode)
+    {
+        switch (mode)
+        {
+        case PlaneRadialLocationPlacementMode::EvenByParticleIndex:
+            return PointParticlePlaneRadialLocationPlacementMode::EvenByParticleIndex;
+
+        case PlaneRadialLocationPlacementMode::Random:
+        default:
+            return PointParticlePlaneRadialLocationPlacementMode::Random;
+        }
+    }
+
+    PointParticlePlaneRadialOrientationTargetKind Resolve_PointParticlePlaneRadialOrientationTargetKind(PlaneRadialOrientationTargetKind targetKind)
+    {
+        switch (targetKind)
+        {
+        case PlaneRadialOrientationTargetKind::Sprite2D:
+            return PointParticlePlaneRadialOrientationTargetKind::Sprite2D;
+
+        case PlaneRadialOrientationTargetKind::Mesh3D:
+            return PointParticlePlaneRadialOrientationTargetKind::Mesh3D;
+
+        case PlaneRadialOrientationTargetKind::Auto:
+        default:
+            return PointParticlePlaneRadialOrientationTargetKind::Auto;
+        }
+    }
+
+    PointParticlePlaneRadialOrientationMode Resolve_PointParticlePlaneRadialOrientationMode(PlaneRadialOrientationMode mode)
+    {
+        switch (mode)
+        {
+        case PlaneRadialOrientationMode::FaceRadialOut:
+            return PointParticlePlaneRadialOrientationMode::FaceRadialOut;
+
+        case PlaneRadialOrientationMode::FaceRadialIn:
+            return PointParticlePlaneRadialOrientationMode::FaceRadialIn;
+
+        case PlaneRadialOrientationMode::FaceTangentCW:
+            return PointParticlePlaneRadialOrientationMode::FaceTangentCW;
+
+        case PlaneRadialOrientationMode::FaceTangentCCW:
+            return PointParticlePlaneRadialOrientationMode::FaceTangentCCW;
+
+        case PlaneRadialOrientationMode::FacePlaneNormal:
+            return PointParticlePlaneRadialOrientationMode::FacePlaneNormal;
+
+        case PlaneRadialOrientationMode::None:
+        default:
+            return PointParticlePlaneRadialOrientationMode::None;
+        }
+    }
+
+    PointParticlePlaneRadialOrientationAxis Resolve_PointParticlePlaneRadialOrientationAxis(PlaneRadialOrientationAxis axis)
+    {
+        switch (axis)
+        {
+        case PlaneRadialOrientationAxis::NegativeX:
+            return PointParticlePlaneRadialOrientationAxis::NegativeX;
+
+        case PlaneRadialOrientationAxis::PositiveY:
+            return PointParticlePlaneRadialOrientationAxis::PositiveY;
+
+        case PlaneRadialOrientationAxis::NegativeY:
+            return PointParticlePlaneRadialOrientationAxis::NegativeY;
+
+        case PlaneRadialOrientationAxis::PositiveZ:
+            return PointParticlePlaneRadialOrientationAxis::PositiveZ;
+
+        case PlaneRadialOrientationAxis::NegativeZ:
+            return PointParticlePlaneRadialOrientationAxis::NegativeZ;
+
+        case PlaneRadialOrientationAxis::PositiveX:
+        default:
+            return PointParticlePlaneRadialOrientationAxis::PositiveX;
         }
     }
 
@@ -354,6 +472,48 @@ namespace Internal
         return fallbackValue;
     }
 
+    Vec2 Build_NormalizedFloatRange(const FloatDistributionData& data, Vec2 fallbackValue)
+    {
+        const float minValue = Evaluate_FloatDistributionMin(data, fallbackValue.x);
+        const float maxValue = Evaluate_FloatDistributionMax(data, fallbackValue.y);
+        return Vec2{ min(minValue, maxValue), max(minValue, maxValue) };
+    }
+
+    Vec2 Build_NonNegativeFloatRange(const FloatDistributionData& data, Vec2 fallbackValue)
+    {
+        const Vec2 range = Build_NormalizedFloatRange(data, fallbackValue);
+        return Vec2{ max(0.f, range.x), max(0.f, range.y) };
+    }
+
+    PointParticlePlaneRadialLocationDesc Build_PointParticlePlaneRadialLocationDesc(const PlaneRadialLocationModuleData& data)
+    {
+        PointParticlePlaneRadialLocationDesc desc{};
+        desc.enabled = data.enabled;
+        desc.plane = Resolve_PointParticlePlaneRadialLocationPlane(data.plane);
+        desc.shape = Resolve_PointParticlePlaneRadialLocationShape(data.shape);
+        desc.placementMode = Resolve_PointParticlePlaneRadialLocationPlacementMode(data.placementMode);
+        desc.offset = data.offset;
+        desc.uRange = Build_NormalizedFloatRange(data.uDistribution, desc.uRange);
+        desc.vRange = Build_NormalizedFloatRange(data.vDistribution, desc.vRange);
+        desc.radiusRange = Build_NonNegativeFloatRange(data.radiusDistribution, desc.radiusRange);
+        desc.angleDegreesRange = Build_NormalizedFloatRange(data.angleDegreesDistribution, desc.angleDegreesRange);
+        desc.thickness = max(0.f, data.thickness);
+        return desc;
+    }
+
+    PointParticlePlaneRadialOrientationDesc Build_PointParticlePlaneRadialOrientationDesc(const PlaneRadialOrientationModuleData& data)
+    {
+        PointParticlePlaneRadialOrientationDesc desc{};
+        desc.enabled = data.enabled;
+        desc.targetKind = Resolve_PointParticlePlaneRadialOrientationTargetKind(data.targetKind);
+        desc.orientationMode = Resolve_PointParticlePlaneRadialOrientationMode(data.orientationMode);
+        desc.meshForwardAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshForwardAxis);
+        desc.meshUpAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshUpAxis);
+        desc.tiltDegrees = data.tiltDegrees;
+        desc.rollOffsetDegrees = data.rollOffsetDegrees;
+        return desc;
+    }
+
     static void Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value)
     {
         switch (index)
@@ -426,10 +586,14 @@ namespace Internal
             return EffectMaterialScalarModulationTarget::NoiseStrength;
         case MaterialScalarModulationTargetField::AlphaErosion:
             return EffectMaterialScalarModulationTarget::AlphaErosion;
+        case MaterialScalarModulationTargetField::AlphaCutoff:
+            return EffectMaterialScalarModulationTarget::AlphaCutoff;
         case MaterialScalarModulationTargetField::CoreIntensity:
             return EffectMaterialScalarModulationTarget::CoreIntensity;
         case MaterialScalarModulationTargetField::OuterIntensity:
             return EffectMaterialScalarModulationTarget::OuterIntensity;
+        case MaterialScalarModulationTargetField::CoreColor:
+            return EffectMaterialScalarModulationTarget::CoreColor;
         case MaterialScalarModulationTargetField::Intensity:
         default:
             return EffectMaterialScalarModulationTarget::Intensity;
@@ -527,6 +691,90 @@ namespace Internal
             target.operation = To_RuntimeMaterialScalarOperation(source.operation);
             target.timeSource = To_RuntimeMaterialScalarTimeSource(source.timeSource);
             Fill_MaterialScalarCurvePayload(target.curve, source.distribution);
+        }
+    }
+
+    void Fill_CoreColorRgbCurveComponent(
+        EffectMaterialCoreColorRgbModulationCurveDesc& desc,
+        uint32 index,
+        const Vector3CurveKeyData& key)
+    {
+        Set_SubUVFrameCurveComponent(desc.keyTimes, index, clamp(key.time, 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.keyValuesR, index, key.value.x);
+        Set_SubUVFrameCurveComponent(desc.keyValuesG, index, key.value.y);
+        Set_SubUVFrameCurveComponent(desc.keyValuesB, index, key.value.z);
+        Set_SubUVFrameCurveComponent(desc.keyArriveTangentsR, index, key.arriveTangent.x);
+        Set_SubUVFrameCurveComponent(desc.keyArriveTangentsG, index, key.arriveTangent.y);
+        Set_SubUVFrameCurveComponent(desc.keyArriveTangentsB, index, key.arriveTangent.z);
+        Set_SubUVFrameCurveComponent(desc.keyLeaveTangentsR, index, key.leaveTangent.x);
+        Set_SubUVFrameCurveComponent(desc.keyLeaveTangentsG, index, key.leaveTangent.y);
+        Set_SubUVFrameCurveComponent(desc.keyLeaveTangentsB, index, key.leaveTangent.z);
+        Set_SubUVFrameCurveComponent(desc.keyModes, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+    }
+
+    void Fill_CoreColorRgbCurvePayload(
+        EffectMaterialCoreColorRgbModulationCurveDesc& desc,
+        const Vector3DistributionData& distribution)
+    {
+        constexpr uint32 maxCurveKeys{ 4 };
+        desc = EffectMaterialCoreColorRgbModulationCurveDesc{};
+
+        if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&distribution.payload);
+            distribution.mode == DistributionMode::ConstantCurve && curve != nullptr && !curve->keys.empty())
+        {
+            const uint32 keyCount = min(maxCurveKeys, static_cast<uint32>(curve->keys.size()));
+            desc.enabled = true;
+            desc.keyCount = keyCount;
+            desc.keyTimes = Vec4{};
+            desc.keyValuesR = Vec4{};
+            desc.keyValuesG = Vec4{};
+            desc.keyValuesB = Vec4{};
+            desc.keyArriveTangentsR = Vec4{};
+            desc.keyArriveTangentsG = Vec4{};
+            desc.keyArriveTangentsB = Vec4{};
+            desc.keyLeaveTangentsR = Vec4{};
+            desc.keyLeaveTangentsG = Vec4{};
+            desc.keyLeaveTangentsB = Vec4{};
+            desc.keyModes = Vec4{};
+
+            for (uint32 index = 0; index < keyCount; ++index)
+                Fill_CoreColorRgbCurveComponent(desc, index, curve->keys[index]);
+
+            return;
+        }
+
+        Vec3 value{ 1.f, 0.85f, 0.45f };
+        if (const auto* constant = get_if<ConstantVector3DistributionData>(&distribution.payload))
+            value = constant->value;
+        else if (const auto* uniform = get_if<UniformVector3DistributionData>(&distribution.payload))
+            value = (uniform->minValue + uniform->maxValue) * 0.5f;
+
+        desc.enabled = true;
+        desc.keyCount = 2;
+        desc.keyValuesR = Vec4{ value.x, value.x, 0.f, 0.f };
+        desc.keyValuesG = Vec4{ value.y, value.y, 0.f, 0.f };
+        desc.keyValuesB = Vec4{ value.z, value.z, 0.f, 0.f };
+    }
+
+    void Fill_CoreColorRgbModulationPayload(
+        EffectMaterialCoreColorRgbModulationRuntimeDesc& desc,
+        const MaterialScalarModulationModuleData& data)
+    {
+        desc = EffectMaterialCoreColorRgbModulationRuntimeDesc{};
+
+        const uint32 count = min(
+            EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators,
+            static_cast<uint32>(data.coreColorRgbModulators.size())
+        );
+        desc.count = count;
+
+        for (uint32 index = 0; index < count; ++index)
+        {
+            const MaterialCoreColorRgbModulatorData& source = data.coreColorRgbModulators[index];
+            EffectMaterialCoreColorRgbModulatorRuntimeDesc& target = desc.modulators[index];
+            target.enabled = source.enabled;
+            target.timeSource = To_RuntimeMaterialScalarTimeSource(source.timeSource);
+            Fill_CoreColorRgbCurvePayload(target.curve, source.distribution);
         }
     }
 
@@ -1143,6 +1391,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.noiseStrength = material.noiseStrength;
         desc.required.material.alphaCutoff = material.alphaCutoff;
         desc.required.material.alphaErosion = material.alphaErosion;
+        desc.required.material.noiseSource = material.noiseSource.empty() ? "Red" : material.noiseSource;
+        desc.required.material.maskSource = material.maskSource.empty() ? "Alpha" : material.maskSource;
+        desc.required.material.noiseInvert = material.noiseInvert;
+        desc.required.material.maskInvert = material.maskInvert;
         desc.required.material.mainUVScale = material.mainUVScale;
         desc.required.material.mainUVOffset = material.mainUVOffset;
         desc.required.material.mainUVScrollSpeed = material.mainUVScrollSpeed;
@@ -1198,6 +1450,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     {
         Internal::Fill_MaterialScalarModulationPayload(
             desc.required.material.scalarModulation,
+            *materialScalarModulation
+        );
+        Internal::Fill_CoreColorRgbModulationPayload(
+            desc.required.material.coreColorRgbModulation,
             *materialScalarModulation
         );
     }
@@ -1260,6 +1516,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.sphereLocation.radius = max(0.f, sphereLocation->radius);
         desc.sphereLocation.mode = Internal::Resolve_PointParticleSphereLocationMode(sphereLocation->spawnMode);
     }
+
+    if (const auto* planeRadialLocation = Internal::Find_ModuleData<PlaneRadialLocationModuleData>(emitter, AuthoringModuleType::PlaneRadialLocation))
+        desc.planeRadialLocation = Internal::Build_PointParticlePlaneRadialLocationDesc(*planeRadialLocation);
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
@@ -1405,6 +1664,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         };
     }
 
+    if (const auto* planeRadialOrientation = Internal::Find_ModuleData<PlaneRadialOrientationModuleData>(emitter, AuthoringModuleType::PlaneRadialOrientation))
+        desc.planeRadialOrientation = Internal::Build_PointParticlePlaneRadialOrientationDesc(*planeRadialOrientation);
+
     if (const auto* rotationOverLife = Internal::Find_ModuleData<RotationOverLifeModuleData>(emitter, AuthoringModuleType::RotationOverLife))
     {
         desc.rotation.enabled = true;
@@ -1481,6 +1743,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         emitterDesc.material.noiseStrength = material.noiseStrength;
         emitterDesc.material.alphaCutoff = material.alphaCutoff;
         emitterDesc.material.alphaErosion = material.alphaErosion;
+        emitterDesc.material.noiseSource = material.noiseSource.empty() ? "Red" : material.noiseSource;
+        emitterDesc.material.maskSource = material.maskSource.empty() ? "Alpha" : material.maskSource;
+        emitterDesc.material.noiseInvert = material.noiseInvert;
+        emitterDesc.material.maskInvert = material.maskInvert;
         emitterDesc.material.mainUVScale = material.mainUVScale;
         emitterDesc.material.mainUVOffset = material.mainUVOffset;
         emitterDesc.material.mainUVScrollSpeed = material.mainUVScrollSpeed;
@@ -1524,6 +1790,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
     {
         Internal::Fill_MaterialScalarModulationPayload(
             emitterDesc.material.scalarModulation,
+            *materialScalarModulation
+        );
+        Internal::Fill_CoreColorRgbModulationPayload(
+            emitterDesc.material.coreColorRgbModulation,
             *materialScalarModulation
         );
     }
@@ -1688,6 +1958,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
             emitterDesc.material.scalarModulation,
             *materialScalarModulation
         );
+        Internal::Fill_CoreColorRgbModulationPayload(
+            emitterDesc.material.coreColorRgbModulation,
+            *materialScalarModulation
+        );
     }
 
     if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
@@ -1765,6 +2039,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
                                           ? PointParticleSphereLocationMode::Surface
                                           : PointParticleSphereLocationMode::Volume;
     }
+
+    if (const auto* planeRadialLocation = Internal::Find_ModuleData<PlaneRadialLocationModuleData>(emitter, AuthoringModuleType::PlaneRadialLocation))
+        emitterDesc.planeRadialLocation = Internal::Build_PointParticlePlaneRadialLocationDesc(*planeRadialLocation);
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
     {
@@ -1941,6 +2218,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
             max(meshMinRotation.z, meshMaxRotation.z)
         };
     }
+
+    if (const auto* planeRadialOrientation = Internal::Find_ModuleData<PlaneRadialOrientationModuleData>(emitter, AuthoringModuleType::PlaneRadialOrientation))
+        emitterDesc.planeRadialOrientation = Internal::Build_PointParticlePlaneRadialOrientationDesc(*planeRadialOrientation);
 
     if (const auto* meshRotationOverLife = Internal::Find_ModuleData<MeshRotationOverLifeModuleData>(emitter, AuthoringModuleType::MeshRotationOverLife))
     {

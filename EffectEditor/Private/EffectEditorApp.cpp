@@ -14,6 +14,8 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
+    constexpr long long kStartupResourceInfoThresholdMs = 50;
+
     bool Is_EffectEditorStaticLevelAllowed(const wstring& prototypeTag)
     {
         return prototypeTag == L"VIBuffer_Cube" || prototypeTag == L"VIBuffer_Rect";
@@ -217,7 +219,7 @@ HRESULT EffectEditorApp::Initialize()
     };
 
     CHECK_FAILED(run_startup_step(initializeEngineMs, [&]{ return GAME->Initialize_Engine(engineDesc, _device, _context); }), E_FAIL);
-    CHECK_FAILED(run_startup_step(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring()); }), E_FAIL);
+    CHECK_FAILED(run_startup_step(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring(), true); }), E_FAIL);
     CHECK_FAILED(run_startup_step(initializeClientMs, [&]{ return CLIENT->Initialize_Client_ForEffectEditor(_device, _context); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyFontsMs, [&]{ return Ready_Fonts(); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyStaticResourcesMs, [&]{ return Ready_Prototype_For_Static_Level(); }), E_FAIL);
@@ -571,7 +573,34 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
 
         ++includedCount;
 
-        if (FAILED(resourceLoader->Register_LoadJob(loadJob)))
+        const auto jobStartTime = chrono::steady_clock::now();
+        const HRESULT registerResult = resourceLoader->Register_LoadJob(loadJob);
+        const auto jobElapsedMs = chrono::duration_cast<chrono::milliseconds>(
+            chrono::steady_clock::now() - jobStartTime
+        ).count();
+
+        if (jobElapsedMs >= Internal::kStartupResourceInfoThresholdMs)
+        {
+            LOG_INFO(
+                "[StartupResourceTiming] scope=Static type={} tag={} elapsed_ms={} path={}",
+                string(magic_enum::enum_name(loadJob.eType)),
+                String::ToString(loadJob.strPrototypeTag),
+                jobElapsedMs,
+                String::ToString(loadJob.strPath)
+            );
+        }
+        else
+        {
+            LOG_DEBUG(
+                "[StartupResourceTiming] scope=Static type={} tag={} elapsed_ms={} path={}",
+                string(magic_enum::enum_name(loadJob.eType)),
+                String::ToString(loadJob.strPrototypeTag),
+                jobElapsedMs,
+                String::ToString(loadJob.strPath)
+            );
+        }
+
+        if (FAILED(registerResult))
         {
             ++failedCount;
             LOG_WARN(

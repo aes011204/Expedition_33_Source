@@ -82,6 +82,12 @@ Shared<Layer> Layer::Create()
 
 void Layer::Free()
 {
+    for (const Shared<GameObject>& gameObject : _gameObjects)
+    {
+        if (gameObject)
+            gameObject->Free();
+    }
+
 	__super::Free();
 	_gameObjects.clear();
 }

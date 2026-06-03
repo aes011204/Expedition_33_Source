@@ -403,7 +403,9 @@ void MovementCom::Update_HorizontalVelocity()
 
     if (_followMove.enabled)
     {
-        moveSpeed = _followMove.sprintFollow ? _moveDesc.sprintSpeed : _moveDesc.runSpeed;
+        moveSpeed =
+            _followMove.walkFollow ? _moveDesc.walkSpeed :
+            (_followMove.sprintFollow ? _moveDesc.sprintSpeed : _moveDesc.runSpeed);
     }
     else if (_input.moveX != 0.f || _input.moveZ != 0.f)
     {

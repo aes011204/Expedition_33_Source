@@ -6,6 +6,7 @@ IMPLEMENT_REFLECTION(EffectInstance)
     info.properties.clear();
     info.displayName = "EffectInstance";
     info.category = "Effect";
+    PROPERTY_BOOL("Loop", _loop);
     return true;
 }
 
@@ -86,7 +87,10 @@ void EffectInstance::Update(float timeDelta)
 void EffectInstance::Late_Update(float timeDelta)
 {
     if (!Is_Playing())
+    {
+        Restart_LoopIfNeeded();
         return;
+    }
 
     Sync_Emitters();
 
@@ -97,6 +101,7 @@ void EffectInstance::Late_Update(float timeDelta)
     }
 
     Evaluate_Finished();
+    Restart_LoopIfNeeded();
 }
 
 HRESULT EffectInstance::Render()
@@ -108,6 +113,7 @@ HRESULT EffectInstance::Play()
 {
     _playbackState = EffectPlaybackState::Playing;
     Set_Visible(true);
+    Sync_Emitters();
 
     return S_OK;
 }
@@ -123,6 +129,7 @@ HRESULT EffectInstance::Reset()
 {
     _playbackState = EffectPlaybackState::Stopped;
     Set_Visible(false);
+    Sync_Emitters();
 
     for (const Shared<EffectEmitter>& emitter : _emitters)
     {
@@ -272,6 +279,15 @@ void EffectInstance::Evaluate_Finished()
         _playbackState = EffectPlaybackState::Finished;
         Set_Visible(false);
     }
+}
+
+void EffectInstance::Restart_LoopIfNeeded()
+{
+    if (!_loop || !Is_Finished())
+        return;
+
+    if (SUCCEEDED(Reset()))
+        (void)Play();
 }
 
 void EffectInstance::Clear_Emitters()

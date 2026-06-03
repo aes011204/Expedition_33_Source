@@ -149,6 +149,12 @@ PartObject* ContainerObject::Get_PartObject(const wstring& partTag) const
 
 void ContainerObject::Free()
 {
+    for (const Shared<PartObject>& partObject : _partObjectUpdateOrder)
+    {
+        if (partObject)
+            partObject->Free();
+    }
+
 	__super::Free();
 
     _partObjectUpdateOrder.clear();

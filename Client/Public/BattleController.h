@@ -141,8 +141,12 @@ public:
 
     Shared<BattleTurnCamera> Get_BattleTurnCamera() const { return _battleTurnCamera; }
 
-    void                StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate);
+    void                StartCounter(ModelCom* sourceModel);
     void                ApplyCounterDamage(ModelCom* sourceModel);
+
+    // 카운터 시작 시 타임 관련
+    void                BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed);
+    void                EndCounterTimeSection(ModelCom* sourceModel);
 
 public:
     // Free Aim은 턴 소모 X
@@ -266,6 +270,7 @@ private:
     void Execute_BaseAttack();
     void Execute_Skill();
     void Execute_Item();
+    void Revive_BattleMon(const BattleChar& battleChar, float hp);
 
 private: /* 전투 AP */
     void Apply_BaseAttackAP(const BattleChar& actor); // Base Attack시 얻는 AP

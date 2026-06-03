@@ -9,7 +9,10 @@ Level_Manager::Level_Manager()
 HRESULT Level_Manager::Change_Level(uint32 newLevelIndex, Shared<Level> newLevel)
 {
 	if (nullptr != _currentLevel)
+	{
+		_currentLevel->Free();
 		GAME->Clear_Resources(_currentLevelIndex);
+	}
 
 	_currentLevel.reset();
 	_currentLevel = newLevel;
@@ -42,6 +45,11 @@ Unique<Level_Manager> Level_Manager::Create()
 
 void Level_Manager::Free()
 {
+	if (nullptr != _currentLevel)
+	{
+		_currentLevel->Free();
+		_currentLevel.reset();
+	}
+
 	__super::Free();
-	_currentLevel.reset();
 }

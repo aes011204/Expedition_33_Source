@@ -52,6 +52,11 @@ void PanelLandscape::Render()
         ImGui::Separator();
 
         Render_Erosion();
+
+        if (_showAddLayerDialog)
+        {
+            Render_AddLayerDialog();
+        }
     }
 
     ImGui::End();
@@ -408,7 +413,7 @@ void PanelLandscape::Render_PaintTools()
     }
 
     ImGui::Spacing();
-    ImGui::Text("레이어 (%u / 4)", layerCount);
+    ImGui::Text("레이어 (%u / %u)", layerCount, MAX_LAYERS);
     for (uint32 i = 0; i < layerCount; ++i)
     {
         ImGui::PushID(static_cast<int32>(i));
@@ -448,28 +453,128 @@ void PanelLandscape::Render_PaintTools()
             }
         }
 
+        string tilingLabel = "Tiling##" + to_string(i);
+        string tintLabel = "Tint##" + to_string(i);
+        string normalLabel = "Normal Intensity##" + to_string(i);
+        string roughLabel = "Roughness x##" + to_string(i);
+        string metallicLabel = "Metallic##" + to_string(i);
+
+        float tiling = actor->Get_LayerTiling(i);
+        if (ImGui::DragFloat(tilingLabel.c_str(), &tiling, 0.01f, 0.1f, 50.f, "%.2f"))
+        {
+            actor->Set_LayerTiling(i, tiling);
+        }
+
+        Vec4 tint = actor->Get_LayerGroundTint(i);
+        if (ImGui::ColorEdit3(tintLabel.c_str(), reinterpret_cast<float*>(&tint)))
+        {
+            actor->Set_LayerGroundTint(i, tint);
+        }
+
+        Vec4 ctrl = actor->Get_LayerControl(i);
+        if (ImGui::DragFloat(normalLabel.c_str(), &ctrl.x, 0.01f, 0.f, 10.f, "%.2f"))
+        {
+            actor->Set_LayerControl(i, ctrl);
+        }
+
+        if (ImGui::DragFloat(roughLabel.c_str(), &ctrl.y, 0.01f, 0.f, 10.f, "%.2f"))
+        {
+            actor->Set_LayerControl(i, ctrl);
+        }
+
+        if (ImGui::DragFloat(metallicLabel.c_str(), &ctrl.w, 0.01f, 0.f, 1.f, "%.2f"))
+        {
+            actor->Set_LayerControl(i, ctrl);
+        }
+
+        Vec4 albedo = actor->Get_AlbedoControl(i);
+        string satLabel= "Saturation##" + to_string(i);
+        string briLabel = "Brightness##" + to_string(i);
+        string conLabel = "Contrast##" + to_string(i);
+        if (ImGui::DragFloat(satLabel.c_str(), &albedo.x, 0.01f, 0.f, 5.f, "%.3f"))
+        {
+            actor->Set_AlbedoControl(i, albedo);
+        }
+
+        if (ImGui::DragFloat(briLabel.c_str(), &albedo.y, 0.01f, 0.f, 20.f, "%.3f"))
+        {
+            actor->Set_AlbedoControl(i, albedo);
+        }
+
+        if (ImGui::DragFloat(conLabel.c_str(), &albedo.z, 0.01f, 0.f, 5.f, "%.3f"))
+        {
+            actor->Set_AlbedoControl(i, albedo);
+        }
+
         ImGui::PopID();
     }
 
 
-    if (layerCount < 4)
+    if (layerCount < MAX_LAYERS)
     {
         ImGui::Spacing();
-        if (ImGui::Button("+ 레이어 추가") && _onAddLayer)
+        if (ImGui::Button("+ 레이어 추가"))
         {
-            WCHAR buf[MAX_PATH] = {};
-            OPENFILENAMEW ofn{};
-            ofn.lStructSize = sizeof(ofn);
-            ofn.lpstrFilter = L"Texture Files\0*.dds;*.png;*.jpg;*.bmp\0All Files\0*.*\0";
-            ofn.lpstrFile = buf;
-            ofn.nMaxFile = MAX_PATH;
-            ofn.Flags = OFN_FILEMUSTEXIST;
-            if (GetOpenFileNameW(&ofn))
-            {
-                _onAddLayer(_ctx->_activeLandscapeIdx, buf);
-            }
+            _showAddLayerDialog = true;
+            _pendingAlbedo.clear();
+            _pendingNormal.clear();
+            _pendingRoughness.clear();
         }
     }
+}
+
+void PanelLandscape::Render_AddLayerDialog()
+{
+    ImGui::SetNextWindowSize(ImVec2(420.f, 200.f), ImGuiCond_Always);
+    if (ImGui::Begin("레이어 추가", &_showAddLayerDialog, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
+    {
+        auto PickFile = [](const char* label, wstring& path)
+            {
+                string preview = path.empty() ? "-" : String::ToString(path);
+                ImGui::Text("%s: %s", label, preview.c_str());
+                ImGui::SameLine();
+
+                string btnLabel = string("선택##") + label;
+                if (ImGui::SmallButton(btnLabel.c_str()))
+                {
+                    WCHAR buf[MAX_PATH] = {};
+                    OPENFILENAME ofn{};
+                    ofn.lStructSize = sizeof(ofn);
+                    ofn.lpstrFilter = L"Texture Files\0*.dds;*.png\0All Files\0*.*\0";
+                    ofn.lpstrFile = buf;
+                    ofn.nMaxFile = MAX_PATH;
+                    ofn.Flags = OFN_FILEMUSTEXIST;
+                    if (GetOpenFileNameW(&ofn))
+                    {
+                        path = buf;
+                    }
+                }
+            };
+
+        PickFile("Albedo   ", _pendingAlbedo);
+        PickFile("Normal   ", _pendingNormal);
+        PickFile("Roughness", _pendingRoughness);
+
+        ImGui::Spacing();
+        ImGui::BeginDisabled(_pendingAlbedo.empty());
+        if (ImGui::Button("추가", ImVec2(100.f, 0.f)))
+        {
+            if (_onAddLayer)
+            {
+                _onAddLayer(_ctx->_activeLandscapeIdx,
+                    _pendingAlbedo.c_str(), _pendingNormal.c_str(), _pendingRoughness.c_str());
+            }
+            _showAddLayerDialog = false;
+        }
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        if (ImGui::Button("취소", ImVec2(100.f, 0.f)))
+        {
+            _showAddLayerDialog = false;
+        }
+    }
+    ImGui::End();
 }
 
 Shared<PanelLandscape> PanelLandscape::Create(SceneContext* ctx, const LandscapePanelContext& landscapeCtx)

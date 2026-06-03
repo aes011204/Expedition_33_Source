@@ -3,6 +3,6 @@
 
 namespace Engine
 {
-    static constexpr uint32 MAX_LAYERS = 4;
+    static constexpr uint32 MAX_LAYERS = 7;
 }
 

@@ -6,6 +6,7 @@ NS_BEGIN(Client)
 
 class Mon_Lancelier_Body;
 class Mon_Lancelier_Weapon;
+class Mon_WeakPoint;
 
 class MW_Lancelier final : public Monster_WorldBase
 {
@@ -18,6 +19,7 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
+    void    From_Json(const json& data) override;
     void    Priority_Update(float timeDelta) override;
     void    Update(float timeDelta) override;
     HRESULT Render() override;
@@ -32,8 +34,12 @@ protected:
     HRESULT Ready_PartObjects();
 
 private:
+    void    Rebuild_PatrolPointsFromCurrentPosition();
+
+private:
     Shared<Mon_Lancelier_Body>      _body = {};
     Shared<Mon_Lancelier_Weapon>    _weapon = {};
+    Shared<Mon_WeakPoint>           _weak = {};
 
 public:
     static Shared<MW_Lancelier> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

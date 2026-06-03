@@ -186,14 +186,6 @@ void Renderer::Draw()
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonLight:After");
     nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
-    DumpCurrentOMState(L"Render_Distortion:Before");
-#endif
-
-    // ========================================= //
-    Render_Distortion();
-    // ========================================= //
-#ifdef _DEBUG
-    DumpCurrentOMState(L"Render_Distortion:After");
     const auto blendBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_Blend:Before");
 #endif
@@ -204,6 +196,14 @@ void Renderer::Draw()
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Blend:After");
     blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
+    DumpCurrentOMState(L"Render_Distortion:Before");
+#endif
+
+    // ========================================= //
+    Render_Distortion();
+    // ========================================= //
+#ifdef _DEBUG
+    DumpCurrentOMState(L"Render_Distortion:After");
     const auto postProcesBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_PostProcess:Before");
 #endif
