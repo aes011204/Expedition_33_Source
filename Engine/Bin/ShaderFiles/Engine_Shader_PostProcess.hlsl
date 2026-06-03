@@ -78,7 +78,7 @@ float3 SampleBloomUpsampleAdd(float2 uv)
     return min(baseColor + upsampled, g_PP_BloomClamp);
 }
 
-// god ray가 화면 경계에서 갑자기 켜지거나 꺼지는 popping을 완화.
+// god ray가 화면 가장자리에서 갑자기 켜지거나 꺼지는 popping을 완화.
 float ComputeLightShaftScreenFade(float2 lightScreenUV)
 {
     const float edgeFade = max(g_LS_EdgeFade, EPSILON);

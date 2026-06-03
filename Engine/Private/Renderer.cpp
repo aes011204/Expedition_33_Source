@@ -1489,24 +1489,12 @@ bool Renderer::Try_BuildLightShaftParams(LightShaftCB& outParams) const
     const XMMATRIX view = XMLoadFloat4x4(viewMatrix);
     const XMMATRIX proj = XMLoadFloat4x4(projMatrix);
 
-    // 태양의 world pos -> view pos 
-    const XMVECTOR sunViewPos = XMVector3TransformCoord(sunWorldPos, view);
-    if (XMVectorGetZ(sunViewPos) <= 1e-4f)
-        return false;
-
     // 태양의 view pos -> ndc
     const XMVECTOR sunNdc = XMVector3TransformCoord(sunWorldPos, view * proj);
 
     // 태양의 ndc pos -> uv
     const float lightScreenX = XMVectorGetX(sunNdc) * 0.5f + 0.5f;
     const float lightScreenY = XMVectorGetY(sunNdc) * -0.5f + 0.5f;
-    const float padding = max(outParams.edgeFade, 0.05f);
-    if (lightScreenX < -padding || lightScreenX > 1.f + padding ||
-        lightScreenY < -padding || lightScreenY > 1.f + padding)
-    {
-        return false;
-    }
-
     outParams.lightScreenUV = Vec2{ lightScreenX, lightScreenY };
     outParams.lightVisible = 1.f;
     outParams.lightFacingCamera = 1.f;
