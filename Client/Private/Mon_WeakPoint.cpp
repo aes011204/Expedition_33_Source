@@ -59,8 +59,8 @@ void Mon_WeakPoint::Update(float timeDelta)
     if (const Matrix* socketMatrix = Resolve_SocketMatrix())
         Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*socketMatrix));
 
-    if (_effectCom)
-        _effectCom->Update(timeDelta);
+    if (_partEffectCom)
+        _partEffectCom->Update(timeDelta);
 
 }
 
@@ -124,10 +124,10 @@ HRESULT Mon_WeakPoint::Ready_WeakPointCollider()
 
 void Mon_WeakPoint::Play_WeakPointEffect()
 {
-    if (_effectCom == nullptr)
+    if (_partEffectCom == nullptr)
         return;
 
-    _effectCom->Stop_AllAttachedEffects();
+    _partEffectCom->Stop_AllAttachedEffects();
 
     EffectCom::EffectPlayDesc desc{};
     desc.levelIndex = GAME->Current_LevelIndex();
@@ -138,7 +138,7 @@ void Mon_WeakPoint::Play_WeakPointEffect()
     desc.scale = Vec3(0.3f);
     desc.requiresManualRelease = true;
 
-    _effectCom->Play_Effect(desc);
+    _partEffectCom->Play_Effect(desc);
 }
 
 Matrix Mon_WeakPoint::Build_CollisionWorldMatrix() const
@@ -169,8 +169,8 @@ bool Mon_WeakPoint::Try_Consume_BattleWeakPointHit()
         _colliderCom->Clear_Overlap();
     }
 
-    if (_effectCom)
-        _effectCom->Stop_AllAttachedEffects();
+    if (_partEffectCom)
+        _partEffectCom->Stop_AllAttachedEffects();
 
     return true;
 }
@@ -186,8 +186,8 @@ void Mon_WeakPoint::Hide_BattleWeakPoint()
         _colliderCom->Clear_Overlap();
     }
 
-    if (_effectCom)
-        _effectCom->Stop_AllAttachedEffects();
+    if (_partEffectCom)
+        _partEffectCom->Stop_AllAttachedEffects();
 }
 
 void Mon_WeakPoint::Reset_BattleWeakPoint()
