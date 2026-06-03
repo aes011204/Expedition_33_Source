@@ -115,6 +115,17 @@ float3 ApplyAlbedoControl(float3 color, float4 ctrl)
     return saturate(color);
 }
 
+float3 SampleLandscapeWorldNormal(Texture2D normalTex, float2 uv, float strength, float3x3 tbn)
+{
+    float2 normalXY = normalTex.Sample(LinearWrapSampler, uv).rg * 2.f - 1.f;
+    normalXY *= strength;
+
+    float normalZ = sqrt(saturate(1.f - dot(normalXY, normalXY)));
+    float3 normalTS = normalize(float3(normalXY, normalZ));
+
+    return normalize(mul(normalTS, tbn));
+}
+
 PS_OUT PS_Layer(PS_IN In)
 {
     PS_OUT Out;
@@ -142,9 +153,7 @@ PS_OUT PS_Layer(PS_IN In)
     float4 col0 = g_Layer0.Sample(LinearWrapSampler, uv0);
     col0.rgb = ApplyAlbedoControl(col0.rgb, g_AlbedoControl[0]);
     blendedColor += col0 * g_GroundTint[0] * w[0];
-    float3 n0 = g_Normal0.Sample(LinearWrapSampler, uv0).rgb * 2.f - 1.f;
-    n0.xy *= g_LayerControl[0].x;
-    blendedNormal += normalize(mul(normalize(n0), TBN)) * w[0];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal0, uv0, g_LayerControl[0].x, TBN) * w[0];
     blendedRough += g_Roughness0.Sample(LinearWrapSampler, uv0).r * g_LayerControl[0].y * w[0];
     blendedMetallic += g_LayerControl[0].w * w[0];
     
@@ -153,9 +162,7 @@ PS_OUT PS_Layer(PS_IN In)
     float4 col1 = g_Layer1.Sample(LinearWrapSampler, uv1);
     col1.rgb = ApplyAlbedoControl(col1.rgb, g_AlbedoControl[1]);
     blendedColor += col1 * g_GroundTint[1] * w[1];
-    float3 n1 = g_Normal1.Sample(LinearWrapSampler, uv1).rgb * 2.f - 1.f;
-    n1.xy *= g_LayerControl[1].x;
-    blendedNormal += normalize(mul(normalize(n1), TBN)) * w[1];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal1, uv1, g_LayerControl[1].x, TBN) * w[1];
     blendedRough += g_Roughness1.Sample(LinearWrapSampler, uv1).r * g_LayerControl[1].y * w[1];
     blendedMetallic += g_LayerControl[1].w * w[1];
     
@@ -164,9 +171,7 @@ PS_OUT PS_Layer(PS_IN In)
     float4 col2 = g_Layer2.Sample(LinearWrapSampler, uv2);
     col2.rgb = ApplyAlbedoControl(col2.rgb, g_AlbedoControl[2]);
     blendedColor += col2 * g_GroundTint[2] * w[2];
-    float3 n2 = g_Normal2.Sample(LinearWrapSampler, uv2).rgb * 2.f - 1.f;
-    n2.xy *= g_LayerControl[2].x;
-    blendedNormal += normalize(mul(normalize(n2), TBN)) * w[2];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal2, uv2, g_LayerControl[2].x, TBN) * w[2];
     blendedRough += g_Roughness2.Sample(LinearWrapSampler, uv2).r * g_LayerControl[2].y * w[2];
     blendedMetallic += g_LayerControl[2].w * w[2];
     
@@ -175,9 +180,7 @@ PS_OUT PS_Layer(PS_IN In)
     float4 col3 = g_Layer3.Sample(LinearWrapSampler, uv3);
     col3.rgb = ApplyAlbedoControl(col3.rgb, g_AlbedoControl[3]);
     blendedColor += col3 * g_GroundTint[3] * w[3];
-    float3 n3 = g_Normal3.Sample(LinearWrapSampler, uv3).rgb * 2.f - 1.f;
-    n3.xy *= g_LayerControl[3].x;
-    blendedNormal += normalize(mul(normalize(n3), TBN)) * w[3];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal3, uv3, g_LayerControl[3].x, TBN) * w[3];
     blendedRough += g_Roughness3.Sample(LinearWrapSampler, uv3).r * g_LayerControl[3].y * w[3];
     blendedMetallic += g_LayerControl[3].w * w[3];
     
@@ -186,9 +189,7 @@ PS_OUT PS_Layer(PS_IN In)
     float4 col4 = g_Layer4.Sample(LinearWrapSampler, uv4);
     col4.rgb = ApplyAlbedoControl(col4.rgb, g_AlbedoControl[4]);
     blendedColor += col4 * g_GroundTint[4] * w[4];
-    float3 n4 = g_Normal4.Sample(LinearWrapSampler, uv4).rgb * 2.f - 1.f;
-    n4.xy *= g_LayerControl[4].x;
-    blendedNormal += normalize(mul(normalize(n4), TBN)) * w[4];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal4, uv4, g_LayerControl[4].x, TBN) * w[4];
     blendedRough += g_Roughness4.Sample(LinearWrapSampler, uv4).r * g_LayerControl[4].y * w[4];
     blendedMetallic += g_LayerControl[4].w * w[4];
     
@@ -197,9 +198,7 @@ PS_OUT PS_Layer(PS_IN In)
     float4 col5 = g_Layer5.Sample(LinearWrapSampler, uv5);
     col5.rgb = ApplyAlbedoControl(col5.rgb, g_AlbedoControl[5]);
     blendedColor += col5 * g_GroundTint[5] * w[5];
-    float3 n5 = g_Normal5.Sample(LinearWrapSampler, uv5).rgb * 2.f - 1.f;
-    n5.xy *= g_LayerControl[5].x;
-    blendedNormal += normalize(mul(normalize(n5), TBN)) * w[5];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal5, uv5, g_LayerControl[5].x, TBN) * w[5];
     blendedRough += g_Roughness5.Sample(LinearWrapSampler, uv5).r * g_LayerControl[5].y * w[5];
     blendedMetallic += g_LayerControl[5].w * w[5];
     
@@ -208,9 +207,7 @@ PS_OUT PS_Layer(PS_IN In)
     float4 col6 = g_Layer6.Sample(LinearWrapSampler, uv6);
     col6.rgb = ApplyAlbedoControl(col6.rgb, g_AlbedoControl[6]);
     blendedColor += col6 * g_GroundTint[6] * w[6];
-    float3 n6 = g_Normal6.Sample(LinearWrapSampler, uv6).rgb * 2.f - 1.f;
-    n6.xy *= g_LayerControl[6].x;
-    blendedNormal += normalize(mul(normalize(n6), TBN)) * w[6];
+    blendedNormal += SampleLandscapeWorldNormal(g_Normal6, uv6, g_LayerControl[6].x, TBN) * w[6];
     blendedRough += g_Roughness6.Sample(LinearWrapSampler, uv6).r * g_LayerControl[6].y * w[6];
     blendedMetallic += g_LayerControl[6].w * w[6];
     
@@ -219,7 +216,7 @@ PS_OUT PS_Layer(PS_IN In)
     Out.Diffuse = float4(blendedColor.rgb, 1.f);
     Out.Normal = float4(blendedNormal * 0.5f + 0.5f, 1.f);
     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
-    Out.Material = float4(1.f, blendedRough, blendedMetallic, 0.f);
+    Out.Material = float4(1.f, saturate(blendedRough), saturate(blendedMetallic), 0.f);
     Out.Emissive = float4(0.f, 0.f, 0.f, 0.f);
     
     return Out;

@@ -101,11 +101,11 @@ HRESULT MapLandscape::Initialize(void* arg)
         return E_FAIL;
     }
 
-    uint8_t flatRough[4] = { 128, 128, 128, 255 };
+    uint8_t flatRough[4] = { 255, 255, 255, 255 };
     D3D11_SUBRESOURCE_DATA rdata = {};
     rdata.pSysMem = flatRough;
     rdata.SysMemPitch = 4;
-    if (FAILED(_device->CreateTexture2D(&ndesc, &ndata, _dummyRoughnessTex.GetAddressOf())))
+    if (FAILED(_device->CreateTexture2D(&ndesc, &rdata, _dummyRoughnessTex.GetAddressOf())))
     {
         return E_FAIL;
     }
