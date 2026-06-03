@@ -43,8 +43,8 @@ void Mon_Lancelier_Weapon::Update(float timeDelta)
 {
     Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*_socketMatrix));
 
-    if (_effectCom)
-        _effectCom->Update(timeDelta);
+    if (_partEffectCom)
+        _partEffectCom->Update(timeDelta);
 }
 
 void Mon_Lancelier_Weapon::Late_Update(float timeDelta)

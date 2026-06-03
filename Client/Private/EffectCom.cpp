@@ -78,6 +78,7 @@ void EffectCom::Update(float timeDelta)
     Update_AttachedEffects();
 }
 
+
 void EffectCom::Start_SwitchDissolve(float durationSec, const string& noiseName)
 {
 

@@ -106,6 +106,7 @@ public:
     void    Request_WidePresentationMode();
 
     vector<BattleChar> Get_AliveEnemies();
+    vector<BattleChar> Get_AllEnemies() { return _enemies; };
     vector<BattleChar> Get_AliveHeroes();
 
     bool Is_BattleStarted() { return _isBattleActive; }
@@ -115,6 +116,7 @@ public:
     void Clear_CurrentScript() { _curScript.reset(); }
 
     const vector<BattleChar>& Get_BattleHeroes() const { return _heroes; }
+    const vector<BattleChar>& Get_BattleEnemies() const { return _enemies; }
 
 public:
     void End_FirstAnim();
@@ -145,6 +147,8 @@ public:
     void                ApplyCounterDamage(ModelCom* sourceModel);
 
 public:
+    // 부활
+    void Revive_BattleMon(const BattleChar& battleChar, float hp);
     // Free Aim은 턴 소모 X
     void Begin_FreeAimShot(const BattleAction& shotAction);
     void Finish_FreeAimShot();
@@ -266,7 +270,6 @@ private:
     void Execute_BaseAttack();
     void Execute_Skill();
     void Execute_Item();
-    void Revive_BattleMon(const BattleChar& battleChar, float hp);
 
 private: /* 전투 AP */
     void Apply_BaseAttackAP(const BattleChar& actor); // Base Attack시 얻는 AP

@@ -39,7 +39,7 @@ void Mon_WeakPoint::BeginPlay()
 {
     Monster_Part::BeginPlay();
 
-    if (!CLIENT->Play_AttachPartEffect(Get_Owner(), L"Monster_Weak", L"Part_Weak"), E_FAIL)
+    if (!CLIENT->Play_AttachPartEffect(Get_Owner(), L"Monster_Weak", L"Part_Weak", Vec3::Zero, Vec3::Zero,Vec3(.3f,.3f,.3f) ), E_FAIL)
     {
         return;
     }
@@ -54,8 +54,8 @@ void Mon_WeakPoint::Update(float timeDelta)
 {
     Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*_socketMatrix));
 
-    if (_effectCom)
-        _effectCom->Update(timeDelta);
+    if (_partEffectCom)
+        _partEffectCom->Update(timeDelta);
 
     
  
