@@ -633,7 +633,7 @@ struct MeshDataPreview_View::PreviewRenderer
             CHECK_FAILED(shader->Bind_SRV("g_FlowTexture", nullptr), E_FAIL);
 
         const Vec4 distortionParams(
-            max(0.f, material.refractionIntensity),
+            material.refractionIntensity,
             max(0.f, material.refractionPresence),
             flowTexture != nullptr ? 1.f : 0.f,
             materialElapsedTime

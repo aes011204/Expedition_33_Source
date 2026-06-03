@@ -121,7 +121,7 @@ namespace Internal
         return !outFilePath.empty();
     }
 
-    bool Try_PickEffectOpenFileDialog(fs::path& outFilePath)
+    bool Try_PickEffectOpenFileDialog(fs::path& outFilePath, const wchar_t* title = L"Open Effect")
     {
         outFilePath.clear();
 
@@ -137,7 +137,7 @@ namespace Internal
             return false;
         }
 
-        dialog->SetTitle(L"Open Effect");
+        dialog->SetTitle(title);
 
         DWORD options = 0;
         dialog->GetOptions(&options);
@@ -440,6 +440,101 @@ void Emitter_View::Open()
     }
 }
 
+bool Emitter_View::CanAdd() const
+{
+    return true;
+}
+
+void Emitter_View::Add()
+{
+    fs::path addPath{};
+    if (!Internal::Try_PickEffectOpenFileDialog(addPath, L"Add Effect Emitters"))
+        return;
+
+    ifstream file(addPath);
+    if (!file.is_open())
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect Add 실패: {}",
+                String::ToString(addPath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    json documentJson{};
+    try
+    {
+        file >> documentJson;
+    }
+    catch (const json::exception&)
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect JSON 해석 실패: {}",
+                String::ToString(addPath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    EffectAuthoringDocument document{};
+    if (!EffectAuthoringJsonSerializer::From_Json(documentJson, document))
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect Add 실패: {}",
+                String::ToString(addPath.filename().wstring())
+            );
+        }
+        return;
+    }
+
+    if (document.emitters.empty())
+    {
+        if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+        {
+            EDITOR->Get_Notification()->Add_Notification_With_Type(
+                NotifyType::Warning,
+                "Effect Add 실패: import 가능한 emitter가 없습니다."
+            );
+        }
+        return;
+    }
+
+    for (AuthoringEmitter& emitter : document.emitters)
+    {
+        for (AuthoringModule& module : emitter.modules)
+            Apply_AuthoringModuleMetadata(module);
+    }
+
+    const size_t importedCount = document.emitters.size();
+    Execute_AuthoringEdit(
+        "Add Emitters",
+        [this, sourceEmitters = document.emitters]
+        {
+            Append_ImportedEmitters(sourceEmitters);
+        }
+    );
+
+    if (EDITOR != nullptr && EDITOR->Get_Notification() != nullptr)
+    {
+        EDITOR->Get_Notification()->Add_Notification_With_Type(
+            NotifyType::Success,
+            "Effect Add 완료: {} ({} emitters)",
+            String::ToString(addPath.filename().wstring()),
+            importedCount
+        );
+    }
+}
+
 AuthoringEmitter* Emitter_View::Find_Emitter(uint32 emitterId)
 {
     for (AuthoringEmitter& emitter : _emitters)
@@ -664,6 +759,8 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_InitialVelocityModule();
     case AuthoringModuleType::InitialRadialVelocity:
         return Make_InitialRadialVelocityModule();
+    case AuthoringModuleType::VelocityCone:
+        return Make_VelocityConeModule();
     case AuthoringModuleType::Acceleration:
         return Make_AccelerationModule();
     case AuthoringModuleType::Drag:
@@ -814,6 +911,17 @@ AuthoringModule Emitter_View::Make_InitialRadialVelocityModule()
     module.enabled = true;
     Apply_AuthoringModuleMetadata(module);
     module.data = InitialRadialVelocityModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_VelocityConeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::VelocityCone;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = VelocityConeModuleData{};
     return module;
 }
 
@@ -1091,6 +1199,7 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::InitialMeshSize:
     case AuthoringModuleType::InitialVelocity:
     case AuthoringModuleType::InitialRadialVelocity:
+    case AuthoringModuleType::VelocityCone:
     case AuthoringModuleType::Acceleration:
     case AuthoringModuleType::Drag:
     case AuthoringModuleType::VelocityOverLife:
@@ -1152,6 +1261,9 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
         break;
     case AuthoringModuleType::InitialRadialVelocity:
         module = Make_InitialRadialVelocityModule();
+        break;
+    case AuthoringModuleType::VelocityCone:
+        module = Make_VelocityConeModule();
         break;
     case AuthoringModuleType::Acceleration:
         module = Make_AccelerationModule();
@@ -1374,6 +1486,22 @@ void Emitter_View::Duplicate_Emitter(size_t emitterIndex)
     MarkDirty();
 }
 
+void Emitter_View::Append_ImportedEmitters(const vector<AuthoringEmitter>& sourceEmitters)
+{
+    if (sourceEmitters.empty())
+        return;
+
+    Close_ModulePicker();
+    const size_t firstImportedIndex = _emitters.size();
+    _emitters.reserve(_emitters.size() + sourceEmitters.size());
+
+    for (const AuthoringEmitter& sourceEmitter : sourceEmitters)
+        _emitters.push_back(Clone_Emitter(sourceEmitter));
+
+    Select_Emitter(firstImportedIndex);
+    MarkDirty();
+}
+
 void Emitter_View::Insert_NewEmitter(size_t insertIndex)
 {
     Close_ModulePicker();
@@ -1571,6 +1699,10 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
 
     case AuthoringModuleType::InitialRadialVelocity:
         module.data = InitialRadialVelocityModuleData{};
+        break;
+
+    case AuthoringModuleType::VelocityCone:
+        module.data = VelocityConeModuleData{};
         break;
 
     case AuthoringModuleType::Acceleration:
@@ -1861,6 +1993,14 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialRadialVelocity,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRadialVelocity),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::VelocityCone,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::VelocityCone),
             "이미 장착됨"
         )
     );

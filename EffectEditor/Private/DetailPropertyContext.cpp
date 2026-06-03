@@ -751,6 +751,91 @@ public: //## Distribution Controls
     }
 
 private: //## Distribution Types
+    static const char* Get_DistributionRandomSeedModeLabel(DistributionRandomSeedMode mode)
+    {
+        switch (mode)
+        {
+        case DistributionRandomSeedMode::Default:
+            return "기본값";
+        case DistributionRandomSeedMode::Manual:
+            return "수동";
+        default:
+            return "기본값";
+        }
+    }
+
+    static uint32 Generate_RandomSeedValue()
+    {
+        static uint32 state{ 0xA341316Cu };
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        return state != 0u ? state : 0x6D2B79F5u;
+    }
+
+    bool Draw_RandomSeedPayload(DistributionRandomSeedData& data)
+    {
+        bool changed = false;
+
+        ImGui::PushID("RandomSeed");
+        _basicDrawer.Draw_PropertyLabel("랜덤 시드");
+        ImGui::TextDisabled("Uniform 분포 샘플 seed");
+        _basicDrawer.Draw_ResetButton(false);
+
+        ImGui::PushID("RandomSeedMode");
+        _basicDrawer.Draw_PropertyLabel("시드 모드", "같은 시드는 같은 랜덤 분포를 재현합니다.");
+        DistributionRandomSeedMode nextMode = data.mode;
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_DistributionRandomSeedModeLabel(nextMode)))
+        {
+            const DistributionRandomSeedMode candidates[] = {
+                DistributionRandomSeedMode::Default,
+                DistributionRandomSeedMode::Manual,
+            };
+
+            for (const DistributionRandomSeedMode candidate : candidates)
+            {
+                const bool selected = nextMode == candidate;
+                if (ImGui::Selectable(Get_DistributionRandomSeedModeLabel(candidate), selected))
+                    nextMode = candidate;
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (data.mode != nextMode)
+        {
+            data.mode = nextMode;
+            changed = true;
+        }
+        _basicDrawer.Draw_ResetButton(false);
+        ImGui::PopID();
+
+        ImGui::PushID("ManualSeed");
+        _basicDrawer.Draw_PropertyLabel("시드");
+        const float randomizeButtonWidth = ImGui::CalcTextSize("무작위").x + ImGui::GetStyle().FramePadding.x * 2.f;
+        const float seedInputWidth = max(1.f, ImGui::GetContentRegionAvail().x - randomizeButtonWidth - ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SetNextItemWidth(seedInputWidth);
+        const bool manualMode = data.mode == DistributionRandomSeedMode::Manual;
+        if (!manualMode)
+            ImGui::BeginDisabled();
+        changed |= ImGui::InputScalar("##Value", ImGuiDataType_U32, &data.manualSeed);
+        if (!manualMode)
+            ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("무작위"))
+        {
+            data.manualSeed = Generate_RandomSeedValue();
+            data.mode = DistributionRandomSeedMode::Manual;
+            changed = true;
+        }
+        _basicDrawer.Draw_ResetButton(false);
+        ImGui::PopID();
+
+        ImGui::PopID();
+        return changed;
+    }
+
     enum class DistributionValueKind : uint8
     {
         Float,
@@ -1675,6 +1760,7 @@ private: //## Label Helpers
                 changed |= _basicDrawer.Draw_FloatProperty("최소", uniform->minValue, defaultMin, speed);
                 changed |= _basicDrawer.Draw_FloatProperty("최대", uniform->maxValue, defaultMax, speed);
                 Normalize_FloatUniform(*uniform);
+                changed |= Draw_RandomSeedPayload(uniform->randomSeed);
             }
             break;
 
@@ -1779,6 +1865,7 @@ private: //## Label Helpers
                 changed |= _basicDrawer.Draw_Vec2Property("최소", uniform->minValue, defaultMin, speed);
                 changed |= _basicDrawer.Draw_Vec2Property("최대", uniform->maxValue, defaultMax, speed);
                 Normalize_Vector2Uniform(*uniform);
+                changed |= Draw_RandomSeedPayload(uniform->randomSeed);
             }
             break;
         case DistributionMode::ConstantCurve:
@@ -1880,6 +1967,7 @@ private: //## Label Helpers
                 changed |= _basicDrawer.Draw_Vec3Property("최소", uniform->minValue, defaultMin, speed);
                 changed |= _basicDrawer.Draw_Vec3Property("최대", uniform->maxValue, defaultMax, speed);
                 Normalize_Vector3Uniform(*uniform);
+                changed |= Draw_RandomSeedPayload(uniform->randomSeed);
             }
             break;
         case DistributionMode::ConstantCurve:
@@ -1978,6 +2066,7 @@ private: //## Label Helpers
                 changed |= _basicDrawer.Draw_ColorProperty("최소", uniform->minValue, defaultMin);
                 changed |= _basicDrawer.Draw_ColorProperty("최대", uniform->maxValue, defaultMax);
                 Normalize_ColorUniform(*uniform);
+                changed |= Draw_RandomSeedPayload(uniform->randomSeed);
             }
             break;
         case DistributionMode::ConstantCurve:
@@ -2071,6 +2160,7 @@ private: //## Label Helpers
                 changed |= _basicDrawer.Draw_ColorRgbProperty("최소 RGB", uniform->minValue, defaultMin);
                 changed |= _basicDrawer.Draw_ColorRgbProperty("최대 RGB", uniform->maxValue, defaultMax);
                 Normalize_ColorUniform(*uniform);
+                changed |= Draw_RandomSeedPayload(uniform->randomSeed);
             }
             break;
         case DistributionMode::ConstantCurve:
@@ -2105,6 +2195,11 @@ private: //## Label Helpers
         return value.x == defaultValue.x && value.y == defaultValue.y && value.z == defaultValue.z && value.w == defaultValue.w;
     }
 
+    static bool Is_DefaultValue(const DistributionRandomSeedData& value, const DistributionRandomSeedData& defaultValue)
+    {
+        return value.mode == defaultValue.mode && value.manualSeed == defaultValue.manualSeed;
+    }
+
     static bool Is_DefaultValue(const ConstantFloatDistributionData& value, const ConstantFloatDistributionData& defaultValue)
     {
         return Is_DefaultValue(value.value, defaultValue.value);
@@ -2112,7 +2207,9 @@ private: //## Label Helpers
 
     static bool Is_DefaultValue(const UniformFloatDistributionData& value, const UniformFloatDistributionData& defaultValue)
     {
-        return Is_DefaultValue(value.minValue, defaultValue.minValue) && Is_DefaultValue(value.maxValue, defaultValue.maxValue);
+        return Is_DefaultValue(value.minValue, defaultValue.minValue) &&
+               Is_DefaultValue(value.maxValue, defaultValue.maxValue) &&
+               Is_DefaultValue(value.randomSeed, defaultValue.randomSeed);
     }
 
     static bool Is_DefaultValue(const FloatCurveKeyData& value, const FloatCurveKeyData& defaultValue)
@@ -2159,7 +2256,9 @@ private: //## Label Helpers
 
     static bool Is_DefaultValue(const UniformVector2DistributionData& value, const UniformVector2DistributionData& defaultValue)
     {
-        return Is_DefaultValue(value.minValue, defaultValue.minValue) && Is_DefaultValue(value.maxValue, defaultValue.maxValue);
+        return Is_DefaultValue(value.minValue, defaultValue.minValue) &&
+               Is_DefaultValue(value.maxValue, defaultValue.maxValue) &&
+               Is_DefaultValue(value.randomSeed, defaultValue.randomSeed);
     }
 
     static bool Is_DefaultValue(const Vector2CurveKeyData& value, const Vector2CurveKeyData& defaultValue)
@@ -2205,7 +2304,9 @@ private: //## Label Helpers
 
     static bool Is_DefaultValue(const UniformVector3DistributionData& value, const UniformVector3DistributionData& defaultValue)
     {
-        return Is_DefaultValue(value.minValue, defaultValue.minValue) && Is_DefaultValue(value.maxValue, defaultValue.maxValue);
+        return Is_DefaultValue(value.minValue, defaultValue.minValue) &&
+               Is_DefaultValue(value.maxValue, defaultValue.maxValue) &&
+               Is_DefaultValue(value.randomSeed, defaultValue.randomSeed);
     }
 
     static bool Is_DefaultValue(const Vector3DistributionData& value, const Vector3DistributionData& defaultValue)
@@ -2228,7 +2329,9 @@ private: //## Label Helpers
 
     static bool Is_DefaultValue(const UniformColorDistributionData& value, const UniformColorDistributionData& defaultValue)
     {
-        return Is_DefaultValue(value.minValue, defaultValue.minValue) && Is_DefaultValue(value.maxValue, defaultValue.maxValue);
+        return Is_DefaultValue(value.minValue, defaultValue.minValue) &&
+               Is_DefaultValue(value.maxValue, defaultValue.maxValue) &&
+               Is_DefaultValue(value.randomSeed, defaultValue.randomSeed);
     }
 
     static bool Is_DefaultValue(const Vector3CurveKeyData& value, const Vector3CurveKeyData& defaultValue)
