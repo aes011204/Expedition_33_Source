@@ -6,6 +6,9 @@
 
 void AN_Attack::Execute(const AnimNotifyContext& context)
 {
+   if(context.isPreview)
+       return;
+
     auto battle = CLIENT->Get_BattleController();
     CHECK_NULL(battle);
 

@@ -678,6 +678,12 @@ void Detail_View::Render_ParticleSystemDetail(
     if (_detailPropertyContext.Begin_PropertyTable("ParticleSystem"))
     {
         changed |= _detailPropertyContext.Draw_BoolProperty("자동 비활성화", data.autoDeactivate, defaultData.autoDeactivate);
+        if (EDITOR != nullptr)
+        {
+            bool previewPlaneVisible = EDITOR->Is_PreviewPlaneVisible();
+            if (_detailPropertyContext.Draw_BoolProperty("Preview Plane", previewPlaneVisible, false))
+                EDITOR->Set_PreviewPlaneVisible(previewPlaneVisible);
+        }
         _detailPropertyContext.End_PropertyTable();
     }
     if (changed)

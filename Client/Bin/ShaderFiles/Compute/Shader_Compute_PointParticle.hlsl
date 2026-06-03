@@ -20,6 +20,10 @@ struct ParticleLifecycleState
     float lifeMax;
     uint respawnSeed;
     uint active;
+    uint placementIndex;
+    uint placementCount;
+    uint reserved0;
+    uint reserved1;
 };
 
 cbuffer ComputePointParticleParams : register(b0)
@@ -119,6 +123,8 @@ cbuffer ComputePointParticleParams : register(b0)
 
 RWStructuredBuffer<ParticleInstanceVertex> OutputData : register(u0);
 RWStructuredBuffer<ParticleLifecycleState> LifecycleState : register(u2);
+
+static const float kPlaneRadialAngleEpsilon = 1e-4f;
 
 float ReadVec4Component(float4 values, uint index)
 {
@@ -584,6 +590,20 @@ float Hash01(uint seed)
     return (float)(seed & 0x00FFFFFFu) / 16777215.0f;
 }
 
+float Resolve_EvenByParticleIndexAngleRatio(uint particleIndex, uint maxActiveCount, float angleMinDegrees, float angleMaxDegrees)
+{
+    const uint clampedCount = max(1u, maxActiveCount);
+    if (clampedCount <= 1u)
+        return 0.0f;
+
+    const float angleSpanDegrees = abs(angleMaxDegrees - angleMinDegrees);
+    const bool isFullCircle = abs(angleSpanDegrees - 360.0f) <= kPlaneRadialAngleEpsilon;
+    if (isFullCircle)
+        return (float)particleIndex / (float)clampedCount;
+
+    return (float)particleIndex / (float)(clampedCount - 1u);
+}
+
 // seed에서 만든 0~1 값으로 min/max 사이의 3축 값을 샘플링한다.
 float3 SampleRange3(float3 minValue, float3 maxValue, uint seed)
 {
@@ -664,7 +684,7 @@ void ResolvePlaneRadialBasis(out float3 axisU, out float3 axisV, out float3 plan
     }
 }
 
-void SamplePlaneRadialFrame(uint seed, uint particleIndex, uint maxActiveCount, out PlaneRadialFrame frame)
+void SamplePlaneRadialFrame(uint seed, uint particleIndex, uint placementIndex, uint placementCount, out PlaneRadialFrame frame)
 {
     float3 axisU = float3(1.0f, 0.0f, 0.0f);
     float3 axisV = float3(0.0f, 1.0f, 0.0f);
@@ -697,11 +717,17 @@ void SamplePlaneRadialFrame(uint seed, uint particleIndex, uint maxActiveCount, 
     {
         const float radiusMin = min(g_PlaneRadialLocationPolarRange.x, g_PlaneRadialLocationPolarRange.y);
         const float radiusMax = max(g_PlaneRadialLocationPolarRange.x, g_PlaneRadialLocationPolarRange.y);
-        const float angleMin = radians(g_PlaneRadialLocationPolarRange.z);
-        const float angleMax = radians(g_PlaneRadialLocationPolarRange.w);
+        const float angleMinDegrees = g_PlaneRadialLocationPolarRange.z;
+        const float angleMaxDegrees = g_PlaneRadialLocationPolarRange.w;
+        const float angleMin = radians(angleMinDegrees);
+        const float angleMax = radians(angleMaxDegrees);
         const float radius = lerp(radiusMin, radiusMax, Hash01(seed + g_PlaneRadialLocationSeedSalts.x + 1601u));
         const float angleRatio = placementMode == 1u
-                                 ? (float)particleIndex / max(1.0f, (float)maxActiveCount)
+                                 ? Resolve_EvenByParticleIndexAngleRatio(
+                                     placementIndex,
+                                     placementCount,
+                                     angleMinDegrees,
+                                     angleMaxDegrees)
                                  : Hash01(seed + g_PlaneRadialLocationSeedSalts.y + 1613u);
         const float angle = lerp(angleMin, angleMax, angleRatio);
         frame.sampleAngle = angle;
@@ -831,6 +857,8 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
             lifecycle.lifeMax = SampleLifeMax(lifecycle.respawnSeed + g_SpawnSeedSalts.x);
             lifecycle.lifeAge = 0.0f;
             lifecycle.active = 1u;
+            lifecycle.placementIndex = spawnCandidate;
+            lifecycle.placementCount = max(1u, min(maxActiveCount, g_SpawnRequest));
         }
     }
 
@@ -880,7 +908,12 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float3 fallbackSpawnOffset = ResolveEmitterBasisVector((locationRandom * 2.0f - 1.0f) * g_SpawnRange.xyz * 0.5f);
     const float3 initialLocationOffset = ResolveEmitterBasisVector(lerp(g_InitialLocationMin.xyz, g_InitialLocationMax.xyz, locationRandom));
     PlaneRadialFrame planeRadialFrame;
-    SamplePlaneRadialFrame(planeRadialLocationSeed, index, maxActiveCount, planeRadialFrame);
+    SamplePlaneRadialFrame(
+        planeRadialLocationSeed,
+        index,
+        lifecycle.placementIndex,
+        lifecycle.placementCount,
+        planeRadialFrame);
     const bool hasExplicitLocation = g_InitialLocationMin.w != 0.0f ||
                                      g_SphereLocationParams.x != 0.0f ||
                                      planeRadialFrame.enabled != 0.0f;
