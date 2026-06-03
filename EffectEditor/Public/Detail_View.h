@@ -66,21 +66,31 @@ private: //## Data::ModuleDetail
     LifetimeModuleDetail _lifetimeModuleDetail{};
     InitialLocationModuleDetail _initialLocationModuleDetail{};
     SphereLocationModuleDetail _sphereLocationModuleDetail{};
+    PlaneRadialLocationModuleDetail _planeRadialLocationModuleDetail{};
     InitialSizeModuleDetail _initialSizeModuleDetail{};
+    InitialMeshSizeModuleDetail _initialMeshSizeModuleDetail{};
     InitialVelocityModuleDetail _initialVelocityModuleDetail{};
     InitialRadialVelocityModuleDetail _initialRadialVelocityModuleDetail{};
+    VelocityConeModuleDetail _velocityConeModuleDetail{};
     AccelerationModuleDetail _accelerationModuleDetail{};
     DragModuleDetail _dragModuleDetail{};
     VelocityOverLifeModuleDetail _velocityOverLifeModuleDetail{};
     InitialRotationModuleDetail _initialRotationModuleDetail{};
+    PlaneRadialOrientationModuleDetail _planeRadialOrientationModuleDetail{};
     RotationOverLifeModuleDetail _rotationOverLifeModuleDetail{};
     InitialRotationRateModuleDetail _initialRotationRateModuleDetail{};
     RotationRateScaleByLifeModuleDetail _rotationRateScaleByLifeModuleDetail{};
+    InitialMeshRotationModuleDetail _initialMeshRotationModuleDetail{};
+    MeshRotationOverLifeModuleDetail _meshRotationOverLifeModuleDetail{};
+    InitialMeshRotationRateModuleDetail _initialMeshRotationRateModuleDetail{};
+    MeshRotationRateScaleByLifeModuleDetail _meshRotationRateScaleByLifeModuleDetail{};
     InitialColorModuleDetail _initialColorModuleDetail{};
     ColorOverLifeModuleDetail _colorOverLifeModuleDetail{};
     SubUVFrameOverLifeModuleDetail _subUvFrameOverLifeModuleDetail{};
     SizeByLifeModuleDetail _sizeByLifeModuleDetail{};
+    MeshSizeByLifeModuleDetail _meshSizeByLifeModuleDetail{};
     SpawnPerUnitModuleDetail _spawnPerUnitModuleDetail{};
+    MaterialScalarModulationModuleDetail _materialScalarModulationModuleDetail{};
 
 private: //## Data::AuthoringHistory
     // selection 전환이나 입력 종료 시점까지 하나의 authoring edit command를 지연 관리한다.

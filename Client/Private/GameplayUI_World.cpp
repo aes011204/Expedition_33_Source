@@ -1,8 +1,5 @@
 ﻿#include "GameplayUI_World.h"
 
-#include "Camera.h"
-#include "PhysX_Types.h"
-#include "GameObject.h"
 #include "CharacterStatus_Panel.h"
 #include "GameInstance.h"
 #include "SkillTree_Panel.h"
@@ -10,9 +7,9 @@
 #include "ExpeditionStat_Panel.h"
 #include "UI_CrossHair.h"
 #include "ClientInstance.h"
+#include "Player_FreeAim.h"
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
-#include "Monster_WorldBase.h"
 
 GameplayUI_World::~GameplayUI_World() = default;
 
@@ -223,10 +220,30 @@ void GameplayUI_World::Update_CrossHair(float timeDelta)
         return;
     }
 
-    const bool isHitMonster = Has_FreeAimHitMonster();
+    const Shared<Player_WorldBase> activeHero = CLIENT->Get_ActiveHero();
+    if (activeHero == nullptr)
+    {
+        _crossHair->Close();
+        return;
+    }
+
+    const Shared<PlayerStateMachineCom> stateCom = activeHero->Get_Component<PlayerStateMachineCom>();
+    if (stateCom == nullptr)
+    {
+        _crossHair->Close();
+        return;
+    }
+
+    const Shared<Player_FreeAim> freeAimState =
+        dynamic_pointer_cast<Player_FreeAim>(stateCom->Get_State(PlayerState::FreeAim));
+    if (freeAimState == nullptr)
+    {
+        _crossHair->Close();
+        return;
+    }
 
     _crossHair->Open();
-    _crossHair->Set_HitState(isHitMonster);
+    _crossHair->Set_HitState(freeAimState->Is_HitMonster());
     _crossHair->Update(timeDelta);
 }
 
@@ -372,39 +389,6 @@ bool GameplayUI_World::Is_WorldFreeAimActive() const
         return false;
 
     return stateCom->Get_CurrentPlayerState() == PlayerState::FreeAim;
-}
-
-bool GameplayUI_World::Has_FreeAimHitMonster() const
-{
-    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    if (activeCamera == nullptr)
-        return false;
-
-    const Vec3 cameraOrigin = activeCamera->Get_Transform()->Get_WorldPosition();
-    Vec3 direction = activeCamera->Get_Transform()->Get_WorldForward();
-
-    if (direction.LengthSquared() <= 0.0001f)
-        return false;
-
-    direction.Normalize();
-
-    constexpr float traceDistance = 100.f;
-    constexpr float sweepRadius = 0.3f;
-
-    PhysXQueryHit hit{};
-    const bool hasHit = GAME->Sweep_Sphere(
-        cameraOrigin,
-        direction,
-        traceDistance,
-        sweepRadius,
-        Collision_Preset::Player_Target, // 몬스터 계열만 걸리게
-        hit);
-
-    if (!hasHit || hit.owner == nullptr)
-        return false;
-
-    Monster_WorldBase* hitMonster = dynamic_cast<Monster_WorldBase*>(hit.owner);
-    return hitMonster != nullptr;
 }
 
 Unique<GameplayUI_World> GameplayUI_World::Create(uint32 levelIndex)

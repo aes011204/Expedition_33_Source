@@ -31,8 +31,12 @@ public: //## Behavior::Attach
 
 public: //## Behavior::Lifecycle
     virtual HRESULT Reset_ForEffectReplay(); // effect root가 재사용 전에 emitter runtime 상태를 초기화할 때 호출한다.
+    virtual bool Can_ReloadDefinition(const EffectEmitterDefinition& emitterDefinition) const; // 기존 child를 유지한 채 새 definition을 적용할 수 있는지 판단한다.
+    virtual HRESULT Reload_Definition(const EffectEmitterDefinition& emitterDefinition); // 기존 child resource를 가능한 한 유지하고 새 definition payload를 적용한다.
     virtual bool Is_EffectFinished() const;  // effect root가 자연 완료 여부를 종합할 때 사용하는 완료 상태다.
     virtual void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider); // trail sample provider를 acquire 시점 context로 다시 바인딩한다.
+    virtual bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const; // Blend 정렬 시 emitter를 대표할 월드 위치를 반환한다.
+    virtual float Get_BlendSortBias() const; // Blend 정렬 key에 적용할 제작자용 앞뒤 보정값을 반환한다.
 
     bool Is_EmitterEnabled() const { return _enabled; }            // root fan-out 시 enabled gate로 사용한다.
     uint32 Get_EmitterId() const { return _emitterId; }            // 디버그/추적용 emitter id 반환이다.

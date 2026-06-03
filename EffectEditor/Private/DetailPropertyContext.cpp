@@ -14,6 +14,8 @@ namespace
         EmitterScreenAlignment::Square,
         EmitterScreenAlignment::AwayFromCenter,
         EmitterScreenAlignment::Velocity,
+        EmitterScreenAlignment::WorldPlaneXY,
+        EmitterScreenAlignment::WorldPlaneXZ,
     };
 
     constexpr const char* kVisibleScreenAlignmentLabels[] = {
@@ -22,6 +24,8 @@ namespace
         "Square",
         "Away from Center",
         "Velocity",
+        "World Plane XY",
+        "World Plane XZ",
     };
 
     static_assert(IM_ARRAYSIZE(kVisibleScreenAlignmentValues) == IM_ARRAYSIZE(kVisibleScreenAlignmentLabels));
@@ -51,6 +55,10 @@ namespace
             return "Velocity";
         case EmitterScreenAlignment::AwayFromCenter:
             return "Away from Center";
+        case EmitterScreenAlignment::WorldPlaneXY:
+            return "World Plane XY";
+        case EmitterScreenAlignment::WorldPlaneXZ:
+            return "World Plane XZ";
         case EmitterScreenAlignment::TypeSpecific:
             return "Type Specific";
         case EmitterScreenAlignment::FacingCameraDistanceBlend:
@@ -78,6 +86,12 @@ namespace
 
         case EmitterScreenAlignment::Velocity:
             return "파티클의 현재 속도 방향을 사용합니다. 하위 정렬 방식에서 look 또는 texture 축 정렬을 고릅니다.";
+
+        case EmitterScreenAlignment::WorldPlaneXY:
+            return "월드 XY 평면에 고정합니다. Mesh는 local XY 평면을 카드 기준으로 봅니다.";
+
+        case EmitterScreenAlignment::WorldPlaneXZ:
+            return "월드 바닥 XZ 평면에 고정합니다. Mesh는 local XY 평면을 카드 기준으로 봅니다.";
 
         default:
             return "";
@@ -613,7 +627,8 @@ public: //## Distribution Controls
         FloatDistributionData& value,
         const FloatDistributionData& defaultValue,
         float speed = 0.01f,
-        bool allowUniform = true)
+        bool allowUniform = true,
+        bool allowConstantCurve = true)
     {
         bool changed = false;
 
@@ -623,7 +638,7 @@ public: //## Distribution Controls
         {
             if (_basicDrawer.Begin_PropertyTable("Distribution"))
             {
-                changed |= Draw_FloatDistributionProperty("분포 타입", value, defaultValue, speed, allowUniform);
+                changed |= Draw_FloatDistributionProperty("분포 타입", value, defaultValue, speed, allowUniform, allowConstantCurve);
                 _basicDrawer.End_PropertyTable();
             }
 
@@ -634,7 +649,12 @@ public: //## Distribution Controls
         return changed;
     }
 
-    bool Draw_Vector2DistributionGroup(const char* label, Vector2DistributionData& value, const Vector2DistributionData& defaultValue, float speed = 0.01f)
+    bool Draw_Vector2DistributionGroup(
+        const char* label,
+        Vector2DistributionData& value,
+        const Vector2DistributionData& defaultValue,
+        float speed = 0.01f,
+        bool allowConstantCurve = true)
     {
         bool changed = false;
 
@@ -644,7 +664,7 @@ public: //## Distribution Controls
         {
             if (_basicDrawer.Begin_PropertyTable("Distribution"))
             {
-                changed |= Draw_Vector2DistributionProperty("분포 타입", value, defaultValue, speed);
+                changed |= Draw_Vector2DistributionProperty("분포 타입", value, defaultValue, speed, allowConstantCurve);
                 _basicDrawer.End_PropertyTable();
             }
 
@@ -655,7 +675,13 @@ public: //## Distribution Controls
         return changed;
     }
 
-    bool Draw_Vector3DistributionGroup(const char* label, Vector3DistributionData& value, const Vector3DistributionData& defaultValue, float speed = 0.01f)
+    bool Draw_Vector3DistributionGroup(
+        const char* label,
+        Vector3DistributionData& value,
+        const Vector3DistributionData& defaultValue,
+        float speed = 0.01f,
+        bool allowConstantCurve = true,
+        bool showConstantCurveAsUnimplemented = false)
     {
         bool changed = false;
 
@@ -665,7 +691,13 @@ public: //## Distribution Controls
         {
             if (_basicDrawer.Begin_PropertyTable("Distribution"))
             {
-                changed |= Draw_Vector3DistributionProperty("분포 타입", value, defaultValue, speed);
+                changed |= Draw_Vector3DistributionProperty(
+                    "분포 타입",
+                    value,
+                    defaultValue,
+                    speed,
+                    allowConstantCurve,
+                    showConstantCurveAsUnimplemented);
                 _basicDrawer.End_PropertyTable();
             }
 
@@ -719,6 +751,91 @@ public: //## Distribution Controls
     }
 
 private: //## Distribution Types
+    static const char* Get_DistributionRandomSeedModeLabel(DistributionRandomSeedMode mode)
+    {
+        switch (mode)
+        {
+        case DistributionRandomSeedMode::Default:
+            return "기본값";
+        case DistributionRandomSeedMode::Manual:
+            return "수동";
+        default:
+            return "기본값";
+        }
+    }
+
+    static uint32 Generate_RandomSeedValue()
+    {
+        static uint32 state{ 0xA341316Cu };
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        return state != 0u ? state : 0x6D2B79F5u;
+    }
+
+    bool Draw_RandomSeedPayload(DistributionRandomSeedData& data)
+    {
+        bool changed = false;
+
+        ImGui::PushID("RandomSeed");
+        _basicDrawer.Draw_PropertyLabel("랜덤 시드");
+        ImGui::TextDisabled("Uniform 분포 샘플 seed");
+        _basicDrawer.Draw_ResetButton(false);
+
+        ImGui::PushID("RandomSeedMode");
+        _basicDrawer.Draw_PropertyLabel("시드 모드", "같은 시드는 같은 랜덤 분포를 재현합니다.");
+        DistributionRandomSeedMode nextMode = data.mode;
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_DistributionRandomSeedModeLabel(nextMode)))
+        {
+            const DistributionRandomSeedMode candidates[] = {
+                DistributionRandomSeedMode::Default,
+                DistributionRandomSeedMode::Manual,
+            };
+
+            for (const DistributionRandomSeedMode candidate : candidates)
+            {
+                const bool selected = nextMode == candidate;
+                if (ImGui::Selectable(Get_DistributionRandomSeedModeLabel(candidate), selected))
+                    nextMode = candidate;
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (data.mode != nextMode)
+        {
+            data.mode = nextMode;
+            changed = true;
+        }
+        _basicDrawer.Draw_ResetButton(false);
+        ImGui::PopID();
+
+        ImGui::PushID("ManualSeed");
+        _basicDrawer.Draw_PropertyLabel("시드");
+        const float randomizeButtonWidth = ImGui::CalcTextSize("무작위").x + ImGui::GetStyle().FramePadding.x * 2.f;
+        const float seedInputWidth = max(1.f, ImGui::GetContentRegionAvail().x - randomizeButtonWidth - ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SetNextItemWidth(seedInputWidth);
+        const bool manualMode = data.mode == DistributionRandomSeedMode::Manual;
+        if (!manualMode)
+            ImGui::BeginDisabled();
+        changed |= ImGui::InputScalar("##Value", ImGuiDataType_U32, &data.manualSeed);
+        if (!manualMode)
+            ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("무작위"))
+        {
+            data.manualSeed = Generate_RandomSeedValue();
+            data.mode = DistributionRandomSeedMode::Manual;
+            changed = true;
+        }
+        _basicDrawer.Draw_ResetButton(false);
+        ImGui::PopID();
+
+        ImGui::PopID();
+        return changed;
+    }
+
     enum class DistributionValueKind : uint8
     {
         Float,
@@ -780,9 +897,9 @@ private: //## Label Helpers
             {
             case DistributionMode::Constant: return "float 고정값";
             case DistributionMode::Uniform: return "float 랜덤값";
-            case DistributionMode::ConstantCurve: return "float 고정값 커브";
-            case DistributionMode::UniformCurve: return "float 랜덤 커브 (예정)";
-            case DistributionMode::ParticleParameter: return "float 파티클 파라미터 (예정)";
+            case DistributionMode::ConstantCurve: return "float 고정값 커브 " ICON_FA_CHART_LINE;
+            case DistributionMode::UniformCurve: return "float 랜덤 커브 (미구현)";
+            case DistributionMode::ParticleParameter: return "float 파티클 파라미터 (미구현)";
             default: return "float 고정값";
             }
 
@@ -791,9 +908,9 @@ private: //## Label Helpers
             {
             case DistributionMode::Constant: return "Vec2 고정값";
             case DistributionMode::Uniform: return "Vec2 랜덤값";
-            case DistributionMode::ConstantCurve: return "Vec2 고정값 커브 (예정)";
-            case DistributionMode::UniformCurve: return "Vec2 랜덤 커브 (예정)";
-            case DistributionMode::ParticleParameter: return "Vec2 파티클 파라미터 (예정)";
+            case DistributionMode::ConstantCurve: return "Vec2 고정값 커브 " ICON_FA_CHART_LINE;
+            case DistributionMode::UniformCurve: return "Vec2 랜덤 커브 (미구현)";
+            case DistributionMode::ParticleParameter: return "Vec2 파티클 파라미터 (미구현)";
             default: return "Vec2 고정값";
             }
 
@@ -802,9 +919,9 @@ private: //## Label Helpers
             {
             case DistributionMode::Constant: return "Vec3 고정값";
             case DistributionMode::Uniform: return "Vec3 랜덤값";
-            case DistributionMode::ConstantCurve: return "Vec3 고정값 커브 (예정)";
-            case DistributionMode::UniformCurve: return "Vec3 랜덤 커브 (예정)";
-            case DistributionMode::ParticleParameter: return "Vec3 파티클 파라미터 (예정)";
+            case DistributionMode::ConstantCurve: return "Vec3 고정값 커브 " ICON_FA_CHART_LINE;
+            case DistributionMode::UniformCurve: return "Vec3 랜덤 커브 (미구현)";
+            case DistributionMode::ParticleParameter: return "Vec3 파티클 파라미터 (미구현)";
             default: return "Vec3 고정값";
             }
 
@@ -813,9 +930,9 @@ private: //## Label Helpers
             {
             case DistributionMode::Constant: return "Color 고정값";
             case DistributionMode::Uniform: return "Color 랜덤값";
-            case DistributionMode::ConstantCurve: return "Color 고정값 커브 (예정)";
-            case DistributionMode::UniformCurve: return "Color 랜덤 커브 (예정)";
-            case DistributionMode::ParticleParameter: return "Color 파티클 파라미터 (예정)";
+            case DistributionMode::ConstantCurve: return "Color 고정값 커브 " ICON_FA_CHART_LINE;
+            case DistributionMode::UniformCurve: return "Color 랜덤 커브 (미구현)";
+            case DistributionMode::ParticleParameter: return "Color 파티클 파라미터 (미구현)";
             default: return "Color 고정값";
             }
 
@@ -830,9 +947,9 @@ private: //## Label Helpers
         {
         case FloatCurveInterpolationMode::Linear: return "Linear";
         case FloatCurveInterpolationMode::Constant: return "Constant";
-        case FloatCurveInterpolationMode::CurveAuto: return "Curve Auto (예정)";
-        case FloatCurveInterpolationMode::CurveUser: return "Curve User (예정)";
-        case FloatCurveInterpolationMode::CurveBreak: return "Curve Break (예정)";
+        case FloatCurveInterpolationMode::CurveAuto: return "Curve Auto (미구현)";
+        case FloatCurveInterpolationMode::CurveUser: return "Curve User (미구현)";
+        case FloatCurveInterpolationMode::CurveBreak: return "Curve Break (미구현)";
         case FloatCurveInterpolationMode::CurveAutoClamped: return "Curve Auto Clamped";
         default: return "Linear";
         }
@@ -968,6 +1085,234 @@ private: //## Label Helpers
         }
     }
 
+    static Vec3 Evaluate_Vector3CurveAutoClampedTangent(
+        const Vector3CurveKeyData* prevKey,
+        const Vector3CurveKeyData& key,
+        const Vector3CurveKeyData* nextKey)
+    {
+        if (prevKey == nullptr || nextKey == nullptr)
+            return Vec3{};
+
+        const float dt = nextKey->time - prevKey->time;
+        if (dt <= 0.f)
+            return Vec3{};
+
+        return Vec3{
+            (nextKey->value.x - prevKey->value.x) / dt,
+            (nextKey->value.y - prevKey->value.y) / dt,
+            (nextKey->value.z - prevKey->value.z) / dt
+        };
+    }
+
+    static void Normalize_Vector3CurveKeys(ConstantCurveVector3DistributionData& value)
+    {
+        if (value.keys.empty())
+        {
+            value.keys = {
+                Vector3CurveKeyData{ 0.f, Vec3{ 0.f, 0.f, 0.f }, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear },
+                Vector3CurveKeyData{ 1.f, Vec3{ 0.f, 0.f, 0.f }, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear }
+            };
+            return;
+        }
+
+        ranges::sort(value.keys, [](const Vector3CurveKeyData& lhs, const Vector3CurveKeyData& rhs) { return lhs.time < rhs.time; });
+
+        for (Vector3CurveKeyData& key : value.keys)
+            key.time = clamp(key.time, 0.f, 1.f);
+
+        for (size_t index = 0; index < value.keys.size(); ++index)
+        {
+            Vector3CurveKeyData& key = value.keys[index];
+            const Vector3CurveKeyData* prevKey = index > 0 ? &value.keys[index - 1] : nullptr;
+            const Vector3CurveKeyData* nextKey = index + 1 < value.keys.size() ? &value.keys[index + 1] : nullptr;
+
+            if (key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
+            {
+                const Vec3 tangent = Evaluate_Vector3CurveAutoClampedTangent(prevKey, key, nextKey);
+                key.arriveTangent = tangent;
+                key.leaveTangent = tangent;
+            }
+        }
+    }
+
+    static Color Evaluate_ColorCurveAutoClampedTangent(
+        const ColorCurveKeyData* prevKey,
+        const ColorCurveKeyData& key,
+        const ColorCurveKeyData* nextKey)
+    {
+        if (prevKey == nullptr || nextKey == nullptr)
+            return Color{};
+
+        const float dt = nextKey->time - prevKey->time;
+        if (dt <= 0.f)
+            return Color{};
+
+        return Color{
+            (nextKey->value.x - prevKey->value.x) / dt,
+            (nextKey->value.y - prevKey->value.y) / dt,
+            (nextKey->value.z - prevKey->value.z) / dt,
+            0.f
+        };
+    }
+
+    static void Normalize_ColorCurveKeys(ConstantCurveColorDistributionData& value)
+    {
+        if (value.keys.empty())
+        {
+            value.keys = {
+                ColorCurveKeyData{ 0.f, Color{ 1.f, 1.f, 1.f, 1.f }, Color{}, Color{}, FloatCurveInterpolationMode::Linear },
+                ColorCurveKeyData{ 1.f, Color{ 1.f, 1.f, 1.f, 1.f }, Color{}, Color{}, FloatCurveInterpolationMode::Linear }
+            };
+            return;
+        }
+
+        ranges::sort(value.keys, [](const ColorCurveKeyData& lhs, const ColorCurveKeyData& rhs) { return lhs.time < rhs.time; });
+
+        for (ColorCurveKeyData& key : value.keys)
+        {
+            key.time = clamp(key.time, 0.f, 1.f);
+            key.value.w = 1.f;
+            key.arriveTangent.w = 0.f;
+            key.leaveTangent.w = 0.f;
+        }
+
+        for (size_t index = 0; index < value.keys.size(); ++index)
+        {
+            ColorCurveKeyData& key = value.keys[index];
+            const ColorCurveKeyData* prevKey = index > 0 ? &value.keys[index - 1] : nullptr;
+            const ColorCurveKeyData* nextKey = index + 1 < value.keys.size() ? &value.keys[index + 1] : nullptr;
+
+            if (key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
+            {
+                const Color tangent = Evaluate_ColorCurveAutoClampedTangent(prevKey, key, nextKey);
+                key.arriveTangent = tangent;
+                key.leaveTangent = tangent;
+            }
+        }
+    }
+
+    enum class CurveKeyHeaderAction
+    {
+        None,
+        MoveUp,
+        MoveDown,
+        Remove,
+    };
+
+    template <typename TKey>
+    static float Compute_NewCurveKeyTime(const vector<TKey>& keys)
+    {
+        if (keys.empty())
+            return 0.f;
+
+        if (keys.size() == 1)
+            return keys.front().time < 0.5f ? 1.f : 0.f;
+
+        vector<float> times{};
+        times.reserve(keys.size());
+        for (const TKey& key : keys)
+            times.push_back(clamp(key.time, 0.f, 1.f));
+
+        ranges::sort(times);
+
+        float bestLeft = 0.f;
+        float bestRight = times.front();
+        float bestGap = bestRight - bestLeft;
+        for (size_t index = 1; index < times.size(); ++index)
+        {
+            const float left = times[index - 1];
+            const float right = times[index];
+            const float gap = right - left;
+            if (gap > bestGap)
+            {
+                bestLeft = left;
+                bestRight = right;
+                bestGap = gap;
+            }
+        }
+
+        const float tailGap = 1.f - times.back();
+        if (tailGap > bestGap)
+        {
+            bestLeft = times.back();
+            bestRight = 1.f;
+            bestGap = tailGap;
+        }
+
+        if (bestGap <= 0.f)
+            return clamp(keys.back().time, 0.f, 1.f);
+
+        return clamp((bestLeft + bestRight) * 0.5f, 0.f, 1.f);
+    }
+
+    CurveKeyHeaderAction Draw_CurveKeyHeaderActions(size_t index, size_t keyCount)
+    {
+        CurveKeyHeaderAction action = CurveKeyHeaderAction::None;
+        const bool canMoveUp = index > 0;
+        const bool canMoveDown = index + 1 < keyCount;
+        const bool canRemove = keyCount > 1;
+
+        auto draw_action_button = [&](const char* label, const char* tooltip, bool enabled, CurveKeyHeaderAction buttonAction)
+        {
+            if (!enabled)
+                ImGui::BeginDisabled();
+
+            if (ImGui::SmallButton(label) && enabled)
+                action = buttonAction;
+
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+                ImGui::SetTooltip("%s", tooltip);
+
+            if (!enabled)
+                ImGui::EndDisabled();
+        };
+
+        draw_action_button(ICON_FA_ARROW_UP "##MoveUp", "위로 이동", canMoveUp, CurveKeyHeaderAction::MoveUp);
+        ImGui::SameLine();
+        draw_action_button(ICON_FA_ARROW_DOWN "##MoveDown", "아래로 이동", canMoveDown, CurveKeyHeaderAction::MoveDown);
+        ImGui::SameLine();
+        draw_action_button(ICON_FA_TRASH "##Remove", "인덱스 삭제", canRemove, CurveKeyHeaderAction::Remove);
+
+        return action;
+    }
+
+    template <typename TKey>
+    static bool Apply_CurveKeyHeaderAction(vector<TKey>& keys, size_t index, CurveKeyHeaderAction action)
+    {
+        switch (action)
+        {
+        case CurveKeyHeaderAction::MoveUp:
+            if (index > 0 && index < keys.size())
+            {
+                swap(keys[index].time, keys[index - 1].time);
+                return true;
+            }
+            break;
+
+        case CurveKeyHeaderAction::MoveDown:
+            if (index + 1 < keys.size())
+            {
+                swap(keys[index].time, keys[index + 1].time);
+                return true;
+            }
+            break;
+
+        case CurveKeyHeaderAction::Remove:
+            if (keys.size() > 1 && index < keys.size())
+            {
+                keys.erase(keys.begin() + static_cast<vector<TKey>::difference_type>(index));
+                return true;
+            }
+            break;
+
+        case CurveKeyHeaderAction::None:
+        default:
+            break;
+        }
+
+        return false;
+    }
+
     bool Draw_FloatCurveKeyListProperty(
         ConstantCurveFloatDistributionData& value,
         const ConstantCurveFloatDistributionData& defaultValue,
@@ -982,14 +1327,15 @@ private: //## Label Helpers
         ImGui::SameLine();
         if (ImGui::Button(ICON_FA_PLUS "##AddFloatCurveKey"))
         {
-            const FloatCurveKeyData seed = value.keys.empty() ? FloatCurveKeyData{} : value.keys.back();
+            FloatCurveKeyData seed = value.keys.empty() ? FloatCurveKeyData{} : value.keys.back();
+            seed.time = Compute_NewCurveKeyTime(value.keys);
             value.keys.push_back(seed);
             changed = true;
         }
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
-        for (size_t index = 0; index < value.keys.size(); ++index)
+        for (size_t index = 0; index < value.keys.size();)
         {
             ImGui::PushID(static_cast<int>(index));
             FloatCurveKeyData& key = value.keys[index];
@@ -1002,8 +1348,21 @@ private: //## Label Helpers
             _basicDrawer.Push_RowTint(Get_DistributionKeyHeaderRowTint());
             _basicDrawer.Push_LabelTint(Get_DistributionKeyLabelTint());
             const bool isOpen = _basicDrawer.Draw_TreePropertyLabel(rowId.c_str());
-            _basicDrawer.Draw_ResetButton(false);
+            const CurveKeyHeaderAction headerAction = Draw_CurveKeyHeaderActions(index, value.keys.size());
             _basicDrawer.Pop_LabelTint();
+            if (Apply_CurveKeyHeaderAction(value.keys, index, headerAction))
+            {
+                changed = true;
+                if (isOpen)
+                    ImGui::TreePop();
+                _basicDrawer.Pop_RowTint();
+                ImGui::PopID();
+                if (headerAction == CurveKeyHeaderAction::Remove)
+                    continue;
+
+                ++index;
+                continue;
+            }
             if (isOpen)
             {
                 _basicDrawer.Push_RowTint(Get_DistributionKeyBodyRowTint());
@@ -1022,16 +1381,17 @@ private: //## Label Helpers
                     Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveBreak, false, key.interpolationMode, changed);
                     ImGui::EndCombo();
                 }
+                ImGui::PushID("InterpolationReset");
                 _basicDrawer.Draw_ResetButton(false);
+                ImGui::PopID();
 
-                const bool showTangents =
-                    key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped &&
-                    ImGui::TreeNode("고급");
-                if (showTangents)
+                if (key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
                 {
+                    _basicDrawer.Draw_PropertyLabel("고급");
+                    ImGui::TextDisabled("Curve Auto Clamped");
+                    _basicDrawer.Draw_ResetButton(false);
                     changed |= _basicDrawer.Draw_FloatProperty("도착 탄젠트", key.arriveTangent, defaultKey.arriveTangent, speed);
                     changed |= _basicDrawer.Draw_FloatProperty("출발 탄젠트", key.leaveTangent, defaultKey.leaveTangent, speed);
-                    ImGui::TreePop();
                 }
 
                 _basicDrawer.Pop_RowTint();
@@ -1039,9 +1399,20 @@ private: //## Label Helpers
             }
             _basicDrawer.Pop_RowTint();
             ImGui::PopID();
+            ++index;
         }
 
         return changed;
+    }
+
+    const char* Get_Vector3DistributionModeLabel(
+        DistributionMode mode,
+        bool showConstantCurveAsUnimplemented)
+    {
+        if (showConstantCurveAsUnimplemented && mode == DistributionMode::ConstantCurve)
+            return "Vec3 고정값 커브 (미구현)";
+
+        return Get_DistributionModeLabel(DistributionValueKind::Vec3, mode);
     }
 
     bool Draw_Vector2CurveKeyListProperty(
@@ -1058,14 +1429,15 @@ private: //## Label Helpers
         ImGui::SameLine();
         if (ImGui::Button(ICON_FA_PLUS "##AddVector2CurveKey"))
         {
-            const Vector2CurveKeyData seed = value.keys.empty() ? Vector2CurveKeyData{} : value.keys.back();
+            Vector2CurveKeyData seed = value.keys.empty() ? Vector2CurveKeyData{} : value.keys.back();
+            seed.time = Compute_NewCurveKeyTime(value.keys);
             value.keys.push_back(seed);
             changed = true;
         }
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
-        for (size_t index = 0; index < value.keys.size(); ++index)
+        for (size_t index = 0; index < value.keys.size();)
         {
             ImGui::PushID(static_cast<int>(index));
             Vector2CurveKeyData& key = value.keys[index];
@@ -1078,8 +1450,21 @@ private: //## Label Helpers
             _basicDrawer.Push_RowTint(Get_DistributionKeyHeaderRowTint());
             _basicDrawer.Push_LabelTint(Get_DistributionKeyLabelTint());
             const bool isOpen = _basicDrawer.Draw_TreePropertyLabel(rowId.c_str());
-            _basicDrawer.Draw_ResetButton(false);
+            const CurveKeyHeaderAction headerAction = Draw_CurveKeyHeaderActions(index, value.keys.size());
             _basicDrawer.Pop_LabelTint();
+            if (Apply_CurveKeyHeaderAction(value.keys, index, headerAction))
+            {
+                changed = true;
+                if (isOpen)
+                    ImGui::TreePop();
+                _basicDrawer.Pop_RowTint();
+                ImGui::PopID();
+                if (headerAction == CurveKeyHeaderAction::Remove)
+                    continue;
+
+                ++index;
+                continue;
+            }
             if (isOpen)
             {
                 _basicDrawer.Push_RowTint(Get_DistributionKeyBodyRowTint());
@@ -1098,16 +1483,17 @@ private: //## Label Helpers
                     Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveBreak, false, key.interpolationMode, changed);
                     ImGui::EndCombo();
                 }
+                ImGui::PushID("InterpolationReset");
                 _basicDrawer.Draw_ResetButton(false);
+                ImGui::PopID();
 
-                const bool showTangents =
-                    key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped &&
-                    ImGui::TreeNode("고급");
-                if (showTangents)
+                if (key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
                 {
+                    _basicDrawer.Draw_PropertyLabel("고급");
+                    ImGui::TextDisabled("Curve Auto Clamped");
+                    _basicDrawer.Draw_ResetButton(false);
                     changed |= _basicDrawer.Draw_Vec2Property("도착 탄젠트", key.arriveTangent, defaultKey.arriveTangent, speed);
                     changed |= _basicDrawer.Draw_Vec2Property("출발 탄젠트", key.leaveTangent, defaultKey.leaveTangent, speed);
-                    ImGui::TreePop();
                 }
 
                 _basicDrawer.Pop_RowTint();
@@ -1115,6 +1501,181 @@ private: //## Label Helpers
             }
             _basicDrawer.Pop_RowTint();
             ImGui::PopID();
+            ++index;
+        }
+
+        return changed;
+    }
+
+    bool Draw_Vector3CurveKeyListProperty(
+        ConstantCurveVector3DistributionData& value,
+        const ConstantCurveVector3DistributionData& defaultValue,
+        float speed = 0.01f)
+    {
+        bool changed = false;
+
+        ImGui::PushID("PointsRow");
+        _basicDrawer.Draw_PropertyLabel("포인트");
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("배열 엘리먼트: %zu", value.keys.size());
+        ImGui::SameLine();
+        if (ImGui::Button(ICON_FA_PLUS "##AddVector3CurveKey"))
+        {
+            Vector3CurveKeyData seed = value.keys.empty() ? Vector3CurveKeyData{} : value.keys.back();
+            seed.time = Compute_NewCurveKeyTime(value.keys);
+            value.keys.push_back(seed);
+            changed = true;
+        }
+        _basicDrawer.Draw_ResetButton(false);
+        ImGui::PopID();
+
+        for (size_t index = 0; index < value.keys.size();)
+        {
+            ImGui::PushID(static_cast<int>(index));
+            Vector3CurveKeyData& key = value.keys[index];
+            const Vector3CurveKeyData defaultKey = index < defaultValue.keys.size() ? defaultValue.keys[index] : key;
+
+            if (index > 0)
+                ImGui::Dummy(ImVec2{ 0.f, 4.f });
+
+            const string rowId = "인덱스 [" + to_string(index) + "]";
+            _basicDrawer.Push_RowTint(Get_DistributionKeyHeaderRowTint());
+            _basicDrawer.Push_LabelTint(Get_DistributionKeyLabelTint());
+            const bool isOpen = _basicDrawer.Draw_TreePropertyLabel(rowId.c_str());
+            const CurveKeyHeaderAction headerAction = Draw_CurveKeyHeaderActions(index, value.keys.size());
+            _basicDrawer.Pop_LabelTint();
+            if (Apply_CurveKeyHeaderAction(value.keys, index, headerAction))
+            {
+                changed = true;
+                if (isOpen)
+                    ImGui::TreePop();
+                _basicDrawer.Pop_RowTint();
+                ImGui::PopID();
+                if (headerAction == CurveKeyHeaderAction::Remove)
+                    continue;
+
+                ++index;
+                continue;
+            }
+            if (isOpen)
+            {
+                _basicDrawer.Push_RowTint(Get_DistributionKeyBodyRowTint());
+                changed |= _basicDrawer.Draw_FloatProperty("In 값", key.time, defaultKey.time, speed);
+                changed |= _basicDrawer.Draw_Vec3Property("Out 값", key.value, defaultKey.value, speed);
+
+                _basicDrawer.Draw_PropertyLabel("보간 모드");
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                if (ImGui::BeginCombo("##Interpolation", Get_FloatCurveInterpolationLabel(key.interpolationMode)))
+                {
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::Linear, true, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::Constant, true, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveAutoClamped, true, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveAuto, false, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveUser, false, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveBreak, false, key.interpolationMode, changed);
+                    ImGui::EndCombo();
+                }
+                ImGui::PushID("InterpolationReset");
+                _basicDrawer.Draw_ResetButton(false);
+                ImGui::PopID();
+
+                if (key.interpolationMode == FloatCurveInterpolationMode::CurveAutoClamped)
+                {
+                    _basicDrawer.Draw_PropertyLabel("고급");
+                    ImGui::TextDisabled("Curve Auto Clamped");
+                    _basicDrawer.Draw_ResetButton(false);
+                    changed |= _basicDrawer.Draw_Vec3Property("도착 탄젠트", key.arriveTangent, defaultKey.arriveTangent, speed);
+                    changed |= _basicDrawer.Draw_Vec3Property("출발 탄젠트", key.leaveTangent, defaultKey.leaveTangent, speed);
+                }
+
+                _basicDrawer.Pop_RowTint();
+                ImGui::TreePop();
+            }
+            _basicDrawer.Pop_RowTint();
+            ImGui::PopID();
+            ++index;
+        }
+
+        return changed;
+    }
+
+    bool Draw_ColorCurveKeyListProperty(
+        ConstantCurveColorDistributionData& value,
+        const ConstantCurveColorDistributionData& defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID("PointsRow");
+        _basicDrawer.Draw_PropertyLabel("포인트");
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("배열 엘리먼트: %zu", value.keys.size());
+        ImGui::SameLine();
+        if (ImGui::Button(ICON_FA_PLUS "##AddColorCurveKey"))
+        {
+            ColorCurveKeyData seed = value.keys.empty() ? ColorCurveKeyData{} : value.keys.back();
+            seed.time = Compute_NewCurveKeyTime(value.keys);
+            value.keys.push_back(seed);
+            changed = true;
+        }
+        _basicDrawer.Draw_ResetButton(false);
+        ImGui::PopID();
+
+        for (size_t index = 0; index < value.keys.size();)
+        {
+            ImGui::PushID(static_cast<int>(index));
+            ColorCurveKeyData& key = value.keys[index];
+            const ColorCurveKeyData defaultKey = index < defaultValue.keys.size() ? defaultValue.keys[index] : key;
+
+            if (index > 0)
+                ImGui::Dummy(ImVec2{ 0.f, 4.f });
+
+            const string rowId = "인덱스 [" + to_string(index) + "]";
+            _basicDrawer.Push_RowTint(Get_DistributionKeyHeaderRowTint());
+            _basicDrawer.Push_LabelTint(Get_DistributionKeyLabelTint());
+            const bool isOpen = _basicDrawer.Draw_TreePropertyLabel(rowId.c_str());
+            const CurveKeyHeaderAction headerAction = Draw_CurveKeyHeaderActions(index, value.keys.size());
+            _basicDrawer.Pop_LabelTint();
+            if (Apply_CurveKeyHeaderAction(value.keys, index, headerAction))
+            {
+                changed = true;
+                if (isOpen)
+                    ImGui::TreePop();
+                _basicDrawer.Pop_RowTint();
+                ImGui::PopID();
+                if (headerAction == CurveKeyHeaderAction::Remove)
+                    continue;
+
+                ++index;
+                continue;
+            }
+            if (isOpen)
+            {
+                _basicDrawer.Push_RowTint(Get_DistributionKeyBodyRowTint());
+                changed |= _basicDrawer.Draw_FloatProperty("In 값", key.time, defaultKey.time);
+                changed |= _basicDrawer.Draw_ColorRgbProperty("Out RGB", key.value, defaultKey.value);
+
+                _basicDrawer.Draw_PropertyLabel("보간 모드");
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                if (ImGui::BeginCombo("##Interpolation", Get_FloatCurveInterpolationLabel(key.interpolationMode)))
+                {
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::Linear, true, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::Constant, true, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveAutoClamped, true, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveAuto, false, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveUser, false, key.interpolationMode, changed);
+                    Draw_FloatCurveInterpolationSelectable(FloatCurveInterpolationMode::CurveBreak, false, key.interpolationMode, changed);
+                    ImGui::EndCombo();
+                }
+                ImGui::PushID("InterpolationReset");
+                _basicDrawer.Draw_ResetButton(false);
+                ImGui::PopID();
+
+                _basicDrawer.Pop_RowTint();
+                ImGui::TreePop();
+            }
+            _basicDrawer.Pop_RowTint();
+            ImGui::PopID();
+            ++index;
         }
 
         return changed;
@@ -1125,7 +1686,8 @@ private: //## Label Helpers
         FloatDistributionData& value,
         const FloatDistributionData& defaultValue,
         float speed = 0.01f,
-        bool allowUniform = true)
+        bool allowUniform = true,
+        bool allowConstantCurve = true)
     {
         bool changed = false;
 
@@ -1158,7 +1720,7 @@ private: //## Label Helpers
 
             draw_selectable(DistributionMode::Constant, true);
             draw_selectable(DistributionMode::Uniform, allowUniform);
-            draw_selectable(DistributionMode::ConstantCurve, true);
+            draw_selectable(DistributionMode::ConstantCurve, allowConstantCurve);
             draw_selectable(DistributionMode::UniformCurve, false);
             draw_selectable(DistributionMode::ParticleParameter, false);
             ImGui::EndCombo();
@@ -1198,18 +1760,24 @@ private: //## Label Helpers
                 changed |= _basicDrawer.Draw_FloatProperty("최소", uniform->minValue, defaultMin, speed);
                 changed |= _basicDrawer.Draw_FloatProperty("최대", uniform->maxValue, defaultMax, speed);
                 Normalize_FloatUniform(*uniform);
+                changed |= Draw_RandomSeedPayload(uniform->randomSeed);
             }
             break;
 
         case DistributionMode::ConstantCurve:
-            if (auto* curve = get_if<ConstantCurveFloatDistributionData>(&value.payload))
+            if (allowConstantCurve)
             {
-                const auto* defaultCurve = get_if<ConstantCurveFloatDistributionData>(&defaultValue.payload);
-                const FloatDistributionData fallbackCurveData = FloatDistributionData::Make_ConstantCurve(0.f);
-                const auto* fallbackDefault = get_if<ConstantCurveFloatDistributionData>(&fallbackCurveData.payload);
-                changed |= Draw_FloatCurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
-                Normalize_FloatCurveKeys(*curve);
+                if (auto* curve = get_if<ConstantCurveFloatDistributionData>(&value.payload))
+                {
+                    const auto* defaultCurve = get_if<ConstantCurveFloatDistributionData>(&defaultValue.payload);
+                    const FloatDistributionData fallbackCurveData = FloatDistributionData::Make_ConstantCurve(0.f);
+                    const auto* fallbackDefault = get_if<ConstantCurveFloatDistributionData>(&fallbackCurveData.payload);
+                    changed |= Draw_FloatCurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
+                    Normalize_FloatCurveKeys(*curve);
+                }
             }
+            else
+                ImGui::TextDisabled("이 분포에서는 미구현");
             break;
 
         case DistributionMode::UniformCurve:
@@ -1227,7 +1795,8 @@ private: //## Label Helpers
         const char* label,
         Vector2DistributionData& value,
         const Vector2DistributionData& defaultValue,
-        float speed = 0.01f)
+        float speed = 0.01f,
+        bool allowConstantCurve = true)
     {
         bool changed = false;
 
@@ -1257,7 +1826,7 @@ private: //## Label Helpers
 
             draw_selectable(DistributionMode::Constant, true);
             draw_selectable(DistributionMode::Uniform, true);
-            draw_selectable(DistributionMode::ConstantCurve, true);
+            draw_selectable(DistributionMode::ConstantCurve, allowConstantCurve);
             draw_selectable(DistributionMode::UniformCurve, false);
             draw_selectable(DistributionMode::ParticleParameter, false);
             ImGui::EndCombo();
@@ -1296,17 +1865,23 @@ private: //## Label Helpers
                 changed |= _basicDrawer.Draw_Vec2Property("최소", uniform->minValue, defaultMin, speed);
                 changed |= _basicDrawer.Draw_Vec2Property("최대", uniform->maxValue, defaultMax, speed);
                 Normalize_Vector2Uniform(*uniform);
+                changed |= Draw_RandomSeedPayload(uniform->randomSeed);
             }
             break;
         case DistributionMode::ConstantCurve:
-            if (auto* curve = get_if<ConstantCurveVector2DistributionData>(&value.payload))
+            if (allowConstantCurve)
             {
-                const auto* defaultCurve = get_if<ConstantCurveVector2DistributionData>(&defaultValue.payload);
-                const Vector2DistributionData fallbackCurveData = Vector2DistributionData::Make_ConstantCurve(Vec2{ 0.f, 0.f });
-                const auto* fallbackDefault = get_if<ConstantCurveVector2DistributionData>(&fallbackCurveData.payload);
-                changed |= Draw_Vector2CurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
-                Normalize_Vector2CurveKeys(*curve);
+                if (auto* curve = get_if<ConstantCurveVector2DistributionData>(&value.payload))
+                {
+                    const auto* defaultCurve = get_if<ConstantCurveVector2DistributionData>(&defaultValue.payload);
+                    const Vector2DistributionData fallbackCurveData = Vector2DistributionData::Make_ConstantCurve(Vec2{ 0.f, 0.f });
+                    const auto* fallbackDefault = get_if<ConstantCurveVector2DistributionData>(&fallbackCurveData.payload);
+                    changed |= Draw_Vector2CurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
+                    Normalize_Vector2CurveKeys(*curve);
+                }
             }
+            else
+                ImGui::TextDisabled("이 분포에서는 미구현");
             break;
         default:
             break;
@@ -1321,7 +1896,9 @@ private: //## Label Helpers
         const char* label,
         Vector3DistributionData& value,
         const Vector3DistributionData& defaultValue,
-        float speed = 0.01f)
+        float speed = 0.01f,
+        bool allowConstantCurve = true,
+        bool showConstantCurveAsUnimplemented = false)
     {
         bool changed = false;
 
@@ -1331,14 +1908,14 @@ private: //## Label Helpers
         _basicDrawer.Draw_PropertyLabel(label);
         bool modeChanged = false;
         ImGui::SetNextItemWidth(-FLT_MIN);
-        if (ImGui::BeginCombo("##Value", Get_DistributionModeLabel(DistributionValueKind::Vec3, nextMode)))
+        if (ImGui::BeginCombo("##Value", Get_Vector3DistributionModeLabel(nextMode, showConstantCurveAsUnimplemented)))
         {
             auto draw_selectable = [&](DistributionMode mode, bool enabled)
             {
                 if (!enabled)
                     ImGui::BeginDisabled();
                 const bool isSelected = nextMode == mode;
-                if (ImGui::Selectable(Get_DistributionModeLabel(DistributionValueKind::Vec3, mode), isSelected) && enabled)
+                if (ImGui::Selectable(Get_Vector3DistributionModeLabel(mode, showConstantCurveAsUnimplemented), isSelected) && enabled)
                 {
                     nextMode = mode;
                     modeChanged = true;
@@ -1351,7 +1928,7 @@ private: //## Label Helpers
 
             draw_selectable(DistributionMode::Constant, true);
             draw_selectable(DistributionMode::Uniform, true);
-            draw_selectable(DistributionMode::ConstantCurve, false);
+            draw_selectable(DistributionMode::ConstantCurve, allowConstantCurve);
             draw_selectable(DistributionMode::UniformCurve, false);
             draw_selectable(DistributionMode::ParticleParameter, false);
             ImGui::EndCombo();
@@ -1390,7 +1967,23 @@ private: //## Label Helpers
                 changed |= _basicDrawer.Draw_Vec3Property("최소", uniform->minValue, defaultMin, speed);
                 changed |= _basicDrawer.Draw_Vec3Property("최대", uniform->maxValue, defaultMax, speed);
                 Normalize_Vector3Uniform(*uniform);
+                changed |= Draw_RandomSeedPayload(uniform->randomSeed);
             }
+            break;
+        case DistributionMode::ConstantCurve:
+            if (allowConstantCurve)
+            {
+                if (auto* curve = get_if<ConstantCurveVector3DistributionData>(&value.payload))
+                {
+                    const auto* defaultCurve = get_if<ConstantCurveVector3DistributionData>(&defaultValue.payload);
+                    const Vector3DistributionData fallbackCurveData = Vector3DistributionData::Make_ConstantCurve(Vec3{ 0.f, 0.f, 0.f });
+                    const auto* fallbackDefault = get_if<ConstantCurveVector3DistributionData>(&fallbackCurveData.payload);
+                    changed |= Draw_Vector3CurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
+                    Normalize_Vector3CurveKeys(*curve);
+                }
+            }
+            else
+                ImGui::TextDisabled("이 모듈에서는 미구현");
             break;
         default:
             break;
@@ -1434,7 +2027,7 @@ private: //## Label Helpers
 
             draw_selectable(DistributionMode::Constant, true);
             draw_selectable(DistributionMode::Uniform, true);
-            draw_selectable(DistributionMode::ConstantCurve, false);
+            draw_selectable(DistributionMode::ConstantCurve, true);
             draw_selectable(DistributionMode::UniformCurve, false);
             draw_selectable(DistributionMode::ParticleParameter, false);
             ImGui::EndCombo();
@@ -1473,6 +2066,17 @@ private: //## Label Helpers
                 changed |= _basicDrawer.Draw_ColorProperty("최소", uniform->minValue, defaultMin);
                 changed |= _basicDrawer.Draw_ColorProperty("최대", uniform->maxValue, defaultMax);
                 Normalize_ColorUniform(*uniform);
+                changed |= Draw_RandomSeedPayload(uniform->randomSeed);
+            }
+            break;
+        case DistributionMode::ConstantCurve:
+            if (auto* curve = get_if<ConstantCurveColorDistributionData>(&value.payload))
+            {
+                const auto* defaultCurve = get_if<ConstantCurveColorDistributionData>(&defaultValue.payload);
+                const ColorDistributionData fallbackCurveData = ColorDistributionData::Make_ConstantCurve(Color{ 1.f, 1.f, 1.f, 1.f });
+                const auto* fallbackDefault = get_if<ConstantCurveColorDistributionData>(&fallbackCurveData.payload);
+                changed |= Draw_ColorCurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault);
+                Normalize_ColorCurveKeys(*curve);
             }
             break;
         default:
@@ -1517,7 +2121,7 @@ private: //## Label Helpers
 
             draw_selectable(DistributionMode::Constant, true);
             draw_selectable(DistributionMode::Uniform, true);
-            draw_selectable(DistributionMode::ConstantCurve, false);
+            draw_selectable(DistributionMode::ConstantCurve, true);
             draw_selectable(DistributionMode::UniformCurve, false);
             draw_selectable(DistributionMode::ParticleParameter, false);
             ImGui::EndCombo();
@@ -1556,6 +2160,17 @@ private: //## Label Helpers
                 changed |= _basicDrawer.Draw_ColorRgbProperty("최소 RGB", uniform->minValue, defaultMin);
                 changed |= _basicDrawer.Draw_ColorRgbProperty("최대 RGB", uniform->maxValue, defaultMax);
                 Normalize_ColorUniform(*uniform);
+                changed |= Draw_RandomSeedPayload(uniform->randomSeed);
+            }
+            break;
+        case DistributionMode::ConstantCurve:
+            if (auto* curve = get_if<ConstantCurveColorDistributionData>(&value.payload))
+            {
+                const auto* defaultCurve = get_if<ConstantCurveColorDistributionData>(&defaultValue.payload);
+                const ColorDistributionData fallbackCurveData = ColorDistributionData::Make_ConstantCurve(Color{ 1.f, 1.f, 1.f, 1.f });
+                const auto* fallbackDefault = get_if<ConstantCurveColorDistributionData>(&fallbackCurveData.payload);
+                changed |= Draw_ColorCurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault);
+                Normalize_ColorCurveKeys(*curve);
             }
             break;
         default:
@@ -1580,6 +2195,11 @@ private: //## Label Helpers
         return value.x == defaultValue.x && value.y == defaultValue.y && value.z == defaultValue.z && value.w == defaultValue.w;
     }
 
+    static bool Is_DefaultValue(const DistributionRandomSeedData& value, const DistributionRandomSeedData& defaultValue)
+    {
+        return value.mode == defaultValue.mode && value.manualSeed == defaultValue.manualSeed;
+    }
+
     static bool Is_DefaultValue(const ConstantFloatDistributionData& value, const ConstantFloatDistributionData& defaultValue)
     {
         return Is_DefaultValue(value.value, defaultValue.value);
@@ -1587,7 +2207,9 @@ private: //## Label Helpers
 
     static bool Is_DefaultValue(const UniformFloatDistributionData& value, const UniformFloatDistributionData& defaultValue)
     {
-        return Is_DefaultValue(value.minValue, defaultValue.minValue) && Is_DefaultValue(value.maxValue, defaultValue.maxValue);
+        return Is_DefaultValue(value.minValue, defaultValue.minValue) &&
+               Is_DefaultValue(value.maxValue, defaultValue.maxValue) &&
+               Is_DefaultValue(value.randomSeed, defaultValue.randomSeed);
     }
 
     static bool Is_DefaultValue(const FloatCurveKeyData& value, const FloatCurveKeyData& defaultValue)
@@ -1634,7 +2256,9 @@ private: //## Label Helpers
 
     static bool Is_DefaultValue(const UniformVector2DistributionData& value, const UniformVector2DistributionData& defaultValue)
     {
-        return Is_DefaultValue(value.minValue, defaultValue.minValue) && Is_DefaultValue(value.maxValue, defaultValue.maxValue);
+        return Is_DefaultValue(value.minValue, defaultValue.minValue) &&
+               Is_DefaultValue(value.maxValue, defaultValue.maxValue) &&
+               Is_DefaultValue(value.randomSeed, defaultValue.randomSeed);
     }
 
     static bool Is_DefaultValue(const Vector2CurveKeyData& value, const Vector2CurveKeyData& defaultValue)
@@ -1680,7 +2304,9 @@ private: //## Label Helpers
 
     static bool Is_DefaultValue(const UniformVector3DistributionData& value, const UniformVector3DistributionData& defaultValue)
     {
-        return Is_DefaultValue(value.minValue, defaultValue.minValue) && Is_DefaultValue(value.maxValue, defaultValue.maxValue);
+        return Is_DefaultValue(value.minValue, defaultValue.minValue) &&
+               Is_DefaultValue(value.maxValue, defaultValue.maxValue) &&
+               Is_DefaultValue(value.randomSeed, defaultValue.randomSeed);
     }
 
     static bool Is_DefaultValue(const Vector3DistributionData& value, const Vector3DistributionData& defaultValue)
@@ -1691,6 +2317,8 @@ private: //## Label Helpers
             return Is_DefaultValue(*current, get<ConstantVector3DistributionData>(defaultValue.payload));
         if (const auto* current = get_if<UniformVector3DistributionData>(&value.payload))
             return Is_DefaultValue(*current, get<UniformVector3DistributionData>(defaultValue.payload));
+        if (const auto* current = get_if<ConstantCurveVector3DistributionData>(&value.payload))
+            return Is_DefaultValue(*current, get<ConstantCurveVector3DistributionData>(defaultValue.payload));
         return false;
     }
 
@@ -1701,7 +2329,55 @@ private: //## Label Helpers
 
     static bool Is_DefaultValue(const UniformColorDistributionData& value, const UniformColorDistributionData& defaultValue)
     {
-        return Is_DefaultValue(value.minValue, defaultValue.minValue) && Is_DefaultValue(value.maxValue, defaultValue.maxValue);
+        return Is_DefaultValue(value.minValue, defaultValue.minValue) &&
+               Is_DefaultValue(value.maxValue, defaultValue.maxValue) &&
+               Is_DefaultValue(value.randomSeed, defaultValue.randomSeed);
+    }
+
+    static bool Is_DefaultValue(const Vector3CurveKeyData& value, const Vector3CurveKeyData& defaultValue)
+    {
+        return Is_DefaultValue(value.time, defaultValue.time) &&
+               Is_DefaultValue(value.value, defaultValue.value) &&
+               Is_DefaultValue(value.arriveTangent, defaultValue.arriveTangent) &&
+               Is_DefaultValue(value.leaveTangent, defaultValue.leaveTangent) &&
+               value.interpolationMode == defaultValue.interpolationMode;
+    }
+
+    static bool Is_DefaultValue(const ConstantCurveVector3DistributionData& value, const ConstantCurveVector3DistributionData& defaultValue)
+    {
+        if (value.keys.size() != defaultValue.keys.size())
+            return false;
+
+        for (size_t index = 0; index < value.keys.size(); ++index)
+        {
+            if (!Is_DefaultValue(value.keys[index], defaultValue.keys[index]))
+                return false;
+        }
+
+        return true;
+    }
+
+    static bool Is_DefaultValue(const ColorCurveKeyData& value, const ColorCurveKeyData& defaultValue)
+    {
+        return Is_DefaultValue(value.time, defaultValue.time) &&
+               Is_DefaultValue(value.value, defaultValue.value) &&
+               Is_DefaultValue(value.arriveTangent, defaultValue.arriveTangent) &&
+               Is_DefaultValue(value.leaveTangent, defaultValue.leaveTangent) &&
+               value.interpolationMode == defaultValue.interpolationMode;
+    }
+
+    static bool Is_DefaultValue(const ConstantCurveColorDistributionData& value, const ConstantCurveColorDistributionData& defaultValue)
+    {
+        if (value.keys.size() != defaultValue.keys.size())
+            return false;
+
+        for (size_t index = 0; index < value.keys.size(); ++index)
+        {
+            if (!Is_DefaultValue(value.keys[index], defaultValue.keys[index]))
+                return false;
+        }
+
+        return true;
     }
 
     static bool Is_DefaultValue(const ColorDistributionData& value, const ColorDistributionData& defaultValue)
@@ -1712,6 +2388,8 @@ private: //## Label Helpers
             return Is_DefaultValue(*current, get<ConstantColorDistributionData>(defaultValue.payload));
         if (const auto* current = get_if<UniformColorDistributionData>(&value.payload))
             return Is_DefaultValue(*current, get<UniformColorDistributionData>(defaultValue.payload));
+        if (const auto* current = get_if<ConstantCurveColorDistributionData>(&value.payload))
+            return Is_DefaultValue(*current, get<ConstantCurveColorDistributionData>(defaultValue.payload));
         return false;
     }
 
@@ -1826,6 +2504,8 @@ private: //## Label Helpers
                 value.payload = ConstantVector3DistributionData{ uniform->minValue };
             else if (const auto* constant = get_if<ConstantVector3DistributionData>(&value.payload))
                 value.payload = ConstantVector3DistributionData{ constant->value };
+            else if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&value.payload))
+                value.payload = ConstantVector3DistributionData{ curve->keys.empty() ? Vec3{} : curve->keys.front().value };
             else
                 value.payload = ConstantVector3DistributionData{};
             break;
@@ -1834,8 +2514,24 @@ private: //## Label Helpers
                 value.payload = UniformVector3DistributionData{ constant->value, constant->value };
             else if (const auto* uniform = get_if<UniformVector3DistributionData>(&value.payload))
                 value.payload = *uniform;
+            else if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&value.payload))
+            {
+                const Vec3 minValue = curve->keys.empty() ? Vec3{} : curve->keys.front().value;
+                const Vec3 maxValue = curve->keys.size() > 1 ? curve->keys.back().value : minValue;
+                value.payload = UniformVector3DistributionData{ minValue, maxValue };
+            }
             else
                 value.payload = UniformVector3DistributionData{};
+            break;
+        case DistributionMode::ConstantCurve:
+            if (const auto* constant = get_if<ConstantVector3DistributionData>(&value.payload))
+                value.payload = Vector3DistributionData::Make_ConstantCurve(constant->value).payload;
+            else if (const auto* uniform = get_if<UniformVector3DistributionData>(&value.payload))
+                value.payload = Vector3DistributionData::Make_ConstantCurve(uniform->minValue, uniform->maxValue).payload;
+            else if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&value.payload))
+                value.payload = *curve;
+            else
+                value.payload = Vector3DistributionData::Make_ConstantCurve(Vec3{ 0.f, 0.f, 0.f }).payload;
             break;
         default:
             return;
@@ -1856,6 +2552,8 @@ private: //## Label Helpers
                 value.payload = ConstantColorDistributionData{ uniform->minValue };
             else if (const auto* constant = get_if<ConstantColorDistributionData>(&value.payload))
                 value.payload = ConstantColorDistributionData{ constant->value };
+            else if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&value.payload))
+                value.payload = ConstantColorDistributionData{ curve->keys.empty() ? Color{ 1.f, 1.f, 1.f, 1.f } : curve->keys.front().value };
             else
                 value.payload = ConstantColorDistributionData{};
             break;
@@ -1864,8 +2562,24 @@ private: //## Label Helpers
                 value.payload = UniformColorDistributionData{ constant->value, constant->value };
             else if (const auto* uniform = get_if<UniformColorDistributionData>(&value.payload))
                 value.payload = *uniform;
+            else if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&value.payload))
+            {
+                const Color minValue = curve->keys.empty() ? Color{ 1.f, 1.f, 1.f, 1.f } : curve->keys.front().value;
+                const Color maxValue = curve->keys.size() > 1 ? curve->keys.back().value : minValue;
+                value.payload = UniformColorDistributionData{ minValue, maxValue };
+            }
             else
                 value.payload = UniformColorDistributionData{};
+            break;
+        case DistributionMode::ConstantCurve:
+            if (const auto* constant = get_if<ConstantColorDistributionData>(&value.payload))
+                value.payload = ColorDistributionData::Make_ConstantCurve(constant->value).payload;
+            else if (const auto* uniform = get_if<UniformColorDistributionData>(&value.payload))
+                value.payload = ColorDistributionData::Make_ConstantCurve(uniform->minValue, uniform->maxValue).payload;
+            else if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&value.payload))
+                value.payload = *curve;
+            else
+                value.payload = ColorDistributionData::Make_ConstantCurve(Color{ 1.f, 1.f, 1.f, 1.f }).payload;
             break;
         default:
             return;
@@ -1923,32 +2637,41 @@ bool DetailPropertyContext::Draw_ColorProperty(const char* label, Color& value, 
     return _basicDrawer->Draw_ColorProperty(label, value, defaultValue);
 }
 
+bool DetailPropertyContext::Draw_ColorRgbProperty(const char* label, Color& value, const Color& defaultValue)
+{
+    return _basicDrawer->Draw_ColorRgbProperty(label, value, defaultValue);
+}
+
 bool DetailPropertyContext::Draw_FloatDistributionGroup(
     const char* label,
     FloatDistributionData& value,
     const FloatDistributionData& defaultValue,
     float speed,
-    bool allowUniform)
+    bool allowUniform,
+    bool allowConstantCurve)
 {
-    return _distributionDrawer->Draw_FloatDistributionGroup(label, value, defaultValue, speed, allowUniform);
+    return _distributionDrawer->Draw_FloatDistributionGroup(label, value, defaultValue, speed, allowUniform, allowConstantCurve);
 }
 
 bool DetailPropertyContext::Draw_Vector2DistributionGroup(
     const char* label,
     Vector2DistributionData& value,
     const Vector2DistributionData& defaultValue,
-    float speed)
+    float speed,
+    bool allowConstantCurve)
 {
-    return _distributionDrawer->Draw_Vector2DistributionGroup(label, value, defaultValue, speed);
+    return _distributionDrawer->Draw_Vector2DistributionGroup(label, value, defaultValue, speed, allowConstantCurve);
 }
 
 bool DetailPropertyContext::Draw_Vector3DistributionGroup(
     const char* label,
     Vector3DistributionData& value,
     const Vector3DistributionData& defaultValue,
-    float speed)
+    float speed,
+    bool allowConstantCurve,
+    bool showConstantCurveAsUnimplemented)
 {
-    return _distributionDrawer->Draw_Vector3DistributionGroup(label, value, defaultValue, speed);
+    return _distributionDrawer->Draw_Vector3DistributionGroup(label, value, defaultValue, speed, allowConstantCurve, showConstantCurveAsUnimplemented);
 }
 
 bool DetailPropertyContext::Draw_ColorDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue)
@@ -2002,7 +2725,7 @@ bool DetailPropertyContext::Draw_DirectionalAlignmentModeProperty(
                 ImGui::SetTooltip(
                     index == 0
                     ? "기준 방향을 sprite 카드의 normal/look 방향으로 사용합니다."
-                    : "sprite는 카메라를 향하게 두고, texture의 X/Y 축만 기준 방향으로 눕힙니다."
+                    : "texture의 X/Y 축을 기준 방향에 맞추고, 나머지 축은 카메라 가시성을 유지합니다."
                 );
             }
 

@@ -14,6 +14,45 @@ struct BattleTurnCameraEvaluatedPose
     float rollOffset = 0.f;
 };
 
+inline bool Evaluate_BattleTurnWidePose(
+    const Vec3& heroCenter,
+    float yawDegrees,
+    float fovY,
+    BattleTurnCameraEvaluatedPose& outPose)
+{
+    const float cameraYawRad = XMConvertToRadians(yawDegrees);
+
+    Vec3 forwardDir{};
+    forwardDir.x = sinf(cameraYawRad);
+    forwardDir.y = 0.f;
+    forwardDir.z = cosf(cameraYawRad);
+    if (forwardDir.LengthSquared() <= 0.0001f)
+        forwardDir = Vec3::Look;
+    else
+        forwardDir.Normalize();
+
+    const Vec3 backDir = -forwardDir;
+
+    Vec3 rightDir{};
+    rightDir.x = cosf(cameraYawRad);
+    rightDir.y = 0.f;
+    rightDir.z = -sinf(cameraYawRad);
+    if (rightDir.LengthSquared() <= 0.0001f)
+        rightDir = Vec3::Right;
+    else
+        rightDir.Normalize();
+
+    outPose.cameraPos =
+        heroCenter +
+        backDir * 8.5f +
+        rightDir +
+        Vec3(0.f, 3.f, 2.f);
+    outPose.lookTarget = heroCenter + Vec3(0.f, 2.2f, 0.f);
+    outPose.fovY = fovY;
+    outPose.rollOffset = 0.f;
+    return true;
+}
+
 inline bool Evaluate_BattleTurnPresetPose(
     const Vec3& targetPos,
     const BattleCameraPreset& preset,
@@ -96,7 +135,14 @@ inline bool Evaluate_BattleTurnPresetPose(
     Vec3 cameraUp = cameraForward.Cross(cameraRight);
     cameraUp.Normalize();
 
-    desiredPos += Sample_BattleCameraShakeOffset(clipSample.shakeAmplitude, clipTime, cameraRight, cameraUp);
+    desiredPos += Sample_BattleCameraShakeOffset(clipSample.
+        shakeAmplitude, clipSample.shakeVerticalRatio,
+        clipSample.shakeStrengthScale,
+        clipSample.shakeFrequencyX,
+        clipSample.shakeFrequencyY,
+        clipSample.shakeDecayRateX,
+        clipSample.shakeDecayRate,
+        clipTime, cameraRight, cameraUp);
 
     outPose.cameraPos = desiredPos;
     outPose.lookTarget = lookTarget;
@@ -147,7 +193,14 @@ inline bool Evaluate_BattleTurnEnemyAttackPose(
     Vec3 cameraUp = cameraForward.Cross(cameraRight);
     cameraUp.Normalize();
 
-    cameraPos += Sample_BattleCameraShakeOffset(clipSample.shakeAmplitude, clipTime, cameraRight, cameraUp);
+    cameraPos += Sample_BattleCameraShakeOffset(clipSample.
+    shakeAmplitude, clipSample.shakeVerticalRatio,
+    clipSample.shakeStrengthScale,
+    clipSample.shakeFrequencyX,
+    clipSample.shakeFrequencyY,
+    clipSample.shakeDecayRateX,
+    clipSample.shakeDecayRate,
+    clipTime, cameraRight, cameraUp);
 
     outPose.cameraPos = cameraPos;
     outPose.lookTarget = lookTarget;

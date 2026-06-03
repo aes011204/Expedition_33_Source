@@ -86,17 +86,23 @@ void AIController::Update(float timeDelta)
     if (_BT)
         _BT->Update(timeDelta);
 
-        Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
+    _moveWorldDir = Vec3::Zero;
+
     if (_PF)
     {
-        auto tmp = Get_Owner()->Get_Transform()->Get_SpeedPerSec() ;
-
-       //LOG_DEBUG("{}", tmp);
-        _PF->Update(timeDelta, pos, tmp);
-        Get_Owner()->Get_Transform()->Set_Position(pos);
-
+        const Shared<GameObject> owner = Get_Owner();
+        const Shared<TransformCom> transform = owner ? owner->Get_Transform() : nullptr;
+        if (transform)
+        {
+            const Vec3 pos = transform->Get_Position();
+            const float reachDistance = transform->Get_SpeedPerSec() * timeDelta;
+            _isMoving = _PF->Update(pos, reachDistance, _moveWorldDir);
+        }
+        else
+        {
+            _isMoving = false;
+        }
     }
-
 }
 
 
@@ -141,6 +147,7 @@ void AIController::Request_Move(Vec3& target)
     Vec3 pos = Get_Owner()->Get_Transform()->Get_Position();
     _PF->Request_Move(pos,target);
 
+    _moveWorldDir = Vec3::Zero;
     _isMoving = true;
 }
 
@@ -156,6 +163,7 @@ void AIController::Stop_Move()
 
     Vec3 pos = transform->Get_Position();
     _PF->Stop_Move(pos);
+    _moveWorldDir = Vec3::Zero;
     _isMoving = false;
 }
 
@@ -243,6 +251,7 @@ Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& 
     unordered_map<uint64, FLoadedNode> loadedNodes;
     unordered_map<uint64, uint64> inputPinToNodeId;
     unordered_map<uint64, uint64> outputPinToNodeId;
+    unordered_map<uint64, uint64> childNodeIdByOutputPin;
     unordered_set<uint64> childNodeIds;
 
     for (auto& n : root["nodes"])
@@ -287,18 +296,53 @@ Shared<BehaviorTree> AIController::Instantiate_BehaviorTreeJson(const fs::path& 
         if (parentIt == outputPinToNodeId.end() || childIt == inputPinToNodeId.end())
             continue;
 
-        Shared<BNode> parent = loadedNodes[parentIt->second].runtimeNode;
-        Shared<BNode> child = loadedNodes[childIt->second].runtimeNode;
+        childNodeIdByOutputPin[startPin] = childIt->second;
+        childNodeIds.insert(childIt->second);
+    }
 
-        if (!parent || !child)
+    for (auto& [id, loaded] : loadedNodes)
+    {
+        Shared<BNode> parent = loaded.runtimeNode;
+        if (!parent)
             continue;
 
         if (auto composite = dynamic_pointer_cast<Composite>(parent))
-            composite->Add_Child(child);
-        else if (auto decorator = dynamic_pointer_cast<Decorator>(parent))
-            decorator->Set_Child(child);
+        {
+            for (const uint64 outputPin : loaded.outputPins)
+            {
+                auto childNodeIt = childNodeIdByOutputPin.find(outputPin);
+                if (childNodeIt == childNodeIdByOutputPin.end())
+                    continue;
 
-        childNodeIds.insert(childIt->second);
+                auto childLoadedIt = loadedNodes.find(childNodeIt->second);
+                if (childLoadedIt == loadedNodes.end())
+                    continue;
+
+                Shared<BNode> child = childLoadedIt->second.runtimeNode;
+                if (child)
+                    composite->Add_Child(child);
+            }
+        }
+        else if (auto decorator = dynamic_pointer_cast<Decorator>(parent))
+        {
+            for (const uint64 outputPin : loaded.outputPins)
+            {
+                auto childNodeIt = childNodeIdByOutputPin.find(outputPin);
+                if (childNodeIt == childNodeIdByOutputPin.end())
+                    continue;
+
+                auto childLoadedIt = loadedNodes.find(childNodeIt->second);
+                if (childLoadedIt == loadedNodes.end())
+                    continue;
+
+                Shared<BNode> child = childLoadedIt->second.runtimeNode;
+                if (child)
+                {
+                    decorator->Set_Child(child);
+                    break;
+                }
+            }
+        }
     }
 
     Shared<BNode> rootNode = nullptr;

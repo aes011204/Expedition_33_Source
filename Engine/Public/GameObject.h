@@ -49,6 +49,8 @@ public:
 
     void            Set_SourcePrefabName(const string& prefabName) { _sourcePrefabName = prefabName; }
     const string&   Get_SourcePrefabName() const { return _sourcePrefabName; }
+    void            Set_RuntimeAuthoringLoaded(bool loaded) { _runtimeAuthoringLoaded = loaded; }
+    bool            Is_RuntimeAuthoringLoaded() const { return _runtimeAuthoringLoaded; }
 
 public:
     virtual void    OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> other) {}
@@ -67,6 +69,9 @@ public:
 
     bool Is_Visible() const { return _isVisible; }
     void Set_Visible(bool visible) { _isVisible = visible; }
+
+    bool Is_MarkDestroy() const { return _markDestroy; }
+    void Set_MarkDestroy(bool markDestroy) { _markDestroy = markDestroy; }
 
 public: /* 그림자 */
     void Set_ShadowCasterType(ShadowCasterType type) { _shadowCasterType = type; }
@@ -162,14 +167,17 @@ protected:
     ShadowCasterType        _shadowCasterType = ShadowCasterType::None;
 
     string                  _sourcePrefabName = {};
+    bool                    _runtimeAuthoringLoaded = false;
 
 protected:
     map<const wstring, Shared<Component>> _components;
 
 protected:
     Weak<GameObject> _owner;
+
     bool _hasBegunPlay = false;
     bool _isVisible = true;
+    bool _markDestroy = false;
 
 public:
     virtual Shared<GameObject> Clone(void* arg) = 0;

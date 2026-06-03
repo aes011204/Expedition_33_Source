@@ -35,7 +35,7 @@ void Layer::Priority_Update(float timeDelta)
 {
 	for (auto& gameObject : _gameObjects)
 	{
-	     if (nullptr == gameObject)
+	     if (nullptr == gameObject || gameObject->Is_MarkDestroy())
             continue;
 
         // 초기 1회 BeginPlay 실행
@@ -48,15 +48,23 @@ void Layer::Priority_Update(float timeDelta)
 void Layer::Update(float timeDelta)
 {
 	for (auto& gameObject : _gameObjects)
-		if (nullptr != gameObject)
-			gameObject->Update(timeDelta);
+    {
+        if (gameObject == nullptr || gameObject->Is_MarkDestroy())
+            continue;
+
+        gameObject->Update(timeDelta);
+    }
 }
 
 void Layer::Late_Update(float timeDelta)
 {
 	for (auto& gameObject : _gameObjects)
-		if (nullptr != gameObject)
-			gameObject->Late_Update(timeDelta);
+    {
+        if (gameObject == nullptr || gameObject->Is_MarkDestroy())
+            continue;
+
+        gameObject->Late_Update(timeDelta);
+    }
 }
 
 Shared<GameObject> Layer::Find_FirstObject()
@@ -74,6 +82,12 @@ Shared<Layer> Layer::Create()
 
 void Layer::Free()
 {
+    for (const Shared<GameObject>& gameObject : _gameObjects)
+    {
+        if (gameObject)
+            gameObject->Free();
+    }
+
 	__super::Free();
 	_gameObjects.clear();
 }

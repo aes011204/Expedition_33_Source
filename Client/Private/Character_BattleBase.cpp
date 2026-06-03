@@ -24,11 +24,38 @@ HRESULT Character_BattleBase::Initialize(void* arg)
     return Character::Initialize(arg);
 }
 
+void Character_BattleBase::BeginPlay()
+{
+    Character::BeginPlay();
+
+    // 배틀 캐릭터도 첫 프레임 query 전에 PhysX 등록을 마쳐 초기 순서 문제를 피한다.
+    Update_Collider();
+}
+
 void Character_BattleBase::Late_Update(float timeDelta)
 {
     Character::Late_Update(timeDelta);
 
     Update_Collider();
+}
+
+void Character_BattleBase::Set_BattleColliderActive(bool isActive)
+{
+    if (_colliderCom == nullptr)
+        return;
+
+    _colliderCom->Set_IsActive(isActive);
+
+    if (!isActive)
+        _colliderCom->Clear_Overlap();
+}
+
+bool Character_BattleBase::Is_BattleColliderActive() const
+{
+    if (_colliderCom == nullptr)
+        return false;
+
+    return _colliderCom->Get_IsActive();
 }
 
 HRESULT Character_BattleBase::Ready_Collider(const wstring& prototypeTag, void* colliderDesc, Collision_Preset preset)
@@ -45,6 +72,9 @@ HRESULT Character_BattleBase::Ready_Collider(const wstring& prototypeTag, void* 
 void Character_BattleBase::Update_Collider()
 {
     if (_colliderCom == nullptr)
+        return;
+
+    if (!_colliderCom->Get_IsActive())
         return;
 
     _colliderCom->Update_Collider(_transformCom->Get_WorldMatrix());

@@ -155,7 +155,7 @@ PS_OUT PS_OpaqueAR(PS_IN In)
 
     float3 worldNormal = ComputeWorldNormal(In.vNormal.xyz, In.vTangent, In.vBinormal, finalUV);
 
-    float3 orm = float3(g_AoScale, arTex.a * g_RoughnessScale, g_MetalnessScale);
+    float3 orm = float3(g_AoScale, saturate(arTex.a * g_RoughnessScale), g_MetalnessScale);
 
     float3 emissive = SampleEmissive(finalUV);
     baseColor.rgb = baseColor.rgb * orm.r + emissive;
@@ -186,7 +186,7 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(MaskedPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 3
     PASS_RS_DS_BS_VP(TwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Opaque) // 4
     PASS_RS_DS_BS_VP(MaskedTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_Mask) // 5
-    PASS_RS_DS_BS_VP(IDPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_ID) // 6
+    PASS_RS_DS_BS_VP(IDPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_ID) // 6
     PASS_RS_DS_BS_VP(OpaqueARPass, RS_Default, DSS_Default, BS_Default, VS_MAIN, PS_OpaqueAR) // 7
     PASS_RS_DS_BS_VP(OpaqueARTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, PS_OpaqueAR) // 8
 }

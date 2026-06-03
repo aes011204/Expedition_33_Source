@@ -39,6 +39,13 @@ inline BattleCameraClipSample Sample_BattleCameraClip(const BattleCameraClip& cl
     const float sampleTime = std::clamp(time, 0.f, std::max(clip.duration, 0.f));
 
     BattleCameraClipSample sample{};
+    auto sampleTrackOrDefault = [sampleTime](const BattleCameraTrack& track, float defaultValue)
+    {
+        return track.keyframes.empty()
+            ? defaultValue
+            : Sample_BattleCameraTrack(track, sampleTime);
+    };
+
     sample.distanceOffset = Sample_BattleCameraTrack(clip.distanceOffset, sampleTime);
     sample.fovOffset = Sample_BattleCameraTrack(clip.fovOffset, sampleTime);
     sample.shakeAmplitude = Sample_BattleCameraTrack(clip.shakeAmplitude, sampleTime);
@@ -49,24 +56,27 @@ inline BattleCameraClipSample Sample_BattleCameraClip(const BattleCameraClip& cl
     sample.orbitRadius = Sample_BattleCameraTrack(clip.orbitRadius, sampleTime);
     sample.orbitHeight = Sample_BattleCameraTrack(clip.orbitHeight, sampleTime);
     sample.orbitLookHeight = Sample_BattleCameraTrack(clip.orbitLookHeight, sampleTime);
+    sample.shakeFrequencyX = sampleTrackOrDefault(clip.shakeFrequencyX, sample.shakeFrequencyX);
+    sample.shakeFrequencyY = sampleTrackOrDefault(clip.shakeFrequencyY, sample.shakeFrequencyY);
+    sample.shakeDecayRateX = sampleTrackOrDefault(clip.shakeDecayRateX, sample.shakeDecayRateX);
+    sample.shakeDecayRate = sampleTrackOrDefault(clip.shakeDecayRate, sample.shakeDecayRate);
+    sample.shakeVerticalRatio = sampleTrackOrDefault(clip.shakeVerticalRatio, sample.shakeVerticalRatio);
+    sample.shakeStrengthScale = sampleTrackOrDefault(clip.shakeStrengthScale, sample.shakeStrengthScale);
+
     return sample;
 }
 
-inline Vec3 Sample_BattleCameraShakeOffset(float amplitude, float time, const Vec3& right, const Vec3& up)
+inline Vec3 Sample_BattleCameraShakeOffset(float amplitude, float verticalRatio, float strengthScale, float frequencyX, float frequencyY, float decayRateX, float decayRateY, float time, const Vec3& right, const Vec3& up)
 {
     if (amplitude <= 0.f)
         return Vec3::Zero;
 
-    float strengthScale = 0.05f;
-    float frequencyX = 32.f;
-    float frequencyY = 47.f;
-    float decayRate = 8.f;
-    float verticalRatio = 0.8f;
     float scaledAmplitude = amplitude * strengthScale;
-    float decay = expf(- time * decayRate);
+    float decayX = decayRateX > 0.f ? expf(- time * decayRateX) : 1.f;
+    float decayY = decayRateY > 0.f ? expf(- time * decayRateY) : 1.f;
 
-    const float x = sinf(time * frequencyX) * scaledAmplitude;
-    const float y = cosf(time * frequencyY) * scaledAmplitude * verticalRatio * decay;
+    const float x = sinf(time * frequencyX) * scaledAmplitude * decayX;
+    const float y = cosf(time * frequencyY) * scaledAmplitude * verticalRatio * decayY;
     return right * x + up * y;
 }
 

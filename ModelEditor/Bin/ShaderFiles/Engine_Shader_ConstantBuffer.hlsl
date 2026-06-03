@@ -29,13 +29,21 @@ cbuffer ShadowBuffer
     row_major float4x4 g_LightViewMatrix;
     row_major float4x4 g_LightProjMatrix;
 
+    row_major float4x4 g_CascadeLightViewMatrices[4];
+    row_major float4x4 g_CascadeLightProjMatrices[4];
+
     row_major float4x4 g_StaticLightViewMatrix;
     row_major float4x4 g_StaticLightProjMatrix;
 
-    float g_LightFar;           
-    float g_Bias;               
-    float g_ShadowIntensity;    
+    float4 g_CascadeSplits;
+    float g_CascadeBlendDistance;
+    float g_LightFar;
+    float g_Bias;
+
+    float g_ShadowIntensity;
     float g_StaticShadowEnabled;
+    uint g_ShadowCascadeCount;
+    uint g_ActiveShadowCascadeIndex;
 };
 
 cbuffer ScreenSpaceBuffer
@@ -48,10 +56,10 @@ cbuffer ScreenSpaceBuffer
 
     float4  g_DeferredCamPosition;                  // 272
 
-    float   g_DeferredFar;                          // 276
-    float2  g_TexelSize;                            // 284
-    float2  g_ScreenSize;                           // 292
-    float3  g_DeferredPadding0;                     // 304
+    float2 g_TexelSize;                             // 272
+    float2 g_ScreenSize;                            // 280
+    float g_DeferredFar;                            // 288
+    float3 g_DeferredPadding0;                      // 292
 };
 
 cbuffer LightBuffer
@@ -99,6 +107,8 @@ cbuffer DrawFeatureBuffer
 
     float4 g_FeatureParam0;
     float4 g_FeatureParam1;
+    float4 g_FeatureParam2;
+    float4 g_FeatureParam3;
 };
 
 cbuffer SSAOBuffer
@@ -177,6 +187,32 @@ cbuffer HairDescBuffer
     float g_HairGradientHeight;
     float g_HairEdgeContrast;
     float g_HairEdgeMin;
+};
+
+cbuffer ScreenFxBuffer
+{
+    float3 g_vignetteColor;
+    float g_vignetteIntensity;
+    float g_vignetteRadius;
+    float g_vignetteSoftness;
+
+    float g_ghostingIntensity;
+    float g_transitionProgress;
+
+    float3 g_transitionColor;
+    float g_radialBlurIntensity;
+
+    float2 g_radialBlurCenter;
+    float g_radialBlurRadius;
+    float g_chromaticAberrationIntensity;
+
+    float g_bulgeIntensity;
+    float g_pullIntensity;
+    float2 g_pullDirection;
+
+    float g_wipeRadius;
+    float g_edgeSoftness;
+    float2 pad;
 };
 
 #endif

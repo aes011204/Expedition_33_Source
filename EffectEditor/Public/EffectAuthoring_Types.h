@@ -12,21 +12,31 @@ enum class AuthoringModuleType : uint8
     Lifetime,
     InitialLocation,
     SphereLocation,
+    PlaneRadialLocation,
     InitialSize,
+    InitialMeshSize,
     InitialVelocity,
     InitialRadialVelocity,
+    VelocityCone,
     Acceleration,
     Drag,
     VelocityOverLife,
     InitialRotation,
+    PlaneRadialOrientation,
     RotationOverLife,
     InitialRotationRate,
     RotationRateScaleByLife,
+    InitialMeshRotation,
+    MeshRotationOverLife,
+    InitialMeshRotationRate,
+    MeshRotationRateScaleByLife,
     InitialColor,
     ColorOverLife,
     SubUVFrameOverLife,
     SizeByLife,
+    MeshSizeByLife,
     SpawnPerUnit,
+    MaterialScalarModulation,
 };
 
 enum class EffectAuthoringSelectionKind : uint8
@@ -37,6 +47,12 @@ enum class EffectAuthoringSelectionKind : uint8
     Module,
 };
 
+enum class EmitterRenderLayerOverride : uint8
+{
+    Auto,
+    UIEffect,
+};
+
 enum class EmitterScreenAlignment : uint8
 {
     Square,
@@ -44,6 +60,8 @@ enum class EmitterScreenAlignment : uint8
     Rectangle,
     Velocity,
     AwayFromCenter,
+    WorldPlaneXY,
+    WorldPlaneXZ,
     TypeSpecific,
     FacingCameraDistanceBlend,
 };
@@ -96,6 +114,19 @@ constexpr bool Is_DistributionModeEditable(DistributionMode mode)
            mode == DistributionMode::ConstantCurve;
 }
 
+enum class DistributionRandomSeedMode : uint8
+{
+    Default,
+    Manual,
+};
+
+// 분포/random consumer 모듈이 같은 범위 안에서 재현 가능한 다른 draw를 만들기 위한 seed 설정이다.
+struct DistributionRandomSeedData
+{
+    DistributionRandomSeedMode mode{ DistributionRandomSeedMode::Default };
+    uint32 manualSeed{ 0 };
+};
+
 // 분포 플로트에서의 보간 모드 설정이다.
 enum class FloatCurveInterpolationMode : uint8
 {
@@ -132,10 +163,10 @@ struct ConstantCurveFloatDistributionData
 // 분포 Vec2 상수 커브의 필요 값들이다.
 struct Vector2CurveKeyData
 {
-    float time{ 0.f };          // 0..1 공통축에서 이 key의 위치다.
-    Vec2 value{ 0.f, 0.f };     // 이 key 시점의 X/Y 출력값이다.
-    Vec2 arriveTangent{};       // key로 들어오는 X/Y 곡선 기울기다.
-    Vec2 leaveTangent{};        // key에서 나가는 X/Y 곡선 기울기다.
+    float time{ 0.f };      // 0..1 공통축에서 이 key의 위치다.
+    Vec2 value{ 0.f, 0.f }; // 이 key 시점의 X/Y 출력값이다.
+    Vec2 arriveTangent{};   // key로 들어오는 X/Y 곡선 기울기다.
+    Vec2 leaveTangent{};    // key에서 나가는 X/Y 곡선 기울기다.
     FloatCurveInterpolationMode interpolationMode{
         FloatCurveInterpolationMode::Linear
     }; // 이 key 이후 구간의 보간 방식을 결정한다.
@@ -151,6 +182,50 @@ struct ConstantCurveVector2DistributionData
     };
 };
 
+// 분포 Vec3 상수 커브의 필요 값들이다.
+struct Vector3CurveKeyData
+{
+    float time{ 0.f };           // 0..1 공통축에서 이 key의 위치다.
+    Vec3 value{ 0.f, 0.f, 0.f }; // 이 key 시점의 X/Y/Z 출력값이다.
+    Vec3 arriveTangent{};        // key로 들어오는 X/Y/Z 곡선 기울기다.
+    Vec3 leaveTangent{};         // key에서 나가는 X/Y/Z 곡선 기울기다.
+    FloatCurveInterpolationMode interpolationMode{
+        FloatCurveInterpolationMode::Linear
+    }; // 이 key 이후 구간의 보간 방식을 결정한다.
+};
+
+// 분포 Vec3 상수 커브의 보간 key 목록을 보관한다.
+struct ConstantCurveVector3DistributionData
+{
+    // 분포 Vec3 상수 커브의 authoring key 목록이다.
+    vector<Vector3CurveKeyData> keys{
+        Vector3CurveKeyData{ 0.f, Vec3{ 0.f, 0.f, 0.f }, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear },
+        Vector3CurveKeyData{ 1.f, Vec3{ 0.f, 0.f, 0.f }, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear }
+    };
+};
+
+// Color 분포는 alpha를 별도 Float distribution에서 유지하므로 curve key의 w는 저장/편집하지 않는다.
+struct ColorCurveKeyData
+{
+    float time{ 0.f };                 // 0..1 공통축에서 이 key의 위치다.
+    Color value{ 1.f, 1.f, 1.f, 1.f }; // 이 key 시점의 RGB 출력값이다. alpha는 별도 분포가 정본이다.
+    Color arriveTangent{};             // key로 들어오는 RGB 곡선 기울기다.
+    Color leaveTangent{};              // key에서 나가는 RGB 곡선 기울기다.
+    FloatCurveInterpolationMode interpolationMode{
+        FloatCurveInterpolationMode::Linear
+    }; // 이 key 이후 구간의 보간 방식을 결정한다.
+};
+
+// Color RGB 상수 커브의 보간 key 목록을 보관한다.
+struct ConstantCurveColorDistributionData
+{
+    // Color RGB 상수 커브의 authoring key 목록이다.
+    vector<ColorCurveKeyData> keys{
+        ColorCurveKeyData{ 0.f, Color{ 1.f, 1.f, 1.f, 1.f }, Color{}, Color{}, FloatCurveInterpolationMode::Linear },
+        ColorCurveKeyData{ 1.f, Color{ 1.f, 1.f, 1.f, 1.f }, Color{}, Color{}, FloatCurveInterpolationMode::Linear }
+    };
+};
+
 struct ConstantFloatDistributionData
 {
     float value{ 0.f };
@@ -160,6 +235,7 @@ struct UniformFloatDistributionData
 {
     float minValue{ 0.f };
     float maxValue{ 0.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct FloatDistributionData
@@ -184,7 +260,7 @@ struct FloatDistributionData
     {
         FloatDistributionData data{};
         data.mode = DistributionMode::Uniform;
-        data.payload = UniformFloatDistributionData{ minValue, maxValue };
+        data.payload = UniformFloatDistributionData{ .minValue = minValue, .maxValue = maxValue };
         return data;
     }
 
@@ -224,6 +300,7 @@ struct UniformVector2DistributionData
 {
     Vec2 minValue{ 0.f, 0.f };
     Vec2 maxValue{ 0.f, 0.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct Vector2DistributionData
@@ -248,7 +325,7 @@ struct Vector2DistributionData
     {
         Vector2DistributionData data{};
         data.mode = DistributionMode::Uniform;
-        data.payload = UniformVector2DistributionData{ minValue, maxValue };
+        data.payload = UniformVector2DistributionData{ .minValue = minValue, .maxValue = maxValue };
         return data;
     }
 
@@ -288,11 +365,15 @@ struct UniformVector3DistributionData
 {
     Vec3 minValue{ 0.f, 0.f, 0.f };
     Vec3 maxValue{ 0.f, 0.f, 0.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct Vector3DistributionData
 {
-    using Payload = variant<ConstantVector3DistributionData, UniformVector3DistributionData>;
+    using Payload = variant<
+        ConstantVector3DistributionData,
+        UniformVector3DistributionData,
+        ConstantCurveVector3DistributionData>;
 
     DistributionMode mode{ DistributionMode::Constant };
     Payload payload{ ConstantVector3DistributionData{} };
@@ -309,7 +390,33 @@ struct Vector3DistributionData
     {
         Vector3DistributionData data{};
         data.mode = DistributionMode::Uniform;
-        data.payload = UniformVector3DistributionData{ minValue, maxValue };
+        data.payload = UniformVector3DistributionData{ .minValue = minValue, .maxValue = maxValue };
+        return data;
+    }
+
+    static Vector3DistributionData Make_ConstantCurve(const Vec3& value)
+    {
+        Vector3DistributionData data{};
+        data.mode = DistributionMode::ConstantCurve;
+        data.payload = ConstantCurveVector3DistributionData{
+            {
+                Vector3CurveKeyData{ 0.f, value, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear },
+                Vector3CurveKeyData{ 1.f, value, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear }
+            }
+        };
+        return data;
+    }
+
+    static Vector3DistributionData Make_ConstantCurve(const Vec3& startValue, const Vec3& endValue)
+    {
+        Vector3DistributionData data{};
+        data.mode = DistributionMode::ConstantCurve;
+        data.payload = ConstantCurveVector3DistributionData{
+            {
+                Vector3CurveKeyData{ 0.f, startValue, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear },
+                Vector3CurveKeyData{ 1.f, endValue, Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear }
+            }
+        };
         return data;
     }
 };
@@ -323,11 +430,15 @@ struct UniformColorDistributionData
 {
     Color minValue{ 1.f, 1.f, 1.f, 1.f };
     Color maxValue{ 1.f, 1.f, 1.f, 1.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct ColorDistributionData
 {
-    using Payload = variant<ConstantColorDistributionData, UniformColorDistributionData>;
+    using Payload = variant<
+        ConstantColorDistributionData,
+        UniformColorDistributionData,
+        ConstantCurveColorDistributionData>;
 
     DistributionMode mode{ DistributionMode::Constant };
     Payload payload{ ConstantColorDistributionData{} };
@@ -344,7 +455,33 @@ struct ColorDistributionData
     {
         ColorDistributionData data{};
         data.mode = DistributionMode::Uniform;
-        data.payload = UniformColorDistributionData{ minValue, maxValue };
+        data.payload = UniformColorDistributionData{ .minValue = minValue, .maxValue = maxValue };
+        return data;
+    }
+
+    static ColorDistributionData Make_ConstantCurve(const Color& value)
+    {
+        ColorDistributionData data{};
+        data.mode = DistributionMode::ConstantCurve;
+        data.payload = ConstantCurveColorDistributionData{
+            {
+                ColorCurveKeyData{ 0.f, value, Color{}, Color{}, FloatCurveInterpolationMode::Linear },
+                ColorCurveKeyData{ 1.f, value, Color{}, Color{}, FloatCurveInterpolationMode::Linear }
+            }
+        };
+        return data;
+    }
+
+    static ColorDistributionData Make_ConstantCurve(const Color& startValue, const Color& endValue)
+    {
+        ColorDistributionData data{};
+        data.mode = DistributionMode::ConstantCurve;
+        data.payload = ConstantCurveColorDistributionData{
+            {
+                ColorCurveKeyData{ 0.f, startValue, Color{}, Color{}, FloatCurveInterpolationMode::Linear },
+                ColorCurveKeyData{ 1.f, endValue, Color{}, Color{}, FloatCurveInterpolationMode::Linear }
+            }
+        };
         return data;
     }
 };
@@ -358,6 +495,7 @@ enum class AuthoringTypeDataKind : uint8
 {
     None,
     Trail,
+    Mesh,
 };
 
 enum class TrailCurveQuality : uint8
@@ -381,12 +519,24 @@ struct TrailTypeData
     float tailFadeLength{ 0.1f };                               // maxTrailLength 끝으로 갈수록 alpha를 줄이는 거리다.
     TrailCurveQuality curveQuality{ TrailCurveQuality::Basic }; // trail 곡선 품질 preset 선택값이다.
     float sampleSpacing{ 0.08f };                               // 이동 거리 기준 중간 sample 삽입 간격이다.
-    uint32 curveSubdivision{ 4 };                                // 한 frame에서 보강할 최대 중간 sample 수다.
-    bool smoothTangent{ true };                                  // 앞뒤 sample 평균으로 곡선을 완만하게 보정할지 결정한다.
-    float sideFade{ 0.08f };                                     // 폭 방향 alpha edge 감소 강도다.
+    uint32 curveSubdivision{ 4 };                               // 한 frame에서 보강할 최대 중간 sample 수다.
+    bool smoothTangent{ true };                                 // 앞뒤 sample 평균으로 곡선을 완만하게 보정할지 결정한다.
+    float sideFade{ 0.08f };                                    // 폭 방향 alpha edge 감소 강도다.
 };
 
-using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData>;
+struct MeshTypeData
+{
+    string modelGuid{};
+    string modelPath{};
+    string assignedEffectMaterialGuid{};
+    string assignedEffectMaterialPath{};
+    bool hasAssignedMaterialInstance{ false };
+    EffectMaterialInstanceData assignedMaterial{};
+    Vec3 previewScale{ 1.f, 1.f, 1.f };
+    bool useModelMaterials{ false };
+};
+
+using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData, MeshTypeData>;
 
 struct AuthoringTypeData
 {
@@ -412,8 +562,9 @@ struct RequiredModuleData
 
     float minCameraBlendDistance{ 0.f };
     float maxCameraBlendDistance{ 0.f };
-    bool useLocalSpace{ false };
+    bool useLocalSpace{ true };
     EmitterSortMode sortMode{ EmitterSortMode::None };
+    float sortBias{ 0.f };
     float cameraMotionBlurAmount{ 0.f };
     bool clearExistingParticlesOnInit{ false };
     // Cascade: Emitter Loops. 0 means infinite looping.
@@ -456,9 +607,7 @@ struct LifetimeModuleData
 
 struct InitialLocationModuleData
 {
-    Vector3DistributionData location{
-        Vector3DistributionData::Make_Uniform(Vec3{ -0.5f, -0.5f, -0.5f }, Vec3{ 0.5f, 0.5f, 0.5f })
-    };
+    Vector3DistributionData location{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
 };
 
 enum class SphereLocationSpawnMode : uint8
@@ -472,11 +621,90 @@ struct SphereLocationModuleData
     Vec3 offset{ 0.f, 0.f, 0.f };
     float radius{ 1.f };
     SphereLocationSpawnMode spawnMode{ SphereLocationSpawnMode::Volume };
+    DistributionRandomSeedData randomSeed{};
+};
+
+enum class PlaneRadialLocationPlane : uint8
+{
+    XY,
+    XZ,
+    YZ,
+};
+
+enum class PlaneRadialLocationShape : uint8
+{
+    Rectangle,
+    Disc,
+    Ring,
+    Arc,
+};
+
+enum class PlaneRadialLocationPlacementMode : uint8
+{
+    Random,
+    EvenByParticleIndex,
+};
+
+struct PlaneRadialLocationModuleData
+{
+    bool enabled{ true };
+    PlaneRadialLocationPlane plane{ PlaneRadialLocationPlane::XY };
+    PlaneRadialLocationShape shape{ PlaneRadialLocationShape::Disc };
+    PlaneRadialLocationPlacementMode placementMode{ PlaneRadialLocationPlacementMode::Random };
+    Vec3 offset{ 0.f, 0.f, 0.f };
+    FloatDistributionData uDistribution{ FloatDistributionData::Make_Uniform(-0.5f, 0.5f) };
+    FloatDistributionData vDistribution{ FloatDistributionData::Make_Uniform(-0.5f, 0.5f) };
+    FloatDistributionData radiusDistribution{ FloatDistributionData::Make_Uniform(0.f, 1.f) };
+    FloatDistributionData angleDegreesDistribution{ FloatDistributionData::Make_Uniform(0.f, 360.f) };
+    float thickness{ 0.f };
+};
+
+enum class PlaneRadialOrientationTargetKind : uint8
+{
+    Auto,
+    Sprite2D,
+    Mesh3D,
+};
+
+enum class PlaneRadialOrientationMode : uint8
+{
+    None,
+    FaceRadialOut,
+    FaceRadialIn,
+    FaceTangentCW,
+    FaceTangentCCW,
+    FacePlaneNormal,
+};
+
+enum class PlaneRadialOrientationAxis : uint8
+{
+    PositiveX,
+    NegativeX,
+    PositiveY,
+    NegativeY,
+    PositiveZ,
+    NegativeZ,
+};
+
+struct PlaneRadialOrientationModuleData
+{
+    bool enabled{ true };
+    PlaneRadialOrientationTargetKind targetKind{ PlaneRadialOrientationTargetKind::Auto };
+    PlaneRadialOrientationMode orientationMode{ PlaneRadialOrientationMode::None };
+    PlaneRadialOrientationAxis meshForwardAxis{ PlaneRadialOrientationAxis::PositiveZ };
+    PlaneRadialOrientationAxis meshUpAxis{ PlaneRadialOrientationAxis::PositiveY };
+    float tiltDegrees{ 0.f };
+    float rollOffsetDegrees{ 0.f };
 };
 
 struct InitialSizeModuleData
 {
-    Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.1f, 0.1f }) };
+    Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.3f, 0.3f }) };
+};
+
+struct InitialMeshSizeModuleData
+{
+    Vector3DistributionData size{ Vector3DistributionData::Make_Constant(Vec3{ 0.1f, 0.1f, 0.1f }) };
 };
 
 struct InitialVelocityModuleData
@@ -487,8 +715,16 @@ struct InitialVelocityModuleData
 
 struct InitialRadialVelocityModuleData
 {
-    FloatDistributionData speed{ FloatDistributionData::Make_Uniform(0.5f, 1.5f) };
+    FloatDistributionData speed{ FloatDistributionData::Make_Uniform(1.f, 2.f) };
     Vec3 radialPivot{ 0.f, 0.f, 0.f };
+    bool inWorldSpace{ false };
+};
+
+struct VelocityConeModuleData
+{
+    Vec3 axis{ 0.f, 1.f, 0.f };
+    float angleDegrees{ 30.f };
+    FloatDistributionData speed{ FloatDistributionData::Make_Uniform(1.f, 2.f) };
     bool inWorldSpace{ false };
 };
 
@@ -504,8 +740,7 @@ struct DragModuleData
 
 struct VelocityOverLifeModuleData
 {
-    float scaleStart{ 1.f };
-    float scaleEnd{ 1.f };
+    FloatDistributionData scaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f, 1.f) };
 };
 
 struct InitialRotationModuleData
@@ -515,8 +750,7 @@ struct InitialRotationModuleData
 
 struct RotationOverLifeModuleData
 {
-    float rotationStartDegrees{ 0.f };
-    float rotationEndDegrees{ 0.f };
+    FloatDistributionData rotationOverLife{ FloatDistributionData::Make_ConstantCurve(0.f, 0.f) };
 };
 
 struct InitialRotationRateModuleData
@@ -526,8 +760,27 @@ struct InitialRotationRateModuleData
 
 struct RotationRateScaleByLifeModuleData
 {
-    float scaleStart{ 1.f };
-    float scaleEnd{ 1.f };
+    FloatDistributionData scaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f, 1.f) };
+};
+
+struct InitialMeshRotationModuleData
+{
+    Vector3DistributionData rotationDegrees{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+};
+
+struct MeshRotationOverLifeModuleData
+{
+    Vector3DistributionData rotationOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 0.f, 0.f, 0.f }) };
+};
+
+struct InitialMeshRotationRateModuleData
+{
+    Vector3DistributionData rotationRateDegrees{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
+};
+
+struct MeshRotationRateScaleByLifeModuleData
+{
+    Vector3DistributionData scaleOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 1.f, 1.f, 1.f }) };
 };
 
 struct InitialColorModuleData
@@ -552,6 +805,7 @@ struct SubUVFrameOverLifeModuleData
     bool loop{ false };
     SubUVFramePlaybackMode playbackMode{ SubUVFramePlaybackMode::FixedFrame };
     float framesPerSecond{ 12.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct SizeByLifeModuleData
@@ -569,6 +823,14 @@ struct SizeByLifeModuleData
     AxisLock axisLock{ AxisLock::None };
 };
 
+struct MeshSizeByLifeModuleData
+{
+    Vector3DistributionData scaleOverLife{ Vector3DistributionData::Make_ConstantCurve(Vec3{ 1.f, 1.f, 1.f }) };
+    bool multiplyX{ true };
+    bool multiplyY{ true };
+    bool multiplyZ{ true };
+};
+
 struct SpawnPerUnitModuleData
 {
     bool enabled{ true };
@@ -578,27 +840,82 @@ struct SpawnPerUnitModuleData
     float maxFrameDistance{ 0.f };
 };
 
+enum class MaterialScalarModulationTargetField : uint8
+{
+    Intensity,
+    OpacityPower,
+    NoiseStrength,
+    AlphaErosion,
+    AlphaCutoff,
+    CoreIntensity,
+    OuterIntensity,
+    CoreColor,
+};
+
+enum class MaterialScalarModulationOperation : uint8
+{
+    Multiply,
+};
+
+enum class MaterialScalarModulationTimeSource : uint8
+{
+    ParticleLife,
+    EmitterTime,
+};
+
+struct MaterialScalarModulatorData
+{
+    bool enabled{ true };
+    MaterialScalarModulationTargetField targetField{ MaterialScalarModulationTargetField::Intensity };
+    MaterialScalarModulationOperation operation{ MaterialScalarModulationOperation::Multiply };
+    MaterialScalarModulationTimeSource timeSource{ MaterialScalarModulationTimeSource::EmitterTime };
+    FloatDistributionData distribution{ FloatDistributionData::Make_Constant(1.f) };
+};
+
+struct MaterialCoreColorRgbModulatorData
+{
+    bool enabled{ true };
+    MaterialScalarModulationTimeSource timeSource{ MaterialScalarModulationTimeSource::EmitterTime };
+    Vector3DistributionData distribution{ Vector3DistributionData::Make_Constant(Vec3{ 1.f, 0.85f, 0.45f }) };
+};
+
+struct MaterialScalarModulationModuleData
+{
+    vector<MaterialScalarModulatorData> modulators{};
+    vector<MaterialCoreColorRgbModulatorData> coreColorRgbModulators{};
+};
+
 using AuthoringModuleData = std::variant<
     RequiredModuleData,
     SpawnModuleData,
     LifetimeModuleData,
     InitialLocationModuleData,
     SphereLocationModuleData,
+    PlaneRadialLocationModuleData,
     InitialSizeModuleData,
+    InitialMeshSizeModuleData,
     InitialVelocityModuleData,
     InitialRadialVelocityModuleData,
+    VelocityConeModuleData,
     AccelerationModuleData,
     DragModuleData,
     VelocityOverLifeModuleData,
     InitialRotationModuleData,
+    PlaneRadialOrientationModuleData,
     RotationOverLifeModuleData,
     InitialRotationRateModuleData,
     RotationRateScaleByLifeModuleData,
+    InitialMeshRotationModuleData,
+    MeshRotationOverLifeModuleData,
+    InitialMeshRotationRateModuleData,
+    MeshRotationRateScaleByLifeModuleData,
     InitialColorModuleData,
     ColorOverLifeModuleData,
     SubUVFrameOverLifeModuleData,
     SizeByLifeModuleData,
-    SpawnPerUnitModuleData>;
+    MeshSizeByLifeModuleData,
+    SpawnPerUnitModuleData,
+    MaterialScalarModulationModuleData>;
 
 struct AuthoringModule
 {
@@ -618,6 +935,7 @@ struct AuthoringEmitter
     uint32 id{};
     string name{};
     string rendererType{ "Sprite" };
+    EmitterRenderLayerOverride renderLayerOverride{ EmitterRenderLayerOverride::Auto };
     string resourceSummary{};
     string textureId{ "Effects/Textures/Shared/DefaultTexture.dds" };
     bool enabled{ true };

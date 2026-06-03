@@ -1,11 +1,12 @@
 ﻿#include "pch.h"
 #include "ChooseItem.h"
-
+#include <Battle_Event.h>
 #include "BattleAnimutils.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
 #include "BattleStateMachine.h"
+#include "Event_Bus.h"
 
 NS_BEGIN(Client)
 
@@ -71,6 +72,11 @@ void ChooseItem::Update(float timeDelta)
 
         const BattleChar& actor = owner->Get_TurnAction().Get_CurChar();
         BattleAnimUtils::Play_BattleIdle(actor, 0.3f);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
+        event.subject = owner->Get_TurnActionRequest().actor.actor;
+        GAME->Get_EventBus().Publish(event);
 
         battleFSM->Change_State(BattleTurnState::ChooseAction);
         return;

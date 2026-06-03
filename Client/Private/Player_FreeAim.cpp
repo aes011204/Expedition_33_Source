@@ -1,16 +1,29 @@
 ﻿#include "pch.h"
 #include "Player_FreeAim.h"
-
-#include <Camera.h>
-
+#include "ColliderCom.h"
+#include "Camera.h"
 #include "OffsetAnimationModifier.h"
 #include "Body_Player.h"
+#include "Monster_WorldBase.h"
+#include "PhysX_Types.h"
 #include "PlayerControllerCom.h"
 #include "PlayerStateMachineCom.h"
 #include "Player_WorldBase.h"
+#include "TargetCamera.h"
+#include "ClientInstance.h"
+
+namespace
+{
+    constexpr float FREE_AIM_TRACE_DISTANCE = 200.f;
+    constexpr float FREE_AIM_MONSTER_SWEEP_RADIUS = 0.3f;
+    constexpr float FREE_AIM_HIT_EFFECT_NORMAL_OFFSET = 0.05f;
+
+    const wstring WORLD_FREE_AIM_HIT_EFFECT_NAME = L"World_FreeAim_Hit.effect.json";
+}
 
 Player_FreeAim::Player_FreeAim(const Shared<Player_WorldBase>& owner)
-    : Player_State{ owner } {}
+    : Player_State{ owner } {
+}
 
 HRESULT Player_FreeAim::Initialize()
 {
@@ -29,15 +42,20 @@ void Player_FreeAim::Begin_Play()
             {
                 const wstring& tag = modifier->Get_ModifierTag();
 
-                if (tag == L"AimOffset") {
+                if (tag == L"AimOffset")
                     _offsetModifier = offsetMod;
-                }
-                else if (tag == L"Walk_F") _walkModifiers[0] = offsetMod;
-                else if (tag == L"Walk_B") _walkModifiers[1] = offsetMod;
-                else if (tag == L"Walk_L") _walkModifiers[2] = offsetMod;
-                else if (tag == L"Walk_R") _walkModifiers[3] = offsetMod;
-                else if (tag == L"Walk_LB") _walkModifiers[4] = offsetMod;
-                else if (tag == L"Walk_RB") _walkModifiers[5] = offsetMod;
+                else if (tag == L"Walk_F")
+                    _walkModifiers[0] = offsetMod;
+                else if (tag == L"Walk_B")
+                    _walkModifiers[1] = offsetMod;
+                else if (tag == L"Walk_L")
+                    _walkModifiers[2] = offsetMod;
+                else if (tag == L"Walk_R")
+                    _walkModifiers[3] = offsetMod;
+                else if (tag == L"Walk_LB")
+                    _walkModifiers[4] = offsetMod;
+                else if (tag == L"Walk_RB")
+                    _walkModifiers[5] = offsetMod;
             }
         }
     }
@@ -48,7 +66,12 @@ using plAnim = Body_Player::PlayerWorldAnimation;
 bool Player_FreeAim::EnterInvoke()
 {
     _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Idle), 0.1f, true);
-    if (_offsetModifier) _offsetModifier->Set_Active(true);
+    if (_offsetModifier)
+        _offsetModifier->Set_Active(true);
+
+    _hasHitMonster = false;
+    _hitMonster.reset();
+    Clear_PendingFreeAimShot(); // 이전 발사 잔여 상태를 들고 들어오지 않도록 초기화한다.
 
     auto owner = _owner.lock();
     if (owner)
@@ -75,6 +98,10 @@ void Player_FreeAim::Update(float timeDelta)
 {
     if (false == IsEnterFreeAim())
     {
+        _hasHitMonster = false;
+        _hitMonster.reset();
+        Clear_PendingFreeAimShot();
+
         if (IsEnterMove())
         {
             _stateCom->Change_State(PlayerState::Move);
@@ -88,12 +115,17 @@ void Player_FreeAim::Update(float timeDelta)
     }
 
     Update_EnterTurnBurst();
+    Update_FreeAimHitState();
 
     uint32 animIndex = _bodyPlayer->Get_AnimationStateIndex();
+
     if (IsFreeAimShoot())
     {
+        // 입력 순간의 조준 결과를 고정해 두고, 실제 히트는 notify 프레임까지 미룬다.
         if (animIndex != ETOI(plAnim::Pl_FreeAim_Shoot))
         {
+            Cache_PendingFreeAimShot();
+
             _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Shoot), 0.25f, false);
             _bodyPlayer->Set_AnimationSpeed(2.f);
         }
@@ -104,6 +136,7 @@ void Player_FreeAim::Update(float timeDelta)
         {
             _bodyPlayer->Set_AnimationByState(ETOI(plAnim::Pl_FreeAim_Idle), 0.25f, true);
             _bodyPlayer->Set_AnimationSpeed(1.f);
+            Clear_PendingFreeAimShot(); // 발사가 끝났으면 다음 샷을 위해 pending 상태를 비운다.
         }
     }
 
@@ -125,15 +158,16 @@ void Player_FreeAim::Update(float timeDelta)
 
 void Player_FreeAim::LateUpdate(float timeDelta)
 {
-
 }
 
 void Player_FreeAim::ExitInvoke()
 {
+    _hasHitMonster = false;
+    _hitMonster.reset();
+    Clear_PendingFreeAimShot();
+
     if (_offsetModifier)
-    {
         _offsetModifier->Set_Active(false);
-    }
 
     for (int i = 0; i < 6; ++i)
     {
@@ -142,6 +176,59 @@ void Player_FreeAim::ExitInvoke()
     }
 
     _isEnterTurnBurstActive = false;
+}
+
+void Player_FreeAim::Update_FreeAimHitState()
+{
+    FreeAimHitInfo hitInfo{};
+
+    Shared<Monster_WorldBase> hitMonster = Find_FreeAimHitMonster(&hitInfo);
+
+    _hasHitMonster = (hitMonster != nullptr);
+    _hitMonster = hitMonster;
+
+    _currentHitInfo = _hasHitMonster ? hitInfo : FreeAimHitInfo{};
+}
+
+void Player_FreeAim::Cache_PendingFreeAimShot()
+{
+    _hasPendingShotHit = _hasHitMonster;
+    _hasConsumedPendingShotHit = false;
+    _pendingShotMonster = _hitMonster;
+    _pendingShotHitInfo = _hasHitMonster ? _currentHitInfo : FreeAimHitInfo{};
+}
+
+void Player_FreeAim::Clear_PendingFreeAimShot()
+{
+    _hasPendingShotHit = false;
+    _hasConsumedPendingShotHit = false;
+    _pendingShotMonster.reset();
+    _pendingShotHitInfo = FreeAimHitInfo{};
+}
+
+void Player_FreeAim::Trigger_PendingFreeAimShotHit()
+{
+    if (_hasConsumedPendingShotHit)
+        return; // 같은 발사 애니메이션에서 두 번 맞지 않게 막는다.
+
+    if (_bodyPlayer->Get_AnimationStateIndex() != ETOI(plAnim::Pl_FreeAim_Shoot))
+        return; // FreeAim_Shoot 중이 아닐 때 들어온 notify는 무시한다.
+
+    _hasConsumedPendingShotHit = true;
+
+    if (!_hasPendingShotHit)
+        return; // 발사 시작 시점에 맞춘 대상이 없었으면 히트 없이 지나간다.
+
+    Shared<Monster_WorldBase> hitMonster = _pendingShotMonster.lock();
+    if (!hitMonster)
+        return;
+
+    _currentHitInfo = _pendingShotHitInfo; // 히트 이펙트는 발사 시점에 캡처한 위치/노멀을 사용한다.
+
+    LOG_DEBUG("World FreeAim Shoot Hit Monster: {}", String::ToString(hitMonster->Get_Name()).c_str());
+
+    Play_FreeAimHitEffect();
+    hitMonster->Apply_Stun(3.f);
 }
 
 void Player_FreeAim::Update_DirectionalModifiers()
@@ -215,6 +302,86 @@ void Player_FreeAim::Update_EnterTurnBurst()
         movementCom->Set_TurnResponse(_prevTurnResponse);
         _isEnterTurnBurstActive = false;
     }
+}
+
+Shared<Monster_WorldBase> Player_FreeAim::Find_FreeAimHitMonster(FreeAimHitInfo* outHitInfo) const
+{
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    if (activeCamera == nullptr)
+        return nullptr;
+
+    const Shared<TargetCamera> targetCamera = dynamic_pointer_cast<TargetCamera>(activeCamera);
+    if (targetCamera == nullptr)
+        return nullptr;
+
+    const Vec3 queryOrigin = targetCamera->Get_FreeAimQueryOrigin();
+    Vec3 direction = targetCamera->Get_FreeAimQueryDirection();
+
+    if (direction.LengthSquared() <= 0.0001f)
+        return nullptr;
+
+    direction.Normalize();
+
+    PhysXQueryHit envHit{};
+    const bool hasEnvBlock = GAME->Sweep_Sphere(
+        queryOrigin,
+        direction,
+        FREE_AIM_TRACE_DISTANCE,
+        FREE_AIM_MONSTER_SWEEP_RADIUS,
+        Collision_Preset::Camera,
+        envHit);
+
+    PhysXQueryHit monsterHit{};
+    const bool hasMonsterHit = GAME->Sweep_Sphere(
+        queryOrigin,
+        direction,
+        FREE_AIM_TRACE_DISTANCE,
+        FREE_AIM_MONSTER_SWEEP_RADIUS,
+        Collision_Preset::Player_Target,
+        monsterHit);
+
+    if (!hasMonsterHit || monsterHit.collider == nullptr)
+        return nullptr;
+
+    const Shared<GameObject> hitOwner = monsterHit.collider->Get_Owner();
+    if (!hitOwner)
+        return nullptr;
+
+    if (hasEnvBlock && envHit.distance < monsterHit.distance)
+        return nullptr;
+
+    Shared<Monster_WorldBase> hitMonsterShared = dynamic_pointer_cast<Monster_WorldBase>(hitOwner);
+    if (!hitMonsterShared && hitOwner->Get_Owner())
+        hitMonsterShared = dynamic_pointer_cast<Monster_WorldBase>(hitOwner->Get_Owner());
+
+    if (!hitMonsterShared)
+        return nullptr;
+
+    if (outHitInfo != nullptr)
+    {
+        outHitInfo->monster = hitMonsterShared;
+        outHitInfo->hitPosition = monsterHit.position;
+        outHitInfo->hitNormal = monsterHit.normal;
+    }
+
+    return hitMonsterShared;
+}
+
+void Player_FreeAim::Play_FreeAimHitEffect() const
+{
+    Vec3 hitNormal = _currentHitInfo.hitNormal;
+    if (hitNormal.LengthSquared() > 0.0001f)
+        hitNormal.Normalize();
+    else
+        hitNormal = Vec3::Up;
+
+    const Vec3 effectPosition =
+        _currentHitInfo.hitPosition + hitNormal * FREE_AIM_HIT_EFFECT_NORMAL_OFFSET;
+
+    PlayEffectDesc effectDesc{};
+    effectDesc.effectName = WORLD_FREE_AIM_HIT_EFFECT_NAME;
+    effectDesc.worldPosition = effectPosition;
+    CLIENT->Play_Effect(effectDesc);
 }
 
 Shared<Player_FreeAim> Player_FreeAim::Create(const Shared<Player_WorldBase>& owner)

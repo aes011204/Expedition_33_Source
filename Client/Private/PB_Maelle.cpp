@@ -6,6 +6,7 @@ IMPLEMENT_REFLECTION(PB_Maelle)
     info.properties.clear();
     info.displayName = "PB_Maelle";
     info.category = "Character";
+    PROPERTY_FLOAT("Battle Ground Offset Y", _battleGroundOffsetY, -5.f, 5.f, 0.01f);
     return true;
 }
 
@@ -45,12 +46,15 @@ HairChainPhysicsDesc PB_Maelle::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
-bool PB_Maelle::Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const
+void PB_Maelle::Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const
 {
-    outDesc.weaponPrefabName = Constants::Prefab::Maelle_Medalum;
-    outDesc.socketName = "Weapon_r";
+    outDescs.clear();
 
-    return true;
+    WeaponAttachDesc desc{};
+    desc.partTag = L"Part_Weapon";
+    desc.weaponPrefabName = Constants::Prefab::Maelle_Medalum;
+    desc.socketName = "Weapon_r";
+    outDescs.emplace_back(std::move(desc));
 }
 
 Shared<PB_Maelle> PB_Maelle::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

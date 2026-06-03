@@ -15,9 +15,36 @@ NS_BEGIN(Client)
 
 class Weapon;
 
-class EffectCom : public Component, public IEffectTrailSampleProvider
+class EffectCom : public Component
 {
     GENERATED_COMPONENT(EffectCom);
+
+public:
+    enum class EffectPlayTarget : uint8
+    {
+        OwnerRoot = 0,  // 플레이할 Owner의 Transfrom 기준
+        PartSocket = 1, // partTag + socketName
+        PartRoot = 2,   // socket 없는 part root 기준
+    };
+
+    struct EffectPlayDesc
+    {
+        uint32 levelIndex = ETOI(LevelType::Static);
+        wstring effectName{};
+        EffectPlayTarget target = EffectPlayTarget::OwnerRoot;
+
+        wstring partTag{};
+        string socketName{};
+        wstring layerTag = L"Layer_Effect";
+
+        Vec3 localOffset = Vec3::Zero;
+        Vec3 localRotation = Vec3::Zero;
+        Vec3 scale = Vec3::One;
+
+        bool followTarget = false; // AN은 false, ANS/attach 는 true로 사용
+        bool requiresManualRelease = false; // owner가 살아 있는 동안 붙어 있어야 하는 effect는 자동 완료 release를 막는다.
+        Weak<IEffectTrailSampleProvider> trailSampleProvider{};
+    };
 
 private:
     struct AttachedEffect
@@ -25,24 +52,32 @@ private:
         EffectInstancePool::AttachedHandle poolHandle{};
 
         wstring effectName{};
+        EffectPlayTarget target = EffectPlayTarget::OwnerRoot;
         wstring partTag{};
 
         string  socketName{};
         wstring layerTag{};
+
         Vec3    localOffset{ Vec3::Zero };
+        Vec3    localRotation{ Vec3::Zero };
+        Vec3    scale{ Vec3::One };
+
+        bool    followTarget = false; // true면 Update에서 owner/socket 위치를 계속 따라간다.
         bool    isTrail = false;
         TrailAnchorAsset trailAnchorAsset{};
+        Shared<IEffectTrailSampleProvider> trailSampleProvider{}; // 각 trail instance가 자기 sample source를 유지한다.
     };
 
 public:
     EffectCom(const ComPtr<Device>& device, const ComPtr<Context>& context);
-    ~EffectCom() override = default;
+    ~EffectCom() override;
 
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
     void    BeginPlay() override;
     void    Update(float timeDelta);
+    void    Tick_AttachedEffectInstances(float timeDelta);
 
 public:
     // World에서 Active 중인 플레이어 바꿀 때
@@ -57,6 +92,21 @@ public:
     static HRESULT Bind_DrawFeatures(const Shared<GameObject>& owner, ShaderCom* shader, uint32 supportFeatureMask);
 
 public:
+    // AN/ANS에서 context.owner가 part일 수도 있어서 owner chain 타고 EffectCom를 찾는 공용 진입점
+    static Shared<EffectCom> Find_FromNotifyOwner(GameObject* notifyOwner);
+
+#pragma region AN_PlayEffect에서 재생시킬 함수
+     HRESULT Play_Effect(const EffectPlayDesc& desc);
+
+    // ANS 종료될 때, 같은 key의 attached effect를 pool로 반환하게
+     void    Stop_Effect(
+                const wstring& effectName,
+                EffectPlayTarget target,
+                const wstring& partTag = L"",
+                const string& socketName = "");
+#pragma endregion
+
+
 #pragma region Effect 특정 파츠, 소켓에 붙이기
     HRESULT Play_AttachedEffect(
                 uint32 levelIndex,
@@ -65,7 +115,28 @@ public:
 				const string& socketName,
 				const wstring& layerTag,
 				const Vec3& localOffset = Vec3::Zero,
+                const Vec3& localRotation = Vec3::Zero,
+                const Vec3& scale = Vec3::One,
                 const Weak<IEffectTrailSampleProvider>& trailSampleProvider = {});
+
+    HRESULT Play_AttachedPartEffect(
+                uint32 levelIndex,
+                const wstring& effectName,
+                const wstring& partTag,
+                const string& socketName,
+                const wstring& layerTag,
+                const Vec3& localOffset = Vec3::Zero,
+                const Vec3& localRotation = Vec3::Zero,
+                const Vec3& scale = Vec3::One);
+
+    HRESULT Play_AttachedPartEffect(
+                uint32 levelIndex,
+                const wstring& effectName,
+                const wstring& partTag,
+                const wstring& layerTag,
+                const Vec3& localOffset = Vec3::Zero,
+                const Vec3& localRotation = Vec3::Zero,
+                const Vec3& scale = Vec3::One);
 #pragma endregion
 
 #pragma region ANS_Trail에서 사용할 Play, Stop Trail
@@ -78,7 +149,10 @@ public:
                 const wstring& effectName,
                 const wstring& partTag);
 
-    bool    Try_GetTrailSample(EffectTrailSample& outSample) const override;
+    bool    Try_GetTrailSampleForPart(
+                const wstring& partTag,
+                const TrailAnchorAsset& trailAnchorAsset,
+                EffectTrailSample& outSample) const;
 #pragma endregion
 
 
@@ -88,21 +162,35 @@ private:
     bool Should_ReleaseAttachedEffect(const AttachedEffect& attached) const; // auto/manual release 정책을 판정한다.
     void Prune_ReleasedAttachedEffects();                                    // 반환이 끝난 attached entry를 목록에서 제거한다.
 
-    bool Try_GetSocketWorldPosition(
+    bool Try_GetOwnerRootWorldMatrix(Matrix& outWorldMatrix) const;
+
+    bool Try_GetSocketWorldMatrix(
             const wstring& partTag,
             const string& socketName,
-            Vec3& outWorldPosition) const;
+            Matrix& outWorldMatrix) const;
+
+    bool Try_GetPartRootWorldMatrix(
+            const wstring& partTag,
+            Matrix& outWorldMatrix) const;
+
+    bool Try_ResolveEffectWorldTransform(
+            EffectPlayTarget target,
+            const wstring& partTag,
+            const string& socketName,
+            const Vec3& localOffset,
+            const Vec3& localRotation,
+            Vec3& outWorldPosition,
+            Vec3& outWorldRotation) const;
 
     bool Try_BuildTrailSample(
-        const AttachedEffect& attached,
+        const wstring& partTag,
+        const TrailAnchorAsset& trailAnchorAsset,
         EffectTrailSample& outSample) const;
 
     bool Try_ResolveTrailAnchorWorldPosition(
         const Weapon& weaponPart,
         const TrailAnchorPointDesc& anchor,
         Vec3& outWorldPosition) const;
-
-    const AttachedEffect* Find_ActiveTrailEffect() const;
 
 
 private:

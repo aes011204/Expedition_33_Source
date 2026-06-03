@@ -1,6 +1,7 @@
 ﻿#include "EffectMaterialPreviewRenderer.h"
 
 #include "EffectEditorInstance.h"
+#include "EffectMaterialScalarModulationPreview.h"
 #include "GameInstance.h"
 #include "Helper_Math.h"
 #include "RenderTarget.h"
@@ -11,22 +12,22 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    int Resolve_OpacitySourceIndex(const string& opacitySource)
+    static int Resolve_MaterialSourceIndex(const string& source)
     {
-        constexpr int32 opacitySourceAlpha = 0;
-        constexpr int32 opacitySourceRed = 1;
-        constexpr int32 opacitySourceLuminance = 2;
+        constexpr int32 sourceAlpha = 0;
+        constexpr int32 sourceRed = 1;
+        constexpr int32 sourceLuminance = 2;
 
-        if (opacitySource == "Alpha" || opacitySource == "alpha")
-            return opacitySourceAlpha;
+        if (source == "Alpha" || source == "alpha")
+            return sourceAlpha;
 
-        if (opacitySource == "Red" || opacitySource == "red")
-            return opacitySourceRed;
+        if (source == "Red" || source == "red")
+            return sourceRed;
 
-        if (opacitySource == "Luminance" || opacitySource == "luminance")
-            return opacitySourceLuminance;
+        if (source == "Luminance" || source == "luminance")
+            return sourceLuminance;
 
-        return opacitySourceAlpha;
+        return sourceAlpha;
     }
 
     template <typename T>
@@ -115,9 +116,28 @@ EffectMaterialPreviewRenderer::~EffectMaterialPreviewRenderer()
 
 void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstanceData& material)
 {
+    Render_Material(material, EffectMaterialCoreColorRgbModulationRuntimeDesc{}, EffectMaterialScalarModulationRuntimeDesc{}, 1.f, false);
+}
+
+void EffectMaterialPreviewRenderer::Render_Material(
+    const EffectMaterialInstanceData& material,
+    const EffectMaterialCoreColorRgbModulationRuntimeDesc& coreColorRgbModulation,
+    const EffectMaterialScalarModulationRuntimeDesc& modulation,
+    float previewDuration,
+    bool evaluateParticleLife)
+{
     _statusMessage.clear();
     _hasRenderedPreview = false;
-    const bool isDistortionPreview = material.materialFamily == EffectMaterialFamily::SpriteDistortion;
+    const MaterialScalarModulationPreviewResult modulationResult =
+        Evaluate_MaterialScalarModulationPreview(
+            material,
+            coreColorRgbModulation,
+            modulation,
+            Compute_MaterialScalarPreviewPhase(_materialPreviewElapsedTime, previewDuration),
+            evaluateParticleLife
+        );
+    const EffectMaterialInstanceData& previewMaterial = modulationResult.material;
+    const bool isDistortionPreview = previewMaterial.materialFamily == EffectMaterialFamily::SpriteDistortion;
 
     if (EDITOR == nullptr || GAME == nullptr)
     {
@@ -129,10 +149,10 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
         (isDistortionPreview && !Ready_DistortionSourceTarget()) ||
         !Ready_Shader() ||
         (isDistortionPreview && !Ready_DistortionShader()) ||
-        !Ready_Texture(material.mainTextureGuid, material.mainTexturePath) ||
-        !Ready_NoiseTexture(material.noiseTextureGuid, material.noiseTexturePath) ||
-        !Ready_MaskTexture(material.maskTextureGuid, material.maskTexturePath) ||
-        (isDistortionPreview && !Ready_FlowTexture(material.flowTextureGuid, material.flowTexturePath)) ||
+        !Ready_Texture(previewMaterial.mainTextureGuid, previewMaterial.mainTexturePath) ||
+        !Ready_NoiseTexture(previewMaterial.noiseTextureGuid, previewMaterial.noiseTexturePath) ||
+        !Ready_MaskTexture(previewMaterial.maskTextureGuid, previewMaterial.maskTexturePath) ||
+        (isDistortionPreview && !Ready_FlowTexture(previewMaterial.flowTextureGuid, previewMaterial.flowTexturePath)) ||
         !Ready_Meshes())
         return;
 
@@ -160,8 +180,8 @@ void EffectMaterialPreviewRenderer::Render_Material(const EffectMaterialInstance
     if (SUCCEEDED(hr))
     {
         hr = isDistortionPreview
-             ? Render_DistortionPreviewMesh(material)
-             : Render_PreviewMesh(material);
+             ? Render_DistortionPreviewMesh(previewMaterial)
+             : Render_PreviewMesh(previewMaterial);
     }
 
     GAME->Bind_BackBuffer();
@@ -800,7 +820,26 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         additive.intensityScale
     );
     const Vec4 effectMaterialPreviewAdditiveFlags = Vec4(additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
-    const int opacitySource = Internal::Resolve_OpacitySourceIndex(material.opacitySource);
+    const EffectMaterialCoreEmissiveData& coreEmissive = material.coreEmissive;
+    const Vec4 effectMaterialPreviewCoreEmissiveParams = Vec4(
+        coreEmissive.enabled ? 1.f : 0.f,
+        coreEmissive.corePower,
+        coreEmissive.coreIntensity,
+        coreEmissive.outerPower
+    );
+    const Vec4 effectMaterialPreviewCoreEmissiveColor = Vec4(
+        coreEmissive.coreColor.x,
+        coreEmissive.coreColor.y,
+        coreEmissive.coreColor.z,
+        coreEmissive.outerIntensity
+    );
+    const int opacitySource = Internal::Resolve_MaterialSourceIndex(material.opacitySource);
+    const Vec4 effectMaterialPreviewSourceParams = Vec4(
+        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
+        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+        material.noiseInvert ? 1.f : 0.f,
+        material.maskInvert ? 1.f : 0.f
+    );
 
     CHECK_FAILED(_shader->Bind_ObjectCB(worldMatrix), E_FAIL);
     CHECK_FAILED(_shader->Bind_CBufferData(cameraCB), E_FAIL);
@@ -861,6 +900,10 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         E_FAIL
     );
     CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewSourceParams", &effectMaterialPreviewSourceParams, sizeof(effectMaterialPreviewSourceParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
         _shader->Bind_RawValue("g_EffectMaterialPreviewAdditiveParams", &effectMaterialPreviewAdditiveParams, sizeof(effectMaterialPreviewAdditiveParams)),
         E_FAIL
     );
@@ -874,6 +917,14 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
     );
     CHECK_FAILED(
         _shader->Bind_RawValue("g_EffectMaterialPreviewAdditiveFlags", &effectMaterialPreviewAdditiveFlags, sizeof(effectMaterialPreviewAdditiveFlags)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewCoreEmissiveParams", &effectMaterialPreviewCoreEmissiveParams, sizeof(effectMaterialPreviewCoreEmissiveParams)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        _shader->Bind_RawValue("g_EffectMaterialPreviewCoreEmissiveColor", &effectMaterialPreviewCoreEmissiveColor, sizeof(effectMaterialPreviewCoreEmissiveColor)),
         E_FAIL
     );
     CHECK_FAILED(
@@ -986,7 +1037,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
         0.f
     );
     const Vec4 distortionParams = Vec4(
-        max(0.f, material.refractionIntensity),
+        material.refractionIntensity,
         max(0.f, material.refractionPresence),
         _flowTexture != nullptr ? 1.f : 0.f,
         _materialPreviewElapsedTime
@@ -1003,7 +1054,13 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
         0.f,
         0.f
     );
-    const int opacitySource = Internal::Resolve_OpacitySourceIndex(material.opacitySource);
+    const int opacitySource = Internal::Resolve_MaterialSourceIndex(material.opacitySource);
+    const Vec4 sourceParams = Vec4(
+        1.f,
+        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+        0.f,
+        material.maskInvert ? 1.f : 0.f
+    );
 
     CHECK_FAILED(_distortionShader->Bind_ObjectCB(worldMatrix), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_CBufferData(cameraCB), E_FAIL);
@@ -1028,6 +1085,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVOffsetParams", &uvOffsetParams, sizeof(uvOffsetParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewMaskUVOffsetParams", &maskUVOffsetParams, sizeof(maskUVOffsetParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVModeParams", &uvModeParams, sizeof(uvModeParams)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewSourceParams", &sourceParams, sizeof(sourceParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewDistortionShapeParams", &distortionShapeParams, sizeof(distortionShapeParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewScreenSize", &screenSize, sizeof(screenSize)), E_FAIL);

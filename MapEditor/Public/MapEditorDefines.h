@@ -228,7 +228,9 @@ namespace MapEditor
         function<void(int32, const WCHAR*)> onLoad;
         function<void(int32, const LandscapeNoiseParams&)> onApplyNoise;
         function<void(int32, const LandscapeErosionParams&)> onApplyErosion;
-        function<void(int32, const WCHAR*)> onAddLayer;
+        function<void(int32, const WCHAR*, const WCHAR*, const WCHAR*)> onAddLayer;
+        function<void(int32, uint32)> onRemoveLayer;
+        function<void(int32, uint32)> onSetBaseLayer;
         function<void(int32, const LandscapeConfig&)> onModify;
     };
 };

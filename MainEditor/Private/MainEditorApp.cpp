@@ -14,10 +14,16 @@ MainEditorApp::MainEditorApp()
 
 HRESULT MainEditorApp::Initialize()
 {
+    const auto startupBegin = chrono::steady_clock::now();
+    auto stepBegin = startupBegin;
+
     const std::filesystem::path assetRootPath(Get_ClientResourceRoot());
     if (!std::filesystem::exists(assetRootPath) || !std::filesystem::is_directory(assetRootPath))
         return E_FAIL;
+    const auto resourceRootElapsed = chrono::duration_cast<chrono::milliseconds>(
+        chrono::steady_clock::now() - stepBegin).count();
 
+    stepBegin = chrono::steady_clock::now();
     RECT clientRect {};
     if (!GetClientRect(g_hWnd, &clientRect))
         return E_FAIL;
@@ -37,18 +43,33 @@ HRESULT MainEditorApp::Initialize()
 
     if (FAILED(GAME->Initialize_Engine(engineDesc, _device, _context)))
         return E_FAIL;
+    LOG_INFO("[StartupTiming] MainEditorApp::ResourceRootCheck elapsed={}ms", resourceRootElapsed);
+    LOG_INFO("[StartupTiming] MainEditorApp::Initialize_Engine elapsed={}ms",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count());
 
+    stepBegin = chrono::steady_clock::now();
     if (FAILED(GAME->Initialize_AssetManager(assetRootPath.wstring())))
         return E_FAIL;
+    LOG_INFO("[StartupTiming] MainEditorApp::Initialize_AssetManager elapsed={}ms",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count());
 
+    stepBegin = chrono::steady_clock::now();
     if (FAILED(CLIENT->Initialize_Client(_device, _context)))
         return E_FAIL;
+    LOG_INFO("[StartupTiming] MainEditorApp::Initialize_Client elapsed={}ms",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count());
 
+    stepBegin = chrono::steady_clock::now();
     if (FAILED(Ready_Fonts()))
         return E_FAIL;
+    LOG_INFO("[StartupTiming] MainEditorApp::Ready_Fonts elapsed={}ms",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count());
 
+    stepBegin = chrono::steady_clock::now();
     if (FAILED(Ready_StartLevel(LevelType::MainTitle)))
         return E_FAIL;
+    LOG_INFO("[StartupTiming] MainEditorApp::Ready_StartLevel elapsed={}ms",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count());
 
     EDITOR_DESC editorDesc{};
     editorDesc.hWnd = g_hWnd;
@@ -56,9 +77,14 @@ HRESULT MainEditorApp::Initialize()
     editorDesc.iViewportWidth = viewportWidth;
     editorDesc.iViewportHeight = viewportHeight;
 
+    stepBegin = chrono::steady_clock::now();
     if (FAILED(EDITOR->Initialize_Editor(editorDesc, _device, _context)))
         return E_FAIL;
+    LOG_INFO("[StartupTiming] MainEditorApp::Initialize_Editor elapsed={}ms",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - stepBegin).count());
 
+    LOG_INFO("[StartupTiming] MainEditorApp::Initialize totalElapsed={}ms",
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - startupBegin).count());
 
     return S_OK;
 }
@@ -122,12 +148,13 @@ void MainEditorApp::Update(float timeDelta)
     }
 
     const uint32 currentLevelIndex = GAME->Current_LevelIndex();
-    const bool finishedLoadingIntoNonMainTitle =
+    const bool finishedLoadingIntoEditorAutoPlayLevel =
         previousLevelIndex == ETOI(LevelType::Loading) &&
         currentLevelIndex != ETOI(LevelType::Loading) &&
-        currentLevelIndex != ETOI(LevelType::MainTitle);
+        currentLevelIndex != ETOI(LevelType::MainTitle) &&
+        currentLevelIndex != ETOI(LevelType::GameEntry);
 
-    if (finishedLoadingIntoNonMainTitle)
+    if (finishedLoadingIntoEditorAutoPlayLevel)
         EDITOR->Enter_EditAfterLoading();
 
     EDITOR->Apply_RuntimeInputPolicy();

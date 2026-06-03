@@ -1,10 +1,11 @@
-﻿
-#include "Level_GameEntry.h"
+﻿#include "Level_GameEntry.h"
 
 #include "ClientInstance.h"
 #include "GameInstance.h"
 #include "Level_Loading.h"
 #include "Client_Constants.h"
+#include "Level_MainTitle.h"
+#include "MainTitleMenuSound.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Utils.h"
 #include "UI_Button.h"
@@ -31,9 +32,7 @@ void Level_GameEntry::Update(float timeDelta)
 
 HRESULT Level_GameEntry::Render()
 {
-#ifdef _DEBUG
-    SetWindowText(g_hWnd, TEXT("GameEntry Level"));
-#endif
+    Update_WindowTitleFps(_windowTitleFps, L"GameEntry Level");
 
     return S_OK;
 }
@@ -43,9 +42,12 @@ void Level_GameEntry::Handle_Button()
     if (CLIENT->Is_FadeTransitionPlaying())
         return;
 
+    MainTitleMenuSound::Update_ButtonHoverSound(_firstLevelButton, _wasFirstLevelHovered);
+    MainTitleMenuSound::Update_ButtonHoverSound(_secondLevelButton, _wasSecondLevelHovered);
+
     if (GAME->KeyDown(KEY_TYPE::ESCAPE))
     {
-        if (FAILED(GAME->Change_Level(ETOI(LevelType::Loading), Level_Loading::Create(_device.Get(), _context.Get(), LevelType::MainTitle))))
+        if (FAILED(GAME->Change_Level(ETOI(LevelType::MainTitle), Level_MainTitle::Create(_device.Get(), _context.Get()))))
             return;
 
         return;
@@ -53,6 +55,8 @@ void Level_GameEntry::Handle_Button()
 
     if (_firstLevelButton && _firstLevelButton->Was_Clicked())
     {
+        GAME->Play_Sound(Constants::Sound::MainMenuNewGame, SoundChannel::UI, 1.f);
+
         if (!CLIENT->Request_LevelTransition(LevelType::MapTest))
             return;
 
@@ -61,6 +65,8 @@ void Level_GameEntry::Handle_Button()
 
     if (_secondLevelButton && _secondLevelButton->Was_Clicked())
     {
+        GAME->Play_Sound(Constants::Sound::MainMenuNewGame, SoundChannel::UI, 1.f);
+
         if (!CLIENT->Request_LevelTransition(LevelType::GamePlay))
             return;
 

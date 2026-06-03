@@ -19,6 +19,7 @@ namespace Engine::ShaderCB
     inline constexpr ::string_view PostProcess = "PostProcessBuffer";
     inline constexpr ::string_view Hair        = "HairDescBuffer";
     inline constexpr ::string_view DrawFeature = "DrawFeatureBuffer";
+    inline constexpr ::string_view ScreenFx     = "ScreenFxBuffer";
 
     inline constexpr ::array<::string_view, ETOI(ConstantBuffer::END)> Names =
     {
@@ -32,7 +33,8 @@ namespace Engine::ShaderCB
         DeferredLighting,
         PostProcess,
         Hair,
-        DrawFeature
+        DrawFeature,
+        ScreenFx
     };
 }
 

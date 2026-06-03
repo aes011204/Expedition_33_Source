@@ -11,16 +11,16 @@ CameraPresetIO::~CameraPresetIO()
 
 namespace
 {
-string Build_BattlePresetFilePath(BattleCameraMode cameraMode, const string& skillId)
-{
-    const string modeName = string(magic_enum::enum_name(cameraMode));
-    string fileName = "BattlePreset_" + modeName;
-
-    if (!skillId.empty())
-        fileName += "_" + skillId;
-
-    return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
-}
+    string Build_BattlePresetFilePath(BattleCameraMode cameraMode, const string& skillId)
+    {
+        const string modeName = string(magic_enum::enum_name(cameraMode));
+        string fileName = "BattlePreset_" + modeName;
+    
+        if (!skillId.empty())
+            fileName += "_" + skillId;
+    
+        return "../../../Client/Bin/Resources/Data/json/CameraPreset/" + fileName + ".json";
+    }
 }
 
 void CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode cameraMode, const TargetCameraPreset& preset)
@@ -29,6 +29,9 @@ void CameraPresetIO::SaveTargetPresetToFile(TargetCameraMode cameraMode, const T
 
     jsonData["snapOnEnter"]     = preset.snapOnEnter;
     jsonData["followSpeed"]     = preset.followSpeed;
+    jsonData["targetFollowSpeed"] = preset.targetFollowSpeed;
+    jsonData["verticalFollowSpeed"] = preset.verticalFollowSpeed;
+    jsonData["targetFollowEasing"] = static_cast<int>(preset.targetFollowEasing);
     jsonData["aimOffset"]       = preset.aimOffset;
     jsonData["pivotHeight"]     = preset.pivotHeight;
     jsonData["sideOffset"]      = preset.sideOffset;
@@ -81,9 +84,30 @@ bool CameraPresetIO::LoadTargetPresetFromFile(TargetCameraMode cameraMode, Targe
     file >> jsonData;
 
     TargetCameraPreset preset;
+    const int targetFollowEasing = jsonData.value(
+        "targetFollowEasing",
+        static_cast<int>(BattleCameraTransitionEasing::EaseOut));
 
     preset.snapOnEnter = jsonData.value("snapOnEnter", false);
     preset.followSpeed = jsonData.value("followSpeed", preset.followSpeed);
+    preset.targetFollowSpeed = jsonData.value("targetFollowSpeed", preset.targetFollowSpeed);
+    preset.verticalFollowSpeed = jsonData.value("verticalFollowSpeed", preset.verticalFollowSpeed);
+    switch (targetFollowEasing)
+    {
+    case static_cast<int>(BattleCameraTransitionEasing::Linear):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::Linear;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseIn):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseIn;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseOut):
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseOut;
+        break;
+    case static_cast<int>(BattleCameraTransitionEasing::EaseInOut):
+    default:
+        preset.targetFollowEasing = BattleCameraTransitionEasing::EaseInOut;
+        break;
+    }
     preset.distance  = jsonData.value("distance", preset.distance);
     preset.sideOffset  = jsonData.value("sideOffset", preset.sideOffset);
     preset.heightOffset  = jsonData.value("heightOffset", preset.heightOffset);

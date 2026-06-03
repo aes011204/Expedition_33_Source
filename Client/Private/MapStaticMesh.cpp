@@ -1,4 +1,4 @@
-#include "MapStaticMesh.h"
+﻿#include "MapStaticMesh.h"
 #include "GameInstance.h"
 #include "Collision_Define.h"
 #include "MapStaticCollisionBuilder.h"
@@ -256,6 +256,7 @@ void MapStaticMesh::Late_Update(float timeDelta)
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT MapStaticMesh::Render()
@@ -314,12 +315,7 @@ HRESULT MapStaticMesh::Render_Shadow()
         return E_FAIL;
     }
 
-    if (FAILED(GAME->Bind_StaticShadowCB(_shader)))
-    {
-        return E_FAIL;
-    }
-
-    if (FAILED(_shader->Reset_DrawFeatures()))
+    if (FAILED(GAME->Bind_ShadowCB(_shader)))
     {
         return E_FAIL;
     }
@@ -329,9 +325,8 @@ HRESULT MapStaticMesh::Render_Shadow()
     for (uint32 i = 0; i < numMeshes; ++i)
     {
         if (FAILED(_shader->Begin(1)))
-        {
             return E_FAIL;
-        }
+        _model->Render(i);
     }
 
     return S_OK;

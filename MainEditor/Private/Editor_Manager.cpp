@@ -22,6 +22,7 @@
 #include "AnimState_View.h"
 #include "ClientInstance.h"
 #include "PostProcess_View.h"
+#include "ScreenFx_View.h"
 
 namespace fs = std::filesystem;
 
@@ -58,7 +59,7 @@ HRESULT Editor_Manager::Initialize()
     Add_Window(Material_View::Create());
     Add_Window(AnimState_View::Create());
     Add_Window(PostProcess_View::Create());
-
+    Add_Window(ScreenFx_View::Create());
     return S_OK;
 }
 
@@ -287,7 +288,7 @@ void Editor_Manager::Handle_Shortcuts()
         }
     }
     
-    // Ctrl + Space : Scene/Game/Profile 집중 모드
+    // Ctrl + Space : Scene/Game/Profile/Camera Tool 집중 모드
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Space, false))
     {
         Toggle_FocusMode();
@@ -409,7 +410,7 @@ void Editor_Manager::Render_ShortcutHelp()
             DrawShortcutRow("Shift +", "배속 증가");
             DrawShortcutRow("Shift -", "배속 감소");
             DrawShortcutRow("Alt + Enter", "Fullscreen Toggle");
-            DrawShortcutRow("Ctrl + Space", "Focus Scene/Game/Profile");
+            DrawShortcutRow("Ctrl + Space", "Focus Scene/Game/Profile/Camera Tool");
 
             DrawShortcutRow("오브젝트 더블클릭", "오브젝트한테 이동");
             DrawShortcutRow("오브젝트 복사", "오브젝트 선택 후 Ctrl C + V");
@@ -477,7 +478,7 @@ void Editor_Manager::Toggle_FocusMode()
 
         _focusModeWindowStates[name] = window->Is_Open();
 
-        if (name == L"Scene" || name == L"Game" || name == L"Profile" || name == L"Console")
+        if (name == L"Scene" || name == L"Game" || name == L"Profile" || name == L"Console" || name == L"Camera Tool")
             continue;
 
         window->Set_Open(false);

@@ -1,9 +1,10 @@
 ﻿#include "Level_MainTitle.h"
 
 #include "GameInstance.h"
-#include "Level_Loading.h"
+#include "Level_GameEntry.h"
 #include "BackGround.h"
 #include "Client_Constants.h"
+#include "MainTitleMenuSound.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Utils.h"
 #include "UI_Button.h"
@@ -23,6 +24,13 @@ HRESULT Level_MainTitle::Initialize()
     return S_OK;
 }
 
+void Level_MainTitle::BeginPlay()
+{
+    Level::BeginPlay();
+
+    GAME->Play_BGM(Constants::Sound::MainTitleBGM, 1.f, true, 0.f);
+}
+
 void Level_MainTitle::Update(float timeDelta)
 {
     Handle_Button();
@@ -30,18 +38,21 @@ void Level_MainTitle::Update(float timeDelta)
 
 HRESULT Level_MainTitle::Render()
 {
-#ifdef _DEBUG
-    SetWindowText(g_hWnd, TEXT("MainTitle Level"));
-#endif
+    Update_WindowTitleFps(_windowTitleFps, L"MainTitle Level");
 
     return S_OK;
 }
 
 void Level_MainTitle::Handle_Button()
 {
+    MainTitleMenuSound::Update_ButtonHoverSound(_continueButton, _wasContinueHovered);
+    MainTitleMenuSound::Update_ButtonHoverSound(_exitButton, _wasExitHovered);
+
     if ((_continueButton && _continueButton->Was_Clicked()) || GAME->KeyDown(KEY_TYPE::KEY_1))
     {
-        if (FAILED(GAME->Change_Level(ETOI(LevelType::Loading), Level_Loading::Create(_device.Get(), _context.Get(), LevelType::GameEntry))))
+        GAME->Play_Sound(Constants::Sound::MainMenuLoading, SoundChannel::UI, 1.f);
+
+        if (FAILED(GAME->Change_Level(ETOI(LevelType::GameEntry), Level_GameEntry::Create(_device.Get(), _context.Get()))))
             return;
 
         return; 
@@ -49,6 +60,7 @@ void Level_MainTitle::Handle_Button()
 
     if (_exitButton && _exitButton->Was_Clicked())
     {
+        GAME->Play_Sound(Constants::Sound::MainMenuQuitGame, SoundChannel::UI, 1.f);
         PostQuitMessage(0);
 
         return;
@@ -91,5 +103,7 @@ Shared<Level_MainTitle> Level_MainTitle::Create(const ComPtr<Device>& device, co
 
 void Level_MainTitle::Free()
 {
+    GAME->Stop_SoundChannel(SoundChannel::BGM, 0.f);
+
     __super::Free();
 }

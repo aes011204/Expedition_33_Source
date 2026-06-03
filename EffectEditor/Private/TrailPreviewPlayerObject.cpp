@@ -45,7 +45,7 @@ HRESULT TrailPreviewPlayerObject::Initialize(void*)
 
     _deferPreviewWeaponCreation = false;
     if (auto* body = dynamic_cast<Body_Player*>(Get_PartObject(L"Part_Body")))
-        CHECK_FAILED(Ready_WeaponPart(body), E_FAIL);
+        CHECK_FAILED(Ready_WeaponParts(body), E_FAIL);
 
     Set_Name(L"TrailPreview_Player");
     Set_SourcePrefabName(Internal::kSourcePrefabName);
@@ -85,10 +85,17 @@ void TrailPreviewPlayerObject::Set_PreviewVisible(bool visible)
 
 HRESULT TrailPreviewPlayerObject::Restore_VisualPartsFromPrefab()
 {
-    const std::filesystem::path prefabPath =
-        std::filesystem::path(GAME->Get_AssetRoot()) / L"Data" / L"json" / L"Prefabs" / L"PB_Gustave.prefab.json";
+    const filesystem::path prefabRootPath =
+        filesystem::path(GAME->Get_AssetRoot()) / L"Data" / L"json" / L"Prefabs";
+    filesystem::path prefabPath = prefabRootPath / L"PB_Gustave.prefab.json";
 
-    const json prefabRoot = GAME->Load_JsonFile(prefabPath);
+    json prefabRoot = GAME->Load_JsonFile(prefabPath);
+    if (!prefabRoot.is_object())
+    {
+        prefabPath = prefabRootPath / L"Player" / L"PB_Gustave.prefab.json";
+        prefabRoot = GAME->Load_JsonFile(prefabPath);
+    }
+
     if (!prefabRoot.is_object())
     {
         LOG_ERROR("[TrailPreview] failed to load visual fixture prefab. path={}", prefabPath.string());
@@ -169,13 +176,12 @@ HairChainPhysicsDesc TrailPreviewPlayerObject::Get_HairChainPhysicsDesc() const
     return desc;
 }
 
-bool TrailPreviewPlayerObject::Try_GetWeaponAttackDesc(WeaponAttachDesc& outDesc) const
+void TrailPreviewPlayerObject::Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const
 {
-    outDesc = {};
-    return false;
+    outDescs.clear();
 }
 
-HRESULT TrailPreviewPlayerObject::Ready_WeaponPart(Body_Player* body)
+HRESULT TrailPreviewPlayerObject::Ready_WeaponParts(Body_Player* body)
 {
     CHECK_NULL(body, E_FAIL);
     if (_deferPreviewWeaponCreation)

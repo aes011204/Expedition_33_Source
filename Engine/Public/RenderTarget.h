@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Base.h"
+#include <vector>
 
 NS_BEGIN(Engine)
 
@@ -14,23 +15,26 @@ public:
 	~RenderTarget() override;
 
 public:
-    HRESULT Initialize(const wstring& targetTag, uint32 width, uint32 height, DXGI_FORMAT pixelFormat, const Vec4& clearColor, bool useDepthStencil = true);
-    HRESULT Resize(uint32 width, uint32 height, DXGI_FORMAT pixelFormat, const Vec4& clearColor, bool useDepthStencil = true);
-    HRESULT Begin(bool clearRenderTarget = true, bool clearDepthStencil = true);
+    HRESULT Initialize(const wstring& targetTag, uint32 width, uint32 height, DXGI_FORMAT pixelFormat, const Vec4& clearColor, bool useDepthStencil = true, uint32 arraySize = 1);
+    HRESULT Resize(uint32 width, uint32 height, DXGI_FORMAT pixelFormat, const Vec4& clearColor, bool useDepthStencil = true, uint32 arraySize = 1);
+    HRESULT Begin(bool clearRenderTarget = true, bool clearDepthStencil = true, uint32 arraySlice = 0);
     HRESULT Bind_ShaderResource(ShaderCom* shader, const char* constantName);
 
-    void Clear_RenderTarget();
-    void Clear_DepthStencil();
+    void Clear_RenderTarget(uint32 arraySlice = 0);
+    void Clear_DepthStencil(uint32 arraySlice = 0);
 
     HRESULT Copy_Resource(ID3D11Texture2D* destTexture);
 
 public:
-    RenderTargetView* Get_RTV() const { return _rtv.Get(); }
-    DepthStencilView* Get_DSV() const { return _dsv.Get(); }
+    RenderTargetView* Get_RTV() const;
+    RenderTargetView* Get_RTV(uint32 arraySlice) const;
+    DepthStencilView* Get_DSV() const;
+    DepthStencilView* Get_DSV(uint32 arraySlice) const;
     ShaderResourceView* Get_SRV() const { return _srv.Get(); }
 
     uint32 Get_Width() const { return _width; }
     uint32 Get_Height() const { return _height; }
+    uint32 Get_ArraySize() const { return _arraySize; }
 
     ComPtr<ID3D11Texture2D> Get_Texture() const { return _texture; }
 
@@ -43,13 +47,14 @@ private:
     ComPtr<Device>              _device = nullptr;
     ComPtr<Context>             _context = nullptr;
     ComPtr<Texture2D>           _texture = nullptr;
-    ComPtr<RenderTargetView>    _rtv = nullptr;
+    vector<ComPtr<RenderTargetView>> _rtvSlices{};
     ComPtr<ShaderResourceView>  _srv = nullptr;
     ComPtr<Texture2D>           _depthStencilTexture = nullptr;
-    ComPtr<DepthStencilView>    _dsv = nullptr;
+    vector<ComPtr<DepthStencilView>> _dsvSlices{};
 
     uint32      _width = 0;
     uint32      _height = 0;
+    uint32      _arraySize = 1;
     DXGI_FORMAT _pixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
     Vec4        _clearColor = Vec4(0.f, 0.f, 0.f, 1.f);
 
@@ -62,7 +67,8 @@ public:
         uint32 height,
         DXGI_FORMAT pixelFormat,
         const Vec4& clearColor,
-        bool useDepthStencil = false);
+        bool useDepthStencil = false,
+        uint32 arraySize = 1);
 
     void Free() override;
 

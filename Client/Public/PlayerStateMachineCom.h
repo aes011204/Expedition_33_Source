@@ -19,6 +19,7 @@ public:
 public:
     HRESULT Add_State(PlayerState playerState, const Shared<State>& state);
     bool Change_State(PlayerState playerState);
+    Shared<State> Get_State(PlayerState playerState) const;
 
 public:
     PlayerState Get_CurrentPlayerState() const;

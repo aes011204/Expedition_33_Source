@@ -10,6 +10,7 @@ NS_END
 
 NS_BEGIN(Client)
 
+class Mon_WeakPoint;
 class MonsterStatCom;
 class EffectCom;
 
@@ -48,9 +49,26 @@ public:
     void    Update(float timeDelta) override;
     void    Late_Update(float timeDelta) override;
 
-    void Decide_Action(ActionRequest& request, const vector<BattleChar>& heroes);
-    void Decide_Action_BTOnly(ActionRequest& request, const vector<BattleChar>& heroes);
-    
+    json    To_Json() const override;
+    void    From_Json(const json& data) override;
+
+    float   Get_BattleGroundOffsetY() const { return _battleGroundOffsetY; }
+    void    Set_BattleGroundOffsetY(float value) { _battleGroundOffsetY = value; }
+
+    void    Decide_Action(ActionRequest& request, const vector<BattleChar>& heroes);
+    void    Decide_Action_BTOnly(ActionRequest& request, const vector<BattleChar>& heroes);
+
+public:
+    // 약점 세팅
+    virtual Shared<Mon_WeakPoint> Get_BattleWeakPoint() const { return nullptr; }
+
+    // 약점 소비
+    bool Try_Consume_FreeAimWeakPoint();
+    // 약점 숨기기
+    void Hide_FreeAimWeakPoint();
+    // 부활하면 리셋?
+    void Reset_FreeAimWeakPoint();
+
 protected:
     virtual HRESULT Ready_Components();
     void ActionFromDecision(ActionRequest& request, const BattleDecision decision, const vector<BattleChar>& heroes);
@@ -59,6 +77,7 @@ protected:
     Shared<AIController>            _aiCtrl;
     Shared<MonsterStatCom>          _combatStat;
     Shared<EffectCom>               _effectCom;
+    float                           _battleGroundOffsetY = 0.f;
 
 public:
     void Free() override;

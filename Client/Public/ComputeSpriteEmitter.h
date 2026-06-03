@@ -28,8 +28,10 @@ public:
     HRESULT Render() override;
 
 public:
-    HRESULT Reset_ForEffectReplay() override; // effect root 재사용 시 sprite playback runtime을 초기화한다.
-    bool Is_EffectFinished() const override;  // sprite playback이 마지막 loop를 끝냈는지 반환한다.
+    HRESULT Reset_ForEffectReplay() override;                                   // effect root 재사용 시 sprite playback runtime을 초기화한다.
+    bool Is_EffectFinished() const override;                                    // sprite playback이 마지막 loop를 끝냈는지 반환한다.
+    bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override; // sprite spawn offset까지 반영한 Blend 정렬 대표 위치를 반환한다.
+    float Get_BlendSortBias() const override;                                   // Required Sort Bias authoring 값을 Blend 정렬 보정값으로 반환한다.
 
 public: //## Debug::EditorSession
     static void Set_InfluenceOutlineDebugEnabled(bool enabled); // EffectEditor 세션에서 sprite influence outline shader overlay를 켜고 끈다.
@@ -79,6 +81,8 @@ private: //## Data::SpawnRuntime
     vector<bool> _burstExecuted{}; // burst 목록의 1회 실행 여부를 emitter runtime 동안 유지한다.
     float _emitterElapsedTime{};   // spawn rate/burst 평가에 사용할 emitter-local 누적 시간이다.
     float _spawnAccumulator{};     // fractional spawn rate를 프레임 사이에 보존한다.
+    float _sampledSpawnRate{ 10.f };
+    float _sampledSpawnRateScale{ 1.f };
 
 private: //## Data::PlaybackRuntime
     PlaybackState _playbackState{ PlaybackState::Delayed }; // delay/playing/completed 중 현재 emitter 재생 상태다.
@@ -97,7 +101,7 @@ private: //## Helper::Setup
 private: //## Helper::Render
     HRESULT Bind_ShaderResources();          // EffectSprite shader에 camera/texture resource를 바인딩한다.
     HRESULT Bind_MaterialResources();        // EffectSprite material 파라미터를 shader에 바인딩한다.
-    HRESULT Bind_DistortionResources();      // SpriteDistortion shader에 scene snapshot과 flow 파라미터를 바인딩한다.
+    HRESULT Bind_DistortionResources();      // SpriteDistortion field shader에 flow 파라미터를 바인딩한다.
     bool Is_DistortionFamily() const;        // 현재 material family가 sprite distortion 경로인지 확인한다.
     RenderGroup Resolve_RenderGroup() const; // material family에 맞는 renderer group을 반환한다.
     const char* Resolve_ShaderId() const;    // material family에 맞는 shader prototype id를 반환한다.
@@ -111,6 +115,8 @@ private: //## Helper::Desc
 
 private: //## Helper::SpawnRuntime
     uint32 Consume_SpawnRequest(float timeDelta); // 이번 frame에 새로 활성화할 particle 수를 계산한다.
+    void Resample_LoopSpawnDistributions();       // loop 시작 시 seed 기반 spawn rate 분포를 고정 샘플한다.
+    float Sample_SpawnDistribution(const Vec2& range, const PointParticleRandomSeedRuntimeDesc& seed, uint32 salt) const;
 
 private: //## Helper::PlaybackRuntime
     void Reset_PlaybackRuntime();                   // emitter timing runtime state를 초기화한다.

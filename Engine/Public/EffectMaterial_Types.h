@@ -25,6 +25,7 @@ enum class EffectDistortionShapeMode : uint32
     None = 0, // 기존 square card 전체 distortion 동작이다.
     Radial,   // sprite UV 중심 기준 soft circle/aura 계열 영향 범위다.
     Ring,     // sprite UV 중심 기준 shockwave rim 계열 영향 범위다.
+    ShockwaveRing, // 수명 진행률로 확장하며 screen pixel 기준 두께를 유지하는 shockwave ring이다.
     END,
 };
 
@@ -74,6 +75,16 @@ struct EffectMaterialAdditiveContributionData
     Color constantColor{ 1.f, 1.f, 1.f, 1.f };
 };
 
+struct EffectMaterialCoreEmissiveData
+{
+    bool enabled{ false };
+    Color coreColor{ 1.f, 0.85f, 0.45f, 1.f };
+    float corePower{ 4.f };
+    float coreIntensity{ 2.f };
+    float outerPower{ 1.f };
+    float outerIntensity{ 1.f };
+};
+
 // effect material preset/source에서 복사되어 runtime/authoring 쪽이 함께 보는 최소 material instance 값이다.
 // sprite effect 경로에서는 mainTexturePath를 lit base color가 아니라 emissive color + opacity source로 해석한다.
 struct EffectMaterialInstanceData
@@ -96,6 +107,10 @@ struct EffectMaterialInstanceData
     float noiseStrength{ 0.f }; // noise modulation 강도다.
     float alphaCutoff{ 0.f };   // alpha cutoff 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
     float alphaErosion{ 0.f };  // mask/noise 기반 alpha erosion 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
+    string noiseSource{ "Red" }; // noise texture에서 scalar를 뽑을 채널/방식이다.
+    string maskSource{ "Alpha" }; // mask texture에서 coverage를 뽑을 채널/방식이다.
+    bool noiseInvert{ false };    // noise scalar를 1-x로 뒤집어 사용한다.
+    bool maskInvert{ false };     // mask coverage를 1-x로 뒤집어 사용한다.
 
     Vec2 mainUVScale{ 1.f, 1.f };                                                      // main texture UV scale 후보 값이다.
     Vec2 mainUVOffset{ 0.f, 0.f };                                                     // main texture UV 시작 위치를 정적으로 민다.
@@ -117,12 +132,13 @@ struct EffectMaterialInstanceData
     EffectMaterialBlendMode blendMode{ EffectMaterialBlendMode::AlphaBlend }; // effect material blend/compose mode다.
     string opacitySource{ "Alpha" };                                          // main texture에서 opacity를 뽑을 채널/방식이다.
     EffectMaterialAdditiveContributionData additive{};                        // Additive blend에서 더할 contribution 해석 규칙이다.
+    EffectMaterialCoreEmissiveData coreEmissive{};                            // alpha-derived inner core/outer halo shaping 값이다.
     float refractionIntensity{ 0.f };                                         // SpriteDistortion screen UV offset 강도다.
     float refractionPresence{ 1.f };                                          // SpriteDistortion refraction 영향도를 켜고 줄이는 authored scalar다.
     EffectDistortionShapeMode distortionShapeMode{ EffectDistortionShapeMode::None }; // SpriteDistortion 영향 범위 weight mode다.
     float distortionShapeRadius{ 0.45f };                                     // sprite UV 중심에서 shape 기준 반경이다.
-    float distortionShapeThickness{ 0.10f };                                  // Ring mode에서 중심선 주변의 단단한 띠 폭이다.
-    float distortionShapeSoftness{ 0.15f };                                   // shape edge falloff 폭이다.
+    float distortionShapeThickness{ 0.10f };                                  // Ring은 UV 폭, ShockwaveRing은 screen pixel half-width다.
+    float distortionShapeSoftness{ 0.15f };                                   // Ring은 UV falloff, ShockwaveRing은 screen pixel falloff다.
     bool twoSided{ false };                                                   // render state 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
     uint32 subUVRows{ 1 };                                                    // atlas row 수다.
     uint32 subUVCols{ 1 };                                                    // atlas column 수다.

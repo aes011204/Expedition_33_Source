@@ -136,7 +136,8 @@ public: /* For.Viewport */
 
 
     void                     Request_PreviewViewportSize(uint32 width, uint32 height);
-                             
+    void                     Apply_PreviewViewportSizeImmediate(uint32 width, uint32 height);
+
     void                     Enable_AutoPreviewViewport();
     void                     Enable_ManualPreviewViewport();
     void                     Set_ManualPreviewViewportSize(uint32 width, uint32 height);
@@ -201,11 +202,19 @@ private: /* 저장 */
 
     void Capture_PlayStartSnapshot();
     void Restore_PlayStartSnapshot();
+    void Reload_CurrentLevelMonstersFromMapJson();
+    const wchar_t* Resolve_CurrentLevelAuthoringMapPath() const;
     bool Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const;
     bool Apply_CameraPoseToCameraType(ObjectType objectType, const CameraPoseSnapshot& pose) const;
     bool Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const;
-    vector<EditorWorldObjectSnapshot> Capture_CurrentLevelObjects(int32* outSelectedIndex = nullptr) const;
-    HRESULT Restore_CurrentLevelObjects(const vector<EditorWorldObjectSnapshot>& snapshots, int32 selectedIndex);
+    bool Is_PlaySnapshotExcludedObject(const wstring& layerTag, const Shared<GameObject>& gameObject) const;
+    vector<EditorWorldObjectSnapshot> Capture_CurrentLevelObjects(
+        int32* outSelectedIndex = nullptr,
+        bool excludeMapStaticMesh = false) const;
+    HRESULT Restore_CurrentLevelObjects(
+        const vector<EditorWorldObjectSnapshot>& snapshots,
+        int32 selectedIndex,
+        bool excludeMapStaticMesh = false);
 
 private:
     bool                        _isTargetCameraEditMode = false;
@@ -254,6 +263,7 @@ private: /* Runtime Data */
 
     bool _hasPendingWindowFocus = false;
     EDITOR_VIEWPORT_TARGET _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;
+    uint32 _runtimeGameFocusRecoveryFrames = 0;
     mutable PreviewOwner _stickyPreviewOwner = PreviewOwner::None;
 
     bool _pendingSingleFrameStep = false;

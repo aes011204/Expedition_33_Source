@@ -47,7 +47,7 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     // MRT_ShadowObjects
     CHECK_FAILED(Add_RenderTarget(RT::LightDepth,
         _shadowMapWidth, _shadowMapHeight,
-        DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
+        DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV, ShadowLightDesc::SHADOW_CASCADE_COUNT), E_FAIL);
 
     CHECK_FAILED(Add_RenderTarget(RT::StaticLightDepth,
         _staticShadowMapWidth, _staticShadowMapHeight,
@@ -79,9 +79,15 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::DistortionSource,
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::DistortionField,
+        width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::BackgroundMask,
         width, height, DXGI_FORMAT_R8_UNORM, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
-    CHECK_FAILED(Add_RenderTarget(RT::ScreenFxColor,
+    CHECK_FAILED(Add_RenderTarget(RT::ScreenFxColorA,
+        width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::ScreenFxColorB,
+        width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::ScreenCapture,
         width, height, DXGI_FORMAT_R8G8B8A8_UNORM, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
 
     //CHECK_FAILED(Ready_ShadowDSV(), E_FAIL);
@@ -108,7 +114,9 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     // PostProcess
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
-    CHECK_FAILED(Add_MRT(MRT::ScreenFx, RT::ScreenFxColor), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::DistortionField, RT::DistortionField), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::ScreenFxA, RT::ScreenFxColorA), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::ScreenFxB, RT::ScreenFxColorB), E_FAIL);
 
     CHECK_FAILED(Add_MRT(MRT::BloomHalfA, RT::BloomHalfA), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::BloomHalfB, RT::BloomHalfB), E_FAIL);
@@ -125,12 +133,12 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     return S_OK;
 }
 
-HRESULT Target_Manager::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport, bool useDSV)
+HRESULT Target_Manager::Add_RenderTarget(const wstring& targetTag, uint32 sizeX, uint32 sizeY, DXGI_FORMAT pixelFormat, const Color& clearColor, bool resizeWithViewport, bool useDSV, uint32 arraySize)
 {
     if (Find_RenderTarget(targetTag))
         return E_FAIL;
 
-    auto target = RenderTarget::Create(targetTag, _device, _context, sizeX, sizeY, pixelFormat, clearColor, useDSV);
+    auto target = RenderTarget::Create(targetTag, _device, _context, sizeX, sizeY, pixelFormat, clearColor, useDSV, arraySize);
 
     if (target == nullptr)
         return E_FAIL;
@@ -144,6 +152,7 @@ HRESULT Target_Manager::Add_RenderTarget(const wstring& targetTag, uint32 sizeX,
     desc.clearColor = clearColor;
     desc.hasDepth = useDSV;
     desc.resizeWithViewport = resizeWithViewport; 
+    desc.arraySize = arraySize;
 
     _renderTargets.emplace(targetTag, desc);
 
@@ -191,7 +200,7 @@ HRESULT Target_Manager::Bind_ShaderResource(Shared<ShaderCom> shader, const char
     return shader->Bind_SRV(constantName, renderTarget->Get_SRV());
 }
 
-HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV)
+HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clearRTV, uint32 arraySlice)
 {
     auto mrt = Find_MRT(mrtTag);
     CHECK_NULL(mrt, E_FAIL);
@@ -222,12 +231,12 @@ HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clear
             {
                 if (useDSV)
                 {
-                    rt->Clear_DepthStencil();
-                    dsv = rt->Get_DSV();
+                    rt->Clear_DepthStencil(arraySlice);
+                    dsv = rt->Get_DSV(arraySlice);
                 }
                 if (clearRTV)
                 {
-                    rt->Clear_RenderTarget();
+                    rt->Clear_RenderTarget(arraySlice);
                 }
                 break;
             }
@@ -247,7 +256,7 @@ HRESULT Target_Manager::Begin_MRT(const wstring& mrtTag, bool useDSV, bool clear
         if (renderTargetCount >= 8)
             return E_FAIL;
 
-        renderTargets[renderTargetCount++] = rt->Get_RTV();
+        renderTargets[renderTargetCount++] = rt->Get_RTV(arraySlice);
     }
 
     dsv = dsv ? dsv : _originalDSV.Get();
@@ -323,7 +332,7 @@ HRESULT Target_Manager::Resize_MRTs(uint32 width, uint32 height)
         if (!desc.resizeWithViewport)
             continue;
 
-        if (FAILED(desc.target->Resize(width, height, desc.format, desc.clearColor, desc.hasDepth)))
+        if (FAILED(desc.target->Resize(width, height, desc.format, desc.clearColor, desc.hasDepth, desc.arraySize)))
             return E_FAIL;
     }
 
@@ -363,14 +372,24 @@ HRESULT Target_Manager::Copy_CurrentRTV_To(const wstring& targetTag)
     srcTexture->GetDesc(&srcDesc);
     dstTexture->GetDesc(&dstDesc);
 
-    if (srcDesc.Width != dstDesc.Width
-        || srcDesc.Height != dstDesc.Height
-        || srcDesc.Format != dstDesc.Format)
+    if (srcDesc.Format != dstDesc.Format)
     {
         return E_FAIL;
     }
 
-    // src 를 dst 에 그대로 덮어쓴다
+    if (srcDesc.Width != dstDesc.Width || srcDesc.Height != dstDesc.Height)
+    {
+        D3D11_BOX box{};
+        box.left = 0;
+        box.top = 0;
+        box.front = 0;
+        box.right = min(srcDesc.Width, dstDesc.Width);
+        box.bottom = min(srcDesc.Height, dstDesc.Height);
+        box.back = 1;
+        _context->CopySubresourceRegion(dstTexture.Get(), 0, 0, 0, 0, srcTexture.Get(), 0, &box);
+        return S_OK;
+    }
+
     _context->CopyResource(dstTexture.Get(), srcTexture.Get());
 
     return S_OK;
@@ -400,11 +419,22 @@ HRESULT Target_Manager::Copy_RTV(const wstring& srcTargetTag, const wstring& dst
     srcTexture->GetDesc(&srcDesc);
     dstTexture->GetDesc(&dstDesc);
 
-    if (srcDesc.Width != dstDesc.Width
-        || srcDesc.Height != dstDesc.Height
-        || srcDesc.Format != dstDesc.Format)
+    if (srcDesc.Format != dstDesc.Format)
     {
         return E_FAIL;
+    }
+
+    if (srcDesc.Width != dstDesc.Width || srcDesc.Height != dstDesc.Height)
+    {
+        D3D11_BOX box{};
+        box.left = 0;
+        box.top = 0;
+        box.front = 0;
+        box.right = min(srcDesc.Width, dstDesc.Width);
+        box.bottom = min(srcDesc.Height, dstDesc.Height);
+        box.back = 1;
+        _context->CopySubresourceRegion(dstTexture.Get(), 0, 0, 0, 0, srcTexture.Get(), 0, &box);
+        return S_OK;
     }
 
     // src 를 dst 에 그대로 덮어쓴다

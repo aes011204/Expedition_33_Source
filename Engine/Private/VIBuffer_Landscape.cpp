@@ -12,7 +12,7 @@ VIBuffer_Landscape::VIBuffer_Landscape(const VIBuffer_Landscape& prototype)
 
 void VIBuffer_Landscape::Set_LayerCount(uint32 count)
 {
-    count = min(count, 4u);
+    count = min(count, MAX_LAYERS);
     uint32 oldCount = static_cast<uint32>(_weightMaps.size());
     if (count <= oldCount)
     {
@@ -489,7 +489,7 @@ void VIBuffer_Landscape::Paint_Layer(uint32 layerIdx, float worldX, float worldZ
             uint32 idx = z * numVX + x;
 
             float& w = _weightMaps[layerIdx][idx];
-            w = min(1.f, w + strength * t * t);
+            w = min(1.f, w + strength * t);
 
             float remaining = 1.f - w;
             float otherSum = 0.f;
@@ -523,6 +523,44 @@ void VIBuffer_Landscape::Clear_Layers()
 {
     _weightMaps.clear();
     _layerCount = 0;
+}
+
+void VIBuffer_Landscape::Remove_Layer(uint32 idx)
+{
+    if (idx >= _layerCount || _layerCount <= 1)
+    {
+        return;
+    }
+
+    const uint32 numVerts = (_desc.countX + 1) * (_desc.countZ + 1);
+
+    if (idx != 0)
+    {
+        for (uint32 v = 0; v < numVerts; ++v)
+        {
+            _weightMaps[0][v] += _weightMaps[idx][v];
+        }
+    }
+    else
+    {
+        for (uint32 v = 0; v < numVerts; ++v)
+        {
+            _weightMaps[1][v] += _weightMaps[0][v];
+        }
+    }
+
+    _weightMaps.erase(_weightMaps.begin() + idx);
+    --_layerCount;
+}
+
+void VIBuffer_Landscape::Swap_Layer(uint32 a, uint32 b)
+{
+    if (a >= _layerCount || b >= _layerCount || a == b)
+    {
+        return;
+    }
+
+    swap(_weightMaps[a], _weightMaps[b]);
 }
 
 Shared<VIBuffer_Landscape> VIBuffer_Landscape::Create(const ComPtr<Device>& device, const ComPtr<Context>& context, const LAND_DESC& desc)

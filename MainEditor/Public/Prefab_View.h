@@ -55,6 +55,7 @@ private:
     void Render_GizmoOverlay();
     void Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& selectedObject);
     bool Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject);
+    bool Draw_BattleStartSpawnerSelector(const Shared<GameObject>& selectedObject);
     void Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey);
     void Draw_ComponentEntries(const Shared<GameObject>& gameObject, const wstring& objectKey);
 
@@ -69,6 +70,7 @@ private:
 
     void Draw_PreviewColliders(const Shared<GameObject>& gameObject) const;
     void Draw_PreviewGrid() const;
+    void Draw_MonsterBattleSpawnPreview() const;
     void Draw_SelectedWeaponTrailAnchorPreview() const;
 
     Shared<ModelCom> Find_FirstModelComponent() const;
@@ -94,6 +96,8 @@ private:
 private:
     string              _prefabName {};
     fs::path            _prefabPath{};
+    wstring             _defaultSpawnLayerTag = TEXT("Layer_GameObject");
+    char                _defaultSpawnLayerTagBuffer[128] = "Layer_GameObject";
 
     // 프리펩이 어떤 클래스로 만들어졌는지 구별용
     string              _sourceStaticClass{};
@@ -105,9 +109,12 @@ private:
     Shared<DirectX::BasicEffect> _previewGridEffect{};
     ComPtr<ID3D11InputLayout> _previewGridInputLayout{};
     ComPtr<ID3D11DepthStencilState> _previewGridDepthState{};
+    ComPtr<ID3D11DepthStencilState> _previewOverlayDepthState{};
 
     bool                _isPreviewHovered = false;
     bool                _isPreviewActive = false;
+    bool                _isGizmoHovered = false;
+    bool                _isGizmoUsing = false;
     bool                _applyDefaultWindowLayout = false;
     bool                _openAnimationViewWithPrefab = false;
 

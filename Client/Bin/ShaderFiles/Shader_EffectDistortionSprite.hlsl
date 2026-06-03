@@ -5,6 +5,7 @@
 #include "Engine_Shader_Samplers.hlsl"
 #include "Engine_Shader_EffectMaterial.hlsl"
 #include "Shader_EffectSpriteCommon.hlsli"
+#include "Shader_EffectDistortionCommon.hlsli"
 
 cbuffer cbEffectDistortionSpriteMaterial : register(b2)
 {
@@ -17,6 +18,7 @@ cbuffer cbEffectDistortionSpriteMaterial : register(b2)
     float4 g_EffectSpriteUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteUVModeParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectSpriteSourceParams = { 1.f, 0.f, 0.f, 0.f };
     float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f };            // x:intensity, y:presence, z:useFlow, w:emitterElapsedTime
     float4 g_EffectDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f }; // x:mode, y:radius, z:thickness, w:softness
     float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f };       // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
@@ -24,17 +26,25 @@ cbuffer cbEffectDistortionSpriteMaterial : register(b2)
     float2 g_FlowUVScale = { 1.f, 1.f };
     float2 g_FlowUVOffset = { 0.f, 0.f };
     float2 g_FlowUVScrollSpeed = { 0.f, 0.f };
+    float4 g_EffectMaterialScalarModulationParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectMaterialScalarModulationMeta[8];
+    float4 g_EffectMaterialScalarModulationKeyTimes[8];
+    float4 g_EffectMaterialScalarModulationKeyValues[8];
+    float4 g_EffectMaterialScalarModulationKeyArriveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyLeaveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyModes[8];
     float g_FlowUVTilingMode = 0.f;
     int g_OpacitySource = 0;
     float g_EffectSpriteMaterialTime = 0.f;
     float g_DistortionPadding;
 };
 
+#include "Shader_EffectMaterialScalarModulation.hlsli"
+
 Texture2D g_Texture : register(t0);
 Texture2D g_NoiseTexture : register(t1);
 Texture2D g_MaskTexture : register(t2);
 Texture2D g_FlowTexture : register(t3);
-Texture2D g_DistortionSourceTexture : register(t4);
 
 static const float3 kInfluenceOutlineColor = float3(1.f, 0.f, 0.f);
 
@@ -56,18 +66,18 @@ float4 Sample_EffectSpriteMainTexture(float2 uv, float mode)
            : g_Texture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_EffectSpriteNoiseTexture(float2 uv, float mode)
+float4 Sample_EffectSpriteNoiseTexture(float2 uv, float mode)
 {
     return Use_EffectSpriteClampSampler(mode)
-           ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
-           : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
+           ? g_NoiseTexture.Sample(LinearClampSampler, uv)
+           : g_NoiseTexture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_EffectSpriteMaskTexture(float2 uv, float mode)
+float4 Sample_EffectSpriteMaskTexture(float2 uv, float mode)
 {
     return Use_EffectSpriteClampSampler(mode)
-           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
-           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+           ? g_MaskTexture.Sample(LinearClampSampler, uv)
+           : g_MaskTexture.Sample(LinearWrapSampler, uv);
 }
 
 float2 Sample_EffectSpriteFlowTexture(float2 uv, float mode)
@@ -153,12 +163,47 @@ float3 ResolveFacingLookDirection(float3 particlePosition)
     return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
 }
 
-// emitter 중심에서 바깥쪽을 향하는 정규화 look 방향을 구한다.
-float3 ResolveAwayFromCenterLookDirection(float3 particlePosition)
+bool TryNormalizeDirection(float3 direction, out float3 normalizedDirection)
 {
-    float3 lookDir = particlePosition - g_EffectSpriteEmitterCenter.xyz;
-    const float lookLength = length(lookDir);
-    return lookLength < 0.0001f ? float3(0.f, 0.f, 1.f) : lookDir / lookLength;
+    normalizedDirection = float3(0.f, 0.f, 0.f);
+
+    const float directionLength = length(direction);
+    const bool valid = directionLength >= 0.0001f;
+    if (valid)
+        normalizedDirection = direction / directionLength;
+
+    return valid;
+}
+
+bool TryResolveAwayFromCenterLookDirection(float3 particlePosition, out float3 lookDir)
+{
+    return TryNormalizeDirection(particlePosition - g_EffectSpriteEmitterCenter.xyz, lookDir);
+}
+
+bool TryResolveVelocityLookDirection(float3 velocityDirection, out float3 lookDir)
+{
+    return TryNormalizeDirection(velocityDirection, lookDir);
+}
+
+bool TryResolveDirectionalLookDirection(float3 particlePosition, float3 velocityDirection, out float3 lookDir)
+{
+    lookDir = float3(0.f, 0.f, 0.f);
+    bool resolved = false;
+
+    if (g_ScreenAlignmentMode == 3)
+    {
+        resolved = TryResolveAwayFromCenterLookDirection(particlePosition, lookDir);
+        if (!resolved)
+            resolved = TryResolveVelocityLookDirection(velocityDirection, lookDir);
+    }
+    else if (g_ScreenAlignmentMode == 4)
+    {
+        resolved = TryResolveVelocityLookDirection(velocityDirection, lookDir);
+        if (!resolved)
+            resolved = TryResolveAwayFromCenterLookDirection(particlePosition, lookDir);
+    }
+
+    return resolved;
 }
 
 // look 방향을 기준으로 billboard right/up 축을 만든다.
@@ -181,69 +226,66 @@ void ResolveCameraPlaneBasis(out float3 rightDir, out float3 upDir)
     upDir = normalize(float3(g_ViewMatrix[0].y, g_ViewMatrix[1].y, g_ViewMatrix[2].y));
 }
 
-// texture 축 하나를 지정 방향에 맞추는 billboard basis를 시도한다.
-bool TryResolveTextureAxisBasis(float3 axisDir, out float3 rightDir, out float3 upDir)
+// texture 축 하나를 지정 방향에 맞추고, 나머지 축은 카메라 가시성을 유지하도록 만든다.
+bool TryResolveTextureAxisBasis(float3 axisDir, float3 particlePosition, out float3 rightDir, out float3 upDir)
 {
     ResolveCameraPlaneBasis(rightDir, upDir);
 
-    const float3 planeNormal = normalize(cross(rightDir, upDir));
-    float3 projectedAxis = axisDir - planeNormal * dot(axisDir, planeNormal);
-    const float projectedLength = length(projectedAxis);
-    if (projectedLength < 0.0001f)
-        return false;
+    float3 axis = float3(0.f, 0.f, 0.f);
+    float3 cameraLook = float3(0.f, 0.f, 0.f);
+    bool resolved = TryNormalizeDirection(axisDir, axis);
+    if (resolved)
+        resolved = TryNormalizeDirection(g_CamPosition.xyz - particlePosition, cameraLook);
 
-    projectedAxis /= projectedLength;
-
-    if (g_SpriteTextureAxis == 0)
+    if (resolved && g_SpriteTextureAxis == 0)
     {
-        rightDir = projectedAxis;
-        upDir = normalize(cross(planeNormal, rightDir));
+        rightDir = axis;
+        resolved = TryNormalizeDirection(cross(rightDir, cameraLook), upDir);
     }
-    else
+    else if (resolved)
     {
-        upDir = projectedAxis;
-        rightDir = normalize(cross(upDir, planeNormal));
+        upDir = axis;
+        resolved = TryNormalizeDirection(cross(cameraLook, upDir), rightDir);
     }
 
-    return true;
+    return resolved;
 }
 
 [maxvertexcount(4)]
 void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
 {
     const float3 particlePosition = In[0].worldPosition.xyz;
-    float3 rightDir = float3(1.f, 0.f, 0.f);
-    float3 upDir = float3(0.f, 1.f, 0.f);
-    if (g_ScreenAlignmentMode == 1 || g_ScreenAlignmentMode == 2)
-        ResolveCameraPlaneBasis(rightDir, upDir);
-    else if (g_ScreenAlignmentMode == 3)
+    float3 rightDir = float3(0.f, 0.f, 0.f);
+    float3 upDir = float3(0.f, 0.f, 0.f);
+    ResolveCameraPlaneBasis(rightDir, upDir);
+    if (g_ScreenAlignmentMode == 5)
     {
-        const float3 lookDir = ResolveAwayFromCenterLookDirection(particlePosition);
+        rightDir = float3(1.f, 0.f, 0.f);
+        upDir = float3(0.f, 1.f, 0.f);
+    }
+    else if (g_ScreenAlignmentMode == 6)
+    {
+        rightDir = float3(1.f, 0.f, 0.f);
+        upDir = float3(0.f, 0.f, 1.f);
+    }
+    else if (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4)
+    {
+        float3 lookDir = float3(0.f, 0.f, 0.f);
+        const bool hasLookDir = TryResolveDirectionalLookDirection(particlePosition, In[0].velocityDirection, lookDir);
 
         if (g_DirectionalAlignmentMode == 1) // 스프라이트의 X 또는 Y 가 바라보도록
         {
-            if (!TryResolveTextureAxisBasis(lookDir, rightDir, upDir))
-                ResolveCameraPlaneBasis(rightDir, upDir);
+            if (hasLookDir)
+                TryResolveTextureAxisBasis(lookDir, particlePosition, rightDir, upDir);
         }
         else // 스프라이트의 look 이 바라보도록
-            ResolveLookAlignedBasis(lookDir, rightDir, upDir);
-    }
-    else if (g_ScreenAlignmentMode == 4)
-    {
-        const float velocityLength = length(In[0].velocityDirection);
-        const float3 lookDir = velocityLength < 0.0001f
-                               ? ResolveFacingLookDirection(particlePosition)
-                               : In[0].velocityDirection / velocityLength;
-
-        if (g_DirectionalAlignmentMode == 1 && velocityLength >= 0.0001f)
         {
-            if (!TryResolveTextureAxisBasis(lookDir, rightDir, upDir))
-                ResolveLookAlignedBasis(lookDir, rightDir, upDir);
-        }
-        else
+            if (!hasLookDir)
+                lookDir = ResolveFacingLookDirection(particlePosition);
             ResolveLookAlignedBasis(lookDir, rightDir, upDir);
+        }
     }
-    else
+    else if (g_ScreenAlignmentMode != 1 && g_ScreenAlignmentMode != 2)
     {
         const float3 lookDir = ResolveFacingLookDirection(particlePosition);
         ResolveLookAlignedBasis(lookDir, rightDir, upDir);
@@ -267,7 +309,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     upDir *= spriteSize.y * 0.5f;
 
     const matrix ViewProjMatrix = mul(g_ViewMatrix, g_ProjMatrix);
-    GS_OUT Out[4];
+    GS_OUT Out[4] = (GS_OUT[4])0;
 
     Out[0].position = mul(float4(particlePosition - rightDir + upDir, 1.f), ViewProjMatrix);
     Out[0].texCoord = float2(0.f, 0.f);
@@ -318,31 +360,7 @@ struct PS_OUT
     float4 color : SV_TARGET0;
 };
 
-float Compute_DistortionShapeWeight(float2 cardUV)
-{
-    const float mode = g_EffectDistortionShapeParams.x;
-    float shapeWeight = 1.f;
-
-    if (mode >= 0.5f)
-    {
-        const float radius = max(g_EffectDistortionShapeParams.y, 0.f);
-        const float thickness = max(g_EffectDistortionShapeParams.z, 0.f);
-        const float softness = max(g_EffectDistortionShapeParams.w, 0.0001f);
-        const float distanceFromCenter = distance(cardUV, float2(0.5f, 0.5f));
-
-        if (mode < 1.5f)
-            shapeWeight = 1.f - smoothstep(radius, radius + softness, distanceFromCenter);
-        else
-        {
-            const float ringDistance = abs(distanceFromCenter - radius);
-            shapeWeight = 1.f - smoothstep(thickness, thickness + softness, ringDistance);
-        }
-    }
-
-    return saturate(shapeWeight);
-}
-
-float Compute_DistortionInfluenceOutline(float2 cardUV)
+float Compute_DistortionInfluenceOutline(float2 cardUV, float lifeProgress)
 {
     const float mode = g_EffectDistortionShapeParams.x;
     const float outlineWidth = Compute_InfluenceOutlineWidth(cardUV);
@@ -351,10 +369,19 @@ float Compute_DistortionInfluenceOutline(float2 cardUV)
 
     if (mode >= 0.5f && mode < 1.5f)
         edgeDistance = abs(distanceFromCenter - max(g_EffectDistortionShapeParams.y, 0.f));
-    else if (mode >= 1.5f)
+    else if (mode >= 1.5f && mode < 2.5f)
     {
         const float radius = max(g_EffectDistortionShapeParams.y, 0.f);
         const float thickness = max(g_EffectDistortionShapeParams.z, 0.f);
+        edgeDistance = abs(abs(distanceFromCenter - radius) - thickness);
+    }
+    else if (mode >= 2.5f)
+    {
+        const float pixelUvWidth = EffectDistortion_ComputeShockwavePixelUvWidth(cardUV);
+        const float thickness = max(g_EffectDistortionShapeParams.z, 0.f) * pixelUvWidth;
+        const float softness = max(g_EffectDistortionShapeParams.w, 0.0001f) * pixelUvWidth;
+        const float radiusMax = max(0.f, 0.5f - thickness - softness);
+        const float radius = saturate(lifeProgress) * radiusMax;
         edgeDistance = abs(abs(distanceFromCenter - radius) - thickness);
     }
 
@@ -374,46 +401,57 @@ PS_OUT PS_MAIN(PS_IN In)
     const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, g_EffectSpriteUVModeParams.z);
     const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, g_EffectSpriteUVModeParams.x);
     const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
-    const float opacityPower = max(g_EffectSpriteParams.y, 0.0001f);
-    const float alphaCutoff = saturate(g_EffectSpriteAlphaParams.x);
-    const float alphaErosion = saturate(g_EffectSpriteAlphaParams.y);
+    const float resolvedOpacityPower = g_EffectSpriteParams.y
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
+    const float resolvedNoiseStrength = g_EffectSpriteParams.z
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
+    const float resolvedAlphaErosion = g_EffectSpriteAlphaParams.y
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
+    const float resolvedAlphaCutoff = g_EffectSpriteAlphaParams.x
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
+    const float opacityPower = max(resolvedOpacityPower, 0.0001f);
+    const float alphaCutoff = saturate(resolvedAlphaCutoff);
+    const float alphaErosion = saturate(resolvedAlphaErosion);
     float noiseFactor = 1.f;
     float maskAlpha = 1.f;
 
-    if (0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f)
+    if (0 != g_EffectSpriteParams.w && resolvedNoiseStrength > 0.f)
     {
-        const float noise = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
-        noiseFactor = lerp(1.f, noise, saturate(g_EffectSpriteParams.z));
+        const float4 noiseTexel = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
+        const float noise = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectSpriteSourceParams.x),
+            g_EffectSpriteSourceParams.z
+        );
+        noiseFactor = lerp(1.f, noise, saturate(resolvedNoiseStrength));
     }
 
     if (0 != g_EffectSpriteAlphaParams.z)
-        maskAlpha = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
+    {
+        const float4 maskTexel = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectSpriteSourceParams.y),
+            g_EffectSpriteSourceParams.w
+        );
+    }
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
-    const float coverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, particleColor.a * g_Tint.a);
-    if (coverage < max(alphaCutoff, 0.01f))
+    const float materialCoverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, particleColor.a * g_Tint.a);
+    if (materialCoverage < max(alphaCutoff, 0.01f))
         discard;
 
-    const float2 screenUV = In.position.xy / max(g_DistortionScreenSize.xy, float2(1.f, 1.f));
     const float2 flowUV = Build_EffectSpriteUV(sampleUV, float4(g_FlowUVScale, g_FlowUVScrollSpeed), g_FlowUVOffset, g_FlowUVTilingMode);
     const float2 flow = 0 != g_EffectDistortionParams.z
                         ? Sample_EffectSpriteFlowTexture(flowUV, g_FlowUVTilingMode) * 2.f - 1.f
                         : float2(0.f, 0.f);
 
-    const float shapeWeight = Compute_DistortionShapeWeight(In.texCoord);
-    const float strength = g_EffectDistortionParams.x * g_EffectDistortionParams.y * coverage * shapeWeight;
-    const float4 distortedColor = g_DistortionSourceTexture.Sample(LinearClampSampler, screenUV + flow * strength);
-    Out.color = float4(distortedColor.rgb, coverage);
-    if (g_EffectInfluenceDebugParams.x > 0.5f)
-    {
-        const float outlineMask = saturate(Compute_DistortionInfluenceOutline(In.texCoord));
-        Out.color.rgb = lerp(Out.color.rgb, kInfluenceOutlineColor, outlineMask);
-        Out.color.a = max(Out.color.a, outlineMask);
-    }
+    const float shapeCoverage = EffectDistortion_ComputeShapeCoverage(g_EffectDistortionShapeParams, In.texCoord, lifeProgress);
+    const float lensCoverage = EffectDistortion_ComputeLensCoverage(materialCoverage, shapeCoverage, g_EffectDistortionParams.y);
+    const float2 offset = EffectDistortion_ComputeScreenOffset(flow, g_EffectDistortionParams.x);
+    Out.color = EffectDistortion_PackField(offset, lensCoverage);
     return Out;
 }
 
 technique11 DefaultTechnique
 {
-    PASS_RS_DS_BS_VGP(DistortionPass, RS_CullNone, DSS_DepthRead, BS_EffectAlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN)
+    PASS_RS_DS_BS_VGP(DistortionPass, RS_CullNone, DSS_DepthRead, BS_Blend, VS_MAIN, GS_MAIN, PS_MAIN)
 }

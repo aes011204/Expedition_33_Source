@@ -333,6 +333,27 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
     ImGui::TableSetColumnIndex(1);
     ImGui::Text("%.2f", material.noiseStrength);
 
+    ImGui::TableNextRow();
+    ImGui::TableSetColumnIndex(0);
+    ImGui::TextDisabled("Core Emissive");
+    ImGui::TableSetColumnIndex(1);
+    ImGui::Text("%s", material.coreEmissive.enabled ? "Enabled" : "Disabled");
+
+    if (material.coreEmissive.enabled)
+    {
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextDisabled("Core Power / Intensity");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::Text("%.2f / %.2f", material.coreEmissive.corePower, material.coreEmissive.coreIntensity);
+
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::TextDisabled("Outer Power / Intensity");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::Text("%.2f / %.2f", material.coreEmissive.outerPower, material.coreEmissive.outerIntensity);
+    }
+
     drawRow("Blend Mode", Internal::Get_BlendModeLabel(material.blendMode));
     if (material.blendMode == EffectMaterialBlendMode::Additive)
     {

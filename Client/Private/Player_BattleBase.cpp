@@ -10,6 +10,7 @@
 #include "EffectCom.h"
 #include "WeaponPrefabLoader.h"
 #include "BattleMechanismCom.h"
+#include "FaceAccessory_Player.h"
 
 Player_BattleBase::Player_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_BattleBase(device, context)
@@ -65,21 +66,18 @@ void Player_BattleBase::Update(float timeDelta)
 void Player_BattleBase::Late_Update(float timeDelta)
 {
     Character_BattleBase::Late_Update(timeDelta);
-    
+
 }
 
 json Player_BattleBase::To_Json() const
 {
     json root = GameObject::To_Json();
+    root["custom_properties"]["battle_ground_offset_y"] = _battleGroundOffsetY;
     json parts = json::array();
 
     for (const auto& [partTag, partObject] : _partObjects)
     {
         if (partObject == nullptr)
-            continue;
-
-        // 무기 파트는 코드 + WP_* 프리펩에서 재구성되므로 PB 저장본에는 넣지 않는다.
-        if (partTag == L"Part_Weapon")
             continue;
 
         json partJson = json::object();
@@ -95,6 +93,14 @@ json Player_BattleBase::To_Json() const
 void Player_BattleBase::From_Json(const json& data)
 {
     Character_BattleBase::From_Json(data);
+
+    _battleGroundOffsetY = 0.f;
+
+    if (data.contains("custom_properties") && data["custom_properties"].is_object())
+    {
+        const json& customProperties = data["custom_properties"];
+        _battleGroundOffsetY = customProperties.value("battle_ground_offset_y", 0.f);
+    }
 }
 
 HRESULT Player_BattleBase::Ready_PartObjects()
@@ -122,6 +128,43 @@ HRESULT Player_BattleBase::Ready_PartObjects()
 
     head->Set_LeaderPoseComponent(body);
 
+    // 수염/콧수염
+    if (const wchar_t* beardModelTag = Get_BeardModelTag())
+    {
+        FaceAccessory_Player::FACE_ACCESSORY_DESC beardPartDesc{};
+        beardPartDesc.parentMatrix = bodyDesc.parentMatrix;
+        beardPartDesc.modelType = ModelType::NonAnim;
+        beardPartDesc.modelTag = beardModelTag;
+        beardPartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
+
+        if (FAILED(
+            __super::Add_PartObject(
+                ETOI(LevelType::Static),
+                TEXT("GameObject_FaceAccessory_Player"),
+                TEXT("Part_Beard"),
+                &beardPartDesc)
+        ))
+            return E_FAIL;
+    }
+
+    if (const wchar_t* mustacheModelTag = Get_MustacheModelTag())
+    {
+        FaceAccessory_Player::FACE_ACCESSORY_DESC mustachePartDesc{};
+        mustachePartDesc.parentMatrix = bodyDesc.parentMatrix;
+        mustachePartDesc.modelType = ModelType::NonAnim;
+        mustachePartDesc.modelTag = mustacheModelTag;
+        mustachePartDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
+
+        if (FAILED(
+            __super::Add_PartObject(
+                ETOI(LevelType::Static),
+                TEXT("GameObject_FaceAccessory_Player"),
+                TEXT("Part_Mustache"),
+                &mustachePartDesc)
+        ))
+            return E_FAIL;
+    }
+
     Hair_Player::HAIR_PLAYER_DESC hairDesc{};
     hairDesc.parentMatrix = bodyDesc.parentMatrix;
     hairDesc.modelType = ModelType::Anim;
@@ -131,48 +174,65 @@ HRESULT Player_BattleBase::Ready_PartObjects()
 
     CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), TEXT("Part_Hair"), &hairDesc), E_FAIL);
 
-    CHECK_FAILED(Ready_WeaponPart(body), E_FAIL);
+    CHECK_FAILED(Ready_WeaponParts(body), E_FAIL);
 
     return S_OK;
 }
 
-HRESULT Player_BattleBase::Ready_WeaponPart(Body_Player* body)
+HRESULT Player_BattleBase::Ready_WeaponParts(Body_Player* body)
 {
     CHECK_NULL(body, E_FAIL);
 
-    WeaponAttachDesc attachDesc{};
-    if (!Try_GetWeaponAttackDesc(attachDesc))
-        return S_OK; // 무기가 없는 캐릭터는 여기서 끝
+    vector<WeaponAttachDesc> attachDescs{};
+    Get_WeaponAttachDescs(attachDescs);
 
-    CHECK_NULL(attachDesc.socketName, E_FAIL);
-    if (attachDesc.weaponPrefabName.empty())
-        return E_FAIL;
+    for (const auto& attachDesc : attachDescs)
+    {
+        if (attachDesc.partTag.empty())
+            return E_FAIL;
+        if (attachDesc.weaponPrefabName.empty())
+            return E_FAIL;
 
-    const Matrix* socketMatrix = body->Get_SocketBoneMatrixPtr(attachDesc.socketName);
-    CHECK_NULL(socketMatrix, E_FAIL);
+        WeaponPrefabLoader::LoadedWeaponPrefab loadedPrefab{};
+        if (!WeaponPrefabLoader::Load(attachDesc.weaponPrefabName, loadedPrefab))
+            return E_FAIL;
 
-    WeaponPrefabLoader::LoadedWeaponPrefab loadedPrefab{};
-    if (!WeaponPrefabLoader::Load(attachDesc.weaponPrefabName, loadedPrefab))
-        return E_FAIL;
+        Weapon::WEAPON_DESC weaponDesc{};
+        weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+        weaponDesc.modelType = loadedPrefab.modelType;
+        weaponDesc.modelTag = loadedPrefab.modelTag.c_str();
+        weaponDesc.socketMatrix = nullptr;
+        weaponDesc.useBodyFollow = attachDesc.useBodyFollow;
+        weaponDesc.bodyFollowOffset = attachDesc.bodyFollowOffset;
 
-    Weapon::WEAPON_DESC weaponDesc{};
-    weaponDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
-    weaponDesc.modelType = loadedPrefab.modelType;
-    weaponDesc.modelTag = loadedPrefab.modelTag.c_str();
-    weaponDesc.socketMatrix = socketMatrix;
+        if (attachDesc.useBodyFollow)
+        {
+            weaponDesc.socketMatrix = nullptr;
+        }
+        else if (attachDesc.socketName != nullptr)
+        {
+            const Matrix* socketMatrix = body->Get_SocketBoneMatrixPtr(attachDesc.socketName);
+            CHECK_NULL(socketMatrix, E_FAIL);
 
-    // 생성은 기조 Weapon Prototype 유지하고, 세부값은 WP_
-    CHECK_FAILED(Add_PartObject(
-        ETOI(LevelType::Static),
-        TEXT("GameObject_Weapon"),
-        TEXT("Part_Weapon"),
-        &weaponDesc), E_FAIL);
+            weaponDesc.socketMatrix = socketMatrix;
+        }
+        else
+        {
+            weaponDesc.socketMatrix = nullptr;
+        }
 
-    PartObject* weaponPart = Get_PartObject(L"Part_Weapon");
-    CHECK_NULL(weaponPart, E_FAIL);
+        CHECK_FAILED(Add_PartObject(
+            ETOI(LevelType::Static),
+            TEXT("GameObject_Weapon"),
+            attachDesc.partTag.c_str(),
+            &weaponDesc), E_FAIL);
 
-    weaponPart->From_Json(loadedPrefab.rootJson);
-    weaponPart->Set_SourcePrefabName(attachDesc.weaponPrefabName);
+        PartObject* weaponPart = Get_PartObject(attachDesc.partTag);
+        CHECK_NULL(weaponPart, E_FAIL);
+
+        weaponPart->From_Json(loadedPrefab.rootJson);
+        weaponPart->Set_SourcePrefabName(attachDesc.weaponPrefabName);
+    }
 
     return S_OK;
 }

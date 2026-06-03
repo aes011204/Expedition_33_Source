@@ -4,6 +4,7 @@
 #include "GameInstance.h"
 #include "Mon_Lancelier_Body.h"
 #include "Mon_Lancelier_Weapon.h"
+#include "Mon_WeakPoint.h"
 
 IMPLEMENT_REFLECTION(MW_Lancelier)
 {
@@ -19,6 +20,7 @@ IMPLEMENT_REFLECTION(MW_Lancelier)
 MW_Lancelier::MW_Lancelier(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Monster_WorldBase(device, context)
 {
+    _worldMoveSpeedScale = 0.4f;
 }
 
 MW_Lancelier::MW_Lancelier(const MW_Lancelier& prototype)
@@ -36,7 +38,42 @@ HRESULT MW_Lancelier::Initialize(void* arg)
     CHECK_FAILED(Monster_WorldBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
+    Rebuild_PatrolPointsFromCurrentPosition();
+
     return S_OK;
+}
+
+void MW_Lancelier::From_Json(const json& data)
+{
+    Monster_WorldBase::From_Json(data);
+    Rebuild_PatrolPointsFromCurrentPosition(); // authored 위치 복원 뒤 현재 위치 기준으로 순찰점을 다시 맞춘다.
+}
+
+void MW_Lancelier::Rebuild_PatrolPointsFromCurrentPosition()
+{
+    if (_transformCom == nullptr)
+        return;
+
+    const Vec3 patrolOrigin = _transformCom->Get_Position();
+    static const Vec3 patrolOffsets[] = {
+        { 0.f, 0.f, 0.f },
+        { 8.f, 0.f, -7.f },
+        { 12.f, 0.f, 0.f },
+        { 8.f, 0.f, 7.f },
+        { 0.f, 0.f, 0.f },
+        { -8.f, 0.f, -7.f },
+        { -12.f, 0.f, 0.f },
+        { -8.f, 0.f, 7.f },
+        { 0.f, 0.f, 0.f }
+    };
+
+    vector<Vec3> patrolPoints;
+    patrolPoints.reserve(_countof(patrolOffsets));
+
+    for (const Vec3& offset : patrolOffsets)
+        patrolPoints.push_back(patrolOrigin + offset);
+
+    Set_PatrolPoints(std::move(patrolPoints));
 }
 
 void MW_Lancelier::Priority_Update(float timeDelta)
@@ -52,17 +89,6 @@ void MW_Lancelier::Update(float timeDelta)
         return;
 
     Monster_WorldBase::Update(timeDelta);
-
-    
-
-    if (_body)
-    {
-        _body->Play_Animation(timeDelta);
-
-        // Lancelier 월드 이동은 기존 Monster와 동일하게 body root motion 속도를 사용한다.
-        const auto rootVelocity = _body->Get_RootTransformVelocity();
-        _transformCom->Set_SpeedPerSec(rootVelocity.position.z *0.4f/*Constants::Charcter::scaleOffset*/);
-    }
 }
 
 HRESULT MW_Lancelier::Render()
@@ -110,6 +136,19 @@ HRESULT MW_Lancelier::Ready_PartObjects()
 
     _weapon = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_Weapon")]);
     CHECK_NULL(_weapon, E_FAIL);
+
+
+    Mon_WeakPoint::WEAK_DESC weakDesc{};
+    weakDesc.parentMatrix = &_body->Get_CombinedWorldMatrix();
+    weakDesc.allowMissingModel = true;
+    weakDesc.socketName = "neck_02";
+    weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("neck_02");
+
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL); // 약점 파츠는 모델 없이 neck_02 소켓 기준으로 붙인다.
+
+    _weak = dynamic_pointer_cast<Mon_WeakPoint>(_partObjects[TEXT("Part_Weak")]);
+    CHECK_NULL(_weak, E_FAIL);
+
 
     return S_OK;
 }

@@ -16,6 +16,7 @@ namespace Engine
         Distortion, // Effect용 Distortion
         Blend,
         UI,
+        UIEffect,
         END
     };
 
@@ -65,16 +66,19 @@ namespace Engine
         BattleTurnCamera,
 
         Terrain,
+        Landscape,
         Sky,
         StaticMesh,
         Foliage,
         Weapon,
         PartObject,
         Projectile,
+        WorldActionTrigger,
         Effect,
         EffectEmitter,
         Trigger,
         UI,
+        BattleStartSpawner,
     };
 
     enum class DeferredPass : uint8
@@ -98,15 +102,7 @@ namespace Engine
         BloomBlurV,
         BloomUpsampleAdd,
         ToneMapping,
-
-        END
-    };
-
-    enum class ScreenFxPass : uint8
-    {
-        Vignette = 0,
-        Ghosting,
-        BattleTransition,
+        DistortionResolve,
 
         END
     };
@@ -145,6 +141,7 @@ namespace Engine
         PostProcess     = 8,
         Hair            = 9,
         DrawFeature     = 10,
+        ScreenFx        = 11,
 
         END
     };

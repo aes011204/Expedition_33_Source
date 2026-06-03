@@ -50,6 +50,7 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_NormalDamageFont_Path[] = L"UI/UI_Json/BattleSystem/UI_NormalDamageFont.json";
     inline constexpr wchar_t UI_CriticalDamageFont_Path[] = L"UI/UI_Json/BattleSystem/UI_CriticalDamageFont.json";
     inline constexpr wchar_t UI_HealFont_Path[] = L"UI/UI_Json/BattleSystem/UI_HealFont.json";
+    inline constexpr wchar_t UI_BattleSystem_Add_AP_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Add_AP.json";
 
     inline constexpr wchar_t UI_Escape_SkipTurnBack_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Escape_SkipTurn_Back.json";
     inline constexpr wchar_t UI_Attack_Tooltip_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_AttackTooltip.json";
@@ -74,6 +75,14 @@ namespace Client::Constants::UI
 
     // Battle Announce
     inline constexpr wchar_t UI_BattleSystem_Announce_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Announce.json";
+    inline constexpr wchar_t UI_FirstStrike_Path[] = L"UI/UI_Json/BattleSystem/UI_FirstStrike.json";
+
+    // QTE
+    inline constexpr wchar_t UI_QTE_Path[] = L"UI/UI_Json/BattleSystem/UI_QTE.json";
+
+    // 징표
+    inline constexpr wchar_t UI_MarkEffect_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Mark_Effect.json";
+    inline constexpr wchar_t UI_Mark_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Mark.json";
 
 #pragma endregion
 
@@ -98,6 +107,20 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_HealFontAnim_Path[] = L"UI/UI_Animations/BattleSystem/DamageFont/HealFont";
 
     inline constexpr wchar_t UI_BattleSystem_AnnounceAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Announce";
+    inline constexpr wchar_t UI_FirstStrikeAnim_Path[] = L"UI/UI_Animations/BattleSystem/FirstStrike";
+
+    inline constexpr wchar_t UI_AddAPAnim_Path[] = L"UI/UI_Animations/BattleSystem/Add_AP";
+
+#pragma region QTE 애니메이션
+    inline constexpr wchar_t UI_QTEIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/QTE/QTE_Intro";
+    inline constexpr wchar_t UI_QTEProgressAnim_Path[] = L"UI/UI_Animations/BattleSystem/QTE/QTE_Progress";
+    inline constexpr wchar_t UI_QTEFailAnim_Path[] = L"UI/UI_Animations/BattleSystem/QTE/QTE_Fail";
+    inline constexpr wchar_t UI_QTESuccessNormalAnim_Path[] = L"UI/UI_Animations/BattleSystem/QTE/QTE_Success_Normal";
+    inline constexpr wchar_t UI_QTESuccessPerfectAnim_Path[] = L"UI/UI_Animations/BattleSystem/QTE/QTE_Success_Perfect";
+#pragma endregion
+
+    inline constexpr wchar_t UI_MarkEffectLoopAnim_Path[] = L"UI/UI_Animations/BattleSystem/Mark_Effect_Loop";
+
 }
 
 namespace Client::Constants::Map
@@ -105,6 +128,7 @@ namespace Client::Constants::Map
     inline constexpr wchar_t SmallLevel_SimonArea_Remake_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_SimonArea_Mk1.json";
     inline constexpr wchar_t TestMap_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/TestMap.json";
     inline constexpr wchar_t SaveJson_Dir[] = L"../../../Client/Bin/Resources/Map/SaveJson/";
+    inline constexpr wchar_t GamePlay_DefaultAuthoringMap_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_MF_Zone_01_Mk1.json";
 
     inline constexpr wchar_t SpringChunk_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/Chunks/Level_SpringMeadows_Main_V2";
     inline constexpr wchar_t SpringChunk_00_03_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/Chunks/Level_SpringMeadows_Main_V2/chunk_00_03.json";
@@ -126,6 +150,15 @@ namespace Client::Constants::Map
     inline constexpr wchar_t SpringChunk_04_01_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/Chunks/Level_SpringMeadows_Main_V2/chunk_04_01.json";
     inline constexpr wchar_t SpringChunk_04_02_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/Chunks/Level_SpringMeadows_Main_V2/chunk_04_02.json";
     inline constexpr wchar_t SpringChunk_04_03_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/Chunks/Level_SpringMeadows_Main_V2/chunk_04_03.json";
+
+    // multiface
+    inline constexpr wchar_t SmallLevel_MF_Zone_01_Path[] = L"../../../Client/Bin/Resources/Map/SaveJson/SmallLevel_MF_Zone_01_Mk1.json";
+    inline constexpr wchar_t LandscapeTextures_Dir[] = L"../../../Client/Bin/Resources/Map/LandscapeTextures/";
+    inline constexpr wchar_t MF_Zone_Boss_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Boss.hmap";
+    inline constexpr wchar_t MF_Zone_Main_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Main.hmap";
+    inline constexpr wchar_t MF_Zone_Stair_1_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_1.hmap";
+    inline constexpr wchar_t MF_Zone_Stair_2_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_2.hmap";
+    inline constexpr wchar_t MF_Zone_Stair_3_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_3.hmap";
 }
 
 namespace Client::Constants::Charcter
@@ -135,6 +168,12 @@ namespace Client::Constants::Charcter
 
 namespace Client::Constants::Prefab
 {
+    inline constexpr wchar_t Root_Dir[] = L"Data/json/Prefabs";
+    inline constexpr wchar_t Player_Dir[] = L"Data/json/Prefabs/Player";
+    inline constexpr wchar_t Monster_Dir[] = L"Data/json/Prefabs/Monster";
+    inline constexpr wchar_t Weapon_Dir[] = L"Data/json/Prefabs/Weapons";
+    inline constexpr wchar_t BattleStartSpawner_Dir[] = L"Data/json/Prefabs/BattleStartSpawner";
+
 #pragma region 플레이어
     inline constexpr char PW_Gustave[]  = "PW_Gustave";
     inline constexpr char PW_Lune[]     = "PW_Lune";
@@ -161,10 +200,17 @@ namespace Client::Constants::Prefab
 
 #pragma region 무기
     inline constexpr char Gustave_Lanceram[]    = "WP_Gustave_Lanceram";
+    inline constexpr char Gustave_Lanceram_Gun[]    = "WP_Gustave_Lanceram_Gun";
     inline constexpr char Lune_Colim[]          = "WP_Lune_Colim";
     inline constexpr char Maelle_Medalum[]      = "WP_Maelle_Medalum";
 #pragma endregion
+}
 
+namespace Client::Constants::Sound
+{
+    constexpr const wchar_t* MainTitleBGM = L"MainTitle/MainTitle_BGM.wav";
 
-    
+    constexpr const wchar_t* MainMenuLoading = L"MainTitle/MainMenu_Loading.wav";
+    constexpr const wchar_t* MainMenuNewGame = L"MainTitle/MainMenu_NewGame.wav";
+    constexpr const wchar_t* MainMenuQuitGame = L"MainTitle/MainMenu_QuitGame.wav";
 }

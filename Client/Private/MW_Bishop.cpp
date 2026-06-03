@@ -17,6 +17,7 @@ IMPLEMENT_REFLECTION(MW_Bishop)
 
 MW_Bishop::MW_Bishop(const ComPtr<Device>& device, const ComPtr<Context>& context) :Monster_WorldBase(device, context)
 {
+    _worldMoveSpeedScale = 0.4f;
 }
 
 MW_Bishop::MW_Bishop(const MW_Bishop& prototype) : Monster_WorldBase(prototype)
@@ -47,15 +48,6 @@ void MW_Bishop::Update(float timeDelta)
         return;
 
     Monster_WorldBase::Update(timeDelta);
-
-    if (_body)
-    {
-        _body->Play_Animation(timeDelta);
-
-        // Lancelier 월드 이동은 기존 Monster와 동일하게 body root motion 속도를 사용한다.
-        const auto rootVelocity = _body->Get_RootTransformVelocity();
-        _transformCom->Set_SpeedPerSec(rootVelocity.position.z * 0.4f/*Constants::Charcter::scaleOffset*/);
-    }
 }
 
 HRESULT MW_Bishop::Render()
@@ -73,13 +65,6 @@ void MW_Bishop::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> oth
     Monster_WorldBase::OnBeginOverlap(self, other);
 }
 
-void MW_Bishop::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
-{
-    outPrefabNames.clear();
-
-    outPrefabNames.push_back(Constants::Prefab::MB_Bishop);
-
-}
 HRESULT MW_Bishop::Ready_Components()
 {
     Monster_WorldBase::Ready_Components();
@@ -98,13 +83,8 @@ HRESULT MW_Bishop::Ready_PartObjects()
     _body = dynamic_pointer_cast<Mon_Bishop_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
 
-
-return S_OK;
-
     return S_OK;
 }
-
-
 
 Shared<MW_Bishop> MW_Bishop::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {

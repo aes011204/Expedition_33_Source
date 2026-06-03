@@ -30,6 +30,8 @@ public:
     void Save() override;          // Save As dialog를 열어 emitter/module authoring json을 저장한다.
     bool CanOpen() const;          // 현재 effect authoring document가 Open 대상으로 교체 가능함을 알린다.
     void Open();                   // Open dialog로 .effect.json을 열어 authoring 상태를 복원한다.
+    bool CanAdd() const;           // 다른 effect authoring document의 emitter들을 현재 문서에 추가할 수 있는지 알린다.
+    void Add();                    // Add dialog로 .effect.json의 emitter stack만 현재 문서 끝에 추가한다.
 
 public: //## Accessor::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
@@ -72,6 +74,7 @@ private: //## Types::PendingAction
     {
         None,
         AddTrail,
+        AddMesh,
         ResetData,
         Remove
     };
@@ -106,6 +109,7 @@ private: //## Static Values
     static constexpr float kEmitterHeaderHeight{ 90.f };
     static constexpr float kEmitterTypeDataRowHeight{ 28.f };
     static constexpr float kEmitterDividerWidth{ 1.f };
+    static constexpr float kEmitterRightBlankWidth{ 96.f };
 
     static constexpr float kModulePickerModalWidth{ 700.f };
     static constexpr float kModulePickerModalHeight{ 460.f };
@@ -153,27 +157,41 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_LifetimeModule();
     AuthoringModule Make_InitialLocationModule();
     AuthoringModule Make_SphereLocationModule();
+    AuthoringModule Make_PlaneRadialLocationModule();
     AuthoringModule Make_InitialSizeModule();
+    AuthoringModule Make_InitialMeshSizeModule();
     AuthoringModule Make_InitialVelocityModule();
     AuthoringModule Make_InitialRadialVelocityModule();
+    AuthoringModule Make_VelocityConeModule();
     AuthoringModule Make_AccelerationModule();
     AuthoringModule Make_DragModule();
     AuthoringModule Make_VelocityOverLifeModule();
     AuthoringModule Make_InitialRotationModule();
+    AuthoringModule Make_PlaneRadialOrientationModule();
     AuthoringModule Make_RotationOverLifeModule();
     AuthoringModule Make_InitialRotationRateModule();
     AuthoringModule Make_RotationRateScaleByLifeModule();
+    AuthoringModule Make_InitialMeshRotationModule();
+    AuthoringModule Make_MeshRotationOverLifeModule();
+    AuthoringModule Make_InitialMeshRotationRateModule();
+    AuthoringModule Make_MeshRotationRateScaleByLifeModule();
     AuthoringModule Make_InitialColorModule();
     AuthoringModule Make_ColorOverLifeModule();
     AuthoringModule Make_SubUVFrameOverLifeModule();
     AuthoringModule Make_SizeByLifeModule();
+    AuthoringModule Make_MeshSizeByLifeModule();
     AuthoringModule Make_SpawnPerUnitModule();
+    AuthoringModule Make_MaterialScalarModulationModule();
 
 private: //## Helper::ModulePolicy
-    bool Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;                 // 이미터가 특정 모듈 타입을 이미 가지고 있는지 확인한다.
-    bool Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitter, AuthoringModuleType type) const; // 현재 emitter 타입이 모듈을 preview에 소비하는지 확인한다.
-    bool Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;              // 중복 정책 기준으로 새 모듈 추가 가능 여부를 판단한다.
-    void Add_Module(size_t emitterIndex, AuthoringModuleType type);                                       // 선택 이미터에 새 optional 모듈을 추가하고 선택 상태를 갱신한다.
+    // 이미터가 특정 모듈 타입을 이미 가지고 있는지 확인한다.
+    bool Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;
+    // 현재 emitter 타입이 모듈을 preview에 소비하는지 확인한다.
+    bool Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitter, AuthoringModuleType type) const;
+    // 중복 정책 기준으로 새 모듈 추가 가능 여부를 판단한다.
+    bool Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;
+    // 선택 이미터에 새 optional 모듈을 추가하고 선택 상태를 갱신한다.
+    void Add_Module(size_t emitterIndex, AuthoringModuleType type);
 
 private: //## Helper::Selection
     void Clear_Selection();
@@ -186,6 +204,7 @@ private: //## Helper::Selection
 private: //## Helper::EmitterAction
     void Delete_Emitter(size_t emitterIndex);
     void Duplicate_Emitter(size_t emitterIndex);
+    void Append_ImportedEmitters(const vector<AuthoringEmitter>& sourceEmitters);
     void Insert_NewEmitter(size_t insertIndex);
     void Process_PendingEmitterAction();
     void Queue_EmitterAction(PendingEmitterAction action, size_t emitterIndex);

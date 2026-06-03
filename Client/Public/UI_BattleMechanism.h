@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "BattleMechanismCom.h"
 #include "UI_RuntimePanelBase.h"
 #include "Client_Enum.h"
 #include "Battle_Enum.h"
@@ -42,8 +43,10 @@ private:
     void    Apply_GustaveState(const Shared<BattleMechanismCom>& mechanismCom);
     void    Apply_MaelleState(const Shared<BattleMechanismCom>& mechanismCom);
     void    Apply_LuneState(const Shared<BattleMechanismCom>& mechanismCom);
+    Shared<UI_Base> Resolve_LuneStainImage(int32 slotIndex, ElementalType element) const;
 
     void    Close_AllMaelleStances();
+    void    Close_AllLuneStains();
 
 private:
 #pragma region 구스타브
@@ -57,6 +60,7 @@ private:
 
 #pragma region 루네
     Shared<UI_Base> _luneRoot{};
+    array<array<Shared<UI_Base>, 4>, BattleMechanismCom::kLuneMaxStains> _luneStainImages{};
 
 #pragma endregion
 

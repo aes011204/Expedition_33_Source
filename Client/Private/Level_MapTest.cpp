@@ -5,6 +5,8 @@
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "MapLoader.h"
+#include "SkyBoxFlow.h"
+#include "SkyCloudCard.h"
 #include "Spawn_Prefab.h"
 
 Level_MapTest::Level_MapTest(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -42,9 +44,7 @@ void Level_MapTest::Update(float fTimeDelta)
 
 HRESULT Level_MapTest::Render()
 {
-#ifdef _DEBUG
-    SetWindowText(g_hWnd, L"Level_MapTest");
-#endif
+    Update_WindowTitleFps(_windowTitleFps, L"Level_MapTest");
 
     return S_OK;
 }
@@ -68,9 +68,63 @@ HRESULT Level_MapTest::Ready_Lights()
 
 HRESULT Level_MapTest::Ready_Layer_BackGround(const wstring& strLayerTag)
 {
-    CHECK_FAILED(GAME->Add_GameObject(
-        ETOI(LevelType::MapTest), TEXT("GameObject_Sky_MapTest"),
-        ETOI(LevelType::MapTest), strLayerTag), E_FAIL);
+    // 스카이박스
+    SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
+    skyBoxDesc.modelTag = TEXT("Model_SM_Skybox_Mesh");
+    skyBoxDesc.shaderTag = TEXT("Shader_SkyBoxFlow");
+    skyBoxDesc.skyTextureTag = TEXT("Texture_SkyBox_CleasTower");
+    skyBoxDesc.flowTextureTag = TEXT("Texture_SkyBox_Flow03");
+
+    skyBoxDesc.tint = Vec4(1.604023f, 0.887117f, 0.631814f, 1.f);
+    skyBoxDesc.brightness = 500.f;
+    skyBoxDesc.contrast = 1.524392f;
+    skyBoxDesc.noiseStrength = 0.25f;
+    skyBoxDesc.speed = 0.001f;
+    skyBoxDesc.scale = 1.f;
+
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::MapTest),
+            TEXT("GameObject_SkyBoxFlow_MapTest"),
+            ETOI(LevelType::MapTest),
+            strLayerTag,
+            &skyBoxDesc),
+        E_FAIL);
+
+    // 구름
+    auto addSkyCloudCard =
+        [&](const wchar_t* textureTag, const Vec3& position, const Vec3& rotation, const Vec3& scale)
+        {
+            SkyCloudCard::SKYCLOUDCARD_DESC desc{};
+            desc.modelTag = TEXT("Model_Cloud_Mesh");
+            desc.shaderTag = TEXT("Shader_SkyCloudCard");
+            desc.cloudTextureTag = textureTag;
+            desc.position = position;
+            desc.rotation = rotation;
+            desc.scale = scale;
+
+            return GAME->Add_GameObject(
+                ETOI(LevelType::MapTest),
+                TEXT("GameObject_SkyCloudCard_MapTest"),
+                ETOI(LevelType::MapTest),
+                strLayerTag,
+                &desc);
+        };
+
+    CHECK_FAILED(addSkyCloudCard(TEXT("Texture_T_Cloud_13_H"),
+        Vec3(229.f, 274.341f, 106.534f),
+        Vec3(-4.763f, -119.267f, -349.155f),
+        Vec3(1.5f, 0.9f, 0.9f)), E_FAIL);
+
+    //CHECK_FAILED(addSkyCloudCard(TEXT("Texture_T_Cloud_14_H"),
+    //    Vec3(2288.613f, -2467.369f, 1935.340f),
+    //    Vec3(50.303f, 136.239f, -260.292f),
+    //    Vec3(90.293f, 90.293f, 90.106f)), E_FAIL);
+    //
+    //CHECK_FAILED(addSkyCloudCard(TEXT("Texture_T_Cloud_15_H"),
+    //    Vec3(20396.386f, 6946.951f, 1026.531f),
+    //    Vec3(3.002f, 469.630f, -358.078f),
+    //    Vec3(622.793f, 396.934f, 402.847f)), E_FAIL);
 
     return S_OK;
 }
@@ -94,6 +148,7 @@ HRESULT Level_MapTest::Ready_Layer_Camera(const wstring& strLayerTag)
     cameraDesc.farPlane = 500.f;
     cameraDesc.mouseSensor = 0.06f;
     cameraDesc.followSpeed = 4.f;
+    cameraDesc.targetFollowSpeed = 4.f;
     cameraDesc.distance = 1.8f;
     cameraDesc.sideOffset = 0.f;
     cameraDesc.heightOffset = 0.5f;
@@ -140,42 +195,15 @@ HRESULT Level_MapTest::Ready_Layer_Player(const wstring& strLayerTag)
 
 HRESULT Level_MapTest::Ready_Layer_Monster(const wstring& strLayerTag)
 {
-    Vec3 startPos = Vec3(0.f, 1.15f, -7.94f);
+    UNREFERENCED_PARAMETER(strLayerTag);
 
-    const Shared<GameObject> monster = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Lancelier,
-        ETOI(LevelType::MapTest),
-        strLayerTag);
-
-    CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, +10.f));
-
-    //Portier
-    const Shared<GameObject> monsterPortier = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Portier, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
-        ETOI(LevelType::MapTest),
-        strLayerTag);
-
-    CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, -10.f));
-
-    //Volester
-    const Shared<GameObject> monsterVolester = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Volester, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
-        ETOI(LevelType::MapTest),
-        strLayerTag);
-
-    CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 20.f));
-
-    //Bishop
-    const Shared<GameObject> monsterBishop = Client::Spawn_Prefab::Spawn(
-        Constants::Prefab::MW_Bishop, // 월드 몬스터 prefab 이름은 MW_* 상수로 통일한다.
-        ETOI(LevelType::MapTest),
-        strLayerTag);
-
-    CHECK_NULL(monster, E_FAIL);
-    monster->Get_Transform()->Set_Position(startPos + Vec3(0.f, 0.f, 30.f));
+    // 전투 시작 위치
+    const Shared<GameObject> spawner = Spawn_Prefab::Prefab("BSS_GamePlay_Boss")
+        .AtLevel(ETOI(LevelType::MapTest))
+        .InLayer(TEXT("Layer_BattleStartSpawner"))
+        .Position(Vec3(17.f, 0.46f, -3.2f))
+        .Spawn();
+    CHECK_NULL(spawner, E_FAIL);
 
     return S_OK;
 }

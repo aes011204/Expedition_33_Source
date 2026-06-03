@@ -3,6 +3,7 @@
 #include "BattleController.h"
 #include "BT_Node_Bootstrap.h"
 #include "ComputeSpriteEmitter.h"
+#include "EffectCom.h"
 #include "EffectEmitterRegistration.h"
 #include "EffectInstancePool.h"
 #include "GameDataTable.h"
@@ -20,6 +21,7 @@
 #include "UIPreviewManager.h"
 #include "CameraDirector.h"
 #include "MapLoader.h"
+#include "ClientScreenFxManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -69,6 +71,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     CHECK_NULL(_cameraDirector, E_FAIL);
     _effectInstancePool = EffectInstancePool::Create();
     CHECK_NULL(_effectInstancePool, E_FAIL);
+
+    _screenFxManager = ClientScreenFxManager::Create();
+    CHECK_NULL(_screenFxManager, E_FAIL);
 
     _screenFadeTransition = ScreenFadeTransition::Create();
     if (_screenFadeTransition == nullptr)
@@ -130,6 +135,9 @@ void ClientInstance::Update_Client(float timeDelta)
 
     if (_previewManager)
         _previewManager->Update(timeDelta);
+
+    if (_effectInstancePool)
+        _effectInstancePool->Release_Finished();
 }
 
 HRESULT ClientInstance::Ready_StaticResources()
@@ -315,6 +323,16 @@ void ClientInstance::Reset_AllHeroesToIdle()
     return _heroManager->Reset_AllHeroesToIdle();
 }
 
+void ClientInstance::Restore_PartyFormationAfterEditorStop()
+{
+    return _heroManager->Restore_PartyFormationAfterEditorStop();
+}
+
+bool ClientInstance::Is_ActiveHero(const Shared<GameObject>& target) const
+{
+    return _heroManager->Is_ActiveHero(target);
+}
+
 HRESULT ClientInstance::Initialize_GameplayUI(uint32 levelIndex)
 {
     Clear_GameplayUI();
@@ -405,10 +423,10 @@ bool ClientInstance::Is_FadeTransitionPlaying() const
     return isScreenFadePlaying || isLevelFadePlaying;
 }
 
-void ClientInstance::OnEnterBattleField(uint32 FieldID, bool IsFirstHero, const vector<HeroId>& heroIds,
-                                        const vector<string>& MonsterProtoTag, const Shared<GameObject>& sourceObject)
+void ClientInstance::OnEnterBattleField(uint32 FieldID, bool isPlayerAdvantage, const vector<HeroId>& heroIds,
+                                        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs, const Shared<GameObject>& sourceObject)
 {
-    return _battleController->OnEnterBattleField(FieldID, IsFirstHero, heroIds, MonsterProtoTag, sourceObject);
+    return _battleController->OnEnterBattleField(FieldID, isPlayerAdvantage, heroIds, battleMonsterSpawnDescs, sourceObject);
 }
 
 bool ClientInstance::Is_BattleActive() const
@@ -449,6 +467,131 @@ void ClientInstance::Request_TargetCameraMode(TargetCameraMode cameraMode)
 void ClientInstance::Restore_PreviousCamera()
 {
     return _cameraDirector->Restore_PreviousCamera();
+}
+
+Shared<ClientScreenFxManager> ClientInstance::Get_ScreenFxManager() const
+{
+    return _screenFxManager;
+}
+
+bool ClientInstance::Play_Effect(const PlayEffectDesc& desc)
+{
+    if (_effectInstancePool == nullptr)
+        return false;
+
+    if (desc.effectName.empty() || desc.layerTag.empty())
+        return false;
+
+    wstring resolvedName = desc.effectName;
+    if (!resolvedName.ends_with(L".effect.json"))
+        resolvedName += L".effect.json";
+
+    Vec3 spawnWorldPosition = desc.worldPosition;
+    Vec3 spawnWorldRotation = desc.localRotation;
+
+    if (desc.spawnBasisTarget)
+    {
+        const Shared<TransformCom> basisTransform = desc.spawnBasisTarget->Get_Transform();
+        if (basisTransform == nullptr)
+            return false;
+
+        const Vec3 localRotationRad(
+            XMConvertToRadians(desc.localRotation.x),
+            XMConvertToRadians(desc.localRotation.y),
+            XMConvertToRadians(desc.localRotation.z));
+
+        // 단발 기준 local
+        const Matrix localMatrix =
+            Matrix::CreateFromYawPitchRoll(localRotationRad.y, localRotationRad.x, localRotationRad.z) *
+            Matrix::CreateTranslation(desc.localOffset);
+
+        const Matrix finalWorldMatrix = localMatrix * basisTransform->Get_WorldMatrix();
+
+        Vec3 decomposedScale = Vec3::One;
+        Quat decomposedRotation = Quat::Identity;
+        Vec3 decomposedTranslation = Vec3::Zero;
+
+        Matrix tempMat = finalWorldMatrix;
+
+        if (!tempMat.Decompose(decomposedScale, decomposedRotation, decomposedTranslation))
+            return false;
+
+        const Vec3 eulerRad = decomposedRotation.ToEuler();
+        spawnWorldPosition = decomposedTranslation;
+        spawnWorldRotation = Vec3(
+            XMConvertToDegrees(eulerRad.x),
+            XMConvertToDegrees(eulerRad.y),
+            XMConvertToDegrees(eulerRad.z));
+    }
+
+    EffectInstancePool::AcquireDesc acquireDesc{};
+    acquireDesc.effectName = resolvedName;
+    acquireDesc.layerLevelIndex = GAME->Current_LevelIndex();
+    acquireDesc.layerTag = desc.layerTag;
+    acquireDesc.worldPosition = spawnWorldPosition;
+    acquireDesc.worldRotation = spawnWorldRotation;
+    acquireDesc.scale = desc.scale;
+
+    EffectInstancePool::AttachedHandle handle{};
+    if (FAILED(_effectInstancePool->Acquire(acquireDesc, handle)))
+    {
+        LOG_WARN("Play effect failed. effect={}", String::ToString(resolvedName).c_str());
+        return false;
+    }
+
+    return true;
+}
+
+bool ClientInstance::Play_AttachPartEffect(
+    const Shared<GameObject>& effectOwner,
+    const wstring& effectName,
+    const wstring& partTag,
+    const Vec3& localOffset,
+    const Vec3& localRotation,
+    const Vec3& scale)
+{
+    if (effectOwner == nullptr)
+        return false;
+
+    const Shared<EffectCom> effectCom = effectOwner->Get_Component<EffectCom>();
+    if (effectCom == nullptr)
+        return false;
+
+    return SUCCEEDED(effectCom->Play_AttachedPartEffect(
+        GAME->Current_LevelIndex(),
+        effectName,
+        partTag,
+        L"Layer_Effect",
+        localOffset,
+        localRotation,
+        scale));
+}
+
+bool ClientInstance::Play_AttachPartEffect(
+    const Shared<GameObject>& effectOwner,
+    const wstring& effectName,
+    const wstring& partTag,
+    const string& socketName,
+    const Vec3& localOffset,
+    const Vec3& localRotation,
+    const Vec3& scale)
+{
+    if (effectOwner == nullptr)
+        return false;
+
+    const Shared<EffectCom> effectCom = effectOwner->Get_Component<EffectCom>();
+    if (effectCom == nullptr)
+        return false;
+
+    return SUCCEEDED(effectCom->Play_AttachedPartEffect(
+        GAME->Current_LevelIndex(),
+        effectName,
+        partTag,
+        socketName,
+        L"Layer_Effect",
+        localOffset,
+        localRotation,
+        scale));
 }
 
 bool ClientInstance::Is_GameplayMenuOpen() const
@@ -524,6 +667,7 @@ void ClientInstance::Release_Client()
     ReleaseManager(_heroManager);
     ReleaseManager(_battleController);
     ReleaseManager(_gamePlayUI);
+    ReleaseManager(_screenFxManager);
 
     _context.Reset();
     _device.Reset();

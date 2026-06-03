@@ -81,6 +81,7 @@ public:
     {
         bool enabled = false;
         Vec3 worldDir = Vec3::Zero;
+        bool walkFollow = false;     // follower가 active hero의 Walk 속도를 따라야 하는지
         bool sprintFollow = false;   // 거리 벌어져서 sprint로 전환?
     };
 
@@ -110,10 +111,11 @@ public:
     const MoveDesc&         Get_MoveDesc()      { return _moveDesc; }
     const MovementInput&    Get_MoveInput()     { return _input;}
 
-    bool Is_Grounded() const            { return _isGrounded; }
-    bool Is_Jumping()  const            { return _isJumping; }
+    bool Is_Grounded() const                { return _isGrounded; }
+    bool Is_Jumping()  const                { return _isJumping; }
+    bool Did_InputJumpStart() const         { return _didInputJumpStart; }
     bool Is_Moving()   const;
-    bool Is_Running()  const            { return _input.isRunPressed; }
+    bool Is_Running()  const                { return _input.isRunPressed; }
 
     // 땅에 충돌되고 있을 때에만 가능
     bool Can_Jump() const               { return _isGrounded; }
@@ -133,6 +135,9 @@ public:
     void Set_FollowMoveCommand(const FollowMoveCommand& command) { _followMove = command; }
     void Clear_FollowMoveCommand() { _followMove = {}; }
 
+    void Set_WalkSpeed(float walkSpeed) { _moveDesc.walkSpeed = walkSpeed; }
+    void Set_RunSpeed(float runSpeed) { _moveDesc.runSpeed = runSpeed; }
+    void Set_SprintSpeed(float sprintSpeed) { _moveDesc.sprintSpeed = sprintSpeed; }
     void Set_TurnSpeedDegree(float turnSpeedDegree) { _moveDesc.turnSpeedDegree = turnSpeedDegree; }
     void Set_TurnResponse(float turnResponse) { _moveDesc.turnResponse = turnResponse; }
 
@@ -168,7 +173,7 @@ private:
     void Destroy_CharacterController();
 
     Vec3 Get_CCTFootPosition_FromTransform() const; // 현재 위치 -> CCT 발 위치 환산
-    void Sync_Transform_FromCCT(const Vec3& footPosition, float timeDelta, bool smoothGrounding); // CCT 결과 -> Transform
+    void Sync_Transform_FromCCT(const Vec3& footPosition, float timeDelta, bool smoothGrounding, bool suppressSmallGroundAdjust); // CCT 결과 -> Transform
 
 private:
     MoveDesc            _moveDesc{};
@@ -180,12 +185,17 @@ private:
     Vec3  _velocity = Vec3::Zero;
     float _currentTurnSpeedDegree = 0.f;
     float _idleGroundProbeAccum = 0.f;
+    float _jumpInputGraceRemain = 0.f;
+    float _groundJumpGraceRemain = 0.f;
+    float _cctGroundDetachGraceRemain = 0.f; // 경사 보행 중 down flag가 잠깐 끊겨도 grounded를 바로 버리지 않기 위한 유예 시간
 #ifdef _DEBUG
     float _idleGroundProbeDebugLogAccum = 0.f;
 #endif
 
     bool _isGrounded = true;
     bool _isJumping = false;
+    bool _didInputJumpStart = false;
+    Vec3 _jumpStartHorizontalVelocity = Vec3::Zero;
 
     Shared<ColliderCom> _colliderCom;
     Shared<PhysicsCharacterController> _characterController;

@@ -112,13 +112,21 @@ struct alignas(16) ShadowCB
     Matrix  lightViewMatrix;
     Matrix  lightProjMatrix;
 
+    Matrix  cascadeLightViewMatrices[ShadowLightDesc::SHADOW_CASCADE_COUNT];
+    Matrix  cascadeLightProjMatrices[ShadowLightDesc::SHADOW_CASCADE_COUNT];
+
     Matrix  staticLightViewMatrix;
     Matrix  staticLightProjMatrix;
 
+    Vec4    cascadeSplits = Vec4::Zero;
+    float   cascadeBlendDistance = 0.f;
     float   lightFar = 0.f;
     float   bias = 0.f;
+
     float   intensity = 0.f;
     float   staticShadowEnabled = 0.f;
+    uint32  cascadeCount = 0;
+    uint32  activeCascadeIndex = 0;
 }; 
 
 /* ------------------------------------------ */
@@ -136,9 +144,9 @@ struct alignas(16) ScreenSpaceCB
 
     Vec4    cameraPosition;
 
-    float   farPlane = 0.f;
     Vec2    texelSize = { 1.f/1600.f, 1.f/900.f };
     Vec2    screenSize = { 1600.f, 900.f };
+    float   farPlane = 0.f;
     float   pad[3];
 };
 
@@ -169,7 +177,7 @@ struct alignas(16) PostProcessCB
 
     float exposure = 1.f;                   // 키우면 밝아짐
     float invWhitePoint = 1.f;              // 어느 밝기 이상을 거의 흰색으로 볼 건지
-    float gamma = 2.2f;                     // 선형 색상을 sRGB에 가깝게 변환함
+    float gamma = 1.6f;                     // 선형 색상을 sRGB에 가깝게 변환함
     float bloomRadius = 1.6f;               // 블러 커널의 샘플 간격을 늘리는 배율
 
     float bloomThreshold = 0.9f;            // Bloom 추출 기준
@@ -243,6 +251,36 @@ struct alignas(16) DrawFeatureCB
     // 여러 효과에서 알아서 쓰일 parameters. 기능별 .cpp과 .hlsl 간 규약 필요
     Vec4 param0{ 0.f, 0.f, 0.f, 0.f };  
     Vec4 param1{ 0.f, 0.f, 0.f, 0.f };
+    Vec4 param2{ 0.f, 0.f, 0.f, 0.f };
+    Vec4 param3{ 0.f, 0.f, 0.f, 0.f };
+};
+
+struct alignas(16) ScreenFxCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::ScreenFx;
+
+    Vec3 vignetteColor{ 0.f, 0.f, 0.f };
+    float vignetteIntensity{ 1.0f };
+    float vignetteRadius{ 0.75f };
+    float vignetteSoftness{ 0.5f };
+    float ghostingIntensity{ 0.5f };
+    float transitionProgress{ 0.0f };
+
+    Vec3 transitionColor{ 0.f, 0.f, 0.f };
+    float radialBlurIntensity{ 0.0f };
+
+    // Distortion
+    Vec2 radialBlurCenter{ 0.5f, 0.5f }; 
+    float radialBlurRadius{ 1.0f };      
+    float chromaticAberrationIntensity{ 0.0f }; 
+    float bulgeIntensity{ 0.f };
+    float pullIntensity{ 0.f };
+    Vec2 pullDirection{ -1.f, 1.f };
+
+    // Transition
+    float wipeRadius{ 0.f };
+    float edgeSoftness{ 0.05f };
+    Vec2 pad;
 };
 
 // 패딩이 제대로 됐나 마지막 확인용
@@ -257,6 +295,7 @@ static_assert(sizeof(PostProcessCB) % 16 == 0);
 static_assert(sizeof(SSAOCB) % 16 == 0);
 static_assert(sizeof(DeferredLightingCB) % 16 == 0);
 static_assert(sizeof(DrawFeatureCB) % 16 == 0);
+static_assert(sizeof(ScreenFxCB) % 16 == 0);
 
 NS_END
 

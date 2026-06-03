@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <array>
 #include <variant>
 #include "EffectMaterial_Types.h"
 #include "Engine_Typedef.h"
@@ -14,6 +15,14 @@ enum class EffectEmitterKind : uint8
 {
     ComputeSprite, // compute-first sprite emitter runtime이다.
     ComputeTrail,  // compute-first trail/ribbon emitter runtime이다.
+    Mesh,          // model mesh를 instance buffer로 그리는 mesh emitter runtime이다.
+};
+
+// Emitter 단위로 자동 render group 판정을 덮을 수 있는 제한된 override다.
+enum class EffectEmitterRenderLayerOverride : uint8
+{
+    Auto,
+    UIEffect,
 };
 
 //## Trail
@@ -35,14 +44,16 @@ public:
 
 //## Module::Sprite
 
-// EffectSprite shader가 어떤 기준으로 sprite facing 축을 고를지 결정한다.
-enum class EffectSpriteScreenAlignment : uint32
+// Effect runtime이 어떤 기준으로 sprite/mesh facing 축을 고를지 결정한다.
+enum class EffectScreenAlignment : uint32
 {
     FacingCameraPosition = 0, // particle 위치에서 camera position을 바라보는 기본 billboard다.
     Rectangle = 1,            // 카메라 화면 평면 right/up을 따라가는 직사각형 billboard다.
     Square = 2,               // 카메라 화면 평면 기준에서 더 큰 축으로 정사각형을 만든다.
     AwayFromCenter = 3,       // emitter 중심에서 particle 바깥으로 향하는 radial 방향을 기준 방향으로 쓴다.
     Velocity = 4,             // compute가 기록한 현재 속도 방향을 기준 방향으로 쓴다.
+    WorldPlaneXY = 5,         // 월드 XY 평면에 고정되는 2D plane 정렬이다.
+    WorldPlaneXZ = 6,         // 월드 XZ 평면에 고정되는 바닥형 2D plane 정렬이다.
 };
 
 // AwayFromCenter/Velocity가 기준 방향을 어떻게 쓸지 결정한다.
@@ -57,6 +68,96 @@ enum class EffectSpriteTextureAxis : uint32
 {
     X = 0, // texture의 가로 축을 기준 방향에 맞춘다.
     Y = 1, // texture의 세로 축을 기준 방향에 맞춘다.
+};
+
+// Material scalar modulation이 조절할 기본 material scalar field다.
+enum class EffectMaterialScalarModulationTarget : uint32
+{
+    Intensity = 0,
+    OpacityPower = 1,
+    NoiseStrength = 2,
+    AlphaErosion = 3,
+    AlphaCutoff = 4,
+    CoreIntensity = 5,
+    OuterIntensity = 6,
+    CoreColor = 7,
+};
+
+// Material scalar modulation의 base value 적용 방식이다.
+enum class EffectMaterialScalarModulationOperation : uint32
+{
+    Multiply = 0,
+};
+
+// Material scalar modulation이 평가할 시간 축이다.
+enum class EffectMaterialScalarModulationTimeSource : uint32
+{
+    ParticleLife = 0,
+    EmitterTime = 1,
+};
+
+// Material scalar modulation의 float curve payload다.
+struct EffectMaterialScalarModulationCurveDesc
+{
+    bool enabled{ false };
+    uint32 keyCount{ 2 };
+    Vec4 keyTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 keyValues{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 keyArriveTangents{};
+    Vec4 keyLeaveTangents{};
+    Vec4 keyModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+};
+
+struct EffectMaterialScalarModulatorRuntimeDesc
+{
+    bool enabled{ true };
+    EffectMaterialScalarModulationTarget targetField{ EffectMaterialScalarModulationTarget::Intensity };
+    EffectMaterialScalarModulationOperation operation{ EffectMaterialScalarModulationOperation::Multiply };
+    EffectMaterialScalarModulationTimeSource timeSource{ EffectMaterialScalarModulationTimeSource::ParticleLife };
+    EffectMaterialScalarModulationCurveDesc curve{};
+};
+
+// Material scalar modulation module에서 shader/renderer가 공유할 compact payload다.
+struct EffectMaterialScalarModulationRuntimeDesc
+{
+    static constexpr uint32 kMaxModulators{ 8 };
+
+    uint32 count{ 0 };
+    std::array<EffectMaterialScalarModulatorRuntimeDesc, kMaxModulators> modulators{};
+};
+
+// Core color RGB를 emitter time 기준으로 교체하기 위한 Vec3 curve payload다.
+struct EffectMaterialCoreColorRgbModulationCurveDesc
+{
+    bool enabled{ false };
+    uint32 keyCount{ 2 };
+    Vec4 keyTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 keyValuesR{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 keyValuesG{ 0.85f, 0.85f, 0.f, 0.f };
+    Vec4 keyValuesB{ 0.45f, 0.45f, 0.f, 0.f };
+    Vec4 keyArriveTangentsR{};
+    Vec4 keyArriveTangentsG{};
+    Vec4 keyArriveTangentsB{};
+    Vec4 keyLeaveTangentsR{};
+    Vec4 keyLeaveTangentsG{};
+    Vec4 keyLeaveTangentsB{};
+    Vec4 keyModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+};
+
+struct EffectMaterialCoreColorRgbModulatorRuntimeDesc
+{
+    bool enabled{ true };
+    EffectMaterialScalarModulationTimeSource timeSource{ EffectMaterialScalarModulationTimeSource::EmitterTime };
+    EffectMaterialCoreColorRgbModulationCurveDesc curve{};
+};
+
+// Core color RGB distribution module에서 renderer가 CPU로 평가할 compact payload다.
+struct EffectMaterialCoreColorRgbModulationRuntimeDesc
+{
+    static constexpr uint32 kMaxModulators{ 8 };
+
+    uint32 count{ 0 };
+    std::array<EffectMaterialCoreColorRgbModulatorRuntimeDesc, kMaxModulators> modulators{};
 };
 
 // Required 모듈에서 material binding에 필요한 값만 접은 runtime payload다.
@@ -80,6 +181,10 @@ struct EffectRequiredMaterialRuntimeDesc
     float noiseStrength{ 0.f };                                               // noise modulation 강도다.
     float alphaCutoff{ 0.f };                                                 // Trail 등 지원 renderer가 사용할 alpha discard threshold다.
     float alphaErosion{ 0.f };                                                // mask/noise 기반 alpha erosion 후보 값이다.
+    string noiseSource{ "Red" };                                              // noise texture scalar source selector다.
+    string maskSource{ "Alpha" };                                             // mask texture coverage source selector다.
+    bool noiseInvert{ false };                                                // noise scalar를 1-x로 뒤집는다.
+    bool maskInvert{ false };                                                 // mask coverage를 1-x로 뒤집는다.
 
     Vec2 mainUVScale{ 1.f, 1.f };                                                  // main texture UV 반복/확대 배율 후보 값이다.
     Vec2 mainUVOffset{ 0.f, 0.f };                                                 // main texture 샘플 시작 위치를 정적으로 민다.
@@ -101,22 +206,25 @@ struct EffectRequiredMaterialRuntimeDesc
     Vec2 flowUVScrollSpeed{ 0.f, 0.f };                                            // SpriteDistortion flow texture UV scroll speed 후보 값이다.
     EffectTextureUVTilingMode flowUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // flow texture UV tiling 해석 방식이다.
 
-    EffectMaterialAdditiveContributionData additive{}; // Additive blend에서 더할 contribution 해석 규칙이다.
-    float refractionIntensity{ 0.f };                  // SpriteDistortion screen UV offset 강도다.
-    float refractionPresence{ 1.f };                   // SpriteDistortion refraction 영향도 scalar다.
+    EffectMaterialAdditiveContributionData additive{};                                // Additive blend에서 더할 contribution 해석 규칙이다.
+    EffectMaterialCoreEmissiveData coreEmissive{};                                    // alpha-derived inner core/outer halo shaping 값이다.
+    float refractionIntensity{ 0.f };                                                 // SpriteDistortion screen UV offset 강도다.
+    float refractionPresence{ 1.f };                                                  // SpriteDistortion refraction 영향도 scalar다.
     EffectDistortionShapeMode distortionShapeMode{ EffectDistortionShapeMode::None }; // SpriteDistortion 영향 범위 weight mode다.
-    float distortionShapeRadius{ 0.45f };              // sprite UV 중심에서 shape 기준 반경이다.
-    float distortionShapeThickness{ 0.10f };           // Ring mode에서 중심선 주변의 단단한 띠 폭이다.
-    float distortionShapeSoftness{ 0.15f };            // shape edge falloff 폭이다.
-    bool twoSided{ false };                            // 지원 renderer가 사용할 양면 렌더 힌트다.
-    uint32 subUVRows{ 1 };                             // flipbook row 수다.
-    uint32 subUVCols{ 1 };                             // flipbook column 수다.
+    float distortionShapeRadius{ 0.45f };                                             // sprite UV 중심에서 shape 기준 반경이다.
+    float distortionShapeThickness{ 0.10f };                                          // Ring은 UV 폭, ShockwaveRing은 screen pixel half-width다.
+    float distortionShapeSoftness{ 0.15f };                                           // Ring은 UV falloff, ShockwaveRing은 screen pixel falloff다.
+    bool twoSided{ false };                                                           // 지원 renderer가 사용할 양면 렌더 힌트다.
+    uint32 subUVRows{ 1 };                                                            // flipbook row 수다.
+    uint32 subUVCols{ 1 };                                                            // flipbook column 수다.
+    EffectMaterialCoreColorRgbModulationRuntimeDesc coreColorRgbModulation{};         // coreColor.rgb emitter-time distribution payload다.
+    EffectMaterialScalarModulationRuntimeDesc scalarModulation{};                     // material scalar modulation compact payload다.
 };
 
 // Required 모듈에서 sprite render alignment에 필요한 값만 접은 runtime payload다.
 struct EffectSpriteRenderRuntimeDesc
 {
-    EffectSpriteScreenAlignment screenAlignment{ EffectSpriteScreenAlignment::FacingCameraPosition }; // sprite 축 선택 기준이다.
+    EffectScreenAlignment screenAlignment{ EffectScreenAlignment::FacingCameraPosition }; // sprite 축 선택 기준이다.
     EffectSpriteDirectionalAlignmentMode directionalAlignmentMode{ EffectSpriteDirectionalAlignmentMode::TextureAxis }; // 방향 기준 사용 방식이다.
     EffectSpriteTextureAxis spriteTextureAxis{ EffectSpriteTextureAxis::Y }; // TextureAxis mode에서 맞출 texture 축이다.
     float spriteRollOffsetDegrees{ 0.f }; // authored texture 방향 차이를 보정하는 정적 roll offset이다.
@@ -140,6 +248,12 @@ struct EffectDrawLimitRuntimeDesc
     uint32 maxDrawCount{ 500 };   // 동시에 그릴 particle 수 상한이다. buffer capacity는 바꾸지 않는다.
 };
 
+// Required 모듈에서 Blend 정렬 보정에 필요한 값만 접은 runtime payload다.
+struct EffectRequiredSortRuntimeDesc
+{
+    float artistSortBias{ 0.f }; // 양수는 더 앞, 음수는 더 뒤로 보정하려는 제작자 의도 값이다.
+};
+
 // Required 모듈의 runtime 소비 payload를 의미별로 묶은 desc다.
 struct EffectRequiredRuntimeDesc
 {
@@ -147,6 +261,7 @@ struct EffectRequiredRuntimeDesc
     EffectSpriteRenderRuntimeDesc spriteRender{};
     EffectEmitterPlaybackRuntimeDesc playback{};
     EffectDrawLimitRuntimeDesc drawLimit{};
+    EffectRequiredSortRuntimeDesc sort{};
 };
 
 // Spawn 모듈의 runtime 소비 payload와 spawn fallback shape를 묶은 desc다.
@@ -166,8 +281,10 @@ struct EffectLifetimeRuntimeDesc
 // InitialSize 모듈에서 compute payload에 필요한 값만 접은 runtime payload다.
 struct EffectInitialSizeRuntimeDesc
 {
+    bool enabled{ false };        // InitialSize 모듈이 runtime에 연결되었는지 나타낸다.
     Vec2 sizeMin{ 0.12f, 0.12f }; // InitialSize의 가로/세로 크기 하한이다.
     Vec2 sizeMax{ 0.28f, 0.28f }; // InitialSize의 가로/세로 크기 상한이다.
+    PointParticleRandomSeedRuntimeDesc sizeSeed{};
 };
 
 // InitialColor 모듈에서 compute payload에 필요한 값만 접은 runtime payload다.
@@ -175,13 +292,18 @@ struct EffectInitialColorRuntimeDesc
 {
     Vec4 startColorMin{ 1.f, 1.f, 1.f, 1.f }; // Initial Color 하한이다.
     Vec4 startColorMax{ 1.f, 1.f, 1.f, 1.f }; // Initial Color 상한이다.
+    PointParticleRandomSeedRuntimeDesc colorSeed{};
+    PointParticleRandomSeedRuntimeDesc alphaSeed{};
 };
 
 // ColorOverLife 모듈에서 compute payload에 필요한 값만 접은 runtime payload다.
 struct EffectColorOverLifeRuntimeDesc
 {
-    Vec4 endColorMin{ 1.f, 1.f, 1.f, 1.f }; // Color Over Life 하한이다.
-    Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f }; // Color Over Life 상한이다.
+    Vec4 endColorMin{ 1.f, 1.f, 1.f, 1.f };      // Color Over Life 하한이다.
+    Vec4 endColorMax{ 1.f, 1.f, 1.f, 1.f };      // Color Over Life 상한이다.
+    PointParticleColorOverLifeCurveDesc curve{}; // ConstantCurve ColorOverLife runtime payload다.
+    PointParticleRandomSeedRuntimeDesc colorSeed{};
+    PointParticleRandomSeedRuntimeDesc alphaSeed{};
 };
 
 // Trail 전용 SpawnPerUnit 모듈에서 이동 거리 기반 보강 sample 생성에 필요한 값만 접은 payload다.
@@ -199,35 +321,43 @@ struct EffectTrailSpawnPerUnitRuntimeDesc
 // compute sprite emitter가 실제 runtime consumer에게 넘길 module-facing payload다.
 struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
-    PointParticleDrawMode drawMode{ PointParticleDrawMode::DrawIndexedInstancedIndirect }; // compute sprite 정식 draw 제출 방식이다.
+    PointParticleDrawMode drawMode{ PointParticleDrawMode::DrawIndexedInstancedIndirect };          // compute sprite 정식 draw 제출 방식이다.
+    EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 material/type 기반 render group을 사용한다.
 
-    EffectRequiredRuntimeDesc required{};                     // Required 모듈에서 runtime이 소비하는 값이다.
-    EffectSpawnRuntimeDesc spawn{};                           // Spawn 모듈에서 runtime이 소비하는 값이다.
-    EffectLifetimeRuntimeDesc lifetime{};                     // Lifetime 모듈에서 runtime이 소비하는 값이다.
-    EffectInitialSizeRuntimeDesc initialSize{};               // InitialSize 모듈에서 runtime이 소비하는 값이다.
-    EffectInitialColorRuntimeDesc initialColor{};             // InitialColor 모듈에서 runtime이 소비하는 값이다.
-    EffectColorOverLifeRuntimeDesc colorOverLife{};           // ColorOverLife 모듈에서 runtime이 소비하는 값이다.
-    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{}; // 수명 진행률 기준 SubUV frame 규칙이다.
-    PointParticleSizeByLifeDesc sizeByLife{};                 // 수명 진행률 기준 크기 배율 규칙이다.
-    PointParticleMotionDesc motion{};                         // motion authoring module을 compute payload로 압축한 규칙이다.
-    PointParticleRotationDesc rotation{};                     // rotation authoring module을 compute payload로 압축한 규칙이다.
-    PointParticleInitialLocationDesc initialLocation{};       // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
-    PointParticleSphereLocationDesc sphereLocation{};         // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
-    Vec3 center{ 0.f, 0.f, 0.f };                             // concrete emitter 내부 fallback/초기 center다. root transform이 있으면 후속 sync가 덮어쓴다.
+    EffectRequiredRuntimeDesc required{};                             // Required 모듈에서 runtime이 소비하는 값이다.
+    EffectSpawnRuntimeDesc spawn{};                                   // Spawn 모듈에서 runtime이 소비하는 값이다.
+    EffectLifetimeRuntimeDesc lifetime{};                             // Lifetime 모듈에서 runtime이 소비하는 값이다.
+    EffectInitialSizeRuntimeDesc initialSize{};                       // InitialSize 모듈에서 runtime이 소비하는 값이다.
+    EffectInitialColorRuntimeDesc initialColor{};                     // InitialColor 모듈에서 runtime이 소비하는 값이다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{};                   // ColorOverLife 모듈에서 runtime이 소비하는 값이다.
+    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};         // 수명 진행률 기준 SubUV frame 규칙이다.
+    PointParticleSizeByLifeDesc sizeByLife{};                         // 수명 진행률 기준 크기 배율 규칙이다.
+    PointParticleMotionDesc motion{};                                 // motion authoring module을 compute payload로 압축한 규칙이다.
+    PointParticleRotationDesc rotation{};                             // rotation authoring module을 compute payload로 압축한 규칙이다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                 // Lifetime random sample seed salt다.
+    PointParticleInitialLocationDesc initialLocation{};               // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
+    PointParticleSphereLocationDesc sphereLocation{};                 // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
+    PointParticlePlaneRadialLocationDesc planeRadialLocation{};       // PlaneRadialLocation 모듈이 만든 시작 위치 평면/방사 offset 분포다.
+    PointParticlePlaneRadialOrientationDesc planeRadialOrientation{}; // PlaneRadialOrientation 모듈이 만든 radial frame 기반 초기 회전 payload다.
+    PointParticleRandomSeedRuntimeDesc initialLocationSeed{};          // InitialLocation random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc sphereLocationSeed{};           // SphereLocation random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};         // SubUV RandomFrame random sample seed salt다.
+    Vec3 center{ 0.f, 0.f, 0.f };                                     // concrete emitter 내부 fallback/초기 center다. root transform이 있으면 후속 sync가 덮어쓴다.
 };
 
 // compute trail emitter가 clone 시점에 받는 trail 전용 runtime payload다.
 struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
-    EffectRequiredMaterialRuntimeDesc material{};      // trail 기본 material/tint/blend 값이다.
-    EffectEmitterPlaybackRuntimeDesc playback{};       // duration/loop/delay 같은 공통 재생 규칙이다.
-    EffectLifetimeRuntimeDesc lifetime{};              // Lifetime 모듈에서 trail이 소비하는 age fade 기준 값이다.
-    EffectInitialColorRuntimeDesc initialColor{};      // InitialColor 모듈에서 trail segment 시작 색상으로 소비하는 값이다.
-    EffectColorOverLifeRuntimeDesc colorOverLife{};    // ColorOverLife 모듈에서 trail segment 끝 색상으로 소비하는 값이다.
-    PointParticleSizeByLifeDesc sizeByLife{};          // SizeByLife 모듈에서 trail 폭 배율로 소비하는 값이다.
-    EffectTrailSpawnPerUnitRuntimeDesc spawnPerUnit{}; // SpawnPerUnit 모듈에서 trail sample density를 보강하는 값이다.
+    EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 material family 기반 render group을 사용한다.
+    EffectRequiredMaterialRuntimeDesc material{};                                                   // trail 기본 material/tint/blend 값이다.
+    EffectEmitterPlaybackRuntimeDesc playback{};                                                    // duration/loop/delay 같은 공통 재생 규칙이다.
+    EffectLifetimeRuntimeDesc lifetime{};                                                           // Lifetime 모듈에서 trail이 소비하는 age fade 기준 값이다.
+    EffectInitialColorRuntimeDesc initialColor{};                                                   // InitialColor 모듈에서 trail segment 시작 색상으로 소비하는 값이다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{};                                                 // ColorOverLife 모듈에서 trail segment 끝 색상으로 소비하는 값이다.
+    PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 trail 폭 배율로 소비하는 값이다.
+    EffectTrailSpawnPerUnitRuntimeDesc spawnPerUnit{};                                              // SpawnPerUnit 모듈에서 trail sample density를 보강하는 값이다.
 
-    float width{ 0.1f };            // render sample의 center 기준으로 적용할 world-space strip 폭이다.
+    float width{ 1.f };             // render sample의 base/tip span에 곱할 폭 비율이다. 1이면 원본 base/tip 폭을 유지한다.
     float segmentLifetime{ 0.25f }; // history sample 하나가 화면에 남는 시간이다.
     uint32 historyCount{ 32 };      // trail이 유지할 최대 sample 개수다.
     float uvTiling{ 1.f };          // trail noise/breakup 진행 방향의 기본 UV 반복값이다.
@@ -241,7 +371,64 @@ struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
     Weak<IEffectTrailSampleProvider> sampleProvider{}; // attachment 계산 owner가 공급하는 sample source다.
 };
 
-using EffectEmitterConcreteDesc = variant<ComputeSpriteEmitterDesc, ComputeTrailEmitterDesc>;
+// mesh emitter가 Vec3 transform curve를 CPU instance update에서 평가하기 위한 payload다.
+struct MeshVector3CurveRuntimeDesc
+{
+    bool enabled{ false };                      // true면 lifeProgress 기준 curve를 평가한다.
+    Vec3 start{ 1.f, 1.f, 1.f };                // distribution/legacy fallback 시작값이다.
+    Vec3 end{ 1.f, 1.f, 1.f };                  // distribution/legacy fallback 종료값이다.
+    uint32 curveKeyCount{ 2 };                  // compact curve key 수다.
+    Vec4 curveKeyTimes{ 0.f, 1.f, 0.f, 0.f };   // key time 0..1 값이다.
+    Vec4 curveKeyValuesX{ 1.f, 1.f, 0.f, 0.f }; // key별 X 값이다.
+    Vec4 curveKeyValuesY{ 1.f, 1.f, 0.f, 0.f }; // key별 Y 값이다.
+    Vec4 curveKeyValuesZ{ 1.f, 1.f, 0.f, 0.f }; // key별 Z 값이다.
+};
+
+// mesh emitter 전용 Vec3 scale/rotation runtime payload다.
+struct MeshTransformRuntimeDesc
+{
+    EffectScreenAlignment alignment{ EffectScreenAlignment::FacingCameraPosition }; // mesh instance의 기본 plane/facing 정렬 기준이다.
+
+    bool initialScaleEnabled{ false };           // InitialMeshSize Vec3 payload 연결 여부다.
+    Vec3 initialScaleMin{ 0.12f, 0.12f, 0.12f }; // spawn 시 mesh scale 하한이다.
+    Vec3 initialScaleMax{ 0.28f, 0.28f, 0.28f }; // spawn 시 mesh scale 상한이다.
+    MeshVector3CurveRuntimeDesc scaleByLife{};   // MeshSizeByLife Vec3 multiplier다.
+
+    bool rotationEnabled{ false };                            // rotation 계열 모듈 연결 여부다.
+    Vec3 initialRotationDegreesMin{ 0.f, 0.f, 0.f };          // spawn 시 Euler rotation 하한이다.
+    Vec3 initialRotationDegreesMax{ 0.f, 0.f, 0.f };          // spawn 시 Euler rotation 상한이다.
+    MeshVector3CurveRuntimeDesc rotationByLife{};             // lifeProgress 기준 추가 Euler degree다.
+    Vec3 initialAngularVelocityDegreesMin{ 0.f, 0.f, 0.f };   // 초당 Euler angular velocity 하한이다.
+    Vec3 initialAngularVelocityDegreesMax{ 0.f, 0.f, 0.f };   // 초당 Euler angular velocity 상한이다.
+    MeshVector3CurveRuntimeDesc angularVelocityScaleByLife{}; // angular velocity Vec3 배율이다.
+};
+
+// mesh emitter가 clone 시점에 받는 model/instance draw용 runtime payload다.
+struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
+{
+    EffectEmitterRenderLayerOverride renderLayerOverride{
+        EffectEmitterRenderLayerOverride::Auto
+    };                                                                // Auto면 material/blend mode 기반 render group을 사용한다.
+    string modelGuid{};                                               // 선택 model asset identity다.
+    string modelPath{};                                               // asset-root 기준 model path fallback/debug hint다.
+    Vec3 previewScale{ 1.f, 1.f, 1.f };                               // Phase 3 단일 mesh particle preview scale이다.
+    bool useModelMaterials{ false };                                  // true면 source model material을 우선 사용한다.
+    EffectRequiredMaterialRuntimeDesc material{};                     // Phase 3에서는 tint/debug payload로 보존하고 material override는 후속에서 소비한다.
+    EffectEmitterPlaybackRuntimeDesc playback{};                      // Required 모듈에서 mesh emitter가 소비하는 재생 규칙이다.
+    EffectDrawLimitRuntimeDesc drawLimit{};                           // Required 모듈에서 mesh draw 제출 상한으로 소비하는 규칙이다.
+    EffectSpawnRuntimeDesc spawn{};                                   // Spawn 모듈에서 mesh particle 활성화 규칙으로 소비하는 payload다.
+    EffectLifetimeRuntimeDesc lifetime{};                             // Lifetime 모듈에서 mesh particle age/max life로 소비하는 payload다.
+    EffectInitialColorRuntimeDesc initialColor{};                     // InitialColor 모듈에서 mesh particle 시작 색으로 소비하는 payload다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{};                   // ColorOverLife 모듈에서 mesh particle color/fade로 소비하는 payload다.
+    PointParticleMotionDesc motion{};                                 // InitialVelocity/RadialVelocity 모듈에서 mesh particle 위치 갱신으로 소비하는 payload다.
+    PointParticleInitialLocationDesc initialLocation{};               // InitialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+    PointParticleSphereLocationDesc sphereLocation{};                 // SphereLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+    PointParticlePlaneRadialLocationDesc planeRadialLocation{};       // PlaneRadialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+    PointParticlePlaneRadialOrientationDesc planeRadialOrientation{}; // PlaneRadialOrientation 모듈에서 mesh radial frame 회전으로 소비하는 payload다.
+    MeshTransformRuntimeDesc meshTransform{};                         // Mesh 전용 Vec3 scale/rotation payload다.
+};
+
+using EffectEmitterConcreteDesc = variant<ComputeSpriteEmitterDesc, ComputeTrailEmitterDesc, MeshEmitterDesc>;
 
 struct EffectEmitterDefinition
 {
@@ -250,9 +437,10 @@ struct EffectEmitterDefinition
     EffectEmitterKind kind{ EffectEmitterKind::ComputeSprite }; // 생성할 concrete emitter 종류다.
     bool enabled{ true };                                       // root가 runtime child 생성 대상으로 볼지 결정하는 플래그다.
 
-    Vec3 localPosition{ 0.f, 0.f, 0.f };        // effect root 기준 emitter local 위치다.
-    Vec3 localRotationDegrees{ 0.f, 0.f, 0.f }; // effect root 기준 emitter local 회전이다.
-    bool useLocalSpace{ false };                // true면 root transform을 따라가는 local-space emitter다.
+    Vec3 localPosition{ 0.f, 0.f, 0.f };                                                            // effect root 기준 emitter local 위치다.
+    Vec3 localRotationDegrees{ 0.f, 0.f, 0.f };                                                     // effect root 기준 emitter local 회전이다.
+    bool useLocalSpace{ false };                                                                    // true면 root transform을 따라가는 local-space emitter다.
+    EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 concrete emitter의 기존 자동 render group 정책을 따른다.
 
     EffectEmitterConcreteDesc concreteDesc{ ComputeSpriteEmitterDesc{} }; // concrete emitter가 직접 소비할 payload다.
 };

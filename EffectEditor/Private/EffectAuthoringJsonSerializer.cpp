@@ -7,6 +7,9 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
+    json To_Json(const EffectMaterialInstanceData& data);
+    void From_Json(const json& root, EffectMaterialInstanceData& outData);
+
     //## Common Codec Helpers
 
     template <typename EnumType>
@@ -46,6 +49,78 @@ namespace Internal
             return;
 
         outValue = iter->get<bool>();
+    }
+
+    json To_Json(const DistributionRandomSeedData& data)
+    {
+        json root = json::object();
+        root["mode"] = To_EnumToken(data.mode);
+        root["manualSeed"] = data.manualSeed;
+        return root;
+    }
+
+    void From_Json(const json& root, DistributionRandomSeedData& outData)
+    {
+        outData = DistributionRandomSeedData{};
+        if (!root.is_object())
+            return;
+
+        const auto modeIter = root.find("mode");
+        if (modeIter != root.end())
+            Try_ReadEnumToken(*modeIter, outData.mode);
+        Read_NumberField(root, "manualSeed", outData.manualSeed);
+    }
+
+    void Write_RandomSeedField(json& root, const DistributionRandomSeedData& data)
+    {
+        root["randomSeed"] = To_Json(data);
+    }
+
+    void Read_RandomSeedField(const json& root, DistributionRandomSeedData& outData)
+    {
+        outData = DistributionRandomSeedData{};
+        const auto iter = root.find("randomSeed");
+        if (iter != root.end())
+            From_Json(*iter, outData);
+    }
+
+    bool Has_RandomSeedField(const json& root)
+    {
+        const auto iter = root.find("randomSeed");
+        return iter != root.end() && iter->is_object();
+    }
+
+    bool Is_DefaultRandomSeed(const DistributionRandomSeedData& data)
+    {
+        return data.mode == DistributionRandomSeedMode::Default && data.manualSeed == 0u;
+    }
+
+    void Apply_LegacyRandomSeedToUniform(FloatDistributionData& data, const DistributionRandomSeedData& legacySeed)
+    {
+        if (auto* uniform = get_if<UniformFloatDistributionData>(&data.payload);
+            data.mode == DistributionMode::Uniform && uniform != nullptr && Is_DefaultRandomSeed(uniform->randomSeed))
+            uniform->randomSeed = legacySeed;
+    }
+
+    void Apply_LegacyRandomSeedToUniform(Vector2DistributionData& data, const DistributionRandomSeedData& legacySeed)
+    {
+        if (auto* uniform = get_if<UniformVector2DistributionData>(&data.payload);
+            data.mode == DistributionMode::Uniform && uniform != nullptr && Is_DefaultRandomSeed(uniform->randomSeed))
+            uniform->randomSeed = legacySeed;
+    }
+
+    void Apply_LegacyRandomSeedToUniform(Vector3DistributionData& data, const DistributionRandomSeedData& legacySeed)
+    {
+        if (auto* uniform = get_if<UniformVector3DistributionData>(&data.payload);
+            data.mode == DistributionMode::Uniform && uniform != nullptr && Is_DefaultRandomSeed(uniform->randomSeed))
+            uniform->randomSeed = legacySeed;
+    }
+
+    void Apply_LegacyRandomSeedToUniform(ColorDistributionData& data, const DistributionRandomSeedData& legacySeed)
+    {
+        if (auto* uniform = get_if<UniformColorDistributionData>(&data.payload);
+            data.mode == DistributionMode::Uniform && uniform != nullptr && Is_DefaultRandomSeed(uniform->randomSeed))
+            uniform->randomSeed = legacySeed;
     }
 
     void Read_StringField(const json& node, const char* key, string& outValue)
@@ -214,6 +289,44 @@ namespace Internal
             Is_SameColor(data.constantColor, defaultData.constantColor);
     }
 
+    bool Is_DefaultCoreEmissive(const EffectMaterialCoreEmissiveData& data)
+    {
+        const EffectMaterialCoreEmissiveData defaultData{};
+        return
+            data.enabled == defaultData.enabled &&
+            Is_SameColor(data.coreColor, defaultData.coreColor) &&
+            data.corePower == defaultData.corePower &&
+            data.coreIntensity == defaultData.coreIntensity &&
+            data.outerPower == defaultData.outerPower &&
+            data.outerIntensity == defaultData.outerIntensity;
+    }
+
+    json To_Json(const EffectMaterialCoreEmissiveData& data)
+    {
+        json root = json::object();
+        root["enabled"] = data.enabled;
+        root["coreColor"] = To_Json(data.coreColor);
+        root["corePower"] = data.corePower;
+        root["coreIntensity"] = data.coreIntensity;
+        root["outerPower"] = data.outerPower;
+        root["outerIntensity"] = data.outerIntensity;
+        return root;
+    }
+
+    void From_Json(const json& root, EffectMaterialCoreEmissiveData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_BoolField(root, "enabled", outData.enabled);
+        if (const auto coreColorIter = root.find("coreColor"); coreColorIter != root.end())
+            Read_Color(*coreColorIter, outData.coreColor);
+        Read_NumberField(root, "corePower", outData.corePower);
+        Read_NumberField(root, "coreIntensity", outData.coreIntensity);
+        Read_NumberField(root, "outerPower", outData.outerPower);
+        Read_NumberField(root, "outerIntensity", outData.outerIntensity);
+    }
+
     json To_Json(const EffectMaterialAdditiveContributionData& data)
     {
         json root = json::object();
@@ -300,6 +413,42 @@ namespace Internal
         Read_NumberField(root, "sideFade", outData.sideFade);
     }
 
+    json To_Json(const MeshTypeData& data)
+    {
+        json root = json::object();
+        root["modelGuid"] = data.modelGuid;
+        root["modelPath"] = data.modelPath;
+        root["assignedEffectMaterialGuid"] = data.assignedEffectMaterialGuid;
+        root["assignedEffectMaterialPath"] = data.assignedEffectMaterialPath;
+        root["hasAssignedMaterialInstance"] = data.hasAssignedMaterialInstance;
+        if (data.hasAssignedMaterialInstance)
+            root["assignedMaterial"] = To_Json(data.assignedMaterial);
+        root["previewScale"] = To_Json(data.previewScale);
+        root["useModelMaterials"] = data.useModelMaterials;
+        return root;
+    }
+
+    void From_Json(const json& root, MeshTypeData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_StringField(root, "modelGuid", outData.modelGuid);
+        Read_StringField(root, "modelPath", outData.modelPath);
+        Read_StringField(root, "assignedEffectMaterialGuid", outData.assignedEffectMaterialGuid);
+        Read_StringField(root, "assignedEffectMaterialPath", outData.assignedEffectMaterialPath);
+        Read_BoolField(root, "hasAssignedMaterialInstance", outData.hasAssignedMaterialInstance);
+        if (const auto assignedMaterialIter = root.find("assignedMaterial");
+            assignedMaterialIter != root.end() && assignedMaterialIter->is_object())
+        {
+            From_Json(*assignedMaterialIter, outData.assignedMaterial);
+            outData.hasAssignedMaterialInstance = true;
+        }
+        if (const auto previewScaleIter = root.find("previewScale"); previewScaleIter != root.end())
+            Read_Vec3(*previewScaleIter, outData.previewScale);
+        Read_BoolField(root, "useModelMaterials", outData.useModelMaterials);
+    }
+
     json To_Json(const AuthoringTypeData& data)
     {
         json root = json::object();
@@ -311,6 +460,12 @@ namespace Internal
         {
             const TrailTypeData* trailData = get_if<TrailTypeData>(&data.payload);
             root["data"] = To_Json(trailData != nullptr ? *trailData : TrailTypeData{});
+            break;
+        }
+        case AuthoringTypeDataKind::Mesh:
+        {
+            const MeshTypeData* meshData = get_if<MeshTypeData>(&data.payload);
+            root["data"] = To_Json(meshData != nullptr ? *meshData : MeshTypeData{});
             break;
         }
         case AuthoringTypeDataKind::None:
@@ -344,6 +499,17 @@ namespace Internal
             outData.payload = data;
             break;
         }
+        case AuthoringTypeDataKind::Mesh:
+        {
+            MeshTypeData data{};
+            const auto dataIter = root.find("data");
+            if (dataIter != root.end())
+                From_Json(*dataIter, data);
+
+            outData.kind = AuthoringTypeDataKind::Mesh;
+            outData.payload = data;
+            break;
+        }
         case AuthoringTypeDataKind::None:
         default:
             outData.kind = AuthoringTypeDataKind::None;
@@ -371,6 +537,10 @@ namespace Internal
         root["noiseStrength"] = data.noiseStrength;
         root["alphaCutoff"] = data.alphaCutoff;
         root["alphaErosion"] = data.alphaErosion;
+        root["noiseSource"] = data.noiseSource;
+        root["maskSource"] = data.maskSource;
+        root["noiseInvert"] = data.noiseInvert;
+        root["maskInvert"] = data.maskInvert;
         root["mainUVScale"] = To_Json(data.mainUVScale);
         root["mainUVOffset"] = To_Json(data.mainUVOffset);
         root["mainUVScrollSpeed"] = To_Json(data.mainUVScrollSpeed);
@@ -391,6 +561,8 @@ namespace Internal
         root["opacitySource"] = data.opacitySource;
         if (data.blendMode == EffectMaterialBlendMode::Additive || !Is_DefaultAdditiveContribution(data.additive))
             root["additive"] = To_Json(data.additive);
+        if (!Is_DefaultCoreEmissive(data.coreEmissive))
+            root["coreEmissive"] = To_Json(data.coreEmissive);
         root["refractionIntensity"] = data.refractionIntensity;
         root["refractionPresence"] = data.refractionPresence;
         root["distortionShapeMode"] = To_EnumToken(data.distortionShapeMode);
@@ -444,11 +616,17 @@ namespace Internal
         Read_NumberField(root, "noiseStrength", outData.noiseStrength);
         Read_NumberField(root, "alphaCutoff", outData.alphaCutoff);
         Read_NumberField(root, "alphaErosion", outData.alphaErosion);
+        Read_StringField(root, "noiseSource", outData.noiseSource);
+        Read_StringField(root, "maskSource", outData.maskSource);
+        Read_BoolField(root, "noiseInvert", outData.noiseInvert);
+        Read_BoolField(root, "maskInvert", outData.maskInvert);
         if (const auto blendModeIter = root.find("blendMode"); blendModeIter != root.end())
             Try_ReadEnumToken(*blendModeIter, outData.blendMode);
         Read_StringField(root, "opacitySource", outData.opacitySource);
         if (const auto additiveIter = root.find("additive"); additiveIter != root.end())
             From_Json(*additiveIter, outData.additive);
+        if (const auto coreEmissiveIter = root.find("coreEmissive"); coreEmissiveIter != root.end())
+            From_Json(*coreEmissiveIter, outData.coreEmissive);
         Read_BoolField(root, "twoSided", outData.twoSided);
         Read_NumberField(root, "subUVRows", outData.subUVRows);
         Read_NumberField(root, "subUVCols", outData.subUVCols);
@@ -574,6 +752,91 @@ namespace Internal
             Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
     }
 
+    json To_Json(const Vector3CurveKeyData& data)
+    {
+        json root = json::object();
+        root["time"] = data.time;
+        root["value"] = To_Json(data.value);
+        root["arriveTangent"] = To_Json(data.arriveTangent);
+        root["leaveTangent"] = To_Json(data.leaveTangent);
+        root["interpolationMode"] = To_EnumToken(data.interpolationMode);
+        return root;
+    }
+
+    void From_Json(const json& root, Vector3CurveKeyData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "time", outData.time);
+
+        const auto valueIter = root.find("value");
+        if (valueIter != root.end())
+            Read_Vec3(*valueIter, outData.value);
+
+        const auto arriveTangentIter = root.find("arriveTangent");
+        if (arriveTangentIter != root.end())
+            Read_Vec3(*arriveTangentIter, outData.arriveTangent);
+
+        const auto leaveTangentIter = root.find("leaveTangent");
+        if (leaveTangentIter != root.end())
+            Read_Vec3(*leaveTangentIter, outData.leaveTangent);
+
+        const auto interpolationIter = root.find("interpolationMode");
+        if (interpolationIter != root.end())
+            Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
+    }
+
+    json To_ColorRgbJson(const Color& value)
+    {
+        return json::array({ value.x, value.y, value.z });
+    }
+
+    void Read_ColorRgb(const json& node, Color& outValue)
+    {
+        if (!node.is_array() || node.size() < 3 || !node[0].is_number() || !node[1].is_number() || !node[2].is_number())
+            return;
+
+        outValue.x = node[0].get<float>();
+        outValue.y = node[1].get<float>();
+        outValue.z = node[2].get<float>();
+    }
+
+    json To_Json(const ColorCurveKeyData& data)
+    {
+        json root = json::object();
+        root["time"] = data.time;
+        root["value"] = To_ColorRgbJson(data.value);
+        root["arriveTangent"] = To_ColorRgbJson(data.arriveTangent);
+        root["leaveTangent"] = To_ColorRgbJson(data.leaveTangent);
+        root["interpolationMode"] = To_EnumToken(data.interpolationMode);
+        return root;
+    }
+
+    void From_Json(const json& root, ColorCurveKeyData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "time", outData.time);
+
+        const auto valueIter = root.find("value");
+        if (valueIter != root.end())
+            Read_ColorRgb(*valueIter, outData.value);
+
+        const auto arriveTangentIter = root.find("arriveTangent");
+        if (arriveTangentIter != root.end())
+            Read_ColorRgb(*arriveTangentIter, outData.arriveTangent);
+
+        const auto leaveTangentIter = root.find("leaveTangent");
+        if (leaveTangentIter != root.end())
+            Read_ColorRgb(*leaveTangentIter, outData.leaveTangent);
+
+        const auto interpolationIter = root.find("interpolationMode");
+        if (interpolationIter != root.end())
+            Try_ReadEnumToken(*interpolationIter, outData.interpolationMode);
+    }
+
     static float Evaluate_FloatCurveSegmentLinear(const FloatCurveKeyData& leftKey, const FloatCurveKeyData& rightKey, float x)
     {
         const float width = max(0.0001f, rightKey.time - leftKey.time);
@@ -643,6 +906,7 @@ namespace Internal
         {
             payload["minValue"] = uniformData->minValue;
             payload["maxValue"] = uniformData->maxValue;
+            Write_RandomSeedField(payload, uniformData->randomSeed);
         }
         else if (const auto* constantCurveData = get_if<ConstantCurveFloatDistributionData>(&data.payload))
         {
@@ -692,6 +956,7 @@ namespace Internal
                 payload = *existingPayload;
             Read_NumberField(*payloadIter, "minValue", payload.minValue);
             Read_NumberField(*payloadIter, "maxValue", payload.maxValue);
+            Read_RandomSeedField(*payloadIter, payload.randomSeed);
             outData.payload = payload;
             break;
         }
@@ -736,6 +1001,7 @@ namespace Internal
         {
             payload["minValue"] = To_Json(uniformData->minValue);
             payload["maxValue"] = To_Json(uniformData->maxValue);
+            Write_RandomSeedField(payload, uniformData->randomSeed);
         }
         else if (const auto* constantCurveData = get_if<ConstantCurveVector2DistributionData>(&data.payload))
         {
@@ -791,6 +1057,7 @@ namespace Internal
             const auto maxIter = payloadIter->find("maxValue");
             if (maxIter != payloadIter->end())
                 Read_Vec2(*maxIter, payload.maxValue);
+            Read_RandomSeedField(*payloadIter, payload.randomSeed);
             outData.payload = payload;
             break;
         }
@@ -835,6 +1102,13 @@ namespace Internal
         {
             payload["minValue"] = To_Json(uniformData->minValue);
             payload["maxValue"] = To_Json(uniformData->maxValue);
+            Write_RandomSeedField(payload, uniformData->randomSeed);
+        }
+        else if (const auto* constantCurveData = get_if<ConstantCurveVector3DistributionData>(&data.payload))
+        {
+            payload["keys"] = json::array();
+            for (const Vector3CurveKeyData& key : constantCurveData->keys)
+                payload["keys"].push_back(To_Json(key));
         }
 
         root["payload"] = move(payload);
@@ -850,7 +1124,9 @@ namespace Internal
         const auto modeIter = root.find("mode");
         if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
         {
-            if (parsedMode == DistributionMode::Constant || parsedMode == DistributionMode::Uniform)
+            if (parsedMode == DistributionMode::Constant ||
+                parsedMode == DistributionMode::Uniform ||
+                parsedMode == DistributionMode::ConstantCurve)
                 outData.mode = parsedMode;
         }
 
@@ -882,6 +1158,31 @@ namespace Internal
             const auto maxIter = payloadIter->find("maxValue");
             if (maxIter != payloadIter->end())
                 Read_Vec3(*maxIter, payload.maxValue);
+            Read_RandomSeedField(*payloadIter, payload.randomSeed);
+            outData.payload = payload;
+            break;
+        }
+        case DistributionMode::ConstantCurve:
+        {
+            ConstantCurveVector3DistributionData payload{};
+            const auto keysIter = payloadIter->find("keys");
+            if (keysIter != payloadIter->end() && keysIter->is_array())
+            {
+                payload.keys.clear();
+                for (const json& keyNode : *keysIter)
+                {
+                    Vector3CurveKeyData key{};
+                    From_Json(keyNode, key);
+                    payload.keys.push_back(key);
+                }
+            }
+
+            if (payload.keys.empty())
+            {
+                if (const auto* existingPayload = get_if<ConstantCurveVector3DistributionData>(&outData.payload))
+                    payload.keys = existingPayload->keys;
+            }
+
             outData.payload = payload;
             break;
         }
@@ -902,6 +1203,13 @@ namespace Internal
         {
             payload["minValue"] = To_Json(uniformData->minValue);
             payload["maxValue"] = To_Json(uniformData->maxValue);
+            Write_RandomSeedField(payload, uniformData->randomSeed);
+        }
+        else if (const auto* constantCurveData = get_if<ConstantCurveColorDistributionData>(&data.payload))
+        {
+            payload["keys"] = json::array();
+            for (const ColorCurveKeyData& key : constantCurveData->keys)
+                payload["keys"].push_back(To_Json(key));
         }
 
         root["payload"] = move(payload);
@@ -917,7 +1225,9 @@ namespace Internal
         const auto modeIter = root.find("mode");
         if (modeIter != root.end() && Try_ReadEnumToken(*modeIter, parsedMode))
         {
-            if (parsedMode == DistributionMode::Constant || parsedMode == DistributionMode::Uniform)
+            if (parsedMode == DistributionMode::Constant ||
+                parsedMode == DistributionMode::Uniform ||
+                parsedMode == DistributionMode::ConstantCurve)
                 outData.mode = parsedMode;
         }
 
@@ -949,6 +1259,31 @@ namespace Internal
             const auto maxIter = payloadIter->find("maxValue");
             if (maxIter != payloadIter->end())
                 Read_Color(*maxIter, payload.maxValue);
+            Read_RandomSeedField(*payloadIter, payload.randomSeed);
+            outData.payload = payload;
+            break;
+        }
+        case DistributionMode::ConstantCurve:
+        {
+            ConstantCurveColorDistributionData payload{};
+            const auto keysIter = payloadIter->find("keys");
+            if (keysIter != payloadIter->end() && keysIter->is_array())
+            {
+                payload.keys.clear();
+                for (const json& keyNode : *keysIter)
+                {
+                    ColorCurveKeyData key{};
+                    From_Json(keyNode, key);
+                    payload.keys.push_back(key);
+                }
+            }
+
+            if (payload.keys.empty())
+            {
+                if (const auto* existingPayload = get_if<ConstantCurveColorDistributionData>(&outData.payload))
+                    payload.keys = existingPayload->keys;
+            }
+
             outData.payload = payload;
             break;
         }
@@ -972,6 +1307,7 @@ namespace Internal
         root["maxCameraBlendDistance"] = data.maxCameraBlendDistance;
         root["useLocalSpace"] = data.useLocalSpace;
         root["sortMode"] = To_EnumToken(data.sortMode);
+        root["sortBias"] = data.sortBias;
         root["cameraMotionBlurAmount"] = data.cameraMotionBlurAmount;
         root["clearExistingParticlesOnInit"] = data.clearExistingParticlesOnInit;
         root["loopCount"] = data.loopCount;
@@ -1023,6 +1359,7 @@ namespace Internal
         Read_NumberField(root, "minCameraBlendDistance", outData.minCameraBlendDistance);
         Read_NumberField(root, "maxCameraBlendDistance", outData.maxCameraBlendDistance);
         Read_BoolField(root, "useLocalSpace", outData.useLocalSpace);
+        Read_NumberField(root, "sortBias", outData.sortBias);
         Read_NumberField(root, "cameraMotionBlurAmount", outData.cameraMotionBlurAmount);
         Read_BoolField(root, "clearExistingParticlesOnInit", outData.clearExistingParticlesOnInit);
         Read_NumberField(root, "loopCount", outData.loopCount);
@@ -1107,6 +1444,12 @@ namespace Internal
         const auto iter = root.find("lifeTime");
         if (root.is_object() && iter != root.end())
             From_Json(*iter, outData.lifeTime);
+        if (root.is_object())
+        {
+            DistributionRandomSeedData legacySeed{};
+            Read_RandomSeedField(root, legacySeed);
+            Apply_LegacyRandomSeedToUniform(outData.lifeTime, legacySeed);
+        }
     }
 
     json To_Json(const InitialLocationModuleData& data)
@@ -1121,6 +1464,12 @@ namespace Internal
         const auto iter = root.find("location");
         if (root.is_object() && iter != root.end())
             From_Json(*iter, outData.location);
+        if (root.is_object())
+        {
+            DistributionRandomSeedData legacySeed{};
+            Read_RandomSeedField(root, legacySeed);
+            Apply_LegacyRandomSeedToUniform(outData.location, legacySeed);
+        }
     }
 
     json To_Json(const SphereLocationModuleData& data)
@@ -1129,6 +1478,7 @@ namespace Internal
         root["offset"] = To_Json(data.offset);
         root["radius"] = data.radius;
         root["spawnMode"] = To_EnumToken(data.spawnMode);
+        Write_RandomSeedField(root, data.randomSeed);
         return root;
     }
 
@@ -1144,6 +1494,113 @@ namespace Internal
         const auto spawnModeIter = root.find("spawnMode");
         if (spawnModeIter != root.end())
             Try_ReadEnumToken(*spawnModeIter, outData.spawnMode);
+        Read_RandomSeedField(root, outData.randomSeed);
+    }
+
+    void Read_FloatDistributionOrLegacyRangeField(
+        const json& root,
+        const char* distributionKey,
+        const char* legacyRangeKey,
+        FloatDistributionData& outData)
+    {
+        if (const auto distributionIter = root.find(distributionKey);
+            distributionIter != root.end() && distributionIter->is_object())
+        {
+            From_Json(*distributionIter, outData);
+            return;
+        }
+
+        if (const auto legacyIter = root.find(legacyRangeKey); legacyIter != root.end())
+        {
+            Vec2 legacyRange{};
+            Read_Vec2(*legacyIter, legacyRange);
+            outData = legacyRange.x == legacyRange.y
+                      ? FloatDistributionData::Make_Constant(legacyRange.x)
+                      : FloatDistributionData::Make_Uniform(legacyRange.x, legacyRange.y);
+        }
+    }
+
+    json To_Json(const PlaneRadialLocationModuleData& data)
+    {
+        json root = json::object();
+        root["enabled"] = data.enabled;
+        root["plane"] = To_EnumToken(data.plane);
+        root["shape"] = To_EnumToken(data.shape);
+        root["placementMode"] = To_EnumToken(data.placementMode);
+        root["offset"] = To_Json(data.offset);
+        root["uDistribution"] = To_Json(data.uDistribution);
+        root["vDistribution"] = To_Json(data.vDistribution);
+        root["radiusDistribution"] = To_Json(data.radiusDistribution);
+        root["angleDegreesDistribution"] = To_Json(data.angleDegreesDistribution);
+        root["thickness"] = data.thickness;
+        return root;
+    }
+
+    void From_Json(const json& root, PlaneRadialLocationModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_BoolField(root, "enabled", outData.enabled);
+        const auto planeIter = root.find("plane");
+        if (planeIter != root.end())
+            Try_ReadEnumToken(*planeIter, outData.plane);
+        const auto shapeIter = root.find("shape");
+        if (shapeIter != root.end())
+            Try_ReadEnumToken(*shapeIter, outData.shape);
+        const auto placementModeIter = root.find("placementMode");
+        if (placementModeIter != root.end())
+            Try_ReadEnumToken(*placementModeIter, outData.placementMode);
+
+        const auto offsetIter = root.find("offset");
+        if (offsetIter != root.end())
+            Read_Vec3(*offsetIter, outData.offset);
+        Read_FloatDistributionOrLegacyRangeField(root, "uDistribution", "rangeU", outData.uDistribution);
+        Read_FloatDistributionOrLegacyRangeField(root, "vDistribution", "rangeV", outData.vDistribution);
+        Read_FloatDistributionOrLegacyRangeField(root, "radiusDistribution", "radiusRange", outData.radiusDistribution);
+        Read_FloatDistributionOrLegacyRangeField(root, "angleDegreesDistribution", "angleDegreesRange", outData.angleDegreesDistribution);
+        Read_NumberField(root, "thickness", outData.thickness);
+        DistributionRandomSeedData legacySeed{};
+        Read_RandomSeedField(root, legacySeed);
+        Apply_LegacyRandomSeedToUniform(outData.uDistribution, legacySeed);
+        Apply_LegacyRandomSeedToUniform(outData.vDistribution, legacySeed);
+        Apply_LegacyRandomSeedToUniform(outData.radiusDistribution, legacySeed);
+        Apply_LegacyRandomSeedToUniform(outData.angleDegreesDistribution, legacySeed);
+    }
+
+    json To_Json(const PlaneRadialOrientationModuleData& data)
+    {
+        json root = json::object();
+        root["enabled"] = data.enabled;
+        root["targetKind"] = To_EnumToken(data.targetKind);
+        root["orientationMode"] = To_EnumToken(data.orientationMode);
+        root["meshForwardAxis"] = To_EnumToken(data.meshForwardAxis);
+        root["meshUpAxis"] = To_EnumToken(data.meshUpAxis);
+        root["tiltDegrees"] = data.tiltDegrees;
+        root["rollOffsetDegrees"] = data.rollOffsetDegrees;
+        return root;
+    }
+
+    void From_Json(const json& root, PlaneRadialOrientationModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_BoolField(root, "enabled", outData.enabled);
+        const auto targetKindIter = root.find("targetKind");
+        if (targetKindIter != root.end())
+            Try_ReadEnumToken(*targetKindIter, outData.targetKind);
+        const auto orientationModeIter = root.find("orientationMode");
+        if (orientationModeIter != root.end())
+            Try_ReadEnumToken(*orientationModeIter, outData.orientationMode);
+        const auto meshForwardAxisIter = root.find("meshForwardAxis");
+        if (meshForwardAxisIter != root.end())
+            Try_ReadEnumToken(*meshForwardAxisIter, outData.meshForwardAxis);
+        const auto meshUpAxisIter = root.find("meshUpAxis");
+        if (meshUpAxisIter != root.end())
+            Try_ReadEnumToken(*meshUpAxisIter, outData.meshUpAxis);
+        Read_NumberField(root, "tiltDegrees", outData.tiltDegrees);
+        Read_NumberField(root, "rollOffsetDegrees", outData.rollOffsetDegrees);
     }
 
     json To_Json(const InitialSizeModuleData& data)
@@ -1154,6 +1611,20 @@ namespace Internal
     }
 
     void From_Json(const json& root, InitialSizeModuleData& outData)
+    {
+        const auto iter = root.find("size");
+        if (root.is_object() && iter != root.end())
+            From_Json(*iter, outData.size);
+    }
+
+    json To_Json(const InitialMeshSizeModuleData& data)
+    {
+        json root = json::object();
+        root["size"] = To_Json(data.size);
+        return root;
+    }
+
+    void From_Json(const json& root, InitialMeshSizeModuleData& outData)
     {
         const auto iter = root.find("size");
         if (root.is_object() && iter != root.end())
@@ -1177,6 +1648,9 @@ namespace Internal
         if (velocityIter != root.end())
             From_Json(*velocityIter, outData.velocity);
         Read_BoolField(root, "inWorldSpace", outData.inWorldSpace);
+        DistributionRandomSeedData legacySeed{};
+        Read_RandomSeedField(root, legacySeed);
+        Apply_LegacyRandomSeedToUniform(outData.velocity, legacySeed);
     }
 
     json To_Json(const InitialRadialVelocityModuleData& data)
@@ -1200,6 +1674,37 @@ namespace Internal
         if (radialPivotIter != root.end())
             Read_Vec3(*radialPivotIter, outData.radialPivot);
         Read_BoolField(root, "inWorldSpace", outData.inWorldSpace);
+        DistributionRandomSeedData legacySeed{};
+        Read_RandomSeedField(root, legacySeed);
+        Apply_LegacyRandomSeedToUniform(outData.speed, legacySeed);
+    }
+
+    json To_Json(const VelocityConeModuleData& data)
+    {
+        json root = json::object();
+        root["axis"] = To_Json(data.axis);
+        root["angleDegrees"] = data.angleDegrees;
+        root["speed"] = To_Json(data.speed);
+        root["inWorldSpace"] = data.inWorldSpace;
+        return root;
+    }
+
+    void From_Json(const json& root, VelocityConeModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        const auto axisIter = root.find("axis");
+        if (axisIter != root.end())
+            Read_Vec3(*axisIter, outData.axis);
+        Read_NumberField(root, "angleDegrees", outData.angleDegrees);
+        const auto speedIter = root.find("speed");
+        if (speedIter != root.end())
+            From_Json(*speedIter, outData.speed);
+        Read_BoolField(root, "inWorldSpace", outData.inWorldSpace);
+        DistributionRandomSeedData legacySeed{};
+        Read_RandomSeedField(root, legacySeed);
+        Apply_LegacyRandomSeedToUniform(outData.speed, legacySeed);
     }
 
     json To_Json(const AccelerationModuleData& data)
@@ -1214,6 +1719,12 @@ namespace Internal
         const auto iter = root.find("acceleration");
         if (root.is_object() && iter != root.end())
             From_Json(*iter, outData.acceleration);
+        if (root.is_object())
+        {
+            DistributionRandomSeedData legacySeed{};
+            Read_RandomSeedField(root, legacySeed);
+            Apply_LegacyRandomSeedToUniform(outData.acceleration, legacySeed);
+        }
     }
 
     json To_Json(const DragModuleData& data)
@@ -1228,13 +1739,18 @@ namespace Internal
         const auto iter = root.find("drag");
         if (root.is_object() && iter != root.end())
             From_Json(*iter, outData.drag);
+        if (root.is_object())
+        {
+            DistributionRandomSeedData legacySeed{};
+            Read_RandomSeedField(root, legacySeed);
+            Apply_LegacyRandomSeedToUniform(outData.drag, legacySeed);
+        }
     }
 
     json To_Json(const VelocityOverLifeModuleData& data)
     {
         json root = json::object();
-        root["scaleStart"] = data.scaleStart;
-        root["scaleEnd"] = data.scaleEnd;
+        root["scaleOverLife"] = To_Json(data.scaleOverLife);
         return root;
     }
 
@@ -1243,8 +1759,18 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_NumberField(root, "scaleStart", outData.scaleStart);
-        Read_NumberField(root, "scaleEnd", outData.scaleEnd);
+        const auto scaleOverLifeIter = root.find("scaleOverLife");
+        if (scaleOverLifeIter != root.end())
+        {
+            From_Json(*scaleOverLifeIter, outData.scaleOverLife);
+            return;
+        }
+
+        float scaleStart{ 1.f };
+        float scaleEnd{ 1.f };
+        Read_NumberField(root, "scaleStart", scaleStart);
+        Read_NumberField(root, "scaleEnd", scaleEnd);
+        outData.scaleOverLife = FloatDistributionData::Make_ConstantCurve(scaleStart, scaleEnd);
     }
 
     json To_Json(const InitialRotationModuleData& data)
@@ -1259,13 +1785,18 @@ namespace Internal
         const auto iter = root.find("rotationDegrees");
         if (root.is_object() && iter != root.end())
             From_Json(*iter, outData.rotationDegrees);
+        if (root.is_object())
+        {
+            DistributionRandomSeedData legacySeed{};
+            Read_RandomSeedField(root, legacySeed);
+            Apply_LegacyRandomSeedToUniform(outData.rotationDegrees, legacySeed);
+        }
     }
 
     json To_Json(const RotationOverLifeModuleData& data)
     {
         json root = json::object();
-        root["rotationStartDegrees"] = data.rotationStartDegrees;
-        root["rotationEndDegrees"] = data.rotationEndDegrees;
+        root["rotationOverLife"] = To_Json(data.rotationOverLife);
         return root;
     }
 
@@ -1274,8 +1805,17 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_NumberField(root, "rotationStartDegrees", outData.rotationStartDegrees);
-        Read_NumberField(root, "rotationEndDegrees", outData.rotationEndDegrees);
+        const auto rotationOverLifeIter = root.find("rotationOverLife");
+        if (rotationOverLifeIter != root.end())
+            From_Json(*rotationOverLifeIter, outData.rotationOverLife);
+        else
+        {
+            float rotationStartDegrees{ 0.f };
+            float rotationEndDegrees{ 0.f };
+            Read_NumberField(root, "rotationStartDegrees", rotationStartDegrees);
+            Read_NumberField(root, "rotationEndDegrees", rotationEndDegrees);
+            outData.rotationOverLife = FloatDistributionData::Make_ConstantCurve(rotationStartDegrees, rotationEndDegrees);
+        }
     }
 
     json To_Json(const InitialRotationRateModuleData& data)
@@ -1290,13 +1830,18 @@ namespace Internal
         const auto iter = root.find("rotationRateDegrees");
         if (root.is_object() && iter != root.end())
             From_Json(*iter, outData.rotationRateDegrees);
+        if (root.is_object())
+        {
+            DistributionRandomSeedData legacySeed{};
+            Read_RandomSeedField(root, legacySeed);
+            Apply_LegacyRandomSeedToUniform(outData.rotationRateDegrees, legacySeed);
+        }
     }
 
     json To_Json(const RotationRateScaleByLifeModuleData& data)
     {
         json root = json::object();
-        root["scaleStart"] = data.scaleStart;
-        root["scaleEnd"] = data.scaleEnd;
+        root["scaleOverLife"] = To_Json(data.scaleOverLife);
         return root;
     }
 
@@ -1305,8 +1850,73 @@ namespace Internal
         if (!root.is_object())
             return;
 
-        Read_NumberField(root, "scaleStart", outData.scaleStart);
-        Read_NumberField(root, "scaleEnd", outData.scaleEnd);
+        const auto scaleOverLifeIter = root.find("scaleOverLife");
+        if (scaleOverLifeIter != root.end())
+            From_Json(*scaleOverLifeIter, outData.scaleOverLife);
+        else
+        {
+            float scaleStart{ 1.f };
+            float scaleEnd{ 1.f };
+            Read_NumberField(root, "scaleStart", scaleStart);
+            Read_NumberField(root, "scaleEnd", scaleEnd);
+            outData.scaleOverLife = FloatDistributionData::Make_ConstantCurve(scaleStart, scaleEnd);
+        }
+    }
+
+    json To_Json(const InitialMeshRotationModuleData& data)
+    {
+        json root = json::object();
+        root["rotationDegrees"] = To_Json(data.rotationDegrees);
+        return root;
+    }
+
+    void From_Json(const json& root, InitialMeshRotationModuleData& outData)
+    {
+        const auto iter = root.find("rotationDegrees");
+        if (root.is_object() && iter != root.end())
+            From_Json(*iter, outData.rotationDegrees);
+    }
+
+    json To_Json(const MeshRotationOverLifeModuleData& data)
+    {
+        json root = json::object();
+        root["rotationOverLife"] = To_Json(data.rotationOverLife);
+        return root;
+    }
+
+    void From_Json(const json& root, MeshRotationOverLifeModuleData& outData)
+    {
+        const auto iter = root.find("rotationOverLife");
+        if (root.is_object() && iter != root.end())
+            From_Json(*iter, outData.rotationOverLife);
+    }
+
+    json To_Json(const InitialMeshRotationRateModuleData& data)
+    {
+        json root = json::object();
+        root["rotationRateDegrees"] = To_Json(data.rotationRateDegrees);
+        return root;
+    }
+
+    void From_Json(const json& root, InitialMeshRotationRateModuleData& outData)
+    {
+        const auto iter = root.find("rotationRateDegrees");
+        if (root.is_object() && iter != root.end())
+            From_Json(*iter, outData.rotationRateDegrees);
+    }
+
+    json To_Json(const MeshRotationRateScaleByLifeModuleData& data)
+    {
+        json root = json::object();
+        root["scaleOverLife"] = To_Json(data.scaleOverLife);
+        return root;
+    }
+
+    void From_Json(const json& root, MeshRotationRateScaleByLifeModuleData& outData)
+    {
+        const auto iter = root.find("scaleOverLife");
+        if (root.is_object() && iter != root.end())
+            From_Json(*iter, outData.scaleOverLife);
     }
 
     json To_Json(const InitialColorModuleData& data)
@@ -1360,6 +1970,7 @@ namespace Internal
         root["loop"] = data.loop;
         root["playbackMode"] = To_EnumToken(data.playbackMode);
         root["framesPerSecond"] = data.framesPerSecond;
+        Write_RandomSeedField(root, data.randomSeed);
         return root;
     }
 
@@ -1378,6 +1989,7 @@ namespace Internal
         if (playbackModeIter != root.end())
             Try_ReadEnumToken(*playbackModeIter, outData.playbackMode);
         Read_NumberField(root, "framesPerSecond", outData.framesPerSecond);
+        Read_RandomSeedField(root, outData.randomSeed);
     }
 
     //## Module Data Codec
@@ -1406,63 +2018,90 @@ namespace Internal
 
         const auto scaleOverLifeIter = root.find("scaleOverLife");
         if (scaleOverLifeIter != root.end())
-        {
             From_Json(*scaleOverLifeIter, outData.scaleOverLife);
-            return;
-        }
-
-        float multiplyXStart{ 1.f };
-        float multiplyXEnd{ 1.f };
-        float multiplyYStart{ 1.f };
-        float multiplyYEnd{ 1.f };
-        Read_NumberField(root, "multiplyXStart", multiplyXStart);
-        Read_NumberField(root, "multiplyXEnd", multiplyXEnd);
-        Read_NumberField(root, "multiplyYStart", multiplyYStart);
-        Read_NumberField(root, "multiplyYEnd", multiplyYEnd);
-
-        const auto responseCurveIter = root.find("responseCurve");
-        if (responseCurveIter == root.end())
+        else
         {
-            outData.scaleOverLife = Vector2DistributionData::Make_ConstantCurve(
-                Vec2{ multiplyXStart, multiplyYStart },
-                Vec2{ multiplyXEnd, multiplyYEnd }
-            );
-            return;
-        }
+            float multiplyXStart{ 1.f };
+            float multiplyXEnd{ 1.f };
+            float multiplyYStart{ 1.f };
+            float multiplyYEnd{ 1.f };
+            Read_NumberField(root, "multiplyXStart", multiplyXStart);
+            Read_NumberField(root, "multiplyXEnd", multiplyXEnd);
+            Read_NumberField(root, "multiplyYStart", multiplyYStart);
+            Read_NumberField(root, "multiplyYEnd", multiplyYEnd);
 
-        FloatDistributionData responseCurve{ FloatDistributionData::Make_ConstantCurve(0.f, 1.f) };
-        From_Json(*responseCurveIter, responseCurve);
-
-        ConstantCurveVector2DistributionData bakedCurve{};
-        bakedCurve.keys.clear();
-
-        const auto* curve = get_if<ConstantCurveFloatDistributionData>(&responseCurve.payload);
-        if (responseCurve.mode == DistributionMode::ConstantCurve && curve != nullptr && !curve->keys.empty())
-        {
-            for (const FloatCurveKeyData& responseKey : curve->keys)
+            const auto responseCurveIter = root.find("responseCurve");
+            if (responseCurveIter == root.end())
             {
-                const float ratio = Evaluate_FloatConstantCurve(*curve, responseKey.time, responseKey.value);
-                bakedCurve.keys.push_back(Vector2CurveKeyData{
-                    responseKey.time,
-                    Lerp_Vec2(Vec2{ multiplyXStart, multiplyYStart }, Vec2{ multiplyXEnd, multiplyYEnd }, ratio),
-                    Vec2{},
-                    Vec2{},
-                    responseKey.interpolationMode
-                });
-            }
-        }
-
-        if (bakedCurve.keys.empty())
-        {
-            bakedCurve.keys = get<ConstantCurveVector2DistributionData>(
-                Vector2DistributionData::Make_ConstantCurve(
+                outData.scaleOverLife = Vector2DistributionData::Make_ConstantCurve(
                     Vec2{ multiplyXStart, multiplyYStart },
                     Vec2{ multiplyXEnd, multiplyYEnd }
-                ).payload).keys;
-        }
+                );
+            }
+            else
+            {
+                FloatDistributionData responseCurve{ FloatDistributionData::Make_ConstantCurve(0.f, 1.f) };
+                From_Json(*responseCurveIter, responseCurve);
 
-        outData.scaleOverLife.mode = DistributionMode::ConstantCurve;
-        outData.scaleOverLife.payload = bakedCurve;
+                ConstantCurveVector2DistributionData bakedCurve{};
+                bakedCurve.keys.clear();
+
+                const auto* curve = get_if<ConstantCurveFloatDistributionData>(&responseCurve.payload);
+                if (responseCurve.mode == DistributionMode::ConstantCurve && curve != nullptr && !curve->keys.empty())
+                {
+                    for (const FloatCurveKeyData& responseKey : curve->keys)
+                    {
+                        const float ratio = Evaluate_FloatConstantCurve(*curve, responseKey.time, responseKey.value);
+                        bakedCurve.keys.push_back(
+                            Vector2CurveKeyData{
+                                responseKey.time,
+                                Lerp_Vec2(Vec2{ multiplyXStart, multiplyYStart }, Vec2{ multiplyXEnd, multiplyYEnd }, ratio),
+                                Vec2{},
+                                Vec2{},
+                                responseKey.interpolationMode
+                            }
+                        );
+                    }
+                }
+
+                if (bakedCurve.keys.empty())
+                {
+                    bakedCurve.keys = get<ConstantCurveVector2DistributionData>(
+                        Vector2DistributionData::Make_ConstantCurve(
+                            Vec2{ multiplyXStart, multiplyYStart },
+                            Vec2{ multiplyXEnd, multiplyYEnd }
+                        ).payload
+                    ).keys;
+                }
+
+                outData.scaleOverLife.mode = DistributionMode::ConstantCurve;
+                outData.scaleOverLife.payload = bakedCurve;
+            }
+        }
+    }
+
+    json To_Json(const MeshSizeByLifeModuleData& data)
+    {
+        json root = json::object();
+        root["scaleOverLife"] = To_Json(data.scaleOverLife);
+        root["multiplyX"] = data.multiplyX;
+        root["multiplyY"] = data.multiplyY;
+        root["multiplyZ"] = data.multiplyZ;
+        return root;
+    }
+
+    void From_Json(const json& root, MeshSizeByLifeModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_BoolField(root, "multiplyX", outData.multiplyX);
+        Read_BoolField(root, "multiplyY", outData.multiplyY);
+        Read_BoolField(root, "multiplyZ", outData.multiplyZ);
+
+        const auto scaleOverLifeIter = root.find("scaleOverLife");
+        if (scaleOverLifeIter != root.end())
+            From_Json(*scaleOverLifeIter, outData.scaleOverLife);
     }
 
     json To_Json(const SpawnPerUnitModuleData& data)
@@ -1497,6 +2136,109 @@ namespace Internal
             Read_NumberField(root, "unitDistance", legacyUnitDistance);
             if (legacyUnitDistance > 0.f)
                 outData.spawnPerUnit = FloatDistributionData::Make_Constant(max(0.0001f, outData.unitScalar) / legacyUnitDistance);
+        }
+    }
+
+    json To_Json(const MaterialScalarModulatorData& data)
+    {
+        json root = json::object();
+        root["enabled"] = data.enabled;
+        root["targetField"] = To_EnumToken(data.targetField);
+        root["operation"] = To_EnumToken(data.operation);
+        root["timeSource"] = To_EnumToken(data.timeSource);
+        root["distribution"] = To_Json(data.distribution);
+        return root;
+    }
+
+    void From_Json(const json& root, MaterialScalarModulatorData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_BoolField(root, "enabled", outData.enabled);
+
+        const auto targetIter = root.find("targetField");
+        if (targetIter != root.end())
+            Try_ReadEnumToken(*targetIter, outData.targetField);
+
+        const auto operationIter = root.find("operation");
+        if (operationIter != root.end())
+            Try_ReadEnumToken(*operationIter, outData.operation);
+
+        const auto timeSourceIter = root.find("timeSource");
+        if (timeSourceIter != root.end())
+            Try_ReadEnumToken(*timeSourceIter, outData.timeSource);
+
+        const auto distributionIter = root.find("distribution");
+        if (distributionIter != root.end())
+            From_Json(*distributionIter, outData.distribution);
+    }
+
+    json To_Json(const MaterialCoreColorRgbModulatorData& data)
+    {
+        json root = json::object();
+        root["enabled"] = data.enabled;
+        root["timeSource"] = To_EnumToken(data.timeSource);
+        root["distribution"] = To_Json(data.distribution);
+        return root;
+    }
+
+    void From_Json(const json& root, MaterialCoreColorRgbModulatorData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_BoolField(root, "enabled", outData.enabled);
+
+        const auto timeSourceIter = root.find("timeSource");
+        if (timeSourceIter != root.end())
+            Try_ReadEnumToken(*timeSourceIter, outData.timeSource);
+
+        const auto distributionIter = root.find("distribution");
+        if (distributionIter != root.end())
+            From_Json(*distributionIter, outData.distribution);
+    }
+
+    json To_Json(const MaterialScalarModulationModuleData& data)
+    {
+        json root = json::object();
+        root["modulators"] = json::array();
+        for (const MaterialScalarModulatorData& modulator : data.modulators)
+            root["modulators"].push_back(To_Json(modulator));
+
+        root["coreColorRgbModulators"] = json::array();
+        for (const MaterialCoreColorRgbModulatorData& modulator : data.coreColorRgbModulators)
+            root["coreColorRgbModulators"].push_back(To_Json(modulator));
+        return root;
+    }
+
+    void From_Json(const json& root, MaterialScalarModulationModuleData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        const auto modulatorsIter = root.find("modulators");
+        if (modulatorsIter != root.end() && modulatorsIter->is_array())
+        {
+            outData.modulators.clear();
+            for (const json& modulatorNode : *modulatorsIter)
+            {
+                MaterialScalarModulatorData modulator{};
+                From_Json(modulatorNode, modulator);
+                outData.modulators.push_back(modulator);
+            }
+        }
+
+        const auto coreColorRgbModulatorsIter = root.find("coreColorRgbModulators");
+        if (coreColorRgbModulatorsIter != root.end() && coreColorRgbModulatorsIter->is_array())
+        {
+            outData.coreColorRgbModulators.clear();
+            for (const json& modulatorNode : *coreColorRgbModulatorsIter)
+            {
+                MaterialCoreColorRgbModulatorData modulator{};
+                From_Json(modulatorNode, modulator);
+                outData.coreColorRgbModulators.push_back(modulator);
+            }
         }
     }
 }
@@ -1571,14 +2313,23 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::SphereLocation:
         root["data"] = Internal::To_Json(get<SphereLocationModuleData>(module.data));
         break;
+    case AuthoringModuleType::PlaneRadialLocation:
+        root["data"] = Internal::To_Json(get<PlaneRadialLocationModuleData>(module.data));
+        break;
     case AuthoringModuleType::InitialSize:
         root["data"] = Internal::To_Json(get<InitialSizeModuleData>(module.data));
+        break;
+    case AuthoringModuleType::InitialMeshSize:
+        root["data"] = Internal::To_Json(get<InitialMeshSizeModuleData>(module.data));
         break;
     case AuthoringModuleType::InitialVelocity:
         root["data"] = Internal::To_Json(get<InitialVelocityModuleData>(module.data));
         break;
     case AuthoringModuleType::InitialRadialVelocity:
         root["data"] = Internal::To_Json(get<InitialRadialVelocityModuleData>(module.data));
+        break;
+    case AuthoringModuleType::VelocityCone:
+        root["data"] = Internal::To_Json(get<VelocityConeModuleData>(module.data));
         break;
     case AuthoringModuleType::Acceleration:
         root["data"] = Internal::To_Json(get<AccelerationModuleData>(module.data));
@@ -1592,6 +2343,9 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::InitialRotation:
         root["data"] = Internal::To_Json(get<InitialRotationModuleData>(module.data));
         break;
+    case AuthoringModuleType::PlaneRadialOrientation:
+        root["data"] = Internal::To_Json(get<PlaneRadialOrientationModuleData>(module.data));
+        break;
     case AuthoringModuleType::RotationOverLife:
         root["data"] = Internal::To_Json(get<RotationOverLifeModuleData>(module.data));
         break;
@@ -1600,6 +2354,18 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
         break;
     case AuthoringModuleType::RotationRateScaleByLife:
         root["data"] = Internal::To_Json(get<RotationRateScaleByLifeModuleData>(module.data));
+        break;
+    case AuthoringModuleType::InitialMeshRotation:
+        root["data"] = Internal::To_Json(get<InitialMeshRotationModuleData>(module.data));
+        break;
+    case AuthoringModuleType::MeshRotationOverLife:
+        root["data"] = Internal::To_Json(get<MeshRotationOverLifeModuleData>(module.data));
+        break;
+    case AuthoringModuleType::InitialMeshRotationRate:
+        root["data"] = Internal::To_Json(get<InitialMeshRotationRateModuleData>(module.data));
+        break;
+    case AuthoringModuleType::MeshRotationRateScaleByLife:
+        root["data"] = Internal::To_Json(get<MeshRotationRateScaleByLifeModuleData>(module.data));
         break;
     case AuthoringModuleType::InitialColor:
         root["data"] = Internal::To_Json(get<InitialColorModuleData>(module.data));
@@ -1613,8 +2379,14 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringModule& module)
     case AuthoringModuleType::SizeByLife:
         root["data"] = Internal::To_Json(get<SizeByLifeModuleData>(module.data));
         break;
+    case AuthoringModuleType::MeshSizeByLife:
+        root["data"] = Internal::To_Json(get<MeshSizeByLifeModuleData>(module.data));
+        break;
     case AuthoringModuleType::SpawnPerUnit:
         root["data"] = Internal::To_Json(get<SpawnPerUnitModuleData>(module.data));
+        break;
+    case AuthoringModuleType::MaterialScalarModulation:
+        root["data"] = Internal::To_Json(get<MaterialScalarModulationModuleData>(module.data));
         break;
     }
 
@@ -1627,6 +2399,7 @@ json EffectAuthoringJsonSerializer::To_Json(const AuthoringEmitter& emitter)
     root["id"] = emitter.id;
     root["name"] = emitter.name;
     root["rendererType"] = Authoring::Resolve_RendererType(emitter.typeData);
+    root["renderLayerOverride"] = Internal::To_EnumToken(emitter.renderLayerOverride);
     root["enabled"] = emitter.enabled;
     if (emitter.typeData.kind != AuthoringTypeDataKind::None)
         root["typeData"] = Internal::To_Json(emitter.typeData);
@@ -1674,14 +2447,23 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::SphereLocation:
             Internal::From_Json(*dataIter, get<SphereLocationModuleData>(module.data));
             break;
+        case AuthoringModuleType::PlaneRadialLocation:
+            Internal::From_Json(*dataIter, get<PlaneRadialLocationModuleData>(module.data));
+            break;
         case AuthoringModuleType::InitialSize:
             Internal::From_Json(*dataIter, get<InitialSizeModuleData>(module.data));
+            break;
+        case AuthoringModuleType::InitialMeshSize:
+            Internal::From_Json(*dataIter, get<InitialMeshSizeModuleData>(module.data));
             break;
         case AuthoringModuleType::InitialVelocity:
             Internal::From_Json(*dataIter, get<InitialVelocityModuleData>(module.data));
             break;
         case AuthoringModuleType::InitialRadialVelocity:
             Internal::From_Json(*dataIter, get<InitialRadialVelocityModuleData>(module.data));
+            break;
+        case AuthoringModuleType::VelocityCone:
+            Internal::From_Json(*dataIter, get<VelocityConeModuleData>(module.data));
             break;
         case AuthoringModuleType::Acceleration:
             Internal::From_Json(*dataIter, get<AccelerationModuleData>(module.data));
@@ -1695,6 +2477,9 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::InitialRotation:
             Internal::From_Json(*dataIter, get<InitialRotationModuleData>(module.data));
             break;
+        case AuthoringModuleType::PlaneRadialOrientation:
+            Internal::From_Json(*dataIter, get<PlaneRadialOrientationModuleData>(module.data));
+            break;
         case AuthoringModuleType::RotationOverLife:
             Internal::From_Json(*dataIter, get<RotationOverLifeModuleData>(module.data));
             break;
@@ -1703,6 +2488,18 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
             break;
         case AuthoringModuleType::RotationRateScaleByLife:
             Internal::From_Json(*dataIter, get<RotationRateScaleByLifeModuleData>(module.data));
+            break;
+        case AuthoringModuleType::InitialMeshRotation:
+            Internal::From_Json(*dataIter, get<InitialMeshRotationModuleData>(module.data));
+            break;
+        case AuthoringModuleType::MeshRotationOverLife:
+            Internal::From_Json(*dataIter, get<MeshRotationOverLifeModuleData>(module.data));
+            break;
+        case AuthoringModuleType::InitialMeshRotationRate:
+            Internal::From_Json(*dataIter, get<InitialMeshRotationRateModuleData>(module.data));
+            break;
+        case AuthoringModuleType::MeshRotationRateScaleByLife:
+            Internal::From_Json(*dataIter, get<MeshRotationRateScaleByLifeModuleData>(module.data));
             break;
         case AuthoringModuleType::InitialColor:
             Internal::From_Json(*dataIter, get<InitialColorModuleData>(module.data));
@@ -1716,8 +2513,14 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringModule&
         case AuthoringModuleType::SizeByLife:
             Internal::From_Json(*dataIter, get<SizeByLifeModuleData>(module.data));
             break;
+        case AuthoringModuleType::MeshSizeByLife:
+            Internal::From_Json(*dataIter, get<MeshSizeByLifeModuleData>(module.data));
+            break;
         case AuthoringModuleType::SpawnPerUnit:
             Internal::From_Json(*dataIter, get<SpawnPerUnitModuleData>(module.data));
+            break;
+        case AuthoringModuleType::MaterialScalarModulation:
+            Internal::From_Json(*dataIter, get<MaterialScalarModulationModuleData>(module.data));
             break;
         }
     }
@@ -1735,6 +2538,8 @@ bool EffectAuthoringJsonSerializer::From_Json(const json& root, AuthoringEmitter
     emitter.id = root.value("id", 0u);
     emitter.name = root.value("name", string{});
     emitter.rendererType = root.value("rendererType", emitter.rendererType);
+    if (const auto renderLayerOverrideIter = root.find("renderLayerOverride"); renderLayerOverrideIter != root.end())
+        Internal::Try_ReadEnumToken(*renderLayerOverrideIter, emitter.renderLayerOverride);
     emitter.enabled = root.value("enabled", emitter.enabled);
     emitter.previewDirty = true;
 
@@ -1787,12 +2592,18 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return InitialLocationModuleData{};
     case AuthoringModuleType::SphereLocation:
         return SphereLocationModuleData{};
+    case AuthoringModuleType::PlaneRadialLocation:
+        return PlaneRadialLocationModuleData{};
     case AuthoringModuleType::InitialSize:
         return InitialSizeModuleData{};
+    case AuthoringModuleType::InitialMeshSize:
+        return InitialMeshSizeModuleData{};
     case AuthoringModuleType::InitialVelocity:
         return InitialVelocityModuleData{};
     case AuthoringModuleType::InitialRadialVelocity:
         return InitialRadialVelocityModuleData{};
+    case AuthoringModuleType::VelocityCone:
+        return VelocityConeModuleData{};
     case AuthoringModuleType::Acceleration:
         return AccelerationModuleData{};
     case AuthoringModuleType::Drag:
@@ -1801,12 +2612,22 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return VelocityOverLifeModuleData{};
     case AuthoringModuleType::InitialRotation:
         return InitialRotationModuleData{};
+    case AuthoringModuleType::PlaneRadialOrientation:
+        return PlaneRadialOrientationModuleData{};
     case AuthoringModuleType::RotationOverLife:
         return RotationOverLifeModuleData{};
     case AuthoringModuleType::InitialRotationRate:
         return InitialRotationRateModuleData{};
     case AuthoringModuleType::RotationRateScaleByLife:
         return RotationRateScaleByLifeModuleData{};
+    case AuthoringModuleType::InitialMeshRotation:
+        return InitialMeshRotationModuleData{};
+    case AuthoringModuleType::MeshRotationOverLife:
+        return MeshRotationOverLifeModuleData{};
+    case AuthoringModuleType::InitialMeshRotationRate:
+        return InitialMeshRotationRateModuleData{};
+    case AuthoringModuleType::MeshRotationRateScaleByLife:
+        return MeshRotationRateScaleByLifeModuleData{};
     case AuthoringModuleType::InitialColor:
         return InitialColorModuleData{};
     case AuthoringModuleType::ColorOverLife:
@@ -1815,8 +2636,12 @@ AuthoringModuleData EffectAuthoringJsonSerializer::Make_DefaultModuleDataForRest
         return SubUVFrameOverLifeModuleData{};
     case AuthoringModuleType::SizeByLife:
         return SizeByLifeModuleData{};
+    case AuthoringModuleType::MeshSizeByLife:
+        return MeshSizeByLifeModuleData{};
     case AuthoringModuleType::SpawnPerUnit:
         return SpawnPerUnitModuleData{};
+    case AuthoringModuleType::MaterialScalarModulation:
+        return MaterialScalarModulationModuleData{};
     }
 
     return RequiredModuleData{};

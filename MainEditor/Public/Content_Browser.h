@@ -69,6 +69,8 @@ private:
     EIconType Resolve_IconType(const filesystem::path& filePath) const;
     ImTextureID Get_IconTextureId(EIconType iconType) const;
 
+    bool Can_GoParentFolder() const;
+    void Go_ParentFolder();
     void Go_BackFolder();
     void Go_ForwardFolder();
     void Refresh_AssetState();

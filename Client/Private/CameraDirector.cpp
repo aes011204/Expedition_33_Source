@@ -18,7 +18,10 @@ void CameraDirector::Request_GamePlay()
     auto camera = GAME->Get_ActiveCamera();
 
     if(camera == nullptr)
+    {
+        GAME->Activate_CameraByType(ObjectType::TargetCamera);
         return;
+    }
 
     if(GAME->Activate_CameraByType(ObjectType::TargetCamera))
     {
@@ -69,6 +72,9 @@ void CameraDirector::Restore_PreviousCamera()
 
     if(_previousCamera == nullptr)
         return;
+
+    if (const auto targetCamera = dynamic_pointer_cast<TargetCamera>(_previousCamera))
+        targetCamera->Change_Mode(TargetCameraMode::NORMAL);
 
     GAME->Change_ActiveCamera(_previousCamera);
 

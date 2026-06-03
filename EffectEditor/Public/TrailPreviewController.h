@@ -13,7 +13,7 @@ class TrailPreviewPlayerObject;
 class TrailPreviewController final : public GameObject
 {
 public:
-    struct PreviewDesc : public GameObject::GAMEOBJECT_DESC
+    struct PreviewDesc : public GAMEOBJECT_DESC
     {
         Shared<TrailPreviewPlayerObject> player{};
     };
@@ -37,8 +37,8 @@ private:
     };
 
 private:
-    static constexpr const char* kAttackAnimationName{ "Gustave_Noah_Skill_Blitz" };
-    static constexpr const char* kRestAnimationName{ "Gustave_Anim_Noah_Idle_World_FeetFixed" };
+    static constexpr auto kAttackAnimationName{ "Gustave_Noah_Skill_Blitz" };
+    static constexpr auto kRestAnimationName{ "Gustave_Anim_Noah_Idle_World_FeetFixed" };
 
 private:
     Weak<TrailPreviewPlayerObject> _player{};

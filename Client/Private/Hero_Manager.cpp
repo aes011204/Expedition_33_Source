@@ -63,6 +63,9 @@ HRESULT Hero_Manager::Initialize_Hero(uint32 levelIndex, const wstring& layerTag
         pos.z -= static_cast<float>(i) * 1.5f;
 
         hero->Get_Transform()->Set_WorldPosition(pos);
+        if (auto movement = hero->Get_Component<MovementCom>())
+            movement->Sync_RuntimePositionToTransform();
+
         _heroes.push_back(HeroPartyEntry { desc.heroId, hero });
     }
 
@@ -216,6 +219,12 @@ void Hero_Manager::Switch_NextHero()
     const Vec3 anchorForward = oldActiveTr->Get_WorldForward();
     const Vec3 anchorRight = oldActiveTr->Get_WorldRight();
 
+    PlayEffectDesc effectDesc{};
+    effectDesc.effectName = L"Player_Change";
+    effectDesc.spawnBasisTarget = oldActive;
+    effectDesc.localOffset = Vec3(0.f, 0.5f, 0.f);
+    CLIENT->Play_Effect(effectDesc);
+
     _activeIndex = newIndex;
 
     Apply_ControlRoles();
@@ -278,6 +287,11 @@ void Hero_Manager::Snap_AllHeroesToFormation(const Vec3& anchorPos, const Vec3& 
             // 새 active는 이전 active가 있던 메인 자리로 즉시 이동
             tr->Set_WorldPosition(anchorPos);
             tr->Set_WorldRotationEuler(anchorRot);
+
+            auto movement = hero->Get_Component<MovementCom>();
+            if (movement)
+                movement->Sync_RuntimePositionToTransform();
+
             continue;
         }
 
@@ -301,6 +315,7 @@ void Hero_Manager::Snap_AllHeroesToFormation(const Vec3& anchorPos, const Vec3& 
         auto movement = hero->Get_Component<MovementCom>();
         if (movement)
         {
+            movement->Sync_RuntimePositionToTransform();
             movement->Clear_FollowMoveCommand();
             movement->Apply_Input({});
             movement->Stop_AllMovement();
@@ -391,6 +406,51 @@ Vec3 Hero_Manager::Resolve_SnapPosition(const Shared<Player_WorldBase>& hero, co
     return candidatePos;
 }
 
+Vec3 Hero_Manager::Resolve_FollowTargetPosition(const Shared<Player_WorldBase>& hero, const Vec3& fromPos, const Vec3& desiredPos) const
+{
+    if (hero == nullptr)
+        return desiredPos;
+
+    auto collider = hero->Get_Component<ColliderCom>();
+    if (collider == nullptr || collider->Get_PxShape() == nullptr)
+        return desiredPos;
+
+    auto movement = hero->Get_Component<MovementCom>();
+
+    float skinWidth = 0.03f;
+    float groundSnapUp = 0.35f;
+    float groundSnapDown = 0.65f;
+
+    if (movement)
+    {
+        const auto& moveDesc = movement->Get_MoveDesc();
+
+        skinWidth = moveDesc.sweep.skinWidth;
+        groundSnapUp = moveDesc.sweep.groundSnapUp;
+        groundSnapDown = moveDesc.sweep.groundSnapDown;
+    }
+
+    Vec3 candidatePos = desiredPos;
+    candidatePos.y = fromPos.y;
+
+    Matrix probeWorld = hero->Get_Transform()->Get_WorldMatrix();
+    probeWorld.Translation(candidatePos + Vec3(0.f, groundSnapUp, 0.f));
+
+    PhysXQueryHit groundHit{};
+    const float probeDistance = groundSnapUp + groundSnapDown;
+
+    const bool hasGround = GAME->Probe_Ground(
+        collider.get(),
+        probeWorld,
+        probeDistance,
+        groundHit);
+
+    if (hasGround)
+        candidatePos.y += groundSnapUp - max(0.f, groundHit.distance - skinWidth);
+
+    return candidatePos;
+}
+
 void Hero_Manager::Apply_ControlRoles()
 {
     for (uint32 i = 0; i < _heroes.size(); ++i)
@@ -450,6 +510,13 @@ void Hero_Manager::Set_ActiveTrail(float timeDelta)
 void Hero_Manager::Update_Followers(float timeDelta)
 {
     uint32 followerSlot = 0;
+    bool activeWalkFollow = false;
+
+    if (auto active = Get_ActiveHero())
+    {
+        if (auto activeController = active->Get_Component<PlayerControllerCom>())
+            activeWalkFollow = activeController->Should_WalkMove();
+    }
 
     for (uint32 i = 0; i < _heroes.size(); i++)
     {
@@ -479,23 +546,49 @@ void Hero_Manager::Update_Followers(float timeDelta)
             followerSlot == 0 ? _snapBackDistanceA : _snapBackDistanceB;
 
         const float sideOffset = followerSlot == 0 ? -_followerSideOffset : _followerSideOffset;
-        const Vec3 targetPos =
+        const Vec3 rawTargetPos =
             trailPoint.position - forward * backDistance + right * sideOffset;
 
-        // Movement
         auto& runtime = _followerRuntime[i];
-        runtime.desiredTargetPos = targetPos;
+        Vec3 targetPos = rawTargetPos;
 
         if (_heroes[i].hero && _heroes[i].hero->Get_Transform())
         {
-            Vec3 delta = targetPos - _heroes[i].hero->Get_Transform()->Get_WorldPosition();
-            delta.y = 0.f;
+            const Vec3 currentPos = _heroes[i].hero->Get_Transform()->Get_WorldPosition();
+            runtime.followTargetRefreshTime += timeDelta;
 
+            const Vec3 rawTargetDelta = rawTargetPos - runtime.lastRawTargetPos;
+            const float rawTargetMoveThresholdSq =
+                _followTargetProbeMoveThreshold * _followTargetProbeMoveThreshold;
+            const bool shouldRefreshFollowTarget =
+                !runtime.hasFollowTargetCache ||
+                runtime.followTargetRefreshTime >= _followTargetProbeInterval ||
+                rawTargetDelta.LengthSquared() >= rawTargetMoveThresholdSq;
+
+            if (shouldRefreshFollowTarget)
+            {
+                targetPos = Resolve_FollowTargetPosition(_heroes[i].hero, currentPos, rawTargetPos);
+                runtime.desiredTargetPos = targetPos;
+                runtime.lastRawTargetPos = rawTargetPos;
+                runtime.followTargetRefreshTime = 0.f;
+                runtime.hasFollowTargetCache = true;
+            }
+            else
+            {
+                targetPos = runtime.desiredTargetPos;
+            }
+
+            const Vec3 delta = targetPos - currentPos;
             runtime.lastMoveDistance = delta.Length();
 
             runtime.sprintFollowHoldTime = max(0.f, runtime.sprintFollowHoldTime - timeDelta);
 
-            if (!runtime.sprintFollow && runtime.lastMoveDistance >= _sprintFollowDistance)
+            if (activeWalkFollow)
+            {
+                runtime.sprintFollow = false; // active가 Walk면 follower도 Walk 속도를 유지한다.
+                runtime.sprintFollowHoldTime = 0.f;
+            }
+            else if (!runtime.sprintFollow && runtime.lastMoveDistance >= _sprintFollowDistance)
             {
                 runtime.sprintFollow = true;
                 runtime.sprintFollowHoldTime = _sprintFollowMinHoldTime;
@@ -510,12 +603,13 @@ void Hero_Manager::Update_Followers(float timeDelta)
         }
         else
         {
+            runtime.desiredTargetPos = targetPos;
             runtime.lastMoveDistance = 0.f;
             runtime.sprintFollow = false;
             runtime.sprintFollowHoldTime = 0.f;
         }
 
-        Move_FollowerTo(_heroes[i].hero, i, targetPos, timeDelta);
+        Move_FollowerTo(_heroes[i].hero, i, targetPos, activeWalkFollow, timeDelta);
 
         ++followerSlot;
     }
@@ -545,7 +639,7 @@ Hero_Manager::TrailPoint Hero_Manager::Get_TrailPoint(float delaySeconds) const
     return _activeTrail[clampedIndex];
 }
 
-void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uint32 followerIndex, const Vec3& targetPos, float timeDelta)
+void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uint32 followerIndex, const Vec3& targetPos, bool walkFollow, float timeDelta)
 {
     if (follower == nullptr)
         return;
@@ -559,18 +653,15 @@ void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uin
     auto tr = follower->Get_Transform();
     CHECK_NULL(tr);
 
-    Vec3 delta = targetPos - tr->Get_WorldPosition();
-    delta.y = 0.f;
-
+    const Vec3 currentPos = tr->Get_WorldPosition();
+    const Vec3 delta = targetPos - currentPos;
     const float distance = delta.Length();
 
     if (distance >= _teleportReseatDistance)
     {
-        const Vec3 reseatPos = Resolve_SnapPosition(
-            follower, tr->Get_WorldPosition(), targetPos);
+        tr->Set_WorldPosition(targetPos); // 너무 멀어지면, follow가 쓰던 같은 지면 보정 위치로 재배치
 
-        tr->Set_WorldPosition(reseatPos); // 너무 멀어지면 재배치
-
+        movement->Sync_RuntimePositionToTransform();
         movement->Clear_FollowMoveCommand();
         movement->Apply_Input({});
         movement->Stop_AllMovement();
@@ -582,12 +673,16 @@ void Hero_Manager::Move_FollowerTo(const Shared<Player_WorldBase>& follower, uin
     PlayerControllerCom::FollowControl follow{};
     follow.enabled = true;
 
-    if (distance > _followStopDistance)
+    Vec3 moveDelta = delta;
+    moveDelta.y = 0.f;
+
+    if (moveDelta.Length() > _followStopDistance)
     {
-        delta.Normalize();
+        moveDelta.Normalize();
 
         follow.hasMoveIntent = true;
-        follow.worldDir = delta;
+        follow.worldDir = moveDelta;
+        follow.walkFollow = walkFollow;
         follow.sprintFollow = _followerRuntime[followerIndex].sprintFollow;
     }
 
@@ -645,6 +740,48 @@ void Hero_Manager::Reset_AllHeroesToIdle()
 void Hero_Manager::Handle_EditorStopRuntime()
 {
     Reset_AllHeroesToIdle();
+}
+
+void Hero_Manager::Restore_PartyFormationAfterEditorStop()
+{
+    auto active = Get_ActiveHero();
+    if (active == nullptr || active->Get_Transform() == nullptr)
+    {
+        Reset_AllHeroesToIdle();
+        return;
+    }
+
+    for (uint32 i = 0; i < _followerRuntime.size(); ++i)
+    {
+        _followerRuntime[i] = {};
+    }
+
+    auto activeTr = active->Get_Transform();
+    const Vec3 anchorPos = activeTr->Get_WorldPosition();
+    const Vec3 anchorRot = activeTr->Get_WorldRotationEuler();
+    const Vec3 anchorForward = activeTr->Get_WorldForward();
+    const Vec3 anchorRight = activeTr->Get_WorldRight();
+
+    Snap_AllHeroesToFormation(anchorPos, anchorRot, anchorForward, anchorRight);
+    Reset_AllHeroesToIdle();
+
+    _activeTrail.clear();
+    _recordTimer = 0.f;
+    Set_ActiveTrail(_recordInterval);
+
+    Refresh_TargetCamera();
+}
+
+bool Hero_Manager::Is_ActiveHero(const Shared<GameObject>& target) const
+{
+    if (target == nullptr)
+        return false;
+
+    const Shared<Player_WorldBase> activeHero = Get_ActiveHero();
+    if (activeHero == nullptr)
+        return false;
+
+    return target == static_pointer_cast<GameObject>(activeHero);
 }
 
 Unique<Hero_Manager> Hero_Manager::Create()

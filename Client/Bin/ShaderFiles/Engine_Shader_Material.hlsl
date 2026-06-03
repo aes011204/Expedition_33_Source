@@ -44,7 +44,7 @@ float4 SampleBaseColor(float2 uv)
     
     if (baseColor.a < 0.3f)
         discard;
-    
+
     baseColor.rgb *= g_BaseColorTint.rgb;
     baseColor.a *= g_BaseColorTint.a;
     return baseColor;
@@ -92,15 +92,26 @@ float3 ComputeWorldNormal(float3 normalW, float3 tangentW, float3 binormalW, flo
     if (!HasMaterialTexture(MATERIAL_SLOT_NORMAL))
         return n;
 
-    float3 normalTS = g_MaterialTextures[MATERIAL_SLOT_NORMAL].Sample(LinearWrapSampler, uv).xyz * 2.f - 1.f;
-    normalTS.xy *= g_NormalStrength;
+    float4 normalSample = g_MaterialTextures[MATERIAL_SLOT_NORMAL].Sample(LinearWrapSampler, uv);
+
+    // BC5 normal maps store tangent-space X/Y in RG. Reconstruct Z after strength scaling.
+    float2 normalXY = normalSample.rg * 2.f - 1.f;
+
+    const bool flipNormalY = false;
+    if (flipNormalY)
+        normalXY.y = -normalXY.y;
+
+    normalXY *= g_NormalStrength;
+
+    float normalZ = sqrt(saturate(1.f - dot(normalXY, normalXY)));
+    float3 normalTS = normalize(float3(normalXY, normalZ));
 
     return normalize(normalTS.x * t + normalTS.y * b + normalTS.z * n);
 }
 
 float3 SampleOrm(float2 uv)
 {
-    float3 orm = float3(1.f, 1.f, 1.f);
+    float3 orm = float3(1.f, 1.f, 0.f);
 
     if (HasMaterialTexture(MATERIAL_SLOT_ORM))
     {
@@ -186,6 +197,154 @@ HairMaterialSample SampleHairMaterial(float2 uv)
     Out.id = id;
 
     return Out;
+}
+
+// 수염 풍부함을 늘리거나 줄일 때는 주로 이 블록의 UV 오프셋, coverage 팽창값, clip 기준을 조정한다.
+struct BeardSampleCoords
+{
+    float2 center;
+    float2 left;
+    float2 right;
+    float2 down;
+    float2 farLeft;
+    float2 farRight;
+    float2 wideLeft;
+    float2 wideRight;
+    float2 farDown;
+    float2 downLeft;
+    float2 downRight;
+    float2 farDownLeft;
+    float2 farDownRight;
+};
+
+struct BeardTextureSamples
+{
+    float4 center;
+    float4 left;
+    float4 right;
+    float4 down;
+    float4 farLeft;
+    float4 farRight;
+    float4 wideLeft;
+    float4 wideRight;
+    float4 farDown;
+    float4 downLeft;
+    float4 downRight;
+    float4 farDownLeft;
+    float4 farDownRight;
+};
+
+// 수염 카드 주변 UV를 넓게 잡아 빈 영역도 함께 샘플링한다.
+BeardSampleCoords BuildBeardSampleCoords(float2 centerUV)
+{
+    BeardSampleCoords coords;
+
+    float2 sideOffsetX = float2(0.0060f, 0.f);
+    float2 sideOffsetY = float2(0.f, 0.0042f);
+
+    coords.center = centerUV;
+    coords.left = centerUV - sideOffsetX;
+    coords.right = centerUV + sideOffsetX;
+    coords.down = centerUV + sideOffsetY;
+    coords.farLeft = centerUV - sideOffsetX * 2.f;
+    coords.farRight = centerUV + sideOffsetX * 2.f;
+    coords.wideLeft = centerUV - sideOffsetX * 3.f;
+    coords.wideRight = centerUV + sideOffsetX * 3.f;
+    coords.farDown = centerUV + sideOffsetY * 3.f;
+    coords.downLeft = centerUV - sideOffsetX + sideOffsetY;
+    coords.downRight = centerUV + sideOffsetX + sideOffsetY;
+    coords.farDownLeft = centerUV - sideOffsetX * 2.f + sideOffsetY * 2.f;
+    coords.farDownRight = centerUV + sideOffsetX * 2.f + sideOffsetY * 2.f;
+
+    return coords;
+}
+
+// 같은 수염 텍스처를 여러 지점에서 읽어 sparse card를 하나의 면처럼 다룬다.
+BeardTextureSamples SampleBeardTextures(BeardSampleCoords coords)
+{
+    BeardTextureSamples samples;
+
+    samples.center = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.center);
+    samples.left = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.left);
+    samples.right = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.right);
+    samples.down = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.down);
+    samples.farLeft = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.farLeft);
+    samples.farRight = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.farRight);
+    samples.wideLeft = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.wideLeft);
+    samples.wideRight = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.wideRight);
+    samples.farDown = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.farDown);
+    samples.downLeft = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.downLeft);
+    samples.downRight = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.downRight);
+    samples.farDownLeft = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.farDownLeft);
+    samples.farDownRight = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, coords.farDownRight);
+
+    return samples;
+}
+
+// 여러 마스크를 합쳐 sparse card를 하나의 수염 면처럼 보이게 만든다.
+float ComputeBeardCoverage(BeardSampleCoords coords, BeardTextureSamples samples)
+{
+    float4 maskBaseColor = float4(samples.center.rgb * g_BaseColorTint.rgb, samples.center.a * g_BaseColorTint.a);
+
+    float centerMask = GetOpacityMaskForMasked(coords.center, maskBaseColor);
+    float leftMask = GetOpacityMaskForMasked(coords.left, maskBaseColor);
+    float rightMask = GetOpacityMaskForMasked(coords.right, maskBaseColor);
+    float downMask = GetOpacityMaskForMasked(coords.down, maskBaseColor);
+    float farLeftMask = GetOpacityMaskForMasked(coords.farLeft, maskBaseColor);
+    float farRightMask = GetOpacityMaskForMasked(coords.farRight, maskBaseColor);
+    float wideLeftMask = GetOpacityMaskForMasked(coords.wideLeft, maskBaseColor);
+    float wideRightMask = GetOpacityMaskForMasked(coords.wideRight, maskBaseColor);
+    float farDownMask = GetOpacityMaskForMasked(coords.farDown, maskBaseColor);
+    float downLeftMask = GetOpacityMaskForMasked(coords.downLeft, maskBaseColor);
+    float downRightMask = GetOpacityMaskForMasked(coords.downRight, maskBaseColor);
+    float farDownLeftMask = GetOpacityMaskForMasked(coords.farDownLeft, maskBaseColor);
+    float farDownRightMask = GetOpacityMaskForMasked(coords.farDownRight, maskBaseColor);
+
+    // 샘플 범위를 넓힐수록 수염 면적이 더 잘 연결된다.
+    float baseCoverage = max(centerMask, max(leftMask, rightMask));
+    baseCoverage = max(baseCoverage, max(farLeftMask, farRightMask));
+    baseCoverage = max(baseCoverage, max(wideLeftMask, wideRightMask));
+    baseCoverage = max(baseCoverage, max(downMask, max(downLeftMask, downRightMask)));
+    baseCoverage = max(baseCoverage, farDownMask);
+    baseCoverage = max(baseCoverage, max(farDownLeftMask, farDownRightMask));
+
+    // 두께를 더 키우고 싶으면 이 팽창식을 먼저 조정한다.
+    return saturate(baseCoverage * 2.35f + 0.42f);
+}
+
+// coverage와 같은 범위를 따라가며 수염 색 끊김을 줄일 밀도를 계산한다.
+float ComputeBeardDensity(BeardTextureSamples samples)
+{
+    float centerDensity = dot(samples.center.rgb, float3(0.299f, 0.587f, 0.114f));
+    float leftDensity = dot(samples.left.rgb, float3(0.299f, 0.587f, 0.114f));
+    float rightDensity = dot(samples.right.rgb, float3(0.299f, 0.587f, 0.114f));
+    float downDensity = dot(samples.down.rgb, float3(0.299f, 0.587f, 0.114f));
+    float farLeftDensity = dot(samples.farLeft.rgb, float3(0.299f, 0.587f, 0.114f));
+    float farRightDensity = dot(samples.farRight.rgb, float3(0.299f, 0.587f, 0.114f));
+    float wideLeftDensity = dot(samples.wideLeft.rgb, float3(0.299f, 0.587f, 0.114f));
+    float wideRightDensity = dot(samples.wideRight.rgb, float3(0.299f, 0.587f, 0.114f));
+    float farDownDensity = dot(samples.farDown.rgb, float3(0.299f, 0.587f, 0.114f));
+    float downLeftDensity = dot(samples.downLeft.rgb, float3(0.299f, 0.587f, 0.114f));
+    float downRightDensity = dot(samples.downRight.rgb, float3(0.299f, 0.587f, 0.114f));
+    float farDownLeftDensity = dot(samples.farDownLeft.rgb, float3(0.299f, 0.587f, 0.114f));
+    float farDownRightDensity = dot(samples.farDownRight.rgb, float3(0.299f, 0.587f, 0.114f));
+
+    float density = max(centerDensity, max(leftDensity, rightDensity));
+    density = max(density, max(farLeftDensity, farRightDensity));
+    density = max(density, max(wideLeftDensity, wideRightDensity));
+    density = max(density, max(downDensity, max(downLeftDensity, downRightDensity)));
+    density = max(density, farDownDensity);
+    density = max(density, max(farDownLeftDensity, farDownRightDensity));
+    return density;
+}
+
+// 수염 색 농도는 material json의 baseColorTint와 여기의 density 보정 강도로 조절한다.
+float3 ComputeBeardColor(float density)
+{
+    float3 finalBeardColor = g_BaseColorTint.rgb;
+    finalBeardColor *= lerp(0.94f, 1.0f, density);
+    finalBeardColor *= g_HairBrightness;
+    return saturate(finalBeardColor);
 }
 
 struct EyeMaterialSample

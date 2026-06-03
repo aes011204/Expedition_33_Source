@@ -10,6 +10,9 @@ class Camera;
 class ENGINE_DLL Shadow : public Base
 {
 public:
+    static constexpr uint32 CascadeCount = ShadowLightDesc::SHADOW_CASCADE_COUNT;
+
+public:
     explicit Shadow() = default;
     virtual ~Shadow() = default;
 
@@ -31,6 +34,8 @@ public:
 
     HRESULT Bind_ShadowCB(Shared<ShaderCom> shader);
     HRESULT Bind_StaticShadowCB(Shared<ShaderCom> shader);
+    HRESULT Set_ActiveCascade(uint32 cascadeIndex);
+    void    Set_ActiveStaticShadow();
 
     void    Clear();
 
@@ -38,6 +43,7 @@ public:
     const Matrix*           Get_ViewMatrix() const;
     const Matrix*           Get_ProjMatrix() const;
     const ShadowLightDesc*  Get_ShadowLightDesc() const;
+    uint32                  Get_CascadeCount() const { return CascadeCount; }
 
 public:
     static Unique<Shadow> Create();
@@ -47,6 +53,10 @@ private:
     ShadowLightDesc _desc{};
     Matrix          _viewMatrix = Matrix::Identity;
     Matrix          _projMatrix = Matrix::Identity;
+    Matrix          _cascadeViewMatrices[CascadeCount]{};
+    Matrix          _cascadeProjMatrices[CascadeCount]{};
+    float           _cascadeSplits[CascadeCount]{};
+    uint32          _activeCascadeIndex = 0;
 
     Matrix          _staticViewMatrix = Matrix::Identity;
     Matrix          _staticProjMatrix = Matrix::Identity;

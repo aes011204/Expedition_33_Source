@@ -1,0 +1,262 @@
+#pragma once
+#include "Client_Defines.h"
+#include "EffectRuntime_Types.h"
+
+NS_BEGIN(Client)
+
+struct EffectMaterialScalarModulationShaderPayload
+{
+    static constexpr uint32 kMaxModulators{ Engine::EffectMaterialScalarModulationRuntimeDesc::kMaxModulators };
+
+    Vec4 params{}; // x: count, y: emitter phase, zw: reserved.
+    std::array<Vec4, kMaxModulators> meta{}; // x: enabled, y: target, z: time source, w: key count.
+    std::array<Vec4, kMaxModulators> keyTimes{};
+    std::array<Vec4, kMaxModulators> keyValues{};
+    std::array<Vec4, kMaxModulators> keyArriveTangents{};
+    std::array<Vec4, kMaxModulators> keyLeaveTangents{};
+    std::array<Vec4, kMaxModulators> keyModes{};
+};
+
+inline float Compute_MaterialScalarModulationPhase(float elapsedTime, float duration)
+{
+    const float safeDuration = max(duration, 0.0001f);
+    const float normalizedTime = max(0.f, elapsedTime) / safeDuration;
+    return normalizedTime - std::floor(normalizedTime);
+}
+
+inline float Read_MaterialScalarModulationComponent(const Vec4& values, uint32 index)
+{
+    switch (index)
+    {
+    case 1:
+        return values.y;
+    case 2:
+        return values.z;
+    case 3:
+        return values.w;
+    case 0:
+    default:
+        return values.x;
+    }
+}
+
+inline float Evaluate_MaterialScalarModulationCurve(
+    const Engine::EffectMaterialScalarModulationCurveDesc& curve,
+    float phase,
+    float fallbackValue)
+{
+    if (!curve.enabled || curve.keyCount == 0)
+        return fallbackValue;
+
+    const uint32 keyCount = min(4u, curve.keyCount);
+    if (keyCount == 1)
+        return Read_MaterialScalarModulationComponent(curve.keyValues, 0);
+
+    const float clampedPhase = clamp(phase, 0.f, 1.f);
+    for (uint32 index = 1; index < keyCount; ++index)
+    {
+        const float rightTime = Read_MaterialScalarModulationComponent(curve.keyTimes, index);
+        if (clampedPhase > rightTime)
+            continue;
+
+        const uint32 leftIndex = index - 1;
+        const float leftTime = Read_MaterialScalarModulationComponent(curve.keyTimes, leftIndex);
+        const float leftValue = Read_MaterialScalarModulationComponent(curve.keyValues, leftIndex);
+        const float rightValue = Read_MaterialScalarModulationComponent(curve.keyValues, index);
+        const float width = max(0.0001f, rightTime - leftTime);
+        const float ratio = clamp((clampedPhase - leftTime) / width, 0.f, 1.f);
+        const int32 mode = static_cast<int32>(Read_MaterialScalarModulationComponent(curve.keyModes, leftIndex));
+
+        if (mode == 0)
+            return leftValue;
+
+        if (mode == 2)
+        {
+            const float leftLeave = Read_MaterialScalarModulationComponent(curve.keyLeaveTangents, leftIndex) * width;
+            const float rightArrive = Read_MaterialScalarModulationComponent(curve.keyArriveTangents, index) * width;
+            const float t2 = ratio * ratio;
+            const float t3 = t2 * ratio;
+            return (2.f * t3 - 3.f * t2 + 1.f) * leftValue
+                + (t3 - 2.f * t2 + ratio) * leftLeave
+                + (-2.f * t3 + 3.f * t2) * rightValue
+                + (t3 - t2) * rightArrive;
+        }
+
+        return leftValue + (rightValue - leftValue) * ratio;
+    }
+
+    return Read_MaterialScalarModulationComponent(curve.keyValues, keyCount - 1);
+}
+
+inline float Evaluate_CoreColorRgbModulationComponent(
+    const Engine::EffectMaterialCoreColorRgbModulationCurveDesc& curve,
+    const Vec4& keyValues,
+    const Vec4& keyArriveTangents,
+    const Vec4& keyLeaveTangents,
+    float phase,
+    float fallbackValue)
+{
+    if (!curve.enabled || curve.keyCount == 0)
+        return fallbackValue;
+
+    const uint32 keyCount = min(4u, curve.keyCount);
+    if (keyCount == 1)
+        return Read_MaterialScalarModulationComponent(keyValues, 0);
+
+    const float clampedPhase = clamp(phase, 0.f, 1.f);
+    for (uint32 index = 1; index < keyCount; ++index)
+    {
+        const float rightTime = Read_MaterialScalarModulationComponent(curve.keyTimes, index);
+        if (clampedPhase > rightTime)
+            continue;
+
+        const uint32 leftIndex = index - 1;
+        const float leftTime = Read_MaterialScalarModulationComponent(curve.keyTimes, leftIndex);
+        const float leftValue = Read_MaterialScalarModulationComponent(keyValues, leftIndex);
+        const float rightValue = Read_MaterialScalarModulationComponent(keyValues, index);
+        const float width = max(0.0001f, rightTime - leftTime);
+        const float ratio = clamp((clampedPhase - leftTime) / width, 0.f, 1.f);
+        const int32 mode = static_cast<int32>(Read_MaterialScalarModulationComponent(curve.keyModes, leftIndex));
+
+        if (mode == 0)
+            return leftValue;
+
+        if (mode == 2)
+        {
+            const float leftLeave = Read_MaterialScalarModulationComponent(keyLeaveTangents, leftIndex) * width;
+            const float rightArrive = Read_MaterialScalarModulationComponent(keyArriveTangents, index) * width;
+            const float t2 = ratio * ratio;
+            const float t3 = t2 * ratio;
+            return (2.f * t3 - 3.f * t2 + 1.f) * leftValue
+                + (t3 - 2.f * t2 + ratio) * leftLeave
+                + (-2.f * t3 + 3.f * t2) * rightValue
+                + (t3 - t2) * rightArrive;
+        }
+
+        return leftValue + (rightValue - leftValue) * ratio;
+    }
+
+    return Read_MaterialScalarModulationComponent(keyValues, keyCount - 1);
+}
+
+inline Vec3 Evaluate_CoreColorRgbModulationCurve(
+    const Engine::EffectMaterialCoreColorRgbModulationCurveDesc& curve,
+    float phase,
+    const Vec3& fallbackValue)
+{
+    return Vec3{
+        Evaluate_CoreColorRgbModulationComponent(curve, curve.keyValuesR, curve.keyArriveTangentsR, curve.keyLeaveTangentsR, phase, fallbackValue.x),
+        Evaluate_CoreColorRgbModulationComponent(curve, curve.keyValuesG, curve.keyArriveTangentsG, curve.keyLeaveTangentsG, phase, fallbackValue.y),
+        Evaluate_CoreColorRgbModulationComponent(curve, curve.keyValuesB, curve.keyArriveTangentsB, curve.keyLeaveTangentsB, phase, fallbackValue.z)
+    };
+}
+
+inline void Apply_MaterialScalarModulationMultiplier(
+    Engine::EffectRequiredMaterialRuntimeDesc& material,
+    Engine::EffectMaterialScalarModulationTarget target,
+    float multiplier)
+{
+    switch (target)
+    {
+    case Engine::EffectMaterialScalarModulationTarget::OpacityPower:
+        material.opacityPower *= multiplier;
+        break;
+    case Engine::EffectMaterialScalarModulationTarget::NoiseStrength:
+        material.noiseStrength *= multiplier;
+        break;
+    case Engine::EffectMaterialScalarModulationTarget::AlphaErosion:
+        material.alphaErosion *= multiplier;
+        break;
+    case Engine::EffectMaterialScalarModulationTarget::AlphaCutoff:
+        material.alphaCutoff *= multiplier;
+        break;
+    case Engine::EffectMaterialScalarModulationTarget::CoreIntensity:
+        material.coreEmissive.coreIntensity *= multiplier;
+        break;
+    case Engine::EffectMaterialScalarModulationTarget::OuterIntensity:
+        material.coreEmissive.outerIntensity *= multiplier;
+        break;
+    case Engine::EffectMaterialScalarModulationTarget::CoreColor:
+        material.coreEmissive.coreColor.x *= multiplier;
+        material.coreEmissive.coreColor.y *= multiplier;
+        material.coreEmissive.coreColor.z *= multiplier;
+        break;
+    case Engine::EffectMaterialScalarModulationTarget::Intensity:
+    default:
+        material.intensity *= multiplier;
+        break;
+    }
+}
+
+inline Engine::EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeMaterialScalarModulation(
+    const Engine::EffectRequiredMaterialRuntimeDesc& baseMaterial,
+    float emitterPhase)
+{
+    Engine::EffectRequiredMaterialRuntimeDesc material = baseMaterial;
+    const auto& coreColorRgbModulation = baseMaterial.coreColorRgbModulation;
+    const uint32 coreColorRgbCount = min(Engine::EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators, coreColorRgbModulation.count);
+
+    for (uint32 index = 0; index < coreColorRgbCount; ++index)
+    {
+        const Engine::EffectMaterialCoreColorRgbModulatorRuntimeDesc& modulator = coreColorRgbModulation.modulators[index];
+        if (!modulator.enabled || modulator.timeSource != Engine::EffectMaterialScalarModulationTimeSource::EmitterTime)
+            continue;
+
+        const Vec3 fallbackValue{
+            material.coreEmissive.coreColor.x,
+            material.coreEmissive.coreColor.y,
+            material.coreEmissive.coreColor.z
+        };
+        const Vec3 coreColorRgb = Evaluate_CoreColorRgbModulationCurve(modulator.curve, emitterPhase, fallbackValue);
+        material.coreEmissive.coreColor.x = coreColorRgb.x;
+        material.coreEmissive.coreColor.y = coreColorRgb.y;
+        material.coreEmissive.coreColor.z = coreColorRgb.z;
+    }
+
+    const auto& modulation = baseMaterial.scalarModulation;
+    const uint32 count = min(Engine::EffectMaterialScalarModulationRuntimeDesc::kMaxModulators, modulation.count);
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const Engine::EffectMaterialScalarModulatorRuntimeDesc& modulator = modulation.modulators[index];
+        if (!modulator.enabled || modulator.timeSource != Engine::EffectMaterialScalarModulationTimeSource::EmitterTime)
+            continue;
+
+        const float multiplier = Evaluate_MaterialScalarModulationCurve(modulator.curve, emitterPhase, 1.f);
+        Apply_MaterialScalarModulationMultiplier(material, modulator.targetField, multiplier);
+    }
+
+    return material;
+}
+
+inline EffectMaterialScalarModulationShaderPayload Build_MaterialScalarModulationShaderPayload(
+    const Engine::EffectMaterialScalarModulationRuntimeDesc& modulation,
+    float emitterPhase)
+{
+    EffectMaterialScalarModulationShaderPayload payload{};
+    const uint32 count = min(EffectMaterialScalarModulationShaderPayload::kMaxModulators, modulation.count);
+    payload.params = Vec4(static_cast<float>(count), emitterPhase, 0.f, 0.f);
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const Engine::EffectMaterialScalarModulatorRuntimeDesc& modulator = modulation.modulators[index];
+        const Engine::EffectMaterialScalarModulationCurveDesc& curve = modulator.curve;
+        const uint32 keyCount = curve.enabled ? min(4u, curve.keyCount) : 0u;
+
+        payload.meta[index] = Vec4(
+            modulator.enabled ? 1.f : 0.f,
+            static_cast<float>(static_cast<uint32>(modulator.targetField)),
+            static_cast<float>(static_cast<uint32>(modulator.timeSource)),
+            static_cast<float>(keyCount)
+        );
+        payload.keyTimes[index] = curve.keyTimes;
+        payload.keyValues[index] = curve.keyValues;
+        payload.keyArriveTangents[index] = curve.keyArriveTangents;
+        payload.keyLeaveTangents[index] = curve.keyLeaveTangents;
+        payload.keyModes[index] = curve.keyModes;
+    }
+
+    return payload;
+}
+
+NS_END

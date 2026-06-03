@@ -283,6 +283,10 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.noiseStrength = read_float("noiseStrength", defaultMaterial.noiseStrength);
     material.alphaCutoff = read_float("alphaCutoff", defaultMaterial.alphaCutoff);
     material.alphaErosion = read_float("alphaErosion", defaultMaterial.alphaErosion);
+    material.noiseSource = read_string("noiseSource", defaultMaterial.noiseSource);
+    material.maskSource = read_string("maskSource", defaultMaterial.maskSource);
+    material.noiseInvert = root.value("noiseInvert", defaultMaterial.noiseInvert);
+    material.maskInvert = root.value("maskInvert", defaultMaterial.maskInvert);
     material.mainUVScale = read_vec2("mainUVScale", defaultMaterial.mainUVScale);
     material.mainUVOffset = read_vec2("mainUVOffset", defaultMaterial.mainUVOffset);
     material.mainUVScrollSpeed = read_vec2("mainUVScrollSpeed", defaultMaterial.mainUVScrollSpeed);
@@ -301,6 +305,23 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.flowUVTilingMode = read_uv_tiling_mode("flowUVTilingMode", defaultMaterial.flowUVTilingMode);
     material.blendMode = read_blend_mode("blendMode", defaultMaterial.blendMode);
     material.opacitySource = read_string("opacitySource", defaultMaterial.opacitySource);
+
+    if (const auto coreEmissiveIter = root.find("coreEmissive"); coreEmissiveIter != root.end() && coreEmissiveIter->is_object())
+    {
+        const json& coreEmissive = *coreEmissiveIter;
+        material.coreEmissive.enabled = coreEmissive.value("enabled", defaultMaterial.coreEmissive.enabled);
+        if (const auto coreColorIter = coreEmissive.find("coreColor"); coreColorIter != coreEmissive.end())
+            material.coreEmissive.coreColor = read_color_node(*coreColorIter, defaultMaterial.coreEmissive.coreColor);
+        if (const auto corePowerIter = coreEmissive.find("corePower"); corePowerIter != coreEmissive.end() && corePowerIter->is_number())
+            material.coreEmissive.corePower = corePowerIter->get<float>();
+        if (const auto coreIntensityIter = coreEmissive.find("coreIntensity"); coreIntensityIter != coreEmissive.end() && coreIntensityIter->is_number())
+            material.coreEmissive.coreIntensity = coreIntensityIter->get<float>();
+        if (const auto outerPowerIter = coreEmissive.find("outerPower"); outerPowerIter != coreEmissive.end() && outerPowerIter->is_number())
+            material.coreEmissive.outerPower = outerPowerIter->get<float>();
+        if (const auto outerIntensityIter = coreEmissive.find("outerIntensity"); outerIntensityIter != coreEmissive.end() && outerIntensityIter->is_number())
+            material.coreEmissive.outerIntensity = outerIntensityIter->get<float>();
+    }
+
     material.refractionIntensity = read_float("refractionIntensity", defaultMaterial.refractionIntensity);
     material.refractionPresence = read_float("refractionPresence", defaultMaterial.refractionPresence);
     material.distortionShapeMode = read_distortion_shape_mode("distortionShapeMode", defaultMaterial.distortionShapeMode);

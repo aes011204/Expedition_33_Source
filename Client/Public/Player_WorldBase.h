@@ -58,6 +58,10 @@ protected:
     virtual const wchar_t* Get_HeadModelTag() const { return L"Model_LuneHead"; }
     virtual const wchar_t* Get_HairModelTag() const { return L"Model_LuneHair"; }
 
+    // 구스타브 수염
+    virtual const wchar_t* Get_BeardModelTag() const { return nullptr; }
+    virtual const wchar_t* Get_MustacheModelTag() const { return nullptr; }
+
 protected:
     Shared<MovementCom>             _movementCom;
     Shared<InputCom>                _inputCom;
@@ -66,6 +70,7 @@ protected:
     Shared<SkillTreeCom>            _skillTreeCom;
     Shared<PlayerStatCom>           _combatStatCom;
     Shared<EffectCom>               _effectCom;
+    float                           _fallStateEnterAccum = 0.f; // 점프 입력 없는 짧은 공중 흔들림은 바로 Jump 상태로 소비하지 않기 위한 누적 시간
 
 public:
 	static Shared<Player_WorldBase> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

@@ -7,10 +7,12 @@
 #include "Battle_Event.h"
 #include "CameraPresetTypes.h"
 #include "Event_Bus.h"
+#include <format>
+#include "BattleAnimUtils.h"
 
 NS_BEGIN(Client)
 
-    ChooseAction::ChooseAction(const Shared<BattleController>& owner)
+ChooseAction::ChooseAction(const Shared<BattleController>& owner)
     : Battle_State{ owner }
 {
 }
@@ -31,6 +33,14 @@ void ChooseAction::Begin_Play()
 
 bool ChooseAction::EnterInvoke()
 {
+    auto owner = Get_Owner();
+    if (!owner)
+        return false;
+
+    const BattleChar& actor = owner->Get_TurnActionRequest().actor;
+
+    BattleAnimUtils::Play_BattleIdle(actor, 0.2f);
+
     return Battle_State::EnterInvoke();
 }
 
@@ -53,8 +63,7 @@ void ChooseAction::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::F)) // 기본 공격
     {
         owner->Get_TurnActionRequest().type = EBattleContext::BaseAttack;
-        //공격 시 이벤트 발행 (카메라, UI 전환 등) TODO 플레이어로 바꾸기
-        ////////////////////////////////////////
+
         const auto enemies = owner->Get_AliveEnemies();
         if (!enemies.empty())
         {
@@ -63,7 +72,7 @@ void ChooseAction::Update(float timeDelta)
             event.subject = enemies[0].actor;
             GAME->Get_EventBus().Publish(event);
         }
-        ////////////////////////////////////////
+  
         battleFSM->Change_State(BattleTurnState::AttackTargeting);
         return;
     }
@@ -72,6 +81,14 @@ void ChooseAction::Update(float timeDelta)
     {
         owner->Get_TurnActionRequest().type = EBattleContext::Skill;
         battleFSM->Change_State(BattleTurnState::ChooseSkill);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::SELECTSKILL;
+        event.subject = owner->Get_TurnActionRequest().actor.actor;
+        event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
+        event.useClip = true;
+        GAME->Get_EventBus().Publish(event);
+
         return;
     }
 
@@ -79,12 +96,25 @@ void ChooseAction::Update(float timeDelta)
     {
         owner->Get_TurnActionRequest().type = EBattleContext::ConsumableItem;
         battleFSM->Change_State(BattleTurnState::ChooseItem);
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::SELECTITEM;
+        event.subject = owner->Get_TurnActionRequest().actor.actor;
+        event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
+        GAME->Get_EventBus().Publish(event);
         return;
     }
 
     if (GAME->KeyDown(KEY_TYPE::RBUTTON)) // 조준
     {
         owner->Get_TurnActionRequest().type = EBattleContext::FreeAimShoot;
+        
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::AIM;
+        event.subject = owner->Get_TurnActionRequest().actor.actor;
+        //event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
+        GAME->Get_EventBus().Publish(event);
+
         battleFSM->Change_State(BattleTurnState::FreeAimTargeting);
         return;
     }
