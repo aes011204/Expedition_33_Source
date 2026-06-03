@@ -190,6 +190,15 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
     if (!canOpenEffectDocument && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         ImGui::SetTooltip("열 수 있는 effect 문서가 없습니다.");
 
+    ImGui::SameLine();
+    const bool canAddEffectEmitters = CanAdd_EffectEmitters();
+    ImGui::BeginDisabled(!canAddEffectEmitters);
+    if (ImGui::Button(ICON_FA_PLUS " Add"))
+        Add_EffectEmitters();
+    ImGui::EndDisabled();
+    if (!canAddEffectEmitters && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("추가할 수 있는 effect 문서가 없습니다.");
+
     ImGui::SameLine(0.f, 12.f);
     ImGui::TextDisabled("|");
     ImGui::SameLine(0.f, 12.f);
@@ -545,6 +554,22 @@ bool EffectEditor_Manager::Open_EffectDocument()
         return false;
 
     emitterView->Open();
+    return true;
+}
+
+bool EffectEditor_Manager::CanAdd_EffectEmitters() const
+{
+    const Shared<Emitter_View> emitterView = Find_EffectAuthoringView();
+    return emitterView != nullptr && emitterView->CanAdd();
+}
+
+bool EffectEditor_Manager::Add_EffectEmitters()
+{
+    const Shared<Emitter_View> emitterView = Find_EffectAuthoringView();
+    if (emitterView == nullptr || !emitterView->CanAdd())
+        return false;
+
+    emitterView->Add();
     return true;
 }
 

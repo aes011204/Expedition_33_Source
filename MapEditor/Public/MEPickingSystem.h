@@ -30,6 +30,7 @@ private:
 private:
     uint32 SampleID(const SceneContext& scene, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, const RenderTarget& rt);
     void EnsureSize(uint32 w, uint32 h);
+    HRESULT EnsureDepthReadbackSize(uint32 w, uint32 h);
 
 public:
     void DoPickAt(SceneContext& scene, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, const RenderTarget& rt);

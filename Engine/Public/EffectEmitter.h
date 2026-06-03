@@ -36,6 +36,7 @@ public: //## Behavior::Lifecycle
     virtual bool Is_EffectFinished() const;  // effect root가 자연 완료 여부를 종합할 때 사용하는 완료 상태다.
     virtual void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider); // trail sample provider를 acquire 시점 context로 다시 바인딩한다.
     virtual bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const; // Blend 정렬 시 emitter를 대표할 월드 위치를 반환한다.
+    virtual float Get_BlendSortBias() const; // Blend 정렬 key에 적용할 제작자용 앞뒤 보정값을 반환한다.
 
     bool Is_EmitterEnabled() const { return _enabled; }            // root fan-out 시 enabled gate로 사용한다.
     uint32 Get_EmitterId() const { return _emitterId; }            // 디버그/추적용 emitter id 반환이다.
