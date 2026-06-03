@@ -1232,7 +1232,7 @@ namespace Internal
               string(magic_enum::enum_name(data.material.additive.amountSource))
             : data.material.opacitySource;
         const string materialSummary = blendModeName + " / " + sourceSummary +
-                                       " / SubUV " + to_string(data.material.subUVRows) + "x" + to_string(data.material.subUVCols);
+                                       " / SubUV " + to_string(data.material.subUVCols) + " cols x " + to_string(data.material.subUVRows) + " rows";
         drawList->PushClipRect(
             ImVec2(slotMin.x + 57.f, slotMin.y),
             ImVec2(slotMax.x - 8.f, slotMax.y),
@@ -1261,13 +1261,13 @@ namespace Internal
             ImGui::SetTooltip(
                 "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\n"
                 "현재 sprite effect 경로에서는 Main Texture를 emissive color source로, Opacity Source를 별도 opacity 해석 기준으로 사용합니다.\n\n"
-                "Main Texture (Emissive)\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %ux%u",
+                "Main Texture (Emissive)\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %u cols x %u rows",
                 mainTooltip.c_str(),
                 noiseTooltip.c_str(),
                 blendModeName.c_str(),
                 sourceSummary.c_str(),
-                data.material.subUVRows,
-                data.material.subUVCols
+                data.material.subUVCols,
+                data.material.subUVRows
             );
         }
 
