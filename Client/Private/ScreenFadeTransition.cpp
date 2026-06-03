@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "ScreenFadeTransition.h"
 
+#include "GameInstance.h"
 #include "UI_ScreenFade.h"
 
 ScreenFadeTransition::~ScreenFadeTransition() = default;
@@ -16,9 +17,9 @@ HRESULT ScreenFadeTransition::Initialize()
 void ScreenFadeTransition::Update(float TimeDelta)
 {
     if (_screenFade)
-        _screenFade->Update(TimeDelta);
+        _screenFade->Update(GAME->Get_UnscaledTimeDelta());
 
-    Update_Fade(TimeDelta);
+    Update_Fade(GAME->Get_UnscaledTimeDelta());
 }
 
 bool ScreenFadeTransition::Request_Transition(

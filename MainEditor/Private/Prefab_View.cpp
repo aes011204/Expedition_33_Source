@@ -1191,6 +1191,16 @@ bool Prefab_View::Draw_BattleStartSpawnerSelector(const Shared<GameObject>& sele
         ImGui::EndCombo();
     }
 
+    Vec3 startOffset = monster->Get_BattleStartOffset();
+    ImGui::Text("Enemy Offset");
+    ImGui::SameLine(LabelWidth);
+    ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+    if (ImGui::DragFloat3("##BattleStartOffset", &startOffset.x, 0.05f))
+    {
+        monster->Set_BattleStartOffset(startOffset); // MW 프리팹 저장값: 플레이어 기준 몬스터 시작 위치 보정
+        changed = true;
+    }
+
     ImGui::PopID();
     ImGui::Spacing();
 
@@ -1910,7 +1920,7 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
     context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
     _previewGridEffect->Apply(context.Get());
 
-    const Vec3 previewOrigin = monster->Get_Transform()->Get_WorldPosition();
+    Vec3 previewOrigin = monster->Get_Transform()->Get_WorldPosition();
     Vec3 right = Vec3::Right;
     Vec3 forward = Vec3::Forward;
 
@@ -1940,6 +1950,7 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
                 if (spawnerTransform == nullptr)
                     return;
 
+                previewOrigin = spawnerTransform->Get_WorldPosition();
                 right = spawnerTransform->Get_WorldRight();
                 forward = spawnerTransform->Get_WorldForward();
                 foundSpawner = true;
@@ -1958,7 +1969,13 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
     else
         forward.Normalize();
 
-    const Vec3 enemyBasePos = previewOrigin + forward * 6.f;
+    const Vec3 battleStartOffset = monster->Get_BattleStartOffset();
+    const Vec3 enemyBasePos =
+        previewOrigin +
+        forward * 6.f +
+        right * battleStartOffset.x +
+        Vec3::Up * battleStartOffset.y +
+        forward * battleStartOffset.z;
 
     constexpr float markerHalfSize = 0.3f;
     constexpr float markerHeight = 0.2f;

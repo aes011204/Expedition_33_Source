@@ -16,6 +16,7 @@
 #include "ModelCom.h"
 #include "MovementCom.h"
 #include "Monster_WorldBase.h"
+#include "MapStaticMesh.h"
 #include "MapAuthoringIO.h"
 #include "Client_Constants.h"
 #include "Profile_View.h"
@@ -447,6 +448,42 @@ Shared<GameObject> EditorInstance::Paste_CopiedObject()
 
 Shared<GameObject> EditorInstance::Duplicate_SelectedObject()
 {
+    Shared<GameObject> selectedObject = Selected_Object();
+    Shared<Client::MapStaticMesh> selectedMapStaticMesh = dynamic_pointer_cast<Client::MapStaticMesh>(selectedObject);
+    if (selectedMapStaticMesh != nullptr)
+    {
+        wstring layerTag;
+        if (!Find_ObjectLayerTag(selectedObject, layerTag))
+            return nullptr;
+
+        Shared<TransformCom> sourceTransform = selectedMapStaticMesh->Get_Transform();
+        if (sourceTransform == nullptr)
+            return nullptr;
+
+        Client::MapStaticMesh::MAPSTATICMESH_DESC desc{};
+        desc.model = selectedMapStaticMesh->Get_Model();
+        desc.collisionData = selectedMapStaticMesh->Get_CollisionData();
+        desc.name = selectedMapStaticMesh->Get_Name();
+        desc.position = sourceTransform->Get_WorldPosition();
+        desc.rotation = sourceTransform->Get_RotationQuaternion();
+        desc.scale = sourceTransform->Get_Scale();
+
+        Shared<GameObject> duplicatedObject;
+        if (FAILED(GAME->Add_GameObject(
+            ETOI(LevelType::Static),
+            TEXT("GameObject_MapStaticMesh"),
+            GAME->Current_LevelIndex(),
+            layerTag,
+            duplicatedObject,
+            &desc)))
+        {
+            return nullptr;
+        }
+
+        Select_Object(duplicatedObject);
+        return duplicatedObject;
+    }
+
     Copy_SelectedObject();
     return Paste_CopiedObject();
 }

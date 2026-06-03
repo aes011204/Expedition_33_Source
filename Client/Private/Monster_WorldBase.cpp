@@ -314,6 +314,7 @@ json Monster_WorldBase::To_Json() const
 
     json& customProperties = data["custom_properties"];
     customProperties["battle_start_spawner_id"] = _battleStartSpawnerId;
+    customProperties["battle_start_offset"] = Vec3_ToJson(_battleStartOffset);
 
     json& battleMonsterSpawns = customProperties["battle_monster_spawns"];
     battleMonsterSpawns = json::array();
@@ -362,6 +363,8 @@ void Monster_WorldBase::From_Json(const json& data)
 
     const json& customProperties = data["custom_properties"];
     _battleStartSpawnerId = customProperties.value("battle_start_spawner_id", 0);
+    if (customProperties.contains("battle_start_offset"))
+        (void)Json_ToVec3(customProperties["battle_start_offset"], _battleStartOffset);
 
     if (customProperties.contains("battle_monster_spawns") && customProperties["battle_monster_spawns"].is_array())
     {
