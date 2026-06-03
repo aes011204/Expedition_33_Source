@@ -12,6 +12,8 @@ namespace
 {
     constexpr float kJumpInputGraceSec = 0.10f;
     constexpr float kGroundJumpGraceSec = 0.08f;
+    constexpr float kCCTGroundDetachGraceSec = 0.12f;
+    constexpr float kCCTGroundDetachFallSpeed = -3.5f;
     constexpr float kStillGroundJitterSpeedSq = 0.01f;
     constexpr float kStillGroundXZDeadZone = 0.02f;
     constexpr float kStillGroundYDeadZone = 0.06f;
@@ -51,6 +53,7 @@ MovementCom::MovementCom(const MovementCom& Prototype)
     , _idleGroundProbeAccum{ 0.f }
     , _jumpInputGraceRemain{ 0.f }
     , _groundJumpGraceRemain{ 0.f }
+    , _cctGroundDetachGraceRemain{ 0.f }
 #ifdef _DEBUG
     , _idleGroundProbeDebugLogAccum{ 0.f }
 #endif
@@ -85,6 +88,7 @@ HRESULT MovementCom::Initialize(void* arg)
     _idleGroundProbeAccum = 0.f;
     _jumpInputGraceRemain = 0.f;
     _groundJumpGraceRemain = 0.f;
+    _cctGroundDetachGraceRemain = 0.f;
 
 #ifdef _DEBUG
     _idleGroundProbeDebugLogAccum = 0.f;
@@ -296,6 +300,7 @@ void MovementCom::Start_Jump()
     _isGrounded = false;
     _isJumping = true;
     _didInputJumpStart = true;
+    _cctGroundDetachGraceRemain = 0.f; // 실제 점프가 시작되면 경사 보행 유예는 바로 비운다.
 
     _jumpInputGraceRemain = 0.f;
     _groundJumpGraceRemain = 0.f;
@@ -454,15 +459,32 @@ void MovementCom::Apply_Velocity(float timeDelta)
 
         Sync_Transform_FromCCT(moveResult.footPosition, timeDelta, smoothGrounding, suppressSmallGroundAdjust);
 
-        // 점프 중 ceiling/ledge 접촉으로 down flag가 잠깐 서도,
-        // 실제로 하강 중이 아니면 grounded로 되돌리지 않는다.
-        _isGrounded = moveResult.collisionDown && _velocity.y <= 0.f;
+        const bool hitWalkableDown = moveResult.collisionDown && _velocity.y <= 0.f;
+        const bool canUseDetachGrace =
+            !_isJumping &&                          // 실제 점프 중에는 공중 상태를 가리면 안 된다.
+            _isGrounded &&                          // 직전까지 grounded였던 경우만 경사 보행 보호를 건다.
+            _velocity.y > kCCTGroundDetachFallSpeed; // 충분히 빠르게 내려가면 진짜 낙하로 본다.
 
-        if (moveResult.collisionDown && _velocity.y <= 0.f)
+        if (hitWalkableDown)
         {
+            _isGrounded = true;
             _velocity.y = 0.f;      // 착지 후 하강 속도 제거
             _isJumping = false;
             _jumpStartHorizontalVelocity = Vec3::Zero;
+            _cctGroundDetachGraceRemain = kCCTGroundDetachGraceSec; // 지면을 밟은 직후에는 다음 한두 프레임 ground flicker를 흡수한다.
+        }
+        else if (canUseDetachGrace && _cctGroundDetachGraceRemain > 0.f)
+        {
+            _cctGroundDetachGraceRemain = max(0.f, _cctGroundDetachGraceRemain - timeDelta);
+            _isGrounded = true; // 약한 경사 보행 중 잠깐 비는 down flag는 계속 grounded로 본다.
+
+            if (_velocity.y < 0.f)
+                _velocity.y = 0.f; // 가짜 낙하 속도가 Jump 상태 소비로 이어지지 않게 막는다.
+        }
+        else
+        {
+            _cctGroundDetachGraceRemain = 0.f;
+            _isGrounded = false;
         }
 
         if (moveResult.collisionUp && _velocity.y > 0.f)
