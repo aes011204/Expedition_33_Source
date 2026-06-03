@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Base.h"
+#include "BattleMonsterSpawnDesc.h"
 #include "GameDataTable.h"
 #include "Delegate.h"
 #include "PreviewShotTable.h"
@@ -22,6 +23,7 @@ class CameraDirector;
 class EffectInstancePool;
 class ScreenFadeTransition;
 class LevelTransitionFade;
+class ClientScreenFxManager;
 
 class ClientInstance : public Base
 {
@@ -100,6 +102,9 @@ public: /* For.Hero Manager */
     const HeroSpawnDesc* Find_HeroSpawnDesc(HeroId heroId);
 
     void Reset_AllHeroesToIdle();
+    void Restore_PartyFormationAfterEditorStop();
+
+    bool    Is_ActiveHero(const Shared<GameObject>& target) const;
 
 public: /* For.Gameplay UI */
     HRESULT Initialize_GameplayUI(uint32 levelIndex);
@@ -119,9 +124,9 @@ public: /* For.Fade Transition */
 public: /* For.Battle_Controller */
     void OnEnterBattleField(
         uint32 FieldID,
-        bool IsFirstHero,
+        bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
-        const vector<string>& MonsterProtoTag,
+        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
         const Shared<GameObject>& sourceObject = nullptr);
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
@@ -140,6 +145,33 @@ public: /*For.Camera Director*/
 public:
     void Set_TargetCameraEditMode(bool enable) { _isTargetCameraEditMode = enable; }
     bool Is_TargetCameraEditMode() { return _isTargetCameraEditMode;}
+
+public:
+    Shared<ClientScreenFxManager> Get_ScreenFxManager() const;
+
+public: /* Effect 재생 */
+
+    // 단발성 1회 재생.
+    bool Play_Effect(const PlayEffectDesc& desc);
+
+    // 약점 파츠처럼 모델/소켓이 없을 때
+    bool Play_AttachPartEffect(
+        const Shared<GameObject>& effectOwner,
+        const wstring& effectName,
+        const wstring& partTag,
+        const Vec3& localOffset = Vec3::Zero,
+        const Vec3& localRotation = Vec3::Zero,
+        const Vec3& scale = Vec3::One);
+
+    // 모델 있어서, socket 추적할 때
+    bool Play_AttachPartEffect(
+        const Shared<GameObject>& effectOwner,
+        const wstring& effectName,
+        const wstring& partTag,
+        const string& socketName,
+        const Vec3& localOffset = Vec3::Zero,
+        const Vec3& localRotation = Vec3::Zero,
+        const Vec3& scale = Vec3::One);
 
 private:
 	HRESULT Ready_ResourceLoader();
@@ -164,9 +196,10 @@ private:
     Unique<ScreenFadeTransition> _screenFadeTransition;
     Unique<LevelTransitionFade>  _levelTransitionFade;
 
-    Shared<GameplayUI>          _gamePlayUI;
-    Unique<PersistentObjectManager> _persistentObjectManager;
-    Unique<Hero_Manager>        _heroManager;
+    Shared<GameplayUI>                  _gamePlayUI;
+    Unique<PersistentObjectManager>     _persistentObjectManager;
+    Unique<Hero_Manager>                _heroManager;
+    Shared<ClientScreenFxManager>       _screenFxManager;
 
     Shared<BattleController>    _battleController;
 
