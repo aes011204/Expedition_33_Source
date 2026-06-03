@@ -80,7 +80,7 @@ void Trigger_WorldAction::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collid
         return;
 
     auto hitTr = hitMonster->Get_Transform();
-    CHECK_NULL(hitTr);
+    CHECK_NULL(hitTr); 
 
     PlayEffectDesc desc{};
     desc.effectName = khitEffect;
@@ -88,6 +88,9 @@ void Trigger_WorldAction::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collid
     desc.localOffset = Vec3(0.f, 0.6f, 0.f);
 
     CLIENT->Play_Effect(desc);
+
+    // PhysX overlap callback은 한쪽 owner만 호출되므로, F 액션 트리거가 self로 들어온 경우에도 몬스터의 전투 진입 로직을 태운다.
+    hitMonster->OnBeginOverlap(other, self);
 
     if (self)
     {

@@ -38,6 +38,7 @@ void BattleReactionController::Clear()
 void BattleReactionController::Clear_RuntimeState()
 {
     Clear();
+    ResetCounterTimeSection();
 
     for (const BattleChar& target : _reactionAnimTargets)
     {
@@ -242,12 +243,10 @@ void BattleReactionController::UpdateAnimation()
     FinishReactionAnimation();
 }
 
-void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate)
+void BattleReactionController::StartCounter(ModelCom* sourceModel)
 {
     if (!_isCounterPending)
         return;
-
-    bool ownsSource = false;
 
     for (const BattleChar& target : _reactionAnimTargets)
     {
@@ -256,14 +255,6 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel, const BattleS
         if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Counter), 0.12f, false))
             return;
     }
-
-    // EvtBattlePresentation event;
-    // event.cameraMode = BattleCameraMode::PARRY;
-    // event.subject = _reactionAnimTargets.front().actor;
-    // GAME->Get_EventBus().Publish(event);
-
-    GAME->Slow_WorldTime(slowDesc.worldTimeScale, slowDesc.duration);
-    sourceModel->Set_FrameSpeed(counterPlayRate); // 플레이어 속도 증가
 
     _isCounterPending = false;
     _isCounterDamageApplied = false;
@@ -299,6 +290,48 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
 
     if (hitCount > 0)
         _isCounterDamageApplied = true;
+}
+
+void BattleReactionController::BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale,
+    float counterFrameSpeed)
+{
+    if (!CanApplyCounterTimeSection(sourceModel))
+        return;
+
+    if (!_isCounterTimeSectionActive)
+        _counterTimeSectionRestoreScale = GAME->Get_WorldTimeScale();
+
+    _isCounterTimeSectionActive = true;
+
+    for (const BattleChar& target : _reactionAnimTargets)
+    {
+        if (target.ModelCom.get() == sourceModel)
+        {
+            _counterTimeSectionModel = target.ModelCom;
+            break;
+        }
+    }
+
+    GAME->Set_WorldTimeScale(worldTimeScale);
+    sourceModel->Set_FrameSpeed(counterFrameSpeed);
+}
+
+void BattleReactionController::EndCounterTimeSection(ModelCom* sourceModel)
+{
+    if (!_isCounterTimeSectionActive)
+        return;
+
+    if (_counterTimeSectionModel != nullptr && sourceModel != _counterTimeSectionModel.get())
+        return;
+
+    if (_counterTimeSectionModel)
+        _counterTimeSectionModel->Set_FrameSpeed(1.f);
+
+    GAME->Set_WorldTimeScale(_counterTimeSectionRestoreScale);
+
+    _isCounterTimeSectionActive = false;
+    _counterTimeSectionRestoreScale = 1.f;
+    _counterTimeSectionModel = nullptr;
 }
 
 bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
@@ -375,6 +408,8 @@ void BattleReactionController::PlayReactionAnimation(const BattleChar& target, B
 
 void BattleReactionController::FinishReactionAnimation()
 {
+    ResetCounterTimeSection();
+
     for (const BattleChar& target : _reactionAnimTargets)
     {
         if (target.ModelCom == nullptr)
@@ -396,6 +431,33 @@ void BattleReactionController::FinishReactionAnimation()
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
+}
+
+bool BattleReactionController::CanApplyCounterTimeSection(ModelCom* sourceModel) const
+{
+    if (_animPhase != ReactionAnimPhase::Counter || sourceModel == nullptr)
+        return false;
+
+    for (const BattleChar& target : _reactionAnimTargets)
+    {
+        if (target.ModelCom.get() == sourceModel)
+            return true;
+    }
+
+    return false;
+}
+
+void BattleReactionController::ResetCounterTimeSection()
+{
+    if (_counterTimeSectionModel)
+        _counterTimeSectionModel->Set_FrameSpeed(1.f);
+
+    if (_isCounterTimeSectionActive)
+        GAME->Set_WorldTimeScale(_counterTimeSectionRestoreScale);
+
+    _isCounterTimeSectionActive = false;
+    _counterTimeSectionRestoreScale = 1.f;
+    _counterTimeSectionModel = nullptr;
 }
 
 Shared<BattleReactionController> BattleReactionController::Create()

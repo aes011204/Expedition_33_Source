@@ -197,12 +197,12 @@ namespace Internal
         return !materialPath.empty() && EffectMaterialPresetReader::Read(materialPath, outMaterial);
     }
 
-    int Resolve_OpacitySourceIndex(const EffectMaterialInstanceData& material)
+    static int Resolve_MaterialSourceIndex(const string& source)
     {
-        if (material.opacitySource == "Red" || material.opacitySource == "red")
+        if (source == "Red" || source == "red")
             return kOpacitySourceRed;
 
-        if (material.opacitySource == "Luminance" || material.opacitySource == "luminance")
+        if (source == "Luminance" || source == "luminance")
             return kOpacitySourceLuminance;
 
         return kOpacitySourceAlpha;
@@ -719,7 +719,13 @@ struct MeshDataPreview_View::PreviewRenderer
             coreEmissive.coreColor.z,
             coreEmissive.outerIntensity
         );
-        const int opacitySource = Internal::Resolve_OpacitySourceIndex(material);
+        const int opacitySource = Internal::Resolve_MaterialSourceIndex(material.opacitySource);
+        const Vec4 effectMeshSourceParams = Vec4(
+            static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
+            static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+            material.noiseInvert ? 1.f : 0.f,
+            material.maskInvert ? 1.f : 0.f
+        );
 
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshParams", &effectMeshParams, sizeof(effectMeshParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAlphaParams", &effectMeshAlphaParams, sizeof(effectMeshAlphaParams)), E_FAIL);
@@ -729,6 +735,7 @@ struct MeshDataPreview_View::PreviewRenderer
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaterialTime", &materialElapsedTime, sizeof(materialElapsedTime)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);

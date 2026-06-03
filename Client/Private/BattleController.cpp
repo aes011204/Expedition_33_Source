@@ -1062,14 +1062,24 @@ BattleTurnState BattleController::Get_CurrentTurnState() const
     return _battleFSM->Get_CurrentPlayerState();
 }
 
-void BattleController::StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate)
+void BattleController::StartCounter(ModelCom* sourceModel)
 {
-    _reactionController.StartCounter(sourceModel, slowDesc, counterPlayRate);
+    _reactionController.StartCounter(sourceModel);
 }
 
 void BattleController::ApplyCounterDamage(ModelCom* sourceModel)
 {
     _reactionController.ApplyCounterDamage(sourceModel);
+}
+
+void BattleController::BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed)
+{
+    _reactionController.BeginCounterTimeSection(sourceModel, worldTimeScale, counterFrameSpeed);
+}
+
+void BattleController::EndCounterTimeSection(ModelCom* sourceModel)
+{
+    _reactionController.EndCounterTimeSection(sourceModel);
 }
 
 void BattleController::Execute_BaseAttack()

@@ -181,6 +181,10 @@ struct EffectRequiredMaterialRuntimeDesc
     float noiseStrength{ 0.f };                                               // noise modulation 강도다.
     float alphaCutoff{ 0.f };                                                 // Trail 등 지원 renderer가 사용할 alpha discard threshold다.
     float alphaErosion{ 0.f };                                                // mask/noise 기반 alpha erosion 후보 값이다.
+    string noiseSource{ "Red" };                                              // noise texture scalar source selector다.
+    string maskSource{ "Alpha" };                                             // mask texture coverage source selector다.
+    bool noiseInvert{ false };                                                // noise scalar를 1-x로 뒤집는다.
+    bool maskInvert{ false };                                                 // mask coverage를 1-x로 뒤집는다.
 
     Vec2 mainUVScale{ 1.f, 1.f };                                                  // main texture UV 반복/확대 배율 후보 값이다.
     Vec2 mainUVOffset{ 0.f, 0.f };                                                 // main texture 샘플 시작 위치를 정적으로 민다.
@@ -308,19 +312,21 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleDrawMode drawMode{ PointParticleDrawMode::DrawIndexedInstancedIndirect };          // compute sprite 정식 draw 제출 방식이다.
     EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 material/type 기반 render group을 사용한다.
 
-    EffectRequiredRuntimeDesc required{};                     // Required 모듈에서 runtime이 소비하는 값이다.
-    EffectSpawnRuntimeDesc spawn{};                           // Spawn 모듈에서 runtime이 소비하는 값이다.
-    EffectLifetimeRuntimeDesc lifetime{};                     // Lifetime 모듈에서 runtime이 소비하는 값이다.
-    EffectInitialSizeRuntimeDesc initialSize{};               // InitialSize 모듈에서 runtime이 소비하는 값이다.
-    EffectInitialColorRuntimeDesc initialColor{};             // InitialColor 모듈에서 runtime이 소비하는 값이다.
-    EffectColorOverLifeRuntimeDesc colorOverLife{};           // ColorOverLife 모듈에서 runtime이 소비하는 값이다.
-    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{}; // 수명 진행률 기준 SubUV frame 규칙이다.
-    PointParticleSizeByLifeDesc sizeByLife{};                 // 수명 진행률 기준 크기 배율 규칙이다.
-    PointParticleMotionDesc motion{};                         // motion authoring module을 compute payload로 압축한 규칙이다.
-    PointParticleRotationDesc rotation{};                     // rotation authoring module을 compute payload로 압축한 규칙이다.
-    PointParticleInitialLocationDesc initialLocation{};       // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
-    PointParticleSphereLocationDesc sphereLocation{};         // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
-    Vec3 center{ 0.f, 0.f, 0.f };                             // concrete emitter 내부 fallback/초기 center다. root transform이 있으면 후속 sync가 덮어쓴다.
+    EffectRequiredRuntimeDesc required{};                             // Required 모듈에서 runtime이 소비하는 값이다.
+    EffectSpawnRuntimeDesc spawn{};                                   // Spawn 모듈에서 runtime이 소비하는 값이다.
+    EffectLifetimeRuntimeDesc lifetime{};                             // Lifetime 모듈에서 runtime이 소비하는 값이다.
+    EffectInitialSizeRuntimeDesc initialSize{};                       // InitialSize 모듈에서 runtime이 소비하는 값이다.
+    EffectInitialColorRuntimeDesc initialColor{};                     // InitialColor 모듈에서 runtime이 소비하는 값이다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{};                   // ColorOverLife 모듈에서 runtime이 소비하는 값이다.
+    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};         // 수명 진행률 기준 SubUV frame 규칙이다.
+    PointParticleSizeByLifeDesc sizeByLife{};                         // 수명 진행률 기준 크기 배율 규칙이다.
+    PointParticleMotionDesc motion{};                                 // motion authoring module을 compute payload로 압축한 규칙이다.
+    PointParticleRotationDesc rotation{};                             // rotation authoring module을 compute payload로 압축한 규칙이다.
+    PointParticleInitialLocationDesc initialLocation{};               // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
+    PointParticleSphereLocationDesc sphereLocation{};                 // SphereLocation 모듈이 만든 시작 위치 구형 offset 분포다.
+    PointParticlePlaneRadialLocationDesc planeRadialLocation{};       // PlaneRadialLocation 모듈이 만든 시작 위치 평면/방사 offset 분포다.
+    PointParticlePlaneRadialOrientationDesc planeRadialOrientation{}; // PlaneRadialOrientation 모듈이 만든 radial frame 기반 초기 회전 payload다.
+    Vec3 center{ 0.f, 0.f, 0.f };                                     // concrete emitter 내부 fallback/초기 center다. root transform이 있으면 후속 sync가 덮어쓴다.
 };
 
 // compute trail emitter가 clone 시점에 받는 trail 전용 runtime payload다.
@@ -386,22 +392,24 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
     EffectEmitterRenderLayerOverride renderLayerOverride{
         EffectEmitterRenderLayerOverride::Auto
-    };                                                  // Auto면 material/blend mode 기반 render group을 사용한다.
-    string modelGuid{};                                 // 선택 model asset identity다.
-    string modelPath{};                                 // asset-root 기준 model path fallback/debug hint다.
-    Vec3 previewScale{ 1.f, 1.f, 1.f };                 // Phase 3 단일 mesh particle preview scale이다.
-    bool useModelMaterials{ false };                    // true면 source model material을 우선 사용한다.
-    EffectRequiredMaterialRuntimeDesc material{};       // Phase 3에서는 tint/debug payload로 보존하고 material override는 후속에서 소비한다.
-    EffectEmitterPlaybackRuntimeDesc playback{};        // Required 모듈에서 mesh emitter가 소비하는 재생 규칙이다.
-    EffectDrawLimitRuntimeDesc drawLimit{};             // Required 모듈에서 mesh draw 제출 상한으로 소비하는 규칙이다.
-    EffectSpawnRuntimeDesc spawn{};                     // Spawn 모듈에서 mesh particle 활성화 규칙으로 소비하는 payload다.
-    EffectLifetimeRuntimeDesc lifetime{};               // Lifetime 모듈에서 mesh particle age/max life로 소비하는 payload다.
-    EffectInitialColorRuntimeDesc initialColor{};       // InitialColor 모듈에서 mesh particle 시작 색으로 소비하는 payload다.
-    EffectColorOverLifeRuntimeDesc colorOverLife{};     // ColorOverLife 모듈에서 mesh particle color/fade로 소비하는 payload다.
-    PointParticleMotionDesc motion{};                   // InitialVelocity/RadialVelocity 모듈에서 mesh particle 위치 갱신으로 소비하는 payload다.
-    PointParticleInitialLocationDesc initialLocation{}; // InitialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
-    PointParticleSphereLocationDesc sphereLocation{};   // SphereLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
-    MeshTransformRuntimeDesc meshTransform{};           // Mesh 전용 Vec3 scale/rotation payload다.
+    };                                                                // Auto면 material/blend mode 기반 render group을 사용한다.
+    string modelGuid{};                                               // 선택 model asset identity다.
+    string modelPath{};                                               // asset-root 기준 model path fallback/debug hint다.
+    Vec3 previewScale{ 1.f, 1.f, 1.f };                               // Phase 3 단일 mesh particle preview scale이다.
+    bool useModelMaterials{ false };                                  // true면 source model material을 우선 사용한다.
+    EffectRequiredMaterialRuntimeDesc material{};                     // Phase 3에서는 tint/debug payload로 보존하고 material override는 후속에서 소비한다.
+    EffectEmitterPlaybackRuntimeDesc playback{};                      // Required 모듈에서 mesh emitter가 소비하는 재생 규칙이다.
+    EffectDrawLimitRuntimeDesc drawLimit{};                           // Required 모듈에서 mesh draw 제출 상한으로 소비하는 규칙이다.
+    EffectSpawnRuntimeDesc spawn{};                                   // Spawn 모듈에서 mesh particle 활성화 규칙으로 소비하는 payload다.
+    EffectLifetimeRuntimeDesc lifetime{};                             // Lifetime 모듈에서 mesh particle age/max life로 소비하는 payload다.
+    EffectInitialColorRuntimeDesc initialColor{};                     // InitialColor 모듈에서 mesh particle 시작 색으로 소비하는 payload다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{};                   // ColorOverLife 모듈에서 mesh particle color/fade로 소비하는 payload다.
+    PointParticleMotionDesc motion{};                                 // InitialVelocity/RadialVelocity 모듈에서 mesh particle 위치 갱신으로 소비하는 payload다.
+    PointParticleInitialLocationDesc initialLocation{};               // InitialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+    PointParticleSphereLocationDesc sphereLocation{};                 // SphereLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+    PointParticlePlaneRadialLocationDesc planeRadialLocation{};       // PlaneRadialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+    PointParticlePlaneRadialOrientationDesc planeRadialOrientation{}; // PlaneRadialOrientation 모듈에서 mesh radial frame 회전으로 소비하는 payload다.
+    MeshTransformRuntimeDesc meshTransform{};                         // Mesh 전용 Vec3 scale/rotation payload다.
 };
 
 using EffectEmitterConcreteDesc = variant<ComputeSpriteEmitterDesc, ComputeTrailEmitterDesc, MeshEmitterDesc>;

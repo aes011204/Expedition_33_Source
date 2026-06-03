@@ -155,6 +155,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_LifetimeModule();
     AuthoringModule Make_InitialLocationModule();
     AuthoringModule Make_SphereLocationModule();
+    AuthoringModule Make_PlaneRadialLocationModule();
     AuthoringModule Make_InitialSizeModule();
     AuthoringModule Make_InitialMeshSizeModule();
     AuthoringModule Make_InitialVelocityModule();
@@ -163,6 +164,7 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_DragModule();
     AuthoringModule Make_VelocityOverLifeModule();
     AuthoringModule Make_InitialRotationModule();
+    AuthoringModule Make_PlaneRadialOrientationModule();
     AuthoringModule Make_RotationOverLifeModule();
     AuthoringModule Make_InitialRotationRateModule();
     AuthoringModule Make_RotationRateScaleByLifeModule();
@@ -179,10 +181,14 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_MaterialScalarModulationModule();
 
 private: //## Helper::ModulePolicy
-    bool Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;                 // 이미터가 특정 모듈 타입을 이미 가지고 있는지 확인한다.
-    bool Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitter, AuthoringModuleType type) const; // 현재 emitter 타입이 모듈을 preview에 소비하는지 확인한다.
-    bool Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;              // 중복 정책 기준으로 새 모듈 추가 가능 여부를 판단한다.
-    void Add_Module(size_t emitterIndex, AuthoringModuleType type);                                       // 선택 이미터에 새 optional 모듈을 추가하고 선택 상태를 갱신한다.
+    // 이미터가 특정 모듈 타입을 이미 가지고 있는지 확인한다.
+    bool Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;
+    // 현재 emitter 타입이 모듈을 preview에 소비하는지 확인한다.
+    bool Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitter, AuthoringModuleType type) const;
+    // 중복 정책 기준으로 새 모듈 추가 가능 여부를 판단한다.
+    bool Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;
+    // 선택 이미터에 새 optional 모듈을 추가하고 선택 상태를 갱신한다.
+    void Add_Module(size_t emitterIndex, AuthoringModuleType type);
 
 private: //## Helper::Selection
     void Clear_Selection();

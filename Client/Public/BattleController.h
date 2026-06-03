@@ -143,8 +143,12 @@ public:
 
     Shared<BattleTurnCamera> Get_BattleTurnCamera() const { return _battleTurnCamera; }
 
-    void                StartCounter(ModelCom* sourceModel, const BattleSlowDesc& slowDesc, float counterPlayRate);
+    void                StartCounter(ModelCom* sourceModel);
     void                ApplyCounterDamage(ModelCom* sourceModel);
+
+    // 카운터 시작 시 타임 관련
+    void                BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed);
+    void                EndCounterTimeSection(ModelCom* sourceModel);
 
 public:
     // 부활

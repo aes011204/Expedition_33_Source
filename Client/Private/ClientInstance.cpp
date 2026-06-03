@@ -323,6 +323,11 @@ void ClientInstance::Reset_AllHeroesToIdle()
     return _heroManager->Reset_AllHeroesToIdle();
 }
 
+void ClientInstance::Restore_PartyFormationAfterEditorStop()
+{
+    return _heroManager->Restore_PartyFormationAfterEditorStop();
+}
+
 bool ClientInstance::Is_ActiveHero(const Shared<GameObject>& target) const
 {
     return _heroManager->Is_ActiveHero(target);

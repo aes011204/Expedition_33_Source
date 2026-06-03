@@ -130,6 +130,120 @@ namespace Internal
         }
     }
 
+    static const char* Get_PlaneRadialLocationPlaneLabel(PlaneRadialLocationPlane plane)
+    {
+        switch (plane)
+        {
+        case PlaneRadialLocationPlane::XY:
+            return "XY";
+        case PlaneRadialLocationPlane::XZ:
+            return "XZ";
+        case PlaneRadialLocationPlane::YZ:
+            return "YZ";
+        default:
+            return "XY";
+        }
+    }
+
+    static const char* Get_PlaneRadialLocationShapeLabel(PlaneRadialLocationShape shape)
+    {
+        switch (shape)
+        {
+        case PlaneRadialLocationShape::Rectangle:
+            return "사각";
+        case PlaneRadialLocationShape::Disc:
+            return "원반";
+        case PlaneRadialLocationShape::Ring:
+            return "링";
+        case PlaneRadialLocationShape::Arc:
+            return "호";
+        default:
+            return "원반";
+        }
+    }
+
+    static const char* Get_PlaneRadialLocationPlacementModeLabel(PlaneRadialLocationPlacementMode mode)
+    {
+        switch (mode)
+        {
+        case PlaneRadialLocationPlacementMode::Random:
+            return "랜덤 샘플";
+        case PlaneRadialLocationPlacementMode::EvenByParticleIndex:
+            return "인덱스 균등";
+        default:
+            return "랜덤 샘플";
+        }
+    }
+
+    static const char* Get_PlaneRadialOrientationTargetKindLabel(PlaneRadialOrientationTargetKind targetKind)
+    {
+        switch (targetKind)
+        {
+        case PlaneRadialOrientationTargetKind::Auto:
+            return "자동";
+        case PlaneRadialOrientationTargetKind::Sprite2D:
+            return "스프라이트";
+        case PlaneRadialOrientationTargetKind::Mesh3D:
+            return "메시";
+        default:
+            return "자동";
+        }
+    }
+
+    static PlaneRadialOrientationTargetKind Resolve_PlaneRadialOrientationTargetKind(const AuthoringEmitter& emitter)
+    {
+        return emitter.typeData.kind == AuthoringTypeDataKind::Mesh
+               ? PlaneRadialOrientationTargetKind::Mesh3D
+               : PlaneRadialOrientationTargetKind::Sprite2D;
+    }
+
+    static bool Is_PlaneRadialLocationAdvancedPlacementShape(PlaneRadialLocationShape shape)
+    {
+        return shape == PlaneRadialLocationShape::Ring || shape == PlaneRadialLocationShape::Arc;
+    }
+
+    static const char* Get_PlaneRadialOrientationModeLabel(PlaneRadialOrientationMode mode)
+    {
+        switch (mode)
+        {
+        case PlaneRadialOrientationMode::None:
+            return "없음";
+        case PlaneRadialOrientationMode::FaceRadialOut:
+            return "바깥쪽";
+        case PlaneRadialOrientationMode::FaceRadialIn:
+            return "안쪽";
+        case PlaneRadialOrientationMode::FaceTangentCW:
+            return "접선 CW";
+        case PlaneRadialOrientationMode::FaceTangentCCW:
+            return "접선 CCW";
+        case PlaneRadialOrientationMode::FacePlaneNormal:
+            return "평면 normal";
+        default:
+            return "없음";
+        }
+    }
+
+    static const char* Get_PlaneRadialOrientationAxisLabel(PlaneRadialOrientationAxis axis)
+    {
+        switch (axis)
+        {
+        case PlaneRadialOrientationAxis::PositiveX:
+            return "+X";
+        case PlaneRadialOrientationAxis::NegativeX:
+            return "-X";
+        case PlaneRadialOrientationAxis::PositiveY:
+            return "+Y";
+        case PlaneRadialOrientationAxis::NegativeY:
+            return "-Y";
+        case PlaneRadialOrientationAxis::PositiveZ:
+            return "+Z";
+        case PlaneRadialOrientationAxis::NegativeZ:
+            return "-Z";
+        default:
+            return "+Z";
+        }
+    }
+
     static const char* Get_MaterialScalarTargetLabel(MaterialScalarModulationTargetField target)
     {
         switch (target)
@@ -352,6 +466,279 @@ namespace Internal
         return changed;
     }
 
+    static bool Draw_PlaneRadialLocationPlaneProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        PlaneRadialLocationPlane& value,
+        PlaneRadialLocationPlane defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_PlaneRadialLocationPlaneLabel(value)))
+        {
+            const PlaneRadialLocationPlane candidates[] = {
+                PlaneRadialLocationPlane::XY,
+                PlaneRadialLocationPlane::XZ,
+                PlaneRadialLocationPlane::YZ,
+            };
+
+            for (const PlaneRadialLocationPlane candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_PlaneRadialLocationPlaneLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_PlaneRadialLocationShapeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        PlaneRadialLocationShape& value,
+        PlaneRadialLocationShape defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_PlaneRadialLocationShapeLabel(value)))
+        {
+            const PlaneRadialLocationShape candidates[] = {
+                PlaneRadialLocationShape::Rectangle,
+                PlaneRadialLocationShape::Disc,
+                PlaneRadialLocationShape::Ring,
+                PlaneRadialLocationShape::Arc,
+            };
+
+            for (const PlaneRadialLocationShape candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_PlaneRadialLocationShapeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_PlaneRadialLocationPlacementModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        PlaneRadialLocationPlacementMode& value,
+        PlaneRadialLocationPlacementMode defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_PlaneRadialLocationPlacementModeLabel(value)))
+        {
+            const PlaneRadialLocationPlacementMode candidates[] = {
+                PlaneRadialLocationPlacementMode::Random,
+                PlaneRadialLocationPlacementMode::EvenByParticleIndex,
+            };
+
+            for (const PlaneRadialLocationPlacementMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_PlaneRadialLocationPlacementModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_PlaneRadialOrientationModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        PlaneRadialOrientationMode& value,
+        PlaneRadialOrientationMode defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_PlaneRadialOrientationModeLabel(value)))
+        {
+            const PlaneRadialOrientationMode candidates[] = {
+                PlaneRadialOrientationMode::None,
+                PlaneRadialOrientationMode::FaceRadialOut,
+                PlaneRadialOrientationMode::FaceRadialIn,
+                PlaneRadialOrientationMode::FaceTangentCW,
+                PlaneRadialOrientationMode::FaceTangentCCW,
+                PlaneRadialOrientationMode::FacePlaneNormal,
+            };
+
+            for (const PlaneRadialOrientationMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_PlaneRadialOrientationModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static void Draw_ReadOnlyTextProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        const char* value,
+        const char* tooltip = nullptr)
+    {
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label, tooltip);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(value);
+        detailContext.Draw_ResetButton(false);
+        ImGui::PopID();
+    }
+
+    static void Draw_PlaneRadialOrientationResolvedTargetProperty(
+        DetailPropertyContext& detailContext,
+        const AuthoringEmitter& emitter)
+    {
+        Draw_ReadOnlyTextProperty(
+            detailContext,
+            "대상",
+            Get_PlaneRadialOrientationTargetKindLabel(Resolve_PlaneRadialOrientationTargetKind(emitter)),
+            "현재 emitter 타입 기준으로 자동 결정됩니다. targetKind 저장값은 유지하지만 이번 단계에서는 편집 UI를 숨깁니다."
+        );
+    }
+
+    static bool Draw_PlaneRadialOrientationAxisProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        PlaneRadialOrientationAxis& value,
+        PlaneRadialOrientationAxis defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_PlaneRadialOrientationAxisLabel(value)))
+        {
+            const PlaneRadialOrientationAxis candidates[] = {
+                PlaneRadialOrientationAxis::PositiveX,
+                PlaneRadialOrientationAxis::NegativeX,
+                PlaneRadialOrientationAxis::PositiveY,
+                PlaneRadialOrientationAxis::NegativeY,
+                PlaneRadialOrientationAxis::PositiveZ,
+                PlaneRadialOrientationAxis::NegativeZ,
+            };
+
+            for (const PlaneRadialOrientationAxis candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_PlaneRadialOrientationAxisLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Has_PlaneRadialLocationModule(const AuthoringEmitter& emitter)
+    {
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type == AuthoringModuleType::PlaneRadialLocation)
+                return true;
+        }
+
+        return false;
+    }
+
+    static bool Should_ShowPlaneRadialOrientationMeshFields(const AuthoringEmitter& emitter)
+    {
+        return Resolve_PlaneRadialOrientationTargetKind(emitter) == PlaneRadialOrientationTargetKind::Mesh3D;
+    }
+
     static bool Draw_SubUVFramePlaybackModeProperty(
         DetailPropertyContext& detailContext,
         const char* label,
@@ -450,6 +837,10 @@ namespace Internal
             NearlyEqual(lhs.noiseStrength, rhs.noiseStrength) &&
             NearlyEqual(lhs.alphaCutoff, rhs.alphaCutoff) &&
             NearlyEqual(lhs.alphaErosion, rhs.alphaErosion) &&
+            lhs.noiseSource == rhs.noiseSource &&
+            lhs.maskSource == rhs.maskSource &&
+            lhs.noiseInvert == rhs.noiseInvert &&
+            lhs.maskInvert == rhs.maskInvert &&
             Is_SameVec2(lhs.mainUVScale, rhs.mainUVScale) &&
             Is_SameVec2(lhs.mainUVOffset, rhs.mainUVOffset) &&
             Is_SameVec2(lhs.mainUVScrollSpeed, rhs.mainUVScrollSpeed) &&
@@ -1192,6 +1583,79 @@ bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Spher
     return changed;
 }
 
+bool PlaneRadialLocationModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    PlaneRadialLocationModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const PlaneRadialLocationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("평면/방사 위치", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("PlaneRadialLocation"))
+        {
+            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
+            changed |= Internal::Draw_PlaneRadialLocationPlaneProperty(
+                detailContext,
+                "기준 평면",
+                data.plane,
+                defaultData.plane
+            );
+            changed |= Internal::Draw_PlaneRadialLocationShapeProperty(
+                detailContext,
+                "형태",
+                data.shape,
+                defaultData.shape
+            );
+            changed |= detailContext.Draw_Vec3Property("중심 오프셋", data.offset, defaultData.offset);
+            changed |= detailContext.Draw_FloatProperty(
+                "두께",
+                data.thickness,
+                defaultData.thickness,
+                0.01f,
+                "기준 평면의 normal 방향으로 더할 위치 범위입니다. runtime sampling에서 음수는 절댓값 기준으로 정규화할 예정입니다."
+            );
+            detailContext.End_PropertyTable();
+        }
+
+        if (data.shape == PlaneRadialLocationShape::Rectangle)
+        {
+            changed |= detailContext.Draw_FloatDistributionGroup("U 분포", data.uDistribution, defaultData.uDistribution, 0.01f, true, false);
+            changed |= detailContext.Draw_FloatDistributionGroup("V 분포", data.vDistribution, defaultData.vDistribution, 0.01f, true, false);
+        }
+        else
+        {
+            changed |= detailContext.Draw_FloatDistributionGroup("반지름 분포", data.radiusDistribution, defaultData.radiusDistribution, 0.01f, true, false);
+            changed |= detailContext.Draw_FloatDistributionGroup("각도 분포", data.angleDegreesDistribution, defaultData.angleDegreesDistribution, 0.01f, true, false);
+        }
+
+        ImGui::TextDisabled("위치 분포는 spawn 시점 1회 샘플이라 현재 상수/균등만 지원합니다.");
+        if (data.shape == PlaneRadialLocationShape::Disc)
+            ImGui::TextDisabled("원반 채움은 보통 반지름 최소값 0을 사용합니다.");
+
+        if (Internal::Is_PlaneRadialLocationAdvancedPlacementShape(data.shape) &&
+            ImGui::TreeNodeEx("고급", ImGuiTreeNodeFlags_SpanAvailWidth))
+        {
+            if (detailContext.Begin_PropertyTable("PlaneRadialLocationAdvanced"))
+            {
+                changed |= Internal::Draw_PlaneRadialLocationPlacementModeProperty(
+                    detailContext,
+                    "배치 방식",
+                    data.placementMode,
+                    defaultData.placementMode
+                );
+                detailContext.End_PropertyTable();
+            }
+
+            ImGui::TreePop();
+        }
+    }
+
+    return changed;
+}
+
 bool InitialVelocityModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialVelocityModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialVelocityModuleData defaultData{};
@@ -1293,6 +1757,56 @@ bool InitialRotationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
 
     if (ImGui::CollapsingHeader("초기 회전", ImGuiTreeNodeFlags_DefaultOpen))
         changed |= detailContext.Draw_FloatDistributionGroup("회전각", data.rotationDegrees, defaultData.rotationDegrees);
+
+    return changed;
+}
+
+bool PlaneRadialOrientationModuleDetail::Draw(
+    AuthoringEmitter& emitter,
+    AuthoringModule&,
+    PlaneRadialOrientationModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const PlaneRadialOrientationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("평면/방사 회전", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("PlaneRadialOrientation"))
+        {
+            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
+            Internal::Draw_PlaneRadialOrientationResolvedTargetProperty(detailContext, emitter);
+            changed |= Internal::Draw_PlaneRadialOrientationModeProperty(
+                detailContext,
+                "방향",
+                data.orientationMode,
+                defaultData.orientationMode
+            );
+
+            if (Internal::Should_ShowPlaneRadialOrientationMeshFields(emitter))
+            {
+                changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                    detailContext,
+                    "메시 앞축",
+                    data.meshForwardAxis,
+                    defaultData.meshForwardAxis
+                );
+                changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                    detailContext,
+                    "메시 위축",
+                    data.meshUpAxis,
+                    defaultData.meshUpAxis
+                );
+                changed |= detailContext.Draw_FloatProperty("기울기", data.tiltDegrees, defaultData.tiltDegrees, 0.1f);
+                changed |= detailContext.Draw_FloatProperty("Roll 오프셋", data.rollOffsetDegrees, defaultData.rollOffsetDegrees, 0.1f);
+            }
+
+            detailContext.End_PropertyTable();
+        }
+
+        if (!Internal::Has_PlaneRadialLocationModule(emitter))
+            ImGui::TextDisabled("같은 emitter에 평면/방사 위치가 없으면 runtime radial frame을 만들 수 없습니다.");
+    }
 
     return changed;
 }

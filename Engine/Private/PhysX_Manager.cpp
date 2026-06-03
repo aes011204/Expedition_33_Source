@@ -351,6 +351,25 @@ void PhysX_Manager::Register_OrSync_Collider(Shared<ColliderCom> collider, const
     collider->Sync_ToPhysX(worldMatrix);
 }
 
+void PhysX_Manager::Unregister_Collider(ColliderCom* collider)
+{
+    if (collider == nullptr)
+        return;
+
+    PxRigidActor* actor = collider->Get_PxActor();
+    if (actor == nullptr)
+        return;
+
+    auto iter = _actorColliderMap.find(actor);
+    if (iter != _actorColliderMap.end())
+        _actorColliderMap.erase(iter);
+
+    if (_scene != nullptr)
+        _scene->removeActor(*actor);
+
+    collider->Set_PhysXRegistered(false);
+}
+
 void PhysX_Manager::Gather_FrameEvents(vector<PhysXPairEvent>& outEvents)
 {
     outEvents = _frameEvents;

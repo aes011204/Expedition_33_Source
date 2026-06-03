@@ -78,6 +78,7 @@ private:
     MonsterWorldAnim _desiredAction = MonsterWorldAnim::Idle;
     MonsterWorldAnim _currentAction = MonsterWorldAnim::Idle;
     MonsterWorldAnim _previousAction = MonsterWorldAnim::Idle;
+    bool _hasAppliedAction = false;
 
 protected:
     Shared<AIController>         _aiCtrl;

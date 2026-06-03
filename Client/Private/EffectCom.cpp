@@ -3,6 +3,7 @@
 #include "EffectAssetRuntimeLoader.h"
 #include "EffectInstance.h"
 #include "GameInstance.h"
+#include "Helper_String.h"
 #include "ModelCom.h"
 #include "PlayableParts.h"
 #include "Player_WorldBase.h"
@@ -12,6 +13,7 @@
 #include "TrailSampleProvider_ByPart.h"
 #include "Weapon.h"
 #include "ContainerObject.h"
+#include "PartObject.h"
 
 IMPLEMENT_REFLECTION(EffectCom)
 {
@@ -70,14 +72,44 @@ void EffectCom::Update(float timeDelta)
         !_switchDissolve.enabled)
     {
         if (const Shared<GameObject> owner = Get_Owner())
+        {
             owner->Set_Visible(false);
 
+            if (const Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(owner))
+            {
+                for (const auto& [partTag, partObject] : container->Get_PartObjects())
+                {
+                    UNREFERENCED_PARAMETER(partTag);
+
+                    if (partObject == nullptr)
+                        continue;
+
+                    if (const Shared<EffectCom> partEffectCom = partObject->Get_Component<EffectCom>())
+                        partEffectCom->Stop_AllAttachedEffects();
+                }
+            }
+        }
+
+        Stop_AllAttachedEffects();
         _vanishComplete = false;
     }
 
     Update_AttachedEffects();
 }
 
+void EffectCom::Tick_AttachedEffectInstances(float timeDelta)
+{
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        if (attached.poolHandle.effectObject == nullptr)
+            continue;
+
+        attached.poolHandle.effectObject->Try_BeginPlay();
+        attached.poolHandle.effectObject->Priority_Update(timeDelta);
+        attached.poolHandle.effectObject->Update(timeDelta);
+        attached.poolHandle.effectObject->Late_Update(timeDelta);
+    }
+}
 
 void EffectCom::Start_SwitchDissolve(float durationSec, const string& noiseName)
 {
@@ -202,6 +234,8 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
 
     EffectInstancePool::AttachedHandle handle{};
     CHECK_FAILED(effectPool->Acquire(acquireDesc, handle), E_FAIL);
+    if (desc.requiresManualRelease)
+        handle.requiresManualRelease = true;
 
     AttachedEffect attached{};
     attached.poolHandle = handle;
@@ -545,6 +579,12 @@ bool EffectCom::Try_GetOwnerRootWorldMatrix(Matrix& outWorldMatrix) const
     const Shared<GameObject> ownerObject = Get_Owner();
     if (ownerObject == nullptr)
         return false;
+
+    if (const Shared<PartObject> ownerPart = dynamic_pointer_cast<PartObject>(ownerObject))
+    {
+        outWorldMatrix = ownerPart->Get_CombinedWorldMatrix();
+        return true;
+    }
 
     const Shared<TransformCom> ownerTransform = ownerObject->Get_Transform();
     if (ownerTransform == nullptr)

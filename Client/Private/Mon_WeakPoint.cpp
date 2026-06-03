@@ -1,6 +1,7 @@
 ﻿#include "Mon_WeakPoint.h"
+#include "ContainerObject.h"
 #include "EffectCom.h"
-#include "ClientInstance.h"
+#include "GameInstance.h"
 
 NS_BEGIN(Client)
 
@@ -26,6 +27,7 @@ HRESULT Mon_WeakPoint::Initialize(void* arg)
         return E_FAIL;
 
     _socketMatrix = desc->socketMatrix;
+    _socketName = desc->socketName;
 
     _offsetMatrix = Matrix::CreateRotationX(XMConvertToRadians(-90.f));
 
@@ -39,9 +41,22 @@ void Mon_WeakPoint::BeginPlay()
 {
     Monster_Part::BeginPlay();
 
-    if (!CLIENT->Play_AttachPartEffect(Get_Owner(), L"Monster_Weak", L"Part_Weak", Vec3::Zero, Vec3::Zero,Vec3(.3f,.3f,.3f) ), E_FAIL)
+    
+    if (const Matrix* socketMatrix = Resolve_SocketMatrix())
+        Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*socketMatrix));
+
+    if (_effectCom)
     {
-        return;
+        EffectCom::EffectPlayDesc desc{};
+        desc.levelIndex = GAME->Current_LevelIndex();
+        desc.effectName = L"Monster_Weak";
+        desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
+        desc.layerTag = L"Layer_Effect";
+        desc.followTarget = true;
+        desc.scale = Vec3(0.3f);
+        desc.requiresManualRelease = true;
+
+        _effectCom->Play_Effect(desc);
     }
 }
 
@@ -52,13 +67,35 @@ void Mon_WeakPoint::Priority_Update(float timeDelta)
 
 void Mon_WeakPoint::Update(float timeDelta)
 {
-    Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*_socketMatrix));
+    if (const Matrix* socketMatrix = Resolve_SocketMatrix())
+        Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * (*socketMatrix));
 
     if (_partEffectCom)
         _partEffectCom->Update(timeDelta);
 
     
  
+}
+
+const Matrix* Mon_WeakPoint::Resolve_SocketMatrix()
+{
+    if (!_socketName.empty())
+    {
+        const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(Get_Owner());
+        if (ownerContainer)
+        {
+            if (auto* bodyPart = dynamic_cast<Monster_Part*>(ownerContainer->Get_PartObject(L"Part_Body")))
+            {
+                if (const Matrix* socketMatrix = bodyPart->Get_SocketBoneMatrixPtr(_socketName))
+                {
+                    _socketMatrix = socketMatrix;
+                    return _socketMatrix;
+                }
+            }
+        }
+    }
+
+    return _socketMatrix;
 }
 
 void Mon_WeakPoint::Late_Update(float timeDelta)

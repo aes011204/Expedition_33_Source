@@ -38,6 +38,22 @@ HRESULT MW_Lancelier::Initialize(void* arg)
     CHECK_FAILED(Monster_WorldBase::Initialize(arg), E_FAIL);
     CHECK_FAILED(Ready_PartObjects(), E_FAIL);
 
+    Rebuild_PatrolPointsFromCurrentPosition();
+
+    return S_OK;
+}
+
+void MW_Lancelier::From_Json(const json& data)
+{
+    Monster_WorldBase::From_Json(data);
+    Rebuild_PatrolPointsFromCurrentPosition(); // authored 위치 복원 뒤 현재 위치 기준으로 순찰점을 다시 맞춘다.
+}
+
+void MW_Lancelier::Rebuild_PatrolPointsFromCurrentPosition()
+{
+    if (_transformCom == nullptr)
+        return;
+
     const Vec3 patrolOrigin = _transformCom->Get_Position();
     static const Vec3 patrolOffsets[] = {
         { 0.f, 0.f, 0.f },
@@ -58,8 +74,6 @@ HRESULT MW_Lancelier::Initialize(void* arg)
         patrolPoints.push_back(patrolOrigin + offset);
 
     Set_PatrolPoints(std::move(patrolPoints));
-
-    return S_OK;
 }
 
 void MW_Lancelier::Priority_Update(float timeDelta)
@@ -125,14 +139,15 @@ HRESULT MW_Lancelier::Ready_PartObjects()
 
 
     Mon_WeakPoint::WEAK_DESC weakDesc{};
-    weakDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    weakDesc.parentMatrix = &_body->Get_CombinedWorldMatrix();
     weakDesc.allowMissingModel = true;
+    weakDesc.socketName = "neck_02";
     weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("neck_02");
 
-    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL); 
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL); // 약점 파츠는 모델 없이 neck_02 소켓 기준으로 붙인다.
 
     _weak = dynamic_pointer_cast<Mon_WeakPoint>(_partObjects[TEXT("Part_Weak")]);
-    CHECK_NULL(_weapon, E_FAIL);
+    CHECK_NULL(_weak, E_FAIL);
 
 
     return S_OK;
