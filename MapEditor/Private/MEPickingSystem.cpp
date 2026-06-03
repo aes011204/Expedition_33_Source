@@ -184,17 +184,18 @@ void MEPickingSystem::SetCursorAt(SceneContext& scene, const MECamera& camera, c
 
 bool MEPickingSystem::SampleWorldPos(const MECamera& camera, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, Vec3& outWorldPos)
 {
+
     if (!_depthStagingTex || vpSize.x <= 0.f || vpSize.y <= 0.f)
     {
         return false;
     }
+
 
     auto depthTex = GAME->Get_RT_Texture(RT::Depth);
     if (!depthTex)
     {
         return false;
     }
-
     const uint32 rtW = GAME->Get_ViewportWidth();
     const uint32 rtH = GAME->Get_ViewportHeight();
     const uint32 px = min(static_cast<uint32>((mousePos.x - vpPos.x) / vpSize.x * rtW), rtW - 1);
@@ -231,6 +232,7 @@ bool MEPickingSystem::SampleWorldPos(const MECamera& camera, const ImVec2& mouse
     }
 
     outWorldPos = Vec3(world.x / world.w, world.y / world.w, world.z / world.w);
+
     return true;
 }
 
