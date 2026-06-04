@@ -56,7 +56,7 @@ void AN_SpawnLineGroundEffect::Execute(const AnimNotifyContext& context)
         float length = dir.Length();
         dir.Normalize();
 
-       auto segment =  length / static_cast<float>(_segmentNum);
+       auto segment =  length / static_cast<float>((_segmentNum - 1));
 
        Vec3 spawnPos = AttackerPos + dir * (static_cast<float>(_segmentIndex) * segment);
 
@@ -64,10 +64,13 @@ void AN_SpawnLineGroundEffect::Execute(const AnimNotifyContext& context)
         desc.effectName = _effectName;
         desc.layerTag = _layerTag;
         desc.worldPosition = spawnPos;
-            desc.localOffset = _localOffset;
+        desc.localOffset = _localOffset;
         desc.localRotation = _localRotation;
-        desc.scale = _scale;
+        if (_segmentIndex <= 0)
+            return;
 
+        float scaleValue =( _segmentNum - 1 / static_cast<float>(_segmentIndex))*0.25f;
+        desc.scale = Vec3(scaleValue, scaleValue, scaleValue);
 
 
         CLIENT->Play_Effect(desc);
