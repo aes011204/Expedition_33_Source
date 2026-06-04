@@ -265,11 +265,25 @@ bool MaterialBuilder::Try_LoadBundleAsset(const fs::path& bundlePath, BundleAsse
     outAsset.materialIndexToAssetName.clear();
     outAsset.instancesByAssetName.clear();
 
-    // 현재 저장 포맷은 번들 파일 위치를 기준으로 Resources 루트를 알아낸다.
-    // e.g., Resources/Materials/lunebody.material.json 이면 resourceRoot = Resources
-    const fs::path resourceRoot = bundlePath.has_parent_path()
-        ? bundlePath.parent_path().parent_path()
-        : fs::path{};
+    // 현재 저장 포맷은 텍스처 경로를 Resources 기준 상대경로로 저장한다.
+    // Materials/<map>/<model>.material.json처럼 폴더가 깊어져도 Resources 루트를 찾아 기준을 유지한다.
+    fs::path resourceRoot{};
+    for (fs::path cursor = bundlePath.parent_path(); !cursor.empty(); cursor = cursor.parent_path())
+    {
+        const string folderName = String::ToLowerCopy(String::ToString(cursor.filename().wstring()));
+        if (folderName == "resources")
+        {
+            resourceRoot = cursor;
+            break;
+        }
+    }
+
+    if (resourceRoot.empty())
+    {
+        resourceRoot = bundlePath.has_parent_path()
+            ? bundlePath.parent_path().parent_path()
+            : fs::path{};
+    }
 
     if (root.contains("instances") && root["instances"].is_array())
     {

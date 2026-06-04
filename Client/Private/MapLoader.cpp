@@ -7,6 +7,7 @@
 #include "ModelCom.h"
 #include "StaticCollisionData.h"
 #include "Shader_CBuffer_Define.h"
+#include "MaterialCB_OverrideFields.inl"
 #include "MapWater.h"
 #include "Client_Constants.h"
 #include <mutex>
@@ -20,6 +21,358 @@ uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
 
 namespace
 {
+    void Append_ModelOverrides(const json& mapData, MapLoader::LoadSession& outSession)
+    {
+        if (!mapData.contains("ModelOverrides") || !mapData["ModelOverrides"].is_object())
+            return;
+
+        for (auto& [filename, entry] : mapData["ModelOverrides"].items())
+        {
+            if (!entry.is_object())
+                continue;
+
+            MapLoader::ModelOverrideEntry overrideEntry;
+            overrideEntry.passIndex = entry.value("PassIndex", -1);
+            if (entry.contains("TextureSlots") && entry["TextureSlots"].is_object())
+            {
+                for (auto& [slotStr, texPath] : entry["TextureSlots"].items())
+                {
+                    if (!texPath.is_string())
+                        continue;
+
+                    try
+                    {
+                        overrideEntry.textureSlots[stoi(slotStr)] = texPath.get<string>();
+                    }
+                    catch (...)
+                    {
+                    }
+                }
+            }
+
+            outSession.modelOverrides[filename] = overrideEntry;
+        }
+    }
+
+    void Try_AppendModelOverridesFromJsonFile(const fs::path& jsonPath, MapLoader::LoadSession& outSession)
+    {
+        if (jsonPath.empty() || !fs::exists(jsonPath) || !fs::is_regular_file(jsonPath))
+            return;
+
+        ifstream ifs(jsonPath);
+        if (!ifs.is_open())
+            return;
+
+        try
+        {
+            json root = json::parse(ifs);
+            if (root.contains("MapData") && root["MapData"].is_object())
+                Append_ModelOverrides(root["MapData"], outSession);
+        }
+        catch (...)
+        {
+        }
+    }
+
+    string MaterialBundleStemToModelKey(const fs::path& materialPath)
+    {
+        string filename = materialPath.filename().string();
+        const string suffix = ".material.json";
+        if (filename.size() > suffix.size() &&
+            String::ToLowerCopy(filename.substr(filename.size() - suffix.size())) == suffix)
+        {
+            filename.resize(filename.size() - suffix.size());
+            return filename + ".model";
+        }
+
+        return materialPath.stem().string() + ".model";
+    }
+
+    string Read_TexturePathValue(const json& value)
+    {
+        if (value.is_string())
+            return value.get<string>();
+
+        if (value.is_object())
+        {
+            const string path = value.value("texture_path", string{});
+            if (!path.empty())
+                return path;
+        }
+
+        return {};
+    }
+
+    void Append_ModelOverridesFromMaterialDirectory(const fs::path& materialDir, MapLoader::LoadSession& outSession)
+    {
+        if (materialDir.empty() || !fs::exists(materialDir) || !fs::is_directory(materialDir))
+            return;
+
+        for (const fs::directory_entry& entry : fs::directory_iterator(materialDir))
+        {
+            if (!entry.is_regular_file() || entry.path().extension() != ".json")
+                continue;
+
+            ifstream ifs(entry.path());
+            if (!ifs.is_open())
+                continue;
+
+            try
+            {
+                json root = json::parse(ifs);
+                if (!root.contains("instances") || !root["instances"].is_array() || root["instances"].empty())
+                    continue;
+
+                const json& instJson = root["instances"][0];
+                if (!instJson.is_object())
+                    continue;
+
+                string modelKey = instJson.value("editor_modelPath", string{});
+                if (!modelKey.empty())
+                    modelKey = fs::path(modelKey).filename().string();
+                else
+                    modelKey = MaterialBundleStemToModelKey(entry.path());
+
+                if (modelKey.empty())
+                    continue;
+
+                MapLoader::ModelOverrideEntry overrideEntry;
+                json modelJson = json::object();
+                json materialBindings = json::array();
+
+                auto makeInstanceOverride = [&]() -> json
+                {
+                    json instanceOverride = json::object();
+                    instanceOverride["force_pass_index"] = instJson.value("forcePassIndex", -1);
+
+                    if (instJson.contains("cb") && instJson["cb"].is_object())
+                    {
+                        json cbOverrides = json::object();
+#define MAPLOADER_SET_CB_OVERRIDE(_key, _member, _kind) \
+                        if (instJson["cb"].contains(_key)) cbOverrides[_key] = true;
+                        MATERIAL_CB_OVERRIDE_FIELDS(MAPLOADER_SET_CB_OVERRIDE)
+#undef MAPLOADER_SET_CB_OVERRIDE
+
+                        if (!cbOverrides.empty())
+                        {
+                            instanceOverride["cb_overrides"] = cbOverrides;
+                            instanceOverride["cb"] = instJson["cb"];
+                        }
+                    }
+
+                    if (instJson.contains("textures") && instJson["textures"].is_object())
+                    {
+                        const json& texObj = instJson["textures"];
+                        json textures = json::object();
+
+                        auto parseTex = [&](const string& srcName, const string& dstName)
+                        {
+                            if (!texObj.contains(srcName))
+                                return;
+
+                            const string texPath = Read_TexturePathValue(texObj[srcName]);
+                            if (!texPath.empty())
+                                textures[dstName] = { {"enabled", true}, {"texture_path", texPath} };
+                        };
+
+                        parseTex("baseColor", "base_color");
+                        parseTex("normal", "normal");
+                        parseTex("orm", "orm");
+                        parseTex("emissive", "emissive");
+                        parseTex("opacityMask", "opacity_mask");
+
+                        if (!textures.empty())
+                            instanceOverride["textures"] = textures;
+                    }
+
+                    return instanceOverride;
+                };
+
+                const json instanceOverride = makeInstanceOverride();
+
+                if (root.contains("mappings") && root["mappings"].is_array())
+                {
+                    for (const json& mapping : root["mappings"])
+                    {
+                        if (!mapping.is_object())
+                            continue;
+
+                        const uint32 materialIndex = mapping.value("materialIndex", UINT32_MAX);
+                        if (materialIndex == UINT32_MAX)
+                            continue;
+
+                        json binding = json::object();
+                        binding["material_index"] = materialIndex;
+                        binding["instance_override"] = instanceOverride;
+                        materialBindings.push_back(std::move(binding));
+                    }
+                }
+
+                if (materialBindings.empty())
+                {
+                    json binding = json::object();
+                    binding["material_index"] = 0u;
+                    binding["instance_override"] = instanceOverride;
+                    materialBindings.push_back(std::move(binding));
+                }
+
+                modelJson["material_bindings"] = std::move(materialBindings);
+                overrideEntry.modelJson = std::move(modelJson);
+
+                outSession.modelOverrides[modelKey] = overrideEntry;
+            }
+            catch (...)
+            {
+            }
+        }
+    }
+
+    void Append_JsonArray(const json& mapData, const string& key, vector<json>& outArray)
+    {
+        if (!mapData.contains(key) || !mapData[key].is_array())
+            return;
+
+        for (const json& item : mapData[key])
+        {
+            if (item.is_object())
+                outArray.push_back(item);
+        }
+    }
+
+    void Apply_PostProcessVolumes(const vector<json>& postProcessVolumes)
+    {
+        FogZoneCB fogCB{};
+        for (const auto& e : postProcessVolumes)
+        {
+            if (fogCB.aabbCount + fogCB.sphereCount >= FogZoneCB::MAX_FOG_ZONES)
+                break;
+
+            float density = e.value("FogDensity", 0.f);
+            if (density <= 0.f)
+                continue;
+
+            FogZoneEntry entry{};
+            if (e.contains("FogColor"))
+            {
+                auto& c = e["FogColor"];
+                entry.fogColor = Vec4(c[0], c[1], c[2], 1.f);
+            }
+
+            entry.fogDensity = density;
+            entry.fogStart = e.value("FogStart", 0.f);
+
+            Vec3 position{};
+            if (e.contains("Position"))
+            {
+                auto& p = e["Position"];
+                position = Vec3(p[0], p[1], p[2]);
+            }
+
+            int zoneType = e.value("FogZoneType", 0);
+            if (zoneType == 0)
+            {
+                Vec3 extent{ 5.f, 5.f, 5.f };
+                if (e.contains("Extent"))
+                {
+                    auto& ex = e["Extent"];
+                    extent = Vec3(ex[0], ex[1], ex[2]);
+                }
+                entry.zoneMin = position - extent;
+                entry.zoneMax = position + extent;
+                fogCB.zones[fogCB.aabbCount++] = entry;
+            }
+            else
+            {
+                entry.zoneMin = position;
+                entry.zoneRadius = e.value("FogRadius", 10.f);
+                fogCB.zones[fogCB.aabbCount + fogCB.sphereCount++] = entry;
+            }
+        }
+
+        GAME->Set_FogZones(fogCB);
+    }
+
+    HRESULT Add_WaterObject(
+        const json& e,
+        uint32 levelIndex,
+        const wstring& layerTag,
+        vector<Shared<GameObject>>* spawnedObjects)
+    {
+        const wstring waterTexBase = Constants::Map::WaterPath;
+        auto WaterTexPath = [&](const string& filename) -> wstring {
+            if (filename.empty())
+            {
+                return {};
+            }
+            return waterTexBase + String::ToWString(filename);
+            };
+
+        MapWater::MAPWATER_DESC desc{};
+
+        if (e.contains("Position"))
+        {
+            auto& p = e["Position"];
+            desc.position = Vec3(p[0], p[1], p[2]);
+        }
+        if (e.contains("Rotation"))
+        {
+            auto& r = e["Rotation"];
+            desc.rotation = Quat(r[0], r[1], r[2], r[3]);
+        }
+
+        desc.planeDesc.countX = e.value("CountX", 64u);
+        desc.planeDesc.countZ = e.value("CountZ", 64u);
+        desc.planeDesc.sizeX = e.value("SizeX", 1.f);
+        desc.planeDesc.sizeZ = e.value("SizeZ", 1.f);
+
+        desc.largeWaveNormalPath = WaterTexPath(e.value("LargeWaveNormal", string{}));
+        desc.smallWaveNormalPath = WaterTexPath(e.value("SmallWaveNormal", string{}));
+        desc.seafoamPath = WaterTexPath(e.value("SeafoamTexture", string{}));
+        desc.cubemapPath = WaterTexPath(e.value("Cubemap", string{}));
+
+        auto& p = desc.waterParams;
+        p.largeWaveScale = e.value("LargeWaveScale", 64.f);
+        p.largeWaveSpeed = e.value("LargeWaveSpeed", 0.1f);
+        p.largeWaveAmplify = e.value("LargeWaveAmplify", 1.f);
+        p.smallWaveScale = e.value("SmallWaveScale", 512.f);
+        p.smallWaveSpeed = e.value("SmallWaveSpeed", 1.f);
+        p.smallWaveAmplify = e.value("SmallWaveAmplify", 1.f);
+        p.seafoamScale = e.value("SeafoamScale", 512.f);
+        p.seafoamSpeed = e.value("SeafoamSpeed", 0.015f);
+        p.seafoamHeightPower = e.value("SeafoamHeightPower", 2.f);
+        p.seafoamHeightMultiply = e.value("SeafoamHeightMultiply", 3.f);
+        p.foamDistortion = e.value("FoamDistortion", 0.f);
+        p.depthFade = e.value("DepthFade", 0.f);
+        p.cameraDistanceFade = e.value("CameraDistanceFade", 0.f);
+        p.reflectionAmount = e.value("ReflectionAmount", 0.f);
+        p.luminanceBias = e.value("LuminanceBias", 0.f);
+
+        if (e.contains("WaterColor"))
+        {
+            auto& c = e["WaterColor"];
+            p.waterColor = Vec4(c[0], c[1], c[2], c[3]);
+        }
+        if (e.contains("FresnelColor"))
+        {
+            auto& c = e["FresnelColor"];
+            p.fresnelColor = Vec4(c[0], c[1], c[2], c[3]);
+        }
+
+        Shared<GameObject> water = nullptr;
+        HRESULT hr = GAME->Add_GameObject(
+            ETOI(LevelType::Static),
+            TEXT("Prototype_MapWater"),
+            levelIndex,
+            layerTag,
+            water,
+            &desc);
+
+        if (SUCCEEDED(hr) && spawnedObjects != nullptr && water != nullptr)
+            spawnedObjects->push_back(water);
+
+        return hr;
+    }
+
     bool Try_ParseCollisionProxy(const json& node, ModelCollisionProxy& outProxy)
     {
         if (!node.is_object())
@@ -82,6 +435,132 @@ namespace
     }
 }
 
+HRESULT MapLoader::Try_BeginMapInstanceSession(
+    const ComPtr<Device>& device,
+    const ComPtr<Context>& context,
+    const wstring& filePath,
+    uint32 levelIndex,
+    const wstring& layerTag,
+    LoadSession& outSession)
+{
+    fs::path root(filePath);
+
+    if (fs::exists(root) && !fs::is_directory(root))
+    {
+        root = fs::path("../../../Client/Bin/Resources/Map/MapInstance") / root.stem();
+    }
+    else if (!fs::exists(root))
+    {
+        const string mapName = String::ToString(filePath);
+        root = fs::path("../../../Client/Bin/Resources/Map/MapInstance") / mapName;
+    }
+
+    if (!fs::exists(root) || !fs::is_directory(root))
+        return E_FAIL;
+
+    const fs::path staticDir = root / "StaticMesh";
+    const fs::path instanceDir = root / "InstanceMesh";
+    const fs::path postProcessVolumeDir = root / "PostProcessVolume";
+    const fs::path waterDir = root / "Water";
+
+    if (!fs::exists(staticDir) &&
+        !fs::exists(instanceDir) &&
+        !fs::exists(postProcessVolumeDir) &&
+        !fs::exists(waterDir))
+    {
+        return E_FAIL;
+    }
+
+    const auto sessionBegin = chrono::steady_clock::now();
+
+    outSession = {};
+    outSession.device = device;
+    outSession.context = context;
+    outSession.levelIndex = levelIndex;
+    outSession.layerTag = layerTag;
+    outSession.modelFolder = root.filename().string();
+
+    auto appendPreload = [&](const string& modelPath)
+    {
+        if (modelPath.empty())
+            return;
+
+        if (find(outSession.preloadModelPaths.begin(), outSession.preloadModelPaths.end(), modelPath) == outSession.preloadModelPaths.end())
+            outSession.preloadModelPaths.push_back(modelPath);
+    };
+
+    auto loadJsonObjects = [&](const fs::path& dir, vector<json>& outArray)
+    {
+        if (!fs::exists(dir))
+            return;
+
+        for (const fs::directory_entry& entry : fs::directory_iterator(dir))
+        {
+            if (!entry.is_regular_file() || entry.path().extension() != ".json")
+                continue;
+
+            ifstream ifs(entry.path());
+            if (!ifs.is_open())
+                continue;
+
+            try
+            {
+                json item = json::parse(ifs);
+                if (!item.is_object())
+                    continue;
+
+                const string modelPath = item.value("ModelPath", string{});
+                appendPreload(modelPath);
+
+                outArray.push_back(std::move(item));
+            }
+            catch (...)
+            {
+            }
+        }
+    };
+
+    loadJsonObjects(staticDir, outSession.staticMeshes);
+    loadJsonObjects(instanceDir, outSession.instancedMeshes);
+    loadJsonObjects(postProcessVolumeDir, outSession.postProcessVolumes);
+    loadJsonObjects(waterDir, outSession.waters);
+
+    outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
+    outSession.staticMeshesDone = outSession.staticMeshes.empty();
+    outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
+    outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
+    outSession.watersDone = outSession.waters.empty();
+    outSession.prefabInstancesDone = true;
+
+    fs::path sidecarJson(filePath);
+    if (!fs::exists(sidecarJson) || fs::is_directory(sidecarJson))
+    {
+        sidecarJson =
+            fs::path("../../../Client/Bin/Resources/Map/SaveJson") /
+            (root.filename().string() + ".json");
+    }
+    Try_AppendModelOverridesFromJsonFile(sidecarJson, outSession);
+    Append_ModelOverridesFromMaterialDirectory(
+        fs::path("../../../Client/Bin/Resources/Materials") / root.filename(),
+        outSession);
+
+    outSession.beginSessionDuration =
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - sessionBegin);
+
+    LOG_DEBUG(
+        "[MapLoader::MapInstance] root='{}' modelFolder='{}' staticMeshes={} instancedMeshes={} postProcessVolumes={} waters={} preloadModels={} modelOverrides={}",
+        root.generic_string(),
+        outSession.modelFolder,
+        outSession.staticMeshes.size(),
+        outSession.instancedMeshes.size(),
+        outSession.postProcessVolumes.size(),
+        outSession.waters.size(),
+        outSession.preloadModelPaths.size(),
+        outSession.modelOverrides.size());
+
+    return S_OK;
+}
+
 HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<Context>& context,
     const wstring& filePath, uint32 levelIndex, const wstring& layerTag, LoadSession& outSession)
 {
@@ -93,6 +572,21 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
         g_globalCollisionCache.clear();
         g_globalMaterialBindingCache.clear();
         g_currentLevelIndex = levelIndex;
+    }
+
+    {
+        LoadSession mapInstanceSession{};
+        if (SUCCEEDED(Try_BeginMapInstanceSession(
+            device,
+            context,
+            filePath,
+            levelIndex,
+            layerTag,
+            mapInstanceSession)))
+        {
+            outSession = std::move(mapInstanceSession);
+            return S_OK;
+        }
     }
 
     const auto sessionBegin = chrono::steady_clock::now();
@@ -180,153 +674,10 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.layerTag = layerTag;
     outSession.modelFolder = mapData.value("ModelFolder", string{});
 
-    if (mapData.contains("PostProcessVolumes"))
-    {
-        FogZoneCB fogCB{};
-        for (const auto& e : mapData["PostProcessVolumes"])
-        {
-            if (fogCB.aabbCount + fogCB.sphereCount >= FogZoneCB::MAX_FOG_ZONES)
-            {
-                break;
-            }
+    Append_JsonArray(mapData, "PostProcessVolumes", outSession.postProcessVolumes);
+    Append_JsonArray(mapData, "Waters", outSession.waters);
 
-            float density = e.value("FogDensity", 0.f);
-            if (density <= 0.f)
-            {
-                continue;
-            }
-
-            FogZoneEntry entry{};
-            if (e.contains("FogColor"))
-            {
-                auto& c = e["FogColor"];
-                entry.fogColor = Vec4(c[0], c[1], c[2], 1.f);
-            }
-
-            entry.fogDensity = density;
-            entry.fogStart = e.value("FogStart", 0.f);
-
-            Vec3 position{};
-            if (e.contains("Position"))
-            {
-                auto& p = e["Position"];
-                position = Vec3(p[0], p[1], p[2]);
-            }
-
-            int zoneType = e.value("FogZoneType", 0);
-            if (zoneType == 0) // AABB
-            {
-                Vec3 extent{ 5.f, 5.f, 5.f };
-                if (e.contains("Extent"))
-                {
-                    auto& ex = e["Extent"];
-                    extent = Vec3(ex[0], ex[1], ex[2]);
-                }
-                entry.zoneMin = position - extent;
-                entry.zoneMax = position + extent;
-                fogCB.zones[fogCB.aabbCount++] = entry;
-            }
-            else // sphere
-            {
-                entry.zoneMin = position;
-                entry.zoneRadius = e.value("FogRadius", 10.f);
-                fogCB.zones[fogCB.aabbCount + fogCB.sphereCount++] = entry;
-            }
-        }
-        GAME->Set_FogZones(fogCB);
-    }
-
-    if (mapData.contains("Waters"))
-    {
-        const wstring waterTexBase = Constants::Map::WaterPath;
-        auto WaterTexPath = [&](const string& filename) -> wstring {
-            if (filename.empty())
-            {
-                return {};
-            }
-            return waterTexBase + String::ToWString(filename);
-            };
-
-        for (const auto& e : mapData["Waters"])
-        {
-            MapWater::MAPWATER_DESC desc{};
-
-            if (e.contains("Position"))
-            {
-                auto& p = e["Position"];
-                desc.position = Vec3(p[0], p[1], p[2]);
-            }
-            if (e.contains("Rotation"))
-            {
-                auto& r = e["Rotation"];
-                desc.rotation = Quat(r[0], r[1], r[2], r[3]);
-            }
-
-            desc.planeDesc.countX = e.value("CountX", 64u);
-            desc.planeDesc.countZ = e.value("CountZ", 64u);
-            desc.planeDesc.sizeX = e.value("SizeX", 1.f);
-            desc.planeDesc.sizeZ = e.value("SizeZ", 1.f);
-
-            desc.largeWaveNormalPath = WaterTexPath(e.value("LargeWaveNormal", string{}));
-            desc.smallWaveNormalPath = WaterTexPath(e.value("SmallWaveNormal", string{}));
-            desc.seafoamPath = WaterTexPath(e.value("SeafoamTexture", string{}));
-            desc.cubemapPath = WaterTexPath(e.value("Cubemap", string{}));
-
-            auto& p = desc.waterParams;
-            p.largeWaveScale = e.value("LargeWaveScale", 64.f);
-            p.largeWaveSpeed = e.value("LargeWaveSpeed", 0.1f);
-            p.largeWaveAmplify = e.value("LargeWaveAmplify", 1.f);
-            p.smallWaveScale = e.value("SmallWaveScale", 512.f);
-            p.smallWaveSpeed = e.value("SmallWaveSpeed", 1.f);
-            p.smallWaveAmplify = e.value("SmallWaveAmplify", 1.f);
-            p.seafoamScale = e.value("SeafoamScale", 512.f);
-            p.seafoamSpeed = e.value("SeafoamSpeed", 0.015f);
-            p.seafoamHeightPower = e.value("SeafoamHeightPower", 2.f);
-            p.seafoamHeightMultiply = e.value("SeafoamHeightMultiply", 3.f);
-            p.foamDistortion = e.value("FoamDistortion", 0.f);
-            p.depthFade = e.value("DepthFade", 0.f);
-            p.cameraDistanceFade = e.value("CameraDistanceFade", 0.f);
-            p.reflectionAmount = e.value("ReflectionAmount", 0.f);
-            p.luminanceBias = e.value("LuminanceBias", 0.f);
-
-            if (e.contains("WaterColor"))
-            {
-                auto& c = e["WaterColor"];
-                p.waterColor = Vec4(c[0], c[1], c[2], c[3]);
-            }
-            if (e.contains("FresnelColor"))
-            {
-                auto& c = e["FresnelColor"];
-                p.fresnelColor = Vec4(c[0], c[1], c[2], c[3]);
-            }
-
-            Shared<GameObject> water = nullptr;
-            GAME->Add_GameObject(
-                ETOI(LevelType::Static),
-                TEXT("Prototype_MapWater"),
-                levelIndex,
-                layerTag,
-                water,
-                &desc);
-        }
-    }
-
-    if (mapData.contains("ModelOverrides"))
-    {
-        for (auto& [filename, entry] : mapData["ModelOverrides"].items())
-        {
-            ModelOverrideEntry overrideEntry;
-            overrideEntry.passIndex = entry.value("PassIndex", -1);
-            if (entry.contains("TextureSlots"))
-            {
-                for (auto& [slotStr, texPath] : entry["TextureSlots"].items())
-                {
-                    overrideEntry.textureSlots[stoi(slotStr)] = texPath.get<string>();
-                }
-            }
-            outSession.modelOverrides[filename] = overrideEntry;
-        }
-    }
+    Append_ModelOverrides(mapData, outSession);
 
     if (mapData.contains("StaticMeshes"))
     {
@@ -433,6 +784,8 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
     outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
+    outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
+    outSession.watersDone = outSession.waters.empty();
     outSession.prefabInstancesDone = outSession.prefabInstances.empty();
     outSession.beginSessionDuration =
         chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - sessionBegin);
@@ -583,7 +936,35 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.staticAutoInstancingPrepared = true;
         session.staticMeshesDone = session.staticMeshes.empty();
         session.instancedMeshesDone = session.instancedMeshes.empty();
+        session.postProcessVolumesDone = session.postProcessVolumes.empty();
+        session.watersDone = session.waters.empty();
         session.prefabInstancesDone = session.prefabInstances.empty();
+    }
+
+    if (!session.postProcessVolumesDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        Apply_PostProcessVolumes(session.postProcessVolumes);
+        session.postProcessVolumesDone = true;
+        ++processedCount;
+    }
+
+    while (!session.watersDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        if (session.nextWaterIndex >= session.waters.size())
+        {
+            session.watersDone = true;
+            break;
+        }
+
+        const json& e = session.waters[session.nextWaterIndex++];
+        Add_WaterObject(e, session.levelIndex, session.layerTag, session.spawnedObjects);
+        ++processedCount;
     }
 
     while (!session.staticMeshesDone)
@@ -831,6 +1212,8 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.preloadModelsDone &&
         session.staticMeshesDone &&
         session.instancedMeshesDone &&
+        session.postProcessVolumesDone &&
+        session.watersDone &&
         session.prefabInstancesDone;
 
     if (outFinished && !session.summaryLogged)
@@ -884,7 +1267,12 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
         return;
     }
 
-    string bundleKey = modelFolder;
+    const string modelStem = fs::path(modelFullPath).stem().string();
+    string bundleKey = fs::path(modelFullPath).parent_path().filename().string();
+    if (bundleKey.empty())
+    {
+        bundleKey = modelFolder;
+    }
     transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
 
     fs::path jsonPath = fs::path(modelFullPath).replace_extension(".json");
@@ -971,6 +1359,15 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
         model->Apply_MaterialByAssetName(binding.first, bundleKey, binding.second);
     }
 
+    if (overrideEntry != nullptr)
+    {
+        LOG_DEBUG(
+            "[MapLoader::Material] base material match model='{}' baseBundle='{}' staticBindings={}",
+            modelStem,
+            bundleKey,
+            bindings.size());
+    }
+
     int32 forcedPassIndex = overrideEntry ? overrideEntry->passIndex : -1;
 
     if (forcedPassIndex >= 0)
@@ -992,7 +1389,15 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
                 continue;
             }
 
-            string fullPath = "../../../Client/Bin/Resources/Map/" + texPath;
+            string fullPath = texPath;
+            const fs::path texFsPath(texPath);
+            if (!texFsPath.is_absolute() &&
+                !texPath.starts_with("../") &&
+                !texPath.starts_with("..\\"))
+            {
+                fullPath = "../../../Client/Bin/Resources/Map/" + texPath;
+            }
+
             auto slot = static_cast<MaterialTextureSlot>(slotIdx);
             for (uint32 i = 0; i < static_cast<uint32>(model->Get_NumMaterials()); ++i)
             {
@@ -1003,6 +1408,30 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
                 }
             }
         }
+    }
+
+    if (overrideEntry != nullptr &&
+        overrideEntry->modelJson.is_object() &&
+        overrideEntry->modelJson.contains("material_bindings"))
+    {
+        json modelJson = overrideEntry->modelJson;
+        if (modelJson["material_bindings"].is_array())
+        {
+            for (json& binding : modelJson["material_bindings"])
+            {
+                if (binding.is_object())
+                {
+                    binding["base_bundle_key"] = bundleKey;
+                }
+            }
+        }
+
+        model->From_Json(modelJson);
+        LOG_DEBUG(
+            "[MapLoader::Material] model json material applied model='{}' baseBundle='{}' bindings={}",
+            modelStem,
+            bundleKey,
+            modelJson["material_bindings"].size());
     }
 }
 
@@ -1114,10 +1543,20 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     chrono::milliseconds* outMaterialDuration,
     size_t* outMaterialCount)
 {
+    string fullPathA = "../../../Client/Bin/Resources/Map/" + modelFolder + "/" + modelPathStr;
+    string directPathA = "../../../Client/Bin/Resources/Map/" + modelPathStr;
+
+    if (fs::exists(fs::path(directPathA)))
+    {
+        fullPathA = directPathA;
+    }
+
+    const string cacheKey = String::ToLowerCopy(fs::path(fullPathA).lexically_normal().generic_string());
+
     // 1단계: 스레드 안전하게 전역 캐시에서 동일 모델 존재 확인
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        auto it = g_globalModelCache.find(modelPathStr);
+        auto it = g_globalModelCache.find(cacheKey);
         if (it != g_globalModelCache.end())
         {
             return it->second;
@@ -1125,8 +1564,6 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     }
 
     // 2단계: 전역 캐시에 없는 경우 디스크에서 신규 로드 수행
-    string fullPathA = "../../../Client/Bin/Resources/Map/" + modelFolder + "/" + modelPathStr;
-
     const auto createBegin = chrono::steady_clock::now();
     auto model = ModelCom::Create(
         device,
@@ -1140,13 +1577,30 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     if (outCreateCount) (*outCreateCount)++;
 
     if (!model)
+    {
+        LOG_WARN(
+            "[MapLoader::Model] failed to create model modelFolder='{}' modelPath='{}' resolved='{}' directExists={}",
+            modelFolder,
+            modelPathStr,
+            fullPathA,
+            fs::exists(fs::path(directPathA)));
         return nullptr;
+    }
 
     const ModelOverrideEntry* overrideEntry = nullptr;
     auto overrideIt = modelOverrides.find(modelPathStr);
     if (overrideIt != modelOverrides.end())
     {
         overrideEntry = &overrideIt->second;
+    }
+    else
+    {
+        const string modelFileName = fs::path(modelPathStr).filename().string();
+        overrideIt = modelOverrides.find(modelFileName);
+        if (overrideIt != modelOverrides.end())
+        {
+            overrideEntry = &overrideIt->second;
+        }
     }
 
     const auto materialBegin = chrono::steady_clock::now();
@@ -1159,7 +1613,7 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     // 3단계: 로드가 완료된 새 모델을 전역 캐시에 안전하게 등록
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        g_globalModelCache[modelPathStr] = model;
+        g_globalModelCache[cacheKey] = model;
     }
 
     return model;

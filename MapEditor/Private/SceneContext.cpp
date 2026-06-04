@@ -1,4 +1,4 @@
-#include "SceneContext.h"
+﻿#include "SceneContext.h"
 #include "Helper_String.h"
 #include "IEditorCommand.h"
 #include "GameInstance.h"
@@ -130,6 +130,139 @@ namespace
             cb.uvOffset = { c[0], c[1] };
         }
         cb.uvRotation = data.value("UvRotation", 0.f);
+    }
+
+    void Serialize_PostProcessVolume(json& e, const EditorObject& obj)
+    {
+        e["Shape"] = (obj._zoneShape == EZoneShape::Box) ? "Box" : "Sphere";
+        e["Extent"] = { obj._zoneExtent.x, obj._zoneExtent.y, obj._zoneExtent.z };
+        e["Radius"] = obj._zoneRadius;
+        e["BloomIntensity"] = obj._ppBloomIntensity;
+        e["ExposureMin"] = obj._ppExposureMin;
+        e["ExposureMax"] = obj._ppExposureMax;
+        e["FogDensity"] = obj._ppFogDensity;
+        e["FogColor"] = { obj._ppFogColor.x, obj._ppFogColor.y, obj._ppFogColor.z };
+        e["FogStart"] = obj._ppFogStart;
+        e["FogZoneType"] = obj._ppFogZoneType;
+        e["FogRadius"] = obj._ppFogRadius;
+    }
+
+    void Deserialize_PostProcessVolume(const json& e, EditorObject& obj)
+    {
+        string shape = e.value("Shape", "Box");
+        obj._zoneShape = magic_enum::enum_cast<EZoneShape>(shape).value_or(EZoneShape::Box);
+        if (e.contains("Extent"))
+        {
+            auto& ext = e["Extent"];
+            obj._zoneExtent = { ext[0], ext[1], ext[2] };
+        }
+        obj._zoneRadius = e.value("Radius", 5.f);
+        obj._ppBloomIntensity = e.value("BloomIntensity", 1.f);
+        obj._ppExposureMin = e.value("ExposureMin", 0.f);
+        obj._ppExposureMax = e.value("ExposureMax", 2.f);
+        obj._ppFogDensity = e.value("FogDensity", 0.f);
+        if (e.contains("FogColor"))
+        {
+            auto& c = e["FogColor"];
+            obj._ppFogColor = { c[0], c[1], c[2] };
+        }
+        obj._ppFogStart = e.value("FogStart", 0.f);
+        obj._ppFogZoneType = e.value("FogZoneType", 0);
+        obj._ppFogRadius = e.value("FogRadius", 10.f);
+    }
+
+    string Strip_WaterTexturePath(const wstring& fullPath)
+    {
+        const wstring waterTexPrefix = _waterPath;
+        if (fullPath.size() >= waterTexPrefix.size() && fullPath.substr(0, waterTexPrefix.size()) == waterTexPrefix)
+        {
+            return String::ToString(fullPath.substr(waterTexPrefix.size()));
+        }
+        return String::ToString(fs::path(fullPath).filename().wstring());
+    }
+
+    wstring Make_WaterTexturePath(const string& filename)
+    {
+        if (filename.empty())
+        {
+            return {};
+        }
+        return wstring(_waterPath) + String::ToWString(filename);
+    }
+
+    void Serialize_Water(json& e, const EditorObject& obj)
+    {
+        e["CountX"] = obj._waterDesc.countX;
+        e["CountZ"] = obj._waterDesc.countZ;
+        e["SizeX"] = obj._waterDesc.sizeX;
+        e["SizeZ"] = obj._waterDesc.sizeZ;
+        e["ChunkSize"] = obj._waterDesc.chunkSize;
+
+        e["LargeWaveNormal"] = Strip_WaterTexturePath(obj._waterLargeWaveNormalPath);
+        e["SmallWaveNormal"] = Strip_WaterTexturePath(obj._waterSmallWaveNormalPath);
+        e["SeafoamTexture"] = Strip_WaterTexturePath(obj._waterSeafoamPath);
+        e["Cubemap"] = Strip_WaterTexturePath(obj._waterCubemapPath);
+
+        auto& p = obj._waterParams;
+        e["LargeWaveScale"] = p.largeWaveScale;
+        e["LargeWaveSpeed"] = p.largeWaveSpeed;
+        e["LargeWaveAmplify"] = p.largeWaveAmplify;
+        e["SmallWaveScale"] = p.smallWaveScale;
+        e["SmallWaveSpeed"] = p.smallWaveSpeed;
+        e["SmallWaveAmplify"] = p.smallWaveAmplify;
+        e["SeafoamScale"] = p.seafoamScale;
+        e["SeafoamSpeed"] = p.seafoamSpeed;
+        e["SeafoamHeightPower"] = p.seafoamHeightPower;
+        e["SeafoamHeightMultiply"] = p.seafoamHeightMultiply;
+        e["FoamDistortion"] = p.foamDistortion;
+        e["DepthFade"] = p.depthFade;
+        e["CameraDistanceFade"] = p.cameraDistanceFade;
+        e["ReflectionAmount"] = p.reflectionAmount;
+        e["LuminanceBias"] = p.luminanceBias;
+        e["WaterColor"] = { p.waterColor.x, p.waterColor.y, p.waterColor.z, p.waterColor.w };
+        e["FresnelColor"] = { p.fresnelColor.x, p.fresnelColor.y, p.fresnelColor.z, p.fresnelColor.w };
+    }
+
+    void Deserialize_Water(const json& e, EditorObject& obj)
+    {
+        obj._waterDesc.countX = e.value("CountX", 64u);
+        obj._waterDesc.countZ = e.value("CountZ", 64u);
+        obj._waterDesc.sizeX = e.value("SizeX", 1.f);
+        obj._waterDesc.sizeZ = e.value("SizeZ", 1.f);
+        obj._waterDesc.chunkSize = e.value("ChunkSize", 16u);
+
+        obj._waterLargeWaveNormalPath = Make_WaterTexturePath(e.value("LargeWaveNormal", string{}));
+        obj._waterSmallWaveNormalPath = Make_WaterTexturePath(e.value("SmallWaveNormal", string{}));
+        obj._waterSeafoamPath = Make_WaterTexturePath(e.value("SeafoamTexture", string{}));
+        obj._waterCubemapPath = Make_WaterTexturePath(e.value("Cubemap", string{}));
+
+        auto& p = obj._waterParams;
+        p.largeWaveScale = e.value("LargeWaveScale", 64.f);
+        p.largeWaveSpeed = e.value("LargeWaveSpeed", 0.1f);
+        p.largeWaveAmplify = e.value("LargeWaveAmplify", 1.f);
+        p.smallWaveScale = e.value("SmallWaveScale", 512.f);
+        p.smallWaveSpeed = e.value("SmallWaveSpeed", 1.f);
+        p.smallWaveAmplify = e.value("SmallWaveAmplify", 1.f);
+        p.seafoamScale = e.value("SeafoamScale", 512.f);
+        p.seafoamSpeed = e.value("SeafoamSpeed", 0.015f);
+        p.seafoamHeightPower = e.value("SeafoamHeightPower", 2.f);
+        p.seafoamHeightMultiply = e.value("SeafoamHeightMultiply", 3.f);
+        p.foamDistortion = e.value("FoamDistortion", 0.f);
+        p.depthFade = e.value("DepthFade", 0.f);
+        p.cameraDistanceFade = e.value("CameraDistanceFade", 0.f);
+        p.reflectionAmount = e.value("ReflectionAmount", 0.f);
+        p.luminanceBias = e.value("LuminanceBias", 0.f);
+
+        if (e.contains("WaterColor"))
+        {
+            auto& c = e["WaterColor"];
+            p.waterColor = { c[0], c[1], c[2], c[3] };
+        }
+        if (e.contains("FresnelColor"))
+        {
+            auto& c = e["FresnelColor"];
+            p.fresnelColor = { c[0], c[1], c[2], c[3] };
+        }
     }
 
     void Export_ObjectJson(const fs::path& baseDir, int32 index, const json& e)
@@ -1256,7 +1389,7 @@ void SceneContext::Export_MapInstance(const string& filePath)
     fs::path staticDir = root / "StaticMesh";
     fs::path instanceDir = root / "InstanceMesh";
     fs::path waterDir = root / "Water";
-    fs::path fogDir = root / "Fog";
+    fs::path postProcessVolumeDir = root / "PostProcessVolume";
     fs::path etcDir = root / "ETC";
 
     if(!fs::exists(root))
@@ -1273,14 +1406,14 @@ void SceneContext::Export_MapInstance(const string& filePath)
         if (!fs::exists(waterDir))
             fs::create_directories(waterDir);
 
-        if (!fs::exists(fogDir))
-            fs::create_directories(fogDir);
+        if (!fs::exists(postProcessVolumeDir))
+            fs::create_directories(postProcessVolumeDir);
 
         if (!fs::exists(etcDir))
             fs::create_directories(etcDir);
     }
 
-    int32 st_idx{}, inst_idx{}, water_idx{}, fog_idx{}, etc_idx{};
+    int32 st_idx{}, inst_idx{}, water_idx{}, ppv_idx{}, etc_idx{};
 
     for (auto& obj : _objects)
     {
@@ -1335,7 +1468,20 @@ void SceneContext::Export_MapInstance(const string& filePath)
             Export_ObjectJson(instanceDir, inst_idx++, e);
             break;
         }
+        case EObjectType::PostProcessVolume:
+            e["Type"] = "PostProcessVolume";
+            Serialize_PostProcessVolume(e, *obj);
+            Export_ObjectJson(postProcessVolumeDir, ppv_idx++, e);
+            break;
+
+        case EObjectType::Water:
+            e["Type"] = "Water";
+            Serialize_Water(e, *obj);
+            Export_ObjectJson(waterDir, water_idx++, e);
+            break;
+
         default:
+            e["Type"] = ObjectTypeName(obj->_type);
             Export_ObjectJson(etcDir, etc_idx++, e);
             break;
         }
@@ -1381,6 +1527,8 @@ void SceneContext::Import_MapInstance(const string& mapName)
     fs::path root = fs::path(_mapSavePath) / "MapInstance" / mapName;
     fs::path staticDir = root / "StaticMesh";
     fs::path instanceDir = root / "InstanceMesh";
+    fs::path waterDir = root / "Water";
+    fs::path postProcessVolumeDir = root / "PostProcessVolume";
 
     fs::path matDir = fs::path(_materialsPath) / mapName;
     if (fs::exists(matDir))
@@ -1533,6 +1681,56 @@ void SceneContext::Import_MapInstance(const string& mapName)
                             obj->_instancedTransforms.push_back(t);
                         }
                     }
+                    obj->UpdateWorldMatrix();
+                    Add(obj);
+                }
+            }
+        }
+    }
+
+    if (fs::exists(postProcessVolumeDir))
+    {
+        for (const auto& entry : fs::directory_iterator(postProcessVolumeDir))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                ifstream ifs(entry.path());
+                if (ifs.is_open())
+                {
+                    json e = json::parse(ifs);
+                    auto obj = make_shared<EditorObject>();
+                    obj->_type = EObjectType::PostProcessVolume;
+                    obj->_name = String::ToWString(e.value("Id", "PostProcessVolume"));
+
+                    if (e.contains("Position")) { auto& pos = e["Position"]; obj->_position = { pos[0], pos[1], pos[2] }; }
+                    if (e.contains("Rotation")) { auto& rot = e["Rotation"]; obj->_rotation = { rot[0], rot[1], rot[2], rot[3] }; }
+
+                    Deserialize_PostProcessVolume(e, *obj);
+                    obj->UpdateWorldMatrix();
+                    Add(obj);
+                }
+            }
+        }
+    }
+
+    if (fs::exists(waterDir))
+    {
+        for (const auto& entry : fs::directory_iterator(waterDir))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                ifstream ifs(entry.path());
+                if (ifs.is_open())
+                {
+                    json e = json::parse(ifs);
+                    auto obj = make_shared<EditorObject>();
+                    obj->_type = EObjectType::Water;
+                    obj->_name = String::ToWString(e.value("Id", "Water"));
+
+                    if (e.contains("Position")) { auto& pos = e["Position"]; obj->_position = { pos[0], pos[1], pos[2] }; }
+                    if (e.contains("Rotation")) { auto& rot = e["Rotation"]; obj->_rotation = { rot[0], rot[1], rot[2], rot[3] }; }
+
+                    Deserialize_Water(e, *obj);
                     obj->UpdateWorldMatrix();
                     Add(obj);
                 }
