@@ -124,6 +124,9 @@
     <Filter Include="10. System\MEMaterialApplicator">
       <UniqueIdentifier>{00437c28-a8d3-4d86-8b01-1ff655d439b2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="06. EditorUtil\SceneContext\MapModelSave">
+      <UniqueIdentifier>{e35e6deb-bf0e-4e90-b0ab-d46914f71a03}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">

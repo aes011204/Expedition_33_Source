@@ -109,6 +109,8 @@ namespace MapEditor
         map<int32, string> textureSlots;
         bool hasMaterialCB = false;
         Engine::MaterialCB materialCB{};
+        
+        void ExportToNativeMaterial(const string& modelPath, const string& mapName) const;
     };
 
     inline constexpr pair<const char*, uint32> g_staticMeshPassOptions[] = {

@@ -68,6 +68,10 @@ struct SceneContext
 
     bool _objectBBoxMode = false;
     bool _hideInstancedMesh = false;
+
+public: // Minor 테스트 맵 인스턴스 분할
+    void Export_MapInstance(const string& filePath);
+
 };
 
 NS_END

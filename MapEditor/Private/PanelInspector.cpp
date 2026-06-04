@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "PanelInspector.h"
 #include "SceneContext.h"
 #include "MECamera.h"
@@ -435,6 +435,12 @@ void PanelInspector::DrawMaterialOverrides(Shared<EditorObject>& obj)
         if (matChanged)
         {
             _ctx->_dirtyPassOverrides = true;
+        }
+
+        ImGui::Separator();
+        if (ImGui::Button("Export to .material.json", ImVec2(-1, 0)))
+        {
+            _ctx->_modelOverrides[filename].ExportToNativeMaterial(String::ToString(obj->_modelPath), String::ToString(_ctx->_mapName));
         }
     }
 }

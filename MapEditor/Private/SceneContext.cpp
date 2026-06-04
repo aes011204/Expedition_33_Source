@@ -131,6 +131,27 @@ namespace
         }
         cb.uvRotation = data.value("UvRotation", 0.f);
     }
+
+    void Export_ObjectJson(const fs::path& baseDir, int32 index, const json& e)
+    {
+        string objName = "Object_" + to_string(index);
+        if (e.contains("Id"))
+        {
+            string idStr = e["Id"].get<string>();
+            if (!idStr.empty())
+            {
+                objName = idStr;
+            }
+        }
+        string fileName = objName + ".json";
+        fs::path outPath = baseDir / fileName;
+
+        ofstream ofs(outPath);
+        if (ofs.is_open())
+        {
+            ofs << e.dump(4);
+        }
+    }
 }
 
 void SceneContext::SaveToFile(const string& filePath)
@@ -1078,5 +1099,102 @@ void SceneContext::LoadTerrainConfig(const string& filePath)
     Add(terrainObj);
 
     _terrainDirty = true;
+}
+
+void SceneContext::Export_MapInstance(const string& filePath)
+{
+    fs::path jsonPath(filePath);
+    string mapName = jsonPath.stem().string();
+
+    fs::path root = fs::path(_mapSavePath) / "MapInstance" / mapName;
+
+    fs::path staticDir = root / "StaticMesh";
+    fs::path instanceDir = root / "InstanceMesh";
+    fs::path waterDir = root / "Water";
+    fs::path fogDir = root / "Fog";
+    fs::path etcDir = root / "ETC";
+
+    if(!fs::exists(root))
+        fs::create_directories(root);
+
+    if (fs::exists(root))
+    {
+        if (!fs::exists(staticDir))
+            fs::create_directories(staticDir);
+
+        if (!fs::exists(instanceDir))
+            fs::create_directories(instanceDir);
+
+        if (!fs::exists(waterDir))
+            fs::create_directories(waterDir);
+
+        if (!fs::exists(fogDir))
+            fs::create_directories(fogDir);
+
+        if (!fs::exists(etcDir))
+            fs::create_directories(etcDir);
+    }
+
+    int32 st_idx{}, inst_idx{}, water_idx{}, fog_idx{}, etc_idx{};
+
+    for (auto& obj : _objects)
+    {
+        json e;
+        e["Id"] = String::ToString(obj->_name);
+        e["Position"] = { obj->_position.x, obj->_position.y, obj->_position.z };
+        e["Rotation"] = { obj->_rotation.x, obj->_rotation.y, obj->_rotation.z, obj->_rotation.w };
+
+        switch (obj->_type)
+        {
+        case EObjectType::StaticMesh:
+        {
+            wstring modelFile = obj->_modelPath;
+            const wstring prefix = String::ToWString(_mapSavePath) + _modelFolder + L"/";
+
+            if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
+            {
+                modelFile = modelFile.substr(prefix.size());
+            }
+            else
+            {
+                modelFile = fs::path(modelFile).filename().wstring();
+            }
+            e["ModelPath"] = String::ToString(modelFile);
+            e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
+            Export_ObjectJson(staticDir, st_idx++, e);
+            break;
+        }
+        case EObjectType::InstancedMesh:
+        {
+            wstring modelFile = obj->_instancedModelPath;
+            const wstring prefix = String::ToWString(_mapSavePath) + _modelFolder + L"/";
+            if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
+            {
+                modelFile = modelFile.substr(prefix.size());
+            }
+            else
+            {
+                modelFile = fs::path(modelFile).filename().wstring();
+            }
+            e["ModelPath"] = String::ToString(modelFile);
+            json instArr = json::array();
+            for (auto& transform : obj->_instancedTransforms)
+            {
+                json instJson;
+                instJson["Position"] = { transform._position.x, transform._position.y, transform._position.z };
+                instJson["Rotation"] = { transform._rotation.x, transform._rotation.y, transform._rotation.z, transform._rotation.w };
+                instJson["Scale"] = { transform._scale.x, transform._scale.y, transform._scale.z };
+                instArr.push_back(instJson);
+            }
+            e["Instances"] = instArr;
+            Export_ObjectJson(instanceDir, inst_idx++, e);
+            break;
+        }
+        default:
+            Export_ObjectJson(etcDir, etc_idx++, e);
+            break;
+        }
+    }
+
 }
 

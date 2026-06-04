@@ -254,6 +254,15 @@ void MEManager::RenderDockSpace()
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Map Explicit Tools"))
+        {
+            if (ImGui::MenuItem("Export Split Instance"))
+            {
+                _ctx->Export_MapInstance(_ctx->_currentFilePath);
+            }
+            ImGui::EndMenu();
+        }
+
         ImGui::EndMenuBar();
     }
 
