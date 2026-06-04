@@ -56,7 +56,8 @@ void MB_Bishop::BeginPlay()
     Monster_BattleBase::BeginPlay();
 
     // GroundAoe가 프레임드랍나서 미리 준비해놓기
-    CLIENT->Prewarm_Effect(L"Beshop_Ice", L"Layer_Effect", 9);
+    if (CLIENT != nullptr)
+        CLIENT->Prewarm_Effect(L"Beshop_Ice", L"Layer_Effect", 9);
 }
 
 void MB_Bishop::Update(float timeDelta)

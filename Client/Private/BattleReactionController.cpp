@@ -187,7 +187,8 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
                 PlayEffectDesc effectDesc{};
                 effectDesc.effectName = L"Effects\\Assets\\Distortion\\Double_Distotion.effect.json";
                 effectDesc.spawnBasisTarget = target.actor;
-                effectDesc.localOffset = Vec3(0.f, 1.0f, 0.f); // 패링한 플레이어 몸 중앙 근처에서 왜곡을 터뜨린다.
+                effectDesc.scale = Vec3(0.5f, 0.5f, 0.5f);
+                effectDesc.localOffset = Vec3(0.f, 0.7f, 0.f);
 
                 CLIENT->Play_Effect(effectDesc);
             }

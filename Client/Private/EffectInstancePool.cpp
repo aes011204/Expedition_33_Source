@@ -233,6 +233,10 @@ HRESULT EffectInstancePool::Prewarm(const AcquireDesc& desc, uint32 count)
         AttachedHandle handle{};
         CHECK_FAILED(Acquire(desc, handle), E_FAIL);
 
+        // prewarm instance가 다음 frame 첫 BeginPlay에서 다시 Play되지 않게 미리 BeginPlay를 완료한다.
+        if (handle.effectObject != nullptr)
+            CHECK_FAILED(handle.effectObject->Try_BeginPlay(), E_FAIL);
+
         // count개를 한 번에 확보해야 같은 슬롯 1개만 재사용하는 prewarm이 되지 않는다.
         handles.push_back(handle);
     }
