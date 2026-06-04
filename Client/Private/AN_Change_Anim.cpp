@@ -29,6 +29,7 @@ void AN_Change_Anim::Execute(const AnimNotifyContext& context)
     const auto Battle = CLIENT->Get_BattleController();
     if (Battle->Is_BattleStarted() == false)
         return;
+
     const BattleAction& action = Battle->Get_TurnAction();
 
     if (dynamic_pointer_cast<GameObject>(action.Get_CurChar().actor) != context.owner->Get_Owner())
