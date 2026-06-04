@@ -16,6 +16,7 @@
 #include "Reflection_Types.h"
 #include "TransformCom.h"
 #include "UI_Base.h"
+#include "UI_RuntimePanelBase.h"
 #include "UI_Transform.h"
 
 const vector<Engine::BTBlackboardKeyView>* Inspector::_btBlackboardKeys = nullptr;
@@ -122,6 +123,7 @@ void Inspector::Draw_UIInspector(
     }
 
     Draw_RuntimeUITestOffsetSection(ui); // Battle UI만 공통 테스트 오프셋 편집기를 노출한다.
+    Draw_RuntimeUIOwnerReflectionSection(ui);
 
     bool isOpen = ui->Is_Open();
     ImGui::AlignTextToFramePadding();
@@ -218,6 +220,26 @@ void Inspector::Draw_RuntimeUITestOffsetSection(const Shared<UI_Base>& ui)
         editorTarget->Set_EditorHeroTestOffset(activeHeroId, heroOffset); // BattleCommandHUD만 Hero별 추가 오프셋을 갖는다.
 
     ImGui::Spacing();
+}
+
+void Inspector::Draw_RuntimeUIOwnerReflectionSection(const Shared<UI_Base>& ui)
+{
+    Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI();
+    if (gameplayUI == nullptr)
+        return;
+
+    IRuntimeUI_EditorTarget* editorTarget = gameplayUI->Find_RuntimeUIEditorTarget(ui);
+    auto* runtimePanel = dynamic_cast<Client::UI_RuntimePanelBase*>(editorTarget);
+    if (runtimePanel == nullptr)
+        return;
+
+    ClassReflectionInfo& info = runtimePanel->Get_ReflectionInfo();
+    if (info.properties.empty())
+        return;
+
+    ImGui::Separator();
+    Draw_ReflectionSection(info.className, runtimePanel, info);
+    runtimePanel->Apply_EditorReflectionRuntimeTuning();
 }
 
 bool Inspector::Draw_UIVec2Row(const char* label, const string& id, Vec2& value, float speed)

@@ -1434,6 +1434,8 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
         // 약점 파츠를 맞췄을 때만 추가딜
         if (_hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor)
             Try_ApplyFreeAimWeakPointBonus(_freeAimHitTarget, attacker);
+
+        CLIENT->Notify_FreeAimShotHit();
     }
 
     _freeAimShotAction.InitActionDirection();

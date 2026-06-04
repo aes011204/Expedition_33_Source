@@ -195,18 +195,6 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleFreeAimHitTarget& outHitTarget) co
         return false;
     };
 
-    PhysXQueryHit weakHit{};
-    const bool hasWeakHit = GAME->Sweep_Sphere(
-        cameraOrigin,
-        direction,
-        traceDistance,
-        sweepRadius,
-        Collision_Preset::Player_WeakPointTarget,
-        weakHit);
-
-    if (hasWeakHit && resolveHitTarget(weakHit, outHitTarget))
-        return true;
-
     PhysXQueryHit hit{};
     const bool hasHit = GAME->Sweep_Sphere(
         cameraOrigin,

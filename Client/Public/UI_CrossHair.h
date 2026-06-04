@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "UI_RuntimePanelBase.h"
+#include "Delegate.h"
 
 NS_BEGIN(Engine)
 class UI_Base;
@@ -30,7 +31,14 @@ private:
     HRESULT Bind_UI();
 
     void    Play_CrossAirAnimation(const wstring& animationName);
-    
+
+private:
+    void    Handle_FreeAimShot();
+
+    void    Start_HitPulse();
+    void    Update_HitPulse(float timeDelta);
+    void    Apply_HitPulseScale(float scale);
+    void    Reset_HitPulse();
 
 private:
     Shared<UI_Base> _outlineRoot{};
@@ -38,8 +46,16 @@ private:
     Shared<UI_Image> _crossHairOutlineImage{};
 
 private:
+    FDelegateHandle _freeAimShotHitHandle{};
+
     bool _isHit = false;
     bool _hasHitState = false;
+
+    float _hitPulseElapsed = 0.f;
+    bool  _isHitPulseActive = false;
+
+    static constexpr float kHitPulseDuration = 0.16f;
+    static constexpr float kHitPulseMinScale = 0.86f;
 
 public:
     static Unique<UI_CrossHair> Create(uint32 levelIndex);
