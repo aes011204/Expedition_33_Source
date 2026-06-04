@@ -986,17 +986,6 @@ AuthoringModule Emitter_View::Make_InitialRotationModule()
     return module;
 }
 
-AuthoringModule Emitter_View::Make_PlaneRadialOrientationModule()
-{
-    AuthoringModule module{};
-    module.id = Issue_AuthoringId();
-    module.type = AuthoringModuleType::PlaneRadialOrientation;
-    module.enabled = true;
-    Apply_AuthoringModuleMetadata(module);
-    module.data = PlaneRadialOrientationModuleData{};
-    return module;
-}
-
 AuthoringModule Emitter_View::Make_SphereRadialOrientationModule()
 {
     AuthoringModule module{};
@@ -1005,6 +994,17 @@ AuthoringModule Emitter_View::Make_SphereRadialOrientationModule()
     module.enabled = true;
     Apply_AuthoringModuleMetadata(module);
     module.data = SphereRadialOrientationModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_PlaneRadialOrientationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::PlaneRadialOrientation;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = PlaneRadialOrientationModuleData{};
     return module;
 }
 

@@ -1890,7 +1890,8 @@ bool RequiredModuleDetail::Draw(
                     data.sortBias,
                     defaultData.sortBias,
                     0.01f,
-                    "같은 Sort Layer와 같은 Sort Policy 안에서만 마지막 보정값으로 사용합니다.");
+                    "같은 Sort Layer와 같은 Sort Policy 안에서만 마지막 보정값으로 사용합니다."
+                );
                 detailContext.End_PropertyTable();
             }
             ImGui::TreePop();
@@ -2119,7 +2120,14 @@ bool PlaneRadialLocationModuleDetail::Draw(
         else
         {
             changed |= detailContext.Draw_FloatDistributionGroup("반지름 분포", data.radiusDistribution, defaultData.radiusDistribution, 0.01f, true, false);
-            changed |= detailContext.Draw_FloatDistributionGroup("각도 분포", data.angleDegreesDistribution, defaultData.angleDegreesDistribution, 0.01f, true, false);
+            changed |= detailContext.Draw_FloatDistributionGroup(
+                "각도 분포",
+                data.angleDegreesDistribution,
+                defaultData.angleDegreesDistribution,
+                0.01f,
+                true,
+                false
+            );
         }
 
         ImGui::TextDisabled("위치 분포는 spawn 시점 1회 샘플이라 현재 상수/균등만 지원합니다.");
@@ -2280,6 +2288,17 @@ bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Vel
     return changed;
 }
 
+bool InitialRotationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialRotationModuleData& data, DetailPropertyContext& detailContext)
+{
+    const InitialRotationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("초기 회전", ImGuiTreeNodeFlags_DefaultOpen))
+        changed |= detailContext.Draw_FloatDistributionGroup("회전각", data.rotationDegrees, defaultData.rotationDegrees);
+
+    return changed;
+}
+
 bool OrbitOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, OrbitOverLifeModuleData& data, DetailPropertyContext& detailContext)
 {
     const OrbitOverLifeModuleData defaultData{};
@@ -2303,68 +2322,8 @@ bool OrbitOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, OrbitO
     return changed;
 }
 
-bool InitialRotationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialRotationModuleData& data, DetailPropertyContext& detailContext)
-{
-    const InitialRotationModuleData defaultData{};
-    bool changed = false;
-
-    if (ImGui::CollapsingHeader("초기 회전", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_FloatDistributionGroup("회전각", data.rotationDegrees, defaultData.rotationDegrees);
-
-    return changed;
-}
-
-bool SphereRadialOrientationModuleDetail::Draw(
-    AuthoringEmitter& emitter,
-    AuthoringModule&,
-    SphereRadialOrientationModuleData& data,
-    DetailPropertyContext& detailContext)
-{
-    const SphereRadialOrientationModuleData defaultData{};
-    bool changed = false;
-
-    if (ImGui::CollapsingHeader("구/방사 회전", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailContext.Begin_PropertyTable("SphereRadialOrientation"))
-        {
-            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
-            changed |= Internal::Draw_SphereRadialOrientationModeProperty(
-                detailContext,
-                "방향",
-                data.orientationMode,
-                defaultData.orientationMode
-            );
-            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
-                detailContext,
-                "메시 앞축",
-                data.meshForwardAxis,
-                defaultData.meshForwardAxis
-            );
-            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
-                detailContext,
-                "메시 위축",
-                data.meshUpAxis,
-                defaultData.meshUpAxis
-            );
-            changed |= detailContext.Draw_FloatProperty("기울기", data.tiltDegrees, defaultData.tiltDegrees, 0.1f);
-            changed |= detailContext.Draw_FloatProperty("Roll 오프셋", data.rollOffsetDegrees, defaultData.rollOffsetDegrees, 0.1f);
-
-            detailContext.End_PropertyTable();
-        }
-
-        if (!Internal::Has_SphereLocationModule(emitter))
-            ImGui::TextDisabled("같은 emitter에 구 위치가 없으면 runtime sphere radial frame을 만들 수 없습니다.");
-        if (data.enabled &&
-            data.orientationMode != SphereRadialOrientationMode::None &&
-            Internal::Has_EnabledPlaneRadialOrientationModule(emitter))
-            ImGui::TextDisabled("평면/방사 회전도 켜져 있으면 runtime은 구/방사 회전을 먼저 적용합니다.");
-    }
-
-    return changed;
-}
-
 bool PlaneRadialOrientationModuleDetail::Draw(
-    AuthoringEmitter& emitter,
+    const AuthoringEmitter& emitter,
     AuthoringModule&,
     PlaneRadialOrientationModuleData& data,
     DetailPropertyContext& detailContext)
@@ -2408,6 +2367,55 @@ bool PlaneRadialOrientationModuleDetail::Draw(
 
         if (!Internal::Has_PlaneRadialLocationModule(emitter))
             ImGui::TextDisabled("같은 emitter에 평면/방사 위치가 없으면 runtime radial frame을 만들 수 없습니다.");
+    }
+
+    return changed;
+}
+
+bool SphereRadialOrientationModuleDetail::Draw(
+    const AuthoringEmitter& emitter,
+    AuthoringModule&,
+    SphereRadialOrientationModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const SphereRadialOrientationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("구/방사 회전", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("SphereRadialOrientation"))
+        {
+            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
+            changed |= Internal::Draw_SphereRadialOrientationModeProperty(
+                detailContext,
+                "방향",
+                data.orientationMode,
+                defaultData.orientationMode
+            );
+            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                detailContext,
+                "메시 앞축",
+                data.meshForwardAxis,
+                defaultData.meshForwardAxis
+            );
+            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                detailContext,
+                "메시 위축",
+                data.meshUpAxis,
+                defaultData.meshUpAxis
+            );
+            changed |= detailContext.Draw_FloatProperty("기울기", data.tiltDegrees, defaultData.tiltDegrees, 0.1f);
+            changed |= detailContext.Draw_FloatProperty("Roll 오프셋", data.rollOffsetDegrees, defaultData.rollOffsetDegrees, 0.1f);
+
+            detailContext.End_PropertyTable();
+        }
+
+        if (!Internal::Has_SphereLocationModule(emitter))
+            ImGui::TextDisabled("같은 emitter에 구 위치가 없으면 runtime sphere radial frame을 만들 수 없습니다.");
+        if (data.enabled &&
+            data.orientationMode != SphereRadialOrientationMode::None &&
+            Internal::Has_EnabledPlaneRadialOrientationModule(emitter))
+            ImGui::TextDisabled("평면/방사 회전도 켜져 있으면 runtime은 구/방사 회전을 먼저 적용합니다.");
     }
 
     return changed;

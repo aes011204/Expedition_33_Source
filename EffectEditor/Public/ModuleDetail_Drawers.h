@@ -174,7 +174,7 @@ class PlaneRadialOrientationModuleDetail
 {
 public:
     bool Draw(
-        AuthoringEmitter& emitter,
+        const AuthoringEmitter& emitter,
         AuthoringModule& module,
         PlaneRadialOrientationModuleData& data,
         DetailPropertyContext& detailContext);
@@ -184,7 +184,7 @@ class SphereRadialOrientationModuleDetail
 {
 public:
     bool Draw(
-        AuthoringEmitter& emitter,
+        const AuthoringEmitter& emitter,
         AuthoringModule& module,
         SphereRadialOrientationModuleData& data,
         DetailPropertyContext& detailContext);

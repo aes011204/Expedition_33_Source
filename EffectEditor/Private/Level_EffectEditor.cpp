@@ -1486,7 +1486,7 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
         Build_PreviewEffectDefinition(emitterView->Get_Emitters());
     CHECK_NULL(previewDefinition, E_FAIL);
 
-    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+    const EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
     CHECK_NULL(effectPool, E_FAIL);
 
     CHECK_FAILED(Restart_PreviewFromDefinition(previewDefinition), E_FAIL);
@@ -2492,7 +2492,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         };
     }
 
-    if (const auto* sphereRadialOrientation = Internal::Find_ModuleData<SphereRadialOrientationModuleData>(emitter, AuthoringModuleType::SphereRadialOrientation))
+    if (const auto* sphereRadialOrientation = Internal::Find_ModuleData<SphereRadialOrientationModuleData>(
+        emitter,
+        AuthoringModuleType::SphereRadialOrientation
+    ))
         emitterDesc.sphereRadialOrientation = Internal::Build_PointParticleSphereRadialOrientationDesc(*sphereRadialOrientation);
     if (const auto* planeRadialOrientation = Internal::Find_ModuleData<PlaneRadialOrientationModuleData>(emitter, AuthoringModuleType::PlaneRadialOrientation))
         emitterDesc.planeRadialOrientation = Internal::Build_PointParticlePlaneRadialOrientationDesc(*planeRadialOrientation);
@@ -2503,7 +2506,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         Internal::Fill_MeshVector3CurvePayload(emitterDesc.meshTransform.rotationByLife, meshRotationOverLife->rotationOverLife, Vec3{});
     }
 
-    if (const auto* initialMeshRotationRate = Internal::Find_ModuleData<InitialMeshRotationRateModuleData>(emitter, AuthoringModuleType::InitialMeshRotationRate))
+    if (const auto* initialMeshRotationRate = Internal::Find_ModuleData<InitialMeshRotationRateModuleData>(
+        emitter,
+        AuthoringModuleType::InitialMeshRotationRate
+    ))
     {
         emitterDesc.meshTransform.rotationEnabled = true;
         const Vec3 meshMinRate = Internal::Evaluate_Vector3DistributionMin(initialMeshRotationRate->rotationRateDegrees, Vec3{});

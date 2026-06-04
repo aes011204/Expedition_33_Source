@@ -1378,9 +1378,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
         }
     }
     else if (material.materialFamily != EffectMaterialFamily::SpriteDistortion)
-    {
         ImGui::TextDisabled("Flow / Distortion fields are shown only when the embedded material family is SpriteDistortion.");
-    }
 
     if (ImGui::CollapsingHeader("Blend / Render", ImGuiTreeNodeFlags_DefaultOpen))
     {

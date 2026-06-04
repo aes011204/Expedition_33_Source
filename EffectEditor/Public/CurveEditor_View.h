@@ -146,7 +146,7 @@ private:
     void Begin_CurveAuthoringEdit(const CurveTarget& target, const string& description);
     void Commit_CurveAuthoringEdit();
     bool Execute_CurveAuthoringEdit(const CurveTarget& target, const string& description, const function<bool()>& edit);
-    void Mark_CurveChanged(CurveTarget& target);
+    void Mark_CurveChanged(const CurveTarget& target);
 
     bool Convert_ActiveTargetToConstantCurve(CurveTarget& target);
     void Draw_EmptyState();
