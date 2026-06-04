@@ -1,3 +1,5 @@
+// Engine 원본 경로: Engine/Bin/ShaderFiles/Engine_Shader_Defines.hlsli
+// Client 복사본 경로: Client/Bin/ShaderFiles/Engine_Shader_Defines.hlsli - 먼저 이 원본의 의도를 확인하세요.
 #ifndef ENGINE_SHADER_DEFINES_HLSLI
 #define ENGINE_SHADER_DEFINES_HLSLI
 

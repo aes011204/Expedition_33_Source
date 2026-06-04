@@ -1,3 +1,5 @@
+// Engine 원본 경로: Engine/Bin/ShaderFiles/Engine_Shader_PostProcess.hlsl
+// Client 복사본 경로: Client/Bin/ShaderFiles/Engine_Shader_PostProcess.hlsl - 먼저 이 원본의 의도를 확인하세요.
 #ifndef ENGINE_SHADER_POSTPROCESS_HLSL
 #define ENGINE_SHADER_POSTPROCESS_HLSL
 
