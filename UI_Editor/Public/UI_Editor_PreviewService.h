@@ -10,6 +10,18 @@ namespace Engine
 
 namespace UIEditor
 {
+    struct PatternOverlayPreviewDesc
+    {
+        string textureGuid = "";
+        string texturePath = "";
+        string paintMaskTextureGuid = "";
+        string paintMaskTexturePath = "";
+        string patternMaskTextureGuid = "";
+        string patternMaskTexturePath = "";
+        ImVec2 patternUvOffset = ImVec2(0.f, 0.f);
+        ImVec2 patternUvScale = ImVec2(1.f, 1.f);
+    };
+
     class UI_Editor_PreviewService final
     {
     public:
@@ -30,12 +42,7 @@ namespace UIEditor
             const string& maskTexturePath,
             UI_MaskTextureMode maskTextureMode);
         ID3D11ShaderResourceView* Get_PatternOverlayPreviewSRV(
-            const string& textureGuid,
-            const string& texturePath,
-            const string& paintMaskTextureGuid,
-            const string& paintMaskTexturePath,
-            const string& patternMaskTextureGuid,
-            const string& patternMaskTexturePath);
+            const PatternOverlayPreviewDesc& previewDesc);
 
         bool Queue_FontPreview(
             const string& fontGuid,
@@ -82,6 +89,8 @@ namespace UIEditor
             ID3D11ShaderResourceView* maskSRV,
             ID3D11ShaderResourceView* patternMaskSRV,
             uint32 passIndex,
+            const ImVec2& patternUvOffset,
+            const ImVec2& patternUvScale,
             unordered_map<string, ComPtr<ID3D11ShaderResourceView>>& cache,
             unordered_set<string>& failedKeys);
 

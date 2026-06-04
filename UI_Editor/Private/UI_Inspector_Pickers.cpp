@@ -319,6 +319,22 @@ namespace UIEditor
             {
                 _editorManager.Set_UIObjectPatternMaskTextureBinding(object.id, nextPatternMaskTextureGuid, nextPatternMaskTexturePath);
             }
+
+            ImGui::Separator();
+            ImGui::TextUnformatted("Pattern UV");
+
+            ImVec2 nextPatternUvOffset = object.patternUvOffset;
+            if (ImGui::DragFloat2("Pattern UV Offset", &nextPatternUvOffset.x, 0.01f, kPatternUvOffsetMin, kPatternUvOffsetMax, "%.3f"))
+                _editorManager.Set_UIObjectPatternUvOffset(object.id, nextPatternUvOffset);
+
+            ImVec2 nextPatternUvScale = object.patternUvScale;
+            if (ImGui::DragFloat2("Pattern UV Scale", &nextPatternUvScale.x, 0.01f, kPatternUvScaleMin, kPatternUvScaleMax, "%.3f"))
+                _editorManager.Set_UIObjectPatternUvScale(object.id, nextPatternUvScale);
+
+            if (ImGui::Button(("Reset Pattern UV##" + to_string(object.id)).c_str()))
+            {
+                _editorManager.Set_UIObjectPatternUv(object.id, Get_DefaultPatternUvOffset(), Get_DefaultPatternUvScale());
+            }
         }
     }
 
