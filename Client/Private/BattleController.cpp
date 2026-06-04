@@ -811,6 +811,9 @@ void BattleController::SetCharInitPos()
     if (heroCount > 0)
         heroCenter /= static_cast<float>(heroCount);
 
+    Vec3 enemyCenter = Vec3::Zero;
+    uint32 enemyCount = 0;
+
     for (size_t i = 0; i < _enemies.size(); ++i)
     {
         const auto& enemy = _enemies[i];
@@ -840,6 +843,8 @@ void BattleController::SetCharInitPos()
             + localOffset.y;
 
         transform->Set_Position(placedPos);
+        enemyCenter += placedPos;
+        ++enemyCount;
 
         if (heroCount == 0)
             continue;
@@ -857,6 +862,34 @@ void BattleController::SetCharInitPos()
         rot.y = XMConvertToDegrees(atan2f(dir.x, dir.z)) + rotationOffset.y;
         rot.z += rotationOffset.z;
         transform->Set_RotationEuler(rot);
+    }
+
+    if (enemyCount > 0)
+    {
+        enemyCenter /= static_cast<float>(enemyCount);
+
+        for (size_t i = 0; i < _heroes.size() && i < 3; ++i)
+        {
+            const auto& hero = _heroes[i];
+            if (!hero.actor)
+                continue;
+
+            const Shared<TransformCom> transform = hero.actor->Get_Transform();
+            if (transform == nullptr)
+                continue;
+
+            Vec3 dir = enemyCenter - transform->Get_Position();
+            dir.y = 0.f;
+
+            if (dir.LengthSquared() <= 0.0001f)
+                continue;
+
+            dir.Normalize();
+
+            Vec3 rot = transform->Get_RotationEuler();
+            rot.y = XMConvertToDegrees(atan2f(dir.x, dir.z));
+            transform->Set_RotationEuler(rot);
+        }
     }
 }
 

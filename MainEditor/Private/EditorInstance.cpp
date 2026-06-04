@@ -217,9 +217,6 @@ void EditorInstance::Play()
 {
     const bool isStartingFromEdit = _runtimeState == EDITOR_RUNTIME_STATE::Edit;
 
-    if (isStartingFromEdit)
-        Capture_PlayStartSnapshot();
-
     _cameraBeforeFreeCamera.reset();
 
     _runtimeState = EDITOR_RUNTIME_STATE::Play;
@@ -266,8 +263,7 @@ void EditorInstance::Stop()
         if (Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
             gameplayUI->Handle_EditorStopRuntime();
 
-        Restore_PlayStartSnapshot();
-        Reload_CurrentLevelMonstersFromMapJson();
+        Reload_CurrentLevelMonstersFromMapJson(); // F4 Stop은 레벨 전체 대신 authored 월드 몬스터만 가볍게 원위치시킨다.
         CLIENT->Restore_PartyFormationAfterEditorStop();
     }
 
@@ -1020,24 +1016,6 @@ ID3D11Texture2D* EditorInstance::Get_CachedBackBufferTexture()
     _cachedBackBufferHeight = height;
 
     return _cachedBackBufferTexture.Get();
-}
-
-void EditorInstance::Capture_PlayStartSnapshot()
-{
-    _playStartWorldSnapshot = Capture_CurrentLevelObjects(
-        &_playStartSelectedObjectIndex,
-        true); // Play/Stop에서는 맵 static mesh 레이어를 건드리지 않는다.
-}
-
-void EditorInstance::Restore_PlayStartSnapshot()
-{
-    Restore_CurrentLevelObjects(
-        _playStartWorldSnapshot,
-        _playStartSelectedObjectIndex,
-        true); // Play/Stop에서는 맵 static mesh 레이어를 복원 대상에서 제외한다.
-
-    _playStartWorldSnapshot.clear();
-    _playStartSelectedObjectIndex = -1;
 }
 
 const wchar_t* EditorInstance::Resolve_CurrentLevelAuthoringMapPath() const
