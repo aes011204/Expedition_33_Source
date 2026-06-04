@@ -164,6 +164,16 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
             PlayReactionAnimation(
                 target, BattleReactionType::Parry, success, counterTarget, curStepIndex);
 
+            if (success && target.actor != nullptr)
+            {
+                PlayEffectDesc effectDesc{};
+                effectDesc.effectName = L"Effects\\Assets\\Distortion\\Double_Distotion.effect.json";
+                effectDesc.spawnBasisTarget = target.actor;
+                effectDesc.localOffset = Vec3(0.f, 1.0f, 0.f); // 패링한 플레이어 몸 중앙 근처에서 왜곡을 터뜨린다.
+
+                CLIENT->Play_Effect(effectDesc);
+            }
+
             if (success &&
                 result.apRewardAmount == 0 &&
                 target.actor != nullptr &&
