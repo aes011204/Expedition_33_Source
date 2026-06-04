@@ -113,6 +113,19 @@ namespace
             Invalidate_AnimNotifyAssetsForObject(partObject, sourceModelPath);
         }
     }
+
+    bool Is_PreviewNotifyTimeInRange(float targetTime, float previousTime, float currentTime, bool wrapped)
+    {
+        if (!wrapped)
+        {
+            if (previousTime <= 1e-4f && targetTime <= 1e-4f)
+                return targetTime <= currentTime;
+
+            return previousTime < targetTime && targetTime <= currentTime;
+        }
+
+        return targetTime > previousTime || targetTime <= currentTime;
+    }
 }
 
 Animation_View::Animation_View()
@@ -228,8 +241,12 @@ void Animation_View::Pre_Render()
 
     if (_sourceMode == SourceMode::LiveModel)
     {
+        const float previousTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : 0.f;
         GAME->Backup_RenderGroup();
         PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
+        const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
+        Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
+        PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, dt);
         Update_PreviewWeaponRotateStates(dt); // preview 전용 WeaponRotate를 먼저 반영하고 무기 world를 다시 맞춘 뒤 trail sample을 계산한다.
         Update_PreviewTrailEffect(dt);
     }
@@ -2657,6 +2674,44 @@ void Animation_View::Draw_TrailAnchorPreview() const
         DirectX::VertexPositionColor(tipWorld + Vec3(0.f, 0.f, markerSize), DirectX::Colors::Cyan));
 
     _previewGridBatch->End();
+}
+
+void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
+        return;
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+        return;
+
+    const bool wrapped = currentTimeSec + 1e-4f < previousTimeSec;
+    if (!wrapped && currentTimeSec <= previousTimeSec)
+        return;
+
+    AnimNotifyContext context{};
+    context.owner = _previewModelCom->Get_Owner().get();
+    context.model = _previewModelCom.get();
+    context.modelGuid = _modelGuid;
+    context.animationName = _currentAnimationName;
+    context.previousTimeSec = previousTimeSec;
+    context.currentTimeSec = currentTimeSec;
+    context.deltaTime = timeDelta;
+    context.isLooping = wrapped;
+    context.wrapped = wrapped;
+    context.isPreview = true;
+
+    for (const AnimNotifyEventEntry& entry : animationData->notifies)
+    {
+        if (entry.notify == nullptr)
+            continue;
+        if (entry.notify->Get_TypeName() != "AN_PlayEffect")
+            continue;
+        if (!Is_PreviewNotifyTimeInRange(entry.timeSec, previousTimeSec, currentTimeSec, wrapped))
+            continue;
+
+        entry.notify->Execute(context);
+    }
 }
 
 void Animation_View::Update_PreviewTrailEffect(float timeDelta)
