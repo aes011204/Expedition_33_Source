@@ -4,9 +4,9 @@
 NS_BEGIN(Client)
 
 class Mon_Portier_Body;
+class Mon_WeakPoint;
 
-class MW_Portier :
-    public Monster_WorldBase
+class MW_Portier : public Monster_WorldBase
 {
     GENERATED_GAMEOBJECT(MW_Portier, ObjectType::Monster)
 
@@ -32,7 +32,7 @@ protected:
 
 private:
     Shared<Mon_Portier_Body>      _body = {};
-
+    Shared<Mon_WeakPoint>    _weak = {};
  
 
 public:

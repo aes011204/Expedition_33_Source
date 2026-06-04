@@ -6,6 +6,7 @@
 #include "UI_RuntimeLoader.h"
 #include "Monster_BattleBase.h"
 #include "CombatStatCom.h"
+#include "MonsterStatCom.h"
 
 using namespace UI_Utils;
 
@@ -268,6 +269,12 @@ bool UI_MonsterHpBar::Is_ValidMonsterTarget(const BattleChar& target) const
         return false;
 
     if (target.statCom->Get_AliveStatus() != EAliveStatus::Alive)
+        return false;
+
+    const Shared<MonsterStatCom> monsterStat =
+        dynamic_pointer_cast<MonsterStatCom>(target.statCom);
+
+    if (monsterStat && monsterStat->Is_Boss())
         return false;
 
     return true;

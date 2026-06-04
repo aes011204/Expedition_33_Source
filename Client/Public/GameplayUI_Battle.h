@@ -17,6 +17,7 @@ class UI_BattleTransition;
 class UI_BattleCommandHUD;
 class UI_BattleSystemHUD;
 class UI_MonsterHpBar;
+class UI_BossHpBar;
 class UI_PlayerHpBar;
 class UI_CrossHair;
 class UI_ChoiceTarget;
@@ -81,6 +82,8 @@ private:
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
     void    Update_MonsterHpBar(float timeDelta);
+    bool    Ensure_BossHpBar();
+    void    Update_BossHpBar(float timeDelta);
     void    Update_PlayerHpBar(float timeDelta);
     void    Update_CrossHair(float timeDelta);
     void    Update_BattleDefense(float timeDelta);
@@ -108,10 +111,7 @@ private:
     // 일단 기능이 비슷하긴한데 나중에 어떻게될지 몰라서 일단 나눠서 사용
     bool    Try_GetBattleCommandHudWorldPos(const BattleChar& actor, Vec3& outWorldPos) const;
     bool    Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
-    bool    Try_GetDamageFontWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
     bool    Try_GetReactionResultWorldPos(const BattleChar& target, Vec3& outWorldPos);
-    bool    Try_GetHealFontWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
-    bool    Try_GetAddAPWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
 #pragma endregion
 
     // Turn Order
@@ -127,11 +127,14 @@ private:
     void    Reset_BattleUiRuntimeState(bool closeVictoryUi);
 
 private:
+    uint32                                  _levelIndex = 0;
+
     Unique<UI_BattleTransition>             _battleTransition; // 전투 진입 테스트용 페이드 UI
     Unique<UI_BattleCommandHUD>             _battleCommandHUD;
     Unique<UI_BattleSystemHUD>              _battleSystemHUD;
 
     Unique<UI_MonsterHpBar>                 _monsterHpBar;
+    Unique<UI_BossHpBar>                    _bossHpBar;
     Unique<UI_PlayerHpBar>                  _playerHpBar;
 
     Unique<UI_CrossHair>                    _crossHair;
