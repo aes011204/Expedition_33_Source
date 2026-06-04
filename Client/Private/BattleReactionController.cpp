@@ -162,6 +162,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
         if (success)
         {
             _reactionAnimTargets.clear();
+            _counterReturnRuntimes.clear();
             _counterDamageTarget = {};
             _isCounterPending = false;
             _isCounterDamageApplied = false;
@@ -215,9 +216,12 @@ void BattleReactionController::UpdateAnimation(float timeDelta)
     if (_reactionAnimTargets.empty())
         return;
 
-    if (_animPhase == ReactionAnimPhase::CounterReturn)
-        UpdateCounterReturn(timeDelta);
 
+    if (_animPhase == ReactionAnimPhase::CounterReturn)
+    {
+        UpdateCounterReturn(timeDelta);
+        return;
+    }
     bool allFinished = true;
 
     for (const BattleChar& target : _reactionAnimTargets)
@@ -259,7 +263,7 @@ void BattleReactionController::UpdateAnimation(float timeDelta)
 }
 void BattleReactionController::StartCounterReturn()
 {
-    if (_reactionAnimTargets.size() <= 2)
+    if (_reactionAnimTargets.size() <= 1)
     {
         FinishReactionAnimation();
         return;
@@ -293,11 +297,17 @@ void BattleReactionController::StartCounterReturn()
 
         const BattleSpawnRegistry::BattleEntry* spawnEntry = spawnRegistry->Find_SpawnEntry(target.actor);
         if (spawnEntry == nullptr)
+        {
+            TryRestoreTargetToSpawnPose(target);
             continue;
+        }
 
         const Shared<TransformCom> transform = target.actor->Get_Transform();
         if (transform == nullptr)
+        {
+            TryRestoreTargetToSpawnPose(target);
             continue;
+        }
 
         CounterReturnRuntime runtime{};
         runtime.target = target;
@@ -362,11 +372,17 @@ void BattleReactionController::UpdateCounterReturn(float timeDelta)
         }
 
         if (runtime == nullptr)
+        {
+            TryRestoreTargetToSpawnPose(target);
             continue;
+        }
 
         const Shared<TransformCom> transform = target.actor->Get_Transform();
         if (transform == nullptr)
+        {
+            TryRestoreTargetToSpawnPose(target);
             continue;
+        }
 
         Vec3 currentPos = transform->Get_Position();
 
@@ -432,6 +448,9 @@ void BattleReactionController::UpdateCounterReturn(float timeDelta)
 
     if (!allReached)
         return;
+
+    for (const BattleChar& target : _reactionAnimTargets)
+        TryRestoreTargetToSpawnPose(target);
 
     FinishReactionAnimation();
 }
