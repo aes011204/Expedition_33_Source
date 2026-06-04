@@ -49,9 +49,12 @@ HRESULT RadialBlur_ScreenFx::Initialize(ScreenFxDesc* desc)
 void RadialBlur_ScreenFx::Update_ScreenFx(float timeDelta)
 {
     auto mainCamera = GAME->Get_ActiveCamera();
+    if (!mainCamera)
+        return;
 
-    // 자유 카메라는 제거
-    if (mainCamera && mainCamera->Get_ObjectType() == ObjectType::FreeCamera)
+    // 자유 카메라, 프리뷰 카메라에서는 ScreenFx 실행 X
+    if (mainCamera->Get_ObjectType() == ObjectType::FreeCamera ||
+        mainCamera->Get_ObjectType() == ObjectType::PreviewCamera)
     {
         return;
     }

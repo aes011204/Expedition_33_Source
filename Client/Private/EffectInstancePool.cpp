@@ -226,6 +226,27 @@ HRESULT EffectInstancePool::Prewarm(const AcquireDesc& desc, uint32 count)
         return E_FAIL;
 
     vector<AttachedHandle> handles{};
+    handles.reserve(count);
+
+    for (uint32 i = 0; i < count; ++i)
+    {
+        AttachedHandle handle{};
+        CHECK_FAILED(Acquire(desc, handle), E_FAIL);
+
+        // count개를 한 번에 확보해야 같은 슬롯 1개만 재사용하는 prewarm이 되지 않는다.
+        handles.push_back(handle);
+    }
+
+    for (const AttachedHandle& handle : handles)
+        Release(handle);
+
+    LOG_INFO(
+        "[EffectPool] prewarmed. key={}, count={}, entries={}",
+        String::ToString(desc.effectName),
+        count,
+        _entries.size());
+
+    return S_OK;
 }
 
 HRESULT EffectInstancePool::Acquire_Instance(

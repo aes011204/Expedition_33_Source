@@ -1,5 +1,5 @@
 ﻿#include "MB_Bishop.h"
-
+#include "ClientInstance.h"
 #include "Mon_Bishop_Body.h"
 #include "Mon_Lancelier_Weapon.h"
 #include "GameInstance.h"
@@ -40,15 +40,23 @@ HRESULT MB_Bishop::Initialize(void* arg)
 
     //_body->Set_Animation("Bishop_Idle", 0.3f, true);
 
-    _combatStat->Set_Skill("Eveque_Projectiles");
-    _combatStat->Set_Skill("Eveque_SingleSpear");
-    _combatStat->Set_Skill("Eveque_DoubleSpear");
-    _combatStat->Set_Skill("Eveque_Defense");
+    //_combatStat->Set_Skill("Eveque_Projectiles");
+    //_combatStat->Set_Skill("Eveque_SingleSpear");
+    //_combatStat->Set_Skill("Eveque_DoubleSpear");
+    //_combatStat->Set_Skill("Eveque_Defense");
     _combatStat->Set_Skill("Eveque_GroundAoE");
-    _combatStat->Set_Skill("Eveque_EnragedCombo");
-    _combatStat->Set_Skill("Eveque_Spawn_Mini");
+    //_combatStat->Set_Skill("Eveque_EnragedCombo");
+    //_combatStat->Set_Skill("Eveque_Spawn_Mini");
 
     return S_OK;
+}
+
+void MB_Bishop::BeginPlay()
+{
+    Monster_BattleBase::BeginPlay();
+
+    // GroundAoe가 프레임드랍나서 미리 준비해놓기
+    CLIENT->Prewarm_Effect(L"Beshop_Ice", L"Layer_Effect", 9);
 }
 
 void MB_Bishop::Update(float timeDelta)
