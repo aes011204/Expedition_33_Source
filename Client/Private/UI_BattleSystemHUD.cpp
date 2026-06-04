@@ -398,14 +398,20 @@ void UI_BattleSystemHUD::Apply_HpGauge(PartyBattleStatSlot& slot, float ratio)
 void UI_BattleSystemHUD::Apply_ApGauge(PartyBattleStatSlot& slot, uint32 curAp, uint32 maxAp)
 {
     const uint32 clampedMaxAp = min(maxAp, 9u);
-    const uint32 activeApIndex = (curAp > 0 && clampedMaxAp > 0) ? min(curAp, clampedMaxAp) - 1u : 9u;
 
     for (uint32 i = 0; i < 9; ++i)
     {
         if (slot.apStates[i] == nullptr)
             continue;
 
-        if (i == activeApIndex)
+        if (curAp == 0 || clampedMaxAp == 0)
+        {
+            if (slot.apStates[i]->Is_Open())
+                slot.apStates[i]->Close();
+            continue;
+        }
+
+        if (i < curAp && i < clampedMaxAp)
         {
             if (!slot.apStates[i]->Is_Open())
                 slot.apStates[i]->Open();
