@@ -1,7 +1,11 @@
 ﻿#pragma once
 #include "AnimNotifyState.h"
-NS_BEGIN(Client)
+#include "AnimNotifyState.h"
+NS_BEGIN(Engine)
 
+class TransformCom;
+NS_END
+NS_BEGIN(Client)
 class ANS_Move : public AnimNotifyState
 {
     GENERATED_ANIM_NOTIFY_STATE(ANS_Move)
@@ -19,6 +23,12 @@ public:
 private:
     Vec3 _goalPos ={};
     Vec3 _startPos = {};
+
+    Vec3 _startRot = {};
+    Vec3 _goalRot = {};
+
+   bool  _isCounter ={};
+  Shared<TransformCom> _moveTarget = {};
 };
 
 NS_END

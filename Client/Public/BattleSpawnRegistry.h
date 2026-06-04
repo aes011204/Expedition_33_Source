@@ -19,6 +19,17 @@ public:
     void Register_SpawnObject(const Shared<GameObject>& object, uint32 levelIndex);
     void Register_BattleMonsterObject(const Shared<GameObject>& object, uint32 levelIndex);
     void Set_SourceWorldObject(const Shared<GameObject>& object, uint32 levelIndex);
+    void Update_SpawnPose(const Shared<GameObject>& object);
+
+    struct BattleEntry
+    {
+        uint32 levelIndex = 0;
+        Shared<GameObject> object = nullptr;
+        Vec3 spawnPosition = {};
+        Vec3 spawnRotation = {};
+    };
+
+    const BattleEntry* Find_SpawnEntry(const Shared<GameObject>& object) const;
 
     void Destroy_SpawnedObjects();
     void Destroy_SourceWorldObject();
@@ -30,13 +41,6 @@ public:
     void Clear_All();
 
     bool Is_Empty() const { return _spawnedObjects.empty(); }
-
-private:
-    struct BattleEntry
-    {
-        uint32 levelIndex = 0;
-        Shared<GameObject> object = nullptr;
-    };
 
 private:
     vector<BattleEntry> _spawnedObjects;
