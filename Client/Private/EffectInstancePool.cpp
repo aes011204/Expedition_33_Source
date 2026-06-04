@@ -220,6 +220,14 @@ EffectInstancePool::DebugSummary EffectInstancePool::Get_DebugSummary() const
     return summary;
 }
 
+HRESULT EffectInstancePool::Prewarm(const AcquireDesc& desc, uint32 count)
+{
+    if (desc.effectName.empty() || desc.layerTag.empty() || count == 0)
+        return E_FAIL;
+
+    vector<AttachedHandle> handles{};
+}
+
 HRESULT EffectInstancePool::Acquire_Instance(
     const AcquireDesc& desc,
     Shared<const EffectDefinition>& outDefinition,
