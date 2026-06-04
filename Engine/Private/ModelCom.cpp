@@ -1808,6 +1808,8 @@ void ModelCom::Begin_AnimationPipeline(float timeDelta, AnimPipelineContext& out
     outContext.timeDelta = timeDelta;
     outContext.adjustedTimeDelta = timeDelta * _frameSpeed;
     outContext.previousTimeSec = Get_CurrentAnimationTimeSec();
+    outContext.previousAnimIndex = _currentAnimIndex;
+    outContext.previousAnimStateIndex = _currentAnimStateIndex;
     outContext.rootIndex = _isRootMotion ? _rootNodeIndex : -1;
 }
 
@@ -1896,7 +1898,9 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
     Mark_BoneMatricesDirty();
 
     const float currentTimeSec = Get_CurrentAnimationTimeSec();
-    const bool wrapped = (_isAnimLoop && currentTimeSec < context.previousTimeSec);
+    const bool animationChangedThisFrame = context.previousAnimIndex != _currentAnimIndex;
+    const float notifyPreviousTimeSec = animationChangedThisFrame ? 0.f : context.previousTimeSec;
+    const bool wrapped = (_isAnimLoop && currentTimeSec < notifyPreviousTimeSec);
 
     {
         //Debug_Profile::Scope profileScope("AnimMesh::PlayAnimation::Notify");
@@ -1910,7 +1914,7 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
                 notifyContext.model = this;
                 notifyContext.modelGuid = _animNotifyAsset.modelGuid;
                 notifyContext.animationName = Get_AnimationName(_currentAnimIndex) ? Get_AnimationName(_currentAnimIndex) : "";
-                notifyContext.previousTimeSec = context.previousTimeSec;
+                notifyContext.previousTimeSec = notifyPreviousTimeSec; // 전환 프레임에는 새 애니 시작부터 현재 시간까지 검사한다.
                 notifyContext.currentTimeSec = currentTimeSec;
                 notifyContext.deltaTime = context.adjustedTimeDelta;
                 notifyContext.isLooping = _isAnimLoop;

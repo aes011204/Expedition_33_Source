@@ -10,6 +10,8 @@ DECLARE_DELEGATE(FOnEditorPlayRuntime);
 DECLARE_DELEGATE(FOnEditorPauseRuntime);
 DECLARE_DELEGATE(FOnEditorResumeRuntime);
 
+// 그냥 전역으로 사용할 델리게이트들 모아놓는 클래스
+
 class ENGINE_DLL DelegateHub final : public Base
 {
 public:

@@ -15,6 +15,7 @@ private:
         None,
         Reaction,   // Dodge Or Parry
         Counter,    // Parry 성공 이후 카운터로
+        CounterReturn,
         END
     };
 
@@ -29,6 +30,15 @@ public:
         BattleChar apRewardTarget{};
         uint32 apRewardAmount = 0;
         EAPChangeReason apRewardReason = EAPChangeReason::Invalid;
+    };
+
+    struct CounterReturnRuntime
+    {
+        BattleChar target = {};
+        Vec3 startPos = {};
+        Vec3 goalPos = {};
+        Vec3 goalRot = {};
+        float prevRootRatio = 0.f;
     };
 
 public:
@@ -50,8 +60,12 @@ public:
     BattleReactionType Get_Result() const { return _result; }
 
     BattleReactionInputResult UpdateInput(const BattleAction& turnAction);
-    BattleReactionInputResult UpdateTargetInput(const BattleChar& reactionTarget, const BattleChar& counterTarget, uint32 curAnimIndex, bool pressedQ, bool pressedE);
-    void UpdateAnimation();
+    //BattleReactionInputResult UpdateTargetInput(const BattleChar& reactionTarget, const BattleChar& counterTarget, uint32 curAnimIndex, bool pressedQ, bool pressedE);
+    void UpdateAnimation(float timeDelta);
+
+    void StartCounterReturn();
+   // void FinishCounterReturn();
+    void UpdateCounterReturn(float timeDelta);
 
 public:
     void Set_CurSkillData(const Skill_Data* curSkillData) { _curSkillData = curSkillData; };
@@ -73,6 +87,7 @@ private:
         uint32 curAttackIndex);
 
     void FinishReactionAnimation();
+    void TryRestoreTargetToSpawnPose(const BattleChar& target) const;
 
     bool CanApplyCounterTimeSection(ModelCom* sourceModel) const;
     void ResetCounterTimeSection();
@@ -87,6 +102,7 @@ private:
     uint32 _consumedStepIndex = UINT32_MAX;
 
     vector<BattleChar> _reactionAnimTargets = {};  // Reaction 애니메이션 재생 플레이어
+    vector<CounterReturnRuntime> _counterReturnRuntimes = {};
     BattleChar _counterDamageTarget = {}; // Parry 성공 후 Counter 데미지를 받을놈
 
     ReactionAnimPhase _animPhase = ReactionAnimPhase::None;

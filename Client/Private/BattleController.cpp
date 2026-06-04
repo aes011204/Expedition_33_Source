@@ -125,7 +125,7 @@ void BattleController::Update(float timeDelta)
 
     //UpdateReactionInput();
     //if (_pendingNextTurn)
-    _reactionController.UpdateAnimation();
+    _reactionController.UpdateAnimation(timeDelta);
 
     if (_isPendingVictorySlow)
     {
@@ -521,6 +521,19 @@ void BattleController::StartTurn()
     // fsm
     if (actor.statCom->Is_Player())
     {
+        const uint32 beforeAp = actor.statCom->Get_CurAP();
+
+        actor.statCom->Add_AP(1);
+
+        const uint32 afterAp = actor.statCom->Get_CurAP();
+        const uint32 gainedAp = afterAp - beforeAp;
+
+        if (gainedAp > 0)
+        {
+            // 최대 AP라 실제 증가가 없으면 안띄우기
+            OnBattleApChanged.Broadcast(actor, gainedAp, EAPChangeReason::TurnStart);
+        }
+
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
 
         EvtBattlePresentation event;
@@ -791,12 +804,17 @@ void BattleController::SetCharInitPos()
             + Resolve_PrefabGroundOffsetY(hero.actor);
 
         hero.actor->Get_Transform()->Set_Position(finalPos);
+        if (_battleSpawnRegistry)
+            _battleSpawnRegistry->Update_SpawnPose(hero.actor);
         heroCenter += finalPos;
         ++heroCount;
     }
 
     if (heroCount > 0)
         heroCenter /= static_cast<float>(heroCount);
+
+    Vec3 enemyCenter = Vec3::Zero;
+    uint32 enemyCount = 0;
 
     for (size_t i = 0; i < _enemies.size(); ++i)
     {
@@ -827,6 +845,10 @@ void BattleController::SetCharInitPos()
             + localOffset.y;
 
         transform->Set_Position(placedPos);
+        if (Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(enemy.actor))
+            monster->Set_RevivePosition(placedPos);
+        enemyCenter += placedPos;
+        ++enemyCount;
 
         if (heroCount == 0)
             continue;
@@ -844,6 +866,37 @@ void BattleController::SetCharInitPos()
         rot.y = XMConvertToDegrees(atan2f(dir.x, dir.z)) + rotationOffset.y;
         rot.z += rotationOffset.z;
         transform->Set_RotationEuler(rot);
+
+        if (_battleSpawnRegistry)
+            _battleSpawnRegistry->Update_SpawnPose(enemy.actor);
+    }
+
+    if (enemyCount > 0)
+    {
+        enemyCenter /= static_cast<float>(enemyCount);
+
+        for (size_t i = 0; i < _heroes.size() && i < 3; ++i)
+        {
+            const auto& hero = _heroes[i];
+            if (!hero.actor)
+                continue;
+
+            const Shared<TransformCom> transform = hero.actor->Get_Transform();
+            if (transform == nullptr)
+                continue;
+
+            Vec3 dir = enemyCenter - transform->Get_Position();
+            dir.y = 0.f;
+
+            if (dir.LengthSquared() <= 0.0001f)
+                continue;
+
+            dir.Normalize();
+
+            Vec3 rot = transform->Get_RotationEuler();
+            rot.y = XMConvertToDegrees(atan2f(dir.x, dir.z));
+            transform->Set_RotationEuler(rot);
+        }
     }
 }
 
@@ -1120,7 +1173,20 @@ void BattleController::Execute_BaseAttack()
 
     // 기본 공격은 AP + 1
     if (action.Get_CurChar().statCom)
-        action.Get_CurChar().statCom->Add_AP(+1);
+    {
+        const uint32 beforeAp = action.Get_CurChar().statCom->Get_CurAP();
+
+        action.Get_CurChar().statCom->Add_AP(1);
+
+        const uint32 afterAp = action.Get_CurChar().statCom->Get_CurAP();
+        const uint32 gainedAp = afterAp - beforeAp;
+
+        if (gainedAp > 0)
+        {
+            // 최대 AP라 실제 증가가 없으면 안띄우기
+            OnBattleApChanged.Broadcast(action.Get_CurChar(), gainedAp, EAPChangeReason::BaseAttack);
+        }
+    }
 
     _isActionExecuting = true;
     _battleActionExe->BeginAction(action);
@@ -1264,6 +1330,11 @@ void BattleController::Revive_BattleMon(const BattleChar& battleChar, float Mult
 
     if (battleChar.actor)
     {
+        if (Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(battleChar.actor))
+        {
+            if (monster->Has_RevivePosition())
+                monster->Get_Transform()->Set_Position(monster->Get_RevivePosition());
+        }
 
         for (const auto& [partTag, partObject] : battleChar.actor->Get_PartObjects())
         {
@@ -1364,7 +1435,7 @@ void BattleController::Play_EnemyTargetedEnd()
     _enemyTurnTargetedActor = {};
     _hasEnemyTurnTargetedActor = false;
 
-    if (target.actor == nullptr || target.ModelCom == nullptr )
+    if (target.actor == nullptr || target.ModelCom == nullptr)
         return;
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
         return;
@@ -1408,6 +1479,8 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
         // 약점 파츠를 맞췄을 때만 추가딜
         if (_hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor)
             Try_ApplyFreeAimWeakPointBonus(_freeAimHitTarget, attacker);
+
+        CLIENT->Notify_FreeAimShotHit();
     }
 
     _freeAimShotAction.InitActionDirection();
@@ -1452,7 +1525,7 @@ void BattleController::OnActionEndNotify()
     _battleActionExe->OnActionEndNotify(action);
 }
 
-void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos)
+void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos, float yawDeg)
 {
     if (IsHero)
     {
@@ -1479,6 +1552,9 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
         _heroes.push_back(battleChar);
 
         battleChar.actor->Get_Transform()->Set_Position(pos);
+        Vec3 rot = battleChar.actor->Get_Transform()->Get_RotationEuler();
+        rot.y = yawDeg;
+        battleChar.actor->Get_Transform()->Set_RotationEuler(rot);
 
         TurnEntry turn = {};
         turn.nextTime = _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f);
@@ -1508,10 +1584,14 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
 
         PartObject* body = ply ? ply->Get_PartObject(L"Part_Body") : nullptr;
         battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // 몬스터 종류와 무관하게 Part_Body의 ModelCom를 사용한다.
+        battleChar.actor->Get_Transform()->Set_Position(pos);
+        Vec3 rot = battleChar.actor->Get_Transform()->Get_RotationEuler();
+        rot.y = yawDeg;
+        battleChar.actor->Get_Transform()->Set_RotationEuler(rot);
+        if (Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(battleChar.actor))
+            monster->Set_RevivePosition(pos);
 
         _enemies.push_back(battleChar);
-
-        battleChar.actor->Get_Transform()->Set_Position(pos);
 
 
         TurnEntry turn = {};
@@ -1606,24 +1686,24 @@ void BattleController::Confirm_Victory()
     _firstAnimCount = 0;
 }
 
-void BattleController::Handle_DamageApplied(const BattleChar& damagedTarget, float damage, AttackType attackType)
+void BattleController::Handle_DamageApplied(const DamageAppliedInfo& info)
 {
-    if (damage > 0.f && damagedTarget.actor)
+    if (info.damage > 0.f && info.target.actor)
     {
-        HitAction(damagedTarget, attackType);
+        HitAction(info.target, info.attackType, info.isCritical);
     }
 
-    if (damage > 0.f &&
-        damagedTarget.actor != nullptr &&
-        damagedTarget.statCom != nullptr &&
-        damagedTarget.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+    if (info.damage > 0.f &&
+        info.target.actor != nullptr &&
+        info.target.statCom != nullptr &&
+        info.target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
     {
         // 충돌체 끄기
-        Handle_BattleTargetDeathCollision(damagedTarget);
+        Handle_BattleTargetDeathCollision(info.target);
     }
 
-    Try_RequestEndTurnOnCurrentActorDeath(damagedTarget, damage);
-    Try_BeginVictorySlowOnDamage(damagedTarget, damage);
+    Try_RequestEndTurnOnCurrentActorDeath(info.target, info.damage);
+    Try_BeginVictorySlowOnDamage(info.target, info.damage);
 }
 
 void BattleController::Try_RequestEndTurnOnCurrentActorDeath(const BattleChar& damagedTarget, float damage)
@@ -1784,7 +1864,7 @@ void BattleController::Handle_BattleTargetDeathCollision(const BattleChar& deadT
         Clear_TargetPreview();
 
     if (_hasFreeAimHitTarget && _freeAimHitTarget.target.actor == deadTarget.actor)
-        Clear_FreeAimHitTarget(); 
+        Clear_FreeAimHitTarget();
 }
 
 void BattleController::Restore_BattleTargetCollision(const BattleChar& revivedTarget)
@@ -1849,7 +1929,11 @@ void BattleController::Activate_BattleTurnCamera()
         return;
 
     BattleTurnCamera::BattleShotRequest request;
-    request.mode = BattleCameraMode::WIDE;
+    request.mode = BattleCameraMode::BATTLEINTRO;
+    request.subject = _enemies[_enemies.size() /2].actor;
+    request.useClip = true;
+    request.presetId = _enemies[_enemies.size()/2].actor->Get_SourcePrefabName();
+    request.clipId = _enemies[_enemies.size()/2].actor->Get_SourcePrefabName();
     _battleTurnCamera->Apply_ShotRequest(request);
 
     CLIENT->Request_BattleTurn();
@@ -1994,7 +2078,7 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
 }
 
 void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<CombatStatCom>& battleStat,
-                                                    const Shared<SkillTreeCom>& worldSkillTreeCom)
+    const Shared<SkillTreeCom>& worldSkillTreeCom)
 {
     if (battleStat == nullptr)
         return;
@@ -2102,7 +2186,7 @@ void BattleController::PlayerStartAnim()
     }
 }
 
-void BattleController::HitAction(BattleChar target, AttackType attackType)
+void BattleController::HitAction(BattleChar target, AttackType attackType, bool isCritical)
 {
     if (target.ModelCom == nullptr || target.statCom == nullptr)
     {
@@ -2119,6 +2203,13 @@ void BattleController::HitAction(BattleChar target, AttackType attackType)
             playedDead,
             static_cast<int>(attackType),
             target.actor ? String::ToString(target.actor->Get_Name()).c_str() : "null");
+        return;
+    }
+
+    // 크리티컬이면 Heavy
+    if (isCritical)
+    {
+        target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
         return;
     }
 
@@ -2179,13 +2270,13 @@ void BattleController::Free()
     }
 
     auto ReleaseCtrl = [](auto& ctrl)
-    {
-        if (ctrl)
         {
-            ctrl->Free();
-            ctrl.reset();
-        }
-    };
+            if (ctrl)
+            {
+                ctrl->Free();
+                ctrl.reset();
+            }
+        };
 
     ReleaseCtrl(_battleSpawnRegistry);
     ReleaseCtrl(_qteController);

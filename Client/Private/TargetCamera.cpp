@@ -246,6 +246,12 @@ bool TargetCamera::Try_GetTargetTransform(Shared<TransformCom>& outTargetTransfo
 
 void TargetCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float timeDelta)
 {
+    if (_currentState == TargetCameraMode::AIM)
+    {
+        _smoothedTargetPos = targetPos; // FreeAim 중에는 플레이어 위치를 지연 없이 따라간다.
+        return;
+    }
+
     constexpr float kTargetStillXZFrameDeltaSq = 0.000025f;
     constexpr float kHorizontalSettleDistanceSq = 0.0004f;
     constexpr float kTargetStillYFrameDelta = 0.005f;

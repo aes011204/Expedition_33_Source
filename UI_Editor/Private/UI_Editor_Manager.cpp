@@ -189,20 +189,9 @@ namespace UIEditor
     }
 
     ID3D11ShaderResourceView* UI_Editor_Manager::Get_PatternOverlayPreviewSRV(
-        const string& textureGuid,
-        const string& texturePath,
-        const string& paintMaskTextureGuid,
-        const string& paintMaskTexturePath,
-        const string& patternMaskTextureGuid,
-        const string& patternMaskTexturePath)
+        const PatternOverlayPreviewDesc& previewDesc)
     {
-        return _previewService.Get_PatternOverlayPreviewSRV(
-            textureGuid,
-            texturePath,
-            paintMaskTextureGuid,
-            paintMaskTexturePath,
-            patternMaskTextureGuid,
-            patternMaskTexturePath);
+        return _previewService.Get_PatternOverlayPreviewSRV(previewDesc);
     }
 
     void UI_Editor_Manager::Render_DockSpace()
@@ -707,6 +696,8 @@ namespace UIEditor
         overlay.texturePath.clear();
         overlay.patternMaskTextureGuid.clear();
         overlay.patternMaskTexturePath.clear();
+        overlay.patternUvOffset = Get_DefaultPatternUvOffset();
+        overlay.patternUvScale = Get_DefaultPatternUvScale();
         overlay.color = ImVec4(0.74f, 0.58f, 0.25f, 0.35f);
         overlay.visible = true;
         overlay.locked = false;

@@ -152,6 +152,30 @@ namespace UIEditor
             [&]() { return _objectEditService.Set_ObjectPatternMaskTextureBinding(_document, objectId, textureGuid, texturePath); });
     }
 
+    bool UI_Editor_Manager::Set_UIObjectPatternUvOffset(ObjectId objectId, const ImVec2& patternUvOffset)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectPatternUvOffset(_document, objectId, patternUvOffset); },
+            [&]() { return _objectEditService.Set_ObjectPatternUvOffset(_document, objectId, patternUvOffset); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectPatternUvScale(ObjectId objectId, const ImVec2& patternUvScale)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectPatternUvScale(_document, objectId, patternUvScale); },
+            [&]() { return _objectEditService.Set_ObjectPatternUvScale(_document, objectId, patternUvScale); });
+    }
+
+    bool UI_Editor_Manager::Set_UIObjectPatternUv(ObjectId objectId, const ImVec2& patternUvOffset, const ImVec2& patternUvScale)
+    {
+        return Apply_UIObjectEdit(
+            objectId,
+            [&](const UI_Object&) { return _objectEditService.Can_SetObjectPatternUv(_document, objectId, patternUvOffset, patternUvScale); },
+            [&]() { return _objectEditService.Set_ObjectPatternUv(_document, objectId, patternUvOffset, patternUvScale); });
+    }
+
     bool UI_Editor_Manager::Set_UIObjectText(ObjectId objectId, const string& text)
     {
         return Apply_UIObjectEdit(

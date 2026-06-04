@@ -98,7 +98,7 @@ void UI_BattleSystem_TurnOrder::Set_TurnOrderPreview(const vector<TurnOrderEntry
         return;
     }
 
-    Close_UI(_preTurnCurrentFrameRoot);
+    Open_UI(_preTurnCurrentFrameRoot);
     Open_UI(_root);
 
     const bool playTurnStartBatch = (_isAnimationPlaybackEnabled && _isFrameIntroPending);

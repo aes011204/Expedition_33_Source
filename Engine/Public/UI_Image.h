@@ -42,6 +42,8 @@ public:
         wstring texturePath{};
         wstring maskTexturePath{};
         wstring patternMaskTexturePath{};
+        Vec2 patternUvOffset{ 0.f, 0.f };
+        Vec2 patternUvScale{ 1.f, 1.f };
         Vec4 color{ 1.f, 1.f, 1.f, 1.f };
         uint32 shaderPrototypeLevelIndex{ 0 };
         wstring shaderPrototypeTag{ L"Shader_UI" };
@@ -67,6 +69,11 @@ public:
     ~UI_Image() override = default;
 
 public:
+    static Vec2 Get_DefaultPatternUvOffset();
+    static Vec2 Get_DefaultPatternUvScale();
+    static Vec2 Clamp_PatternUvOffset(const Vec2& value);
+    static Vec2 Clamp_PatternUvScale(const Vec2& value);
+
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
     HRESULT Render() override;
@@ -99,6 +106,8 @@ private:
     wstring _texturePath{};
     wstring _maskTexturePath{};
     wstring _patternMaskTexturePath{};
+    Vec2 _patternUvOffset{ 0.f, 0.f };
+    Vec2 _patternUvScale{ 1.f, 1.f };
     Vec4    _color{ 1.f, 1.f, 1.f, 1.f };
 
     uint32 _shaderPrototypeLevelIndex{ 0 };

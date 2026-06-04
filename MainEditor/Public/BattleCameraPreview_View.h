@@ -242,6 +242,7 @@ private:
     bool _previewSideOffsetEnabled = true;
     bool _previewPivotOffsetEnabled = true;
     bool _previewHeightOffsetEnabled = true;
+    bool _previewAimOffsetEnabled = true;
     bool _previewLookHeightOffsetEnabled = true;
     bool _previewYawOffsetEnabled = true;
     bool _previewOrbitYawEnabled = true;

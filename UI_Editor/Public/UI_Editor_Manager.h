@@ -53,12 +53,7 @@ public:
         const string& maskTexturePath,
         UI_MaskTextureMode maskTextureMode);
     ID3D11ShaderResourceView* Get_PatternOverlayPreviewSRV(
-        const string& textureGuid,
-        const string& texturePath,
-        const string& paintMaskTextureGuid,
-        const string& paintMaskTexturePath,
-        const string& patternMaskTextureGuid,
-        const string& patternMaskTexturePath);
+        const PatternOverlayPreviewDesc& previewDesc);
     bool New_Document();
     void Create_UIObject(UI_ObjectType objectType);
     bool Create_PatternOverlayFromImage(ObjectId sourceObjectId);
@@ -93,6 +88,9 @@ public:
     bool Set_UIObjectMaskTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath);
     bool Set_UIObjectMaskTextureMode(ObjectId objectId, UI_MaskTextureMode maskTextureMode);
     bool Set_UIObjectPatternMaskTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath);
+    bool Set_UIObjectPatternUvOffset(ObjectId objectId, const ImVec2& patternUvOffset);
+    bool Set_UIObjectPatternUvScale(ObjectId objectId, const ImVec2& patternUvScale);
+    bool Set_UIObjectPatternUv(ObjectId objectId, const ImVec2& patternUvOffset, const ImVec2& patternUvScale);
     bool Set_UIObjectText(ObjectId objectId, const string& text);
     bool Set_UIObjectFontSize(ObjectId objectId, float fontSize);
     bool Set_UIObjectTextAlign(ObjectId objectId, UI_TextAlign textAlign);
