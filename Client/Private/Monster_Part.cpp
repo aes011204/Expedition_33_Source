@@ -250,6 +250,12 @@ const Matrix* Monster_Part::Get_SocketBoneMatrixPtr(uint32 boneIndex) const
     return _model ? _model->Get_BoneMatrixPtr(boneIndex) : nullptr;
 }
 
+
+bool Monster_Part::Is_AnimationFinished() const
+{
+    return _model->Is_AnimationFinished();
+}
+
 HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
 {
     if (desc.modelType == ModelType::Anim)
