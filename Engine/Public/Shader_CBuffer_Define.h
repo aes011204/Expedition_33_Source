@@ -175,9 +175,9 @@ struct alignas(16) PostProcessCB
 {
     static constexpr ConstantBuffer CBType = ConstantBuffer::PostProcess;
 
-    float exposure = 1.f;                   // 키우면 밝아짐
+    float exposure = 1.1f;                   // 키우면 밝아짐
     float invWhitePoint = 1.f;              // 어느 밝기 이상을 거의 흰색으로 볼 건지
-    float gamma = 1.6f;                     // 선형 색상을 sRGB에 가깝게 변환함
+    float gamma = 1.05f;                     // 선형 색상을 sRGB에 가깝게 변환함
     float bloomRadius = 1.6f;               // 블러 커널의 샘플 간격을 늘리는 배율
 
     float bloomThreshold = 0.9f;            // Bloom 추출 기준
@@ -192,6 +192,27 @@ struct alignas(16) PostProcessCB
     uint32 useBackgroundFallback = 0;       // 0이면 비활성, 1이면 빈 픽셀 fallback 색 적용
     float _pad2[4]{};
     Vec4 backgroundFallbackColor{ 0.f, 0.f, 0.f, 1.f }; // fallback 배경색
+};
+
+struct alignas(16) LightShaftCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::LightShaft;
+
+    Vec2 lightScreenUV{ 0.5f, 0.5f };
+    float lightVisible{ 0.f };
+    float lightFacingCamera{ 0.f };
+
+    Vec3 shaftColor{ 1.0f, 0.96f, 0.88f };
+    float intensity{ 0.35f };
+
+    uint32 sampleCount{ 12u };
+    float rayLength{ 0.18f };
+    float decay{ 0.96f };
+    float sunDiscRadius{ 0.04f };
+
+    float edgeFade{ 0.15f };
+    float depthEmptyThreshold{ 0.001f };
+    float _pad0[2]{};
 };
 
 /* ------------------------------------------ */
@@ -228,11 +249,16 @@ struct alignas(16) DeferredLightingCB
     static constexpr ConstantBuffer CBType = ConstantBuffer::DeferredLighting;
 
     float iblIntensity{ 1.f };
-    float iblDiffuseIntensity{ 1.f };
-    float iblSpecularIntensity{ 1.f };
+    float iblDiffuseIntensity{ 1.1f };
+    float iblSpecularIntensity{ 0.8f };
     float iblPrefilterMaxMip{ 8.f };
 
+    float specAAStrength{ 1.f };
+    float specAAMinVariance{ 0.01f };
+    float specAAMaxAddedRoughness{ 0.35f };
     uint32 iblEnabled{ 1u };
+
+    uint32 specAAEnabled{ 1u };
     uint32 _pad0[3]{};
 };
 
@@ -351,6 +377,7 @@ static_assert(sizeof(ShadowCB) % 16 == 0);
 static_assert(sizeof(ScreenSpaceCB) % 16 == 0);
 static_assert(sizeof(LightCB) % 16 == 0);
 static_assert(sizeof(PostProcessCB) % 16 == 0);
+static_assert(sizeof(LightShaftCB) % 16 == 0);
 static_assert(sizeof(SSAOCB) % 16 == 0);
 static_assert(sizeof(DeferredLightingCB) % 16 == 0);
 static_assert(sizeof(DrawFeatureCB) % 16 == 0);

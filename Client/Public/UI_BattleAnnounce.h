@@ -23,16 +23,20 @@ public:
     void    Open() override;
     void    Close() override;
 
-    void    Show_TurnStart(const BattleChar& actor, BattleTurnState state);
+    void    Show_TurnStart(const BattleChar& actor, BattleTurnState state, const Skill_Data* skillData);
+    void    Show_Counter(const vector<BattleChar>& counterActors);
+
+    static wstring Build_TurnStartText(
+        const BattleChar& actor,
+        BattleTurnState state,
+        const Skill_Data* skillData);
+    static wstring Build_CounterText(const vector<BattleChar>& counterActors);
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
 
     static wstring Resolve_ActorSubjectName(const BattleChar& actor);
-
-    // 상태별 announce 문구를 여기서 만든다.
-    static wstring Build_TurnStartText(const BattleChar& actor, BattleTurnState state);
 
 private:
     Shared<UI_Text> _announceText{};

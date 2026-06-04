@@ -2,6 +2,7 @@
 
 #include "Component.h"
 #include "EffectInstancePool.h"
+#include "PreviewRimFeature.h"
 #include "SwitchDissolveFeature.h"
 #include "TrailAnchor_Asset.h"
 
@@ -99,6 +100,9 @@ public:
     void    Start_SwitchDissolve(float durationSec, const string& noiseName);
     // 몬스터 죽을 떄 사라지게
     void    Start_VanishDissolve(float durationSec, const string& noiseName, bool vanishComplete);
+    // UI Preview에서 역광 효과 내게
+    void    Set_PreviewRim(const Vec3& color, float intensity, float power, float hairIntensity);
+    void    Clear_PreviewRim();
     void    Stop_AllAttachedEffects(); // 현재 이 컴포넌트가 소유한 attached effect를 모두 pool로 반환한다.
 
     HRESULT Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMask);
@@ -215,6 +219,7 @@ private:
 
 private:
     SwitchDissolveRuntime       _switchDissolve{};		// 디졸브
+    PreviewRimRuntime           _previewRim{};         // SkillTree preview 외곽광
     vector<AttachedEffect>      _attachedEffects{};		// 소켓에 붙일 이팩트
 
 private:

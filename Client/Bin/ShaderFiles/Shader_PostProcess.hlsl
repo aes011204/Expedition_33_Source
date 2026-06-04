@@ -125,6 +125,92 @@ PS_OUT_COLOR PS_BloomUpsampleAdd(PS_IN In)
     return Out;
 }
 
+// 해당 픽셀을 God Ray 계산에 포함시킬지 정하는 마스크 맵
+PS_OUT_COLOR PS_LightShaftMaskHalf(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+
+    const float active = g_LS_LightVisible;
+    if (active <= EPSILON)
+    {
+        Out.Color = float4(0.f, 0.f, 0.f, 1.f);
+        return Out;
+    }
+
+    // 화면 상 광원의 위치
+    const float2 lightUV = g_LS_LightScreenUV;
+    // 그 위치가 화면 경계에 가까울수록 fade 시켜서 popping 완화 (가중치)
+    const float screenFade = ComputeLightShaftScreenFade(lightUV);
+    if (screenFade <= EPSILON)
+    {
+        Out.Color = float4(0.f, 0.f, 0.f, 1.f);
+        return Out;
+    }
+
+    // 태양 중심으로 그라데이션 원 만들기
+    const float2 delta = In.Texcoord - lightUV;
+    const float dist = length(delta);
+    const float sunDisc = saturate(1.f - dist / max(g_LS_SunDiscRadius, EPSILON));
+
+    // 깊이값이 일정 이하인 부분은 빛이 통과하는 빈 공간으로 간주해서 마스크를 씌움
+    const float4 depthSample = g_DepthTexture.Sample(LinearClampSampler, In.Texcoord);  // 정규화된 뷰 스페이스의 깊이
+    const float empty = 1.f - smoothstep(0.f, max(g_LS_DepthEmptyThreshold, EPSILON), depthSample.y);
+    
+    // 태양 중심 근처의 강한 마스크. God Ray가 화면에 퍼질 수 있는 범위, 세기 마스크
+    const float mask = empty * sunDisc * sunDisc * screenFade * active;
+    Out.Color = float4(mask, 0.f, 0.f, 1.f);
+    return Out;
+}
+
+PS_OUT_COLOR PS_LightShaftRadialBlurHalf(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+
+    const float active = g_LS_LightVisible;
+    if (active <= EPSILON || g_LS_Intensity <= EPSILON)
+    {
+        Out.Color = float4(0.f, 0.f, 0.f, 1.f);
+        return Out;
+    }
+
+    const uint sampleCount = max(g_LS_SampleCount, 1u);
+    const float2 center = g_LS_LightScreenUV;
+    // 태양 중심에서 현재 픽셀까지의 방향으로 일정 간격(sampleCount 기반)만큼 샘플링해서 누적하는 방식
+    const float2 stepUV = ((In.Texcoord - center) * g_LS_RayLength) / max((float) sampleCount, 1.f);
+
+    float sampleWeight = 1.f;
+    float shaft = 0.f;
+    float totalWeight = 0.f;
+    float2 sampleUV = In.Texcoord - stepUV * 0.5f;
+
+    // 감쇠하면서 태양 중심으로 퍼지는 형태의 Radial Blur. 샘플링 늘어나면 비용도 늘어남. 
+    [loop]
+    for (uint i = 0u; i < sampleCount; ++i)
+    {
+        shaft += g_LightShaftMaskTexture.Sample(LinearClampSampler, sampleUV).r * sampleWeight;
+        totalWeight += sampleWeight;
+        sampleWeight *= g_LS_Decay;
+        sampleUV -= stepUV;
+    }
+
+    shaft = (totalWeight > EPSILON) ? (shaft / totalWeight) : 0.f;
+
+    Out.Color = float4(shaft * g_LS_Intensity, 0.f, 0.f, 1.f);
+    return Out;
+}
+
+PS_OUT_COLOR PS_LightShaftCompositeHDR(PS_IN In)
+{
+    PS_OUT_COLOR Out;
+
+    const float4 baseColor = g_DistortionSourceTexture.Sample(LinearClampSampler, In.Texcoord);
+    const float shaft = g_LightShaftSourceTexture.Sample(LinearClampSampler, In.Texcoord).r;
+    const float3 shaftColor = shaft * g_LS_ShaftColor;
+
+    Out.Color = float4(baseColor.rgb + shaftColor, baseColor.a);
+    return Out;
+}
+
 PS_OUT_BACKBUFFER PS_ToneMapping(PS_IN In)
 {
     PS_OUT_BACKBUFFER Out;
@@ -226,4 +312,7 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(BloomUpsampleAdd,  RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_BloomUpsampleAdd)        // 5
     PASS_RS_DS_BS_VP(ToneMapping,       RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_ToneMapping)             // 6
     PASS_RS_DS_BS_VP(DistortionResolve, RS_Default, DSS_None,   BS_Default, VS_MAIN,    PS_DistortionResolve)       // 7
+    PASS_RS_DS_BS_VP(LightShaftMaskHalf, RS_Default, DSS_None,  BS_Default, VS_MAIN,    PS_LightShaftMaskHalf)      // 8
+    PASS_RS_DS_BS_VP(LightShaftRadialBlurHalf, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_LightShaftRadialBlurHalf) // 9
+    PASS_RS_DS_BS_VP(LightShaftCompositeHDR, RS_Default, DSS_None, BS_Default, VS_MAIN, PS_LightShaftCompositeHDR)  // 10
 }
