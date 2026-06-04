@@ -4,6 +4,7 @@
 #include "Engine_Constants.h"
 #include "Log_Define.h"
 #include "Renderer_Define.h"
+#include "Shader_CBuffer_Define.h"
 
 NS_BEGIN(Engine)
 
@@ -56,6 +57,8 @@ public:
         return _currentGroup;
     }
 
+    void Set_FogZones(const FogZoneCB& fogZoneCB) { _fogZoneCB = fogZoneCB; }
+
 #ifdef _DEBUG
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);
 #endif
@@ -80,6 +83,7 @@ private:
     void Render_UIEffect();
 
     void Render_CombinedHDR();
+    void Render_Fog();
     void Render_PostProcess();
     
 
@@ -125,6 +129,8 @@ private:
     Shared<Texture>                 _iblBrdfLutTexture;
     enum class IBLDebugMode : uint8 { Default = 0, SpecularOnly, DiffuseOnly };
     IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
+
+    FogZoneCB                       _fogZoneCB{};
 
     bool                            _shadowEnabled = true;
 

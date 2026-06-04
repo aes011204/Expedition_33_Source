@@ -215,4 +215,54 @@ cbuffer ScreenFxBuffer
     float2 pad;
 };
 
+struct FogZoneEntry
+{
+    float3 zoneMin;
+    float zoneRadius;
+
+    float3 zoneMax;
+    float _pad0;
+
+    float4 fogColor;
+
+    float fogDensity;
+    float fogStart;
+    float _pad1;
+    float _pad2;
+};
+
+cbuffer FogZoneBuffer
+{
+    FogZoneEntry g_FogZones[8];
+    int g_FogAABBCount;
+    int g_FogSphereCount;
+    float2 g_FogZonePad0;
+};
+
+cbuffer WaterBuffer : register(b13)
+{
+    float g_LargeWaveScale;
+    float g_LargeWaveSpeed;
+    float g_LargeWaveAmplify;
+    float g_SmallWaveScale;
+
+    float g_SmallWaveSpeed;
+    float g_SmallWaveAmplify;
+    float g_SeafoamScale;
+    float g_SeafoamSpeed;
+
+    float g_SeafoamHeightPower;
+    float g_SeafoamHeightMultiply;
+    float g_FoamDistortion;
+    float g_DepthFade;
+
+    float g_CameraDistanceFade;
+    float g_ReflectionAmount;
+    float g_LuminanceBias;
+    float g_WaterElapsedTime;
+
+    float4 g_WaterColor;
+    float4 g_WaterFresnelColor;
+}
+
 #endif

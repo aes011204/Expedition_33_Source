@@ -298,6 +298,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\VIBufferCom_PointParticle.h" />
     <ClInclude Include="..\Public\VIBuffer_Landscape.h" />
     <ClInclude Include="..\Public\VIBuffer_MeshInstance.h" />
+    <ClInclude Include="..\Public\VIBuffer_Plane.h" />
     <ClInclude Include="..\Public\VIBuffer_TerrainUE.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\Animation.h" />
@@ -428,6 +429,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp" />
     <ClCompile Include="..\Private\VIBuffer_Landscape.cpp" />
     <ClCompile Include="..\Private\VIBuffer_MeshInstance.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_Plane.cpp" />
     <ClCompile Include="..\Private\VIBuffer_TerrainUE.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>

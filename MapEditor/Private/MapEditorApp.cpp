@@ -18,6 +18,7 @@
 #include "MELandscapeActor.h"
 #include "MELandscapeManager.h"
 #include "MEMaterialApplicator.h"
+#include "MEWaterActor.h"
 
 // test
 #include "METerrainActor.h"
@@ -123,6 +124,10 @@ HRESULT MapEditorApp::Initialize()
             L"../../../Client/Bin/ShaderFiles/Shader_VtxNorTex.hlsl",
             VTXNORTEX::Elements, VTXNORTEX::numElements, ShaderType::VtxNorTex)), E_FAIL);
 
+    CHECK_FAILED(GAME->Add_Prototype(0, L"Shader_Water",
+        ShaderCom::Create(_device, _context,
+            L"../../../Client/Bin/ShaderFiles/Shader_Water.hlsl",
+            VTXNORTEX::Elements, VTXNORTEX::numElements, ShaderType::VtxNorTex)), E_FAIL);
 
     CHECK_FAILED(GAME->Add_Prototype(0, L"MEInstancedMeshActor",
         MEInstancedMeshActor::Create(_device, _context)), E_FAIL);
@@ -146,6 +151,9 @@ void MapEditorApp::Priority_Update(float timeDelta)
 void MapEditorApp::Update(float timeDelta)
 {
     GAME->Update_Engine(timeDelta);
+
+    _timeDelta = timeDelta;
+
     _imguiManager->Update(timeDelta);
 
     if (!ImGui::GetIO().WantTextInput)
@@ -230,6 +238,7 @@ HRESULT MapEditorApp::Render()
     }
 
     SyncSceneLights();
+    SyncFogZones();
 
     GAME->UpdateFrustum(_camera->GetView(), _camera->GetProj());
 
@@ -312,6 +321,23 @@ HRESULT MapEditorApp::Render()
         landscape->Late_Update(0.f);
     }
 
+    for (auto& obj : _scene._waters)
+    {
+        if (!obj->_waterRenderHandle)
+        {
+            continue;
+        }
+
+        auto tf = obj->_waterRenderHandle->Get_Transform();
+        tf->Set_Position(obj->_position);
+        tf->Set_Scale(obj->_scale);
+
+        obj->_waterRenderHandle->Set_CameraInfo(_camera->GetFar(),
+            Vec4(_camera->GetPosition().x, _camera->GetPosition().y, _camera->GetPosition().z, 1.f));
+        obj->_waterRenderHandle->Update(_timeDelta);
+        obj->_waterRenderHandle->Late_Update(_timeDelta);
+    }
+
     GAME->Bind_BackBuffer();
     CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
     CHECK_FAILED(GAME->Draw_RendererOnly(), E_FAIL);
@@ -338,6 +364,8 @@ void MapEditorApp::Update_RenderHandles()
 {
     Update_StaticMeshHandles();
     Update_InstancedMeshHandles();
+    Update_WaterHandles();
+
     _materialApplicator->Apply_PassOverrides();
 }
 
@@ -430,6 +458,69 @@ void MapEditorApp::Update_InstancedMeshHandles()
     }
 }
 
+void MapEditorApp::Update_WaterHandles()
+{
+    for (auto& obj : _scene._waters)
+    {
+        if (obj->_waterRenderHandleLoaded)
+        {
+            continue;
+        }
+
+        obj->_waterRenderHandleLoaded = true;
+
+        VIBuffer_Plane::DESC planeDesc;
+        planeDesc.countX = obj->_waterDesc.countX;
+        planeDesc.countZ = obj->_waterDesc.countZ;
+        planeDesc.sizeX = obj->_waterDesc.sizeX;
+        planeDesc.sizeZ = obj->_waterDesc.sizeZ;
+        auto actor = MEWaterActor::Create(_device, _context, planeDesc);
+        if (!actor)
+        {
+            continue;
+        }
+
+        auto LoadSRV = [&](const wstring& path) -> ComPtr<ID3D11ShaderResourceView>
+            {
+                if (path.empty())
+                {
+                    return nullptr;
+                }
+                WCHAR ext[MAX_PATH] = {};
+                _wsplitpath_s(path.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, ext, MAX_PATH);
+                ComPtr<ID3D11ShaderResourceView> srv;
+                HRESULT hr = (lstrcmp(ext, L".dds") == 0)
+                    ? CreateDDSTextureFromFile(_device.Get(), path.c_str(), nullptr, srv.GetAddressOf())
+                    : CreateWICTextureFromFile(_device.Get(), path.c_str(), nullptr, srv.GetAddressOf());
+                if (FAILED(hr))
+                {
+                    return nullptr;
+                }
+                return srv;
+            };
+
+        if (auto srv = LoadSRV(obj->_waterLargeWaveNormalPath))
+        {
+            actor->Set_LargeWaveNormalSRV(srv.Get());
+        }
+        if (auto srv = LoadSRV(obj->_waterSmallWaveNormalPath))
+        {
+            actor->Set_SmallWaveNormalSRV(srv.Get());
+        }
+        if (auto srv = LoadSRV(obj->_waterSeafoamPath))
+        {
+            actor->Set_SeafoamSRV(srv.Get());
+        }
+        if (auto srv = LoadSRV(obj->_waterCubemapPath))
+        {
+            actor->Set_CubemapSRV(srv.Get());
+        }
+
+        actor->Set_WaterParams(obj->_waterParams);
+        obj->_waterRenderHandle = actor;
+    }
+}
+
 void MapEditorApp::DoSpawnAt(const string& modelPath)
 {
     if (!_scene._cursorVisible)
@@ -511,6 +602,50 @@ void MapEditorApp::SyncSceneLights()
         desc.specular = obj->_lightSpecular;
         GAME->Add_Light(desc);
     }
+}
+
+void MapEditorApp::SyncFogZones()
+{
+    FogZoneCB cb{};
+
+    for (const auto& obj : _scene._postProcessVolumes)
+    {
+        if (!obj || obj->_ppFogDensity <= 0.f)
+        {
+            continue;
+        }
+
+        FogZoneEntry entry{};
+        entry.fogColor = Color(obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z, 1.f);
+        entry.fogDensity = obj->_ppFogDensity;
+        entry.fogStart = obj->_ppFogStart;
+
+        if (obj->_ppFogZoneType == 0) // AABB
+        {
+            if (cb.aabbCount >= FogZoneCB::MAX_FOG_ZONES)
+            {
+                continue;
+            }
+
+            entry.zoneMin = obj->_position - obj->_zoneExtent;
+            entry.zoneMax = obj->_position + obj->_zoneExtent;
+            cb.zones[cb.aabbCount++] = entry;
+        }
+
+        else
+        {
+            if (cb.aabbCount + cb.sphereCount >= FogZoneCB::MAX_FOG_ZONES)
+            {
+                continue;
+            }
+
+            entry.zoneMin = obj->_position;
+            entry.zoneRadius = obj->_ppFogRadius;
+            cb.zones[cb.aabbCount + cb.sphereCount++] = entry;
+        }
+    }
+
+    GAME->Set_FogZones(cb);
 }
 
 HRESULT MapEditorApp::Ready_Light()
