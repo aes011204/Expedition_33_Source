@@ -156,7 +156,10 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_BattlePortraitDeactivationMaelleAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattlePortrait/BattlePortrait_Deactivation_Maelle";
 #pragma endregion
 
-
+#pragma region Expedition Status 애니메이션
+    inline constexpr wchar_t UI_ExpeditionStatusIntro_Anim_Path[] = L"UI/UI_Animations/Expedition_Status/Expedition_Status_Intro";
+    inline constexpr wchar_t UI_ExpeditionStatusOutro_Anim_Path[] = L"UI/UI_Animations/Expedition_Status/Expedition_Status_Outro";
+#pragma endregion
 }
 
 namespace Client::Constants::Map
