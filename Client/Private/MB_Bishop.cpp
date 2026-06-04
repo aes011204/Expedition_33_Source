@@ -47,6 +47,7 @@ HRESULT MB_Bishop::Initialize(void* arg)
     _combatStat->Set_Skill("Eveque_EnragedCombo");
     _combatStat->Set_Skill("Eveque_Spawn_Mini");
 
+    _combatStat->Add_Shield(3);
 
     return S_OK;
 }

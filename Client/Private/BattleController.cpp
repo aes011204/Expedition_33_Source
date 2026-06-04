@@ -125,7 +125,7 @@ void BattleController::Update(float timeDelta)
 
     //UpdateReactionInput();
     //if (_pendingNextTurn)
-    _reactionController.UpdateAnimation();
+    _reactionController.UpdateAnimation(timeDelta);
 
     if (_isPendingVictorySlow)
     {
@@ -791,6 +791,8 @@ void BattleController::SetCharInitPos()
             + Resolve_PrefabGroundOffsetY(hero.actor);
 
         hero.actor->Get_Transform()->Set_Position(finalPos);
+        if (_battleSpawnRegistry)
+            _battleSpawnRegistry->Update_SpawnPose(hero.actor);
         heroCenter += finalPos;
         ++heroCount;
     }
@@ -827,6 +829,8 @@ void BattleController::SetCharInitPos()
             + localOffset.y;
 
         transform->Set_Position(placedPos);
+        if (Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(enemy.actor))
+            monster->Set_RevivePosition(placedPos);
 
         if (heroCount == 0)
             continue;
@@ -844,6 +848,9 @@ void BattleController::SetCharInitPos()
         rot.y = XMConvertToDegrees(atan2f(dir.x, dir.z)) + rotationOffset.y;
         rot.z += rotationOffset.z;
         transform->Set_RotationEuler(rot);
+
+        if (_battleSpawnRegistry)
+            _battleSpawnRegistry->Update_SpawnPose(enemy.actor);
     }
 }
 
@@ -1264,6 +1271,11 @@ void BattleController::Revive_BattleMon(const BattleChar& battleChar, float Mult
 
     if (battleChar.actor)
     {
+        if (Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(battleChar.actor))
+        {
+            if (monster->Has_RevivePosition())
+                monster->Get_Transform()->Set_Position(monster->Get_RevivePosition());
+        }
 
         for (const auto& [partTag, partObject] : battleChar.actor->Get_PartObjects())
         {
@@ -1452,7 +1464,7 @@ void BattleController::OnActionEndNotify()
     _battleActionExe->OnActionEndNotify(action);
 }
 
-void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos)
+void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos, float yawDeg)
 {
     if (IsHero)
     {
@@ -1479,6 +1491,9 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
         _heroes.push_back(battleChar);
 
         battleChar.actor->Get_Transform()->Set_Position(pos);
+        Vec3 rot = battleChar.actor->Get_Transform()->Get_RotationEuler();
+        rot.y = yawDeg;
+        battleChar.actor->Get_Transform()->Set_RotationEuler(rot);
 
         TurnEntry turn = {};
         turn.nextTime = _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f);
@@ -1508,10 +1523,14 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
 
         PartObject* body = ply ? ply->Get_PartObject(L"Part_Body") : nullptr;
         battleChar.ModelCom = body ? body->Get_Component<ModelCom>() : nullptr; // 몬스터 종류와 무관하게 Part_Body의 ModelCom를 사용한다.
+        battleChar.actor->Get_Transform()->Set_Position(pos);
+        Vec3 rot = battleChar.actor->Get_Transform()->Get_RotationEuler();
+        rot.y = yawDeg;
+        battleChar.actor->Get_Transform()->Set_RotationEuler(rot);
+        if (Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(battleChar.actor))
+            monster->Set_RevivePosition(pos);
 
         _enemies.push_back(battleChar);
-
-        battleChar.actor->Get_Transform()->Set_Position(pos);
 
 
         TurnEntry turn = {};
