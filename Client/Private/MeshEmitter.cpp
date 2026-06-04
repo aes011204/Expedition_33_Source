@@ -59,6 +59,26 @@ float Resolve_EvenByParticleIndexAngleRatio(uint32 particleIndex, uint32 maxActi
     return static_cast<float>(particleIndex) / static_cast<float>(clampedCount - 1u);
 }
 
+Vec3 Resolve_EvenByParticleIndexSphereDirection(uint32 placementIndex, uint32 placementCount)
+{
+    const uint32 clampedCount = max(1u, placementCount);
+    if (clampedCount <= 1u)
+        return Vec3{ 0.f, 0.f, 1.f };
+
+    const uint32 clampedIndex = placementIndex % clampedCount;
+    const float ratio = (static_cast<float>(clampedIndex) + 0.5f) / static_cast<float>(clampedCount);
+    const float z = 1.f - 2.f * ratio;
+    const float radiusOnPlane = sqrtf(max(0.f, 1.f - z * z));
+    const float goldenAngle = XM_PI * (3.f - sqrtf(5.f));
+    const float angle = static_cast<float>(clampedIndex) * goldenAngle;
+
+    return Vec3{
+        cosf(angle) * radiusOnPlane,
+        sinf(angle) * radiusOnPlane,
+        z
+    };
+}
+
 Vec3 Normalize_OrFallback(const Vec3& value, const Vec3& fallback)
 {
     if (value.LengthSquared() <= kPlaneRadialEpsilon * kPlaneRadialEpsilon)
@@ -1290,7 +1310,15 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
     const float lifeMin = max(0.0001f, min(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
     const float lifeMax = max(lifeMin, max(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
     PlaneRadialSample planeRadialSample{};
-    const Vec3 spawnOffset = Sample_InitialOffset(seed, particleIndex, placementIndex, placementCount, planeRadialSample);
+    SphereRadialSample sphereRadialSample{};
+    const Vec3 spawnOffset = Sample_InitialOffset(
+        seed,
+        particleIndex,
+        placementIndex,
+        placementCount,
+        planeRadialSample,
+        sphereRadialSample
+    );
     Vec3 spawnPosition = spawnOffset;
     if (!_useLocalSpace && _transformCom != nullptr)
         spawnPosition += _transformCom->Get_WorldPosition();
@@ -1299,14 +1327,15 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
     particle.age = 0.f;
     particle.lifeMax = RandomRange(lifeMin, lifeMax, seed + 11u);
     particle.position = spawnPosition;
+    particle.spawnOffset = spawnOffset;
+    particle.spawnPosition = spawnPosition;
     particle.velocity = Sample_InitialVelocity(spawnPosition, seed + 23u);
     particle.acceleration = Sample_Acceleration(seed + 29u);
     particle.drag = Sample_Drag(seed + 31u);
     particle.baseScale = _desc.previewScale * Sample_InitialScale(seed + 37u);
-    particle.planeRadialOrientation = Build_PlaneRadialMeshOrientation(
-        planeRadialSample,
-        particle.planeRadialOrientationEnabled
-    );
+    particle.spawnOrientation = Build_SphereRadialMeshOrientation(sphereRadialSample, particle.spawnOrientationEnabled);
+    if (!particle.spawnOrientationEnabled)
+        particle.spawnOrientation = Build_PlaneRadialMeshOrientation(planeRadialSample, particle.spawnOrientationEnabled);
     particle.rotationRadians = Sample_InitialRotation(seed + 41u);
     particle.angularVelocityRadians = Sample_InitialAngularVelocity(seed + 43u);
     particle.startColor = Sample_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax, seed + 47u);
@@ -1417,14 +1446,22 @@ Matrix MeshEmitter::Build_InstanceMatrix(const MeshParticleState& particle) cons
 
     const Matrix scaleMatrix = Matrix::CreateScale(scale);
     const Matrix rotationMatrix = Matrix::CreateFromQuaternion(rotation);
-    const Matrix translationMatrix = Matrix::CreateTranslation(particle.position);
+    const Vec3 orbitOffset = Evaluate_OrbitOffset(particle, lifeProgress);
+    const Vec3 motionOffset = particle.position - particle.spawnPosition;
+    Vec3 emitterPosition{};
+    if (!_useLocalSpace && _transformCom != nullptr)
+        emitterPosition = _transformCom->Get_WorldPosition();
+    Vec3 translation = particle.position;
+    if (_desc.orbitOverLife.enabled)
+        translation = emitterPosition + orbitOffset + motionOffset;
+    const Matrix translationMatrix = Matrix::CreateTranslation(translation);
 
     Matrix localMatrix{};
-    if (particle.planeRadialOrientationEnabled)
+    if (particle.spawnOrientationEnabled)
     {
         localMatrix =
             scaleMatrix *
-            Matrix::CreateFromQuaternion(particle.planeRadialOrientation) *
+            Matrix::CreateFromQuaternion(particle.spawnOrientation) *
             rotationMatrix *
             translationMatrix;
     }
@@ -1456,7 +1493,8 @@ Vec3 MeshEmitter::Sample_InitialOffset(
     uint32 particleIndex,
     uint32 placementIndex,
     uint32 placementCount,
-    PlaneRadialSample& outPlaneRadialSample) const
+    PlaneRadialSample& outPlaneRadialSample,
+    SphereRadialSample& outSphereRadialSample) const
 {
     Vec3 offset{};
 
@@ -1471,20 +1509,35 @@ Vec3 MeshEmitter::Sample_InitialOffset(
 
     if (_desc.sphereLocation.enabled && _desc.sphereLocation.radius > 0.f)
     {
-        const float z = RandomRange(-1.f, 1.f, seed + 5u);
-        const float angle = XM_2PI * Random01(seed + 7u);
-        const float radiusOnPlane = sqrtf(max(0.f, 1.f - z * z));
-        const Vec3 direction{
-            cosf(angle) * radiusOnPlane,
-            sinf(angle) * radiusOnPlane,
-            z
-        };
+        const uint32 sphereSeed = seed + Internal::Resolve_SeedSalt(_desc.sphereLocationSeed);
+        Vec3 direction{};
+        const bool useEvenSurfacePlacement =
+            _desc.sphereLocation.mode == PointParticleSphereLocationMode::Surface &&
+            _desc.sphereLocation.placementMode == PointParticleSphereLocationPlacementMode::EvenByParticleIndex;
+        if (useEvenSurfacePlacement)
+        {
+            direction = Internal::Resolve_EvenByParticleIndexSphereDirection(placementIndex, placementCount);
+        }
+        else
+        {
+            const float z = RandomRange(-1.f, 1.f, sphereSeed + 5u);
+            const float angle = XM_2PI * Random01(sphereSeed + 7u);
+            const float radiusOnPlane = sqrtf(max(0.f, 1.f - z * z));
+            direction = Vec3{
+                cosf(angle) * radiusOnPlane,
+                sinf(angle) * radiusOnPlane,
+                z
+            };
+        }
 
         float radius = _desc.sphereLocation.radius;
         if (_desc.sphereLocation.mode == PointParticleSphereLocationMode::Volume)
-            radius *= cbrtf(Random01(seed + 9u));
+            radius *= cbrtf(Random01(sphereSeed + 9u));
 
-        offset += _desc.sphereLocation.offset + direction * radius;
+        outSphereRadialSample.enabled = true;
+        outSphereRadialSample.localOffset = _desc.sphereLocation.offset + direction * radius;
+        outSphereRadialSample.radialDirection = direction;
+        offset += outSphereRadialSample.localOffset;
     }
 
     if (_desc.planeRadialLocation.enabled)
@@ -1551,6 +1604,72 @@ Vec3 MeshEmitter::Sample_InitialOffset(
     }
 
     return Resolve_LocalVector(offset);
+}
+
+Quat MeshEmitter::Build_SphereRadialMeshOrientation(const SphereRadialSample& sample, bool& outEnabled) const
+{
+    outEnabled = false;
+
+    if (!sample.enabled ||
+        !_desc.sphereRadialOrientation.enabled ||
+        _desc.sphereRadialOrientation.orientationMode == PointParticleSphereRadialOrientationMode::None)
+        return Quat::Identity;
+
+    Vec3 targetForward = sample.radialDirection;
+    if (_desc.sphereRadialOrientation.orientationMode == PointParticleSphereRadialOrientationMode::FaceRadialIn)
+        targetForward = -targetForward;
+
+    targetForward = Internal::Normalize_OrFallback(Resolve_LocalVector(targetForward), Vec3{ 0.f, 0.f, 1.f });
+    Vec3 preferredUp = Vec3{ 0.f, 1.f, 0.f };
+    if (fabsf(targetForward.Dot(preferredUp)) > 1.f - 1e-3f)
+        preferredUp = Vec3{ 0.f, 0.f, 1.f };
+
+    Vec3 targetRight = preferredUp.Cross(targetForward);
+    targetRight = Internal::Normalize_OrFallback(targetRight, Vec3{ 1.f, 0.f, 0.f });
+    Vec3 targetUp = Internal::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
+
+    const Vec3 sourceForward = Internal::Resolve_PlaneRadialOrientationAxis(_desc.sphereRadialOrientation.meshForwardAxis);
+    Vec3 sourceUp = Internal::Resolve_PlaneRadialOrientationAxis(_desc.sphereRadialOrientation.meshUpAxis);
+    if (fabsf(sourceForward.Dot(sourceUp)) > 1.f - 1e-3f)
+    {
+        if (!_sphereRadialMeshOrientationFallbackLogged)
+        {
+            LOG_WARN(
+                "MeshEmitter SphereRadialOrientation fallback: meshForwardAxis and meshUpAxis are parallel. emitter='{}'",
+                _emitterName
+            );
+            _sphereRadialMeshOrientationFallbackLogged = true;
+        }
+        return Quat::Identity;
+    }
+
+    Vec3 sourceRight = sourceUp.Cross(sourceForward);
+    sourceRight.Normalize();
+    sourceUp = sourceForward.Cross(sourceRight);
+    sourceUp.Normalize();
+
+    const Matrix sourceFrame = Internal::Build_FrameMatrix(sourceRight, sourceUp, sourceForward);
+    const Matrix targetFrame = Internal::Build_FrameMatrix(targetRight, targetUp, targetForward);
+    Quat orientation = Quat::CreateFromRotationMatrix(sourceFrame.Invert() * targetFrame);
+    orientation.Normalize();
+
+    if (fabsf(_desc.sphereRadialOrientation.tiltDegrees) > 0.0001f)
+    {
+        Quat tilt = Quat::CreateFromAxisAngle(targetRight, XMConvertToRadians(_desc.sphereRadialOrientation.tiltDegrees));
+        tilt.Normalize();
+        orientation = orientation * tilt;
+    }
+
+    if (fabsf(_desc.sphereRadialOrientation.rollOffsetDegrees) > 0.0001f)
+    {
+        Quat roll = Quat::CreateFromAxisAngle(targetForward, XMConvertToRadians(_desc.sphereRadialOrientation.rollOffsetDegrees));
+        roll.Normalize();
+        orientation = orientation * roll;
+    }
+
+    orientation.Normalize();
+    outEnabled = true;
+    return orientation;
 }
 
 Quat MeshEmitter::Build_PlaneRadialMeshOrientation(const PlaneRadialSample& sample, bool& outEnabled) const
@@ -1808,6 +1927,64 @@ Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle,
         Evaluate_CompactCurve(lifeProgress, _desc.motion.accelerationCurveTimes, _desc.motion.accelerationCurveValuesZ, keyCount, particle.acceleration.z)
     };
     return Resolve_LocalVector(acceleration);
+}
+
+Vec3 MeshEmitter::Evaluate_OrbitOffset(const MeshParticleState& particle, float lifeProgress) const
+{
+    if (!_desc.orbitOverLife.enabled)
+        return particle.spawnOffset;
+
+    const float angleDegrees = Evaluate_CompactCurve(
+        lifeProgress,
+        _desc.orbitOverLife.angleCurveTimes,
+        _desc.orbitOverLife.angleCurveValues,
+        _desc.orbitOverLife.angleCurveKeyCount,
+        lerp(_desc.orbitOverLife.angleDegreesOverLife.x, _desc.orbitOverLife.angleDegreesOverLife.y, lifeProgress)
+    );
+    const float radiusScale = Evaluate_CompactCurve(
+        lifeProgress,
+        _desc.orbitOverLife.radiusScaleCurveTimes,
+        _desc.orbitOverLife.radiusScaleCurveValues,
+        _desc.orbitOverLife.radiusScaleCurveKeyCount,
+        lerp(_desc.orbitOverLife.radiusScaleOverLife.x, _desc.orbitOverLife.radiusScaleOverLife.y, lifeProgress)
+    );
+
+    Vec3 localOffset = particle.spawnOffset;
+    if (!_useLocalSpace && _transformCom != nullptr)
+        localOffset = Vec3::TransformNormal(particle.spawnOffset, _transformCom->Get_WorldMatrix().Invert());
+
+    Vec2 planeOffset{ localOffset.x, localOffset.y };
+    if (_desc.orbitOverLife.plane == EffectOrbitPlane::XZ)
+        planeOffset = Vec2{ localOffset.x, localOffset.z };
+    else if (_desc.orbitOverLife.plane == EffectOrbitPlane::YZ)
+        planeOffset = Vec2{ localOffset.y, localOffset.z };
+
+    planeOffset *= radiusScale;
+    const float angleRadians = XMConvertToRadians(angleDegrees);
+    const float angleCos = cosf(angleRadians);
+    const float angleSin = sinf(angleRadians);
+    const Vec2 rotatedOffset{
+        planeOffset.x * angleCos - planeOffset.y * angleSin,
+        planeOffset.x * angleSin + planeOffset.y * angleCos
+    };
+
+    if (_desc.orbitOverLife.plane == EffectOrbitPlane::XZ)
+    {
+        localOffset.x = rotatedOffset.x;
+        localOffset.z = rotatedOffset.y;
+    }
+    else if (_desc.orbitOverLife.plane == EffectOrbitPlane::YZ)
+    {
+        localOffset.y = rotatedOffset.x;
+        localOffset.z = rotatedOffset.y;
+    }
+    else
+    {
+        localOffset.x = rotatedOffset.x;
+        localOffset.y = rotatedOffset.y;
+    }
+
+    return Resolve_LocalVector(localOffset);
 }
 
 Vec3 MeshEmitter::Evaluate_ScaleByLife(float lifeProgress) const

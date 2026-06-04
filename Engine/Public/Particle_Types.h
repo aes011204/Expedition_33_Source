@@ -250,13 +250,21 @@ enum class PointParticleSphereLocationMode : uint32
     Surface = 1, // 구 표면에서 샘플링한다.
 };
 
+// SphereLocation 모듈이 Surface 위치를 고르는 방식이다.
+enum class PointParticleSphereLocationPlacementMode : uint32
+{
+    Random = 0,
+    EvenByParticleIndex = 1,
+};
+
 // SphereLocation 모듈이 만든 생성 시점 구형 위치 offset 분포다.
 struct PointParticleSphereLocationDesc
 {
-    bool enabled{ false };                                                           // authoring SphereLocation 모듈이 preview/runtime에 연결되었는지 나타낸다.
-    Vec3 offset{ 0.f, 0.f, 0.f };                                                    // emitter center 기준 구 중심 offset이다.
-    float radius{ 1.f };                                                             // 구 샘플링 반지름이다. 0 이하면 no-op으로 처리한다.
-    PointParticleSphereLocationMode mode{ PointParticleSphereLocationMode::Volume }; // 구 내부/표면 샘플링 정책이다.
+    bool enabled{ false };                                                                                         // authoring SphereLocation 모듈이 preview/runtime에 연결되었는지 나타낸다.
+    Vec3 offset{ 0.f, 0.f, 0.f };                                                                                  // emitter center 기준 구 중심 offset이다.
+    float radius{ 1.f };                                                                                           // 구 샘플링 반지름이다. 0 이하면 no-op으로 처리한다.
+    PointParticleSphereLocationMode mode{ PointParticleSphereLocationMode::Volume };                               // 구 내부/표면 샘플링 정책이다.
+    PointParticleSphereLocationPlacementMode placementMode{ PointParticleSphereLocationPlacementMode::Random };     // Surface 모드에서 구 표면 방향을 고르는 정책이다.
 };
 
 // PlaneRadialLocation 모듈이 위치를 샘플링할 emitter-local 평면이다.
@@ -344,6 +352,48 @@ struct PointParticlePlaneRadialOrientationDesc
     float rollOffsetDegrees{ 0.f };
 };
 
+// SphereRadialOrientation 모듈이 sphere sample frame에서 고를 방향이다.
+enum class PointParticleSphereRadialOrientationMode : uint32
+{
+    None = 0,
+    FaceRadialOut = 1,
+    FaceRadialIn = 2,
+};
+
+// SphereRadialOrientation 모듈이 만든 구형 radial frame 기반 초기 mesh 회전 payload다.
+struct PointParticleSphereRadialOrientationDesc
+{
+    bool enabled{ false }; // authoring SphereRadialOrientation 모듈이 preview/runtime에 연결되었는지 나타낸다.
+    PointParticleSphereRadialOrientationMode orientationMode{ PointParticleSphereRadialOrientationMode::None };
+    PointParticlePlaneRadialOrientationAxis meshForwardAxis{ PointParticlePlaneRadialOrientationAxis::PositiveZ };
+    PointParticlePlaneRadialOrientationAxis meshUpAxis{ PointParticlePlaneRadialOrientationAxis::PositiveY };
+    float tiltDegrees{ 0.f };
+    float rollOffsetDegrees{ 0.f };
+};
+
+// OrbitOverLife 모듈이 emitter-local offset을 회전시킬 plane이다.
+enum class EffectOrbitPlane : uint32
+{
+    XY = 0,
+    XZ = 1,
+    YZ = 2,
+};
+
+// OrbitOverLife 모듈을 sprite/mesh runtime이 공유해 소비하는 payload다.
+struct EffectOrbitOverLifeRuntimeDesc
+{
+    bool enabled{ false };
+    EffectOrbitPlane plane{ EffectOrbitPlane::XY };
+    Vec2 angleDegreesOverLife{ 0.f, 0.f };
+    uint32 angleCurveKeyCount{ 2 };
+    Vec4 angleCurveTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 angleCurveValues{ 0.f, 0.f, 0.f, 0.f };
+    Vec2 radiusScaleOverLife{ 1.f, 1.f };
+    uint32 radiusScaleCurveKeyCount{ 2 };
+    Vec4 radiusScaleCurveTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 radiusScaleCurveValues{ 1.f, 1.f, 0.f, 0.f };
+};
+
 // 인스턴스 생성에 공통으로 필요한 spawn 규칙.
 struct InstanceSpawnDesc
 {
@@ -393,6 +443,7 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     PointParticleSubUVFrameOverLifeDesc subUvFrameOverLife{};         // 수명 진행률 기준 frame 선택 규칙이다.
     PointParticleSizeByLifeDesc sizeByLife{};                         // 수명 진행률 기준 크기 배율 규칙이다.
     PointParticleMotionDesc motion{};                                 // motion 모듈들이 만든 compute update 규칙이다.
+    EffectOrbitOverLifeRuntimeDesc orbitOverLife{};                   // OrbitOverLife 모듈이 만든 emitter-local pivot 회전 payload다.
     PointParticleRotationDesc rotation{};                             // rotation 모듈들이 만든 sprite 회전 규칙이다.
     PointParticleSpawnDesc spawn{};                                   // Spawn 모듈이 만든 활성화/버스트 생성 규칙이다.
     PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                 // Lifetime random sample seed salt다.
