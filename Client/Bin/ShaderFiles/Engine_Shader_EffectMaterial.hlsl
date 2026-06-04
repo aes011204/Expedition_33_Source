@@ -83,17 +83,16 @@ float3 Effect_ApplyCoreEmissiveShaping(
 
 float Effect_SelectAdditiveAmount(float4 texel, float maskAlpha, int amountSource)
 {
-    float result = saturate(texel.a);
     if (amountSource == 1)
-        result = saturate(texel.r);
-    else if (amountSource == 2)
-        result = saturate(dot(texel.rgb, float3(0.299f, 0.587f, 0.114f)));
-    else if (amountSource == 3)
-        result = saturate(maskAlpha);
-    else if (amountSource == 4)
-        result = 1.f;
+        return saturate(texel.r);
+    if (amountSource == 2)
+        return saturate(dot(texel.rgb, float3(0.299f, 0.587f, 0.114f)));
+    if (amountSource == 3)
+        return saturate(maskAlpha);
+    if (amountSource == 4)
+        return 1.f;
 
-    return result;
+    return saturate(texel.a);
 }
 
 float3 Effect_ResolveAdditiveColor(
@@ -103,42 +102,38 @@ float3 Effect_ResolveAdditiveColor(
     float4 constantColor,
     int colorSource)
 {
-    float3 result = mainRGB;
     if (colorSource == 1)
-        result = tintedRGB;
-    else if (colorSource == 2)
-        result = emissiveColor.rgb;
-    else if (colorSource == 3)
-        result = constantColor.rgb;
+        return tintedRGB;
+    if (colorSource == 2)
+        return emissiveColor.rgb;
+    if (colorSource == 3)
+        return constantColor.rgb;
 
-    return result;
+    return mainRGB;
 }
 
 float Effect_ResolveAdditivePolicyAmount(float amount, float coverageBase, int coveragePolicy)
 {
-    float result = saturate(amount);
     if (coveragePolicy == 1)
-        result *= saturate(coverageBase);
+        return saturate(amount) * saturate(coverageBase);
 
-    return result;
+    return saturate(amount);
 }
 
 float Effect_ResolveAdditiveDiscardSource(float amount, float coverageBase, int coveragePolicy)
 {
-    float result = saturate(amount);
     if (coveragePolicy == 2)
-        result = saturate(coverageBase);
+        return saturate(coverageBase);
 
-    return result;
+    return saturate(amount);
 }
 
 float Effect_ResolveAdditiveBlackGate(float3 mainRGB, int colorSource, float blackNeutral)
 {
-    float result = 1.f;
-    if (blackNeutral != 0.f && colorSource >= 2)
-        result = saturate(dot(mainRGB, float3(0.299f, 0.587f, 0.114f)));
+    if (blackNeutral == 0.f || colorSource < 2)
+        return 1.f;
 
-    return result;
+    return saturate(dot(mainRGB, float3(0.299f, 0.587f, 0.114f)));
 }
 
 #endif
