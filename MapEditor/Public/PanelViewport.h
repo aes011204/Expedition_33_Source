@@ -20,6 +20,7 @@ public:
 public:
     void SetSnapSettings(Shared<SnapSettings> settings) { _snapSettings = settings; }
     void Set_SceneSRV(ID3D11ShaderResourceView* srv) { _sceneSRV = srv; }
+    ID3D11ShaderResourceView* Get_SceneSRV() const { return _sceneSRV; }
     void Set_SculpState(Shared<LandscapeSculptState> state) { _sculptState = state; }
     void Set_PickingSystem(MEPickingSystem* sys) { _pickingSystem = sys; }
 

@@ -512,6 +512,18 @@ void SceneContext::SaveToFile(const string& filePath)
             Serialize_MaterialCB(overrideJson, entry.materialCB);
         }
 
+        if (entry.hasMaterialBindings && entry.materialBindingsJson.is_array())
+        {
+            overrideJson["HasMaterialBindings"] = true;
+            overrideJson["MapObjectKind"] = MapMaterialObjectKindName(entry.materialObjectKind);
+            overrideJson["BaseBundleKey"] = entry.baseBundleKey;
+            overrideJson["MaterialBindings"] = entry.materialBindingsJson;
+            if (entry.materialMetaJson.is_object() && !entry.materialMetaJson.empty())
+            {
+                overrideJson["MaterialMeta"] = entry.materialMetaJson;
+            }
+        }
+
         modelOverrides[filename] = overrideJson;
     }
 
@@ -643,6 +655,14 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
             {
                 entry.hasMaterialCB = true;
                 Deserialize_MaterialCB(data, entry.materialCB);
+            }
+            if (data.value("HasMaterialBindings", false) && data.contains("MaterialBindings"))
+            {
+                entry.hasMaterialBindings = true;
+                entry.materialObjectKind = MapMaterialObjectKindFromName(data.value("MapObjectKind", string{}));
+                entry.baseBundleKey = data.value("BaseBundleKey", string{});
+                entry.materialBindingsJson = data["MaterialBindings"];
+                entry.materialMetaJson = data.value("MaterialMeta", json::object());
             }
             _modelOverrides[filename] = entry;
         }
@@ -1505,15 +1525,10 @@ void SceneContext::Export_MapInstance(const string& filePath)
         string modelPath = String::ToString(modelPathW);
         string filename = fs::path(modelPath).filename().string();
 
-        if (_modelOverrides.find(filename) != _modelOverrides.end())
+        auto overrideIt = _modelOverrides.find(filename);
+        if (overrideIt != _modelOverrides.end() && overrideIt->second.HasAnyMaterialOverride())
         {
-            // ModelCom* 을 인자로 넘기지 않고, PanelModelOverride 내부에서 전역 캐시를 쓰도록 수정할 예정.
-            _modelOverrides[filename].ExportToNativeMaterial(modelPath, mapName);
-        }
-        else
-        {
-            ModelOverrideEntry defaultEntry;
-            defaultEntry.ExportToNativeMaterial(modelPath, mapName);
+            overrideIt->second.ExportToNativeMaterial(modelPath, mapName);
         }
     }
 }
@@ -1530,6 +1545,20 @@ void SceneContext::Import_MapInstance(const string& mapName)
     fs::path waterDir = root / "Water";
     fs::path postProcessVolumeDir = root / "PostProcessVolume";
 
+    auto MaterialFileToModelKey = [](const fs::path& materialPath) -> string
+    {
+        string filename = materialPath.filename().string();
+        const string suffix = ".material.json";
+        if (filename.size() > suffix.size() &&
+            String::ToLowerCopy(filename.substr(filename.size() - suffix.size())) == suffix)
+        {
+            filename.resize(filename.size() - suffix.size());
+            return filename + ".model";
+        }
+
+        return materialPath.stem().string() + ".model";
+    };
+
     fs::path matDir = fs::path(_materialsPath) / mapName;
     if (fs::exists(matDir))
     {
@@ -1541,6 +1570,27 @@ void SceneContext::Import_MapInstance(const string& mapName)
                 if (ifs.is_open())
                 {
                     json rootJson = json::parse(ifs);
+                    if (rootJson.contains("material_bindings") && rootJson["material_bindings"].is_array())
+                    {
+                        string modelKey = rootJson.value("editor_modelPath", "");
+                        if (!modelKey.empty())
+                        {
+                            modelKey = fs::path(modelKey).filename().string();
+                        }
+                        else
+                        {
+                            modelKey = MaterialFileToModelKey(entry.path());
+                        }
+
+                        if (!modelKey.empty())
+                        {
+                            ModelOverrideEntry overrideEntry;
+                            overrideEntry.LoadMaterialBindingsJson(rootJson);
+                            _modelOverrides[modelKey] = overrideEntry;
+                        }
+                        continue;
+                    }
+
                     if (rootJson.contains("instances") && rootJson["instances"].is_array() && rootJson["instances"].size() > 0)
                     {
                         const json& instJson = rootJson["instances"][0];
@@ -1553,60 +1603,11 @@ void SceneContext::Import_MapInstance(const string& mapName)
                         }
                         else 
                         {
-                            modelKey = entry.path().stem().string() + ".model"; 
+                            modelKey = MaterialFileToModelKey(entry.path()); 
                         }
 
                         ModelOverrideEntry overrideEntry;
-                        overrideEntry.hasMaterialCB = true;
-                        overrideEntry.passIndex = instJson.value("forcePassIndex", -1);
-                        overrideEntry.shaderType = static_cast<ShaderType>(instJson.value("editor_shaderType", static_cast<int>(ShaderType::VtxMesh)));
-                        
-                        if (instJson.contains("cb"))
-                        {
-                            const json& cb = instJson["cb"];
-                            auto readVec4 = [](const json& j, const string& key) -> Vec4 {
-                                if (j.contains(key)) return Vec4(j[key][0], j[key][1], j[key][2], j[key][3]);
-                                return Vec4();
-                            };
-                            auto readVec2 = [](const json& j, const string& key) -> Vec2 {
-                                if (j.contains(key)) return Vec2(j[key][0], j[key][1]);
-                                return Vec2();
-                            };
-
-                            overrideEntry.materialCB.baseColorTint = readVec4(cb, "baseColorTint");
-                            overrideEntry.materialCB.emissiveColor = readVec4(cb, "emissiveColor");
-                            overrideEntry.materialCB.emissiveIntensity = cb.value("emissiveIntensity", 0.f);
-                            overrideEntry.materialCB.emissiveMaskMul = cb.value("emissiveMaskMul", 1.f);
-                            overrideEntry.materialCB.normalStrength = cb.value("normalStrength", 1.f);
-                            overrideEntry.materialCB.opacityMaskClipValue = cb.value("opacityMaskClipValue", 0.3333f);
-                            overrideEntry.materialCB.aoScale = cb.value("aoScale", 1.f);
-                            overrideEntry.materialCB.roughnessScale = cb.value("roughnessScale", 1.f);
-                            overrideEntry.materialCB.metalnessScale = cb.value("metalnessScale", 1.f);
-                            overrideEntry.materialCB.uvScale = readVec2(cb, "uvScale");
-                            overrideEntry.materialCB.uvOffset = readVec2(cb, "uvOffset");
-                            overrideEntry.materialCB.uvRotation = cb.value("uvRotation", 0.f);
-                            overrideEntry.materialCB.materialMask = cb.value("materialMask", 0u);
-                            overrideEntry.materialCB.ormAoSource = cb.value("ormAoSource", 0u);
-                            overrideEntry.materialCB.ormRoughnessSource = cb.value("ormRoughnessSource", 1u);
-                            overrideEntry.materialCB.ormMetalnessSource = cb.value("ormMetalnessSource", 2u);
-                            overrideEntry.materialCB.opacityMaskSource = cb.value("opacityMaskSource", 0u);
-                        }
-
-                        if (instJson.contains("textures"))
-                        {
-                            const json& texObj = instJson["textures"];
-                            auto parseTex = [&](const string& name, Engine::MaterialTextureSlot slot) {
-                                if (texObj.contains(name) && texObj[name].is_string())
-                                {
-                                    overrideEntry.textureSlots[static_cast<int32>(slot)] = texObj[name].get<string>();
-                                }
-                            };
-                            parseTex("baseColor", Engine::MaterialTextureSlot::BaseColor);
-                            parseTex("normal", Engine::MaterialTextureSlot::Normal);
-                            parseTex("orm", Engine::MaterialTextureSlot::ORM);
-                            parseTex("emissive", Engine::MaterialTextureSlot::Emissive);
-                            parseTex("opacityMask", Engine::MaterialTextureSlot::OpacityMask);
-                        }
+                        overrideEntry.LoadLegacyMaterialJson(rootJson);
                         
                         _modelOverrides[modelKey] = overrideEntry;
                     }

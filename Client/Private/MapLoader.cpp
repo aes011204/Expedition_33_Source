@@ -21,6 +21,22 @@ uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
 
 namespace
 {
+    // 저장된 MapData ModelOverrides의 v2 material_bindings를 런타임 모델 json으로 복원한다.
+    void Append_MaterialBindingsFromSavedOverride(const json& entry, MapLoader::ModelOverrideEntry& overrideEntry)
+    {
+        if (!entry.value("HasMaterialBindings", false) ||
+            !entry.contains("MaterialBindings") ||
+            !entry["MaterialBindings"].is_array())
+        {
+            return;
+        }
+
+        overrideEntry.modelJson["material_bindings"] = entry["MaterialBindings"];
+
+        if (entry.contains("BaseBundleKey") && entry["BaseBundleKey"].is_string())
+            overrideEntry.modelJson["base_bundle_key"] = entry["BaseBundleKey"].get<string>();
+    }
+
     void Append_ModelOverrides(const json& mapData, MapLoader::LoadSession& outSession)
     {
         if (!mapData.contains("ModelOverrides") || !mapData["ModelOverrides"].is_object())
@@ -33,6 +49,8 @@ namespace
 
             MapLoader::ModelOverrideEntry overrideEntry;
             overrideEntry.passIndex = entry.value("PassIndex", -1);
+            Append_MaterialBindingsFromSavedOverride(entry, overrideEntry);
+
             if (entry.contains("TextureSlots") && entry["TextureSlots"].is_object())
             {
                 for (auto& [slotStr, texPath] : entry["TextureSlots"].items())
@@ -103,6 +121,60 @@ namespace
         return {};
     }
 
+    // v2 material json의 editor_modelPath를 우선 사용하고, 없으면 파일명에서 모델 키를 복원한다.
+    bool Try_ResolveModelKeyFromMaterialJson(const json& root, const fs::path& materialPath, string& outModelKey)
+    {
+        outModelKey.clear();
+
+        string modelKey = root.value("editor_modelPath", string{});
+        if (!modelKey.empty())
+            modelKey = fs::path(modelKey).filename().string();
+        else
+            modelKey = MaterialBundleStemToModelKey(materialPath);
+
+        if (modelKey.empty())
+            return false;
+
+        outModelKey = std::move(modelKey);
+        return true;
+    }
+
+    // Materials/<MapName>에 저장된 v2 material_bindings json을 ModelOverrideEntry로 적재한다.
+    bool Try_AppendModelOverrideFromV2MaterialJson(const json& root, const fs::path& materialPath, MapLoader::LoadSession& outSession)
+    {
+        if (!root.contains("material_bindings") || !root["material_bindings"].is_array())
+            return false;
+
+        string modelKey;
+        if (!Try_ResolveModelKeyFromMaterialJson(root, materialPath, modelKey))
+            return true;
+
+        MapLoader::ModelOverrideEntry overrideEntry;
+        overrideEntry.modelJson = root;
+        outSession.modelOverrides[modelKey] = std::move(overrideEntry);
+        return true;
+    }
+
+    // binding 단위 base_bundle_key가 비어 있으면 root 값 또는 현재 모델 폴더를 기본값으로 채운다.
+    void FillMissingBaseBundleKeyForBindings(json& modelJson, const string& fallbackBundleKey)
+    {
+        const string rootBaseBundleKey = modelJson.value("base_bundle_key", string{});
+        const string resolvedBundleKey = rootBaseBundleKey.empty() ? fallbackBundleKey : rootBaseBundleKey;
+
+        if (!modelJson.contains("material_bindings") || !modelJson["material_bindings"].is_array())
+            return;
+
+        for (json& binding : modelJson["material_bindings"])
+        {
+            if (!binding.is_object())
+                continue;
+
+            const string savedBundleKey = binding.value("base_bundle_key", string{});
+            if (savedBundleKey.empty())
+                binding["base_bundle_key"] = resolvedBundleKey;
+        }
+    }
+
     void Append_ModelOverridesFromMaterialDirectory(const fs::path& materialDir, MapLoader::LoadSession& outSession)
     {
         if (materialDir.empty() || !fs::exists(materialDir) || !fs::is_directory(materialDir))
@@ -120,6 +192,9 @@ namespace
             try
             {
                 json root = json::parse(ifs);
+                if (Try_AppendModelOverrideFromV2MaterialJson(root, entry.path(), outSession))
+                    continue;
+
                 if (!root.contains("instances") || !root["instances"].is_array() || root["instances"].empty())
                     continue;
 
@@ -1415,16 +1490,7 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
         overrideEntry->modelJson.contains("material_bindings"))
     {
         json modelJson = overrideEntry->modelJson;
-        if (modelJson["material_bindings"].is_array())
-        {
-            for (json& binding : modelJson["material_bindings"])
-            {
-                if (binding.is_object())
-                {
-                    binding["base_bundle_key"] = bundleKey;
-                }
-            }
-        }
+        FillMissingBaseBundleKeyForBindings(modelJson, bundleKey);
 
         model->From_Json(modelJson);
         LOG_DEBUG(

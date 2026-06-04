@@ -32,7 +32,7 @@ HRESULT MEManager::Initialize(Shared<PanelViewport> viewport, SceneContext* ctx,
     Add(PanelHierarchy::Create(ctx));
     Add(PanelInspector::Create(ctx, camera));
     Add(PanelAssetBrowser::Create(ctx));
-    Add(PanelModelOverride::Create(ctx));
+    Add(PanelModelOverride::Create(ctx, viewport));
     Add(PanelLandscape::Create(ctx, landscapeCtx));
 
     _snapSettings = make_shared<SnapSettings>();
