@@ -39,6 +39,11 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     //        ? String::ToString(battle->Get_TurnAction()._curChar.actor->Get_Name()).c_str()
     //        : "null");
 
+    if(_cameraMode == BattleCameraMode::WIDE)
+    {
+      int a = 10;
+    }
+
     auto character = dynamic_pointer_cast<Character>(owner->GetSharedPtr<PlayableParts>()->Get_Owner());
 
     if(character == nullptr)
