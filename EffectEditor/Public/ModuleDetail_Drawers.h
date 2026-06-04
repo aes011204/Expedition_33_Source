@@ -110,6 +110,16 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class VelocityConeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        VelocityConeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class AccelerationModuleDetail
 {
 public:
@@ -150,13 +160,33 @@ public:
         DetailPropertyContext& detailContext);
 };
 
-class PlaneRadialOrientationModuleDetail
+class OrbitOverLifeModuleDetail
 {
 public:
     bool Draw(
         AuthoringEmitter& emitter,
         AuthoringModule& module,
+        OrbitOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class PlaneRadialOrientationModuleDetail
+{
+public:
+    bool Draw(
+        const AuthoringEmitter& emitter,
+        AuthoringModule& module,
         PlaneRadialOrientationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class SphereRadialOrientationModuleDetail
+{
+public:
+    bool Draw(
+        const AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SphereRadialOrientationModuleData& data,
         DetailPropertyContext& detailContext);
 };
 

@@ -13,6 +13,7 @@
 #include "BattleStartSpawner.h"
 #include "ColliderCom.h"
 #include "ModelCom.h"
+#include "Mon_WeakPoint.h"
 #include "Monster_WorldBase.h"
 #include "PreviewObjectHelpers.h"
 #include "RenderTarget.h"
@@ -21,6 +22,7 @@
 #include "PartObject.h"
 #include "imgui_internal.h"
 #include "AnimState_View.h"
+#include "BattleTurnCameraPoseUtils.h"
 
 namespace
 {
@@ -37,6 +39,111 @@ void Sync_TransformSpaceFromGizmoMode(ImGuizmo::MODE gizmoMode)
         gizmoMode == ImGuizmo::WORLD
             ? MainEditor::Transform_Inspector::ETransformSpace::World
             : MainEditor::Transform_Inspector::ETransformSpace::Local);
+}
+
+void Resolve_BattlePreviewBasis(
+    const Shared<Client::Monster_WorldBase>& monster,
+    Vec3& outPreviewOrigin,
+    Vec3& outRight,
+    Vec3& outForward)
+{
+    outPreviewOrigin = monster && monster->Get_Transform()
+        ? monster->Get_Transform()->Get_WorldPosition()
+        : Vec3::Zero;
+    outRight = Vec3::Right;
+    outForward = Vec3::Forward;
+
+    if (monster == nullptr)
+        return;
+
+    const int32 battleStartSpawnerId = monster->Get_BattleStartSpawnerId();
+    if (battleStartSpawnerId <= 0)
+        return;
+
+    bool foundSpawner = false;
+    GAME->Visit_LevelObjects(
+        GAME->Current_LevelIndex(),
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            if (foundSpawner || layerTag != TEXT("Layer_BattleStartSpawner"))
+                return;
+
+            Shared<Client::BattleStartSpawner> spawner = dynamic_pointer_cast<Client::BattleStartSpawner>(gameObject);
+            if (spawner == nullptr || spawner->Get_SpawnerId() != battleStartSpawnerId)
+                return;
+
+            Shared<TransformCom> spawnerTransform = spawner->Get_Transform();
+            if (spawnerTransform == nullptr)
+                return;
+
+            outRight = spawnerTransform->Get_WorldRight();
+            outForward = spawnerTransform->Get_WorldForward();
+            foundSpawner = true;
+        });
+
+    outRight.y = 0.f;
+    if (outRight.LengthSquared() <= 0.0001f)
+        outRight = Vec3::Right;
+    else
+        outRight.Normalize();
+
+    outForward.y = 0.f;
+    if (outForward.LengthSquared() <= 0.0001f)
+        outForward = Vec3::Forward;
+    else
+        outForward.Normalize();
+}
+
+void Resolve_MaxWideOffsets(
+    const vector<Client::BattleMonsterSpawnDesc>& spawnDescs,
+    float& outBackOffset,
+    float& outHeightOffset,
+    float& outLookHeightOffset)
+{
+    auto selectDominantOffset = [](float current, float candidate)
+    {
+        return fabsf(candidate) > fabsf(current) ? candidate : current;
+    };
+
+    outBackOffset = 0.f;
+    outHeightOffset = 0.f;
+    outLookHeightOffset = 0.f;
+
+    for (const Client::BattleMonsterSpawnDesc& spawnDesc : spawnDescs)
+    {
+        outBackOffset = selectDominantOffset(outBackOffset, spawnDesc.wideBackOffset);
+        outHeightOffset = selectDominantOffset(outHeightOffset, spawnDesc.wideHeightOffset);
+        outLookHeightOffset = selectDominantOffset(outLookHeightOffset, spawnDesc.wideLookHeightOffset);
+    }
+}
+
+bool Try_EvaluateMonsterWidePreviewPose(
+    const Shared<Client::Monster_WorldBase>& monster,
+    const vector<Client::BattleMonsterSpawnDesc>& spawnDescs,
+    Client::BattleTurnCameraEvaluatedPose& outWidePose)
+{
+    if (monster == nullptr || spawnDescs.empty())
+        return false;
+
+    Vec3 previewOrigin = Vec3::Zero;
+    Vec3 right = Vec3::Right;
+    Vec3 forward = Vec3::Forward;
+    Resolve_BattlePreviewBasis(monster, previewOrigin, right, forward);
+
+    float wideBackOffset = 0.f;
+    float wideHeightOffset = 0.f;
+    float wideLookHeightOffset = 0.f;
+    Resolve_MaxWideOffsets(spawnDescs, wideBackOffset, wideHeightOffset, wideLookHeightOffset);
+
+    const float yawDegrees = XMConvertToDegrees(atan2f(forward.x, forward.z));
+    return Client::Evaluate_BattleTurnWidePose(
+        previewOrigin,
+        yawDegrees,
+        XMConvertToRadians(45.f),
+        wideBackOffset,
+        wideHeightOffset,
+        wideLookHeightOffset,
+        outWidePose);
 }
 }
 
@@ -1191,6 +1298,16 @@ bool Prefab_View::Draw_BattleStartSpawnerSelector(const Shared<GameObject>& sele
         ImGui::EndCombo();
     }
 
+    Vec3 startOffset = monster->Get_BattleStartOffset();
+    ImGui::Text("Enemy Offset");
+    ImGui::SameLine(LabelWidth);
+    ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+    if (ImGui::DragFloat3("##BattleStartOffset", &startOffset.x, 0.05f))
+    {
+        monster->Set_BattleStartOffset(startOffset); // MW 프리팹 저장값: 플레이어 기준 몬스터 시작 위치 보정
+        changed = true;
+    }
+
     ImGui::PopID();
     ImGui::Spacing();
 
@@ -1285,6 +1402,36 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
             changed = true;
         }
 
+        float wideBackOffset = spawnDescs[i].wideBackOffset;
+        ImGui::Text("Wide Back");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat("##BattleMonsterWideBackOffset", &wideBackOffset, 0.05f))
+        {
+            spawnDescs[i].wideBackOffset = wideBackOffset;
+            changed = true;
+        }
+
+        float wideHeightOffset = spawnDescs[i].wideHeightOffset;
+        ImGui::Text("Wide Height");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat("##BattleMonsterWideHeightOffset", &wideHeightOffset, 0.05f))
+        {
+            spawnDescs[i].wideHeightOffset = wideHeightOffset;
+            changed = true;
+        }
+
+        float wideLookHeightOffset = spawnDescs[i].wideLookHeightOffset;
+        ImGui::Text("Wide Look Height");
+        ImGui::SameLine(BattlePrefabLabelWidth);
+        ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::DragFloat("##BattleMonsterWideLookHeightOffset", &wideLookHeightOffset, 0.05f))
+        {
+            spawnDescs[i].wideLookHeightOffset = wideLookHeightOffset;
+            changed = true;
+        }
+
         ImGui::PopID();
     }
 
@@ -1309,6 +1456,24 @@ bool Prefab_View::Draw_MonsterBattlePrefabList(const Shared<GameObject>& selecte
         spawnDescs.clear();
         changed = true;
     }
+
+    ImGui::SameLine();
+    const bool canPreviewWideCamera = _previewCamera != nullptr && !spawnDescs.empty();
+    ImGui::BeginDisabled(!canPreviewWideCamera);
+    if (ImGui::Button("Preview WIDE Camera"))
+    {
+        Client::BattleTurnCameraEvaluatedPose widePose{};
+        if (Try_EvaluateMonsterWidePreviewPose(monster, spawnDescs, widePose))
+        {
+            Shared<TransformCom> cameraTransform = _previewCamera->Get_Transform();
+            if (cameraTransform != nullptr)
+            {
+                cameraTransform->Set_WorldPosition(widePose.cameraPos);
+                cameraTransform->LookAt(widePose.lookTarget);
+            }
+        }
+    }
+    ImGui::EndDisabled();
 
     ImGui::PopID();
     ImGui::Spacing();
@@ -1704,7 +1869,24 @@ void Prefab_View::Draw_PreviewColliders(const Shared<GameObject>& gameObject) co
     if (gameObject == nullptr)
         return;
 
-    Shared<TransformCom> transformCom = gameObject->Get_Transform();
+    Matrix colliderWorldMatrix = Matrix::Identity;
+    bool hasColliderWorldMatrix = false;
+
+    if (const Shared<Client::Mon_WeakPoint> weakPoint = dynamic_pointer_cast<Client::Mon_WeakPoint>(gameObject))
+    {
+        colliderWorldMatrix = weakPoint->Get_CollisionWorldMatrix();
+        hasColliderWorldMatrix = true;
+    }
+    else if (const Shared<PartObject> partObject = dynamic_pointer_cast<PartObject>(gameObject))
+    {
+        colliderWorldMatrix = partObject->Get_CombinedWorldMatrix();
+        hasColliderWorldMatrix = true;
+    }
+    else if (const Shared<TransformCom> transformCom = gameObject->Get_Transform())
+    {
+        colliderWorldMatrix = transformCom->Get_WorldMatrix();
+        hasColliderWorldMatrix = true;
+    }
 
     gameObject->Visit_Components([&](const wstring&, const Shared<Component>& component)
     {
@@ -1712,8 +1894,8 @@ void Prefab_View::Draw_PreviewColliders(const Shared<GameObject>& gameObject) co
         if (colliderCom == nullptr)
             return;
 
-        if (transformCom != nullptr)
-            colliderCom->Update_Collider(transformCom->Get_WorldMatrix());
+        if (hasColliderWorldMatrix)
+            colliderCom->Update_Collider(colliderWorldMatrix);
 
         colliderCom->Render_Debug();
     });
@@ -1910,7 +2092,7 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
     context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
     _previewGridEffect->Apply(context.Get());
 
-    const Vec3 previewOrigin = monster->Get_Transform()->Get_WorldPosition();
+    Vec3 previewOrigin = monster->Get_Transform()->Get_WorldPosition();
     Vec3 right = Vec3::Right;
     Vec3 forward = Vec3::Forward;
 
@@ -1940,6 +2122,7 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
                 if (spawnerTransform == nullptr)
                     return;
 
+                previewOrigin = spawnerTransform->Get_WorldPosition();
                 right = spawnerTransform->Get_WorldRight();
                 forward = spawnerTransform->Get_WorldForward();
                 foundSpawner = true;
@@ -1958,7 +2141,13 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
     else
         forward.Normalize();
 
-    const Vec3 enemyBasePos = previewOrigin + forward * 6.f;
+    const Vec3 battleStartOffset = monster->Get_BattleStartOffset();
+    const Vec3 enemyBasePos =
+        previewOrigin +
+        forward * 6.f +
+        right * battleStartOffset.x +
+        Vec3::Up * battleStartOffset.y +
+        forward * battleStartOffset.z;
 
     constexpr float markerHalfSize = 0.3f;
     constexpr float markerHeight = 0.2f;
@@ -1969,6 +2158,12 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
         XMVectorSet(1.f, 0.82f, 0.25f, 1.f),
         XMVectorSet(0.3f, 0.85f, 1.f, 1.f),
     };
+
+    Client::BattleTurnCameraEvaluatedPose widePose{};
+    const bool hasWidePose = Try_EvaluateMonsterWidePreviewPose(monster, spawnDescs, widePose);
+
+    constexpr float cameraMarkerHalfSize = 0.25f;
+    constexpr float lookTargetMarkerHalfSize = 0.18f;
 
     _previewGridBatch->Begin();
 
@@ -1991,6 +2186,29 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
         _previewGridBatch->DrawLine(
             DirectX::VertexPositionColor(markerPos, color),
             DirectX::VertexPositionColor(markerPos + Vec3(0.f, 0.9f, 0.f), color));
+    }
+
+    if (hasWidePose)
+    {
+        const XMVECTOR cameraColor = XMVectorSet(0.2f, 0.95f, 0.45f, 1.f);
+        const XMVECTOR lookColor = XMVectorSet(0.95f, 0.95f, 0.95f, 1.f);
+
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(widePose.cameraPos, cameraColor),
+            DirectX::VertexPositionColor(widePose.lookTarget, lookColor));
+
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(widePose.cameraPos + right * -cameraMarkerHalfSize, cameraColor),
+            DirectX::VertexPositionColor(widePose.cameraPos + right * cameraMarkerHalfSize, cameraColor));
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(widePose.cameraPos + Vec3::Up * -cameraMarkerHalfSize, cameraColor),
+            DirectX::VertexPositionColor(widePose.cameraPos + Vec3::Up * cameraMarkerHalfSize, cameraColor));
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(widePose.lookTarget + right * -lookTargetMarkerHalfSize, lookColor),
+            DirectX::VertexPositionColor(widePose.lookTarget + right * lookTargetMarkerHalfSize, lookColor));
+        _previewGridBatch->DrawLine(
+            DirectX::VertexPositionColor(widePose.lookTarget + Vec3::Up * -lookTargetMarkerHalfSize, lookColor),
+            DirectX::VertexPositionColor(widePose.lookTarget + Vec3::Up * lookTargetMarkerHalfSize, lookColor));
     }
 
     _previewGridBatch->End();

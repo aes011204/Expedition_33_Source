@@ -10,6 +10,8 @@ struct AnimPipelineContext
     float timeDelta{ 0.f };
     float adjustedTimeDelta{ 0.f };
     float previousTimeSec{ 0.f };
+    uint32 previousAnimIndex{ UINT32_MAX };      // notify 검사 시 애니 전환 프레임인지 구분한다.
+    uint32 previousAnimStateIndex{ UINT32_MAX }; // 상태 기반 애니 전환도 같이 보존한다.
     int32 rootIndex{ -1 };
 };
 

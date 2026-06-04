@@ -17,7 +17,10 @@ enum class BattleCameraMode
   SELECTITEM,
   SELECTSKILL,
   PARRY,
-  AIM
+  AIM,
+  SELECTPLAYER
+
+  // 순서 수정 금지
 };
 
 enum class BattleCameraTransitionEasing
@@ -88,7 +91,7 @@ struct BattleCameraPreset
     CommonCameraPreset camera;
     bool         snapOnEnter = false;
     BattleCameraTransitionEasing transitionEasing = BattleCameraTransitionEasing::EaseInOut;
-
+    float        transitionDuration = 0.35f;
     float        followSpeed;
     float        distance;
 

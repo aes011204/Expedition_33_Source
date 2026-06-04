@@ -26,9 +26,12 @@ private:
     void    Sync_RuntimeUISelection(const vector<Client::RuntimeUIEntry>& worldEntries, const vector<Client::RuntimeUIEntry>& battleEntries);
     bool    Pass_SearchFilter(const Shared<GameObject>& gameObject, uint32 objectIndex) const;
     bool    Pass_LightingSearchFilter() const;
+    bool    Pass_SkyBoxRootSearchFilter() const;
+    bool    Is_SkyBoxObject(const Shared<GameObject>& gameObject) const;
     uint32  Get_TotalObjectCount() const;
 
     void    Draw_LightingNode();
+    void    Draw_SkyBoxNode();
 
     // PartObject 하이어라이키 노출을 위한 함수
     void    Draw_NodeObject(const Shared<GameObject>& gameObject, uint32 objectIndex);
@@ -37,6 +40,7 @@ private:
 
 private:
     map<wstring, vector<Shared<GameObject>>> _groupedObjects = {};
+    vector<Shared<GameObject>> _skyBoxObjects = {};
     char    _searchBuffer[128] = {};
     string  _searchFilter = {};
     uint32  _cachedSelectionRevision = 0;

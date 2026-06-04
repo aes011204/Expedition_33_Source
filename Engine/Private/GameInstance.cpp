@@ -24,6 +24,7 @@
 #include "Renderer.h"
 #include "Renderer_Define.h"
 #include "ScreenFx_Manager.h"
+#include "ShaderCom_Controller.h"
 #include "Timer_Manager.h"
 #include "Target_Manager.h"
 #include "Shadow.h"
@@ -303,6 +304,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _screenFxManager = make_unique<ScreenFx_Manager>();
     CHECK_NULL(_screenFxManager, E_FAIL);
+
+    _shaderComController = ShaderCom_Controller::Create(device, context);
+    CHECK_NULL(_shaderComController, E_FAIL);
 
     _pipeLine = PipeLine::Create();
     CHECK_NULL(_pipeLine, E_FAIL);
@@ -1369,9 +1373,20 @@ HRESULT GameInstance::Reload_RendererShaders()
     return _renderer->Reload_RendererShaders();
 }
 
+HRESULT GameInstance::Reload_ShaderComs()
+{
+    CHECK_NULL(_shaderComController, E_FAIL);
+    return _shaderComController->Reload_VertexShaders();
+}
+
 ScreenFx_Manager* GameInstance::Get_ScreenFxManager() 
 {
     return _screenFxManager.get();
+}
+
+ShaderCom_Controller* GameInstance::Get_ShaderComController()
+{
+    return _shaderComController.get();
 }
 
 void GameInstance::Request_ScreenCapture(bool saveToFile)
@@ -2240,15 +2255,24 @@ void GameInstance::Add_Collider(Shared<ColliderCom> collider)
     CHECK_NULL(_collisionManager);
     CHECK_NULL(_physxManager);
 
-    _collisionManager->Add_Collider(collider);
-
     const Shared<GameObject> owner = collider->Get_Owner();
     CHECK_NULL(owner);
 
     const Shared<TransformCom> transform = owner->Get_Transform();
     CHECK_NULL(transform);
 
-    _physxManager->Register_OrSync_Collider(collider, transform->Get_WorldMatrix());
+    Add_Collider(collider, transform->Get_WorldMatrix());
+}
+
+void GameInstance::Add_Collider(Shared<ColliderCom> collider, const Matrix& worldMatrix)
+{
+    CHECK_NULL(collider);
+    CHECK_NULL(_collisionManager);
+    CHECK_NULL(_physxManager);
+
+    _collisionManager->Add_Collider(collider);
+
+    _physxManager->Register_OrSync_Collider(collider, worldMatrix);
 }
 
 void GameInstance::Clear_Colliders()
@@ -2624,6 +2648,7 @@ void GameInstance::Release_Engine()
     ReleaseManager(_targetManager);
     ReleaseManager(_shadow);
     ReleaseManager(_shaderResourceRegistry);
+    ReleaseManager(_shaderComController);
 
 #ifdef _DEBUG
     ReleaseManager(_printManager);
@@ -2723,6 +2748,31 @@ uint32 GameInstance::Get_ShadowCascadeCount() const
 {
     CHECK_NULL(_shadow, 0u);
     return _shadow->Get_CascadeCount();
+}
+
+HRESULT GameInstance::Set_ShadowCascadeLevel(CascadeLevel level)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Set_CascadeLevel(level);
+}
+
+CascadeLevel GameInstance::Get_ShadowCascadeLevel() const
+{
+    CHECK_NULL(_shadow, CascadeLevel::Normal);
+    return _shadow->Get_CascadeLevel();
+}
+
+HRESULT GameInstance::Set_ShadowCascadePresets(const ShadowCascadePresetSet& presets)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    _shadow->Set_CascadePresets(presets);
+    return S_OK;
+}
+
+const ShadowCascadePresetSet* GameInstance::Get_ShadowCascadePresets() const
+{
+    CHECK_NULL(_shadow, nullptr);
+    return _shadow->Get_CascadePresets();
 }
 
 void GameInstance::Free()

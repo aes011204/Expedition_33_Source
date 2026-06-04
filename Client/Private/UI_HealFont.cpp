@@ -13,51 +13,26 @@ HRESULT UI_HealFont::Initialize(uint32 levelIndex)
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
 
+    Set_FloatingMotion(0.85f, 28.f);
+    Set_StackStep(18.f, 22.f);
+
+    Set_WorldAnchorOffset(Vec3(0.f, 1.2f, 0.f));
+    Set_ScreenBaseOffset(Vec2(0.f, -10.f));
+
+    Set_WorldAnchorRandomYRange(-0.08f, 0.12f);
+
     Close();
     return S_OK;
 }
 
-void UI_HealFont::Update(float timeDelta)
-{
-    if (!Is_Open() || !_isPlaying || !_hasStartScreenPos)
-        return;
-
-    _elapsed += timeDelta;
-
-    const float safeLifeTime = max(_lifeTime, 0.0001f);
-    const float t = clamp(_elapsed / safeLifeTime, 0.f, 1.f);
-
-    Vec2 screenPos = _startScreenPos;
-    Apply_StackOffset(screenPos);
-    Apply_RiseOffset(screenPos, t);
-
-    if (_root && _root->Get_Transform())
-        _root->Get_Transform()->Set_Position(screenPos);
-
-    if (_elapsed >= _lifeTime)
-        Close();
-}
-
-void UI_HealFont::Play_HealFont(const Vec2& screenPos, float healAmount, uint32 stackIndex)
+void UI_HealFont::Play_HealFont(const BattleChar& target, float healAmount, uint32 stackIndex)
 {
     const int32 healValue = max(0, static_cast<int32>(healAmount));
 
-    _startScreenPos = screenPos;
-    Apply_EditorOffsets(_startScreenPos);
-    _hasStartScreenPos = true;
-    _stackIndex = stackIndex;
-    _elapsed = 0.f;
-    _isPlaying = true;
-
     Set_HealText(healValue);
 
-    Vec2 startPos = _startScreenPos;
-    Apply_StackOffset(startPos);
-
-    if (_root && _root->Get_Transform())
-        _root->Get_Transform()->Set_Position(startPos);
-
-    UI_RuntimePanelBase::Open();
+    if (!Begin_FloatingText(target, stackIndex))
+        return;
 
     if (_root)
         _root->Play_UIAnimation(L"HealFont", true);
@@ -66,16 +41,6 @@ void UI_HealFont::Play_HealFont(const Vec2& screenPos, float healAmount, uint32 
 void UI_HealFont::Open()
 {
     UI_RuntimePanelBase::Open();
-}
-
-void UI_HealFont::Close()
-{
-    _hasStartScreenPos = false;
-    _isPlaying = false;
-    _elapsed = 0.f;
-    _stackIndex = 0;
-
-    UI_RuntimePanelBase::Close();
 }
 
 HRESULT UI_HealFont::Load_UI(uint32 levelIndex)
@@ -120,21 +85,6 @@ void UI_HealFont::Set_HealText(int32 healValue)
     _plusTextBg->Set_Text(L"+");
 }
 
-void UI_HealFont::Apply_StackOffset(Vec2& screenPos) const
-{
-    const float horizontal = (_stackIndex % 2 == 0) ? -18.f : 18.f;
-    const float vertical = -22.f * static_cast<float>(_stackIndex);
-
-    screenPos.x += horizontal;
-    screenPos.y += vertical;
-}
-
-void UI_HealFont::Apply_RiseOffset(Vec2& screenPos, float t) const
-{
-    const float eased = 1.f - (1.f - t) * (1.f - t);
-    screenPos.y -= _riseDistance * eased;
-}
-
 Unique<UI_HealFont> UI_HealFont::Create(uint32 levelIndex)
 {
     auto instance = make_unique<UI_HealFont>();
@@ -150,5 +100,5 @@ Unique<UI_HealFont> UI_HealFont::Create(uint32 levelIndex)
 
 void UI_HealFont::Free()
 {
-    UI_RuntimePanelBase::Free();
+    UI_BattleFloatingTextBase::Free();
 }

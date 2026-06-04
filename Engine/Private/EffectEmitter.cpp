@@ -48,6 +48,7 @@ void EffectEmitter::Sync_FromEffectOwner()
         _transformCom->Set_Parent(ownerTransform);
         _transformCom->Set_Position(_localPosition);
         _transformCom->Set_RotationEuler(_localRotationDegrees);
+        _transformCom->Set_Scale(Vec3::One);
     }
     else
     {
@@ -90,4 +91,19 @@ bool EffectEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
 
     outWorldPosition = _transformCom->Get_WorldPosition();
     return true;
+}
+
+EffectSortPolicy EffectEmitter::Get_BlendSortPolicy() const
+{
+    return EffectSortPolicy::EmitterDepth;
+}
+
+int32 EffectEmitter::Get_BlendSortLayer() const
+{
+    return 0;
+}
+
+float EffectEmitter::Get_BlendSortBias() const
+{
+    return 0.f;
 }

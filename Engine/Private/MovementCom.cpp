@@ -12,8 +12,8 @@ namespace
 {
     constexpr float kJumpInputGraceSec = 0.10f;
     constexpr float kGroundJumpGraceSec = 0.08f;
-    constexpr float kCCTGroundDetachGraceSec = 0.10f;
-    constexpr float kCCTGroundDetachFallSpeed = -3.0f;
+    constexpr float kCCTGroundDetachGraceSec = 0.12f;
+    constexpr float kCCTGroundDetachFallSpeed = -3.5f;
     constexpr float kStillGroundJitterSpeedSq = 0.01f;
     constexpr float kStillGroundXZDeadZone = 0.02f;
     constexpr float kStillGroundYDeadZone = 0.06f;
@@ -461,8 +461,8 @@ void MovementCom::Apply_Velocity(float timeDelta)
 
         const bool hitWalkableDown = moveResult.collisionDown && _velocity.y <= 0.f;
         const bool canUseDetachGrace =
-            !_isJumping &&                         // 실제 점프 중에는 공중 상태를 가리면 안 된다.
-            _isGrounded &&                         // 직전까지 grounded였던 경우만 경사 보행 보호를 건다.
+            !_isJumping &&                          // 실제 점프 중에는 공중 상태를 가리면 안 된다.
+            _isGrounded &&                          // 직전까지 grounded였던 경우만 경사 보행 보호를 건다.
             _velocity.y > kCCTGroundDetachFallSpeed; // 충분히 빠르게 내려가면 진짜 낙하로 본다.
 
         if (hitWalkableDown)

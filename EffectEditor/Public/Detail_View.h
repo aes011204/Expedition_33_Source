@@ -71,10 +71,13 @@ private: //## Data::ModuleDetail
     InitialMeshSizeModuleDetail _initialMeshSizeModuleDetail{};
     InitialVelocityModuleDetail _initialVelocityModuleDetail{};
     InitialRadialVelocityModuleDetail _initialRadialVelocityModuleDetail{};
+    VelocityConeModuleDetail _velocityConeModuleDetail{};
     AccelerationModuleDetail _accelerationModuleDetail{};
     DragModuleDetail _dragModuleDetail{};
     VelocityOverLifeModuleDetail _velocityOverLifeModuleDetail{};
+    OrbitOverLifeModuleDetail _orbitOverLifeModuleDetail{};
     InitialRotationModuleDetail _initialRotationModuleDetail{};
+    SphereRadialOrientationModuleDetail _sphereRadialOrientationModuleDetail{};
     PlaneRadialOrientationModuleDetail _planeRadialOrientationModuleDetail{};
     RotationOverLifeModuleDetail _rotationOverLifeModuleDetail{};
     InitialRotationRateModuleDetail _initialRotationRateModuleDetail{};

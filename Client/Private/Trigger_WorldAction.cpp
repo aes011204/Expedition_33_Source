@@ -43,6 +43,7 @@ HRESULT Trigger_WorldAction::Initialize(void* arg)
     _elapsedSec = 0.f;
     _pendingDestroy = false;
 
+
     return S_OK;
 }
 

@@ -41,12 +41,12 @@ void UI_BattleAnnounce::Close()
     UI_RuntimePanelBase::Close();
 }
 
-void UI_BattleAnnounce::Show_TurnStart(const BattleChar& actor, BattleTurnState state)
+void UI_BattleAnnounce::Show_TurnStart(const BattleChar& actor, BattleTurnState state, const Skill_Data* skillData)
 {
     if (_announceText == nullptr)
         return;
 
-    const wstring announceText = Build_TurnStartText(actor, state);
+    const wstring announceText = Build_TurnStartText(actor, state, skillData);
     if (announceText.empty())
     {
         Close();
@@ -64,6 +64,74 @@ void UI_BattleAnnounce::Show_TurnStart(const BattleChar& actor, BattleTurnState 
 
     if (_root)
         _root->Play_UIAnimation(L"BattleSystem_Announce", true);
+}
+
+void UI_BattleAnnounce::Show_Counter(const vector<BattleChar>& counterActors)
+{
+    if (_announceText == nullptr)
+        return;
+
+    const wstring announceText = Build_CounterText(counterActors);
+    if (announceText.empty())
+        return;
+
+    Close();
+
+    _announceText->Set_Text(announceText);
+    Open();
+
+    _isShowing = true;
+    _elapsed = 0.f;
+
+    if (_root)
+        _root->Play_UIAnimation(L"BattleSystem_Announce", true);
+}
+
+wstring UI_BattleAnnounce::Build_TurnStartText(const BattleChar& actor, BattleTurnState state,
+    const Skill_Data* skillData)
+{
+    const wstring subjectName = Resolve_ActorSubjectName(actor);
+    if (subjectName.empty())
+        return L"";
+
+    if (skillData != nullptr && !skillData->battleAnnounceActionText.empty())
+        return subjectName + L" " + skillData->battleAnnounceActionText;
+
+    switch (state)
+    {
+    case BattleTurnState::ChooseAction:
+    case BattleTurnState::None:
+    default:
+        return subjectName + L" 공격합니다.";
+    }
+}
+
+wstring UI_BattleAnnounce::Build_CounterText(const vector<BattleChar>& counterActors)
+{
+    vector<wstring> subjectNames{};
+
+    for (const BattleChar& actor : counterActors)
+    {
+        if (actor.statCom == nullptr)
+            continue;
+
+        if (!actor.statCom->Is_Player())
+            continue;
+
+        const wstring subjectName = Resolve_ActorSubjectName(actor);
+        if (subjectName.empty())
+            continue;
+
+        subjectNames.push_back(subjectName);
+    }
+
+    if (subjectNames.empty())
+        return L"";
+
+    if (subjectNames.size() >= 2)
+        return L"원정대가 카운터를 수행합니다.";
+
+    return subjectNames.front() + L" 카운터를 수행합니다.";
 }
 
 HRESULT UI_BattleAnnounce::Load_UI(uint32 levelIndex)
@@ -97,23 +165,6 @@ wstring UI_BattleAnnounce::Resolve_ActorSubjectName(const BattleChar& actor)
         return L"";
 
     return actor.statCom->Get_BattleAnnounceSubjectName();
-}
-
-wstring UI_BattleAnnounce::Build_TurnStartText(const BattleChar& actor, BattleTurnState state)
-{
-    const wstring subjectName = Resolve_ActorSubjectName(actor);
-    if (subjectName.empty())
-    {
-        return L"";
-    }
-
-    switch (state)
-    {
-    case BattleTurnState::ChooseAction:
-    case BattleTurnState::None: // 몬스터가 None으로 들어오고있음
-    default:
-        return subjectName + L" 공격합니다.";
-    }
 }
 
 Unique<UI_BattleAnnounce> UI_BattleAnnounce::Create(uint32 levelIndex)

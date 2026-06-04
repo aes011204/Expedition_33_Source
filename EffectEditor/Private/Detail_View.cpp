@@ -678,6 +678,12 @@ void Detail_View::Render_ParticleSystemDetail(
     if (_detailPropertyContext.Begin_PropertyTable("ParticleSystem"))
     {
         changed |= _detailPropertyContext.Draw_BoolProperty("자동 비활성화", data.autoDeactivate, defaultData.autoDeactivate);
+        if (EDITOR != nullptr)
+        {
+            bool previewPlaneVisible = EDITOR->Is_PreviewPlaneVisible();
+            if (_detailPropertyContext.Draw_BoolProperty("Preview Plane", previewPlaneVisible, false))
+                EDITOR->Set_PreviewPlaneVisible(previewPlaneVisible);
+        }
         _detailPropertyContext.End_PropertyTable();
     }
     if (changed)
@@ -1065,6 +1071,11 @@ void Detail_View::Render_ModuleDetail(
             changed = _initialRadialVelocityModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::VelocityCone:
+        if (auto* data = get_if<VelocityConeModuleData>(&module.data))
+            changed = _velocityConeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::Acceleration:
         if (auto* data = get_if<AccelerationModuleData>(&module.data))
             changed = _accelerationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
@@ -1080,9 +1091,19 @@ void Detail_View::Render_ModuleDetail(
             changed = _velocityOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::OrbitOverLife:
+        if (auto* data = get_if<OrbitOverLifeModuleData>(&module.data))
+            changed = _orbitOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialRotation:
         if (auto* data = get_if<InitialRotationModuleData>(&module.data))
             changed = _initialRotationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::SphereRadialOrientation:
+        if (auto* data = get_if<SphereRadialOrientationModuleData>(&module.data))
+            changed = _sphereRadialOrientationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::PlaneRadialOrientation:

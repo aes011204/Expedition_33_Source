@@ -55,7 +55,8 @@ public: /* Delegate 선언 */
     // QTE UI 시작/결과
     DECLARE_DELEGATE(FOnQTEStarted, const BattleQTERequest&);
     DECLARE_DELEGATE(FOnQTEResolved, BattleQTEResult);
-
+    // 카운터 성공 알람
+    DECLARE_DELEGATE(FOnCounterAnnounceRequested, const vector<BattleChar>&);
 
 public:
     BattleController();
@@ -78,7 +79,7 @@ public:
 
     void Set_BattleFSM();
     void PlayerStartAnim();
-    void HitAction(BattleChar target, AttackType attackType);
+    void HitAction(BattleChar target, AttackType attackType, bool isCritical);
     void ExecuteAction(const BattleAction& turnAction); //실제로 선택한 행동을 실행하는 함수
     void ExecuteActionRequest(const ActionRequest& request);
 
@@ -95,7 +96,7 @@ public:
 
     void OnActionEndNotify();
 
-    void Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos);
+    void Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos, float yawDeg = 0.f);
 public:
     Shared<BattleStateMachine> Get_BattleFSM() { return _battleFSM; };
     BattleAction& Get_TurnAction() { return _turnAction; }
@@ -106,6 +107,7 @@ public:
     void    Request_WidePresentationMode();
 
     vector<BattleChar> Get_AliveEnemies();
+    vector<BattleChar> Get_AllEnemies() { return _enemies; };
     vector<BattleChar> Get_AliveHeroes();
 
     bool Is_BattleStarted() { return _isBattleActive; }
@@ -115,6 +117,7 @@ public:
     void Clear_CurrentScript() { _curScript.reset(); }
 
     const vector<BattleChar>& Get_BattleHeroes() const { return _heroes; }
+    const vector<BattleChar>& Get_BattleEnemies() const { return _enemies; }
 
 public:
     void End_FirstAnim();
@@ -140,6 +143,7 @@ public:
     BattleTurnState     Get_CurrentTurnState() const;
 
     Shared<BattleTurnCamera> Get_BattleTurnCamera() const { return _battleTurnCamera; }
+    Shared<BattleSpawnRegistry> Get_BattleSpawnRegistry() const { return _battleSpawnRegistry; }
 
     void                StartCounter(ModelCom* sourceModel);
     void                ApplyCounterDamage(ModelCom* sourceModel);
@@ -149,6 +153,8 @@ public:
     void                EndCounterTimeSection(ModelCom* sourceModel);
 
 public:
+    // 부활
+    void Revive_BattleMon(const BattleChar& battleChar, float hp);
     // Free Aim은 턴 소모 X
     void Begin_FreeAimShot(const BattleAction& shotAction);
     void Finish_FreeAimShot();
@@ -161,7 +167,7 @@ public:
     void Confirm_Victory();
 
     // 데미지 후 전투 진행 규칙을 한 곳에서 처리한다.
-    void Handle_DamageApplied(const BattleChar& damagedTarget, float damage, AttackType attackType);
+    void Handle_DamageApplied(const DamageAppliedInfo& info);
 
      // 현재 턴 액터가 죽으면 턴 종료를 예약한다.
     void Try_RequestEndTurnOnCurrentActorDeath(const BattleChar& damagedTarget, float damage);
@@ -172,10 +178,13 @@ public:
 
     uint32 Get_LastVictoryRewardExp() const { return _lastVictoryRewardExp; }
 
-    void Set_FreeAimHitTarget(const BattleChar& target);
+    void Set_FreeAimHitTarget(const BattleFreeAimHitTarget& target);
     void Clear_FreeAimHitTarget();
     bool Has_FreeAimHitTarget() const { return _hasFreeAimHitTarget; }
-    const BattleChar* Get_FreeAimHitTarget() const { return _hasFreeAimHitTarget ? &_freeAimHitTarget : nullptr; }
+    const BattleFreeAimHitTarget* Get_FreeAimHitTarget() const
+    {
+        return _hasFreeAimHitTarget ? &_freeAimHitTarget : nullptr;
+    }
 
      // 스킬 스크립트가 다단히트를 예약할 때 사용
     BattleHitSequenceRunner& Get_HitSequenceRunner() { return _hitSequenceRunner; }
@@ -199,6 +208,12 @@ public:
     bool Has_Buff(const BattleChar& target, Buffs buffId) const;
     Shared<BuffSystem> Get_BuffSystem() const { return _buffSystem; }
 
+    // 카운터 성공 알람
+    void Notify_CounterAnnounceRequested(const vector<BattleChar>& counterActors);
+
+    // HitStop (패링 직후, Free Aim 으로 약점공격 성공했을 떄 잠깐)
+    void Play_BattleHitStop(float worldTimeScale, float duration);
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
@@ -208,6 +223,9 @@ private:
 
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
+
+    // 몬스터 약점공격 보너스 데미지
+    bool    Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarget& hitTarget, const BattleChar& attacker);
 
 private:
     // World의 SkillTree 상태를 읽어서 battle에서 사용할 기본 스킬 3개 세팅
@@ -238,6 +256,7 @@ public: /* Delegate */
     FOnActionStarted                OnActionStarted;        // 공격, 스킬 시작
     FOnReactionSucceeded            OnReactionSucceeded;    // 회피, 패링 성공
     FOnBattleApChanged              OnBattleApChanged;
+    FOnCounterAnnounceRequested     OnCounterAnnounceRequested;
 
     FOnQTEStarted                   OnQTEStarted;
     FOnQTEResolved                  OnQTEResolved;
@@ -263,14 +282,13 @@ private:
     BattleChar  _targetPreview = {};
     bool        _hasTargetPreview = false;
 
-    BattleChar  _freeAimHitTarget{};
-    bool        _hasFreeAimHitTarget = false;
+    BattleFreeAimHitTarget _freeAimHitTarget{};
+    bool _hasFreeAimHitTarget = false;
 
 private:
     void Execute_BaseAttack();
     void Execute_Skill();
     void Execute_Item();
-    void Revive_BattleMon(const BattleChar& battleChar, float hp);
 
 private: /* 전투 AP */
     void Apply_BaseAttackAP(const BattleChar& actor); // Base Attack시 얻는 AP
@@ -344,6 +362,7 @@ private:
     vector<HeroId> _pendingBattleHeroIds = {};
     vector<BattleMonsterSpawnDesc> _pendingBattleMonsterSpawnDescs = {};
     int32   _pendingBattleStartSpawnerId = 0;
+    Vec3    _pendingBattleStartOffset = Vec3::Zero;
 
     bool _isFreeAimShotPlaying = false;
     BattleAction _freeAimShotAction {};

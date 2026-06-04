@@ -117,6 +117,88 @@ namespace Internal
         }
     }
 
+    static const char* Get_DistributionRandomSeedModeLabel(DistributionRandomSeedMode mode)
+    {
+        switch (mode)
+        {
+        case DistributionRandomSeedMode::Default:
+            return "기본값";
+        case DistributionRandomSeedMode::Manual:
+            return "수동";
+        default:
+            return "기본값";
+        }
+    }
+
+    static uint32 Generate_RandomSeedValue()
+    {
+        static uint32 state{ 0xA341316Cu };
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        return state != 0u ? state : 0x6D2B79F5u;
+    }
+
+    static bool Draw_RandomSeedProperty(
+        DetailPropertyContext& detailContext,
+        DistributionRandomSeedData& data)
+    {
+        bool changed = false;
+
+        if (!detailContext.Begin_PropertyTable("DistributionRandomSeed"))
+            return false;
+
+        ImGui::PushID("RandomSeedMode");
+        detailContext.Draw_PropertyLabel("시드 모드", "같은 시드는 같은 랜덤 분포를 재현합니다.");
+        DistributionRandomSeedMode nextMode = data.mode;
+        if (ImGui::BeginCombo("##Value", Get_DistributionRandomSeedModeLabel(nextMode)))
+        {
+            const DistributionRandomSeedMode candidates[] = {
+                DistributionRandomSeedMode::Default,
+                DistributionRandomSeedMode::Manual,
+            };
+
+            for (const DistributionRandomSeedMode candidate : candidates)
+            {
+                const bool selected = nextMode == candidate;
+                if (ImGui::Selectable(Get_DistributionRandomSeedModeLabel(candidate), selected))
+                    nextMode = candidate;
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        if (data.mode != nextMode)
+        {
+            data.mode = nextMode;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        ImGui::PushID("ManualSeed");
+        detailContext.Draw_PropertyLabel("시드");
+        const float randomizeButtonWidth = ImGui::CalcTextSize("무작위").x + ImGui::GetStyle().FramePadding.x * 2.f;
+        const float seedInputWidth = max(1.f, ImGui::GetContentRegionAvail().x - randomizeButtonWidth - ImGui::GetStyle().ItemSpacing.x);
+        ImGui::SetNextItemWidth(seedInputWidth);
+        const bool manualMode = data.mode == DistributionRandomSeedMode::Manual;
+        if (!manualMode)
+            ImGui::BeginDisabled();
+        changed |= ImGui::InputScalar("##Value", ImGuiDataType_U32, &data.manualSeed);
+        if (!manualMode)
+            ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button("무작위"))
+        {
+            data.manualSeed = Generate_RandomSeedValue();
+            data.mode = DistributionRandomSeedMode::Manual;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        detailContext.End_PropertyTable();
+        return changed;
+    }
+
     static const char* Get_SphereLocationSpawnModeLabel(SphereLocationSpawnMode mode)
     {
         switch (mode)
@@ -127,6 +209,19 @@ namespace Internal
             return "표면";
         default:
             return "부피";
+        }
+    }
+
+    static const char* Get_SphereLocationPlacementModeLabel(SphereLocationPlacementMode mode)
+    {
+        switch (mode)
+        {
+        case SphereLocationPlacementMode::Random:
+            return "랜덤 샘플";
+        case SphereLocationPlacementMode::EvenByParticleIndex:
+            return "인덱스 균등";
+        default:
+            return "랜덤 샘플";
         }
     }
 
@@ -199,7 +294,7 @@ namespace Internal
 
     static bool Is_PlaneRadialLocationAdvancedPlacementShape(PlaneRadialLocationShape shape)
     {
-        return shape == PlaneRadialLocationShape::Ring || shape == PlaneRadialLocationShape::Arc;
+        return shape != PlaneRadialLocationShape::Rectangle;
     }
 
     static const char* Get_PlaneRadialOrientationModeLabel(PlaneRadialOrientationMode mode)
@@ -220,6 +315,36 @@ namespace Internal
             return "평면 normal";
         default:
             return "없음";
+        }
+    }
+
+    static const char* Get_SphereRadialOrientationModeLabel(SphereRadialOrientationMode mode)
+    {
+        switch (mode)
+        {
+        case SphereRadialOrientationMode::None:
+            return "없음";
+        case SphereRadialOrientationMode::FaceRadialOut:
+            return "바깥쪽";
+        case SphereRadialOrientationMode::FaceRadialIn:
+            return "안쪽";
+        default:
+            return "없음";
+        }
+    }
+
+    static const char* Get_EffectOrbitPlaneLabel(EffectOrbitPlane plane)
+    {
+        switch (plane)
+        {
+        case EffectOrbitPlane::XY:
+            return "XY";
+        case EffectOrbitPlane::XZ:
+            return "XZ";
+        case EffectOrbitPlane::YZ:
+            return "YZ";
+        default:
+            return "XY";
         }
     }
 
@@ -466,6 +591,57 @@ namespace Internal
         return changed;
     }
 
+    static bool Draw_SphereLocationPlacementModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        SphereLocationPlacementMode& value,
+        SphereLocationPlacementMode defaultValue,
+        bool enabled)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (!enabled)
+            ImGui::BeginDisabled();
+
+        if (ImGui::BeginCombo("##Value", Get_SphereLocationPlacementModeLabel(value)))
+        {
+            const SphereLocationPlacementMode candidates[] = {
+                SphereLocationPlacementMode::Random,
+                SphereLocationPlacementMode::EvenByParticleIndex,
+            };
+
+            for (const SphereLocationPlacementMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_SphereLocationPlacementModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (!enabled)
+            ImGui::EndDisabled();
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
     static bool Draw_PlaneRadialLocationPlaneProperty(
         DetailPropertyContext& detailContext,
         const char* label,
@@ -561,13 +737,17 @@ namespace Internal
         DetailPropertyContext& detailContext,
         const char* label,
         PlaneRadialLocationPlacementMode& value,
-        PlaneRadialLocationPlacementMode defaultValue)
+        PlaneRadialLocationPlacementMode defaultValue,
+        bool enabled)
     {
         bool changed = false;
 
         ImGui::PushID(label);
         detailContext.Draw_PropertyLabel(label);
         ImGui::SetNextItemWidth(-FLT_MIN);
+        if (!enabled)
+            ImGui::BeginDisabled();
+
         if (ImGui::BeginCombo("##Value", Get_PlaneRadialLocationPlacementModeLabel(value)))
         {
             const PlaneRadialLocationPlacementMode candidates[] = {
@@ -590,6 +770,9 @@ namespace Internal
 
             ImGui::EndCombo();
         }
+
+        if (!enabled)
+            ImGui::EndDisabled();
 
         if (detailContext.Draw_ResetButton(value != defaultValue))
         {
@@ -627,6 +810,96 @@ namespace Internal
             {
                 const bool isSelected = value == candidate;
                 if (ImGui::Selectable(Get_PlaneRadialOrientationModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_SphereRadialOrientationModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        SphereRadialOrientationMode& value,
+        SphereRadialOrientationMode defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_SphereRadialOrientationModeLabel(value)))
+        {
+            const SphereRadialOrientationMode candidates[] = {
+                SphereRadialOrientationMode::None,
+                SphereRadialOrientationMode::FaceRadialOut,
+                SphereRadialOrientationMode::FaceRadialIn,
+            };
+
+            for (const SphereRadialOrientationMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_SphereRadialOrientationModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_EffectOrbitPlaneProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        EffectOrbitPlane& value,
+        EffectOrbitPlane defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_EffectOrbitPlaneLabel(value)))
+        {
+            const EffectOrbitPlane candidates[] = {
+                EffectOrbitPlane::XY,
+                EffectOrbitPlane::XZ,
+                EffectOrbitPlane::YZ,
+            };
+
+            for (const EffectOrbitPlane candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_EffectOrbitPlaneLabel(candidate), isSelected))
                 {
                     value = candidate;
                     changed = true;
@@ -728,6 +1001,32 @@ namespace Internal
         for (const AuthoringModule& module : emitter.modules)
         {
             if (module.type == AuthoringModuleType::PlaneRadialLocation)
+                return true;
+        }
+
+        return false;
+    }
+
+    static bool Has_SphereLocationModule(const AuthoringEmitter& emitter)
+    {
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type == AuthoringModuleType::SphereLocation)
+                return true;
+        }
+
+        return false;
+    }
+
+    static bool Has_EnabledPlaneRadialOrientationModule(const AuthoringEmitter& emitter)
+    {
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type != AuthoringModuleType::PlaneRadialOrientation || !module.enabled)
+                continue;
+
+            const auto* data = get_if<PlaneRadialOrientationModuleData>(&module.data);
+            if (data != nullptr && data->enabled && data->orientationMode != PlaneRadialOrientationMode::None)
                 return true;
         }
 
@@ -1143,7 +1442,7 @@ namespace Internal
               string(magic_enum::enum_name(data.material.additive.amountSource))
             : data.material.opacitySource;
         const string materialSummary = blendModeName + " / " + sourceSummary +
-                                       " / SubUV " + to_string(data.material.subUVRows) + "x" + to_string(data.material.subUVCols);
+                                       " / SubUV " + to_string(data.material.subUVCols) + " cols x " + to_string(data.material.subUVRows) + " rows";
         drawList->PushClipRect(
             ImVec2(slotMin.x + 57.f, slotMin.y),
             ImVec2(slotMax.x - 8.f, slotMax.y),
@@ -1172,13 +1471,13 @@ namespace Internal
             ImGui::SetTooltip(
                 "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\n"
                 "현재 sprite effect 경로에서는 Main Texture를 emissive color source로, Opacity Source를 별도 opacity 해석 기준으로 사용합니다.\n\n"
-                "Main Texture (Emissive)\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %ux%u",
+                "Main Texture (Emissive)\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %u cols x %u rows",
                 mainTooltip.c_str(),
                 noiseTooltip.c_str(),
                 blendModeName.c_str(),
                 sourceSummary.c_str(),
-                data.material.subUVRows,
-                data.material.subUVCols
+                data.material.subUVCols,
+                data.material.subUVRows
             );
         }
 
@@ -1309,6 +1608,160 @@ namespace Internal
 
         return changed;
     }
+
+    static const char* Get_BlendModeLabel(EffectMaterialBlendMode value)
+    {
+        switch (value)
+        {
+        case EffectMaterialBlendMode::AlphaBlend:
+            return "AlphaBlend";
+        case EffectMaterialBlendMode::Additive:
+            return "Additive";
+        case EffectMaterialBlendMode::Masked:
+            return "Masked";
+        case EffectMaterialBlendMode::Modulate:
+            return "Modulate";
+        default:
+            return "AlphaBlend";
+        }
+    }
+
+    static const char* Get_SortPolicyLabel(EmitterSortPolicy value)
+    {
+        switch (value)
+        {
+        case EmitterSortPolicy::EmitterDepth:
+            return "Emitter Depth";
+        case EmitterSortPolicy::None:
+        default:
+            return "None";
+        }
+    }
+
+    static bool Draw_BlendModeProperty(
+        DetailPropertyContext& detailContext,
+        const AuthoringEmitter& emitter,
+        EffectMaterialBlendMode& value,
+        EffectMaterialBlendMode defaultValue)
+    {
+        static constexpr EffectMaterialBlendMode kModes[]{
+            EffectMaterialBlendMode::AlphaBlend,
+            EffectMaterialBlendMode::Additive,
+            EffectMaterialBlendMode::Masked,
+        };
+
+        const bool trailEmitter = emitter.typeData.kind == AuthoringTypeDataKind::Trail;
+        bool changed = false;
+
+        ImGui::PushID("RequiredBlendMode");
+        detailContext.Draw_PropertyLabel("Blend Mode");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_BlendModeLabel(value)))
+        {
+            for (const EffectMaterialBlendMode mode : kModes)
+            {
+                const bool selectable = !(trailEmitter && mode == EffectMaterialBlendMode::Masked);
+                const bool selected = value == mode;
+
+                if (!selectable)
+                    ImGui::BeginDisabled();
+
+                if (ImGui::Selectable(Get_BlendModeLabel(mode), selected) && selectable)
+                {
+                    value = mode;
+                    changed = true;
+                }
+
+                if (!selectable)
+                    ImGui::EndDisabled();
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_SortPolicyProperty(
+        DetailPropertyContext& detailContext,
+        EmitterSortPolicy& value,
+        EmitterSortPolicy defaultValue)
+    {
+        static constexpr EmitterSortPolicy kPolicies[]{
+            EmitterSortPolicy::None,
+            EmitterSortPolicy::EmitterDepth,
+        };
+
+        bool changed = false;
+
+        ImGui::PushID("RequiredSortPolicy");
+        detailContext.Draw_PropertyLabel("Sort Policy");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_SortPolicyLabel(value)))
+        {
+            for (const EmitterSortPolicy policy : kPolicies)
+            {
+                const bool selected = value == policy;
+                if (ImGui::Selectable(Get_SortPolicyLabel(policy), selected))
+                {
+                    value = policy;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_IntProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        int32& value,
+        int32 defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        int inputValue = value;
+        if (ImGui::InputInt("##Value", &inputValue, 1, 10))
+        {
+            value = static_cast<int32>(inputValue);
+            changed = true;
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
 }
 
 bool RequiredModuleDetail::Draw(
@@ -1399,7 +1852,6 @@ bool RequiredModuleDetail::Draw(
             }
 
             changed |= detailContext.Draw_BoolProperty("로컬 스페이스 사용", data.useLocalSpace, defaultData.useLocalSpace);
-            changed |= detailContext.Draw_SortModeProperty("정렬 모드 (미구현)", data.sortMode, defaultData.sortMode);
             changed |= detailContext.Draw_FloatProperty("카메라 모션 블러 양 (미구현)", data.cameraMotionBlurAmount, defaultData.cameraMotionBlurAmount);
             changed |= detailContext.Draw_BoolProperty("초기화 시 기존 파티클 지우기 (미구현)", data.clearExistingParticlesOnInit, defaultData.clearExistingParticlesOnInit);
             detailContext.End_PropertyTable();
@@ -1414,6 +1866,36 @@ bool RequiredModuleDetail::Draw(
         }
 
         detailContext.Draw_ScreenAlignmentImplementationNote(data.screenAlignment);
+    }
+
+    if (ImGui::CollapsingHeader("렌더링 / 정렬", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("RequiredRenderingSort"))
+        {
+            changed |= Internal::Draw_BlendModeProperty(detailContext, emitter, data.material.blendMode, defaultData.material.blendMode);
+            changed |= Internal::Draw_SortPolicyProperty(detailContext, data.sortPolicy, defaultData.sortPolicy);
+            changed |= Internal::Draw_IntProperty(detailContext, "Sort Layer", data.sortLayer, defaultData.sortLayer);
+            detailContext.End_PropertyTable();
+        }
+
+        if (emitter.typeData.kind == AuthoringTypeDataKind::Trail)
+            ImGui::TextDisabled("Trail은 v1에서 Masked 선택을 막고 AlphaBlend/Additive 경로를 유지합니다.");
+
+        if (ImGui::TreeNodeEx("Advanced", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (detailContext.Begin_PropertyTable("RequiredRenderingSortAdvanced"))
+            {
+                changed |= detailContext.Draw_FloatProperty(
+                    "Sort Bias",
+                    data.sortBias,
+                    defaultData.sortBias,
+                    0.01f,
+                    "같은 Sort Layer와 같은 Sort Policy 안에서만 마지막 보정값으로 사용합니다."
+                );
+                detailContext.End_PropertyTable();
+            }
+            ImGui::TreePop();
+        }
     }
 
     if (ImGui::CollapsingHeader("이미터 재생 / 스폰 시간", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1575,8 +2057,18 @@ bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Spher
                 data.spawnMode,
                 defaultData.spawnMode
             );
+            const bool placementModeEnabled = data.spawnMode == SphereLocationSpawnMode::Surface;
+            changed |= Internal::Draw_SphereLocationPlacementModeProperty(
+                detailContext,
+                "표면 배치",
+                data.placementMode,
+                defaultData.placementMode,
+                placementModeEnabled
+            );
             detailContext.End_PropertyTable();
         }
+
+        changed |= Internal::Draw_RandomSeedProperty(detailContext, data.randomSeed);
     }
 
     data.radius = max(0.f, data.radius);
@@ -1628,26 +2120,37 @@ bool PlaneRadialLocationModuleDetail::Draw(
         else
         {
             changed |= detailContext.Draw_FloatDistributionGroup("반지름 분포", data.radiusDistribution, defaultData.radiusDistribution, 0.01f, true, false);
-            changed |= detailContext.Draw_FloatDistributionGroup("각도 분포", data.angleDegreesDistribution, defaultData.angleDegreesDistribution, 0.01f, true, false);
+            changed |= detailContext.Draw_FloatDistributionGroup(
+                "각도 분포",
+                data.angleDegreesDistribution,
+                defaultData.angleDegreesDistribution,
+                0.01f,
+                true,
+                false
+            );
         }
 
         ImGui::TextDisabled("위치 분포는 spawn 시점 1회 샘플이라 현재 상수/균등만 지원합니다.");
         if (data.shape == PlaneRadialLocationShape::Disc)
             ImGui::TextDisabled("원반 채움은 보통 반지름 최소값 0을 사용합니다.");
 
-        if (Internal::Is_PlaneRadialLocationAdvancedPlacementShape(data.shape) &&
-            ImGui::TreeNodeEx("고급", ImGuiTreeNodeFlags_SpanAvailWidth))
+        if (ImGui::TreeNodeEx("고급", ImGuiTreeNodeFlags_SpanAvailWidth))
         {
+            const bool placementModeEnabled = Internal::Is_PlaneRadialLocationAdvancedPlacementShape(data.shape);
             if (detailContext.Begin_PropertyTable("PlaneRadialLocationAdvanced"))
             {
                 changed |= Internal::Draw_PlaneRadialLocationPlacementModeProperty(
                     detailContext,
                     "배치 방식",
                     data.placementMode,
-                    defaultData.placementMode
+                    defaultData.placementMode,
+                    placementModeEnabled
                 );
                 detailContext.End_PropertyTable();
             }
+
+            if (!placementModeEnabled)
+                ImGui::TextDisabled("배치 방식은 Rectangle에서는 사용되지 않습니다.");
 
             ImGui::TreePop();
         }
@@ -1710,6 +2213,48 @@ bool InitialRadialVelocityModuleDetail::Draw(
     return changed;
 }
 
+bool VelocityConeModuleDetail::Draw(
+    AuthoringEmitter&,
+    AuthoringModule&,
+    VelocityConeModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const VelocityConeModuleData defaultData{};
+    bool changed = false;
+
+    const bool coneVelocityOpen = ImGui::CollapsingHeader("속도 원뿔", ImGuiTreeNodeFlags_DefaultOpen);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+    {
+        ImGui::SetTooltip(
+            "생성 위치와 무관하게 축 기준 원뿔 안에서 뽑은 방향으로 더하는 초기 속도입니다.\n"
+            "InitialVelocity, InitialRadialVelocity와 누적됩니다.\n"
+            "각도는 중심축 기준 half-angle입니다."
+        );
+    }
+
+    if (coneVelocityOpen)
+    {
+        if (detailContext.Begin_PropertyTable("VelocityCone"))
+        {
+            changed |= detailContext.Draw_Vec3Property("축", data.axis, defaultData.axis);
+            changed |= detailContext.Draw_FloatProperty("각도", data.angleDegrees, defaultData.angleDegrees, 0.1f);
+            changed |= detailContext.Draw_BoolProperty("월드 스페이스", data.inWorldSpace, defaultData.inWorldSpace);
+            detailContext.End_PropertyTable();
+        }
+
+        const float clampedAngle = clamp(data.angleDegrees, 0.f, 180.f);
+        if (data.angleDegrees != clampedAngle)
+        {
+            data.angleDegrees = clampedAngle;
+            changed = true;
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup("속도", data.speed, defaultData.speed);
+    }
+
+    return changed;
+}
+
 bool AccelerationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, AccelerationModuleData& data, DetailPropertyContext& detailContext)
 {
     const AccelerationModuleData defaultData{};
@@ -1738,14 +2283,7 @@ bool VelocityOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Vel
     bool changed = false;
 
     if (ImGui::CollapsingHeader("수명에 따른 속도", ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        if (detailContext.Begin_PropertyTable("VelocityOverLife"))
-        {
-            changed |= detailContext.Draw_FloatProperty("시작 배율", data.scaleStart, defaultData.scaleStart);
-            changed |= detailContext.Draw_FloatProperty("종료 배율", data.scaleEnd, defaultData.scaleEnd);
-            detailContext.End_PropertyTable();
-        }
-    }
+        changed |= detailContext.Draw_FloatDistributionGroup("속도 배율", data.scaleOverLife, defaultData.scaleOverLife);
 
     return changed;
 }
@@ -1761,8 +2299,31 @@ bool InitialRotationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     return changed;
 }
 
+bool OrbitOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, OrbitOverLifeModuleData& data, DetailPropertyContext& detailContext)
+{
+    const OrbitOverLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 공전", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("OrbitOverLife"))
+        {
+            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
+            Internal::Draw_ReadOnlyTextProperty(detailContext, "Pivot", "Emitter Origin", "v1 runtime은 EmitterOrigin만 소비합니다.");
+            changed |= Internal::Draw_EffectOrbitPlaneProperty(detailContext, "평면", data.plane, defaultData.plane);
+            Internal::Draw_ReadOnlyTextProperty(detailContext, "방향 추적", "Preserve", "v1 runtime은 orientation follow를 적용하지 않습니다.");
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup("공전 각도", data.angleDegreesOverLife, defaultData.angleDegreesOverLife);
+        changed |= detailContext.Draw_FloatDistributionGroup("반지름 배율", data.radiusScaleOverLife, defaultData.radiusScaleOverLife);
+    }
+
+    return changed;
+}
+
 bool PlaneRadialOrientationModuleDetail::Draw(
-    AuthoringEmitter& emitter,
+    const AuthoringEmitter& emitter,
     AuthoringModule&,
     PlaneRadialOrientationModuleData& data,
     DetailPropertyContext& detailContext)
@@ -1806,6 +2367,55 @@ bool PlaneRadialOrientationModuleDetail::Draw(
 
         if (!Internal::Has_PlaneRadialLocationModule(emitter))
             ImGui::TextDisabled("같은 emitter에 평면/방사 위치가 없으면 runtime radial frame을 만들 수 없습니다.");
+    }
+
+    return changed;
+}
+
+bool SphereRadialOrientationModuleDetail::Draw(
+    const AuthoringEmitter& emitter,
+    AuthoringModule&,
+    SphereRadialOrientationModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const SphereRadialOrientationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("구/방사 회전", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("SphereRadialOrientation"))
+        {
+            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
+            changed |= Internal::Draw_SphereRadialOrientationModeProperty(
+                detailContext,
+                "방향",
+                data.orientationMode,
+                defaultData.orientationMode
+            );
+            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                detailContext,
+                "메시 앞축",
+                data.meshForwardAxis,
+                defaultData.meshForwardAxis
+            );
+            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                detailContext,
+                "메시 위축",
+                data.meshUpAxis,
+                defaultData.meshUpAxis
+            );
+            changed |= detailContext.Draw_FloatProperty("기울기", data.tiltDegrees, defaultData.tiltDegrees, 0.1f);
+            changed |= detailContext.Draw_FloatProperty("Roll 오프셋", data.rollOffsetDegrees, defaultData.rollOffsetDegrees, 0.1f);
+
+            detailContext.End_PropertyTable();
+        }
+
+        if (!Internal::Has_SphereLocationModule(emitter))
+            ImGui::TextDisabled("같은 emitter에 구 위치가 없으면 runtime sphere radial frame을 만들 수 없습니다.");
+        if (data.enabled &&
+            data.orientationMode != SphereRadialOrientationMode::None &&
+            Internal::Has_EnabledPlaneRadialOrientationModule(emitter))
+            ImGui::TextDisabled("평면/방사 회전도 켜져 있으면 runtime은 구/방사 회전을 먼저 적용합니다.");
     }
 
     return changed;
@@ -1971,6 +2581,9 @@ bool SubUVFrameOverLifeModuleDetail::Draw(
             }
             detailContext.End_PropertyTable();
         }
+
+        if (data.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+            changed |= Internal::Draw_RandomSeedProperty(detailContext, data.randomSeed);
 
         const uint32 frameCount = Internal::Resolve_SubUvFrameCount(emitter);
         const uint32 lastFrame = frameCount > 0 ? frameCount - 1 : 0;

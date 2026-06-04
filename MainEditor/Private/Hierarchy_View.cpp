@@ -129,6 +129,19 @@ void Hierarchy_View::Draw_SearchBar()
     {
         filteredCount = 0;
 
+        const bool skyBoxRootMatches =
+            Match_SearchPattern("SkyBox", _searchFilter) ||
+            Match_SearchPattern("Sky", _searchFilter);
+
+        uint32 skyBoxObjectIndex = 0;
+        for (const auto& gameObject : _skyBoxObjects)
+        {
+            if (gameObject != nullptr && (skyBoxRootMatches || Pass_SearchFilter(gameObject, skyBoxObjectIndex)))
+                ++filteredCount;
+
+            ++skyBoxObjectIndex;
+        }
+
         for (const auto& [_, objects] : _groupedObjects)
         {
             uint32 objectIndex = 0;
@@ -150,6 +163,7 @@ void Hierarchy_View::Draw_SearchBar()
 void Hierarchy_View::Rebuild_Cache()
 {
     _groupedObjects.clear();
+    _skyBoxObjects.clear();
 
     auto appendLevelObjects =
         [this](uint32 levelIndex, const char* levelLabel)
@@ -160,6 +174,12 @@ void Hierarchy_View::Rebuild_Cache()
                 {
                     if (gameObject == nullptr)
                         return;
+
+                    if (Is_SkyBoxObject(gameObject))
+                    {
+                        _skyBoxObjects.push_back(gameObject);
+                        return;
+                    }
 
                     const wstring groupedLayerTag =
                         String::ToWString(format("[{}] {}", levelLabel, String::ToString(layerTag)));
@@ -225,9 +245,41 @@ bool Hierarchy_View::Pass_LightingSearchFilter() const
         Match_SearchPattern("Shadow", _searchFilter);
 }
 
+bool Hierarchy_View::Pass_SkyBoxRootSearchFilter() const
+{
+    if (_searchFilter.empty())
+        return true;
+
+    if (Match_SearchPattern("SkyBox", _searchFilter) ||
+        Match_SearchPattern("Sky", _searchFilter))
+        return true;
+
+    uint32 objectIndex = 0;
+    for (const auto& gameObject : _skyBoxObjects)
+    {
+        if (gameObject != nullptr && Pass_SearchFilter(gameObject, objectIndex))
+            return true;
+
+        ++objectIndex;
+    }
+
+    return false;
+}
+
+bool Hierarchy_View::Is_SkyBoxObject(const Shared<GameObject>& gameObject) const
+{
+    return gameObject != nullptr && gameObject->Get_ObjectType() == ObjectType::Sky;
+}
+
 uint32 Hierarchy_View::Get_TotalObjectCount() const
 {
     uint32 totalCount = 0;
+
+    for (const auto& gameObject : _skyBoxObjects)
+    {
+        if (gameObject != nullptr)
+            ++totalCount;
+    }
 
     for (const auto& [_, objects] : _groupedObjects)
     {
@@ -292,8 +344,10 @@ void Hierarchy_View::Render()
 
         Draw_SearchBar();
         Draw_LightingNode();
+        Draw_SkyBoxNode();
 
-        if (_groupedObjects.empty())
+        const bool hasHierarchyObjects = !_groupedObjects.empty() || !_skyBoxObjects.empty();
+        if (!hasHierarchyObjects)
         {
             ImGui::TextDisabled("현재 레벨에 오브젝트가 없음");
         }
@@ -621,6 +675,45 @@ void Hierarchy_View::Draw_LightingNode()
     ImGui::Separator();
 }
 
+void Hierarchy_View::Draw_SkyBoxNode()
+{
+    if (_skyBoxObjects.empty() || !Pass_SkyBoxRootSearchFilter())
+        return;
+
+    ImGuiTreeNodeFlags rootFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+    if (ImGui::TreeNodeEx("SkyBox", rootFlags))
+    {
+        const bool skyBoxRootMatches =
+            Match_SearchPattern("SkyBox", _searchFilter) ||
+            Match_SearchPattern("Sky", _searchFilter);
+
+        uint32 objectIndex = 0;
+        for (const auto& gameObject : _skyBoxObjects)
+        {
+            if (gameObject == nullptr)
+            {
+                ++objectIndex;
+                continue;
+            }
+
+            if (!_searchFilter.empty() &&
+                !skyBoxRootMatches &&
+                !Pass_SearchFilter(gameObject, objectIndex))
+            {
+                ++objectIndex;
+                continue;
+            }
+
+            Draw_NodeObject(gameObject, objectIndex);
+            ++objectIndex;
+        }
+
+        ImGui::TreePop();
+    }
+
+    ImGui::Separator();
+}
+
 Shared<Hierarchy_View> Hierarchy_View::Create()
 {
     return make_shared<Hierarchy_View>();
@@ -629,5 +722,6 @@ Shared<Hierarchy_View> Hierarchy_View::Create()
 void Hierarchy_View::Free()
 {
     _groupedObjects.clear();
+    _skyBoxObjects.clear();
     Editor_Window::Free();
 }

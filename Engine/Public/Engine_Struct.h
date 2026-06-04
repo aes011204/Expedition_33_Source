@@ -42,6 +42,29 @@ using LIGHT_DESC = struct tagLightDesc
     bool castShadow = false;    // 이 light를 그림자용 주광원으로 할 건지
 };
 
+enum class CascadeLevel : uint32
+{
+    Close = 0u,
+    Normal,
+    Far,
+    Count
+};
+
+struct ShadowCascadePreset
+{
+    float focusNear = 0.1f;
+    float focusFar = 110.f;
+    float cascadeSplitLambda = 0.8f;
+    float cascadeBlendDistance = 4.f;
+};
+
+struct ShadowCascadePresetSet
+{
+    ShadowCascadePreset close{};
+    ShadowCascadePreset normal{};
+    ShadowCascadePreset farRange{};
+};
+
 using ShadowLightDesc = struct tagShadowLightDesc
 {
     static constexpr uint32 SHADOW_CASCADE_COUNT = 4;

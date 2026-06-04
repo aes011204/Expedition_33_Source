@@ -4,6 +4,7 @@
 #include "Mon_Lancelier_Weapon.h"
 #include "GameInstance.h"
 #include "MonsterStatCom.h"
+#include "Mon_WeakPoint.h"
 
 IMPLEMENT_REFLECTION(MB_Bishop)
 {
@@ -46,7 +47,6 @@ HRESULT MB_Bishop::Initialize(void* arg)
     _combatStat->Set_Skill("Eveque_GroundAoE");
     _combatStat->Set_Skill("Eveque_EnragedCombo");
     _combatStat->Set_Skill("Eveque_Spawn_Mini");
-
 
     return S_OK;
 }
@@ -100,6 +100,16 @@ HRESULT MB_Bishop::Ready_PartObjects()
 
     _weaponL->Set_Visible(false);
 
+    Mon_WeakPoint::WEAK_DESC weakDesc{};
+    weakDesc.parentMatrix = &_body->Get_CombinedWorldMatrix();
+    weakDesc.allowMissingModel = true;
+    weakDesc.socketName = "Aim_Target";
+    weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Aim_Target");
+
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL);
+
+    _weak = dynamic_pointer_cast<Mon_WeakPoint>(_partObjects[TEXT("Part_Weak")]);
+    CHECK_NULL(_weak, E_FAIL);
 
     return S_OK;
 }

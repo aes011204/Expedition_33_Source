@@ -219,6 +219,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\ComputeShaderCom.h" />
     <ClInclude Include="..\Public\ComputeStructuredBuffer.h" />
     <ClInclude Include="..\Public\Culling_Manager.h" />
+    <ClInclude Include="..\Public\ShaderCom_Controller.h" />
     <ClInclude Include="..\Public\Debug_Manager.h" />
     <ClInclude Include="..\Public\Debug_Profile.h" />
     <ClInclude Include="..\Public\Debug_Types.h" />
@@ -298,6 +299,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\VIBufferCom_PointParticle.h" />
     <ClInclude Include="..\Public\VIBuffer_Landscape.h" />
     <ClInclude Include="..\Public\VIBuffer_MeshInstance.h" />
+    <ClInclude Include="..\Public\VIBuffer_Plane.h" />
     <ClInclude Include="..\Public\VIBuffer_TerrainUE.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="..\public\Animation.h" />
@@ -428,6 +430,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp" />
     <ClCompile Include="..\Private\VIBuffer_Landscape.cpp" />
     <ClCompile Include="..\Private\VIBuffer_MeshInstance.cpp" />
+    <ClCompile Include="..\Private\VIBuffer_Plane.cpp" />
     <ClCompile Include="..\Private\VIBuffer_TerrainUE.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
@@ -461,6 +464,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\private\Prototype_Manager.cpp" />
     <ClCompile Include="..\Private\Renderer.cpp" />
     <ClCompile Include="..\private\ShaderCom.cpp" />
+    <ClCompile Include="..\Private\ShaderCom_Controller.cpp" />
     <ClCompile Include="..\Private\ShaderResourceRegistry.cpp" />
     <ClCompile Include="..\private\Texture.cpp" />
     <ClCompile Include="..\Private\Timer.cpp" />

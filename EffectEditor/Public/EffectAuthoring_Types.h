@@ -17,10 +17,13 @@ enum class AuthoringModuleType : uint8
     InitialMeshSize,
     InitialVelocity,
     InitialRadialVelocity,
+    VelocityCone,
     Acceleration,
     Drag,
     VelocityOverLife,
+    OrbitOverLife,
     InitialRotation,
+    SphereRadialOrientation,
     PlaneRadialOrientation,
     RotationOverLife,
     InitialRotationRate,
@@ -88,6 +91,12 @@ enum class EmitterSortMode : uint8
     AgeNewestFirst,
 };
 
+enum class EmitterSortPolicy : uint8
+{
+    None,
+    EmitterDepth,
+};
+
 enum class DistributionValueKind : uint8
 {
     Float,
@@ -112,6 +121,19 @@ constexpr bool Is_DistributionModeEditable(DistributionMode mode)
            mode == DistributionMode::Uniform ||
            mode == DistributionMode::ConstantCurve;
 }
+
+enum class DistributionRandomSeedMode : uint8
+{
+    Default,
+    Manual,
+};
+
+// 분포/random consumer 모듈이 같은 범위 안에서 재현 가능한 다른 draw를 만들기 위한 seed 설정이다.
+struct DistributionRandomSeedData
+{
+    DistributionRandomSeedMode mode{ DistributionRandomSeedMode::Default };
+    uint32 manualSeed{ 0 };
+};
 
 // 분포 플로트에서의 보간 모드 설정이다.
 enum class FloatCurveInterpolationMode : uint8
@@ -221,6 +243,7 @@ struct UniformFloatDistributionData
 {
     float minValue{ 0.f };
     float maxValue{ 0.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct FloatDistributionData
@@ -245,7 +268,7 @@ struct FloatDistributionData
     {
         FloatDistributionData data{};
         data.mode = DistributionMode::Uniform;
-        data.payload = UniformFloatDistributionData{ minValue, maxValue };
+        data.payload = UniformFloatDistributionData{ .minValue = minValue, .maxValue = maxValue };
         return data;
     }
 
@@ -285,6 +308,7 @@ struct UniformVector2DistributionData
 {
     Vec2 minValue{ 0.f, 0.f };
     Vec2 maxValue{ 0.f, 0.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct Vector2DistributionData
@@ -309,7 +333,7 @@ struct Vector2DistributionData
     {
         Vector2DistributionData data{};
         data.mode = DistributionMode::Uniform;
-        data.payload = UniformVector2DistributionData{ minValue, maxValue };
+        data.payload = UniformVector2DistributionData{ .minValue = minValue, .maxValue = maxValue };
         return data;
     }
 
@@ -349,6 +373,7 @@ struct UniformVector3DistributionData
 {
     Vec3 minValue{ 0.f, 0.f, 0.f };
     Vec3 maxValue{ 0.f, 0.f, 0.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct Vector3DistributionData
@@ -373,7 +398,7 @@ struct Vector3DistributionData
     {
         Vector3DistributionData data{};
         data.mode = DistributionMode::Uniform;
-        data.payload = UniformVector3DistributionData{ minValue, maxValue };
+        data.payload = UniformVector3DistributionData{ .minValue = minValue, .maxValue = maxValue };
         return data;
     }
 
@@ -413,6 +438,7 @@ struct UniformColorDistributionData
 {
     Color minValue{ 1.f, 1.f, 1.f, 1.f };
     Color maxValue{ 1.f, 1.f, 1.f, 1.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct ColorDistributionData
@@ -437,7 +463,7 @@ struct ColorDistributionData
     {
         ColorDistributionData data{};
         data.mode = DistributionMode::Uniform;
-        data.payload = UniformColorDistributionData{ minValue, maxValue };
+        data.payload = UniformColorDistributionData{ .minValue = minValue, .maxValue = maxValue };
         return data;
     }
 
@@ -545,7 +571,10 @@ struct RequiredModuleData
     float minCameraBlendDistance{ 0.f };
     float maxCameraBlendDistance{ 0.f };
     bool useLocalSpace{ true };
+    EmitterSortPolicy sortPolicy{ EmitterSortPolicy::None };
+    int32 sortLayer{ 0 };
     EmitterSortMode sortMode{ EmitterSortMode::None };
+    float sortBias{ 0.f };
     float cameraMotionBlurAmount{ 0.f };
     bool clearExistingParticlesOnInit{ false };
     // Cascade: Emitter Loops. 0 means infinite looping.
@@ -588,9 +617,7 @@ struct LifetimeModuleData
 
 struct InitialLocationModuleData
 {
-    Vector3DistributionData location{
-        Vector3DistributionData::Make_Uniform(Vec3{ -0.5f, -0.5f, -0.5f }, Vec3{ 0.5f, 0.5f, 0.5f })
-    };
+    Vector3DistributionData location{ Vector3DistributionData::Make_Constant(Vec3{ 0.f, 0.f, 0.f }) };
 };
 
 enum class SphereLocationSpawnMode : uint8
@@ -599,11 +626,19 @@ enum class SphereLocationSpawnMode : uint8
     Surface,
 };
 
+enum class SphereLocationPlacementMode : uint8
+{
+    Random,
+    EvenByParticleIndex,
+};
+
 struct SphereLocationModuleData
 {
     Vec3 offset{ 0.f, 0.f, 0.f };
     float radius{ 1.f };
     SphereLocationSpawnMode spawnMode{ SphereLocationSpawnMode::Volume };
+    SphereLocationPlacementMode placementMode{ SphereLocationPlacementMode::Random };
+    DistributionRandomSeedData randomSeed{};
 };
 
 enum class PlaneRadialLocationPlane : uint8
@@ -679,9 +714,26 @@ struct PlaneRadialOrientationModuleData
     float rollOffsetDegrees{ 0.f };
 };
 
+enum class SphereRadialOrientationMode : uint8
+{
+    None,
+    FaceRadialOut,
+    FaceRadialIn,
+};
+
+struct SphereRadialOrientationModuleData
+{
+    bool enabled{ true };
+    SphereRadialOrientationMode orientationMode{ SphereRadialOrientationMode::None };
+    PlaneRadialOrientationAxis meshForwardAxis{ PlaneRadialOrientationAxis::PositiveZ };
+    PlaneRadialOrientationAxis meshUpAxis{ PlaneRadialOrientationAxis::PositiveY };
+    float tiltDegrees{ 0.f };
+    float rollOffsetDegrees{ 0.f };
+};
+
 struct InitialSizeModuleData
 {
-    Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.1f, 0.1f }) };
+    Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.3f, 0.3f }) };
 };
 
 struct InitialMeshSizeModuleData
@@ -697,8 +749,16 @@ struct InitialVelocityModuleData
 
 struct InitialRadialVelocityModuleData
 {
-    FloatDistributionData speed{ FloatDistributionData::Make_Uniform(0.5f, 1.5f) };
+    FloatDistributionData speed{ FloatDistributionData::Make_Uniform(1.f, 2.f) };
     Vec3 radialPivot{ 0.f, 0.f, 0.f };
+    bool inWorldSpace{ false };
+};
+
+struct VelocityConeModuleData
+{
+    Vec3 axis{ 0.f, 1.f, 0.f };
+    float angleDegrees{ 30.f };
+    FloatDistributionData speed{ FloatDistributionData::Make_Uniform(1.f, 2.f) };
     bool inWorldSpace{ false };
 };
 
@@ -714,8 +774,38 @@ struct DragModuleData
 
 struct VelocityOverLifeModuleData
 {
-    float scaleStart{ 1.f };
-    float scaleEnd{ 1.f };
+    FloatDistributionData scaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f, 1.f) };
+};
+
+enum class EffectOrbitPivotMode : uint8
+{
+    EmitterOrigin,
+    SpawnOrigin,
+};
+
+enum class EffectOrbitPlane : uint8
+{
+    XY,
+    XZ,
+    YZ,
+};
+
+enum class EffectOrbitOrientationMode : uint8
+{
+    Preserve,
+    InheritOrbitAngle,
+    FaceRadialOut,
+    FaceTangent,
+};
+
+struct OrbitOverLifeModuleData
+{
+    bool enabled{ true };
+    EffectOrbitPivotMode pivotMode{ EffectOrbitPivotMode::EmitterOrigin };
+    EffectOrbitPlane plane{ EffectOrbitPlane::XY };
+    FloatDistributionData angleDegreesOverLife{ FloatDistributionData::Make_ConstantCurve(0.f, 0.f) };
+    FloatDistributionData radiusScaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f, 1.f) };
+    EffectOrbitOrientationMode orientationMode{ EffectOrbitOrientationMode::Preserve };
 };
 
 struct InitialRotationModuleData
@@ -780,6 +870,7 @@ struct SubUVFrameOverLifeModuleData
     bool loop{ false };
     SubUVFramePlaybackMode playbackMode{ SubUVFramePlaybackMode::FixedFrame };
     float framesPerSecond{ 12.f };
+    DistributionRandomSeedData randomSeed{};
 };
 
 struct SizeByLifeModuleData
@@ -870,10 +961,13 @@ using AuthoringModuleData = std::variant<
     InitialMeshSizeModuleData,
     InitialVelocityModuleData,
     InitialRadialVelocityModuleData,
+    VelocityConeModuleData,
     AccelerationModuleData,
     DragModuleData,
     VelocityOverLifeModuleData,
+    OrbitOverLifeModuleData,
     InitialRotationModuleData,
+    SphereRadialOrientationModuleData,
     PlaneRadialOrientationModuleData,
     RotationOverLifeModuleData,
     InitialRotationRateModuleData,

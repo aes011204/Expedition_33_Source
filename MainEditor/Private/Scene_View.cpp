@@ -1039,7 +1039,6 @@ void Scene_View::Tick_DragPreview(float timeDelta)
 
     transform->Set_WorldPosition(worldPos);
 
-    // Scene drag preview should stay visually frozen; only refresh transform/render state.
     _dragPreviewObject->Priority_Update(0.f);
     _dragPreviewObject->Update(0.f);
     _dragPreviewObject->Late_Update(0.f);

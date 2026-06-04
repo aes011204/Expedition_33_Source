@@ -126,6 +126,7 @@ public:
     json    To_Json() const override;
     void    From_Json(const json& data) override;
     HRESULT Reload_ModelFromGuid(const string& guid, ModelType modelType);
+    HRESULT Reload_ModelFromPath(const fs::path& path, ModelType modelType);
     HRESULT Render(uint32 meshIndex);
     HRESULT RenderInstanced(uint32 meshIndex, Buffer* instanceVB, uint32 instanceStride, uint32 instanceCount);
     HRESULT RenderInstancedIndirect(uint32 meshIndex, Buffer* instanceVB, uint32 instanceStride, Buffer* indirectArgsBuffer);

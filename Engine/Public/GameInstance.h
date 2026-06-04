@@ -55,6 +55,7 @@ class ThreadPool;
 class PostProcessPipeline;
 class LightingPipeline;
 class ScreenFx_Manager;
+class ShaderCom_Controller;
 class ShaderResourceRegistry;
 struct StaticCollisionData;
 class ScreenFx_Instance;
@@ -231,7 +232,9 @@ public: /* For.Renderer */
     const Shared<LightingPipeline>      Get_LightingPipeline() const;
     Shared<LightingPipeline>            Get_LightingPipeline();
     HRESULT                             Reload_RendererShaders();
+    HRESULT                             Reload_ShaderComs();
     ScreenFx_Manager*                   Get_ScreenFxManager();
+    ShaderCom_Controller*               Get_ShaderComController();
     void                                Request_ScreenCapture(bool saveToFile = false);
     RenderGroup                         Get_CurrentRenderGroup() const;
     void                                Set_FogZones(const FogZoneCB& fogZoneCB);
@@ -433,6 +436,10 @@ public: /* For.Shadow */
     void                    Set_ActiveStaticShadow();
     void                    Set_ShadowEnabled(bool enabled);
     uint32                  Get_ShadowCascadeCount() const;
+    HRESULT                 Set_ShadowCascadeLevel(CascadeLevel level);
+    CascadeLevel            Get_ShadowCascadeLevel() const;
+    HRESULT                 Set_ShadowCascadePresets(const ShadowCascadePresetSet& presets);
+    const ShadowCascadePresetSet* Get_ShadowCascadePresets() const;
 
     HRESULT Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc* Get_ShadowLightDesc() const;
@@ -455,6 +462,7 @@ public: /* For.Shadow */
 
 public: /* For.Collision_Manager */
     void Add_Collider(Shared<ColliderCom> collider);
+    void Add_Collider(Shared<ColliderCom> collider, const Matrix& worldMatrix);
     void Clear_Colliders();
 
 public: // For. PhysX_Manager
@@ -583,6 +591,7 @@ private:
     Unique<Object_Manager> _objectManager{};
     Unique<Renderer> _renderer{};
     Unique<ScreenFx_Manager> _screenFxManager{};
+    Unique<ShaderCom_Controller> _shaderComController{};
     Unique<PipeLine> _pipeLine{};
     Unique<Input_Manager> _inputManager{};
     Unique<Light_Manager> _lightManager{};

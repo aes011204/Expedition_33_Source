@@ -46,6 +46,10 @@ private:
     bool CanOpen_EffectDocument() const;
     // Open 메뉴/단축키/툴바가 공유하는 현재 effect document 열기 진입점이다.
     bool Open_EffectDocument();
+    // Add 툴바의 활성화 가능 여부를 한 곳에서 판단한다.
+    bool CanAdd_EffectEmitters() const;
+    // Add 툴바가 공유하는 외부 effect emitter 추가 진입점이다.
+    bool Add_EffectEmitters();
 
     void Toggle_Window(const wstring& windowName);
     void Toggle_WindowPair(const wstring& firstWindowName, const wstring& secondWindowName);

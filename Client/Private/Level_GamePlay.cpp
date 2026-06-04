@@ -4,6 +4,7 @@
 #include "Client_Constants.h"
 #include "PlayableParts.h"
 #include "Player_WorldBase.h"
+#include "SkyBoxFlow.h"
 #include "Spawn_Prefab.h"
 #include "TargetCamera.h"
 
@@ -85,7 +86,7 @@ HRESULT Level_GamePlay::Ready_Lights()
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = Vec4(1.f, -1.f, -1.f, 0.f);
+    LightDesc.direction = Vec4(-0.8f, -0.6f, -1.f, 0.f);
     LightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
     LightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
     LightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
@@ -116,6 +117,27 @@ HRESULT Level_GamePlay::Ready_Lights()
         ShadowDesc.intensity = 0.45f;
 
         if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
+            return E_FAIL;
+
+        ShadowCascadePresetSet cascadePresets{};
+        cascadePresets.close.focusNear = 0.1f;
+        cascadePresets.close.focusFar = 28.f;
+        cascadePresets.close.cascadeSplitLambda = 0.95f;
+        cascadePresets.close.cascadeBlendDistance = 2.5f;
+
+        cascadePresets.normal.focusNear = 0.1f;
+        cascadePresets.normal.focusFar = 110.f;
+        cascadePresets.normal.cascadeSplitLambda = 0.8f;
+        cascadePresets.normal.cascadeBlendDistance = 4.f;
+
+        cascadePresets.farRange.focusNear = 0.1f;
+        cascadePresets.farRange.focusFar = 180.f;
+        cascadePresets.farRange.cascadeSplitLambda = 0.55f;
+        cascadePresets.farRange.cascadeBlendDistance = 6.f;
+
+        if (FAILED(GAME->Set_ShadowCascadePresets(cascadePresets)))
+            return E_FAIL;
+        if (FAILED(GAME->Set_ShadowCascadeLevel(CascadeLevel::Normal)))
             return E_FAIL;
     }
 
@@ -182,10 +204,27 @@ HRESULT Level_GamePlay::Ready_Layer_Camera(const wstring& strLayerTag)
 
 HRESULT Level_GamePlay::Ready_Layer_BackGround(const wstring& strLayerTag)
 {
-    if (FAILED(
-        GAME->Add_GameObject(ETOI(LevelType::GamePlay), TEXT("GameObject_Sky_GamePlay"),
-            ETOI(LevelType::GamePlay), strLayerTag)))
-        return E_FAIL;
+    SkyBoxFlow::SKYBOXFLOW_DESC skyBoxDesc{};
+    skyBoxDesc.modelTag = TEXT("Model_SM_Skybox_Mesh");
+    skyBoxDesc.shaderTag = TEXT("Shader_SkyBoxFlow");
+    skyBoxDesc.skyTextureTag = TEXT("Texture_SkyBox_CleasTower");
+    skyBoxDesc.flowTextureTag = TEXT("Texture_SkyBox_Flow03");
+
+    skyBoxDesc.tint = Vec4(1.604023f, 0.887117f, 0.631814f, 1.f);
+    skyBoxDesc.brightness = 500.f;
+    skyBoxDesc.contrast = 1.524392f;
+    skyBoxDesc.noiseStrength = 0.25f;   
+    skyBoxDesc.speed = 0.001f;
+    skyBoxDesc.scale = 1.f;
+
+    CHECK_FAILED(
+        GAME->Add_GameObject(
+            ETOI(LevelType::GamePlay),
+            TEXT("GameObject_SkyBoxFlow_GamePlay"),
+            ETOI(LevelType::GamePlay),
+            strLayerTag,
+            &skyBoxDesc),
+        E_FAIL);
 
     return S_OK;
 }

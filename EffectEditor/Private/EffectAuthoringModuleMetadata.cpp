@@ -64,6 +64,11 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         L"초기 방사성 속도",
         L"생성 위치 기준 방사성 속도"
     };
+    static const AuthoringModuleMetadata velocityCone{
+        "VelocityCone",
+        L"속도 원뿔",
+        L"축 기준 원뿔 초기 속도"
+    };
     static const AuthoringModuleMetadata acceleration{
         "Acceleration",
         L"가속",
@@ -79,6 +84,11 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         L"수명에 따른 속도",
         L"수명 진행률 기준 속도 배율"
     };
+    static const AuthoringModuleMetadata orbitOverLife{
+        "OrbitOverLife",
+        L"수명에 따른 공전",
+        L"emitter pivot 기준 위치 회전"
+    };
     static const AuthoringModuleMetadata initialRotation{
         "Initial Rotation",
         L"초기 회전",
@@ -88,6 +98,11 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         "PlaneRadialOrientation",
         L"평면/방사 회전",
         L"평면/방사 위치 frame 기반 회전 의도"
+    };
+    static const AuthoringModuleMetadata sphereRadialOrientation{
+        "SphereRadialOrientation",
+        L"구/방사 회전",
+        L"구 위치 sample frame 기반 메시 회전 의도"
     };
     static const AuthoringModuleMetadata rotationOverLife{
         "Rotation Over Life",
@@ -206,14 +221,20 @@ const AuthoringModuleMetadata& Get_AuthoringModuleMetadata(AuthoringModuleType t
         return initialVelocity;
     case AuthoringModuleType::InitialRadialVelocity:
         return initialRadialVelocity;
+    case AuthoringModuleType::VelocityCone:
+        return velocityCone;
     case AuthoringModuleType::Acceleration:
         return acceleration;
     case AuthoringModuleType::Drag:
         return drag;
     case AuthoringModuleType::VelocityOverLife:
         return velocityOverLife;
+    case AuthoringModuleType::OrbitOverLife:
+        return orbitOverLife;
     case AuthoringModuleType::InitialRotation:
         return initialRotation;
+    case AuthoringModuleType::SphereRadialOrientation:
+        return sphereRadialOrientation;
     case AuthoringModuleType::PlaneRadialOrientation:
         return planeRadialOrientation;
     case AuthoringModuleType::RotationOverLife:

@@ -30,11 +30,14 @@ public:
     void Save() override;          // Save As dialog를 열어 emitter/module authoring json을 저장한다.
     bool CanOpen() const;          // 현재 effect authoring document가 Open 대상으로 교체 가능함을 알린다.
     void Open();                   // Open dialog로 .effect.json을 열어 authoring 상태를 복원한다.
+    bool CanAdd() const;           // 다른 effect authoring document의 emitter들을 현재 문서에 추가할 수 있는지 알린다.
+    void Add();                    // Add dialog로 .effect.json의 emitter stack만 현재 문서 끝에 추가한다.
 
 public: //## Accessor::Authoring
     ParticleSystemAuthoringData& Get_ParticleSystemData() { return _particleSystemData; }
     const ParticleSystemAuthoringData& Get_ParticleSystemData() const { return _particleSystemData; }
     const vector<AuthoringEmitter>& Get_Emitters() const { return _emitters; }
+    const optional<fs::path>& Get_CurrentDocumentPath() const { return _currentDocumentPath; }
     AuthoringEmitter* Find_Emitter(uint32 emitterId);
     AuthoringModule* Find_Module(uint32 emitterId, uint32 moduleId);
     AuthoringEmitter* Get_SelectedOrFirstEmitter();
@@ -118,6 +121,8 @@ private: //## Data::Authoring
     ParticleSystemAuthoringData _particleSystemData{};
     // 현재 편집 중인 effect의 emitter 목록이다.
     vector<AuthoringEmitter> _emitters{};
+    // 현재 authoring 문서가 기존 effect 파일과 연결되어 있으면 그 경로를 보관한다.
+    optional<fs::path> _currentDocumentPath{};
     // 저장용 id가 아니라 editor 세션 안에서 emitter/module을 구분하기 위한 임시 id 발급값이다.
     uint32 _nextAuthoringId{ 1 };
 
@@ -160,10 +165,13 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_InitialMeshSizeModule();
     AuthoringModule Make_InitialVelocityModule();
     AuthoringModule Make_InitialRadialVelocityModule();
+    AuthoringModule Make_VelocityConeModule();
     AuthoringModule Make_AccelerationModule();
     AuthoringModule Make_DragModule();
     AuthoringModule Make_VelocityOverLifeModule();
+    AuthoringModule Make_OrbitOverLifeModule();
     AuthoringModule Make_InitialRotationModule();
+    AuthoringModule Make_SphereRadialOrientationModule();
     AuthoringModule Make_PlaneRadialOrientationModule();
     AuthoringModule Make_RotationOverLifeModule();
     AuthoringModule Make_InitialRotationRateModule();
@@ -201,6 +209,7 @@ private: //## Helper::Selection
 private: //## Helper::EmitterAction
     void Delete_Emitter(size_t emitterIndex);
     void Duplicate_Emitter(size_t emitterIndex);
+    void Append_ImportedEmitters(const vector<AuthoringEmitter>& sourceEmitters);
     void Insert_NewEmitter(size_t insertIndex);
     void Process_PendingEmitterAction();
     void Queue_EmitterAction(PendingEmitterAction action, size_t emitterIndex);

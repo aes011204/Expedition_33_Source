@@ -118,6 +118,17 @@ namespace
 
         return wrappedLines;
     }
+
+    Vec4 Get_SpriteFontRenderColor(const UI_Text& text, const Vec4& color)
+    {
+        const float alphaMultiplier = text.Get_EffectiveAlphaMultiplier();
+        Vec4 renderColor = color;
+        renderColor.x = min(max(renderColor.x, 0.f), 1.f) * alphaMultiplier;
+        renderColor.y = min(max(renderColor.y, 0.f), 1.f) * alphaMultiplier;
+        renderColor.z = min(max(renderColor.z, 0.f), 1.f) * alphaMultiplier;
+        renderColor.w = min(max(renderColor.w, 0.f), 1.f) * alphaMultiplier;
+        return renderColor;
+    }
 }
 
 UI_Text::UI_Text()
@@ -188,7 +199,7 @@ HRESULT UI_Text::Render()
     {
         const vector<wstring> lines = Wrap_TextLines(_fontTag, _text, max(1.f, boxWidth), localTextScale);
         const float lineHeight = max(1.f, GAME->Measure_Font(_fontTag, L"Mg").y * localTextScale);
-        const Vec4 renderColor = Get_EffectiveRenderColor(_color);
+        const Vec4 renderColor = Get_SpriteFontRenderColor(*this, _color);
 
         for (size_t lineIndex = 0; lineIndex < lines.size(); ++lineIndex)
         {
@@ -232,7 +243,7 @@ HRESULT UI_Text::Render()
     const Vec2 pivot(
         (localPivotPosition.x - alignedTopLeft.x) / localTextScale,
         (localPivotPosition.y - alignedTopLeft.y) / localTextScale);
-    const Vec4 renderColor = Get_EffectiveRenderColor(_color);
+    const Vec4 renderColor = Get_SpriteFontRenderColor(*this, _color);
 
     GAME->Draw_Font(
         _fontTag,

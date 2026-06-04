@@ -23,7 +23,11 @@ public:
     HRESULT Initialize(void* arg) override;
     void Update(float timeDelta) override;
 
+public:
+    Shared<Mon_WeakPoint> Get_BattleWeakPoint() const override { return _weak; }
+
 protected:
+    bool Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const override;
     HRESULT Ready_PartObjects();
 
 private:

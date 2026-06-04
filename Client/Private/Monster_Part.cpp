@@ -250,6 +250,12 @@ const Matrix* Monster_Part::Get_SocketBoneMatrixPtr(uint32 boneIndex) const
     return _model ? _model->Get_BoneMatrixPtr(boneIndex) : nullptr;
 }
 
+
+bool Monster_Part::Is_AnimationFinished() const
+{
+    return _model->Is_AnimationFinished();
+}
+
 HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
 {
     if (desc.modelType == ModelType::Anim)
@@ -290,7 +296,7 @@ HRESULT Monster_Part::Ready_Components(const MONSTER_PART_DESC& desc)
     }
 
 
-    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _effectCom), E_FAIL);
+    CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Effect"), _partEffectCom), E_FAIL);
 
 
     return S_OK;

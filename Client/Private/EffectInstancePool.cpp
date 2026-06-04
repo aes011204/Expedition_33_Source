@@ -282,6 +282,10 @@ HRESULT EffectInstancePool::Spawn_NewInstance(
     EffectInstanceDesc instanceDesc{};
     instanceDesc.definition = definition;
     instanceDesc.position = desc.worldPosition;
+    instanceDesc.scale = desc.scale;
+    instanceDesc.pitch = desc.worldRotation.x;
+    instanceDesc.yaw = desc.worldRotation.y;
+    instanceDesc.roll = desc.worldRotation.z;
 
     Shared<GameObject> spawnedObject{};
     CHECK_FAILED(

@@ -11,6 +11,80 @@
 
 using namespace UI_Utils;
 
+namespace
+{
+    constexpr wchar_t kBattleSystemIntroAnimationName[] = L"BattleSystem_Intro";
+
+    constexpr wchar_t kBattlePortraitActivationGustaveAnimationName[] = L"BattlePortrait_Activation_Gustave";
+    constexpr wchar_t kBattlePortraitActivationLuneAnimationName[] = L"BattlePortrait_Activation_Lune";
+    constexpr wchar_t kBattlePortraitActivationMaelleAnimationName[] = L"BattlePortrait_Activation_Maelle";
+
+    constexpr wchar_t kBattlePortraitDamagedGustaveAnimationName[] = L"BattlePortrait_Damaged_Gustave";
+    constexpr wchar_t kBattlePortraitDamagedLuneAnimationName[] = L"BattlePortrait_Damaged_Lune";
+    constexpr wchar_t kBattlePortraitDamagedMaelleAnimationName[] = L"BattlePortrait_Damaged_Maelle";
+
+    constexpr wchar_t kBattlePortraitDeactivationGustaveAnimationName[] = L"BattlePortrait_Deactivation_Gustave";
+    constexpr wchar_t kBattlePortraitDeactivationLuneAnimationName[] = L"BattlePortrait_Deactivation_Lune";
+    constexpr wchar_t kBattlePortraitDeactivationMaelleAnimationName[] = L"BattlePortrait_Deactivation_Maelle";
+
+    const wchar_t* Resolve_PortraitActivationAnimationName(HeroId heroId)
+    {
+        switch (heroId)
+        {
+        case HeroId::Gustave:
+            return kBattlePortraitActivationGustaveAnimationName;
+
+        case HeroId::Lune:
+            return kBattlePortraitActivationLuneAnimationName;
+
+        case HeroId::Maelle:
+            return kBattlePortraitActivationMaelleAnimationName;
+
+        case HeroId::END:
+        default:
+            return nullptr;
+        }
+    }
+
+    const wchar_t* Resolve_PortraitDamagedAnimationName(HeroId heroId)
+    {
+        switch (heroId)
+        {
+        case HeroId::Gustave:
+            return kBattlePortraitDamagedGustaveAnimationName;
+
+        case HeroId::Lune:
+            return kBattlePortraitDamagedLuneAnimationName;
+
+        case HeroId::Maelle:
+            return kBattlePortraitDamagedMaelleAnimationName;
+
+        case HeroId::END:
+        default:
+            return nullptr;
+        }
+    }
+
+    const wchar_t* Resolve_PortraitDeactivationAnimationName(HeroId heroId)
+    {
+        switch (heroId)
+        {
+        case HeroId::Gustave:
+            return kBattlePortraitDeactivationGustaveAnimationName;
+
+        case HeroId::Lune:
+            return kBattlePortraitDeactivationLuneAnimationName;
+
+        case HeroId::Maelle:
+            return kBattlePortraitDeactivationMaelleAnimationName;
+
+        case HeroId::END:
+        default:
+            return nullptr;
+        }
+    }
+}
+
 HRESULT UI_BattleSystemHUD::Initialize(uint32 levelIndex)
 {
     _levelIndex = levelIndex;
@@ -40,6 +114,7 @@ void UI_BattleSystemHUD::Close()
 {
     UI_RuntimePanelBase::Close();
 
+	Stop_TargetAnimations();
     Close_AllLuneStains();            // 다시 열릴 때 데이터 기본 visible 값이 남지 않게 즉시 정리한다.
     Close_AllMaelleStanceBadges();
 }
@@ -120,11 +195,58 @@ void UI_BattleSystemHUD::Clear_MaelleMechanismStance()
     Apply_MaelleStanceBadge(BattleMechanismCom::MaelleStance::Stanceless);
 }
 
+void UI_BattleSystemHUD::Play_PortraitActivation(HeroId heroId)
+{
+	const wchar_t* animationName = Resolve_PortraitActivationAnimationName(heroId);
+    if (animationName == nullptr)
+        return;
+
+    Play_TargetAnimation(animationName); 
+}
+
+void UI_BattleSystemHUD::Play_PortraitDamaged(HeroId heroId)
+{
+	const wchar_t* animationName = Resolve_PortraitDamagedAnimationName(heroId);
+    if (animationName == nullptr)
+        return;
+
+    Play_TargetAnimation(animationName);
+}
+
+void UI_BattleSystemHUD::Play_PortraitDeactivation(HeroId heroId)
+{
+	const wchar_t* animationName = Resolve_PortraitDeactivationAnimationName(heroId);
+    if (animationName == nullptr)
+        return;
+
+    Play_TargetAnimation(animationName);
+}
+
+void UI_BattleSystemHUD::Play_BattleSystemIntro()
+{
+    Play_TargetAnimation(kBattleSystemIntroAnimationName);
+}
+
 HRESULT UI_BattleSystemHUD::Load_UI(uint32 levelIndex)
 {
     UI_RuntimeLoader::UI_LoadDesc desc{};
     desc.levelIndex = levelIndex;
     desc.jsonPath = Constants::UI::UI_BattleSystem_Path;
+
+    desc.animationPaths.push_back(Constants::UI_Anim::UI_BattleSystemIntroAnim_Path);
+
+    desc.animationPaths.push_back(Constants::UI_Anim::UI_BattlePortraitActivationGustaveAnim_Path);
+    desc.animationPaths.push_back(Constants::UI_Anim::UI_BattlePortraitActivationLuneAnim_Path);
+    desc.animationPaths.push_back(Constants::UI_Anim::UI_BattlePortraitActivationMaelleAnim_Path);
+
+    desc.animationPaths.push_back(Constants::UI_Anim::UI_BattlePortraitDamagedGustaveAnim_Path);
+    desc.animationPaths.push_back(Constants::UI_Anim::UI_BattlePortraitDamagedLuneAnim_Path);
+    desc.animationPaths.push_back(Constants::UI_Anim::UI_BattlePortraitDamagedMaelleAnim_Path);
+
+    desc.animationPaths.push_back(Constants::UI_Anim::UI_BattlePortraitDeactivationGustaveAnim_Path);
+    desc.animationPaths.push_back(Constants::UI_Anim::UI_BattlePortraitDeactivationLuneAnim_Path);
+    desc.animationPaths.push_back(Constants::UI_Anim::UI_BattlePortraitDeactivationMaelleAnim_Path);
+
     desc.prototypeTagPrefix = L"BattleSystemHUD";
     desc.outUIByName = &_uiByName;
 
@@ -190,17 +312,18 @@ HRESULT UI_BattleSystemHUD::Bind_UI()
         L"Fourth",
     };
 
-    static constexpr const wchar_t* kLuneElementSuffixes[4] =
+    static constexpr const wchar_t* kLuneElementSuffixes[5] =
     {
         L"Fire",
         L"Ice",
         L"Lightning",
+        L"Earth",
         L"Light",
     };
 
     for (uint32 slotIndex = 0; slotIndex < BattleMechanismCom::kLuneMaxStains; ++slotIndex)
     {
-        for (uint32 elementIndex = 0; elementIndex < 4; ++elementIndex)
+        for (uint32 elementIndex = 0; elementIndex < 5; ++elementIndex)
         {
             const wstring imageName =
                 L"Image_" +
@@ -277,14 +400,21 @@ void UI_BattleSystemHUD::Apply_ApGauge(PartyBattleStatSlot& slot, uint32 curAp, 
 
         if (curAp == 0 || clampedMaxAp == 0)
         {
-            slot.apStates[i]->Close();
+            if (slot.apStates[i]->Is_Open())
+                slot.apStates[i]->Close();
             continue;
         }
 
         if (i < curAp && i < clampedMaxAp)
-            slot.apStates[i]->Open();
+        {
+            if (!slot.apStates[i]->Is_Open())
+                slot.apStates[i]->Open();
+        }
         else
-            slot.apStates[i]->Close();
+        {
+            if (slot.apStates[i]->Is_Open())
+                slot.apStates[i]->Close();
+        }
     }
 }
 
@@ -337,8 +467,12 @@ Shared<UI_Base> UI_BattleSystemHUD::Resolve_LuneStainImage(int32 slotIndex, Elem
         elementIndex = 2;
         break;
 
-    case ElementalType::Light:
+    case ElementalType::Earth:
         elementIndex = 3;
+        break;
+
+    case ElementalType::Light:
+        elementIndex = 4;
         break;
 
     case ElementalType::None:
@@ -354,7 +488,7 @@ void UI_BattleSystemHUD::Close_AllLuneStains()
 {
     for (uint32 slotIndex = 0; slotIndex < BattleMechanismCom::kLuneMaxStains; ++slotIndex)
     {
-        for (uint32 elementIndex = 0; elementIndex < 4; ++elementIndex)
+        for (uint32 elementIndex = 0; elementIndex < 5; ++elementIndex)
         {
             if (_luneStainImages[slotIndex][elementIndex])
                 _luneStainImages[slotIndex][elementIndex]->Close();
@@ -409,6 +543,28 @@ void UI_BattleSystemHUD::Close_AllMaelleStanceBadges()
         _maelleVirtuose->Close();
 }
 
+void UI_BattleSystemHUD::Play_TargetAnimation(const wchar_t* animationName)
+{
+	for (auto& [uiName, ui] : _uiByName)
+    {
+        if (ui == nullptr)
+            continue;
+
+        ui->Play_UIAnimation(animationName, true);
+    }
+}
+
+void UI_BattleSystemHUD::Stop_TargetAnimations()
+{
+	for (auto& [uiName, ui] : _uiByName)
+    {
+        if (ui == nullptr)
+            continue;
+
+        ui->Stop_UIAnimation();
+    }
+}
+
 Unique<UI_BattleSystemHUD> UI_BattleSystemHUD::Create(uint32 levelIndex)
 {
     auto instance = make_unique<UI_BattleSystemHUD>();
@@ -427,6 +583,8 @@ void UI_BattleSystemHUD::Free()
 {
     if (_root)
         _root->Close();
+
+	Stop_TargetAnimations();
 
     for (uint32 i = 0; i < 3; ++i)
     {
@@ -450,7 +608,7 @@ void UI_BattleSystemHUD::Free()
 
     for (uint32 slotIndex = 0; slotIndex < BattleMechanismCom::kLuneMaxStains; ++slotIndex)
     {
-        for (uint32 elementIndex = 0; elementIndex < 4; ++elementIndex)
+        for (uint32 elementIndex = 0; elementIndex < 5; ++elementIndex)
             _luneStainImages[slotIndex][elementIndex].reset();
     }
 

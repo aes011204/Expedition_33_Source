@@ -12,6 +12,7 @@
 #include "Monster_BattleBase.h"
 #include "ModelCom.h"
 #include "Event_Bus.h"
+#include "Mon_WeakPoint.h"
 
 FreeAimTargeting::FreeAimTargeting(const Shared<BattleController>& owner)
     : Battle_State{ owner }
@@ -81,7 +82,11 @@ void FreeAimTargeting::Update(float timeDelta)
     }
 
     if (const auto battleCamera = owner->Get_BattleTurnCamera())
+    {
         battleCamera->Update_FreeAimRotation(timeDelta); // Free Aim 상태에서만 카메라 회전 갱신
+        Update_FreeAimPlayerYaw(timeDelta);
+    }
+        
 
     Refresh_HitTarget(); // 회전된 카메라 방향 기준으로 적 히트 판정
 
@@ -110,7 +115,7 @@ void FreeAimTargeting::Update(float timeDelta)
         shotRequest.type = EBattleContext::FreeAimShoot;
 
         if (_hasCurrentHitTarget)
-            shotRequest.InitTarget = _currentHitTarget;
+            shotRequest.InitTarget = _currentHitTarget.target;
         else
             shotRequest.InitTarget = {};
 
@@ -133,7 +138,7 @@ void FreeAimTargeting::ExitInvoke()
     Battle_State::ExitInvoke();
 }
 
-bool FreeAimTargeting::Try_FindHitEnemy(BattleChar& outEnemy) const
+bool FreeAimTargeting::Try_FindHitEnemy(BattleFreeAimHitTarget& outHitTarget) const
 {
     auto owner = Get_Owner();
     if (!owner)
@@ -153,9 +158,46 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleChar& outEnemy) const
     constexpr float traceDistance = 100.f;
     constexpr float sweepRadius = 0.3f;
 
+    const vector<BattleChar> aliveEnemies = owner->Get_AliveEnemies();
+    const auto resolveHitTarget = [&](const PhysXQueryHit& hit, BattleFreeAimHitTarget& outResolvedHitTarget) -> bool
+    {
+        if (hit.owner == nullptr)
+            return false;
+
+        for (const auto& enemy : aliveEnemies)
+        {
+            if (enemy.actor == nullptr || enemy.statCom == nullptr)
+                continue;
+
+            if (enemy.actor.get() == hit.owner)
+            {
+                outResolvedHitTarget.target = enemy;
+                outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                return true;
+            }
+
+            const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(enemy.actor);
+            if (monster == nullptr)
+                continue;
+
+            const Shared<Mon_WeakPoint> weakPoint = monster->Get_BattleWeakPoint();
+            if (weakPoint == nullptr || weakPoint.get() != hit.owner)
+                continue;
+
+            if (!weakPoint->Is_BattleWeakPointEnabled())
+                return false;
+
+            outResolvedHitTarget.target = enemy;
+            outResolvedHitTarget.hitPart = FreeAimHitPart::WeakPoint;
+            return true;
+        }
+
+        return false;
+    };
+
     PhysXQueryHit hit{};
     const bool hasHit = GAME->Sweep_Sphere(
-        cameraOrigin,                  // 실제 판정은 카메라 위치 기준 그대로 유지
+        cameraOrigin,
         direction,
         traceDistance,
         sweepRadius,
@@ -165,37 +207,24 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleChar& outEnemy) const
     if (!hasHit || hit.owner == nullptr)
         return false;
 
-    const vector<BattleChar> aliveEnemies = owner->Get_AliveEnemies();
-    for (const auto& enemy : aliveEnemies)
-    {
-        if (enemy.actor == nullptr || enemy.statCom == nullptr)
-            continue;
-
-        if (enemy.actor.get() == hit.owner)
-        {
-            outEnemy = enemy;
-            return true;
-        }
-    }
-
-    return false;
+    return resolveHitTarget(hit, outHitTarget);
 }
 
 void FreeAimTargeting::Refresh_HitTarget()
 {
-    BattleChar hitEnemy{};
-    if (!Try_FindHitEnemy(hitEnemy))
+    BattleFreeAimHitTarget  hitTarget{};
+    if (!Try_FindHitEnemy(hitTarget))
     {
         Clear_HitTarget();
         return;
     }
 
-    _currentHitTarget = hitEnemy;
+    _currentHitTarget = hitTarget;
     _hasCurrentHitTarget = true;
 
     if (auto owner = Get_Owner())
     {
-        owner->Set_FreeAimHitTarget(hitEnemy);
+        owner->Set_FreeAimHitTarget(hitTarget);
     }
 }
 
@@ -232,6 +261,50 @@ void FreeAimTargeting::Play_CurrentActorBattleAnim(BattleAnimType animType, floa
         return;
 
     actor.ModelCom->Set_AnimationByState(ETOI(animType), blendTime, isLoop);
+}
+
+void FreeAimTargeting::Update_FreeAimPlayerYaw(float timeDelta)
+{
+    auto owner = Get_Owner();
+    if (!owner)
+        return;
+
+    const auto battleCamera = owner->Get_BattleTurnCamera();
+    if (!battleCamera)
+        return;
+
+    const BattleChar& actor = owner->Get_TurnActionRequest().actor;
+    if (actor.actor == nullptr)
+        return;
+
+    const auto transform = actor.actor->Get_Transform();
+    if (!transform)
+        return;
+
+    Vec3 aimDir = battleCamera->Get_AimDirection();
+    aimDir.y = 0.f;
+
+    aimDir.Normalize();
+
+    // 회전 속도
+    constexpr float yawSpeedDegPerSec = 720.f;
+
+    const float targetYaw = XMConvertToDegrees(atan2f(aimDir.x, aimDir.z));
+
+    Vec3 rot = transform->Get_RotationEuler();
+    float deltaYaw = targetYaw - rot.y;
+
+    while (deltaYaw > 180.f)
+        deltaYaw -= 360.f;
+
+    while (deltaYaw < -180.f)
+        deltaYaw += 360.f;
+
+    const float maxStep = yawSpeedDegPerSec * timeDelta;
+    deltaYaw = ::clamp(deltaYaw, -maxStep, maxStep);
+
+    rot.y += deltaYaw;
+    transform->Set_RotationEuler(rot);
 }
 
 Shared<FreeAimTargeting> FreeAimTargeting::Create(const Shared<BattleController>& owner)

@@ -84,7 +84,7 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
 
     // ORM
     vector MaterialDesc = g_MaterialTexture.Sample(LinearWrapSampler, In.Texcoord);
-    float roughness = clamp(MaterialDesc.g, 0.05f, 1.f);
+    float roughness = ApplySpecAA(N, MaterialDesc.g);   // Specular Anti-Aliasing 적용된 roughness
     float metalness = saturate(MaterialDesc.b);
 
     float4 WorldPos = Reconstruct_WorldPos(In.Texcoord);
@@ -146,7 +146,7 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     float3 N = normalize(DecodeNormal(NormalDesc.xyz));
 
     vector MaterialDesc = g_MaterialTexture.Sample(LinearWrapSampler, In.Texcoord);
-    float roughness = clamp(MaterialDesc.g, 0.05f, 1.f);
+    float roughness = ApplySpecAA(N, MaterialDesc.g);   // Specular Anti-Aliasing 적용된 roughness
     float metalness = saturate(MaterialDesc.b);
 
     // Light
@@ -228,7 +228,7 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     // PBR 파라미터
     float finalAO = saturate(MaterialDesc.r) * ao;
 
-    float roughness = clamp(MaterialDesc.g, 0.05f, 1.f);
+    float roughness = ApplySpecAA(N, MaterialDesc.g);   // Specular Anti-Aliasing 적용된 roughness
     float metalness = saturate(MaterialDesc.b);
     float3 baseColor = saturate(Diffuse.rgb);
 
@@ -306,38 +306,6 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     Out.Color.a = Diffuse.a;
     Out.Mask = 1.f;
 
-    // fog
-    float3 camPos = g_DeferredCamPosition.xyz;
-    float3 wp = WorldPos.xyz;
-    float3 rayVec = wp - camPos;
-    float rayLen = length(rayVec);
-    float3 rayDir = rayVec / max(rayLen, 0.0001f);
-    
-    [loop]
-    for (int fogIdx = 0; fogIdx < g_FogZoneCount; ++fogIdx)
-    {
-        FogZoneEntry zone = g_FogZones[fogIdx];
-
-        // Ray-AABB intersection
-        float3 invD = rcp(rayDir);
-        float3 t0 = (zone.zoneMin - camPos) * invD;
-        float3 t1 = (zone.zoneMax - camPos) * invD;
-        float tNear = max(max(min(t0.x, t1.x), min(t0.y, t1.y)), min(t0.z, t1.z));
-        float tFar = min(min(max(t0.x, t1.x), max(t0.y, t1.y)), max(t0.z, t1.z));
-
-        // skip
-        if (tFar <= max(tNear, 0.0f))
-            continue;
-
-        // clamp
-        float pathLen = max(0.0f, min(tFar, rayLen) - max(tNear, zone.fogStart));
-
-        // Beer-Lambert
-        float fogFactor = 1.0f - exp(-zone.fogDensity * pathLen);
-        fogFactor = saturate(fogFactor) * zone.fogColor.a;
-        Out.Color.rgb = lerp(Out.Color.rgb, zone.fogColor.rgb, fogFactor);
-    }
-
     return Out;
 }
 
@@ -394,6 +362,70 @@ PS_OUT_BACKBUFFER PS_SSAOBlur(PS_IN In)
     return Out;
 }
 
+float4 PS_Fog(PS_IN In) : SV_Target
+{
+    float3 camPos = g_DeferredCamPosition.xyz;
+    float depthVal = g_DepthTexture.Sample(LinearClampSampler, In.Texcoord).r;
+
+    float2 ndc = float2(In.Texcoord.x * 2.f - 1.f, 1.f - In.Texcoord.y * 2.f);
+    float4 viewPos = mul(float4(ndc, depthVal, 1.f), g_DeferredProjMatrixInverse);
+    viewPos /= viewPos.w;
+    float3 worldPos = mul(viewPos, g_DeferredViewMatrixInverse).xyz;
+
+    float3 rayVec = worldPos - camPos;
+    float3 rayDir = normalize(rayVec);
+    float geoLen = length(rayVec);
+
+    float noGeometry = max(step(0.9999f, depthVal), step(depthVal, 0.0001f));
+    float rayLen = lerp(geoLen, g_DeferredFar, noGeometry);
+
+    float3 fogColorOut = float3(0, 0, 0);
+    float fogFactorOut = 0.f;
+
+    [loop]
+    for (int i = 0; i < g_FogAABBCount; ++i)
+    {
+        FogZoneEntry zone = g_FogZones[i];
+        float3 invD = rcp(rayDir);
+        float3 t0 = (zone.zoneMin - camPos) * invD;
+        float3 t1 = (zone.zoneMax - camPos) * invD;
+        float tNear = max(max(min(t0.x, t1.x), min(t0.y, t1.y)), min(t0.z, t1.z));
+        float tFar = min(min(max(t0.x, t1.x), max(t0.y, t1.y)), max(t0.z, t1.z));
+        if (tFar <= max(tNear, 0.f))
+            continue;
+        
+        float pathLen = max(0.f, min(tFar, rayLen) - max(tNear, zone.fogStart));
+        float factor = saturate(1.f - exp(-zone.fogDensity * pathLen)) * zone.fogColor.a;
+        fogColorOut = lerp(fogColorOut, zone.fogColor.rgb, factor);
+        fogFactorOut = saturate(fogFactorOut + factor);
+    }
+
+    [loop]
+    for (int j = g_FogAABBCount; j < g_FogAABBCount + g_FogSphereCount; ++j)
+    {
+        FogZoneEntry zone = g_FogZones[j];
+        float3 oc = camPos - zone.zoneMin;
+        float b = dot(oc, rayDir);
+        float c = dot(oc, oc) - zone.zoneRadius * zone.zoneRadius;
+        float disc = b * b - c;
+        if (disc < 0.f)
+            continue;
+        
+        float sq = sqrt(disc);
+        float tNear = -b - sq;
+        float tFar = -b + sq;
+        if (tFar <= max(tNear, 0.f))
+            continue;
+        
+        float pathLen = max(0.f, min(tFar, rayLen) - max(tNear, zone.fogStart));
+        float factor = saturate(1.f - exp(-zone.fogDensity * pathLen)) * zone.fogColor.a;
+        fogColorOut = lerp(fogColorOut, zone.fogColor.rgb, factor);
+        fogFactorOut = saturate(fogFactorOut + factor);
+    }
+
+    return float4(fogColorOut, fogFactorOut);
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(Debug,             RS_Default, DSS_Default,    BS_Default, VS_MAIN,    PS_MAIN_DEBUG)              // 0
@@ -404,4 +436,5 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(CombinedPreview,   RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_MAIN_COMBINED_PREVIEW)   // 5
     PASS_RS_DS_BS_VP(SSAO,              RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_SSAO)                    // 6
     PASS_RS_DS_BS_VP(SSAOBlur,          RS_Default, DSS_None,       BS_Default, VS_MAIN,    PS_SSAOBlur)                // 7
+    PASS_RS_DS_BS_VP(Fog, RS_Default,   DSS_None,                   BS_AlphaBlend, VS_MAIN, PS_Fog)                     // 8
 }

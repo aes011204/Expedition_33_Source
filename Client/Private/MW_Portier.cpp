@@ -1,6 +1,7 @@
 ﻿#include "MW_Portier.h"
 #include "ClientInstance.h"
 #include "Mon_Portier_Body.h"
+#include "Mon_WeakPoint.h"
 
 IMPLEMENT_REFLECTION(MW_Portier)
 {
@@ -12,7 +13,6 @@ IMPLEMENT_REFLECTION(MW_Portier)
 
     return true;
 }
-
 
 MW_Portier::MW_Portier(const ComPtr<Device>& device, const ComPtr<Context>& context):Monster_WorldBase(device,context)
 {
@@ -82,8 +82,16 @@ HRESULT MW_Portier::Ready_PartObjects()
     _body = dynamic_pointer_cast<Mon_Portier_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
 
+    Mon_WeakPoint::WEAK_DESC weakDesc{};
+    weakDesc.parentMatrix = &_body->Get_CombinedWorldMatrix();
+    weakDesc.allowMissingModel = true;
+    weakDesc.socketName = "Status";
+    weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Status");
 
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL);
 
+    _weak = dynamic_pointer_cast<Mon_WeakPoint>(_partObjects[TEXT("Part_Weak")]);
+    CHECK_NULL(_weak, E_FAIL);
 
     return S_OK;
 }

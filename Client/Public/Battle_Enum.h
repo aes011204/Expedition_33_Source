@@ -446,6 +446,7 @@ namespace Client
         Fire,
         Ice,
         Lightning,
+        Earth,
         Dark,
         Light
     };
@@ -570,11 +571,25 @@ namespace Client
         bool ignoreDefense = false;
     };
 
+    struct DamageAppliedInfo
+    {
+        BattleChar target{};        // 실제 HP가 깎이 대상
+        float damage = 0.f;         // 최종 데미지
+        AttackType attackType = AttackType::Invalid; // 기존 피격 애니메이션 분기
+
+        bool isCritical = false;    // 크리티컬
+        bool isShieldBlocked = false;
+        uint32 prevShield = 0;
+        uint32 currentShield = 0;
+    };
+
     struct Skill_Data
     {
         string characterId = "";
         string skillKey = "";
         string scriptClassName = "";
+        wstring battleAnnounceActionText = L"";
+
         vector<BattleActionPhase> AnimPhases = {};
 
         vector<TargetType> targetingType = {};
@@ -681,6 +696,8 @@ namespace Client
         Targeted_Start, // 적 턴 시작할 때
         Targeted_Idle,
         Targeted_End,
+
+        Return,
     };
 
     enum class BattleReactionType
@@ -737,7 +754,23 @@ namespace Client
         BattleQTEPreset placementPreset = BattleQTEPreset::Center;
         Vec2 screenPosition = Vec2(800.f, 450.f);
         float screenScale = 1.f;
+    };
 
+    // 배틀 턴 조준 시 파츠
+    enum class FreeAimHitPart
+    {
+        None, Body, WeakPoint, END
+    };
+
+    struct BattleFreeAimHitTarget
+    {
+        BattleChar target{};
+        FreeAimHitPart hitPart = FreeAimHitPart::None;
+
+        bool Is_Valid() const
+        {
+            return target.actor != nullptr && target.statCom != nullptr && hitPart != FreeAimHitPart::None;
+        }
     };
 
 }

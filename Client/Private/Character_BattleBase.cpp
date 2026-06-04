@@ -1,5 +1,5 @@
 ﻿#include "Character_BattleBase.h"
-
+#include "PartObject.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "GameInstance.h"
@@ -28,7 +28,7 @@ void Character_BattleBase::BeginPlay()
 {
     Character::BeginPlay();
 
-    // 배틀 캐릭터도 첫 프레임 query 전에 PhysX 등록을 마쳐 초기 순서 문제를 피한다.
+    // 첫 프레임에 미리 등록
     Update_Collider();
 }
 
@@ -56,6 +56,37 @@ bool Character_BattleBase::Is_BattleColliderActive() const
         return false;
 
     return _colliderCom->Get_IsActive();
+}
+
+bool Character_BattleBase::Try_GetDamageFeedbackWorldPosition(Vec3& outWorldPos) const
+{
+    if (Try_GetDamageFeedbackSocketWorldPosition(outWorldPos))
+        return true;
+
+    if (PartObject* body = Get_PartObject(L"Part_Body"))
+    {
+        const Matrix& bodyWorld = body->Get_CombinedWorldMatrix();
+        outWorldPos = Vec3(bodyWorld._41, bodyWorld._42, bodyWorld._43);
+        outWorldPos += Get_DamageFeedbackFallbackOffset();
+        return true;
+    }
+
+    if (_transformCom == nullptr)
+        return false;
+
+    outWorldPos = _transformCom->Get_WorldPosition();
+    outWorldPos += Get_DamageFeedbackFallbackOffset();
+    return true;
+}
+
+bool Character_BattleBase::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
+{
+    return false;
+}
+
+Vec3 Character_BattleBase::Get_DamageFeedbackFallbackOffset() const
+{
+    return Vec3(0.f, 1.25f, 0.f);
 }
 
 HRESULT Character_BattleBase::Ready_Collider(const wstring& prototypeTag, void* colliderDesc, Collision_Preset preset)

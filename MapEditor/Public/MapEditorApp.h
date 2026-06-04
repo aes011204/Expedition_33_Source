@@ -66,6 +66,8 @@ private:
     Unique<MELandscapeManager> _landscapeManager;
     Unique<MEMaterialApplicator> _materialApplicator;
 
+    float _timeDelta = 0.f;
+
 private:
     HRESULT Ready_Light();
 
@@ -74,6 +76,7 @@ private:
     void Update_RenderHandles();
     void Update_StaticMeshHandles();
     void Update_InstancedMeshHandles();
+    void Update_WaterHandles();
     void DoSpawnAt(const string& modelPath);
     void RebuildOctreeIfDirty();
 

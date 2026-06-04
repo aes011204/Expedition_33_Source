@@ -96,25 +96,99 @@ void PanelModelOverride::Render()
             _ctx->_dirtyPassOverrides = true;
         }
 
-        if (entry.passIndex == static_cast<int32>(VtxMeshPassIndex::LandscapeBlendPass))
+        vector<int32> toRemoveSlot;
+        for (auto& [slotIdx, texPath] : entry.textureSlots)
         {
-            auto DrawSlot = [&](int32 slot, const char* label)
-                {
-                    string& path = entry.textureSlots[slot];
-                    char buf[256] = {};
-                    strncpy_s(buf, path.c_str(), sizeof(buf) - 1);
-                    if (ImGui::InputText(label, buf, sizeof(buf)))
-                    {
-                        path = buf;
-                        _ctx->_dirtyPassOverrides = true;
-                    }
-                };
+            ImGui::PushID(slotIdx);
+            if (ImGui::SmallButton("X"))
+            {
+                toRemoveSlot.push_back(slotIdx);
+                ImGui::PopID();
+                continue;
+            }
+            ImGui::SameLine();
 
-            DrawSlot(0, "Layer1 AR (Slot 0)");
-            DrawSlot(5, "Layer2 AR (Slot 5)");
-            DrawSlot(6, "Weightmap (Slot 6)");
+            int32 current = slotIdx < slotCount ? slotIdx : 0;
+            const char* slotNames[16] = {};
+            for (int32 i = 0; i < slotCount; ++i)
+            {
+                slotNames[i] = magic_enum::enum_name(static_cast<MaterialTextureSlot>(i)).data();
+            }
+
+            ImGui::SetNextItemWidth(130.f);
+            if (ImGui::Combo("##slot", &current, slotNames, slotCount))
+            {
+                if (entry.textureSlots.find(current) == entry.textureSlots.end())
+                {
+                    entry.textureSlots[current] = texPath;
+                    toRemoveSlot.push_back(slotIdx);
+                    _ctx->_dirtyPassOverrides = true;
+                }
+            }
+            ImGui::SameLine();
+
+            char pathBuf[MAX_PATH] = {};
+            strncpy_s(pathBuf, texPath.c_str(), sizeof(pathBuf) - 1);
+            ImGui::SetNextItemWidth(200.f);
+            if (ImGui::InputText("##path", pathBuf, sizeof(pathBuf)))
+            {
+                texPath = pathBuf;
+                _ctx->_dirtyPassOverrides = true;
+            }
+            ImGui::SameLine();
+
+            error_code ec;
+            fs::path root = fs::weakly_canonical(fs::absolute(_mapSavePath), ec);
+
+            if (ImGui::SmallButton("..."))
+            {
+                ImGui::GetIO().AppFocusLost = true;
+                WCHAR buf[MAX_PATH] = {};
+                OPENFILENAME ofn{};
+                ofn.lStructSize = sizeof(ofn);
+                ofn.lpstrFilter = L"Texture Files\0*.dds;*.png;*.jpg\0All Files\0*.*\0";
+                ofn.lpstrFile = buf;
+                ofn.nMaxFile = MAX_PATH;
+                ofn.lpstrInitialDir = L"../../../Client/Bin/Resources/Map/";
+                ofn.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+                if (GetOpenFileNameW(&ofn))
+                {
+                    fs::path abs = fs::path(buf);
+                    if (!ec && !root.empty())
+                    {
+                        texPath = abs.lexically_relative(root).string();
+                    }
+                    _ctx->_dirtyPassOverrides = true;
+                }
+            }
+            ImGui::PopID();
         }
 
+        for (int32 s : toRemoveSlot)
+        {
+            entry.textureSlots.erase(s);
+        }
+
+        ImGui::Spacing();
+        int32 newSlot = 0;
+        const char* slotNames[16] = {};
+
+        for (int32 i = 0; i < slotCount; ++i)
+        {
+            slotNames[i] = magic_enum::enum_name(static_cast<MaterialTextureSlot>(i)).data();
+        }
+
+        ImGui::SetNextItemWidth(130.f);
+        ImGui::Combo("##newslot", &newSlot, slotNames, slotCount);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("+ Add Slot"))
+        {
+            if (entry.textureSlots.find(newSlot) == entry.textureSlots.end())
+            {
+                entry.textureSlots[newSlot] = "";
+                _ctx->_dirtyPassOverrides = true;
+            }
+        }
         ImGui::PopID();
     }
 

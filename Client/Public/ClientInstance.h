@@ -25,6 +25,8 @@ class ScreenFadeTransition;
 class LevelTransitionFade;
 class ClientScreenFxManager;
 
+DECLARE_DELEGATE(FOnFreeAimShotHit);
+
 class ClientInstance : public Base
 {
     DECLARE_SINGLETON(ClientInstance)
@@ -148,6 +150,7 @@ public:
 
 public:
     Shared<ClientScreenFxManager> Get_ScreenFxManager() const;
+    Shared<UIPreviewManager> Get_PreviewManager() const { return _previewManager; }
 
 public: /* Effect 재생 */
 
@@ -173,9 +176,15 @@ public: /* Effect 재생 */
         const Vec3& localRotation = Vec3::Zero,
         const Vec3& scale = Vec3::One);
 
+public: /* Delegate */
+    void Notify_FreeAimShotHit();
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
+
+public:
+    FOnFreeAimShotHit OnFreeAimShotHit;
 
 private:
 	ComPtr<Device>  _device;

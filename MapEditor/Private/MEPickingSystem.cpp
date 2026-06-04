@@ -26,16 +26,7 @@ HRESULT MEPickingSystem::Initialize(ComPtr<Device> device, ComPtr<Context> conte
     stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
     CHECK_FAILED(_device->CreateTexture2D(&stagingDesc, nullptr, _idStagingTex.GetAddressOf()), E_FAIL);
 
-    D3D11_TEXTURE2D_DESC depthStagingDesc{};
-    depthStagingDesc.Width = 1;
-    depthStagingDesc.Height = 1;
-    depthStagingDesc.MipLevels = 1;
-    depthStagingDesc.ArraySize = 1;
-    depthStagingDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-    depthStagingDesc.SampleDesc.Count = 1;
-    depthStagingDesc.Usage = D3D11_USAGE_STAGING;
-    depthStagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-    CHECK_FAILED(_device->CreateTexture2D(&depthStagingDesc, nullptr, _depthStagingTex.GetAddressOf()), E_FAIL);
+    CHECK_FAILED(EnsureDepthReadbackSize(w, h), E_FAIL);
 
     return S_OK;
 }
@@ -99,6 +90,38 @@ void MEPickingSystem::EnsureSize(uint32 w, uint32 h)
     {
         _idRT->Resize(w, h, DXGI_FORMAT_R8G8B8A8_UNORM, Vec4(0.f, 0.f, 0.f, 1.f), true);
     }
+}
+
+HRESULT MEPickingSystem::EnsureDepthReadbackSize(uint32 w, uint32 h)
+{
+    if (w == 0 || h == 0)
+    {
+        return E_FAIL;
+    }
+
+    if (_depthStagingTex)
+    {
+        D3D11_TEXTURE2D_DESC existingDesc{};
+        _depthStagingTex->GetDesc(&existingDesc);
+        if (existingDesc.Width == w && existingDesc.Height == h &&
+            existingDesc.Format == DXGI_FORMAT_R32G32B32A32_FLOAT)
+        {
+            return S_OK;
+        }
+
+        _depthStagingTex.Reset();
+    }
+
+    D3D11_TEXTURE2D_DESC depthStagingDesc{};
+    depthStagingDesc.Width = w;
+    depthStagingDesc.Height = h;
+    depthStagingDesc.MipLevels = 1;
+    depthStagingDesc.ArraySize = 1;
+    depthStagingDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    depthStagingDesc.SampleDesc.Count = 1;
+    depthStagingDesc.Usage = D3D11_USAGE_STAGING;
+    depthStagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    return _device->CreateTexture2D(&depthStagingDesc, nullptr, _depthStagingTex.GetAddressOf());
 }
 
 void MEPickingSystem::DoPickAt(SceneContext& scene, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, const RenderTarget& rt)
@@ -184,24 +207,25 @@ void MEPickingSystem::SetCursorAt(SceneContext& scene, const MECamera& camera, c
 
 bool MEPickingSystem::SampleWorldPos(const MECamera& camera, const ImVec2& mousePos, const ImVec2& vpPos, const ImVec2& vpSize, Vec3& outWorldPos)
 {
-    if (!_depthStagingTex || vpSize.x <= 0.f || vpSize.y <= 0.f)
-    {
-        return false;
-    }
-
-    auto depthTex = GAME->Get_RT_Texture(RT::Depth);
-    if (!depthTex)
+    if (vpSize.x <= 0.f || vpSize.y <= 0.f)
     {
         return false;
     }
 
     const uint32 rtW = GAME->Get_ViewportWidth();
     const uint32 rtH = GAME->Get_ViewportHeight();
+    if (FAILED(EnsureDepthReadbackSize(rtW, rtH)))
+    {
+        return false;
+    }
+
+    if (FAILED(GAME->Copy_RT_Resource(RT::Depth, _depthStagingTex.Get())))
+    {
+        return false;
+    }
+
     const uint32 px = min(static_cast<uint32>((mousePos.x - vpPos.x) / vpSize.x * rtW), rtW - 1);
     const uint32 py = min(static_cast<uint32>((mousePos.y - vpPos.y) / vpSize.y * rtH), rtH - 1);
-
-    D3D11_BOX box = { px, py, 0, px + 1, py + 1, 1 };
-    _context->CopySubresourceRegion(_depthStagingTex.Get(), 0, 0, 0, 0, depthTex.Get(), 0, &box);
 
     float ndcDepth = {};
     D3D11_MAPPED_SUBRESOURCE mapped{};
@@ -210,7 +234,9 @@ bool MEPickingSystem::SampleWorldPos(const MECamera& camera, const ImVec2& mouse
         return false;
     }
 
-    ndcDepth = static_cast<const float*>(mapped.pData)[0];
+    const uint8* srcBytes = static_cast<const uint8*>(mapped.pData);
+    const float* pixel = reinterpret_cast<const float*>(srcBytes + static_cast<size_t>(mapped.RowPitch) * py) + px * 4;
+    ndcDepth = pixel[0];
     _context->Unmap(_depthStagingTex.Get(), 0);
 
     if (ndcDepth <= 0.f)

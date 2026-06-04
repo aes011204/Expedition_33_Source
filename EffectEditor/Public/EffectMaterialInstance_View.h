@@ -21,6 +21,13 @@ enum class EffectMaterialTwoSidedDisplayMode : uint8
     ForcedEnabledReadOnly,
 };
 
+struct EffectMaterialRenderPolicyBinding
+{
+    EffectMaterialBlendMode blendMode{ EffectMaterialBlendMode::AlphaBlend };
+    float alphaCutoff{ 0.5f };
+    const char* sourceLabel{ "Required" };
+};
+
 class EffectMaterialInstance_View final : public Editor_Window
 {
 public:
@@ -38,7 +45,8 @@ public:
         EffectMaterialInstanceData& material,
         bool* outRestartPreview,
         EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode = EffectMaterialTwoSidedDisplayMode::EditableImplemented,
-        bool disableMeshDistortionShapeControls = false);
+        bool disableMeshDistortionShapeControls = false,
+        const EffectMaterialRenderPolicyBinding* renderPolicyBinding = nullptr);
 
 public: //## Behavior::Selection
     void Open_Instance(uint32 emitterId, uint32 moduleId);
