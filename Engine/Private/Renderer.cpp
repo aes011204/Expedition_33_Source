@@ -232,6 +232,22 @@ void Renderer::Draw()
     const auto debugBegin = chrono::steady_clock::now();
 #endif
 
+    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
+    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
+    if (useScreenFx)
+    {
+        Render_ScreenFx();
+    }
+
+    if (screenFxManager && screenFxManager->Is_CaptureRequested())
+    {
+        GAME->Bind_BackBuffer();
+        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
+
+        const_cast<ScreenFx_Manager*>(screenFxManager)->Clear_CaptureRequested();
+    }
+
+
 #ifdef _DEBUG
     Render_Debug();
 
@@ -870,21 +886,6 @@ void Renderer::Render_UIEffect()
 
 void Renderer::PostDraw()
 {
-    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
-    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
-    if (useScreenFx)
-    {
-        Render_ScreenFx();
-    }
-
-    if (screenFxManager && screenFxManager->Is_CaptureRequested())
-    {
-        GAME->Bind_BackBuffer(); 
-        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
-
-        const_cast<ScreenFx_Manager*>(screenFxManager)->Clear_CaptureRequested();
-    }
-
     Render_UIEffect();
 }
 
