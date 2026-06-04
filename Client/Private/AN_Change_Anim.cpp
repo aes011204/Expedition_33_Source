@@ -24,19 +24,20 @@ void AN_Change_Anim::Execute(const AnimNotifyContext& context)
     if (context.model == nullptr)
         return;
 
-    //CLIENT->Get_BattleController()->End_FirstAnim();
-    ///
     const auto Battle = CLIENT->Get_BattleController();
-    if (Battle->Is_BattleStarted() == false)
-        return;
-    const BattleAction& action = Battle->Get_TurnAction();
-
-    if (dynamic_pointer_cast<GameObject>(action.Get_CurChar().actor) != context.owner->Get_Owner())
+    if (Battle && Battle->Is_BattleStarted() == false)
         return;
 
-    if (action.Get_CurChar().statCom->Get_CurAliveState() == EAliveStatus::Dead)
+    BattleChar notifyOwnerChar = Battle->Get_TurnAction().Get_CurChar();
+    if (notifyOwnerChar.actor == nullptr)
+        notifyOwnerChar = Battle->Get_TurnActionRequest().actor;
+
+    if (dynamic_pointer_cast<GameObject>(notifyOwnerChar.actor) != context.owner->Get_Owner())
         return;
-    ///
+
+    if (notifyOwnerChar.statCom == nullptr ||
+        notifyOwnerChar.statCom->Get_CurAliveState() == EAliveStatus::Dead)
+        return;
 
     context.model->Set_AnimationByState(ETOI(_animType), 0.3f, true);
 }

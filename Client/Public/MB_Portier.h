@@ -21,11 +21,15 @@ public:
     HRESULT Initialize(void* arg) override;
     void Update(float timeDelta) override;
 
+public:
+    Shared<Mon_WeakPoint> Get_BattleWeakPoint() const override { return _weak; }
+
 protected:
     HRESULT Ready_PartObjects();
 
 private:
     Shared<Mon_Portier_Body> _body = {};
+    Shared<Mon_WeakPoint> _weak = {};
 
 public:
     static Shared<MB_Portier> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

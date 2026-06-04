@@ -521,6 +521,19 @@ void BattleController::StartTurn()
     // fsm
     if (actor.statCom->Is_Player())
     {
+        const uint32 beforeAp = actor.statCom->Get_CurAP();
+
+        actor.statCom->Add_AP(1);
+
+        const uint32 afterAp = actor.statCom->Get_CurAP();
+        const uint32 gainedAp = afterAp - beforeAp;
+
+        if (gainedAp > 0)
+        {
+            // 최대 AP라 실제 증가가 없으면 안띄우기
+            OnBattleApChanged.Broadcast(actor, gainedAp, EAPChangeReason::TurnStart);
+        }
+
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
 
         EvtBattlePresentation event;
@@ -1120,7 +1133,20 @@ void BattleController::Execute_BaseAttack()
 
     // 기본 공격은 AP + 1
     if (action.Get_CurChar().statCom)
-        action.Get_CurChar().statCom->Add_AP(+1);
+    {
+        const uint32 beforeAp = action.Get_CurChar().statCom->Get_CurAP();
+
+        action.Get_CurChar().statCom->Add_AP(1);
+
+        const uint32 afterAp = action.Get_CurChar().statCom->Get_CurAP();
+        const uint32 gainedAp = afterAp - beforeAp;
+
+        if (gainedAp > 0)
+        {
+            // 최대 AP라 실제 증가가 없으면 안띄우기
+            OnBattleApChanged.Broadcast(action.Get_CurChar(), gainedAp, EAPChangeReason::BaseAttack);
+        }
+    }
 
     _isActionExecuting = true;
     _battleActionExe->BeginAction(action);
@@ -1364,7 +1390,7 @@ void BattleController::Play_EnemyTargetedEnd()
     _enemyTurnTargetedActor = {};
     _hasEnemyTurnTargetedActor = false;
 
-    if (target.actor == nullptr || target.ModelCom == nullptr )
+    if (target.actor == nullptr || target.ModelCom == nullptr)
         return;
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
         return;
@@ -1784,7 +1810,7 @@ void BattleController::Handle_BattleTargetDeathCollision(const BattleChar& deadT
         Clear_TargetPreview();
 
     if (_hasFreeAimHitTarget && _freeAimHitTarget.target.actor == deadTarget.actor)
-        Clear_FreeAimHitTarget(); 
+        Clear_FreeAimHitTarget();
 }
 
 void BattleController::Restore_BattleTargetCollision(const BattleChar& revivedTarget)
@@ -1994,7 +2020,7 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
 }
 
 void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<CombatStatCom>& battleStat,
-                                                    const Shared<SkillTreeCom>& worldSkillTreeCom)
+    const Shared<SkillTreeCom>& worldSkillTreeCom)
 {
     if (battleStat == nullptr)
         return;
@@ -2179,13 +2205,13 @@ void BattleController::Free()
     }
 
     auto ReleaseCtrl = [](auto& ctrl)
-    {
-        if (ctrl)
         {
-            ctrl->Free();
-            ctrl.reset();
-        }
-    };
+            if (ctrl)
+            {
+                ctrl->Free();
+                ctrl.reset();
+            }
+        };
 
     ReleaseCtrl(_battleSpawnRegistry);
     ReleaseCtrl(_qteController);

@@ -736,7 +736,8 @@ void GameplayUI_Battle::Handle_BattleApChanged(const BattleChar& actor, uint32 a
     if (!_isBattleUiActive)
         return;
 
-    if (reason != EAPChangeReason::Parry)
+    // 패링, 턴 스타트, 평타
+    if (reason != EAPChangeReason::Parry && reason != EAPChangeReason::TurnStart && reason != EAPChangeReason::BaseAttack)
         return;
 
     if (amount == 0)

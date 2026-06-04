@@ -23,6 +23,7 @@ enum class Collision_Channel : uint32
     Player_Target = 1 << 13,
     Camera = 1 << 14,
     WorldActionTrigger = 1 << 15,
+    Monster_WeakPoint = 1 << 16,
 
     CHANNEL_ALL = 0xFFFFFFFF,   // 모든 충돌 OK
     CHANNEL_NONE = 0x00000000,  // 모든 충돌 ㄴㄴ
@@ -46,6 +47,8 @@ enum class Collision_Preset
 
     Player_Target,
     Camera,
+    Monster_WeakPoint,
+    Player_WeakPointTarget,
 
     END
 };
@@ -219,7 +222,8 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     { Collision_Channel::Player_Target,
     /* overlapMask */ ETOI(Collision_Channel::Monster) |
                       ETOI(Collision_Channel::Monster_Body) |
-                      ETOI(Collision_Channel::Monster_WorldBody),
+                      ETOI(Collision_Channel::Monster_WorldBody) |
+                      ETOI(Collision_Channel::Monster_WeakPoint),
     /* blockMask   */ 0
     },
 
@@ -227,6 +231,18 @@ static const Collision_Preset_Data g_CollisionPresets[ETOI(
     { Collision_Channel::Camera,
     /* overlapMask */ 0,
     /* blockMask   */ ETOI(Collision_Channel::Enviroment)
+    },
+
+    // Monster_WeakPoint — 자유 조준 약점 전용. 일반 몸통과 분리해 우선 query할 수 있게 한다.
+    { Collision_Channel::Monster_WeakPoint,
+    /* overlapMask */ ETOI(Collision_Channel::Player_Target),
+    /* blockMask   */ 0
+    },
+
+    // Player_WeakPointTarget — 약점만 먼저 찾는 자유 조준 query 전용.
+    { Collision_Channel::Player_Target,
+    /* overlapMask */ ETOI(Collision_Channel::Monster_WeakPoint),
+    /* blockMask   */ 0
     },
 };
 
