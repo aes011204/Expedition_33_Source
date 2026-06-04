@@ -106,12 +106,13 @@ void CombatStatCom::Add_Shield(int32 value)
 
 void CombatStatCom::Remove_Shield(int32 value)
 {
-    Get_RuntimeStat().CurShield -= value;
+    if (value <= 0)
+        return;
 
-    if (Get_RuntimeStat().CurShield < 0)
-    {
+    if (Get_RuntimeStat().CurShield <= static_cast<uint32>(value))
         Get_RuntimeStat().CurShield = 0;
-    }
+    else
+        Get_RuntimeStat().CurShield -= static_cast<uint32>(value);
 }
 
 

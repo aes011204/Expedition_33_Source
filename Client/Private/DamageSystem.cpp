@@ -43,7 +43,18 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
 
     if (target.statCom->Get_CurrentShield() != 0)
     {
+        const uint32 prevShield = target.statCom->Get_CurrentShield();
         target.statCom->Remove_Shield(1);
+
+        DamageAppliedInfo info{};
+        info.target = target;
+        info.damage = 0.f;
+        info.attackType = attackType;
+        info.isShieldBlocked = true;
+        info.prevShield = prevShield;
+        info.currentShield = target.statCom->Get_CurrentShield();
+
+        OnDamageApplied.Broadcast(info);
         return; // 쉴드가 데미지를 막은 경우
     }
 

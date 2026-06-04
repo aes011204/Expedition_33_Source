@@ -192,6 +192,8 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
         skill.skillKey = item.value("skillKey", "");
         skill.scriptClassName = item.value("scriptClassName", "");
         skill.apCost = item.value("ap cost", 0);
+        skill.battleAnnounceActionText =
+                String::ToWString(item.value("battleAnnounceActionText", ""));
         //skill.AttackCount = item.value("AttackCount", 0);
        /* skill.targetingType =
             magic_enum::enum_cast<ECharacterTeamSelector>(item.value("targetingType", ""))
