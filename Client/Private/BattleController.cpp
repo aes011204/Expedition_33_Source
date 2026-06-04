@@ -1848,7 +1848,7 @@ void BattleController::Activate_BattleTurnCamera()
         return;
 
     BattleTurnCamera::BattleShotRequest request;
-    request.mode = BattleCameraMode::WIDE;
+    request.mode = BattleCameraMode::BATTLEINTRO;
     _battleTurnCamera->Apply_ShotRequest(request);
 
     CLIENT->Request_BattleTurn();
