@@ -24,17 +24,7 @@ IMPLEMENT_REFLECTION(EffectCom)
     info.displayName = "EffectCom";
     info.category = "Component";
 
-    PROPERTY_BOOL("Auto Play Effect", _inspectorAutoPlayEffect);
     PROPERTY_WSTRING("Effect Name", _inspectorEffectName);
-    PROPERTY_ENUM("Target", _inspectorEffectTarget, EffectCom::EffectPlayTarget);
-    PROPERTY_WSTRING("Part Tag", _inspectorPartTag);
-    PROPERTY_STRING("Socket Name", _inspectorSocketName);
-    PROPERTY_WSTRING("Layer Tag", _inspectorLayerTag);
-    PROPERTY_VEC3("Local Offset", _inspectorLocalOffset);
-    PROPERTY_VEC3("Local Rotation", _inspectorLocalRotation);
-    PROPERTY_VEC3("Scale", _inspectorScale);
-    PROPERTY_BOOL("Follow Target", _inspectorFollowTarget);
-    PROPERTY_BOOL("Requires Manual Release", _inspectorRequiresManualRelease);
     
     return true;
 }
@@ -605,7 +595,6 @@ void EffectCom::Update_AttachedEffects()
 
         effectTransform->Set_WorldPosition(targetWorldPosition);
         effectTransform->Set_WorldRotationEuler(targetWorldRotation);
-        effectTransform->Set_Scale(attached.scale);
     }
 
     Prune_ReleasedAttachedEffects();

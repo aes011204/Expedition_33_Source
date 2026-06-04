@@ -8,6 +8,12 @@
 
 NS_BEGIN(Client)
 
+namespace
+{
+    constexpr float kDefaultWeakPointEffectScale = 0.5f;
+    constexpr wchar_t kDefaultWeakPointEffectName[] = L"Effects\\Assets\\Monster\\Monster_Weak.effect.json";
+}
+
 Mon_WeakPoint::Mon_WeakPoint(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Monster_Part(device, context)
 {
@@ -174,14 +180,17 @@ void Mon_WeakPoint::Ready_DefaultWeakPointEffectSettings()
         return;
 
     EffectCom::InspectorEffectSettings settings = _partEffectCom->Get_InspectorEffectSettings();
-    if (!settings.effectName.empty())
-        return;
-
-    settings.effectName = L"Effects\\Assets\\Monster\\Monster_Weak.effect.json";
+    settings.autoPlay = false;
+    if (settings.effectName.empty())
+        settings.effectName = kDefaultWeakPointEffectName;
     settings.target = EffectCom::EffectPlayTarget::OwnerRoot;
+    settings.partTag.clear();
+    settings.socketName.clear();
     settings.layerTag = L"Layer_Effect";
+    settings.localOffset = Vec3::Zero;
+    settings.localRotation = Vec3::Zero;
     settings.followTarget = true;
-    settings.scale = Vec3(0.3f);
+    settings.scale = Vec3(kDefaultWeakPointEffectScale);
     settings.requiresManualRelease = true;
 
     _partEffectCom->Set_InspectorEffectSettings(settings);
@@ -193,16 +202,18 @@ void Mon_WeakPoint::Play_WeakPointEffect()
         return;
 
     _partEffectCom->Stop_AllAttachedEffects();
-    if (SUCCEEDED(_partEffectCom->Play_InspectorEffect()))
-        return;
+
+    const EffectCom::InspectorEffectSettings settings = _partEffectCom->Get_InspectorEffectSettings();
 
     EffectCom::EffectPlayDesc desc{};
     desc.levelIndex = GAME->Current_LevelIndex();
-    desc.effectName = L"Monster_Weak";
+    desc.effectName = settings.effectName;
+    if (desc.effectName.empty())
+        desc.effectName = kDefaultWeakPointEffectName;
     desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
     desc.layerTag = L"Layer_Effect";
     desc.followTarget = true;
-    desc.scale = Vec3(0.3f);
+    desc.scale = Vec3(kDefaultWeakPointEffectScale);
     desc.requiresManualRelease = true;
 
     _partEffectCom->Play_Effect(desc);

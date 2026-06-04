@@ -62,8 +62,7 @@ private:
     static string Resolve_RendererType(const json& emitter);
     static void Apply_MaterialPayload(
         const json& material,
-        EffectRequiredMaterialRuntimeDesc& materialDesc,
-        bool includeTrailMaterialFields);
+        EffectRequiredMaterialRuntimeDesc& materialDesc);
     static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeSpriteEmitterDesc& desc);
     static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, ComputeTrailEmitterDesc& desc);
     static void Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, MeshEmitterDesc& desc);

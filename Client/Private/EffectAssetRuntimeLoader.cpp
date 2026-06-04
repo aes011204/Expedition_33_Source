@@ -1624,8 +1624,7 @@ string EffectAssetRuntimeLoader::Resolve_RendererType(const json& emitter)
 
 void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     const json& material,
-    EffectRequiredMaterialRuntimeDesc& materialDesc,
-    bool includeTrailMaterialFields)
+    EffectRequiredMaterialRuntimeDesc& materialDesc)
 {
     Read_Enum(material, "materialFamily", materialDesc.materialFamily);
     materialDesc.mainTextureGuid = Read_String(material, "mainTextureGuid", materialDesc.mainTextureGuid);
@@ -1672,11 +1671,29 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     if (const auto mainUVOffsetIter = material.find("mainUVOffset"); mainUVOffsetIter != material.end())
         Read_Vec2(*mainUVOffsetIter, materialDesc.mainUVOffset);
 
+    if (const auto mainUVScaleIter = material.find("mainUVScale"); mainUVScaleIter != material.end())
+        Read_Vec2(*mainUVScaleIter, materialDesc.mainUVScale);
+
+    if (const auto mainUVScrollSpeedIter = material.find("mainUVScrollSpeed"); mainUVScrollSpeedIter != material.end())
+        Read_Vec2(*mainUVScrollSpeedIter, materialDesc.mainUVScrollSpeed);
+
     if (const auto noiseUVOffsetIter = material.find("noiseUVOffset"); noiseUVOffsetIter != material.end())
         Read_Vec2(*noiseUVOffsetIter, materialDesc.noiseUVOffset);
 
+    if (const auto noiseUVScaleIter = material.find("noiseUVScale"); noiseUVScaleIter != material.end())
+        Read_Vec2(*noiseUVScaleIter, materialDesc.noiseUVScale);
+
+    if (const auto noiseUVScrollSpeedIter = material.find("noiseUVScrollSpeed"); noiseUVScrollSpeedIter != material.end())
+        Read_Vec2(*noiseUVScrollSpeedIter, materialDesc.noiseUVScrollSpeed);
+
     if (const auto maskUVOffsetIter = material.find("maskUVOffset"); maskUVOffsetIter != material.end())
         Read_Vec2(*maskUVOffsetIter, materialDesc.maskUVOffset);
+
+    if (const auto maskUVScaleIter = material.find("maskUVScale"); maskUVScaleIter != material.end())
+        Read_Vec2(*maskUVScaleIter, materialDesc.maskUVScale);
+
+    if (const auto maskUVScrollSpeedIter = material.find("maskUVScrollSpeed"); maskUVScrollSpeedIter != material.end())
+        Read_Vec2(*maskUVScrollSpeedIter, materialDesc.maskUVScrollSpeed);
 
     if (const auto flowUVScaleIter = material.find("flowUVScale"); flowUVScaleIter != material.end())
         Read_Vec2(*flowUVScaleIter, materialDesc.flowUVScale);
@@ -1699,29 +1716,7 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     materialDesc.distortionShapeSoftness = Read_Float(material, "distortionShapeSoftness", materialDesc.distortionShapeSoftness);
     materialDesc.subUVRows = max(1u, Read_UInt(material, "subUVRows", materialDesc.subUVRows));
     materialDesc.subUVCols = max(1u, Read_UInt(material, "subUVCols", materialDesc.subUVCols));
-
-    if (includeTrailMaterialFields)
-    {
-        if (const auto mainUVScaleIter = material.find("mainUVScale"); mainUVScaleIter != material.end())
-            Read_Vec2(*mainUVScaleIter, materialDesc.mainUVScale);
-
-        if (const auto mainUVScrollSpeedIter = material.find("mainUVScrollSpeed"); mainUVScrollSpeedIter != material.end())
-            Read_Vec2(*mainUVScrollSpeedIter, materialDesc.mainUVScrollSpeed);
-
-        if (const auto noiseUVScaleIter = material.find("noiseUVScale"); noiseUVScaleIter != material.end())
-            Read_Vec2(*noiseUVScaleIter, materialDesc.noiseUVScale);
-
-        if (const auto noiseUVScrollSpeedIter = material.find("noiseUVScrollSpeed"); noiseUVScrollSpeedIter != material.end())
-            Read_Vec2(*noiseUVScrollSpeedIter, materialDesc.noiseUVScrollSpeed);
-
-        if (const auto maskUVScaleIter = material.find("maskUVScale"); maskUVScaleIter != material.end())
-            Read_Vec2(*maskUVScaleIter, materialDesc.maskUVScale);
-
-        if (const auto maskUVScrollSpeedIter = material.find("maskUVScrollSpeed"); maskUVScrollSpeedIter != material.end())
-            Read_Vec2(*maskUVScrollSpeedIter, materialDesc.maskUVScrollSpeed);
-
-        materialDesc.twoSided = Read_Bool(material, "twoSided", materialDesc.twoSided);
-    }
+    materialDesc.twoSided = Read_Bool(material, "twoSided", materialDesc.twoSided);
 
     const auto additiveIter = material.find("additive");
     if (additiveIter != material.end() && additiveIter->is_object())
@@ -1748,7 +1743,7 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
 {
     const auto materialIter = data.find("material");
     if (materialIter != data.end() && materialIter->is_object())
-        Apply_MaterialPayload(*materialIter, desc.required.material, false);
+        Apply_MaterialPayload(*materialIter, desc.required.material);
 
     Read_Enum(data, "screenAlignment", desc.required.spriteRender.screenAlignment);
     Read_Enum(data, "directionalAlignmentMode", desc.required.spriteRender.directionalAlignmentMode);
@@ -1780,7 +1775,7 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
 {
     const auto materialIter = data.find("material");
     if (materialIter != data.end() && materialIter->is_object())
-        Apply_MaterialPayload(*materialIter, desc.material, true);
+        Apply_MaterialPayload(*materialIter, desc.material);
     if (desc.material.blendMode == EffectMaterialBlendMode::Masked)
         desc.material.blendMode = EffectMaterialBlendMode::AlphaBlend;
 
@@ -1806,7 +1801,7 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
 {
     const auto materialIter = data.find("material");
     if (materialIter != data.end() && materialIter->is_object())
-        Apply_MaterialPayload(*materialIter, desc.material, false);
+        Apply_MaterialPayload(*materialIter, desc.material);
 
     Read_Enum(data, "screenAlignment", desc.meshTransform.alignment);
     Internal::Apply_SortPayload(data, desc.sort);
@@ -2423,7 +2418,7 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
     }
 
     if (hasAssignedMaterialInstance && assignedMaterialPayload.is_object())
-        Apply_MaterialPayload(assignedMaterialPayload, desc.material, false);
+        Apply_MaterialPayload(assignedMaterialPayload, desc.material);
     else
     {
         fs::path assignedMaterialResolvedPath{};
@@ -2454,7 +2449,7 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
             {
                 materialFile >> materialRoot;
                 if (materialRoot.is_object())
-                    Apply_MaterialPayload(materialRoot, desc.material, false);
+                    Apply_MaterialPayload(materialRoot, desc.material);
             }
             catch (...)
             {
