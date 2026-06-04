@@ -392,6 +392,7 @@ void Animation_View::Render()
 
     if (!isOpen)
     {
+        Reset_PreviewPlayEffectStates();
         Reset_PreviewWeaponRotateStates();
         Reset_PreviewTrailEffect();
     }
@@ -412,6 +413,7 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
 {
     Reset_PreviewTrailEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewPlayEffectStates();
     Reset_PreviewClone();
 
     _sourceMode = SourceMode::None;
@@ -444,6 +446,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
 
     Reset_PreviewTrailEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewPlayEffectStates();
     Reset_PreviewClone();
 
     _sourceMode = SourceMode::LiveModel;
@@ -490,6 +493,7 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
 
     Reset_PreviewTrailEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewPlayEffectStates();
     Reset_PreviewClone();
 
     _sourceMode = SourceMode::None;
@@ -539,6 +543,7 @@ void Animation_View::Rebuild_PreviewClone()
 
 void Animation_View::Reset_PreviewClone()
 {
+    Reset_PreviewPlayEffectStates();
     _previewRootObject.reset();
     _previewModelCom.reset();
     _previewOwnerObjectKey.clear();
@@ -2760,15 +2765,20 @@ void Animation_View::Draw_TrailAnchorPreview() const
 void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta)
 {
     if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
+    {
+        Reset_PreviewPlayEffectStates();
         return;
+    }
 
     const AnimNotifyData* animationData = Get_CurrentAnimation();
     if (animationData == nullptr)
+    {
+        Reset_PreviewPlayEffectStates();
         return;
+    }
 
     const bool wrapped = currentTimeSec + 1e-4f < previousTimeSec;
-    if (!wrapped && currentTimeSec <= previousTimeSec)
-        return;
+    const bool timeAdvanced = wrapped || currentTimeSec > previousTimeSec;
 
     AnimNotifyContext context{};
     context.owner = _previewModelCom->Get_Owner().get();
@@ -2782,17 +2792,119 @@ void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, flo
     context.wrapped = wrapped;
     context.isPreview = true;
 
-    for (const AnimNotifyEventEntry& entry : animationData->notifies)
+    if (timeAdvanced)
     {
-        if (entry.notify == nullptr)
+        for (const AnimNotifyEventEntry& entry : animationData->notifies)
+        {
+            if (entry.notify == nullptr)
+                continue;
+            if (entry.notify->Get_TypeName() != "AN_PlayEffect")
+                continue;
+            if (!Is_PreviewNotifyTimeInRange(entry.timeSec, previousTimeSec, currentTimeSec, wrapped))
+                continue;
+
+            entry.notify->Execute(context);
+        }
+    }
+
+    vector<int32> activeStateIds{};
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
             continue;
-        if (entry.notify->Get_TypeName() != "AN_PlayEffect")
+        if (entry.notifyState->Get_TypeName() != "ANS_PlayEffect")
             continue;
-        if (!Is_PreviewNotifyTimeInRange(entry.timeSec, previousTimeSec, currentTimeSec, wrapped))
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
             continue;
 
-        entry.notify->Execute(context);
+        activeStateIds.push_back(entry.id);
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress = entry.durationSec > 0.f
+            ? std::clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+
+        auto runtimeIt = std::find_if(
+            _previewPlayEffectStateRuntimes.begin(),
+            _previewPlayEffectStateRuntimes.end(),
+            [&](const PreviewPlayEffectStateRuntime& runtime)
+            {
+                return runtime.stateId == entry.id;
+            });
+
+        if (runtimeIt == _previewPlayEffectStateRuntimes.end())
+        {
+            PreviewPlayEffectStateRuntime runtime{};
+            runtime.stateId = entry.id;
+            runtime.notifyState = entry.notifyState;
+            _previewPlayEffectStateRuntimes.push_back(runtime);
+
+            entry.notifyState->On_Begin(stateContext);
+            continue;
+        }
+
+        if (runtimeIt->notifyState != entry.notifyState)
+        {
+            if (runtimeIt->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtimeIt->notifyState->On_End(endContext);
+            }
+
+            runtimeIt->notifyState = entry.notifyState;
+            entry.notifyState->On_Begin(stateContext);
+            continue;
+        }
+
+        if (timeAdvanced)
+            entry.notifyState->On_Tick(stateContext);
     }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewPlayEffectStateRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewPlayEffectStateRuntimes[runtimeIndex].stateId;
+        const bool stillActive = std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+        if (stillActive)
+            continue;
+
+        if (_previewPlayEffectStateRuntimes[runtimeIndex].notifyState)
+        {
+            AnimNotifyContext endContext = context;
+            endContext.notifyStateProgress = 1.f;
+            _previewPlayEffectStateRuntimes[runtimeIndex].notifyState->On_End(endContext);
+        }
+
+        _previewPlayEffectStateRuntimes.erase(_previewPlayEffectStateRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewPlayEffectStates()
+{
+    if (_previewPlayEffectStateRuntimes.empty())
+        return;
+
+    AnimNotifyContext context{};
+    context.owner = _previewModelCom ? _previewModelCom->Get_Owner().get() : nullptr;
+    context.model = _previewModelCom.get();
+    context.modelGuid = _modelGuid;
+    context.animationName = _currentAnimationName;
+    context.notifyStateProgress = 1.f;
+    context.isPreview = true;
+
+    if (context.owner != nullptr)
+    {
+        for (PreviewPlayEffectStateRuntime& runtime : _previewPlayEffectStateRuntimes)
+        {
+            if (runtime.notifyState)
+                runtime.notifyState->On_End(context);
+        }
+    }
+
+    _previewPlayEffectStateRuntimes.clear();
 }
 
 void Animation_View::Update_PreviewTrailEffect(float timeDelta)

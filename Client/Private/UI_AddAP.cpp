@@ -16,9 +16,9 @@ HRESULT UI_AddAP::Initialize(uint32 levelIndex)
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
 
-    Set_FloatingMotion(1.0f, 32.f);
+    Set_FloatingMotion(40.f / 60.f, 32.f);
     Set_StackStep(18.f, 20.f);
-    Set_AnchorMode(AnchorMode::FollowWorld);
+    Set_AnchorMode(AnchorMode::SnapshotScreen);
 
     Set_WorldAnchorOffset(Vec3(0.f, 0.f, 0.f));
     Set_ScreenBaseOffset(Vec2(0.f, -120.f));
