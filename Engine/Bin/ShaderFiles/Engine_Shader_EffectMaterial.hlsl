@@ -1,3 +1,5 @@
+// Engine 원본 경로: Engine/Bin/ShaderFiles/Engine_Shader_EffectMaterial.hlsl
+// Client 복사본 경로: Client/Bin/ShaderFiles/Engine_Shader_EffectMaterial.hlsl - 먼저 이 원본의 의도를 확인하세요.
 #ifndef ENGINE_SHADER_EFFECT_MATERIAL_HLSL
 #define ENGINE_SHADER_EFFECT_MATERIAL_HLSL
 
@@ -7,16 +9,27 @@ struct EffectMaterialSurface
     float coverage;
 };
 
+float Effect_SelectScalarSource(float4 texel, int source)
+{
+    float selected = texel.a;
+
+    if (source == 1)
+        selected = texel.r;
+    else if (source == 2)
+        selected = dot(texel.rgb, float3(0.299f, 0.587f, 0.114f));
+
+    return selected;
+}
+
+float Effect_ApplySourceInvert(float value, float invert)
+{
+    const float saturatedValue = saturate(value);
+    return invert != 0.f ? 1.f - saturatedValue : saturatedValue;
+}
+
 float Effect_SelectOpacity(float4 texel, int opacitySource)
 {
-    float selectedOpacity = texel.a;
-
-    if (opacitySource == 1)
-        selectedOpacity = texel.r;
-    else if (opacitySource == 2)
-        selectedOpacity = dot(texel.rgb, float3(0.299f, 0.587f, 0.114f));
-
-    return selectedOpacity;
+    return Effect_SelectScalarSource(texel, opacitySource);
 }
 
 float Effect_ApplyAlphaErosion(float maskAlpha, float erosionSource, float alphaErosion)
@@ -46,6 +59,28 @@ float Effect_BuildCoverage(
 float4 Effect_ComposeAlphaBlend(EffectMaterialSurface surface, float intensity)
 {
     return float4(surface.color * max(intensity, 0.f), surface.coverage);
+}
+
+float3 Effect_ApplyCoreEmissiveShaping(
+    float3 outerColor,
+    float4 coreColor,
+    float selectedOpacity,
+    float4 coreEmissiveParams)
+{
+    float3 result = outerColor;
+    if (coreEmissiveParams.x >= 0.5f)
+    {
+        const float opacity = saturate(selectedOpacity);
+        const float outerPower = max(coreEmissiveParams.w, 0.0001f);
+        const float corePower = max(coreEmissiveParams.y, 0.0001f);
+        const float outer = pow(opacity, outerPower);
+        const float inner = pow(opacity, corePower);
+        const float coreIntensity = max(coreEmissiveParams.z, 0.f);
+        const float outerIntensity = max(coreColor.a, 0.f);
+        result = outerColor * outer * outerIntensity + coreColor.rgb * inner * coreIntensity;
+    }
+
+    return result;
 }
 
 float Effect_SelectAdditiveAmount(float4 texel, float maskAlpha, int amountSource)
