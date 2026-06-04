@@ -1777,6 +1777,14 @@ void Animation_View::Handle_ClipboardShortcuts()
             Delete_SelectedState();
     }
 
+    if (!_selectedNotifyIds.empty() && !io.KeyCtrl)
+    {
+        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, false))
+            Move_SelectedNotifiesByFrame(-1);
+        else if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, false))
+            Move_SelectedNotifiesByFrame(1);
+    }
+
     if (!io.KeyCtrl)
         return;
 
@@ -1795,6 +1803,79 @@ void Animation_View::Handle_ClipboardShortcuts()
         else if (_notifyClipboardKind == NotifyClipboardKind::State)
             Paste_CopiedState();
     }
+}
+
+void Animation_View::Move_SelectedNotifiesByFrame(int32 frameDelta)
+{
+    if (frameDelta == 0)
+        return;
+
+    AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr || _selectedNotifyIds.empty())
+        return;
+
+    const int32 fps = max(1, Get_CurrentAnimationFps());
+    const int32 maxNotifyFrame = max(0, Get_CurrentAnimationFrameMax() - 1);
+
+    vector<pair<AnimNotifyEventEntry*, int32>> selectedEntries{};
+    selectedEntries.reserve(_selectedNotifyIds.size());
+
+    int32 minFrame = maxNotifyFrame;
+    int32 maxFrame = 0;
+    for (AnimNotifyEventEntry& entry : animationData->notifies)
+    {
+        if (!Is_NotifySelected(entry.id))
+            continue;
+
+        const int32 frame = std::clamp(
+            static_cast<int32>(std::round(entry.timeSec * static_cast<float>(fps))),
+            0,
+            maxNotifyFrame);
+
+        selectedEntries.emplace_back(&entry, frame);
+        minFrame = min(minFrame, frame);
+        maxFrame = max(maxFrame, frame);
+    }
+
+    if (selectedEntries.empty())
+        return;
+
+    const int32 clampedDelta = std::clamp(frameDelta, -minFrame, maxNotifyFrame - maxFrame);
+    if (clampedDelta == 0)
+        return;
+
+    float primaryTimeSec = -1.f;
+    for (const auto& [entry, frame] : selectedEntries)
+    {
+        const int32 movedFrame = frame + clampedDelta;
+        entry->timeSec = static_cast<float>(movedFrame) / static_cast<float>(fps);
+
+        if (entry->id == _selectedNotifyId)
+            primaryTimeSec = entry->timeSec;
+    }
+
+    if (primaryTimeSec < 0.f)
+        primaryTimeSec = selectedEntries.front().first->timeSec;
+
+    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+
+    if (primaryTimeSec >= 0.f)
+    {
+        _sequencerCurrentFrame = std::clamp(
+            static_cast<int32>(std::round(primaryTimeSec * static_cast<float>(fps))),
+            0,
+            maxNotifyFrame);
+
+        Shared<ModelCom> playbackModel = Get_PlaybackModel();
+        if (_sourceMode == SourceMode::LiveModel && playbackModel != nullptr)
+        {
+            playbackModel->Set_AnimationPaused(true);
+            playbackModel->Set_CurrentAnimationTimeSec(primaryTimeSec);
+            playbackModel->Refresh_CurrentAnimationPose();
+        }
+    }
+
+    _isDirty = true;
 }
 
 void Animation_View::Copy_SelectedNotify()
