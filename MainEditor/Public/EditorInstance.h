@@ -200,8 +200,6 @@ private: /* 저장 */
     };
     PendingPickRequest _pendingPick = {};
 
-    void Capture_PlayStartSnapshot();
-    void Restore_PlayStartSnapshot();
     void Reload_CurrentLevelMonstersFromMapJson();
     const wchar_t* Resolve_CurrentLevelAuthoringMapPath() const;
     bool Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const;
@@ -256,8 +254,6 @@ private: /* Runtime Data */
     EDITOR_RUNTIME_STATE _runtimeState = EDITOR_RUNTIME_STATE::Play;
     float _runtimeTimeScale = 1.f;
 
-    vector<EditorWorldObjectSnapshot> _playStartWorldSnapshot = {};
-    int32 _playStartSelectedObjectIndex = -1;
     CameraPoseSnapshot _playStartCameraPose = {};
     Weak<Camera> _cameraBeforeFreeCamera = {};
 
