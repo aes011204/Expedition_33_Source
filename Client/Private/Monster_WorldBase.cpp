@@ -187,8 +187,14 @@ void Monster_WorldBase::Update(float timeDelta)
     //if (_aiCtrl && _aiCtrl->Get_IsMoving())
     //    Set_CurrentAction(MonsterAction::Move);
 
-
     auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
+    if(_currentAction ==MonsterWorldAnim::Stun)
+    {
+        if (bodyPart->Is_AnimationFinished() == true)
+            bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Stun),0.3f, true);
+    }
+
+
     if (bodyPart)
     {
         if (!_hasAppliedAction || _currentAction != _previousAction)
@@ -202,7 +208,9 @@ void Monster_WorldBase::Update(float timeDelta)
             switch (_currentAction)
             {
             case MonsterWorldAnim::Stun:
-              applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Stun), 0.3f, true);
+              applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Hit), 0.3f, true);
+
+              
                 break;
 
             case MonsterWorldAnim::Idle:

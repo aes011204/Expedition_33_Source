@@ -19,6 +19,13 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
 
     auto& action = battle->Get_TurnAction();
 
+    _moveTarget = nullptr;
+    _startPos = {};
+    _goalPos = {};
+    _startRot = {};
+    _goalRot = {};
+    _isCounter = false;
+
     if (action.Get_CurChar().ModelCom.get() != context.model)
     {
         const Shared<BattleSpawnRegistry> spawnRegistry = battle->Get_BattleSpawnRegistry();
@@ -38,6 +45,7 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
         }
 
         if (counterTarget == nullptr)
+            return;
 
         if (counterTarget->actor == nullptr)
             return;
@@ -61,11 +69,19 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
     }
     else
     {
-        if (!action.Get_CurChar().actor)
-        {
-            _startPos = action.Get_CurChar().actor->Get_Transform()->Get_Position();
-            _goalPos = action.GetPhaseGoalPos();
-        }
+        if (action.Get_CurChar().actor == nullptr)
+            return;
+
+        _moveTarget = action.Get_CurChar().actor->Get_Transform();
+        if (_moveTarget == nullptr)
+            return;
+
+        _startPos = _moveTarget->Get_Position();
+        _goalPos = action.GetPhaseGoalPos();
+
+        _startRot = _moveTarget->Get_RotationEuler();
+        _goalRot = _startRot;
+
         _isCounter = false;
     }
 }
@@ -101,9 +117,8 @@ void ANS_Move::On_Tick(const AnimNotifyContext& context)
 
 void ANS_Move::On_End(const AnimNotifyContext& context)
 {
-
     if (context.isPreview)
-    return;
+        return;
 
     if (_moveTarget == nullptr)
         return;
