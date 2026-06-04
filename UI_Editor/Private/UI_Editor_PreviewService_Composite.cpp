@@ -270,27 +270,24 @@ namespace UIEditor
     }
 
     ID3D11ShaderResourceView* UI_Editor_PreviewService::Get_PatternOverlayPreviewSRV(
-        const string& textureGuid,
-        const string& texturePath,
-        const string& paintMaskTextureGuid,
-        const string& paintMaskTexturePath,
-        const string& patternMaskTextureGuid,
-        const string& patternMaskTexturePath)
+        const PatternOverlayPreviewDesc& previewDesc)
     {
         if (nullptr == _device || nullptr == _context)
             return nullptr;
 
-        if ((textureGuid.empty() && texturePath.empty()) ||
-            (paintMaskTextureGuid.empty() && paintMaskTexturePath.empty()) ||
-            (patternMaskTextureGuid.empty() && patternMaskTexturePath.empty()))
+        if ((previewDesc.textureGuid.empty() && previewDesc.texturePath.empty()) ||
+            (previewDesc.paintMaskTextureGuid.empty() && previewDesc.paintMaskTexturePath.empty()) ||
+            (previewDesc.patternMaskTextureGuid.empty() && previewDesc.patternMaskTexturePath.empty()))
         {
             return nullptr;
         }
 
         const string cacheKey =
-            Make_TexturePreviewGuidKey(textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(texturePath)) + "|" +
-            Make_TexturePreviewGuidKey(paintMaskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(paintMaskTexturePath)) + "|" +
-            Make_TexturePreviewGuidKey(patternMaskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(patternMaskTexturePath));
+            Make_TexturePreviewGuidKey(previewDesc.textureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.texturePath)) + "|" +
+            Make_TexturePreviewGuidKey(previewDesc.paintMaskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.paintMaskTexturePath)) + "|" +
+            Make_TexturePreviewGuidKey(previewDesc.patternMaskTextureGuid) + "|" + Make_TexturePreviewPathKey(Resolve_ClientRuntimeResourcePath(previewDesc.patternMaskTexturePath)) + "|" +
+            to_string(previewDesc.patternUvOffset.x) + "," + to_string(previewDesc.patternUvOffset.y) + "|" +
+            to_string(previewDesc.patternUvScale.x) + "," + to_string(previewDesc.patternUvScale.y);
 
         const auto cachedIter = _patternOverlayPreviewCache.find(cacheKey);
         if (cachedIter != _patternOverlayPreviewCache.end())
@@ -299,9 +296,9 @@ namespace UIEditor
         if (_patternOverlayPreviewFailedKeys.find(cacheKey) != _patternOverlayPreviewFailedKeys.end())
             return nullptr;
 
-        ID3D11ShaderResourceView* textureSRV = Get_TexturePreviewSRV(textureGuid, texturePath);
-        ID3D11ShaderResourceView* paintMaskSRV = Get_TexturePreviewSRV(paintMaskTextureGuid, paintMaskTexturePath);
-        ID3D11ShaderResourceView* patternMaskSRV = Get_TexturePreviewSRV(patternMaskTextureGuid, patternMaskTexturePath);
+        ID3D11ShaderResourceView* textureSRV = Get_TexturePreviewSRV(previewDesc.textureGuid, previewDesc.texturePath);
+        ID3D11ShaderResourceView* paintMaskSRV = Get_TexturePreviewSRV(previewDesc.paintMaskTextureGuid, previewDesc.paintMaskTexturePath);
+        ID3D11ShaderResourceView* patternMaskSRV = Get_TexturePreviewSRV(previewDesc.patternMaskTextureGuid, previewDesc.patternMaskTexturePath);
         if (nullptr == textureSRV || nullptr == paintMaskSRV || nullptr == patternMaskSRV)
         {
             return nullptr;
@@ -313,6 +310,8 @@ namespace UIEditor
             paintMaskSRV,
             patternMaskSRV,
             3u,
+            previewDesc.patternUvOffset,
+            previewDesc.patternUvScale,
             _patternOverlayPreviewCache,
             _patternOverlayPreviewFailedKeys);
     }
@@ -365,6 +364,8 @@ namespace UIEditor
             maskSRV,
             nullptr,
             passIndex,
+            ImVec2(0.f, 0.f),
+            ImVec2(1.f, 1.f),
             _maskedTexturePreviewCache,
             _maskedTexturePreviewFailedKeys);
     }
@@ -375,6 +376,8 @@ namespace UIEditor
         ID3D11ShaderResourceView* maskSRV,
         ID3D11ShaderResourceView* patternMaskSRV,
         uint32 passIndex,
+        const ImVec2& patternUvOffset,
+        const ImVec2& patternUvScale,
         unordered_map<string, ComPtr<ID3D11ShaderResourceView>>& cache,
         unordered_set<string>& failedKeys)
     {
@@ -460,6 +463,8 @@ namespace UIEditor
             SUCCEEDED(_imagePreviewShader->Bind_Matrix("g_ViewMatrix", &viewMatrix)) &&
             SUCCEEDED(_imagePreviewShader->Bind_Matrix("g_ProjMatrix", &projMatrix)) &&
             SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_Color", &color, sizeof(Vec4))) &&
+            SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_PatternUvOffset", &patternUvOffset, sizeof(ImVec2))) &&
+            SUCCEEDED(_imagePreviewShader->Bind_RawValue("g_PatternUvScale", &patternUvScale, sizeof(ImVec2))) &&
             SUCCEEDED(_imagePreviewShader->Bind_SRV("g_Texture", textureSRV)) &&
             SUCCEEDED(_imagePreviewShader->Bind_SRV("g_MaskTexture", maskSRV));
 

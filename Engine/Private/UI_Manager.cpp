@@ -2,8 +2,19 @@
 
 #include <algorithm>
 #include "Debug_Profile.h"
+#include "GameInstance.h"
 #include "UI_Base.h"
 #include "Prototype_Manager.h"
+
+namespace
+{
+bool Should_ProcessLevel(uint32 levelIndex)
+{
+    constexpr uint32 staticLevelIndex = 0;
+    return levelIndex == staticLevelIndex ||
+        levelIndex == GAME->Current_LevelIndex();
+}
+}
 
 UI_Manager::UI_Manager(Prototype_Manager* prototypeManager)
     : _prototypeManager{ prototypeManager }
@@ -90,6 +101,9 @@ void UI_Manager::Update(float timeDelta)
 
     for (auto& entry : _uiList)
     {
+        if (!Should_ProcessLevel(entry.levelIndex))
+            continue;
+
         Shared<UI_Base>& ui = entry.ui;
 
         if (nullptr == ui)
@@ -138,6 +152,9 @@ HRESULT UI_Manager::Render(UI_RenderGroup renderGroup)
 {
     for (const auto& entry : _uiList)
     {
+        if (!Should_ProcessLevel(entry.levelIndex))
+            continue;
+
         const Shared<UI_Base>& ui = entry.ui;
 
         if (nullptr == ui)
