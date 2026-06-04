@@ -655,9 +655,9 @@ bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
 
 bool BattleReactionController::IsHitOrDeadBattleAnim(BattleAnimType animType) const
 {
-    return animType == BattleAnimType::Hit_Heavy ||
-        animType == BattleAnimType::Hit_Medium ||
-        animType == BattleAnimType::Hit_Light ||
+    return //animType == BattleAnimType::Hit_Heavy ||
+        //animType == BattleAnimType::Hit_Medium ||
+       // animType == BattleAnimType::Hit_Light ||
         animType == BattleAnimType::Dead;
 }
 
