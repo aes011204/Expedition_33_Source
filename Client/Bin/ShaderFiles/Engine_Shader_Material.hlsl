@@ -111,7 +111,7 @@ float3 ComputeWorldNormal(float3 normalW, float3 tangentW, float3 binormalW, flo
 
 float3 SampleOrm(float2 uv)
 {
-    float3 orm = float3(1.f, 1.f, 0.f);
+    float3 orm = float3(1.f, 1.f, 0.05f);
 
     if (HasMaterialTexture(MATERIAL_SLOT_ORM))
     {

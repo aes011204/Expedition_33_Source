@@ -45,6 +45,20 @@ void ScreenFx_View::Render()
     if (!_isOpen) return;
     if (!ImGui::Begin("ScreenFx Editor", &_isOpen)) { ImGui::End(); return; }
 
+    ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
+    bool screenFxActivated = screenFxManager ? screenFxManager->Is_ScreenFXActivated() : false;
+    if (ImGui::Checkbox("ScreenFx Enabled", &screenFxActivated) && screenFxManager)
+    {
+        screenFxManager->Set_ScreenFxActivated(screenFxActivated);
+    }
+
+    if (screenFxManager == nullptr)
+    {
+        ImGui::TextDisabled("ScreenFx manager is null.");
+    }
+
+    ImGui::Separator();
+
     const char* currentSelection = _selectedEffectName.empty() ? "Select Effect..." : _selectedEffectName.c_str();
 
     // 1. 이펙트 타입 콤보박스 (TypeRegistry에서 등록된 목록 가져오기)

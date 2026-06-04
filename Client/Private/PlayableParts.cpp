@@ -6,7 +6,9 @@
 #include "GameInstance.h"
 #include "AnimComputeRuntime.h"
 #include "ComputeShaderCom.h"
+#include "ContainerObject.h"
 #include "EffectCom.h"
+#include "PreviewRimFeature.h"
 #include "SwitchDissolveFeature.h"
 
 NS_BEGIN(Client)
@@ -14,6 +16,37 @@ NS_BEGIN(Client)
 namespace
 {
     constexpr uint32 kVtxAnimMeshCharacterHairBlendPass = 8u;
+
+    bool SupportsPreviewRimPartTag(const wstring& partTag)
+    {
+        return partTag == L"Part_Body" ||
+               partTag == L"Part_Head" ||
+               partTag == L"Part_Hair";
+    }
+
+    // RimRay 효과를 위에 태그들한테만 적용해야 하니까 가능 여부를 마스킹 한다. (수염 같은 거에 들어가면 안 됨)
+    uint32 Build_DrawFeatureSupportMask(const PlayableParts& playablePart)
+    {
+        // 디졸브는 PlayableParts 전체에 적용 가능하니까 일단 기본으로 켜놓는다.
+        uint32 supportMask = DrawFeatureFlagDissolve;
+
+        const Shared<ContainerObject> ownerContainer =
+            dynamic_pointer_cast<ContainerObject>(playablePart.Get_Owner());
+        if (ownerContainer == nullptr)
+            return supportMask;
+
+        for (const auto& [partTag, partObject] : ownerContainer->Get_PartObjects())
+        {
+            if (partObject.get() != &playablePart)
+                continue;
+
+            if (SupportsPreviewRimPartTag(partTag))
+                supportMask |= DrawFeatureFlagPreviewRim;
+            break;
+        }
+
+        return supportMask;
+    }
 }
 
 PlayableParts::PlayableParts(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -234,6 +267,7 @@ HRESULT PlayableParts::Render()
     CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
 
     const uint32 iNumMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
+    const uint32 supportFeatureMask = Build_DrawFeatureSupportMask(*this);
 
     for (uint32 i = 0; i < iNumMeshes; i++)
     {
@@ -249,7 +283,7 @@ HRESULT PlayableParts::Render()
         CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
 
         CHECK_FAILED(EffectCom::Bind_DrawFeatures(
-            Get_Owner(), _shaderCom.get(), DrawFeatureFlagDissolve), E_FAIL);
+            Get_Owner(), _shaderCom.get(), supportFeatureMask), E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shaderCom->Begin(passIndex)))

@@ -16,8 +16,9 @@ public:
     virtual ~ShaderCom() = default;
 
 public:
-    virtual HRESULT Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements, ShaderType shader);
+    virtual HRESULT Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements, ShaderType shader, bool registerWithController = true);
     virtual HRESULT Initialize(void* arg);
+    HRESULT Recreate(const ShaderCom& source);
 
 public:
     HRESULT Begin(uint32 passIndex);
@@ -37,9 +38,14 @@ public:
     HRESULT Clear_FeatureTextures();
 
     ShaderType  Get_Type() const { return _type; }
+    const wchar_t* Get_ShaderFilePath() const { return _shaderFilePath.c_str(); }
+    const vector<D3D11_INPUT_ELEMENT_DESC>& Get_InputElements() const { return _inputElements; }
+    uint32 Get_InputElementCount() const { return _numInputElements; }
 
 private :
     HRESULT Update_CBuffer(ConstantBuffer cbType, const void* pData, size_t size);
+    void Reset_EffectState();
+    void Copy_EffectState(const ShaderCom& source);
 
 private:
     ID3DX11EffectVariable*               Get_EffectVariable(const char* constantName);
@@ -62,6 +68,9 @@ private:
 
     vector<ComPtr<ID3D11InputLayout>>               _inputLayouts;
     ShaderType                                      _type;
+    wstring                                         _shaderFilePath;
+    vector<D3D11_INPUT_ELEMENT_DESC>                _inputElements;
+    uint32                                          _numInputElements = 0;
 
     // 핸들
     ComPtr<ID3DX11EffectConstantBuffer>             _CB[ETOI(ConstantBuffer::END)]{};
@@ -84,7 +93,8 @@ public:
         const wchar_t* shaderFilePath,
         const D3D11_INPUT_ELEMENT_DESC* elements,
         uint32 numElements,
-        ShaderType shade);
+        ShaderType shade,
+        bool registerWithController = true);
 
     virtual Shared<Component> Clone(void* arg) override;
     virtual void Free() override;

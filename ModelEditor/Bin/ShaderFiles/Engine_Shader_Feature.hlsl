@@ -50,6 +50,40 @@ bool IsSwitchDissolveEnabled()
            HasFeatureTexture(FEATURE_TEX_DISSOLVE_NOISE);
 }
 
+// UI Preview에서 역광 효과가 활성화되었는지 확인
+bool HasPreviewRim()
+{
+    return HasDrawFeature(FEATURE_FLAG_PREVIEW_RIM);
+}
+
+// UI Preview에서 옷 전체가 번들거리지 않게 외곽 위주로만 림을 잡는다. 
+float ComputePreviewRim(float3 worldNormal, float3 viewDir, float rimPower)
+{
+    const float safePower = max(rimPower, 0.0001f);
+    const float ndotv = saturate(dot(normalize(worldNormal), normalize(viewDir)));
+    const float rimBase = 1.f - ndotv;
+    const float edgeOnly = smoothstep(0.62f, 0.90f, rimBase);
+    return pow(edgeOnly, safePower);
+}
+
+// UI Preview에서 역광 효과 색상과 강도 가져오는 함수
+float3 GetPreviewRimColor()
+{
+    return g_FeatureParam2.rgb;
+}
+
+// UI Preview에서 역광 효과 강도 가져오는 함수
+float GetPreviewRimIntensity()
+{
+    return g_FeatureParam2.a;
+}
+
+// UI Preview에서 머리카락 역광 효과 강도 가져오는 함수
+float GetPreviewHairRimIntensity()
+{
+    return g_FeatureParam3.y;
+}
+
 float SampleSwitchDissolveNoise(float2 uv)
 {
     // noiseScale이 클수록 노이즈 패턴이 촘촘해진다.

@@ -47,7 +47,7 @@ void UIPreviewManager::Update(float timeDelta)
 
     if(!_previewHeroes.empty())
     {
-        for (StatusPreviewHero& entry : _previewHeroes)
+        for (PreviewHeroEntry& entry : _previewHeroes)
         {
             if (entry.player)
                 entry.player->Update_StatusPreview(timeDelta);
@@ -67,7 +67,7 @@ void UIPreviewManager::Begin_Preview(PreviewShotPanel panel)
 
  //   _previousCamera = GAME->Get_ActiveCamera();
 
-    for (StatusPreviewHero& entry : _previewHeroes)
+    for (PreviewHeroEntry& entry : _previewHeroes)
     {
         if (entry.player)
             entry.player->Set_Visible(true);
@@ -91,7 +91,7 @@ void UIPreviewManager::Show_Preview(HeroId heroId, PreviewShotPanel panel)
     if (heroIndex < 0 || heroIndex >= static_cast<int32>(_previewHeroes.size()))
         return;
 
-    StatusPreviewHero& entry = _previewHeroes[heroIndex];
+    PreviewHeroEntry& entry = _previewHeroes[heroIndex];
     if (entry.player == nullptr || entry.player->Get_Transform() == nullptr)
         return;
 
@@ -127,7 +127,7 @@ void UIPreviewManager::Apply_Layout(const vector<PreviewSlotDesc>& layout)
         if (heroIndex < 0 || heroIndex >= static_cast<int32>(_previewHeroes.size()))
             continue;
 
-        StatusPreviewHero& entry = _previewHeroes[heroIndex];
+        PreviewHeroEntry& entry = _previewHeroes[heroIndex];
         if (entry.player == nullptr || entry.player->Get_Transform() == nullptr)
             continue;
 
@@ -227,7 +227,10 @@ HRESULT UIPreviewManager::Spawn_PreviewCharacter()
         CHECK_NULL(previewPlayer, E_FAIL);
 
         previewPlayer->Set_Visible(false);
-        _previewHeroes[static_cast<int32>(entry.heroId)] = StatusPreviewHero{ previewPlayer };
+        PreviewHeroEntry previewEntry{};
+        previewEntry.heroId = entry.heroId;
+        previewEntry.player = previewPlayer;
+        _previewHeroes[static_cast<int32>(entry.heroId)] = move(previewEntry);
     }
 
     return S_OK;
@@ -244,7 +247,7 @@ HRESULT UIPreviewManager::Spawn_PreviewCharacter()
 
 void UIPreviewManager::Clear_StatusPreviewHeroes()
 {
-    for (StatusPreviewHero& entry : _previewHeroes)
+    for (PreviewHeroEntry& entry : _previewHeroes)
     {
         if (entry.player)
             GAME->Remove_GameObject(ETOI(LevelType::Static), entry.player);
