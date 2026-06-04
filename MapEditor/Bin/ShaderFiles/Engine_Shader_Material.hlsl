@@ -46,7 +46,7 @@ float4 SampleBaseColor(float2 uv)
     
     if (baseColor.a < 0.3f)
         discard;
-    
+
     baseColor.rgb *= g_BaseColorTint.rgb;
     baseColor.a *= g_BaseColorTint.a;
     return baseColor;
@@ -94,15 +94,26 @@ float3 ComputeWorldNormal(float3 normalW, float3 tangentW, float3 binormalW, flo
     if (!HasMaterialTexture(MATERIAL_SLOT_NORMAL))
         return n;
 
-    float3 normalTS = g_MaterialTextures[MATERIAL_SLOT_NORMAL].Sample(LinearWrapSampler, uv).xyz * 2.f - 1.f;
-    normalTS.xy *= g_NormalStrength;
+    float4 normalSample = g_MaterialTextures[MATERIAL_SLOT_NORMAL].Sample(LinearWrapSampler, uv);
+
+    // BC5 normal maps store tangent-space X/Y in RG. Reconstruct Z after strength scaling.
+    float2 normalXY = normalSample.rg * 2.f - 1.f;
+
+    const bool flipNormalY = false;
+    if (flipNormalY)
+        normalXY.y = -normalXY.y;
+
+    normalXY *= g_NormalStrength;
+
+    float normalZ = sqrt(saturate(1.f - dot(normalXY, normalXY)));
+    float3 normalTS = normalize(float3(normalXY, normalZ));
 
     return normalize(normalTS.x * t + normalTS.y * b + normalTS.z * n);
 }
 
 float3 SampleOrm(float2 uv)
 {
-    float3 orm = float3(1.f, 1.f, 1.f);
+    float3 orm = float3(1.f, 1.f, 0.05f);
 
     if (HasMaterialTexture(MATERIAL_SLOT_ORM))
     {
