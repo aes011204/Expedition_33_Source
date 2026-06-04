@@ -1,6 +1,8 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "PanelModelOverride.h"
 #include "SceneContext.h"
+#include "MaterialBuilder.h"
+#include "Asset_Manager.h"
 
 PanelModelOverride::PanelModelOverride(SceneContext* ctx)
     : MEWindow{ L"Model Override" }, _ctx{ ctx }
@@ -210,7 +212,32 @@ namespace MapEditor
 
         json overridesJson = json::object();
         json texturesJson = json::object();
-        
+
+        // 1. 기존 베이스 텍스처 정보 로드
+        MaterialBuilder* builder = GAME->Get_AssetManager()->Get_MaterialBuilder();
+        if (builder)
+        {
+            string bundleKey = modelName;
+            transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
+
+            const auto* bundle = builder->GetOrLoadBundle(bundleKey);
+            if (bundle && !bundle->instancesByAssetName.empty())
+            {
+                const auto& instData = bundle->instancesByAssetName.begin()->second;
+
+                if (!instData.baseColorPath.empty()) texturesJson["baseColor"] = String::ToString(instData.baseColorPath);
+                if (!instData.normalPath.empty()) texturesJson["normal"] = String::ToString(instData.normalPath);
+                if (!instData.ormPath.empty()) texturesJson["orm"] = String::ToString(instData.ormPath);
+                if (!instData.emissivePath.empty()) texturesJson["emissive"] = String::ToString(instData.emissivePath);
+                if (!instData.opacityMaskPath.empty()) texturesJson["opacityMask"] = String::ToString(instData.opacityMaskPath);
+                if (!instData.hairDepthPath.empty()) texturesJson["hairDepth"] = String::ToString(instData.hairDepthPath);
+                if (!instData.hairIDPath.empty()) texturesJson["hairID"] = String::ToString(instData.hairIDPath);
+                if (!instData.irisHeightPath.empty()) texturesJson["irisHeight"] = String::ToString(instData.irisHeightPath);
+                if (!instData.irisMaskPath.empty()) texturesJson["irisMask"] = String::ToString(instData.irisMaskPath);
+            }
+        }
+
+        // 2. MapEditor에서 오버라이드한 텍스처 덮어쓰기
         for (auto& pair : textureSlots)
         {
             int32 slotIdx = pair.first;
@@ -227,17 +254,22 @@ namespace MapEditor
             else if (slotEnum == MaterialTextureSlot::ORM) slotNameStr = "orm";
             else if (slotEnum == MaterialTextureSlot::Emissive) slotNameStr = "emissive";
             else if (slotEnum == MaterialTextureSlot::OpacityMask) slotNameStr = "opacityMask";
-            
+
             if (!slotNameStr.empty())
             {
                 overridesJson[slotNameStr] = true;
                 texturesJson[slotNameStr] = newRelPath;
             }
         }
-        
+
         if (!overridesJson.empty())
         {
             instJson["overrides"] = overridesJson;
+            instJson["textures"] = texturesJson;
+        }
+        else if (!texturesJson.empty())
+        {
+            // 오버라이드가 없더라도, 원본 텍스처 경로는 기록하여 Standalone 보장
             instJson["textures"] = texturesJson;
         }
 

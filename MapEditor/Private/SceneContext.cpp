@@ -1196,26 +1196,27 @@ void SceneContext::Export_MapInstance(const string& filePath)
         }
     }
 
-    set<wstring> uniqueModels;
+    map<wstring, Shared<Engine::ModelCom>> uniqueModels;
     for (auto& obj : _objects)
     {
         if (obj->_type == EObjectType::StaticMesh && !obj->_modelPath.empty())
         {
-            uniqueModels.insert(obj->_modelPath);
+            uniqueModels[obj->_modelPath] = obj->_renderHandle ? obj->_renderHandle->GetModel() : nullptr;
         }
         else if (obj->_type == EObjectType::InstancedMesh && !obj->_instancedModelPath.empty())
         {
-            uniqueModels.insert(obj->_instancedModelPath);
+            uniqueModels[obj->_instancedModelPath] = obj->_instancedRenderHandle ? obj->_instancedRenderHandle->GetModel() : nullptr;
         }
     }
 
-    for (const auto& modelPathW : uniqueModels)
+    for (const auto& [modelPathW, model] : uniqueModels)
     {
         string modelPath = String::ToString(modelPathW);
         string filename = fs::path(modelPath).filename().string();
-        
+
         if (_modelOverrides.find(filename) != _modelOverrides.end())
         {
+            // ModelCom* 을 인자로 넘기지 않고, PanelModelOverride 내부에서 전역 캐시를 쓰도록 수정할 예정.
             _modelOverrides[filename].ExportToNativeMaterial(modelPath, mapName);
         }
         else
