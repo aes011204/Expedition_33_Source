@@ -84,8 +84,7 @@ float ComputeLightShaftScreenFade(float2 lightScreenUV)
     const float edgeFade = max(g_LS_EdgeFade, EPSILON);
     const float2 minFade = saturate((lightScreenUV + edgeFade) / edgeFade);
     const float2 maxFade = saturate((1.f + edgeFade - lightScreenUV) / edgeFade);
-    const float fade = min(minFade.x, minFade.y) * min(maxFade.x, maxFade.y);
-    return max(fade, 0.15f);
+    return min(minFade.x, minFade.y) * min(maxFade.x, maxFade.y);
 }
 
 #endif

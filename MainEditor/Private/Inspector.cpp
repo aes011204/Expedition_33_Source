@@ -223,7 +223,6 @@ bool Draw_CascadePresetControls(const char* headerLabel, const char* idPrefix, E
 
         return changed;
     }
-}
 
 
 Inspector::Inspector()

@@ -86,7 +86,7 @@ HRESULT Level_GamePlay::Ready_Lights()
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = Vec4(-0.8, -0.6f, -1.f, 0.f);
+    LightDesc.direction = Vec4(-0.8f, -0.6f, -1.f, 0.f);
     LightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
     LightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
     LightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);

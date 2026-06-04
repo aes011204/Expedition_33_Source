@@ -35,12 +35,12 @@ namespace Engine::ShaderCB
         SSAO,
         DeferredLighting,
         PostProcess,
-        LightShaft,
         Hair,
         DrawFeature,
         ScreenFx,
         FogZone,
-        Water
+        Water,
+        LightShaft
     };
 }
 
