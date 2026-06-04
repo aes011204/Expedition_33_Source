@@ -769,8 +769,12 @@ AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
         return Make_DragModule();
     case AuthoringModuleType::VelocityOverLife:
         return Make_VelocityOverLifeModule();
+    case AuthoringModuleType::OrbitOverLife:
+        return Make_OrbitOverLifeModule();
     case AuthoringModuleType::InitialRotation:
         return Make_InitialRotationModule();
+    case AuthoringModuleType::SphereRadialOrientation:
+        return Make_SphereRadialOrientationModule();
     case AuthoringModuleType::PlaneRadialOrientation:
         return Make_PlaneRadialOrientationModule();
     case AuthoringModuleType::RotationOverLife:
@@ -960,6 +964,17 @@ AuthoringModule Emitter_View::Make_VelocityOverLifeModule()
     return module;
 }
 
+AuthoringModule Emitter_View::Make_OrbitOverLifeModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::OrbitOverLife;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = OrbitOverLifeModuleData{};
+    return module;
+}
+
 AuthoringModule Emitter_View::Make_InitialRotationModule()
 {
     AuthoringModule module{};
@@ -979,6 +994,17 @@ AuthoringModule Emitter_View::Make_PlaneRadialOrientationModule()
     module.enabled = true;
     Apply_AuthoringModuleMetadata(module);
     module.data = PlaneRadialOrientationModuleData{};
+    return module;
+}
+
+AuthoringModule Emitter_View::Make_SphereRadialOrientationModule()
+{
+    AuthoringModule module{};
+    module.id = Issue_AuthoringId();
+    module.type = AuthoringModuleType::SphereRadialOrientation;
+    module.enabled = true;
+    Apply_AuthoringModuleMetadata(module);
+    module.data = SphereRadialOrientationModuleData{};
     return module;
 }
 
@@ -1173,6 +1199,7 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
     case AuthoringModuleType::InitialMeshRotationRate:
     case AuthoringModuleType::MeshRotationRateScaleByLife:
     case AuthoringModuleType::MeshSizeByLife:
+    case AuthoringModuleType::SphereRadialOrientation:
         return emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
     default:
         break;
@@ -1205,7 +1232,9 @@ bool Emitter_View::Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringM
     case AuthoringModuleType::Acceleration:
     case AuthoringModuleType::Drag:
     case AuthoringModuleType::VelocityOverLife:
+    case AuthoringModuleType::OrbitOverLife:
     case AuthoringModuleType::InitialRotation:
+    case AuthoringModuleType::SphereRadialOrientation:
     case AuthoringModuleType::PlaneRadialOrientation:
     case AuthoringModuleType::RotationOverLife:
     case AuthoringModuleType::InitialRotationRate:
@@ -1276,8 +1305,14 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
     case AuthoringModuleType::VelocityOverLife:
         module = Make_VelocityOverLifeModule();
         break;
+    case AuthoringModuleType::OrbitOverLife:
+        module = Make_OrbitOverLifeModule();
+        break;
     case AuthoringModuleType::InitialRotation:
         module = Make_InitialRotationModule();
+        break;
+    case AuthoringModuleType::SphereRadialOrientation:
+        module = Make_SphereRadialOrientationModule();
         break;
     case AuthoringModuleType::PlaneRadialOrientation:
         module = Make_PlaneRadialOrientationModule();
@@ -1719,8 +1754,16 @@ void Emitter_View::Reset_ModuleData(size_t emitterIndex, size_t moduleIndex)
         module.data = VelocityOverLifeModuleData{};
         break;
 
+    case AuthoringModuleType::OrbitOverLife:
+        module.data = OrbitOverLifeModuleData{};
+        break;
+
     case AuthoringModuleType::InitialRotation:
         module.data = InitialRotationModuleData{};
+        break;
+
+    case AuthoringModuleType::SphereRadialOrientation:
+        module.data = SphereRadialOrientationModuleData{};
         break;
 
     case AuthoringModuleType::PlaneRadialOrientation:
@@ -2032,9 +2075,25 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
     );
     entries.push_back(
         makeEntry(
+            AuthoringModuleType::OrbitOverLife,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::OrbitOverLife),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
             AuthoringModuleType::InitialRotation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRotation),
+            "이미 장착됨"
+        )
+    );
+    entries.push_back(
+        makeEntry(
+            AuthoringModuleType::SphereRadialOrientation,
+            true,
+            Can_AddModuleType(emitter, AuthoringModuleType::SphereRadialOrientation),
             "이미 장착됨"
         )
     );

@@ -916,6 +916,7 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.subUvFrameOverLife = _desc.subUVFrameOverLife;
     desc.sizeByLife = _desc.sizeByLife;
     desc.motion = _desc.motion;
+    desc.orbitOverLife = _desc.orbitOverLife;
     desc.rotation = _desc.rotation;
     desc.spawn = _desc.spawn.particleSpawn;
     desc.lifetimeSeed = _desc.lifetimeSeed;

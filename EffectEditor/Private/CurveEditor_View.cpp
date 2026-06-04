@@ -664,6 +664,13 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(Au
         if (auto* data = get_if<VelocityOverLifeModuleData>(&module.data))
             Add_FloatTarget(targets, emitter, module, data->scaleOverLife, "scaleOverLife", "Velocity Scale", IM_COL32(245, 205, 95, 255));
         break;
+    case AuthoringModuleType::OrbitOverLife:
+        if (auto* data = get_if<OrbitOverLifeModuleData>(&module.data))
+        {
+            Add_FloatTarget(targets, emitter, module, data->angleDegreesOverLife, "angleDegreesOverLife", "Orbit Angle", IM_COL32(120, 210, 245, 255));
+            Add_FloatTarget(targets, emitter, module, data->radiusScaleOverLife, "radiusScaleOverLife", "Orbit Radius Scale", IM_COL32(120, 245, 180, 255));
+        }
+        break;
     case AuthoringModuleType::Acceleration:
         if (auto* data = get_if<AccelerationModuleData>(&module.data))
             Add_Vector3Target(targets, emitter, module, data->acceleration, "acceleration", "Acceleration");

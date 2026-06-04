@@ -1481,6 +1481,71 @@ void EffectAssetRuntimeLoader::Fill_AccelerationCurvePayload(PointParticleMotion
     }
 }
 
+void EffectAssetRuntimeLoader::Fill_OrbitOverLifePayload(EffectOrbitOverLifeRuntimeDesc& desc, const json& orbitOverLife)
+{
+    desc.enabled = Read_Bool(orbitOverLife, "enabled", desc.enabled);
+    Read_Enum(orbitOverLife, "plane", desc.plane);
+
+    auto fill_float_curve = [](Vec2& range, uint32& keyCount, Vec4& times, Vec4& values, const json& distribution, float fallbackValue)
+    {
+        const float startValue = Evaluate_FloatDistributionMin(distribution, fallbackValue);
+        const float endValue = Evaluate_FloatDistributionMax(distribution, fallbackValue);
+        range = Vec2{ startValue, endValue };
+        keyCount = 2;
+        times = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        values = Vec4{ startValue, endValue, 0.f, 0.f };
+
+        const json* payload = Find_DistributionPayload(distribution);
+        if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
+            return;
+
+        const auto keysIter = payload->find("keys");
+        if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+            return;
+
+        vector<const json*> keys{};
+        keys.reserve(keysIter->size());
+        for (const json& key : *keysIter)
+            keys.push_back(&key);
+        ranges::sort(keys, [](const json* lhs, const json* rhs) { return Read_Float(*lhs, "time") < Read_Float(*rhs, "time"); });
+
+        const uint32 clampedKeyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
+        keyCount = clampedKeyCount;
+        times = Vec4{};
+        values = Vec4{};
+        for (uint32 index = 0; index < clampedKeyCount; ++index)
+        {
+            const json& key = *keys[index];
+            Set_SubUVFrameCurveComponent(times, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+            Set_SubUVFrameCurveComponent(values, index, Read_Float(key, "value", fallbackValue));
+        }
+    };
+
+    if (const auto angleIter = orbitOverLife.find("angleDegreesOverLife"); angleIter != orbitOverLife.end())
+    {
+        fill_float_curve(
+            desc.angleDegreesOverLife,
+            desc.angleCurveKeyCount,
+            desc.angleCurveTimes,
+            desc.angleCurveValues,
+            *angleIter,
+            0.f
+        );
+    }
+
+    if (const auto radiusIter = orbitOverLife.find("radiusScaleOverLife"); radiusIter != orbitOverLife.end())
+    {
+        fill_float_curve(
+            desc.radiusScaleOverLife,
+            desc.radiusScaleCurveKeyCount,
+            desc.radiusScaleCurveTimes,
+            desc.radiusScaleCurveValues,
+            *radiusIter,
+            1.f
+        );
+    }
+}
+
 namespace
 {
     Vec2 Read_LegacyFloatRange(const json& node, const Vec2& fallbackValue)
@@ -1549,6 +1614,18 @@ void EffectAssetRuntimeLoader::Fill_PlaneRadialOrientationPayload(
     Read_Enum(planeRadialOrientation, "meshUpAxis", desc.meshUpAxis);
     desc.tiltDegrees = Read_Float(planeRadialOrientation, "tiltDegrees", desc.tiltDegrees);
     desc.rollOffsetDegrees = Read_Float(planeRadialOrientation, "rollOffsetDegrees", desc.rollOffsetDegrees);
+}
+
+void EffectAssetRuntimeLoader::Fill_SphereRadialOrientationPayload(
+    PointParticleSphereRadialOrientationDesc& desc,
+    const json& sphereRadialOrientation)
+{
+    desc.enabled = Read_Bool(sphereRadialOrientation, "enabled", desc.enabled);
+    Read_Enum(sphereRadialOrientation, "orientationMode", desc.orientationMode);
+    Read_Enum(sphereRadialOrientation, "meshForwardAxis", desc.meshForwardAxis);
+    Read_Enum(sphereRadialOrientation, "meshUpAxis", desc.meshUpAxis);
+    desc.tiltDegrees = Read_Float(sphereRadialOrientation, "tiltDegrees", desc.tiltDegrees);
+    desc.rollOffsetDegrees = Read_Float(sphereRadialOrientation, "rollOffsetDegrees", desc.rollOffsetDegrees);
 }
 
 void EffectAssetRuntimeLoader::Fill_MeshVector3CurvePayload(
@@ -2022,6 +2099,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
 
         desc.sphereLocation.radius = max(0.f, Read_Float(*sphereLocation, "radius", desc.sphereLocation.radius));
         Read_Enum(*sphereLocation, "spawnMode", desc.sphereLocation.mode);
+        Read_Enum(*sphereLocation, "placementMode", desc.sphereLocation.placementMode);
         desc.sphereLocationSeed = Internal::Read_RandomSeedDesc(*sphereLocation);
     }
 
@@ -2199,6 +2277,9 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         desc.motion.enabled = true;
         Fill_VelocityScaleByLifePayload(desc.motion, *velocityOverLife);
     }
+
+    if (const json* orbitOverLife = Find_ModuleData(emitter, "OrbitOverLife"))
+        Fill_OrbitOverLifePayload(desc.orbitOverLife, *orbitOverLife);
 
     if (const json* initialRotation = Find_ModuleData(emitter, "InitialRotation"))
     {
@@ -2525,6 +2606,8 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
 
         desc.sphereLocation.radius = max(0.f, Read_Float(*sphereLocation, "radius", desc.sphereLocation.radius));
         Read_Enum(*sphereLocation, "spawnMode", desc.sphereLocation.mode);
+        Read_Enum(*sphereLocation, "placementMode", desc.sphereLocation.placementMode);
+        desc.sphereLocationSeed = Internal::Read_RandomSeedDesc(*sphereLocation);
     }
 
     if (const json* planeRadialLocation = Find_ModuleData(emitter, "PlaneRadialLocation"))
@@ -2672,6 +2755,9 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         Fill_VelocityScaleByLifePayload(desc.motion, *velocityOverLife);
     }
 
+    if (const json* orbitOverLife = Find_ModuleData(emitter, "OrbitOverLife"))
+        Fill_OrbitOverLifePayload(desc.orbitOverLife, *orbitOverLife);
+
     if (const json* initialMeshRotation = Find_ModuleData(emitter, "InitialMeshRotation"))
     {
         const auto rotationIter = initialMeshRotation->find("rotationDegrees");
@@ -2689,6 +2775,8 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         }
     }
 
+    if (const json* sphereRadialOrientation = Find_ModuleData(emitter, "SphereRadialOrientation"))
+        Fill_SphereRadialOrientationPayload(desc.sphereRadialOrientation, *sphereRadialOrientation);
     if (const json* planeRadialOrientation = Find_ModuleData(emitter, "PlaneRadialOrientation"))
         Fill_PlaneRadialOrientationPayload(desc.planeRadialOrientation, *planeRadialOrientation);
 

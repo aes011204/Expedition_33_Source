@@ -44,7 +44,7 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_InitialLocationMin;         // xyz: InitialLocation min offset, w: enabled
     float4 g_InitialLocationMax;         // xyz: InitialLocation max offset
     float4 g_SphereLocationOffsetRadius; // xyz: sphere center offset, w: radius
-    float4 g_SphereLocationParams;       // x: enabled, y: mode(0 volume, 1 surface)
+    float4 g_SphereLocationParams;       // x: enabled, y: mode(0 volume, 1 surface), z: placement mode(0 random, 1 even index)
     float4 g_PlaneRadialLocationParams;          // x: enabled, y: plane, z: shape, w: placement mode
     float4 g_PlaneRadialLocationOffsetThickness; // xyz: offset, w: thickness
     float4 g_PlaneRadialLocationRectRange;       // x/y: U range, z/w: V range
@@ -108,6 +108,15 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_VelocityScaleByLifeCurveTimes;  // VelocityOverLife key times
     float4 g_VelocityScaleByLifeCurveValues; // VelocityOverLife multiplier values
     float4 g_VelocityScaleByLifeCurveParams; // x: key count
+    float4 g_OrbitParams;                    // x: enabled, y: plane
+    float4 g_OrbitAngleRange;                // x/y: angle start/end degrees
+    float4 g_OrbitAngleCurveTimes;           // OrbitOverLife angle key times
+    float4 g_OrbitAngleCurveValues;          // OrbitOverLife angle degree values
+    float4 g_OrbitAngleCurveParams;          // x: key count
+    float4 g_OrbitRadiusRange;               // x/y: radius scale start/end
+    float4 g_OrbitRadiusCurveTimes;          // OrbitOverLife radius scale key times
+    float4 g_OrbitRadiusCurveValues;         // OrbitOverLife radius scale values
+    float4 g_OrbitRadiusCurveParams;         // x: key count
     uint4 g_MotionSeedSalts0; // x: InitialVelocity, y: InitialRadialVelocity, z: VelocityCone, w: Acceleration
     uint4 g_MotionSeedSalts1; // x: Drag
     float4 g_RotationInitialRate;         // x/y: initial rotation min/max, z/w: rate min/max
@@ -593,15 +602,26 @@ float Hash01(uint seed)
 float Resolve_EvenByParticleIndexAngleRatio(uint particleIndex, uint maxActiveCount, float angleMinDegrees, float angleMaxDegrees)
 {
     const uint clampedCount = max(1u, maxActiveCount);
-    if (clampedCount <= 1u)
-        return 0.0f;
-
     const float angleSpanDegrees = abs(angleMaxDegrees - angleMinDegrees);
     const bool isFullCircle = abs(angleSpanDegrees - 360.0f) <= kPlaneRadialAngleEpsilon;
-    if (isFullCircle)
-        return (float)particleIndex / (float)clampedCount;
+    const float denominator = isFullCircle ? (float)clampedCount : (float)max(1u, clampedCount - 1u);
+    const float ratio = (float)particleIndex / denominator;
 
-    return (float)particleIndex / (float)(clampedCount - 1u);
+    return clampedCount <= 1u ? 0.0f : ratio;
+}
+
+float3 ResolveEvenByParticleIndexSphereDirection(uint placementIndex, uint placementCount)
+{
+    const uint clampedCount = max(1u, placementCount);
+    const uint clampedIndex = placementIndex % clampedCount;
+    const float ratio = ((float)clampedIndex + 0.5f) / (float)clampedCount;
+    const float z = 1.0f - 2.0f * ratio;
+    const float radiusOnPlane = sqrt(max(0.0f, 1.0f - z * z));
+    const float goldenAngle = 3.14159265359f * (3.0f - sqrt(5.0f));
+    const float angle = (float)clampedIndex * goldenAngle;
+
+    const float3 direction = float3(cos(angle) * radiusOnPlane, sin(angle) * radiusOnPlane, z);
+    return placementCount <= 1u ? float3(0.0f, 0.0f, 1.0f) : direction;
 }
 
 // seed에서 만든 0~1 값으로 min/max 사이의 3축 값을 샘플링한다.
@@ -624,6 +644,112 @@ float3 ResolveEmitterBasisVector(float3 localValue)
     const float3 up = upLength < 0.0001f ? float3(0.0f, 1.0f, 0.0f) : g_EmitterBasisUp.xyz / upLength;
     const float3 look = lookLength < 0.0001f ? float3(0.0f, 0.0f, 1.0f) : g_EmitterBasisLook.xyz / lookLength;
     return right * localValue.x + up * localValue.y + look * localValue.z;
+}
+
+float3 ResolveEmitterLocalVector(float3 worldValue)
+{
+    const float rightLength = length(g_EmitterBasisRight.xyz);
+    const float upLength = length(g_EmitterBasisUp.xyz);
+    const float lookLength = length(g_EmitterBasisLook.xyz);
+    const float3 right = rightLength < 0.0001f ? float3(1.0f, 0.0f, 0.0f) : g_EmitterBasisRight.xyz / rightLength;
+    const float3 up = upLength < 0.0001f ? float3(0.0f, 1.0f, 0.0f) : g_EmitterBasisUp.xyz / upLength;
+    const float3 look = lookLength < 0.0001f ? float3(0.0f, 0.0f, 1.0f) : g_EmitterBasisLook.xyz / lookLength;
+    return float3(dot(worldValue, right), dot(worldValue, up), dot(worldValue, look));
+}
+
+float EvaluateOrbitCurve(float lifeProgress, uint keyCount, float4 times, float4 values, float fallbackValue)
+{
+    keyCount = max(1u, min(4u, keyCount));
+
+    bool found = false;
+    float result = fallbackValue;
+    if (keyCount == 1u || lifeProgress <= ReadVec4Component(times, 0u))
+    {
+        result = ReadVec4Component(values, 0u);
+        found = true;
+    }
+    else
+    {
+        [unroll]
+        for (uint keyIndex = 1u; keyIndex < 4u; ++keyIndex)
+        {
+            if (keyIndex >= keyCount || found)
+                continue;
+
+            const float rightTime = ReadVec4Component(times, keyIndex);
+            if (lifeProgress > rightTime)
+                continue;
+
+            const float leftTime = ReadVec4Component(times, keyIndex - 1u);
+            const float ratio = saturate((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime));
+            result = lerp(ReadVec4Component(values, keyIndex - 1u), ReadVec4Component(values, keyIndex), ratio);
+            found = true;
+        }
+    }
+
+    const float lastTime = ReadVec4Component(times, keyCount - 1u);
+    if (!found && lifeProgress > lastTime)
+        result = ReadVec4Component(values, keyCount - 1u);
+
+    return result;
+}
+
+float3 ApplyOrbitOverLife(float3 spawnOffset, float lifeProgress)
+{
+    float3 result = spawnOffset;
+    if (g_OrbitParams.x != 0.0f)
+    {
+        float3 localOffset = ResolveEmitterLocalVector(spawnOffset);
+        const float angleDegrees = EvaluateOrbitCurve(
+            lifeProgress,
+            (uint)g_OrbitAngleCurveParams.x,
+            g_OrbitAngleCurveTimes,
+            g_OrbitAngleCurveValues,
+            lerp(g_OrbitAngleRange.x, g_OrbitAngleRange.y, lifeProgress)
+        );
+        const float radiusScale = EvaluateOrbitCurve(
+            lifeProgress,
+            (uint)g_OrbitRadiusCurveParams.x,
+            g_OrbitRadiusCurveTimes,
+            g_OrbitRadiusCurveValues,
+            lerp(g_OrbitRadiusRange.x, g_OrbitRadiusRange.y, lifeProgress)
+        );
+
+        const float c = cos(radians(angleDegrees));
+        const float s = sin(radians(angleDegrees));
+        const uint plane = (uint)g_OrbitParams.y;
+        float2 planeOffset = localOffset.xy;
+        if (plane == 1u)
+            planeOffset = localOffset.xz;
+        else if (plane == 2u)
+            planeOffset = localOffset.yz;
+
+        planeOffset *= radiusScale;
+        const float2 rotatedOffset = float2(
+            planeOffset.x * c - planeOffset.y * s,
+            planeOffset.x * s + planeOffset.y * c
+        );
+
+        if (plane == 1u)
+        {
+            localOffset.x = rotatedOffset.x;
+            localOffset.z = rotatedOffset.y;
+        }
+        else if (plane == 2u)
+        {
+            localOffset.y = rotatedOffset.x;
+            localOffset.z = rotatedOffset.y;
+        }
+        else
+        {
+            localOffset.x = rotatedOffset.x;
+            localOffset.y = rotatedOffset.y;
+        }
+
+        result = ResolveEmitterBasisVector(localOffset);
+    }
+
+    return result;
 }
 
 float3 NormalizeOrUp(float3 value)
@@ -769,16 +895,26 @@ float ResolvePlaneRadialSpriteRotation(float frameEnabled, float sampleAngle)
     return rotation;
 }
 
-// sphere location 설정에 따라 구 내부 spawn 오프셋을 샘플링한다.
-float3 SampleSphereLocationOffset(uint seed)
+// sphere location 설정에 따라 구 내부/표면 spawn 오프셋을 샘플링한다.
+float3 SampleSphereLocationOffset(uint seed, uint placementIndex, uint placementCount)
 {
     const float radius = max(0.0f, g_SphereLocationOffsetRadius.w);
     const float twoPi = 6.28318530718f;
-    const float z = Hash01(seed + 1301u) * 2.0f - 1.0f;
-    const float angle = Hash01(seed + 1409u) * twoPi;
-    const float xy = sqrt(max(0.0f, 1.0f - z * z));
-    const float3 direction = float3(cos(angle) * xy, sin(angle) * xy, z);
-    const float distanceScale = (uint)g_SphereLocationParams.y == 1u
+    const uint sphereMode = (uint)g_SphereLocationParams.y;
+    const uint placementMode = (uint)g_SphereLocationParams.z;
+    float3 direction;
+    if (sphereMode == 1u && placementMode == 1u)
+    {
+        direction = ResolveEvenByParticleIndexSphereDirection(placementIndex, placementCount);
+    }
+    else
+    {
+        const float z = Hash01(seed + 1301u) * 2.0f - 1.0f;
+        const float angle = Hash01(seed + 1409u) * twoPi;
+        const float xy = sqrt(max(0.0f, 1.0f - z * z));
+        direction = float3(cos(angle) * xy, sin(angle) * xy, z);
+    }
+    const float distanceScale = sphereMode == 1u
                                 ? 1.0f
                                 : pow(Hash01(seed + 1511u), 1.0f / 3.0f);
     const float enabled = g_SphereLocationParams.x != 0.0f && radius > 0.0001f ? 1.0f : 0.0f;
@@ -922,9 +1058,10 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                                      ? ResolveEmitterBasisVector(planeRadialFrame.localOffset)
                                      : float3(0.0f, 0.0f, 0.0f);
     const float3 spawnOffset = (hasExplicitLocation ? baseLocationOffset : fallbackSpawnOffset) +
-                               SampleSphereLocationOffset(sphereLocationSeed) +
+                               SampleSphereLocationOffset(sphereLocationSeed, lifecycle.placementIndex, lifecycle.placementCount) +
                                planeRadialOffset;
-    const float3 spawnPosition = g_Center.xyz + spawnOffset;
+    const float3 orbitSpawnOffset = ApplyOrbitOverLife(spawnOffset, lifeProgress);
+    const float3 spawnPosition = g_Center.xyz + orbitSpawnOffset;
     float3 initialVelocity = float3(0.0f, 0.0f, 0.0f);
 
     if (g_MotionFlags.y != 0.0f)

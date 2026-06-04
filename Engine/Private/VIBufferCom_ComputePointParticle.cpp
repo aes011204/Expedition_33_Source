@@ -86,6 +86,15 @@ struct ComputePointParticleParams
     Vec4 velocityScaleByLifeCurveTimes{};  // VelocityOverLife key times.
     Vec4 velocityScaleByLifeCurveValues{}; // VelocityOverLife multiplier values.
     Vec4 velocityScaleByLifeCurveParams{}; // x: key count, y/z/w: unused.
+    Vec4 orbitParams{};           // x: enabled, y: plane, z/w: unused.
+    Vec4 orbitAngleRange{};       // x/y: angle start/end degrees, z/w: unused.
+    Vec4 orbitAngleCurveTimes{};  // OrbitOverLife angle key times.
+    Vec4 orbitAngleCurveValues{}; // OrbitOverLife angle degree key values.
+    Vec4 orbitAngleCurveParams{}; // x: key count, y/z/w: unused.
+    Vec4 orbitRadiusRange{};      // x/y: radius scale start/end, z/w: unused.
+    Vec4 orbitRadiusCurveTimes{}; // OrbitOverLife radius scale key times.
+    Vec4 orbitRadiusCurveValues{}; // OrbitOverLife radius scale key values.
+    Vec4 orbitRadiusCurveParams{}; // x: key count, y/z/w: unused.
     DirectX::XMUINT4 motionSeedSalts0{}; // x: InitialVelocity, y: InitialRadialVelocity, z: VelocityCone, w: Acceleration.
     DirectX::XMUINT4 motionSeedSalts1{}; // x: Drag, y/z/w: unused.
     Vec4 rotationInitialRate{};   // x/y: initial rotation min/max, z/w: rate min/max.
@@ -447,7 +456,7 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .sphereLocationParams = Vec4{
             _desc.sphereLocation.enabled ? 1.f : 0.f,
             static_cast<float>(ETOI(_desc.sphereLocation.mode)),
-            0.f,
+            static_cast<float>(ETOI(_desc.sphereLocation.placementMode)),
             0.f
         },
         .planeRadialLocationParams = Vec4{
@@ -653,6 +662,30 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .velocityScaleByLifeCurveValues = _desc.motion.velocityScaleByLifeCurveValues,
         .velocityScaleByLifeCurveParams = Vec4{
             static_cast<float>(_desc.motion.velocityScaleByLifeCurveKeyCount),
+            0.f,
+            0.f,
+            0.f
+        },
+        .orbitParams = Vec4{
+            _desc.orbitOverLife.enabled ? 1.f : 0.f,
+            static_cast<float>(ETOI(_desc.orbitOverLife.plane)),
+            0.f,
+            0.f
+        },
+        .orbitAngleRange = Vec4{ _desc.orbitOverLife.angleDegreesOverLife.x, _desc.orbitOverLife.angleDegreesOverLife.y, 0.f, 0.f },
+        .orbitAngleCurveTimes = _desc.orbitOverLife.angleCurveTimes,
+        .orbitAngleCurveValues = _desc.orbitOverLife.angleCurveValues,
+        .orbitAngleCurveParams = Vec4{
+            static_cast<float>(_desc.orbitOverLife.angleCurveKeyCount),
+            0.f,
+            0.f,
+            0.f
+        },
+        .orbitRadiusRange = Vec4{ _desc.orbitOverLife.radiusScaleOverLife.x, _desc.orbitOverLife.radiusScaleOverLife.y, 0.f, 0.f },
+        .orbitRadiusCurveTimes = _desc.orbitOverLife.radiusScaleCurveTimes,
+        .orbitRadiusCurveValues = _desc.orbitOverLife.radiusScaleCurveValues,
+        .orbitRadiusCurveParams = Vec4{
+            static_cast<float>(_desc.orbitOverLife.radiusScaleCurveKeyCount),
             0.f,
             0.f,
             0.f

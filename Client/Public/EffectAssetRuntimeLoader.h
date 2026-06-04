@@ -56,7 +56,9 @@ private:
     static void Fill_VelocityScaleByLifePayload(PointParticleMotionDesc& desc, const json& velocityOverLife);
     static void Fill_VelocityConePayload(PointParticleMotionDesc& desc, const json& velocityCone);
     static void Fill_AccelerationCurvePayload(PointParticleMotionDesc& desc, const json& distribution);
+    static void Fill_OrbitOverLifePayload(EffectOrbitOverLifeRuntimeDesc& desc, const json& orbitOverLife);
     static void Fill_PlaneRadialLocationPayload(PointParticlePlaneRadialLocationDesc& desc, const json& planeRadialLocation);
+    static void Fill_SphereRadialOrientationPayload(PointParticleSphereRadialOrientationDesc& desc, const json& sphereRadialOrientation);
     static void Fill_PlaneRadialOrientationPayload(PointParticlePlaneRadialOrientationDesc& desc, const json& planeRadialOrientation);
     static void Fill_MeshVector3CurvePayload(MeshVector3CurveRuntimeDesc& desc, const json& distribution, const Vec3& fallbackValue);
     static string Resolve_RendererType(const json& emitter);

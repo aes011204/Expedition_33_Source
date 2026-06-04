@@ -160,6 +160,16 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class OrbitOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        OrbitOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class PlaneRadialOrientationModuleDetail
 {
 public:
@@ -167,6 +177,16 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         PlaneRadialOrientationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class SphereRadialOrientationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SphereRadialOrientationModuleData& data,
         DetailPropertyContext& detailContext);
 };
 

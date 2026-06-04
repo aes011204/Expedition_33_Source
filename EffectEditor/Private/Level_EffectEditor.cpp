@@ -254,6 +254,19 @@ namespace Internal
         }
     }
 
+    PointParticleSphereLocationPlacementMode Resolve_PointParticleSphereLocationPlacementMode(SphereLocationPlacementMode mode)
+    {
+        switch (mode)
+        {
+        case SphereLocationPlacementMode::EvenByParticleIndex:
+            return PointParticleSphereLocationPlacementMode::EvenByParticleIndex;
+
+        case SphereLocationPlacementMode::Random:
+        default:
+            return PointParticleSphereLocationPlacementMode::Random;
+        }
+    }
+
     PointParticlePlaneRadialLocationPlane Resolve_PointParticlePlaneRadialLocationPlane(PlaneRadialLocationPlane plane)
     {
         switch (plane)
@@ -340,6 +353,22 @@ namespace Internal
         case PlaneRadialOrientationMode::None:
         default:
             return PointParticlePlaneRadialOrientationMode::None;
+        }
+    }
+
+    PointParticleSphereRadialOrientationMode Resolve_PointParticleSphereRadialOrientationMode(SphereRadialOrientationMode mode)
+    {
+        switch (mode)
+        {
+        case SphereRadialOrientationMode::FaceRadialOut:
+            return PointParticleSphereRadialOrientationMode::FaceRadialOut;
+
+        case SphereRadialOrientationMode::FaceRadialIn:
+            return PointParticleSphereRadialOrientationMode::FaceRadialIn;
+
+        case SphereRadialOrientationMode::None:
+        default:
+            return PointParticleSphereRadialOrientationMode::None;
         }
     }
 
@@ -563,6 +592,18 @@ namespace Internal
         return desc;
     }
 
+    PointParticleSphereRadialOrientationDesc Build_PointParticleSphereRadialOrientationDesc(const SphereRadialOrientationModuleData& data)
+    {
+        PointParticleSphereRadialOrientationDesc desc{};
+        desc.enabled = data.enabled;
+        desc.orientationMode = Resolve_PointParticleSphereRadialOrientationMode(data.orientationMode);
+        desc.meshForwardAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshForwardAxis);
+        desc.meshUpAxis = Resolve_PointParticlePlaneRadialOrientationAxis(data.meshUpAxis);
+        desc.tiltDegrees = data.tiltDegrees;
+        desc.rollOffsetDegrees = data.rollOffsetDegrees;
+        return desc;
+    }
+
     static void Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value)
     {
         switch (index)
@@ -607,6 +648,12 @@ namespace Internal
     {
         Set_SubUVFrameCurveComponent(desc.velocityScaleByLifeCurveTimes, index, clamp(time, 0.f, 1.f));
         Set_SubUVFrameCurveComponent(desc.velocityScaleByLifeCurveValues, index, value);
+    }
+
+    void Fill_OrbitFloatCurveComponent(Vec4& times, Vec4& values, uint32 index, float time, float value)
+    {
+        Set_SubUVFrameCurveComponent(times, index, clamp(time, 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(values, index, value);
     }
 
     void Fill_MeshVector3CurveComponent(MeshVector3CurveRuntimeDesc& desc, uint32 index, float time, const Vec3& value)
@@ -1071,6 +1118,76 @@ namespace Internal
             for (uint32 index = 0; index < keyCount; ++index)
                 Fill_RotationRateScaleByLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
         }
+    }
+
+    ::Engine::EffectOrbitPlane Resolve_EffectOrbitPlane(EffectOrbitPlane plane)
+    {
+        switch (plane)
+        {
+        case EffectOrbitPlane::XZ:
+            return ::Engine::EffectOrbitPlane::XZ;
+        case EffectOrbitPlane::YZ:
+            return ::Engine::EffectOrbitPlane::YZ;
+        case EffectOrbitPlane::XY:
+        default:
+            return ::Engine::EffectOrbitPlane::XY;
+        }
+    }
+
+    void Fill_OrbitFloatCurvePayload(
+        Vec2& range,
+        uint32& keyCount,
+        Vec4& times,
+        Vec4& values,
+        const FloatDistributionData& distribution,
+        float fallbackValue)
+    {
+        const float startValue = Evaluate_FloatDistributionMin(distribution, fallbackValue);
+        const float endValue = Evaluate_FloatDistributionMax(distribution, fallbackValue);
+        range = Vec2{ startValue, endValue };
+        keyCount = 2;
+        times = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        values = Vec4{ startValue, endValue, 0.f, 0.f };
+
+        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&distribution.payload))
+        {
+            vector<FloatCurveKeyData> keys = curve->keys;
+            ranges::sort(keys, {}, &FloatCurveKeyData::time);
+            constexpr uint32 maxOrbitCurveKeys{ 4 };
+            const uint32 clampedKeyCount = min(maxOrbitCurveKeys, static_cast<uint32>(keys.size()));
+            if (clampedKeyCount == 0)
+                return;
+
+            keyCount = clampedKeyCount;
+            times = Vec4{};
+            values = Vec4{};
+            for (uint32 index = 0; index < clampedKeyCount; ++index)
+                Fill_OrbitFloatCurveComponent(times, values, index, keys[index].time, keys[index].value);
+        }
+    }
+
+    EffectOrbitOverLifeRuntimeDesc Build_OrbitOverLifeDesc(const OrbitOverLifeModuleData& data)
+    {
+        EffectOrbitOverLifeRuntimeDesc desc{};
+        desc.enabled = data.enabled;
+        desc.plane = Resolve_EffectOrbitPlane(data.plane);
+        Fill_OrbitFloatCurvePayload(
+            desc.angleDegreesOverLife,
+            desc.angleCurveKeyCount,
+            desc.angleCurveTimes,
+            desc.angleCurveValues,
+            data.angleDegreesOverLife,
+            0.f
+        );
+        Fill_OrbitFloatCurvePayload(
+            desc.radiusScaleOverLife,
+            desc.radiusScaleCurveKeyCount,
+            desc.radiusScaleCurveTimes,
+            desc.radiusScaleCurveValues,
+            data.radiusScaleOverLife,
+            1.f
+        );
+        return desc;
     }
 
     Vec3 Evaluate_Vector3DistributionMin(const Vector3DistributionData& data, const Vec3& fallbackValue)
@@ -1627,6 +1744,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.sphereLocation.offset = sphereLocation->offset;
         desc.sphereLocation.radius = max(0.f, sphereLocation->radius);
         desc.sphereLocation.mode = Internal::Resolve_PointParticleSphereLocationMode(sphereLocation->spawnMode);
+        desc.sphereLocation.placementMode = Internal::Resolve_PointParticleSphereLocationPlacementMode(sphereLocation->placementMode);
         desc.sphereLocationSeed = Internal::Build_RandomSeedDesc(sphereLocation->randomSeed);
     }
 
@@ -1784,6 +1902,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.motion.enabled = true;
         Internal::Fill_VelocityScaleByLifePayload(desc.motion, velocityOverLife->scaleOverLife);
     }
+
+    if (const auto* orbitOverLife = Internal::Find_ModuleData<OrbitOverLifeModuleData>(emitter, AuthoringModuleType::OrbitOverLife))
+        desc.orbitOverLife = Internal::Build_OrbitOverLifeDesc(*orbitOverLife);
 
     if (const auto* initialRotation = Internal::Find_ModuleData<InitialRotationModuleData>(emitter, AuthoringModuleType::InitialRotation))
     {
@@ -2182,6 +2303,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         emitterDesc.sphereLocation.mode = sphereLocation->spawnMode == SphereLocationSpawnMode::Surface
                                           ? PointParticleSphereLocationMode::Surface
                                           : PointParticleSphereLocationMode::Volume;
+        emitterDesc.sphereLocation.placementMode = Internal::Resolve_PointParticleSphereLocationPlacementMode(sphereLocation->placementMode);
+        emitterDesc.sphereLocationSeed = Internal::Build_RandomSeedDesc(sphereLocation->randomSeed);
     }
 
     if (const auto* planeRadialLocation = Internal::Find_ModuleData<PlaneRadialLocationModuleData>(emitter, AuthoringModuleType::PlaneRadialLocation))
@@ -2349,6 +2472,9 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         Internal::Fill_VelocityScaleByLifePayload(emitterDesc.motion, velocityOverLife->scaleOverLife);
     }
 
+    if (const auto* orbitOverLife = Internal::Find_ModuleData<OrbitOverLifeModuleData>(emitter, AuthoringModuleType::OrbitOverLife))
+        emitterDesc.orbitOverLife = Internal::Build_OrbitOverLifeDesc(*orbitOverLife);
+
     if (const auto* initialMeshRotation = Internal::Find_ModuleData<InitialMeshRotationModuleData>(emitter, AuthoringModuleType::InitialMeshRotation))
     {
         emitterDesc.meshTransform.rotationEnabled = true;
@@ -2366,6 +2492,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         };
     }
 
+    if (const auto* sphereRadialOrientation = Internal::Find_ModuleData<SphereRadialOrientationModuleData>(emitter, AuthoringModuleType::SphereRadialOrientation))
+        emitterDesc.sphereRadialOrientation = Internal::Build_PointParticleSphereRadialOrientationDesc(*sphereRadialOrientation);
     if (const auto* planeRadialOrientation = Internal::Find_ModuleData<PlaneRadialOrientationModuleData>(emitter, AuthoringModuleType::PlaneRadialOrientation))
         emitterDesc.planeRadialOrientation = Internal::Build_PointParticlePlaneRadialOrientationDesc(*planeRadialOrientation);
 

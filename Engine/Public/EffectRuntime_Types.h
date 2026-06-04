@@ -341,6 +341,7 @@ struct ComputeSpriteEmitterDesc : public GameObject::GAMEOBJECT_DESC
     PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};         // 수명 진행률 기준 SubUV frame 규칙이다.
     PointParticleSizeByLifeDesc sizeByLife{};                         // 수명 진행률 기준 크기 배율 규칙이다.
     PointParticleMotionDesc motion{};                                 // motion authoring module을 compute payload로 압축한 규칙이다.
+    EffectOrbitOverLifeRuntimeDesc orbitOverLife{};                   // OrbitOverLife 모듈이 만든 emitter-local pivot 회전 payload다.
     PointParticleRotationDesc rotation{};                             // rotation authoring module을 compute payload로 압축한 규칙이다.
     PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                 // Lifetime random sample seed salt다.
     PointParticleInitialLocationDesc initialLocation{};               // InitialLocation 모듈이 만든 시작 위치 offset 분포다.
@@ -430,9 +431,12 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
     EffectInitialColorRuntimeDesc initialColor{};                     // InitialColor 모듈에서 mesh particle 시작 색으로 소비하는 payload다.
     EffectColorOverLifeRuntimeDesc colorOverLife{};                   // ColorOverLife 모듈에서 mesh particle color/fade로 소비하는 payload다.
     PointParticleMotionDesc motion{};                                 // InitialVelocity/RadialVelocity 모듈에서 mesh particle 위치 갱신으로 소비하는 payload다.
+    EffectOrbitOverLifeRuntimeDesc orbitOverLife{};                   // OrbitOverLife 모듈에서 mesh particle center 위치 공전으로 소비하는 payload다.
     PointParticleInitialLocationDesc initialLocation{};               // InitialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
     PointParticleSphereLocationDesc sphereLocation{};                 // SphereLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+    PointParticleRandomSeedRuntimeDesc sphereLocationSeed{};           // SphereLocation random sample seed salt다.
     PointParticlePlaneRadialLocationDesc planeRadialLocation{};       // PlaneRadialLocation 모듈에서 mesh spawn offset으로 소비하는 payload다.
+    PointParticleSphereRadialOrientationDesc sphereRadialOrientation{}; // SphereRadialOrientation 모듈에서 sphere radial frame 회전으로 소비하는 payload다.
     PointParticlePlaneRadialOrientationDesc planeRadialOrientation{}; // PlaneRadialOrientation 모듈에서 mesh radial frame 회전으로 소비하는 payload다.
     MeshTransformRuntimeDesc meshTransform{};                         // Mesh 전용 Vec3 scale/rotation payload다.
 };

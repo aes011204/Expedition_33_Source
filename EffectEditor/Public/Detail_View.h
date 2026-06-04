@@ -75,7 +75,9 @@ private: //## Data::ModuleDetail
     AccelerationModuleDetail _accelerationModuleDetail{};
     DragModuleDetail _dragModuleDetail{};
     VelocityOverLifeModuleDetail _velocityOverLifeModuleDetail{};
+    OrbitOverLifeModuleDetail _orbitOverLifeModuleDetail{};
     InitialRotationModuleDetail _initialRotationModuleDetail{};
+    SphereRadialOrientationModuleDetail _sphereRadialOrientationModuleDetail{};
     PlaneRadialOrientationModuleDetail _planeRadialOrientationModuleDetail{};
     RotationOverLifeModuleDetail _rotationOverLifeModuleDetail{};
     InitialRotationRateModuleDetail _initialRotationRateModuleDetail{};
