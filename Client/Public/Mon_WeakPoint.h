@@ -55,6 +55,7 @@ private:
 private:
     const Matrix* Resolve_SocketMatrix();
     HRESULT       Ready_WeakPointCollider();
+    void          Ready_DefaultWeakPointEffectSettings();
     void          Play_WeakPointEffect();
 
 private:

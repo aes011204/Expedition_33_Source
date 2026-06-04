@@ -217,6 +217,9 @@ void EditorInstance::Play()
 {
     const bool isStartingFromEdit = _runtimeState == EDITOR_RUNTIME_STATE::Edit;
 
+    if (isStartingFromEdit)
+        Capture_PlayStartMonsterSnapshots();
+
     _cameraBeforeFreeCamera.reset();
 
     _runtimeState = EDITOR_RUNTIME_STATE::Play;
@@ -263,7 +266,7 @@ void EditorInstance::Stop()
         if (Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
             gameplayUI->Handle_EditorStopRuntime();
 
-        Reload_CurrentLevelMonstersFromMapJson(); // F4 Stop은 레벨 전체 대신 authored 월드 몬스터만 가볍게 원위치시킨다.
+        Restore_PlayStartMonsterSnapshots(); // F4 Stop은 큰 맵 JSON을 다시 읽지 않고 Play 시작 몬스터만 되돌린다.
         CLIENT->Restore_PartyFormationAfterEditorStop();
     }
 
@@ -297,6 +300,23 @@ void EditorInstance::Resume()
 
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
     _runtimeGameFocusRecoveryFrames = kRuntimeGameFocusRecoveryFrameCount; // F9 Resume 직후 Game 창 포커스가 실제로 반영될 때까지 월드 입력이 끊기지 않게 한다.
+}
+
+void EditorInstance::Force_EnablePlayerInputForPlay()
+{
+    if (EDITOR_RUNTIME_STATE::Play != _runtimeState)
+        return;
+
+    _isTargetCameraEditMode = false;
+    CLIENT->Set_TargetCameraEditMode(false);
+
+    GAME->Set_GameplayPaused(false);                        // 에디터/패널 저장 중 남은 pause가 F5 Play 입력을 다시 막지 않게 한다.
+    GAME->Set_GameplayInputMode(GameplayInputMode::Normal); // Notify/preview 저장 UI가 남긴 UIOnly 상태를 F5 Play 입력보다 우선시키지 않는다.
+    GAME->Set_PlayerInputBlocked(false);                    // F5 직후 PlayerControllerCom이 월드 입력을 바로 읽게 한다.
+    GAME->Set_FreeCameraInputEnabled(false);
+
+    Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
+    _runtimeGameFocusRecoveryFrames = kRuntimeGameFocusRecoveryFrameCount;
 }
 
 void EditorInstance::Enter_EditAfterLoading()
@@ -1018,38 +1038,36 @@ ID3D11Texture2D* EditorInstance::Get_CachedBackBufferTexture()
     return _cachedBackBufferTexture.Get();
 }
 
-const wchar_t* EditorInstance::Resolve_CurrentLevelAuthoringMapPath() const
+void EditorInstance::Capture_PlayStartMonsterSnapshots()
 {
-    switch (static_cast<LevelType>(GAME->Current_LevelIndex()))
-    {
-    case LevelType::GamePlay:
-        return Client::Constants::Map::SmallLevel_MF_Zone_01_Path;
-    case LevelType::MapTest:
-        return Client::Constants::Map::TestMap_Path;
-    case LevelType::Stage01:
-        return Client::Constants::Map::SmallLevel_SimonArea_Remake_Path;
-    default:
-        return nullptr;
-    }
+    _playStartMonsterSnapshots.clear();
+    _hasPlayStartMonsterSnapshots = true;
+
+    GAME->Visit_CurrentLevelObjects(
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            if (gameObject == nullptr || !gameObject->Is_RuntimeAuthoringLoaded())
+                return;
+
+            if (dynamic_pointer_cast<Monster_WorldBase>(gameObject) == nullptr)
+                return;
+
+            EditorWorldObjectSnapshot snapshot{};
+            snapshot.layerTag = layerTag;
+            snapshot.objectJson = gameObject->To_Json();
+            snapshot.originalObject = gameObject;
+            _playStartMonsterSnapshots.emplace_back(snapshot);
+        });
 }
 
-void EditorInstance::Reload_CurrentLevelMonstersFromMapJson()
+void EditorInstance::Restore_PlayStartMonsterSnapshots()
 {
-    const wchar_t* mapPath = Resolve_CurrentLevelAuthoringMapPath();
-    if (mapPath == nullptr)
-        return;
-
-    const json root = GAME->Load_JsonFile(mapPath);
-    if (!root.is_object() || !root.contains("MapData") || !root["MapData"].is_object())
-        return;
-
-    const json& sourceMapData = root["MapData"];
-    if (!sourceMapData.contains("PrefabInstances") || !sourceMapData["PrefabInstances"].is_array())
+    if (!_hasPlayStartMonsterSnapshots)
         return;
 
     const uint32 levelIndex = GAME->Current_LevelIndex();
-
     vector<Shared<GameObject>> authoredMonsters{};
+
     GAME->Visit_CurrentLevelObjects(
         [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
         {
@@ -1073,25 +1091,21 @@ void EditorInstance::Reload_CurrentLevelMonstersFromMapJson()
 
     GAME->Flush_RemovedGameObjects();
 
-    json monsterMapData = json::object();
-    monsterMapData["PrefabInstances"] = json::array();
-
-    for (const json& node : sourceMapData["PrefabInstances"])
+    for (const EditorWorldObjectSnapshot& snapshot : _playStartMonsterSnapshots)
     {
-        if (!node.is_object())
+        Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(snapshot.objectJson);
+        if (gameObject == nullptr)
             continue;
 
-        const string prefabName = node.value("PrefabName", string{});
-        if (!prefabName.starts_with("MW_"))
-            continue;
+        gameObject->Set_RuntimeAuthoringLoaded(true); // Play 시작 authored 몬스터로 복원했음을 유지한다.
+        Refresh_PlayerBodyAnimMapping(gameObject);
+        Sync_RestoredMovementRuntimePosition(gameObject);
 
-        monsterMapData["PrefabInstances"].push_back(node);
+        (void)GAME->Add_GameObject(levelIndex, snapshot.layerTag, gameObject);
     }
 
-    (void)Client::MapAuthoringIO::Load_PrefabInstances_FromMapData(
-        monsterMapData,
-        levelIndex,
-        nullptr);
+    _playStartMonsterSnapshots.clear();
+    _hasPlayStartMonsterSnapshots = false;
 }
 
 bool EditorInstance::Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const

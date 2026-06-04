@@ -21,10 +21,6 @@ auto Loader::Find_MapLoadDesc() const -> const LevelMapLoadDesc*
         {
             LevelType::GamePlay,
             {
-                //Constants::Map::SpringChunk_00_03_Path,
-                //Constants::Map::SpringChunk_00_04_Path,
-                //Constants::Map::SpringChunk_01_00_Path,
-                //Constants::Map::SpringChunk_01_01_Path,
                 Constants::Map::SmallLevel_MF_Zone_01_Path
             },
             1,

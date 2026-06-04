@@ -599,10 +599,13 @@ void GameplayUI_Battle::Handle_ActionStarted(const BattleAction& action)
 
 }
 
-void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float damage, AttackType attackType)
+void GameplayUI_Battle::Handle_DamageApplied(const DamageAppliedInfo& info)
 {
     if (!_isBattleUiActive)
         return;
+
+    const BattleChar& target = info.target;
+    const float damage = info.damage;
 
     if (damage <= 0.f)
         return;
@@ -647,7 +650,7 @@ void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float dam
 
         if (damageFont->Is_Playing())
         {
-            ++stackIndex; // 이미 떠 있는 숫자 수만큼 살짝 더 벌린다.
+            ++stackIndex;
 
             if (damageFont->Get_Elapsed() > longestElapsed)
             {
@@ -669,7 +672,7 @@ void GameplayUI_Battle::Handle_DamageApplied(const BattleChar& target, float dam
         return;
 
     stackIndex = min(stackIndex, kDamageFontPoolSize - 1);
-    selectedSlot->Play_DamageFont(target, damage, stackIndex);
+    selectedSlot->Play_DamageFont(target, damage, stackIndex, info.isCritical);
 }
 
 void GameplayUI_Battle::Handle_HealApplied(const BattleChar& target, float healAmount)
@@ -1293,7 +1296,7 @@ void GameplayUI_Battle::Update_AttackTooltip(float timeDelta)
 
     if (!_isPlayerTurnUiActive)
     {
-        _attackTooltip->Close();          
+        _attackTooltip->Close();
         _attackTooltip->Update(timeDelta);
         return;
     }
@@ -1307,8 +1310,8 @@ void GameplayUI_Battle::Update_AttackTooltip(float timeDelta)
 
     if (battleController->Get_CurrentTurnState() != BattleTurnState::AttackTargeting)
     {
-        _attackTooltip->Close();           
-        _attackTooltip->Update(timeDelta); 
+        _attackTooltip->Close();
+        _attackTooltip->Update(timeDelta);
         return;
     }
 

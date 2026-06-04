@@ -303,6 +303,7 @@ void Editor_Manager::Handle_Shortcuts()
         else if (!EDITOR->IsPlaying())
             EDITOR->Play();
 
+        EDITOR->Force_EnablePlayerInputForPlay();
         return;
     }
 

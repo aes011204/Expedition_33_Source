@@ -3,6 +3,7 @@
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "MonsterStatCom.h"
+#include "TransformCom.h"
 
 void BattleSpawnRegistry::Register_SpawnObject(const Shared<GameObject>& object, uint32 levelIndex)
 {
@@ -12,6 +13,12 @@ void BattleSpawnRegistry::Register_SpawnObject(const Shared<GameObject>& object,
     BattleEntry entry{};
     entry.levelIndex = levelIndex;
     entry.object = object;
+
+    if (const Shared<TransformCom> transform = object->Get_Transform())
+    {
+        entry.spawnPosition = transform->Get_Position();
+        entry.spawnRotation = transform->Get_RotationEuler();
+    }
 
     _spawnedObjects.push_back(entry);
 }
@@ -34,6 +41,40 @@ void BattleSpawnRegistry::Set_SourceWorldObject(const Shared<GameObject>& object
 {
     _sourceWorldObject = object;
     _sourceWorldObjectLevelIndex = object ? levelIndex : 0;
+}
+
+void BattleSpawnRegistry::Update_SpawnPose(const Shared<GameObject>& object)
+{
+    if (object == nullptr)
+        return;
+
+    const Shared<TransformCom> transform = object->Get_Transform();
+    if (transform == nullptr)
+        return;
+
+    for (BattleEntry& entry : _spawnedObjects)
+    {
+        if (entry.object != object)
+            continue;
+
+        entry.spawnPosition = transform->Get_Position();
+        entry.spawnRotation = transform->Get_RotationEuler();
+        return;
+    }
+}
+
+const BattleSpawnRegistry::BattleEntry* BattleSpawnRegistry::Find_SpawnEntry(const Shared<GameObject>& object) const
+{
+    if (object == nullptr)
+        return nullptr;
+
+    for (const BattleEntry& entry : _spawnedObjects)
+    {
+        if (entry.object == object)
+            return &entry;
+    }
+
+    return nullptr;
 }
 
 void BattleSpawnRegistry::Destroy_SpawnedObjects()

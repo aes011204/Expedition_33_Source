@@ -1,10 +1,12 @@
 ﻿#pragma once
 #include "MapEditorDefines.h"
+#include "VIBuffer_Landscape.h"
 
 NS_BEGIN(MapEditor)
 
 class MEStaticMeshActor;
 class MEInstancedMeshActor;
+class MEWaterActor;
 
 struct EditorObject
 {
@@ -31,6 +33,9 @@ struct EditorObject
     float _ppExposureMax = 2.f;
     float _ppFogDensity = {};
     Vec3 _ppFogColor = Vec3::One;
+    float _ppFogStart = 0.f;
+    float _ppFogRadius = 10.f;
+    int _ppFogZoneType = 0;
 
     LightType _lightType = LightType::Directional;
     Vec4 _lightDiffuse = { 1.f, 1.f, 1.f, 1.f };
@@ -48,6 +53,17 @@ struct EditorObject
 
     Shared<MEInstancedMeshActor> _instancedRenderHandle;
     bool _instancedParamsDirty = true;
+
+    VIBuffer_Landscape::LAND_DESC _waterDesc = {};
+    WaterCB _waterParams = {};
+
+    wstring _waterLargeWaveNormalPath = {};
+    wstring _waterSmallWaveNormalPath = {};
+    wstring _waterSeafoamPath = {};
+    wstring _waterCubemapPath = {};
+
+    Shared<MEWaterActor> _waterRenderHandle;
+    bool _waterRenderHandleLoaded = false;
 
     bool _isDefaultLight = false;
 

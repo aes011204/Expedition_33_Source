@@ -434,6 +434,12 @@ HRESULT VIBuffer_Landscape::Render_LOD(const Vec3& cameraPos, const float lodDis
     return S_OK;
 }
 
+HRESULT VIBuffer_Landscape::Render_NoLOD()
+{
+    const float inf[2] = { FLT_MAX, FLT_MAX };
+    return Render_LOD(Vec3(0, 0, 0), inf);
+}
+
 float VIBuffer_Landscape::Sample_Height(float worldX, float worldZ) const
 {
     const uint32 numVX = _desc.countX + 1;

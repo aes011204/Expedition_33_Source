@@ -238,6 +238,9 @@
     <Filter Include="02.GameObject\Map\MapLandscape">
       <UniqueIdentifier>{34ac92ad-0d2f-498a-bb00-886921a6ae55}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Map\MapWater">
+      <UniqueIdentifier>{dfc611f8-c2e2-475c-aa73-008ab9a996bc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CameraDirector.cpp" />
@@ -437,6 +440,9 @@
     <ClCompile Include="..\Private\SkyCloudCard.cpp" />
     <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp" />
     <ClCompile Include="..\Private\UI_BattleFloatingTextBase.cpp" />
+    <ClCompile Include="..\Private\MapWater.cpp">
+      <Filter>02.GameObject\Map\MapWater</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -572,6 +578,9 @@
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_SkyCloudCard.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>
@@ -1255,6 +1264,9 @@
     <ClInclude Include="..\Public\SkyCloudCard.h" />
     <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h" />
     <ClInclude Include="..\Public\UI_BattleFloatingTextBase.h" />
+    <ClInclude Include="..\Public\MapWater.h">
+      <Filter>02.GameObject\Map\MapWater</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

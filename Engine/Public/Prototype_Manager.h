@@ -7,6 +7,7 @@
 #include "VIBuffer_Cube.h"
 #include "VIBuffer_Terrain.h"
 #include "VIBuffer_Landscape.h"
+#include "VIBuffer_Plane.h"
 
 NS_BEGIN(Engine)
 
