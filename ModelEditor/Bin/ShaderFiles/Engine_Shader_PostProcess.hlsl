@@ -12,6 +12,8 @@ Texture2D g_HDRTexture;
 Texture2D g_BloomTexture;
 Texture2D g_BloomBaseTexture;
 Texture2D g_BackgroundMaskTexture;
+Texture2D g_DistortionSourceTexture;
+Texture2D g_DistortionFieldTexture;
 
 // Bloom Extract 용도
 static const float3 REC_709 = float3(0.2126f, 0.7152f, 0.0722f);
