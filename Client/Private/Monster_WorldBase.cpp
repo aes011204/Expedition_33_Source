@@ -178,20 +178,22 @@ void Monster_WorldBase::Update(float timeDelta)
     if (_combatStat)
         _combatStat->Update(timeDelta);
 
-    if (_isStun)
-        _currentAction = MonsterWorldAnim::Stun;
-    else
-        _currentAction = _desiredAction;
+    if (_currentAction != MonsterWorldAnim::Hit)
+    {
+        if (_isStun)
+            _currentAction = MonsterWorldAnim::Stun;
+        else
+            _currentAction = _desiredAction;
+    }
 
 
     //if (_aiCtrl && _aiCtrl->Get_IsMoving())
     //    Set_CurrentAction(MonsterAction::Move);
 
     auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
-    if(_currentAction ==MonsterWorldAnim::Stun)
+    if (_currentAction == MonsterWorldAnim::Hit && bodyPart && bodyPart->Is_AnimationFinished())
     {
-        if (bodyPart->Is_AnimationFinished() == true)
-            bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Stun),0.3f, true);
+        OnHitAnimationFinished();
     }
 
 
@@ -207,10 +209,12 @@ void Monster_WorldBase::Update(float timeDelta)
 
             switch (_currentAction)
             {
-            case MonsterWorldAnim::Stun:
-              applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Hit), 0.3f, true);
+            case MonsterWorldAnim::Hit:
+                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Hit), 0.2f, false);
+                break;
 
-              
+            case MonsterWorldAnim::Stun:
+                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Stun), 0.3f, true);
                 break;
 
             case MonsterWorldAnim::Idle:
@@ -257,7 +261,7 @@ void Monster_WorldBase::Update(float timeDelta)
         _movementCom->Set_RunSpeed(moveSpeed);
         _movementCom->Set_SprintSpeed(moveSpeed);
 
-        if (_isStun || !_aiCtrl || !_aiCtrl->Has_MoveIntent())
+        if (_isStun || _currentAction == MonsterWorldAnim::Hit || !_aiCtrl || !_aiCtrl->Has_MoveIntent())
         {
             _movementCom->Clear_FollowMoveCommand();
             _movementCom->Apply_Input({});
@@ -299,11 +303,23 @@ void Monster_WorldBase::Apply_Stun(float duration)
     if (_isStun == true)
         return;
     _isStun = true;
-    _stunTime = _maxStunTime;
+    _stunTime = duration > 0.f ? duration : _maxStunTime;
 
     if (_aiCtrl)
         _aiCtrl->Stop_Move();
-    
+
+    _currentAction = MonsterWorldAnim::Hit;
+    _hasAppliedAction = false;
+}
+
+void Monster_WorldBase::OnHitAnimationFinished()
+{
+    if (_isStun)
+        _currentAction = MonsterWorldAnim::Stun;
+    else
+        _currentAction = _desiredAction;
+
+    _hasAppliedAction = false;
 }
 
 void Monster_WorldBase::Late_Update(float timeDelta)
