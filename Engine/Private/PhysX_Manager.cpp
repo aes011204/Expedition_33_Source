@@ -175,6 +175,15 @@ namespace
             UNREFERENCED_PARAMETER(actor);
             UNREFERENCED_PARAMETER(queryFlags);
 
+            if (shape == nullptr)
+                return PxQueryHitType::eNONE;
+
+            if (const ColliderCom* collider = static_cast<const ColliderCom*>(shape->userData))
+            {
+                if (!collider->Get_IsActive())
+                    return PxQueryHitType::eNONE;
+            }
+
             const CollisionResponse response =
                 Calculate_PhysXResponse(_selfFilterData, shape->getQueryFilterData());
 

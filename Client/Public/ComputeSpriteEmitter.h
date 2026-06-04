@@ -78,6 +78,8 @@ private: //## Data::Components
 private: //## Data::Desc
     ComputeSpriteEmitterDesc _desc{};               // clone 생성 시 전달받은 compute sprite emitter 규칙이다.
     int _opacitySourceIndex{ kOpacitySourceAlpha }; // shader opacity source selector.
+    Vec3 _runtimeDescWorldScale{ Vec3::One };       // compute payload에 마지막으로 반영한 effect root world scale이다.
+    bool _hasRuntimeDescWorldScale{ false };        // 최초 sync 때는 scale 값이 같아도 payload를 한 번 갱신한다.
 
 private: //## Data::SpawnRuntime
     vector<bool> _burstExecuted{}; // burst 목록의 1회 실행 여부를 emitter runtime 동안 유지한다.
@@ -112,7 +114,9 @@ private: //## Helper::Render
     uint32 Resolve_BlendPassIndex() const;   // material blend mode에 맞는 EffectSprite shader pass를 고른다.
 
 private: //## Helper::Desc
+    Vec3 Resolve_RuntimeWorldScale() const;                         // effect root scale을 compute payload 배율로 해석한다.
     ComputePointParticleDesc Make_ComputePointParticleDesc() const; // compute sprite effect용 particle 규칙을 만든다.
+    void Update_RuntimeDescForCurrentScale(bool forceUpdate);        // root scale 변경을 compute particle payload에 반영한다.
     void Sync_WorldCenterToComputeBuffer();                         // emitter transform world position을 compute center에 반영한다.
 
 private: //## Helper::SpawnRuntime

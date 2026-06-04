@@ -14,6 +14,13 @@ class Player_WorldBase;
 class UIPreviewManager : public Base
 {
 public:
+    struct PreviewHeroEntry
+    {
+        HeroId heroId = HeroId::END;        // 캐릭터마다 다른 머테리얼 force pass index를 따로 관리하기 위해
+        Shared<Player_WorldBase> player{};
+    };
+
+public:
 
     struct PreviewSlotDesc
     {
@@ -36,6 +43,8 @@ public:
     void    Show_Preview(HeroId heroId, PreviewShotPanel panel);
     void    Hide_Preview();
     void    Apply_Layout(const vector<PreviewSlotDesc>& layout);
+    const vector<PreviewHeroEntry>& Get_PreviewHeroes() const { return _previewHeroes; }
+    Shared<PreviewCamera> Get_PreviewCamera() const { return _previewCamera; }
 
 private:
     HRESULT Ensure_PreviewCamera();
@@ -46,14 +55,9 @@ private:
     void    Clear_StatusPreviewHeroes();
 
 private:
-    struct StatusPreviewHero
-    {
-        Shared<Player_WorldBase> player{};
-    };
-
     bool                      _isActive = false;
     bool                      _pendingPreviewReveal = false;
-    vector<StatusPreviewHero> _previewHeroes{};
+    vector<PreviewHeroEntry>  _previewHeroes{};
   //  Shared<Camera>            _previousCamera{};
     Shared<PreviewCamera>     _previewCamera{};
     wstring                   _previewLayerTag = L"Layer_UIPreview";

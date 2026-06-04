@@ -594,6 +594,11 @@ bool ClientInstance::Play_AttachPartEffect(
         scale));
 }
 
+void ClientInstance::Notify_FreeAimShotHit()
+{
+    OnFreeAimShotHit.Broadcast();
+}
+
 bool ClientInstance::Is_GameplayMenuOpen() const
 {
     return _gamePlayUI && _gamePlayUI->Is_AnyMenuOpen();

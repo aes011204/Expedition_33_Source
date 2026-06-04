@@ -7,9 +7,10 @@ NS_BEGIN(Client)
 
 enum class AttackType;
 struct BattleChar;
+struct DamageAppliedInfo;
 
 // HP가 실제로 깎인 뒤 UI/전투 후처리 데미지 적용
-DECLARE_DELEGATE(FOnDamageApplied, const BattleChar&, float, AttackType);
+DECLARE_DELEGATE(FOnDamageApplied, const DamageAppliedInfo&);
 // HP를 깎기 직전에 버프/상태 이상 데미지 세팅
 DECLARE_DELEGATE(FOnDamageCalculating, const BattleChar&, const BattleChar&, float&, AttackType);
 // 힐 적용

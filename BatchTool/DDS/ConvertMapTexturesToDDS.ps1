@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $LevelName = ""
+$TargetMode = ""
 $Overwrite = $false
 $DryRun = $false
 
@@ -17,7 +18,12 @@ foreach ($arg in $args) {
         continue
     }
 
-    # The only positional argument is the optional level folder name.
+    if ($arg -match "^[1-4]$") {
+        $TargetMode = $arg
+        continue
+    }
+
+    # Non-numeric positional argument keeps the old level-name workflow.
     $LevelName = $arg
 }
 
@@ -27,15 +33,51 @@ $repoRoot = Resolve-Path (Join-Path $scriptDir "..\..")
 $textureDirs = @()
 
 if ([string]::IsNullOrWhiteSpace($LevelName)) {
-    $targetName = "Effects + Map + Models"
+    if ([string]::IsNullOrWhiteSpace($TargetMode)) {
+        Write-Host "============================================="
+        Write-Host " Convert Runtime Textures To DDS"
+        Write-Host "============================================="
+        Write-Host " 1. Map"
+        Write-Host " 2. Model"
+        Write-Host " 3. Effect"
+        Write-Host " 4. All"
+        Write-Host "============================================="
+        $TargetMode = (Read-Host "Select target [1-4]").Trim()
+    }
 
-    # No argument means the runtime-heavy texture roots only.
-    # Data/UI/Fonts/Materials are intentionally excluded from this DDS pass.
-    $textureDirs = @(
-        (Join-Path $repoRoot "Client\Bin\Resources\Effects"),
-        (Join-Path $repoRoot "Client\Bin\Resources\Map"),
-        (Join-Path $repoRoot "Client\Bin\Resources\Models")
-    )
+    switch ($TargetMode) {
+        "1" {
+            $targetName = "Map"
+            $textureDirs = @(
+                (Join-Path $repoRoot "Client\Bin\Resources\Map")
+            )
+        }
+        "2" {
+            $targetName = "Model"
+            $textureDirs = @(
+                (Join-Path $repoRoot "Client\Bin\Resources\Models")
+            )
+        }
+        "3" {
+            $targetName = "Effect"
+            $textureDirs = @(
+                (Join-Path $repoRoot "Client\Bin\Resources\Effects")
+            )
+        }
+        "4" {
+            $targetName = "All"
+            $textureDirs = @(
+                (Join-Path $repoRoot "Client\Bin\Resources\Map"),
+                (Join-Path $repoRoot "Client\Bin\Resources\Models"),
+                (Join-Path $repoRoot "Client\Bin\Resources\Effects")
+            )
+        }
+        default {
+            Write-Host "[ERROR] Invalid target selection: $TargetMode"
+            Write-Host "  Enter 1 for Map, 2 for Model, 3 for Effect, or 4 for All."
+            exit 1
+        }
+    }
 } else {
     $targetName = $LevelName
     # A positional level name keeps the old map-only workflow.

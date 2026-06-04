@@ -48,6 +48,7 @@ void EffectEmitter::Sync_FromEffectOwner()
         _transformCom->Set_Parent(ownerTransform);
         _transformCom->Set_Position(_localPosition);
         _transformCom->Set_RotationEuler(_localRotationDegrees);
+        _transformCom->Set_Scale(Vec3::One);
     }
     else
     {

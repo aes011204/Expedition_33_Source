@@ -238,6 +238,9 @@
     <Filter Include="02.GameObject\Map\MapLandscape">
       <UniqueIdentifier>{34ac92ad-0d2f-498a-bb00-886921a6ae55}</UniqueIdentifier>
     </Filter>
+    <Filter Include="97. ShaderFeatures">
+      <UniqueIdentifier>{51d474c4-dc3f-4ff0-a92b-cafcb3632978}</UniqueIdentifier>
+    </Filter>
     <Filter Include="02.GameObject\Map\MapWater">
       <UniqueIdentifier>{dfc611f8-c2e2-475c-aa73-008ab9a996bc}</UniqueIdentifier>
     </Filter>
@@ -349,6 +352,12 @@
     <ClCompile Include="..\Private\UI_HealFont.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_DestroyShield.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_BossHpBar.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_PlayerHpBar.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
@@ -418,6 +427,7 @@
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
     <ClCompile Include="..\Private\UI_AddAP.cpp" />
     <ClCompile Include="..\Private\UI_QTE.cpp" />
+    <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\BattleQTEController.cpp">
       <Filter>BattleState</Filter>
     </ClCompile>
@@ -436,6 +446,7 @@
     <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp" />
     <ClCompile Include="..\Private\SkyCloudCard.cpp" />
     <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp" />
+    <ClCompile Include="..\Private\UI_BattleFloatingTextBase.cpp" />
     <ClCompile Include="..\Private\MapWater.cpp">
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClCompile>
@@ -970,7 +981,6 @@
     <ClInclude Include="..\Public\UI_ExpeditionStatus.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\SwitchDissolveFeature.h" />
     <ClInclude Include="..\Public\UI_MonsterHpBar.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
@@ -1166,6 +1176,12 @@
     <ClInclude Include="..\Public\UI_HealFont.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\UI_DestroyShield.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_BossHpBar.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\UI_PlayerHpBar.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
@@ -1236,6 +1252,12 @@
     <ClInclude Include="..\Public\BattleStartSpawner.h" />
     <ClInclude Include="..\Public\UI_AddAP.h" />
     <ClInclude Include="..\Public\UI_QTE.h" />
+    <ClInclude Include="..\Public\PreviewRimFeature.h">
+      <Filter>97. ShaderFeatures</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\SwitchDissolveFeature.h">
+      <Filter>97. ShaderFeatures</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\BattleQTEController.h">
       <Filter>BattleState</Filter>
     </ClInclude>
@@ -1256,6 +1278,7 @@
     <ClInclude Include="..\Public\AN_WorldFreeAimHit.h" />
     <ClInclude Include="..\Public\SkyCloudCard.h" />
     <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h" />
+    <ClInclude Include="..\Public\UI_BattleFloatingTextBase.h" />
     <ClInclude Include="..\Public\MapWater.h">
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClInclude>

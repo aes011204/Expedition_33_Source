@@ -17,6 +17,7 @@ namespace Engine::ShaderCB
     inline constexpr ::string_view SSAO        = "SSAOBuffer";
     inline constexpr ::string_view DeferredLighting = "DeferredLightingBuffer";
     inline constexpr ::string_view PostProcess = "PostProcessBuffer";
+    inline constexpr ::string_view LightShaft  = "LightShaftBuffer";
     inline constexpr ::string_view Hair        = "HairDescBuffer";
     inline constexpr ::string_view DrawFeature = "DrawFeatureBuffer";
     inline constexpr ::string_view ScreenFx     = "ScreenFxBuffer";
@@ -38,7 +39,8 @@ namespace Engine::ShaderCB
         DrawFeature,
         ScreenFx,
         FogZone,
-        Water
+        Water,
+        LightShaft
     };
 }
 

@@ -6,6 +6,31 @@
 #include "UI_Text.h"
 #include "UI_Utils.h"
 
+using namespace UI_Utils;
+
+IMPLEMENT_REFLECTION(UI_DamageFont)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.displayName = "UI_DamageFont";
+    info.category = "Runtime UI";
+
+    PROPERTY_FLOAT("Damage Life Time", _damageLifeTime, 0.1f, 5.f, 0.01f);
+    PROPERTY_FLOAT("Damage Rise Distance", _damageRiseDistance, 0.f, 300.f, 1.f);
+
+    PROPERTY_FLOAT("Damage Stack X", _damageStackHorizontalOffset, 0.f, 200.f, 1.f);
+    PROPERTY_FLOAT("Damage Stack Y", _damageStackVerticalOffset, 0.f, 100.f, 1.f);
+
+    PROPERTY_VEC3("Damage World Anchor Offset", _damageWorldAnchorOffset, 0.01f);
+    PROPERTY_VEC2("Damage Screen Base Offset", _damageScreenBaseOffset, 1.f);
+
+    PROPERTY_FLOAT("Damage Random Y Min", _damageWorldAnchorRandomMinY, -1.f, 1.f, 0.01f);
+    PROPERTY_FLOAT("Damage Random Y Max", _damageWorldAnchorRandomMaxY, -1.f, 1.f, 0.01f);
+
+    return true;
+}
+
 HRESULT UI_DamageFont::Initialize(uint32 levelIndex)
 {
     _levelIndex = levelIndex;
@@ -13,54 +38,44 @@ HRESULT UI_DamageFont::Initialize(uint32 levelIndex)
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
 
+    Apply_DamageFontTuning();
+
     Close();
     return S_OK;
 }
 
-void UI_DamageFont::Update(float timeDelta)
+void UI_DamageFont::Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex, bool isCritical)
 {
-    if (!Is_Open() || !_isPlaying || !_hasStartScreenPos)
-        return;
+    Apply_DamageFontTuning();
 
-    _elapsed += timeDelta;
+    auto bCriticalCheck = isCritical ? DamageFontStyle::Critical : DamageFontStyle::Normal;
+    Set_ActiveStyle(bCriticalCheck);
 
-    const float safeLifeTime = max(_lifeTime, 0.0001f);
-    const float t = clamp(_elapsed / safeLifeTime, 0.f, 1.f);
-
-    Vec2 screenPos = _startScreenPos;
-    Apply_StackOffset(screenPos);      // 동시에 뜬 숫자끼리 겹치지 않게 살짝 벌린다.
-    Apply_RiseOffset(screenPos, t);    // 시작 위치 기준으로만 위로 띄운다.
-
-    if (_root && _root->Get_Transform())
-        _root->Get_Transform()->Set_Position(screenPos);
-
-    if (_elapsed >= _lifeTime)
-        Close();
-}
-
-void UI_DamageFont::Play_DamageFont(const Vec2& screenPos, float damage, uint32 stackIndex)
-{
     const int32 damageValue = max(0, static_cast<int32>(damage));
-
-    _startScreenPos = screenPos;
-    Apply_EditorOffsets(_startScreenPos);
-    _hasStartScreenPos = true;
-    _stackIndex = stackIndex;
-    _elapsed = 0.f;
-    _isPlaying = true;
-
     Set_DamageText(damageValue);
 
-    Vec2 startPos = _startScreenPos;
-    Apply_StackOffset(startPos); // 첫 프레임부터 위치가 바로 맞도록 Open 전에 한 번 반영한다.
-
-    if (_root && _root->Get_Transform())
-        _root->Get_Transform()->Set_Position(startPos);
-
-    UI_RuntimePanelBase::Open();
+    if (!Begin_FloatingText(target, stackIndex))
+        return;
 
     if (_root)
-        _root->Play_UIAnimation(L"DamageFont", true);
+    {
+        const wstring animationName = isCritical ? L"CriticalDamageFont" : L"DamageFont";
+        _root->Play_UIAnimation(animationName, true);
+    }
+}
+
+void UI_DamageFont::Update(float timeDelta)
+{
+    if (Apply_DamageFontTuning())
+        Refresh_SnapshotScreenPosition();
+
+    UI_BattleFloatingTextBase::Update(timeDelta);
+}
+
+void UI_DamageFont::Apply_EditorReflectionRuntimeTuning()
+{
+    if (Apply_DamageFontTuning())
+        Refresh_SnapshotScreenPosition();
 }
 
 void UI_DamageFont::Open()
@@ -70,63 +85,140 @@ void UI_DamageFont::Open()
 
 void UI_DamageFont::Close()
 {
-    _hasStartScreenPos = false;
-    _isPlaying = false;
-    _elapsed = 0.f;
-    _stackIndex = 0;
+    UI_BattleFloatingTextBase::Close();
 
-    UI_RuntimePanelBase::Close();
+    if (_normalRoot)
+        _normalRoot->Close();
+
+    if (_criticalRoot)
+        _criticalRoot->Close();
+
+    Set_ActiveStyle(DamageFontStyle::Normal); // 닫힌 뒤에 Normal로 세팅해주기
 }
 
 HRESULT UI_DamageFont::Load_UI(uint32 levelIndex)
 {
-    UI_RuntimeLoader::UI_LoadDesc desc{};
-    desc.levelIndex = levelIndex;
-    desc.jsonPath = Constants::UI::UI_NormalDamageFont_Path;
-    desc.animationPath = Constants::UI_Anim::UI_NormalDamageFontAnim_Path;
-    desc.prototypeTagPrefix = L"DamageFont";
-    desc.outUIByName = &_uiByName;
+    umap<wstring, Shared<UI_Base>> normalUIByName{};
+    umap<wstring, Shared<UI_Base>> criticalUIByName{};
 
-    CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
+    UI_RuntimeLoader::UI_LoadDesc normalDesc{};
+    normalDesc.levelIndex = levelIndex;
+    normalDesc.jsonPath = Constants::UI::UI_NormalDamageFont_Path;
+    normalDesc.animationPath = Constants::UI_Anim::UI_NormalDamageFontAnim_Path;
+    normalDesc.prototypeTagPrefix = L"DamageFontNormal";
+    normalDesc.outUIByName = &normalUIByName;
 
-    _root = UI_Utils::Find_UI(_uiByName, L"Panel_NormalDamageFont");
-    CHECK_NULL(_root, E_FAIL);
+    CHECK_FAILED(UI_RuntimeLoader::Load_Document(normalDesc), E_FAIL);
 
+    UI_RuntimeLoader::UI_LoadDesc criticalDesc{};
+    criticalDesc.levelIndex = levelIndex;
+    criticalDesc.jsonPath = Constants::UI::UI_CriticalDamageFont_Path;
+    criticalDesc.animationPath = Constants::UI_Anim::UI_CriticalDamageFontAnim_Path;
+    criticalDesc.prototypeTagPrefix = L"DamageFontCritical";
+    criticalDesc.outUIByName = &criticalUIByName;
+
+    CHECK_FAILED(UI_RuntimeLoader::Load_Document(criticalDesc), E_FAIL);
+
+    _uiByName.clear();
+    _uiByName.insert(normalUIByName.begin(), normalUIByName.end());
+    _uiByName.insert(criticalUIByName.begin(), criticalUIByName.end());
+
+    _normalRoot = Find_UI(normalUIByName, L"Panel_NormalDamageFont");
+    _criticalRoot = Find_UI(criticalUIByName, L"Panel_CriticalDamageFont");
+
+    CHECK_NULL(_normalRoot, E_FAIL);
+    CHECK_NULL(_criticalRoot, E_FAIL);
+
+    _root = _normalRoot;
     return S_OK;
 }
 
 HRESULT UI_DamageFont::Bind_UI()
 {
-    _damageText = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_NormalDamageFont");
-    _damageTextBg = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_NormalDamageFont_BG");
+    _normalDamageText = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_NormalDamageFont");
+    _normalDamageTextBg = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_NormalDamageFont_BG");
 
-    CHECK_NULL(_damageText, E_FAIL);
-    CHECK_NULL(_damageTextBg, E_FAIL);
+    _criticalDamageText = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_CriticalDamageFont");
+    _criticalDamageTextBg = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_CriticalDamageFont_BG");
+
+    CHECK_NULL(_normalDamageText, E_FAIL);
+    CHECK_NULL(_normalDamageTextBg, E_FAIL);
+    CHECK_NULL(_criticalDamageText, E_FAIL);
+    CHECK_NULL(_criticalDamageTextBg, E_FAIL);
+
+    Set_ActiveStyle(DamageFontStyle::Normal);
 
     return S_OK;
+}
+
+void UI_DamageFont::Set_ActiveStyle(DamageFontStyle style)
+{
+    _activeStyle = style;
+
+    if (_normalRoot)
+        _normalRoot->Close();
+
+    if (_criticalRoot)
+        _criticalRoot->Close();
+
+    if (_activeStyle == DamageFontStyle::Critical)
+    {
+        _root = _criticalRoot;
+        _damageText = _criticalDamageText;
+        _damageTextBg = _criticalDamageTextBg;
+        return;
+    }
+
+    _root = _normalRoot;
+    _damageText = _normalDamageText;
+    _damageTextBg = _normalDamageTextBg;
 }
 
 void UI_DamageFont::Set_DamageText(int32 damageValue)
 {
     const wstring text = to_wstring(damageValue);
 
-    _damageText->Set_Text(text);
-    _damageTextBg->Set_Text(text);
+    if (_damageText)
+        _damageText->Set_Text(text);
+
+    if (_damageTextBg)
+        _damageTextBg->Set_Text(text);
 }
 
-void UI_DamageFont::Apply_StackOffset(Vec2& screenPos) const
+bool UI_DamageFont::Apply_DamageFontTuning()
 {
-    const float horizontal = (_stackIndex % 2 == 0) ? -18.f : 18.f;
-    const float vertical = -22.f * static_cast<float>(_stackIndex);
+    const bool changed =
+        !_hasAppliedDamageFontTuning ||
+        _appliedDamageLifeTime != _damageLifeTime ||
+        _appliedDamageRiseDistance != _damageRiseDistance ||
+        _appliedDamageStackHorizontalOffset != _damageStackHorizontalOffset ||
+        _appliedDamageStackVerticalOffset != _damageStackVerticalOffset ||
+        _appliedDamageWorldAnchorOffset.x != _damageWorldAnchorOffset.x ||
+        _appliedDamageWorldAnchorOffset.y != _damageWorldAnchorOffset.y ||
+        _appliedDamageWorldAnchorOffset.z != _damageWorldAnchorOffset.z ||
+        _appliedDamageScreenBaseOffset.x != _damageScreenBaseOffset.x ||
+        _appliedDamageScreenBaseOffset.y != _damageScreenBaseOffset.y ||
+        _appliedDamageWorldAnchorRandomMinY != _damageWorldAnchorRandomMinY ||
+        _appliedDamageWorldAnchorRandomMaxY != _damageWorldAnchorRandomMaxY;
 
-    screenPos.x += horizontal;
-    screenPos.y += vertical;
-}
+    Set_FloatingMotion(_damageLifeTime, _damageRiseDistance);
+    Set_StackStep(_damageStackHorizontalOffset, _damageStackVerticalOffset);
 
-void UI_DamageFont::Apply_RiseOffset(Vec2& screenPos, float t) const
-{
-    const float eased = 1.f - (1.f - t) * (1.f - t); // 초반에 빨리 뜨고 후반에 살짝 완만해진다.
-    screenPos.y -= _riseDistance * eased;
+    Set_WorldAnchorOffset(_damageWorldAnchorOffset);
+    Set_ScreenBaseOffset(_damageScreenBaseOffset);
+    Set_WorldAnchorRandomYRange(_damageWorldAnchorRandomMinY, _damageWorldAnchorRandomMaxY);
+
+    _hasAppliedDamageFontTuning = true;
+    _appliedDamageLifeTime = _damageLifeTime;
+    _appliedDamageRiseDistance = _damageRiseDistance;
+    _appliedDamageStackHorizontalOffset = _damageStackHorizontalOffset;
+    _appliedDamageStackVerticalOffset = _damageStackVerticalOffset;
+    _appliedDamageWorldAnchorOffset = _damageWorldAnchorOffset;
+    _appliedDamageScreenBaseOffset = _damageScreenBaseOffset;
+    _appliedDamageWorldAnchorRandomMinY = _damageWorldAnchorRandomMinY;
+    _appliedDamageWorldAnchorRandomMaxY = _damageWorldAnchorRandomMaxY;
+
+    return changed;
 }
 
 Unique<UI_DamageFont> UI_DamageFont::Create(uint32 levelIndex)
@@ -144,5 +236,5 @@ Unique<UI_DamageFont> UI_DamageFont::Create(uint32 levelIndex)
 
 void UI_DamageFont::Free()
 {
-    UI_RuntimePanelBase::Free();
+    UI_BattleFloatingTextBase::Free();
 }

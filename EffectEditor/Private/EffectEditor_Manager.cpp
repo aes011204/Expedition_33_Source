@@ -170,9 +170,7 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
             hasPreviewDirtyEmitter = emitterView->Has_PreviewDirtyEmitter();
             if (const optional<fs::path>& currentDocumentPath = emitterView->Get_CurrentDocumentPath();
                 currentDocumentPath.has_value())
-            {
                 currentDocumentFileName = String::ToString(currentDocumentPath->filename().wstring());
-            }
         }
     }
 

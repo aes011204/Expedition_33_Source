@@ -24,7 +24,8 @@ public:
         Idle,
         Patrol,
         Chase,
-        Stun
+        Stun,
+        Hit
     };
 
 public:
