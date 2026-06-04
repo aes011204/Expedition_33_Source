@@ -159,6 +159,15 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
         result.type = BattleReactionType::Parry;
         result.success = success;
 
+        if (success)
+        {
+            _reactionAnimTargets.clear();
+            _counterDamageTarget = {};
+            _isCounterPending = false;
+            _isCounterDamageApplied = false;
+            _animPhase = ReactionAnimPhase::None;
+        }
+
         for (const BattleChar& target : curTargets)
         {
             if (!CanReceiveInput(target))
@@ -166,6 +175,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
 
             PlayReactionAnimation(
                 target, BattleReactionType::Parry, success, counterTarget, curStepIndex);
+            
 
             if (success && target.actor != nullptr)
             {
