@@ -212,6 +212,19 @@ namespace Internal
         }
     }
 
+    static const char* Get_SphereLocationPlacementModeLabel(SphereLocationPlacementMode mode)
+    {
+        switch (mode)
+        {
+        case SphereLocationPlacementMode::Random:
+            return "랜덤 샘플";
+        case SphereLocationPlacementMode::EvenByParticleIndex:
+            return "인덱스 균등";
+        default:
+            return "랜덤 샘플";
+        }
+    }
+
     static const char* Get_PlaneRadialLocationPlaneLabel(PlaneRadialLocationPlane plane)
     {
         switch (plane)
@@ -302,6 +315,36 @@ namespace Internal
             return "평면 normal";
         default:
             return "없음";
+        }
+    }
+
+    static const char* Get_SphereRadialOrientationModeLabel(SphereRadialOrientationMode mode)
+    {
+        switch (mode)
+        {
+        case SphereRadialOrientationMode::None:
+            return "없음";
+        case SphereRadialOrientationMode::FaceRadialOut:
+            return "바깥쪽";
+        case SphereRadialOrientationMode::FaceRadialIn:
+            return "안쪽";
+        default:
+            return "없음";
+        }
+    }
+
+    static const char* Get_EffectOrbitPlaneLabel(EffectOrbitPlane plane)
+    {
+        switch (plane)
+        {
+        case EffectOrbitPlane::XY:
+            return "XY";
+        case EffectOrbitPlane::XZ:
+            return "XZ";
+        case EffectOrbitPlane::YZ:
+            return "YZ";
+        default:
+            return "XY";
         }
     }
 
@@ -548,6 +591,57 @@ namespace Internal
         return changed;
     }
 
+    static bool Draw_SphereLocationPlacementModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        SphereLocationPlacementMode& value,
+        SphereLocationPlacementMode defaultValue,
+        bool enabled)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (!enabled)
+            ImGui::BeginDisabled();
+
+        if (ImGui::BeginCombo("##Value", Get_SphereLocationPlacementModeLabel(value)))
+        {
+            const SphereLocationPlacementMode candidates[] = {
+                SphereLocationPlacementMode::Random,
+                SphereLocationPlacementMode::EvenByParticleIndex,
+            };
+
+            for (const SphereLocationPlacementMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_SphereLocationPlacementModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (!enabled)
+            ImGui::EndDisabled();
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
     static bool Draw_PlaneRadialLocationPlaneProperty(
         DetailPropertyContext& detailContext,
         const char* label,
@@ -738,6 +832,96 @@ namespace Internal
         return changed;
     }
 
+    static bool Draw_SphereRadialOrientationModeProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        SphereRadialOrientationMode& value,
+        SphereRadialOrientationMode defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_SphereRadialOrientationModeLabel(value)))
+        {
+            const SphereRadialOrientationMode candidates[] = {
+                SphereRadialOrientationMode::None,
+                SphereRadialOrientationMode::FaceRadialOut,
+                SphereRadialOrientationMode::FaceRadialIn,
+            };
+
+            for (const SphereRadialOrientationMode candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_SphereRadialOrientationModeLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_EffectOrbitPlaneProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        EffectOrbitPlane& value,
+        EffectOrbitPlane defaultValue)
+    {
+        bool changed = false;
+
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if (ImGui::BeginCombo("##Value", Get_EffectOrbitPlaneLabel(value)))
+        {
+            const EffectOrbitPlane candidates[] = {
+                EffectOrbitPlane::XY,
+                EffectOrbitPlane::XZ,
+                EffectOrbitPlane::YZ,
+            };
+
+            for (const EffectOrbitPlane candidate : candidates)
+            {
+                const bool isSelected = value == candidate;
+                if (ImGui::Selectable(Get_EffectOrbitPlaneLabel(candidate), isSelected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
     static void Draw_ReadOnlyTextProperty(
         DetailPropertyContext& detailContext,
         const char* label,
@@ -817,6 +1001,32 @@ namespace Internal
         for (const AuthoringModule& module : emitter.modules)
         {
             if (module.type == AuthoringModuleType::PlaneRadialLocation)
+                return true;
+        }
+
+        return false;
+    }
+
+    static bool Has_SphereLocationModule(const AuthoringEmitter& emitter)
+    {
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type == AuthoringModuleType::SphereLocation)
+                return true;
+        }
+
+        return false;
+    }
+
+    static bool Has_EnabledPlaneRadialOrientationModule(const AuthoringEmitter& emitter)
+    {
+        for (const AuthoringModule& module : emitter.modules)
+        {
+            if (module.type != AuthoringModuleType::PlaneRadialOrientation || !module.enabled)
+                continue;
+
+            const auto* data = get_if<PlaneRadialOrientationModuleData>(&module.data);
+            if (data != nullptr && data->enabled && data->orientationMode != PlaneRadialOrientationMode::None)
                 return true;
         }
 
@@ -1680,7 +1890,8 @@ bool RequiredModuleDetail::Draw(
                     data.sortBias,
                     defaultData.sortBias,
                     0.01f,
-                    "같은 Sort Layer와 같은 Sort Policy 안에서만 마지막 보정값으로 사용합니다.");
+                    "같은 Sort Layer와 같은 Sort Policy 안에서만 마지막 보정값으로 사용합니다."
+                );
                 detailContext.End_PropertyTable();
             }
             ImGui::TreePop();
@@ -1846,6 +2057,14 @@ bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Spher
                 data.spawnMode,
                 defaultData.spawnMode
             );
+            const bool placementModeEnabled = data.spawnMode == SphereLocationSpawnMode::Surface;
+            changed |= Internal::Draw_SphereLocationPlacementModeProperty(
+                detailContext,
+                "표면 배치",
+                data.placementMode,
+                defaultData.placementMode,
+                placementModeEnabled
+            );
             detailContext.End_PropertyTable();
         }
 
@@ -1901,7 +2120,14 @@ bool PlaneRadialLocationModuleDetail::Draw(
         else
         {
             changed |= detailContext.Draw_FloatDistributionGroup("반지름 분포", data.radiusDistribution, defaultData.radiusDistribution, 0.01f, true, false);
-            changed |= detailContext.Draw_FloatDistributionGroup("각도 분포", data.angleDegreesDistribution, defaultData.angleDegreesDistribution, 0.01f, true, false);
+            changed |= detailContext.Draw_FloatDistributionGroup(
+                "각도 분포",
+                data.angleDegreesDistribution,
+                defaultData.angleDegreesDistribution,
+                0.01f,
+                true,
+                false
+            );
         }
 
         ImGui::TextDisabled("위치 분포는 spawn 시점 1회 샘플이라 현재 상수/균등만 지원합니다.");
@@ -2073,8 +2299,31 @@ bool InitialRotationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     return changed;
 }
 
+bool OrbitOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, OrbitOverLifeModuleData& data, DetailPropertyContext& detailContext)
+{
+    const OrbitOverLifeModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("수명에 따른 공전", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("OrbitOverLife"))
+        {
+            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
+            Internal::Draw_ReadOnlyTextProperty(detailContext, "Pivot", "Emitter Origin", "v1 runtime은 EmitterOrigin만 소비합니다.");
+            changed |= Internal::Draw_EffectOrbitPlaneProperty(detailContext, "평면", data.plane, defaultData.plane);
+            Internal::Draw_ReadOnlyTextProperty(detailContext, "방향 추적", "Preserve", "v1 runtime은 orientation follow를 적용하지 않습니다.");
+            detailContext.End_PropertyTable();
+        }
+
+        changed |= detailContext.Draw_FloatDistributionGroup("공전 각도", data.angleDegreesOverLife, defaultData.angleDegreesOverLife);
+        changed |= detailContext.Draw_FloatDistributionGroup("반지름 배율", data.radiusScaleOverLife, defaultData.radiusScaleOverLife);
+    }
+
+    return changed;
+}
+
 bool PlaneRadialOrientationModuleDetail::Draw(
-    AuthoringEmitter& emitter,
+    const AuthoringEmitter& emitter,
     AuthoringModule&,
     PlaneRadialOrientationModuleData& data,
     DetailPropertyContext& detailContext)
@@ -2118,6 +2367,55 @@ bool PlaneRadialOrientationModuleDetail::Draw(
 
         if (!Internal::Has_PlaneRadialLocationModule(emitter))
             ImGui::TextDisabled("같은 emitter에 평면/방사 위치가 없으면 runtime radial frame을 만들 수 없습니다.");
+    }
+
+    return changed;
+}
+
+bool SphereRadialOrientationModuleDetail::Draw(
+    const AuthoringEmitter& emitter,
+    AuthoringModule&,
+    SphereRadialOrientationModuleData& data,
+    DetailPropertyContext& detailContext)
+{
+    const SphereRadialOrientationModuleData defaultData{};
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader("구/방사 회전", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        if (detailContext.Begin_PropertyTable("SphereRadialOrientation"))
+        {
+            changed |= detailContext.Draw_BoolProperty("사용", data.enabled, defaultData.enabled);
+            changed |= Internal::Draw_SphereRadialOrientationModeProperty(
+                detailContext,
+                "방향",
+                data.orientationMode,
+                defaultData.orientationMode
+            );
+            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                detailContext,
+                "메시 앞축",
+                data.meshForwardAxis,
+                defaultData.meshForwardAxis
+            );
+            changed |= Internal::Draw_PlaneRadialOrientationAxisProperty(
+                detailContext,
+                "메시 위축",
+                data.meshUpAxis,
+                defaultData.meshUpAxis
+            );
+            changed |= detailContext.Draw_FloatProperty("기울기", data.tiltDegrees, defaultData.tiltDegrees, 0.1f);
+            changed |= detailContext.Draw_FloatProperty("Roll 오프셋", data.rollOffsetDegrees, defaultData.rollOffsetDegrees, 0.1f);
+
+            detailContext.End_PropertyTable();
+        }
+
+        if (!Internal::Has_SphereLocationModule(emitter))
+            ImGui::TextDisabled("같은 emitter에 구 위치가 없으면 runtime sphere radial frame을 만들 수 없습니다.");
+        if (data.enabled &&
+            data.orientationMode != SphereRadialOrientationMode::None &&
+            Internal::Has_EnabledPlaneRadialOrientationModule(emitter))
+            ImGui::TextDisabled("평면/방사 회전도 켜져 있으면 runtime은 구/방사 회전을 먼저 적용합니다.");
     }
 
     return changed;

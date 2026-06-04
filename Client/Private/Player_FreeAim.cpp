@@ -192,10 +192,13 @@ void Player_FreeAim::Update_FreeAimHitState()
 
 void Player_FreeAim::Cache_PendingFreeAimShot()
 {
-    _hasPendingShotHit = _hasHitMonster;
+    FreeAimHitInfo hitInfo{};
+    Shared<Monster_WorldBase> hitMonster = Find_FreeAimHitMonster(&hitInfo);
+
+    _hasPendingShotHit = (hitMonster != nullptr);
     _hasConsumedPendingShotHit = false;
-    _pendingShotMonster = _hitMonster;
-    _pendingShotHitInfo = _hasHitMonster ? _currentHitInfo : FreeAimHitInfo{};
+    _pendingShotMonster = hitMonster;
+    _pendingShotHitInfo = _hasPendingShotHit ? hitInfo : FreeAimHitInfo{};
 }
 
 void Player_FreeAim::Clear_PendingFreeAimShot()
@@ -229,6 +232,8 @@ void Player_FreeAim::Trigger_PendingFreeAimShotHit()
 
     Play_FreeAimHitEffect();
     hitMonster->Apply_Stun(3.f);
+
+    CLIENT->Notify_FreeAimShotHit();
 }
 
 void Player_FreeAim::Update_DirectionalModifiers()

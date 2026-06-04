@@ -13,6 +13,7 @@
 #include "BattleStartSpawner.h"
 #include "ColliderCom.h"
 #include "ModelCom.h"
+#include "Mon_WeakPoint.h"
 #include "Monster_WorldBase.h"
 #include "PreviewObjectHelpers.h"
 #include "RenderTarget.h"
@@ -1868,7 +1869,24 @@ void Prefab_View::Draw_PreviewColliders(const Shared<GameObject>& gameObject) co
     if (gameObject == nullptr)
         return;
 
-    Shared<TransformCom> transformCom = gameObject->Get_Transform();
+    Matrix colliderWorldMatrix = Matrix::Identity;
+    bool hasColliderWorldMatrix = false;
+
+    if (const Shared<Client::Mon_WeakPoint> weakPoint = dynamic_pointer_cast<Client::Mon_WeakPoint>(gameObject))
+    {
+        colliderWorldMatrix = weakPoint->Get_CollisionWorldMatrix();
+        hasColliderWorldMatrix = true;
+    }
+    else if (const Shared<PartObject> partObject = dynamic_pointer_cast<PartObject>(gameObject))
+    {
+        colliderWorldMatrix = partObject->Get_CombinedWorldMatrix();
+        hasColliderWorldMatrix = true;
+    }
+    else if (const Shared<TransformCom> transformCom = gameObject->Get_Transform())
+    {
+        colliderWorldMatrix = transformCom->Get_WorldMatrix();
+        hasColliderWorldMatrix = true;
+    }
 
     gameObject->Visit_Components([&](const wstring&, const Shared<Component>& component)
     {
@@ -1876,8 +1894,8 @@ void Prefab_View::Draw_PreviewColliders(const Shared<GameObject>& gameObject) co
         if (colliderCom == nullptr)
             return;
 
-        if (transformCom != nullptr)
-            colliderCom->Update_Collider(transformCom->Get_WorldMatrix());
+        if (hasColliderWorldMatrix)
+            colliderCom->Update_Collider(colliderWorldMatrix);
 
         colliderCom->Render_Debug();
     });

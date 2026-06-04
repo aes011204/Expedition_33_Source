@@ -475,75 +475,6 @@ bool EffectMaterialPreviewRenderer::Ready_NoiseTexture(const string& textureGuid
     return true;
 }
 
-bool EffectMaterialPreviewRenderer::Ready_FlowTexture(const string& textureGuid, const string& texturePath)
-{
-    if (textureGuid.empty() && texturePath.empty())
-    {
-        _flowTexture = nullptr;
-        _loadedFlowTextureKey.clear();
-        return true;
-    }
-
-    bool usedPathFallback = false;
-    bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
-
-    if (resolvedPath.empty())
-    {
-        _flowTexture = nullptr;
-        _loadedFlowTextureKey.clear();
-        _statusMessage = "Flow texture missing. Distortion preview uses neutral flow.";
-        LOG_WARN_THROTTLED(
-            60,
-            "EffectMaterialPreview flow texture missing. flowTextureGuid='{}', flowTexturePath='{}'. Distortion preview uses neutral flow.",
-            textureGuid,
-            texturePath
-        );
-        return true;
-    }
-
-    const string requestedTextureKey = String::ToString(resolvedPath);
-    if (_flowTexture != nullptr && _loadedFlowTextureKey == requestedTextureKey)
-        return true;
-
-    if (guidPathMismatch)
-    {
-        LOG_WARN(
-            "EffectMaterialPreview flow texture GUID/path mismatch. flowTextureGuid='{}', flowTexturePath='{}', guidResolvedPath='{}'. Distortion preview continues with GUID texture.",
-            textureGuid,
-            texturePath,
-            requestedTextureKey
-        );
-    }
-    else if (usedPathFallback)
-    {
-        LOG_WARN(
-            "EffectMaterialPreview flow texture fell back to path. flowTextureGuid='{}', flowTexturePath='{}', resolvedPath='{}'. Distortion preview continues with fallback texture.",
-            textureGuid,
-            texturePath,
-            requestedTextureKey
-        );
-    }
-
-    _flowTexture = Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), resolvedPath.c_str(), 1);
-    _loadedFlowTextureKey = requestedTextureKey;
-
-    if (_flowTexture == nullptr)
-    {
-        _loadedFlowTextureKey.clear();
-        _statusMessage = "Flow texture missing. Distortion preview uses neutral flow.";
-        LOG_WARN_THROTTLED(
-            60,
-            "EffectMaterialPreview flow texture create failed. flowTextureGuid='{}', flowTexturePath='{}', resolvedPath='{}'. Distortion preview uses neutral flow.",
-            textureGuid,
-            texturePath,
-            requestedTextureKey
-        );
-    }
-
-    return true;
-}
-
 bool EffectMaterialPreviewRenderer::Ready_MaskTexture(const string& textureGuid, const string& texturePath)
 {
     if (textureGuid.empty() && texturePath.empty())
@@ -604,6 +535,75 @@ bool EffectMaterialPreviewRenderer::Ready_MaskTexture(const string& textureGuid,
         LOG_WARN_THROTTLED(
             60,
             "EffectMaterialPreview mask texture create failed. maskTextureGuid='{}', maskTexturePath='{}', resolvedPath='{}'. Preview continues without mask.",
+            textureGuid,
+            texturePath,
+            requestedTextureKey
+        );
+    }
+
+    return true;
+}
+
+bool EffectMaterialPreviewRenderer::Ready_FlowTexture(const string& textureGuid, const string& texturePath)
+{
+    if (textureGuid.empty() && texturePath.empty())
+    {
+        _flowTexture = nullptr;
+        _loadedFlowTextureKey.clear();
+        return true;
+    }
+
+    bool usedPathFallback = false;
+    bool guidPathMismatch = false;
+    const wstring resolvedPath = Internal::Resolve_PreviewTexturePath(textureGuid, texturePath, usedPathFallback, guidPathMismatch);
+
+    if (resolvedPath.empty())
+    {
+        _flowTexture = nullptr;
+        _loadedFlowTextureKey.clear();
+        _statusMessage = "Flow texture missing. Distortion preview uses neutral flow.";
+        LOG_WARN_THROTTLED(
+            60,
+            "EffectMaterialPreview flow texture missing. flowTextureGuid='{}', flowTexturePath='{}'. Distortion preview uses neutral flow.",
+            textureGuid,
+            texturePath
+        );
+        return true;
+    }
+
+    const string requestedTextureKey = String::ToString(resolvedPath);
+    if (_flowTexture != nullptr && _loadedFlowTextureKey == requestedTextureKey)
+        return true;
+
+    if (guidPathMismatch)
+    {
+        LOG_WARN(
+            "EffectMaterialPreview flow texture GUID/path mismatch. flowTextureGuid='{}', flowTexturePath='{}', guidResolvedPath='{}'. Distortion preview continues with GUID texture.",
+            textureGuid,
+            texturePath,
+            requestedTextureKey
+        );
+    }
+    else if (usedPathFallback)
+    {
+        LOG_WARN(
+            "EffectMaterialPreview flow texture fell back to path. flowTextureGuid='{}', flowTexturePath='{}', resolvedPath='{}'. Distortion preview continues with fallback texture.",
+            textureGuid,
+            texturePath,
+            requestedTextureKey
+        );
+    }
+
+    _flowTexture = Texture::Create(EDITOR->Get_Device(), EDITOR->Get_Context(), resolvedPath.c_str(), 1);
+    _loadedFlowTextureKey = requestedTextureKey;
+
+    if (_flowTexture == nullptr)
+    {
+        _loadedFlowTextureKey.clear();
+        _statusMessage = "Flow texture missing. Distortion preview uses neutral flow.";
+        LOG_WARN_THROTTLED(
+            60,
+            "EffectMaterialPreview flow texture create failed. flowTextureGuid='{}', flowTexturePath='{}', resolvedPath='{}'. Distortion preview uses neutral flow.",
             textureGuid,
             texturePath,
             requestedTextureKey
@@ -846,22 +846,14 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
     CHECK_FAILED(_texture->Bind_ShaderResourceView(_shader.get(), "g_Texture", 0), E_FAIL);
 
     if (_noiseTexture != nullptr)
-    {
         CHECK_FAILED(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
-    }
     else
-    {
         CHECK_FAILED(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
-    }
 
     if (_maskTexture != nullptr)
-    {
         CHECK_FAILED(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
-    }
     else
-    {
         CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
-    }
 
     CHECK_FAILED(
         _shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)),
@@ -892,7 +884,8 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         E_FAIL
     );
     CHECK_FAILED(
-        _shader->Bind_RawValue("g_EffectMaterialPreviewMaskUVOffsetParams", &effectMaterialPreviewMaskUVOffsetParams, sizeof(effectMaterialPreviewMaskUVOffsetParams)),
+        _shader->Bind_RawValue("g_EffectMaterialPreviewMaskUVOffsetParams", &effectMaterialPreviewMaskUVOffsetParams, sizeof(
+            effectMaterialPreviewMaskUVOffsetParams)),
         E_FAIL
     );
     CHECK_FAILED(
@@ -920,11 +913,13 @@ HRESULT EffectMaterialPreviewRenderer::Render_PreviewMesh(const EffectMaterialIn
         E_FAIL
     );
     CHECK_FAILED(
-        _shader->Bind_RawValue("g_EffectMaterialPreviewCoreEmissiveParams", &effectMaterialPreviewCoreEmissiveParams, sizeof(effectMaterialPreviewCoreEmissiveParams)),
+        _shader->Bind_RawValue("g_EffectMaterialPreviewCoreEmissiveParams", &effectMaterialPreviewCoreEmissiveParams, sizeof(
+            effectMaterialPreviewCoreEmissiveParams)),
         E_FAIL
     );
     CHECK_FAILED(
-        _shader->Bind_RawValue("g_EffectMaterialPreviewCoreEmissiveColor", &effectMaterialPreviewCoreEmissiveColor, sizeof(effectMaterialPreviewCoreEmissiveColor)),
+        _shader->Bind_RawValue("g_EffectMaterialPreviewCoreEmissiveColor", &effectMaterialPreviewCoreEmissiveColor, sizeof(
+            effectMaterialPreviewCoreEmissiveColor)),
         E_FAIL
     );
     CHECK_FAILED(
@@ -1087,7 +1082,10 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVModeParams", &uvModeParams, sizeof(uvModeParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewSourceParams", &sourceParams, sizeof(sourceParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
-    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewDistortionShapeParams", &distortionShapeParams, sizeof(distortionShapeParams)), E_FAIL);
+    CHECK_FAILED(
+        _distortionShader->Bind_RawValue("g_EffectMaterialPreviewDistortionShapeParams", &distortionShapeParams, sizeof(distortionShapeParams)),
+        E_FAIL
+    );
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewScreenSize", &screenSize, sizeof(screenSize)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_OpacitySource", &opacitySource, sizeof(opacitySource)), E_FAIL);
 

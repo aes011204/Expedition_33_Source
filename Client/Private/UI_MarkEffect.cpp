@@ -6,8 +6,16 @@
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Utils.h"
+#include "PartObject.h"
+#include "TransformCom.h"
 
 using namespace UI_Utils;
+
+namespace
+{
+    constexpr Vec3 kMarkWorldAnchorOffset = Vec3(0.f, 1.2f, 0.f);
+    constexpr Vec2 kMarkScreenBaseOffset = Vec2(0.f, -10.f);
+}
 
 HRESULT UI_MarkEffect::Initialize(uint32 levelIndex)
 {
@@ -23,8 +31,6 @@ HRESULT UI_MarkEffect::Initialize(uint32 levelIndex)
 
 void UI_MarkEffect::Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
     if (!_hasTarget)
         return;
 
@@ -44,10 +50,11 @@ void UI_MarkEffect::Update(float timeDelta)
     Vec2 screenPos{};
     if (!Try_ProjectWorldToScreen(worldPos, screenPos))
     {
-        Close(); 
+        Close();
         return;
     }
 
+    screenPos += kMarkScreenBaseOffset;
     Apply_EditorOffsets(screenPos);
 
     if (_markEffectPanel && _markEffectPanel->Get_Transform())
@@ -139,10 +146,16 @@ bool UI_MarkEffect::Try_GetMarkWorldPosition(const BattleChar& target, Vec3& out
     if (!Is_ValidTarget(target))
         return false;
 
+    if (PartObject* body = target.actor->Get_PartObject(L"Part_Body"))
+    {
+        const Matrix& bodyWorld = body->Get_CombinedWorldMatrix();
+        outWorldPos = Vec3(bodyWorld._41, bodyWorld._42, bodyWorld._43);
+        outWorldPos += kMarkWorldAnchorOffset;
+        return true;
+    }
+
     outWorldPos = target.actor->Get_Transform()->Get_WorldPosition();
-
-    outWorldPos.y += 1.0f;
-
+    outWorldPos += kMarkWorldAnchorOffset;
     return true;
 }
 

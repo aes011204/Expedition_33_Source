@@ -31,6 +31,9 @@ private:
     bool Is_CurrentActorAnimFinished() const;
     void Play_CurrentActorBattleAnim(BattleAnimType animType, float blendTime, bool isLoop) const;
 
+    // 플레이어 회전
+    void Update_FreeAimPlayerYaw(float timeDelta);
+
 private:
     BattleFreeAimHitTarget  _currentHitTarget = {};
     bool _hasCurrentHitTarget = false;

@@ -124,6 +124,9 @@
     <Filter Include="10. System\MEMaterialApplicator">
       <UniqueIdentifier>{00437c28-a8d3-4d86-8b01-1ff655d439b2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="07. MeshActor\WaterActor">
+      <UniqueIdentifier>{4b77f76f-2587-4825-afd3-ef9aeb250d46}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -234,6 +237,9 @@
     <ClInclude Include="..\Public\MEMaterialApplicator.h">
       <Filter>10. System\MEMaterialApplicator</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\MEWaterActor.h">
+      <Filter>07. MeshActor\WaterActor</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="MapEditor.ico">
@@ -341,6 +347,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\MEMaterialApplicator.cpp">
       <Filter>10. System\MEMaterialApplicator</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\MEWaterActor.cpp">
+      <Filter>07. MeshActor\WaterActor</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

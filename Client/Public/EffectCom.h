@@ -46,6 +46,21 @@ public:
         Weak<IEffectTrailSampleProvider> trailSampleProvider{};
     };
 
+    struct InspectorEffectSettings
+    {
+        bool    autoPlay = false;
+        wstring effectName = L"";
+        EffectPlayTarget target = EffectPlayTarget::OwnerRoot;
+        wstring partTag = L"";
+        string  socketName = "";
+        wstring layerTag = L"Layer_Effect";
+        Vec3    localOffset = Vec3::Zero;
+        Vec3    localRotation = Vec3::Zero;
+        Vec3    scale = Vec3::One;
+        bool    followTarget = false;
+        bool    requiresManualRelease = false;
+    };
+
 private:
     struct AttachedEffect
     {
@@ -94,6 +109,10 @@ public:
 public:
     // AN/ANS에서 context.owner가 part일 수도 있어서 owner chain 타고 EffectCom를 찾는 공용 진입점
     static Shared<EffectCom> Find_FromNotifyOwner(GameObject* notifyOwner);
+
+    InspectorEffectSettings Get_InspectorEffectSettings() const;
+    void Set_InspectorEffectSettings(const InspectorEffectSettings& settings);
+    HRESULT Play_InspectorEffect();
 
 #pragma region AN_PlayEffect에서 재생시킬 함수
      HRESULT Play_Effect(const EffectPlayDesc& desc);
@@ -157,6 +176,7 @@ public:
 
 
 private:
+    void Play_InspectorEffectIfEnabled();
     void Update_AttachedEffects();                                           // socket follow와 자동 release 후보 정리를 함께 수행한다.
     void Release_AttachedEffect(AttachedEffect& attached);                   // 명시 반환이 필요한 attached effect를 pool로 되돌린다.
     bool Should_ReleaseAttachedEffect(const AttachedEffect& attached) const; // auto/manual release 정책을 판정한다.
@@ -199,6 +219,19 @@ private:
 
 private:
     bool _vanishComplete = false;
+
+    bool    _inspectorAutoPlayEffect = false;
+    wstring _inspectorEffectName = L"";
+    int     _inspectorEffectTarget = static_cast<int>(EffectPlayTarget::OwnerRoot);
+    wstring _inspectorPartTag = L"";
+    string  _inspectorSocketName = "";
+    wstring _inspectorLayerTag = L"Layer_Effect";
+    Vec3    _inspectorLocalOffset = Vec3::Zero;
+    Vec3    _inspectorLocalRotation = Vec3::Zero;
+    Vec3    _inspectorScale = Vec3::One;
+    bool    _inspectorFollowTarget = false;
+    bool    _inspectorRequiresManualRelease = false;
+    bool    _inspectorEffectPlayed = false;
 
 public:
     static Shared<EffectCom> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
