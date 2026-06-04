@@ -13,6 +13,9 @@ class UI_DamageFont final : public UI_BattleFloatingTextBase
 {
     GENERATED_BASE_TYPE_BODY(UI_DamageFont)
 
+private:
+    enum class DamageFontStyle { Normal, Critical, END };
+
 public:
     UI_DamageFont() = default;
     ~UI_DamageFont() override = default;
@@ -24,20 +27,32 @@ public:
 
 public:
     void Open() override;
+    void Close() override;
 
     // 데미지 popup은 시작 위치만 잡고, 이후에는 snapshot screen position 기준으로 rise만 적용한다.
-    void Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex);
+    void Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex, bool isCritical);
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
 
+    void Set_ActiveStyle(DamageFontStyle style);
     void Set_DamageText(int32 damageValue);
     bool Apply_DamageFontTuning();
 
 private:
+    Shared<UI_Base> _normalRoot{};
+    Shared<UI_Base> _criticalRoot{};
+
+    Shared<UI_Text> _normalDamageText{};
+    Shared<UI_Text> _normalDamageTextBg{};
+    Shared<UI_Text> _criticalDamageText{};
+    Shared<UI_Text> _criticalDamageTextBg{};
+
     Shared<UI_Text> _damageText{};
     Shared<UI_Text> _damageTextBg{};
+
+    DamageFontStyle _activeStyle = DamageFontStyle::Normal;
 
 private:
     float _damageLifeTime = 1.05f;

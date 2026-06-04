@@ -68,7 +68,7 @@ private:
     void    Handle_TurnEnded(const BattleChar& actor);
     void    Handle_TargetPreviewChanged(const BattleChar* target);
     void    Handle_ActionStarted(const BattleAction& action);
-    void    Handle_DamageApplied(const BattleChar& target, float damage, AttackType attackType);
+    void    Handle_DamageApplied(const DamageAppliedInfo& info);
     void    Handle_HealApplied(const BattleChar& target, float healAmount);
     void    Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const vector<BattleChar>& target);
     void    Handle_BattleApChanged(const BattleChar& actor, uint32 amount, EAPChangeReason reason);

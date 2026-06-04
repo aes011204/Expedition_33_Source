@@ -37,6 +37,7 @@ HRESULT Mon_WeakPoint::Initialize(void* arg)
         return E_FAIL;
 
     CHECK_FAILED(Ready_WeakPointCollider(), E_FAIL);
+    Ready_DefaultWeakPointEffectSettings();
 
     return S_OK;
 }
@@ -91,6 +92,7 @@ HRESULT Mon_WeakPoint::Render_Shadow()
 void Mon_WeakPoint::From_Json(const json& data)
 {
     Monster_Part::From_Json(data);
+    Ready_DefaultWeakPointEffectSettings();
 
     if (_colliderCom)
         _colliderCom->Set_CollisionPreset(Collision_Preset::Monster_WeakPoint);
@@ -166,12 +168,33 @@ HRESULT Mon_WeakPoint::Ready_WeakPointCollider()
     return S_OK;
 }
 
+void Mon_WeakPoint::Ready_DefaultWeakPointEffectSettings()
+{
+    if (_partEffectCom == nullptr)
+        return;
+
+    EffectCom::InspectorEffectSettings settings = _partEffectCom->Get_InspectorEffectSettings();
+    if (!settings.effectName.empty())
+        return;
+
+    settings.effectName = L"Effects\\Assets\\Monster\\Monster_Weak.effect.json";
+    settings.target = EffectCom::EffectPlayTarget::OwnerRoot;
+    settings.layerTag = L"Layer_Effect";
+    settings.followTarget = true;
+    settings.scale = Vec3(0.3f);
+    settings.requiresManualRelease = true;
+
+    _partEffectCom->Set_InspectorEffectSettings(settings);
+}
+
 void Mon_WeakPoint::Play_WeakPointEffect()
 {
     if (_partEffectCom == nullptr)
         return;
 
     _partEffectCom->Stop_AllAttachedEffects();
+    if (SUCCEEDED(_partEffectCom->Play_InspectorEffect()))
+        return;
 
     EffectCom::EffectPlayDesc desc{};
     desc.levelIndex = GAME->Current_LevelIndex();

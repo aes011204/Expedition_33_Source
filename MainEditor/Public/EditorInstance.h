@@ -52,6 +52,7 @@ public: /* For.Runtime */
     void    Stop();
     void    Resume();
     void    Enter_EditAfterLoading();
+    void    Force_EnablePlayerInputForPlay();
 
     bool    IsPlaying() const;
     bool    IsPaused() const;
@@ -200,8 +201,8 @@ private: /* 저장 */
     };
     PendingPickRequest _pendingPick = {};
 
-    void Reload_CurrentLevelMonstersFromMapJson();
-    const wchar_t* Resolve_CurrentLevelAuthoringMapPath() const;
+    void Capture_PlayStartMonsterSnapshots();
+    void Restore_PlayStartMonsterSnapshots();
     bool Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const;
     bool Apply_CameraPoseToCameraType(ObjectType objectType, const CameraPoseSnapshot& pose) const;
     bool Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const;
@@ -254,6 +255,8 @@ private: /* Runtime Data */
     EDITOR_RUNTIME_STATE _runtimeState = EDITOR_RUNTIME_STATE::Play;
     float _runtimeTimeScale = 1.f;
 
+    vector<EditorWorldObjectSnapshot> _playStartMonsterSnapshots = {};
+    bool _hasPlayStartMonsterSnapshots = false;
     CameraPoseSnapshot _playStartCameraPose = {};
     Weak<Camera> _cameraBeforeFreeCamera = {};
 

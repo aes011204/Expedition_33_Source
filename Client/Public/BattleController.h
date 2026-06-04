@@ -78,7 +78,7 @@ public:
 
     void Set_BattleFSM();
     void PlayerStartAnim();
-    void HitAction(BattleChar target, AttackType attackType);
+    void HitAction(BattleChar target, AttackType attackType, bool isCritical);
     void ExecuteAction(const BattleAction& turnAction); //실제로 선택한 행동을 실행하는 함수
     void ExecuteActionRequest(const ActionRequest& request);
 
@@ -165,7 +165,7 @@ public:
     void Confirm_Victory();
 
     // 데미지 후 전투 진행 규칙을 한 곳에서 처리한다.
-    void Handle_DamageApplied(const BattleChar& damagedTarget, float damage, AttackType attackType);
+    void Handle_DamageApplied(const DamageAppliedInfo& info);
 
      // 현재 턴 액터가 죽으면 턴 종료를 예약한다.
     void Try_RequestEndTurnOnCurrentActorDeath(const BattleChar& damagedTarget, float damage);

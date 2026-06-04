@@ -1667,24 +1667,24 @@ void BattleController::Confirm_Victory()
     _firstAnimCount = 0;
 }
 
-void BattleController::Handle_DamageApplied(const BattleChar& damagedTarget, float damage, AttackType attackType)
+void BattleController::Handle_DamageApplied(const DamageAppliedInfo& info)
 {
-    if (damage > 0.f && damagedTarget.actor)
+    if (info.damage > 0.f && info.target.actor)
     {
-        HitAction(damagedTarget, attackType);
+        HitAction(info.target, info.attackType, info.isCritical);
     }
 
-    if (damage > 0.f &&
-        damagedTarget.actor != nullptr &&
-        damagedTarget.statCom != nullptr &&
-        damagedTarget.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+    if (info.damage > 0.f &&
+        info.target.actor != nullptr &&
+        info.target.statCom != nullptr &&
+        info.target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
     {
         // 충돌체 끄기
-        Handle_BattleTargetDeathCollision(damagedTarget);
+        Handle_BattleTargetDeathCollision(info.target);
     }
 
-    Try_RequestEndTurnOnCurrentActorDeath(damagedTarget, damage);
-    Try_BeginVictorySlowOnDamage(damagedTarget, damage);
+    Try_RequestEndTurnOnCurrentActorDeath(info.target, info.damage);
+    Try_BeginVictorySlowOnDamage(info.target, info.damage);
 }
 
 void BattleController::Try_RequestEndTurnOnCurrentActorDeath(const BattleChar& damagedTarget, float damage)
@@ -2167,7 +2167,7 @@ void BattleController::PlayerStartAnim()
     }
 }
 
-void BattleController::HitAction(BattleChar target, AttackType attackType)
+void BattleController::HitAction(BattleChar target, AttackType attackType, bool isCritical)
 {
     if (target.ModelCom == nullptr || target.statCom == nullptr)
     {
@@ -2184,6 +2184,13 @@ void BattleController::HitAction(BattleChar target, AttackType attackType)
             playedDead,
             static_cast<int>(attackType),
             target.actor ? String::ToString(target.actor->Get_Name()).c_str() : "null");
+        return;
+    }
+
+    // 크리티컬이면 Heavy
+    if (isCritical)
+    {
+        target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Heavy), 0.3f, false);
         return;
     }
 
