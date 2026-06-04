@@ -107,14 +107,19 @@ void UI_BattleSystemHUD::Update(float timeDelta)
 
 void UI_BattleSystemHUD::Open()
 {
+    if (Is_Open())
+        return;
+
     UI_RuntimePanelBase::Open();
 }
 
 void UI_BattleSystemHUD::Close()
 {
+	Stop_TargetAnimations();
+    Reset_TargetAnimationState(false);
+
     UI_RuntimePanelBase::Close();
 
-	Stop_TargetAnimations();
     Close_AllLuneStains();            // 다시 열릴 때 데이터 기본 visible 값이 남지 않게 즉시 정리한다.
     Close_AllMaelleStanceBadges();
 }
@@ -224,6 +229,7 @@ void UI_BattleSystemHUD::Play_PortraitDeactivation(HeroId heroId)
 
 void UI_BattleSystemHUD::Play_BattleSystemIntro()
 {
+    Reset_TargetAnimationState(true);
     Play_TargetAnimation(kBattleSystemIntroAnimationName);
 }
 
@@ -563,6 +569,26 @@ void UI_BattleSystemHUD::Stop_TargetAnimations()
 
         ui->Stop_UIAnimation();
     }
+}
+
+void UI_BattleSystemHUD::Reset_TargetAnimationState(bool includeRoot)
+{
+    for (auto& [uiName, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(uiName);
+
+        if (ui == nullptr)
+            continue;
+
+        if (!includeRoot && ui == _root)
+            continue;
+
+        ui->Open();
+        ui->Stop_UIAnimation();
+    }
+
+    Close_AllLuneStains();
+    Close_AllMaelleStanceBadges();
 }
 
 Unique<UI_BattleSystemHUD> UI_BattleSystemHUD::Create(uint32 levelIndex)

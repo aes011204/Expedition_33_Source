@@ -79,6 +79,7 @@ private:
 
     void    Play_TargetAnimation(const wchar_t* animationName); // Target_Animation은 이름으로 전 UI에 브로드캐스트 재생
     void    Stop_TargetAnimations();  
+    void    Reset_TargetAnimationState(bool includeRoot);
 
 private:
     PartyBattleStatSlot _partySlots[3]{};

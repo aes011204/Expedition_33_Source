@@ -46,7 +46,7 @@ GameplayUI_Battle::~GameplayUI_Battle() = default;
 
 namespace
 {
-    constexpr float kBattleSystemIntroDurationSec = 2.f;
+    constexpr float kBattleSystemIntroDurationSec = 3.f;
 
     void Append_RuntimePanelEntry(
         vector<RuntimeUIEntry>& outEntries,

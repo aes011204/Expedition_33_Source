@@ -1498,11 +1498,12 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
 
         const BattleChar& attacker = _freeAimShotAction.Get_CurChar();
         const BattleChar& target = _freeAimShotAction.GetInitTarget();
+        const bool hadShieldBeforeShot = target.statCom->Get_CurrentShield() > 0;
 
         DamageSystem::ApplyDamage(freeAimDamage, attacker, target, AttackType::FreeAimLight);
 
         // 약점 파츠를 맞췄을 때만 추가딜
-        if (_hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor)
+        if (!hadShieldBeforeShot && _hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor)
             Try_ApplyFreeAimWeakPointBonus(_freeAimHitTarget, attacker);
 
         CLIENT->Notify_FreeAimShotHit();
@@ -1930,6 +1931,11 @@ void BattleController::Notify_CounterAnnounceRequested(const vector<BattleChar>&
     OnCounterAnnounceRequested.Broadcast(counterActors);
 }
 
+void BattleController::StartCounterReturnAll(ModelCom* sourceModel)
+{
+    _reactionController.StartCounterReturnAll(sourceModel);
+}
+
 void BattleController::Play_BattleHitStop(float worldTimeScale, float duration)
 {
     if (duration <= 0.f)
@@ -2135,6 +2141,9 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
 
     const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(hitTarget.target.actor);
     if (monster == nullptr)
+        return false;
+
+    if (hitTarget.target.statCom != nullptr && hitTarget.target.statCom->Get_CurrentShield() > 0)
         return false;
 
     if (!monster->Try_Consume_FreeAimWeakPoint())
