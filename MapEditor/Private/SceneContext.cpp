@@ -431,6 +431,7 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
             }
             _modelOverrides[filename] = entry;
         }
+        _dirtyPassOverrides = true;
     }
 
     auto LoadTransform = [](const json& e, EditorObject& obj) {

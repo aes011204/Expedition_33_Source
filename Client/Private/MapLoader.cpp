@@ -315,7 +315,16 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     {
         for (auto& [filename, entry] : mapData["ModelOverrides"].items())
         {
-            outSession.modelOverrides[filename] = entry.value("PassIndex", -1);
+            ModelOverrideEntry overrideEntry;
+            overrideEntry.passIndex = entry.value("PassIndex", -1);
+            if (entry.contains("TextureSlots"))
+            {
+                for (auto& [slotStr, texPath] : entry["TextureSlots"].items())
+                {
+                    overrideEntry.textureSlots[stoi(slotStr)] = texPath.get<string>();
+                }
+            }
+            outSession.modelOverrides[filename] = overrideEntry;
         }
     }
 
@@ -863,7 +872,7 @@ void MapLoader::Prepare_StaticAutoInstancing(LoadSession& session)
     session.nextInstancedMeshIndex = 0;
 }
 
-void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, int32 forcedPassIndex)
+void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry)
 {
     if (model == nullptr)
     {
@@ -962,14 +971,36 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
         model->Apply_MaterialByAssetName(binding.first, bundleKey, binding.second);
     }
 
+    int32 forcedPassIndex = overrideEntry ? overrideEntry->passIndex : -1;
+
     if (forcedPassIndex >= 0)
     {
         for (uint32 i = 0; i < static_cast<uint32>(model->Get_NumMaterials()); ++i)
         {
             auto mat = model->Get_Material(i);
             if (mat)
-            {
                 mat->Set_ForcedPassIndex(forcedPassIndex);
+        }
+    }
+
+    if (overrideEntry)
+    {
+        for (auto& [slotIdx, texPath] : overrideEntry->textureSlots)
+        {
+            if (texPath.empty())
+            {
+                continue;
+            }
+
+            string fullPath = "../../../Client/Bin/Resources/Map/" + texPath;
+            auto slot = static_cast<MaterialTextureSlot>(slotIdx);
+            for (uint32 i = 0; i < static_cast<uint32>(model->Get_NumMaterials()); ++i)
+            {
+                auto mat = model->Get_Material(i);
+                if (mat)
+                {
+                    mat->Override_TextureSlot(slot, 0, String::ToWString(fullPath));
+                }
             }
         }
     }
@@ -1077,7 +1108,7 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     const ComPtr<Context>& context,
     const string& modelFolder,
     const string& modelPathStr,
-    const unordered_map<string, int32>& modelOverrides,
+    const unordered_map<string, ModelOverrideEntry>& modelOverrides,
     chrono::milliseconds* outCreateDuration,
     size_t* outCreateCount,
     chrono::milliseconds* outMaterialDuration,
@@ -1111,16 +1142,15 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     if (!model)
         return nullptr;
 
-    int32 forcedPass = -1;
+    const ModelOverrideEntry* overrideEntry = nullptr;
     auto overrideIt = modelOverrides.find(modelPathStr);
     if (overrideIt != modelOverrides.end())
     {
-        forcedPass = overrideIt->second;
+        overrideEntry = &overrideIt->second;
     }
 
-    // 머티리얼 적용 로직 수행
     const auto materialBegin = chrono::steady_clock::now();
-    ApplyMaterials(model, modelFolder, fullPathA, forcedPass);
+    ApplyMaterials(model, modelFolder, fullPathA, overrideEntry);
     const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
 
     if (outMaterialDuration) *outMaterialDuration += materialMs;
