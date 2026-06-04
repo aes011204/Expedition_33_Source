@@ -362,9 +362,6 @@ void Monster_WorldBase::From_Json(const json& data)
     if (_aiCtrl)
         _aiCtrl->Stop_Move();
 
-    _battleMonsterSpawnDescs.clear();
-    _battleStartSpawnerId = 0;
-
     if (!data.contains("custom_properties") || !data["custom_properties"].is_object())
         return;
 
@@ -375,6 +372,7 @@ void Monster_WorldBase::From_Json(const json& data)
 
     if (customProperties.contains("battle_monster_spawns") && customProperties["battle_monster_spawns"].is_array())
     {
+        _battleMonsterSpawnDescs.clear();
         for (const json& spawnNode : customProperties["battle_monster_spawns"])
         {
             BattleMonsterSpawnDesc spawnDesc{};
@@ -387,6 +385,7 @@ void Monster_WorldBase::From_Json(const json& data)
     if (!customProperties.contains("battle_monster_prefab_names") || !customProperties["battle_monster_prefab_names"].is_array())
         return;
 
+    _battleMonsterSpawnDescs.clear();
     for (const json& prefabName : customProperties["battle_monster_prefab_names"])
     {
         if (prefabName.is_string())

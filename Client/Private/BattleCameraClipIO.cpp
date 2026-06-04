@@ -80,6 +80,7 @@ void Normalize_AnimationSyncClip(BattleCameraClip& clip)
     Normalize_BattleCameraTrack(clip.sideOffset, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.pivotOffset, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.heightOffset, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.aimOffset, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.lookHeightOffset, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.yawOffset, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.shakeAmplitude, legacyDurationSec);
@@ -151,6 +152,7 @@ void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode,
     jsonData["sideOffset"] = Serialize_BattleCameraTrack(clip.sideOffset);
     jsonData["pivotOffset"] = Serialize_BattleCameraTrack(clip.pivotOffset);
     jsonData["heightOffset"] = Serialize_BattleCameraTrack(clip.heightOffset);
+    jsonData["aimOffset"] = Serialize_BattleCameraTrack(clip.aimOffset);
     jsonData["lookHeightOffset"] = Serialize_BattleCameraTrack(clip.lookHeightOffset);
     jsonData["yawOffset"] = Serialize_BattleCameraTrack(clip.yawOffset);
     jsonData["shakeAmplitude"] = Serialize_BattleCameraTrack(clip.shakeAmplitude);
@@ -208,6 +210,7 @@ bool BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode cameraMod
     Deserialize_BattleCameraTrack(jsonData, "sideOffset", loadedClip.sideOffset);
     Deserialize_BattleCameraTrack(jsonData, "pivotOffset", loadedClip.pivotOffset);
     Deserialize_BattleCameraTrack(jsonData, "heightOffset", loadedClip.heightOffset);
+    Deserialize_BattleCameraTrack(jsonData, "aimOffset", loadedClip.aimOffset);
     Deserialize_BattleCameraTrack(jsonData, "lookHeightOffset", loadedClip.lookHeightOffset);
     Deserialize_BattleCameraTrack(jsonData, "yawOffset", loadedClip.yawOffset);
     Deserialize_BattleCameraTrack(jsonData, "shakeAmplitude", loadedClip.shakeAmplitude);
