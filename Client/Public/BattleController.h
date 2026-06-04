@@ -106,6 +106,7 @@ public:
     void    Request_WidePresentationMode();
 
     vector<BattleChar> Get_AliveEnemies();
+    vector<BattleChar> Get_AllEnemies() { return _enemies; };
     vector<BattleChar> Get_AliveHeroes();
 
     bool Is_BattleStarted() { return _isBattleActive; }
@@ -115,6 +116,7 @@ public:
     void Clear_CurrentScript() { _curScript.reset(); }
 
     const vector<BattleChar>& Get_BattleHeroes() const { return _heroes; }
+    const vector<BattleChar>& Get_BattleEnemies() const { return _enemies; }
 
 public:
     void End_FirstAnim();
@@ -149,6 +151,8 @@ public:
     void                EndCounterTimeSection(ModelCom* sourceModel);
 
 public:
+    // 부활
+    void Revive_BattleMon(const BattleChar& battleChar, float hp);
     // Free Aim은 턴 소모 X
     void Begin_FreeAimShot(const BattleAction& shotAction);
     void Finish_FreeAimShot();
@@ -172,10 +176,13 @@ public:
 
     uint32 Get_LastVictoryRewardExp() const { return _lastVictoryRewardExp; }
 
-    void Set_FreeAimHitTarget(const BattleChar& target);
+    void Set_FreeAimHitTarget(const BattleFreeAimHitTarget& target);
     void Clear_FreeAimHitTarget();
     bool Has_FreeAimHitTarget() const { return _hasFreeAimHitTarget; }
-    const BattleChar* Get_FreeAimHitTarget() const { return _hasFreeAimHitTarget ? &_freeAimHitTarget : nullptr; }
+    const BattleFreeAimHitTarget* Get_FreeAimHitTarget() const
+    {
+        return _hasFreeAimHitTarget ? &_freeAimHitTarget : nullptr;
+    }
 
      // 스킬 스크립트가 다단히트를 예약할 때 사용
     BattleHitSequenceRunner& Get_HitSequenceRunner() { return _hitSequenceRunner; }
@@ -208,6 +215,9 @@ private:
 
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
     void    Clear_BattleEnterPending();      // 전투 진입 대기 데이터만 정리
+
+    // 몬스터 약점공격 보너스 데미지
+    bool    Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarget& hitTarget, const BattleChar& attacker);
 
 private:
     // World의 SkillTree 상태를 읽어서 battle에서 사용할 기본 스킬 3개 세팅
@@ -263,14 +273,13 @@ private:
     BattleChar  _targetPreview = {};
     bool        _hasTargetPreview = false;
 
-    BattleChar  _freeAimHitTarget{};
-    bool        _hasFreeAimHitTarget = false;
+    BattleFreeAimHitTarget _freeAimHitTarget{};
+    bool _hasFreeAimHitTarget = false;
 
 private:
     void Execute_BaseAttack();
     void Execute_Skill();
     void Execute_Item();
-    void Revive_BattleMon(const BattleChar& battleChar, float hp);
 
 private: /* 전투 AP */
     void Apply_BaseAttackAP(const BattleChar& actor); // Base Attack시 얻는 AP
@@ -344,6 +353,7 @@ private:
     vector<HeroId> _pendingBattleHeroIds = {};
     vector<BattleMonsterSpawnDesc> _pendingBattleMonsterSpawnDescs = {};
     int32   _pendingBattleStartSpawnerId = 0;
+    Vec3    _pendingBattleStartOffset = Vec3::Zero;
 
     bool _isFreeAimShotPlaying = false;
     BattleAction _freeAimShotAction {};

@@ -2240,15 +2240,24 @@ void GameInstance::Add_Collider(Shared<ColliderCom> collider)
     CHECK_NULL(_collisionManager);
     CHECK_NULL(_physxManager);
 
-    _collisionManager->Add_Collider(collider);
-
     const Shared<GameObject> owner = collider->Get_Owner();
     CHECK_NULL(owner);
 
     const Shared<TransformCom> transform = owner->Get_Transform();
     CHECK_NULL(transform);
 
-    _physxManager->Register_OrSync_Collider(collider, transform->Get_WorldMatrix());
+    Add_Collider(collider, transform->Get_WorldMatrix());
+}
+
+void GameInstance::Add_Collider(Shared<ColliderCom> collider, const Matrix& worldMatrix)
+{
+    CHECK_NULL(collider);
+    CHECK_NULL(_collisionManager);
+    CHECK_NULL(_physxManager);
+
+    _collisionManager->Add_Collider(collider);
+
+    _physxManager->Register_OrSync_Collider(collider, worldMatrix);
 }
 
 void GameInstance::Clear_Colliders()

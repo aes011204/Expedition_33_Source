@@ -24,6 +24,7 @@ namespace UIEditor
         if (FAILED(_prefabService.Initialize()))
             LOG_WARN("UI Prefab Browser: prefab root directory initialization failed.");
 
+        Refresh_RootDirectoryState();
         _selectedDirectory = _prefabService.Get_RootDirectory();
     }
 
@@ -40,7 +41,7 @@ namespace UIEditor
             _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
             _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
 
-            if (_prefabService.Get_RootDirectory().empty() || !_prefabService.Ensure_RootDirectory())
+            if (!_rootDirectoryReady)
             {
                 ImGui::TextDisabled("Prefab root directory could not be resolved.");
             }
@@ -49,7 +50,11 @@ namespace UIEditor
                 ImGui::TextDisabled("%s", String::ToString(_prefabService.Get_RootDirectory()).c_str());
                 ImGui::SameLine();
                 if (ImGui::SmallButton("Refresh"))
+                {
+                    Clear_FolderTreeCache();
+                    Refresh_RootDirectoryState();
                     _needsRefresh = true;
+                }
 
                 ImGui::Separator();
 
@@ -82,7 +87,7 @@ namespace UIEditor
 
     void UI_Prefab_Browser::Render_FolderNode(const fs::path& directoryPath)
     {
-        const vector<fs::path> childDirectories = _prefabService.Collect_ChildDirectories(directoryPath);
+        const vector<fs::path>& childDirectories = Get_CachedChildDirectories(directoryPath);
         const bool isSelected = fs::path(_selectedDirectory).lexically_normal() == directoryPath.lexically_normal();
 
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
@@ -195,6 +200,8 @@ namespace UIEditor
             wstring newDirectory = {};
             if (_prefabService.Create_Folder(parentDirectory, _newFolderNameBuffer, newDirectory))
             {
+                Clear_FolderTreeCache();
+                Refresh_RootDirectoryState();
                 Select_Directory(fs::path(newDirectory));
                 _newFolderNameBuffer[0] = '\0';
             }
@@ -206,11 +213,43 @@ namespace UIEditor
         _prefabEntries.clear();
         _needsRefresh = false;
 
+        if (!_rootDirectoryReady)
+            return;
+
         const fs::path selectedDirectory = _selectedDirectory.empty()
             ? fs::path(_prefabService.Get_RootDirectory())
             : fs::path(_selectedDirectory);
 
         _prefabEntries = _prefabService.Collect_PrefabEntries(selectedDirectory.wstring());
+    }
+
+    void UI_Prefab_Browser::Refresh_RootDirectoryState()
+    {
+        _rootDirectoryReady = !_prefabService.Get_RootDirectory().empty() && _prefabService.Ensure_RootDirectory();
+        if (!_rootDirectoryReady)
+        {
+            _prefabEntries.clear();
+            return;
+        }
+
+        if (_selectedDirectory.empty())
+            _selectedDirectory = _prefabService.Get_RootDirectory();
+    }
+
+    void UI_Prefab_Browser::Clear_FolderTreeCache()
+    {
+        _childDirectoryCache.clear();
+    }
+
+    const vector<fs::path>& UI_Prefab_Browser::Get_CachedChildDirectories(const fs::path& directoryPath)
+    {
+        const wstring cacheKey = directoryPath.lexically_normal().wstring();
+        const auto cachedIter = _childDirectoryCache.find(cacheKey);
+        if (cachedIter != _childDirectoryCache.end())
+            return cachedIter->second;
+
+        auto inserted = _childDirectoryCache.emplace(cacheKey, _prefabService.Collect_ChildDirectories(directoryPath));
+        return inserted.first->second;
     }
 
     void UI_Prefab_Browser::Select_Directory(const fs::path& directoryPath)

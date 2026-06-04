@@ -57,8 +57,6 @@ void MB_Lancelier::Update(float timeDelta)
     Monster_BattleBase::Update(timeDelta);
 }
 
-
-
 HRESULT MB_Lancelier::Ready_PartObjects()
 {
     Mon_Lancelier_Body::BODY_DESC bodyDesc{};

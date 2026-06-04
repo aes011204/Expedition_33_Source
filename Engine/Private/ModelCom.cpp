@@ -64,6 +64,33 @@ ModelCom::ModelCom(const ModelCom& prototype)
     _leaderPoseMatricesValid = false;
 }
 
+static json Write_PreLocalTransformJson(const Matrix& matrix)
+{
+    return json::array({
+        matrix._11, matrix._12, matrix._13, matrix._14,
+        matrix._21, matrix._22, matrix._23, matrix._24,
+        matrix._31, matrix._32, matrix._33, matrix._34,
+        matrix._41, matrix._42, matrix._43, matrix._44
+        });
+}
+
+static bool Read_PreLocalTransformJson(const json& data, Matrix& outMatrix)
+{
+    if (!data.contains("pre_local_transform") || !data["pre_local_transform"].is_array())
+        return false;
+
+    const json& matrixJson = data["pre_local_transform"];
+    if (matrixJson.size() != 16)
+        return false;
+
+    outMatrix = Matrix(
+        matrixJson[0].get<float>(), matrixJson[1].get<float>(), matrixJson[2].get<float>(), matrixJson[3].get<float>(),
+        matrixJson[4].get<float>(), matrixJson[5].get<float>(), matrixJson[6].get<float>(), matrixJson[7].get<float>(),
+        matrixJson[8].get<float>(), matrixJson[9].get<float>(), matrixJson[10].get<float>(), matrixJson[11].get<float>(),
+        matrixJson[12].get<float>(), matrixJson[13].get<float>(), matrixJson[14].get<float>(), matrixJson[15].get<float>());
+    return true;
+}
+
 uint32 ModelCom::Get_NumIndices(uint32 meshIndex) const
 {
     if (meshIndex >= _meshes.size())
@@ -713,12 +740,15 @@ json ModelCom::To_Json() const
 
     if (!_sourceModelPath.empty())
     {
+        root["model_path"] = String::ToString(_sourceModelPath);
+
         const string modelGuid = GAME->Ensure_AssetGUID(_sourceModelPath, "Model");
         if (!modelGuid.empty())
             root["model_guid"] = modelGuid;
     }
 
     root["model_type"] = To_ModelTypeString(_type);
+    root["pre_local_transform"] = Write_PreLocalTransformJson(_preLocalTransformMatrix);
 
     // NOTE:
     // 기존 `material_overrides`는 Runtime Material의 isOverride 플래그 기반이라,
@@ -867,8 +897,33 @@ void ModelCom::From_Json(const json& data)
 {
     __super::From_Json(data);
 
+    Matrix preLocalTransform{};
+    if (Read_PreLocalTransformJson(data, preLocalTransform))
+    {
+        Vec3 pos{}, scale{};
+        Quat quat{};
+        _preLocalTransformMatrix = preLocalTransform;
+        _preLocalTransformMatrix.Decompose(scale, quat, pos);
+        _preLocalRotationMatrix = Matrix::CreateFromQuaternion(quat) * Matrix::CreateTranslation(pos);
+    }
+
+    const string modelTypeString = data.value("model_type", To_ModelTypeString(_type));
+    const ModelType modelType = Parse_ModelType(modelTypeString);
+
     if (!data.contains("model_guid") || !data["model_guid"].is_string())
     {
+        const string modelPathString = data.value("model_path", string{});
+        if (!modelPathString.empty())
+        {
+            const fs::path modelPath = fs::path(String::ToWString(modelPathString)).lexically_normal();
+            const fs::path currentPath = fs::path(_sourceModelPath).lexically_normal();
+            if (_sourceModelPath.empty() || modelPath != currentPath || modelType != _type)
+            {
+                if (FAILED(Reload_ModelFromPath(modelPath, modelType)))
+                    LOG_WARN("ModelCom::From_Json - failed to reload model. path={}", modelPathString);
+            }
+        }
+
         Asset_Manager* assetManager = GAME->Get_AssetManager();
         MaterialBuilder* builder = assetManager ? assetManager->Get_MaterialBuilder() : nullptr;
         if (builder != nullptr)
@@ -885,6 +940,18 @@ void ModelCom::From_Json(const json& data)
     const string modelGuid = data["model_guid"].get<string>();
     if (modelGuid.empty())
     {
+        const string modelPathString = data.value("model_path", string{});
+        if (!modelPathString.empty())
+        {
+            const fs::path modelPath = fs::path(String::ToWString(modelPathString)).lexically_normal();
+            const fs::path currentPath = fs::path(_sourceModelPath).lexically_normal();
+            if (_sourceModelPath.empty() || modelPath != currentPath || modelType != _type)
+            {
+                if (FAILED(Reload_ModelFromPath(modelPath, modelType)))
+                    LOG_WARN("ModelCom::From_Json - failed to reload model. path={}", modelPathString);
+            }
+        }
+
         Asset_Manager* assetManager = GAME->Get_AssetManager();
         MaterialBuilder* builder = assetManager ? assetManager->Get_MaterialBuilder() : nullptr;
         if (builder != nullptr)
@@ -897,9 +964,6 @@ void ModelCom::From_Json(const json& data)
         Normalize_OwnerComponentTagAndBindings();
         return;
     }
-
-    const string modelTypeString = data.value("model_type", To_ModelTypeString(_type));
-    const ModelType modelType = Parse_ModelType(modelTypeString);
 
     const string currentGuid = _sourceModelPath.empty()
         ? string{}
@@ -944,7 +1008,12 @@ HRESULT ModelCom::Reload_ModelFromGuid(const string& guid, ModelType modelType)
     if (resolvedPath.empty())
         return E_FAIL;
 
-    const fs::path modelPath = fs::path(resolvedPath).lexically_normal();
+    return Reload_ModelFromPath(fs::path(resolvedPath), modelType);
+}
+
+HRESULT ModelCom::Reload_ModelFromPath(const fs::path& path, ModelType modelType)
+{
+    const fs::path modelPath = fs::path(path).lexically_normal();
     if (!fs::exists(modelPath) || !fs::is_regular_file(modelPath))
         return E_FAIL;
 

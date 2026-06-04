@@ -453,6 +453,17 @@ PS_OUT PS_MAIN(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_MASKED(PS_IN In)
+{
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
+    const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
+    const float resolvedIntensity = g_EffectSpriteParams.x
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+    Out.color = float4(surface.color * max(resolvedIntensity, 0.f), 1.f);
+    return Out;
+}
+
 PS_OUT PS_ADDITIVE(PS_IN In)
 {
     PS_OUT Out = (PS_OUT)0;
@@ -556,4 +567,5 @@ technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_EffectAlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
     PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, GS_MAIN, PS_ADDITIVE) // 1
+    PASS_RS_DS_BS_VGP(MaskedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, GS_MAIN, PS_MASKED) // 2
 }

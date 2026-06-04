@@ -18,6 +18,9 @@ inline bool Evaluate_BattleTurnWidePose(
     const Vec3& heroCenter,
     float yawDegrees,
     float fovY,
+    float backOffset,
+    float heightOffset,
+    float lookHeightOffset,
     BattleTurnCameraEvaluatedPose& outPose)
 {
     const float cameraYawRad = XMConvertToRadians(yawDegrees);
@@ -44,10 +47,10 @@ inline bool Evaluate_BattleTurnWidePose(
 
     outPose.cameraPos =
         heroCenter +
-        backDir * 8.5f +
+        backDir * (8.5f + backOffset) +
         rightDir +
-        Vec3(0.f, 3.f, 2.f);
-    outPose.lookTarget = heroCenter + Vec3(0.f, 2.2f, 0.f);
+        Vec3(0.f, 3.f + heightOffset, 2.f);
+    outPose.lookTarget = heroCenter + Vec3(0.f, 2.2f + lookHeightOffset, 0.f);
     outPose.fovY = fovY;
     outPose.rollOffset = 0.f;
     return true;
@@ -67,6 +70,9 @@ inline bool Evaluate_BattleTurnPresetPose(
     const float finalDistance = preset.distance + clipSample.distanceOffset;
     const float finalSideOffset = preset.sideOffset + clipSample.sideOffset;
     const float finalPivotHeight = preset.pivotHeight + clipSample.pivotOffset;
+    const float finalHeightOffset = preset.heightOffset + clipSample.heightOffset;
+    const float finalAimOffset = preset.aimOffset + clipSample.aimOffset;
+    const float finalLookHeight = preset.lookHeight + clipSample.lookHeightOffset;
     const float finalYaw = yawBase + preset.yawOffset + clipSample.yawOffset;
     const float finalPitch = pitchBase + preset.pitchOffset;
 
@@ -90,9 +96,9 @@ inline bool Evaluate_BattleTurnPresetPose(
     const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
     const Vec3 pivotAnchor = smoothedTargetPos ? *smoothedTargetPos : targetPos;
     const Vec3 pivotPos = pivotAnchor + Vec3::Up * finalPivotHeight;
-    const Vec3 framingPos = pivotPos + rightDir * preset.aimOffset;
-    Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * preset.heightOffset + rightDir * finalSideOffset;
-    Vec3 lookTarget = framingPos + Vec3::Up * preset.lookHeight;
+    const Vec3 framingPos = pivotPos + rightDir * finalAimOffset;
+    Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * finalHeightOffset + rightDir * finalSideOffset;
+    Vec3 lookTarget = framingPos + Vec3::Up * finalLookHeight;
 
     if (fabsf(clipSample.orbitYaw) > 0.0001f ||
         fabsf(clipSample.orbitRadius) > 0.0001f ||
@@ -162,6 +168,9 @@ inline bool Evaluate_BattleTurnEnemyAttackPose(
     const float finalFovY = clamp(preset.camera.fovy + clipSample.fovOffset, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
     const float finalDistance = preset.distance + clipSample.distanceOffset;
     const float finalSideOffset = preset.sideOffset + clipSample.sideOffset;
+    const float finalHeightOffset = preset.heightOffset + clipSample.heightOffset;
+    const float finalAimOffset = preset.aimOffset + clipSample.aimOffset;
+    const float finalLookHeight = preset.lookHeight + clipSample.lookHeightOffset;
     const float finalYawOffset = preset.yawOffset + clipSample.yawOffset;
 
     Vec3 forward = opponentPos - subjectPos;
@@ -181,8 +190,8 @@ inline bool Evaluate_BattleTurnEnemyAttackPose(
     const float yawRad = XMConvertToRadians(finalYawOffset);
     const Vec3 yawAdjustedBack = backDir * cosf(yawRad) + right * sinf(yawRad);
 
-    Vec3 cameraPos = opponentPos + yawAdjustedBack * finalDistance + right * finalSideOffset + Vec3::Up * preset.heightOffset;
-    const Vec3 lookTarget = subjectPos + forward * preset.aimOffset + Vec3::Up * preset.lookHeight;
+    Vec3 cameraPos = opponentPos + yawAdjustedBack * finalDistance + right * finalSideOffset + Vec3::Up * finalHeightOffset;
+    const Vec3 lookTarget = subjectPos + forward * finalAimOffset + Vec3::Up * finalLookHeight;
 
     Vec3 cameraForward = lookTarget - cameraPos;
     cameraForward.Normalize();

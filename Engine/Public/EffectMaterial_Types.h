@@ -34,6 +34,7 @@ enum class EffectMaterialBlendMode : uint32
     AlphaBlend = 0,
     Additive,
     Modulate,
+    Masked,
     END,
 };
 

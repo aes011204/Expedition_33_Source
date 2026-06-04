@@ -107,6 +107,8 @@ cbuffer DrawFeatureBuffer
 
     float4 g_FeatureParam0;
     float4 g_FeatureParam1;
+    float4 g_FeatureParam2;
+    float4 g_FeatureParam3;
 };
 
 cbuffer SSAOBuffer

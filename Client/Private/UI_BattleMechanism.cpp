@@ -10,12 +10,18 @@
 
 using namespace UI_Utils;
 
+namespace
+{
+    constexpr wchar_t kMechanismIntroAnimationName[] = L"BattleSystem_Mechanism_Intro";
+}
+
 HRESULT UI_BattleMechanism::Initialize(uint32 levelIndex)
 {
     _levelIndex = levelIndex;
 
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
+    CHECK_FAILED(Load_MechanismAnimations(), E_FAIL);
 
     Close();
     return S_OK;
@@ -41,6 +47,20 @@ void UI_BattleMechanism::Close()
 
 void UI_BattleMechanism::Show_Hero(HeroId heroId)
 {
+    Shared<UI_Base> nextRoot = Resolve_HeroRoot(heroId);
+    if (nextRoot == nullptr)
+    {
+        Close();
+        return;
+    }
+
+    const bool wasClosed = !Is_Open();
+    const bool heroChanged = (_currentHeroId != heroId);
+
+    // 같은 hero가 계속 유지되는 프레임에서는 root를 다시 닫았다 열지 않는다.
+    if (!wasClosed && !heroChanged)
+        return;
+
     Open();
 
     _currentHeroId = heroId;
@@ -49,35 +69,28 @@ void UI_BattleMechanism::Show_Hero(HeroId heroId)
     switch (heroId)
     {
     case HeroId::Gustave:
-        if (_gustaveRoot)
-            _gustaveRoot->Open();
+        _gustaveRoot->Open();
         break;
 
     case HeroId::Lune:
-        if (_luneRoot)
-            _luneRoot->Open();
+        _luneRoot->Open();
         break;
 
     case HeroId::Maelle:
-    {
-        if (_maelleRoot)
-            _maelleRoot->Open();
-
+        _maelleRoot->Open();
         Close_AllMaelleStances();
-
         if (_maelleStanceless)
-        {
             _maelleStanceless->Open();
-        }
-
-    }
-
-    break;
+        break;
 
     default:
         Close();
-        break;
+        return;
     }
+
+    // 닫혀 있다가 다시 열리거나, 다른 hero mechanism으로 바뀐 경우에만 intro 1회 재생
+    if (_hasMechanismIntroAnimation)
+        nextRoot->Play_UIAnimation(kMechanismIntroAnimationName, true);
 }
 
 void UI_BattleMechanism::Sync_BattleChar(const BattleChar& actor)
@@ -185,17 +198,18 @@ HRESULT UI_BattleMechanism::Bind_UI()
         L"Fourth",
     };
 
-    static constexpr const wchar_t* kLuneElementSuffixes[4] =
+    static constexpr const wchar_t* kLuneElementSuffixes[5] =
     {
         L"Fire",
         L"Ice",
         L"Lightning",
+        L"Earth",
         L"Light",
     };
 
     for (uint32 slotIndex = 0; slotIndex < BattleMechanismCom::kLuneMaxStains; ++slotIndex)
     {
-        for (uint32 elementIndex = 0; elementIndex < 4; ++elementIndex)
+        for (uint32 elementIndex = 0; elementIndex < 5; ++elementIndex)
         {
             const wstring imageName =
                 L"Image_" +
@@ -238,6 +252,40 @@ void UI_BattleMechanism::Close_AllRoots()
 
     Close_AllLuneStains();
     Close_AllMaelleStances();
+}
+
+HRESULT UI_BattleMechanism::Load_MechanismAnimations()
+{
+    _hasMechanismIntroAnimation =
+        UI_RuntimeLoader::Load_PublicAnimationAsset(
+            Constants::UI_Anim::UI_BattleMechanismIntroAnim_Path,
+            _mechanismIntroAnimation);
+    CHECK_TRUE(_hasMechanismIntroAnimation, E_FAIL);
+
+    _gustaveRoot->Add_UIAnimationAsset(_mechanismIntroAnimation);
+    _luneRoot->Add_UIAnimationAsset(_mechanismIntroAnimation);
+    _maelleRoot->Add_UIAnimationAsset(_mechanismIntroAnimation);
+
+    return S_OK;
+}
+
+Shared<UI_Base> UI_BattleMechanism::Resolve_HeroRoot(HeroId heroId) const
+{
+    switch (heroId)
+    {
+    case HeroId::Gustave:
+        return _gustaveRoot;
+
+    case HeroId::Lune:
+        return _luneRoot;
+
+    case HeroId::Maelle:
+        return _maelleRoot;
+
+    case HeroId::END:
+    default:
+        return nullptr;
+    }
 }
 
 void UI_BattleMechanism::Apply_GustaveState(const Shared<BattleMechanismCom>& mechanismCom)
@@ -334,8 +382,12 @@ Shared<UI_Base> UI_BattleMechanism::Resolve_LuneStainImage(int32 slotIndex, Elem
         elementIndex = 2;
         break;
 
-    case ElementalType::Light:
+    case ElementalType::Earth:
         elementIndex = 3;
+        break;
+
+    case ElementalType::Light:
+        elementIndex = 4;
         break;
 
     case ElementalType::None:
@@ -351,7 +403,7 @@ void UI_BattleMechanism::Close_AllLuneStains()
 {
     for (uint32 slotIndex = 0; slotIndex < BattleMechanismCom::kLuneMaxStains; ++slotIndex)
     {
-        for (uint32 elementIndex = 0; elementIndex < 4; ++elementIndex)
+        for (uint32 elementIndex = 0; elementIndex < 5; ++elementIndex)
         {
             if (_luneStainImages[slotIndex][elementIndex])
                 _luneStainImages[slotIndex][elementIndex]->Close();
@@ -398,9 +450,10 @@ void UI_BattleMechanism::Free()
     _gustaveRoot.reset();
     _luneRoot.reset();
     _maelleRoot.reset();
+
     for (uint32 slotIndex = 0; slotIndex < BattleMechanismCom::kLuneMaxStains; ++slotIndex)
     {
-        for (uint32 elementIndex = 0; elementIndex < 4; ++elementIndex)
+        for (uint32 elementIndex = 0; elementIndex < 5; ++elementIndex)
             _luneStainImages[slotIndex][elementIndex].reset();
     }
 

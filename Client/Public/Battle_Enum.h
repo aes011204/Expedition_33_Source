@@ -446,6 +446,7 @@ namespace Client
         Fire,
         Ice,
         Lightning,
+        Earth,
         Dark,
         Light
     };
@@ -737,7 +738,23 @@ namespace Client
         BattleQTEPreset placementPreset = BattleQTEPreset::Center;
         Vec2 screenPosition = Vec2(800.f, 450.f);
         float screenScale = 1.f;
+    };
 
+    // 배틀 턴 조준 시 파츠
+    enum class FreeAimHitPart
+    {
+        None, Body, WeakPoint, END
+    };
+
+    struct BattleFreeAimHitTarget
+    {
+        BattleChar target{};
+        FreeAimHitPart hitPart = FreeAimHitPart::None;
+
+        bool Is_Valid() const
+        {
+            return target.actor != nullptr && target.statCom != nullptr && hitPart != FreeAimHitPart::None;
+        }
     };
 
 }
