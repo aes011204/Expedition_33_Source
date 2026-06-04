@@ -878,7 +878,10 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     resolvedClipById = Resolve_BattleCameraClipById(request.mode, request.clipId);
 
     if (!request.presetId.empty() && resolvedPresetById == nullptr)
+    {
+        if(request.mode != BattleCameraMode::WIDE)
         return;
+    }
 
     ResolvedShotAssets resolvedAssets = Resolve_ShotAssets(request, resolvedPresetById, resolvedClipById);
     BattleCameraClip* nextActiveClip = resolvedAssets.clip;

@@ -18,15 +18,13 @@ if not exist "%ROOT%MapEditor\Bin\ShaderFiles\" mkdir "%ROOT%MapEditor\Bin\Shade
 if not exist "%ROOT%ModelEditor\Bin\ShaderFiles\" mkdir "%ROOT%ModelEditor\Bin\ShaderFiles\"
 
 if exist "%ROOT%Engine\Bin\ShaderFiles\" (
-    echo Copying Engine shader files...
-
-    xcopy /y /i /d "%ROOT%Engine\Bin\ShaderFiles\*.hlsli" "%ROOT%Client\Bin\ShaderFiles\"
-    xcopy /y /i /d "%ROOT%Engine\Bin\ShaderFiles\*.hlsli" "%ROOT%MapEditor\Bin\ShaderFiles\"
-    xcopy /y /i /d "%ROOT%Engine\Bin\ShaderFiles\*.hlsli" "%ROOT%ModelEditor\Bin\ShaderFiles\"
-
-    xcopy /y /i /d "%ROOT%Engine\Bin\ShaderFiles\*.hlsl" "%ROOT%Client\Bin\ShaderFiles\"
-    xcopy /y /i /d "%ROOT%Engine\Bin\ShaderFiles\*.hlsl" "%ROOT%MapEditor\Bin\ShaderFiles\"
-    xcopy /y /i /d "%ROOT%Engine\Bin\ShaderFiles\*.hlsl" "%ROOT%ModelEditor\Bin\ShaderFiles\"
+    echo Syncing Engine shader files...
+    call :MirrorEngineShaderFiles "%ROOT%Client\Bin\ShaderFiles"
+    if errorlevel 1 exit /b %errorlevel%
+    call :MirrorEngineShaderFiles "%ROOT%MapEditor\Bin\ShaderFiles"
+    if errorlevel 1 exit /b %errorlevel%
+    call :MirrorEngineShaderFiles "%ROOT%ModelEditor\Bin\ShaderFiles"
+    if errorlevel 1 exit /b %errorlevel%
 )
 
 ::: Engine.lib
@@ -41,4 +39,13 @@ if exist ".\Engine\Bin\Release\Engine.lib" (
 )
 
 echo Update complete!
+exit /b 0
+
+:MirrorEngineShaderFiles
+set "TARGET=%~1"
+
+echo   Mirroring Engine_Shader_* into "%TARGET%"
+robocopy "%ROOT%Engine\Bin\ShaderFiles" "%TARGET%" Engine_Shader_*.hlsl Engine_Shader_*.hlsli /MIR /LEV:1 /R:1 /W:1
+if errorlevel 8 exit /b %errorlevel%
+
 exit /b 0
