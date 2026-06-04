@@ -1,4 +1,4 @@
-﻿#include "MEMaterialApplicator.h"
+#include "MEMaterialApplicator.h"
 #include "MEStaticMeshActor.h"
 #include "MEInstancedMeshActor.h"
 
@@ -83,6 +83,11 @@ void MEMaterialApplicator::Apply_PassOverrideToModel(ModelCom& model, const stri
         }
 
         mat->Set_ForcedPassIndex(passIndex);
+
+        if (it != _scene->_modelOverrides.end() && it->second.hasMaterialCB)
+        {
+            mat->Set_CB(it->second.materialCB);
+        }
 
         if (it != _scene->_modelOverrides.end())
         {

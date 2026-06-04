@@ -1,4 +1,4 @@
-﻿#include "SceneContext.h"
+#include "SceneContext.h"
 #include "Helper_String.h"
 #include "IEditorCommand.h"
 #include "GameInstance.h"
@@ -81,6 +81,55 @@ namespace
 
         vector<uint8_t> msgpack = json::to_msgpack(binRoot);
         ofs.write(reinterpret_cast<const char*>(msgpack.data()), msgpack.size());
+    }
+
+    void Serialize_MaterialCB(json& outJson, const Engine::MaterialCB& cb)
+    {
+        outJson["HasMaterialCB"] = true;
+        outJson["BaseColorTint"] = { cb.baseColorTint.x, cb.baseColorTint.y, cb.baseColorTint.z, cb.baseColorTint.w };
+        outJson["EmissiveColor"] = { cb.emissiveColor.x, cb.emissiveColor.y, cb.emissiveColor.z, cb.emissiveColor.w };
+        outJson["EmissiveIntensity"] = cb.emissiveIntensity;
+        outJson["EmissiveMaskMul"] = cb.emissiveMaskMul;
+        outJson["NormalStrength"] = cb.normalStrength;
+        outJson["OpacityMaskClipValue"] = cb.opacityMaskClipValue;
+        outJson["AoScale"] = cb.aoScale;
+        outJson["RoughnessScale"] = cb.roughnessScale;
+        outJson["MetalnessScale"] = cb.metalnessScale;
+        outJson["UvScale"] = { cb.uvScale.x, cb.uvScale.y };
+        outJson["UvOffset"] = { cb.uvOffset.x, cb.uvOffset.y };
+        outJson["UvRotation"] = cb.uvRotation;
+    }
+
+    void Deserialize_MaterialCB(const json& data, Engine::MaterialCB& cb)
+    {
+        if (data.contains("BaseColorTint"))
+        {
+            auto& c = data["BaseColorTint"];
+            cb.baseColorTint = { c[0], c[1], c[2], c[3] };
+        }
+        if (data.contains("EmissiveColor"))
+        {
+            auto& c = data["EmissiveColor"];
+            cb.emissiveColor = { c[0], c[1], c[2], c[3] };
+        }
+        cb.emissiveIntensity = data.value("EmissiveIntensity", 0.f);
+        cb.emissiveMaskMul = data.value("EmissiveMaskMul", 1.f);
+        cb.normalStrength = data.value("NormalStrength", 1.f);
+        cb.opacityMaskClipValue = data.value("OpacityMaskClipValue", 0.3333f);
+        cb.aoScale = data.value("AoScale", 1.f);
+        cb.roughnessScale = data.value("RoughnessScale", 1.f);
+        cb.metalnessScale = data.value("MetalnessScale", 1.f);
+        if (data.contains("UvScale"))
+        {
+            auto& c = data["UvScale"];
+            cb.uvScale = { c[0], c[1] };
+        }
+        if (data.contains("UvOffset"))
+        {
+            auto& c = data["UvOffset"];
+            cb.uvOffset = { c[0], c[1] };
+        }
+        cb.uvRotation = data.value("UvRotation", 0.f);
     }
 }
 
@@ -246,11 +295,18 @@ void SceneContext::SaveToFile(const string& filePath)
             slots[to_string(slotIdx)] = texPath;
         }
 
-        modelOverrides[filename] = {
+        json overrideJson = {
         {"PassIndex",  entry.passIndex},
         {"ShaderType", static_cast<int>(entry.shaderType)},
         {"TextureSlots", slots},
         };
+
+        if (entry.hasMaterialCB)
+        {
+            Serialize_MaterialCB(overrideJson, entry.materialCB);
+        }
+
+        modelOverrides[filename] = overrideJson;
     }
 
     json modelCollisions = json::object();
@@ -375,6 +431,11 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
                 {
                     entry.textureSlots[stoi(slotStr)] = texPath.get<string>();
                 }
+            }
+            if (data.value("HasMaterialCB", false))
+            {
+                entry.hasMaterialCB = true;
+                Deserialize_MaterialCB(data, entry.materialCB);
             }
             _modelOverrides[filename] = entry;
         }

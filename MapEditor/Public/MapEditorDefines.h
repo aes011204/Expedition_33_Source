@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Engine_Define.h"
 #include "Helper_String.h"
 #include "ShaderPassFinder.h"
@@ -107,6 +107,8 @@ namespace MapEditor
         ShaderType shaderType = ShaderType::VtxMesh;
         int32 passIndex = -1;
         map<int32, string> textureSlots;
+        bool hasMaterialCB = false;
+        Engine::MaterialCB materialCB{};
     };
 
     inline constexpr pair<const char*, uint32> g_staticMeshPassOptions[] = {
