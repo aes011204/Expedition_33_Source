@@ -1850,6 +1850,10 @@ void BattleController::Activate_BattleTurnCamera()
 
     BattleTurnCamera::BattleShotRequest request;
     request.mode = BattleCameraMode::BATTLEINTRO;
+    request.subject = _enemies[_enemies.size() /2].actor;
+    request.useClip = true;
+    request.presetId = _enemies[_enemies.size()/2].actor->Get_SourcePrefabName();
+    request.clipId = _enemies[_enemies.size()/2].actor->Get_SourcePrefabName();
     _battleTurnCamera->Apply_ShotRequest(request);
 
     CLIENT->Request_BattleTurn();
