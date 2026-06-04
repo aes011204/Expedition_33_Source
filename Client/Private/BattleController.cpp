@@ -847,6 +847,8 @@ void BattleController::SetCharInitPos()
         transform->Set_Position(placedPos);
         if (Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(enemy.actor))
             monster->Set_RevivePosition(placedPos);
+        enemyCenter += placedPos;
+        ++enemyCount;
 
         if (heroCount == 0)
             continue;
