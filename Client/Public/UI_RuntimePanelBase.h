@@ -2,6 +2,7 @@
 
 #include "Base.h"
 #include "IRuntimeUI_EditorTarget.h"
+#include "Reflection_Types.h"
 
 NS_BEGIN(Engine)
 class UI_Base;
@@ -16,8 +17,16 @@ public:
     ~UI_RuntimePanelBase() override = default;
 
 public:
+    virtual ClassReflectionInfo& Get_ReflectionInfo()
+    {
+        static ClassReflectionInfo empty{};
+        return empty;
+    }
+
+public:
     virtual HRESULT Initialize(uint32 levelIndex) = 0;
     virtual void    Update(float timeDelta) = 0;
+    virtual void    Apply_EditorReflectionRuntimeTuning() {}
 
 public:
     virtual void Open();

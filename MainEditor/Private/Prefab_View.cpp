@@ -13,6 +13,7 @@
 #include "BattleStartSpawner.h"
 #include "ColliderCom.h"
 #include "ModelCom.h"
+#include "Mon_WeakPoint.h"
 #include "Monster_WorldBase.h"
 #include "PreviewObjectHelpers.h"
 #include "RenderTarget.h"
@@ -1297,6 +1298,16 @@ bool Prefab_View::Draw_BattleStartSpawnerSelector(const Shared<GameObject>& sele
         ImGui::EndCombo();
     }
 
+    Vec3 startOffset = monster->Get_BattleStartOffset();
+    ImGui::Text("Enemy Offset");
+    ImGui::SameLine(LabelWidth);
+    ImGui::SetNextItemWidth(max(80.f, ImGui::GetContentRegionAvail().x));
+    if (ImGui::DragFloat3("##BattleStartOffset", &startOffset.x, 0.05f))
+    {
+        monster->Set_BattleStartOffset(startOffset); // MW 프리팹 저장값: 플레이어 기준 몬스터 시작 위치 보정
+        changed = true;
+    }
+
     ImGui::PopID();
     ImGui::Spacing();
 
@@ -1858,7 +1869,24 @@ void Prefab_View::Draw_PreviewColliders(const Shared<GameObject>& gameObject) co
     if (gameObject == nullptr)
         return;
 
-    Shared<TransformCom> transformCom = gameObject->Get_Transform();
+    Matrix colliderWorldMatrix = Matrix::Identity;
+    bool hasColliderWorldMatrix = false;
+
+    if (const Shared<Client::Mon_WeakPoint> weakPoint = dynamic_pointer_cast<Client::Mon_WeakPoint>(gameObject))
+    {
+        colliderWorldMatrix = weakPoint->Get_CollisionWorldMatrix();
+        hasColliderWorldMatrix = true;
+    }
+    else if (const Shared<PartObject> partObject = dynamic_pointer_cast<PartObject>(gameObject))
+    {
+        colliderWorldMatrix = partObject->Get_CombinedWorldMatrix();
+        hasColliderWorldMatrix = true;
+    }
+    else if (const Shared<TransformCom> transformCom = gameObject->Get_Transform())
+    {
+        colliderWorldMatrix = transformCom->Get_WorldMatrix();
+        hasColliderWorldMatrix = true;
+    }
 
     gameObject->Visit_Components([&](const wstring&, const Shared<Component>& component)
     {
@@ -1866,8 +1894,8 @@ void Prefab_View::Draw_PreviewColliders(const Shared<GameObject>& gameObject) co
         if (colliderCom == nullptr)
             return;
 
-        if (transformCom != nullptr)
-            colliderCom->Update_Collider(transformCom->Get_WorldMatrix());
+        if (hasColliderWorldMatrix)
+            colliderCom->Update_Collider(colliderWorldMatrix);
 
         colliderCom->Render_Debug();
     });
@@ -2064,12 +2092,62 @@ void Prefab_View::Draw_MonsterBattleSpawnPreview() const
     context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
     _previewGridEffect->Apply(context.Get());
 
-    Vec3 previewOrigin = Vec3::Zero;
+    Vec3 previewOrigin = monster->Get_Transform()->Get_WorldPosition();
     Vec3 right = Vec3::Right;
     Vec3 forward = Vec3::Forward;
-    Resolve_BattlePreviewBasis(monster, previewOrigin, right, forward);
 
-    const Vec3 enemyBasePos = previewOrigin + forward * 6.f;
+    const int32 battleStartSpawnerId = monster->Get_BattleStartSpawnerId();
+    if (battleStartSpawnerId > 0)
+    {
+        bool foundSpawner = false;
+
+        GAME->Visit_LevelObjects(
+            GAME->Current_LevelIndex(),
+            [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+            {
+                if (foundSpawner)
+                    return;
+
+                if (layerTag != TEXT("Layer_BattleStartSpawner"))
+                    return;
+
+                Shared<Client::BattleStartSpawner> spawner = dynamic_pointer_cast<Client::BattleStartSpawner>(gameObject);
+                if (spawner == nullptr)
+                    return;
+
+                if (spawner->Get_SpawnerId() != battleStartSpawnerId)
+                    return;
+
+                Shared<TransformCom> spawnerTransform = spawner->Get_Transform();
+                if (spawnerTransform == nullptr)
+                    return;
+
+                previewOrigin = spawnerTransform->Get_WorldPosition();
+                right = spawnerTransform->Get_WorldRight();
+                forward = spawnerTransform->Get_WorldForward();
+                foundSpawner = true;
+            });
+    }
+
+    right.y = 0.f;
+    if (right.LengthSquared() <= 0.0001f)
+        right = Vec3::Right;
+    else
+        right.Normalize();
+
+    forward.y = 0.f;
+    if (forward.LengthSquared() <= 0.0001f)
+        forward = Vec3::Forward;
+    else
+        forward.Normalize();
+
+    const Vec3 battleStartOffset = monster->Get_BattleStartOffset();
+    const Vec3 enemyBasePos =
+        previewOrigin +
+        forward * 6.f +
+        right * battleStartOffset.x +
+        Vec3::Up * battleStartOffset.y +
+        forward * battleStartOffset.z;
 
     constexpr float markerHalfSize = 0.3f;
     constexpr float markerHeight = 0.2f;

@@ -54,6 +54,9 @@ public:
 
     float   Get_BattleGroundOffsetY() const { return _battleGroundOffsetY; }
     void    Set_BattleGroundOffsetY(float value) { _battleGroundOffsetY = value; }
+    void    Set_RevivePosition(const Vec3& value) { _revivePosition = value; _hasRevivePosition = true; }
+    bool    Has_RevivePosition() const { return _hasRevivePosition; }
+    const Vec3& Get_RevivePosition() const { return _revivePosition; }
 
     void    Decide_Action(ActionRequest& request, const vector<BattleChar>& heroes);
     void    Decide_Action_BTOnly(ActionRequest& request, const vector<BattleChar>& heroes);
@@ -78,6 +81,8 @@ protected:
     Shared<MonsterStatCom>          _combatStat;
     Shared<EffectCom>               _effectCom;
     float                           _battleGroundOffsetY = 0.f;
+    Vec3                            _revivePosition = Vec3::Zero;
+    bool                            _hasRevivePosition = false;
 
 public:
     void Free() override;

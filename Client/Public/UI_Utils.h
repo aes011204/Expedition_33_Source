@@ -69,5 +69,12 @@ namespace Client::UI_Utils
         return true;
     }
 
+    // keyframe animation asset의 재생 길이를 초 단위로 계산한다.
+    inline float Get_KeyframeAnimationDurationSec(const UI_KeyframeAnimationAsset& asset)
+    {
+        const float safeFps = static_cast<float>(max(1, asset.fps));
+        return max(0.f, static_cast<float>(asset.endFrame - asset.startFrame)) / safeFps;
+    }
+
 }
 

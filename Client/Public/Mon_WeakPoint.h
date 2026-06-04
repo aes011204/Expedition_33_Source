@@ -36,12 +36,16 @@ public:
     virtual void Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
+    virtual void From_Json(const json& data) override;
+    virtual Matrix Get_GizmoWorldMatrix() const override;
+    virtual bool Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix) override;
 
 public:
     bool Try_Consume_BattleWeakPointHit();
     void Hide_BattleWeakPoint();
     void Reset_BattleWeakPoint();
     bool Is_BattleWeakPointEnabled() const { return _isBattleWeakPointEnabled; }
+    Matrix Get_CollisionWorldMatrix() const;
 
     Shared<Monster_BattleBase> Resolve_BattleMonsterOwner() const;
 
@@ -51,8 +55,8 @@ private:
 private:
     const Matrix* Resolve_SocketMatrix();
     HRESULT       Ready_WeakPointCollider();
+    void          Ready_DefaultWeakPointEffectSettings();
     void          Play_WeakPointEffect();
-    Matrix        Build_CollisionWorldMatrix() const;
 
 private:
     const Matrix* _socketMatrix = nullptr;

@@ -70,6 +70,7 @@ namespace Engine
         Landscape,
         Sky,
         StaticMesh,
+        Water,
         Foliage,
         Weapon,
         PartObject,
@@ -91,7 +92,8 @@ namespace Engine
         CombinedSimple,
         CombinedPreview = 5, // Preview에서는 그림자 계산 X
         SSAO,
-        SSAOBlur
+        SSAOBlur,
+        Fog
     };
 
     enum class PostProcessPass : uint8
@@ -143,10 +145,12 @@ namespace Engine
         SSAO            = 6,
         DeferredLighting = 7,
         PostProcess     = 8,
-        LightShaft      = 9,
-        Hair            = 10,
-        DrawFeature     = 11,
-        ScreenFx        = 12,
+        Hair            = 9,
+        DrawFeature     = 10,
+        ScreenFx        = 11,
+        FogZone         = 12,
+        Water           = 13,
+        LightShaft      = 14,
 
         END
     };

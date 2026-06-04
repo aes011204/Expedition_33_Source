@@ -40,6 +40,8 @@ public:
         float startExp = 0.f;
         float displayExp = 0.f;
         float targetExp = 0.f;
+        float startMaxExp = 1.f;
+        float targetMaxExp = 1.f;
         float maxExp = 1.f;
 
         float animElapsed = 0.f;
@@ -57,6 +59,9 @@ public:
 
     void    Open() override;
     void    Close() override;
+    void    Close_Immediately();
+
+    bool    Is_ClosingWithOutro() const { return _isClosingWithOutro; }
 
     void    Set_PlayerStatus(const vector<VictoryPlayerStatDesc>& stats);
     void    Set_RewardExp(uint32 rewardExp);
@@ -64,6 +69,8 @@ public:
 private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
+    void    Play_TargetAnimation(const wchar_t* animationName);
+    void    Stop_TargetAnimations();
 
     void    Apply_PlayerStat(const VictoryPlayerStatDesc& stat);
     static uint32 Get_SlotIndex(PlayerCharacterType playerType);
@@ -75,6 +82,11 @@ private:
     array<PlayerSlot, 3> _playerSlots{};
     Shared<UI_Text>      _rewardExpText{};
     Shared<UI_Text>      _rewardExpBgText{};
+    float                _introDuration = 0.f;
+    float                _expAnimDelayRemaining = 0.f;
+    bool                 _isClosingWithOutro = false;
+    float                _closeElapsed = 0.f;
+    float                _outroDuration = 0.f;
 
 public:
     static Unique<UI_BattleVictory> Create(uint32 levelIndex);

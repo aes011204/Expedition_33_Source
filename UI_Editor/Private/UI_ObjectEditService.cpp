@@ -50,6 +50,7 @@ namespace UIEditor
         {
             return min(max(alphaMultiplier, 0.f), 1.f);
         }
+
     }
 
     bool UI_ObjectEditService::Can_SetObjectVisible(const UI_Document& document, ObjectId objectId, bool visible) const
@@ -322,6 +323,91 @@ namespace UIEditor
 
         object->patternMaskTextureGuid = textureGuid;
         object->patternMaskTexturePath = texturePath;
+        return true;
+    }
+
+    bool UI_ObjectEditService::Can_SetObjectPatternUvOffset(const UI_Document& document, ObjectId objectId, const ImVec2& patternUvOffset) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object &&
+            object->type == UI_ObjectType::Image &&
+            object->imageRenderMode == UI_ImageRenderMode::PatternOverlay &&
+            !NearlyEqual(object->patternUvOffset, Clamp_PatternUvOffset(patternUvOffset));
+    }
+
+    bool UI_ObjectEditService::Set_ObjectPatternUvOffset(UI_Document& document, ObjectId objectId, const ImVec2& patternUvOffset) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::Image || object->imageRenderMode != UI_ImageRenderMode::PatternOverlay)
+            return false;
+
+        const ImVec2 clampedPatternUvOffset = Clamp_PatternUvOffset(patternUvOffset);
+        if (NearlyEqual(object->patternUvOffset, clampedPatternUvOffset))
+            return false;
+
+        object->patternUvOffset = clampedPatternUvOffset;
+        return true;
+    }
+
+    bool UI_ObjectEditService::Can_SetObjectPatternUvScale(const UI_Document& document, ObjectId objectId, const ImVec2& patternUvScale) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        return nullptr != object &&
+            object->type == UI_ObjectType::Image &&
+            object->imageRenderMode == UI_ImageRenderMode::PatternOverlay &&
+            !NearlyEqual(object->patternUvScale, Clamp_PatternUvScale(patternUvScale));
+    }
+
+    bool UI_ObjectEditService::Set_ObjectPatternUvScale(UI_Document& document, ObjectId objectId, const ImVec2& patternUvScale) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::Image || object->imageRenderMode != UI_ImageRenderMode::PatternOverlay)
+            return false;
+
+        const ImVec2 clampedPatternUvScale = Clamp_PatternUvScale(patternUvScale);
+        if (NearlyEqual(object->patternUvScale, clampedPatternUvScale))
+            return false;
+
+        object->patternUvScale = clampedPatternUvScale;
+        return true;
+    }
+
+    bool UI_ObjectEditService::Can_SetObjectPatternUv(
+        const UI_Document& document,
+        ObjectId objectId,
+        const ImVec2& patternUvOffset,
+        const ImVec2& patternUvScale) const
+    {
+        const UI_Object* object = document.Find_Object(objectId);
+        if (nullptr == object || object->type != UI_ObjectType::Image || object->imageRenderMode != UI_ImageRenderMode::PatternOverlay)
+            return false;
+
+        const ImVec2 clampedPatternUvOffset = Clamp_PatternUvOffset(patternUvOffset);
+        const ImVec2 clampedPatternUvScale = Clamp_PatternUvScale(patternUvScale);
+        return !NearlyEqual(object->patternUvOffset, clampedPatternUvOffset) ||
+            !NearlyEqual(object->patternUvScale, clampedPatternUvScale);
+    }
+
+    bool UI_ObjectEditService::Set_ObjectPatternUv(
+        UI_Document& document,
+        ObjectId objectId,
+        const ImVec2& patternUvOffset,
+        const ImVec2& patternUvScale) const
+    {
+        UI_Object* object = UI_DocumentInternalAccess::Find_Object(document, objectId);
+        if (nullptr == object || object->type != UI_ObjectType::Image || object->imageRenderMode != UI_ImageRenderMode::PatternOverlay)
+            return false;
+
+        const ImVec2 clampedPatternUvOffset = Clamp_PatternUvOffset(patternUvOffset);
+        const ImVec2 clampedPatternUvScale = Clamp_PatternUvScale(patternUvScale);
+        if (NearlyEqual(object->patternUvOffset, clampedPatternUvOffset) &&
+            NearlyEqual(object->patternUvScale, clampedPatternUvScale))
+        {
+            return false;
+        }
+
+        object->patternUvOffset = clampedPatternUvOffset;
+        object->patternUvScale = clampedPatternUvScale;
         return true;
     }
 

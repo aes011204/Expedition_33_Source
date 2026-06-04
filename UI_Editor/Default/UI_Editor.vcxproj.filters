@@ -87,6 +87,9 @@
     <ClCompile Include="..\Private\UI_AnimationAssetService_FileDialog.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_AnimationAssetService_KeyEditing.cpp">
+      <Filter>02. View\Animation</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_AnimationAssetService_Legacy.cpp">
       <Filter>02. View\Animation</Filter>
     </ClCompile>
@@ -114,10 +117,19 @@
     <ClCompile Include="..\private\UI_Editor_Manager.cpp">
       <Filter>01. Manager\UI_Editor_Manager</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_Manager_AnimationPreview.cpp">
+      <Filter>01. Manager\UI_Editor_Manager</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_Manager_ObjectEditing.cpp">
+      <Filter>01. Manager\UI_Editor_Manager</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_Editor_ImGuiManager.cpp">
       <Filter>01. Manager\Imgui_Manager</Filter>
     </ClCompile>
     <ClCompile Include="..\private\UI_Inspector.cpp">
+      <Filter>03. Inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Inspector_Pickers.cpp">
       <Filter>03. Inspector</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Document.cpp">
@@ -127,6 +139,9 @@
       <Filter>04. Document</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_DocumentInternalAccess.cpp">
+      <Filter>04. Document</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Document_Transform.cpp">
       <Filter>04. Document</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Editor_Window.cpp">
@@ -142,6 +157,15 @@
       <Filter>01. Manager\UI_Editor_Instance</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_Editor_PreviewService.cpp">
+      <Filter>01. Manager\UI_Editor_Manager\PreviewService</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_PreviewService_Composite.cpp">
+      <Filter>01. Manager\UI_Editor_Manager\PreviewService</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_PreviewService_Font.cpp">
+      <Filter>01. Manager\UI_Editor_Manager\PreviewService</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\UI_Editor_PreviewService_Texture.cpp">
       <Filter>01. Manager\UI_Editor_Manager\PreviewService</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_AnimationPreviewService.cpp">

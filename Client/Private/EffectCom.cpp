@@ -23,6 +23,8 @@ IMPLEMENT_REFLECTION(EffectCom)
     info.className = "EffectCom";
     info.displayName = "EffectCom";
     info.category = "Component";
+
+    PROPERTY_WSTRING("Effect Name", _inspectorEffectName);
     
     return true;
 }
@@ -50,6 +52,7 @@ HRESULT EffectCom::Initialize(void* arg)
     _previewRim = {};
     _attachedEffects.clear();
     _vanishComplete = false;
+    _inspectorEffectPlayed = false;
 
     return S_OK;
 }
@@ -57,6 +60,7 @@ HRESULT EffectCom::Initialize(void* arg)
 void EffectCom::BeginPlay()
 {
     Component::BeginPlay();
+    Play_InspectorEffectIfEnabled();
 }
 
 void EffectCom::Update(float timeDelta)
@@ -220,6 +224,60 @@ Shared<EffectCom> EffectCom::Find_FromNotifyOwner(GameObject* notifyOwner)
     return nullptr;
 }
 
+EffectCom::InspectorEffectSettings EffectCom::Get_InspectorEffectSettings() const
+{
+    InspectorEffectSettings settings{};
+    settings.autoPlay = _inspectorAutoPlayEffect;
+    settings.effectName = _inspectorEffectName;
+    settings.target = static_cast<EffectPlayTarget>(_inspectorEffectTarget);
+    settings.partTag = _inspectorPartTag;
+    settings.socketName = _inspectorSocketName;
+    settings.layerTag = _inspectorLayerTag;
+    settings.localOffset = _inspectorLocalOffset;
+    settings.localRotation = _inspectorLocalRotation;
+    settings.scale = _inspectorScale;
+    settings.followTarget = _inspectorFollowTarget;
+    settings.requiresManualRelease = _inspectorRequiresManualRelease;
+    return settings;
+}
+
+void EffectCom::Set_InspectorEffectSettings(const InspectorEffectSettings& settings)
+{
+    _inspectorAutoPlayEffect = settings.autoPlay;
+    _inspectorEffectName = settings.effectName;
+    _inspectorEffectTarget = static_cast<int>(settings.target);
+    _inspectorPartTag = settings.partTag;
+    _inspectorSocketName = settings.socketName;
+    _inspectorLayerTag = settings.layerTag;
+    _inspectorLocalOffset = settings.localOffset;
+    _inspectorLocalRotation = settings.localRotation;
+    _inspectorScale = settings.scale;
+    _inspectorFollowTarget = settings.followTarget;
+    _inspectorRequiresManualRelease = settings.requiresManualRelease;
+    _inspectorEffectPlayed = false;
+}
+
+HRESULT EffectCom::Play_InspectorEffect()
+{
+    if (_inspectorEffectName.empty())
+        return E_FAIL;
+
+    EffectPlayDesc desc{};
+    desc.levelIndex = GAME->Current_LevelIndex();
+    desc.effectName = _inspectorEffectName;
+    desc.target = static_cast<EffectPlayTarget>(_inspectorEffectTarget);
+    desc.partTag = _inspectorPartTag;
+    desc.socketName = _inspectorSocketName;
+    desc.layerTag = _inspectorLayerTag;
+    desc.localOffset = _inspectorLocalOffset;
+    desc.localRotation = _inspectorLocalRotation;
+    desc.scale = _inspectorScale;
+    desc.followTarget = _inspectorFollowTarget;
+    desc.requiresManualRelease = _inspectorRequiresManualRelease;
+
+    return Play_Effect(desc);
+}
+
 HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
 {
     if (desc.effectName.empty() || desc.layerTag.empty())
@@ -294,6 +352,15 @@ void EffectCom::Stop_Effect(const wstring& effectName, EffectPlayTarget target, 
     }
 
     Prune_ReleasedAttachedEffects();
+}
+
+void EffectCom::Play_InspectorEffectIfEnabled()
+{
+    if (!_inspectorAutoPlayEffect || _inspectorEffectPlayed || _inspectorEffectName.empty())
+        return;
+
+    if (SUCCEEDED(Play_InspectorEffect()))
+        _inspectorEffectPlayed = true;
 }
 
 bool EffectCom::Try_ResolveEffectWorldTransform(EffectPlayTarget target, const wstring& partTag,
@@ -547,7 +614,6 @@ void EffectCom::Update_AttachedEffects()
 
         effectTransform->Set_WorldPosition(targetWorldPosition);
         effectTransform->Set_WorldRotationEuler(targetWorldRotation);
-        effectTransform->Set_Scale(attached.scale);
     }
 
     Prune_ReleasedAttachedEffects();

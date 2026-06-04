@@ -1378,9 +1378,7 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
         }
     }
     else if (material.materialFamily != EffectMaterialFamily::SpriteDistortion)
-    {
         ImGui::TextDisabled("Flow / Distortion fields are shown only when the embedded material family is SpriteDistortion.");
-    }
 
     if (ImGui::CollapsingHeader("Blend / Render", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -1426,8 +1424,8 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
                 changed |= detailPropertyContext.Draw_BoolProperty("Two Sided (미구현)", material.twoSided, defaultData.twoSided);
                 break;
             }
-            changed |= detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
             changed |= detailPropertyContext.Draw_UintProperty("SubUV Cols", material.subUVCols, defaultData.subUVCols);
+            changed |= detailPropertyContext.Draw_UintProperty("SubUV Rows", material.subUVRows, defaultData.subUVRows);
             detailPropertyContext.End_PropertyTable();
         }
 

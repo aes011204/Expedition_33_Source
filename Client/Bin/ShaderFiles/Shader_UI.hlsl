@@ -13,6 +13,8 @@ bool g_IsOverlay;
 bool g_UseGrayScale;
 float4 g_GrayAmount;
 float4 g_Color = float4(1.f, 1.f, 1.f, 1.f);
+float2 g_PatternUvOffset = float2(0.f, 0.f);
+float2 g_PatternUvScale = float2(1.f, 1.f);
 
 // 원형 마스크ㄴ
 float2 g_HoleCenterUV = float2(0.5f, 0.5f);
@@ -135,7 +137,9 @@ PS_OUT PS_PATTERN_OVERLAY(PS_IN In)
     PS_OUT Out;
 
     const float3 lumaWeights = float3(0.299f, 0.587f, 0.114f);
-    const float4 pattern = g_Texture.Sample(LinearClampSampler, In.vTexcoord);
+    const float2 safePatternUvScale = max(g_PatternUvScale, float2(0.0001f, 0.0001f));
+    const float2 patternUv = ((In.vTexcoord - float2(0.5f, 0.5f)) / safePatternUvScale) + float2(0.5f, 0.5f) + g_PatternUvOffset;
+    const float4 pattern = g_Texture.Sample(LinearClampSampler, patternUv);
     const float paintMask = saturate(dot(g_MaskTexture.Sample(LinearClampSampler, In.vTexcoord).rgb, lumaWeights));
     const float patternMask = saturate(dot(g_PatternMaskTexture.Sample(LinearClampSampler, In.vTexcoord).rgb, lumaWeights));
     const float patternCoverage = saturate(min(pattern.a, dot(pattern.rgb, lumaWeights)));

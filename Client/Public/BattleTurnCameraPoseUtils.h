@@ -71,6 +71,7 @@ inline bool Evaluate_BattleTurnPresetPose(
     const float finalSideOffset = preset.sideOffset + clipSample.sideOffset;
     const float finalPivotHeight = preset.pivotHeight + clipSample.pivotOffset;
     const float finalHeightOffset = preset.heightOffset + clipSample.heightOffset;
+    const float finalAimOffset = preset.aimOffset + clipSample.aimOffset;
     const float finalLookHeight = preset.lookHeight + clipSample.lookHeightOffset;
     const float finalYaw = yawBase + preset.yawOffset + clipSample.yawOffset;
     const float finalPitch = pitchBase + preset.pitchOffset;
@@ -95,7 +96,7 @@ inline bool Evaluate_BattleTurnPresetPose(
     const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
     const Vec3 pivotAnchor = smoothedTargetPos ? *smoothedTargetPos : targetPos;
     const Vec3 pivotPos = pivotAnchor + Vec3::Up * finalPivotHeight;
-    const Vec3 framingPos = pivotPos + rightDir * preset.aimOffset;
+    const Vec3 framingPos = pivotPos + rightDir * finalAimOffset;
     Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * finalHeightOffset + rightDir * finalSideOffset;
     Vec3 lookTarget = framingPos + Vec3::Up * finalLookHeight;
 
@@ -168,6 +169,7 @@ inline bool Evaluate_BattleTurnEnemyAttackPose(
     const float finalDistance = preset.distance + clipSample.distanceOffset;
     const float finalSideOffset = preset.sideOffset + clipSample.sideOffset;
     const float finalHeightOffset = preset.heightOffset + clipSample.heightOffset;
+    const float finalAimOffset = preset.aimOffset + clipSample.aimOffset;
     const float finalLookHeight = preset.lookHeight + clipSample.lookHeightOffset;
     const float finalYawOffset = preset.yawOffset + clipSample.yawOffset;
 
@@ -189,7 +191,7 @@ inline bool Evaluate_BattleTurnEnemyAttackPose(
     const Vec3 yawAdjustedBack = backDir * cosf(yawRad) + right * sinf(yawRad);
 
     Vec3 cameraPos = opponentPos + yawAdjustedBack * finalDistance + right * finalSideOffset + Vec3::Up * finalHeightOffset;
-    const Vec3 lookTarget = subjectPos + forward * preset.aimOffset + Vec3::Up * finalLookHeight;
+    const Vec3 lookTarget = subjectPos + forward * finalAimOffset + Vec3::Up * finalLookHeight;
 
     Vec3 cameraForward = lookTarget - cameraPos;
     cameraForward.Normalize();

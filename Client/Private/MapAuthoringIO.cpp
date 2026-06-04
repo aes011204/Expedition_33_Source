@@ -3,6 +3,7 @@
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "Helper_String.h"
+#include "Monster_WorldBase.h"
 #include "Spawn_Prefab.h"
 
 #include <fstream>
@@ -53,6 +54,16 @@ void MapAuthoringIO::Collect_PrefabInstances(
             entry.prefabName = gameObject->Get_SourcePrefabName();
             entry.layerTag = layerTag;
             entry.instanceData = gameObject->To_Json(); // 인스턴스별 authored 상태를 그대로 저장한다.
+
+            if (dynamic_pointer_cast<Monster_WorldBase>(gameObject) != nullptr)
+            {
+                json& customProperties = entry.instanceData["custom_properties"];
+                if (customProperties.is_object())
+                {
+                    customProperties.erase("battle_monster_spawns");
+                    customProperties.erase("battle_monster_prefab_names");
+                }
+            }
 
             outEntries.push_back(std::move(entry));
         });

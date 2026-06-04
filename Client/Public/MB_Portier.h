@@ -11,7 +11,6 @@ class MB_Portier final : public Monster_BattleBase
     GENERATED_GAMEOBJECT(MB_Portier, ObjectType::Monster)
 
 public:
-public:
     MB_Portier(const ComPtr<Device>& device, const ComPtr<Context>& context);
     MB_Portier(const MB_Portier& prototype);
     ~MB_Portier() override = default;
@@ -21,11 +20,16 @@ public:
     HRESULT Initialize(void* arg) override;
     void Update(float timeDelta) override;
 
+public:
+    Shared<Mon_WeakPoint> Get_BattleWeakPoint() const override { return _weak; }
+
 protected:
+    bool Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const override;
     HRESULT Ready_PartObjects();
 
 private:
     Shared<Mon_Portier_Body> _body = {};
+    Shared<Mon_WeakPoint> _weak = {};
 
 public:
     static Shared<MB_Portier> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

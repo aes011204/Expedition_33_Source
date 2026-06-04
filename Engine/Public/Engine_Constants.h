@@ -21,6 +21,8 @@ namespace Engine::ShaderCB
     inline constexpr ::string_view Hair        = "HairDescBuffer";
     inline constexpr ::string_view DrawFeature = "DrawFeatureBuffer";
     inline constexpr ::string_view ScreenFx     = "ScreenFxBuffer";
+    inline constexpr ::string_view FogZone      = "FogZoneBuffer";
+    inline constexpr ::string_view Water        = "WaterBuffer";
 
     inline constexpr ::array<::string_view, ETOI(ConstantBuffer::END)> Names =
     {
@@ -36,7 +38,9 @@ namespace Engine::ShaderCB
         LightShaft,
         Hair,
         DrawFeature,
-        ScreenFx
+        ScreenFx,
+        FogZone,
+        Water
     };
 }
 

@@ -155,6 +155,7 @@ bool BattleMechanismCom::Is_LuneStainElement(ElementalType element)
     case ElementalType::Fire:
     case ElementalType::Ice:
     case ElementalType::Lightning:
+    case ElementalType::Earth:
     case ElementalType::Light:
         return true;
     default:

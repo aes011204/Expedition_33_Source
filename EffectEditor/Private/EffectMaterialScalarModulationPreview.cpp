@@ -1,4 +1,4 @@
-#include "EffectMaterialScalarModulationPreview.h"
+﻿#include "EffectMaterialScalarModulationPreview.h"
 
 #include <cmath>
 
@@ -330,9 +330,39 @@ namespace
     Vec3 Evaluate_CoreColorRgbCurve(const EffectMaterialCoreColorRgbModulationCurveDesc& curve, float x, const Vec3& fallbackValue)
     {
         return Vec3{
-            Evaluate_CurveComponents(curve.keyTimes, curve.keyValuesR, curve.keyArriveTangentsR, curve.keyLeaveTangentsR, curve.keyModes, curve.keyCount, curve.enabled, x, fallbackValue.x),
-            Evaluate_CurveComponents(curve.keyTimes, curve.keyValuesG, curve.keyArriveTangentsG, curve.keyLeaveTangentsG, curve.keyModes, curve.keyCount, curve.enabled, x, fallbackValue.y),
-            Evaluate_CurveComponents(curve.keyTimes, curve.keyValuesB, curve.keyArriveTangentsB, curve.keyLeaveTangentsB, curve.keyModes, curve.keyCount, curve.enabled, x, fallbackValue.z)
+            Evaluate_CurveComponents(
+                curve.keyTimes,
+                curve.keyValuesR,
+                curve.keyArriveTangentsR,
+                curve.keyLeaveTangentsR,
+                curve.keyModes,
+                curve.keyCount,
+                curve.enabled,
+                x,
+                fallbackValue.x
+            ),
+            Evaluate_CurveComponents(
+                curve.keyTimes,
+                curve.keyValuesG,
+                curve.keyArriveTangentsG,
+                curve.keyLeaveTangentsG,
+                curve.keyModes,
+                curve.keyCount,
+                curve.enabled,
+                x,
+                fallbackValue.y
+            ),
+            Evaluate_CurveComponents(
+                curve.keyTimes,
+                curve.keyValuesB,
+                curve.keyArriveTangentsB,
+                curve.keyLeaveTangentsB,
+                curve.keyModes,
+                curve.keyCount,
+                curve.enabled,
+                x,
+                fallbackValue.z
+            )
         };
     }
 

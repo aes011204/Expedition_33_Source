@@ -225,6 +225,41 @@ do                                                                              
     }                                                                           \
 } while (false)
 
+// _expr이 true가 아니면 __VA_ARGS__로 지정한 값을 반환 (비어있으면 void 반환)
+#define CHECK_TRUE(_expr, ...)                                                  \
+do                                                                              \
+{                                                                               \
+    if (!(_expr)) [[unlikely]] {                                                \
+        LOG_ERROR("Check True Failed!");                                        \
+        return __VA_ARGS__;                                                     \
+    }                                                                           \
+} while (false)
+
+// _expr이 true가 아니면 항상 반환하되, generic error 로그는 첫 1회만 남긴다.
+#define CHECK_TRUE_ONCE(_expr, ...)                                             \
+do                                                                              \
+{                                                                               \
+    if (!(_expr)) [[unlikely]] {                                                \
+        LOG_ERROR_ONCE("Check True Failed!");                                   \
+        return __VA_ARGS__;                                                     \
+    }                                                                           \
+} while (false)
+
+// _expr이 true가 아니면 항상 반환하되, generic error 로그는 제한 주기로 남긴다.
+#define CHECK_TRUE_THROTTLED(_expr, _interval, ...)                             \
+do                                                                              \
+{                                                                               \
+    if (!(_expr)) [[unlikely]] {                                                \
+        ENGINE_LOG_THROTTLED_IMPL(                                              \
+            ENGINE_LOG_UNIQUE_NAME(engineLogThrottle, __LINE__),                \
+            LOG_ERROR,                                                          \
+            _interval,                                                          \
+            "Check True Failed!"                                                \
+        );                                                                      \
+        return __VA_ARGS__;                                                     \
+    }                                                                           \
+} while (false)
+
 /* ------------------------------------------ */
 /*                싱글톤 매크로                */
 /* ------------------------------------------ */

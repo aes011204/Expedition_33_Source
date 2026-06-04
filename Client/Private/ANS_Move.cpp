@@ -5,6 +5,8 @@
 #include "BattleController.h"
 #include "ClientInstance.h"
 #include "Character_BattleBase.h"
+#include "BattleSpawnRegistry.h"
+#include "TransformCom.h"
 
 void ANS_Move::On_Begin(const AnimNotifyContext& context)
 {
@@ -16,30 +18,101 @@ void ANS_Move::On_Begin(const AnimNotifyContext& context)
         return;
 
     auto& action = battle->Get_TurnAction();
-    if (!action.Get_CurChar().actor)
-        return;
 
-    _startPos = action.Get_CurChar().actor->Get_Transform()->Get_Position();
-    _goalPos = action.GetPhaseGoalPos();
+    _moveTarget = nullptr;
+    _startPos = {};
+    _goalPos = {};
+    _startRot = {};
+    _goalRot = {};
+    _isCounter = false;
+
+    if (action.Get_CurChar().ModelCom.get() != context.model)
+    {
+        const Shared<BattleSpawnRegistry> spawnRegistry = battle->Get_BattleSpawnRegistry();
+        if (spawnRegistry == nullptr)
+            return;
+
+        // context.model에 해당하는 battle actor를 찾아야 함
+        const BattleChar* counterTarget = nullptr;
+
+        for (const BattleChar& target : battle->Get_BattleHeroes())
+        {
+            if (target.ModelCom.get() == context.model)
+            {
+                counterTarget = &target;
+                break;
+            }
+        }
+
+        if (counterTarget == nullptr)
+            return;
+
+        if (counterTarget->actor == nullptr)
+            return;
+
+        const BattleSpawnRegistry::BattleEntry* spawnEntry =
+            spawnRegistry->Find_SpawnEntry(counterTarget->actor);
+        if (spawnEntry == nullptr)
+            return;
+
+        _moveTarget = counterTarget->actor->Get_Transform();
+        if (_moveTarget == nullptr)
+            return;
+
+        _startPos = _moveTarget->Get_Position();
+        _goalPos = spawnEntry->spawnPosition;
+
+        _startRot = _moveTarget->Get_RotationEuler();
+        _goalRot = spawnEntry->spawnRotation;
+
+        _isCounter = true;
+    }
+    else
+    {
+        if (action.Get_CurChar().actor == nullptr)
+            return;
+
+        _moveTarget = action.Get_CurChar().actor->Get_Transform();
+        if (_moveTarget == nullptr)
+            return;
+
+        _startPos = _moveTarget->Get_Position();
+        _goalPos = action.GetPhaseGoalPos();
+
+        _startRot = _moveTarget->Get_RotationEuler();
+        _goalRot = _startRot;
+
+        _isCounter = false;
+    }
 }
 
 void ANS_Move::On_Tick(const AnimNotifyContext& context)
 {
+
+    ////
     if (context.isPreview)
         return;
 
-    auto battle = CLIENT->Get_BattleController();
-    if (battle == nullptr)
+    if (_moveTarget == nullptr)
         return;
 
-    auto& action = battle->Get_TurnAction();
-    if (!action.Get_CurChar().actor)
-        return;
+    const float curProgress = context.notifyStateProgress;
+    _moveTarget->Set_Position(Vec3::Lerp(_startPos, _goalPos, curProgress));
 
-    float _curProgress = context.notifyStateProgress;
 
-    action.Get_CurChar().actor->Get_Transform()->Set_Position(Vec3::Lerp(_startPos, _goalPos, _curProgress));
+    float startYaw = _startRot.y;
+    float goalYaw = _goalRot.y;
 
+    float deltaYaw = goalYaw - startYaw;
+    while (deltaYaw > 180.f)
+        deltaYaw -= 360.f;
+    while (deltaYaw < -180.f)
+        deltaYaw += 360.f;
+
+    Vec3 nextRot = _startRot;
+    nextRot.y = startYaw + deltaYaw * curProgress;
+
+    _moveTarget->Set_RotationEuler(nextRot);
 }
 
 void ANS_Move::On_End(const AnimNotifyContext& context)
@@ -47,17 +120,12 @@ void ANS_Move::On_End(const AnimNotifyContext& context)
     if (context.isPreview)
         return;
 
-    if (context.owner == nullptr)
+    if (_moveTarget == nullptr)
         return;
 
-    auto battle = CLIENT->Get_BattleController();
-    if (battle == nullptr)
-        return;
+    _moveTarget->Set_Position(_goalPos);
 
-    auto& action = battle->Get_TurnAction();
-
-    if (!action.Get_CurChar().actor)
-        return;
-
-    action.Get_CurChar().actor->Get_Transform()->Set_Position(_goalPos);
+    Vec3 finalRot = _startRot;
+    finalRot.y = _goalRot.y;
+    _moveTarget->Set_RotationEuler(finalRot);
 }

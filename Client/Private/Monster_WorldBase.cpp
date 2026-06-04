@@ -187,8 +187,14 @@ void Monster_WorldBase::Update(float timeDelta)
     //if (_aiCtrl && _aiCtrl->Get_IsMoving())
     //    Set_CurrentAction(MonsterAction::Move);
 
-
     auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
+    if(_currentAction ==MonsterWorldAnim::Stun)
+    {
+        if (bodyPart->Is_AnimationFinished() == true)
+            bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Stun),0.3f, true);
+    }
+
+
     if (bodyPart)
     {
         if (!_hasAppliedAction || _currentAction != _previousAction)
@@ -202,7 +208,9 @@ void Monster_WorldBase::Update(float timeDelta)
             switch (_currentAction)
             {
             case MonsterWorldAnim::Stun:
-              applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Stun), 0.3f, true);
+              applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Hit), 0.3f, true);
+
+              
                 break;
 
             case MonsterWorldAnim::Idle:
@@ -321,6 +329,7 @@ json Monster_WorldBase::To_Json() const
 
     json& customProperties = data["custom_properties"];
     customProperties["battle_start_spawner_id"] = _battleStartSpawnerId;
+    customProperties["battle_start_offset"] = Vec3_ToJson(_battleStartOffset);
 
     json& battleMonsterSpawns = customProperties["battle_monster_spawns"];
     battleMonsterSpawns = json::array();
@@ -361,17 +370,17 @@ void Monster_WorldBase::From_Json(const json& data)
     if (_aiCtrl)
         _aiCtrl->Stop_Move();
 
-    _battleMonsterSpawnDescs.clear();
-    _battleStartSpawnerId = 0;
-
     if (!data.contains("custom_properties") || !data["custom_properties"].is_object())
         return;
 
     const json& customProperties = data["custom_properties"];
     _battleStartSpawnerId = customProperties.value("battle_start_spawner_id", 0);
+    if (customProperties.contains("battle_start_offset"))
+        (void)Json_ToVec3(customProperties["battle_start_offset"], _battleStartOffset);
 
     if (customProperties.contains("battle_monster_spawns") && customProperties["battle_monster_spawns"].is_array())
     {
+        _battleMonsterSpawnDescs.clear();
         for (const json& spawnNode : customProperties["battle_monster_spawns"])
         {
             BattleMonsterSpawnDesc spawnDesc{};
@@ -384,6 +393,7 @@ void Monster_WorldBase::From_Json(const json& data)
     if (!customProperties.contains("battle_monster_prefab_names") || !customProperties["battle_monster_prefab_names"].is_array())
         return;
 
+    _battleMonsterSpawnDescs.clear();
     for (const json& prefabName : customProperties["battle_monster_prefab_names"])
     {
         if (prefabName.is_string())

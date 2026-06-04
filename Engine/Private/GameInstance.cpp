@@ -1399,6 +1399,14 @@ RenderGroup GameInstance::Get_CurrentRenderGroup() const
     return _renderer->Get_CurrentGroup();
 }
 
+void GameInstance::Set_FogZones(const FogZoneCB& fogZoneCB)
+{
+    if (_renderer)
+    {
+        _renderer->Set_FogZones(fogZoneCB);
+    }
+}
+
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)
 {
     return _pipeLine->Bind_CamPosition(shader, constantName);

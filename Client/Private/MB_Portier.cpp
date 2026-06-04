@@ -1,6 +1,7 @@
 ﻿#include "MB_Portier.h"
 #include "Mon_Portier_Body.h"
 #include "MonsterStatCom.h"
+#include "Mon_WeakPoint.h"
 
 IMPLEMENT_REFLECTION(MB_Portier)
 {
@@ -35,7 +36,7 @@ HRESULT MB_Portier::Initialize(void* arg)
    // _body->Set_Animation("Portier_Idle", 0.3f, true);
 
     _combatStat->Set_Skill("Portier_AttackAoE");
-    _combatStat->Set_Skill("Portier_JumpHit");
+    //_combatStat->Set_Skill("Portier_JumpHit");
 
     return S_OK;
 }
@@ -58,6 +59,20 @@ void MB_Portier::Update(float timeDelta)
         //}
 }
 
+bool MB_Portier::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
+{
+    if (_body == nullptr)
+        return false;
+
+    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr("Status");
+    if (socketMatrix == nullptr)
+        return false;
+
+    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
+    outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+    return true;
+}
+
 HRESULT MB_Portier::Ready_PartObjects()
 {
     Mon_Portier_Body::BODY_DESC bodyDesc{};
@@ -70,7 +85,16 @@ HRESULT MB_Portier::Ready_PartObjects()
     _body = dynamic_pointer_cast<Mon_Portier_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
 
+    Mon_WeakPoint::WEAK_DESC weakDesc{};
+    weakDesc.parentMatrix = &_body->Get_CombinedWorldMatrix();
+    weakDesc.allowMissingModel = true;
+    weakDesc.socketName = "Status";
+    weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Status");
 
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL); // 약점 파츠는 모델 없이 neck_02 소켓 기준으로 붙인다.
+
+    _weak = dynamic_pointer_cast<Mon_WeakPoint>(_partObjects[TEXT("Part_Weak")]);
+    CHECK_NULL(_weak, E_FAIL);
 
 
     return S_OK;

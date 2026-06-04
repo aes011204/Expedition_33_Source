@@ -30,6 +30,7 @@ private:
     Vec3 Resolve_AnchorPosition(const BattleAction& action, BattleTargetAnchor anchor) const;
     Vec3 Resolve_PhaseGoalPosition(const BattleAction& action, const BattleActionPhase& phase) const;
     void Face_ActionTarget(BattleAction& action, const Vec3& goalPos);
+    void SmoothFaceActionTarget(BattleAction& action, const Vec3& goalPos, float timeDelta);
 private:
     bool _isFinished = {true};
     float _testPrevRatio = {};

@@ -446,6 +446,7 @@ namespace Client
         Fire,
         Ice,
         Lightning,
+        Earth,
         Dark,
         Light
     };
@@ -570,6 +571,15 @@ namespace Client
         bool ignoreDefense = false;
     };
 
+    struct DamageAppliedInfo
+    {
+        BattleChar target{};        // 실제 HP가 깎이 대상
+        float damage = 0.f;         // 최종 데미지
+        AttackType attackType = AttackType::Invalid; // 기존 피격 애니메이션 분기
+
+        bool isCritical = false;    // 크리티컬
+    };
+
     struct Skill_Data
     {
         string characterId = "";
@@ -681,6 +691,8 @@ namespace Client
         Targeted_Start, // 적 턴 시작할 때
         Targeted_Idle,
         Targeted_End,
+
+        Return,
     };
 
     enum class BattleReactionType

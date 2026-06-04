@@ -180,6 +180,10 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_NonLight:Before");
 #endif
 
+    // fog
+    Render_Fog();
+    //
+
     // ========================================= //
     Render_NonLight();
     // ========================================= //
@@ -231,6 +235,22 @@ void Renderer::Draw()
     uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
     const auto debugBegin = chrono::steady_clock::now();
 #endif
+
+    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
+    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
+    if (useScreenFx)
+    {
+        Render_ScreenFx();
+    }
+
+    if (screenFxManager && screenFxManager->Is_CaptureRequested())
+    {
+        GAME->Bind_BackBuffer();
+        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
+
+        const_cast<ScreenFx_Manager*>(screenFxManager)->Clear_CaptureRequested();
+    }
+
 
 #ifdef _DEBUG
     Render_Debug();
@@ -667,6 +687,63 @@ void Renderer::Render_CombinedHDR()
 
     Add_RenderCall();
 }
+
+void Renderer::Render_Fog()
+{
+    if (!_deferredShader || !_viBuffer)
+    {
+        return;
+    }
+
+    if (_fogZoneCB.aabbCount + _fogZoneCB.sphereCount == 0)
+    {
+        return;
+    }
+
+    if (FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV)))
+    {
+        return;
+    }
+
+    if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
+    {
+        return;
+    }
+
+    if (FAILED(Bind_ScreenSpaceCB(_deferredShader)))
+    {
+        return;
+    }
+
+    if (FAILED(_deferredShader->Bind_CBufferData(_fogZoneCB)))
+    {
+        return;
+    }
+
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth)))
+    {
+        return;
+    }
+
+    if (FAILED(_viBuffer->Bind_Resources()))
+    {
+        return;
+    }
+
+    if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::Fog))))
+    {
+        return;
+    }
+
+    if (FAILED(_viBuffer->Render()))
+    {
+        return;
+    }
+
+    GAME->End_MRT();
+    Add_RenderCall();
+}
+
 void Renderer::Render_NonLight()
 {
     RETURN_LOG_IF_FAILED(
@@ -877,21 +954,6 @@ void Renderer::Render_UIEffect()
 
 void Renderer::PostDraw()
 {
-    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
-    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
-    if (useScreenFx)
-    {
-        Render_ScreenFx();
-    }
-
-    if (screenFxManager && screenFxManager->Is_CaptureRequested())
-    {
-        GAME->Bind_BackBuffer(); 
-        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
-
-        const_cast<ScreenFx_Manager*>(screenFxManager)->Clear_CaptureRequested();
-    }
-
     Render_UIEffect();
 }
 
