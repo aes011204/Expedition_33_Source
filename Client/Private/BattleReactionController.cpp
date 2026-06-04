@@ -4,9 +4,11 @@
 #include "DamageSystem.h"
 #include "ClientInstance.h"
 #include "BattleController.h"
+#include "BattleSpawnRegistry.h"
 #include "GameInstance.h"
 #include "ModelCom.h"
 #include "Event_Bus.h"
+#include "TransformCom.h"
 
 void BattleReactionController::OpenWindow(BattleReactionType type)
 {
@@ -46,6 +48,7 @@ void BattleReactionController::Clear_RuntimeState()
             target.ModelCom->Set_FrameSpeed(1.f);
     }
     _reactionAnimTargets.clear();
+    _counterReturnRuntimes.clear();
     _counterDamageTarget = {};
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
@@ -101,7 +104,7 @@ bool BattleReactionController::IsWindowOpen(BattleReactionType type) const
 
 BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateInput(const BattleAction& turnAction)
 {
-    UpdateAnimation();
+    //UpdateAnimation();
 
     BattleReactionInputResult result{};
 
@@ -196,42 +199,14 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
     return result;
 }
 
-BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateTargetInput(const BattleChar& reactionTarget, const BattleChar& counterTarget, uint32 curAnimIndex,
-    bool pressedQ, bool pressedE)
-{
 
-    BattleReactionInputResult result{};
-
-    //// 회피
-    //if (pressedQ)
-    //{
-    //    result.hasInput = true;
-    //    result.type = BattleReactionType::Dodge;
-    //    result.success = TryInput(BattleReactionType::Dodge,); ;
-
-    //    // 실패했을 때도 애니메이션은 재생
-    //    PlayReactionAnimation(reactionTarget, BattleReactionType::Dodge, result.success, {}, curAnimIndex);
-    //}
-    //// 패링
-    //if (pressedE)
-    //{
-    //    result.hasInput = true;
-    //    result.type = BattleReactionType::Parry;
-    //    result.success = TryInput(BattleReactionType::Parry,); ;
-
-    //    // 성공하면 Counter
-    //    PlayReactionAnimation(reactionTarget, BattleReactionType::Parry, result.success, counterTarget, curAnimIndex);
-    //}
-
-
-    return result;
-}
-
-
-void BattleReactionController::UpdateAnimation()
+void BattleReactionController::UpdateAnimation(float timeDelta)
 {
     if (_reactionAnimTargets.empty())
         return;
+
+    if (_animPhase == ReactionAnimPhase::CounterReturn)
+        UpdateCounterReturn(timeDelta);
 
     bool allFinished = true;
 
@@ -247,12 +222,209 @@ void BattleReactionController::UpdateAnimation()
         }
     }
 
+
     if (!allFinished)
+    {
+
+        return;
+    }
+
+    switch (_animPhase)
+    {
+    case ReactionAnimPhase::Reaction:
+        FinishReactionAnimation();
+        break;
+
+    case ReactionAnimPhase::Counter:
+        StartCounterReturn();
+        break;
+
+    case ReactionAnimPhase::CounterReturn:
+        break;
+
+    default:
+        FinishReactionAnimation();
+        break;
+    }
+}
+void BattleReactionController::StartCounterReturn()
+{
+    if (_reactionAnimTargets.size() <= 2)
+    {
+        FinishReactionAnimation();
+        return;
+    }
+
+    _counterReturnRuntimes.clear();
+
+    auto battle = CLIENT->Get_BattleController();
+    if (battle == nullptr)
+    {
+        FinishReactionAnimation();
+        return;
+    }
+
+    const Shared<BattleSpawnRegistry> spawnRegistry = battle->Get_BattleSpawnRegistry();
+    if (spawnRegistry == nullptr)
+    {
+        FinishReactionAnimation();
+        return;
+    }
+
+    bool hasReturnTarget = false;
+
+    for (const BattleChar& target : _reactionAnimTargets)
+    {
+        if (target.actor == nullptr || target.ModelCom == nullptr || target.statCom == nullptr)
+            continue;
+
+        if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+            continue;
+
+        const BattleSpawnRegistry::BattleEntry* spawnEntry = spawnRegistry->Find_SpawnEntry(target.actor);
+        if (spawnEntry == nullptr)
+            continue;
+
+        const Shared<TransformCom> transform = target.actor->Get_Transform();
+        if (transform == nullptr)
+            continue;
+
+        CounterReturnRuntime runtime{};
+        runtime.target = target;
+        runtime.startPos = transform->Get_Position();
+        runtime.goalPos = spawnEntry->spawnPosition;
+        runtime.goalRot = spawnEntry->spawnRotation;
+        runtime.prevRootRatio = 0.f;
+        _counterReturnRuntimes.push_back(runtime);
+        hasReturnTarget = true;
+
+        target.ModelCom->Set_RootMotionEnabled(true);
+        target.ModelCom->Set_FrameSpeed(1.f);
+
+        if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Return), 0.15f, false))
+        {
+            TryRestoreTargetToSpawnPose(target);
+            FinishReactionAnimation();
+            return;
+        }
+    }
+
+    if (!hasReturnTarget)
+    {
+        FinishReactionAnimation();
+        return;
+    }
+
+    _animPhase = ReactionAnimPhase::CounterReturn;
+}
+void BattleReactionController::UpdateCounterReturn(float timeDelta)
+{
+    UNREFERENCED_PARAMETER(timeDelta);
+
+
+
+    ///////////////////////
+    ///
+        //ReturnToOrigin
+    //MoveToTarget
+
+    if (_animPhase != ReactionAnimPhase::CounterReturn)
+        return;
+
+    bool allReached = true;
+
+    for (const BattleChar& target : _reactionAnimTargets)
+    {
+        if (target.actor == nullptr || target.ModelCom == nullptr || target.statCom == nullptr)
+            continue;
+
+        if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+            continue;
+
+        CounterReturnRuntime* runtime = nullptr;
+        for (CounterReturnRuntime& candidate : _counterReturnRuntimes)
+        {
+            if (candidate.target.actor == target.actor)
+            {
+                runtime = &candidate;
+                break;
+            }
+        }
+
+        if (runtime == nullptr)
+            continue;
+
+        const Shared<TransformCom> transform = target.actor->Get_Transform();
+        if (transform == nullptr)
+            continue;
+
+        Vec3 currentPos = transform->Get_Position();
+
+        // ReturnToOrigin / MoveToTarget 방식
+        Vec3 path = runtime->goalPos - runtime->startPos;
+        path.y = 0.f;
+        const float totalDistance = path.Length();
+
+        if (totalDistance <= 0.05f)
+        {
+            transform->Set_Position(runtime->goalPos);
+            transform->Set_RotationEuler(runtime->goalRot);
+            continue;
+        }
+
+        path.Normalize();
+
+        Vec3 toGoal = runtime->goalPos - currentPos;
+        toGoal.y = 0.f;
+        const float remain = toGoal.Length();
+
+        if (remain <= 0.05f)
+        {
+            transform->Set_Position(runtime->goalPos);
+            transform->Set_RotationEuler(runtime->goalRot);
+            continue;
+        }
+
+        allReached = false;
+
+        const float currentRatio = target.ModelCom->Get_RootMotionTranslationRatio();
+        float deltaRatio = currentRatio - runtime->prevRootRatio;
+
+        if (deltaRatio < 0.f)
+            deltaRatio = 0.f;
+
+        runtime->prevRootRatio = currentRatio;
+
+        const float moveAmount = totalDistance * deltaRatio;
+        if (moveAmount <= 0.f)
+            continue;
+
+        const float clampedMove = min(moveAmount, remain);
+        transform->Set_Position(currentPos + path * clampedMove);
+
+        Vec3 currentRot = transform->Get_RotationEuler();
+        const Vec3 goalRot = runtime->goalRot;
+
+        float deltaYaw = goalRot.y - currentRot.y;
+        while (deltaYaw > 180.f)
+            deltaYaw -= 360.f;
+        while (deltaYaw < -180.f)
+            deltaYaw += 360.f;
+
+        const float turnSpeed = 180.f * timeDelta;
+        if (fabsf(deltaYaw) <= turnSpeed)
+            currentRot.y = goalRot.y;
+        else
+            currentRot.y += (deltaYaw > 0.f ? turnSpeed : -turnSpeed);
+
+        transform->Set_RotationEuler(currentRot);
+    }
+
+    if (!allReached)
         return;
 
     FinishReactionAnimation();
 }
-
 void BattleReactionController::StartCounter(ModelCom* sourceModel)
 {
     if (!_isCounterPending)
@@ -260,6 +432,39 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
 
     for (const BattleChar& target : _reactionAnimTargets)
     {
+
+        if (_reactionAnimTargets.size() >= 2)
+        {
+
+            // 위치 순간이동하고 카운터 시작 
+            if (target.actor == nullptr || target.ModelCom == nullptr || _counterDamageTarget.actor == nullptr)
+                continue;
+
+            auto attackerTr = _counterDamageTarget.actor->Get_Transform();
+            auto counterTr = target.actor->Get_Transform();
+            if (attackerTr == nullptr || counterTr == nullptr)
+                continue;
+
+            Vec3 attackerPos = attackerTr->Get_Position();
+            Vec3 counterPos = counterTr->Get_Position();
+
+            Vec3 dir = attackerPos - counterPos;
+            dir.y = 0.f;
+
+            if (dir.LengthSquared() > 0.0001f)
+            {
+                dir.Normalize();
+
+                Vec3 rot = counterTr->Get_RotationEuler();
+                rot.y = XMConvertToDegrees(atan2f(dir.x, dir.z));
+                counterTr->Set_RotationEuler(rot);
+
+                Vec3 newPos = attackerPos - dir * 3.f;
+                newPos.y = counterPos.y;
+                counterTr->Set_Position(newPos);
+            }
+
+        }
         target.ModelCom->Set_RootMotionEnabled(true);
 
         if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Counter), 0.12f, false))
@@ -432,12 +637,20 @@ void BattleReactionController::FinishReactionAnimation()
 {
     ResetCounterTimeSection();
 
+    const bool shouldRestoreSpawnPose = (_animPhase == ReactionAnimPhase::CounterReturn);
+
     for (const BattleChar& target : _reactionAnimTargets)
     {
         if (target.ModelCom == nullptr)
             continue;
         if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
             continue;
+
+
+
+
+        if (shouldRestoreSpawnPose)
+            TryRestoreTargetToSpawnPose(target);
 
         target.ModelCom->Set_RootMotionEnabled(true);
 
@@ -449,10 +662,36 @@ void BattleReactionController::FinishReactionAnimation()
     }
 
     _reactionAnimTargets.clear();
+    _counterReturnRuntimes.clear();
     _counterDamageTarget = {};
     _animPhase = ReactionAnimPhase::None;
     _isCounterPending = false;
     _isCounterDamageApplied = false;
+}
+
+void BattleReactionController::TryRestoreTargetToSpawnPose(const BattleChar& target) const
+{
+    if (target.actor == nullptr)
+        return;
+
+    const auto battle = CLIENT->Get_BattleController();
+    if (battle == nullptr)
+        return;
+
+    const Shared<BattleSpawnRegistry> spawnRegistry = battle->Get_BattleSpawnRegistry();
+    if (spawnRegistry == nullptr)
+        return;
+
+    const BattleSpawnRegistry::BattleEntry* spawnEntry = spawnRegistry->Find_SpawnEntry(target.actor);
+    if (spawnEntry == nullptr)
+        return;
+
+    const Shared<TransformCom> transform = target.actor->Get_Transform();
+    if (transform == nullptr)
+        return;
+
+    transform->Set_Position(spawnEntry->spawnPosition);
+    transform->Set_RotationEuler(spawnEntry->spawnRotation);
 }
 
 bool BattleReactionController::CanApplyCounterTimeSection(ModelCom* sourceModel) const

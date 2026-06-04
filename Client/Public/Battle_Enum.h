@@ -691,6 +691,8 @@ namespace Client
         Targeted_Start, // 적 턴 시작할 때
         Targeted_Idle,
         Targeted_End,
+
+        Return,
     };
 
     enum class BattleReactionType

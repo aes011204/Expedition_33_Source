@@ -95,7 +95,7 @@ public:
 
     void OnActionEndNotify();
 
-    void Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos);
+    void Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos, float yawDeg = 0.f);
 public:
     Shared<BattleStateMachine> Get_BattleFSM() { return _battleFSM; };
     BattleAction& Get_TurnAction() { return _turnAction; }
@@ -142,6 +142,7 @@ public:
     BattleTurnState     Get_CurrentTurnState() const;
 
     Shared<BattleTurnCamera> Get_BattleTurnCamera() const { return _battleTurnCamera; }
+    Shared<BattleSpawnRegistry> Get_BattleSpawnRegistry() const { return _battleSpawnRegistry; }
 
     void                StartCounter(ModelCom* sourceModel);
     void                ApplyCounterDamage(ModelCom* sourceModel);
