@@ -47,6 +47,13 @@ private:
 
     HRESULT Load_TooltipAnimations();
 
+    void    Open_MainPanelUIs(HeroId heroId);
+    void    Close_MainPanelUIs();
+    void    Stop_MainPanelAnimations();
+    void    Set_MainPanelSkillOptionsAlpha(HeroId heroId, float alphaMultiplier);
+    bool    Play_MainPanelAnimation(HeroId heroId, const wchar_t* animationName);
+    vector<Shared<UI_Base>>* Resolve_MainPanelAnimationTargets(HeroId heroId);
+
     void    Close_MainPanels();
     void    Close_Tooltips();
     void    Close_TooltipImmediately();
@@ -59,6 +66,9 @@ private:
     Shared<UI_Base> _gustavePanel{};
     Shared<UI_Base> _lunePanel{};
     Shared<UI_Base> _maellePanel{};
+    vector<Shared<UI_Base>> _gustaveMainPanelUIs{};
+    vector<Shared<UI_Base>> _luneMainPanelUIs{};
+    vector<Shared<UI_Base>> _maelleMainPanelUIs{};
 
     umap<string, Shared<UI_Base>> _tooltipRoots{};
     HeroId _activeHeroId = HeroId::END;
@@ -69,6 +79,11 @@ private:
     ActiveView _activeView = ActiveView::None;
 
     Shared<UI_Base> _activeTooltipRoot{};
+
+    bool  _isMainPanelOpen = false;
+    bool  _isPlayingMainPanelIntro = false;
+    float _mainPanelIntroElapsed = 0.f;
+    float _mainPanelIntroDuration = 0.f;
 
     UI_KeyframeAnimationAsset _tooltipIntroAnimation{};
     UI_KeyframeAnimationAsset _tooltipOutroAnimation{};

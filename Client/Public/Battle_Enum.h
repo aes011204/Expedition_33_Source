@@ -578,6 +578,9 @@ namespace Client
         AttackType attackType = AttackType::Invalid; // 기존 피격 애니메이션 분기
 
         bool isCritical = false;    // 크리티컬
+        bool isShieldBlocked = false;
+        uint32 prevShield = 0;
+        uint32 currentShield = 0;
     };
 
     struct Skill_Data

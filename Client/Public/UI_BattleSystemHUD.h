@@ -54,6 +54,7 @@ public:
     void    Play_PortraitActivation(HeroId heroId);
     void    Play_PortraitDamaged(HeroId heroId);
     void    Play_PortraitDeactivation(HeroId heroId);
+    void    Play_BattleSystemIntro();
 
 private:
     HRESULT Load_UI(uint32 levelIndex);

@@ -349,6 +349,9 @@
     <ClCompile Include="..\Private\UI_HealFont.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\UI_DestroyShield.cpp">
+      <Filter>02.GameObject\UI</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\UI_BossHpBar.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
@@ -1168,6 +1171,9 @@
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_HealFont.h">
+      <Filter>02.GameObject\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\UI_DestroyShield.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\UI_BossHpBar.h">

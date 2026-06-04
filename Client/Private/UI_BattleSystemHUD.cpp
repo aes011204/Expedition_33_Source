@@ -13,6 +13,8 @@ using namespace UI_Utils;
 
 namespace
 {
+    constexpr wchar_t kBattleSystemIntroAnimationName[] = L"BattleSystem_Intro";
+
     constexpr wchar_t kBattlePortraitActivationGustaveAnimationName[] = L"BattlePortrait_Activation_Gustave";
     constexpr wchar_t kBattlePortraitActivationLuneAnimationName[] = L"BattlePortrait_Activation_Lune";
     constexpr wchar_t kBattlePortraitActivationMaelleAnimationName[] = L"BattlePortrait_Activation_Maelle";
@@ -220,11 +222,18 @@ void UI_BattleSystemHUD::Play_PortraitDeactivation(HeroId heroId)
     Play_TargetAnimation(animationName);
 }
 
+void UI_BattleSystemHUD::Play_BattleSystemIntro()
+{
+    Play_TargetAnimation(kBattleSystemIntroAnimationName);
+}
+
 HRESULT UI_BattleSystemHUD::Load_UI(uint32 levelIndex)
 {
     UI_RuntimeLoader::UI_LoadDesc desc{};
     desc.levelIndex = levelIndex;
     desc.jsonPath = Constants::UI::UI_BattleSystem_Path;
+
+    desc.animationPaths.push_back(Constants::UI_Anim::UI_BattleSystemIntroAnim_Path);
 
     desc.animationPaths.push_back(Constants::UI_Anim::UI_BattlePortraitActivationGustaveAnim_Path);
     desc.animationPaths.push_back(Constants::UI_Anim::UI_BattlePortraitActivationLuneAnim_Path);

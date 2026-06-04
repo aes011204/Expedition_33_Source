@@ -24,6 +24,7 @@
 #include "UI_PlayerHpBar.h"
 #include "UI_CrossHair.h"
 #include "UI_DamageFont.h"
+#include "UI_DestroyShield.h"
 #include "UI_EscapeSkipTurnBack.h"
 #include "UI_ReactionResult.h"
 #include "UI_BattleVictory.h"
@@ -45,6 +46,8 @@ GameplayUI_Battle::~GameplayUI_Battle() = default;
 
 namespace
 {
+    constexpr float kBattleSystemIntroDurationSec = 2.f;
+
     void Append_RuntimePanelEntry(
         vector<RuntimeUIEntry>& outEntries,
         const char* name,
@@ -119,6 +122,13 @@ HRESULT GameplayUI_Battle::Initialize(uint32 levelIndex)
         damageFont = UI_DamageFont::Create(levelIndex);
         CHECK_NULL(damageFont, E_FAIL);
     }
+
+    for (auto& destroyShield : _destroyShields)
+    {
+        destroyShield = UI_DestroyShield::Create(levelIndex);
+        CHECK_NULL(destroyShield, E_FAIL);
+    }
+
     // 힐 폰트도 일단 최대 8개
     for (auto& healFont : _healFonts)
     {
@@ -142,6 +152,7 @@ void GameplayUI_Battle::Update(float timeDelta)
 {
     Update_BattleCommandHUD(timeDelta); // 플레이어 전투 입력 허드
     Update_BattleSystemHUD(timeDelta);  // 파티 portrait HP/AP HUD
+    Update_BattleSystemIntroState(timeDelta);
     Update_MonsterHpBar(timeDelta);     // 몬스터 체력
     Update_BossHpBar(timeDelta);
     Update_PlayerHpBar(timeDelta);
@@ -154,6 +165,7 @@ void GameplayUI_Battle::Update(float timeDelta)
     Update_BattleMechanism(timeDelta);  // 플레이어 공격 액션 중 캐릭터별 메커니즘 UI
     Update_TurnOrder(timeDelta);        // 좌측상단 턴 UI
     Update_DamageFonts(timeDelta);      // 데미지 폰트
+    Update_DestroyShields(timeDelta);   // 쉴드 파괴 아이콘
     Update_HealFonts(timeDelta);        // 힐 폰트
     Update_ReactionResult(timeDelta);   // 회피/패링 성공 텍스트 수명 갱신
     Update_BattleVictory(timeDelta);    // 전투 종료 승리 UI
@@ -204,6 +216,9 @@ vector<RuntimeUIEntry> GameplayUI_Battle::Get_RuntimeUIEntries() const
 
     for (uint32 i = 0; i < _damageFonts.size(); ++i)
         Append_OpenedRuntimePanelEntry(entries, ("DamageFont_" + to_string(i)).c_str(), _damageFonts[i].get());
+
+    for (uint32 i = 0; i < _destroyShields.size(); ++i)
+        Append_OpenedRuntimePanelEntry(entries, ("DestroyShield_" + to_string(i)).c_str(), _destroyShields[i].get());
 
     for (uint32 i = 0; i < _healFonts.size(); ++i)
         Append_OpenedRuntimePanelEntry(entries, ("HealFont_" + to_string(i)).c_str(), _healFonts[i].get());
@@ -392,6 +407,10 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
     // 플레이어 선제공격인지
     _isPlayerAdvantageStart = isPlayerAdvantage;
     _hasPlayedSuddenAttack = false;
+    _isBattleSystemIntroPlaying = true;
+    _battleSystemIntroElapsed = 0.f;
+    _hasPendingBattleSystemIntroActivation = false;
+    _pendingBattleSystemIntroActivationHeroId = HeroId::END;
 
     if (_turnOrder)
         _turnOrder->Set_AnimationPlaybackEnabled(false); // 전투 진입 직후 preview는 그리되, 애니메이션은 아직 재생하지 않는다.
@@ -431,10 +450,22 @@ void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvant
             damageFont->Close();
     }
 
+    for (auto& destroyShield : _destroyShields)
+    {
+        if (destroyShield)
+            destroyShield->Close();
+    }
+
     for (auto& addAP : _addAPs)
     {
         if (addAP)
             addAP->Close();
+    }
+
+    if (_battleSystemHUD)
+    {
+        _battleSystemHUD->Open();
+        _battleSystemHUD->Play_BattleSystemIntro();
     }
 
     Play_BattleEnterTransition(); // 전투 진입 연출은 battle UI 쪽에서 시작한다.
@@ -488,7 +519,17 @@ void GameplayUI_Battle::Handle_TurnStarted(const BattleChar& actor, BattleTurnSt
             _battleMechanism->Show_Hero(_activePlayerId);
 
         if (_battleSystemHUD)
-            _battleSystemHUD->Play_PortraitActivation(actor.heroId);
+        {
+            if (_isBattleSystemIntroPlaying)
+            {
+                _pendingBattleSystemIntroActivationHeroId = actor.heroId;
+                _hasPendingBattleSystemIntroActivation = true;
+            }
+            else
+            {
+                _battleSystemHUD->Play_PortraitActivation(actor.heroId);
+            }
+        }
     }
     else
     {
@@ -606,6 +647,59 @@ void GameplayUI_Battle::Handle_DamageApplied(const DamageAppliedInfo& info)
 
     const BattleChar& target = info.target;
     const float damage = info.damage;
+
+    if (info.isShieldBlocked && info.prevShield > info.currentShield)
+    {
+        if (target.statCom != nullptr && !target.statCom->Is_Player())
+        {
+            const Shared<MonsterStatCom> monsterStat =
+                dynamic_pointer_cast<MonsterStatCom>(target.statCom);
+
+            if (monsterStat && monsterStat->Is_Boss())
+            {
+                if (Ensure_BossHpBar())
+                    _bossHpBar->Show_DamagedBoss(target, 0.f);
+            }
+        }
+
+        UI_DestroyShield* selectedSlot = nullptr;
+        UI_DestroyShield* oldestSlot = nullptr;
+        float longestElapsed = -1.f;
+        uint32 stackIndex = 0;
+
+        for (auto& destroyShield : _destroyShields)
+        {
+            if (!destroyShield)
+                continue;
+
+            if (destroyShield->Is_Playing())
+            {
+                ++stackIndex;
+
+                if (destroyShield->Get_Elapsed() > longestElapsed)
+                {
+                    longestElapsed = destroyShield->Get_Elapsed();
+                    oldestSlot = destroyShield.get();
+                }
+
+                continue;
+            }
+
+            if (selectedSlot == nullptr)
+                selectedSlot = destroyShield.get();
+        }
+
+        if (selectedSlot == nullptr)
+            selectedSlot = oldestSlot;
+
+        if (selectedSlot)
+        {
+            stackIndex = min(stackIndex, kDestroyShieldPoolSize - 1);
+            selectedSlot->Play_DestroyShield(target, stackIndex);
+        }
+
+        return;
+    }
 
     if (damage <= 0.f)
         return;
@@ -1224,6 +1318,15 @@ void GameplayUI_Battle::Update_DamageFonts(float timeDelta)
     }
 }
 
+void GameplayUI_Battle::Update_DestroyShields(float timeDelta)
+{
+    for (auto& destroyShield : _destroyShields)
+    {
+        if (destroyShield)
+            destroyShield->Update(timeDelta);
+    }
+}
+
 void GameplayUI_Battle::Update_HealFonts(float timeDelta)
 {
     for (auto& healFont : _healFonts)
@@ -1566,6 +1669,29 @@ void GameplayUI_Battle::Update_MarkEffect(float timeDelta)
         _markEffect->Update(timeDelta);
 }
 
+void GameplayUI_Battle::Update_BattleSystemIntroState(float timeDelta)
+{
+    if (!_isBattleSystemIntroPlaying)
+        return;
+
+    _battleSystemIntroElapsed += max(0.f, timeDelta);
+    if (_battleSystemIntroElapsed < kBattleSystemIntroDurationSec)
+        return;
+
+    _isBattleSystemIntroPlaying = false;
+    _battleSystemIntroElapsed = 0.f;
+
+    if (!_hasPendingBattleSystemIntroActivation)
+        return;
+
+    const HeroId heroId = _pendingBattleSystemIntroActivationHeroId;
+    _hasPendingBattleSystemIntroActivation = false;
+    _pendingBattleSystemIntroActivationHeroId = HeroId::END;
+
+    if (_battleSystemHUD && heroId != HeroId::END)
+        _battleSystemHUD->Play_PortraitActivation(heroId);
+}
+
 bool GameplayUI_Battle::Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const
 {
     if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
@@ -1723,6 +1849,10 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
     _isMechanismActionActive = false;
     _activePlayerId = HeroId::END;
     _battleStartVictoryStats.clear();
+    _isBattleSystemIntroPlaying = false;
+    _battleSystemIntroElapsed = 0.f;
+    _hasPendingBattleSystemIntroActivation = false;
+    _pendingBattleSystemIntroActivationHeroId = HeroId::END;
 
     if (_turnOrder)
         _turnOrder->Set_AnimationPlaybackEnabled(false);
@@ -1773,6 +1903,12 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
     {
         if (damageFont)
             damageFont->Close();
+    }
+
+    for (auto& destroyShield : _destroyShields)
+    {
+        if (destroyShield)
+            destroyShield->Close();
     }
 
     for (auto& healFont : _healFonts)
@@ -1844,6 +1980,9 @@ void GameplayUI_Battle::Free()
 
     for (auto& damageFont : _damageFonts)
         Release_UI(damageFont);
+
+    for (auto& destroyShield : _destroyShields)
+        Release_UI(destroyShield);
 
     for (auto& healFont : _healFonts)
         Release_UI(healFont);
