@@ -21,7 +21,9 @@ enum class AuthoringModuleType : uint8
     Acceleration,
     Drag,
     VelocityOverLife,
+    OrbitOverLife,
     InitialRotation,
+    SphereRadialOrientation,
     PlaneRadialOrientation,
     RotationOverLife,
     InitialRotationRate,
@@ -624,11 +626,18 @@ enum class SphereLocationSpawnMode : uint8
     Surface,
 };
 
+enum class SphereLocationPlacementMode : uint8
+{
+    Random,
+    EvenByParticleIndex,
+};
+
 struct SphereLocationModuleData
 {
     Vec3 offset{ 0.f, 0.f, 0.f };
     float radius{ 1.f };
     SphereLocationSpawnMode spawnMode{ SphereLocationSpawnMode::Volume };
+    SphereLocationPlacementMode placementMode{ SphereLocationPlacementMode::Random };
     DistributionRandomSeedData randomSeed{};
 };
 
@@ -705,6 +714,23 @@ struct PlaneRadialOrientationModuleData
     float rollOffsetDegrees{ 0.f };
 };
 
+enum class SphereRadialOrientationMode : uint8
+{
+    None,
+    FaceRadialOut,
+    FaceRadialIn,
+};
+
+struct SphereRadialOrientationModuleData
+{
+    bool enabled{ true };
+    SphereRadialOrientationMode orientationMode{ SphereRadialOrientationMode::None };
+    PlaneRadialOrientationAxis meshForwardAxis{ PlaneRadialOrientationAxis::PositiveZ };
+    PlaneRadialOrientationAxis meshUpAxis{ PlaneRadialOrientationAxis::PositiveY };
+    float tiltDegrees{ 0.f };
+    float rollOffsetDegrees{ 0.f };
+};
+
 struct InitialSizeModuleData
 {
     Vector2DistributionData size{ Vector2DistributionData::Make_Constant(Vec2{ 0.3f, 0.3f }) };
@@ -749,6 +775,37 @@ struct DragModuleData
 struct VelocityOverLifeModuleData
 {
     FloatDistributionData scaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f, 1.f) };
+};
+
+enum class EffectOrbitPivotMode : uint8
+{
+    EmitterOrigin,
+    SpawnOrigin,
+};
+
+enum class EffectOrbitPlane : uint8
+{
+    XY,
+    XZ,
+    YZ,
+};
+
+enum class EffectOrbitOrientationMode : uint8
+{
+    Preserve,
+    InheritOrbitAngle,
+    FaceRadialOut,
+    FaceTangent,
+};
+
+struct OrbitOverLifeModuleData
+{
+    bool enabled{ true };
+    EffectOrbitPivotMode pivotMode{ EffectOrbitPivotMode::EmitterOrigin };
+    EffectOrbitPlane plane{ EffectOrbitPlane::XY };
+    FloatDistributionData angleDegreesOverLife{ FloatDistributionData::Make_ConstantCurve(0.f, 0.f) };
+    FloatDistributionData radiusScaleOverLife{ FloatDistributionData::Make_ConstantCurve(1.f, 1.f) };
+    EffectOrbitOrientationMode orientationMode{ EffectOrbitOrientationMode::Preserve };
 };
 
 struct InitialRotationModuleData
@@ -908,7 +965,9 @@ using AuthoringModuleData = std::variant<
     AccelerationModuleData,
     DragModuleData,
     VelocityOverLifeModuleData,
+    OrbitOverLifeModuleData,
     InitialRotationModuleData,
+    SphereRadialOrientationModuleData,
     PlaneRadialOrientationModuleData,
     RotationOverLifeModuleData,
     InitialRotationRateModuleData,
