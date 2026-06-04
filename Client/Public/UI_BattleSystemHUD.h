@@ -66,7 +66,9 @@ private:
 
 private:
     void    Apply_HpGauge(PartyBattleStatSlot& slot, float ratio);
-    void    Apply_ApGauge(PartyBattleStatSlot& slot, uint32 curAp, uint32 maxAp);
+    void    Apply_ApGauge(PartyBattleStatSlot& slot, uint32 slotIndex, uint32 curAp, uint32 maxAp);
+    void    Apply_CurrentTurnApTransform(uint32 slotIndex, uint32 apIndex);
+    bool    Is_CurrentTurnSlot(uint32 slotIndex) const;
     static void Set_HpText(PartyBattleStatSlot& slot, float hp, float maxHp);
     static void Set_ApText(PartyBattleStatSlot& slot, uint32 ap);
 
@@ -83,6 +85,7 @@ private:
 
 private:
     PartyBattleStatSlot _partySlots[3]{};
+    HeroId _activePortraitHeroId = HeroId::END;
 
 private: /* 구스타브 */
     Shared<UI_Base> _gustaveMechanismRoot{};

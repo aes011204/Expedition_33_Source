@@ -18,10 +18,10 @@ HRESULT UI_AddAP::Initialize(uint32 levelIndex)
 
     Set_FloatingMotion(40.f / 60.f, 32.f);
     Set_StackStep(18.f, 20.f);
-    Set_AnchorMode(AnchorMode::SnapshotScreen);
+    Set_AnchorMode(AnchorMode::FollowWorld);
 
-    Set_WorldAnchorOffset(Vec3(0.f, 0.f, 0.f));
-    Set_ScreenBaseOffset(Vec2(0.f, -120.f));
+    Set_WorldAnchorOffset(Vec3(0.35f, 0.25f, 0.f));
+    Set_ScreenBaseOffset(Vec2(24.f, -24.f));
 
     Set_WorldAnchorRandomYRange(-0.06f, 0.10f);
 
