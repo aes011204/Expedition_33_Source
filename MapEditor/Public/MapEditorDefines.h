@@ -27,6 +27,7 @@ namespace MapEditor
     inline constexpr uint32 g_iWinSizeY = 900u;
 
     inline const char* _mapSavePath = "../../../Client/Bin/Resources/Map/";
+    inline const char* _materialsPath = "../../../Client/Bin/Resources/Materials/";
     inline const char* _camDataPath = "../Bin/Resources/Json/CamData/";
 
     enum class EObjectType

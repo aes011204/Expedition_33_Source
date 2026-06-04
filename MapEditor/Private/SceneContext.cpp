@@ -1149,7 +1149,7 @@ void SceneContext::Export_MapInstance(const string& filePath)
         case EObjectType::StaticMesh:
         {
             wstring modelFile = obj->_modelPath;
-            const wstring prefix = String::ToWString(_mapSavePath) + _modelFolder + L"/";
+            const wstring prefix = String::ToWString(_mapSavePath);
 
             if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
             {
@@ -1167,7 +1167,7 @@ void SceneContext::Export_MapInstance(const string& filePath)
         case EObjectType::InstancedMesh:
         {
             wstring modelFile = obj->_instancedModelPath;
-            const wstring prefix = String::ToWString(_mapSavePath) + _modelFolder + L"/";
+            const wstring prefix = String::ToWString(_mapSavePath);
             if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
             {
                 modelFile = modelFile.substr(prefix.size());
@@ -1196,5 +1196,205 @@ void SceneContext::Export_MapInstance(const string& filePath)
         }
     }
 
+    set<wstring> uniqueModels;
+    for (auto& obj : _objects)
+    {
+        if (obj->_type == EObjectType::StaticMesh && !obj->_modelPath.empty())
+        {
+            uniqueModels.insert(obj->_modelPath);
+        }
+        else if (obj->_type == EObjectType::InstancedMesh && !obj->_instancedModelPath.empty())
+        {
+            uniqueModels.insert(obj->_instancedModelPath);
+        }
+    }
+
+    for (const auto& modelPathW : uniqueModels)
+    {
+        string modelPath = String::ToString(modelPathW);
+        string filename = fs::path(modelPath).filename().string();
+        
+        if (_modelOverrides.find(filename) != _modelOverrides.end())
+        {
+            _modelOverrides[filename].ExportToNativeMaterial(modelPath, mapName);
+        }
+        else
+        {
+            ModelOverrideEntry defaultEntry;
+            defaultEntry.ExportToNativeMaterial(modelPath, mapName);
+        }
+    }
+}
+
+void SceneContext::Import_MapInstance(const string& mapName)
+{
+    ClearScene();
+    _mapName = String::ToWString(mapName);
+    _modelFolder = _mapName;
+
+    fs::path root = fs::path(_mapSavePath) / "MapInstance" / mapName;
+    fs::path staticDir = root / "StaticMesh";
+    fs::path instanceDir = root / "InstanceMesh";
+
+    fs::path matDir = fs::path(_materialsPath) / mapName;
+    if (fs::exists(matDir))
+    {
+        for (const auto& entry : fs::directory_iterator(matDir))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                ifstream ifs(entry.path());
+                if (ifs.is_open())
+                {
+                    json rootJson = json::parse(ifs);
+                    if (rootJson.contains("instances") && rootJson["instances"].is_array() && rootJson["instances"].size() > 0)
+                    {
+                        const json& instJson = rootJson["instances"][0];
+                        
+                        string modelKey = instJson.value("editor_modelPath", "");
+                        if (!modelKey.empty())
+                        {
+                            fs::path pk(modelKey);
+                            modelKey = pk.filename().string();
+                        }
+                        else 
+                        {
+                            modelKey = entry.path().stem().string() + ".model"; 
+                        }
+
+                        ModelOverrideEntry overrideEntry;
+                        overrideEntry.hasMaterialCB = true;
+                        overrideEntry.passIndex = instJson.value("forcePassIndex", -1);
+                        overrideEntry.shaderType = static_cast<ShaderType>(instJson.value("editor_shaderType", static_cast<int>(ShaderType::VtxMesh)));
+                        
+                        if (instJson.contains("cb"))
+                        {
+                            const json& cb = instJson["cb"];
+                            auto readVec4 = [](const json& j, const string& key) -> Vec4 {
+                                if (j.contains(key)) return Vec4(j[key][0], j[key][1], j[key][2], j[key][3]);
+                                return Vec4();
+                            };
+                            auto readVec2 = [](const json& j, const string& key) -> Vec2 {
+                                if (j.contains(key)) return Vec2(j[key][0], j[key][1]);
+                                return Vec2();
+                            };
+
+                            overrideEntry.materialCB.baseColorTint = readVec4(cb, "baseColorTint");
+                            overrideEntry.materialCB.emissiveColor = readVec4(cb, "emissiveColor");
+                            overrideEntry.materialCB.emissiveIntensity = cb.value("emissiveIntensity", 0.f);
+                            overrideEntry.materialCB.emissiveMaskMul = cb.value("emissiveMaskMul", 1.f);
+                            overrideEntry.materialCB.normalStrength = cb.value("normalStrength", 1.f);
+                            overrideEntry.materialCB.opacityMaskClipValue = cb.value("opacityMaskClipValue", 0.3333f);
+                            overrideEntry.materialCB.aoScale = cb.value("aoScale", 1.f);
+                            overrideEntry.materialCB.roughnessScale = cb.value("roughnessScale", 1.f);
+                            overrideEntry.materialCB.metalnessScale = cb.value("metalnessScale", 1.f);
+                            overrideEntry.materialCB.uvScale = readVec2(cb, "uvScale");
+                            overrideEntry.materialCB.uvOffset = readVec2(cb, "uvOffset");
+                            overrideEntry.materialCB.uvRotation = cb.value("uvRotation", 0.f);
+                            overrideEntry.materialCB.materialMask = cb.value("materialMask", 0u);
+                            overrideEntry.materialCB.ormAoSource = cb.value("ormAoSource", 0u);
+                            overrideEntry.materialCB.ormRoughnessSource = cb.value("ormRoughnessSource", 1u);
+                            overrideEntry.materialCB.ormMetalnessSource = cb.value("ormMetalnessSource", 2u);
+                            overrideEntry.materialCB.opacityMaskSource = cb.value("opacityMaskSource", 0u);
+                        }
+
+                        if (instJson.contains("textures"))
+                        {
+                            const json& texObj = instJson["textures"];
+                            auto parseTex = [&](const string& name, Engine::MaterialTextureSlot slot) {
+                                if (texObj.contains(name) && texObj[name].is_string())
+                                {
+                                    overrideEntry.textureSlots[static_cast<int32>(slot)] = texObj[name].get<string>();
+                                }
+                            };
+                            parseTex("baseColor", Engine::MaterialTextureSlot::BaseColor);
+                            parseTex("normal", Engine::MaterialTextureSlot::Normal);
+                            parseTex("orm", Engine::MaterialTextureSlot::ORM);
+                            parseTex("emissive", Engine::MaterialTextureSlot::Emissive);
+                            parseTex("opacityMask", Engine::MaterialTextureSlot::OpacityMask);
+                        }
+                        
+                        _modelOverrides[modelKey] = overrideEntry;
+                    }
+                }
+            }
+        }
+    }
+
+    if (fs::exists(staticDir))
+    {
+        for (const auto& entry : fs::directory_iterator(staticDir))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                ifstream ifs(entry.path());
+                if (ifs.is_open())
+                {
+                    json e = json::parse(ifs);
+                    auto obj = make_shared<EditorObject>();
+                    obj->_type = EObjectType::StaticMesh;
+                    obj->_name = String::ToWString(e.value("Id", "Unknown"));
+                    
+                    if (e.contains("Position")) { auto& pos = e["Position"]; obj->_position = { pos[0], pos[1], pos[2] }; }
+                    if (e.contains("Rotation")) { auto& rot = e["Rotation"]; obj->_rotation = { rot[0], rot[1], rot[2], rot[3] }; }
+                    if (e.contains("Scale"))    { auto& scl = e["Scale"];    obj->_scale = { scl[0], scl[1], scl[2] }; }
+                    
+                    string modelPathStr = e.value("ModelPath", "");
+                    if (!modelPathStr.empty())
+                    {
+                        obj->_modelPath = String::ToWString(_mapSavePath) + String::ToWString(modelPathStr);
+                    }
+                    
+                    obj->UpdateWorldMatrix();
+                    Add(obj);
+                }
+            }
+        }
+    }
+    
+    if (fs::exists(instanceDir))
+    {
+        for (const auto& entry : fs::directory_iterator(instanceDir))
+        {
+            if (entry.path().extension() == ".json")
+            {
+                ifstream ifs(entry.path());
+                if (ifs.is_open())
+                {
+                    json e = json::parse(ifs);
+                    auto obj = make_shared<EditorObject>();
+                    obj->_type = EObjectType::InstancedMesh;
+                    obj->_name = String::ToWString(e.value("Id", "Unknown"));
+                    
+                    if (e.contains("Position")) { auto& pos = e["Position"]; obj->_position = { pos[0], pos[1], pos[2] }; }
+                    if (e.contains("Rotation")) { auto& rot = e["Rotation"]; obj->_rotation = { rot[0], rot[1], rot[2], rot[3] }; }
+                    if (e.contains("Scale"))    { auto& scl = e["Scale"];    obj->_scale = { scl[0], scl[1], scl[2] }; }
+                    
+                    string modelPathStr = e.value("ModelPath", "");
+                    if (!modelPathStr.empty())
+                    {
+                        obj->_instancedModelPath = String::ToWString(_mapSavePath) + String::ToWString(modelPathStr);
+                    }
+                    
+                    if (e.contains("Instances"))
+                    {
+                        for (const auto& instJson : e["Instances"])
+                        {
+                            InstanceTransform t;
+                            if (instJson.contains("Position")) { auto& pos = instJson["Position"]; t._position = { pos[0], pos[1], pos[2] }; }
+                            if (instJson.contains("Rotation")) { auto& rot = instJson["Rotation"]; t._rotation = { rot[0], rot[1], rot[2], rot[3] }; }
+                            if (instJson.contains("Scale"))    { auto& scl = instJson["Scale"];    t._scale = { scl[0], scl[1], scl[2] }; }
+                            obj->_instancedTransforms.push_back(t);
+                        }
+                    }
+                    obj->UpdateWorldMatrix();
+                    Add(obj);
+                }
+            }
+        }
+    }
+
+    _dirtyRenderHandles = true;
+    _octreeDirty = true;
 }
 

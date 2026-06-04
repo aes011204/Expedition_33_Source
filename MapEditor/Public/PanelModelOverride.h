@@ -9,7 +9,7 @@ class PanelModelOverride final : public MEWindow
 {
 public:
     explicit PanelModelOverride(SceneContext* ctx);
-    virtual ~PanelModelOverride() = default;
+    virtual ~PanelModelOverride() override = default;
 
 public:
     virtual void Render() override;

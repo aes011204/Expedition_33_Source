@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "EditorObject.h"
 #include "MELandscapeActor.h"
 
@@ -71,6 +71,7 @@ struct SceneContext
 
 public: // Minor 테스트 맵 인스턴스 분할
     void Export_MapInstance(const string& filePath);
+    void Import_MapInstance(const string& mapName);
 
 };
 

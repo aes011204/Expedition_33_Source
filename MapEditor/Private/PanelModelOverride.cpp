@@ -128,21 +128,21 @@ void PanelModelOverride::Render()
 }
 namespace MapEditor
 {
-    static string Export_TextureToSlotFolder(const string& mapName, const string& modelName, Engine::MaterialTextureSlot slot, const string& sourceTexPath)
+    static string Export_TextureToSlotFolder(const string& mapName, const string& modelName, MaterialTextureSlot slot, const string& sourceTexPath)
     {
         if (slot != Engine::MaterialTextureSlot::Normal)
         {
             return sourceTexPath;
         }
 
-        fs::path srcPath = fs::path("../../../Client/Bin/Resources/Map") / sourceTexPath;
+        fs::path srcPath = fs::path(_mapSavePath) / sourceTexPath;
         if (!fs::exists(srcPath))
         {
             return sourceTexPath; 
         }
 
         string slotName = magic_enum::enum_name(slot).data();
-        fs::path destDir = fs::path("../../../Client/Bin/Resources/Map/MapInstance") / mapName / "Textures" / slotName;
+        fs::path destDir = fs::path(_mapSavePath) / "MapInstance" / mapName / "Textures" / slotName;
         
         if (!fs::exists(destDir))
         {
@@ -150,12 +150,7 @@ namespace MapEditor
         }
 
         fs::path destPath = destDir / srcPath.filename();
-
-        try
-        {
-            fs::copy_file(srcPath, destPath, fs::copy_options::overwrite_existing);
-        }
-        catch (...) {}
+        fs::copy_file(srcPath, destPath, fs::copy_options::overwrite_existing);
 
         return "MapInstance/" + mapName + "/Textures/" + slotName + "/" + destPath.filename().string();
     }
@@ -165,7 +160,7 @@ namespace MapEditor
         if (modelPath.empty()) return;
 
         string modelName = fs::path(modelPath).stem().string();
-        fs::path matDir = fs::path("../../../Client/Bin/Resources/Map/MapInstance") / mapName / "Materials";
+        fs::path matDir = fs::path(_materialsPath) / mapName;
         
         if (!fs::exists(matDir))
         {
@@ -175,23 +170,47 @@ namespace MapEditor
         fs::path matPath = matDir / (modelName + ".material.json");
 
         json root;
-        json& instJson = root["instances"][0];
+        json instJson;
 
-        instJson["name"] = modelName + "_Inst";
+        string assetName = modelName + "_Inst";
+        instJson["assetName"] = assetName;
         
-        instJson["cbMask"]["baseColorTint"] = true;
-        instJson["cbMask"]["emissiveColor"] = true;
-        instJson["cbMask"]["emissiveIntensity"] = true;
-        instJson["cbMask"]["roughnessScale"] = true;
-        instJson["cbMask"]["metalnessScale"] = true;
-
-        instJson["cb"]["baseColorTint"] = { materialCB.baseColorTint.x, materialCB.baseColorTint.y, materialCB.baseColorTint.z, materialCB.baseColorTint.w };
-        instJson["cb"]["emissiveColor"] = { materialCB.emissiveColor.x, materialCB.emissiveColor.y, materialCB.emissiveColor.z, materialCB.emissiveColor.w };
+        instJson["editor_modelPath"] = modelPath; 
+        instJson["editor_shaderType"] = shaderType;
+        
+        instJson["forcePassIndex"] = passIndex;
+        
+        instJson["cb"]["baseColorTint"] = {
+            materialCB.baseColorTint.x, 
+            materialCB.baseColorTint.y, 
+            materialCB.baseColorTint.z, 
+            materialCB.baseColorTint.w
+        };
+        instJson["cb"]["emissiveColor"] = {
+            materialCB.emissiveColor.x, 
+            materialCB.emissiveColor.y, 
+            materialCB.emissiveColor.z, 
+            materialCB.emissiveColor.w
+        };
         instJson["cb"]["emissiveIntensity"] = materialCB.emissiveIntensity;
+        instJson["cb"]["emissiveMaskMul"] = materialCB.emissiveMaskMul;
+        instJson["cb"]["normalStrength"] = materialCB.normalStrength;
+        instJson["cb"]["opacityMaskClipValue"] = materialCB.opacityMaskClipValue;
+        instJson["cb"]["aoScale"] = materialCB.aoScale;
         instJson["cb"]["roughnessScale"] = materialCB.roughnessScale;
         instJson["cb"]["metalnessScale"] = materialCB.metalnessScale;
+        instJson["cb"]["uvScale"] = { materialCB.uvScale.x, materialCB.uvScale.y };
+        instJson["cb"]["uvOffset"] = { materialCB.uvOffset.x, materialCB.uvOffset.y };
+        instJson["cb"]["uvRotation"] = materialCB.uvRotation;
+        instJson["cb"]["materialMask"] = materialCB.materialMask;
+        instJson["cb"]["ormAoSource"] = materialCB.ormAoSource;
+        instJson["cb"]["ormRoughnessSource"] = materialCB.ormRoughnessSource;
+        instJson["cb"]["ormMetalnessSource"] = materialCB.ormMetalnessSource;
+        instJson["cb"]["opacityMaskSource"] = materialCB.opacityMaskSource;
 
-        json texArray = json::array();
+        json overridesJson = json::object();
+        json texturesJson = json::object();
+        
         for (auto& pair : textureSlots)
         {
             int32 slotIdx = pair.first;
@@ -200,15 +219,34 @@ namespace MapEditor
             if (texPath.empty()) continue;
 
             Engine::MaterialTextureSlot slotEnum = static_cast<Engine::MaterialTextureSlot>(slotIdx);
-            
             string newRelPath = Export_TextureToSlotFolder(mapName, modelName, slotEnum, texPath);
 
-            json texJson;
-            texJson["slot"] = static_cast<int>(slotEnum);
-            texJson["path"] = newRelPath;
-            texArray.push_back(texJson);
+            string slotNameStr = "";
+            if (slotEnum == MaterialTextureSlot::BaseColor) slotNameStr = "baseColor";
+            else if (slotEnum == MaterialTextureSlot::Normal) slotNameStr = "normal";
+            else if (slotEnum == MaterialTextureSlot::ORM) slotNameStr = "orm";
+            else if (slotEnum == MaterialTextureSlot::Emissive) slotNameStr = "emissive";
+            else if (slotEnum == MaterialTextureSlot::OpacityMask) slotNameStr = "opacityMask";
+            
+            if (!slotNameStr.empty())
+            {
+                overridesJson[slotNameStr] = true;
+                texturesJson[slotNameStr] = newRelPath;
+            }
         }
-        instJson["textures"] = texArray;
+        
+        if (!overridesJson.empty())
+        {
+            instJson["overrides"] = overridesJson;
+            instJson["textures"] = texturesJson;
+        }
+
+        root["instances"] = json::array({ instJson });
+
+        json mappingJson;
+        mappingJson["materialIndex"] = 0;
+        mappingJson["ref"]["assetName"] = assetName;
+        root["mappings"] = json::array({ mappingJson });
 
         ofstream ofs(matPath);
         if (ofs.is_open())

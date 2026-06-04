@@ -260,6 +260,26 @@ void MEManager::RenderDockSpace()
             {
                 _ctx->Export_MapInstance(_ctx->_currentFilePath);
             }
+            if (ImGui::BeginMenu("Import Split Instance"))
+            {
+                fs::path instanceRoot = fs::path(_mapSavePath) / "MapInstance";
+                if (fs::exists(instanceRoot))
+                {
+                    for (const auto& entry : fs::directory_iterator(instanceRoot))
+                    {
+                        if (entry.is_directory())
+                        {
+                            string mapName = entry.path().filename().string();
+                            if (ImGui::MenuItem(mapName.c_str()))
+                            {
+                                _ctx->Import_MapInstance(mapName);
+                                _ctx->_currentFilePath = ""; 
+                            }
+                        }
+                    }
+                }
+                ImGui::EndMenu();
+            }
             ImGui::EndMenu();
         }
 

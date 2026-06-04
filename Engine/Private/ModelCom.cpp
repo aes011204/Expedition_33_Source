@@ -1,4 +1,4 @@
-﻿#include "ModelCom.h"
+#include "ModelCom.h"
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "MaterialBuilder.h"
