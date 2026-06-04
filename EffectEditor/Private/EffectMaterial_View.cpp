@@ -376,7 +376,7 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
     ImGui::TableSetColumnIndex(0);
     ImGui::TextDisabled("SubUV");
     ImGui::TableSetColumnIndex(1);
-    ImGui::Text("%u x %u", material.subUVRows, material.subUVCols);
+    ImGui::Text("%u cols x %u rows", material.subUVCols, material.subUVRows);
 
     ImGui::EndTable();
 }

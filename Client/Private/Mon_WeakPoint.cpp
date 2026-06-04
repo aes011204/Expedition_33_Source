@@ -8,6 +8,12 @@
 
 NS_BEGIN(Client)
 
+namespace
+{
+    constexpr float kDefaultWeakPointEffectScale = 0.5f;
+    constexpr wchar_t kDefaultWeakPointEffectName[] = L"Effects\\Assets\\Monster\\Monster_Weak.effect.json";
+}
+
 Mon_WeakPoint::Mon_WeakPoint(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Monster_Part(device, context)
 {
@@ -37,6 +43,7 @@ HRESULT Mon_WeakPoint::Initialize(void* arg)
         return E_FAIL;
 
     CHECK_FAILED(Ready_WeakPointCollider(), E_FAIL);
+    Ready_DefaultWeakPointEffectSettings();
 
     return S_OK;
 }
@@ -91,6 +98,7 @@ HRESULT Mon_WeakPoint::Render_Shadow()
 void Mon_WeakPoint::From_Json(const json& data)
 {
     Monster_Part::From_Json(data);
+    Ready_DefaultWeakPointEffectSettings();
 
     if (_colliderCom)
         _colliderCom->Set_CollisionPreset(Collision_Preset::Monster_WeakPoint);
@@ -166,6 +174,28 @@ HRESULT Mon_WeakPoint::Ready_WeakPointCollider()
     return S_OK;
 }
 
+void Mon_WeakPoint::Ready_DefaultWeakPointEffectSettings()
+{
+    if (_partEffectCom == nullptr)
+        return;
+
+    EffectCom::InspectorEffectSettings settings = _partEffectCom->Get_InspectorEffectSettings();
+    settings.autoPlay = false;
+    if (settings.effectName.empty())
+        settings.effectName = kDefaultWeakPointEffectName;
+    settings.target = EffectCom::EffectPlayTarget::OwnerRoot;
+    settings.partTag.clear();
+    settings.socketName.clear();
+    settings.layerTag = L"Layer_Effect";
+    settings.localOffset = Vec3::Zero;
+    settings.localRotation = Vec3::Zero;
+    settings.followTarget = true;
+    settings.scale = Vec3(kDefaultWeakPointEffectScale);
+    settings.requiresManualRelease = true;
+
+    _partEffectCom->Set_InspectorEffectSettings(settings);
+}
+
 void Mon_WeakPoint::Play_WeakPointEffect()
 {
     if (_partEffectCom == nullptr)
@@ -173,13 +203,17 @@ void Mon_WeakPoint::Play_WeakPointEffect()
 
     _partEffectCom->Stop_AllAttachedEffects();
 
+    const EffectCom::InspectorEffectSettings settings = _partEffectCom->Get_InspectorEffectSettings();
+
     EffectCom::EffectPlayDesc desc{};
     desc.levelIndex = GAME->Current_LevelIndex();
-    desc.effectName = L"Monster_Weak";
+    desc.effectName = settings.effectName;
+    if (desc.effectName.empty())
+        desc.effectName = kDefaultWeakPointEffectName;
     desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
     desc.layerTag = L"Layer_Effect";
     desc.followTarget = true;
-    desc.scale = Vec3(0.3f);
+    desc.scale = Vec3(kDefaultWeakPointEffectScale);
     desc.requiresManualRelease = true;
 
     _partEffectCom->Play_Effect(desc);

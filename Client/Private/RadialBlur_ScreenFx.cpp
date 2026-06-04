@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "RadialBlur_ScreenFx.h"
 
 #include <Camera.h>
@@ -10,11 +10,12 @@
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "ClientScreenFxManager.h"
+#include "FreeCamera.h"
 #include "Player_WorldBase.h"
 
 NS_BEGIN(Client)
 
-    IMPLEMENT_REFLECTION(RadialBlur_ScreenFx)
+IMPLEMENT_REFLECTION(RadialBlur_ScreenFx)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
@@ -47,11 +48,19 @@ HRESULT RadialBlur_ScreenFx::Initialize(ScreenFxDesc* desc)
 
 void RadialBlur_ScreenFx::Update_ScreenFx(float timeDelta)
 {
+    auto mainCamera = GAME->Get_ActiveCamera();
+
+    // 자유 카메라는 제거
+    if (mainCamera && mainCamera->Get_ObjectType() == ObjectType::FreeCamera)
+    {
+        return;
+    }
+
     _elapsedTime += timeDelta;
 
     auto transform = Get_CurrentTarget();
     Compute_LeaderHeroPosToProjection(transform);
-    
+
 
     if (auto mainCamera = GAME->Get_ActiveCamera())
     {
@@ -162,7 +171,7 @@ Shared<TransformCom> RadialBlur_ScreenFx::Get_CurrentTarget()
         auto trans = leaderHero->Get_Transform();
         return trans;
     }
-    
+
     return nullptr;
 }
 

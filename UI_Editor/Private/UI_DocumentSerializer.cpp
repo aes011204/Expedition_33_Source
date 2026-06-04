@@ -6,7 +6,7 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kCurrentUIJsonVersion = 7;
+        constexpr int32 kCurrentUIJsonVersion = 8;
         constexpr const char* kDefaultCanvasName = "MainCanvas";
         constexpr const char* kDefaultFontPath = "../Bin/Resources/Fonts/33_MainKR_Font.spritefont";
 
@@ -189,6 +189,16 @@ namespace UIEditor
                 return min(max(number / 255.f, 0.f), 1.f);
 
             return min(max(number, 0.f), 1.f);
+        }
+
+        bool NearlyEqual(float lhs, float rhs)
+        {
+            return fabsf(lhs - rhs) <= 0.001f;
+        }
+
+        bool NearlyEqual(const ImVec2& lhs, const ImVec2& rhs)
+        {
+            return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
         }
 
         string Read_String(const json& item, const char* key, const string& defaultValue)
@@ -582,6 +592,10 @@ namespace UIEditor
                 item["patternMaskTexturePath"] = object.patternMaskTexturePath;
             if (object.imageRenderMode == UI_ImageRenderMode::PatternOverlay && !object.patternMaskTextureGuid.empty())
                 item["patternMaskTextureGuid"] = object.patternMaskTextureGuid;
+            if (object.imageRenderMode == UI_ImageRenderMode::PatternOverlay && !NearlyEqual(object.patternUvOffset, Get_DefaultPatternUvOffset()))
+                item["patternUvOffset"] = Vec2_ToJson(object.patternUvOffset);
+            if (object.imageRenderMode == UI_ImageRenderMode::PatternOverlay && !NearlyEqual(object.patternUvScale, Get_DefaultPatternUvScale()))
+                item["patternUvScale"] = Vec2_ToJson(object.patternUvScale);
         }
         else if (object.type == UI_ObjectType::Text)
         {
@@ -672,6 +686,8 @@ namespace UIEditor
             object.maskTextureMode = Parse_MaskTextureMode(Read_String(item, "maskTextureMode", "Alpha"));
             object.patternMaskTexturePath = Read_String(item, "patternMaskTexturePath", "");
             object.patternMaskTextureGuid = Read_String(item, "patternMaskTextureGuid", "");
+            object.patternUvOffset = Clamp_PatternUvOffset(Read_Vec2(item, "patternUvOffset", Get_DefaultPatternUvOffset()));
+            object.patternUvScale = Clamp_PatternUvScale(Read_Vec2(item, "patternUvScale", Get_DefaultPatternUvScale()));
         }
         else if (object.type == UI_ObjectType::Text)
         {

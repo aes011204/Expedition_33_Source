@@ -76,6 +76,8 @@ void Monster_BattleBase::From_Json(const json& data)
     Character_BattleBase::From_Json(data);
 
     _battleGroundOffsetY = 0.f;
+    _revivePosition = Vec3::Zero;
+    _hasRevivePosition = false;
 
     if (data.contains("custom_properties") && data["custom_properties"].is_object())
     {

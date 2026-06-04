@@ -75,6 +75,7 @@ private:
 public:
     void Flush();
     HRESULT Render_LOD(const Vec3& cameraPos, const float lodDist[2]);
+    HRESULT Render_NoLOD();
     float Sample_Height(float worldX, float worldZ) const;
     void Paint_Layer(uint32 layerIdx, float worldX, float worldZ, float radius, float strength);
     void Clear_Layers();

@@ -513,7 +513,7 @@ void CharacterStatus_Panel::Set_UIntText(const Shared<UI_Text>& text, uint32 val
 void CharacterStatus_Panel::Set_PercentText(const Shared<UI_Text>& text, float value)
 {
 	if (text)
-		text->Set_Text(to_wstring(static_cast<int32>(value)) + L"%");
+		text->Set_Text(to_wstring(static_cast<int32>(value)));
 }
 
 void CharacterStatus_Panel::Set_HpText(const Shared<UI_Text>& text, float hp, float maxHp)

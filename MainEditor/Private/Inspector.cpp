@@ -23,6 +23,152 @@ const vector<Engine::BTBlackboardKeyView>* Inspector::_btBlackboardKeys = nullpt
 vector<Inspector::FGameObjectClassPickerEntry> Inspector::_gameObjectClassPickerEntries{};
 char Inspector::_spawnActorClassSearchBuffer[256]{};
 
+namespace
+{
+    struct FEffectAssetPickerEntry
+    {
+        string relativePath{};
+        string displayLabel{};
+        string searchText{};
+    };
+
+    vector<FEffectAssetPickerEntry> g_effectAssetPickerEntries{};
+    char g_effectAssetSearchBuffer[256]{};
+
+    fs::path Resolve_ResourceRootForEffectPicker()
+    {
+        const fs::path currentPath = fs::current_path();
+        const vector<fs::path> candidates =
+        {
+            currentPath / L"../../../Client/Bin/Resources",
+            currentPath / L"../../Client/Bin/Resources",
+            currentPath / L"Client/Bin/Resources",
+        };
+
+        for (const fs::path& candidate : candidates)
+        {
+            const fs::path normalized = fs::absolute(candidate).lexically_normal();
+            if (fs::exists(normalized) && fs::is_directory(normalized))
+                return normalized;
+        }
+
+        return {};
+    }
+
+    bool Is_EffectAssetJsonPath(const fs::path& path)
+    {
+        const string lowerPath = String::ToLowerCopy(path.generic_string());
+        return lowerPath.ends_with(".effect.json");
+    }
+
+    void Rebuild_EffectAssetPickerEntries()
+    {
+        g_effectAssetPickerEntries.clear();
+
+        const fs::path resourceRoot = Resolve_ResourceRootForEffectPicker();
+        if (resourceRoot.empty())
+            return;
+
+        const fs::path effectRoot = resourceRoot / L"Effects";
+        if (!fs::exists(effectRoot) || !fs::is_directory(effectRoot))
+            return;
+
+        std::error_code errorCode{};
+        for (const fs::directory_entry& entry : fs::recursive_directory_iterator(effectRoot, errorCode))
+        {
+            if (errorCode)
+                break;
+
+            if (!entry.is_regular_file(errorCode))
+                continue;
+
+            const fs::path filePath = entry.path();
+            if (!Is_EffectAssetJsonPath(filePath))
+                continue;
+
+            const fs::path relativePath = fs::relative(filePath, resourceRoot, errorCode);
+            if (errorCode)
+                continue;
+
+            string storedPath = relativePath.generic_string();
+            replace(storedPath.begin(), storedPath.end(), '/', '\\');
+
+            FEffectAssetPickerEntry pickerEntry{};
+            pickerEntry.relativePath = storedPath;
+            pickerEntry.displayLabel = storedPath;
+            pickerEntry.searchText = String::ToLowerCopy(storedPath + " " + filePath.filename().generic_string());
+            g_effectAssetPickerEntries.push_back(std::move(pickerEntry));
+        }
+
+        sort(
+            g_effectAssetPickerEntries.begin(),
+            g_effectAssetPickerEntries.end(),
+            [](const FEffectAssetPickerEntry& left, const FEffectAssetPickerEntry& right)
+            {
+                return left.displayLabel < right.displayLabel;
+            });
+    }
+
+    bool Draw_EffectAssetPickerRow(const string& hiddenId, wstring& value)
+    {
+        if (g_effectAssetPickerEntries.empty())
+            Rebuild_EffectAssetPickerEntries();
+
+        string preview = String::ToString(value);
+        if (preview.empty())
+            preview = "(select effect)";
+
+        bool changed = false;
+
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::BeginCombo(hiddenId.c_str(), preview.c_str()))
+        {
+            ImGui::InputTextWithHint(
+                ("##EffectAssetSearch" + hiddenId).c_str(),
+                "Search effect...",
+                g_effectAssetSearchBuffer,
+                IM_ARRAYSIZE(g_effectAssetSearchBuffer));
+
+            ImGui::Separator();
+
+            if (ImGui::Selectable("(None)", value.empty()))
+            {
+                value.clear();
+                changed = true;
+            }
+
+            const string searchText = String::ToLowerCopy(g_effectAssetSearchBuffer);
+            bool hasVisibleEntry = false;
+
+            for (const FEffectAssetPickerEntry& entry : g_effectAssetPickerEntries)
+            {
+                if (!searchText.empty() && entry.searchText.find(searchText) == string::npos)
+                    continue;
+
+                hasVisibleEntry = true;
+
+                const bool isSelected = (String::ToString(value) == entry.relativePath);
+                const string selectableLabel = entry.displayLabel + "##" + entry.relativePath;
+                if (ImGui::Selectable(selectableLabel.c_str(), isSelected))
+                {
+                    value = String::ToWString(entry.relativePath);
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            if (!hasVisibleEntry)
+                ImGui::TextDisabled("No effect assets.");
+
+            ImGui::EndCombo();
+        }
+
+        return changed;
+    }
+}
+
 
 Inspector::Inspector()
     : Editor_Window{ L"Inspector" }
@@ -704,6 +850,12 @@ void Inspector::Draw_ReflectionProperty(
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%s", visibleLabel.c_str());
         ImGui::SameLine(InspectorLabelWidth);
+
+        if (idPrefix == "EffectCom" && property.name == "_inspectorEffectName")
+        {
+            Draw_EffectAssetPickerRow(hiddenId, *value);
+            break;
+        }
 
         string valueText = String::ToString(*value);
         char buffer[512]{};

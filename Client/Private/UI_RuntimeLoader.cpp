@@ -67,6 +67,8 @@ namespace
         UI_Image::MaskTextureMode maskTextureMode = UI_Image::MaskTextureMode::Alpha;
         string patternMaskTextureGuid{};
         string patternMaskTexturePath{};
+        Vec2 patternUvOffset{ 0.f, 0.f };
+        Vec2 patternUvScale{ 1.f, 1.f };
 
         vector<UI_AnimationClip> animationClips{};
         vector<UI_KeyframeAnimationAsset> keyframeAnimationAssets{};
@@ -1215,6 +1217,8 @@ namespace
         object.maskTextureMode = Parse_MaskTextureMode(Read_String(item, "maskTextureMode", "Alpha"));
         object.patternMaskTextureGuid = Read_String(item, "patternMaskTextureGuid", "");
         object.patternMaskTexturePath = Read_String(item, "patternMaskTexturePath", "");
+        object.patternUvOffset = UI_Image::Clamp_PatternUvOffset(Read_Vec2(item, "patternUvOffset", UI_Image::Get_DefaultPatternUvOffset()));
+        object.patternUvScale = UI_Image::Clamp_PatternUvScale(Read_Vec2(item, "patternUvScale", UI_Image::Get_DefaultPatternUvScale()));
         object.animationClips = Read_AnimationClips(item);
         object.stateAnimationPath = Read_String(item, "stateAnimationPath", "");
 
@@ -1454,6 +1458,8 @@ namespace
         desc.texturePath = texturePath;
         desc.imageRenderMode = object.imageRenderMode;
         desc.maskTextureMode = object.maskTextureMode;
+        desc.patternUvOffset = object.patternUvOffset;
+        desc.patternUvScale = object.patternUvScale;
 
         const wstring maskTexturePath = Resolve_JsonAssetPath(object.maskTextureGuid, object.maskTexturePath);
         if (!maskTexturePath.empty() && fs::exists(maskTexturePath))

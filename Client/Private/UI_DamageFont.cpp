@@ -6,6 +6,8 @@
 #include "UI_Text.h"
 #include "UI_Utils.h"
 
+using namespace UI_Utils;
+
 IMPLEMENT_REFLECTION(UI_DamageFont)
 {
     auto& info = GetStaticReflectionInfo();
@@ -42,19 +44,24 @@ HRESULT UI_DamageFont::Initialize(uint32 levelIndex)
     return S_OK;
 }
 
-void UI_DamageFont::Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex)
+void UI_DamageFont::Play_DamageFont(const BattleChar& target, float damage, uint32 stackIndex, bool isCritical)
 {
     Apply_DamageFontTuning();
 
-    const int32 damageValue = max(0, static_cast<int32>(damage));
+    auto bCriticalCheck = isCritical ? DamageFontStyle::Critical : DamageFontStyle::Normal;
+    Set_ActiveStyle(bCriticalCheck);
 
+    const int32 damageValue = max(0, static_cast<int32>(damage));
     Set_DamageText(damageValue);
 
     if (!Begin_FloatingText(target, stackIndex))
         return;
 
     if (_root)
-        _root->Play_UIAnimation(L"DamageFont", true);
+    {
+        const wstring animationName = isCritical ? L"CriticalDamageFont" : L"DamageFont";
+        _root->Play_UIAnimation(animationName, true);
+    }
 }
 
 void UI_DamageFont::Update(float timeDelta)
@@ -76,40 +83,106 @@ void UI_DamageFont::Open()
     UI_RuntimePanelBase::Open();
 }
 
+void UI_DamageFont::Close()
+{
+    UI_BattleFloatingTextBase::Close();
+
+    if (_normalRoot)
+        _normalRoot->Close();
+
+    if (_criticalRoot)
+        _criticalRoot->Close();
+
+    Set_ActiveStyle(DamageFontStyle::Normal); // 닫힌 뒤에 Normal로 세팅해주기
+}
+
 HRESULT UI_DamageFont::Load_UI(uint32 levelIndex)
 {
-    UI_RuntimeLoader::UI_LoadDesc desc{};
-    desc.levelIndex = levelIndex;
-    desc.jsonPath = Constants::UI::UI_NormalDamageFont_Path;
-    desc.animationPath = Constants::UI_Anim::UI_NormalDamageFontAnim_Path;
-    desc.prototypeTagPrefix = L"DamageFont";
-    desc.outUIByName = &_uiByName;
+    umap<wstring, Shared<UI_Base>> normalUIByName{};
+    umap<wstring, Shared<UI_Base>> criticalUIByName{};
 
-    CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
+    UI_RuntimeLoader::UI_LoadDesc normalDesc{};
+    normalDesc.levelIndex = levelIndex;
+    normalDesc.jsonPath = Constants::UI::UI_NormalDamageFont_Path;
+    normalDesc.animationPath = Constants::UI_Anim::UI_NormalDamageFontAnim_Path;
+    normalDesc.prototypeTagPrefix = L"DamageFontNormal";
+    normalDesc.outUIByName = &normalUIByName;
 
-    _root = UI_Utils::Find_UI(_uiByName, L"Panel_NormalDamageFont");
-    CHECK_NULL(_root, E_FAIL);
+    CHECK_FAILED(UI_RuntimeLoader::Load_Document(normalDesc), E_FAIL);
 
+    UI_RuntimeLoader::UI_LoadDesc criticalDesc{};
+    criticalDesc.levelIndex = levelIndex;
+    criticalDesc.jsonPath = Constants::UI::UI_CriticalDamageFont_Path;
+    criticalDesc.animationPath = Constants::UI_Anim::UI_CriticalDamageFontAnim_Path;
+    criticalDesc.prototypeTagPrefix = L"DamageFontCritical";
+    criticalDesc.outUIByName = &criticalUIByName;
+
+    CHECK_FAILED(UI_RuntimeLoader::Load_Document(criticalDesc), E_FAIL);
+
+    _uiByName.clear();
+    _uiByName.insert(normalUIByName.begin(), normalUIByName.end());
+    _uiByName.insert(criticalUIByName.begin(), criticalUIByName.end());
+
+    _normalRoot = Find_UI(normalUIByName, L"Panel_NormalDamageFont");
+    _criticalRoot = Find_UI(criticalUIByName, L"Panel_CriticalDamageFont");
+
+    CHECK_NULL(_normalRoot, E_FAIL);
+    CHECK_NULL(_criticalRoot, E_FAIL);
+
+    _root = _normalRoot;
     return S_OK;
 }
 
 HRESULT UI_DamageFont::Bind_UI()
 {
-    _damageText = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_NormalDamageFont");
-    _damageTextBg = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_NormalDamageFont_BG");
+    _normalDamageText = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_NormalDamageFont");
+    _normalDamageTextBg = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_NormalDamageFont_BG");
 
-    CHECK_NULL(_damageText, E_FAIL);
-    CHECK_NULL(_damageTextBg, E_FAIL);
+    _criticalDamageText = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_CriticalDamageFont");
+    _criticalDamageTextBg = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_CriticalDamageFont_BG");
+
+    CHECK_NULL(_normalDamageText, E_FAIL);
+    CHECK_NULL(_normalDamageTextBg, E_FAIL);
+    CHECK_NULL(_criticalDamageText, E_FAIL);
+    CHECK_NULL(_criticalDamageTextBg, E_FAIL);
+
+    Set_ActiveStyle(DamageFontStyle::Normal);
 
     return S_OK;
+}
+
+void UI_DamageFont::Set_ActiveStyle(DamageFontStyle style)
+{
+    _activeStyle = style;
+
+    if (_normalRoot)
+        _normalRoot->Close();
+
+    if (_criticalRoot)
+        _criticalRoot->Close();
+
+    if (_activeStyle == DamageFontStyle::Critical)
+    {
+        _root = _criticalRoot;
+        _damageText = _criticalDamageText;
+        _damageTextBg = _criticalDamageTextBg;
+        return;
+    }
+
+    _root = _normalRoot;
+    _damageText = _normalDamageText;
+    _damageTextBg = _normalDamageTextBg;
 }
 
 void UI_DamageFont::Set_DamageText(int32 damageValue)
 {
     const wstring text = to_wstring(damageValue);
 
-    _damageText->Set_Text(text);
-    _damageTextBg->Set_Text(text);
+    if (_damageText)
+        _damageText->Set_Text(text);
+
+    if (_damageTextBg)
+        _damageTextBg->Set_Text(text);
 }
 
 bool UI_DamageFont::Apply_DamageFontTuning()

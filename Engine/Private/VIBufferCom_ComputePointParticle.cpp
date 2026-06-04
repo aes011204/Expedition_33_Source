@@ -244,6 +244,14 @@ void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 
     CHECK_FAILED(Copy_OutputToIndirectArgs());
 }
 
+void VIBufferCom_ComputePointParticle::Update_RuntimeDesc(const ComputePointParticleDesc& desc)
+{
+    if (desc.instanceCount != _instanceCount)
+        return;
+
+    _desc = desc;
+}
+
 void VIBufferCom_ComputePointParticle::Set_Center(const Vec3& center)
 {
     _desc.center = center;

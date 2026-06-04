@@ -43,6 +43,12 @@ namespace UIEditor
         bool Set_ObjectMaskTextureMode(UI_Document& document, ObjectId objectId, UI_MaskTextureMode maskTextureMode) const;
         bool Can_SetObjectPatternMaskTextureBinding(const UI_Document& document, ObjectId objectId, const string& textureGuid, const string& texturePath) const;
         bool Set_ObjectPatternMaskTextureBinding(UI_Document& document, ObjectId objectId, const string& textureGuid, const string& texturePath) const;
+        bool Can_SetObjectPatternUvOffset(const UI_Document& document, ObjectId objectId, const ImVec2& patternUvOffset) const;
+        bool Set_ObjectPatternUvOffset(UI_Document& document, ObjectId objectId, const ImVec2& patternUvOffset) const;
+        bool Can_SetObjectPatternUvScale(const UI_Document& document, ObjectId objectId, const ImVec2& patternUvScale) const;
+        bool Set_ObjectPatternUvScale(UI_Document& document, ObjectId objectId, const ImVec2& patternUvScale) const;
+        bool Can_SetObjectPatternUv(const UI_Document& document, ObjectId objectId, const ImVec2& patternUvOffset, const ImVec2& patternUvScale) const;
+        bool Set_ObjectPatternUv(UI_Document& document, ObjectId objectId, const ImVec2& patternUvOffset, const ImVec2& patternUvScale) const;
 
         bool Can_SetObjectText(const UI_Document& document, ObjectId objectId, const string& text) const;
         bool Set_ObjectText(UI_Document& document, ObjectId objectId, const string& text) const;
