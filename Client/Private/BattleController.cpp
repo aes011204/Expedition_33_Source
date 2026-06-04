@@ -1917,6 +1917,11 @@ bool BattleController::Has_Buff(const BattleChar& target, Buffs buffId) const
     return _buffSystem != nullptr && _buffSystem->Has_Buff(target, buffId);
 }
 
+bool BattleController::Is_GroupParryActive() const
+{
+    return _reactionController.Is_GroupParryActive();
+}
+
 void BattleController::Notify_CounterAnnounceRequested(const vector<BattleChar>& counterActors)
 {
     if (counterActors.empty())
@@ -1935,33 +1940,38 @@ void BattleController::Play_BattleHitStop(float worldTimeScale, float duration)
 
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
-    if (_battleTurnCamera)
-        return S_OK;
+    if (_battleTurnCamera == nullptr)
+    {
+        auto camera = GAME->Get_CameraByType(ObjectType::BattleTurnCamera);
+        if(camera)
+            _battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(camera);
+    }
 
-    if(GAME->Get_CameraByType(ObjectType::BattleTurnCamera))
-        return S_OK;
+    if(_battleTurnCamera == nullptr)
+    {
+        BattleTurnCamera::BATTLE_TURN_CAMERA_DESC desc{};
+        desc.eye = XMFLOAT4(0.f, 8.f, -15.f, 1.f);
+        desc.at = XMFLOAT4(0.f, 1.2f, 0.f, 1.f);
+        desc.fovy = XMConvertToRadians(45.f);
+        desc.nearPlane = 0.1f;
+        desc.farPlane = 500.f;
+        desc.mouseSensor = 0.15f;
+        desc.mouseSensitivity = 0.f;
 
-    BattleTurnCamera::BATTLE_TURN_CAMERA_DESC desc{};
-    desc.eye = XMFLOAT4(0.f, 8.f, -15.f, 1.f);
-    desc.at = XMFLOAT4(0.f, 1.2f, 0.f, 1.f);
-    desc.fovy = XMConvertToRadians(45.f);
-    desc.nearPlane = 0.1f;
-    desc.farPlane = 500.f;
-    desc.mouseSensor = 0.15f;
-    desc.mouseSensitivity = 0.f;
+        Shared<GameObject> cameraObject;
+        CHECK_FAILED(
+            GAME->Add_GameObject(
+                ETOI(LevelType::Static), TEXT("GameObject_BattleTurnCamera"),
+                GAME->Current_LevelIndex(), TEXT("Layer_Camera"), cameraObject, &desc),
+            E_FAIL
+        );
 
-    Shared<GameObject> cameraObject;
-    CHECK_FAILED(
-        GAME->Add_GameObject(
-            ETOI(LevelType::Static), TEXT("GameObject_BattleTurnCamera"),
-            GAME->Current_LevelIndex(), TEXT("Layer_Camera"), cameraObject, &desc),
-        E_FAIL
-    );
+        _battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(cameraObject);
+        CHECK_NULL(_battleTurnCamera, E_FAIL);
 
-    _battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(cameraObject);
-    CHECK_NULL(_battleTurnCamera, E_FAIL);
-
-    _battleTurnCamera->Try_BeginPlay();
+        _battleTurnCamera->Try_BeginPlay();
+    }
+    _battleTurnCamera->Reset_RuntimeState();
     _battleTurnCamera->Set_Participants(_heroes, _enemies, _pendingBattleMonsterSpawnDescs);
 
     return S_OK;
