@@ -239,7 +239,7 @@
       <UniqueIdentifier>{34ac92ad-0d2f-498a-bb00-886921a6ae55}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Map\MapWater">
-      <UniqueIdentifier>{f90cf0f5-dec1-44b9-9e4b-247fbeb6a65c}</UniqueIdentifier>
+      <UniqueIdentifier>{dfc611f8-c2e2-475c-aa73-008ab9a996bc}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -426,24 +426,19 @@
     <ClCompile Include="..\private\AN_CameraShake.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
-
     <ClCompile Include="..\private\Mon_WeakPoint.cpp">
       <Filter>02.GameObject\Monster</Filter>
     </ClCompile>
-
     <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClCompile>
-
+    <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
+    <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp" />
+    <ClCompile Include="..\Private\SkyCloudCard.cpp" />
+    <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp" />
     <ClCompile Include="..\Private\MapWater.cpp">
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClCompile>
-
-    <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
-
-    <ClCompile Include="..\Private\AN_WorldFreeAimHit.cpp" />
-
-    <ClCompile Include="..\Private\SkyCloudCard.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -575,11 +570,13 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewDistortion.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl">
     <FxCompile Include="..\Bin\ShaderFiles\Shader_SkyBoxFlow.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_SkyCloudCard.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>
@@ -1246,28 +1243,22 @@
     <ClInclude Include="..\Public\Battle_Event.h">
       <Filter>02.GameObject\Camera\BattleCamera</Filter>
     </ClInclude>
-
     <ClInclude Include="..\public\AN_CameraShake.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
-
     <ClInclude Include="..\public\Mon_WeakPoint.h">
       <Filter>02.GameObject\Monster</Filter>
     </ClInclude>
-
     <ClInclude Include="..\Public\ANS_CounterTimeScale.h">
       <Filter>95. AnimNotify\01. NotifyStates</Filter>
     </ClInclude>
-
+    <ClInclude Include="..\Public\SkyBoxFlow.h" />
+    <ClInclude Include="..\Public\AN_WorldFreeAimHit.h" />
+    <ClInclude Include="..\Public\SkyCloudCard.h" />
+    <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h" />
     <ClInclude Include="..\Public\MapWater.h">
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClInclude>
-
-    <ClInclude Include="..\Public\SkyBoxFlow.h" />
-
-    <ClInclude Include="..\Public\AN_WorldFreeAimHit.h" />
-
-    <ClInclude Include="..\Public\SkyCloudCard.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

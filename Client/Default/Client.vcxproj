@@ -500,7 +500,6 @@
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />
     <ClCompile Include="..\Private\MapWater.cpp" />
-    <ClCompile Include="..\private\Mon_WeakPoint.cpp" />
     <ClCompile Include="..\Private\Mon_WeakPoint.cpp" />
     <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
     <ClCompile Include="..\Private\SkyCloudCard.cpp" />
