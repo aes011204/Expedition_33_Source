@@ -588,6 +588,8 @@ namespace Client
         string characterId = "";
         string skillKey = "";
         string scriptClassName = "";
+        wstring battleAnnounceActionText = L"";
+
         vector<BattleActionPhase> AnimPhases = {};
 
         vector<TargetType> targetingType = {};

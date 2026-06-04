@@ -55,7 +55,8 @@ public: /* Delegate 선언 */
     // QTE UI 시작/결과
     DECLARE_DELEGATE(FOnQTEStarted, const BattleQTERequest&);
     DECLARE_DELEGATE(FOnQTEResolved, BattleQTEResult);
-
+    // 카운터 성공 알람
+    DECLARE_DELEGATE(FOnCounterAnnounceRequested, const vector<BattleChar>&);
 
 public:
     BattleController();
@@ -207,6 +208,12 @@ public:
     bool Has_Buff(const BattleChar& target, Buffs buffId) const;
     Shared<BuffSystem> Get_BuffSystem() const { return _buffSystem; }
 
+    // 카운터 성공 알람
+    void Notify_CounterAnnounceRequested(const vector<BattleChar>& counterActors);
+
+    // HitStop (패링 직후, Free Aim 으로 약점공격 성공했을 떄 잠깐)
+    void Play_BattleHitStop(float worldTimeScale, float duration);
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
@@ -249,6 +256,7 @@ public: /* Delegate */
     FOnActionStarted                OnActionStarted;        // 공격, 스킬 시작
     FOnReactionSucceeded            OnReactionSucceeded;    // 회피, 패링 성공
     FOnBattleApChanged              OnBattleApChanged;
+    FOnCounterAnnounceRequested     OnCounterAnnounceRequested;
 
     FOnQTEStarted                   OnQTEStarted;
     FOnQTEResolved                  OnQTEResolved;

@@ -317,6 +317,9 @@ void GameplayUI_Battle::Bind_BattleDelegates()
             buffSystem->OnBuffConsumed.Add(this, &GameplayUI_Battle::Handle_BuffConsumed);
     }
 
+    _counterAnnounceRequestedHandle =
+        _battleController->OnCounterAnnounceRequested.Add(this, &GameplayUI_Battle::Handle_CounterAnnounceRequested);
+
 }
 
 void GameplayUI_Battle::Unbind_BattleDelegates()
@@ -368,6 +371,9 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
             buffSystem->OnBuffConsumed.Remove(_buffConsumedHandle);
     }
 
+    if (_counterAnnounceRequestedHandle.IsValid())
+        _battleController->OnCounterAnnounceRequested.Remove(_counterAnnounceRequestedHandle);
+
     _battleStartedHandle.Reset();
     _battleEndedHandle.Reset();
     _turnStartedHandle.Reset();
@@ -378,6 +384,7 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     _healAppliedHandle.Reset();
     _battleApChangedHandle.Reset();
     _reactionSucceededHandle.Reset();
+    _counterAnnounceRequestedHandle.Reset();
 
     _qteStartedHandle.Reset();
     _qteResolvedHandle.Reset();
@@ -636,7 +643,7 @@ void GameplayUI_Battle::Handle_ActionStarted(const BattleAction& action)
         _battleMechanism->Close();
 
     if (_battleAnnounce && isAttackAction)
-        _battleAnnounce->Show_TurnStart(action.Get_CurChar(), BattleTurnState::AttackPlaying);
+        _battleAnnounce->Show_TurnStart(action.Get_CurChar(), BattleTurnState::AttackPlaying, &action.GetSkillData());
 
 }
 
@@ -914,6 +921,14 @@ void GameplayUI_Battle::Handle_BuffConsumed(const BattleChar& target, Buffs buff
         _markEffect->Clear_Target();
 }
 
+void GameplayUI_Battle::Handle_CounterAnnounceRequested(const vector<BattleChar>& counterActors)
+{
+    if (!_isBattleUiActive || _battleAnnounce == nullptr)
+        return;
+
+    _battleAnnounce->Show_Counter(counterActors);
+}
+
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)
 {
     if (_battleCommandHUD == nullptr)
@@ -988,9 +1003,6 @@ void GameplayUI_Battle::Update_BattleSystemHUD(float timeDelta)
 
     _battleSystemHUD->Open(); // 전투 중에는 파티 portrait HUD를 계속 유지한다.
 
-    _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Gustave, 0.f, 1.f, 0u, 1u);
-    _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Lune, 0.f, 1.f, 0u, 1u);
-    _battleSystemHUD->Set_PartyBattleStat(PlayerCharacterType::Maelle, 0.f, 1.f, 0u, 1u);
     _battleSystemHUD->Clear_GustaveMechanismCharge();
     _battleSystemHUD->Clear_LuneMechanismStains(); // 이번 프레임 루네 상태를 현재 mechanism 값으로 다시 연다.
     _battleSystemHUD->Clear_MaelleMechanismStance();

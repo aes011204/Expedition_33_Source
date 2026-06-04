@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "UI_RuntimePanelBase.h"
 #include "Battle_Enum.h"
@@ -56,8 +56,8 @@ private:
     Shared<UI_Image>            _breakGauge{};
     Shared<UI_Text>             _bossNameText{};
     Shared<UI_Text>             _bossNameBgText{};
-    array<Shared<UI_Base>, 3>    _shieldIcons{};
-    array<float, 3>              _shieldIconCloseTimers{};
+    array<Shared<UI_Base>, 3>   _shieldIcons{};
+    array<float, 3>             _shieldIconCloseTimers{};
 
     BattleChar _displayTarget{};
     bool       _hasDisplayTarget = false;

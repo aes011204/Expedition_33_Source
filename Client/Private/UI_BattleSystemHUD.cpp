@@ -400,14 +400,21 @@ void UI_BattleSystemHUD::Apply_ApGauge(PartyBattleStatSlot& slot, uint32 curAp, 
 
         if (curAp == 0 || clampedMaxAp == 0)
         {
-            slot.apStates[i]->Close();
+            if (slot.apStates[i]->Is_Open())
+                slot.apStates[i]->Close();
             continue;
         }
 
         if (i < curAp && i < clampedMaxAp)
-            slot.apStates[i]->Open();
+        {
+            if (!slot.apStates[i]->Is_Open())
+                slot.apStates[i]->Open();
+        }
         else
-            slot.apStates[i]->Close();
+        {
+            if (slot.apStates[i]->Is_Open())
+                slot.apStates[i]->Close();
+        }
     }
 }
 

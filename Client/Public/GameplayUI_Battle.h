@@ -80,6 +80,8 @@ private:
     void    Handle_BuffApplied(const BattleChar& target, Buffs buffId);
     void    Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage);
 
+    void    Handle_CounterAnnounceRequested(const vector<BattleChar>& counterActors);
+
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
     void    Update_MonsterHpBar(float timeDelta);
@@ -190,6 +192,8 @@ private:
     // Buff
     FDelegateHandle          _buffAppliedHandle{};
     FDelegateHandle          _buffConsumedHandle{};
+
+    FDelegateHandle          _counterAnnounceRequestedHandle{};
 
 private:
     BattleChar               _targetPreviewSnapshot{};
