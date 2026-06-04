@@ -96,17 +96,17 @@ struct PS_OUT
 float3 Motion4WayChaos_Normal(Texture2D normalTex, float2 uv, float speed, float time)
 {
     float t = time * speed;
-    float3 n0 = normalTex.Sample(LinearWrapSampler, uv + float2(t, t * 0.5f)).rgb;
-    float3 n1 = normalTex.Sample(LinearWrapSampler, uv * float2(-1.f, 1.f) + float2(-t * 0.3f, t * 0.7f)).rgb;
-    float3 n2 = normalTex.Sample(LinearWrapSampler, uv * float2(1.f, -1.f) + float2(t * 0.6f, -t * 0.4f)).rgb;
-    float3 n3 = normalTex.Sample(LinearWrapSampler, -uv + float2(-t * 0.8f, t * 0.2f)).rgb;
+    float3 n0 = normalTex.Sample(LinearWrapSampler, uv + float2(t, t * 0.3f)).rgb;
+    float3 n1 = normalTex.Sample(LinearWrapSampler, uv * 1.3f + float2(t * 0.5f, t * 0.7f)).rgb;
+    float3 n2 = normalTex.Sample(LinearWrapSampler, uv * 0.8f + float2(t * 0.8f, t * 0.1f)).rgb;
+    float3 n3 = normalTex.Sample(LinearWrapSampler, uv * 1.1f + float2(t * 0.3f, t * 0.6f)).rgb;
     return (n0 + n1 + n2 + n3) * 0.25f;
 }
 
 PS_OUT PS_Water(PS_IN In)
 {
     PS_OUT Out;
-
+    
     float2 worldUV = In.WorldPos.xz * 0.01f;
 
     float3 largeN = Motion4WayChaos_Normal(g_LargeWaveNormal, worldUV / g_LargeWaveScale, g_LargeWaveSpeed, g_WaterElapsedTime);

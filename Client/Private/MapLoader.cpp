@@ -7,6 +7,8 @@
 #include "ModelCom.h"
 #include "StaticCollisionData.h"
 #include "Shader_CBuffer_Define.h"
+#include "MapWater.h"
+#include "Client_Constants.h"
 #include <mutex>
 
 // 전역 모델 및 콜리전 캐시 정적 멤버 정의 및 초기화
@@ -232,6 +234,81 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
             }
         }
         GAME->Set_FogZones(fogCB);
+    }
+
+    if (mapData.contains("Waters"))
+    {
+        const wstring waterTexBase = Constants::Map::WaterPath;
+        auto WaterTexPath = [&](const string& filename) -> wstring {
+            if (filename.empty())
+            {
+                return {};
+            }
+            return waterTexBase + String::ToWString(filename);
+            };
+
+        for (const auto& e : mapData["Waters"])
+        {
+            MapWater::MAPWATER_DESC desc{};
+
+            if (e.contains("Position"))
+            {
+                auto& p = e["Position"];
+                desc.position = Vec3(p[0], p[1], p[2]);
+            }
+            if (e.contains("Rotation"))
+            {
+                auto& r = e["Rotation"];
+                desc.rotation = Quat(r[0], r[1], r[2], r[3]);
+            }
+
+            desc.planeDesc.countX = e.value("CountX", 64u);
+            desc.planeDesc.countZ = e.value("CountZ", 64u);
+            desc.planeDesc.sizeX = e.value("SizeX", 1.f);
+            desc.planeDesc.sizeZ = e.value("SizeZ", 1.f);
+
+            desc.largeWaveNormalPath = WaterTexPath(e.value("LargeWaveNormal", string{}));
+            desc.smallWaveNormalPath = WaterTexPath(e.value("SmallWaveNormal", string{}));
+            desc.seafoamPath = WaterTexPath(e.value("SeafoamTexture", string{}));
+            desc.cubemapPath = WaterTexPath(e.value("Cubemap", string{}));
+
+            auto& p = desc.waterParams;
+            p.largeWaveScale = e.value("LargeWaveScale", 64.f);
+            p.largeWaveSpeed = e.value("LargeWaveSpeed", 0.1f);
+            p.largeWaveAmplify = e.value("LargeWaveAmplify", 1.f);
+            p.smallWaveScale = e.value("SmallWaveScale", 512.f);
+            p.smallWaveSpeed = e.value("SmallWaveSpeed", 1.f);
+            p.smallWaveAmplify = e.value("SmallWaveAmplify", 1.f);
+            p.seafoamScale = e.value("SeafoamScale", 512.f);
+            p.seafoamSpeed = e.value("SeafoamSpeed", 0.015f);
+            p.seafoamHeightPower = e.value("SeafoamHeightPower", 2.f);
+            p.seafoamHeightMultiply = e.value("SeafoamHeightMultiply", 3.f);
+            p.foamDistortion = e.value("FoamDistortion", 0.f);
+            p.depthFade = e.value("DepthFade", 0.f);
+            p.cameraDistanceFade = e.value("CameraDistanceFade", 0.f);
+            p.reflectionAmount = e.value("ReflectionAmount", 0.f);
+            p.luminanceBias = e.value("LuminanceBias", 0.f);
+
+            if (e.contains("WaterColor"))
+            {
+                auto& c = e["WaterColor"];
+                p.waterColor = Vec4(c[0], c[1], c[2], c[3]);
+            }
+            if (e.contains("FresnelColor"))
+            {
+                auto& c = e["FresnelColor"];
+                p.fresnelColor = Vec4(c[0], c[1], c[2], c[3]);
+            }
+
+            Shared<GameObject> water = nullptr;
+            GAME->Add_GameObject(
+                ETOI(LevelType::Static),
+                TEXT("Prototype_MapWater"),
+                levelIndex,
+                layerTag,
+                water,
+                &desc);
+        }
     }
 
     if (mapData.contains("ModelOverrides"))

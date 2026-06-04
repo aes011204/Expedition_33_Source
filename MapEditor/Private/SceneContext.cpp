@@ -887,6 +887,15 @@ Shared<EditorObject> SceneContext::SpawnFromPrefab(const string& prefabPath, con
         break;
     }
 
+    case EObjectType::Water:
+    {
+        obj->_waterDesc.countX = j.value("CountX", 64u);
+        obj->_waterDesc.countZ = j.value("CountZ", 64u);
+        obj->_waterDesc.sizeX = j.value("SizeX", 1.f);
+        obj->_waterDesc.sizeZ = j.value("SizeZ", 1.f);
+        obj->_waterDesc.chunkSize = j.value("ChunkSize", 16u);
+        break;
+    }
 
     case EObjectType::Fail:
         break;

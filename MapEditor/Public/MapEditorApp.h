@@ -66,6 +66,8 @@ private:
     Unique<MELandscapeManager> _landscapeManager;
     Unique<MEMaterialApplicator> _materialApplicator;
 
+    float _timeDelta = 0.f;
+
 private:
     HRESULT Ready_Light();
 

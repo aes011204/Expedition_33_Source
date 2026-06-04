@@ -151,6 +151,9 @@ void MapEditorApp::Priority_Update(float timeDelta)
 void MapEditorApp::Update(float timeDelta)
 {
     GAME->Update_Engine(timeDelta);
+
+    _timeDelta = timeDelta;
+
     _imguiManager->Update(timeDelta);
 
     if (!ImGui::GetIO().WantTextInput)
@@ -318,6 +321,23 @@ HRESULT MapEditorApp::Render()
         landscape->Late_Update(0.f);
     }
 
+    for (auto& obj : _scene._waters)
+    {
+        if (!obj->_waterRenderHandle)
+        {
+            continue;
+        }
+
+        auto tf = obj->_waterRenderHandle->Get_Transform();
+        tf->Set_Position(obj->_position);
+        tf->Set_Scale(obj->_scale);
+
+        obj->_waterRenderHandle->Set_CameraInfo(_camera->GetFar(),
+            Vec4(_camera->GetPosition().x, _camera->GetPosition().y, _camera->GetPosition().z, 1.f));
+        obj->_waterRenderHandle->Update(_timeDelta);
+        obj->_waterRenderHandle->Late_Update(_timeDelta);
+    }
+
     GAME->Bind_BackBuffer();
     CHECK_FAILED(GAME->Clear_Buffers(Vec4(0.1f, 0.1f, 0.1f, 1.f)), E_FAIL);
     CHECK_FAILED(GAME->Draw_RendererOnly(), E_FAIL);
@@ -449,7 +469,12 @@ void MapEditorApp::Update_WaterHandles()
 
         obj->_waterRenderHandleLoaded = true;
 
-        auto actor = MEWaterActor::Create(_device, _context, obj->_waterDesc);
+        VIBuffer_Plane::DESC planeDesc;
+        planeDesc.countX = obj->_waterDesc.countX;
+        planeDesc.countZ = obj->_waterDesc.countZ;
+        planeDesc.sizeX = obj->_waterDesc.sizeX;
+        planeDesc.sizeZ = obj->_waterDesc.sizeZ;
+        auto actor = MEWaterActor::Create(_device, _context, planeDesc);
         if (!actor)
         {
             continue;

@@ -238,6 +238,9 @@
     <Filter Include="02.GameObject\Map\MapLandscape">
       <UniqueIdentifier>{34ac92ad-0d2f-498a-bb00-886921a6ae55}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\Map\MapWater">
+      <UniqueIdentifier>{f90cf0f5-dec1-44b9-9e4b-247fbeb6a65c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CameraDirector.cpp" />
@@ -422,6 +425,9 @@
     <ClCompile Include="..\Private\UI_MarkEffect.cpp" />
     <ClCompile Include="..\private\Mon_WeakPoint.cpp" />
     <ClCompile Include="..\Private\ANS_CounterTimeScale.cpp" />
+    <ClCompile Include="..\Private\MapWater.cpp">
+      <Filter>02.GameObject\Map\MapWater</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1219,6 +1225,9 @@
     <ClInclude Include="..\Public\UI_MarkEffect.h" />
     <ClInclude Include="..\public\Mon_WeakPoint.h" />
     <ClInclude Include="..\Public\ANS_CounterTimeScale.h" />
+    <ClInclude Include="..\Public\MapWater.h">
+      <Filter>02.GameObject\Map\MapWater</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

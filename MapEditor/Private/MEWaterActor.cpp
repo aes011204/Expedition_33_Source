@@ -1,12 +1,13 @@
 ﻿#include "MEWaterActor.h"
 #include "GameInstance.h"
+#include "Renderer_Define.h"
 
 MEWaterActor::MEWaterActor(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : GameObject(device, context)
 {
 }
 
-HRESULT MEWaterActor::Initialize(const VIBuffer_Landscape::LAND_DESC& desc)
+HRESULT MEWaterActor::Initialize(const VIBuffer_Plane::DESC& desc)
 {
     if (FAILED(__super::Initialize(nullptr)))
     {
@@ -18,7 +19,7 @@ HRESULT MEWaterActor::Initialize(const VIBuffer_Landscape::LAND_DESC& desc)
         return E_FAIL;
     }
 
-    _vibuffer = VIBuffer_Landscape::Create(_device, _context, desc);
+    _vibuffer = VIBuffer_Plane::Create(_device, _context, desc);
     if (!_vibuffer)
     {
         return E_FAIL;
@@ -59,8 +60,7 @@ HRESULT MEWaterActor::Render()
         return E_FAIL;
     }
 
-    Vec3 localCamPos = Vec3(_cameraPos.x, _cameraPos.y, _cameraPos.z) - _transformCom->Get_Position();
-    return _vibuffer->Render_LOD(localCamPos, _lodDist);
+    return _vibuffer->Render();
 }
 
 HRESULT MEWaterActor::Bind_ShaderResources()
@@ -110,9 +110,9 @@ HRESULT MEWaterActor::Bind_ShaderResources()
         _shader->Bind_SRV("g_SeafoamTexture", _seafoamSRV.Get());
     }
 
-    if (_depthSRV)
+    if (FAILED(GAME->Bind_RT_ShaderResource(_shader, "g_DepthTexture", RT::Depth)))
     {
-        _shader->Bind_SRV("g_DepthTexture", _depthSRV.Get());
+        return E_FAIL;
     }
 
     if (_cubemapSRV)
@@ -123,7 +123,7 @@ HRESULT MEWaterActor::Bind_ShaderResources()
     return S_OK;
 }
 
-Shared<MEWaterActor> MEWaterActor::Create(ComPtr<Device> device, ComPtr<Context> context, const VIBuffer_Landscape::LAND_DESC& desc)
+Shared<MEWaterActor> MEWaterActor::Create(ComPtr<Device> device, ComPtr<Context> context, const VIBuffer_Plane::DESC& desc)
 {
     auto instance = make_shared<MEWaterActor>(device, context);
     if (FAILED(instance->Initialize(desc)))
