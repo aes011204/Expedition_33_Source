@@ -1878,6 +1878,9 @@ HRESULT BattleController::Ready_BattleTurnCamera()
     if (_battleTurnCamera)
         return S_OK;
 
+    if(GAME->Get_CameraByType(ObjectType::BattleTurnCamera))
+        return S_OK;
+
     BattleTurnCamera::BATTLE_TURN_CAMERA_DESC desc{};
     desc.eye = XMFLOAT4(0.f, 8.f, -15.f, 1.f);
     desc.at = XMFLOAT4(0.f, 1.2f, 0.f, 1.f);
@@ -1906,6 +1909,11 @@ HRESULT BattleController::Ready_BattleTurnCamera()
 
 void BattleController::Activate_BattleTurnCamera()
 {
+    auto camera = GAME->Get_CameraByType(ObjectType::BattleTurnCamera);
+
+    if(camera)
+        _battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(camera);
+
     if (_battleTurnCamera == nullptr)
         return;
 
