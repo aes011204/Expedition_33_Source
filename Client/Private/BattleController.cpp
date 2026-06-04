@@ -201,6 +201,9 @@ void BattleController::Update(float timeDelta)
         _turnAction.Get_CurChar().actor != nullptr &&
         _battleActionExe->IsFinished())
     {
+        if (_reactionController.IsBusy())
+            return;
+
         _isActionExecuting = false;
         EndTurn();
         return;
