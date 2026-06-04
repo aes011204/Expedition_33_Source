@@ -12,6 +12,7 @@
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "ModelCom.h"
+#include "Monster_WorldBase.h"
 #include "PartObject.h"
 #include "RenderTarget.h"
 #include "Spawn_Prefab.h"
@@ -38,8 +39,43 @@ constexpr float kSlotComboWidth = 112.f;
 constexpr float kFormationVec3InputWidth = 190.f;
 constexpr float kPresetInputWidth = 150.f;
 constexpr wchar_t kBattleCameraPresetFolder[] = L"../../../Client/Bin/Resources/Data/json/CameraPreset";
-constexpr int kBattleClipDebugFallbackTrackIndex = 5;
-constexpr int kBattleClipTimelineTrackCount = 16;
+constexpr int kBattleClipDebugFallbackTrackIndex = 7;
+constexpr int kBattleClipTimelineTrackCount = 19;
+const std::array<Vec3, 3> kDefaultHeroSlotOffsets =
+{
+    Vec3(-2.5f, 0.f, 0.f),
+    Vec3(0.f, 0.1f, 0.f),
+    Vec3(2.5f, 0.1f, 0.f),
+};
+const std::array<Vec3, 3> kDefaultEnemySlotOffsets =
+{
+    Vec3(-5.85f, 0.f, 6.f),
+    Vec3(0.f, 0.f, 6.f),
+    Vec3(5.85f, 0.f, 6.f),
+};
+const Vec3 kDefaultEnemySlotRotation = Vec3(0.f, 180.f, 0.f);
+
+int Resolve_EnemyPreviewSlotIndex(size_t spawnCount, size_t sortedIndex)
+{
+    if (spawnCount <= 1)
+        return 1;
+
+    if (spawnCount == 2)
+        return sortedIndex == 0 ? 0 : 2;
+
+    return static_cast<int>(std::min<size_t>(sortedIndex, 2));
+}
+
+string Resolve_WorldMonsterPrefabName(const string& battlePrefabName)
+{
+    if (battlePrefabName.empty())
+        return {};
+
+    if (battlePrefabName.starts_with("MB_"))
+        return "MW_" + battlePrefabName.substr(3);
+
+    return battlePrefabName;
+}
 
 enum class BattleAuthoringFileKind : uint8
 {
@@ -89,17 +125,20 @@ const BattleCameraTrack* Get_BattleClipTrackByIndex(const BattleCameraClip& clip
     case 2: return &clip.shakeAmplitude;
     case 3: return &clip.sideOffset;
     case 4: return &clip.pivotOffset;
-    case 5: return &clip.yawOffset;
-    case 6: return &clip.orbitYaw;
-    case 7: return &clip.orbitRadius;
-    case 8: return &clip.orbitHeight;
-    case 9: return &clip.orbitLookHeight;
-    case 10: return &clip.shakeFrequencyX;
-    case 11: return &clip.shakeFrequencyY;
-    case 12: return &clip.shakeDecayRateX;
-    case 13: return &clip.shakeDecayRate;
-    case 14: return &clip.shakeVerticalRatio;
-    case 15: return &clip.shakeStrengthScale;
+    case 5: return &clip.heightOffset;
+    case 6: return &clip.aimOffset;
+    case 7: return &clip.lookHeightOffset;
+    case 8: return &clip.yawOffset;
+    case 9: return &clip.orbitYaw;
+    case 10: return &clip.orbitRadius;
+    case 11: return &clip.orbitHeight;
+    case 12: return &clip.orbitLookHeight;
+    case 13: return &clip.shakeFrequencyX;
+    case 14: return &clip.shakeFrequencyY;
+    case 15: return &clip.shakeDecayRateX;
+    case 16: return &clip.shakeDecayRate;
+    case 17: return &clip.shakeVerticalRatio;
+    case 18: return &clip.shakeStrengthScale;
     default:
         return nullptr;
     }
@@ -114,17 +153,20 @@ BattleCameraTrack* Get_BattleClipTrackByIndex(BattleCameraClip& clip, int trackI
     case 2: return &clip.shakeAmplitude;
     case 3: return &clip.sideOffset;
     case 4: return &clip.pivotOffset;
-    case 5: return &clip.yawOffset;
-    case 6: return &clip.orbitYaw;
-    case 7: return &clip.orbitRadius;
-    case 8: return &clip.orbitHeight;
-    case 9: return &clip.orbitLookHeight;
-    case 10: return &clip.shakeFrequencyX;
-    case 11: return &clip.shakeFrequencyY;
-    case 12: return &clip.shakeDecayRateX;
-    case 13: return &clip.shakeDecayRate;
-    case 14: return &clip.shakeVerticalRatio;
-    case 15: return &clip.shakeStrengthScale;
+    case 5: return &clip.heightOffset;
+    case 6: return &clip.aimOffset;
+    case 7: return &clip.lookHeightOffset;
+    case 8: return &clip.yawOffset;
+    case 9: return &clip.orbitYaw;
+    case 10: return &clip.orbitRadius;
+    case 11: return &clip.orbitHeight;
+    case 12: return &clip.orbitLookHeight;
+    case 13: return &clip.shakeFrequencyX;
+    case 14: return &clip.shakeFrequencyY;
+    case 15: return &clip.shakeDecayRateX;
+    case 16: return &clip.shakeDecayRate;
+    case 17: return &clip.shakeVerticalRatio;
+    case 18: return &clip.shakeStrengthScale;
     default:
         return nullptr;
     }
@@ -139,17 +181,20 @@ const char* Get_BattleClipTrackLabel(int trackIndex)
     case 2: return "Shake Amplitude";
     case 3: return "Side Offset";
     case 4: return "Pivot Offset";
-    case 5: return "Yaw Offset";
-    case 6: return "Orbit Yaw";
-    case 7: return "Orbit Radius";
-    case 8: return "Orbit Height";
-    case 9: return "Orbit Look Height";
-    case 10: return "Shake Frequency X";
-    case 11: return "Shake Frequency Y";
-    case 12: return "Shake Decay Rate X";
-    case 13: return "Shake Decay Rate Y";
-    case 14: return "Shake Vertical Ratio";
-    case 15: return "Shake Strength Scale";
+    case 5: return "Height Offset";
+    case 6: return "Aim Offset";
+    case 7: return "Look Height Offset";
+    case 8: return "Yaw Offset";
+    case 9: return "Orbit Yaw";
+    case 10: return "Orbit Radius";
+    case 11: return "Orbit Height";
+    case 12: return "Orbit Look Height";
+    case 13: return "Shake Frequency X";
+    case 14: return "Shake Frequency Y";
+    case 15: return "Shake Decay Rate X";
+    case 16: return "Shake Decay Rate Y";
+    case 17: return "Shake Vertical Ratio";
+    case 18: return "Shake Strength Scale";
     default:
         return "Unknown";
     }
@@ -668,20 +713,63 @@ void BattleCameraPreview_View::Reset_DefaultFormation()
 {
     _previewFormation.name = "Default Battle Layout";
     _previewFormation.origin = Vec3(22.f, 2.5f, -10.24f);
+    Apply_DefaultHeroFormation();
+    Apply_DefaultEnemyFormation();
+}
 
-    _previewFormation.heroes =
+void BattleCameraPreview_View::Apply_DefaultHeroFormation()
+{
+    for (int i = 0; i < static_cast<int>(_previewFormation.heroes.size()); ++i)
     {
-        PreviewSlot{ "Hero 0", Vec3(-3.f, 0.f, 0.f), Vec3::Zero },
-        PreviewSlot{ "Hero 1", Vec3(0.f, 0.f, 0.f), Vec3::Zero },
-        PreviewSlot{ "Hero 2", Vec3(3.f, 0.f, 0.f), Vec3::Zero },
-    };
+        _previewFormation.heroes[i] =
+        {
+            "Hero " + std::to_string(i),
+            kDefaultHeroSlotOffsets[i],
+            Vec3::Zero,
+        };
+    }
+}
 
-    _previewFormation.enemies =
+void BattleCameraPreview_View::Apply_DefaultEnemyFormation()
+{
+    for (int i = 0; i < static_cast<int>(_previewFormation.enemies.size()); ++i)
     {
-        PreviewSlot{ "Enemy 0", Vec3(-3.f, 0.f, 10.f), Vec3(0.f, 180.f, 0.f) },
-        PreviewSlot{ "Enemy 1", Vec3(0.f, 0.f, 10.f), Vec3(0.f, 180.f, 0.f) },
-        PreviewSlot{ "Enemy 2", Vec3(3.f, 0.f, 10.f), Vec3(0.f, 180.f, 0.f) },
-    };
+        _previewFormation.enemies[i] =
+        {
+            "Enemy " + std::to_string(i),
+            kDefaultEnemySlotOffsets[i],
+            kDefaultEnemySlotRotation,
+        };
+    }
+
+    vector<Client::BattleMonsterSpawnDesc> spawnDescs = Resolve_SelectedEnemySpawnDescs();
+    if (spawnDescs.empty())
+        return;
+
+    std::sort(
+        spawnDescs.begin(),
+        spawnDescs.end(),
+        [](const Client::BattleMonsterSpawnDesc& a, const Client::BattleMonsterSpawnDesc& b)
+        {
+            if (a.offset.x != b.offset.x)
+                return a.offset.x < b.offset.x;
+
+            return a.offset.z < b.offset.z;
+        });
+
+    const size_t appliedCount = std::min(spawnDescs.size(), _previewFormation.enemies.size());
+    for (size_t i = 0; i < appliedCount; ++i)
+    {
+        const int slotIndex = Resolve_EnemyPreviewSlotIndex(appliedCount, i);
+        PreviewSlot& slot = _previewFormation.enemies[slotIndex];
+        const Client::BattleMonsterSpawnDesc& spawnDesc = spawnDescs[i];
+
+        slot.label = spawnDesc.prefabName.empty()
+            ? "Enemy " + std::to_string(slotIndex)
+            : spawnDesc.prefabName;
+        slot.offset = Vec3(spawnDesc.offset.x, spawnDesc.offset.y, 6.f + spawnDesc.offset.z);
+        slot.rotation = kDefaultEnemySlotRotation + spawnDesc.rotation;
+    }
 }
 
 void BattleCameraPreview_View::Rebuild_PreviewObjects()
@@ -919,8 +1007,10 @@ void BattleCameraPreview_View::Render_PreviewActorSelector()
             if (ImGui::Selectable(_enemyPrefabNames[i].c_str(), isSelected))
             {
                 _selectedEnemyPrefabIndex = i;
+                Apply_DefaultEnemyFormation();
                 _previewObjectsDirty = true;
                 _animationListDirty = true;
+                _previewDirty = true;
             }
 
             if (isSelected)
@@ -1428,6 +1518,7 @@ void BattleCameraPreview_View::Render_BattlePresetEditor()
     ImGui::SetNextItemWidth(kPresetInputWidth);
     if (Select_EnumCombo("Transition Easing", _editingBattlePreset.transitionEasing, kPresetInputWidth))
         changed = true;
+    dragFloat("Transition Duration", _editingBattlePreset.transitionDuration, 0.01f, 0.01f, 5.f);
     dragFloat("Near Plane", _editingBattlePreset.camera.nearPlane, 0.001f, 0.001f, 10.f);
     dragFloat("Far Plane", _editingBattlePreset.camera.farPlane, 1.f, 10.f, 5000.f, "%.1f");
     if (ImGui::Checkbox("Snap On Enter", &_editingBattlePreset.snapOnEnter))
@@ -2024,6 +2115,9 @@ void BattleCameraPreview_View::Render_BattleClipSequencer()
         &_previewShakeEnabled,
         &_previewSideOffsetEnabled,
         &_previewPivotOffsetEnabled,
+        &_previewHeightOffsetEnabled,
+        &_previewAimOffsetEnabled,
+        &_previewLookHeightOffsetEnabled,
         &_previewYawOffsetEnabled,
         &_previewOrbitYawEnabled,
         &_previewOrbitRadiusEnabled,
@@ -2102,6 +2196,26 @@ void BattleCameraPreview_View::Render_SelectedBattleClipKeyframe()
     ImGui::SetNextItemWidth(140.f);
     if (ImGui::DragFloat("Key Value", &keyframe->value, 0.01f))
         _previewDirty = true;
+
+    ImGui::SetNextItemWidth(160.f);
+    const char* interpolationLabel = magic_enum::enum_name(keyframe->interpolation).data();
+    if (ImGui::BeginCombo("Interpolation", interpolationLabel))
+    {
+        for (InterpolationMode mode : magic_enum::enum_values<InterpolationMode>())
+        {
+            const bool isSelected = keyframe->interpolation == mode;
+            if (ImGui::Selectable(magic_enum::enum_name(mode).data(), isSelected))
+            {
+                keyframe->interpolation = mode;
+                _previewDirty = true;
+            }
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
 }
 
 void BattleCameraPreview_View::Render_BattleClipDebugPanel()
@@ -2377,6 +2491,12 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
         previewClipSample.sideOffset = 0.f;
     if (!_previewPivotOffsetEnabled)
         previewClipSample.pivotOffset = 0.f;
+    if (!_previewHeightOffsetEnabled)
+        previewClipSample.heightOffset = 0.f;
+    if (!_previewAimOffsetEnabled)
+        previewClipSample.aimOffset = 0.f;
+    if (!_previewLookHeightOffsetEnabled)
+        previewClipSample.lookHeightOffset = 0.f;
     if (!_previewOrbitYawEnabled)
         previewClipSample.orbitYaw = 0.f;
     if (!_previewOrbitRadiusEnabled)
@@ -2467,7 +2587,14 @@ void BattleCameraPreview_View::Apply_BattleCameraPreviewPose(float previewTimeSe
         heroCenter /= static_cast<float>(heroCount);
 
         Client::BattleTurnCameraEvaluatedPose pose{};
-        if (Client::Evaluate_BattleTurnWidePose(heroCenter, yawBaseSlot->rotation.y, preset.camera.fovy, pose))
+        if (Client::Evaluate_BattleTurnWidePose(
+            heroCenter,
+            yawBaseSlot->rotation.y,
+            preset.camera.fovy,
+            0.f,
+            0.f,
+            0.f,
+            pose))
         {
             desiredPos = pose.cameraPos;
             lookTarget = pose.lookTarget;
@@ -3466,36 +3593,45 @@ void BattleCameraPreview_View::Insert_BattleClipKeyAtFrame(int trackIndex, int f
         track = &_editingBattleClip.pivotOffset;
         break;
     case 5:
-        track = &_editingBattleClip.yawOffset;
+        track = &_editingBattleClip.heightOffset;
         break;
     case 6:
-        track = &_editingBattleClip.orbitYaw;
+        track = &_editingBattleClip.aimOffset;
         break;
     case 7:
-        track = &_editingBattleClip.orbitRadius;
+        track = &_editingBattleClip.lookHeightOffset;
         break;
     case 8:
-        track = &_editingBattleClip.orbitHeight;
+        track = &_editingBattleClip.yawOffset;
         break;
     case 9:
-        track = &_editingBattleClip.orbitLookHeight;
+        track = &_editingBattleClip.orbitYaw;
         break;
     case 10:
-        track = &_editingBattleClip.shakeFrequencyX;
+        track = &_editingBattleClip.orbitRadius;
         break;
     case 11:
-        track = &_editingBattleClip.shakeFrequencyY;
+        track = &_editingBattleClip.orbitHeight;
         break;
     case 12:
-        track = &_editingBattleClip.shakeDecayRateX;
+        track = &_editingBattleClip.orbitLookHeight;
         break;
     case 13:
-        track = &_editingBattleClip.shakeDecayRate;
+        track = &_editingBattleClip.shakeFrequencyX;
         break;
     case 14:
-        track = &_editingBattleClip.shakeVerticalRatio;
+        track = &_editingBattleClip.shakeFrequencyY;
         break;
     case 15:
+        track = &_editingBattleClip.shakeDecayRateX;
+        break;
+    case 16:
+        track = &_editingBattleClip.shakeDecayRate;
+        break;
+    case 17:
+        track = &_editingBattleClip.shakeVerticalRatio;
+        break;
+    case 18:
         track = &_editingBattleClip.shakeStrengthScale;
         break;
     default:
@@ -3615,6 +3751,7 @@ void BattleCameraPreview_View::Apply_DefaultPreviewSlotsForMode(BattleCameraMode
 
     case BattleCameraMode::PLAYERFOCUS:
     case BattleCameraMode::PLAYERATTACK:
+    case BattleCameraMode::PARRY:
         _previewContext.subjectSide = PreviewSlotSide::Hero;
         _previewContext.subjectSlot = 1;
         _previewContext.opponentSide = PreviewSlotSide::Enemy;
@@ -3782,7 +3919,14 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
         if (yawBaseSlot == nullptr)
             return false;
 
-        return Client::Evaluate_BattleTurnWidePose(heroCenter, yawBaseSlot->rotation.y, preset.camera.fovy, outPose);
+        return Client::Evaluate_BattleTurnWidePose(
+            heroCenter,
+            yawBaseSlot->rotation.y,
+            preset.camera.fovy,
+            0.f,
+            0.f,
+            0.f,
+            outPose);
     }
 
     BattleCameraClipSample clipSample{};
@@ -3814,6 +3958,12 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
             clipSample.sideOffset = 0.f;
         if (!_previewPivotOffsetEnabled)
             clipSample.pivotOffset = 0.f;
+        if (!_previewHeightOffsetEnabled)
+            clipSample.heightOffset = 0.f;
+        if (!_previewAimOffsetEnabled)
+            clipSample.aimOffset = 0.f;
+        if (!_previewLookHeightOffsetEnabled)
+            clipSample.lookHeightOffset = 0.f;
         if (!_previewOrbitYawEnabled)
             clipSample.orbitYaw = 0.f;
         if (!_previewOrbitRadiusEnabled)
@@ -3842,6 +3992,7 @@ bool BattleCameraPreview_View::Evaluate_PreviewModePose(BattleCameraMode mode, f
 
     case BattleCameraMode::PLAYERFOCUS:
     case BattleCameraMode::PLAYERATTACK:
+    case BattleCameraMode::PARRY:
     default:
         break;
     }
@@ -3905,10 +4056,6 @@ void BattleCameraPreview_View::Rebuild_TransitionPreviewStepAtTime(int stepIndex
         {
             Apply_TransitionStepContext(previousStep);
             fromPose = Capture_PreviewCurrentPose();
-        }
-        else
-        {
-            fromPose = toPose;
         }
         Apply_TransitionStepContext(step);
     }
@@ -4271,6 +4418,26 @@ string BattleCameraPreview_View::Get_SelectedEnemyPrefabName() const
     return _enemyPrefabNames[_selectedEnemyPrefabIndex];
 }
 
+vector<Client::BattleMonsterSpawnDesc> BattleCameraPreview_View::Resolve_SelectedEnemySpawnDescs() const
+{
+    const string enemyBattlePrefabName = Get_SelectedEnemyPrefabName();
+    if (enemyBattlePrefabName.empty())
+        return {};
+
+    const string enemyWorldPrefabName = Resolve_WorldMonsterPrefabName(enemyBattlePrefabName);
+    if (enemyWorldPrefabName.empty())
+        return {};
+
+    const fs::path prefabPath = Client::Spawn_Prefab::Resolve_PrefabPath(enemyWorldPrefabName);
+    Shared<GameObject> worldMonsterObject = GAME->Instantiate_GameObjectJson(prefabPath);
+    Shared<Client::Monster_WorldBase> worldMonster =
+        std::dynamic_pointer_cast<Client::Monster_WorldBase>(worldMonsterObject);
+    if (worldMonster == nullptr)
+        return {};
+
+    return worldMonster->Get_BattleMonsterSpawnDescs();
+}
+
 BattleCameraMode BattleCameraPreview_View::Get_CurrentBattleAuthoringMode() const
 {
     if (_activeTimelineEditorTab != TimelineEditorTab::TransitionPreview)
@@ -4326,26 +4493,32 @@ BattleCameraTrack* BattleCameraPreview_View::Get_SelectedBattleClipTrack()
     case 4:
         return &_editingBattleClip.pivotOffset;
     case 5:
-        return &_editingBattleClip.yawOffset;
+        return &_editingBattleClip.heightOffset;
     case 6:
-        return &_editingBattleClip.orbitYaw;
+        return &_editingBattleClip.aimOffset;
     case 7:
-        return &_editingBattleClip.orbitRadius;
+        return &_editingBattleClip.lookHeightOffset;
     case 8:
-        return &_editingBattleClip.orbitHeight;
+        return &_editingBattleClip.yawOffset;
     case 9:
-        return &_editingBattleClip.orbitLookHeight;
+        return &_editingBattleClip.orbitYaw;
     case 10:
-        return &_editingBattleClip.shakeFrequencyX;
+        return &_editingBattleClip.orbitRadius;
     case 11:
-        return &_editingBattleClip.shakeFrequencyY;
+        return &_editingBattleClip.orbitHeight;
     case 12:
-        return &_editingBattleClip.shakeDecayRateX;
+        return &_editingBattleClip.orbitLookHeight;
     case 13:
-        return &_editingBattleClip.shakeDecayRate;
+        return &_editingBattleClip.shakeFrequencyX;
     case 14:
-        return &_editingBattleClip.shakeVerticalRatio;
+        return &_editingBattleClip.shakeFrequencyY;
     case 15:
+        return &_editingBattleClip.shakeDecayRateX;
+    case 16:
+        return &_editingBattleClip.shakeDecayRate;
+    case 17:
+        return &_editingBattleClip.shakeVerticalRatio;
+    case 18:
         return &_editingBattleClip.shakeStrengthScale;
     default:
         return nullptr;
@@ -4380,12 +4553,12 @@ float BattleCameraPreview_View::Get_DefaultBattleClipValue(int trackIndex)
 {
     switch (trackIndex)
     {
-        case 10: return 32.f;   // shakeFrequencyX
-        case 11: return 47.f;   // shakeFrequencyY
-        case 12: return 0.f;    // shakeDecayRateX
-        case 13: return 8.f;    // shakeDecayRate
-        case 14: return 0.8f;   // shakeVerticalRatio
-        case 15: return 0.05f;  // shakeStrengthScale
+        case 13: return 32.f;   // shakeFrequencyX
+        case 14: return 47.f;   // shakeFrequencyY
+        case 15: return 0.f;    // shakeDecayRateX
+        case 16: return 8.f;    // shakeDecayRate
+        case 17: return 0.8f;   // shakeVerticalRatio
+        case 18: return 0.05f;  // shakeStrengthScale
         default: return 0.f;
     }
 }

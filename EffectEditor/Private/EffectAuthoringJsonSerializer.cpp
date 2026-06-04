@@ -42,6 +42,21 @@ namespace Internal
         outValue = iter->get<T>();
     }
 
+    EmitterSortPolicy Resolve_SortPolicyFromLegacyMode(EmitterSortMode sortMode)
+    {
+        switch (sortMode)
+        {
+        case EmitterSortMode::ViewProjDepth:
+        case EmitterSortMode::DistanceToView:
+            return EmitterSortPolicy::EmitterDepth;
+        case EmitterSortMode::None:
+        case EmitterSortMode::AgeOldestFirst:
+        case EmitterSortMode::AgeNewestFirst:
+        default:
+            return EmitterSortPolicy::None;
+        }
+    }
+
     void Read_BoolField(const json& node, const char* key, bool& outValue)
     {
         const auto iter = node.find(key);
@@ -1306,7 +1321,8 @@ namespace Internal
         root["minCameraBlendDistance"] = data.minCameraBlendDistance;
         root["maxCameraBlendDistance"] = data.maxCameraBlendDistance;
         root["useLocalSpace"] = data.useLocalSpace;
-        root["sortMode"] = To_EnumToken(data.sortMode);
+        root["sortPolicy"] = To_EnumToken(data.sortPolicy);
+        root["sortLayer"] = data.sortLayer;
         root["sortBias"] = data.sortBias;
         root["cameraMotionBlurAmount"] = data.cameraMotionBlurAmount;
         root["clearExistingParticlesOnInit"] = data.clearExistingParticlesOnInit;
@@ -1351,14 +1367,21 @@ namespace Internal
         const auto spriteTextureAxisIter = root.find("spriteTextureAxis");
         if (spriteTextureAxisIter != root.end())
             Try_ReadEnumToken(*spriteTextureAxisIter, outData.spriteTextureAxis);
-        const auto sortModeIter = root.find("sortMode");
-        if (sortModeIter != root.end())
-            Try_ReadEnumToken(*sortModeIter, outData.sortMode);
+        const auto sortPolicyIter = root.find("sortPolicy");
+        if (sortPolicyIter != root.end())
+            Try_ReadEnumToken(*sortPolicyIter, outData.sortPolicy);
+        else
+        {
+            const auto sortModeIter = root.find("sortMode");
+            if (sortModeIter != root.end() && Try_ReadEnumToken(*sortModeIter, outData.sortMode))
+                outData.sortPolicy = Resolve_SortPolicyFromLegacyMode(outData.sortMode);
+        }
 
         Read_NumberField(root, "spriteRollOffsetDegrees", outData.spriteRollOffsetDegrees);
         Read_NumberField(root, "minCameraBlendDistance", outData.minCameraBlendDistance);
         Read_NumberField(root, "maxCameraBlendDistance", outData.maxCameraBlendDistance);
         Read_BoolField(root, "useLocalSpace", outData.useLocalSpace);
+        Read_NumberField(root, "sortLayer", outData.sortLayer);
         Read_NumberField(root, "sortBias", outData.sortBias);
         Read_NumberField(root, "cameraMotionBlurAmount", outData.cameraMotionBlurAmount);
         Read_BoolField(root, "clearExistingParticlesOnInit", outData.clearExistingParticlesOnInit);

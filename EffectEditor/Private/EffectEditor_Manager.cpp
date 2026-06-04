@@ -161,11 +161,19 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
     const bool playing = EDITOR->IsPlaying();
     const bool paused = EDITOR->IsPaused();
     bool hasPreviewDirtyEmitter = false;
+    string currentDocumentFileName{};
     if (const Shared<Editor_Window> emitterWindow = Find_Window(L"Emitter"))
     {
         const Shared<Emitter_View> emitterView = dynamic_pointer_cast<Emitter_View>(emitterWindow);
         if (emitterView != nullptr)
+        {
             hasPreviewDirtyEmitter = emitterView->Has_PreviewDirtyEmitter();
+            if (const optional<fs::path>& currentDocumentPath = emitterView->Get_CurrentDocumentPath();
+                currentDocumentPath.has_value())
+            {
+                currentDocumentFileName = String::ToString(currentDocumentPath->filename().wstring());
+            }
+        }
     }
 
     constexpr float toolbarHeight = 34.f;
@@ -202,6 +210,14 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
     ImGui::SameLine(0.f, 12.f);
     ImGui::TextDisabled("|");
     ImGui::SameLine(0.f, 12.f);
+
+    if (!currentDocumentFileName.empty())
+    {
+        ImGui::Text("Editing: %s", currentDocumentFileName.c_str());
+        ImGui::SameLine(0.f, 12.f);
+        ImGui::TextDisabled("|");
+        ImGui::SameLine(0.f, 12.f);
+    }
 
     if (hasPreviewDirtyEmitter)
     {

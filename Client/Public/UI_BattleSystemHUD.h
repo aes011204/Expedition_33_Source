@@ -51,12 +51,17 @@ public:
     void    Set_MaelleMechanismStance(const Shared<BattleMechanismCom>& mechanismCom);
     void    Clear_MaelleMechanismStance();
 
+    void    Play_PortraitActivation(HeroId heroId);
+    void    Play_PortraitDamaged(HeroId heroId);
+    void    Play_PortraitDeactivation(HeroId heroId);
+
 private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
 
     static uint32 Get_SlotIndex(PlayerCharacterType playerType);
     static void Set_TextPair(const Shared<UI_Text>& front, const Shared<UI_Text>& back, const wstring& text);
+
 
 private:
     void    Apply_HpGauge(PartyBattleStatSlot& slot, float ratio);
@@ -71,6 +76,8 @@ private:
     void    Apply_MaelleStanceBadge(BattleMechanismCom::MaelleStance stance);
     void    Close_AllMaelleStanceBadges();
 
+    void    Play_TargetAnimation(const wchar_t* animationName); // Target_Animation은 이름으로 전 UI에 브로드캐스트 재생
+    void    Stop_TargetAnimations();  
 
 private:
     PartyBattleStatSlot _partySlots[3]{};
@@ -83,7 +90,7 @@ private: /* 구스타브 */
     Shared<UI_Text> _gustaveMaxChargeTextBg{};
 
 private: /* 루네 */
-    array<array<Shared<UI_Base>, 4>, BattleMechanismCom::kLuneMaxStains> _luneStainImages{};
+    array<array<Shared<UI_Base>, 5>, BattleMechanismCom::kLuneMaxStains> _luneStainImages{};
 
 private: /* 마엘 */
     Shared<UI_Base> _maelleCurrentStanceRoot{};

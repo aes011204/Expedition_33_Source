@@ -48,6 +48,7 @@ bool SkillTargeting::EnterInvoke()
     EvtBattlePresentation event;
     event.cameraMode = BattleCameraMode::ENEMYFOCUS;
     event.subject = enemies[_targetIndex].actor;
+    event.presetId = enemies[_targetIndex].actor->Get_SourcePrefabName();
     GAME->Get_EventBus().Publish(event);
 
     return Battle_State::EnterInvoke();
@@ -97,6 +98,7 @@ void SkillTargeting::Update(float timeDelta)
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::ENEMYFOCUS;
         event.subject = enemies[_targetIndex].actor;
+        event.presetId = enemies[_targetIndex].actor->Get_SourcePrefabName();
         GAME->Get_EventBus().Publish(event);
         return;
     }
@@ -111,6 +113,7 @@ void SkillTargeting::Update(float timeDelta)
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::ENEMYFOCUS;
         event.subject = enemies[_targetIndex].actor;
+        event.presetId = enemies[_targetIndex].actor->Get_SourcePrefabName();
         GAME->Get_EventBus().Publish(event);
 
         return;

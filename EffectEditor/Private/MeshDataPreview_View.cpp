@@ -197,6 +197,15 @@ namespace Internal
         return !materialPath.empty() && EffectMaterialPresetReader::Read(materialPath, outMaterial);
     }
 
+    void Apply_RequiredRenderPolicy(const RequiredModuleData* required, EffectMaterialInstanceData& material)
+    {
+        if (required == nullptr)
+            return;
+
+        material.blendMode = required->material.blendMode;
+        material.alphaCutoff = required->material.alphaCutoff;
+    }
+
     static int Resolve_MaterialSourceIndex(const string& source)
     {
         if (source == "Red" || source == "red")
@@ -377,6 +386,8 @@ struct MeshDataPreview_View::PreviewRenderer
                 );
             effectMaterial = previewMaterial.material;
         }
+
+        Internal::Apply_RequiredRenderPolicy(Find_RequiredModuleData(emitter), effectMaterial);
 
         if (!Ready_RenderTarget() || !Ready_Shader(effectMaterial) || !Ready_Model(modelPath))
             return;
@@ -1098,7 +1109,7 @@ void MeshDataPreview_View::Render_Inspector(Emitter_View& emitterView, Authoring
     changed |= Render_ModelAssetSection(meshData);
     changed |= Render_MaterialAssetSection(meshData);
     changed |= Render_TransformSection(meshData);
-    changed |= Render_MaterialInstanceSection(meshData, nullptr);
+    changed |= Render_MaterialInstanceSection(emitter, meshData, nullptr);
 
     if (ImGui::CollapsingHeader("Validation", ImGuiTreeNodeFlags_DefaultOpen))
         Render_ValidationSummary(meshData);
@@ -1229,7 +1240,7 @@ bool MeshDataPreview_View::Render_TransformSection(MeshTypeData& meshData)
     return changed;
 }
 
-bool MeshDataPreview_View::Render_MaterialInstanceSection(MeshTypeData& meshData, bool* outRestartPreview)
+bool MeshDataPreview_View::Render_MaterialInstanceSection(const AuthoringEmitter& emitter, MeshTypeData& meshData, bool* outRestartPreview)
 {
     if (!meshData.hasAssignedMaterialInstance)
     {
@@ -1237,13 +1248,21 @@ bool MeshDataPreview_View::Render_MaterialInstanceSection(MeshTypeData& meshData
         return false;
     }
 
+    const RequiredModuleData* required = Find_RequiredModuleData(emitter);
+    const EffectMaterialRenderPolicyBinding renderPolicyBinding{
+        required != nullptr ? required->material.blendMode : meshData.assignedMaterial.blendMode,
+        required != nullptr ? required->material.alphaCutoff : meshData.assignedMaterial.alphaCutoff,
+        required != nullptr ? "Required" : "Assigned Material"
+    };
+
     return EffectMaterialInstance_View::Draw_InstanceProperties(
         _detailPropertyContext,
         _textureThumbnailCache,
         meshData.assignedMaterial,
         outRestartPreview,
         EffectMaterialTwoSidedDisplayMode::EditableImplemented,
-        true
+        true,
+        &renderPolicyBinding
     );
 }
 

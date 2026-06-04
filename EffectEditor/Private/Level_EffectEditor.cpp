@@ -4,6 +4,7 @@
 #include "ClientInstance.h"
 #include "EffectEditorCamera.h"
 #include "EffectEditorInstance.h"
+#include "EffectEditorPreviewPlane.h"
 #include "EffectEditorSceneGrid.h"
 #include "EffectEditorSkybox.h"
 #include "EffectMaterialPresetReader.h"
@@ -96,6 +97,18 @@ namespace Internal
         case EmitterRenderLayerOverride::Auto:
         default:
             return EffectEmitterRenderLayerOverride::Auto;
+        }
+    }
+
+    EffectSortPolicy Resolve_EffectSortPolicy(EmitterSortPolicy value)
+    {
+        switch (value)
+        {
+        case EmitterSortPolicy::EmitterDepth:
+            return EffectSortPolicy::EmitterDepth;
+        case EmitterSortPolicy::None:
+        default:
+            return EffectSortPolicy::None;
         }
     }
 
@@ -1505,6 +1518,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.required.material.subUVRows = max(1u, material.subUVRows);
         desc.required.material.subUVCols = max(1u, material.subUVCols);
 
+        desc.required.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
+        desc.required.sort.sortLayer = required->sortLayer;
         desc.required.sort.artistSortBias = required->sortBias;
 
         desc.required.spriteRender.screenAlignment = Internal::Resolve_EffectScreenAlignment(required->screenAlignment);
@@ -1852,7 +1867,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         emitterDesc.material.flowTextureGuid = material.flowTextureGuid;
         emitterDesc.material.flowTexturePath = material.flowTexturePath;
 
-        emitterDesc.material.blendMode = material.blendMode;
+        emitterDesc.material.blendMode =
+            material.blendMode == EffectMaterialBlendMode::Masked ? EffectMaterialBlendMode::AlphaBlend : material.blendMode;
         emitterDesc.material.opacitySource = material.opacitySource.empty() ? "Alpha" : material.opacitySource;
         emitterDesc.material.tint = material.tint;
         emitterDesc.material.intensity = material.intensity;
@@ -2060,6 +2076,11 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         emitterDesc.drawLimit.useMaxDrawCount = required->useMaxDrawCount;
         emitterDesc.drawLimit.maxDrawCount = max(1u, required->maxDrawCount);
         emitterDesc.meshTransform.alignment = Internal::Resolve_EffectScreenAlignment(required->screenAlignment);
+        emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
+        emitterDesc.sort.sortLayer = required->sortLayer;
+        emitterDesc.sort.artistSortBias = required->sortBias;
+        emitterDesc.material.blendMode = required->material.blendMode;
+        emitterDesc.material.alphaCutoff = required->material.alphaCutoff;
 
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
@@ -2462,6 +2483,12 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
 {
     if (layerTag.empty())
         return E_FAIL;
+
+    const Shared<EffectEditorPreviewPlane> previewPlane =
+        EffectEditorPreviewPlane::Create(_device, _context);
+    CHECK_NULL(previewPlane, E_FAIL);
+    CHECK_FAILED(previewPlane->Initialize(nullptr), E_FAIL);
+    CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, previewPlane), E_FAIL);
 
     const Shared<TrailPreviewPlayerObject> trailPreviewPlayer =
         TrailPreviewPlayerObject::Create(_device, _context);

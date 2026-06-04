@@ -18,6 +18,8 @@ namespace Internal
             return "AlphaBlend";
         case EffectMaterialBlendMode::Additive:
             return "Additive";
+        case EffectMaterialBlendMode::Masked:
+            return "Masked";
         case EffectMaterialBlendMode::Modulate:
             return "Modulate";
         default:
@@ -354,7 +356,7 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
         ImGui::Text("%.2f / %.2f", material.coreEmissive.outerPower, material.coreEmissive.outerIntensity);
     }
 
-    drawRow("Blend Mode", Internal::Get_BlendModeLabel(material.blendMode));
+    drawRow("Preset Blend Mode", Internal::Get_BlendModeLabel(material.blendMode));
     if (material.blendMode == EffectMaterialBlendMode::Additive)
     {
         drawRow("Additive Color Source", Internal::Get_AdditiveColorSourceLabel(material.additive.colorSource));
@@ -374,7 +376,7 @@ void EffectMaterial_View::Render_MaterialInstanceTable(const char* tableId, cons
     ImGui::TableSetColumnIndex(0);
     ImGui::TextDisabled("SubUV");
     ImGui::TableSetColumnIndex(1);
-    ImGui::Text("%u x %u", material.subUVRows, material.subUVCols);
+    ImGui::Text("%u cols x %u rows", material.subUVCols, material.subUVRows);
 
     ImGui::EndTable();
 }

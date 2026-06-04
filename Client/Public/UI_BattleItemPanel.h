@@ -19,7 +19,6 @@ public:
     HRESULT Initialize(uint32 levelIndex);
     void	Update(float timeDelta) override;
 
-
     void Open() override;
     void Close() override;
 
@@ -32,8 +31,14 @@ public:
 private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
+    void    Open_MainPanelRoot();
+    void    Open_MainPanelUIs();
+    void    Close_MainPanelUIs();
+    void    Stop_MainPanelAnimations();
+    bool    Play_MainPanelAnimation(const wchar_t* animationName);
 
 private:
+    vector<Shared<UI_Base>> _mainPanelUIs{};
     Shared<UI_Base> _healingTooltipRoot;
     Shared<UI_Base> _energyTooltipRoot;
     Shared<UI_Base> _reviveTooltipRoot;
@@ -57,6 +62,11 @@ private:
     Shared<UI_Text> _healingTooltipUnitText;
     Shared<UI_Text> _energyTooltipUnitText;
     Shared<UI_Text> _reviveTooltipUnitText;
+
+    bool  _isMainPanelOpen = false;
+    bool  _isPlayingMainPanelIntro = false;
+    float _mainPanelIntroElapsed = 0.f;
+    float _mainPanelIntroDuration = 0.f;
 
 public:
     static Unique<UI_BattleItemPanel> Create(uint32 levelIndex);
