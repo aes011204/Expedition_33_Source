@@ -148,12 +148,12 @@ private:
     bool Execute_CurveAuthoringEdit(const CurveTarget& target, const string& description, const function<bool()>& edit);
     void Mark_CurveChanged(const CurveTarget& target);
 
-    bool Convert_ActiveTargetToConstantCurve(CurveTarget& target);
+    bool Convert_ActiveTargetToConstantCurve(const CurveTarget& target);
     void Draw_EmptyState();
     void Draw_TrackList(const vector<CurveTarget>& targets);
     void Draw_TargetHeader(CurveTarget& target);
     void Draw_CurveGraph(const vector<CurveTarget>& targets, CurveTarget& activeTarget);
-    void Draw_SelectedKeyInspector(CurveTarget& target);
+    void Draw_SelectedKeyInspector(const CurveTarget& target);
 
 public:
     static Shared<CurveEditor_View> Create();

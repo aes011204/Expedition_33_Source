@@ -124,7 +124,8 @@ void CurveEditor_View::Render()
 
             ImGui::SameLine(0.f, 0.f);
 
-            if (const optional<CurveTarget> activeTarget = Get_ActiveTarget(targets))
+            // ReSharper disable once CppLocalVariableMayBeConst
+            if (optional<CurveTarget> activeTarget = Get_ActiveTarget(targets))
             {
                 ImGui::BeginGroup();
                 Draw_TargetHeader(*activeTarget);
@@ -1111,7 +1112,7 @@ void CurveEditor_View::Mark_CurveChanged(const CurveTarget& target)
     MarkDirty();
 }
 
-bool CurveEditor_View::Convert_ActiveTargetToConstantCurve(CurveTarget& target)
+bool CurveEditor_View::Convert_ActiveTargetToConstantCurve(const CurveTarget& target)
 {
     if (const auto* floatDistribution = get_if<FloatDistributionData*>(&target.distribution))
     {
@@ -1121,17 +1122,17 @@ bool CurveEditor_View::Convert_ActiveTargetToConstantCurve(CurveTarget& target)
         return true;
     }
 
-    if (const auto* vectorDistribution = get_if<Vector2DistributionData*>(&target.distribution))
+    if (const auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
     {
-        **vectorDistribution = Vector2DistributionData::Make_ConstantCurve(Get_DefaultValue(**vectorDistribution));
+        **vector2Distribution = Vector2DistributionData::Make_ConstantCurve(Get_DefaultValue(**vector2Distribution));
         target.emitter->previewDirty = true;
         _selectedKeyIndex = 0;
         return true;
     }
 
-    if (const auto* vectorDistribution = get_if<Vector3DistributionData*>(&target.distribution))
+    if (const auto* vector2Distribution = get_if<Vector3DistributionData*>(&target.distribution))
     {
-        **vectorDistribution = Vector3DistributionData::Make_ConstantCurve(Get_DefaultValue(**vectorDistribution));
+        **vector2Distribution = Vector3DistributionData::Make_ConstantCurve(Get_DefaultValue(**vector2Distribution));
         target.emitter->previewDirty = true;
         _selectedKeyIndex = 0;
         return true;
@@ -1216,18 +1217,18 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
             hasCurve = true;
         }
     }
-    else if (const auto* vectorDistribution = get_if<Vector2DistributionData*>(&target.distribution))
+    else if (const auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
     {
-        if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vectorDistribution))
+        if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution))
         {
             Normalize_CurveKeys(*curve);
             keyCount = curve->keys.size();
             hasCurve = true;
         }
     }
-    else if (const auto* vectorDistribution = get_if<Vector3DistributionData*>(&target.distribution))
+    else if (const auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
     {
-        if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vectorDistribution))
+        if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution))
         {
             Normalize_CurveKeys(*curve);
             keyCount = curve->keys.size();
@@ -1284,9 +1285,9 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                     _selectedKeyIndex = curve->keys.empty() ? optional<size_t>{} : optional<size_t>{ curve->keys.size() - 1 };
                     return true;
                 }
-                if (const auto* vectorDistribution = get_if<Vector2DistributionData*>(&target.distribution))
+                if (const auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
                 {
-                    ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vectorDistribution);
+                    ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
                     if (curve == nullptr)
                         return false;
 
@@ -1298,9 +1299,9 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                     _selectedKeyIndex = curve->keys.empty() ? optional<size_t>{} : optional<size_t>{ curve->keys.size() - 1 };
                     return true;
                 }
-                if (const auto* vectorDistribution = get_if<Vector3DistributionData*>(&target.distribution))
+                if (const auto* vector2Distribution = get_if<Vector3DistributionData*>(&target.distribution))
                 {
-                    ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vectorDistribution);
+                    ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
                     if (curve == nullptr)
                         return false;
 
@@ -1339,14 +1340,14 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
         if (const ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution))
             canDelete = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size() && curve->keys.size() > 2;
     }
-    else if (const auto* vectorDistribution = get_if<Vector2DistributionData*>(&target.distribution))
+    else if (const auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
     {
-        if (const ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vectorDistribution))
+        if (const ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution))
             canDelete = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size() && curve->keys.size() > 2;
     }
-    else if (const auto* vectorDistribution = get_if<Vector3DistributionData*>(&target.distribution))
+    else if (const auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
     {
-        if (const ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vectorDistribution))
+        if (const ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution))
             canDelete = _selectedKeyIndex.has_value() && *_selectedKeyIndex < curve->keys.size() && curve->keys.size() > 2;
     }
     else if (const auto* colorDistribution = get_if<ColorDistributionData*>(&target.distribution))
@@ -1376,18 +1377,18 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                         return true;
                     }
                 }
-                else if (const auto* vectorDistribution = get_if<Vector2DistributionData*>(&target.distribution))
+                else if (const auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
                 {
-                    if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vectorDistribution))
+                    if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution))
                     {
                         curve->keys.erase(curve->keys.begin() + static_cast<ptrdiff_t>(*_selectedKeyIndex));
                         _selectedKeyIndex.reset();
                         return true;
                     }
                 }
-                else if (const auto* vectorDistribution = get_if<Vector3DistributionData*>(&target.distribution))
+                else if (const auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
                 {
-                    if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vectorDistribution))
+                    if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution))
                     {
                         curve->keys.erase(curve->keys.begin() + static_cast<ptrdiff_t>(*_selectedKeyIndex));
                         _selectedKeyIndex.reset();
@@ -1455,9 +1456,9 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 hasVisibleCurve = true;
             }
         }
-        else if (auto* vectorDistribution = get_if<Vector2DistributionData*>(&target.distribution))
+        else if (auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
         {
-            ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vectorDistribution);
+            ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
             if (curve == nullptr)
                 continue;
 
@@ -1470,9 +1471,9 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 hasVisibleCurve = true;
             }
         }
-        else if (auto* vectorDistribution = get_if<Vector3DistributionData*>(&target.distribution))
+        else if (auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
         {
-            ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vectorDistribution);
+            ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution);
             if (curve == nullptr)
                 continue;
 
@@ -1554,9 +1555,9 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 drawList->AddCircleFilled(point, selected ? 5.f : 3.5f, selected ? IM_COL32(100, 190, 255, 255) : lineColor);
             }
         }
-        else if (auto* vectorDistribution = get_if<Vector2DistributionData*>(&target.distribution))
+        else if (auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
         {
-            ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vectorDistribution);
+            ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
             if (curve == nullptr)
                 continue;
 
@@ -1591,9 +1592,9 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 drawList->AddCircleFilled(point, selected ? 5.f : 3.5f, selected ? IM_COL32(100, 190, 255, 255) : lineColor);
             }
         }
-        else if (auto* vectorDistribution = get_if<Vector3DistributionData*>(&target.distribution))
+        else if (auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
         {
-            ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vectorDistribution);
+            ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution);
             if (curve == nullptr)
                 continue;
 
@@ -1689,9 +1690,9 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 }
             }
         }
-        else if (auto* vectorDistribution = get_if<Vector2DistributionData*>(&activeTarget.distribution))
+        else if (auto* vector2Distribution = get_if<Vector2DistributionData*>(&activeTarget.distribution))
         {
-            if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vectorDistribution))
+            if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution))
             {
                 for (size_t index = 0; index < curve->keys.size(); ++index)
                 {
@@ -1707,9 +1708,9 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 }
             }
         }
-        else if (auto* vectorDistribution = get_if<Vector3DistributionData*>(&activeTarget.distribution))
+        else if (auto* vector3Distribution = get_if<Vector3DistributionData*>(&activeTarget.distribution))
         {
-            if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vectorDistribution))
+            if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution))
             {
                 for (size_t index = 0; index < curve->keys.size(); ++index)
                 {
@@ -1765,9 +1766,9 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                         return true;
                     }
                 }
-                else if (const auto* vectorDistribution = get_if<Vector2DistributionData*>(&activeTarget.distribution))
+                else if (const auto* vector2Distribution = get_if<Vector2DistributionData*>(&activeTarget.distribution))
                 {
-                    if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vectorDistribution))
+                    if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution))
                     {
                         Vector2CurveKeyData key{ time, Evaluate_Curve(*curve, time), Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear };
                         Set_TargetValue(activeTarget, key, value);
@@ -1776,9 +1777,9 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                         return true;
                     }
                 }
-                else if (const auto* vectorDistribution = get_if<Vector3DistributionData*>(&activeTarget.distribution))
+                else if (const auto* vector3Distribution = get_if<Vector3DistributionData*>(&activeTarget.distribution))
                 {
-                    if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vectorDistribution))
+                    if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution))
                     {
                         Vector3CurveKeyData key{ time, Evaluate_Curve(*curve, time), Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear };
                         Set_TargetValue(activeTarget, key, value);
@@ -1818,9 +1819,9 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 Mark_CurveChanged(activeTarget);
             }
         }
-        else if (auto* vectorDistribution = get_if<Vector2DistributionData*>(&activeTarget.distribution))
+        else if (auto* vector2Distribution = get_if<Vector2DistributionData*>(&activeTarget.distribution))
         {
-            if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vectorDistribution); curve != nullptr && index < curve->keys.size())
+            if (ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution); curve != nullptr && index < curve->keys.size())
             {
                 Begin_CurveAuthoringEdit(activeTarget, "Edit Curve Key");
                 Vector2CurveKeyData& key = curve->keys[index];
@@ -1829,9 +1830,9 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                 Mark_CurveChanged(activeTarget);
             }
         }
-        else if (auto* vectorDistribution = get_if<Vector3DistributionData*>(&activeTarget.distribution))
+        else if (auto* vector3Distribution = get_if<Vector3DistributionData*>(&activeTarget.distribution))
         {
-            if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vectorDistribution); curve != nullptr && index < curve->keys.size())
+            if (ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution); curve != nullptr && index < curve->keys.size())
             {
                 Begin_CurveAuthoringEdit(activeTarget, "Edit Curve Key");
                 Vector3CurveKeyData& key = curve->keys[index];
@@ -1854,7 +1855,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
     }
 }
 
-void CurveEditor_View::Draw_SelectedKeyInspector(CurveTarget& target)
+void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
 {
     if (!_selectedKeyIndex.has_value())
     {
@@ -1923,9 +1924,9 @@ void CurveEditor_View::Draw_SelectedKeyInspector(CurveTarget& target)
         return;
     }
 
-    if (const auto* vectorDistribution = get_if<Vector2DistributionData*>(&target.distribution))
+    if (const auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
     {
-        ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vectorDistribution);
+        ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
         if (curve == nullptr || *_selectedKeyIndex >= curve->keys.size())
         {
             ImGui::TextDisabled("No key selected.");
@@ -1989,9 +1990,9 @@ void CurveEditor_View::Draw_SelectedKeyInspector(CurveTarget& target)
         return;
     }
 
-    if (const auto* vectorDistribution = get_if<Vector3DistributionData*>(&target.distribution))
+    if (const auto* vector2Distribution = get_if<Vector3DistributionData*>(&target.distribution))
     {
-        ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vectorDistribution);
+        ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
         if (curve == nullptr || *_selectedKeyIndex >= curve->keys.size())
         {
             ImGui::TextDisabled("No key selected.");
