@@ -597,6 +597,9 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
         if (worldStat && battleStat)
             battleStat->Apply_BattleSyncSnapshot(worldStat->Create_BattleSyncSnapshot());
 
+        if (battleStat)
+            battleStat->Set_BattleStartAp();
+
         // World Skill Tree 읽어서 세팅
         Configure_BattlePlayerSkills(heroId, battleChar.statCom, worldSkillTreeCom);
 
@@ -1895,6 +1898,22 @@ bool BattleController::Has_Buff(const BattleChar& target, Buffs buffId) const
     return _buffSystem != nullptr && _buffSystem->Has_Buff(target, buffId);
 }
 
+void BattleController::Notify_CounterAnnounceRequested(const vector<BattleChar>& counterActors)
+{
+    if (counterActors.empty())
+        return;
+
+    OnCounterAnnounceRequested.Broadcast(counterActors);
+}
+
+void BattleController::Play_BattleHitStop(float worldTimeScale, float duration)
+{
+    if (duration <= 0.f)
+        return;
+
+    GAME->Slow_WorldTime(worldTimeScale, duration);
+}
+
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
     if (_battleTurnCamera)
@@ -2076,7 +2095,9 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
     if (!monster->Try_Consume_FreeAimWeakPoint())
         return false; // 이미 소비됐으면 추가딜 없이 본체 피격만 남긴다.
 
-    // 일단은 강제
+    Play_BattleHitStop(0.08f, 0.10f); // 약간 슬로우
+
+    // 일단은 고정 추가 데미지
     constexpr float freeAimWeakPointBonusDamage = 11.f;
 
     DamageSystem::ApplyDamage(

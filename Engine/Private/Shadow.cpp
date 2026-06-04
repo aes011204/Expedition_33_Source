@@ -6,6 +6,44 @@
 
 namespace
 {
+    ShadowCascadePreset& Get_CascadePreset(ShadowCascadePresetSet& presets, CascadeLevel level)
+    {
+        switch (level)
+        {
+        case CascadeLevel::Close:
+            return presets.close;
+        case CascadeLevel::Far:
+            return presets.farRange;
+        case CascadeLevel::Normal:
+        default:
+            return presets.normal;
+        }
+    }
+
+    const ShadowCascadePreset& Get_CascadePreset(const ShadowCascadePresetSet& presets, CascadeLevel level)
+    {
+        switch (level)
+        {
+        case CascadeLevel::Close:
+            return presets.close;
+        case CascadeLevel::Far:
+            return presets.farRange;
+        case CascadeLevel::Normal:
+        default:
+            return presets.normal;
+        }
+    }
+
+    ShadowCascadePreset Sanitize_CascadePreset(const ShadowCascadePreset& preset)
+    {
+        ShadowCascadePreset sanitized = preset;
+        sanitized.focusNear = max(0.001f, sanitized.focusNear);
+        sanitized.focusFar = max(sanitized.focusNear + 1.f, sanitized.focusFar);
+        sanitized.cascadeSplitLambda = min(1.f, max(0.f, sanitized.cascadeSplitLambda));
+        sanitized.cascadeBlendDistance = max(0.f, sanitized.cascadeBlendDistance);
+        return sanitized;
+    }
+
     struct CascadeBounds
     {
         Vec3 minLS = Vec3(FLT_MAX, FLT_MAX, FLT_MAX);
@@ -125,12 +163,18 @@ HRESULT Shadow::Update_ShadowLight(const ShadowLightDesc& desc)
 {
     _desc = desc;
 
+    if (!_hasCustomCascadePresets)
+        Refresh_DefaultCascadePresets(desc);
+
+    if (_desc.followCameraFrustum)
+    {
+        Apply_ActiveCascadePreset(_desc);
+        return S_OK;
+    }
+
     // Camera frustum 기반 shadow는 Render_Shadow 직전에 Update_FromCameraFrustum()에서
     // orthographic view/proj를 다시 계산한다. 여기서 perspective matrix를 만들면
     // light-space zn/zf가 음수일 때 XMMatrixPerspectiveFovLH assert가 발생할 수 있다.
-    if (_desc.followCameraFrustum)
-        return S_OK;
-
     _viewMatrix = XMMatrixLookAtLH(desc.eye, desc.at, Vec3::Up);
     _projMatrix = XMMatrixPerspectiveFovLH(desc.fovy, desc.aspect, desc.zn, desc.zf);
 
@@ -144,12 +188,38 @@ HRESULT Shadow::Update_ShadowLight(const ShadowLightDesc& desc)
     return S_OK;
 }
 
+HRESULT Shadow::Set_CascadeLevel(CascadeLevel level)
+{
+    if (level >= CascadeLevel::Count)
+        return E_FAIL;
+
+    _activeCascadeLevel = level;
+    if (_desc.followCameraFrustum)
+        Apply_ActiveCascadePreset(_desc);
+
+    return S_OK;
+}
+
+void Shadow::Set_CascadePresets(const ShadowCascadePresetSet& presets)
+{
+    _cascadePresets.close = Sanitize_CascadePreset(presets.close);
+    _cascadePresets.normal = Sanitize_CascadePreset(presets.normal);
+    _cascadePresets.farRange = Sanitize_CascadePreset(presets.farRange);
+    _hasCustomCascadePresets = true;
+
+    if (_desc.followCameraFrustum)
+        Apply_ActiveCascadePreset(_desc);
+}
+
 HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shared<Camera>& camera, const Vec3& lightDir)
 {
     if (camera == nullptr || camera->Get_Transform() == nullptr)
         return E_FAIL;
 
     _desc = desc;
+    if (!_hasCustomCascadePresets)
+        Refresh_DefaultCascadePresets(desc);
+    Apply_ActiveCascadePreset(_desc);
 
     Vec3 dir = lightDir;
     if (dir.LengthSquared() < 0.0001f)
@@ -165,13 +235,13 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
     const float tanHalfFovY = tanf(fovY * 0.5f);
 
     // 카메라 전체 far까지 찍으면 그림자의 품질이 나빠지기 때문에 가까운 구간만 cascade로 나눠 커버한다.
-    const float nearZ = max(desc.focusNear, camera->Get_Near());
-    const float farZ = max(nearZ + 1.f, min(desc.focusFar, camera->Get_Far()));
+    const float nearZ = max(_desc.focusNear, camera->Get_Near());
+    const float farZ = max(nearZ + 1.f, min(_desc.focusFar, camera->Get_Far()));
 
     const Matrix cameraWorld = camera->Get_Transform()->Get_WorldMatrix();
 
     float previousSplit = nearZ;
-    const float lambda = min(1.f, max(0.f, desc.cascadeSplitLambda));
+    const float lambda = min(1.f, max(0.f, _desc.cascadeSplitLambda));
 
     for (uint32 cascadeIndex = 0; cascadeIndex < CascadeCount; ++cascadeIndex)
     {
@@ -187,7 +257,7 @@ HRESULT Shadow::Update_FromCameraFrustum(const ShadowLightDesc& desc, const Shar
             tanHalfFovY,
             aspect,
             dir,
-            desc,
+            _desc,
             _cascadeViewMatrices[cascadeIndex],
             _cascadeProjMatrices[cascadeIndex],
             cascadeBounds);
@@ -382,9 +452,16 @@ HRESULT Shadow::Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* light
 
 void Shadow::Clear()
 {
+    _desc = {};
+    _cascadePresets = {};
+    _activeCascadeLevel = CascadeLevel::Normal;
+    _hasCustomCascadePresets = false;
     _viewMatrix = Matrix::Identity;
     _projMatrix = Matrix::Identity;
     _activeCascadeIndex = 0;
+    _staticViewMatrix = Matrix::Identity;
+    _staticProjMatrix = Matrix::Identity;
+    _staticShadowEnabled = false;
 
     for (uint32 cascadeIndex = 0; cascadeIndex < CascadeCount; ++cascadeIndex)
     {
@@ -417,4 +494,47 @@ const Matrix* Shadow::Get_ProjMatrix() const
 const ShadowLightDesc* Shadow::Get_ShadowLightDesc() const
 {
     return &_desc;
+}
+
+CascadeLevel Shadow::Get_CascadeLevel() const
+{
+    return _activeCascadeLevel;
+}
+
+const ShadowCascadePresetSet* Shadow::Get_CascadePresets() const
+{
+    return &_cascadePresets;
+}
+
+void Shadow::Refresh_DefaultCascadePresets(const ShadowLightDesc& desc)
+{
+    ShadowCascadePreset normal{};
+    normal.focusNear = desc.focusNear;
+    normal.focusFar = desc.focusFar;
+    normal.cascadeSplitLambda = desc.cascadeSplitLambda;
+    normal.cascadeBlendDistance = desc.cascadeBlendDistance;
+    normal = Sanitize_CascadePreset(normal);
+
+    ShadowCascadePreset close = normal;
+    close.focusFar = max(normal.focusNear + 1.f, normal.focusFar * 0.35f);
+    close.cascadeSplitLambda = min(1.f, max(normal.cascadeSplitLambda, 0.92f));
+    close = Sanitize_CascadePreset(close);
+
+    ShadowCascadePreset farPreset = normal;
+    farPreset.focusFar = max(normal.focusFar, min(desc.zf, normal.focusFar * 1.75f));
+    farPreset.cascadeSplitLambda = min(1.f, max(0.f, normal.cascadeSplitLambda * 0.65f));
+    farPreset = Sanitize_CascadePreset(farPreset);
+
+    _cascadePresets.close = close;
+    _cascadePresets.normal = normal;
+    _cascadePresets.farRange = farPreset;
+}
+
+void Shadow::Apply_ActiveCascadePreset(ShadowLightDesc& desc) const
+{
+    const ShadowCascadePreset& preset = Get_CascadePreset(_cascadePresets, _activeCascadeLevel);
+    desc.focusNear = preset.focusNear;
+    desc.focusFar = preset.focusFar;
+    desc.cascadeSplitLambda = preset.cascadeSplitLambda;
+    desc.cascadeBlendDistance = preset.cascadeBlendDistance;
 }

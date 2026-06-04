@@ -49,6 +49,21 @@ PostProcessCB& PostProcessPipeline::Get_PostProcessParams()
     return _postProcessCB;
 }
 
+void PostProcessPipeline::Set_LightShaftParams(const LightShaftCB& lightShaftCB)
+{
+    _lightShaftCB = lightShaftCB;
+}
+
+const LightShaftCB& PostProcessPipeline::Get_LightShaftParams() const
+{
+    return _lightShaftCB;
+}
+
+LightShaftCB& PostProcessPipeline::Get_LightShaftParams()
+{
+    return _lightShaftCB;
+}
+
 PostProcessFeature PostProcessPipeline::Get_PostProcessFeatures() const
 {
     return _featureFlag;
@@ -63,7 +78,8 @@ Shared<PostProcessPipeline> PostProcessPipeline::Create(ComPtr<Device> device, C
         PostProcessFeature::Exposure |
         PostProcessFeature::ToneMapping |
         PostProcessFeature::Bloom |
-        PostProcessFeature::Gamma)))
+        PostProcessFeature::Gamma |
+        PostProcessFeature::LightShaft)))
     {
         MSG_BOX("Failed to Create : PostProcessPipeline");
         return nullptr;

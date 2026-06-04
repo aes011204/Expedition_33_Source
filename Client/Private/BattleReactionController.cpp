@@ -180,6 +180,10 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
 
             if (success && target.actor != nullptr)
             {
+                // 패링 성공 시 짧게
+                if (auto battle = CLIENT->Get_BattleController())
+                    battle->Play_BattleHitStop(0.08f, 0.08f);
+
                 PlayEffectDesc effectDesc{};
                 effectDesc.effectName = L"Effects\\Assets\\Distortion\\Double_Distotion.effect.json";
                 effectDesc.spawnBasisTarget = target.actor;
@@ -464,7 +468,6 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
 
         if (_reactionAnimTargets.size() >= 2)
         {
-
             // 위치 순간이동하고 카운터 시작 
             if (target.actor == nullptr || target.ModelCom == nullptr || _counterDamageTarget.actor == nullptr)
                 continue;
@@ -503,6 +506,11 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
     _isCounterPending = false;
     _isCounterDamageApplied = false;
     _animPhase = ReactionAnimPhase::Counter;
+
+    if (auto battle = CLIENT->Get_BattleController())
+    {
+        battle->Notify_CounterAnnounceRequested(_reactionAnimTargets);
+    }
 }
 
 void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)

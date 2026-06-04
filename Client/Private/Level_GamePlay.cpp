@@ -86,7 +86,7 @@ HRESULT Level_GamePlay::Ready_Lights()
     LIGHT_DESC LightDesc{};
 
     LightDesc.type = LightType::Directional;
-    LightDesc.direction = Vec4(1.f, -1.f, -1.f, 0.f);
+    LightDesc.direction = Vec4(-0.8f, -0.6f, -1.f, 0.f);
     LightDesc.diffuse = Vec4(1.f, 1.f, 1.f, 1.f);
     LightDesc.ambient = Vec4(0.4f, 0.4f, 0.4f, 1.f);
     LightDesc.specular = Vec4(1.f, 1.f, 1.f, 1.f);
@@ -117,6 +117,27 @@ HRESULT Level_GamePlay::Ready_Lights()
         ShadowDesc.intensity = 0.45f;
 
         if (FAILED(GAME->Update_ShadowLight(ShadowDesc)))
+            return E_FAIL;
+
+        ShadowCascadePresetSet cascadePresets{};
+        cascadePresets.close.focusNear = 0.1f;
+        cascadePresets.close.focusFar = 28.f;
+        cascadePresets.close.cascadeSplitLambda = 0.95f;
+        cascadePresets.close.cascadeBlendDistance = 2.5f;
+
+        cascadePresets.normal.focusNear = 0.1f;
+        cascadePresets.normal.focusFar = 110.f;
+        cascadePresets.normal.cascadeSplitLambda = 0.8f;
+        cascadePresets.normal.cascadeBlendDistance = 4.f;
+
+        cascadePresets.farRange.focusNear = 0.1f;
+        cascadePresets.farRange.focusFar = 180.f;
+        cascadePresets.farRange.cascadeSplitLambda = 0.55f;
+        cascadePresets.farRange.cascadeBlendDistance = 6.f;
+
+        if (FAILED(GAME->Set_ShadowCascadePresets(cascadePresets)))
+            return E_FAIL;
+        if (FAILED(GAME->Set_ShadowCascadeLevel(CascadeLevel::Normal)))
             return E_FAIL;
     }
 

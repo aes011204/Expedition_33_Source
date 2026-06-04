@@ -18,6 +18,8 @@ public:
 
 public:
     HRESULT Update_ShadowLight(const ShadowLightDesc& desc);
+    HRESULT Set_CascadeLevel(CascadeLevel level);
+    void    Set_CascadePresets(const ShadowCascadePresetSet& presets);
 
     HRESULT Update_FromCameraFrustum(
         const ShadowLightDesc& desc,
@@ -43,6 +45,8 @@ public:
     const Matrix*           Get_ViewMatrix() const;
     const Matrix*           Get_ProjMatrix() const;
     const ShadowLightDesc*  Get_ShadowLightDesc() const;
+    CascadeLevel            Get_CascadeLevel() const;
+    const ShadowCascadePresetSet* Get_CascadePresets() const;
     uint32                  Get_CascadeCount() const { return CascadeCount; }
 
 public:
@@ -50,7 +54,14 @@ public:
     void Free() override;
 
 private:
+    void Refresh_DefaultCascadePresets(const ShadowLightDesc& desc);
+    void Apply_ActiveCascadePreset(ShadowLightDesc& desc) const;
+
+private:
     ShadowLightDesc _desc{};
+    ShadowCascadePresetSet _cascadePresets{};
+    CascadeLevel    _activeCascadeLevel = CascadeLevel::Normal;
+    bool            _hasCustomCascadePresets = false;
     Matrix          _viewMatrix = Matrix::Identity;
     Matrix          _projMatrix = Matrix::Identity;
     Matrix          _cascadeViewMatrices[CascadeCount]{};

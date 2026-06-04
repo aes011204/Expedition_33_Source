@@ -84,7 +84,7 @@ PS_OUT_LIGHT PS_MAIN_DIRECTIONAL(PS_IN In)
 
     // ORM
     vector MaterialDesc = g_MaterialTexture.Sample(LinearWrapSampler, In.Texcoord);
-    float roughness = clamp(MaterialDesc.g, 0.05f, 1.f);
+    float roughness = ApplySpecAA(N, MaterialDesc.g);   // Specular Anti-Aliasing 적용된 roughness
     float metalness = saturate(MaterialDesc.b);
 
     float4 WorldPos = Reconstruct_WorldPos(In.Texcoord);
@@ -146,7 +146,7 @@ PS_OUT_LIGHT PS_MAIN_POINT(PS_IN In)
     float3 N = normalize(DecodeNormal(NormalDesc.xyz));
 
     vector MaterialDesc = g_MaterialTexture.Sample(LinearWrapSampler, In.Texcoord);
-    float roughness = clamp(MaterialDesc.g, 0.05f, 1.f);
+    float roughness = ApplySpecAA(N, MaterialDesc.g);   // Specular Anti-Aliasing 적용된 roughness
     float metalness = saturate(MaterialDesc.b);
 
     // Light
@@ -228,7 +228,7 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     // PBR 파라미터
     float finalAO = saturate(MaterialDesc.r) * ao;
 
-    float roughness = clamp(MaterialDesc.g, 0.05f, 1.f);
+    float roughness = ApplySpecAA(N, MaterialDesc.g);   // Specular Anti-Aliasing 적용된 roughness
     float metalness = saturate(MaterialDesc.b);
     float3 baseColor = saturate(Diffuse.rgb);
 

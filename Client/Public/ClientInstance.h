@@ -150,6 +150,7 @@ public:
 
 public:
     Shared<ClientScreenFxManager> Get_ScreenFxManager() const;
+    Shared<UIPreviewManager> Get_PreviewManager() const { return _previewManager; }
 
 public: /* Effect 재생 */
 

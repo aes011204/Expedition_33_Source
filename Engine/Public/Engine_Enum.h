@@ -106,6 +106,9 @@ namespace Engine
         BloomUpsampleAdd,
         ToneMapping,
         DistortionResolve,
+        LightShaftMaskHalf,
+        LightShaftRadialBlurHalf,
+        LightShaftCompositeHDR,
 
         END
     };
@@ -147,6 +150,7 @@ namespace Engine
         ScreenFx        = 11,
         FogZone         = 12,
         Water           = 13,
+        LightShaft      = 14,
 
         END
     };
@@ -186,8 +190,9 @@ namespace Engine
         Exposure    = 1 << 2,
         Bloom       = 1 << 3,
         Gamma       = 1 << 4,
+        LightShaft  = 1 << 5,
 
-        All = (1 << 5) - 1
+        All = (1 << 6) - 1
     };
 
     enum class GameplayInputMode
