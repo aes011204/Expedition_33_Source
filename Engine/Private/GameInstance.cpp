@@ -2640,6 +2640,7 @@ void GameInstance::Release_Engine()
     ReleaseManager(_targetManager);
     ReleaseManager(_shadow);
     ReleaseManager(_shaderResourceRegistry);
+    ReleaseManager(_shaderComController);
 
 #ifdef _DEBUG
     ReleaseManager(_printManager);
