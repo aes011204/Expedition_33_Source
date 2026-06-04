@@ -47,11 +47,11 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     // MRT_ShadowObjects
     CHECK_FAILED(Add_RenderTarget(RT::LightDepth,
         _shadowMapWidth, _shadowMapHeight,
-        DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV, ShadowLightDesc::SHADOW_CASCADE_COUNT), E_FAIL);
+        DXGI_FORMAT_R32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV, ShadowLightDesc::SHADOW_CASCADE_COUNT), E_FAIL);
 
     CHECK_FAILED(Add_RenderTarget(RT::StaticLightDepth,
         _staticShadowMapWidth, _staticShadowMapHeight,
-        DXGI_FORMAT_R32G32B32A32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
+        DXGI_FORMAT_R32_FLOAT, Color(1.f, 1.f, 1.f, 1.f), !resizeWithViewport, useDSV), E_FAIL);
 
 
     // MRT_PostProcess
@@ -81,6 +81,10 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 1.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::DistortionField,
         width, height, DXGI_FORMAT_R16G16B16A16_FLOAT, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::LightShaftMaskHalf,
+        bloomHalfWidth, bloomHalfHeight, DXGI_FORMAT_R16_FLOAT, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
+    CHECK_FAILED(Add_RenderTarget(RT::LightShaftBlurHalf,
+        bloomHalfWidth, bloomHalfHeight, DXGI_FORMAT_R16_FLOAT, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::BackgroundMask,
         width, height, DXGI_FORMAT_R8_UNORM, Color(0.f, 0.f, 0.f, 0.f), resizeWithViewport, !useDSV), E_FAIL);
     CHECK_FAILED(Add_RenderTarget(RT::ScreenFxColorA,
@@ -115,6 +119,8 @@ HRESULT Target_Manager::Ready_AllRenderTargets()
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::HDRColor), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::HDR, RT::BackgroundMask), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::DistortionField, RT::DistortionField), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::LightShaftMaskHalf, RT::LightShaftMaskHalf), E_FAIL);
+    CHECK_FAILED(Add_MRT(MRT::LightShaftBlurHalf, RT::LightShaftBlurHalf), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::ScreenFxA, RT::ScreenFxColorA), E_FAIL);
     CHECK_FAILED(Add_MRT(MRT::ScreenFxB, RT::ScreenFxColorB), E_FAIL);
 

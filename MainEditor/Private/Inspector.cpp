@@ -25,6 +25,62 @@ char Inspector::_spawnActorClassSearchBuffer[256]{};
 
 namespace
 {
+constexpr float CascadePresetLabelWidth = 110.f;
+
+const char* Get_CascadeLevelLabel(Engine::CascadeLevel level)
+{
+    switch (level)
+    {
+    case Engine::CascadeLevel::Close:
+        return "Close";
+    case Engine::CascadeLevel::Far:
+        return "Far";
+    case Engine::CascadeLevel::Normal:
+    default:
+        return "Normal";
+    }
+}
+
+bool Draw_CascadePresetControls(const char* headerLabel, const char* idPrefix, Engine::ShadowCascadePreset& preset)
+{
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader(headerLabel, ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        const string focusNearId = string("##") + idPrefix + "FocusNear";
+        const string focusFarId = string("##") + idPrefix + "FocusFar";
+        const string lambdaId = string("##") + idPrefix + "SplitLambda";
+        const string blendId = string("##") + idPrefix + "BlendDistance";
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Focus Near");
+        ImGui::SameLine(CascadePresetLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        changed |= ImGui::DragFloat(focusNearId.c_str(), &preset.focusNear, 0.01f, 0.001f, 10000.f, "%.3f");
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Focus Far");
+        ImGui::SameLine(CascadePresetLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        changed |= ImGui::DragFloat(focusFarId.c_str(), &preset.focusFar, 0.1f, 0.001f, 10000.f, "%.3f");
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Split Lambda");
+        ImGui::SameLine(CascadePresetLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        changed |= ImGui::DragFloat(lambdaId.c_str(), &preset.cascadeSplitLambda, 0.01f, 0.f, 1.f, "%.3f");
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Blend Distance");
+        ImGui::SameLine(CascadePresetLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        changed |= ImGui::DragFloat(blendId.c_str(), &preset.cascadeBlendDistance, 0.1f, 0.f, 10000.f, "%.3f");
+    }
+
+    return changed;
+}
+}
+
     struct FEffectAssetPickerEntry
     {
         string relativePath{};
@@ -167,7 +223,6 @@ namespace
 
         return changed;
     }
-}
 
 
 Inspector::Inspector()
@@ -415,6 +470,7 @@ void Inspector::Draw_PrimaryShadowLightInspector()
         sourceLight = GAME->Get_LightDesc(0);
 
     const ShadowLightDesc* sourceShadow = GAME->Get_ShadowLightDesc();
+    const ShadowCascadePresetSet* sourceCascadePresets = GAME->Get_ShadowCascadePresets();
 
     ImGui::TextUnformatted("Name: Primary Shadow Light");
     ImGui::Separator();
@@ -431,11 +487,21 @@ void Inspector::Draw_PrimaryShadowLightInspector()
         return;
     }
 
+    if (sourceCascadePresets == nullptr)
+    {
+        ImGui::TextDisabled("Cascade preset 시스템이 초기화되지 않음");
+        return;
+    }
+
     LIGHT_DESC lightDesc = *sourceLight;
     ShadowLightDesc shadowDesc = *sourceShadow;
+    ShadowCascadePresetSet cascadePresets = *sourceCascadePresets;
+    CascadeLevel activeCascadeLevel = GAME->Get_ShadowCascadeLevel();
 
     bool lightChanged = false;
     bool shadowChanged = false;
+    bool cascadePresetChanged = false;
+    bool cascadeLevelChanged = false;
 
     if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -547,6 +613,30 @@ void Inspector::Draw_PrimaryShadowLightInspector()
         ImGui::SameLine(InspectorLabelWidth);
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
         shadowChanged |= ImGui::DragFloat("##ShadowIntensity", &shadowDesc.intensity, 0.01f, 0.f, 1.f);
+
+        if (shadowDesc.followCameraFrustum)
+        {
+            static const char* cascadeLevelLabels[] = { "Close", "Normal", "Far" };
+            int activeCascadeLevelIndex = static_cast<int>(activeCascadeLevel);
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("Active Level");
+            ImGui::SameLine(InspectorLabelWidth);
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::Combo("##ShadowCascadeLevel", &activeCascadeLevelIndex, cascadeLevelLabels, IM_ARRAYSIZE(cascadeLevelLabels)))
+            {
+                activeCascadeLevel = static_cast<CascadeLevel>(activeCascadeLevelIndex);
+                cascadeLevelChanged = true;
+            }
+
+            ImGui::TextDisabled("Current: %s", Get_CascadeLevelLabel(activeCascadeLevel));
+            ImGui::Separator();
+            ImGui::TextDisabled("Cascade Presets");
+
+            cascadePresetChanged |= Draw_CascadePresetControls("Close", "ShadowCascadeClose", cascadePresets.close);
+            cascadePresetChanged |= Draw_CascadePresetControls("Normal", "ShadowCascadeNormal", cascadePresets.normal);
+            cascadePresetChanged |= Draw_CascadePresetControls("Far", "ShadowCascadeFar", cascadePresets.farRange);
+        }
     }
 
     if (lightChanged)
@@ -554,6 +644,12 @@ void Inspector::Draw_PrimaryShadowLightInspector()
 
     if (shadowChanged)
         GAME->Update_ShadowLight(shadowDesc);
+
+    if (cascadePresetChanged)
+        GAME->Set_ShadowCascadePresets(cascadePresets);
+
+    if (cascadeLevelChanged)
+        GAME->Set_ShadowCascadeLevel(activeCascadeLevel);
 }
 
 bool Inspector::Draw_ComponentOverride(const Shared<Component>& component)

@@ -177,6 +177,12 @@ void ModelCom_Inspector::Draw_Inspector(const Shared<Component>& component)
         else
             ImGui::TextDisabled("(none)");
 
+        ImGui::SameLine();
+        if (ImGui::Button("Refresh Textures"))
+            Clear_TexturePreviewCache();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Re-scan texture candidates and thumbnails on the next draw.");
+
         const vector<vector<Material::TextureSlot>>& allSlots = material->Get_TextureSlots();
 
         auto drawTextureSlot = [&](uint32 typeIndex, uint32 slotIndex, const Material::TextureSlot* slot)
