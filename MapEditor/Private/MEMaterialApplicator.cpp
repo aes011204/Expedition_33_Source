@@ -205,15 +205,7 @@ void MEMaterialApplicator::Apply_PassOverrides()
 
 string MEMaterialApplicator::Resolve_BundleKey(const fs::path& modelPath) const
 {
-    string bundleKey = {};
-    if (!_scene->_modelFolder.empty())
-    {
-        bundleKey = String::ToString(_scene->_modelFolder);
-    }
-    else
-    {
-        bundleKey = String::ToString(modelPath.parent_path().filename().wstring());
-    }
+    string bundleKey = String::ToString(modelPath.parent_path().filename().wstring());
     transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
     return bundleKey;
 }
