@@ -188,6 +188,7 @@ private:
     bool                     _isBattleUiActive = false;
     bool                     _isPlayerTurnUiActive = false;
     bool                     _isVictoryUiActive = false;
+    bool                     _isVictoryConfirmPending = false;
 
 #pragma region 메커니즘
     bool                     _isMechanismActionActive = false;

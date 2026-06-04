@@ -79,7 +79,7 @@ void Mon_WeakPoint::Late_Update(float timeDelta)
 }
 
 HRESULT Mon_WeakPoint::Render()
-{ 
+{
     return Monster_Part::Render();
 }
 

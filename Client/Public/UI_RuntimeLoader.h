@@ -35,7 +35,6 @@ public:
     // json 파일을 읽고, 현재 런타임에서 지원하는 UI를 실제로 생성
     static HRESULT Load_Document(const UI_LoadDesc& desc);
     static bool Load_PublicAnimationAsset(const wstring& animationPath, UI_KeyframeAnimationAsset& outAsset);
-
 };
 
 NS_END

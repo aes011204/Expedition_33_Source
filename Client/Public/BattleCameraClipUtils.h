@@ -78,6 +78,7 @@ inline BattleCameraClipSample Sample_BattleCameraClip(const BattleCameraClip& cl
     sample.sideOffset = Sample_BattleCameraTrack(clip.sideOffset, sampleTime);
     sample.pivotOffset = Sample_BattleCameraTrack(clip.pivotOffset, sampleTime);
     sample.heightOffset = Sample_BattleCameraTrack(clip.heightOffset, sampleTime);
+    sample.aimOffset = Sample_BattleCameraTrack(clip.aimOffset, sampleTime);
     sample.lookHeightOffset = Sample_BattleCameraTrack(clip.lookHeightOffset, sampleTime);
     sample.yawOffset = Sample_BattleCameraTrack(clip.yawOffset, sampleTime);
     sample.orbitYaw = Sample_BattleCameraTrack(clip.orbitYaw, sampleTime);
