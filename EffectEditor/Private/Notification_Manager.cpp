@@ -81,7 +81,6 @@ void Notification_Manager::Render()
         default: break;
         }
 
-        ImGui::SetNextWindowFocus();
         if (ImGui::Begin(windowName.c_str(), nullptr, flags))
         {
             ImGui::TextColored(textColor, note.message.c_str());

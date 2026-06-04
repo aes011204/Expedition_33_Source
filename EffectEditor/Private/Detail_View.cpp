@@ -1091,9 +1091,19 @@ void Detail_View::Render_ModuleDetail(
             changed = _velocityOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
+    case AuthoringModuleType::OrbitOverLife:
+        if (auto* data = get_if<OrbitOverLifeModuleData>(&module.data))
+            changed = _orbitOverLifeModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
     case AuthoringModuleType::InitialRotation:
         if (auto* data = get_if<InitialRotationModuleData>(&module.data))
             changed = _initialRotationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
+        break;
+
+    case AuthoringModuleType::SphereRadialOrientation:
+        if (auto* data = get_if<SphereRadialOrientationModuleData>(&module.data))
+            changed = _sphereRadialOrientationModuleDetail.Draw(emitter, module, *data, _detailPropertyContext);
         break;
 
     case AuthoringModuleType::PlaneRadialOrientation:

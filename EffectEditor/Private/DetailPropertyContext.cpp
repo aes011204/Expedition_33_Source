@@ -697,7 +697,8 @@ public: //## Distribution Controls
                     defaultValue,
                     speed,
                     allowConstantCurve,
-                    showConstantCurveAsUnimplemented);
+                    showConstantCurveAsUnimplemented
+                );
                 _basicDrawer.End_PropertyTable();
             }
 

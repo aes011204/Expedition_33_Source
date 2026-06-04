@@ -169,7 +169,9 @@ private: //## Helper::AuthoringFactory
     AuthoringModule Make_AccelerationModule();
     AuthoringModule Make_DragModule();
     AuthoringModule Make_VelocityOverLifeModule();
+    AuthoringModule Make_OrbitOverLifeModule();
     AuthoringModule Make_InitialRotationModule();
+    AuthoringModule Make_SphereRadialOrientationModule();
     AuthoringModule Make_PlaneRadialOrientationModule();
     AuthoringModule Make_RotationOverLifeModule();
     AuthoringModule Make_InitialRotationRateModule();

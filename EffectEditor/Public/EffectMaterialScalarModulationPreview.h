@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "EffectAuthoring_Types.h"
 #include "EffectRuntime_Types.h"
