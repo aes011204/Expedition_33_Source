@@ -1,3 +1,5 @@
+// Engine 원본 경로: Engine/Bin/ShaderFiles/Engine_Shader_Feature.hlsl
+// Client 복사본 경로: Client/Bin/ShaderFiles/Engine_Shader_Feature.hlsl - 먼저 이 원본의 의도를 확인하세요.
 #ifndef ENGINE_SHADER_FEATURE_HLSLI
 #define ENGINE_SHADER_FEATURE_HLSLI
 
@@ -48,6 +50,40 @@ bool IsSwitchDissolveEnabled()
 {
     return HasDrawFeature(FEATURE_FLAG_DISSOLVE) &&
            HasFeatureTexture(FEATURE_TEX_DISSOLVE_NOISE);
+}
+
+// UI Preview에서 역광 효과가 활성화되었는지 확인
+bool HasPreviewRim()
+{
+    return HasDrawFeature(FEATURE_FLAG_PREVIEW_RIM);
+}
+
+// UI Preview에서 옷 전체가 번들거리지 않게 외곽 위주로만 림을 잡는다. 
+float ComputePreviewRim(float3 worldNormal, float3 viewDir, float rimPower)
+{
+    const float safePower = max(rimPower, 0.0001f);
+    const float ndotv = saturate(dot(normalize(worldNormal), normalize(viewDir)));
+    const float rimBase = 1.f - ndotv;
+    const float edgeOnly = smoothstep(0.62f, 0.90f, rimBase);
+    return pow(edgeOnly, safePower);
+}
+
+// UI Preview에서 역광 효과 색상과 강도 가져오는 함수
+float3 GetPreviewRimColor()
+{
+    return g_FeatureParam2.rgb;
+}
+
+// UI Preview에서 역광 효과 강도 가져오는 함수
+float GetPreviewRimIntensity()
+{
+    return g_FeatureParam2.a;
+}
+
+// UI Preview에서 머리카락 역광 효과 강도 가져오는 함수
+float GetPreviewHairRimIntensity()
+{
+    return g_FeatureParam3.y;
 }
 
 float SampleSwitchDissolveNoise(float2 uv)

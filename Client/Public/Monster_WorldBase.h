@@ -59,6 +59,7 @@ public:
     void Set_CurrentAction(MonsterWorldAnim action) { _currentAction = action; }
     void Set_DesiredAction(MonsterWorldAnim action) { _desiredAction = action; }
     void Apply_Stun(float duration);
+    void OnHitAnimationFinished();
     MonsterWorldAnim Get_CurrentAction() const { return _currentAction; }
     MonsterWorldAnim Get_DesiredAction() const { return _desiredAction; }
     bool Is_Stunned() const { return _isStun; }

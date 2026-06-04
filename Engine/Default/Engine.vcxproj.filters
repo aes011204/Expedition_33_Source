@@ -551,6 +551,9 @@
     <ClInclude Include="..\public\ShaderCom.h">
       <Filter>01.Utility\04.Component\Shader</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ShaderCom_Controller.h">
+      <Filter>01.Utility\04.Component\Shader</Filter>
+    </ClInclude>
     <ClInclude Include="..\public\UIObject.h">
       <Filter>01.Utility\03.GameObjects\UIObject</Filter>
     </ClInclude>
@@ -791,6 +794,9 @@
       <Filter>01.Utility\04.Component\VIBuffer\Cube</Filter>
     </ClCompile>
     <ClCompile Include="..\private\ShaderCom.cpp">
+      <Filter>01.Utility\04.Component\Shader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ShaderCom_Controller.cpp">
       <Filter>01.Utility\04.Component\Shader</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ShaderResourceRegistry.cpp">

@@ -75,6 +75,7 @@ public:
 
     void BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed);
     void EndCounterTimeSection(ModelCom* sourceModel);
+    bool IsBusy() const { return _animPhase != ReactionAnimPhase::None; }
 
 private:
     bool CanReceiveInput(const BattleChar& target) const;
