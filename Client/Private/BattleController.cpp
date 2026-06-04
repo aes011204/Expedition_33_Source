@@ -787,6 +787,7 @@ void BattleController::SetCharInitPos()
 
         Vec3 finalPos = placedPos;
         finalPos.y = battlePlaneY
+            + playerLocalPos[i].y
             + Resolve_PrefabGroundOffsetY(hero.actor);
 
         hero.actor->Get_Transform()->Set_Position(finalPos);

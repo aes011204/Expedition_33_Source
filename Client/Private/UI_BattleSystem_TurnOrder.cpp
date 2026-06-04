@@ -65,24 +65,16 @@ void UI_BattleSystem_TurnOrder::Set_TurnOrderPreview(const vector<TurnOrderEntry
     {
         Clear_TurnOrderPreview();
         Stop_TargetAnimations();
-        if (_root)
-            _root->Close();
+
+        Close_UI(_root);
+        Close_UI(_preTurnCurrentFrameRoot);
+
         return;
-    }
-
-    if (_root)
-        _root->Open();
-
-    const bool playTurnStartBatch = (_isAnimationPlaybackEnabled && _isFrameIntroPending);
-
-    if (playTurnStartBatch)
-    {
-        Play_TargetAnimation(kTurnOrderFrameIntroAnimationName);
-        _isFrameIntroPending = false;
     }
 
     if (!_isAnimationPlaybackEnabled)
     {
+        Close_UI(_root);
         Open_UI(_preTurnCurrentFrameRoot);
 
         for (uint32 i = 0; i < _slots.size(); ++i)
@@ -107,6 +99,15 @@ void UI_BattleSystem_TurnOrder::Set_TurnOrderPreview(const vector<TurnOrderEntry
     }
 
     Close_UI(_preTurnCurrentFrameRoot);
+    Open_UI(_root);
+
+    const bool playTurnStartBatch = (_isAnimationPlaybackEnabled && _isFrameIntroPending);
+
+    if (playTurnStartBatch)
+    {
+        Play_TargetAnimation(kTurnOrderFrameIntroAnimationName);
+        _isFrameIntroPending = false;
+    }
 
     for (uint32 i = 0; i < _slots.size(); ++i)
     {
@@ -115,9 +116,9 @@ void UI_BattleSystem_TurnOrder::Set_TurnOrderPreview(const vector<TurnOrderEntry
         if (slot.anchor)
         {
             if (i == 6)
-                slot.anchor->Set_AlphaMultiplier(kTurnOrderSeventhSlotAlpha); // 7번째 턴부터는 덜 중요하게 보여서 살짝 흐리게
+                slot.anchor->Set_AlphaMultiplier(kTurnOrderSeventhSlotAlpha); // 7번째 턴부터는 살짝 흐리게
             else if (i == 7)
-                slot.anchor->Set_AlphaMultiplier(kTurnOrderEighthSlotAlpha);  // 8번째 턴은 가장 뒤라 더 많이 흐리게
+                slot.anchor->Set_AlphaMultiplier(kTurnOrderEighthSlotAlpha);  // 8번째 턴은 가장 뒤라 더 많이 흐리게. 나중에 마스크로 절반 짤라야할듯
             else
                 slot.anchor->Set_AlphaMultiplier(kTurnOrderDefaultSlotAlpha);
         }
@@ -206,6 +207,9 @@ void UI_BattleSystem_TurnOrder::Set_TurnOrderPreview(const vector<TurnOrderEntry
 
 void UI_BattleSystem_TurnOrder::Clear_TurnOrderPreview()
 {
+    Close_UI(_preTurnCurrentFrameRoot);
+    Close_UI(_root);
+
     for (TurnOrderSlot& slot : _slots)
     {
         slot.lastPortraitGuid.clear();
@@ -361,7 +365,6 @@ HRESULT UI_BattleSystem_TurnOrder::Bind_UI()
     CHECK_NULL(_currentTurnAnchor, E_FAIL);
 
     CHECK_NULL(_preTurnCurrentFrameRoot, E_FAIL);
-    _preTurnCurrentFrameRoot->Set_Parent(_currentTurnAnchor);
     Close_UI(_preTurnCurrentFrameRoot);
 
     for (uint32 i = 0; i < _slots.size(); ++i)

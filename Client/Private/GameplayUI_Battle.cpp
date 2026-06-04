@@ -1188,6 +1188,12 @@ void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
 
     if (!_isBattleUiActive || !_isPlayerTurnUiActive)
     {
+        if (!_isBattleUiActive)
+        {
+            _escapeSkipTurn->Close_Immediately();
+            return;
+        }
+
         _escapeSkipTurn->Close();
         _escapeSkipTurn->Update(timeDelta);
         return;
@@ -1196,8 +1202,7 @@ void GameplayUI_Battle::Update_EscapeSkipTurn(float timeDelta)
     const auto battleController = CLIENT->Get_BattleController();
     if (battleController == nullptr || !battleController->Is_BattleStarted())
     {
-        _escapeSkipTurn->Close();
-        _escapeSkipTurn->Update(timeDelta);
+        _escapeSkipTurn->Close_Immediately();
         return;
     }
 
@@ -1721,6 +1726,9 @@ void GameplayUI_Battle::Reset_BattleUiRuntimeState(bool closeVictoryUi)
         if (panel)
             panel->Close();
     }
+
+    if (_escapeSkipTurn)
+        _escapeSkipTurn->Close_Immediately();
 
     if (_attackTooltip)
         _attackTooltip->Close_Immediately();
