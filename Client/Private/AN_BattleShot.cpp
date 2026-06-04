@@ -15,6 +15,7 @@ IMPLEMENT_REFLECTION(AN_BattleShot)
     PROPERTY_ENUM("Camera Mode", _cameraMode, BattleCameraMode);
     PROPERTY_BOOL("Use Clip", _useClip);
     PROPERTY_BOOL("Restart Clip", _restartClip);
+    PROPERTY_BOOL("Keep Current Clip", _keepCurrentClip);
     PROPERTY_STRING("Preset ID", _presetId);
     PROPERTY_STRING("Clip ID", _clipId);
 
@@ -44,7 +45,13 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
         return;
     
     EvtBattlePresentation event {};
-    event.cameraMode = _cameraMode;
+        event.cameraMode = _cameraMode;
+
+    if(event.cameraMode == BattleCameraMode::PARRY)
+    {
+        int a = 10;
+    }
+
     event.subject = character;
     if (battle)
     {
@@ -85,5 +92,6 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     }
     event.useClip = _useClip;
     event.restartClip = _restartClip;
+    event.keepCurrentClip = _keepCurrentClip;
     GAME->Get_EventBus().Publish(event);
 }

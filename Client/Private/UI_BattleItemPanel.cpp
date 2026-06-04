@@ -8,10 +8,27 @@
 
 using namespace UI_Utils;
 
+namespace
+{
+    constexpr wchar_t kBattleItemIntroAnimationName[] = L"BattleSystem_Item_Intro";
+    constexpr wchar_t kBattleItemLoopAnimationName[] = L"BattleSystem_Item_Loop";
+
+    float Resolve_BattleItemIntroDurationSec()
+    {
+        UI_KeyframeAnimationAsset introAnimation{};
+        introAnimation.fps = 60;
+        introAnimation.startFrame = 0;
+        introAnimation.endFrame = 60;
+        return Get_KeyframeAnimationDurationSec(introAnimation);
+    }
+}
+
 HRESULT UI_BattleItemPanel::Initialize(uint32 levelIndex)
 {
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
+
+    _mainPanelIntroDuration = Resolve_BattleItemIntroDurationSec();
 
     Close();
 
@@ -20,10 +37,21 @@ HRESULT UI_BattleItemPanel::Initialize(uint32 levelIndex)
 
 void UI_BattleItemPanel::Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
     if (!_isOpen)
         return;
+
+    if (!_isMainPanelOpen || !_isPlayingMainPanelIntro)
+        return;
+
+    _mainPanelIntroElapsed += max(0.f, timeDelta);
+
+    if (_mainPanelIntroElapsed < _mainPanelIntroDuration)
+        return;
+
+    _isPlayingMainPanelIntro = false;
+
+    if (_root && _root->Is_Open())
+        Play_MainPanelAnimation(kBattleItemLoopAnimationName);
 }
 
 void UI_BattleItemPanel::Open()
@@ -33,6 +61,13 @@ void UI_BattleItemPanel::Open()
 
 void UI_BattleItemPanel::Close()
 {
+    _isMainPanelOpen = false;
+    _isPlayingMainPanelIntro = false;
+    _mainPanelIntroElapsed = 0.f;
+
+    Stop_MainPanelAnimations();
+    Close_MainPanelUIs();
+
     Close_Tooltip();
     UI_RuntimePanelBase::Close();
 }
@@ -40,15 +75,19 @@ void UI_BattleItemPanel::Close()
 void UI_BattleItemPanel::Open_MainPanel()
 {
     Open();
-    Close_Tooltip(); // 메인 패널만 키고, 툴팁은 끄기
+    Open_MainPanelRoot();
 }
 
 void UI_BattleItemPanel::Open_Tooltip(BattleItemType itemType)
 {
     Open();
 
-    if (_root)
-        _root->Close();
+    Stop_MainPanelAnimations();
+    Close_MainPanelUIs();
+
+    _isMainPanelOpen = false;
+    _isPlayingMainPanelIntro = false;
+    _mainPanelIntroElapsed = 0.f;
 
     Close_Tooltip();
 
@@ -68,6 +107,71 @@ void UI_BattleItemPanel::Open_Tooltip(BattleItemType itemType)
 
     default: ;
     }
+}
+
+void UI_BattleItemPanel::Open_MainPanelRoot()
+{
+    Close_Tooltip(); // 메인 패널만 키고, 툴팁은 끄기
+
+    if (_root == nullptr)
+        return;
+
+    const bool wasMainPanelClosed = !_isMainPanelOpen;
+    _isMainPanelOpen = true;
+
+    if (!wasMainPanelClosed)
+        return;
+
+    Open_MainPanelUIs(); // ChooseItem에 새로 진입한 순간에만 intro 대상들을 다시 연다.
+    _isPlayingMainPanelIntro = true; // ChooseItem에 새로 진입한 프레임에만 intro 1회 재생
+    _mainPanelIntroElapsed = 0.f;
+    if (!Play_MainPanelAnimation(kBattleItemIntroAnimationName))
+    {
+        _isPlayingMainPanelIntro = false;
+        Play_MainPanelAnimation(kBattleItemLoopAnimationName);
+    }
+}
+
+void UI_BattleItemPanel::Open_MainPanelUIs()
+{
+    for (const Shared<UI_Base>& ui : _mainPanelUIs)
+    {
+        if (ui)
+            ui->Open();
+    }
+}
+
+void UI_BattleItemPanel::Close_MainPanelUIs()
+{
+    for (const Shared<UI_Base>& ui : _mainPanelUIs)
+    {
+        if (ui)
+            ui->Close();
+    }
+}
+
+void UI_BattleItemPanel::Stop_MainPanelAnimations()
+{
+    for (const Shared<UI_Base>& ui : _mainPanelUIs)
+    {
+        if (ui)
+            ui->Stop_UIAnimation();
+    }
+}
+
+bool UI_BattleItemPanel::Play_MainPanelAnimation(const wchar_t* animationName)
+{
+    bool played = false;
+
+    for (const Shared<UI_Base>& ui : _mainPanelUIs)
+    {
+        if (ui == nullptr)
+            continue;
+
+        played = ui->Play_UIAnimation(animationName, true) || played;
+    }
+
+    return played;
 }
 
 void UI_BattleItemPanel::Close_Tooltip()
@@ -128,12 +232,18 @@ void UI_BattleItemPanel::Refresh_ItemTexts(const Item_Data& healing, const Item_
 HRESULT UI_BattleItemPanel::Load_UI(uint32 levelIndex)
 {
     _uiByName.clear();
+    _mainPanelUIs.clear();
 
     auto Load_AndMerge = [&](const wchar_t* jsonPath, const wchar_t* prototypeTagPrefix) -> HRESULT
     {
         UI_RuntimeLoader::UI_LoadDesc desc{};
         desc.levelIndex = levelIndex;
         desc.jsonPath = jsonPath;
+        if (wstring(jsonPath) == Constants::UI::UI_Battle_ItemPanel_Path)
+        {
+            desc.animationPaths.push_back(Constants::UI_Anim::UI_BattleItemIntroAnim_Path);
+            desc.animationPaths.push_back(Constants::UI_Anim::UI_BattleItemLoopAnim_Path);
+        }
         desc.prototypeTagPrefix = prototypeTagPrefix;
 
         umap<wstring, Shared<UI_Base>> loadedUIByName{};
@@ -198,6 +308,25 @@ HRESULT UI_BattleItemPanel::Bind_UI()
     CHECK_NULL(_healingTooltipUnitText, E_FAIL);
     CHECK_NULL(_energyTooltipUnitText, E_FAIL);
     CHECK_NULL(_reviveTooltipUnitText, E_FAIL);
+
+    _mainPanelUIs.clear();
+    _mainPanelUIs.reserve(6);
+
+    auto Add_MainPanelAnimTarget = [this](const wchar_t* name) -> HRESULT
+        {
+            Shared<UI_Base> ui = Find_UI(_uiByName, name);
+            CHECK_NULL(ui, E_FAIL);
+            _mainPanelUIs.push_back(ui);
+            return S_OK;
+        };
+
+    CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_BattleSystem_Item"), E_FAIL);
+    CHECK_FAILED(Add_MainPanelAnimTarget(L"Image_BattleSystem_Item_Intro_Deco_1"), E_FAIL);
+    CHECK_FAILED(Add_MainPanelAnimTarget(L"Image_BattleSystem_Item_Intro_Deco_2"), E_FAIL);
+    CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_BattleSystem_Item_BG"), E_FAIL);
+    CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_Healing_Tint"), E_FAIL);
+    CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_Energy_Tint"), E_FAIL);
+    CHECK_FAILED(Add_MainPanelAnimTarget(L"Panel_Revive_Tint"), E_FAIL);
 
     return S_OK;
 }

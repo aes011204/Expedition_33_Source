@@ -56,8 +56,9 @@ namespace UIEditor
         const UI_AnimationKeyframe* Get_SelectedKey() const;
 
         float Get_TargetCurrentValue(const UI_Document& document, UI_AnimationKeyframeTrackType trackType) const;
+        ImVec2 Get_TargetCurrentVec2Value(const UI_Document& document, UI_AnimationKeyframeTrackType trackType) const;
         ImVec4 Get_TargetCurrentColor255(const UI_Document& document) const;
-        bool Add_Track(UI_AnimationKeyframeTrackType trackType);
+        bool Add_Track(UI_AnimationKeyframeTrackType trackType, const UI_Document* document = nullptr);
         bool Delete_SelectedTrack();
         bool Add_KeyToSelectedTrack(const UI_Document& document);
         bool Add_CurrentValueKeyToTrack(const UI_Document& document, UI_AnimationKeyframeTrackType trackType);
@@ -72,6 +73,7 @@ namespace UIEditor
         bool Select_Key(int32 targetIndex, int32 trackIndex, int32 keyIndex);
         bool TryMoveSelectedKeyFrame(int32 frame, int32& outFrame);
         bool Set_SelectedKeyValue(float value);
+        bool Set_SelectedKeyVec2Value(const ImVec2& value);
         bool Set_SelectedKeyColor(const ImVec4& color);
         bool Set_SelectedTrackEasing(UI_AnimationEasing easing, bool applyToKeys);
         bool Set_SelectedKeyEasing(UI_AnimationEasing easing);
@@ -93,6 +95,7 @@ namespace UIEditor
         void Migrate_LegacyAlphaTracks(const UI_Document& document);
         bool Upsert_CurrentValueKey(const UI_Document& document, int32 trackIndex, bool selectKey);
         bool Upsert_KeyValue(UI_AnimationKeyframeTrackType trackType, int32 frame, float value, UI_AnimationEasing easing, bool selectKey);
+        bool Upsert_KeyVec2Value(UI_AnimationKeyframeTrackType trackType, int32 frame, const ImVec2& value, UI_AnimationEasing easing, bool selectKey);
         bool Upsert_KeyColor(int32 frame, const ImVec4& color, UI_AnimationEasing easing, bool selectKey);
         void Sort_TrackKeysWithoutMerge(UI_AnimationKeyframeTrack& track, int32 movingKeyOriginalIndex, const UI_AnimationKeyframe& movingKey);
         void Sort_TrackKeys(UI_AnimationKeyframeTrack& track);

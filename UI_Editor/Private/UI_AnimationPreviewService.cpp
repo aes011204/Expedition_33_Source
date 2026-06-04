@@ -78,6 +78,40 @@ namespace UIEditor
             return track.keys.back().value;
         }
 
+        ImVec2 Evaluate_Vec2Keyframes(const UI_AnimationKeyframeTrack& track, float frame, bool& outHasValue)
+        {
+            outHasValue = false;
+            if (track.keys.empty())
+                return ImVec2(0.f, 0.f);
+
+            outHasValue = true;
+            if (track.keys.size() == 1)
+                return Clamp_AnimationKeyframeTrackVec2Value(track.type, track.keys.front().valueVec2);
+
+            if (frame <= static_cast<float>(track.keys.front().frame))
+                return Clamp_AnimationKeyframeTrackVec2Value(track.type, track.keys.front().valueVec2);
+
+            if (frame >= static_cast<float>(track.keys.back().frame))
+                return Clamp_AnimationKeyframeTrackVec2Value(track.type, track.keys.back().valueVec2);
+
+            for (size_t index = 0; index + 1 < track.keys.size(); ++index)
+            {
+                const UI_AnimationKeyframe& currentKey = track.keys[index];
+                const UI_AnimationKeyframe& nextKey = track.keys[index + 1];
+                if (frame < static_cast<float>(currentKey.frame) || frame > static_cast<float>(nextKey.frame))
+                    continue;
+
+                const float frameRange = max(1.f, static_cast<float>(nextKey.frame - currentKey.frame));
+                const float t = min(max((frame - static_cast<float>(currentKey.frame)) / frameRange, 0.f), 1.f);
+                return Clamp_AnimationKeyframeTrackVec2Value(track.type, Lerp_Vec2(
+                    currentKey.valueVec2,
+                    nextKey.valueVec2,
+                    Evaluate_AnimationEasing(currentKey.easing, t)));
+            }
+
+            return Clamp_AnimationKeyframeTrackVec2Value(track.type, track.keys.back().valueVec2);
+        }
+
         ImVec4 Evaluate_ColorKeyframes(const UI_AnimationKeyframeTrack& track, float frame, bool& outHasValue)
         {
             outHasValue = false;
@@ -484,10 +518,12 @@ namespace UIEditor
 
         UI_AnimationPreviewSample sample = {};
         sample.position = object.position;
+        sample.size = object.size;
         sample.scale = object.scale;
         sample.rotationRadians = object.rotationRadians;
         sample.color = object.color;
         sample.alphaMultiplier = object.alphaMultiplier;
+        sample.fontSize = object.fontSize;
 
         bool hasSampledTrack = false;
         const bool useRelativeTracks = Is_PublicAnimation(asset);
@@ -505,6 +541,20 @@ namespace UIEditor
                     continue;
 
                 sample.color = Convert_AnimationColor255To01(color);
+                hasSampledTrack = true;
+                continue;
+            }
+
+            if (track.type == UI_AnimationKeyframeTrackType::Size)
+            {
+                bool hasVec2Value = false;
+                const ImVec2 value = Evaluate_Vec2Keyframes(track, frame, hasVec2Value);
+                if (!hasVec2Value)
+                    continue;
+
+                sample.size = useRelativeTracks
+                    ? ImVec2(object.size.x + value.x, object.size.y + value.y)
+                    : value;
                 hasSampledTrack = true;
                 continue;
             }
@@ -538,6 +588,10 @@ namespace UIEditor
             case UI_AnimationKeyframeTrackType::AlphaMultiplier:
                 sample.hasAlphaMultiplier = true;
                 sample.alphaMultiplier = value;
+                break;
+            case UI_AnimationKeyframeTrackType::FontSize:
+                sample.hasFontSize = true;
+                sample.fontSize = value;
                 break;
             default:
                 break;

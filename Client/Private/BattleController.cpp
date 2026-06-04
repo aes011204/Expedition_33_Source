@@ -258,10 +258,12 @@ void BattleController::OnEnterBattleField(
     _pendingBattleHeroIds = heroIds;
     _pendingBattleMonsterSpawnDescs = battleMonsterSpawnDescs;
     _pendingBattleStartSpawnerId = 0;
+    _pendingBattleStartOffset = Vec3::Zero;
 
     if (Shared<Monster_WorldBase> worldMonster = dynamic_pointer_cast<Monster_WorldBase>(sourceObject))
     {
         _pendingBattleStartSpawnerId = worldMonster->Get_BattleStartSpawnerId();
+        _pendingBattleStartOffset = worldMonster->Get_BattleStartOffset();
     }
 
     // 월드 캐릭터 입력 막기
@@ -760,7 +762,12 @@ void BattleController::SetCharInitPos()
         {  0.f, 0.1f, 0.f },
         {  2.5f, 0.1f, 0.f },
     };
-    const Vec3 enemyBasePos = startPos + (forward * 6.f); // 몬스터 위치 조절
+    const Vec3 enemyBasePos =
+        startPos +
+        (forward * 6.f) +
+        right * _pendingBattleStartOffset.x +
+        Vec3::Up * _pendingBattleStartOffset.y +
+        forward * _pendingBattleStartOffset.z; // MW 프리팹에서 플레이어와 몬스터 사이 거리를 조절한다.
     const float battlePlaneY = startPos.y;
 
     Vec3 heroCenter = Vec3::Zero;
@@ -780,6 +787,7 @@ void BattleController::SetCharInitPos()
 
         Vec3 finalPos = placedPos;
         finalPos.y = battlePlaneY
+            + playerLocalPos[i].y
             + Resolve_PrefabGroundOffsetY(hero.actor);
 
         hero.actor->Get_Transform()->Set_Position(finalPos);
@@ -815,6 +823,7 @@ void BattleController::SetCharInitPos()
 
         placedPos.y = battlePlaneY
             + Resolve_PrefabGroundOffsetY(enemy.actor)
+            + _pendingBattleStartOffset.y
             + localOffset.y;
 
         transform->Set_Position(placedPos);
@@ -843,14 +852,10 @@ void BattleController::Request_WidePresentationMode()
     if (!_battleTurnCamera)
         return;
 
-    _battleTurnCamera->Focus_Battle(_heroes, _enemies);
-
     EvtBattlePresentation event;
     event.cameraMode = BattleCameraMode::WIDE;
     event.subject = nullptr;
     GAME->Get_EventBus().Publish(event);
-
-    return;
 }
 
 vector<BattleChar> BattleController::Get_AliveEnemies()
@@ -1833,7 +1838,7 @@ HRESULT BattleController::Ready_BattleTurnCamera()
     CHECK_NULL(_battleTurnCamera, E_FAIL);
 
     _battleTurnCamera->Try_BeginPlay();
-    _battleTurnCamera->Set_Participants(_heroes, _enemies);
+    _battleTurnCamera->Set_Participants(_heroes, _enemies, _pendingBattleMonsterSpawnDescs);
 
     return S_OK;
 }
@@ -1843,19 +1848,17 @@ void BattleController::Activate_BattleTurnCamera()
     if (_battleTurnCamera == nullptr)
         return;
 
-    _battleTurnCamera->Focus_Battle(_heroes, _enemies);
+    BattleTurnCamera::BattleShotRequest request;
+    request.mode = BattleCameraMode::WIDE;
+    _battleTurnCamera->Apply_ShotRequest(request);
 
     CLIENT->Request_BattleTurn();
-    //GAME->Change_ActiveCamera(_battleTurnCamera);
 }
 
 void BattleController::Restore_WorldCamera()
 {
-    //if (_worldCamera)
-    //    GAME->Change_ActiveCamera(_worldCamera);
     CLIENT->Restore_PreviousCamera();
     GAME->Set_PlayerInputBlocked(false);
-    //  _worldCamera.reset();
 }
 
 void BattleController::Clear_BattleRuntimeState()
@@ -1962,6 +1965,7 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleHeroIds.clear();
     _pendingBattleMonsterSpawnDescs.clear();
     _pendingBattleStartSpawnerId = 0;
+    _pendingBattleStartOffset = Vec3::Zero;
 }
 
 bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarget& hitTarget,
@@ -1977,8 +1981,8 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
     if (!monster->Try_Consume_FreeAimWeakPoint())
         return false; // 이미 소비됐으면 추가딜 없이 본체 피격만 남긴다.
 
-    // 일단은 강제 20 추가딜
-    constexpr float freeAimWeakPointBonusDamage = 20.f;
+    // 일단은 강제
+    constexpr float freeAimWeakPointBonusDamage = 11.f;
 
     DamageSystem::ApplyDamage(
         freeAimWeakPointBonusDamage,

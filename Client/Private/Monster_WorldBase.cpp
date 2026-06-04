@@ -39,6 +39,9 @@ namespace
             { "prefab_name", desc.prefabName },
             { "offset", Vec3_ToJson(desc.offset) },
             { "rotation", Vec3_ToJson(desc.rotation) },
+            { "wide_back_offset", desc.wideBackOffset },
+            { "wide_height_offset", desc.wideHeightOffset },
+            { "wide_look_height_offset", desc.wideLookHeightOffset },
         };
     }
 
@@ -55,6 +58,10 @@ namespace
 
         if (value.contains("rotation"))
             (void)Json_ToVec3(value["rotation"], outDesc.rotation);
+
+        outDesc.wideBackOffset = value.value("wide_back_offset", 0.f);
+        outDesc.wideHeightOffset = value.value("wide_height_offset", 0.f);
+        outDesc.wideLookHeightOffset = value.value("wide_look_height_offset", 0.f);
 
         return true;
     }
@@ -314,6 +321,7 @@ json Monster_WorldBase::To_Json() const
 
     json& customProperties = data["custom_properties"];
     customProperties["battle_start_spawner_id"] = _battleStartSpawnerId;
+    customProperties["battle_start_offset"] = Vec3_ToJson(_battleStartOffset);
 
     json& battleMonsterSpawns = customProperties["battle_monster_spawns"];
     battleMonsterSpawns = json::array();
@@ -362,6 +370,8 @@ void Monster_WorldBase::From_Json(const json& data)
 
     const json& customProperties = data["custom_properties"];
     _battleStartSpawnerId = customProperties.value("battle_start_spawner_id", 0);
+    if (customProperties.contains("battle_start_offset"))
+        (void)Json_ToVec3(customProperties["battle_start_offset"], _battleStartOffset);
 
     if (customProperties.contains("battle_monster_spawns") && customProperties["battle_monster_spawns"].is_array())
     {

@@ -70,6 +70,7 @@ void ChooseAction::Update(float timeDelta)
             EvtBattlePresentation event;
             event.cameraMode = BattleCameraMode::ENEMYFOCUS;
             event.subject = enemies[0].actor;
+            event.presetId = enemies[0].actor->Get_SourcePrefabName();
             GAME->Get_EventBus().Publish(event);
         }
   

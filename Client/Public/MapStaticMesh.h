@@ -43,8 +43,11 @@ public:
 
     virtual bool Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const override;
     virtual HRESULT RenderPickingID(uint32 id) override;
+    json To_Json() const override;
+    void From_Json(const json& data) override;
 
     Shared<ModelCom> Get_Model() const { return _model; }
+    Shared<StaticCollisionData> Get_CollisionData() const { return _collisionData; }
 
 private:
     Shared<ShaderCom>   _shader;
@@ -52,9 +55,13 @@ private:
 
     PhysXStaticActorHandle _physxStaticHandle{};
     Shared<StaticCollisionData> _collisionData;
+    bool _usesStaticCollision = false;
 
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);
+    HRESULT Ready_EmptyModelComponent();
+    void Register_ModelComponent();
+    void Rebuild_StaticCollisionFromModel();
     HRESULT Bind_ShaderResources();
 
 public:

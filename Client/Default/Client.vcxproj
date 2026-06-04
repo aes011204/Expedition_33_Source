@@ -169,11 +169,13 @@
     <ClInclude Include="..\public\AN_Attack.h" />
     <ClInclude Include="..\public\AN_BattleShot.h" />
     <ClInclude Include="..\public\AN_Battle_EndAnim.h" />
+    <ClInclude Include="..\public\AN_CameraShake.h" />
     <ClInclude Include="..\public\AN_Change_Anim.h" />
     <ClInclude Include="..\Public\AN_CounterDamage.h" />
     <ClInclude Include="..\Public\AN_EndTurn.h" />
     <ClInclude Include="..\Public\AN_PlayEffect.h" />
     <ClInclude Include="..\Public\AN_SpawnActor.h" />
+    <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h" />
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
     <ClInclude Include="..\public\AN_EnterAnim.h" />
     <ClInclude Include="..\Public\AN_StartCounter.h" />
@@ -200,6 +202,7 @@
     <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
+    <ClInclude Include="..\Public\Battle_Event.h" />
     <ClInclude Include="..\public\BT_IsStun.h" />
     <ClInclude Include="..\public\BT_LookRange.h" />
     <ClInclude Include="..\public\BT_Stun.h" />
@@ -459,12 +462,14 @@
     <ClCompile Include="..\private\AN_Attack.cpp" />
     <ClCompile Include="..\private\AN_BattleShot.cpp" />
     <ClCompile Include="..\private\AN_Battle_EndAnim.cpp" />
+    <ClCompile Include="..\private\AN_CameraShake.cpp" />
     <ClCompile Include="..\private\AN_Change_Anim.cpp" />
     <ClCompile Include="..\Private\AN_CounterDamage.cpp" />
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
     <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
     <ClCompile Include="..\Private\AN_SpawnActor.cpp" />
+    <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp" />
     <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
     <ClCompile Include="..\private\AN_EnterAnim.cpp" />
     <ClCompile Include="..\Private\AN_StartCounter.cpp" />
