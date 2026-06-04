@@ -207,6 +207,8 @@ public:
     bool Has_Buff(const BattleChar& target, Buffs buffId) const;
     Shared<BuffSystem> Get_BuffSystem() const { return _buffSystem; }
 
+    bool Is_GroupParryActive() const;
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();

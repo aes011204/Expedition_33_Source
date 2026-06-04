@@ -1892,6 +1892,11 @@ bool BattleController::Has_Buff(const BattleChar& target, Buffs buffId) const
     return _buffSystem != nullptr && _buffSystem->Has_Buff(target, buffId);
 }
 
+bool BattleController::Is_GroupParryActive() const
+{
+    return _reactionController.Is_GroupParryActive();
+}
+
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
     if (_battleTurnCamera)

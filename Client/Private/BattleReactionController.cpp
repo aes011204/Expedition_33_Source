@@ -464,6 +464,12 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
                 counterTr->Set_Position(newPos);
             }
 
+            EvtBattlePresentation event;
+            event.cameraMode = BattleCameraMode::PARRY;
+            event.subject = _reactionAnimTargets[_reactionAnimTargets.size()/2].actor;
+            event.presetId = "AoE";
+            event.clipId = "AoE"; 
+            GAME->Get_EventBus().Publish(event);
         }
         target.ModelCom->Set_RootMotionEnabled(true);
 
@@ -547,6 +553,11 @@ void BattleReactionController::EndCounterTimeSection(ModelCom* sourceModel)
     _isCounterTimeSectionActive = false;
     _counterTimeSectionRestoreScale = 1.f;
     _counterTimeSectionModel = nullptr;
+}
+
+bool BattleReactionController::Is_GroupParryActive() const
+{
+    return _reactionAnimTargets.size() >= 2 && _animPhase == ReactionAnimPhase::Counter;
 }
 
 bool BattleReactionController::CanReceiveInput(const BattleChar& target) const

@@ -76,6 +76,8 @@ public:
     void BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed);
     void EndCounterTimeSection(ModelCom* sourceModel);
 
+    bool Is_GroupParryActive() const;
+
 private:
     bool CanReceiveInput(const BattleChar& target) const;
     bool IsHitOrDeadBattleAnim(BattleAnimType animType) const;
