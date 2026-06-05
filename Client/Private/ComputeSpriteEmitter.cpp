@@ -61,6 +61,57 @@ static float Hash01(uint32 seed)
     return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
 }
 
+static Vec3 Resolve_WorldScale(const Shared<TransformCom>& transform)
+{
+    if (transform == nullptr)
+        return Vec3::One;
+
+    Vec3 scale = Vec3::One;
+    Quat rotation = Quat::Identity;
+    Vec3 translation = Vec3::Zero;
+    Matrix worldMatrix = transform->Get_WorldMatrix();
+    if (!worldMatrix.Decompose(scale, rotation, translation))
+        return Vec3::One;
+
+    return Vec3{
+        max(0.0001f, fabsf(scale.x)),
+        max(0.0001f, fabsf(scale.y)),
+        max(0.0001f, fabsf(scale.z))
+    };
+}
+
+static Vec3 Scale_Vector3(const Vec3& value, const Vec3& scale)
+{
+    return Vec3{ value.x * scale.x, value.y * scale.y, value.z * scale.z };
+}
+
+static Vec2 Scale_Vector2(const Vec2& value, const Vec2& scale)
+{
+    return Vec2{ value.x * scale.x, value.y * scale.y };
+}
+
+static Vec2 Resolve_PlaneScale(PointParticlePlaneRadialLocationPlane plane, const Vec3& scale)
+{
+    switch (plane)
+    {
+    case PointParticlePlaneRadialLocationPlane::XZ:
+        return Vec2{ scale.x, scale.z };
+    case PointParticlePlaneRadialLocationPlane::YZ:
+        return Vec2{ scale.y, scale.z };
+    case PointParticlePlaneRadialLocationPlane::XY:
+    default:
+        return Vec2{ scale.x, scale.y };
+    }
+}
+
+static bool Nearly_EqualScale(const Vec3& lhs, const Vec3& rhs)
+{
+    constexpr float scaleEpsilon = 0.0001f;
+    return fabsf(lhs.x - rhs.x) <= scaleEpsilon &&
+           fabsf(lhs.y - rhs.y) <= scaleEpsilon &&
+           fabsf(lhs.z - rhs.z) <= scaleEpsilon;
+}
+
 static HRESULT Bind_MaterialScalarModulationPayload(
     ShaderCom* shader,
     const EffectMaterialScalarModulationRuntimeDesc& modulation,
@@ -249,15 +300,25 @@ void ComputeSpriteEmitter::Update(float timeDelta)
 {
     Sync_FromEffectOwner();
 
-    if (nullptr != _viBuffer)
+    if (nullptr == _viBuffer)
+        return;
+
+    if (PlaybackState::Completed == _playbackState && !_viBuffer->Has_ActiveParticles())
+        return;
+
+    const PlaybackTick playbackTick = Advance_Playback(timeDelta);
+    if (playbackTick.computeDeltaTime <= 0.f &&
+        playbackTick.spawnRequest == 0u &&
+        !playbackTick.killActiveParticles)
     {
-        const PlaybackTick playbackTick = Advance_Playback(timeDelta);
-        _viBuffer->Dispatch_Compute(
-            playbackTick.computeDeltaTime,
-            playbackTick.spawnRequest,
-            playbackTick.killActiveParticles
-        );
+        return;
     }
+
+    _viBuffer->Dispatch_Compute(
+        playbackTick.computeDeltaTime,
+        playbackTick.spawnRequest,
+        playbackTick.killActiveParticles
+    );
 }
 
 void ComputeSpriteEmitter::Late_Update(float timeDelta)
@@ -279,8 +340,9 @@ HRESULT ComputeSpriteEmitter::Render()
 HRESULT ComputeSpriteEmitter::Reset_ForEffectReplay()
 {
     Reset_PlaybackRuntime();
-    Sync_WorldCenterToComputeBuffer();
     CHECK_NULL(_viBuffer, E_FAIL);
+    Update_RuntimeDescForCurrentScale(true);
+    Sync_WorldCenterToComputeBuffer();
     CHECK_FAILED(_viBuffer->Reset_ForEffectReplay(), E_FAIL);
 
     return S_OK;
@@ -365,6 +427,7 @@ int32 ComputeSpriteEmitter::Get_BlendSortLayer() const
 
 void ComputeSpriteEmitter::On_EffectTransformSynced()
 {
+    Update_RuntimeDescForCurrentScale(false);
     Sync_WorldCenterToComputeBuffer();
 }
 
@@ -895,11 +958,17 @@ uint32 ComputeSpriteEmitter::Resolve_BlendPassIndex() const
 ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() const
 {
     ComputePointParticleDesc desc{};
+    const Vec3 worldScale = Resolve_RuntimeWorldScale();
+    const Vec2 planeScale = Internal::Resolve_PlaneScale(_desc.planeRadialLocation.plane, worldScale);
+    const float uniformLocationScale = max(worldScale.x, max(worldScale.y, worldScale.z));
+    const Vec2 spriteScale{ uniformLocationScale, uniformLocationScale };
+    const float uniformPlaneScale = max(planeScale.x, planeScale.y);
+
     desc.instanceCount = max(1u, _desc.spawn.instanceCount);
     desc.center = _desc.center;
-    desc.range = _desc.spawn.spawnRange;
-    desc.sizeMin = _desc.initialSize.sizeMin;
-    desc.sizeMax = _desc.initialSize.sizeMax;
+    desc.range = Internal::Scale_Vector3(_desc.spawn.spawnRange, worldScale);
+    desc.sizeMin = Internal::Scale_Vector2(_desc.initialSize.sizeMin, spriteScale);
+    desc.sizeMax = Internal::Scale_Vector2(_desc.initialSize.sizeMax, spriteScale);
     desc.initialSizeSeed = _desc.initialSize.sizeSeed;
     desc.lifeTime = _desc.lifetime.lifeTime;
     desc.startColorMin = _desc.initialColor.startColorMin;
@@ -916,12 +985,22 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.subUvFrameOverLife = _desc.subUVFrameOverLife;
     desc.sizeByLife = _desc.sizeByLife;
     desc.motion = _desc.motion;
+    desc.orbitOverLife = _desc.orbitOverLife;
     desc.rotation = _desc.rotation;
     desc.spawn = _desc.spawn.particleSpawn;
     desc.lifetimeSeed = _desc.lifetimeSeed;
     desc.initialLocation = _desc.initialLocation;
+    desc.initialLocation.minOffset = Internal::Scale_Vector3(desc.initialLocation.minOffset, worldScale);
+    desc.initialLocation.maxOffset = Internal::Scale_Vector3(desc.initialLocation.maxOffset, worldScale);
     desc.sphereLocation = _desc.sphereLocation;
+    desc.sphereLocation.offset = Internal::Scale_Vector3(desc.sphereLocation.offset, worldScale);
+    desc.sphereLocation.radius *= uniformLocationScale;
     desc.planeRadialLocation = _desc.planeRadialLocation;
+    desc.planeRadialLocation.offset = Internal::Scale_Vector3(desc.planeRadialLocation.offset, worldScale);
+    desc.planeRadialLocation.thickness *= uniformLocationScale;
+    desc.planeRadialLocation.uRange = Internal::Scale_Vector2(desc.planeRadialLocation.uRange, Vec2{ planeScale.x, planeScale.x });
+    desc.planeRadialLocation.vRange = Internal::Scale_Vector2(desc.planeRadialLocation.vRange, Vec2{ planeScale.y, planeScale.y });
+    desc.planeRadialLocation.radiusRange = Internal::Scale_Vector2(desc.planeRadialLocation.radiusRange, Vec2{ uniformPlaneScale, uniformPlaneScale });
     desc.planeRadialOrientation = _desc.planeRadialOrientation;
     desc.initialLocationSeed = _desc.initialLocationSeed;
     desc.sphereLocationSeed = _desc.sphereLocationSeed;
@@ -942,6 +1021,36 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.computeShaderPrototypeTag = L"ComputeShader_PointParticle";
 
     return desc;
+}
+
+Vec3 ComputeSpriteEmitter::Resolve_RuntimeWorldScale() const
+{
+    const Shared<GameObject> effectOwner = _effectOwner.lock();
+    const Shared<TransformCom> ownerTransform =
+        effectOwner != nullptr ? effectOwner->Get_Transform() : nullptr;
+
+    if (ownerTransform != nullptr)
+        return Internal::Resolve_WorldScale(ownerTransform);
+
+    return Internal::Resolve_WorldScale(_transformCom);
+}
+
+void ComputeSpriteEmitter::Update_RuntimeDescForCurrentScale(bool forceUpdate)
+{
+    CHECK_NULL_THROTTLED(_transformCom, 120);
+    CHECK_NULL_THROTTLED(_viBuffer, 120);
+
+    const Vec3 worldScale = Resolve_RuntimeWorldScale();
+    if (!forceUpdate &&
+        _hasRuntimeDescWorldScale &&
+        Internal::Nearly_EqualScale(_runtimeDescWorldScale, worldScale))
+    {
+        return;
+    }
+
+    _viBuffer->Update_RuntimeDesc(Make_ComputePointParticleDesc());
+    _runtimeDescWorldScale = worldScale;
+    _hasRuntimeDescWorldScale = true;
 }
 
 void ComputeSpriteEmitter::Sync_WorldCenterToComputeBuffer()
@@ -1150,10 +1259,13 @@ bool ComputeSpriteEmitter::Can_SubmitRender() const
     if (PlaybackState::Delayed == _playbackState)
         return false;
 
-    if (PlaybackState::Completed == _playbackState && _desc.required.playback.killOnCompleted)
+    if (nullptr == _viBuffer)
         return false;
 
-    return nullptr != _viBuffer;
+    if (!_viBuffer->Has_ActiveParticles())
+        return false;
+
+    return true;
 }
 
 Shared<ComputeSpriteEmitter> ComputeSpriteEmitter::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -1193,6 +1305,8 @@ void ComputeSpriteEmitter::Free()
 
     _desc = {};
     _opacitySourceIndex = kOpacitySourceAlpha;
+    _runtimeDescWorldScale = Vec3::One;
+    _hasRuntimeDescWorldScale = false;
     _burstExecuted.clear();
     _emitterElapsedTime = 0.f;
     _spawnAccumulator = 0.f;

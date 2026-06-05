@@ -24,9 +24,11 @@ public:
 
 public: //## Behavior::ComputeUpdate
     void Dispatch_Compute(float timeDelta, uint32 spawnRequest, bool killActiveParticles); // spawn/kill 요청을 반영한 뒤 instance payload를 갱신한다.
+    void Update_RuntimeDesc(const ComputePointParticleDesc& desc);                         // 같은 instance count 안에서 위치/크기 runtime payload를 갱신한다.
     void Set_Center(const Vec3& center);                                                   // emitter/world transform 변화가 compute spawn center에 반영되도록 갱신한다.
     void Set_EmitterBasis(const Vec3& right, const Vec3& up, const Vec3& look);            // emitter local 값을 world 방향으로 바꾸는 basis를 갱신한다.
     HRESULT Reset_ForEffectReplay();                                                       // effect 재사용 전 particle lifecycle/draw state를 초기화한다.
+    bool Has_ActiveParticles() const { return _hasActiveParticles; }                       // CPU가 아는 범위에서 활성 particle이 있었는지 확인한다.
 
 private: //## Static::ComputeSmoke
     static constexpr uint32 kThreadCountX{ 64 }; // compute shader의 numthreads.x와 맞춘 dispatch 단위.
@@ -69,6 +71,7 @@ private: //## Data::Compute
     float _deltaTime{};                                      // 이번 dispatch의 frame delta time.
     uint32 _spawnRequest{};                                  // 이번 dispatch에서 inactive slot을 활성화할 요청 수.
     uint32 _killActiveParticles{};                           // 이번 dispatch에서 active particle을 모두 죽일지 나타낸다.
+    bool _hasActiveParticles{ false };                        // readback 없이 비활성 emitter submit을 줄이기 위한 CPU-side latch다.
 
 private: //## Data::GPU
     D3D11_BUFFER_DESC _instanceBufferDesc{}; // compute output 복사 대상 instance VB 생성 설정.

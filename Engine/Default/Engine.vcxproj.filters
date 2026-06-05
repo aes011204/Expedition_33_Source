@@ -256,6 +256,9 @@
     <Filter Include="97. Manager\ScreenFx">
       <UniqueIdentifier>{c92959ac-4c8b-403c-96ee-3710e5b38cc4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="01.Utility\04.Component\VIBuffer\Plane">
+      <UniqueIdentifier>{7b126621-f4e4-42c2-8979-58963f7ac21d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -459,6 +462,9 @@
     <ClInclude Include="..\Public\ScreenFx_Instance.h">
       <Filter>97. Manager\ScreenFx</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\VIBuffer_Plane.h">
+      <Filter>01.Utility\04.Component\VIBuffer\Plane</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">
@@ -543,6 +549,9 @@
       <Filter>01.Utility\04.Component\VIBuffer\Cube</Filter>
     </ClInclude>
     <ClInclude Include="..\public\ShaderCom.h">
+      <Filter>01.Utility\04.Component\Shader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ShaderCom_Controller.h">
       <Filter>01.Utility\04.Component\Shader</Filter>
     </ClInclude>
     <ClInclude Include="..\public\UIObject.h">
@@ -785,6 +794,9 @@
       <Filter>01.Utility\04.Component\VIBuffer\Cube</Filter>
     </ClCompile>
     <ClCompile Include="..\private\ShaderCom.cpp">
+      <Filter>01.Utility\04.Component\Shader</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ShaderCom_Controller.cpp">
       <Filter>01.Utility\04.Component\Shader</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ShaderResourceRegistry.cpp">
@@ -1072,6 +1084,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\ScreenFx_Instance.cpp">
       <Filter>97. Manager\ScreenFx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\VIBuffer_Plane.cpp">
+      <Filter>01.Utility\04.Component\VIBuffer\Plane</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

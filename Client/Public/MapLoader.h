@@ -16,6 +16,12 @@ class MapStaticMesh;
 class MapLoader final
 {
 public:
+    struct ModelOverrideEntry
+    {
+        int32 passIndex = -1;
+        unordered_map<int32, string> textureSlots;
+    };
+
     struct LoadSession
     {
         ComPtr<Device> device = nullptr;
@@ -25,7 +31,7 @@ public:
         wstring layerTag = {};
 
         string modelFolder = {};
-        unordered_map<string, int32> modelOverrides;
+        unordered_map<string, ModelOverrideEntry> modelOverrides;
         vector<json> staticMeshes = {};
         vector<json> instancedMeshes = {};
         vector<json> prefabInstances = {};
@@ -107,7 +113,7 @@ public:
 
 private:
     static void Prepare_StaticAutoInstancing(LoadSession& session);
-    static void ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, int32 forcedPassIndex = -1);
+    static void ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry = nullptr);
 
     // 스레드 안전한 전역 모델 조회 및 로드 헬퍼 함수
     static Shared<ModelCom> GetOrLoadModel(
@@ -115,7 +121,7 @@ private:
         const ComPtr<Context>& context,
         const string& modelFolder,
         const string& modelPathStr,
-        const unordered_map<string, int32>& modelOverrides,
+        const unordered_map<string, ModelOverrideEntry>& modelOverrides,
         chrono::milliseconds* outCreateDuration = nullptr,
         size_t* outCreateCount = nullptr,
         chrono::milliseconds* outMaterialDuration = nullptr,

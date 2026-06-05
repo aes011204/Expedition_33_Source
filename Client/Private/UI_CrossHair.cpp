@@ -1,5 +1,5 @@
 ﻿#include "UI_CrossHair.h"
-
+#include "ClientInstance.h"
 #include "Client_Constants.h"
 #include "UI_Base.h"
 #include "UI_Image.h"
@@ -15,6 +15,11 @@ HRESULT UI_CrossHair::Initialize(uint32 levelIndex)
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
 
+    _freeAimShotHitHandle = CLIENT->OnFreeAimShotHit.Add([this]()
+        {
+            Handle_FreeAimShot();
+        });
+
     Close();
 
     return S_OK;
@@ -22,12 +27,10 @@ HRESULT UI_CrossHair::Initialize(uint32 levelIndex)
 
 void UI_CrossHair::Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
     if (!Is_Open())
         return;
 
-
+    Update_HitPulse(timeDelta);
 }
 
 void UI_CrossHair::Open()
@@ -43,16 +46,17 @@ void UI_CrossHair::Open()
     {
         _isHit = false;
         _hasHitState = false;
+        Reset_HitPulse();
 
         Play_CrossAirAnimation(L"Ready_CrossAir");
     }
-        
 }
 
 void UI_CrossHair::Close()
 {
     _isHit = false;
     _hasHitState = false;
+    Reset_HitPulse();
 
     UI_RuntimePanelBase::Close();
 
@@ -133,6 +137,57 @@ void UI_CrossHair::Play_CrossAirAnimation(const wstring& animationName)
         _crossHairOutlineImage->Play_UIAnimation(animationName, true);
 }
 
+void UI_CrossHair::Handle_FreeAimShot()
+{
+    if (!Is_Open())
+        return;
+
+    Start_HitPulse();
+}
+
+void UI_CrossHair::Start_HitPulse()
+{
+    _hitPulseElapsed = 0.f;
+    _isHitPulseActive = true;
+
+    Apply_HitPulseScale(kHitPulseMinScale);
+}
+
+void UI_CrossHair::Update_HitPulse(float timeDelta)
+{
+    if (!_isHitPulseActive)
+        return;
+
+    _hitPulseElapsed += timeDelta;
+
+    const float t = min(max(_hitPulseElapsed / kHitPulseDuration, 0.f), 1.f);
+    const float scale = kHitPulseMinScale + (1.f - kHitPulseMinScale) * t;
+
+    Apply_HitPulseScale(scale);
+
+    if (t >= 1.f)
+        Reset_HitPulse();
+}
+
+void UI_CrossHair::Apply_HitPulseScale(float scale)
+{
+    const Vec2 pulseScale{ scale, scale };
+
+    if (_root && _root->Get_Transform())
+        _root->Get_Transform()->Set_Scale(pulseScale);
+
+    if (_outlineRoot && _outlineRoot->Get_Transform())
+        _outlineRoot->Get_Transform()->Set_Scale(pulseScale);
+}
+
+void UI_CrossHair::Reset_HitPulse()
+{
+    _hitPulseElapsed = 0.f;
+    _isHitPulseActive = false;
+
+    Apply_HitPulseScale(1.f);
+}
+
 Unique<UI_CrossHair> UI_CrossHair::Create(uint32 levelIndex)
 {
     auto instance = make_unique<UI_CrossHair>();
@@ -149,6 +204,14 @@ Unique<UI_CrossHair> UI_CrossHair::Create(uint32 levelIndex)
 
 void UI_CrossHair::Free()
 {
+    if (_freeAimShotHitHandle.IsValid())
+    {
+        CLIENT->OnFreeAimShotHit.Remove(_freeAimShotHitHandle);
+        _freeAimShotHitHandle.Reset();
+    }
+
+    Reset_HitPulse();
+
     if (_outlineRoot)
         _outlineRoot->Close();
 

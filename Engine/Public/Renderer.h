@@ -4,6 +4,7 @@
 #include "Engine_Constants.h"
 #include "Log_Define.h"
 #include "Renderer_Define.h"
+#include "Shader_CBuffer_Define.h"
 
 NS_BEGIN(Engine)
 
@@ -56,6 +57,8 @@ public:
         return _currentGroup;
     }
 
+    void Set_FogZones(const FogZoneCB& fogZoneCB) { _fogZoneCB = fogZoneCB; }
+
 #ifdef _DEBUG
     bool Try_ConsumePerfSummary(float windowSec, RenderPerfSummary& outSummary);
 #endif
@@ -80,6 +83,7 @@ private:
     void Render_UIEffect();
 
     void Render_CombinedHDR();
+    void Render_Fog();
     void Render_PostProcess();
     
 
@@ -91,6 +95,9 @@ private:
 private :
     HRESULT Render_BloomPass(const wchar_t* dstMrt, const wchar_t* srcRt, PostProcessPass pass);
     HRESULT Render_BloomUpsamplePass(const wchar_t* dstMrt, const wchar_t* smallRt, const wchar_t* baseRt);
+    HRESULT Render_LightShaftPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass);
+    HRESULT Render_LightShaftCompositePass();
+    bool Try_BuildLightShaftParams(LightShaftCB& outParams) const;
     HRESULT Render_DistortionResolve();
 
 private: /* 그림자 */
@@ -125,6 +132,8 @@ private:
     Shared<Texture>                 _iblBrdfLutTexture;
     enum class IBLDebugMode : uint8 { Default = 0, SpecularOnly, DiffuseOnly };
     IBLDebugMode                    _iblDebugMode = IBLDebugMode::Default;
+
+    FogZoneCB                       _fogZoneCB{};
 
     bool                            _shadowEnabled = true;
 

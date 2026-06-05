@@ -1,6 +1,6 @@
 ﻿#include "pch.h"
 #include "DamageSystem.h"
-
+#include "GameInstance.h"
 #include "Battle_Enum.h"
 #include "CombatStatCom.h"
 
@@ -43,21 +43,45 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
 
     if (target.statCom->Get_CurrentShield() != 0)
     {
+        const uint32 prevShield = target.statCom->Get_CurrentShield();
         target.statCom->Remove_Shield(1);
-        return; // 일단 쉴드는 징표 소비 X
+
+        DamageAppliedInfo info{};
+        info.target = target;
+        info.damage = 0.f;
+        info.attackType = attackType;
+        info.isShieldBlocked = true;
+        info.prevShield = prevShield;
+        info.currentShield = target.statCom->Get_CurrentShield();
+
+        OnDamageApplied.Broadcast(info);
+        return; // 쉴드가 데미지를 막은 경우
     }
 
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
         return;
-    
+
     OnDamageCalculating.Broadcast(attacker, target, damage, attackType);
 
-    // 데미지 적용 후 다시 판단
     if (damage <= 0.f)
         return;
 
+    bool isCritical = false;
+    if (attacker.statCom != nullptr &&
+        attacker.statCom->Is_Player() &&
+        attackType != AttackType::BuffEffect &&
+        attackType != AttackType::Counter)
+    {
+        // 크리티컬 확률 구하기
+        const float criticalRate = clamp(attacker.statCom->Get_StatInfo().criticalRate, 0.f, 100.f);
+        // 크리티컬 성공 여부
+        isCritical = GAME->Random(0.f, 100.f) < criticalRate;
+    }
+
+    if (isCritical)
+        damage *= 1.5f;
+
     auto& runtimeStat = target.statCom->Get_RuntimeStat();
-    //LOG_DEBUG("ApplyDamage: before hp={:.2f}, damage={:.2f}", runtimeStat.CurHp, damage);
     runtimeStat.CurHp -= damage;
 
     if (runtimeStat.CurHp <= 0.f)
@@ -66,11 +90,13 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
         runtimeStat.CurAliveState = EAliveStatus::Dead;
     }
 
-    //LOG_DEBUG("ApplyDamage: after hp={:.2f}, alive={}",
-    //    runtimeStat.CurHp,
-    //    static_cast<int>(runtimeStat.CurAliveState));
+    DamageAppliedInfo info{};
+    info.target = target;
+    info.damage = damage;
+    info.attackType = attackType;
+    info.isCritical = isCritical;
 
-    OnDamageApplied.Broadcast(target, damage, attackType);
+    OnDamageApplied.Broadcast(info);
 }
 
 void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const vector<BattleChar>& target,

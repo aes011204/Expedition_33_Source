@@ -41,6 +41,7 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Choice_Target_Path[] = L"UI/UI_Json/BattleSystem/UI_BattleSystem_Choice_Target.json";
 
     inline constexpr wchar_t UI_Monster_Hp_Path[] = L"UI/UI_Json/BattleSystem/UI_Monster_HP_Bar.json";
+    inline constexpr wchar_t UI_Boss_Hp_Path[] = L"UI/UI_Json/BattleSystem/UI_Boss_HP_Bar.json";
     inline constexpr wchar_t UI_Player_Hp_Path[] = L"UI/UI_Json/BattleSystem/UI_Player_HP_Bar.json";
 
     inline constexpr wchar_t UI_Target_Monster_Path[] = L"UI/UI_Json/BattleSystem/UI_Target_Monster.json";
@@ -84,6 +85,8 @@ namespace Client::Constants::UI
     // 징표
     inline constexpr wchar_t UI_MarkEffect_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Mark_Effect.json";
     inline constexpr wchar_t UI_Mark_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Mark.json";
+    inline constexpr wchar_t UI_Shield_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Shield.json";
+    inline constexpr wchar_t UI_Destroy_Shield_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Destroy_Shield.json";
 
 #pragma endregion
 
@@ -117,6 +120,12 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_ControlHintOutroAnim_Path[] = L"UI/UI_Animations/BattleSystem/Control_Hint_Outro";
     inline constexpr wchar_t UI_BattleCommandIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleCommand_Intro";
     inline constexpr wchar_t UI_BattleCommandLoopAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleCommand_Loop";
+    inline constexpr wchar_t UI_BattleSkillGustaveIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Skill_Gustave_Intro";
+    inline constexpr wchar_t UI_BattleSkillGustaveLoopAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Skill_Gustave_Loop";
+    inline constexpr wchar_t UI_BattleSkillLuneIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Skill_Lune_Intro";
+    inline constexpr wchar_t UI_BattleSkillLuneLoopAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Skill_Lune_Loop";
+    inline constexpr wchar_t UI_BattleSkillMaelleIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Skill_Maelle_Intro";
+    inline constexpr wchar_t UI_BattleSkillMaelleLoopAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Skill_Maelle_Loop";
 
 #pragma region QTE 애니메이션
     inline constexpr wchar_t UI_QTEIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/QTE/QTE_Intro";
@@ -127,11 +136,15 @@ namespace Client::Constants::UI_Anim
 #pragma endregion
 
     inline constexpr wchar_t UI_MarkEffectLoopAnim_Path[] = L"UI/UI_Animations/BattleSystem/Mark_Effect_Loop";
+    inline constexpr wchar_t UI_BrokenShieldAnim_Path[] = L"UI/UI_Animations/BattleSystem/Status/Broken_Shield";
+    inline constexpr wchar_t UI_StatusIconIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/Status/Status_Icon_Intro.uianim";
 
     inline constexpr wchar_t UI_BattleTooltipIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Tooltip_Intro";
     inline constexpr wchar_t UI_BattleTooltipOutroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Tooltip_Outro";
 
     inline constexpr wchar_t UI_BattleMechanismIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Mechanism_Intro";
+
+    inline constexpr wchar_t UI_BattleSystemIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleSystem_Intro";
 
     inline constexpr wchar_t UI_BattleVictoryIntroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleVictory";
     inline constexpr wchar_t UI_BattleVictoryOutroAnim_Path[] = L"UI/UI_Animations/BattleSystem/BattleVictory_Outro";
@@ -198,6 +211,8 @@ namespace Client::Constants::Map
     inline constexpr wchar_t MF_Zone_Stair_1_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_1.hmap";
     inline constexpr wchar_t MF_Zone_Stair_2_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_2.hmap";
     inline constexpr wchar_t MF_Zone_Stair_3_HMap[] = L"../../../Client/Bin/Resources/Map/SaveJson/MF_Zone_Stair_3.hmap";
+
+    inline constexpr wchar_t WaterPath[] = L"../../../Client/Bin/Resources/Map/Water/";
 }
 
 namespace Client::Constants::Charcter

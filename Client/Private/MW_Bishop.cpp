@@ -2,6 +2,7 @@
 #include "ClientInstance.h"
 #include "Mon_Bishop_Body.h"
 #include "Mon_Lancelier_Weapon.h"
+#include "Mon_WeakPoint.h"
 
 IMPLEMENT_REFLECTION(MW_Bishop)
 {
@@ -82,6 +83,17 @@ HRESULT MW_Bishop::Ready_PartObjects()
 
     _body = dynamic_pointer_cast<Mon_Bishop_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
+
+    Mon_WeakPoint::WEAK_DESC weakDesc{};
+    weakDesc.parentMatrix = &_body->Get_CombinedWorldMatrix();
+    weakDesc.allowMissingModel = true;
+    weakDesc.socketName = "Aim_Target";
+    weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Aim_Target");
+
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL);
+
+    _weak = dynamic_pointer_cast<Mon_WeakPoint>(_partObjects[TEXT("Part_Weak")]);
+    CHECK_NULL(_weak, E_FAIL);
 
     return S_OK;
 }

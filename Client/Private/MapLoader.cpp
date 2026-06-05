@@ -1,4 +1,4 @@
-#include "MapLoader.h"
+﻿#include "MapLoader.h"
 #include "GameInstance.h"
 #include "MapAuthoringIO.h"
 #include "MapStaticMesh.h"
@@ -6,6 +6,9 @@
 #include "MapStaticCollisionBuilder.h"
 #include "ModelCom.h"
 #include "StaticCollisionData.h"
+#include "Shader_CBuffer_Define.h"
+#include "MapWater.h"
+#include "Client_Constants.h"
 #include <mutex>
 
 // 전역 모델 및 콜리전 캐시 정적 멤버 정의 및 초기화
@@ -177,11 +180,151 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.layerTag = layerTag;
     outSession.modelFolder = mapData.value("ModelFolder", string{});
 
+    if (mapData.contains("PostProcessVolumes"))
+    {
+        FogZoneCB fogCB{};
+        for (const auto& e : mapData["PostProcessVolumes"])
+        {
+            if (fogCB.aabbCount + fogCB.sphereCount >= FogZoneCB::MAX_FOG_ZONES)
+            {
+                break;
+            }
+
+            float density = e.value("FogDensity", 0.f);
+            if (density <= 0.f)
+            {
+                continue;
+            }
+
+            FogZoneEntry entry{};
+            if (e.contains("FogColor"))
+            {
+                auto& c = e["FogColor"];
+                entry.fogColor = Vec4(c[0], c[1], c[2], 1.f);
+            }
+
+            entry.fogDensity = density;
+            entry.fogStart = e.value("FogStart", 0.f);
+
+            Vec3 position{};
+            if (e.contains("Position"))
+            {
+                auto& p = e["Position"];
+                position = Vec3(p[0], p[1], p[2]);
+            }
+
+            int zoneType = e.value("FogZoneType", 0);
+            if (zoneType == 0) // AABB
+            {
+                Vec3 extent{ 5.f, 5.f, 5.f };
+                if (e.contains("Extent"))
+                {
+                    auto& ex = e["Extent"];
+                    extent = Vec3(ex[0], ex[1], ex[2]);
+                }
+                entry.zoneMin = position - extent;
+                entry.zoneMax = position + extent;
+                fogCB.zones[fogCB.aabbCount++] = entry;
+            }
+            else // sphere
+            {
+                entry.zoneMin = position;
+                entry.zoneRadius = e.value("FogRadius", 10.f);
+                fogCB.zones[fogCB.aabbCount + fogCB.sphereCount++] = entry;
+            }
+        }
+        GAME->Set_FogZones(fogCB);
+    }
+
+    if (mapData.contains("Waters"))
+    {
+        const wstring waterTexBase = Constants::Map::WaterPath;
+        auto WaterTexPath = [&](const string& filename) -> wstring {
+            if (filename.empty())
+            {
+                return {};
+            }
+            return waterTexBase + String::ToWString(filename);
+            };
+
+        for (const auto& e : mapData["Waters"])
+        {
+            MapWater::MAPWATER_DESC desc{};
+
+            if (e.contains("Position"))
+            {
+                auto& p = e["Position"];
+                desc.position = Vec3(p[0], p[1], p[2]);
+            }
+            if (e.contains("Rotation"))
+            {
+                auto& r = e["Rotation"];
+                desc.rotation = Quat(r[0], r[1], r[2], r[3]);
+            }
+
+            desc.planeDesc.countX = e.value("CountX", 64u);
+            desc.planeDesc.countZ = e.value("CountZ", 64u);
+            desc.planeDesc.sizeX = e.value("SizeX", 1.f);
+            desc.planeDesc.sizeZ = e.value("SizeZ", 1.f);
+
+            desc.largeWaveNormalPath = WaterTexPath(e.value("LargeWaveNormal", string{}));
+            desc.smallWaveNormalPath = WaterTexPath(e.value("SmallWaveNormal", string{}));
+            desc.seafoamPath = WaterTexPath(e.value("SeafoamTexture", string{}));
+            desc.cubemapPath = WaterTexPath(e.value("Cubemap", string{}));
+
+            auto& p = desc.waterParams;
+            p.largeWaveScale = e.value("LargeWaveScale", 64.f);
+            p.largeWaveSpeed = e.value("LargeWaveSpeed", 0.1f);
+            p.largeWaveAmplify = e.value("LargeWaveAmplify", 1.f);
+            p.smallWaveScale = e.value("SmallWaveScale", 512.f);
+            p.smallWaveSpeed = e.value("SmallWaveSpeed", 1.f);
+            p.smallWaveAmplify = e.value("SmallWaveAmplify", 1.f);
+            p.seafoamScale = e.value("SeafoamScale", 512.f);
+            p.seafoamSpeed = e.value("SeafoamSpeed", 0.015f);
+            p.seafoamHeightPower = e.value("SeafoamHeightPower", 2.f);
+            p.seafoamHeightMultiply = e.value("SeafoamHeightMultiply", 3.f);
+            p.foamDistortion = e.value("FoamDistortion", 0.f);
+            p.depthFade = e.value("DepthFade", 0.f);
+            p.cameraDistanceFade = e.value("CameraDistanceFade", 0.f);
+            p.reflectionAmount = e.value("ReflectionAmount", 0.f);
+            p.luminanceBias = e.value("LuminanceBias", 0.f);
+
+            if (e.contains("WaterColor"))
+            {
+                auto& c = e["WaterColor"];
+                p.waterColor = Vec4(c[0], c[1], c[2], c[3]);
+            }
+            if (e.contains("FresnelColor"))
+            {
+                auto& c = e["FresnelColor"];
+                p.fresnelColor = Vec4(c[0], c[1], c[2], c[3]);
+            }
+
+            Shared<GameObject> water = nullptr;
+            GAME->Add_GameObject(
+                ETOI(LevelType::Static),
+                TEXT("Prototype_MapWater"),
+                levelIndex,
+                layerTag,
+                water,
+                &desc);
+        }
+    }
+
     if (mapData.contains("ModelOverrides"))
     {
         for (auto& [filename, entry] : mapData["ModelOverrides"].items())
         {
-            outSession.modelOverrides[filename] = entry.value("PassIndex", -1);
+            ModelOverrideEntry overrideEntry;
+            overrideEntry.passIndex = entry.value("PassIndex", -1);
+            if (entry.contains("TextureSlots"))
+            {
+                for (auto& [slotStr, texPath] : entry["TextureSlots"].items())
+                {
+                    overrideEntry.textureSlots[stoi(slotStr)] = texPath.get<string>();
+                }
+            }
+            outSession.modelOverrides[filename] = overrideEntry;
         }
     }
 
@@ -564,6 +707,8 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
         MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
 
+        desc.modelPath = String::ToWString("../../../Client/Bin/Resources/Map/" + session.modelFolder + "/" + modelPathStr);
+
         auto it = session.preloadedModelCache.find(modelPathStr);
         if (it != session.preloadedModelCache.end())
         {
@@ -729,7 +874,7 @@ void MapLoader::Prepare_StaticAutoInstancing(LoadSession& session)
     session.nextInstancedMeshIndex = 0;
 }
 
-void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, int32 forcedPassIndex)
+void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry)
 {
     if (model == nullptr)
     {
@@ -828,14 +973,36 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
         model->Apply_MaterialByAssetName(binding.first, bundleKey, binding.second);
     }
 
+    int32 forcedPassIndex = overrideEntry ? overrideEntry->passIndex : -1;
+
     if (forcedPassIndex >= 0)
     {
         for (uint32 i = 0; i < static_cast<uint32>(model->Get_NumMaterials()); ++i)
         {
             auto mat = model->Get_Material(i);
             if (mat)
-            {
                 mat->Set_ForcedPassIndex(forcedPassIndex);
+        }
+    }
+
+    if (overrideEntry)
+    {
+        for (auto& [slotIdx, texPath] : overrideEntry->textureSlots)
+        {
+            if (texPath.empty())
+            {
+                continue;
+            }
+
+            string fullPath = "../../../Client/Bin/Resources/Map/" + texPath;
+            auto slot = static_cast<MaterialTextureSlot>(slotIdx);
+            for (uint32 i = 0; i < static_cast<uint32>(model->Get_NumMaterials()); ++i)
+            {
+                auto mat = model->Get_Material(i);
+                if (mat)
+                {
+                    mat->Override_TextureSlot(slot, 0, String::ToWString(fullPath));
+                }
             }
         }
     }
@@ -943,7 +1110,7 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     const ComPtr<Context>& context,
     const string& modelFolder,
     const string& modelPathStr,
-    const unordered_map<string, int32>& modelOverrides,
+    const unordered_map<string, ModelOverrideEntry>& modelOverrides,
     chrono::milliseconds* outCreateDuration,
     size_t* outCreateCount,
     chrono::milliseconds* outMaterialDuration,
@@ -977,16 +1144,15 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     if (!model)
         return nullptr;
 
-    int32 forcedPass = -1;
+    const ModelOverrideEntry* overrideEntry = nullptr;
     auto overrideIt = modelOverrides.find(modelPathStr);
     if (overrideIt != modelOverrides.end())
     {
-        forcedPass = overrideIt->second;
+        overrideEntry = &overrideIt->second;
     }
 
-    // 머티리얼 적용 로직 수행
     const auto materialBegin = chrono::steady_clock::now();
-    ApplyMaterials(model, modelFolder, fullPathA, forcedPass);
+    ApplyMaterials(model, modelFolder, fullPathA, overrideEntry);
     const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
 
     if (outMaterialDuration) *outMaterialDuration += materialMs;

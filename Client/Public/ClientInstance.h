@@ -25,6 +25,8 @@ class ScreenFadeTransition;
 class LevelTransitionFade;
 class ClientScreenFxManager;
 
+DECLARE_DELEGATE(FOnFreeAimShotHit);
+
 class ClientInstance : public Base
 {
     DECLARE_SINGLETON(ClientInstance)
@@ -148,8 +150,10 @@ public:
 
 public:
     Shared<ClientScreenFxManager> Get_ScreenFxManager() const;
+    Shared<UIPreviewManager> Get_PreviewManager() const { return _previewManager; }
 
 public: /* Effect 재생 */
+    bool Prewarm_Effect(const wstring& effectName, const wstring& layerTag, uint32 count);
 
     // 단발성 1회 재생.
     bool Play_Effect(const PlayEffectDesc& desc);
@@ -173,9 +177,15 @@ public: /* Effect 재생 */
         const Vec3& localRotation = Vec3::Zero,
         const Vec3& scale = Vec3::One);
 
+public: /* Delegate */
+    void Notify_FreeAimShotHit();
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
+
+public:
+    FOnFreeAimShotHit OnFreeAimShotHit;
 
 private:
 	ComPtr<Device>  _device;

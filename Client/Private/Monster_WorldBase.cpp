@@ -12,11 +12,18 @@
 #include "Monster_Part.h"
 #include "BattleStartSpawner.h"
 #include "EffectCom.h"
+#include "PlayerStateMachineCom.h"
 
 REGISTER_GLOBAL_ENUM(Monster_WorldBase::MonsterWorldAnim, "MonsterWorldAnim")
 
 namespace
 {
+    constexpr wchar_t kWorldActionHitEffect[] =
+        L"Effects\\Assets\\Player\\Lune\\Lune_Immolation_Hit.effect.json";
+
+    constexpr wchar_t kWorldActionDistortionEffect[] =
+        L"Effects\\Assets\\Distortion\\DIstortion_SuddenAttack.effect.json";
+
     json Vec3_ToJson(const Vec3& value)
     {
         return json::array({ value.x, value.y, value.z });
@@ -178,17 +185,25 @@ void Monster_WorldBase::Update(float timeDelta)
     if (_combatStat)
         _combatStat->Update(timeDelta);
 
-    if (_isStun)
-        _currentAction = MonsterWorldAnim::Stun;
-    else
-        _currentAction = _desiredAction;
+    if (_currentAction != MonsterWorldAnim::Hit)
+    {
+        if (_isStun)
+            _currentAction = MonsterWorldAnim::Stun;
+        else
+            _currentAction = _desiredAction;
+    }
 
 
     //if (_aiCtrl && _aiCtrl->Get_IsMoving())
     //    Set_CurrentAction(MonsterAction::Move);
 
-
     auto* bodyPart = dynamic_cast<Monster_Part*>(Get_PartObject(L"Part_Body"));
+    if (_currentAction == MonsterWorldAnim::Hit && bodyPart && bodyPart->Is_AnimationFinished())
+    {
+        OnHitAnimationFinished();
+    }
+
+
     if (bodyPart)
     {
         if (!_hasAppliedAction || _currentAction != _previousAction)
@@ -201,8 +216,12 @@ void Monster_WorldBase::Update(float timeDelta)
 
             switch (_currentAction)
             {
+            case MonsterWorldAnim::Hit:
+                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Hit), 0.2f, false);
+                break;
+
             case MonsterWorldAnim::Stun:
-              applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Stun), 0.3f, true);
+                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Stun), 0.3f, true);
                 break;
 
             case MonsterWorldAnim::Idle:
@@ -249,7 +268,7 @@ void Monster_WorldBase::Update(float timeDelta)
         _movementCom->Set_RunSpeed(moveSpeed);
         _movementCom->Set_SprintSpeed(moveSpeed);
 
-        if (_isStun || !_aiCtrl || !_aiCtrl->Has_MoveIntent())
+        if (_isStun || _currentAction == MonsterWorldAnim::Hit || !_aiCtrl || !_aiCtrl->Has_MoveIntent())
         {
             _movementCom->Clear_FollowMoveCommand();
             _movementCom->Apply_Input({});
@@ -291,11 +310,23 @@ void Monster_WorldBase::Apply_Stun(float duration)
     if (_isStun == true)
         return;
     _isStun = true;
-    _stunTime = _maxStunTime;
+    _stunTime = duration > 0.f ? duration : _maxStunTime;
 
     if (_aiCtrl)
         _aiCtrl->Stop_Move();
-    
+
+    _currentAction = MonsterWorldAnim::Hit;
+    _hasAppliedAction = false;
+}
+
+void Monster_WorldBase::OnHitAnimationFinished()
+{
+    if (_isStun)
+        _currentAction = MonsterWorldAnim::Stun;
+    else
+        _currentAction = _desiredAction;
+
+    _hasAppliedAction = false;
 }
 
 void Monster_WorldBase::Late_Update(float timeDelta)
@@ -422,8 +453,32 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     if (!CLIENT->Is_ActiveHero(heroOwner))
         return;
 
-    const bool isPlayerAdvantage =
-        other->Get_CollisionPreset() == Collision_Preset::WorldActionTrigger; // 월드액션 트리거로 먼저 맞춘 경우만 플레이어 선턴
+    const bool isWorldActionTrigger =
+        other->Get_CollisionPreset() == Collision_Preset::WorldActionTrigger;
+    bool isPlayerAdvantage = isWorldActionTrigger;
+
+    if (!isPlayerAdvantage)
+    {
+        const Shared<PlayerStateMachineCom> stateCom = heroOwner->Get_Component<PlayerStateMachineCom>();
+        isPlayerAdvantage = stateCom && stateCom->Get_CurrentPlayerState() == PlayerState::WorldAction;
+    }
+
+    if (isPlayerAdvantage)
+    {
+        const Shared<TransformCom> transform = Get_Transform();
+        if (transform)
+        {
+            PlayEffectDesc hitEffectDesc{};
+            hitEffectDesc.effectName = kWorldActionHitEffect;
+            hitEffectDesc.worldPosition = transform->Get_WorldPosition() + Vec3(0.f, 0.7f, 0.f);
+            CLIENT->Play_Effect(hitEffectDesc);
+
+            PlayEffectDesc distortionDesc{};
+            distortionDesc.effectName = kWorldActionDistortionEffect;
+            distortionDesc.worldPosition = transform->Get_WorldPosition() + Vec3(0.f, 0.6f, 0.f);
+            CLIENT->Play_Effect(distortionDesc);
+        }
+    }
 
     _isBattleStart = true;
 

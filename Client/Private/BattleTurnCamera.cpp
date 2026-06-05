@@ -52,6 +52,26 @@ BattleTurnCamera::BattleShotRequest Build_BattleShotRequestFromEvent(const EvtBa
 
     return request;
 }
+
+bool Is_PlayerNearClipBattleCameraMode(BattleCameraMode mode)
+{
+    switch (mode)
+    {
+    case BattleCameraMode::BATTLEINTRO:
+    case BattleCameraMode::PLAYERFOCUS:
+    case BattleCameraMode::ENEMYFOCUS:
+    case BattleCameraMode::PLAYERATTACK:
+    case BattleCameraMode::ENEMYATTACK:
+    case BattleCameraMode::SELECTITEM:
+    case BattleCameraMode::SELECTSKILL:
+    case BattleCameraMode::PARRY:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
 }
 
 IMPLEMENT_REFLECTION(BattleTurnCamera)
@@ -73,6 +93,7 @@ BattleTurnCamera::BattleTurnCamera(const ComPtr<Device>& device, const ComPtr<Co
 BattleTurnCamera::BattleTurnCamera(const BattleTurnCamera& prototype)
     : Camera(prototype)
     , _isFreeAimActive(prototype._isFreeAimActive)
+    , _playerNearClipDistance(prototype._playerNearClipDistance)
 {
 }
 
@@ -226,8 +247,13 @@ void BattleTurnCamera::Update_FreeAimRotation(float timeDelta)
     _yaw += mouseDelta.x * _mouseSensor;
     _pitch += mouseDelta.y * _mouseSensor;
     _pitch = std::clamp(_pitch, -25.f, 20.f); // 상하 각도 제한
-    _yaw = std::clamp(_yaw, -90.f, 90.f); // 상하 각도 제한
+    _yaw = std::clamp(_yaw, -90.f, 90.f);     // 상하 각도 제한
+
     _transformCom->Set_RotationEuler(Vec3(_pitch, _yaw, 0.f));
+
+
+
+
     Update_TransformMatrices();
 }
 
@@ -248,6 +274,19 @@ Vec3 BattleTurnCamera::Get_AimDirection() const
 
     lookDir.Normalize();
     return lookDir;
+}
+
+bool BattleTurnCamera::Should_ClipPlayerNearCamera()
+{
+    if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
+        return false;
+
+    const BattleCameraMode mode =
+        _poseTransition.active
+            ? _poseTransition.targetRequest.mode   // 전환 중에는 다음 연출 구도 기준으로 플레이어를 먼저 잘라낸다.
+            : _currentRequest.mode;
+
+    return Is_PlayerNearClipBattleCameraMode(mode);
 }
 
 void BattleTurnCamera::Apply_FreeAimCamera()
@@ -873,7 +912,10 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
     resolvedClipById = Resolve_BattleCameraClipById(request.mode, request.clipId);
 
     if (!request.presetId.empty() && resolvedPresetById == nullptr)
+    {
+        if(request.mode != BattleCameraMode::WIDE)
         return;
+    }
 
     ResolvedShotAssets resolvedAssets = Resolve_ShotAssets(request, resolvedPresetById, resolvedClipById);
     BattleCameraClip* nextActiveClip = resolvedAssets.clip;

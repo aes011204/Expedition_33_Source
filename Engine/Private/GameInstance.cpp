@@ -24,6 +24,7 @@
 #include "Renderer.h"
 #include "Renderer_Define.h"
 #include "ScreenFx_Manager.h"
+#include "ShaderCom_Controller.h"
 #include "Timer_Manager.h"
 #include "Target_Manager.h"
 #include "Shadow.h"
@@ -303,6 +304,9 @@ HRESULT GameInstance::Initialize_Engine(const ENGINE_DESC& engineDesc, ComPtr<De
 
     _screenFxManager = make_unique<ScreenFx_Manager>();
     CHECK_NULL(_screenFxManager, E_FAIL);
+
+    _shaderComController = ShaderCom_Controller::Create(device, context);
+    CHECK_NULL(_shaderComController, E_FAIL);
 
     _pipeLine = PipeLine::Create();
     CHECK_NULL(_pipeLine, E_FAIL);
@@ -1369,9 +1373,20 @@ HRESULT GameInstance::Reload_RendererShaders()
     return _renderer->Reload_RendererShaders();
 }
 
+HRESULT GameInstance::Reload_ShaderComs()
+{
+    CHECK_NULL(_shaderComController, E_FAIL);
+    return _shaderComController->Reload_VertexShaders();
+}
+
 ScreenFx_Manager* GameInstance::Get_ScreenFxManager() 
 {
     return _screenFxManager.get();
+}
+
+ShaderCom_Controller* GameInstance::Get_ShaderComController()
+{
+    return _shaderComController.get();
 }
 
 void GameInstance::Request_ScreenCapture(bool saveToFile)
@@ -1382,6 +1397,14 @@ void GameInstance::Request_ScreenCapture(bool saveToFile)
 RenderGroup GameInstance::Get_CurrentRenderGroup() const
 {
     return _renderer->Get_CurrentGroup();
+}
+
+void GameInstance::Set_FogZones(const FogZoneCB& fogZoneCB)
+{
+    if (_renderer)
+    {
+        _renderer->Set_FogZones(fogZoneCB);
+    }
 }
 
 HRESULT GameInstance::Bind_CamPosition(ShaderCom* shader, const char* constantName)
@@ -1429,7 +1452,12 @@ HRESULT GameInstance::Bind_CameraCB(Shared<ShaderCom> shader) const
     if (activeCamera == nullptr)
         return E_FAIL;
 
-    return _pipeLine->Bind_CameraCB(shader.get(), activeCamera->Get_Far());
+    CHECK_FAILED(_pipeLine->Bind_CameraCB(shader.get(), activeCamera->Get_Far()), E_FAIL);
+
+    PlayerRenderCB playerRenderCB{}; // 기본은 플레이어 근접 클립 off. 플레이어 렌더 경로에서만 enabled로 다시 덮는다.
+    CHECK_FAILED(shader->Bind_CBufferData(playerRenderCB), E_FAIL);
+
+    return S_OK;
 }
 
 bool GameInstance::KeyPress(KEY_TYPE key) const
@@ -2625,6 +2653,7 @@ void GameInstance::Release_Engine()
     ReleaseManager(_targetManager);
     ReleaseManager(_shadow);
     ReleaseManager(_shaderResourceRegistry);
+    ReleaseManager(_shaderComController);
 
 #ifdef _DEBUG
     ReleaseManager(_printManager);
@@ -2724,6 +2753,31 @@ uint32 GameInstance::Get_ShadowCascadeCount() const
 {
     CHECK_NULL(_shadow, 0u);
     return _shadow->Get_CascadeCount();
+}
+
+HRESULT GameInstance::Set_ShadowCascadeLevel(CascadeLevel level)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    return _shadow->Set_CascadeLevel(level);
+}
+
+CascadeLevel GameInstance::Get_ShadowCascadeLevel() const
+{
+    CHECK_NULL(_shadow, CascadeLevel::Normal);
+    return _shadow->Get_CascadeLevel();
+}
+
+HRESULT GameInstance::Set_ShadowCascadePresets(const ShadowCascadePresetSet& presets)
+{
+    CHECK_NULL(_shadow, E_FAIL);
+    _shadow->Set_CascadePresets(presets);
+    return S_OK;
+}
+
+const ShadowCascadePresetSet* GameInstance::Get_ShadowCascadePresets() const
+{
+    CHECK_NULL(_shadow, nullptr);
+    return _shadow->Get_CascadePresets();
 }
 
 void GameInstance::Free()

@@ -17,9 +17,13 @@ namespace Engine::ShaderCB
     inline constexpr ::string_view SSAO        = "SSAOBuffer";
     inline constexpr ::string_view DeferredLighting = "DeferredLightingBuffer";
     inline constexpr ::string_view PostProcess = "PostProcessBuffer";
+    inline constexpr ::string_view LightShaft  = "LightShaftBuffer";
     inline constexpr ::string_view Hair        = "HairDescBuffer";
     inline constexpr ::string_view DrawFeature = "DrawFeatureBuffer";
     inline constexpr ::string_view ScreenFx     = "ScreenFxBuffer";
+    inline constexpr ::string_view FogZone      = "FogZoneBuffer";
+    inline constexpr ::string_view Water        = "WaterBuffer";
+    inline constexpr ::string_view PlayerRender = "PlayerRenderBuffer";
 
     inline constexpr ::array<::string_view, ETOI(ConstantBuffer::END)> Names =
     {
@@ -34,7 +38,11 @@ namespace Engine::ShaderCB
         PostProcess,
         Hair,
         DrawFeature,
-        ScreenFx
+        ScreenFx,
+        FogZone,
+        Water,
+        LightShaft,
+        PlayerRender
     };
 }
 

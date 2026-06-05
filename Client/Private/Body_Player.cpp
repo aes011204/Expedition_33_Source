@@ -8,6 +8,7 @@
 #include "AnimComputeRuntime.h"
 #include "EffectCom.h"
 #include "OffsetAnimationModifier.h"
+#include "PreviewRimFeature.h"
 
 REGISTER_GLOBAL_ENUM(Client::Body_Player::PlayerWorldAnimation, "PlayerWorldAnimation")
 
@@ -92,6 +93,9 @@ HRESULT Body_Player::Render()
     if (FAILED(GAME->Bind_CameraCB(_computeRenderShaderCom)))
         return E_FAIL;
 
+    if (FAILED(Bind_PlayerRenderCB(_computeRenderShaderCom)))
+        return E_FAIL;
+
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; ++i)
@@ -110,7 +114,7 @@ HRESULT Body_Player::Render()
         CHECK_FAILED(EffectCom::Bind_DrawFeatures(
             Get_Owner(),
             _computeRenderShaderCom.get(),
-            DrawFeatureFlagDissolve), E_FAIL);
+            DrawFeatureFlagDissolve | DrawFeatureFlagPreviewRim), E_FAIL);
 
         const uint32 passIndex =
             ShaderPassFinder::Find_PassIndex(ShaderType::VtxMesh, material->Get_RenderState());

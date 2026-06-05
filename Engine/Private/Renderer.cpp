@@ -180,6 +180,10 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_NonLight:Before");
 #endif
 
+    // fog
+    Render_Fog();
+    //
+
     // ========================================= //
     Render_NonLight();
     // ========================================= //
@@ -507,6 +511,13 @@ void Renderer::Render_Lights()
     ENDMRT_RETURN_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_MaterialTexture", RT::Material));
 
+    DeferredLightingCB deferredLightingParams{};
+    if (_lightingPipeline)
+        deferredLightingParams = _lightingPipeline->Get_DeferredLightingParams();
+
+    ENDMRT_RETURN_IF_FAILED(
+        _deferredShader->Bind_CBufferData(deferredLightingParams));
+
     // Light 기록
     ENDMRT_RETURN_IF_FAILED(
         _viBuffer->Bind_Resources());
@@ -676,6 +687,63 @@ void Renderer::Render_CombinedHDR()
 
     Add_RenderCall();
 }
+
+void Renderer::Render_Fog()
+{
+    if (!_deferredShader || !_viBuffer)
+    {
+        return;
+    }
+
+    if (_fogZoneCB.aabbCount + _fogZoneCB.sphereCount == 0)
+    {
+        return;
+    }
+
+    if (FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV)))
+    {
+        return;
+    }
+
+    if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
+    {
+        return;
+    }
+
+    if (FAILED(Bind_ScreenSpaceCB(_deferredShader)))
+    {
+        return;
+    }
+
+    if (FAILED(_deferredShader->Bind_CBufferData(_fogZoneCB)))
+    {
+        return;
+    }
+
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth)))
+    {
+        return;
+    }
+
+    if (FAILED(_viBuffer->Bind_Resources()))
+    {
+        return;
+    }
+
+    if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::Fog))))
+    {
+        return;
+    }
+
+    if (FAILED(_viBuffer->Render()))
+    {
+        return;
+    }
+
+    GAME->End_MRT();
+    Add_RenderCall();
+}
+
 void Renderer::Render_NonLight()
 {
     RETURN_LOG_IF_FAILED(
@@ -923,6 +991,64 @@ void Renderer::Render_PostProcess()
     RETURN_LOG_IF_FAILED(
         _viBuffer->Bind_Resources(),
         L"Render_PostProcess:FAIL Bind_Resources");
+
+    // ==============================God Ray ========================================
+    LightShaftCB lightShaftParams = _ppPipeline->Get_LightShaftParams();
+    const bool useLightShaft = Try_BuildLightShaftParams(lightShaftParams);
+    _ppPipeline->Set_LightShaftParams(lightShaftParams);
+
+    if (useLightShaft)
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("Render::LightShaft");
+
+        const ViewportSize half = { max(1u, viewportWidth / 2u), max(1u, viewportHeight / 2u) };
+
+        RETURN_LOG_IF_FAILED(
+            _postprocessShader->Bind_CBufferData(lightShaftParams),
+            L"Render_PostProcess:FAIL Bind_CBufferData(LightShaft)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, half.width, half.height),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(LightShaftMask)");
+
+        // 어디서 god ray가 시작될 수 있는지 흑백 마스크로 만든다.
+        RETURN_LOG_IF_FAILED(
+            Render_LightShaftPass(
+                MRT::LightShaftMaskHalf,    // 출력 
+                "g_DepthTexture",
+                RT::Depth,                  // 입력
+                PostProcessPass::LightShaftMaskHalf),
+            L"Render_PostProcess:FAIL Render_LightShaftPass(Mask)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, half.width, half.height),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(LightShaftBlur)");
+
+        // 마스크를 광원 중심 방향 기준으로 길게 끌어서 빛줄기처럼 만든다
+        RETURN_LOG_IF_FAILED(
+            Render_LightShaftPass(
+                MRT::LightShaftBlurHalf,    // 출력
+                "g_LightShaftMaskTexture",
+                RT::LightShaftMaskHalf,     // 입력 : 방금 만든 LightShaftMaskHalf
+                PostProcessPass::LightShaftRadialBlurHalf),
+            L"Render_PostProcess:FAIL Render_LightShaftPass(Blur)");
+
+        RETURN_LOG_IF_FAILED(
+            GAME->Copy_RTV(RT::HDRColor, RT::DistortionSource),
+            L"Render_PostProcess:FAIL Copy_RTV(HDRColor -> DistortionSource:LightShaft)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, viewportWidth, viewportHeight),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(LightShaftComposite)");
+
+        RETURN_LOG_IF_FAILED(
+            _postprocessShader->Bind_CBufferData(lightShaftParams),
+            L"Render_PostProcess:FAIL Bind_CBufferData(LightShaftComposite)");
+
+        RETURN_LOG_IF_FAILED(
+            Render_LightShaftCompositePass(),
+            L"Render_PostProcess:FAIL Render_LightShaftCompositePass");
+    }
 
     // Bloom Mip Chain 구조. 해상도를 낮춰서 샘플링 횟수를 줄인다.
     const bool useBloom = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
@@ -1330,6 +1456,78 @@ HRESULT Renderer::Render_BloomUpsamplePass(const wchar_t* dstMrt, const wchar_t*
     return S_OK;
 }
 
+HRESULT Renderer::Render_LightShaftPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass)
+{
+    const wchar_t* passName = L"LightShaftUnknown";
+    switch (pass)
+    {
+    case PostProcessPass::LightShaftMaskHalf:       passName = L"LightShaftMaskHalf"; break;
+    case PostProcessPass::LightShaftRadialBlurHalf: passName = L"LightShaftRadialBlurHalf"; break;
+    default: break;
+    }
+
+    const wstring beginLog = wstring(L"Render_PostProcess:FAIL Begin_MRT(") + dstMrt + L"," + passName + L")";
+    const wstring bindLog = wstring(L"Render_PostProcess:FAIL Bind_RT_ShaderResource(") + std::wstring(srcRt) + L"," + passName + L")";
+    const wstring shaderLog = wstring(L"Render_PostProcess:FAIL ShaderBegin(") + passName + L")";
+    const wstring renderLog = wstring(L"Render_PostProcess:FAIL RenderRect(") + passName + L")";
+    const wstring endLog = wstring(L"Render_PostProcess:FAIL End_MRT(") + dstMrt + L"," + passName + L")";
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(dstMrt, NotUseDSV, ClearRTV),
+        beginLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, srcResourceName, srcRt),
+        bindLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(pass)),
+        shaderLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        renderLog.c_str());
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        endLog.c_str());
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
+HRESULT Renderer::Render_LightShaftCompositePass()
+{
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Render_PostProcess:FAIL Begin_MRT(HDR,LightShaftComposite)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DistortionSourceTexture", RT::DistortionSource),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DistortionSourceTexture-LightShaft)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_LightShaftSourceTexture", RT::LightShaftBlurHalf),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_LightShaftSourceTexture)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(PostProcessPass::LightShaftCompositeHDR)),
+        L"Render_PostProcess:FAIL ShaderBegin(LightShaftCompositeHDR)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_PostProcess:FAIL RenderRect(LightShaftCompositeHDR)");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        L"Render_PostProcess:FAIL End_MRT(HDR,LightShaftComposite)");
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
 HRESULT Renderer::Render_DistortionResolve()
 {
     if (!_postprocessShader || !_viBuffer)
@@ -1374,6 +1572,59 @@ HRESULT Renderer::Render_DistortionResolve()
     Add_RenderCall();
 
     return S_OK;
+}
+
+bool Renderer::Try_BuildLightShaftParams(LightShaftCB& outParams) const
+{
+    outParams.lightVisible = 0.f;
+    outParams.lightFacingCamera = 0.f;
+
+    if (_ppPipeline == nullptr || !_ppPipeline->Has_PostProcessFeature(PostProcessFeature::LightShaft))
+        return false;
+
+    if (outParams.intensity <= 0.0001f)
+        return false;
+
+    const LIGHT_DESC* lightDesc = GAME->Get_PrimaryShadowLightDesc();
+    if (lightDesc == nullptr || lightDesc->type != LightType::Directional)
+        return false;
+
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
+    const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
+    const Vec4* cameraPosition = GAME->Get_CamPosition();
+    if (activeCamera == nullptr || viewMatrix == nullptr || projMatrix == nullptr || cameraPosition == nullptr)
+        return false;
+
+    // directional light의 방향으로 태양이 화면 어디에 떠 있는지 계산한 뒤, 현재 프레임에서 sun shaft 를 돌려도 되는지 판정
+
+    // 빛이 어느 방향으로 쏘는지
+    Vec4 lightDir = XMLoadFloat4(&lightDesc->direction);
+    if (XMVectorGetX(XMVector3LengthSq(lightDir)) <= 1e-6f)
+        return false;
+
+    lightDir = XMVector3Normalize(lightDir);
+
+    const XMVECTOR camPos = XMLoadFloat4(cameraPosition);
+    // 카메라 far의 절반 거리만큼 떨어진 곳에 태양이 있다는 가정
+    const float sunDistance = activeCamera->Get_Far() * 0.5f;
+
+    // sunWorldPos = camPos + (-lightDir) * sunDistance 
+    const XMVECTOR sunWorldPos = XMVectorMultiplyAdd(XMVectorNegate(lightDir), XMVectorReplicate(sunDistance), camPos);
+
+    const XMMATRIX view = XMLoadFloat4x4(viewMatrix);
+    const XMMATRIX proj = XMLoadFloat4x4(projMatrix);
+
+    // 태양의 view pos -> ndc
+    const XMVECTOR sunNdc = XMVector3TransformCoord(sunWorldPos, view * proj);
+
+    // 태양의 ndc pos -> uv
+    const float lightScreenX = XMVectorGetX(sunNdc) * 0.5f + 0.5f;
+    const float lightScreenY = XMVectorGetY(sunNdc) * -0.5f + 0.5f;
+    outParams.lightScreenUV = Vec2{ lightScreenX, lightScreenY };
+    outParams.lightVisible = 1.f;
+    outParams.lightFacingCamera = 1.f;
+    return true;
 }
 
 void Renderer::Update_DynamicShadowCamera()

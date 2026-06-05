@@ -5,8 +5,16 @@
 #include "Monster_BattleBase.h"
 #include "ColliderCom.h"
 #include "Bounding_Sphere.h"
+#include "ClientInstance.h"
 
 NS_BEGIN(Client)
+
+namespace
+{
+    constexpr float kDefaultWeakPointEffectScale = 0.4f;
+    constexpr wchar_t kDefaultWeakPointEffectName[] = L"Effects\\Assets\\Monster\\Monster_Weak.effect.json";
+    constexpr wchar_t kWeakPointBreakEffectName[] = L"Effects\\Assets\\Monster\\WeakAtt_Blue.effect.effect.json";
+}
 
 Mon_WeakPoint::Mon_WeakPoint(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Monster_Part(device, context)
@@ -37,6 +45,7 @@ HRESULT Mon_WeakPoint::Initialize(void* arg)
         return E_FAIL;
 
     CHECK_FAILED(Ready_WeakPointCollider(), E_FAIL);
+    Ready_DefaultWeakPointEffectSettings();
 
     return S_OK;
 }
@@ -71,7 +80,7 @@ void Mon_WeakPoint::Late_Update(float timeDelta)
     if (_colliderCom == nullptr || !_colliderCom->Get_IsActive() || !Is_Visible())
         return;
 
-    const Matrix collisionWorldMatrix = Build_CollisionWorldMatrix();
+    const Matrix collisionWorldMatrix = Get_CollisionWorldMatrix();
 
     _colliderCom->Update_Collider(collisionWorldMatrix);
 
@@ -86,6 +95,51 @@ HRESULT Mon_WeakPoint::Render()
 HRESULT Mon_WeakPoint::Render_Shadow()
 {
     return Monster_Part::Render_Shadow();
+}
+
+void Mon_WeakPoint::From_Json(const json& data)
+{
+    Monster_Part::From_Json(data);
+    Ready_DefaultWeakPointEffectSettings();
+
+    if (_colliderCom)
+        _colliderCom->Set_CollisionPreset(Collision_Preset::Monster_WeakPoint);
+}
+
+Matrix Mon_WeakPoint::Get_GizmoWorldMatrix() const
+{
+    if (_transformCom == nullptr)
+        return _combinedWorldMatrix;
+
+    const Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+    const Matrix socketMatrix = (nullptr != _socketMatrix) ? *_socketMatrix : Matrix::Identity;
+    return _offsetMatrix * _transformCom->Get_WorldMatrix() * socketMatrix * parentMatrix;
+}
+
+bool Mon_WeakPoint::Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix)
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    const Matrix parentMatrix = (nullptr != _parentMatrix) ? *_parentMatrix : Matrix::Identity;
+    const Matrix* socketMatrixPtr = Resolve_SocketMatrix();
+    const Matrix socketMatrix = (nullptr != socketMatrixPtr) ? *socketMatrixPtr : Matrix::Identity;
+    Matrix localWorldMatrix = _offsetMatrix.Invert() * gizmoWorldMatrix * (socketMatrix * parentMatrix).Invert();
+
+    Vec3 scale = Vec3::One;
+    Quat rotation = Quat::Identity;
+    Vec3 translation = Vec3::Zero;
+
+    if (!localWorldMatrix.Decompose(scale, rotation, translation))
+        return false;
+
+    _transformCom->Set_WorldPosition(translation);
+    _transformCom->Set_RotationQuaternion(rotation);
+    _transformCom->Set_Scale(scale);
+
+    // 프리팹 gizmo 조작 직후 attached effect가 이전 combined matrix를 따라가지 않게 즉시 동기화한다.
+    Update_CombinedWorldMatrix(_offsetMatrix * _transformCom->Get_WorldMatrix() * socketMatrix);
+    return true;
 }
 
 const Matrix* Mon_WeakPoint::Resolve_SocketMatrix()
@@ -116,10 +170,32 @@ HRESULT Mon_WeakPoint::Ready_WeakPointCollider()
     sphereDesc.radius = 0.32f;
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Collider_Sphere"), _colliderCom, &sphereDesc), E_FAIL);
-    _colliderCom->Set_CollisionPreset(Collision_Preset::Monster_Body);
+    _colliderCom->Set_CollisionPreset(Collision_Preset::Monster_WeakPoint);
     _colliderCom->Set_IsActive(true);
 
     return S_OK;
+}
+
+void Mon_WeakPoint::Ready_DefaultWeakPointEffectSettings()
+{
+    if (_partEffectCom == nullptr)
+        return;
+
+    EffectCom::InspectorEffectSettings settings = _partEffectCom->Get_InspectorEffectSettings();
+    settings.autoPlay = false;
+    if (settings.effectName.empty())
+        settings.effectName = kDefaultWeakPointEffectName;
+    settings.target = EffectCom::EffectPlayTarget::OwnerRoot;
+    settings.partTag.clear();
+    settings.socketName.clear();
+    settings.layerTag = L"Layer_Effect";
+    settings.localOffset = Vec3::Zero;
+    settings.localRotation = Vec3::Zero;
+    settings.followTarget = true;
+    settings.scale = Vec3(kDefaultWeakPointEffectScale);
+    settings.requiresManualRelease = true;
+
+    _partEffectCom->Set_InspectorEffectSettings(settings);
 }
 
 void Mon_WeakPoint::Play_WeakPointEffect()
@@ -129,19 +205,23 @@ void Mon_WeakPoint::Play_WeakPointEffect()
 
     _partEffectCom->Stop_AllAttachedEffects();
 
+    const EffectCom::InspectorEffectSettings settings = _partEffectCom->Get_InspectorEffectSettings();
+
     EffectCom::EffectPlayDesc desc{};
     desc.levelIndex = GAME->Current_LevelIndex();
-    desc.effectName = L"Monster_Weak";
+    desc.effectName = settings.effectName;
+    if (desc.effectName.empty())
+        desc.effectName = kDefaultWeakPointEffectName;
     desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
     desc.layerTag = L"Layer_Effect";
     desc.followTarget = true;
-    desc.scale = Vec3(0.3f);
+    desc.scale = Vec3(kDefaultWeakPointEffectScale);
     desc.requiresManualRelease = true;
 
     _partEffectCom->Play_Effect(desc);
 }
 
-Matrix Mon_WeakPoint::Build_CollisionWorldMatrix() const
+Matrix Mon_WeakPoint::Get_CollisionWorldMatrix() const
 {
     Vec3 scale = Vec3::One;
     Quat rotation = Quat::Identity;
@@ -160,6 +240,13 @@ bool Mon_WeakPoint::Try_Consume_BattleWeakPointHit()
     if (!_isBattleWeakPointEnabled)
         return false;
 
+	PlayEffectDesc effectDesc{};
+    effectDesc.effectName = kWeakPointBreakEffectName;
+    effectDesc.spawnBasisTarget = GetSharedPtr<GameObject>();
+    effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+
+    CLIENT->Play_Effect(effectDesc);
+
     _isBattleWeakPointEnabled = false;
     Set_Visible(false);
 
@@ -167,6 +254,7 @@ bool Mon_WeakPoint::Try_Consume_BattleWeakPointHit()
     {
         _colliderCom->Set_IsActive(false);
         _colliderCom->Clear_Overlap();
+        GAME->Unregister_PhysXCollider(_colliderCom.get());
     }
 
     if (_partEffectCom)
@@ -184,6 +272,7 @@ void Mon_WeakPoint::Hide_BattleWeakPoint()
     {
         _colliderCom->Set_IsActive(false);
         _colliderCom->Clear_Overlap();
+        GAME->Unregister_PhysXCollider(_colliderCom.get());
     }
 
     if (_partEffectCom)

@@ -2,6 +2,7 @@
 
 #include "Client_Constants.h"
 #include "UI_Base.h"
+#include "UI_Image.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
 #include "UI_Utils.h"
@@ -15,30 +16,18 @@ HRESULT UI_AddAP::Initialize(uint32 levelIndex)
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
 
+    Set_FloatingMotion(40.f / 60.f, 32.f);
+    Set_StackStep(18.f, 20.f);
+    Set_AnchorMode(AnchorMode::FollowWorld);
+
+    Set_WorldAnchorOffset(Vec3(0.35f, 0.25f, 0.f));
+    Set_ScreenBaseOffset(Vec2(24.f, -24.f));
+
+    Set_WorldAnchorRandomYRange(-0.06f, 0.10f);
+
     Close();
 
     return S_OK;
-}
-
-void UI_AddAP::Update(float timeDelta)
-{
-    if (!Is_Open() || !_isPlaying || !_hasStartScreenPos)
-        return;
-
-    _elapsed += timeDelta;
-
-    const float safeLifeTime = max(_lifeTime, 0.0001f);
-    const float t = clamp(_elapsed / safeLifeTime, 0.f, 1.f);
-
-    Vec2 screenPos = _startScreenPos;
-    Apply_StackOffset(screenPos);
-    Apply_RiseOffset(screenPos, t);
-
-    if (_root && _root->Get_Transform())
-        _root->Get_Transform()->Set_Position(screenPos);
-
-    if (_elapsed >= _lifeTime)
-        Close();
 }
 
 void UI_AddAP::Open()
@@ -46,38 +35,15 @@ void UI_AddAP::Open()
     UI_RuntimePanelBase::Open();
 }
 
-void UI_AddAP::Close()
+void UI_AddAP::Play_AddAP(const BattleChar& target, uint32 apAmount, uint32 stackIndex)
 {
-    _hasStartScreenPos = false;
-    _isPlaying = false;
-    _elapsed = 0.f;
-    _stackIndex = 0;
-
-    UI_RuntimePanelBase::Close();
-}
-
-void UI_AddAP::Play_AddAP(const Vec2& screenPos, uint32 apAmount, uint32 stackIndex)
-{
-    _startScreenPos = screenPos;
-
-    Apply_EditorOffsets(_startScreenPos);
-    _hasStartScreenPos = true;
-    _stackIndex = stackIndex;
-    _elapsed = 0.f;
-    _isPlaying = true;
-
+    Reset_APVisualState();
     Set_APText(apAmount);
 
-    Vec2 startPos = _startScreenPos;
-    Apply_StackOffset(startPos);
+    if (!Begin_FloatingText(target, stackIndex))
+        return;
 
-    if (_root && _root->Get_Transform())
-        _root->Get_Transform()->Set_Position(startPos);
-
-    UI_RuntimePanelBase::Open();
-
-    if (_root)
-        _root->Play_UIAnimation(L"Add_AP", true);
+    Play_AddAPAnimation();
 }
 
 HRESULT UI_AddAP::Load_UI(uint32 levelIndex)
@@ -101,9 +67,13 @@ HRESULT UI_AddAP::Bind_UI()
 {
     _apText = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_BattleSystem_Add_AP");
     _apTextBg = UI_Utils::Find_TypedUI<UI_Text>(_uiByName, L"Text_BattleSystem_Add_AP_BG");
+    _apImage = UI_Utils::Find_TypedUI<UI_Image>(_uiByName, L"Image_BattleSystem_Add_AP");
+    _apImageBg = UI_Utils::Find_TypedUI<UI_Image>(_uiByName, L"Image_BattleSystem_Add_AP_BG");
 
     CHECK_NULL(_apText, E_FAIL);
     CHECK_NULL(_apTextBg, E_FAIL);
+    CHECK_NULL(_apImage, E_FAIL);
+    CHECK_NULL(_apImageBg, E_FAIL);
 
     return S_OK;
 }
@@ -116,19 +86,77 @@ void UI_AddAP::Set_APText(uint32 apAmount)
     _apTextBg->Set_Text(text);
 }
 
-void UI_AddAP::Apply_StackOffset(Vec2& screenPos) const
+void UI_AddAP::Reset_APVisualState()
 {
-    const float horizontal = (_stackIndex % 2 == 0) ? -18.f : 18.f;
-    const float vertical = -20.f * static_cast<float>(_stackIndex);
+    Stop_AddAPAnimations();
 
-    screenPos.x += horizontal;
-    screenPos.y += vertical;
+    for (auto& [name, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(name);
+
+        if (ui)
+            ui->Open();
+    }
+
+    if (_root && _root->Get_Transform())
+        _root->Get_Transform()->Set_Scale(Vec2(1.f, 1.f));
+
+    if (_apImage)
+    {
+        _apImage->Set_Color(Vec4(115.f / 255.f, 140.f / 255.f, 242.f / 255.f, 1.f));
+
+        if (_apImage->Get_Transform())
+            _apImage->Get_Transform()->Set_Scale(Vec2(1.f, 1.f));
+    }
+
+    if (_apImageBg)
+    {
+        _apImageBg->Set_Color(Vec4(0.f, 0.f, 0.f, 1.f));
+
+        if (_apImageBg->Get_Transform())
+            _apImageBg->Get_Transform()->Set_Scale(Vec2(1.f, 1.f));
+    }
+
+    if (_apText)
+    {
+        _apText->Set_Color(Vec4(1.f, 1.f, 1.f, 1.f));
+
+        if (_apText->Get_Transform())
+            _apText->Get_Transform()->Set_Scale(Vec2(1.f, 1.f));
+    }
+
+    if (_apTextBg)
+    {
+        _apTextBg->Set_Color(Vec4(0.f, 0.f, 0.f, 1.f));
+
+        if (_apTextBg->Get_Transform())
+            _apTextBg->Get_Transform()->Set_Scale(Vec2(1.f, 1.f));
+    }
 }
 
-void UI_AddAP::Apply_RiseOffset(Vec2& screenPos, float t) const
+void UI_AddAP::Play_AddAPAnimation()
 {
-    const float eased = 1.f - (1.f - t) * (1.f - t);
-    screenPos.y -= _riseDistance * eased;
+    for (auto& [name, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(name);
+
+        if (ui == nullptr)
+            continue;
+
+        if (!ui->Play_UIAnimation(L"Add_AP", true))
+            ui->Stop_UIAnimation();
+    }
+}
+
+void UI_AddAP::Stop_AddAPAnimations()
+{
+    for (auto& [name, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(name);
+
+        if (ui)
+            ui->Stop_UIAnimation();
+    }
 }
 
 Unique<UI_AddAP> UI_AddAP::Create(uint32 levelIndex)
@@ -146,5 +174,5 @@ Unique<UI_AddAP> UI_AddAP::Create(uint32 levelIndex)
 
 void UI_AddAP::Free()
 {
-    UI_RuntimePanelBase::Free();
+    UI_BattleFloatingTextBase::Free();
 }

@@ -23,6 +23,8 @@ IMPLEMENT_REFLECTION(EffectCom)
     info.className = "EffectCom";
     info.displayName = "EffectCom";
     info.category = "Component";
+
+    PROPERTY_WSTRING("Effect Name", _inspectorEffectName);
     
     return true;
 }
@@ -47,8 +49,10 @@ HRESULT EffectCom::Initialize(void* arg)
     CHECK_FAILED(Component::Initialize(arg), E_FAIL);
 
     _switchDissolve = {}; // 디졸브 런타임은 clone마다 새 상태로 시작
+    _previewRim = {};
     _attachedEffects.clear();
     _vanishComplete = false;
+    _inspectorEffectPlayed = false;
 
     return S_OK;
 }
@@ -56,6 +60,7 @@ HRESULT EffectCom::Initialize(void* arg)
 void EffectCom::BeginPlay()
 {
     Component::BeginPlay();
+    Play_InspectorEffectIfEnabled();
 }
 
 void EffectCom::Update(float timeDelta)
@@ -129,6 +134,16 @@ void EffectCom::Start_VanishDissolve(float durationSec, const string& noiseName,
     _switchDissolve.Start_Vanish(durationSec, noiseHandle, 0.08f, 0.02f, Vec3(0.10f, 0.10f, 0.10f));
 }
 
+void EffectCom::Set_PreviewRim(const Vec3& color, float intensity, float power, float hairIntensity)
+{
+    _previewRim.Start(color, intensity, power, hairIntensity);
+}
+
+void EffectCom::Clear_PreviewRim()
+{
+    _previewRim.Stop();
+}
+
 void EffectCom::Stop_AllAttachedEffects()
 {
     for (AttachedEffect& attached : _attachedEffects)
@@ -152,7 +167,7 @@ HRESULT EffectCom::Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMas
     if (_switchDissolve.enabled == true &&
             (supportFeatureMask & DrawFeatureFlagDissolve) != 0u)
     {
-        drawFeatureCB.activeFeatureMask = DrawFeatureFlagDissolve;
+        drawFeatureCB.activeFeatureMask |= DrawFeatureFlagDissolve;
         drawFeatureCB.param0.x = _switchDissolve.progress;
         drawFeatureCB.param0.y = _switchDissolve.edgeWidth;
         drawFeatureCB.param0.z = _switchDissolve.edgeSoftness;
@@ -165,6 +180,14 @@ HRESULT EffectCom::Bind_DrawFeatures(ShaderCom* shader, uint32 supportFeatureMas
             featureSrvs[DrawFeatureTexDissolveNoise] = noiseSRV;
             drawFeatureCB.textureSlotMask |= (1u << DrawFeatureTexDissolveNoise);
         }
+    }
+
+    if (_previewRim.enabled == true &&
+        (supportFeatureMask & DrawFeatureFlagPreviewRim) != 0u)
+    {
+        drawFeatureCB.activeFeatureMask |= DrawFeatureFlagPreviewRim;
+        drawFeatureCB.param2 = Vec4(_previewRim.color.x, _previewRim.color.y, _previewRim.color.z, _previewRim.intensity);
+        drawFeatureCB.param3 = Vec4(_previewRim.power, _previewRim.hairIntensity, 0.f, 0.f);
     }
 
     return shader->Bind_DrawFeatures(drawFeatureCB, featureSrvs.data(), featureTextureCount);
@@ -201,7 +224,66 @@ Shared<EffectCom> EffectCom::Find_FromNotifyOwner(GameObject* notifyOwner)
     return nullptr;
 }
 
+EffectCom::InspectorEffectSettings EffectCom::Get_InspectorEffectSettings() const
+{
+    InspectorEffectSettings settings{};
+    settings.autoPlay = _inspectorAutoPlayEffect;
+    settings.effectName = _inspectorEffectName;
+    settings.target = static_cast<EffectPlayTarget>(_inspectorEffectTarget);
+    settings.partTag = _inspectorPartTag;
+    settings.socketName = _inspectorSocketName;
+    settings.layerTag = _inspectorLayerTag;
+    settings.localOffset = _inspectorLocalOffset;
+    settings.localRotation = _inspectorLocalRotation;
+    settings.scale = _inspectorScale;
+    settings.followTarget = _inspectorFollowTarget;
+    settings.requiresManualRelease = _inspectorRequiresManualRelease;
+    return settings;
+}
+
+void EffectCom::Set_InspectorEffectSettings(const InspectorEffectSettings& settings)
+{
+    _inspectorAutoPlayEffect = settings.autoPlay;
+    _inspectorEffectName = settings.effectName;
+    _inspectorEffectTarget = static_cast<int>(settings.target);
+    _inspectorPartTag = settings.partTag;
+    _inspectorSocketName = settings.socketName;
+    _inspectorLayerTag = settings.layerTag;
+    _inspectorLocalOffset = settings.localOffset;
+    _inspectorLocalRotation = settings.localRotation;
+    _inspectorScale = settings.scale;
+    _inspectorFollowTarget = settings.followTarget;
+    _inspectorRequiresManualRelease = settings.requiresManualRelease;
+    _inspectorEffectPlayed = false;
+}
+
+HRESULT EffectCom::Play_InspectorEffect()
+{
+    if (_inspectorEffectName.empty())
+        return E_FAIL;
+
+    EffectPlayDesc desc{};
+    desc.levelIndex = GAME->Current_LevelIndex();
+    desc.effectName = _inspectorEffectName;
+    desc.target = static_cast<EffectPlayTarget>(_inspectorEffectTarget);
+    desc.partTag = _inspectorPartTag;
+    desc.socketName = _inspectorSocketName;
+    desc.layerTag = _inspectorLayerTag;
+    desc.localOffset = _inspectorLocalOffset;
+    desc.localRotation = _inspectorLocalRotation;
+    desc.scale = _inspectorScale;
+    desc.followTarget = _inspectorFollowTarget;
+    desc.requiresManualRelease = _inspectorRequiresManualRelease;
+
+    return Play_Effect(desc);
+}
+
 HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
+{
+    return Play_Effect(desc, nullptr);
+}
+
+HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::AttachedHandle* outHandle)
 {
     if (desc.effectName.empty() || desc.layerTag.empty())
         return E_FAIL;
@@ -252,6 +334,9 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
     attached.trailSampleProvider = desc.trailSampleProvider.lock();
     _attachedEffects.push_back(attached);
 
+    if (outHandle != nullptr)
+        *outHandle = handle;
+
     return S_OK;
 }
 
@@ -275,6 +360,32 @@ void EffectCom::Stop_Effect(const wstring& effectName, EffectPlayTarget target, 
     }
 
     Prune_ReleasedAttachedEffects();
+}
+
+void EffectCom::Stop_Effect(const EffectInstancePool::AttachedHandle& handle)
+{
+    if (handle.effectObject == nullptr)
+        return;
+
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        if (attached.poolHandle.effectObject != handle.effectObject)
+            continue;
+
+        Release_AttachedEffect(attached);
+        break;
+    }
+
+    Prune_ReleasedAttachedEffects();
+}
+
+void EffectCom::Play_InspectorEffectIfEnabled()
+{
+    if (!_inspectorAutoPlayEffect || _inspectorEffectPlayed || _inspectorEffectName.empty())
+        return;
+
+    if (SUCCEEDED(Play_InspectorEffect()))
+        _inspectorEffectPlayed = true;
 }
 
 bool EffectCom::Try_ResolveEffectWorldTransform(EffectPlayTarget target, const wstring& partTag,
@@ -309,7 +420,44 @@ bool EffectCom::Try_ResolveEffectWorldTransform(EffectPlayTarget target, const w
         Matrix::CreateFromYawPitchRoll(localRotationRad.y, localRotationRad.x, localRotationRad.z) *
         Matrix::CreateTranslation(localOffset);
 
-    Matrix finalWorldMatrix = localMatrix * baseWorldMatrix;
+    Matrix basisWorldMatrix = baseWorldMatrix;
+    if (target != EffectPlayTarget::OwnerRoot)
+    {
+        auto normalize_axis = [](Vec3 axis, const Vec3& fallback) -> Vec3
+        {
+            if (axis.LengthSquared() <= 0.000001f)
+                return fallback;
+
+            axis.Normalize();
+            return axis;
+        };
+
+        const Vec3 basisRight = normalize_axis(
+            Vec3(baseWorldMatrix._11, baseWorldMatrix._12, baseWorldMatrix._13),
+            Vec3::Right);
+        const Vec3 basisUp = normalize_axis(
+            Vec3(baseWorldMatrix._21, baseWorldMatrix._22, baseWorldMatrix._23),
+            Vec3::Up);
+        const Vec3 basisLook = normalize_axis(
+            Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33),
+            Vec3::Forward);
+
+        basisWorldMatrix = Matrix::Identity;
+        basisWorldMatrix._11 = basisRight.x;
+        basisWorldMatrix._12 = basisRight.y;
+        basisWorldMatrix._13 = basisRight.z;
+        basisWorldMatrix._21 = basisUp.x;
+        basisWorldMatrix._22 = basisUp.y;
+        basisWorldMatrix._23 = basisUp.z;
+        basisWorldMatrix._31 = basisLook.x;
+        basisWorldMatrix._32 = basisLook.y;
+        basisWorldMatrix._33 = basisLook.z;
+        basisWorldMatrix._41 = baseWorldMatrix._41;
+        basisWorldMatrix._42 = baseWorldMatrix._42;
+        basisWorldMatrix._43 = baseWorldMatrix._43;
+    }
+
+    Matrix finalWorldMatrix = localMatrix * basisWorldMatrix;
 
     Vec3 decomposedScale = Vec3::One;
     Quat decomposedRotation = Quat::Identity;
@@ -528,7 +676,6 @@ void EffectCom::Update_AttachedEffects()
 
         effectTransform->Set_WorldPosition(targetWorldPosition);
         effectTransform->Set_WorldRotationEuler(targetWorldRotation);
-        effectTransform->Set_Scale(attached.scale);
     }
 
     Prune_ReleasedAttachedEffects();
@@ -612,13 +759,7 @@ bool EffectCom::Try_GetSocketWorldMatrix(const wstring& partTag, const string& s
         if (socketMatrix == nullptr)
             return false;
 
-        const Shared<TransformCom> partTransform = playablePart->Get_Transform();
-        const Shared<TransformCom> ownerTransform = ownerContainer->Get_Transform();
-        if (partTransform == nullptr || ownerTransform == nullptr)
-            return false;
-
-        const Matrix socketWorldMatrix =
-            *socketMatrix * partTransform->Get_WorldMatrix() * ownerTransform->Get_WorldMatrix();
+        const Matrix socketWorldMatrix = *socketMatrix * playablePart->Get_CombinedWorldMatrix();
 
         outWorldMatrix = socketWorldMatrix;
         return true;

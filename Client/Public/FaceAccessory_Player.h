@@ -42,6 +42,7 @@ public:
 private:
     HRESULT Ready_Components(const FACE_ACCESSORY_DESC& desc);
     HRESULT Bind_ShaderResources();
+    HRESULT Bind_PlayerRenderCB();
 
 private:
     Shared<ShaderCom>    _shader{};

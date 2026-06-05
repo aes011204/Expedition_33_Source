@@ -59,6 +59,7 @@ public:
 
     bool IsBreak() const { return _MRuntimeStat.isBreak; }
     void SetBreak(bool value) { _MRuntimeStat.isBreak = value; }
+    bool Is_Boss() const { return _monsterDesc.isBoss; }
 
     void Set_RuntimeCombatProfile(
         float maxHp,
