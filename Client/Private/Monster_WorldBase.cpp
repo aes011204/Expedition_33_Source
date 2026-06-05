@@ -509,6 +509,7 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         return;
     }
 
+    Set_Visible(false);
     GAME->Play_Sound(Constants::Sound::BattleStateEncounter, SoundChannel::UI, 1.f);
 
     // 이제, 턴 진입 조건에 따라서 플레이어, 몬스터 턴 관리
@@ -518,6 +519,7 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
 void Monster_WorldBase::On_EditorStopRuntime()
 {
     _isBattleStart = false;
+    Set_Visible(true);
 
     if (_colliderCom)
     {

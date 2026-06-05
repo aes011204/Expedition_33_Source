@@ -303,6 +303,17 @@ namespace Client::Constants::Sound
         AllySelect03
     };
 
+    constexpr const wchar_t* BattleNormalBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Intro [1].wav";
+    constexpr const wchar_t* BattleBossBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Main [1].wav";
+
+    constexpr const wchar_t* BattleStateEncounter = L"Battle/UI_Battle_State_Encounter [1].wav";
+    constexpr const wchar_t* BattleStateEnd = L"Battle/UI_Battle_State_End [1].wav";
+
+    constexpr const wchar_t* BattleQTEStart = L"Battle/QTE/UI_Battle_QTE_Start [1].wav";
+    constexpr const wchar_t* BattleQTEMiss = L"Battle/QTE/UI_Battle_QTE_Miss [1].wav";
+    constexpr const wchar_t* BattleQTESuccessPerfect = L"Battle/QTE/UI_Battle_QTE_Success_Perfect [1].wav";
+    constexpr const wchar_t* BattleQTESuccessRegular = L"Battle/QTE/UI_Battle_QTE_Success_Regular [1].wav";
+
     constexpr const wchar_t* SkillTreeNavigate = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Navigate_01 [1].wav";
     constexpr const wchar_t* SkillTreeLearn = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Learn_01 [1].wav";
     constexpr const wchar_t* SkillTreeBlocked = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Blocked_01 [1].wav";
