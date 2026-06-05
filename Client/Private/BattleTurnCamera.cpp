@@ -883,7 +883,7 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
         static_cast<int>(request.mode),
         request.presetId.c_str());
 
-        if(request.mode != BattleCameraMode::WIDE)
+        if(request.mode != BattleCameraMode::WIDE ||  request.mode != BattleCameraMode::BATTLEINTRO)
         return;
     }
 
