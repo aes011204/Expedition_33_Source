@@ -913,7 +913,11 @@ void BattleTurnCamera::Apply_ShotRequest(const BattleShotRequest& request)
 
     if (!request.presetId.empty() && resolvedPresetById == nullptr)
     {
-        if(request.mode != BattleCameraMode::WIDE)
+        LOG_DEBUG("[ApplyShot] intro preset resolve failed. mode={}, presetId={}",
+        static_cast<int>(request.mode),
+        request.presetId.c_str());
+
+        if(request.mode != BattleCameraMode::WIDE &&  request.mode != BattleCameraMode::BATTLEINTRO)
         return;
     }
 
