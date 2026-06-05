@@ -59,12 +59,15 @@ private:
     void          Play_WeakPointEffect();
 
 private:
+    static constexpr float kDefaultWeakPointEffectScale = 0.4f;
+
     const Matrix* _socketMatrix = nullptr;
     string _socketName{};
     Matrix _offsetMatrix = {};
 
     Shared<ColliderCom> _colliderCom = {};
     bool _isBattleWeakPointEnabled = true;
+    float _weakPointEffectScale = kDefaultWeakPointEffectScale;
 
 public:
     static Shared<Mon_WeakPoint> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

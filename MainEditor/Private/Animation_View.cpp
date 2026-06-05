@@ -2798,7 +2798,8 @@ void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, flo
         {
             if (entry.notify == nullptr)
                 continue;
-            if (entry.notify->Get_TypeName() != "AN_PlayEffect")
+            const string typeName = entry.notify->Get_TypeName();
+            if (typeName != "AN_PlayEffect" && typeName != "AN_PlaySound")
                 continue;
             if (!Is_PreviewNotifyTimeInRange(entry.timeSec, previousTimeSec, currentTimeSec, wrapped))
                 continue;
