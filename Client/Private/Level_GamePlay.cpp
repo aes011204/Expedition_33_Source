@@ -39,6 +39,7 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
         return E_FAIL;
 
+    GAME->Play_BGM(Constants::Sound::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;
 }
@@ -274,7 +275,7 @@ Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, cons
 
 void Level_GamePlay::Free()
 {
-    //Free_MapStreaming();
+    Free_MapStreaming();
 
     CLIENT->Clear_GameplayUI();
 

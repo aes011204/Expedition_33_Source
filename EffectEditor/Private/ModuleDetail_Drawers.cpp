@@ -195,6 +195,14 @@ namespace Internal
         }
         ImGui::PopID();
 
+        ImGui::PushID("UseInstanceSeed");
+        detailContext.Draw_PropertyLabel(
+            "재생마다 변주",
+            "켜면 이 이펙트를 재생할 때마다 생성되는 seed를 이 랜덤값 샘플에 섞습니다."
+        );
+        changed |= ImGui::Checkbox("##Value", &data.useInstanceSeed);
+        ImGui::PopID();
+
         detailContext.End_PropertyTable();
         return changed;
     }
@@ -267,6 +275,18 @@ namespace Internal
             return "인덱스 균등";
         default:
             return "랜덤 샘플";
+        }
+    }
+
+    static const char* Get_InitialRadialVelocityCenterDirectionModeLabel(InitialRadialVelocityCenterDirectionMode mode)
+    {
+        switch (mode)
+        {
+        case InitialRadialVelocityCenterDirectionMode::PlaneRadial:
+            return "평면 방사";
+        case InitialRadialVelocityCenterDirectionMode::RandomUpward:
+        default:
+            return "랜덤 상승";
         }
     }
 
@@ -773,6 +793,51 @@ namespace Internal
 
         if (!enabled)
             ImGui::EndDisabled();
+
+        if (detailContext.Draw_ResetButton(value != defaultValue))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+        ImGui::PopID();
+
+        return changed;
+    }
+
+    static bool Draw_InitialRadialVelocityCenterDirectionModeProperty(
+        DetailPropertyContext& detailContext,
+        InitialRadialVelocityCenterDirectionMode& value,
+        InitialRadialVelocityCenterDirectionMode defaultValue)
+    {
+        bool changed = false;
+        ImGui::PushID("InitialRadialVelocityCenterDirectionMode");
+        detailContext.Draw_PropertyLabel(
+            "방향 없음 처리",
+            "생성 위치와 방사 기준점이 같아 방사 방향을 계산할 수 없을 때 사용할 방향입니다."
+        );
+
+        if (ImGui::BeginCombo("##Value", Get_InitialRadialVelocityCenterDirectionModeLabel(value)))
+        {
+            const InitialRadialVelocityCenterDirectionMode candidates[] = {
+                InitialRadialVelocityCenterDirectionMode::RandomUpward,
+                InitialRadialVelocityCenterDirectionMode::PlaneRadial,
+            };
+
+            for (const InitialRadialVelocityCenterDirectionMode candidate : candidates)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_InitialRadialVelocityCenterDirectionModeLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
 
         if (detailContext.Draw_ResetButton(value != defaultValue))
         {
@@ -2179,7 +2244,7 @@ bool InitialVelocityModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
 }
 
 bool InitialRadialVelocityModuleDetail::Draw(
-    AuthoringEmitter&,
+    const AuthoringEmitter& emitter,
     AuthoringModule&,
     InitialRadialVelocityModuleData& data,
     DetailPropertyContext& detailContext)
@@ -2204,7 +2269,19 @@ bool InitialRadialVelocityModuleDetail::Draw(
         {
             changed |= Internal::Draw_RadialPivotProperty(detailContext, data.radialPivot, defaultData.radialPivot);
             changed |= Internal::Draw_RadialWorldSpaceProperty(detailContext, data.inWorldSpace, defaultData.inWorldSpace);
+            changed |= Internal::Draw_InitialRadialVelocityCenterDirectionModeProperty(
+                detailContext,
+                data.centerDirectionMode,
+                defaultData.centerDirectionMode
+            );
             detailContext.End_PropertyTable();
+        }
+
+        if (data.centerDirectionMode == InitialRadialVelocityCenterDirectionMode::PlaneRadial)
+        {
+            ImGui::TextDisabled("평면 방사는 같은 emitter의 평면/방사 위치 방향을 사용합니다.");
+            if (!Internal::Has_PlaneRadialLocationModule(emitter))
+                ImGui::TextDisabled("평면/방사 위치가 없으면 랜덤 상승 방향으로 처리됩니다.");
         }
 
         changed |= detailContext.Draw_FloatDistributionGroup("속도", data.speed, defaultData.speed);

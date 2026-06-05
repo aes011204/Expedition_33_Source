@@ -11,6 +11,8 @@ HRESULT Level_Stage01::Initialize()
 {
     CHECK_FAILED(Ready_Lights(), E_FAIL);
 
+    GAME->Play_BGM(Constants::Sound::SpringBGM, 1.f, true, 0.f);
+
     return S_OK;
 }
 
