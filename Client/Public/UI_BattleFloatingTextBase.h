@@ -40,12 +40,13 @@ protected:
     void Set_WorldAnchorRandomYRange(float minY, float maxY) { _worldAnchorRandomMinY = minY; _worldAnchorRandomMaxY = maxY; }
     void Set_AnchorMode(AnchorMode anchorMode) { _anchorMode = anchorMode; }
 
-private:
+protected:
     bool Is_ValidTarget(const BattleChar& target) const;
 
     // Part_Body 위치를 우선 쓰고 없으면 actor root
-    bool Try_GetFeedbackWorldPosition(const BattleChar& target, Vec3& outWorldPos) const;
+    virtual bool Try_GetFeedbackWorldPosition(const BattleChar& target, Vec3& outWorldPos) const;
 
+private:
     // world anchor를 screenPos로 투영하고 원본 BaseOffset, editor offset, stack/rise를 적용
     bool Try_ResolveScreenPosition(float t, Vec2& outScreenPos) const;
 

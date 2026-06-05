@@ -24,20 +24,36 @@ void AN_Change_Anim::Execute(const AnimNotifyContext& context)
     if (context.model == nullptr)
         return;
 
-    //CLIENT->Get_BattleController()->End_FirstAnim();
-    ///
     const auto Battle = CLIENT->Get_BattleController();
-    if (Battle->Is_BattleStarted() == false)
+    if (Battle == nullptr || Battle->Is_BattleStarted() == false)
+        return;
+
+    const Shared<GameObject> notifyOwner = context.owner ? context.owner->Get_Owner() : nullptr;
+    if (notifyOwner == nullptr)
         return;
 
     const BattleAction& action = Battle->Get_TurnAction();
+    const ActionRequest& request = Battle->Get_TurnActionRequest();
+    const BattleChar* notifyActor = nullptr;
 
-    if (dynamic_pointer_cast<GameObject>(action.Get_CurChar().actor) != context.owner->Get_Owner())
+    if (action.Get_CurChar().actor &&
+        dynamic_pointer_cast<GameObject>(action.Get_CurChar().actor) == notifyOwner)
+    {
+        notifyActor = &action.Get_CurChar();
+    }
+    else if (request.actor.actor &&
+        dynamic_pointer_cast<GameObject>(request.actor.actor) == notifyOwner)
+    {
+        notifyActor = &request.actor;
+    }
+    else
+    {
         return;
+    }
 
-    if (action.Get_CurChar().statCom->Get_CurAliveState() == EAliveStatus::Dead)
+    if (notifyActor->statCom == nullptr ||
+        notifyActor->statCom->Get_CurAliveState() == EAliveStatus::Dead)
         return;
-    ///
 
     context.model->Set_AnimationByState(ETOI(_animType), 0.3f, true);
 }

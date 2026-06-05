@@ -87,6 +87,14 @@ void BattleController::Update(float timeDelta)
     {
         if (!_hasRequestedBattleEnterCamera)
         {
+            const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+            LOG_INFO(
+                "[BattleCamTrace] BattleController::Update request BATTLE_ENTER activeCameraType={} elapsed={:.3f}/{:.3f} worldScale={:.3f}",
+                static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
+                _battleEnterSlow.elapsed,
+                _battleEnterSlow.duration,
+                GAME->Get_WorldTimeScale());
+
             CLIENT->Request_TargetCameraMode(TargetCameraMode::BATTLE_ENTER);
             _hasRequestedBattleEnterCamera = true;
         }
@@ -250,6 +258,17 @@ void BattleController::OnEnterBattleField(
     _battleEnterSlow.elapsed = 0.f;
     _battleEnded = false;
     _pendingNextTurn = false;
+
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    LOG_INFO(
+        "[BattleCamTrace] BattleController::OnEnterBattleField field={} heroes={} monsterSpawns={} activeCameraType={} worldScaleBefore={:.3f} slowScale={:.3f} slowDuration={:.3f}",
+        FieldID,
+        heroIds.size(),
+        battleMonsterSpawnDescs.size(),
+        static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
+        GAME->Get_WorldTimeScale(),
+        _battleEnterSlow.worldTimeScale,
+        _battleEnterSlow.duration);
 
     // 배틀 진입 소스 오브젝트 세팅
     // ex) MW_Lancelier랑 충돌돼서 전투 시작하면 저장하고있다가, 전투 종료 후 삭제하려고
@@ -1479,11 +1498,12 @@ void BattleController::Begin_FreeAimShot(const BattleAction& shotAction)
 
         const BattleChar& attacker = _freeAimShotAction.Get_CurChar();
         const BattleChar& target = _freeAimShotAction.GetInitTarget();
+        const bool hadShieldBeforeShot = target.statCom->Get_CurrentShield() > 0;
 
         DamageSystem::ApplyDamage(freeAimDamage, attacker, target, AttackType::FreeAimLight);
 
         // 약점 파츠를 맞췄을 때만 추가딜
-        if (_hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor)
+        if (!hadShieldBeforeShot && _hasFreeAimHitTarget && _freeAimHitTarget.target.actor == target.actor)
             Try_ApplyFreeAimWeakPointBonus(_freeAimHitTarget, attacker);
 
         CLIENT->Notify_FreeAimShotHit();
@@ -1898,12 +1918,22 @@ bool BattleController::Has_Buff(const BattleChar& target, Buffs buffId) const
     return _buffSystem != nullptr && _buffSystem->Has_Buff(target, buffId);
 }
 
+bool BattleController::Is_GroupParryActive() const
+{
+    return _reactionController.Is_GroupParryActive();
+}
+
 void BattleController::Notify_CounterAnnounceRequested(const vector<BattleChar>& counterActors)
 {
     if (counterActors.empty())
         return;
 
     OnCounterAnnounceRequested.Broadcast(counterActors);
+}
+
+void BattleController::StartCounterReturnAll(ModelCom* sourceModel)
+{
+    _reactionController.StartCounterReturnAll(sourceModel);
 }
 
 void BattleController::Play_BattleHitStop(float worldTimeScale, float duration)
@@ -1916,33 +1946,38 @@ void BattleController::Play_BattleHitStop(float worldTimeScale, float duration)
 
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
-    if (_battleTurnCamera)
-        return S_OK;
+    if (_battleTurnCamera == nullptr)
+    {
+        auto camera = GAME->Get_CameraByType(ObjectType::BattleTurnCamera);
+        if(camera)
+            _battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(camera);
+    }
 
-    if(GAME->Get_CameraByType(ObjectType::BattleTurnCamera))
-        return S_OK;
+    if(_battleTurnCamera == nullptr)
+    {
+        BattleTurnCamera::BATTLE_TURN_CAMERA_DESC desc{};
+        desc.eye = XMFLOAT4(0.f, 8.f, -15.f, 1.f);
+        desc.at = XMFLOAT4(0.f, 1.2f, 0.f, 1.f);
+        desc.fovy = XMConvertToRadians(45.f);
+        desc.nearPlane = 0.1f;
+        desc.farPlane = 500.f;
+        desc.mouseSensor = 0.15f;
+        desc.mouseSensitivity = 0.f;
 
-    BattleTurnCamera::BATTLE_TURN_CAMERA_DESC desc{};
-    desc.eye = XMFLOAT4(0.f, 8.f, -15.f, 1.f);
-    desc.at = XMFLOAT4(0.f, 1.2f, 0.f, 1.f);
-    desc.fovy = XMConvertToRadians(45.f);
-    desc.nearPlane = 0.1f;
-    desc.farPlane = 500.f;
-    desc.mouseSensor = 0.15f;
-    desc.mouseSensitivity = 0.f;
+        Shared<GameObject> cameraObject;
+        CHECK_FAILED(
+            GAME->Add_GameObject(
+                ETOI(LevelType::Static), TEXT("GameObject_BattleTurnCamera"),
+                GAME->Current_LevelIndex(), TEXT("Layer_Camera"), cameraObject, &desc),
+            E_FAIL
+        );
 
-    Shared<GameObject> cameraObject;
-    CHECK_FAILED(
-        GAME->Add_GameObject(
-            ETOI(LevelType::Static), TEXT("GameObject_BattleTurnCamera"),
-            GAME->Current_LevelIndex(), TEXT("Layer_Camera"), cameraObject, &desc),
-        E_FAIL
-    );
+        _battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(cameraObject);
+        CHECK_NULL(_battleTurnCamera, E_FAIL);
 
-    _battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(cameraObject);
-    CHECK_NULL(_battleTurnCamera, E_FAIL);
-
-    _battleTurnCamera->Try_BeginPlay();
+        _battleTurnCamera->Try_BeginPlay();
+    }
+    _battleTurnCamera->Reset_RuntimeState();
     _battleTurnCamera->Set_Participants(_heroes, _enemies, _pendingBattleMonsterSpawnDescs);
 
     return S_OK;
@@ -1965,6 +2000,14 @@ void BattleController::Activate_BattleTurnCamera()
     request.presetId = _enemies[_enemies.size()/2].actor->Get_SourcePrefabName();
     request.clipId = _enemies[_enemies.size()/2].actor->Get_SourcePrefabName();
     _battleTurnCamera->Apply_ShotRequest(request);
+
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    LOG_INFO(
+        "[BattleCamTrace] BattleController::Activate_BattleTurnCamera activeBefore={} enemyCount={} subjectPrefab={} worldScale={:.3f}",
+        static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
+        _enemies.size(),
+        request.presetId.c_str(),
+        GAME->Get_WorldTimeScale());
 
     CLIENT->Request_BattleTurn();
 }
@@ -2018,6 +2061,14 @@ void BattleController::Complete_BattleField()
     _isWaitingBattleTransition = false;
     _battleEnded = false;
     _pendingNextTurn = false;
+
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    LOG_INFO(
+        "[BattleCamTrace] BattleController::Complete_BattleField begin activeCameraType={} pendingHeroes={} pendingMonsterSpawns={} worldScale={:.3f}",
+        static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
+        _pendingBattleHeroIds.size(),
+        _pendingBattleMonsterSpawnDescs.size(),
+        GAME->Get_WorldTimeScale());
 
     //// 카메라 저장
     //_worldCamera = GAME->Get_ActiveCamera();
@@ -2090,6 +2141,9 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
 
     const Shared<Monster_BattleBase> monster = dynamic_pointer_cast<Monster_BattleBase>(hitTarget.target.actor);
     if (monster == nullptr)
+        return false;
+
+    if (hitTarget.target.statCom != nullptr && hitTarget.target.statCom->Get_CurrentShield() > 0)
         return false;
 
     if (!monster->Try_Consume_FreeAimWeakPoint())

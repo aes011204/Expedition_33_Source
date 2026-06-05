@@ -63,6 +63,8 @@ public:
 protected:
     void Update_CombinedWorldMatrix(const Matrix& childMatrix) override;
 
+    HRESULT Bind_PlayerRenderCB(Shared<ShaderCom> shader);
+
 protected:
     Matrix                      _offsetMatrix{};
     const Matrix*               _socketMatrix{ nullptr };

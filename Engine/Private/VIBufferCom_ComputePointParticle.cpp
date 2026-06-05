@@ -236,6 +236,10 @@ void VIBufferCom_ComputePointParticle::Dispatch_Compute(float timeDelta, uint32 
     if (nullptr == _computeShader || nullptr == _computeOutput || nullptr == _lifecycleState || nullptr == _instanceVB)
         return;
 
+    _hasActiveParticles = _hasActiveParticles || spawnRequest > 0u;
+    if (killActiveParticles)
+        _hasActiveParticles = false;
+
     _deltaTime = max(0.f, timeDelta);
     _elapsedTime += _deltaTime;
     _spawnRequest = spawnRequest;
@@ -284,6 +288,7 @@ HRESULT VIBufferCom_ComputePointParticle::Reset_ForEffectReplay()
     _deltaTime = 0.f;
     _spawnRequest = 0u;
     _killActiveParticles = 0u;
+    _hasActiveParticles = false;
 
     CHECK_FAILED(_lifecycleState->Update_Data(_initialLifecycleState.data(), _instanceCount), E_FAIL);
     CHECK_FAILED(_computeOutput->Update_Data(_emptyInstancePayload.data(), _instanceCount), E_FAIL);
