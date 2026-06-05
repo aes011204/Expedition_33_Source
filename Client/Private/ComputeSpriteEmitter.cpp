@@ -300,15 +300,25 @@ void ComputeSpriteEmitter::Update(float timeDelta)
 {
     Sync_FromEffectOwner();
 
-    if (nullptr != _viBuffer)
+    if (nullptr == _viBuffer)
+        return;
+
+    if (PlaybackState::Completed == _playbackState && !_viBuffer->Has_ActiveParticles())
+        return;
+
+    const PlaybackTick playbackTick = Advance_Playback(timeDelta);
+    if (playbackTick.computeDeltaTime <= 0.f &&
+        playbackTick.spawnRequest == 0u &&
+        !playbackTick.killActiveParticles)
     {
-        const PlaybackTick playbackTick = Advance_Playback(timeDelta);
-        _viBuffer->Dispatch_Compute(
-            playbackTick.computeDeltaTime,
-            playbackTick.spawnRequest,
-            playbackTick.killActiveParticles
-        );
+        return;
     }
+
+    _viBuffer->Dispatch_Compute(
+        playbackTick.computeDeltaTime,
+        playbackTick.spawnRequest,
+        playbackTick.killActiveParticles
+    );
 }
 
 void ComputeSpriteEmitter::Late_Update(float timeDelta)
@@ -1249,10 +1259,13 @@ bool ComputeSpriteEmitter::Can_SubmitRender() const
     if (PlaybackState::Delayed == _playbackState)
         return false;
 
-    if (PlaybackState::Completed == _playbackState && _desc.required.playback.killOnCompleted)
+    if (nullptr == _viBuffer)
         return false;
 
-    return nullptr != _viBuffer;
+    if (!_viBuffer->Has_ActiveParticles())
+        return false;
+
+    return true;
 }
 
 Shared<ComputeSpriteEmitter> ComputeSpriteEmitter::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

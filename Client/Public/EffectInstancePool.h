@@ -76,6 +76,9 @@ public:
     void Discard_Inactive(const wstring& effectName);
     DebugSummary Get_DebugSummary() const;
 
+    // 같은 이팩트를 count개 미리 생성해서 idle 상태로 돌려두기
+    HRESULT Prewarm(const AcquireDesc& desc, uint32 count);
+
 private:
     /**
      * pool 내부 슬롯 1개다. 슬롯 1개는 재사용 가능한 EffectInstance 1개와, 그 instance를 다시 빌려줘도 되는지 여부를 기록한다.

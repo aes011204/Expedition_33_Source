@@ -12,7 +12,7 @@ NS_BEGIN(Client)
 
 struct EvtBattleCameraShake;
 
-    class BattleTurnCamera final : public Camera
+class BattleTurnCamera final : public Camera
 {
     GENERATED_GAMEOBJECT(BattleTurnCamera, ObjectType::BattleTurnCamera)
 
@@ -72,6 +72,10 @@ public:
 
     const BattleShotRequest& Get_CurrentRequest() const { return _currentRequest; }
 
+    // 플레이어 Clip.
+    bool  Should_ClipPlayerNearCamera();
+    float Get_PlayerNearClipDistance() const { return _playerNearClipDistance; }
+
 private:
     struct ResolvedShotAssets
     {
@@ -118,7 +122,7 @@ private:
     const BattleCameraPreset* Resolve_BattleCameraPresetById(BattleCameraMode mode, const string& presetId) const;
     const BattleCameraClip* Resolve_BattleCameraClipById(BattleCameraMode mode, const string& clipId) const;
     void Apply_LookAt(const Vec3& cameraPos, const Vec3& lookAt);
-    void Apply_FreeAimCamera();                
+    void Apply_FreeAimCamera();
     void Apply_EvaluatedPose(const EvaluatedPose& pose);
     EvaluatedPose Capture_CurrentPose();
     bool Evaluate_ShotRequestPose(
@@ -192,7 +196,7 @@ private:
     Vec3                 _smoothedTargetPos = Vec3::Zero;
     Vec3                 _prevTargetPos = Vec3::Zero;
     bool                 _isLiveEditEnabled = false;
-    EvtHandle            _battlePresentationHandle {};
+    EvtHandle            _battlePresentationHandle{};
     bool                 _isFreeAimActive = false;
     bool                 _isWideMode = false;
     bool                 _hasWideAnchor = false;
@@ -205,18 +209,18 @@ private:
     Vec3                 _enemyPos;
     Vec3                 _playerPos;
 
-    BattleCameraClip      _enemyAttackClip {};
-    BattleCameraClip      _playerAttackClip {};
-    BattleCameraClip      _wideModeClip {};
-    BattleCameraClip      _battleIntroClip {};
-    BattleCameraClip      _playerFocusClip {};
-    BattleCameraClip      _enemyFocusClip {};
-    BattleCameraClip*     _activeClip {};
-    float                _clipTime {};
+    BattleCameraClip      _enemyAttackClip{};
+    BattleCameraClip      _playerAttackClip{};
+    BattleCameraClip      _wideModeClip{};
+    BattleCameraClip      _battleIntroClip{};
+    BattleCameraClip      _playerFocusClip{};
+    BattleCameraClip      _enemyFocusClip{};
+    BattleCameraClip* _activeClip{};
+    float                _clipTime{};
     float                _clipSyncBaseTime = 0.f;
     float                _clipSyncPrevAnimationTime = 0.f;
     float                _clipSyncAnimationDuration = 0.f;
-    string               _clipSyncAnimationName {};
+    string               _clipSyncAnimationName{};
     int                  _clipDebugSampleLogCount = 0;
     bool                 _clipDebugLoggedShake = false;
 
@@ -226,8 +230,12 @@ private:
     mutable umap<string, BattleCameraClip> _clipsById;
     PoseTransitionState   _poseTransition{};
 
-    EvtHandle            _battleCameraShakeHandle {};
-    RuntimeShakeState    _runtimeShake {};
+    EvtHandle            _battleCameraShakeHandle{};
+    RuntimeShakeState    _runtimeShake{};
+
+    // 전투 연출 중 카메라와 너무 가까운 플레이어 표면 자르기
+    float _playerNearClipDistance = 0.45f;
+
 public:
     static Shared<BattleTurnCamera> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;

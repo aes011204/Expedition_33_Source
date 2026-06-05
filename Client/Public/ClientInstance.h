@@ -153,6 +153,7 @@ public:
     Shared<UIPreviewManager> Get_PreviewManager() const { return _previewManager; }
 
 public: /* Effect 재생 */
+    bool Prewarm_Effect(const wstring& effectName, const wstring& layerTag, uint32 count);
 
     // 단발성 1회 재생.
     bool Play_Effect(const PlayEffectDesc& desc);

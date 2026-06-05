@@ -187,6 +187,13 @@ bool FreeAimTargeting::Try_FindHitEnemy(BattleFreeAimHitTarget& outHitTarget) co
             if (!weakPoint->Is_BattleWeakPointEnabled())
                 return false;
 
+            if (enemy.statCom->Get_CurrentShield() > 0)
+            {
+                outResolvedHitTarget.target = enemy;
+                outResolvedHitTarget.hitPart = FreeAimHitPart::Body;
+                return true;
+            }
+
             outResolvedHitTarget.target = enemy;
             outResolvedHitTarget.hitPart = FreeAimHitPart::WeakPoint;
             return true;

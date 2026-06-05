@@ -10,6 +10,7 @@
 #include "EffectCom.h"
 #include "PreviewRimFeature.h"
 #include "SwitchDissolveFeature.h"
+#include "BattleTurnCamera.h"
 
 NS_BEGIN(Client)
 
@@ -372,6 +373,25 @@ void PlayableParts::Update_CombinedWorldMatrix(const Matrix& childMatrix)
     _combinedWorldMatrix = combinedWorld;
 }
 
+HRESULT PlayableParts::Bind_PlayerRenderCB(Shared<ShaderCom> shader)
+{
+    CHECK_NULL(shader, E_FAIL);
+
+    PlayerRenderCB playerRenderCB{};
+
+    if (const auto battleCamera =
+        dynamic_pointer_cast<BattleTurnCamera>(GAME->Get_CameraByType(ObjectType::BattleTurnCamera)))
+    {
+        if (battleCamera->Should_ClipPlayerNearCamera())
+        {
+            playerRenderCB.nearClipParams.x = 1.f;
+            playerRenderCB.nearClipParams.y = battleCamera->Get_PlayerNearClipDistance();
+        }
+    }
+
+    return shader->Bind_CBufferData(playerRenderCB);
+}
+
 HRESULT PlayableParts::Ready_Components(const PLAYABLE_PART_DESC& desc)
 {
     if (desc.modelType == ModelType::Anim)
@@ -412,6 +432,9 @@ HRESULT PlayableParts::Bind_ShaderResources()
         return E_FAIL;
 
     if (FAILED(GAME->Bind_CameraCB(_shaderCom)))
+        return E_FAIL;
+
+    if (FAILED(Bind_PlayerRenderCB(_shaderCom)))
         return E_FAIL;
 
     return S_OK;

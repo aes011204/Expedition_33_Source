@@ -208,8 +208,10 @@ public:
     bool Has_Buff(const BattleChar& target, Buffs buffId) const;
     Shared<BuffSystem> Get_BuffSystem() const { return _buffSystem; }
 
+    bool Is_GroupParryActive() const;
     // 카운터 성공 알람
     void Notify_CounterAnnounceRequested(const vector<BattleChar>& counterActors);
+    void StartCounterReturnAll(ModelCom* sourceModel);
 
     // HitStop (패링 직후, Free Aim 으로 약점공격 성공했을 떄 잠깐)
     void Play_BattleHitStop(float worldTimeScale, float duration);

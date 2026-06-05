@@ -159,6 +159,16 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
         result.type = BattleReactionType::Parry;
         result.success = success;
 
+        if (success)
+        {
+            _reactionAnimTargets.clear();
+            _counterReturnRuntimes.clear();
+            _counterDamageTarget = {};
+            _isCounterPending = false;
+            _isCounterDamageApplied = false;
+            _animPhase = ReactionAnimPhase::None;
+        }
+
         for (const BattleChar& target : curTargets)
         {
             if (!CanReceiveInput(target))
@@ -166,6 +176,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
 
             PlayReactionAnimation(
                 target, BattleReactionType::Parry, success, counterTarget, curStepIndex);
+
 
             if (success && target.actor != nullptr)
             {
@@ -176,7 +187,8 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
                 PlayEffectDesc effectDesc{};
                 effectDesc.effectName = L"Effects\\Assets\\Distortion\\Double_Distotion.effect.json";
                 effectDesc.spawnBasisTarget = target.actor;
-                effectDesc.localOffset = Vec3(0.f, 1.0f, 0.f); // 패링한 플레이어 몸 중앙 근처에서 왜곡을 터뜨린다.
+                effectDesc.scale = Vec3(0.5f, 0.5f, 0.5f);
+                effectDesc.localOffset = Vec3(0.f, 0.7f, 0.f);
 
                 CLIENT->Play_Effect(effectDesc);
             }
@@ -209,9 +221,12 @@ void BattleReactionController::UpdateAnimation(float timeDelta)
     if (_reactionAnimTargets.empty())
         return;
 
-    if (_animPhase == ReactionAnimPhase::CounterReturn)
-        UpdateCounterReturn(timeDelta);
 
+    if (_animPhase == ReactionAnimPhase::CounterReturn)
+    {
+        UpdateCounterReturn(timeDelta);
+        return;
+    }
     bool allFinished = true;
 
     for (const BattleChar& target : _reactionAnimTargets)
@@ -253,7 +268,10 @@ void BattleReactionController::UpdateAnimation(float timeDelta)
 }
 void BattleReactionController::StartCounterReturn()
 {
-    if (_reactionAnimTargets.size() <= 2)
+    if (_animPhase != ReactionAnimPhase::Counter)
+        return;
+
+    if (_reactionAnimTargets.size() <= 1)
     {
         FinishReactionAnimation();
         return;
@@ -287,11 +305,17 @@ void BattleReactionController::StartCounterReturn()
 
         const BattleSpawnRegistry::BattleEntry* spawnEntry = spawnRegistry->Find_SpawnEntry(target.actor);
         if (spawnEntry == nullptr)
+        {
+            TryRestoreTargetToSpawnPose(target);
             continue;
+        }
 
         const Shared<TransformCom> transform = target.actor->Get_Transform();
         if (transform == nullptr)
+        {
+            TryRestoreTargetToSpawnPose(target);
             continue;
+        }
 
         CounterReturnRuntime runtime{};
         runtime.target = target;
@@ -356,11 +380,17 @@ void BattleReactionController::UpdateCounterReturn(float timeDelta)
         }
 
         if (runtime == nullptr)
+        {
+            TryRestoreTargetToSpawnPose(target);
             continue;
+        }
 
         const Shared<TransformCom> transform = target.actor->Get_Transform();
         if (transform == nullptr)
+        {
+            TryRestoreTargetToSpawnPose(target);
             continue;
+        }
 
         Vec3 currentPos = transform->Get_Position();
 
@@ -427,8 +457,36 @@ void BattleReactionController::UpdateCounterReturn(float timeDelta)
     if (!allReached)
         return;
 
+    for (const BattleChar& target : _reactionAnimTargets)
+        TryRestoreTargetToSpawnPose(target);
+
     FinishReactionAnimation();
 }
+
+void BattleReactionController::StartCounterReturnAll(ModelCom* sourceModel)
+{
+    if (_animPhase != ReactionAnimPhase::Counter)
+        return;
+
+    if (sourceModel == nullptr)
+        return;
+
+    bool isCounterActor = false;
+    for (const BattleChar& target : _reactionAnimTargets)
+    {
+        if (target.ModelCom.get() == sourceModel)
+        {
+            isCounterActor = true;
+            break;
+        }
+    }
+
+    if (!isCounterActor)
+        return;
+
+    StartCounterReturn();
+}
+
 void BattleReactionController::StartCounter(ModelCom* sourceModel)
 {
     if (!_isCounterPending)
@@ -467,6 +525,12 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
                 counterTr->Set_Position(newPos);
             }
 
+            EvtBattlePresentation event;
+            event.cameraMode = BattleCameraMode::PARRY;
+            event.subject = _reactionAnimTargets[_reactionAnimTargets.size() / 2].actor;
+            event.presetId = "AoE";
+            event.clipId = "AoE";
+            GAME->Get_EventBus().Publish(event);
         }
         target.ModelCom->Set_RootMotionEnabled(true);
 
@@ -510,9 +574,19 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
         DamageSystem::ApplyDamage(counterDamage, target, _counterDamageTarget, AttackType::Counter);
         ++hitCount;
     }
-
+    // 단체 패링이여도 한번만 들어가게
     if (hitCount > 0)
+    {
+        PlayEffectDesc effectDesc{};
+        effectDesc.effectName = L"Effects\\Assets\\Distortion\\Double_Distotion.effect.json";
+        effectDesc.spawnBasisTarget = _counterDamageTarget.actor;
+        effectDesc.scale = Vec3(0.75f, 0.75f, 0.75f);
+        effectDesc.localOffset = Vec3(0.f, 0.7f, 0.f);
+
+        CLIENT->Play_Effect(effectDesc);
+
         _isCounterDamageApplied = true;
+    }
 }
 
 void BattleReactionController::BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale,
@@ -557,6 +631,11 @@ void BattleReactionController::EndCounterTimeSection(ModelCom* sourceModel)
     _counterTimeSectionModel = nullptr;
 }
 
+bool BattleReactionController::Is_GroupParryActive() const
+{
+    return _reactionAnimTargets.size() >= 2 && _animPhase == ReactionAnimPhase::Counter;
+}
+
 bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
 {
     if (target.actor == nullptr || target.statCom == nullptr || target.ModelCom == nullptr)
@@ -576,9 +655,9 @@ bool BattleReactionController::CanReceiveInput(const BattleChar& target) const
 
 bool BattleReactionController::IsHitOrDeadBattleAnim(BattleAnimType animType) const
 {
-    return animType == BattleAnimType::Hit_Heavy ||
-        animType == BattleAnimType::Hit_Medium ||
-        animType == BattleAnimType::Hit_Light ||
+    return //animType == BattleAnimType::Hit_Heavy ||
+        //animType == BattleAnimType::Hit_Medium ||
+       // animType == BattleAnimType::Hit_Light ||
         animType == BattleAnimType::Dead;
 }
 
