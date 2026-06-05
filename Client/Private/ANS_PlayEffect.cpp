@@ -29,6 +29,9 @@ void ANS_PlayEffect::On_Begin(const AnimNotifyContext& context)
     if (effectCom == nullptr)
         return;
 
+    if (_activeEffectHandle.effectObject != nullptr)
+        effectCom->Stop_Effect(_activeEffectHandle);
+
     EffectCom::EffectPlayDesc desc{};
     desc.levelIndex = GAME->Current_LevelIndex();
     desc.effectName = _effectName;
@@ -41,7 +44,8 @@ void ANS_PlayEffect::On_Begin(const AnimNotifyContext& context)
     desc.scale = _scale;
     desc.followTarget = true; // ANS는 EffectCom::_attachedEffects에서 계속 follow한다.
 
-    effectCom->Play_Effect(desc);
+    _activeEffectHandle = {};
+    effectCom->Play_Effect(desc, &_activeEffectHandle);
 }
 
 void ANS_PlayEffect::On_Tick(const AnimNotifyContext& context)
@@ -58,5 +62,6 @@ void ANS_PlayEffect::On_End(const AnimNotifyContext& context)
     if (effectCom == nullptr)
         return;
 
-    effectCom->Stop_Effect(_effectName, _target, _partTag, _socketName);
+    effectCom->Stop_Effect(_activeEffectHandle);
+    _activeEffectHandle = {};
 }

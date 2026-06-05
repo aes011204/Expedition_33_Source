@@ -66,6 +66,7 @@ public:
     void StartCounterReturn();
    // void FinishCounterReturn();
     void UpdateCounterReturn(float timeDelta);
+    void StartCounterReturnAll(ModelCom* sourceModel);
 
 public:
     void Set_CurSkillData(const Skill_Data* curSkillData) { _curSkillData = curSkillData; };

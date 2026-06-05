@@ -280,6 +280,11 @@ HRESULT EffectCom::Play_InspectorEffect()
 
 HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
 {
+    return Play_Effect(desc, nullptr);
+}
+
+HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::AttachedHandle* outHandle)
+{
     if (desc.effectName.empty() || desc.layerTag.empty())
         return E_FAIL;
 
@@ -329,6 +334,9 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
     attached.trailSampleProvider = desc.trailSampleProvider.lock();
     _attachedEffects.push_back(attached);
 
+    if (outHandle != nullptr)
+        *outHandle = handle;
+
     return S_OK;
 }
 
@@ -349,6 +357,23 @@ void EffectCom::Stop_Effect(const wstring& effectName, EffectPlayTarget target, 
             continue;
 
         Release_AttachedEffect(attached);
+    }
+
+    Prune_ReleasedAttachedEffects();
+}
+
+void EffectCom::Stop_Effect(const EffectInstancePool::AttachedHandle& handle)
+{
+    if (handle.effectObject == nullptr)
+        return;
+
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        if (attached.poolHandle.effectObject != handle.effectObject)
+            continue;
+
+        Release_AttachedEffect(attached);
+        break;
     }
 
     Prune_ReleasedAttachedEffects();
@@ -395,7 +420,44 @@ bool EffectCom::Try_ResolveEffectWorldTransform(EffectPlayTarget target, const w
         Matrix::CreateFromYawPitchRoll(localRotationRad.y, localRotationRad.x, localRotationRad.z) *
         Matrix::CreateTranslation(localOffset);
 
-    Matrix finalWorldMatrix = localMatrix * baseWorldMatrix;
+    Matrix basisWorldMatrix = baseWorldMatrix;
+    if (target != EffectPlayTarget::OwnerRoot)
+    {
+        auto normalize_axis = [](Vec3 axis, const Vec3& fallback) -> Vec3
+        {
+            if (axis.LengthSquared() <= 0.000001f)
+                return fallback;
+
+            axis.Normalize();
+            return axis;
+        };
+
+        const Vec3 basisRight = normalize_axis(
+            Vec3(baseWorldMatrix._11, baseWorldMatrix._12, baseWorldMatrix._13),
+            Vec3::Right);
+        const Vec3 basisUp = normalize_axis(
+            Vec3(baseWorldMatrix._21, baseWorldMatrix._22, baseWorldMatrix._23),
+            Vec3::Up);
+        const Vec3 basisLook = normalize_axis(
+            Vec3(baseWorldMatrix._31, baseWorldMatrix._32, baseWorldMatrix._33),
+            Vec3::Forward);
+
+        basisWorldMatrix = Matrix::Identity;
+        basisWorldMatrix._11 = basisRight.x;
+        basisWorldMatrix._12 = basisRight.y;
+        basisWorldMatrix._13 = basisRight.z;
+        basisWorldMatrix._21 = basisUp.x;
+        basisWorldMatrix._22 = basisUp.y;
+        basisWorldMatrix._23 = basisUp.z;
+        basisWorldMatrix._31 = basisLook.x;
+        basisWorldMatrix._32 = basisLook.y;
+        basisWorldMatrix._33 = basisLook.z;
+        basisWorldMatrix._41 = baseWorldMatrix._41;
+        basisWorldMatrix._42 = baseWorldMatrix._42;
+        basisWorldMatrix._43 = baseWorldMatrix._43;
+    }
+
+    Matrix finalWorldMatrix = localMatrix * basisWorldMatrix;
 
     Vec3 decomposedScale = Vec3::One;
     Quat decomposedRotation = Quat::Identity;
@@ -697,13 +759,7 @@ bool EffectCom::Try_GetSocketWorldMatrix(const wstring& partTag, const string& s
         if (socketMatrix == nullptr)
             return false;
 
-        const Shared<TransformCom> partTransform = playablePart->Get_Transform();
-        const Shared<TransformCom> ownerTransform = ownerContainer->Get_Transform();
-        if (partTransform == nullptr || ownerTransform == nullptr)
-            return false;
-
-        const Matrix socketWorldMatrix =
-            *socketMatrix * partTransform->Get_WorldMatrix() * ownerTransform->Get_WorldMatrix();
+        const Matrix socketWorldMatrix = *socketMatrix * playablePart->Get_CombinedWorldMatrix();
 
         outWorldMatrix = socketWorldMatrix;
         return true;

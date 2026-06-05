@@ -137,7 +137,7 @@ float ComputeSwitchDissolveClip(float2 uv, float progress)
     // reveal : threshold가 점점 줄어들면서 살아남는 픽셀을 늘려야 함
     const float threshold = (revealMode >= 0.5f) ? (1.f - dissolveProgress) : dissolveProgress;
     const float scatterWeight = lerp(0.13f, 0.04f, dissolveProgress);
-    const float bandLift = (1.f - dissolveProgress) * 0.05f; 
+    const float bandLift = (1.f - dissolveProgress) * 0.05f;
 
     return noise - threshold + scatter * scatterWeight + bandLift;
 }
@@ -167,6 +167,18 @@ float ApplySwitchDissolveClip(float2 uv)
     const float clipValue = ComputeSwitchDissolveClip(uv, g_FeatureParam0.x);
     clip(clipValue);
     return ComputeSwitchDissolveEdge(uv, clipValue);
+}
+
+void ApplyPlayerNearClip(float4 worldPos)
+{
+    if (g_PlayerNearClipParams.x < 0.5f)
+        return;
+
+    float4 viewPos = mul(worldPos, g_ViewMatrix);
+
+    // 전투 연출 중 카메라에 너무 가까운 플레이어 표면만 버린다.
+    if (viewPos.z > 0.f && viewPos.z < g_PlayerNearClipParams.y)
+        discard;
 }
 
 #endif

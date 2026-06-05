@@ -93,6 +93,9 @@ HRESULT Body_Player::Render()
     if (FAILED(GAME->Bind_CameraCB(_computeRenderShaderCom)))
         return E_FAIL;
 
+    if (FAILED(Bind_PlayerRenderCB(_computeRenderShaderCom)))
+        return E_FAIL;
+
     const uint32 numMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
 
     for (uint32 i = 0; i < numMeshes; ++i)

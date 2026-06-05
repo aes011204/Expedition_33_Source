@@ -42,6 +42,16 @@ bool ItemTargeting::EnterInvoke()
 	if (!Set_TargetCandidates())
 		return false;
 
+	const BattleChar& actor = owner->Get_TurnActionRequest().actor;
+	for (uint32 i = 0; i < _targetCandidates.size(); ++i)
+	{
+		if (_targetCandidates[i].actor == actor.actor)
+		{
+			_targetIndex = i;
+			break;
+		}
+	}
+
 	owner->Set_TargetPreview(_targetCandidates[_targetIndex]);
 
 	return Battle_State::EnterInvoke();
@@ -82,7 +92,7 @@ void ItemTargeting::Update(float timeDelta)
 	// 왼쪽
 	if (GAME->KeyDown(KEY_TYPE::A))
 	{
-		if (Try_MoveTargetIndex(-1))
+		if (Try_MoveTargetIndex(+1))
 		{
 			owner->Set_TargetPreview(_targetCandidates[_targetIndex]);
 
@@ -98,7 +108,7 @@ void ItemTargeting::Update(float timeDelta)
 	// 오른쪽
 	if (GAME->KeyDown(KEY_TYPE::D))
 	{
-		if (Try_MoveTargetIndex(+1))
+		if (Try_MoveTargetIndex(-1))
 		{
 			owner->Set_TargetPreview(_targetCandidates[_targetIndex]);
 

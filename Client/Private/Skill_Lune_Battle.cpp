@@ -17,6 +17,17 @@ void Skill_Lune_Immolation::Execute(const Skill_Data& skill, const BattleAction&
         attacker.mechanismCom->Add_LuneStains({ ElementalType::Fire });
 
     DamageSystem::ApplyDamage(15.f, attacker, target, attackType);
+
+    // TEMP. 이거 일단 임시. 프로토 타입 이후 제대로 구조잡기
+    if (target.actor != nullptr)
+    {
+        PlayEffectDesc effectDesc{};
+        effectDesc.effectName = L"Effects\\Assets\\Player\\Lune\\Lune_Immolation_Hit.effect.json";
+        effectDesc.spawnBasisTarget = target.actor;
+        effectDesc.localOffset = Vec3(0.f, 0.7f, 0.f);
+
+        CLIENT->Play_Effect(effectDesc);
+    }
 }
 
 Shared<Skill_Lune_Immolation> Skill_Lune_Immolation::Create()

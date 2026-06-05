@@ -1452,7 +1452,12 @@ HRESULT GameInstance::Bind_CameraCB(Shared<ShaderCom> shader) const
     if (activeCamera == nullptr)
         return E_FAIL;
 
-    return _pipeLine->Bind_CameraCB(shader.get(), activeCamera->Get_Far());
+    CHECK_FAILED(_pipeLine->Bind_CameraCB(shader.get(), activeCamera->Get_Far()), E_FAIL);
+
+    PlayerRenderCB playerRenderCB{}; // 기본은 플레이어 근접 클립 off. 플레이어 렌더 경로에서만 enabled로 다시 덮는다.
+    CHECK_FAILED(shader->Bind_CBufferData(playerRenderCB), E_FAIL);
+
+    return S_OK;
 }
 
 bool GameInstance::KeyPress(KEY_TYPE key) const

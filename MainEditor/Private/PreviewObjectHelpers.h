@@ -188,7 +188,10 @@ namespace PreviewObjectHelpers
         {
             Shared<Client::EffectCom> effectCom = dynamic_pointer_cast<Client::EffectCom>(component);
             if (effectCom)
+            {
+                effectCom->Update_AttachedEffects();
                 effectCom->Tick_AttachedEffectInstances(timeDelta);
+            }
         });
 
         Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);

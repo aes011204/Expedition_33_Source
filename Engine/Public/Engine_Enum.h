@@ -151,6 +151,7 @@ namespace Engine
         FogZone         = 12,
         Water           = 13,
         LightShaft      = 14,
+        PlayerRender    = 15,
 
         END
     };
