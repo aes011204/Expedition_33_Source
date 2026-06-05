@@ -4,6 +4,7 @@
 #include "Character_BattleBase.h"
 #include "Monster_BattleBase.h"
 #include "ClientInstance.h"
+#include "Client_Constants.h"
 #include "ClientScreenFxManager.h"
 #include "CombatStatCom.h"
 #include "DamageSystem.h"
@@ -494,6 +495,7 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
 
             _battleVictory->Set_RewardExp(rewardExp);
             _battleVictory->Set_PlayerStatus(Build_BattleVictoryPlayerStats());
+            GAME->Play_Sound(Constants::Sound::BattleStateEnd, SoundChannel::UI, 1.f);
             _battleVictory->Open();
         }
 

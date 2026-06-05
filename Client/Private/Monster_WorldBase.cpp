@@ -3,6 +3,7 @@
 #include "AIController.h"
 #include "BlackBoard.h"
 #include "ClientInstance.h"
+#include "Client_Constants.h"
 #include "ColliderCom.h"
 #include "GameInstance.h"
 #include "MonsterStatCom.h"
@@ -507,6 +508,8 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
 
         return;
     }
+
+    GAME->Play_Sound(Constants::Sound::BattleStateEncounter, SoundChannel::UI, 1.f);
 
     // 이제, 턴 진입 조건에 따라서 플레이어, 몬스터 턴 관리
     CLIENT->OnEnterBattleField(1, isPlayerAdvantage, heroes, battleMonsterSpawnDescs, GetSharedPtr<GameObject>());

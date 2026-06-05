@@ -269,6 +269,12 @@ namespace Client::Constants::Sound
     constexpr const wchar_t* MainMenuNewGame = L"MainTitle/MainMenu_NewGame.wav";
     constexpr const wchar_t* MainMenuQuitGame = L"MainTitle/MainMenu_QuitGame.wav";
 
+    constexpr const wchar_t* BattleNormalBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Intro [1].wav";
+    constexpr const wchar_t* BattleBossBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Main [1].wav";
+
+    constexpr const wchar_t* BattleStateEncounter = L"Battle/UI_Battle_State_Encounter [1].wav";
+    constexpr const wchar_t* BattleStateEnd = L"Battle/UI_Battle_State_End [1].wav";
+
     constexpr const wchar_t* BattleQTEStart = L"Battle/QTE/UI_Battle_QTE_Start [1].wav";
     constexpr const wchar_t* BattleQTEMiss = L"Battle/QTE/UI_Battle_QTE_Miss [1].wav";
     constexpr const wchar_t* BattleQTESuccessPerfect = L"Battle/QTE/UI_Battle_QTE_Success_Perfect [1].wav";

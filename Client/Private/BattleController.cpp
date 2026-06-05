@@ -42,7 +42,9 @@
 #include "BattleStartSpawner.h"
 #include "EffectCom.h"
 #include "Monster_WorldBase.h"
+#include "MonsterStatCom.h"
 #include "ScreenFx_Manager.h"
+#include "Client_Constants.h"
 
 REGISTER_GLOBAL_ENUM(BattleAnimType, "BattleAnimType")
 
@@ -2078,6 +2080,23 @@ void BattleController::Complete_BattleField()
 
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
     Create_BattleChar(_pendingBattleHeroIds, _pendingBattleMonsterSpawnDescs);
+
+    bool hasBossEnemy = false;
+    for (const BattleChar& enemy : _enemies)
+    {
+        const Shared<MonsterStatCom> monsterStat = dynamic_pointer_cast<MonsterStatCom>(enemy.statCom);
+        if (monsterStat && monsterStat->Is_Boss())
+        {
+            hasBossEnemy = true;
+            break;
+        }
+    }
+
+    GAME->Play_BGM(
+        hasBossEnemy ? Constants::Sound::BattleBossBGM : Constants::Sound::BattleNormalBGM,
+        1.f,
+        true,
+        0.f);
 
     // 초기 플레이 순서 지정
     Build_InitialTurnQueue(_pendingBattleIsPlayerAdvantage);
