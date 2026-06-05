@@ -1,6 +1,8 @@
 ﻿#include "UI_HealFont.h"
 
+#include "Character_BattleBase.h"
 #include "Client_Constants.h"
+#include "PlayableParts.h"
 #include "UI_Base.h"
 #include "UI_RuntimeLoader.h"
 #include "UI_Text.h"
@@ -15,9 +17,10 @@ HRESULT UI_HealFont::Initialize(uint32 levelIndex)
 
     Set_FloatingMotion(0.85f, 28.f);
     Set_StackStep(18.f, 22.f);
+    Set_AnchorMode(AnchorMode::FollowWorld);
 
-    Set_WorldAnchorOffset(Vec3(0.f, 1.2f, 0.f));
-    Set_ScreenBaseOffset(Vec2(0.f, -10.f));
+    Set_WorldAnchorOffset(Vec3(0.f, 0.f, 0.f));
+    Set_ScreenBaseOffset(Vec2(0.f, -12.f));
 
     Set_WorldAnchorRandomYRange(-0.08f, 0.12f);
 
@@ -83,6 +86,26 @@ void UI_HealFont::Set_HealText(int32 healValue)
     _healTextBg->Set_Text(text);
     _plusText->Set_Text(L"+");
     _plusTextBg->Set_Text(L"+");
+}
+
+bool UI_HealFont::Try_GetFeedbackWorldPosition(const BattleChar& target, Vec3& outWorldPos) const
+{
+    if (auto* battleActor = dynamic_cast<Character_BattleBase*>(target.actor.get()))
+    {
+        if (auto* body = dynamic_cast<PlayableParts*>(battleActor->Get_PartObject(L"Part_Body")))
+        {
+            if (const Matrix* socketMatrix = body->Get_SocketBoneMatrixPtr("HealthBar"))
+            {
+                const Matrix socketWorldMatrix = *socketMatrix * body->Get_CombinedWorldMatrix();
+                outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+                outWorldPos += _worldAnchorOffset;
+                outWorldPos.y += _worldAnchorRandomY;
+                return true;
+            }
+        }
+    }
+
+    return UI_BattleFloatingTextBase::Try_GetFeedbackWorldPosition(target, outWorldPos);
 }
 
 Unique<UI_HealFont> UI_HealFont::Create(uint32 levelIndex)

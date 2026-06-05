@@ -1,5 +1,5 @@
 ﻿#include "MB_Bishop.h"
-
+#include "ClientInstance.h"
 #include "Mon_Bishop_Body.h"
 #include "Mon_Lancelier_Weapon.h"
 #include "GameInstance.h"
@@ -44,11 +44,20 @@ HRESULT MB_Bishop::Initialize(void* arg)
     //_combatStat->Set_Skill("Eveque_SingleSpear");
     //_combatStat->Set_Skill("Eveque_DoubleSpear");
     //_combatStat->Set_Skill("Eveque_Defense");
-    //_combatStat->Set_Skill("Eveque_GroundAoE");
-    _combatStat->Set_Skill("Eveque_EnragedCombo");
+    _combatStat->Set_Skill("Eveque_GroundAoE");
+    //_combatStat->Set_Skill("Eveque_EnragedCombo");
     //_combatStat->Set_Skill("Eveque_Spawn_Mini");
 
     return S_OK;
+}
+
+void MB_Bishop::BeginPlay()
+{
+    Monster_BattleBase::BeginPlay();
+
+    // GroundAoe가 프레임드랍나서 미리 준비해놓기
+    if (CLIENT != nullptr)
+        CLIENT->Prewarm_Effect(L"Beshop_Ice", L"Layer_Effect", 9);
 }
 
 void MB_Bishop::Update(float timeDelta)
@@ -59,6 +68,20 @@ void MB_Bishop::Update(float timeDelta)
     {
         _body->Play_Animation(timeDelta);
     }
+}
+
+bool MB_Bishop::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
+{
+    if (_body == nullptr)
+        return false;
+
+    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr("Aim_Target");
+    if (socketMatrix == nullptr)
+        return false;
+
+    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
+    outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+    return true;
 }
 
 HRESULT MB_Bishop::Ready_PartObjects()

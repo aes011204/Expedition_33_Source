@@ -220,6 +220,39 @@ EffectInstancePool::DebugSummary EffectInstancePool::Get_DebugSummary() const
     return summary;
 }
 
+HRESULT EffectInstancePool::Prewarm(const AcquireDesc& desc, uint32 count)
+{
+    if (desc.effectName.empty() || desc.layerTag.empty() || count == 0)
+        return E_FAIL;
+
+    vector<AttachedHandle> handles{};
+    handles.reserve(count);
+
+    for (uint32 i = 0; i < count; ++i)
+    {
+        AttachedHandle handle{};
+        CHECK_FAILED(Acquire(desc, handle), E_FAIL);
+
+        // prewarm instance가 다음 frame 첫 BeginPlay에서 다시 Play되지 않게 미리 BeginPlay를 완료한다.
+        if (handle.effectObject != nullptr)
+            CHECK_FAILED(handle.effectObject->Try_BeginPlay(), E_FAIL);
+
+        // count개를 한 번에 확보해야 같은 슬롯 1개만 재사용하는 prewarm이 되지 않는다.
+        handles.push_back(handle);
+    }
+
+    for (const AttachedHandle& handle : handles)
+        Release(handle);
+
+    LOG_INFO(
+        "[EffectPool] prewarmed. key={}, count={}, entries={}",
+        String::ToString(desc.effectName),
+        count,
+        _entries.size());
+
+    return S_OK;
+}
+
 HRESULT EffectInstancePool::Acquire_Instance(
     const AcquireDesc& desc,
     Shared<const EffectDefinition>& outDefinition,

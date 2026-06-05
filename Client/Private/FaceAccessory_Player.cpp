@@ -3,6 +3,7 @@
 #include "Material.h"
 #include "Material_Types.h"
 #include "ModelCom.h"
+#include "BattleTurnCamera.h"
 
 namespace
 {
@@ -175,8 +176,28 @@ HRESULT FaceAccessory_Player::Bind_ShaderResources()
 
     CHECK_FAILED(_shader->Bind_ObjectCB(_combinedWorldMatrix), E_FAIL);
     CHECK_FAILED(GAME->Bind_CameraCB(_shader), E_FAIL);
+    CHECK_FAILED(Bind_PlayerRenderCB(), E_FAIL);
     CHECK_FAILED(_shader->Bind_CBufferData(_hairCB), E_FAIL);
     return S_OK;
+}
+
+HRESULT FaceAccessory_Player::Bind_PlayerRenderCB()
+{
+    CHECK_NULL(_shader, E_FAIL);
+
+    PlayerRenderCB playerRenderCB{};
+
+    if (const auto battleCamera =
+        dynamic_pointer_cast<BattleTurnCamera>(GAME->Get_CameraByType(ObjectType::BattleTurnCamera)))
+    {
+        if (battleCamera->Should_ClipPlayerNearCamera())
+        {
+            playerRenderCB.nearClipParams.x = 1.f;
+            playerRenderCB.nearClipParams.y = battleCamera->Get_PlayerNearClipDistance();
+        }
+    }
+
+    return _shader->Bind_CBufferData(playerRenderCB);
 }
 
 Shared<FaceAccessory_Player> FaceAccessory_Player::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

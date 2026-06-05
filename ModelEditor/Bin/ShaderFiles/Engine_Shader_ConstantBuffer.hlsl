@@ -291,4 +291,10 @@ cbuffer WaterBuffer : register(b13)
     float4 g_WaterFresnelColor;
 }
 
+cbuffer PlayerRenderBuffer
+{
+    float4 g_PlayerNearClipParams;
+    // x: enabled, y: camera-space clip distance
+}
+
 #endif

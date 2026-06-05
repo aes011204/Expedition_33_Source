@@ -141,6 +141,8 @@ struct PS_OUT
 
 PS_OUT PS_Opaque(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
@@ -183,6 +185,8 @@ PS_OUT PS_Opaque(PS_IN In)
 
 PS_OUT PS_Mask(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
@@ -258,6 +262,8 @@ PS_OUT_SHADOW PS_Shadow(VS_SHADOW_OUT In)
 
 PS_OUT PS_CharacterEye(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
@@ -307,6 +313,8 @@ PS_OUT PS_CharacterEye(PS_IN In)
 
 PS_OUT PS_CharacterHair(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
@@ -358,6 +366,8 @@ struct PS_OUT_HAIR_BLEND
 
 PS_OUT_HAIR_BLEND PS_CharacterHairBlend(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT_HAIR_BLEND Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);

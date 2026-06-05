@@ -1,6 +1,7 @@
 ﻿#include "GameplayUI_Battle.h"
 
 #include "BuffSystem.h"
+#include "Character_BattleBase.h"
 #include "Monster_BattleBase.h"
 #include "ClientInstance.h"
 #include "ClientScreenFxManager.h"
@@ -46,7 +47,7 @@ GameplayUI_Battle::~GameplayUI_Battle() = default;
 
 namespace
 {
-    constexpr float kBattleSystemIntroDurationSec = 2.f;
+    constexpr float kBattleSystemIntroDurationSec = 3.f;
 
     void Append_RuntimePanelEntry(
         vector<RuntimeUIEntry>& outEntries,
@@ -839,6 +840,7 @@ void GameplayUI_Battle::Handle_ReactionSucceeded(BattleController::ReactionType 
     if (!Try_ProjectWorldToScreen(worldPos, screenPos))
         return;
 
+    screenPos += Vec2(24.f, -24.f);
     _reactionResult->Show_Reaction(reactionType, screenPos);
 }
 
@@ -853,6 +855,28 @@ void GameplayUI_Battle::Handle_BattleApChanged(const BattleChar& actor, uint32 a
 
     if (amount == 0)
         return;
+
+    if (actor.statCom != nullptr)
+    {
+        if (_battleSystemHUD)
+        {
+            _battleSystemHUD->Set_PartyBattleStat(
+                actor.statCom->Get_PlayerType(),
+                actor.statCom->Get_CurHp(),
+                actor.statCom->Get_StatInfo().maxHp,
+                actor.statCom->Get_CurAP(),
+                actor.statCom->Get_MaxAP());
+        }
+
+        if (_battleCommandHUD &&
+            _hasCurrentPlayerTurnActor &&
+            _currentPlayerTurnActor.actor == actor.actor)
+        {
+            _battleCommandHUD->Set_CurrentPlayerAP(
+                actor.statCom->Get_CurAP(),
+                actor.statCom->Get_MaxAP());
+        }
+    }
 
     UI_AddAP* selectedSlot = nullptr;
     UI_AddAP* oldestSlot = nullptr;
@@ -1730,8 +1754,17 @@ bool GameplayUI_Battle::Try_GetReactionResultWorldPos(const BattleChar& target, 
     if (target.actor == nullptr || target.actor->Get_Transform() == nullptr)
         return false;
 
+    if (auto* battleActor = dynamic_cast<Character_BattleBase*>(target.actor.get()))
+    {
+        if (battleActor->Try_GetDamageFeedbackWorldPosition(outWorldPos))
+        {
+            outWorldPos += Vec3(0.35f, 0.25f, 0.f);
+            return true;
+        }
+    }
+
     outWorldPos = target.actor->Get_Transform()->Get_WorldPosition();
-    outWorldPos.y += 1.25f;
+    outWorldPos += Vec3(0.35f, 1.5f, 0.f);
 
     return true;
 }

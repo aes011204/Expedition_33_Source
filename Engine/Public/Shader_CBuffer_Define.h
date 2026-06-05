@@ -367,6 +367,15 @@ struct alignas(16) WaterCB
     Vec4 fresnelColor = { 0.1975f, 0.209646f, 0.395f, 1.f };
 };
 
+/* ------------------------------------------ */
+/*             Player Render CBuffer          */
+/* ------------------------------------------ */
+struct alignas(16) PlayerRenderCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::PlayerRender;
+
+    Vec4 nearClipParams{ 0.f, 0.f, 0.f, 0.f };
+};
 
 // 패딩이 제대로 됐나 마지막 확인용 
 static_assert(sizeof(MaterialCB) % 16 == 0);
@@ -384,6 +393,7 @@ static_assert(sizeof(DrawFeatureCB) % 16 == 0);
 static_assert(sizeof(ScreenFxCB) % 16 == 0);
 static_assert(sizeof(FogZoneCB) % 16 == 0);
 static_assert(sizeof(WaterCB) % 16 == 0);
+static_assert(sizeof(PlayerRenderCB) % 16 == 0);
 
 NS_END
 

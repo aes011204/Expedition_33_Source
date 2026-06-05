@@ -697,13 +697,7 @@ bool EffectCom::Try_GetSocketWorldMatrix(const wstring& partTag, const string& s
         if (socketMatrix == nullptr)
             return false;
 
-        const Shared<TransformCom> partTransform = playablePart->Get_Transform();
-        const Shared<TransformCom> ownerTransform = ownerContainer->Get_Transform();
-        if (partTransform == nullptr || ownerTransform == nullptr)
-            return false;
-
-        const Matrix socketWorldMatrix =
-            *socketMatrix * partTransform->Get_WorldMatrix() * ownerTransform->Get_WorldMatrix();
+        const Matrix socketWorldMatrix = *socketMatrix * playablePart->Get_CombinedWorldMatrix();
 
         outWorldMatrix = socketWorldMatrix;
         return true;

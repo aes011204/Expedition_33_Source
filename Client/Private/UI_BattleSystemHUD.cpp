@@ -27,6 +27,21 @@ namespace
     constexpr wchar_t kBattlePortraitDeactivationLuneAnimationName[] = L"BattlePortrait_Deactivation_Lune";
     constexpr wchar_t kBattlePortraitDeactivationMaelleAnimationName[] = L"BattlePortrait_Deactivation_Maelle";
 
+    constexpr Vec2 kCurrentTurnApPositions[9] =
+    {
+        Vec2{ 95.21306268017625f, 23.29340820053867f },
+        Vec2{ 95.04943987285988f, 21.70324476817105f },
+        Vec2{ 95.37305604805002f, 21.546790404634205f },
+        Vec2{ 95.64049251262853f, 21.147207400085513f },
+        Vec2{ 95.52874902775294f, 20.965926007274472f },
+        Vec2{ 95.38242665783588f, 21.186578073106332f },
+        Vec2{ 95.8516612826187f, 21.33495265183805f },
+        Vec2{ 95.47974026927716f, 21.422410404555134f },
+        Vec2{ 95.3334178993601f, 21.635815134766453f },
+    };
+
+    constexpr Vec2 kCurrentTurnApSize{ 136.9499969482422f, 16.04599952697754f };
+
     const wchar_t* Resolve_PortraitActivationAnimationName(HeroId heroId)
     {
         switch (heroId)
@@ -107,14 +122,20 @@ void UI_BattleSystemHUD::Update(float timeDelta)
 
 void UI_BattleSystemHUD::Open()
 {
+    if (Is_Open())
+        return;
+
     UI_RuntimePanelBase::Open();
 }
 
 void UI_BattleSystemHUD::Close()
 {
+	Stop_TargetAnimations();
+    Reset_TargetAnimationState(false);
+    _activePortraitHeroId = HeroId::END;
+
     UI_RuntimePanelBase::Close();
 
-	Stop_TargetAnimations();
     Close_AllLuneStains();            // 다시 열릴 때 데이터 기본 visible 값이 남지 않게 즉시 정리한다.
     Close_AllMaelleStanceBadges();
 }
@@ -134,7 +155,7 @@ void UI_BattleSystemHUD::Set_PartyBattleStat(PlayerCharacterType playerType, flo
     curAp = min(curAp, maxAp);
 
     Apply_HpGauge(slot, curHp / maxHp);
-    Apply_ApGauge(slot, curAp, maxAp);
+    Apply_ApGauge(slot, slotIndex, curAp, maxAp);
 
     Set_HpText(slot, curHp, maxHp);
     Set_ApText(slot, curAp);
@@ -201,6 +222,7 @@ void UI_BattleSystemHUD::Play_PortraitActivation(HeroId heroId)
     if (animationName == nullptr)
         return;
 
+    _activePortraitHeroId = heroId;
     Play_TargetAnimation(animationName); 
 }
 
@@ -219,11 +241,16 @@ void UI_BattleSystemHUD::Play_PortraitDeactivation(HeroId heroId)
     if (animationName == nullptr)
         return;
 
+    if (_activePortraitHeroId == heroId)
+        _activePortraitHeroId = HeroId::END;
+
     Play_TargetAnimation(animationName);
 }
 
 void UI_BattleSystemHUD::Play_BattleSystemIntro()
 {
+    _activePortraitHeroId = HeroId::END;
+    Reset_TargetAnimationState(true);
     Play_TargetAnimation(kBattleSystemIntroAnimationName);
 }
 
@@ -389,7 +416,7 @@ void UI_BattleSystemHUD::Apply_HpGauge(PartyBattleStatSlot& slot, float ratio)
     slot.hpGauge->Set_FillRatio(ratio);
 }
 
-void UI_BattleSystemHUD::Apply_ApGauge(PartyBattleStatSlot& slot, uint32 curAp, uint32 maxAp)
+void UI_BattleSystemHUD::Apply_ApGauge(PartyBattleStatSlot& slot, uint32 slotIndex, uint32 curAp, uint32 maxAp)
 {
     const uint32 clampedMaxAp = min(maxAp, 9u);
 
@@ -408,13 +435,48 @@ void UI_BattleSystemHUD::Apply_ApGauge(PartyBattleStatSlot& slot, uint32 curAp, 
         if (i < curAp && i < clampedMaxAp)
         {
             if (!slot.apStates[i]->Is_Open())
+            {
                 slot.apStates[i]->Open();
+                Apply_CurrentTurnApTransform(slotIndex, i);
+            }
         }
         else
         {
             if (slot.apStates[i]->Is_Open())
                 slot.apStates[i]->Close();
         }
+    }
+}
+
+void UI_BattleSystemHUD::Apply_CurrentTurnApTransform(uint32 slotIndex, uint32 apIndex)
+{
+    if (!Is_CurrentTurnSlot(slotIndex) || apIndex >= 9)
+        return;
+
+    Shared<UI_Image> apState = _partySlots[slotIndex].apStates[apIndex];
+    if (apState == nullptr || apState->Get_Transform() == nullptr)
+        return;
+
+    apState->Get_Transform()->Set_Position(kCurrentTurnApPositions[apIndex]);
+    apState->Get_Transform()->Set_Size(kCurrentTurnApSize);
+}
+
+bool UI_BattleSystemHUD::Is_CurrentTurnSlot(uint32 slotIndex) const
+{
+    switch (_activePortraitHeroId)
+    {
+    case HeroId::Gustave:
+        return slotIndex == 0;
+
+    case HeroId::Lune:
+        return slotIndex == 1;
+
+    case HeroId::Maelle:
+        return slotIndex == 2;
+
+    case HeroId::END:
+    default:
+        return false;
     }
 }
 
@@ -563,6 +625,26 @@ void UI_BattleSystemHUD::Stop_TargetAnimations()
 
         ui->Stop_UIAnimation();
     }
+}
+
+void UI_BattleSystemHUD::Reset_TargetAnimationState(bool includeRoot)
+{
+    for (auto& [uiName, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(uiName);
+
+        if (ui == nullptr)
+            continue;
+
+        if (!includeRoot && ui == _root)
+            continue;
+
+        ui->Open();
+        ui->Stop_UIAnimation();
+    }
+
+    Close_AllLuneStains();
+    Close_AllMaelleStanceBadges();
 }
 
 Unique<UI_BattleSystemHUD> UI_BattleSystemHUD::Create(uint32 levelIndex)

@@ -474,6 +474,29 @@ Shared<ClientScreenFxManager> ClientInstance::Get_ScreenFxManager() const
     return _screenFxManager;
 }
 
+bool ClientInstance::Prewarm_Effect(const wstring& effectName, const wstring& layerTag, uint32 count)
+{
+    if (_effectInstancePool == nullptr)
+        return false;
+
+    if (effectName.empty() || layerTag.empty() || count == 0)
+        return false;
+
+    wstring resolvedName = effectName;
+    if (!resolvedName.ends_with(L".effect.json"))
+        resolvedName += L".effect.json";
+
+    EffectInstancePool::AcquireDesc desc{};
+    desc.effectName = resolvedName;
+    desc.layerLevelIndex = GAME->Current_LevelIndex();
+    desc.layerTag = layerTag;
+    desc.worldPosition = Vec3::Zero;
+    desc.worldRotation = Vec3::Zero;
+    desc.scale = Vec3::One;
+
+    return SUCCEEDED(_effectInstancePool->Prewarm(desc, count));
+}
+
 bool ClientInstance::Play_Effect(const PlayEffectDesc& desc)
 {
     if (_effectInstancePool == nullptr)
