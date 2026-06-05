@@ -43,8 +43,8 @@ HRESULT MB_Bishop::Initialize(void* arg)
     //_combatStat->Set_Skill("Eveque_Projectiles");
     //_combatStat->Set_Skill("Eveque_SingleSpear");
     //_combatStat->Set_Skill("Eveque_DoubleSpear");
-    //_combatStat->Set_Skill("Eveque_Defense");
-    _combatStat->Set_Skill("Eveque_GroundAoE");
+    _combatStat->Set_Skill("Eveque_Defense");
+    //_combatStat->Set_Skill("Eveque_GroundAoE");
     //_combatStat->Set_Skill("Eveque_EnragedCombo");
     //_combatStat->Set_Skill("Eveque_Spawn_Mini");
 
