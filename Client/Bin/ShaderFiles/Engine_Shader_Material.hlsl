@@ -302,16 +302,22 @@ float ComputeBeardCoverage(BeardSampleCoords coords, BeardTextureSamples samples
     float farDownLeftMask = GetOpacityMaskForMasked(coords.farDownLeft, maskBaseColor);
     float farDownRightMask = GetOpacityMaskForMasked(coords.farDownRight, maskBaseColor);
 
-    // 샘플 범위를 넓힐수록 수염 면적이 더 잘 연결된다.
-    float baseCoverage = max(centerMask, max(leftMask, rightMask));
-    baseCoverage = max(baseCoverage, max(farLeftMask, farRightMask));
-    baseCoverage = max(baseCoverage, max(wideLeftMask, wideRightMask));
-    baseCoverage = max(baseCoverage, max(downMask, max(downLeftMask, downRightMask)));
-    baseCoverage = max(baseCoverage, farDownMask);
-    baseCoverage = max(baseCoverage, max(farDownLeftMask, farDownRightMask));
+    // 기존처럼 모든 샘플을 max로만 올리면 점수염이 단단한 얼룩처럼 뭉친다.
+    // 중심/근거리 구조는 유지하고, 바깥 샘플은 평균 기여를 섞어 면을 더 부드럽게 연결한다.
+    float nearStructure = max(centerMask, max(leftMask, rightMask));
+    nearStructure = max(nearStructure, max(downMask, max(downLeftMask, downRightMask)));
 
-    // 두께를 더 키우고 싶으면 이 팽창식을 먼저 조정한다.
-    return saturate(baseCoverage * 2.35f + 0.42f);
+    float sideFill =
+        farLeftMask + farRightMask +
+        wideLeftMask + wideRightMask +
+        farDownMask + farDownLeftMask + farDownRightMask;
+    sideFill *= (1.f / 7.f);
+
+    float reinforcedCenter = max(centerMask, nearStructure * 0.88f);
+    float softenedFill = max(reinforcedCenter, lerp(nearStructure, sideFill, 0.42f));
+
+    // 예전보다 덜 공격적으로 팽창시켜 경계가 딱딱하게 번지는 느낌을 줄인다.
+    return saturate(softenedFill * 1.72f + 0.18f);
 }
 
 // coverage와 같은 범위를 따라가며 수염 색 끊김을 줄일 밀도를 계산한다.

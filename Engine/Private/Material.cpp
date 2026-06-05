@@ -264,38 +264,38 @@ fs::path Material::Resolve_TextureLoadPath(const fs::path& texturePath) const
     const string lowerFileName = String::ToLowerCopy(fileName);
     const fs::path ext = normalizedPath.extension();
 
-    const bool isHairTexture =
-        lowerPath.find("hair") != string::npos ||
-        lowerFileName.find("hair") != string::npos;
+    //const bool isHairTexture =
+    //    lowerPath.find("hair") != string::npos ||
+    //    lowerFileName.find("hair") != string::npos;
 
-    const bool isEyelashOrEyebrowTexture =
-        lowerFileName.find("eyelash") != string::npos ||
-        lowerFileName.find("eyebrow") != string::npos;
+    //const bool isEyelashOrEyebrowTexture =
+    //    lowerFileName.find("eyelash") != string::npos ||
+    //    lowerFileName.find("eyebrow") != string::npos;
 
-    if (isHairTexture || isEyelashOrEyebrowTexture)
-    {
-        if (ext == ".dds" || ext == ".DDS")
-        {
-            fs::path pngPath = normalizedPath;
-            pngPath.replace_extension(".png");
+    //if (isHairTexture || isEyelashOrEyebrowTexture)
+    //{
+    //    if (ext == ".dds" || ext == ".DDS")
+    //    {
+    //        fs::path pngPath = normalizedPath;
+    //        pngPath.replace_extension(".png");
 
-            if (fs::exists(pngPath) && fs::is_regular_file(pngPath))
-            {
-                return pngPath.lexically_normal();
-            }
+    //        if (fs::exists(pngPath) && fs::is_regular_file(pngPath))
+    //        {
+    //            return pngPath.lexically_normal();
+    //        }
 
-            fs::path upperPngPath = normalizedPath;
-            upperPngPath.replace_extension(".PNG");
+    //        fs::path upperPngPath = normalizedPath;
+    //        upperPngPath.replace_extension(".PNG");
 
-            if (fs::exists(upperPngPath) && fs::is_regular_file(upperPngPath))
-            {
-                return upperPngPath.lexically_normal();
-            }
-        }
+    //        if (fs::exists(upperPngPath) && fs::is_regular_file(upperPngPath))
+    //        {
+    //            return upperPngPath.lexically_normal();
+    //        }
+    //    }
 
-        // 헤어 카드 계열은 DDS 밉/알파 coverage 변화로 멀리서 듬성듬성해질 수 있어 원본을 유지한다.
-        return normalizedPath;
-    }
+    //    // 헤어 카드 계열은 DDS 밉/알파 coverage 변화로 멀리서 듬성듬성해질 수 있어 원본을 유지한다.
+    //    return normalizedPath;
+    //}
 
     if (ext == ".dds" || ext == ".DDS")
         return normalizedPath;
