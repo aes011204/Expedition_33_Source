@@ -407,6 +407,17 @@ bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const j
 
         const json& instJson = item["instance_override"];
         MaterialInstanceOverride& inst = binding.instance;
+        inst.overrideTemplateEnabled =
+            ParseBool(instJson.value("override_template_enabled", inst.overrideTemplateEnabled), inst.overrideTemplateEnabled);
+        if (inst.overrideTemplateEnabled)
+        {
+            const uint32 templateValue = instJson.value(
+                "template",
+                instJson.value("template_id", static_cast<uint32>(inst.templateId)));
+            if (templateValue < static_cast<uint32>(MaterialShaderTemplate::END))
+                inst.templateId = static_cast<MaterialShaderTemplate>(templateValue);
+        }
+
         inst.forcedPassIndex = static_cast<int32>(instJson.value("force_pass_index", inst.forcedPassIndex));
         if (inst.forcedPassIndex < 0 && instJson.contains("forcePassIndex"))
             inst.forcedPassIndex = static_cast<int32>(instJson.value("forcePassIndex", inst.forcedPassIndex));

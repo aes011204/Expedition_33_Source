@@ -142,6 +142,25 @@ namespace
         }
     }
 
+    constexpr const char* kMaterialChannelSourceLabels[] =
+    {
+        "Const0",
+        "Const1",
+        "R",
+        "G",
+        "B",
+        "A",
+        "MaxRGB",
+        "Luma",
+    };
+    constexpr int32 kMaterialChannelSourceLabelCount =
+        static_cast<int32>(sizeof(kMaterialChannelSourceLabels) / sizeof(kMaterialChannelSourceLabels[0]));
+
+    int32 ClampMaterialChannelSourceIndex(uint32 value)
+    {
+        return std::clamp(static_cast<int32>(value), 0, kMaterialChannelSourceLabelCount - 1);
+    }
+
     bool InputTextString(const char* label, string& value, float width = 240.f)
     {
         char buffer[MAX_PATH] = {};
@@ -154,6 +173,95 @@ namespace
 
         value = buffer;
         return true;
+    }
+
+    bool TryPickTextureFile(string& outPath, string& outGuid)
+    {
+        WCHAR buffer[MAX_PATH] = {};
+
+        OPENFILENAMEW ofn{};
+        ofn.lStructSize = sizeof(ofn);
+        ofn.lpstrFilter = L"Texture Files\0*.dds;*.png;*.jpg;*.jpeg;*.tga;*.bmp\0All Files\0*.*\0";
+        ofn.lpstrFile = buffer;
+        ofn.nMaxFile = MAX_PATH;
+        ofn.lpstrInitialDir = L"../../../Client/Bin/Resources/Models/";
+        ofn.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+
+        if (!GetOpenFileNameW(&ofn))
+        {
+            return false;
+        }
+
+        const fs::path picked = fs::path(buffer).lexically_normal();
+        outPath = String::ToString(picked.wstring());
+        outGuid.clear();
+
+        const string guid = GAME->Ensure_AssetGUID(picked.wstring(), "Texture");
+        if (!guid.empty())
+        {
+            outGuid = guid;
+        }
+
+        return true;
+    }
+
+    string ReadTextureOverrideDisplayPath(const json& instJson, const char* key)
+    {
+        if (!instJson.contains("textures") ||
+            !instJson["textures"].is_object() ||
+            !instJson["textures"].contains(key) ||
+            !instJson["textures"][key].is_object())
+        {
+            return {};
+        }
+
+        const json& tex = instJson["textures"][key];
+        const string path = tex.value("texture_path", string{});
+        if (!path.empty())
+        {
+            return path;
+        }
+
+        const string guid = tex.value("texture_guid", string{});
+        if (!guid.empty())
+        {
+            const wstring resolved = GAME->Resolve_AssetPath(guid);
+            if (!resolved.empty())
+            {
+                return String::ToString(resolved);
+            }
+        }
+
+        return {};
+    }
+
+    void SetTextureOverrideFromFile(json& instJson, const char* key, const string& texturePath, const string& textureGuid)
+    {
+        instJson["textures"][key]["enabled"] = true;
+        instJson["textures"][key]["texture_path"] = texturePath;
+
+        if (!textureGuid.empty())
+        {
+            instJson["textures"][key]["texture_guid"] = textureGuid;
+        }
+        else
+        {
+            instJson["textures"][key].erase("texture_guid");
+        }
+    }
+
+    void ClearTextureOverride(json& instJson, const char* key)
+    {
+        if (!instJson.contains("textures") || !instJson["textures"].is_object())
+        {
+            return;
+        }
+
+        instJson["textures"].erase(key);
+        if (instJson["textures"].empty())
+        {
+            instJson.erase("textures");
+        }
     }
 
     json* FindBinding(json& bindings, uint32 materialIndex)
@@ -251,11 +359,21 @@ namespace
         return true;
     }
 
+    bool ReadVec2(const json& parent, const char* key, Vec2& out)
+    {
+        if (!parent.contains(key) || !parent[key].is_array() || parent[key].size() < 2)
+        {
+            return false;
+        }
+
+        out = Vec2(parent[key][0].get<float>(), parent[key][1].get<float>());
+        return true;
+    }
+
     bool IsTextureOverrideMeaningful(const json& tex)
     {
         return tex.is_object() &&
-            tex.value("enabled", false) &&
-            !tex.value("texture_path", string{}).empty();
+            tex.value("enabled", false);
     }
 
     bool IsInstanceOverrideMeaningful(const json& instJson)
@@ -267,6 +385,7 @@ namespace
 
         if (instJson.value("force_pass_index", -1) >= 0 ||
             instJson.value("forcePassIndex", -1) >= 0 ||
+            instJson.value("override_template_enabled", false) ||
             instJson.value("override_render_state_enabled", false))
         {
             return true;
@@ -469,34 +588,96 @@ namespace
         }
     }
 
-    // v2 material binding의 CB 오버라이드 편집.
+    // v2 material binding의 CB 오버라이드 편집. MainEditor MaterialView의 ModelCom 편집 항목과 같은 키를 쓴다.
     void DrawMaterialCBEditor(json& instJson, MapEditor::ModelOverrideEntry& entry, MapEditor::SceneContext* ctx)
     {
+        (void)entry;
+
         ImGui::SeparatorText("CB Overrides");
 
-        auto drawFloatCB = [&](const char* label, const char* key, float defaultValue, float minValue, float maxValue)
+        const MaterialCB defaults{};
+
+        auto isEnabled = [&](const char* key) -> bool
         {
-            bool enabled = instJson.contains("cb_overrides") &&
+            return instJson.contains("cb_overrides") &&
                 instJson["cb_overrides"].is_object() &&
                 instJson["cb_overrides"].value(key, false);
+        };
 
+        auto ensureCBDefault = [&](const char* key, const json& defaultValue)
+        {
+            if (!instJson.contains("cb") || !instJson["cb"].is_object())
+            {
+                instJson["cb"] = json::object();
+            }
+
+            if (!instJson["cb"].contains(key))
+            {
+                instJson["cb"][key] = defaultValue;
+            }
+        };
+
+        auto setEnabled = [&](const char* key, bool enabled, const json& defaultValue)
+        {
+            SetCBOverride(instJson, key, enabled);
+            if (enabled)
+            {
+                ensureCBDefault(key, defaultValue);
+            }
+            if (ctx)
+            {
+                ctx->_dirtyPassOverrides = true;
+            }
+        };
+
+        auto drawVec4CB = [&](const char* label, const char* key, const Vec4& defaultValue)
+        {
+            bool enabled = isEnabled(key);
             string checkboxLabel = string("##") + key + "_enable";
             if (ImGui::Checkbox(checkboxLabel.c_str(), &enabled))
             {
-                SetCBOverride(instJson, key, enabled);
-                if (enabled && (!instJson.contains("cb") || !instJson["cb"].contains(key)))
-                {
-                    instJson["cb"][key] = defaultValue;
-                }
+                setEnabled(key, enabled, { defaultValue.x, defaultValue.y, defaultValue.z, defaultValue.w });
+            }
+            ImGui::SameLine();
+
+            Vec4 value = defaultValue;
+            if (instJson.contains("cb") && instJson["cb"].is_object())
+            {
+                (void)ReadVec4(instJson["cb"], key, value);
+            }
+
+            float values[4] = { value.x, value.y, value.z, value.w };
+            if (!enabled)
+            {
+                ImGui::BeginDisabled();
+            }
+            if (ImGui::ColorEdit4(label, values))
+            {
+                instJson["cb"][key] = { values[0], values[1], values[2], values[3] };
+                SetCBOverride(instJson, key, true);
                 if (ctx)
                 {
                     ctx->_dirtyPassOverrides = true;
                 }
             }
+            if (!enabled)
+            {
+                ImGui::EndDisabled();
+            }
+        };
+
+        auto drawFloatCB = [&](const char* label, const char* key, float defaultValue, float minValue, float maxValue)
+        {
+            bool enabled = isEnabled(key);
+            string checkboxLabel = string("##") + key + "_enable";
+            if (ImGui::Checkbox(checkboxLabel.c_str(), &enabled))
+            {
+                setEnabled(key, enabled, defaultValue);
+            }
             ImGui::SameLine();
 
             float value = defaultValue;
-            if (instJson.contains("cb") && instJson["cb"].contains(key))
+            if (instJson.contains("cb") && instJson["cb"].is_object())
             {
                 value = instJson["cb"].value(key, defaultValue);
             }
@@ -521,59 +702,133 @@ namespace
             }
         };
 
-        bool baseColorEnabled = instJson.contains("cb_overrides") &&
-            instJson["cb_overrides"].is_object() &&
-            instJson["cb_overrides"].value("baseColorTint", false);
-        if (ImGui::Checkbox("##baseColorTint_enable", &baseColorEnabled))
+        auto drawVec2CB = [&](const char* label, const char* key, const Vec2& defaultValue)
         {
-            SetCBOverride(instJson, "baseColorTint", baseColorEnabled);
-            if (baseColorEnabled && (!instJson.contains("cb") || !instJson["cb"].contains("baseColorTint")))
+            bool enabled = isEnabled(key);
+            string checkboxLabel = string("##") + key + "_enable";
+            if (ImGui::Checkbox(checkboxLabel.c_str(), &enabled))
             {
-                instJson["cb"]["baseColorTint"] = {
-                    entry.materialCB.baseColorTint.x == 0.f ? 1.f : entry.materialCB.baseColorTint.x,
-                    entry.materialCB.baseColorTint.y == 0.f ? 1.f : entry.materialCB.baseColorTint.y,
-                    entry.materialCB.baseColorTint.z == 0.f ? 1.f : entry.materialCB.baseColorTint.z,
-                    entry.materialCB.baseColorTint.w == 0.f ? 1.f : entry.materialCB.baseColorTint.w
-                };
+                setEnabled(key, enabled, { defaultValue.x, defaultValue.y });
             }
-            if (ctx)
+            ImGui::SameLine();
+
+            Vec2 value = defaultValue;
+            if (instJson.contains("cb") && instJson["cb"].is_object())
             {
-                ctx->_dirtyPassOverrides = true;
+                (void)ReadVec2(instJson["cb"], key, value);
             }
-        }
-        ImGui::SameLine();
 
-        Vec4 color = Vec4(1.f, 1.f, 1.f, 1.f);
-        if (instJson.contains("cb") && instJson["cb"].is_object())
-        {
-            (void)ReadVec4(instJson["cb"], "baseColorTint", color);
-        }
-
-        float colorArray[4] = { color.x, color.y, color.z, color.w };
-        if (!baseColorEnabled)
-        {
-            ImGui::BeginDisabled();
-        }
-        if (ImGui::ColorEdit4("Base Color Tint", colorArray))
-        {
-            instJson["cb"]["baseColorTint"] = { colorArray[0], colorArray[1], colorArray[2], colorArray[3] };
-            SetCBOverride(instJson, "baseColorTint", true);
-            if (ctx)
+            float values[2] = { value.x, value.y };
+            ImGui::SetNextItemWidth(180.f);
+            if (!enabled)
             {
-                ctx->_dirtyPassOverrides = true;
+                ImGui::BeginDisabled();
             }
-        }
-        if (!baseColorEnabled)
-        {
-            ImGui::EndDisabled();
-        }
+            if (ImGui::DragFloat2(label, values, 0.01f))
+            {
+                instJson["cb"][key] = { values[0], values[1] };
+                SetCBOverride(instJson, key, true);
+                if (ctx)
+                {
+                    ctx->_dirtyPassOverrides = true;
+                }
+            }
+            if (!enabled)
+            {
+                ImGui::EndDisabled();
+            }
+        };
 
-        drawFloatCB("Roughness Scale", "roughnessScale", 1.f, 0.f, 4.f);
-        drawFloatCB("Metalness Scale", "metalnessScale", 1.f, 0.f, 4.f);
-        drawFloatCB("AO Scale", "aoScale", 1.f, 0.f, 4.f);
-        drawFloatCB("Normal Strength", "normalStrength", 1.f, 0.f, 4.f);
-        drawFloatCB("Emissive Intensity", "emissiveIntensity", 0.f, 0.f, 50.f);
-        drawFloatCB("Opacity Clip", "opacityMaskClipValue", 0.3333f, 0.f, 1.f);
+        auto drawChannelCB = [&](const char* label, const char* key, uint32 defaultValue)
+        {
+            bool enabled = isEnabled(key);
+            string checkboxLabel = string("##") + key + "_enable";
+            if (ImGui::Checkbox(checkboxLabel.c_str(), &enabled))
+            {
+                setEnabled(key, enabled, defaultValue);
+            }
+            ImGui::SameLine();
+
+            uint32 currentValue = defaultValue;
+            if (instJson.contains("cb") && instJson["cb"].is_object())
+            {
+                currentValue = instJson["cb"].value(key, defaultValue);
+            }
+
+            int32 current = ClampMaterialChannelSourceIndex(currentValue);
+            ImGui::SetNextItemWidth(160.f);
+            if (!enabled)
+            {
+                ImGui::BeginDisabled();
+            }
+            if (ImGui::Combo(label, &current, kMaterialChannelSourceLabels, kMaterialChannelSourceLabelCount))
+            {
+                instJson["cb"][key] = static_cast<uint32>(current);
+                SetCBOverride(instJson, key, true);
+                if (ctx)
+                {
+                    ctx->_dirtyPassOverrides = true;
+                }
+            }
+            if (!enabled)
+            {
+                ImGui::EndDisabled();
+            }
+        };
+
+        auto drawUIntCB = [&](const char* label, const char* key, uint32 defaultValue)
+        {
+            bool enabled = isEnabled(key);
+            string checkboxLabel = string("##") + key + "_enable";
+            if (ImGui::Checkbox(checkboxLabel.c_str(), &enabled))
+            {
+                setEnabled(key, enabled, defaultValue);
+            }
+            ImGui::SameLine();
+
+            int32 value = static_cast<int32>(defaultValue);
+            if (instJson.contains("cb") && instJson["cb"].is_object())
+            {
+                value = static_cast<int32>(instJson["cb"].value(key, defaultValue));
+            }
+
+            ImGui::SetNextItemWidth(160.f);
+            if (!enabled)
+            {
+                ImGui::BeginDisabled();
+            }
+            if (ImGui::InputInt(label, &value))
+            {
+                instJson["cb"][key] = static_cast<uint32>(max(0, value));
+                SetCBOverride(instJson, key, true);
+                if (ctx)
+                {
+                    ctx->_dirtyPassOverrides = true;
+                }
+            }
+            if (!enabled)
+            {
+                ImGui::EndDisabled();
+            }
+        };
+
+        drawVec4CB("Base Color Tint", "baseColorTint", defaults.baseColorTint);
+        drawVec4CB("Emissive Color", "emissiveColor", defaults.emissiveColor);
+        drawFloatCB("Emissive Intensity", "emissiveIntensity", defaults.emissiveIntensity, 0.f, 100.f);
+        drawFloatCB("Emissive Mask Mul", "emissiveMaskMul", defaults.emissiveMaskMul, 0.f, 100.f);
+        drawFloatCB("Normal Strength", "normalStrength", defaults.normalStrength, 0.f, 10.f);
+        drawFloatCB("Opacity Clip CB", "opacityMaskClipValue", defaults.opacityMaskClipValue, 0.f, 1.f);
+        drawFloatCB("Roughness Scale", "roughnessScale", defaults.roughnessScale, 0.f, 10.f);
+        drawFloatCB("Metalness Scale", "metalnessScale", defaults.metalnessScale, 0.f, 10.f);
+        drawFloatCB("AO Scale", "aoScale", defaults.aoScale, 0.f, 10.f);
+        drawChannelCB("ORM AO Source", "ormAoSource", defaults.ormAoSource);
+        drawChannelCB("ORM Roughness Source", "ormRoughnessSource", defaults.ormRoughnessSource);
+        drawChannelCB("ORM Metalness Source", "ormMetalnessSource", defaults.ormMetalnessSource);
+        drawChannelCB("Opacity Mask Source", "opacityMaskSource", defaults.opacityMaskSource);
+        drawVec2CB("UV Scale", "uvScale", defaults.uvScale);
+        drawVec2CB("UV Offset", "uvOffset", defaults.uvOffset);
+        drawFloatCB("UV Rotation", "uvRotation", defaults.uvRotation, -100.f, 100.f);
+        drawUIntCB("Material Mask", "materialMask", defaults.materialMask);
     }
 
     // v2 material binding의 texture slot 오버라이드 편집.
@@ -601,13 +856,14 @@ namespace
                 continue;
             }
 
+            ImGui::PushID(key);
+
             bool enabled = instJson.contains("textures") &&
                 instJson["textures"].is_object() &&
                 instJson["textures"].contains(key) &&
                 instJson["textures"][key].value("enabled", false);
 
-            string checkboxLabel = string("##tex_") + key;
-            if (ImGui::Checkbox(checkboxLabel.c_str(), &enabled))
+            if (ImGui::Checkbox("##tex_enable", &enabled))
             {
                 if (enabled)
                 {
@@ -628,33 +884,223 @@ namespace
             }
 
             ImGui::SameLine();
-            ImGui::Text("%s", magic_enum::enum_name(slot).data());
+            ImGui::Text("%-12s", magic_enum::enum_name(slot).data());
             ImGui::SameLine();
 
-            string texPath;
-            if (enabled && instJson.contains("textures") && instJson["textures"].contains(key))
-            {
-                texPath = instJson["textures"][key].value("texture_path", string{});
-            }
+            string texPath = ReadTextureOverrideDisplayPath(instJson, key);
+            char pathBuffer[MAX_PATH] = {};
+            strncpy_s(pathBuffer, texPath.c_str(), sizeof(pathBuffer) - 1);
 
-            if (!enabled)
+            ImGui::SetNextItemWidth(300.f);
+            ImGui::InputText("##tex_path", pathBuffer, sizeof(pathBuffer), ImGuiInputTextFlags_ReadOnly);
+            ImGui::SameLine();
+
+            if (ImGui::SmallButton("Browse"))
             {
-                ImGui::BeginDisabled();
+                string pickedPath;
+                string pickedGuid;
+                if (TryPickTextureFile(pickedPath, pickedGuid))
+                {
+                    SetTextureOverrideFromFile(instJson, key, pickedPath, pickedGuid);
+                    if (ctx)
+                    {
+                        ctx->_dirtyPassOverrides = true;
+                    }
+                }
             }
-            string label = string("##path_") + key;
-            if (InputTextString(label.c_str(), texPath, 300.f))
+            ImGui::SameLine();
+
+            if (ImGui::SmallButton("Clear"))
             {
-                instJson["textures"][key]["enabled"] = true;
-                instJson["textures"][key]["texture_path"] = texPath;
+                ClearTextureOverride(instJson, key);
                 if (ctx)
                 {
                     ctx->_dirtyPassOverrides = true;
                 }
             }
+
+            ImGui::PopID();
+        }
+    }
+
+    // v2 instance override의 Material template 선택. 엔진 MaterialInstanceOverride에 저장되어 실제 Material에 반영된다.
+    void DrawMaterialTemplateEditor(json& instJson, MapEditor::SceneContext* ctx)
+    {
+        ImGui::SeparatorText("Template");
+
+        bool enabled = instJson.value("override_template_enabled", false);
+        if (ImGui::Checkbox("Override Template", &enabled))
+        {
+            instJson["override_template_enabled"] = enabled;
+            if (enabled && !instJson.contains("template"))
+            {
+                instJson["template"] = static_cast<uint32>(MaterialShaderTemplate::OpaquePBR);
+            }
             if (!enabled)
             {
-                ImGui::EndDisabled();
+                instJson.erase("template");
+                instJson.erase("template_id");
             }
+            if (ctx)
+            {
+                ctx->_dirtyPassOverrides = true;
+            }
+        }
+
+        uint32 templateValue = instJson.value("template", static_cast<uint32>(MaterialShaderTemplate::OpaquePBR));
+        templateValue = min<uint32>(templateValue, static_cast<uint32>(MaterialShaderTemplate::END) - 1u);
+        MaterialShaderTemplate currentTemplate = static_cast<MaterialShaderTemplate>(templateValue);
+
+        ImGui::SetNextItemWidth(180.f);
+        if (!enabled)
+        {
+            ImGui::BeginDisabled();
+        }
+        if (ImGui::BeginCombo("Template", magic_enum::enum_name(currentTemplate).data()))
+        {
+            for (uint32 i = 0; i < static_cast<uint32>(MaterialShaderTemplate::END); ++i)
+            {
+                const MaterialShaderTemplate candidate = static_cast<MaterialShaderTemplate>(i);
+                const bool selected = (candidate == currentTemplate);
+                if (ImGui::Selectable(magic_enum::enum_name(candidate).data(), selected))
+                {
+                    instJson["template"] = i;
+                    instJson["override_template_enabled"] = true;
+                    if (ctx)
+                    {
+                        ctx->_dirtyPassOverrides = true;
+                    }
+                }
+                if (selected)
+                {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+        if (!enabled)
+        {
+            ImGui::EndDisabled();
+        }
+    }
+
+    // v2 instance override의 RenderState 편집. pass 자동 계산과 masked clip 기준에 영향을 준다.
+    void DrawMaterialRenderStateEditor(json& instJson, MapEditor::SceneContext* ctx)
+    {
+        ImGui::SeparatorText("Render State");
+
+        bool enabled = instJson.value("override_render_state_enabled", false);
+        if (ImGui::Checkbox("Override RenderState", &enabled))
+        {
+            instJson["override_render_state_enabled"] = enabled;
+            if (enabled && (!instJson.contains("render_state") || !instJson["render_state"].is_object()))
+            {
+                MaterialRenderState defaults{};
+                instJson["render_state"]["twoSided"] = defaults.twoSided;
+                instJson["render_state"]["blendMode"] = static_cast<uint32>(defaults.blendMode);
+                instJson["render_state"]["alphaClip"] = defaults.alphaClip;
+                instJson["render_state"]["opacityMaskClipValue"] = defaults.opacityMaskClipValue;
+            }
+            if (!enabled)
+            {
+                instJson.erase("render_state");
+            }
+            if (ctx)
+            {
+                ctx->_dirtyPassOverrides = true;
+            }
+        }
+
+        if (!enabled)
+        {
+            ImGui::BeginDisabled();
+        }
+
+        const MaterialRenderState defaults{};
+        json defaultRenderState = {
+            {"twoSided", defaults.twoSided},
+            {"blendMode", static_cast<uint32>(defaults.blendMode)},
+            {"alphaClip", defaults.alphaClip},
+            {"opacityMaskClipValue", defaults.opacityMaskClipValue},
+        };
+        json* rsPtr = &defaultRenderState;
+        if (enabled)
+        {
+            if (!instJson.contains("render_state") || !instJson["render_state"].is_object())
+            {
+                instJson["render_state"] = defaultRenderState;
+            }
+            rsPtr = &instJson["render_state"];
+        }
+        else if (instJson.contains("render_state") && instJson["render_state"].is_object())
+        {
+            rsPtr = &instJson["render_state"];
+        }
+        json& rs = *rsPtr;
+
+        bool twoSided = rs.value("twoSided", defaults.twoSided);
+        if (ImGui::Checkbox("TwoSided", &twoSided))
+        {
+            rs["twoSided"] = twoSided;
+            if (ctx)
+            {
+                ctx->_dirtyPassOverrides = true;
+            }
+        }
+
+        uint32 blendValue = rs.value("blendMode", static_cast<uint32>(defaults.blendMode));
+        blendValue = min<uint32>(blendValue, static_cast<uint32>(MaterialBlendMode::END) - 1u);
+        MaterialBlendMode currentBlend = static_cast<MaterialBlendMode>(blendValue);
+
+        ImGui::SetNextItemWidth(180.f);
+        if (ImGui::BeginCombo("Blend", magic_enum::enum_name(currentBlend).data()))
+        {
+            for (uint32 i = 0; i < static_cast<uint32>(MaterialBlendMode::END); ++i)
+            {
+                const MaterialBlendMode candidate = static_cast<MaterialBlendMode>(i);
+                const bool selected = (candidate == currentBlend);
+                if (ImGui::Selectable(magic_enum::enum_name(candidate).data(), selected))
+                {
+                    rs["blendMode"] = i;
+                    if (ctx)
+                    {
+                        ctx->_dirtyPassOverrides = true;
+                    }
+                }
+                if (selected)
+                {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        bool alphaClip = rs.value("alphaClip", defaults.alphaClip);
+        if (ImGui::Checkbox("Alpha Clip", &alphaClip))
+        {
+            rs["alphaClip"] = alphaClip;
+            if (ctx)
+            {
+                ctx->_dirtyPassOverrides = true;
+            }
+        }
+
+        float clip = rs.value("opacityMaskClipValue", defaults.opacityMaskClipValue);
+        ImGui::SetNextItemWidth(160.f);
+        if (ImGui::DragFloat("Clip", &clip, 0.001f, 0.f, 1.f))
+        {
+            rs["opacityMaskClipValue"] = clip;
+            instJson["cb"]["opacityMaskClipValue"] = clip;
+            SetCBOverride(instJson, "opacityMaskClipValue", true);
+            if (ctx)
+            {
+                ctx->_dirtyPassOverrides = true;
+            }
+        }
+
+        if (!enabled)
+        {
+            ImGui::EndDisabled();
         }
     }
 
@@ -678,6 +1124,18 @@ namespace
                 ctx->_dirtyPassOverrides = true;
             }
         }
+
+        if (ImGui::Button("Clear Slot Overrides"))
+        {
+            instJson = json::object();
+            if (ctx)
+            {
+                ctx->_dirtyPassOverrides = true;
+            }
+        }
+
+        DrawMaterialTemplateEditor(instJson, ctx);
+        DrawMaterialRenderStateEditor(instJson, ctx);
 
         const bool isInstance = (entry.shaderType == ShaderType::VtxInstanceMeshExact);
         const auto* opts = isInstance ? g_instanceMeshPassOptions : g_staticMeshPassOptions;
@@ -1040,6 +1498,10 @@ void PanelModelOverride::RenderSelectedMaterialOverride()
             entry.baseBundleKey = BuildBaseBundleKey(target.modelPath);
         }
 
+        const string materialStateBefore = entry.BuildMaterialJson(target.modelPath, mapName).dump();
+
+        ImGui::Checkbox("Live Apply", &_liveApplyMaterialOverride);
+        ImGui::SameLine();
         DrawMaterialCommandBar(_ctx, target, entry, mapName);
 
         const int32 materialCount = target.model ? static_cast<int32>(target.model->Get_NumMaterials()) : 1;
@@ -1065,6 +1527,15 @@ void PanelModelOverride::RenderSelectedMaterialOverride()
         {
             DrawMaterialBindingEditor(_ctx, target, entry, _selectedMaterialIndex);
         }
+
+        const string materialStateAfter = entry.BuildMaterialJson(target.modelPath, mapName).dump();
+        if (_liveApplyMaterialOverride &&
+            materialStateAfter != materialStateBefore &&
+            entry.HasMaterialBindingsOverride())
+        {
+            ApplySelectedEntryToModel(_ctx, target, entry);
+        }
+
         ImGui::EndChild();
         ImGui::EndTable();
     }

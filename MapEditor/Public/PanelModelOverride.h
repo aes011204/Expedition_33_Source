@@ -25,6 +25,7 @@ private:
     SceneContext* _ctx = {};
     Shared<PanelViewport> _viewport = {};
     int32 _selectedMaterialIndex = 0;
+    bool _liveApplyMaterialOverride = true;
 
 public:
     static Shared<PanelModelOverride> Create(SceneContext* ctx, Shared<PanelViewport> viewport = nullptr);
