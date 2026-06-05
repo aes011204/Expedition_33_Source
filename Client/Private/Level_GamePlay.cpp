@@ -274,7 +274,7 @@ Shared<Level_GamePlay> Level_GamePlay::Create(const ComPtr<Device>& device, cons
 
 void Level_GamePlay::Free()
 {
-    //Free_MapStreaming();
+    Free_MapStreaming();
 
     CLIENT->Clear_GameplayUI();
 
