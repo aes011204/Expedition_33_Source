@@ -64,12 +64,12 @@ namespace
 
         GAME->Play_Sound(Constants::Sound::GlobalGenericEnterSounds[soundIndex], SoundChannel::UI, 1.f);
     }
-    
+
     void Play_SkillTreeUISound(const wchar_t* soundPath)
     {
         GAME->Play_Sound(soundPath, SoundChannel::UI, 1.f);
     }
-
+}
 
 SkillTree_Panel::SkillTree_Panel()
 {
@@ -123,7 +123,7 @@ void SkillTree_Panel::Open()
 
     if (!wasOpen)
         Play_RandomGlobalGenericEnterSound();
-    
+
     for(auto& [heroId, view] : _viewByPlayerId)
     {
         UNREFERENCED_PARAMETER(heroId);
@@ -233,8 +233,6 @@ void SkillTree_Panel::Handle_SelectionInput()
     if(previousIndex != _selectedHeroIndex)
     {
         Play_RandomAllySelectSound();
-        
-        Play_SkillTreeUISound(Constants::Sound::SkillTreeNavigate);
 
         Refresh_CharacterSelectUI();
         Change_ToSelectedViewState();
