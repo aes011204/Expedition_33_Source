@@ -268,4 +268,6 @@ namespace Client::Constants::Sound
     constexpr const wchar_t* MainMenuLoading = L"MainTitle/MainMenu_Loading.wav";
     constexpr const wchar_t* MainMenuNewGame = L"MainTitle/MainMenu_NewGame.wav";
     constexpr const wchar_t* MainMenuQuitGame = L"MainTitle/MainMenu_QuitGame.wav";
+
+    constexpr const wchar_t* SpringBGM = L"BGM/SpringMeadow/MUS_SpringMeadows_ENV_Nightfall_PartA.wav";
 }
