@@ -37,9 +37,16 @@ BNode::NODE_STATE BT_SetSkill::Logic_Update(float deltaTime)
         return BNode::NODE_STATE::FAILED;
     int32 SkillNum = static_cast<int32>(stat->Get_SkillKey().size());
 
-    int32 RandNum = Math::RandNum(0, SkillNum-1);
+    //int32 RandNum = Math::RandNum(0, SkillNum - 1);
+    int32 SkillIndex = 0;
+    if (bb->Has_Value("NextSkillIndex"))
+        SkillIndex = bb->Get_Value<int32>("NextSkillIndex");
 
-    bb->Set_Value("SkillIndex", RandNum);
+    if (SkillIndex < 0 || SkillIndex >= SkillNum)
+        SkillIndex = 0;
+
+    bb->Set_Value("SkillIndex", SkillIndex);
+    bb->Set_Value("NextSkillIndex", (SkillIndex + 1) % SkillNum);
     bb->Set_Value("ActionType", static_cast<int>(EBattleContext::Skill));
 
     return BNode::NODE_STATE::SUCCESS;
