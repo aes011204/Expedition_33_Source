@@ -28,6 +28,7 @@ public:
         Shared<UI_Base>   lockedPopup;
         Shared<UI_Base>   canUnlockPopup;
         Shared<UI_Text>   costText;
+        bool              wasHovered = false;
     };
 
     struct LockNodeUI
@@ -35,7 +36,8 @@ public:
         string              name;
         Shared<UI_Button>   button;
         Shared<UI_Image>    image;
-        Shared<UI_Base>    lockedPopup;    
+        Shared<UI_Base>    lockedPopup;
+        bool               wasHovered = false;
     };
 
     struct SkillTreeViewState
