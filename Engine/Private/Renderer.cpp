@@ -1235,13 +1235,13 @@ HRESULT Renderer::Ready_Shaders()
     _iblIrradianceTexture = Texture::Create(
         _device,
         _context,
-        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_sunset.dds",
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_eye.dds",
         1);
 
     _iblPrefilterTexture = Texture::Create(
         _device,
         _context,
-        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_sunset.dds",
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_eye.dds",
         1);
 
     _iblBrdfLutTexture = Texture::Create(
