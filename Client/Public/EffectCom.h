@@ -114,12 +114,15 @@ public:
     // AN/ANS에서 context.owner가 part일 수도 있어서 owner chain 타고 EffectCom를 찾는 공용 진입점
     static Shared<EffectCom> Find_FromNotifyOwner(GameObject* notifyOwner);
 
+    void Update_AttachedEffects();                                           // socket follow와 자동 release 후보 정리를 함께 수행한다.
+
     InspectorEffectSettings Get_InspectorEffectSettings() const;
     void Set_InspectorEffectSettings(const InspectorEffectSettings& settings);
     HRESULT Play_InspectorEffect();
 
 #pragma region AN_PlayEffect에서 재생시킬 함수
      HRESULT Play_Effect(const EffectPlayDesc& desc);
+     HRESULT Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::AttachedHandle* outHandle);
 
     // ANS 종료될 때, 같은 key의 attached effect를 pool로 반환하게
      void    Stop_Effect(
@@ -127,6 +130,7 @@ public:
                 EffectPlayTarget target,
                 const wstring& partTag = L"",
                 const string& socketName = "");
+     void    Stop_Effect(const EffectInstancePool::AttachedHandle& handle);
 #pragma endregion
 
 
@@ -181,7 +185,6 @@ public:
 
 private:
     void Play_InspectorEffectIfEnabled();
-    void Update_AttachedEffects();                                           // socket follow와 자동 release 후보 정리를 함께 수행한다.
     void Release_AttachedEffect(AttachedEffect& attached);                   // 명시 반환이 필요한 attached effect를 pool로 되돌린다.
     bool Should_ReleaseAttachedEffect(const AttachedEffect& attached) const; // auto/manual release 정책을 판정한다.
     void Prune_ReleasedAttachedEffects();                                    // 반환이 끝난 attached entry를 목록에서 제거한다.

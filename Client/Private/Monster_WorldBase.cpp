@@ -12,11 +12,18 @@
 #include "Monster_Part.h"
 #include "BattleStartSpawner.h"
 #include "EffectCom.h"
+#include "PlayerStateMachineCom.h"
 
 REGISTER_GLOBAL_ENUM(Monster_WorldBase::MonsterWorldAnim, "MonsterWorldAnim")
 
 namespace
 {
+    constexpr wchar_t kWorldActionHitEffect[] =
+        L"Effects\\Assets\\Player\\Lune\\Lune_Immolation_Hit.effect.json";
+
+    constexpr wchar_t kWorldActionDistortionEffect[] =
+        L"Effects\\Assets\\Distortion\\DIstortion_SuddenAttack.effect.json";
+
     json Vec3_ToJson(const Vec3& value)
     {
         return json::array({ value.x, value.y, value.z });
@@ -446,8 +453,32 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     if (!CLIENT->Is_ActiveHero(heroOwner))
         return;
 
-    const bool isPlayerAdvantage =
-        other->Get_CollisionPreset() == Collision_Preset::WorldActionTrigger; // 월드액션 트리거로 먼저 맞춘 경우만 플레이어 선턴
+    const bool isWorldActionTrigger =
+        other->Get_CollisionPreset() == Collision_Preset::WorldActionTrigger;
+    bool isPlayerAdvantage = isWorldActionTrigger;
+
+    if (!isPlayerAdvantage)
+    {
+        const Shared<PlayerStateMachineCom> stateCom = heroOwner->Get_Component<PlayerStateMachineCom>();
+        isPlayerAdvantage = stateCom && stateCom->Get_CurrentPlayerState() == PlayerState::WorldAction;
+    }
+
+    if (isPlayerAdvantage)
+    {
+        const Shared<TransformCom> transform = Get_Transform();
+        if (transform)
+        {
+            PlayEffectDesc hitEffectDesc{};
+            hitEffectDesc.effectName = kWorldActionHitEffect;
+            hitEffectDesc.worldPosition = transform->Get_WorldPosition() + Vec3(0.f, 0.7f, 0.f);
+            CLIENT->Play_Effect(hitEffectDesc);
+
+            PlayEffectDesc distortionDesc{};
+            distortionDesc.effectName = kWorldActionDistortionEffect;
+            distortionDesc.worldPosition = transform->Get_WorldPosition() + Vec3(0.f, 0.6f, 0.f);
+            CLIENT->Play_Effect(distortionDesc);
+        }
+    }
 
     _isBattleStart = true;
 

@@ -2826,6 +2826,7 @@ void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, flo
         stateContext.notifyStateProgress = entry.durationSec > 0.f
             ? std::clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
             : 1.f;
+        const string payloadJson = entry.notifyState->To_Json().dump();
 
         auto runtimeIt = std::find_if(
             _previewPlayEffectStateRuntimes.begin(),
@@ -2840,13 +2841,15 @@ void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, flo
             PreviewPlayEffectStateRuntime runtime{};
             runtime.stateId = entry.id;
             runtime.notifyState = entry.notifyState;
+            runtime.payloadJson = payloadJson;
             _previewPlayEffectStateRuntimes.push_back(runtime);
 
             entry.notifyState->On_Begin(stateContext);
             continue;
         }
 
-        if (runtimeIt->notifyState != entry.notifyState)
+        if (runtimeIt->notifyState != entry.notifyState ||
+            runtimeIt->payloadJson != payloadJson)
         {
             if (runtimeIt->notifyState)
             {
@@ -2856,6 +2859,7 @@ void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, flo
             }
 
             runtimeIt->notifyState = entry.notifyState;
+            runtimeIt->payloadJson = payloadJson;
             entry.notifyState->On_Begin(stateContext);
             continue;
         }

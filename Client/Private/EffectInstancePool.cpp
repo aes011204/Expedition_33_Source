@@ -33,11 +33,11 @@ namespace
 
 HRESULT EffectInstancePool::Acquire(const AcquireDesc& desc, AttachedHandle& outHandle)
 {
-    LOG_INFO(
-        "[EffectPool] acquire requested. key={}, layer={}, entries={}",
-        String::ToString(desc.effectName),
-        desc.layerLevelIndex,
-        _entries.size());
+    //LOG_INFO(
+    //    "[EffectPool] acquire requested. key={}, layer={}, entries={}",
+    //    String::ToString(desc.effectName),
+    //    desc.layerLevelIndex,
+    //    _entries.size());
 
     Shared<const EffectDefinition> definition{};
     Shared<EffectInstance> instance{};
@@ -56,11 +56,11 @@ HRESULT EffectInstancePool::Acquire(const AcquireDesc& desc, AttachedHandle& out
         }
     }
 
-    LOG_DEBUG(
-        "[EffectPool] acquire completed. key={}, manualRelease={}, enabledEmitters={}",
-        String::ToString(desc.effectName),
-        outHandle.requiresManualRelease,
-        enabledEmitterCount);
+    //LOG_DEBUG(
+    //    "[EffectPool] acquire completed. key={}, manualRelease={}, enabledEmitters={}",
+    //    String::ToString(desc.effectName),
+    //    outHandle.requiresManualRelease,
+    //    enabledEmitterCount);
 
     return S_OK;
 }
@@ -88,11 +88,11 @@ HRESULT EffectInstancePool::Reload_Attached(const AcquireDesc& desc, AttachedHan
     CHECK_FAILED(Prepare_AcquiredInstance(desc, definition, entry->instance), E_FAIL);
     Populate_Handle(desc, definition, entry->instance, handle);
 
-    LOG_INFO(
-        "[EffectPool] reloaded attached instance. key={}, emitters={}, entries={}",
-        String::ToString(desc.effectName),
-        definition->emitters.size(),
-        _entries.size());
+    //LOG_INFO(
+    //    "[EffectPool] reloaded attached instance. key={}, emitters={}, entries={}",
+    //    String::ToString(desc.effectName),
+    //    definition->emitters.size(),
+    //    _entries.size());
 
     return S_OK;
 }
@@ -122,11 +122,11 @@ void EffectInstancePool::Release(const AttachedHandle& handle)
             ++idleCount;
     }
 
-    LOG_INFO(
-        "[EffectPool] released. key={}, active={}, idle={}",
-        String::ToString(entry->effectName),
-        activeCount,
-        idleCount);
+    //LOG_INFO(
+    //    "[EffectPool] released. key={}, active={}, idle={}",
+    //    String::ToString(entry->effectName),
+    //    activeCount,
+    //    idleCount);
 }
 
 void EffectInstancePool::Release_Finished()
@@ -147,7 +147,9 @@ void EffectInstancePool::Release_Finished()
     }
 
     if (releasedCount > 0)
-        LOG_INFO("[EffectPool] released finished entries. count={}, entries={}", releasedCount, _entries.size());
+    {
+        //LOG_INFO("[EffectPool] released finished entries. count={}, entries={}", releasedCount, _entries.size());
+    }
 }
 
 void EffectInstancePool::Clear()
@@ -163,7 +165,9 @@ void EffectInstancePool::Clear()
     _entries.clear();
 
     if (entryCount > 0)
-        LOG_INFO("[EffectPool] cleared. count={}", entryCount);
+    {
+        //LOG_INFO("[EffectPool] cleared. count={}", entryCount);
+    }
 }
 
 void EffectInstancePool::Discard_Inactive(const wstring& effectName)
@@ -192,15 +196,15 @@ void EffectInstancePool::Discard_Inactive(const wstring& effectName)
 
     if (discardedCount > 0)
     {
-        LOG_INFO(
-            "[EffectPool] discarded inactive entries. key={}, count={}, entries={}",
-            String::ToString(effectName),
-            discardedCount,
-            _entries.size());
+        //LOG_INFO(
+        //    "[EffectPool] discarded inactive entries. key={}, count={}, entries={}",
+        //    String::ToString(effectName),
+        //    discardedCount,
+        //    _entries.size());
     }
     else
     {
-        LOG_DEBUG("[EffectPool] discard inactive skipped. key={}, entries={}", String::ToString(effectName), _entries.size());
+        //LOG_DEBUG("[EffectPool] discard inactive skipped. key={}, entries={}", String::ToString(effectName), _entries.size());
     }
 }
 
@@ -244,11 +248,11 @@ HRESULT EffectInstancePool::Prewarm(const AcquireDesc& desc, uint32 count)
     for (const AttachedHandle& handle : handles)
         Release(handle);
 
-    LOG_INFO(
-        "[EffectPool] prewarmed. key={}, count={}, entries={}",
-        String::ToString(desc.effectName),
-        count,
-        _entries.size());
+    //LOG_INFO(
+    //    "[EffectPool] prewarmed. key={}, count={}, entries={}",
+    //    String::ToString(desc.effectName),
+    //    count,
+    //    _entries.size());
 
     return S_OK;
 }
@@ -276,16 +280,16 @@ HRESULT EffectInstancePool::Acquire_Instance(
                 ++idleCount;
         }
 
-        LOG_INFO(
-            "[EffectPool] acquire hit. key={}, active={}, idle={}",
-            String::ToString(desc.effectName),
-            activeCount,
-            idleCount);
+        //LOG_INFO(
+        //    "[EffectPool] acquire hit. key={}, active={}, idle={}",
+        //    String::ToString(desc.effectName),
+        //    activeCount,
+        //    idleCount);
 
         return S_OK;
     }
 
-    LOG_INFO("[EffectPool] acquire miss. key={}, spawning new instance.", String::ToString(desc.effectName));
+    //LOG_INFO("[EffectPool] acquire miss. key={}, spawning new instance.", String::ToString(desc.effectName));
 
     CHECK_FAILED(Spawn_NewInstance(desc, outDefinition, outInstance), E_FAIL);
 
@@ -298,11 +302,11 @@ HRESULT EffectInstancePool::Acquire_Instance(
     newEntry.inUse = true;
     _entries.push_back(newEntry);
 
-    LOG_INFO(
-        "[EffectPool] spawned new instance. key={}, layerTag={}, entries={}",
-        String::ToString(desc.effectName),
-        String::ToString(desc.layerTag),
-        _entries.size());
+    //LOG_INFO(
+    //    "[EffectPool] spawned new instance. key={}, layerTag={}, entries={}",
+    //    String::ToString(desc.effectName),
+    //    String::ToString(desc.layerTag),
+    //    _entries.size());
 
     return S_OK;
 }
@@ -431,7 +435,7 @@ Unique<EffectInstancePool> EffectInstancePool::Create()
         return nullptr;
     }
 
-    LOG_INFO("[EffectPool] created.");
+    //LOG_INFO("[EffectPool] created.");
 
     return instance;
 }

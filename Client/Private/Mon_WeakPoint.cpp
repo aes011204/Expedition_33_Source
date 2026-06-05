@@ -5,13 +5,15 @@
 #include "Monster_BattleBase.h"
 #include "ColliderCom.h"
 #include "Bounding_Sphere.h"
+#include "ClientInstance.h"
 
 NS_BEGIN(Client)
 
 namespace
 {
-    constexpr float kDefaultWeakPointEffectScale = 0.5f;
+    constexpr float kDefaultWeakPointEffectScale = 0.4f;
     constexpr wchar_t kDefaultWeakPointEffectName[] = L"Effects\\Assets\\Monster\\Monster_Weak.effect.json";
+    constexpr wchar_t kWeakPointBreakEffectName[] = L"Effects\\Assets\\Monster\\WeakAtt_Blue.effect.effect.json";
 }
 
 Mon_WeakPoint::Mon_WeakPoint(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -237,6 +239,13 @@ bool Mon_WeakPoint::Try_Consume_BattleWeakPointHit()
 {
     if (!_isBattleWeakPointEnabled)
         return false;
+
+	PlayEffectDesc effectDesc{};
+    effectDesc.effectName = kWeakPointBreakEffectName;
+    effectDesc.spawnBasisTarget = GetSharedPtr<GameObject>();
+    effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+
+    CLIENT->Play_Effect(effectDesc);
 
     _isBattleWeakPointEnabled = false;
     Set_Visible(false);
