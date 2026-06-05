@@ -1949,6 +1949,7 @@ HRESULT BattleController::Ready_BattleTurnCamera()
     if (_battleTurnCamera == nullptr)
     {
         auto camera = GAME->Get_CameraByType(ObjectType::BattleTurnCamera);
+
         if(camera)
             _battleTurnCamera = dynamic_pointer_cast<BattleTurnCamera>(camera);
     }
