@@ -21,6 +21,37 @@ uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
 
 namespace
 {
+    string Strip_MapVariantSuffix(const string& mapName)
+    {
+        const size_t mkPos = mapName.rfind("_Mk");
+        if (mkPos != string::npos && mkPos > 0)
+            return mapName.substr(0, mkPos);
+
+        return {};
+    }
+
+    string Resolve_MapModelPath(const string& modelFolder, const string& modelPathStr)
+    {
+        const string mapRoot = "../../../Client/Bin/Resources/Map/";
+        const string directPathA = mapRoot + modelPathStr;
+        if (fs::exists(fs::path(directPathA)))
+            return directPathA;
+
+        const string folderPathA = mapRoot + modelFolder + "/" + modelPathStr;
+        if (fs::exists(fs::path(folderPathA)))
+            return folderPathA;
+
+        const string baseModelFolder = Strip_MapVariantSuffix(modelFolder);
+        if (!baseModelFolder.empty())
+        {
+            const string baseFolderPathA = mapRoot + baseModelFolder + "/" + modelPathStr;
+            if (fs::exists(fs::path(baseFolderPathA)))
+                return baseFolderPathA;
+        }
+
+        return fs::path(modelPathStr).has_parent_path() ? directPathA : folderPathA;
+    }
+
     // 저장된 MapData ModelOverrides의 v2 material_bindings를 런타임 모델 json으로 복원한다.
     void Append_MaterialBindingsFromSavedOverride(const json& entry, MapLoader::ModelOverrideEntry& overrideEntry)
     {
@@ -546,6 +577,14 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
         return E_FAIL;
     }
 
+    fs::path sidecarJson(filePath);
+    if (!fs::exists(sidecarJson) || fs::is_directory(sidecarJson))
+    {
+        sidecarJson =
+            fs::path("../../../Client/Bin/Resources/Map/SaveJson") /
+            (root.filename().string() + ".json");
+    }
+
     const auto sessionBegin = chrono::steady_clock::now();
 
     outSession = {};
@@ -607,13 +646,6 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.watersDone = outSession.waters.empty();
     outSession.prefabInstancesDone = true;
 
-    fs::path sidecarJson(filePath);
-    if (!fs::exists(sidecarJson) || fs::is_directory(sidecarJson))
-    {
-        sidecarJson =
-            fs::path("../../../Client/Bin/Resources/Map/SaveJson") /
-            (root.filename().string() + ".json");
-    }
     Try_AppendModelOverridesFromJsonFile(sidecarJson, outSession);
     Append_ModelOverridesFromMaterialDirectory(
         fs::path("../../../Client/Bin/Resources/Materials") / root.filename(),
@@ -1163,7 +1195,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
         MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
 
-        desc.modelPath = String::ToWString("../../../Client/Bin/Resources/Map/" + session.modelFolder + "/" + modelPathStr);
+        desc.modelPath = String::ToWString(Resolve_MapModelPath(session.modelFolder, modelPathStr));
 
         auto it = session.preloadedModelCache.find(modelPathStr);
         if (it != session.preloadedModelCache.end())
@@ -1611,13 +1643,7 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     chrono::milliseconds* outMaterialDuration,
     size_t* outMaterialCount)
 {
-    string fullPathA = "../../../Client/Bin/Resources/Map/" + modelFolder + "/" + modelPathStr;
-    string directPathA = "../../../Client/Bin/Resources/Map/" + modelPathStr;
-
-    if (fs::exists(fs::path(directPathA)))
-    {
-        fullPathA = directPathA;
-    }
+    string fullPathA = Resolve_MapModelPath(modelFolder, modelPathStr);
 
     const string cacheKey = String::ToLowerCopy(fs::path(fullPathA).lexically_normal().generic_string());
 
@@ -1651,7 +1677,7 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
             modelFolder,
             modelPathStr,
             fullPathA,
-            fs::exists(fs::path(directPathA)));
+            fs::exists(fs::path(fullPathA)));
         return nullptr;
     }
 

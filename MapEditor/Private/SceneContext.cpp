@@ -13,6 +13,110 @@ namespace
 {
     constexpr size_t kCookedCollisionWarnBytes = 256 * 1024;
 
+    fs::path Resolve_MapResourceRoot()
+    {
+        fs::path repoRoot = fs::path(__FILE__).parent_path().parent_path().parent_path();
+        fs::path mapRoot = repoRoot / "Client" / "Bin" / "Resources" / "Map";
+
+        error_code ec;
+        fs::path resolved = fs::weakly_canonical(mapRoot, ec);
+        return (!ec && !resolved.empty()) ? resolved : mapRoot;
+    }
+
+    string Resolve_MapResourceRootString()
+    {
+        return Resolve_MapResourceRoot().generic_string() + "/";
+    }
+
+    wstring Resolve_MapResourceRootWString()
+    {
+        return Resolve_MapResourceRoot().wstring() + L"\\";
+    }
+
+    string Make_SplitInstanceModelPath(const wstring& modelPathW)
+    {
+        if (modelPathW.empty())
+            return {};
+
+        const fs::path modelPath(modelPathW);
+        const wstring mapSavePrefix = String::ToWString(_mapSavePath);
+        if (modelPathW.size() >= mapSavePrefix.size() && modelPathW.substr(0, mapSavePrefix.size()) == mapSavePrefix)
+            return fs::path(modelPathW.substr(mapSavePrefix.size())).generic_string();
+
+        const wstring absolutePrefix = Resolve_MapResourceRootWString();
+        if (modelPathW.size() >= absolutePrefix.size() && modelPathW.substr(0, absolutePrefix.size()) == absolutePrefix)
+            return fs::path(modelPathW.substr(absolutePrefix.size())).generic_string();
+
+        const fs::path mapRoot = Resolve_MapResourceRoot();
+        error_code ec;
+        const fs::path normalizedMapRoot = fs::weakly_canonical(mapRoot, ec);
+        ec.clear();
+        fs::path absoluteModelPath = fs::absolute(modelPath, ec);
+        if (ec || absoluteModelPath.empty())
+            absoluteModelPath = modelPath;
+
+        ec.clear();
+        const fs::path normalizedModelPath = fs::weakly_canonical(absoluteModelPath, ec);
+        if (!ec && !normalizedMapRoot.empty() && !normalizedModelPath.empty())
+        {
+            const fs::path rel = normalizedModelPath.lexically_relative(normalizedMapRoot);
+            if (!rel.empty() && rel.begin()->wstring() != L"..")
+                return rel.generic_string();
+        }
+
+        return modelPath.filename().generic_string();
+    }
+
+    string Strip_MapVariantSuffix(const string& mapName)
+    {
+        const size_t mkPos = mapName.rfind("_Mk");
+        if (mkPos != string::npos && mkPos > 0)
+            return mapName.substr(0, mkPos);
+
+        return {};
+    }
+
+    wstring Resolve_SplitInstanceImportModelPath(const fs::path& mapRoot, const string& mapName, const string& modelPathStr)
+    {
+        if (modelPathStr.empty())
+            return {};
+
+        fs::path modelPath(modelPathStr);
+        if (modelPath.is_absolute())
+            return modelPath.wstring();
+
+        if (modelPath.has_parent_path())
+        {
+            auto first = modelPath.begin();
+            if (first != modelPath.end() && first->string() == mapName)
+                return (mapRoot / modelPath).wstring();
+
+            error_code ec;
+            if (fs::exists(mapRoot / modelPath, ec))
+                return (mapRoot / modelPath).wstring();
+
+            ec.clear();
+            if (fs::exists(mapRoot / mapName / modelPath, ec))
+                return (mapRoot / mapName / modelPath).wstring();
+        }
+
+        error_code ec;
+        const fs::path mapNamePath = mapRoot / mapName / modelPath;
+        if (fs::exists(mapNamePath, ec))
+            return mapNamePath.wstring();
+
+        const string baseMapName = Strip_MapVariantSuffix(mapName);
+        if (!baseMapName.empty())
+        {
+            ec.clear();
+            const fs::path baseMapPath = mapRoot / baseMapName / modelPath;
+            if (fs::exists(baseMapPath, ec))
+                return baseMapPath.wstring();
+        }
+
+        return mapNamePath.wstring();
+    }
+
     Vec4 ToVec4(const json& arr)
     {
         return Vec4(arr[0].get<float>(), arr[1].get<float>(), arr[2].get<float>(), arr[3].get<float>());
@@ -495,6 +599,11 @@ void SceneContext::SaveToFile(const string& filePath)
     json modelOverrides = json::object();
     for (auto& [filename, entry] : _modelOverrides)
     {
+        if (!entry.HasAnyMaterialOverride())
+        {
+            continue;
+        }
+
         json slots = json::object();
         for (auto& [slotIdx, texPath] : entry.textureSlots)
         {
@@ -1403,8 +1512,17 @@ void SceneContext::Export_MapInstance(const string& filePath)
 {
     fs::path jsonPath(filePath);
     string mapName = jsonPath.stem().string();
+    if (mapName.empty() || mapName == "Untitled" || mapName == "MapInstance")
+        mapName = String::ToString(_mapName);
 
-    fs::path root = fs::path(_mapSavePath) / "MapInstance" / mapName;
+    if (mapName.empty() || mapName == "MapInstance")
+    {
+        LOG_WARN("[SceneContext::Export_MapInstance] invalid map name. filePath='{}' mapName='{}'", filePath, mapName);
+        return;
+    }
+
+    const fs::path mapRoot = Resolve_MapResourceRoot();
+    fs::path root = mapRoot / "MapInstance" / mapName;
 
     fs::path staticDir = root / "StaticMesh";
     fs::path instanceDir = root / "InstanceMesh";
@@ -1446,35 +1564,14 @@ void SceneContext::Export_MapInstance(const string& filePath)
         {
         case EObjectType::StaticMesh:
         {
-            wstring modelFile = obj->_modelPath;
-            const wstring prefix = String::ToWString(_mapSavePath);
-
-            if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
-            {
-                modelFile = modelFile.substr(prefix.size());
-            }
-            else
-            {
-                modelFile = fs::path(modelFile).filename().wstring();
-            }
-            e["ModelPath"] = String::ToString(modelFile);
+            e["ModelPath"] = Make_SplitInstanceModelPath(obj->_modelPath);
             e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
             Export_ObjectJson(staticDir, st_idx++, e);
             break;
         }
         case EObjectType::InstancedMesh:
         {
-            wstring modelFile = obj->_instancedModelPath;
-            const wstring prefix = String::ToWString(_mapSavePath);
-            if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
-            {
-                modelFile = modelFile.substr(prefix.size());
-            }
-            else
-            {
-                modelFile = fs::path(modelFile).filename().wstring();
-            }
-            e["ModelPath"] = String::ToString(modelFile);
+            e["ModelPath"] = Make_SplitInstanceModelPath(obj->_instancedModelPath);
             json instArr = json::array();
             for (auto& transform : obj->_instancedTransforms)
             {
@@ -1537,9 +1634,11 @@ void SceneContext::Import_MapInstance(const string& mapName)
 {
     ClearScene();
     _mapName = String::ToWString(mapName);
-    _modelFolder = _mapName;
+    const fs::path mapRoot = Resolve_MapResourceRoot();
+    _modelFolder = String::ToWString(mapName);
+    _currentFilePath = (mapRoot / "SaveJson" / (mapName + ".json")).generic_string();
 
-    fs::path root = fs::path(_mapSavePath) / "MapInstance" / mapName;
+    fs::path root = mapRoot / "MapInstance" / mapName;
     fs::path staticDir = root / "StaticMesh";
     fs::path instanceDir = root / "InstanceMesh";
     fs::path waterDir = root / "Water";
@@ -1637,7 +1736,7 @@ void SceneContext::Import_MapInstance(const string& mapName)
                     string modelPathStr = e.value("ModelPath", "");
                     if (!modelPathStr.empty())
                     {
-                        obj->_modelPath = String::ToWString(_mapSavePath) + String::ToWString(modelPathStr);
+                        obj->_modelPath = Resolve_SplitInstanceImportModelPath(mapRoot, mapName, modelPathStr);
                     }
                     
                     obj->UpdateWorldMatrix();
@@ -1668,7 +1767,7 @@ void SceneContext::Import_MapInstance(const string& mapName)
                     string modelPathStr = e.value("ModelPath", "");
                     if (!modelPathStr.empty())
                     {
-                        obj->_instancedModelPath = String::ToWString(_mapSavePath) + String::ToWString(modelPathStr);
+                        obj->_instancedModelPath = Resolve_SplitInstanceImportModelPath(mapRoot, mapName, modelPathStr);
                     }
                     
                     if (e.contains("Instances"))

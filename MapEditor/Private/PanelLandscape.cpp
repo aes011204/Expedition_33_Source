@@ -313,7 +313,7 @@ void PanelLandscape::Render_SaveLoad()
             ofn.lpstrFilter = L"Heightmap Files\0*.hmap\0All Files\0*.*\0";
             ofn.nMaxFile = MAX_PATH;
             ofn.lpstrDefExt = L"hmap";
-            ofn.Flags = OFN_OVERWRITEPROMPT;
+            ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
             if (GetSaveFileNameW(&ofn))
             {
                 _onSave(_ctx->_activeLandscapeIdx, buf);
@@ -331,7 +331,7 @@ void PanelLandscape::Render_SaveLoad()
             ofn.lpstrFilter = L"Heightmap Files\0*.hmap\0All Files\0*.*\0";
             ofn.lpstrFile = buf;
             ofn.nMaxFile = MAX_PATH;
-            ofn.Flags = OFN_FILEMUSTEXIST;
+            ofn.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
             if (GetOpenFileNameW(&ofn))
             {
                 _onLoad(-1, buf);
@@ -543,7 +543,7 @@ void PanelLandscape::Render_AddLayerDialog()
                     ofn.lpstrFilter = L"Texture Files\0*.dds;*.png\0All Files\0*.*\0";
                     ofn.lpstrFile = buf;
                     ofn.nMaxFile = MAX_PATH;
-                    ofn.Flags = OFN_FILEMUSTEXIST;
+                    ofn.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
                     if (GetOpenFileNameW(&ofn))
                     {
                         path = buf;

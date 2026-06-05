@@ -12,6 +12,33 @@
 
 extern HWND g_hWnd;
 
+namespace
+{
+    fs::path ResolveMapResourceRoot()
+    {
+        fs::path repoRoot = fs::path(__FILE__).parent_path().parent_path().parent_path();
+        fs::path mapRoot = repoRoot / "Client" / "Bin" / "Resources" / "Map";
+
+        error_code ec;
+        fs::path resolved = fs::weakly_canonical(mapRoot, ec);
+        return (!ec && !resolved.empty()) ? resolved : mapRoot;
+    }
+
+    bool IsSplitMapInstanceFolder(const fs::path& path)
+    {
+        return fs::exists(path / "StaticMesh") ||
+            fs::exists(path / "InstanceMesh") ||
+            fs::exists(path / "PostProcessVolume") ||
+            fs::exists(path / "Water") ||
+            fs::exists(path / "ETC");
+    }
+
+    fs::path ResolveMapInstanceRootForMenu()
+    {
+        return ResolveMapResourceRoot() / "MapInstance";
+    }
+}
+
 MEManager::~MEManager()
 {
 
@@ -147,7 +174,7 @@ void MEManager::RenderDockSpace()
                 ofn.lpstrFile = buf;
                 ofn.nMaxFile = MAX_PATH;
                 ofn.lpstrInitialDir = _mapSavePath;
-                ofn.Flags = OFN_FILEMUSTEXIST;
+                ofn.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
                 if (GetOpenFileNameA(&ofn))
                 {
                     _ctx->LoadFromFile(buf);
@@ -163,7 +190,7 @@ void MEManager::RenderDockSpace()
                 ofn.lpstrFile = buf;
                 ofn.nMaxFile = MAX_PATH;
                 ofn.lpstrInitialDir = _mapSavePath;
-                ofn.Flags = OFN_FILEMUSTEXIST;
+                ofn.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
                 if (GetOpenFileNameA(&ofn))
                 {
                     _ctx->LoadFromFile(buf, true);
@@ -262,18 +289,19 @@ void MEManager::RenderDockSpace()
             }
             if (ImGui::BeginMenu("Import Split Instance"))
             {
-                fs::path instanceRoot = fs::path(_mapSavePath) / "MapInstance";
+                fs::path instanceRoot = ResolveMapInstanceRootForMenu();
                 if (fs::exists(instanceRoot))
                 {
                     for (const auto& entry : fs::directory_iterator(instanceRoot))
                     {
-                        if (entry.is_directory())
+                        if (entry.is_directory() &&
+                            entry.path().filename().string() != "MapInstance" &&
+                            IsSplitMapInstanceFolder(entry.path()))
                         {
                             string mapName = entry.path().filename().string();
                             if (ImGui::MenuItem(mapName.c_str()))
                             {
                                 _ctx->Import_MapInstance(mapName);
-                                _ctx->_currentFilePath = ""; 
                             }
                         }
                     }
@@ -344,7 +372,7 @@ void MEManager::SaveMapDialog()
     ofn.nMaxFile = MAX_PATH;
     ofn.lpstrInitialDir = _mapSavePath;
     ofn.lpstrDefExt = "json";
-    ofn.Flags = OFN_OVERWRITEPROMPT;
+    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
     if (GetSaveFileNameA(&ofn))
     {
         _ctx->SaveToFile(buf);

@@ -284,6 +284,8 @@ namespace
 
     json& EnsureBinding(MapEditor::ModelOverrideEntry& entry, uint32 materialIndex, const SelectedModelContext& target)
     {
+        entry.hasMaterialBindings = true;
+
         if (!entry.materialBindingsJson.is_array())
         {
             entry.materialBindingsJson = json::array();
@@ -1476,21 +1478,8 @@ void PanelModelOverride::RenderSelectedMaterialOverride()
         ImGui::SameLine();
         ImGui::Text("%s", target.filename.c_str());
 
-        auto it = _ctx->_modelOverrides.find(target.filename);
-        if (it == _ctx->_modelOverrides.end())
-        {
-            ImGui::Spacing();
-            ImGui::TextDisabled("아직 이 모델의 ModelOverrideEntry가 없습니다.");
-            if (ImGui::Button("Create Override Entry"))
-            {
-                createEntry();
-            }
-            ImGui::EndChild();
-            ImGui::EndTable();
-            return;
-        }
-
-        ModelOverrideEntry& entry = it->second;
+        // material json이 아직 없는 모델도 선택 상태가 바뀌어도 패널 편집 상태를 유지하도록 entry를 즉시 고정한다.
+        ModelOverrideEntry& entry = ensureEntry();
         entry.shaderType = target.shaderType;
         entry.materialObjectKind = target.materialObjectKind;
         if (entry.baseBundleKey.empty())
