@@ -104,7 +104,7 @@ class InitialRadialVelocityModuleDetail
 {
 public:
     bool Draw(
-        AuthoringEmitter& emitter,
+        const AuthoringEmitter& emitter,
         AuthoringModule& module,
         InitialRadialVelocityModuleData& data,
         DetailPropertyContext& detailContext);

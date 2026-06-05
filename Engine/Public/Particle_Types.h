@@ -153,6 +153,14 @@ struct PointParticleRandomSeedRuntimeDesc
 {
     bool manualSeedEnabled{ false }; // true면 seed를 해당 consumer random sample에 더한다.
     uint32 seed{ 0 };                // 모듈 authoring에서 저장된 수동 seed 값이다. 0도 유효 seed다.
+    bool useInstanceSeed{ false };   // true면 effect 재생 1회 seed를 해당 consumer random sample에 더한다.
+};
+
+// InitialRadialVelocity가 중심에서 방향을 만들 수 없을 때 사용할 방향 정책이다.
+enum class PointParticleInitialRadialVelocityCenterDirectionMode : uint32
+{
+    RandomUpward = 0,
+    PlaneRadial = 1,
 };
 
 // motion 계열 모듈을 compute particle update가 바로 소비할 수 있게 압축한 payload다.
@@ -172,6 +180,9 @@ struct PointParticleMotionDesc
     Vec3 velocityConeAxis{ 0.f, 1.f, 0.f };                    // VelocityCone의 중심축이다.
     float velocityConeAngleDegrees{ 30.f };                    // VelocityCone의 중심축 기준 half-angle이다.
     Vec2 velocityConeSpeed{ 0.f, 0.f };                        // VelocityCone speed 분포의 min/max다.
+    PointParticleInitialRadialVelocityCenterDirectionMode initialRadialVelocityCenterDirectionMode{
+        PointParticleInitialRadialVelocityCenterDirectionMode::RandomUpward
+    };                                                         // 중심 중첩 시 InitialRadialVelocity가 사용할 방향 정책이다.
     Vec3 accelerationMin{ 0.f, 0.f, 0.f };                     // Acceleration 분포의 하한이다.
     Vec3 accelerationMax{ 0.f, 0.f, 0.f };                     // Acceleration 분포의 상한이다.
     bool accelerationCurveEnabled{ false };                    // true면 Acceleration ConstantCurve를 lifeProgress 기준 절대 가속으로 평가한다.
@@ -457,6 +468,7 @@ struct ComputePointParticleDesc : public InstanceSpawnDesc
     Vec3 emitterRight{ 1.f, 0.f, 0.f };                               // emitter local X축을 world 방향으로 변환할 basis다.
     Vec3 emitterUp{ 0.f, 1.f, 0.f };                                  // emitter local Y축을 world 방향으로 변환할 basis다.
     Vec3 emitterLook{ 0.f, 0.f, 1.f };                                // emitter local Z축을 world 방향으로 변환할 basis다.
+    uint32 effectPlaybackSeed{ 0 };                                    // effect root 재생 1회 단위 random seed다.
     bool useMaxDrawCount{ false };                                    // true면 draw 제출 수만 별도로 제한한다.
     uint32 maxDrawCount{ 0 };                                         // 0이면 instanceCount 기준으로 제한한다.
     PointParticleDrawMode drawMode{                                   // compute particle 경로의 정식 draw 제출 방식.

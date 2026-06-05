@@ -46,6 +46,29 @@ namespace
             return HeroId::Gustave;
         return  characterStatusOrder[selectedHeroIndex];
     }
+
+    void Play_RandomAllySelectSound()
+    {
+        constexpr uint32 soundCount = static_cast<uint32>(_countof(Constants::Sound::AllySelectSounds));
+        const float randomValue = GAME->Random(0.f, static_cast<float>(soundCount));
+        const uint32 soundIndex = min(static_cast<uint32>(randomValue), soundCount - 1);
+
+        GAME->Play_Sound(Constants::Sound::AllySelectSounds[soundIndex], SoundChannel::UI, 1.f);
+    }
+
+    void Play_RandomGlobalGenericEnterSound()
+    {
+        constexpr uint32 soundCount = static_cast<uint32>(_countof(Constants::Sound::GlobalGenericEnterSounds));
+        const float randomValue = GAME->Random(0.f, static_cast<float>(soundCount));
+        const uint32 soundIndex = min(static_cast<uint32>(randomValue), soundCount - 1);
+
+        GAME->Play_Sound(Constants::Sound::GlobalGenericEnterSounds[soundIndex], SoundChannel::UI, 1.f);
+    }
+
+    void Play_SkillTreeUISound(const wchar_t* soundPath)
+    {
+        GAME->Play_Sound(soundPath, SoundChannel::UI, 1.f);
+    }
 }
 
 SkillTree_Panel::SkillTree_Panel()
@@ -94,7 +117,23 @@ void SkillTree_Panel::Update(float timeDelta)
 
 void SkillTree_Panel::Open()
 {
+    const bool wasOpen = _isOpen;
+
     _isOpen = true;
+
+    if (!wasOpen)
+        Play_RandomGlobalGenericEnterSound();
+
+    for(auto& [heroId, view] : _viewByPlayerId)
+    {
+        UNREFERENCED_PARAMETER(heroId);
+
+        for(auto& node : view.skillNodes)
+            node.wasHovered = false;
+
+        for(auto& lockNode : view.lockedNodes)
+            lockNode.wasHovered = false;
+    }
 
     //바뀌지 않는 배경 UI
     if(_backgroundUI)
@@ -138,13 +177,13 @@ void SkillTree_Panel::Close()
         for(auto node :_viewByPlayerId[static_cast<HeroId>(i)].skillNodes)
         {
             if(node.unlockedPopup)
-            node.unlockedPopup->Close();
+                node.unlockedPopup->Close();
 
             if(node.canUnlockPopup)
-            node.canUnlockPopup->Close();
+                node.canUnlockPopup->Close();
 
             if(node.lockedPopup)
-            node.lockedPopup->Close();
+                node.lockedPopup->Close();
         }
 
         for(auto node :_viewByPlayerId[static_cast<HeroId>(i)].lockedNodes)
@@ -193,6 +232,8 @@ void SkillTree_Panel::Handle_SelectionInput()
 
     if(previousIndex != _selectedHeroIndex)
     {
+        Play_RandomAllySelectSound();
+
         Refresh_CharacterSelectUI();
         Change_ToSelectedViewState();
         Set_SkillPoint();
@@ -560,7 +601,14 @@ void SkillTree_Panel::Update_UI()
         //hover일때
         //TODO 이건 anchor 생기면 다시 보정
         //공통적으로 약간 커짐 && 툴팁 띄우기
-        if(node.button->Is_Hovered())
+        const bool isHovered = node.button->Is_Hovered();
+
+        if(!node.wasHovered && isHovered)
+            Play_SkillTreeUISound(Constants::Sound::SkillTreeNavigate);
+
+        node.wasHovered = isHovered;
+
+        if(isHovered)
         {
             if(node.image)
             node.image->Get_Transform()->Set_Scale(_hoveredSize);
@@ -585,7 +633,12 @@ void SkillTree_Panel::Update_UI()
 
                     if(GAME->KeyDown(KEY_TYPE::F))
                     {
+                        const bool wasUnlocked = _currentView->skillTreeCom->IsUnlocked(node.skillId);
                         _currentView->skillTreeCom->TryUnlock(node.skillId);
+
+                        if(!wasUnlocked && _currentView->skillTreeCom->IsUnlocked(node.skillId))
+                            Play_SkillTreeUISound(Constants::Sound::SkillTreeLearn);
+
                         Set_SkillPoint();
                     }
                 }
@@ -593,12 +646,15 @@ void SkillTree_Panel::Update_UI()
                 {
                     if(node.lockedPopup)
                         node.lockedPopup->Open();
+
+                    if(GAME->KeyDown(KEY_TYPE::F))
+                        Play_SkillTreeUISound(Constants::Sound::SkillTreeBlocked);
                 }
             }
         }
     }
 
-    for(auto lockNode : _currentView->lockedNodes)
+    for(auto& lockNode : _currentView->lockedNodes)
     {
         if(lockNode.button->Is_Pressed())
         {
@@ -611,7 +667,14 @@ void SkillTree_Panel::Update_UI()
               lockNode.image->Set_OverlayEnabled(false);
         }
 
-        if(lockNode.button->Is_Hovered())
+        const bool isHovered = lockNode.button->Is_Hovered();
+
+        if(!lockNode.wasHovered && isHovered)
+            Play_SkillTreeUISound(Constants::Sound::SkillTreeNavigate);
+
+        lockNode.wasHovered = isHovered;
+
+        if(isHovered)
         {
             if(lockNode.image)
                 lockNode.image->Get_Transform()->Set_Scale(_hoveredSize);

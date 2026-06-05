@@ -30,9 +30,12 @@ bool Has_NonZeroVector(const Vec3& value)
     return fabsf(value.x) > 0.0001f || fabsf(value.y) > 0.0001f || fabsf(value.z) > 0.0001f;
 }
 
-uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed)
+uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
 {
-    return seed.manualSeedEnabled ? seed.seed : 0u;
+    uint32 salt = seed.manualSeedEnabled ? seed.seed : 0u;
+    if (seed.useInstanceSeed)
+        salt += effectPlaybackSeed;
+    return salt;
 }
 
 float Hash01(uint32 seed)
@@ -1241,7 +1244,7 @@ float MeshEmitter::Sample_SpawnDistribution(
     if (minValue == maxValue)
         return minValue;
 
-    const uint32 baseSeed = (_loopIndex + 1u) * 9781u + salt + Internal::Resolve_SeedSalt(seed);
+    const uint32 baseSeed = (_loopIndex + 1u) * 9781u + salt + Internal::Resolve_SeedSalt(seed, _effectPlaybackSeed);
     return lerp(minValue, maxValue, Internal::Hash01(baseSeed));
 }
 
@@ -1329,7 +1332,7 @@ void MeshEmitter::Activate_Particle(MeshParticleState& particle, uint32 seed, ui
     particle.position = spawnPosition;
     particle.spawnOffset = spawnOffset;
     particle.spawnPosition = spawnPosition;
-    particle.velocity = Sample_InitialVelocity(spawnPosition, seed + 23u);
+    particle.velocity = Sample_InitialVelocity(spawnPosition, planeRadialSample, seed + 23u);
     particle.acceleration = Sample_Acceleration(seed + 29u);
     particle.drag = Sample_Drag(seed + 31u);
     particle.baseScale = _desc.previewScale * Sample_InitialScale(seed + 37u);
@@ -1509,7 +1512,7 @@ Vec3 MeshEmitter::Sample_InitialOffset(
 
     if (_desc.sphereLocation.enabled && _desc.sphereLocation.radius > 0.f)
     {
-        const uint32 sphereSeed = seed + Internal::Resolve_SeedSalt(_desc.sphereLocationSeed);
+        const uint32 sphereSeed = seed + Internal::Resolve_SeedSalt(_desc.sphereLocationSeed, _effectPlaybackSeed);
         Vec3 direction{};
         const bool useEvenSurfacePlacement =
             _desc.sphereLocation.mode == PointParticleSphereLocationMode::Surface &&
@@ -1555,12 +1558,12 @@ Vec3 MeshEmitter::Sample_InitialOffset(
             u = RandomRange(
                 _desc.planeRadialLocation.uRange.x,
                 _desc.planeRadialLocation.uRange.y,
-                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.uSeed) + 1601u
+                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.uSeed, _effectPlaybackSeed) + 1601u
             );
             v = RandomRange(
                 _desc.planeRadialLocation.vRange.x,
                 _desc.planeRadialLocation.vRange.y,
-                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.vSeed) + 1613u
+                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.vSeed, _effectPlaybackSeed) + 1613u
             );
             sampleAngle = atan2f(v, u);
         }
@@ -1575,7 +1578,7 @@ Vec3 MeshEmitter::Sample_InitialOffset(
             const float radius = RandomRange(
                 radiusMin,
                 radiusMax,
-                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.radiusSeed) + 1601u
+                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.radiusSeed, _effectPlaybackSeed) + 1601u
             );
             const float angleRatio = _desc.planeRadialLocation.placementMode == PointParticlePlaneRadialLocationPlacementMode::EvenByParticleIndex
                                      ? Internal::Resolve_EvenByParticleIndexAngleRatio(
@@ -1583,7 +1586,7 @@ Vec3 MeshEmitter::Sample_InitialOffset(
                                          placementCount,
                                          angleMinDegrees,
                                          angleMaxDegrees)
-                                     : Random01(seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.angleDegreesSeed) + 1613u);
+                                     : Random01(seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.angleDegreesSeed, _effectPlaybackSeed) + 1613u);
             sampleAngle = lerp(angleMin, angleMax, angleRatio);
             u = cosf(sampleAngle) * radius;
             v = sinf(sampleAngle) * radius;
@@ -1755,16 +1758,19 @@ Quat MeshEmitter::Build_PlaneRadialMeshOrientation(const PlaneRadialSample& samp
     return orientation;
 }
 
-Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed) const
+Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, const PlaneRadialSample& planeRadialSample, uint32 seed) const
 {
     Vec3 velocity{};
+    const uint32 initialVelocitySeed = seed + Internal::Resolve_SeedSalt(_desc.motion.initialVelocitySeed, _effectPlaybackSeed);
+    const uint32 initialRadialVelocitySeed = seed + Internal::Resolve_SeedSalt(_desc.motion.initialRadialVelocitySeed, _effectPlaybackSeed);
+    const uint32 velocityConeSeed = seed + Internal::Resolve_SeedSalt(_desc.motion.velocityConeSeed, _effectPlaybackSeed);
 
     if (_desc.motion.initialVelocityEnabled)
     {
         const Vec3 sampledVelocity{
-            RandomRange(_desc.motion.initialVelocityMin.x, _desc.motion.initialVelocityMax.x, seed + 1u),
-            RandomRange(_desc.motion.initialVelocityMin.y, _desc.motion.initialVelocityMax.y, seed + 2u),
-            RandomRange(_desc.motion.initialVelocityMin.z, _desc.motion.initialVelocityMax.z, seed + 3u)
+            RandomRange(_desc.motion.initialVelocityMin.x, _desc.motion.initialVelocityMax.x, initialVelocitySeed + 1u),
+            RandomRange(_desc.motion.initialVelocityMin.y, _desc.motion.initialVelocityMax.y, initialVelocitySeed + 2u),
+            RandomRange(_desc.motion.initialVelocityMin.z, _desc.motion.initialVelocityMax.z, initialVelocitySeed + 3u)
         };
         velocity += _desc.motion.initialVelocityInWorldSpace
                     ? Resolve_WorldVectorToSimulation(sampledVelocity)
@@ -1783,20 +1789,29 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed)
         Vec3 radialDirection = spawnPosition - pivotPosition;
         if (radialDirection.LengthSquared() < 0.0001f)
         {
-            radialDirection = Resolve_LocalVector(
-                Vec3{
-                    Random01(seed + 307u) * 2.f - 1.f,
-                    0.25f,
-                    Random01(seed + 401u) * 2.f - 1.f
-                }
-            );
+            if (_desc.motion.initialRadialVelocityCenterDirectionMode ==
+                    PointParticleInitialRadialVelocityCenterDirectionMode::PlaneRadial &&
+                planeRadialSample.enabled)
+            {
+                radialDirection = Resolve_LocalVector(planeRadialSample.radialDirection);
+            }
+            else
+            {
+                radialDirection = Resolve_LocalVector(
+                    Vec3{
+                        Random01(initialRadialVelocitySeed + 307u) * 2.f - 1.f,
+                        0.25f,
+                        Random01(initialRadialVelocitySeed + 401u) * 2.f - 1.f
+                    }
+                );
+            }
         }
         radialDirection.Normalize();
 
         const float radialSpeed = RandomRange(
             min(_desc.motion.radialSpeed.x, _desc.motion.radialSpeed.y),
             max(_desc.motion.radialSpeed.x, _desc.motion.radialSpeed.y),
-            seed + 5u
+            initialRadialVelocitySeed + 5u
         );
         velocity += radialDirection * radialSpeed;
     }
@@ -1809,9 +1824,9 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed)
         if (angleDegrees > 0.0001f)
         {
             const float cosMax = cosf(XMConvertToRadians(angleDegrees));
-            const float cosTheta = lerp(1.f, cosMax, Random01(seed + 1703u));
+            const float cosTheta = lerp(1.f, cosMax, Random01(velocityConeSeed + 1703u));
             const float sinTheta = sqrtf(max(0.f, 1.f - cosTheta * cosTheta));
-            const float phi = XM_2PI * Random01(seed + 1721u);
+            const float phi = XM_2PI * Random01(velocityConeSeed + 1721u);
             const Vec3 helper = fabsf(axis.y) < 0.999f ? Vec3{ 0.f, 1.f, 0.f } : Vec3{ 1.f, 0.f, 0.f };
             Vec3 tangent = helper.Cross(axis);
             tangent.Normalize();
@@ -1825,7 +1840,7 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed)
         const float coneSpeed = RandomRange(
             min(_desc.motion.velocityConeSpeed.x, _desc.motion.velocityConeSpeed.y),
             max(_desc.motion.velocityConeSpeed.x, _desc.motion.velocityConeSpeed.y),
-            seed + 1747u
+            velocityConeSeed + 1747u
         );
         velocity += coneDirection * coneSpeed;
     }
@@ -1835,10 +1850,11 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed)
 
 Vec3 MeshEmitter::Sample_Acceleration(uint32 seed) const
 {
+    const uint32 accelerationSeed = seed + Internal::Resolve_SeedSalt(_desc.motion.accelerationSeed, _effectPlaybackSeed);
     const Vec3 sampledAcceleration{
-        RandomRange(_desc.motion.accelerationMin.x, _desc.motion.accelerationMax.x, seed + 1u),
-        RandomRange(_desc.motion.accelerationMin.y, _desc.motion.accelerationMax.y, seed + 2u),
-        RandomRange(_desc.motion.accelerationMin.z, _desc.motion.accelerationMax.z, seed + 3u)
+        RandomRange(_desc.motion.accelerationMin.x, _desc.motion.accelerationMax.x, accelerationSeed + 1u),
+        RandomRange(_desc.motion.accelerationMin.y, _desc.motion.accelerationMax.y, accelerationSeed + 2u),
+        RandomRange(_desc.motion.accelerationMin.z, _desc.motion.accelerationMax.z, accelerationSeed + 3u)
     };
     return Resolve_LocalVector(sampledAcceleration);
 }
@@ -1847,7 +1863,8 @@ float MeshEmitter::Sample_Drag(uint32 seed) const
 {
     const float minDrag = min(_desc.motion.drag.x, _desc.motion.drag.y);
     const float maxDrag = max(_desc.motion.drag.x, _desc.motion.drag.y);
-    return max(0.f, RandomRange(minDrag, maxDrag, seed));
+    const uint32 dragSeed = seed + Internal::Resolve_SeedSalt(_desc.motion.dragSeed, _effectPlaybackSeed);
+    return max(0.f, RandomRange(minDrag, maxDrag, dragSeed));
 }
 
 Vec4 MeshEmitter::Sample_Color(const Vec4& minColor, const Vec4& maxColor, uint32 seed) const

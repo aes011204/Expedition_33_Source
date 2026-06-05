@@ -158,7 +158,8 @@ namespace Internal
 
         return PointParticleRandomSeedRuntimeDesc{
             .manualSeedEnabled = mode == "Manual",
-            .seed = mode == "Manual" ? manualSeed : 0u
+            .seed = mode == "Manual" ? manualSeed : 0u,
+            .useInstanceSeed = Read_Bool(*randomSeedIter, "useInstanceSeed", false)
         };
     }
 
@@ -2217,6 +2218,11 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         const auto radialPivotIter = initialRadialVelocity->find("radialPivot");
         if (radialPivotIter != initialRadialVelocity->end())
             Read_Vec3(*radialPivotIter, desc.motion.radialPivot);
+        Read_Enum(
+            *initialRadialVelocity,
+            "centerDirectionMode",
+            desc.motion.initialRadialVelocityCenterDirectionMode
+        );
 
         const auto speedIter = initialRadialVelocity->find("speed");
         if (speedIter != initialRadialVelocity->end())
@@ -2702,6 +2708,11 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         const auto radialPivotIter = initialRadialVelocity->find("radialPivot");
         if (radialPivotIter != initialRadialVelocity->end())
             Read_Vec3(*radialPivotIter, desc.motion.radialPivot);
+        Read_Enum(
+            *initialRadialVelocity,
+            "centerDirectionMode",
+            desc.motion.initialRadialVelocityCenterDirectionMode
+        );
 
         const auto speedIter = initialRadialVelocity->find("speed");
         if (speedIter != initialRadialVelocity->end())
