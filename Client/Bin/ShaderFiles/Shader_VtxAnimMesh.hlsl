@@ -320,20 +320,24 @@ PS_OUT PS_CharacterHair(PS_IN In)
     float2 finalUV = ApplyUVTransform(In.Texcoord);
 
     float hairMask = SampleHairMask(finalUV);
+    float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+    float facing = saturate(abs(dot(normalize(In.Normal.xyz), viewDir)));
+    float edgeFade = smoothstep(0.10f, 0.38f, facing);
 
     // 본체 coverage를 더 넓게 잡는다.
     const float hairCoreStart = 0.25f;
     const float hairCoreEnd = 0.50f;
 
     float coreMask = smoothstep(hairCoreStart, hairCoreEnd, hairMask);
+    coreMask *= lerp(0.72f, 1.0f, edgeFade);
 
     // 기존보다 완화해서 더 많은 본체가 남게 한다.
     clip(coreMask - 0.15f);
 
     float3 hairBSDFColor = Compute_BlenderHairColor(finalUV);
 
-    const float hairAO = 1.f;
-    const float hairRoughness = 0.4f;
+    const float hairAO = 2.f;
+    const float hairRoughness = 0.8f;
     const float hairMetalness = 0.f;
 
     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
@@ -346,7 +350,6 @@ PS_OUT PS_CharacterHair(PS_IN In)
     float3 emissive = float3(0.f, 0.f, 0.f);
     if (HasPreviewRim())
     {
-        float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
         float3 rimNormal = normalize(In.Normal.xyz);
         float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
         float edgeMask = saturate(1.f - coreMask);
@@ -373,6 +376,9 @@ PS_OUT_HAIR_BLEND PS_CharacterHairBlend(PS_IN In)
     float2 finalUV = ApplyUVTransform(In.Texcoord);
 
     float3 hairColor = Compute_BlenderHairColor(finalUV);
+    float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+    float facing = saturate(abs(dot(normalize(In.Normal.xyz), viewDir)));
+    float edgeFade = smoothstep(0.10f, 0.38f, facing);
 
     float hairMask = g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].Sample(LinearWrapSampler, finalUV).r;
     hairMask = saturate(hairMask);
@@ -393,6 +399,7 @@ PS_OUT_HAIR_BLEND PS_CharacterHairBlend(PS_IN In)
 
     // core는 이미 GBuffer에서 그렸으니 제외
     float hairAlpha = softMask * (1.f - coreMask);
+    hairAlpha *= lerp(0.45f, 1.0f, edgeFade);
 
     // 너무 약한 알파는 버림
     clip(hairAlpha);
