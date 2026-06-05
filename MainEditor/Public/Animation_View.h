@@ -126,6 +126,7 @@ private:
     {
         int32 stateId = -1;
         Shared<AnimNotifyState> notifyState{};
+        string payloadJson{};
     };
 
 private:
