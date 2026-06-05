@@ -58,6 +58,8 @@ private:
     void    Load_SoundFiles();
 
     wstring Normalize_SoundKey(const wstring& soundFile) const;
+    FMOD_SOUND* Find_SoundByKey(const wstring& key) const;
+    FMOD_SOUND* Find_SoundByLooseKey(const wstring& key) const;
     bool    Validate_Channel(SoundChannel channel) const;
 
     FMOD_SOUND* Find_Sound(const wstring& soundFile) const;
