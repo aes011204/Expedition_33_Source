@@ -212,6 +212,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\MonsterStat_Inspector.cpp" />
     <ClCompile Include="..\Private\Notification_Manager.cpp" />
     <ClCompile Include="..\Private\PlayerStat_Inspector.cpp" />
+    <ClCompile Include="..\Private\PostProcess_View.cpp" />
     <ClCompile Include="..\Private\Prefab_View.cpp" />
     <ClCompile Include="..\Private\ImGui_Manager.cpp" />
     <ClCompile Include="..\Private\ImSequencer.cpp" />
@@ -230,7 +231,6 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClCompile Include="..\Private\Hierarchy_View.cpp" />
     <ClCompile Include="..\Private\Content_Browser.cpp" />
     <ClCompile Include="..\Private\Inspector.cpp" />
-    <ClCompile Include="PostProcess_View.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\Action_Command.h" />
@@ -263,6 +263,7 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\MonsterStat_Inspector.h" />
     <ClInclude Include="..\Public\Notification_Manager.h" />
     <ClInclude Include="..\Public\PlayerStat_Inspector.h" />
+    <ClInclude Include="..\Public\PostProcess_View.h" />
     <ClInclude Include="..\Public\Prefab_View.h" />
     <ClInclude Include="..\Public\ScreenFx_View.h" />
     <ClInclude Include="..\Public\Transform_Inspector.h" />
@@ -280,7 +281,6 @@ if exist "$(ProjectDir)..\..\EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /
     <ClInclude Include="..\Public\Hierarchy_View.h" />
     <ClInclude Include="..\Public\Content_Browser.h" />
     <ClInclude Include="..\Public\Inspector.h" />
-    <ClInclude Include="PostProcess_View.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Client\Default\Client.vcxproj">

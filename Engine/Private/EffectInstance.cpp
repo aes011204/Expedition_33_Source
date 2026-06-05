@@ -1,5 +1,17 @@
 ﻿#include "EffectInstance.h"
 
+namespace
+{
+    uint32 Generate_EffectPlaybackSeed()
+    {
+        static uint32 state{ 0x9E3779B9u };
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        return state != 0u ? state : 0xA341316Cu;
+    }
+}
+
 IMPLEMENT_REFLECTION(EffectInstance)
 {
     auto& info = GetStaticReflectionInfo();
@@ -36,6 +48,7 @@ HRESULT EffectInstance::Initialize(void* arg)
         _desc = *static_cast<EffectInstanceDesc*>(arg);
 
     _definition = _desc.definition;
+    _effectPlaybackSeed = Generate_EffectPlaybackSeed();
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
     CHECK_FAILED(Ready_Emitters(), E_FAIL);
@@ -127,6 +140,7 @@ void EffectInstance::Stop()
 
 HRESULT EffectInstance::Reset()
 {
+    _effectPlaybackSeed = Generate_EffectPlaybackSeed();
     _playbackState = EffectPlaybackState::Stopped;
     Set_Visible(false);
     Sync_Emitters();
@@ -136,6 +150,7 @@ HRESULT EffectInstance::Reset()
         if (nullptr == emitter)
             continue;
 
+        emitter->Set_EffectPlaybackSeed(_effectPlaybackSeed);
         CHECK_FAILED(emitter->Reset_ForEffectReplay(), E_FAIL);
     }
 
@@ -202,6 +217,7 @@ HRESULT EffectInstance::Ready_Emitters()
         runtimeDesc.localRotationDegrees = emitterDefinition.localRotationDegrees;
         runtimeDesc.useLocalSpace = emitterDefinition.useLocalSpace;
         runtimeDesc.enabled = emitterDefinition.enabled;
+        runtimeDesc.effectPlaybackSeed = _effectPlaybackSeed;
 
         CHECK_FAILED(emitter->Attach_ToEffect(runtimeDesc), E_FAIL);
         _emitters.push_back(emitter);

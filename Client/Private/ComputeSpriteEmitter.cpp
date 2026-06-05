@@ -46,9 +46,12 @@ static int Resolve_MaterialSourceIndex(const string& source)
     return sourceAlpha;
 }
 
-static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed)
+static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
 {
-    return seed.manualSeedEnabled ? seed.seed : 0u;
+    uint32 salt = seed.manualSeedEnabled ? seed.seed : 0u;
+    if (seed.useInstanceSeed)
+        salt += effectPlaybackSeed;
+    return salt;
 }
 
 static float Hash01(uint32 seed)
@@ -966,6 +969,7 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
 
     desc.instanceCount = max(1u, _desc.spawn.instanceCount);
     desc.center = _desc.center;
+    desc.effectPlaybackSeed = _effectPlaybackSeed;
     desc.range = Internal::Scale_Vector3(_desc.spawn.spawnRange, worldScale);
     desc.sizeMin = Internal::Scale_Vector2(_desc.initialSize.sizeMin, spriteScale);
     desc.sizeMax = Internal::Scale_Vector2(_desc.initialSize.sizeMax, spriteScale);
@@ -1137,7 +1141,7 @@ float ComputeSpriteEmitter::Sample_SpawnDistribution(
     if (minValue == maxValue)
         return minValue;
 
-    const uint32 baseSeed = (_loopIndex + 1u) * 9781u + salt + Internal::Resolve_SeedSalt(seed);
+    const uint32 baseSeed = (_loopIndex + 1u) * 9781u + salt + Internal::Resolve_SeedSalt(seed, _effectPlaybackSeed);
     return lerp(minValue, maxValue, Internal::Hash01(baseSeed));
 }
 
