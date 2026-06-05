@@ -14,24 +14,45 @@ HRESULT SavePoint_Panel::Initialize(uint32 levelIndex)
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
 
-    Close();
+    Close_Immediately(false);
 
     return S_OK;
 }
 
 void SavePoint_Panel::Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
     if (!_isOpen)
         return;
+
+    if (_isClosingWithOutro)
+    {
+        _closeElapsed += max(0.f, timeDelta);
+
+        if (_closeElapsed >= _outroDuration)
+            Close_Immediately(_restoreWorldControlOnClose);
+
+        return;
+    }
 
     Handle_ButtonInput();
 }
 
 void SavePoint_Panel::Open()
 {
+    if (_root == nullptr)
+        return;
+
+    if (_isOpen && !_isClosingWithOutro)
+        return;
+
+    _isClosingWithOutro = false;
+    _restoreWorldControlOnClose = true;
+    _closeElapsed = 0.f;
+
+    Stop_TargetAnimations();
     UI_RuntimePanelBase::Open();
+    Play_TargetAnimation(L"SavePoint_Intro");
+    GAME->Play_Sound(Constants::Sound::SavePointIntro, SoundChannel::UI, 1.f);
 
     _lastAction = SavePointAction::None;
 
@@ -42,15 +63,39 @@ void SavePoint_Panel::Open()
 
 void SavePoint_Panel::Close()
 {
+    Start_CloseWithOutro(true);
+}
+
+void SavePoint_Panel::Close_Immediately(bool restoreWorldControl)
+{
+    _isClosingWithOutro = false;
+    _restoreWorldControlOnClose = true;
+    _closeElapsed = 0.f;
+
+    Stop_TargetAnimations();
     UI_RuntimePanelBase::Close();
 
-    GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
-    GAME->Lock_Mouse();
+    if (restoreWorldControl)
+    {
+        GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
+        GAME->Lock_Mouse();
+    }
+}
+
+void SavePoint_Panel::Close_ForMenuTransition()
+{
+    Close_Immediately(false);
 }
 
 void SavePoint_Panel::Toggle()
 {
-    UI_RuntimePanelBase::Toggle();
+    if (_isOpen && !_isClosingWithOutro)
+    {
+        Close();
+        return;
+    }
+
+    Open();
 }
 
 SavePoint_Panel::SavePointAction SavePoint_Panel::Consume_LastAction()
@@ -68,6 +113,11 @@ HRESULT SavePoint_Panel::Load_UI(uint32 levelIndex)
     desc.jsonPath = Constants::UI::UI_SavePoint_Path;
     desc.prototypeTagPrefix = L"SavePoint";
     desc.outUIByName = &_uiByName;
+    desc.animationPaths =
+    {
+        Constants::UI_Anim::UI_SavePointIntro_Anim_Path,
+        Constants::UI_Anim::UI_SavePointOutro_Anim_Path
+    };
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
@@ -90,6 +140,57 @@ HRESULT SavePoint_Panel::Bind_UI()
     CHECK_NULL(_upgradeWeaponButton, E_FAIL);
 
     return S_OK;
+}
+
+void SavePoint_Panel::Start_CloseWithOutro(bool restoreWorldControl)
+{
+    if (_root == nullptr)
+    {
+        Close_Immediately(restoreWorldControl);
+        return;
+    }
+
+    if (!_isOpen && !_isClosingWithOutro)
+        return;
+
+    if (_isClosingWithOutro)
+        return;
+
+    _isClosingWithOutro = true;
+    _restoreWorldControlOnClose = restoreWorldControl;
+    _closeElapsed = 0.f;
+
+    Play_TargetAnimation(L"SavePoint_Outro");
+    GAME->Play_Sound(Constants::Sound::SavePointOutro, SoundChannel::UI, 1.f);
+
+    if (_outroDuration <= 0.f)
+        Close_Immediately(_restoreWorldControlOnClose);
+}
+
+void SavePoint_Panel::Play_TargetAnimation(const wchar_t* animationName)
+{
+    for (auto& [uiName, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(uiName);
+
+        if (ui == nullptr)
+            continue;
+
+        ui->Play_UIAnimation(animationName, true);
+    }
+}
+
+void SavePoint_Panel::Stop_TargetAnimations()
+{
+    for (auto& [uiName, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(uiName);
+
+        if (ui == nullptr)
+            continue;
+
+        ui->Stop_UIAnimation();
+    }
 }
 
 void SavePoint_Panel::Handle_ButtonInput()
@@ -139,6 +240,9 @@ Unique<SavePoint_Panel> SavePoint_Panel::Create(uint32 levelIndex)
 
 void SavePoint_Panel::Free()
 {
+    if (_root)
+        Close_Immediately(false);
+
     _restButton.reset();
     _upgradeStatButton.reset();
     _upgradeSkillButton.reset();

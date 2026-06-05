@@ -173,6 +173,11 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_ExpeditionStatusIntro_Anim_Path[] = L"UI/UI_Animations/Expedition_Status/Expedition_Status_Intro";
     inline constexpr wchar_t UI_ExpeditionStatusOutro_Anim_Path[] = L"UI/UI_Animations/Expedition_Status/Expedition_Status_Outro";
 #pragma endregion
+
+#pragma region SavePoint 애니메이션
+    inline constexpr wchar_t UI_SavePointIntro_Anim_Path[] = L"UI/UI_Animations/SavePoint/SavePoint_Intro";
+    inline constexpr wchar_t UI_SavePointOutro_Anim_Path[] = L"UI/UI_Animations/SavePoint/SavePoint_Outro";
+#pragma endregion
 }
 
 namespace Client::Constants::Map
@@ -269,9 +274,37 @@ namespace Client::Constants::Sound
     constexpr const wchar_t* MainMenuNewGame = L"MainTitle/MainMenu_NewGame.wav";
     constexpr const wchar_t* MainMenuQuitGame = L"MainTitle/MainMenu_QuitGame.wav";
 
+    constexpr const wchar_t* SavePointIntro = L"UI/RestMenu/SavePoint/SFX_UI_RestMenu_Open_01 [1].wav";
+    constexpr const wchar_t* SavePointOutro = L"UI/RestMenu/SavePoint/SFX_UI_RestMenu_Close_01 [1].wav";
+
+    constexpr const wchar_t* GlobalGenericEnter01 = L"UI/Global/SFX_UI_Global_Generic_Enter_01 [1].wav";
+    constexpr const wchar_t* GlobalGenericEnter02 = L"UI/Global/SFX_UI_Global_Generic_Enter_02 [1].wav";
+    constexpr const wchar_t* GlobalGenericEnter03 = L"UI/Global/SFX_UI_Global_Generic_Enter_03 [1].wav";
+    constexpr const wchar_t* GlobalGenericEnter04 = L"UI/Global/SFX_UI_Global_Generic_Enter_04 [1].wav";
+    constexpr const wchar_t* GlobalGenericEnter05 = L"UI/Global/SFX_UI_Global_Generic_Enter_05 [1].wav";
+
+    constexpr const wchar_t* GlobalGenericEnterSounds[5] =
+    {
+        GlobalGenericEnter01,
+        GlobalGenericEnter02,
+        GlobalGenericEnter03,
+        GlobalGenericEnter04,
+        GlobalGenericEnter05
+    };
+
+    constexpr const wchar_t* AllySelect01 = L"Battle/UI_Battle_Select_Ally_01 [1].wav";
+    constexpr const wchar_t* AllySelect02 = L"Battle/UI_Battle_Select_Ally_02 [1].wav";
+    constexpr const wchar_t* AllySelect03 = L"Battle/UI_Battle_Select_Ally_03 [1].wav";
+
+    constexpr const wchar_t* AllySelectSounds[3] =
+    {
+        AllySelect01,
+        AllySelect02,
+        AllySelect03
+    };
+
+    constexpr const wchar_t* SkillTreeNavigate = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Navigate_01 [1].wav";
+    constexpr const wchar_t* SkillTreeLearn = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Learn_01 [1].wav";
+    constexpr const wchar_t* SkillTreeBlocked = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Blocked_01 [1].wav";
     constexpr const wchar_t* SpringBGM = L"BGM/SpringMeadow/MUS_SpringMeadows_ENV_Nightfall_PartA.wav";
-    
-constexpr const wchar_t* SkillTreeNavigate = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Navigate_01 [1].wav";
-constexpr const wchar_t* SkillTreeLearn = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Learn_01 [1].wav";
-constexpr const wchar_t* SkillTreeBlocked = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Blocked_01 [1].wav";
 }
