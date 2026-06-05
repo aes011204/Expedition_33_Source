@@ -3,7 +3,8 @@ cbuffer CullParams : register(b0)
     float4 g_FrustumPlanes[6];
     uint g_TotalCount;
     float g_MaxDist;
-    float2 g_Pad;
+    float g_LOD1Dist;
+    float g_LOD2Dist;
     float3 g_CamPos;
     float g_Pad2;
 };
@@ -11,7 +12,9 @@ cbuffer CullParams : register(b0)
 StructuredBuffer<float4x4> g_Instances : register(t0);
 StructuredBuffer<float4> g_Spheres : register(t1);
 
-AppendStructuredBuffer<float4x4> g_Visible : register(u0);
+AppendStructuredBuffer<float4x4> g_Visible_LOD0 : register(u0);
+AppendStructuredBuffer<float4x4> g_Visible_LOD1 : register(u1);
+AppendStructuredBuffer<float4x4> g_Visible_LOD2 : register(u2);
 
 [numthreads(64, 1, 1)]
 void CS_Main(uint3 id : SV_DispatchThreadID)
@@ -27,15 +30,18 @@ void CS_Main(uint3 id : SV_DispatchThreadID)
 
     [unroll]
     for (int i = 0; i < 6; ++i)
-    {
-        //if (dot(g_FrustumPlanes[i].xyz, center) + g_FrustumPlanes[i].w + radius < 0.f)
-        //    return;
         visible *= step(0.f, dot(g_FrustumPlanes[i].xyz, center) + g_FrustumPlanes[i].w + radius);
-    }
 
     float dist = length(center - g_CamPos);
     visible *= step(dist, g_MaxDist + radius);
 
-    if (visible > 0.5f)
-        g_Visible.Append(g_Instances[id.x]);
+    if (visible < 0.5f)
+        return;
+
+    if (dist < g_LOD1Dist)
+        g_Visible_LOD0.Append(g_Instances[id.x]);
+    else if (dist < g_LOD2Dist)
+        g_Visible_LOD1.Append(g_Instances[id.x]);
+    else
+        g_Visible_LOD2.Append(g_Instances[id.x]);
 }
