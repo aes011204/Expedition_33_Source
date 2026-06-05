@@ -50,6 +50,7 @@ private: //## Data::Definition
 private: //## Data::Lifecycle
     EffectPlaybackState _playbackState{ EffectPlaybackState::Stopped }; // pool 재사용 판단에 쓰는 root 재생 상태다.
     bool _loop{ false }; // 에디터 배치 이펙트가 끝난 뒤 같은 definition으로 다시 재생할지 정한다.
+    uint32 _effectPlaybackSeed{ 0 }; // effect root 재생 1회 단위 random seed다.
 
 private: //## Data::Children
     vector<Shared<EffectEmitter>> _emitters{}; // root가 직접 소유하는 child emitter 목록이다.

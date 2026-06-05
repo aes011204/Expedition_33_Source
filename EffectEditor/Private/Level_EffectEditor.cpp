@@ -60,7 +60,8 @@ namespace Internal
     {
         return PointParticleRandomSeedRuntimeDesc{
             .manualSeedEnabled = data.mode == DistributionRandomSeedMode::Manual,
-            .seed = data.mode == DistributionRandomSeedMode::Manual ? data.manualSeed : 0u
+            .seed = data.mode == DistributionRandomSeedMode::Manual ? data.manualSeed : 0u,
+            .useInstanceSeed = data.useInstanceSeed
         };
     }
 
@@ -312,6 +313,20 @@ namespace Internal
         case PlaneRadialLocationPlacementMode::Random:
         default:
             return PointParticlePlaneRadialLocationPlacementMode::Random;
+        }
+    }
+
+    PointParticleInitialRadialVelocityCenterDirectionMode Resolve_PointParticleInitialRadialVelocityCenterDirectionMode(
+        InitialRadialVelocityCenterDirectionMode mode)
+    {
+        switch (mode)
+        {
+        case InitialRadialVelocityCenterDirectionMode::PlaneRadial:
+            return PointParticleInitialRadialVelocityCenterDirectionMode::PlaneRadial;
+
+        case InitialRadialVelocityCenterDirectionMode::RandomUpward:
+        default:
+            return PointParticleInitialRadialVelocityCenterDirectionMode::RandomUpward;
         }
     }
 
@@ -1865,6 +1880,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         desc.motion.initialRadialVelocityEnabled = true;
         desc.motion.initialRadialVelocityInWorldSpace = initialRadialVelocity->inWorldSpace;
         desc.motion.radialPivot = initialRadialVelocity->radialPivot;
+        desc.motion.initialRadialVelocityCenterDirectionMode =
+            Internal::Resolve_PointParticleInitialRadialVelocityCenterDirectionMode(initialRadialVelocity->centerDirectionMode);
         desc.motion.radialSpeed = Vec2{
             Internal::Evaluate_FloatDistributionMin(initialRadialVelocity->speed, desc.motion.radialSpeed.x),
             Internal::Evaluate_FloatDistributionMax(initialRadialVelocity->speed, desc.motion.radialSpeed.y)
@@ -2438,6 +2455,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         emitterDesc.motion.initialRadialVelocityEnabled = true;
         emitterDesc.motion.initialRadialVelocityInWorldSpace = initialRadialVelocity->inWorldSpace;
         emitterDesc.motion.radialPivot = initialRadialVelocity->radialPivot;
+        emitterDesc.motion.initialRadialVelocityCenterDirectionMode =
+            Internal::Resolve_PointParticleInitialRadialVelocityCenterDirectionMode(initialRadialVelocity->centerDirectionMode);
         emitterDesc.motion.radialSpeed = Vec2{
             Internal::Evaluate_FloatDistributionMin(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.x),
             Internal::Evaluate_FloatDistributionMax(initialRadialVelocity->speed, emitterDesc.motion.radialSpeed.y)

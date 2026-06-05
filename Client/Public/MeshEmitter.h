@@ -234,7 +234,7 @@ private: //## Helper::SamplingEvaluation
     // PlaneRadialLocation sample frame을 mesh radial orientation용 회전으로 낮춘다.
     Quat Build_PlaneRadialMeshOrientation(const PlaneRadialSample& sample, bool& outEnabled) const;
     // velocity/radial velocity를 합친 초기 속도를 sample한다.
-    Vec3 Sample_InitialVelocity(const Vec3& spawnPosition, uint32 seed) const;
+    Vec3 Sample_InitialVelocity(const Vec3& spawnPosition, const PlaneRadialSample& planeRadialSample, uint32 seed) const;
     // OrbitOverLife payload를 lifeProgress 기준 위치 offset으로 평가한다.
     Vec3 Evaluate_OrbitOffset(const MeshParticleState& particle, float lifeProgress) const;
     // motion acceleration range에서 particle acceleration을 sample한다.

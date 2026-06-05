@@ -71,6 +71,7 @@ namespace Internal
         json root = json::object();
         root["mode"] = To_EnumToken(data.mode);
         root["manualSeed"] = data.manualSeed;
+        root["useInstanceSeed"] = data.useInstanceSeed;
         return root;
     }
 
@@ -84,6 +85,7 @@ namespace Internal
         if (modeIter != root.end())
             Try_ReadEnumToken(*modeIter, outData.mode);
         Read_NumberField(root, "manualSeed", outData.manualSeed);
+        Read_BoolField(root, "useInstanceSeed", outData.useInstanceSeed);
     }
 
     void Write_RandomSeedField(json& root, const DistributionRandomSeedData& data)
@@ -107,7 +109,9 @@ namespace Internal
 
     bool Is_DefaultRandomSeed(const DistributionRandomSeedData& data)
     {
-        return data.mode == DistributionRandomSeedMode::Default && data.manualSeed == 0u;
+        return data.mode == DistributionRandomSeedMode::Default &&
+               data.manualSeed == 0u &&
+               !data.useInstanceSeed;
     }
 
     void Apply_LegacyRandomSeedToUniform(FloatDistributionData& data, const DistributionRandomSeedData& legacySeed)
@@ -1716,6 +1720,7 @@ namespace Internal
         json root = json::object();
         root["speed"] = To_Json(data.speed);
         root["radialPivot"] = To_Json(data.radialPivot);
+        root["centerDirectionMode"] = To_EnumToken(data.centerDirectionMode);
         root["inWorldSpace"] = data.inWorldSpace;
         return root;
     }
@@ -1731,6 +1736,9 @@ namespace Internal
         const auto radialPivotIter = root.find("radialPivot");
         if (radialPivotIter != root.end())
             Read_Vec3(*radialPivotIter, outData.radialPivot);
+        const auto centerDirectionModeIter = root.find("centerDirectionMode");
+        if (centerDirectionModeIter != root.end())
+            Try_ReadEnumToken(*centerDirectionModeIter, outData.centerDirectionMode);
         Read_BoolField(root, "inWorldSpace", outData.inWorldSpace);
         DistributionRandomSeedData legacySeed{};
         Read_RandomSeedField(root, legacySeed);

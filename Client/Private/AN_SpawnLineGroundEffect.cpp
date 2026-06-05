@@ -73,6 +73,9 @@ void AN_SpawnLineGroundEffect::Execute(const AnimNotifyContext& context)
         desc.scale = Vec3(scaleValue, scaleValue, scaleValue);
 
 
+        GAME->Play_Sound(L"SFX_ENM_Eveque_Earth_Spike_Hit_01 [1]", SoundChannel::Monster);
+
+
         CLIENT->Play_Effect(desc);
     }
 
