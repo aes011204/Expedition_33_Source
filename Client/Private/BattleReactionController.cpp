@@ -580,8 +580,8 @@ void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
         PlayEffectDesc effectDesc{};
         effectDesc.effectName = L"Effects\\Assets\\Distortion\\Double_Distotion.effect.json";
         effectDesc.spawnBasisTarget = _counterDamageTarget.actor;
-        effectDesc.scale = Vec3(0.75f, 0.75f, 0.75f);
-        effectDesc.localOffset = Vec3(0.f, 0.7f, 0.f);
+        effectDesc.scale = Vec3(1.2f, 1.2f, 1.2f);
+        effectDesc.localOffset = Vec3(0.f, 1.2f, 0.f);
 
         CLIENT->Play_Effect(effectDesc);
 

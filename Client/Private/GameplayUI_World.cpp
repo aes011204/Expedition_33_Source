@@ -300,7 +300,7 @@ void GameplayUI_World::Close_AllMenus()
     }
 
     if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())
-        _expeditionStatPanel->Close(); 
+        _expeditionStatPanel->Close_Immediately(); 
 }
 
 void GameplayUI_World::Open_Menu(GameplayMenu menu)
