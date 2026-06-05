@@ -175,6 +175,7 @@
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
     <ClInclude Include="..\Public\AN_EndTurn.h" />
     <ClInclude Include="..\Public\AN_PlayEffect.h" />
+    <ClInclude Include="..\Public\AN_PlaySound.h" />
     <ClInclude Include="..\Public\AN_SpawnActor.h" />
     <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h" />
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
@@ -475,6 +476,7 @@
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
     <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
+    <ClCompile Include="..\Private\AN_PlaySound.cpp" />
     <ClCompile Include="..\Private\AN_SpawnActor.cpp" />
     <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp" />
     <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
