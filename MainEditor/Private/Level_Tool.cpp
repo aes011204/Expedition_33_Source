@@ -249,6 +249,8 @@ void Level_Tool::Remove_CurrentLevelMapObjects()
 
     for (const Shared<GameObject>& mapObject : mapObjects)
         GAME->Remove_GameObject(GAME->Current_LevelIndex(), mapObject);
+
+    GAME->Flush_RemovedGameObjects();
 }
 
 void Level_Tool::Remove_CurrentLevelAuthoredPrefabInstances()
@@ -281,6 +283,7 @@ void Level_Tool::Remove_CurrentLevelAuthoredPrefabInstances()
     for (const Shared<GameObject>& authoredObject : authoredObjects)
         GAME->Remove_GameObject(GAME->Current_LevelIndex(), authoredObject);
 
+    GAME->Flush_RemovedGameObjects();
     _reloadedMonsterObjects.clear();
 }
 

@@ -270,4 +270,8 @@ namespace Client::Constants::Sound
     constexpr const wchar_t* MainMenuQuitGame = L"MainTitle/MainMenu_QuitGame.wav";
 
     constexpr const wchar_t* SpringBGM = L"BGM/SpringMeadow/MUS_SpringMeadows_ENV_Nightfall_PartA.wav";
+    
+constexpr const wchar_t* SkillTreeNavigate = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Navigate_01 [1].wav";
+constexpr const wchar_t* SkillTreeLearn = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Learn_01 [1].wav";
+constexpr const wchar_t* SkillTreeBlocked = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Blocked_01 [1].wav";
 }
