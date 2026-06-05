@@ -268,4 +268,9 @@ namespace Client::Constants::Sound
     constexpr const wchar_t* MainMenuLoading = L"MainTitle/MainMenu_Loading.wav";
     constexpr const wchar_t* MainMenuNewGame = L"MainTitle/MainMenu_NewGame.wav";
     constexpr const wchar_t* MainMenuQuitGame = L"MainTitle/MainMenu_QuitGame.wav";
+
+    constexpr const wchar_t* BattleQTEStart = L"Battle/QTE/UI_Battle_QTE_Start [1].wav";
+    constexpr const wchar_t* BattleQTEMiss = L"Battle/QTE/UI_Battle_QTE_Miss [1].wav";
+    constexpr const wchar_t* BattleQTESuccessPerfect = L"Battle/QTE/UI_Battle_QTE_Success_Perfect [1].wav";
+    constexpr const wchar_t* BattleQTESuccessRegular = L"Battle/QTE/UI_Battle_QTE_Success_Regular [1].wav";
 }
