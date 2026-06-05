@@ -42,6 +42,9 @@ public:
     virtual ~MapInstancedMesh() = default;
 
 public:
+    void Set_LodModel(int lod, Shared<ModelCom> model);
+
+public:
     virtual HRESULT Initialize_Prototype() override;
     virtual HRESULT Initialize(void* arg) override;
     virtual void Priority_Update(float timeDelta) override;
@@ -56,7 +59,7 @@ public:
 
 private:
     Shared<ShaderCom> _shader;
-    Shared<ModelCom> _model;
+    Shared<ModelCom> _lodModels[3];
     Shared<StaticCollisionData> _collisionData;
     ComPtr<Buffer> _instanceVB;
     uint32 _instanceCount = {};
@@ -68,13 +71,16 @@ private:
     Shared<ComputeShaderCom> _cullShader;
     Shared<ComputeStructuredBuffer> _instanceSrcBuffer;
     Shared<ComputeStructuredBuffer> _sphereBuffer;
-    ComPtr<Buffer> _visibleStructured;
-    ComPtr<UnorderedAccessView> _visibleUAV;
-    ComPtr<Buffer> _visibleVB;
+    ComPtr<Buffer> _visibleStructured[3];
+    ComPtr<UnorderedAccessView> _visibleUAV[3];
+    ComPtr<Buffer> _visibleVB[3];
     ComPtr<Buffer> _cullCB;
-    vector<ComPtr<Buffer>> _indirectArgsBuffers;
+    vector<ComPtr<Buffer>> _indirectArgsBuffers[3];
     vector<PhysXStaticActorHandle> _physxStaticHandles;
     BoundingBox _groupBounds = {};
+
+    float _lod1Dist = 40.f;
+    float _lod2Dist = 80.f;
 
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);
