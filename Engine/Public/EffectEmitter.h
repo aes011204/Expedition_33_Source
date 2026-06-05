@@ -18,6 +18,7 @@ public:
         Vec3 localRotationDegrees{ 0.f, 0.f, 0.f }; // root 기준 local 회전이다.
         bool useLocalSpace{ false };                // true면 root transform을 따라간다.
         bool enabled{ true };                       // root가 child를 활성 emitter로 볼지 여부다.
+        uint32 effectPlaybackSeed{ 0 };              // effect root 재생 1회 단위 random seed다.
     };
 
 public:
@@ -28,6 +29,7 @@ public:
 public: //## Behavior::Attach
     HRESULT Attach_ToEffect(const EffectEmitterRuntimeDesc& runtimeDesc); // root가 생성 직후 공통 runtime 상태를 주입한다.
     void Sync_FromEffectOwner();                                          // root와 local/world 정책을 기준으로 emitter transform을 동기화한다.
+    void Set_EffectPlaybackSeed(uint32 effectPlaybackSeed);               // root replay seed를 child emitter에 갱신한다.
 
 public: //## Behavior::Lifecycle
     virtual HRESULT Reset_ForEffectReplay(); // effect root가 재사용 전에 emitter runtime 상태를 초기화할 때 호출한다.
@@ -52,6 +54,7 @@ protected: //## Data::Runtime
     Vec3 _localRotationDegrees{ 0.f, 0.f, 0.f }; // root 기준 local 회전이다.
     bool _useLocalSpace{ false };                // true면 root transform을 따라간다.
     bool _enabled{ true };                       // root 수준 enabled 플래그다.
+    uint32 _effectPlaybackSeed{ 0 };              // effect root 재생 1회 단위 random seed다.
 
 protected: //## Hook
     virtual void On_EffectTransformSynced() {} // concrete emitter가 root sync 직후 내부 payload를 갱신할 때 override한다.

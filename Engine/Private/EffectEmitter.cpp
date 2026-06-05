@@ -14,6 +14,7 @@ EffectEmitter::EffectEmitter(const EffectEmitter& prototype)
     , _localRotationDegrees{ prototype._localRotationDegrees }
     , _useLocalSpace{ prototype._useLocalSpace }
     , _enabled{ prototype._enabled }
+    , _effectPlaybackSeed{ prototype._effectPlaybackSeed }
 {
 }
 
@@ -26,6 +27,7 @@ HRESULT EffectEmitter::Attach_ToEffect(const EffectEmitterRuntimeDesc& runtimeDe
     _localRotationDegrees = runtimeDesc.localRotationDegrees;
     _useLocalSpace = runtimeDesc.useLocalSpace;
     _enabled = runtimeDesc.enabled;
+    _effectPlaybackSeed = runtimeDesc.effectPlaybackSeed;
 
     if (runtimeDesc.effectOwner)
         Set_Owner(runtimeDesc.effectOwner);
@@ -33,6 +35,11 @@ HRESULT EffectEmitter::Attach_ToEffect(const EffectEmitterRuntimeDesc& runtimeDe
     Sync_FromEffectOwner();
 
     return S_OK;
+}
+
+void EffectEmitter::Set_EffectPlaybackSeed(uint32 effectPlaybackSeed)
+{
+    _effectPlaybackSeed = effectPlaybackSeed;
 }
 
 void EffectEmitter::Sync_FromEffectOwner()

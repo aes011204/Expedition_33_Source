@@ -833,6 +833,15 @@ private: //## Distribution Types
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
+        ImGui::PushID("UseInstanceSeed");
+        _basicDrawer.Draw_PropertyLabel(
+            "재생마다 변주",
+            "켜면 이 이펙트를 재생할 때마다 생성되는 seed를 이 랜덤값 샘플에 섞습니다."
+        );
+        changed |= ImGui::Checkbox("##Value", &data.useInstanceSeed);
+        _basicDrawer.Draw_ResetButton(false);
+        ImGui::PopID();
+
         ImGui::PopID();
         return changed;
     }
@@ -2198,7 +2207,9 @@ private: //## Label Helpers
 
     static bool Is_DefaultValue(const DistributionRandomSeedData& value, const DistributionRandomSeedData& defaultValue)
     {
-        return value.mode == defaultValue.mode && value.manualSeed == defaultValue.manualSeed;
+        return value.mode == defaultValue.mode &&
+               value.manualSeed == defaultValue.manualSeed &&
+               value.useInstanceSeed == defaultValue.useInstanceSeed;
     }
 
     static bool Is_DefaultValue(const ConstantFloatDistributionData& value, const ConstantFloatDistributionData& defaultValue)

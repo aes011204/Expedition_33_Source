@@ -90,7 +90,7 @@ cbuffer ComputePointParticleParams : register(b0)
     float4 g_SizeByLifeCurveValuesY; // scaleOverLife Y multipliers
     float4 g_SizeByLifeCurveParams;  // x: key count, y: multiplyX, z: multiplyY, w: axisLock
     float4 g_MotionFlags;            // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled
-    float4 g_MotionSpaceFlags;       // x: radial world, y: cone enabled, z: cone world
+    float4 g_MotionSpaceFlags;       // x: radial world, y: cone enabled, z: cone world, w: radial center direction mode
     float4 g_InitialVelocityMin;     // xyz: vector velocity min
     float4 g_InitialVelocityMax;     // xyz: vector velocity max
     float4 g_MotionRadialPivot;      // xyz: radial pivot
@@ -1084,13 +1084,16 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
                 Hash01(initialRadialVelocitySeed + 401u) * 2.0f - 1.0f
             )
         );
-        const float fallbackRadialLength = length(fallbackRadialDirection);
-        const float3 normalizedFallbackRadialDirection = fallbackRadialLength < 0.0001f
-                                                         ? float3(0.0f, 1.0f, 0.0f)
-                                                         : fallbackRadialDirection / fallbackRadialLength;
+        float3 centerRadialDirection = fallbackRadialDirection;
+        if ((uint)g_MotionSpaceFlags.w == 1u && planeRadialFrame.enabled != 0.0f)
+            centerRadialDirection = ResolveEmitterBasisVector(planeRadialFrame.radialDirection);
+        const float centerRadialLength = length(centerRadialDirection);
+        const float3 normalizedCenterRadialDirection = centerRadialLength < 0.0001f
+                                                       ? float3(0.0f, 1.0f, 0.0f)
+                                                       : centerRadialDirection / centerRadialLength;
         const float radialDirectionLength = length(radialDirection);
         radialDirection = radialDirectionLength < 0.0001f
-                          ? normalizedFallbackRadialDirection
+                          ? normalizedCenterRadialDirection
                           : radialDirection / radialDirectionLength;
         const float radialSpeed = lerp(g_MotionRadialSpeedDrag.x, g_MotionRadialSpeedDrag.y, Hash01(initialRadialVelocitySeed + 509u));
         initialVelocity += radialDirection * radialSpeed;
