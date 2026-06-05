@@ -106,6 +106,8 @@ struct PS_OUT_SHADOW
 
 PS_OUT PS_Opaque(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
@@ -143,6 +145,8 @@ PS_OUT PS_Opaque(PS_IN In)
 
 PS_OUT PS_Mask(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
@@ -193,6 +197,8 @@ PS_OUT_SHADOW PS_Shadow(PS_IN In)
 
 PS_OUT PS_NoTexture(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     Out.Diffuse = vector(0.8f, 0.8f, 0.8f, 1.f);
@@ -210,6 +216,8 @@ PS_OUT PS_NoTexture(PS_IN In)
 
 PS_OUT PS_OpaqueAR(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
     float2 finalUV = ApplyUVTransform(In.Texcoord);
     float dissolveEdge = 0.f;
@@ -248,7 +256,10 @@ PS_OUT PS_OpaqueAR(PS_IN In)
 // AR.rgb = base color, AR.a = roughness, NME.rg = normal XY, NME.b = metalness, NME.a = emissive mask.
 PS_OUT PS_PackedAR_NME(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
+
     float2 finalUV = ApplyUVTransform(In.Texcoord);
 
     float4 arTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
@@ -336,6 +347,8 @@ PS_OUT_ID PS_ID(PS_IN In)
 
 PS_OUT PS_FaceAccessoryBeard(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     // 수염 카드 주변을 넓게 샘플링할 좌표를 준비한다.

@@ -39,20 +39,25 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
     //        ? String::ToString(battle->Get_TurnAction()._curChar.actor->Get_Name()).c_str()
     //        : "null");
 
+    if(_cameraMode == BattleCameraMode::WIDE)
+    {
+      int a = 10;
+    }
+
     auto character = dynamic_pointer_cast<Character>(owner->GetSharedPtr<PlayableParts>()->Get_Owner());
 
     if(character == nullptr)
         return;
-    
+
     EvtBattlePresentation event {};
         event.cameraMode = _cameraMode;
 
-    if(event.cameraMode == BattleCameraMode::PARRY)
+    if(_cameraMode == BattleCameraMode::PARRY && battle && battle->Is_GroupParryActive())
     {
-        int a = 10;
+         return;
     }
-
     event.subject = character;
+
     if (battle)
     {
         const auto& action = battle->Get_TurnAction();
@@ -77,18 +82,6 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
             event.clipId = !_clipId.empty() ? _clipId : phase.cameraClipId;
         }
 
-        //LOG_DEBUG(
-        //    "[BattleShotNotify] anim={} prev={:.3f} cur={:.3f} mode={} skill={} phase={} presetId={} clipId={} useClip={} restartClip={}",
-        //    context.animationName,
-        //    context.previousTimeSec,
-        //    context.currentTimeSec,
-        //    static_cast<int>(event.cameraMode),
-        //    event.skillId,
-        //    action.GetCurAnimIndex(),
-        //    event.presetId,
-        //    event.clipId,
-        //    _useClip,
-        //    _restartClip);
     }
     event.useClip = _useClip;
     event.restartClip = _restartClip;

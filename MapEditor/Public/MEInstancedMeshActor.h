@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "MapEditorDefines.h"
 #include "GameObject.h"
 
@@ -21,10 +21,12 @@ public:
     virtual ~MEInstancedMeshActor() = default;
 
 public:
-    Shared<ModelCom> GetModel() const { return _model; }
+    Shared<ModelCom> GetModel() const { return _lodModels[0]; }
+    Shared<ModelCom> GetLodModel(int lod) const { return _lodModels[lod]; }
 
     void Set_CameraFar(float camfar) { _cameraFar = camfar; }
     void Set_CullShader(Shared<ComputeShaderCom> shader) { _cullShader = shader; }
+    void Set_LodModel(int lod, Shared<ModelCom> model);
 
 public:
     virtual HRESULT Initialize(void* arg) override;
@@ -33,7 +35,7 @@ public:
     virtual HRESULT RenderPickingID(uint32 id) override;
 
 private:
-    Shared<ModelCom> _model;
+    Shared<ModelCom> _lodModels[3];
     Shared<ShaderCom> _shader;
     ComPtr<Buffer> _instanceVB;
     uint32 _instanceCount = {};
@@ -45,11 +47,15 @@ private:
     Shared<ComputeShaderCom> _cullShader;
     Shared<ComputeStructuredBuffer> _instanceSrcBuffer;
     Shared<ComputeStructuredBuffer> _sphereBuffer;
-    ComPtr<Buffer> _visibleStructured;
-    ComPtr<UnorderedAccessView> _visibleUAV;
-    ComPtr<Buffer> _visibleVB;
     ComPtr<Buffer> _cullCB;
-    vector<ComPtr<Buffer>> _indirectArgsBuffers;
+
+    ComPtr<Buffer> _visibleStructured[3];
+    ComPtr<UnorderedAccessView> _visibleUAV[3];
+    ComPtr<Buffer> _visibleVB[3];
+    vector<ComPtr<Buffer>> _indirectArgsBuffers[3];
+
+    float _lod1Dist = 80.f;
+    float _lod2Dist = 200.f;
 
 private:
     HRESULT CreateInstanceBuffer(const vector<Matrix>& matrices);

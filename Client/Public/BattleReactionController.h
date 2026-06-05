@@ -66,6 +66,7 @@ public:
     void StartCounterReturn();
    // void FinishCounterReturn();
     void UpdateCounterReturn(float timeDelta);
+    void StartCounterReturnAll(ModelCom* sourceModel);
 
 public:
     void Set_CurSkillData(const Skill_Data* curSkillData) { _curSkillData = curSkillData; };
@@ -75,6 +76,9 @@ public:
 
     void BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed);
     void EndCounterTimeSection(ModelCom* sourceModel);
+    bool IsBusy() const { return _animPhase != ReactionAnimPhase::None; }
+
+    bool Is_GroupParryActive() const;
 
 private:
     bool CanReceiveInput(const BattleChar& target) const;

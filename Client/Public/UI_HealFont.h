@@ -26,6 +26,7 @@ private:
     HRESULT Bind_UI();
 
     void Set_HealText(int32 healValue);
+    bool Try_GetFeedbackWorldPosition(const BattleChar& target, Vec3& outWorldPos) const override;
 
 private:
     Shared<UI_Text> _healText{};
