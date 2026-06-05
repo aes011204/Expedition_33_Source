@@ -76,7 +76,10 @@ void GameplayUI_World::Update(float timeDelta)
 
     Update_CrossHair(timeDelta);
 
-    if (!CLIENT->Is_FadeTransitionPlaying() && _savePointPanel && _savePointPanel->Is_Open())
+    if (!CLIENT->Is_FadeTransitionPlaying() &&
+        _savePointPanel &&
+        _savePointPanel->Is_Open() &&
+        !_savePointPanel->Is_ClosingWithOutro())
     {
         const SavePoint_Panel::SavePointAction action = _savePointPanel->Consume_LastAction();
         Handle_SavePointAction(action);
@@ -86,6 +89,9 @@ void GameplayUI_World::Update(float timeDelta)
 void GameplayUI_World::Update_Input()
 {
     if (CLIENT->Is_FadeTransitionPlaying())
+        return;
+
+    if (_savePointPanel && _savePointPanel->Is_ClosingWithOutro())
         return;
 
     Handle_TabInput(); // Tab은 root 메뉴인 SavePoint 진입/종료만 담당
@@ -110,7 +116,7 @@ vector<RuntimeUIEntry> GameplayUI_World::Get_RuntimeUIEntries() const
 
 bool GameplayUI_World::Is_AnyMenuOpen() const
 {
-    return !_menuStack.empty();
+    return !_menuStack.empty() || (_savePointPanel && _savePointPanel->Is_ClosingWithOutro());
 }
 
 GameplayMenu GameplayUI_World::Get_CurrentMenu() const
@@ -123,7 +129,7 @@ GameplayMenu GameplayUI_World::Get_CurrentMenu() const
 
 void GameplayUI_World::Force_CloseAllMenus()
 {
-    Close_AllMenus(); // 배틀 진입 시 월드 메뉴가 남아 있지 않게 강제 정리
+    Close_AllMenus(true); // 배틀 진입 시 월드 메뉴가 남아 있지 않게 강제 정리
 }
 
 void GameplayUI_World::Handle_EditorStopRuntime()
@@ -260,7 +266,12 @@ void GameplayUI_World::Push_Menu(GameplayMenu menu)
     const auto applyMenuChange = [this, currentMenu, menu]()
     {
         if (currentMenu != GameplayMenu::None)
-            Close_Menu(currentMenu);
+        {
+            if (currentMenu == GameplayMenu::SavePoint && _savePointPanel)
+                _savePointPanel->Close_ForMenuTransition();
+            else
+                Close_Menu(currentMenu);
+        }
 
         _menuStack.push_back(menu);
         Open_Menu(menu);
@@ -291,12 +302,25 @@ void GameplayUI_World::Pop_Menu()
     _menuFade.Request_MenuTransition(currentMenu, previousMenu, applyMenuChange);
 }
 
-void GameplayUI_World::Close_AllMenus()
+void GameplayUI_World::Close_AllMenus(bool immediate)
 {
     while (!_menuStack.empty())
     {
-        Close_Menu(_menuStack.back());
+        const GameplayMenu menu = _menuStack.back();
+
+        if (immediate && menu == GameplayMenu::SavePoint && _savePointPanel)
+            _savePointPanel->Close_Immediately();
+        else
+            Close_Menu(menu);
+
         _menuStack.pop_back();
+    }
+
+    if (immediate &&
+        _savePointPanel &&
+        (_savePointPanel->Is_Open() || _savePointPanel->Is_ClosingWithOutro()))
+    {
+        _savePointPanel->Close_Immediately();
     }
 
     if (_expeditionStatPanel && _expeditionStatPanel->Is_Open())

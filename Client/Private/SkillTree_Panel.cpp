@@ -46,6 +46,24 @@ namespace
             return HeroId::Gustave;
         return  characterStatusOrder[selectedHeroIndex];
     }
+
+    void Play_RandomAllySelectSound()
+    {
+        constexpr uint32 soundCount = static_cast<uint32>(_countof(Constants::Sound::AllySelectSounds));
+        const float randomValue = GAME->Random(0.f, static_cast<float>(soundCount));
+        const uint32 soundIndex = min(static_cast<uint32>(randomValue), soundCount - 1);
+
+        GAME->Play_Sound(Constants::Sound::AllySelectSounds[soundIndex], SoundChannel::UI, 1.f);
+    }
+
+    void Play_RandomGlobalGenericEnterSound()
+    {
+        constexpr uint32 soundCount = static_cast<uint32>(_countof(Constants::Sound::GlobalGenericEnterSounds));
+        const float randomValue = GAME->Random(0.f, static_cast<float>(soundCount));
+        const uint32 soundIndex = min(static_cast<uint32>(randomValue), soundCount - 1);
+
+        GAME->Play_Sound(Constants::Sound::GlobalGenericEnterSounds[soundIndex], SoundChannel::UI, 1.f);
+    }
 }
 
 SkillTree_Panel::SkillTree_Panel()
@@ -94,7 +112,12 @@ void SkillTree_Panel::Update(float timeDelta)
 
 void SkillTree_Panel::Open()
 {
+    const bool wasOpen = _isOpen;
+
     _isOpen = true;
+
+    if (!wasOpen)
+        Play_RandomGlobalGenericEnterSound();
 
     //바뀌지 않는 배경 UI
     if(_backgroundUI)
@@ -193,6 +216,8 @@ void SkillTree_Panel::Handle_SelectionInput()
 
     if(previousIndex != _selectedHeroIndex)
     {
+        Play_RandomAllySelectSound();
+
         Refresh_CharacterSelectUI();
         Change_ToSelectedViewState();
         Set_SkillPoint();
