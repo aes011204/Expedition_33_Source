@@ -252,13 +252,14 @@ namespace Internal
         const char* payloadType,
         const string& displayPath,
         const char* placeholder,
+        const char* summary,
         const function<bool(const wchar_t*)>& onDrop,
         const function<bool()>& onPick)
     {
-        constexpr float slotHeight = 48.f;
+        constexpr float slotHeight = 46.f;
         constexpr float browseButtonWidth = 34.f;
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
-        const float slotWidth = max(120.f, ImGui::GetContentRegionAvail().x - browseButtonWidth - spacing);
+        const float slotWidth = max(160.f, ImGui::GetContentRegionAvail().x - browseButtonWidth - spacing);
         bool changed = false;
 
         ImGui::PushID(id);
@@ -283,25 +284,30 @@ namespace Internal
         drawList->AddRectFilled(
             slotMin,
             slotMax,
-            hovered || isMatchingPayload ? IM_COL32(34, 42, 58, 255) : IM_COL32(22, 25, 32, 255),
-            4.f
+            hovered || isMatchingPayload ? IM_COL32(34, 42, 58, 255) : IM_COL32(30, 34, 42, 255),
+            6.f
         );
         drawList->AddRect(
             slotMin,
             slotMax,
             hovered || isMatchingPayload ? IM_COL32(116, 156, 235, 255) : IM_COL32(78, 88, 108, 255),
-            4.f,
+            6.f,
             0,
             isMatchingPayload ? 2.f : 1.f
         );
-        drawList->AddText(ImVec2(slotMin.x + 10.f, slotMin.y + 6.f), IM_COL32(235, 238, 245, 255), title);
-        drawList->PushClipRect(ImVec2(slotMin.x + 10.f, slotMin.y + 26.f), ImVec2(slotMax.x - 8.f, slotMax.y), true);
+
+        const float textLeft = slotMin.x + 10.f;
+        drawList->PushClipRect(ImVec2(textLeft, slotMin.y), ImVec2(slotMax.x - 8.f, slotMax.y), true);
+        drawList->AddText(ImVec2(textLeft, slotMin.y + 6.f), IM_COL32(235, 238, 245, 255), title);
         drawList->AddText(
-            ImVec2(slotMin.x + 10.f, slotMin.y + 27.f),
+            ImVec2(textLeft, slotMin.y + 25.f),
             IM_COL32(150, 160, 176, 255),
             displayPath.empty() ? placeholder : displayPath.c_str()
         );
         drawList->PopClipRect();
+
+        if (hovered)
+            ImGui::SetTooltip("%s\n%s", summary, displayPath.empty() ? placeholder : displayPath.c_str());
 
         ImGui::SameLine(0.f, spacing);
         if (ImGui::Button(ICON_FA_FOLDER_OPEN, ImVec2(browseButtonWidth, slotHeight)))
@@ -400,7 +406,7 @@ struct MeshDataPreview_View::PreviewRenderer
 
         if (FAILED(renderTarget->Begin(true, true)))
         {
-            statusMessage = "Preview render target begin failed.";
+            statusMessage = "Preview render target begin has failed.";
             return;
         }
 
@@ -1133,10 +1139,11 @@ bool MeshDataPreview_View::Render_ModelAssetSection(MeshTypeData& meshData)
             _detailPropertyContext.Draw_PropertyLabel("Model Asset");
             changed |= Internal::Draw_AssetDropSlot(
                 "MeshModelSlot",
-                "Model Asset (.model)",
+                "Model Asset",
                 Internal::kEffectModelPayloadType,
                 meshData.modelPath,
                 "(drop .model here)",
+                "MeshData source model",
                 [&meshData](const wchar_t* payloadPath)
                 {
                     return Internal::Apply_ModelFileToMeshData(payloadPath, meshData);
@@ -1173,10 +1180,11 @@ bool MeshDataPreview_View::Render_MaterialAssetSection(MeshTypeData& meshData)
             _detailPropertyContext.Draw_PropertyLabel("Source Material");
             changed |= Internal::Draw_AssetDropSlot(
                 "MeshAssignedMaterialSlot",
-                "Assigned Effect Material",
+                "Source Material",
                 Internal::kEffectMaterialPayloadType,
                 meshData.assignedEffectMaterialPath,
                 "(drop .effectmaterial.json here)",
+                "Material source preset",
                 [&meshData](const wchar_t* payloadPath)
                 {
                     return Internal::Apply_EffectMaterialFileToMeshData(payloadPath, meshData);
@@ -1200,7 +1208,8 @@ bool MeshDataPreview_View::Render_MaterialAssetSection(MeshTypeData& meshData)
             _detailPropertyContext.End_PropertyTable();
         }
 
-        if (ImGui::Button("Reset From Source"))
+        ImGui::TextDisabled("Embedded material copy");
+        if (ImGui::Button("Reset Copy From Source"))
         {
             const fs::path materialPath = Resolve_AuthoredAssetPath(
                 meshData.assignedEffectMaterialGuid,
@@ -1247,6 +1256,8 @@ bool MeshDataPreview_View::Render_MaterialInstanceSection(const AuthoringEmitter
         ImGui::TextDisabled("Assign an effect material source before editing the MeshData material instance.");
         return false;
     }
+
+    ImGui::TextDisabled("Embedded material copy is emitter-local MeshData authoring data.");
 
     const RequiredModuleData* required = Find_RequiredModuleData(emitter);
     const EffectMaterialRenderPolicyBinding renderPolicyBinding{

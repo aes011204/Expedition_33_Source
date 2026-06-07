@@ -3,14 +3,13 @@
 #include "DetailPropertyContext.h"
 #include "Editor_Context.h"
 #include "EffectEditorInstance.h"
-#include "EffectMaterialPresetReader.h"
 #include "GameInstance.h"
 #include "Helper_String.h"
 #include "MeshDataPreview_View.h"
 
 NS_BEGIN(EffectEditor)
 
-namespace
+namespace Internal
 {
     constexpr TrailCurveQuality kTrailCurveQualityValues[] = {
         TrailCurveQuality::Basic,
@@ -19,7 +18,7 @@ namespace
         TrailCurveQuality::Custom,
     };
 
-    const char* Get_TrailCurveQualityLabel(TrailCurveQuality value)
+    static const char* Get_TrailCurveQualityLabel(TrailCurveQuality value)
     {
         switch (value)
         {
@@ -36,7 +35,7 @@ namespace
         }
     }
 
-    const char* Get_TrailCurveQualityTooltip(TrailCurveQuality value)
+    static const char* Get_TrailCurveQualityTooltip(TrailCurveQuality value)
     {
         switch (value)
         {
@@ -53,7 +52,7 @@ namespace
         }
     }
 
-    const char* Get_RenderLayerOverrideLabel(EmitterRenderLayerOverride value)
+    static const char* Get_RenderLayerOverrideLabel(EmitterRenderLayerOverride value)
     {
         switch (value)
         {
@@ -65,7 +64,7 @@ namespace
         }
     }
 
-    bool Draw_RenderLayerOverrideProperty(
+    static bool Draw_RenderLayerOverrideProperty(
         DetailPropertyContext& detailContext,
         const char* label,
         EmitterRenderLayerOverride& value,
@@ -111,7 +110,7 @@ namespace
         return changed;
     }
 
-    TrailTypeData Build_TrailCurvePreset(TrailCurveQuality quality)
+    static TrailTypeData Build_TrailCurvePreset(TrailCurveQuality quality)
     {
         TrailTypeData preset{};
 
@@ -142,7 +141,7 @@ namespace
         return preset;
     }
 
-    bool Apply_TrailCurvePreset(TrailTypeData& data)
+    static bool Apply_TrailCurvePreset(TrailTypeData& data)
     {
         if (data.curveQuality == TrailCurveQuality::Custom)
             return false;
@@ -174,24 +173,7 @@ namespace
         return changed;
     }
 
-    string Make_AssetRelativePath(const fs::path& filePath)
-    {
-        if (GAME == nullptr)
-            return String::ToString(filePath.lexically_normal().wstring());
-
-        const fs::path assetRoot = fs::path(GAME->Get_AssetRoot()).lexically_normal();
-        const fs::path normalizedPath = filePath.lexically_normal();
-        if (!assetRoot.empty())
-        {
-            const fs::path relativePath = normalizedPath.lexically_relative(assetRoot);
-            if (!relativePath.empty() && relativePath.native().find(L"..") != 0)
-                return String::ToString(relativePath.generic_wstring());
-        }
-
-        return String::ToString(normalizedPath.wstring());
-    }
-
-    fs::path Resolve_AuthoredAssetPath(const string& guid, const string& path)
+    static fs::path Resolve_AuthoredAssetPath(const string& guid, const string& path)
     {
         if (GAME == nullptr)
             return fs::path(String::ToWString(path));
@@ -210,109 +192,7 @@ namespace
         return resolvedPath.lexically_normal();
     }
 
-    bool Apply_ModelFileToMeshData(const wchar_t* payloadPath, MeshTypeData& data)
-    {
-        if (payloadPath == nullptr || GAME == nullptr)
-            return false;
-
-        const fs::path filePath = fs::path(payloadPath).lexically_normal();
-        if (String::ToLowerCopy(filePath.extension().string()) != ".model")
-            return false;
-
-        data.modelGuid = GAME->Ensure_AssetGUID(filePath.wstring(), "Model");
-        data.modelPath = Make_AssetRelativePath(filePath);
-        return true;
-    }
-
-    bool Apply_EffectMaterialFileToMeshData(const wchar_t* payloadPath, MeshTypeData& data)
-    {
-        if (payloadPath == nullptr || GAME == nullptr)
-            return false;
-
-        const fs::path filePath = fs::path(payloadPath).lexically_normal();
-        if (String::ToLowerCopy(filePath.extension().string()) != ".json")
-            return false;
-
-        data.assignedEffectMaterialGuid = GAME->Ensure_AssetGUID(filePath.wstring(), "EffectMaterial");
-        data.assignedEffectMaterialPath = Make_AssetRelativePath(filePath);
-        data.hasAssignedMaterialInstance = EffectMaterialPresetReader::Read(filePath, data.assignedMaterial);
-        if (!data.hasAssignedMaterialInstance)
-            data.assignedMaterial = {};
-        return true;
-    }
-
-    bool Try_PickMeshTypeDataAssetDialog(
-        const wchar_t* title,
-        const wchar_t* filterName,
-        const wchar_t* filterSpec,
-        const wchar_t* defaultFolder,
-        wstring& outFilePath)
-    {
-        outFilePath.clear();
-
-        const HRESULT initHr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-        const bool shouldUnInit = SUCCEEDED(initHr);
-
-        IFileOpenDialog* dialog = nullptr;
-        HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
-        if (FAILED(hr) || dialog == nullptr)
-        {
-            if (shouldUnInit)
-                CoUninitialize();
-            return false;
-        }
-
-        dialog->SetTitle(title);
-
-        DWORD options = 0;
-        dialog->GetOptions(&options);
-        dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_FILEMUSTEXIST);
-
-        if (GAME != nullptr && defaultFolder != nullptr)
-        {
-            const fs::path folderPath = fs::path(GAME->Get_AssetRoot()) / defaultFolder;
-            IShellItem* folderItem = nullptr;
-            if (SUCCEEDED(
-                SHCreateItemFromParsingName(folderPath.lexically_normal().wstring().c_str(), nullptr, IID_PPV_ARGS(&folderItem))
-            ) && folderItem != nullptr)
-            {
-                dialog->SetFolder(folderItem);
-                folderItem->Release();
-            }
-        }
-
-        const COMDLG_FILTERSPEC filters[] =
-        {
-            { filterName, filterSpec },
-            { L"All", L"*.*" },
-        };
-        dialog->SetFileTypes(std::size(filters), filters);
-
-        hr = dialog->Show(nullptr);
-        if (SUCCEEDED(hr))
-        {
-            IShellItem* item = nullptr;
-            if (SUCCEEDED(dialog->GetResult(&item)) && item != nullptr)
-            {
-                PWSTR path = nullptr;
-                if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path)) && path != nullptr)
-                {
-                    outFilePath = path;
-                    CoTaskMemFree(path);
-                }
-                item->Release();
-            }
-        }
-
-        dialog->Release();
-
-        if (shouldUnInit)
-            CoUninitialize();
-
-        return !outFilePath.empty();
-    }
-
-    string Build_MeshModelValidationMessage(const MeshTypeData& data, ImVec4& outColor)
+    static string Build_MeshModelValidationMessage(const MeshTypeData& data, ImVec4& outColor)
     {
         outColor = ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);
         if (data.modelGuid.empty() && data.modelPath.empty())
@@ -358,76 +238,70 @@ namespace
         return "Model asset is valid for authoring.";
     }
 
-    bool Draw_MeshAssetDropSlot(
-        const char* id,
-        const char* title,
-        const char* payloadType,
-        const string& path,
-        const char* emptyText,
-        const function<bool(const wchar_t*)>& applyPayload,
-        const function<bool()>& pickFile)
+    static bool Draw_MeshDataEntryButton(const MeshTypeData& data)
     {
-        constexpr float browseButtonWidth{ 32.f };
-        constexpr float slotHeight = 56.f;
-        const float spacing = ImGui::GetStyle().ItemSpacing.x;
-        const ImGuiPayload* activePayload = ImGui::GetDragDropPayload();
-        const bool isMatchingPayload = activePayload != nullptr && activePayload->IsDataType(payloadType);
+        constexpr float kEntryHeight{ 52.f };
+        const float width = max(180.f, ImGui::GetContentRegionAvail().x);
+        const bool hasModel = !data.modelPath.empty();
+        const bool hasMaterialSource = !data.assignedEffectMaterialPath.empty();
 
-        ImGui::PushID(id);
-        const ImVec2 slotMin = ImGui::GetCursorScreenPos();
-        const float slotWidth = max(220.f, ImGui::GetContentRegionAvail().x - browseButtonWidth - spacing);
-        ImGui::InvisibleButton("##DropSlot", ImVec2(slotWidth, slotHeight));
+        ImGui::InvisibleButton("MeshDataEditEntry", ImVec2{ width, kEntryHeight });
 
-        bool changed = false;
-        if (ImGui::BeginDragDropTarget())
-        {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(payloadType, ImGuiDragDropFlags_AcceptBeforeDelivery))
-            {
-                if (payload->IsDelivery())
-                    changed = applyPayload(static_cast<const wchar_t*>(payload->Data));
-            }
-            ImGui::EndDragDropTarget();
-        }
-
-        const bool isHovered = ImGui::IsItemHovered();
-        const ImVec2 slotMax{ slotMin.x + slotWidth, slotMin.y + slotHeight };
-        const ImU32 fillColor = isMatchingPayload ? IM_COL32(38, 56, 48, 255) : IM_COL32(30, 34, 42, 255);
-        const ImU32 borderColor = isMatchingPayload
-                                  ? IM_COL32(74, 222, 128, 255)
-                                  : isHovered ? IM_COL32(120, 130, 150, 255) : IM_COL32(70, 78, 92, 255);
+        const ImVec2 minPos = ImGui::GetItemRectMin();
+        const ImVec2 maxPos = ImGui::GetItemRectMax();
+        const bool hovered = ImGui::IsItemHovered();
+        const bool active = ImGui::IsItemActive();
+        const bool clicked = ImGui::IsItemClicked();
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
-        drawList->AddRectFilled(slotMin, slotMax, fillColor, 6.f);
-        drawList->AddRect(slotMin, slotMax, borderColor, 6.f, 0, isMatchingPayload ? 2.5f : 1.5f);
-        drawList->AddText(ImVec2(slotMin.x + 10.f, slotMin.y + 8.f), IM_COL32(235, 238, 245, 255), title);
+        const ImU32 fillColor = active
+                                ? IM_COL32(38, 48, 64, 255)
+                                : hovered ? IM_COL32(34, 42, 58, 255) : IM_COL32(30, 34, 42, 255);
+        const ImU32 borderColor = hovered ? IM_COL32(116, 156, 235, 255) : IM_COL32(70, 78, 92, 255);
+        drawList->AddRectFilled(minPos, maxPos, fillColor, 6.f);
+        drawList->AddRect(minPos, maxPos, borderColor, 6.f, 0, hovered ? 2.f : 1.f);
 
-        const string displayPath = path.empty() ? emptyText : path;
-        drawList->PushClipRect(ImVec2(slotMin.x + 10.f, slotMin.y + 28.f), ImVec2(slotMax.x - 10.f, slotMax.y), true);
-        drawList->AddText(ImVec2(slotMin.x + 10.f, slotMin.y + 30.f), IM_COL32(150, 160, 176, 255), displayPath.c_str());
-        drawList->PopClipRect();
+        const ImVec2 textMin{ minPos.x + 12.f, minPos.y + 8.f };
+        drawList->AddText(textMin, IM_COL32(238, 241, 248, 255), ICON_FA_CUBES " MeshData 편집");
+        drawList->AddText(
+            ImGui::GetFont(),
+            ImGui::GetFontSize() * 0.9f,
+            ImVec2{ textMin.x, minPos.y + 30.f },
+            IM_COL32(150, 160, 176, 255),
+            "모델 / 머티리얼 설정"
+        );
 
-        if (isHovered)
-            ImGui::SetTooltip("%s", path.empty() ? emptyText : path.c_str());
+        const bool setupReady = hasModel && hasMaterialSource && data.hasAssignedMaterialInstance;
+        const string status = width >= 420.f
+                              ? string{ hasModel ? "Model OK" : "Model missing" } +
+                                " | " +
+                                (hasMaterialSource ? "Material OK" : "Material missing") +
+                                " | " +
+                                (data.hasAssignedMaterialInstance ? "Copy OK" : "Copy missing")
+                              : setupReady ? string{ "Ready" } : string{ "Setup needed" };
+        const ImVec2 statusSize = ImGui::CalcTextSize(status.c_str());
+        const ImVec2 statusPos{
+            max(textMin.x, maxPos.x - statusSize.x - 12.f),
+            minPos.y + 18.f
+        };
+        const ImU32 statusColor =
+            setupReady
+            ? IM_COL32(105, 220, 135, 255)
+            : IM_COL32(245, 165, 92, 255);
+        drawList->AddText(statusPos, statusColor, status.c_str());
 
-        ImGui::SameLine();
-        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.5f, 0.5f });
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.f, 0.f });
-        if (ImGui::Button(ICON_FA_FOLDER_OPEN "##PickAsset", ImVec2{ browseButtonWidth, slotHeight }))
-            changed |= pickFile();
-        ImGui::PopStyleVar(2);
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-            ImGui::SetTooltip("파일 탐색기에서 선택");
+        if (hovered)
+            ImGui::SetTooltip("MeshData Preview 창에서 model/material 조합과 내부 material copy를 편집합니다.");
 
-        ImGui::PopID();
-        return changed;
+        return clicked;
     }
 
-    bool Has_PostProcessFeature(PostProcessFeature features, PostProcessFeature feature)
+    static bool Has_PostProcessFeature(PostProcessFeature features, PostProcessFeature feature)
     {
         return Has_Flag(features, feature);
     }
 
-    const char* Get_PostProcessPresetLabel(EffectEditorPostProcessPreset preset)
+    static const char* Get_PostProcessPresetLabel(EffectEditorPostProcessPreset preset)
     {
         switch (preset)
         {
@@ -441,7 +315,7 @@ namespace
         }
     }
 
-    const char* Get_ToneMapModeLabel(uint32 toneMapMode)
+    static const char* Get_ToneMapModeLabel(uint32 toneMapMode)
     {
         switch (toneMapMode)
         {
@@ -455,7 +329,7 @@ namespace
         }
     }
 
-    void Draw_PostProcessPresetProperty(DetailPropertyContext& detailContext)
+    static void Draw_PostProcessPresetProperty(DetailPropertyContext& detailContext)
     {
         if (EDITOR == nullptr)
             return;
@@ -491,7 +365,7 @@ namespace
         ImGui::PopID();
     }
 
-    bool Draw_ToneMapModeProperty(DetailPropertyContext& detailContext, uint32& toneMapMode, uint32 defaultToneMapMode)
+    static bool Draw_ToneMapModeProperty(DetailPropertyContext& detailContext, uint32& toneMapMode, uint32 defaultToneMapMode)
     {
         static constexpr uint32 kToneMapModes[] = { 0u, 1u, 2u };
 
@@ -530,7 +404,7 @@ namespace
         return changed;
     }
 
-    bool Draw_TrailCurveQualityProperty(DetailPropertyContext& detailContext, TrailTypeData& data, const TrailTypeData& defaultData)
+    static bool Draw_TrailCurveQualityProperty(DetailPropertyContext& detailContext, TrailTypeData& data, const TrailTypeData& defaultData)
     {
         bool changed = false;
 
@@ -740,21 +614,21 @@ void Detail_View::Render_PostProcessShaderDetail()
     const EffectEditorPostProcessOptions options = EDITOR->Get_PostProcessOptions();
     const EffectEditorPostProcessOptions defaultOptions = EDITOR->Get_DefaultPostProcessOptions();
 
-    bool hdr = Has_PostProcessFeature(options.features, PostProcessFeature::HDR);
-    bool exposure = Has_PostProcessFeature(options.features, PostProcessFeature::Exposure);
-    bool toneMapping = Has_PostProcessFeature(options.features, PostProcessFeature::ToneMapping);
-    bool bloom = Has_PostProcessFeature(options.features, PostProcessFeature::Bloom);
-    bool gamma = Has_PostProcessFeature(options.features, PostProcessFeature::Gamma);
+    bool hdr = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::HDR);
+    bool exposure = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::Exposure);
+    bool toneMapping = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::ToneMapping);
+    bool bloom = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::Bloom);
+    bool gamma = Internal::Has_PostProcessFeature(options.features, PostProcessFeature::Gamma);
 
-    const bool defaultHdr = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::HDR);
-    const bool defaultExposure = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Exposure);
-    const bool defaultToneMapping = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::ToneMapping);
-    const bool defaultBloom = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Bloom);
-    const bool defaultGamma = Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Gamma);
+    const bool defaultHdr = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::HDR);
+    const bool defaultExposure = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Exposure);
+    const bool defaultToneMapping = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::ToneMapping);
+    const bool defaultBloom = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Bloom);
+    const bool defaultGamma = Internal::Has_PostProcessFeature(defaultOptions.features, PostProcessFeature::Gamma);
 
     if (_detailPropertyContext.Begin_PropertyTable("PostProcessPreset"))
     {
-        Draw_PostProcessPresetProperty(_detailPropertyContext);
+        Internal::Draw_PostProcessPresetProperty(_detailPropertyContext);
         _detailPropertyContext.End_PropertyTable();
     }
 
@@ -785,7 +659,7 @@ void Detail_View::Render_PostProcessShaderDetail()
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Intensity", params.bloomIntensity, defaultOptions.params.bloomIntensity);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Soft Knee", params.bloomSoftKnee, defaultOptions.params.bloomSoftKnee);
         paramsChanged |= _detailPropertyContext.Draw_FloatProperty("Bloom Clamp", params.bloomClamp, defaultOptions.params.bloomClamp, 0.05f);
-        paramsChanged |= Draw_ToneMapModeProperty(_detailPropertyContext, params.toneMapMode, defaultOptions.params.toneMapMode);
+        paramsChanged |= Internal::Draw_ToneMapModeProperty(_detailPropertyContext, params.toneMapMode, defaultOptions.params.toneMapMode);
         _detailPropertyContext.End_PropertyTable();
     }
 
@@ -815,7 +689,7 @@ void Detail_View::Render_EmitterDetail(
         _detailPropertyContext.Draw_ResetButton(false);
         ImGui::PopID();
 
-        changed |= Draw_RenderLayerOverrideProperty(
+        changed |= Internal::Draw_RenderLayerOverrideProperty(
             _detailPropertyContext,
             "렌더 레이어",
             emitter.renderLayerOverride,
@@ -907,8 +781,8 @@ void Detail_View::Render_TypeDataDetail(
         {
             if (_detailPropertyContext.Begin_PropertyTable("TrailTypeDataCurveQuality"))
             {
-                changed |= Draw_TrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
-                changed |= Apply_TrailCurvePreset(*data);
+                changed |= Internal::Draw_TrailCurveQualityProperty(_detailPropertyContext, *data, defaultData);
+                changed |= Internal::Apply_TrailCurvePreset(*data);
 
                 const bool presetLocked = data->curveQuality != TrailCurveQuality::Custom;
                 if (presetLocked)
@@ -958,39 +832,22 @@ void Detail_View::Render_TypeDataDetail(
             break;
         }
 
-        ImGui::TextDisabled("MeshData editing is handled in the dedicated preview window.");
-        if (_detailPropertyContext.Begin_PropertyTable("MeshTypeDataCompactSummary"))
-        {
-            _detailPropertyContext.Draw_PropertyLabel("Model Asset");
-            ImGui::TextWrapped("%s", data->modelPath.empty() ? "(not assigned)" : data->modelPath.c_str());
-            _detailPropertyContext.Draw_ResetButton(false);
-
-            _detailPropertyContext.Draw_PropertyLabel("Effect Material");
-            ImGui::TextWrapped("%s", data->assignedEffectMaterialPath.empty() ? "(not assigned)" : data->assignedEffectMaterialPath.c_str());
-            _detailPropertyContext.Draw_ResetButton(false);
-
-            _detailPropertyContext.Draw_PropertyLabel("Preview Scale");
-            ImGui::Text("%.3f, %.3f, %.3f", data->previewScale.x, data->previewScale.y, data->previewScale.z);
-            _detailPropertyContext.Draw_ResetButton(false);
-
-            _detailPropertyContext.End_PropertyTable();
-        }
-
-        ImVec4 validationColor{};
-        const string validationMessage = Build_MeshModelValidationMessage(*data, validationColor);
-        ImGui::PushStyleColor(ImGuiCol_Text, validationColor);
-        ImGui::TextWrapped("%s", validationMessage.c_str());
-        ImGui::PopStyleColor();
-
-        if (ImGui::Button(ICON_FA_CUBES " Preview / Edit"))
+        if (Internal::Draw_MeshDataEntryButton(*data))
         {
             const Shared<Editor_Window> meshPreviewWindow = EDITOR != nullptr ? EDITOR->Get_Window(L"MeshData Preview") : nullptr;
             const Shared<MeshDataPreview_View> meshPreviewView = dynamic_pointer_cast<MeshDataPreview_View>(meshPreviewWindow);
             if (meshPreviewView != nullptr)
                 meshPreviewView->Open_Target(emitter.id);
         }
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-            ImGui::SetTooltip("MeshData의 model/material 조합과 내부 material instance 값을 편집합니다.");
+
+        ImVec4 validationColor{};
+        const string validationMessage = Internal::Build_MeshModelValidationMessage(*data, validationColor);
+        if (validationMessage != "Model asset is valid for authoring.")
+        {
+            ImGui::PushStyleColor(ImGuiCol_Text, validationColor);
+            ImGui::TextWrapped("%s", validationMessage.c_str());
+            ImGui::PopStyleColor();
+        }
 
         break;
     }
