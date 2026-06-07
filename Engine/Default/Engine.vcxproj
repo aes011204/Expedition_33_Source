@@ -231,6 +231,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\EffectEmitterFactory.h" />
     <ClInclude Include="..\Public\EffectInstance.h" />
     <ClInclude Include="..\Public\EffectMaterial_Types.h" />
+    <ClInclude Include="..\Public\EffectRuntime_Lowering.h" />
     <ClInclude Include="..\Public\EffectRuntime_Types.h" />
     <ClInclude Include="..\Public\Engine_Constants.h" />
     <ClInclude Include="..\Public\EnumFlags.h" />

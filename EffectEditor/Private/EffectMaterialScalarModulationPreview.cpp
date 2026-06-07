@@ -500,6 +500,7 @@ MaterialScalarModulationPreviewResult Evaluate_MaterialScalarModulationPreview(
 
         if (modulator.timeSource == EffectMaterialScalarModulationTimeSource::ParticleLife)
         {
+            // TODO : Core Color RGB의 ParticleLife는 per-particle RGB 변조 payload가 생긴 뒤 개방한다.
             result.skippedParticleLife = true;
             continue;
         }

@@ -1021,12 +1021,14 @@ void EffectMaterialInstance_View::Pre_Render()
 
     if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(*emitter))
     {
+        const bool evaluateParticleLife =
+            emitter->typeData.kind == AuthoringTypeDataKind::None && emitter->rendererType == "Sprite";
         _previewRenderer->Render_Material(
             requiredData->material,
             Build_CoreColorRgbModulationRuntimeDesc(*modulation),
             Build_MaterialScalarModulationRuntimeDesc(*modulation),
             requiredData->duration,
-            false
+            evaluateParticleLife
         );
     }
     else

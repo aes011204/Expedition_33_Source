@@ -7,7 +7,9 @@
 #include "EffectEditorPreviewPlane.h"
 #include "EffectEditorSceneGrid.h"
 #include "EffectEditorSkybox.h"
+#include "EffectMaterialScalarModulationPreview.h"
 #include "EffectMaterialPresetReader.h"
+#include "EffectRuntime_Lowering.h"
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "GameObject.h"
@@ -111,60 +113,6 @@ namespace Internal
         default:
             return EffectSortPolicy::None;
         }
-    }
-
-    void Copy_MaterialToRuntimeDesc(const EffectMaterialInstanceData& material, EffectRequiredMaterialRuntimeDesc& outMaterial)
-    {
-        outMaterial.materialFamily = material.materialFamily;
-        outMaterial.mainTextureGuid = material.mainTextureGuid;
-        outMaterial.mainTexturePath = material.mainTexturePath;
-        outMaterial.noiseTextureGuid = material.noiseTextureGuid;
-        outMaterial.noiseTexturePath = material.noiseTexturePath;
-        outMaterial.maskTextureGuid = material.maskTextureGuid;
-        outMaterial.maskTexturePath = material.maskTexturePath;
-        outMaterial.flowTextureGuid = material.flowTextureGuid;
-        outMaterial.flowTexturePath = material.flowTexturePath;
-
-        outMaterial.blendMode = material.blendMode;
-        outMaterial.opacitySource = material.opacitySource.empty() ? "Alpha" : material.opacitySource;
-        outMaterial.tint = material.tint;
-        outMaterial.intensity = material.intensity;
-        outMaterial.opacityPower = material.opacityPower;
-        outMaterial.noiseStrength = material.noiseStrength;
-        outMaterial.alphaCutoff = material.alphaCutoff;
-        outMaterial.alphaErosion = material.alphaErosion;
-        outMaterial.noiseSource = material.noiseSource.empty() ? "Red" : material.noiseSource;
-        outMaterial.maskSource = material.maskSource.empty() ? "Alpha" : material.maskSource;
-        outMaterial.noiseInvert = material.noiseInvert;
-        outMaterial.maskInvert = material.maskInvert;
-        outMaterial.mainUVScale = material.mainUVScale;
-        outMaterial.mainUVOffset = material.mainUVOffset;
-        outMaterial.mainUVScrollSpeed = material.mainUVScrollSpeed;
-        outMaterial.mainUVTilingMode = material.mainUVTilingMode;
-        outMaterial.noiseUVScale = material.noiseUVScale;
-        outMaterial.noiseUVOffset = material.noiseUVOffset;
-        outMaterial.noiseUVScrollSpeed = material.noiseUVScrollSpeed;
-        outMaterial.noiseUVTilingMode = material.noiseUVTilingMode;
-        outMaterial.maskUVScale = material.maskUVScale;
-        outMaterial.maskUVOffset = material.maskUVOffset;
-        outMaterial.maskUVScrollSpeed = material.maskUVScrollSpeed;
-        outMaterial.maskUVTilingMode = material.maskUVTilingMode;
-        outMaterial.flowUVScale = material.flowUVScale;
-        outMaterial.flowUVOffset = material.flowUVOffset;
-        outMaterial.flowUVScrollSpeed = material.flowUVScrollSpeed;
-        outMaterial.flowUVTilingMode = material.flowUVTilingMode;
-
-        outMaterial.additive = material.additive;
-        outMaterial.coreEmissive = material.coreEmissive;
-        outMaterial.refractionIntensity = material.refractionIntensity;
-        outMaterial.refractionPresence = material.refractionPresence;
-        outMaterial.distortionShapeMode = material.distortionShapeMode;
-        outMaterial.distortionShapeRadius = material.distortionShapeRadius;
-        outMaterial.distortionShapeThickness = material.distortionShapeThickness;
-        outMaterial.distortionShapeSoftness = material.distortionShapeSoftness;
-        outMaterial.twoSided = material.twoSided;
-        outMaterial.subUVRows = material.subUVRows;
-        outMaterial.subUVCols = material.subUVCols;
     }
 
     fs::path Resolve_AuthoredAssetPath(const string& guid, const string& path)
@@ -690,208 +638,6 @@ namespace Internal
         case FloatCurveInterpolationMode::Linear:
         default:
             return 1.f;
-        }
-    }
-
-    EffectMaterialScalarModulationTarget To_RuntimeMaterialScalarTarget(MaterialScalarModulationTargetField target)
-    {
-        switch (target)
-        {
-        case MaterialScalarModulationTargetField::OpacityPower:
-            return EffectMaterialScalarModulationTarget::OpacityPower;
-        case MaterialScalarModulationTargetField::NoiseStrength:
-            return EffectMaterialScalarModulationTarget::NoiseStrength;
-        case MaterialScalarModulationTargetField::AlphaErosion:
-            return EffectMaterialScalarModulationTarget::AlphaErosion;
-        case MaterialScalarModulationTargetField::AlphaCutoff:
-            return EffectMaterialScalarModulationTarget::AlphaCutoff;
-        case MaterialScalarModulationTargetField::CoreIntensity:
-            return EffectMaterialScalarModulationTarget::CoreIntensity;
-        case MaterialScalarModulationTargetField::OuterIntensity:
-            return EffectMaterialScalarModulationTarget::OuterIntensity;
-        case MaterialScalarModulationTargetField::CoreColor:
-            return EffectMaterialScalarModulationTarget::CoreColor;
-        case MaterialScalarModulationTargetField::Intensity:
-        default:
-            return EffectMaterialScalarModulationTarget::Intensity;
-        }
-    }
-
-    EffectMaterialScalarModulationOperation To_RuntimeMaterialScalarOperation(MaterialScalarModulationOperation operation)
-    {
-        switch (operation)
-        {
-        case MaterialScalarModulationOperation::Multiply:
-        default:
-            return EffectMaterialScalarModulationOperation::Multiply;
-        }
-    }
-
-    EffectMaterialScalarModulationTimeSource To_RuntimeMaterialScalarTimeSource(MaterialScalarModulationTimeSource timeSource)
-    {
-        switch (timeSource)
-        {
-        case MaterialScalarModulationTimeSource::EmitterTime:
-            return EffectMaterialScalarModulationTimeSource::EmitterTime;
-        case MaterialScalarModulationTimeSource::ParticleLife:
-        default:
-            return EffectMaterialScalarModulationTimeSource::ParticleLife;
-        }
-    }
-
-    void Fill_MaterialScalarCurveComponent(
-        EffectMaterialScalarModulationCurveDesc& desc,
-        uint32 index,
-        const FloatCurveKeyData& key)
-    {
-        Set_SubUVFrameCurveComponent(desc.keyTimes, index, clamp(key.time, 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(desc.keyValues, index, key.value);
-        Set_SubUVFrameCurveComponent(desc.keyArriveTangents, index, key.arriveTangent);
-        Set_SubUVFrameCurveComponent(desc.keyLeaveTangents, index, key.leaveTangent);
-        Set_SubUVFrameCurveComponent(desc.keyModes, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
-    }
-
-    void Fill_MaterialScalarCurvePayload(
-        EffectMaterialScalarModulationCurveDesc& desc,
-        const FloatDistributionData& distribution)
-    {
-        constexpr uint32 maxCurveKeys{ 4 };
-        desc = EffectMaterialScalarModulationCurveDesc{};
-
-        if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&distribution.payload);
-            distribution.mode == DistributionMode::ConstantCurve && curve != nullptr && !curve->keys.empty())
-        {
-            const uint32 keyCount = min(maxCurveKeys, static_cast<uint32>(curve->keys.size()));
-            desc.enabled = true;
-            desc.keyCount = keyCount;
-            desc.keyTimes = Vec4{};
-            desc.keyValues = Vec4{};
-            desc.keyArriveTangents = Vec4{};
-            desc.keyLeaveTangents = Vec4{};
-            desc.keyModes = Vec4{};
-
-            for (uint32 index = 0; index < keyCount; ++index)
-                Fill_MaterialScalarCurveComponent(desc, index, curve->keys[index]);
-
-            return;
-        }
-
-        float value = 1.f;
-        if (const auto* constant = get_if<ConstantFloatDistributionData>(&distribution.payload))
-            value = constant->value;
-        else if (const auto* uniform = get_if<UniformFloatDistributionData>(&distribution.payload))
-            value = (uniform->minValue + uniform->maxValue) * 0.5f;
-
-        desc.enabled = true;
-        desc.keyCount = 2;
-        desc.keyValues = Vec4{ value, value, 0.f, 0.f };
-    }
-
-    void Fill_MaterialScalarModulationPayload(
-        EffectMaterialScalarModulationRuntimeDesc& desc,
-        const MaterialScalarModulationModuleData& data)
-    {
-        desc = EffectMaterialScalarModulationRuntimeDesc{};
-
-        const uint32 count = min(
-            EffectMaterialScalarModulationRuntimeDesc::kMaxModulators,
-            static_cast<uint32>(data.modulators.size())
-        );
-        desc.count = count;
-
-        for (uint32 index = 0; index < count; ++index)
-        {
-            const MaterialScalarModulatorData& source = data.modulators[index];
-            EffectMaterialScalarModulatorRuntimeDesc& target = desc.modulators[index];
-            target.enabled = source.enabled;
-            target.targetField = To_RuntimeMaterialScalarTarget(source.targetField);
-            target.operation = To_RuntimeMaterialScalarOperation(source.operation);
-            target.timeSource = To_RuntimeMaterialScalarTimeSource(source.timeSource);
-            Fill_MaterialScalarCurvePayload(target.curve, source.distribution);
-        }
-    }
-
-    void Fill_CoreColorRgbCurveComponent(
-        EffectMaterialCoreColorRgbModulationCurveDesc& desc,
-        uint32 index,
-        const Vector3CurveKeyData& key)
-    {
-        Set_SubUVFrameCurveComponent(desc.keyTimes, index, clamp(key.time, 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(desc.keyValuesR, index, key.value.x);
-        Set_SubUVFrameCurveComponent(desc.keyValuesG, index, key.value.y);
-        Set_SubUVFrameCurveComponent(desc.keyValuesB, index, key.value.z);
-        Set_SubUVFrameCurveComponent(desc.keyArriveTangentsR, index, key.arriveTangent.x);
-        Set_SubUVFrameCurveComponent(desc.keyArriveTangentsG, index, key.arriveTangent.y);
-        Set_SubUVFrameCurveComponent(desc.keyArriveTangentsB, index, key.arriveTangent.z);
-        Set_SubUVFrameCurveComponent(desc.keyLeaveTangentsR, index, key.leaveTangent.x);
-        Set_SubUVFrameCurveComponent(desc.keyLeaveTangentsG, index, key.leaveTangent.y);
-        Set_SubUVFrameCurveComponent(desc.keyLeaveTangentsB, index, key.leaveTangent.z);
-        Set_SubUVFrameCurveComponent(desc.keyModes, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
-    }
-
-    void Fill_CoreColorRgbCurvePayload(
-        EffectMaterialCoreColorRgbModulationCurveDesc& desc,
-        const Vector3DistributionData& distribution)
-    {
-        constexpr uint32 maxCurveKeys{ 4 };
-        desc = EffectMaterialCoreColorRgbModulationCurveDesc{};
-
-        if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&distribution.payload);
-            distribution.mode == DistributionMode::ConstantCurve && curve != nullptr && !curve->keys.empty())
-        {
-            const uint32 keyCount = min(maxCurveKeys, static_cast<uint32>(curve->keys.size()));
-            desc.enabled = true;
-            desc.keyCount = keyCount;
-            desc.keyTimes = Vec4{};
-            desc.keyValuesR = Vec4{};
-            desc.keyValuesG = Vec4{};
-            desc.keyValuesB = Vec4{};
-            desc.keyArriveTangentsR = Vec4{};
-            desc.keyArriveTangentsG = Vec4{};
-            desc.keyArriveTangentsB = Vec4{};
-            desc.keyLeaveTangentsR = Vec4{};
-            desc.keyLeaveTangentsG = Vec4{};
-            desc.keyLeaveTangentsB = Vec4{};
-            desc.keyModes = Vec4{};
-
-            for (uint32 index = 0; index < keyCount; ++index)
-                Fill_CoreColorRgbCurveComponent(desc, index, curve->keys[index]);
-
-            return;
-        }
-
-        Vec3 value{ 1.f, 0.85f, 0.45f };
-        if (const auto* constant = get_if<ConstantVector3DistributionData>(&distribution.payload))
-            value = constant->value;
-        else if (const auto* uniform = get_if<UniformVector3DistributionData>(&distribution.payload))
-            value = (uniform->minValue + uniform->maxValue) * 0.5f;
-
-        desc.enabled = true;
-        desc.keyCount = 2;
-        desc.keyValuesR = Vec4{ value.x, value.x, 0.f, 0.f };
-        desc.keyValuesG = Vec4{ value.y, value.y, 0.f, 0.f };
-        desc.keyValuesB = Vec4{ value.z, value.z, 0.f, 0.f };
-    }
-
-    void Fill_CoreColorRgbModulationPayload(
-        EffectMaterialCoreColorRgbModulationRuntimeDesc& desc,
-        const MaterialScalarModulationModuleData& data)
-    {
-        desc = EffectMaterialCoreColorRgbModulationRuntimeDesc{};
-
-        const uint32 count = min(
-            EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators,
-            static_cast<uint32>(data.coreColorRgbModulators.size())
-        );
-        desc.count = count;
-
-        for (uint32 index = 0; index < count; ++index)
-        {
-            const MaterialCoreColorRgbModulatorData& source = data.coreColorRgbModulators[index];
-            EffectMaterialCoreColorRgbModulatorRuntimeDesc& target = desc.modulators[index];
-            target.enabled = source.enabled;
-            target.timeSource = To_RuntimeMaterialScalarTimeSource(source.timeSource);
-            Fill_CoreColorRgbCurvePayload(target.curve, source.distribution);
         }
     }
 
@@ -1594,61 +1340,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
-        const EffectMaterialInstanceData& material = required->material;
-
-        desc.required.material.materialFamily = material.materialFamily;
-        desc.required.material.mainTextureGuid = material.mainTextureGuid;
-        desc.required.material.mainTexturePath = material.mainTexturePath;
-        desc.required.material.blendMode = material.blendMode;
-
-        if (!material.opacitySource.empty())
-            desc.required.material.opacitySource = material.opacitySource;
-
-        desc.required.material.tint = material.tint;
-        desc.required.material.intensity = material.intensity;
-        desc.required.material.opacityPower = material.opacityPower;
-        desc.required.material.noiseTextureGuid = material.noiseTextureGuid;
-        desc.required.material.noiseTexturePath = material.noiseTexturePath;
-        desc.required.material.maskTextureGuid = material.maskTextureGuid;
-        desc.required.material.maskTexturePath = material.maskTexturePath;
-        desc.required.material.flowTextureGuid = material.flowTextureGuid;
-        desc.required.material.flowTexturePath = material.flowTexturePath;
-
-        desc.required.material.noiseStrength = material.noiseStrength;
-        desc.required.material.alphaCutoff = material.alphaCutoff;
-        desc.required.material.alphaErosion = material.alphaErosion;
-        desc.required.material.noiseSource = material.noiseSource.empty() ? "Red" : material.noiseSource;
-        desc.required.material.maskSource = material.maskSource.empty() ? "Alpha" : material.maskSource;
-        desc.required.material.noiseInvert = material.noiseInvert;
-        desc.required.material.maskInvert = material.maskInvert;
-        desc.required.material.mainUVScale = material.mainUVScale;
-        desc.required.material.mainUVOffset = material.mainUVOffset;
-        desc.required.material.mainUVScrollSpeed = material.mainUVScrollSpeed;
-        desc.required.material.mainUVTilingMode = material.mainUVTilingMode;
-        desc.required.material.noiseUVScale = material.noiseUVScale;
-        desc.required.material.noiseUVOffset = material.noiseUVOffset;
-        desc.required.material.noiseUVScrollSpeed = material.noiseUVScrollSpeed;
-        desc.required.material.noiseUVTilingMode = material.noiseUVTilingMode;
-        desc.required.material.maskUVScale = material.maskUVScale;
-        desc.required.material.maskUVOffset = material.maskUVOffset;
-        desc.required.material.maskUVScrollSpeed = material.maskUVScrollSpeed;
-        desc.required.material.maskUVTilingMode = material.maskUVTilingMode;
-        desc.required.material.flowUVScale = material.flowUVScale;
-        desc.required.material.flowUVOffset = material.flowUVOffset;
-        desc.required.material.flowUVScrollSpeed = material.flowUVScrollSpeed;
-        desc.required.material.flowUVTilingMode = material.flowUVTilingMode;
-
-        desc.required.material.additive = material.additive;
-        desc.required.material.coreEmissive = material.coreEmissive;
-        desc.required.material.refractionIntensity = material.refractionIntensity;
-        desc.required.material.refractionPresence = material.refractionPresence;
-        desc.required.material.distortionShapeMode = material.distortionShapeMode;
-        desc.required.material.distortionShapeRadius = material.distortionShapeRadius;
-        desc.required.material.distortionShapeThickness = material.distortionShapeThickness;
-        desc.required.material.distortionShapeSoftness = material.distortionShapeSoftness;
-        desc.required.material.twoSided = material.twoSided;
-        desc.required.material.subUVRows = max(1u, material.subUVRows);
-        desc.required.material.subUVCols = max(1u, material.subUVCols);
+        Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, desc.required.material);
 
         desc.required.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
         desc.required.sort.sortLayer = required->sortLayer;
@@ -1678,14 +1370,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
         AuthoringModuleType::MaterialScalarModulation
     ))
     {
-        Internal::Fill_MaterialScalarModulationPayload(
-            desc.required.material.scalarModulation,
-            *materialScalarModulation
-        );
-        Internal::Fill_CoreColorRgbModulationPayload(
-            desc.required.material.coreColorRgbModulation,
-            *materialScalarModulation
-        );
+        desc.required.material.scalarModulation =
+            Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
+        desc.required.material.coreColorRgbModulation =
+            Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
     }
 
     if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))
@@ -1993,57 +1681,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
-        const EffectMaterialInstanceData& material = required->material;
-
-        emitterDesc.material.materialFamily = material.materialFamily;
-        emitterDesc.material.mainTextureGuid = material.mainTextureGuid;
-        emitterDesc.material.mainTexturePath = material.mainTexturePath;
-        emitterDesc.material.noiseTextureGuid = material.noiseTextureGuid;
-        emitterDesc.material.noiseTexturePath = material.noiseTexturePath;
-        emitterDesc.material.maskTextureGuid = material.maskTextureGuid;
-        emitterDesc.material.maskTexturePath = material.maskTexturePath;
-        emitterDesc.material.flowTextureGuid = material.flowTextureGuid;
-        emitterDesc.material.flowTexturePath = material.flowTexturePath;
-
-        emitterDesc.material.blendMode =
-            material.blendMode == EffectMaterialBlendMode::Masked ? EffectMaterialBlendMode::AlphaBlend : material.blendMode;
-        emitterDesc.material.opacitySource = material.opacitySource.empty() ? "Alpha" : material.opacitySource;
-        emitterDesc.material.tint = material.tint;
-        emitterDesc.material.intensity = material.intensity;
-        emitterDesc.material.opacityPower = material.opacityPower;
-        emitterDesc.material.noiseStrength = material.noiseStrength;
-        emitterDesc.material.alphaCutoff = material.alphaCutoff;
-        emitterDesc.material.alphaErosion = material.alphaErosion;
-        emitterDesc.material.noiseSource = material.noiseSource.empty() ? "Red" : material.noiseSource;
-        emitterDesc.material.maskSource = material.maskSource.empty() ? "Alpha" : material.maskSource;
-        emitterDesc.material.noiseInvert = material.noiseInvert;
-        emitterDesc.material.maskInvert = material.maskInvert;
-        emitterDesc.material.mainUVScale = material.mainUVScale;
-        emitterDesc.material.mainUVOffset = material.mainUVOffset;
-        emitterDesc.material.mainUVScrollSpeed = material.mainUVScrollSpeed;
-        emitterDesc.material.mainUVTilingMode = material.mainUVTilingMode;
-        emitterDesc.material.noiseUVScale = material.noiseUVScale;
-        emitterDesc.material.noiseUVOffset = material.noiseUVOffset;
-        emitterDesc.material.noiseUVScrollSpeed = material.noiseUVScrollSpeed;
-        emitterDesc.material.noiseUVTilingMode = material.noiseUVTilingMode;
-        emitterDesc.material.maskUVScale = material.maskUVScale;
-        emitterDesc.material.maskUVOffset = material.maskUVOffset;
-        emitterDesc.material.maskUVScrollSpeed = material.maskUVScrollSpeed;
-        emitterDesc.material.maskUVTilingMode = material.maskUVTilingMode;
-        emitterDesc.material.flowUVScale = material.flowUVScale;
-        emitterDesc.material.flowUVOffset = material.flowUVOffset;
-        emitterDesc.material.flowUVScrollSpeed = material.flowUVScrollSpeed;
-        emitterDesc.material.flowUVTilingMode = material.flowUVTilingMode;
-
-        emitterDesc.material.additive = material.additive;
-        emitterDesc.material.coreEmissive = material.coreEmissive;
-        emitterDesc.material.refractionIntensity = material.refractionIntensity;
-        emitterDesc.material.refractionPresence = material.refractionPresence;
-        emitterDesc.material.distortionShapeMode = material.distortionShapeMode;
-        emitterDesc.material.distortionShapeRadius = material.distortionShapeRadius;
-        emitterDesc.material.distortionShapeThickness = material.distortionShapeThickness;
-        emitterDesc.material.distortionShapeSoftness = material.distortionShapeSoftness;
-        emitterDesc.material.twoSided = material.twoSided;
+        Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
+        Engine::EffectRuntime::Apply_TrailMaterialRuntimePolicy(emitterDesc.material);
 
         emitterDesc.playback.duration = max(0.0001f, required->duration);
         emitterDesc.playback.loopCount = required->loopCount;
@@ -2059,14 +1698,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
         AuthoringModuleType::MaterialScalarModulation
     ))
     {
-        Internal::Fill_MaterialScalarModulationPayload(
-            emitterDesc.material.scalarModulation,
-            *materialScalarModulation
-        );
-        Internal::Fill_CoreColorRgbModulationPayload(
-            emitterDesc.material.coreColorRgbModulation,
-            *materialScalarModulation
-        );
+        emitterDesc.material.scalarModulation =
+            Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
+        emitterDesc.material.coreColorRgbModulation =
+            Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
     }
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
@@ -2189,7 +1824,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         emitterDesc.useModelMaterials = meshData->useModelMaterials;
 
         if (meshData->hasAssignedMaterialInstance)
-            Internal::Copy_MaterialToRuntimeDesc(meshData->assignedMaterial, emitterDesc.material);
+            Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(meshData->assignedMaterial, emitterDesc.material);
         else
         {
             const fs::path assignedMaterialPath = Internal::Resolve_AuthoredAssetPath(
@@ -2198,7 +1833,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
             );
             EffectMaterialInstanceData assignedMaterial{};
             if (!assignedMaterialPath.empty() && EffectMaterialPresetReader::Read(assignedMaterialPath, assignedMaterial))
-                Internal::Copy_MaterialToRuntimeDesc(assignedMaterial, emitterDesc.material);
+                Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(assignedMaterial, emitterDesc.material);
         }
     }
 
@@ -2230,14 +1865,10 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         AuthoringModuleType::MaterialScalarModulation
     ))
     {
-        Internal::Fill_MaterialScalarModulationPayload(
-            emitterDesc.material.scalarModulation,
-            *materialScalarModulation
-        );
-        Internal::Fill_CoreColorRgbModulationPayload(
-            emitterDesc.material.coreColorRgbModulation,
-            *materialScalarModulation
-        );
+        emitterDesc.material.scalarModulation =
+            Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
+        emitterDesc.material.coreColorRgbModulation =
+            Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
     }
 
     if (const auto* spawn = Internal::Find_ModuleData<SpawnModuleData>(emitter, AuthoringModuleType::Spawn))

@@ -66,6 +66,20 @@ private:
         ImU32 color{};
     };
 
+    struct GraphValueRange
+    {
+        float minValue{ 0.f };
+        float maxValue{ 1.f };
+    };
+
+    struct GraphDragState
+    {
+        bool active{ false };
+        CurveTargetIdentity target{};
+        size_t keyIndex{};
+        GraphValueRange valueRange{};
+    };
+
 private:
     static bool Is_SameIdentity(const CurveTargetIdentity& lhs, const CurveTargetIdentity& rhs);
     static const char* Get_ChannelLabel(CurveTargetChannel channel);
@@ -101,6 +115,7 @@ private:
     static Vec2 Evaluate_Curve(const ConstantCurveVector2DistributionData& curve, float x);
     static Vec3 Evaluate_Curve(const ConstantCurveVector3DistributionData& curve, float x);
     static Color Evaluate_Curve(const ConstantCurveColorDistributionData& curve, float x);
+    static float Clamp_GraphEditedValue(const CurveTarget& target, float value);
 
     Shared<Emitter_View> Resolve_EmitterView() const;
     static vector<CurveTarget> Collect_ModuleTargets(AuthoringEmitter& emitter, AuthoringModule& module);
@@ -149,6 +164,10 @@ private:
     void Mark_CurveChanged(const CurveTarget& target);
 
     bool Convert_ActiveTargetToConstantCurve(const CurveTarget& target);
+    GraphValueRange Compute_GraphValueRange(const vector<CurveTarget>& targets);
+    bool Is_GraphDragActiveFor(const CurveTarget& target, size_t keyIndex) const;
+    void Begin_GraphKeyDrag(const CurveTarget& target, size_t keyIndex, const GraphValueRange& valueRange);
+    void End_GraphKeyDrag();
     void Draw_EmptyState();
     void Draw_TrackList(const vector<CurveTarget>& targets);
     void Draw_TargetHeader(CurveTarget& target);
@@ -166,6 +185,7 @@ private:
     Emitter_View::AuthoringSnapshot _pendingCurveBeforeSnapshot{};
     CurveTargetIdentity _pendingCurveTarget{};
     string _pendingCurveDescription{};
+    GraphDragState _graphDrag{};
     float _trackListWidth{ 230.f };
 };
 

@@ -1,6 +1,7 @@
 ﻿#include "pch.h"
 #include "EffectAssetRuntimeLoader.h"
 
+#include "EffectRuntime_Lowering.h"
 #include "GameInstance.h"
 
 NS_BEGIN(Client)
@@ -1704,6 +1705,8 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     const json& material,
     EffectRequiredMaterialRuntimeDesc& materialDesc)
 {
+    const EffectMaterialInstanceData defaultMaterial{};
+
     Read_Enum(material, "materialFamily", materialDesc.materialFamily);
     materialDesc.mainTextureGuid = Read_String(material, "mainTextureGuid", materialDesc.mainTextureGuid);
     materialDesc.mainTexturePath = Read_String(material, "mainTexturePath", materialDesc.mainTexturePath);
@@ -1782,6 +1785,10 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     if (const auto flowUVScrollSpeedIter = material.find("flowUVScrollSpeed"); flowUVScrollSpeedIter != material.end())
         Read_Vec2(*flowUVScrollSpeedIter, materialDesc.flowUVScrollSpeed);
 
+    materialDesc.mainUVTilingMode = defaultMaterial.mainUVTilingMode;
+    materialDesc.noiseUVTilingMode = defaultMaterial.noiseUVTilingMode;
+    materialDesc.maskUVTilingMode = defaultMaterial.maskUVTilingMode;
+    materialDesc.flowUVTilingMode = defaultMaterial.flowUVTilingMode;
     Read_Enum(material, "mainUVTilingMode", materialDesc.mainUVTilingMode);
     Read_Enum(material, "noiseUVTilingMode", materialDesc.noiseUVTilingMode);
     Read_Enum(material, "maskUVTilingMode", materialDesc.maskUVTilingMode);
@@ -1854,8 +1861,7 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
     const auto materialIter = data.find("material");
     if (materialIter != data.end() && materialIter->is_object())
         Apply_MaterialPayload(*materialIter, desc.material);
-    if (desc.material.blendMode == EffectMaterialBlendMode::Masked)
-        desc.material.blendMode = EffectMaterialBlendMode::AlphaBlend;
+    Engine::EffectRuntime::Apply_TrailMaterialRuntimePolicy(desc.material);
 
     desc.playback.duration = max(0.0001f, Read_Float(data, "duration", desc.playback.duration));
     desc.playback.loopCount = Read_UInt(data, "loopCount", desc.playback.loopCount);

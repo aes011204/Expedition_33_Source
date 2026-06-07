@@ -435,7 +435,7 @@ namespace Internal
         switch (timeSource)
         {
         case MaterialScalarModulationTimeSource::ParticleLife:
-            return "ParticleLife (미구현)";
+            return "ParticleLife";
         case MaterialScalarModulationTimeSource::EmitterTime:
             return "EmitterTime";
         default:
@@ -443,9 +443,16 @@ namespace Internal
         }
     }
 
-    static bool Is_MaterialScalarTimeSourceSelectable(MaterialScalarModulationTimeSource timeSource)
+    static bool Is_SpriteMaterialScalarParticleLifeSupported(const AuthoringEmitter& emitter)
     {
-        return timeSource != MaterialScalarModulationTimeSource::ParticleLife;
+        return emitter.typeData.kind == AuthoringTypeDataKind::None && emitter.rendererType == "Sprite";
+    }
+
+    static bool Is_MaterialScalarTimeSourceSelectable(
+        MaterialScalarModulationTimeSource timeSource,
+        bool allowParticleLife)
+    {
+        return timeSource != MaterialScalarModulationTimeSource::ParticleLife || allowParticleLife;
     }
 
     static bool Draw_MaterialModulationTargetProperty(
@@ -520,7 +527,8 @@ namespace Internal
         DetailPropertyContext& detailContext,
         const char* label,
         MaterialScalarModulationTimeSource& value,
-        MaterialScalarModulationTimeSource defaultValue)
+        MaterialScalarModulationTimeSource defaultValue,
+        bool allowParticleLife)
     {
         bool changed = false;
 
@@ -537,7 +545,7 @@ namespace Internal
             for (const MaterialScalarModulationTimeSource candidate : candidates)
             {
                 const bool isSelected = value == candidate;
-                const bool selectable = Is_MaterialScalarTimeSourceSelectable(candidate);
+                const bool selectable = Is_MaterialScalarTimeSourceSelectable(candidate, allowParticleLife);
                 if (!selectable)
                     ImGui::BeginDisabled();
 
@@ -556,6 +564,8 @@ namespace Internal
 
             ImGui::EndCombo();
         }
+        if (!allowParticleLife && value == MaterialScalarModulationTimeSource::ParticleLife)
+            ImGui::TextDisabled("ParticleLife is not supported for this emitter type or row.");
 
         if (detailContext.Draw_ResetButton(value != defaultValue))
         {
@@ -1469,6 +1479,7 @@ namespace Internal
         ShaderResourceView* previewSrv = nullptr;
         if (materialSlotPreview != nullptr)
         {
+            const bool allowScalarParticleLife = Is_SpriteMaterialScalarParticleLifeSupported(emitter);
             materialSlotPreview->Update_MaterialTime(timeDelta);
             if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(emitter))
             {
@@ -1477,7 +1488,7 @@ namespace Internal
                     Build_CoreColorRgbModulationRuntimeDesc(*modulation),
                     Build_MaterialScalarModulationRuntimeDesc(*modulation),
                     data.duration,
-                    false
+                    allowScalarParticleLife
                 );
             }
             else
@@ -1917,8 +1928,6 @@ bool RequiredModuleDetail::Draw(
             }
 
             changed |= detailContext.Draw_BoolProperty("로컬 스페이스 사용", data.useLocalSpace, defaultData.useLocalSpace);
-            changed |= detailContext.Draw_FloatProperty("카메라 모션 블러 양 (미구현)", data.cameraMotionBlurAmount, defaultData.cameraMotionBlurAmount);
-            changed |= detailContext.Draw_BoolProperty("초기화 시 기존 파티클 지우기 (미구현)", data.clearExistingParticlesOnInit, defaultData.clearExistingParticlesOnInit);
             detailContext.End_PropertyTable();
         }
 
@@ -1969,12 +1978,7 @@ bool RequiredModuleDetail::Draw(
         {
             changed |= detailContext.Draw_UintProperty("루프 횟수", data.loopCount, defaultData.loopCount);
             changed |= detailContext.Draw_FloatProperty("스폰 활성 시간", data.duration, defaultData.duration);
-            changed |= detailContext.Draw_FloatProperty("스폰 활성 시간 최소값 (범위 미구현)", data.durationLow, defaultData.durationLow);
-            changed |= detailContext.Draw_BoolProperty("스폰 활성 시간 범위 사용 (미구현)", data.useDurationRange, defaultData.useDurationRange);
-            changed |= detailContext.Draw_BoolProperty("루프마다 스폰 시간 재계산 (미구현)", data.recalculateDurationEachLoop, defaultData.recalculateDurationEachLoop);
             changed |= detailContext.Draw_FloatProperty("스폰 시작 딜레이", data.delay, defaultData.delay);
-            changed |= detailContext.Draw_FloatProperty("스폰 시작 딜레이 최소값 (범위 미구현)", data.delayLow, defaultData.delayLow);
-            changed |= detailContext.Draw_BoolProperty("딜레이 범위 사용 (미구현)", data.useDelayRange, defaultData.useDelayRange);
             changed |= detailContext.Draw_BoolProperty("첫 루프만 스폰 딜레이", data.delayFirstLoopOnly, defaultData.delayFirstLoopOnly);
             detailContext.End_PropertyTable();
         }
@@ -2822,6 +2826,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
     DetailPropertyContext& detailContext)
 {
     bool changed = false;
+    const bool allowScalarParticleLife = Internal::Is_SpriteMaterialScalarParticleLifeSupported(emitter);
 
     if (ImGui::CollapsingHeader("머티리얼 변조", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -2916,7 +2921,8 @@ bool MaterialScalarModulationModuleDetail::Draw(
                                 detailContext,
                                 "시간 축",
                                 modulator.timeSource,
-                                defaultData.timeSource
+                                defaultData.timeSource,
+                                false
                             );
                         }
                         detailContext.End_PropertyTable();
@@ -2985,7 +2991,8 @@ bool MaterialScalarModulationModuleDetail::Draw(
                                 detailContext,
                                 "시간 축",
                                 modulator.timeSource,
-                                defaultData.timeSource
+                                defaultData.timeSource,
+                                allowScalarParticleLife
                             );
                         }
                         detailContext.End_PropertyTable();

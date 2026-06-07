@@ -347,6 +347,14 @@ void CurveEditor_View::Set_TargetValue(const CurveTarget& target, ColorCurveKeyD
         Write_ColorChannel(key.value, target.channel, value);
 }
 
+float CurveEditor_View::Clamp_GraphEditedValue(const CurveTarget& target, float value)
+{
+    if (target.payloadKind == CurveTargetPayloadKind::Color)
+        return clamp(value, 0.f, 1.f);
+
+    return clamp(value, -1000.f, 1000.f);
+}
+
 float CurveEditor_View::Get_DefaultValue(const FloatDistributionData& distribution)
 {
     if (const auto* constantData = get_if<ConstantFloatDistributionData>(&distribution.payload))
@@ -1130,9 +1138,9 @@ bool CurveEditor_View::Convert_ActiveTargetToConstantCurve(const CurveTarget& ta
         return true;
     }
 
-    if (const auto* vector2Distribution = get_if<Vector3DistributionData*>(&target.distribution))
+    if (const auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
     {
-        **vector2Distribution = Vector3DistributionData::Make_ConstantCurve(Get_DefaultValue(**vector2Distribution));
+        **vector3Distribution = Vector3DistributionData::Make_ConstantCurve(Get_DefaultValue(**vector3Distribution));
         target.emitter->previewDirty = true;
         _selectedKeyIndex = 0;
         return true;
@@ -1271,6 +1279,17 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
             "Add Curve Key",
             [this, &target]
             {
+                const auto select_added_key = [this](const auto& keys, float time)
+                {
+                    optional<size_t> addedKeyIndex{};
+                    for (size_t index = 0; index < keys.size(); ++index)
+                    {
+                        if (keys[index].time == time)
+                            addedKeyIndex = index;
+                    }
+                    _selectedKeyIndex = addedKeyIndex;
+                };
+
                 if (const auto* floatDistribution = get_if<FloatDistributionData*>(&target.distribution))
                 {
                     ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution);
@@ -1282,7 +1301,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                                        : 0.5f;
                     curve->keys.push_back(FloatCurveKeyData{ time, Evaluate_Curve(*curve, time), 0.f, 0.f, FloatCurveInterpolationMode::Linear });
                     Normalize_CurveKeys(*curve);
-                    _selectedKeyIndex = curve->keys.empty() ? optional<size_t>{} : optional<size_t>{ curve->keys.size() - 1 };
+                    select_added_key(curve->keys, time);
                     return true;
                 }
                 if (const auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
@@ -1296,12 +1315,12 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                                        : 0.5f;
                     curve->keys.push_back(Vector2CurveKeyData{ time, Evaluate_Curve(*curve, time), Vec2{}, Vec2{}, FloatCurveInterpolationMode::Linear });
                     Normalize_CurveKeys(*curve);
-                    _selectedKeyIndex = curve->keys.empty() ? optional<size_t>{} : optional<size_t>{ curve->keys.size() - 1 };
+                    select_added_key(curve->keys, time);
                     return true;
                 }
-                if (const auto* vector2Distribution = get_if<Vector3DistributionData*>(&target.distribution))
+                if (const auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
                 {
-                    ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
+                    ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution);
                     if (curve == nullptr)
                         return false;
 
@@ -1310,7 +1329,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                                        : 0.5f;
                     curve->keys.push_back(Vector3CurveKeyData{ time, Evaluate_Curve(*curve, time), Vec3{}, Vec3{}, FloatCurveInterpolationMode::Linear });
                     Normalize_CurveKeys(*curve);
-                    _selectedKeyIndex = curve->keys.empty() ? optional<size_t>{} : optional<size_t>{ curve->keys.size() - 1 };
+                    select_added_key(curve->keys, time);
                     return true;
                 }
                 if (const auto* colorDistribution = get_if<ColorDistributionData*>(&target.distribution))
@@ -1324,7 +1343,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
                                        : 0.5f;
                     curve->keys.push_back(ColorCurveKeyData{ time, Evaluate_Curve(*curve, time), Color{}, Color{}, FloatCurveInterpolationMode::Linear });
                     Normalize_CurveKeys(*curve);
-                    _selectedKeyIndex = curve->keys.empty() ? optional<size_t>{} : optional<size_t>{ curve->keys.size() - 1 };
+                    select_added_key(curve->keys, time);
                     return true;
                 }
 
@@ -1413,24 +1432,8 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
         ImGui::EndDisabled();
 }
 
-void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, CurveTarget& activeTarget)
+CurveEditor_View::GraphValueRange CurveEditor_View::Compute_GraphValueRange(const vector<CurveTarget>& targets)
 {
-    ImVec2 canvasPos = ImGui::GetCursorScreenPos();
-    ImVec2 canvasSize = ImGui::GetContentRegionAvail();
-    canvasSize.y = kGraphHeight;
-    canvasSize.x = max(canvasSize.x, 260.f);
-
-    ImGui::InvisibleButton("##CurveGraph", canvasSize, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
-    const bool isHovered = ImGui::IsItemHovered();
-    const bool isActive = ImGui::IsItemActive();
-    ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-    drawList->AddRectFilled(canvasPos, ImVec2{ canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y }, IM_COL32(24, 26, 32, 255));
-    drawList->AddRect(canvasPos, ImVec2{ canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y }, IM_COL32(75, 78, 88, 255));
-
-    const ImVec2 graphOrigin{ canvasPos.x + kGraphPadding, canvasPos.y + 12.f };
-    const ImVec2 graphSize{ canvasSize.x - kGraphPadding * 2.f, canvasSize.y - 36.f };
-
     float minValue = 0.f;
     float maxValue = 1.f;
     bool hasVisibleCurve = false;
@@ -1510,8 +1513,57 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
     }
 
     const float margin = max((maxValue - minValue) * 0.1f, 0.1f);
-    minValue -= margin;
-    maxValue += margin;
+    return GraphValueRange{ minValue - margin, maxValue + margin };
+}
+
+bool CurveEditor_View::Is_GraphDragActiveFor(const CurveTarget& target, size_t keyIndex) const
+{
+    return _graphDrag.active &&
+           _graphDrag.keyIndex == keyIndex &&
+           Is_SameIdentity(_graphDrag.target, target.identity);
+}
+
+void CurveEditor_View::Begin_GraphKeyDrag(const CurveTarget& target, size_t keyIndex, const GraphValueRange& valueRange)
+{
+    if (Is_GraphDragActiveFor(target, keyIndex))
+        return;
+
+    _graphDrag.active = true;
+    _graphDrag.target = target.identity;
+    _graphDrag.keyIndex = keyIndex;
+    _graphDrag.valueRange = valueRange;
+}
+
+void CurveEditor_View::End_GraphKeyDrag()
+{
+    _graphDrag = GraphDragState{};
+}
+
+void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, CurveTarget& activeTarget)
+{
+    ImVec2 canvasPos = ImGui::GetCursorScreenPos();
+    ImVec2 canvasSize = ImGui::GetContentRegionAvail();
+    canvasSize.y = kGraphHeight;
+    canvasSize.x = max(canvasSize.x, 260.f);
+
+    ImGui::InvisibleButton("##CurveGraph", canvasSize, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+    const bool isHovered = ImGui::IsItemHovered();
+    const bool isActive = ImGui::IsItemActive();
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+    drawList->AddRectFilled(canvasPos, ImVec2{ canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y }, IM_COL32(24, 26, 32, 255));
+    drawList->AddRect(canvasPos, ImVec2{ canvasPos.x + canvasSize.x, canvasPos.y + canvasSize.y }, IM_COL32(75, 78, 88, 255));
+
+    const ImVec2 graphOrigin{ canvasPos.x + kGraphPadding, canvasPos.y + 12.f };
+    const ImVec2 graphSize{ canvasSize.x - kGraphPadding * 2.f, canvasSize.y - 36.f };
+
+    const GraphValueRange computedRange = Compute_GraphValueRange(targets);
+    GraphValueRange graphRange = computedRange;
+    if (_graphDrag.active && Is_SameIdentity(_graphDrag.target, activeTarget.identity))
+        graphRange = _graphDrag.valueRange;
+
+    const float minValue = graphRange.minValue;
+    const float maxValue = graphRange.maxValue;
 
     for (int32 line = 0; line <= 4; ++line)
     {
@@ -1669,6 +1721,12 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
     }
 
     const ImVec2 mousePos = ImGui::GetIO().MousePos;
+    if (_graphDrag.active &&
+        (!ImGui::IsMouseDown(ImGuiMouseButton_Left) || !Is_SameIdentity(_graphDrag.target, activeTarget.identity)))
+    {
+        End_GraphKeyDrag();
+    }
+
     if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
         optional<size_t> hitIndex{};
@@ -1745,24 +1803,43 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             }
         }
         _selectedKeyIndex = hitIndex;
+        if (hitIndex.has_value())
+            Begin_GraphKeyDrag(activeTarget, *hitIndex, computedRange);
+        else
+            End_GraphKeyDrag();
     }
 
     if (isHovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
     {
         const float time = From_GraphTime(graphOrigin, graphSize, mousePos.x);
-        const float value = From_GraphValue(graphOrigin, graphSize, mousePos.y, minValue, maxValue);
+        const float value = Clamp_GraphEditedValue(
+            activeTarget,
+            From_GraphValue(graphOrigin, graphSize, mousePos.y, minValue, maxValue)
+        );
 
         Execute_CurveAuthoringEdit(
             activeTarget,
             "Add Curve Key",
             [this, &activeTarget, time, value]
             {
+                const auto select_added_key = [this](const auto& keys, float keyTime)
+                {
+                    optional<size_t> addedKeyIndex{};
+                    for (size_t keyIndex = 0; keyIndex < keys.size(); ++keyIndex)
+                    {
+                        if (keys[keyIndex].time == keyTime)
+                            addedKeyIndex = keyIndex;
+                    }
+                    _selectedKeyIndex = addedKeyIndex;
+                };
+
                 if (const auto* floatDistribution = get_if<FloatDistributionData*>(&activeTarget.distribution))
                 {
                     if (ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution))
                     {
                         curve->keys.push_back(FloatCurveKeyData{ time, value, 0.f, 0.f, FloatCurveInterpolationMode::Linear });
                         Normalize_CurveKeys(*curve);
+                        select_added_key(curve->keys, time);
                         return true;
                     }
                 }
@@ -1774,6 +1851,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                         Set_TargetValue(activeTarget, key, value);
                         curve->keys.push_back(key);
                         Normalize_CurveKeys(*curve);
+                        select_added_key(curve->keys, time);
                         return true;
                     }
                 }
@@ -1785,6 +1863,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                         Set_TargetValue(activeTarget, key, value);
                         curve->keys.push_back(key);
                         Normalize_CurveKeys(*curve);
+                        select_added_key(curve->keys, time);
                         return true;
                     }
                 }
@@ -1796,6 +1875,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
                         Set_TargetValue(activeTarget, key, value);
                         curve->keys.push_back(key);
                         Normalize_CurveKeys(*curve);
+                        select_added_key(curve->keys, time);
                         return true;
                     }
                 }
@@ -1808,14 +1888,22 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
     if (isActive && _selectedKeyIndex.has_value() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
     {
         const size_t index = *_selectedKeyIndex;
+        Begin_GraphKeyDrag(activeTarget, index, computedRange);
+        const GraphValueRange dragRange = _graphDrag.valueRange;
+        const float draggedTime = From_GraphTime(graphOrigin, graphSize, mousePos.x);
+        const float draggedValue = Clamp_GraphEditedValue(
+            activeTarget,
+            From_GraphValue(graphOrigin, graphSize, mousePos.y, dragRange.minValue, dragRange.maxValue)
+        );
+
         if (auto* floatDistribution = get_if<FloatDistributionData*>(&activeTarget.distribution))
         {
             if (ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution); curve != nullptr && index < curve->keys.size())
             {
                 Begin_CurveAuthoringEdit(activeTarget, "Edit Curve Key");
                 FloatCurveKeyData& key = curve->keys[index];
-                key.time = From_GraphTime(graphOrigin, graphSize, mousePos.x);
-                Set_TargetValue(activeTarget, key, From_GraphValue(graphOrigin, graphSize, mousePos.y, minValue, maxValue));
+                key.time = draggedTime;
+                Set_TargetValue(activeTarget, key, draggedValue);
                 Mark_CurveChanged(activeTarget);
             }
         }
@@ -1825,8 +1913,8 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             {
                 Begin_CurveAuthoringEdit(activeTarget, "Edit Curve Key");
                 Vector2CurveKeyData& key = curve->keys[index];
-                key.time = From_GraphTime(graphOrigin, graphSize, mousePos.x);
-                Set_TargetValue(activeTarget, key, From_GraphValue(graphOrigin, graphSize, mousePos.y, minValue, maxValue));
+                key.time = draggedTime;
+                Set_TargetValue(activeTarget, key, draggedValue);
                 Mark_CurveChanged(activeTarget);
             }
         }
@@ -1836,8 +1924,8 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             {
                 Begin_CurveAuthoringEdit(activeTarget, "Edit Curve Key");
                 Vector3CurveKeyData& key = curve->keys[index];
-                key.time = From_GraphTime(graphOrigin, graphSize, mousePos.x);
-                Set_TargetValue(activeTarget, key, From_GraphValue(graphOrigin, graphSize, mousePos.y, minValue, maxValue));
+                key.time = draggedTime;
+                Set_TargetValue(activeTarget, key, draggedValue);
                 Mark_CurveChanged(activeTarget);
             }
         }
@@ -1847,8 +1935,8 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
             {
                 Begin_CurveAuthoringEdit(activeTarget, "Edit Curve Key");
                 ColorCurveKeyData& key = curve->keys[index];
-                key.time = From_GraphTime(graphOrigin, graphSize, mousePos.x);
-                Set_TargetValue(activeTarget, key, From_GraphValue(graphOrigin, graphSize, mousePos.y, minValue, maxValue));
+                key.time = draggedTime;
+                Set_TargetValue(activeTarget, key, draggedValue);
                 Mark_CurveChanged(activeTarget);
             }
         }
@@ -1990,9 +2078,9 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         return;
     }
 
-    if (const auto* vector2Distribution = get_if<Vector3DistributionData*>(&target.distribution))
+    if (const auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
     {
-        ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
+        ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution);
         if (curve == nullptr || *_selectedKeyIndex >= curve->keys.size())
         {
             ImGui::TextDisabled("No key selected.");

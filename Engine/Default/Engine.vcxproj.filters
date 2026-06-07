@@ -337,6 +337,9 @@
     <ClInclude Include="..\Public\EffectMaterial_Types.h">
       <Filter>99. Defines\Types</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\EffectRuntime_Lowering.h">
+      <Filter>99. Defines\Types</Filter>
+    </ClInclude>
     <ClInclude Include="..\Public\EffectRuntime_Types.h">
       <Filter>99. Defines\Types</Filter>
     </ClInclude>
