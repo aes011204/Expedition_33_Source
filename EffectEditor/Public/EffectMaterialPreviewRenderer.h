@@ -121,7 +121,7 @@ private: //## Helper::ViewportInput
 
 private: //## Helper::Camera
     // 즉시 reset하지 않고 home 시점으로 부드럽게 복귀를 예약한다.
-    void Start_HomeTransition(); 
+    void Start_HomeTransition();
     void Update_HomeTransition(float timeDelta);
     void Reset_View();
 

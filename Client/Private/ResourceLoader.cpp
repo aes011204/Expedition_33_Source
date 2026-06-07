@@ -9,6 +9,7 @@
 #include "FreeCamera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
+#include "MeshEmitter.h"
 #include "ModelCom.h"
 #include "Particle_Types.h"
 #include "ShaderCom.h"
@@ -792,6 +793,15 @@ HRESULT ResourceLoader::Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<
 
     case ELoadJobType::GameObject:
     {
+        if (loadJob.strClassName == "MeshEmitter")
+        {
+            Shared<MeshEmitter> meshEmitter = MeshEmitter::Create(_device, _context);
+            outPrototype = static_pointer_cast<Base>(meshEmitter);
+            if (nullptr == outPrototype)
+                Log_LoadJobPrototypeFailure(loadJob, "create returned null");
+            return S_OK;
+        }
+
         Shared<GameObject> gameObject = GAME->Create_GameObjectPrototype(loadJob.strClassName);
         outPrototype = static_pointer_cast<Base>(gameObject);
         if (nullptr == outPrototype)

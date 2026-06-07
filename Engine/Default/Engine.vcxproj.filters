@@ -725,9 +725,6 @@
     <ClInclude Include="..\Public\VIBufferCom_Instance.h">
       <Filter>01.Utility\04.Component\VIBuffer\Instance</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\VIBufferCom_PointParticle.h">
-      <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Print_Manager.h">
       <Filter>97. Manager</Filter>
     </ClInclude>
@@ -966,9 +963,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\VIBufferCom_Instance.cpp">
       <Filter>01.Utility\04.Component\VIBuffer\Instance</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp">
-      <Filter>01.Utility\04.Component\VIBuffer\Instance\Particle</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Print_Manager.cpp">
       <Filter>97. Manager</Filter>

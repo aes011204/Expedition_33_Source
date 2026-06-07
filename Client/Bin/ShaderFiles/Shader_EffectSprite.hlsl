@@ -17,7 +17,7 @@ cbuffer cbEffectSpriteMaterial : register(b2)
     float4 g_EffectSpriteUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: noise offset
     float4 g_EffectSpriteMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteUVModeParams = { 0.f, 0.f, 0.f, 0.f };   // x: main, y: noise, z: mask
-    float4 g_EffectSpriteSourceParams = { 1.f, 0.f, 0.f, 0.f };    // x: noise source, y: mask source, z: noise invert, w: mask invert
+    float4 g_EffectSpriteSourceParams = { 1.f, 0.f, 0.f, 0.f };   // x: noise source, y: mask source, z: noise invert, w: mask invert
     float4 g_EffectSpriteAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectSpriteAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
@@ -28,10 +28,15 @@ cbuffer cbEffectSpriteMaterial : register(b2)
     float4 g_EffectMaterialScalarModulationParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectMaterialScalarModulationMeta[8];
     float4 g_EffectMaterialScalarModulationKeyTimes[8];
+    float4 g_EffectMaterialScalarModulationKeyTimesBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyValues[8];
+    float4 g_EffectMaterialScalarModulationKeyValuesBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyArriveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyArriveTangentsBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyLeaveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyLeaveTangentsBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyModes[8];
+    float4 g_EffectMaterialScalarModulationKeyModesBlock1[8];
     int g_OpacitySource = 0;
     float g_EffectSpriteMaterialTime = 0.f;
     float3 g_EffectSpritePadding;
@@ -370,17 +375,17 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, g_EffectSpriteUVModeParams.z);
     const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, g_EffectSpriteUVModeParams.x);
     const float resolvedOpacityPower = g_EffectSpriteParams.y
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
+                                       * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
     const float resolvedNoiseStrength = g_EffectSpriteParams.z
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
+                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
     const float resolvedAlphaErosion = g_EffectSpriteAlphaParams.y
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
+                                       * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
     const float resolvedAlphaCutoff = g_EffectSpriteAlphaParams.x
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
+                                      * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
     const float resolvedCoreIntensity = g_EffectSpriteCoreEmissiveParams.z
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
+                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
     const float resolvedOuterIntensity = g_EffectSpriteCoreEmissiveColor.a
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
+                                         * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
     const float resolvedCoreColorMultiplier =
         EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
     const float opacityPower = max(resolvedOpacityPower, 0.0001f);
@@ -442,7 +447,7 @@ PS_OUT PS_MAIN(PS_IN In)
     const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
     const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
     const float resolvedIntensity = g_EffectSpriteParams.x
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+                                    * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
     Out.color = Effect_ComposeAlphaBlend(surface, resolvedIntensity);
     if (g_EffectInfluenceDebugParams.x > 0.5f)
     {
@@ -459,7 +464,7 @@ PS_OUT PS_MASKED(PS_IN In)
     const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
     const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
     const float resolvedIntensity = g_EffectSpriteParams.x
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+                                    * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
     Out.color = float4(surface.color * max(resolvedIntensity, 0.f), 1.f);
     return Out;
 }
@@ -477,19 +482,19 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, g_EffectSpriteUVModeParams.z);
     const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, g_EffectSpriteUVModeParams.x);
     const float resolvedNoiseStrength = g_EffectSpriteParams.z
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
+                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
     const float resolvedAlphaErosion = g_EffectSpriteAlphaParams.y
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
+                                       * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
     const float resolvedAlphaCutoff = g_EffectSpriteAlphaParams.x
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
+                                      * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
     const float resolvedCoreIntensity = g_EffectSpriteCoreEmissiveParams.z
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
+                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
     const float resolvedOuterIntensity = g_EffectSpriteCoreEmissiveColor.a
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
+                                         * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
     const float resolvedCoreColorMultiplier =
         EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
     const float resolvedIntensity = g_EffectSpriteParams.x
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+                                    * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
     const float alphaCutoff = saturate(resolvedAlphaCutoff);
     const float alphaErosion = saturate(resolvedAlphaErosion);
     const float4 resolvedCoreEmissiveParams = float4(
@@ -567,5 +572,5 @@ technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_EffectAlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
     PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, GS_MAIN, PS_ADDITIVE) // 1
-    PASS_RS_DS_BS_VGP(MaskedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, GS_MAIN, PS_MASKED) // 2
+    PASS_RS_DS_BS_VGP(MaskedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, GS_MAIN, PS_MASKED)              // 2
 }

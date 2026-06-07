@@ -108,10 +108,15 @@ struct EffectMaterialScalarModulationCurveDesc
     bool enabled{ false };
     uint32 keyCount{ 2 };
     Vec4 keyTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 keyTimesBlock1{};
     Vec4 keyValues{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 keyValuesBlock1{};
     Vec4 keyArriveTangents{};
+    Vec4 keyArriveTangentsBlock1{};
     Vec4 keyLeaveTangents{};
+    Vec4 keyLeaveTangentsBlock1{};
     Vec4 keyModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 keyModesBlock1{};
 };
 
 struct EffectMaterialScalarModulatorRuntimeDesc
@@ -138,16 +143,27 @@ struct EffectMaterialCoreColorRgbModulationCurveDesc
     bool enabled{ false };
     uint32 keyCount{ 2 };
     Vec4 keyTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 keyTimesBlock1{};
     Vec4 keyValuesR{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 keyValuesRBlock1{};
     Vec4 keyValuesG{ 0.85f, 0.85f, 0.f, 0.f };
+    Vec4 keyValuesGBlock1{};
     Vec4 keyValuesB{ 0.45f, 0.45f, 0.f, 0.f };
+    Vec4 keyValuesBBlock1{};
     Vec4 keyArriveTangentsR{};
+    Vec4 keyArriveTangentsRBlock1{};
     Vec4 keyArriveTangentsG{};
+    Vec4 keyArriveTangentsGBlock1{};
     Vec4 keyArriveTangentsB{};
+    Vec4 keyArriveTangentsBBlock1{};
     Vec4 keyLeaveTangentsR{};
+    Vec4 keyLeaveTangentsRBlock1{};
     Vec4 keyLeaveTangentsG{};
+    Vec4 keyLeaveTangentsGBlock1{};
     Vec4 keyLeaveTangentsB{};
+    Vec4 keyLeaveTangentsBBlock1{};
     Vec4 keyModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 keyModesBlock1{};
 };
 
 struct EffectMaterialCoreColorRgbModulatorRuntimeDesc
@@ -388,9 +404,13 @@ struct MeshVector3CurveRuntimeDesc
     Vec3 end{ 1.f, 1.f, 1.f };                  // distribution/legacy fallback 종료값이다.
     uint32 curveKeyCount{ 2 };                  // compact curve key 수다.
     Vec4 curveKeyTimes{ 0.f, 1.f, 0.f, 0.f };   // key time 0..1 값이다.
+    Vec4 curveKeyTimesBlock1{};                 // key 4..7 time 값이다.
     Vec4 curveKeyValuesX{ 1.f, 1.f, 0.f, 0.f }; // key별 X 값이다.
+    Vec4 curveKeyValuesXBlock1{};               // key 4..7 X 값이다.
     Vec4 curveKeyValuesY{ 1.f, 1.f, 0.f, 0.f }; // key별 Y 값이다.
+    Vec4 curveKeyValuesYBlock1{};               // key 4..7 Y 값이다.
     Vec4 curveKeyValuesZ{ 1.f, 1.f, 0.f, 0.f }; // key별 Z 값이다.
+    Vec4 curveKeyValuesZBlock1{};               // key 4..7 Z 값이다.
 };
 
 // mesh emitter 전용 Vec3 scale/rotation runtime payload다.

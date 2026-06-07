@@ -588,43 +588,54 @@ namespace Internal
         }
     }
 
+    static void Set_CurveComponent(Vec4& valuesBlock0, Vec4& valuesBlock1, uint32 index, float value)
+    {
+        if (index < 4u)
+        {
+            Set_SubUVFrameCurveComponent(valuesBlock0, index, value);
+            return;
+        }
+
+        Set_SubUVFrameCurveComponent(valuesBlock1, index - 4u, value);
+    }
+
     void Fill_SizeByLifeCurveComponent(PointParticleSizeByLifeDesc& desc, uint32 index, float time, const Vec2& value)
     {
-        Set_SubUVFrameCurveComponent(desc.curveKeyTimes, index, clamp(time, 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(desc.curveKeyValuesX, index, value.x);
-        Set_SubUVFrameCurveComponent(desc.curveKeyValuesY, index, value.y);
+        Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(time, 0.f, 1.f));
+        Set_CurveComponent(desc.curveKeyValuesX, desc.curveKeyValuesXBlock1, index, value.x);
+        Set_CurveComponent(desc.curveKeyValuesY, desc.curveKeyValuesYBlock1, index, value.y);
     }
 
     void Fill_RotationOverLifeCurveComponent(PointParticleRotationDesc& desc, uint32 index, float time, float value)
     {
-        Set_SubUVFrameCurveComponent(desc.rotationOverLifeCurveTimes, index, clamp(time, 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(desc.rotationOverLifeCurveValues, index, value);
+        Set_CurveComponent(desc.rotationOverLifeCurveTimes, desc.rotationOverLifeCurveTimesBlock1, index, clamp(time, 0.f, 1.f));
+        Set_CurveComponent(desc.rotationOverLifeCurveValues, desc.rotationOverLifeCurveValuesBlock1, index, value);
     }
 
     void Fill_RotationRateScaleByLifeCurveComponent(PointParticleRotationDesc& desc, uint32 index, float time, float value)
     {
-        Set_SubUVFrameCurveComponent(desc.rotationRateScaleByLifeCurveTimes, index, clamp(time, 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(desc.rotationRateScaleByLifeCurveValues, index, value);
+        Set_CurveComponent(desc.rotationRateScaleByLifeCurveTimes, desc.rotationRateScaleByLifeCurveTimesBlock1, index, clamp(time, 0.f, 1.f));
+        Set_CurveComponent(desc.rotationRateScaleByLifeCurveValues, desc.rotationRateScaleByLifeCurveValuesBlock1, index, value);
     }
 
     void Fill_VelocityScaleByLifeCurveComponent(PointParticleMotionDesc& desc, uint32 index, float time, float value)
     {
-        Set_SubUVFrameCurveComponent(desc.velocityScaleByLifeCurveTimes, index, clamp(time, 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(desc.velocityScaleByLifeCurveValues, index, value);
+        Set_CurveComponent(desc.velocityScaleByLifeCurveTimes, desc.velocityScaleByLifeCurveTimesBlock1, index, clamp(time, 0.f, 1.f));
+        Set_CurveComponent(desc.velocityScaleByLifeCurveValues, desc.velocityScaleByLifeCurveValuesBlock1, index, value);
     }
 
-    void Fill_OrbitFloatCurveComponent(Vec4& times, Vec4& values, uint32 index, float time, float value)
+    void Fill_OrbitFloatCurveComponent(Vec4& times, Vec4& timesBlock1, Vec4& values, Vec4& valuesBlock1, uint32 index, float time, float value)
     {
-        Set_SubUVFrameCurveComponent(times, index, clamp(time, 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(values, index, value);
+        Set_CurveComponent(times, timesBlock1, index, clamp(time, 0.f, 1.f));
+        Set_CurveComponent(values, valuesBlock1, index, value);
     }
 
     void Fill_MeshVector3CurveComponent(MeshVector3CurveRuntimeDesc& desc, uint32 index, float time, const Vec3& value)
     {
-        Set_SubUVFrameCurveComponent(desc.curveKeyTimes, index, clamp(time, 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(desc.curveKeyValuesX, index, value.x);
-        Set_SubUVFrameCurveComponent(desc.curveKeyValuesY, index, value.y);
-        Set_SubUVFrameCurveComponent(desc.curveKeyValuesZ, index, value.z);
+        Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(time, 0.f, 1.f));
+        Set_CurveComponent(desc.curveKeyValuesX, desc.curveKeyValuesXBlock1, index, value.x);
+        Set_CurveComponent(desc.curveKeyValuesY, desc.curveKeyValuesYBlock1, index, value.y);
+        Set_CurveComponent(desc.curveKeyValuesZ, desc.curveKeyValuesZBlock1, index, value.z);
     }
 
     float To_RuntimeCurveInterpolationMode(FloatCurveInterpolationMode mode)
@@ -646,17 +657,17 @@ namespace Internal
         uint32 index,
         const ColorCurveKeyData& key)
     {
-        Set_SubUVFrameCurveComponent(desc.colorCurveTimes, index, clamp(key.time, 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(desc.colorCurveValuesR, index, key.value.R());
-        Set_SubUVFrameCurveComponent(desc.colorCurveValuesG, index, key.value.G());
-        Set_SubUVFrameCurveComponent(desc.colorCurveValuesB, index, key.value.B());
-        Set_SubUVFrameCurveComponent(desc.colorCurveArriveR, index, key.arriveTangent.R());
-        Set_SubUVFrameCurveComponent(desc.colorCurveArriveG, index, key.arriveTangent.G());
-        Set_SubUVFrameCurveComponent(desc.colorCurveArriveB, index, key.arriveTangent.B());
-        Set_SubUVFrameCurveComponent(desc.colorCurveLeaveR, index, key.leaveTangent.R());
-        Set_SubUVFrameCurveComponent(desc.colorCurveLeaveG, index, key.leaveTangent.G());
-        Set_SubUVFrameCurveComponent(desc.colorCurveLeaveB, index, key.leaveTangent.B());
-        Set_SubUVFrameCurveComponent(desc.colorCurveModes, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+        Set_CurveComponent(desc.colorCurveTimes, desc.colorCurveTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+        Set_CurveComponent(desc.colorCurveValuesR, desc.colorCurveValuesRBlock1, index, key.value.R());
+        Set_CurveComponent(desc.colorCurveValuesG, desc.colorCurveValuesGBlock1, index, key.value.G());
+        Set_CurveComponent(desc.colorCurveValuesB, desc.colorCurveValuesBBlock1, index, key.value.B());
+        Set_CurveComponent(desc.colorCurveArriveR, desc.colorCurveArriveRBlock1, index, key.arriveTangent.R());
+        Set_CurveComponent(desc.colorCurveArriveG, desc.colorCurveArriveGBlock1, index, key.arriveTangent.G());
+        Set_CurveComponent(desc.colorCurveArriveB, desc.colorCurveArriveBBlock1, index, key.arriveTangent.B());
+        Set_CurveComponent(desc.colorCurveLeaveR, desc.colorCurveLeaveRBlock1, index, key.leaveTangent.R());
+        Set_CurveComponent(desc.colorCurveLeaveG, desc.colorCurveLeaveGBlock1, index, key.leaveTangent.G());
+        Set_CurveComponent(desc.colorCurveLeaveB, desc.colorCurveLeaveBBlock1, index, key.leaveTangent.B());
+        Set_CurveComponent(desc.colorCurveModes, desc.colorCurveModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
     }
 
     void Fill_ColorOverLifeAlphaCurveComponent(
@@ -664,18 +675,18 @@ namespace Internal
         uint32 index,
         const FloatCurveKeyData& key)
     {
-        Set_SubUVFrameCurveComponent(desc.alphaCurveTimes, index, clamp(key.time, 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(desc.alphaCurveValues, index, key.value);
-        Set_SubUVFrameCurveComponent(desc.alphaCurveArrive, index, key.arriveTangent);
-        Set_SubUVFrameCurveComponent(desc.alphaCurveLeave, index, key.leaveTangent);
-        Set_SubUVFrameCurveComponent(desc.alphaCurveModes, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
+        Set_CurveComponent(desc.alphaCurveTimes, desc.alphaCurveTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+        Set_CurveComponent(desc.alphaCurveValues, desc.alphaCurveValuesBlock1, index, key.value);
+        Set_CurveComponent(desc.alphaCurveArrive, desc.alphaCurveArriveBlock1, index, key.arriveTangent);
+        Set_CurveComponent(desc.alphaCurveLeave, desc.alphaCurveLeaveBlock1, index, key.leaveTangent);
+        Set_CurveComponent(desc.alphaCurveModes, desc.alphaCurveModesBlock1, index, To_RuntimeCurveInterpolationMode(key.interpolationMode));
     }
 
     void Fill_ColorOverLifeCurvePayload(
         PointParticleColorOverLifeCurveDesc& desc,
         const ColorOverLifeModuleData& data)
     {
-        constexpr uint32 maxColorOverLifeCurveKeys{ 4 };
+        constexpr uint32 maxColorOverLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
 
         if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&data.colorOverLife.payload))
         {
@@ -687,16 +698,27 @@ namespace Internal
                 desc.colorCurveEnabled = true;
                 desc.colorCurveKeyCount = keyCount;
                 desc.colorCurveTimes = Vec4{};
+                desc.colorCurveTimesBlock1 = Vec4{};
                 desc.colorCurveValuesR = Vec4{};
+                desc.colorCurveValuesRBlock1 = Vec4{};
                 desc.colorCurveValuesG = Vec4{};
+                desc.colorCurveValuesGBlock1 = Vec4{};
                 desc.colorCurveValuesB = Vec4{};
+                desc.colorCurveValuesBBlock1 = Vec4{};
                 desc.colorCurveArriveR = Vec4{};
+                desc.colorCurveArriveRBlock1 = Vec4{};
                 desc.colorCurveArriveG = Vec4{};
+                desc.colorCurveArriveGBlock1 = Vec4{};
                 desc.colorCurveArriveB = Vec4{};
+                desc.colorCurveArriveBBlock1 = Vec4{};
                 desc.colorCurveLeaveR = Vec4{};
+                desc.colorCurveLeaveRBlock1 = Vec4{};
                 desc.colorCurveLeaveG = Vec4{};
+                desc.colorCurveLeaveGBlock1 = Vec4{};
                 desc.colorCurveLeaveB = Vec4{};
+                desc.colorCurveLeaveBBlock1 = Vec4{};
                 desc.colorCurveModes = Vec4{};
+                desc.colorCurveModesBlock1 = Vec4{};
                 for (uint32 index = 0; index < keyCount; ++index)
                     Fill_ColorOverLifeColorCurveComponent(desc, index, keys[index]);
             }
@@ -712,10 +734,15 @@ namespace Internal
                 desc.alphaCurveEnabled = true;
                 desc.alphaCurveKeyCount = keyCount;
                 desc.alphaCurveTimes = Vec4{};
+                desc.alphaCurveTimesBlock1 = Vec4{};
                 desc.alphaCurveValues = Vec4{};
+                desc.alphaCurveValuesBlock1 = Vec4{};
                 desc.alphaCurveArrive = Vec4{};
+                desc.alphaCurveArriveBlock1 = Vec4{};
                 desc.alphaCurveLeave = Vec4{};
+                desc.alphaCurveLeaveBlock1 = Vec4{};
                 desc.alphaCurveModes = Vec4{};
+                desc.alphaCurveModesBlock1 = Vec4{};
                 for (uint32 index = 0; index < keyCount; ++index)
                     Fill_ColorOverLifeAlphaCurveComponent(desc, index, keys[index]);
             }
@@ -726,7 +753,9 @@ namespace Internal
     {
         desc.frameCurveKeyCount = 1;
         desc.frameCurveTimes = Vec4{};
+        desc.frameCurveTimesBlock1 = Vec4{};
         desc.frameCurveValues = Vec4{};
+        desc.frameCurveValuesBlock1 = Vec4{};
 
         if (const auto* constant = get_if<ConstantFloatDistributionData>(&frameIndex.payload))
         {
@@ -738,15 +767,15 @@ namespace Internal
         if (nullptr == curve || curve->keys.empty())
             return;
 
-        constexpr uint32 maxSubUVFrameCurveKeys{ 4 };
+        constexpr uint32 maxSubUVFrameCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
         const uint32 keyCount = min(maxSubUVFrameCurveKeys, static_cast<uint32>(curve->keys.size()));
         desc.frameCurveKeyCount = keyCount;
 
         for (uint32 index = 0; index < keyCount; ++index)
         {
             const FloatCurveKeyData& key = curve->keys[index];
-            Set_SubUVFrameCurveComponent(desc.frameCurveTimes, index, clamp(key.time, 0.f, 1.f));
-            Set_SubUVFrameCurveComponent(desc.frameCurveValues, index, key.value);
+            Set_CurveComponent(desc.frameCurveTimes, desc.frameCurveTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+            Set_CurveComponent(desc.frameCurveValues, desc.frameCurveValuesBlock1, index, key.value);
         }
     }
 
@@ -808,22 +837,28 @@ namespace Internal
 
         desc.curveKeyCount = 2;
         desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.curveKeyTimesBlock1 = Vec4{};
         desc.curveKeyValuesX = Vec4{ startValue.x, endValue.x, 0.f, 0.f };
+        desc.curveKeyValuesXBlock1 = Vec4{};
         desc.curveKeyValuesY = Vec4{ startValue.y, endValue.y, 0.f, 0.f };
+        desc.curveKeyValuesYBlock1 = Vec4{};
 
         if (const auto* curve = get_if<ConstantCurveVector2DistributionData>(&data.scaleOverLife.payload))
         {
             vector<Vector2CurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &Vector2CurveKeyData::time);
-            constexpr uint32 maxSizeByLifeCurveKeys{ 4 };
+            constexpr uint32 maxSizeByLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxSizeByLifeCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
 
             desc.curveKeyCount = keyCount;
             desc.curveKeyTimes = Vec4{};
+            desc.curveKeyTimesBlock1 = Vec4{};
             desc.curveKeyValuesX = Vec4{};
+            desc.curveKeyValuesXBlock1 = Vec4{};
             desc.curveKeyValuesY = Vec4{};
+            desc.curveKeyValuesYBlock1 = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
                 Fill_SizeByLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
         }
@@ -836,20 +871,24 @@ namespace Internal
         desc.rotationOverLifeDegrees = Vec2{ startValue, endValue };
         desc.rotationOverLifeCurveKeyCount = 2;
         desc.rotationOverLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.rotationOverLifeCurveTimesBlock1 = Vec4{};
         desc.rotationOverLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
+        desc.rotationOverLifeCurveValuesBlock1 = Vec4{};
 
         if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.rotationOverLife.payload))
         {
             vector<FloatCurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &FloatCurveKeyData::time);
-            constexpr uint32 maxRotationOverLifeCurveKeys{ 4 };
+            constexpr uint32 maxRotationOverLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxRotationOverLifeCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
 
             desc.rotationOverLifeCurveKeyCount = keyCount;
             desc.rotationOverLifeCurveTimes = Vec4{};
+            desc.rotationOverLifeCurveTimesBlock1 = Vec4{};
             desc.rotationOverLifeCurveValues = Vec4{};
+            desc.rotationOverLifeCurveValuesBlock1 = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
                 Fill_RotationOverLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
         }
@@ -862,20 +901,24 @@ namespace Internal
         desc.rotationRateScaleByLife = Vec2{ startValue, endValue };
         desc.rotationRateScaleByLifeCurveKeyCount = 2;
         desc.rotationRateScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.rotationRateScaleByLifeCurveTimesBlock1 = Vec4{};
         desc.rotationRateScaleByLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
+        desc.rotationRateScaleByLifeCurveValuesBlock1 = Vec4{};
 
         if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.scaleOverLife.payload))
         {
             vector<FloatCurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &FloatCurveKeyData::time);
-            constexpr uint32 maxRotationRateScaleByLifeCurveKeys{ 4 };
+            constexpr uint32 maxRotationRateScaleByLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxRotationRateScaleByLifeCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
 
             desc.rotationRateScaleByLifeCurveKeyCount = keyCount;
             desc.rotationRateScaleByLifeCurveTimes = Vec4{};
+            desc.rotationRateScaleByLifeCurveTimesBlock1 = Vec4{};
             desc.rotationRateScaleByLifeCurveValues = Vec4{};
+            desc.rotationRateScaleByLifeCurveValuesBlock1 = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
                 Fill_RotationRateScaleByLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
         }
@@ -899,7 +942,9 @@ namespace Internal
         Vec2& range,
         uint32& keyCount,
         Vec4& times,
+        Vec4& timesBlock1,
         Vec4& values,
+        Vec4& valuesBlock1,
         const FloatDistributionData& distribution,
         float fallbackValue)
     {
@@ -908,22 +953,26 @@ namespace Internal
         range = Vec2{ startValue, endValue };
         keyCount = 2;
         times = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        timesBlock1 = Vec4{};
         values = Vec4{ startValue, endValue, 0.f, 0.f };
+        valuesBlock1 = Vec4{};
 
         if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&distribution.payload))
         {
             vector<FloatCurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &FloatCurveKeyData::time);
-            constexpr uint32 maxOrbitCurveKeys{ 4 };
+            constexpr uint32 maxOrbitCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
             const uint32 clampedKeyCount = min(maxOrbitCurveKeys, static_cast<uint32>(keys.size()));
             if (clampedKeyCount == 0)
                 return;
 
             keyCount = clampedKeyCount;
             times = Vec4{};
+            timesBlock1 = Vec4{};
             values = Vec4{};
+            valuesBlock1 = Vec4{};
             for (uint32 index = 0; index < clampedKeyCount; ++index)
-                Fill_OrbitFloatCurveComponent(times, values, index, keys[index].time, keys[index].value);
+                Fill_OrbitFloatCurveComponent(times, timesBlock1, values, valuesBlock1, index, keys[index].time, keys[index].value);
         }
     }
 
@@ -936,7 +985,9 @@ namespace Internal
             desc.angleDegreesOverLife,
             desc.angleCurveKeyCount,
             desc.angleCurveTimes,
+            desc.angleCurveTimesBlock1,
             desc.angleCurveValues,
+            desc.angleCurveValuesBlock1,
             data.angleDegreesOverLife,
             0.f
         );
@@ -944,7 +995,9 @@ namespace Internal
             desc.radiusScaleOverLife,
             desc.radiusScaleCurveKeyCount,
             desc.radiusScaleCurveTimes,
+            desc.radiusScaleCurveTimesBlock1,
             desc.radiusScaleCurveValues,
+            desc.radiusScaleCurveValuesBlock1,
             data.radiusScaleOverLife,
             1.f
         );
@@ -1005,24 +1058,32 @@ namespace Internal
         desc.end = endValue;
         desc.curveKeyCount = 2;
         desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.curveKeyTimesBlock1 = Vec4{};
         desc.curveKeyValuesX = Vec4{ startValue.x, endValue.x, 0.f, 0.f };
+        desc.curveKeyValuesXBlock1 = Vec4{};
         desc.curveKeyValuesY = Vec4{ startValue.y, endValue.y, 0.f, 0.f };
+        desc.curveKeyValuesYBlock1 = Vec4{};
         desc.curveKeyValuesZ = Vec4{ startValue.z, endValue.z, 0.f, 0.f };
+        desc.curveKeyValuesZBlock1 = Vec4{};
 
         if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&data.payload))
         {
             vector<Vector3CurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &Vector3CurveKeyData::time);
-            constexpr uint32 maxMeshCurveKeys{ 4 };
+            constexpr uint32 maxMeshCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxMeshCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
 
             desc.curveKeyCount = keyCount;
             desc.curveKeyTimes = Vec4{};
+            desc.curveKeyTimesBlock1 = Vec4{};
             desc.curveKeyValuesX = Vec4{};
+            desc.curveKeyValuesXBlock1 = Vec4{};
             desc.curveKeyValuesY = Vec4{};
+            desc.curveKeyValuesYBlock1 = Vec4{};
             desc.curveKeyValuesZ = Vec4{};
+            desc.curveKeyValuesZBlock1 = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
                 Fill_MeshVector3CurveComponent(desc, index, keys[index].time, keys[index].value);
         }
@@ -1033,9 +1094,13 @@ namespace Internal
         desc.accelerationCurveEnabled = false;
         desc.accelerationCurveKeyCount = 2;
         desc.accelerationCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.accelerationCurveTimesBlock1 = Vec4{};
         desc.accelerationCurveValuesX = Vec4{ desc.accelerationMin.x, desc.accelerationMax.x, 0.f, 0.f };
+        desc.accelerationCurveValuesXBlock1 = Vec4{};
         desc.accelerationCurveValuesY = Vec4{ desc.accelerationMin.y, desc.accelerationMax.y, 0.f, 0.f };
+        desc.accelerationCurveValuesYBlock1 = Vec4{};
         desc.accelerationCurveValuesZ = Vec4{ desc.accelerationMin.z, desc.accelerationMax.z, 0.f, 0.f };
+        desc.accelerationCurveValuesZBlock1 = Vec4{};
 
         const auto* curve = get_if<ConstantCurveVector3DistributionData>(&data.payload);
         if (curve == nullptr)
@@ -1043,7 +1108,7 @@ namespace Internal
 
         vector<Vector3CurveKeyData> keys = curve->keys;
         ranges::sort(keys, {}, &Vector3CurveKeyData::time);
-        constexpr uint32 maxAccelerationCurveKeys{ 4 };
+        constexpr uint32 maxAccelerationCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
         const uint32 keyCount = min(maxAccelerationCurveKeys, static_cast<uint32>(keys.size()));
         if (keyCount == 0)
             return;
@@ -1051,15 +1116,19 @@ namespace Internal
         desc.accelerationCurveEnabled = true;
         desc.accelerationCurveKeyCount = keyCount;
         desc.accelerationCurveTimes = Vec4{};
+        desc.accelerationCurveTimesBlock1 = Vec4{};
         desc.accelerationCurveValuesX = Vec4{};
+        desc.accelerationCurveValuesXBlock1 = Vec4{};
         desc.accelerationCurveValuesY = Vec4{};
+        desc.accelerationCurveValuesYBlock1 = Vec4{};
         desc.accelerationCurveValuesZ = Vec4{};
+        desc.accelerationCurveValuesZBlock1 = Vec4{};
         for (uint32 index = 0; index < keyCount; ++index)
         {
-            Set_SubUVFrameCurveComponent(desc.accelerationCurveTimes, index, clamp(keys[index].time, 0.f, 1.f));
-            Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesX, index, keys[index].value.x);
-            Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesY, index, keys[index].value.y);
-            Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesZ, index, keys[index].value.z);
+            Set_CurveComponent(desc.accelerationCurveTimes, desc.accelerationCurveTimesBlock1, index, clamp(keys[index].time, 0.f, 1.f));
+            Set_CurveComponent(desc.accelerationCurveValuesX, desc.accelerationCurveValuesXBlock1, index, keys[index].value.x);
+            Set_CurveComponent(desc.accelerationCurveValuesY, desc.accelerationCurveValuesYBlock1, index, keys[index].value.y);
+            Set_CurveComponent(desc.accelerationCurveValuesZ, desc.accelerationCurveValuesZBlock1, index, keys[index].value.z);
         }
     }
 
@@ -1070,20 +1139,24 @@ namespace Internal
         desc.velocityScaleByLife = Vec2{ startValue, endValue };
         desc.velocityScaleByLifeCurveKeyCount = 2;
         desc.velocityScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.velocityScaleByLifeCurveTimesBlock1 = Vec4{};
         desc.velocityScaleByLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
+        desc.velocityScaleByLifeCurveValuesBlock1 = Vec4{};
 
         if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&data.payload))
         {
             vector<FloatCurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &FloatCurveKeyData::time);
-            constexpr uint32 maxVelocityScaleByLifeCurveKeys{ 4 };
+            constexpr uint32 maxVelocityScaleByLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxVelocityScaleByLifeCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
 
             desc.velocityScaleByLifeCurveKeyCount = keyCount;
             desc.velocityScaleByLifeCurveTimes = Vec4{};
+            desc.velocityScaleByLifeCurveTimesBlock1 = Vec4{};
             desc.velocityScaleByLifeCurveValues = Vec4{};
+            desc.velocityScaleByLifeCurveValuesBlock1 = Vec4{};
             for (uint32 index = 0; index < keyCount; ++index)
                 Fill_VelocityScaleByLifeCurveComponent(desc, index, keys[index].time, keys[index].value);
         }
@@ -2051,18 +2124,21 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
             emitterDesc.meshTransform.scaleByLife.start.x = 1.f;
             emitterDesc.meshTransform.scaleByLife.end.x = 1.f;
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesX = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            emitterDesc.meshTransform.scaleByLife.curveKeyValuesXBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
         }
         if (!meshSizeByLife->multiplyY)
         {
             emitterDesc.meshTransform.scaleByLife.start.y = 1.f;
             emitterDesc.meshTransform.scaleByLife.end.y = 1.f;
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesY = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            emitterDesc.meshTransform.scaleByLife.curveKeyValuesYBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
         }
         if (!meshSizeByLife->multiplyZ)
         {
             emitterDesc.meshTransform.scaleByLife.start.z = 1.f;
             emitterDesc.meshTransform.scaleByLife.end.z = 1.f;
             emitterDesc.meshTransform.scaleByLife.curveKeyValuesZ = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            emitterDesc.meshTransform.scaleByLife.curveKeyValuesZBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
         }
     }
 

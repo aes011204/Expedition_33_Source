@@ -448,7 +448,6 @@
     <ClInclude Include="..\public\Loader.h" />
     <ClInclude Include="..\Public\MW_Lancelier.h" />
     <ClInclude Include="..\Public\Player_WorldBase.h" />
-    <ClInclude Include="..\Public\PointParticleEffect.h" />
     <ClInclude Include="..\Public\ResourceLoader.h" />
     <ClInclude Include="..\Public\Sky.h" />
     <ClInclude Include="..\Public\Terrain.h" />
@@ -731,7 +730,6 @@
     <ClCompile Include="..\private\Loader.cpp" />
     <ClCompile Include="..\Private\MW_Lancelier.cpp" />
     <ClCompile Include="..\Private\Player_WorldBase.cpp" />
-    <ClCompile Include="..\Private\PointParticleEffect.cpp" />
     <ClCompile Include="..\Private\ResourceLoader.cpp" />
     <ClCompile Include="..\Private\Sky.cpp" />
     <ClCompile Include="..\Private\Terrain.cpp" />
@@ -759,7 +757,6 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectDistortionSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreview.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMaterialPreviewDistortion.hlsl" />

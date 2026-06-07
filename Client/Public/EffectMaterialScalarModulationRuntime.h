@@ -11,10 +11,15 @@ struct EffectMaterialScalarModulationShaderPayload
     Vec4 params{};                      // x: count, y: emitter phase, zw: reserved.
     array<Vec4, kMaxModulators> meta{}; // x: enabled, y: target, z: time source, w: key count.
     array<Vec4, kMaxModulators> keyTimes{};
+    array<Vec4, kMaxModulators> keyTimesBlock1{};
     array<Vec4, kMaxModulators> keyValues{};
+    array<Vec4, kMaxModulators> keyValuesBlock1{};
     array<Vec4, kMaxModulators> keyArriveTangents{};
+    array<Vec4, kMaxModulators> keyArriveTangentsBlock1{};
     array<Vec4, kMaxModulators> keyLeaveTangents{};
+    array<Vec4, kMaxModulators> keyLeaveTangentsBlock1{};
     array<Vec4, kMaxModulators> keyModes{};
+    array<Vec4, kMaxModulators> keyModesBlock1{};
 };
 
 inline float Compute_MaterialScalarModulationPhase(float elapsedTime, float duration)
@@ -40,6 +45,14 @@ inline float Read_MaterialScalarModulationComponent(const Vec4& values, uint32 i
     }
 }
 
+inline float Read_MaterialScalarModulationComponent(const Vec4& valuesBlock0, const Vec4& valuesBlock1, uint32 index)
+{
+    if (index < 4u)
+        return Read_MaterialScalarModulationComponent(valuesBlock0, index);
+
+    return Read_MaterialScalarModulationComponent(valuesBlock1, index - 4u);
+}
+
 inline float Evaluate_MaterialScalarModulationCurve(
     const EffectMaterialScalarModulationCurveDesc& curve,
     float phase,
@@ -48,32 +61,32 @@ inline float Evaluate_MaterialScalarModulationCurve(
     if (!curve.enabled || curve.keyCount == 0)
         return fallbackValue;
 
-    const uint32 keyCount = min(4u, curve.keyCount);
+    const uint32 keyCount = min(::Engine::kEffectDistributionCurveMaxKeys, curve.keyCount);
     if (keyCount == 1)
-        return Read_MaterialScalarModulationComponent(curve.keyValues, 0);
+        return Read_MaterialScalarModulationComponent(curve.keyValues, curve.keyValuesBlock1, 0);
 
     const float clampedPhase = clamp(phase, 0.f, 1.f);
     for (uint32 index = 1; index < keyCount; ++index)
     {
-        const float rightTime = Read_MaterialScalarModulationComponent(curve.keyTimes, index);
+        const float rightTime = Read_MaterialScalarModulationComponent(curve.keyTimes, curve.keyTimesBlock1, index);
         if (clampedPhase > rightTime)
             continue;
 
         const uint32 leftIndex = index - 1;
-        const float leftTime = Read_MaterialScalarModulationComponent(curve.keyTimes, leftIndex);
-        const float leftValue = Read_MaterialScalarModulationComponent(curve.keyValues, leftIndex);
-        const float rightValue = Read_MaterialScalarModulationComponent(curve.keyValues, index);
+        const float leftTime = Read_MaterialScalarModulationComponent(curve.keyTimes, curve.keyTimesBlock1, leftIndex);
+        const float leftValue = Read_MaterialScalarModulationComponent(curve.keyValues, curve.keyValuesBlock1, leftIndex);
+        const float rightValue = Read_MaterialScalarModulationComponent(curve.keyValues, curve.keyValuesBlock1, index);
         const float width = max(0.0001f, rightTime - leftTime);
         const float ratio = clamp((clampedPhase - leftTime) / width, 0.f, 1.f);
-        const int32 mode = static_cast<int32>(Read_MaterialScalarModulationComponent(curve.keyModes, leftIndex));
+        const int32 mode = static_cast<int32>(Read_MaterialScalarModulationComponent(curve.keyModes, curve.keyModesBlock1, leftIndex));
 
         if (mode == 0)
             return leftValue;
 
         if (mode == 2)
         {
-            const float leftLeave = Read_MaterialScalarModulationComponent(curve.keyLeaveTangents, leftIndex) * width;
-            const float rightArrive = Read_MaterialScalarModulationComponent(curve.keyArriveTangents, index) * width;
+            const float leftLeave = Read_MaterialScalarModulationComponent(curve.keyLeaveTangents, curve.keyLeaveTangentsBlock1, leftIndex) * width;
+            const float rightArrive = Read_MaterialScalarModulationComponent(curve.keyArriveTangents, curve.keyArriveTangentsBlock1, index) * width;
             const float t2 = ratio * ratio;
             const float t3 = t2 * ratio;
             return (2.f * t3 - 3.f * t2 + 1.f) * leftValue
@@ -85,46 +98,49 @@ inline float Evaluate_MaterialScalarModulationCurve(
         return leftValue + (rightValue - leftValue) * ratio;
     }
 
-    return Read_MaterialScalarModulationComponent(curve.keyValues, keyCount - 1);
+    return Read_MaterialScalarModulationComponent(curve.keyValues, curve.keyValuesBlock1, keyCount - 1);
 }
 
 inline float Evaluate_CoreColorRgbModulationComponent(
     const EffectMaterialCoreColorRgbModulationCurveDesc& curve,
     const Vec4& keyValues,
+    const Vec4& keyValuesBlock1,
     const Vec4& keyArriveTangents,
+    const Vec4& keyArriveTangentsBlock1,
     const Vec4& keyLeaveTangents,
+    const Vec4& keyLeaveTangentsBlock1,
     float phase,
     float fallbackValue)
 {
     if (!curve.enabled || curve.keyCount == 0)
         return fallbackValue;
 
-    const uint32 keyCount = min(4u, curve.keyCount);
+    const uint32 keyCount = min(::Engine::kEffectDistributionCurveMaxKeys, curve.keyCount);
     if (keyCount == 1)
-        return Read_MaterialScalarModulationComponent(keyValues, 0);
+        return Read_MaterialScalarModulationComponent(keyValues, keyValuesBlock1, 0);
 
     const float clampedPhase = clamp(phase, 0.f, 1.f);
     for (uint32 index = 1; index < keyCount; ++index)
     {
-        const float rightTime = Read_MaterialScalarModulationComponent(curve.keyTimes, index);
+        const float rightTime = Read_MaterialScalarModulationComponent(curve.keyTimes, curve.keyTimesBlock1, index);
         if (clampedPhase > rightTime)
             continue;
 
         const uint32 leftIndex = index - 1;
-        const float leftTime = Read_MaterialScalarModulationComponent(curve.keyTimes, leftIndex);
-        const float leftValue = Read_MaterialScalarModulationComponent(keyValues, leftIndex);
-        const float rightValue = Read_MaterialScalarModulationComponent(keyValues, index);
+        const float leftTime = Read_MaterialScalarModulationComponent(curve.keyTimes, curve.keyTimesBlock1, leftIndex);
+        const float leftValue = Read_MaterialScalarModulationComponent(keyValues, keyValuesBlock1, leftIndex);
+        const float rightValue = Read_MaterialScalarModulationComponent(keyValues, keyValuesBlock1, index);
         const float width = max(0.0001f, rightTime - leftTime);
         const float ratio = clamp((clampedPhase - leftTime) / width, 0.f, 1.f);
-        const int32 mode = static_cast<int32>(Read_MaterialScalarModulationComponent(curve.keyModes, leftIndex));
+        const int32 mode = static_cast<int32>(Read_MaterialScalarModulationComponent(curve.keyModes, curve.keyModesBlock1, leftIndex));
 
         if (mode == 0)
             return leftValue;
 
         if (mode == 2)
         {
-            const float leftLeave = Read_MaterialScalarModulationComponent(keyLeaveTangents, leftIndex) * width;
-            const float rightArrive = Read_MaterialScalarModulationComponent(keyArriveTangents, index) * width;
+            const float leftLeave = Read_MaterialScalarModulationComponent(keyLeaveTangents, keyLeaveTangentsBlock1, leftIndex) * width;
+            const float rightArrive = Read_MaterialScalarModulationComponent(keyArriveTangents, keyArriveTangentsBlock1, index) * width;
             const float t2 = ratio * ratio;
             const float t3 = t2 * ratio;
             return (2.f * t3 - 3.f * t2 + 1.f) * leftValue
@@ -136,7 +152,7 @@ inline float Evaluate_CoreColorRgbModulationComponent(
         return leftValue + (rightValue - leftValue) * ratio;
     }
 
-    return Read_MaterialScalarModulationComponent(keyValues, keyCount - 1);
+    return Read_MaterialScalarModulationComponent(keyValues, keyValuesBlock1, keyCount - 1);
 }
 
 inline Vec3 Evaluate_CoreColorRgbModulationCurve(
@@ -145,9 +161,39 @@ inline Vec3 Evaluate_CoreColorRgbModulationCurve(
     const Vec3& fallbackValue)
 {
     return Vec3{
-        Evaluate_CoreColorRgbModulationComponent(curve, curve.keyValuesR, curve.keyArriveTangentsR, curve.keyLeaveTangentsR, phase, fallbackValue.x),
-        Evaluate_CoreColorRgbModulationComponent(curve, curve.keyValuesG, curve.keyArriveTangentsG, curve.keyLeaveTangentsG, phase, fallbackValue.y),
-        Evaluate_CoreColorRgbModulationComponent(curve, curve.keyValuesB, curve.keyArriveTangentsB, curve.keyLeaveTangentsB, phase, fallbackValue.z)
+        Evaluate_CoreColorRgbModulationComponent(
+            curve,
+            curve.keyValuesR,
+            curve.keyValuesRBlock1,
+            curve.keyArriveTangentsR,
+            curve.keyArriveTangentsRBlock1,
+            curve.keyLeaveTangentsR,
+            curve.keyLeaveTangentsRBlock1,
+            phase,
+            fallbackValue.x
+        ),
+        Evaluate_CoreColorRgbModulationComponent(
+            curve,
+            curve.keyValuesG,
+            curve.keyValuesGBlock1,
+            curve.keyArriveTangentsG,
+            curve.keyArriveTangentsGBlock1,
+            curve.keyLeaveTangentsG,
+            curve.keyLeaveTangentsGBlock1,
+            phase,
+            fallbackValue.y
+        ),
+        Evaluate_CoreColorRgbModulationComponent(
+            curve,
+            curve.keyValuesB,
+            curve.keyValuesBBlock1,
+            curve.keyArriveTangentsB,
+            curve.keyArriveTangentsBBlock1,
+            curve.keyLeaveTangentsB,
+            curve.keyLeaveTangentsBBlock1,
+            phase,
+            fallbackValue.z
+        )
     };
 }
 
@@ -241,7 +287,7 @@ inline EffectMaterialScalarModulationShaderPayload Build_MaterialScalarModulatio
     {
         const EffectMaterialScalarModulatorRuntimeDesc& modulator = modulation.modulators[index];
         const EffectMaterialScalarModulationCurveDesc& curve = modulator.curve;
-        const uint32 keyCount = curve.enabled ? min(4u, curve.keyCount) : 0u;
+        const uint32 keyCount = curve.enabled ? min(::Engine::kEffectDistributionCurveMaxKeys, curve.keyCount) : 0u;
 
         payload.meta[index] = Vec4(
             modulator.enabled ? 1.f : 0.f,
@@ -250,10 +296,15 @@ inline EffectMaterialScalarModulationShaderPayload Build_MaterialScalarModulatio
             static_cast<float>(keyCount)
         );
         payload.keyTimes[index] = curve.keyTimes;
+        payload.keyTimesBlock1[index] = curve.keyTimesBlock1;
         payload.keyValues[index] = curve.keyValues;
+        payload.keyValuesBlock1[index] = curve.keyValuesBlock1;
         payload.keyArriveTangents[index] = curve.keyArriveTangents;
+        payload.keyArriveTangentsBlock1[index] = curve.keyArriveTangentsBlock1;
         payload.keyLeaveTangents[index] = curve.keyLeaveTangents;
+        payload.keyLeaveTangentsBlock1[index] = curve.keyLeaveTangentsBlock1;
         payload.keyModes[index] = curve.keyModes;
+        payload.keyModesBlock1[index] = curve.keyModesBlock1;
     }
 
     return payload;

@@ -48,6 +48,7 @@ private: //## Distribution Evaluation
 private: //## Runtime Payload Fillers
     static void Fill_ColorOverLifeCurvePayload(PointParticleColorOverLifeCurveDesc& desc, const json& colorOverLife);
     static void Set_SubUVFrameCurveComponent(Vec4& values, uint32 index, float value);
+    static void Set_CurveComponent(Vec4& valuesBlock0, Vec4& valuesBlock1, uint32 index, float value);
     static void Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const json& frameIndex);
     static void Fill_SizeByLifePayload(PointParticleSizeByLifeDesc& desc, const json& sizeByLife);
     static void Fill_MaterialScalarModulationPayload(EffectMaterialScalarModulationRuntimeDesc& desc, const json& materialScalarModulation);

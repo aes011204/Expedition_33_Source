@@ -37,16 +37,38 @@ static HRESULT Bind_MaterialScalarModulationPayload(
     CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationParams", &payload.params, sizeof(payload.params)), E_FAIL);
     CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationMeta", payload.meta.data(), sizeof(payload.meta)), E_FAIL);
     CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyTimes", payload.keyTimes.data(), sizeof(payload.keyTimes)), E_FAIL);
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyTimesBlock1", payload.keyTimesBlock1.data(), sizeof(payload.keyTimesBlock1)),
+        E_FAIL
+    );
     CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyValues", payload.keyValues.data(), sizeof(payload.keyValues)), E_FAIL);
     CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyValuesBlock1", payload.keyValuesBlock1.data(), sizeof(payload.keyValuesBlock1)),
+        E_FAIL
+    );
+    CHECK_FAILED(
         shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyArriveTangents", payload.keyArriveTangents.data(), sizeof(payload.keyArriveTangents)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyArriveTangentsBlock1", payload.keyArriveTangentsBlock1.data(), sizeof(payload.
+            keyArriveTangentsBlock1)),
         E_FAIL
     );
     CHECK_FAILED(
         shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyLeaveTangents", payload.keyLeaveTangents.data(), sizeof(payload.keyLeaveTangents)),
         E_FAIL
     );
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyLeaveTangentsBlock1", payload.keyLeaveTangentsBlock1.data(), sizeof(payload.
+            keyLeaveTangentsBlock1)),
+        E_FAIL
+    );
     CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyModes", payload.keyModes.data(), sizeof(payload.keyModes)), E_FAIL);
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyModesBlock1", payload.keyModesBlock1.data(), sizeof(payload.keyModesBlock1)),
+        E_FAIL
+    );
 
     return S_OK;
 }
@@ -896,27 +918,43 @@ HRESULT ComputeTrailEmitter::Update_ComputeConstants()
     params.endColor = Internal::Average_Color(_desc.colorOverLife.endColorMin, _desc.colorOverLife.endColorMax);
     const PointParticleColorOverLifeCurveDesc& colorCurve = _desc.colorOverLife.curve;
     params.colorOverLifeCurveParams = Vec4{
-        static_cast<float>(max(1u, min(4u, colorCurve.colorCurveKeyCount))),
-        static_cast<float>(max(1u, min(4u, colorCurve.alphaCurveKeyCount))),
+        static_cast<float>(max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, colorCurve.colorCurveKeyCount))),
+        static_cast<float>(max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, colorCurve.alphaCurveKeyCount))),
         colorCurve.colorCurveEnabled ? 1.f : 0.f,
         colorCurve.alphaCurveEnabled ? 1.f : 0.f
     };
     params.colorOverLifeColorCurveTimes = colorCurve.colorCurveTimes;
+    params.colorOverLifeColorCurveTimesBlock1 = colorCurve.colorCurveTimesBlock1;
     params.colorOverLifeColorCurveValuesR = colorCurve.colorCurveValuesR;
+    params.colorOverLifeColorCurveValuesRBlock1 = colorCurve.colorCurveValuesRBlock1;
     params.colorOverLifeColorCurveValuesG = colorCurve.colorCurveValuesG;
+    params.colorOverLifeColorCurveValuesGBlock1 = colorCurve.colorCurveValuesGBlock1;
     params.colorOverLifeColorCurveValuesB = colorCurve.colorCurveValuesB;
+    params.colorOverLifeColorCurveValuesBBlock1 = colorCurve.colorCurveValuesBBlock1;
     params.colorOverLifeColorCurveArriveR = colorCurve.colorCurveArriveR;
+    params.colorOverLifeColorCurveArriveRBlock1 = colorCurve.colorCurveArriveRBlock1;
     params.colorOverLifeColorCurveArriveG = colorCurve.colorCurveArriveG;
+    params.colorOverLifeColorCurveArriveGBlock1 = colorCurve.colorCurveArriveGBlock1;
     params.colorOverLifeColorCurveArriveB = colorCurve.colorCurveArriveB;
+    params.colorOverLifeColorCurveArriveBBlock1 = colorCurve.colorCurveArriveBBlock1;
     params.colorOverLifeColorCurveLeaveR = colorCurve.colorCurveLeaveR;
+    params.colorOverLifeColorCurveLeaveRBlock1 = colorCurve.colorCurveLeaveRBlock1;
     params.colorOverLifeColorCurveLeaveG = colorCurve.colorCurveLeaveG;
+    params.colorOverLifeColorCurveLeaveGBlock1 = colorCurve.colorCurveLeaveGBlock1;
     params.colorOverLifeColorCurveLeaveB = colorCurve.colorCurveLeaveB;
+    params.colorOverLifeColorCurveLeaveBBlock1 = colorCurve.colorCurveLeaveBBlock1;
     params.colorOverLifeColorCurveModes = colorCurve.colorCurveModes;
+    params.colorOverLifeColorCurveModesBlock1 = colorCurve.colorCurveModesBlock1;
     params.colorOverLifeAlphaCurveTimes = colorCurve.alphaCurveTimes;
+    params.colorOverLifeAlphaCurveTimesBlock1 = colorCurve.alphaCurveTimesBlock1;
     params.colorOverLifeAlphaCurveValues = colorCurve.alphaCurveValues;
+    params.colorOverLifeAlphaCurveValuesBlock1 = colorCurve.alphaCurveValuesBlock1;
     params.colorOverLifeAlphaCurveArrive = colorCurve.alphaCurveArrive;
+    params.colorOverLifeAlphaCurveArriveBlock1 = colorCurve.alphaCurveArriveBlock1;
     params.colorOverLifeAlphaCurveLeave = colorCurve.alphaCurveLeave;
+    params.colorOverLifeAlphaCurveLeaveBlock1 = colorCurve.alphaCurveLeaveBlock1;
     params.colorOverLifeAlphaCurveModes = colorCurve.alphaCurveModes;
+    params.colorOverLifeAlphaCurveModesBlock1 = colorCurve.alphaCurveModesBlock1;
     params.sizeByLifeParams = Vec4{
         _desc.sizeByLife.multiplyXStart,
         _desc.sizeByLife.multiplyXEnd,
@@ -924,9 +962,11 @@ HRESULT ComputeTrailEmitter::Update_ComputeConstants()
         0.f
     };
     params.sizeByLifeCurveTimes = _desc.sizeByLife.curveKeyTimes;
+    params.sizeByLifeCurveTimesBlock1 = _desc.sizeByLife.curveKeyTimesBlock1;
     params.sizeByLifeCurveValuesX = _desc.sizeByLife.curveKeyValuesX;
+    params.sizeByLifeCurveValuesXBlock1 = _desc.sizeByLife.curveKeyValuesXBlock1;
     params.sizeByLifeCurveParams = Vec4{
-        static_cast<float>(max(1u, min(4u, _desc.sizeByLife.curveKeyCount))),
+        static_cast<float>(max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, _desc.sizeByLife.curveKeyCount))),
         _desc.sizeByLife.multiplyX ? 1.f : 0.f,
         0.f,
         0.f

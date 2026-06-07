@@ -27,7 +27,7 @@ float2 Build_FlowUV(float2 rawUV)
 
 float2 Sample_FlowTexture(float2 uv)
 {
-    return (g_FlowUVTilingMode >= 0.5f && g_FlowUVTilingMode < 2.5f)
+    return g_FlowUVTilingMode >= 0.5f && g_FlowUVTilingMode < 2.5f
            ? g_FlowTexture.Sample(LinearClampSampler, uv).rg
            : g_FlowTexture.Sample(LinearWrapSampler, uv).rg;
 }

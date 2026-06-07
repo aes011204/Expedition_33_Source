@@ -21,16 +21,21 @@ cbuffer cbEffectTrailMaterial : register(b2)
     float4 g_EffectTrailAdditiveParams = { 0.f, 0.f, 0.f, 1.f };     // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectTrailAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectTrailAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectTrailAdditiveFlags = { 1.f, 0.f, 0.f, 0.f }; // x: blackNeutral
-    float4 g_EffectTrailCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f }; // x: enabled, y: corePower, z: coreIntensity, w: outerPower
+    float4 g_EffectTrailAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };         // x: blackNeutral
+    float4 g_EffectTrailCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f };    // x: enabled, y: corePower, z: coreIntensity, w: outerPower
     float4 g_EffectTrailCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f }; // rgb: coreColor, a: outerIntensity
     float4 g_EffectMaterialScalarModulationParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectMaterialScalarModulationMeta[8];
     float4 g_EffectMaterialScalarModulationKeyTimes[8];
+    float4 g_EffectMaterialScalarModulationKeyTimesBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyValues[8];
+    float4 g_EffectMaterialScalarModulationKeyValuesBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyArriveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyArriveTangentsBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyLeaveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyLeaveTangentsBlock1[8];
     float4 g_EffectMaterialScalarModulationKeyModes[8];
+    float4 g_EffectMaterialScalarModulationKeyModesBlock1[8];
     float g_EffectTrailMaterialTime = 0.f;
     int g_OpacitySource = 0;
     float2 g_EffectTrailPadding;
@@ -236,17 +241,17 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
         smoothstep(0.0f, sideFade, 1.0f - In.edgeCoord.y);
     const float4 segmentColor = lerp(In.startColor, In.endColor, lifeProgress);
     const float resolvedOpacityPower = g_EffectTrailParams.y
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
+                                       * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
     const float resolvedNoiseStrength = g_EffectTrailParams.z
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
+                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
     const float resolvedAlphaErosion = g_EffectTrailAlphaParams.y
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
+                                       * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
     const float resolvedAlphaCutoff = g_EffectTrailAlphaParams.x
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
+                                      * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
     const float resolvedCoreIntensity = g_EffectTrailCoreEmissiveParams.z
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
+                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
     const float resolvedOuterIntensity = g_EffectTrailCoreEmissiveColor.a
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
+                                         * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
     const float resolvedCoreColorMultiplier =
         EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
     const float opacityPower = max(resolvedOpacityPower, 0.0001f);
@@ -324,7 +329,7 @@ PS_OUT PS_MAIN(PS_IN In)
     const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
     const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
     const float resolvedIntensity = g_EffectTrailParams.x
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+                                    * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
     Out.color = Effect_ComposeAlphaBlend(surface, resolvedIntensity);
     return Out;
 }
@@ -350,19 +355,19 @@ PS_OUT PS_ADDITIVE(PS_IN In)
         smoothstep(0.0f, sideFade, 1.0f - In.edgeCoord.y);
     const float4 segmentColor = lerp(In.startColor, In.endColor, lifeProgress);
     const float resolvedNoiseStrength = g_EffectTrailParams.z
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
+                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
     const float resolvedAlphaErosion = g_EffectTrailAlphaParams.y
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
+                                       * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
     const float resolvedAlphaCutoff = g_EffectTrailAlphaParams.x
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
+                                      * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
     const float resolvedCoreIntensity = g_EffectTrailCoreEmissiveParams.z
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
+                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
     const float resolvedOuterIntensity = g_EffectTrailCoreEmissiveColor.a
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
+                                         * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
     const float resolvedCoreColorMultiplier =
         EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
     const float resolvedIntensity = g_EffectTrailParams.x
-        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+                                    * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
     const float alphaCutoff = saturate(resolvedAlphaCutoff);
     const float alphaErosion = saturate(resolvedAlphaErosion);
     const float4 resolvedCoreEmissiveParams = float4(

@@ -44,6 +44,25 @@ namespace
         }
     }
 
+    float Get_Component(const Vec4& block0, const Vec4& block1, uint32 index)
+    {
+        if (index < 4u)
+            return Get_Component(block0, index);
+
+        return Get_Component(block1, index - 4u);
+    }
+
+    void Set_Component(Vec4& block0, Vec4& block1, uint32 index, float component)
+    {
+        if (index < 4u)
+        {
+            Set_Component(block0, index, component);
+            return;
+        }
+
+        Set_Component(block1, index - 4u, component);
+    }
+
     EffectMaterialScalarModulationTarget To_RuntimeTarget(MaterialScalarModulationTargetField target)
     {
         switch (target)
@@ -99,11 +118,11 @@ namespace
         uint32 index,
         const FloatCurveKeyData& key)
     {
-        Set_Component(desc.keyTimes, index, clamp(key.time, 0.f, 1.f));
-        Set_Component(desc.keyValues, index, key.value);
-        Set_Component(desc.keyArriveTangents, index, key.arriveTangent);
-        Set_Component(desc.keyLeaveTangents, index, key.leaveTangent);
-        Set_Component(desc.keyModes, index, To_RuntimeCurveMode(key.interpolationMode));
+        Set_Component(desc.keyTimes, desc.keyTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+        Set_Component(desc.keyValues, desc.keyValuesBlock1, index, key.value);
+        Set_Component(desc.keyArriveTangents, desc.keyArriveTangentsBlock1, index, key.arriveTangent);
+        Set_Component(desc.keyLeaveTangents, desc.keyLeaveTangentsBlock1, index, key.leaveTangent);
+        Set_Component(desc.keyModes, desc.keyModesBlock1, index, To_RuntimeCurveMode(key.interpolationMode));
     }
 
     void Fill_CoreColorRgbCurveComponent(
@@ -111,22 +130,22 @@ namespace
         uint32 index,
         const Vector3CurveKeyData& key)
     {
-        Set_Component(desc.keyTimes, index, clamp(key.time, 0.f, 1.f));
-        Set_Component(desc.keyValuesR, index, key.value.x);
-        Set_Component(desc.keyValuesG, index, key.value.y);
-        Set_Component(desc.keyValuesB, index, key.value.z);
-        Set_Component(desc.keyArriveTangentsR, index, key.arriveTangent.x);
-        Set_Component(desc.keyArriveTangentsG, index, key.arriveTangent.y);
-        Set_Component(desc.keyArriveTangentsB, index, key.arriveTangent.z);
-        Set_Component(desc.keyLeaveTangentsR, index, key.leaveTangent.x);
-        Set_Component(desc.keyLeaveTangentsG, index, key.leaveTangent.y);
-        Set_Component(desc.keyLeaveTangentsB, index, key.leaveTangent.z);
-        Set_Component(desc.keyModes, index, To_RuntimeCurveMode(key.interpolationMode));
+        Set_Component(desc.keyTimes, desc.keyTimesBlock1, index, clamp(key.time, 0.f, 1.f));
+        Set_Component(desc.keyValuesR, desc.keyValuesRBlock1, index, key.value.x);
+        Set_Component(desc.keyValuesG, desc.keyValuesGBlock1, index, key.value.y);
+        Set_Component(desc.keyValuesB, desc.keyValuesBBlock1, index, key.value.z);
+        Set_Component(desc.keyArriveTangentsR, desc.keyArriveTangentsRBlock1, index, key.arriveTangent.x);
+        Set_Component(desc.keyArriveTangentsG, desc.keyArriveTangentsGBlock1, index, key.arriveTangent.y);
+        Set_Component(desc.keyArriveTangentsB, desc.keyArriveTangentsBBlock1, index, key.arriveTangent.z);
+        Set_Component(desc.keyLeaveTangentsR, desc.keyLeaveTangentsRBlock1, index, key.leaveTangent.x);
+        Set_Component(desc.keyLeaveTangentsG, desc.keyLeaveTangentsGBlock1, index, key.leaveTangent.y);
+        Set_Component(desc.keyLeaveTangentsB, desc.keyLeaveTangentsBBlock1, index, key.leaveTangent.z);
+        Set_Component(desc.keyModes, desc.keyModesBlock1, index, To_RuntimeCurveMode(key.interpolationMode));
     }
 
     EffectMaterialScalarModulationCurveDesc Build_CurveDesc(const FloatDistributionData& distribution)
     {
-        constexpr uint32 kMaxCurveKeys{ 4 };
+        constexpr uint32 kMaxCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
         EffectMaterialScalarModulationCurveDesc desc{};
 
         if (const auto* curve = get_if<ConstantCurveFloatDistributionData>(&distribution.payload);
@@ -136,10 +155,15 @@ namespace
             desc.enabled = true;
             desc.keyCount = keyCount;
             desc.keyTimes = Vec4{};
+            desc.keyTimesBlock1 = Vec4{};
             desc.keyValues = Vec4{};
+            desc.keyValuesBlock1 = Vec4{};
             desc.keyArriveTangents = Vec4{};
+            desc.keyArriveTangentsBlock1 = Vec4{};
             desc.keyLeaveTangents = Vec4{};
+            desc.keyLeaveTangentsBlock1 = Vec4{};
             desc.keyModes = Vec4{};
+            desc.keyModesBlock1 = Vec4{};
 
             for (uint32 index = 0; index < keyCount; ++index)
                 Fill_CurveComponent(desc, index, curve->keys[index]);
@@ -161,7 +185,7 @@ namespace
 
     EffectMaterialCoreColorRgbModulationCurveDesc Build_CoreColorRgbCurveDesc(const Vector3DistributionData& distribution)
     {
-        constexpr uint32 kMaxCurveKeys{ 4 };
+        constexpr uint32 kMaxCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
         EffectMaterialCoreColorRgbModulationCurveDesc desc{};
 
         if (const auto* curve = get_if<ConstantCurveVector3DistributionData>(&distribution.payload);
@@ -171,16 +195,27 @@ namespace
             desc.enabled = true;
             desc.keyCount = keyCount;
             desc.keyTimes = Vec4{};
+            desc.keyTimesBlock1 = Vec4{};
             desc.keyValuesR = Vec4{};
+            desc.keyValuesRBlock1 = Vec4{};
             desc.keyValuesG = Vec4{};
+            desc.keyValuesGBlock1 = Vec4{};
             desc.keyValuesB = Vec4{};
+            desc.keyValuesBBlock1 = Vec4{};
             desc.keyArriveTangentsR = Vec4{};
+            desc.keyArriveTangentsRBlock1 = Vec4{};
             desc.keyArriveTangentsG = Vec4{};
+            desc.keyArriveTangentsGBlock1 = Vec4{};
             desc.keyArriveTangentsB = Vec4{};
+            desc.keyArriveTangentsBBlock1 = Vec4{};
             desc.keyLeaveTangentsR = Vec4{};
+            desc.keyLeaveTangentsRBlock1 = Vec4{};
             desc.keyLeaveTangentsG = Vec4{};
+            desc.keyLeaveTangentsGBlock1 = Vec4{};
             desc.keyLeaveTangentsB = Vec4{};
+            desc.keyLeaveTangentsBBlock1 = Vec4{};
             desc.keyModes = Vec4{};
+            desc.keyModesBlock1 = Vec4{};
 
             for (uint32 index = 0; index < keyCount; ++index)
                 Fill_CoreColorRgbCurveComponent(desc, index, curve->keys[index]);
@@ -235,22 +270,22 @@ namespace
         if (!curve.enabled || curve.keyCount == 0)
             return fallbackValue;
 
-        const uint32 keyCount = min(4u, curve.keyCount);
+        const uint32 keyCount = min(::Engine::kEffectDistributionCurveMaxKeys, curve.keyCount);
         if (keyCount == 1)
-            return Get_Component(curve.keyValues, 0);
+            return Get_Component(curve.keyValues, curve.keyValuesBlock1, 0);
 
         const float clampedX = clamp(x, 0.f, 1.f);
         for (uint32 index = 1; index < keyCount; ++index)
         {
-            const float rightTime = Get_Component(curve.keyTimes, index);
+            const float rightTime = Get_Component(curve.keyTimes, curve.keyTimesBlock1, index);
             if (clampedX > rightTime)
                 continue;
 
             const uint32 leftIndex = index - 1;
-            const float leftTime = Get_Component(curve.keyTimes, leftIndex);
-            const float leftValue = Get_Component(curve.keyValues, leftIndex);
-            const float rightValue = Get_Component(curve.keyValues, index);
-            const int32 mode = static_cast<int32>(Get_Component(curve.keyModes, leftIndex));
+            const float leftTime = Get_Component(curve.keyTimes, curve.keyTimesBlock1, leftIndex);
+            const float leftValue = Get_Component(curve.keyValues, curve.keyValuesBlock1, leftIndex);
+            const float rightValue = Get_Component(curve.keyValues, curve.keyValuesBlock1, index);
+            const int32 mode = static_cast<int32>(Get_Component(curve.keyModes, curve.keyModesBlock1, leftIndex));
 
             if (mode == 0)
                 return leftValue;
@@ -260,10 +295,10 @@ namespace
                 return Evaluate_CurveAutoClamped(
                     leftTime,
                     leftValue,
-                    Get_Component(curve.keyLeaveTangents, leftIndex),
+                    Get_Component(curve.keyLeaveTangents, curve.keyLeaveTangentsBlock1, leftIndex),
                     rightTime,
                     rightValue,
-                    Get_Component(curve.keyArriveTangents, index),
+                    Get_Component(curve.keyArriveTangents, curve.keyArriveTangentsBlock1, index),
                     clampedX
                 );
             }
@@ -271,15 +306,20 @@ namespace
             return Evaluate_CurveLinear(leftTime, leftValue, rightTime, rightValue, clampedX);
         }
 
-        return Get_Component(curve.keyValues, keyCount - 1);
+        return Get_Component(curve.keyValues, curve.keyValuesBlock1, keyCount - 1);
     }
 
     float Evaluate_CurveComponents(
         const Vec4& keyTimes,
+        const Vec4& keyTimesBlock1,
         const Vec4& keyValues,
+        const Vec4& keyValuesBlock1,
         const Vec4& keyArriveTangents,
+        const Vec4& keyArriveTangentsBlock1,
         const Vec4& keyLeaveTangents,
+        const Vec4& keyLeaveTangentsBlock1,
         const Vec4& keyModes,
+        const Vec4& keyModesBlock1,
         uint32 keyCount,
         bool enabled,
         float x,
@@ -288,22 +328,22 @@ namespace
         if (!enabled || keyCount == 0)
             return fallbackValue;
 
-        const uint32 clampedKeyCount = min(4u, keyCount);
+        const uint32 clampedKeyCount = min(::Engine::kEffectDistributionCurveMaxKeys, keyCount);
         if (clampedKeyCount == 1)
-            return Get_Component(keyValues, 0);
+            return Get_Component(keyValues, keyValuesBlock1, 0);
 
         const float clampedX = clamp(x, 0.f, 1.f);
         for (uint32 index = 1; index < clampedKeyCount; ++index)
         {
-            const float rightTime = Get_Component(keyTimes, index);
+            const float rightTime = Get_Component(keyTimes, keyTimesBlock1, index);
             if (clampedX > rightTime)
                 continue;
 
             const uint32 leftIndex = index - 1;
-            const float leftTime = Get_Component(keyTimes, leftIndex);
-            const float leftValue = Get_Component(keyValues, leftIndex);
-            const float rightValue = Get_Component(keyValues, index);
-            const int32 mode = static_cast<int32>(Get_Component(keyModes, leftIndex));
+            const float leftTime = Get_Component(keyTimes, keyTimesBlock1, leftIndex);
+            const float leftValue = Get_Component(keyValues, keyValuesBlock1, leftIndex);
+            const float rightValue = Get_Component(keyValues, keyValuesBlock1, index);
+            const int32 mode = static_cast<int32>(Get_Component(keyModes, keyModesBlock1, leftIndex));
 
             if (mode == 0)
                 return leftValue;
@@ -313,10 +353,10 @@ namespace
                 return Evaluate_CurveAutoClamped(
                     leftTime,
                     leftValue,
-                    Get_Component(keyLeaveTangents, leftIndex),
+                    Get_Component(keyLeaveTangents, keyLeaveTangentsBlock1, leftIndex),
                     rightTime,
                     rightValue,
-                    Get_Component(keyArriveTangents, index),
+                    Get_Component(keyArriveTangents, keyArriveTangentsBlock1, index),
                     clampedX
                 );
             }
@@ -324,7 +364,7 @@ namespace
             return Evaluate_CurveLinear(leftTime, leftValue, rightTime, rightValue, clampedX);
         }
 
-        return Get_Component(keyValues, clampedKeyCount - 1);
+        return Get_Component(keyValues, keyValuesBlock1, clampedKeyCount - 1);
     }
 
     Vec3 Evaluate_CoreColorRgbCurve(const EffectMaterialCoreColorRgbModulationCurveDesc& curve, float x, const Vec3& fallbackValue)
@@ -332,10 +372,15 @@ namespace
         return Vec3{
             Evaluate_CurveComponents(
                 curve.keyTimes,
+                curve.keyTimesBlock1,
                 curve.keyValuesR,
+                curve.keyValuesRBlock1,
                 curve.keyArriveTangentsR,
+                curve.keyArriveTangentsRBlock1,
                 curve.keyLeaveTangentsR,
+                curve.keyLeaveTangentsRBlock1,
                 curve.keyModes,
+                curve.keyModesBlock1,
                 curve.keyCount,
                 curve.enabled,
                 x,
@@ -343,10 +388,15 @@ namespace
             ),
             Evaluate_CurveComponents(
                 curve.keyTimes,
+                curve.keyTimesBlock1,
                 curve.keyValuesG,
+                curve.keyValuesGBlock1,
                 curve.keyArriveTangentsG,
+                curve.keyArriveTangentsGBlock1,
                 curve.keyLeaveTangentsG,
+                curve.keyLeaveTangentsGBlock1,
                 curve.keyModes,
+                curve.keyModesBlock1,
                 curve.keyCount,
                 curve.enabled,
                 x,
@@ -354,10 +404,15 @@ namespace
             ),
             Evaluate_CurveComponents(
                 curve.keyTimes,
+                curve.keyTimesBlock1,
                 curve.keyValuesB,
+                curve.keyValuesBBlock1,
                 curve.keyArriveTangentsB,
+                curve.keyArriveTangentsBBlock1,
                 curve.keyLeaveTangentsB,
+                curve.keyLeaveTangentsBBlock1,
                 curve.keyModes,
+                curve.keyModesBlock1,
                 curve.keyCount,
                 curve.enabled,
                 x,

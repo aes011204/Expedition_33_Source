@@ -4,6 +4,8 @@
 
 NS_BEGIN(Engine)
 
+inline constexpr uint32 kEffectDistributionCurveMaxKeys{ 8 };
+
 // point particle 검증 경로에서 사용할 instanced draw 제출 방식.
 enum class PointParticleDrawMode : uint8
 {
@@ -96,7 +98,9 @@ struct PointParticleSubUVFrameOverLifeDesc
     float framesPerSecond{ 12.f };                                             // FPS 재생 모드에서 초당 넘길 frame 수다.
     uint32 frameCurveKeyCount{ 1 };                                            // 후속 Curve Editor 이관 후보인 compact frame curve key 수다.
     Vec4 frameCurveTimes{};                                                    // 후속 Curve Editor용 key time 0..1 값이다.
+    Vec4 frameCurveTimesBlock1{};                                              // compact curve key 4..7 time 값이다.
     Vec4 frameCurveValues{};                                                   // 후속 Curve Editor용 frame index 값이다.
+    Vec4 frameCurveValuesBlock1{};                                             // compact curve key 4..7 frame index 값이다.
 };
 
 enum class PointParticleSizeByLifeAxisLock : uint8
@@ -119,8 +123,11 @@ struct PointParticleSizeByLifeDesc
     PointParticleSizeByLifeAxisLock axisLock{}; // Sprite 2D 범위의 X/Y 축 잠금 정책이다.
     uint32 curveKeyCount{ 2 };                  // scaleOverLife compact curve key 수다.
     Vec4 curveKeyTimes{ 0.f, 1.f, 0.f, 0.f };   // scaleOverLife key time 0..1 값이다.
+    Vec4 curveKeyTimesBlock1{};                 // scaleOverLife key 4..7 time 값이다.
     Vec4 curveKeyValuesX{ 1.f, 1.f, 0.f, 0.f }; // scaleOverLife X multiplier 값이다.
+    Vec4 curveKeyValuesXBlock1{};               // scaleOverLife key 4..7 X multiplier 값이다.
     Vec4 curveKeyValuesY{ 1.f, 1.f, 0.f, 0.f }; // scaleOverLife Y multiplier 값이다.
+    Vec4 curveKeyValuesYBlock1{};               // scaleOverLife key 4..7 Y multiplier 값이다.
 };
 
 // ColorOverLife 모듈의 ConstantCurve payload를 compute shader가 평가할 수 있게 압축한 desc다.
@@ -131,21 +138,37 @@ struct PointParticleColorOverLifeCurveDesc
     uint32 colorCurveKeyCount{ 2 };             // RGB compact curve key 수다.
     uint32 alphaCurveKeyCount{ 2 };             // alpha compact curve key 수다.
     Vec4 colorCurveTimes{ 0.f, 1.f, 0.f, 0.f }; // RGB key time 0..1 값이다.
+    Vec4 colorCurveTimesBlock1{};
     Vec4 colorCurveValuesR{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 colorCurveValuesRBlock1{};
     Vec4 colorCurveValuesG{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 colorCurveValuesGBlock1{};
     Vec4 colorCurveValuesB{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 colorCurveValuesBBlock1{};
     Vec4 colorCurveArriveR{};
+    Vec4 colorCurveArriveRBlock1{};
     Vec4 colorCurveArriveG{};
+    Vec4 colorCurveArriveGBlock1{};
     Vec4 colorCurveArriveB{};
+    Vec4 colorCurveArriveBBlock1{};
     Vec4 colorCurveLeaveR{};
+    Vec4 colorCurveLeaveRBlock1{};
     Vec4 colorCurveLeaveG{};
+    Vec4 colorCurveLeaveGBlock1{};
     Vec4 colorCurveLeaveB{};
+    Vec4 colorCurveLeaveBBlock1{};
     Vec4 colorCurveModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 colorCurveModesBlock1{};
     Vec4 alphaCurveTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 alphaCurveTimesBlock1{};
     Vec4 alphaCurveValues{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 alphaCurveValuesBlock1{};
     Vec4 alphaCurveArrive{};
+    Vec4 alphaCurveArriveBlock1{};
     Vec4 alphaCurveLeave{};
+    Vec4 alphaCurveLeaveBlock1{};
     Vec4 alphaCurveModes{ 1.f, 1.f, 0.f, 0.f }; // 0 Constant, 1 Linear, 2 CurveAutoClamped.
+    Vec4 alphaCurveModesBlock1{};
 };
 
 // 모듈별 random consumer가 lifecycle seed에 더할 수동 seed salt다.
@@ -188,14 +211,20 @@ struct PointParticleMotionDesc
     bool accelerationCurveEnabled{ false };                         // true면 Acceleration ConstantCurve를 lifeProgress 기준 절대 가속으로 평가한다.
     uint32 accelerationCurveKeyCount{ 2 };                          // Acceleration compact curve key 수다.
     Vec4 accelerationCurveTimes{ 0.f, 1.f, 0.f, 0.f };              // Acceleration key time 0..1 값이다.
+    Vec4 accelerationCurveTimesBlock1{};                            // Acceleration key 4..7 time 값이다.
     Vec4 accelerationCurveValuesX{ 0.f, 0.f, 0.f, 0.f };            // Acceleration key별 X 값이다.
+    Vec4 accelerationCurveValuesXBlock1{};                          // Acceleration key 4..7 X 값이다.
     Vec4 accelerationCurveValuesY{ 0.f, 0.f, 0.f, 0.f };            // Acceleration key별 Y 값이다.
+    Vec4 accelerationCurveValuesYBlock1{};                          // Acceleration key 4..7 Y 값이다.
     Vec4 accelerationCurveValuesZ{ 0.f, 0.f, 0.f, 0.f };            // Acceleration key별 Z 값이다.
+    Vec4 accelerationCurveValuesZBlock1{};                          // Acceleration key 4..7 Z 값이다.
     Vec2 drag{ 0.f, 0.f };                                          // Drag 분포의 min/max 감쇠값이다.
     Vec2 velocityScaleByLife{ 1.f, 1.f };                           // VelocityOverLife의 시작/종료 fallback 배율이다.
     uint32 velocityScaleByLifeCurveKeyCount{ 2 };                   // VelocityOverLife compact curve key 수다.
     Vec4 velocityScaleByLifeCurveTimes{ 0.f, 1.f, 0.f, 0.f };       // VelocityOverLife key time 0..1 값이다.
+    Vec4 velocityScaleByLifeCurveTimesBlock1{};                     // VelocityOverLife key 4..7 time 값이다.
     Vec4 velocityScaleByLifeCurveValues{ 1.f, 1.f, 0.f, 0.f };      // VelocityOverLife key별 속도 배율 값이다.
+    Vec4 velocityScaleByLifeCurveValuesBlock1{};                    // VelocityOverLife key 4..7 속도 배율 값이다.
     PointParticleRandomSeedRuntimeDesc initialVelocitySeed{};       // InitialVelocity random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc initialRadialVelocitySeed{}; // InitialRadialVelocity random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc velocityConeSeed{};          // VelocityCone random sample seed salt다.
@@ -213,10 +242,14 @@ struct PointParticleRotationDesc
     Vec2 rotationRateScaleByLife{ 1.f, 1.f };                      // RotationRateScaleByLife의 시작/종료 배율이다.
     uint32 rotationOverLifeCurveKeyCount{ 2 };                     // RotationOverLife compact curve key 수다.
     Vec4 rotationOverLifeCurveTimes{ 0.f, 1.f, 0.f, 0.f };         // RotationOverLife key time 0..1 값이다.
+    Vec4 rotationOverLifeCurveTimesBlock1{};                       // RotationOverLife key 4..7 time 값이다.
     Vec4 rotationOverLifeCurveValues{ 0.f, 0.f, 0.f, 0.f };        // RotationOverLife key별 추가 회전각 degree 값이다.
+    Vec4 rotationOverLifeCurveValuesBlock1{};                      // RotationOverLife key 4..7 추가 회전각 degree 값이다.
     uint32 rotationRateScaleByLifeCurveKeyCount{ 2 };              // RotationRateScaleByLife compact curve key 수다.
     Vec4 rotationRateScaleByLifeCurveTimes{ 0.f, 1.f, 0.f, 0.f };  // RotationRateScaleByLife key time 0..1 값이다.
+    Vec4 rotationRateScaleByLifeCurveTimesBlock1{};                // RotationRateScaleByLife key 4..7 time 값이다.
     Vec4 rotationRateScaleByLifeCurveValues{ 1.f, 1.f, 0.f, 0.f }; // RotationRateScaleByLife key별 배율 값이다.
+    Vec4 rotationRateScaleByLifeCurveValuesBlock1{};               // RotationRateScaleByLife key 4..7 배율 값이다.
     PointParticleRandomSeedRuntimeDesc initialRotationSeed{};      // InitialRotation random sample seed salt다.
     PointParticleRandomSeedRuntimeDesc initialRotationRateSeed{};  // InitialRotationRate random sample seed salt다.
 };
@@ -398,11 +431,15 @@ struct EffectOrbitOverLifeRuntimeDesc
     Vec2 angleDegreesOverLife{ 0.f, 0.f };
     uint32 angleCurveKeyCount{ 2 };
     Vec4 angleCurveTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 angleCurveTimesBlock1{};
     Vec4 angleCurveValues{ 0.f, 0.f, 0.f, 0.f };
+    Vec4 angleCurveValuesBlock1{};
     Vec2 radiusScaleOverLife{ 1.f, 1.f };
     uint32 radiusScaleCurveKeyCount{ 2 };
     Vec4 radiusScaleCurveTimes{ 0.f, 1.f, 0.f, 0.f };
+    Vec4 radiusScaleCurveTimesBlock1{};
     Vec4 radiusScaleCurveValues{ 1.f, 1.f, 0.f, 0.f };
+    Vec4 radiusScaleCurveValuesBlock1{};
 };
 
 // 인스턴스 생성에 공통으로 필요한 spawn 규칙.

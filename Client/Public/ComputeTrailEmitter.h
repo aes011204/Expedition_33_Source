@@ -68,26 +68,44 @@ private:
         Vec4 endColor{};                 // ColorOverLife 모듈에서 낮춘 segment 끝 색상이다.
         Vec4 colorOverLifeCurveParams{}; // x: color key count, y: alpha key count, z/w: enabled flags.
         Vec4 colorOverLifeColorCurveTimes{};
+        Vec4 colorOverLifeColorCurveTimesBlock1{};
         Vec4 colorOverLifeColorCurveValuesR{};
+        Vec4 colorOverLifeColorCurveValuesRBlock1{};
         Vec4 colorOverLifeColorCurveValuesG{};
+        Vec4 colorOverLifeColorCurveValuesGBlock1{};
         Vec4 colorOverLifeColorCurveValuesB{};
+        Vec4 colorOverLifeColorCurveValuesBBlock1{};
         Vec4 colorOverLifeColorCurveArriveR{};
+        Vec4 colorOverLifeColorCurveArriveRBlock1{};
         Vec4 colorOverLifeColorCurveArriveG{};
+        Vec4 colorOverLifeColorCurveArriveGBlock1{};
         Vec4 colorOverLifeColorCurveArriveB{};
+        Vec4 colorOverLifeColorCurveArriveBBlock1{};
         Vec4 colorOverLifeColorCurveLeaveR{};
+        Vec4 colorOverLifeColorCurveLeaveRBlock1{};
         Vec4 colorOverLifeColorCurveLeaveG{};
+        Vec4 colorOverLifeColorCurveLeaveGBlock1{};
         Vec4 colorOverLifeColorCurveLeaveB{};
+        Vec4 colorOverLifeColorCurveLeaveBBlock1{};
         Vec4 colorOverLifeColorCurveModes{};
+        Vec4 colorOverLifeColorCurveModesBlock1{};
         Vec4 colorOverLifeAlphaCurveTimes{};
+        Vec4 colorOverLifeAlphaCurveTimesBlock1{};
         Vec4 colorOverLifeAlphaCurveValues{};
+        Vec4 colorOverLifeAlphaCurveValuesBlock1{};
         Vec4 colorOverLifeAlphaCurveArrive{};
+        Vec4 colorOverLifeAlphaCurveArriveBlock1{};
         Vec4 colorOverLifeAlphaCurveLeave{};
+        Vec4 colorOverLifeAlphaCurveLeaveBlock1{};
         Vec4 colorOverLifeAlphaCurveModes{};
-        Vec4 sizeByLifeParams{};       // x/y: width start/end, z: enabled, w: reserved.
-        Vec4 sizeByLifeCurveTimes{};   // SizeByLife scaleOverLife key times다.
+        Vec4 colorOverLifeAlphaCurveModesBlock1{};
+        Vec4 sizeByLifeParams{};     // x/y: width start/end, z: enabled, w: reserved.
+        Vec4 sizeByLifeCurveTimes{}; // SizeByLife scaleOverLife key times다.
+        Vec4 sizeByLifeCurveTimesBlock1{};
         Vec4 sizeByLifeCurveValuesX{}; // SizeByLife scaleOverLife X multiplier 값이다.
-        Vec4 sizeByLifeCurveParams{};  // x: key count, y: multiplyX, zw: reserved.
-        Vec4 lengthParams{};           // x: maxTrailLength, y: tailFadeLength, zw: reserved.
+        Vec4 sizeByLifeCurveValuesXBlock1{};
+        Vec4 sizeByLifeCurveParams{}; // x: key count, y: multiplyX, zw: reserved.
+        Vec4 lengthParams{};          // x: maxTrailLength, y: tailFadeLength, zw: reserved.
     };
 
     struct DrawIndexedInstancedIndirectArgs

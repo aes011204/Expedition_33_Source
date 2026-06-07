@@ -3,6 +3,7 @@
 #include "EffectEditorInstance.h"
 #include "Emitter_View.h"
 #include "Helper_String.h"
+#include "Particle_Types.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -16,6 +17,7 @@ namespace Internal
     constexpr float kGraphPadding{ 28.f };
     constexpr float kKeyHitRadius{ 8.f };
     constexpr float kMinimumDragValueRange{ 10.f };
+    constexpr size_t kDistributionCurveMaxKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
 
     const char* Get_InterpolationLabel(FloatCurveInterpolationMode mode)
     {
@@ -794,6 +796,7 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(
         break;
     case AuthoringModuleType::RotationOverLife:
         if (auto* data = get_if<RotationOverLifeModuleData>(&module.data))
+        {
             Add_FloatTarget(
                 targets,
                 emitter,
@@ -804,9 +807,11 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(
                 IM_COL32(245, 205, 95, 255),
                 requireActiveCurve
             );
+        }
         break;
     case AuthoringModuleType::InitialRotationRate:
         if (auto* data = get_if<InitialRotationRateModuleData>(&module.data))
+        {
             Add_FloatTarget(
                 targets,
                 emitter,
@@ -817,9 +822,11 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(
                 IM_COL32(245, 205, 95, 255),
                 requireActiveCurve
             );
+        }
         break;
     case AuthoringModuleType::RotationRateScaleByLife:
         if (auto* data = get_if<RotationRateScaleByLifeModuleData>(&module.data))
+        {
             Add_FloatTarget(
                 targets,
                 emitter,
@@ -830,6 +837,7 @@ vector<CurveEditor_View::CurveTarget> CurveEditor_View::Collect_ModuleTargets(
                 IM_COL32(245, 205, 95, 255),
                 requireActiveCurve
             );
+        }
         break;
     case AuthoringModuleType::InitialMeshRotation:
         if (auto* data = get_if<InitialMeshRotationModuleData>(&module.data))
@@ -1552,7 +1560,7 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
     }
 
     ImGui::SameLine();
-    ImGui::TextDisabled("%zu keys", keyCount);
+    ImGui::TextDisabled("Keys: %zu / %zu", keyCount, Internal::kDistributionCurveMaxKeys);
 
     if (!hasCurve)
     {
@@ -1570,6 +1578,9 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
         return;
     }
 
+    const bool canAddKey = keyCount < Internal::kDistributionCurveMaxKeys;
+    if (!canAddKey)
+        ImGui::BeginDisabled();
     if (ImGui::Button("Add Key"))
     {
         Execute_CurveAuthoringEdit(
@@ -1649,6 +1660,8 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
             }
         );
     }
+    if (!canAddKey)
+        ImGui::EndDisabled();
 
     ImGui::SameLine();
     bool canDelete = false;

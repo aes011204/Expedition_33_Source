@@ -160,9 +160,6 @@
     <Filter Include="02.GameObject\Effect\Emitters\ComputePointParticle">
       <UniqueIdentifier>{ceac3f7c-9e53-4638-aa47-729e8f089b5d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Effect\Emitters\PointParticle %28deprecated%29">
-      <UniqueIdentifier>{eed9e460-dd4d-43e8-ab48-b224711cbd67}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\Effect\Emitter Registration">
       <UniqueIdentifier>{cd4fc20f-ded7-47fd-8545-9286732fe833}</UniqueIdentifier>
     </Filter>
@@ -491,9 +488,6 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
-      <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
       <Filter>97.ShaderFiles</Filter>
@@ -1047,9 +1041,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\Player_WorldBase.h">
       <Filter>02.GameObject\Player\00. World</Filter>
-    </ClInclude>
-    <ClInclude Include="..\Public\PointParticleEffect.h">
-      <Filter>02.GameObject\Effect\Emitters\PointParticle %28deprecated%29</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\ResourceLoader.h">
       <Filter>01.Levels\Loading\Loader</Filter>
@@ -1714,9 +1705,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\Player_WorldBase.cpp">
       <Filter>02.GameObject\Player\00. World</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PointParticleEffect.cpp">
-      <Filter>02.GameObject\Effect\Emitters\PointParticle %28deprecated%29</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ResourceLoader.cpp">
       <Filter>01.Levels\Loading\Loader</Filter>

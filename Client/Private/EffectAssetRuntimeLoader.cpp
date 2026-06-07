@@ -8,7 +8,7 @@ NS_BEGIN(Client)
 
 namespace Internal
 {
-    constexpr uint32 kMaxSubUVFrameCurveKeys{ 4 };
+    constexpr uint32 kMaxSubUVFrameCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
 
     string To_LogPath(const fs::path& path)
     {
@@ -845,7 +845,7 @@ void EffectAssetRuntimeLoader::Fill_ColorOverLifeCurvePayload(
     PointParticleColorOverLifeCurveDesc& desc,
     const json& colorOverLife)
 {
-    constexpr uint32 maxColorOverLifeCurveKeys{ 4 };
+    constexpr uint32 maxColorOverLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
 
     if (const auto colorIter = colorOverLife.find("colorOverLife"); colorIter != colorOverLife.end())
     {
@@ -865,16 +865,27 @@ void EffectAssetRuntimeLoader::Fill_ColorOverLifeCurvePayload(
                 desc.colorCurveEnabled = true;
                 desc.colorCurveKeyCount = keyCount;
                 desc.colorCurveTimes = Vec4{};
+                desc.colorCurveTimesBlock1 = Vec4{};
                 desc.colorCurveValuesR = Vec4{};
+                desc.colorCurveValuesRBlock1 = Vec4{};
                 desc.colorCurveValuesG = Vec4{};
+                desc.colorCurveValuesGBlock1 = Vec4{};
                 desc.colorCurveValuesB = Vec4{};
+                desc.colorCurveValuesBBlock1 = Vec4{};
                 desc.colorCurveArriveR = Vec4{};
+                desc.colorCurveArriveRBlock1 = Vec4{};
                 desc.colorCurveArriveG = Vec4{};
+                desc.colorCurveArriveGBlock1 = Vec4{};
                 desc.colorCurveArriveB = Vec4{};
+                desc.colorCurveArriveBBlock1 = Vec4{};
                 desc.colorCurveLeaveR = Vec4{};
+                desc.colorCurveLeaveRBlock1 = Vec4{};
                 desc.colorCurveLeaveG = Vec4{};
+                desc.colorCurveLeaveGBlock1 = Vec4{};
                 desc.colorCurveLeaveB = Vec4{};
+                desc.colorCurveLeaveBBlock1 = Vec4{};
                 desc.colorCurveModes = Vec4{};
+                desc.colorCurveModesBlock1 = Vec4{};
                 for (uint32 index = 0; index < keyCount; ++index)
                 {
                     const json& key = *keys[index];
@@ -888,17 +899,17 @@ void EffectAssetRuntimeLoader::Fill_ColorOverLifeCurvePayload(
                     if (const auto leaveIter = key.find("leaveTangent"); leaveIter != key.end())
                         Read_Vec3(*leaveIter, leaveTangent);
 
-                    Set_SubUVFrameCurveComponent(desc.colorCurveTimes, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
-                    Set_SubUVFrameCurveComponent(desc.colorCurveValuesR, index, value.x);
-                    Set_SubUVFrameCurveComponent(desc.colorCurveValuesG, index, value.y);
-                    Set_SubUVFrameCurveComponent(desc.colorCurveValuesB, index, value.z);
-                    Set_SubUVFrameCurveComponent(desc.colorCurveArriveR, index, arriveTangent.x);
-                    Set_SubUVFrameCurveComponent(desc.colorCurveArriveG, index, arriveTangent.y);
-                    Set_SubUVFrameCurveComponent(desc.colorCurveArriveB, index, arriveTangent.z);
-                    Set_SubUVFrameCurveComponent(desc.colorCurveLeaveR, index, leaveTangent.x);
-                    Set_SubUVFrameCurveComponent(desc.colorCurveLeaveG, index, leaveTangent.y);
-                    Set_SubUVFrameCurveComponent(desc.colorCurveLeaveB, index, leaveTangent.z);
-                    Set_SubUVFrameCurveComponent(desc.colorCurveModes, index, Resolve_CurveInterpolationMode(key));
+                    Set_CurveComponent(desc.colorCurveTimes, desc.colorCurveTimesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+                    Set_CurveComponent(desc.colorCurveValuesR, desc.colorCurveValuesRBlock1, index, value.x);
+                    Set_CurveComponent(desc.colorCurveValuesG, desc.colorCurveValuesGBlock1, index, value.y);
+                    Set_CurveComponent(desc.colorCurveValuesB, desc.colorCurveValuesBBlock1, index, value.z);
+                    Set_CurveComponent(desc.colorCurveArriveR, desc.colorCurveArriveRBlock1, index, arriveTangent.x);
+                    Set_CurveComponent(desc.colorCurveArriveG, desc.colorCurveArriveGBlock1, index, arriveTangent.y);
+                    Set_CurveComponent(desc.colorCurveArriveB, desc.colorCurveArriveBBlock1, index, arriveTangent.z);
+                    Set_CurveComponent(desc.colorCurveLeaveR, desc.colorCurveLeaveRBlock1, index, leaveTangent.x);
+                    Set_CurveComponent(desc.colorCurveLeaveG, desc.colorCurveLeaveGBlock1, index, leaveTangent.y);
+                    Set_CurveComponent(desc.colorCurveLeaveB, desc.colorCurveLeaveBBlock1, index, leaveTangent.z);
+                    Set_CurveComponent(desc.colorCurveModes, desc.colorCurveModesBlock1, index, Resolve_CurveInterpolationMode(key));
                 }
             }
         }
@@ -922,18 +933,23 @@ void EffectAssetRuntimeLoader::Fill_ColorOverLifeCurvePayload(
                 desc.alphaCurveEnabled = true;
                 desc.alphaCurveKeyCount = keyCount;
                 desc.alphaCurveTimes = Vec4{};
+                desc.alphaCurveTimesBlock1 = Vec4{};
                 desc.alphaCurveValues = Vec4{};
+                desc.alphaCurveValuesBlock1 = Vec4{};
                 desc.alphaCurveArrive = Vec4{};
+                desc.alphaCurveArriveBlock1 = Vec4{};
                 desc.alphaCurveLeave = Vec4{};
+                desc.alphaCurveLeaveBlock1 = Vec4{};
                 desc.alphaCurveModes = Vec4{};
+                desc.alphaCurveModesBlock1 = Vec4{};
                 for (uint32 index = 0; index < keyCount; ++index)
                 {
                     const json& key = *keys[index];
-                    Set_SubUVFrameCurveComponent(desc.alphaCurveTimes, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
-                    Set_SubUVFrameCurveComponent(desc.alphaCurveValues, index, Read_Float(key, "value", 1.f));
-                    Set_SubUVFrameCurveComponent(desc.alphaCurveArrive, index, Read_Float(key, "arriveTangent"));
-                    Set_SubUVFrameCurveComponent(desc.alphaCurveLeave, index, Read_Float(key, "leaveTangent"));
-                    Set_SubUVFrameCurveComponent(desc.alphaCurveModes, index, Resolve_CurveInterpolationMode(key));
+                    Set_CurveComponent(desc.alphaCurveTimes, desc.alphaCurveTimesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+                    Set_CurveComponent(desc.alphaCurveValues, desc.alphaCurveValuesBlock1, index, Read_Float(key, "value", 1.f));
+                    Set_CurveComponent(desc.alphaCurveArrive, desc.alphaCurveArriveBlock1, index, Read_Float(key, "arriveTangent"));
+                    Set_CurveComponent(desc.alphaCurveLeave, desc.alphaCurveLeaveBlock1, index, Read_Float(key, "leaveTangent"));
+                    Set_CurveComponent(desc.alphaCurveModes, desc.alphaCurveModesBlock1, index, Resolve_CurveInterpolationMode(key));
                 }
             }
         }
@@ -961,11 +977,24 @@ void EffectAssetRuntimeLoader::Set_SubUVFrameCurveComponent(Vec4& values, uint32
     }
 }
 
+void EffectAssetRuntimeLoader::Set_CurveComponent(Vec4& valuesBlock0, Vec4& valuesBlock1, uint32 index, float value)
+{
+    if (index < 4u)
+    {
+        Set_SubUVFrameCurveComponent(valuesBlock0, index, value);
+        return;
+    }
+
+    Set_SubUVFrameCurveComponent(valuesBlock1, index - 4u, value);
+}
+
 void EffectAssetRuntimeLoader::Fill_SubUVFrameCurvePayload(PointParticleSubUVFrameOverLifeDesc& desc, const json& frameIndex)
 {
     desc.frameCurveKeyCount = 1;
     desc.frameCurveTimes = Vec4{};
+    desc.frameCurveTimesBlock1 = Vec4{};
     desc.frameCurveValues = Vec4{};
+    desc.frameCurveValuesBlock1 = Vec4{};
 
     const json* payload = Find_DistributionPayload(frameIndex);
     if (nullptr == payload)
@@ -990,8 +1019,8 @@ void EffectAssetRuntimeLoader::Fill_SubUVFrameCurvePayload(PointParticleSubUVFra
     for (uint32 index = 0; index < keyCount; ++index)
     {
         const json& key = (*keysIter)[index];
-        Set_SubUVFrameCurveComponent(desc.frameCurveTimes, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(desc.frameCurveValues, index, Read_Float(key, "value"));
+        Set_CurveComponent(desc.frameCurveTimes, desc.frameCurveTimesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+        Set_CurveComponent(desc.frameCurveValues, desc.frameCurveValuesBlock1, index, Read_Float(key, "value"));
     }
 }
 
@@ -1011,8 +1040,11 @@ void EffectAssetRuntimeLoader::Fill_SizeByLifePayload(PointParticleSizeByLifeDes
         desc.multiplyYEnd = Read_Float(sizeByLife, "multiplyYEnd", desc.multiplyYEnd);
         desc.curveKeyCount = 2;
         desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.curveKeyTimesBlock1 = Vec4{};
         desc.curveKeyValuesX = Vec4{ desc.multiplyXStart, desc.multiplyXEnd, 0.f, 0.f };
+        desc.curveKeyValuesXBlock1 = Vec4{};
         desc.curveKeyValuesY = Vec4{ desc.multiplyYStart, desc.multiplyYEnd, 0.f, 0.f };
+        desc.curveKeyValuesYBlock1 = Vec4{};
         return;
     }
 
@@ -1024,8 +1056,11 @@ void EffectAssetRuntimeLoader::Fill_SizeByLifePayload(PointParticleSizeByLifeDes
     desc.multiplyYEnd = endValue.y;
     desc.curveKeyCount = 2;
     desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.curveKeyTimesBlock1 = Vec4{};
     desc.curveKeyValuesX = Vec4{ startValue.x, endValue.x, 0.f, 0.f };
+    desc.curveKeyValuesXBlock1 = Vec4{};
     desc.curveKeyValuesY = Vec4{ startValue.y, endValue.y, 0.f, 0.f };
+    desc.curveKeyValuesYBlock1 = Vec4{};
 
     const json* payload = Find_DistributionPayload(*scaleOverLifeIter);
     if (payload == nullptr || "ConstantCurve" != Read_String(*scaleOverLifeIter, "mode"))
@@ -1038,8 +1073,11 @@ void EffectAssetRuntimeLoader::Fill_SizeByLifePayload(PointParticleSizeByLifeDes
     const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
     desc.curveKeyCount = keyCount;
     desc.curveKeyTimes = Vec4{};
+    desc.curveKeyTimesBlock1 = Vec4{};
     desc.curveKeyValuesX = Vec4{};
+    desc.curveKeyValuesXBlock1 = Vec4{};
     desc.curveKeyValuesY = Vec4{};
+    desc.curveKeyValuesYBlock1 = Vec4{};
 
     for (uint32 index = 0; index < keyCount; ++index)
     {
@@ -1048,9 +1086,9 @@ void EffectAssetRuntimeLoader::Fill_SizeByLifePayload(PointParticleSizeByLifeDes
         if (const auto valueIter = key.find("value"); valueIter != key.end())
             Read_Vec2(*valueIter, value);
 
-        Set_SubUVFrameCurveComponent(desc.curveKeyTimes, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(desc.curveKeyValuesX, index, value.x);
-        Set_SubUVFrameCurveComponent(desc.curveKeyValuesY, index, value.y);
+        Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+        Set_CurveComponent(desc.curveKeyValuesX, desc.curveKeyValuesXBlock1, index, value.x);
+        Set_CurveComponent(desc.curveKeyValuesY, desc.curveKeyValuesYBlock1, index, value.y);
     }
 }
 
@@ -1096,19 +1134,24 @@ void EffectAssetRuntimeLoader::Fill_MaterialScalarModulationPayload(
                 const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
                 target.curve.keyCount = keyCount;
                 target.curve.keyTimes = Vec4{};
+                target.curve.keyTimesBlock1 = Vec4{};
                 target.curve.keyValues = Vec4{};
+                target.curve.keyValuesBlock1 = Vec4{};
                 target.curve.keyArriveTangents = Vec4{};
+                target.curve.keyArriveTangentsBlock1 = Vec4{};
                 target.curve.keyLeaveTangents = Vec4{};
+                target.curve.keyLeaveTangentsBlock1 = Vec4{};
                 target.curve.keyModes = Vec4{};
+                target.curve.keyModesBlock1 = Vec4{};
 
                 for (uint32 keyIndex = 0; keyIndex < keyCount; ++keyIndex)
                 {
                     const json& key = (*keysIter)[keyIndex];
-                    Set_SubUVFrameCurveComponent(target.curve.keyTimes, keyIndex, clamp(Read_Float(key, "time"), 0.f, 1.f));
-                    Set_SubUVFrameCurveComponent(target.curve.keyValues, keyIndex, Read_Float(key, "value", 1.f));
-                    Set_SubUVFrameCurveComponent(target.curve.keyArriveTangents, keyIndex, Read_Float(key, "arriveTangent"));
-                    Set_SubUVFrameCurveComponent(target.curve.keyLeaveTangents, keyIndex, Read_Float(key, "leaveTangent"));
-                    Set_SubUVFrameCurveComponent(target.curve.keyModes, keyIndex, Resolve_CurveInterpolationMode(key));
+                    Set_CurveComponent(target.curve.keyTimes, target.curve.keyTimesBlock1, keyIndex, clamp(Read_Float(key, "time"), 0.f, 1.f));
+                    Set_CurveComponent(target.curve.keyValues, target.curve.keyValuesBlock1, keyIndex, Read_Float(key, "value", 1.f));
+                    Set_CurveComponent(target.curve.keyArriveTangents, target.curve.keyArriveTangentsBlock1, keyIndex, Read_Float(key, "arriveTangent"));
+                    Set_CurveComponent(target.curve.keyLeaveTangents, target.curve.keyLeaveTangentsBlock1, keyIndex, Read_Float(key, "leaveTangent"));
+                    Set_CurveComponent(target.curve.keyModes, target.curve.keyModesBlock1, keyIndex, Resolve_CurveInterpolationMode(key));
                 }
                 continue;
             }
@@ -1122,6 +1165,7 @@ void EffectAssetRuntimeLoader::Fill_MaterialScalarModulationPayload(
 
         target.curve.keyCount = 2;
         target.curve.keyValues = Vec4{ value, value, 0.f, 0.f };
+        target.curve.keyValuesBlock1 = Vec4{};
     }
 }
 
@@ -1165,16 +1209,27 @@ void EffectAssetRuntimeLoader::Fill_CoreColorRgbModulationPayload(
                 const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
                 target.curve.keyCount = keyCount;
                 target.curve.keyTimes = Vec4{};
+                target.curve.keyTimesBlock1 = Vec4{};
                 target.curve.keyValuesR = Vec4{};
+                target.curve.keyValuesRBlock1 = Vec4{};
                 target.curve.keyValuesG = Vec4{};
+                target.curve.keyValuesGBlock1 = Vec4{};
                 target.curve.keyValuesB = Vec4{};
+                target.curve.keyValuesBBlock1 = Vec4{};
                 target.curve.keyArriveTangentsR = Vec4{};
+                target.curve.keyArriveTangentsRBlock1 = Vec4{};
                 target.curve.keyArriveTangentsG = Vec4{};
+                target.curve.keyArriveTangentsGBlock1 = Vec4{};
                 target.curve.keyArriveTangentsB = Vec4{};
+                target.curve.keyArriveTangentsBBlock1 = Vec4{};
                 target.curve.keyLeaveTangentsR = Vec4{};
+                target.curve.keyLeaveTangentsRBlock1 = Vec4{};
                 target.curve.keyLeaveTangentsG = Vec4{};
+                target.curve.keyLeaveTangentsGBlock1 = Vec4{};
                 target.curve.keyLeaveTangentsB = Vec4{};
+                target.curve.keyLeaveTangentsBBlock1 = Vec4{};
                 target.curve.keyModes = Vec4{};
+                target.curve.keyModesBlock1 = Vec4{};
 
                 for (uint32 keyIndex = 0; keyIndex < keyCount; ++keyIndex)
                 {
@@ -1189,17 +1244,17 @@ void EffectAssetRuntimeLoader::Fill_CoreColorRgbModulationPayload(
                     if (const auto leaveIter = key.find("leaveTangent"); leaveIter != key.end())
                         Read_Vec3(*leaveIter, leaveTangent);
 
-                    Set_SubUVFrameCurveComponent(target.curve.keyTimes, keyIndex, clamp(Read_Float(key, "time"), 0.f, 1.f));
-                    Set_SubUVFrameCurveComponent(target.curve.keyValuesR, keyIndex, value.x);
-                    Set_SubUVFrameCurveComponent(target.curve.keyValuesG, keyIndex, value.y);
-                    Set_SubUVFrameCurveComponent(target.curve.keyValuesB, keyIndex, value.z);
-                    Set_SubUVFrameCurveComponent(target.curve.keyArriveTangentsR, keyIndex, arriveTangent.x);
-                    Set_SubUVFrameCurveComponent(target.curve.keyArriveTangentsG, keyIndex, arriveTangent.y);
-                    Set_SubUVFrameCurveComponent(target.curve.keyArriveTangentsB, keyIndex, arriveTangent.z);
-                    Set_SubUVFrameCurveComponent(target.curve.keyLeaveTangentsR, keyIndex, leaveTangent.x);
-                    Set_SubUVFrameCurveComponent(target.curve.keyLeaveTangentsG, keyIndex, leaveTangent.y);
-                    Set_SubUVFrameCurveComponent(target.curve.keyLeaveTangentsB, keyIndex, leaveTangent.z);
-                    Set_SubUVFrameCurveComponent(target.curve.keyModes, keyIndex, Resolve_CurveInterpolationMode(key));
+                    Set_CurveComponent(target.curve.keyTimes, target.curve.keyTimesBlock1, keyIndex, clamp(Read_Float(key, "time"), 0.f, 1.f));
+                    Set_CurveComponent(target.curve.keyValuesR, target.curve.keyValuesRBlock1, keyIndex, value.x);
+                    Set_CurveComponent(target.curve.keyValuesG, target.curve.keyValuesGBlock1, keyIndex, value.y);
+                    Set_CurveComponent(target.curve.keyValuesB, target.curve.keyValuesBBlock1, keyIndex, value.z);
+                    Set_CurveComponent(target.curve.keyArriveTangentsR, target.curve.keyArriveTangentsRBlock1, keyIndex, arriveTangent.x);
+                    Set_CurveComponent(target.curve.keyArriveTangentsG, target.curve.keyArriveTangentsGBlock1, keyIndex, arriveTangent.y);
+                    Set_CurveComponent(target.curve.keyArriveTangentsB, target.curve.keyArriveTangentsBBlock1, keyIndex, arriveTangent.z);
+                    Set_CurveComponent(target.curve.keyLeaveTangentsR, target.curve.keyLeaveTangentsRBlock1, keyIndex, leaveTangent.x);
+                    Set_CurveComponent(target.curve.keyLeaveTangentsG, target.curve.keyLeaveTangentsGBlock1, keyIndex, leaveTangent.y);
+                    Set_CurveComponent(target.curve.keyLeaveTangentsB, target.curve.keyLeaveTangentsBBlock1, keyIndex, leaveTangent.z);
+                    Set_CurveComponent(target.curve.keyModes, target.curve.keyModesBlock1, keyIndex, Resolve_CurveInterpolationMode(key));
                 }
                 continue;
             }
@@ -1224,8 +1279,11 @@ void EffectAssetRuntimeLoader::Fill_CoreColorRgbModulationPayload(
 
         target.curve.keyCount = 2;
         target.curve.keyValuesR = Vec4{ value.x, value.x, 0.f, 0.f };
+        target.curve.keyValuesRBlock1 = Vec4{};
         target.curve.keyValuesG = Vec4{ value.y, value.y, 0.f, 0.f };
+        target.curve.keyValuesGBlock1 = Vec4{};
         target.curve.keyValuesB = Vec4{ value.z, value.z, 0.f, 0.f };
+        target.curve.keyValuesBBlock1 = Vec4{};
     }
 }
 
@@ -1240,7 +1298,9 @@ void EffectAssetRuntimeLoader::Fill_RotationOverLifePayload(PointParticleRotatio
         };
         desc.rotationOverLifeCurveKeyCount = 2;
         desc.rotationOverLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.rotationOverLifeCurveTimesBlock1 = Vec4{};
         desc.rotationOverLifeCurveValues = Vec4{ desc.rotationOverLifeDegrees.x, desc.rotationOverLifeDegrees.y, 0.f, 0.f };
+        desc.rotationOverLifeCurveValuesBlock1 = Vec4{};
         return;
     }
 
@@ -1249,7 +1309,9 @@ void EffectAssetRuntimeLoader::Fill_RotationOverLifePayload(PointParticleRotatio
     desc.rotationOverLifeDegrees = Vec2{ startValue, endValue };
     desc.rotationOverLifeCurveKeyCount = 2;
     desc.rotationOverLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.rotationOverLifeCurveTimesBlock1 = Vec4{};
     desc.rotationOverLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
+    desc.rotationOverLifeCurveValuesBlock1 = Vec4{};
 
     const json* payload = Find_DistributionPayload(*rotationOverLifeIter);
     if (payload == nullptr || "ConstantCurve" != Read_String(*rotationOverLifeIter, "mode"))
@@ -1274,18 +1336,22 @@ void EffectAssetRuntimeLoader::Fill_RotationOverLifePayload(PointParticleRotatio
     const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
     desc.rotationOverLifeCurveKeyCount = keyCount;
     desc.rotationOverLifeCurveTimes = Vec4{};
+    desc.rotationOverLifeCurveTimesBlock1 = Vec4{};
     desc.rotationOverLifeCurveValues = Vec4{};
+    desc.rotationOverLifeCurveValuesBlock1 = Vec4{};
 
     for (uint32 index = 0; index < keyCount; ++index)
     {
         const json& key = *keys[index];
-        Set_SubUVFrameCurveComponent(
+        Set_CurveComponent(
             desc.rotationOverLifeCurveTimes,
+            desc.rotationOverLifeCurveTimesBlock1,
             index,
             clamp(Read_Float(key, "time"), 0.f, 1.f)
         );
-        Set_SubUVFrameCurveComponent(
+        Set_CurveComponent(
             desc.rotationOverLifeCurveValues,
+            desc.rotationOverLifeCurveValuesBlock1,
             index,
             Read_Float(key, "value")
         );
@@ -1303,7 +1369,9 @@ void EffectAssetRuntimeLoader::Fill_RotationRateScaleByLifePayload(PointParticle
         };
         desc.rotationRateScaleByLifeCurveKeyCount = 2;
         desc.rotationRateScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.rotationRateScaleByLifeCurveTimesBlock1 = Vec4{};
         desc.rotationRateScaleByLifeCurveValues = Vec4{ desc.rotationRateScaleByLife.x, desc.rotationRateScaleByLife.y, 0.f, 0.f };
+        desc.rotationRateScaleByLifeCurveValuesBlock1 = Vec4{};
         return;
     }
 
@@ -1312,7 +1380,9 @@ void EffectAssetRuntimeLoader::Fill_RotationRateScaleByLifePayload(PointParticle
     desc.rotationRateScaleByLife = Vec2{ startValue, endValue };
     desc.rotationRateScaleByLifeCurveKeyCount = 2;
     desc.rotationRateScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.rotationRateScaleByLifeCurveTimesBlock1 = Vec4{};
     desc.rotationRateScaleByLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
+    desc.rotationRateScaleByLifeCurveValuesBlock1 = Vec4{};
 
     const json* payload = Find_DistributionPayload(*scaleOverLifeIter);
     if (payload == nullptr || "ConstantCurve" != Read_String(*scaleOverLifeIter, "mode"))
@@ -1337,18 +1407,22 @@ void EffectAssetRuntimeLoader::Fill_RotationRateScaleByLifePayload(PointParticle
     const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
     desc.rotationRateScaleByLifeCurveKeyCount = keyCount;
     desc.rotationRateScaleByLifeCurveTimes = Vec4{};
+    desc.rotationRateScaleByLifeCurveTimesBlock1 = Vec4{};
     desc.rotationRateScaleByLifeCurveValues = Vec4{};
+    desc.rotationRateScaleByLifeCurveValuesBlock1 = Vec4{};
 
     for (uint32 index = 0; index < keyCount; ++index)
     {
         const json& key = *keys[index];
-        Set_SubUVFrameCurveComponent(
+        Set_CurveComponent(
             desc.rotationRateScaleByLifeCurveTimes,
+            desc.rotationRateScaleByLifeCurveTimesBlock1,
             index,
             clamp(Read_Float(key, "time"), 0.f, 1.f)
         );
-        Set_SubUVFrameCurveComponent(
+        Set_CurveComponent(
             desc.rotationRateScaleByLifeCurveValues,
+            desc.rotationRateScaleByLifeCurveValuesBlock1,
             index,
             Read_Float(key, "value", 1.f)
         );
@@ -1366,7 +1440,9 @@ void EffectAssetRuntimeLoader::Fill_VelocityScaleByLifePayload(PointParticleMoti
         };
         desc.velocityScaleByLifeCurveKeyCount = 2;
         desc.velocityScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.velocityScaleByLifeCurveTimesBlock1 = Vec4{};
         desc.velocityScaleByLifeCurveValues = Vec4{ desc.velocityScaleByLife.x, desc.velocityScaleByLife.y, 0.f, 0.f };
+        desc.velocityScaleByLifeCurveValuesBlock1 = Vec4{};
         return;
     }
 
@@ -1375,7 +1451,9 @@ void EffectAssetRuntimeLoader::Fill_VelocityScaleByLifePayload(PointParticleMoti
     desc.velocityScaleByLife = Vec2{ startValue, endValue };
     desc.velocityScaleByLifeCurveKeyCount = 2;
     desc.velocityScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.velocityScaleByLifeCurveTimesBlock1 = Vec4{};
     desc.velocityScaleByLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
+    desc.velocityScaleByLifeCurveValuesBlock1 = Vec4{};
 
     const json* payload = Find_DistributionPayload(*scaleOverLifeIter);
     if (payload == nullptr || "ConstantCurve" != Read_String(*scaleOverLifeIter, "mode"))
@@ -1400,18 +1478,22 @@ void EffectAssetRuntimeLoader::Fill_VelocityScaleByLifePayload(PointParticleMoti
     const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
     desc.velocityScaleByLifeCurveKeyCount = keyCount;
     desc.velocityScaleByLifeCurveTimes = Vec4{};
+    desc.velocityScaleByLifeCurveTimesBlock1 = Vec4{};
     desc.velocityScaleByLifeCurveValues = Vec4{};
+    desc.velocityScaleByLifeCurveValuesBlock1 = Vec4{};
 
     for (uint32 index = 0; index < keyCount; ++index)
     {
         const json& key = *keys[index];
-        Set_SubUVFrameCurveComponent(
+        Set_CurveComponent(
             desc.velocityScaleByLifeCurveTimes,
+            desc.velocityScaleByLifeCurveTimesBlock1,
             index,
             clamp(Read_Float(key, "time"), 0.f, 1.f)
         );
-        Set_SubUVFrameCurveComponent(
+        Set_CurveComponent(
             desc.velocityScaleByLifeCurveValues,
+            desc.velocityScaleByLifeCurveValuesBlock1,
             index,
             Read_Float(key, "value", 1.f)
         );
@@ -1443,9 +1525,13 @@ void EffectAssetRuntimeLoader::Fill_AccelerationCurvePayload(PointParticleMotion
     desc.accelerationCurveEnabled = false;
     desc.accelerationCurveKeyCount = 2;
     desc.accelerationCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.accelerationCurveTimesBlock1 = Vec4{};
     desc.accelerationCurveValuesX = Vec4{ desc.accelerationMin.x, desc.accelerationMax.x, 0.f, 0.f };
+    desc.accelerationCurveValuesXBlock1 = Vec4{};
     desc.accelerationCurveValuesY = Vec4{ desc.accelerationMin.y, desc.accelerationMax.y, 0.f, 0.f };
+    desc.accelerationCurveValuesYBlock1 = Vec4{};
     desc.accelerationCurveValuesZ = Vec4{ desc.accelerationMin.z, desc.accelerationMax.z, 0.f, 0.f };
+    desc.accelerationCurveValuesZBlock1 = Vec4{};
 
     const json* payload = Find_DistributionPayload(distribution);
     if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
@@ -1465,9 +1551,13 @@ void EffectAssetRuntimeLoader::Fill_AccelerationCurvePayload(PointParticleMotion
     desc.accelerationCurveEnabled = true;
     desc.accelerationCurveKeyCount = keyCount;
     desc.accelerationCurveTimes = Vec4{};
+    desc.accelerationCurveTimesBlock1 = Vec4{};
     desc.accelerationCurveValuesX = Vec4{};
+    desc.accelerationCurveValuesXBlock1 = Vec4{};
     desc.accelerationCurveValuesY = Vec4{};
+    desc.accelerationCurveValuesYBlock1 = Vec4{};
     desc.accelerationCurveValuesZ = Vec4{};
+    desc.accelerationCurveValuesZBlock1 = Vec4{};
 
     for (uint32 index = 0; index < keyCount; ++index)
     {
@@ -1476,10 +1566,10 @@ void EffectAssetRuntimeLoader::Fill_AccelerationCurvePayload(PointParticleMotion
         if (const auto valueIter = key.find("value"); valueIter != key.end())
             Read_Vec3(*valueIter, value);
 
-        Set_SubUVFrameCurveComponent(desc.accelerationCurveTimes, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesX, index, value.x);
-        Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesY, index, value.y);
-        Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesZ, index, value.z);
+        Set_CurveComponent(desc.accelerationCurveTimes, desc.accelerationCurveTimesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+        Set_CurveComponent(desc.accelerationCurveValuesX, desc.accelerationCurveValuesXBlock1, index, value.x);
+        Set_CurveComponent(desc.accelerationCurveValuesY, desc.accelerationCurveValuesYBlock1, index, value.y);
+        Set_CurveComponent(desc.accelerationCurveValuesZ, desc.accelerationCurveValuesZBlock1, index, value.z);
     }
 }
 
@@ -1488,14 +1578,24 @@ void EffectAssetRuntimeLoader::Fill_OrbitOverLifePayload(EffectOrbitOverLifeRunt
     desc.enabled = Read_Bool(orbitOverLife, "enabled", desc.enabled);
     Read_Enum(orbitOverLife, "plane", desc.plane);
 
-    auto fill_float_curve = [](Vec2& range, uint32& keyCount, Vec4& times, Vec4& values, const json& distribution, float fallbackValue)
+    auto fill_float_curve = [](
+        Vec2& range,
+        uint32& keyCount,
+        Vec4& times,
+        Vec4& timesBlock1,
+        Vec4& values,
+        Vec4& valuesBlock1,
+        const json& distribution,
+        float fallbackValue)
     {
         const float startValue = Evaluate_FloatDistributionMin(distribution, fallbackValue);
         const float endValue = Evaluate_FloatDistributionMax(distribution, fallbackValue);
         range = Vec2{ startValue, endValue };
         keyCount = 2;
         times = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        timesBlock1 = Vec4{};
         values = Vec4{ startValue, endValue, 0.f, 0.f };
+        valuesBlock1 = Vec4{};
 
         const json* payload = Find_DistributionPayload(distribution);
         if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
@@ -1514,12 +1614,14 @@ void EffectAssetRuntimeLoader::Fill_OrbitOverLifePayload(EffectOrbitOverLifeRunt
         const uint32 clampedKeyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
         keyCount = clampedKeyCount;
         times = Vec4{};
+        timesBlock1 = Vec4{};
         values = Vec4{};
+        valuesBlock1 = Vec4{};
         for (uint32 index = 0; index < clampedKeyCount; ++index)
         {
             const json& key = *keys[index];
-            Set_SubUVFrameCurveComponent(times, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
-            Set_SubUVFrameCurveComponent(values, index, Read_Float(key, "value", fallbackValue));
+            Set_CurveComponent(times, timesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+            Set_CurveComponent(values, valuesBlock1, index, Read_Float(key, "value", fallbackValue));
         }
     };
 
@@ -1529,7 +1631,9 @@ void EffectAssetRuntimeLoader::Fill_OrbitOverLifePayload(EffectOrbitOverLifeRunt
             desc.angleDegreesOverLife,
             desc.angleCurveKeyCount,
             desc.angleCurveTimes,
+            desc.angleCurveTimesBlock1,
             desc.angleCurveValues,
+            desc.angleCurveValuesBlock1,
             *angleIter,
             0.f
         );
@@ -1541,7 +1645,9 @@ void EffectAssetRuntimeLoader::Fill_OrbitOverLifePayload(EffectOrbitOverLifeRunt
             desc.radiusScaleOverLife,
             desc.radiusScaleCurveKeyCount,
             desc.radiusScaleCurveTimes,
+            desc.radiusScaleCurveTimesBlock1,
             desc.radiusScaleCurveValues,
+            desc.radiusScaleCurveValuesBlock1,
             *radiusIter,
             1.f
         );
@@ -1642,9 +1748,13 @@ void EffectAssetRuntimeLoader::Fill_MeshVector3CurvePayload(
     desc.end = endValue;
     desc.curveKeyCount = 2;
     desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.curveKeyTimesBlock1 = Vec4{};
     desc.curveKeyValuesX = Vec4{ startValue.x, endValue.x, 0.f, 0.f };
+    desc.curveKeyValuesXBlock1 = Vec4{};
     desc.curveKeyValuesY = Vec4{ startValue.y, endValue.y, 0.f, 0.f };
+    desc.curveKeyValuesYBlock1 = Vec4{};
     desc.curveKeyValuesZ = Vec4{ startValue.z, endValue.z, 0.f, 0.f };
+    desc.curveKeyValuesZBlock1 = Vec4{};
 
     const json* payload = Find_DistributionPayload(distribution);
     if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
@@ -1663,9 +1773,13 @@ void EffectAssetRuntimeLoader::Fill_MeshVector3CurvePayload(
     const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
     desc.curveKeyCount = keyCount;
     desc.curveKeyTimes = Vec4{};
+    desc.curveKeyTimesBlock1 = Vec4{};
     desc.curveKeyValuesX = Vec4{};
+    desc.curveKeyValuesXBlock1 = Vec4{};
     desc.curveKeyValuesY = Vec4{};
+    desc.curveKeyValuesYBlock1 = Vec4{};
     desc.curveKeyValuesZ = Vec4{};
+    desc.curveKeyValuesZBlock1 = Vec4{};
 
     for (uint32 index = 0; index < keyCount; ++index)
     {
@@ -1674,10 +1788,10 @@ void EffectAssetRuntimeLoader::Fill_MeshVector3CurvePayload(
         if (const auto valueIter = key.find("value"); valueIter != key.end())
             Read_Vec3(*valueIter, value);
 
-        Set_SubUVFrameCurveComponent(desc.curveKeyTimes, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
-        Set_SubUVFrameCurveComponent(desc.curveKeyValuesX, index, value.x);
-        Set_SubUVFrameCurveComponent(desc.curveKeyValuesY, index, value.y);
-        Set_SubUVFrameCurveComponent(desc.curveKeyValuesZ, index, value.z);
+        Set_CurveComponent(desc.curveKeyTimes, desc.curveKeyTimesBlock1, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+        Set_CurveComponent(desc.curveKeyValuesX, desc.curveKeyValuesXBlock1, index, value.x);
+        Set_CurveComponent(desc.curveKeyValuesY, desc.curveKeyValuesYBlock1, index, value.y);
+        Set_CurveComponent(desc.curveKeyValuesZ, desc.curveKeyValuesZBlock1, index, value.z);
     }
 }
 
@@ -2682,11 +2796,20 @@ bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, 
         {
             Fill_MeshVector3CurvePayload(desc.meshTransform.scaleByLife, *scaleIter, Vec3{ 1.f, 1.f, 1.f });
             if (!Read_Bool(*meshSizeByLife, "multiplyX", true))
+            {
                 desc.meshTransform.scaleByLife.curveKeyValuesX = Vec4{ 1.f, 1.f, 1.f, 1.f };
+                desc.meshTransform.scaleByLife.curveKeyValuesXBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            }
             if (!Read_Bool(*meshSizeByLife, "multiplyY", true))
+            {
                 desc.meshTransform.scaleByLife.curveKeyValuesY = Vec4{ 1.f, 1.f, 1.f, 1.f };
+                desc.meshTransform.scaleByLife.curveKeyValuesYBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            }
             if (!Read_Bool(*meshSizeByLife, "multiplyZ", true))
+            {
                 desc.meshTransform.scaleByLife.curveKeyValuesZ = Vec4{ 1.f, 1.f, 1.f, 1.f };
+                desc.meshTransform.scaleByLife.curveKeyValuesZBlock1 = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            }
         }
     }
 

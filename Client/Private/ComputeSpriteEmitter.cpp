@@ -147,9 +147,23 @@ static HRESULT Bind_MaterialScalarModulationPayload(
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
     hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyTimesBlock1",
+        payload.keyTimesBlock1.data(),
+        sizeof(payload.keyTimesBlock1)
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationKeyValues",
         payload.keyValues.data(),
         sizeof(payload.keyValues)
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyValuesBlock1",
+        payload.keyValuesBlock1.data(),
+        sizeof(payload.keyValuesBlock1)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
@@ -161,6 +175,13 @@ static HRESULT Bind_MaterialScalarModulationPayload(
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
     hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyArriveTangentsBlock1",
+        payload.keyArriveTangentsBlock1.data(),
+        sizeof(payload.keyArriveTangentsBlock1)
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationKeyLeaveTangents",
         payload.keyLeaveTangents.data(),
         sizeof(payload.keyLeaveTangents)
@@ -168,9 +189,23 @@ static HRESULT Bind_MaterialScalarModulationPayload(
     CHECK_FAILED_ONCE(hr, E_FAIL);
 
     hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyLeaveTangentsBlock1",
+        payload.keyLeaveTangentsBlock1.data(),
+        sizeof(payload.keyLeaveTangentsBlock1)
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
         "g_EffectMaterialScalarModulationKeyModes",
         payload.keyModes.data(),
         sizeof(payload.keyModes)
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyModesBlock1",
+        payload.keyModesBlock1.data(),
+        sizeof(payload.keyModesBlock1)
     );
     CHECK_FAILED_ONCE(hr, E_FAIL);
 

@@ -79,7 +79,7 @@ PS_OUT PS_MAIN(VS_OUT In)
     const float surfaceCoverage = saturate(In.vInstanceColor.a * g_Tint.a);
     const float lensCoverage = EffectDistortion_ComputeLensCoverage(surfaceCoverage, 1.f, g_EffectDistortionParams.y);
     const float2 flowUV = Build_FlowUV(In.vTexcoord);
-    const float2 flow = (0 != g_EffectDistortionParams.z)
+    const float2 flow = 0 != g_EffectDistortionParams.z
                         ? Sample_FlowTexture(flowUV) * 2.f - 1.f
                         : float2(0.f, 0.f);
     const float2 offset = EffectDistortion_ComputeScreenOffset(flow, g_EffectDistortionParams.x);
