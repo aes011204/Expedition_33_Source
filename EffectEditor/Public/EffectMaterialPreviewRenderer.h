@@ -120,7 +120,8 @@ private: //## Helper::ViewportInput
     void End_ViewportDrag();
 
 private: //## Helper::Camera
-    void Start_HomeTransition(); // 즉시 reset하지 않고 home 시점으로 부드럽게 복귀를 예약한다.
+    // 즉시 reset하지 않고 home 시점으로 부드럽게 복귀를 예약한다.
+    void Start_HomeTransition(); 
     void Update_HomeTransition(float timeDelta);
     void Reset_View();
 

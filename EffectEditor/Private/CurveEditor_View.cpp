@@ -347,14 +347,6 @@ void CurveEditor_View::Set_TargetValue(const CurveTarget& target, ColorCurveKeyD
         Write_ColorChannel(key.value, target.channel, value);
 }
 
-float CurveEditor_View::Clamp_GraphEditedValue(const CurveTarget& target, float value)
-{
-    if (target.payloadKind == CurveTargetPayloadKind::Color)
-        return clamp(value, 0.f, 1.f);
-
-    return clamp(value, -1000.f, 1000.f);
-}
-
 float CurveEditor_View::Get_DefaultValue(const FloatDistributionData& distribution)
 {
     if (const auto* constantData = get_if<ConstantFloatDistributionData>(&distribution.payload))
@@ -612,6 +604,14 @@ Color CurveEditor_View::Evaluate_Curve(const ConstantCurveColorDistributionData&
     }
 
     return curve.keys.back().value;
+}
+
+float CurveEditor_View::Clamp_GraphEditedValue(const CurveTarget& target, float value)
+{
+    if (target.payloadKind == CurveTargetPayloadKind::Color)
+        return clamp(value, 0.f, 1.f);
+
+    return clamp(value, -1000.f, 1000.f);
 }
 
 Shared<Emitter_View> CurveEditor_View::Resolve_EmitterView() const
@@ -1157,6 +1157,113 @@ bool CurveEditor_View::Convert_ActiveTargetToConstantCurve(const CurveTarget& ta
     return false;
 }
 
+CurveEditor_View::GraphValueRange CurveEditor_View::Compute_GraphValueRange(const vector<CurveTarget>& targets)
+{
+    float minValue = 0.f;
+    float maxValue = 1.f;
+    bool hasVisibleCurve = false;
+
+    for (const CurveTarget& target : targets)
+    {
+        optional<size_t> pinnedIndex = Find_PinnedTrackIndex(target.identity);
+        if (!pinnedIndex.has_value() || !_pinnedTracks[*pinnedIndex].visible)
+            continue;
+
+        if (auto* floatDistribution = get_if<FloatDistributionData*>(&target.distribution))
+        {
+            ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution);
+            if (curve == nullptr)
+                continue;
+
+            Normalize_CurveKeys(*curve);
+            for (const FloatCurveKeyData& key : curve->keys)
+            {
+                const float value = Get_TargetValue(target, key);
+                minValue = min(minValue, value);
+                maxValue = max(maxValue, value);
+                hasVisibleCurve = true;
+            }
+        }
+        else if (auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
+        {
+            ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
+            if (curve == nullptr)
+                continue;
+
+            Normalize_CurveKeys(*curve);
+            for (const Vector2CurveKeyData& key : curve->keys)
+            {
+                const float value = Get_TargetValue(target, key);
+                minValue = min(minValue, value);
+                maxValue = max(maxValue, value);
+                hasVisibleCurve = true;
+            }
+        }
+        else if (auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
+        {
+            ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution);
+            if (curve == nullptr)
+                continue;
+
+            Normalize_CurveKeys(*curve);
+            for (const Vector3CurveKeyData& key : curve->keys)
+            {
+                const float value = Get_TargetValue(target, key);
+                minValue = min(minValue, value);
+                maxValue = max(maxValue, value);
+                hasVisibleCurve = true;
+            }
+        }
+        else if (auto* colorDistribution = get_if<ColorDistributionData*>(&target.distribution))
+        {
+            ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution);
+            if (curve == nullptr)
+                continue;
+
+            Normalize_CurveKeys(*curve);
+            for (const ColorCurveKeyData& key : curve->keys)
+            {
+                const float value = Get_TargetValue(target, key);
+                minValue = min(minValue, value);
+                maxValue = max(maxValue, value);
+                hasVisibleCurve = true;
+            }
+        }
+    }
+
+    if (!hasVisibleCurve)
+    {
+        minValue = 0.f;
+        maxValue = 1.f;
+    }
+
+    const float margin = max((maxValue - minValue) * 0.1f, 0.1f);
+    return GraphValueRange{ minValue - margin, maxValue + margin };
+}
+
+bool CurveEditor_View::Is_GraphDragActiveFor(const CurveTarget& target, size_t keyIndex) const
+{
+    return _graphDrag.active &&
+           _graphDrag.keyIndex == keyIndex &&
+           Is_SameIdentity(_graphDrag.target, target.identity);
+}
+
+void CurveEditor_View::Begin_GraphKeyDrag(const CurveTarget& target, size_t keyIndex, const GraphValueRange& valueRange)
+{
+    if (Is_GraphDragActiveFor(target, keyIndex))
+        return;
+
+    _graphDrag.active = true;
+    _graphDrag.target = target.identity;
+    _graphDrag.keyIndex = keyIndex;
+    _graphDrag.valueRange = valueRange;
+}
+
+void CurveEditor_View::End_GraphKeyDrag()
+{
+    _graphDrag = GraphDragState{};
+}
+
 void CurveEditor_View::Draw_EmptyState()
 {
     ImGui::TextDisabled("Emitter 창의 모듈 커브 버튼으로 편집할 커브를 고정하세요.");
@@ -1432,113 +1539,6 @@ void CurveEditor_View::Draw_TargetHeader(CurveTarget& target)
         ImGui::EndDisabled();
 }
 
-CurveEditor_View::GraphValueRange CurveEditor_View::Compute_GraphValueRange(const vector<CurveTarget>& targets)
-{
-    float minValue = 0.f;
-    float maxValue = 1.f;
-    bool hasVisibleCurve = false;
-
-    for (const CurveTarget& target : targets)
-    {
-        optional<size_t> pinnedIndex = Find_PinnedTrackIndex(target.identity);
-        if (!pinnedIndex.has_value() || !_pinnedTracks[*pinnedIndex].visible)
-            continue;
-
-        if (auto* floatDistribution = get_if<FloatDistributionData*>(&target.distribution))
-        {
-            ConstantCurveFloatDistributionData* curve = Resolve_CurvePayload(**floatDistribution);
-            if (curve == nullptr)
-                continue;
-
-            Normalize_CurveKeys(*curve);
-            for (const FloatCurveKeyData& key : curve->keys)
-            {
-                const float value = Get_TargetValue(target, key);
-                minValue = min(minValue, value);
-                maxValue = max(maxValue, value);
-                hasVisibleCurve = true;
-            }
-        }
-        else if (auto* vector2Distribution = get_if<Vector2DistributionData*>(&target.distribution))
-        {
-            ConstantCurveVector2DistributionData* curve = Resolve_CurvePayload(**vector2Distribution);
-            if (curve == nullptr)
-                continue;
-
-            Normalize_CurveKeys(*curve);
-            for (const Vector2CurveKeyData& key : curve->keys)
-            {
-                const float value = Get_TargetValue(target, key);
-                minValue = min(minValue, value);
-                maxValue = max(maxValue, value);
-                hasVisibleCurve = true;
-            }
-        }
-        else if (auto* vector3Distribution = get_if<Vector3DistributionData*>(&target.distribution))
-        {
-            ConstantCurveVector3DistributionData* curve = Resolve_CurvePayload(**vector3Distribution);
-            if (curve == nullptr)
-                continue;
-
-            Normalize_CurveKeys(*curve);
-            for (const Vector3CurveKeyData& key : curve->keys)
-            {
-                const float value = Get_TargetValue(target, key);
-                minValue = min(minValue, value);
-                maxValue = max(maxValue, value);
-                hasVisibleCurve = true;
-            }
-        }
-        else if (auto* colorDistribution = get_if<ColorDistributionData*>(&target.distribution))
-        {
-            ConstantCurveColorDistributionData* curve = Resolve_CurvePayload(**colorDistribution);
-            if (curve == nullptr)
-                continue;
-
-            Normalize_CurveKeys(*curve);
-            for (const ColorCurveKeyData& key : curve->keys)
-            {
-                const float value = Get_TargetValue(target, key);
-                minValue = min(minValue, value);
-                maxValue = max(maxValue, value);
-                hasVisibleCurve = true;
-            }
-        }
-    }
-
-    if (!hasVisibleCurve)
-    {
-        minValue = 0.f;
-        maxValue = 1.f;
-    }
-
-    const float margin = max((maxValue - minValue) * 0.1f, 0.1f);
-    return GraphValueRange{ minValue - margin, maxValue + margin };
-}
-
-bool CurveEditor_View::Is_GraphDragActiveFor(const CurveTarget& target, size_t keyIndex) const
-{
-    return _graphDrag.active &&
-           _graphDrag.keyIndex == keyIndex &&
-           Is_SameIdentity(_graphDrag.target, target.identity);
-}
-
-void CurveEditor_View::Begin_GraphKeyDrag(const CurveTarget& target, size_t keyIndex, const GraphValueRange& valueRange)
-{
-    if (Is_GraphDragActiveFor(target, keyIndex))
-        return;
-
-    _graphDrag.active = true;
-    _graphDrag.target = target.identity;
-    _graphDrag.keyIndex = keyIndex;
-    _graphDrag.valueRange = valueRange;
-}
-
-void CurveEditor_View::End_GraphKeyDrag()
-{
-    _graphDrag = GraphDragState{};
-}
-
 void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, CurveTarget& activeTarget)
 {
     ImVec2 canvasPos = ImGui::GetCursorScreenPos();
@@ -1723,9 +1723,7 @@ void CurveEditor_View::Draw_CurveGraph(const vector<CurveTarget>& targets, Curve
     const ImVec2 mousePos = ImGui::GetIO().MousePos;
     if (_graphDrag.active &&
         (!ImGui::IsMouseDown(ImGuiMouseButton_Left) || !Is_SameIdentity(_graphDrag.target, activeTarget.identity)))
-    {
         End_GraphKeyDrag();
-    }
 
     if (isHovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
