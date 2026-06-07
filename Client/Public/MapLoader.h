@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Client_Defines.h"
 #include "CollisionProxy_Types.h"
+#include "MapAdapter.h"
 #include <mutex>
 
 NS_BEGIN(Engine)
@@ -16,12 +17,7 @@ class MapStaticMesh;
 class MapLoader final
 {
 public:
-    struct ModelOverrideEntry
-    {
-        int32 passIndex = -1;
-        unordered_map<int32, string> textureSlots;
-        json modelJson = json::object();
-    };
+    using ModelOverrideEntry = MapAdapter::ModelOverrideEntry;
 
     struct LoadSession
     {
@@ -158,7 +154,6 @@ private:
     static std::mutex g_globalCacheMutex;
     static umap<string, Shared<ModelCom>> g_globalModelCache;
     static umap<string, Shared<StaticCollisionData>> g_globalCollisionCache;
-    static umap<string, std::vector<std::pair<uint32, std::string>>> g_globalMaterialBindingCache;
     static uint32 g_currentLevelIndex;
 };
 

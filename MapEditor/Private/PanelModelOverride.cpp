@@ -1628,33 +1628,6 @@ namespace MapEditor
         materialCB.opacityMaskSource = cbJson.value("opacityMaskSource", materialCB.opacityMaskSource);
     }
 
-    static string Export_TextureToSlotFolder(const string& mapName, const string& modelName, MaterialTextureSlot slot, const string& sourceTexPath)
-    {
-        if (slot != Engine::MaterialTextureSlot::Normal)
-        {
-            return sourceTexPath;
-        }
-
-        fs::path srcPath = fs::path(_mapSavePath) / sourceTexPath;
-        if (!fs::exists(srcPath))
-        {
-            return sourceTexPath; 
-        }
-
-        string slotName = magic_enum::enum_name(slot).data();
-        fs::path destDir = fs::path(_mapSavePath) / "MapInstance" / mapName / "Textures" / slotName;
-        
-        if (!fs::exists(destDir))
-        {
-            fs::create_directories(destDir);
-        }
-
-        fs::path destPath = destDir / srcPath.filename();
-        fs::copy_file(srcPath, destPath, fs::copy_options::overwrite_existing);
-
-        return "MapInstance/" + mapName + "/Textures/" + slotName + "/" + destPath.filename().string();
-    }
-
     bool ModelOverrideEntry::HasLegacyOverride() const
     {
         return passIndex >= 0 || hasMaterialCB || HasNonEmptyTextureSlot(textureSlots);
@@ -1906,14 +1879,13 @@ namespace MapEditor
             if (texPath.empty()) continue;
 
             Engine::MaterialTextureSlot slotEnum = static_cast<Engine::MaterialTextureSlot>(slotIdx);
-            string newRelPath = Export_TextureToSlotFolder(mapName, modelName, slotEnum, texPath);
 
             const char* slotNameStr = LegacyTextureKey(slotEnum);
 
             if (slotNameStr[0] != '\0')
             {
                 overridesJson[slotNameStr] = true;
-                texturesJson[slotNameStr] = newRelPath;
+                texturesJson[slotNameStr] = texPath;
             }
         }
 

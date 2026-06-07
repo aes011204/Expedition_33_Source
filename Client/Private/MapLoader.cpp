@@ -1,5 +1,6 @@
 ﻿#include "MapLoader.h"
 #include "GameInstance.h"
+#include "MapAdapter.h"
 #include "MapAuthoringIO.h"
 #include "MapStaticMesh.h"
 #include "MapInstancedMesh.h"
@@ -7,7 +8,6 @@
 #include "ModelCom.h"
 #include "StaticCollisionData.h"
 #include "Shader_CBuffer_Define.h"
-#include "MaterialCB_OverrideFields.inl"
 #include "MapWater.h"
 #include "Client_Constants.h"
 #include <mutex>
@@ -16,323 +16,10 @@
 std::mutex MapLoader::g_globalCacheMutex;
 umap<string, Shared<ModelCom>> MapLoader::g_globalModelCache;
 umap<string, Shared<StaticCollisionData>> MapLoader::g_globalCollisionCache;
-umap<string, std::vector<std::pair<uint32, std::string>>> MapLoader::g_globalMaterialBindingCache;
 uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
 
 namespace
 {
-    string Strip_MapVariantSuffix(const string& mapName)
-    {
-        const size_t mkPos = mapName.rfind("_Mk");
-        if (mkPos != string::npos && mkPos > 0)
-            return mapName.substr(0, mkPos);
-
-        return {};
-    }
-
-    string Resolve_MapModelPath(const string& modelFolder, const string& modelPathStr)
-    {
-        const string mapRoot = "../../../Client/Bin/Resources/Map/";
-        const string directPathA = mapRoot + modelPathStr;
-        if (fs::exists(fs::path(directPathA)))
-            return directPathA;
-
-        const string folderPathA = mapRoot + modelFolder + "/" + modelPathStr;
-        if (fs::exists(fs::path(folderPathA)))
-            return folderPathA;
-
-        const string baseModelFolder = Strip_MapVariantSuffix(modelFolder);
-        if (!baseModelFolder.empty())
-        {
-            const string baseFolderPathA = mapRoot + baseModelFolder + "/" + modelPathStr;
-            if (fs::exists(fs::path(baseFolderPathA)))
-                return baseFolderPathA;
-        }
-
-        return fs::path(modelPathStr).has_parent_path() ? directPathA : folderPathA;
-    }
-
-    // 저장된 MapData ModelOverrides의 v2 material_bindings를 런타임 모델 json으로 복원한다.
-    void Append_MaterialBindingsFromSavedOverride(const json& entry, MapLoader::ModelOverrideEntry& overrideEntry)
-    {
-        if (!entry.value("HasMaterialBindings", false) ||
-            !entry.contains("MaterialBindings") ||
-            !entry["MaterialBindings"].is_array())
-        {
-            return;
-        }
-
-        overrideEntry.modelJson["material_bindings"] = entry["MaterialBindings"];
-
-        if (entry.contains("BaseBundleKey") && entry["BaseBundleKey"].is_string())
-            overrideEntry.modelJson["base_bundle_key"] = entry["BaseBundleKey"].get<string>();
-    }
-
-    void Append_ModelOverrides(const json& mapData, MapLoader::LoadSession& outSession)
-    {
-        if (!mapData.contains("ModelOverrides") || !mapData["ModelOverrides"].is_object())
-            return;
-
-        for (auto& [filename, entry] : mapData["ModelOverrides"].items())
-        {
-            if (!entry.is_object())
-                continue;
-
-            MapLoader::ModelOverrideEntry overrideEntry;
-            overrideEntry.passIndex = entry.value("PassIndex", -1);
-            Append_MaterialBindingsFromSavedOverride(entry, overrideEntry);
-
-            if (entry.contains("TextureSlots") && entry["TextureSlots"].is_object())
-            {
-                for (auto& [slotStr, texPath] : entry["TextureSlots"].items())
-                {
-                    if (!texPath.is_string())
-                        continue;
-
-                    try
-                    {
-                        overrideEntry.textureSlots[stoi(slotStr)] = texPath.get<string>();
-                    }
-                    catch (...)
-                    {
-                    }
-                }
-            }
-
-            outSession.modelOverrides[filename] = overrideEntry;
-        }
-    }
-
-    void Try_AppendModelOverridesFromJsonFile(const fs::path& jsonPath, MapLoader::LoadSession& outSession)
-    {
-        if (jsonPath.empty() || !fs::exists(jsonPath) || !fs::is_regular_file(jsonPath))
-            return;
-
-        ifstream ifs(jsonPath);
-        if (!ifs.is_open())
-            return;
-
-        try
-        {
-            json root = json::parse(ifs);
-            if (root.contains("MapData") && root["MapData"].is_object())
-                Append_ModelOverrides(root["MapData"], outSession);
-        }
-        catch (...)
-        {
-        }
-    }
-
-    string MaterialBundleStemToModelKey(const fs::path& materialPath)
-    {
-        string filename = materialPath.filename().string();
-        const string suffix = ".material.json";
-        if (filename.size() > suffix.size() &&
-            String::ToLowerCopy(filename.substr(filename.size() - suffix.size())) == suffix)
-        {
-            filename.resize(filename.size() - suffix.size());
-            return filename + ".model";
-        }
-
-        return materialPath.stem().string() + ".model";
-    }
-
-    string Read_TexturePathValue(const json& value)
-    {
-        if (value.is_string())
-            return value.get<string>();
-
-        if (value.is_object())
-        {
-            const string path = value.value("texture_path", string{});
-            if (!path.empty())
-                return path;
-        }
-
-        return {};
-    }
-
-    // v2 material json의 editor_modelPath를 우선 사용하고, 없으면 파일명에서 모델 키를 복원한다.
-    bool Try_ResolveModelKeyFromMaterialJson(const json& root, const fs::path& materialPath, string& outModelKey)
-    {
-        outModelKey.clear();
-
-        string modelKey = root.value("editor_modelPath", string{});
-        if (!modelKey.empty())
-            modelKey = fs::path(modelKey).filename().string();
-        else
-            modelKey = MaterialBundleStemToModelKey(materialPath);
-
-        if (modelKey.empty())
-            return false;
-
-        outModelKey = std::move(modelKey);
-        return true;
-    }
-
-    // Materials/<MapName>에 저장된 v2 material_bindings json을 ModelOverrideEntry로 적재한다.
-    bool Try_AppendModelOverrideFromV2MaterialJson(const json& root, const fs::path& materialPath, MapLoader::LoadSession& outSession)
-    {
-        if (!root.contains("material_bindings") || !root["material_bindings"].is_array())
-            return false;
-
-        string modelKey;
-        if (!Try_ResolveModelKeyFromMaterialJson(root, materialPath, modelKey))
-            return true;
-
-        MapLoader::ModelOverrideEntry overrideEntry;
-        overrideEntry.modelJson = root;
-        outSession.modelOverrides[modelKey] = std::move(overrideEntry);
-        return true;
-    }
-
-    // binding 단위 base_bundle_key가 비어 있으면 root 값 또는 현재 모델 폴더를 기본값으로 채운다.
-    void FillMissingBaseBundleKeyForBindings(json& modelJson, const string& fallbackBundleKey)
-    {
-        const string rootBaseBundleKey = modelJson.value("base_bundle_key", string{});
-        const string resolvedBundleKey = rootBaseBundleKey.empty() ? fallbackBundleKey : rootBaseBundleKey;
-
-        if (!modelJson.contains("material_bindings") || !modelJson["material_bindings"].is_array())
-            return;
-
-        for (json& binding : modelJson["material_bindings"])
-        {
-            if (!binding.is_object())
-                continue;
-
-            const string savedBundleKey = binding.value("base_bundle_key", string{});
-            if (savedBundleKey.empty())
-                binding["base_bundle_key"] = resolvedBundleKey;
-        }
-    }
-
-    void Append_ModelOverridesFromMaterialDirectory(const fs::path& materialDir, MapLoader::LoadSession& outSession)
-    {
-        if (materialDir.empty() || !fs::exists(materialDir) || !fs::is_directory(materialDir))
-            return;
-
-        for (const fs::directory_entry& entry : fs::directory_iterator(materialDir))
-        {
-            if (!entry.is_regular_file() || entry.path().extension() != ".json")
-                continue;
-
-            ifstream ifs(entry.path());
-            if (!ifs.is_open())
-                continue;
-
-            try
-            {
-                json root = json::parse(ifs);
-                if (Try_AppendModelOverrideFromV2MaterialJson(root, entry.path(), outSession))
-                    continue;
-
-                if (!root.contains("instances") || !root["instances"].is_array() || root["instances"].empty())
-                    continue;
-
-                const json& instJson = root["instances"][0];
-                if (!instJson.is_object())
-                    continue;
-
-                string modelKey = instJson.value("editor_modelPath", string{});
-                if (!modelKey.empty())
-                    modelKey = fs::path(modelKey).filename().string();
-                else
-                    modelKey = MaterialBundleStemToModelKey(entry.path());
-
-                if (modelKey.empty())
-                    continue;
-
-                MapLoader::ModelOverrideEntry overrideEntry;
-                json modelJson = json::object();
-                json materialBindings = json::array();
-
-                auto makeInstanceOverride = [&]() -> json
-                {
-                    json instanceOverride = json::object();
-                    instanceOverride["force_pass_index"] = instJson.value("forcePassIndex", -1);
-
-                    if (instJson.contains("cb") && instJson["cb"].is_object())
-                    {
-                        json cbOverrides = json::object();
-#define MAPLOADER_SET_CB_OVERRIDE(_key, _member, _kind) \
-                        if (instJson["cb"].contains(_key)) cbOverrides[_key] = true;
-                        MATERIAL_CB_OVERRIDE_FIELDS(MAPLOADER_SET_CB_OVERRIDE)
-#undef MAPLOADER_SET_CB_OVERRIDE
-
-                        if (!cbOverrides.empty())
-                        {
-                            instanceOverride["cb_overrides"] = cbOverrides;
-                            instanceOverride["cb"] = instJson["cb"];
-                        }
-                    }
-
-                    if (instJson.contains("textures") && instJson["textures"].is_object())
-                    {
-                        const json& texObj = instJson["textures"];
-                        json textures = json::object();
-
-                        auto parseTex = [&](const string& srcName, const string& dstName)
-                        {
-                            if (!texObj.contains(srcName))
-                                return;
-
-                            const string texPath = Read_TexturePathValue(texObj[srcName]);
-                            if (!texPath.empty())
-                                textures[dstName] = { {"enabled", true}, {"texture_path", texPath} };
-                        };
-
-                        parseTex("baseColor", "base_color");
-                        parseTex("normal", "normal");
-                        parseTex("orm", "orm");
-                        parseTex("emissive", "emissive");
-                        parseTex("opacityMask", "opacity_mask");
-
-                        if (!textures.empty())
-                            instanceOverride["textures"] = textures;
-                    }
-
-                    return instanceOverride;
-                };
-
-                const json instanceOverride = makeInstanceOverride();
-
-                if (root.contains("mappings") && root["mappings"].is_array())
-                {
-                    for (const json& mapping : root["mappings"])
-                    {
-                        if (!mapping.is_object())
-                            continue;
-
-                        const uint32 materialIndex = mapping.value("materialIndex", UINT32_MAX);
-                        if (materialIndex == UINT32_MAX)
-                            continue;
-
-                        json binding = json::object();
-                        binding["material_index"] = materialIndex;
-                        binding["instance_override"] = instanceOverride;
-                        materialBindings.push_back(std::move(binding));
-                    }
-                }
-
-                if (materialBindings.empty())
-                {
-                    json binding = json::object();
-                    binding["material_index"] = 0u;
-                    binding["instance_override"] = instanceOverride;
-                    materialBindings.push_back(std::move(binding));
-                }
-
-                modelJson["material_bindings"] = std::move(materialBindings);
-                overrideEntry.modelJson = std::move(modelJson);
-
-                outSession.modelOverrides[modelKey] = overrideEntry;
-            }
-            catch (...)
-            {
-            }
-        }
-    }
-
     void Append_JsonArray(const json& mapData, const string& key, vector<json>& outArray)
     {
         if (!mapData.contains(key) || !mapData[key].is_array())
@@ -479,66 +166,6 @@ namespace
         return hr;
     }
 
-    bool Try_ParseCollisionProxy(const json& node, ModelCollisionProxy& outProxy)
-    {
-        if (!node.is_object())
-            return false;
-
-        outProxy = {};
-        outProxy.type = static_cast<ModelCollisionProxyType>(
-            node.value("Type", static_cast<uint32>(ModelCollisionProxyType::TriangleMesh)));
-        outProxy.name = node.value("Name", string{});
-
-        if (node.contains("Center") && node["Center"].is_array() && node["Center"].size() == 3)
-        {
-            outProxy.center = Vec3(
-                node["Center"][0].get<float>(),
-                node["Center"][1].get<float>(),
-                node["Center"][2].get<float>());
-        }
-
-        if (node.contains("Rotation") && node["Rotation"].is_array() && node["Rotation"].size() == 4)
-        {
-            outProxy.rotation = Quat(
-                node["Rotation"][0].get<float>(),
-                node["Rotation"][1].get<float>(),
-                node["Rotation"][2].get<float>(),
-                node["Rotation"][3].get<float>());
-        }
-
-        if (node.contains("Extents") && node["Extents"].is_array() && node["Extents"].size() == 3)
-        {
-            outProxy.extents = Vec3(
-                node["Extents"][0].get<float>(),
-                node["Extents"][1].get<float>(),
-                node["Extents"][2].get<float>());
-        }
-
-        outProxy.radius = node.value("Radius", 0.f);
-        outProxy.halfHeight = node.value("HalfHeight", 0.f);
-
-        if (node.contains("Positions") && node["Positions"].is_array())
-        {
-            for (const json& positionNode : node["Positions"])
-            {
-                if (!positionNode.is_array() || positionNode.size() != 3)
-                    continue;
-
-                outProxy.positions.push_back(Vec3(
-                    positionNode[0].get<float>(),
-                    positionNode[1].get<float>(),
-                    positionNode[2].get<float>()));
-            }
-        }
-
-        if (node.contains("Indices") && node["Indices"].is_array())
-        {
-            for (const json& indexNode : node["Indices"])
-                outProxy.indices.push_back(indexNode.get<uint32>());
-        }
-
-        return true;
-    }
 }
 
 HRESULT MapLoader::Try_BeginMapInstanceSession(
@@ -549,95 +176,28 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     const wstring& layerTag,
     LoadSession& outSession)
 {
-    fs::path root(filePath);
-
-    if (fs::exists(root) && !fs::is_directory(root))
-    {
-        root = fs::path("../../../Client/Bin/Resources/Map/MapInstance") / root.stem();
-    }
-    else if (!fs::exists(root))
-    {
-        const string mapName = String::ToString(filePath);
-        root = fs::path("../../../Client/Bin/Resources/Map/MapInstance") / mapName;
-    }
-
-    if (!fs::exists(root) || !fs::is_directory(root))
-        return E_FAIL;
-
-    const fs::path staticDir = root / "StaticMesh";
-    const fs::path instanceDir = root / "InstanceMesh";
-    const fs::path postProcessVolumeDir = root / "PostProcessVolume";
-    const fs::path waterDir = root / "Water";
-
-    if (!fs::exists(staticDir) &&
-        !fs::exists(instanceDir) &&
-        !fs::exists(postProcessVolumeDir) &&
-        !fs::exists(waterDir))
-    {
-        return E_FAIL;
-    }
-
-    fs::path sidecarJson(filePath);
-    if (!fs::exists(sidecarJson) || fs::is_directory(sidecarJson))
-    {
-        sidecarJson =
-            fs::path("../../../Client/Bin/Resources/Map/SaveJson") /
-            (root.filename().string() + ".json");
-    }
-
+    // Split MapInstance 경로 해석:
+    // - 파일 경로 입력: MapInstance/<json stem>
+    // - 맵 이름 입력: MapInstance/<map name>
+    // 각 하위 json은 오브젝트 배치 정보와 Map 루트 기준 ModelPath를 가진다.
     const auto sessionBegin = chrono::steady_clock::now();
+
+    MapAdapter::SplitMapInstanceData splitData{};
+    if (!MapAdapter::TryLoadSplitMapInstanceData(filePath, splitData))
+        return E_FAIL;
 
     outSession = {};
     outSession.device = device;
     outSession.context = context;
     outSession.levelIndex = levelIndex;
     outSession.layerTag = layerTag;
-    outSession.modelFolder = root.filename().string();
-
-    auto appendPreload = [&](const string& modelPath)
-    {
-        if (modelPath.empty())
-            return;
-
-        if (find(outSession.preloadModelPaths.begin(), outSession.preloadModelPaths.end(), modelPath) == outSession.preloadModelPaths.end())
-            outSession.preloadModelPaths.push_back(modelPath);
-    };
-
-    auto loadJsonObjects = [&](const fs::path& dir, vector<json>& outArray)
-    {
-        if (!fs::exists(dir))
-            return;
-
-        for (const fs::directory_entry& entry : fs::directory_iterator(dir))
-        {
-            if (!entry.is_regular_file() || entry.path().extension() != ".json")
-                continue;
-
-            ifstream ifs(entry.path());
-            if (!ifs.is_open())
-                continue;
-
-            try
-            {
-                json item = json::parse(ifs);
-                if (!item.is_object())
-                    continue;
-
-                const string modelPath = item.value("ModelPath", string{});
-                appendPreload(modelPath);
-
-                outArray.push_back(std::move(item));
-            }
-            catch (...)
-            {
-            }
-        }
-    };
-
-    loadJsonObjects(staticDir, outSession.staticMeshes);
-    loadJsonObjects(instanceDir, outSession.instancedMeshes);
-    loadJsonObjects(postProcessVolumeDir, outSession.postProcessVolumes);
-    loadJsonObjects(waterDir, outSession.waters);
+    outSession.modelFolder = splitData.modelFolder;
+    outSession.modelOverrides = std::move(splitData.modelOverrides);
+    outSession.staticMeshes = std::move(splitData.staticMeshes);
+    outSession.instancedMeshes = std::move(splitData.instancedMeshes);
+    outSession.postProcessVolumes = std::move(splitData.postProcessVolumes);
+    outSession.waters = std::move(splitData.waters);
+    outSession.preloadModelPaths = std::move(splitData.preloadModelPaths);
 
     outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
@@ -646,17 +206,12 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.watersDone = outSession.waters.empty();
     outSession.prefabInstancesDone = true;
 
-    Try_AppendModelOverridesFromJsonFile(sidecarJson, outSession);
-    Append_ModelOverridesFromMaterialDirectory(
-        fs::path("../../../Client/Bin/Resources/Materials") / root.filename(),
-        outSession);
-
     outSession.beginSessionDuration =
         chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - sessionBegin);
 
     LOG_DEBUG(
         "[MapLoader::MapInstance] root='{}' modelFolder='{}' staticMeshes={} instancedMeshes={} postProcessVolumes={} waters={} preloadModels={} modelOverrides={}",
-        root.generic_string(),
+        splitData.root.generic_string(),
         outSession.modelFolder,
         outSession.staticMeshes.size(),
         outSession.instancedMeshes.size(),
@@ -674,15 +229,19 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     // 새로운 레벨로 진입한 경우 기존 전역 캐시 클리어 (메모리 누수 방지)
     if (g_currentLevelIndex != levelIndex)
     {
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        g_globalModelCache.clear();
-        g_globalCollisionCache.clear();
-        g_globalMaterialBindingCache.clear();
-        g_currentLevelIndex = levelIndex;
+        {
+            std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+            g_globalModelCache.clear();
+            g_globalCollisionCache.clear();
+            g_currentLevelIndex = levelIndex;
+        }
+        MapAdapter::Clear_MaterialCache();
     }
 
     {
         LoadSession mapInstanceSession{};
+        // split MapInstance가 있으면 우선 사용한다.
+        // 실패하면 아래 기존 통합 SaveJson/MapData 로드 경로를 그대로 유지한다.
         if (SUCCEEDED(Try_BeginMapInstanceSession(
             device,
             context,
@@ -784,7 +343,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     Append_JsonArray(mapData, "PostProcessVolumes", outSession.postProcessVolumes);
     Append_JsonArray(mapData, "Waters", outSession.waters);
 
-    Append_ModelOverrides(mapData, outSession);
+    MapAdapter::AppendModelOverrides(mapData, outSession.modelOverrides);
 
     if (mapData.contains("StaticMeshes"))
     {
@@ -822,71 +381,10 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
             outSession.prefabInstances.push_back(item);
     }
 
-    if (mapData.contains("ModelCollisions") && mapData["ModelCollisions"].is_object())
-    {
-        for (const auto& [modelPath, collisionEntry] : mapData["ModelCollisions"].items())
-        {
-            vector<vector<uint8_t>> cookedMeshes;
-            vector<ModelCollisionProxy> primitiveProxies;
-
-            if (collisionEntry.is_array()) // 구포맷: cooked triangle mesh만 배열로 저장되어 있다.
-            {
-                cookedMeshes.reserve(collisionEntry.size());
-
-                for (const json& meshData : collisionEntry)
-                {
-                    if (meshData.is_binary())
-                    {
-                        const auto& binaryData = meshData.get_binary();
-                        cookedMeshes.emplace_back(binaryData.begin(), binaryData.end());
-                    }
-                    else if (meshData.is_string())
-                    {
-                        cookedMeshes.push_back(String::Base64_Decode(meshData.get<string>()));
-                    }
-                }
-            }
-            else if (collisionEntry.is_object()) // 신포맷: cooked triangle + primitive proxy를 함께 저장한다.
-            {
-                if (collisionEntry.contains("CookedTriangleMeshes") &&
-                    collisionEntry["CookedTriangleMeshes"].is_array())
-                {
-                    const json& meshArray = collisionEntry["CookedTriangleMeshes"];
-                    cookedMeshes.reserve(meshArray.size());
-
-                    for (const json& meshData : meshArray)
-                    {
-                        if (meshData.is_binary())
-                        {
-                            const auto& binaryData = meshData.get_binary();
-                            cookedMeshes.emplace_back(binaryData.begin(), binaryData.end());
-                        }
-                        else if (meshData.is_string())
-                        {
-                            cookedMeshes.push_back(String::Base64_Decode(meshData.get<string>()));
-                        }
-                    }
-                }
-
-                if (collisionEntry.contains("PrimitiveProxies") &&
-                    collisionEntry["PrimitiveProxies"].is_array())
-                {
-                    for (const json& proxyNode : collisionEntry["PrimitiveProxies"])
-                    {
-                        ModelCollisionProxy proxy{};
-                        if (Try_ParseCollisionProxy(proxyNode, proxy))
-                            primitiveProxies.push_back(std::move(proxy));
-                    }
-                }
-            }
-
-            if (!cookedMeshes.empty())
-                outSession.cookedCollisionCache[modelPath] = std::move(cookedMeshes);
-
-            if (!primitiveProxies.empty())
-                outSession.primitiveCollisionCache[modelPath] = std::move(primitiveProxies);
-        }
-    }
+    MapAdapter::AppendModelCollisionSources(
+        mapData,
+        outSession.cookedCollisionCache,
+        outSession.primitiveCollisionCache);
 
     outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
@@ -978,6 +476,9 @@ HRESULT MapLoader::Preload_SessionData(const ComPtr<Device>& device, const ComPt
 HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPerFrame,
     chrono::milliseconds maxTimePerFrame, bool& outFinished)
 {
+    // 처리 순서는 의도된 계약이다.
+    // preload -> 전역 one-shot 시스템 -> water -> static -> instanced -> prefab 순서를 유지해야
+    // 기존 통합 맵과 신규 split 맵의 동작 차이를 줄일 수 있다.
     outFinished = false;
     ++session.processCallCount;
 
@@ -1195,7 +696,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
         MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
 
-        desc.modelPath = String::ToWString(Resolve_MapModelPath(session.modelFolder, modelPathStr));
+        desc.modelPath = String::ToWString(MapAdapter::ResolveMapModelPath(session.modelFolder, modelPathStr));
 
         auto it = session.preloadedModelCache.find(modelPathStr);
         if (it != session.preloadedModelCache.end())
@@ -1367,172 +868,9 @@ void MapLoader::Prepare_StaticAutoInstancing(LoadSession& session)
 void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry)
 {
     if (model == nullptr)
-    {
         return;
-    }
 
-    if (modelFolder.empty())
-    {
-        return;
-    }
-
-    const string modelStem = fs::path(modelFullPath).stem().string();
-    string bundleKey = fs::path(modelFullPath).parent_path().filename().string();
-    if (bundleKey.empty())
-    {
-        bundleKey = modelFolder;
-    }
-    transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
-
-    fs::path jsonPath = fs::path(modelFullPath).replace_extension(".json");
-    const string jsonPathKey = jsonPath.generic_string();
-
-    using MaterialSlotBinding = pair<uint32, string>;
-    
-    vector<MaterialSlotBinding> bindings;
-    bool isCached = false;
-    {
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        auto cacheIt = g_globalMaterialBindingCache.find(jsonPathKey);
-        if (cacheIt != g_globalMaterialBindingCache.end())
-        {
-            bindings = cacheIt->second;
-            isCached = true;
-        }
-    }
-
-    if (!isCached)
-    {
-        ifstream jfs(jsonPath);
-
-        try
-        {
-            if (jfs.is_open())
-            {
-                json modelJson = json::parse(jfs);
-
-                for (auto& entry : modelJson)
-                {
-                    if (entry.value("Type", "") != "StaticMesh")
-                        continue;
-
-                    if (!entry.contains("Properties") ||
-                        !entry["Properties"].contains("StaticMaterials"))
-                    {
-                        break;
-                    }
-
-                    const auto& staticMats = entry["Properties"]["StaticMaterials"];
-
-                    for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
-                    {
-                        const auto& mat = staticMats[i];
-                        if (!mat.contains("MaterialInterface"))
-                            continue;
-
-                        const auto& mi = mat["MaterialInterface"];
-                        if (!mi.is_object())
-                            continue;
-
-                        string objectPath = mi.value("ObjectPath", "");
-                        if (objectPath.empty())
-                            continue;
-
-                        size_t dot = objectPath.find('.');
-                        string packagePath = (dot != string::npos)
-                            ? objectPath.substr(0, dot)
-                            : objectPath;
-
-                        size_t slash = packagePath.rfind('/');
-                        string miName = (slash != string::npos)
-                            ? packagePath.substr(slash + 1)
-                            : packagePath;
-
-                        bindings.emplace_back(i, miName);
-                    }
-
-                    break;
-                }
-            }
-        }
-        catch (...)
-        {
-        }
-
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        g_globalMaterialBindingCache[jsonPathKey] = bindings;
-    }
-
-    for (const MaterialSlotBinding& binding : bindings)
-    {
-        model->Apply_MaterialByAssetName(binding.first, bundleKey, binding.second);
-    }
-
-    if (overrideEntry != nullptr)
-    {
-        LOG_DEBUG(
-            "[MapLoader::Material] base material match model='{}' baseBundle='{}' staticBindings={}",
-            modelStem,
-            bundleKey,
-            bindings.size());
-    }
-
-    int32 forcedPassIndex = overrideEntry ? overrideEntry->passIndex : -1;
-
-    if (forcedPassIndex >= 0)
-    {
-        for (uint32 i = 0; i < static_cast<uint32>(model->Get_NumMaterials()); ++i)
-        {
-            auto mat = model->Get_Material(i);
-            if (mat)
-                mat->Set_ForcedPassIndex(forcedPassIndex);
-        }
-    }
-
-    if (overrideEntry)
-    {
-        for (auto& [slotIdx, texPath] : overrideEntry->textureSlots)
-        {
-            if (texPath.empty())
-            {
-                continue;
-            }
-
-            string fullPath = texPath;
-            const fs::path texFsPath(texPath);
-            if (!texFsPath.is_absolute() &&
-                !texPath.starts_with("../") &&
-                !texPath.starts_with("..\\"))
-            {
-                fullPath = "../../../Client/Bin/Resources/Map/" + texPath;
-            }
-
-            auto slot = static_cast<MaterialTextureSlot>(slotIdx);
-            for (uint32 i = 0; i < static_cast<uint32>(model->Get_NumMaterials()); ++i)
-            {
-                auto mat = model->Get_Material(i);
-                if (mat)
-                {
-                    mat->Override_TextureSlot(slot, 0, String::ToWString(fullPath));
-                }
-            }
-        }
-    }
-
-    if (overrideEntry != nullptr &&
-        overrideEntry->modelJson.is_object() &&
-        overrideEntry->modelJson.contains("material_bindings"))
-    {
-        json modelJson = overrideEntry->modelJson;
-        FillMissingBaseBundleKeyForBindings(modelJson, bundleKey);
-
-        model->From_Json(modelJson);
-        LOG_DEBUG(
-            "[MapLoader::Material] model json material applied model='{}' baseBundle='{}' bindings={}",
-            modelStem,
-            bundleKey,
-            modelJson["material_bindings"].size());
-    }
+    MapAdapter::ApplyMaterial(*model, MapAdapter::BuildMaterialApplyDesc(modelFolder, modelFullPath, overrideEntry));
 }
 
 HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& context, const wstring& filePath, uint32 levelIndex, const wstring& layerTag)
@@ -1643,7 +981,10 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     chrono::milliseconds* outMaterialDuration,
     size_t* outMaterialCount)
 {
-    string fullPathA = Resolve_MapModelPath(modelFolder, modelPathStr);
+    // modelPathStr은 두 형태를 모두 지원한다.
+    // 1) Map 루트 기준 상대 경로: CustomModel/U_BedRock.model
+    // 2) 구버전 파일명-only 경로: U_BedRock.model + modelFolder fallback
+    string fullPathA = MapAdapter::ResolveMapModelPath(modelFolder, modelPathStr);
 
     const string cacheKey = String::ToLowerCopy(fs::path(fullPathA).lexically_normal().generic_string());
 
@@ -1851,8 +1192,10 @@ Shared<StaticCollisionData> MapLoader::GetOrBuildCollision(
 
 void MapLoader::Clear_GlobalCache()
 {
-    std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-    g_globalModelCache.clear();
-    g_globalCollisionCache.clear();
-    g_globalMaterialBindingCache.clear();
+    {
+        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+        g_globalModelCache.clear();
+        g_globalCollisionCache.clear();
+    }
+    MapAdapter::Clear_MaterialCache();
 }

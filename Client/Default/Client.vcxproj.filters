@@ -451,6 +451,9 @@
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
+    <ClCompile Include="..\Private\MapAdapter.cpp">
+      <Filter>02.GameObject\Map\MapLoader</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1284,6 +1287,9 @@
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
+    <ClInclude Include="..\Public\MapAdapter.h">
+      <Filter>02.GameObject\Map\MapLoader</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
