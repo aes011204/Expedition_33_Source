@@ -956,7 +956,7 @@ namespace Internal
             value,
             defaultValue,
             kModes,
-            sizeof(kModes) / sizeof(kModes[0]),
+            size(kModes),
             Get_DistortionShapeModeLabel
         );
     }
@@ -1062,29 +1062,64 @@ void EffectMaterialInstance_View::Render()
             ImGui::TextDisabled("Source material GUID is not stored in this instance.");
             ImGui::Separator();
 
-            bool changed = false;
-            bool restartPreview = false;
-            const float contentWidth = ImGui::GetContentRegionAvail().x;
-            const bool useSideBySideLayout = contentWidth >= 760.f;
-            const EffectAuthoringSelection selection{
-                EffectAuthoringSelectionKind::Module,
-                _targetEmitterId,
-                _targetModuleId
-            };
-            const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
-            const EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode =
-                emitter->typeData.kind == AuthoringTypeDataKind::None
-                ? EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly
-                : emitter->typeData.kind == AuthoringTypeDataKind::Trail
-                  ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
-                  : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
-
-            if (useSideBySideLayout)
+            if (emitter->typeData.kind == AuthoringTypeDataKind::Mesh)
             {
-                const float spacing = ImGui::GetStyle().ItemSpacing.x;
-                const float previewPaneWidth = clamp(contentWidth * 0.42f, 360.f, 560.f);
+                Commit_PendingAuthoringEdit(emitterView);
+                ImGui::TextDisabled("Mesh Required material authoring is disabled.");
+                ImGui::TextDisabled("Mesh materials are edited from Mesh TypeData Assigned Material.");
+            }
+            else
+            {
+                bool changed = false;
+                bool restartPreview = false;
+                const float contentWidth = ImGui::GetContentRegionAvail().x;
+                const bool useSideBySideLayout = contentWidth >= 760.f;
+                const EffectAuthoringSelection selection{
+                    EffectAuthoringSelectionKind::Module,
+                    _targetEmitterId,
+                    _targetModuleId
+                };
+                const Emitter_View::AuthoringSnapshot beforeSnapshot = emitterView->Capture_AuthoringSnapshot();
+                const EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode =
+                    emitter->typeData.kind == AuthoringTypeDataKind::None
+                    ? EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly
+                    : emitter->typeData.kind == AuthoringTypeDataKind::Trail
+                      ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
+                      : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
 
-                ImGui::BeginChild("EffectMaterialInstancePreviewPane", ImVec2(previewPaneWidth, 0.f), false);
+                if (useSideBySideLayout)
+                {
+                    const float spacing = ImGui::GetStyle().ItemSpacing.x;
+                    const float previewPaneWidth = clamp(contentWidth * 0.42f, 360.f, 560.f);
+
+                    ImGui::BeginChild("EffectMaterialInstancePreviewPane", ImVec2(previewPaneWidth, 0.f), false);
+                    {
+                        if (_previewRenderer != nullptr)
+                        {
+                            _previewRenderer->Draw_Viewport(
+                                "EffectMaterialInstancePreview",
+                                requiredData->material,
+                                "현재 인스턴스 프리뷰"
+                            );
+                        }
+                    }
+                    ImGui::EndChild();
+
+                    ImGui::SameLine(0.f, spacing);
+
+                    ImGui::BeginChild("EffectMaterialInstancePropertyPane", ImVec2(0.f, 0.f), false);
+                    {
+                        changed |= Draw_InstanceProperties(
+                            _detailPropertyContext,
+                            _textureThumbnailCache,
+                            requiredData->material,
+                            &restartPreview,
+                            twoSidedDisplayMode
+                        );
+                    }
+                    ImGui::EndChild();
+                }
+                else
                 {
                     if (_previewRenderer != nullptr)
                     {
@@ -1093,14 +1128,9 @@ void EffectMaterialInstance_View::Render()
                             requiredData->material,
                             "현재 인스턴스 프리뷰"
                         );
+                        ImGui::Separator();
                     }
-                }
-                ImGui::EndChild();
 
-                ImGui::SameLine(0.f, spacing);
-
-                ImGui::BeginChild("EffectMaterialInstancePropertyPane", ImVec2(0.f, 0.f), false);
-                {
                     changed |= Draw_InstanceProperties(
                         _detailPropertyContext,
                         _textureThumbnailCache,
@@ -1109,39 +1139,18 @@ void EffectMaterialInstance_View::Render()
                         twoSidedDisplayMode
                     );
                 }
-                ImGui::EndChild();
-            }
-            else
-            {
-                if (_previewRenderer != nullptr)
+
+                if (changed)
                 {
-                    _previewRenderer->Draw_Viewport(
-                        "EffectMaterialInstancePreview",
-                        requiredData->material,
-                        "현재 인스턴스 프리뷰"
-                    );
-                    ImGui::Separator();
+                    Apply_MaterialChanged(emitterView, *emitter, *requiredData);
+                    Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Material Instance");
+
+                    if (restartPreview && EDITOR != nullptr)
+                        EDITOR->Request_RestartPreview();
                 }
 
-                changed |= Draw_InstanceProperties(
-                    _detailPropertyContext,
-                    _textureThumbnailCache,
-                    requiredData->material,
-                    &restartPreview,
-                    twoSidedDisplayMode
-                );
+                Commit_PendingAuthoringEditIfIdle(emitterView);
             }
-
-            if (changed)
-            {
-                Apply_MaterialChanged(emitterView, *emitter, *requiredData);
-                Begin_PendingAuthoringEdit(emitterView, selection, beforeSnapshot, "Edit Material Instance");
-
-                if (restartPreview && EDITOR != nullptr)
-                    EDITOR->Request_RestartPreview();
-            }
-
-            Commit_PendingAuthoringEditIfIdle(emitterView);
         }
     }
 

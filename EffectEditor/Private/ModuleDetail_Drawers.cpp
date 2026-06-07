@@ -14,9 +14,9 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr const char* kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
-    constexpr const wchar_t* kMaterialDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Materials";
-    constexpr float kMaterialFloatEpsilon = 0.0001f;
+    constexpr auto kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
+    constexpr auto kMaterialDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Materials";
+    constexpr float kMaterialFloatEpsilon = 1e-4f;
 
     bool Uses_DirectionalAlignmentOptions(EmitterScreenAlignment alignment)
     {
@@ -310,6 +310,11 @@ namespace Internal
         return emitter.typeData.kind == AuthoringTypeDataKind::Mesh
                ? PlaneRadialOrientationTargetKind::Mesh3D
                : PlaneRadialOrientationTargetKind::Sprite2D;
+    }
+
+    static bool Is_MeshEffectAuthoring(const AuthoringEmitter& emitter)
+    {
+        return emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
     }
 
     static bool Is_PlaneRadialLocationAdvancedPlacementShape(PlaneRadialLocationShape shape)
@@ -1434,22 +1439,28 @@ namespace Internal
         const AuthoringEmitter& emitter,
         RequiredModuleData& data,
         EffectMaterialPreviewRenderer* materialSlotPreview,
-        float timeDelta)
+        float timeDelta,
+        bool allowAuthoring)
     {
         constexpr float browseButtonWidth{ 28.f };
         constexpr float slotHeight = 54.f;
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
         const ImGuiPayload* activePayload = ImGui::GetDragDropPayload();
         const bool isMaterialDragging =
+            allowAuthoring &&
             activePayload != nullptr &&
             activePayload->IsDataType(kEffectMaterialPayloadType);
 
         const ImVec2 slotMin = ImGui::GetCursorScreenPos();
         const float slotWidth = max(180.f, ImGui::GetContentRegionAvail().x - browseButtonWidth - spacing);
+        if (!allowAuthoring)
+            ImGui::BeginDisabled();
         ImGui::InvisibleButton("##MaterialDropSlot", ImVec2(slotWidth, slotHeight));
+        if (!allowAuthoring)
+            ImGui::EndDisabled();
 
         bool changed = false;
-        if (ImGui::BeginDragDropTarget())
+        if (allowAuthoring && ImGui::BeginDragDropTarget())
         {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
                 kEffectMaterialPayloadType,
@@ -1463,14 +1474,18 @@ namespace Internal
             ImGui::EndDragDropTarget();
         }
 
-        const bool isHovered = ImGui::IsItemHovered();
+        const bool isHovered = ImGui::IsItemHovered(
+            allowAuthoring ? ImGuiHoveredFlags_None : ImGuiHoveredFlags_AllowWhenDisabled
+        );
         const ImVec2 slotMax{ slotMin.x + slotWidth, slotMin.y + slotHeight };
         const ImU32 fillColor = isMaterialDragging
                                 ? IM_COL32(42, 56, 78, 255)
-                                : IM_COL32(30, 34, 42, 255);
+                                : !allowAuthoring ? IM_COL32(26, 28, 34, 255)
+                                  : IM_COL32(30, 34, 42, 255);
         const ImU32 borderColor = isMaterialDragging
                                   ? IM_COL32(96, 165, 250, 255)
-                                  : isHovered ? IM_COL32(120, 130, 150, 255) : IM_COL32(70, 78, 92, 255);
+                                  : !allowAuthoring ? IM_COL32(58, 64, 76, 255)
+                                    : isHovered ? IM_COL32(120, 130, 150, 255) : IM_COL32(70, 78, 92, 255);
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddRectFilled(slotMin, slotMax, fillColor, 6.f);
@@ -1536,39 +1551,54 @@ namespace Internal
 
         if (isHovered)
         {
-            const string mainTooltip =
-                "GUID: " + (data.material.mainTextureGuid.empty() ? string{ "(none)" } : data.material.mainTextureGuid) +
-                "\nPath: " + (data.material.mainTexturePath.empty() ? string{ "(none)" } : data.material.mainTexturePath);
-            const string noiseTooltip =
-                data.material.noiseTextureGuid.empty() && data.material.noiseTexturePath.empty()
-                ? string{ "GUID: (none)\nPath: (none)" }
-                : "GUID: " + (data.material.noiseTextureGuid.empty() ? string{ "(none)" } : data.material.noiseTextureGuid) +
-                  "\nPath: " + (data.material.noiseTexturePath.empty() ? string{ "(none)" } : data.material.noiseTexturePath);
-            ImGui::SetTooltip(
-                "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\n"
-                "현재 sprite effect 경로에서는 Main Texture를 emissive color source로, Opacity Source를 별도 opacity 해석 기준으로 사용합니다.\n\n"
-                "Main Texture (Emissive)\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %u cols x %u rows",
-                mainTooltip.c_str(),
-                noiseTooltip.c_str(),
-                blendModeName.c_str(),
-                sourceSummary.c_str(),
-                data.material.subUVCols,
-                data.material.subUVRows
-            );
+            if (!allowAuthoring)
+                ImGui::SetTooltip("Mesh 머티리얼은 Mesh TypeData의 Assigned Material에서 편집합니다.");
+            else
+            {
+                const string mainTooltip =
+                    "GUID: " + (data.material.mainTextureGuid.empty() ? string{ "(none)" } : data.material.mainTextureGuid) +
+                    "\nPath: " + (data.material.mainTexturePath.empty() ? string{ "(none)" } : data.material.mainTexturePath);
+                const string noiseTooltip =
+                    data.material.noiseTextureGuid.empty() && data.material.noiseTexturePath.empty()
+                    ? string{ "GUID: (none)\nPath: (none)" }
+                    : "GUID: " + (data.material.noiseTextureGuid.empty() ? string{ "(none)" } : data.material.noiseTextureGuid) +
+                      "\nPath: " + (data.material.noiseTexturePath.empty() ? string{ "(none)" } : data.material.noiseTexturePath);
+                ImGui::SetTooltip(
+                    "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\n"
+                    "현재 sprite effect 경로에서는 Main Texture를 emissive color source로, Opacity Source를 별도 opacity 해석 기준으로 사용합니다.\n\n"
+                    "Main Texture (Emissive)\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %u cols x %u rows",
+                    mainTooltip.c_str(),
+                    noiseTooltip.c_str(),
+                    blendModeName.c_str(),
+                    sourceSummary.c_str(),
+                    data.material.subUVCols,
+                    data.material.subUVRows
+                );
+            }
         }
 
         ImGui::SameLine();
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.5f, 0.5f });
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.f, 0.f });
+        if (!allowAuthoring)
+            ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_FOLDER_OPEN "##PickMaterial", ImVec2{ browseButtonWidth, slotHeight }))
         {
             wstring pickedFilePath{};
             if (Try_PickMaterialPresetDialog(pickedFilePath))
                 changed = Apply_PresetFileToRequired(pickedFilePath.c_str(), data);
         }
+        if (!allowAuthoring)
+            ImGui::EndDisabled();
         ImGui::PopStyleVar(2);
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-            ImGui::SetTooltip("머티리얼 원본 파일 선택");
+        if (ImGui::IsItemHovered(allowAuthoring ? ImGuiHoveredFlags_DelayShort : ImGuiHoveredFlags_AllowWhenDisabled))
+        {
+            ImGui::SetTooltip(
+                allowAuthoring
+                ? "머티리얼 원본 파일 선택"
+                : "Mesh 머티리얼은 Mesh TypeData의 Assigned Material에서 편집합니다."
+            );
+        }
 
         return changed;
     }
@@ -1853,13 +1883,21 @@ bool RequiredModuleDetail::Draw(
     if (_materialSlotPreview == nullptr)
         _materialSlotPreview = EffectMaterialPreviewRenderer::Create(64);
 
+    const bool allowRequiredMaterialAuthoring = !Internal::Is_MeshEffectAuthoring(emitter);
+
     if (ImGui::CollapsingHeader("머티리얼", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("RequiredMaterial"))
         {
             ImGui::PushID("MaterialDropSlot");
             detailContext.Draw_PropertyLabel("머티리얼");
-            changed |= Internal::Draw_MaterialDropSlot(emitter, data, _materialSlotPreview.get(), timeDelta);
+            changed |= Internal::Draw_MaterialDropSlot(
+                emitter,
+                data,
+                _materialSlotPreview.get(),
+                timeDelta,
+                allowRequiredMaterialAuthoring
+            );
             detailContext.Draw_ResetButton(false);
             ImGui::PopID();
 
@@ -1871,16 +1909,32 @@ bool RequiredModuleDetail::Draw(
             const float editButtonWidth = (availableWidth - spacing) * 0.5f;
             const float sourceButtonWidth = (availableWidth - spacing) * 0.5f;
 
+            if (!allowRequiredMaterialAuthoring)
+                ImGui::BeginDisabled();
             if (ImGui::Button("인스턴스 편집", ImVec2{ editButtonWidth, 24.f }))
                 Internal::Open_MaterialInstanceWindow(emitter.id, module.id);
+            if (!allowRequiredMaterialAuthoring)
+                ImGui::EndDisabled();
+            if (!allowRequiredMaterialAuthoring && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("Mesh 머티리얼은 Mesh TypeData의 Assigned Material에서 편집합니다.");
 
             ImGui::SameLine();
 
+            if (!allowRequiredMaterialAuthoring)
+                ImGui::BeginDisabled();
             if (ImGui::Button("원본 보기", ImVec2{ sourceButtonWidth, 24.f }))
                 Internal::Open_PresetBrowserWindow(data);
+            if (!allowRequiredMaterialAuthoring)
+                ImGui::EndDisabled();
 
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-                ImGui::SetTooltip("원본 머티리얼을 확인");
+            if (ImGui::IsItemHovered(allowRequiredMaterialAuthoring ? ImGuiHoveredFlags_DelayShort : ImGuiHoveredFlags_AllowWhenDisabled))
+            {
+                ImGui::SetTooltip(
+                    allowRequiredMaterialAuthoring
+                    ? "원본 머티리얼을 확인"
+                    : "Mesh 머티리얼은 Mesh TypeData의 Assigned Material에서 편집합니다."
+                );
+            }
             ImGui::PopID();
 
             detailContext.End_PropertyTable();
