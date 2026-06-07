@@ -313,9 +313,7 @@ void ComputeSpriteEmitter::Update(float timeDelta)
     if (playbackTick.computeDeltaTime <= 0.f &&
         playbackTick.spawnRequest == 0u &&
         !playbackTick.killActiveParticles)
-    {
         return;
-    }
 
     _viBuffer->Dispatch_Compute(
         playbackTick.computeDeltaTime,
@@ -413,11 +411,6 @@ bool ComputeSpriteEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition
     return true;
 }
 
-float ComputeSpriteEmitter::Get_BlendSortBias() const
-{
-    return _desc.required.sort.artistSortBias;
-}
-
 EffectSortPolicy ComputeSpriteEmitter::Get_BlendSortPolicy() const
 {
     return _desc.required.sort.sortPolicy;
@@ -426,6 +419,11 @@ EffectSortPolicy ComputeSpriteEmitter::Get_BlendSortPolicy() const
 int32 ComputeSpriteEmitter::Get_BlendSortLayer() const
 {
     return _desc.required.sort.sortLayer;
+}
+
+float ComputeSpriteEmitter::Get_BlendSortBias() const
+{
+    return _desc.required.sort.artistSortBias;
 }
 
 void ComputeSpriteEmitter::On_EffectTransformSynced()
@@ -958,6 +956,18 @@ uint32 ComputeSpriteEmitter::Resolve_BlendPassIndex() const
     return 0u;
 }
 
+Vec3 ComputeSpriteEmitter::Resolve_RuntimeWorldScale() const
+{
+    const Shared<GameObject> effectOwner = _effectOwner.lock();
+    const Shared<TransformCom> ownerTransform =
+        effectOwner != nullptr ? effectOwner->Get_Transform() : nullptr;
+
+    if (ownerTransform != nullptr)
+        return Internal::Resolve_WorldScale(ownerTransform);
+
+    return Internal::Resolve_WorldScale(_transformCom);
+}
+
 ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() const
 {
     ComputePointParticleDesc desc{};
@@ -1027,18 +1037,6 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     return desc;
 }
 
-Vec3 ComputeSpriteEmitter::Resolve_RuntimeWorldScale() const
-{
-    const Shared<GameObject> effectOwner = _effectOwner.lock();
-    const Shared<TransformCom> ownerTransform =
-        effectOwner != nullptr ? effectOwner->Get_Transform() : nullptr;
-
-    if (ownerTransform != nullptr)
-        return Internal::Resolve_WorldScale(ownerTransform);
-
-    return Internal::Resolve_WorldScale(_transformCom);
-}
-
 void ComputeSpriteEmitter::Update_RuntimeDescForCurrentScale(bool forceUpdate)
 {
     CHECK_NULL_THROTTLED(_transformCom, 120);
@@ -1048,9 +1046,7 @@ void ComputeSpriteEmitter::Update_RuntimeDescForCurrentScale(bool forceUpdate)
     if (!forceUpdate &&
         _hasRuntimeDescWorldScale &&
         Internal::Nearly_EqualScale(_runtimeDescWorldScale, worldScale))
-    {
         return;
-    }
 
     _viBuffer->Update_RuntimeDesc(Make_ComputePointParticleDesc());
     _runtimeDescWorldScale = worldScale;
@@ -1119,16 +1115,18 @@ uint32 ComputeSpriteEmitter::Consume_SpawnRequest(float timeDelta)
     return min(spawnRequest, max(1u, _desc.spawn.particleSpawn.maxActiveCount));
 }
 
-void ComputeSpriteEmitter::Reset_PlaybackRuntime()
+void ComputeSpriteEmitter::Resample_LoopSpawnDistributions()
 {
-    _burstExecuted.assign(_desc.spawn.particleSpawn.bursts.size(), false);
-    _emitterElapsedTime = 0.f;
-    _spawnAccumulator = 0.f;
-    _loopElapsedTime = 0.f;
-    _loopIndex = 0u;
-    _completedKillDispatched = false;
-    _playbackState = Resolve_CurrentLoopDelay() > 0.f ? PlaybackState::Delayed : PlaybackState::Playing;
-    Resample_LoopSpawnDistributions();
+    _sampledSpawnRate = Sample_SpawnDistribution(
+        _desc.spawn.particleSpawn.spawnRateRange,
+        _desc.spawn.particleSpawn.spawnRateSeed,
+        0x31B7u
+    );
+    _sampledSpawnRateScale = Sample_SpawnDistribution(
+        _desc.spawn.particleSpawn.spawnRateScaleRange,
+        _desc.spawn.particleSpawn.spawnRateScaleSeed,
+        0x45D9u
+    );
 }
 
 float ComputeSpriteEmitter::Sample_SpawnDistribution(
@@ -1145,18 +1143,16 @@ float ComputeSpriteEmitter::Sample_SpawnDistribution(
     return lerp(minValue, maxValue, Internal::Hash01(baseSeed));
 }
 
-void ComputeSpriteEmitter::Resample_LoopSpawnDistributions()
+void ComputeSpriteEmitter::Reset_PlaybackRuntime()
 {
-    _sampledSpawnRate = Sample_SpawnDistribution(
-        _desc.spawn.particleSpawn.spawnRateRange,
-        _desc.spawn.particleSpawn.spawnRateSeed,
-        0x31B7u
-    );
-    _sampledSpawnRateScale = Sample_SpawnDistribution(
-        _desc.spawn.particleSpawn.spawnRateScaleRange,
-        _desc.spawn.particleSpawn.spawnRateScaleSeed,
-        0x45D9u
-    );
+    _burstExecuted.assign(_desc.spawn.particleSpawn.bursts.size(), false);
+    _emitterElapsedTime = 0.f;
+    _spawnAccumulator = 0.f;
+    _loopElapsedTime = 0.f;
+    _loopIndex = 0u;
+    _completedKillDispatched = false;
+    _playbackState = Resolve_CurrentLoopDelay() > 0.f ? PlaybackState::Delayed : PlaybackState::Playing;
+    Resample_LoopSpawnDistributions();
 }
 
 ComputeSpriteEmitter::PlaybackTick ComputeSpriteEmitter::Advance_Playback(float timeDelta)

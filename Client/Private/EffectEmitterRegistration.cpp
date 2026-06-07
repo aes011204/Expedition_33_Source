@@ -4,7 +4,6 @@
 #include "ComputeTrailEmitter.h"
 #include "EffectEmitterFactory.h"
 #include "GameInstance.h"
-#include "MeshEmitter.h"
 
 NS_BEGIN(Client)
 

@@ -37,9 +37,9 @@ public:
     // 마지막 loop 완료와 active particle 소진 여부를 반환한다.
     bool Is_EffectFinished() const override;
     bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override; // active mesh particle의 카메라 기준 대표 표면점을 Blend 정렬 위치로 반환한다.
-    EffectSortPolicy Get_BlendSortPolicy() const override; // Required Sort Policy authoring 값을 반환한다.
-    int32 Get_BlendSortLayer() const override;             // Required Sort Layer authoring 값을 반환한다.
-    float Get_BlendSortBias() const override;              // Required Sort Bias authoring 값을 Blend 정렬 보정값으로 반환한다.
+    EffectSortPolicy Get_BlendSortPolicy() const override;                      // Required Sort Policy authoring 값을 반환한다.
+    int32 Get_BlendSortLayer() const override;                                  // Required Sort Layer authoring 값을 반환한다.
+    float Get_BlendSortBias() const override;                                   // Required Sort Bias authoring 값을 Blend 정렬 보정값으로 반환한다.
 
 protected:
     void On_EffectTransformSynced() override; // root/local-space sync 직후 active instance world matrix를 다시 계산한다.
@@ -62,23 +62,23 @@ private: //## Types::PlaybackRuntime
 
     struct MeshParticleState
     {
-        bool active{ false };                          // 현재 slot이 살아 있는 particle인지 나타낸다.
-        float age{};                                   // spawn 이후 누적된 particle age다.
-        float lifeMax{ 1.f };                          // 이 particle에 배정된 최대 lifetime이다.
-        Vec3 position{};                               // local-space면 emitter 기준, world-space면 world 기준 현재 위치다.
-        Vec3 velocity{};                               // position과 같은 simulation space에서 누적되는 현재 속도다.
-        Vec3 acceleration{};                           // particle별 초기 acceleration sample 값이다.
-        float drag{};                                  // 매 frame velocity 감쇠에 사용할 drag 계수다.
-        Vec3 baseScale{ 1.f, 1.f, 1.f };               // life curve 적용 전 초기 mesh scale이다.
-        Vec3 spawnOffset{};                            // OrbitOverLife가 회전시킬 emitter-local spawn offset이다.
-        Vec3 spawnPosition{};                          // 기존 motion 누적량을 분리하기 위한 spawn 기준 위치다.
-        Quat spawnOrientation{ Quat::Identity };       // radial orientation module에서 만든 spawn 기준 mesh 회전이다.
-        bool spawnOrientationEnabled{ false };         // spawn 기준 radial mesh 회전이 실제 적용 가능한지 나타낸다.
-        Vec3 rotationRadians{};                        // 현재 particle 회전값이다.
-        Vec3 angularVelocityRadians{};                 // 현재 particle 회전 속도다.
-        Vec4 startColor{ 1.f, 1.f, 1.f, 1.f };         // InitialColor에서 정한 particle 시작 색상이다.
-        Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };           // ColorOverLife endpoint 보간에 사용할 particle 끝 색상이다.
-        uint32 seed{};                                 // particle별 deterministic random sample seed다.
+        bool active{ false };                    // 현재 slot이 살아 있는 particle인지 나타낸다.
+        float age{};                             // spawn 이후 누적된 particle age다.
+        float lifeMax{ 1.f };                    // 이 particle에 배정된 최대 lifetime이다.
+        Vec3 position{};                         // local-space면 emitter 기준, world-space면 world 기준 현재 위치다.
+        Vec3 velocity{};                         // position과 같은 simulation space에서 누적되는 현재 속도다.
+        Vec3 acceleration{};                     // particle별 초기 acceleration sample 값이다.
+        float drag{};                            // 매 frame velocity 감쇠에 사용할 drag 계수다.
+        Vec3 baseScale{ 1.f, 1.f, 1.f };         // life curve 적용 전 초기 mesh scale이다.
+        Vec3 spawnOffset{};                      // OrbitOverLife가 회전시킬 emitter-local spawn offset이다.
+        Vec3 spawnPosition{};                    // 기존 motion 누적량을 분리하기 위한 spawn 기준 위치다.
+        Quat spawnOrientation{ Quat::Identity }; // radial orientation module에서 만든 spawn 기준 mesh 회전이다.
+        bool spawnOrientationEnabled{ false };   // spawn 기준 radial mesh 회전이 실제 적용 가능한지 나타낸다.
+        Vec3 rotationRadians{};                  // 현재 particle 회전값이다.
+        Vec3 angularVelocityRadians{};           // 현재 particle 회전 속도다.
+        Vec4 startColor{ 1.f, 1.f, 1.f, 1.f };   // InitialColor에서 정한 particle 시작 색상이다.
+        Vec4 endColor{ 1.f, 1.f, 1.f, 1.f };     // ColorOverLife endpoint 보간에 사용할 particle 끝 색상이다.
+        uint32 seed{};                           // particle별 deterministic random sample seed다.
     };
 
     struct PlaneRadialSample
@@ -124,11 +124,11 @@ private: //## Data::Components
     ComPtr<Buffer> _instanceBuffer{};    // MeshInstanceVertex payload를 GPU에 제출하는 dynamic instance buffer다.
 
 private: //## Data::Desc
-    MeshEmitterDesc _desc{};                                         // clone 생성 시 전달받은 mesh emitter runtime 규칙이다.
-    int _opacitySourceIndex{ kOpacitySourceAlpha };                  // shader opacity source selector다.
-    bool _isReady{ false };                                          // model/shader/buffer가 모두 준비돼 render 가능한지 나타낸다.
+    MeshEmitterDesc _desc{};                                          // clone 생성 시 전달받은 mesh emitter runtime 규칙이다.
+    int _opacitySourceIndex{ kOpacitySourceAlpha };                   // shader opacity source selector다.
+    bool _isReady{ false };                                           // model/shader/buffer가 모두 준비돼 render 가능한지 나타낸다.
     mutable bool _sphereRadialMeshOrientationFallbackLogged{ false }; // sphere radial mesh axis fallback warning을 emitter당 한 번만 남긴다.
-    mutable bool _planeRadialMeshOrientationFallbackLogged{ false }; // mesh axis fallback warning을 emitter당 한 번만 남긴다.
+    mutable bool _planeRadialMeshOrientationFallbackLogged{ false };  // mesh axis fallback warning을 emitter당 한 번만 남긴다.
 
 private: //## Data::ParticleRuntime
     vector<MeshParticleState> _particles{};        // active/inactive mesh particle slot 배열이다.

@@ -32,7 +32,8 @@ public:
 public:
     HRESULT Reset_ForEffectReplay() override; // effect root 재사용 시 trail history와 draw runtime을 초기화한다.
     bool Is_EffectFinished() const override;  // trail은 일단 자동 완료가 아니라 명시 Stop/release를 따른다.
-    void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider) override; // acquire 시점 owner가 준 trail sample provider를 현재 runtime desc에 다시 바인딩한다.
+    void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider) override;
+    // acquire 시점 owner가 준 trail sample provider를 현재 runtime desc에 다시 바인딩한다.
 
 private:
     struct TrailHistorySample
@@ -57,15 +58,15 @@ private:
 
     struct TrailComputeParams
     {
-        uint32 segmentCount{};   // 이번 frame에 유효한 trail segment 수다.
-        float segmentLifetime{}; // age fade 기준 lifetime이다.
-        float width{};           // base/tip span에 곱할 strip 폭 비율이다.
-        float uvTiling{};        // trail noise/breakup 길이 방향 UV 반복 배율이다.
-        float sideFade{};        // 폭 방향 alpha edge 감소 강도다.
-        Vec3 padding{};          // constant buffer 16-byte 정렬 유지용 padding이다.
-        Vec4 startColor{};       // InitialColor 모듈에서 낮춘 segment 시작 색상이다.
-        Vec4 endColor{};         // ColorOverLife 모듈에서 낮춘 segment 끝 색상이다.
-        Vec4 colorOverLifeCurveParams{};  // x: color key count, y: alpha key count, z/w: enabled flags.
+        uint32 segmentCount{};           // 이번 frame에 유효한 trail segment 수다.
+        float segmentLifetime{};         // age fade 기준 lifetime이다.
+        float width{};                   // base/tip span에 곱할 strip 폭 비율이다.
+        float uvTiling{};                // trail noise/breakup 길이 방향 UV 반복 배율이다.
+        float sideFade{};                // 폭 방향 alpha edge 감소 강도다.
+        Vec3 padding{};                  // constant buffer 16-byte 정렬 유지용 padding이다.
+        Vec4 startColor{};               // InitialColor 모듈에서 낮춘 segment 시작 색상이다.
+        Vec4 endColor{};                 // ColorOverLife 모듈에서 낮춘 segment 끝 색상이다.
+        Vec4 colorOverLifeCurveParams{}; // x: color key count, y: alpha key count, z/w: enabled flags.
         Vec4 colorOverLifeColorCurveTimes{};
         Vec4 colorOverLifeColorCurveValuesR{};
         Vec4 colorOverLifeColorCurveValuesG{};
@@ -151,19 +152,19 @@ private:
     void Build_RenderSamples(vector<TrailRenderSample>& outSamples) const;    // 원본 history를 render-time curve sample 배열로 낮춘다.
     EffectTrailSample Build_SmoothedHistorySample(uint32 sampleIndex) const;  // smoothTangent 옵션에 따라 history sample을 완만하게 보정한다.
 
-    HRESULT Dispatch_Compute();             // render sample을 trail instance payload로 낮추는 compute pass를 실행한다.
-    HRESULT Update_ComputeInput();          // CPU render sample을 compute 입력 structured buffer에 업로드한다.
-    HRESULT Update_ComputeConstants();      // trail compute 상수 버퍼를 현재 desc 값으로 갱신한다.
-    HRESULT Reset_IndirectArgs();           // indirect draw args를 draw count 0 상태로 초기화한다.
-    HRESULT Copy_ComputeOutput();           // compute 결과 instance/args buffer를 draw용 buffer로 복사한다.
-    HRESULT Bind_ShaderResources();         // trail draw shader가 사용할 camera/texture/tint 리소스를 바인딩한다.
-    HRESULT Bind_DistortionResources();     // trail distortion field shader가 사용할 flow 파라미터를 바인딩한다.
-    bool Is_DistortionFamily() const;       // 현재 trail material family가 distortion 경로인지 확인한다.
+    HRESULT Dispatch_Compute();              // render sample을 trail instance payload로 낮추는 compute pass를 실행한다.
+    HRESULT Update_ComputeInput();           // CPU render sample을 compute 입력 structured buffer에 업로드한다.
+    HRESULT Update_ComputeConstants();       // trail compute 상수 버퍼를 현재 desc 값으로 갱신한다.
+    HRESULT Reset_IndirectArgs();            // indirect draw args를 draw count 0 상태로 초기화한다.
+    HRESULT Copy_ComputeOutput();            // compute 결과 instance/args buffer를 draw용 buffer로 복사한다.
+    HRESULT Bind_ShaderResources();          // trail draw shader가 사용할 camera/texture/tint 리소스를 바인딩한다.
+    HRESULT Bind_DistortionResources();      // trail distortion field shader가 사용할 flow 파라미터를 바인딩한다.
+    bool Is_DistortionFamily() const;        // 현재 trail material family가 distortion 경로인지 확인한다.
     RenderGroup Resolve_RenderGroup() const; // material family에 맞는 render group을 반환한다.
-    const char* Resolve_ShaderId() const;   // material family에 맞는 shader prototype id를 반환한다.
-    uint32 Resolve_ShaderPassIndex() const; // 현재 shader에서 사용할 pass index를 반환한다.
-    int Resolve_OpacitySourceIndex() const; // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
-    uint32 Resolve_BlendPassIndex() const;  // material blend mode에 맞는 EffectTrail shader pass를 고른다.
+    const char* Resolve_ShaderId() const;    // material family에 맞는 shader prototype id를 반환한다.
+    uint32 Resolve_ShaderPassIndex() const;  // 현재 shader에서 사용할 pass index를 반환한다.
+    int Resolve_OpacitySourceIndex() const;  // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
+    uint32 Resolve_BlendPassIndex() const;   // material blend mode에 맞는 EffectTrail shader pass를 고른다.
 
 public:
     static Shared<ComputeTrailEmitter> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

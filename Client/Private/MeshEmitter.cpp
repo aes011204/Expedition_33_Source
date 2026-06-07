@@ -11,7 +11,7 @@ namespace Internal
 {
 constexpr double kMeshEmitterInitializeInfoThresholdMs = 8.0;
 constexpr double kMeshEmitterReloadReuseInfoThresholdMs = 4.0;
-constexpr float kPlaneRadialEpsilon = 0.0001f;
+constexpr float kPlaneRadialEpsilon = 1e-4f;
 
 float Read_Vec4Component(const Vec4& values, uint32 index)
 {
@@ -1518,9 +1518,7 @@ Vec3 MeshEmitter::Sample_InitialOffset(
             _desc.sphereLocation.mode == PointParticleSphereLocationMode::Surface &&
             _desc.sphereLocation.placementMode == PointParticleSphereLocationPlacementMode::EvenByParticleIndex;
         if (useEvenSurfacePlacement)
-        {
             direction = Internal::Resolve_EvenByParticleIndexSphereDirection(placementIndex, placementCount);
-        }
         else
         {
             const float z = RandomRange(-1.f, 1.f, sphereSeed + 5u);
@@ -1585,7 +1583,8 @@ Vec3 MeshEmitter::Sample_InitialOffset(
                                          placementIndex,
                                          placementCount,
                                          angleMinDegrees,
-                                         angleMaxDegrees)
+                                         angleMaxDegrees
+                                     )
                                      : Random01(seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.angleDegreesSeed, _effectPlaybackSeed) + 1613u);
             sampleAngle = lerp(angleMin, angleMax, angleRatio);
             u = cosf(sampleAngle) * radius;
@@ -1629,7 +1628,7 @@ Quat MeshEmitter::Build_SphereRadialMeshOrientation(const SphereRadialSample& sa
 
     Vec3 targetRight = preferredUp.Cross(targetForward);
     targetRight = Internal::Normalize_OrFallback(targetRight, Vec3{ 1.f, 0.f, 0.f });
-    Vec3 targetUp = Internal::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
+    const Vec3 targetUp = Internal::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
 
     const Vec3 sourceForward = Internal::Resolve_PlaneRadialOrientationAxis(_desc.sphereRadialOrientation.meshForwardAxis);
     Vec3 sourceUp = Internal::Resolve_PlaneRadialOrientationAxis(_desc.sphereRadialOrientation.meshUpAxis);
@@ -1790,11 +1789,9 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, const PlaneR
         if (radialDirection.LengthSquared() < 0.0001f)
         {
             if (_desc.motion.initialRadialVelocityCenterDirectionMode ==
-                    PointParticleInitialRadialVelocityCenterDirectionMode::PlaneRadial &&
+                PointParticleInitialRadialVelocityCenterDirectionMode::PlaneRadial &&
                 planeRadialSample.enabled)
-            {
                 radialDirection = Resolve_LocalVector(planeRadialSample.radialDirection);
-            }
             else
             {
                 radialDirection = Resolve_LocalVector(

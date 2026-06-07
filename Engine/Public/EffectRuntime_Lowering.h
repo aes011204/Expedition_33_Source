@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 /*
  * Effect authoring/material instance 값을 runtime desc와 runtime policy로 접는 공용 helper를 정의한다.
@@ -9,7 +9,6 @@
 
 namespace Engine::EffectRuntime
 {
-
 // authoring material instance 값을 runtime material desc로 복사한다.
 inline void Copy_EffectMaterialInstanceToRuntimeDesc(
     const EffectMaterialInstanceData& material,
@@ -74,5 +73,4 @@ inline void Apply_TrailMaterialRuntimePolicy(EffectRequiredMaterialRuntimeDesc& 
     if (material.blendMode == EffectMaterialBlendMode::Masked)
         material.blendMode = EffectMaterialBlendMode::AlphaBlend;
 }
-
 }

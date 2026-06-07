@@ -294,9 +294,7 @@ HRESULT ComputeTrailEmitter::Reset_ForEffectReplay()
 
     if (nullptr != _computeOutput && nullptr != _computeArgsOutput &&
         nullptr != _instanceBuffer && nullptr != _indirectArgsBuffer)
-    {
         CHECK_FAILED(Copy_ComputeOutput(), E_FAIL);
-    }
 
     return S_OK;
 }
@@ -978,22 +976,14 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
     CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
 
     if (nullptr != _noiseTexture)
-    {
         CHECK_FAILED(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
-    }
     else
-    {
         CHECK_FAILED(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
-    }
 
     if (nullptr != _maskTexture)
-    {
         CHECK_FAILED(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
-    }
     else
-    {
         CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
-    }
 
     CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &_desc.material.tint, sizeof(Vec4)), E_FAIL);
 

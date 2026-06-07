@@ -1605,6 +1605,18 @@ void EffectAssetRuntimeLoader::Fill_PlaneRadialLocationPayload(PointParticlePlan
     desc.thickness = max(0.f, Read_Float(planeRadialLocation, "thickness", desc.thickness));
 }
 
+void EffectAssetRuntimeLoader::Fill_SphereRadialOrientationPayload(
+    PointParticleSphereRadialOrientationDesc& desc,
+    const json& sphereRadialOrientation)
+{
+    desc.enabled = Read_Bool(sphereRadialOrientation, "enabled", desc.enabled);
+    Read_Enum(sphereRadialOrientation, "orientationMode", desc.orientationMode);
+    Read_Enum(sphereRadialOrientation, "meshForwardAxis", desc.meshForwardAxis);
+    Read_Enum(sphereRadialOrientation, "meshUpAxis", desc.meshUpAxis);
+    desc.tiltDegrees = Read_Float(sphereRadialOrientation, "tiltDegrees", desc.tiltDegrees);
+    desc.rollOffsetDegrees = Read_Float(sphereRadialOrientation, "rollOffsetDegrees", desc.rollOffsetDegrees);
+}
+
 void EffectAssetRuntimeLoader::Fill_PlaneRadialOrientationPayload(
     PointParticlePlaneRadialOrientationDesc& desc,
     const json& planeRadialOrientation)
@@ -1616,18 +1628,6 @@ void EffectAssetRuntimeLoader::Fill_PlaneRadialOrientationPayload(
     Read_Enum(planeRadialOrientation, "meshUpAxis", desc.meshUpAxis);
     desc.tiltDegrees = Read_Float(planeRadialOrientation, "tiltDegrees", desc.tiltDegrees);
     desc.rollOffsetDegrees = Read_Float(planeRadialOrientation, "rollOffsetDegrees", desc.rollOffsetDegrees);
-}
-
-void EffectAssetRuntimeLoader::Fill_SphereRadialOrientationPayload(
-    PointParticleSphereRadialOrientationDesc& desc,
-    const json& sphereRadialOrientation)
-{
-    desc.enabled = Read_Bool(sphereRadialOrientation, "enabled", desc.enabled);
-    Read_Enum(sphereRadialOrientation, "orientationMode", desc.orientationMode);
-    Read_Enum(sphereRadialOrientation, "meshForwardAxis", desc.meshForwardAxis);
-    Read_Enum(sphereRadialOrientation, "meshUpAxis", desc.meshUpAxis);
-    desc.tiltDegrees = Read_Float(sphereRadialOrientation, "tiltDegrees", desc.tiltDegrees);
-    desc.rollOffsetDegrees = Read_Float(sphereRadialOrientation, "rollOffsetDegrees", desc.rollOffsetDegrees);
 }
 
 void EffectAssetRuntimeLoader::Fill_MeshVector3CurvePayload(
@@ -1916,38 +1916,38 @@ void EffectAssetRuntimeLoader::Apply_SpawnModule(const json& data, ComputeSprite
     desc.spawn.particleSpawn.processBurstList = Read_Bool(data, "processBurstList", desc.spawn.particleSpawn.processBurstList);
     desc.spawn.particleSpawn.maxActiveCount = desc.spawn.instanceCount;
 
-        const auto spawnRateIter = data.find("spawnRate");
-        if (spawnRateIter != data.end())
-        {
-            desc.spawn.particleSpawn.spawnRateRange = Vec2{
-                max(0.f, Evaluate_FloatDistributionMin(*spawnRateIter, desc.spawn.particleSpawn.spawnRate)),
-                max(0.f, Evaluate_FloatDistributionMax(*spawnRateIter, desc.spawn.particleSpawn.spawnRate))
-            };
-            desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
-            desc.spawn.particleSpawn.spawnRateSeed = Internal::Read_DistributionRandomSeedDesc(*spawnRateIter, &data);
-        }
+    const auto spawnRateIter = data.find("spawnRate");
+    if (spawnRateIter != data.end())
+    {
+        desc.spawn.particleSpawn.spawnRateRange = Vec2{
+            max(0.f, Evaluate_FloatDistributionMin(*spawnRateIter, desc.spawn.particleSpawn.spawnRate)),
+            max(0.f, Evaluate_FloatDistributionMax(*spawnRateIter, desc.spawn.particleSpawn.spawnRate))
+        };
+        desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
+        desc.spawn.particleSpawn.spawnRateSeed = Internal::Read_DistributionRandomSeedDesc(*spawnRateIter, &data);
+    }
 
     const auto spawnRateScaleIter = data.find("spawnRateScale");
-        if (spawnRateScaleIter != data.end())
-        {
-            desc.spawn.particleSpawn.spawnRateScaleRange = Vec2{
-                max(0.f, Evaluate_FloatDistributionMin(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale)),
-                max(0.f, Evaluate_FloatDistributionMax(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale))
-            };
-            desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
-            desc.spawn.particleSpawn.spawnRateScaleSeed = Internal::Read_DistributionRandomSeedDesc(*spawnRateScaleIter, &data);
-        }
+    if (spawnRateScaleIter != data.end())
+    {
+        desc.spawn.particleSpawn.spawnRateScaleRange = Vec2{
+            max(0.f, Evaluate_FloatDistributionMin(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale)),
+            max(0.f, Evaluate_FloatDistributionMax(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale))
+        };
+        desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
+        desc.spawn.particleSpawn.spawnRateScaleSeed = Internal::Read_DistributionRandomSeedDesc(*spawnRateScaleIter, &data);
+    }
 
     const auto burstScaleIter = data.find("burstScale");
-        if (burstScaleIter != data.end())
-        {
-            desc.spawn.particleSpawn.burstScaleRange = Vec2{
-                max(0.f, Evaluate_FloatDistributionMin(*burstScaleIter, desc.spawn.particleSpawn.burstScale)),
-                max(0.f, Evaluate_FloatDistributionMax(*burstScaleIter, desc.spawn.particleSpawn.burstScale))
-            };
-            desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
-            desc.spawn.particleSpawn.burstScaleSeed = Internal::Read_DistributionRandomSeedDesc(*burstScaleIter, &data);
-        }
+    if (burstScaleIter != data.end())
+    {
+        desc.spawn.particleSpawn.burstScaleRange = Vec2{
+            max(0.f, Evaluate_FloatDistributionMin(*burstScaleIter, desc.spawn.particleSpawn.burstScale)),
+            max(0.f, Evaluate_FloatDistributionMax(*burstScaleIter, desc.spawn.particleSpawn.burstScale))
+        };
+        desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
+        desc.spawn.particleSpawn.burstScaleSeed = Internal::Read_DistributionRandomSeedDesc(*burstScaleIter, &data);
+    }
 
     const auto burstListIter = data.find("burstList");
     if (burstListIter == data.end() || !burstListIter->is_array())
