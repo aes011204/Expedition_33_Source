@@ -23,6 +23,7 @@ namespace Internal
     constexpr auto kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
     constexpr auto kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
     constexpr auto kEffectAuthoringExtension = L".effect.json";
+    constexpr ImU32 kCurveEditorFocusBarColor = IM_COL32(80, 170, 205, 255);
 
     fs::path Normalize_EffectSaveDialogPath(const fs::path& filePath)
     {
@@ -2218,9 +2219,8 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         )
     );
 
-    std::sort(
-        entries.begin(),
-        entries.end(),
+    ranges::sort(
+        entries,
         [](const ModulePickerEntry& lhs, const ModulePickerEntry& rhs)
         {
             return String::ToString(lhs.displayName) < String::ToString(rhs.displayName);
@@ -2725,6 +2725,14 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
     AuthoringEmitter& emitter = _emitters[emitterIndex];
     const bool moduleCompatible = Is_ModuleCompatibleWithEmitter(emitter, module.type);
     const bool canPinCurve = CurveEditor_View::Has_ModuleCurveTargets(emitter, module);
+    const bool canConvertCurve = !canPinCurve && CurveEditor_View::Has_ModuleConvertibleCurveTargets(emitter, module);
+    const bool canUseCurveButton = canPinCurve || canConvertCurve;
+    bool isCurveEditorFocused = false;
+    if (canPinCurve && EDITOR != nullptr)
+    {
+        if (const Shared<CurveEditor_View> curveEditor = dynamic_pointer_cast<CurveEditor_View>(EDITOR->Get_Window(L"Curve Editor")))
+            isCurveEditorFocused = curveEditor->Is_ModuleFocused(emitter.id, module.id);
+    }
     const string displayNameUtf8 = String::ToString(module.displayName);
     const ImVec4 moduleNameTextColor =
         !isSelected && module.enabled && !moduleCompatible
@@ -2746,6 +2754,17 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
         Select_Module(emitterIndex, moduleIndex);
 
     const bool isRowHovered = ImGui::IsItemHovered();
+    if (isCurveEditorFocused)
+    {
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        const ImVec2 rowMin = ImGui::GetItemRectMin();
+        const ImVec2 rowMax = ImGui::GetItemRectMax();
+        drawList->AddRectFilled(
+            rowMin,
+            ImVec2{ rowMin.x + 4.f, rowMax.y },
+            Internal::kCurveEditorFocusBarColor
+        );
+    }
     ImGui::PopStyleColor(4);
     if (ImGui::BeginPopupContextItem("##ModuleRowPopup"))
     {
@@ -2763,31 +2782,60 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
 
     if (!isRequiredRow)
     {
-        const float curveButtonRightPadding = canPinCurve ? moduleCheckboxRightPadding + curveButtonSize + curveButtonGap : moduleCheckboxRightPadding;
-        if (canPinCurve)
+        const float curveButtonRightPadding = moduleCheckboxRightPadding + curveButtonSize + curveButtonGap;
+        ImGui::SetCursorPos(
+            ImVec2(
+                rowCursor.x + kEmitterColumnWidth - curveButtonRightPadding,
+                rowCursor.y + (rowHeight - curveButtonSize) * 0.5f
+            )
+        );
+        ImGui::PushID("PinCurves");
+        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.42f, 0.5f });
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.f, 0.f });
+        if (!canUseCurveButton)
+            ImGui::BeginDisabled();
+        if (ImGui::Button(ICON_FA_CHART_LINE, ImVec2(curveButtonSize, curveButtonSize)) && canUseCurveButton)
         {
-            ImGui::SetCursorPos(
-                ImVec2(
-                    rowCursor.x + kEmitterColumnWidth - curveButtonRightPadding,
-                    rowCursor.y + (rowHeight - curveButtonSize) * 0.5f
-                )
+            if (canPinCurve && EDITOR != nullptr)
+            {
+                if (const Shared<CurveEditor_View> curveEditor = dynamic_pointer_cast<CurveEditor_View>(EDITOR->Get_Window(L"Curve Editor")))
+                    curveEditor->Pin_ModuleTargets(emitter.id, module.id);
+            }
+            else if (canConvertCurve)
+                ImGui::OpenPopup("ConvertCurvesPopup");
+        }
+        if (!canUseCurveButton)
+            ImGui::EndDisabled();
+        ImGui::PopStyleVar(2);
+        if (ImGui::IsItemHovered(canUseCurveButton ? ImGuiHoveredFlags_None : ImGuiHoveredFlags_AllowWhenDisabled))
+        {
+            ImGui::SetTooltip(
+                canPinCurve
+                ? "커브 편집"
+                : canConvertCurve
+                  ? "커브로 전환 후 편집"
+                  : "이 모듈에서는 커브 분포가 아직 지원되지 않습니다"
             );
-            ImGui::PushID("PinCurves");
-            ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.42f, 0.5f });
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.f, 0.f });
-            if (ImGui::Button(ICON_FA_CHART_LINE, ImVec2(curveButtonSize, curveButtonSize)))
+        }
+        if (ImGui::BeginPopup("ConvertCurvesPopup"))
+        {
+            ImGui::TextUnformatted("이 모듈의 분포를 고정값 커브로 전환할까요?");
+            ImGui::TextDisabled("전환 후 Curve Editor에서 바로 편집합니다.");
+            if (ImGui::Button("전환", ImVec2{ 72.f, 0.f }))
             {
                 if (EDITOR != nullptr)
                 {
                     if (const Shared<CurveEditor_View> curveEditor = dynamic_pointer_cast<CurveEditor_View>(EDITOR->Get_Window(L"Curve Editor")))
-                        curveEditor->Pin_ModuleTargets(emitter.id, module.id);
+                        curveEditor->Convert_AndPin_ModuleTargets(emitter.id, module.id);
                 }
+                ImGui::CloseCurrentPopup();
             }
-            ImGui::PopStyleVar(2);
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("모듈 커브 고정");
-            ImGui::PopID();
+            ImGui::SameLine();
+            if (ImGui::Button("취소", ImVec2{ 72.f, 0.f }))
+                ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
         }
+        ImGui::PopID();
 
         ImGui::SetCursorPos(
             ImVec2(
