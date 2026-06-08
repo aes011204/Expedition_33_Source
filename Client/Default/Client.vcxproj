@@ -806,6 +806,7 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreview.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshPreviewDistortion.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbonDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectSprite.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrail.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrailDistortion.hlsl" />

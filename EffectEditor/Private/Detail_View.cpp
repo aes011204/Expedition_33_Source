@@ -1019,7 +1019,7 @@ void Detail_View::Render_TypeDataDetail(
                     "이전 탄젠트 재계산",
                     data->enablePreviousTangentRecalculation,
                     defaultData.enablePreviousTangentRecalculation,
-                    "새 sample 생성 시 직전 tangent를 보정할지 결정하는 authoring intent입니다."
+                    "render sample 연결 시 직전 tangent를 함께 써서 ribbon 방향을 더 부드럽게 보정할지 결정합니다."
                 );
                 changed |= Internal::Draw_RibbonLinkOrderProperty(
                     _detailPropertyContext,
@@ -1030,7 +1030,7 @@ void Detail_View::Render_TypeDataDetail(
             }
         }
 
-        ImGui::TextDisabled("Ribbon preview/runtime lowering은 Phase 3에서 연결합니다. 현재 값은 authoring intent로 저장됩니다.");
+        ImGui::TextDisabled("Ribbon TypeData는 preview/runtime에 연결됩니다. Link Order는 현재 v1 single-chain에서 BirthOrder/SpawnOrder가 동일 처리됩니다.");
         break;
     }
     case AuthoringTypeDataKind::None:

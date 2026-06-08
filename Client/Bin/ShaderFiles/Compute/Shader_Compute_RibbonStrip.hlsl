@@ -8,6 +8,7 @@ struct RibbonSamplePayload
 
 struct RibbonInstanceVertex
 {
+    float4 previousPosition;
     float4 currentPosition;
     float4 nextPosition;
     float2 lifeTime;
@@ -56,6 +57,11 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     if (index >= g_SegmentCount)
         return;
 
+    RibbonSamplePayload previous = (RibbonSamplePayload)0;
+    if (index > 0u)
+        previous = SampleData[index - 1u];
+    else
+        previous = SampleData[index];
     const RibbonSamplePayload current = SampleData[index];
     const RibbonSamplePayload next = SampleData[index + 1u];
     const float age = max(0.0f, current.sampleParams.x);
@@ -67,13 +73,14 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float currentV = g_TilingDistance > 0.0f ? currentDistance / max(g_TilingDistance, 0.0001f) : currentDistance / visibleLength;
     const float nextV = g_TilingDistance > 0.0f ? nextDistance / max(g_TilingDistance, 0.0001f) : nextDistance / visibleLength;
 
-    RibbonInstanceVertex output = (RibbonInstanceVertex) 0;
+    RibbonInstanceVertex output = (RibbonInstanceVertex)0;
+    output.previousPosition = previous.currentWorldPosition;
     output.currentPosition = current.currentWorldPosition;
     output.nextPosition = next.currentWorldPosition;
     output.lifeTime = float2(lifetime, age);
     output.startColor = current.startColor;
     output.endColor = current.endColor;
     output.subUVRect = float4(0.0f, currentV, 1.0f, nextV);
-    output.segmentParams = float4(lifeProgress, max(current.sampleParams.w, 0.001f), 1.0f - lifeProgress, 0.0f);
+    output.segmentParams = float4(lifeProgress, max(current.sampleParams.w, 0.001f), 1.0f - lifeProgress, index > 0u ? 1.0f : 0.0f);
     OutputData[index] = output;
 }

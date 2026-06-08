@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Client_Defines.h"
 #include "EffectEmitter.h"
 #include "EffectRuntime_Types.h"
@@ -55,6 +55,12 @@ private:
         Vec4 endColor{};       // ColorOverLife fallback 끝 색이다.
     };
 
+    struct RibbonRenderSample
+    {
+        RibbonSample sample{};
+        float distanceFromHead{};
+    };
+
     struct RibbonSamplePayload
     {
         Vec4 currentWorldPosition{}; // compute 입력 sample 위치다.
@@ -74,13 +80,14 @@ private:
 
     struct RibbonInstanceVertex
     {
-        Vec4 currentPosition{}; // segment 시작 sample world position이다.
-        Vec4 nextPosition{};    // segment 끝 sample world position이다.
-        Vec2 lifeTime{};        // x: lifetime, y: age.
-        Vec4 startColor{};      // segment 시작 색이다.
-        Vec4 endColor{};        // segment 끝 색이다.
-        Vec4 subUVRect{};       // xy/zw: segment UV 범위다.
-        Vec4 segmentParams{};   // x: lifeProgress, y: widthScale, z: alphaScale, w: reserved.
+        Vec4 previousPosition{}; // segment 시작점 앞 render sample world position이다.
+        Vec4 currentPosition{};  // segment 시작 sample world position이다.
+        Vec4 nextPosition{};     // segment 끝 sample world position이다.
+        Vec2 lifeTime{};         // x: lifetime, y: age.
+        Vec4 startColor{};       // segment 시작 색이다.
+        Vec4 endColor{};         // segment 끝 색이다.
+        Vec4 subUVRect{};        // xy/zw: segment UV 범위다.
+        Vec4 segmentParams{};    // x: lifeProgress, y: widthScale, z: alphaScale, w: hasPreviousSample.
     };
 
     struct DrawIndexedInstancedIndirectArgs
@@ -93,57 +100,75 @@ private:
     };
 
 private:
-    static constexpr auto kRibbonShaderId{ L"Shader_EffectRibbon" };                             // ribbon 전용 draw shader id다.
-    static constexpr auto kRibbonComputeShaderId{ L"ComputeShader_RibbonStrip" };                // ribbon sample chain을 draw payload로 낮추는 compute shader id다.
-    static constexpr auto kFallbackTexturePath{ L"Effects/Textures/Shared/DefaultTexture.dds" }; // texture 미지정 fallback이다.
-    static constexpr uint32 kThreadCountX{ 64 };                                                 // compute shader numthreads.x와 맞춘 dispatch 단위다.
+    static constexpr auto kRibbonShaderId{ L"Shader_EffectRibbon" };                                      // ribbon 기본 draw shader id다.
+    static constexpr auto kRibbonDistortionShaderId{ L"Shader_EffectRibbonDistortion" };                  // distortion family가 사용할 ribbon shader id다.
+    static constexpr auto kRibbonComputeShaderId{ L"ComputeShader_RibbonStrip" };                         // ribbon sample chain을 draw payload로 낮추는 compute shader id다.
+    static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };          // texture 미지정 fallback이다.
+    static constexpr auto kNeutralFlowTexturePath{ "Effects/Textures/Shared/DefaultFlowMap.dds" };       // distortion flow texture 미지정 fallback이다.
+    static constexpr uint32 kThreadCountX{ 64 };                                                          // compute shader numthreads.x와 맞춘 dispatch 단위다.
+    static constexpr uint32 kMaxDistanceTessellationSubdivision{ 8 };                                     // raw sample interval당 최대 보간 subdivision 수다.
 
 private:
     ComputeRibbonEmitterDesc _desc{};                       // clone 생성 시 전달받은 ribbon emitter runtime 규칙이다.
     PlaybackState _playbackState{ PlaybackState::Delayed }; // delay/playing/completed 중 현재 emitter 재생 상태다.
     float _loopElapsedTime{};                               // 현재 loop 안에서 delay를 포함해 흐른 시간이다.
     uint32 _loopIndex{};                                    // 0부터 시작하는 현재 loop index다.
-    vector<RibbonSample> _samples{};                        // Ribbon v0 self-particle chain 정본이다.
+    vector<RibbonSample> _samples{};                        // ribbon raw self-particle chain 정본이다.
     vector<bool> _burstExecuted{};                          // 현재 loop에서 처리한 Burst 목록이다.
     float _spawnAccumulator{};                              // spawn rate fractional 누적값이다.
     float _materialElapsedTime{};                           // material UV scroll/scalar modulation 시간이다.
-    float _visibleRibbonLength{ 1.f };                      // 현재 표시 chain 길이다.
+    float _visibleRibbonLength{ 1.f };                      // 현재 표시 render chain 길이다.
     uint32 _drawSegmentCount{};                             // 이번 frame draw segment 수다.
 
-    Shared<ShaderCom> _shader{};                          // ribbon draw shader다.
-    Shared<ComputeShaderCom> _computeShader{};            // ribbon strip payload compute shader다.
-    Shared<Texture> _mainTexture{};                       // ribbon main texture다.
-    ComPtr<Buffer> _pointVB{};                            // instanced point draw용 단일 vertex buffer다.
-    ComPtr<Buffer> _indexBuffer{};                        // instanced point draw용 단일 index buffer다.
-    ComPtr<Buffer> _instanceBuffer{};                     // compute 결과를 복사해 draw가 읽는 instance buffer다.
-    ComPtr<Buffer> _computeConstantBuffer{};              // compute shader frame parameter buffer다.
-    ComPtr<Buffer> _indirectArgsBuffer{};                 // DrawIndexedInstancedIndirect args buffer다.
-    Shared<ComputeStructuredBuffer> _sampleInput{};       // CPU sample chain을 compute가 읽는 SRV buffer다.
-    Shared<ComputeStructuredBuffer> _computeOutput{};     // compute가 작성하는 RibbonInstanceVertex buffer다.
-    Shared<ComputeStructuredBuffer> _computeArgsOutput{}; // compute가 작성하는 indirect args source buffer다.
+    Shared<ShaderCom> _shader{};                            // ribbon draw shader다.
+    Shared<ComputeShaderCom> _computeShader{};              // ribbon strip payload compute shader다.
+    Shared<Texture> _mainTexture{};                         // ribbon main texture다.
+    Shared<Texture> _noiseTexture{};                        // optional noise texture다.
+    Shared<Texture> _maskTexture{};                         // optional mask texture다.
+    Shared<Texture> _flowTexture{};                         // optional distortion flow texture다.
+    ComPtr<Buffer> _pointVB{};                              // instanced point draw용 단일 vertex buffer다.
+    ComPtr<Buffer> _indexBuffer{};                          // instanced point draw용 단일 index buffer다.
+    ComPtr<Buffer> _instanceBuffer{};                       // compute 결과를 복사해 draw가 읽는 instance buffer다.
+    ComPtr<Buffer> _computeConstantBuffer{};                // compute shader frame parameter buffer다.
+    ComPtr<Buffer> _indirectArgsBuffer{};                   // DrawIndexedInstancedIndirect args buffer다.
+    Shared<ComputeStructuredBuffer> _sampleInput{};         // CPU render sample chain을 compute가 읽는 SRV buffer다.
+    Shared<ComputeStructuredBuffer> _computeOutput{};       // compute가 작성하는 RibbonInstanceVertex buffer다.
+    Shared<ComputeStructuredBuffer> _computeArgsOutput{};   // compute가 작성하는 indirect args source buffer다.
 
 private:
-    void Reset_PlaybackRuntime();           // delay/duration/loop runtime 상태를 초기화한다.
-    void Advance_Playback(float timeDelta); // v0 no-op owner의 재생 clock만 진행한다.
+    void Reset_PlaybackRuntime();                              // delay/duration/loop runtime 상태를 초기화한다.
+    void Advance_Playback(float timeDelta);                    // v0 no-op owner의 재생 clock만 진행한다.
 
-    HRESULT Ready_Components();             // shader/texture/buffer 리소스를 준비한다.
-    HRESULT Ready_DrawBuffers();            // draw용 point/index/instance buffer를 만든다.
-    HRESULT Ready_ComputeBuffers();         // compute 입출력/args buffer를 만든다.
-    void Update_Samples(float timeDelta);   // self-particle chain spawn/update/prune을 수행한다.
-    void Spawn_RibbonSample();              // 현재 desc 평균값 기준으로 ribbon sample 하나를 chain head에 추가한다.
-    HRESULT Dispatch_Compute();             // sample chain을 ribbon instance payload로 낮춘다.
-    HRESULT Update_ComputeInput();          // CPU sample chain을 compute 입력으로 업로드한다.
-    HRESULT Update_ComputeConstants();      // ribbon compute 상수 버퍼를 갱신한다.
-    HRESULT Reset_IndirectArgs();           // draw args를 0 segment 상태로 초기화한다.
-    HRESULT Copy_ComputeOutput();           // compute output/args를 draw buffer로 복사한다.
-    HRESULT Bind_ShaderResources();         // camera/material texture 상수를 바인딩한다.
-    bool Can_SubmitRender() const;          // visible/playback/draw count 기준 render 제출 가능 여부다.
-    uint32 Compute_MaxSegmentCount() const; // maxSampleCount 기준 최대 segment capacity를 반환한다.
+    HRESULT Ready_Components();                                // shader/texture/buffer 리소스를 준비한다.
+    HRESULT Ready_Texture();                                   // main texture를 GUID/path/fallback 정책으로 준비한다.
+    HRESULT Ready_NoiseTexture();                              // optional noise texture를 준비한다.
+    HRESULT Ready_MaskTexture();                               // optional mask texture를 준비한다.
+    HRESULT Ready_FlowTexture();                               // distortion flow texture를 준비한다.
+    HRESULT Ready_DrawBuffers();                               // draw용 point/index/instance buffer를 만든다.
+    HRESULT Ready_ComputeBuffers();                            // compute 입출력/args buffer를 만든다.
+    void Update_Samples(float timeDelta);                      // self-particle chain spawn/update/prune을 수행한다.
+    void Spawn_RibbonSample();                                 // 현재 desc 평균값 기준으로 ribbon sample 하나를 chain head에 추가한다.
+    void Build_RenderSamples(vector<RibbonRenderSample>& outSamples) const; // raw chain을 tessellated render sample로 변환한다.
+    HRESULT Dispatch_Compute();                                // render sample chain을 ribbon instance payload로 낮춘다.
+    HRESULT Update_ComputeInput();                             // CPU render sample chain을 compute 입력으로 업로드한다.
+    HRESULT Update_ComputeConstants();                         // ribbon compute 상수 버퍼를 갱신한다.
+    HRESULT Reset_IndirectArgs();                              // draw args를 0 segment 상태로 초기화한다.
+    HRESULT Copy_ComputeOutput();                              // compute output/args를 draw buffer로 복사한다.
+    HRESULT Bind_ShaderResources();                            // camera/material texture 상수를 바인딩한다.
+    HRESULT Bind_MaterialResources();                          // 기본 ribbon material resource/uniform을 바인딩한다.
+    HRESULT Bind_DistortionResources();                        // distortion ribbon resource/uniform을 바인딩한다.
+    bool Can_SubmitRender() const;                             // visible/playback/draw count 기준 render 제출 가능 여부다.
+    uint32 Compute_MaxRenderSegmentCount() const;              // maxSampleCount 기준 최대 render segment capacity를 반환한다.
 
-    void Start_NextLoop();                  // 다음 loop의 delay/elapsed 상태를 준비한다.
-    float Resolve_CurrentLoopDelay() const; // 현재 loop에 적용할 delay를 반환한다.
-    float Resolve_Duration() const;         // 0 이하 duration으로 인한 무한 루프를 막는 안전 duration을 반환한다.
-    bool Has_NextLoop() const;              // loopCount 정책상 다음 loop가 있는지 확인한다.
+    void Start_NextLoop();                                     // 다음 loop의 delay/elapsed 상태를 준비한다.
+    float Resolve_CurrentLoopDelay() const;                    // 현재 loop에 적용할 delay를 반환한다.
+    float Resolve_Duration() const;                            // 0 이하 duration으로 인한 무한 루프를 막는 안전 duration을 반환한다.
+    bool Has_NextLoop() const;                                 // loopCount 정책상 다음 loop가 있는지 확인한다.
+    bool Is_DistortionFamily() const;                          // SpriteDistortion material family 여부다.
+    RenderGroup Resolve_RenderGroup() const;                   // material family / override 기준 render group을 반환한다.
+    const wchar_t* Resolve_ShaderId() const;                   // material family에 맞는 draw shader id를 반환한다.
+    uint32 Resolve_ShaderPassIndex() const;                    // material family와 blend mode에 맞는 shader pass index를 반환한다.
+    int Resolve_OpacitySourceIndex() const;                    // opacity source 문자열을 shader index로 변환한다.
 
 public:
     static Shared<ComputeRibbonEmitter> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
