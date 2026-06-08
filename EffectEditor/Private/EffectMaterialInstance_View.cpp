@@ -1084,6 +1084,7 @@ void EffectMaterialInstance_View::Render()
                     emitter->typeData.kind == AuthoringTypeDataKind::None
                     ? EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly
                     : emitter->typeData.kind == AuthoringTypeDataKind::Trail
+                      || emitter->typeData.kind == AuthoringTypeDataKind::Ribbon
                       ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
                       : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
 

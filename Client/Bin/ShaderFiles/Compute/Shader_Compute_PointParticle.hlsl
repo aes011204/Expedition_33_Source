@@ -238,12 +238,9 @@ void IntegrateAccelerationAxis(
 
     AccumulateAccelerationSegment(0.0f, firstTime, firstValue, firstValue, lifeProgress, integral, weightedIntegral);
 
-    [unroll]
-    for (uint keyIndex = 1u; keyIndex < kEffectDistributionCurveMaxKeys; ++keyIndex)
+    [loop]
+    for (uint keyIndex = 1u; keyIndex < keyCount; ++keyIndex)
     {
-        if (keyIndex >= keyCount)
-            continue;
-
         const float leftTime = saturate(ReadVec4Component(times, timesBlock1, keyIndex - 1u));
         const float rightTime = saturate(ReadVec4Component(times, timesBlock1, keyIndex));
         const float leftValue = ReadVec4Component(values, valuesBlock1, keyIndex - 1u);
@@ -327,11 +324,11 @@ float EvaluateCompactCurve(
     if (keyCount > 1u && lifeProgress > ReadVec4Component(times, timesBlock1, 0u))
     {
         result = fallbackValue;
-        [unroll]
+        [loop]
         for (uint keyIndex = 1u; keyIndex < kEffectDistributionCurveMaxKeys; ++keyIndex)
         {
             if (keyIndex >= keyCount || found)
-                continue;
+                break;
 
             const float rightTime = ReadVec4Component(times, timesBlock1, keyIndex);
             if (lifeProgress > rightTime)
@@ -362,6 +359,7 @@ float EvaluateCompactCurve(
                 result = lerp(leftValue, rightValue, ratio);
 
             found = true;
+            break;
         }
 
         const float lastTime = ReadVec4Component(times, timesBlock1, keyCount - 1u);
@@ -470,11 +468,11 @@ float2 EvaluateSizeByLifeMultiplier(float lifeProgress)
     else
     {
         bool found = false;
-        [unroll]
+        [loop]
         for (uint keyIndex = 1u; keyIndex < kEffectDistributionCurveMaxKeys; ++keyIndex)
         {
             if (keyIndex >= keyCount || found)
-                continue;
+                break;
 
             const float rightTime = ReadVec4Component(g_SizeByLifeCurveTimes, g_SizeByLifeCurveTimesBlock1, keyIndex);
             if (lifeProgress > rightTime)
@@ -495,6 +493,7 @@ float2 EvaluateSizeByLifeMultiplier(float lifeProgress)
                 )
             );
             found = true;
+            break;
         }
 
         const float lastTime = ReadVec4Component(g_SizeByLifeCurveTimes, g_SizeByLifeCurveTimesBlock1, keyCount - 1u);
@@ -531,11 +530,11 @@ float EvaluateRotationOverLifeDegrees(float lifeProgress)
     else
     {
         bool found = false;
-        [unroll]
+        [loop]
         for (uint keyIndex = 1u; keyIndex < kEffectDistributionCurveMaxKeys; ++keyIndex)
         {
             if (keyIndex >= keyCount || found)
-                continue;
+                break;
 
             const float rightTime = ReadVec4Component(g_RotationOverLifeCurveTimes, g_RotationOverLifeCurveTimesBlock1, keyIndex);
             if (lifeProgress > rightTime)
@@ -549,6 +548,7 @@ float EvaluateRotationOverLifeDegrees(float lifeProgress)
                 ratio
             );
             found = true;
+            break;
         }
 
         const float lastTime = ReadVec4Component(g_RotationOverLifeCurveTimes, g_RotationOverLifeCurveTimesBlock1, keyCount - 1u);
@@ -584,11 +584,11 @@ float EvaluateRotationRateScaleByLifeAverage(float lifeProgress)
         float previousValue = firstValue;
         bool done = false;
 
-        [unroll]
+        [loop]
         for (uint keyIndex = 1u; keyIndex < kEffectDistributionCurveMaxKeys; ++keyIndex)
         {
             if (keyIndex >= keyCount || done)
-                continue;
+                break;
 
             const float rightTime = max(
                 previousTime,
@@ -609,7 +609,10 @@ float EvaluateRotationRateScaleByLifeAverage(float lifeProgress)
             }
 
             if (clampedProgress <= rightTime)
+            {
                 done = true;
+                break;
+            }
 
             previousTime = rightTime;
             previousValue = rightValue;
@@ -635,11 +638,11 @@ float EvaluateVelocityScaleByLife(float lifeProgress)
     else
     {
         bool found = false;
-        [unroll]
+        [loop]
         for (uint keyIndex = 1u; keyIndex < kEffectDistributionCurveMaxKeys; ++keyIndex)
         {
             if (keyIndex >= keyCount || found)
-                continue;
+                break;
 
             const float rightTime = ReadVec4Component(g_VelocityScaleByLifeCurveTimes, g_VelocityScaleByLifeCurveTimesBlock1, keyIndex);
             if (clampedProgress > rightTime)
@@ -653,6 +656,7 @@ float EvaluateVelocityScaleByLife(float lifeProgress)
                 ratio
             );
             found = true;
+            break;
         }
 
         const float lastTime = ReadVec4Component(g_VelocityScaleByLifeCurveTimes, g_VelocityScaleByLifeCurveTimesBlock1, keyCount - 1u);
@@ -678,11 +682,11 @@ float EvaluateVelocityScaleByLifeAverage(float lifeProgress)
         float previousValue = firstValue;
         bool done = false;
 
-        [unroll]
+        [loop]
         for (uint keyIndex = 1u; keyIndex < kEffectDistributionCurveMaxKeys; ++keyIndex)
         {
             if (keyIndex >= keyCount || done)
-                continue;
+                break;
 
             const float rightTime = max(
                 previousTime,
@@ -703,7 +707,10 @@ float EvaluateVelocityScaleByLifeAverage(float lifeProgress)
             }
 
             if (clampedProgress <= rightTime)
+            {
                 done = true;
+                break;
+            }
 
             previousTime = rightTime;
             previousValue = rightValue;
@@ -800,11 +807,11 @@ float EvaluateOrbitCurve(float lifeProgress, uint keyCount, float4 times, float4
     }
     else
     {
-        [unroll]
+        [loop]
         for (uint keyIndex = 1u; keyIndex < kEffectDistributionCurveMaxKeys; ++keyIndex)
         {
             if (keyIndex >= keyCount || found)
-                continue;
+                break;
 
             const float rightTime = ReadVec4Component(times, timesBlock1, keyIndex);
             if (lifeProgress > rightTime)
@@ -818,6 +825,7 @@ float EvaluateOrbitCurve(float lifeProgress, uint keyCount, float4 times, float4
                 ratio
             );
             found = true;
+            break;
         }
     }
 

@@ -1,7 +1,5 @@
-﻿#include "pch.h"
-#include "EffectEditorApp.h"
+﻿#include "EffectEditorApp.h"
 
-#include <chrono>
 #include "ClientInstance.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
@@ -40,6 +38,7 @@ namespace Internal
             prototypeTag == L"Shader_EffectSprite" ||
             prototypeTag == L"Shader_EffectDistortionSprite" ||
             prototypeTag == L"Shader_EffectTrail" ||
+            prototypeTag == L"Shader_EffectRibbon" ||
             prototypeTag == L"Shader_EffectTrailDistortion" ||
             prototypeTag == L"Shader_VtxMeshInstanceExact" ||
             prototypeTag == L"Shader_EffectMesh" ||
@@ -53,6 +52,7 @@ namespace Internal
         return
             prototypeTag == L"ComputeShader_PointParticle" ||
             prototypeTag == L"ComputeShader_TrailStrip" ||
+            prototypeTag == L"ComputeShader_RibbonStrip" ||
             prototypeTag == L"ComputeShader_BoneRemap" ||
             prototypeTag == L"ComputeShader_AnimMeshSkinning";
     }
@@ -82,6 +82,7 @@ namespace Internal
             prototypeTag == L"GameObject_EffectInstance" ||
             prototypeTag == L"GameObject_Effect_ComputeSpriteEmitter" ||
             prototypeTag == L"GameObject_Effect_ComputeTrailEmitter" ||
+            prototypeTag == L"GameObject_Effect_ComputeRibbonEmitter" ||
             prototypeTag == L"GameObject_Effect_MeshEmitter";
     }
 

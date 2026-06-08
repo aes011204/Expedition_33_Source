@@ -1849,9 +1849,15 @@ void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emi
         emitter.typeData.kind = AuthoringTypeDataKind::Mesh;
         emitter.typeData.payload = MeshTypeData{};
         break;
+    case PendingTypeDataAction::AddRibbon:
+        emitter.typeData.kind = AuthoringTypeDataKind::Ribbon;
+        emitter.typeData.payload = RibbonTypeData{};
+        break;
     case PendingTypeDataAction::ResetData:
         if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
             emitter.typeData.payload = MeshTypeData{};
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
+            emitter.typeData.payload = RibbonTypeData{};
         else
         {
             emitter.typeData.kind = AuthoringTypeDataKind::Trail;
@@ -1888,6 +1894,9 @@ void Emitter_View::Process_PendingTypeDataAction()
         break;
     case PendingTypeDataAction::AddMesh:
         description = "Add Mesh TypeData";
+        break;
+    case PendingTypeDataAction::AddRibbon:
+        description = "Add Ribbon TypeData";
         break;
     case PendingTypeDataAction::ResetData:
         description = "Reset TypeData";
@@ -2432,6 +2441,8 @@ void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
             Queue_TypeDataAction(PendingTypeDataAction::AddTrail, emitterIndex);
         if (ImGui::MenuItem("Mesh TypeData 추가"))
             Queue_TypeDataAction(PendingTypeDataAction::AddMesh, emitterIndex);
+        if (ImGui::MenuItem("Ribbon TypeData 추가"))
+            Queue_TypeDataAction(PendingTypeDataAction::AddRibbon, emitterIndex);
         return;
     }
 
@@ -2678,6 +2689,9 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
             break;
         case AuthoringTypeDataKind::Mesh:
             ImGui::TextUnformatted("메시 데이터");
+            break;
+        case AuthoringTypeDataKind::Ribbon:
+            ImGui::TextUnformatted("리본 데이터");
             break;
         case AuthoringTypeDataKind::None:
         default:

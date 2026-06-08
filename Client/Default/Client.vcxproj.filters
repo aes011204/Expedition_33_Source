@@ -221,6 +221,7 @@
       <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Effect\Emitters\ComputeTrail" />
+    <Filter Include="02.GameObject\Effect\Emitters\ComputeRibbon" />
     <Filter Include="02.GameObject\Effect\Emitters\Mesh" />
     <Filter Include="90.EditorSupport" />
     <Filter Include="02.GameObject\Camera\BattleCamera">
@@ -588,6 +589,12 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_RibbonStrip.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli">
@@ -642,6 +649,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\ComputeTrailEmitter.h">
       <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ComputeRibbonEmitter.h">
+      <Filter>02.GameObject\Effect\Emitters\ComputeRibbon</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\FreeAimTargeting.h">
       <Filter>BattleState</Filter>
@@ -1321,6 +1331,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp">
       <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ComputeRibbonEmitter.cpp">
+      <Filter>02.GameObject\Effect\Emitters\ComputeRibbon</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\FreeAimTargeting.cpp">
       <Filter>BattleState</Filter>

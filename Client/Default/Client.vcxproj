@@ -223,6 +223,7 @@
     <ClInclude Include="..\Public\EffectInstancePool.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
+    <ClInclude Include="..\Public\ComputeRibbonEmitter.h" />
     <ClInclude Include="..\Public\PreviewRimFeature.h" />
     <ClInclude Include="..\Public\MapWater.h" />
     <ClInclude Include="..\public\Mon_WeakPoint.h" />
@@ -522,6 +523,7 @@
     <ClCompile Include="..\Private\EffectInstancePool.cpp" />
     <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
+    <ClCompile Include="..\Private\ComputeRibbonEmitter.cpp" />
     <ClCompile Include="..\Private\FaceAccessory_Player.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />
     <ClCompile Include="..\Private\GamePlayMenuFade.cpp" />
@@ -736,25 +738,65 @@
     <ClCompile Include="..\Private\Weapon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_RibbonStrip.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectMaterialScalarModulation.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectSpriteCommon.hlsli" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimEvaluate.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMeshSkinning.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMix.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneCombine.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl" />
-    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimBlend.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimEvaluate.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMeshSkinning.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimMix.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneCombine.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_BoneRemap.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstanceCull.hlsl">
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_PointParticle.hlsl">
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CS_Main</EntryPointName>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_TrailStrip.hlsl">
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CS_Main</EntryPointName>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderType>Compute</ShaderType>
+      <ShaderModel>5.0</ShaderModel>
+      <EntryPointName>CS_Main</EntryPointName>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectDistortionSprite.hlsl" />

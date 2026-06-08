@@ -432,6 +432,35 @@ namespace Internal
         Read_NumberField(root, "sideFade", outData.sideFade);
     }
 
+    json To_Json(const RibbonTypeData& data)
+    {
+        json root = json::object();
+        root["maxParticleInTrailCount"] = data.maxParticleInTrailCount;
+        root["spawnInitialParticle"] = data.spawnInitialParticle;
+        root["renderAxis"] = To_EnumToken(data.renderAxis);
+        root["tilingDistance"] = data.tilingDistance;
+        root["distanceTessellationStepSize"] = data.distanceTessellationStepSize;
+        root["enablePreviousTangentRecalculation"] = data.enablePreviousTangentRecalculation;
+        root["linkOrder"] = To_EnumToken(data.linkOrder);
+        return root;
+    }
+
+    void From_Json(const json& root, RibbonTypeData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "maxParticleInTrailCount", outData.maxParticleInTrailCount);
+        Read_BoolField(root, "spawnInitialParticle", outData.spawnInitialParticle);
+        if (const auto renderAxisIter = root.find("renderAxis"); renderAxisIter != root.end())
+            Try_ReadEnumToken(*renderAxisIter, outData.renderAxis);
+        Read_NumberField(root, "tilingDistance", outData.tilingDistance);
+        Read_NumberField(root, "distanceTessellationStepSize", outData.distanceTessellationStepSize);
+        Read_BoolField(root, "enablePreviousTangentRecalculation", outData.enablePreviousTangentRecalculation);
+        if (const auto linkOrderIter = root.find("linkOrder"); linkOrderIter != root.end())
+            Try_ReadEnumToken(*linkOrderIter, outData.linkOrder);
+    }
+
     json To_Json(const MeshTypeData& data)
     {
         json root = json::object();
@@ -487,6 +516,12 @@ namespace Internal
             root["data"] = To_Json(meshData != nullptr ? *meshData : MeshTypeData{});
             break;
         }
+        case AuthoringTypeDataKind::Ribbon:
+        {
+            const RibbonTypeData* ribbonData = get_if<RibbonTypeData>(&data.payload);
+            root["data"] = To_Json(ribbonData != nullptr ? *ribbonData : RibbonTypeData{});
+            break;
+        }
         case AuthoringTypeDataKind::None:
         default:
             break;
@@ -526,6 +561,17 @@ namespace Internal
                 From_Json(*dataIter, data);
 
             outData.kind = AuthoringTypeDataKind::Mesh;
+            outData.payload = data;
+            break;
+        }
+        case AuthoringTypeDataKind::Ribbon:
+        {
+            RibbonTypeData data{};
+            const auto dataIter = root.find("data");
+            if (dataIter != root.end())
+                From_Json(*dataIter, data);
+
+            outData.kind = AuthoringTypeDataKind::Ribbon;
             outData.payload = data;
             break;
         }

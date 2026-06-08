@@ -52,6 +52,34 @@ namespace Internal
         }
     }
 
+    static const char* Get_RibbonRenderAxisLabel(RibbonRenderAxis value)
+    {
+        switch (value)
+        {
+        case RibbonRenderAxis::CameraUp:
+            return "Camera Up";
+        case RibbonRenderAxis::ViewUp:
+            return "View Up";
+        case RibbonRenderAxis::WorldUp:
+            return "World Up";
+        default:
+            return "Camera Up";
+        }
+    }
+
+    static const char* Get_RibbonLinkOrderLabel(RibbonLinkOrder value)
+    {
+        switch (value)
+        {
+        case RibbonLinkOrder::BirthOrder:
+            return "Birth Order";
+        case RibbonLinkOrder::SpawnOrder:
+            return "Spawn Order";
+        default:
+            return "Birth Order";
+        }
+    }
+
     static const char* Get_RenderLayerOverrideLabel(EmitterRenderLayerOverride value)
     {
         switch (value)
@@ -86,6 +114,97 @@ namespace Internal
             {
                 const bool selected = value == candidate;
                 if (ImGui::Selectable(Get_RenderLayerOverrideLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value = defaultValue;
+            return true;
+        }
+
+        return changed;
+    }
+
+    static bool Draw_RibbonRenderAxisProperty(
+        DetailPropertyContext& detailContext,
+        RibbonRenderAxis& value,
+        RibbonRenderAxis defaultValue)
+    {
+        static constexpr RibbonRenderAxis kValues[] = {
+            RibbonRenderAxis::CameraUp,
+            RibbonRenderAxis::ViewUp,
+            RibbonRenderAxis::WorldUp,
+        };
+
+        ImGui::PushID("RibbonRenderAxis");
+        detailContext.Draw_PropertyLabel("렌더 축");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_RibbonRenderAxisLabel(value)))
+        {
+            for (const RibbonRenderAxis candidate : kValues)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_RibbonRenderAxisLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value = defaultValue;
+            return true;
+        }
+
+        return changed;
+    }
+
+    static bool Draw_RibbonLinkOrderProperty(
+        DetailPropertyContext& detailContext,
+        RibbonLinkOrder& value,
+        RibbonLinkOrder defaultValue)
+    {
+        static constexpr RibbonLinkOrder kValues[] = {
+            RibbonLinkOrder::BirthOrder,
+            RibbonLinkOrder::SpawnOrder,
+        };
+
+        ImGui::PushID("RibbonLinkOrder");
+        detailContext.Draw_PropertyLabel("연결 순서");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_RibbonLinkOrderLabel(value)))
+        {
+            for (const RibbonLinkOrder candidate : kValues)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_RibbonLinkOrderLabel(candidate), selected))
                 {
                     value = candidate;
                     changed = true;
@@ -849,6 +968,69 @@ void Detail_View::Render_TypeDataDetail(
             ImGui::PopStyleColor();
         }
 
+        break;
+    }
+    case AuthoringTypeDataKind::Ribbon:
+    {
+        RibbonTypeData* data = get_if<RibbonTypeData>(&emitter.typeData.payload);
+        if (data == nullptr)
+        {
+            ImGui::TextDisabled("Ribbon TypeData payload is invalid.");
+            break;
+        }
+
+        const RibbonTypeData defaultData{};
+        if (ImGui::CollapsingHeader("Ribbon Data", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("RibbonTypeData"))
+            {
+                changed |= _detailPropertyContext.Draw_UintProperty(
+                    "최대 파티클 수",
+                    data->maxParticleInTrailCount,
+                    defaultData.maxParticleInTrailCount,
+                    "chain 하나가 보유할 수 있는 최대 sample/particle 수입니다."
+                );
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "초기 파티클 스폰",
+                    data->spawnInitialParticle,
+                    defaultData.spawnInitialParticle,
+                    "시작 frame에 첫 sample을 즉시 만들지 여부입니다."
+                );
+                changed |= Internal::Draw_RibbonRenderAxisProperty(
+                    _detailPropertyContext,
+                    data->renderAxis,
+                    defaultData.renderAxis
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "타일링 거리",
+                    data->tilingDistance,
+                    defaultData.tilingDistance,
+                    0.01f,
+                    "길이 기준 UV 반복 거리입니다. 0이면 tiling을 비활성 authoring intent로 둡니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "거리 테셀레이션 단계",
+                    data->distanceTessellationStepSize,
+                    defaultData.distanceTessellationStepSize,
+                    0.1f,
+                    "sample 사이 보간점을 추가할 거리 기준 간격입니다."
+                );
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "이전 탄젠트 재계산",
+                    data->enablePreviousTangentRecalculation,
+                    defaultData.enablePreviousTangentRecalculation,
+                    "새 sample 생성 시 직전 tangent를 보정할지 결정하는 authoring intent입니다."
+                );
+                changed |= Internal::Draw_RibbonLinkOrderProperty(
+                    _detailPropertyContext,
+                    data->linkOrder,
+                    defaultData.linkOrder
+                );
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        ImGui::TextDisabled("Ribbon preview/runtime lowering은 Phase 3에서 연결합니다. 현재 값은 authoring intent로 저장됩니다.");
         break;
     }
     case AuthoringTypeDataKind::None:

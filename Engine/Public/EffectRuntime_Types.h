@@ -14,7 +14,8 @@ NS_BEGIN(Engine)
 enum class EffectEmitterKind : uint8
 {
     ComputeSprite, // compute-first sprite emitter runtime이다.
-    ComputeTrail,  // compute-first trail/ribbon emitter runtime이다.
+    ComputeTrail,  // compute-first trail emitter runtime이다.
+    ComputeRibbon, // self-particle-chain ribbon emitter runtime이다.
     Mesh,          // model mesh를 instance buffer로 그리는 mesh emitter runtime이다.
 };
 
@@ -396,6 +397,49 @@ struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
     Weak<IEffectTrailSampleProvider> sampleProvider{}; // attachment 계산 owner가 공급하는 sample source다.
 };
 
+enum class EffectRibbonRenderAxis : uint8
+{
+    CameraUp,
+    ViewUp,
+    WorldUp,
+};
+
+enum class EffectRibbonLinkOrder : uint8
+{
+    BirthOrder,
+    SpawnOrder,
+};
+
+// compute ribbon emitter가 clone 시점에 받는 self-particle-chain 전용 runtime payload다.
+struct ComputeRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
+{
+    EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 material family 기반 render group을 사용한다.
+    EffectRequiredMaterialRuntimeDesc material{};                                                   // ribbon 기본 material/tint/blend 값이다.
+    EffectEmitterPlaybackRuntimeDesc playback{};                                                    // duration/loop/delay 같은 공통 재생 규칙이다.
+    EffectDrawLimitRuntimeDesc drawLimit{};                                                         // Required 모듈에서 ribbon sample 제출 상한으로 소비할 규칙이다.
+    EffectRequiredSortRuntimeDesc sort{};                                                           // Required 모듈에서 ribbon emitter가 소비하는 Blend 정렬 규칙이다.
+    EffectSpawnRuntimeDesc spawn{};                                                                 // Spawn 모듈에서 ribbon sample 생성 요청으로 소비하는 payload다.
+    EffectLifetimeRuntimeDesc lifetime{};                                                           // Lifetime 모듈에서 ribbon sample age/max life로 소비하는 payload다.
+    EffectInitialColorRuntimeDesc initialColor{};                                                   // InitialColor 모듈에서 ribbon sample 시작 색으로 소비하는 payload다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{};                                                 // ColorOverLife 모듈에서 ribbon sample color/fade로 소비하는 payload다.
+    PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 ribbon 폭 배율로 소비하는 값이다.
+    PointParticleMotionDesc motion{};                                                               // velocity authoring module을 ribbon sample 이동 입력으로 압축한 규칙이다.
+    PointParticleInitialLocationDesc initialLocation{};                                             // InitialLocation 모듈이 만든 sample 시작 offset 분포다.
+    PointParticleSphereLocationDesc sphereLocation{};                                               // SphereLocation 모듈이 만든 sample 시작 구형 offset 분포다.
+    PointParticlePlaneRadialLocationDesc planeRadialLocation{};                                     // PlaneRadialLocation 모듈이 만든 sample 시작 평면/방사 offset 분포다.
+    PointParticleRandomSeedRuntimeDesc lifetimeSeed{};                                              // Lifetime random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc initialLocationSeed{};                                       // InitialLocation random sample seed salt다.
+    PointParticleRandomSeedRuntimeDesc sphereLocationSeed{};                                        // SphereLocation random sample seed salt다.
+
+    uint32 maxSampleCount{ 500 };                                                                   // RibbonTypeData::maxParticleInTrailCount에서 온 single chain 상한이다.
+    bool spawnInitialParticle{ false };                                                             // 첫 frame 초기 sample 생성 여부다.
+    EffectRibbonRenderAxis renderAxis{ EffectRibbonRenderAxis::CameraUp };                          // flat strip side vector 기준 축이다.
+    float tilingDistance{ 0.f };                                                                    // 0 이하면 stretch, 양수면 길이 기준 반복이다.
+    float distanceTessellationStepSize{ 15.f };                                                      // sample 사이 보간 밀도 후보값이다.
+    bool enablePreviousTangentRecalculation{ true };                                                // v0 tangent 보정 후보 정책이다.
+    EffectRibbonLinkOrder linkOrder{ EffectRibbonLinkOrder::BirthOrder };                           // v0 single chain sample 연결 순서다.
+};
+
 // mesh emitter가 Vec3 transform curve를 CPU instance update에서 평가하기 위한 payload다.
 struct MeshVector3CurveRuntimeDesc
 {
@@ -461,7 +505,7 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
     MeshTransformRuntimeDesc meshTransform{};                           // Mesh 전용 Vec3 scale/rotation payload다.
 };
 
-using EffectEmitterConcreteDesc = variant<ComputeSpriteEmitterDesc, ComputeTrailEmitterDesc, MeshEmitterDesc>;
+using EffectEmitterConcreteDesc = variant<ComputeSpriteEmitterDesc, ComputeTrailEmitterDesc, ComputeRibbonEmitterDesc, MeshEmitterDesc>;
 
 struct EffectEmitterDefinition
 {

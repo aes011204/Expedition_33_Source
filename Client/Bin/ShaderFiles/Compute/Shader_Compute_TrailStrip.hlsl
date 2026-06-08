@@ -139,11 +139,11 @@ float EvaluateCompactCurve(
     if (keyCount > 1u && lifeProgress > ReadVec4Component(times, timesBlock1, 0u))
     {
         result = fallbackValue;
-        [unroll]
+        [loop]
         for (uint keyIndex = 1u; keyIndex < kEffectDistributionCurveMaxKeys; ++keyIndex)
         {
             if (keyIndex >= keyCount || found)
-                continue;
+                break;
 
             const float rightTime = ReadVec4Component(times, timesBlock1, keyIndex);
             if (lifeProgress > rightTime)
@@ -174,6 +174,7 @@ float EvaluateCompactCurve(
                 result = lerp(leftValue, rightValue, ratio);
 
             found = true;
+            break;
         }
 
         const float lastTime = ReadVec4Component(times, timesBlock1, keyCount - 1u);
@@ -280,11 +281,11 @@ float EvaluateSizeByLifeWidthScale(float lifeProgress)
         else
         {
             bool found = false;
-            [unroll]
+            [loop]
             for (uint keyIndex = 1u; keyIndex < kEffectDistributionCurveMaxKeys; ++keyIndex)
             {
                 if (keyIndex >= keyCount || found)
-                    continue;
+                    break;
 
                 const float rightTime = ReadVec4Component(g_SizeByLifeCurveTimes, g_SizeByLifeCurveTimesBlock1, keyIndex);
                 if (lifeProgress > rightTime)
@@ -298,6 +299,7 @@ float EvaluateSizeByLifeWidthScale(float lifeProgress)
                     ratio
                 );
                 found = true;
+                break;
             }
 
             const float lastTime = ReadVec4Component(g_SizeByLifeCurveTimes, g_SizeByLifeCurveTimesBlock1, keyCount - 1u);

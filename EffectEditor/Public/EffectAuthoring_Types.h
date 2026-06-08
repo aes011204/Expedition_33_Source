@@ -505,6 +505,7 @@ enum class AuthoringTypeDataKind : uint8
     None,
     Trail,
     Mesh,
+    Ribbon,
 };
 
 enum class TrailCurveQuality : uint8
@@ -517,6 +518,30 @@ enum class TrailCurveQuality : uint8
 
 struct EmptyTypeData
 {};
+
+enum class RibbonRenderAxis : uint8
+{
+    CameraUp,
+    ViewUp,
+    WorldUp,
+};
+
+enum class RibbonLinkOrder : uint8
+{
+    BirthOrder,
+    SpawnOrder,
+};
+
+struct RibbonTypeData
+{
+    uint32 maxParticleInTrailCount{ 500 };
+    bool spawnInitialParticle{ false };
+    RibbonRenderAxis renderAxis{ RibbonRenderAxis::CameraUp };
+    float tilingDistance{ 0.f };
+    float distanceTessellationStepSize{ 15.f };
+    bool enablePreviousTangentRecalculation{ true };
+    RibbonLinkOrder linkOrder{ RibbonLinkOrder::BirthOrder };
+};
 
 struct TrailTypeData
 {
@@ -545,7 +570,7 @@ struct MeshTypeData
     bool useModelMaterials{ false };
 };
 
-using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData, MeshTypeData>;
+using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData, MeshTypeData, RibbonTypeData>;
 
 struct AuthoringTypeData
 {

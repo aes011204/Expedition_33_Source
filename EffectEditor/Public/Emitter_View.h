@@ -76,6 +76,7 @@ private: //## Types::PendingAction
         None,
         AddTrail,
         AddMesh,
+        AddRibbon,
         ResetData,
         Remove
     };
