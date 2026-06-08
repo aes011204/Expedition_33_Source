@@ -30,6 +30,18 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
         return;
 
     auto battle = CLIENT->Get_BattleController();
+
+    if (battle && battle->Is_BattleIntroPresentationActive())
+    {
+        const string modeName = string(magic_enum::enum_name(_cameraMode));
+        LOG_INFO(
+            "[BattleCamTrace] AN_BattleShot skipped during battle intro mode={} animation={} prevTime={:.3f} currentTime={:.3f}",
+            modeName.c_str(),
+            context.animationName.c_str(),
+            context.previousTimeSec,
+            context.currentTimeSec);
+        return;
+    }
     
     //LOG_DEBUG("Notify owner = {}",
     //    context.owner ? String::ToString(context.owner->Get_Owner()->Get_Name()).c_str() : "null");
@@ -41,7 +53,11 @@ void AN_BattleShot::Execute(const AnimNotifyContext& context)
 
     if(_cameraMode == BattleCameraMode::WIDE)
     {
-      int a = 10;
+        LOG_INFO(
+            "[BattleCamTrace] AN_BattleShot WIDE animation={} prevTime={:.3f} currentTime={:.3f}",
+            context.animationName.c_str(),
+            context.previousTimeSec,
+            context.currentTimeSec);
     }
 
     auto character = dynamic_pointer_cast<Character>(owner->GetSharedPtr<PlayableParts>()->Get_Owner());

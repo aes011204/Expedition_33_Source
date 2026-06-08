@@ -157,7 +157,69 @@ inline bool Evaluate_BattleTurnPresetPose(
     return true;
 }
 
-inline bool Evaluate_BattleTurnEnemyAttackPose(
+inline bool Evaluate_BattleTurnPlayerAttackRelationPose (
+ const Vec3& subjectPos,
+ const Vec3& opponentPos,
+ const BattleCameraPreset& preset,
+ const BattleCameraClipSample& clipSample,
+ float clipTime,
+ BattleTurnCameraEvaluatedPose& outPose)
+{
+    const float finalFovY = clamp(preset.camera.fovy + clipSample.fovOffset, XMConvertToRadians(10.f), XMConvertToRadians(120.f));
+    const float finalDistance = preset.distance + clipSample.distanceOffset;
+    const float finalSideOffset = preset.sideOffset + clipSample.sideOffset;
+    const float finalHeightOffset = preset.heightOffset + clipSample.heightOffset;
+    const float finalAimOffset = preset.aimOffset + clipSample.aimOffset;
+    const float finalLookHeight = preset.lookHeight + clipSample.lookHeightOffset;
+    const float finalYawOffset = preset.yawOffset + clipSample.yawOffset;
+
+   Vec3 attackDir = opponentPos - subjectPos;
+   attackDir.y = 0.f;
+   if(attackDir.LengthSquared() <= 0.0001f)
+       return false;
+
+    attackDir.Normalize();
+
+    Vec3 right;
+    right.x = attackDir.z;
+    right.y = 0.f;
+    right.z = -attackDir.x;
+    right.Normalize();
+
+    const Vec3 backDir = -attackDir;
+    const float yawRad = XMConvertToRadians(finalYawOffset);
+    const Vec3 yawAdjustedBack = backDir * cosf(yawRad) + right * sinf(yawRad);
+
+    Vec3 anchorPos = Vec3::Lerp(subjectPos, opponentPos, 0.25f);
+    Vec3 cameraPos = anchorPos + yawAdjustedBack * finalDistance + right * finalSideOffset + Vec3::Up * finalHeightOffset;
+    const Vec3 lookTarget = subjectPos + attackDir * finalAimOffset + Vec3::Up * finalLookHeight;
+
+    Vec3 cameraForward = lookTarget - cameraPos;
+    cameraForward.Normalize();
+
+    Vec3 cameraRight = Vec3::Up.Cross(cameraForward);
+    cameraRight.Normalize();
+
+    Vec3 cameraUp = cameraForward.Cross(cameraRight);
+    cameraUp.Normalize();
+
+    cameraPos += Sample_BattleCameraShakeOffset(clipSample.
+    shakeAmplitude, clipSample.shakeVerticalRatio,
+    clipSample.shakeStrengthScale,
+    clipSample.shakeFrequencyX,
+    clipSample.shakeFrequencyY,
+    clipSample.shakeDecayRateX,
+    clipSample.shakeDecayRate,
+    clipTime, cameraRight, cameraUp);
+
+    outPose.cameraPos = cameraPos;
+    outPose.lookTarget = lookTarget;
+    outPose.fovY = finalFovY;
+    outPose.rollOffset = preset.rollOffset;
+    return true;
+}
+
+inline bool Evaluate_BattleTurnEnemyAttackPose (
     const Vec3& subjectPos,
     const Vec3& opponentPos,
     const BattleCameraPreset& preset,
