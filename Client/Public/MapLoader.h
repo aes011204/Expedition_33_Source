@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "Client_Defines.h"
-#include "CollisionProxy_Types.h"
 #include "MapAdapter.h"
+#include "MapCollisionAdapter.h"
 #include <mutex>
 
 NS_BEGIN(Engine)
@@ -35,6 +35,7 @@ public:
         vector<json> waters = {};
         vector<json> prefabInstances = {};
         vector<string> preloadModelPaths = {};
+        vector<string> materialAppliedModelPaths = {};
 
         size_t nextPreloadModelIndex = 0;
         size_t nextStaticMeshIndex = 0;
@@ -44,8 +45,8 @@ public:
 
         umap<string, Shared<ModelCom>> preloadedModelCache = {};
         umap<string, Shared<StaticCollisionData>> preloadedCollisionCache = {};
-        umap<string, vector<vector<uint8_t>>> cookedCollisionCache = {};
-        umap<string, vector<ModelCollisionProxy>> primitiveCollisionCache = {};
+        MapCollisionAdapter::CookedCollisionCache cookedCollisionCache = {};
+        MapCollisionAdapter::PrimitiveCollisionCache primitiveCollisionCache = {};
 
         // 청크 unload를 위해 생성 객체를 선택적으로 수집
         vector<Shared<GameObject>>* spawnedObjects = nullptr; 
@@ -124,6 +125,8 @@ private:
 
     static void Prepare_StaticAutoInstancing(LoadSession& session);
     static void ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry = nullptr);
+    static void MarkSessionModelMaterialsApplied(LoadSession& session, const string& modelPathStr);
+    static void ApplySessionModelMaterials(LoadSession& session, const string& modelPathStr, Shared<ModelCom>& model);
 
     // 스레드 안전한 전역 모델 조회 및 로드 헬퍼 함수
     static Shared<ModelCom> GetOrLoadModel(
@@ -137,19 +140,9 @@ private:
         chrono::milliseconds* outMaterialDuration = nullptr,
         size_t* outMaterialCount = nullptr);
 
-    // 스레드 안전한 전역 콜리전 빌드 및 조회 헬퍼 함수
-    static Shared<StaticCollisionData> GetOrBuildCollision(
-        const Shared<ModelCom>& model,
-        const string& modelPathStr,
-        chrono::milliseconds* outDuration = nullptr,
-        size_t* outCount = nullptr);
-
-    static Shared<StaticCollisionData> GetOrCreateCookedCollision(
-        LoadSession& session,
-        const Shared<ModelCom>& model,
-        const string& modelPathStr);
-
 private:
+    static MapCollisionAdapter::RuntimeContext MakeCollisionRuntimeContext(LoadSession& session);
+
     // 스레드 안전한 전역 맵 모델 프로토타입 캐시 멤버
     static std::mutex g_globalCacheMutex;
     static umap<string, Shared<ModelCom>> g_globalModelCache;

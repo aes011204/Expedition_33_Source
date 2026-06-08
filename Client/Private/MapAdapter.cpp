@@ -44,15 +44,6 @@ namespace
         return (MapResourceRootPath() / relativePath).generic_string();
     }
 
-    string StripMapVariantSuffix(const string& mapName)
-    {
-        const size_t mkPos = mapName.rfind("_Mk");
-        if (mkPos != string::npos && mkPos > 0)
-            return mapName.substr(0, mkPos);
-
-        return {};
-    }
-
     string MaterialBundleStemToModelKey(const fs::path& materialPath)
     {
         string filename = materialPath.filename().string();
@@ -175,6 +166,42 @@ namespace
             overrideEntry.modelJson["base_bundle_key"] = entry["BaseBundleKey"].get<string>();
     }
 
+    void AppendLegacyPassToMaterialBindings(const json& entry, MapAdapter::ModelOverrideEntry& overrideEntry)
+    {
+        const int32 legacyPassIndex = entry.value("PassIndex", -1);
+        if (legacyPassIndex < 0)
+            return;
+
+        if (!overrideEntry.modelJson.contains("material_bindings") ||
+            !overrideEntry.modelJson["material_bindings"].is_array())
+        {
+            overrideEntry.modelJson["material_bindings"] = json::array();
+        }
+
+        json& bindings = overrideEntry.modelJson["material_bindings"];
+        if (bindings.empty())
+        {
+            json binding = json::object();
+            binding["material_index"] = 0u;
+            binding["instance_override"]["force_pass_index"] = legacyPassIndex;
+            bindings.push_back(std::move(binding));
+            return;
+        }
+
+        for (json& binding : bindings)
+        {
+            if (!binding.is_object())
+                continue;
+
+            if (!binding.contains("instance_override") || !binding["instance_override"].is_object())
+                binding["instance_override"] = json::object();
+
+            json& instJson = binding["instance_override"];
+            if (!instJson.contains("force_pass_index") && !instJson.contains("forcePassIndex"))
+                instJson["force_pass_index"] = legacyPassIndex;
+        }
+    }
+
     bool TryResolveModelKeyFromMaterialJson(const json& root, const fs::path& materialPath, string& outModelKey)
     {
         outModelKey.clear();
@@ -271,7 +298,9 @@ namespace
     json BuildLegacyMaterialInstanceOverride(const json& instanceJson)
     {
         json instanceOverride = json::object();
-        instanceOverride["force_pass_index"] = instanceJson.value("forcePassIndex", -1);
+        const int32 legacyPassIndex = instanceJson.value("forcePassIndex", instanceJson.value("force_pass_index", -1));
+        if (legacyPassIndex >= 0)
+            instanceOverride["force_pass_index"] = legacyPassIndex;
 
         if (instanceJson.contains("cb") && instanceJson["cb"].is_object())
         {
@@ -342,126 +371,6 @@ namespace
 
         outOverrides[modelKey] = overrideEntry;
         return true;
-    }
-
-    // Collision source ingestion helpers
-    bool TryParseCollisionProxy(const json& node, ModelCollisionProxy& outProxy)
-    {
-        if (!node.is_object())
-            return false;
-
-        outProxy = {};
-        outProxy.type = static_cast<ModelCollisionProxyType>(
-            node.value("Type", static_cast<uint32>(ModelCollisionProxyType::TriangleMesh)));
-        outProxy.name = node.value("Name", string{});
-
-        if (node.contains("Center") && node["Center"].is_array() && node["Center"].size() == 3)
-        {
-            outProxy.center = Vec3(
-                node["Center"][0].get<float>(),
-                node["Center"][1].get<float>(),
-                node["Center"][2].get<float>());
-        }
-
-        if (node.contains("Rotation") && node["Rotation"].is_array() && node["Rotation"].size() == 4)
-        {
-            outProxy.rotation = Quat(
-                node["Rotation"][0].get<float>(),
-                node["Rotation"][1].get<float>(),
-                node["Rotation"][2].get<float>(),
-                node["Rotation"][3].get<float>());
-        }
-
-        if (node.contains("Extents") && node["Extents"].is_array() && node["Extents"].size() == 3)
-        {
-            outProxy.extents = Vec3(
-                node["Extents"][0].get<float>(),
-                node["Extents"][1].get<float>(),
-                node["Extents"][2].get<float>());
-        }
-
-        outProxy.radius = node.value("Radius", 0.f);
-        outProxy.halfHeight = node.value("HalfHeight", 0.f);
-
-        if (node.contains("Positions") && node["Positions"].is_array())
-        {
-            for (const json& positionNode : node["Positions"])
-            {
-                if (!positionNode.is_array() || positionNode.size() != 3)
-                    continue;
-
-                outProxy.positions.push_back(Vec3(
-                    positionNode[0].get<float>(),
-                    positionNode[1].get<float>(),
-                    positionNode[2].get<float>()));
-            }
-        }
-
-        if (node.contains("Indices") && node["Indices"].is_array())
-        {
-            for (const json& indexNode : node["Indices"])
-                outProxy.indices.push_back(indexNode.get<uint32>());
-        }
-
-        return true;
-    }
-
-    void AppendCookedCollisionMesh(const json& meshData, vector<vector<uint8_t>>& outCookedMeshes)
-    {
-        if (meshData.is_binary())
-        {
-            const auto& binaryData = meshData.get_binary();
-            outCookedMeshes.emplace_back(binaryData.begin(), binaryData.end());
-        }
-        else if (meshData.is_string())
-        {
-            outCookedMeshes.push_back(String::Base64_Decode(meshData.get<string>()));
-        }
-    }
-
-    void AppendCookedCollisionMeshes(const json& collisionEntry, vector<vector<uint8_t>>& outCookedMeshes)
-    {
-        if (collisionEntry.is_array()) // Legacy format: cooked triangle mesh array.
-        {
-            outCookedMeshes.reserve(collisionEntry.size());
-            for (const json& meshData : collisionEntry)
-                AppendCookedCollisionMesh(meshData, outCookedMeshes);
-
-            return;
-        }
-
-        if (!collisionEntry.is_object())
-            return;
-
-        if (!collisionEntry.contains("CookedTriangleMeshes") ||
-            !collisionEntry["CookedTriangleMeshes"].is_array())
-        {
-            return;
-        }
-
-        const json& meshArray = collisionEntry["CookedTriangleMeshes"];
-        outCookedMeshes.reserve(meshArray.size());
-        for (const json& meshData : meshArray)
-            AppendCookedCollisionMesh(meshData, outCookedMeshes);
-    }
-
-    void AppendPrimitiveCollisionProxies(const json& collisionEntry, vector<ModelCollisionProxy>& outPrimitiveProxies)
-    {
-        if (!collisionEntry.is_object())
-            return;
-
-        if (!collisionEntry.contains("PrimitiveProxies") ||
-            !collisionEntry["PrimitiveProxies"].is_array())
-        {
-            return;
-        }
-
-        for (const json& proxyNode : collisionEntry["PrimitiveProxies"])
-        {
-            ModelCollisionProxy proxy{};
-            if (TryParseCollisionProxy(proxyNode, proxy))
-                outPrimitiveProxies.push_back(std::move(proxy));
-        }
     }
 
     // Model sidecar material extraction and runtime application helpers
@@ -618,20 +527,6 @@ namespace
             bindingCount);
     }
 
-    void ApplyLegacyPassOverride(ModelCom& model, const MapAdapter::MaterialOverrideView& view)
-    {
-        const int32 forcedPassIndex = view.hasOverride ? view.passIndex : -1;
-        if (forcedPassIndex < 0)
-            return;
-
-        for (uint32 i = 0; i < static_cast<uint32>(model.Get_NumMaterials()); ++i)
-        {
-            auto mat = model.Get_Material(i);
-            if (mat)
-                mat->Set_ForcedPassIndex(forcedPassIndex);
-        }
-    }
-
     string ResolveLegacyTexturePath(const string& mapResourceRoot, const string& texPath)
     {
         const fs::path texFsPath(texPath);
@@ -710,14 +605,6 @@ string MapAdapter::ResolveMapModelPath(const string& modelFolder, const string& 
     if (fs::exists(fs::path(folderPathA)))
         return folderPathA;
 
-    const string baseModelFolder = StripMapVariantSuffix(modelFolder);
-    if (!baseModelFolder.empty())
-    {
-        const string baseFolderPathA = MakeMapResourcePathString(fs::path(baseModelFolder) / modelPath);
-        if (fs::exists(fs::path(baseFolderPathA)))
-            return baseFolderPathA;
-    }
-
     return modelPath.has_parent_path() ? directPathA : folderPathA;
 }
 
@@ -742,6 +629,11 @@ bool MapAdapter::TryLoadSplitMapInstanceData(const wstring& filePath, SplitMapIn
 
     TryAppendModelOverridesFromJsonFile(data.sidecarJson, data.modelOverrides);
     AppendModelOverridesFromMaterialDirectory(MaterialResourceRootPath() / root.filename(), data.modelOverrides);
+    MapCollisionAdapter::AppendSiblingModelCollisionSources(
+        data.modelFolder,
+        data.staticMeshes,
+        data.cookedCollisionCache,
+        data.primitiveCollisionCache);
 
     outData = std::move(data);
     return true;
@@ -758,8 +650,8 @@ void MapAdapter::AppendModelOverrides(const json& mapData, unordered_map<string,
             continue;
 
         ModelOverrideEntry overrideEntry;
-        overrideEntry.passIndex = entry.value("PassIndex", -1);
         AppendMaterialBindingsFromSavedOverride(entry, overrideEntry);
+        AppendLegacyPassToMaterialBindings(entry, overrideEntry);
 
         if (entry.contains("TextureSlots") && entry["TextureSlots"].is_object())
         {
@@ -802,6 +694,14 @@ void MapAdapter::TryAppendModelOverridesFromJsonFile(const fs::path& jsonPath, u
     }
 }
 
+void MapAdapter::AppendModelOverridesFromMaterialMapName(const string& mapName, unordered_map<string, ModelOverrideEntry>& outOverrides)
+{
+    if (mapName.empty())
+        return;
+
+    AppendModelOverridesFromMaterialDirectory(MaterialResourceRootPath() / mapName, outOverrides);
+}
+
 void MapAdapter::AppendModelOverridesFromMaterialDirectory(const fs::path& materialDir, unordered_map<string, ModelOverrideEntry>& outOverrides)
 {
     if (materialDir.empty() || !fs::exists(materialDir) || !fs::is_directory(materialDir))
@@ -830,30 +730,6 @@ void MapAdapter::AppendModelOverridesFromMaterialDirectory(const fs::path& mater
     }
 }
 
-void MapAdapter::AppendModelCollisionSources(
-    const json& mapData,
-    umap<string, vector<vector<uint8_t>>>& outCookedCollisionCache,
-    umap<string, vector<ModelCollisionProxy>>& outPrimitiveCollisionCache)
-{
-    if (!mapData.contains("ModelCollisions") || !mapData["ModelCollisions"].is_object())
-        return;
-
-    for (const auto& [modelPath, collisionEntry] : mapData["ModelCollisions"].items())
-    {
-        vector<vector<uint8_t>> cookedMeshes;
-        vector<ModelCollisionProxy> primitiveProxies;
-
-        AppendCookedCollisionMeshes(collisionEntry, cookedMeshes);
-        AppendPrimitiveCollisionProxies(collisionEntry, primitiveProxies);
-
-        if (!cookedMeshes.empty())
-            outCookedCollisionCache[modelPath] = std::move(cookedMeshes);
-
-        if (!primitiveProxies.empty())
-            outPrimitiveCollisionCache[modelPath] = std::move(primitiveProxies);
-    }
-}
-
 MapAdapter::MaterialApplyDesc MapAdapter::BuildMaterialApplyDesc(
     const string& modelFolder,
     const string& modelFullPath,
@@ -868,7 +744,6 @@ MapAdapter::MaterialApplyDesc MapAdapter::BuildMaterialApplyDesc(
         return desc;
 
     desc.overrideView.hasOverride = true;
-    desc.overrideView.passIndex = overrideEntry->passIndex;
     desc.overrideView.textureSlots = &overrideEntry->textureSlots;
     desc.overrideView.modelJson = &overrideEntry->modelJson;
     return desc;
@@ -885,7 +760,6 @@ void MapAdapter::ApplyMaterial(ModelCom& model, const MaterialApplyDesc& desc)
 
     ApplyBaseBindings(model, bundleKey, bindings);
     LogBaseMaterialMatch(modelStem, bundleKey, bindings.size(), desc.overrideView);
-    ApplyLegacyPassOverride(model, desc.overrideView);
     ApplyLegacyTextureOverrides(model, desc);
     ApplyRuntimeMaterialBindings(model, modelStem, bundleKey, desc.overrideView);
 }

@@ -154,7 +154,6 @@ namespace MapEditor
     struct ModelOverrideEntry
     {
         ShaderType shaderType = ShaderType::VtxMesh;
-        int32 passIndex = -1;
         map<int32, string> textureSlots;
         bool hasMaterialCB = false;
         Engine::MaterialCB materialCB{};

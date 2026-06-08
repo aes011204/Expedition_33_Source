@@ -1,10 +1,10 @@
 ﻿#include "MapLoader.h"
 #include "GameInstance.h"
 #include "MapAdapter.h"
+#include "MapCollisionAdapter.h"
 #include "MapAuthoringIO.h"
 #include "MapStaticMesh.h"
 #include "MapInstancedMesh.h"
-#include "MapStaticCollisionBuilder.h"
 #include "ModelCom.h"
 #include "StaticCollisionData.h"
 #include "Shader_CBuffer_Define.h"
@@ -18,6 +18,19 @@ umap<string, Shared<ModelCom>> MapLoader::g_globalModelCache;
 umap<string, Shared<StaticCollisionData>> MapLoader::g_globalCollisionCache;
 uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
 
+MapCollisionAdapter::RuntimeContext MapLoader::MakeCollisionRuntimeContext(LoadSession& session)
+{
+    MapCollisionAdapter::RuntimeContext context{};
+    context.globalCacheMutex = &g_globalCacheMutex;
+    context.globalCollisionCache = &g_globalCollisionCache;
+    context.preloadedCollisionCache = &session.preloadedCollisionCache;
+    context.cookedCollisionCache = &session.cookedCollisionCache;
+    context.primitiveCollisionCache = &session.primitiveCollisionCache;
+    context.outBuildDuration = &session.collisionBuildDuration;
+    context.outBuildCount = &session.collisionBuildCount;
+    return context;
+}
+
 namespace
 {
     void Append_JsonArray(const json& mapData, const string& key, vector<json>& outArray)
@@ -30,6 +43,45 @@ namespace
             if (item.is_object())
                 outArray.push_back(item);
         }
+    }
+
+    void Append_UniqueString(vector<string>& values, string value)
+    {
+        if (value.empty())
+            return;
+
+        if (find(values.begin(), values.end(), value) == values.end())
+            values.push_back(std::move(value));
+    }
+
+    const MapLoader::ModelOverrideEntry* Find_ModelOverrideEntry(
+        const unordered_map<string, MapLoader::ModelOverrideEntry>& modelOverrides,
+        const string& modelPathStr)
+    {
+        auto overrideIt = modelOverrides.find(modelPathStr);
+        if (overrideIt != modelOverrides.end())
+            return &overrideIt->second;
+
+        const string modelFileName = fs::path(modelPathStr).filename().string();
+        overrideIt = modelOverrides.find(modelFileName);
+        if (overrideIt != modelOverrides.end())
+            return &overrideIt->second;
+
+        return nullptr;
+    }
+
+    void Append_MaterialOverridesForMapCandidates(
+        const json& mapData,
+        const wstring& actualPath,
+        unordered_map<string, MapLoader::ModelOverrideEntry>& outOverrides)
+    {
+        vector<string> mapNames;
+        Append_UniqueString(mapNames, mapData.value("MapName", string{}));
+        Append_UniqueString(mapNames, mapData.value("ModelFolder", string{}));
+        Append_UniqueString(mapNames, fs::path(actualPath).stem().string());
+
+        for (const string& mapName : mapNames)
+            MapAdapter::AppendModelOverridesFromMaterialMapName(mapName, outOverrides);
     }
 
     void Apply_PostProcessVolumes(const vector<json>& postProcessVolumes)
@@ -198,6 +250,8 @@ HRESULT MapLoader::Try_BeginMapInstanceSession(
     outSession.postProcessVolumes = std::move(splitData.postProcessVolumes);
     outSession.waters = std::move(splitData.waters);
     outSession.preloadModelPaths = std::move(splitData.preloadModelPaths);
+    outSession.cookedCollisionCache = std::move(splitData.cookedCollisionCache);
+    outSession.primitiveCollisionCache = std::move(splitData.primitiveCollisionCache);
 
     outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
@@ -344,6 +398,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     Append_JsonArray(mapData, "Waters", outSession.waters);
 
     MapAdapter::AppendModelOverrides(mapData, outSession.modelOverrides);
+    Append_MaterialOverridesForMapCandidates(mapData, actualPath, outSession.modelOverrides);
 
     if (mapData.contains("StaticMeshes"))
     {
@@ -381,8 +436,13 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
             outSession.prefabInstances.push_back(item);
     }
 
-    MapAdapter::AppendModelCollisionSources(
+    MapCollisionAdapter::AppendModelCollisionSources(
         mapData,
+        outSession.cookedCollisionCache,
+        outSession.primitiveCollisionCache);
+    MapCollisionAdapter::AppendSiblingModelCollisionSources(
+        outSession.modelFolder,
+        outSession.staticMeshes,
         outSession.cookedCollisionCache,
         outSession.primitiveCollisionCache);
 
@@ -453,7 +513,12 @@ HRESULT MapLoader::Preload_SessionData(const ComPtr<Device>& device, const ComPt
         if (it != outSession.preloadedModelCache.end() && it->second != nullptr)
         {
             // 전역 캐시 및 안전 빌드 헬퍼 활용
-            Shared<StaticCollisionData> collisionData = GetOrBuildCollision(it->second, modelPathStr);
+            const auto collisionContext = MakeCollisionRuntimeContext(outSession);
+            Shared<StaticCollisionData> collisionData = MapCollisionAdapter::BuildStaticCollision(
+                it->second,
+                modelPathStr,
+                collisionContext.globalCacheMutex,
+                collisionContext.globalCollisionCache);
             outSession.preloadedCollisionCache[modelPathStr] = collisionData;
         }
 
@@ -598,6 +663,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         if (it != session.preloadedModelCache.end())
         {
             desc.model = it->second;
+            ApplySessionModelMaterials(session, modelPathStr, desc.model);
         }
         else
         {
@@ -619,6 +685,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             }
 
             session.preloadedModelCache[modelPathStr] = model;
+            MarkSessionModelMaterialsApplied(session, modelPathStr);
             desc.model = model;
         }
 
@@ -630,7 +697,10 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         }
         else
         {
-            desc.collisionData = GetOrCreateCookedCollision(session, desc.model, modelPathStr);
+            desc.collisionData = MapCollisionAdapter::GetOrCreateStaticCollision(
+                MakeCollisionRuntimeContext(session),
+                desc.model,
+                modelPathStr);
         }
 
         desc.modelPath = String::ToWString(modelPathStr);
@@ -702,6 +772,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         if (it != session.preloadedModelCache.end())
         {
             desc.model = it->second;
+            ApplySessionModelMaterials(session, modelPathStr, desc.model);
         }
         else
         {
@@ -723,11 +794,15 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             }
 
             session.preloadedModelCache[modelPathStr] = model;
+            MarkSessionModelMaterialsApplied(session, modelPathStr);
             desc.model = model;
         }
 
         // InstancedMeshes도 static mesh와 같은 collision cache를 재사용한다.
-        desc.collisionData = GetOrCreateCookedCollision(session, desc.model, modelPathStr);
+        desc.collisionData = MapCollisionAdapter::GetOrCreateStaticCollision(
+            MakeCollisionRuntimeContext(session),
+            desc.model,
+            modelPathStr);
 
         if (e.contains("Instances"))
         {
@@ -873,6 +948,43 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
     MapAdapter::ApplyMaterial(*model, MapAdapter::BuildMaterialApplyDesc(modelFolder, modelFullPath, overrideEntry));
 }
 
+void MapLoader::MarkSessionModelMaterialsApplied(LoadSession& session, const string& modelPathStr)
+{
+    if (modelPathStr.empty())
+        return;
+
+    if (find(session.materialAppliedModelPaths.begin(), session.materialAppliedModelPaths.end(), modelPathStr) !=
+        session.materialAppliedModelPaths.end())
+    {
+        return;
+    }
+
+    session.materialAppliedModelPaths.push_back(modelPathStr);
+}
+
+void MapLoader::ApplySessionModelMaterials(LoadSession& session, const string& modelPathStr, Shared<ModelCom>& model)
+{
+    if (model == nullptr || modelPathStr.empty())
+        return;
+
+    if (find(session.materialAppliedModelPaths.begin(), session.materialAppliedModelPaths.end(), modelPathStr) !=
+        session.materialAppliedModelPaths.end())
+    {
+        return;
+    }
+
+    const string fullPathA = MapAdapter::ResolveMapModelPath(session.modelFolder, modelPathStr);
+    const ModelOverrideEntry* overrideEntry = Find_ModelOverrideEntry(session.modelOverrides, modelPathStr);
+
+    const auto materialBegin = chrono::steady_clock::now();
+    ApplyMaterials(model, session.modelFolder, fullPathA, overrideEntry);
+    session.materialApplyDuration +=
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
+    ++session.materialApplyCount;
+
+    MarkSessionModelMaterialsApplied(session, modelPathStr);
+}
+
 HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& context, const wstring& filePath, uint32 levelIndex, const wstring& layerTag)
 {
     LoadSession session{};
@@ -987,15 +1099,27 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     string fullPathA = MapAdapter::ResolveMapModelPath(modelFolder, modelPathStr);
 
     const string cacheKey = String::ToLowerCopy(fs::path(fullPathA).lexically_normal().generic_string());
+    const ModelOverrideEntry* overrideEntry = Find_ModelOverrideEntry(modelOverrides, modelPathStr);
 
     // 1단계: 스레드 안전하게 전역 캐시에서 동일 모델 존재 확인
+    Shared<ModelCom> cachedModel = nullptr;
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
         auto it = g_globalModelCache.find(cacheKey);
         if (it != g_globalModelCache.end())
-        {
-            return it->second;
-        }
+            cachedModel = it->second;
+    }
+
+    if (cachedModel != nullptr)
+    {
+        const auto materialBegin = chrono::steady_clock::now();
+        ApplyMaterials(cachedModel, modelFolder, fullPathA, overrideEntry);
+        const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
+
+        if (outMaterialDuration) *outMaterialDuration += materialMs;
+        if (outMaterialCount) (*outMaterialCount)++;
+
+        return cachedModel;
     }
 
     // 2단계: 전역 캐시에 없는 경우 디스크에서 신규 로드 수행
@@ -1022,22 +1146,6 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
         return nullptr;
     }
 
-    const ModelOverrideEntry* overrideEntry = nullptr;
-    auto overrideIt = modelOverrides.find(modelPathStr);
-    if (overrideIt != modelOverrides.end())
-    {
-        overrideEntry = &overrideIt->second;
-    }
-    else
-    {
-        const string modelFileName = fs::path(modelPathStr).filename().string();
-        overrideIt = modelOverrides.find(modelFileName);
-        if (overrideIt != modelOverrides.end())
-        {
-            overrideEntry = &overrideIt->second;
-        }
-    }
-
     const auto materialBegin = chrono::steady_clock::now();
     ApplyMaterials(model, modelFolder, fullPathA, overrideEntry);
     const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
@@ -1052,142 +1160,6 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     }
 
     return model;
-}
-
-Shared<StaticCollisionData> MapLoader::GetOrCreateCookedCollision(
-    LoadSession& session,
-    const Shared<ModelCom>& model,
-    const string& modelPathStr)
-{
-    if (model == nullptr || modelPathStr.empty())
-        return nullptr;
-
-    auto ensureTriangleMeshes = [&](const Shared<StaticCollisionData>& collisionData)
-    {
-        if (collisionData == nullptr)
-            return;
-
-        if (!collisionData->cookedTriangleMeshes.empty() || !collisionData->triangleMeshes.empty())
-            return;
-
-        const wstring sourceModelPath = !model->Get_SourceModelPath().empty()
-            ? model->Get_SourceModelPath()
-            : String::ToWString(modelPathStr);
-
-        if (sourceModelPath.empty())
-            return;
-
-        // 저장된 collision이 proxy-only 또는 empty여도 gameplay에서는 .model triangle mesh를 우선 보강한다.
-        MapStaticCollisionBuilder::Build_TriangleMeshes_FromModelFile(
-            sourceModelPath,
-            collisionData->triangleMeshes);
-    };
-
-    auto sessionIt = session.preloadedCollisionCache.find(modelPathStr);
-    if (sessionIt != session.preloadedCollisionCache.end())
-    {
-        ensureTriangleMeshes(sessionIt->second);
-        return sessionIt->second;
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        auto globalIt = g_globalCollisionCache.find(modelPathStr);
-        if (globalIt != g_globalCollisionCache.end())
-        {
-            ensureTriangleMeshes(globalIt->second);
-            session.preloadedCollisionCache[modelPathStr] = globalIt->second;
-            return globalIt->second;
-        }
-    }
-
-    auto cookedIt = session.cookedCollisionCache.find(modelPathStr);
-    auto primitiveIt = session.primitiveCollisionCache.find(modelPathStr);
-    const bool hasCollisionEntry =
-        (cookedIt != session.cookedCollisionCache.end() || primitiveIt != session.primitiveCollisionCache.end());
-
-    const bool hasCookedTriangles =
-        (cookedIt != session.cookedCollisionCache.end() && !cookedIt->second.empty());
-    const bool hasPrimitiveProxies =
-        (primitiveIt != session.primitiveCollisionCache.end() && !primitiveIt->second.empty());
-
-    if (!hasCollisionEntry)
-    {
-        // 저장 collision entry가 아예 없는 모델도 런타임에서 triangle/proxy collision을 보강한다.
-        Shared<StaticCollisionData> collisionData = GetOrBuildCollision(
-            model,
-            modelPathStr,
-            &session.collisionBuildDuration,
-            &session.collisionBuildCount);
-
-        if (collisionData != nullptr)
-            session.preloadedCollisionCache[modelPathStr] = collisionData;
-
-        return collisionData;
-    }
-
-    auto collisionData = make_shared<StaticCollisionData>();
-    collisionData->cacheKey = model->Get_SourceModelPath();
-    if (collisionData->cacheKey.empty())
-        collisionData->cacheKey = String::ToWString(modelPathStr);
-    collisionData->preLocalTransform = model->Get_PreLocalTransformMatrix();
-    if (hasCookedTriangles)
-        collisionData->cookedTriangleMeshes = cookedIt->second;
-    if (hasPrimitiveProxies)
-        collisionData->primitiveProxies = primitiveIt->second;
-    ensureTriangleMeshes(collisionData);
-
-    if (collisionData->cookedTriangleMeshes.empty() &&
-        collisionData->primitiveProxies.empty() &&
-        collisionData->triangleMeshes.empty())
-    {
-        return nullptr;
-    }
-
-    session.preloadedCollisionCache[modelPathStr] = collisionData;
-
-    {
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        g_globalCollisionCache[modelPathStr] = collisionData;
-    }
-
-    return collisionData;
-}
-
-Shared<StaticCollisionData> MapLoader::GetOrBuildCollision(
-    const Shared<ModelCom>& model,
-    const string& modelPathStr,
-    chrono::milliseconds* outDuration,
-    size_t* outCount)
-{
-    if (model == nullptr)
-        return nullptr;
-
-    // 1단계: 전역 콜리전 캐시에서 조회
-    {
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        auto it = g_globalCollisionCache.find(modelPathStr);
-        if (it != g_globalCollisionCache.end())
-        {
-            return it->second;
-        }
-    }
-
-    // 2단계: 캐시 미스 시 신규 콜리전 데이터 빌드 수행
-    const auto begin = chrono::steady_clock::now();
-    Shared<StaticCollisionData> collisionData = MapStaticCollisionBuilder::Build(model);
-    const auto elapsed = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin);
-
-    if (outDuration) *outDuration += elapsed;
-    if (outCount) (*outCount)++;
-
-    // 3단계: 빌드된 콜리전 데이터를 전역 캐시에 스레드 안전하게 등록
-    {
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        g_globalCollisionCache[modelPathStr] = collisionData;
-    }
-
-    return collisionData;
 }
 
 void MapLoader::Clear_GlobalCache()
