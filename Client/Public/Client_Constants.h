@@ -265,57 +265,39 @@ namespace Client::Constants::Prefab
 #pragma endregion
 }
 
-// 사운드는 헤더를 따로 뺄까;;
-namespace Client::Constants::Sound
+// 이제 사운드는 DT_SoundCue에 추가해서, 거기에 등록된 cueId를 여기에 상수로 매핑하는 형식으로 통일하기
+namespace Client::Constants::SoundBGM
 {
     constexpr const wchar_t* MainTitleBGM = L"MainTitle/MainTitle_BGM.wav";
-
-    constexpr const wchar_t* MainMenuLoading = L"MainTitle/MainMenu_Loading.wav";
-    constexpr const wchar_t* MainMenuNewGame = L"MainTitle/MainMenu_NewGame.wav";
-    constexpr const wchar_t* MainMenuQuitGame = L"MainTitle/MainMenu_QuitGame.wav";
-
-    constexpr const wchar_t* SavePointIntro = L"UI/RestMenu/SavePoint/SFX_UI_RestMenu_Open_01 [1].wav";
-    constexpr const wchar_t* SavePointOutro = L"UI/RestMenu/SavePoint/SFX_UI_RestMenu_Close_01 [1].wav";
-
-    constexpr const wchar_t* GlobalGenericEnter01 = L"UI/Global/SFX_UI_Global_Generic_Enter_01 [1].wav";
-    constexpr const wchar_t* GlobalGenericEnter02 = L"UI/Global/SFX_UI_Global_Generic_Enter_02 [1].wav";
-    constexpr const wchar_t* GlobalGenericEnter03 = L"UI/Global/SFX_UI_Global_Generic_Enter_03 [1].wav";
-    constexpr const wchar_t* GlobalGenericEnter04 = L"UI/Global/SFX_UI_Global_Generic_Enter_04 [1].wav";
-    constexpr const wchar_t* GlobalGenericEnter05 = L"UI/Global/SFX_UI_Global_Generic_Enter_05 [1].wav";
-
-    constexpr const wchar_t* GlobalGenericEnterSounds[5] =
-    {
-        GlobalGenericEnter01,
-        GlobalGenericEnter02,
-        GlobalGenericEnter03,
-        GlobalGenericEnter04,
-        GlobalGenericEnter05
-    };
-
-    constexpr const wchar_t* AllySelect01 = L"Battle/UI_Battle_Select_Ally_01 [1].wav";
-    constexpr const wchar_t* AllySelect02 = L"Battle/UI_Battle_Select_Ally_02 [1].wav";
-    constexpr const wchar_t* AllySelect03 = L"Battle/UI_Battle_Select_Ally_03 [1].wav";
-
-    constexpr const wchar_t* AllySelectSounds[3] =
-    {
-        AllySelect01,
-        AllySelect02,
-        AllySelect03
-    };
-
     constexpr const wchar_t* BattleNormalBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Intro [1].wav";
     constexpr const wchar_t* BattleBossBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Main [1].wav";
-
-    constexpr const wchar_t* BattleStateEncounter = L"Battle/UI_Battle_State_Encounter [1].wav";
-    constexpr const wchar_t* BattleStateEnd = L"Battle/UI_Battle_State_End [1].wav";
-
-    constexpr const wchar_t* BattleQTEStart = L"Battle/QTE/UI_Battle_QTE_Start [1].wav";
-    constexpr const wchar_t* BattleQTEMiss = L"Battle/QTE/UI_Battle_QTE_Miss [1].wav";
-    constexpr const wchar_t* BattleQTESuccessPerfect = L"Battle/QTE/UI_Battle_QTE_Success_Perfect [1].wav";
-    constexpr const wchar_t* BattleQTESuccessRegular = L"Battle/QTE/UI_Battle_QTE_Success_Regular [1].wav";
-
-    constexpr const wchar_t* SkillTreeNavigate = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Navigate_01 [1].wav";
-    constexpr const wchar_t* SkillTreeLearn = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Learn_01 [1].wav";
-    constexpr const wchar_t* SkillTreeBlocked = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Blocked_01 [1].wav";
     constexpr const wchar_t* SpringBGM = L"BGM/SpringMeadow/MUS_SpringMeadows_ENV_Nightfall_PartA.wav";
+}
+
+namespace Client::Constants::SoundCue
+{
+    constexpr const wchar_t* UI_MainTitle_ButtonHover = L"UI_MainTitle_ButtonHover";
+    constexpr const wchar_t* UI_MainTitle_Loading = L"UI_MainTitle_Loading";
+    constexpr const wchar_t* UI_MainTitle_NewGame = L"UI_MainTitle_NewGame";
+    constexpr const wchar_t* UI_MainTitle_QuitGame = L"UI_MainTitle_QuitGame";
+
+    constexpr const wchar_t* UI_SavePoint_Open = L"UI_SavePoint_Open";
+    constexpr const wchar_t* UI_SavePoint_Close = L"UI_SavePoint_Close";
+
+    constexpr const wchar_t* UI_Global_GenericEnter = L"UI_Global_GenericEnter";
+    constexpr const wchar_t* UI_Global_NavigateClick = L"UI_Global_NavigateClick";
+    constexpr const wchar_t* UI_Battle_SelectAlly = L"UI_Battle_SelectAlly";
+    constexpr const wchar_t* UI_Battle_Encounter = L"UI_Battle_Encounter";
+    constexpr const wchar_t* UI_Battle_StateEnd = L"UI_Battle_StateEnd";
+
+    constexpr const wchar_t* UI_Battle_QTE_Start = L"UI_Battle_QTE_Start";
+    constexpr const wchar_t* UI_Battle_QTE_Miss = L"UI_Battle_QTE_Miss";
+    constexpr const wchar_t* UI_Battle_QTE_SuccessPerfect = L"UI_Battle_QTE_SuccessPerfect";
+    constexpr const wchar_t* UI_Battle_QTE_SuccessRegular = L"UI_Battle_QTE_SuccessRegular";
+
+    constexpr const wchar_t* UI_SkillTree_Navigate = L"UI_SkillTree_Navigate";
+    constexpr const wchar_t* UI_SkillTree_Learn = L"UI_SkillTree_Learn";
+    constexpr const wchar_t* UI_SkillTree_Blocked = L"UI_SkillTree_Blocked";
+
+    constexpr const wchar_t* SFX_Eveque_Earth_SpikeHit = L"SFX_Eveque_Earth_SpikeHit";
 }

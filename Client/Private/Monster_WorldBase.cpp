@@ -75,7 +75,6 @@ namespace
     }
 }
 
-
 Monster_WorldBase::Monster_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_WorldBase(device, context)
 {
@@ -354,6 +353,7 @@ json Monster_WorldBase::To_Json() const
     json& customProperties = data["custom_properties"];
     customProperties["battle_start_spawner_id"] = _battleStartSpawnerId;
     customProperties["battle_start_offset"] = Vec3_ToJson(_battleStartOffset);
+    customProperties["battle_field_id"] = _battleFieldId;
 
     json& battleMonsterSpawns = customProperties["battle_monster_spawns"];
     battleMonsterSpawns = json::array();
@@ -416,6 +416,8 @@ void Monster_WorldBase::From_Json(const json& data)
 
     if (!customProperties.contains("battle_monster_prefab_names") || !customProperties["battle_monster_prefab_names"].is_array())
         return;
+
+    _battleFieldId = customProperties.value("battle_field_id", 1u);
 
     _battleMonsterSpawnDescs.clear();
     for (const json& prefabName : customProperties["battle_monster_prefab_names"])
@@ -510,10 +512,10 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     }
 
     Set_Visible(false);
-    GAME->Play_Sound(Constants::Sound::BattleStateEncounter, SoundChannel::UI, 1.f);
+    GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_Encounter);
 
     // 이제, 턴 진입 조건에 따라서 플레이어, 몬스터 턴 관리
-    CLIENT->OnEnterBattleField(1, isPlayerAdvantage, heroes, battleMonsterSpawnDescs, GetSharedPtr<GameObject>());
+    CLIENT->OnEnterBattleField(_battleFieldId, isPlayerAdvantage, heroes, battleMonsterSpawnDescs, GetSharedPtr<GameObject>());
 }
 
 void Monster_WorldBase::On_EditorStopRuntime()

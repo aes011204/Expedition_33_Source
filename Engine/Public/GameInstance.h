@@ -345,6 +345,11 @@ public: /* For.Sound_Manager */
     float Get_SoundChannelVolume(SoundChannel channel) const;
     bool Has_Sound(const wstring& soundFile) const;
 
+    // 사운드 큐
+    bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition = nullptr);
+    // 3D 사운드의 기준은, 활성화된 카메라의 기준으로
+    void Update_SoundListenerFromActiveCamera();
+
 public: /* For.Debug Profile */
     // Profile View에서 현재 등록 prototype/object의 대략적인 리소스 메모리 사용량을 요약할 때 사용한다.
     bool Build_DebugResourceMemorySummary(DebugResourceMemorySummary& outSummary) const;

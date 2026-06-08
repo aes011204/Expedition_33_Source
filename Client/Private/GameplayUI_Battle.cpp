@@ -11,6 +11,7 @@
 #include "PlayerStatCom.h"
 #include "ScreenFx_Manager.h"
 #include "Skill_Gustave_Battle.h"
+#include "Mon_WeakPoint.h"
 
 #include "UI_AttackTooltip.h"
 #include "UI_BattleCommandHUD.h"
@@ -322,6 +323,9 @@ void GameplayUI_Battle::Bind_BattleDelegates()
     _counterAnnounceRequestedHandle =
         _battleController->OnCounterAnnounceRequested.Add(this, &GameplayUI_Battle::Handle_CounterAnnounceRequested);
 
+    _battleWeakPointConsumedHandle =
+        Mon_WeakPoint::OnBattleWeakPointConsumed.Add(this, &GameplayUI_Battle::Handle_BattleWeakPointConsumed);
+
 }
 
 void GameplayUI_Battle::Unbind_BattleDelegates()
@@ -376,6 +380,9 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     if (_counterAnnounceRequestedHandle.IsValid())
         _battleController->OnCounterAnnounceRequested.Remove(_counterAnnounceRequestedHandle);
 
+    if (_battleWeakPointConsumedHandle.IsValid())
+        Mon_WeakPoint::OnBattleWeakPointConsumed.Remove(_battleWeakPointConsumedHandle);
+
     _battleStartedHandle.Reset();
     _battleEndedHandle.Reset();
     _turnStartedHandle.Reset();
@@ -393,9 +400,9 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
 
     _buffAppliedHandle.Reset();
     _buffConsumedHandle.Reset();
+    _battleWeakPointConsumedHandle.Reset();
 
     _battleController.reset();
-
 }
 
 void GameplayUI_Battle::Handle_BattleStarted(uint32 fieldId, bool isPlayerAdvantage)
@@ -495,7 +502,7 @@ void GameplayUI_Battle::Handle_BattleEnded(EBattleEndResult result)
 
             _battleVictory->Set_RewardExp(rewardExp);
             _battleVictory->Set_PlayerStatus(Build_BattleVictoryPlayerStats());
-            GAME->Play_Sound(Constants::Sound::BattleStateEnd, SoundChannel::UI, 1.f);
+            GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_StateEnd);
             _battleVictory->Open();
         }
 
@@ -953,6 +960,19 @@ void GameplayUI_Battle::Handle_CounterAnnounceRequested(const vector<BattleChar>
         return;
 
     _battleAnnounce->Show_Counter(counterActors);
+}
+
+void GameplayUI_Battle::Handle_BattleWeakPointConsumed(const Shared<Monster_BattleBase>& monster)
+{
+    if (!_isBattleUiActive || _battleAnnounce == nullptr || monster == nullptr)
+        return;
+
+    BattleChar target{};
+    target.actor = monster;
+    target.statCom = monster->Get_Component<CombatStatCom>();
+    target.ModelCom = monster->Get_Component<ModelCom>();
+
+    _battleAnnounce->Show_WeakPointHit(target);
 }
 
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)

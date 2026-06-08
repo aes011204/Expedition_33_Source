@@ -2093,7 +2093,7 @@ void BattleController::Complete_BattleField()
     }
 
     GAME->Play_BGM(
-        hasBossEnemy ? Constants::Sound::BattleBossBGM : Constants::Sound::BattleNormalBGM,
+        hasBossEnemy ? Constants::SoundBGM::BattleBossBGM : Constants::SoundBGM::BattleNormalBGM,
         1.f,
         true,
         0.f);

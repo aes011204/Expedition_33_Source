@@ -9,6 +9,8 @@
 
 NS_BEGIN(Client)
 
+FOnBattleWeakPointConsumed Mon_WeakPoint::OnBattleWeakPointConsumed;
+
 namespace
 {
     constexpr wchar_t kDefaultWeakPointEffectName[] = L"Effects\\Assets\\Monster\\Monster_Weak.effect.json";
@@ -253,6 +255,8 @@ bool Mon_WeakPoint::Try_Consume_BattleWeakPointHit()
     if (!_isBattleWeakPointEnabled)
         return false;
 
+    const Shared<Monster_BattleBase> owner = Resolve_BattleMonsterOwner();
+
     const Matrix effectWorldMatrix = Get_CollisionWorldMatrix();
 
     PlayEffectDesc effectDesc{};
@@ -270,6 +274,12 @@ bool Mon_WeakPoint::Try_Consume_BattleWeakPointHit()
         _colliderCom->Set_IsActive(false);
         _colliderCom->Clear_Overlap();
         GAME->Unregister_PhysXCollider(_colliderCom.get());
+    }
+
+    if (owner)
+    {
+        // 약점 터진거 전파
+        OnBattleWeakPointConsumed.Broadcast(owner);
     }
 
     if (_partEffectCom)

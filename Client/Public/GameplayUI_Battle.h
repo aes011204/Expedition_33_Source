@@ -38,6 +38,8 @@ class UI_AddAP;
 class UI_QTE;
 class UI_MarkEffect;
 
+class Monster_BattleBase;
+
 class GameplayUI_Battle final : public Base
 {
 public:
@@ -80,7 +82,10 @@ private:
     void    Handle_BuffApplied(const BattleChar& target, Buffs buffId);
     void    Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage);
 
+    // 카운터 성공 알림
     void    Handle_CounterAnnounceRequested(const vector<BattleChar>& counterActors);
+    // 약점 터트린거 알림
+    void    Handle_BattleWeakPointConsumed(const Shared<Monster_BattleBase>& monster);
 
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
@@ -194,6 +199,7 @@ private:
     FDelegateHandle          _buffConsumedHandle{};
 
     FDelegateHandle          _counterAnnounceRequestedHandle{};
+    FDelegateHandle          _battleWeakPointConsumedHandle{};
 
 private:
     BattleChar               _targetPreviewSnapshot{};

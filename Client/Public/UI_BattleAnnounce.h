@@ -25,18 +25,27 @@ public:
 
     void    Show_TurnStart(const BattleChar& actor, BattleTurnState state, const Skill_Data* skillData);
     void    Show_Counter(const vector<BattleChar>& counterActors);
+    void    Show_WeakPointHit(const BattleChar& target);
 
+public:
     static wstring Build_TurnStartText(
         const BattleChar& actor,
         BattleTurnState state,
         const Skill_Data* skillData);
+
     static wstring Build_CounterText(const vector<BattleChar>& counterActors);
+
+    static wstring Build_WeakPointHitText(const BattleChar& target);
+
+    // 조사 제거
+    static wstring Build_PossessiveSubjectName(const BattleChar& target);
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
 
     static wstring Resolve_ActorSubjectName(const BattleChar& actor);
+
 
 private:
     Shared<UI_Text> _announceText{};
