@@ -365,6 +365,7 @@ private:
     vector<BattleMonsterSpawnDesc> _pendingBattleMonsterSpawnDescs = {};
     int32   _pendingBattleStartSpawnerId = 0;
     Vec3    _pendingBattleStartOffset = Vec3::Zero;
+    float   _pendingBattlePlaneYaw = 0.f;
 
     bool _isFreeAimShotPlaying = false;
     BattleAction _freeAimShotAction {};

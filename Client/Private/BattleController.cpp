@@ -281,6 +281,7 @@ void BattleController::OnEnterBattleField(
     _pendingBattleMonsterSpawnDescs = battleMonsterSpawnDescs;
     _pendingBattleStartSpawnerId = 0;
     _pendingBattleStartOffset = Vec3::Zero;
+    _pendingBattlePlaneYaw = 0.f;
 
     if (Shared<Monster_WorldBase> worldMonster = dynamic_pointer_cast<Monster_WorldBase>(sourceObject))
     {
@@ -793,6 +794,8 @@ void BattleController::SetCharInitPos()
         forward = Vec3::Forward;
     else
         forward.Normalize();
+
+    _pendingBattlePlaneYaw = XMConvertToDegrees(atan2f(forward.x, forward.z));
 
     const Vec3 playerLocalPos[3] =
     {
@@ -1979,6 +1982,7 @@ HRESULT BattleController::Ready_BattleTurnCamera()
         _battleTurnCamera->Try_BeginPlay();
     }
     _battleTurnCamera->Reset_RuntimeState();
+    _battleTurnCamera->Set_BattlePlaneYaw(_pendingBattlePlaneYaw);
     _battleTurnCamera->Set_Participants(_heroes, _enemies, _pendingBattleMonsterSpawnDescs);
 
     return S_OK;
@@ -2132,6 +2136,7 @@ void BattleController::Clear_BattleEnterPending()
     _pendingBattleMonsterSpawnDescs.clear();
     _pendingBattleStartSpawnerId = 0;
     _pendingBattleStartOffset = Vec3::Zero;
+    _pendingBattlePlaneYaw = 0.f;
 }
 
 bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarget& hitTarget,

@@ -62,6 +62,7 @@ public:
         const vector<BattleChar>& heroes,
         const vector<BattleChar>& enemies,
         const vector<BattleMonsterSpawnDesc>& enemySpawnDescs);
+    void Set_BattlePlaneYaw(float yawDegrees) { _battlePlaneYawDegrees = yawDegrees; }
     void Reset_RuntimeState();
     void Set_IsClipPreview(bool boolean) { _isClipPreview = boolean; }
 
@@ -155,6 +156,8 @@ private:
         const BattleCameraPreset& preset,
         const BattleCameraClipSample& clipSample,
         EvaluatedPose& outPose) const;
+    float Resolve_BattlePlaneYaw() const;
+    float Resolve_YawBaseForPresetMode(const BattleShotRequest& request) const;
     bool Try_CaptureWideAnchor(Vec3& outHeroCenter, float& outYawDegrees) const;
     BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode);
     const BattleCameraPreset* Find_PresetStorage(BattleCameraMode cameraMode) const;
@@ -206,6 +209,7 @@ private:
     vector<BattleMonsterSpawnDesc> _enemySpawnDescs;
     Vec3                 _wideAnchorHeroCenter = Vec3::Zero;
     float                _wideAnchorYawDegrees = 0.f;
+    float                _battlePlaneYawDegrees = 0.f;
     Vec3                 _enemyPos;
     Vec3                 _playerPos;
 
