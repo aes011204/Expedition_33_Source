@@ -133,6 +133,7 @@ struct DistributionRandomSeedData
 {
     DistributionRandomSeedMode mode{ DistributionRandomSeedMode::Default };
     uint32 manualSeed{ 0 };
+    bool useInstanceSeed{ false };
 };
 
 // 분포 플로트에서의 보간 모드 설정이다.
@@ -747,10 +748,17 @@ struct InitialVelocityModuleData
     bool inWorldSpace{ false };
 };
 
+enum class InitialRadialVelocityCenterDirectionMode : uint8
+{
+    RandomUpward,
+    PlaneRadial,
+};
+
 struct InitialRadialVelocityModuleData
 {
     FloatDistributionData speed{ FloatDistributionData::Make_Uniform(1.f, 2.f) };
     Vec3 radialPivot{ 0.f, 0.f, 0.f };
+    InitialRadialVelocityCenterDirectionMode centerDirectionMode{ InitialRadialVelocityCenterDirectionMode::RandomUpward };
     bool inWorldSpace{ false };
 };
 

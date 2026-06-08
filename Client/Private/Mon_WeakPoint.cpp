@@ -11,9 +11,22 @@ NS_BEGIN(Client)
 
 namespace
 {
-    constexpr float kDefaultWeakPointEffectScale = 0.4f;
     constexpr wchar_t kDefaultWeakPointEffectName[] = L"Effects\\Assets\\Monster\\Monster_Weak.effect.json";
     constexpr wchar_t kWeakPointBreakEffectName[] = L"Effects\\Assets\\Monster\\WeakAtt_Blue.effect.effect.json";
+}
+
+IMPLEMENT_REFLECTION(Mon_WeakPoint)
+{
+    auto& info = GetStaticReflectionInfo();
+    info.properties.clear();
+
+    info.className = "Mon_WeakPoint";
+    info.displayName = "Mon_WeakPoint";
+    info.category = "GameObject";
+
+    PROPERTY_FLOAT("Weak Point Effect Scale", _weakPointEffectScale, 0.f, 10.f, 0.01f);
+
+    return true;
 }
 
 Mon_WeakPoint::Mon_WeakPoint(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -192,7 +205,7 @@ void Mon_WeakPoint::Ready_DefaultWeakPointEffectSettings()
     settings.localOffset = Vec3::Zero;
     settings.localRotation = Vec3::Zero;
     settings.followTarget = true;
-    settings.scale = Vec3(kDefaultWeakPointEffectScale);
+    settings.scale = Vec3(_weakPointEffectScale);
     settings.requiresManualRelease = true;
 
     _partEffectCom->Set_InspectorEffectSettings(settings);
@@ -215,7 +228,7 @@ void Mon_WeakPoint::Play_WeakPointEffect()
     desc.target = EffectCom::EffectPlayTarget::OwnerRoot;
     desc.layerTag = L"Layer_Effect";
     desc.followTarget = true;
-    desc.scale = Vec3(kDefaultWeakPointEffectScale);
+    desc.scale = Vec3(_weakPointEffectScale);
     desc.requiresManualRelease = true;
 
     _partEffectCom->Play_Effect(desc);
@@ -240,10 +253,12 @@ bool Mon_WeakPoint::Try_Consume_BattleWeakPointHit()
     if (!_isBattleWeakPointEnabled)
         return false;
 
-	PlayEffectDesc effectDesc{};
+    const Matrix effectWorldMatrix = Get_CollisionWorldMatrix();
+
+    PlayEffectDesc effectDesc{};
     effectDesc.effectName = kWeakPointBreakEffectName;
-    effectDesc.spawnBasisTarget = GetSharedPtr<GameObject>();
-    effectDesc.scale = Vec3(1.f, 1.f, 1.f);
+    effectDesc.worldPosition = Vec3(effectWorldMatrix._41, effectWorldMatrix._42, effectWorldMatrix._43);
+    effectDesc.scale = Vec3(0.3f, 0.3f, 0.3f);
 
     CLIENT->Play_Effect(effectDesc);
 

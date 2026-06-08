@@ -41,7 +41,7 @@ private:
 private:
     void    Push_Menu(GameplayMenu menu);
     void    Pop_Menu();
-    void    Close_AllMenus();              // 전체 메뉴 종료
+    void    Close_AllMenus(bool immediate = false); // 전체 메뉴 종료
 
     void    Open_Menu(GameplayMenu menu);  // 메뉴 enum -> 실제 panel open
     void    Close_Menu(GameplayMenu menu); // 메뉴 enum -> 실제 panel close

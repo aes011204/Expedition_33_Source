@@ -175,6 +175,7 @@
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
     <ClInclude Include="..\Public\AN_EndTurn.h" />
     <ClInclude Include="..\Public\AN_PlayEffect.h" />
+    <ClInclude Include="..\Public\AN_PlaySound.h" />
     <ClInclude Include="..\Public\AN_SpawnActor.h" />
     <ClInclude Include="..\public\AN_SpawnLineGroundEffect.h" />
     <ClInclude Include="..\Public\AN_VanishDissolve.h" />
@@ -413,7 +414,6 @@
     <ClInclude Include="..\Public\UI_CrossHair.h" />
     <ClInclude Include="..\Public\UI_DamageFont.h" />
     <ClInclude Include="..\Public\UI_EscapeSkipTurnBack.h" />
-    <ClInclude Include="..\Public\UI_ExpeditionStatus.h" />
     <ClInclude Include="..\Public\UI_MonsterHpBar.h" />
     <ClInclude Include="..\Public\UI_QTE.h" />
     <ClInclude Include="..\Public\UI_ReactionResult.h" />
@@ -476,6 +476,7 @@
     <ClCompile Include="..\Private\AN_Dissolve_Parts.cpp" />
     <ClCompile Include="..\Private\AN_EndTurn.cpp" />
     <ClCompile Include="..\Private\AN_PlayEffect.cpp" />
+    <ClCompile Include="..\Private\AN_PlaySound.cpp" />
     <ClCompile Include="..\Private\AN_SpawnActor.cpp" />
     <ClCompile Include="..\private\AN_SpawnLineGroundEffect.cpp" />
     <ClCompile Include="..\Private\AN_VanishDissolve.cpp" />
@@ -699,7 +700,6 @@
     <ClCompile Include="..\Private\UI_CrossHair.cpp" />
     <ClCompile Include="..\Private\UI_DamageFont.cpp" />
     <ClCompile Include="..\Private\UI_EscapeSkipTurnBack.cpp" />
-    <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp" />
     <ClCompile Include="..\Private\UI_MonsterHpBar.cpp" />
     <ClCompile Include="..\Private\UI_QTE.cpp" />
     <ClCompile Include="..\Private\UI_ReactionResult.cpp" />

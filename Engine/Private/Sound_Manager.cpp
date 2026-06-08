@@ -305,7 +305,8 @@ bool Sound_Manager::Has_Sound(const wstring& soundFile) const
 {
     const wstring key = Normalize_SoundKey(soundFile);
 
-    return _sounds.contains(key);
+    return Find_SoundByKey(key) != nullptr ||
+        Find_SoundByLooseKey(key) != nullptr;
 }
 
 HRESULT Sound_Manager::Create_ChannelGroups()
@@ -426,18 +427,69 @@ bool Sound_Manager::Validate_Channel(SoundChannel channel) const
     return channel >= SoundChannel::BGM && channel < SoundChannel::END;
 }
 
+FMOD_SOUND* Sound_Manager::Find_SoundByKey(const wstring& key) const
+{
+    auto iter = _sounds.find(key);
+    if (iter != _sounds.end())
+        return iter->second;
+
+    const fs::path keyPath(key);
+    if (keyPath.has_extension())
+        return nullptr;
+
+    static constexpr array<wstring_view, 3> kExtensions = { L".wav", L".ogg", L".mp3" };
+    for (wstring_view extension : kExtensions)
+    {
+        iter = _sounds.find(key + wstring(extension));
+        if (iter != _sounds.end())
+            return iter->second;
+    }
+
+    return nullptr;
+}
+
+FMOD_SOUND* Sound_Manager::Find_SoundByLooseKey(const wstring& key) const
+{
+    if (key.find(L'/') != wstring::npos)
+        return nullptr;
+
+    FMOD_SOUND* found = nullptr;
+    int32 matchCount = 0;
+
+    for (const auto& [soundKey, sound] : _sounds)
+    {
+        const fs::path soundPath(soundKey);
+        const wstring filename = soundPath.filename().generic_wstring();
+        const wstring stem = soundPath.stem().generic_wstring();
+
+        if (filename != key && stem != key)
+            continue;
+
+        found = sound;
+        ++matchCount;
+    }
+
+    if (matchCount > 1)
+    {
+        LOG_WARN("Sound key is ambiguous: {}", String::ToString(key));
+        return nullptr;
+    }
+
+    return found;
+}
+
 FMOD_SOUND* Sound_Manager::Find_Sound(const wstring& soundFile) const
 {
     const wstring key = Normalize_SoundKey(soundFile);
 
-    auto iter = _sounds.find(key);
-    if (iter == _sounds.end())
-    {
-        LOG_WARN("Sound not found: {}", String::ToString(soundFile));
-        return nullptr;
-    }
+    if (FMOD_SOUND* sound = Find_SoundByKey(key))
+        return sound;
 
-    return iter->second;
+    if (FMOD_SOUND* sound = Find_SoundByLooseKey(key))
+        return sound;
+
+    LOG_WARN("Sound not found: {}", String::ToString(soundFile));
+    return nullptr;
 }
 
 void Sound_Manager::Register_ActiveChannel(SoundChannel channel, FMOD_CHANNEL* fmodChannel)

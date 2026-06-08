@@ -68,7 +68,7 @@ struct ComputePointParticleParams
     Vec4 sizeByLifeCurveValuesY{}; // SizeByLife Y multiplier key values.
     Vec4 sizeByLifeCurveParams{}; // x: key count, y: multiplyX, z: multiplyY, w: axisLock.
     Vec4 motionFlags{};           // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled.
-    Vec4 motionSpaceFlags{};      // x: radial world, y: cone enabled, z: cone world, w: unused.
+    Vec4 motionSpaceFlags{};      // x: radial world, y: cone enabled, z: cone world, w: radial center direction mode.
     Vec4 initialVelocityMin{};    // xyz: vector velocity min, w: unused.
     Vec4 initialVelocityMax{};    // xyz: vector velocity max, w: unused.
     Vec4 motionRadialPivot{};     // xyz: radial pivot, w: unused.
@@ -108,9 +108,12 @@ struct ComputePointParticleParams
     DirectX::XMUINT4 rotationSeedSalts{}; // x: InitialRotation, y: InitialRotationRate, z/w: unused.
 };
 
-static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed)
+static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
 {
-    return seed.manualSeedEnabled ? seed.seed : 0u;
+    uint32 salt = seed.manualSeedEnabled ? seed.seed : 0u;
+    if (seed.useInstanceSeed)
+        salt += effectPlaybackSeed;
+    return salt;
 }
 
 static float Hash01(uint32 seed)
@@ -290,6 +293,7 @@ HRESULT VIBufferCom_ComputePointParticle::Reset_ForEffectReplay()
     _killActiveParticles = 0u;
     _hasActiveParticles = false;
 
+    CHECK_FAILED(Ready_ResetBaseline(), E_FAIL);
     CHECK_FAILED(_lifecycleState->Update_Data(_initialLifecycleState.data(), _instanceCount), E_FAIL);
     CHECK_FAILED(_computeOutput->Update_Data(_emptyInstancePayload.data(), _instanceCount), E_FAIL);
     CHECK_FAILED(Update_ConstantBuffer(), E_FAIL);
@@ -498,11 +502,11 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         },
         .planeRadialLocationSeedSalts = DirectX::XMUINT4{
             _desc.planeRadialLocation.shape == PointParticlePlaneRadialLocationShape::Rectangle
-            ? Resolve_SeedSalt(_desc.planeRadialLocation.uSeed)
-            : Resolve_SeedSalt(_desc.planeRadialLocation.radiusSeed),
+            ? Resolve_SeedSalt(_desc.planeRadialLocation.uSeed, _desc.effectPlaybackSeed)
+            : Resolve_SeedSalt(_desc.planeRadialLocation.radiusSeed, _desc.effectPlaybackSeed),
             _desc.planeRadialLocation.shape == PointParticlePlaneRadialLocationShape::Rectangle
-            ? Resolve_SeedSalt(_desc.planeRadialLocation.vSeed)
-            : Resolve_SeedSalt(_desc.planeRadialLocation.angleDegreesSeed),
+            ? Resolve_SeedSalt(_desc.planeRadialLocation.vSeed, _desc.effectPlaybackSeed)
+            : Resolve_SeedSalt(_desc.planeRadialLocation.angleDegreesSeed, _desc.effectPlaybackSeed),
             0u,
             0u
         },
@@ -562,25 +566,25 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             0.f
         },
         .spawnSeedSalts = DirectX::XMUINT4{
-            Resolve_SeedSalt(_desc.lifetimeSeed),
-            Resolve_SeedSalt(_desc.initialLocationSeed),
-            Resolve_SeedSalt(_desc.sphereLocationSeed),
+            Resolve_SeedSalt(_desc.lifetimeSeed, _desc.effectPlaybackSeed),
+            Resolve_SeedSalt(_desc.initialLocationSeed, _desc.effectPlaybackSeed),
+            Resolve_SeedSalt(_desc.sphereLocationSeed, _desc.effectPlaybackSeed),
             0u
         },
         .subUVSeedSalts = DirectX::XMUINT4{
-            Resolve_SeedSalt(_desc.subUVRandomFrameSeed),
+            Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _desc.effectPlaybackSeed),
             0u,
             0u,
             0u
         },
         .appearanceSeedSalts0 = DirectX::XMUINT4{
-            Resolve_SeedSalt(_desc.initialSizeSeed),
-            Resolve_SeedSalt(_desc.initialColorSeed),
-            Resolve_SeedSalt(_desc.initialAlphaSeed),
-            Resolve_SeedSalt(_desc.colorOverLifeSeed)
+            Resolve_SeedSalt(_desc.initialSizeSeed, _desc.effectPlaybackSeed),
+            Resolve_SeedSalt(_desc.initialColorSeed, _desc.effectPlaybackSeed),
+            Resolve_SeedSalt(_desc.initialAlphaSeed, _desc.effectPlaybackSeed),
+            Resolve_SeedSalt(_desc.colorOverLifeSeed, _desc.effectPlaybackSeed)
         },
         .appearanceSeedSalts1 = DirectX::XMUINT4{
-            Resolve_SeedSalt(_desc.alphaOverLifeSeed),
+            Resolve_SeedSalt(_desc.alphaOverLifeSeed, _desc.effectPlaybackSeed),
             0u,
             0u,
             0u
@@ -610,7 +614,7 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.motion.initialRadialVelocityInWorldSpace ? 1.f : 0.f,
             _desc.motion.velocityConeEnabled ? 1.f : 0.f,
             _desc.motion.velocityConeInWorldSpace ? 1.f : 0.f,
-            0.f
+            static_cast<float>(ETOI(_desc.motion.initialRadialVelocityCenterDirectionMode))
         },
         .initialVelocityMin = Vec4{
             _desc.motion.initialVelocityMin.x,
@@ -704,13 +708,13 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             0.f
         },
         .motionSeedSalts0 = DirectX::XMUINT4{
-            Resolve_SeedSalt(_desc.motion.initialVelocitySeed),
-            Resolve_SeedSalt(_desc.motion.initialRadialVelocitySeed),
-            Resolve_SeedSalt(_desc.motion.velocityConeSeed),
-            Resolve_SeedSalt(_desc.motion.accelerationSeed)
+            Resolve_SeedSalt(_desc.motion.initialVelocitySeed, _desc.effectPlaybackSeed),
+            Resolve_SeedSalt(_desc.motion.initialRadialVelocitySeed, _desc.effectPlaybackSeed),
+            Resolve_SeedSalt(_desc.motion.velocityConeSeed, _desc.effectPlaybackSeed),
+            Resolve_SeedSalt(_desc.motion.accelerationSeed, _desc.effectPlaybackSeed)
         },
         .motionSeedSalts1 = DirectX::XMUINT4{
-            Resolve_SeedSalt(_desc.motion.dragSeed),
+            Resolve_SeedSalt(_desc.motion.dragSeed, _desc.effectPlaybackSeed),
             0u,
             0u,
             0u
@@ -744,8 +748,8 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             0.f
         },
         .rotationSeedSalts = DirectX::XMUINT4{
-            Resolve_SeedSalt(_desc.rotation.initialRotationSeed),
-            Resolve_SeedSalt(_desc.rotation.initialRotationRateSeed),
+            Resolve_SeedSalt(_desc.rotation.initialRotationSeed, _desc.effectPlaybackSeed),
+            Resolve_SeedSalt(_desc.rotation.initialRotationRateSeed, _desc.effectPlaybackSeed),
             0u,
             0u
         }
@@ -812,8 +816,10 @@ VIBufferCom_ComputePointParticle::ParticleLifecycleState VIBufferCom_ComputePoin
     const float lifeMin = max(0.0001f, min(_desc.lifeTime.x, _desc.lifeTime.y));
     const float lifeMax = max(lifeMin, max(_desc.lifeTime.x, _desc.lifeTime.y));
     const uint32 respawnSeed = index * 9781u + 1u;
-    const float lifeSample = _desc.lifetimeSeed.manualSeedEnabled
-                             ? Hash01(respawnSeed + _desc.lifetimeSeed.seed + 43u)
+    const uint32 lifetimeSeedSalt = Resolve_SeedSalt(_desc.lifetimeSeed, _desc.effectPlaybackSeed);
+    const bool useRandomLifetimeSample = _desc.lifetimeSeed.manualSeedEnabled || _desc.lifetimeSeed.useInstanceSeed;
+    const float lifeSample = useRandomLifetimeSample
+                             ? Hash01(respawnSeed + lifetimeSeedSalt + 43u)
                              : ratio;
     const float sampledLifeMax = lerp(lifeMin, lifeMax, lifeSample);
 

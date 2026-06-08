@@ -310,6 +310,9 @@
     <ClCompile Include="..\Private\AN_PlayEffect.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\AN_PlaySound.cpp">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClCompile>
     <ClCompile Include="..\Private\AN_SpawnActor.cpp">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClCompile>
@@ -982,9 +985,6 @@
     <ClInclude Include="..\Public\UI_CrossHair.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_ExpeditionStatus.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\UI_MonsterHpBar.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
@@ -1136,6 +1136,9 @@
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_PlayEffect.h">
+      <Filter>95. AnimNotify\00. Notifies</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\AN_PlaySound.h">
       <Filter>95. AnimNotify\00. Notifies</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_SpawnActor.h">
@@ -1650,9 +1653,6 @@
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_CrossHair.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_MonsterHpBar.cpp">
