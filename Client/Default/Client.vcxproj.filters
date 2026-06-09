@@ -457,6 +457,9 @@
     <ClCompile Include="..\Private\MapAdapter.cpp">
       <Filter>02.GameObject\Map\MapLoader</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\MapCollisionAdapter.cpp">
+      <Filter>02.GameObject\Map\MapLoader</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1291,6 +1294,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
     <ClInclude Include="..\Public\MapAdapter.h">
+      <Filter>02.GameObject\Map\MapLoader</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\MapCollisionAdapter.h">
       <Filter>02.GameObject\Map\MapLoader</Filter>
     </ClInclude>
   </ItemGroup>

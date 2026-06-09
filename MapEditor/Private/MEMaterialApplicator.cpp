@@ -2,6 +2,36 @@
 #include "MEStaticMeshActor.h"
 #include "MEInstancedMeshActor.h"
 
+namespace
+{
+    bool HasForcedPassIndex(const MapEditor::ModelOverrideEntry& entry, int32 passIndex)
+    {
+        if (!entry.materialBindingsJson.is_array())
+        {
+            return false;
+        }
+
+        for (const json& binding : entry.materialBindingsJson)
+        {
+            if (!binding.is_object() ||
+                !binding.contains("instance_override") ||
+                !binding["instance_override"].is_object())
+            {
+                continue;
+            }
+
+            const json& instJson = binding["instance_override"];
+            if (instJson.value("force_pass_index", -1) == passIndex ||
+                instJson.value("forcePassIndex", -1) == passIndex)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
 HRESULT MEMaterialApplicator::Initialize(const Material_Desc& desc)
 {
     _scene = desc.scene;
@@ -72,7 +102,6 @@ void MEMaterialApplicator::Apply_PassOverrideToModel(ModelCom& model, const stri
 {
     auto it = _scene->_modelOverrides.find(modelFilename);
     const ModelOverrideEntry* overrideEntry = (it != _scene->_modelOverrides.end()) ? &it->second : nullptr;
-    int32 passIndex = overrideEntry ? overrideEntry->passIndex : -1;
 
     uint32 matSize = static_cast<uint32>(model.Get_NumMaterials());
     for (uint32 i = 0; i < matSize; ++i)
@@ -83,7 +112,7 @@ void MEMaterialApplicator::Apply_PassOverrideToModel(ModelCom& model, const stri
             continue;
         }
 
-        mat->Set_ForcedPassIndex(passIndex);
+        mat->Set_ForcedPassIndex(-1);
 
         if (overrideEntry && overrideEntry->hasMaterialCB)
         {
@@ -103,7 +132,7 @@ void MEMaterialApplicator::Apply_PassOverrideToModel(ModelCom& model, const stri
                 mat->Override_TextureSlot(slot, 0, String::ToWString(fullPath));
             }
 
-            if (overrideEntry->passIndex == static_cast<int32>(VtxMeshPassIndex::LandscapeBlendPass))
+            if (HasForcedPassIndex(*overrideEntry, static_cast<int32>(VtxMeshPassIndex::LandscapeBlendPass)))
             {
                 auto& cb = mat->Get_CB();
                 cb.uvOffset = Vec2(worldPos.x, worldPos.z);

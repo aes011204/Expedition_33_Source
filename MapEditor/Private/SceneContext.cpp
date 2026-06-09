@@ -67,15 +67,6 @@ namespace
         return modelPath.filename().generic_string();
     }
 
-    string Strip_MapVariantSuffix(const string& mapName)
-    {
-        const size_t mkPos = mapName.rfind("_Mk");
-        if (mkPos != string::npos && mkPos > 0)
-            return mapName.substr(0, mkPos);
-
-        return {};
-    }
-
     wstring Resolve_SplitInstanceImportModelPath(const fs::path& mapRoot, const string& mapName, const string& modelPathStr)
     {
         if (modelPathStr.empty())
@@ -104,15 +95,6 @@ namespace
         const fs::path mapNamePath = mapRoot / mapName / modelPath;
         if (fs::exists(mapNamePath, ec))
             return mapNamePath.wstring();
-
-        const string baseMapName = Strip_MapVariantSuffix(mapName);
-        if (!baseMapName.empty())
-        {
-            ec.clear();
-            const fs::path baseMapPath = mapRoot / baseMapName / modelPath;
-            if (fs::exists(baseMapPath, ec))
-                return baseMapPath.wstring();
-        }
 
         return mapNamePath.wstring();
     }
@@ -149,32 +131,8 @@ namespace
             return;
 
         json binRoot = sourceRoot;
-        if (binRoot.contains("MapData") && binRoot["MapData"].contains("ModelCollisions"))
-        {
-            auto& modelCollisions = binRoot["MapData"]["ModelCollisions"];
-            for (auto it = modelCollisions.begin(); it != modelCollisions.end(); ++it)
-            {
-                auto& collisionEntry = it.value();
-                if (!collisionEntry.is_object() ||
-                    !collisionEntry.contains("CookedTriangleMeshes") ||
-                    !collisionEntry["CookedTriangleMeshes"].is_array())
-                {
-                    continue;
-                }
-
-                json binaryMeshArray = json::array();
-                for (auto& base64Mesh : collisionEntry["CookedTriangleMeshes"])
-                {
-                    if (!base64Mesh.is_string())
-                        continue;
-
-                    vector<uint8_t> binaryData = String::Base64_Decode(base64Mesh.get<string>());
-                    binaryMeshArray.push_back(json::binary(binaryData));
-                }
-
-                collisionEntry["CookedTriangleMeshes"] = std::move(binaryMeshArray);
-            }
-        }
+        if (binRoot.contains("MapData") && binRoot["MapData"].is_object())
+            binRoot["MapData"].erase("ModelCollisions");
 
         fs::path binPath = jsonPath;
         binPath.replace_extension(".bin");
@@ -185,6 +143,154 @@ namespace
 
         vector<uint8_t> msgpack = json::to_msgpack(binRoot);
         ofs.write(reinterpret_cast<const char*>(msgpack.data()), msgpack.size());
+    }
+
+    fs::path Make_ModelCollisionBinaryPath(const wstring& modelPath)
+    {
+        fs::path collisionPath(modelPath);
+        collisionPath.replace_extension(".collision.bin");
+        return collisionPath;
+    }
+
+    bool Write_ModelCollisionBinary(
+        const wstring& modelPath,
+        const Shared<ModelCom>& model)
+    {
+        if (modelPath.empty() || model == nullptr)
+            return false;
+
+        const fs::path collisionPath = Make_ModelCollisionBinaryPath(modelPath);
+        if (fs::exists(collisionPath))
+            return true;
+
+        auto physxManager = GAME->Get_PhysXManager();
+        if (!physxManager)
+            return false;
+
+        Shared<StaticCollisionData> colData = MapStaticCollisionBuilder::Build(model);
+        if (!colData)
+            return false;
+
+        json cookedMeshArray = json::array();
+        size_t totalCookedBytes = 0;
+        for (auto& mesh : colData->triangleMeshes)
+        {
+            vector<uint8_t> cookedData;
+            if (physxManager->Cook_TriangleMesh(mesh, colData->preLocalTransform, cookedData))
+            {
+                totalCookedBytes += cookedData.size();
+                cookedMeshArray.push_back(json::binary(cookedData));
+            }
+        }
+
+        json primitiveProxyArray = json::array();
+        for (const ModelCollisionProxy& proxy : colData->primitiveProxies)
+            primitiveProxyArray.push_back(Serialize_CollisionProxy(proxy));
+
+        if (cookedMeshArray.empty() && primitiveProxyArray.empty())
+            return false;
+
+        const string modelPathA = Make_SplitInstanceModelPath(modelPath);
+        if (primitiveProxyArray.empty() &&
+            totalCookedBytes >= kCookedCollisionWarnBytes)
+        {
+            LOG_WARN(
+                "[SceneContext::ModelCollision] Large cooked collision saved without primitive proxies. model={}, cookedBytes={}, cookedMeshCount={}",
+                modelPathA,
+                totalCookedBytes,
+                cookedMeshArray.size());
+        }
+
+        json root = json::object();
+        root["schema"] = "model_collision";
+        root["schema_version"] = 1;
+        root["model_path"] = modelPathA;
+        root["cooked_format"] = "physx_triangle_mesh";
+        root["CookedTriangleMeshes"] = std::move(cookedMeshArray);
+        root["PrimitiveProxies"] = std::move(primitiveProxyArray);
+
+        ofstream ofs(collisionPath, ios::binary);
+        if (!ofs.is_open())
+            return false;
+
+        const vector<uint8_t> msgpack = json::to_msgpack(root);
+        ofs.write(reinterpret_cast<const char*>(msgpack.data()), msgpack.size());
+        return true;
+    }
+
+    void Ensure_StaticModelCollisionBinaries(const std::map<wstring, Shared<ModelCom>>& staticModels)
+    {
+        for (const auto& [modelPath, model] : staticModels)
+        {
+            try
+            {
+                (void)Write_ModelCollisionBinary(modelPath, model);
+            }
+            catch (const fs::filesystem_error& e)
+            {
+                LOG_WARN(
+                    "[SceneContext::ModelCollision] failed to write collision. model='{}' error='{}'",
+                    String::ToString(modelPath),
+                    e.what());
+            }
+            catch (...)
+            {
+                LOG_WARN(
+                    "[SceneContext::ModelCollision] failed to write collision. model='{}'",
+                    String::ToString(modelPath));
+            }
+        }
+    }
+
+    bool HasSuffixInsensitive(const string& value, const string& suffix)
+    {
+        if (value.size() < suffix.size())
+            return false;
+
+        return String::ToLowerCopy(value.substr(value.size() - suffix.size())) ==
+            String::ToLowerCopy(suffix);
+    }
+
+    void Remove_JsonFilesInDirectory(const fs::path& dir)
+    {
+        error_code ec;
+        if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec))
+            return;
+
+        for (const fs::directory_entry& entry : fs::directory_iterator(dir, ec))
+        {
+            if (ec)
+                break;
+
+            if (!entry.is_regular_file(ec) || entry.path().extension() != ".json")
+                continue;
+
+            fs::remove(entry.path(), ec);
+            ec.clear();
+        }
+    }
+
+    void Remove_MaterialJsonFilesInDirectory(const fs::path& dir)
+    {
+        error_code ec;
+        if (!fs::exists(dir, ec) || !fs::is_directory(dir, ec))
+            return;
+
+        for (const fs::directory_entry& entry : fs::directory_iterator(dir, ec))
+        {
+            if (ec)
+                break;
+
+            if (!entry.is_regular_file(ec))
+                continue;
+
+            const string filename = entry.path().filename().string();
+            if (!HasSuffixInsensitive(filename, ".material.json"))
+                continue;
+
+            fs::remove(entry.path(), ec);
+            ec.clear();
+        }
     }
 
     void Serialize_MaterialCB(json& outJson, const Engine::MaterialCB& cb)
@@ -369,6 +475,57 @@ namespace
         }
     }
 
+    string Make_SafeObjectJsonStem(string value)
+    {
+        if (value.empty())
+            return "Object";
+
+        for (char& ch : value)
+        {
+            switch (ch)
+            {
+            case '<':
+            case '>':
+            case ':':
+            case '"':
+            case '/':
+            case '\\':
+            case '|':
+            case '?':
+            case '*':
+                ch = '_';
+                break;
+            default:
+                break;
+            }
+        }
+
+        if (value == "." || value == "..")
+            return "Object";
+
+        return value;
+    }
+
+    fs::path Make_UniqueObjectJsonPath(const fs::path& baseDir, const string& objName, int32 index)
+    {
+        const string safeName = Make_SafeObjectJsonStem(objName);
+        fs::path outPath = baseDir / (safeName + ".json");
+
+        error_code ec;
+        if (!fs::exists(outPath, ec))
+            return outPath;
+
+        outPath = baseDir / (safeName + "_" + to_string(index) + ".json");
+        int32 suffix = 1;
+        while (fs::exists(outPath, ec))
+        {
+            outPath = baseDir / (safeName + "_" + to_string(index) + "_" + to_string(suffix++) + ".json");
+            ec.clear();
+        }
+
+        return outPath;
+    }
+
     void Export_ObjectJson(const fs::path& baseDir, int32 index, const json& e)
     {
         string objName = "Object_" + to_string(index);
@@ -380,13 +537,59 @@ namespace
                 objName = idStr;
             }
         }
-        string fileName = objName + ".json";
-        fs::path outPath = baseDir / fileName;
+
+        fs::path outPath = Make_UniqueObjectJsonPath(baseDir, objName, index);
 
         ofstream ofs(outPath);
         if (ofs.is_open())
         {
             ofs << e.dump(4);
+        }
+    }
+
+    void Merge_LegacyPassIntoMaterialBindings(ModelOverrideEntry& entry, int32 legacyPassIndex)
+    {
+        if (legacyPassIndex < 0)
+        {
+            return;
+        }
+
+        entry.hasMaterialBindings = true;
+        if (!entry.materialBindingsJson.is_array())
+        {
+            entry.materialBindingsJson = json::array();
+        }
+
+        if (entry.materialBindingsJson.empty())
+        {
+            json binding = json::object();
+            binding["material_index"] = 0u;
+            if (!entry.baseBundleKey.empty())
+            {
+                binding["base_bundle_key"] = entry.baseBundleKey;
+            }
+            binding["instance_override"]["force_pass_index"] = legacyPassIndex;
+            entry.materialBindingsJson.push_back(std::move(binding));
+            return;
+        }
+
+        for (json& binding : entry.materialBindingsJson)
+        {
+            if (!binding.is_object())
+            {
+                continue;
+            }
+
+            if (!binding.contains("instance_override") || !binding["instance_override"].is_object())
+            {
+                binding["instance_override"] = json::object();
+            }
+
+            json& instJson = binding["instance_override"];
+            if (!instJson.contains("force_pass_index") && !instJson.contains("forcePassIndex"))
+            {
+                instJson["force_pass_index"] = legacyPassIndex;
+            }
         }
     }
 }
@@ -409,8 +612,7 @@ void SceneContext::SaveToFile(const string& filePath)
     json lights = json::array();
     json instancedMeshes = json::array();
     json waters = json::array();
-
-    unordered_map<string, Shared<ModelCom>> uniqueModels;
+    std::map<string, string> modelOverrideModelPaths;
 
     for (auto& obj : _objects)
     {
@@ -423,6 +625,11 @@ void SceneContext::SaveToFile(const string& filePath)
         {
         case EObjectType::StaticMesh:
         {
+            if (!obj->_modelPath.empty())
+            {
+                modelOverrideModelPaths[fs::path(obj->_modelPath).filename().string()] = String::ToString(obj->_modelPath);
+            }
+
             wstring modelFile = obj->_modelPath;
             const wstring prefix = L"../../../Client/Bin/Resources/Map/" + _modelFolder + L"/";
             if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
@@ -437,11 +644,6 @@ void SceneContext::SaveToFile(const string& filePath)
             e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
             staticMeshes.push_back(e);
 
-            string relativePath = String::ToString(modelFile);
-            if (obj->_renderHandle && obj->_renderHandle->GetModel())
-            {
-                uniqueModels[relativePath] = obj->_renderHandle->GetModel();
-            }
             break;
         }
 
@@ -512,6 +714,11 @@ void SceneContext::SaveToFile(const string& filePath)
 
         case EObjectType::InstancedMesh:
         {
+            if (!obj->_instancedModelPath.empty())
+            {
+                modelOverrideModelPaths[fs::path(obj->_instancedModelPath).filename().string()] = String::ToString(obj->_instancedModelPath);
+            }
+
             wstring modelFile = obj->_instancedModelPath;
             const wstring prefix = L"../../../Client/Bin/Resources/Map/" + _modelFolder + L"/";
             if (modelFile.size() >= prefix.size() && modelFile.substr(0, prefix.size()) == prefix)
@@ -535,11 +742,6 @@ void SceneContext::SaveToFile(const string& filePath)
             e["Instances"] = instances;
             instancedMeshes.push_back(e);
 
-            string relativePath = String::ToString(modelFile);
-            if (obj->_instancedRenderHandle && obj->_instancedRenderHandle->GetModel())
-            {
-                uniqueModels[relativePath] = obj->_instancedRenderHandle->GetModel();
-            }
             break;
         }
 
@@ -611,7 +813,6 @@ void SceneContext::SaveToFile(const string& filePath)
         }
 
         json overrideJson = {
-        {"PassIndex",  entry.passIndex},
         {"ShaderType", static_cast<int>(entry.shaderType)},
         {"TextureSlots", slots},
         };
@@ -623,72 +824,25 @@ void SceneContext::SaveToFile(const string& filePath)
 
         if (entry.hasMaterialBindings && entry.materialBindingsJson.is_array())
         {
+            const auto modelPathIt = modelOverrideModelPaths.find(filename);
+            const string modelPath = modelPathIt != modelOverrideModelPaths.end()
+                ? modelPathIt->second
+                : filename;
+            const json materialJson = entry.BuildMaterialJson(modelPath, String::ToString(_mapName));
+
             overrideJson["HasMaterialBindings"] = true;
             overrideJson["MapObjectKind"] = MapMaterialObjectKindName(entry.materialObjectKind);
-            overrideJson["BaseBundleKey"] = entry.baseBundleKey;
-            overrideJson["MaterialBindings"] = entry.materialBindingsJson;
-            if (entry.materialMetaJson.is_object() && !entry.materialMetaJson.empty())
+            overrideJson["BaseBundleKey"] = materialJson.value("base_bundle_key", entry.baseBundleKey);
+            overrideJson["MaterialBindings"] = materialJson.value("material_bindings", json::array());
+            if (materialJson.contains("material_meta") && materialJson["material_meta"].is_object())
             {
-                overrideJson["MaterialMeta"] = entry.materialMetaJson;
+                overrideJson["MaterialMeta"] = materialJson["material_meta"];
             }
         }
 
         modelOverrides[filename] = overrideJson;
     }
 
-    json modelCollisions = json::object();
-    auto physxManager = GAME->Get_PhysXManager();
-    if (physxManager)
-    {
-        for (auto& [relativePath, model] : uniqueModels)
-        {
-            Shared<StaticCollisionData> colData = MapStaticCollisionBuilder::Build(model);
-            if (!colData)
-                continue;
-
-            json collisionEntry = json::object();
-
-            json cookedMeshArray = json::array();
-            size_t totalCookedBytes = 0;
-            for (auto& mesh : colData->triangleMeshes) // triangle mesh collision은 기존처럼 cooked binary를 저장한다.
-            {
-                vector<uint8_t> cookedData;
-                if (physxManager->Cook_TriangleMesh(mesh, colData->preLocalTransform, cookedData))
-                {
-                    totalCookedBytes += cookedData.size();
-                    string base64Str = String::Base64_Encode(cookedData);
-                    cookedMeshArray.push_back(base64Str);
-                }
-            }
-
-            json primitiveProxyArray = json::array();
-            for (const ModelCollisionProxy& proxy : colData->primitiveProxies)
-            {
-                primitiveProxyArray.push_back(Serialize_CollisionProxy(proxy));
-            }
-
-            if (primitiveProxyArray.empty() &&
-                totalCookedBytes >= kCookedCollisionWarnBytes)
-            {
-                LOG_WARN(
-                    "[SceneContext::SaveToFile] Large cooked collision saved without primitive proxies. model={}, cookedBytes={}, cookedMeshCount={}",
-                    relativePath,
-                    totalCookedBytes,
-                    cookedMeshArray.size());
-            }
-
-            if (cookedMeshArray.empty() && primitiveProxyArray.empty())
-            {
-                continue;
-            }
-
-            collisionEntry["CookedTriangleMeshes"] = cookedMeshArray;
-            collisionEntry["PrimitiveProxies"] = primitiveProxyArray;
-            modelCollisions[relativePath] = std::move(collisionEntry);
-        }
-    }
-
-    map["ModelCollisions"] = modelCollisions;
     map["ModelOverrides"] = modelOverrides;
     map["StaticMeshes"] = staticMeshes;
     map["SpawnPoints"] = spawnPoints;
@@ -751,7 +905,7 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
         for (auto& [filename, data] : map["ModelOverrides"].items())
         {
             ModelOverrideEntry entry;
-            entry.passIndex = data.value("PassIndex", -1);
+            const int32 legacyPassIndex = data.value("PassIndex", -1);
             entry.shaderType = static_cast<ShaderType>(data.value("ShaderType", static_cast<int>(ShaderType::VtxMesh)));
             if (data.contains("TextureSlots"))
             {
@@ -773,6 +927,7 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
                 entry.materialBindingsJson = data["MaterialBindings"];
                 entry.materialMetaJson = data.value("MaterialMeta", json::object());
             }
+            Merge_LegacyPassIntoMaterialBindings(entry, legacyPassIndex);
             _modelOverrides[filename] = entry;
         }
         _dirtyPassOverrides = true;
@@ -1387,7 +1542,17 @@ Shared<EditorObject> SceneContext::Duplicate(const Shared<EditorObject>& src)
         return nullptr;
     }
     auto copy = make_shared<EditorObject>(*src);
-    copy->_name = src->_name + L"_Copy";
+    for (int32 i = 1;; ++i)
+    {
+        const wstring candidate = src->_name + L"_" + to_wstring(i);
+        const bool exists = any_of(_objects.begin(), _objects.end(),
+            [&candidate](const Shared<EditorObject>& obj) { return obj && obj->_name == candidate; });
+        if (!exists)
+        {
+            copy->_name = candidate;
+            break;
+        }
+    }
     Add(copy);
     return copy;
 }
@@ -1551,7 +1716,14 @@ void SceneContext::Export_MapInstance(const string& filePath)
             fs::create_directories(etcDir);
     }
 
+    Remove_JsonFilesInDirectory(staticDir);
+    Remove_JsonFilesInDirectory(instanceDir);
+    Remove_JsonFilesInDirectory(waterDir);
+    Remove_JsonFilesInDirectory(postProcessVolumeDir);
+    Remove_JsonFilesInDirectory(etcDir);
+
     int32 st_idx{}, inst_idx{}, water_idx{}, ppv_idx{}, etc_idx{};
+    std::map<wstring, Shared<ModelCom>> staticCollisionModels;
 
     for (auto& obj : _objects)
     {
@@ -1567,6 +1739,8 @@ void SceneContext::Export_MapInstance(const string& filePath)
             e["ModelPath"] = Make_SplitInstanceModelPath(obj->_modelPath);
             e["Scale"] = { obj->_scale.x, obj->_scale.y, obj->_scale.z };
             Export_ObjectJson(staticDir, st_idx++, e);
+            if (obj->_renderHandle && obj->_renderHandle->GetModel())
+                staticCollisionModels[obj->_modelPath] = obj->_renderHandle->GetModel();
             break;
         }
         case EObjectType::InstancedMesh:
@@ -1603,6 +1777,9 @@ void SceneContext::Export_MapInstance(const string& filePath)
             break;
         }
     }
+
+    Ensure_StaticModelCollisionBinaries(staticCollisionModels);
+    Remove_MaterialJsonFilesInDirectory(fs::path(_materialsPath) / mapName);
 
     map<wstring, Shared<Engine::ModelCom>> uniqueModels;
     for (auto& obj : _objects)

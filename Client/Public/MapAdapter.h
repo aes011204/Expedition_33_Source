@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Client_Defines.h"
-#include "CollisionProxy_Types.h"
+#include "MapCollisionAdapter.h"
 
 NS_BEGIN(Engine)
 class ModelCom;
@@ -14,7 +14,6 @@ class MapAdapter final
 public:
     struct ModelOverrideEntry
     {
-        int32 passIndex = -1;
         unordered_map<int32, string> textureSlots;
         json modelJson = json::object();
     };
@@ -22,7 +21,6 @@ public:
     struct MaterialOverrideView
     {
         bool hasOverride = false;
-        int32 passIndex = -1;
         const unordered_map<int32, string>* textureSlots = nullptr;
         const json* modelJson = nullptr;
     };
@@ -47,6 +45,8 @@ public:
         vector<json> postProcessVolumes = {};
         vector<json> waters = {};
         vector<string> preloadModelPaths = {};
+        MapCollisionAdapter::CookedCollisionCache cookedCollisionCache = {};
+        MapCollisionAdapter::PrimitiveCollisionCache primitiveCollisionCache = {};
     };
 
 public:
@@ -57,12 +57,8 @@ public:
     static bool TryLoadSplitMapInstanceData(const wstring& filePath, SplitMapInstanceData& outData);
     static void AppendModelOverrides(const json& mapData, unordered_map<string, ModelOverrideEntry>& outOverrides);
     static void TryAppendModelOverridesFromJsonFile(const fs::path& jsonPath, unordered_map<string, ModelOverrideEntry>& outOverrides);
+    static void AppendModelOverridesFromMaterialMapName(const string& mapName, unordered_map<string, ModelOverrideEntry>& outOverrides);
     static void AppendModelOverridesFromMaterialDirectory(const fs::path& materialDir, unordered_map<string, ModelOverrideEntry>& outOverrides);
-    static void AppendModelCollisionSources(
-        const json& mapData,
-        umap<string, vector<vector<uint8_t>>>& outCookedCollisionCache,
-        umap<string, vector<ModelCollisionProxy>>& outPrimitiveCollisionCache);
-
     // Runtime material application for loaded ModelCom prototypes.
     static MaterialApplyDesc BuildMaterialApplyDesc(const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry);
     static void ApplyMaterial(Engine::ModelCom& model, const MaterialApplyDesc& desc);
