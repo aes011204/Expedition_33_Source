@@ -21,6 +21,24 @@ static int Resolve_MaterialSourceIndex(const string& source)
     return 0;
 }
 
+static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
+{
+    uint32 salt = seed.manualSeedEnabled ? seed.seed : 0u;
+    if (seed.useInstanceSeed)
+        salt += effectPlaybackSeed;
+    return salt;
+}
+
+static float Hash01(uint32 seed)
+{
+    seed ^= 2747636419u;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
+}
+
 static float Read_Vec4Component(const Vec4& values, uint32 index)
 {
     switch (index)
@@ -297,6 +315,10 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Initialize(void* arg)
     _desc.tailFadeLength = max(0.f, _desc.tailFadeLength);
     _desc.baseWidth = max(0.001f, _desc.baseWidth);
     _desc.tilingDistance = max(0.f, _desc.tilingDistance);
+    _desc.material.subUVRows = max(1u, _desc.material.subUVRows);
+    _desc.material.subUVCols = max(1u, _desc.material.subUVCols);
+    _desc.subUVFrameOverLife.frameCurveKeyCount =
+        max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, _desc.subUVFrameOverLife.frameCurveKeyCount));
     _desc.previewMotionAmplitude = max(0.f, _desc.previewMotionAmplitude);
     _desc.previewMotionSpeed = max(0.f, _desc.previewMotionSpeed);
 
@@ -396,6 +418,7 @@ void ComputeSourceHistoryRibbonEmitter::Reset_PlaybackRuntime()
     _playbackState = PlaybackState::Delayed;
     _loopElapsedTime = 0.f;
     _loopIndex = 0u;
+    Resample_RandomSubUVFrameIndex();
 }
 
 void ComputeSourceHistoryRibbonEmitter::Advance_Playback(float timeDelta)
@@ -721,6 +744,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Update_ComputeInput()
     vector<SamplePayload> payloads{};
     payloads.reserve(_drawSegmentCount + 1u);
 
+    const Vec4 subUVRect = Resolve_SubUVRect(Evaluate_SubUVFrameIndex());
     for (uint32 index = 0; index <= _drawSegmentCount; ++index)
     {
         const RenderSample& renderSample = renderSamples[index];
@@ -733,6 +757,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Update_ComputeInput()
         payload.sampleParams = Vec4(renderSample.sample.age, _desc.sampleLifetime, renderSample.distanceFromHead, width);
         payload.startColor = color;
         payload.endColor = color;
+        payload.subUVRect = subUVRect;
         payloads.push_back(payload);
     }
 
@@ -960,6 +985,7 @@ void ComputeSourceHistoryRibbonEmitter::Start_NextLoop()
     _history.clear();
     _sampleIntervalAccumulator = 0.f;
     _drawSegmentCount = 0u;
+    Resample_RandomSubUVFrameIndex();
 }
 
 float ComputeSourceHistoryRibbonEmitter::Resolve_CurrentLoopDelay() const
@@ -1136,6 +1162,78 @@ float ComputeSourceHistoryRibbonEmitter::Evaluate_WidthScaleByLife(float lifePro
         fallbackScale
     );
     return _desc.sizeByLife.multiplyX ? max(0.f, curveScale) : 1.f;
+}
+
+uint32 ComputeSourceHistoryRibbonEmitter::Evaluate_SubUVFrameIndex() const
+{
+    const uint32 rows = max(1u, _desc.material.subUVRows);
+    const uint32 cols = max(1u, _desc.material.subUVCols);
+    const uint32 frameCount = max(1u, rows * cols);
+    if (!_desc.subUVFrameOverLife.enabled)
+        return 0u;
+
+    const uint32 lastFrame = frameCount - 1u;
+    const uint32 startFrame = min(_desc.subUVFrameOverLife.startFrame, lastFrame);
+    uint32 endFrame = min(_desc.subUVFrameOverLife.endFrame, lastFrame);
+    if (endFrame < startFrame)
+        endFrame = startFrame;
+
+    const uint32 span = endFrame - startFrame;
+    const uint32 rangeCount = span + 1u;
+    const float activeElapsedTime = max(0.f, _loopElapsedTime - Resolve_CurrentLoopDelay());
+    switch (_desc.subUVFrameOverLife.playbackMode)
+    {
+    case SubUVFramePlaybackMode::LifeProgress:
+    {
+        const float lifeProgress = clamp(activeElapsedTime / Resolve_Duration(), 0.f, 1.f);
+        const uint32 frameOffset = min(
+            static_cast<uint32>(floorf(lifeProgress * static_cast<float>(rangeCount))),
+            rangeCount - 1u
+        );
+        return startFrame + frameOffset;
+    }
+    case SubUVFramePlaybackMode::FramesPerSecond:
+    {
+        const uint32 frameOffset = static_cast<uint32>(floorf(activeElapsedTime * max(0.f, _desc.subUVFrameOverLife.framesPerSecond)));
+        return startFrame + (_desc.subUVFrameOverLife.loop ? frameOffset % rangeCount : min(frameOffset, span));
+    }
+    case SubUVFramePlaybackMode::RandomFrame:
+        return min(_randomSubUVFrameIndex, lastFrame);
+    case SubUVFramePlaybackMode::FixedFrame:
+    default:
+        return startFrame;
+    }
+}
+
+Vec4 ComputeSourceHistoryRibbonEmitter::Resolve_SubUVRect(uint32 frameIndex) const
+{
+    const uint32 rows = max(1u, _desc.material.subUVRows);
+    const uint32 cols = max(1u, _desc.material.subUVCols);
+    const uint32 clampedFrameIndex = min(frameIndex, rows * cols - 1u);
+    const uint32 row = clampedFrameIndex / cols;
+    const uint32 col = clampedFrameIndex % cols;
+    const float invCols = 1.f / static_cast<float>(cols);
+    const float invRows = 1.f / static_cast<float>(rows);
+    const float u0 = static_cast<float>(col) * invCols;
+    const float v0 = static_cast<float>(row) * invRows;
+    return Vec4{ u0, v0, u0 + invCols, v0 + invRows };
+}
+
+void ComputeSourceHistoryRibbonEmitter::Resample_RandomSubUVFrameIndex()
+{
+    const uint32 rows = max(1u, _desc.material.subUVRows);
+    const uint32 cols = max(1u, _desc.material.subUVCols);
+    const uint32 frameCount = max(1u, rows * cols);
+    const uint32 lastFrame = frameCount - 1u;
+    const uint32 startFrame = min(_desc.subUVFrameOverLife.startFrame, lastFrame);
+    uint32 endFrame = min(_desc.subUVFrameOverLife.endFrame, lastFrame);
+    if (endFrame < startFrame)
+        endFrame = startFrame;
+
+    const uint32 rangeCount = endFrame - startFrame + 1u;
+    const uint32 seed = (_loopIndex + 1u) * 9781u + Internal::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) + 1201u;
+    const uint32 frameOffset = min(static_cast<uint32>(floorf(Internal::Hash01(seed) * static_cast<float>(rangeCount))), rangeCount - 1u);
+    _randomSubUVFrameIndex = startFrame + frameOffset;
 }
 
 float ComputeSourceHistoryRibbonEmitter::Evaluate_CompactCurve(

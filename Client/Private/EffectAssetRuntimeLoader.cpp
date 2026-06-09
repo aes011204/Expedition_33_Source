@@ -2726,6 +2726,33 @@ bool EffectAssetRuntimeLoader::Build_SourceHistoryRibbonEmitterDefinition(const 
         Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
     }
 
+    if (const json* subUvFrameOverLife = Find_ModuleData(emitter, "SubUVFrameOverLife"))
+    {
+        desc.subUVFrameOverLife.enabled = true;
+        desc.subUVFrameOverLife.startFrame = Read_UInt(*subUvFrameOverLife, "startFrame", desc.subUVFrameOverLife.startFrame);
+        desc.subUVFrameOverLife.endFrame = Read_UInt(*subUvFrameOverLife, "endFrame", desc.subUVFrameOverLife.endFrame);
+        desc.subUVFrameOverLife.loop = Read_Bool(*subUvFrameOverLife, "loop", desc.subUVFrameOverLife.loop);
+        Read_Enum(*subUvFrameOverLife, "playbackMode", desc.subUVFrameOverLife.playbackMode);
+        desc.subUVFrameOverLife.framesPerSecond =
+            max(0.f, Read_Float(*subUvFrameOverLife, "framesPerSecond", desc.subUVFrameOverLife.framesPerSecond));
+
+        const auto frameIndexIter = subUvFrameOverLife->find("frameIndex");
+        if (frameIndexIter != subUvFrameOverLife->end())
+            Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, *frameIndexIter);
+        if (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+            desc.subUVRandomFrameSeed = Internal::Read_RandomSeedDesc(*subUvFrameOverLife);
+
+        const uint32 frameCount = max(1u, desc.material.subUVRows * desc.material.subUVCols);
+        const uint32 lastFrame = frameCount - 1u;
+        desc.subUVFrameOverLife.startFrame = min(desc.subUVFrameOverLife.startFrame, lastFrame);
+        desc.subUVFrameOverLife.endFrame = min(desc.subUVFrameOverLife.endFrame, lastFrame);
+
+        if (0u == Read_UInt(*subUvFrameOverLife, "startFrame") &&
+            0u == Read_UInt(*subUvFrameOverLife, "endFrame") &&
+            frameCount > 1u)
+            desc.subUVFrameOverLife.endFrame = lastFrame;
+    }
+
     if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
         Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
 

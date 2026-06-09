@@ -4,6 +4,7 @@ struct RibbonSamplePayload
     float4 sampleParams; // x: age, y: lifetime, z: distance, w: widthScale
     float4 startColor;
     float4 endColor;
+    float4 subUVRect;
 };
 
 struct RibbonInstanceVertex
@@ -94,7 +95,13 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     output.lifeTime = float2(lifetime, age);
     output.startColor = current.startColor;
     output.endColor = current.endColor;
-    output.subUVRect = float4(0.0f, currentV, 1.0f, nextV);
+    const float subUVHeight = current.subUVRect.w - current.subUVRect.y;
+    output.subUVRect = float4(
+        current.subUVRect.x,
+        current.subUVRect.y + currentV * subUVHeight,
+        current.subUVRect.z,
+        current.subUVRect.y + nextV * subUVHeight
+    );
     output.segmentParams = float4(
         lifeProgress,
         max(current.sampleParams.w, 0.001f),

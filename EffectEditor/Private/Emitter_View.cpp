@@ -1193,7 +1193,9 @@ bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitte
         case AuthoringModuleType::Lifetime:
         case AuthoringModuleType::InitialColor:
         case AuthoringModuleType::ColorOverLife:
+        case AuthoringModuleType::SubUVFrameOverLife:
         case AuthoringModuleType::SizeByLife:
+        case AuthoringModuleType::MaterialScalarModulation:
             return true;
         default:
             return false;

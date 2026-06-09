@@ -63,6 +63,7 @@ private:
         Vec4 sampleParams{}; // x: age, y: lifetime, z: distance, w: widthScale.
         Vec4 startColor{};
         Vec4 endColor{};
+        Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f };
     };
 
     struct RibbonComputeParams
@@ -116,6 +117,7 @@ private:
     float _materialElapsedTime{};
     float _visibleRibbonLength{ 1.f };
     uint32 _drawSegmentCount{};
+    uint32 _randomSubUVFrameIndex{};
 
     Shared<ShaderCom> _shader{};
     Shared<ComputeShaderCom> _computeShader{};
@@ -172,6 +174,9 @@ private:
     Vec3 Resolve_PreviewMotionOffset() const;
     Vec4 Evaluate_ColorOverLife(float lifeProgress) const;
     float Evaluate_WidthScaleByLife(float lifeProgress) const;
+    uint32 Evaluate_SubUVFrameIndex() const;
+    Vec4 Resolve_SubUVRect(uint32 frameIndex) const;
+    void Resample_RandomSubUVFrameIndex();
     float Evaluate_CompactCurve(
         float lifeProgress,
         const Vec4& times,
