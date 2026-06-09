@@ -88,6 +88,17 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Shield_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Shield.json";
     inline constexpr wchar_t UI_Destroy_Shield_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Destroy_Shield.json";
 
+    // Tutorial
+    inline constexpr wchar_t UI_Tutorial_BattleSystem_Path[] = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_BattleSystem.json";
+    inline constexpr wchar_t UI_Tutorial_TurnOrder_Path[]    = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_TurnOrder.json";
+    inline constexpr wchar_t UI_Tutorial_Attack_Path[]       = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_Attack.json";
+    inline constexpr wchar_t UI_Tutorial_EnemyTurn_Path[]    = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_MonsterTurn.json";
+    inline constexpr wchar_t UI_Tutorial_Dodge_Path[]        = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_Dodge.json";
+    inline constexpr wchar_t UI_Tutorial_Skill_Path[]        = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_Skill.json";
+    inline constexpr wchar_t UI_Tutorial_QTE_Path[]          = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_QTE.json";
+    inline constexpr wchar_t UI_Tutorial_Counter_Path[]      = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_Counter.json";
+    inline constexpr wchar_t UI_Tutorial_FreeAim_Path[]      = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_FreeAim.json";
+
 #pragma endregion
 
 }
@@ -178,6 +189,20 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_SavePointIntro_Anim_Path[] = L"UI/UI_Animations/SavePoint/SavePoint_Intro";
     inline constexpr wchar_t UI_SavePointOutro_Anim_Path[] = L"UI/UI_Animations/SavePoint/SavePoint_Outro";
 #pragma endregion
+
+#pragma region Tutorial 애니메이션
+    inline constexpr wchar_t UI_Tutorial_BattleSystemAnim_Path[] = L"UI/UI_Animations/Tutorial/Tutorial_BattleSystem";
+    inline constexpr wchar_t UI_Tutorial_TurnOrderAnim_Path[]    = L"UI/UI_Animations/Tutorial/Tutorial_TurnOrder";
+    inline constexpr wchar_t UI_Tutorial_AttackAnim_Path[]       = L"UI/UI_Animations/Tutorial/Tutorial_Attack";
+    inline constexpr wchar_t UI_Tutorial_EnemyTurnAnim_Path[]    = L"UI/UI_Animations/Tutorial/Tutorial_MonsterTurn";
+    inline constexpr wchar_t UI_Tutorial_DodgeAnim_Path[]        = L"UI/UI_Animations/Tutorial/Tutorial_Dodge";
+    inline constexpr wchar_t UI_Tutorial_SkillAnim_Path[]        = L"UI/UI_Animations/Tutorial/Tutorial_Skill";
+    inline constexpr wchar_t UI_Tutorial_QTEAnim_Path[]          = L"UI/UI_Animations/Tutorial/Tutorial_QTE";
+    inline constexpr wchar_t UI_Tutorial_CounterAnim_Path[]      = L"UI/UI_Animations/Tutorial/Tutorial_Counter";
+    inline constexpr wchar_t UI_Tutorial_FreeAimAnim_Path[]      = L"UI/UI_Animations/Tutorial/Tutorial_FreeAim";
+#pragma endregion
+
+
 }
 
 namespace Client::Constants::Map

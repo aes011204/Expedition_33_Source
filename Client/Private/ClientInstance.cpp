@@ -22,6 +22,7 @@
 #include "CameraDirector.h"
 #include "MapLoader.h"
 #include "ClientScreenFxManager.h"
+#include "PlayerInventory.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -82,6 +83,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
     _levelTransitionFade = LevelTransitionFade::Create(_device, _context);
     if (_levelTransitionFade == nullptr)
         LOG_WARN("LevelTransitionFade is not available. Level transition requests will fall back to immediate changes.");
+
+    _playerInventory = PlayerInventory::Create();
+    CHECK_NULL(_playerInventory, E_FAIL);
 
 	_isInitialized = true;
 
@@ -615,6 +619,15 @@ bool ClientInstance::Play_AttachPartEffect(
         localOffset,
         localRotation,
         scale));
+}
+
+void ClientInstance::Clear_RuntimeEffects()
+{
+    if (_effectInstancePool == nullptr)
+        return;
+
+    // 월드에 남아있는 이팩트들 제거
+    _effectInstancePool->Clear();
 }
 
 void ClientInstance::Notify_FreeAimShotHit()

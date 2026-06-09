@@ -9,6 +9,8 @@ IMPLEMENT_REFLECTION(AN_PlaySound)
     info.properties.clear();
 
     PROPERTY_WSTRING("Sound Cue", _soundCue);
+    PROPERTY_FLOAT("Volume", _volume, 0.f, 10.f, 0.01f);
+    PROPERTY_FLOAT("Pitch", _pitch, 0.1f, 3.f, 0.01f);
 
     return true;
 }
@@ -36,5 +38,29 @@ void AN_PlaySound::Execute(const AnimNotifyContext& context)
     if (_soundCue.empty())
         return;
 
-    GAME->Play_SoundCue(_soundCue, soundPosition);
+    GAME->Play_SoundCue(_soundCue, soundPosition, _volume, _pitch);
+}
+
+void AN_PlaySound::From_Json(const json& data)
+{
+    __super::From_Json(data);
+
+    if (_soundCue.empty())
+        return;
+
+    const bool hasVolume = data.contains("_volume");
+    const bool hasPitch = data.contains("_pitch");
+    if (hasVolume && hasPitch)
+        return;
+
+    float cueVolume = 1.f;
+    float cuePitch = 1.f;
+    if (!GAME->Try_GetSoundCueDefaultVolumePitch(_soundCue, cueVolume, cuePitch))
+        return;
+
+    if (!hasVolume)
+        _volume = cueVolume; // 예전 notify는 cue 테이블 값을 최초 커스텀 기본값으로 받아온다.
+
+    if (!hasPitch)
+        _pitch = cuePitch;
 }

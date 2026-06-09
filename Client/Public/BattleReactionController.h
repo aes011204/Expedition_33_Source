@@ -79,6 +79,7 @@ public:
     bool IsConsumed() const { return _isConsumed; }
     BattleReactionType Get_Result() const { return _result; }
 
+    BattleReactionInputResult SubmitInput(BattleReactionType type, const BattleAction& turnAction);
     BattleReactionInputResult UpdateInput(const BattleAction& turnAction);
     //BattleReactionInputResult UpdateTargetInput(const BattleChar& reactionTarget, const BattleChar& counterTarget, uint32 curAnimIndex, bool pressedQ, bool pressedE);
     void UpdateAnimation(float timeDelta);

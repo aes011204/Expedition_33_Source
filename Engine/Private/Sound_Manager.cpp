@@ -183,6 +183,7 @@ bool Sound_Manager::Play_BGM(const wstring& soundFile, float volume, bool stopPr
 
     _bgmChannels.push_back(fmodChannel);
     Register_ActiveChannel(SoundChannel::BGM, fmodChannel);
+    _currentBGM = soundFile;
 
     return true;
 }
@@ -252,6 +253,30 @@ float Sound_Manager::Get_ChannelVolume(SoundChannel channel) const
     return _channelVolumes[ETOI(channel)];
 }
 
+void Sound_Manager::Set_ChannelPaused(SoundChannel channel, bool paused)
+{
+    if (!_system || !Validate_Channel(channel))
+        return;
+
+    const uint32 index = ETOI(channel);
+    const FMOD_BOOL fmodPaused = paused ? TRUE : FALSE;
+
+    if (_channelGroups[index])
+        FMOD_ChannelGroup_SetPaused(_channelGroups[index], fmodPaused);
+
+    for (FMOD_CHANNEL* fmodChannel : _activeChannels[index])
+    {
+        if (fmodChannel == nullptr)
+            continue;
+
+        FMOD_BOOL isPlaying = FALSE;
+        if (FMOD_Channel_IsPlaying(fmodChannel, &isPlaying) != FMOD_OK || !isPlaying)
+            continue;
+
+        FMOD_Channel_SetPaused(fmodChannel, fmodPaused);
+    }
+}
+
 void Sound_Manager::Stop_Channel(SoundChannel channel, float fadeOutDuration)
 {
     if (!_system || !Validate_Channel(channel))
@@ -269,7 +294,10 @@ void Sound_Manager::Stop_Channel(SoundChannel channel, float fadeOutDuration)
         _activeChannels[index].clear();
 
         if (channel == SoundChannel::BGM)
+        {
             _bgmChannels.clear();
+            _currentBGM.clear();
+        }
 
         return;
     }
@@ -282,7 +310,10 @@ void Sound_Manager::Stop_Channel(SoundChannel channel, float fadeOutDuration)
     _activeChannels[index].clear();
 
     if (channel == SoundChannel::BGM)
+    {
         _bgmChannels.clear();
+        _currentBGM.clear();
+    }
 }
 
 void Sound_Manager::Stop_Sound(const wstring& soundFile)
@@ -371,6 +402,63 @@ bool Sound_Manager::Play_Cue(const wstring& cueId, const Vec3* worldPosition)
         return Play_Once(soundFile, cue.channel, volume);
 
     return Play_Once_Pitched(soundFile, cue.channel, volume, pitch);
+}
+
+bool Sound_Manager::Play_Cue(const wstring& cueId, const Vec3* worldPosition, float volume, float pitch)
+{
+    auto iter = _soundCues.find(Normalize_SoundKey(cueId));
+    if (iter == _soundCues.end())
+    {
+        LOG_WARN("Sound cue not found: {}", String::ToString(cueId));
+        return false;
+    }
+
+    SoundCueDesc& cue = iter->second;
+    const int32 index = Select_CueSoundIndex(cue);
+    if (index < 0)
+        return false;
+
+    const wstring& soundFile = cue.sounds[static_cast<size_t>(index)];
+
+    if (cue.spatial && worldPosition != nullptr)
+    {
+        return Play_Once_3D(
+            soundFile,
+            cue.channel,
+            *worldPosition,
+            volume,
+            pitch,
+            cue.minDistance,
+            cue.maxDistance);
+    }
+
+    if (pitch == 1.f)
+        return Play_Once(soundFile, cue.channel, volume);
+
+    return Play_Once_Pitched(soundFile, cue.channel, volume, pitch);
+}
+
+bool Sound_Manager::Try_GetCueDefaultVolumePitch(const wstring& cueId, float& outVolume, float& outPitch) const
+{
+    auto iter = _soundCues.find(Normalize_SoundKey(cueId));
+    if (iter == _soundCues.end())
+        return false;
+
+    const SoundCueDesc& cue = iter->second;
+
+    float volumeMin = cue.volumeMin;
+    float volumeMax = cue.volumeMax;
+    if (volumeMax < volumeMin)
+        std::swap(volumeMin, volumeMax);
+
+    float pitchMin = cue.pitchMin;
+    float pitchMax = cue.pitchMax;
+    if (pitchMax < pitchMin)
+        std::swap(pitchMin, pitchMax);
+
+    outVolume = (volumeMin + volumeMax) * 0.5f; // notify 기본값은 cue 랜덤 범위의 중앙값으로 초기화한다.
+    outPitch = (pitchMin + pitchMax) * 0.5f;
+    return true;
 }
 
 bool Sound_Manager::Play_Once_3D(const wstring& soundFile, SoundChannel channel, const Vec3& worldPosition,

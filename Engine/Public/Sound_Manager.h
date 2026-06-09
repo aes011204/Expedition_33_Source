@@ -65,16 +65,20 @@ public:
 
     void    Set_ChannelVolume(SoundChannel channel, float volume);
     float   Get_ChannelVolume(SoundChannel channel) const;
+    void    Set_ChannelPaused(SoundChannel channel, bool paused);
 
     void    Stop_Channel(SoundChannel channel, float fadeOutDuration = 0.f);
     void    Stop_Sound(const wstring& soundFile);
     void    Stop_All(float fadeOutDuration = 0.f);
 
     bool    Has_Sound(const wstring& soundFile) const;
+    const wstring& Get_CurrentBGM() const { return _currentBGM; }
 
 #pragma region 사운드 큐
 public:
     bool Play_Cue(const wstring& cueId, const Vec3* worldPosition = nullptr);
+    bool Play_Cue(const wstring& cueId, const Vec3* worldPosition, float volume, float pitch);
+    bool Try_GetCueDefaultVolumePitch(const wstring& cueId, float& outVolume, float& outPitch) const;
     bool Play_Once_3D(
         const wstring& soundFile,
         SoundChannel channel,
@@ -135,6 +139,7 @@ private:
 
     // BGM은 별도 추적해서 페이드아웃/교체 관리
     vector<FMOD_CHANNEL*> _bgmChannels;
+    wstring _currentBGM{};
 
     list<FFadeChannelInfo> _fadeChannels;
 

@@ -46,6 +46,8 @@ public:
 public:
     bool Try_Consume_BattleWeakPointHit();
     void Hide_BattleWeakPoint();
+    void Hide_WorldWeakPointForBattle();
+    void Restore_WorldWeakPointAfterBattle();
     void Reset_BattleWeakPoint();
     bool Is_BattleWeakPointEnabled() const { return _isBattleWeakPointEnabled; }
     Matrix Get_CollisionWorldMatrix() const;

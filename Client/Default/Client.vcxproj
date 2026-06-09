@@ -195,10 +195,13 @@
     <ClInclude Include="..\Public\BattleCameraClipUtils.h" />
     <ClInclude Include="..\Public\BattleClipSequencerAdapter.h" />
     <ClInclude Include="..\Public\BattleCameraClipTypes.h" />
+    <ClInclude Include="..\Public\BattleEncounterProfile.h" />
     <ClInclude Include="..\Public\BattleHitSequenceRunner.h" />
     <ClInclude Include="..\Public\BattleMechanismCom.h" />
+    <ClInclude Include="..\Public\BattleMonsterSpawnDesc.h" />
     <ClInclude Include="..\Public\BattleQTEController.h" />
     <ClInclude Include="..\Public\BattleReactionController.h" />
+    <ClInclude Include="..\Public\BattleResultRecoder.h" />
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
     <ClInclude Include="..\Public\BattleStartSpawner.h" />
     <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
@@ -224,6 +227,7 @@
     <ClInclude Include="..\Public\EffectInstancePool.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
+    <ClInclude Include="..\Public\PlayerInventory.h" />
     <ClInclude Include="..\Public\PreviewRimFeature.h" />
     <ClInclude Include="..\Public\MapWater.h" />
     <ClInclude Include="..\public\Mon_WeakPoint.h" />
@@ -398,6 +402,7 @@
     <ClInclude Include="..\Public\UI_BattleFloatingTextBase.h" />
     <ClInclude Include="..\Public\UI_BattleItemPanel.h" />
     <ClInclude Include="..\Public\UI_BattleMechanism.h" />
+    <ClInclude Include="..\Public\UI_BattleTutorial.h" />
     <ClInclude Include="..\Public\UI_HealFont.h" />
     <ClInclude Include="..\Public\UI_DestroyShield.h" />
     <ClInclude Include="..\Public\UI_MarkEffect.h" />
@@ -494,10 +499,12 @@
     <ClCompile Include="..\Private\BattleAnimutils.cpp" />
     <ClCompile Include="..\Private\BattleCameraClipIO.cpp" />
     <ClCompile Include="..\Private\BattleClipSequencerAdapter.cpp" />
+    <ClCompile Include="..\Private\BattleEncounterProfile.cpp" />
     <ClCompile Include="..\Private\BattleHitSequenceRunner.cpp" />
     <ClCompile Include="..\Private\BattleMechanismCom.cpp" />
     <ClCompile Include="..\Private\BattleQTEController.cpp" />
     <ClCompile Include="..\Private\BattleReactionController.cpp" />
+    <ClCompile Include="..\Private\BattleResultRecoder.cpp" />
     <ClCompile Include="..\Private\BattleSpawnRegistry.cpp" />
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
     <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
@@ -510,6 +517,7 @@
     <ClCompile Include="..\private\BT_Patrol.cpp" />
     <ClCompile Include="..\Private\MapWater.cpp" />
     <ClCompile Include="..\Private\Mon_WeakPoint.cpp" />
+    <ClCompile Include="..\Private\PlayerInventory.cpp" />
     <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
     <ClCompile Include="..\Private\SkyCloudCard.cpp" />
     <ClCompile Include="..\Private\TrailSampleProvider_ByPart.cpp" />
@@ -684,6 +692,7 @@
     <ClCompile Include="..\Private\UI_BattleFloatingTextBase.cpp" />
     <ClCompile Include="..\Private\UI_BattleItemPanel.cpp" />
     <ClCompile Include="..\Private\UI_BattleMechanism.cpp" />
+    <ClCompile Include="..\Private\UI_BattleTutorial.cpp" />
     <ClCompile Include="..\Private\UI_HealFont.cpp" />
     <ClCompile Include="..\Private\UI_DestroyShield.cpp" />
     <ClCompile Include="..\Private\UI_MarkEffect.cpp" />

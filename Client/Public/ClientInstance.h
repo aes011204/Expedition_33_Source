@@ -24,6 +24,7 @@ class EffectInstancePool;
 class ScreenFadeTransition;
 class LevelTransitionFade;
 class ClientScreenFxManager;
+class PlayerInventory;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -177,8 +178,13 @@ public: /* Effect 재생 */
         const Vec3& localRotation = Vec3::Zero,
         const Vec3& scale = Vec3::One);
 
+    void Clear_RuntimeEffects();
+
 public: /* Delegate */
     void Notify_FreeAimShotHit();
+
+public: /* Player Inventory */
+    Shared<PlayerInventory> Get_PlayerInventory() const { return _playerInventory; }
 
 private:
 	HRESULT Ready_ResourceLoader();
@@ -212,6 +218,8 @@ private:
     Shared<ClientScreenFxManager>       _screenFxManager;
 
     Shared<BattleController>    _battleController;
+
+    Shared<PlayerInventory>     _playerInventory;
 
 public:
 	void Free() override;

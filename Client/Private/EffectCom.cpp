@@ -116,6 +116,46 @@ void EffectCom::Tick_AttachedEffectInstances(float timeDelta)
     }
 }
 
+void EffectCom::Capture_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& outStates)
+{
+    for (AttachedEffect& attached : _attachedEffects)
+    {
+        const Shared<EffectInstance> effect =
+            dynamic_pointer_cast<EffectInstance>(attached.poolHandle.effectObject);
+        if (effect == nullptr)
+            continue;
+
+        const bool alreadyCaptured = any_of(outStates.begin(), outStates.end(),
+            [&effect](const AttachedEffectPauseState& state)
+            {
+                return state.effect == effect;
+            });
+
+        if (alreadyCaptured)
+            continue;
+
+        AttachedEffectPauseState state{};
+        state.effect = effect;
+        state.wasPaused = effect->Is_PlaybackPaused();
+
+        effect->Set_PlaybackPaused(true); // 튜토리얼 UI가 열린 동안 attached trail/effect 시간을 고정한다.
+        outStates.push_back(state);
+    }
+}
+
+void EffectCom::Restore_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& states)
+{
+    for (AttachedEffectPauseState& state : states)
+    {
+        if (state.effect == nullptr)
+            continue;
+
+        state.effect->Set_PlaybackPaused(state.wasPaused); // 튜토리얼 시작 전 effect pause 상태로 되돌린다.
+    }
+
+    states.clear();
+}
+
 void EffectCom::Start_SwitchDissolve(float durationSec, const string& noiseName)
 {
 

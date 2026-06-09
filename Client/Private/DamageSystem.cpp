@@ -47,6 +47,7 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
         target.statCom->Remove_Shield(1);
 
         DamageAppliedInfo info{};
+        info.attacker = attacker;
         info.target = target;
         info.damage = 0.f;
         info.attackType = attackType;
@@ -91,6 +92,7 @@ void DamageSystem::ApplyDamage(float damage, const BattleChar& attacker, const B
     }
 
     DamageAppliedInfo info{};
+    info.attacker = attacker;
     info.target = target;
     info.damage = damage;
     info.attackType = attackType;

@@ -122,7 +122,7 @@ void Player_WorldBase::Priority_Update(float timeDelta)
 
 void Player_WorldBase::Update(float timeDelta)
 {
-    if (CLIENT->Is_BattleActive())
+      if (CLIENT->Is_BattleActive())
         return;
 
     __super::Update(timeDelta);
@@ -135,7 +135,10 @@ void Player_WorldBase::Update(float timeDelta)
 void Player_WorldBase::Late_Update(float timeDelta)
 {
     if (CLIENT->Is_BattleActive())
+    {
+        Set_Visible(false);
         return;
+    }
 
     __super::Late_Update(timeDelta);
 

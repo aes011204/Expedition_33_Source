@@ -298,6 +298,14 @@ string Hierarchy_View::Build_HierarchyLabel(const Shared<GameObject>& gameObject
     if (gameObject == nullptr)
         return "<Null>";
 
+    const Shared<PartObject> partObject = dynamic_pointer_cast<PartObject>(gameObject);
+    if (partObject == nullptr)
+    {
+        const string& sourcePrefabName = gameObject->Get_SourcePrefabName();
+        if (!sourcePrefabName.empty())
+            return sourcePrefabName + " [" + to_string(objectIndex) + "]"; // 프리팹으로 스폰된 루트 오브젝트는 authored prefab 이름을 하이어라키 대표 라벨로 쓴다.
+    }
+
     const string objectName = String::ToString(gameObject->Get_Name());
 
     if (!objectName.empty())

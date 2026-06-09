@@ -51,6 +51,7 @@ public:
 
     // 이 월드 몬스터와 충돌했을 때 생성할 배틀 몬스터 목록을 넘긴다.
     virtual void    Set_BattleMonsterSpawnDescs(vector<BattleMonsterSpawnDesc>& outSpawnDescs) const;
+    vector<HeroId>  Build_BattleHeroIds() const;
 
     // Prefab_View가 배틀 소환 목록을 직접 편집할 때 사용한다.
     vector<BattleMonsterSpawnDesc>& Get_BattleMonsterSpawnDescs_ForEdit() { return _battleMonsterSpawnDescs; }
@@ -73,8 +74,11 @@ public:
     Vec3  Get_BattleStartOffset() const { return _battleStartOffset; }
     void  Set_BattleStartOffset(const Vec3& offset) { _battleStartOffset = offset; }
 
-    uint32 Get_BattleFieldId() const { return _battleEncounter; }
-    void   Set_BattleFieldId(uint32 fieldId) { _battleEncounter = fieldId; }
+    uint32 Get_BattleFieldId() const { return static_cast<uint32>(_battleEncounterId > 0 ? _battleEncounterId : 1); }
+    void   Set_BattleFieldId(uint32 fieldId) { _battleEncounterId = static_cast<int32>(fieldId); }
+
+    // 전투 도주 시, 몬스터 복구
+    void   Restore_AfterBattleExit();
 
 protected:
     virtual HRESULT Ready_Components();
@@ -94,6 +98,7 @@ protected:
     Shared<EffectCom>            _effectCom;
 
     vector<BattleMonsterSpawnDesc> _battleMonsterSpawnDescs = {};
+    vector<HeroId>                 _battleHeroIds = {}; // 비어있으면 기본 3인
 
     bool                         _isBattleStart = false;
     FDelegateHandle              _editorStopHandle = {};
@@ -110,8 +115,11 @@ protected:
 
     int32 _battleStartSpawnerId = 0; // 배틀 시작 스포너 ID
     Vec3  _battleStartOffset = Vec3::Zero; // MW 프리팹에서 플레이어 기준 몬스터 시작 위치를 조절한다.
+    bool  _startIdleUntilPlayerInRange = false; // authored 배치 몬스터가 맵 진입 직후 patrol로 튀지 않게, 플레이어가 가까워질 때까지 Idle을 유지한다.
+    bool  _hasReleasedStartIdle = false; // 한번 해제되면 이후에는 원래 BT를 그대로 탄다.
+    float _startIdleReleaseDistance = 0.f; // 0보다 크면 이 거리 안으로 플레이어가 들어왔을 때 시작 Idle 게이트를 해제한다.
 
-    uint32 _battleEncounter = 1;
+    int32 _battleEncounterId = 1; // 이 월드 몬스터와 조우했을 때 진입할 배틀 필드 ID
 
 public:
     void Free() override;

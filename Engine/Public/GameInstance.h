@@ -343,10 +343,14 @@ public: /* For.Sound_Manager */
     void Stop_AllSounds(float fadeOutDuration = 0.f);
     void Set_SoundChannelVolume(SoundChannel channel, float volume);
     float Get_SoundChannelVolume(SoundChannel channel) const;
+    void Set_SoundChannelPaused(SoundChannel channel, bool paused);
     bool Has_Sound(const wstring& soundFile) const;
+    const wstring& Get_CurrentBGM() const;
 
     // 사운드 큐
     bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition = nullptr);
+    bool Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float pitch);
+    bool Try_GetSoundCueDefaultVolumePitch(const wstring& cueId, float& outVolume, float& outPitch) const;
     // 3D 사운드의 기준은, 활성화된 카메라의 기준으로
     void Update_SoundListenerFromActiveCamera();
 

@@ -273,7 +273,8 @@ bool Mon_WeakPoint::Try_Consume_BattleWeakPointHit()
     {
         _colliderCom->Set_IsActive(false);
         _colliderCom->Clear_Overlap();
-        GAME->Unregister_PhysXCollider(_colliderCom.get());
+        if (_colliderCom->Is_PhysXRegistered())
+            GAME->Unregister_PhysXCollider(_colliderCom.get());
     }
 
     if (owner)
@@ -297,10 +298,43 @@ void Mon_WeakPoint::Hide_BattleWeakPoint()
     {
         _colliderCom->Set_IsActive(false);
         _colliderCom->Clear_Overlap();
-        GAME->Unregister_PhysXCollider(_colliderCom.get());
+        if (_colliderCom->Is_PhysXRegistered())
+            GAME->Unregister_PhysXCollider(_colliderCom.get());
     }
 
     if (_partEffectCom)
+        _partEffectCom->Stop_AllAttachedEffects();
+}
+
+void Mon_WeakPoint::Hide_WorldWeakPointForBattle()
+{
+    Set_Visible(false);
+
+    if (_colliderCom)
+    {
+        _colliderCom->Set_IsActive(false);
+        _colliderCom->Clear_Overlap();
+        if (_colliderCom->Is_PhysXRegistered())
+            GAME->Unregister_PhysXCollider(_colliderCom.get());
+    }
+
+    if (_partEffectCom)
+        _partEffectCom->Stop_AllAttachedEffects();
+}
+
+void Mon_WeakPoint::Restore_WorldWeakPointAfterBattle()
+{
+    Set_Visible(_isBattleWeakPointEnabled);
+
+    if (_colliderCom)
+    {
+        _colliderCom->Set_IsActive(_isBattleWeakPointEnabled);
+        _colliderCom->Clear_Overlap();
+    }
+
+    if (_isBattleWeakPointEnabled)
+        Play_WeakPointEffect();
+    else if (_partEffectCom)
         _partEffectCom->Stop_AllAttachedEffects();
 }
 

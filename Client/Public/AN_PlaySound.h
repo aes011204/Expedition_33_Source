@@ -15,9 +15,12 @@ public:
 public:
     string Get_TypeName() const override { return "AN_PlaySound"; }
     void Execute(const AnimNotifyContext& context) override;
+    void From_Json(const json& data) override;
 
 private:
     wstring _soundCue = L"";
+    float _volume = 1.f;
+    float _pitch = 1.f;
 };
 
 NS_END

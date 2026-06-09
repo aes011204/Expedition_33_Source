@@ -573,6 +573,7 @@ namespace Client
 
     struct DamageAppliedInfo
     {
+        BattleChar attacker{};      // 때린놈
         BattleChar target{};        // 실제 HP가 깎이 대상
         float damage = 0.f;         // 최종 데미지
         AttackType attackType = AttackType::Invalid; // 기존 피격 애니메이션 분기
@@ -776,21 +777,21 @@ namespace Client
     // 튜토리얼 순서
     enum class BattleTutorialStep
     {
-        None,
-        PlayerTurn,
+        BattleSystem,
+        TurnOrder,
         Attack,
         EnemyTurn,
         Dodge,
-        Parry,
+        Skill,
+        QTE,
         Counter,
         FreeAim,
-        QTE,
         END
     };
 
     struct BattleTutorialRequest
     {
-        BattleTutorialStep step = BattleTutorialStep::None;
+        BattleTutorialStep step = BattleTutorialStep::END;
         bool pauseBattle = true; // 튜토리얼 표시 중, Model을 멈출것인지
         bool blockInput = true;  // 입력은?
         float delaySec = 0.f;    // 연출과 겹치지 않게, 튜토리얼 표시 늦출 때

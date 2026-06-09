@@ -1770,14 +1770,36 @@ float GameInstance::Get_SoundChannelVolume(SoundChannel channel) const
     return _soundManager ? _soundManager->Get_ChannelVolume(channel) : 0.f;
 }
 
+void GameInstance::Set_SoundChannelPaused(SoundChannel channel, bool paused)
+{
+    if (_soundManager)
+        _soundManager->Set_ChannelPaused(channel, paused);
+}
+
 bool GameInstance::Has_Sound(const wstring& soundFile) const
 {
     return _soundManager ? _soundManager->Has_Sound(soundFile) : false;
 }
 
+const wstring& GameInstance::Get_CurrentBGM() const
+{
+    static const wstring empty{};
+    return _soundManager ? _soundManager->Get_CurrentBGM() : empty;
+}
+
 bool GameInstance::Play_SoundCue(const wstring& cueId, const Vec3* worldPosition)
 {
     return _soundManager ? _soundManager->Play_Cue(cueId, worldPosition) : false;
+}
+
+bool GameInstance::Play_SoundCue(const wstring& cueId, const Vec3* worldPosition, float volume, float pitch)
+{
+    return _soundManager ? _soundManager->Play_Cue(cueId, worldPosition, volume, pitch) : false;
+}
+
+bool GameInstance::Try_GetSoundCueDefaultVolumePitch(const wstring& cueId, float& outVolume, float& outPitch) const
+{
+    return _soundManager ? _soundManager->Try_GetCueDefaultVolumePitch(cueId, outVolume, outPitch) : false;
 }
 
 void GameInstance::Update_SoundListenerFromActiveCamera()

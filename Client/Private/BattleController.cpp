@@ -39,6 +39,7 @@
 #include "BattleSpawnRegistry.h"
 #include "SkillTreeCom.h"
 #include "BattleReactionController.h"
+#include "BattleResultRecoder.h"
 #include "BattleStartSpawner.h"
 #include "EffectCom.h"
 #include "Monster_WorldBase.h"
@@ -46,6 +47,7 @@
 #include "ScreenFx_Manager.h"
 #include "Client_Constants.h"
 #include "BattleTutorialController.h"
+#include "PlayerInventory.h"
 
 REGISTER_GLOBAL_ENUM(BattleAnimType, "BattleAnimType")
 
@@ -82,6 +84,9 @@ HRESULT BattleController::Initialize()
     _battleTutorialController = BattleTutorialController::Create();
     CHECK_NULL(_battleTutorialController, E_FAIL);
 
+    _battleResultRecoder = BattleResultRecoder::Create();
+    CHECK_NULL(_battleResultRecoder, E_FAIL);
+
     //    _targetPreviewChangedHandle = OnTargetPreviewChanged.Add(this,&BattleController::Handle_TargetPreviewChanged);
 
     return S_OK;
@@ -89,10 +94,7 @@ HRESULT BattleController::Initialize()
 
 void BattleController::Update(float timeDelta)
 {
-    if (_battleTutorialController)
-        _battleTutorialController->Update(timeDelta);
-
-    if (_battleTutorialController && _battleTutorialController->Should_BlockBattleUpdate())
+    if (Update_BattleTutorialGate(timeDelta))
         return;
 
     if (_isBattleEntering)
@@ -126,6 +128,8 @@ void BattleController::Update(float timeDelta)
         if (!CLIENT->Is_BattleEnterTransitionPlaying())
         {
             _isWaitingBattleTransition = false;
+
+            CLIENT->Clear_RuntimeEffects();
             StartTurn();
         }
 
@@ -214,6 +218,14 @@ void BattleController::Update(float timeDelta)
 
     if (_isPendingVictorySlow)
         return;
+
+    if (_battleResultRecoder &&
+        _isBattleActive &&
+        !_battleEnded &&
+        !_isWaitingVictoryConfirm)
+    {
+        _battleResultRecoder->Update(GAME->Get_UnscaledTimeDelta());
+    }
 
     if (_isActionExecuting &&
         _turnAction.Get_CurChar().actor != nullptr &&
@@ -308,6 +320,11 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     {
         _lastVictoryRewardExp = _battleSpawnRegistry->Get_BattleRewardExp();
         Apply_VictoryRewardExp(_lastVictoryRewardExp);
+
+        if (auto inventory = CLIENT->Get_PlayerInventory())
+        {
+            inventory->Add_Chroma(_battleSpawnRegistry->Get_BattleRewardChroma());
+        }
     }
 
     // 배틀에서 실제로 바뀐 결과를 월드 플레이어한테 전달. 체력, 경험치 등
@@ -326,6 +343,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
     Clear_TargetPreview();
     OnBattleEnded.Broadcast(result); // battle end UI 정리는 GameplayUI_Battle에서 처리
+    Restore_PreBattleBGM();
 
     if (result == EBattleEndResult::Victory)
     {
@@ -354,8 +372,17 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
 
     if (_battleSpawnRegistry)
     {
-        _battleSpawnRegistry->Destroy_SpawnedObjects();
-        _battleSpawnRegistry->Clear_SourceWorldObject();
+        if (result == EBattleEndResult::Neutral)
+        {
+            if (Shared<Monster_WorldBase> worldMonster =
+                dynamic_pointer_cast<Monster_WorldBase>(_battleSpawnRegistry->Get_SourceWorldObject()))
+            {
+                worldMonster->Restore_AfterBattleExit(); // 도주 시 MW는 삭제하지 않고 월드 상태만 복구한다.
+            }
+        }
+
+        _battleSpawnRegistry->Destroy_SpawnedObjects();  // PB/MB는 무조건 제거
+        _battleSpawnRegistry->Clear_SourceWorldObject(); // Neutral은 참조만 비우고, MW 오브젝트는 남겨야한다.
     }
 
     Clear_BattleRuntimeState();
@@ -368,6 +395,7 @@ EBattleEndResult BattleController::OnExitBattleField(EBattleEndResult result)
     // 초기 애님 관련 변수 초기화
     _firstAnimflag = false;
     _firstAnimCount = 0;
+    _firstAnimTargetCount = 0;
 
     return result;
 }
@@ -523,18 +551,6 @@ void BattleController::StartTurn()
     // 상태 이상 엔드
     _buffSystem->ProcessTurnStart(_currentTurnActor.statCom);
 
-    if (_currentTurnActor.ModelCom)
-    {
-        const bool playedTurnStart =
-            _currentTurnActor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Turn_Start),
-                0.2f,
-                false
-            ); // 현재 턴 캐릭터만 턴 시작 애니메이션을 시작
-
-        if (!playedTurnStart)
-            BattleAnimUtils::Play_BattleIdle(_currentTurnActor, 0.2f); // Turn_Start 매핑이 없으면 Base Idle
-    }
-
     // fsm
     if (actor.statCom->Is_Player())
     {
@@ -553,6 +569,18 @@ void BattleController::StartTurn()
 
         _battleFSM->Change_State(BattleTurnState::ChooseAction);
 
+        if (_currentTurnActor.ModelCom)
+        {
+            const bool playedTurnStart =
+                _currentTurnActor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Turn_Start),
+                    0.2f,
+                    false
+                ); // 현재 턴 캐릭터만 턴 시작 애니메이션을 시작
+
+            if (!playedTurnStart)
+                BattleAnimUtils::Play_BattleIdle(_currentTurnActor, 0.2f); // Turn_Start 매핑이 없으면 Base Idle
+        }
+
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::PLAYERFOCUS;
         event.subject = _currentTurnActor.actor;
@@ -563,6 +591,13 @@ void BattleController::StartTurn()
     else
     {
         OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::None);
+
+        if (_battleTutorialController && _battleTutorialController->Should_DeferEnemyTurnStart())
+        {
+            _hasPendingTutorialEnemyTurn = true;
+            return;
+        }
+
         Run_EnemyTurn();
     }
 }
@@ -587,7 +622,7 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
         CHECK_NULL(character);
 
         // Registry에 플레이어 등록
-        _battleSpawnRegistry->Register_SpawnObject(character, GAME->Current_LevelIndex());
+        _battleSpawnRegistry->Register_BattleHeroObject(character, GAME->Current_LevelIndex());
 
         const auto ply = dynamic_pointer_cast<Character_BattleBase>(character);
 
@@ -639,6 +674,10 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
         // Registry에 몬스터 등록
         _battleSpawnRegistry->Register_BattleMonsterObject(enemy, GAME->Current_LevelIndex());
 
+        const Shared<MonsterStatCom> monsterStat = enemy->Get_Component<MonsterStatCom>();
+        if (monsterStat)
+            monsterStat->Apply_BattleSyncSnapshot(spawnDesc.statSnapshot);
+
         const auto ply = dynamic_pointer_cast<Character_BattleBase>(enemy);
         BattleChar battleChar{};
         battleChar.actor = ply;
@@ -651,7 +690,6 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
         _enemies.push_back(battleChar);
 
         // battleChar.ModelCom->Set_RootMotionEnabled(false);
-
     }
 }
 
@@ -933,6 +971,21 @@ void BattleController::Request_WidePresentationMode()
     GAME->Get_EventBus().Publish(event);
 }
 
+void BattleController::Request_EscapeBattle()
+{
+    if (!_isBattleActive || _battleEnded)
+        return;
+
+    if (!Is_PlayerTurnActive())
+        return;
+
+    if (Get_CurrentTurnState() != BattleTurnState::ChooseAction)
+        return;
+
+    _battleEnded = true; // 같은 프레임에 다른 종료 경로가 겹치지 않게 먼저 잠근다.
+    OnExitBattleField(EBattleEndResult::Neutral);
+}
+
 vector<BattleChar> BattleController::Get_AliveEnemies()
 {
     vector<BattleChar> alive;
@@ -994,6 +1047,7 @@ void BattleController::Handle_EditorStopRuntime()
     //
     _firstAnimflag = false;
     _firstAnimCount = 0;
+    _firstAnimTargetCount = 0;
 }
 
 //void BattleController::Handle_TargetPreviewChanged(const BattleChar* target)
@@ -1028,6 +1082,13 @@ HRESULT BattleController::Ready_Delegates()
 
     _damageAppliedHandle = DamageSystem::OnDamageApplied.Add(
         this, &BattleController::Handle_DamageApplied);
+
+    if (_battleTutorialController)
+        _battleTutorialController->Bind_BattleController(GetSharedPtr<BattleController>()); // 튜토리얼 컨트롤러가 전투/QTE/리액션 이벤트를 구독한다.
+
+    _reactionSucceededResultHandle =
+        _reactionController.OnReactionSucceeded.Add(
+            this, &BattleController::Handle_ReactionSucceededForResult);
 
     return S_OK;
 }
@@ -1610,7 +1671,6 @@ void BattleController::Confirm_Victory()
     GAME->Set_PlayerInputBlocked(false);
 
     Restore_WorldCamera();
-
     Clear_BattleRuntimeState();
 
     // 배틀 플레이어, 몬스터 삭제
@@ -1628,10 +1688,14 @@ void BattleController::Confirm_Victory()
     // 초기 애님 관련 변수 초기화
     _firstAnimflag = false;
     _firstAnimCount = 0;
+    _firstAnimTargetCount = 0;
 }
 
 void BattleController::Handle_DamageApplied(const DamageAppliedInfo& info)
 {
+    if (_battleResultRecoder)
+        _battleResultRecoder->Record_DamageApplied(info);
+
     if (info.damage > 0.f && info.target.actor)
     {
         HitAction(info.target, info.attackType, info.isCritical);
@@ -1826,6 +1890,13 @@ void BattleController::Apply_ReactionApReward(const BattleReactionInputResult& r
         OnBattleApChanged.Broadcast(result.apRewardTarget, gainedAp, result.apRewardReason);
 }
 
+void BattleController::Handle_ReactionSucceededForResult(BattleReactionType reactionType,
+    const vector<BattleChar>& targets)
+{
+    if (_battleResultRecoder)
+        _battleResultRecoder->Record_ReactionSucceeded(reactionType);
+}
+
 HRESULT BattleController::Ready_BattleTurnCamera()
 {
     if (_battleTurnCamera == nullptr)
@@ -1919,6 +1990,7 @@ void BattleController::Clear_BattleRuntimeState()
     if (_qteController)
         _qteController->Clear();
 
+    _hasPendingTutorialEnemyTurn = false;
     _isFreeAimShotPlaying = false;
     _freeAimShotAction = {};
     Clear_FreeAimHitTarget();
@@ -1969,9 +2041,13 @@ void BattleController::Complete_BattleField()
 
     // 현제 케릭 아이디 , 적 아이디로 전투 용 객체 생성
     Create_BattleChar(_pendingBattleHeroIds, _pendingBattleMonsterSpawnDescs);
+    Capture_PreBattleBGM();
 
     if (_battleTutorialController)
         _battleTutorialController->Reset_ForBattle(battleFieldId, _battleSpawnRegistry);
+
+    if (_battleResultRecoder)
+        _battleResultRecoder->Reset_ForBattle();
 
     bool hasBossEnemy = false;
     for (const BattleChar& enemy : _enemies)
@@ -2076,8 +2152,68 @@ bool BattleController::Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarg
     return true;
 }
 
+void BattleController::Capture_PreBattleBGM()
+{
+    _preBattleBGM = GAME->Get_CurrentBGM();
+}
+
+void BattleController::Restore_PreBattleBGM()
+{
+    if (_preBattleBGM.empty())
+        return;
+
+    GAME->Play_BGM(_preBattleBGM, 1.f, true, 0.f);
+    _preBattleBGM.clear();
+}
+
+bool BattleController::Update_BattleTutorialGate(float timeDelta)
+{
+    if (_battleTutorialController)
+        _battleTutorialController->Update(timeDelta);
+
+    if (_battleTutorialController)
+    {
+        BattleReactionInputResult tutorialReactionResult{};
+
+        if (_battleTutorialController->Try_HandleReactionInput(
+            _reactionController, _turnAction, tutorialReactionResult))
+        {
+            Apply_ReactionApReward(tutorialReactionResult);
+            return true; // 튜토리얼 리액션 입력이 이번 프레임 전투 입력을 소비
+        }
+    }
+
+    if (_hasPendingTutorialEnemyTurn)
+    {
+        if (!_battleTutorialController || !_battleTutorialController->Should_BlockBattleUpdate())
+        {
+            _hasPendingTutorialEnemyTurn = false;
+            Run_EnemyTurn(); // EnemyTurn 튜토리얼 확인 후에만 실제 적 행동 시작
+        }
+
+        return true;
+    }
+
+    if (_battleTutorialController && _battleTutorialController->Should_BlockBattleUpdate())
+        return true; // 튜토리얼 UI가 열린 동안 전투 진행을 멈춘다.
+
+    if (_battleTutorialController &&
+        _currentTurnActor.statCom &&
+        _currentTurnActor.statCom->Is_Player())
+    {
+        if (_battleTutorialController->Should_BlockPlayerBattleInput(
+            Get_CurrentTurnState(),
+            _turnActionRequest))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<CombatStatCom>& battleStat,
-    const Shared<SkillTreeCom>& worldSkillTreeCom)
+                                                    const Shared<SkillTreeCom>& worldSkillTreeCom)
 {
     if (battleStat == nullptr)
         return;
@@ -2159,11 +2295,19 @@ void BattleController::Set_BattleFSM()
 
 void BattleController::End_FirstAnim()
 {
-    _firstAnimCount++;
-    if (_firstAnimCount == 3)
+    if (_firstAnimflag)
+        return;
+
+    ++_firstAnimCount;
+
+    if (_firstAnimCount >= static_cast<int>(_firstAnimTargetCount))
     {
         for (const auto it : _heroes)
-            it.ModelCom->Set_RootMotionEnabled(true);
+        {
+            if (it.ModelCom)
+                it.ModelCom->Set_RootMotionEnabled(true);
+        }
+
         _firstAnimflag = true;
     }
 }
@@ -2172,16 +2316,26 @@ void BattleController::PlayerStartAnim()
 {
     _firstAnimflag = false;
     _firstAnimCount = 0;
+    _firstAnimTargetCount = _battleSpawnRegistry ? _battleSpawnRegistry->Get_BattleHeroSpawnCount() : 0;
 
     for (const auto it : _heroes)
     {
+        if (it.ModelCom == nullptr)
+            continue;
+
         it.ModelCom->Set_RootMotionEnabled(false);
         it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Battle_Start), 0.3f, false);
     }
 
+    if (_firstAnimTargetCount == 0)
+    {
+        _firstAnimflag = true;
+    }
+
     for (const auto it : _enemies)
     {
-        it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.3f, true);
+        if (it.ModelCom)
+            it.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Base_Idle), 0.3f, true);
     }
 }
 
@@ -2268,6 +2422,11 @@ void BattleController::Free()
         _damageAppliedHandle.Reset();
     }
 
+    if (_reactionSucceededResultHandle.IsValid())
+        _reactionController.OnReactionSucceeded.Remove(_reactionSucceededResultHandle);
+
+    _reactionSucceededResultHandle.Reset();
+
     auto ReleaseCtrl = [](auto& ctrl)
         {
             if (ctrl)
@@ -2281,6 +2440,7 @@ void BattleController::Free()
     ReleaseCtrl(_qteController);
     ReleaseCtrl(_buffSystem);
     ReleaseCtrl(_battleTutorialController);
+    ReleaseCtrl(_battleResultRecoder);
 
     Base::Free();
 }

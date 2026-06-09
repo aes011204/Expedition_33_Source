@@ -29,6 +29,7 @@ class BattleTurnCamera;
 class BattleSpawnRegistry;
 class SkillTreeCom;
 class BattleTutorialController;
+class BattleResultRecoder;
 
 class BattleController : public Base
 {
@@ -96,6 +97,9 @@ public:
     const ActionRequest& Get_TurnActionRequest() const { return _turnActionRequest; }
     // Action& Get_TurnAction() { return _turnAction; }
     void    Request_WidePresentationMode();
+
+    // 전투 도망
+    void    Request_EscapeBattle();
 
     vector<BattleChar> Get_AliveEnemies();
     vector<BattleChar> Get_AllEnemies() { return _enemies; };
@@ -188,6 +192,10 @@ public:
     // 전투 튜토리얼
     Shared<BattleTutorialController> Get_BattleTutorialController() const { return _battleTutorialController; }
 
+    // 전투 기록
+    Shared<BattleResultRecoder> Get_BattleResultTracker() const { return _battleResultRecoder; }
+    void Handle_ReactionSucceededForResult(BattleReactionType reactionType, const vector<BattleChar>& targets);
+
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
@@ -200,6 +208,10 @@ private:
 
     // 몬스터 약점공격 보너스 데미지
     bool    Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarget& hitTarget, const BattleChar& attacker);
+    void    Capture_PreBattleBGM();
+    void    Restore_PreBattleBGM();
+
+    bool    Update_BattleTutorialGate(float timeDelta);
 
 private:
     // World의 SkillTree 상태를 읽어서 battle에서 사용할 기본 스킬 3개 세팅
@@ -218,7 +230,6 @@ private:
     using BattleReactionInputResult = BattleReactionController::BattleReactionInputResult;
     void Apply_ReactionApReward(const BattleReactionInputResult& result);
 
-
 public: /* Delegate */
     FOnBattleStarted                OnBattleStarted;        // 배틀 시작
     FOnBattleEnded                  OnBattleEnded;          // 배틀 끝
@@ -230,6 +241,7 @@ public: /* Delegate */
 
     FDelegateHandle                 _damageAppliedHandle{};
     FDelegateHandle                 _editorStopHandle = {};
+    FDelegateHandle                 _reactionSucceededResultHandle{};
 
 private:
     BattleChar                      _currentTurnActor = {};
@@ -270,6 +282,7 @@ private: /* 전투 AP */
 private:
     bool _battleEnded = {};
     bool _pendingNextTurn = {};
+    bool _hasPendingTutorialEnemyTurn = false;
 
     // 현재 턴을 진행중인 적이 죽으면.
     bool _requestEndTurnOnCurrentActorDeath = false;
@@ -296,13 +309,15 @@ private:
     Shared<BuffSystem>           _buffSystem;
     Shared<BattleActionExecutor> _battleActionExe;
 
-    Shared<BattleSpawnRegistry> _battleSpawnRegistry;   // 전투 시작 시 스폰되는 객체들 저장소
-    Shared<BattleQTEController> _qteController{};
-    BattleReactionController    _reactionController{};
-    BattleHitSequenceRunner     _hitSequenceRunner{};   // 루네 천둥번개 같은 다단히트 관리
+    Shared<BattleSpawnRegistry>  _battleSpawnRegistry;   // 전투 시작 시 스폰되는 객체들 저장소
+    Shared<BattleQTEController>  _qteController{};
+    BattleReactionController     _reactionController{};
+    BattleHitSequenceRunner      _hitSequenceRunner{};   // 루네 천둥번개 같은 다단히트 관리
+    Shared<BattleResultRecoder>  _battleResultRecoder{};
 
     bool _firstAnimflag = { false };
     int  _firstAnimCount = { 0 };
+    uint32 _firstAnimTargetCount = { 0 };
 
     bool _isActionExecuting = false;
 
@@ -336,6 +351,7 @@ private:
     BattleAction _freeAimShotAction{};
 
     uint32 _lastVictoryRewardExp = 0;
+    wstring _preBattleBGM{};
 
     BattleChar  _enemyTurnTargetedActor = {};
     bool        _hasEnemyTurnTargetedActor = false;

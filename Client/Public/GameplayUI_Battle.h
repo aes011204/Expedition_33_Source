@@ -37,6 +37,7 @@ class UI_SuddenAttack;
 class UI_AddAP;
 class UI_QTE;
 class UI_MarkEffect;
+class UI_BattleTutorial;
 
 class Monster_BattleBase;
 
@@ -86,6 +87,8 @@ private:
     void    Handle_CounterAnnounceRequested(const vector<BattleChar>& counterActors);
     // 약점 터트린거 알림
     void    Handle_BattleWeakPointConsumed(const Shared<Monster_BattleBase>& monster);
+    void    Handle_BattleTutorialRequested(const BattleTutorialRequest& request);
+    void    Handle_BattleTutorialClosed();
 
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
@@ -115,6 +118,7 @@ private:
     void    Update_QTE(float timeDelta);
     void    Update_MarkEffect(float timeDelta);
     void    Update_BattleSystemIntroState(float timeDelta);
+    void    Update_BattleTutorial(float timeDelta);
 
 private:
 #pragma region UI 위치맞추기
@@ -163,6 +167,7 @@ private:
     Unique<UI_SuddenAttack>                 _suddenAttack;
     Unique<UI_QTE>                          _qte;
     Unique<UI_MarkEffect>                   _markEffect;
+    Unique<UI_BattleTutorial>               _battleTutorial;
 
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
@@ -200,6 +205,10 @@ private:
 
     FDelegateHandle          _counterAnnounceRequestedHandle{};
     FDelegateHandle          _battleWeakPointConsumedHandle{};
+
+    // 튜토리얼
+    FDelegateHandle          _battleTutorialRequestedHandle{};
+    FDelegateHandle          _battleTutorialClosedHandle{};
 
 private:
     BattleChar               _targetPreviewSnapshot{};
