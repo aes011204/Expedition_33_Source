@@ -2629,6 +2629,7 @@ bool EffectAssetRuntimeLoader::Build_SourceHistoryRibbonEmitterDefinition(const 
             desc.tailFadeLength = max(0.f, Read_Float(typeData, "tailFadeLength", desc.tailFadeLength));
             desc.baseWidth = max(0.001f, Read_Float(typeData, "baseWidth", desc.baseWidth));
             desc.tilingDistance = max(0.f, Read_Float(typeData, "tilingDistance", desc.tilingDistance));
+            desc.autoLifeFade = Read_Bool(typeData, "autoLifeFade", desc.autoLifeFade);
         }
     }
 

@@ -565,13 +565,14 @@ struct SourceHistoryRibbonTypeData
     float sampleSpacing{ 0.08f };
     float sampleInterval{ 0.f };
     float maxLength{ 0.f };
-    float tailFadeLength{ 0.1f };
-    float baseWidth{ 1.f };
+    float tailFadeLength{ 0.f };
+    float baseWidth{ 0.3f };
     float tilingDistance{ 0.f };
-    SourceHistoryPreviewMotionPreset previewMotionPreset{ SourceHistoryPreviewMotionPreset::Off };
+    bool autoLifeFade{ false };
+    SourceHistoryPreviewMotionPreset previewMotionPreset{ SourceHistoryPreviewMotionPreset::Line };
     SourceHistoryPreviewMotionAxis previewMotionAxis{ SourceHistoryPreviewMotionAxis::X };
-    float previewMotionAmplitude{ 1.f };
-    float previewMotionSpeed{ 1.f };
+    float previewMotionAmplitude{ 2.f };
+    float previewMotionSpeed{ 3.f };
 };
 
 struct TrailTypeData

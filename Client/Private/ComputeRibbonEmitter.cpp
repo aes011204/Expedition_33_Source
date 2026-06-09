@@ -1017,6 +1017,7 @@ HRESULT ComputeRibbonEmitter::Update_ComputeConstants()
     params.tilingDistance = _desc.tilingDistance;
     params.visibleLength = _visibleRibbonLength;
     params.axisFallback = Vec4(1.f, 0.f, 0.f, 0.f);
+    params.fadeParams = Vec4(1.f, 0.f, 0.f, 0.f);
     _context->UpdateSubresource(_computeConstantBuffer.Get(), 0, nullptr, &params, 0, 0);
     return S_OK;
 }

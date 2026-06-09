@@ -274,7 +274,7 @@ namespace Internal
         };
 
         ImGui::PushID("SourceHistoryPreviewMotionPreset");
-        detailContext.Draw_PropertyLabel("Preview Motion");
+        detailContext.Draw_PropertyLabel("프리뷰 이동");
         ImGui::SetNextItemWidth(-FLT_MIN);
 
         bool changed = false;
@@ -320,7 +320,7 @@ namespace Internal
         };
 
         ImGui::PushID("SourceHistoryPreviewMotionAxis");
-        detailContext.Draw_PropertyLabel("Preview Motion Axis");
+        detailContext.Draw_PropertyLabel("프리뷰 이동 축");
         ImGui::SetNextItemWidth(-FLT_MIN);
 
         bool changed = false;
@@ -1176,50 +1176,66 @@ void Detail_View::Render_TypeDataDetail(
                     "히스토리 수",
                     data->maxSampleCount,
                     defaultData.maxSampleCount,
-                    "source position history가 보관할 최대 sample 개수입니다."
+                    "소스 위치 히스토리가 보관할 최대 샘플 개수입니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "샘플 간격",
                     data->sampleSpacing,
                     defaultData.sampleSpacing,
                     0.005f,
-                    "source가 이 거리 이상 움직였을 때 새 sample을 추가합니다."
+                    "소스가 이 거리 이상 움직였을 때 새 샘플을 추가합니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "샘플 보강 간격",
                     data->sampleInterval,
                     defaultData.sampleInterval,
                     0.005f,
-                    "0보다 크면 이동이 작아도 이 시간마다 sample을 보강합니다."
+                    "0보다 크면 이동이 작아도 이 시간마다 샘플을 보강합니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "최대 표시 길이",
                     data->maxLength,
                     defaultData.maxLength,
                     0.01f,
-                    "head 기준 누적 거리로 제한하는 최대 표시 길이입니다. 0 이하면 제한하지 않습니다."
+                    "머리 기준 누적 거리로 제한하는 최대 표시 길이입니다. 0 이하면 제한하지 않습니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "꼬리 페이드 길이",
                     data->tailFadeLength,
                     defaultData.tailFadeLength,
                     0.01f,
-                    "최대 표시 길이 끝으로 갈수록 alpha를 줄이는 후보 값입니다."
+                    "최대 표시 길이 끝으로 갈수록 alpha를 줄이는 거리입니다. 최대 표시 길이가 0이거나 이 값이 0이면 적용하지 않습니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "기본 폭",
                     data->baseWidth,
                     defaultData.baseWidth,
                     0.01f,
-                    "SizeByLife를 곱하기 전 source history strip 기본 폭입니다."
+                    "SizeByLife를 곱하기 전 소스 히스토리 strip 기본 폭입니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
                     "타일링 거리",
                     data->tilingDistance,
                     defaultData.tilingDistance,
                     0.01f,
-                    "0 이하면 전체 표시 길이에 stretch하고, 양수면 거리 기준으로 texture를 반복합니다."
+                    "0 이하면 전체 표시 길이에 맞춰 늘이고, 양수면 거리 기준으로 texture를 반복합니다."
                 );
+                changed |= _detailPropertyContext.Draw_BoolProperty(
+                    "Auto Life Fade",
+                    data->autoLifeFade,
+                    defaultData.autoLifeFade,
+                    "켜면 샘플 나이에 따라 알파가 자동 감소합니다."
+                );
+                _detailPropertyContext.End_PropertyTable();
+            }
+
+            ImGui::TextDisabled("최종 알파는 ColorOverLife 알파에 Auto Life Fade와 Tail Fade가 추가로 곱해질 수 있습니다.");
+        }
+
+        if (ImGui::CollapsingHeader("Preview Motion (저장 안 됨)", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistoryRibbonPreviewMotion"))
+            {
                 changed |= Internal::Draw_SourceHistoryPreviewMotionPresetProperty(
                     _detailPropertyContext,
                     data->previewMotionPreset,
@@ -1231,24 +1247,23 @@ void Detail_View::Render_TypeDataDetail(
                     defaultData.previewMotionAxis
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "Preview Motion Amplitude",
+                    "프리뷰 이동 크기",
                     data->previewMotionAmplitude,
                     defaultData.previewMotionAmplitude,
                     0.01f,
-                    "Line/Arc/Loop preview motion의 offset 크기입니다."
+                    "Line/Arc/Loop 프리뷰 이동 오프셋 크기입니다."
                 );
                 changed |= _detailPropertyContext.Draw_FloatProperty(
-                    "Preview Motion Speed",
+                    "프리뷰 이동 속도",
                     data->previewMotionSpeed,
                     defaultData.previewMotionSpeed,
                     0.01f,
-                    "Line/Arc는 one-shot 진행 속도, Loop는 반복 속도입니다."
+                    "Line/Arc는 한 번 이동하는 속도, Loop는 반복 속도입니다."
                 );
                 _detailPropertyContext.End_PropertyTable();
             }
         }
 
-        ImGui::TextDisabled("Preview Motion은 SourceHistoryRibbon look 검증용이며 gameplay binding이 아닙니다.");
         break;
     }
     case AuthoringTypeDataKind::None:

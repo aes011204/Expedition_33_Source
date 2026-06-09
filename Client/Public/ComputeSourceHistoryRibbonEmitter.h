@@ -72,6 +72,7 @@ private:
         float tilingDistance{};
         float visibleLength{ 1.f };
         Vec4 axisFallback{};
+        Vec4 fadeParams{}; // x: auto life fade, y: max length, z: tail fade length, w: reserved.
     };
 
     struct RibbonInstanceVertex

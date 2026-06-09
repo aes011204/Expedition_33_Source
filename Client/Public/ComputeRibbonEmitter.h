@@ -86,6 +86,7 @@ private:
         float tilingDistance{};     // 0 이하면 stretch, 양수면 길이 기준 반복이다.
         float visibleLength{ 1.f }; // stretch UV 계산에 사용할 현재 chain 길이다.
         Vec4 axisFallback{};        // axis degenerate 상황에서 쓸 fallback 방향이다.
+        Vec4 fadeParams{};          // x: 자동 생애 fade, y: 최대 길이, z: 꼬리 fade 길이, w: reserved.
     };
 
     struct RibbonInstanceVertex

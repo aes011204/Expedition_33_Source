@@ -55,6 +55,13 @@ public: //## Behavior::AuthoringHistory
     bool Restore_AuthoringDocumentJson(const json& root);
 
 private: //## Types::PendingAction
+    enum class AuthoringClipboardKind
+    {
+        None,
+        Emitter,
+        Module
+    };
+
     enum class PendingEmitterAction
     {
         None,
@@ -80,6 +87,15 @@ private: //## Types::PendingAction
         AddSourceHistoryRibbon,
         ResetData,
         Remove
+    };
+
+    enum class PendingClipboardAction
+    {
+        None,
+        PasteEmitterAfter,
+        PasteEmitterToEnd,
+        PasteModule,
+        PasteModuleValues
     };
 
 private: //## Types::ModulePicker
@@ -144,11 +160,19 @@ private: //## Data::PendingAction
     optional<size_t> _pendingModuleIndex{};
     PendingTypeDataAction _pendingTypeDataAction{ PendingTypeDataAction::None };
     optional<size_t> _pendingTypeDataEmitterIndex{};
+    PendingClipboardAction _pendingClipboardAction{ PendingClipboardAction::None };
+    optional<size_t> _pendingClipboardEmitterIndex{};
+    optional<size_t> _pendingClipboardModuleIndex{};
 
 private: //## Data::ModulePicker
     optional<size_t> _modulePickerEmitterIndex{};
     bool _modulePickerPendingOpen{ false };
     char _modulePickerSearchBuffer[128]{};
+
+private: //## Data::Clipboard
+    AuthoringClipboardKind _clipboardKind{ AuthoringClipboardKind::None };
+    optional<AuthoringEmitter> _clipboardEmitter{};
+    optional<AuthoringModule> _clipboardModule{};
 
 private: //## Helper::AuthoringFactory
     // 새 emitter/module에 부여할 editor-local id를 발급한다.
@@ -156,6 +180,7 @@ private: //## Helper::AuthoringFactory
     // Cascade의 기본 더미 emitter 하나를 만든다.
     AuthoringEmitter Make_DefaultSpriteEmitter();
     AuthoringEmitter Clone_Emitter(const AuthoringEmitter& sourceEmitter);
+    AuthoringModule Clone_Module(const AuthoringModule& sourceModule);
     AuthoringModule Make_DefaultModuleByType(AuthoringModuleType type);
     AuthoringModule Make_RequiredModule();
     AuthoringModule Make_SpawnModule();
@@ -199,6 +224,22 @@ private: //## Helper::ModulePolicy
     bool Can_AddModuleType(const AuthoringEmitter& emitter, AuthoringModuleType type) const;
     // 선택 이미터에 새 optional 모듈을 추가하고 선택 상태를 갱신한다.
     void Add_Module(size_t emitterIndex, AuthoringModuleType type);
+
+private: //## Helper::Clipboard
+    void Copy_EmitterToClipboard(size_t emitterIndex);
+    void Copy_ModuleToClipboard(size_t emitterIndex, size_t moduleIndex);
+    bool Can_PasteEmitterAfter(size_t emitterIndex, string* disabledReason = nullptr) const;
+    bool Can_PasteEmitterToEnd(string* disabledReason = nullptr) const;
+    bool Can_PasteModuleInto(size_t emitterIndex, string* disabledReason = nullptr) const;
+    bool Can_PasteModuleValues(size_t emitterIndex, size_t moduleIndex, string* disabledReason = nullptr) const;
+    void Paste_EmitterAfter(size_t emitterIndex);
+    void Paste_EmitterToEnd();
+    void Paste_ModuleInto(size_t emitterIndex);
+    void Paste_ModuleValues(size_t emitterIndex, size_t moduleIndex);
+    void Notify_ClipboardStatus(const string& message, bool warning = false) const;
+    void Handle_Shortcuts();
+    void Process_PendingClipboardAction();
+    void Queue_ClipboardAction(PendingClipboardAction action, size_t emitterIndex, optional<size_t> moduleIndex = {});
 
 private: //## Helper::Selection
     void Clear_Selection();

@@ -1790,52 +1790,55 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     return definition;
 }
 
-EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmitterDefinition(const AuthoringEmitter& emitter) const
+EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(const AuthoringEmitter& emitter) const
 {
     EffectEmitterDefinition definition{};
     definition.id = emitter.id;
     definition.name = emitter.name;
-    definition.kind = EffectEmitterKind::SourceHistoryRibbon;
+    definition.kind = EffectEmitterKind::ComputeTrail;
     definition.enabled = emitter.enabled;
     definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
-    ComputeSourceHistoryRibbonEmitterDesc emitterDesc{};
+    ComputeTrailEmitterDesc emitterDesc{};
     emitterDesc.renderLayerOverride = definition.renderLayerOverride;
 
-    const SourceHistoryRibbonTypeData* sourceHistoryData = get_if<SourceHistoryRibbonTypeData>(&emitter.typeData.payload);
-    const SourceHistoryRibbonTypeData defaultSourceHistoryData{};
-    const SourceHistoryRibbonTypeData& sourceHistoryPolicy =
-        sourceHistoryData != nullptr ? *sourceHistoryData : defaultSourceHistoryData;
-
-    emitterDesc.maxSampleCount = max(2u, sourceHistoryPolicy.maxSampleCount);
-    emitterDesc.sampleSpacing = max(0.001f, sourceHistoryPolicy.sampleSpacing);
-    emitterDesc.sampleInterval = max(0.f, sourceHistoryPolicy.sampleInterval);
-    emitterDesc.maxLength = max(0.f, sourceHistoryPolicy.maxLength);
-    emitterDesc.tailFadeLength = max(0.f, sourceHistoryPolicy.tailFadeLength);
-    emitterDesc.baseWidth = max(0.001f, sourceHistoryPolicy.baseWidth);
-    emitterDesc.tilingDistance = max(0.f, sourceHistoryPolicy.tilingDistance);
-    emitterDesc.previewMotionPreset = Internal::Resolve_SourceHistoryPreviewMotionPreset(sourceHistoryPolicy.previewMotionPreset);
-    emitterDesc.previewMotionAxis = Internal::Resolve_SourceHistoryPreviewMotionAxis(sourceHistoryPolicy.previewMotionAxis);
-    emitterDesc.previewMotionAmplitude = max(0.f, sourceHistoryPolicy.previewMotionAmplitude);
-    emitterDesc.previewMotionSpeed = max(0.f, sourceHistoryPolicy.previewMotionSpeed);
+    if (const auto* trailData = get_if<TrailTypeData>(&emitter.typeData.payload))
+    {
+        emitterDesc.width = max(0.001f, trailData->width);
+        emitterDesc.segmentLifetime = max(0.001f, trailData->segmentLifetime);
+        emitterDesc.historyCount = max(2u, trailData->historyCount);
+        emitterDesc.uvTiling = max(0.001f, trailData->uvTiling);
+        emitterDesc.maxTrailLength = max(0.f, trailData->maxTrailLength);
+        emitterDesc.tailFadeLength = max(0.f, trailData->tailFadeLength);
+        emitterDesc.sampleSpacing = max(0.001f, trailData->sampleSpacing);
+        emitterDesc.curveSubdivision = max(0u, trailData->curveSubdivision);
+        emitterDesc.smoothTangent = trailData->smoothTangent;
+        emitterDesc.sideFade = clamp(trailData->sideFade, 0.001f, 0.49f);
+    }
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
         Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
-
-        emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
-        emitterDesc.sort.sortLayer = required->sortLayer;
-        emitterDesc.sort.artistSortBias = required->sortBias;
+        Engine::EffectRuntime::Apply_TrailMaterialRuntimePolicy(emitterDesc.material);
 
         emitterDesc.playback.duration = max(0.0001f, required->duration);
         emitterDesc.playback.loopCount = required->loopCount;
         emitterDesc.playback.delay = max(0.f, required->delay);
         emitterDesc.playback.delayFirstLoopOnly = required->delayFirstLoopOnly;
-        emitterDesc.playback.killOnDeactivate = required->killOnDeactivate;
-        emitterDesc.playback.killOnCompleted = required->killOnCompleted;
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
         definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
+        emitter,
+        AuthoringModuleType::MaterialScalarModulation
+    ))
+    {
+        emitterDesc.material.scalarModulation =
+            Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
+        emitterDesc.material.coreColorRgbModulation =
+            Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
     }
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
@@ -1844,7 +1847,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
             Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
-        emitterDesc.sampleLifetime = max(0.0001f, emitterDesc.lifetime.lifeTime.y);
+        emitterDesc.segmentLifetime = max(0.001f, emitterDesc.lifetime.lifeTime.y);
     }
 
     if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
@@ -1880,8 +1883,6 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
 
         emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
         emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
-        emitterDesc.initialColor.colorSeed = Internal::Build_RandomSeedDesc(initialColor->color);
-        emitterDesc.initialColor.alphaSeed = Internal::Build_RandomSeedDesc(initialColor->alpha);
         emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
         emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
     }
@@ -1919,14 +1920,23 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
 
         emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
-        emitterDesc.colorOverLife.colorSeed = Internal::Build_RandomSeedDesc(colorOverLife->colorOverLife);
-        emitterDesc.colorOverLife.alphaSeed = Internal::Build_RandomSeedDesc(colorOverLife->alphaOverLife);
         Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
     }
 
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
         Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
 
+    if (const auto* spawnPerUnit = Internal::Find_ModuleData<SpawnPerUnitModuleData>(emitter, AuthoringModuleType::SpawnPerUnit))
+    {
+        emitterDesc.spawnPerUnit.enabled = spawnPerUnit->enabled;
+        emitterDesc.spawnPerUnit.spawnPerUnit =
+            max(0.f, Internal::Evaluate_FloatDistributionMax(spawnPerUnit->spawnPerUnit, emitterDesc.spawnPerUnit.spawnPerUnit));
+        emitterDesc.spawnPerUnit.unitScalar = max(0.0001f, spawnPerUnit->unitScalar);
+        emitterDesc.spawnPerUnit.movementTolerance = max(0.f, spawnPerUnit->movementTolerance);
+        emitterDesc.spawnPerUnit.maxFrameDistance = max(0.f, spawnPerUnit->maxFrameDistance);
+    }
+
+    emitterDesc.sampleProvider = _trailPreviewSampleProvider;
     definition.concreteDesc = emitterDesc;
     return definition;
 }
@@ -2215,55 +2225,53 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewRibbonEmitterDefinition
     return definition;
 }
 
-EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(const AuthoringEmitter& emitter) const
+EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmitterDefinition(const AuthoringEmitter& emitter) const
 {
     EffectEmitterDefinition definition{};
     definition.id = emitter.id;
     definition.name = emitter.name;
-    definition.kind = EffectEmitterKind::ComputeTrail;
+    definition.kind = EffectEmitterKind::SourceHistoryRibbon;
     definition.enabled = emitter.enabled;
     definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
-    ComputeTrailEmitterDesc emitterDesc{};
+    ComputeSourceHistoryRibbonEmitterDesc emitterDesc{};
     emitterDesc.renderLayerOverride = definition.renderLayerOverride;
 
-    if (const auto* trailData = get_if<TrailTypeData>(&emitter.typeData.payload))
-    {
-        emitterDesc.width = max(0.001f, trailData->width);
-        emitterDesc.segmentLifetime = max(0.001f, trailData->segmentLifetime);
-        emitterDesc.historyCount = max(2u, trailData->historyCount);
-        emitterDesc.uvTiling = max(0.001f, trailData->uvTiling);
-        emitterDesc.maxTrailLength = max(0.f, trailData->maxTrailLength);
-        emitterDesc.tailFadeLength = max(0.f, trailData->tailFadeLength);
-        emitterDesc.sampleSpacing = max(0.001f, trailData->sampleSpacing);
-        emitterDesc.curveSubdivision = max(0u, trailData->curveSubdivision);
-        emitterDesc.smoothTangent = trailData->smoothTangent;
-        emitterDesc.sideFade = clamp(trailData->sideFade, 0.001f, 0.49f);
-    }
+    const SourceHistoryRibbonTypeData* sourceHistoryData = get_if<SourceHistoryRibbonTypeData>(&emitter.typeData.payload);
+    const SourceHistoryRibbonTypeData defaultSourceHistoryData{};
+    const SourceHistoryRibbonTypeData& sourceHistoryPolicy =
+        sourceHistoryData != nullptr ? *sourceHistoryData : defaultSourceHistoryData;
+
+    emitterDesc.maxSampleCount = max(2u, sourceHistoryPolicy.maxSampleCount);
+    emitterDesc.sampleSpacing = max(0.001f, sourceHistoryPolicy.sampleSpacing);
+    emitterDesc.sampleInterval = max(0.f, sourceHistoryPolicy.sampleInterval);
+    emitterDesc.maxLength = max(0.f, sourceHistoryPolicy.maxLength);
+    emitterDesc.tailFadeLength = max(0.f, sourceHistoryPolicy.tailFadeLength);
+    emitterDesc.baseWidth = max(0.001f, sourceHistoryPolicy.baseWidth);
+    emitterDesc.tilingDistance = max(0.f, sourceHistoryPolicy.tilingDistance);
+    emitterDesc.autoLifeFade = sourceHistoryPolicy.autoLifeFade;
+    emitterDesc.previewMotionPreset = Internal::Resolve_SourceHistoryPreviewMotionPreset(sourceHistoryPolicy.previewMotionPreset);
+    emitterDesc.previewMotionAxis = Internal::Resolve_SourceHistoryPreviewMotionAxis(sourceHistoryPolicy.previewMotionAxis);
+    emitterDesc.previewMotionAmplitude = max(0.f, sourceHistoryPolicy.previewMotionAmplitude);
+    emitterDesc.previewMotionSpeed = max(0.f, sourceHistoryPolicy.previewMotionSpeed);
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
         Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
-        Engine::EffectRuntime::Apply_TrailMaterialRuntimePolicy(emitterDesc.material);
+
+        emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
+        emitterDesc.sort.sortLayer = required->sortLayer;
+        emitterDesc.sort.artistSortBias = required->sortBias;
 
         emitterDesc.playback.duration = max(0.0001f, required->duration);
         emitterDesc.playback.loopCount = required->loopCount;
         emitterDesc.playback.delay = max(0.f, required->delay);
         emitterDesc.playback.delayFirstLoopOnly = required->delayFirstLoopOnly;
+        emitterDesc.playback.killOnDeactivate = required->killOnDeactivate;
+        emitterDesc.playback.killOnCompleted = required->killOnCompleted;
         definition.localPosition = required->emitterOrigin;
         definition.localRotationDegrees = required->emitterRotationDegrees;
         definition.useLocalSpace = required->useLocalSpace;
-    }
-
-    if (const auto* materialScalarModulation = Internal::Find_ModuleData<MaterialScalarModulationModuleData>(
-        emitter,
-        AuthoringModuleType::MaterialScalarModulation
-    ))
-    {
-        emitterDesc.material.scalarModulation =
-            Build_MaterialScalarModulationRuntimeDesc(*materialScalarModulation);
-        emitterDesc.material.coreColorRgbModulation =
-            Build_CoreColorRgbModulationRuntimeDesc(*materialScalarModulation);
     }
 
     if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
@@ -2272,7 +2280,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
             Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
             Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
         };
-        emitterDesc.segmentLifetime = max(0.001f, emitterDesc.lifetime.lifeTime.y);
+        emitterDesc.sampleLifetime = max(0.0001f, emitterDesc.lifetime.lifeTime.y);
     }
 
     if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
@@ -2308,6 +2316,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
 
         emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
         emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
+        emitterDesc.initialColor.colorSeed = Internal::Build_RandomSeedDesc(initialColor->color);
+        emitterDesc.initialColor.alphaSeed = Internal::Build_RandomSeedDesc(initialColor->alpha);
         emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
         emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
     }
@@ -2345,23 +2355,14 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
 
         emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
         emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+        emitterDesc.colorOverLife.colorSeed = Internal::Build_RandomSeedDesc(colorOverLife->colorOverLife);
+        emitterDesc.colorOverLife.alphaSeed = Internal::Build_RandomSeedDesc(colorOverLife->alphaOverLife);
         Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
     }
 
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
         Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
 
-    if (const auto* spawnPerUnit = Internal::Find_ModuleData<SpawnPerUnitModuleData>(emitter, AuthoringModuleType::SpawnPerUnit))
-    {
-        emitterDesc.spawnPerUnit.enabled = spawnPerUnit->enabled;
-        emitterDesc.spawnPerUnit.spawnPerUnit =
-            max(0.f, Internal::Evaluate_FloatDistributionMax(spawnPerUnit->spawnPerUnit, emitterDesc.spawnPerUnit.spawnPerUnit));
-        emitterDesc.spawnPerUnit.unitScalar = max(0.0001f, spawnPerUnit->unitScalar);
-        emitterDesc.spawnPerUnit.movementTolerance = max(0.f, spawnPerUnit->movementTolerance);
-        emitterDesc.spawnPerUnit.maxFrameDistance = max(0.f, spawnPerUnit->maxFrameDistance);
-    }
-
-    emitterDesc.sampleProvider = _trailPreviewSampleProvider;
     definition.concreteDesc = emitterDesc;
     return definition;
 }

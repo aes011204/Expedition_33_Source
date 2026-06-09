@@ -473,13 +473,14 @@ struct ComputeSourceHistoryRibbonEmitterDesc : public GameObject::GAMEOBJECT_DES
     float sampleInterval{ 0.f };   // 0보다 크면 정지/저속 source도 이 시간마다 sample을 보강한다.
     float sampleLifetime{ 0.35f }; // sample 하나가 strip 구성 후보로 남는 시간이다.
     float maxLength{ 0.f };        // head 기준 표시 가능한 최대 길이다. 0 이하면 제한하지 않는다.
-    float tailFadeLength{ 0.1f };  // maxLength 끝으로 갈수록 alpha를 줄이는 후보 값이다.
-    float baseWidth{ 1.f };        // SizeByLife를 곱하기 전 source history strip 기본 폭이다.
+    float tailFadeLength{ 0.f };   // maxLength 끝으로 갈수록 alpha를 줄이는 거리다. 0 이하면 끈다.
+    float baseWidth{ 0.3f };       // SizeByLife를 곱하기 전 source history strip 기본 폭이다.
     float tilingDistance{ 0.f };   // 0 이하면 visible length stretch, 양수면 거리 기준 texture 반복이다.
-    EffectSourceHistoryPreviewMotionPreset previewMotionPreset{ EffectSourceHistoryPreviewMotionPreset::Off }; // EffectEditor 검증용 source motion preset이다.
+    bool autoLifeFade{ false };    // sample age 기준 자동 alpha fade를 적용할지 결정한다.
+    EffectSourceHistoryPreviewMotionPreset previewMotionPreset{ EffectSourceHistoryPreviewMotionPreset::Line }; // EffectEditor 검증용 source motion preset이다.
     EffectSourceHistoryPreviewMotionAxis previewMotionAxis{ EffectSourceHistoryPreviewMotionAxis::X };          // preview motion 진행 축이다.
-    float previewMotionAmplitude{ 1.f };                                                                       // preview motion offset 크기다.
-    float previewMotionSpeed{ 1.f };                                                                           // one-shot 진행률 또는 loop 반복 속도다.
+    float previewMotionAmplitude{ 2.f };                                                                       // preview motion offset 크기다.
+    float previewMotionSpeed{ 3.f };                                                                           // one-shot 진행률 또는 loop 반복 속도다.
 };
 
 // mesh emitter가 Vec3 transform curve를 CPU instance update에서 평가하기 위한 payload다.

@@ -35,6 +35,7 @@ cbuffer RibbonComputeParams : register(b0)
     float g_TilingDistance;
     float g_VisibleLength;
     float4 g_AxisFallback;
+    float4 g_FadeParams; // x: auto life fade, y: max length, z: tail fade length, w: reserved
 };
 
 StructuredBuffer<RibbonSamplePayload> SampleData : register(t0);
@@ -76,6 +77,14 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float visibleLength = max(g_VisibleLength, 0.0001f);
     const float currentV = g_TilingDistance > 0.0f ? currentDistance / max(g_TilingDistance, 0.0001f) : currentDistance / visibleLength;
     const float nextV = g_TilingDistance > 0.0f ? nextDistance / max(g_TilingDistance, 0.0001f) : nextDistance / visibleLength;
+    const float lifeAlpha = g_FadeParams.x != 0.0f ? 1.0f - lifeProgress : 1.0f;
+    float lengthAlpha = 1.0f;
+    if (g_FadeParams.y > 0.0f && g_FadeParams.z > 0.0f)
+    {
+        const float fadeLength = max(g_FadeParams.z, 0.001f);
+        const float fadeStart = max(0.0f, g_FadeParams.y - fadeLength);
+        lengthAlpha = saturate((g_FadeParams.y - currentDistance) / max(g_FadeParams.y - fadeStart, 0.001f));
+    }
 
     RibbonInstanceVertex output = (RibbonInstanceVertex)0;
     output.previousPosition = float4(previous.currentWorldPosition.xyz, hasPreviousSample ? 1.0f : 0.0f);
@@ -90,7 +99,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
         lifeProgress,
         max(current.sampleParams.w, 0.001f),
         max(next.sampleParams.w, 0.001f),
-        1.0f - lifeProgress
+        lifeAlpha * lengthAlpha
     );
     OutputData[index] = output;
 }
