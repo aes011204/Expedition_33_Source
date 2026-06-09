@@ -1,4 +1,4 @@
-﻿#include "MEMaterialApplicator.h"
+#include "MEMaterialApplicator.h"
 #include "MEStaticMeshActor.h"
 #include "MEInstancedMeshActor.h"
 
@@ -71,7 +71,8 @@ void MEMaterialApplicator::Apply_MaterialFromJson(const fs::path& modelPath, con
 void MEMaterialApplicator::Apply_PassOverrideToModel(ModelCom& model, const string& modelFilename, Vec3 worldPos, const string& fullModelPath)
 {
     auto it = _scene->_modelOverrides.find(modelFilename);
-    int32 passIndex = (it != _scene->_modelOverrides.end()) ? it->second.passIndex : -1;
+    const ModelOverrideEntry* overrideEntry = (it != _scene->_modelOverrides.end()) ? &it->second : nullptr;
+    int32 passIndex = overrideEntry ? overrideEntry->passIndex : -1;
 
     uint32 matSize = static_cast<uint32>(model.Get_NumMaterials());
     for (uint32 i = 0; i < matSize; ++i)
@@ -84,9 +85,14 @@ void MEMaterialApplicator::Apply_PassOverrideToModel(ModelCom& model, const stri
 
         mat->Set_ForcedPassIndex(passIndex);
 
-        if (it != _scene->_modelOverrides.end())
+        if (overrideEntry && overrideEntry->hasMaterialCB)
         {
-            for (auto& [slotIdx, texPath] : it->second.textureSlots)
+            mat->Set_CB(overrideEntry->materialCB);
+        }
+
+        if (overrideEntry)
+        {
+            for (auto& [slotIdx, texPath] : overrideEntry->textureSlots)
             {
                 if (texPath.empty())
                 {
@@ -97,7 +103,7 @@ void MEMaterialApplicator::Apply_PassOverrideToModel(ModelCom& model, const stri
                 mat->Override_TextureSlot(slot, 0, String::ToWString(fullPath));
             }
 
-            if (it->second.passIndex == static_cast<int32>(VtxMeshPassIndex::LandscapeBlendPass))
+            if (overrideEntry->passIndex == static_cast<int32>(VtxMeshPassIndex::LandscapeBlendPass))
             {
                 auto& cb = mat->Get_CB();
                 cb.uvOffset = Vec2(worldPos.x, worldPos.z);
@@ -152,6 +158,13 @@ void MEMaterialApplicator::Apply_PassOverrideToModel(ModelCom& model, const stri
             }
         }
     }
+
+    if (overrideEntry && overrideEntry->HasMaterialBindingsOverride())
+    {
+        const string modelPathForJson = fullModelPath.empty() ? modelFilename : fullModelPath;
+        const string mapName = _scene ? String::ToString(_scene->_mapName) : string{};
+        model.From_Json(overrideEntry->BuildMaterialJson(modelPathForJson, mapName));
+    }
 }
 
 void MEMaterialApplicator::Apply_PassOverrides()
@@ -194,21 +207,13 @@ void MEMaterialApplicator::Apply_PassOverrides()
         }
 
         const string modelFilename = String::ToString(fs::path(obj->_instancedModelPath).filename().wstring());
-        Apply_PassOverrideToModel(*model, modelFilename);
+        Apply_PassOverrideToModel(*model, modelFilename, obj->_position, String::ToString(obj->_instancedModelPath));
     }
 }
 
 string MEMaterialApplicator::Resolve_BundleKey(const fs::path& modelPath) const
 {
-    string bundleKey = {};
-    if (!_scene->_modelFolder.empty())
-    {
-        bundleKey = String::ToString(_scene->_modelFolder);
-    }
-    else
-    {
-        bundleKey = String::ToString(modelPath.parent_path().filename().wstring());
-    }
+    string bundleKey = String::ToString(modelPath.parent_path().filename().wstring());
     transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
     return bundleKey;
 }

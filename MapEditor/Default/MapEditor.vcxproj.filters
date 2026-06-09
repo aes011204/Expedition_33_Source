@@ -127,6 +127,9 @@
     <Filter Include="07. MeshActor\WaterActor">
       <UniqueIdentifier>{4b77f76f-2587-4825-afd3-ef9aeb250d46}</UniqueIdentifier>
     </Filter>
+    <Filter Include="06. EditorUtil\SceneContext\MapModelSave">
+      <UniqueIdentifier>{e35e6deb-bf0e-4e90-b0ab-d46914f71a03}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">

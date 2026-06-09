@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Engine_Define.h"
 #include "Helper_String.h"
 #include "ShaderPassFinder.h"
@@ -27,6 +27,7 @@ namespace MapEditor
     inline constexpr uint32 g_iWinSizeY = 900u;
 
     inline const char* _mapSavePath = "../../../Client/Bin/Resources/Map/";
+    inline const char* _materialsPath = "../../../Client/Bin/Resources/Materials/";
     inline const char* _camDataPath = "../Bin/Resources/Json/CamData/";
     inline const WCHAR* _waterPath = L"../../../Client/Bin/Resources/Map/Water/";
 
@@ -99,6 +100,50 @@ namespace MapEditor
         return EObjectType::Fail;
     }
 
+    enum class EMapMaterialObjectKind
+    {
+        StaticMesh,
+        InstancedMesh,
+        Terrain,
+        Landscape,
+        Water,
+        Unsupported
+    };
+
+    inline const char* MapMaterialObjectKindName(EMapMaterialObjectKind kind)
+    {
+        return magic_enum::enum_name(kind).data();
+    }
+
+    inline EMapMaterialObjectKind MapMaterialObjectKindFromName(const string& name)
+    {
+        optional<EMapMaterialObjectKind> kind = magic_enum::enum_cast<EMapMaterialObjectKind>(name);
+        if (kind.has_value())
+        {
+            return kind.value();
+        }
+        return EMapMaterialObjectKind::Unsupported;
+    }
+
+    inline EMapMaterialObjectKind MapMaterialObjectKindFromObjectType(EObjectType type)
+    {
+        switch (type)
+        {
+        case EObjectType::StaticMesh:
+            return EMapMaterialObjectKind::StaticMesh;
+        case EObjectType::InstancedMesh:
+            return EMapMaterialObjectKind::InstancedMesh;
+        case EObjectType::Terrain:
+            return EMapMaterialObjectKind::Terrain;
+        case EObjectType::Landscape:
+            return EMapMaterialObjectKind::Landscape;
+        case EObjectType::Water:
+            return EMapMaterialObjectKind::Water;
+        default:
+            return EMapMaterialObjectKind::Unsupported;
+        }
+    }
+
     struct SnapSettings
     {
         float translate = 0.5f;
@@ -111,6 +156,22 @@ namespace MapEditor
         ShaderType shaderType = ShaderType::VtxMesh;
         int32 passIndex = -1;
         map<int32, string> textureSlots;
+        bool hasMaterialCB = false;
+        Engine::MaterialCB materialCB{};
+
+        bool hasMaterialBindings = false;
+        EMapMaterialObjectKind materialObjectKind = EMapMaterialObjectKind::Unsupported;
+        string baseBundleKey = {};
+        json materialBindingsJson = json::array();
+        json materialMetaJson = json::object();
+
+        bool HasLegacyOverride() const;
+        bool HasMaterialBindingsOverride() const;
+        bool HasAnyMaterialOverride() const;
+        void LoadLegacyMaterialJson(const json& root);
+        void LoadMaterialBindingsJson(const json& root);
+        json BuildMaterialJson(const string& modelPath, const string& mapName) const;
+        void ExportToNativeMaterial(const string& modelPath, const string& mapName) const;
     };
 
     inline constexpr pair<const char*, uint32> g_staticMeshPassOptions[] = {

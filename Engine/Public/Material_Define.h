@@ -78,6 +78,9 @@ struct TextureOverride
 
 struct MaterialInstanceOverride
 {
+    bool overrideTemplateEnabled = false;
+    MaterialShaderTemplate templateId = MaterialShaderTemplate::OpaquePBR;
+
     bool overrideRenderStateEnabled = false;
 
     MaterialRenderState renderState{};

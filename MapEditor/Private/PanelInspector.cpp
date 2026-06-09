@@ -1,10 +1,11 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "PanelInspector.h"
 #include "SceneContext.h"
 #include "MECamera.h"
 #include "CmdTransformObject.h"
 #include "CmdDeleteObject.h"
 #include "MEWaterActor.h"
+
 
 PanelInspector::PanelInspector(SceneContext* ctx, MECamera* camera)
     : MEWindow{ L"Inspector" }, _ctx{ ctx }, _camera{ camera }
@@ -216,6 +217,8 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
         {
             string pathStr = String::ToString(obj->_modelPath);
             ImGui::TextDisabled("%s", pathStr.empty() ? "(없음)" : pathStr.c_str());
+            
+            DrawMaterialOverrides(obj);
         }
         break;
 
@@ -291,19 +294,19 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
 
             if (ImGui::ColorEdit4("Diffuse", diffuse))
             {
-                obj->_lightDiffuse = { diffuse[0],  diffuse[1],  diffuse[2],  diffuse[3] };
+                obj->_lightDiffuse = Vec4{ diffuse[0],  diffuse[1],  diffuse[2],  diffuse[3] };
                 _ctx->_lightDirty = true;
             }
 
             if (ImGui::ColorEdit4("Ambient", ambient))
             {
-                obj->_lightAmbient = { ambient[0],  ambient[1],  ambient[2],  ambient[3] };
+                obj->_lightAmbient = Vec4{ ambient[0],  ambient[1],  ambient[2],  ambient[3] };
                 _ctx->_lightDirty = true;
             }
 
             if (ImGui::ColorEdit4("Specular", specular))
             {
-                obj->_lightSpecular = { specular[0], specular[1], specular[2], specular[3] };
+                obj->_lightSpecular = Vec4{ specular[0], specular[1], specular[2], specular[3] };
                 _ctx->_lightDirty = true;
             }
 
@@ -312,7 +315,7 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
                 float dir[3] = { obj->_lightDirection.x, obj->_lightDirection.y, obj->_lightDirection.z };
                 if (ImGui::DragFloat3("Direction", dir, 0.01f, -1.f, 1.f))
                 {
-                    obj->_lightDirection = { dir[0], dir[1], dir[2], 0.f };
+                    obj->_lightDirection = Vec4{ dir[0], dir[1], dir[2], 0.f };
                     _ctx->_lightDirty = true;
                 }
             }
@@ -497,4 +500,66 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
 Shared<PanelInspector> PanelInspector::Create(SceneContext* ctx, MECamera* camera)
 {
     return make_shared<PanelInspector>(ctx, camera);
+}
+
+void PanelInspector::DrawMaterialOverrides(Shared<EditorObject>& obj)
+{
+    if (obj->_type != EObjectType::StaticMesh && obj->_type != EObjectType::InstancedMesh)
+    {
+        return;
+    }
+
+    string pathStr = String::ToString((obj->_type == EObjectType::StaticMesh) ? obj->_modelPath : obj->_instancedModelPath);
+    if (pathStr.empty())
+    {
+        return;
+    }
+
+    string filename = fs::path(pathStr).filename().string();
+    ImGui::Separator();
+    ImGui::Text("Material Overrides");
+    
+    auto it = _ctx->_modelOverrides.find(filename);
+    bool hasOverride = (it != _ctx->_modelOverrides.end() && it->second.hasMaterialCB);
+    
+    if (ImGui::Checkbox("Enable Custom Material", &hasOverride))
+    {
+        _ctx->_modelOverrides[filename].hasMaterialCB = hasOverride;
+        _ctx->_dirtyPassOverrides = true;
+    }
+    
+    if (hasOverride)
+    {
+        auto& cb = _ctx->_modelOverrides[filename].materialCB;
+        bool matChanged = false;
+        
+        float baseColor[4] = { cb.baseColorTint.x, cb.baseColorTint.y, cb.baseColorTint.z, cb.baseColorTint.w };
+        if (ImGui::ColorEdit4("Base Tint", baseColor))
+        {
+            cb.baseColorTint = Vec4(baseColor[0], baseColor[1], baseColor[2], baseColor[3]);
+            matChanged = true;
+        }
+        
+        float emissiveColor[4] = { cb.emissiveColor.x, cb.emissiveColor.y, cb.emissiveColor.z, cb.emissiveColor.w };
+        if (ImGui::ColorEdit4("Emissive Color", emissiveColor))
+        {
+            cb.emissiveColor = Vec4(emissiveColor[0], emissiveColor[1], emissiveColor[2], emissiveColor[3]);
+            matChanged = true;
+        }
+        
+        if (ImGui::DragFloat("Emissive Intensity", &cb.emissiveIntensity, 0.1f, 0.f, 100.f)) matChanged = true;
+        if (ImGui::DragFloat("Roughness Scale", &cb.roughnessScale, 0.05f, 0.f, 5.f)) matChanged = true;
+        if (ImGui::DragFloat("Metallic Scale", &cb.metalnessScale, 0.05f, 0.f, 5.f)) matChanged = true;
+        
+        if (matChanged)
+        {
+            _ctx->_dirtyPassOverrides = true;
+        }
+
+        ImGui::Separator();
+        if (ImGui::Button("Export to .material.json", ImVec2(-1, 0)))
+        {
+            _ctx->_modelOverrides[filename].ExportToNativeMaterial(String::ToString(obj->_modelPath), String::ToString(_ctx->_mapName));
+        }
+    }
 }

@@ -265,11 +265,25 @@ bool MaterialBuilder::Try_LoadBundleAsset(const fs::path& bundlePath, BundleAsse
     outAsset.materialIndexToAssetName.clear();
     outAsset.instancesByAssetName.clear();
 
-    // 현재 저장 포맷은 번들 파일 위치를 기준으로 Resources 루트를 알아낸다.
-    // e.g., Resources/Materials/lunebody.material.json 이면 resourceRoot = Resources
-    const fs::path resourceRoot = bundlePath.has_parent_path()
-        ? bundlePath.parent_path().parent_path()
-        : fs::path{};
+    // 현재 저장 포맷은 텍스처 경로를 Resources 기준 상대경로로 저장한다.
+    // Materials/<map>/<model>.material.json처럼 폴더가 깊어져도 Resources 루트를 찾아 기준을 유지한다.
+    fs::path resourceRoot{};
+    for (fs::path cursor = bundlePath.parent_path(); !cursor.empty(); cursor = cursor.parent_path())
+    {
+        const string folderName = String::ToLowerCopy(String::ToString(cursor.filename().wstring()));
+        if (folderName == "resources")
+        {
+            resourceRoot = cursor;
+            break;
+        }
+    }
+
+    if (resourceRoot.empty())
+    {
+        resourceRoot = bundlePath.has_parent_path()
+            ? bundlePath.parent_path().parent_path()
+            : fs::path{};
+    }
 
     if (root.contains("instances") && root["instances"].is_array())
     {
@@ -393,6 +407,17 @@ bool MaterialBuilder::Try_ApplyMaterialBindingsFromJson(ModelCom& model, const j
 
         const json& instJson = item["instance_override"];
         MaterialInstanceOverride& inst = binding.instance;
+        inst.overrideTemplateEnabled =
+            ParseBool(instJson.value("override_template_enabled", inst.overrideTemplateEnabled), inst.overrideTemplateEnabled);
+        if (inst.overrideTemplateEnabled)
+        {
+            const uint32 templateValue = instJson.value(
+                "template",
+                instJson.value("template_id", static_cast<uint32>(inst.templateId)));
+            if (templateValue < static_cast<uint32>(MaterialShaderTemplate::END))
+                inst.templateId = static_cast<MaterialShaderTemplate>(templateValue);
+        }
+
         inst.forcedPassIndex = static_cast<int32>(instJson.value("force_pass_index", inst.forcedPassIndex));
         if (inst.forcedPassIndex < 0 && instJson.contains("forcePassIndex"))
             inst.forcedPassIndex = static_cast<int32>(instJson.value("forcePassIndex", inst.forcedPassIndex));

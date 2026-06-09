@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Client_Defines.h"
 #include "CollisionProxy_Types.h"
+#include "MapAdapter.h"
 #include <mutex>
 
 NS_BEGIN(Engine)
@@ -16,11 +17,7 @@ class MapStaticMesh;
 class MapLoader final
 {
 public:
-    struct ModelOverrideEntry
-    {
-        int32 passIndex = -1;
-        unordered_map<int32, string> textureSlots;
-    };
+    using ModelOverrideEntry = MapAdapter::ModelOverrideEntry;
 
     struct LoadSession
     {
@@ -34,12 +31,15 @@ public:
         unordered_map<string, ModelOverrideEntry> modelOverrides;
         vector<json> staticMeshes = {};
         vector<json> instancedMeshes = {};
+        vector<json> postProcessVolumes = {};
+        vector<json> waters = {};
         vector<json> prefabInstances = {};
         vector<string> preloadModelPaths = {};
 
         size_t nextPreloadModelIndex = 0;
         size_t nextStaticMeshIndex = 0;
         size_t nextInstancedMeshIndex = 0;
+        size_t nextWaterIndex = 0;
         size_t nextPrefabInstanceIndex = 0;
 
         umap<string, Shared<ModelCom>> preloadedModelCache = {};
@@ -54,6 +54,8 @@ public:
         bool preloadModelsDone = false;
         bool staticMeshesDone = false;
         bool instancedMeshesDone = false;
+        bool postProcessVolumesDone = false;
+        bool watersDone = false;
         bool prefabInstancesDone = false;
 
         chrono::milliseconds beginSessionDuration{ 0 };
@@ -112,6 +114,14 @@ public:
     static void Clear_GlobalCache();
 
 private:
+    static HRESULT Try_BeginMapInstanceSession(
+        const ComPtr<Device>& device,
+        const ComPtr<Context>& context,
+        const wstring& filePath,
+        uint32 levelIndex,
+        const wstring& layerTag,
+        LoadSession& outSession);
+
     static void Prepare_StaticAutoInstancing(LoadSession& session);
     static void ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry = nullptr);
 
@@ -144,7 +154,6 @@ private:
     static std::mutex g_globalCacheMutex;
     static umap<string, Shared<ModelCom>> g_globalModelCache;
     static umap<string, Shared<StaticCollisionData>> g_globalCollisionCache;
-    static umap<string, std::vector<std::pair<uint32, std::string>>> g_globalMaterialBindingCache;
     static uint32 g_currentLevelIndex;
 };
 

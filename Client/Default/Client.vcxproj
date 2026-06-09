@@ -223,6 +223,7 @@
     <ClInclude Include="..\Public\EffectInstancePool.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
+    <ClInclude Include="..\Public\MapAdapter.h" />
     <ClInclude Include="..\Public\PreviewRimFeature.h" />
     <ClInclude Include="..\Public\MapWater.h" />
     <ClInclude Include="..\public\Mon_WeakPoint.h" />
@@ -506,6 +507,7 @@
     <ClCompile Include="..\private\BT_Stun.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />
+    <ClCompile Include="..\Private\MapAdapter.cpp" />
     <ClCompile Include="..\Private\MapWater.cpp" />
     <ClCompile Include="..\Private\Mon_WeakPoint.cpp" />
     <ClCompile Include="..\Private\SkyBoxFlow.cpp" />

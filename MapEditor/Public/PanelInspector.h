@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "MEWindow.h"
 
 NS_BEGIN(MapEditor)
@@ -36,6 +36,7 @@ private:
 private:
     void DrawTransform(Shared<EditorObject>& obj);
     void DrawZoneShape(Shared<EditorObject>& obj);
+    void DrawMaterialOverrides(Shared<EditorObject>& obj);
     void DrawTypeParams(Shared<EditorObject>& obj);
 
 public:

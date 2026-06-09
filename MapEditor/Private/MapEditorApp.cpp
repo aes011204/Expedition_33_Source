@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "MapEditorApp.h"
 #include "GameInstance.h"
 #include "RenderTarget.h"
@@ -571,6 +571,16 @@ void MapEditorApp::RebuildOctreeIfDirty()
                 BoundingBox::CreateFromPoints(localBox, localMin, localMax);
                 localBox.Transform(worldBox, model->Get_PreLocalTransformMatrix() * obj->_worldMatrix);
             }
+            else
+            {
+                worldBox.Center = obj->_position;
+                worldBox.Extents = Vec3(0.01f, 0.01f, 0.01f);
+            }
+        }
+        else
+        {
+            worldBox.Center = obj->_position;
+            worldBox.Extents = Vec3(0.01f, 0.01f, 0.01f);
         }
         worldAABBs.push_back(worldBox);
     }
