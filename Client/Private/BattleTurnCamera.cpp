@@ -318,6 +318,7 @@ void BattleTurnCamera::Reset_RuntimeState()
     _enemySpawnDescs.clear();
     _hasWideAnchor = false;
     _wideAnchorHeroCenter = Vec3::Zero;
+    _battlePlaneYawDegrees = 0.f;
     _wideAnchorYawDegrees = 0.f;
     _isClipPreview = false;
     _isFirstUpdate = true;
@@ -674,15 +675,38 @@ bool BattleTurnCamera::Evaluate_ShotRequestPose(
             return false;
 
         const Vec3 subjectPos = request.subject->Get_Transform()->Get_WorldPosition();
+        const float yawBase = Resolve_YawBaseForPresetMode(request);
         return Evaluate_BattleTurnPresetPose(
             subjectPos,
             preset,
             clipSample,
-            _yaw,
+            yawBase,
             _pitch,
             smoothedTargetPos,
             clipTime,
             outPose);
+    }
+}
+
+float BattleTurnCamera::Resolve_BattlePlaneYaw() const
+{
+    return _battlePlaneYawDegrees;
+}
+
+float BattleTurnCamera::Resolve_YawBaseForPresetMode(const BattleShotRequest& request) const
+{
+    switch (request.mode)
+    {
+    case BattleCameraMode::PLAYERFOCUS:
+    case BattleCameraMode::ENEMYFOCUS:
+    case BattleCameraMode::PLAYERATTACK:
+    case BattleCameraMode::SELECTITEM:
+    case BattleCameraMode::SELECTSKILL:
+    case BattleCameraMode::PARRY:
+        return Resolve_BattlePlaneYaw();
+
+    default:
+        return _yaw;
     }
 }
 
@@ -723,11 +747,12 @@ bool BattleTurnCamera::Start_PoseTransition(
 
     if (shouldUseFrozenSelectItemPose)
     {
+        const float yawBase = Resolve_YawBaseForPresetMode(request);
         if (!Evaluate_CurrentPresetPose(
             _poseTransition.frozenSubjectPos,
             preset,
             BattleCameraClipSample{},
-            _yaw,
+            yawBase,
             _pitch,
             &targetSmoothedTargetPos,
             toPose))
@@ -780,11 +805,12 @@ void BattleTurnCamera::Update_PoseTransition(float timeDelta)
         _poseTransition.targetRequest.mode == BattleCameraMode::SELECTITEM &&
         _poseTransition.hasFrozenPos)
     {
+        const float yawBase = Resolve_YawBaseForPresetMode(_poseTransition.targetRequest);
         hasClippedTargetPose = Evaluate_CurrentPresetPose(
             _poseTransition.frozenSubjectPos,
             _poseTransition.targetPreset,
             clipSample,
-            _yaw,
+            yawBase,
             _pitch,
             &_poseTransition.targetSmoothedTargetPos,
             clippedTargetPose);
@@ -1095,7 +1121,8 @@ void BattleTurnCamera::Update_FromCurrentPreset(float timeDelta)
         _smoothedTargetPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
     
     EvaluatedPose pose{};
-    Evaluate_CurrentPresetPose(_smoothedTargetPos, _currentPreset, clip, _yaw, _pitch, &_smoothedTargetPos, pose);
+    const float yawBase = Resolve_YawBaseForPresetMode(_currentRequest);
+    Evaluate_CurrentPresetPose(_smoothedTargetPos, _currentPreset, clip, yawBase, _pitch, &_smoothedTargetPos, pose);
     Apply_RuntimeShake(pose,timeDelta);
     Apply_EvaluatedPose(pose);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
@@ -1240,7 +1267,8 @@ void BattleTurnCamera::Preview_CurrentPresetAtTime(float time)
     const Vec3 targetPos = _currentRequest.subject->Get_Transform()->Get_WorldPosition();
 
     EvaluatedPose pose{};
-    Evaluate_CurrentPresetPose(targetPos, _currentPreset, clipSample, _yaw, _pitch, nullptr, pose);
+    const float yawBase = Resolve_YawBaseForPresetMode(_currentRequest);
+    Evaluate_CurrentPresetPose(targetPos, _currentPreset, clipSample, yawBase, _pitch, nullptr, pose);
     Apply_EvaluatedPose(pose);
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 }
