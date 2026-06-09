@@ -48,11 +48,21 @@ private:
     {
         Vec3 position{};       // Ribbon self-particle chain의 world 위치다.
         Vec3 velocity{};       // sample 이동 갱신에 사용할 world velocity다.
+        Vec3 acceleration{};   // sample별 acceleration 분포 평가 결과다.
+        float drag{};          // sample별 drag 분포 평가 결과다.
         float age{};           // sample 생성 이후 누적 시간이다.
         float lifetime{ 1.f }; // sample별 최대 생존 시간이다.
         float distance{};      // head 기준 누적 거리 UV 계산값이다.
         Vec4 startColor{};     // InitialColor에서 평가된 시작 색이다.
         Vec4 endColor{};       // ColorOverLife fallback 끝 색이다.
+        uint32 seed{};         // sample별 deterministic random sample seed다.
+    };
+
+    struct PlaneRadialSample
+    {
+        bool enabled{ false }; // PlaneRadialLocation이 실제 sample frame을 만들었는지 나타낸다.
+        Vec3 localOffset{};    // 기존 location module과 더할 emitter-local offset이다.
+        Vec3 radialDirection{ 1.f, 0.f, 0.f };
     };
 
     struct RibbonRenderSample
@@ -119,6 +129,7 @@ private:
     float _materialElapsedTime{};                           // material UV scroll/scalar modulation 시간이다.
     float _visibleRibbonLength{ 1.f };                      // 현재 표시 render chain 길이다.
     uint32 _drawSegmentCount{};                             // 이번 frame draw segment 수다.
+    uint32 _nextSampleIndex{};                              // deterministic spawn seed에 사용할 sample index다.
 
     Shared<ShaderCom> _shader{};                            // ribbon draw shader다.
     Shared<ComputeShaderCom> _computeShader{};              // ribbon strip payload compute shader다.
@@ -147,7 +158,7 @@ private:
     HRESULT Ready_DrawBuffers();                               // draw용 point/index/instance buffer를 만든다.
     HRESULT Ready_ComputeBuffers();                            // compute 입출력/args buffer를 만든다.
     void Update_Samples(float timeDelta);                      // self-particle chain spawn/update/prune을 수행한다.
-    void Spawn_RibbonSample();                                 // 현재 desc 평균값 기준으로 ribbon sample 하나를 chain head에 추가한다.
+    void Spawn_RibbonSample(uint32 placementIndex, uint32 placementCount); // seed 기반으로 ribbon sample 하나를 chain head에 추가한다.
     void Build_RenderSamples(vector<RibbonRenderSample>& outSamples) const; // raw chain을 tessellated render sample로 변환한다.
     HRESULT Dispatch_Compute();                                // render sample chain을 ribbon instance payload로 낮춘다.
     HRESULT Update_ComputeInput();                             // CPU render sample chain을 compute 입력으로 업로드한다.
@@ -169,6 +180,33 @@ private:
     const wchar_t* Resolve_ShaderId() const;                   // material family에 맞는 draw shader id를 반환한다.
     uint32 Resolve_ShaderPassIndex() const;                    // material family와 blend mode에 맞는 shader pass index를 반환한다.
     int Resolve_OpacitySourceIndex() const;                    // opacity source 문자열을 shader index로 변환한다.
+
+    float Sample_SpawnDistribution(const Vec2& range, const PointParticleRandomSeedRuntimeDesc& seed, uint32 salt) const;
+    Vec3 Sample_InitialOffset(uint32 seed, uint32 placementIndex, uint32 placementCount, PlaneRadialSample& outPlaneRadialSample) const;
+    Vec3 Sample_InitialVelocity(const Vec3& spawnPosition, const PlaneRadialSample& planeRadialSample, uint32 seed) const;
+    Vec3 Sample_Acceleration(uint32 seed) const;
+    float Sample_Drag(uint32 seed) const;
+    Vec4 Sample_Color(
+        const Vec4& minColor,
+        const Vec4& maxColor,
+        const PointParticleRandomSeedRuntimeDesc& colorSeedDesc,
+        const PointParticleRandomSeedRuntimeDesc& alphaSeedDesc,
+        uint32 seed) const;
+    float Evaluate_VelocityScaleByLife(float lifeProgress) const;
+    Vec3 Evaluate_AccelerationByLife(const RibbonSample& sample, float lifeProgress) const;
+    Vec4 Evaluate_ColorOverLife(const RibbonSample& sample, float lifeProgress) const;
+    float Evaluate_WidthScaleByLife(float lifeProgress) const;
+    float Evaluate_CompactCurve(
+        float lifeProgress,
+        const Vec4& times,
+        const Vec4& timesBlock1,
+        const Vec4& values,
+        const Vec4& valuesBlock1,
+        uint32 keyCount,
+        float fallbackValue) const;
+    Vec3 Resolve_LocalVector(const Vec3& localVector) const;
+    float Random01(uint32 seed) const;
+    float RandomRange(float minValue, float maxValue, uint32 seed) const;
 
 public:
     static Shared<ComputeRibbonEmitter> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

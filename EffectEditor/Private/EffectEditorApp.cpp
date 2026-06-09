@@ -12,7 +12,7 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr long long kStartupResourceInfoThresholdMs = 50;
+    constexpr long long kStartupResourceInfoThresholdMs = 200;
 
     bool Is_EffectEditorStaticLevelAllowed(const wstring& prototypeTag)
     {
@@ -584,16 +584,6 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
         if (jobElapsedMs >= Internal::kStartupResourceInfoThresholdMs)
         {
             LOG_INFO(
-                "[StartupResourceTiming] scope=Static type={} tag={} elapsed_ms={} path={}",
-                string(magic_enum::enum_name(loadJob.eType)),
-                String::ToString(loadJob.strPrototypeTag),
-                jobElapsedMs,
-                String::ToString(loadJob.strPath)
-            );
-        }
-        else
-        {
-            LOG_DEBUG(
                 "[StartupResourceTiming] scope=Static type={} tag={} elapsed_ms={} path={}",
                 string(magic_enum::enum_name(loadJob.eType)),
                 String::ToString(loadJob.strPrototypeTag),

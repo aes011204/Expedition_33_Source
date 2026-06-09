@@ -2828,7 +2828,7 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
                 ? "커브 편집"
                 : canConvertCurve
                   ? "커브로 전환 후 편집"
-                  : "이 모듈에서는 커브 분포가 아직 지원되지 않습니다"
+                  : "이 모듈에서는 커브 분포가 지원되지 않습니다"
             );
         }
         if (ImGui::BeginPopup("ConvertCurvesPopup"))

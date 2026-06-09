@@ -1030,7 +1030,7 @@ void Detail_View::Render_TypeDataDetail(
             }
         }
 
-        ImGui::TextDisabled("Ribbon TypeData는 preview/runtime에 연결됩니다. Link Order는 현재 v1 single-chain에서 BirthOrder/SpawnOrder가 동일 처리됩니다.");
+        ImGui::TextDisabled("Link Order는 현재 BirthOrder/SpawnOrder가 동일 처리됩니다.");
         break;
     }
     case AuthoringTypeDataKind::None:

@@ -108,19 +108,112 @@ static EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeCoreColorRgbModulati
     return material;
 }
 
-static Vec4 Average_Color(const Vec4& minColor, const Vec4& maxColor)
+constexpr float kPlaneRadialEpsilon = 1e-4f;
+
+static float Read_Vec4Component(const Vec4& values, uint32 index)
 {
-    return (minColor + maxColor) * 0.5f;
+    switch (index)
+    {
+    case 0: return values.x;
+    case 1: return values.y;
+    case 2: return values.z;
+    case 3: return values.w;
+    default: return values.x;
+    }
 }
 
-static Vec3 Average_Vector(const Vec3& minValue, const Vec3& maxValue)
+static float Read_Vec4Component(const Vec4& valuesBlock0, const Vec4& valuesBlock1, uint32 index)
 {
-    return (minValue + maxValue) * 0.5f;
+    if (index < 4u)
+        return Read_Vec4Component(valuesBlock0, index);
+
+    return Read_Vec4Component(valuesBlock1, index - 4u);
 }
 
 static Vec4 Lerp_Vector4(const Vec4& from, const Vec4& to, float ratio)
 {
     return from + (to - from) * ratio;
+}
+
+static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
+{
+    uint32 salt = seed.manualSeedEnabled ? seed.seed : 0u;
+    if (seed.useInstanceSeed)
+        salt += effectPlaybackSeed;
+    return salt;
+}
+
+static float Hash01(uint32 seed)
+{
+    seed ^= 2747636419u;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
+}
+
+static float Resolve_EvenByParticleIndexAngleRatio(uint32 placementIndex, uint32 placementCount, float angleMinDegrees, float angleMaxDegrees)
+{
+    const uint32 clampedCount = max(1u, placementCount);
+    if (clampedCount <= 1u)
+        return 0.f;
+
+    const float angleSpanDegrees = fabsf(angleMaxDegrees - angleMinDegrees);
+    const bool isFullCircle = fabsf(angleSpanDegrees - 360.f) <= kPlaneRadialEpsilon;
+    if (isFullCircle)
+        return static_cast<float>(placementIndex) / static_cast<float>(clampedCount);
+
+    return static_cast<float>(placementIndex) / static_cast<float>(clampedCount - 1u);
+}
+
+static Vec3 Resolve_EvenByParticleIndexSphereDirection(uint32 placementIndex, uint32 placementCount)
+{
+    const uint32 clampedCount = max(1u, placementCount);
+    if (clampedCount <= 1u)
+        return Vec3{ 0.f, 0.f, 1.f };
+
+    const uint32 clampedIndex = placementIndex % clampedCount;
+    const float ratio = (static_cast<float>(clampedIndex) + 0.5f) / static_cast<float>(clampedCount);
+    const float z = 1.f - 2.f * ratio;
+    const float radiusOnPlane = sqrtf(max(0.f, 1.f - z * z));
+    const float goldenAngle = XM_PI * (3.f - sqrtf(5.f));
+    const float angle = static_cast<float>(clampedIndex) * goldenAngle;
+
+    return Vec3{
+        cosf(angle) * radiusOnPlane,
+        sinf(angle) * radiusOnPlane,
+        z
+    };
+}
+
+static Vec3 Normalize_OrFallback(const Vec3& value, const Vec3& fallback)
+{
+    if (value.LengthSquared() <= kPlaneRadialEpsilon * kPlaneRadialEpsilon)
+        return fallback;
+
+    Vec3 result = value;
+    result.Normalize();
+    return result;
+}
+
+static void Resolve_PlaneRadialBasis(PointParticlePlaneRadialLocationPlane plane, Vec3& axisU, Vec3& axisV, Vec3& planeNormal)
+{
+    axisU = Vec3{ 1.f, 0.f, 0.f };
+    axisV = Vec3{ 0.f, 1.f, 0.f };
+    planeNormal = Vec3{ 0.f, 0.f, 1.f };
+
+    if (plane == PointParticlePlaneRadialLocationPlane::XZ)
+    {
+        axisV = Vec3{ 0.f, 0.f, 1.f };
+        planeNormal = Vec3{ 0.f, 1.f, 0.f };
+    }
+    else if (plane == PointParticlePlaneRadialLocationPlane::YZ)
+    {
+        axisU = Vec3{ 0.f, 1.f, 0.f };
+        axisV = Vec3{ 0.f, 0.f, 1.f };
+        planeNormal = Vec3{ 1.f, 0.f, 0.f };
+    }
 }
 
 static wstring Resolve_RibbonTexturePathByGuid(const string& textureGuid)
@@ -287,6 +380,7 @@ HRESULT ComputeRibbonEmitter::Reset_ForEffectReplay()
     _materialElapsedTime = 0.f;
     _visibleRibbonLength = 1.f;
     _drawSegmentCount = 0u;
+    _nextSampleIndex = 0u;
 
     if (nullptr != _computeArgsOutput)
         CHECK_FAILED(Reset_IndirectArgs(), E_FAIL);
@@ -671,7 +765,15 @@ void ComputeRibbonEmitter::Update_Samples(float timeDelta)
     for (RibbonSample& sample : _samples)
     {
         sample.age += safeDeltaTime;
-        sample.position += sample.velocity * safeDeltaTime;
+        const float lifeProgress = clamp(sample.age / max(sample.lifetime, 0.0001f), 0.f, 1.f);
+        const float velocityScale = Evaluate_VelocityScaleByLife(lifeProgress);
+        const Vec3 acceleration = Evaluate_AccelerationByLife(sample, lifeProgress) * velocityScale;
+        sample.velocity += acceleration * safeDeltaTime;
+
+        if (sample.drag > 0.f)
+            sample.velocity *= expf(-sample.drag * safeDeltaTime);
+
+        sample.position += sample.velocity * velocityScale * safeDeltaTime;
     }
 
     _samples.erase(
@@ -690,7 +792,9 @@ void ComputeRibbonEmitter::Update_Samples(float timeDelta)
     const auto& particleSpawn = _desc.spawn.particleSpawn;
     if (particleSpawn.processSpawnRate)
     {
-        const float spawnRate = max(0.f, particleSpawn.spawnRate * particleSpawn.spawnRateScale);
+        const float sampledSpawnRate = Sample_SpawnDistribution(particleSpawn.spawnRateRange, particleSpawn.spawnRateSeed, 0x31B7u);
+        const float sampledSpawnRateScale = Sample_SpawnDistribution(particleSpawn.spawnRateScaleRange, particleSpawn.spawnRateScaleSeed, 0x45D9u);
+        const float spawnRate = max(0.f, sampledSpawnRate * sampledSpawnRateScale);
         _spawnAccumulator += spawnRate * safeDeltaTime;
         const float wholeSpawn = floorf(_spawnAccumulator + 0.0001f);
         if (wholeSpawn > 0.f)
@@ -712,7 +816,13 @@ void ComputeRibbonEmitter::Update_Samples(float timeDelta)
             if (_burstExecuted[index] || activeElapsedTime < burst.time)
                 continue;
 
-            spawnRequest += burst.count;
+            const float sampledBurstScale = Sample_SpawnDistribution(
+                particleSpawn.burstScaleRange,
+                particleSpawn.burstScaleSeed,
+                static_cast<uint32>(0xB851u + index * 131u)
+            );
+            const float scaledCount = static_cast<float>(burst.count) * max(0.f, sampledBurstScale);
+            spawnRequest += static_cast<uint32>(floorf(scaledCount));
             _burstExecuted[index] = true;
         }
     }
@@ -726,7 +836,7 @@ void ComputeRibbonEmitter::Update_Samples(float timeDelta)
     spawnRequest = min(spawnRequest, room);
 
     for (uint32 index = 0; index < spawnRequest; ++index)
-        Spawn_RibbonSample();
+        Spawn_RibbonSample(index, max(1u, spawnRequest));
 
     if (!_samples.empty())
     {
@@ -745,25 +855,42 @@ void ComputeRibbonEmitter::Update_Samples(float timeDelta)
                            : 1.f;
 }
 
-void ComputeRibbonEmitter::Spawn_RibbonSample()
+void ComputeRibbonEmitter::Spawn_RibbonSample(uint32 placementIndex, uint32 placementCount)
 {
     RibbonSample sample{};
+    PlaneRadialSample planeRadialSample{};
+    const uint32 sampleIndex = _nextSampleIndex++;
+    const uint32 emitterSeed = _emitterId * 104729u;
+    const uint32 seed = sampleIndex * 9781u + _loopIndex * 7919u + emitterSeed + 1u;
     const Vec3 ownerPosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
-    Vec3 localOffset{};
-    if (_desc.initialLocation.enabled)
-        localOffset += Internal::Average_Vector(_desc.initialLocation.minOffset, _desc.initialLocation.maxOffset);
-    if (_desc.sphereLocation.enabled)
-        localOffset += _desc.sphereLocation.offset;
+    const Vec3 spawnOffset = Sample_InitialOffset(seed, placementIndex, max(1u, placementCount), planeRadialSample);
+    const Vec3 spawnPosition = ownerPosition + spawnOffset;
+    const float lifeMin = max(0.0001f, min(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
+    const float lifeMax = max(lifeMin, max(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y));
+    const uint32 lifetimeSeed = seed + Internal::Resolve_SeedSalt(_desc.lifetimeSeed, _effectPlaybackSeed);
 
-    sample.position = ownerPosition + localOffset;
-    sample.velocity = _desc.motion.initialVelocityEnabled
-                      ? Internal::Average_Vector(_desc.motion.initialVelocityMin, _desc.motion.initialVelocityMax)
-                      : Vec3{};
+    sample.position = spawnPosition;
+    sample.velocity = Sample_InitialVelocity(spawnPosition, planeRadialSample, seed + 23u);
+    sample.acceleration = Sample_Acceleration(seed + 29u);
+    sample.drag = Sample_Drag(seed + 31u);
     sample.age = 0.f;
-    sample.lifetime = max(0.0001f, _desc.lifetime.lifeTime.y);
+    sample.lifetime = RandomRange(lifeMin, lifeMax, lifetimeSeed + 11u);
     sample.distance = 0.f;
-    sample.startColor = Internal::Average_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax);
-    sample.endColor = Internal::Average_Color(_desc.colorOverLife.endColorMin, _desc.colorOverLife.endColorMax);
+    sample.startColor = Sample_Color(
+        _desc.initialColor.startColorMin,
+        _desc.initialColor.startColorMax,
+        _desc.initialColor.colorSeed,
+        _desc.initialColor.alphaSeed,
+        seed + 47u
+    );
+    sample.endColor = Sample_Color(
+        _desc.colorOverLife.endColorMin,
+        _desc.colorOverLife.endColorMax,
+        _desc.colorOverLife.colorSeed,
+        _desc.colorOverLife.alphaSeed,
+        seed + 53u
+    );
+    sample.seed = seed;
 
     _samples.insert(_samples.begin(), sample);
     while (static_cast<uint32>(_samples.size()) > _desc.maxSampleCount)
@@ -867,15 +994,14 @@ HRESULT ComputeRibbonEmitter::Update_ComputeInput()
     {
         const RibbonSample& sample = renderSamples[index].sample;
         const float lifeProgress = clamp(sample.age / max(sample.lifetime, 0.0001f), 0.f, 1.f);
-        const float widthScale = _desc.sizeByLife.enabled
-                                 ? lerp(_desc.sizeByLife.multiplyXStart, _desc.sizeByLife.multiplyXEnd, lifeProgress)
-                                 : 1.f;
+        const float widthScale = Evaluate_WidthScaleByLife(lifeProgress);
+        const Vec4 currentColor = Evaluate_ColorOverLife(sample, lifeProgress);
 
         RibbonSamplePayload payload{};
         payload.currentWorldPosition = Vec4(sample.position.x, sample.position.y, sample.position.z, 1.f);
         payload.sampleParams = Vec4(sample.age, sample.lifetime, renderSamples[index].distanceFromHead, max(0.001f, widthScale));
-        payload.startColor = sample.startColor;
-        payload.endColor = sample.endColor;
+        payload.startColor = currentColor;
+        payload.endColor = currentColor;
         payloads.push_back(payload);
     }
 
@@ -1101,6 +1227,436 @@ uint32 ComputeRibbonEmitter::Compute_MaxRenderSegmentCount() const
     return maxRawSegments * kMaxDistanceTessellationSubdivision;
 }
 
+float ComputeRibbonEmitter::Sample_SpawnDistribution(
+    const Vec2& range,
+    const PointParticleRandomSeedRuntimeDesc& seed,
+    uint32 salt) const
+{
+    const float minValue = min(range.x, range.y);
+    const float maxValue = max(range.x, range.y);
+    if (minValue == maxValue)
+        return minValue;
+
+    const uint32 baseSeed = (_loopIndex + 1u) * 9781u + salt + Internal::Resolve_SeedSalt(seed, _effectPlaybackSeed);
+    return lerp(minValue, maxValue, Internal::Hash01(baseSeed));
+}
+
+Vec3 ComputeRibbonEmitter::Sample_InitialOffset(
+    uint32 seed,
+    uint32 placementIndex,
+    uint32 placementCount,
+    PlaneRadialSample& outPlaneRadialSample) const
+{
+    Vec3 offset{};
+
+    if (_desc.initialLocation.enabled)
+    {
+        const uint32 locationSeed = seed + Internal::Resolve_SeedSalt(_desc.initialLocationSeed, _effectPlaybackSeed);
+        offset += Vec3{
+            RandomRange(_desc.initialLocation.minOffset.x, _desc.initialLocation.maxOffset.x, locationSeed + 1u),
+            RandomRange(_desc.initialLocation.minOffset.y, _desc.initialLocation.maxOffset.y, locationSeed + 2u),
+            RandomRange(_desc.initialLocation.minOffset.z, _desc.initialLocation.maxOffset.z, locationSeed + 3u)
+        };
+    }
+
+    if (_desc.sphereLocation.enabled && _desc.sphereLocation.radius > 0.f)
+    {
+        const uint32 sphereSeed = seed + Internal::Resolve_SeedSalt(_desc.sphereLocationSeed, _effectPlaybackSeed);
+        Vec3 direction{};
+        const bool useEvenSurfacePlacement =
+            _desc.sphereLocation.mode == PointParticleSphereLocationMode::Surface &&
+            _desc.sphereLocation.placementMode == PointParticleSphereLocationPlacementMode::EvenByParticleIndex;
+        if (useEvenSurfacePlacement)
+            direction = Internal::Resolve_EvenByParticleIndexSphereDirection(placementIndex, placementCount);
+        else
+        {
+            const float z = RandomRange(-1.f, 1.f, sphereSeed + 5u);
+            const float angle = XM_2PI * Random01(sphereSeed + 7u);
+            const float radiusOnPlane = sqrtf(max(0.f, 1.f - z * z));
+            direction = Vec3{
+                cosf(angle) * radiusOnPlane,
+                sinf(angle) * radiusOnPlane,
+                z
+            };
+        }
+
+        float radius = _desc.sphereLocation.radius;
+        if (_desc.sphereLocation.mode == PointParticleSphereLocationMode::Volume)
+            radius *= cbrtf(Random01(sphereSeed + 9u));
+
+        offset += _desc.sphereLocation.offset + direction * radius;
+    }
+
+    if (_desc.planeRadialLocation.enabled)
+    {
+        Vec3 axisU{};
+        Vec3 axisV{};
+        Vec3 planeNormal{};
+        Internal::Resolve_PlaneRadialBasis(_desc.planeRadialLocation.plane, axisU, axisV, planeNormal);
+
+        float u = 0.f;
+        float v = 0.f;
+        float sampleAngle = 0.f;
+        if (_desc.planeRadialLocation.shape == PointParticlePlaneRadialLocationShape::Rectangle)
+        {
+            u = RandomRange(
+                _desc.planeRadialLocation.uRange.x,
+                _desc.planeRadialLocation.uRange.y,
+                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.uSeed, _effectPlaybackSeed) + 1601u
+            );
+            v = RandomRange(
+                _desc.planeRadialLocation.vRange.x,
+                _desc.planeRadialLocation.vRange.y,
+                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.vSeed, _effectPlaybackSeed) + 1613u
+            );
+            sampleAngle = atan2f(v, u);
+        }
+        else
+        {
+            const float radiusMin = min(_desc.planeRadialLocation.radiusRange.x, _desc.planeRadialLocation.radiusRange.y);
+            const float radiusMax = max(_desc.planeRadialLocation.radiusRange.x, _desc.planeRadialLocation.radiusRange.y);
+            const float angleMinDegrees = _desc.planeRadialLocation.angleDegreesRange.x;
+            const float angleMaxDegrees = _desc.planeRadialLocation.angleDegreesRange.y;
+            const float angleMin = XMConvertToRadians(angleMinDegrees);
+            const float angleMax = XMConvertToRadians(angleMaxDegrees);
+            const float radius = RandomRange(
+                radiusMin,
+                radiusMax,
+                seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.radiusSeed, _effectPlaybackSeed) + 1601u
+            );
+            const float angleRatio = _desc.planeRadialLocation.placementMode == PointParticlePlaneRadialLocationPlacementMode::EvenByParticleIndex
+                                     ? Internal::Resolve_EvenByParticleIndexAngleRatio(
+                                         placementIndex,
+                                         placementCount,
+                                         angleMinDegrees,
+                                         angleMaxDegrees
+                                     )
+                                     : Random01(seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.angleDegreesSeed, _effectPlaybackSeed) + 1613u);
+            sampleAngle = lerp(angleMin, angleMax, angleRatio);
+            u = cosf(sampleAngle) * radius;
+            v = sinf(sampleAngle) * radius;
+        }
+
+        const float thickness = max(0.f, _desc.planeRadialLocation.thickness);
+        const float normalOffset = thickness > 0.0001f ? (Random01(seed + 1621u) - 0.5f) * thickness : 0.f;
+        const Vec3 radialVector = axisU * u + axisV * v;
+        const Vec3 fallbackRadial = Internal::Normalize_OrFallback(axisU * cosf(sampleAngle) + axisV * sinf(sampleAngle), axisU);
+        outPlaneRadialSample.enabled = true;
+        outPlaneRadialSample.localOffset = _desc.planeRadialLocation.offset + radialVector + planeNormal * normalOffset;
+        outPlaneRadialSample.radialDirection = Internal::Normalize_OrFallback(radialVector, fallbackRadial);
+        offset += outPlaneRadialSample.localOffset;
+    }
+
+    return Resolve_LocalVector(offset);
+}
+
+Vec3 ComputeRibbonEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, const PlaneRadialSample& planeRadialSample, uint32 seed) const
+{
+    Vec3 velocity{};
+    const uint32 initialVelocitySeed = seed + Internal::Resolve_SeedSalt(_desc.motion.initialVelocitySeed, _effectPlaybackSeed);
+    const uint32 initialRadialVelocitySeed = seed + Internal::Resolve_SeedSalt(_desc.motion.initialRadialVelocitySeed, _effectPlaybackSeed);
+    const uint32 velocityConeSeed = seed + Internal::Resolve_SeedSalt(_desc.motion.velocityConeSeed, _effectPlaybackSeed);
+
+    if (_desc.motion.initialVelocityEnabled)
+    {
+        const Vec3 sampledVelocity{
+            RandomRange(_desc.motion.initialVelocityMin.x, _desc.motion.initialVelocityMax.x, initialVelocitySeed + 1u),
+            RandomRange(_desc.motion.initialVelocityMin.y, _desc.motion.initialVelocityMax.y, initialVelocitySeed + 2u),
+            RandomRange(_desc.motion.initialVelocityMin.z, _desc.motion.initialVelocityMax.z, initialVelocitySeed + 3u)
+        };
+        velocity += _desc.motion.initialVelocityInWorldSpace ? sampledVelocity : Resolve_LocalVector(sampledVelocity);
+    }
+
+    if (_desc.motion.initialRadialVelocityEnabled)
+    {
+        const Vec3 radialPivotOffset = _desc.motion.initialRadialVelocityInWorldSpace
+                                       ? _desc.motion.radialPivot
+                                       : Resolve_LocalVector(_desc.motion.radialPivot);
+        const Vec3 emitterPosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
+        const Vec3 pivotPosition = emitterPosition + radialPivotOffset;
+        Vec3 radialDirection = spawnPosition - pivotPosition;
+        if (radialDirection.LengthSquared() < 0.0001f)
+        {
+            if (_desc.motion.initialRadialVelocityCenterDirectionMode ==
+                PointParticleInitialRadialVelocityCenterDirectionMode::PlaneRadial &&
+                planeRadialSample.enabled)
+                radialDirection = Resolve_LocalVector(planeRadialSample.radialDirection);
+            else
+            {
+                radialDirection = Resolve_LocalVector(
+                    Vec3{
+                        Random01(initialRadialVelocitySeed + 307u) * 2.f - 1.f,
+                        0.25f,
+                        Random01(initialRadialVelocitySeed + 401u) * 2.f - 1.f
+                    }
+                );
+            }
+        }
+        radialDirection.Normalize();
+
+        const float radialSpeed = RandomRange(
+            min(_desc.motion.radialSpeed.x, _desc.motion.radialSpeed.y),
+            max(_desc.motion.radialSpeed.x, _desc.motion.radialSpeed.y),
+            initialRadialVelocitySeed + 5u
+        );
+        velocity += radialDirection * radialSpeed;
+    }
+
+    if (_desc.motion.velocityConeEnabled)
+    {
+        const Vec3 axis = Internal::Normalize_OrFallback(_desc.motion.velocityConeAxis, Vec3{ 0.f, 1.f, 0.f });
+        Vec3 sampledDirection = axis;
+        const float angleDegrees = clamp(_desc.motion.velocityConeAngleDegrees, 0.f, 180.f);
+        if (angleDegrees > 0.0001f)
+        {
+            const float cosMax = cosf(XMConvertToRadians(angleDegrees));
+            const float cosTheta = lerp(1.f, cosMax, Random01(velocityConeSeed + 1703u));
+            const float sinTheta = sqrtf(max(0.f, 1.f - cosTheta * cosTheta));
+            const float phi = XM_2PI * Random01(velocityConeSeed + 1721u);
+            const Vec3 helper = fabsf(axis.y) < 0.999f ? Vec3{ 0.f, 1.f, 0.f } : Vec3{ 1.f, 0.f, 0.f };
+            Vec3 tangent = helper.Cross(axis);
+            tangent.Normalize();
+            const Vec3 bitangent = axis.Cross(tangent);
+            sampledDirection = axis * cosTheta + (tangent * cosf(phi) + bitangent * sinf(phi)) * sinTheta;
+        }
+
+        const Vec3 coneDirection = _desc.motion.velocityConeInWorldSpace
+                                   ? sampledDirection
+                                   : Resolve_LocalVector(sampledDirection);
+        const float coneSpeed = RandomRange(
+            min(_desc.motion.velocityConeSpeed.x, _desc.motion.velocityConeSpeed.y),
+            max(_desc.motion.velocityConeSpeed.x, _desc.motion.velocityConeSpeed.y),
+            velocityConeSeed + 1747u
+        );
+        velocity += coneDirection * coneSpeed;
+    }
+
+    return velocity;
+}
+
+Vec3 ComputeRibbonEmitter::Sample_Acceleration(uint32 seed) const
+{
+    const uint32 accelerationSeed = seed + Internal::Resolve_SeedSalt(_desc.motion.accelerationSeed, _effectPlaybackSeed);
+    const Vec3 sampledAcceleration{
+        RandomRange(_desc.motion.accelerationMin.x, _desc.motion.accelerationMax.x, accelerationSeed + 1u),
+        RandomRange(_desc.motion.accelerationMin.y, _desc.motion.accelerationMax.y, accelerationSeed + 2u),
+        RandomRange(_desc.motion.accelerationMin.z, _desc.motion.accelerationMax.z, accelerationSeed + 3u)
+    };
+    return Resolve_LocalVector(sampledAcceleration);
+}
+
+float ComputeRibbonEmitter::Sample_Drag(uint32 seed) const
+{
+    const float minDrag = min(_desc.motion.drag.x, _desc.motion.drag.y);
+    const float maxDrag = max(_desc.motion.drag.x, _desc.motion.drag.y);
+    const uint32 dragSeed = seed + Internal::Resolve_SeedSalt(_desc.motion.dragSeed, _effectPlaybackSeed);
+    return max(0.f, RandomRange(minDrag, maxDrag, dragSeed));
+}
+
+Vec4 ComputeRibbonEmitter::Sample_Color(
+    const Vec4& minColor,
+    const Vec4& maxColor,
+    const PointParticleRandomSeedRuntimeDesc& colorSeedDesc,
+    const PointParticleRandomSeedRuntimeDesc& alphaSeedDesc,
+    uint32 seed) const
+{
+    const uint32 colorSeed = seed + Internal::Resolve_SeedSalt(colorSeedDesc, _effectPlaybackSeed);
+    const uint32 alphaSeed = seed + Internal::Resolve_SeedSalt(alphaSeedDesc, _effectPlaybackSeed);
+    return Vec4{
+        RandomRange(min(minColor.x, maxColor.x), max(minColor.x, maxColor.x), colorSeed + 1u),
+        RandomRange(min(minColor.y, maxColor.y), max(minColor.y, maxColor.y), colorSeed + 2u),
+        RandomRange(min(minColor.z, maxColor.z), max(minColor.z, maxColor.z), colorSeed + 3u),
+        RandomRange(min(minColor.w, maxColor.w), max(minColor.w, maxColor.w), alphaSeed + 4u)
+    };
+}
+
+float ComputeRibbonEmitter::Evaluate_VelocityScaleByLife(float lifeProgress) const
+{
+    const float fallbackScale = lerp(_desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, lifeProgress);
+    const float curveScale = Evaluate_CompactCurve(
+        lifeProgress,
+        _desc.motion.velocityScaleByLifeCurveTimes,
+        _desc.motion.velocityScaleByLifeCurveTimesBlock1,
+        _desc.motion.velocityScaleByLifeCurveValues,
+        _desc.motion.velocityScaleByLifeCurveValuesBlock1,
+        _desc.motion.velocityScaleByLifeCurveKeyCount,
+        fallbackScale
+    );
+    return max(0.f, curveScale);
+}
+
+Vec3 ComputeRibbonEmitter::Evaluate_AccelerationByLife(const RibbonSample& sample, float lifeProgress) const
+{
+    if (!_desc.motion.accelerationCurveEnabled)
+        return sample.acceleration;
+
+    const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, _desc.motion.accelerationCurveKeyCount));
+    const Vec3 acceleration{
+        Evaluate_CompactCurve(
+            lifeProgress,
+            _desc.motion.accelerationCurveTimes,
+            _desc.motion.accelerationCurveTimesBlock1,
+            _desc.motion.accelerationCurveValuesX,
+            _desc.motion.accelerationCurveValuesXBlock1,
+            keyCount,
+            sample.acceleration.x
+        ),
+        Evaluate_CompactCurve(
+            lifeProgress,
+            _desc.motion.accelerationCurveTimes,
+            _desc.motion.accelerationCurveTimesBlock1,
+            _desc.motion.accelerationCurveValuesY,
+            _desc.motion.accelerationCurveValuesYBlock1,
+            keyCount,
+            sample.acceleration.y
+        ),
+        Evaluate_CompactCurve(
+            lifeProgress,
+            _desc.motion.accelerationCurveTimes,
+            _desc.motion.accelerationCurveTimesBlock1,
+            _desc.motion.accelerationCurveValuesZ,
+            _desc.motion.accelerationCurveValuesZBlock1,
+            keyCount,
+            sample.acceleration.z
+        )
+    };
+    return Resolve_LocalVector(acceleration);
+}
+
+Vec4 ComputeRibbonEmitter::Evaluate_ColorOverLife(const RibbonSample& sample, float lifeProgress) const
+{
+    Vec4 color = {
+        lerp(sample.startColor.x, sample.endColor.x, lifeProgress),
+        lerp(sample.startColor.y, sample.endColor.y, lifeProgress),
+        lerp(sample.startColor.z, sample.endColor.z, lifeProgress),
+        lerp(sample.startColor.w, sample.endColor.w, lifeProgress)
+    };
+
+    const PointParticleColorOverLifeCurveDesc& curve = _desc.colorOverLife.curve;
+    if (curve.colorCurveEnabled)
+    {
+        const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, curve.colorCurveKeyCount));
+        color.x = Evaluate_CompactCurve(
+            lifeProgress,
+            curve.colorCurveTimes,
+            curve.colorCurveTimesBlock1,
+            curve.colorCurveValuesR,
+            curve.colorCurveValuesRBlock1,
+            keyCount,
+            color.x
+        );
+        color.y = Evaluate_CompactCurve(
+            lifeProgress,
+            curve.colorCurveTimes,
+            curve.colorCurveTimesBlock1,
+            curve.colorCurveValuesG,
+            curve.colorCurveValuesGBlock1,
+            keyCount,
+            color.y
+        );
+        color.z = Evaluate_CompactCurve(
+            lifeProgress,
+            curve.colorCurveTimes,
+            curve.colorCurveTimesBlock1,
+            curve.colorCurveValuesB,
+            curve.colorCurveValuesBBlock1,
+            keyCount,
+            color.z
+        );
+    }
+
+    if (curve.alphaCurveEnabled)
+    {
+        const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, curve.alphaCurveKeyCount));
+        color.w = Evaluate_CompactCurve(
+            lifeProgress,
+            curve.alphaCurveTimes,
+            curve.alphaCurveTimesBlock1,
+            curve.alphaCurveValues,
+            curve.alphaCurveValuesBlock1,
+            keyCount,
+            color.w
+        );
+    }
+
+    color.w = clamp(color.w, 0.f, 1.f);
+    return color;
+}
+
+float ComputeRibbonEmitter::Evaluate_WidthScaleByLife(float lifeProgress) const
+{
+    if (!_desc.sizeByLife.enabled)
+        return 1.f;
+
+    const float fallbackScale = lerp(_desc.sizeByLife.multiplyXStart, _desc.sizeByLife.multiplyXEnd, lifeProgress);
+    const float curveScale = Evaluate_CompactCurve(
+        lifeProgress,
+        _desc.sizeByLife.curveKeyTimes,
+        _desc.sizeByLife.curveKeyTimesBlock1,
+        _desc.sizeByLife.curveKeyValuesX,
+        _desc.sizeByLife.curveKeyValuesXBlock1,
+        _desc.sizeByLife.curveKeyCount,
+        fallbackScale
+    );
+    return _desc.sizeByLife.multiplyX ? max(0.f, curveScale) : 1.f;
+}
+
+float ComputeRibbonEmitter::Evaluate_CompactCurve(
+    float lifeProgress,
+    const Vec4& times,
+    const Vec4& timesBlock1,
+    const Vec4& values,
+    const Vec4& valuesBlock1,
+    uint32 keyCount,
+    float fallbackValue) const
+{
+    const uint32 clampedKeyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, keyCount));
+    if (clampedKeyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, timesBlock1, 0u))
+        return Internal::Read_Vec4Component(values, valuesBlock1, 0u);
+
+    for (uint32 index = 1u; index < clampedKeyCount; ++index)
+    {
+        const float rightTime = Internal::Read_Vec4Component(times, timesBlock1, index);
+        if (lifeProgress > rightTime)
+            continue;
+
+        const float leftTime = Internal::Read_Vec4Component(times, timesBlock1, index - 1u);
+        const float ratio = clamp((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime), 0.f, 1.f);
+        return lerp(
+            Internal::Read_Vec4Component(values, valuesBlock1, index - 1u),
+            Internal::Read_Vec4Component(values, valuesBlock1, index),
+            ratio
+        );
+    }
+
+    return lifeProgress > Internal::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
+           ? Internal::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
+           : fallbackValue;
+}
+
+Vec3 ComputeRibbonEmitter::Resolve_LocalVector(const Vec3& localVector) const
+{
+    if (_transformCom == nullptr)
+        return localVector;
+
+    return _transformCom->Get_WorldRight() * localVector.x +
+           _transformCom->Get_WorldUp() * localVector.y +
+           _transformCom->Get_WorldForward() * localVector.z;
+}
+
+float ComputeRibbonEmitter::Random01(uint32 seed) const
+{
+    return Internal::Hash01(seed);
+}
+
+float ComputeRibbonEmitter::RandomRange(float minValue, float maxValue, uint32 seed) const
+{
+    if (minValue > maxValue)
+        std::swap(minValue, maxValue);
+
+    return lerp(minValue, maxValue, Random01(seed));
+}
+
 void ComputeRibbonEmitter::Start_NextLoop()
 {
     ++_loopIndex;
@@ -1110,6 +1666,7 @@ void ComputeRibbonEmitter::Start_NextLoop()
     _burstExecuted.assign(_desc.spawn.particleSpawn.bursts.size(), false);
     _spawnAccumulator = 0.f;
     _drawSegmentCount = 0u;
+    _nextSampleIndex = 0u;
 }
 
 float ComputeRibbonEmitter::Resolve_CurrentLoopDelay() const
