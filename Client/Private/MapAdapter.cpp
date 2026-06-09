@@ -202,6 +202,15 @@ namespace
         }
     }
 
+    void UpsertMaterialModelJson(
+        unordered_map<string, MapAdapter::ModelOverrideEntry>& outOverrides,
+        const string& modelKey,
+        json modelJson)
+    {
+        MapAdapter::ModelOverrideEntry& entry = outOverrides[modelKey];
+        entry.modelJson = std::move(modelJson);
+    }
+
     bool TryResolveModelKeyFromMaterialJson(const json& root, const fs::path& materialPath, string& outModelKey)
     {
         outModelKey.clear();
@@ -231,9 +240,7 @@ namespace
         if (!TryResolveModelKeyFromMaterialJson(root, materialPath, modelKey))
             return true;
 
-        MapAdapter::ModelOverrideEntry overrideEntry;
-        overrideEntry.modelJson = root;
-        outOverrides[modelKey] = std::move(overrideEntry);
+        UpsertMaterialModelJson(outOverrides, modelKey, root);
         return true;
     }
 
@@ -364,12 +371,10 @@ namespace
             materialBindings.push_back(std::move(binding));
         }
 
-        MapAdapter::ModelOverrideEntry overrideEntry;
         json modelJson = json::object();
         modelJson["material_bindings"] = std::move(materialBindings);
-        overrideEntry.modelJson = std::move(modelJson);
 
-        outOverrides[modelKey] = overrideEntry;
+        UpsertMaterialModelJson(outOverrides, modelKey, std::move(modelJson));
         return true;
     }
 

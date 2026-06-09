@@ -1542,7 +1542,17 @@ Shared<EditorObject> SceneContext::Duplicate(const Shared<EditorObject>& src)
         return nullptr;
     }
     auto copy = make_shared<EditorObject>(*src);
-    copy->_name = src->_name + L"_Copy";
+    for (int32 i = 1;; ++i)
+    {
+        const wstring candidate = src->_name + L"_" + to_wstring(i);
+        const bool exists = any_of(_objects.begin(), _objects.end(),
+            [&candidate](const Shared<EditorObject>& obj) { return obj && obj->_name == candidate; });
+        if (!exists)
+        {
+            copy->_name = candidate;
+            break;
+        }
+    }
     Add(copy);
     return copy;
 }
