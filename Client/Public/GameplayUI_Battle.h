@@ -73,7 +73,7 @@ private:
     void    Handle_ActionStarted(const BattleAction& action);
     void    Handle_DamageApplied(const DamageAppliedInfo& info);
     void    Handle_HealApplied(const BattleChar& target, float healAmount);
-    void    Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const vector<BattleChar>& target);
+    void    Handle_ReactionSucceeded(BattleReactionType reactionType, const vector<BattleChar>& target);
     void    Handle_BattleApChanged(const BattleChar& actor, uint32 amount, EAPChangeReason reason);
     void    Handle_QTEStarted(const BattleQTERequest& request);
     void    Handle_QTEResolved(BattleQTEResult result);

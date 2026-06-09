@@ -202,6 +202,7 @@
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
     <ClInclude Include="..\Public\BattleStartSpawner.h" />
     <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
+    <ClInclude Include="..\Public\BattleTutorialController.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
     <ClInclude Include="..\Public\Battle_Event.h" />
@@ -501,6 +502,7 @@
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
     <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
+    <ClCompile Include="..\Private\BattleTutorialController.cpp" />
     <ClCompile Include="..\private\BT_IsStun.cpp" />
     <ClCompile Include="..\private\BT_LookRange.cpp" />
     <ClCompile Include="..\private\BT_Stun.cpp" />

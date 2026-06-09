@@ -63,6 +63,14 @@ void BattleSpawnRegistry::Update_SpawnPose(const Shared<GameObject>& object)
     }
 }
 
+void BattleSpawnRegistry::Visit_SpawnedObjects(const function<void(const BattleEntry&)>& visitor) const
+{
+    for (auto& entry : _spawnedObjects)
+    {
+        visitor(entry);
+    }
+}
+
 const BattleSpawnRegistry::BattleEntry* BattleSpawnRegistry::Find_SpawnEntry(const Shared<GameObject>& object) const
 {
     if (object == nullptr)

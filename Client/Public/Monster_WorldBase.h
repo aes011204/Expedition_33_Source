@@ -73,8 +73,8 @@ public:
     Vec3  Get_BattleStartOffset() const { return _battleStartOffset; }
     void  Set_BattleStartOffset(const Vec3& offset) { _battleStartOffset = offset; }
 
-    uint32 Get_BattleFieldId() const { return _battleFieldId; }
-    void   Set_BattleFieldId(uint32 fieldId) { _battleFieldId = fieldId; }
+    uint32 Get_BattleFieldId() const { return _battleEncounter; }
+    void   Set_BattleFieldId(uint32 fieldId) { _battleEncounter = fieldId; }
 
 protected:
     virtual HRESULT Ready_Components();
@@ -111,8 +111,7 @@ protected:
     int32 _battleStartSpawnerId = 0; // 배틀 시작 스포너 ID
     Vec3  _battleStartOffset = Vec3::Zero; // MW 프리팹에서 플레이어 기준 몬스터 시작 위치를 조절한다.
 
-    // 배틀필드 Id -> 이거로 튜토리얼 판정
-    uint32 _battleFieldId = 1;
+    uint32 _battleEncounter = 1;
 
 public:
     void Free() override;

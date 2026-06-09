@@ -773,4 +773,27 @@ namespace Client
         }
     };
 
+    // 튜토리얼 순서
+    enum class BattleTutorialStep
+    {
+        None,
+        PlayerTurn,
+        Attack,
+        EnemyTurn,
+        Dodge,
+        Parry,
+        Counter,
+        FreeAim,
+        QTE,
+        END
+    };
+
+    struct BattleTutorialRequest
+    {
+        BattleTutorialStep step = BattleTutorialStep::None;
+        bool pauseBattle = true; // 튜토리얼 표시 중, Model을 멈출것인지
+        bool blockInput = true;  // 입력은?
+        float delaySec = 0.f;    // 연출과 겹치지 않게, 튜토리얼 표시 늦출 때
+    };
+
 }

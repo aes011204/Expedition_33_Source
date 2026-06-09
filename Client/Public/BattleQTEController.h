@@ -2,11 +2,23 @@
 
 #include "Base.h"
 #include "Battle_Enum.h"
+#include "Delegate.h"
 
 NS_BEGIN(Client)
 
 class BattleQTEController final : public Base
 {
+public:
+    DECLARE_DELEGATE(
+        FOnQTEStarted,
+        const BattleQTERequest& /*QTE UI/튜토리얼이 표시 위치, 시간, perfect 구간 */
+    );
+
+    DECLARE_DELEGATE(
+        FOnQTEResolved,
+        BattleQTEResult /*QTE 성공/실패 확정 결과.*/
+    );
+
 public:
     BattleQTEController() = default;
     ~BattleQTEController() override = default;
@@ -26,6 +38,10 @@ public:
 
 private:
     bool Is_ValidResult(BattleQTEResult result) const;
+
+public:
+    FOnQTEStarted OnQTEStarted;
+    FOnQTEResolved OnQTEResolved;
 
 private:
     BattleQTERequest _activeRequest{};

@@ -1,4 +1,4 @@
-#include "BattleQTEController.h"
+﻿#include "BattleQTEController.h"
 
 HRESULT BattleQTEController::Initialize()
 {
@@ -12,6 +12,8 @@ void BattleQTEController::Begin(const BattleQTERequest& request)
     _lastResult = BattleQTEResult::None;
     _hasLastResult = false;
     _isActive = true;
+
+    OnQTEStarted.Broadcast(_activeRequest);
 }
 
 bool BattleQTEController::Resolve(BattleQTEResult result)
@@ -26,6 +28,7 @@ bool BattleQTEController::Resolve(BattleQTEResult result)
     _lastResult = result;
     _hasLastResult = true;
 
+    OnQTEResolved.Broadcast(result);
     return true;
 }
 
@@ -67,6 +70,9 @@ Shared<BattleQTEController> BattleQTEController::Create()
 
 void BattleQTEController::Free()
 {
+    OnQTEStarted.Clear();
+    OnQTEResolved.Clear();
+
     Clear();
     Base::Free();
 }

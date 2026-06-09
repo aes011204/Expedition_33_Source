@@ -16,6 +16,10 @@ void BattleReactionController::OpenWindow(BattleReactionType type)
         _isDodgeOpen = true;
     else if (type == BattleReactionType::Parry)
         _isParryOpen = true;
+    else
+        return;
+
+    OnReactionWindowOpened.Broadcast(type);
 }
 
 void BattleReactionController::CloseWindow(BattleReactionType type)
@@ -87,6 +91,19 @@ bool BattleReactionController::TryConsume(BattleReactionType& outResult, uint32 
     Clear();
 
     return outResult == BattleReactionType::Dodge || outResult == BattleReactionType::Parry;
+}
+
+bool BattleReactionController::TryConsumeGuard(const BattleChar& target, uint32 stepIndex)
+{
+    if (target.actor == nullptr || target.statCom == nullptr)
+        return false;
+
+    if (!target.statCom->Is_Player())
+        return false;
+
+    BattleReactionType result = BattleReactionType::None;
+
+    return TryConsume(result, stepIndex);
 }
 
 bool BattleReactionController::IsWindowOpen(BattleReactionType type) const
@@ -206,15 +223,13 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
         }
     }
 
-    /*   if ((pressedQ && IsWindowOpen(BattleReactionType::Dodge)) ||
-           (pressedE && IsWindowOpen(BattleReactionType::Parry)))
-       {
-           _isConsumed = true;
-       }*/
+    if (result.success)
+    {
+        OnReactionSucceeded.Broadcast(result.type, turnAction.GetCurStepTarget());
+    }
 
     return result;
 }
-
 
 void BattleReactionController::UpdateAnimation(float timeDelta)
 {
@@ -542,10 +557,7 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
     _isCounterDamageApplied = false;
     _animPhase = ReactionAnimPhase::Counter;
 
-    if (auto battle = CLIENT->Get_BattleController())
-    {
-        battle->Notify_CounterAnnounceRequested(_reactionAnimTargets);
-    }
+    OnCounterStarted.Broadcast(_reactionAnimTargets);
 }
 
 void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
@@ -815,5 +827,10 @@ Shared<BattleReactionController> BattleReactionController::Create()
 
 void BattleReactionController::Free()
 {
+    OnReactionWindowOpened.Clear();
+    OnReactionSucceeded.Clear();
+    OnCounterStarted.Clear();
+
+    Clear_RuntimeState();
     Base::Free();
 }

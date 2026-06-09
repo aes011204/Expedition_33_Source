@@ -302,14 +302,22 @@ void GameplayUI_Battle::Bind_BattleDelegates()
     _battleApChangedHandle =
         _battleController->OnBattleApChanged.Add(this, &GameplayUI_Battle::Handle_BattleApChanged);
 
+    BattleReactionController& reactionController = _battleController->Get_ReactionController();
+
     _reactionSucceededHandle =
-        _battleController->OnReactionSucceeded.Add(this, &GameplayUI_Battle::Handle_ReactionSucceeded);
+        reactionController.OnReactionSucceeded.Add(this, &GameplayUI_Battle::Handle_ReactionSucceeded);
 
-    _qteStartedHandle =
-        _battleController->OnQTEStarted.Add(this, &GameplayUI_Battle::Handle_QTEStarted);
+    _counterAnnounceRequestedHandle =
+        reactionController.OnCounterStarted.Add(this, &GameplayUI_Battle::Handle_CounterAnnounceRequested);
 
-    _qteResolvedHandle =
-        _battleController->OnQTEResolved.Add(this, &GameplayUI_Battle::Handle_QTEResolved);
+    if (Shared<BattleQTEController> qteController = _battleController->Get_QTEController())
+    {
+        _qteStartedHandle =
+            qteController->OnQTEStarted.Add(this, &GameplayUI_Battle::Handle_QTEStarted);
+
+        _qteResolvedHandle =
+            qteController->OnQTEResolved.Add(this, &GameplayUI_Battle::Handle_QTEResolved);
+    }
 
     if (auto buffSystem = _battleController->Get_BuffSystem())
     {
@@ -319,9 +327,6 @@ void GameplayUI_Battle::Bind_BattleDelegates()
         _buffConsumedHandle =
             buffSystem->OnBuffConsumed.Add(this, &GameplayUI_Battle::Handle_BuffConsumed);
     }
-
-    _counterAnnounceRequestedHandle =
-        _battleController->OnCounterAnnounceRequested.Add(this, &GameplayUI_Battle::Handle_CounterAnnounceRequested);
 
     _battleWeakPointConsumedHandle =
         Mon_WeakPoint::OnBattleWeakPointConsumed.Add(this, &GameplayUI_Battle::Handle_BattleWeakPointConsumed);
@@ -356,17 +361,25 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
     if (_healAppliedHandle.IsValid())
         DamageSystem::OnHealApplied.Remove(_healAppliedHandle);
 
+    BattleReactionController& reactionController = _battleController->Get_ReactionController();
+
     if (_reactionSucceededHandle.IsValid())
-        _battleController->OnReactionSucceeded.Remove(_reactionSucceededHandle);
+        reactionController.OnReactionSucceeded.Remove(_reactionSucceededHandle);
 
     if (_battleApChangedHandle.IsValid())
         _battleController->OnBattleApChanged.Remove(_battleApChangedHandle);
 
-    if (_qteStartedHandle.IsValid())
-        _battleController->OnQTEStarted.Remove(_qteStartedHandle);
+    if (_counterAnnounceRequestedHandle.IsValid())
+        reactionController.OnCounterStarted.Remove(_counterAnnounceRequestedHandle);
 
-    if (_qteResolvedHandle.IsValid())
-        _battleController->OnQTEResolved.Remove(_qteResolvedHandle);
+    if (Shared<BattleQTEController> qteController = _battleController->Get_QTEController())
+    {
+        if (_qteStartedHandle.IsValid())
+            qteController->OnQTEStarted.Remove(_qteStartedHandle);
+
+        if (_qteResolvedHandle.IsValid())
+            qteController->OnQTEResolved.Remove(_qteResolvedHandle);
+    }
 
     if (auto buffSystem = _battleController->Get_BuffSystem())
     {
@@ -376,9 +389,6 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
         if (_buffConsumedHandle.IsValid())
             buffSystem->OnBuffConsumed.Remove(_buffConsumedHandle);
     }
-
-    if (_counterAnnounceRequestedHandle.IsValid())
-        _battleController->OnCounterAnnounceRequested.Remove(_counterAnnounceRequestedHandle);
 
     if (_battleWeakPointConsumedHandle.IsValid())
         Mon_WeakPoint::OnBattleWeakPointConsumed.Remove(_battleWeakPointConsumedHandle);
@@ -831,7 +841,7 @@ void GameplayUI_Battle::Handle_HealApplied(const BattleChar& target, float healA
     selectedSlot->Play_HealFont(target, healAmount, stackIndex);
 }
 
-void GameplayUI_Battle::Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const vector<BattleChar>& target)
+void GameplayUI_Battle::Handle_ReactionSucceeded(BattleReactionType reactionType, const vector<BattleChar>& target)
 {
     if (!_isBattleUiActive || _reactionResult == nullptr)
         return;
@@ -1716,7 +1726,8 @@ void GameplayUI_Battle::Update_QTE(float timeDelta)
 
     if (_qte->Try_ConsumeResult(result))
     {
-        _battleController->Resolve_QTE(result);
+        if (Shared<BattleQTEController> qteController = _battleController->Get_QTEController())
+            qteController->Resolve(result); // UI 입력 결과 확정은 QTEController가 소유한다.
     }
 
 }

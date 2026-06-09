@@ -12,6 +12,15 @@ NS_BEGIN(Client)
 class BattleSpawnRegistry final : public Base
 {
 public:
+    struct BattleEntry
+    {
+        uint32 levelIndex = 0;
+        Shared<GameObject> object = nullptr;
+        Vec3 spawnPosition = {};
+        Vec3 spawnRotation = {};
+    };
+
+public:
     BattleSpawnRegistry() = default;
     ~BattleSpawnRegistry() override = default;
 
@@ -21,13 +30,7 @@ public:
     void Set_SourceWorldObject(const Shared<GameObject>& object, uint32 levelIndex);
     void Update_SpawnPose(const Shared<GameObject>& object);
 
-    struct BattleEntry
-    {
-        uint32 levelIndex = 0;
-        Shared<GameObject> object = nullptr;
-        Vec3 spawnPosition = {};
-        Vec3 spawnRotation = {};
-    };
+    void Visit_SpawnedObjects(const function<void(const BattleEntry&)>& visitor) const;
 
     const BattleEntry* Find_SpawnEntry(const Shared<GameObject>& object) const;
 

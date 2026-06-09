@@ -20,8 +20,13 @@ void ANS_CounterTimeScale::On_Begin(const AnimNotifyContext& context)
         return;
 
     auto battle = CLIENT->Get_BattleController();
-    if (battle)
-        battle->BeginCounterTimeSection(context.model, _worldTimeScale, _counterFrameSpeed);
+    if (battle == nullptr)
+        return;
+
+    battle->Get_ReactionController().BeginCounterTimeSection(
+        context.model,
+        _worldTimeScale,
+        _counterFrameSpeed);
 }
 
 void ANS_CounterTimeScale::On_Tick(const AnimNotifyContext& context)
@@ -35,6 +40,8 @@ void ANS_CounterTimeScale::On_End(const AnimNotifyContext& context)
         return;
 
     auto battle = CLIENT->Get_BattleController();
-    if (battle)
-        battle->EndCounterTimeSection(context.model);
+    if (battle == nullptr)
+        return;
+
+    battle->Get_ReactionController().EndCounterTimeSection(context.model);
 }

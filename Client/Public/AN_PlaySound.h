@@ -17,11 +17,7 @@ public:
     void Execute(const AnimNotifyContext& context) override;
 
 private:
-    wstring      _soundCue = L"";
-    wstring      _soundFile = L"";
-    SoundChannel _channel = SoundChannel::Effect;
-    float        _volume = 1.f;
-    float        _pitch = 1.f;
+    wstring _soundCue = L"";
 };
 
 NS_END
