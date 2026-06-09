@@ -76,7 +76,7 @@ cbuffer TrailComputeParams : register(b0)
     float4 g_SizeByLifeCurveValuesX; // scaleOverLife X multipliers
     float4 g_SizeByLifeCurveValuesXBlock1;
     float4 g_SizeByLifeCurveParams; // x: key count, y: multiplyX, zw: reserved
-    float4 g_LengthParams;          // x: maxTrailLength, y: tailFadeLength, zw: reserved
+    float4 g_LengthParams;          // x: maxTrailLength, y: tailFadeLength, z: autoLifeFade flag, w: reserved
 };
 
 StructuredBuffer<TrailSamplePayload> HistoryData : register(t0);
@@ -368,7 +368,8 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     output.startColor = segmentColor;
     output.endColor = segmentColor;
     output.subUVRect = float4(0.0f, currentDistance, 1.0f, nextDistance);
-    output.segmentParams = float4(lifeProgress, 0.0f, ageAlpha * lengthAlpha, g_SideFade); // x: 수명 진행률, y: reserved, z: 알파 배율, w: 가장자리 페이드
+    const float visualAgeAlpha = g_LengthParams.z != 0.0f ? ageAlpha : 1.0f;
+    output.segmentParams = float4(lifeProgress, 0.0f, visualAgeAlpha * lengthAlpha, g_SideFade); // x: 수명 진행률, y: reserved, z: 알파 배율, w: 가장자리 페이드
 
     OutputData[index] = output;
 }

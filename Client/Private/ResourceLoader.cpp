@@ -44,7 +44,7 @@ namespace
 
     struct RibbonInstanceLayout
     {
-        static constexpr uint32 numElements = 10; // ComputeRibbonEmitter::RibbonInstanceVertex와 byte layout을 맞춘다.
+        static constexpr uint32 numElements = 10; // ComputeSourceHistoryRibbonEmitter::RibbonInstanceVertex와 byte layout을 맞춘다.
 
         static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },

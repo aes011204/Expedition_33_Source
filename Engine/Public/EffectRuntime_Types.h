@@ -15,7 +15,6 @@ enum class EffectEmitterKind : uint8
 {
     ComputeSprite,       // compute-first sprite emitter runtime이다.
     ComputeTrail,        // compute-first trail emitter runtime이다.
-    ComputeRibbon,       // self-particle-chain ribbon emitter runtime이다.
     SourceHistoryRibbon, // source/root position history 기반 camera-facing ribbon runtime이다.
     Mesh,                // model mesh를 instance buffer로 그리는 mesh emitter runtime이다.
 };
@@ -210,25 +209,29 @@ struct EffectRequiredMaterialRuntimeDesc
     bool noiseInvert{ false };                                                // noise scalar를 1-x로 뒤집는다.
     bool maskInvert{ false };                                                 // mask coverage를 1-x로 뒤집는다.
 
-    Vec2 mainUVScale{ 1.f, 1.f };                                                  // main texture UV 반복/확대 배율 후보 값이다.
-    Vec2 mainUVOffset{ 0.f, 0.f };                                                 // main texture 샘플 시작 위치를 정적으로 민다.
-    Vec2 mainUVScrollSpeed{ 0.f, 0.f };                                            // main texture 샘플 좌표를 시간에 따라 밀어 흐름감을 만드는 속도 후보 값이다.
+    Vec2 mainUVScale{ 1.f, 1.f }; // main texture UV 반복/확대 배율 후보 값이다.
+    Vec2 mainUVOffset{ 0.f, 0.f }; // main texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 mainUVScrollSpeed{ 0.f, 0.f }; // main texture 샘플 좌표를 시간에 따라 밀어 흐름감을 만드는 속도 후보 값이다.
     EffectTextureUVTilingMode mainUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // main texture UV tiling 해석 방식이다.
+    EffectMaterialUVAxisPolicy mainUVPolicy{ EffectTextureUVTilingMode::Wrap, EffectTextureUVTilingMode::Wrap }; // main texture U/V축별 UV 해석 방식이다.
 
-    Vec2 noiseUVScale{ 1.f, 1.f };                                                  // noise texture UV 반복/확대 배율 후보 값이다.
-    Vec2 noiseUVOffset{ 0.f, 0.f };                                                 // noise texture 샘플 시작 위치를 정적으로 민다.
-    Vec2 noiseUVScrollSpeed{ 0.f, 0.f };                                            // noise를 frame 교체가 아니라 UV 좌표 이동으로 흘려 불규칙한 modulation 흐름을 만드는 속도 후보 값이다.
+    Vec2 noiseUVScale{ 1.f, 1.f }; // noise texture UV 반복/확대 배율 후보 값이다.
+    Vec2 noiseUVOffset{ 0.f, 0.f }; // noise texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 noiseUVScrollSpeed{ 0.f, 0.f }; // noise를 frame 교체가 아니라 UV 좌표 이동으로 흘려 불규칙한 modulation 흐름을 만드는 속도 후보 값이다.
     EffectTextureUVTilingMode noiseUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // noise texture UV tiling 해석 방식이다.
+    EffectMaterialUVAxisPolicy noiseUVPolicy{ EffectTextureUVTilingMode::Wrap, EffectTextureUVTilingMode::Wrap }; // noise texture U/V축별 UV 해석 방식이다.
 
-    Vec2 maskUVScale{ 1.f, 1.f };                                                  // mask texture UV 반복/확대 배율 후보 값이다.
-    Vec2 maskUVOffset{ 0.f, 0.f };                                                 // mask texture 샘플 시작 위치를 정적으로 민다.
-    Vec2 maskUVScrollSpeed{ 0.f, 0.f };                                            // mask를 frame 교체가 아니라 UV 좌표 이동으로 흘려 alpha/erosion 변화를 만드는 속도 후보 값이다.
+    Vec2 maskUVScale{ 1.f, 1.f }; // mask texture UV 반복/확대 배율 후보 값이다.
+    Vec2 maskUVOffset{ 0.f, 0.f }; // mask texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 maskUVScrollSpeed{ 0.f, 0.f }; // mask를 frame 교체가 아니라 UV 좌표 이동으로 흘려 alpha/erosion 변화를 만드는 속도 후보 값이다.
     EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // mask texture UV tiling 해석 방식이다.
+    EffectMaterialUVAxisPolicy maskUVPolicy{ EffectTextureUVTilingMode::Wrap, EffectTextureUVTilingMode::Wrap }; // mask texture U/V축별 UV 해석 방식이다.
 
-    Vec2 flowUVScale{ 1.f, 1.f };                                                  // SpriteDistortion flow texture UV 반복/확대 배율 후보 값이다.
-    Vec2 flowUVOffset{ 0.f, 0.f };                                                 // SpriteDistortion flow texture 샘플 시작 위치를 정적으로 민다.
-    Vec2 flowUVScrollSpeed{ 0.f, 0.f };                                            // SpriteDistortion flow texture UV scroll speed 후보 값이다.
+    Vec2 flowUVScale{ 1.f, 1.f }; // SpriteDistortion flow texture UV 반복/확대 배율 후보 값이다.
+    Vec2 flowUVOffset{ 0.f, 0.f }; // SpriteDistortion flow texture 샘플 시작 위치를 정적으로 민다.
+    Vec2 flowUVScrollSpeed{ 0.f, 0.f }; // SpriteDistortion flow texture UV scroll speed 후보 값이다.
     EffectTextureUVTilingMode flowUVTilingMode{ EffectTextureUVTilingMode::Wrap }; // flow texture UV tiling 해석 방식이다.
+    EffectMaterialUVAxisPolicy flowUVPolicy{ EffectTextureUVTilingMode::Wrap, EffectTextureUVTilingMode::Wrap }; // flow texture U/V축별 UV 해석 방식이다.
 
     EffectMaterialAdditiveContributionData additive{};                                // Additive blend에서 더할 contribution 해석 규칙이다.
     EffectMaterialCoreEmissiveData coreEmissive{};                                    // alpha-derived inner core/outer halo shaping 값이다.
@@ -390,25 +393,13 @@ struct ComputeTrailEmitterDesc : public GameObject::GAMEOBJECT_DESC
     float uvTiling{ 1.f };          // trail noise/breakup 진행 방향의 기본 UV 반복값이다.
     float maxTrailLength{ 0.f };    // head 기준 최대 표시 길이다. 0 이하면 제한하지 않는다.
     float tailFadeLength{ 0.1f };   // maxTrailLength 끝으로 갈수록 alpha를 줄이는 거리다.
+    bool autoLifeFade{ true };      // sample age 기준 자동 alpha fade를 적용할지 결정한다.
     float sampleSpacing{ 0.08f };   // render-time curve sample의 이동 거리 기준 간격이다.
     uint32 curveSubdivision{ 4 };   // 원본 sample interval 하나에서 만들 최대 render segment 수다.
     bool smoothTangent{ true };     // render sample 생성 전 원본 history tangent를 완만하게 보정할지 결정한다.
     float sideFade{ 0.08f };        // 폭 방향 alpha edge 감소 강도다.
 
     Weak<IEffectTrailSampleProvider> sampleProvider{}; // attachment 계산 owner가 공급하는 sample source다.
-};
-
-enum class EffectRibbonRenderAxis : uint8
-{
-    CameraUp,
-    ViewUp,
-    WorldUp,
-};
-
-enum class EffectRibbonLinkOrder : uint8
-{
-    BirthOrder,
-    SpawnOrder,
 };
 
 enum class EffectSourceHistoryPreviewMotionPreset : uint8
@@ -426,34 +417,11 @@ enum class EffectSourceHistoryPreviewMotionAxis : uint8
     Z,
 };
 
-// compute ribbon emitter가 clone 시점에 받는 self-particle-chain 전용 runtime payload다.
-struct ComputeRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
+enum class EffectRibbonRenderAxis : uint8
 {
-    EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 material family 기반 render group을 사용한다.
-    EffectRequiredMaterialRuntimeDesc material{}; // ribbon 기본 material/tint/blend 값이다.
-    EffectEmitterPlaybackRuntimeDesc playback{}; // duration/loop/delay 같은 공통 재생 규칙이다.
-    EffectDrawLimitRuntimeDesc drawLimit{}; // Required 모듈에서 ribbon sample 제출 상한으로 소비할 규칙이다.
-    EffectRequiredSortRuntimeDesc sort{}; // Required 모듈에서 ribbon emitter가 소비하는 Blend 정렬 규칙이다.
-    EffectSpawnRuntimeDesc spawn{}; // Spawn 모듈에서 ribbon sample 생성 요청으로 소비하는 payload다.
-    EffectLifetimeRuntimeDesc lifetime{}; // Lifetime 모듈에서 ribbon sample age/max life로 소비하는 payload다.
-    EffectInitialColorRuntimeDesc initialColor{}; // InitialColor 모듈에서 ribbon sample 시작 색으로 소비하는 payload다.
-    EffectColorOverLifeRuntimeDesc colorOverLife{}; // ColorOverLife 모듈에서 ribbon sample color/fade로 소비하는 payload다.
-    PointParticleSizeByLifeDesc sizeByLife{}; // SizeByLife 모듈에서 ribbon 폭 배율로 소비하는 값이다.
-    PointParticleMotionDesc motion{}; // velocity authoring module을 ribbon sample 이동 입력으로 압축한 규칙이다.
-    PointParticleInitialLocationDesc initialLocation{}; // InitialLocation 모듈이 만든 sample 시작 offset 분포다.
-    PointParticleSphereLocationDesc sphereLocation{}; // SphereLocation 모듈이 만든 sample 시작 구형 offset 분포다.
-    PointParticlePlaneRadialLocationDesc planeRadialLocation{}; // PlaneRadialLocation 모듈이 만든 sample 시작 평면/방사 offset 분포다.
-    PointParticleRandomSeedRuntimeDesc lifetimeSeed{}; // Lifetime random sample seed salt다.
-    PointParticleRandomSeedRuntimeDesc initialLocationSeed{}; // InitialLocation random sample seed salt다.
-    PointParticleRandomSeedRuntimeDesc sphereLocationSeed{}; // SphereLocation random sample seed salt다.
-
-    uint32 maxSampleCount{ 500 };                                          // RibbonTypeData::maxParticleInTrailCount에서 온 single chain 상한이다.
-    bool spawnInitialParticle{ false };                                    // 첫 frame 초기 sample 생성 여부다.
-    EffectRibbonRenderAxis renderAxis{ EffectRibbonRenderAxis::CameraUp }; // flat strip side vector 기준 축이다.
-    float tilingDistance{ 0.f };                                           // 0 이하면 stretch, 양수면 길이 기준 반복이다.
-    float distanceTessellationStepSize{ 15.f };                            // sample 사이 보간 밀도 후보값이다.
-    bool enablePreviousTangentRecalculation{ true };                       // v0 tangent 보정 후보 정책이다.
-    EffectRibbonLinkOrder linkOrder{ EffectRibbonLinkOrder::BirthOrder };  // v0 single chain sample 연결 순서다.
+    CameraUp,
+    ViewUp,
+    WorldUp,
 };
 
 // source/root position history를 camera-facing strip으로 낮추는 runtime payload다.
@@ -468,19 +436,19 @@ struct ComputeSourceHistoryRibbonEmitterDesc : public GameObject::GAMEOBJECT_DES
     EffectColorOverLifeRuntimeDesc colorOverLife{};                                                 // ColorOverLife 모듈에서 sample age 기준 색/알파로 소비하는 값이다.
     PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 source history strip 폭 배율로 소비하는 값이다.
 
-    uint32 maxSampleCount{ 64 };   // source history가 보관할 최대 sample 개수다.
-    float sampleSpacing{ 0.08f };  // source가 이 거리 이상 움직였을 때 새 sample을 추가한다.
-    float sampleInterval{ 0.f };   // 0보다 크면 정지/저속 source도 이 시간마다 sample을 보강한다.
+    uint32 maxSampleCount{ 64 }; // source history가 보관할 최대 sample 개수다.
+    float sampleSpacing{ 0.08f }; // source가 이 거리 이상 움직였을 때 새 sample을 추가한다.
+    float sampleInterval{ 0.f }; // 0보다 크면 정지/저속 source도 이 시간마다 sample을 보강한다.
     float sampleLifetime{ 0.35f }; // sample 하나가 strip 구성 후보로 남는 시간이다.
-    float maxLength{ 0.f };        // head 기준 표시 가능한 최대 길이다. 0 이하면 제한하지 않는다.
-    float tailFadeLength{ 0.f };   // maxLength 끝으로 갈수록 alpha를 줄이는 거리다. 0 이하면 끈다.
-    float baseWidth{ 0.3f };       // SizeByLife를 곱하기 전 source history strip 기본 폭이다.
-    float tilingDistance{ 0.f };   // 0 이하면 visible length stretch, 양수면 거리 기준 texture 반복이다.
-    bool autoLifeFade{ false };    // sample age 기준 자동 alpha fade를 적용할지 결정한다.
+    float maxLength{ 0.f }; // head 기준 표시 가능한 최대 길이다. 0 이하면 제한하지 않는다.
+    float tailFadeLength{ 0.f }; // maxLength 끝으로 갈수록 alpha를 줄이는 거리다. 0 이하면 끈다.
+    float baseWidth{ 0.3f }; // SizeByLife를 곱하기 전 source history strip 기본 폭이다.
+    float tilingDistance{ 0.f }; // 0 이하면 visible length stretch, 양수면 거리 기준 texture 반복이다.
+    bool autoLifeFade{ false }; // sample age 기준 자동 alpha fade를 적용할지 결정한다.
     EffectSourceHistoryPreviewMotionPreset previewMotionPreset{ EffectSourceHistoryPreviewMotionPreset::Line }; // EffectEditor 검증용 source motion preset이다.
-    EffectSourceHistoryPreviewMotionAxis previewMotionAxis{ EffectSourceHistoryPreviewMotionAxis::X };          // preview motion 진행 축이다.
-    float previewMotionAmplitude{ 2.f };                                                                       // preview motion offset 크기다.
-    float previewMotionSpeed{ 3.f };                                                                           // one-shot 진행률 또는 loop 반복 속도다.
+    EffectSourceHistoryPreviewMotionAxis previewMotionAxis{ EffectSourceHistoryPreviewMotionAxis::X }; // preview motion 진행 축이다.
+    float previewMotionAmplitude{ 2.f }; // preview motion offset 크기다.
+    float previewMotionSpeed{ 3.f }; // one-shot 진행률 또는 loop 반복 속도다.
 };
 
 // mesh emitter가 Vec3 transform curve를 CPU instance update에서 평가하기 위한 payload다.
@@ -549,7 +517,7 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
 };
 
 using EffectEmitterConcreteDesc =
-variant<ComputeSpriteEmitterDesc, ComputeTrailEmitterDesc, ComputeRibbonEmitterDesc, ComputeSourceHistoryRibbonEmitterDesc, MeshEmitterDesc>;
+variant<ComputeSpriteEmitterDesc, ComputeTrailEmitterDesc, ComputeSourceHistoryRibbonEmitterDesc, MeshEmitterDesc>;
 
 struct EffectEmitterDefinition
 {

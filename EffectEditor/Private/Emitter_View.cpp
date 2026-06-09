@@ -2303,10 +2303,6 @@ void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emi
         emitter.typeData.kind = AuthoringTypeDataKind::Mesh;
         emitter.typeData.payload = MeshTypeData{};
         break;
-    case PendingTypeDataAction::AddRibbon:
-        emitter.typeData.kind = AuthoringTypeDataKind::Ribbon;
-        emitter.typeData.payload = RibbonTypeData{};
-        break;
     case PendingTypeDataAction::AddSourceHistoryRibbon:
         emitter.typeData.kind = AuthoringTypeDataKind::SourceHistoryRibbon;
         emitter.typeData.payload = SourceHistoryRibbonTypeData{};
@@ -2314,8 +2310,6 @@ void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emi
     case PendingTypeDataAction::ResetData:
         if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
             emitter.typeData.payload = MeshTypeData{};
-        else if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
-            emitter.typeData.payload = RibbonTypeData{};
         else if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistoryRibbon)
             emitter.typeData.payload = SourceHistoryRibbonTypeData{};
         else
@@ -2355,11 +2349,8 @@ void Emitter_View::Process_PendingTypeDataAction()
     case PendingTypeDataAction::AddMesh:
         description = "Add Mesh TypeData";
         break;
-    case PendingTypeDataAction::AddRibbon:
-        description = "Add Ribbon TypeData";
-        break;
     case PendingTypeDataAction::AddSourceHistoryRibbon:
-        description = "Add SourceHistoryRibbon TypeData";
+        description = "Add Ribbon TypeData";
         break;
     case PendingTypeDataAction::ResetData:
         description = "Reset TypeData";
@@ -2919,9 +2910,7 @@ void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
             Queue_TypeDataAction(PendingTypeDataAction::AddTrail, emitterIndex);
         if (ImGui::MenuItem("Mesh TypeData 추가"))
             Queue_TypeDataAction(PendingTypeDataAction::AddMesh, emitterIndex);
-        if (ImGui::MenuItem("Ribbon TypeData 추가"))
-            Queue_TypeDataAction(PendingTypeDataAction::AddRibbon, emitterIndex);
-        if (ImGui::MenuItem("SourceHistoryRibbon TypeData 추가"))
+        if (ImGui::MenuItem("리본 TypeData 추가"))
             Queue_TypeDataAction(PendingTypeDataAction::AddSourceHistoryRibbon, emitterIndex);
         return;
     }
@@ -3211,11 +3200,8 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
         case AuthoringTypeDataKind::Mesh:
             ImGui::TextUnformatted("메시 데이터");
             break;
-        case AuthoringTypeDataKind::Ribbon:
-            ImGui::TextUnformatted("리본 데이터");
-            break;
         case AuthoringTypeDataKind::SourceHistoryRibbon:
-            ImGui::TextUnformatted("소스 히스토리 리본 데이터");
+            ImGui::TextUnformatted("리본 데이터");
             break;
         case AuthoringTypeDataKind::None:
         default:

@@ -1031,6 +1031,12 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
         static_cast<float>(static_cast<uint32>(material.flowUVTilingMode)),
         0.f
     );
+    const Vec4 uvPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy)),
+        0.f,
+        0.f
+    );
     const Vec4 distortionParams = Vec4(
         material.refractionIntensity,
         max(0.f, material.refractionPresence),
@@ -1080,6 +1086,7 @@ HRESULT EffectMaterialPreviewRenderer::Render_DistortionPreviewMesh(const Effect
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVOffsetParams", &uvOffsetParams, sizeof(uvOffsetParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewMaskUVOffsetParams", &maskUVOffsetParams, sizeof(maskUVOffsetParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVModeParams", &uvModeParams, sizeof(uvModeParams)), E_FAIL);
+    CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewUVPolicyParams", &uvPolicyParams, sizeof(uvPolicyParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewSourceParams", &sourceParams, sizeof(sourceParams)), E_FAIL);
     CHECK_FAILED(_distortionShader->Bind_RawValue("g_EffectMaterialPreviewDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
     CHECK_FAILED(

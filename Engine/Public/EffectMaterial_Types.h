@@ -12,6 +12,13 @@ enum class EffectTextureUVTilingMode : uint32
     Raw = 3,     // shader가 받은 distance UV를 tiling/stretch 없이 그대로 사용한다.
 };
 
+// effect material texture slot의 U/V축별 UV 해석 정책이다.
+struct EffectMaterialUVAxisPolicy
+{
+    EffectTextureUVTilingMode uPolicy{ EffectTextureUVTilingMode::Stretch };
+    EffectTextureUVTilingMode vPolicy{ EffectTextureUVTilingMode::Stretch };
+};
+
 enum class EffectMaterialFamily : uint32
 {
     Default = 0,      // 기존 color/coverage 중심 effect material family다.
@@ -117,18 +124,22 @@ struct EffectMaterialInstanceData
     Vec2 mainUVOffset{ 0.f, 0.f };                                                     // main texture UV 시작 위치를 정적으로 민다.
     Vec2 mainUVScrollSpeed{ 0.f, 0.f };                                                // main texture UV scroll speed 후보 값이다.
     EffectTextureUVTilingMode mainUVTilingMode{ EffectTextureUVTilingMode::Stretch };  // main texture UV tiling 해석 방식이다.
+    EffectMaterialUVAxisPolicy mainUVPolicy{};                                         // main texture U/V축별 UV 해석 방식이다.
     Vec2 noiseUVScale{ 1.f, 1.f };                                                     // noise texture UV scale 후보 값이다.
     Vec2 noiseUVOffset{ 0.f, 0.f };                                                    // noise texture UV 시작 위치를 정적으로 민다.
     Vec2 noiseUVScrollSpeed{ 0.f, 0.f };                                               // noise texture UV scroll speed 후보 값이다.
     EffectTextureUVTilingMode noiseUVTilingMode{ EffectTextureUVTilingMode::Stretch }; // noise texture UV tiling 해석 방식이다.
+    EffectMaterialUVAxisPolicy noiseUVPolicy{};                                        // noise texture U/V축별 UV 해석 방식이다.
     Vec2 maskUVScale{ 1.f, 1.f };                                                      // mask texture UV scale 후보 값이다.
     Vec2 maskUVOffset{ 0.f, 0.f };                                                     // mask texture UV 시작 위치를 정적으로 민다.
     Vec2 maskUVScrollSpeed{ 0.f, 0.f };                                                // mask texture UV scroll speed 후보 값이다.
     EffectTextureUVTilingMode maskUVTilingMode{ EffectTextureUVTilingMode::Stretch };  // mask texture UV tiling 해석 방식이다.
+    EffectMaterialUVAxisPolicy maskUVPolicy{};                                         // mask texture U/V축별 UV 해석 방식이다.
     Vec2 flowUVScale{ 1.f, 1.f };                                                      // flow texture UV scale 후보 값이다.
     Vec2 flowUVOffset{ 0.f, 0.f };                                                     // flow texture UV 시작 위치를 정적으로 민다.
     Vec2 flowUVScrollSpeed{ 0.f, 0.f };                                                // flow texture UV scroll speed 후보 값이다.
     EffectTextureUVTilingMode flowUVTilingMode{ EffectTextureUVTilingMode::Stretch };  // flow texture UV tiling 해석 방식이다.
+    EffectMaterialUVAxisPolicy flowUVPolicy{};                                         // flow texture U/V축별 UV 해석 방식이다.
 
     EffectMaterialBlendMode blendMode{ EffectMaterialBlendMode::AlphaBlend };         // effect material blend/compose mode다.
     string opacitySource{ "Alpha" };                                                  // main texture에서 opacity를 뽑을 채널/방식이다.

@@ -505,7 +505,6 @@ enum class AuthoringTypeDataKind : uint8
     None,
     Trail,
     Mesh,
-    Ribbon,
     SourceHistoryRibbon,
 };
 
@@ -519,30 +518,6 @@ enum class TrailCurveQuality : uint8
 
 struct EmptyTypeData
 {};
-
-enum class RibbonRenderAxis : uint8
-{
-    CameraUp,
-    ViewUp,
-    WorldUp,
-};
-
-enum class RibbonLinkOrder : uint8
-{
-    BirthOrder,
-    SpawnOrder,
-};
-
-struct RibbonTypeData
-{
-    uint32 maxParticleInTrailCount{ 500 };
-    bool spawnInitialParticle{ false };
-    RibbonRenderAxis renderAxis{ RibbonRenderAxis::CameraUp };
-    float tilingDistance{ 0.f };
-    float distanceTessellationStepSize{ 15.f };
-    bool enablePreviousTangentRecalculation{ true };
-    RibbonLinkOrder linkOrder{ RibbonLinkOrder::BirthOrder };
-};
 
 enum class SourceHistoryPreviewMotionPreset : uint8
 {
@@ -583,6 +558,7 @@ struct TrailTypeData
     float uvTiling{ 1.f };                                      // body/mask가 아니라 noise/breakup 길이 방향 반복 밀도다.
     float maxTrailLength{ 0.f };                                // 0 이하면 head 기준 최대 표시 길이를 제한하지 않는다.
     float tailFadeLength{ 0.1f };                               // maxTrailLength 끝으로 갈수록 alpha를 줄이는 거리다.
+    bool autoLifeFade{ true };                                  // sample age 기준 자동 alpha fade를 적용할지 결정한다.
     TrailCurveQuality curveQuality{ TrailCurveQuality::Basic }; // trail 곡선 품질 preset 선택값이다.
     float sampleSpacing{ 0.08f };                               // 이동 거리 기준 중간 sample 삽입 간격이다.
     uint32 curveSubdivision{ 4 };                               // 한 frame에서 보강할 최대 중간 sample 수다.
@@ -602,7 +578,7 @@ struct MeshTypeData
     bool useModelMaterials{ false };
 };
 
-using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData, MeshTypeData, RibbonTypeData, SourceHistoryRibbonTypeData>;
+using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData, MeshTypeData, SourceHistoryRibbonTypeData>;
 
 struct AuthoringTypeData
 {

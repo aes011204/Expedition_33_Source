@@ -902,6 +902,10 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
     );
     const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
     const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+    const Vec2 flowUVPolicyParams(
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
+    );
 
     CHECK_FAILED_ONCE(
         _shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)),
@@ -913,6 +917,10 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
     );
     CHECK_FAILED_ONCE(
         _shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_FlowUVPolicyParams", &flowUVPolicyParams, sizeof(flowUVPolicyParams)),
         E_FAIL
     );
     CHECK_FAILED_ONCE(

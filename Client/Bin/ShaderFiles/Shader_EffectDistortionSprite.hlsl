@@ -23,6 +23,7 @@ cbuffer cbEffectDistortionSpriteMaterial : register(b2)
     float4 g_EffectDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f }; // x:mode, y:radius, z:thickness, w:softness
     float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f };       // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
     float4 g_DistortionScreenSize = { 1.f, 1.f, 0.f, 0.f };
+    float2 g_FlowUVPolicyParams = { 0.f, 0.f };
     float2 g_FlowUVScale = { 1.f, 1.f };
     float2 g_FlowUVOffset = { 0.f, 0.f };
     float2 g_FlowUVScrollSpeed = { 0.f, 0.f };
@@ -85,11 +86,24 @@ float4 Sample_EffectSpriteMaskTexture(float2 uv, float mode)
            : g_MaskTexture.Sample(LinearWrapSampler, uv);
 }
 
-float2 Sample_EffectSpriteFlowTexture(float2 uv, float mode)
+float2 Build_EffectSpriteFlowUV(float2 rawUV)
 {
-    return Use_EffectSpriteClampSampler(mode)
-           ? g_FlowTexture.Sample(LinearClampSampler, uv).rg
-           : g_FlowTexture.Sample(LinearWrapSampler, uv).rg;
+    return EffectDistortion_BuildAxisSeparatedUV(
+        rawUV,
+        g_FlowUVScale,
+        g_FlowUVOffset,
+        g_FlowUVScrollSpeed,
+        g_EffectSpriteMaterialTime,
+        g_FlowUVPolicyParams
+    );
+}
+
+float2 Sample_EffectSpriteFlowTexture(float2 uv)
+{
+    return g_FlowTexture.Sample(
+        LinearWrapSampler,
+        EffectDistortion_ApplyAxisSeparatedAddress(uv, g_FlowUVPolicyParams)
+    ).rg;
 }
 
 float Compute_InfluenceOutlineWidth(float2 cardUV)
@@ -444,9 +458,9 @@ PS_OUT PS_MAIN(PS_IN In)
     if (materialCoverage < max(alphaCutoff, 0.01f))
         discard;
 
-    const float2 flowUV = Build_EffectSpriteUV(sampleUV, float4(g_FlowUVScale, g_FlowUVScrollSpeed), g_FlowUVOffset, g_FlowUVTilingMode);
+    const float2 flowUV = Build_EffectSpriteFlowUV(sampleUV);
     const float2 flow = 0 != g_EffectDistortionParams.z
-                        ? Sample_EffectSpriteFlowTexture(flowUV, g_FlowUVTilingMode) * 2.f - 1.f
+                        ? Sample_EffectSpriteFlowTexture(flowUV) * 2.f - 1.f
                         : float2(0.f, 0.f);
 
     const float shapeCoverage = EffectDistortion_ComputeShapeCoverage(g_EffectDistortionShapeParams, In.texCoord, lifeProgress);

@@ -473,16 +473,12 @@ void ComputeSourceHistoryRibbonEmitter::Insert_HistorySample(const Vec3& sourceP
 
 void ComputeSourceHistoryRibbonEmitter::Prune_History()
 {
-    _history.erase(
-        remove_if(
-            _history.begin(),
-            _history.end(),
-            [this](const HistorySample& sample)
-            {
-                return sample.age >= _desc.sampleLifetime;
-            }
-        ),
-        _history.end()
+    erase_if(
+        _history,
+        [this](const HistorySample& sample)
+        {
+            return sample.age >= _desc.sampleLifetime;
+        }
     );
 
     if (_history.empty())
@@ -497,16 +493,12 @@ void ComputeSourceHistoryRibbonEmitter::Prune_History()
 
     if (_desc.maxLength > 0.f)
     {
-        _history.erase(
-            remove_if(
-                _history.begin(),
-                _history.end(),
-                [this](const HistorySample& sample)
-                {
-                    return sample.distance > _desc.maxLength;
-                }
-            ),
-            _history.end()
+        erase_if(
+            _history,
+            [this](const HistorySample& sample)
+            {
+                return sample.distance > _desc.maxLength;
+            }
         );
     }
 }
@@ -780,9 +772,20 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Copy_ComputeOutput()
 HRESULT ComputeSourceHistoryRibbonEmitter::Bind_ShaderResources()
 {
     CHECK_FAILED(GAME->Bind_CameraCB(_shader), E_FAIL);
-    CHECK_FAILED(Bind_MaterialResources(), E_FAIL);
+
     if (Is_DistortionFamily())
+    {
+        const Vec4 effectRibbonAxisParams = Vec4(static_cast<float>(static_cast<uint32>(EffectRibbonRenderAxis::CameraUp)), _visibleRibbonLength, 0.f, 1.f);
+        const Vec4 effectRibbonFallbackAxis{ 1.f, 0.f, 0.f, 0.f };
+
+        CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &_desc.material.tint, sizeof(_desc.material.tint)), E_FAIL);
+        CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonAxisParams", &effectRibbonAxisParams, sizeof(effectRibbonAxisParams)), E_FAIL);
+        CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonFallbackAxis", &effectRibbonFallbackAxis, sizeof(effectRibbonFallbackAxis)), E_FAIL);
         CHECK_FAILED(Bind_DistortionResources(), E_FAIL);
+        return S_OK;
+    }
+
+    CHECK_FAILED(Bind_MaterialResources(), E_FAIL);
     return S_OK;
 }
 
@@ -901,9 +904,14 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_DistortionResources()
     );
     const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
     const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(_desc.material.flowUVTilingMode));
+    const Vec2 flowUVPolicyParams(
+        static_cast<float>(static_cast<uint32>(_desc.material.flowUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(_desc.material.flowUVPolicy.vPolicy))
+    );
 
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVPolicyParams", &flowUVPolicyParams, sizeof(flowUVPolicyParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScale", &_desc.material.flowUVScale, sizeof(_desc.material.flowUVScale)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVOffset", &_desc.material.flowUVOffset, sizeof(_desc.material.flowUVOffset)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &_desc.material.flowUVScrollSpeed, sizeof(_desc.material.flowUVScrollSpeed)), E_FAIL);
@@ -998,9 +1006,7 @@ Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_PreviewMotionOffset() const
 {
     if (_desc.previewMotionPreset == EffectSourceHistoryPreviewMotionPreset::Off ||
         _desc.previewMotionAmplitude <= 0.f)
-    {
         return Vec3{};
-    }
 
     constexpr float kTwoPi{ 6.28318530718f };
     const float speed = max(0.0001f, _desc.previewMotionSpeed);

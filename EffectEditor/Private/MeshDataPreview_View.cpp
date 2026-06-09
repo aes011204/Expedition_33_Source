@@ -657,10 +657,15 @@ struct MeshDataPreview_View::PreviewRenderer
         );
         const Vec4 screenSize(static_cast<float>(max(1u, width)), static_cast<float>(max(1u, height)), 0.f, 0.f);
         const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+        const Vec2 flowUVPolicyParams(
+            static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
+            static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
+        );
 
         CHECK_FAILED(shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_DistortionScreenSize", &screenSize, sizeof(screenSize)), E_FAIL);
+        CHECK_FAILED(shader->Bind_RawValue("g_FlowUVPolicyParams", &flowUVPolicyParams, sizeof(flowUVPolicyParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);

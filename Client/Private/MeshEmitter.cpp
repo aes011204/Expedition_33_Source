@@ -936,10 +936,15 @@ HRESULT MeshEmitter::Bind_DistortionResources()
     };
     const Vec4 distortionScreenSize{ max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f };
     const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+    const Vec2 flowUVPolicyParams{
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
+    };
 
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVPolicyParams", &flowUVPolicyParams, sizeof(flowUVPolicyParams)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), 60, E_FAIL);

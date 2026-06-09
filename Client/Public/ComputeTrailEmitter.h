@@ -105,7 +105,7 @@ private:
         Vec4 sizeByLifeCurveValuesX{}; // SizeByLife scaleOverLife X multiplier 값이다.
         Vec4 sizeByLifeCurveValuesXBlock1{};
         Vec4 sizeByLifeCurveParams{}; // x: key count, y: multiplyX, zw: reserved.
-        Vec4 lengthParams{};          // x: maxTrailLength, y: tailFadeLength, zw: reserved.
+        Vec4 lengthParams{};          // x: maxTrailLength, y: tailFadeLength, z: autoLifeFade flag, w: reserved.
     };
 
     struct DrawIndexedInstancedIndirectArgs

@@ -223,7 +223,6 @@
     <ClInclude Include="..\Public\EffectInstancePool.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
-    <ClInclude Include="..\Public\ComputeRibbonEmitter.h" />
     <ClInclude Include="..\Public\ComputeSourceHistoryRibbonEmitter.h" />
     <ClInclude Include="..\Public\PreviewRimFeature.h" />
     <ClInclude Include="..\Public\MapWater.h" />
@@ -524,7 +523,6 @@
     <ClCompile Include="..\Private\EffectInstancePool.cpp" />
     <ClCompile Include="..\Private\ExpeditionStat_Panel.cpp" />
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp" />
-    <ClCompile Include="..\Private\ComputeRibbonEmitter.cpp" />
     <ClCompile Include="..\Private\ComputeSourceHistoryRibbonEmitter.cpp" />
     <ClCompile Include="..\Private\FaceAccessory_Player.cpp" />
     <ClCompile Include="..\Private\FreeAimTargeting.cpp" />

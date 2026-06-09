@@ -1224,14 +1224,26 @@ namespace Internal
             Is_SameVec2(lhs.mainUVOffset, rhs.mainUVOffset) &&
             Is_SameVec2(lhs.mainUVScrollSpeed, rhs.mainUVScrollSpeed) &&
             lhs.mainUVTilingMode == rhs.mainUVTilingMode &&
+            lhs.mainUVPolicy.uPolicy == rhs.mainUVPolicy.uPolicy &&
+            lhs.mainUVPolicy.vPolicy == rhs.mainUVPolicy.vPolicy &&
             Is_SameVec2(lhs.noiseUVScale, rhs.noiseUVScale) &&
             Is_SameVec2(lhs.noiseUVOffset, rhs.noiseUVOffset) &&
             Is_SameVec2(lhs.noiseUVScrollSpeed, rhs.noiseUVScrollSpeed) &&
             lhs.noiseUVTilingMode == rhs.noiseUVTilingMode &&
+            lhs.noiseUVPolicy.uPolicy == rhs.noiseUVPolicy.uPolicy &&
+            lhs.noiseUVPolicy.vPolicy == rhs.noiseUVPolicy.vPolicy &&
             Is_SameVec2(lhs.maskUVScale, rhs.maskUVScale) &&
             Is_SameVec2(lhs.maskUVOffset, rhs.maskUVOffset) &&
             Is_SameVec2(lhs.maskUVScrollSpeed, rhs.maskUVScrollSpeed) &&
             lhs.maskUVTilingMode == rhs.maskUVTilingMode &&
+            lhs.maskUVPolicy.uPolicy == rhs.maskUVPolicy.uPolicy &&
+            lhs.maskUVPolicy.vPolicy == rhs.maskUVPolicy.vPolicy &&
+            Is_SameVec2(lhs.flowUVScale, rhs.flowUVScale) &&
+            Is_SameVec2(lhs.flowUVOffset, rhs.flowUVOffset) &&
+            Is_SameVec2(lhs.flowUVScrollSpeed, rhs.flowUVScrollSpeed) &&
+            lhs.flowUVTilingMode == rhs.flowUVTilingMode &&
+            lhs.flowUVPolicy.uPolicy == rhs.flowUVPolicy.uPolicy &&
+            lhs.flowUVPolicy.vPolicy == rhs.flowUVPolicy.vPolicy &&
             lhs.blendMode == rhs.blendMode &&
             lhs.opacitySource == rhs.opacitySource &&
             Is_SameAdditiveContribution(lhs.additive, rhs.additive) &&

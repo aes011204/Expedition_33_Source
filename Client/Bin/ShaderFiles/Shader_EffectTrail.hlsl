@@ -17,6 +17,8 @@ cbuffer cbEffectTrailMaterial : register(b2)
     float4 g_EffectTrailMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask offset, zw: reserved
     float4 g_EffectTrailUVPolicyParams = { 1.f, 1.f, 0.f, 0.f };     // x: visible trail length, y: noise uv tiling, zw: reserved
     float4 g_EffectTrailUVModeParams = { 0.f, 0.f, 0.f, 0.f };       // x: main, y: noise, z: mask, w: reserved. 0 Wrap, 1 Stretch, 2 Clamp, 3 Raw
+    float4 g_EffectTrailUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main U/V policy, zw: noise U/V policy
+    float4 g_EffectTrailMaskUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask U/V policy, zw: reserved
     float4 g_EffectTrailSourceParams = { 1.f, 0.f, 0.f, 0.f };       // x: noise source, y: mask source, z: noise invert, w: mask invert
     float4 g_EffectTrailAdditiveParams = { 0.f, 0.f, 0.f, 1.f };     // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectTrailAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
@@ -52,44 +54,55 @@ float2 Apply_MaterialUV(float2 uv, float4 uvParams, float2 uvOffset)
     return uv * uvParams.xy + uvOffset + uvParams.zw * g_EffectTrailMaterialTime;
 }
 
-float2 Build_TrailSlotBaseUV(float2 rawUV, float mode)
+float Resolve_TrailAxisBaseUV(float rawValue, bool lengthAxis, float policy)
 {
     const float visibleLength = max(g_EffectTrailUVPolicyParams.x, 0.0001f);
     const float uvTiling = max(g_EffectTrailUVPolicyParams.y, 0.0001f);
-    float2 result = float2(rawUV.x, rawUV.y * uvTiling);
 
-    if (mode >= 0.5f && mode < 1.5f)
-        result = float2(rawUV.x, saturate(rawUV.y / visibleLength));
-    else if (mode >= 2.5f)
-        result = rawUV;
+    if (policy >= 2.5f)
+        return rawValue;
+    if (lengthAxis && policy >= 0.5f && policy < 1.5f)
+        return saturate(rawValue / visibleLength);
+    if (lengthAxis)
+        return rawValue * uvTiling;
 
-    return result;
+    return rawValue;
 }
 
-bool Use_ClampSampler(float mode)
+float2 Build_TrailSlotBaseUV(float2 rawUV, float2 policy)
 {
-    return mode >= 0.5f && mode < 2.5f;
+    return float2(
+        Resolve_TrailAxisBaseUV(rawUV.x, false, policy.x),
+        Resolve_TrailAxisBaseUV(rawUV.y, true, policy.y)
+    );
 }
 
-float4 Sample_MainTexture(float2 uv, float mode)
+float Apply_TrailAxisAddress(float value, float policy)
 {
-    return Use_ClampSampler(mode)
-           ? g_MainTexture.Sample(LinearClampSampler, uv)
-           : g_MainTexture.Sample(LinearWrapSampler, uv);
+    return policy >= 0.5f && policy < 2.5f ? saturate(value) : frac(value);
 }
 
-float4 Sample_NoiseTexture(float2 uv, float mode)
+float2 Apply_TrailAxisAddress(float2 uv, float2 policy)
 {
-    return Use_ClampSampler(mode)
-           ? g_NoiseTexture.Sample(LinearClampSampler, uv)
-           : g_NoiseTexture.Sample(LinearWrapSampler, uv);
+    return float2(
+        Apply_TrailAxisAddress(uv.x, policy.x),
+        Apply_TrailAxisAddress(uv.y, policy.y)
+    );
 }
 
-float4 Sample_MaskTexture(float2 uv, float mode)
+float4 Sample_MainTexture(float2 uv, float2 policy)
 {
-    return Use_ClampSampler(mode)
-           ? g_MaskTexture.Sample(LinearClampSampler, uv)
-           : g_MaskTexture.Sample(LinearWrapSampler, uv);
+    return g_MainTexture.Sample(LinearClampSampler, Apply_TrailAxisAddress(uv, policy));
+}
+
+float4 Sample_NoiseTexture(float2 uv, float2 policy)
+{
+    return g_NoiseTexture.Sample(LinearClampSampler, Apply_TrailAxisAddress(uv, policy));
+}
+
+float4 Sample_MaskTexture(float2 uv, float2 policy)
+{
+    return g_MaskTexture.Sample(LinearClampSampler, Apply_TrailAxisAddress(uv, policy));
 }
 
 struct VS_IN
@@ -210,16 +223,16 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     EffectMaterialSurface surface = (EffectMaterialSurface)0;
 
     const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
-    const float mainUVMode = g_EffectTrailUVModeParams.x;
-    const float noiseUVMode = g_EffectTrailUVModeParams.y;
-    const float maskUVMode = g_EffectTrailUVModeParams.z;
-    const float2 mainBaseUV = Build_TrailSlotBaseUV(In.texCoord, mainUVMode);
-    const float2 noiseBaseUV = Build_TrailSlotBaseUV(In.texCoord, noiseUVMode);
-    const float2 maskBaseUV = Build_TrailSlotBaseUV(In.texCoord, maskUVMode);
+    const float2 mainUVPolicy = g_EffectTrailUVAxisPolicyParams.xy;
+    const float2 noiseUVPolicy = g_EffectTrailUVAxisPolicyParams.zw;
+    const float2 maskUVPolicy = g_EffectTrailMaskUVAxisPolicyParams.xy;
+    const float2 mainBaseUV = Build_TrailSlotBaseUV(In.texCoord, mainUVPolicy);
+    const float2 noiseBaseUV = Build_TrailSlotBaseUV(In.texCoord, noiseUVPolicy);
+    const float2 maskBaseUV = Build_TrailSlotBaseUV(In.texCoord, maskUVPolicy);
     const float2 mainUV = Apply_MaterialUV(mainBaseUV, g_EffectTrailMainUVParams, g_EffectTrailUVOffsetParams.xy);
     const float2 noiseUV = Apply_MaterialUV(noiseBaseUV, g_EffectTrailNoiseUVParams, g_EffectTrailUVOffsetParams.zw);
     const float2 maskUV = Apply_MaterialUV(maskBaseUV, g_EffectTrailMaskUVParams, g_EffectTrailMaskUVOffsetParams.xy);
-    const float4 tex = Sample_MainTexture(mainUV, mainUVMode);
+    const float4 tex = Sample_MainTexture(mainUV, mainUVPolicy);
     const float sideFade = max(In.segmentParams.w, 0.0001f);
     const float sideAlpha =
         smoothstep(0.0f, sideFade, In.edgeCoord.y) *
@@ -259,7 +272,7 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     const float noiseStrength = saturate(resolvedNoiseStrength);
     if (0 != g_EffectTrailParams.w && resolvedNoiseStrength > 0.f)
     {
-        const float4 noiseTexel = Sample_NoiseTexture(noiseUV, noiseUVMode);
+        const float4 noiseTexel = Sample_NoiseTexture(noiseUV, noiseUVPolicy);
         noiseRaw = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(noiseTexel, (int)g_EffectTrailSourceParams.x),
             g_EffectTrailSourceParams.z
@@ -268,7 +281,7 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
 
     if (0 != g_EffectTrailAlphaParams.z)
     {
-        const float4 maskTexel = Sample_MaskTexture(maskUV, maskUVMode);
+        const float4 maskTexel = Sample_MaskTexture(maskUV, maskUVPolicy);
         maskAlpha = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(maskTexel, (int)g_EffectTrailSourceParams.y),
             g_EffectTrailSourceParams.w
@@ -324,16 +337,16 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     PS_OUT Out = (PS_OUT)0;
 
     const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
-    const float mainUVMode = g_EffectTrailUVModeParams.x;
-    const float noiseUVMode = g_EffectTrailUVModeParams.y;
-    const float maskUVMode = g_EffectTrailUVModeParams.z;
-    const float2 mainBaseUV = Build_TrailSlotBaseUV(In.texCoord, mainUVMode);
-    const float2 noiseBaseUV = Build_TrailSlotBaseUV(In.texCoord, noiseUVMode);
-    const float2 maskBaseUV = Build_TrailSlotBaseUV(In.texCoord, maskUVMode);
+    const float2 mainUVPolicy = g_EffectTrailUVAxisPolicyParams.xy;
+    const float2 noiseUVPolicy = g_EffectTrailUVAxisPolicyParams.zw;
+    const float2 maskUVPolicy = g_EffectTrailMaskUVAxisPolicyParams.xy;
+    const float2 mainBaseUV = Build_TrailSlotBaseUV(In.texCoord, mainUVPolicy);
+    const float2 noiseBaseUV = Build_TrailSlotBaseUV(In.texCoord, noiseUVPolicy);
+    const float2 maskBaseUV = Build_TrailSlotBaseUV(In.texCoord, maskUVPolicy);
     const float2 mainUV = Apply_MaterialUV(mainBaseUV, g_EffectTrailMainUVParams, g_EffectTrailUVOffsetParams.xy);
     const float2 noiseUV = Apply_MaterialUV(noiseBaseUV, g_EffectTrailNoiseUVParams, g_EffectTrailUVOffsetParams.zw);
     const float2 maskUV = Apply_MaterialUV(maskBaseUV, g_EffectTrailMaskUVParams, g_EffectTrailMaskUVOffsetParams.xy);
-    const float4 tex = Sample_MainTexture(mainUV, mainUVMode);
+    const float4 tex = Sample_MainTexture(mainUV, mainUVPolicy);
     const float sideFade = max(In.segmentParams.w, 0.0001f);
     const float sideAlpha =
         smoothstep(0.0f, sideFade, In.edgeCoord.y) *
@@ -371,7 +384,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float noiseStrength = saturate(resolvedNoiseStrength);
     if (0 != g_EffectTrailParams.w && resolvedNoiseStrength > 0.f)
     {
-        const float4 noiseTexel = Sample_NoiseTexture(noiseUV, noiseUVMode);
+        const float4 noiseTexel = Sample_NoiseTexture(noiseUV, noiseUVPolicy);
         noiseRaw = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(noiseTexel, (int)g_EffectTrailSourceParams.x),
             g_EffectTrailSourceParams.z
@@ -380,7 +393,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
 
     if (0 != g_EffectTrailAlphaParams.z)
     {
-        const float4 maskTexel = Sample_MaskTexture(maskUV, maskUVMode);
+        const float4 maskTexel = Sample_MaskTexture(maskUV, maskUVPolicy);
         maskAlpha = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(maskTexel, (int)g_EffectTrailSourceParams.y),
             g_EffectTrailSourceParams.w

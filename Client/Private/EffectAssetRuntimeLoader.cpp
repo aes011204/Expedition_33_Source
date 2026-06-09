@@ -115,6 +115,31 @@ namespace Internal
             outValue = parsed.value();
     }
 
+    EffectTextureUVTilingMode Resolve_CompatibleUVTilingMode(const EffectMaterialUVAxisPolicy& policy)
+    {
+        return policy.uPolicy == policy.vPolicy ? policy.uPolicy : EffectTextureUVTilingMode::Wrap;
+    }
+
+    void Read_UVAxisPolicy(
+        const json& node,
+        const char* key,
+        EffectTextureUVTilingMode legacyMode,
+        EffectMaterialUVAxisPolicy& outPolicy,
+        EffectTextureUVTilingMode& outCompatibleMode)
+    {
+        outPolicy.uPolicy = legacyMode;
+        outPolicy.vPolicy = legacyMode;
+
+        const auto policyIter = node.find(key);
+        if (policyIter != node.end() && policyIter->is_object())
+        {
+            Read_Enum(*policyIter, "uPolicy", outPolicy.uPolicy);
+            Read_Enum(*policyIter, "vPolicy", outPolicy.vPolicy);
+        }
+
+        outCompatibleMode = Resolve_CompatibleUVTilingMode(outPolicy);
+    }
+
     EffectSortPolicy Read_SortPolicy(const json& node, EffectSortPolicy fallbackValue)
     {
         string token = Read_String(node, "sortPolicy");
@@ -1909,6 +1934,10 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     Read_Enum(material, "noiseUVTilingMode", materialDesc.noiseUVTilingMode);
     Read_Enum(material, "maskUVTilingMode", materialDesc.maskUVTilingMode);
     Read_Enum(material, "flowUVTilingMode", materialDesc.flowUVTilingMode);
+    Internal::Read_UVAxisPolicy(material, "mainUVPolicy", materialDesc.mainUVTilingMode, materialDesc.mainUVPolicy, materialDesc.mainUVTilingMode);
+    Internal::Read_UVAxisPolicy(material, "noiseUVPolicy", materialDesc.noiseUVTilingMode, materialDesc.noiseUVPolicy, materialDesc.noiseUVTilingMode);
+    Internal::Read_UVAxisPolicy(material, "maskUVPolicy", materialDesc.maskUVTilingMode, materialDesc.maskUVPolicy, materialDesc.maskUVTilingMode);
+    Internal::Read_UVAxisPolicy(material, "flowUVPolicy", materialDesc.flowUVTilingMode, materialDesc.flowUVPolicy, materialDesc.flowUVTilingMode);
     materialDesc.refractionIntensity = Read_Float(material, "refractionIntensity", materialDesc.refractionIntensity);
     materialDesc.refractionPresence = Read_Float(material, "refractionPresence", materialDesc.refractionPresence);
     Read_Enum(material, "distortionShapeMode", materialDesc.distortionShapeMode);
@@ -2506,6 +2535,7 @@ bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter,
             desc.uvTiling = max(0.001f, Read_Float(typeData, "uvTiling", desc.uvTiling));
             desc.maxTrailLength = max(0.f, Read_Float(typeData, "maxTrailLength", desc.maxTrailLength));
             desc.tailFadeLength = max(0.f, Read_Float(typeData, "tailFadeLength", desc.tailFadeLength));
+            desc.autoLifeFade = Read_Bool(typeData, "autoLifeFade", desc.autoLifeFade);
             desc.sampleSpacing = max(0.001f, Read_Float(typeData, "sampleSpacing", desc.sampleSpacing));
             desc.curveSubdivision = max(0u, Read_UInt(typeData, "curveSubdivision", desc.curveSubdivision));
             desc.smoothTangent = Read_Bool(typeData, "smoothTangent", desc.smoothTangent);

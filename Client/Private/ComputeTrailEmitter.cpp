@@ -971,7 +971,7 @@ HRESULT ComputeTrailEmitter::Update_ComputeConstants()
         0.f,
         0.f
     };
-    params.lengthParams = Vec4{ _desc.maxTrailLength, _desc.tailFadeLength, 0.f, 0.f };
+    params.lengthParams = Vec4{ _desc.maxTrailLength, _desc.tailFadeLength, _desc.autoLifeFade ? 1.f : 0.f, 0.f };
 
     _context->UpdateSubresource(_computeConstantBuffer.Get(), 0, nullptr, &params, 0, 0);
     return S_OK;
@@ -1081,6 +1081,18 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         static_cast<float>(static_cast<uint32>(_desc.material.maskUVTilingMode)),
         0.f
     );
+    const Vec4 effectTrailUVAxisPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(_desc.material.mainUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(_desc.material.mainUVPolicy.vPolicy)),
+        static_cast<float>(static_cast<uint32>(_desc.material.noiseUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(_desc.material.noiseUVPolicy.vPolicy))
+    );
+    const Vec4 effectTrailMaskUVAxisPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(_desc.material.maskUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(_desc.material.maskUVPolicy.vPolicy)),
+        0.f,
+        0.f
+    );
     const Vec4 effectTrailSourceParams = Vec4(
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(_desc.material.noiseSource)),
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(_desc.material.maskSource)),
@@ -1097,6 +1109,8 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaskUVOffsetParams", &effectTrailMaskUVOffsetParams, sizeof(effectTrailMaskUVOffsetParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVPolicyParams", &effectTrailUVPolicyParams, sizeof(effectTrailUVPolicyParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVModeParams", &effectTrailUVModeParams, sizeof(effectTrailUVModeParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVAxisPolicyParams", &effectTrailUVAxisPolicyParams, sizeof(effectTrailUVAxisPolicyParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaskUVAxisPolicyParams", &effectTrailMaskUVAxisPolicyParams, sizeof(effectTrailMaskUVAxisPolicyParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailSourceParams", &effectTrailSourceParams, sizeof(effectTrailSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
@@ -1157,9 +1171,14 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
     );
     const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
     const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+    const Vec2 flowUVPolicyParams(
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
+    );
 
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVPolicyParams", &flowUVPolicyParams, sizeof(flowUVPolicyParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);

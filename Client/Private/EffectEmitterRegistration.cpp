@@ -2,7 +2,6 @@
 
 #include "ComputeSpriteEmitter.h"
 #include "ComputeTrailEmitter.h"
-#include "ComputeRibbonEmitter.h"
 #include "ComputeSourceHistoryRibbonEmitter.h"
 #include "EffectEmitterFactory.h"
 #include "GameInstance.h"
@@ -11,7 +10,6 @@ NS_BEGIN(Client)
 
 namespace Internal
 {
-    constexpr const wchar_t* kComputeRibbonEmitterPrototypeTag = L"GameObject_Effect_ComputeRibbonEmitter";
     constexpr const wchar_t* kComputeSourceHistoryRibbonEmitterPrototypeTag = L"GameObject_Effect_ComputeSourceHistoryRibbonEmitter";
 
     Shared<EffectEmitter> Create_ClientEffectEmitter(const EffectEmitterDefinition& emitterDefinition)
@@ -54,33 +52,6 @@ namespace Internal
                     &concreteDesc
                 )
             );
-
-            return dynamic_pointer_cast<EffectEmitter>(clonedObject);
-        }
-
-        case EffectEmitterKind::ComputeRibbon:
-        {
-            const auto* desc = get_if<ComputeRibbonEmitterDesc>(&emitterDefinition.concreteDesc);
-            if (nullptr == desc)
-                return nullptr;
-
-            ComputeRibbonEmitterDesc concreteDesc = *desc;
-            concreteDesc.renderLayerOverride = emitterDefinition.renderLayerOverride;
-            const Shared<GameObject> clonedObject = dynamic_pointer_cast<GameObject>(
-                GAME->Clone_Prototype(
-                    Prototype::GameObject,
-                    ETOI(LevelType::Static),
-                    kComputeRibbonEmitterPrototypeTag,
-                    &concreteDesc
-                )
-            );
-            if (clonedObject == nullptr)
-            {
-                LOG_WARN(
-                    "ComputeRibbonEmitter prototype missing: failed to clone ribbon emitter prototype. emitter='{}'",
-                    emitterDefinition.name
-                );
-            }
 
             return dynamic_pointer_cast<EffectEmitter>(clonedObject);
         }

@@ -84,7 +84,6 @@ namespace Internal
             prototypeTag == L"GameObject_EffectInstance" ||
             prototypeTag == L"GameObject_Effect_ComputeSpriteEmitter" ||
             prototypeTag == L"GameObject_Effect_ComputeTrailEmitter" ||
-            prototypeTag == L"GameObject_Effect_ComputeRibbonEmitter" ||
             prototypeTag == L"GameObject_Effect_ComputeSourceHistoryRibbonEmitter" ||
             prototypeTag == L"GameObject_Effect_MeshEmitter";
     }

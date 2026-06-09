@@ -908,6 +908,29 @@ namespace Internal
         return changed;
     }
 
+    EffectTextureUVTilingMode Resolve_CompatibleUVTilingModeForView(const EffectMaterialUVAxisPolicy& policy)
+    {
+        return policy.uPolicy == policy.vPolicy ? policy.uPolicy : EffectTextureUVTilingMode::Wrap;
+    }
+
+    bool Draw_UVAxisPolicyProperties(
+        DetailPropertyContext& detailContext,
+        const char* uLabel,
+        const char* vLabel,
+        EffectMaterialUVAxisPolicy& policy,
+        EffectMaterialUVAxisPolicy defaultPolicy,
+        EffectTextureUVTilingMode& compatibleMode)
+    {
+        bool changed = false;
+        changed |= Draw_UVTilingModeProperty(detailContext, uLabel, policy.uPolicy, defaultPolicy.uPolicy);
+        changed |= Draw_UVTilingModeProperty(detailContext, vLabel, policy.vPolicy, defaultPolicy.vPolicy);
+
+        if (changed)
+            compatibleMode = Resolve_CompatibleUVTilingModeForView(policy);
+
+        return changed;
+    }
+
     const char* Get_MaterialFamilyLabel(EffectMaterialFamily value)
     {
         switch (value)
@@ -1084,7 +1107,6 @@ void EffectMaterialInstance_View::Render()
                     emitter->typeData.kind == AuthoringTypeDataKind::None
                     ? EffectMaterialTwoSidedDisplayMode::ForcedEnabledReadOnly
                     : emitter->typeData.kind == AuthoringTypeDataKind::Trail
-                      || emitter->typeData.kind == AuthoringTypeDataKind::Ribbon
                       || emitter->typeData.kind == AuthoringTypeDataKind::SourceHistoryRibbon
                       ? EffectMaterialTwoSidedDisplayMode::EditableUnimplemented
                       : EffectMaterialTwoSidedDisplayMode::EditableImplemented;
@@ -1209,6 +1231,21 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= mainModeChanged;
             restartPreview |= mainModeChanged;
+            if (mainModeChanged)
+            {
+                material.mainUVPolicy.uPolicy = material.mainUVTilingMode;
+                material.mainUVPolicy.vPolicy = material.mainUVTilingMode;
+            }
+            const bool mainAxisPolicyChanged = Internal::Draw_UVAxisPolicyProperties(
+                detailPropertyContext,
+                "Main U Policy",
+                "Main V Policy",
+                material.mainUVPolicy,
+                defaultData.mainUVPolicy,
+                material.mainUVTilingMode
+            );
+            changed |= mainAxisPolicyChanged;
+            restartPreview |= mainAxisPolicyChanged;
             changed |= detailPropertyContext.Draw_Vec2Property("Main UV Scale", material.mainUVScale, defaultData.mainUVScale);
             changed |= detailPropertyContext.Draw_Vec2Property("Main UV Offset", material.mainUVOffset, defaultData.mainUVOffset);
             changed |= detailPropertyContext.Draw_Vec2Property("Main UV Scroll Speed", material.mainUVScrollSpeed, defaultData.mainUVScrollSpeed);
@@ -1250,6 +1287,21 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= noiseModeChanged;
             restartPreview |= noiseModeChanged;
+            if (noiseModeChanged)
+            {
+                material.noiseUVPolicy.uPolicy = material.noiseUVTilingMode;
+                material.noiseUVPolicy.vPolicy = material.noiseUVTilingMode;
+            }
+            const bool noiseAxisPolicyChanged = Internal::Draw_UVAxisPolicyProperties(
+                detailPropertyContext,
+                "Noise U Policy",
+                "Noise V Policy",
+                material.noiseUVPolicy,
+                defaultData.noiseUVPolicy,
+                material.noiseUVTilingMode
+            );
+            changed |= noiseAxisPolicyChanged;
+            restartPreview |= noiseAxisPolicyChanged;
             changed |= detailPropertyContext.Draw_Vec2Property("Noise UV Scale", material.noiseUVScale, defaultData.noiseUVScale);
             changed |= detailPropertyContext.Draw_Vec2Property("Noise UV Offset", material.noiseUVOffset, defaultData.noiseUVOffset);
             changed |= detailPropertyContext.Draw_Vec2Property("Noise UV Scroll Speed", material.noiseUVScrollSpeed, defaultData.noiseUVScrollSpeed);
@@ -1292,6 +1344,21 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= maskModeChanged;
             restartPreview |= maskModeChanged;
+            if (maskModeChanged)
+            {
+                material.maskUVPolicy.uPolicy = material.maskUVTilingMode;
+                material.maskUVPolicy.vPolicy = material.maskUVTilingMode;
+            }
+            const bool maskAxisPolicyChanged = Internal::Draw_UVAxisPolicyProperties(
+                detailPropertyContext,
+                "Mask U Policy",
+                "Mask V Policy",
+                material.maskUVPolicy,
+                defaultData.maskUVPolicy,
+                material.maskUVTilingMode
+            );
+            changed |= maskAxisPolicyChanged;
+            restartPreview |= maskAxisPolicyChanged;
             changed |= detailPropertyContext.Draw_Vec2Property("Mask UV Scale", material.maskUVScale, defaultData.maskUVScale);
             changed |= detailPropertyContext.Draw_Vec2Property("Mask UV Offset", material.maskUVOffset, defaultData.maskUVOffset);
             changed |= detailPropertyContext.Draw_Vec2Property("Mask UV Scroll Speed", material.maskUVScrollSpeed, defaultData.maskUVScrollSpeed);
@@ -1321,6 +1388,21 @@ bool EffectMaterialInstance_View::Draw_InstanceProperties(
             );
             changed |= flowModeChanged;
             restartPreview |= flowModeChanged;
+            if (flowModeChanged)
+            {
+                material.flowUVPolicy.uPolicy = material.flowUVTilingMode;
+                material.flowUVPolicy.vPolicy = material.flowUVTilingMode;
+            }
+            const bool flowAxisPolicyChanged = Internal::Draw_UVAxisPolicyProperties(
+                detailPropertyContext,
+                "Flow U Policy",
+                "Flow V Policy",
+                material.flowUVPolicy,
+                defaultData.flowUVPolicy,
+                material.flowUVTilingMode
+            );
+            changed |= flowAxisPolicyChanged;
+            restartPreview |= flowAxisPolicyChanged;
             changed |= detailPropertyContext.Draw_Vec2Property("Flow UV Scale", material.flowUVScale, defaultData.flowUVScale);
             changed |= detailPropertyContext.Draw_Vec2Property("Flow UV Offset", material.flowUVOffset, defaultData.flowUVOffset);
             changed |= detailPropertyContext.Draw_Vec2Property("Flow UV Scroll Speed", material.flowUVScrollSpeed, defaultData.flowUVScrollSpeed);
