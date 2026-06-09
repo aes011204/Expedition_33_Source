@@ -41,9 +41,22 @@ HRESULT ModelEditorApp::Initialize()
 	if (FAILED(ModelImGui_Manager::GetInstance()->Initialize(g_hWnd, _device, _context)))
 		return E_FAIL;
 
-	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxMesh", ShaderCom::Create(_device, _context, TEXT("../../Bin/ShaderFiles/Shader_VtxMesh.hlsl"), VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh))))
+	Shared<ShaderCom> vtxMeshShader =
+		ShaderCom::Create(_device, _context,
+			L"../../../Client/Bin/ShaderFiles/Shader_VtxMesh.hlsl",
+			VTXMESH::Elements, VTXMESH::numElements, ShaderType::VtxMesh);
+	if (vtxMeshShader == nullptr)
 		return E_FAIL;
-	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxAnimMesh", ShaderCom::Create(_device, _context, TEXT("../../Bin/ShaderFiles/Shader_VtxAnimMesh.hlsl"), VTXANIMMESH::Elements, VTXANIMMESH::numElements, ShaderType::VtxAnimMesh))))
+	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxMesh", vtxMeshShader)))
+		return E_FAIL;
+
+	Shared<ShaderCom> vtxAnimMeshShader =
+		ShaderCom::Create(_device, _context,
+			L"../../../Client/Bin/ShaderFiles/Shader_VtxAnimMesh.hlsl",
+			VTXANIMMESH::Elements, VTXANIMMESH::numElements, ShaderType::VtxAnimMesh);
+	if (vtxAnimMeshShader == nullptr)
+		return E_FAIL;
+	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxAnimMesh", vtxAnimMeshShader)))
 		return E_FAIL;
 
 	if (FAILED(GAME->Add_Prototype(0, L"Prototype_GameObject_ModelEditorCamera", ModelEditorCamera::Create(_device, _context))))
