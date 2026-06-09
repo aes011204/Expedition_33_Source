@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Client_Defines.h"
 #include "EffectEmitter.h"
 #include "EffectRuntime_Types.h"
@@ -85,7 +85,7 @@ private:
         Vec4 startColor{};
         Vec4 endColor{};
         Vec4 subUVRect{};
-        Vec4 segmentParams{};    // x: lifeProgress, y: currentWidth, z: nextWidth, w: alphaScale.
+        Vec4 segmentParams{}; // x: lifeProgress, y: currentWidth, z: nextWidth, w: alphaScale.
     };
 
     struct DrawIndexedInstancedIndirectArgs

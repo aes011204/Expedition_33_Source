@@ -800,6 +800,18 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
         0.f
     );
+    const Vec4 effectSpriteUVAxisPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.vPolicy)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.vPolicy))
+    );
+    const Vec4 effectSpriteMaskUVAxisPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.vPolicy)),
+        0.f,
+        0.f
+    );
     const Vec4 effectSpriteSourceParams = Vec4(
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
@@ -818,6 +830,18 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         E_FAIL
     );
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteUVModeParams", &effectSpriteUVModeParams, sizeof(effectSpriteUVModeParams)), E_FAIL);
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_EffectSpriteUVAxisPolicyParams", &effectSpriteUVAxisPolicyParams, sizeof(effectSpriteUVAxisPolicyParams)),
+        E_FAIL
+    );
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue(
+            "g_EffectSpriteMaskUVAxisPolicyParams",
+            &effectSpriteMaskUVAxisPolicyParams,
+            sizeof(effectSpriteMaskUVAxisPolicyParams)
+        ),
+        E_FAIL
+    );
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteSourceParams", &effectSpriteSourceParams, sizeof(effectSpriteSourceParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)), E_FAIL);
     CHECK_FAILED_ONCE(

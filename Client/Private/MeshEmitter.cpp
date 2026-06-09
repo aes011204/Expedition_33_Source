@@ -799,6 +799,18 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
         static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
         0.f
     );
+    const Vec4 effectMeshUVAxisPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.vPolicy)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.vPolicy))
+    );
+    const Vec4 effectMeshMaskUVAxisPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.vPolicy)),
+        0.f,
+        0.f
+    );
     const Vec4 effectMeshSourceParams = Vec4(
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
@@ -864,6 +876,16 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
     );
     CHECK_FAILED_THROTTLED(
         _shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshUVAxisPolicyParams", &effectMeshUVAxisPolicyParams, sizeof(effectMeshUVAxisPolicyParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshMaskUVAxisPolicyParams", &effectMeshMaskUVAxisPolicyParams, sizeof(effectMeshMaskUVAxisPolicyParams)),
         60,
         E_FAIL
     );

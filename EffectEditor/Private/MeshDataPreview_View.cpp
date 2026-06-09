@@ -720,6 +720,18 @@ struct MeshDataPreview_View::PreviewRenderer
             static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
             0.f
         );
+        const Vec4 effectMeshUVAxisPolicyParams = Vec4(
+            static_cast<float>(static_cast<uint32>(material.mainUVPolicy.uPolicy)),
+            static_cast<float>(static_cast<uint32>(material.mainUVPolicy.vPolicy)),
+            static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.uPolicy)),
+            static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.vPolicy))
+        );
+        const Vec4 effectMeshMaskUVAxisPolicyParams = Vec4(
+            static_cast<float>(static_cast<uint32>(material.maskUVPolicy.uPolicy)),
+            static_cast<float>(static_cast<uint32>(material.maskUVPolicy.vPolicy)),
+            0.f,
+            0.f
+        );
         const EffectMaterialAdditiveContributionData& additive = material.additive;
         const EffectMaterialCoreEmissiveData& coreEmissive = material.coreEmissive;
         const Vec4 effectMeshAdditiveParams = Vec4(
@@ -757,6 +769,18 @@ struct MeshDataPreview_View::PreviewRenderer
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshUVOffsetParams", &effectMeshUVOffsetParams, sizeof(effectMeshUVOffsetParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaskUVOffsetParams", &effectMeshMaskUVOffsetParams, sizeof(effectMeshMaskUVOffsetParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)), E_FAIL);
+        CHECK_FAILED(
+            shader->Bind_RawValue("g_EffectMeshUVAxisPolicyParams", &effectMeshUVAxisPolicyParams, sizeof(effectMeshUVAxisPolicyParams)),
+            E_FAIL
+        );
+        CHECK_FAILED(
+            shader->Bind_RawValue(
+                "g_EffectMeshMaskUVAxisPolicyParams",
+                &effectMeshMaskUVAxisPolicyParams,
+                sizeof(effectMeshMaskUVAxisPolicyParams)
+            ),
+            E_FAIL
+        );
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshSourceParams", &effectMeshSourceParams, sizeof(effectMeshSourceParams)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshMaterialTime", &materialElapsedTime, sizeof(materialElapsedTime)), E_FAIL);
         CHECK_FAILED(shader->Bind_RawValue("g_EffectMeshAdditiveParams", &effectMeshAdditiveParams, sizeof(effectMeshAdditiveParams)), E_FAIL);

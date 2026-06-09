@@ -229,13 +229,13 @@ bool TryResolveDirectionalLookDirection(float3 particlePosition, float3 velocity
 void ResolveLookAlignedBasis(float3 lookDir, out float3 rightDir, out float3 upDir)
 {
     float3 worldUp = float3(0.f, 1.f, 0.f);
-    rightDir = cross(worldUp, lookDir);
+    rightDir = cross(lookDir, worldUp);
 
     if (length(rightDir) < 0.0001f)
-        rightDir = cross(float3(0.f, 0.f, 1.f), lookDir);
+        rightDir = cross(lookDir, float3(0.f, 0.f, 1.f));
 
     rightDir = normalize(rightDir);
-    upDir = normalize(cross(lookDir, rightDir));
+    upDir = normalize(cross(rightDir, lookDir));
 }
 
 // 현재 카메라 평면 기준의 right/up 축을 가져온다.

@@ -15,9 +15,11 @@ cbuffer cbEffectRibbonMaterial : register(b2)
     float4 g_EffectRibbonMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectRibbonUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: noise offset
     float4 g_EffectRibbonMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
-    float4 g_EffectRibbonUVModeParams = { 0.f, 0.f, 0.f, 0.f };   // x: main, y: noise, z: mask, w: reserved
-    float4 g_EffectRibbonSourceParams = { 1.f, 0.f, 0.f, 0.f };   // x: noise source, y: mask source, z: noise invert, w: mask invert
-    float4 g_EffectRibbonAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
+    float4 g_EffectRibbonUVModeParams = { 0.f, 0.f, 0.f, 0.f };           // x: main, y: noise, z: mask, w: reserved
+    float4 g_EffectRibbonUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main U/V policy, zw: noise U/V policy
+    float4 g_EffectRibbonMaskUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask U/V policy, zw: reserved
+    float4 g_EffectRibbonSourceParams = { 1.f, 0.f, 0.f, 0.f };           // x: noise source, y: mask source, z: noise invert, w: mask invert
+    float4 g_EffectRibbonAdditiveParams = { 0.f, 0.f, 0.f, 1.f };         // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectRibbonAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectRibbonAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectRibbonAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };
@@ -53,14 +55,9 @@ static const int RIBBON_RENDER_AXIS_VIEW_UP = 1;
 static const int RIBBON_RENDER_AXIS_WORLD_UP = 2;
 static const float kRibbonEdgeFade = 0.04f;
 
-bool Use_RibbonClampSampler(float mode)
+float Resolve_RibbonAxisUV(float rawValue, float transformedValue, float policy)
 {
-    return mode >= 0.5f && mode < 2.5f;
-}
-
-float2 Build_RibbonBaseUV(float2 rawUV, float mode)
-{
-    return mode >= 2.5f ? rawUV : rawUV;
+    return policy >= 2.5f ? rawValue : transformedValue;
 }
 
 float2 Apply_RibbonMaterialUV(float2 uv, float4 uvParams, float2 uvOffset)
@@ -68,25 +65,41 @@ float2 Apply_RibbonMaterialUV(float2 uv, float4 uvParams, float2 uvOffset)
     return uv * uvParams.xy + uvOffset + uvParams.zw * g_EffectRibbonMaterialTime;
 }
 
-float4 Sample_RibbonMainTexture(float2 uv, float mode)
+float2 Build_RibbonMaterialUV(float2 rawUV, float4 uvParams, float2 uvOffset, float2 policy)
 {
-    return Use_RibbonClampSampler(mode)
-           ? g_MainTexture.Sample(LinearClampSampler, uv)
-           : g_MainTexture.Sample(LinearWrapSampler, uv);
+    const float2 transformedUV = Apply_RibbonMaterialUV(rawUV, uvParams, uvOffset);
+    return float2(
+        Resolve_RibbonAxisUV(rawUV.x, transformedUV.x, policy.x),
+        Resolve_RibbonAxisUV(rawUV.y, transformedUV.y, policy.y)
+    );
 }
 
-float4 Sample_RibbonNoiseTexture(float2 uv, float mode)
+float Apply_RibbonAxisAddress(float value, float policy)
 {
-    return Use_RibbonClampSampler(mode)
-           ? g_NoiseTexture.Sample(LinearClampSampler, uv)
-           : g_NoiseTexture.Sample(LinearWrapSampler, uv);
+    return policy >= 0.5f && policy < 2.5f ? saturate(value) : frac(value);
 }
 
-float4 Sample_RibbonMaskTexture(float2 uv, float mode)
+float2 Apply_RibbonAxisAddress(float2 uv, float2 policy)
 {
-    return Use_RibbonClampSampler(mode)
-           ? g_MaskTexture.Sample(LinearClampSampler, uv)
-           : g_MaskTexture.Sample(LinearWrapSampler, uv);
+    return float2(
+        Apply_RibbonAxisAddress(uv.x, policy.x),
+        Apply_RibbonAxisAddress(uv.y, policy.y)
+    );
+}
+
+float4 Sample_RibbonMainTexture(float2 uv, float2 policy)
+{
+    return g_MainTexture.Sample(LinearClampSampler, Apply_RibbonAxisAddress(uv, policy));
+}
+
+float4 Sample_RibbonNoiseTexture(float2 uv, float2 policy)
+{
+    return g_NoiseTexture.Sample(LinearClampSampler, Apply_RibbonAxisAddress(uv, policy));
+}
+
+float4 Sample_RibbonMaskTexture(float2 uv, float2 policy)
+{
+    return g_MaskTexture.Sample(LinearClampSampler, Apply_RibbonAxisAddress(uv, policy));
 }
 
 struct VS_IN
@@ -288,16 +301,13 @@ EffectMaterialSurface Resolve_EffectRibbonMaterialSurface(PS_IN In)
     EffectMaterialSurface surface = (EffectMaterialSurface)0;
 
     const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
-    const float mainUVMode = g_EffectRibbonUVModeParams.x;
-    const float noiseUVMode = g_EffectRibbonUVModeParams.y;
-    const float maskUVMode = g_EffectRibbonUVModeParams.z;
-    const float2 mainBaseUV = Build_RibbonBaseUV(In.texCoord, mainUVMode);
-    const float2 noiseBaseUV = Build_RibbonBaseUV(In.texCoord, noiseUVMode);
-    const float2 maskBaseUV = Build_RibbonBaseUV(In.texCoord, maskUVMode);
-    const float2 mainUV = Apply_RibbonMaterialUV(mainBaseUV, g_EffectRibbonMainUVParams, g_EffectRibbonUVOffsetParams.xy);
-    const float2 noiseUV = Apply_RibbonMaterialUV(noiseBaseUV, g_EffectRibbonNoiseUVParams, g_EffectRibbonUVOffsetParams.zw);
-    const float2 maskUV = Apply_RibbonMaterialUV(maskBaseUV, g_EffectRibbonMaskUVParams, g_EffectRibbonMaskUVOffsetParams.xy);
-    const float4 tex = Sample_RibbonMainTexture(mainUV, mainUVMode);
+    const float2 mainUVPolicy = g_EffectRibbonUVAxisPolicyParams.xy;
+    const float2 noiseUVPolicy = g_EffectRibbonUVAxisPolicyParams.zw;
+    const float2 maskUVPolicy = g_EffectRibbonMaskUVAxisPolicyParams.xy;
+    const float2 mainUV = Build_RibbonMaterialUV(In.texCoord, g_EffectRibbonMainUVParams, g_EffectRibbonUVOffsetParams.xy, mainUVPolicy);
+    const float2 noiseUV = Build_RibbonMaterialUV(In.texCoord, g_EffectRibbonNoiseUVParams, g_EffectRibbonUVOffsetParams.zw, noiseUVPolicy);
+    const float2 maskUV = Build_RibbonMaterialUV(In.texCoord, g_EffectRibbonMaskUVParams, g_EffectRibbonMaskUVOffsetParams.xy, maskUVPolicy);
+    const float4 tex = Sample_RibbonMainTexture(mainUV, mainUVPolicy);
     const float sideAlpha =
         smoothstep(0.0f, kRibbonEdgeFade, In.edgeCoord.y) *
         smoothstep(0.0f, kRibbonEdgeFade, 1.0f - In.edgeCoord.y);
@@ -335,7 +345,7 @@ EffectMaterialSurface Resolve_EffectRibbonMaterialSurface(PS_IN In)
     const float noiseStrength = saturate(resolvedNoiseStrength);
     if (0 != g_EffectRibbonParams.w && resolvedNoiseStrength > 0.f)
     {
-        const float4 noiseTexel = Sample_RibbonNoiseTexture(noiseUV, noiseUVMode);
+        const float4 noiseTexel = Sample_RibbonNoiseTexture(noiseUV, noiseUVPolicy);
         noiseRaw = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(noiseTexel, (int)g_EffectRibbonSourceParams.x),
             g_EffectRibbonSourceParams.z
@@ -344,7 +354,7 @@ EffectMaterialSurface Resolve_EffectRibbonMaterialSurface(PS_IN In)
 
     if (0 != g_EffectRibbonAlphaParams.z)
     {
-        const float4 maskTexel = Sample_RibbonMaskTexture(maskUV, maskUVMode);
+        const float4 maskTexel = Sample_RibbonMaskTexture(maskUV, maskUVPolicy);
         maskAlpha = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(maskTexel, (int)g_EffectRibbonSourceParams.y),
             g_EffectRibbonSourceParams.w
@@ -398,16 +408,13 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     PS_OUT Out = (PS_OUT)0;
 
     const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
-    const float mainUVMode = g_EffectRibbonUVModeParams.x;
-    const float noiseUVMode = g_EffectRibbonUVModeParams.y;
-    const float maskUVMode = g_EffectRibbonUVModeParams.z;
-    const float2 mainBaseUV = Build_RibbonBaseUV(In.texCoord, mainUVMode);
-    const float2 noiseBaseUV = Build_RibbonBaseUV(In.texCoord, noiseUVMode);
-    const float2 maskBaseUV = Build_RibbonBaseUV(In.texCoord, maskUVMode);
-    const float2 mainUV = Apply_RibbonMaterialUV(mainBaseUV, g_EffectRibbonMainUVParams, g_EffectRibbonUVOffsetParams.xy);
-    const float2 noiseUV = Apply_RibbonMaterialUV(noiseBaseUV, g_EffectRibbonNoiseUVParams, g_EffectRibbonUVOffsetParams.zw);
-    const float2 maskUV = Apply_RibbonMaterialUV(maskBaseUV, g_EffectRibbonMaskUVParams, g_EffectRibbonMaskUVOffsetParams.xy);
-    const float4 tex = Sample_RibbonMainTexture(mainUV, mainUVMode);
+    const float2 mainUVPolicy = g_EffectRibbonUVAxisPolicyParams.xy;
+    const float2 noiseUVPolicy = g_EffectRibbonUVAxisPolicyParams.zw;
+    const float2 maskUVPolicy = g_EffectRibbonMaskUVAxisPolicyParams.xy;
+    const float2 mainUV = Build_RibbonMaterialUV(In.texCoord, g_EffectRibbonMainUVParams, g_EffectRibbonUVOffsetParams.xy, mainUVPolicy);
+    const float2 noiseUV = Build_RibbonMaterialUV(In.texCoord, g_EffectRibbonNoiseUVParams, g_EffectRibbonUVOffsetParams.zw, noiseUVPolicy);
+    const float2 maskUV = Build_RibbonMaterialUV(In.texCoord, g_EffectRibbonMaskUVParams, g_EffectRibbonMaskUVOffsetParams.xy, maskUVPolicy);
+    const float4 tex = Sample_RibbonMainTexture(mainUV, mainUVPolicy);
     const float sideAlpha =
         smoothstep(0.0f, kRibbonEdgeFade, In.edgeCoord.y) *
         smoothstep(0.0f, kRibbonEdgeFade, 1.0f - In.edgeCoord.y);
@@ -443,7 +450,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float noiseStrength = saturate(resolvedNoiseStrength);
     if (0 != g_EffectRibbonParams.w && resolvedNoiseStrength > 0.f)
     {
-        const float4 noiseTexel = Sample_RibbonNoiseTexture(noiseUV, noiseUVMode);
+        const float4 noiseTexel = Sample_RibbonNoiseTexture(noiseUV, noiseUVPolicy);
         noiseRaw = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(noiseTexel, (int)g_EffectRibbonSourceParams.x),
             g_EffectRibbonSourceParams.z
@@ -452,7 +459,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
 
     if (0 != g_EffectRibbonAlphaParams.z)
     {
-        const float4 maskTexel = Sample_RibbonMaskTexture(maskUV, maskUVMode);
+        const float4 maskTexel = Sample_RibbonMaskTexture(maskUV, maskUVPolicy);
         maskAlpha = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(maskTexel, (int)g_EffectRibbonSourceParams.y),
             g_EffectRibbonSourceParams.w
