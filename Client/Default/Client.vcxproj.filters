@@ -244,6 +244,9 @@
     <Filter Include="02.GameObject\Map\MapWater">
       <UniqueIdentifier>{dfc611f8-c2e2-475c-aa73-008ab9a996bc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02.GameObject\UI\BattleWorldUIPlane">
+      <UniqueIdentifier>{7425a794-b03d-47fb-93bd-2c43f7292c7c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CameraDirector.cpp" />
@@ -454,6 +457,9 @@
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
+    <ClCompile Include="..\private\BattleWorldUIPlane.cpp">
+      <Filter>02.GameObject\UI\BattleWorldUIPlane</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -592,6 +598,9 @@
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl">
+      <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_BattleWorldUIPlane.hlsl">
       <Filter>97.ShaderFiles</Filter>
     </FxCompile>
   </ItemGroup>
@@ -1287,6 +1296,9 @@
       <Filter>02.GameObject\Map\MapWater</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
+    <ClInclude Include="..\public\BattleWorldUIPlane.h">
+      <Filter>02.GameObject\UI\BattleWorldUIPlane</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
