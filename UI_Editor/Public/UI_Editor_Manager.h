@@ -53,12 +53,7 @@ public:
         const string& maskTexturePath,
         UI_MaskTextureMode maskTextureMode);
     ID3D11ShaderResourceView* Get_PatternOverlayPreviewSRV(
-        const string& textureGuid,
-        const string& texturePath,
-        const string& paintMaskTextureGuid,
-        const string& paintMaskTexturePath,
-        const string& patternMaskTextureGuid,
-        const string& patternMaskTexturePath);
+        const PatternOverlayPreviewDesc& previewDesc);
     bool New_Document();
     void Create_UIObject(UI_ObjectType objectType);
     bool Create_PatternOverlayFromImage(ObjectId sourceObjectId);
@@ -87,11 +82,15 @@ public:
     bool Set_UIObjectSortOrder(ObjectId objectId, int32 sortOrder);
     bool Set_UIObjectRenderGroup(ObjectId objectId, UI_RenderGroup renderGroup);
     bool Set_UIObjectColor(ObjectId objectId, const ImVec4& color);
+    bool Set_UIObjectAlphaMultiplier(ObjectId objectId, float alphaMultiplier);
     bool Set_UIObjectImageRenderMode(ObjectId objectId, UI_ImageRenderMode imageRenderMode);
     bool Set_UIObjectTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath);
     bool Set_UIObjectMaskTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath);
     bool Set_UIObjectMaskTextureMode(ObjectId objectId, UI_MaskTextureMode maskTextureMode);
     bool Set_UIObjectPatternMaskTextureBinding(ObjectId objectId, const string& textureGuid, const string& texturePath);
+    bool Set_UIObjectPatternUvOffset(ObjectId objectId, const ImVec2& patternUvOffset);
+    bool Set_UIObjectPatternUvScale(ObjectId objectId, const ImVec2& patternUvScale);
+    bool Set_UIObjectPatternUv(ObjectId objectId, const ImVec2& patternUvOffset, const ImVec2& patternUvScale);
     bool Set_UIObjectText(ObjectId objectId, const string& text);
     bool Set_UIObjectFontSize(ObjectId objectId, float fontSize);
     bool Set_UIObjectTextAlign(ObjectId objectId, UI_TextAlign textAlign);
@@ -127,7 +126,9 @@ public:
         const D3D11_RECT& clipRect);
     void Play_AnimationPreview(ObjectId objectId);
     void Play_AnimationAssetPreview(const UI_AnimationAsset& asset, int32 startFrame);
+    void Play_AnimationSequencePreview(const UI_AnimationSequenceAsset& sequence, int32 startFrame);
     void Preview_AnimationAsset(const UI_AnimationAsset& asset, int32 frame);
+    void Preview_AnimationSequence(const UI_AnimationSequenceAsset& sequence, int32 frame);
     void Pause_AnimationPreview();
     void Stop_AnimationPreview();
     void Restart_AnimationPreview(ObjectId objectId);

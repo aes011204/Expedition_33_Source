@@ -2,7 +2,7 @@
 
 #include "BattleMechanismCom.h"
 #include "UI_RuntimePanelBase.h"
-#include "Client_Enum.h"
+#include "UI_Animation.h"
 #include "Battle_Enum.h"
 
 NS_BEGIN(Engine)
@@ -39,6 +39,10 @@ private:
 
     void    Close_AllRoots();
 
+    HRESULT Load_MechanismAnimations();
+    // hero 별 root 반환
+    Shared<UI_Base> Resolve_HeroRoot(HeroId heroId) const;
+
 private:
     void    Apply_GustaveState(const Shared<BattleMechanismCom>& mechanismCom);
     void    Apply_MaelleState(const Shared<BattleMechanismCom>& mechanismCom);
@@ -60,7 +64,7 @@ private:
 
 #pragma region 루네
     Shared<UI_Base> _luneRoot{};
-    array<array<Shared<UI_Base>, 4>, BattleMechanismCom::kLuneMaxStains> _luneStainImages{};
+    array<array<Shared<UI_Base>, 5>, BattleMechanismCom::kLuneMaxStains> _luneStainImages{};
 
 #pragma endregion
 
@@ -73,6 +77,9 @@ private:
 #pragma endregion
 
     HeroId _currentHeroId = HeroId::END;
+
+    UI_KeyframeAnimationAsset _mechanismIntroAnimation{};
+    bool _hasMechanismIntroAnimation = false;
 
 public:
     static Unique<UI_BattleMechanism> Create(uint32 levelIndex);

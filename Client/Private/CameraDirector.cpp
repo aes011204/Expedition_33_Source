@@ -57,6 +57,12 @@ void CameraDirector::Request_BattleTurn()
 
     if(GAME->Activate_CameraByType(ObjectType::BattleTurnCamera))
     {
+        LOG_INFO(
+            "[BattleCamTrace] CameraDirector::Request_BattleTurn prevType={} nextType={} worldScale={:.3f}",
+            static_cast<int>(camera->Get_ObjectType()),
+            static_cast<int>(ObjectType::BattleTurnCamera),
+            GAME->Get_WorldTimeScale());
+
         _previousCamera = camera;
     }
 }
@@ -73,6 +79,9 @@ void CameraDirector::Restore_PreviousCamera()
     if(_previousCamera == nullptr)
         return;
 
+    if (const auto targetCamera = dynamic_pointer_cast<TargetCamera>(_previousCamera))
+        targetCamera->Change_Mode(TargetCameraMode::NORMAL);
+
     GAME->Change_ActiveCamera(_previousCamera);
 
     _previousCamera.reset();
@@ -80,6 +89,13 @@ void CameraDirector::Restore_PreviousCamera()
 
 void CameraDirector::Request_ChangeTargetCameraMode(TargetCameraMode cameraMode)
 {
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    LOG_INFO(
+        "[BattleCamTrace] CameraDirector::Request_TargetCameraMode requestedMode={} activeBefore={} worldScale={:.3f}",
+        static_cast<int>(cameraMode),
+        static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
+        GAME->Get_WorldTimeScale());
+
     if(!GAME->Is_ActiveCameraType(ObjectType::TargetCamera))
         GAME->Activate_CameraByType(ObjectType::TargetCamera);
 

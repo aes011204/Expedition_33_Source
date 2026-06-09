@@ -15,6 +15,7 @@
 #include "ModelCom.h"
 #include "Prefab_View.h"
 #include "PartObject.h"
+#include "PreviewObjectHelpers.h"
 #include "RenderTarget.h"
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
@@ -112,6 +113,19 @@ namespace
             Invalidate_AnimNotifyAssetsForObject(partObject, sourceModelPath);
         }
     }
+
+    bool Is_PreviewNotifyTimeInRange(float targetTime, float previousTime, float currentTime, bool wrapped)
+    {
+        if (!wrapped)
+        {
+            if (previousTime <= 1e-4f && targetTime <= 1e-4f)
+                return targetTime <= currentTime;
+
+            return previousTime < targetTime && targetTime <= currentTime;
+        }
+
+        return targetTime > previousTime || targetTime <= currentTime;
+    }
 }
 
 Animation_View::Animation_View()
@@ -182,12 +196,12 @@ void Animation_View::Pre_Render()
     GAME->Get_LightDescs(savedLightDescs);
     const bool wasPlayerInputBlocked = GAME->Is_PlayerInputBlocked();
 
-    EDITOR->Request_PreviewViewportSize(_previewWidth, _previewHeight);
+    EDITOR->Apply_PreviewViewportSizeImmediate(_previewWidth, _previewHeight);
 
     GAME->Bind_BackBuffer();
     if (FAILED(GAME->Clear_Buffers(Vec4(0.f, 0.f, 0.f, 1.f))))
     {
-        EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
+        EDITOR->Apply_PreviewViewportSizeImmediate(savedViewportWidth, savedViewportHeight);
         return;
     }
 
@@ -227,14 +241,19 @@ void Animation_View::Pre_Render()
 
     if (_sourceMode == SourceMode::LiveModel)
     {
-        previewRenderObject->Priority_Update(dt);
-        previewRenderObject->Update(dt);
+        const float previousTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : 0.f;
+        GAME->Backup_RenderGroup();
+        PreviewObjectHelpers::Update_PreviewObject(previewRenderObject, dt);
+        const float currentTimeSec = _previewModelCom ? _previewModelCom->Get_CurrentAnimationTimeSec() : previousTimeSec;
+        Update_PreviewPlayEffectNotifies(previousTimeSec, currentTimeSec, dt);
+        PreviewObjectHelpers::Tick_AttachedPreviewEffects(previewRenderObject, dt);
         Update_PreviewWeaponRotateStates(dt); // preview 전용 WeaponRotate를 먼저 반영하고 무기 world를 다시 맞춘 뒤 trail sample을 계산한다.
         Update_PreviewTrailEffect(dt);
     }
-
-    GAME->Backup_RenderGroup();
-    previewRenderObject->Late_Update(dt);
+    else
+    {
+        GAME->Backup_RenderGroup();
+    }
 
     for (PreviewTrailRuntime& runtime : _previewTrailRuntimes)
     {
@@ -257,7 +276,8 @@ void Animation_View::Pre_Render()
         GAME->Change_ActiveCamera(savedActiveCamera);
     GAME->Set_Transform(D3DTS::View, const_cast<Matrix&>(savedView));
     GAME->Set_Transform(D3DTS::Proj, const_cast<Matrix&>(savedProj));
-    EDITOR->Request_PreviewViewportSize(savedViewportWidth, savedViewportHeight);
+    GAME->UpdateFrustum(savedView, savedProj);
+    EDITOR->Apply_PreviewViewportSizeImmediate(savedViewportWidth, savedViewportHeight);
 }
 
 void Animation_View::Render()
@@ -372,6 +392,7 @@ void Animation_View::Render()
 
     if (!isOpen)
     {
+        Reset_PreviewPlayEffectStates();
         Reset_PreviewWeaponRotateStates();
         Reset_PreviewTrailEffect();
     }
@@ -392,6 +413,8 @@ void Animation_View::Open_FromAsset(const wstring& modelPath, const string& mode
 {
     Reset_PreviewTrailEffect();
     Reset_PreviewWeaponRotateStates();
+    Reset_PreviewPlayEffectStates();
+    Reset_PreviewClone();
 
     _sourceMode = SourceMode::None;
     _sourceModelPath = modelPath;
@@ -422,6 +445,9 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     const wstring sourceModelPath = modelCom ? modelCom->Get_SourceModelPath() : wstring{};
 
     Reset_PreviewTrailEffect();
+    Reset_PreviewWeaponRotateStates();
+    Reset_PreviewPlayEffectStates();
+    Reset_PreviewClone();
 
     _sourceMode = SourceMode::LiveModel;
     _liveModelCom = modelCom;
@@ -442,6 +468,7 @@ void Animation_View::Open_FromModelComponent(const Shared<ModelCom>& modelCom, c
     _selectedBoneIndex = -1;
 
     Refresh_Source();
+    Rebuild_PreviewClone();
     Load_NotifyAsset();
     Load_TrailAnchorAsset();
     Ensure_PreviewCamera();
@@ -458,12 +485,16 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
 
     if (previewRoot != nullptr)
     {
-        const Shared<GameObject> currentPreviewRoot = Get_PreviewRenderObject();
+        const Shared<GameObject> currentPreviewRoot =
+            _liveModelCom ? Resolve_RootPreviewObject(_liveModelCom->Get_Owner()) : nullptr;
         if (currentPreviewRoot != previewRoot)
             return;
     }
 
     Reset_PreviewTrailEffect();
+    Reset_PreviewWeaponRotateStates();
+    Reset_PreviewPlayEffectStates();
+    Reset_PreviewClone();
 
     _sourceMode = SourceMode::None;
     _sourceModelPath.clear();
@@ -481,6 +512,43 @@ void Animation_View::Clear_LivePreviewBinding(const Shared<GameObject>& previewR
     _selectedBoneIndex = -1;
 }
 
+void Animation_View::Rebuild_PreviewClone()
+{
+    Reset_PreviewClone();
+
+    if (_liveModelCom == nullptr)
+        return;
+
+    const Shared<GameObject> liveOwnerObject = _liveModelCom->Get_Owner();
+    const Shared<GameObject> liveRootObject = Resolve_RootPreviewObject(liveOwnerObject);
+    if (liveOwnerObject == nullptr || liveRootObject == nullptr)
+        return;
+
+    if (!PreviewObjectHelpers::Try_BuildGameObjectKey(liveRootObject, liveOwnerObject, _previewOwnerObjectKey))
+        return;
+
+    _previewRootObject = GAME->Instantiate_GameObjectJson(liveRootObject->To_Json());
+    if (_previewRootObject == nullptr)
+        return;
+
+    PreviewObjectHelpers::Disable_PreviewAnimNotifyExecution(_previewRootObject);
+    PreviewObjectHelpers::Prime_PreviewObject(_previewRootObject);
+    Lock_PreviewObjectToOrigin(_previewRootObject);
+
+    const Shared<GameObject> previewOwnerObject =
+        PreviewObjectHelpers::Find_GameObjectByKey(_previewRootObject, _previewOwnerObjectKey);
+    _previewModelCom =
+        PreviewObjectHelpers::Find_ModelComponentBySourcePath(previewOwnerObject, _sourceModelPath);
+}
+
+void Animation_View::Reset_PreviewClone()
+{
+    Reset_PreviewPlayEffectStates();
+    _previewRootObject.reset();
+    _previewModelCom.reset();
+    _previewOwnerObjectKey.clear();
+}
+
 int32 Animation_View::Get_CurrentAnimationFps() const
 {
     if (const AnimNotifyData* animationData = Get_CurrentAnimation())
@@ -496,8 +564,9 @@ void Animation_View::Refresh_PreviewTrailAnchorAsset()
 
 float Animation_View::Get_CurrentAnimationLengthSec() const
 {
-    if (_liveModelCom != nullptr)
-        return _liveModelCom->Get_CurrentAnimationDurationSec();
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    if (playbackModel != nullptr)
+        return playbackModel->Get_CurrentAnimationDurationSec();
 
     return Resolve_AnimNotifyDataLengthSec(Get_CurrentAnimation());
 }
@@ -621,12 +690,7 @@ void Animation_View::Load_NotifyAsset()
     _asset = {};
     _asset.modelGuid = _modelGuid;
 
-    const fs::path filePath = AnimNotify_Parser::Get_ModelNotifyFilePath(_modelGuid);
-    if (!AnimNotify_Parser::Load_FromFile(filePath.wstring(), _asset))
-    {
-        const fs::path legacyFilePath = AnimNotify_Parser::Get_LegacyModelNotifyFilePath(_modelGuid);
-        AnimNotify_Parser::Load_FromFile(legacyFilePath.wstring(), _asset);
-    }
+    AnimNotify_Parser::Load_ModelAsset(_modelGuid, _asset);
 
     if (_asset.modelGuid.empty())
         _asset.modelGuid = _modelGuid;
@@ -700,11 +764,14 @@ void Animation_View::Save_NotifyAsset()
     if (_modelGuid.empty())
         return;
 
-    if (AnimNotifyData* animationData = Get_CurrentAnimation())
-        AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+    AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+        return;
 
-    const fs::path filePath = AnimNotify_Parser::Get_ModelNotifyFilePath(_modelGuid);
-    if (AnimNotify_Parser::Save_ToFile(filePath.wstring(), _asset))
+    const float animationLengthSec = Get_CurrentAnimationLengthSec();
+    AnimNotify_Parser::Sort_And_Clamp(*animationData, animationLengthSec);
+
+    if (AnimNotify_Parser::Save_AnimationToSplitFile(_modelGuid, *animationData, animationLengthSec))
     {
         Refresh_OpenModelNotifyAssets();
         _isDirty = false;
@@ -827,15 +894,16 @@ void Animation_View::Draw_AnimationSelector()
 
                         Sync_PreviewAnimationSelection();
 
-                        if (_sourceMode == SourceMode::LiveModel && _liveModelCom != nullptr)
+                        Shared<ModelCom> playbackModel = Get_PlaybackModel();
+                        if (_sourceMode == SourceMode::LiveModel && playbackModel != nullptr)
                         {
-                            const int32 animationIndex = Find_AnimationIndex(_liveModelCom, entry.playbackName);
+                            const int32 animationIndex = Find_AnimationIndex(playbackModel, entry.playbackName);
                             if (animationIndex >= 0)
                             {
-                                _liveModelCom->Set_Animation(static_cast<uint32>(animationIndex), true);
-                                _liveModelCom->Set_AnimationPaused(false);
-                                _liveModelCom->Set_CurrentAnimationTimeSec(0.f);
-                                _liveModelCom->Refresh_CurrentAnimationPose();
+                                playbackModel->Set_Animation(static_cast<uint32>(animationIndex), true);
+                                playbackModel->Set_AnimationPaused(false);
+                                playbackModel->Set_CurrentAnimationTimeSec(0.f);
+                                playbackModel->Refresh_CurrentAnimationPose();
                             }
                         }
                     }
@@ -1714,6 +1782,14 @@ void Animation_View::Handle_ClipboardShortcuts()
             Delete_SelectedState();
     }
 
+    if (!_selectedNotifyIds.empty() && !io.KeyCtrl)
+    {
+        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow, false))
+            Move_SelectedNotifiesByFrame(-1);
+        else if (ImGui::IsKeyPressed(ImGuiKey_RightArrow, false))
+            Move_SelectedNotifiesByFrame(1);
+    }
+
     if (!io.KeyCtrl)
         return;
 
@@ -1732,6 +1808,79 @@ void Animation_View::Handle_ClipboardShortcuts()
         else if (_notifyClipboardKind == NotifyClipboardKind::State)
             Paste_CopiedState();
     }
+}
+
+void Animation_View::Move_SelectedNotifiesByFrame(int32 frameDelta)
+{
+    if (frameDelta == 0)
+        return;
+
+    AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr || _selectedNotifyIds.empty())
+        return;
+
+    const int32 fps = max(1, Get_CurrentAnimationFps());
+    const int32 maxNotifyFrame = max(0, Get_CurrentAnimationFrameMax() - 1);
+
+    vector<pair<AnimNotifyEventEntry*, int32>> selectedEntries{};
+    selectedEntries.reserve(_selectedNotifyIds.size());
+
+    int32 minFrame = maxNotifyFrame;
+    int32 maxFrame = 0;
+    for (AnimNotifyEventEntry& entry : animationData->notifies)
+    {
+        if (!Is_NotifySelected(entry.id))
+            continue;
+
+        const int32 frame = std::clamp(
+            static_cast<int32>(std::round(entry.timeSec * static_cast<float>(fps))),
+            0,
+            maxNotifyFrame);
+
+        selectedEntries.emplace_back(&entry, frame);
+        minFrame = min(minFrame, frame);
+        maxFrame = max(maxFrame, frame);
+    }
+
+    if (selectedEntries.empty())
+        return;
+
+    const int32 clampedDelta = std::clamp(frameDelta, -minFrame, maxNotifyFrame - maxFrame);
+    if (clampedDelta == 0)
+        return;
+
+    float primaryTimeSec = -1.f;
+    for (const auto& [entry, frame] : selectedEntries)
+    {
+        const int32 movedFrame = frame + clampedDelta;
+        entry->timeSec = static_cast<float>(movedFrame) / static_cast<float>(fps);
+
+        if (entry->id == _selectedNotifyId)
+            primaryTimeSec = entry->timeSec;
+    }
+
+    if (primaryTimeSec < 0.f)
+        primaryTimeSec = selectedEntries.front().first->timeSec;
+
+    AnimNotify_Parser::Sort_And_Clamp(*animationData, Get_CurrentAnimationLengthSec());
+
+    if (primaryTimeSec >= 0.f)
+    {
+        _sequencerCurrentFrame = std::clamp(
+            static_cast<int32>(std::round(primaryTimeSec * static_cast<float>(fps))),
+            0,
+            maxNotifyFrame);
+
+        Shared<ModelCom> playbackModel = Get_PlaybackModel();
+        if (_sourceMode == SourceMode::LiveModel && playbackModel != nullptr)
+        {
+            playbackModel->Set_AnimationPaused(true);
+            playbackModel->Set_CurrentAnimationTimeSec(primaryTimeSec);
+            playbackModel->Refresh_CurrentAnimationPose();
+        }
+    }
+
+    _isDirty = true;
 }
 
 void Animation_View::Copy_SelectedNotify()
@@ -2029,6 +2178,9 @@ void Animation_View::Draw_SequencerContextMenu()
 
 Shared<ModelCom> Animation_View::Get_PlaybackModel() const
 {
+    if (_previewModelCom != nullptr)
+        return _previewModelCom;
+
     return _liveModelCom;
 }
 
@@ -2086,12 +2238,20 @@ void Animation_View::Update_PreviewWeaponRotateStates(float timeDelta)
         return;
     }
 
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+    if (playbackModel == nullptr || previewRootObject == nullptr)
+    {
+        Reset_PreviewWeaponRotateStates();
+        return;
+    }
+
     AnimNotifyContext context{};
-    context.owner = _liveModelCom->Get_Owner().get();
-    context.model = _liveModelCom.get();
+    context.owner = previewRootObject.get();
+    context.model = playbackModel.get();
     context.modelGuid = _asset.modelGuid;
     context.animationName = _currentAnimationName;
-    context.currentTimeSec = _liveModelCom->Get_CurrentAnimationTimeSec();
+    context.currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
     context.previousTimeSec = max(0.f, context.currentTimeSec - max(0.f, timeDelta));
     context.deltaTime = timeDelta;
     context.isLooping = true;
@@ -2187,9 +2347,12 @@ void Animation_View::Reset_PreviewWeaponRotateStates()
     if (_previewWeaponRotateRuntimes.empty())
         return;
 
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    Shared<GameObject> previewRootObject = Get_PreviewRenderObject();
+
     AnimNotifyContext endContext{};
-    endContext.owner = _liveModelCom ? _liveModelCom->Get_Owner().get() : nullptr;
-    endContext.model = _liveModelCom.get();
+    endContext.owner = previewRootObject.get();
+    endContext.model = playbackModel.get();
     endContext.modelGuid = _asset.modelGuid;
     endContext.animationName = _currentAnimationName;
     endContext.notifyStateProgress = 1.f;
@@ -2264,6 +2427,9 @@ void Animation_View::Ensure_PreviewCamera()
 
 Shared<GameObject> Animation_View::Get_PreviewRenderObject() const
 {
+    if (_previewRootObject != nullptr)
+        return _previewRootObject;
+
     if (_liveModelCom != nullptr)
         return Resolve_RootPreviewObject(_liveModelCom->Get_Owner());
 
@@ -2596,6 +2762,156 @@ void Animation_View::Draw_TrailAnchorPreview() const
     _previewGridBatch->End();
 }
 
+void Animation_View::Update_PreviewPlayEffectNotifies(float previousTimeSec, float currentTimeSec, float timeDelta)
+{
+    if (_sourceMode != SourceMode::LiveModel || _previewModelCom == nullptr)
+    {
+        Reset_PreviewPlayEffectStates();
+        return;
+    }
+
+    const AnimNotifyData* animationData = Get_CurrentAnimation();
+    if (animationData == nullptr)
+    {
+        Reset_PreviewPlayEffectStates();
+        return;
+    }
+
+    const bool wrapped = currentTimeSec + 1e-4f < previousTimeSec;
+    const bool timeAdvanced = wrapped || currentTimeSec > previousTimeSec;
+
+    AnimNotifyContext context{};
+    context.owner = _previewModelCom->Get_Owner().get();
+    context.model = _previewModelCom.get();
+    context.modelGuid = _modelGuid;
+    context.animationName = _currentAnimationName;
+    context.previousTimeSec = previousTimeSec;
+    context.currentTimeSec = currentTimeSec;
+    context.deltaTime = timeDelta;
+    context.isLooping = wrapped;
+    context.wrapped = wrapped;
+    context.isPreview = true;
+
+    if (timeAdvanced)
+    {
+        for (const AnimNotifyEventEntry& entry : animationData->notifies)
+        {
+            if (entry.notify == nullptr)
+                continue;
+            const string typeName = entry.notify->Get_TypeName();
+            if (typeName != "AN_PlayEffect" && typeName != "AN_PlaySound")
+                continue;
+            if (!Is_PreviewNotifyTimeInRange(entry.timeSec, previousTimeSec, currentTimeSec, wrapped))
+                continue;
+
+            entry.notify->Execute(context);
+        }
+    }
+
+    vector<int32> activeStateIds{};
+    for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
+    {
+        if (entry.notifyState == nullptr)
+            continue;
+        if (entry.notifyState->Get_TypeName() != "ANS_PlayEffect")
+            continue;
+        if (currentTimeSec < entry.startSec)
+            continue;
+        if (currentTimeSec > entry.startSec + entry.durationSec)
+            continue;
+
+        activeStateIds.push_back(entry.id);
+
+        AnimNotifyContext stateContext = context;
+        stateContext.notifyStateDurationSec = entry.durationSec;
+        stateContext.notifyStateProgress = entry.durationSec > 0.f
+            ? std::clamp((currentTimeSec - entry.startSec) / entry.durationSec, 0.f, 1.f)
+            : 1.f;
+        const string payloadJson = entry.notifyState->To_Json().dump();
+
+        auto runtimeIt = std::find_if(
+            _previewPlayEffectStateRuntimes.begin(),
+            _previewPlayEffectStateRuntimes.end(),
+            [&](const PreviewPlayEffectStateRuntime& runtime)
+            {
+                return runtime.stateId == entry.id;
+            });
+
+        if (runtimeIt == _previewPlayEffectStateRuntimes.end())
+        {
+            PreviewPlayEffectStateRuntime runtime{};
+            runtime.stateId = entry.id;
+            runtime.notifyState = entry.notifyState;
+            runtime.payloadJson = payloadJson;
+            _previewPlayEffectStateRuntimes.push_back(runtime);
+
+            entry.notifyState->On_Begin(stateContext);
+            continue;
+        }
+
+        if (runtimeIt->notifyState != entry.notifyState ||
+            runtimeIt->payloadJson != payloadJson)
+        {
+            if (runtimeIt->notifyState)
+            {
+                AnimNotifyContext endContext = stateContext;
+                endContext.notifyStateProgress = 1.f;
+                runtimeIt->notifyState->On_End(endContext);
+            }
+
+            runtimeIt->notifyState = entry.notifyState;
+            runtimeIt->payloadJson = payloadJson;
+            entry.notifyState->On_Begin(stateContext);
+            continue;
+        }
+
+        if (timeAdvanced)
+            entry.notifyState->On_Tick(stateContext);
+    }
+
+    for (int32 runtimeIndex = static_cast<int32>(_previewPlayEffectStateRuntimes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        const int32 stateId = _previewPlayEffectStateRuntimes[runtimeIndex].stateId;
+        const bool stillActive = std::find(activeStateIds.begin(), activeStateIds.end(), stateId) != activeStateIds.end();
+        if (stillActive)
+            continue;
+
+        if (_previewPlayEffectStateRuntimes[runtimeIndex].notifyState)
+        {
+            AnimNotifyContext endContext = context;
+            endContext.notifyStateProgress = 1.f;
+            _previewPlayEffectStateRuntimes[runtimeIndex].notifyState->On_End(endContext);
+        }
+
+        _previewPlayEffectStateRuntimes.erase(_previewPlayEffectStateRuntimes.begin() + runtimeIndex);
+    }
+}
+
+void Animation_View::Reset_PreviewPlayEffectStates()
+{
+    if (_previewPlayEffectStateRuntimes.empty())
+        return;
+
+    AnimNotifyContext context{};
+    context.owner = _previewModelCom ? _previewModelCom->Get_Owner().get() : nullptr;
+    context.model = _previewModelCom.get();
+    context.modelGuid = _modelGuid;
+    context.animationName = _currentAnimationName;
+    context.notifyStateProgress = 1.f;
+    context.isPreview = true;
+
+    if (context.owner != nullptr)
+    {
+        for (PreviewPlayEffectStateRuntime& runtime : _previewPlayEffectStateRuntimes)
+        {
+            if (runtime.notifyState)
+                runtime.notifyState->On_End(context);
+        }
+    }
+
+    _previewPlayEffectStateRuntimes.clear();
+}
+
 void Animation_View::Update_PreviewTrailEffect(float timeDelta)
 {
     const vector<const AnimNotifyStateEntry*> activeTrailStates = Find_ActivePreviewTrailStates();
@@ -2605,7 +2921,8 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         return;
     }
 
-    const float currentTimeSec = _liveModelCom ? _liveModelCom->Get_CurrentAnimationTimeSec() : 0.f;
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    const float currentTimeSec = playbackModel ? playbackModel->Get_CurrentAnimationTimeSec() : 0.f;
     vector<int32> activeStateIds{};
     activeStateIds.reserve(activeTrailStates.size());
 
@@ -2749,14 +3066,15 @@ vector<const AnimNotifyStateEntry*> Animation_View::Find_ActivePreviewTrailState
 {
     vector<const AnimNotifyStateEntry*> activeStates{};
 
-    if (_sourceMode != SourceMode::LiveModel || _liveModelCom == nullptr)
+    Shared<ModelCom> playbackModel = Get_PlaybackModel();
+    if (_sourceMode != SourceMode::LiveModel || playbackModel == nullptr)
         return activeStates;
 
     const AnimNotifyData* animationData = Get_CurrentAnimation();
     if (animationData == nullptr)
         return activeStates;
 
-    const float currentTimeSec = _liveModelCom->Get_CurrentAnimationTimeSec();
+    const float currentTimeSec = playbackModel->Get_CurrentAnimationTimeSec();
     for (const AnimNotifyStateEntry& entry : animationData->notifyStates)
     {
         if (entry.notifyState == nullptr)

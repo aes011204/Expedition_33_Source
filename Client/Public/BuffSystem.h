@@ -1,31 +1,63 @@
 ﻿#pragma once
 #include "Base.h"
 #include "Battle_Enum.h"
+#include "Delegate.h"
 
+NS_BEGIN(Client)
 
-namespace Client
+class Buff;
+class CombatStatCom;
+
+DECLARE_DELEGATE(FOnBuffApplied, const BattleChar&, Buffs); // 버프 적용
+DECLARE_DELEGATE(FOnBuffRemoved, const BattleChar&, Buffs); // 버프 삭제
+DECLARE_DELEGATE(FOnBuffConsumed, const BattleChar&, Buffs, float); // 버프 소모
+
+class BuffSystem : public Base
 {
-    class CombatStatCom;
+public:
+    BuffSystem() = default;
+    ~BuffSystem() override = default;
 
-    class BuffSystem :
-        public Base
-    {
+public:
+    HRESULT Initialize();
+
+    void Apply_Buff(const BattleChar& target, Buffs buffId, uint32 stack = 1, int32 durationTurn = 0);
+    void Remove_Buff(const BattleChar& target, Buffs buffId);
+    void Clear_Buffs(const BattleChar& target);
+    void Clear_All(const vector<BattleChar>& heroes, const vector<BattleChar>& enemies);
+
+    bool Has_Buff(const BattleChar& target, Buffs buffId) const;
+
+    // 징표 데미지 추가
+    bool Try_ConsumeMarkOnDamage(const BattleChar& attacker, const BattleChar& target, float& inOutDamage);
+
+    void ProcessTurnStart(Shared<CombatStatCom>  statCom);
+    void ProcessTurnEnd(Shared<CombatStatCom> statCom);
+
+private:
+    void Handle_DamageCalculating(
+        const BattleChar& attacker,
+        const BattleChar& target,
+        float& damage,
+        AttackType attackType);
+
+    Shared<Buff> Find_Buff(const BattleChar& target, Buffs buffId) const;
+    void Remove_PendingBuffs(const BattleChar& target);
 
 
-    public:
-        void ProcessTurnStart(Shared<CombatStatCom>  statCom);
-        void ProcessTurnEnd(Shared<CombatStatCom> statCom);
+public:
+    FOnBuffApplied  OnBuffApplied;
+    FOnBuffRemoved  OnBuffRemoved;
+    FOnBuffConsumed OnBuffConsumed;
 
-        void ApplyAilmentOnUpadate(Shared<CombatStatCom> statCom);
+private:
+    static constexpr float MARK_BONUS_DAMAGE = 20.f;    // 징표있는 놈 떄릴 때 추가 데미지
+    FDelegateHandle _damageCalculatingHandle{};
 
-        void  OnModifyDamage(DamageContext  statCom);
+public:
+    static Shared<BuffSystem> Create();
+    void Free() override;
 
+};
 
-        void AddBuff(BattleChar* target, BuffType type, EStainChangeReason reason);
-        void RemoveBuff(BattleChar* target, BuffType type, EStainChangeReason reason);
-        //void RemoveBuffInstance(BattleChar* target, BuffInstanceId id);
-        void ClearBuffs(BattleChar* target/*, BuffClearRule rule*/, EStainChangeReason reason);
-
-    };
-
-}
+NS_END

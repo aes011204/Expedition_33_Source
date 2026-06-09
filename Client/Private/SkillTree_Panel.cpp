@@ -2,10 +2,14 @@
 #include <filesystem>
 #include "Client_Constants.h"
 #include "ClientInstance.h"
+#include "EffectCom.h"
 #include "Player_WorldBase.h"
 #include "PlayerStatCom.h"
 #include "SkillTreeCom.h"
 #include "Spawn_Prefab.h"
+#include "GameInstance.h"
+#include "LightingPipeline.h"
+#include "PostProcessPipeline.h"
 #include "UI_BUtton.h"
 #include "UI_Image.h"
 #include "UI_RuntimeLoader.h" 
@@ -13,6 +17,7 @@
 #include "PreviewCamera.h"
 #include "UI_Base.h"
 #include "UI_Utils.h"
+#include "PreviewRimFeature.h"
 
 using namespace UI_Utils;
 
@@ -40,6 +45,29 @@ namespace
         if(selectedHeroIndex >= _countof(characterStatusOrder))
             return HeroId::Gustave;
         return  characterStatusOrder[selectedHeroIndex];
+    }
+
+    void Play_RandomAllySelectSound()
+    {
+        constexpr uint32 soundCount = static_cast<uint32>(_countof(Constants::Sound::AllySelectSounds));
+        const float randomValue = GAME->Random(0.f, static_cast<float>(soundCount));
+        const uint32 soundIndex = min(static_cast<uint32>(randomValue), soundCount - 1);
+
+        GAME->Play_Sound(Constants::Sound::AllySelectSounds[soundIndex], SoundChannel::UI, 1.f);
+    }
+
+    void Play_RandomGlobalGenericEnterSound()
+    {
+        constexpr uint32 soundCount = static_cast<uint32>(_countof(Constants::Sound::GlobalGenericEnterSounds));
+        const float randomValue = GAME->Random(0.f, static_cast<float>(soundCount));
+        const uint32 soundIndex = min(static_cast<uint32>(randomValue), soundCount - 1);
+
+        GAME->Play_Sound(Constants::Sound::GlobalGenericEnterSounds[soundIndex], SoundChannel::UI, 1.f);
+    }
+
+    void Play_SkillTreeUISound(const wchar_t* soundPath)
+    {
+        GAME->Play_Sound(soundPath, SoundChannel::UI, 1.f);
     }
 }
 
@@ -89,7 +117,23 @@ void SkillTree_Panel::Update(float timeDelta)
 
 void SkillTree_Panel::Open()
 {
+    const bool wasOpen = _isOpen;
+
     _isOpen = true;
+
+    if (!wasOpen)
+        Play_RandomGlobalGenericEnterSound();
+
+    for(auto& [heroId, view] : _viewByPlayerId)
+    {
+        UNREFERENCED_PARAMETER(heroId);
+
+        for(auto& node : view.skillNodes)
+            node.wasHovered = false;
+
+        for(auto& lockNode : view.lockedNodes)
+            lockNode.wasHovered = false;
+    }
 
     //바뀌지 않는 배경 UI
     if(_backgroundUI)
@@ -103,6 +147,8 @@ void SkillTree_Panel::Open()
     auto previewLayout  = Build_PreviewLayout();
     CLIENT->Apply_PreviewLayout(previewLayout);
     CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex),PreviewShotPanel::SkillTree);
+    Update_PreviewHeroVisibility();
+    Apply_PreviewOverrides();
 
     // 마우스 잠금
     GAME->Unlock_Mouse();
@@ -112,6 +158,7 @@ void SkillTree_Panel::Open()
 void SkillTree_Panel::Close()
 {
     _isOpen = false;
+    Restore_PreviewOverrides();
 
     if(_backgroundUI)
         _backgroundUI->Close();
@@ -130,13 +177,13 @@ void SkillTree_Panel::Close()
         for(auto node :_viewByPlayerId[static_cast<HeroId>(i)].skillNodes)
         {
             if(node.unlockedPopup)
-            node.unlockedPopup->Close();
+                node.unlockedPopup->Close();
 
             if(node.canUnlockPopup)
-            node.canUnlockPopup->Close();
+                node.canUnlockPopup->Close();
 
             if(node.lockedPopup)
-            node.lockedPopup->Close();
+                node.lockedPopup->Close();
         }
 
         for(auto node :_viewByPlayerId[static_cast<HeroId>(i)].lockedNodes)
@@ -149,7 +196,6 @@ void SkillTree_Panel::Close()
         _viewByPlayerId[static_cast<HeroId>(i)].characterSheet->Close();
 
     }
-
     CLIENT->Hide_Preview();
 
     GAME->Set_GameplayPaused(false);
@@ -186,6 +232,8 @@ void SkillTree_Panel::Handle_SelectionInput()
 
     if(previousIndex != _selectedHeroIndex)
     {
+        Play_RandomAllySelectSound();
+
         Refresh_CharacterSelectUI();
         Change_ToSelectedViewState();
         Set_SkillPoint();
@@ -194,6 +242,8 @@ void SkillTree_Panel::Handle_SelectionInput()
   /*      auto previewLayout = Build_PreviewLayout();
         CLIENT->Apply_PreviewLayout(previewLayout);*/
         CLIENT->Show_Preview(Get_SelectedCharacterStatusHeroId(_selectedHeroIndex), PreviewShotPanel::SkillTree);
+        Update_PreviewHeroVisibility();
+        Apply_PreviewOverrides();
     }
 }
 
@@ -551,7 +601,14 @@ void SkillTree_Panel::Update_UI()
         //hover일때
         //TODO 이건 anchor 생기면 다시 보정
         //공통적으로 약간 커짐 && 툴팁 띄우기
-        if(node.button->Is_Hovered())
+        const bool isHovered = node.button->Is_Hovered();
+
+        if(!node.wasHovered && isHovered)
+            Play_SkillTreeUISound(Constants::Sound::SkillTreeNavigate);
+
+        node.wasHovered = isHovered;
+
+        if(isHovered)
         {
             if(node.image)
             node.image->Get_Transform()->Set_Scale(_hoveredSize);
@@ -576,7 +633,12 @@ void SkillTree_Panel::Update_UI()
 
                     if(GAME->KeyDown(KEY_TYPE::F))
                     {
+                        const bool wasUnlocked = _currentView->skillTreeCom->IsUnlocked(node.skillId);
                         _currentView->skillTreeCom->TryUnlock(node.skillId);
+
+                        if(!wasUnlocked && _currentView->skillTreeCom->IsUnlocked(node.skillId))
+                            Play_SkillTreeUISound(Constants::Sound::SkillTreeLearn);
+
                         Set_SkillPoint();
                     }
                 }
@@ -584,12 +646,15 @@ void SkillTree_Panel::Update_UI()
                 {
                     if(node.lockedPopup)
                         node.lockedPopup->Open();
+
+                    if(GAME->KeyDown(KEY_TYPE::F))
+                        Play_SkillTreeUISound(Constants::Sound::SkillTreeBlocked);
                 }
             }
         }
     }
 
-    for(auto lockNode : _currentView->lockedNodes)
+    for(auto& lockNode : _currentView->lockedNodes)
     {
         if(lockNode.button->Is_Pressed())
         {
@@ -602,7 +667,14 @@ void SkillTree_Panel::Update_UI()
               lockNode.image->Set_OverlayEnabled(false);
         }
 
-        if(lockNode.button->Is_Hovered())
+        const bool isHovered = lockNode.button->Is_Hovered();
+
+        if(!lockNode.wasHovered && isHovered)
+            Play_SkillTreeUISound(Constants::Sound::SkillTreeNavigate);
+
+        lockNode.wasHovered = isHovered;
+
+        if(isHovered)
         {
             if(lockNode.image)
                 lockNode.image->Get_Transform()->Set_Scale(_hoveredSize);
@@ -733,6 +805,212 @@ vector<UIPreviewManager::PreviewSlotDesc> SkillTree_Panel::Build_PreviewLayout()
     return layout;
 }
 
+void SkillTree_Panel::Apply_PreviewOverrides()
+{
+    // 조명 등 변경
+    const Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
+    const Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+    const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager();
+    const LIGHT_DESC* primaryLightDesc = GAME->Get_PrimaryShadowLightDesc();
+    const ShadowLightDesc* shadowLightDesc = GAME->Get_ShadowLightDesc();
+    if (primaryLightDesc == nullptr)
+    {
+        const uint32 lightCount = GAME->Get_LightCount();
+        for (uint32 lightIndex = 0; lightIndex < lightCount; ++lightIndex)
+        {
+            const LIGHT_DESC* lightDesc = GAME->Get_LightDesc(lightIndex);
+            if (lightDesc == nullptr || lightDesc->type != LightType::Directional)
+                continue;
+
+            primaryLightDesc = lightDesc;
+            break;
+        }
+    }
+
+    if (previewManager == nullptr)
+        return;
+
+        // 기존 상태 저장 한 번만.
+    if (_previewOverrideState.isCaptured == false)
+    {
+        // SkillTree 닫을 때 월드 조명 값이 남지 않도록 원본은 한 번만 잡아 둔다.
+        _previewOverrideState.isCaptured = true;
+        _previewOverrideState.cascadeLevel = GAME->Get_ShadowCascadeLevel();
+        _previewOverrideState.hasPrimaryLight = (primaryLightDesc != nullptr);
+        _previewOverrideState.hasShadowLight = (shadowLightDesc != nullptr);
+        _previewOverrideState.hasPostProcess = (postProcessPipeline != nullptr);
+        _previewOverrideState.hasLighting = (lightingPipeline != nullptr);
+
+        if (primaryLightDesc != nullptr)
+            _previewOverrideState.primaryLight = *primaryLightDesc;
+
+        if (shadowLightDesc != nullptr)
+            _previewOverrideState.shadowLight = *shadowLightDesc;
+
+        if (postProcessPipeline != nullptr)
+        {
+            _previewOverrideState.postProcess = postProcessPipeline->Get_PostProcessParams();
+            _previewOverrideState.postProcessFeatures = postProcessPipeline->Get_PostProcessFeatures();
+        }
+
+        if (lightingPipeline != nullptr)
+        {
+            _previewOverrideState.deferredLighting = lightingPipeline->Get_DeferredLightingParams();
+            _previewOverrideState.iblEnabled = lightingPipeline->Is_IBLEnabled();
+        }
+    }
+
+    // 빛 세기 및 방향 변경
+    if (_previewOverrideState.hasPrimaryLight)
+    {
+        LIGHT_DESC previewLight = _previewOverrideState.primaryLight;
+        Vec3 previewLightDir = kPreviewLightDirection;
+        if (previewLightDir.LengthSquared() > 0.0001f)
+            previewLightDir.Normalize();
+
+        previewLight.direction = Vec4(previewLightDir.x, previewLightDir.y, previewLightDir.z, 0.f);
+        previewLight.diffuse = kPreviewLightDiffuse;
+        previewLight.ambient = kPreviewLightAmbient;
+        previewLight.specular = kPreviewLightSpecular;
+        GAME->Update_PrimaryShadowLightDesc(previewLight);
+        GAME->Set_ShadowCascadeLevel(Engine::CascadeLevel::Close);
+    }
+
+    if (_previewOverrideState.hasShadowLight)
+    {
+        ShadowLightDesc previewShadow = _previewOverrideState.shadowLight;
+        previewShadow.intensity = max(previewShadow.intensity, kPreviewShadowIntensity);
+        GAME->Update_ShadowLight(previewShadow);
+    }
+
+    if (_previewOverrideState.hasPostProcess && postProcessPipeline != nullptr)
+    {
+        Engine::PostProcessCB previewPostProcess = _previewOverrideState.postProcess;
+        previewPostProcess.exposure = 0.60f;
+        previewPostProcess.gamma = 1.33f;
+        previewPostProcess.bloomThreshold = 0.78f;
+        previewPostProcess.bloomIntensity = 0.64f;
+        previewPostProcess.bloomScatter = 0.88f;
+        postProcessPipeline->Set_PostProcessFeatures(
+            Engine::PostProcessFeature::HDR |
+            Engine::PostProcessFeature::ToneMapping |
+            Engine::PostProcessFeature::Exposure |
+            Engine::PostProcessFeature::Bloom |
+            Engine::PostProcessFeature::Gamma);
+        postProcessPipeline->Set_PostProcessParams(previewPostProcess);
+    }
+
+    if (_previewOverrideState.hasLighting && lightingPipeline != nullptr)
+    {
+        Engine::DeferredLightingCB previewDeferredLighting = _previewOverrideState.deferredLighting;
+        previewDeferredLighting.iblIntensity = 0.64f;
+        previewDeferredLighting.iblDiffuseIntensity = 0.34f;
+        previewDeferredLighting.iblSpecularIntensity = 1.18f;
+        lightingPipeline->Set_DeferredLightingParams(previewDeferredLighting);
+        lightingPipeline->Set_IBLEnabled(true);
+    }
+
+    // RimRay 효과 적용
+    Apply_PreviewRimState();
+}
+
+// 스킬트리 닫을 때 preview 때문에 바꿔놨던 값을 원래 월드 상태로 되돌리는 복원 함수
+void SkillTree_Panel::Restore_PreviewOverrides()
+{
+    if (!_previewOverrideState.isCaptured)
+        return;
+
+    Clear_PreviewRimState();
+
+    const Shared<PostProcessPipeline> postProcessPipeline = GAME->Get_PostProcessPipeline();
+    const Shared<LightingPipeline> lightingPipeline = GAME->Get_LightingPipeline();
+
+    if (_previewOverrideState.hasPrimaryLight)
+    {
+        GAME->Update_PrimaryShadowLightDesc(_previewOverrideState.primaryLight);
+        GAME->Set_ShadowCascadeLevel(_previewOverrideState.cascadeLevel);
+    }
+
+    if (_previewOverrideState.hasShadowLight)
+        GAME->Update_ShadowLight(_previewOverrideState.shadowLight);
+
+    if (_previewOverrideState.hasPostProcess && postProcessPipeline != nullptr)
+    {
+        postProcessPipeline->Set_PostProcessFeatures(_previewOverrideState.postProcessFeatures);
+        postProcessPipeline->Set_PostProcessParams(_previewOverrideState.postProcess);
+    }
+
+    if (_previewOverrideState.hasLighting && lightingPipeline != nullptr)
+    {
+        lightingPipeline->Set_DeferredLightingParams(_previewOverrideState.deferredLighting);
+        lightingPipeline->Set_IBLEnabled(_previewOverrideState.iblEnabled);
+    }
+
+    _previewOverrideState = PreviewOverrideState{};
+}
+
+// 선택된 캐릭터에 Rim 효과 적용, 나머지는 해제
+void SkillTree_Panel::Apply_PreviewRimState()
+{
+    const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager();
+    if (previewManager == nullptr)
+        return;
+
+    for (const auto& previewHero : previewManager->Get_PreviewHeroes())
+    {
+        if (previewHero.player == nullptr)
+            continue;
+
+        const Shared<EffectCom> effectCom = previewHero.player->Get_Component<EffectCom>();
+        if (effectCom == nullptr)
+            continue;
+        // 화면에 남겨 둔 preview hero는 전부 같은 rim 톤을 쓴다.
+        if (previewHero.player->Is_Visible())
+            effectCom->Set_PreviewRim(
+                kPreviewRimColor,
+                kPreviewRimIntensity,
+                kPreviewRimPower,
+                kPreviewHairRimIntensity);
+        else // 나머지는 해제
+            effectCom->Clear_PreviewRim();
+    }
+}
+
+//  preview hero들에 걸린 rim 상태를 전부 해제
+void SkillTree_Panel::Clear_PreviewRimState()
+{
+    const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager();
+    if (previewManager == nullptr)
+        return;
+
+    for (const auto& previewHero : previewManager->Get_PreviewHeroes())
+    {
+        if (previewHero.player == nullptr)
+            continue;
+
+        if (const Shared<EffectCom> effectCom = previewHero.player->Get_Component<EffectCom>())
+            effectCom->Clear_PreviewRim();
+    }
+}
+
+// preview에 떠 있는 hero들 중에서 선택된 캐릭터만 보이게 하고 나머지는 숨기는 함수
+void SkillTree_Panel::Update_PreviewHeroVisibility()
+{
+    const Shared<UIPreviewManager> previewManager = CLIENT->Get_PreviewManager();
+    if (previewManager == nullptr)
+        return;
+
+    const HeroId selectedHeroId = Get_SelectedCharacterStatusHeroId(_selectedHeroIndex);
+
+    for (const auto& previewHero : previewManager->Get_PreviewHeroes())
+    {
+        if (previewHero.player == nullptr)
+            continue;
+
+        previewHero.player->Set_Visible(previewHero.heroId == selectedHeroId);
+    }
+}
+
 
 Unique<SkillTree_Panel> SkillTree_Panel::Create(uint32 levelIndex)
 {
@@ -750,5 +1028,6 @@ Unique<SkillTree_Panel> SkillTree_Panel::Create(uint32 levelIndex)
 
 void SkillTree_Panel::Free()
 {
+    Restore_PreviewOverrides();
     __super::Free();
 }

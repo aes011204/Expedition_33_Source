@@ -11,6 +11,7 @@
 #include "Emitter_View.h"
 #include "GameInstance.h"
 #include "Hierarchy_View.h"
+#include "MeshDataPreview_View.h"
 #include "Profile_View.h"
 #include "Scene_View.h"
 
@@ -38,6 +39,11 @@ HRESULT EffectEditor_Manager::Initialize()
     if (effectMaterialInstanceView)
         effectMaterialInstanceView->Set_Open(false);
     Add_Window(effectMaterialInstanceView);
+
+    const Shared<MeshDataPreview_View> meshDataPreviewView = MeshDataPreview_View::Create();
+    if (meshDataPreviewView)
+        meshDataPreviewView->Set_Open(false);
+    Add_Window(meshDataPreviewView);
 
     Add_Window(Console_View::Create());
     Add_Window(Profile_View::Create());
@@ -155,11 +161,17 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
     const bool playing = EDITOR->IsPlaying();
     const bool paused = EDITOR->IsPaused();
     bool hasPreviewDirtyEmitter = false;
+    string currentDocumentFileName{};
     if (const Shared<Editor_Window> emitterWindow = Find_Window(L"Emitter"))
     {
         const Shared<Emitter_View> emitterView = dynamic_pointer_cast<Emitter_View>(emitterWindow);
         if (emitterView != nullptr)
+        {
             hasPreviewDirtyEmitter = emitterView->Has_PreviewDirtyEmitter();
+            if (const optional<fs::path>& currentDocumentPath = emitterView->Get_CurrentDocumentPath();
+                currentDocumentPath.has_value())
+                currentDocumentFileName = String::ToString(currentDocumentPath->filename().wstring());
+        }
     }
 
     constexpr float toolbarHeight = 34.f;
@@ -184,9 +196,26 @@ void EffectEditor_Manager::Render_RuntimeToolbar()
     if (!canOpenEffectDocument && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
         ImGui::SetTooltip("열 수 있는 effect 문서가 없습니다.");
 
+    ImGui::SameLine();
+    const bool canAddEffectEmitters = CanAdd_EffectEmitters();
+    ImGui::BeginDisabled(!canAddEffectEmitters);
+    if (ImGui::Button(ICON_FA_PLUS " Add"))
+        Add_EffectEmitters();
+    ImGui::EndDisabled();
+    if (!canAddEffectEmitters && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("추가할 수 있는 effect 문서가 없습니다.");
+
     ImGui::SameLine(0.f, 12.f);
     ImGui::TextDisabled("|");
     ImGui::SameLine(0.f, 12.f);
+
+    if (!currentDocumentFileName.empty())
+    {
+        ImGui::Text("Editing: %s", currentDocumentFileName.c_str());
+        ImGui::SameLine(0.f, 12.f);
+        ImGui::TextDisabled("|");
+        ImGui::SameLine(0.f, 12.f);
+    }
 
     if (hasPreviewDirtyEmitter)
     {
@@ -539,6 +568,22 @@ bool EffectEditor_Manager::Open_EffectDocument()
         return false;
 
     emitterView->Open();
+    return true;
+}
+
+bool EffectEditor_Manager::CanAdd_EffectEmitters() const
+{
+    const Shared<Emitter_View> emitterView = Find_EffectAuthoringView();
+    return emitterView != nullptr && emitterView->CanAdd();
+}
+
+bool EffectEditor_Manager::Add_EffectEmitters()
+{
+    const Shared<Emitter_View> emitterView = Find_EffectAuthoringView();
+    if (emitterView == nullptr || !emitterView->CanAdd())
+        return false;
+
+    emitterView->Add();
     return true;
 }
 

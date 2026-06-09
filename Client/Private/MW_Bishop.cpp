@@ -2,6 +2,7 @@
 #include "ClientInstance.h"
 #include "Mon_Bishop_Body.h"
 #include "Mon_Lancelier_Weapon.h"
+#include "Mon_WeakPoint.h"
 
 IMPLEMENT_REFLECTION(MW_Bishop)
 {
@@ -17,6 +18,7 @@ IMPLEMENT_REFLECTION(MW_Bishop)
 
 MW_Bishop::MW_Bishop(const ComPtr<Device>& device, const ComPtr<Context>& context) :Monster_WorldBase(device, context)
 {
+    _worldMoveSpeedScale = 0.4f;
 }
 
 MW_Bishop::MW_Bishop(const MW_Bishop& prototype) : Monster_WorldBase(prototype)
@@ -47,15 +49,6 @@ void MW_Bishop::Update(float timeDelta)
         return;
 
     Monster_WorldBase::Update(timeDelta);
-
-    if (_body)
-    {
-        _body->Play_Animation(timeDelta);
-
-        // Lancelier 월드 이동은 기존 Monster와 동일하게 body root motion 속도를 사용한다.
-        const auto rootVelocity = _body->Get_RootTransformVelocity();
-        _transformCom->Set_SpeedPerSec(rootVelocity.position.z * 0.4f/*Constants::Charcter::scaleOffset*/);
-    }
 }
 
 HRESULT MW_Bishop::Render()
@@ -73,13 +66,6 @@ void MW_Bishop::OnBeginOverlap(Shared<ColliderCom> self, Shared<ColliderCom> oth
     Monster_WorldBase::OnBeginOverlap(self, other);
 }
 
-void MW_Bishop::Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames) const
-{
-    outPrefabNames.clear();
-
-    outPrefabNames.push_back(Constants::Prefab::MB_Bishop);
-
-}
 HRESULT MW_Bishop::Ready_Components()
 {
     Monster_WorldBase::Ready_Components();
@@ -98,13 +84,19 @@ HRESULT MW_Bishop::Ready_PartObjects()
     _body = dynamic_pointer_cast<Mon_Bishop_Body>(_partObjects[TEXT("Part_Body")]);
     CHECK_NULL(_body, E_FAIL);
 
+    Mon_WeakPoint::WEAK_DESC weakDesc{};
+    weakDesc.parentMatrix = &_body->Get_CombinedWorldMatrix();
+    weakDesc.allowMissingModel = true;
+    weakDesc.socketName = "Aim_Target";
+    weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Aim_Target");
 
-return S_OK;
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL);
+
+    _weak = dynamic_pointer_cast<Mon_WeakPoint>(_partObjects[TEXT("Part_Weak")]);
+    CHECK_NULL(_weak, E_FAIL);
 
     return S_OK;
 }
-
-
 
 Shared<MW_Bishop> MW_Bishop::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
 {

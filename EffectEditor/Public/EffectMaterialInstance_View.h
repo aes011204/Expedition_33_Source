@@ -14,6 +14,20 @@ NS_BEGIN(EffectEditor)
 class EffectMaterial_View;
 class EffectMaterialPreviewRenderer;
 
+enum class EffectMaterialTwoSidedDisplayMode : uint8
+{
+    EditableImplemented,
+    EditableUnimplemented,
+    ForcedEnabledReadOnly,
+};
+
+struct EffectMaterialRenderPolicyBinding
+{
+    EffectMaterialBlendMode blendMode{ EffectMaterialBlendMode::AlphaBlend };
+    float alphaCutoff{ 0.5f };
+    const char* sourceLabel{ "Required" };
+};
+
 class EffectMaterialInstance_View final : public Editor_Window
 {
 public:
@@ -24,6 +38,15 @@ public:
     void Update(float timeDelta) override; // material instance preview UV motion 시간을 갱신한다.
     void Pre_Render() override;
     void Render() override;
+    // MeshData에서 지원하지 않는 distortion shape 편집을 막는다.
+    static bool Draw_InstanceProperties(
+        DetailPropertyContext& detailPropertyContext,
+        map<string, Shared<Texture>>& textureThumbnailCache,
+        EffectMaterialInstanceData& material,
+        bool* outRestartPreview,
+        EffectMaterialTwoSidedDisplayMode twoSidedDisplayMode = EffectMaterialTwoSidedDisplayMode::EditableImplemented,
+        bool disableMeshDistortionShapeControls = false,
+        const EffectMaterialRenderPolicyBinding* renderPolicyBinding = nullptr);
 
 public: //## Behavior::Selection
     void Open_Instance(uint32 emitterId, uint32 moduleId);
@@ -37,7 +60,6 @@ private: //## Data
 
 private: //## Helpers
     bool Resolve_Target(Shared<Emitter_View>& outEmitterView, AuthoringEmitter*& outEmitter, RequiredModuleData*& outRequiredData) const;
-    bool Draw_InstanceProperties(EffectMaterialInstanceData& material, bool* outRestartPreview);
     void Apply_MaterialChanged(const Shared<Emitter_View>& emitterView, AuthoringEmitter& emitter, const RequiredModuleData& requiredData);
     void Begin_PendingAuthoringEdit(
         const Shared<Emitter_View>& emitterView,

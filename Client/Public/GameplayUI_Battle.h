@@ -17,12 +17,14 @@ class UI_BattleTransition;
 class UI_BattleCommandHUD;
 class UI_BattleSystemHUD;
 class UI_MonsterHpBar;
+class UI_BossHpBar;
 class UI_PlayerHpBar;
 class UI_CrossHair;
 class UI_ChoiceTarget;
 class UI_AttackTooltip;
 class UI_BattleSystem_TurnOrder;
 class UI_DamageFont;
+class UI_DestroyShield;
 class UI_HealFont;
 class UI_EscapeSkipTurnBack;
 class UI_ReactionResult;
@@ -32,6 +34,9 @@ class UI_BattleItemPanel;
 class UI_BattleSkillPanel;
 class UI_BattleAnnounce;
 class UI_SuddenAttack;
+class UI_AddAP;
+class UI_QTE;
+class UI_MarkEffect;
 
 class GameplayUI_Battle final : public Base
 {
@@ -64,13 +69,24 @@ private:
     void    Handle_TurnEnded(const BattleChar& actor);
     void    Handle_TargetPreviewChanged(const BattleChar* target);
     void    Handle_ActionStarted(const BattleAction& action);
-    void    Handle_DamageApplied(const BattleChar& target, float damage, AttackType attackType);
+    void    Handle_DamageApplied(const DamageAppliedInfo& info);
     void    Handle_HealApplied(const BattleChar& target, float healAmount);
     void    Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const vector<BattleChar>& target);
+    void    Handle_BattleApChanged(const BattleChar& actor, uint32 amount, EAPChangeReason reason);
+    void    Handle_QTEStarted(const BattleQTERequest& request);
+    void    Handle_QTEResolved(BattleQTEResult result);
+
+    // Buff
+    void    Handle_BuffApplied(const BattleChar& target, Buffs buffId);
+    void    Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage);
+
+    void    Handle_CounterAnnounceRequested(const vector<BattleChar>& counterActors);
 
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
     void    Update_MonsterHpBar(float timeDelta);
+    bool    Ensure_BossHpBar();
+    void    Update_BossHpBar(float timeDelta);
     void    Update_PlayerHpBar(float timeDelta);
     void    Update_CrossHair(float timeDelta);
     void    Update_BattleDefense(float timeDelta);
@@ -78,7 +94,10 @@ private:
     void    Update_ChoiceTarget(float timeDelta);
     void    Update_TurnOrder(float timeDelta);
     void    Update_DamageFonts(float timeDelta);
+    void    Update_DestroyShields(float timeDelta);
     void    Update_HealFonts(float timeDelta);
+    void    Update_AddAPs(float timeDelta);
+
     void    Update_EscapeSkipTurn(float timeDelta);
     void    Update_AttackTooltip(float timeDelta);
     void    Update_ReactionResult(float timeDelta);
@@ -88,15 +107,16 @@ private:
     void    Update_BattleSkillPanel(float timeDelta);
     void    Update_BattleAnnounce(float timeDelta);
     void    Update_SuddenAttack(float timeDelta);
+    void    Update_QTE(float timeDelta);
+    void    Update_MarkEffect(float timeDelta);
+    void    Update_BattleSystemIntroState(float timeDelta);
 
 private:
 #pragma region UI 위치맞추기
     // 일단 기능이 비슷하긴한데 나중에 어떻게될지 몰라서 일단 나눠서 사용
     bool    Try_GetBattleCommandHudWorldPos(const BattleChar& actor, Vec3& outWorldPos) const;
     bool    Try_GetTargetHpBarWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
-    bool    Try_GetDamageFontWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
     bool    Try_GetReactionResultWorldPos(const BattleChar& target, Vec3& outWorldPos);
-    bool    Try_GetHealFontWorldPos(const BattleChar& target, Vec3& outWorldPos) const;
 #pragma endregion
 
     // Turn Order
@@ -109,14 +129,17 @@ private:
     using VictoryStatDesc = UI_BattleVictory::VictoryPlayerStatDesc;
     vector<VictoryStatDesc> Build_BattleVictoryPlayerStats() const;
 
-    void    Reset_BattleUiRuntimeState(bool closeVictoryUi); 
+    void    Reset_BattleUiRuntimeState(bool closeVictoryUi);
 
 private:
+    uint32                                  _levelIndex = 0;
+
     Unique<UI_BattleTransition>             _battleTransition; // 전투 진입 테스트용 페이드 UI
     Unique<UI_BattleCommandHUD>             _battleCommandHUD;
     Unique<UI_BattleSystemHUD>              _battleSystemHUD;
 
     Unique<UI_MonsterHpBar>                 _monsterHpBar;
+    Unique<UI_BossHpBar>                    _bossHpBar;
     Unique<UI_PlayerHpBar>                  _playerHpBar;
 
     Unique<UI_CrossHair>                    _crossHair;
@@ -133,13 +156,21 @@ private:
     Unique<UI_BattleSkillPanel>             _battleSkillPanel;
     Unique<UI_BattleAnnounce>               _battleAnnounce;
     Unique<UI_SuddenAttack>                 _suddenAttack;
+    Unique<UI_QTE>                          _qte;
+    Unique<UI_MarkEffect>                   _markEffect;
 
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
     array<Unique<UI_DamageFont>, kDamageFontPoolSize> _damageFonts{};
 
+    static constexpr uint32 kDestroyShieldPoolSize = 4;
+    array<Unique<UI_DestroyShield>, kDestroyShieldPoolSize> _destroyShields{};
+
     static constexpr uint32 kHealFontPoolSize = 8;
     array<Unique<UI_HealFont>, kHealFontPoolSize> _healFonts{};
+
+    static constexpr uint32 kAddAPPoolSize = 4;
+    array<Unique<UI_AddAP>, kAddAPPoolSize> _addAPs{};
 
     // Delegate 구독 대상
     Shared<BattleController> _battleController;
@@ -151,7 +182,18 @@ private:
     FDelegateHandle          _actionStartedHandle{};
     FDelegateHandle          _damageAppliedHandle{};
     FDelegateHandle          _healAppliedHandle{};
+    FDelegateHandle          _battleApChangedHandle{};
     FDelegateHandle          _reactionSucceededHandle{};
+
+    // QTE
+    FDelegateHandle          _qteStartedHandle{};
+    FDelegateHandle          _qteResolvedHandle{};
+
+    // Buff
+    FDelegateHandle          _buffAppliedHandle{};
+    FDelegateHandle          _buffConsumedHandle{};
+
+    FDelegateHandle          _counterAnnounceRequestedHandle{};
 
 private:
     BattleChar               _targetPreviewSnapshot{};
@@ -159,6 +201,7 @@ private:
     bool                     _isBattleUiActive = false;
     bool                     _isPlayerTurnUiActive = false;
     bool                     _isVictoryUiActive = false;
+    bool                     _isVictoryConfirmPending = false;
 
 #pragma region 메커니즘
     bool                     _isMechanismActionActive = false;
@@ -169,7 +212,11 @@ private:
 
     bool                     _isPlayerAdvantageStart = false; // 플레이어 선제공격?
     bool                     _hasPlayedSuddenAttack = false;  // 이미 보여줬는지?  
-    
+    bool                     _isBattleSystemIntroPlaying = false;
+    float                    _battleSystemIntroElapsed = 0.f;
+    bool                     _hasPendingBattleSystemIntroActivation = false;
+    HeroId                   _pendingBattleSystemIntroActivationHeroId = HeroId::END;
+
 private:
     BattleChar               _currentPlayerTurnActor{}; // 현재 턴 진행중인 플레이어
     bool                     _hasCurrentPlayerTurnActor = false;

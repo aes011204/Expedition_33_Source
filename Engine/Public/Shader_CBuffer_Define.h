@@ -112,13 +112,21 @@ struct alignas(16) ShadowCB
     Matrix  lightViewMatrix;
     Matrix  lightProjMatrix;
 
+    Matrix  cascadeLightViewMatrices[ShadowLightDesc::SHADOW_CASCADE_COUNT];
+    Matrix  cascadeLightProjMatrices[ShadowLightDesc::SHADOW_CASCADE_COUNT];
+
     Matrix  staticLightViewMatrix;
     Matrix  staticLightProjMatrix;
 
+    Vec4    cascadeSplits = Vec4::Zero;
+    float   cascadeBlendDistance = 0.f;
     float   lightFar = 0.f;
     float   bias = 0.f;
+
     float   intensity = 0.f;
     float   staticShadowEnabled = 0.f;
+    uint32  cascadeCount = 0;
+    uint32  activeCascadeIndex = 0;
 }; 
 
 /* ------------------------------------------ */
@@ -167,9 +175,9 @@ struct alignas(16) PostProcessCB
 {
     static constexpr ConstantBuffer CBType = ConstantBuffer::PostProcess;
 
-    float exposure = 1.f;                   // 키우면 밝아짐
+    float exposure = 1.1f;                   // 키우면 밝아짐
     float invWhitePoint = 1.f;              // 어느 밝기 이상을 거의 흰색으로 볼 건지
-    float gamma = 2.2f;                     // 선형 색상을 sRGB에 가깝게 변환함
+    float gamma = 1.05f;                     // 선형 색상을 sRGB에 가깝게 변환함
     float bloomRadius = 1.6f;               // 블러 커널의 샘플 간격을 늘리는 배율
 
     float bloomThreshold = 0.9f;            // Bloom 추출 기준
@@ -184,6 +192,27 @@ struct alignas(16) PostProcessCB
     uint32 useBackgroundFallback = 0;       // 0이면 비활성, 1이면 빈 픽셀 fallback 색 적용
     float _pad2[4]{};
     Vec4 backgroundFallbackColor{ 0.f, 0.f, 0.f, 1.f }; // fallback 배경색
+};
+
+struct alignas(16) LightShaftCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::LightShaft;
+
+    Vec2 lightScreenUV{ 0.5f, 0.5f };
+    float lightVisible{ 0.f };
+    float lightFacingCamera{ 0.f };
+
+    Vec3 shaftColor{ 1.0f, 0.96f, 0.88f };
+    float intensity{ 0.35f };
+
+    uint32 sampleCount{ 12u };
+    float rayLength{ 0.18f };
+    float decay{ 0.96f };
+    float sunDiscRadius{ 0.04f };
+
+    float edgeFade{ 0.15f };
+    float depthEmptyThreshold{ 0.001f };
+    float _pad0[2]{};
 };
 
 /* ------------------------------------------ */
@@ -220,11 +249,16 @@ struct alignas(16) DeferredLightingCB
     static constexpr ConstantBuffer CBType = ConstantBuffer::DeferredLighting;
 
     float iblIntensity{ 1.f };
-    float iblDiffuseIntensity{ 1.f };
-    float iblSpecularIntensity{ 1.f };
+    float iblDiffuseIntensity{ 1.1f };
+    float iblSpecularIntensity{ 0.8f };
     float iblPrefilterMaxMip{ 8.f };
 
+    float specAAStrength{ 1.f };
+    float specAAMinVariance{ 0.01f };
+    float specAAMaxAddedRoughness{ 0.35f };
     uint32 iblEnabled{ 1u };
+
+    uint32 specAAEnabled{ 1u };
     uint32 _pad0[3]{};
 };
 
@@ -243,6 +277,8 @@ struct alignas(16) DrawFeatureCB
     // 여러 효과에서 알아서 쓰일 parameters. 기능별 .cpp과 .hlsl 간 규약 필요
     Vec4 param0{ 0.f, 0.f, 0.f, 0.f };  
     Vec4 param1{ 0.f, 0.f, 0.f, 0.f };
+    Vec4 param2{ 0.f, 0.f, 0.f, 0.f };
+    Vec4 param3{ 0.f, 0.f, 0.f, 0.f };
 };
 
 struct alignas(16) ScreenFxCB
@@ -273,7 +309,75 @@ struct alignas(16) ScreenFxCB
     Vec2 pad;
 };
 
-// 패딩이 제대로 됐나 마지막 확인용
+struct alignas(16) FogZoneEntry
+{
+    Vec3 zoneMin;
+    float zoneRadius;
+
+    Vec3 zoneMax;
+    float _pad0;
+
+    Vec4 fogColor{ 1.f, 0.2f, 0.1f, 1.f };
+
+    float fogDensity{ 1.f };
+    float fogStart{ 0.f };
+    float _pad1{ 0.f };
+    float _pad2{ 0.f };
+};
+
+struct alignas(16) FogZoneCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::FogZone;
+    static constexpr int32 MAX_FOG_ZONES = 8;
+
+    FogZoneEntry zones[MAX_FOG_ZONES]{};
+    int32 aabbCount{ 0 };
+    int32 sphereCount{ 0 };
+    float _pad0[2]{};
+};
+
+// ------------------------------------------
+//              Water CBuffer                
+// ------------------------------------------
+struct alignas(16) WaterCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::Water;
+
+    float largeWaveScale = 64.f;
+    float largeWaveSpeed = 0.1f;
+    float largeWaveAmplify = 1.f;
+    float smallWaveScale = 512.f;
+
+    float smallWaveSpeed = 1.f;
+    float smallWaveAmplify = 1.f;
+    float seafoamScale = 512.f;
+    float seafoamSpeed = 0.015f;
+
+    float seafoamHeightPower = 2.f;
+    float seafoamHeightMultiply = 3.f;
+    float foamDistortion = 0.f;
+    float depthFade = 0.f;
+
+    float cameraDistanceFade = 0.f;
+    float reflectionAmount = 0.f;
+    float luminanceBias = 0.f;
+    float elapsedTime = 0.f;
+
+    Vec4 waterColor = { 0.0324f, 0.045167f, 0.24f,  1.f };
+    Vec4 fresnelColor = { 0.1975f, 0.209646f, 0.395f, 1.f };
+};
+
+/* ------------------------------------------ */
+/*             Player Render CBuffer          */
+/* ------------------------------------------ */
+struct alignas(16) PlayerRenderCB
+{
+    static constexpr ConstantBuffer CBType = ConstantBuffer::PlayerRender;
+
+    Vec4 nearClipParams{ 0.f, 0.f, 0.f, 0.f };
+};
+
+// 패딩이 제대로 됐나 마지막 확인용 
 static_assert(sizeof(MaterialCB) % 16 == 0);
 static_assert(sizeof(HairCB) % 16 == 0);
 static_assert(sizeof(CameraCB) % 16 == 0);
@@ -282,10 +386,14 @@ static_assert(sizeof(ShadowCB) % 16 == 0);
 static_assert(sizeof(ScreenSpaceCB) % 16 == 0);
 static_assert(sizeof(LightCB) % 16 == 0);
 static_assert(sizeof(PostProcessCB) % 16 == 0);
+static_assert(sizeof(LightShaftCB) % 16 == 0);
 static_assert(sizeof(SSAOCB) % 16 == 0);
 static_assert(sizeof(DeferredLightingCB) % 16 == 0);
 static_assert(sizeof(DrawFeatureCB) % 16 == 0);
 static_assert(sizeof(ScreenFxCB) % 16 == 0);
+static_assert(sizeof(FogZoneCB) % 16 == 0);
+static_assert(sizeof(WaterCB) % 16 == 0);
+static_assert(sizeof(PlayerRenderCB) % 16 == 0);
 
 NS_END
 

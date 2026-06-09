@@ -1,12 +1,14 @@
 ﻿#pragma once
 #include "Client_Defines.h"
 #include "GameObject.h"
+#include "PhysX_Handle.h"
 
 NS_BEGIN(Engine)
 class ShaderCom;
 class ModelCom;
 class ComputeShaderCom;
 class ComputeStructuredBuffer;
+struct StaticCollisionData;
 NS_END
 
 NS_BEGIN(Client)
@@ -29,6 +31,7 @@ public:
     typedef struct tagMapInstancedMeshDesc final : public GameObject::GAMEOBJECT_DESC
     {
         Shared<ModelCom> model;
+        Shared<StaticCollisionData> collisionData = nullptr;
         wstring modelPath = {};
         vector<InstanceTransform> transforms;
     } MAPINSTANCEDMESH_DESC;
@@ -39,6 +42,9 @@ public:
     virtual ~MapInstancedMesh() = default;
 
 public:
+    void Set_LodModel(int lod, Shared<ModelCom> model);
+
+public:
     virtual HRESULT Initialize_Prototype() override;
     virtual HRESULT Initialize(void* arg) override;
     virtual void Priority_Update(float timeDelta) override;
@@ -46,13 +52,15 @@ public:
     virtual void Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
     virtual HRESULT RenderPickingID(uint32 id) override;
+    HRESULT Render_Shadow() override;
 
     virtual json To_Json() const override;
     virtual void From_Json(const json& node) override;
 
 private:
     Shared<ShaderCom> _shader;
-    Shared<ModelCom> _model;
+    Shared<ModelCom> _lodModels[3];
+    Shared<StaticCollisionData> _collisionData;
     ComPtr<Buffer> _instanceVB;
     uint32 _instanceCount = {};
     uint32 _instanceCapacity = {};
@@ -63,12 +71,16 @@ private:
     Shared<ComputeShaderCom> _cullShader;
     Shared<ComputeStructuredBuffer> _instanceSrcBuffer;
     Shared<ComputeStructuredBuffer> _sphereBuffer;
-    ComPtr<Buffer> _visibleStructured;
-    ComPtr<UnorderedAccessView> _visibleUAV;
-    ComPtr<Buffer> _visibleVB;
+    ComPtr<Buffer> _visibleStructured[3];
+    ComPtr<UnorderedAccessView> _visibleUAV[3];
+    ComPtr<Buffer> _visibleVB[3];
     ComPtr<Buffer> _cullCB;
-    vector<ComPtr<Buffer>> _indirectArgsBuffers;
+    vector<ComPtr<Buffer>> _indirectArgsBuffers[3];
+    vector<PhysXStaticActorHandle> _physxStaticHandles;
     BoundingBox _groupBounds = {};
+
+    float _lod1Dist = 40.f;
+    float _lod2Dist = 80.f;
 
 private:
     HRESULT Ready_Components(const wstring& modelPath, Shared<ModelCom> sharedModel);

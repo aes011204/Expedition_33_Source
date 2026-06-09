@@ -15,6 +15,8 @@ UI_Image::UI_Image(const UI_Image& prototype)
     , _texturePath{ prototype._texturePath }
     , _maskTexturePath{ prototype._maskTexturePath }
     , _patternMaskTexturePath{ prototype._patternMaskTexturePath }
+    , _patternUvOffset{ prototype._patternUvOffset }
+    , _patternUvScale{ prototype._patternUvScale }
     , _color{ prototype._color }
     , _shaderPrototypeLevelIndex{ prototype._shaderPrototypeLevelIndex }
     , _shaderPrototypeTag{ prototype._shaderPrototypeTag }
@@ -30,6 +32,30 @@ UI_Image::UI_Image(const UI_Image& prototype)
     , _fillRatio{ prototype._fillRatio }
     , _fillOrigin{ prototype._fillOrigin }
 {
+}
+
+Vec2 UI_Image::Get_DefaultPatternUvOffset()
+{
+    return Vec2(0.f, 0.f);
+}
+
+Vec2 UI_Image::Get_DefaultPatternUvScale()
+{
+    return Vec2(1.f, 1.f);
+}
+
+Vec2 UI_Image::Clamp_PatternUvOffset(const Vec2& value)
+{
+    return Vec2(
+        min(max(value.x, -1.f), 1.f),
+        min(max(value.y, -1.f), 1.f));
+}
+
+Vec2 UI_Image::Clamp_PatternUvScale(const Vec2& value)
+{
+    return Vec2(
+        min(max(value.x, 0.1f), 8.f),
+        min(max(value.y, 0.1f), 8.f));
 }
 
 HRESULT UI_Image::Initialize_Prototype()
@@ -49,6 +75,8 @@ HRESULT UI_Image::Initialize(void* arg)
         _texturePath = desc->texturePath;
         _maskTexturePath = desc->maskTexturePath;
         _patternMaskTexturePath = desc->patternMaskTexturePath;
+        _patternUvOffset = Clamp_PatternUvOffset(desc->patternUvOffset);
+        _patternUvScale = Clamp_PatternUvScale(desc->patternUvScale);
         _color = desc->color;
         _shaderPrototypeLevelIndex = desc->shaderPrototypeLevelIndex;
         _shaderPrototypeTag = desc->shaderPrototypeTag;
@@ -154,7 +182,15 @@ HRESULT UI_Image::Render()
     if (FAILED(_shader->Bind_Matrix("g_ProjMatrix", &projMatrix)))
         return E_FAIL;
 
-    if (FAILED(_shader->Bind_RawValue("g_Color", &_color, sizeof(Vec4))))
+    const Vec4 renderColor = Get_EffectiveRenderColor(_color);
+
+    if (FAILED(_shader->Bind_RawValue("g_Color", &renderColor, sizeof(Vec4))))
+        return E_FAIL;
+
+    if (FAILED(_shader->Bind_RawValue("g_PatternUvOffset", &_patternUvOffset, sizeof(Vec2))))
+        return E_FAIL;
+
+    if (FAILED(_shader->Bind_RawValue("g_PatternUvScale", &_patternUvScale, sizeof(Vec2))))
         return E_FAIL;
 
     if (FAILED(_shader->Bind_RawValue("g_UseGrayScale", &_useGrayScale, sizeof(bool))))

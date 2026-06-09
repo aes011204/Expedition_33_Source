@@ -1,5 +1,7 @@
 ﻿#include "ShaderCom.h"
 #include "Material.h"
+#include "GameInstance.h"
+#include "ShaderCom_Controller.h"
 
 ShaderCom::ShaderCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component{ device, context }
@@ -12,6 +14,9 @@ ShaderCom::ShaderCom(const ShaderCom& prototype)
     , _numPasses{ prototype._numPasses }
     , _inputLayouts{ prototype._inputLayouts }
     , _type{ prototype._type }
+    , _shaderFilePath{ prototype._shaderFilePath }
+    , _inputElements{ prototype._inputElements }
+    , _numInputElements{ prototype._numInputElements }
 {
     for (uint32 i = 0; i < ETOI(ConstantBuffer::END); ++i)
         _CB[i] = prototype._CB[i];
@@ -23,7 +28,57 @@ ShaderCom::ShaderCom(const ShaderCom& prototype)
         _featureSRVs[i] = nullptr;
 }
 
-HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements, ShaderType shader)
+void ShaderCom::Reset_EffectState()
+{
+    _effectVariableCache.clear();
+    _matrixVariableCache.clear();
+    _shaderResourceVariableCache.clear();
+
+    _inputLayouts.clear();
+    _numPasses = 0;
+
+    for (uint32 i = 0; i < ETOI(ConstantBuffer::END); ++i)
+    {
+        if (_CB[i])
+            _CB[i].Reset();
+        if (_allocatedCB[i])
+            _allocatedCB[i].Reset();
+    }
+
+    _materialTextures.Reset();
+    _drawFeatureTextures.Reset();
+
+    for (uint32 i = 0; i < _countof(_featureSRVs); ++i)
+        _featureSRVs[i] = nullptr;
+
+    _effect.Reset();
+}
+
+void ShaderCom::Copy_EffectState(const ShaderCom& source)
+{
+    _effect = source._effect;
+    _numPasses = source._numPasses;
+    _inputLayouts = source._inputLayouts;
+    _type = source._type;
+    _shaderFilePath = source._shaderFilePath;
+    _inputElements = source._inputElements;
+    _numInputElements = source._numInputElements;
+
+    for (uint32 i = 0; i < ETOI(ConstantBuffer::END); ++i)
+        _CB[i] = source._CB[i];
+
+    _materialTextures = source._materialTextures;
+    _drawFeatureTextures = source._drawFeatureTextures;
+
+    _effectVariableCache = source._effectVariableCache;
+    _matrixVariableCache = source._matrixVariableCache;
+    _shaderResourceVariableCache = source._shaderResourceVariableCache;
+
+    for (uint32 i = 0; i < _countof(_featureSRVs); ++i)
+        _featureSRVs[i] = nullptr;
+}
+
+HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D11_INPUT_ELEMENT_DESC* elements, uint32 numElements, ShaderType shader, bool registerWithController)
 {
     uint32 hlslFlag = 0;
 
@@ -33,6 +88,8 @@ HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D
     hlslFlag |= D3DCOMPILE_OPTIMIZATION_LEVEL1;
 #endif
 
+    ComPtr<ID3DBlob> errorBlob = nullptr;
+
     if (FAILED(D3DX11CompileEffectFromFile(
         shaderFilePath,
         nullptr,
@@ -41,10 +98,18 @@ HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D
         0,
         _device.Get(),
         _effect.GetAddressOf(),
-        nullptr)))
+        errorBlob.GetAddressOf())))
     {
+        if (errorBlob)
+            OutputDebugStringA(static_cast<const char*>(errorBlob->GetBufferPointer()));
         return E_FAIL;
     }
+
+    _shaderFilePath = shaderFilePath != nullptr ? shaderFilePath : L"";
+    _inputElements.clear();
+    _numInputElements = numElements;
+    if (elements != nullptr && numElements > 0)
+        _inputElements.assign(elements, elements + numElements);
 
     ID3DX11EffectTechnique* technique = _effect->GetTechniqueByIndex(0);
     if (nullptr == technique)
@@ -94,11 +159,33 @@ HRESULT ShaderCom::Initialize_Prototype(const wchar_t* shaderFilePath, const D3D
 
     _type = shader;
 
+    if (registerWithController && GAME != nullptr)
+    {
+        if (auto* controller = GAME->Get_ShaderComController())
+            controller->Register_Shader(GetSharedPtr<ShaderCom>());
+    }
+
     return S_OK;
 }
 
 HRESULT ShaderCom::Initialize(void* arg)
 {
+    if (GAME != nullptr)
+    {
+        if (auto* controller = GAME->Get_ShaderComController())
+            controller->Register_Shader(GetSharedPtr<ShaderCom>());
+    }
+
+    return S_OK;
+}
+
+HRESULT ShaderCom::Recreate(const ShaderCom& source)
+{
+    if (source._effect == nullptr)
+        return E_FAIL;
+
+    Reset_EffectState();
+    Copy_EffectState(source);
     return S_OK;
 }
 
@@ -360,11 +447,12 @@ Shared<ShaderCom> ShaderCom::Create(
     const wchar_t* shaderFilePath,
     const D3D11_INPUT_ELEMENT_DESC* elements,
     uint32 numElements,
-    ShaderType shader)
+    ShaderType shader,
+    bool registerWithController)
 {
     auto instance = make_shared<ShaderCom>(device, context);
 
-    if (FAILED(instance->Initialize_Prototype(shaderFilePath, elements, numElements, shader)))
+    if (FAILED(instance->Initialize_Prototype(shaderFilePath, elements, numElements, shader, registerWithController)))
     {
         LOG_WARN("Failed to create ShaderCom: path='{}'", String::ToString(shaderFilePath));
         return nullptr;
@@ -388,14 +476,17 @@ Shared<Component> ShaderCom::Clone(void* arg)
 
 void ShaderCom::Free()
 {
+    if (GAME != nullptr)
+    {
+        if (auto* controller = GAME->Get_ShaderComController())
+            controller->Unregister_Shader(this);
+    }
+
     __super::Free();
 
-    _effectVariableCache.clear();
-    _matrixVariableCache.clear();
-    _shaderResourceVariableCache.clear();
-
-    _inputLayouts.clear();
-    _effect.Reset();
-    _numPasses = 0;
+    Reset_EffectState();
+    _shaderFilePath.clear();
+    _inputElements.clear();
+    _numInputElements = 0;
 }
 

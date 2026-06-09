@@ -39,11 +39,36 @@ using LIGHT_DESC = struct tagLightDesc
     Vec4 ambient;
     Vec4 specular;
 
-    bool castShadow = false;
+    bool castShadow = false;    // 이 light를 그림자용 주광원으로 할 건지
+};
+
+enum class CascadeLevel : uint32
+{
+    Close = 0u,
+    Normal,
+    Far,
+    Count
+};
+
+struct ShadowCascadePreset
+{
+    float focusNear = 0.1f;
+    float focusFar = 110.f;
+    float cascadeSplitLambda = 0.8f;
+    float cascadeBlendDistance = 4.f;
+};
+
+struct ShadowCascadePresetSet
+{
+    ShadowCascadePreset close{};
+    ShadowCascadePreset normal{};
+    ShadowCascadePreset farRange{};
 };
 
 using ShadowLightDesc = struct tagShadowLightDesc
 {
+    static constexpr uint32 SHADOW_CASCADE_COUNT = 4;
+
     Vec3    eye;
     Vec3    at;
 
@@ -54,11 +79,14 @@ using ShadowLightDesc = struct tagShadowLightDesc
 
     float   bias = 0.03f;
     float   intensity = 0.8f;
+    bool    enabled = true;
 
     // Cascade Shadow 추가
     bool followCameraFrustum = true;     // true면 메인 카메라 frustum 기준으로 shadow view/proj를 매 프레임 갱신한다.
     float focusNear = 0.1f;              // shadow가 커버할 카메라 기준 시작 거리.
-    float focusFar = 80.f;               // 단일 shadow가 커버할 카메라 기준 끝 거리. 너무 크면 품질이 떨어진다.
+    float focusFar = 110.f;              // 근거리 cascade 품질을 위해 너무 멀리 잡지 않는다.
+    float cascadeBlendDistance = 4.f;    // cascade 경계 blend 구간 길이.
+    float cascadeSplitLambda = 0.8f;     // 0번 cascade에 더 공격적으로 해상도를 몰아준다.
     float lightDistancePadding = 30.f;   // light view eye를 frustum center에서 얼마나 뒤로 뺄지.
     float xyPadding = 4.f;               // frustum AABB 좌우/상하 여유.
     float zPadding = 80.f;               // light space depth 여유.

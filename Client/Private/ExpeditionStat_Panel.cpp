@@ -20,24 +20,41 @@ HRESULT ExpeditionStat_Panel::Initialize(uint32 levelIndex)
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
 
-    Close();
+    Close_Immediately();
     return S_OK;
 }
 
 void ExpeditionStat_Panel::Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
     if (!_isOpen)
         return;
 
     Refresh_PlayerHpStats();
+
+    if (!_isClosingWithOutro)
+        return;
+
+    _closeElapsed += max(0.f, timeDelta);
+
+    if (_closeElapsed >= _outroDuration)
+        Close_Immediately();
 }
 
 void ExpeditionStat_Panel::Open()
 {
+    if (_root == nullptr)
+        return;
+
+    if (_isOpen && !_isClosingWithOutro)
+        return;
+
+    _isClosingWithOutro = false;
+    _closeElapsed = 0.f;
+
     UI_RuntimePanelBase::Open();
     Refresh_PlayerHpStats();
+
+    Play_TargetAnimation(L"Expedition_Status_Intro");
 
     GAME->Unlock_Mouse(); 
     GAME->Set_GameplayInputMode(GameplayInputMode::UIOnly);
@@ -45,15 +62,75 @@ void ExpeditionStat_Panel::Open()
 
 void ExpeditionStat_Panel::Close()
 {
+    if (_root == nullptr)
+    {
+        Close_Immediately();
+        return;
+    }
+
+    if (!_isOpen && !_isClosingWithOutro)
+        return;
+
+    if (_isClosingWithOutro)
+        return;
+
+    _isClosingWithOutro = true;
+    _closeElapsed = 0.f;
+
+    Play_TargetAnimation(L"Expedition_Status_Outro");
+
+    if (_outroDuration <= 0.f)
+        Close_Immediately();
+}
+
+void ExpeditionStat_Panel::Close_Immediately()
+{
+    _isClosingWithOutro = false;
+    _closeElapsed = 0.f;
+
+    Stop_TargetAnimations();
+
     UI_RuntimePanelBase::Close();
 
     GAME->Set_GameplayInputMode(GameplayInputMode::Normal);
     GAME->Lock_Mouse();
 }
 
+void ExpeditionStat_Panel::Play_TargetAnimation(const wchar_t* animationName)
+{
+    for (auto& [uiName, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(uiName);
+
+        if (ui == nullptr)
+            continue;
+
+        ui->Play_UIAnimation(animationName, true);
+    }
+}
+
+void ExpeditionStat_Panel::Stop_TargetAnimations()
+{
+    for (auto& [uiName, ui] : _uiByName)
+    {
+        UNREFERENCED_PARAMETER(uiName);
+
+        if (ui == nullptr)
+            continue;
+
+        ui->Stop_UIAnimation();
+    }
+}
+
 void ExpeditionStat_Panel::Toggle()
 {
-    UI_RuntimePanelBase::Toggle();
+    if (_isOpen && !_isClosingWithOutro)
+    {
+        Close();
+        return;
+    }
+
+    Open();
 }
 
 HRESULT ExpeditionStat_Panel::Load_UI(uint32 levelIndex)
@@ -63,6 +140,11 @@ HRESULT ExpeditionStat_Panel::Load_UI(uint32 levelIndex)
     desc.jsonPath = Constants::UI::UI_ExpeditionStatus_Path;
     desc.prototypeTagPrefix = L"ExpeditionStatus";
     desc.outUIByName = &_uiByName;
+    desc.animationPaths =
+    {
+        Constants::UI_Anim::UI_ExpeditionStatusIntro_Anim_Path,
+        Constants::UI_Anim::UI_ExpeditionStatusOutro_Anim_Path
+    };
 
     CHECK_FAILED(UI_RuntimeLoader::Load_Document(desc), E_FAIL);
 
@@ -174,7 +256,7 @@ Unique<ExpeditionStat_Panel> ExpeditionStat_Panel::Create(uint32 levelIndex)
 void ExpeditionStat_Panel::Free()
 {
     if (_root)
-        _root->Close();
+        Close_Immediately();
 
     for (uint32 i = 0; i < kPlayerHpSlotCount; ++i)
     {

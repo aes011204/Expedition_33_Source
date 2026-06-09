@@ -34,6 +34,7 @@ enum class EffectMaterialBlendMode : uint32
     AlphaBlend = 0,
     Additive,
     Modulate,
+    Masked,
     END,
 };
 
@@ -107,6 +108,10 @@ struct EffectMaterialInstanceData
     float noiseStrength{ 0.f }; // noise modulation 강도다.
     float alphaCutoff{ 0.f };   // alpha cutoff 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
     float alphaErosion{ 0.f };  // mask/noise 기반 alpha erosion 후보 값이다. 소비하지 않는 renderer에서는 보존만 한다.
+    string noiseSource{ "Red" }; // noise texture에서 scalar를 뽑을 채널/방식이다.
+    string maskSource{ "Alpha" }; // mask texture에서 coverage를 뽑을 채널/방식이다.
+    bool noiseInvert{ false };    // noise scalar를 1-x로 뒤집어 사용한다.
+    bool maskInvert{ false };     // mask coverage를 1-x로 뒤집어 사용한다.
 
     Vec2 mainUVScale{ 1.f, 1.f };                                                      // main texture UV scale 후보 값이다.
     Vec2 mainUVOffset{ 0.f, 0.f };                                                     // main texture UV 시작 위치를 정적으로 민다.

@@ -72,24 +72,32 @@ BattleCameraTrack* GetTrackByIndex(BattleCameraClip* clip, int index)
     case 4:
         return &clip->pivotOffset;
     case 5:
-        return &clip->yawOffset;
+        return &clip->heightOffset;
     case 6:
-        return &clip->orbitYaw;
+        return &clip->aimOffset;
     case 7:
-        return &clip->orbitRadius;
+        return &clip->lookHeightOffset;
     case 8:
-        return &clip->orbitHeight;
+        return &clip->yawOffset;
     case 9:
-        return &clip->orbitLookHeight;
+        return &clip->orbitYaw;
     case 10:
-        return &clip->shakeFrequencyX;
+        return &clip->orbitRadius;
     case 11:
-        return &clip->shakeFrequencyY;
+        return &clip->orbitHeight;
     case 12:
-        return &clip->shakeDecayRate;
+        return &clip->orbitLookHeight;
     case 13:
-        return &clip->shakeVerticalRatio;
+        return &clip->shakeFrequencyX;
     case 14:
+        return &clip->shakeFrequencyY;
+    case 15:
+        return &clip->shakeDecayRateX;
+    case 16:
+        return &clip->shakeDecayRate;
+    case 17:
+        return &clip->shakeVerticalRatio;
+    case 18:
         return &clip->shakeStrengthScale;
     default:
         return nullptr;
@@ -111,24 +119,32 @@ const char* GetTrackLabel(int index)
     case 4:
         return "Pivot Offset";
     case 5:
-        return "Yaw Offset";
+        return "Height Offset";
     case 6:
-        return "Orbit Yaw";
+        return "Aim Offset";
     case 7:
-        return "Orbit Radius";
+        return "Look Height Offset";
     case 8:
-        return "Orbit Height";
+        return "Yaw Offset";
     case 9:
-        return "Orbit Look Height";
+        return "Orbit Yaw";
     case 10:
-        return "Shake Frequency X";
+        return "Orbit Radius";
     case 11:
-        return "Shake Frequency Y";
+        return "Orbit Height";
     case 12:
-        return "Shake Decay Rate";
+        return "Orbit Look Height";
     case 13:
-        return "Shake Vertical Ratio";
+        return "Shake Frequency X";
     case 14:
+        return "Shake Frequency Y";
+    case 15:
+        return "Shake Decay Rate X";
+    case 16:
+        return "Shake Decay Rate Y";
+    case 17:
+        return "Shake Vertical Ratio";
+    case 18:
         return "Shake Strength Scale";
     default:
         return "";
@@ -319,6 +335,9 @@ BattleClipSequencerAdapter::BattleClipSequencerAdapter(
     bool* shakeEnabled,
     bool* sideEnabled,
     bool* pivotEnabled,
+    bool* heightEnabled,
+    bool* aimEnabled,
+    bool* lookHeightEnabled,
     bool* yawEnabled,
     bool* orbitYawEnabled,
     bool* orbitRadiusEnabled,
@@ -326,6 +345,7 @@ BattleClipSequencerAdapter::BattleClipSequencerAdapter(
     bool* orbitLookHeightEnabled,
     bool* shakeFrequencyXEnabled,
     bool* shakeFrequencyYEnabled,
+    bool* shakeDecayRateXEnabled,
     bool* shakeDecayRateEnabled,
     bool* shakeVerticalRatioEnabled,
     bool* shakeStrengthScaleEnabled)
@@ -347,16 +367,20 @@ BattleClipSequencerAdapter::BattleClipSequencerAdapter(
     _trackEnabledFlags[2] = shakeEnabled;
     _trackEnabledFlags[3] = sideEnabled;
     _trackEnabledFlags[4] = pivotEnabled;
-    _trackEnabledFlags[5] = yawEnabled;
-    _trackEnabledFlags[6] = orbitYawEnabled;
-    _trackEnabledFlags[7] = orbitRadiusEnabled;
-    _trackEnabledFlags[8] = orbitHeightEnabled;
-    _trackEnabledFlags[9] = orbitLookHeightEnabled;
-    _trackEnabledFlags[10] = shakeFrequencyXEnabled;
-    _trackEnabledFlags[11] = shakeFrequencyYEnabled;
-    _trackEnabledFlags[12] = shakeDecayRateEnabled;
-    _trackEnabledFlags[13] = shakeVerticalRatioEnabled;
-    _trackEnabledFlags[14] = shakeStrengthScaleEnabled;
+    _trackEnabledFlags[5] = heightEnabled;
+    _trackEnabledFlags[6] = aimEnabled;
+    _trackEnabledFlags[7] = lookHeightEnabled;
+    _trackEnabledFlags[8] = yawEnabled;
+    _trackEnabledFlags[9] = orbitYawEnabled;
+    _trackEnabledFlags[10] = orbitRadiusEnabled;
+    _trackEnabledFlags[11] = orbitHeightEnabled;
+    _trackEnabledFlags[12] = orbitLookHeightEnabled;
+    _trackEnabledFlags[13] = shakeFrequencyXEnabled;
+    _trackEnabledFlags[14] = shakeFrequencyYEnabled;
+    _trackEnabledFlags[15] = shakeDecayRateXEnabled;
+    _trackEnabledFlags[16] = shakeDecayRateEnabled;
+    _trackEnabledFlags[17] = shakeVerticalRatioEnabled;
+    _trackEnabledFlags[18] = shakeStrengthScaleEnabled;
 }
 
 int BattleClipSequencerAdapter::GetFrameMin() const

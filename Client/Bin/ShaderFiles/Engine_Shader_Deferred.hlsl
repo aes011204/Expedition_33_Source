@@ -1,3 +1,5 @@
+// Engine 원본 경로: Engine/Bin/ShaderFiles/Engine_Shader_Deferred.hlsl
+// Client 복사본 경로: Client/Bin/ShaderFiles/Engine_Shader_Deferred.hlsl - 먼저 이 원본의 의도를 확인하세요.
 #ifndef ENGINE_SHADER_DEFERRED_HLSL
 #define ENGINE_SHADER_DEFERRED_HLSL
 
@@ -10,6 +12,8 @@
 
 #define MIN_SSAO_RADIUS 0.05f           // View Space에서 샘플링 반경의 최소값
 #define MIN_SSAO_DEPTH_BIAS  0.0001f    // 같은 표면을 occluder로 오판하지 않도록 최소 depth bias를 보장
+#define SHADOW_DEBUG_MODE 0             // 0: off, 1: dynamic shadow grayscale, 2: cascade color
+#define SHADOW_POISSON_RADIUS 5.0f      // shadow map texel 기준 Poisson 샘플 반경
 
 //==================================================
 // TEXTURE
@@ -21,7 +25,7 @@ Texture2D g_ShadeTexture;
 Texture2D g_AmbientTexture;
 Texture2D g_SpecularTexture;
 Texture2D g_DepthTexture;
-Texture2D g_LightDepthTexture;
+Texture2DArray g_LightDepthTexture;
 Texture2D g_MaterialTexture;
 Texture2D g_EmissiveTexture;
 Texture2D g_StaticLightDepthTexture;
@@ -30,6 +34,27 @@ Texture2D g_SSAOBlurTexture;
 TextureCube g_IrradianceMap;
 TextureCube g_PrefilterMap;
 Texture2D g_BRDFLUT;
+
+// 그림자 샘플링에 사용할 Poisson Disk 오프셋. 16개 샘플로 PCF를 수행한다.
+static const float2 ShadowPoissonDisk[16] =
+{
+    float2(-0.94201624f, -0.39906216f),
+    float2(0.94558609f, -0.76890725f),
+    float2(-0.09418410f, -0.92938870f),
+    float2(0.34495938f, 0.29387760f),
+    float2(-0.91588581f, 0.45771432f),
+    float2(-0.81544232f, -0.87912464f),
+    float2(-0.38277543f, 0.27676845f),
+    float2(0.97484398f, 0.75648379f),
+    float2(0.44323325f, -0.97511554f),
+    float2(0.53742981f, -0.47373420f),
+    float2(-0.26496911f, -0.41893023f),
+    float2(0.79197514f, 0.19090188f),
+    float2(-0.24188840f, 0.99706507f),
+    float2(-0.81409955f, 0.91437590f),
+    float2(0.19984126f, 0.78641367f),
+    float2(0.14383161f, -0.14100790f)
+};
 
 //==================================================
 // LIGHT
@@ -61,48 +86,120 @@ float4 Reconstruct_WorldPos(float2 Texcoord)
     return WorldPos;
 }
 
-float SampleShadowAmount(Texture2D shadowTexture, float4 worldPos, float4x4 lightView, float4x4 lightProj, float bias)
+// Poisson Disk 샘플링으로 PCF 수행
+float SampleShadowMapPCF(Texture2DArray shadowTexture, float2 shadowUV, float currentDepth, uint cascadeIndex, float bias)
 {
-    float4 shadowPos = mul(worldPos, lightView); // world -> view
-    shadowPos = mul(shadowPos, lightProj); // view -> clip
+    uint shadowWidth, shadowHeight, shadowLayers;
+    shadowTexture.GetDimensions(shadowWidth, shadowHeight, shadowLayers);
 
-    //-1 ~ 1 -> 0 ~ 1
-    float2 shadowUV;
+    float2 shadowTexel = 1.f / float2(max(1u, shadowWidth), max(1u, shadowHeight));
+    float shadowAmount = 0.f;
+
+    [unroll]
+    for (int sampleIndex = 0; sampleIndex < 16; ++sampleIndex)
+    {
+        // Poisson Disk 오프셋을 shadow map의 texel 크기에 맞게 조정하여 샘플링한다.
+        float2 sampleUV = shadowUV + ShadowPoissonDisk[sampleIndex] * shadowTexel * SHADOW_POISSON_RADIUS;
+        float storedDepth = shadowTexture.Sample(PointClampSampler, float3(sampleUV, cascadeIndex)).x;
+        shadowAmount += (storedDepth + bias < currentDepth) ? 1.f : 0.f;
+    }
+
+    return shadowAmount / 16.f;
+}
+
+bool ComputeShadowCoords(float4 worldPos, row_major float4x4 lightView, row_major float4x4 lightProj, out float2 shadowUV, out float currentDepth)
+{
+    float4 shadowPos = mul(worldPos, lightView);
+    shadowPos = mul(shadowPos, lightProj);
+
     shadowUV.x = (shadowPos.x / shadowPos.w) * 0.5f + 0.5f;
     shadowUV.y = (shadowPos.y / shadowPos.w) * -0.5f + 0.5f;
+    currentDepth = shadowPos.z / shadowPos.w;
 
-    float currentDepth = shadowPos.z / shadowPos.w;
+    return shadowPos.w > 0.f && all(shadowUV >= 0.f) && all(shadowUV <= 1.f);
+}
 
-    // 범위 밖이면 그림자 없음 처리
-    if (shadowPos.w <= 0.f || any(shadowUV < 0.f) || any(shadowUV > 1.f))
+uint SelectShadowCascade(float viewDepth)
+{
+    const uint cascadeCount = max(1u, g_ShadowCascadeCount);
+
+    [loop]
+    for (uint cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+    {
+        if (viewDepth <= g_CascadeSplits[cascadeIndex])
+            return cascadeIndex;
+    }
+
+    return cascadeCount - 1u;
+}
+
+float SampleDynamicShadowAmount(float4 worldPos, float viewDepth)
+{
+    uint cascadeIndex = SelectShadowCascade(viewDepth);
+
+    float2 shadowUV = 0.f;
+    float currentDepth = 0.f;
+    if (!ComputeShadowCoords(worldPos, g_CascadeLightViewMatrices[cascadeIndex], g_CascadeLightProjMatrices[cascadeIndex], shadowUV, currentDepth))
+        return 0.f;
+
+    float shadowAmount = SampleShadowMapPCF(g_LightDepthTexture, shadowUV, currentDepth, cascadeIndex, g_Bias);
+
+    const uint cascadeCount = max(1u, g_ShadowCascadeCount);
+    if (cascadeIndex + 1u < cascadeCount && g_CascadeBlendDistance > 0.f)
+    {
+        const float cascadeFar = g_CascadeSplits[cascadeIndex];
+        const float blendStart = max(0.f, cascadeFar - g_CascadeBlendDistance);
+        const float blendFactor = saturate((viewDepth - blendStart) / max(g_CascadeBlendDistance, 0.0001f));
+
+        if (blendFactor > 0.f)
+        {
+            float2 nextShadowUV = 0.f;
+            float nextCurrentDepth = 0.f;
+            if (ComputeShadowCoords(worldPos, g_CascadeLightViewMatrices[cascadeIndex + 1u], g_CascadeLightProjMatrices[cascadeIndex + 1u], nextShadowUV, nextCurrentDepth))
+            {
+                const float nextShadowAmount =
+                    SampleShadowMapPCF(g_LightDepthTexture, nextShadowUV, nextCurrentDepth, cascadeIndex + 1u, g_Bias);
+                shadowAmount = lerp(shadowAmount, nextShadowAmount, blendFactor);
+            }
+        }
+    }
+
+    return shadowAmount;
+}
+
+float3 GetCascadeDebugColor(uint cascadeIndex)
+{
+    switch (cascadeIndex)
+    {
+    case 0u: return float3(1.f, 0.25f, 0.25f);
+    case 1u: return float3(0.25f, 1.f, 0.25f);
+    case 2u: return float3(0.25f, 0.6f, 1.f);
+    default: return float3(1.f, 0.9f, 0.25f);
+    }
+}
+
+float SampleStaticShadowAmount(Texture2D shadowTexture, float4 worldPos, float4x4 lightView, float4x4 lightProj, float bias)
+{
+    float2 shadowUV = 0.f;
+    float currentDepth = 0.f;
+    if (!ComputeShadowCoords(worldPos, lightView, lightProj, shadowUV, currentDepth))
         return 0.f;
 
     uint shadowWidth, shadowHeight;
     shadowTexture.GetDimensions(shadowWidth, shadowHeight);
 
     float2 shadowTexel = 1.f / float2(max(1u, shadowWidth), max(1u, shadowHeight));
-
-    // 0이면 그림자 없음, 1이면 완전 그림자.
-    // 3x3 PCF 결과를 누적해서 부드럽게 만든다.
     float shadowAmount = 0.f;
 
     [unroll]
-    for (int y = -1; y <= 1; ++y)
+    for (int sampleIndex = 0; sampleIndex < 16; ++sampleIndex)
     {
-        [unroll]
-        for (int x = -1; x <= 1; ++x)
-        {
-            float2 sampleUV = shadowUV + float2(x, y) * shadowTexel;
-
-            // shadow map에 저장된 depth.
-            float storedDepth = shadowTexture.Sample(PointClampSampler, sampleUV).x;
-            shadowAmount += (storedDepth + bias < currentDepth) ? 1.f : 0.f;
-        }
+        float2 sampleUV = shadowUV + ShadowPoissonDisk[sampleIndex] * shadowTexel * SHADOW_POISSON_RADIUS;
+        float storedDepth = shadowTexture.Sample(PointClampSampler, sampleUV).x;
+        shadowAmount += (storedDepth + bias < currentDepth) ? 1.f : 0.f;
     }
 
-    // 9번 샘플 중 몇 개가 그림자인지 평균낸다.
-    // 0.0 = 그림자 없음, 1.0 = 완전 그림자, 중간값 = 경계가 부드러운 그림자.
-    return shadowAmount / 9.f;
+    return shadowAmount / 16.f;
 }
 
 // hemisphere sample kernel
@@ -407,6 +504,29 @@ float3 FresnelSchlickRoughness(float cosTheta, float3 F0, float roughness)
 {
     return F0 + (max(float3(1.0f - roughness, 1.0f - roughness, 1.0f - roughness), F0) - F0) *
         pow(saturate(1.0f - cosTheta), 5.0f);
+}
+
+// 노멀 변화가 심한 픽셀의 specular 하이라이트를 더 흐리게 만들어 자글거림 감소시키기
+float ComputeSpecAANormalVariance(float3 worldNormal)
+{
+    float3 dndx = ddx(worldNormal);
+    float3 dndy = ddy(worldNormal);
+    return max(dot(dndx, dndx), dot(dndy, dndy));   // 화면 공간에서 노멀이 얼마나 급격히 변하는지
+}
+
+float ApplySpecAA(float3 worldNormal, float baseRoughness)
+{
+    float roughness = clamp(baseRoughness, 0.05f, 1.f);
+    // if (g_SpecAAEnabled == 0u)
+    //     return roughness;
+
+    float variance = ComputeSpecAANormalVariance(normalize(worldNormal));
+    float filteredVariance = max(variance - g_SpecAAMinVariance, 0.f);
+
+    // roughness에 노멀이 불안정한 만큼 더하여 하이라이트를 흐리게 한다.
+    float addedRoughness = sqrt(filteredVariance) * g_SpecAAStrength;
+    addedRoughness = min(addedRoughness, g_SpecAAMaxAddedRoughness);
+    return clamp(roughness + addedRoughness, 0.05f, 1.f);
 }
 
 

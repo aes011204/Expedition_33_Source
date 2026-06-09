@@ -23,6 +23,9 @@ namespace UIEditor
         void Render_SaveControls();
         void Render_CreateFolderControls();
         void Refresh_PrefabEntries();
+        void Refresh_RootDirectoryState();
+        void Clear_FolderTreeCache();
+        const vector<fs::path>& Get_CachedChildDirectories(const fs::path& directoryPath);
         void Select_Directory(const fs::path& directoryPath);
         void Save_SelectedPrefab();
         void Create_PrefabInstance(const wstring& filePath);
@@ -36,6 +39,8 @@ namespace UIEditor
         wstring _selectedDirectory = {};
         vector<UI_PrefabFileEntry> _prefabEntries = {};
         bool _needsRefresh = true;
+        bool _rootDirectoryReady = false;
+        unordered_map<wstring, vector<fs::path>> _childDirectoryCache = {};
         char _searchBuffer[128] = {};
         char _prefabNameBuffer[128] = {};
         char _newFolderNameBuffer[128] = {};

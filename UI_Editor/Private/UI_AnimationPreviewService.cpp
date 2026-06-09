@@ -78,6 +78,40 @@ namespace UIEditor
             return track.keys.back().value;
         }
 
+        ImVec2 Evaluate_Vec2Keyframes(const UI_AnimationKeyframeTrack& track, float frame, bool& outHasValue)
+        {
+            outHasValue = false;
+            if (track.keys.empty())
+                return ImVec2(0.f, 0.f);
+
+            outHasValue = true;
+            if (track.keys.size() == 1)
+                return Clamp_AnimationKeyframeTrackVec2Value(track.type, track.keys.front().valueVec2);
+
+            if (frame <= static_cast<float>(track.keys.front().frame))
+                return Clamp_AnimationKeyframeTrackVec2Value(track.type, track.keys.front().valueVec2);
+
+            if (frame >= static_cast<float>(track.keys.back().frame))
+                return Clamp_AnimationKeyframeTrackVec2Value(track.type, track.keys.back().valueVec2);
+
+            for (size_t index = 0; index + 1 < track.keys.size(); ++index)
+            {
+                const UI_AnimationKeyframe& currentKey = track.keys[index];
+                const UI_AnimationKeyframe& nextKey = track.keys[index + 1];
+                if (frame < static_cast<float>(currentKey.frame) || frame > static_cast<float>(nextKey.frame))
+                    continue;
+
+                const float frameRange = max(1.f, static_cast<float>(nextKey.frame - currentKey.frame));
+                const float t = min(max((frame - static_cast<float>(currentKey.frame)) / frameRange, 0.f), 1.f);
+                return Clamp_AnimationKeyframeTrackVec2Value(track.type, Lerp_Vec2(
+                    currentKey.valueVec2,
+                    nextKey.valueVec2,
+                    Evaluate_AnimationEasing(currentKey.easing, t)));
+            }
+
+            return Clamp_AnimationKeyframeTrackVec2Value(track.type, track.keys.back().valueVec2);
+        }
+
         ImVec4 Evaluate_ColorKeyframes(const UI_AnimationKeyframeTrack& track, float frame, bool& outHasValue)
         {
             outHasValue = false;
@@ -143,6 +177,42 @@ namespace UIEditor
 
             return target.tracks;
         }
+
+        int32 Get_SequenceTotalFrames(const UI_AnimationSequenceAsset& sequence)
+        {
+            if (sequence.clips.empty())
+                return 0;
+
+            const UI_AnimationSequenceClip& lastClip = sequence.clips.back();
+            return lastClip.startFrame + max(1, lastClip.durationFrames);
+        }
+
+        const UI_AnimationSequenceClip* Find_SequenceClipAtFrame(
+            const UI_AnimationSequenceAsset& sequence,
+            float frame,
+            float& outLocalSequenceFrame)
+        {
+            outLocalSequenceFrame = 0.f;
+            if (sequence.clips.empty())
+                return nullptr;
+
+            const float totalFrames = static_cast<float>(Get_SequenceTotalFrames(sequence));
+            const float clampedFrame = min(max(frame, 0.f), totalFrames);
+            for (const UI_AnimationSequenceClip& clip : sequence.clips)
+            {
+                const float clipStartFrame = static_cast<float>(clip.startFrame);
+                const float clipEndFrame = static_cast<float>(clip.startFrame + max(1, clip.durationFrames));
+                if (clampedFrame >= clipStartFrame && clampedFrame < clipEndFrame)
+                {
+                    outLocalSequenceFrame = clampedFrame - clipStartFrame;
+                    return &clip;
+                }
+            }
+
+            const UI_AnimationSequenceClip& lastClip = sequence.clips.back();
+            outLocalSequenceFrame = static_cast<float>(max(1, lastClip.durationFrames));
+            return &lastClip;
+        }
     }
 
     void UI_AnimationPreviewService::Update(float deltaTime)
@@ -162,6 +232,16 @@ namespace UIEditor
                 _isPlaying = false;
             }
         }
+        else if (nullptr != _sequenceAsset)
+        {
+            const float endFrame = static_cast<float>(Get_SequenceTotalFrames(*_sequenceAsset));
+            if (Get_CurrentSequenceFrameFloat() >= endFrame)
+            {
+                const float safeFps = static_cast<float>(max(1, _sequenceAsset->fps));
+                _time = max(0.f, (endFrame - static_cast<float>(_sequencePreviewStartFrame)) / safeFps);
+                _isPlaying = false;
+            }
+        }
     }
 
     void UI_AnimationPreviewService::Play(ObjectId objectId)
@@ -170,6 +250,7 @@ namespace UIEditor
             return;
 
         _keyframeAsset = nullptr;
+        _sequenceAsset = nullptr;
         if (_isActive && _targetObjectId == objectId)
         {
             _isPlaying = true;
@@ -188,9 +269,26 @@ namespace UIEditor
             return;
 
         _keyframeAsset = &asset;
+        _sequenceAsset = nullptr;
         _targetObjectId = 0;
         _previewStartFrame = Clamp_Frame(asset, startFrame);
         _previewStaticFrame = _previewStartFrame;
+        _time = 0.f;
+        _isActive = true;
+        _isPlaying = true;
+    }
+
+    void UI_AnimationPreviewService::Play_SequenceAsset(const UI_AnimationSequenceAsset& sequence, int32 startFrame)
+    {
+        if (sequence.clips.empty())
+            return;
+
+        const int32 totalFrames = Get_SequenceTotalFrames(sequence);
+        _keyframeAsset = nullptr;
+        _sequenceAsset = &sequence;
+        _targetObjectId = 0;
+        _sequencePreviewStartFrame = min(max(startFrame, 0), totalFrames);
+        _sequencePreviewStaticFrame = _sequencePreviewStartFrame;
         _time = 0.f;
         _isActive = true;
         _isPlaying = true;
@@ -202,9 +300,26 @@ namespace UIEditor
             return;
 
         _keyframeAsset = &asset;
+        _sequenceAsset = nullptr;
         _targetObjectId = 0;
         _previewStartFrame = Clamp_Frame(asset, frame);
         _previewStaticFrame = _previewStartFrame;
+        _time = 0.f;
+        _isActive = true;
+        _isPlaying = false;
+    }
+
+    void UI_AnimationPreviewService::Preview_SequenceAsset(const UI_AnimationSequenceAsset& sequence, int32 frame)
+    {
+        if (sequence.clips.empty())
+            return;
+
+        const int32 totalFrames = Get_SequenceTotalFrames(sequence);
+        _keyframeAsset = nullptr;
+        _sequenceAsset = &sequence;
+        _targetObjectId = 0;
+        _sequencePreviewStartFrame = min(max(frame, 0), totalFrames);
+        _sequencePreviewStaticFrame = _sequencePreviewStartFrame;
         _time = 0.f;
         _isActive = true;
         _isPlaying = false;
@@ -225,8 +340,11 @@ namespace UIEditor
         _targetObjectId = 0;
         _time = 0.f;
         _keyframeAsset = nullptr;
+        _sequenceAsset = nullptr;
         _previewStartFrame = 0;
         _previewStaticFrame = 0;
+        _sequencePreviewStartFrame = 0;
+        _sequencePreviewStaticFrame = 0;
     }
 
     void UI_AnimationPreviewService::Restart(ObjectId objectId)
@@ -235,6 +353,7 @@ namespace UIEditor
             return;
 
         _keyframeAsset = nullptr;
+        _sequenceAsset = nullptr;
         _targetObjectId = objectId;
         _time = 0.f;
         _isActive = true;
@@ -244,7 +363,13 @@ namespace UIEditor
     int32 UI_AnimationPreviewService::Get_CurrentFrame() const
     {
         if (nullptr == _keyframeAsset)
-            return 0;
+        {
+            if (nullptr == _sequenceAsset)
+                return 0;
+
+            const int32 totalFrames = Get_SequenceTotalFrames(*_sequenceAsset);
+            return min(max(static_cast<int32>(floorf(Get_CurrentSequenceFrameFloat() + 0.0001f)), 0), totalFrames);
+        }
 
         return Clamp_Frame(*_keyframeAsset, static_cast<int32>(floorf(Get_CurrentKeyframeFrameFloat() + 0.0001f)));
     }
@@ -253,6 +378,9 @@ namespace UIEditor
     {
         if (!_isActive || object.id == 0)
             return false;
+
+        if (nullptr != _sequenceAsset)
+            return Sample_SequenceAsset(object, outSample);
 
         if (nullptr != _keyframeAsset)
             return Sample_KeyframeAsset(object, outSample);
@@ -354,26 +482,52 @@ namespace UIEditor
         return Normalize_KeyframeFrame(*_keyframeAsset, frame);
     }
 
+    float UI_AnimationPreviewService::Get_CurrentSequenceFrameFloat() const
+    {
+        if (nullptr == _sequenceAsset)
+            return 0.f;
+
+        const int32 totalFrames = Get_SequenceTotalFrames(*_sequenceAsset);
+        if (!_isPlaying)
+            return static_cast<float>(min(max(_sequencePreviewStaticFrame, 0), totalFrames));
+
+        const float safeFps = static_cast<float>(max(1, _sequenceAsset->fps));
+        const float frame = static_cast<float>(_sequencePreviewStartFrame) + _time * safeFps;
+        return min(max(frame, 0.f), static_cast<float>(totalFrames));
+    }
+
     bool UI_AnimationPreviewService::Sample_KeyframeAsset(const UI_Object& object, UI_AnimationPreviewSample& outSample) const
     {
         if (nullptr == _keyframeAsset)
             return false;
 
-        const UI_AnimationTargetBinding* target = Find_KeyframeTarget(*_keyframeAsset, object);
+        return Sample_KeyframeAssetAtFrame(*_keyframeAsset, Get_CurrentKeyframeFrameFloat(), object, outSample);
+    }
+
+    bool UI_AnimationPreviewService::Sample_KeyframeAssetAtFrame(
+        const UI_AnimationAsset& asset,
+        float frame,
+        const UI_Object& object,
+        UI_AnimationPreviewSample& outSample) const
+    {
+        const UI_AnimationTargetBinding* target = Find_KeyframeTarget(asset, object);
         if (nullptr == target)
             return false;
 
-        const float frame = Get_CurrentKeyframeFrameFloat();
+        frame = min(max(frame, static_cast<float>(asset.startFrame)), static_cast<float>(asset.endFrame));
 
         UI_AnimationPreviewSample sample = {};
         sample.position = object.position;
+        sample.size = object.size;
         sample.scale = object.scale;
         sample.rotationRadians = object.rotationRadians;
         sample.color = object.color;
+        sample.alphaMultiplier = object.alphaMultiplier;
+        sample.fontSize = object.fontSize;
 
         bool hasSampledTrack = false;
-        const bool useRelativeTracks = Is_PublicAnimation(*_keyframeAsset);
-        const vector<UI_AnimationKeyframeTrack>& tracks = Get_KeyframeTracks(*_keyframeAsset, *target);
+        const bool useRelativeTracks = Is_PublicAnimation(asset);
+        const vector<UI_AnimationKeyframeTrack>& tracks = Get_KeyframeTracks(asset, *target);
         for (const UI_AnimationKeyframeTrack& track : tracks)
         {
             if (!track.enabled)
@@ -387,6 +541,20 @@ namespace UIEditor
                     continue;
 
                 sample.color = Convert_AnimationColor255To01(color);
+                hasSampledTrack = true;
+                continue;
+            }
+
+            if (track.type == UI_AnimationKeyframeTrackType::Size)
+            {
+                bool hasVec2Value = false;
+                const ImVec2 value = Evaluate_Vec2Keyframes(track, frame, hasVec2Value);
+                if (!hasVec2Value)
+                    continue;
+
+                sample.size = useRelativeTracks
+                    ? ImVec2(object.size.x + value.x, object.size.y + value.y)
+                    : value;
                 hasSampledTrack = true;
                 continue;
             }
@@ -417,6 +585,14 @@ namespace UIEditor
             case UI_AnimationKeyframeTrackType::Alpha:
                 sample.color.w = value;
                 break;
+            case UI_AnimationKeyframeTrackType::AlphaMultiplier:
+                sample.hasAlphaMultiplier = true;
+                sample.alphaMultiplier = value;
+                break;
+            case UI_AnimationKeyframeTrackType::FontSize:
+                sample.hasFontSize = true;
+                sample.fontSize = value;
+                break;
             default:
                 break;
             }
@@ -427,5 +603,24 @@ namespace UIEditor
 
         outSample = sample;
         return true;
+    }
+
+    bool UI_AnimationPreviewService::Sample_SequenceAsset(const UI_Object& object, UI_AnimationPreviewSample& outSample) const
+    {
+        if (nullptr == _sequenceAsset)
+            return false;
+
+        float localSequenceFrame = 0.f;
+        const UI_AnimationSequenceClip* clip = Find_SequenceClipAtFrame(
+            *_sequenceAsset,
+            Get_CurrentSequenceFrameFloat(),
+            localSequenceFrame);
+        if (nullptr == clip)
+            return false;
+
+        const float sequenceFps = static_cast<float>(max(1, _sequenceAsset->fps));
+        const float assetFps = static_cast<float>(max(1, clip->asset.fps));
+        const float assetFrame = static_cast<float>(clip->asset.startFrame) + (localSequenceFrame / sequenceFps) * assetFps;
+        return Sample_KeyframeAssetAtFrame(clip->asset, assetFrame, object, outSample);
     }
 }

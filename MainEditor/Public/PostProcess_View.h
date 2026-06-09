@@ -3,6 +3,7 @@
 #include "Editor_Window.h"
 #include "PostProcessPipeline.h"
 #include "LightingPipeline.h"
+#include <string>
 
 NS_BEGIN(MainEditor)
 
@@ -21,14 +22,22 @@ public:
 private:
     void    Draw_FeatureControl(Shared<PostProcessPipeline> pipeline, bool& dirty);
     void    Draw_ParameterControl(PostProcessCB& params, bool& dirty);
-    void    Draw_QuickAction(PostProcessCB& params, Shared<LightingPipeline> lightingPipeline, bool& dirty, bool& lightingDirty);
+    void    Draw_LightShaftControl(LightShaftCB& params, bool& dirty);
+    void    Draw_QuickAction(PostProcessCB& params, LightShaftCB& lightShaftParams, Shared<LightingPipeline> lightingPipeline, bool& dirty, bool& lightingDirty);
     void    Draw_LightingControl(Shared<LightingPipeline> pipeline, bool& dirty);
     void    Draw_StatusBadge();
+    void    Cache_DefaultSnapshots();
 
 private:
-    static PostProcessCB Make_DefaultParams();
-    static SSAOCB Make_DefaultSSAOParams();
-    static DeferredLightingCB Make_DefaultDeferredLightingParams();
+    PostProcessCB        _defaultPostProcessParams{};
+    LightShaftCB         _defaultLightShaftParams{};
+    SSAOCB               _defaultSSAOParams{};
+    DeferredLightingCB   _defaultDeferredLightingParams{};
+    std::string _reloadShaderStatusText{};
+    bool        _reloadShaderStatusIsError = false;
+    std::string _reloadShaderComStatusText{};
+    bool        _reloadShaderComStatusIsError = false;
+    bool        _hasDefaultSnapshots = false;
 
 public:
     static Shared<PostProcess_View> Create();

@@ -10,7 +10,6 @@ NS_BEGIN(Client)
 
 class Character_BattleBase abstract : public Character
 {
-    
 public:
     Character_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Character_BattleBase(const Character_BattleBase& prototype);
@@ -19,12 +18,24 @@ public:
 public:
     HRESULT Initialize_Prototype() override;
     HRESULT Initialize(void* arg) override;
+    void    BeginPlay() override;
     void    Late_Update(float timeDelta) override;
+
+public:
+    void    Set_BattleColliderActive(bool isActive);
+    bool    Is_BattleColliderActive() const;
+
+    bool    Try_GetDamageFeedbackWorldPosition(Vec3& outWorldPos) const;
+
+protected:
+    virtual bool Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const;
+    virtual Vec3 Get_DamageFeedbackFallbackOffset() const;
 
 protected:
     HRESULT Ready_Collider(const wstring& prototypeTag, void* colliderDesc, Collision_Preset preset);
     void    Update_Collider();
-    //virtual void    ChangeAnimByState();
+
+
 
 protected:
     Shared<ColliderCom> _colliderCom;

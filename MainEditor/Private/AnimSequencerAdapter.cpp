@@ -383,11 +383,12 @@ void AnimSequencerAdapter::Draw_NotifyRow(int32 trackIndex, ImDrawList* drawList
             _view->_sequencerCurrentFrame = clampedFrame;
             _view->_isDirty = true;
 
-            if (_view->_sourceMode == Animation_View::SourceMode::LiveModel && _view->_liveModelCom != nullptr)
+            Shared<ModelCom> playbackModel = _view->Get_PlaybackModel();
+            if (_view->_sourceMode == Animation_View::SourceMode::LiveModel && playbackModel != nullptr)
             {
-                _view->_liveModelCom->Set_AnimationPaused(true);
-                _view->_liveModelCom->Set_CurrentAnimationTimeSec(entry.timeSec);
-                _view->_liveModelCom->Refresh_CurrentAnimationPose();
+                playbackModel->Set_AnimationPaused(true);
+                playbackModel->Set_CurrentAnimationTimeSec(entry.timeSec);
+                playbackModel->Refresh_CurrentAnimationPose();
             }
         }
     }
@@ -571,11 +572,12 @@ void AnimSequencerAdapter::Draw_StateRow(int32 trackIndex, ImDrawList* drawList,
             _view->_sequencerCurrentFrame = TimeSec_ToFrame(entry.startSec, fps);
             _view->_isDirty = true;
 
-            if (_view->_sourceMode == Animation_View::SourceMode::LiveModel && _view->_liveModelCom != nullptr)
+            Shared<ModelCom> playbackModel = _view->Get_PlaybackModel();
+            if (_view->_sourceMode == Animation_View::SourceMode::LiveModel && playbackModel != nullptr)
             {
-                _view->_liveModelCom->Set_AnimationPaused(true);
-                _view->_liveModelCom->Set_CurrentAnimationTimeSec(entry.startSec);
-                _view->_liveModelCom->Refresh_CurrentAnimationPose();
+                playbackModel->Set_AnimationPaused(true);
+                playbackModel->Set_CurrentAnimationTimeSec(entry.startSec);
+                playbackModel->Refresh_CurrentAnimationPose();
             }
         }
     }

@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Base.h"
+#include "BattleMonsterSpawnDesc.h"
 #include "GameDataTable.h"
 #include "Delegate.h"
 #include "PreviewShotTable.h"
@@ -7,6 +8,7 @@
 
 NS_BEGIN(Engine)
     class GameInstance;
+    class Level;
 NS_END
 
 NS_BEGIN(Client)
@@ -19,7 +21,11 @@ class PersistentObjectManager;
 class Hero_Manager;
 class CameraDirector;
 class EffectInstancePool;
+class ScreenFadeTransition;
+class LevelTransitionFade;
 class ClientScreenFxManager;
+
+DECLARE_DELEGATE(FOnFreeAimShotHit);
 
 class ClientInstance : public Base
 {
@@ -27,7 +33,7 @@ class ClientInstance : public Base
 
 public:
 	ClientInstance();
-	virtual ~ClientInstance() = default;
+	~ClientInstance() override;
 
 public:
 	HRESULT Initialize_Client(const ComPtr<Device>& device, const ComPtr<Context>& context);
@@ -98,6 +104,7 @@ public: /* For.Hero Manager */
     const HeroSpawnDesc* Find_HeroSpawnDesc(HeroId heroId);
 
     void Reset_AllHeroesToIdle();
+    void Restore_PartyFormationAfterEditorStop();
 
     bool    Is_ActiveHero(const Shared<GameObject>& target) const;
 
@@ -110,12 +117,18 @@ public: /* For.Gameplay UI */
     void    Stop_BattleEnterTransition();
     bool    Is_BattleEnterTransitionPlaying() const;
 
+public: /* For.Fade Transition */
+    bool Request_ScreenFadeTransition(const function<void()>& CoveredAction);
+    bool Request_LevelTransition(LevelType TargetLevel);
+    bool Request_LoadedLevelTransition(LevelType TargetLevel, Shared<Level> TargetLevelInstance);
+    bool Is_FadeTransitionPlaying() const;
+
 public: /* For.Battle_Controller */
     void OnEnterBattleField(
         uint32 FieldID,
         bool isPlayerAdvantage,
         const vector<HeroId>& heroIds,
-        const vector<string>& MonsterProtoTag,
+        const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs,
         const Shared<GameObject>& sourceObject = nullptr);
 
     Shared<BattleController>    Get_BattleController() { return _battleController; };
@@ -137,10 +150,42 @@ public:
 
 public:
     Shared<ClientScreenFxManager> Get_ScreenFxManager() const;
+    Shared<UIPreviewManager> Get_PreviewManager() const { return _previewManager; }
+
+public: /* Effect 재생 */
+    bool Prewarm_Effect(const wstring& effectName, const wstring& layerTag, uint32 count);
+
+    // 단발성 1회 재생.
+    bool Play_Effect(const PlayEffectDesc& desc);
+
+    // 약점 파츠처럼 모델/소켓이 없을 때
+    bool Play_AttachPartEffect(
+        const Shared<GameObject>& effectOwner,
+        const wstring& effectName,
+        const wstring& partTag,
+        const Vec3& localOffset = Vec3::Zero,
+        const Vec3& localRotation = Vec3::Zero,
+        const Vec3& scale = Vec3::One);
+
+    // 모델 있어서, socket 추적할 때
+    bool Play_AttachPartEffect(
+        const Shared<GameObject>& effectOwner,
+        const wstring& effectName,
+        const wstring& partTag,
+        const string& socketName,
+        const Vec3& localOffset = Vec3::Zero,
+        const Vec3& localRotation = Vec3::Zero,
+        const Vec3& scale = Vec3::One);
+
+public: /* Delegate */
+    void Notify_FreeAimShotHit();
 
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
+
+public:
+    FOnFreeAimShotHit OnFreeAimShotHit;
 
 private:
 	ComPtr<Device>  _device;
@@ -158,6 +203,8 @@ private:
     Unique<GameDataTable>       _gameDataTable;
     Unique<PreviewShotTable>    _previewShotTable;
     Unique<EffectInstancePool>  _effectInstancePool;
+    Unique<ScreenFadeTransition> _screenFadeTransition;
+    Unique<LevelTransitionFade>  _levelTransitionFade;
 
     Shared<GameplayUI>                  _gamePlayUI;
     Unique<PersistentObjectManager>     _persistentObjectManager;

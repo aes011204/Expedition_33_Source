@@ -45,6 +45,7 @@ namespace
         Vec2 anchorMax{ 0.f, 0.f };
         float rotationRadians = 0.f;
         Vec4 color{ 1.f, 1.f, 1.f, 1.f };
+        float alphaMultiplier = 1.f;
         int32 sortOrder = 0;
         bool visible = true;
 
@@ -66,6 +67,8 @@ namespace
         UI_Image::MaskTextureMode maskTextureMode = UI_Image::MaskTextureMode::Alpha;
         string patternMaskTextureGuid{};
         string patternMaskTexturePath{};
+        Vec2 patternUvOffset{ 0.f, 0.f };
+        Vec2 patternUvScale{ 1.f, 1.f };
 
         vector<UI_AnimationClip> animationClips{};
         vector<UI_KeyframeAnimationAsset> keyframeAnimationAssets{};
@@ -487,8 +490,11 @@ namespace
             }
             else if (track.type == UI_KeyframeAnimationTrackType::ScaleX || track.type == UI_KeyframeAnimationTrackType::ScaleY)
                 key.value = max(0.01f, key.value);
-            else if (track.type == UI_KeyframeAnimationTrackType::Alpha)
+            else if (track.type == UI_KeyframeAnimationTrackType::Alpha ||
+                track.type == UI_KeyframeAnimationTrackType::AlphaMultiplier)
                 key.value = min(max(key.value, 0.f), 1.f);
+            else if (track.type == UI_KeyframeAnimationTrackType::FontSize)
+                key.value = max(4.f, key.value);
         }
 
         stable_sort(
@@ -525,6 +531,10 @@ namespace
         if (trackType == UI_KeyframeAnimationTrackType::Color)
         {
             key.color = Read_Color255(item, "color", Vec4(255.f, 255.f, 255.f, 255.f));
+        }
+        else if (trackType == UI_KeyframeAnimationTrackType::Size)
+        {
+            key.valueVec2 = Read_Vec2(item, "value", Vec2(0.f, 0.f));
         }
         else
         {
@@ -986,17 +996,49 @@ namespace
     vector<UI_KeyframeAnimationAsset> Make_TextKeyframeAnimationAssets(const RuntimeUIObject& object)
     {
         vector<UI_KeyframeAnimationAsset> assets = object.keyframeAnimationAssets;
-        const float fontScale = max(4.f, object.fontSize) / 32.f;
+        const float safeFontSize = max(4.f, object.fontSize);
+        const float fontScale = safeFontSize / 32.f;
 
         for (UI_KeyframeAnimationAsset& asset : assets)
         {
-            if (asset.valueMode == UI_KeyframeAnimationValueMode::RelativeTransform ||
-                asset.valueMode == UI_KeyframeAnimationValueMode::TransitionFromCurrentRelativeTransform)
-                continue;
+            const bool useRelativeFontSize =
+                asset.valueMode == UI_KeyframeAnimationValueMode::RelativeTransform ||
+                asset.valueMode == UI_KeyframeAnimationValueMode::TransitionFromCurrentRelativeTransform;
+            bool hasFontSizeTrack = false;
+            bool hasScaleXTrack = false;
+            for (const UI_KeyframeAnimationTrack& track : asset.tracks)
+            {
+                hasFontSizeTrack |= track.type == UI_KeyframeAnimationTrackType::FontSize;
+                hasScaleXTrack |= track.type == UI_KeyframeAnimationTrackType::ScaleX;
+            }
+
+            if (hasFontSizeTrack && hasScaleXTrack)
+            {
+                LOG_WARN(
+                    "UI RuntimeLoader skipped FontSize-to-ScaleX conversion because Text animation also has ScaleX. object={}, animation={}",
+                    object.name,
+                    String::ToString(asset.name));
+            }
 
             for (UI_KeyframeAnimationTrack& track : asset.tracks)
             {
-                if (track.type != UI_KeyframeAnimationTrackType::ScaleX)
+                if (track.type == UI_KeyframeAnimationTrackType::FontSize)
+                {
+                    if (hasScaleXTrack)
+                        continue;
+
+                    track.type = UI_KeyframeAnimationTrackType::ScaleX;
+                    for (UI_KeyframeAnimationKey& key : track.keys)
+                    {
+                        const float targetFontSize = max(4.f, key.value);
+                        key.value = useRelativeFontSize
+                            ? targetFontSize / safeFontSize
+                            : object.scale.x * targetFontSize / 32.f;
+                    }
+                    continue;
+                }
+
+                if (useRelativeFontSize || track.type != UI_KeyframeAnimationTrackType::ScaleX)
                     continue;
 
                 for (UI_KeyframeAnimationKey& key : track.keys)
@@ -1154,6 +1196,7 @@ namespace
         object.anchorMax = Read_Vec2(item, "anchorMax", Vec2(0.f, 0.f));
         object.rotationRadians = Read_RotationRadians(item);
         object.color = Read_Color(item, "color", Vec4(1.f, 1.f, 1.f, 1.f));
+        object.alphaMultiplier = min(max(Read_Float(item, "alphaMultiplier", 1.f), 0.f), 1.f);
         object.sortOrder = Read_Int(item, "sortOrder", 0);
         object.visible = Read_Bool(item, "visible", true);
         object.renderGroup = Parse_RenderLayer(Read_String(item, "renderLayer", "Foreground"));
@@ -1174,6 +1217,8 @@ namespace
         object.maskTextureMode = Parse_MaskTextureMode(Read_String(item, "maskTextureMode", "Alpha"));
         object.patternMaskTextureGuid = Read_String(item, "patternMaskTextureGuid", "");
         object.patternMaskTexturePath = Read_String(item, "patternMaskTexturePath", "");
+        object.patternUvOffset = UI_Image::Clamp_PatternUvOffset(Read_Vec2(item, "patternUvOffset", UI_Image::Get_DefaultPatternUvOffset()));
+        object.patternUvScale = UI_Image::Clamp_PatternUvScale(Read_Vec2(item, "patternUvScale", UI_Image::Get_DefaultPatternUvScale()));
         object.animationClips = Read_AnimationClips(item);
         object.stateAnimationPath = Read_String(item, "stateAnimationPath", "");
 
@@ -1413,6 +1458,8 @@ namespace
         desc.texturePath = texturePath;
         desc.imageRenderMode = object.imageRenderMode;
         desc.maskTextureMode = object.maskTextureMode;
+        desc.patternUvOffset = object.patternUvOffset;
+        desc.patternUvScale = object.patternUvScale;
 
         const wstring maskTexturePath = Resolve_JsonAssetPath(object.maskTextureGuid, object.maskTexturePath);
         if (!maskTexturePath.empty() && fs::exists(maskTexturePath))
@@ -1427,6 +1474,7 @@ namespace
             LOG_WARN("UI RuntimeLoader image pattern mask skipped: missing pattern mask texture. id={}", object.id);
 
         desc.color = object.color;
+        desc.alphaMultiplier = object.alphaMultiplier;
         desc.transformDesc.position = object.position;
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = object.scale;
@@ -1485,6 +1533,7 @@ namespace
         desc.text = String::ToWString(object.text);
         desc.fontTag = fontTag;
         desc.color = Make_PremultipliedSpriteFontColor(object.color);
+        desc.alphaMultiplier = object.alphaMultiplier;
         desc.textAlign = object.textAlign;
         desc.textWrap = object.textWrap;
         desc.transformDesc.position = object.position;
@@ -1523,6 +1572,7 @@ namespace
     {
         UI_Panel::UI_PANEL_DESC desc{};
         desc.color = object.color;
+        desc.alphaMultiplier = object.alphaMultiplier;
         desc.transformDesc.position = object.position;
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = object.scale;
@@ -1559,6 +1609,7 @@ namespace
     {
         UI_Button::UI_BUTTON_DESC desc{};
         desc.color = object.color;
+        desc.alphaMultiplier = object.alphaMultiplier;
         desc.transformDesc.position = object.position;
         desc.transformDesc.size = object.size;
         desc.transformDesc.scale = object.scale;

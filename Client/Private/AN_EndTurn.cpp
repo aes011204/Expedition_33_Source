@@ -4,6 +4,7 @@
 #include "ModelCom.h"
 #include "BattleController.h"
 #include "ClientInstance.h"
+#include "CombatStatCom.h"
 
 IMPLEMENT_REFLECTION(AN_EndTurn)
 {
@@ -20,6 +21,14 @@ void AN_EndTurn::Execute(const AnimNotifyContext& context)
 
     const auto battle = CLIENT->Get_BattleController();
     if (battle == nullptr || !battle->Is_BattleStarted())
+        return;
+
+    auto curChar = battle->Get_TurnAction().Get_CurChar();
+
+    if(curChar.statCom == nullptr)
+        return;
+
+    if (curChar.statCom->Get_CurAliveState() == EAliveStatus::Dead)
         return;
 
     BattleAnimUtils::Play_BattleIdle(

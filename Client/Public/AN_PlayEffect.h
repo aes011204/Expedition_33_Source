@@ -24,6 +24,8 @@ private:
     string                      _socketName = "";
     wstring                     _layerTag = L"Layer_Effect";
     Vec3                        _localOffset = Vec3::Zero;
+    Vec3                        _localRotation = Vec3::Zero;
+    Vec3                        _scale = Vec3::One;
 };
 
 NS_END

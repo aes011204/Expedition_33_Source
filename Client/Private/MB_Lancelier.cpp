@@ -4,6 +4,7 @@
 #include "Mon_Lancelier_Weapon.h"
 #include "GameInstance.h"
 #include "MonsterStatCom.h"
+#include "Mon_WeakPoint.h"
 
 IMPLEMENT_REFLECTION(MB_Lancelier)
 {
@@ -12,6 +13,7 @@ IMPLEMENT_REFLECTION(MB_Lancelier)
 
     info.displayName = "MB_Lancelier";
     info.category = "Monster";
+    PROPERTY_FLOAT("Battle Ground Offset Y", _battleGroundOffsetY, -5.f, 5.f, 0.01f);
 
     return true;
 }
@@ -47,15 +49,27 @@ HRESULT MB_Lancelier::Initialize(void* arg)
 
 void MB_Lancelier::Update(float timeDelta)
 {
-    Monster_BattleBase::Update(timeDelta);
-
     if (_body)
     {
         _body->Play_Animation(timeDelta);
     }
+
+    Monster_BattleBase::Update(timeDelta);
 }
 
+bool MB_Lancelier::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
+{
+    if (_body == nullptr)
+        return false;
 
+    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr("neck_02");
+    if (socketMatrix == nullptr)
+        return false;
+
+    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
+    outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+    return true;
+}
 
 HRESULT MB_Lancelier::Ready_PartObjects()
 {
@@ -79,6 +93,17 @@ HRESULT MB_Lancelier::Ready_PartObjects()
 
     _weapon = dynamic_pointer_cast<Mon_Lancelier_Weapon>(_partObjects[TEXT("Part_Weapon")]);
     CHECK_NULL(_weapon, E_FAIL);
+
+    Mon_WeakPoint::WEAK_DESC weakDesc{};
+    weakDesc.parentMatrix = &_body->Get_CombinedWorldMatrix();
+    weakDesc.allowMissingModel = true;
+    weakDesc.socketName = "neck_02";
+    weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("neck_02");
+
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL); // 약점 파츠는 모델 없이 neck_02 소켓 기준으로 붙인다.
+
+    _weak = dynamic_pointer_cast<Mon_WeakPoint>(_partObjects[TEXT("Part_Weak")]);
+    CHECK_NULL(_weak, E_FAIL);
 
     return S_OK;
 }

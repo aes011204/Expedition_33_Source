@@ -7,17 +7,58 @@
 #include "CameraPresetTypes.h"
 #include "ClientScreenFxManager.h"
 
-TargetCamera::TargetCamera(const ComPtr<Device>& device, const ComPtr<Context>& context) :  Camera {device, context}
+namespace
+{
+const char* To_TargetCameraModeName(TargetCameraMode mode)
+{
+    switch (mode)
+    {
+    case TargetCameraMode::NORMAL:
+        return "NORMAL";
+    case TargetCameraMode::AIM:
+        return "AIM";
+    case TargetCameraMode::BATTLE_ENTER:
+        return "BATTLE_ENTER";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+float Evaluate_TargetFollowT(BattleCameraTransitionEasing easing, float t)
+{
+    t = clamp(t, 0.f, 1.f);
+
+    switch (easing)
+    {
+    case BattleCameraTransitionEasing::Linear:
+        return t;
+
+    case BattleCameraTransitionEasing::EaseIn:
+        return t * t;
+
+    case BattleCameraTransitionEasing::EaseOut:
+        return 1.f - (1.f - t) * (1.f - t);
+
+    case BattleCameraTransitionEasing::EaseInOut:
+        return t * t * (3.f - 2.f * t);
+
+    default:
+        return t;
+    }
+}
+}
+
+TargetCamera::TargetCamera(const ComPtr<Device>& device, const ComPtr<Context>& context) : Camera{ device, context }
 {
 }
 
-TargetCamera::TargetCamera(const TargetCamera& prototype) : Camera {prototype}
+TargetCamera::TargetCamera(const TargetCamera& prototype) : Camera{ prototype }
 {
 }
 
 HRESULT TargetCamera::Initialize_Prototype()
 {
-    if(FAILED(__super::Initialize_Prototype()))
+    if (FAILED(__super::Initialize_Prototype()))
         return E_FAIL;
 
     return S_OK;
@@ -31,6 +72,8 @@ HRESULT TargetCamera::Initialize(void* arg)
     const auto desc = static_cast<TARGETCAMERA_DESC*>(arg);
 
     _currentSettings.followSpeed = desc->followSpeed;
+    _currentSettings.targetFollowSpeed = desc->targetFollowSpeed;
+    _currentSettings.verticalFollowSpeed = desc->verticalFollowSpeed;
     _currentSettings.camera.mouseSensor = desc->mouseSensor;
     _currentSettings.distance = desc->distance;
     _currentSettings.sideOffset = desc->sideOffset;
@@ -45,11 +88,11 @@ HRESULT TargetCamera::Initialize(void* arg)
     _currentSettings.yawOffset = desc->yawOffset;
     _currentSettings.pitchOffset = desc->pitchOffset;
     _currentSettings.rollOffset = desc->rollOffset;
-    
+
     _yaw = 0.f;
     _pitch = 0.f;
 
-    if(FAILED(__super::Initialize(arg)))
+    if (FAILED(__super::Initialize(arg)))
         return E_FAIL;
 
     Update_TransformMatrices();
@@ -114,12 +157,12 @@ void TargetCamera::Priority_Update(float timeDelta)
         return;
     }
 
-    if(GAME->KeyDown(KEY_TYPE::RBUTTON))
+    if (GAME->KeyDown(KEY_TYPE::RBUTTON))
     {
         Change_Mode(TargetCameraMode::AIM);
     }
 
-    if(_currentState == TargetCameraMode::AIM && GAME->KeyUp(KEY_TYPE::RBUTTON))
+    if (_currentState == TargetCameraMode::AIM && GAME->KeyUp(KEY_TYPE::RBUTTON))
     {
         Change_Mode(TargetCameraMode::NORMAL);
     }
@@ -129,10 +172,10 @@ void TargetCamera::Update(float timeDelta)
 {
     __super::Update(timeDelta);
 
-    if(!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
-         return;
+    if (!GAME->Is_ActiveCamera(GetSharedPtr<Camera>()))
+        return;
 
-    if(GAME->Is_ActiveCamera(GetSharedPtr<Camera>()) &&
+    if (GAME->Is_ActiveCamera(GetSharedPtr<Camera>()) &&
         _targetSettings.allowMouseRotation &&
         !GAME->Is_WorldGameplayInputBlocked())
     {
@@ -141,12 +184,12 @@ void TargetCamera::Update(float timeDelta)
         _yaw += mouseDelta.x * _currentSettings.camera.mouseSensor;
         _pitch += mouseDelta.y * _currentSettings.camera.mouseSensor * _currentSettings.camera.mouseSensitivity;
         _pitch = std::clamp(_pitch, _currentSettings.pitchMin, _currentSettings.pitchMax);
-     
+
     }
 
     Interpolate_CurrentSettings(timeDelta);
 
-    switch(_currentState)
+    switch (_currentState)
     {
     case TargetCameraMode::NORMAL:
         Update_NormalState(timeDelta);
@@ -160,6 +203,8 @@ void TargetCamera::Update(float timeDelta)
         Update_BattleEnterState(timeDelta);
         break;
     }
+
+
 }
 
 void TargetCamera::Late_Update(float timeDelta)
@@ -170,29 +215,32 @@ void TargetCamera::Late_Update(float timeDelta)
 
 HRESULT TargetCamera::Render()
 {
-   if(FAILED(__super::Render()))
-       return E_FAIL;
+    if (FAILED(__super::Render()))
+        return E_FAIL;
 
     return S_OK;
 }
 
 void TargetCamera::Interpolate_CurrentSettings(float timeDelta)
 {
-    const float t = clamp(timeDelta * _targetSettings.followSpeed,0.f,1.f );
+    const float t = clamp(timeDelta * _targetSettings.followSpeed, 0.f, 1.f);
 
-    _currentSettings.aimOffset = lerp(_currentSettings.aimOffset,_targetSettings.aimOffset,t);
-    _currentSettings.distance = lerp(_currentSettings.distance,_targetSettings.distance,t);
-    _currentSettings.heightOffset = lerp(_currentSettings.heightOffset,_targetSettings.heightOffset,t);
-    _currentSettings.lookHeight = lerp(_currentSettings.lookHeight,_targetSettings.lookHeight,t);
-    _currentSettings.pitchLookScale = lerp(_currentSettings.pitchLookScale,_targetSettings.pitchLookScale,t);
-    _currentSettings.pivotHeight = lerp(_currentSettings.pivotHeight,_targetSettings.pivotHeight,t);
-    _currentSettings.sideOffset = lerp(_currentSettings.sideOffset,_targetSettings.sideOffset,t);
+    _currentSettings.aimOffset = lerp(_currentSettings.aimOffset, _targetSettings.aimOffset, t);
+    _currentSettings.distance = lerp(_currentSettings.distance, _targetSettings.distance, t);
+    _currentSettings.heightOffset = lerp(_currentSettings.heightOffset, _targetSettings.heightOffset, t);
+    _currentSettings.lookHeight = lerp(_currentSettings.lookHeight, _targetSettings.lookHeight, t);
+    _currentSettings.pitchLookScale = lerp(_currentSettings.pitchLookScale, _targetSettings.pitchLookScale, t);
+    _currentSettings.pivotHeight = lerp(_currentSettings.pivotHeight, _targetSettings.pivotHeight, t);
+    _currentSettings.sideOffset = lerp(_currentSettings.sideOffset, _targetSettings.sideOffset, t);
+    _currentSettings.targetFollowSpeed = lerp(_currentSettings.targetFollowSpeed, _targetSettings.targetFollowSpeed, t);
+    _currentSettings.verticalFollowSpeed = lerp(_currentSettings.verticalFollowSpeed, _targetSettings.verticalFollowSpeed, t);
     _currentSettings.pitchOffset = lerp(_currentSettings.pitchOffset, _targetSettings.pitchOffset, t);
-    _currentSettings.yawOffset = lerp(_currentSettings.yawOffset,_targetSettings.yawOffset,t);
-    _currentSettings.rollOffset = lerp(_currentSettings.rollOffset,_targetSettings.rollOffset,t);
-    _currentSettings.camera.fovy = lerp(_currentSettings.camera.fovy,_targetSettings.camera.fovy,t);
+    _currentSettings.yawOffset = lerp(_currentSettings.yawOffset, _targetSettings.yawOffset, t);
+    _currentSettings.rollOffset = lerp(_currentSettings.rollOffset, _targetSettings.rollOffset, t);
+    _currentSettings.camera.fovy = lerp(_currentSettings.camera.fovy, _targetSettings.camera.fovy, t);
     _currentSettings.camera.nearPlane = lerp(_currentSettings.camera.nearPlane, _targetSettings.camera.nearPlane, t);
     _currentSettings.camera.farPlane = lerp(_currentSettings.camera.farPlane, _targetSettings.camera.farPlane, t);
+    _currentSettings.targetFollowEasing = _targetSettings.targetFollowEasing;
 
     Set_FovY(_currentSettings.camera.fovy);
     Set_Near(_currentSettings.camera.nearPlane);
@@ -211,6 +259,59 @@ bool TargetCamera::Try_GetTargetTransform(Shared<TransformCom>& outTargetTransfo
     return outTargetTransformCom != nullptr;
 }
 
+void TargetCamera::Update_SmoothedTargetPosition(const Vec3& targetPos, float timeDelta)
+{
+    if (_currentState == TargetCameraMode::AIM)
+    {
+        _smoothedTargetPos = targetPos; // FreeAim 중에는 플레이어 위치를 지연 없이 따라간다.
+        return;
+    }
+
+    constexpr float kTargetStillXZFrameDeltaSq = 0.000025f;
+    constexpr float kHorizontalSettleDistanceSq = 0.0004f;
+    constexpr float kTargetStillYFrameDelta = 0.005f;
+    constexpr float kVerticalSettleDistance = 0.035f;
+
+    const Vec3 targetDelta = targetPos - _prevTargetPos;
+    const float horizontalFollowT = Evaluate_TargetFollowT(
+        _currentSettings.targetFollowEasing,
+        timeDelta * _currentSettings.targetFollowSpeed);
+
+    const Vec3 currentHorizontal{ _smoothedTargetPos.x, 0.f, _smoothedTargetPos.z };
+    const Vec3 targetHorizontal{ targetPos.x, 0.f, targetPos.z };
+    const float horizontalDeltaSq = (targetHorizontal - currentHorizontal).LengthSquared();
+
+    if (horizontalDeltaSq <= 0.000001f ||
+        (targetDelta.x * targetDelta.x + targetDelta.z * targetDelta.z <= kTargetStillXZFrameDeltaSq &&
+            horizontalDeltaSq <= kHorizontalSettleDistanceSq))
+    {
+        _smoothedTargetPos.x = targetPos.x;
+        _smoothedTargetPos.z = targetPos.z;
+    }
+    else
+    {
+        _smoothedTargetPos.x = lerp(_smoothedTargetPos.x, targetPos.x, horizontalFollowT);
+        _smoothedTargetPos.z = lerp(_smoothedTargetPos.z, targetPos.z, horizontalFollowT);
+    }
+
+    const float yDelta = fabsf(targetPos.y - _smoothedTargetPos.y);
+    const float targetYFrameDelta = fabsf(targetDelta.y);
+
+    if (yDelta <= 0.0001f ||
+        (targetYFrameDelta <= kTargetStillYFrameDelta && yDelta <= kVerticalSettleDistance))
+    {
+        _smoothedTargetPos.y = targetPos.y;
+    }
+    else
+    {
+        _smoothedTargetPos.y = Math::Lerp_Damp(
+            _smoothedTargetPos.y,
+            targetPos.y,
+            _currentSettings.verticalFollowSpeed,
+            timeDelta);
+    }
+}
+
 void TargetCamera::Update_FromCurrentSettings(float timeDelta)
 {
     Shared<TransformCom> targetTransformCom;
@@ -218,9 +319,6 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
         return;
 
     const Vec3 targetPos = targetTransformCom->Get_WorldPosition();
-
-    //const bool isTargetMoving = (targetPos - _prevTargetPos).LengthSquared() > 0.0001f;
-    //float followSpeed = isTargetMoving ? _currentSettings.followSpeed : _currentSettings.followSpeed * 0.5f;
 
     const float finalYaw = _yaw + _currentSettings.yawOffset;
     const float finalPitch = _pitch + _currentSettings.pitchOffset;
@@ -245,10 +343,13 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     const Matrix pitchRotation = XMMatrixRotationAxis(rightDir, pitchRad);
     const Vec3 orbitOffset = XMVector3TransformNormal(baseOffset, pitchRotation);
 
-    _smoothedTargetPos = targetPos;
+    const Vec3 prevSmoothedTargetPos = _smoothedTargetPos;
+    Update_SmoothedTargetPosition(targetPos, timeDelta);
+    const bool smoothedTargetMoved =
+        (_smoothedTargetPos - prevSmoothedTargetPos).LengthSquared() > 0.000025f;
 
     const Vec3 pivotPos = _smoothedTargetPos + Vec3::Up * _currentSettings.pivotHeight;
-    Vec3 framingPos = pivotPos  + rightDir * _currentSettings.aimOffset;
+    Vec3 framingPos = pivotPos + rightDir * _currentSettings.aimOffset;
     Vec3 desiredPos = framingPos + orbitOffset + Vec3::Up * _currentSettings.heightOffset + rightDir * _currentSettings.sideOffset;
     Vec3 lookTarget = framingPos + Vec3::Up * _currentSettings.lookHeight;
 
@@ -260,13 +361,13 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
 
     if (_currentSettings.doCollisionTest)
     {
-        // 카메라 기준점이나 목표 위치가 충분히 바뀌면 즉시 sweep
         const float sweepStartDeltaSq = (collisionStart - _lastCollisionSweepStart).LengthSquared();
         const float desiredPosDeltaSq = (desiredPos - _lastCollisionDesiredPos).LengthSquared();
 
         const bool movedEnoughForImmediateQuery =
             sweepStartDeltaSq > 0.0004f ||
-            desiredPosDeltaSq > 0.0004f;
+            desiredPosDeltaSq > 0.0004f ||
+            smoothedTargetMoved;
 
         if (!_hasCollisionQueryCache || movedEnoughForImmediateQuery)
         {
@@ -283,7 +384,6 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
         {
             _collisionQueryAccum += timeDelta;
 
-            // 변화가 거의 없으면 매 프레임 sweep하지 않고 이전 결과를 재사용
             if (_collisionQueryAccum >= _collisionQueryInterval)
             {
                 _collisionQueryAccum = 0.f;
@@ -309,7 +409,6 @@ void TargetCamera::Update_FromCurrentSettings(float timeDelta)
     GAME->UpdateFrustum(*GAME->Get_Transform(D3DTS::View), *GAME->Get_Transform(D3DTS::Proj));
 
     _prevTargetPos = targetPos;
-
 }
 
 void TargetCamera::Refresh_TargetTransform()
@@ -356,14 +455,54 @@ void TargetCamera::Update_BattleEnterState(float timeDelta)
     float unscaledDelta = GAME->Get_UnscaledTimeDelta();
     _battleEnterAcc += unscaledDelta;
 
-    if(_battleEnterAcc >= _battleEnterDuration)
+    if (_battleEnterAcc >= _battleEnterDuration)
     {
+        LOG_INFO(
+            "[BattleCamTrace] TargetCamera::BattleEnter complete acc={:.3f} duration={:.3f} worldScale={:.3f}",
+            _battleEnterAcc,
+            _battleEnterDuration,
+            GAME->Get_WorldTimeScale());
+
         Change_Mode(TargetCameraMode::NORMAL);
         _battleEnterAcc = 0.f;
         return;
     }
 
     Update_FromCurrentSettings(unscaledDelta);
+
+    const Vec3 cameraPos = _transformCom ? _transformCom->Get_WorldPosition() : Vec3::Zero;
+    const Shared<TransformCom> targetTransform = _targetTransformCom.lock();
+    const Vec3 targetPos = targetTransform ? targetTransform->Get_WorldPosition() : Vec3::Zero;
+
+    LOG_INFO_THROTTLED(
+        15,
+        "[BattleCamTrace] TargetCamera::BattleEnter tick acc={:.3f}/{:.3f} unscaledDelta={:.4f} worldScale={:.3f} "
+        "cam=({:.2f},{:.2f},{:.2f}) target=({:.2f},{:.2f},{:.2f}) look=({:.2f},{:.2f},{:.2f}) "
+        "curDist={:.2f} curSide={:.2f} curYaw={:.2f} curRoll={:.2f} curFov={:.3f} "
+        "targetDist={:.2f} targetSide={:.2f} targetYaw={:.2f} targetRoll={:.2f} targetFov={:.3f}",
+        _battleEnterAcc,
+        _battleEnterDuration,
+        unscaledDelta,
+        GAME->Get_WorldTimeScale(),
+        cameraPos.x,
+        cameraPos.y,
+        cameraPos.z,
+        targetPos.x,
+        targetPos.y,
+        targetPos.z,
+        _currentLookTarget.x,
+        _currentLookTarget.y,
+        _currentLookTarget.z,
+        _currentSettings.distance,
+        _currentSettings.sideOffset,
+        _currentSettings.yawOffset,
+        _currentSettings.rollOffset,
+        _currentSettings.camera.fovy,
+        _targetSettings.distance,
+        _targetSettings.sideOffset,
+        _targetSettings.yawOffset,
+        _targetSettings.rollOffset,
+        _targetSettings.camera.fovy);
 }
 
 Vec3 TargetCamera::Resolve_Collision(const Vec3& sweepStart, const Vec3& desiredPos, float timeDelta)
@@ -417,15 +556,29 @@ Vec3 TargetCamera::Resolve_Collision(const Vec3& sweepStart, const Vec3& desired
 
 void TargetCamera::Change_Mode(TargetCameraMode mode)
 {
-    if(_currentState == mode)
+    if (_currentState == mode)
+    {
+        LOG_INFO(
+            "[BattleCamTrace] TargetCamera::Change_Mode ignored sameMode={} worldScale={:.3f} battleAcc={:.3f}",
+            To_TargetCameraModeName(mode),
+            GAME->Get_WorldTimeScale(),
+            _battleEnterAcc);
+
         return;
+    }
+
+    const TargetCameraMode previousMode = _currentState;
+    const bool wasBattleEnter = previousMode == TargetCameraMode::BATTLE_ENTER;
 
     _currentState = mode;
     _collisionQueryAccum = 0.f;
     _hasCollisionQueryCache = false;
     _collisionDistance = -1.f;
 
-    switch(_currentState)
+    if (wasBattleEnter)
+        _battleEnterAcc = 0.f; // BattleTurnCamera/전투 종료 등 외부 전환으로 빠져나가도 다음 전투 진입은 0초부터 시작해야 한다.
+
+    switch (_currentState)
     {
     case TargetCameraMode::NORMAL:
         _targetSettings = _normalPreset;
@@ -442,6 +595,27 @@ void TargetCamera::Change_Mode(TargetCameraMode mode)
         _currentSettings.followSpeed = _battleEnterPreset.followSpeed;
         break;
     }
+
+    LOG_INFO(
+        "[BattleCamTrace] TargetCamera::Change_Mode {} -> {} activeCameraType={} worldScale={:.3f} battleAcc={:.3f} "
+        "curDist={:.2f} curSide={:.2f} curYaw={:.2f} curRoll={:.2f} curFov={:.3f} "
+        "targetDist={:.2f} targetSide={:.2f} targetYaw={:.2f} targetRoll={:.2f} targetFov={:.3f} snap={}",
+        To_TargetCameraModeName(previousMode),
+        To_TargetCameraModeName(_currentState),
+        static_cast<int>(GAME->Get_ActiveCamera() ? GAME->Get_ActiveCamera()->Get_ObjectType() : ObjectType::None),
+        GAME->Get_WorldTimeScale(),
+        _battleEnterAcc,
+        _currentSettings.distance,
+        _currentSettings.sideOffset,
+        _currentSettings.yawOffset,
+        _currentSettings.rollOffset,
+        _currentSettings.camera.fovy,
+        _targetSettings.distance,
+        _targetSettings.sideOffset,
+        _targetSettings.yawOffset,
+        _targetSettings.rollOffset,
+        _targetSettings.camera.fovy,
+        _targetSettings.snapOnEnter);
 
     if (_targetSettings.snapOnEnter)
     {
@@ -484,7 +658,7 @@ void TargetCamera::SetTargetTransform(Shared<TransformCom> targetTransform)
 {
     _targetTransformCom = targetTransform;
 
-      // 전환 직후 이전 target 위치가 남아 있으면 카메라 보간이 튈 수 있어서
+    // 전환 직후 이전 target 위치가 남아 있으면 카메라 보간이 튈 수 있어서
     if (targetTransform)
         _prevTargetPos = targetTransform->Get_WorldPosition();
 
@@ -516,7 +690,7 @@ void TargetCamera::Set_Preset(TargetCameraMode mode, const TargetCameraPreset& p
     switch (mode)
     {
     case TargetCameraMode::NORMAL:
-         _normalPreset = preset;
+        _normalPreset = preset;
         break;
 
     case TargetCameraMode::AIM:

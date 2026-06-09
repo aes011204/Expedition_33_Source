@@ -23,6 +23,9 @@ public:
     void Set_PostProcessParams(const PostProcessCB& postProcessCB);
     const PostProcessCB& Get_PostProcessParams() const;
     PostProcessCB& Get_PostProcessParams();
+    void Set_LightShaftParams(const LightShaftCB& lightShaftCB);
+    const LightShaftCB& Get_LightShaftParams() const;
+    LightShaftCB& Get_LightShaftParams();
 
     PostProcessFeature Get_PostProcessFeatures() const;
 
@@ -32,6 +35,7 @@ private:
 
     PostProcessFeature          _featureFlag = PostProcessFeature::None;
     PostProcessCB               _postProcessCB{};
+    LightShaftCB                _lightShaftCB{};
 
 public:
     static Shared<PostProcessPipeline> Create(ComPtr<Device> device, ComPtr<Context> context);

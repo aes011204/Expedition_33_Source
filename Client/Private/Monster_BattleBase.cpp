@@ -10,6 +10,7 @@
 #include "MonsterStatCom.h"
 #include "Monster_Part.h"
 #include "EffectCom.h"
+#include "Mon_WeakPoint.h"
 
 Monster_BattleBase::Monster_BattleBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_BattleBase(device, context)
@@ -52,15 +53,37 @@ void Monster_BattleBase::Update(float timeDelta)
     if (_combatStat)
         _combatStat->Update(timeDelta);
 
-     if (_effectCom)
-        _effectCom->Update(timeDelta); // 몬스터 사망 시 디졸브용
-
     Character_BattleBase::Update(timeDelta);
+
+    if (_effectCom)
+        _effectCom->Update(timeDelta); // 몬스터 사망 시 디졸브용
 }
 
 void Monster_BattleBase::Late_Update(float timeDelta)
 {
     Character_BattleBase::Late_Update(timeDelta);
+}
+
+json Monster_BattleBase::To_Json() const
+{
+    json root = Character_BattleBase::To_Json();
+    root["custom_properties"]["battle_ground_offset_y"] = _battleGroundOffsetY;
+    return root;
+}
+
+void Monster_BattleBase::From_Json(const json& data)
+{
+    Character_BattleBase::From_Json(data);
+
+    _battleGroundOffsetY = 0.f;
+    _revivePosition = Vec3::Zero;
+    _hasRevivePosition = false;
+
+    if (data.contains("custom_properties") && data["custom_properties"].is_object())
+    {
+        const json& customProperties = data["custom_properties"];
+        _battleGroundOffsetY = customProperties.value("battle_ground_offset_y", 0.f);
+    }
 }
 
 void Monster_BattleBase::ActionFromDecision(ActionRequest& request, const BattleDecision decision, const vector<BattleChar>& heroes)
@@ -118,6 +141,24 @@ void Monster_BattleBase::Decide_Action_BTOnly(ActionRequest& request, const vect
     }
 
     ActionFromDecision(request, decision, heroes);
+}
+
+bool Monster_BattleBase::Try_Consume_FreeAimWeakPoint()
+{
+    const Shared<Mon_WeakPoint> weakPoint = Get_BattleWeakPoint();
+    return weakPoint != nullptr && weakPoint->Try_Consume_BattleWeakPointHit();
+}
+
+void Monster_BattleBase::Hide_FreeAimWeakPoint()
+{
+    if (const Shared<Mon_WeakPoint> weakPoint = Get_BattleWeakPoint())
+        weakPoint->Hide_BattleWeakPoint();
+}
+
+void Monster_BattleBase::Reset_FreeAimWeakPoint()
+{
+    if (const Shared<Mon_WeakPoint> weakPoint = Get_BattleWeakPoint())
+        weakPoint->Reset_BattleWeakPoint();
 }
 
 void Monster_BattleBase::Decide_Action(ActionRequest& request, const vector<BattleChar>& heroes)

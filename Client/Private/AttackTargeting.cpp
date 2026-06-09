@@ -12,7 +12,7 @@
 
 NS_BEGIN(Client)
 
-    AttackTargeting::AttackTargeting(const Shared<BattleController>& owner)
+AttackTargeting::AttackTargeting(const Shared<BattleController>& owner)
     : Battle_State{ owner }
 {
 }
@@ -45,7 +45,7 @@ bool AttackTargeting::EnterInvoke()
 
     const auto enemies = owner->Get_AliveEnemies();
     if (!enemies.empty())
-    { 
+    {
         TargetIndex %= enemies.size();
         owner->Set_TargetPreview(enemies[TargetIndex]);
     }
@@ -86,11 +86,11 @@ void AttackTargeting::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::F))
     {
         owner->Set_TargetPreview(enemies[TargetIndex]);
-        
+
         auto& request = owner->Get_TurnActionRequest();
         request.InitTarget = enemies[TargetIndex];
 
-        owner->Request_WidePresentationMode();  
+        owner->Request_WidePresentationMode();
 
         auto data = CLIENT->Get_Skill(request.actor.statCom->Get_FirstSkill());
         request.skillKey = data ? data->skillKey : "";
@@ -114,6 +114,7 @@ void AttackTargeting::Update(float timeDelta)
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::ENEMYFOCUS;
         event.subject = enemies[TargetIndex].actor;
+        event.presetId = enemies[TargetIndex].actor->Get_SourcePrefabName();
         GAME->Get_EventBus().Publish(event);
 
         LOG_DEBUG("TARGETTING {}", TargetIndex);
@@ -125,7 +126,7 @@ void AttackTargeting::Update(float timeDelta)
     if (GAME->KeyDown(KEY_TYPE::D))
     {
         // 오른쪽 끝
-         if (Try_MoveTargetIndex(+1, enemies.size()) == false)
+        if (Try_MoveTargetIndex(+1, enemies.size()) == false)
             return;
 
         owner->Set_TargetPreview(enemies[TargetIndex]);
@@ -133,6 +134,7 @@ void AttackTargeting::Update(float timeDelta)
         EvtBattlePresentation event;
         event.cameraMode = BattleCameraMode::ENEMYFOCUS;
         event.subject = enemies[TargetIndex].actor;
+        event.presetId = enemies[TargetIndex].actor->Get_SourcePrefabName();
         GAME->Get_EventBus().Publish(event);
 
         LOG_DEBUG("TARGETTING {}", TargetIndex);

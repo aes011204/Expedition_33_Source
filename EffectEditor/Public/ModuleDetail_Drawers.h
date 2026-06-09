@@ -50,6 +50,16 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class InitialMeshSizeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        InitialMeshSizeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class InitialLocationModuleDetail
 {
 public:
@@ -70,6 +80,16 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class PlaneRadialLocationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        PlaneRadialLocationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class InitialVelocityModuleDetail
 {
 public:
@@ -84,9 +104,19 @@ class InitialRadialVelocityModuleDetail
 {
 public:
     bool Draw(
-        AuthoringEmitter& emitter,
+        const AuthoringEmitter& emitter,
         AuthoringModule& module,
         InitialRadialVelocityModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class VelocityConeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        VelocityConeModuleData& data,
         DetailPropertyContext& detailContext);
 };
 
@@ -130,6 +160,36 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class OrbitOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        OrbitOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class PlaneRadialOrientationModuleDetail
+{
+public:
+    bool Draw(
+        const AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        PlaneRadialOrientationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class SphereRadialOrientationModuleDetail
+{
+public:
+    bool Draw(
+        const AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        SphereRadialOrientationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class RotationOverLifeModuleDetail
 {
 public:
@@ -157,6 +217,46 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         RotationRateScaleByLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class InitialMeshRotationModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        InitialMeshRotationModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class MeshRotationOverLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        MeshRotationOverLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class InitialMeshRotationRateModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        InitialMeshRotationRateModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class MeshRotationRateScaleByLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        MeshRotationRateScaleByLifeModuleData& data,
         DetailPropertyContext& detailContext);
 };
 
@@ -200,6 +300,16 @@ public:
         DetailPropertyContext& detailContext);
 };
 
+class MeshSizeByLifeModuleDetail
+{
+public:
+    bool Draw(
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        MeshSizeByLifeModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
 class SpawnPerUnitModuleDetail
 {
 public:
@@ -207,6 +317,16 @@ public:
         AuthoringEmitter& emitter,
         AuthoringModule& module,
         SpawnPerUnitModuleData& data,
+        DetailPropertyContext& detailContext);
+};
+
+class MaterialScalarModulationModuleDetail
+{
+public:
+    bool Draw(
+        const AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        MaterialScalarModulationModuleData& data,
         DetailPropertyContext& detailContext);
 };
 

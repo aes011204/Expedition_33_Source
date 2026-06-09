@@ -15,6 +15,10 @@
 #include "Body_Player.h"
 #include "ModelCom.h"
 #include "MovementCom.h"
+#include "Monster_WorldBase.h"
+#include "MapStaticMesh.h"
+#include "MapAuthoringIO.h"
+#include "Client_Constants.h"
 #include "Profile_View.h"
 #include "Material_View.h"
 #include "Model_Inspector.h"
@@ -29,6 +33,7 @@ namespace
 {
 constexpr uint32 kDefaultPreviewViewportWidth = 1600;
 constexpr uint32 kDefaultPreviewViewportHeight = 900;
+constexpr uint32 kRuntimeGameFocusRecoveryFrameCount = 3;
 
 void Refresh_PlayerBodyAnimMapping(const Shared<GameObject>& gameObject)
 {
@@ -154,6 +159,7 @@ void EditorInstance::Release_Editor()
     _runtimeTimeScale = 1.f;
     _hasPendingWindowFocus = false;
     _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;
+    _runtimeGameFocusRecoveryFrames = 0;
     _pendingSingleFrameStep = false;
 }
 
@@ -212,7 +218,7 @@ void EditorInstance::Play()
     const bool isStartingFromEdit = _runtimeState == EDITOR_RUNTIME_STATE::Edit;
 
     if (isStartingFromEdit)
-        Capture_PlayStartSnapshot();
+        Capture_PlayStartMonsterSnapshots();
 
     _cameraBeforeFreeCamera.reset();
 
@@ -229,6 +235,7 @@ void EditorInstance::Play()
     GAME->Unlock_Mouse();
 
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
+    _runtimeGameFocusRecoveryFrames = kRuntimeGameFocusRecoveryFrameCount; // Render보다 먼저 입력 정책이 돌아서, Game 포커스가 적용되기 전 몇 프레임은 입력을 유지한다.
 }
 
 void EditorInstance::Pause()
@@ -244,6 +251,7 @@ void EditorInstance::Pause()
     GAME->Unlock_Mouse();
 
     _runtimeState = EDITOR_RUNTIME_STATE::Pause;
+    _runtimeGameFocusRecoveryFrames = 0;
     Sync_ViewportWindowState();
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
 }
@@ -255,10 +263,11 @@ void EditorInstance::Stop()
     {
         GAME->Get_DelegateHub().OnEditorStopRuntime.Broadcast();
 
-         if (Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
+        if (Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
             gameplayUI->Handle_EditorStopRuntime();
 
-        Restore_PlayStartSnapshot();
+        Restore_PlayStartMonsterSnapshots(); // F4 Stop은 큰 맵 JSON을 다시 읽지 않고 Play 시작 몬스터만 되돌린다.
+        CLIENT->Restore_PartyFormationAfterEditorStop();
     }
 
     _runtimeState = EDITOR_RUNTIME_STATE::Edit;
@@ -270,6 +279,7 @@ void EditorInstance::Stop()
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
+    _runtimeGameFocusRecoveryFrames = 0;
 
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
 }
@@ -289,6 +299,24 @@ void EditorInstance::Resume()
     GAME->Unlock_Mouse();
 
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
+    _runtimeGameFocusRecoveryFrames = kRuntimeGameFocusRecoveryFrameCount; // F9 Resume 직후 Game 창 포커스가 실제로 반영될 때까지 월드 입력이 끊기지 않게 한다.
+}
+
+void EditorInstance::Force_EnablePlayerInputForPlay()
+{
+    if (EDITOR_RUNTIME_STATE::Play != _runtimeState)
+        return;
+
+    _isTargetCameraEditMode = false;
+    CLIENT->Set_TargetCameraEditMode(false);
+
+    GAME->Set_GameplayPaused(false);                        // 에디터/패널 저장 중 남은 pause가 F5 Play 입력을 다시 막지 않게 한다.
+    GAME->Set_GameplayInputMode(GameplayInputMode::Normal); // Notify/preview 저장 UI가 남긴 UIOnly 상태를 F5 Play 입력보다 우선시키지 않는다.
+    GAME->Set_PlayerInputBlocked(false);                    // F5 직후 PlayerControllerCom이 월드 입력을 바로 읽게 한다.
+    GAME->Set_FreeCameraInputEnabled(false);
+
+    Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Game);
+    _runtimeGameFocusRecoveryFrames = kRuntimeGameFocusRecoveryFrameCount;
 }
 
 void EditorInstance::Enter_EditAfterLoading()
@@ -304,6 +332,7 @@ void EditorInstance::Enter_EditAfterLoading()
 
     GAME->Set_FreeCameraInputEnabled(false);
     GAME->Unlock_Mouse();
+    _runtimeGameFocusRecoveryFrames = 0;
 
     Request_WindowFocus(EDITOR_VIEWPORT_TARGET::Scene);
 }
@@ -435,6 +464,42 @@ Shared<GameObject> EditorInstance::Paste_CopiedObject()
 
 Shared<GameObject> EditorInstance::Duplicate_SelectedObject()
 {
+    Shared<GameObject> selectedObject = Selected_Object();
+    Shared<Client::MapStaticMesh> selectedMapStaticMesh = dynamic_pointer_cast<Client::MapStaticMesh>(selectedObject);
+    if (selectedMapStaticMesh != nullptr)
+    {
+        wstring layerTag;
+        if (!Find_ObjectLayerTag(selectedObject, layerTag))
+            return nullptr;
+
+        Shared<TransformCom> sourceTransform = selectedMapStaticMesh->Get_Transform();
+        if (sourceTransform == nullptr)
+            return nullptr;
+
+        Client::MapStaticMesh::MAPSTATICMESH_DESC desc{};
+        desc.model = selectedMapStaticMesh->Get_Model();
+        desc.collisionData = selectedMapStaticMesh->Get_CollisionData();
+        desc.name = selectedMapStaticMesh->Get_Name();
+        desc.position = sourceTransform->Get_WorldPosition();
+        desc.rotation = sourceTransform->Get_RotationQuaternion();
+        desc.scale = sourceTransform->Get_Scale();
+
+        Shared<GameObject> duplicatedObject;
+        if (FAILED(GAME->Add_GameObject(
+            ETOI(LevelType::Static),
+            TEXT("GameObject_MapStaticMesh"),
+            GAME->Current_LevelIndex(),
+            layerTag,
+            duplicatedObject,
+            &desc)))
+        {
+            return nullptr;
+        }
+
+        Select_Object(duplicatedObject);
+        return duplicatedObject;
+    }
+
     Copy_SelectedObject();
     return Paste_CopiedObject();
 }
@@ -973,17 +1038,74 @@ ID3D11Texture2D* EditorInstance::Get_CachedBackBufferTexture()
     return _cachedBackBufferTexture.Get();
 }
 
-void EditorInstance::Capture_PlayStartSnapshot()
+void EditorInstance::Capture_PlayStartMonsterSnapshots()
 {
-    _playStartWorldSnapshot = Capture_CurrentLevelObjects(&_playStartSelectedObjectIndex);
+    _playStartMonsterSnapshots.clear();
+    _hasPlayStartMonsterSnapshots = true;
+
+    GAME->Visit_CurrentLevelObjects(
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            if (gameObject == nullptr || !gameObject->Is_RuntimeAuthoringLoaded())
+                return;
+
+            if (dynamic_pointer_cast<Monster_WorldBase>(gameObject) == nullptr)
+                return;
+
+            EditorWorldObjectSnapshot snapshot{};
+            snapshot.layerTag = layerTag;
+            snapshot.objectJson = gameObject->To_Json();
+            snapshot.originalObject = gameObject;
+            _playStartMonsterSnapshots.emplace_back(snapshot);
+        });
 }
 
-void EditorInstance::Restore_PlayStartSnapshot()
+void EditorInstance::Restore_PlayStartMonsterSnapshots()
 {
-    Restore_CurrentLevelObjects(_playStartWorldSnapshot, _playStartSelectedObjectIndex);
+    if (!_hasPlayStartMonsterSnapshots)
+        return;
 
-    _playStartWorldSnapshot.clear();
-    _playStartSelectedObjectIndex = -1;
+    const uint32 levelIndex = GAME->Current_LevelIndex();
+    vector<Shared<GameObject>> authoredMonsters{};
+
+    GAME->Visit_CurrentLevelObjects(
+        [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
+        {
+            UNREFERENCED_PARAMETER(layerTag);
+
+            if (gameObject == nullptr || !gameObject->Is_RuntimeAuthoringLoaded())
+                return;
+
+            if (dynamic_pointer_cast<Monster_WorldBase>(gameObject) == nullptr)
+                return;
+
+            authoredMonsters.push_back(gameObject);
+        });
+
+    const Shared<GameObject> selectedObject = Selected_Object();
+    if (find(authoredMonsters.begin(), authoredMonsters.end(), selectedObject) != authoredMonsters.end())
+        Clear_SelectedObject();
+
+    for (const Shared<GameObject>& monster : authoredMonsters)
+        GAME->Remove_GameObject(levelIndex, monster);
+
+    GAME->Flush_RemovedGameObjects();
+
+    for (const EditorWorldObjectSnapshot& snapshot : _playStartMonsterSnapshots)
+    {
+        Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(snapshot.objectJson);
+        if (gameObject == nullptr)
+            continue;
+
+        gameObject->Set_RuntimeAuthoringLoaded(true); // Play 시작 authored 몬스터로 복원했음을 유지한다.
+        Refresh_PlayerBodyAnimMapping(gameObject);
+        Sync_RestoredMovementRuntimePosition(gameObject);
+
+        (void)GAME->Add_GameObject(levelIndex, snapshot.layerTag, gameObject);
+    }
+
+    _playStartMonsterSnapshots.clear();
+    _hasPlayStartMonsterSnapshots = false;
 }
 
 bool EditorInstance::Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const
@@ -995,8 +1117,19 @@ bool EditorInstance::Is_SnapshotExcludedObject(const Shared<GameObject>& gameObj
         gameObject->Get_ObjectType() == ObjectType::TargetCamera;
 }
 
+bool EditorInstance::Is_PlaySnapshotExcludedObject(
+    const wstring& layerTag,
+    const Shared<GameObject>& gameObject) const
+{
+    if (Is_SnapshotExcludedObject(gameObject))
+        return true;
+
+    return layerTag == L"Layer_MapStaticMesh";
+}
+
 vector<EditorInstance::EditorWorldObjectSnapshot> EditorInstance::Capture_CurrentLevelObjects(
-    int32* outSelectedIndex) const
+    int32* outSelectedIndex,
+    bool excludeMapStaticMesh) const
 {
     vector<EditorWorldObjectSnapshot> snapshots;
     Shared<GameObject> selectedObject = Selected_Object();
@@ -1008,7 +1141,10 @@ vector<EditorInstance::EditorWorldObjectSnapshot> EditorInstance::Capture_Curren
     GAME->Visit_CurrentLevelObjects(
         [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
         {
-            if (Is_SnapshotExcludedObject(gameObject))
+            const bool excluded = excludeMapStaticMesh
+                ? Is_PlaySnapshotExcludedObject(layerTag, gameObject)
+                : Is_SnapshotExcludedObject(gameObject);
+            if (excluded)
                 return;
 
             if (outSelectedIndex != nullptr && gameObject == selectedObject)
@@ -1026,7 +1162,8 @@ vector<EditorInstance::EditorWorldObjectSnapshot> EditorInstance::Capture_Curren
 }
 
 HRESULT EditorInstance::Restore_CurrentLevelObjects(const vector<EditorWorldObjectSnapshot>& snapshots,
-    int32 selectedIndex)
+    int32 selectedIndex,
+    bool excludeMapStaticMesh)
 {
     Clear_SelectedObject();
 
@@ -1044,9 +1181,10 @@ HRESULT EditorInstance::Restore_CurrentLevelObjects(const vector<EditorWorldObje
     GAME->Visit_CurrentLevelObjects(
         [&](const wstring& layerTag, const Shared<GameObject>& gameObject)
         {
-            UNREFERENCED_PARAMETER(layerTag);
-
-            if (Is_SnapshotExcludedObject(gameObject))
+            const bool excluded = excludeMapStaticMesh
+                ? Is_PlaySnapshotExcludedObject(layerTag, gameObject)
+                : Is_SnapshotExcludedObject(gameObject);
+            if (excluded)
                 return;
 
             const auto iter = find(snapshotObjects.begin(), snapshotObjects.end(), gameObject);
@@ -1099,7 +1237,13 @@ HRESULT EditorInstance::Restore_CurrentLevelObjects(const vector<EditorWorldObje
 
 void EditorInstance::Request_PreviewViewportSize(uint32 width, uint32 height)
 {
-    GAME->Apply_LogicalViewportSize(max(1u, width), max(1u, height));
+    Queue_PreviewViewportSize(width, height);
+}
+
+void EditorInstance::Apply_PreviewViewportSizeImmediate(uint32 width, uint32 height)
+{
+    Queue_PreviewViewportSize(width, height);
+    Apply_PendingPreviewViewportSize();
 }
 
 void EditorInstance::Enable_AutoPreviewViewport()
@@ -1265,8 +1409,21 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         sceneView && sceneView->Is_Open() &&
         (sceneView->Is_Focused() || sceneView->Is_Hovered());
 
-    const bool gameFocused =
+    const bool gameFocusedActual =
         gameView && gameView->Is_Open() && gameView->Is_Focused();
+
+    const bool hasPendingGameFocus =
+        _hasPendingWindowFocus &&
+        _pendingWindowFocus == EDITOR_VIEWPORT_TARGET::Game;
+
+    const bool gameFocusRecoveryActive =
+        gameView && gameView->Is_Open() &&
+        _runtimeGameFocusRecoveryFrames > 0;
+
+    const bool gameFocused =
+        gameFocusedActual ||
+        hasPendingGameFocus ||
+        gameFocusRecoveryActive;
 
     const bool isFreeCamera =
         GAME->Is_ActiveCameraType(ObjectType::FreeCamera);
@@ -1280,6 +1437,15 @@ void EditorInstance::Apply_RuntimeInputPolicy()
 
     if (_runtimeState == EDITOR_RUNTIME_STATE::Play)
     {
+        if (gameFocusedActual)
+        {
+            _runtimeGameFocusRecoveryFrames = 0;
+        }
+        else if (gameFocusRecoveryActive)
+        {
+            --_runtimeGameFocusRecoveryFrames; // Request_WindowFocus가 Render 단계에서 소비되는 동안만 짧게 유지한다.
+        }
+
         if (GAME->Is_GameplayPaused())
         {
             GAME->Set_PlayerInputBlocked(true);
@@ -1312,7 +1478,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
             const bool freeCameraControl =
                 gameFocused && GAME->KeyPress(KEY_TYPE::RBUTTON);
 
-            //GAME->Set_PlayerInputBlocked(true);
+            GAME->Set_PlayerInputBlocked(false); // Play 중 FreeCamera에 잠깐 남아 있어도 이전 blocked 상태를 끌고 가지 않게 바로 푼다.
             GAME->Set_FreeCameraInputEnabled(freeCameraControl);
 
             if (freeCameraControl||isTargetCamera)
@@ -1322,7 +1488,7 @@ void EditorInstance::Apply_RuntimeInputPolicy()
         }
         else
         {
-            GAME->Set_PlayerInputBlocked(!gameFocused || _isTargetCameraEditMode);
+            GAME->Set_PlayerInputBlocked(_isTargetCameraEditMode); // Play가 시작됐으면 포커스와 무관하게 플레이어 입력은 열어 두고, 타겟 카메라 편집 모드일 때만 막는다.
             GAME->Set_FreeCameraInputEnabled(false);
 
             if(_isTargetCameraEditMode)

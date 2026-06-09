@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Client_Defines.h"
+#include "Level_WindowTitleFps.h"
 #include "StreamingLevel.h"
 #include "MapLoader.h"
 
@@ -35,12 +36,8 @@ private:
     HRESULT Ready_Layer_Player(const wstring& strLayerTag);
     HRESULT Ready_Layer_Effect(const wstring& strLayerTag);
 
-    void    Update_WindowTitleFps();
-
 private:
-    chrono::steady_clock::time_point _fpsSampleBegin = {};
-    uint32 _fpsFrameCount = 0;
-    int32 _displayFps = 0;
+    WindowTitleFpsState _windowTitleFps = {};
 
 public:
 	static Shared<Level_GamePlay> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

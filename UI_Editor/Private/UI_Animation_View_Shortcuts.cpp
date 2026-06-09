@@ -18,6 +18,17 @@ namespace UIEditor
             return;
         }
 
+        if (_editorMode == UI_AnimationEditorMode::SequencePreview)
+        {
+            if (ImGui::IsKeyPressed(ImGuiKey_Delete, false) || ImGui::IsKeyPressed(ImGuiKey_Backspace, false))
+            {
+                _editorManager.Stop_AnimationPreview();
+                if (_sequenceService.Remove_SelectedClip())
+                    Request_SequenceStaticPreviewRefresh();
+            }
+            return;
+        }
+
         if (io.KeyCtrl && io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z, false))
         {
             if (_editorMode == UI_AnimationEditorMode::StateAnimation)
@@ -57,6 +68,41 @@ namespace UIEditor
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_V, false))
         {
             if (_assetService.Paste_CopiedKey())
+                Request_StaticPreviewRefresh();
+            return;
+        }
+
+        if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_K, false))
+        {
+            if (_assetService.Add_KeyToSelectedTrack(_editorManager.Get_Document()))
+                Request_StaticPreviewRefresh();
+            return;
+        }
+
+        if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_B, false))
+        {
+            if (_assetService.Bind_SelectedUI(_editorManager.Get_SelectedObject()))
+            {
+                Sync_TargetNameBuffer();
+                Request_StaticPreviewRefresh();
+            }
+            return;
+        }
+
+        if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_R, false))
+        {
+            if (_assetService.Remove_SelectedTarget())
+            {
+                Sync_TargetNameBuffer();
+                _editorManager.Stop_AnimationPreview();
+                Request_StaticPreviewRefresh();
+            }
+            return;
+        }
+
+        if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_T, false))
+        {
+            if (_assetService.Add_Track(_assetService.Get_PendingTrackType(), &_editorManager.Get_Document()))
                 Request_StaticPreviewRefresh();
             return;
         }

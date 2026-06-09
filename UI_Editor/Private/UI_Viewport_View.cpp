@@ -311,6 +311,7 @@ namespace UIEditor
                     continue;
 
                 UI_Object renderObject = previewTransformResolver.Make_PreviewObject(object);
+                renderObject.color = previewTransformResolver.Get_EffectiveRenderColor(object.id, renderObject.color);
                 const ImVec2 resolvedLocalSize = previewTransformResolver.Get_ResolvedLocalSize(object.id);
                 const ImVec2 objectWorldPivot = previewTransformResolver.Get_WorldPivot(object.id);
                 const UI_WorldObjectFrame objectFrame = previewTransformResolver.Get_WorldFrame(object.id);
@@ -350,13 +351,16 @@ namespace UIEditor
                     if (renderObject.imageRenderMode == UI_ImageRenderMode::PatternOverlay)
                     {
                         requiresCompositePreview = true;
-                        previewSRV = _editorManager.Get_PatternOverlayPreviewSRV(
-                            renderObject.textureGuid,
-                            renderObject.texturePath,
-                            renderObject.maskTextureGuid,
-                            renderObject.maskTexturePath,
-                            renderObject.patternMaskTextureGuid,
-                            renderObject.patternMaskTexturePath);
+                        PatternOverlayPreviewDesc previewDesc = {};
+                        previewDesc.textureGuid = renderObject.textureGuid;
+                        previewDesc.texturePath = renderObject.texturePath;
+                        previewDesc.paintMaskTextureGuid = renderObject.maskTextureGuid;
+                        previewDesc.paintMaskTexturePath = renderObject.maskTexturePath;
+                        previewDesc.patternMaskTextureGuid = renderObject.patternMaskTextureGuid;
+                        previewDesc.patternMaskTexturePath = renderObject.patternMaskTexturePath;
+                        previewDesc.patternUvOffset = renderObject.patternUvOffset;
+                        previewDesc.patternUvScale = renderObject.patternUvScale;
+                        previewSRV = _editorManager.Get_PatternOverlayPreviewSRV(previewDesc);
                     }
                     else if (!renderObject.maskTextureGuid.empty() || !renderObject.maskTexturePath.empty())
                     {

@@ -11,6 +11,8 @@ NS_END
 
 NS_BEGIN(Client)
 
+class EffectCom;
+
 class Monster_Part abstract : public PartObject
 {
 public:
@@ -18,6 +20,7 @@ public:
     {
         ModelType modelType{ ModelType::NonAnim };
         wstring modelTag{};
+        bool allowMissingModel = false;
     };
 
 public:
@@ -40,6 +43,7 @@ public:
     void Set_Animation(const string& animName, float blendDuration, bool isLoop = false, float startFrame = 0.f);
     bool Set_AnimationByState(uint32 stateIndex, float blendDuration, bool isLoop, float startFrame=0.f);
     bool Play_Animation(float timeDelta);
+    bool Is_AnimationFinished() const;
     const RootMotionFrame& Get_RootTransformVelocity() const;
     const Matrix* Get_SocketBoneMatrixPtr(const string& boneName) const;
     const Matrix* Get_SocketBoneMatrixPtr(uint32 boneIndex) const;
@@ -53,6 +57,7 @@ protected:
     Shared<ShaderCom>           _shader = nullptr;
     Shared<ModelCom>            _model = nullptr;
     Shared<AnimComputeRuntime>  _animComputeRuntime = nullptr;
+    Shared<EffectCom>           _partEffectCom = nullptr;
 
 public:
     virtual Shared<GameObject> Clone(void* arg) override PURE;

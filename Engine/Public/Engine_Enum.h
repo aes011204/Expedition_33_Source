@@ -13,9 +13,11 @@ namespace Engine
         Shadow,
         NonBlend,
         NonLight,
+        EffectMasked,
         Distortion, // Effect용 Distortion
         Blend,
         UI,
+        UIEffect,
         END
     };
 
@@ -68,6 +70,7 @@ namespace Engine
         Landscape,
         Sky,
         StaticMesh,
+        Water,
         Foliage,
         Weapon,
         PartObject,
@@ -77,6 +80,7 @@ namespace Engine
         EffectEmitter,
         Trigger,
         UI,
+        BattleStartSpawner,
     };
 
     enum class DeferredPass : uint8
@@ -88,7 +92,8 @@ namespace Engine
         CombinedSimple,
         CombinedPreview = 5, // Preview에서는 그림자 계산 X
         SSAO,
-        SSAOBlur
+        SSAOBlur,
+        Fog
     };
 
     enum class PostProcessPass : uint8
@@ -100,6 +105,10 @@ namespace Engine
         BloomBlurV,
         BloomUpsampleAdd,
         ToneMapping,
+        DistortionResolve,
+        LightShaftMaskHalf,
+        LightShaftRadialBlurHalf,
+        LightShaftCompositeHDR,
 
         END
     };
@@ -139,6 +148,10 @@ namespace Engine
         Hair            = 9,
         DrawFeature     = 10,
         ScreenFx        = 11,
+        FogZone         = 12,
+        Water           = 13,
+        LightShaft      = 14,
+        PlayerRender    = 15,
 
         END
     };
@@ -178,8 +191,9 @@ namespace Engine
         Exposure    = 1 << 2,
         Bloom       = 1 << 3,
         Gamma       = 1 << 4,
+        LightShaft  = 1 << 5,
 
-        All = (1 << 5) - 1
+        All = (1 << 6) - 1
     };
 
     enum class GameplayInputMode

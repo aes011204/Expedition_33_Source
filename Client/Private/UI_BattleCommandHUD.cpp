@@ -8,6 +8,21 @@
 
 using namespace UI_Utils;
 
+namespace
+{
+    constexpr wchar_t kBattleCommandIntroAnimationName[] = L"BattleCommand_Intro";
+    constexpr wchar_t kBattleCommandLoopAnimationName[] = L"BattleCommand_Loop";
+
+    float Resolve_BattleCommandIntroDurationSec()
+    {
+        UI_KeyframeAnimationAsset introAnimation{};
+        introAnimation.fps = 60;
+        introAnimation.startFrame = 0;
+        introAnimation.endFrame = 60;
+        return Get_KeyframeAnimationDurationSec(introAnimation);
+    }
+}
+
 HRESULT UI_BattleCommandHUD::Initialize(uint32 levelIndex)
 {
     _levelIndex = levelIndex;
@@ -17,6 +32,7 @@ HRESULT UI_BattleCommandHUD::Initialize(uint32 levelIndex)
 
     // BattleCommand HUD는 매 프레임 screen Pos 계산
     Set_EditorPositionDrivenByCode(true);
+    _introDuration = Resolve_BattleCommandIntroDurationSec();
 
     Close();
 
@@ -25,10 +41,19 @@ HRESULT UI_BattleCommandHUD::Initialize(uint32 levelIndex)
 
 void UI_BattleCommandHUD::Update(float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
     if (!_isOpen || !_hasTargetWorldPos)
         return;
+
+    if (_isPlayingIntro)
+    {
+        _introElapsed += max(0.f, timeDelta);
+
+        if (_introElapsed >= _introDuration)
+        {
+            _isPlayingIntro = false;
+            Play_HUDAnimation(kBattleCommandLoopAnimationName);
+        }
+    }
 
     Vec2 screenPos{};
     if (!Try_ProjectWorldToScreen(_targetWorldPos, screenPos))
@@ -47,14 +72,36 @@ void UI_BattleCommandHUD::Update(float timeDelta)
 
 void UI_BattleCommandHUD::Open()
 {
+    if (_root == nullptr)
+        return;
+
+    const bool wasClosed = !_root->Is_Open();
+
     UI_RuntimePanelBase::Open();
+
+    if (!wasClosed)
+        return;
+
+    Open_AllHUDUIs(); // ChooseAction에 새로 진입한 순간에만 intro 대상들을 다시 연다.
+    _isPlayingIntro = true;
+    _introElapsed = 0.f;
+
+    if (!Play_HUDAnimation(kBattleCommandIntroAnimationName))
+    {
+        _isPlayingIntro = false;
+        Play_HUDAnimation(kBattleCommandLoopAnimationName);
+    }
 }
 
 void UI_BattleCommandHUD::Close()
 {
     _hasTargetWorldPos = false;
+    _isPlayingIntro = false;
+    _introElapsed = 0.f;
     _currentHeroId = HeroId::END;
 
+    Stop_AllHUDAnimations();
+    Close_AllHUDUIs();
     UI_RuntimePanelBase::Close();
 
     Apply_DefaultHighlight();
@@ -141,9 +188,13 @@ void UI_BattleCommandHUD::Set_EditorHeroTestOffset(HeroId heroId, const Vec2& of
 
 HRESULT UI_BattleCommandHUD::Load_UI(uint32 levelIndex)
 {
+    _allHUDUIs.clear();
+
     UI_RuntimeLoader::UI_LoadDesc desc{};
     desc.levelIndex = levelIndex;
     desc.jsonPath = Constants::UI::UI_BattleSystem_HUD_Path;
+    desc.animationPaths.push_back(Constants::UI_Anim::UI_BattleCommandIntroAnim_Path);
+    desc.animationPaths.push_back(Constants::UI_Anim::UI_BattleCommandLoopAnim_Path);
     desc.prototypeTagPrefix = L"BattleCommandHUD";
     desc.outUIByName = &_uiByName;
 
@@ -163,7 +214,69 @@ HRESULT UI_BattleCommandHUD::Bind_UI()
     CHECK_FAILED(Bind_CommandSlot(L"Shot", L"Image_Input_RightMouse", false, _shotSlot), E_FAIL);
     CHECK_FAILED(Bind_CurrentPlayerAP(), E_FAIL);
 
+    _allHUDUIs.clear();
+    _allHUDUIs.reserve(8);
+
+    auto Add_HUDAnimTarget = [this](const wchar_t* name) -> HRESULT
+        {
+            Shared<UI_Base> ui = Find_UI(_uiByName, name);
+            CHECK_NULL(ui, E_FAIL);
+            _allHUDUIs.push_back(ui);
+            return S_OK;
+        };
+
+    CHECK_FAILED(Add_HUDAnimTarget(L"Panel_BattleCommand"), E_FAIL);
+    CHECK_FAILED(Add_HUDAnimTarget(L"Image_BattleCommand_BG"), E_FAIL);
+    CHECK_FAILED(Add_HUDAnimTarget(L"Button_BattleCommand_Shot"), E_FAIL);
+    CHECK_FAILED(Add_HUDAnimTarget(L"Button_BattleCommand_Item"), E_FAIL);
+    CHECK_FAILED(Add_HUDAnimTarget(L"Button_BattleCommand_Skill"), E_FAIL);
+    CHECK_FAILED(Add_HUDAnimTarget(L"Button_BattleCommand_Attack"), E_FAIL);
+    CHECK_FAILED(Add_HUDAnimTarget(L"Panel_BattlePortrait_Current_Character_AP_Bar"), E_FAIL);
+    CHECK_FAILED(Add_HUDAnimTarget(L"Image_BattleCommand_BG_Deco"), E_FAIL);
+
     return S_OK;
+}
+
+void UI_BattleCommandHUD::Open_AllHUDUIs()
+{
+    for (const Shared<UI_Base>& ui : _allHUDUIs)
+    {
+        if (ui)
+            ui->Open();
+    }
+}
+
+void UI_BattleCommandHUD::Close_AllHUDUIs()
+{
+    for (const Shared<UI_Base>& ui : _allHUDUIs)
+    {
+        if (ui)
+            ui->Close();
+    }
+}
+
+void UI_BattleCommandHUD::Stop_AllHUDAnimations()
+{
+    for (const Shared<UI_Base>& ui : _allHUDUIs)
+    {
+        if (ui)
+            ui->Stop_UIAnimation();
+    }
+}
+
+bool UI_BattleCommandHUD::Play_HUDAnimation(const wchar_t* animationName)
+{
+    bool played = false;
+
+    for (const Shared<UI_Base>& ui : _allHUDUIs)
+    {
+        if (ui == nullptr)
+            continue;
+
+        played = ui->Play_UIAnimation(animationName, true) || played;
+    }
+
+    return played;
 }
 
 void UI_BattleCommandHUD::Apply_DefaultHighlight()
@@ -295,8 +408,8 @@ Unique<UI_BattleCommandHUD> UI_BattleCommandHUD::Create(uint32 levelIndex)
 
 void UI_BattleCommandHUD::Free()
 {
-    if (_root)
-        _root->Close();
+    Stop_AllHUDAnimations();
+    Close_AllHUDUIs();
 
     _attackSlot = {};
     _skillSlot = {};
@@ -310,6 +423,7 @@ void UI_BattleCommandHUD::Free()
         _currentPlayerApStates[i].reset();
 
     _root.reset();
+    _allHUDUIs.clear();
     _uiByName.clear();
 
     Base::Free();

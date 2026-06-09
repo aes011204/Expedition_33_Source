@@ -1,11 +1,13 @@
 ﻿#include "pch.h"
 #include "ItemTargeting.h"
-
 #include "BattleAnimutils.h"
 #include "BattleController.h"
 #include "BattleStateMachine.h"
+#include "Battle_Event.h"
+#include "CameraPresetTypes.h"
 #include "CombatStatCom.h"
 #include "GameInstance.h"
+#include "Event_Bus.h"
 
 NS_BEGIN(Client)
 
@@ -40,6 +42,16 @@ bool ItemTargeting::EnterInvoke()
 	if (!Set_TargetCandidates())
 		return false;
 
+	const BattleChar& actor = owner->Get_TurnActionRequest().actor;
+	for (uint32 i = 0; i < _targetCandidates.size(); ++i)
+	{
+		if (_targetCandidates[i].actor == actor.actor)
+		{
+			_targetIndex = i;
+			break;
+		}
+	}
+
 	owner->Set_TargetPreview(_targetCandidates[_targetIndex]);
 
 	return Battle_State::EnterInvoke();
@@ -51,6 +63,7 @@ void ItemTargeting::Update(float timeDelta)
 
 	auto owner = Get_Owner();
 	auto battleFSM = Get_BattleFSM();
+
 	if (!owner || !battleFSM)
 		return;
 
@@ -66,24 +79,44 @@ void ItemTargeting::Update(float timeDelta)
 	{
 		owner->Clear_TargetPreview();
 		battleFSM->Change_State(BattleTurnState::ChooseItem);
+
+	    EvtBattlePresentation event;
+	    event.cameraMode = BattleCameraMode::SELECTITEM;
+	    event.subject = owner->Get_TurnActionRequest().actor.actor;
+	    event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
+	    GAME->Get_EventBus().Publish(event);
+
 		return;
 	}
 
 	// 왼쪽
 	if (GAME->KeyDown(KEY_TYPE::A))
 	{
-		if (Try_MoveTargetIndex(-1))
+		if (Try_MoveTargetIndex(+1))
 		{
 			owner->Set_TargetPreview(_targetCandidates[_targetIndex]);
+
+	        EvtBattlePresentation event;
+	        event.cameraMode = BattleCameraMode::SELECTPLAYER;
+	        event.subject = _targetCandidates[_targetIndex].actor;
+	        event.presetId = magic_enum::enum_name(_targetCandidates[_targetIndex].heroId);
+	        GAME->Get_EventBus().Publish(event);
 		}
+
 		return;
 	}
 	// 오른쪽
 	if (GAME->KeyDown(KEY_TYPE::D))
 	{
-		if (Try_MoveTargetIndex(+1))
+		if (Try_MoveTargetIndex(-1))
 		{
 			owner->Set_TargetPreview(_targetCandidates[_targetIndex]);
+
+		    EvtBattlePresentation event;
+		    event.cameraMode = BattleCameraMode::SELECTPLAYER;
+		    event.subject = _targetCandidates[_targetIndex].actor;
+		    event.presetId = magic_enum::enum_name(_targetCandidates[_targetIndex].heroId);
+		    GAME->Get_EventBus().Publish(event);
 		}
 		return;
 	}
@@ -108,8 +141,13 @@ void ItemTargeting::Update(float timeDelta)
 			owner->EndTurn();
 			return;
 		}
-
 		owner->ExecuteActionRequest(request);
+
+	    EvtBattlePresentation event;
+	    event.cameraMode = BattleCameraMode::WIDE;
+	    event.subject = owner->Get_TurnActionRequest().actor.actor;
+	   //event.presetId = magic_enum::enum_name(owner->Get_TurnActionRequest().actor.heroId);
+	    GAME->Get_EventBus().Publish(event);
 
 		return;
 	}

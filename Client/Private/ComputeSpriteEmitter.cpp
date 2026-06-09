@@ -1,6 +1,7 @@
 ﻿#include "ComputeSpriteEmitter.h"
 
 #include "Battle_Enum.h"
+#include "EffectMaterialScalarModulationRuntime.h"
 #include "GameInstance.h"
 #include "Renderer_Define.h"
 #include "ShaderCom.h"
@@ -30,6 +31,180 @@ bool ComputeSpriteEmitter::Is_InfluenceOutlineDebugEnabled()
 
 namespace Client::Internal
 {
+static int Resolve_MaterialSourceIndex(const string& source)
+{
+    constexpr int sourceAlpha = 0;
+    constexpr int sourceRed = 1;
+    constexpr int sourceLuminance = 2;
+
+    if (source == "Red" || source == "red")
+        return sourceRed;
+
+    if (source == "Luminance" || source == "luminance")
+        return sourceLuminance;
+
+    return sourceAlpha;
+}
+
+static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
+{
+    uint32 salt = seed.manualSeedEnabled ? seed.seed : 0u;
+    if (seed.useInstanceSeed)
+        salt += effectPlaybackSeed;
+    return salt;
+}
+
+static float Hash01(uint32 seed)
+{
+    seed ^= 2747636419u;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    return static_cast<float>(seed & 0x00FFFFFFu) / 16777215.f;
+}
+
+static Vec3 Resolve_WorldScale(const Shared<TransformCom>& transform)
+{
+    if (transform == nullptr)
+        return Vec3::One;
+
+    Vec3 scale = Vec3::One;
+    Quat rotation = Quat::Identity;
+    Vec3 translation = Vec3::Zero;
+    Matrix worldMatrix = transform->Get_WorldMatrix();
+    if (!worldMatrix.Decompose(scale, rotation, translation))
+        return Vec3::One;
+
+    return Vec3{
+        max(0.0001f, fabsf(scale.x)),
+        max(0.0001f, fabsf(scale.y)),
+        max(0.0001f, fabsf(scale.z))
+    };
+}
+
+static Vec3 Scale_Vector3(const Vec3& value, const Vec3& scale)
+{
+    return Vec3{ value.x * scale.x, value.y * scale.y, value.z * scale.z };
+}
+
+static Vec2 Scale_Vector2(const Vec2& value, const Vec2& scale)
+{
+    return Vec2{ value.x * scale.x, value.y * scale.y };
+}
+
+static Vec2 Resolve_PlaneScale(PointParticlePlaneRadialLocationPlane plane, const Vec3& scale)
+{
+    switch (plane)
+    {
+    case PointParticlePlaneRadialLocationPlane::XZ:
+        return Vec2{ scale.x, scale.z };
+    case PointParticlePlaneRadialLocationPlane::YZ:
+        return Vec2{ scale.y, scale.z };
+    case PointParticlePlaneRadialLocationPlane::XY:
+    default:
+        return Vec2{ scale.x, scale.y };
+    }
+}
+
+static bool Nearly_EqualScale(const Vec3& lhs, const Vec3& rhs)
+{
+    constexpr float scaleEpsilon = 0.0001f;
+    return fabsf(lhs.x - rhs.x) <= scaleEpsilon &&
+           fabsf(lhs.y - rhs.y) <= scaleEpsilon &&
+           fabsf(lhs.z - rhs.z) <= scaleEpsilon;
+}
+
+static HRESULT Bind_MaterialScalarModulationPayload(
+    ShaderCom* shader,
+    const EffectMaterialScalarModulationRuntimeDesc& modulation,
+    float emitterPhase)
+{
+    CHECK_NULL(shader, E_FAIL);
+
+    const EffectMaterialScalarModulationShaderPayload payload =
+        Build_MaterialScalarModulationShaderPayload(modulation, emitterPhase);
+
+    HRESULT hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationParams",
+        &payload.params,
+        sizeof(payload.params)
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationMeta",
+        payload.meta.data(),
+        sizeof(payload.meta)
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyTimes",
+        payload.keyTimes.data(),
+        sizeof(payload.keyTimes)
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyValues",
+        payload.keyValues.data(),
+        sizeof(payload.keyValues)
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyArriveTangents",
+        payload.keyArriveTangents.data(),
+        sizeof(payload.keyArriveTangents)
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyLeaveTangents",
+        payload.keyLeaveTangents.data(),
+        sizeof(payload.keyLeaveTangents)
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    hr = shader->Bind_RawValue(
+        "g_EffectMaterialScalarModulationKeyModes",
+        payload.keyModes.data(),
+        sizeof(payload.keyModes)
+    );
+    CHECK_FAILED_ONCE(hr, E_FAIL);
+
+    return S_OK;
+}
+
+static EffectRequiredMaterialRuntimeDesc Resolve_EmitterTimeCoreColorRgbModulation(
+    const EffectRequiredMaterialRuntimeDesc& baseMaterial,
+    float emitterPhase)
+{
+    auto material = baseMaterial;
+    const auto& modulation = baseMaterial.coreColorRgbModulation;
+    const uint32 count = min(EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators, modulation.count);
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const auto& modulator = modulation.modulators[index];
+        if (!modulator.enabled || modulator.timeSource != EffectMaterialScalarModulationTimeSource::EmitterTime)
+            continue;
+
+        const Vec3 fallbackValue{
+            material.coreEmissive.coreColor.x,
+            material.coreEmissive.coreColor.y,
+            material.coreEmissive.coreColor.z
+        };
+        const Vec3 coreColorRgb = Evaluate_CoreColorRgbModulationCurve(modulator.curve, emitterPhase, fallbackValue);
+        material.coreEmissive.coreColor.x = coreColorRgb.x;
+        material.coreEmissive.coreColor.y = coreColorRgb.y;
+        material.coreEmissive.coreColor.z = coreColorRgb.z;
+    }
+
+    return material;
+}
+
 wstring Resolve_TexturePathByGuid(const string& textureGuid)
 {
     if (GAME == nullptr || textureGuid.empty())
@@ -128,15 +303,25 @@ void ComputeSpriteEmitter::Update(float timeDelta)
 {
     Sync_FromEffectOwner();
 
-    if (nullptr != _viBuffer)
+    if (nullptr == _viBuffer)
+        return;
+
+    if (PlaybackState::Completed == _playbackState && !_viBuffer->Has_ActiveParticles())
+        return;
+
+    const PlaybackTick playbackTick = Advance_Playback(timeDelta);
+    if (playbackTick.computeDeltaTime <= 0.f &&
+        playbackTick.spawnRequest == 0u &&
+        !playbackTick.killActiveParticles)
     {
-        const PlaybackTick playbackTick = Advance_Playback(timeDelta);
-        _viBuffer->Dispatch_Compute(
-            playbackTick.computeDeltaTime,
-            playbackTick.spawnRequest,
-            playbackTick.killActiveParticles
-        );
+        return;
     }
+
+    _viBuffer->Dispatch_Compute(
+        playbackTick.computeDeltaTime,
+        playbackTick.spawnRequest,
+        playbackTick.killActiveParticles
+    );
 }
 
 void ComputeSpriteEmitter::Late_Update(float timeDelta)
@@ -158,8 +343,9 @@ HRESULT ComputeSpriteEmitter::Render()
 HRESULT ComputeSpriteEmitter::Reset_ForEffectReplay()
 {
     Reset_PlaybackRuntime();
-    Sync_WorldCenterToComputeBuffer();
     CHECK_NULL(_viBuffer, E_FAIL);
+    Update_RuntimeDescForCurrentScale(true);
+    Sync_WorldCenterToComputeBuffer();
     CHECK_FAILED(_viBuffer->Reset_ForEffectReplay(), E_FAIL);
 
     return S_OK;
@@ -170,8 +356,81 @@ bool ComputeSpriteEmitter::Is_EffectFinished() const
     return PlaybackState::Completed == _playbackState;
 }
 
+bool ComputeSpriteEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    const Vec4* cameraPosition4 = GAME != nullptr ? GAME->Get_CamPosition() : nullptr;
+    if (cameraPosition4 == nullptr)
+    {
+        outWorldPosition = _transformCom->Get_WorldPosition();
+        return true;
+    }
+
+    const auto max_abs = [](float a, float b) -> float
+    {
+        return max(fabsf(a), fabsf(b));
+    };
+
+    const auto max_curve_value = [](const Vec4& values, uint32 keyCount) -> float
+    {
+        float result = values.x;
+        const uint32 safeKeyCount = min(keyCount, 4u);
+        for (uint32 index = 1u; index < safeKeyCount; ++index)
+        {
+            switch (index)
+            {
+            case 1u: result = max(result, values.y);
+                break;
+            case 2u: result = max(result, values.z);
+                break;
+            case 3u: result = max(result, values.w);
+                break;
+            default: break;
+            }
+        }
+        return result;
+    };
+
+    const Vec3 emitterWorldPosition = _transformCom->Get_WorldPosition();
+
+    Vec3 localOffset{};
+    if (_desc.initialLocation.enabled)
+        localOffset += (_desc.initialLocation.minOffset + _desc.initialLocation.maxOffset) * 0.5f;
+
+    if (_desc.sphereLocation.enabled)
+        localOffset += _desc.sphereLocation.offset;
+
+    const Vec3 worldOffset =
+        _transformCom->Get_WorldRight() * localOffset.x +
+        _transformCom->Get_WorldUp() * localOffset.y +
+        _transformCom->Get_WorldForward() * localOffset.z;
+
+    const Vec3 representativeCenter = emitterWorldPosition + worldOffset;
+
+    outWorldPosition = representativeCenter;
+    return true;
+}
+
+float ComputeSpriteEmitter::Get_BlendSortBias() const
+{
+    return _desc.required.sort.artistSortBias;
+}
+
+EffectSortPolicy ComputeSpriteEmitter::Get_BlendSortPolicy() const
+{
+    return _desc.required.sort.sortPolicy;
+}
+
+int32 ComputeSpriteEmitter::Get_BlendSortLayer() const
+{
+    return _desc.required.sort.sortLayer;
+}
+
 void ComputeSpriteEmitter::On_EffectTransformSynced()
 {
+    Update_RuntimeDescForCurrentScale(false);
     Sync_WorldCenterToComputeBuffer();
 }
 
@@ -194,7 +453,7 @@ HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureP
 {
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    wstring resolvedPath = Client::Internal::Resolve_TexturePath(
+    wstring resolvedPath = Internal::Resolve_TexturePath(
         _desc.required.material.mainTextureGuid,
         _desc.required.material.mainTexturePath,
         usedPathFallback,
@@ -229,7 +488,7 @@ HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureP
             kFallbackTexturePath
         );
 
-        resolvedPath = Client::Internal::Resolve_TexturePathByPath(kFallbackTexturePath);
+        resolvedPath = Internal::Resolve_TexturePathByPath(kFallbackTexturePath);
         usedFallback = true;
     }
 
@@ -276,7 +535,7 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Client::Internal::Resolve_TexturePath(
+    const wstring resolvedPath = Internal::Resolve_TexturePath(
         _desc.required.material.noiseTextureGuid,
         _desc.required.material.noiseTexturePath,
         usedPathFallback,
@@ -339,7 +598,7 @@ HRESULT ComputeSpriteEmitter::Ready_MaskTextureComponent(const string& resolvedT
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Client::Internal::Resolve_TexturePath(
+    const wstring resolvedPath = Internal::Resolve_TexturePath(
         _desc.required.material.maskTextureGuid,
         _desc.required.material.maskTexturePath,
         usedPathFallback,
@@ -469,7 +728,9 @@ HRESULT ComputeSpriteEmitter::Bind_ShaderResources()
 
 HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
 {
-    const auto& material = _desc.required.material;
+    const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
+    const EffectRequiredMaterialRuntimeDesc material =
+        Internal::Resolve_EmitterTimeCoreColorRgbModulation(_desc.required.material, emitterPhase);
 
     if (nullptr != _noiseTexture)
         CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
@@ -506,6 +767,12 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
         0.f
     );
+    const Vec4 effectSpriteSourceParams = Vec4(
+        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
+        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+        material.noiseInvert ? 1.f : 0.f,
+        material.maskInvert ? 1.f : 0.f
+    );
 
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteParams", &effectSpriteParams, sizeof(effectSpriteParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAlphaParams", &effectSpriteAlphaParams, sizeof(effectSpriteAlphaParams)), E_FAIL);
@@ -513,9 +780,17 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteNoiseUVParams", &effectSpriteNoiseUVParams, sizeof(effectSpriteNoiseUVParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaskUVParams", &effectSpriteMaskUVParams, sizeof(effectSpriteMaskUVParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteUVOffsetParams", &effectSpriteUVOffsetParams, sizeof(effectSpriteUVOffsetParams)), E_FAIL);
-    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaskUVOffsetParams", &effectSpriteMaskUVOffsetParams, sizeof(effectSpriteMaskUVOffsetParams)), E_FAIL);
+    CHECK_FAILED_ONCE(
+        _shader->Bind_RawValue("g_EffectSpriteMaskUVOffsetParams", &effectSpriteMaskUVOffsetParams, sizeof(effectSpriteMaskUVOffsetParams)),
+        E_FAIL
+    );
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteUVModeParams", &effectSpriteUVModeParams, sizeof(effectSpriteUVModeParams)), E_FAIL);
+    CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteSourceParams", &effectSpriteSourceParams, sizeof(effectSpriteSourceParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)), E_FAIL);
+    CHECK_FAILED_ONCE(
+        Internal::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.required.material.scalarModulation, emitterPhase),
+        E_FAIL
+    );
 
     const Vec4 effectInfluenceDebugParams = Vec4(
         _isInfluenceOutlineDebugEnabled ? 1.f : 0.f,
@@ -552,8 +827,14 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveEmissiveColor", &additive.emissiveColor, sizeof(additive.emissiveColor)), E_FAIL);
         CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveConstantColor", &additive.constantColor, sizeof(additive.constantColor)), E_FAIL);
         CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteAdditiveFlags", &effectSpriteAdditiveFlags, sizeof(effectSpriteAdditiveFlags)), E_FAIL);
-        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteCoreEmissiveParams", &effectSpriteCoreEmissiveParams, sizeof(effectSpriteCoreEmissiveParams)), E_FAIL);
-        CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteCoreEmissiveColor", &effectSpriteCoreEmissiveColor, sizeof(effectSpriteCoreEmissiveColor)), E_FAIL);
+        CHECK_FAILED_ONCE(
+            _shader->Bind_RawValue("g_EffectSpriteCoreEmissiveParams", &effectSpriteCoreEmissiveParams, sizeof(effectSpriteCoreEmissiveParams)),
+            E_FAIL
+        );
+        CHECK_FAILED_ONCE(
+            _shader->Bind_RawValue("g_EffectSpriteCoreEmissiveColor", &effectSpriteCoreEmissiveColor, sizeof(effectSpriteCoreEmissiveColor)),
+            E_FAIL
+        );
     }
 
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_OpacitySource", &_opacitySourceIndex, sizeof(_opacitySourceIndex)), E_FAIL);
@@ -565,8 +846,6 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
 {
     const auto& material = _desc.required.material;
 
-    CHECK_FAILED_ONCE(GAME->Bind_RT_ShaderResource(_shader, "g_DistortionSourceTexture", RT::DistortionSource), E_FAIL);
-
     if (nullptr != _flowTexture)
         CHECK_FAILED_ONCE(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);
     else
@@ -577,7 +856,7 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
     _context->RSGetViewports(&viewportCount, &viewport);
 
     const Vec4 distortionParams(
-        max(0.f, material.refractionIntensity),
+        material.refractionIntensity,
         max(0.f, material.refractionPresence),
         nullptr != _flowTexture ? 1.f : 0.f,
         _emitterElapsedTime
@@ -615,6 +894,11 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
         _shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)),
         E_FAIL
     );
+    const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
+    CHECK_FAILED_ONCE(
+        Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase),
+        E_FAIL
+    );
     CHECK_FAILED_ONCE(
         _shader->Bind_RawValue("g_FlowUVTilingMode", &flowUVTilingMode, sizeof(flowUVTilingMode)),
         E_FAIL
@@ -630,7 +914,15 @@ bool ComputeSpriteEmitter::Is_DistortionFamily() const
 
 RenderGroup ComputeSpriteEmitter::Resolve_RenderGroup() const
 {
-    return Is_DistortionFamily() ? RenderGroup::Distortion : RenderGroup::Blend;
+    if (_desc.renderLayerOverride == EffectEmitterRenderLayerOverride::UIEffect)
+        return RenderGroup::UIEffect;
+
+    if (Is_DistortionFamily())
+        return RenderGroup::Distortion;
+
+    return _desc.required.material.blendMode == EffectMaterialBlendMode::Masked
+           ? RenderGroup::EffectMasked
+           : RenderGroup::Blend;
 }
 
 const char* ComputeSpriteEmitter::Resolve_ShaderId() const
@@ -659,32 +951,64 @@ int ComputeSpriteEmitter::Resolve_OpacitySourceIndex() const
 
 uint32 ComputeSpriteEmitter::Resolve_BlendPassIndex() const
 {
-    return _desc.required.material.blendMode == EffectMaterialBlendMode::Additive ? 1u : 0u;
+    if (_desc.required.material.blendMode == EffectMaterialBlendMode::Additive)
+        return 1u;
+    if (_desc.required.material.blendMode == EffectMaterialBlendMode::Masked)
+        return 2u;
+    return 0u;
 }
 
 ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() const
 {
     ComputePointParticleDesc desc{};
+    const Vec3 worldScale = Resolve_RuntimeWorldScale();
+    const Vec2 planeScale = Internal::Resolve_PlaneScale(_desc.planeRadialLocation.plane, worldScale);
+    const float uniformLocationScale = max(worldScale.x, max(worldScale.y, worldScale.z));
+    const Vec2 spriteScale{ uniformLocationScale, uniformLocationScale };
+    const float uniformPlaneScale = max(planeScale.x, planeScale.y);
+
     desc.instanceCount = max(1u, _desc.spawn.instanceCount);
     desc.center = _desc.center;
-    desc.range = _desc.spawn.spawnRange;
-    desc.sizeMin = _desc.initialSize.sizeMin;
-    desc.sizeMax = _desc.initialSize.sizeMax;
+    desc.effectPlaybackSeed = _effectPlaybackSeed;
+    desc.range = Internal::Scale_Vector3(_desc.spawn.spawnRange, worldScale);
+    desc.sizeMin = Internal::Scale_Vector2(_desc.initialSize.sizeMin, spriteScale);
+    desc.sizeMax = Internal::Scale_Vector2(_desc.initialSize.sizeMax, spriteScale);
+    desc.initialSizeSeed = _desc.initialSize.sizeSeed;
     desc.lifeTime = _desc.lifetime.lifeTime;
     desc.startColorMin = _desc.initialColor.startColorMin;
     desc.startColorMax = _desc.initialColor.startColorMax;
+    desc.initialColorSeed = _desc.initialColor.colorSeed;
+    desc.initialAlphaSeed = _desc.initialColor.alphaSeed;
     desc.endColorMin = _desc.colorOverLife.endColorMin;
     desc.endColorMax = _desc.colorOverLife.endColorMax;
+    desc.colorOverLifeSeed = _desc.colorOverLife.colorSeed;
+    desc.alphaOverLifeSeed = _desc.colorOverLife.alphaSeed;
     desc.colorOverLifeCurve = _desc.colorOverLife.curve;
     desc.subUVRows = max(1u, _desc.required.material.subUVRows);
     desc.subUVCols = max(1u, _desc.required.material.subUVCols);
     desc.subUvFrameOverLife = _desc.subUVFrameOverLife;
     desc.sizeByLife = _desc.sizeByLife;
     desc.motion = _desc.motion;
+    desc.orbitOverLife = _desc.orbitOverLife;
     desc.rotation = _desc.rotation;
     desc.spawn = _desc.spawn.particleSpawn;
+    desc.lifetimeSeed = _desc.lifetimeSeed;
     desc.initialLocation = _desc.initialLocation;
+    desc.initialLocation.minOffset = Internal::Scale_Vector3(desc.initialLocation.minOffset, worldScale);
+    desc.initialLocation.maxOffset = Internal::Scale_Vector3(desc.initialLocation.maxOffset, worldScale);
     desc.sphereLocation = _desc.sphereLocation;
+    desc.sphereLocation.offset = Internal::Scale_Vector3(desc.sphereLocation.offset, worldScale);
+    desc.sphereLocation.radius *= uniformLocationScale;
+    desc.planeRadialLocation = _desc.planeRadialLocation;
+    desc.planeRadialLocation.offset = Internal::Scale_Vector3(desc.planeRadialLocation.offset, worldScale);
+    desc.planeRadialLocation.thickness *= uniformLocationScale;
+    desc.planeRadialLocation.uRange = Internal::Scale_Vector2(desc.planeRadialLocation.uRange, Vec2{ planeScale.x, planeScale.x });
+    desc.planeRadialLocation.vRange = Internal::Scale_Vector2(desc.planeRadialLocation.vRange, Vec2{ planeScale.y, planeScale.y });
+    desc.planeRadialLocation.radiusRange = Internal::Scale_Vector2(desc.planeRadialLocation.radiusRange, Vec2{ uniformPlaneScale, uniformPlaneScale });
+    desc.planeRadialOrientation = _desc.planeRadialOrientation;
+    desc.initialLocationSeed = _desc.initialLocationSeed;
+    desc.sphereLocationSeed = _desc.sphereLocationSeed;
+    desc.subUVRandomFrameSeed = _desc.subUVRandomFrameSeed;
     if (nullptr != _transformCom)
     {
         desc.emitterRight = _transformCom->Get_WorldRight();
@@ -701,6 +1025,36 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.computeShaderPrototypeTag = L"ComputeShader_PointParticle";
 
     return desc;
+}
+
+Vec3 ComputeSpriteEmitter::Resolve_RuntimeWorldScale() const
+{
+    const Shared<GameObject> effectOwner = _effectOwner.lock();
+    const Shared<TransformCom> ownerTransform =
+        effectOwner != nullptr ? effectOwner->Get_Transform() : nullptr;
+
+    if (ownerTransform != nullptr)
+        return Internal::Resolve_WorldScale(ownerTransform);
+
+    return Internal::Resolve_WorldScale(_transformCom);
+}
+
+void ComputeSpriteEmitter::Update_RuntimeDescForCurrentScale(bool forceUpdate)
+{
+    CHECK_NULL_THROTTLED(_transformCom, 120);
+    CHECK_NULL_THROTTLED(_viBuffer, 120);
+
+    const Vec3 worldScale = Resolve_RuntimeWorldScale();
+    if (!forceUpdate &&
+        _hasRuntimeDescWorldScale &&
+        Internal::Nearly_EqualScale(_runtimeDescWorldScale, worldScale))
+    {
+        return;
+    }
+
+    _viBuffer->Update_RuntimeDesc(Make_ComputePointParticleDesc());
+    _runtimeDescWorldScale = worldScale;
+    _hasRuntimeDescWorldScale = true;
 }
 
 void ComputeSpriteEmitter::Sync_WorldCenterToComputeBuffer()
@@ -726,7 +1080,7 @@ uint32 ComputeSpriteEmitter::Consume_SpawnRequest(float timeDelta)
 
     if (_desc.spawn.particleSpawn.processSpawnRate)
     {
-        const float spawnRate = max(0.f, _desc.spawn.particleSpawn.spawnRate * _desc.spawn.particleSpawn.spawnRateScale);
+        const float spawnRate = max(0.f, _sampledSpawnRate * _sampledSpawnRateScale);
         _spawnAccumulator += spawnRate * safeDeltaTime;
 
         const float wholeSpawn = floorf(_spawnAccumulator + 0.0001f);
@@ -751,7 +1105,12 @@ uint32 ComputeSpriteEmitter::Consume_SpawnRequest(float timeDelta)
             if (previousTime > burst.time || _emitterElapsedTime < burst.time)
                 continue;
 
-            const float scaledCount = static_cast<float>(burst.count) * max(0.f, _desc.spawn.particleSpawn.burstScale);
+            const float sampledBurstScale = Sample_SpawnDistribution(
+                _desc.spawn.particleSpawn.burstScaleRange,
+                _desc.spawn.particleSpawn.burstScaleSeed,
+                static_cast<uint32>(0xB851u + index * 131u)
+            );
+            const float scaledCount = static_cast<float>(burst.count) * max(0.f, sampledBurstScale);
             spawnRequest += static_cast<uint32>(floorf(scaledCount));
             _burstExecuted[index] = true;
         }
@@ -769,6 +1128,35 @@ void ComputeSpriteEmitter::Reset_PlaybackRuntime()
     _loopIndex = 0u;
     _completedKillDispatched = false;
     _playbackState = Resolve_CurrentLoopDelay() > 0.f ? PlaybackState::Delayed : PlaybackState::Playing;
+    Resample_LoopSpawnDistributions();
+}
+
+float ComputeSpriteEmitter::Sample_SpawnDistribution(
+    const Vec2& range,
+    const PointParticleRandomSeedRuntimeDesc& seed,
+    uint32 salt) const
+{
+    const float minValue = min(range.x, range.y);
+    const float maxValue = max(range.x, range.y);
+    if (minValue == maxValue)
+        return minValue;
+
+    const uint32 baseSeed = (_loopIndex + 1u) * 9781u + salt + Internal::Resolve_SeedSalt(seed, _effectPlaybackSeed);
+    return lerp(minValue, maxValue, Internal::Hash01(baseSeed));
+}
+
+void ComputeSpriteEmitter::Resample_LoopSpawnDistributions()
+{
+    _sampledSpawnRate = Sample_SpawnDistribution(
+        _desc.spawn.particleSpawn.spawnRateRange,
+        _desc.spawn.particleSpawn.spawnRateSeed,
+        0x31B7u
+    );
+    _sampledSpawnRateScale = Sample_SpawnDistribution(
+        _desc.spawn.particleSpawn.spawnRateScaleRange,
+        _desc.spawn.particleSpawn.spawnRateScaleSeed,
+        0x45D9u
+    );
 }
 
 ComputeSpriteEmitter::PlaybackTick ComputeSpriteEmitter::Advance_Playback(float timeDelta)
@@ -846,8 +1234,10 @@ void ComputeSpriteEmitter::Start_NextLoop()
     ++_loopIndex;
     _loopElapsedTime = 0.f;
     _emitterElapsedTime = 0.f;
+    _spawnAccumulator = 0.f;
     _burstExecuted.assign(_desc.spawn.particleSpawn.bursts.size(), false);
     _playbackState = Resolve_CurrentLoopDelay() > 0.f ? PlaybackState::Delayed : PlaybackState::Playing;
+    Resample_LoopSpawnDistributions();
 }
 
 float ComputeSpriteEmitter::Resolve_CurrentLoopDelay() const
@@ -873,10 +1263,13 @@ bool ComputeSpriteEmitter::Can_SubmitRender() const
     if (PlaybackState::Delayed == _playbackState)
         return false;
 
-    if (PlaybackState::Completed == _playbackState && _desc.required.playback.killOnCompleted)
+    if (nullptr == _viBuffer)
         return false;
 
-    return nullptr != _viBuffer;
+    if (!_viBuffer->Has_ActiveParticles())
+        return false;
+
+    return true;
 }
 
 Shared<ComputeSpriteEmitter> ComputeSpriteEmitter::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)
@@ -916,6 +1309,8 @@ void ComputeSpriteEmitter::Free()
 
     _desc = {};
     _opacitySourceIndex = kOpacitySourceAlpha;
+    _runtimeDescWorldScale = Vec3::One;
+    _hasRuntimeDescWorldScale = false;
     _burstExecuted.clear();
     _emitterElapsedTime = 0.f;
     _spawnAccumulator = 0.f;

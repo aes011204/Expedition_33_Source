@@ -41,6 +41,15 @@ namespace Internal
         return iter->get<uint32>();
     }
 
+    int32 Read_Int(const json& node, const char* key, int32 fallbackValue = 0)
+    {
+        const auto iter = node.find(key);
+        if (iter == node.end() || !iter->is_number_integer())
+            return fallbackValue;
+
+        return iter->get<int32>();
+    }
+
     float Read_Float(const json& node, const char* key, float fallbackValue = 0.f)
     {
         const auto iter = node.find(key);
@@ -104,6 +113,71 @@ namespace Internal
         if (parsed.has_value())
             outValue = parsed.value();
     }
+
+    EffectSortPolicy Read_SortPolicy(const json& node, EffectSortPolicy fallbackValue)
+    {
+        string token = Read_String(node, "sortPolicy");
+        if (!token.empty())
+        {
+            const optional<EffectSortPolicy> parsed = magic_enum::enum_cast<EffectSortPolicy>(token);
+            if (parsed.has_value())
+                return parsed.value();
+        }
+
+        token = Read_String(node, "sortMode");
+        if (token == "ViewProjDepth" || token == "DistanceToView")
+            return EffectSortPolicy::EmitterDepth;
+        if (token == "None")
+            return EffectSortPolicy::None;
+
+        return fallbackValue;
+    }
+
+    void Apply_SortPayload(const json& data, EffectRequiredSortRuntimeDesc& sortDesc)
+    {
+        sortDesc.sortPolicy = Read_SortPolicy(data, sortDesc.sortPolicy);
+        sortDesc.sortLayer = Read_Int(data, "sortLayer", sortDesc.sortLayer);
+        sortDesc.artistSortBias = Read_Float(data, "sortBias", sortDesc.artistSortBias);
+    }
+
+    PointParticleRandomSeedRuntimeDesc Read_RandomSeedDesc(const json& moduleData)
+    {
+        const auto randomSeedIter = moduleData.find("randomSeed");
+        if (randomSeedIter == moduleData.end() || !randomSeedIter->is_object())
+            return {};
+
+        const string mode = Read_String(*randomSeedIter, "mode");
+        uint32 manualSeed = 0u;
+        if (const auto seedIter = randomSeedIter->find("manualSeed"); seedIter != randomSeedIter->end())
+        {
+            if (seedIter->is_number_unsigned())
+                manualSeed = seedIter->get<uint32>();
+            else if (seedIter->is_number_integer())
+                manualSeed = static_cast<uint32>(max<int64_t>(0, seedIter->get<int64_t>()));
+        }
+
+        return PointParticleRandomSeedRuntimeDesc{
+            .manualSeedEnabled = mode == "Manual",
+            .seed = mode == "Manual" ? manualSeed : 0u,
+            .useInstanceSeed = Read_Bool(*randomSeedIter, "useInstanceSeed", false)
+        };
+    }
+
+    PointParticleRandomSeedRuntimeDesc Read_DistributionRandomSeedDesc(const json& distribution, const json* legacyModuleData = nullptr)
+    {
+        if (distribution.is_object())
+        {
+            const auto payloadIter = distribution.find("payload");
+            if (payloadIter != distribution.end() && payloadIter->is_object())
+            {
+                const auto randomSeedIter = payloadIter->find("randomSeed");
+                if (randomSeedIter != payloadIter->end() && randomSeedIter->is_object())
+                    return Read_RandomSeedDesc(*payloadIter);
+            }
+        }
+
+        return legacyModuleData != nullptr ? Read_RandomSeedDesc(*legacyModuleData) : PointParticleRandomSeedRuntimeDesc{};
+    }
 }
 
 using Internal::Read_Bool;
@@ -163,6 +237,8 @@ Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_Definition(const w
             converted = Build_EmitterDefinition(emitter, emitterDefinition);
         else if (rendererTypeLower == "trail")
             converted = Build_TrailEmitterDefinition(emitter, emitterDefinition);
+        else if (rendererTypeLower == "mesh")
+            converted = Build_MeshEmitterDefinition(emitter, emitterDefinition);
         else
         {
             LOG_INFO(
@@ -334,13 +410,13 @@ Vec2 EffectAssetRuntimeLoader::Evaluate_Vector2CurveSegmentAutoClamped(const jso
     const Vec2 m1{ rightTangent.x * width, rightTangent.y * width };
     return Vec2{
         (2.f * t3 - 3.f * t2 + 1.f) * leftValue.x +
-            (t3 - 2.f * t2 + t) * m0.x +
-            (-2.f * t3 + 3.f * t2) * rightValue.x +
-            (t3 - t2) * m1.x,
+        (t3 - 2.f * t2 + t) * m0.x +
+        (-2.f * t3 + 3.f * t2) * rightValue.x +
+        (t3 - t2) * m1.x,
         (2.f * t3 - 3.f * t2 + 1.f) * leftValue.y +
-            (t3 - 2.f * t2 + t) * m0.y +
-            (-2.f * t3 + 3.f * t2) * rightValue.y +
-            (t3 - t2) * m1.y
+        (t3 - 2.f * t2 + t) * m0.y +
+        (-2.f * t3 + 3.f * t2) * rightValue.y +
+        (t3 - t2) * m1.y
     };
 }
 
@@ -977,6 +1053,181 @@ void EffectAssetRuntimeLoader::Fill_SizeByLifePayload(PointParticleSizeByLifeDes
     }
 }
 
+void EffectAssetRuntimeLoader::Fill_MaterialScalarModulationPayload(
+    EffectMaterialScalarModulationRuntimeDesc& desc,
+    const json& materialScalarModulation)
+{
+    desc = EffectMaterialScalarModulationRuntimeDesc{};
+
+    const auto modulatorsIter = materialScalarModulation.find("modulators");
+    if (modulatorsIter == materialScalarModulation.end() || !modulatorsIter->is_array())
+        return;
+
+    const uint32 count = min(
+        EffectMaterialScalarModulationRuntimeDesc::kMaxModulators,
+        static_cast<uint32>(modulatorsIter->size())
+    );
+    desc.count = count;
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const json& source = (*modulatorsIter)[index];
+        EffectMaterialScalarModulatorRuntimeDesc& target = desc.modulators[index];
+        target.enabled = Read_Bool(source, "enabled", target.enabled);
+        Read_Enum(source, "targetField", target.targetField);
+        Read_Enum(source, "operation", target.operation);
+        Read_Enum(source, "timeSource", target.timeSource);
+
+        const auto distributionIter = source.find("distribution");
+        if (distributionIter == source.end() || !distributionIter->is_object())
+            continue;
+
+        target.curve = EffectMaterialScalarModulationCurveDesc{};
+        target.curve.enabled = true;
+
+        const string mode = Read_String(*distributionIter, "mode");
+        const json* payload = Find_DistributionPayload(*distributionIter);
+        if (payload != nullptr && mode == "ConstantCurve")
+        {
+            const auto keysIter = payload->find("keys");
+            if (keysIter != payload->end() && keysIter->is_array() && !keysIter->empty())
+            {
+                const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
+                target.curve.keyCount = keyCount;
+                target.curve.keyTimes = Vec4{};
+                target.curve.keyValues = Vec4{};
+                target.curve.keyArriveTangents = Vec4{};
+                target.curve.keyLeaveTangents = Vec4{};
+                target.curve.keyModes = Vec4{};
+
+                for (uint32 keyIndex = 0; keyIndex < keyCount; ++keyIndex)
+                {
+                    const json& key = (*keysIter)[keyIndex];
+                    Set_SubUVFrameCurveComponent(target.curve.keyTimes, keyIndex, clamp(Read_Float(key, "time"), 0.f, 1.f));
+                    Set_SubUVFrameCurveComponent(target.curve.keyValues, keyIndex, Read_Float(key, "value", 1.f));
+                    Set_SubUVFrameCurveComponent(target.curve.keyArriveTangents, keyIndex, Read_Float(key, "arriveTangent"));
+                    Set_SubUVFrameCurveComponent(target.curve.keyLeaveTangents, keyIndex, Read_Float(key, "leaveTangent"));
+                    Set_SubUVFrameCurveComponent(target.curve.keyModes, keyIndex, Resolve_CurveInterpolationMode(key));
+                }
+                continue;
+            }
+        }
+
+        float value = 1.f;
+        if (payload != nullptr && mode == "Constant")
+            value = Read_Float(*payload, "value", value);
+        else if (payload != nullptr && mode == "Uniform")
+            value = (Read_Float(*payload, "minValue", value) + Read_Float(*payload, "maxValue", value)) * 0.5f;
+
+        target.curve.keyCount = 2;
+        target.curve.keyValues = Vec4{ value, value, 0.f, 0.f };
+    }
+}
+
+void EffectAssetRuntimeLoader::Fill_CoreColorRgbModulationPayload(
+    EffectMaterialCoreColorRgbModulationRuntimeDesc& desc,
+    const json& materialScalarModulation)
+{
+    desc = EffectMaterialCoreColorRgbModulationRuntimeDesc{};
+
+    const auto modulatorsIter = materialScalarModulation.find("coreColorRgbModulators");
+    if (modulatorsIter == materialScalarModulation.end() || !modulatorsIter->is_array())
+        return;
+
+    const uint32 count = min(
+        EffectMaterialCoreColorRgbModulationRuntimeDesc::kMaxModulators,
+        static_cast<uint32>(modulatorsIter->size())
+    );
+    desc.count = count;
+
+    for (uint32 index = 0; index < count; ++index)
+    {
+        const json& source = (*modulatorsIter)[index];
+        EffectMaterialCoreColorRgbModulatorRuntimeDesc& target = desc.modulators[index];
+        target.enabled = Read_Bool(source, "enabled", target.enabled);
+        Read_Enum(source, "timeSource", target.timeSource);
+
+        const auto distributionIter = source.find("distribution");
+        if (distributionIter == source.end() || !distributionIter->is_object())
+            continue;
+
+        target.curve = EffectMaterialCoreColorRgbModulationCurveDesc{};
+        target.curve.enabled = true;
+
+        const string mode = Read_String(*distributionIter, "mode");
+        const json* payload = Find_DistributionPayload(*distributionIter);
+        if (payload != nullptr && mode == "ConstantCurve")
+        {
+            const auto keysIter = payload->find("keys");
+            if (keysIter != payload->end() && keysIter->is_array() && !keysIter->empty())
+            {
+                const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
+                target.curve.keyCount = keyCount;
+                target.curve.keyTimes = Vec4{};
+                target.curve.keyValuesR = Vec4{};
+                target.curve.keyValuesG = Vec4{};
+                target.curve.keyValuesB = Vec4{};
+                target.curve.keyArriveTangentsR = Vec4{};
+                target.curve.keyArriveTangentsG = Vec4{};
+                target.curve.keyArriveTangentsB = Vec4{};
+                target.curve.keyLeaveTangentsR = Vec4{};
+                target.curve.keyLeaveTangentsG = Vec4{};
+                target.curve.keyLeaveTangentsB = Vec4{};
+                target.curve.keyModes = Vec4{};
+
+                for (uint32 keyIndex = 0; keyIndex < keyCount; ++keyIndex)
+                {
+                    const json& key = (*keysIter)[keyIndex];
+                    Vec3 value{ 1.f, 0.85f, 0.45f };
+                    Vec3 arriveTangent{};
+                    Vec3 leaveTangent{};
+                    if (const auto valueIter = key.find("value"); valueIter != key.end())
+                        Read_Vec3(*valueIter, value);
+                    if (const auto arriveIter = key.find("arriveTangent"); arriveIter != key.end())
+                        Read_Vec3(*arriveIter, arriveTangent);
+                    if (const auto leaveIter = key.find("leaveTangent"); leaveIter != key.end())
+                        Read_Vec3(*leaveIter, leaveTangent);
+
+                    Set_SubUVFrameCurveComponent(target.curve.keyTimes, keyIndex, clamp(Read_Float(key, "time"), 0.f, 1.f));
+                    Set_SubUVFrameCurveComponent(target.curve.keyValuesR, keyIndex, value.x);
+                    Set_SubUVFrameCurveComponent(target.curve.keyValuesG, keyIndex, value.y);
+                    Set_SubUVFrameCurveComponent(target.curve.keyValuesB, keyIndex, value.z);
+                    Set_SubUVFrameCurveComponent(target.curve.keyArriveTangentsR, keyIndex, arriveTangent.x);
+                    Set_SubUVFrameCurveComponent(target.curve.keyArriveTangentsG, keyIndex, arriveTangent.y);
+                    Set_SubUVFrameCurveComponent(target.curve.keyArriveTangentsB, keyIndex, arriveTangent.z);
+                    Set_SubUVFrameCurveComponent(target.curve.keyLeaveTangentsR, keyIndex, leaveTangent.x);
+                    Set_SubUVFrameCurveComponent(target.curve.keyLeaveTangentsG, keyIndex, leaveTangent.y);
+                    Set_SubUVFrameCurveComponent(target.curve.keyLeaveTangentsB, keyIndex, leaveTangent.z);
+                    Set_SubUVFrameCurveComponent(target.curve.keyModes, keyIndex, Resolve_CurveInterpolationMode(key));
+                }
+                continue;
+            }
+        }
+
+        Vec3 value{ 1.f, 0.85f, 0.45f };
+        if (payload != nullptr && mode == "Constant")
+        {
+            if (const auto valueIter = payload->find("value"); valueIter != payload->end())
+                Read_Vec3(*valueIter, value);
+        }
+        else if (payload != nullptr && mode == "Uniform")
+        {
+            Vec3 minValue = value;
+            Vec3 maxValue = value;
+            if (const auto minIter = payload->find("minValue"); minIter != payload->end())
+                Read_Vec3(*minIter, minValue);
+            if (const auto maxIter = payload->find("maxValue"); maxIter != payload->end())
+                Read_Vec3(*maxIter, maxValue);
+            value = (minValue + maxValue) * 0.5f;
+        }
+
+        target.curve.keyCount = 2;
+        target.curve.keyValuesR = Vec4{ value.x, value.x, 0.f, 0.f };
+        target.curve.keyValuesG = Vec4{ value.y, value.y, 0.f, 0.f };
+        target.curve.keyValuesB = Vec4{ value.z, value.z, 0.f, 0.f };
+    }
+}
+
 void EffectAssetRuntimeLoader::Fill_RotationOverLifePayload(PointParticleRotationDesc& desc, const json& rotationOverLife)
 {
     const auto rotationOverLifeIter = rotationOverLife.find("rotationOverLife");
@@ -1007,14 +1258,26 @@ void EffectAssetRuntimeLoader::Fill_RotationOverLifePayload(PointParticleRotatio
     if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
         return;
 
-    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keysIter->size()));
+    vector<const json*> keys{};
+    keys.reserve(keysIter->size());
+    for (const json& key : *keysIter)
+        keys.push_back(&key);
+    ranges::sort(
+        keys,
+        [](const json* lhs, const json* rhs)
+        {
+            return Read_Float(*lhs, "time") < Read_Float(*rhs, "time");
+        }
+    );
+
+    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
     desc.rotationOverLifeCurveKeyCount = keyCount;
     desc.rotationOverLifeCurveTimes = Vec4{};
     desc.rotationOverLifeCurveValues = Vec4{};
 
     for (uint32 index = 0; index < keyCount; ++index)
     {
-        const json& key = (*keysIter)[index];
+        const json& key = *keys[index];
         Set_SubUVFrameCurveComponent(
             desc.rotationOverLifeCurveTimes,
             index,
@@ -1091,6 +1354,332 @@ void EffectAssetRuntimeLoader::Fill_RotationRateScaleByLifePayload(PointParticle
     }
 }
 
+void EffectAssetRuntimeLoader::Fill_VelocityScaleByLifePayload(PointParticleMotionDesc& desc, const json& velocityOverLife)
+{
+    const auto scaleOverLifeIter = velocityOverLife.find("scaleOverLife");
+    if (scaleOverLifeIter == velocityOverLife.end())
+    {
+        desc.velocityScaleByLife = Vec2{
+            Read_Float(velocityOverLife, "scaleStart", desc.velocityScaleByLife.x),
+            Read_Float(velocityOverLife, "scaleEnd", desc.velocityScaleByLife.y)
+        };
+        desc.velocityScaleByLifeCurveKeyCount = 2;
+        desc.velocityScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        desc.velocityScaleByLifeCurveValues = Vec4{ desc.velocityScaleByLife.x, desc.velocityScaleByLife.y, 0.f, 0.f };
+        return;
+    }
+
+    const float startValue = Evaluate_FloatDistributionMin(*scaleOverLifeIter, 1.f);
+    const float endValue = Evaluate_FloatDistributionMax(*scaleOverLifeIter, 1.f);
+    desc.velocityScaleByLife = Vec2{ startValue, endValue };
+    desc.velocityScaleByLifeCurveKeyCount = 2;
+    desc.velocityScaleByLifeCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.velocityScaleByLifeCurveValues = Vec4{ startValue, endValue, 0.f, 0.f };
+
+    const json* payload = Find_DistributionPayload(*scaleOverLifeIter);
+    if (payload == nullptr || "ConstantCurve" != Read_String(*scaleOverLifeIter, "mode"))
+        return;
+
+    const auto keysIter = payload->find("keys");
+    if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+        return;
+
+    vector<const json*> keys{};
+    keys.reserve(keysIter->size());
+    for (const json& key : *keysIter)
+        keys.push_back(&key);
+    ranges::sort(
+        keys,
+        [](const json* lhs, const json* rhs)
+        {
+            return Read_Float(*lhs, "time") < Read_Float(*rhs, "time");
+        }
+    );
+
+    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
+    desc.velocityScaleByLifeCurveKeyCount = keyCount;
+    desc.velocityScaleByLifeCurveTimes = Vec4{};
+    desc.velocityScaleByLifeCurveValues = Vec4{};
+
+    for (uint32 index = 0; index < keyCount; ++index)
+    {
+        const json& key = *keys[index];
+        Set_SubUVFrameCurveComponent(
+            desc.velocityScaleByLifeCurveTimes,
+            index,
+            clamp(Read_Float(key, "time"), 0.f, 1.f)
+        );
+        Set_SubUVFrameCurveComponent(
+            desc.velocityScaleByLifeCurveValues,
+            index,
+            Read_Float(key, "value", 1.f)
+        );
+    }
+}
+
+void EffectAssetRuntimeLoader::Fill_VelocityConePayload(PointParticleMotionDesc& desc, const json& velocityCone)
+{
+    desc.velocityConeEnabled = true;
+    desc.velocityConeInWorldSpace = Read_Bool(velocityCone, "inWorldSpace", desc.velocityConeInWorldSpace);
+    desc.velocityConeAngleDegrees = clamp(Read_Float(velocityCone, "angleDegrees", desc.velocityConeAngleDegrees), 0.f, 180.f);
+
+    const auto axisIter = velocityCone.find("axis");
+    if (axisIter != velocityCone.end())
+        Read_Vec3(*axisIter, desc.velocityConeAxis);
+
+    const auto speedIter = velocityCone.find("speed");
+    if (speedIter != velocityCone.end())
+    {
+        desc.velocityConeSpeed = Vec2{
+            Evaluate_FloatDistributionMin(*speedIter, desc.velocityConeSpeed.x),
+            Evaluate_FloatDistributionMax(*speedIter, desc.velocityConeSpeed.y)
+        };
+    }
+}
+
+void EffectAssetRuntimeLoader::Fill_AccelerationCurvePayload(PointParticleMotionDesc& desc, const json& distribution)
+{
+    desc.accelerationCurveEnabled = false;
+    desc.accelerationCurveKeyCount = 2;
+    desc.accelerationCurveTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.accelerationCurveValuesX = Vec4{ desc.accelerationMin.x, desc.accelerationMax.x, 0.f, 0.f };
+    desc.accelerationCurveValuesY = Vec4{ desc.accelerationMin.y, desc.accelerationMax.y, 0.f, 0.f };
+    desc.accelerationCurveValuesZ = Vec4{ desc.accelerationMin.z, desc.accelerationMax.z, 0.f, 0.f };
+
+    const json* payload = Find_DistributionPayload(distribution);
+    if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
+        return;
+
+    const auto keysIter = payload->find("keys");
+    if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+        return;
+
+    vector<const json*> keys{};
+    keys.reserve(keysIter->size());
+    for (const json& key : *keysIter)
+        keys.push_back(&key);
+    ranges::sort(keys, [](const json* lhs, const json* rhs) { return Read_Float(*lhs, "time") < Read_Float(*rhs, "time"); });
+
+    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
+    desc.accelerationCurveEnabled = true;
+    desc.accelerationCurveKeyCount = keyCount;
+    desc.accelerationCurveTimes = Vec4{};
+    desc.accelerationCurveValuesX = Vec4{};
+    desc.accelerationCurveValuesY = Vec4{};
+    desc.accelerationCurveValuesZ = Vec4{};
+
+    for (uint32 index = 0; index < keyCount; ++index)
+    {
+        const json& key = *keys[index];
+        Vec3 value{};
+        if (const auto valueIter = key.find("value"); valueIter != key.end())
+            Read_Vec3(*valueIter, value);
+
+        Set_SubUVFrameCurveComponent(desc.accelerationCurveTimes, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesX, index, value.x);
+        Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesY, index, value.y);
+        Set_SubUVFrameCurveComponent(desc.accelerationCurveValuesZ, index, value.z);
+    }
+}
+
+void EffectAssetRuntimeLoader::Fill_OrbitOverLifePayload(EffectOrbitOverLifeRuntimeDesc& desc, const json& orbitOverLife)
+{
+    desc.enabled = Read_Bool(orbitOverLife, "enabled", desc.enabled);
+    Read_Enum(orbitOverLife, "plane", desc.plane);
+
+    auto fill_float_curve = [](Vec2& range, uint32& keyCount, Vec4& times, Vec4& values, const json& distribution, float fallbackValue)
+    {
+        const float startValue = Evaluate_FloatDistributionMin(distribution, fallbackValue);
+        const float endValue = Evaluate_FloatDistributionMax(distribution, fallbackValue);
+        range = Vec2{ startValue, endValue };
+        keyCount = 2;
+        times = Vec4{ 0.f, 1.f, 0.f, 0.f };
+        values = Vec4{ startValue, endValue, 0.f, 0.f };
+
+        const json* payload = Find_DistributionPayload(distribution);
+        if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
+            return;
+
+        const auto keysIter = payload->find("keys");
+        if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+            return;
+
+        vector<const json*> keys{};
+        keys.reserve(keysIter->size());
+        for (const json& key : *keysIter)
+            keys.push_back(&key);
+        ranges::sort(keys, [](const json* lhs, const json* rhs) { return Read_Float(*lhs, "time") < Read_Float(*rhs, "time"); });
+
+        const uint32 clampedKeyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
+        keyCount = clampedKeyCount;
+        times = Vec4{};
+        values = Vec4{};
+        for (uint32 index = 0; index < clampedKeyCount; ++index)
+        {
+            const json& key = *keys[index];
+            Set_SubUVFrameCurveComponent(times, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+            Set_SubUVFrameCurveComponent(values, index, Read_Float(key, "value", fallbackValue));
+        }
+    };
+
+    if (const auto angleIter = orbitOverLife.find("angleDegreesOverLife"); angleIter != orbitOverLife.end())
+    {
+        fill_float_curve(
+            desc.angleDegreesOverLife,
+            desc.angleCurveKeyCount,
+            desc.angleCurveTimes,
+            desc.angleCurveValues,
+            *angleIter,
+            0.f
+        );
+    }
+
+    if (const auto radiusIter = orbitOverLife.find("radiusScaleOverLife"); radiusIter != orbitOverLife.end())
+    {
+        fill_float_curve(
+            desc.radiusScaleOverLife,
+            desc.radiusScaleCurveKeyCount,
+            desc.radiusScaleCurveTimes,
+            desc.radiusScaleCurveValues,
+            *radiusIter,
+            1.f
+        );
+    }
+}
+
+namespace
+{
+    Vec2 Read_LegacyFloatRange(const json& node, const Vec2& fallbackValue)
+    {
+        Vec2 range = fallbackValue;
+        Read_Vec2(node, range);
+        return Vec2{ min(range.x, range.y), max(range.x, range.y) };
+    }
+}
+
+void EffectAssetRuntimeLoader::Fill_PlaneRadialLocationPayload(PointParticlePlaneRadialLocationDesc& desc, const json& planeRadialLocation)
+{
+    desc.enabled = Read_Bool(planeRadialLocation, "enabled", desc.enabled);
+    Read_Enum(planeRadialLocation, "plane", desc.plane);
+    Read_Enum(planeRadialLocation, "shape", desc.shape);
+    Read_Enum(planeRadialLocation, "placementMode", desc.placementMode);
+
+    if (const auto offsetIter = planeRadialLocation.find("offset"); offsetIter != planeRadialLocation.end())
+        Read_Vec3(*offsetIter, desc.offset);
+
+    auto read_range = [&](const char* distributionKey, const char* legacyRangeKey, const Vec2& fallbackValue)
+    {
+        if (const auto distributionIter = planeRadialLocation.find(distributionKey);
+            distributionIter != planeRadialLocation.end() && distributionIter->is_object())
+        {
+            const float minValue = Evaluate_FloatDistributionMin(*distributionIter, fallbackValue.x);
+            const float maxValue = Evaluate_FloatDistributionMax(*distributionIter, fallbackValue.y);
+            return Vec2{ min(minValue, maxValue), max(minValue, maxValue) };
+        }
+
+        if (const auto legacyIter = planeRadialLocation.find(legacyRangeKey); legacyIter != planeRadialLocation.end())
+            return Read_LegacyFloatRange(*legacyIter, fallbackValue);
+
+        return fallbackValue;
+    };
+
+    desc.uRange = read_range("uDistribution", "rangeU", desc.uRange);
+    if (const auto distributionIter = planeRadialLocation.find("uDistribution");
+        distributionIter != planeRadialLocation.end() && distributionIter->is_object())
+        desc.uSeed = Internal::Read_DistributionRandomSeedDesc(*distributionIter, &planeRadialLocation);
+    desc.vRange = read_range("vDistribution", "rangeV", desc.vRange);
+    if (const auto distributionIter = planeRadialLocation.find("vDistribution");
+        distributionIter != planeRadialLocation.end() && distributionIter->is_object())
+        desc.vSeed = Internal::Read_DistributionRandomSeedDesc(*distributionIter, &planeRadialLocation);
+
+    const Vec2 radiusRange = read_range("radiusDistribution", "radiusRange", desc.radiusRange);
+    desc.radiusRange = Vec2{ max(0.f, radiusRange.x), max(0.f, radiusRange.y) };
+    if (const auto distributionIter = planeRadialLocation.find("radiusDistribution");
+        distributionIter != planeRadialLocation.end() && distributionIter->is_object())
+        desc.radiusSeed = Internal::Read_DistributionRandomSeedDesc(*distributionIter, &planeRadialLocation);
+    desc.angleDegreesRange = read_range("angleDegreesDistribution", "angleDegreesRange", desc.angleDegreesRange);
+    if (const auto distributionIter = planeRadialLocation.find("angleDegreesDistribution");
+        distributionIter != planeRadialLocation.end() && distributionIter->is_object())
+        desc.angleDegreesSeed = Internal::Read_DistributionRandomSeedDesc(*distributionIter, &planeRadialLocation);
+    desc.thickness = max(0.f, Read_Float(planeRadialLocation, "thickness", desc.thickness));
+}
+
+void EffectAssetRuntimeLoader::Fill_PlaneRadialOrientationPayload(
+    PointParticlePlaneRadialOrientationDesc& desc,
+    const json& planeRadialOrientation)
+{
+    desc.enabled = Read_Bool(planeRadialOrientation, "enabled", desc.enabled);
+    Read_Enum(planeRadialOrientation, "targetKind", desc.targetKind);
+    Read_Enum(planeRadialOrientation, "orientationMode", desc.orientationMode);
+    Read_Enum(planeRadialOrientation, "meshForwardAxis", desc.meshForwardAxis);
+    Read_Enum(planeRadialOrientation, "meshUpAxis", desc.meshUpAxis);
+    desc.tiltDegrees = Read_Float(planeRadialOrientation, "tiltDegrees", desc.tiltDegrees);
+    desc.rollOffsetDegrees = Read_Float(planeRadialOrientation, "rollOffsetDegrees", desc.rollOffsetDegrees);
+}
+
+void EffectAssetRuntimeLoader::Fill_SphereRadialOrientationPayload(
+    PointParticleSphereRadialOrientationDesc& desc,
+    const json& sphereRadialOrientation)
+{
+    desc.enabled = Read_Bool(sphereRadialOrientation, "enabled", desc.enabled);
+    Read_Enum(sphereRadialOrientation, "orientationMode", desc.orientationMode);
+    Read_Enum(sphereRadialOrientation, "meshForwardAxis", desc.meshForwardAxis);
+    Read_Enum(sphereRadialOrientation, "meshUpAxis", desc.meshUpAxis);
+    desc.tiltDegrees = Read_Float(sphereRadialOrientation, "tiltDegrees", desc.tiltDegrees);
+    desc.rollOffsetDegrees = Read_Float(sphereRadialOrientation, "rollOffsetDegrees", desc.rollOffsetDegrees);
+}
+
+void EffectAssetRuntimeLoader::Fill_MeshVector3CurvePayload(
+    MeshVector3CurveRuntimeDesc& desc,
+    const json& distribution,
+    const Vec3& fallbackValue)
+{
+    desc.enabled = true;
+    const Vec3 startValue = Evaluate_Vector3DistributionMin(distribution, fallbackValue);
+    const Vec3 endValue = Evaluate_Vector3DistributionMax(distribution, fallbackValue);
+    desc.start = startValue;
+    desc.end = endValue;
+    desc.curveKeyCount = 2;
+    desc.curveKeyTimes = Vec4{ 0.f, 1.f, 0.f, 0.f };
+    desc.curveKeyValuesX = Vec4{ startValue.x, endValue.x, 0.f, 0.f };
+    desc.curveKeyValuesY = Vec4{ startValue.y, endValue.y, 0.f, 0.f };
+    desc.curveKeyValuesZ = Vec4{ startValue.z, endValue.z, 0.f, 0.f };
+
+    const json* payload = Find_DistributionPayload(distribution);
+    if (payload == nullptr || "ConstantCurve" != Read_String(distribution, "mode"))
+        return;
+
+    const auto keysIter = payload->find("keys");
+    if (keysIter == payload->end() || !keysIter->is_array() || keysIter->empty())
+        return;
+
+    vector<const json*> keys{};
+    keys.reserve(keysIter->size());
+    for (const json& key : *keysIter)
+        keys.push_back(&key);
+    ranges::sort(keys, [](const json* lhs, const json* rhs) { return Read_Float(*lhs, "time") < Read_Float(*rhs, "time"); });
+
+    const uint32 keyCount = min(kMaxSubUVFrameCurveKeys, static_cast<uint32>(keys.size()));
+    desc.curveKeyCount = keyCount;
+    desc.curveKeyTimes = Vec4{};
+    desc.curveKeyValuesX = Vec4{};
+    desc.curveKeyValuesY = Vec4{};
+    desc.curveKeyValuesZ = Vec4{};
+
+    for (uint32 index = 0; index < keyCount; ++index)
+    {
+        const json& key = *keys[index];
+        Vec3 value = fallbackValue;
+        if (const auto valueIter = key.find("value"); valueIter != key.end())
+            Read_Vec3(*valueIter, value);
+
+        Set_SubUVFrameCurveComponent(desc.curveKeyTimes, index, clamp(Read_Float(key, "time"), 0.f, 1.f));
+        Set_SubUVFrameCurveComponent(desc.curveKeyValuesX, index, value.x);
+        Set_SubUVFrameCurveComponent(desc.curveKeyValuesY, index, value.y);
+        Set_SubUVFrameCurveComponent(desc.curveKeyValuesZ, index, value.z);
+    }
+}
+
 string EffectAssetRuntimeLoader::Resolve_RendererType(const json& emitter)
 {
     string rendererType = Read_String(emitter, "rendererType");
@@ -1113,8 +1702,7 @@ string EffectAssetRuntimeLoader::Resolve_RendererType(const json& emitter)
 
 void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     const json& material,
-    EffectRequiredMaterialRuntimeDesc& materialDesc,
-    bool includeTrailMaterialFields)
+    EffectRequiredMaterialRuntimeDesc& materialDesc)
 {
     Read_Enum(material, "materialFamily", materialDesc.materialFamily);
     materialDesc.mainTextureGuid = Read_String(material, "mainTextureGuid", materialDesc.mainTextureGuid);
@@ -1141,6 +1729,10 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     materialDesc.noiseStrength = Read_Float(material, "noiseStrength", materialDesc.noiseStrength);
     materialDesc.alphaCutoff = Read_Float(material, "alphaCutoff", materialDesc.alphaCutoff);
     materialDesc.alphaErosion = Read_Float(material, "alphaErosion", materialDesc.alphaErosion);
+    materialDesc.noiseSource = Read_String(material, "noiseSource", materialDesc.noiseSource);
+    materialDesc.maskSource = Read_String(material, "maskSource", materialDesc.maskSource);
+    materialDesc.noiseInvert = Read_Bool(material, "noiseInvert", materialDesc.noiseInvert);
+    materialDesc.maskInvert = Read_Bool(material, "maskInvert", materialDesc.maskInvert);
 
     if (const auto coreEmissiveIter = material.find("coreEmissive"); coreEmissiveIter != material.end() && coreEmissiveIter->is_object())
     {
@@ -1157,11 +1749,29 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     if (const auto mainUVOffsetIter = material.find("mainUVOffset"); mainUVOffsetIter != material.end())
         Read_Vec2(*mainUVOffsetIter, materialDesc.mainUVOffset);
 
+    if (const auto mainUVScaleIter = material.find("mainUVScale"); mainUVScaleIter != material.end())
+        Read_Vec2(*mainUVScaleIter, materialDesc.mainUVScale);
+
+    if (const auto mainUVScrollSpeedIter = material.find("mainUVScrollSpeed"); mainUVScrollSpeedIter != material.end())
+        Read_Vec2(*mainUVScrollSpeedIter, materialDesc.mainUVScrollSpeed);
+
     if (const auto noiseUVOffsetIter = material.find("noiseUVOffset"); noiseUVOffsetIter != material.end())
         Read_Vec2(*noiseUVOffsetIter, materialDesc.noiseUVOffset);
 
+    if (const auto noiseUVScaleIter = material.find("noiseUVScale"); noiseUVScaleIter != material.end())
+        Read_Vec2(*noiseUVScaleIter, materialDesc.noiseUVScale);
+
+    if (const auto noiseUVScrollSpeedIter = material.find("noiseUVScrollSpeed"); noiseUVScrollSpeedIter != material.end())
+        Read_Vec2(*noiseUVScrollSpeedIter, materialDesc.noiseUVScrollSpeed);
+
     if (const auto maskUVOffsetIter = material.find("maskUVOffset"); maskUVOffsetIter != material.end())
         Read_Vec2(*maskUVOffsetIter, materialDesc.maskUVOffset);
+
+    if (const auto maskUVScaleIter = material.find("maskUVScale"); maskUVScaleIter != material.end())
+        Read_Vec2(*maskUVScaleIter, materialDesc.maskUVScale);
+
+    if (const auto maskUVScrollSpeedIter = material.find("maskUVScrollSpeed"); maskUVScrollSpeedIter != material.end())
+        Read_Vec2(*maskUVScrollSpeedIter, materialDesc.maskUVScrollSpeed);
 
     if (const auto flowUVScaleIter = material.find("flowUVScale"); flowUVScaleIter != material.end())
         Read_Vec2(*flowUVScaleIter, materialDesc.flowUVScale);
@@ -1184,29 +1794,7 @@ void EffectAssetRuntimeLoader::Apply_MaterialPayload(
     materialDesc.distortionShapeSoftness = Read_Float(material, "distortionShapeSoftness", materialDesc.distortionShapeSoftness);
     materialDesc.subUVRows = max(1u, Read_UInt(material, "subUVRows", materialDesc.subUVRows));
     materialDesc.subUVCols = max(1u, Read_UInt(material, "subUVCols", materialDesc.subUVCols));
-
-    if (includeTrailMaterialFields)
-    {
-        if (const auto mainUVScaleIter = material.find("mainUVScale"); mainUVScaleIter != material.end())
-            Read_Vec2(*mainUVScaleIter, materialDesc.mainUVScale);
-
-        if (const auto mainUVScrollSpeedIter = material.find("mainUVScrollSpeed"); mainUVScrollSpeedIter != material.end())
-            Read_Vec2(*mainUVScrollSpeedIter, materialDesc.mainUVScrollSpeed);
-
-        if (const auto noiseUVScaleIter = material.find("noiseUVScale"); noiseUVScaleIter != material.end())
-            Read_Vec2(*noiseUVScaleIter, materialDesc.noiseUVScale);
-
-        if (const auto noiseUVScrollSpeedIter = material.find("noiseUVScrollSpeed"); noiseUVScrollSpeedIter != material.end())
-            Read_Vec2(*noiseUVScrollSpeedIter, materialDesc.noiseUVScrollSpeed);
-
-        if (const auto maskUVScaleIter = material.find("maskUVScale"); maskUVScaleIter != material.end())
-            Read_Vec2(*maskUVScaleIter, materialDesc.maskUVScale);
-
-        if (const auto maskUVScrollSpeedIter = material.find("maskUVScrollSpeed"); maskUVScrollSpeedIter != material.end())
-            Read_Vec2(*maskUVScrollSpeedIter, materialDesc.maskUVScrollSpeed);
-
-        materialDesc.twoSided = Read_Bool(material, "twoSided", materialDesc.twoSided);
-    }
+    materialDesc.twoSided = Read_Bool(material, "twoSided", materialDesc.twoSided);
 
     const auto additiveIter = material.find("additive");
     if (additiveIter != material.end() && additiveIter->is_object())
@@ -1233,13 +1821,14 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
 {
     const auto materialIter = data.find("material");
     if (materialIter != data.end() && materialIter->is_object())
-        Apply_MaterialPayload(*materialIter, desc.required.material, false);
+        Apply_MaterialPayload(*materialIter, desc.required.material);
 
     Read_Enum(data, "screenAlignment", desc.required.spriteRender.screenAlignment);
     Read_Enum(data, "directionalAlignmentMode", desc.required.spriteRender.directionalAlignmentMode);
     Read_Enum(data, "spriteTextureAxis", desc.required.spriteRender.spriteTextureAxis);
     desc.required.spriteRender.spriteRollOffsetDegrees =
         Read_Float(data, "spriteRollOffsetDegrees", desc.required.spriteRender.spriteRollOffsetDegrees);
+    Internal::Apply_SortPayload(data, desc.required.sort);
     desc.required.playback.duration = max(0.0001f, Read_Float(data, "duration", desc.required.playback.duration));
     desc.required.playback.loopCount = Read_UInt(data, "loopCount", desc.required.playback.loopCount);
     desc.required.playback.delay = max(0.f, Read_Float(data, "delay", desc.required.playback.delay));
@@ -1264,7 +1853,9 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
 {
     const auto materialIter = data.find("material");
     if (materialIter != data.end() && materialIter->is_object())
-        Apply_MaterialPayload(*materialIter, desc.material, true);
+        Apply_MaterialPayload(*materialIter, desc.material);
+    if (desc.material.blendMode == EffectMaterialBlendMode::Masked)
+        desc.material.blendMode = EffectMaterialBlendMode::AlphaBlend;
 
     desc.playback.duration = max(0.0001f, Read_Float(data, "duration", desc.playback.duration));
     desc.playback.loopCount = Read_UInt(data, "loopCount", desc.playback.loopCount);
@@ -1284,7 +1875,95 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
     definition.useLocalSpace = Read_Bool(data, "useLocalSpace", definition.useLocalSpace);
 }
 
+void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, MeshEmitterDesc& desc)
+{
+    const auto materialIter = data.find("material");
+    if (materialIter != data.end() && materialIter->is_object())
+        Apply_MaterialPayload(*materialIter, desc.material);
+
+    Read_Enum(data, "screenAlignment", desc.meshTransform.alignment);
+    Internal::Apply_SortPayload(data, desc.sort);
+    desc.playback.duration = max(0.0001f, Read_Float(data, "duration", desc.playback.duration));
+    desc.playback.loopCount = Read_UInt(data, "loopCount", desc.playback.loopCount);
+    desc.playback.delay = max(0.f, Read_Float(data, "delay", desc.playback.delay));
+    desc.playback.delayFirstLoopOnly = Read_Bool(data, "delayFirstLoopOnly", desc.playback.delayFirstLoopOnly);
+    desc.playback.killOnDeactivate = Read_Bool(data, "killOnDeactivate", desc.playback.killOnDeactivate);
+    desc.playback.killOnCompleted = Read_Bool(data, "killOnCompleted", desc.playback.killOnCompleted);
+    desc.drawLimit.useMaxDrawCount = Read_Bool(data, "useMaxDrawCount", desc.drawLimit.useMaxDrawCount);
+    desc.drawLimit.maxDrawCount = max(1u, Read_UInt(data, "maxDrawCount", desc.drawLimit.maxDrawCount));
+
+    const auto originIter = data.find("emitterOrigin");
+    if (originIter != data.end())
+        Read_Vec3(*originIter, definition.localPosition);
+
+    const auto rotationIter = data.find("emitterRotationDegrees");
+    if (rotationIter != data.end())
+        Read_Vec3(*rotationIter, definition.localRotationDegrees);
+
+    definition.useLocalSpace = Read_Bool(data, "useLocalSpace", definition.useLocalSpace);
+}
+
 void EffectAssetRuntimeLoader::Apply_SpawnModule(const json& data, ComputeSpriteEmitterDesc& desc)
+{
+    desc.spawn.instanceCount = max(1u, Read_UInt(data, "maxParticleCount", desc.spawn.instanceCount));
+    desc.spawn.particleSpawn.processSpawnRate = Read_Bool(data, "processSpawnRate", desc.spawn.particleSpawn.processSpawnRate);
+    desc.spawn.particleSpawn.processBurstList = Read_Bool(data, "processBurstList", desc.spawn.particleSpawn.processBurstList);
+    desc.spawn.particleSpawn.maxActiveCount = desc.spawn.instanceCount;
+
+        const auto spawnRateIter = data.find("spawnRate");
+        if (spawnRateIter != data.end())
+        {
+            desc.spawn.particleSpawn.spawnRateRange = Vec2{
+                max(0.f, Evaluate_FloatDistributionMin(*spawnRateIter, desc.spawn.particleSpawn.spawnRate)),
+                max(0.f, Evaluate_FloatDistributionMax(*spawnRateIter, desc.spawn.particleSpawn.spawnRate))
+            };
+            desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
+            desc.spawn.particleSpawn.spawnRateSeed = Internal::Read_DistributionRandomSeedDesc(*spawnRateIter, &data);
+        }
+
+    const auto spawnRateScaleIter = data.find("spawnRateScale");
+        if (spawnRateScaleIter != data.end())
+        {
+            desc.spawn.particleSpawn.spawnRateScaleRange = Vec2{
+                max(0.f, Evaluate_FloatDistributionMin(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale)),
+                max(0.f, Evaluate_FloatDistributionMax(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale))
+            };
+            desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
+            desc.spawn.particleSpawn.spawnRateScaleSeed = Internal::Read_DistributionRandomSeedDesc(*spawnRateScaleIter, &data);
+        }
+
+    const auto burstScaleIter = data.find("burstScale");
+        if (burstScaleIter != data.end())
+        {
+            desc.spawn.particleSpawn.burstScaleRange = Vec2{
+                max(0.f, Evaluate_FloatDistributionMin(*burstScaleIter, desc.spawn.particleSpawn.burstScale)),
+                max(0.f, Evaluate_FloatDistributionMax(*burstScaleIter, desc.spawn.particleSpawn.burstScale))
+            };
+            desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
+            desc.spawn.particleSpawn.burstScaleSeed = Internal::Read_DistributionRandomSeedDesc(*burstScaleIter, &data);
+        }
+
+    const auto burstListIter = data.find("burstList");
+    if (burstListIter == data.end() || !burstListIter->is_array())
+        return;
+
+    desc.spawn.particleSpawn.bursts.clear();
+    desc.spawn.particleSpawn.bursts.reserve(burstListIter->size());
+    for (const json& burst : *burstListIter)
+    {
+        if (!burst.is_object())
+            continue;
+
+        desc.spawn.particleSpawn.bursts.push_back(
+            PointParticleBurstDesc{
+                .time = max(0.f, Read_Float(burst, "time")),
+                .count = Read_UInt(burst, "count")
+            }
+        );
+    }
+}
+
+void EffectAssetRuntimeLoader::Apply_SpawnModule(const json& data, MeshEmitterDesc& desc)
 {
     desc.spawn.instanceCount = max(1u, Read_UInt(data, "maxParticleCount", desc.spawn.instanceCount));
     desc.spawn.particleSpawn.processSpawnRate = Read_Bool(data, "processSpawnRate", desc.spawn.particleSpawn.processSpawnRate);
@@ -1294,22 +1973,34 @@ void EffectAssetRuntimeLoader::Apply_SpawnModule(const json& data, ComputeSprite
     const auto spawnRateIter = data.find("spawnRate");
     if (spawnRateIter != data.end())
     {
-        desc.spawn.particleSpawn.spawnRate =
-            max(0.f, Evaluate_FloatDistributionMax(*spawnRateIter, desc.spawn.particleSpawn.spawnRate));
+        desc.spawn.particleSpawn.spawnRateRange = Vec2{
+            max(0.f, Evaluate_FloatDistributionMin(*spawnRateIter, desc.spawn.particleSpawn.spawnRate)),
+            max(0.f, Evaluate_FloatDistributionMax(*spawnRateIter, desc.spawn.particleSpawn.spawnRate))
+        };
+        desc.spawn.particleSpawn.spawnRate = desc.spawn.particleSpawn.spawnRateRange.y;
+        desc.spawn.particleSpawn.spawnRateSeed = Internal::Read_DistributionRandomSeedDesc(*spawnRateIter, &data);
     }
 
     const auto spawnRateScaleIter = data.find("spawnRateScale");
     if (spawnRateScaleIter != data.end())
     {
-        desc.spawn.particleSpawn.spawnRateScale =
-            max(0.f, Evaluate_FloatDistributionMax(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale));
+        desc.spawn.particleSpawn.spawnRateScaleRange = Vec2{
+            max(0.f, Evaluate_FloatDistributionMin(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale)),
+            max(0.f, Evaluate_FloatDistributionMax(*spawnRateScaleIter, desc.spawn.particleSpawn.spawnRateScale))
+        };
+        desc.spawn.particleSpawn.spawnRateScale = desc.spawn.particleSpawn.spawnRateScaleRange.y;
+        desc.spawn.particleSpawn.spawnRateScaleSeed = Internal::Read_DistributionRandomSeedDesc(*spawnRateScaleIter, &data);
     }
 
     const auto burstScaleIter = data.find("burstScale");
     if (burstScaleIter != data.end())
     {
-        desc.spawn.particleSpawn.burstScale =
-            max(0.f, Evaluate_FloatDistributionMax(*burstScaleIter, desc.spawn.particleSpawn.burstScale));
+        desc.spawn.particleSpawn.burstScaleRange = Vec2{
+            max(0.f, Evaluate_FloatDistributionMin(*burstScaleIter, desc.spawn.particleSpawn.burstScale)),
+            max(0.f, Evaluate_FloatDistributionMax(*burstScaleIter, desc.spawn.particleSpawn.burstScale))
+        };
+        desc.spawn.particleSpawn.burstScale = desc.spawn.particleSpawn.burstScaleRange.y;
+        desc.spawn.particleSpawn.burstScaleSeed = Internal::Read_DistributionRandomSeedDesc(*burstScaleIter, &data);
     }
 
     const auto burstListIter = data.find("burstList");
@@ -1339,18 +2030,27 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
     outDefinition.name = Read_String(emitter, "name");
     outDefinition.kind = EffectEmitterKind::ComputeSprite;
     outDefinition.enabled = true;
+    Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
 
     ComputeSpriteEmitterDesc desc{};
     desc.drawMode = PointParticleDrawMode::DrawIndexedInstancedIndirect;
+    desc.renderLayerOverride = outDefinition.renderLayerOverride;
 
     if (const json* required = Find_ModuleData(emitter, "Required"))
         Apply_RequiredModule(*required, outDefinition, desc);
+
+    if (const json* materialScalarModulation = Find_ModuleData(emitter, "MaterialScalarModulation"))
+    {
+        Fill_MaterialScalarModulationPayload(desc.required.material.scalarModulation, *materialScalarModulation);
+        Fill_CoreColorRgbModulationPayload(desc.required.material.coreColorRgbModulation, *materialScalarModulation);
+    }
 
     if (const json* spawn = Find_ModuleData(emitter, "Spawn"))
         Apply_SpawnModule(*spawn, desc);
 
     if (const json* initialSize = Find_ModuleData(emitter, "InitialSize"))
     {
+        desc.initialSize.enabled = true;
         const auto sizeIter = initialSize->find("size");
         if (sizeIter != initialSize->end())
         {
@@ -1358,6 +2058,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
             const Vec2 maxSize = Evaluate_Vector2DistributionMax(*sizeIter, desc.initialSize.sizeMax);
             desc.initialSize.sizeMin = Vec2{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y) };
             desc.initialSize.sizeMax = Vec2{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y) };
+            desc.initialSize.sizeSeed = Internal::Read_DistributionRandomSeedDesc(*sizeIter, initialSize);
         }
     }
 
@@ -1380,6 +2081,8 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 max(minOffset.z, maxOffset.z)
             };
         }
+        if (locationIter != initialLocation->end())
+            desc.initialLocationSeed = Internal::Read_DistributionRandomSeedDesc(*locationIter, initialLocation);
     }
 
     if (const json* sphereLocation = Find_ModuleData(emitter, "SphereLocation"))
@@ -1392,7 +2095,12 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
 
         desc.sphereLocation.radius = max(0.f, Read_Float(*sphereLocation, "radius", desc.sphereLocation.radius));
         Read_Enum(*sphereLocation, "spawnMode", desc.sphereLocation.mode);
+        Read_Enum(*sphereLocation, "placementMode", desc.sphereLocation.placementMode);
+        desc.sphereLocationSeed = Internal::Read_RandomSeedDesc(*sphereLocation);
     }
+
+    if (const json* planeRadialLocation = Find_ModuleData(emitter, "PlaneRadialLocation"))
+        Fill_PlaneRadialLocationPayload(desc.planeRadialLocation, *planeRadialLocation);
 
     if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
     {
@@ -1403,6 +2111,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
                 Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
             };
+            desc.lifetimeSeed = Internal::Read_DistributionRandomSeedDesc(*lifeTimeIter, lifetime);
         }
     }
 
@@ -1413,6 +2122,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         {
             desc.initialColor.startColorMin = Evaluate_ColorDistributionMin(*colorIter, desc.initialColor.startColorMin);
             desc.initialColor.startColorMax = Evaluate_ColorDistributionMax(*colorIter, desc.initialColor.startColorMax);
+            desc.initialColor.colorSeed = Internal::Read_DistributionRandomSeedDesc(*colorIter, initialColor);
         }
 
         const auto alphaIter = initialColor->find("alpha");
@@ -1422,6 +2132,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 clamp(Evaluate_FloatDistributionMin(*alphaIter, desc.initialColor.startColorMin.w), 0.f, 1.f);
             desc.initialColor.startColorMax.w =
                 clamp(Evaluate_FloatDistributionMax(*alphaIter, desc.initialColor.startColorMax.w), 0.f, 1.f);
+            desc.initialColor.alphaSeed = Internal::Read_DistributionRandomSeedDesc(*alphaIter, initialColor);
         }
 
         desc.colorOverLife.endColorMin = desc.initialColor.startColorMin;
@@ -1435,6 +2146,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         {
             desc.colorOverLife.endColorMin = Evaluate_ColorOverLifeEndpointColorMin(*colorIter, desc.colorOverLife.endColorMin);
             desc.colorOverLife.endColorMax = Evaluate_ColorOverLifeEndpointColorMax(*colorIter, desc.colorOverLife.endColorMax);
+            desc.colorOverLife.colorSeed = Internal::Read_DistributionRandomSeedDesc(*colorIter, colorOverLife);
         }
 
         const auto alphaIter = colorOverLife->find("alphaOverLife");
@@ -1444,6 +2156,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 clamp(Evaluate_ColorOverLifeEndpointAlphaMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
             desc.colorOverLife.endColorMax.w =
                 clamp(Evaluate_ColorOverLifeEndpointAlphaMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
+            desc.colorOverLife.alphaSeed = Internal::Read_DistributionRandomSeedDesc(*alphaIter, colorOverLife);
         }
 
         Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
@@ -1462,6 +2175,8 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         const auto frameIndexIter = subUvFrameOverLife->find("frameIndex");
         if (frameIndexIter != subUvFrameOverLife->end())
             Fill_SubUVFrameCurvePayload(desc.subUVFrameOverLife, *frameIndexIter);
+        if (desc.subUVFrameOverLife.playbackMode == SubUVFramePlaybackMode::RandomFrame)
+            desc.subUVRandomFrameSeed = Internal::Read_RandomSeedDesc(*subUvFrameOverLife);
 
         const uint32 frameCount = max(1u, desc.required.material.subUVRows * desc.required.material.subUVCols);
         const uint32 lastFrame = frameCount - 1u;
@@ -1475,9 +2190,7 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
     }
 
     if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
-    {
         Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
-    }
 
     if (const json* initialVelocity = Find_ModuleData(emitter, "InitialVelocity"))
     {
@@ -1491,6 +2204,8 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
             desc.motion.initialVelocityMin = Evaluate_Vector3DistributionMin(*velocityIter, desc.motion.initialVelocityMin);
             desc.motion.initialVelocityMax = Evaluate_Vector3DistributionMax(*velocityIter, desc.motion.initialVelocityMax);
         }
+        if (velocityIter != initialVelocity->end())
+            desc.motion.initialVelocitySeed = Internal::Read_DistributionRandomSeedDesc(*velocityIter, initialVelocity);
     }
 
     if (const json* initialRadialVelocity = Find_ModuleData(emitter, "InitialRadialVelocity"))
@@ -1503,6 +2218,11 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         const auto radialPivotIter = initialRadialVelocity->find("radialPivot");
         if (radialPivotIter != initialRadialVelocity->end())
             Read_Vec3(*radialPivotIter, desc.motion.radialPivot);
+        Read_Enum(
+            *initialRadialVelocity,
+            "centerDirectionMode",
+            desc.motion.initialRadialVelocityCenterDirectionMode
+        );
 
         const auto speedIter = initialRadialVelocity->find("speed");
         if (speedIter != initialRadialVelocity->end())
@@ -1512,6 +2232,16 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 Evaluate_FloatDistributionMax(*speedIter, desc.motion.radialSpeed.y)
             };
         }
+        if (speedIter != initialRadialVelocity->end())
+            desc.motion.initialRadialVelocitySeed = Internal::Read_DistributionRandomSeedDesc(*speedIter, initialRadialVelocity);
+    }
+
+    if (const json* velocityCone = Find_ModuleData(emitter, "VelocityCone"))
+    {
+        desc.motion.enabled = true;
+        Fill_VelocityConePayload(desc.motion, *velocityCone);
+        if (const auto speedIter = velocityCone->find("speed"); speedIter != velocityCone->end())
+            desc.motion.velocityConeSeed = Internal::Read_DistributionRandomSeedDesc(*speedIter, velocityCone);
     }
 
     if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
@@ -1522,7 +2252,10 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
         {
             desc.motion.accelerationMin = Evaluate_Vector3DistributionMin(*accelerationIter, desc.motion.accelerationMin);
             desc.motion.accelerationMax = Evaluate_Vector3DistributionMax(*accelerationIter, desc.motion.accelerationMax);
+            Fill_AccelerationCurvePayload(desc.motion, *accelerationIter);
         }
+        if (accelerationIter != acceleration->end())
+            desc.motion.accelerationSeed = Internal::Read_DistributionRandomSeedDesc(*accelerationIter, acceleration);
     }
 
     if (const json* drag = Find_ModuleData(emitter, "Drag"))
@@ -1536,16 +2269,18 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 max(0.f, Evaluate_FloatDistributionMax(*dragIter, desc.motion.drag.y))
             };
         }
+        if (dragIter != drag->end())
+            desc.motion.dragSeed = Internal::Read_DistributionRandomSeedDesc(*dragIter, drag);
     }
 
     if (const json* velocityOverLife = Find_ModuleData(emitter, "VelocityOverLife"))
     {
         desc.motion.enabled = true;
-        desc.motion.velocityScaleByLife = Vec2{
-            Read_Float(*velocityOverLife, "scaleStart", desc.motion.velocityScaleByLife.x),
-            Read_Float(*velocityOverLife, "scaleEnd", desc.motion.velocityScaleByLife.y)
-        };
+        Fill_VelocityScaleByLifePayload(desc.motion, *velocityOverLife);
     }
+
+    if (const json* orbitOverLife = Find_ModuleData(emitter, "OrbitOverLife"))
+        Fill_OrbitOverLifePayload(desc.orbitOverLife, *orbitOverLife);
 
     if (const json* initialRotation = Find_ModuleData(emitter, "InitialRotation"))
     {
@@ -1558,7 +2293,12 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 Evaluate_FloatDistributionMax(*rotationIter, desc.rotation.initialRotationDegrees.y)
             };
         }
+        if (rotationIter != initialRotation->end())
+            desc.rotation.initialRotationSeed = Internal::Read_DistributionRandomSeedDesc(*rotationIter, initialRotation);
     }
+
+    if (const json* planeRadialOrientation = Find_ModuleData(emitter, "PlaneRadialOrientation"))
+        Fill_PlaneRadialOrientationPayload(desc.planeRadialOrientation, *planeRadialOrientation);
 
     if (const json* rotationOverLife = Find_ModuleData(emitter, "RotationOverLife"))
     {
@@ -1577,6 +2317,8 @@ bool EffectAssetRuntimeLoader::Build_EmitterDefinition(const json& emitter, Effe
                 Evaluate_FloatDistributionMax(*rotationRateIter, desc.rotation.initialRotationRateDegrees.y)
             };
         }
+        if (rotationRateIter != initialRotationRate->end())
+            desc.rotation.initialRotationRateSeed = Internal::Read_DistributionRandomSeedDesc(*rotationRateIter, initialRotationRate);
     }
 
     if (const json* rotationRateScaleByLife = Find_ModuleData(emitter, "RotationRateScaleByLife"))
@@ -1596,8 +2338,10 @@ bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter,
     outDefinition.name = Read_String(emitter, "name");
     outDefinition.kind = EffectEmitterKind::ComputeTrail;
     outDefinition.enabled = true;
+    Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
 
     ComputeTrailEmitterDesc desc{};
+    desc.renderLayerOverride = outDefinition.renderLayerOverride;
 
     const auto typeDataIter = emitter.find("typeData");
     if (typeDataIter != emitter.end() && typeDataIter->is_object())
@@ -1621,6 +2365,12 @@ bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter,
 
     if (const json* required = Find_ModuleData(emitter, "Required"))
         Apply_RequiredModule(*required, outDefinition, desc);
+
+    if (const json* materialScalarModulation = Find_ModuleData(emitter, "MaterialScalarModulation"))
+    {
+        Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
+        Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+    }
 
     if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
     {
@@ -1679,9 +2429,7 @@ bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter,
     }
 
     if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
-    {
         Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
-    }
 
     if (const json* spawnPerUnit = Find_ModuleData(emitter, "SpawnPerUnit"))
     {
@@ -1699,6 +2447,415 @@ bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter,
             max(0.f, Read_Float(*spawnPerUnit, "movementTolerance", desc.spawnPerUnit.movementTolerance));
         desc.spawnPerUnit.maxFrameDistance =
             max(0.f, Read_Float(*spawnPerUnit, "maxFrameDistance", desc.spawnPerUnit.maxFrameDistance));
+    }
+
+    outDefinition.concreteDesc = desc;
+    return true;
+}
+
+bool EffectAssetRuntimeLoader::Build_MeshEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition)
+{
+    outDefinition = EffectEmitterDefinition{};
+    outDefinition.id = Read_UInt(emitter, "id");
+    outDefinition.name = Read_String(emitter, "name");
+    outDefinition.kind = EffectEmitterKind::Mesh;
+    outDefinition.enabled = true;
+    Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
+
+    MeshEmitterDesc desc{};
+    desc.renderLayerOverride = outDefinition.renderLayerOverride;
+    string assignedEffectMaterialGuid{};
+    string assignedEffectMaterialPath{};
+    bool hasAssignedMaterialInstance = false;
+    json assignedMaterialPayload{};
+
+    const auto typeDataIter = emitter.find("typeData");
+    if (typeDataIter != emitter.end() && typeDataIter->is_object())
+    {
+        const auto dataIter = typeDataIter->find("data");
+        if (dataIter != typeDataIter->end() && dataIter->is_object())
+        {
+            const json& typeData = *dataIter;
+            desc.modelGuid = Read_String(typeData, "modelGuid", desc.modelGuid);
+            desc.modelPath = Read_String(typeData, "modelPath", desc.modelPath);
+            desc.useModelMaterials = Read_Bool(typeData, "useModelMaterials", desc.useModelMaterials);
+            assignedEffectMaterialGuid = Read_String(typeData, "assignedEffectMaterialGuid", assignedEffectMaterialGuid);
+            assignedEffectMaterialPath = Read_String(typeData, "assignedEffectMaterialPath", assignedEffectMaterialPath);
+            hasAssignedMaterialInstance = Read_Bool(typeData, "hasAssignedMaterialInstance", hasAssignedMaterialInstance);
+            if (const auto assignedMaterialIter = typeData.find("assignedMaterial");
+                assignedMaterialIter != typeData.end() && assignedMaterialIter->is_object())
+            {
+                assignedMaterialPayload = *assignedMaterialIter;
+                hasAssignedMaterialInstance = true;
+            }
+
+            const auto previewScaleIter = typeData.find("previewScale");
+            if (previewScaleIter != typeData.end())
+                Read_Vec3(*previewScaleIter, desc.previewScale);
+        }
+    }
+
+    if (const json* required = Find_ModuleData(emitter, "Required"))
+        Apply_RequiredModule(*required, outDefinition, desc);
+
+    if (const json* materialScalarModulation = Find_ModuleData(emitter, "MaterialScalarModulation"))
+    {
+        Fill_MaterialScalarModulationPayload(desc.material.scalarModulation, *materialScalarModulation);
+        Fill_CoreColorRgbModulationPayload(desc.material.coreColorRgbModulation, *materialScalarModulation);
+    }
+
+    if (hasAssignedMaterialInstance && assignedMaterialPayload.is_object())
+        Apply_MaterialPayload(assignedMaterialPayload, desc.material);
+    else
+    {
+        fs::path assignedMaterialResolvedPath{};
+        if (!assignedEffectMaterialGuid.empty() && GAME != nullptr)
+        {
+            const AssetMeta* assetMeta = GAME->Find_AssetByGUID(assignedEffectMaterialGuid);
+            if (assetMeta != nullptr && assetMeta->type == "EffectMaterial")
+            {
+                const wstring resolvedPath = GAME->Resolve_AssetPath(assignedEffectMaterialGuid);
+                if (!resolvedPath.empty())
+                    assignedMaterialResolvedPath = fs::path(resolvedPath).lexically_normal();
+            }
+        }
+
+        if (assignedMaterialResolvedPath.empty() && !assignedEffectMaterialPath.empty())
+        {
+            assignedMaterialResolvedPath = fs::path(String::ToWString(assignedEffectMaterialPath));
+            if (assignedMaterialResolvedPath.is_relative() && GAME != nullptr)
+                assignedMaterialResolvedPath = fs::path(GAME->Get_AssetRoot()) / assignedMaterialResolvedPath;
+            assignedMaterialResolvedPath = assignedMaterialResolvedPath.lexically_normal();
+        }
+
+        if (!assignedMaterialResolvedPath.empty() && fs::exists(assignedMaterialResolvedPath))
+        {
+            ifstream materialFile{ assignedMaterialResolvedPath };
+            json materialRoot{};
+            try
+            {
+                materialFile >> materialRoot;
+                if (materialRoot.is_object())
+                    Apply_MaterialPayload(materialRoot, desc.material);
+            }
+            catch (...)
+            {
+                LOG_WARN(
+                    "EffectAssetRuntimeLoader failed to read assigned mesh effect material. emitter='{}', materialPath='{}'",
+                    outDefinition.name,
+                    Internal::To_LogPath(assignedMaterialResolvedPath)
+                );
+            }
+        }
+    }
+
+    if (const json* required = Find_ModuleData(emitter, "Required");
+        required != nullptr && required->is_object())
+    {
+        if (const auto materialIter = required->find("material");
+            materialIter != required->end() && materialIter->is_object())
+        {
+            Read_Enum(*materialIter, "blendMode", desc.material.blendMode);
+            desc.material.alphaCutoff = Read_Float(*materialIter, "alphaCutoff", desc.material.alphaCutoff);
+        }
+    }
+
+    if (const json* spawn = Find_ModuleData(emitter, "Spawn"))
+        Apply_SpawnModule(*spawn, desc);
+
+    if (const json* initialMeshSize = Find_ModuleData(emitter, "InitialMeshSize"))
+    {
+        const auto sizeIter = initialMeshSize->find("size");
+        if (sizeIter != initialMeshSize->end())
+        {
+            desc.meshTransform.initialScaleEnabled = true;
+            const Vec3 minSize = Evaluate_Vector3DistributionMin(*sizeIter, desc.meshTransform.initialScaleMin);
+            const Vec3 maxSize = Evaluate_Vector3DistributionMax(*sizeIter, desc.meshTransform.initialScaleMax);
+            desc.meshTransform.initialScaleMin = Vec3{ min(minSize.x, maxSize.x), min(minSize.y, maxSize.y), min(minSize.z, maxSize.z) };
+            desc.meshTransform.initialScaleMax = Vec3{ max(minSize.x, maxSize.x), max(minSize.y, maxSize.y), max(minSize.z, maxSize.z) };
+        }
+    }
+
+    if (const json* initialLocation = Find_ModuleData(emitter, "InitialLocation"))
+    {
+        const auto locationIter = initialLocation->find("location");
+        if (locationIter != initialLocation->end())
+        {
+            const Vec3 minOffset = Evaluate_Vector3DistributionMin(*locationIter, desc.initialLocation.minOffset);
+            const Vec3 maxOffset = Evaluate_Vector3DistributionMax(*locationIter, desc.initialLocation.maxOffset);
+            desc.initialLocation.enabled = true;
+            desc.initialLocation.minOffset = Vec3{
+                min(minOffset.x, maxOffset.x),
+                min(minOffset.y, maxOffset.y),
+                min(minOffset.z, maxOffset.z)
+            };
+            desc.initialLocation.maxOffset = Vec3{
+                max(minOffset.x, maxOffset.x),
+                max(minOffset.y, maxOffset.y),
+                max(minOffset.z, maxOffset.z)
+            };
+        }
+    }
+
+    if (const json* sphereLocation = Find_ModuleData(emitter, "SphereLocation"))
+    {
+        desc.sphereLocation.enabled = true;
+
+        const auto offsetIter = sphereLocation->find("offset");
+        if (offsetIter != sphereLocation->end())
+            Read_Vec3(*offsetIter, desc.sphereLocation.offset);
+
+        desc.sphereLocation.radius = max(0.f, Read_Float(*sphereLocation, "radius", desc.sphereLocation.radius));
+        Read_Enum(*sphereLocation, "spawnMode", desc.sphereLocation.mode);
+        Read_Enum(*sphereLocation, "placementMode", desc.sphereLocation.placementMode);
+        desc.sphereLocationSeed = Internal::Read_RandomSeedDesc(*sphereLocation);
+    }
+
+    if (const json* planeRadialLocation = Find_ModuleData(emitter, "PlaneRadialLocation"))
+        Fill_PlaneRadialLocationPayload(desc.planeRadialLocation, *planeRadialLocation);
+
+    if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
+    {
+        const auto lifeTimeIter = lifetime->find("lifeTime");
+        if (lifeTimeIter != lifetime->end())
+        {
+            desc.lifetime.lifeTime = Vec2{
+                Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
+                Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
+            };
+        }
+    }
+
+    if (const json* initialColor = Find_ModuleData(emitter, "InitialColor"))
+    {
+        const auto colorIter = initialColor->find("color");
+        if (colorIter != initialColor->end())
+        {
+            desc.initialColor.startColorMin = Evaluate_ColorDistributionMin(*colorIter, desc.initialColor.startColorMin);
+            desc.initialColor.startColorMax = Evaluate_ColorDistributionMax(*colorIter, desc.initialColor.startColorMax);
+        }
+
+        const auto alphaIter = initialColor->find("alpha");
+        if (alphaIter != initialColor->end())
+        {
+            desc.initialColor.startColorMin.w =
+                clamp(Evaluate_FloatDistributionMin(*alphaIter, desc.initialColor.startColorMin.w), 0.f, 1.f);
+            desc.initialColor.startColorMax.w =
+                clamp(Evaluate_FloatDistributionMax(*alphaIter, desc.initialColor.startColorMax.w), 0.f, 1.f);
+        }
+
+        desc.colorOverLife.endColorMin = desc.initialColor.startColorMin;
+        desc.colorOverLife.endColorMax = desc.initialColor.startColorMax;
+    }
+
+    if (const json* colorOverLife = Find_ModuleData(emitter, "ColorOverLife"))
+    {
+        const auto colorIter = colorOverLife->find("colorOverLife");
+        if (colorIter != colorOverLife->end())
+        {
+            desc.colorOverLife.endColorMin = Evaluate_ColorOverLifeEndpointColorMin(*colorIter, desc.colorOverLife.endColorMin);
+            desc.colorOverLife.endColorMax = Evaluate_ColorOverLifeEndpointColorMax(*colorIter, desc.colorOverLife.endColorMax);
+        }
+
+        const auto alphaIter = colorOverLife->find("alphaOverLife");
+        if (alphaIter != colorOverLife->end())
+        {
+            desc.colorOverLife.endColorMin.w =
+                clamp(Evaluate_ColorOverLifeEndpointAlphaMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
+            desc.colorOverLife.endColorMax.w =
+                clamp(Evaluate_ColorOverLifeEndpointAlphaMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
+        }
+
+        Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
+    }
+
+    if (const json* meshSizeByLife = Find_ModuleData(emitter, "MeshSizeByLife"))
+    {
+        const auto scaleIter = meshSizeByLife->find("scaleOverLife");
+        if (scaleIter != meshSizeByLife->end())
+        {
+            Fill_MeshVector3CurvePayload(desc.meshTransform.scaleByLife, *scaleIter, Vec3{ 1.f, 1.f, 1.f });
+            if (!Read_Bool(*meshSizeByLife, "multiplyX", true))
+                desc.meshTransform.scaleByLife.curveKeyValuesX = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            if (!Read_Bool(*meshSizeByLife, "multiplyY", true))
+                desc.meshTransform.scaleByLife.curveKeyValuesY = Vec4{ 1.f, 1.f, 1.f, 1.f };
+            if (!Read_Bool(*meshSizeByLife, "multiplyZ", true))
+                desc.meshTransform.scaleByLife.curveKeyValuesZ = Vec4{ 1.f, 1.f, 1.f, 1.f };
+        }
+    }
+
+    if (const json* initialVelocity = Find_ModuleData(emitter, "InitialVelocity"))
+    {
+        desc.motion.enabled = true;
+        desc.motion.initialVelocityEnabled = true;
+        desc.motion.initialVelocityInWorldSpace = Read_Bool(*initialVelocity, "inWorldSpace", desc.motion.initialVelocityInWorldSpace);
+
+        const auto velocityIter = initialVelocity->find("velocity");
+        if (velocityIter != initialVelocity->end())
+        {
+            desc.motion.initialVelocityMin = Evaluate_Vector3DistributionMin(*velocityIter, desc.motion.initialVelocityMin);
+            desc.motion.initialVelocityMax = Evaluate_Vector3DistributionMax(*velocityIter, desc.motion.initialVelocityMax);
+        }
+    }
+
+    if (const json* initialRadialVelocity = Find_ModuleData(emitter, "InitialRadialVelocity"))
+    {
+        desc.motion.enabled = true;
+        desc.motion.initialRadialVelocityEnabled = true;
+        desc.motion.initialRadialVelocityInWorldSpace =
+            Read_Bool(*initialRadialVelocity, "inWorldSpace", desc.motion.initialRadialVelocityInWorldSpace);
+
+        const auto radialPivotIter = initialRadialVelocity->find("radialPivot");
+        if (radialPivotIter != initialRadialVelocity->end())
+            Read_Vec3(*radialPivotIter, desc.motion.radialPivot);
+        Read_Enum(
+            *initialRadialVelocity,
+            "centerDirectionMode",
+            desc.motion.initialRadialVelocityCenterDirectionMode
+        );
+
+        const auto speedIter = initialRadialVelocity->find("speed");
+        if (speedIter != initialRadialVelocity->end())
+        {
+            desc.motion.radialSpeed = Vec2{
+                Evaluate_FloatDistributionMin(*speedIter, desc.motion.radialSpeed.x),
+                Evaluate_FloatDistributionMax(*speedIter, desc.motion.radialSpeed.y)
+            };
+        }
+    }
+
+    if (const json* velocityCone = Find_ModuleData(emitter, "VelocityCone"))
+    {
+        desc.motion.enabled = true;
+        Fill_VelocityConePayload(desc.motion, *velocityCone);
+    }
+
+    if (const json* acceleration = Find_ModuleData(emitter, "Acceleration"))
+    {
+        desc.motion.enabled = true;
+        const auto accelerationIter = acceleration->find("acceleration");
+        if (accelerationIter != acceleration->end())
+        {
+            desc.motion.accelerationMin = Evaluate_Vector3DistributionMin(*accelerationIter, desc.motion.accelerationMin);
+            desc.motion.accelerationMax = Evaluate_Vector3DistributionMax(*accelerationIter, desc.motion.accelerationMax);
+            Fill_AccelerationCurvePayload(desc.motion, *accelerationIter);
+        }
+    }
+
+    if (const json* drag = Find_ModuleData(emitter, "Drag"))
+    {
+        desc.motion.enabled = true;
+        const auto dragIter = drag->find("drag");
+        if (dragIter != drag->end())
+        {
+            desc.motion.drag = Vec2{
+                max(0.f, Evaluate_FloatDistributionMin(*dragIter, desc.motion.drag.x)),
+                max(0.f, Evaluate_FloatDistributionMax(*dragIter, desc.motion.drag.y))
+            };
+        }
+    }
+
+    if (const json* velocityOverLife = Find_ModuleData(emitter, "VelocityOverLife"))
+    {
+        desc.motion.enabled = true;
+        Fill_VelocityScaleByLifePayload(desc.motion, *velocityOverLife);
+    }
+
+    if (const json* orbitOverLife = Find_ModuleData(emitter, "OrbitOverLife"))
+        Fill_OrbitOverLifePayload(desc.orbitOverLife, *orbitOverLife);
+
+    if (const json* initialMeshRotation = Find_ModuleData(emitter, "InitialMeshRotation"))
+    {
+        const auto rotationIter = initialMeshRotation->find("rotationDegrees");
+        if (rotationIter != initialMeshRotation->end())
+        {
+            const Vec3 minRotation = Evaluate_Vector3DistributionMin(*rotationIter, Vec3{});
+            const Vec3 maxRotation = Evaluate_Vector3DistributionMax(*rotationIter, Vec3{});
+            desc.meshTransform.rotationEnabled = true;
+            desc.meshTransform.initialRotationDegreesMin = Vec3{
+                min(minRotation.x, maxRotation.x), min(minRotation.y, maxRotation.y), min(minRotation.z, maxRotation.z)
+            };
+            desc.meshTransform.initialRotationDegreesMax = Vec3{
+                max(minRotation.x, maxRotation.x), max(minRotation.y, maxRotation.y), max(minRotation.z, maxRotation.z)
+            };
+        }
+    }
+
+    if (const json* sphereRadialOrientation = Find_ModuleData(emitter, "SphereRadialOrientation"))
+        Fill_SphereRadialOrientationPayload(desc.sphereRadialOrientation, *sphereRadialOrientation);
+    if (const json* planeRadialOrientation = Find_ModuleData(emitter, "PlaneRadialOrientation"))
+        Fill_PlaneRadialOrientationPayload(desc.planeRadialOrientation, *planeRadialOrientation);
+
+    if (const json* meshRotationOverLife = Find_ModuleData(emitter, "MeshRotationOverLife"))
+    {
+        const auto rotationIter = meshRotationOverLife->find("rotationOverLife");
+        if (rotationIter != meshRotationOverLife->end())
+        {
+            desc.meshTransform.rotationEnabled = true;
+            Fill_MeshVector3CurvePayload(desc.meshTransform.rotationByLife, *rotationIter, Vec3{});
+        }
+    }
+
+    if (const json* initialMeshRotationRate = Find_ModuleData(emitter, "InitialMeshRotationRate"))
+    {
+        const auto rotationRateIter = initialMeshRotationRate->find("rotationRateDegrees");
+        if (rotationRateIter != initialMeshRotationRate->end())
+        {
+            const Vec3 minRate = Evaluate_Vector3DistributionMin(*rotationRateIter, Vec3{});
+            const Vec3 maxRate = Evaluate_Vector3DistributionMax(*rotationRateIter, Vec3{});
+            desc.meshTransform.rotationEnabled = true;
+            desc.meshTransform.initialAngularVelocityDegreesMin = Vec3{ min(minRate.x, maxRate.x), min(minRate.y, maxRate.y), min(minRate.z, maxRate.z) };
+            desc.meshTransform.initialAngularVelocityDegreesMax = Vec3{ max(minRate.x, maxRate.x), max(minRate.y, maxRate.y), max(minRate.z, maxRate.z) };
+        }
+    }
+
+    if (const json* meshRotationRateScaleByLife = Find_ModuleData(emitter, "MeshRotationRateScaleByLife"))
+    {
+        const auto scaleIter = meshRotationRateScaleByLife->find("scaleOverLife");
+        if (scaleIter != meshRotationRateScaleByLife->end())
+        {
+            desc.meshTransform.rotationEnabled = true;
+            Fill_MeshVector3CurvePayload(desc.meshTransform.angularVelocityScaleByLife, *scaleIter, Vec3{ 1.f, 1.f, 1.f });
+        }
+    }
+
+    if (desc.modelGuid.empty() && desc.modelPath.empty())
+    {
+        LOG_WARN(
+            "EffectAssetRuntimeLoader skipped mesh emitter with empty model. emitter='{}'",
+            outDefinition.name
+        );
+        return false;
+    }
+
+    bool hasResolvableModel = false;
+    if (!desc.modelGuid.empty() && GAME != nullptr)
+    {
+        const AssetMeta* assetMeta = GAME->Find_AssetByGUID(desc.modelGuid);
+        const wstring resolvedPath = assetMeta != nullptr && assetMeta->type == "Model"
+                                     ? GAME->Resolve_AssetPath(desc.modelGuid)
+                                     : wstring{};
+        hasResolvableModel = !resolvedPath.empty() && fs::exists(resolvedPath);
+    }
+
+    if (!hasResolvableModel && !desc.modelPath.empty())
+    {
+        fs::path modelPath = String::ToWString(desc.modelPath);
+        if (modelPath.is_relative() && GAME != nullptr)
+            modelPath = fs::path(GAME->Get_AssetRoot()) / modelPath;
+
+        hasResolvableModel = fs::exists(modelPath.lexically_normal());
+    }
+
+    if (!hasResolvableModel)
+    {
+        LOG_WARN(
+            "EffectAssetRuntimeLoader skipped mesh emitter with missing model. emitter='{}', modelGuid='{}', modelPath='{}'",
+            outDefinition.name,
+            desc.modelGuid,
+            desc.modelPath
+        );
+        return false;
     }
 
     outDefinition.concreteDesc = desc;

@@ -1,10 +1,14 @@
-#include "MapLoader.h"
+﻿#include "MapLoader.h"
 #include "GameInstance.h"
+#include "MapAuthoringIO.h"
 #include "MapStaticMesh.h"
 #include "MapInstancedMesh.h"
 #include "MapStaticCollisionBuilder.h"
 #include "ModelCom.h"
 #include "StaticCollisionData.h"
+#include "Shader_CBuffer_Define.h"
+#include "MapWater.h"
+#include "Client_Constants.h"
 #include <mutex>
 
 // 전역 모델 및 콜리전 캐시 정적 멤버 정의 및 초기화
@@ -176,11 +180,151 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.layerTag = layerTag;
     outSession.modelFolder = mapData.value("ModelFolder", string{});
 
+    if (mapData.contains("PostProcessVolumes"))
+    {
+        FogZoneCB fogCB{};
+        for (const auto& e : mapData["PostProcessVolumes"])
+        {
+            if (fogCB.aabbCount + fogCB.sphereCount >= FogZoneCB::MAX_FOG_ZONES)
+            {
+                break;
+            }
+
+            float density = e.value("FogDensity", 0.f);
+            if (density <= 0.f)
+            {
+                continue;
+            }
+
+            FogZoneEntry entry{};
+            if (e.contains("FogColor"))
+            {
+                auto& c = e["FogColor"];
+                entry.fogColor = Vec4(c[0], c[1], c[2], 1.f);
+            }
+
+            entry.fogDensity = density;
+            entry.fogStart = e.value("FogStart", 0.f);
+
+            Vec3 position{};
+            if (e.contains("Position"))
+            {
+                auto& p = e["Position"];
+                position = Vec3(p[0], p[1], p[2]);
+            }
+
+            int zoneType = e.value("FogZoneType", 0);
+            if (zoneType == 0) // AABB
+            {
+                Vec3 extent{ 5.f, 5.f, 5.f };
+                if (e.contains("Extent"))
+                {
+                    auto& ex = e["Extent"];
+                    extent = Vec3(ex[0], ex[1], ex[2]);
+                }
+                entry.zoneMin = position - extent;
+                entry.zoneMax = position + extent;
+                fogCB.zones[fogCB.aabbCount++] = entry;
+            }
+            else // sphere
+            {
+                entry.zoneMin = position;
+                entry.zoneRadius = e.value("FogRadius", 10.f);
+                fogCB.zones[fogCB.aabbCount + fogCB.sphereCount++] = entry;
+            }
+        }
+        GAME->Set_FogZones(fogCB);
+    }
+
+    if (mapData.contains("Waters"))
+    {
+        const wstring waterTexBase = Constants::Map::WaterPath;
+        auto WaterTexPath = [&](const string& filename) -> wstring {
+            if (filename.empty())
+            {
+                return {};
+            }
+            return waterTexBase + String::ToWString(filename);
+            };
+
+        for (const auto& e : mapData["Waters"])
+        {
+            MapWater::MAPWATER_DESC desc{};
+
+            if (e.contains("Position"))
+            {
+                auto& p = e["Position"];
+                desc.position = Vec3(p[0], p[1], p[2]);
+            }
+            if (e.contains("Rotation"))
+            {
+                auto& r = e["Rotation"];
+                desc.rotation = Quat(r[0], r[1], r[2], r[3]);
+            }
+
+            desc.planeDesc.countX = e.value("CountX", 64u);
+            desc.planeDesc.countZ = e.value("CountZ", 64u);
+            desc.planeDesc.sizeX = e.value("SizeX", 1.f);
+            desc.planeDesc.sizeZ = e.value("SizeZ", 1.f);
+
+            desc.largeWaveNormalPath = WaterTexPath(e.value("LargeWaveNormal", string{}));
+            desc.smallWaveNormalPath = WaterTexPath(e.value("SmallWaveNormal", string{}));
+            desc.seafoamPath = WaterTexPath(e.value("SeafoamTexture", string{}));
+            desc.cubemapPath = WaterTexPath(e.value("Cubemap", string{}));
+
+            auto& p = desc.waterParams;
+            p.largeWaveScale = e.value("LargeWaveScale", 64.f);
+            p.largeWaveSpeed = e.value("LargeWaveSpeed", 0.1f);
+            p.largeWaveAmplify = e.value("LargeWaveAmplify", 1.f);
+            p.smallWaveScale = e.value("SmallWaveScale", 512.f);
+            p.smallWaveSpeed = e.value("SmallWaveSpeed", 1.f);
+            p.smallWaveAmplify = e.value("SmallWaveAmplify", 1.f);
+            p.seafoamScale = e.value("SeafoamScale", 512.f);
+            p.seafoamSpeed = e.value("SeafoamSpeed", 0.015f);
+            p.seafoamHeightPower = e.value("SeafoamHeightPower", 2.f);
+            p.seafoamHeightMultiply = e.value("SeafoamHeightMultiply", 3.f);
+            p.foamDistortion = e.value("FoamDistortion", 0.f);
+            p.depthFade = e.value("DepthFade", 0.f);
+            p.cameraDistanceFade = e.value("CameraDistanceFade", 0.f);
+            p.reflectionAmount = e.value("ReflectionAmount", 0.f);
+            p.luminanceBias = e.value("LuminanceBias", 0.f);
+
+            if (e.contains("WaterColor"))
+            {
+                auto& c = e["WaterColor"];
+                p.waterColor = Vec4(c[0], c[1], c[2], c[3]);
+            }
+            if (e.contains("FresnelColor"))
+            {
+                auto& c = e["FresnelColor"];
+                p.fresnelColor = Vec4(c[0], c[1], c[2], c[3]);
+            }
+
+            Shared<GameObject> water = nullptr;
+            GAME->Add_GameObject(
+                ETOI(LevelType::Static),
+                TEXT("Prototype_MapWater"),
+                levelIndex,
+                layerTag,
+                water,
+                &desc);
+        }
+    }
+
     if (mapData.contains("ModelOverrides"))
     {
         for (auto& [filename, entry] : mapData["ModelOverrides"].items())
         {
-            outSession.modelOverrides[filename] = entry.value("PassIndex", -1);
+            ModelOverrideEntry overrideEntry;
+            overrideEntry.passIndex = entry.value("PassIndex", -1);
+            if (entry.contains("TextureSlots"))
+            {
+                for (auto& [slotStr, texPath] : entry["TextureSlots"].items())
+                {
+                    overrideEntry.textureSlots[stoi(slotStr)] = texPath.get<string>();
+                }
+            }
+            outSession.modelOverrides[filename] = overrideEntry;
         }
     }
 
@@ -212,6 +356,12 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
                 outSession.preloadModelPaths.push_back(modelPath);
             }
         }
+    }
+
+    if (mapData.contains("PrefabInstances") && mapData["PrefabInstances"].is_array())
+    {
+        for (const json& item : mapData["PrefabInstances"])
+            outSession.prefabInstances.push_back(item);
     }
 
     if (mapData.contains("ModelCollisions") && mapData["ModelCollisions"].is_object())
@@ -283,6 +433,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
     outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
+    outSession.prefabInstancesDone = outSession.prefabInstances.empty();
     outSession.beginSessionDuration =
         chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - sessionBegin);
 
@@ -432,6 +583,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.staticAutoInstancingPrepared = true;
         session.staticMeshesDone = session.staticMeshes.empty();
         session.instancedMeshesDone = session.instancedMeshes.empty();
+        session.prefabInstancesDone = session.prefabInstances.empty();
     }
 
     while (!session.staticMeshesDone)
@@ -555,6 +707,8 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
         MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
 
+        desc.modelPath = String::ToWString("../../../Client/Bin/Resources/Map/" + session.modelFolder + "/" + modelPathStr);
+
         auto it = session.preloadedModelCache.find(modelPathStr);
         if (it != session.preloadedModelCache.end())
         {
@@ -583,7 +737,9 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             desc.model = model;
         }
 
-        // InstancedMeshes는 collision data를 만들지 않는다.
+        // InstancedMeshes도 static mesh와 같은 collision cache를 재사용한다.
+        desc.collisionData = GetOrCreateCookedCollision(session, desc.model, modelPathStr);
+
         if (e.contains("Instances"))
         {
             const auto instancedTransformBegin = chrono::steady_clock::now();
@@ -643,15 +799,46 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         ++processedCount;
     }
 
+    while (!session.prefabInstancesDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        if (session.nextPrefabInstanceIndex >= session.prefabInstances.size())
+        {
+            session.prefabInstancesDone = true;
+            break;
+        }
+
+        json singleMapData = json::object();
+        singleMapData["PrefabInstances"] = json::array(
+            { session.prefabInstances[session.nextPrefabInstanceIndex++] });
+
+        const auto prefabBegin = chrono::steady_clock::now();
+        if (MapAuthoringIO::Load_PrefabInstances_FromMapData(
+            singleMapData,
+            session.levelIndex,
+            session.spawnedObjects))
+        {
+            ++session.prefabInstanceAddCount;
+        }
+
+        session.prefabInstanceAddDuration +=
+            chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - prefabBegin);
+
+        ++processedCount;
+    }
+
     outFinished =
         session.preloadModelsDone &&
         session.staticMeshesDone &&
-        session.instancedMeshesDone;
+        session.instancedMeshesDone &&
+        session.prefabInstancesDone;
 
     if (outFinished && !session.summaryLogged)
     {
         LOG_DEBUG(
-            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{}) autoInstanced(groups={}, statics={})",
+            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{}) prefabInstances(data={}, add={}ms/{}) autoInstanced(groups={}, statics={})",
             session.processCallCount,
             session.beginSessionDuration.count(),
             session.preloadModelPaths.size(),
@@ -668,6 +855,9 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             session.instancedTransformDuration.count(),
             session.instancedAddDuration.count(),
             session.instancedAddCount,
+            session.prefabInstances.size(),
+            session.prefabInstanceAddDuration.count(),
+            session.prefabInstanceAddCount,
             session.autoInstancedGroupCount,
             session.autoInstancedStaticCount);
 
@@ -679,77 +869,12 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
 void MapLoader::Prepare_StaticAutoInstancing(LoadSession& session)
 {
-    unordered_map<string, vector<size_t>> indicesByModelPath;
-    indicesByModelPath.reserve(session.staticMeshes.size());
-
-    for (size_t i = 0; i < session.staticMeshes.size(); ++i)
-    {
-        const string modelPath = session.staticMeshes[i].value("ModelPath", string{});
-        if (!modelPath.empty())
-        {
-            indicesByModelPath[modelPath].push_back(i);
-        }
-    }
-
-    vector<json> remainingStaticMeshes;
-    remainingStaticMeshes.reserve(session.staticMeshes.size());
-
-    for (const auto& item : session.staticMeshes)
-    {
-        const string modelPath = item.value("ModelPath", string{});
-        const auto groupIt = indicesByModelPath.find(modelPath);
-        if (modelPath.empty() || groupIt == indicesByModelPath.end() || groupIt->second.size() < 2)
-        {
-            remainingStaticMeshes.push_back(item);
-            continue;
-        }
-
-        auto modelIt = session.preloadedModelCache.find(modelPath);
-        if (modelIt == session.preloadedModelCache.end() || modelIt->second == nullptr)
-        {
-            remainingStaticMeshes.push_back(item);
-            continue;
-        }
-
-        Shared<StaticCollisionData> collisionData = GetOrCreateCookedCollision(session, modelIt->second, modelPath);
-        if (collisionData != nullptr)
-        {
-            remainingStaticMeshes.push_back(item);
-            continue;
-        }
-
-        const vector<size_t>& groupIndices = groupIt->second;
-        if (groupIndices.front() != (&item - session.staticMeshes.data()))
-        {
-            continue;
-        }
-
-        json instancedItem;
-        instancedItem["Id"] = modelPath;
-        instancedItem["ModelPath"] = modelPath;
-        instancedItem["Instances"] = json::array();
-
-        for (const size_t sourceIndex : groupIndices)
-        {
-            const json& source = session.staticMeshes[sourceIndex];
-            json instance;
-            instance["Position"] = source["Position"];
-            instance["Rotation"] = source["Rotation"];
-            instance["Scale"] = source["Scale"];
-            instancedItem["Instances"].push_back(std::move(instance));
-        }
-
-        session.autoInstancedStaticCount += groupIndices.size();
-        ++session.autoInstancedGroupCount;
-        session.instancedMeshes.push_back(std::move(instancedItem));
-    }
-
-    session.staticMeshes = std::move(remainingStaticMeshes);
+    // 개별 하이어라키/피킹/충돌 확인이 우선이라 런타임 static auto-instancing은 잠시 끈다.
     session.nextStaticMeshIndex = 0;
     session.nextInstancedMeshIndex = 0;
 }
 
-void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, int32 forcedPassIndex)
+void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry)
 {
     if (model == nullptr)
     {
@@ -848,14 +973,36 @@ void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolde
         model->Apply_MaterialByAssetName(binding.first, bundleKey, binding.second);
     }
 
+    int32 forcedPassIndex = overrideEntry ? overrideEntry->passIndex : -1;
+
     if (forcedPassIndex >= 0)
     {
         for (uint32 i = 0; i < static_cast<uint32>(model->Get_NumMaterials()); ++i)
         {
             auto mat = model->Get_Material(i);
             if (mat)
-            {
                 mat->Set_ForcedPassIndex(forcedPassIndex);
+        }
+    }
+
+    if (overrideEntry)
+    {
+        for (auto& [slotIdx, texPath] : overrideEntry->textureSlots)
+        {
+            if (texPath.empty())
+            {
+                continue;
+            }
+
+            string fullPath = "../../../Client/Bin/Resources/Map/" + texPath;
+            auto slot = static_cast<MaterialTextureSlot>(slotIdx);
+            for (uint32 i = 0; i < static_cast<uint32>(model->Get_NumMaterials()); ++i)
+            {
+                auto mat = model->Get_Material(i);
+                if (mat)
+                {
+                    mat->Override_TextureSlot(slot, 0, String::ToWString(fullPath));
+                }
             }
         }
     }
@@ -963,7 +1110,7 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     const ComPtr<Context>& context,
     const string& modelFolder,
     const string& modelPathStr,
-    const unordered_map<string, int32>& modelOverrides,
+    const unordered_map<string, ModelOverrideEntry>& modelOverrides,
     chrono::milliseconds* outCreateDuration,
     size_t* outCreateCount,
     chrono::milliseconds* outMaterialDuration,
@@ -997,16 +1144,15 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     if (!model)
         return nullptr;
 
-    int32 forcedPass = -1;
+    const ModelOverrideEntry* overrideEntry = nullptr;
     auto overrideIt = modelOverrides.find(modelPathStr);
     if (overrideIt != modelOverrides.end())
     {
-        forcedPass = overrideIt->second;
+        overrideEntry = &overrideIt->second;
     }
 
-    // 머티리얼 적용 로직 수행
     const auto materialBegin = chrono::steady_clock::now();
-    ApplyMaterials(model, modelFolder, fullPathA, forcedPass);
+    ApplyMaterials(model, modelFolder, fullPathA, overrideEntry);
     const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
 
     if (outMaterialDuration) *outMaterialDuration += materialMs;
@@ -1029,15 +1175,40 @@ Shared<StaticCollisionData> MapLoader::GetOrCreateCookedCollision(
     if (model == nullptr || modelPathStr.empty())
         return nullptr;
 
+    auto ensureTriangleMeshes = [&](const Shared<StaticCollisionData>& collisionData)
+    {
+        if (collisionData == nullptr)
+            return;
+
+        if (!collisionData->cookedTriangleMeshes.empty() || !collisionData->triangleMeshes.empty())
+            return;
+
+        const wstring sourceModelPath = !model->Get_SourceModelPath().empty()
+            ? model->Get_SourceModelPath()
+            : String::ToWString(modelPathStr);
+
+        if (sourceModelPath.empty())
+            return;
+
+        // 저장된 collision이 proxy-only 또는 empty여도 gameplay에서는 .model triangle mesh를 우선 보강한다.
+        MapStaticCollisionBuilder::Build_TriangleMeshes_FromModelFile(
+            sourceModelPath,
+            collisionData->triangleMeshes);
+    };
+
     auto sessionIt = session.preloadedCollisionCache.find(modelPathStr);
     if (sessionIt != session.preloadedCollisionCache.end())
+    {
+        ensureTriangleMeshes(sessionIt->second);
         return sessionIt->second;
+    }
 
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
         auto globalIt = g_globalCollisionCache.find(modelPathStr);
         if (globalIt != g_globalCollisionCache.end())
         {
+            ensureTriangleMeshes(globalIt->second);
             session.preloadedCollisionCache[modelPathStr] = globalIt->second;
             return globalIt->second;
         }
@@ -1045,30 +1216,27 @@ Shared<StaticCollisionData> MapLoader::GetOrCreateCookedCollision(
 
     auto cookedIt = session.cookedCollisionCache.find(modelPathStr);
     auto primitiveIt = session.primitiveCollisionCache.find(modelPathStr);
+    const bool hasCollisionEntry =
+        (cookedIt != session.cookedCollisionCache.end() || primitiveIt != session.primitiveCollisionCache.end());
 
     const bool hasCookedTriangles =
         (cookedIt != session.cookedCollisionCache.end() && !cookedIt->second.empty());
     const bool hasPrimitiveProxies =
         (primitiveIt != session.primitiveCollisionCache.end() && !primitiveIt->second.empty());
 
-    if (!hasCookedTriangles && !hasPrimitiveProxies)
+    if (!hasCollisionEntry)
     {
-        // MapTest는 저장 collision이 비어 있어도 테스트 진행을 위해 런타임 메쉬/프리미티브 빌드를 허용한다.
-        if (session.levelIndex == ETOI(LevelType::MapTest))
-        {
-            Shared<StaticCollisionData> collisionData = GetOrBuildCollision(
-                model,
-                modelPathStr,
-                &session.collisionBuildDuration,
-                &session.collisionBuildCount);
+        // 저장 collision entry가 아예 없는 모델도 런타임에서 triangle/proxy collision을 보강한다.
+        Shared<StaticCollisionData> collisionData = GetOrBuildCollision(
+            model,
+            modelPathStr,
+            &session.collisionBuildDuration,
+            &session.collisionBuildCount);
 
-            if (collisionData != nullptr)
-                session.preloadedCollisionCache[modelPathStr] = collisionData;
+        if (collisionData != nullptr)
+            session.preloadedCollisionCache[modelPathStr] = collisionData;
 
-            return collisionData;
-        }
-
-        return nullptr;
+        return collisionData;
     }
 
     auto collisionData = make_shared<StaticCollisionData>();
@@ -1080,6 +1248,14 @@ Shared<StaticCollisionData> MapLoader::GetOrCreateCookedCollision(
         collisionData->cookedTriangleMeshes = cookedIt->second;
     if (hasPrimitiveProxies)
         collisionData->primitiveProxies = primitiveIt->second;
+    ensureTriangleMeshes(collisionData);
+
+    if (collisionData->cookedTriangleMeshes.empty() &&
+        collisionData->primitiveProxies.empty() &&
+        collisionData->triangleMeshes.empty())
+    {
+        return nullptr;
+    }
 
     session.preloadedCollisionCache[modelPathStr] = collisionData;
 

@@ -4,6 +4,8 @@
 #include "ComputeStructuredBuffer.h"
 #include "InstanceCullParams.h"
 #include "Camera.h"
+#include "StaticCollisionData.h"
+#include "Collision_Define.h"
 
 IMPLEMENT_REFLECTION(MapInstancedMesh)
 {
@@ -48,6 +50,7 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
 
         _modelPath = pDesc->modelPath;
         _transforms = pDesc->transforms;
+        _collisionData = pDesc->collisionData;
 
         if (FAILED(Ready_Components(pDesc->modelPath, pDesc->model)))
         {
@@ -70,6 +73,24 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         }
 
         CreateCullBuffers(matrices, pDesc->transforms);
+
+        if (_collisionData != nullptr)
+        {
+            _physxStaticHandles.reserve(matrices.size());
+
+            for (const Matrix& worldMatrix : matrices)
+            {
+                PhysXStaticActorHandle handle = GAME->Register_PhysXStaticCollision(
+                    *_collisionData,
+                    worldMatrix,
+                    Collision_Preset::Enviroment);
+
+                if (handle.Is_Valid())
+                {
+                    _physxStaticHandles.push_back(handle);
+                }
+            }
+        }
     }
 
     Set_ShadowCasterType(ShadowCasterType::Static);
@@ -98,22 +119,20 @@ void MapInstancedMesh::Late_Update(float timeDelta)
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
+    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT MapInstancedMesh::Render()
 {
-    if (_instanceCount == 0 || !_model || !_shader)
+    if (_instanceCount == 0 || !_lodModels[0] || !_shader)
     {
         return S_OK;
     }
 
-    Buffer* renderVB = _instanceVB.Get();
     bool useIndirect = false;
-
-    if (_cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB && !_indirectArgsBuffers.empty())
+    if (_cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB[0] && !_indirectArgsBuffers[0].empty())
     {
         DispatchCull();
-        renderVB = _visibleVB.Get();
         useIndirect = true;
     }
 
@@ -122,43 +141,51 @@ HRESULT MapInstancedMesh::Render()
         return E_FAIL;
     }
 
-    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
-    for (uint32 i = 0; i < numMeshes; ++i)
+    for (int lod = 0; lod < 3; ++lod)
     {
-        const Shared<Material> material = _model->Get_Material(i);
-        if (material == nullptr)
+        if (!_lodModels[lod])
         {
             continue;
         }
 
-        if (FAILED(_shader->Bind_MaterialTextures(*material)))
+        const uint32 numMeshes = static_cast<uint32>(_lodModels[lod]->Get_NumMeshes());
+        for (uint32 i = 0; i < numMeshes; ++i)
         {
-            continue;
-        }
+            const Shared<Material> material = _lodModels[lod]->Get_Material(i);
+            if (material == nullptr)
+            {
+                continue;
+            }
 
-        if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
-        {
-            return E_FAIL;
-        }
+            if (FAILED(_shader->Bind_MaterialTextures(*material)))
+            {
+                continue;
+            }
 
-        const uint32 passIndex = static_cast<uint32>(material->Get_PassIndex());
-        if (FAILED(_shader->Begin(passIndex)))
-        {
-            return E_FAIL;
-        }
-
-        if (useIndirect)
-        {
-            if (FAILED(_model->RenderInstancedIndirect(i, renderVB, sizeof(Matrix), _indirectArgsBuffers[i].Get())))
+            if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
             {
                 return E_FAIL;
             }
-        }
-        else
-        {
-            if (FAILED(_model->RenderInstanced(i, renderVB, sizeof(Matrix), _instanceCount)))
+
+            const uint32 passIndex = static_cast<uint32>(material->Get_PassIndex());
+            if (FAILED(_shader->Begin(passIndex)))
             {
                 return E_FAIL;
+            }
+
+            if (useIndirect)
+            {
+                if (FAILED(_lodModels[lod]->RenderInstancedIndirect(i, _visibleVB[lod].Get(), sizeof(Matrix), _indirectArgsBuffers[lod][i].Get())))
+                {
+                    return E_FAIL;
+                }
+            }
+            else
+            {
+                if (FAILED(_lodModels[lod]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+                {
+                    return E_FAIL;
+                }
             }
         }
     }
@@ -168,7 +195,7 @@ HRESULT MapInstancedMesh::Render()
 
 HRESULT MapInstancedMesh::RenderPickingID(uint32 id)
 {
-    if (_instanceCount == 0 || !_model || !_shader)
+    if (_instanceCount == 0 || !_lodModels[0] || !_shader)
     {
         return S_OK;
     }
@@ -189,7 +216,7 @@ HRESULT MapInstancedMesh::RenderPickingID(uint32 id)
         return E_FAIL;
     }
 
-    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+    const uint32 numMeshes = static_cast<uint32>(_lodModels[0]->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
         if (FAILED(_shader->Begin(5)))
@@ -197,7 +224,7 @@ HRESULT MapInstancedMesh::RenderPickingID(uint32 id)
             return E_FAIL;
         }
 
-        if (FAILED(_model->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+        if (FAILED(_lodModels[0]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
         {
             return E_FAIL;
         }
@@ -215,19 +242,55 @@ HRESULT MapInstancedMesh::Ready_Components(const wstring& modelPath, Shared<Mode
 
     if (sharedModel)
     {
-        _model = sharedModel;
+        _lodModels[0] = sharedModel;
     }
     else
     {
         string pathA = String::ToString(modelPath);
-        _model = ModelCom::Create(_device, _context, ModelType::NonAnim, pathA.c_str(), Matrix::CreateScale(0.01f));
-        if (!_model)
+        _lodModels[0] = ModelCom::Create(_device, _context, ModelType::NonAnim, pathA.c_str(), Matrix::CreateScale(0.01f));
+        if (!_lodModels[0])
         {
             return E_FAIL;
         }
     }
 
+    wstring basePath = modelPath;
+    wstring ext = L".model";
+    if (basePath.size() > ext.size())
+    {
+        basePath = basePath.substr(0, basePath.size() - ext.size());
+    }
+
+    for (int lod = 1; lod <= 2; ++lod)
+    {
+        wstring lodPath = basePath + L"_lod" + to_wstring(lod) + ext;
+        string lodPathA = String::ToString(lodPath);
+        if (GetFileAttributesA(lodPathA.c_str()) == INVALID_FILE_ATTRIBUTES)
+        {
+            continue;
+        }
+
+        _lodModels[lod] = ModelCom::Create(_device, _context, ModelType::NonAnim, lodPathA.c_str(), Matrix::CreateScale(0.01f));
+    }
+
     return S_OK;
+}
+
+void MapInstancedMesh::Set_LodModel(int lod, Shared<ModelCom> model)
+{
+    _lodModels[lod] = model;
+
+    if (!model || _indirectArgsBuffers[lod].empty())
+    {
+        return;
+    }
+
+    const uint32 numMeshes = static_cast<uint32>(model->Get_NumMeshes());
+    for (uint32 i = 0; i < numMeshes && i < _indirectArgsBuffers[lod].size(); ++i)
+    {
+        uint32 args[5] = { static_cast<uint32>(model->Get_NumIndices(i)), _instanceCount, 0, 0, 0 };
+        _context->UpdateSubresource(_indirectArgsBuffers[lod][i].Get(), 0, nullptr, args, 0, 0);
+    }
 }
 
 HRESULT MapInstancedMesh::CreateInstanceBuffer(const vector<Matrix>& matrices)
@@ -284,8 +347,8 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
     }
 
     Vec3 localMin{}, localMax{};
-    const bool hasBounds = _model && _model->Try_Get_LocalBounds(localMin, localMax);
-    const Matrix preTransform = _model ? _model->Get_PreLocalTransformMatrix() : Matrix::Identity;
+    const bool hasBounds = _lodModels[0] && _lodModels[0]->Try_Get_LocalBounds(localMin, localMax);
+    const Matrix preTransform = _lodModels[0] ? _lodModels[0]->Get_PreLocalTransformMatrix() : Matrix::Identity;
 
     bool hasMergedBounds = false;
     vector<Vec4> spheres;
@@ -344,6 +407,7 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         return E_FAIL;
     }
 
+    for (int lod = 0; lod < 3; ++lod)
     {
         D3D11_BUFFER_DESC bd{};
         bd.ByteWidth = sizeof(Matrix) * count;
@@ -352,8 +416,8 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
         bd.StructureByteStride = sizeof(Matrix);
 
-        _visibleStructured.Reset();
-        if (FAILED(_device->CreateBuffer(&bd, nullptr, _visibleStructured.GetAddressOf())))
+        _visibleStructured[lod].Reset();
+        if (FAILED(_device->CreateBuffer(&bd, nullptr, _visibleStructured[lod].GetAddressOf())))
         {
             return E_FAIL;
         }
@@ -365,21 +429,19 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         uavd.Buffer.NumElements = count;
         uavd.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_APPEND;
 
-        _visibleUAV.Reset();
-        if (FAILED(_device->CreateUnorderedAccessView(_visibleStructured.Get(), &uavd, _visibleUAV.GetAddressOf())))
+        _visibleUAV[lod].Reset();
+        if (FAILED(_device->CreateUnorderedAccessView(_visibleStructured[lod].Get(), &uavd, _visibleUAV[lod].GetAddressOf())))
         {
             return E_FAIL;
         }
-    }
 
-    {
-        D3D11_BUFFER_DESC bd{};
-        bd.ByteWidth = sizeof(Matrix) * count;
-        bd.Usage = D3D11_USAGE_DEFAULT;
-        bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+        D3D11_BUFFER_DESC vbd{};
+        vbd.ByteWidth = sizeof(Matrix) * count;
+        vbd.Usage = D3D11_USAGE_DEFAULT;
+        vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 
-        _visibleVB.Reset();
-        if (FAILED(_device->CreateBuffer(&bd, nullptr, _visibleVB.GetAddressOf())))
+        _visibleVB[lod].Reset();
+        if (FAILED(_device->CreateBuffer(&vbd, nullptr, _visibleVB[lod].GetAddressOf())))
         {
             return E_FAIL;
         }
@@ -399,10 +461,11 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
         }
     }
 
+    const uint32 numMeshes = _lodModels[0] ? static_cast<uint32>(_lodModels[0]->Get_NumMeshes()) : 1;
+    for (int lod = 0; lod < 3; ++lod)
     {
-        _indirectArgsBuffers.clear();
-        const uint32 numMeshes = _model ? static_cast<uint32>(_model->Get_NumMeshes()) : 1;
-        _indirectArgsBuffers.resize(numMeshes);
+        _indirectArgsBuffers[lod].clear();
+        _indirectArgsBuffers[lod].resize(numMeshes);
 
         for (uint32 i = 0; i < numMeshes; ++i)
         {
@@ -412,19 +475,48 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
             bd.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
             bd.MiscFlags = D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
 
-            if (FAILED(_device->CreateBuffer(&bd, nullptr, _indirectArgsBuffers[i].GetAddressOf())))
+            if (FAILED(_device->CreateBuffer(&bd, nullptr, _indirectArgsBuffers[lod][i].GetAddressOf())))
             {
                 return E_FAIL;
             }
 
             uint32 args[5] = { 0, count, 0, 0, 0 };
-            if (_model)
+            if (_lodModels[0])
             {
-                args[0] = static_cast<uint32>(_model->Get_NumIndices(i));
+                args[0] = static_cast<uint32>(_lodModels[0]->Get_NumIndices(i));
             }
 
-            _context->UpdateSubresource(_indirectArgsBuffers[i].Get(), 0, nullptr, args, 0, 0);
+            _context->UpdateSubresource(_indirectArgsBuffers[lod][i].Get(), 0, nullptr, args, 0, 0);
         }
+    }
+
+    return S_OK;
+}
+
+HRESULT MapInstancedMesh::Render_Shadow()
+{
+    if (_shader == nullptr || _lodModels[0] == nullptr || _transformCom == nullptr)
+    {
+        return S_OK;
+    }
+
+    if (FAILED(_shader->Bind_ObjectCB(_transformCom->Get_WorldMatrix())))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(GAME->Bind_ShadowCB(_shader)))
+    {
+        return E_FAIL;
+    }
+
+    const uint32 numMeshes = static_cast<uint32>(_lodModels[0]->Get_NumMeshes());
+
+    for (uint32 i = 0; i < numMeshes; ++i)
+    {
+        if (FAILED(_shader->Begin(1)))
+            return E_FAIL;
+        _lodModels[0]->Render(i);
     }
 
     return S_OK;
@@ -432,7 +524,7 @@ HRESULT MapInstancedMesh::CreateCullBuffers(const vector<Matrix>& matrices, cons
 
 void MapInstancedMesh::DispatchCull()
 {
-    if (!_cullShader || !_cullCB || !_visibleUAV || !_instanceSrcBuffer || !_sphereBuffer || _indirectArgsBuffers.empty())
+    if (!_cullShader || !_cullCB || !_visibleUAV[0] || !_instanceSrcBuffer || !_sphereBuffer || _indirectArgsBuffers[0].empty())
     {
         return;
     }
@@ -454,6 +546,8 @@ void MapInstancedMesh::DispatchCull()
     }
     params.totalCount = _instanceCount;
     params.maxDist = INSTANCE_CULL_DIST;
+    params.lod1Dist = _lodModels[1] ? _lod1Dist : params.maxDist;
+    params.lod2Dist = _lodModels[2] ? _lod2Dist : params.maxDist;
 
     const Vec4* cam4 = GAME->Get_CamPosition();
     params.camPos = Vec3(cam4->x, cam4->y, cam4->z);
@@ -466,8 +560,13 @@ void MapInstancedMesh::DispatchCull()
     memcpy(mapped.pData, &params, sizeof(CullParams));
     _context->Unmap(_cullCB.Get(), 0);
 
-    uint32 initCount = {};
-    _context->CSSetUnorderedAccessViews(0, 1, _visibleUAV.GetAddressOf(), &initCount);
+    uint32 initCounts[3] = { 0, 0, 0 };
+    ID3D11UnorderedAccessView* uavs[3] = {
+        _visibleUAV[0].Get(),
+        _visibleUAV[1].Get(),
+        _visibleUAV[2].Get()
+    };
+    _context->CSSetUnorderedAccessViews(0, 3, uavs, initCounts);
 
     _cullShader->Bind_SRV(0, _instanceSrcBuffer->Get_SRV());
     _cullShader->Bind_SRV(1, _sphereBuffer->Get_SRV());
@@ -476,13 +575,16 @@ void MapInstancedMesh::DispatchCull()
     const uint32 groups = (_instanceCount + 63) / 64;
     _cullShader->Dispatch(groups, 1, 1);
 
-    ID3D11UnorderedAccessView* nullUAV = {};
-    _context->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
+    ID3D11UnorderedAccessView* nullUAVs[3] = {};
+    _context->CSSetUnorderedAccessViews(0, 3, nullUAVs, nullptr);
 
-    _context->CopyResource(_visibleVB.Get(), _visibleStructured.Get());
-    for (auto& buffer : _indirectArgsBuffers)
+    for (int lod = 0; lod < 3; ++lod)
     {
-        _context->CopyStructureCount(buffer.Get(), sizeof(uint32), _visibleUAV.Get());
+        _context->CopyResource(_visibleVB[lod].Get(), _visibleStructured[lod].Get());
+        for (auto& buffer : _indirectArgsBuffers[lod])
+        {
+            _context->CopyStructureCount(buffer.Get(), sizeof(uint32), _visibleUAV[lod].Get());
+        }
     }
 }
 
@@ -535,15 +637,28 @@ Shared<GameObject> MapInstancedMesh::Clone(void* arg)
 
 void MapInstancedMesh::Free()
 {
-    _visibleStructured.Reset();
-    _visibleUAV.Reset();
-    _visibleVB.Reset();
-    _cullCB.Reset();
-    for (auto& buffer : _indirectArgsBuffers)
+    for (const PhysXStaticActorHandle& handle : _physxStaticHandles)
     {
-        buffer.Reset();
+        if (handle.Is_Valid())
+        {
+            GAME->Unregister_PhysXStaticActor(handle);
+        }
     }
-    _indirectArgsBuffers.clear();
+    _physxStaticHandles.clear();
+    _collisionData.reset();
+
+    for (int lod = 0; lod < 3; ++lod)
+    {
+        _visibleStructured[lod].Reset();
+        _visibleUAV[lod].Reset();
+        _visibleVB[lod].Reset();
+        for (auto& buffer : _indirectArgsBuffers[lod])
+        {
+            buffer.Reset();
+        }
+        _indirectArgsBuffers[lod].clear();
+    }
+    _cullCB.Reset();
     _instanceSrcBuffer.reset();
     _sphereBuffer.reset();
     _cullShader.reset();

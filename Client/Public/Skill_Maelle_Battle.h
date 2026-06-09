@@ -52,4 +52,20 @@ public:
     void Free() override { SkillScript::Free(); }
 };
 
+class Skill_Maelle_FleureFury : public SkillScript
+{
+    GENERATED_SKILLSCRIPT(Skill_Maelle_FleureFury)
+
+public:
+    Skill_Maelle_FleureFury() = default;
+    ~Skill_Maelle_FleureFury() override = default;
+
+public:
+    void Execute(const Skill_Data& skill, const BattleAction& action, AttackType attackType) override;
+
+public:
+    static Shared<Skill_Maelle_FleureFury> Create();
+    void Free() override { SkillScript::Free(); }
+};
+
 NS_END

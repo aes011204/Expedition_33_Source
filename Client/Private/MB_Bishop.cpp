@@ -1,9 +1,10 @@
 ﻿#include "MB_Bishop.h"
-
+#include "ClientInstance.h"
 #include "Mon_Bishop_Body.h"
 #include "Mon_Lancelier_Weapon.h"
 #include "GameInstance.h"
 #include "MonsterStatCom.h"
+#include "Mon_WeakPoint.h"
 
 IMPLEMENT_REFLECTION(MB_Bishop)
 {
@@ -12,6 +13,7 @@ IMPLEMENT_REFLECTION(MB_Bishop)
 
     info.displayName = "MB_Bishop";
     info.category = "Monster";
+    PROPERTY_FLOAT("Battle Ground Offset Y", _battleGroundOffsetY, -5.f, 5.f, 0.01f);
 
     return true;
 }
@@ -38,7 +40,7 @@ HRESULT MB_Bishop::Initialize(void* arg)
 
     //_body->Set_Animation("Bishop_Idle", 0.3f, true);
 
-    _combatStat->Set_Skill("Eveque_Projectiles");
+    //_combatStat->Set_Skill("Eveque_Projectiles");
     _combatStat->Set_Skill("Eveque_SingleSpear");
     _combatStat->Set_Skill("Eveque_DoubleSpear");
     _combatStat->Set_Skill("Eveque_Defense");
@@ -46,15 +48,21 @@ HRESULT MB_Bishop::Initialize(void* arg)
     _combatStat->Set_Skill("Eveque_EnragedCombo");
     _combatStat->Set_Skill("Eveque_Spawn_Mini");
 
-
     return S_OK;
+}
+
+void MB_Bishop::BeginPlay()
+{
+    Monster_BattleBase::BeginPlay();
+
+    // GroundAoe가 프레임드랍나서 미리 준비해놓기
+    if (CLIENT != nullptr)
+        CLIENT->Prewarm_Effect(L"Beshop_Ice", L"Layer_Effect", 9);
 }
 
 void MB_Bishop::Update(float timeDelta)
 {
     Monster_BattleBase::Update(timeDelta);
-
-
 
     if (_body)
     {
@@ -62,7 +70,19 @@ void MB_Bishop::Update(float timeDelta)
     }
 }
 
+bool MB_Bishop::Try_GetDamageFeedbackSocketWorldPosition(Vec3& outWorldPos) const
+{
+    if (_body == nullptr)
+        return false;
 
+    const Matrix* socketMatrix = _body->Get_SocketBoneMatrixPtr("Aim_Target");
+    if (socketMatrix == nullptr)
+        return false;
+
+    const Matrix socketWorldMatrix = *socketMatrix * _body->Get_CombinedWorldMatrix();
+    outWorldPos = Vec3(socketWorldMatrix._41, socketWorldMatrix._42, socketWorldMatrix._43);
+    return true;
+}
 
 HRESULT MB_Bishop::Ready_PartObjects()
 {
@@ -103,6 +123,16 @@ HRESULT MB_Bishop::Ready_PartObjects()
 
     _weaponL->Set_Visible(false);
 
+    Mon_WeakPoint::WEAK_DESC weakDesc{};
+    weakDesc.parentMatrix = &_body->Get_CombinedWorldMatrix();
+    weakDesc.allowMissingModel = true;
+    weakDesc.socketName = "Aim_Target";
+    weakDesc.socketMatrix = _body->Get_SocketBoneMatrixPtr("Aim_Target");
+
+    CHECK_FAILED(Add_PartObject(ETOI(LevelType::Static), TEXT("GameObject_MonsterWeak"), TEXT("Part_Weak"), &weakDesc), E_FAIL);
+
+    _weak = dynamic_pointer_cast<Mon_WeakPoint>(_partObjects[TEXT("Part_Weak")]);
+    CHECK_NULL(_weak, E_FAIL);
 
     return S_OK;
 }

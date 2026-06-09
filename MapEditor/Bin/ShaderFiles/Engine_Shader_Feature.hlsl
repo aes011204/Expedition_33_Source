@@ -1,3 +1,5 @@
+// Engine 원본 경로: Engine/Bin/ShaderFiles/Engine_Shader_Feature.hlsl
+// Client 복사본 경로: Client/Bin/ShaderFiles/Engine_Shader_Feature.hlsl - 먼저 이 원본의 의도를 확인하세요.
 #ifndef ENGINE_SHADER_FEATURE_HLSLI
 #define ENGINE_SHADER_FEATURE_HLSLI
 
@@ -48,6 +50,40 @@ bool IsSwitchDissolveEnabled()
 {
     return HasDrawFeature(FEATURE_FLAG_DISSOLVE) &&
            HasFeatureTexture(FEATURE_TEX_DISSOLVE_NOISE);
+}
+
+// UI Preview에서 역광 효과가 활성화되었는지 확인
+bool HasPreviewRim()
+{
+    return HasDrawFeature(FEATURE_FLAG_PREVIEW_RIM);
+}
+
+// UI Preview에서 옷 전체가 번들거리지 않게 외곽 위주로만 림을 잡는다. 
+float ComputePreviewRim(float3 worldNormal, float3 viewDir, float rimPower)
+{
+    const float safePower = max(rimPower, 0.0001f);
+    const float ndotv = saturate(dot(normalize(worldNormal), normalize(viewDir)));
+    const float rimBase = 1.f - ndotv;
+    const float edgeOnly = smoothstep(0.62f, 0.90f, rimBase);
+    return pow(edgeOnly, safePower);
+}
+
+// UI Preview에서 역광 효과 색상과 강도 가져오는 함수
+float3 GetPreviewRimColor()
+{
+    return g_FeatureParam2.rgb;
+}
+
+// UI Preview에서 역광 효과 강도 가져오는 함수
+float GetPreviewRimIntensity()
+{
+    return g_FeatureParam2.a;
+}
+
+// UI Preview에서 머리카락 역광 효과 강도 가져오는 함수
+float GetPreviewHairRimIntensity()
+{
+    return g_FeatureParam3.y;
 }
 
 float SampleSwitchDissolveNoise(float2 uv)
@@ -101,7 +137,7 @@ float ComputeSwitchDissolveClip(float2 uv, float progress)
     // reveal : threshold가 점점 줄어들면서 살아남는 픽셀을 늘려야 함
     const float threshold = (revealMode >= 0.5f) ? (1.f - dissolveProgress) : dissolveProgress;
     const float scatterWeight = lerp(0.13f, 0.04f, dissolveProgress);
-    const float bandLift = (1.f - dissolveProgress) * 0.05f; 
+    const float bandLift = (1.f - dissolveProgress) * 0.05f;
 
     return noise - threshold + scatter * scatterWeight + bandLift;
 }
@@ -131,6 +167,18 @@ float ApplySwitchDissolveClip(float2 uv)
     const float clipValue = ComputeSwitchDissolveClip(uv, g_FeatureParam0.x);
     clip(clipValue);
     return ComputeSwitchDissolveEdge(uv, clipValue);
+}
+
+void ApplyPlayerNearClip(float4 worldPos)
+{
+    if (g_PlayerNearClipParams.x < 0.5f)
+        return;
+
+    float4 viewPos = mul(worldPos, g_ViewMatrix);
+
+    // 전투 연출 중 카메라에 너무 가까운 플레이어 표면만 버린다.
+    if (viewPos.z > 0.f && viewPos.z < g_PlayerNearClipParams.y)
+        discard;
 }
 
 #endif

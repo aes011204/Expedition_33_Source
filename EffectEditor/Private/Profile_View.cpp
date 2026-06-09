@@ -106,9 +106,9 @@ namespace Internal
         GAME->Log_FileOnly(
             sourceLoc,
             spdlog::level::info,
-            fmt::format("[{}] {}", kProfileSnapshotTag, message));
+            fmt::format("[{}] {}", kProfileSnapshotTag, message)
+        );
     }
-
 }
 
 Profile_View::Scope::Scope(const char* scopeName)
@@ -188,7 +188,8 @@ void Profile_View::Frame_Begin()
         now,
         activeView->_lastTimingSampleTime,
         activeView->_hasTimingSample,
-        ENGINE_PROFILE_TIMING_SAMPLE_INTERVAL_SEC);
+        ENGINE_PROFILE_TIMING_SAMPLE_INTERVAL_SEC
+    );
     if (runtime.timingSampleFrame)
     {
         activeView->_lastTimingSampleTime = now;
@@ -238,13 +239,13 @@ void Profile_View::Frame_End()
         activeView->_fpsAvg = activeView->_frameMsAvg > 0.0001 ? 1000.0 / activeView->_frameMsAvg : 0.0;
     }
 
-    vector<Engine::DebugProfileSample> debugSamples = {};
-    Engine::Debug_Profile::Consume_Samples(debugSamples);
+    vector<DebugProfileSample> debugSamples = {};
+    Debug_Profile::Consume_Samples(debugSamples);
 
     if (runtime.capture)
     {
         unordered_map<string, double> debugSampleSums = {};
-        for (const Engine::DebugProfileSample& sample : debugSamples)
+        for (const DebugProfileSample& sample : debugSamples)
             debugSampleSums[sample.name] += sample.elapsedMs;
 
         for (const auto& [scopeName, elapsedMs] : debugSampleSums)
@@ -433,156 +434,6 @@ void Profile_View::Draw_Scopes()
     }
 }
 
-vector<Profile_View::ScopeRow> Profile_View::Build_Scope_Rows() const
-{
-    vector<ScopeRow> rows = {};
-    if (nullptr == _runtime)
-        return rows;
-
-    rows.reserve(_runtime->scopes.size());
-
-    for (const auto& [_, entry] : _runtime->scopes)
-    {
-        const ScopeStats& stats = entry.ui;
-
-        if (!_showDisabled && !stats.isEnabled)
-            continue;
-
-        if (!Internal::Str_IContains(stats.name, _filter))
-            continue;
-
-        ScopeRow row = {};
-        row.stats = &stats;
-        row.sortKey = _sortByCost ? stats.avgMs : 0.0;
-        rows.push_back(row);
-    }
-
-    if (_sortByCost)
-    {
-        ranges::sort(
-            rows,
-            [](const ScopeRow& lhs, const ScopeRow& rhs)
-            {
-                return lhs.sortKey > rhs.sortKey;
-            }
-        );
-    }
-    else
-    {
-        ranges::sort(
-            rows,
-            [](const ScopeRow& lhs, const ScopeRow& rhs)
-            {
-                return lhs.stats->name < rhs.stats->name;
-            }
-        );
-    }
-
-    if (static_cast<int>(rows.size()) > _maxScopeRows)
-        rows.resize(static_cast<size_t>(_maxScopeRows));
-
-    return rows;
-}
-
-void Profile_View::Log_Snapshot() const
-{
-    const spdlog::source_loc sourceLoc{ __FILE__, __LINE__, SPDLOG_FUNCTION };
-    const vector<ScopeRow> rows = Build_Scope_Rows();
-    const string filterText = ('\0' == _filter[0]) ? string("<none>") : string(_filter);
-
-    Internal::Log_Profile_Snapshot_Line(sourceLoc, "----- begin -----");
-    Internal::Log_Profile_Snapshot_Line(sourceLoc, fmt::format(
-        "frame profile_level={}({}) fps_last={} fps_avg={} frame_ms_last={:.2f} frame_ms_avg={:.2f} render_calls={}",
-        Internal::Get_Profile_Level_Name(),
-        ENGINE_PROFILE_LEVEL,
-        static_cast<int>(_fpsLast),
-        static_cast<int>(_fpsAvg),
-        _frameMsLast,
-        _frameMsAvg,
-        _renderCallCount));
-    Internal::Log_Profile_Snapshot_Line(sourceLoc, fmt::format(
-        "toolbar capture={} sort_by_cost={} show_disabled={} avg_window={} filter=\"{}\" row_limit={}",
-        _capture,
-        _sortByCost,
-        _showDisabled,
-        _avgWindow,
-        filterText,
-        _maxScopeRows));
-
-    if (rows.empty())
-    {
-        Internal::Log_Profile_Snapshot_Line(sourceLoc, "scopes empty_under_current_filters=true");
-    }
-    else
-    {
-        Internal::Log_Profile_Snapshot_Line(sourceLoc, fmt::format("scopes visible_count={}", rows.size()));
-        for (size_t index = 0; index < rows.size(); ++index)
-        {
-            const ScopeStats& stats = *rows[index].stats;
-            Internal::Log_Profile_Snapshot_Line(sourceLoc, fmt::format(
-                "scope[{}] name=\"{}\" enabled={} last_ms={:.3f} avg_ms={:.3f} min_ms={:.3f} max_ms={:.3f} samples={}",
-                index,
-                stats.name,
-                stats.isEnabled,
-                stats.lastMs,
-                stats.avgMs,
-                stats.minMs,
-                stats.maxMs,
-                stats.samples));
-        }
-    }
-
-    if (_hasProcessMemorySample)
-    {
-        Internal::Log_Profile_Snapshot_Line(sourceLoc, fmt::format(
-            "memory working_set_mb={} peak_working_set_mb={} private_mb={} peak_private_mb={}",
-            _processMemory.workingSetMb,
-            _peakWorkingSetMb,
-            _processMemory.privateBytesMb,
-            _peakPrivateBytesMb));
-    }
-    else
-    {
-        Internal::Log_Profile_Snapshot_Line(sourceLoc, "memory pending=true");
-    }
-
-    if (_hasResourceMemorySample && _resourceMemory.hasData)
-    {
-        const Engine::DebugResourceMemorySummary& summary = _resourceMemory.engine;
-        Internal::Log_Profile_Snapshot_Line(sourceLoc, fmt::format(
-            "resource textures={} textures_mb={:.1f} texture_srvs={} "
-            "models={} models_mb={:.1f} model_meshes={} model_materials={} model_bones={} model_anims={} "
-            "standalone_buffers={} standalone_buffers_mb={:.1f} objects={} components={} "
-            "effect_pool_entries={} effect_pool_active={} effect_pool_idle={}",
-            summary.texturePrototypeCount,
-            Internal::Bytes_To_Mb(summary.textureEstimatedBytes),
-            summary.textureSrvCount,
-            summary.modelPrototypeCount,
-            Internal::Bytes_To_Mb(summary.modelEstimatedBytes),
-            summary.modelMeshCount,
-            summary.modelMaterialCount,
-            summary.modelBoneCount,
-            summary.modelAnimationCount,
-            summary.standaloneBufferPrototypeCount,
-            Internal::Bytes_To_Mb(summary.standaloneBufferEstimatedBytes),
-            summary.currentLevelObjectCount,
-            summary.currentLevelComponentCount,
-            _resourceMemory.effectPoolEntryCount,
-            _resourceMemory.effectPoolActiveCount,
-            _resourceMemory.effectPoolIdleCount));
-    }
-    else if (_hasResourceMemorySample)
-    {
-        Internal::Log_Profile_Snapshot_Line(sourceLoc, "resource pending=false has_data=false");
-    }
-    else
-    {
-        Internal::Log_Profile_Snapshot_Line(sourceLoc, "resource pending=true");
-    }
-
-    Internal::Log_Profile_Snapshot_Line(sourceLoc, "----- end -----");
-}
-
 void Profile_View::Draw_Memory()
 {
     ImGui::Text("Memory");
@@ -627,7 +478,7 @@ void Profile_View::Draw_Resource_Memory()
         return;
     }
 
-    const Engine::DebugResourceMemorySummary& summary = _resourceMemory.engine;
+    const DebugResourceMemorySummary& summary = _resourceMemory.engine;
 
     if (ImGui::BeginTable("ResourceMemoryTable", 4, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_RowBg))
     {
@@ -654,7 +505,8 @@ void Profile_View::Draw_Resource_Memory()
             "Textures",
             fmt::format("{} prototypes", summary.texturePrototypeCount),
             fmt::format("{:.1f} MB", Internal::Bytes_To_Mb(summary.textureEstimatedBytes)),
-            fmt::format("{} SRVs incl. materials", summary.textureSrvCount));
+            fmt::format("{} SRVs incl. materials", summary.textureSrvCount)
+        );
 
         drawRow(
             "Models",
@@ -665,19 +517,23 @@ void Profile_View::Draw_Resource_Memory()
                 summary.modelMeshCount,
                 summary.modelMaterialCount,
                 summary.modelBoneCount,
-                summary.modelAnimationCount));
+                summary.modelAnimationCount
+            )
+        );
 
         drawRow(
             "Standalone Buffers",
             fmt::format("{} prototypes", summary.standaloneBufferPrototypeCount),
             fmt::format("{:.1f} MB", Internal::Bytes_To_Mb(summary.standaloneBufferEstimatedBytes)),
-            "VIBuffer prototypes");
+            "VIBuffer prototypes"
+        );
 
         drawRow(
             "Objects",
             fmt::format("{} objects", summary.currentLevelObjectCount),
             "N/A",
-            fmt::format("{} components", summary.currentLevelComponentCount));
+            fmt::format("{} components", summary.currentLevelComponentCount)
+        );
 
         drawRow(
             "Effect Pool",
@@ -686,7 +542,9 @@ void Profile_View::Draw_Resource_Memory()
             fmt::format(
                 "{} active / {} idle",
                 _resourceMemory.effectPoolActiveCount,
-                _resourceMemory.effectPoolIdleCount));
+                _resourceMemory.effectPoolIdleCount
+            )
+        );
 
         ImGui::EndTable();
     }
@@ -743,6 +601,168 @@ void Profile_View::Prune_Dead_Scopes()
     }
 }
 
+vector<Profile_View::ScopeRow> Profile_View::Build_Scope_Rows() const
+{
+    vector<ScopeRow> rows = {};
+    if (nullptr == _runtime)
+        return rows;
+
+    rows.reserve(_runtime->scopes.size());
+
+    for (const auto& [_, entry] : _runtime->scopes)
+    {
+        const ScopeStats& stats = entry.ui;
+
+        if (!_showDisabled && !stats.isEnabled)
+            continue;
+
+        if (!Internal::Str_IContains(stats.name, _filter))
+            continue;
+
+        ScopeRow row = {};
+        row.stats = &stats;
+        row.sortKey = _sortByCost ? stats.avgMs : 0.0;
+        rows.push_back(row);
+    }
+
+    if (_sortByCost)
+    {
+        ranges::sort(
+            rows,
+            [](const ScopeRow& lhs, const ScopeRow& rhs)
+            {
+                return lhs.sortKey > rhs.sortKey;
+            }
+        );
+    }
+    else
+    {
+        ranges::sort(
+            rows,
+            [](const ScopeRow& lhs, const ScopeRow& rhs)
+            {
+                return lhs.stats->name < rhs.stats->name;
+            }
+        );
+    }
+
+    if (static_cast<int>(rows.size()) > _maxScopeRows)
+        rows.resize(static_cast<size_t>(_maxScopeRows));
+
+    return rows;
+}
+
+void Profile_View::Log_Snapshot() const
+{
+    const spdlog::source_loc sourceLoc{ __FILE__, __LINE__, SPDLOG_FUNCTION };
+    const vector<ScopeRow> rows = Build_Scope_Rows();
+    const string filterText = '\0' == _filter[0] ? string("<none>") : string(_filter);
+
+    Internal::Log_Profile_Snapshot_Line(sourceLoc, "----- begin -----");
+    Internal::Log_Profile_Snapshot_Line(
+        sourceLoc,
+        fmt::format(
+            "frame profile_level={}({}) fps_last={} fps_avg={} frame_ms_last={:.2f} frame_ms_avg={:.2f} render_calls={}",
+            Internal::Get_Profile_Level_Name(),
+            ENGINE_PROFILE_LEVEL,
+            static_cast<int>(_fpsLast),
+            static_cast<int>(_fpsAvg),
+            _frameMsLast,
+            _frameMsAvg,
+            _renderCallCount
+        )
+    );
+    Internal::Log_Profile_Snapshot_Line(
+        sourceLoc,
+        fmt::format(
+            "toolbar capture={} sort_by_cost={} show_disabled={} avg_window={} filter=\"{}\" row_limit={}",
+            _capture,
+            _sortByCost,
+            _showDisabled,
+            _avgWindow,
+            filterText,
+            _maxScopeRows
+        )
+    );
+
+    if (rows.empty())
+        Internal::Log_Profile_Snapshot_Line(sourceLoc, "scopes empty_under_current_filters=true");
+    else
+    {
+        Internal::Log_Profile_Snapshot_Line(sourceLoc, fmt::format("scopes visible_count={}", rows.size()));
+        for (size_t index = 0; index < rows.size(); ++index)
+        {
+            const ScopeStats& stats = *rows[index].stats;
+            Internal::Log_Profile_Snapshot_Line(
+                sourceLoc,
+                fmt::format(
+                    "scope[{}] name=\"{}\" enabled={} last_ms={:.3f} avg_ms={:.3f} min_ms={:.3f} max_ms={:.3f} samples={}",
+                    index,
+                    stats.name,
+                    stats.isEnabled,
+                    stats.lastMs,
+                    stats.avgMs,
+                    stats.minMs,
+                    stats.maxMs,
+                    stats.samples
+                )
+            );
+        }
+    }
+
+    if (_hasProcessMemorySample)
+    {
+        Internal::Log_Profile_Snapshot_Line(
+            sourceLoc,
+            fmt::format(
+                "memory working_set_mb={} peak_working_set_mb={} private_mb={} peak_private_mb={}",
+                _processMemory.workingSetMb,
+                _peakWorkingSetMb,
+                _processMemory.privateBytesMb,
+                _peakPrivateBytesMb
+            )
+        );
+    }
+    else
+        Internal::Log_Profile_Snapshot_Line(sourceLoc, "memory pending=true");
+
+    if (_hasResourceMemorySample && _resourceMemory.hasData)
+    {
+        const DebugResourceMemorySummary& summary = _resourceMemory.engine;
+        Internal::Log_Profile_Snapshot_Line(
+            sourceLoc,
+            fmt::format(
+                "resource textures={} textures_mb={:.1f} texture_srvs={} "
+                "models={} models_mb={:.1f} model_meshes={} model_materials={} model_bones={} model_anims={} "
+                "standalone_buffers={} standalone_buffers_mb={:.1f} objects={} components={} "
+                "effect_pool_entries={} effect_pool_active={} effect_pool_idle={}",
+                summary.texturePrototypeCount,
+                Internal::Bytes_To_Mb(summary.textureEstimatedBytes),
+                summary.textureSrvCount,
+                summary.modelPrototypeCount,
+                Internal::Bytes_To_Mb(summary.modelEstimatedBytes),
+                summary.modelMeshCount,
+                summary.modelMaterialCount,
+                summary.modelBoneCount,
+                summary.modelAnimationCount,
+                summary.standaloneBufferPrototypeCount,
+                Internal::Bytes_To_Mb(summary.standaloneBufferEstimatedBytes),
+                summary.currentLevelObjectCount,
+                summary.currentLevelComponentCount,
+                _resourceMemory.effectPoolEntryCount,
+                _resourceMemory.effectPoolActiveCount,
+                _resourceMemory.effectPoolIdleCount
+            )
+        );
+    }
+    else if (_hasResourceMemorySample)
+        Internal::Log_Profile_Snapshot_Line(sourceLoc, "resource pending=false has_data=false");
+    else
+        Internal::Log_Profile_Snapshot_Line(sourceLoc, "resource pending=true");
+
+    Internal::Log_Profile_Snapshot_Line(sourceLoc, "----- end -----");
+}
+
 void Profile_View::Record_Scope_Sample(const string& scopeName, double elapsedMs)
 {
     if (nullptr == _runtime || scopeName.empty())
@@ -796,7 +816,8 @@ void Profile_View::Refresh_Memory_Samples()
         now,
         _lastProcessMemorySampleTime,
         _hasProcessMemorySample,
-        ENGINE_PROFILE_PROCESS_MEMORY_SAMPLE_INTERVAL_SEC))
+        ENGINE_PROFILE_PROCESS_MEMORY_SAMPLE_INTERVAL_SEC
+    ))
     {
         _processMemory = Get_Process_Memory();
         _peakWorkingSetMb = max(_peakWorkingSetMb, _processMemory.workingSetMb);
@@ -809,7 +830,8 @@ void Profile_View::Refresh_Memory_Samples()
         now,
         _lastResourceMemorySampleTime,
         _hasResourceMemorySample,
-        ENGINE_PROFILE_RESOURCE_MEMORY_SAMPLE_INTERVAL_SEC))
+        ENGINE_PROFILE_RESOURCE_MEMORY_SAMPLE_INTERVAL_SEC
+    ))
     {
         _resourceMemory = Get_Resource_Memory();
         _lastResourceMemorySampleTime = now;
@@ -837,10 +859,10 @@ Profile_View::ResourceMemory Profile_View::Get_Resource_Memory() const
     ResourceMemory result{};
     result.hasData = GAME->Build_DebugResourceMemorySummary(result.engine);
 
-    const Shared<Client::ClientInstance>& client = Client::ClientInstance::GetInstance();
+    const Shared<ClientInstance>& client = ClientInstance::GetInstance();
     if (client && client->Get_EffectInstancePool())
     {
-        const Client::EffectInstancePool::DebugSummary poolSummary =
+        const EffectInstancePool::DebugSummary poolSummary =
             client->Get_EffectInstancePool()->Get_DebugSummary();
         result.effectPoolEntryCount = poolSummary.entryCount;
         result.effectPoolActiveCount = poolSummary.activeCount;

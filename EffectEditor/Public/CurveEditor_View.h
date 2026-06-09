@@ -18,17 +18,14 @@ public:
     void Render() override;
     void Pin_ModuleTargets(uint32 emitterId, uint32 moduleId);
     void Clear_PinnedTracks();
+    static bool Has_ModuleCurveTargets(AuthoringEmitter& emitter, AuthoringModule& module);
 
 private:
     enum class CurveTargetChannel : uint8
     {
         Value,
-        X,
-        Y,
-        Z,
-        R,
-        G,
-        B,
+        X, Y, Z,
+        R, G, B,
     };
 
     enum class CurveTargetPayloadKind : uint8
@@ -106,17 +103,42 @@ private:
     static Color Evaluate_Curve(const ConstantCurveColorDistributionData& curve, float x);
 
     Shared<Emitter_View> Resolve_EmitterView() const;
-    vector<CurveTarget> Collect_ModuleTargets(AuthoringEmitter& emitter, AuthoringModule& module) const;
+    static vector<CurveTarget> Collect_ModuleTargets(AuthoringEmitter& emitter, AuthoringModule& module);
     vector<CurveTarget> Resolve_PinnedTargets();
     optional<CurveTarget> Resolve_Target(const CurveTargetIdentity& identity) const;
     optional<size_t> Find_PinnedTrackIndex(const CurveTargetIdentity& identity) const;
     optional<size_t> Find_ResolvedTargetIndex(const vector<CurveTarget>& targets, const CurveTargetIdentity& identity) const;
     optional<CurveTarget> Get_ActiveTarget(const vector<CurveTarget>& targets) const;
 
-    void Add_FloatTarget(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, FloatDistributionData& distribution, const string& propertyId, const string& label, ImU32 color) const;
-    void Add_Vector2Target(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, Vector2DistributionData& distribution, const string& propertyId, const string& label) const;
-    void Add_Vector3Target(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, Vector3DistributionData& distribution, const string& propertyId, const string& label) const;
-    void Add_ColorTarget(vector<CurveTarget>& targets, AuthoringEmitter& emitter, AuthoringModule& module, ColorDistributionData& distribution, const string& propertyId, const string& label) const;
+    static void Add_FloatTarget(
+        vector<CurveTarget>& targets,
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        FloatDistributionData& distribution,
+        const string& propertyId,
+        const string& label,
+        ImU32 color);
+    static void Add_Vector2Target(
+        vector<CurveTarget>& targets,
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        Vector2DistributionData& distribution,
+        const string& propertyId,
+        const string& label);
+    static void Add_Vector3Target(
+        vector<CurveTarget>& targets,
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        Vector3DistributionData& distribution,
+        const string& propertyId,
+        const string& label);
+    static void Add_ColorTarget(
+        vector<CurveTarget>& targets,
+        AuthoringEmitter& emitter,
+        AuthoringModule& module,
+        ColorDistributionData& distribution,
+        const string& propertyId,
+        const string& label);
     void Pin_Targets(const vector<CurveTarget>& targets);
     void Remove_StalePinnedTracks(const vector<CurveTarget>& targets);
     void Ensure_ActiveTrack(const vector<CurveTarget>& targets);
@@ -124,14 +146,14 @@ private:
     void Begin_CurveAuthoringEdit(const CurveTarget& target, const string& description);
     void Commit_CurveAuthoringEdit();
     bool Execute_CurveAuthoringEdit(const CurveTarget& target, const string& description, const function<bool()>& edit);
-    void Mark_CurveChanged(CurveTarget& target);
+    void Mark_CurveChanged(const CurveTarget& target);
 
-    bool Convert_ActiveTargetToConstantCurve(CurveTarget& target);
+    bool Convert_ActiveTargetToConstantCurve(const CurveTarget& target);
     void Draw_EmptyState();
     void Draw_TrackList(const vector<CurveTarget>& targets);
     void Draw_TargetHeader(CurveTarget& target);
     void Draw_CurveGraph(const vector<CurveTarget>& targets, CurveTarget& activeTarget);
-    void Draw_SelectedKeyInspector(CurveTarget& target);
+    void Draw_SelectedKeyInspector(const CurveTarget& target);
 
 public:
     static Shared<CurveEditor_View> Create();

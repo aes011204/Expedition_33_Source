@@ -1,3 +1,5 @@
+// Engine 원본 경로: Engine/Bin/ShaderFiles/Engine_Shader_Defines.hlsli
+// Client 복사본 경로: Client/Bin/ShaderFiles/Engine_Shader_Defines.hlsli - 먼저 이 원본의 의도를 확인하세요.
 #ifndef ENGINE_SHADER_DEFINES_HLSLI
 #define ENGINE_SHADER_DEFINES_HLSLI
 
@@ -58,6 +60,7 @@
 // Draw Feature Flags
 #define FEATURE_FLAG_DISSOLVE        (1u << 0)
 #define FEATURE_FLAG_DISTORTION      (1u << 1)
+#define FEATURE_FLAG_PREVIEW_RIM     (1u << 2)
 
 // PostProcess Feature Flags
 // PostProcess Feature Flags
@@ -66,5 +69,6 @@
 #define POSTPROCESS_FLAG_EXPOSURE    (1u << 2)
 #define POSTPROCESS_FLAG_BLOOM       (1u << 3) // 아직 미사용
 #define POSTPROCESS_FLAG_GAMMA       (1u << 4)
+#define POSTPROCESS_FLAG_LIGHTSHAFT  (1u << 5)
 
 #endif

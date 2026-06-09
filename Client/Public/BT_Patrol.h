@@ -19,11 +19,13 @@ public:
     virtual void Free()override;
 
 private:
-
-    bool _isPatrol = {};
-    vector<Vec3> _patrolPoints ;
-
-    uint32 curIndex = {};
+    vector<Vec3> _patrolPoints = {};
+    uint32 _curIndex = 0;
+    Vec3 _lastSamplePos = Vec3::Zero;
+    float _stuckAccum = 0.f;
+    bool _usingBypassTarget = false;
+    Vec3 _bypassTarget = Vec3::Zero;
+    uint32 _bypassAttemptCount = 0;
 };
 
 NS_END

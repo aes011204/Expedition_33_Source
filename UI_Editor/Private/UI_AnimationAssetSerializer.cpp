@@ -5,7 +5,7 @@ namespace UIEditor
 {
     namespace
     {
-        constexpr int32 kAnimationAssetJsonVersion = 4;
+        constexpr int32 kAnimationAssetJsonVersion = 6;
         constexpr int32 kStateAnimationAssetJsonVersion = 1;
 
         string Read_String(const json& item, const char* key, const string& defaultValue)
@@ -57,6 +57,17 @@ namespace UIEditor
                 iter->at(3).is_number() ? iter->at(3).get<float>() : defaultValue.w));
         }
 
+        ImVec2 Read_Vec2(const json& item, const char* key, const ImVec2& defaultValue)
+        {
+            const auto iter = item.find(key);
+            if (iter == item.end() || !iter->is_array() || iter->size() < 2)
+                return defaultValue;
+
+            return ImVec2(
+                iter->at(0).is_number() ? iter->at(0).get<float>() : defaultValue.x,
+                iter->at(1).is_number() ? iter->at(1).get<float>() : defaultValue.y);
+        }
+
         void Normalize_AssetRange(UI_AnimationAsset& asset)
         {
             asset.fps = max(1, asset.fps);
@@ -70,6 +81,8 @@ namespace UIEditor
                 key.frame = min(max(key.frame, asset.startFrame), asset.endFrame);
                 if (track.type == UI_AnimationKeyframeTrackType::Color)
                     key.color = Clamp_AnimationKeyframeColor(key.color);
+                else if (Is_AnimationKeyframeTrackVec2Value(track.type))
+                    key.valueVec2 = Clamp_AnimationKeyframeTrackVec2Value(track.type, key.valueVec2);
                 else
                     key.value = Clamp_AnimationKeyframeTrackValue(track.type, key.value);
             }
@@ -106,6 +119,11 @@ namespace UIEditor
             {
                 const ImVec4 color = Clamp_AnimationKeyframeColor(key.color);
                 item["color"] = { color.x, color.y, color.z, color.w };
+            }
+            else if (Is_AnimationKeyframeTrackVec2Value(trackType))
+            {
+                const ImVec2 value = Clamp_AnimationKeyframeTrackVec2Value(trackType, key.valueVec2);
+                item["value"] = { value.x, value.y };
             }
             else
             {
@@ -168,6 +186,10 @@ namespace UIEditor
             if (trackType == UI_AnimationKeyframeTrackType::Color)
             {
                 key.color = Read_Color255(item, "color", ImVec4(255.f, 255.f, 255.f, 255.f));
+            }
+            else if (Is_AnimationKeyframeTrackVec2Value(trackType))
+            {
+                key.valueVec2 = Clamp_AnimationKeyframeTrackVec2Value(trackType, Read_Vec2(item, "value", ImVec2(0.f, 0.f)));
             }
             else
             {

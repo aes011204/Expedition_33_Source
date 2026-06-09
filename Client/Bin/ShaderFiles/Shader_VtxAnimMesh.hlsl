@@ -141,6 +141,8 @@ struct PS_OUT
 
 PS_OUT PS_Opaque(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
@@ -167,6 +169,15 @@ PS_OUT PS_Opaque(PS_IN In)
 
     float3 emissive = SampleEmissive(finalUV);
     emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+
+    if (HasPreviewRim())
+    {
+        float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
+        emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
+    }
+
     Out.Emissive = float4(emissive.xyz, 1.f);
 
     return Out;
@@ -174,6 +185,8 @@ PS_OUT PS_Opaque(PS_IN In)
 
 PS_OUT PS_Mask(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
@@ -202,6 +215,15 @@ PS_OUT PS_Mask(PS_IN In)
 
     float3 emissive = SampleEmissive(finalUV);
     emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+
+    if (HasPreviewRim())
+    {
+        float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
+        emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
+    }
+
     Out.Emissive = float4(emissive.xyz, 1.f);
     
     return Out;
@@ -223,24 +245,25 @@ PS_OUT_ID PS_ID(PS_IN In)
     Out.Color.a = 1.f;
     return Out;
 }
-//
 
 struct PS_OUT_SHADOW
 {
-    vector LightDepth : SV_TARGET0;
+    float LightDepth : SV_TARGET0;
 };
 
 PS_OUT_SHADOW PS_Shadow(VS_SHADOW_OUT In)
 {
     PS_OUT_SHADOW Out;
 
-    Out.LightDepth = vector(In.ProjPos.z / In.ProjPos.w, 0.f, 0.f, 1.f);
+    Out.LightDepth = In.ProjPos.z / In.ProjPos.w;
 
     return Out;
 }
 
 PS_OUT PS_CharacterEye(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
@@ -255,8 +278,15 @@ PS_OUT PS_CharacterEye(PS_IN In)
         discard;
 
     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
+    float3 eyeBaseColor = eye.baseColor;
 
-    Out.Diffuse = float4(eye.baseColor, 1.f);
+    // if (HasPreviewRim())
+    // {
+    //     // SkillTree preview에서는 얼굴이 눌리기 쉬워서 눈만 전체 밝기를 조금 더 올린다.
+    //     eyeBaseColor = eyeBaseColor * 1.95f + 0.085f;
+    // }
+
+    Out.Diffuse = float4(eyeBaseColor, 1.f);
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
     float3 orm = SampleOrm(finalUV);
@@ -270,6 +300,12 @@ PS_OUT PS_CharacterEye(PS_IN In)
 
     float3 emissive = SampleEmissive(finalUV);
     emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+
+    if (HasPreviewRim())
+    {
+        emissive += eyeBaseColor * 0.34f;
+    }
+
     Out.Emissive = float4(emissive.xyz, 1.f);
 
     return Out;
@@ -277,25 +313,31 @@ PS_OUT PS_CharacterEye(PS_IN In)
 
 PS_OUT PS_CharacterHair(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
 
     float hairMask = SampleHairMask(finalUV);
+    float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+    float facing = saturate(abs(dot(normalize(In.Normal.xyz), viewDir)));
+    float edgeFade = smoothstep(0.10f, 0.38f, facing);
 
     // 본체 coverage를 더 넓게 잡는다.
     const float hairCoreStart = 0.25f;
     const float hairCoreEnd = 0.50f;
 
     float coreMask = smoothstep(hairCoreStart, hairCoreEnd, hairMask);
+    coreMask *= lerp(0.72f, 1.0f, edgeFade);
 
     // 기존보다 완화해서 더 많은 본체가 남게 한다.
     clip(coreMask - 0.15f);
 
     float3 hairBSDFColor = Compute_BlenderHairColor(finalUV);
 
-    const float hairAO = 1.f;
-    const float hairRoughness = 0.4f;
+    const float hairAO = 2.f;
+    const float hairRoughness = 0.8f;
     const float hairMetalness = 0.f;
 
     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
@@ -304,7 +346,18 @@ PS_OUT PS_CharacterHair(PS_IN In)
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
     Out.Material = float4(hairAO, hairRoughness, hairMetalness, 1.f);
-    Out.Emissive = float4(0.f, 0.f, 0.f, 1.f);
+
+    float3 emissive = float3(0.f, 0.f, 0.f);
+    if (HasPreviewRim())
+    {
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
+        float edgeMask = saturate(1.f - coreMask);
+        float hairRim = rim * saturate(hairMask) * lerp(0.35f, 1.0f, edgeMask);
+        emissive += GetPreviewRimColor() * (hairRim * GetPreviewRimIntensity() * GetPreviewHairRimIntensity());
+    }
+
+    Out.Emissive = float4(emissive, 1.f);
 
     return Out;
 }
@@ -316,11 +369,16 @@ struct PS_OUT_HAIR_BLEND
 
 PS_OUT_HAIR_BLEND PS_CharacterHairBlend(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT_HAIR_BLEND Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
 
     float3 hairColor = Compute_BlenderHairColor(finalUV);
+    float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+    float facing = saturate(abs(dot(normalize(In.Normal.xyz), viewDir)));
+    float edgeFade = smoothstep(0.10f, 0.38f, facing);
 
     float hairMask = g_MaterialTextures[MATERIAL_SLOT_OPACITY_MASK].Sample(LinearWrapSampler, finalUV).r;
     hairMask = saturate(hairMask);
@@ -341,6 +399,7 @@ PS_OUT_HAIR_BLEND PS_CharacterHairBlend(PS_IN In)
 
     // core는 이미 GBuffer에서 그렸으니 제외
     float hairAlpha = softMask * (1.f - coreMask);
+    hairAlpha *= lerp(0.45f, 1.0f, edgeFade);
 
     // 너무 약한 알파는 버림
     clip(hairAlpha);

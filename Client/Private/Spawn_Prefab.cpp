@@ -11,6 +11,7 @@
 #include "Monster_WorldBase.h"
 #include "Monster_BattleBase.h"
 #include "TransformCom.h"
+#include "Client_Constants.h"
 
 namespace fs = std::filesystem;
 
@@ -60,6 +61,16 @@ void Refresh_MonsterBodyAnimMapping(const Shared<GameObject>& gameObject)
     }
 }
 
+string Resolve_CanonicalPrefabName(const string& requestedPrefabName, const fs::path& prefabPath)
+{
+    string stem = String::ToString(prefabPath.stem().wstring());
+    constexpr string_view prefabSuffix = ".prefab";
+    if (stem.ends_with(prefabSuffix))
+        stem.erase(stem.size() - prefabSuffix.size());
+
+    return stem.empty() ? requestedPrefabName : stem;
+}
+
 }
 
 Spawn_Prefab::Builder::Builder(const string& prefabName)
@@ -76,6 +87,7 @@ Spawn_Prefab::Builder& Spawn_Prefab::Builder::AtLevel(uint32 levelIndex)
 Spawn_Prefab::Builder& Spawn_Prefab::Builder::InLayer(const wstring& layerTag)
 {
     _spawnDesc.layerTag = layerTag;
+    _spawnDesc.hasExplicitLayerTag = true;
     return *this;
 }
 
@@ -111,6 +123,7 @@ Shared<GameObject> Spawn_Prefab::Spawn(
     desc.prefabName = prefabName;
     desc.levelIndex = levelIndex;
     desc.layerTag = layerTag;
+    desc.hasExplicitLayerTag = true;
 
     return Spawn_Implementation(desc);
 }
@@ -125,17 +138,63 @@ Shared<GameObject> Spawn_Prefab::SpawnAt(
     desc.prefabName = prefabName;
     desc.levelIndex = levelIndex;
     desc.layerTag = layerTag;
+    desc.hasExplicitLayerTag = true;
     desc.overrides["position"] = { position.x, position.y, position.z };
 
     return Spawn_Implementation(desc);
 }
 
+Shared<GameObject> Spawn_Prefab::SpawnForEditorPlacement(
+    const string& prefabName,
+    uint32 levelIndex,
+    const Vec3& position)
+{
+    const fs::path prefabPath = Resolve_PrefabPath(prefabName);
+
+    Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(prefabPath);
+    CHECK_NULL(gameObject, nullptr);
+
+    gameObject->Set_SourcePrefabName(Resolve_CanonicalPrefabName(prefabName, prefabPath));
+    gameObject->Set_RuntimeAuthoringLoaded(true); // 에디터 드래그 배치 프리펩은 authored 관리 대상으로 표시한다.
+    Refresh_PlayerBodyAnimMapping(gameObject);
+    Refresh_MonsterBodyAnimMapping(gameObject);
+
+    Shared<TransformCom> transform = gameObject->Get_Transform();
+    if (transform != nullptr)
+        transform->Set_WorldPosition(position);
+
+    const wstring typeLayerTag = Resolve_DefaultLayerTag(gameObject);
+    wstring layerTag = Resolve_DefaultLayerTagFromPrefabFile(prefabPath);
+    if (layerTag.empty() || (layerTag == TEXT("Layer_GameObject") && typeLayerTag != TEXT("Layer_GameObject")))
+        layerTag = typeLayerTag; // Content Browser 배치 몬스터는 generic layer 대신 runtime 몬스터 레이어로 정규화한다.
+
+    CHECK_FAILED(GAME->Add_GameObject(levelIndex, layerTag, gameObject), nullptr);
+
+    return gameObject;
+}
+
 fs::path Spawn_Prefab::Resolve_PrefabPath(const string& prefabName)
 {
-    const wstring fileName = String::ToWString(prefabName) + L".prefab.json";
+    const wstring resolvedPath = GAME->Resolve_AssetPath(prefabName);
+    if (!resolvedPath.empty())
+        return fs::path(resolvedPath); // 에디터 payload가 guid를 싣는 경우에는 AssetRegistry/meta 기준으로 실제 프리펩 경로를 바로 푼다.
 
-    return fs::path(GAME->Get_AssetRoot()) /
-        L"Data" / L"json" / L"Prefabs" / fileName;
+    const wstring fileName = String::ToWString(prefabName) + L".prefab.json";
+    const fs::path assetRoot = fs::path(GAME->Get_AssetRoot());
+
+    if (prefabName.starts_with("PW_") || prefabName.starts_with("PB_"))
+        return assetRoot / Constants::Prefab::Player_Dir / fileName; // 플레이어 프리팹은 Player 폴더로 정규화한다.
+
+    if (prefabName.starts_with("MW_") || prefabName.starts_with("MB_"))
+        return assetRoot / Constants::Prefab::Monster_Dir / fileName; // 몬스터 프리팹은 Monster 폴더로 정규화한다.
+
+    if (prefabName.starts_with("WP_"))
+        return assetRoot / Constants::Prefab::Weapon_Dir / fileName; // 무기 프리팹은 기존 Weapons 폴더를 계속 쓴다.
+
+    if (prefabName.starts_with("BSS_"))
+        return assetRoot / Constants::Prefab::BattleStartSpawner_Dir / fileName; // BattleStartSpawner는 전용 폴더를 쓴다.
+
+    return assetRoot / Constants::Prefab::Root_Dir / fileName; // 분류 규칙이 없는 기존 프리팹만 루트 fallback을 쓴다.
 }
 
 void Spawn_Prefab::Apply_Overrides(const Shared<GameObject>& gameObject, const json& overrides)
@@ -184,6 +243,26 @@ void Spawn_Prefab::Apply_Overrides(const Shared<GameObject>& gameObject, const j
     }
 }
 
+wstring Spawn_Prefab::Resolve_DefaultLayerTagFromPrefabFile(const fs::path& prefabPath)
+{
+    const json root = GAME->Load_JsonFile(prefabPath);
+    if (!root.is_object() || !root.contains("default_layer_tag") || !root["default_layer_tag"].is_string())
+        return {};
+
+    return String::ToWString(root["default_layer_tag"].get<string>());
+}
+
+wstring Spawn_Prefab::Resolve_DefaultLayerTag(const Shared<GameObject>& gameObject)
+{
+    if (dynamic_pointer_cast<Monster_WorldBase>(gameObject) != nullptr)
+        return TEXT("Layer_Monster");
+
+    if (dynamic_pointer_cast<Player_WorldBase>(gameObject) != nullptr)
+        return TEXT("Layer_Player");
+
+    return TEXT("Layer_GameObject");
+}
+
 Shared<GameObject> Spawn_Prefab::Spawn_Implementation(const FSpawnDesc& desc)
 {
     if (desc.prefabName.empty())
@@ -194,13 +273,22 @@ Shared<GameObject> Spawn_Prefab::Spawn_Implementation(const FSpawnDesc& desc)
     Shared<GameObject> gameObject = GAME->Instantiate_GameObjectJson(prefabPath);
     CHECK_NULL(gameObject, nullptr);
 
-    gameObject->Set_SourcePrefabName(desc.prefabName);
+    gameObject->Set_SourcePrefabName(Resolve_CanonicalPrefabName(desc.prefabName, prefabPath));
     Refresh_PlayerBodyAnimMapping(gameObject);
     Refresh_MonsterBodyAnimMapping(gameObject);
 
     Apply_Overrides(gameObject, desc.overrides);
 
-    CHECK_FAILED(GAME->Add_GameObject(desc.levelIndex, desc.layerTag, gameObject), nullptr);
+    wstring layerTag = desc.layerTag;
+    const wstring typeLayerTag = Resolve_DefaultLayerTag(gameObject);
+    if (!desc.hasExplicitLayerTag)
+    {
+        layerTag = Resolve_DefaultLayerTagFromPrefabFile(prefabPath);
+    }
+    if (layerTag.empty() || (layerTag == TEXT("Layer_GameObject") && typeLayerTag != TEXT("Layer_GameObject")))
+        layerTag = typeLayerTag; // 저장된 GUID authored prefab도 코드 spawn과 같은 몬스터 레이어로 복원한다.
+
+    CHECK_FAILED(GAME->Add_GameObject(desc.levelIndex, layerTag, gameObject), nullptr);
 
     return gameObject;
 }

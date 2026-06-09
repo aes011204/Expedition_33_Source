@@ -24,6 +24,9 @@ namespace RT
 
     inline constexpr const wchar_t* HDRColor = L"Target_HDRColor";
     inline constexpr const wchar_t* DistortionSource = L"Target_DistortionSource"; // 왜곡 pass가 읽을 HDRColor snapshot이다.
+    inline constexpr const wchar_t* DistortionField = L"Target_DistortionField";   // 왜곡 geometry가 누적할 screen-space offset/weight field다.
+    inline constexpr const wchar_t* LightShaftMaskHalf = L"Target_LightShaftMaskHalf";
+    inline constexpr const wchar_t* LightShaftBlurHalf = L"Target_LightShaftBlurHalf";
     inline constexpr const wchar_t* BackgroundMask = L"Target_BackgroundMask";
     inline constexpr const wchar_t* ScreenFxColorA = L"Target_ScreenFxColorA";
     inline constexpr const wchar_t* ScreenFxColorB = L"Target_ScreenFxColorB";
@@ -45,6 +48,9 @@ namespace MRT
     inline constexpr const wchar_t* ShadowObjects = L"MRT_ShadowObjects";
     inline constexpr const wchar_t* StaticShadowObjects = L"MRT_StaticShadowObjects";
     inline constexpr const wchar_t* HDR = L"MRT_HDRColor";
+    inline constexpr const wchar_t* DistortionField = L"MRT_DistortionField";
+    inline constexpr const wchar_t* LightShaftMaskHalf = L"MRT_LightShaftMaskHalf";
+    inline constexpr const wchar_t* LightShaftBlurHalf = L"MRT_LightShaftBlurHalf";
     inline constexpr const wchar_t* ScreenFxA = L"MRT_ScreenFxA";
     inline constexpr const wchar_t* ScreenFxB = L"MRT_ScreenFxB";
     inline constexpr const wchar_t* BloomHalfA = L"MRT_BloomHalfA";

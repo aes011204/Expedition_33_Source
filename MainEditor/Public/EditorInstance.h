@@ -52,6 +52,7 @@ public: /* For.Runtime */
     void    Stop();
     void    Resume();
     void    Enter_EditAfterLoading();
+    void    Force_EnablePlayerInputForPlay();
 
     bool    IsPlaying() const;
     bool    IsPaused() const;
@@ -136,7 +137,8 @@ public: /* For.Viewport */
 
 
     void                     Request_PreviewViewportSize(uint32 width, uint32 height);
-                             
+    void                     Apply_PreviewViewportSizeImmediate(uint32 width, uint32 height);
+
     void                     Enable_AutoPreviewViewport();
     void                     Enable_ManualPreviewViewport();
     void                     Set_ManualPreviewViewportSize(uint32 width, uint32 height);
@@ -199,13 +201,19 @@ private: /* 저장 */
     };
     PendingPickRequest _pendingPick = {};
 
-    void Capture_PlayStartSnapshot();
-    void Restore_PlayStartSnapshot();
+    void Capture_PlayStartMonsterSnapshots();
+    void Restore_PlayStartMonsterSnapshots();
     bool Capture_ActiveCameraPose(CameraPoseSnapshot& outPose) const;
     bool Apply_CameraPoseToCameraType(ObjectType objectType, const CameraPoseSnapshot& pose) const;
     bool Is_SnapshotExcludedObject(const Shared<GameObject>& gameObject) const;
-    vector<EditorWorldObjectSnapshot> Capture_CurrentLevelObjects(int32* outSelectedIndex = nullptr) const;
-    HRESULT Restore_CurrentLevelObjects(const vector<EditorWorldObjectSnapshot>& snapshots, int32 selectedIndex);
+    bool Is_PlaySnapshotExcludedObject(const wstring& layerTag, const Shared<GameObject>& gameObject) const;
+    vector<EditorWorldObjectSnapshot> Capture_CurrentLevelObjects(
+        int32* outSelectedIndex = nullptr,
+        bool excludeMapStaticMesh = false) const;
+    HRESULT Restore_CurrentLevelObjects(
+        const vector<EditorWorldObjectSnapshot>& snapshots,
+        int32 selectedIndex,
+        bool excludeMapStaticMesh = false);
 
 private:
     bool                        _isTargetCameraEditMode = false;
@@ -247,13 +255,14 @@ private: /* Runtime Data */
     EDITOR_RUNTIME_STATE _runtimeState = EDITOR_RUNTIME_STATE::Play;
     float _runtimeTimeScale = 1.f;
 
-    vector<EditorWorldObjectSnapshot> _playStartWorldSnapshot = {};
-    int32 _playStartSelectedObjectIndex = -1;
+    vector<EditorWorldObjectSnapshot> _playStartMonsterSnapshots = {};
+    bool _hasPlayStartMonsterSnapshots = false;
     CameraPoseSnapshot _playStartCameraPose = {};
     Weak<Camera> _cameraBeforeFreeCamera = {};
 
     bool _hasPendingWindowFocus = false;
     EDITOR_VIEWPORT_TARGET _pendingWindowFocus = EDITOR_VIEWPORT_TARGET::Game;
+    uint32 _runtimeGameFocusRecoveryFrames = 0;
     mutable PreviewOwner _stickyPreviewOwner = PreviewOwner::None;
 
     bool _pendingSingleFrameStep = false;

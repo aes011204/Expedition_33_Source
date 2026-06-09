@@ -9,6 +9,35 @@ NS_BEGIN(UIEditor)
 
 using ObjectId = uint32;
 
+inline constexpr float kPatternUvOffsetMin = -1.f;
+inline constexpr float kPatternUvOffsetMax = 1.f;
+inline constexpr float kPatternUvScaleMin = 0.1f;
+inline constexpr float kPatternUvScaleMax = 8.f;
+
+inline ImVec2 Get_DefaultPatternUvOffset()
+{
+    return ImVec2(0.f, 0.f);
+}
+
+inline ImVec2 Get_DefaultPatternUvScale()
+{
+    return ImVec2(1.f, 1.f);
+}
+
+inline ImVec2 Clamp_PatternUvOffset(const ImVec2& value)
+{
+    return ImVec2(
+        min(max(value.x, kPatternUvOffsetMin), kPatternUvOffsetMax),
+        min(max(value.y, kPatternUvOffsetMin), kPatternUvOffsetMax));
+}
+
+inline ImVec2 Clamp_PatternUvScale(const ImVec2& value)
+{
+    return ImVec2(
+        min(max(value.x, kPatternUvScaleMin), kPatternUvScaleMax),
+        min(max(value.y, kPatternUvScaleMin), kPatternUvScaleMax));
+}
+
 struct UI_EDITOR_DESC
 {
     HWND hWnd = nullptr;
@@ -32,6 +61,7 @@ struct UI_Object
     ImVec2 anchorMax = ImVec2(0.f, 0.f);
     float rotationRadians = 0.f;
     ImVec4 color = ImVec4(1.f, 1.f, 1.f, 1.f);
+    float alphaMultiplier = 1.f;
     bool isOpenOnCreate = true;
     bool visible = true;
     bool locked = false;
@@ -52,6 +82,8 @@ struct UI_Object
     UI_MaskTextureMode maskTextureMode = UI_MaskTextureMode::Alpha;
     string patternMaskTextureGuid = "";
     string patternMaskTexturePath = "";
+    ImVec2 patternUvOffset = Get_DefaultPatternUvOffset();
+    ImVec2 patternUvScale = Get_DefaultPatternUvScale();
     string stateAnimationPath = "";
     vector<UI_AnimationClip> animationClips = {};
 };

@@ -7,6 +7,31 @@
 
 NS_BEGIN(Client)
 
+inline float Evaluate_BattleCameraClipInterpolation(InterpolationMode interpolation, float t)
+{
+    const float clampedT = std::clamp(t, 0.f, 1.f);
+
+    switch (interpolation)
+    {
+    case InterpolationMode::Step:
+        return 0.f;
+    case InterpolationMode::Linear:
+        return clampedT;
+    case InterpolationMode::EaseIn:
+        return clampedT * clampedT;
+    case InterpolationMode::EaseOut:
+    {
+        const float invT = 1.f - clampedT;
+        return 1.f - invT * invT;
+    }
+    case InterpolationMode::EaseInOut:
+    default:
+        return clampedT < 0.5f
+            ? 2.f * clampedT * clampedT
+            : 1.f - powf(-2.f * clampedT + 2.f, 2.f) * 0.5f;
+    }
+}
+
 inline float Sample_BattleCameraTrack(const BattleCameraTrack& track, float time)
 {
     if (track.keyframes.empty())
@@ -28,7 +53,8 @@ inline float Sample_BattleCameraTrack(const BattleCameraTrack& track, float time
 
         const float range = std::max(rhs.time - lhs.time, 0.0001f);
         const float ratio = std::clamp((time - lhs.time) / range, 0.f, 1.f);
-        return lhs.value + (rhs.value - lhs.value) * ratio;
+        const float easedRatio = Evaluate_BattleCameraClipInterpolation(lhs.interpolation, ratio);
+        return lhs.value + (rhs.value - lhs.value) * easedRatio;
     }
 
     return track.keyframes.back().value;
@@ -51,6 +77,9 @@ inline BattleCameraClipSample Sample_BattleCameraClip(const BattleCameraClip& cl
     sample.shakeAmplitude = Sample_BattleCameraTrack(clip.shakeAmplitude, sampleTime);
     sample.sideOffset = Sample_BattleCameraTrack(clip.sideOffset, sampleTime);
     sample.pivotOffset = Sample_BattleCameraTrack(clip.pivotOffset, sampleTime);
+    sample.heightOffset = Sample_BattleCameraTrack(clip.heightOffset, sampleTime);
+    sample.aimOffset = Sample_BattleCameraTrack(clip.aimOffset, sampleTime);
+    sample.lookHeightOffset = Sample_BattleCameraTrack(clip.lookHeightOffset, sampleTime);
     sample.yawOffset = Sample_BattleCameraTrack(clip.yawOffset, sampleTime);
     sample.orbitYaw = Sample_BattleCameraTrack(clip.orbitYaw, sampleTime);
     sample.orbitRadius = Sample_BattleCameraTrack(clip.orbitRadius, sampleTime);
@@ -58,6 +87,7 @@ inline BattleCameraClipSample Sample_BattleCameraClip(const BattleCameraClip& cl
     sample.orbitLookHeight = Sample_BattleCameraTrack(clip.orbitLookHeight, sampleTime);
     sample.shakeFrequencyX = sampleTrackOrDefault(clip.shakeFrequencyX, sample.shakeFrequencyX);
     sample.shakeFrequencyY = sampleTrackOrDefault(clip.shakeFrequencyY, sample.shakeFrequencyY);
+    sample.shakeDecayRateX = sampleTrackOrDefault(clip.shakeDecayRateX, sample.shakeDecayRateX);
     sample.shakeDecayRate = sampleTrackOrDefault(clip.shakeDecayRate, sample.shakeDecayRate);
     sample.shakeVerticalRatio = sampleTrackOrDefault(clip.shakeVerticalRatio, sample.shakeVerticalRatio);
     sample.shakeStrengthScale = sampleTrackOrDefault(clip.shakeStrengthScale, sample.shakeStrengthScale);
@@ -65,16 +95,17 @@ inline BattleCameraClipSample Sample_BattleCameraClip(const BattleCameraClip& cl
     return sample;
 }
 
-inline Vec3 Sample_BattleCameraShakeOffset(float amplitude, float verticalRatio, float strengthScale, float frequencyX, float frequencyY, float decayRate, float time, const Vec3& right, const Vec3& up)
+inline Vec3 Sample_BattleCameraShakeOffset(float amplitude, float verticalRatio, float strengthScale, float frequencyX, float frequencyY, float decayRateX, float decayRateY, float time, const Vec3& right, const Vec3& up)
 {
     if (amplitude <= 0.f)
         return Vec3::Zero;
 
     float scaledAmplitude = amplitude * strengthScale;
-    float decay = expf(- time * decayRate);
+    float decayX = decayRateX > 0.f ? expf(- time * decayRateX) : 1.f;
+    float decayY = decayRateY > 0.f ? expf(- time * decayRateY) : 1.f;
 
-    const float x = sinf(time * frequencyX) * scaledAmplitude;
-    const float y = cosf(time * frequencyY) * scaledAmplitude * verticalRatio * decay;
+    const float x = sinf(time * frequencyX) * scaledAmplitude * decayX;
+    const float y = cosf(time * frequencyY) * scaledAmplitude * verticalRatio * decayY;
     return right * x + up * y;
 }
 

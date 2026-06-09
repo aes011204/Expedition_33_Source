@@ -11,6 +11,8 @@ HRESULT Level_Stage01::Initialize()
 {
     CHECK_FAILED(Ready_Lights(), E_FAIL);
 
+    GAME->Play_BGM(Constants::Sound::SpringBGM, 1.f, true, 0.f);
+
     return S_OK;
 }
 
@@ -20,9 +22,7 @@ void Level_Stage01::Update(float fTimeDelta)
 
 HRESULT Level_Stage01::Render()
 {
-#ifdef _DEBUG
-    SetWindowText(g_hWnd, L"Level_Stage01");
-#endif
+    Update_WindowTitleFps(_windowTitleFps, L"Level_Stage01");
 
     return S_OK;
 }

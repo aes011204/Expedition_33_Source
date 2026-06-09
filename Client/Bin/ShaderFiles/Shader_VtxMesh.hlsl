@@ -82,6 +82,7 @@ struct PS_IN
     float2 Texcoord : TEXCOORD0;
     float4 WorldPos : TEXCOORD1;
     float4 ProjPos  : TEXCOORD2;
+    bool IsFrontFace : SV_IsFrontFace;
 };
 
 struct PS_OUT
@@ -100,11 +101,13 @@ struct PS_OUT_ID
 
 struct PS_OUT_SHADOW
 {
-    vector LightDepth : SV_TARGET0;
+    float LightDepth : SV_TARGET0;
 };
 
 PS_OUT PS_Opaque(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
@@ -126,6 +129,15 @@ PS_OUT PS_Opaque(PS_IN In)
 
     float3 emissive = SampleEmissive(finalUV);
     emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+
+    if (HasPreviewRim())
+    {
+        float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
+        emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
+    }
+
     Out.Emissive = float4(emissive.xyz, 1.f);
 
     return Out;
@@ -133,6 +145,8 @@ PS_OUT PS_Opaque(PS_IN In)
 
 PS_OUT PS_Mask(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     float2 finalUV = ApplyUVTransform(In.Texcoord);
@@ -158,6 +172,15 @@ PS_OUT PS_Mask(PS_IN In)
 
     float3 emissive = SampleEmissive(finalUV);
     emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+
+    if (HasPreviewRim())
+    {
+        float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
+        emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
+    }
+
     Out.Emissive = float4(emissive.xyz, 1.f);
 
     return Out;
@@ -167,13 +190,15 @@ PS_OUT_SHADOW PS_Shadow(PS_IN In)
 {
     PS_OUT_SHADOW Out;
 
-    Out.LightDepth = vector(In.ProjPos.z / In.ProjPos.w, 0.f, 0.f, 1.f);
+    Out.LightDepth = In.ProjPos.z / In.ProjPos.w;
 
     return Out;
 }
 
 PS_OUT PS_NoTexture(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
 
     Out.Diffuse = vector(0.8f, 0.8f, 0.8f, 1.f);
@@ -191,6 +216,8 @@ PS_OUT PS_NoTexture(PS_IN In)
 
 PS_OUT PS_OpaqueAR(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
     float2 finalUV = ApplyUVTransform(In.Texcoord);
     float dissolveEdge = 0.f;
@@ -203,11 +230,18 @@ PS_OUT PS_OpaqueAR(PS_IN In)
 
     float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
 
-    float3 orm = float3(g_AoScale, arTex.a * g_RoughnessScale, g_MetalnessScale);
+    float3 orm = float3(g_AoScale, saturate(arTex.a * g_RoughnessScale), g_MetalnessScale);
 
     float3 emissive = SampleEmissive(finalUV);
     emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
-    baseColor.rgb = baseColor.rgb * orm.r + emissive;
+
+    if (HasPreviewRim())
+    {
+        float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
+        emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
+    }
 
     Out.Diffuse = baseColor;
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
@@ -222,7 +256,10 @@ PS_OUT PS_OpaqueAR(PS_IN In)
 // AR.rgb = base color, AR.a = roughness, NME.rg = normal XY, NME.b = metalness, NME.a = emissive mask.
 PS_OUT PS_PackedAR_NME(PS_IN In)
 {
+    ApplyPlayerNearClip(In.WorldPos);
+
     PS_OUT Out;
+
     float2 finalUV = ApplyUVTransform(In.Texcoord);
 
     float4 arTex = g_MaterialTextures[MATERIAL_SLOT_BASECOLOR].Sample(LinearWrapSampler, finalUV);
@@ -248,6 +285,14 @@ PS_OUT PS_PackedAR_NME(PS_IN In)
         saturate(nmeTex.b * g_MetalnessScale));
 
     float3 emissive = g_EmissiveColor.rgb * g_EmissiveIntensity * nmeTex.a * g_EmissiveMaskMul;
+    if (HasPreviewRim())
+    {
+        float3 viewDir = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+        float3 rimNormal = normalize(In.Normal.xyz);
+        float rim = ComputePreviewRim(rimNormal, viewDir, g_FeatureParam3.x);
+        emissive += GetPreviewRimColor() * (rim * GetPreviewRimIntensity());
+    }
+
     float4 baseColor = float4(arTex.rgb * g_BaseColorTint.rgb, 1.f);
 
     Out.Diffuse = baseColor;
@@ -300,6 +345,45 @@ PS_OUT_ID PS_ID(PS_IN In)
     return Out;
 }
 
+PS_OUT PS_FaceAccessoryBeard(PS_IN In)
+{
+    ApplyPlayerNearClip(In.WorldPos);
+
+    PS_OUT Out;
+
+    // 수염 카드 주변을 넓게 샘플링할 좌표를 준비한다.
+    float2 centerUV = ApplyUVTransform(In.Texcoord);
+    BeardSampleCoords coords = BuildBeardSampleCoords(centerUV);
+
+    // 여러 위치의 수염 텍스처를 한 번에 읽어 풍부함 계산에 재사용한다.
+    BeardTextureSamples samples = SampleBeardTextures(coords);
+
+    // 수염 두께를 결정하는 고정 coverage를 계산한다.
+    float baseCoverage = ComputeBeardCoverage(coords, samples);
+    if (baseCoverage < 0.02f)
+        discard;
+
+    // 노멀은 표면 방향 출력만 담당하고, 두께에는 더 이상 관여하지 않는다.
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, centerUV);
+    if (!In.IsFrontFace)
+        worldNormal *= -1.f;
+
+    // coverage와 같은 범위의 밀도를 따라가며 색 끊김을 줄인다.
+    float density = ComputeBeardDensity(samples);
+
+    // 살아남은 픽셀을 하나의 짙은 수염 톤으로 묶는다.
+    float3 finalBeardColor = ComputeBeardColor(density);
+
+    // 수염 풍부함을 더 만지려면 helper 쪽 coverage와 density 함수를 먼저 조정한다.
+    Out.Diffuse = float4(finalBeardColor, baseCoverage);
+    Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
+    Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
+    Out.Material = float4(1.f, g_HairRoughness, 0.f, 1.f);
+    Out.Emissive = float4(0.f, 0.f, 0.f, 1.f);
+
+    return Out;
+}
+
 technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VP(DefaultPass,         RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Opaque)            // 0
@@ -308,10 +392,11 @@ technique11 DefaultTechnique
     PASS_RS_DS_BS_VP(MaskedPass,          RS_Default,  DSS_Default, BS_Default, VS_Default, PS_Mask)              // 3
     PASS_RS_DS_BS_VP(TwoSidedPass,        RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Opaque)            // 4
     PASS_RS_DS_BS_VP(MaskedTwoSidedPass,  RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_Mask)              // 5
-    PASS_RS_DS_BS_VP(IDPass,              RS_Default,  DSS_Default, BS_Default, VS_Default, PS_ID)                // 6
+    PASS_RS_DS_BS_VP(IDPass,              RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_ID)                // 6
     PASS_RS_DS_BS_VP(OpaqueARPass,        RS_Default, DSS_Default,  BS_Default, VS_Default, PS_OpaqueAR)          // 7
     PASS_RS_DS_BS_VP(OpaqueARTwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_OpaqueAR)         // 8
     PASS_RS_DS_BS_VP(PackedAR_NMEPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME)          // 9
     PASS_RS_DS_BS_VP(PackedAR_NMETwoSidedPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_PackedAR_NME) // 10
     PASS_RS_DS_BS_VP(LandscapeBlendPass, RS_Default, DSS_Default, BS_Default, VS_Default, PS_LandscapeBlend)      // 11
+    PASS_RS_DS_BS_VP(FaceAccessoryBeardPass, RS_CullNone, DSS_Default, BS_Default, VS_Default, PS_FaceAccessoryBeard) // 12
 }

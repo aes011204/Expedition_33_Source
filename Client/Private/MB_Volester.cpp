@@ -12,6 +12,7 @@ IMPLEMENT_REFLECTION(MB_Volester)
 
     info.displayName = "MB_Volester";
     info.category = "Monster";
+    PROPERTY_FLOAT("Battle Ground Offset Y", _battleGroundOffsetY, -5.f, 5.f, 0.01f);
 
     return true;
 }

@@ -22,6 +22,7 @@ private:
     string           _clipId = {};
     bool             _restartClip = false;
     bool             _useClip = false;
+    bool             _keepCurrentClip = false;
 };
 
 NS_END

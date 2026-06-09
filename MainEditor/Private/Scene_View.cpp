@@ -5,9 +5,12 @@
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "PartObject.h"
+#include "PhysX_Types.h"
 #include "RenderTarget.h"
 #include "Transform_Inspector.h"
 #include "Client_Defines.h"
+#include "EffectAssetRuntimeLoader.h"
+#include "EffectInstance.h"
 #include "Spawn_Prefab.h"
 
 //add
@@ -105,6 +108,136 @@ namespace MainEditor::Internal
         const ImVec2 mousePos = ImGui::GetIO().MousePos;
         return Is_PointInRect(mousePos, Compute_GizmoOverlayRect(viewportMin, viewportMax)) ||
             Is_PointInRect(mousePos, Compute_PreviewViewportOverlayRect(viewportMin, viewportMax));
+    }
+
+    static wstring Resolve_EffectAssetRelativePath(const char* effectPathA)
+    {
+        if (effectPathA == nullptr || effectPathA[0] == '\0')
+            return {};
+
+        fs::path effectPath = String::ToWString(effectPathA);
+        if (effectPath.is_relative())
+            return effectPath.wstring();
+
+        const fs::path assetRoot = fs::path(GAME->Get_AssetRoot()).lexically_normal();
+        if (assetRoot.empty())
+            return {};
+
+        std::error_code errorCode{};
+        const fs::path relativePath = fs::relative(effectPath.lexically_normal(), assetRoot, errorCode);
+        if (errorCode || relativePath.empty())
+            return {};
+
+        return relativePath.wstring();
+    }
+
+    static wstring Make_EffectDisplayName(const char* effectPathA, const Shared<const EffectDefinition>& definition)
+    {
+        if (definition && !definition->name.empty())
+            return String::ToWString(definition->name);
+
+        if (effectPathA == nullptr || effectPathA[0] == '\0')
+            return L"Effect";
+
+        wstring displayName = fs::path(String::ToWString(effectPathA)).filename().wstring();
+        constexpr wstring_view effectSuffix = L".effect.json";
+        if (displayName.ends_with(effectSuffix))
+            displayName.erase(displayName.size() - effectSuffix.size());
+
+        return displayName.empty() ? L"Effect" : displayName;
+    }
+
+    static bool Try_MakeViewportRay(const POINT& pixelPos, Vec3& outOrigin, Vec3& outDirection)
+    {
+        const uint32 viewportWidth = GAME->Get_ViewportWidth();
+        const uint32 viewportHeight = GAME->Get_ViewportHeight();
+        if (viewportWidth == 0 || viewportHeight == 0)
+            return false;
+
+        const Matrix* viewInverse = GAME->Get_Transform_Inverse(D3DTS::View);
+        const Matrix* projInverse = GAME->Get_Transform_Inverse(D3DTS::Proj);
+        if (viewInverse == nullptr || projInverse == nullptr)
+            return false;
+
+        const float texcoordX = (static_cast<float>(pixelPos.x) + 0.5f) / static_cast<float>(viewportWidth);
+        const float texcoordY = (static_cast<float>(pixelPos.y) + 0.5f) / static_cast<float>(viewportHeight);
+
+        Vec4 nearPoint(texcoordX * 2.f - 1.f, texcoordY * -2.f + 1.f, 0.f, 1.f);
+        Vec4 farPoint(texcoordX * 2.f - 1.f, texcoordY * -2.f + 1.f, 1.f, 1.f);
+
+        nearPoint = Vec4::Transform(nearPoint, *projInverse);
+        farPoint = Vec4::Transform(farPoint, *projInverse);
+        if (nearPoint.w != 0.f)
+            nearPoint /= nearPoint.w;
+        if (farPoint.w != 0.f)
+            farPoint /= farPoint.w;
+
+        nearPoint = Vec4::Transform(nearPoint, *viewInverse);
+        farPoint = Vec4::Transform(farPoint, *viewInverse);
+
+        outOrigin = Vec3(nearPoint.x, nearPoint.y, nearPoint.z);
+        outDirection = Vec3(farPoint.x - nearPoint.x, farPoint.y - nearPoint.y, farPoint.z - nearPoint.z);
+        if (outDirection.LengthSquared() <= 0.f)
+            return false;
+
+        outDirection.Normalize();
+        return true;
+    }
+
+    static bool Try_PickEditorPlacementWorldPosition(const POINT& pixelPos, Vec3& outWorldPos)
+    {
+        Vec3 rayOrigin{};
+        Vec3 rayDirection{};
+        if (Try_MakeViewportRay(pixelPos, rayOrigin, rayDirection))
+        {
+            PhysXQueryHit environmentHit{};
+            if (GAME->Raycast_Environment(rayOrigin, rayDirection, 10000.f, environmentHit))
+            {
+                outWorldPos = environmentHit.position;
+                return true;
+            }
+        }
+
+        if (FAILED(GAME->Update_Picking()))
+            return false;
+
+        return GAME->Pick_WorldPosition(pixelPos, outWorldPos);
+    }
+
+    static Shared<GameObject> Spawn_EffectForEditorPlacement(const char* effectPathA, uint32 levelIndex, const Vec3& worldPos)
+    {
+        const wstring effectAssetPath = Resolve_EffectAssetRelativePath(effectPathA);
+        if (effectAssetPath.empty())
+            return nullptr;
+
+        const Shared<const EffectDefinition> definition =
+            Client::EffectAssetRuntimeLoader::Load_Definition(effectAssetPath);
+        if (definition == nullptr)
+            return nullptr;
+
+        EffectInstanceDesc desc{};
+        desc.definition = definition;
+        desc.position = worldPos;
+
+        Shared<GameObject> spawned{};
+        if (FAILED(GAME->Add_GameObject(
+            ETOI(LevelType::Static),
+            L"GameObject_EffectInstance",
+            levelIndex,
+            L"Layer_Effect",
+            spawned,
+            &desc)))
+        {
+            return nullptr;
+        }
+
+        if (const Shared<EffectInstance> effect = dynamic_pointer_cast<EffectInstance>(spawned))
+        {
+            effect->Set_Name(Make_EffectDisplayName(effectPathA, definition));
+            (void)effect->Play();
+        }
+
+        return spawned;
     }
 }
 
@@ -528,9 +661,12 @@ void Scene_View::Render_ViewportCanvas()
         const bool isModelDragging =
             activePayload != nullptr &&
             activePayload->IsDataType("CONTENT_BROWSER_MODEL");
+        const bool isEffectDragging =
+            activePayload != nullptr &&
+            activePayload->IsDataType("CONTENT_BROWSER_EFFECT");
 
-        // fix isPrefabDragging -> (isPrefabDragging || isModelDragging)
-        if ((isPrefabDragging || isModelDragging) && !isMouseOverOverlay)
+        // fix isPrefabDragging -> (isPrefabDragging || isModelDragging || isEffectDragging)
+        if ((isPrefabDragging || isModelDragging || isEffectDragging) && !isMouseOverOverlay)
             ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
         else
             ImGui::Dummy(_viewportSize);
@@ -566,8 +702,8 @@ void Scene_View::Render_ViewportCanvas()
         }
         //
 
-        // fix isPrefabDragging -> (isPrefabDragging || isModelDragging)
-        if ((isPrefabDragging || isModelDragging) && !isMouseOverOverlay && ImGui::BeginDragDropTarget())
+        // fix isPrefabDragging -> (isPrefabDragging || isModelDragging || isEffectDragging)
+        if ((isPrefabDragging || isModelDragging || isEffectDragging) && !isMouseOverOverlay && ImGui::BeginDragDropTarget())
         {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
                 "CONTENT_BROWSER_PREFAB",
@@ -594,22 +730,18 @@ void Scene_View::Render_ViewportCanvas()
 
                 if (payload->IsDelivery())
                 {
-                    if (SUCCEEDED(GAME->Update_Picking()))
+                    Vec3 worldPos{};
+                    if (Internal::Try_PickEditorPlacementWorldPosition(pixelPos, worldPos))
                     {
-                        Vec3 worldPos{};
-                        if (GAME->Pick_WorldPosition(pixelPos, worldPos))
-                        {
-                            worldPos.y += 0.1f;
+                        worldPos.y += 0.1f;
 
-                            Shared<GameObject> spawned = Client::Spawn_Prefab::SpawnAt(
-                                prefabName,
-                                GAME->Current_LevelIndex(),
-                                TEXT("Layer_GameObject"),
-                                worldPos);
+                        Shared<GameObject> spawned = Client::Spawn_Prefab::SpawnForEditorPlacement(
+                            prefabName,
+                            GAME->Current_LevelIndex(),
+                            worldPos);
 
-                            if (spawned)
-                                EDITOR->Select_Object(spawned);
-                        }
+                        if (spawned)
+                            EDITOR->Select_Object(spawned);
                     }
 
                     Clear_DragPreviewObject();
@@ -664,6 +796,43 @@ void Scene_View::Render_ViewportCanvas()
             }
             //
 
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
+                "CONTENT_BROWSER_EFFECT",
+                ImGuiDragDropFlags_AcceptBeforeDelivery))
+            {
+                const char* effectPathA = static_cast<const char*>(payload->Data);
+
+                const float viewportWidth = _viewportMax.x - _viewportMin.x;
+                const float viewportHeight = _viewportMax.y - _viewportMin.y;
+                const float depthWidth = static_cast<float>(GAME->Get_ViewportWidth());
+                const float depthHeight = static_cast<float>(GAME->Get_ViewportHeight());
+
+                POINT pixelPos{};
+                pixelPos.x = static_cast<LONG>(
+                    (ImGui::GetMousePos().x - _viewportMin.x) *
+                    (depthWidth / max(viewportWidth, 1.f)));
+                pixelPos.y = static_cast<LONG>(
+                    (ImGui::GetMousePos().y - _viewportMin.y) *
+                    (depthHeight / max(viewportHeight, 1.f)));
+
+                if (payload->IsDelivery())
+                {
+                    Vec3 worldPos{};
+                    if (Internal::Try_PickEditorPlacementWorldPosition(pixelPos, worldPos))
+                    {
+                        worldPos.y += 0.1f;
+
+                        Shared<GameObject> spawned = Internal::Spawn_EffectForEditorPlacement(
+                            effectPathA,
+                            GAME->Current_LevelIndex(),
+                            worldPos);
+
+                        if (spawned)
+                            EDITOR->Select_Object(spawned);
+                    }
+                }
+            }
+
             ImGui::EndDragDropTarget();
         }
     }
@@ -683,9 +852,12 @@ void Scene_View::Render_ViewportCanvas()
         const bool isModelDragging =
             activePayload != nullptr &&
             activePayload->IsDataType("CONTENT_BROWSER_MODEL");
+        const bool isEffectDragging =
+            activePayload != nullptr &&
+            activePayload->IsDataType("CONTENT_BROWSER_EFFECT");
 
-        // fix isPrefabDragging -> (isPrefabDragging || isModelDragging)
-        if ((isPrefabDragging || isModelDragging) && !isMouseOverOverlay)
+        // fix isPrefabDragging -> (isPrefabDragging || isModelDragging || isEffectDragging)
+        if ((isPrefabDragging || isModelDragging || isEffectDragging) && !isMouseOverOverlay)
             ImGui::InvisibleButton("SceneViewportCanvas", _viewportSize);
         else
             ImGui::Dummy(_viewportSize);
@@ -850,14 +1022,8 @@ void Scene_View::Tick_DragPreview(float timeDelta)
         return;
     }
 
-    if (FAILED(GAME->Update_Picking()))
-    {
-        _dragPreviewHasWorldPos = false;
-        return;
-    }
-
     Vec3 worldPos{};
-    if (!GAME->Pick_WorldPosition(_dragPreviewPixelPos, worldPos))
+    if (!Internal::Try_PickEditorPlacementWorldPosition(_dragPreviewPixelPos, worldPos))
     {
         _dragPreviewHasWorldPos = false;
         return;
@@ -873,7 +1039,6 @@ void Scene_View::Tick_DragPreview(float timeDelta)
 
     transform->Set_WorldPosition(worldPos);
 
-    // Scene drag preview should stay visually frozen; only refresh transform/render state.
     _dragPreviewObject->Priority_Update(0.f);
     _dragPreviewObject->Update(0.f);
     _dragPreviewObject->Late_Update(0.f);

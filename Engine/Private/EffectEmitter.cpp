@@ -14,6 +14,7 @@ EffectEmitter::EffectEmitter(const EffectEmitter& prototype)
     , _localRotationDegrees{ prototype._localRotationDegrees }
     , _useLocalSpace{ prototype._useLocalSpace }
     , _enabled{ prototype._enabled }
+    , _effectPlaybackSeed{ prototype._effectPlaybackSeed }
 {
 }
 
@@ -26,6 +27,7 @@ HRESULT EffectEmitter::Attach_ToEffect(const EffectEmitterRuntimeDesc& runtimeDe
     _localRotationDegrees = runtimeDesc.localRotationDegrees;
     _useLocalSpace = runtimeDesc.useLocalSpace;
     _enabled = runtimeDesc.enabled;
+    _effectPlaybackSeed = runtimeDesc.effectPlaybackSeed;
 
     if (runtimeDesc.effectOwner)
         Set_Owner(runtimeDesc.effectOwner);
@@ -33,6 +35,11 @@ HRESULT EffectEmitter::Attach_ToEffect(const EffectEmitterRuntimeDesc& runtimeDe
     Sync_FromEffectOwner();
 
     return S_OK;
+}
+
+void EffectEmitter::Set_EffectPlaybackSeed(uint32 effectPlaybackSeed)
+{
+    _effectPlaybackSeed = effectPlaybackSeed;
 }
 
 void EffectEmitter::Sync_FromEffectOwner()
@@ -43,11 +50,12 @@ void EffectEmitter::Sync_FromEffectOwner()
     const Shared<TransformCom> ownerTransform =
         (effectOwner != nullptr) ? effectOwner->Get_Transform() : Shared<TransformCom>{};
 
-    if (_useLocalSpace)
+    if (ownerTransform)
     {
         _transformCom->Set_Parent(ownerTransform);
         _transformCom->Set_Position(_localPosition);
         _transformCom->Set_RotationEuler(_localRotationDegrees);
+        _transformCom->Set_Scale(Vec3::One);
     }
     else
     {
@@ -64,6 +72,16 @@ HRESULT EffectEmitter::Reset_ForEffectReplay()
     return S_OK;
 }
 
+bool EffectEmitter::Can_ReloadDefinition(const EffectEmitterDefinition&) const
+{
+    return false;
+}
+
+HRESULT EffectEmitter::Reload_Definition(const EffectEmitterDefinition&)
+{
+    return E_FAIL;
+}
+
 bool EffectEmitter::Is_EffectFinished() const
 {
     return false;
@@ -71,4 +89,28 @@ bool EffectEmitter::Is_EffectFinished() const
 
 void EffectEmitter::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>&)
 {
+}
+
+bool EffectEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
+{
+    if (_transformCom == nullptr)
+        return false;
+
+    outWorldPosition = _transformCom->Get_WorldPosition();
+    return true;
+}
+
+EffectSortPolicy EffectEmitter::Get_BlendSortPolicy() const
+{
+    return EffectSortPolicy::EmitterDepth;
+}
+
+int32 EffectEmitter::Get_BlendSortLayer() const
+{
+    return 0;
+}
+
+float EffectEmitter::Get_BlendSortBias() const
+{
+    return 0.f;
 }

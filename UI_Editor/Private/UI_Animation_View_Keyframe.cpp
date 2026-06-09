@@ -9,15 +9,6 @@ namespace UIEditor
     {
         constexpr float kPi = 3.14159265358979323846f;
 
-        const char* const kTrackTypeNames[] = {
-            "PositionX",
-            "PositionY",
-            "ScaleX",
-            "ScaleY",
-            "Rotation",
-            "Color",
-        };
-
         const char* const kEasingNames[] = {
             "Linear",
             "EaseIn",
@@ -35,35 +26,9 @@ namespace UIEditor
             return min(max(static_cast<int32>(type), 0), static_cast<int32>(size(kAnimationAssetTypeNames)) - 1);
         }
 
-        int32 Get_TrackTypeIndex(UI_AnimationKeyframeTrackType type)
-        {
-            if (type == UI_AnimationKeyframeTrackType::Alpha)
-                return static_cast<int32>(UI_AnimationKeyframeTrackType::Color);
-
-            return min(max(static_cast<int32>(type), 0), static_cast<int32>(size(kTrackTypeNames)) - 1);
-        }
-
         int32 Get_EasingIndex(UI_AnimationEasing easing)
         {
             return min(max(static_cast<int32>(easing), 0), static_cast<int32>(size(kEasingNames)) - 1);
-        }
-
-        float Get_ValueDragSpeed(UI_AnimationKeyframeTrackType type)
-        {
-            switch (type)
-            {
-            case UI_AnimationKeyframeTrackType::PositionX:
-            case UI_AnimationKeyframeTrackType::PositionY:
-            case UI_AnimationKeyframeTrackType::Rotation:
-                return 1.f;
-            case UI_AnimationKeyframeTrackType::Color:
-                return 0.f;
-            case UI_AnimationKeyframeTrackType::Alpha:
-            case UI_AnimationKeyframeTrackType::ScaleX:
-            case UI_AnimationKeyframeTrackType::ScaleY:
-            default:
-                return 0.01f;
-            }
         }
 
         float Radians_ToDegrees(float radians)
@@ -80,6 +45,14 @@ namespace UIEditor
         {
             if (track.type == UI_AnimationKeyframeTrackType::Rotation)
                 return to_string(Radians_ToDegrees(key.value)) + " deg";
+
+            if (track.type == UI_AnimationKeyframeTrackType::Size)
+            {
+                return
+                    "Size(" +
+                    to_string(key.valueVec2.x) + ", " +
+                    to_string(key.valueVec2.y) + ")";
+            }
 
             if (track.type == UI_AnimationKeyframeTrackType::Color)
             {
@@ -431,13 +404,29 @@ namespace UIEditor
                 Request_StaticPreviewRefresh();
         }
 
-        int32 trackTypeIndex = Get_TrackTypeIndex(_assetService.Get_PendingTrackType());
-        if (ImGui::Combo("Add Track Type", &trackTypeIndex, kTrackTypeNames, static_cast<int32>(size(kTrackTypeNames))))
-            _assetService.Set_PendingTrackType(static_cast<UI_AnimationKeyframeTrackType>(trackTypeIndex));
+        int32 trackTypeIndex = Get_AnimationKeyframeTrackAddOptionIndex(_assetService.Get_PendingTrackType());
+        const int32 trackTypeOptionCount = Get_AnimationKeyframeTrackAddOptionCount();
+        if (ImGui::BeginCombo("Add Track Type", Get_AnimationKeyframeTrackAddOption(trackTypeIndex).name))
+        {
+            for (int32 optionIndex = 0; optionIndex < trackTypeOptionCount; ++optionIndex)
+            {
+                const UI_AnimationKeyframeTrackMetadata& metadata = Get_AnimationKeyframeTrackAddOption(optionIndex);
+                const bool selected = optionIndex == trackTypeIndex;
+                if (ImGui::Selectable(metadata.name, selected))
+                {
+                    trackTypeIndex = optionIndex;
+                    _assetService.Set_PendingTrackType(metadata.type);
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
 
         ImGui::BeginDisabled(!hasTarget);
         if (ImGui::Button("Add Track"))
-            _assetService.Add_Track(_assetService.Get_PendingTrackType());
+            _assetService.Add_Track(_assetService.Get_PendingTrackType(), &_editorManager.Get_Document());
         ImGui::EndDisabled();
 
         UI_AnimationKeyframeTrack* selectedTrack = _assetService.Get_SelectedTrack();
@@ -466,7 +455,7 @@ namespace UIEditor
         if (ImGui::Button("Key Transform Set") && _assetService.Add_CurrentValueKeysToTransformTracks(_editorManager.Get_Document()))
             Request_StaticPreviewRefresh();
         ImGui::EndDisabled();
-        Show_ItemTooltip("Create or update Position, Scale, Rotation, and Color keys at the current frame.");
+        Show_ItemTooltip("Create or update Position, Size, Scale, Rotation, Color, and AlphaMultiplier keys at the current frame.");
 
         ImGui::BeginDisabled(nullptr == _assetService.Get_SelectedKey());
         if (ImGui::Button("Copy Key"))
@@ -576,13 +565,22 @@ namespace UIEditor
             }
             Show_ItemTooltip("Edit R, G, B, and A as 0 to 255 values.");
         }
+        else if (editableTrack->type == UI_AnimationKeyframeTrackType::Size)
+        {
+            ImVec2 value = selectedKey->valueVec2;
+            if (ImGui::DragFloat2("Size", &value.x, Get_AnimationKeyframeTrackDragSpeed(editableTrack->type), 0.f, 0.f, "%.3f"))
+            {
+                if (_assetService.Set_SelectedKeyVec2Value(value))
+                    Request_StaticPreviewRefresh();
+            }
+        }
         else
         {
             float value = editableTrack->type == UI_AnimationKeyframeTrackType::Rotation
                 ? Radians_ToDegrees(selectedKey->value)
                 : selectedKey->value;
             const char* valueLabel = editableTrack->type == UI_AnimationKeyframeTrackType::Rotation ? "Value (deg)" : "Value";
-            if (ImGui::DragFloat(valueLabel, &value, Get_ValueDragSpeed(editableTrack->type), 0.f, 0.f, "%.3f"))
+            if (ImGui::DragFloat(valueLabel, &value, Get_AnimationKeyframeTrackDragSpeed(editableTrack->type), 0.f, 0.f, "%.3f"))
             {
                 const float nextValue = editableTrack->type == UI_AnimationKeyframeTrackType::Rotation
                     ? Degrees_ToRadians(value)

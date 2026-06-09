@@ -16,6 +16,23 @@ MEInstancedMeshActor::MEInstancedMeshActor(const MEInstancedMeshActor& prototype
 {
 }
 
+void MEInstancedMeshActor::Set_LodModel(int lod, Shared<ModelCom> model)
+{
+    _lodModels[lod] = model;
+
+    if (!model || _indirectArgsBuffers[lod].empty())
+    {
+        return;
+    }
+
+    const uint32 numMeshes = static_cast<uint32>(model->Get_NumMeshes());
+    for (uint32 i = 0; i < numMeshes && i < _indirectArgsBuffers[lod].size(); ++i)
+    {
+        uint32 args[5] = { static_cast<uint32>(model->Get_NumIndices(i)), _instanceCount, 0, 0, 0 };
+        _context->UpdateSubresource(_indirectArgsBuffers[lod][i].Get(), 0, nullptr, args, 0, 0);
+    }
+}
+
 HRESULT MEInstancedMeshActor::Initialize(void* arg)
 {
 
@@ -44,18 +61,15 @@ void MEInstancedMeshActor::Late_Update(float timeDelta)
 
 HRESULT MEInstancedMeshActor::Render()
 {
-    if (_instanceCount == 0 || !_model || !_shader)
+    if (_instanceCount == 0 || !_lodModels[0] || !_shader)
     {
         return S_OK;
     }
 
-    Buffer* renderVB = _instanceVB.Get();
     bool useIndirect = false;
-
-    if (_cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB && !_indirectArgsBuffers.empty())
+    if (_cullShader && _instanceSrcBuffer && _sphereBuffer && _visibleVB[0] && !_indirectArgsBuffers[0].empty())
     {
         DispatchCull();
-        renderVB = _visibleVB.Get();
         useIndirect = true;
     }
 
@@ -64,44 +78,53 @@ HRESULT MEInstancedMeshActor::Render()
         return E_FAIL;
     }
 
-    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
-    for (uint32 i = 0; i < numMeshes; ++i)
+    for (int lod = 0; lod < 3; ++lod)
     {
-        const uint32 materialIndex = _model->Get_MeshMaterialIndex(i);
-        const Shared<Material> material = _model->Get_Material(materialIndex);
-        int32 passIndex = static_cast<int32>(VtxMeshPassIndex::NoTexturePass);
-        if (material != nullptr)
+        if (!_lodModels[lod])
         {
-            if (FAILED(_shader->Bind_MaterialTextures(*material)))
-            {
-                continue;
-            }
-            if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
-            {
-                return E_FAIL;
-            }
-            passIndex = static_cast<int32>(material->Get_PassIndex());
-        }
-        if (FAILED(_shader->Begin(passIndex)))
-        {
-            return E_FAIL;
+            continue;
         }
 
-        if (useIndirect)
+        const uint32 numMeshes = static_cast<uint32>(_lodModels[lod]->Get_NumMeshes());
+        for (uint32 i = 0; i < numMeshes; ++i)
         {
-            if (FAILED(_model->RenderInstancedIndirect(i, renderVB, sizeof(Matrix), _indirectArgsBuffers[i].Get())))
+            const uint32 materialIndex = _lodModels[lod]->Get_MeshMaterialIndex(i);
+            const Shared<Material> material = _lodModels[lod]->Get_Material(materialIndex);
+            int32 passIndex = static_cast<int32>(VtxMeshPassIndex::NoTexturePass);
+            if (material != nullptr)
             {
-                return E_FAIL;
-            }
-        }
-        else
-        {
-            if (FAILED(_model->RenderInstanced(i, renderVB, sizeof(Matrix), _instanceCount)))
-            {
-                return E_FAIL;
-            }
-        }
+                if (FAILED(_shader->Bind_MaterialTextures(*material)))
+                {
+                    continue;
+                }
 
+                if (FAILED(_shader->Bind_CBufferData(material->Get_CB())))
+                {
+                    return E_FAIL;
+                }
+                passIndex = static_cast<int32>(material->Get_PassIndex());
+            }
+
+            if (FAILED(_shader->Begin(passIndex)))
+            {
+                return E_FAIL;
+            }
+
+            if (useIndirect)
+            {
+                if (FAILED(_lodModels[lod]->RenderInstancedIndirect(i, _visibleVB[lod].Get(), sizeof(Matrix), _indirectArgsBuffers[lod][i].Get())))
+                {
+                    return E_FAIL;
+                }
+            }
+            else
+            {
+                if (FAILED(_lodModels[lod]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+                {
+                    return E_FAIL;
+                }
+            }
+        }
     }
 
     return S_OK;
@@ -109,7 +132,7 @@ HRESULT MEInstancedMeshActor::Render()
 
 HRESULT MEInstancedMeshActor::RenderPickingID(uint32 id)
 {
-    if (_instanceCount == 0 || !_model || !_shader)
+    if (_instanceCount == 0 || !_lodModels[0] || !_shader)
     {
         return S_OK;
     }
@@ -135,7 +158,7 @@ HRESULT MEInstancedMeshActor::RenderPickingID(uint32 id)
         return E_FAIL;
     }
 
-    const uint32 numMeshes = static_cast<uint32>(_model->Get_NumMeshes());
+    const uint32 numMeshes = static_cast<uint32>(_lodModels[0]->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
         if (FAILED(_shader->Begin(6)))
@@ -143,7 +166,7 @@ HRESULT MEInstancedMeshActor::RenderPickingID(uint32 id)
             return E_FAIL;
         }
 
-        if (FAILED(_model->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
+        if (FAILED(_lodModels[0]->RenderInstanced(i, _instanceVB.Get(), sizeof(Matrix), _instanceCount)))
         {
             return E_FAIL;
         }
@@ -189,8 +212,8 @@ HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, 
     }
 
     Vec3 localMin{}, localMax{};
-    const bool hasBounds = _model && _model->Try_Get_LocalBounds(localMin, localMax);
-    const Matrix preTransform = _model ? _model->Get_PreLocalTransformMatrix() : Matrix::Identity;
+    const bool hasBounds = _lodModels[0] && _lodModels[0]->Try_Get_LocalBounds(localMin, localMax);
+    const Matrix preTransform = _lodModels[0] ? _lodModels[0]->Get_PreLocalTransformMatrix() : Matrix::Identity;
 
     vector<Vec4> spheres;
     spheres.reserve(count);
@@ -223,6 +246,7 @@ HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, 
         return E_FAIL;
     }
 
+    for (int lod = 0; lod < 3; ++lod)
     {
         D3D11_BUFFER_DESC bd{};
         bd.ByteWidth = sizeof(Matrix) * count;
@@ -231,8 +255,8 @@ HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, 
         bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
         bd.StructureByteStride = sizeof(Matrix);
 
-        _visibleStructured.Reset();
-        if (FAILED(_device->CreateBuffer(&bd, nullptr, _visibleStructured.GetAddressOf())))
+        _visibleStructured[lod].Reset();
+        if (FAILED(_device->CreateBuffer(&bd, nullptr, _visibleStructured[lod].GetAddressOf())))
         {
             return E_FAIL;
         }
@@ -243,8 +267,8 @@ HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, 
         uavd.Buffer.NumElements = count;
         uavd.Buffer.Flags = D3D11_BUFFER_UAV_FLAG_APPEND;
 
-        _visibleUAV.Reset();
-        if (FAILED(_device->CreateUnorderedAccessView(_visibleStructured.Get(), &uavd, _visibleUAV.GetAddressOf())))
+        _visibleUAV[lod].Reset();
+        if (FAILED(_device->CreateUnorderedAccessView(_visibleStructured[lod].Get(), &uavd, _visibleUAV[lod].GetAddressOf())))
         {
             return E_FAIL;
         }
@@ -254,8 +278,8 @@ HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, 
         vbd.Usage = D3D11_USAGE_DEFAULT;
         vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 
-        _visibleVB.Reset();
-        if (FAILED(_device->CreateBuffer(&vbd, nullptr, _visibleVB.GetAddressOf())))
+        _visibleVB[lod].Reset();
+        if (FAILED(_device->CreateBuffer(&vbd, nullptr, _visibleVB[lod].GetAddressOf())))
         {
             return E_FAIL;
         }
@@ -276,30 +300,33 @@ HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, 
     }
 
     {
-        _indirectArgsBuffers.clear();
-        const uint32 numMeshes = _model ? static_cast<uint32>(_model->Get_NumMeshes()) : 1;
-        _indirectArgsBuffers.resize(numMeshes);
-
-        for (uint32 i = 0; i < numMeshes; ++i)
+        const uint32 numMeshes = _lodModels[0] ? static_cast<uint32>(_lodModels[0]->Get_NumMeshes()) : 1;
+        for (int lod = 0; lod < 3; ++lod)
         {
-            D3D11_BUFFER_DESC bd{};
-            bd.ByteWidth = 5 * sizeof(uint32);
-            bd.Usage = D3D11_USAGE_DEFAULT;
-            bd.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
-            bd.MiscFlags = D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
+            _indirectArgsBuffers[lod].clear();
+            _indirectArgsBuffers[lod].resize(numMeshes);
 
-            if (FAILED(_device->CreateBuffer(&bd, nullptr, _indirectArgsBuffers[i].GetAddressOf())))
+            for (uint32 i = 0; i < numMeshes; ++i)
             {
-                return E_FAIL;
-            }
+                D3D11_BUFFER_DESC bd{};
+                bd.ByteWidth = 5 * sizeof(uint32);
+                bd.Usage = D3D11_USAGE_DEFAULT;
+                bd.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+                bd.MiscFlags = D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
 
-            uint32 args[5] = { 0, count, 0, 0, 0 };
-            if (_model)
-            {
-                args[0] = static_cast<uint32>(_model->Get_NumIndices(i));
-            }
+                if (FAILED(_device->CreateBuffer(&bd, nullptr, _indirectArgsBuffers[lod][i].GetAddressOf())))
+                {
+                    return E_FAIL;
+                }
 
-            _context->UpdateSubresource(_indirectArgsBuffers[i].Get(), 0, nullptr, args, 0, 0);
+                uint32 args[5] = { 0, count, 0, 0, 0 };
+                if (_lodModels[0])
+                {
+                    args[0] = static_cast<uint32>(_lodModels[0]->Get_NumIndices(i));
+                }
+
+                _context->UpdateSubresource(_indirectArgsBuffers[lod][i].Get(), 0, nullptr, args, 0, 0);
+            }
         }
     }
 
@@ -308,7 +335,7 @@ HRESULT MEInstancedMeshActor::CreateCullBuffers(const vector<Matrix>& matrices, 
 
 void MEInstancedMeshActor::DispatchCull()
 {
-    if (!_cullShader || !_cullCB || !_visibleUAV || !_instanceSrcBuffer || !_sphereBuffer || _indirectArgsBuffers.empty())
+    if (!_cullShader || !_cullCB || !_visibleUAV[0] || !_instanceSrcBuffer || !_sphereBuffer || _indirectArgsBuffers[0].empty())
     {
         return;
     }
@@ -330,6 +357,13 @@ void MEInstancedMeshActor::DispatchCull()
     }
     params.totalCount = _instanceCount;
 
+    params.maxDist = 300.f;
+    params.lod1Dist = _lodModels[1] ? _lod1Dist : params.maxDist;
+    params.lod2Dist = _lodModels[2] ? _lod2Dist : params.maxDist;
+
+    const Vec4* cam4 = GAME->Get_CamPosition();
+    params.camPos = Vec3(cam4->x, cam4->y, cam4->z);
+
     D3D11_MAPPED_SUBRESOURCE mapped{};
     if (FAILED(_context->Map(_cullCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
     {
@@ -338,8 +372,13 @@ void MEInstancedMeshActor::DispatchCull()
     memcpy(mapped.pData, &params, sizeof(CullParams));
     _context->Unmap(_cullCB.Get(), 0);
 
-    uint32 initCount = {};
-    _context->CSSetUnorderedAccessViews(0, 1, _visibleUAV.GetAddressOf(), &initCount);
+    uint32 initCounts[3] = { 0, 0, 0 };
+    ID3D11UnorderedAccessView* uavs[3] = {
+        _visibleUAV[0].Get(),
+        _visibleUAV[1].Get(),
+        _visibleUAV[2].Get()
+    };
+    _context->CSSetUnorderedAccessViews(0, 3, uavs, initCounts);
 
     _cullShader->Bind_SRV(0, _instanceSrcBuffer->Get_SRV());
     _cullShader->Bind_SRV(1, _sphereBuffer->Get_SRV());
@@ -348,13 +387,16 @@ void MEInstancedMeshActor::DispatchCull()
     const uint32 groups = (_instanceCount + 63) / 64;
     _cullShader->Dispatch(groups, 1, 1);
 
-    ID3D11UnorderedAccessView* nullUAV = {};
-    _context->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
+    ID3D11UnorderedAccessView* nullUAVs[3] = {};
+    _context->CSSetUnorderedAccessViews(0, 3, nullUAVs, nullptr);
 
-    _context->CopyResource(_visibleVB.Get(), _visibleStructured.Get());
-    for (auto& buffer : _indirectArgsBuffers)
+    for (int lod = 0; lod < 3; ++lod)
     {
-        _context->CopyStructureCount(buffer.Get(), sizeof(uint32), _visibleUAV.Get());
+        _context->CopyResource(_visibleVB[lod].Get(), _visibleStructured[lod].Get());
+        for (auto& buffer : _indirectArgsBuffers[lod])
+        {
+            _context->CopyStructureCount(buffer.Get(), sizeof(uint32), _visibleUAV[lod].Get());
+        }
     }
 }
 
@@ -459,16 +501,37 @@ HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const ve
     {
         if (modelManager)
         {
-            _model = modelManager->GetOrLoad(_device, _context, modelPath);
+            _lodModels[0] = modelManager->GetOrLoad(_device, _context, modelPath);
         }
         else
         {
-            _model = ModelCom::Create(_device, _context, ModelType::NonAnim, String::ToString(modelPath).c_str(), Matrix::CreateScale(0.01f));
+            _lodModels[0] = ModelCom::Create(_device, _context, ModelType::NonAnim, String::ToString(modelPath).c_str(), Matrix::CreateScale(0.01f));
         }
 
-        if (!_model)
+        if (!_lodModels[0])
         {
             return E_FAIL;
+        }
+        if (!_lodModels[0])
+        {
+            return E_FAIL;
+        }
+
+        wstring basePath = modelPath;
+        wstring ext = L".model";
+        if (basePath.size() > ext.size())
+        {
+            basePath = basePath.substr(0, basePath.size() - ext.size());
+        }
+
+        for (int lod = 1; lod <= 2; ++lod)
+        {
+            wstring lodPath = basePath + L"_lod" + to_wstring(lod) + ext;
+            Shared<ModelCom> lodModel = modelManager
+                ? modelManager->GetOrLoad(_device, _context, lodPath)
+                : ModelCom::Create(_device, _context, ModelType::NonAnim, String::ToString(lodPath).c_str(), Matrix::CreateScale(0.01f));
+
+            _lodModels[lod] = lodModel;
         }
         _loadedModelPath = modelPath;
     }
@@ -478,8 +541,18 @@ HRESULT MEInstancedMeshActor::UpdateInstances(const wstring& modelPath, const ve
 
     for (auto& t : transforms)
     {
+        Quat q(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w);
+        if (q.Length() < 1e-6f)
+        {
+            q = Quat::Identity;
+        }
+        else
+        {
+            q.Normalize();
+        }
+
         Matrix world = Matrix::CreateScale(t._scale)
-            * Matrix::CreateFromQuaternion(Quat(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w))
+            * Matrix::CreateFromQuaternion(q)
             * Matrix::CreateTranslation(t._position);
         matrices.push_back(world);
     }
@@ -527,15 +600,18 @@ Shared<GameObject> MEInstancedMeshActor::Clone(void* arg)
 
 void MEInstancedMeshActor::Free()
 {
-    _visibleStructured.Reset();
-    _visibleUAV.Reset();
-    _visibleVB.Reset();
-    _cullCB.Reset();
-    for (auto& buffer : _indirectArgsBuffers)
+    for (int lod = 0; lod < 3; ++lod)
     {
-        buffer.Reset();
+        _visibleStructured[lod].Reset();
+        _visibleUAV[lod].Reset();
+        _visibleVB[lod].Reset();
+        for (auto& buffer : _indirectArgsBuffers[lod])
+        {
+            buffer.Reset();
+        }
+        _indirectArgsBuffers[lod].clear();
     }
-    _indirectArgsBuffers.clear();
+    _cullCB.Reset();
     _instanceSrcBuffer.reset();
     _sphereBuffer.reset();
     _cullShader.reset();

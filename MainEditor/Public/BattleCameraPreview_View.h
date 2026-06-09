@@ -107,6 +107,8 @@ private:
     void Ensure_PreviewRenderTarget(uint32 width, uint32 height);
     void Ensure_PreviewCamera();
     void Reset_DefaultFormation();
+    void Apply_DefaultHeroFormation();
+    void Apply_DefaultEnemyFormation();
     void Rebuild_PreviewObjects();
     void Clear_PreviewObjects();
     void Position_PreviewObjects() const;
@@ -118,6 +120,7 @@ private:
     void Render_PreviewCanvas();
     void Render_PreviewPanel();
     void Render_TransitionPreviewPanel();
+    void Render_CounterPreviewPanel();
     void Render_BattlePresetEditor();
     void Render_TimelinePanel();
     void Render_BattleClipSequencer();
@@ -207,6 +210,7 @@ private:
     Vec3 Get_PreviewSlotWorldPosition(PreviewSlotSide side, int slotIndex) const;
     string Get_SelectedHeroPrefabName() const;
     string Get_SelectedEnemyPrefabName() const;
+    vector<Client::BattleMonsterSpawnDesc> Resolve_SelectedEnemySpawnDescs() const;
     BattleCameraMode Get_CurrentBattleAuthoringMode() const;
     string Get_CurrentPreviewPresetId() const;
     string Get_CurrentPreviewClipId() const;
@@ -214,20 +218,20 @@ private:
     BattleCameraTrack* Get_SelectedBattleClipTrack();
     BattleCameraKeyframe* Get_SelectedBattleClipKeyframe();
     float Get_TransitionSequenceDuration() const;
+    float Get_DefaultBattleClipValue(int trackIndex);
     void Resolve_TransitionSequenceTime(float time, int& outStepIndex, float& outStepLocalTime);
     void Scrub_TransitionSequence(float timeSec);
 
     Vec3 Resolve_PhaseGoalPosition(const PreviewContext& context, const Client::BattleActionPhase& phase);
     Vec3 Resolve_AnchorPosition(const PreviewContext& context, Client::BattleTargetAnchor anchor);
-    void Update_RootMotionToTarget();
-    void Update_RatioMoveTo();
 
 private:
-    PreviewContext _previewContext{};
+    PreviewContext   _previewContext{};
     PreviewFormation _previewFormation{};
-    vector<string> _skillIds{};
-    vector<string> _enemyPrefabNames{};
-    Client::HeroId _selectedHeroId = Client::HeroId::Gustave;
+    vector<string>   _skillIds{};
+    vector<string>   _enemyPrefabNames{};
+    Client::HeroId   _selectedHeroId = Client::HeroId::Gustave;
+
     int _selectedEnemyPrefabIndex = 0;
     int _selectedSkillIndex = -1;
     bool _useSkillOverride = false;
@@ -237,6 +241,9 @@ private:
     bool _previewShakeEnabled = true;
     bool _previewSideOffsetEnabled = true;
     bool _previewPivotOffsetEnabled = true;
+    bool _previewHeightOffsetEnabled = true;
+    bool _previewAimOffsetEnabled = true;
+    bool _previewLookHeightOffsetEnabled = true;
     bool _previewYawOffsetEnabled = true;
     bool _previewOrbitYawEnabled = true;
     bool _previewOrbitRadiusEnabled = true;
@@ -244,6 +251,7 @@ private:
     bool _previewOrbitLookHeightEnabled = true;
     bool _previewShakeFrequencyXEnabled = true;
     bool _previewShakeFrequencyYEnabled = true;
+    bool _previewShakeDecayRateXEnabled = true;
     bool _previewShakeDecayRateEnabled = true;
     bool _previewShakeVerticalRatioEnabled = true;
     bool _previewShakeStrengthScaleEnabled = true;

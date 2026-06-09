@@ -2,12 +2,55 @@
 
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
+#include "EffectMaterialScalarModulationRuntime.h"
 #include "GameInstance.h"
 #include "Renderer_Define.h"
 #include "Texture.h"
 
 namespace Client::Internal
 {
+static int Resolve_MaterialSourceIndex(const string& source)
+{
+    constexpr int sourceAlpha = 0;
+    constexpr int sourceRed = 1;
+    constexpr int sourceLuminance = 2;
+
+    if (source == "Red" || source == "red")
+        return sourceRed;
+
+    if (source == "Luminance" || source == "luminance")
+        return sourceLuminance;
+
+    return sourceAlpha;
+}
+
+static HRESULT Bind_MaterialScalarModulationPayload(
+    ShaderCom* shader,
+    const EffectMaterialScalarModulationRuntimeDesc& modulation,
+    float emitterPhase)
+{
+    CHECK_NULL(shader, E_FAIL);
+
+    const EffectMaterialScalarModulationShaderPayload payload =
+        Build_MaterialScalarModulationShaderPayload(modulation, emitterPhase);
+
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationParams", &payload.params, sizeof(payload.params)), E_FAIL);
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationMeta", payload.meta.data(), sizeof(payload.meta)), E_FAIL);
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyTimes", payload.keyTimes.data(), sizeof(payload.keyTimes)), E_FAIL);
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyValues", payload.keyValues.data(), sizeof(payload.keyValues)), E_FAIL);
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyArriveTangents", payload.keyArriveTangents.data(), sizeof(payload.keyArriveTangents)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyLeaveTangents", payload.keyLeaveTangents.data(), sizeof(payload.keyLeaveTangents)),
+        E_FAIL
+    );
+    CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyModes", payload.keyModes.data(), sizeof(payload.keyModes)), E_FAIL);
+
+    return S_OK;
+}
+
 Vec3 Catmull_Rom(const Vec3& p0, const Vec3& p1, const Vec3& p2, const Vec3& p3, const float ratio)
 {
     const float t2 = ratio * ratio;
@@ -1008,6 +1051,12 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         static_cast<float>(static_cast<uint32>(_desc.material.maskUVTilingMode)),
         0.f
     );
+    const Vec4 effectTrailSourceParams = Vec4(
+        static_cast<float>(Internal::Resolve_MaterialSourceIndex(_desc.material.noiseSource)),
+        static_cast<float>(Internal::Resolve_MaterialSourceIndex(_desc.material.maskSource)),
+        _desc.material.noiseInvert ? 1.f : 0.f,
+        _desc.material.maskInvert ? 1.f : 0.f
+    );
     const int opacitySourceIndex = Resolve_OpacitySourceIndex();
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailParams", &effectTrailParams, sizeof(effectTrailParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailAlphaParams", &effectTrailAlphaParams, sizeof(effectTrailAlphaParams)), E_FAIL);
@@ -1018,7 +1067,13 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaskUVOffsetParams", &effectTrailMaskUVOffsetParams, sizeof(effectTrailMaskUVOffsetParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVPolicyParams", &effectTrailUVPolicyParams, sizeof(effectTrailUVPolicyParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVModeParams", &effectTrailUVModeParams, sizeof(effectTrailUVModeParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailSourceParams", &effectTrailSourceParams, sizeof(effectTrailSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
+    const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
+    CHECK_FAILED(
+        Internal::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.material.scalarModulation, emitterPhase),
+        E_FAIL
+    );
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
 
     const EffectMaterialAdditiveContributionData& additive = _desc.material.additive;
@@ -1055,8 +1110,6 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
 {
     const auto& material = _desc.material;
 
-    CHECK_FAILED(GAME->Bind_RT_ShaderResource(_shader, "g_DistortionSourceTexture", RT::DistortionSource), E_FAIL);
-
     if (nullptr != _flowTexture)
         CHECK_FAILED(_flowTexture->Bind_ShaderResourceView(_shader.get(), "g_FlowTexture", 0), E_FAIL);
     else
@@ -1067,7 +1120,7 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
     _context->RSGetViewports(&viewportCount, &viewport);
 
     const Vec4 distortionParams(
-        max(0.f, material.refractionIntensity),
+        material.refractionIntensity,
         max(0.f, material.refractionPresence),
         nullptr != _flowTexture ? 1.f : 0.f,
         _materialElapsedTime
@@ -1111,6 +1164,9 @@ bool ComputeTrailEmitter::Is_DistortionFamily() const
 
 RenderGroup ComputeTrailEmitter::Resolve_RenderGroup() const
 {
+    if (_desc.renderLayerOverride == EffectEmitterRenderLayerOverride::UIEffect)
+        return RenderGroup::UIEffect;
+
     return Is_DistortionFamily() ? RenderGroup::Distortion : RenderGroup::Blend;
 }
 

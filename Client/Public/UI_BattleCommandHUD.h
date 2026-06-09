@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "UI_Animation.h"
 #include "UI_RuntimePanelBase.h"
 #include "Battle_Enum.h"
 
@@ -55,6 +56,10 @@ private:
 
     HRESULT Load_UI(uint32 levelIndex);
     HRESULT Bind_UI();
+    void    Open_AllHUDUIs();
+    void    Close_AllHUDUIs();
+    void    Stop_AllHUDAnimations();
+    bool    Play_HUDAnimation(const wchar_t* animationName);
 
     void    Apply_DefaultHighlight();
     HRESULT Bind_CurrentPlayerAP();
@@ -70,6 +75,7 @@ private:
     Vec2    Resolve_HeroTestOffset(HeroId heroId) const;
 
 private:
+    vector<Shared<UI_Base>> _allHUDUIs{};
     CommandSlot _attackSlot{};
     CommandSlot _skillSlot{};
     CommandSlot _itemSlot{};
@@ -85,6 +91,9 @@ private:
 
     Vec3 _targetWorldPos = Vec3::Zero;
     bool _hasTargetWorldPos = false;
+    bool _isPlayingIntro = false;
+    float _introElapsed = 0.f;
+    float _introDuration = 0.f;
 
     HeroId _currentHeroId = HeroId::END;
 

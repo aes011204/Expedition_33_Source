@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "PartObject.h"
+#include "Shader_CBuffer_Define.h"
 
 NS_BEGIN(Engine)
 class ShaderCom;
@@ -41,10 +42,12 @@ public:
 private:
     HRESULT Ready_Components(const FACE_ACCESSORY_DESC& desc);
     HRESULT Bind_ShaderResources();
+    HRESULT Bind_PlayerRenderCB();
 
 private:
     Shared<ShaderCom>    _shader{};
     Shared<ModelCom>     _model{};
+    HairCB               _hairCB{};
 
     const Matrix*        _socketMatrix = nullptr;
 

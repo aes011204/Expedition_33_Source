@@ -1,3 +1,5 @@
+// Engine 원본 경로: Engine/Bin/ShaderFiles/Engine_Shader_ConstantBuffer.hlsl
+// Client 복사본 경로: Client/Bin/ShaderFiles/Engine_Shader_ConstantBuffer.hlsl - 먼저 이 원본의 의도를 확인하세요.
 #ifndef ENGINE_SHADER_CONSTANTBUFFER_HLSL
 #define ENGINE_SHADER_CONSTANTBUFFER_HLSL
 
@@ -29,13 +31,21 @@ cbuffer ShadowBuffer
     row_major float4x4 g_LightViewMatrix;
     row_major float4x4 g_LightProjMatrix;
 
+    row_major float4x4 g_CascadeLightViewMatrices[4];
+    row_major float4x4 g_CascadeLightProjMatrices[4];
+
     row_major float4x4 g_StaticLightViewMatrix;
     row_major float4x4 g_StaticLightProjMatrix;
 
-    float g_LightFar;           
-    float g_Bias;               
-    float g_ShadowIntensity;    
+    float4 g_CascadeSplits;
+    float g_CascadeBlendDistance;
+    float g_LightFar;
+    float g_Bias;
+
+    float g_ShadowIntensity;
     float g_StaticShadowEnabled;
+    uint g_ShadowCascadeCount;
+    uint g_ActiveShadowCascadeIndex;
 };
 
 cbuffer ScreenSpaceBuffer
@@ -99,6 +109,8 @@ cbuffer DrawFeatureBuffer
 
     float4 g_FeatureParam0;
     float4 g_FeatureParam1;
+    float4 g_FeatureParam2;
+    float4 g_FeatureParam3;
 };
 
 cbuffer SSAOBuffer
@@ -126,7 +138,12 @@ cbuffer DeferredLightingBuffer
     float g_IBLSpecularIntensity;
     float g_IBLPrefilterMaxMip;
 
+    float g_SpecAAStrength;
+    float g_SpecAAMinVariance;
+    float g_SpecAAMaxAddedRoughness;
     uint g_IBLEnabled;
+
+    uint g_SpecAAEnabled;
     uint3 g_IBLPadding0;
 };
 
@@ -151,6 +168,25 @@ cbuffer PostProcessBuffer
 
     float4 g_PP_BackgroundFallbackColor; // 64 ~ 79
 }; // 80 bytes
+
+cbuffer LightShaftBuffer
+{
+    float2 g_LS_LightScreenUV;          // 0 ~  7
+    float g_LS_LightVisible;            // 8 ~ 11
+    float g_LS_LightFacingCamera;       // 12 ~ 15
+
+    float3 g_LS_ShaftColor;             // 16 ~ 27
+    float g_LS_Intensity;               // 28 ~ 31
+
+    uint g_LS_SampleCount;              // 32 ~ 35
+    float g_LS_RayLength;               // 36 ~ 39
+    float g_LS_Decay;                   // 40 ~ 43
+    float g_LS_SunDiscRadius;           // 44 ~ 47
+
+    float g_LS_EdgeFade;                // 48 ~ 51
+    float g_LS_DepthEmptyThreshold;     // 52 ~ 55
+    float2 g_LS_Padding0;               // 56 ~ 63
+};  // 64 bytes
 
 cbuffer HairDescBuffer
 {
@@ -183,9 +219,9 @@ cbuffer ScreenFxBuffer
 {
     float3 g_vignetteColor;
     float g_vignetteIntensity;
-
     float g_vignetteRadius;
     float g_vignetteSoftness;
+
     float g_ghostingIntensity;
     float g_transitionProgress;
 
@@ -204,5 +240,61 @@ cbuffer ScreenFxBuffer
     float g_edgeSoftness;
     float2 pad;
 };
+
+struct FogZoneEntry
+{
+    float3 zoneMin;
+    float zoneRadius;
+
+    float3 zoneMax;
+    float _pad0;
+
+    float4 fogColor;
+
+    float fogDensity;
+    float fogStart;
+    float _pad1;
+    float _pad2;
+};
+
+cbuffer FogZoneBuffer
+{
+    FogZoneEntry g_FogZones[8];
+    int g_FogAABBCount;
+    int g_FogSphereCount;
+    float2 g_FogZonePad0;
+};
+
+cbuffer WaterBuffer : register(b13)
+{
+    float g_LargeWaveScale;
+    float g_LargeWaveSpeed;
+    float g_LargeWaveAmplify;
+    float g_SmallWaveScale;
+
+    float g_SmallWaveSpeed;
+    float g_SmallWaveAmplify;
+    float g_SeafoamScale;
+    float g_SeafoamSpeed;
+
+    float g_SeafoamHeightPower;
+    float g_SeafoamHeightMultiply;
+    float g_FoamDistortion;
+    float g_DepthFade;
+
+    float g_CameraDistanceFade;
+    float g_ReflectionAmount;
+    float g_LuminanceBias;
+    float g_WaterElapsedTime;
+
+    float4 g_WaterColor;
+    float4 g_WaterFresnelColor;
+}
+
+cbuffer PlayerRenderBuffer
+{
+    float4 g_PlayerNearClipParams;
+    // x: enabled, y: camera-space clip distance
+}
 
 #endif

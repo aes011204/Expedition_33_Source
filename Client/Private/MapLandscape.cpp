@@ -1,5 +1,7 @@
 ﻿#include "MapLandscape.h"
 #include "GameInstance.h"
+#include "StaticCollisionData.h"
+#include "Collision_Define.h"
 
 IMPLEMENT_REFLECTION(MapLandscape)
 {
@@ -43,7 +45,6 @@ HRESULT MapLandscape::Initialize(void* arg)
         return E_FAIL;
     }
 
-    // dummy
     D3D11_TEXTURE2D_DESC td = {};
     td.Width = td.Height = 1;
     td.MipLevels = td.ArraySize = 1;
@@ -66,7 +67,63 @@ HRESULT MapLandscape::Initialize(void* arg)
         return E_FAIL;
     }
 
-    return Load_HMap(desc->hmapPath, desc->texRoot);
+    D3D11_TEXTURE2D_DESC ndesc{};
+    ndesc.Width = ndesc.Height = 1;
+    ndesc.MipLevels = ndesc.ArraySize = 1;
+    ndesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    ndesc.SampleDesc.Count = 1;
+    ndesc.Usage = D3D11_USAGE_IMMUTABLE;
+    ndesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+    uint8_t flatNormal[4] = { 128, 128, 255, 255 };
+    D3D11_SUBRESOURCE_DATA ndata = {};
+    ndata.pSysMem = flatNormal;
+    ndata.SysMemPitch = 4;
+    if (FAILED(_device->CreateTexture2D(&ndesc, &ndata, _dummyNormalTex.GetAddressOf())))
+    {
+        return E_FAIL;
+    }
+    
+    if (FAILED(_device->CreateShaderResourceView(_dummyNormalTex.Get(), nullptr, _dummyNormalSRV.GetAddressOf())))
+    {
+        return E_FAIL;
+    }
+
+    _collisionCacheKey = desc->hmapPath;
+
+    if (FAILED(Load_HMap(desc->hmapPath, desc->texRoot)))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(Build_CollisionData()))
+    {
+        return E_FAIL;
+    }
+
+    uint8_t flatRough[4] = { 255, 255, 255, 255 };
+    D3D11_SUBRESOURCE_DATA rdata = {};
+    rdata.pSysMem = flatRough;
+    rdata.SysMemPitch = 4;
+    if (FAILED(_device->CreateTexture2D(&ndesc, &rdata, _dummyRoughnessTex.GetAddressOf())))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(_device->CreateShaderResourceView(_dummyRoughnessTex.Get(), nullptr, _dummyRoughnessSRV.GetAddressOf())))
+    {
+        return E_FAIL;
+    }
+
+    if (_collisionData != nullptr)
+    {
+        _physxStaticHandle = GAME->Register_PhysXStaticCollision(
+            *_collisionData,
+            _transformCom->Get_WorldMatrix(),
+            Collision_Preset::Enviroment);
+    }
+
+    return S_OK;
 }
 
 void MapLandscape::Late_Update(float timeDelta)
@@ -151,19 +208,52 @@ HRESULT MapLandscape::Load_HMap(const wstring& hmapPath, const wstring& texRoot)
         {
             uint32 nameLen = 0;
             fread(&nameLen, sizeof(uint32), 1, f);
-
             wstring name(nameLen, L'\0');
-            fread(name.data(), sizeof(wchar_t), nameLen, f);
+            fread(name.data(), sizeof(WCHAR), nameLen, f);
+
+            uint32 normalLen = 0;
+            fread(&normalLen, sizeof(uint32), 1, f);
+            wstring normalName(normalLen, L'\0');
+            if (normalLen > 0)
+            {
+                fread(normalName.data(), sizeof(WCHAR), normalLen, f);
+            }
+
+            uint32 roughLen = 0;
+            fread(&roughLen, sizeof(uint32), 1, f);
+            wstring roughName(roughLen, L'\0');
+            if (roughLen > 0)
+            {
+                fread(roughName.data(), sizeof(WCHAR), roughLen, f);
+            }
+
+            float tiling = 3.f;
+            Vec4 tint = { 1.f, 1.f, 1.f, 1.f };
+            Vec4 control = { 1, 1, 0, 0 };
+            fread(&tiling, sizeof(float), 1, f);
+            fread(&tint, sizeof(Vec4), 1, f);
+            fread(&control, sizeof(Vec4), 1, f);
+            Vec4 albedo = { 1.f, 1.f, 1.f, 0.f };
+            fread(&albedo, sizeof(Vec4), 1, f);
 
             auto& weights = _vibuffer->Get_WeightMap(i);
             fread(weights.data(), sizeof(float), vertCount, f);
 
-            wstring fullPath = (fs::path(texRoot) / name).wstring();
-            if (FAILED(Add_LayerTexture(fullPath, i)))
+            wstring albedoPath = (fs::path(texRoot) / name).wstring();
+            wstring normalPath = (normalLen > 0) ? (fs::path(texRoot) / normalName).wstring() : L"";
+            wstring roughPath = (roughLen > 0) ? (fs::path(texRoot) / roughName).wstring() : L"";
+
+            if (FAILED(Add_LayerTexture(albedoPath, i, normalPath, roughPath)))
             {
                 fclose(f);
                 return E_FAIL;
             }
+
+            _tiling[i] = tiling;
+            _groundTint[i] = tint;
+            _layerControl[i] = control;
+            _albedoControl[i] = albedo;
+
             Flush_WeightMap(i);
         }
     }
@@ -172,7 +262,70 @@ HRESULT MapLandscape::Load_HMap(const wstring& hmapPath, const wstring& texRoot)
     return S_OK;
 }
 
-HRESULT MapLandscape::Add_LayerTexture(const wstring& fullTexPath, uint32 idx)
+HRESULT MapLandscape::Build_CollisionData()
+{
+    if (_vibuffer == nullptr)
+    {
+        return E_FAIL;
+    }
+
+    const uint32 countX = _vibuffer->Get_CountX();
+    const uint32 countZ = _vibuffer->Get_CountZ();
+    const uint32 numVX = countX + 1;
+    const uint32 numVZ = countZ + 1;
+
+    const vector<float>& heights = _vibuffer->Get_Heights();
+    if (heights.size() != static_cast<size_t>(numVX * numVZ))
+    {
+        return E_FAIL;
+    }
+
+    auto collisionData = make_shared<StaticCollisionData>();
+    collisionData->cacheKey = _collisionCacheKey;
+    collisionData->preLocalTransform = Matrix::Identity;
+
+    ModelCollisionMesh mesh{};
+    mesh.positions.reserve(static_cast<size_t>(numVX * numVZ));
+    mesh.indices.reserve(static_cast<size_t>(countX * countZ * 6));
+
+    for (uint32 z = 0; z < numVZ; ++z)
+    {
+        for (uint32 x = 0; x < numVX; ++x)
+        {
+            const uint32 index = z * numVX + x;
+            mesh.positions.push_back(Vec3(
+                static_cast<float>(x) * _vibuffer->Get_SizeX(),
+                heights[index],
+                static_cast<float>(z) * _vibuffer->Get_SizeZ()));
+        }
+    }
+
+    for (uint32 z = 0; z < countZ; ++z)
+    {
+        for (uint32 x = 0; x < countX; ++x)
+        {
+            const uint32 tl = z * numVX + x;
+            const uint32 tr = tl + 1;
+            const uint32 bl = (z + 1) * numVX + x;
+            const uint32 br = bl + 1;
+
+            mesh.indices.push_back(bl);
+            mesh.indices.push_back(br);
+            mesh.indices.push_back(tr);
+
+            mesh.indices.push_back(bl);
+            mesh.indices.push_back(tr);
+            mesh.indices.push_back(tl);
+        }
+    }
+
+    collisionData->triangleMeshes.push_back(std::move(mesh));
+    _collisionData = collisionData;
+
+    return S_OK;
+}
+
+HRESULT MapLandscape::Add_LayerTexture(const wstring& fullTexPath, uint32 idx, const wstring& normalPath, const wstring& roughnessPath)
 {
     WCHAR ext[MAX_PATH] = {};
     _wsplitpath_s(fullTexPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, ext, MAX_PATH);
@@ -188,6 +341,35 @@ HRESULT MapLandscape::Add_LayerTexture(const wstring& fullTexPath, uint32 idx)
     }
 
     _layerSRVs[idx] = srv;
+
+    if (!normalPath.empty())
+    {
+        WCHAR nExt[MAX_PATH] = {};
+        _wsplitpath_s(normalPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, nExt, MAX_PATH);
+        ComPtr<ID3D11ShaderResourceView> nsrv;
+        HRESULT hr = (lstrcmp(nExt, L".dds") == 0)
+            ? CreateDDSTextureFromFile(_device.Get(), normalPath.c_str(), nullptr, nsrv.GetAddressOf())
+            : CreateWICTextureFromFile(_device.Get(), normalPath.c_str(), nullptr, nsrv.GetAddressOf());
+
+        if (SUCCEEDED(hr))
+        {
+            _normalSRVs[idx] = nsrv;
+        }
+    }
+
+    if (!roughnessPath.empty())
+    {
+        WCHAR rExt[MAX_PATH] = {};
+        _wsplitpath_s(roughnessPath.c_str(), nullptr, 0, nullptr, 0, nullptr, 0, rExt, MAX_PATH);
+        ComPtr<ID3D11ShaderResourceView> rsrv;
+        HRESULT hr = (lstrcmp(rExt, L".dds") == 0)
+            ? CreateDDSTextureFromFile(_device.Get(), roughnessPath.c_str(), nullptr, rsrv.GetAddressOf())
+            : CreateWICTextureFromFile(_device.Get(), roughnessPath.c_str(), nullptr, rsrv.GetAddressOf());
+        if (SUCCEEDED(hr))
+        {
+            _roughnessSRVs[idx] = rsrv;
+        }
+    }
 
     uint32 w = _vibuffer->Get_CountX() + 1;
     uint32 h = _vibuffer->Get_CountZ() + 1;
@@ -280,6 +462,53 @@ HRESULT MapLandscape::Bind_ShaderResources()
         _shader->Bind_SRV(weightNames[i], _dummyWeightSRV.Get());
     }
 
+    for (uint32 i = 0; i < _layerCount; ++i)
+    {
+        _shader->Bind_SRV(normalNames[i], _normalSRVs[i] ? _normalSRVs[i].Get() : _dummyNormalSRV.Get());
+        _shader->Bind_SRV(roughnessNames[i], _roughnessSRVs[i] ? _roughnessSRVs[i].Get() : _dummyRoughnessSRV.Get());
+    }
+    for (uint32 i = _layerCount; i < MAX_LAYERS; ++i)
+    {
+        _shader->Bind_SRV(normalNames[i], _dummyNormalSRV.Get());
+        _shader->Bind_SRV(roughnessNames[i], _dummyRoughnessSRV.Get());
+    }
+
+    Vec4 tilingArr[MAX_LAYERS];
+    Vec4 tintArr[MAX_LAYERS];
+    Vec4 controlArr[MAX_LAYERS];
+    for (uint32 i = 0; i < MAX_LAYERS; ++i)
+    {
+        tilingArr[i] = Vec4(_tiling[i], 0.f, 0.f, 0.f);
+        tintArr[i] = _groundTint[i];
+        controlArr[i] = _layerControl[i];
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_Tiling", tilingArr, sizeof(tilingArr))))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_GroundTint", tintArr, sizeof(tintArr))))
+    {
+        return E_FAIL;
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_LayerControl", controlArr, sizeof(controlArr))))
+    {
+        return E_FAIL;
+    }
+
+    Vec4 albedoArr[MAX_LAYERS];
+    for (uint32 i = 0; i < MAX_LAYERS; ++i)
+    {
+        albedoArr[i] = _albedoControl[i];
+    }
+
+    if (FAILED(_shader->Bind_RawValue("g_AlbedoControl", albedoArr, sizeof(albedoArr))))
+    {
+        return E_FAIL;
+    }
+
     return S_OK;
 }
 
@@ -305,5 +534,13 @@ Shared<GameObject> MapLandscape::Clone(void* pArg)
 
 void MapLandscape::Free()
 {
+    if (_physxStaticHandle.Is_Valid())
+    {
+        GAME->Unregister_PhysXStaticActor(_physxStaticHandle);
+        _physxStaticHandle = {};
+    }
+
+    _collisionData.reset();
+
     GameObject::Free();
 }

@@ -2,6 +2,7 @@
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
 #include "Monster_WorldBase.h"
+#include "ClientInstance.h"
 
 IMPLEMENT_REFLECTION(Trigger_WorldAction)
 {
@@ -42,6 +43,7 @@ HRESULT Trigger_WorldAction::Initialize(void* arg)
     _elapsedSec = 0.f;
     _pendingDestroy = false;
 
+
     return S_OK;
 }
 
@@ -74,8 +76,11 @@ void Trigger_WorldAction::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collid
     GameObject::OnBeginOverlap(self, other);
 
     const Shared<GameObject> otherOwner = other ? other->Get_Owner() : nullptr;
-    if (!dynamic_pointer_cast<Monster_WorldBase>(otherOwner))
+    const Shared<Monster_WorldBase> hitMonster = dynamic_pointer_cast<Monster_WorldBase>(otherOwner);
+    if (hitMonster == nullptr)
         return;
+
+    hitMonster->OnBeginOverlap(other, self);
 
     if (self)
     {

@@ -45,6 +45,8 @@ public:
     void From_Json(const json& data);
 
     bool Get_IsMoving() { return _isMoving; };
+    bool Has_MoveIntent() const { return _isMoving && _moveWorldDir.LengthSquared() > 0.f; }
+    const Vec3& Get_MoveWorldDir() const { return _moveWorldDir; }
 protected:
     shared_ptr<class BlackBoard> _BB = {};
     shared_ptr<class BehaviorTree> _BT = {};
@@ -58,6 +60,7 @@ protected:
     Vec3 _testPos = {};
 
     bool _isMoving = {};
+    Vec3 _moveWorldDir = Vec3::Zero;
     FDelegateHandle _editorStopHandle = {};
 
     static Shared<AIController> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

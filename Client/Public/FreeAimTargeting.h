@@ -24,15 +24,18 @@ public:
 
 private:
     // 현재 배틀 카메라 기준 히트스캔으로 맞은 적 찾기
-    bool Try_FindHitEnemy(BattleChar& outEnemy) const; 
+    bool Try_FindHitEnemy(BattleFreeAimHitTarget& outHitTarget) const; 
     void Refresh_HitTarget();                          
     void Clear_HitTarget();                            
 
     bool Is_CurrentActorAnimFinished() const;
     void Play_CurrentActorBattleAnim(BattleAnimType animType, float blendTime, bool isLoop) const;
 
+    // 플레이어 회전
+    void Update_FreeAimPlayerYaw(float timeDelta);
+
 private:
-    BattleChar _currentHitTarget = {};
+    BattleFreeAimHitTarget  _currentHitTarget = {};
     bool _hasCurrentHitTarget = false;
 
     FreeAimAnimState _freeAimAnimState = FreeAimAnimState::None;

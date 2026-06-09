@@ -185,7 +185,7 @@ bool AnimNotify_Parser::From_Json(const json& root, AnimNotifyAsset& outAsset)
         outAsset.animations.push_back(::move(animationData));
     }
 
-    return !outAsset.modelGuid.empty();
+    return !outAsset.modelGuid.empty() || !outAsset.animations.empty();
 }
 
 bool AnimNotify_Parser::Save_ToFile(const wstring& filePath, const AnimNotifyAsset& asset)
@@ -233,6 +233,83 @@ bool AnimNotify_Parser::Load_FromFile(const wstring& filePath, AnimNotifyAsset& 
     }
 }
 
+bool AnimNotify_Parser::Load_ModelAsset(const string& modelGuid, AnimNotifyAsset& outAsset)
+{
+    outAsset = {};
+    outAsset.modelGuid = modelGuid;
+
+    bool loadedAnySplitFile = false;
+    const fs::path folderPath = Get_ModelNotifyFolderPath(modelGuid);
+
+    try
+    {
+        if (fs::exists(folderPath) && fs::is_directory(folderPath))
+        {
+            vector<fs::path> splitFiles;
+
+            for (const fs::directory_entry& entry : fs::directory_iterator(folderPath))
+            {
+                if (!entry.is_regular_file())
+                    continue;
+
+                const fs::path path = entry.path();
+                if (path.extension() == L".json" && path.filename().wstring().ends_with(L".notify.json"))
+                    splitFiles.push_back(path);
+            }
+
+            ::sort(splitFiles.begin(), splitFiles.end());
+
+            for (const fs::path& splitFile : splitFiles)
+            {
+                AnimNotifyAsset splitAsset{};
+                if (!Load_FromFile(splitFile.wstring(), splitAsset))
+                    continue;
+
+                for (auto& animationData : splitAsset.animations)
+                    Merge_AnimationIntoAsset(outAsset, ::move(animationData));
+
+                loadedAnySplitFile = true;
+            }
+        }
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    if (loadedAnySplitFile)
+    {
+        if (outAsset.modelGuid.empty())
+            outAsset.modelGuid = modelGuid;
+
+        return true;
+    }
+
+    const fs::path filePath = Get_ModelNotifyFilePath(modelGuid);
+    if (Load_FromFile(filePath.wstring(), outAsset))
+        return true;
+
+    const fs::path legacyFilePath = Get_LegacyModelNotifyFilePath(modelGuid);
+    return Load_FromFile(legacyFilePath.wstring(), outAsset);
+}
+
+bool AnimNotify_Parser::Save_AnimationToSplitFile(const string& modelGuid, const AnimNotifyData& animationData, float animationLengthSec)
+{
+    if (modelGuid.empty() || animationData.animationName.empty())
+        return false;
+
+    AnimNotifyData animationCopy = animationData;
+    Sort_And_Clamp(animationCopy, animationLengthSec);
+
+    AnimNotifyAsset singleAnimationAsset{};
+    singleAnimationAsset.version = 2;
+    singleAnimationAsset.modelGuid = modelGuid;
+    singleAnimationAsset.animations.push_back(::move(animationCopy));
+
+    const fs::path filePath = Get_AnimationNotifyFilePath(modelGuid, singleAnimationAsset.animations.front().animationName);
+    return Save_ToFile(filePath.wstring(), singleAnimationAsset);
+}
+
 fs::path AnimNotify_Parser::Get_BaseFolderPath()
 {
     const wstring assetRoot = GAME->Get_AssetRoot();
@@ -241,13 +318,17 @@ fs::path AnimNotify_Parser::Get_BaseFolderPath()
 
 fs::path AnimNotify_Parser::Get_ModelNotifyFilePath(const string& modelGuid)
 {
-    const wstring resolvedPath = GAME->Resolve_AssetPath(modelGuid);
-    string fileStem = modelGuid;
+    return Get_BaseFolderPath() / (Get_ModelNotifyStem(modelGuid) + ".notify.json");
+}
 
-    if (!resolvedPath.empty())
-        fileStem = fs::path(resolvedPath).stem().string();
+fs::path AnimNotify_Parser::Get_ModelNotifyFolderPath(const string& modelGuid)
+{
+    return Get_BaseFolderPath() / Get_ModelNotifyStem(modelGuid);
+}
 
-    return Get_BaseFolderPath() / (fileStem + ".notify.json");
+fs::path AnimNotify_Parser::Get_AnimationNotifyFilePath(const string& modelGuid, const string& animationName)
+{
+    return Get_ModelNotifyFolderPath(modelGuid) / (Sanitize_FileName(animationName) + ".notify.json");
 }
 
 fs::path AnimNotify_Parser::Get_LegacyModelNotifyFilePath(const string& modelGuid)
@@ -385,6 +466,62 @@ int32 AnimNotify_Parser::Compute_NextNotifyId(const AnimNotifyData& anim)
         maxId = max(maxId, entry.id);
 
     return maxId + 1;
+}
+
+string AnimNotify_Parser::Get_ModelNotifyStem(const string& modelGuid)
+{
+    const wstring resolvedPath = GAME->Resolve_AssetPath(modelGuid);
+
+    if (!resolvedPath.empty())
+        return fs::path(resolvedPath).stem().string();
+
+    return modelGuid;
+}
+
+string AnimNotify_Parser::Sanitize_FileName(const string& value)
+{
+    string result = value;
+
+    for (char& ch : result)
+    {
+        switch (ch)
+        {
+        case '<':
+        case '>':
+        case ':':
+        case '"':
+        case '/':
+        case '\\':
+        case '|':
+        case '?':
+        case '*':
+            ch = '_';
+            break;
+        default:
+            break;
+        }
+    }
+
+    if (result.empty())
+        result = "Animation";
+
+    return result;
+}
+
+void AnimNotify_Parser::Merge_AnimationIntoAsset(AnimNotifyAsset& asset, AnimNotifyData&& animationData)
+{
+    if (animationData.animationName.empty())
+        return;
+
+    Sort_And_Clamp(animationData);
+
+    if (AnimNotifyData* existing = Find_Animation(asset, animationData.animationName))
+    {
+        *existing = ::move(animationData);
+        return;
+    }
+
+    asset.animations.push_back(::move(animationData));
 }
 
 int32 AnimNotify_Parser::Compute_NextStateId(const AnimNotifyData& anim)

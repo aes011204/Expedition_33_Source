@@ -14,7 +14,8 @@ namespace
 {
 BattleCameraClipTimeMode Get_DefaultBattleCameraClipTimeMode(BattleCameraMode cameraMode)
 {
-    return cameraMode == BattleCameraMode::BATTLEINTRO
+    return cameraMode == BattleCameraMode::BATTLEINTRO ||
+        cameraMode == BattleCameraMode::SELECTSKILL
         ? BattleCameraClipTimeMode::Independent
         : BattleCameraClipTimeMode::AnimationSync;
 }
@@ -38,6 +39,7 @@ json Serialize_BattleCameraTrack(const BattleCameraTrack& track)
         json keyJson{};
         keyJson["time"] = keyframe.time;
         keyJson["value"] = keyframe.value;
+        keyJson["interpolation"] = static_cast<int>(keyframe.interpolation);
         keyframes.push_back(keyJson);
     }
 
@@ -77,6 +79,9 @@ void Normalize_AnimationSyncClip(BattleCameraClip& clip)
     Normalize_BattleCameraTrack(clip.fovOffset, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.sideOffset, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.pivotOffset, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.heightOffset, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.aimOffset, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.lookHeightOffset, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.yawOffset, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.shakeAmplitude, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.orbitYaw, legacyDurationSec);
@@ -85,6 +90,7 @@ void Normalize_AnimationSyncClip(BattleCameraClip& clip)
     Normalize_BattleCameraTrack(clip.orbitLookHeight, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.shakeFrequencyX, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.shakeFrequencyY, legacyDurationSec);
+    Normalize_BattleCameraTrack(clip.shakeDecayRateX, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.shakeDecayRate, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.shakeVerticalRatio, legacyDurationSec);
     Normalize_BattleCameraTrack(clip.shakeStrengthScale, legacyDurationSec);
@@ -105,6 +111,26 @@ void Deserialize_BattleCameraTrack(const json& jsonData, const char* keyName, Ba
         BattleCameraKeyframe key{};
         key.time = keyframe.value("time", key.time);
         key.value = keyframe.value("value", key.value);
+        const int interpolationValue = keyframe.value("interpolation", static_cast<int>(key.interpolation));
+        switch (interpolationValue)
+        {
+        case static_cast<int>(InterpolationMode::Step):
+            key.interpolation = InterpolationMode::Step;
+            break;
+        case static_cast<int>(InterpolationMode::EaseInOut):
+            key.interpolation = InterpolationMode::EaseInOut;
+            break;
+        case static_cast<int>(InterpolationMode::EaseIn):
+            key.interpolation = InterpolationMode::EaseIn;
+            break;
+        case static_cast<int>(InterpolationMode::EaseOut):
+            key.interpolation = InterpolationMode::EaseOut;
+            break;
+        case static_cast<int>(InterpolationMode::Linear):
+        default:
+            key.interpolation = InterpolationMode::Linear;
+            break;
+        }
         outTrack.keyframes.push_back(key);
     }
 
@@ -125,6 +151,9 @@ void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode,
     jsonData["fovOffset"] = Serialize_BattleCameraTrack(clip.fovOffset);
     jsonData["sideOffset"] = Serialize_BattleCameraTrack(clip.sideOffset);
     jsonData["pivotOffset"] = Serialize_BattleCameraTrack(clip.pivotOffset);
+    jsonData["heightOffset"] = Serialize_BattleCameraTrack(clip.heightOffset);
+    jsonData["aimOffset"] = Serialize_BattleCameraTrack(clip.aimOffset);
+    jsonData["lookHeightOffset"] = Serialize_BattleCameraTrack(clip.lookHeightOffset);
     jsonData["yawOffset"] = Serialize_BattleCameraTrack(clip.yawOffset);
     jsonData["shakeAmplitude"] = Serialize_BattleCameraTrack(clip.shakeAmplitude);
     jsonData["orbitYaw"] = Serialize_BattleCameraTrack(clip.orbitYaw);
@@ -133,6 +162,7 @@ void BattleCameraClipIO::SaveBattleCameraClipToFile(BattleCameraMode cameraMode,
     jsonData["orbitLookHeight"] = Serialize_BattleCameraTrack(clip.orbitLookHeight);
     jsonData["shakeFrequencyX"] = Serialize_BattleCameraTrack(clip.shakeFrequencyX);
     jsonData["shakeFrequencyY"] = Serialize_BattleCameraTrack(clip.shakeFrequencyY);
+    jsonData["shakeDecayRateX"] = Serialize_BattleCameraTrack(clip.shakeDecayRateX);
     jsonData["shakeDecayRate"] = Serialize_BattleCameraTrack(clip.shakeDecayRate);
     jsonData["shakeVerticalRatio"] = Serialize_BattleCameraTrack(clip.shakeVerticalRatio);
     jsonData["shakeStrengthScale"] = Serialize_BattleCameraTrack(clip.shakeStrengthScale);
@@ -179,6 +209,9 @@ bool BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode cameraMod
     Deserialize_BattleCameraTrack(jsonData, "fovOffset", loadedClip.fovOffset);
     Deserialize_BattleCameraTrack(jsonData, "sideOffset", loadedClip.sideOffset);
     Deserialize_BattleCameraTrack(jsonData, "pivotOffset", loadedClip.pivotOffset);
+    Deserialize_BattleCameraTrack(jsonData, "heightOffset", loadedClip.heightOffset);
+    Deserialize_BattleCameraTrack(jsonData, "aimOffset", loadedClip.aimOffset);
+    Deserialize_BattleCameraTrack(jsonData, "lookHeightOffset", loadedClip.lookHeightOffset);
     Deserialize_BattleCameraTrack(jsonData, "yawOffset", loadedClip.yawOffset);
     Deserialize_BattleCameraTrack(jsonData, "shakeAmplitude", loadedClip.shakeAmplitude);
     Deserialize_BattleCameraTrack(jsonData, "orbitYaw", loadedClip.orbitYaw);
@@ -187,6 +220,7 @@ bool BattleCameraClipIO::LoadBattleCameraClipFromFile(BattleCameraMode cameraMod
     Deserialize_BattleCameraTrack(jsonData, "orbitLookHeight", loadedClip.orbitLookHeight);
     Deserialize_BattleCameraTrack(jsonData, "shakeFrequencyX", loadedClip.shakeFrequencyX);
     Deserialize_BattleCameraTrack(jsonData, "shakeFrequencyY", loadedClip.shakeFrequencyY);
+    Deserialize_BattleCameraTrack(jsonData, "shakeDecayRateX", loadedClip.shakeDecayRateX);
     Deserialize_BattleCameraTrack(jsonData, "shakeDecayRate", loadedClip.shakeDecayRate);
     Deserialize_BattleCameraTrack(jsonData, "shakeVerticalRatio", loadedClip.shakeVerticalRatio);
     Deserialize_BattleCameraTrack(jsonData, "shakeStrengthScale", loadedClip.shakeStrengthScale);

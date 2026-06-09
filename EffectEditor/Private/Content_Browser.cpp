@@ -13,11 +13,17 @@ NS_BEGIN(EffectEditor)
 namespace Internal
 {
     constexpr const char* kEffectTexturePayloadType = "CONTENT_BROWSER_EFFECT_TEXTURE";
+    constexpr const char* kEffectModelPayloadType = "CONTENT_BROWSER_EFFECT_MODEL";
 
     bool Is_TexturePayloadFile(const fs::path& filePath)
     {
         const string extension = String::ToLowerCopy(filePath.extension().string());
         return extension == ".png" || extension == ".dds";
+    }
+
+    bool Is_ModelPayloadFile(const fs::path& filePath)
+    {
+        return String::ToLowerCopy(filePath.extension().string()) == ".model";
     }
 
     static ImTextureID ToImTextureId(const Shared<Texture>& texture)
@@ -164,6 +170,13 @@ void Content_Browser::Render()
         {
             if (_currentFolder)
             {
+                ImGui::BeginDisabled(!Can_GoParentFolder());
+                if (ImGui::ArrowButton("##ParentFolder", ImGuiDir_Up))
+                    Go_ParentFolder();
+                ImGui::EndDisabled();
+
+                ImGui::SameLine();
+
                 ImGui::BeginDisabled(!Can_GoBack());
                 if (ImGui::ArrowButton("##BackFolder", ImGuiDir_Left))
                     Go_BackFolder();
@@ -268,7 +281,7 @@ void Content_Browser::Refresh_CurrentFolder()
 {
     _gridItemCache.clear();
     _gridItemCacheFolder = nullptr;
-    Client::ContentBrowserCore::Refresh_CurrentFolder(
+    ContentBrowserCore::Refresh_CurrentFolder(
         [](const wstring& filePath)
         {
             return GAME->Find_AssetGUID(filePath);
@@ -496,6 +509,24 @@ void Content_Browser::Draw_AssetView()
                 );
 
                 ImGui::TextUnformatted("Effect Material");
+                ImGui::Separator();
+                ImGui::Text("%s", fileName.c_str());
+
+                ImGui::EndDragDropSource();
+            }
+        }
+        else if (Internal::Is_ModelPayloadFile(path))
+        {
+            if (ImGui::BeginDragDropSource())
+            {
+                const wstring payloadPath = fileEntry.filePath;
+                ImGui::SetDragDropPayload(
+                    Internal::kEffectModelPayloadType,
+                    payloadPath.c_str(),
+                    (payloadPath.size() + 1) * sizeof(wchar_t)
+                );
+
+                ImGui::TextUnformatted("Effect Model");
                 ImGui::Separator();
                 ImGui::Text("%s", fileName.c_str());
 
@@ -877,6 +908,33 @@ void Content_Browser::Go_BackFolder()
     _suppressHistoryRecord = true;
     Open_Folder(target);
     _suppressHistoryRecord = false;
+}
+
+bool Content_Browser::Can_GoParentFolder() const
+{
+    if (_currentFolder == nullptr || _rootFolder.fullPath.empty())
+        return false;
+
+    const fs::path currentPath(_currentFolder->fullPath);
+    const fs::path rootPath(_rootFolder.fullPath);
+    if (currentPath.empty() || currentPath == rootPath)
+        return false;
+
+    const fs::path parentPath = currentPath.parent_path();
+    return !parentPath.empty() && parentPath != currentPath;
+}
+
+void Content_Browser::Go_ParentFolder()
+{
+    if (!Can_GoParentFolder())
+        return;
+
+    const fs::path parentPath = fs::path(_currentFolder->fullPath).parent_path();
+    FolderNode* target = Find_FolderNode(_rootFolder, parentPath.wstring());
+    if (!target)
+        return;
+
+    Open_Folder(target);
 }
 
 void Content_Browser::Go_ForwardFolder()

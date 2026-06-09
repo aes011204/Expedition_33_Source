@@ -6,6 +6,7 @@ NS_BEGIN(Client)
 class Mon_Lancelier_Weapon;
 
 class Mon_Bishop_Body;
+class Mon_WeakPoint;
 
 class MW_Bishop :
     public Monster_WorldBase
@@ -32,9 +33,9 @@ protected:
     HRESULT Ready_Components() override;
     HRESULT Ready_PartObjects();
 
-    virtual void    Set_BattleMonsterPrefabNames(vector<string>& outPrefabNames)const override;
 private:
     Shared<Mon_Bishop_Body>      _body = {};
+    Shared<Mon_WeakPoint>        _weak = {};
     //Shared<Mon_Lancelier_Weapon>      _weapon = {};
 
 public:

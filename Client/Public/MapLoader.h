@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Client_Defines.h"
 #include "CollisionProxy_Types.h"
 #include <mutex>
@@ -16,6 +16,12 @@ class MapStaticMesh;
 class MapLoader final
 {
 public:
+    struct ModelOverrideEntry
+    {
+        int32 passIndex = -1;
+        unordered_map<int32, string> textureSlots;
+    };
+
     struct LoadSession
     {
         ComPtr<Device> device = nullptr;
@@ -25,14 +31,16 @@ public:
         wstring layerTag = {};
 
         string modelFolder = {};
-        unordered_map<string, int32> modelOverrides;
+        unordered_map<string, ModelOverrideEntry> modelOverrides;
         vector<json> staticMeshes = {};
         vector<json> instancedMeshes = {};
+        vector<json> prefabInstances = {};
         vector<string> preloadModelPaths = {};
 
         size_t nextPreloadModelIndex = 0;
         size_t nextStaticMeshIndex = 0;
         size_t nextInstancedMeshIndex = 0;
+        size_t nextPrefabInstanceIndex = 0;
 
         umap<string, Shared<ModelCom>> preloadedModelCache = {};
         umap<string, Shared<StaticCollisionData>> preloadedCollisionCache = {};
@@ -46,6 +54,7 @@ public:
         bool preloadModelsDone = false;
         bool staticMeshesDone = false;
         bool instancedMeshesDone = false;
+        bool prefabInstancesDone = false;
 
         chrono::milliseconds beginSessionDuration{ 0 };
         chrono::milliseconds modelCreateDuration{ 0 };
@@ -54,6 +63,7 @@ public:
         chrono::milliseconds staticAddDuration{ 0 };
         chrono::milliseconds instancedTransformDuration{ 0 };
         chrono::milliseconds instancedAddDuration{ 0 };
+        chrono::milliseconds prefabInstanceAddDuration{ 0 };
 
         size_t processCallCount = 0;
         size_t modelCreateCount = 0;
@@ -61,6 +71,7 @@ public:
         size_t collisionBuildCount = 0;
         size_t staticAddCount = 0;
         size_t instancedAddCount = 0;
+        size_t prefabInstanceAddCount = 0;
         size_t autoInstancedStaticCount = 0;
         size_t autoInstancedGroupCount = 0;
 
@@ -102,7 +113,7 @@ public:
 
 private:
     static void Prepare_StaticAutoInstancing(LoadSession& session);
-    static void ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, int32 forcedPassIndex = -1);
+    static void ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry = nullptr);
 
     // 스레드 안전한 전역 모델 조회 및 로드 헬퍼 함수
     static Shared<ModelCom> GetOrLoadModel(
@@ -110,7 +121,7 @@ private:
         const ComPtr<Context>& context,
         const string& modelFolder,
         const string& modelPathStr,
-        const unordered_map<string, int32>& modelOverrides,
+        const unordered_map<string, ModelOverrideEntry>& modelOverrides,
         chrono::milliseconds* outCreateDuration = nullptr,
         size_t* outCreateCount = nullptr,
         chrono::milliseconds* outMaterialDuration = nullptr,

@@ -25,6 +25,7 @@ void Skill_Bishop_Ground_Att::Execute(const Skill_Data& skill, const BattleActio
 
     DamageSystem::ApplyDamage(Damage, action.GetCurStepTarget(), attackType);
 
+
    /* if (AttackCount == 1)
         DamageSystem::ApplyDamage(Damage, target);
     else if (AttackCount == skill.AttackCount)

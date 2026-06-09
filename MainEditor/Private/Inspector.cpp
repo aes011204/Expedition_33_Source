@@ -16,11 +16,213 @@
 #include "Reflection_Types.h"
 #include "TransformCom.h"
 #include "UI_Base.h"
+#include "UI_RuntimePanelBase.h"
 #include "UI_Transform.h"
 
 const vector<Engine::BTBlackboardKeyView>* Inspector::_btBlackboardKeys = nullptr;
 vector<Inspector::FGameObjectClassPickerEntry> Inspector::_gameObjectClassPickerEntries{};
 char Inspector::_spawnActorClassSearchBuffer[256]{};
+
+namespace
+{
+constexpr float CascadePresetLabelWidth = 110.f;
+
+const char* Get_CascadeLevelLabel(Engine::CascadeLevel level)
+{
+    switch (level)
+    {
+    case Engine::CascadeLevel::Close:
+        return "Close";
+    case Engine::CascadeLevel::Far:
+        return "Far";
+    case Engine::CascadeLevel::Normal:
+    default:
+        return "Normal";
+    }
+}
+
+bool Draw_CascadePresetControls(const char* headerLabel, const char* idPrefix, Engine::ShadowCascadePreset& preset)
+{
+    bool changed = false;
+
+    if (ImGui::CollapsingHeader(headerLabel, ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        const string focusNearId = string("##") + idPrefix + "FocusNear";
+        const string focusFarId = string("##") + idPrefix + "FocusFar";
+        const string lambdaId = string("##") + idPrefix + "SplitLambda";
+        const string blendId = string("##") + idPrefix + "BlendDistance";
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Focus Near");
+        ImGui::SameLine(CascadePresetLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        changed |= ImGui::DragFloat(focusNearId.c_str(), &preset.focusNear, 0.01f, 0.001f, 10000.f, "%.3f");
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Focus Far");
+        ImGui::SameLine(CascadePresetLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        changed |= ImGui::DragFloat(focusFarId.c_str(), &preset.focusFar, 0.1f, 0.001f, 10000.f, "%.3f");
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Split Lambda");
+        ImGui::SameLine(CascadePresetLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        changed |= ImGui::DragFloat(lambdaId.c_str(), &preset.cascadeSplitLambda, 0.01f, 0.f, 1.f, "%.3f");
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Blend Distance");
+        ImGui::SameLine(CascadePresetLabelWidth);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        changed |= ImGui::DragFloat(blendId.c_str(), &preset.cascadeBlendDistance, 0.1f, 0.f, 10000.f, "%.3f");
+    }
+
+    return changed;
+}
+}
+
+    struct FEffectAssetPickerEntry
+    {
+        string relativePath{};
+        string displayLabel{};
+        string searchText{};
+    };
+
+    vector<FEffectAssetPickerEntry> g_effectAssetPickerEntries{};
+    char g_effectAssetSearchBuffer[256]{};
+
+    fs::path Resolve_ResourceRootForEffectPicker()
+    {
+        const fs::path currentPath = fs::current_path();
+        const vector<fs::path> candidates =
+        {
+            currentPath / L"../../../Client/Bin/Resources",
+            currentPath / L"../../Client/Bin/Resources",
+            currentPath / L"Client/Bin/Resources",
+        };
+
+        for (const fs::path& candidate : candidates)
+        {
+            const fs::path normalized = fs::absolute(candidate).lexically_normal();
+            if (fs::exists(normalized) && fs::is_directory(normalized))
+                return normalized;
+        }
+
+        return {};
+    }
+
+    bool Is_EffectAssetJsonPath(const fs::path& path)
+    {
+        const string lowerPath = String::ToLowerCopy(path.generic_string());
+        return lowerPath.ends_with(".effect.json");
+    }
+
+    void Rebuild_EffectAssetPickerEntries()
+    {
+        g_effectAssetPickerEntries.clear();
+
+        const fs::path resourceRoot = Resolve_ResourceRootForEffectPicker();
+        if (resourceRoot.empty())
+            return;
+
+        const fs::path effectRoot = resourceRoot / L"Effects";
+        if (!fs::exists(effectRoot) || !fs::is_directory(effectRoot))
+            return;
+
+        std::error_code errorCode{};
+        for (const fs::directory_entry& entry : fs::recursive_directory_iterator(effectRoot, errorCode))
+        {
+            if (errorCode)
+                break;
+
+            if (!entry.is_regular_file(errorCode))
+                continue;
+
+            const fs::path filePath = entry.path();
+            if (!Is_EffectAssetJsonPath(filePath))
+                continue;
+
+            const fs::path relativePath = fs::relative(filePath, resourceRoot, errorCode);
+            if (errorCode)
+                continue;
+
+            string storedPath = relativePath.generic_string();
+            replace(storedPath.begin(), storedPath.end(), '/', '\\');
+
+            FEffectAssetPickerEntry pickerEntry{};
+            pickerEntry.relativePath = storedPath;
+            pickerEntry.displayLabel = storedPath;
+            pickerEntry.searchText = String::ToLowerCopy(storedPath + " " + filePath.filename().generic_string());
+            g_effectAssetPickerEntries.push_back(std::move(pickerEntry));
+        }
+
+        sort(
+            g_effectAssetPickerEntries.begin(),
+            g_effectAssetPickerEntries.end(),
+            [](const FEffectAssetPickerEntry& left, const FEffectAssetPickerEntry& right)
+            {
+                return left.displayLabel < right.displayLabel;
+            });
+    }
+
+    bool Draw_EffectAssetPickerRow(const string& hiddenId, wstring& value)
+    {
+        if (g_effectAssetPickerEntries.empty())
+            Rebuild_EffectAssetPickerEntries();
+
+        string preview = String::ToString(value);
+        if (preview.empty())
+            preview = "(select effect)";
+
+        bool changed = false;
+
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        if (ImGui::BeginCombo(hiddenId.c_str(), preview.c_str()))
+        {
+            ImGui::InputTextWithHint(
+                ("##EffectAssetSearch" + hiddenId).c_str(),
+                "Search effect...",
+                g_effectAssetSearchBuffer,
+                IM_ARRAYSIZE(g_effectAssetSearchBuffer));
+
+            ImGui::Separator();
+
+            if (ImGui::Selectable("(None)", value.empty()))
+            {
+                value.clear();
+                changed = true;
+            }
+
+            const string searchText = String::ToLowerCopy(g_effectAssetSearchBuffer);
+            bool hasVisibleEntry = false;
+
+            for (const FEffectAssetPickerEntry& entry : g_effectAssetPickerEntries)
+            {
+                if (!searchText.empty() && entry.searchText.find(searchText) == string::npos)
+                    continue;
+
+                hasVisibleEntry = true;
+
+                const bool isSelected = (String::ToString(value) == entry.relativePath);
+                const string selectableLabel = entry.displayLabel + "##" + entry.relativePath;
+                if (ImGui::Selectable(selectableLabel.c_str(), isSelected))
+                {
+                    value = String::ToWString(entry.relativePath);
+                    changed = true;
+                }
+
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            if (!hasVisibleEntry)
+                ImGui::TextDisabled("No effect assets.");
+
+            ImGui::EndCombo();
+        }
+
+        return changed;
+    }
 
 
 Inspector::Inspector()
@@ -122,6 +324,7 @@ void Inspector::Draw_UIInspector(
     }
 
     Draw_RuntimeUITestOffsetSection(ui); // Battle UI만 공통 테스트 오프셋 편집기를 노출한다.
+    Draw_RuntimeUIOwnerReflectionSection(ui);
 
     bool isOpen = ui->Is_Open();
     ImGui::AlignTextToFramePadding();
@@ -220,6 +423,26 @@ void Inspector::Draw_RuntimeUITestOffsetSection(const Shared<UI_Base>& ui)
     ImGui::Spacing();
 }
 
+void Inspector::Draw_RuntimeUIOwnerReflectionSection(const Shared<UI_Base>& ui)
+{
+    Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI();
+    if (gameplayUI == nullptr)
+        return;
+
+    IRuntimeUI_EditorTarget* editorTarget = gameplayUI->Find_RuntimeUIEditorTarget(ui);
+    auto* runtimePanel = dynamic_cast<Client::UI_RuntimePanelBase*>(editorTarget);
+    if (runtimePanel == nullptr)
+        return;
+
+    ClassReflectionInfo& info = runtimePanel->Get_ReflectionInfo();
+    if (info.properties.empty())
+        return;
+
+    ImGui::Separator();
+    Draw_ReflectionSection(info.className, runtimePanel, info);
+    runtimePanel->Apply_EditorReflectionRuntimeTuning();
+}
+
 bool Inspector::Draw_UIVec2Row(const char* label, const string& id, Vec2& value, float speed)
 {
     ImGui::AlignTextToFramePadding();
@@ -247,6 +470,7 @@ void Inspector::Draw_PrimaryShadowLightInspector()
         sourceLight = GAME->Get_LightDesc(0);
 
     const ShadowLightDesc* sourceShadow = GAME->Get_ShadowLightDesc();
+    const ShadowCascadePresetSet* sourceCascadePresets = GAME->Get_ShadowCascadePresets();
 
     ImGui::TextUnformatted("Name: Primary Shadow Light");
     ImGui::Separator();
@@ -263,11 +487,21 @@ void Inspector::Draw_PrimaryShadowLightInspector()
         return;
     }
 
+    if (sourceCascadePresets == nullptr)
+    {
+        ImGui::TextDisabled("Cascade preset 시스템이 초기화되지 않음");
+        return;
+    }
+
     LIGHT_DESC lightDesc = *sourceLight;
     ShadowLightDesc shadowDesc = *sourceShadow;
+    ShadowCascadePresetSet cascadePresets = *sourceCascadePresets;
+    CascadeLevel activeCascadeLevel = GAME->Get_ShadowCascadeLevel();
 
     bool lightChanged = false;
     bool shadowChanged = false;
+    bool cascadePresetChanged = false;
+    bool cascadeLevelChanged = false;
 
     if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -280,6 +514,11 @@ void Inspector::Draw_PrimaryShadowLightInspector()
         ImGui::TextDisabled("Cast Shadow");
         ImGui::SameLine(InspectorLabelWidth);
         lightChanged |= ImGui::Checkbox("##CastShadow", &lightDesc.castShadow);
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Shadow Enabled");
+        ImGui::SameLine(InspectorLabelWidth);
+        shadowChanged |= ImGui::Checkbox("##ShadowEnabled", &shadowDesc.enabled);
 
         float direction[3] = { lightDesc.direction.x, lightDesc.direction.y, lightDesc.direction.z };
         ImGui::AlignTextToFramePadding();
@@ -374,6 +613,30 @@ void Inspector::Draw_PrimaryShadowLightInspector()
         ImGui::SameLine(InspectorLabelWidth);
         ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
         shadowChanged |= ImGui::DragFloat("##ShadowIntensity", &shadowDesc.intensity, 0.01f, 0.f, 1.f);
+
+        if (shadowDesc.followCameraFrustum)
+        {
+            static const char* cascadeLevelLabels[] = { "Close", "Normal", "Far" };
+            int activeCascadeLevelIndex = static_cast<int>(activeCascadeLevel);
+
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("Active Level");
+            ImGui::SameLine(InspectorLabelWidth);
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            if (ImGui::Combo("##ShadowCascadeLevel", &activeCascadeLevelIndex, cascadeLevelLabels, IM_ARRAYSIZE(cascadeLevelLabels)))
+            {
+                activeCascadeLevel = static_cast<CascadeLevel>(activeCascadeLevelIndex);
+                cascadeLevelChanged = true;
+            }
+
+            ImGui::TextDisabled("Current: %s", Get_CascadeLevelLabel(activeCascadeLevel));
+            ImGui::Separator();
+            ImGui::TextDisabled("Cascade Presets");
+
+            cascadePresetChanged |= Draw_CascadePresetControls("Close", "ShadowCascadeClose", cascadePresets.close);
+            cascadePresetChanged |= Draw_CascadePresetControls("Normal", "ShadowCascadeNormal", cascadePresets.normal);
+            cascadePresetChanged |= Draw_CascadePresetControls("Far", "ShadowCascadeFar", cascadePresets.farRange);
+        }
     }
 
     if (lightChanged)
@@ -381,6 +644,12 @@ void Inspector::Draw_PrimaryShadowLightInspector()
 
     if (shadowChanged)
         GAME->Update_ShadowLight(shadowDesc);
+
+    if (cascadePresetChanged)
+        GAME->Set_ShadowCascadePresets(cascadePresets);
+
+    if (cascadeLevelChanged)
+        GAME->Set_ShadowCascadeLevel(activeCascadeLevel);
 }
 
 bool Inspector::Draw_ComponentOverride(const Shared<Component>& component)
@@ -677,6 +946,12 @@ void Inspector::Draw_ReflectionProperty(
         ImGui::AlignTextToFramePadding();
         ImGui::TextDisabled("%s", visibleLabel.c_str());
         ImGui::SameLine(InspectorLabelWidth);
+
+        if (idPrefix == "EffectCom" && property.name == "_inspectorEffectName")
+        {
+            Draw_EffectAssetPickerRow(hiddenId, *value);
+            break;
+        }
 
         string valueText = String::ToString(*value);
         char buffer[512]{};

@@ -1,5 +1,6 @@
 ﻿#include "Renderer.h"
 #include "Camera.h"
+#include "EffectEmitter.h"
 #include "GameInstance.h"
 #include "GameObject.h"
 #include "LightingPipeline.h"
@@ -179,20 +180,24 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_NonLight:Before");
 #endif
 
+    // fog
+    Render_Fog();
+    //
+
     // ========================================= //
     Render_NonLight();
     // ========================================= //
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_NonLight:After");
-    nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
-    DumpCurrentOMState(L"Render_Distortion:Before");
+    DumpCurrentOMState(L"Render_EffectMasked:Before");
 #endif
 
     // ========================================= //
-    Render_Distortion();
+    Render_EffectMasked();
     // ========================================= //
 #ifdef _DEBUG
-    DumpCurrentOMState(L"Render_Distortion:After");
+    DumpCurrentOMState(L"Render_EffectMasked:After");
+    nonlightMs = chrono::duration<double, milli>(chrono::steady_clock::now() - nonlightBegin).count();
     const auto blendBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_Blend:Before");
 #endif
@@ -203,6 +208,14 @@ void Renderer::Draw()
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_Blend:After");
     blendMs = chrono::duration<double, milli>(chrono::steady_clock::now() - blendBegin).count();
+    DumpCurrentOMState(L"Render_Distortion:Before");
+#endif
+
+    // ========================================= //
+    Render_Distortion();
+    // ========================================= //
+#ifdef _DEBUG
+    DumpCurrentOMState(L"Render_Distortion:After");
     const auto postProcesBegin = chrono::steady_clock::now();
     DumpCurrentOMState(L"Render_PostProcess:Before");
 #endif
@@ -217,22 +230,27 @@ void Renderer::Draw()
     DumpCurrentOMState(L"Render_ScreenFX:Before");
 #endif
 
-    //GAME->Bind_BackBuffer();
-
-    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
-    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
-    if (useScreenFx)
-    {
-        // ========================================= //
-        Render_ScreenFx();
-        // ========================================= //
-    }
-
 #ifdef _DEBUG
     DumpCurrentOMState(L"Render_ScreenFX:After");
     uiMs = chrono::duration<double, milli>(chrono::steady_clock::now() - uiBegin).count();
     const auto debugBegin = chrono::steady_clock::now();
 #endif
+
+    const ScreenFx_Manager* screenFxManager = GAME->Get_ScreenFxManager();
+    const bool useScreenFx = screenFxManager && screenFxManager->Is_ScreenFXActivated() && screenFxManager->Has_ActiveEffects() && _screenFxShader;
+    if (useScreenFx)
+    {
+        Render_ScreenFx();
+    }
+
+    if (screenFxManager && screenFxManager->Is_CaptureRequested())
+    {
+        GAME->Bind_BackBuffer();
+        GAME->Copy_CurrentRTV_To(RT::ScreenCapture);
+
+        const_cast<ScreenFx_Manager*>(screenFxManager)->Clear_CaptureRequested();
+    }
+
 
 #ifdef _DEBUG
     Render_Debug();
@@ -292,6 +310,41 @@ void Renderer::Render_Priority()
 void Renderer::Render_Shadow()
 {
     _currentGroup = RenderGroup::Shadow;
+
+    if (_shadowEnabled == false)
+    {
+        const uint32 cascadeCount = max(1u, GAME->Get_ShadowCascadeCount());
+
+        for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+        {
+            if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV, cascadeIndex)))
+                continue;
+
+            CHECK_FAILED(GAME->End_MRT());
+        }
+
+        _renderGroups[ETOI(RenderGroup::Shadow)].clear();
+        GAME->Set_ActiveShadowCascade(0);
+        return;
+    }
+
+    const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
+    if (shadowDesc != nullptr && !shadowDesc->enabled)
+    {
+        const uint32 cascadeCount = max(1u, GAME->Get_ShadowCascadeCount());
+
+        for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+        {
+            if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV, cascadeIndex)))
+                continue;
+
+            CHECK_FAILED(GAME->End_MRT());
+        }
+
+        _renderGroups[ETOI(RenderGroup::Shadow)].clear();
+        GAME->Set_ActiveShadowCascade(0);
+        return;
+    }
 
     Render_StaticShadowOnce();
     Render_DynamicShadow();
@@ -458,6 +511,13 @@ void Renderer::Render_Lights()
     ENDMRT_RETURN_IF_FAILED(
         GAME->Bind_RT_ShaderResource(_deferredShader, "g_MaterialTexture", RT::Material));
 
+    DeferredLightingCB deferredLightingParams{};
+    if (_lightingPipeline)
+        deferredLightingParams = _lightingPipeline->Get_DeferredLightingParams();
+
+    ENDMRT_RETURN_IF_FAILED(
+        _deferredShader->Bind_CBufferData(deferredLightingParams));
+
     // Light 기록
     ENDMRT_RETURN_IF_FAILED(
         _viBuffer->Bind_Resources());
@@ -492,6 +552,10 @@ void Renderer::Render_CombinedHDR()
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
         Bind_ScreenSpaceCB(_deferredShader),
         L"Render_CombinedHDR:FAIL Bind_ScreenSpaceCB");
+
+    COMBINEDHDR_RETURN_LOG_IF_FAILED(
+        GAME->Bind_CameraCB(_deferredShader),
+        L"Render_CombinedHDR:FAIL Bind_CameraCB");
 
     // 그림자
     COMBINEDHDR_RETURN_LOG_IF_FAILED(
@@ -623,6 +687,63 @@ void Renderer::Render_CombinedHDR()
 
     Add_RenderCall();
 }
+
+void Renderer::Render_Fog()
+{
+    if (!_deferredShader || !_viBuffer)
+    {
+        return;
+    }
+
+    if (_fogZoneCB.aabbCount + _fogZoneCB.sphereCount == 0)
+    {
+        return;
+    }
+
+    if (FAILED(GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV)))
+    {
+        return;
+    }
+
+    if (FAILED(_deferredShader->Bind_ObjectCB(_pipelineWorldMatrix)))
+    {
+        return;
+    }
+
+    if (FAILED(Bind_ScreenSpaceCB(_deferredShader)))
+    {
+        return;
+    }
+
+    if (FAILED(_deferredShader->Bind_CBufferData(_fogZoneCB)))
+    {
+        return;
+    }
+
+    if (FAILED(GAME->Bind_RT_ShaderResource(_deferredShader, "g_DepthTexture", RT::Depth)))
+    {
+        return;
+    }
+
+    if (FAILED(_viBuffer->Bind_Resources()))
+    {
+        return;
+    }
+
+    if (FAILED(_deferredShader->Begin(ETOI(DeferredPass::Fog))))
+    {
+        return;
+    }
+
+    if (FAILED(_viBuffer->Render()))
+    {
+        return;
+    }
+
+    GAME->End_MRT();
+    Add_RenderCall();
+}
+
 void Renderer::Render_NonLight()
 {
     RETURN_LOG_IF_FAILED(
@@ -646,6 +767,33 @@ void Renderer::Render_NonLight()
     GAME->End_MRT();
 }
 
+void Renderer::Render_EffectMasked()
+{
+    auto& maskedGroup = _renderGroups[ETOI(RenderGroup::EffectMasked)];
+    if (maskedGroup.empty())
+        return;
+
+    RETURN_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, UseDSV, NotClearRTV),
+        L"Render_EffectMasked:FAIL Begin_MRT(HDR)");
+
+    _currentGroup = RenderGroup::EffectMasked;
+
+    for (auto& renderObject : maskedGroup)
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (gameObject != nullptr)
+        {
+            gameObject->Render();
+            Add_RenderCall();
+        }
+    }
+
+    maskedGroup.clear();
+
+    GAME->End_MRT();
+}
+
 void Renderer::Render_Distortion()
 {
     auto& distortionGroup = _renderGroups[ETOI(RenderGroup::Distortion)];
@@ -658,8 +806,8 @@ void Renderer::Render_Distortion()
     );
 
     RETURN_LOG_IF_FAILED(
-        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
-        L"Render_Distortion:FAIL Begin_MRT(HDR)"
+        GAME->Begin_MRT(MRT::DistortionField, NotUseDSV, ClearRTV),
+        L"Render_Distortion:FAIL Begin_MRT(DistortionField)"
     );
 
     _currentGroup = RenderGroup::Distortion;
@@ -677,6 +825,11 @@ void Renderer::Render_Distortion()
     distortionGroup.clear();
 
     GAME->End_MRT();
+
+    RETURN_LOG_IF_FAILED(
+        Render_DistortionResolve(),
+        L"Render_Distortion:FAIL Render_DistortionResolve"
+    );
 }
 
 void Renderer::Render_Blend()
@@ -687,7 +840,83 @@ void Renderer::Render_Blend()
 
     _currentGroup = RenderGroup::Blend;
 
-    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Blend)])
+    auto& blendObjects = _renderGroups[ETOI(RenderGroup::Blend)];
+    const Vec4* cameraPosition4 = GAME->Get_CamPosition();
+    Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    Shared<TransformCom> cameraTransform = activeCamera != nullptr ? activeCamera->Get_Transform() : nullptr;
+    if (cameraPosition4 != nullptr && cameraTransform != nullptr)
+    {
+        constexpr float kBlendSortBiasScale = 1.f;
+        const Vec3 cameraPosition{ cameraPosition4->x, cameraPosition4->y, cameraPosition4->z };
+        Vec3 cameraForward = cameraTransform->Get_WorldForward();
+        cameraForward.Normalize();
+
+        struct BlendSortInfo
+        {
+            bool valid{ false };
+            int32 layer{ 0 };
+            EffectSortPolicy policy{ EffectSortPolicy::EmitterDepth };
+            float depth{ 0.f };
+        };
+
+        const auto resolve_sort_info = [&](const Weak<GameObject>& renderObject) -> BlendSortInfo
+        {
+            BlendSortInfo info{};
+            const Shared<GameObject> gameObject = renderObject.lock();
+            if (gameObject == nullptr)
+                return info;
+
+            Vec3 objectWorldPosition{};
+            float artistSortBias = 0.f;
+            const Shared<EffectEmitter> effectEmitter = dynamic_pointer_cast<EffectEmitter>(gameObject);
+            if (effectEmitter != nullptr)
+            {
+                if (!effectEmitter->Try_Get_BlendSortWorldPosition(objectWorldPosition))
+                    return info;
+
+                info.layer = effectEmitter->Get_BlendSortLayer();
+                info.policy = effectEmitter->Get_BlendSortPolicy();
+                artistSortBias = effectEmitter->Get_BlendSortBias();
+            }
+            else
+            {
+                const Shared<TransformCom> transform = gameObject->Get_Transform();
+                if (transform == nullptr)
+                    return info;
+
+                objectWorldPosition = transform->Get_WorldPosition();
+            }
+
+            if (info.policy == EffectSortPolicy::EmitterDepth)
+                info.depth = (objectWorldPosition - cameraPosition).Dot(cameraForward) - artistSortBias * kBlendSortBiasScale;
+            info.valid = true;
+            return info;
+        };
+
+        // 낮은 layer를 먼저 그리고 같은 layer 안에서만 view-depth 정렬을 적용한다.
+        blendObjects.sort([&](const Weak<GameObject>& lhs, const Weak<GameObject>& rhs)
+            {
+                const BlendSortInfo lhsInfo = resolve_sort_info(lhs);
+                const BlendSortInfo rhsInfo = resolve_sort_info(rhs);
+
+                if (!lhsInfo.valid || !rhsInfo.valid)
+                    return false;
+
+                if (lhsInfo.layer != rhsInfo.layer)
+                    return lhsInfo.layer < rhsInfo.layer;
+
+                if (lhsInfo.policy != EffectSortPolicy::EmitterDepth ||
+                    rhsInfo.policy != EffectSortPolicy::EmitterDepth ||
+                    lhsInfo.depth == rhsInfo.depth)
+                {
+                    return false;
+                }
+
+                return lhsInfo.depth > rhsInfo.depth;
+            });
+    }
+
+    for (auto& renderObject : blendObjects)
     {
         Shared<GameObject> gameObject = renderObject.lock();
         if (nullptr != gameObject)
@@ -697,9 +926,35 @@ void Renderer::Render_Blend()
         }
     }
 
-    _renderGroups[ETOI(RenderGroup::Blend)].clear();
+    blendObjects.clear();
 
     GAME->End_MRT();
+}
+
+void Renderer::Render_UIEffect()
+{
+    GAME->Bind_BackBuffer();
+    _currentGroup = RenderGroup::UIEffect;
+
+    if (auto activeCamera = GAME->Get_ActiveCamera())
+        activeCamera->Apply_View();
+
+    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::UIEffect)])
+    {
+        Shared<GameObject> gameObject = renderObject.lock();
+        if (nullptr != gameObject)
+        {
+            gameObject->Render();
+            Add_RenderCall();
+        }
+    }
+
+    _renderGroups[ETOI(RenderGroup::UIEffect)].clear();
+}
+
+void Renderer::PostDraw()
+{
+    Render_UIEffect();
 }
 
 void Renderer::Render_PostProcess()
@@ -736,6 +991,64 @@ void Renderer::Render_PostProcess()
     RETURN_LOG_IF_FAILED(
         _viBuffer->Bind_Resources(),
         L"Render_PostProcess:FAIL Bind_Resources");
+
+    // ==============================God Ray ========================================
+    LightShaftCB lightShaftParams = _ppPipeline->Get_LightShaftParams();
+    const bool useLightShaft = Try_BuildLightShaftParams(lightShaftParams);
+    _ppPipeline->Set_LightShaftParams(lightShaftParams);
+
+    if (useLightShaft)
+    {
+        ENGINE_PROFILE_SCOPE_DETAIL("Render::LightShaft");
+
+        const ViewportSize half = { max(1u, viewportWidth / 2u), max(1u, viewportHeight / 2u) };
+
+        RETURN_LOG_IF_FAILED(
+            _postprocessShader->Bind_CBufferData(lightShaftParams),
+            L"Render_PostProcess:FAIL Bind_CBufferData(LightShaft)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, half.width, half.height),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(LightShaftMask)");
+
+        // 어디서 god ray가 시작될 수 있는지 흑백 마스크로 만든다.
+        RETURN_LOG_IF_FAILED(
+            Render_LightShaftPass(
+                MRT::LightShaftMaskHalf,    // 출력 
+                "g_DepthTexture",
+                RT::Depth,                  // 입력
+                PostProcessPass::LightShaftMaskHalf),
+            L"Render_PostProcess:FAIL Render_LightShaftPass(Mask)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, half.width, half.height),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(LightShaftBlur)");
+
+        // 마스크를 광원 중심 방향 기준으로 길게 끌어서 빛줄기처럼 만든다
+        RETURN_LOG_IF_FAILED(
+            Render_LightShaftPass(
+                MRT::LightShaftBlurHalf,    // 출력
+                "g_LightShaftMaskTexture",
+                RT::LightShaftMaskHalf,     // 입력 : 방금 만든 LightShaftMaskHalf
+                PostProcessPass::LightShaftRadialBlurHalf),
+            L"Render_PostProcess:FAIL Render_LightShaftPass(Blur)");
+
+        RETURN_LOG_IF_FAILED(
+            GAME->Copy_RTV(RT::HDRColor, RT::DistortionSource),
+            L"Render_PostProcess:FAIL Copy_RTV(HDRColor -> DistortionSource:LightShaft)");
+
+        RETURN_LOG_IF_FAILED(
+            Bind_ScreenSpaceCB(_postprocessShader, viewportWidth, viewportHeight),
+            L"Render_PostProcess:FAIL Bind_ScreenSpaceCB(LightShaftComposite)");
+
+        RETURN_LOG_IF_FAILED(
+            _postprocessShader->Bind_CBufferData(lightShaftParams),
+            L"Render_PostProcess:FAIL Bind_CBufferData(LightShaftComposite)");
+
+        RETURN_LOG_IF_FAILED(
+            Render_LightShaftCompositePass(),
+            L"Render_PostProcess:FAIL Render_LightShaftCompositePass");
+    }
 
     // Bloom Mip Chain 구조. 해상도를 낮춰서 샘플링 횟수를 줄인다.
     const bool useBloom = _ppPipeline->Has_PostProcessFeature(PostProcessFeature::Bloom);
@@ -922,13 +1235,13 @@ HRESULT Renderer::Ready_Shaders()
     _iblIrradianceTexture = Texture::Create(
         _device,
         _context,
-        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_sunset.dds",
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/irradiance_eye.dds",
         1);
 
     _iblPrefilterTexture = Texture::Create(
         _device,
         _context,
-        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_sunset.dds",
+        L"../../../Client/Bin/Resources/Textures/Shader/IBL/perfilter_eye.dds",
         1);
 
     _iblBrdfLutTexture = Texture::Create(
@@ -940,6 +1253,67 @@ HRESULT Renderer::Ready_Shaders()
     Sync_ViewportDependentState(_screenSize.width, _screenSize.height);
 
     return S_OK;
+}
+
+HRESULT Renderer::Reload_RendererShaders()
+{
+    uint32 reloadSuccessCount = 0;
+
+    if (Shared<ShaderCom> deferredShader = ShaderCom::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_Deferred.hlsl",
+        VTXTEX::Elements,
+        VTXTEX::numElements,
+        ShaderType::Deferred))
+    {
+        _deferredShader = std::move(deferredShader);
+        ++reloadSuccessCount;
+    }
+    else
+    {
+        LOG_WARN("Renderer shader reload failed: Shader_Deferred.hlsl");
+    }
+
+    if (Shared<ShaderCom> postprocessShader = ShaderCom::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_PostProcess.hlsl",
+        VTXTEX::Elements,
+        VTXTEX::numElements,
+        ShaderType::PostProcess))
+    {
+        _postprocessShader = std::move(postprocessShader);
+        ++reloadSuccessCount;
+    }
+    else
+    {
+        LOG_WARN("Renderer shader reload failed: Shader_PostProcess.hlsl");
+    }
+
+    if (Shared<ShaderCom> screenFxShader = ShaderCom::Create(
+        _device,
+        _context,
+        L"../../../Client/Bin/ShaderFiles/Shader_ScreenFx.hlsl",
+        VTXTEX::Elements,
+        VTXTEX::numElements,
+        ShaderType::PostProcess))
+    {
+        _screenFxShader = std::move(screenFxShader);
+        ++reloadSuccessCount;
+    }
+    else
+    {
+        LOG_WARN("Renderer shader reload failed: Shader_ScreenFx.hlsl");
+    }
+
+    if (reloadSuccessCount == 3u)
+        return S_OK;
+
+    if (reloadSuccessCount > 0u)
+        return S_FALSE;
+
+    return E_FAIL;
 }
 
 void Renderer::Sync_ViewportDependentState(uint32 width, uint32 height)
@@ -974,8 +1348,6 @@ HRESULT Renderer::Bind_ScreenSpaceCB(Shared<ShaderCom> shader, uint32 width, uin
     CHECK_NULL(shader, E_FAIL);
 
     Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    if (activeCamera == nullptr)
-        return E_FAIL;
 
     ScreenSpaceCB screenSpaceCB{};
     screenSpaceCB.screenViewMatrix = _PipelineViewMatrix;
@@ -985,7 +1357,7 @@ HRESULT Renderer::Bind_ScreenSpaceCB(Shared<ShaderCom> shader, uint32 width, uin
     screenSpaceCB.projInverseMatrix = *GAME->Get_Transform_Inverse(D3DTS::Proj);
 
     screenSpaceCB.cameraPosition = *GAME->Get_CamPosition();
-    screenSpaceCB.farPlane = activeCamera->Get_Far();
+    screenSpaceCB.farPlane = activeCamera != nullptr ? activeCamera->Get_Far() : 500.f;
 
     const uint32 resolvedWidth = max(1u, (width == 0u) ? _screenSize.width : width);
     const uint32 resolvedHeight = max(1u, (height == 0u) ? _screenSize.height : height);
@@ -1084,6 +1456,177 @@ HRESULT Renderer::Render_BloomUpsamplePass(const wchar_t* dstMrt, const wchar_t*
     return S_OK;
 }
 
+HRESULT Renderer::Render_LightShaftPass(const wchar_t* dstMrt, const char* srcResourceName, const wchar_t* srcRt, PostProcessPass pass)
+{
+    const wchar_t* passName = L"LightShaftUnknown";
+    switch (pass)
+    {
+    case PostProcessPass::LightShaftMaskHalf:       passName = L"LightShaftMaskHalf"; break;
+    case PostProcessPass::LightShaftRadialBlurHalf: passName = L"LightShaftRadialBlurHalf"; break;
+    default: break;
+    }
+
+    const wstring beginLog = wstring(L"Render_PostProcess:FAIL Begin_MRT(") + dstMrt + L"," + passName + L")";
+    const wstring bindLog = wstring(L"Render_PostProcess:FAIL Bind_RT_ShaderResource(") + std::wstring(srcRt) + L"," + passName + L")";
+    const wstring shaderLog = wstring(L"Render_PostProcess:FAIL ShaderBegin(") + passName + L")";
+    const wstring renderLog = wstring(L"Render_PostProcess:FAIL RenderRect(") + passName + L")";
+    const wstring endLog = wstring(L"Render_PostProcess:FAIL End_MRT(") + dstMrt + L"," + passName + L")";
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(dstMrt, NotUseDSV, ClearRTV),
+        beginLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, srcResourceName, srcRt),
+        bindLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(pass)),
+        shaderLog.c_str());
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        renderLog.c_str());
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        endLog.c_str());
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
+HRESULT Renderer::Render_LightShaftCompositePass()
+{
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Render_PostProcess:FAIL Begin_MRT(HDR,LightShaftComposite)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DistortionSourceTexture", RT::DistortionSource),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_DistortionSourceTexture-LightShaft)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_LightShaftSourceTexture", RT::LightShaftBlurHalf),
+        L"Render_PostProcess:FAIL Bind_RT_ShaderResource(g_LightShaftSourceTexture)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(PostProcessPass::LightShaftCompositeHDR)),
+        L"Render_PostProcess:FAIL ShaderBegin(LightShaftCompositeHDR)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_PostProcess:FAIL RenderRect(LightShaftCompositeHDR)");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        L"Render_PostProcess:FAIL End_MRT(HDR,LightShaftComposite)");
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
+HRESULT Renderer::Render_DistortionResolve()
+{
+    if (!_postprocessShader || !_viBuffer)
+        return E_FAIL;
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Bind_ObjectCB(_pipelineWorldMatrix),
+        L"Render_DistortionResolve:FAIL Bind_ObjectCB");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        Bind_ScreenSpaceCB(_postprocessShader, max(1u, _screenSize.width), max(1u, _screenSize.height)),
+        L"Render_DistortionResolve:FAIL Bind_ScreenSpaceCB");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Bind_Resources(),
+        L"Render_DistortionResolve:FAIL Bind_Resources");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Begin_MRT(MRT::HDR, NotUseDSV, NotClearRTV),
+        L"Render_DistortionResolve:FAIL Begin_MRT(HDR)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DistortionSourceTexture", RT::DistortionSource),
+        L"Render_DistortionResolve:FAIL Bind_RT_ShaderResource(g_DistortionSourceTexture)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        GAME->Bind_RT_ShaderResource(_postprocessShader, "g_DistortionFieldTexture", RT::DistortionField),
+        L"Render_DistortionResolve:FAIL Bind_RT_ShaderResource(g_DistortionFieldTexture)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _postprocessShader->Begin(ETOI(PostProcessPass::DistortionResolve)),
+        L"Render_DistortionResolve:FAIL ShaderBegin(DistortionResolve)");
+
+    ENDMRT_RETURN_FAIL_LOG_IF_FAILED(
+        _viBuffer->Render(),
+        L"Render_DistortionResolve:FAIL RenderRect");
+
+    RETURN_FAIL_LOG_IF_FAILED(
+        GAME->End_MRT(),
+        L"Render_DistortionResolve:FAIL End_MRT(HDR)");
+
+    Add_RenderCall();
+
+    return S_OK;
+}
+
+bool Renderer::Try_BuildLightShaftParams(LightShaftCB& outParams) const
+{
+    outParams.lightVisible = 0.f;
+    outParams.lightFacingCamera = 0.f;
+
+    if (_ppPipeline == nullptr || !_ppPipeline->Has_PostProcessFeature(PostProcessFeature::LightShaft))
+        return false;
+
+    if (outParams.intensity <= 0.0001f)
+        return false;
+
+    const LIGHT_DESC* lightDesc = GAME->Get_PrimaryShadowLightDesc();
+    if (lightDesc == nullptr || lightDesc->type != LightType::Directional)
+        return false;
+
+    const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
+    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
+    const Matrix* projMatrix = GAME->Get_Transform(D3DTS::Proj);
+    const Vec4* cameraPosition = GAME->Get_CamPosition();
+    if (activeCamera == nullptr || viewMatrix == nullptr || projMatrix == nullptr || cameraPosition == nullptr)
+        return false;
+
+    // directional light의 방향으로 태양이 화면 어디에 떠 있는지 계산한 뒤, 현재 프레임에서 sun shaft 를 돌려도 되는지 판정
+
+    // 빛이 어느 방향으로 쏘는지
+    Vec4 lightDir = XMLoadFloat4(&lightDesc->direction);
+    if (XMVectorGetX(XMVector3LengthSq(lightDir)) <= 1e-6f)
+        return false;
+
+    lightDir = XMVector3Normalize(lightDir);
+
+    const XMVECTOR camPos = XMLoadFloat4(cameraPosition);
+    // 카메라 far의 절반 거리만큼 떨어진 곳에 태양이 있다는 가정
+    const float sunDistance = activeCamera->Get_Far() * 0.5f;
+
+    // sunWorldPos = camPos + (-lightDir) * sunDistance 
+    const XMVECTOR sunWorldPos = XMVectorMultiplyAdd(XMVectorNegate(lightDir), XMVectorReplicate(sunDistance), camPos);
+
+    const XMMATRIX view = XMLoadFloat4x4(viewMatrix);
+    const XMMATRIX proj = XMLoadFloat4x4(projMatrix);
+
+    // 태양의 view pos -> ndc
+    const XMVECTOR sunNdc = XMVector3TransformCoord(sunWorldPos, view * proj);
+
+    // 태양의 ndc pos -> uv
+    const float lightScreenX = XMVectorGetX(sunNdc) * 0.5f + 0.5f;
+    const float lightScreenY = XMVectorGetY(sunNdc) * -0.5f + 0.5f;
+    outParams.lightScreenUV = Vec2{ lightScreenX, lightScreenY };
+    outParams.lightVisible = 1.f;
+    outParams.lightFacingCamera = 1.f;
+    return true;
+}
+
 void Renderer::Update_DynamicShadowCamera()
 {
     const ShadowLightDesc* shadowDesc = GAME->Get_ShadowLightDesc();
@@ -1123,6 +1666,7 @@ void Renderer::Render_StaticShadowOnce()
         return;
 
     Update_StaticShadowCamera(staticBounds);
+    GAME->Set_ActiveStaticShadow();
 
     if (FAILED(GAME->Begin_MRT(MRT::StaticShadowObjects, UseDSV, ClearRTV)))
         return;
@@ -1158,30 +1702,85 @@ void Renderer::Render_DynamicShadow()
     ENGINE_PROFILE_SCOPE_DETAIL("Render::DynamicShadow");
 
     Update_DynamicShadowCamera();
+    ++_shadowFrameIndex;
 
-    if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV)))
-        return;
-
+    const uint32 cascadeCount = max(1u, GAME->Get_ShadowCascadeCount());
     const uint32 originWidth = _screenSize.width;
     const uint32 originHeight = _screenSize.height;
 
     Change_ViewportDesc(_shadowMapSize.width, _shadowMapSize.height);
 
-    for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Shadow)])
+    for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
     {
-        Shared<GameObject> gameObject = renderObject.lock();
-        if (nullptr != gameObject)
+        if (FAILED(GAME->Set_ActiveShadowCascade(cascadeIndex)))
+            continue;
+
+        // cascade에 따라 특정 프레임만 업데이트 하려고 했는데 mismtach 가 심해서 주석 처리.
+        //if (!Should_UpdateDynamicShadowCascade(cascadeIndex))
+        //    continue;
+
+        // 활성화된 cascade의 view, proj 행렬을 받아온다.
+        const Matrix* shadowViewMatrix = GAME->Get_ShadowTransformMatrix(D3DTS::View);
+        const Matrix* shadowProjMatrix = GAME->Get_ShadowTransformMatrix(D3DTS::Proj);
+        if (shadowViewMatrix == nullptr || shadowProjMatrix == nullptr)
+            continue;
+
+        // 컬링 되게
+        GAME->UpdateFrustum(*shadowViewMatrix, *shadowProjMatrix);
+
+        if (FAILED(GAME->Begin_MRT(MRT::ShadowObjects, UseDSV, ClearRTV, cascadeIndex)))
+            continue;
+
+        for (auto& renderObject : _renderGroups[ETOI(RenderGroup::Shadow)])
         {
-            gameObject->Render_Shadow();
-            Add_RenderCall();
+            Shared<GameObject> gameObject = renderObject.lock();
+            if (gameObject != nullptr && Should_RenderDynamicShadowObject(gameObject))
+            {
+                gameObject->Render_Shadow();
+                Add_RenderCall();
+            }
         }
+
+        CHECK_FAILED(GAME->End_MRT());
     }
 
     _renderGroups[ETOI(RenderGroup::Shadow)].clear();
-
-    CHECK_FAILED(GAME->End_MRT());
+    GAME->Set_ActiveShadowCascade(0);
 
     Change_ViewportDesc(originWidth, originHeight);
+}
+
+bool Renderer::Should_UpdateDynamicShadowCascade(uint32 cascadeIndex) const
+{
+    // 초기 1~2 프레임은 모든 Cascade 업데이트. Shadow Map이 완전히 채워져야 해서
+    if (_shadowFrameIndex <= 1ull)
+        return true;
+
+    // 0~1 Cascade는 매 프레임 업데이트. 가장 가까운 영역이자 가장 눈에 띄는 영역
+    if (cascadeIndex < 2u)
+        return true;
+
+    // 2 Cascade는 2프레임마다 업데이트
+    if (cascadeIndex == 2u)
+        return (_shadowFrameIndex % 2ull) == 0ull;
+    
+    // 4 Cascade는 4프레임마다 업데이트
+    return (_shadowFrameIndex % 4ull) == 0ull;
+}
+
+bool Renderer::Should_RenderDynamicShadowObject(const Shared<GameObject>& gameObject) const
+{
+    if (gameObject == nullptr)
+        return false;
+
+    if (gameObject->Get_Transform() == nullptr)
+        return true;
+
+    BoundingBox objectBounds{};
+    if (!gameObject->Try_Get_ShadowWorldBounds(objectBounds))
+        return true;
+
+    return GAME->IsVisible(objectBounds);
 }
 
 bool Renderer::Build_StaticShadowBounds(BoundingBox& outBounds) const

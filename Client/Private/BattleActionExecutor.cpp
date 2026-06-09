@@ -186,6 +186,41 @@ void BattleActionExecutor::Face_ActionTarget(BattleAction& action, const Vec3& g
     transform->Set_RotationEuler(rot);
 }
 
+void BattleActionExecutor::SmoothFaceActionTarget(BattleAction& action, const Vec3& goalPos, float timeDelta)
+{
+    if (!action.Get_CurChar().actor)
+        return;
+
+    const auto transform = action.Get_CurChar().actor->Get_Transform();
+    const Vec3 pos = transform->Get_Position();
+
+    Vec3 dir = goalPos - pos;
+    dir.y = 0.f;
+
+    if (dir.LengthSquared() <= 0.0001f)
+        return;
+
+    dir.Normalize();
+
+    const float yawRad = atan2f(dir.x, dir.z);
+    const float goalYawDeg = XMConvertToDegrees(yawRad);
+
+    Vec3 rot = transform->Get_RotationEuler();
+    float deltaYaw = goalYawDeg - rot.y;
+    while (deltaYaw > 180.f)
+        deltaYaw -= 360.f;
+    while (deltaYaw < -180.f)
+        deltaYaw += 360.f;
+
+    const float turnSpeed = 360.f * timeDelta;
+    if (fabsf(deltaYaw) <= turnSpeed)
+        rot.y = goalYawDeg;
+    else
+        rot.y += (deltaYaw > 0.f ? turnSpeed : -turnSpeed);
+
+    transform->Set_RotationEuler(rot);
+}
+
 void BattleActionExecutor::Update_ActionMovement(float timeDelta, BattleAction& action)
 {
     if (action.HasReachedPhaseGoal())
@@ -206,7 +241,7 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, BattleAction& 
     const Vec3 currentPos = transform->Get_Position();
 
     if (phase.faceTarget)
-        Face_ActionTarget(action, action.GetPhaseGoalPos());
+        SmoothFaceActionTarget(action, action.GetPhaseGoalPos(), timeDelta);
 
     switch (phase.movementPolicy)
     {
@@ -231,20 +266,20 @@ void BattleActionExecutor::Update_ActionMovement(float timeDelta, BattleAction& 
 void BattleActionExecutor::Update_BasicMovement(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos)
 {
     //NONE
-    const auto& rm = action.Get_CurChar().ModelCom->Get_RootTransformVelocity();
-    const Vec3 delta = rm.position * 0.01f;
+    //const auto& rm = action.Get_CurChar().ModelCom->Get_RootTransformVelocity();
+    //const Vec3 delta = rm.position * 0.01f;
 
-    const Vec3 rotDeg = transform->Get_RotationEuler();
-    const Vec3 rotRad(
-        XMConvertToRadians(rotDeg.x),
-        XMConvertToRadians(rotDeg.y),
-        XMConvertToRadians(rotDeg.z)
-    );
+    //const Vec3 rotDeg = transform->Get_RotationEuler();
+    //const Vec3 rotRad(
+    //    XMConvertToRadians(rotDeg.x),
+    //    XMConvertToRadians(rotDeg.y),
+    //    XMConvertToRadians(rotDeg.z)
+    //);
 
-    const Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
-    const Vec3 worldDelta = Vec3::TransformNormal(delta, rotMat);
+    //const Matrix rotMat = XMMatrixRotationRollPitchYaw(rotRad.x, rotRad.y, rotRad.z);
+    //const Vec3 worldDelta = Vec3::TransformNormal(delta, rotMat);
 
-    transform->Set_Position(currentPos + worldDelta);
+    //transform->Set_Position(currentPos + worldDelta);
 }
 
 void BattleActionExecutor::Update_RootMotionToTarget(BattleAction& action, const Shared<TransformCom>& transform, const Vec3& currentPos)

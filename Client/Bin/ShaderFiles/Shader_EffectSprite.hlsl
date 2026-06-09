@@ -9,25 +9,35 @@
 cbuffer cbEffectSpriteMaterial : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f };         // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
-    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f };    // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
-    float4 g_EffectSpriteMainUVParams = { 1.f, 1.f, 0.f, 0.f };   // xy: scale, zw: scroll speed
+    float4 g_EffectSpriteParams = { 1.f, 1.f, 0.f, 0.f };       // x: authored energy scalar, y: opacityPower, z: noiseStrength, w: useNoise
+    float4 g_EffectSpriteAlphaParams = { 0.f, 0.f, 0.f, 0.f };  // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectSpriteMainUVParams = { 1.f, 1.f, 0.f, 0.f }; // xy: scale, zw: scroll speed
     float4 g_EffectSpriteNoiseUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectSpriteMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectSpriteUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: noise offset
     float4 g_EffectSpriteMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
     float4 g_EffectSpriteUVModeParams = { 0.f, 0.f, 0.f, 0.f };   // x: main, y: noise, z: mask
+    float4 g_EffectSpriteSourceParams = { 1.f, 0.f, 0.f, 0.f };    // x: noise source, y: mask source, z: noise invert, w: mask invert
     float4 g_EffectSpriteAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectSpriteAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectSpriteAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };   // x: blackNeutral
-    float4 g_EffectSpriteCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f }; // x: enabled, y: corePower, z: coreIntensity, w: outerPower
+    float4 g_EffectSpriteAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };         // x: blackNeutral
+    float4 g_EffectSpriteCoreEmissiveParams = { 0.f, 4.f, 2.f, 1.f };    // x: enabled, y: corePower, z: coreIntensity, w: outerPower
     float4 g_EffectSpriteCoreEmissiveColor = { 1.f, 0.85f, 0.45f, 1.f }; // rgb: coreColor, a: outerIntensity
-    float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f }; // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
+    float4 g_EffectInfluenceDebugParams = { 0.f, 0.5f, 2.f, 0.f };       // x: influence outline enabled, y: reserved, z: pixel width scale, w: reserved
+    float4 g_EffectMaterialScalarModulationParams = { 0.f, 0.f, 0.f, 0.f };
+    float4 g_EffectMaterialScalarModulationMeta[8];
+    float4 g_EffectMaterialScalarModulationKeyTimes[8];
+    float4 g_EffectMaterialScalarModulationKeyValues[8];
+    float4 g_EffectMaterialScalarModulationKeyArriveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyLeaveTangents[8];
+    float4 g_EffectMaterialScalarModulationKeyModes[8];
     int g_OpacitySource = 0;
     float g_EffectSpriteMaterialTime = 0.f;
     float3 g_EffectSpritePadding;
 };
+
+#include "Shader_EffectMaterialScalarModulation.hlsli"
 
 Texture2D g_Texture : register(t0); // sprite effect의 primary texture다. 현재 경로에서는 RGB를 emissive-like color source로 해석한다.
 Texture2D g_NoiseTexture : register(t1);
@@ -53,18 +63,18 @@ float4 Sample_EffectSpriteMainTexture(float2 uv, float mode)
            : g_Texture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_EffectSpriteNoiseTexture(float2 uv, float mode)
+float4 Sample_EffectSpriteNoiseTexture(float2 uv, float mode)
 {
     return Use_EffectSpriteClampSampler(mode)
-           ? g_NoiseTexture.Sample(LinearClampSampler, uv).r
-           : g_NoiseTexture.Sample(LinearWrapSampler, uv).r;
+           ? g_NoiseTexture.Sample(LinearClampSampler, uv)
+           : g_NoiseTexture.Sample(LinearWrapSampler, uv);
 }
 
-float Sample_EffectSpriteMaskTexture(float2 uv, float mode)
+float4 Sample_EffectSpriteMaskTexture(float2 uv, float mode)
 {
     return Use_EffectSpriteClampSampler(mode)
-           ? g_MaskTexture.Sample(LinearClampSampler, uv).a
-           : g_MaskTexture.Sample(LinearWrapSampler, uv).a;
+           ? g_MaskTexture.Sample(LinearClampSampler, uv)
+           : g_MaskTexture.Sample(LinearWrapSampler, uv);
 }
 
 float Compute_InfluenceOutlineWidth(float2 cardUV)
@@ -152,15 +162,14 @@ float3 ResolveFacingLookDirection(float3 particlePosition)
 
 bool TryNormalizeDirection(float3 direction, out float3 normalizedDirection)
 {
-    const float directionLength = length(direction);
-    if (directionLength < 0.0001f)
-    {
-        normalizedDirection = float3(0.f, 0.f, 0.f);
-        return false;
-    }
+    normalizedDirection = float3(0.f, 0.f, 0.f);
 
-    normalizedDirection = direction / directionLength;
-    return true;
+    const float directionLength = length(direction);
+    const bool valid = directionLength >= 0.0001f;
+    if (valid)
+        normalizedDirection = direction / directionLength;
+
+    return valid;
 }
 
 bool TryResolveAwayFromCenterLookDirection(float3 particlePosition, out float3 lookDir)
@@ -175,24 +184,23 @@ bool TryResolveVelocityLookDirection(float3 velocityDirection, out float3 lookDi
 
 bool TryResolveDirectionalLookDirection(float3 particlePosition, float3 velocityDirection, out float3 lookDir)
 {
+    lookDir = float3(0.f, 0.f, 0.f);
+    bool resolved = false;
+
     if (g_ScreenAlignmentMode == 3)
     {
-        if (TryResolveAwayFromCenterLookDirection(particlePosition, lookDir))
-            return true;
-
-        return TryResolveVelocityLookDirection(velocityDirection, lookDir);
+        resolved = TryResolveAwayFromCenterLookDirection(particlePosition, lookDir);
+        if (!resolved)
+            resolved = TryResolveVelocityLookDirection(velocityDirection, lookDir);
     }
-
-    if (g_ScreenAlignmentMode == 4)
+    else if (g_ScreenAlignmentMode == 4)
     {
-        if (TryResolveVelocityLookDirection(velocityDirection, lookDir))
-            return true;
-
-        return TryResolveAwayFromCenterLookDirection(particlePosition, lookDir);
+        resolved = TryResolveVelocityLookDirection(velocityDirection, lookDir);
+        if (!resolved)
+            resolved = TryResolveAwayFromCenterLookDirection(particlePosition, lookDir);
     }
 
-    lookDir = float3(0.f, 0.f, 0.f);
-    return false;
+    return resolved;
 }
 
 // look 방향을 기준으로 billboard right/up 축을 만든다.
@@ -218,38 +226,45 @@ void ResolveCameraPlaneBasis(out float3 rightDir, out float3 upDir)
 // texture 축 하나를 지정 방향에 맞추고, 나머지 축은 카메라 가시성을 유지하도록 만든다.
 bool TryResolveTextureAxisBasis(float3 axisDir, float3 particlePosition, out float3 rightDir, out float3 upDir)
 {
+    ResolveCameraPlaneBasis(rightDir, upDir);
+
     float3 axis = float3(0.f, 0.f, 0.f);
-    if (!TryNormalizeDirection(axisDir, axis))
-        return false;
-
     float3 cameraLook = float3(0.f, 0.f, 0.f);
-    if (!TryNormalizeDirection(g_CamPosition.xyz - particlePosition, cameraLook))
-        return false;
+    bool resolved = TryNormalizeDirection(axisDir, axis);
+    if (resolved)
+        resolved = TryNormalizeDirection(g_CamPosition.xyz - particlePosition, cameraLook);
 
-    if (g_SpriteTextureAxis == 0)
+    if (resolved && g_SpriteTextureAxis == 0)
     {
         rightDir = axis;
-        if (!TryNormalizeDirection(cross(rightDir, cameraLook), upDir))
-            return false;
+        resolved = TryNormalizeDirection(cross(rightDir, cameraLook), upDir);
     }
-    else
+    else if (resolved)
     {
         upDir = axis;
-        if (!TryNormalizeDirection(cross(cameraLook, upDir), rightDir))
-            return false;
+        resolved = TryNormalizeDirection(cross(cameraLook, upDir), rightDir);
     }
 
-    return true;
+    return resolved;
 }
 
 [maxvertexcount(4)]
 void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
 {
     const float3 particlePosition = In[0].worldPosition.xyz;
-    float3 rightDir = float3(1.f, 0.f, 0.f);
-    float3 upDir = float3(0.f, 1.f, 0.f);
-    if (g_ScreenAlignmentMode == 1 || g_ScreenAlignmentMode == 2)
-        ResolveCameraPlaneBasis(rightDir, upDir);
+    float3 rightDir = float3(0.f, 0.f, 0.f);
+    float3 upDir = float3(0.f, 0.f, 0.f);
+    ResolveCameraPlaneBasis(rightDir, upDir);
+    if (g_ScreenAlignmentMode == 5)
+    {
+        rightDir = float3(1.f, 0.f, 0.f);
+        upDir = float3(0.f, 1.f, 0.f);
+    }
+    else if (g_ScreenAlignmentMode == 6)
+    {
+        rightDir = float3(1.f, 0.f, 0.f);
+        upDir = float3(0.f, 0.f, 1.f);
+    }
     else if (g_ScreenAlignmentMode == 3 || g_ScreenAlignmentMode == 4)
     {
         float3 lookDir = float3(0.f, 0.f, 0.f);
@@ -257,8 +272,8 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
 
         if (g_DirectionalAlignmentMode == 1) // 스프라이트의 X 또는 Y 가 바라보도록
         {
-            if (!hasLookDir || !TryResolveTextureAxisBasis(lookDir, particlePosition, rightDir, upDir))
-                ResolveCameraPlaneBasis(rightDir, upDir);
+            if (hasLookDir)
+                TryResolveTextureAxisBasis(lookDir, particlePosition, rightDir, upDir);
         }
         else // 스프라이트의 look 이 바라보도록
         {
@@ -267,7 +282,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
             ResolveLookAlignedBasis(lookDir, rightDir, upDir);
         }
     }
-    else
+    else if (g_ScreenAlignmentMode != 1 && g_ScreenAlignmentMode != 2)
     {
         const float3 lookDir = ResolveFacingLookDirection(particlePosition);
         ResolveLookAlignedBasis(lookDir, rightDir, upDir);
@@ -291,7 +306,7 @@ void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
     upDir *= spriteSize.y * 0.5f;
 
     const matrix ViewProjMatrix = mul(g_ViewMatrix, g_ProjMatrix);
-    GS_OUT Out[4];
+    GS_OUT Out[4] = (GS_OUT[4])0;
 
     Out[0].position = mul(float4(particlePosition - rightDir + upDir, 1.f), ViewProjMatrix);
     Out[0].texCoord = float2(0.f, 0.f);
@@ -354,29 +369,63 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, g_EffectSpriteUVModeParams.y);
     const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, g_EffectSpriteUVModeParams.z);
     const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, g_EffectSpriteUVModeParams.x);
-    const float opacityPower = max(g_EffectSpriteParams.y, 0.0001f);
-    const float alphaCutoff = saturate(g_EffectSpriteAlphaParams.x);
-    const float alphaErosion = saturate(g_EffectSpriteAlphaParams.y);
+    const float resolvedOpacityPower = g_EffectSpriteParams.y
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
+    const float resolvedNoiseStrength = g_EffectSpriteParams.z
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
+    const float resolvedAlphaErosion = g_EffectSpriteAlphaParams.y
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
+    const float resolvedAlphaCutoff = g_EffectSpriteAlphaParams.x
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
+    const float resolvedCoreIntensity = g_EffectSpriteCoreEmissiveParams.z
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
+    const float resolvedOuterIntensity = g_EffectSpriteCoreEmissiveColor.a
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
+    const float resolvedCoreColorMultiplier =
+        EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
+    const float opacityPower = max(resolvedOpacityPower, 0.0001f);
+    const float alphaCutoff = saturate(resolvedAlphaCutoff);
+    const float alphaErosion = saturate(resolvedAlphaErosion);
+    const float4 resolvedCoreEmissiveParams = float4(
+        g_EffectSpriteCoreEmissiveParams.x,
+        g_EffectSpriteCoreEmissiveParams.y,
+        resolvedCoreIntensity,
+        g_EffectSpriteCoreEmissiveParams.w
+    );
+    const float4 resolvedCoreEmissiveColor = float4(
+        g_EffectSpriteCoreEmissiveColor.rgb * resolvedCoreColorMultiplier,
+        resolvedOuterIntensity
+    );
     const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
     float noiseFactor = 1.f;
     float maskAlpha = 1.f;
 
-    if (0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f)
+    if (0 != g_EffectSpriteParams.w && resolvedNoiseStrength > 0.f)
     {
-        const float noise = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
-        noiseFactor = lerp(1.f, noise, saturate(g_EffectSpriteParams.z));
+        const float4 noiseTexel = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
+        const float noise = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectSpriteSourceParams.x),
+            g_EffectSpriteSourceParams.z
+        );
+        noiseFactor = lerp(1.f, noise, saturate(resolvedNoiseStrength));
     }
 
     if (0 != g_EffectSpriteAlphaParams.z)
-        maskAlpha = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
+    {
+        const float4 maskTexel = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectSpriteSourceParams.y),
+            g_EffectSpriteSourceParams.w
+        );
+    }
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
     const float shapeCoverage = Effect_BuildCoverage(selectedOpacity, opacityPower, maskCoverage, noiseFactor, 1.f);
     const float3 baseColor = Effect_ApplyCoreEmissiveShaping(
         symbol.rgb * particleColor.rgb * g_Tint.rgb,
-        g_EffectSpriteCoreEmissiveColor,
+        resolvedCoreEmissiveColor,
         selectedOpacity,
-        g_EffectSpriteCoreEmissiveParams
+        resolvedCoreEmissiveParams
     );
     surface.color = baseColor * noiseFactor;
     surface.coverage = shapeCoverage * saturate(particleColor.a * g_Tint.a);
@@ -391,13 +440,27 @@ PS_OUT PS_MAIN(PS_IN In)
 {
     PS_OUT Out = (PS_OUT)0;
     const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
-    Out.color = Effect_ComposeAlphaBlend(surface, g_EffectSpriteParams.x);
+    const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
+    const float resolvedIntensity = g_EffectSpriteParams.x
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+    Out.color = Effect_ComposeAlphaBlend(surface, resolvedIntensity);
     if (g_EffectInfluenceDebugParams.x > 0.5f)
     {
         const float outlineMask = Compute_CardInfluenceOutline(In.texCoord);
         Out.color.rgb = lerp(Out.color.rgb, kInfluenceOutlineColor, outlineMask);
         Out.color.a = max(Out.color.a, outlineMask);
     }
+    return Out;
+}
+
+PS_OUT PS_MASKED(PS_IN In)
+{
+    PS_OUT Out = (PS_OUT)0;
+    const EffectMaterialSurface surface = Resolve_EffectMaterialSurface(In);
+    const float lifeProgress = saturate(In.lifeTime.y / max(In.lifeTime.x, 0.0001f));
+    const float resolvedIntensity = g_EffectSpriteParams.x
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+    Out.color = float4(surface.color * max(resolvedIntensity, 0.f), 1.f);
     return Out;
 }
 
@@ -413,19 +476,53 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, g_EffectSpriteUVModeParams.y);
     const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, g_EffectSpriteUVModeParams.z);
     const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, g_EffectSpriteUVModeParams.x);
-    const float alphaCutoff = saturate(g_EffectSpriteAlphaParams.x);
-    const float alphaErosion = saturate(g_EffectSpriteAlphaParams.y);
+    const float resolvedNoiseStrength = g_EffectSpriteParams.z
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
+    const float resolvedAlphaErosion = g_EffectSpriteAlphaParams.y
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
+    const float resolvedAlphaCutoff = g_EffectSpriteAlphaParams.x
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
+    const float resolvedCoreIntensity = g_EffectSpriteCoreEmissiveParams.z
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
+    const float resolvedOuterIntensity = g_EffectSpriteCoreEmissiveColor.a
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OUTER_INTENSITY, lifeProgress);
+    const float resolvedCoreColorMultiplier =
+        EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_COLOR, lifeProgress);
+    const float resolvedIntensity = g_EffectSpriteParams.x
+        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_INTENSITY, lifeProgress);
+    const float alphaCutoff = saturate(resolvedAlphaCutoff);
+    const float alphaErosion = saturate(resolvedAlphaErosion);
+    const float4 resolvedCoreEmissiveParams = float4(
+        g_EffectSpriteCoreEmissiveParams.x,
+        g_EffectSpriteCoreEmissiveParams.y,
+        resolvedCoreIntensity,
+        g_EffectSpriteCoreEmissiveParams.w
+    );
+    const float4 resolvedCoreEmissiveColor = float4(
+        g_EffectSpriteCoreEmissiveColor.rgb * resolvedCoreColorMultiplier,
+        resolvedOuterIntensity
+    );
     float noiseFactor = 1.f;
     float maskAlpha = 1.f;
 
-    if (0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f)
+    if (0 != g_EffectSpriteParams.w && resolvedNoiseStrength > 0.f)
     {
-        const float noise = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
-        noiseFactor = lerp(1.f, noise, saturate(g_EffectSpriteParams.z));
+        const float4 noiseTexel = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
+        const float noise = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(noiseTexel, (int)g_EffectSpriteSourceParams.x),
+            g_EffectSpriteSourceParams.z
+        );
+        noiseFactor = lerp(1.f, noise, saturate(resolvedNoiseStrength));
     }
 
     if (0 != g_EffectSpriteAlphaParams.z)
-        maskAlpha = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
+    {
+        const float4 maskTexel = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
+        maskAlpha = Effect_ApplySourceInvert(
+            Effect_SelectScalarSource(maskTexel, (int)g_EffectSpriteSourceParams.y),
+            g_EffectSpriteSourceParams.w
+        );
+    }
 
     const float maskCoverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * noiseFactor, alphaErosion);
     const float coverageBase = saturate(maskCoverage * noiseFactor);
@@ -451,11 +548,11 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     );
     const float3 shapedMaterialColor = Effect_ApplyCoreEmissiveShaping(
         materialColor * particleColor.rgb,
-        g_EffectSpriteCoreEmissiveColor,
+        resolvedCoreEmissiveColor,
         selectedOpacity,
-        g_EffectSpriteCoreEmissiveParams
+        resolvedCoreEmissiveParams
     );
-    const float additiveEnergyScalar = max(g_EffectSpriteParams.x, 0.f) * max(g_EffectSpriteAdditiveParams.w, 0.f);
+    const float additiveEnergyScalar = max(resolvedIntensity, 0.f) * max(g_EffectSpriteAdditiveParams.w, 0.f);
     const float3 contribution = shapedMaterialColor * noiseFactor * policyAmount * additiveEnergyScalar * blackGate * additiveLifeAlpha;
     Out.color = float4(contribution, 1.f);
     if (g_EffectInfluenceDebugParams.x > 0.5f)
@@ -470,4 +567,5 @@ technique11 DefaultTechnique
 {
     PASS_RS_DS_BS_VGP(AlphaBlendPass, RS_CullNone, DSS_DepthRead, BS_EffectAlphaBlend, VS_MAIN, GS_MAIN, PS_MAIN) // 0
     PASS_RS_DS_BS_VGP(AdditivePass, RS_CullNone, DSS_DepthRead, BS_EffectAdditive, VS_MAIN, GS_MAIN, PS_ADDITIVE) // 1
+    PASS_RS_DS_BS_VGP(MaskedPass, RS_CullNone, DSS_Default, BS_Default, VS_MAIN, GS_MAIN, PS_MASKED) // 2
 }

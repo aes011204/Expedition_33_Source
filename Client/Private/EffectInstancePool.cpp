@@ -7,37 +7,44 @@
 
 NS_BEGIN(Client)
 
+namespace
+{
+    wstring Make_EffectInstanceDisplayName(
+        const EffectInstancePool::AcquireDesc& desc,
+        const Shared<const EffectDefinition>& definition)
+    {
+        if (definition && !definition->name.empty())
+            return String::ToWString(definition->name);
+
+        wstring displayName = desc.effectName;
+        const size_t slashPos = displayName.find_last_of(L"\\/");
+        if (slashPos != wstring::npos)
+            displayName = displayName.substr(slashPos + 1);
+
+        constexpr wstring_view effectSuffix = L".effect.json";
+        if (displayName.ends_with(effectSuffix))
+            displayName.erase(displayName.size() - effectSuffix.size());
+        else if (constexpr wstring_view shortEffectSuffix = L".effect"; displayName.ends_with(shortEffectSuffix))
+            displayName.erase(displayName.size() - shortEffectSuffix.size());
+
+        return displayName.empty() ? L"EffectInstance" : displayName;
+    }
+}
+
 HRESULT EffectInstancePool::Acquire(const AcquireDesc& desc, AttachedHandle& outHandle)
 {
-    LOG_INFO(
-        "[EffectPool] acquire requested. key={}, layer={}, entries={}",
-        String::ToString(desc.effectName),
-        desc.layerLevelIndex,
-        _entries.size());
+    //LOG_INFO(
+    //    "[EffectPool] acquire requested. key={}, layer={}, entries={}",
+    //    String::ToString(desc.effectName),
+    //    desc.layerLevelIndex,
+    //    _entries.size());
 
     Shared<const EffectDefinition> definition{};
     Shared<EffectInstance> instance{};
     CHECK_FAILED(Acquire_Instance(desc, definition, instance), E_FAIL);
-    CHECK_FAILED(Prepare_AcquiredInstance(desc, instance), E_FAIL);
+    CHECK_FAILED(Prepare_AcquiredInstance(desc, definition, instance), E_FAIL);
 
-    outHandle.effectObject = static_pointer_cast<GameObject>(instance);
-    outHandle.effectName = desc.effectName;
-    outHandle.requiresManualRelease = false;
-
-    if (definition)
-    {
-        for (const EffectEmitterDefinition& emitter : definition->emitters)
-        {
-            if (!emitter.enabled)
-                continue;
-
-            if (emitter.kind == EffectEmitterKind::ComputeTrail)
-            {
-                outHandle.requiresManualRelease = true;
-                break;
-            }
-        }
-    }
+    Populate_Handle(desc, definition, instance, outHandle);
 
     uint32 enabledEmitterCount = 0;
     if (definition)
@@ -49,11 +56,43 @@ HRESULT EffectInstancePool::Acquire(const AcquireDesc& desc, AttachedHandle& out
         }
     }
 
-    LOG_DEBUG(
-        "[EffectPool] acquire completed. key={}, manualRelease={}, enabledEmitters={}",
-        String::ToString(desc.effectName),
-        outHandle.requiresManualRelease,
-        enabledEmitterCount);
+    //LOG_DEBUG(
+    //    "[EffectPool] acquire completed. key={}, manualRelease={}, enabledEmitters={}",
+    //    String::ToString(desc.effectName),
+    //    outHandle.requiresManualRelease,
+    //    enabledEmitterCount);
+
+    return S_OK;
+}
+
+HRESULT EffectInstancePool::Reload_Attached(const AcquireDesc& desc, AttachedHandle& handle)
+{
+    if (handle.effectObject == nullptr)
+        return E_FAIL;
+
+    PooledInstance* entry = Find_EntryByObject(handle.effectObject);
+    if (nullptr == entry || nullptr == entry->instance)
+        return E_FAIL;
+
+    Shared<const EffectDefinition> definition = desc.definition ? desc.definition : EffectAssetRuntimeLoader::Load_DefinitionByName(desc.effectName);
+    CHECK_NULL(definition, E_FAIL);
+
+    CHECK_FAILED(entry->instance->Reload_Definition(definition), E_FAIL);
+
+    entry->effectName = desc.effectName;
+    entry->definition = definition;
+    entry->layerLevelIndex = desc.layerLevelIndex;
+    entry->layerTag = desc.layerTag;
+    entry->inUse = true;
+
+    CHECK_FAILED(Prepare_AcquiredInstance(desc, definition, entry->instance), E_FAIL);
+    Populate_Handle(desc, definition, entry->instance, handle);
+
+    //LOG_INFO(
+    //    "[EffectPool] reloaded attached instance. key={}, emitters={}, entries={}",
+    //    String::ToString(desc.effectName),
+    //    definition->emitters.size(),
+    //    _entries.size());
 
     return S_OK;
 }
@@ -83,11 +122,11 @@ void EffectInstancePool::Release(const AttachedHandle& handle)
             ++idleCount;
     }
 
-    LOG_INFO(
-        "[EffectPool] released. key={}, active={}, idle={}",
-        String::ToString(entry->effectName),
-        activeCount,
-        idleCount);
+    //LOG_INFO(
+    //    "[EffectPool] released. key={}, active={}, idle={}",
+    //    String::ToString(entry->effectName),
+    //    activeCount,
+    //    idleCount);
 }
 
 void EffectInstancePool::Release_Finished()
@@ -108,7 +147,9 @@ void EffectInstancePool::Release_Finished()
     }
 
     if (releasedCount > 0)
-        LOG_INFO("[EffectPool] released finished entries. count={}, entries={}", releasedCount, _entries.size());
+    {
+        //LOG_INFO("[EffectPool] released finished entries. count={}, entries={}", releasedCount, _entries.size());
+    }
 }
 
 void EffectInstancePool::Clear()
@@ -124,7 +165,9 @@ void EffectInstancePool::Clear()
     _entries.clear();
 
     if (entryCount > 0)
-        LOG_INFO("[EffectPool] cleared. count={}", entryCount);
+    {
+        //LOG_INFO("[EffectPool] cleared. count={}", entryCount);
+    }
 }
 
 void EffectInstancePool::Discard_Inactive(const wstring& effectName)
@@ -153,15 +196,15 @@ void EffectInstancePool::Discard_Inactive(const wstring& effectName)
 
     if (discardedCount > 0)
     {
-        LOG_INFO(
-            "[EffectPool] discarded inactive entries. key={}, count={}, entries={}",
-            String::ToString(effectName),
-            discardedCount,
-            _entries.size());
+        //LOG_INFO(
+        //    "[EffectPool] discarded inactive entries. key={}, count={}, entries={}",
+        //    String::ToString(effectName),
+        //    discardedCount,
+        //    _entries.size());
     }
     else
     {
-        LOG_DEBUG("[EffectPool] discard inactive skipped. key={}, entries={}", String::ToString(effectName), _entries.size());
+        //LOG_DEBUG("[EffectPool] discard inactive skipped. key={}, entries={}", String::ToString(effectName), _entries.size());
     }
 }
 
@@ -179,6 +222,39 @@ EffectInstancePool::DebugSummary EffectInstancePool::Get_DebugSummary() const
     }
 
     return summary;
+}
+
+HRESULT EffectInstancePool::Prewarm(const AcquireDesc& desc, uint32 count)
+{
+    if (desc.effectName.empty() || desc.layerTag.empty() || count == 0)
+        return E_FAIL;
+
+    vector<AttachedHandle> handles{};
+    handles.reserve(count);
+
+    for (uint32 i = 0; i < count; ++i)
+    {
+        AttachedHandle handle{};
+        CHECK_FAILED(Acquire(desc, handle), E_FAIL);
+
+        // prewarm instance가 다음 frame 첫 BeginPlay에서 다시 Play되지 않게 미리 BeginPlay를 완료한다.
+        if (handle.effectObject != nullptr)
+            CHECK_FAILED(handle.effectObject->Try_BeginPlay(), E_FAIL);
+
+        // count개를 한 번에 확보해야 같은 슬롯 1개만 재사용하는 prewarm이 되지 않는다.
+        handles.push_back(handle);
+    }
+
+    for (const AttachedHandle& handle : handles)
+        Release(handle);
+
+    //LOG_INFO(
+    //    "[EffectPool] prewarmed. key={}, count={}, entries={}",
+    //    String::ToString(desc.effectName),
+    //    count,
+    //    _entries.size());
+
+    return S_OK;
 }
 
 HRESULT EffectInstancePool::Acquire_Instance(
@@ -204,16 +280,16 @@ HRESULT EffectInstancePool::Acquire_Instance(
                 ++idleCount;
         }
 
-        LOG_INFO(
-            "[EffectPool] acquire hit. key={}, active={}, idle={}",
-            String::ToString(desc.effectName),
-            activeCount,
-            idleCount);
+        //LOG_INFO(
+        //    "[EffectPool] acquire hit. key={}, active={}, idle={}",
+        //    String::ToString(desc.effectName),
+        //    activeCount,
+        //    idleCount);
 
         return S_OK;
     }
 
-    LOG_INFO("[EffectPool] acquire miss. key={}, spawning new instance.", String::ToString(desc.effectName));
+    //LOG_INFO("[EffectPool] acquire miss. key={}, spawning new instance.", String::ToString(desc.effectName));
 
     CHECK_FAILED(Spawn_NewInstance(desc, outDefinition, outInstance), E_FAIL);
 
@@ -222,14 +298,15 @@ HRESULT EffectInstancePool::Acquire_Instance(
     newEntry.definition = outDefinition;
     newEntry.instance = outInstance;
     newEntry.layerLevelIndex = desc.layerLevelIndex;
+    newEntry.layerTag = desc.layerTag;
     newEntry.inUse = true;
     _entries.push_back(newEntry);
 
-    LOG_INFO(
-        "[EffectPool] spawned new instance. key={}, layerTag={}, entries={}",
-        String::ToString(desc.effectName),
-        String::ToString(desc.layerTag),
-        _entries.size());
+    //LOG_INFO(
+    //    "[EffectPool] spawned new instance. key={}, layerTag={}, entries={}",
+    //    String::ToString(desc.effectName),
+    //    String::ToString(desc.layerTag),
+    //    _entries.size());
 
     return S_OK;
 }
@@ -242,6 +319,10 @@ HRESULT EffectInstancePool::Spawn_NewInstance(
     EffectInstanceDesc instanceDesc{};
     instanceDesc.definition = definition;
     instanceDesc.position = desc.worldPosition;
+    instanceDesc.scale = desc.scale;
+    instanceDesc.pitch = desc.worldRotation.x;
+    instanceDesc.yaw = desc.worldRotation.y;
+    instanceDesc.roll = desc.worldRotation.z;
 
     Shared<GameObject> spawnedObject{};
     CHECK_FAILED(
@@ -260,18 +341,50 @@ HRESULT EffectInstancePool::Spawn_NewInstance(
     return S_OK;
 }
 
-HRESULT EffectInstancePool::Prepare_AcquiredInstance(const AcquireDesc& desc, const Shared<EffectInstance>& instance)
+HRESULT EffectInstancePool::Prepare_AcquiredInstance(
+    const AcquireDesc& desc,
+    const Shared<const EffectDefinition>& definition,
+    const Shared<EffectInstance>& instance)
 {
     CHECK_NULL(instance, E_FAIL);
     instance->Bind_TrailSampleProvider(desc.trailSampleProvider);
-    CHECK_FAILED(instance->Reset(), E_FAIL);
+    instance->Set_Name(Make_EffectInstanceDisplayName(desc, definition));
 
     const Shared<TransformCom> transform = instance->Get_Transform();
     CHECK_NULL(transform, E_FAIL);
     transform->Set_WorldPosition(desc.worldPosition);
+    transform->Set_WorldRotationEuler(desc.worldRotation);
+    transform->Set_Scale(desc.scale);
 
+    CHECK_FAILED(instance->Reset(), E_FAIL);
     CHECK_FAILED(instance->Play(), E_FAIL);
     return S_OK;
+}
+
+void EffectInstancePool::Populate_Handle(
+    const AcquireDesc& desc,
+    const Shared<const EffectDefinition>& definition,
+    const Shared<EffectInstance>& instance,
+    AttachedHandle& outHandle) const
+{
+    outHandle.effectObject = static_pointer_cast<GameObject>(instance);
+    outHandle.effectName = desc.effectName;
+    outHandle.requiresManualRelease = false;
+
+    if (definition == nullptr)
+        return;
+
+    for (const EffectEmitterDefinition& emitter : definition->emitters)
+    {
+        if (!emitter.enabled)
+            continue;
+
+        if (emitter.kind == EffectEmitterKind::ComputeTrail)
+        {
+            outHandle.requiresManualRelease = true;
+            return;
+        }
+    }
 }
 
 EffectInstancePool::PooledInstance* EffectInstancePool::Find_AvailableEntry(
@@ -284,9 +397,15 @@ EffectInstancePool::PooledInstance* EffectInstancePool::Find_AvailableEntry(
             continue;
         if (entry.effectName != desc.effectName)
             continue;
+        if (entry.layerLevelIndex != desc.layerLevelIndex)
+            continue;
+        if (entry.layerTag != desc.layerTag)
+            continue;
         if (desc.definition && entry.definition != definition)
             continue;
         if (nullptr == entry.instance)
+            continue;
+        if (entry.instance->Get_Transform() == nullptr)
             continue;
 
         return &entry;
@@ -316,7 +435,7 @@ Unique<EffectInstancePool> EffectInstancePool::Create()
         return nullptr;
     }
 
-    LOG_INFO("[EffectPool] created.");
+    //LOG_INFO("[EffectPool] created.");
 
     return instance;
 }

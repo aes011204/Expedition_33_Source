@@ -61,12 +61,30 @@ enum class UI_AnimationKeyframeTrackType
     Rotation,
     Color,
     Alpha,
+    AlphaMultiplier,
+    FontSize,
+    Size,
+};
+
+struct UI_AnimationKeyframeTrackMetadata
+{
+    UI_AnimationKeyframeTrackType type = UI_AnimationKeyframeTrackType::PositionX;
+    const char* name = "PositionX";
+    float defaultValue = 0.f;
+    float dragSpeed = 0.01f;
+    float minValue = 0.f;
+    float maxValue = 0.f;
+    bool hasMinValue = false;
+    bool hasMaxValue = false;
+    bool showInAddTrackCombo = true;
+    bool includeInTransformKeySet = false;
 };
 
 struct UI_AnimationKeyframe
 {
     int32 frame = 0;
     float value = 0.f;
+    ImVec2 valueVec2 = ImVec2(0.f, 0.f);
     ImVec4 color = ImVec4(255.f, 255.f, 255.f, 255.f);
     UI_AnimationEasing easing = UI_AnimationEasing::Linear;
 };
@@ -96,6 +114,22 @@ struct UI_AnimationAsset
     bool loop = false;
     vector<UI_AnimationKeyframeTrack> tracks = {};
     vector<UI_AnimationTargetBinding> targets = {};
+};
+
+struct UI_AnimationSequenceClip
+{
+    string displayName = "";
+    wstring filePath = {};
+    UI_AnimationAsset asset = {};
+    int32 startFrame = 0;
+    int32 durationFrames = 1;
+    int32 resolvedTargetCount = 0;
+};
+
+struct UI_AnimationSequenceAsset
+{
+    int32 fps = 60;
+    vector<UI_AnimationSequenceClip> clips = {};
 };
 
 enum class UI_StateAnimationEvent
@@ -181,71 +215,129 @@ inline bool Try_ParseAnimationTrackType(const string& typeName, UI_AnimationTrac
     return false;
 }
 
+inline const UI_AnimationKeyframeTrackMetadata* Get_AnimationKeyframeTrackMetadataList(size_t& outCount)
+{
+    static const UI_AnimationKeyframeTrackMetadata kMetadata[] = {
+        { UI_AnimationKeyframeTrackType::PositionX, "PositionX", 0.f, 1.f, 0.f, 0.f, false, false, true, true },
+        { UI_AnimationKeyframeTrackType::PositionY, "PositionY", 0.f, 1.f, 0.f, 0.f, false, false, true, true },
+        { UI_AnimationKeyframeTrackType::ScaleX, "ScaleX", 1.f, 0.01f, 0.01f, 0.f, true, false, true, true },
+        { UI_AnimationKeyframeTrackType::ScaleY, "ScaleY", 1.f, 0.01f, 0.01f, 0.f, true, false, true, true },
+        { UI_AnimationKeyframeTrackType::Rotation, "Rotation", 0.f, 1.f, 0.f, 0.f, false, false, true, true },
+        { UI_AnimationKeyframeTrackType::Color, "Color", 0.f, 0.f, 0.f, 0.f, false, false, true, true },
+        { UI_AnimationKeyframeTrackType::Alpha, "Alpha", 1.f, 0.01f, 0.f, 1.f, true, true, false, false },
+        { UI_AnimationKeyframeTrackType::AlphaMultiplier, "AlphaMultiplier", 1.f, 0.01f, 0.f, 1.f, true, true, true, true },
+        { UI_AnimationKeyframeTrackType::FontSize, "FontSize", 32.f, 1.f, 4.f, 0.f, true, false, true, false },
+        { UI_AnimationKeyframeTrackType::Size, "Size", 0.f, 1.f, 0.f, 0.f, false, false, true, true },
+    };
+
+    outCount = sizeof(kMetadata) / sizeof(kMetadata[0]);
+    return kMetadata;
+}
+
+inline const UI_AnimationKeyframeTrackMetadata& Get_AnimationKeyframeTrackMetadata(UI_AnimationKeyframeTrackType type)
+{
+    size_t metadataCount = 0;
+    const UI_AnimationKeyframeTrackMetadata* metadataList = Get_AnimationKeyframeTrackMetadataList(metadataCount);
+    for (size_t index = 0; index < metadataCount; ++index)
+    {
+        if (metadataList[index].type == type)
+            return metadataList[index];
+    }
+
+    return metadataList[0];
+}
+
+inline int32 Get_AnimationKeyframeTrackAddOptionCount()
+{
+    int32 optionCount = 0;
+    size_t metadataCount = 0;
+    const UI_AnimationKeyframeTrackMetadata* metadataList = Get_AnimationKeyframeTrackMetadataList(metadataCount);
+    for (size_t index = 0; index < metadataCount; ++index)
+    {
+        if (metadataList[index].showInAddTrackCombo)
+            ++optionCount;
+    }
+
+    return optionCount;
+}
+
+inline const UI_AnimationKeyframeTrackMetadata& Get_AnimationKeyframeTrackAddOption(int32 optionIndex)
+{
+    int32 visibleIndex = 0;
+    size_t metadataCount = 0;
+    const UI_AnimationKeyframeTrackMetadata* metadataList = Get_AnimationKeyframeTrackMetadataList(metadataCount);
+    for (size_t index = 0; index < metadataCount; ++index)
+    {
+        if (!metadataList[index].showInAddTrackCombo)
+            continue;
+
+        if (visibleIndex == optionIndex)
+            return metadataList[index];
+
+        ++visibleIndex;
+    }
+
+    return Get_AnimationKeyframeTrackMetadata(UI_AnimationKeyframeTrackType::PositionX);
+}
+
+inline int32 Get_AnimationKeyframeTrackAddOptionIndex(UI_AnimationKeyframeTrackType type)
+{
+    if (type == UI_AnimationKeyframeTrackType::Alpha)
+        type = UI_AnimationKeyframeTrackType::Color;
+
+    int32 visibleIndex = 0;
+    size_t metadataCount = 0;
+    const UI_AnimationKeyframeTrackMetadata* metadataList = Get_AnimationKeyframeTrackMetadataList(metadataCount);
+    for (size_t index = 0; index < metadataCount; ++index)
+    {
+        if (!metadataList[index].showInAddTrackCombo)
+            continue;
+
+        if (metadataList[index].type == type)
+            return visibleIndex;
+
+        ++visibleIndex;
+    }
+
+    return 0;
+}
+
+inline float Get_AnimationKeyframeTrackDefaultValue(UI_AnimationKeyframeTrackType type)
+{
+    return Get_AnimationKeyframeTrackMetadata(type).defaultValue;
+}
+
+inline float Get_AnimationKeyframeTrackDragSpeed(UI_AnimationKeyframeTrackType type)
+{
+    return Get_AnimationKeyframeTrackMetadata(type).dragSpeed;
+}
+
+inline bool Is_AnimationKeyframeTrackIncludedInTransformKeySet(UI_AnimationKeyframeTrackType type)
+{
+    return Get_AnimationKeyframeTrackMetadata(type).includeInTransformKeySet;
+}
+
 inline const char* Get_AnimationKeyframeTrackTypeName(UI_AnimationKeyframeTrackType type)
 {
-    switch (type)
-    {
-    case UI_AnimationKeyframeTrackType::PositionX:
-        return "PositionX";
-    case UI_AnimationKeyframeTrackType::PositionY:
-        return "PositionY";
-    case UI_AnimationKeyframeTrackType::ScaleX:
-        return "ScaleX";
-    case UI_AnimationKeyframeTrackType::ScaleY:
-        return "ScaleY";
-    case UI_AnimationKeyframeTrackType::Rotation:
-        return "Rotation";
-    case UI_AnimationKeyframeTrackType::Color:
-        return "Color";
-    case UI_AnimationKeyframeTrackType::Alpha:
-        return "Alpha";
-    default:
-        return "PositionX";
-    }
+    return Get_AnimationKeyframeTrackMetadata(type).name;
+}
+
+inline bool Is_AnimationKeyframeTrackVec2Value(UI_AnimationKeyframeTrackType type)
+{
+    return type == UI_AnimationKeyframeTrackType::Size;
 }
 
 inline bool Try_ParseAnimationKeyframeTrackType(const string& typeName, UI_AnimationKeyframeTrackType& outType)
 {
-    if (typeName == "PositionX")
+    size_t metadataCount = 0;
+    const UI_AnimationKeyframeTrackMetadata* metadataList = Get_AnimationKeyframeTrackMetadataList(metadataCount);
+    for (size_t index = 0; index < metadataCount; ++index)
     {
-        outType = UI_AnimationKeyframeTrackType::PositionX;
-        return true;
-    }
-
-    if (typeName == "PositionY")
-    {
-        outType = UI_AnimationKeyframeTrackType::PositionY;
-        return true;
-    }
-
-    if (typeName == "ScaleX")
-    {
-        outType = UI_AnimationKeyframeTrackType::ScaleX;
-        return true;
-    }
-
-    if (typeName == "ScaleY")
-    {
-        outType = UI_AnimationKeyframeTrackType::ScaleY;
-        return true;
-    }
-
-    if (typeName == "Rotation")
-    {
-        outType = UI_AnimationKeyframeTrackType::Rotation;
-        return true;
-    }
-
-    if (typeName == "Color")
-    {
-        outType = UI_AnimationKeyframeTrackType::Color;
-        return true;
-    }
-
-    if (typeName == "Alpha")
-    {
-        outType = UI_AnimationKeyframeTrackType::Alpha;
-        return true;
+        if (typeName == metadataList[index].name)
+        {
+            outType = metadataList[index].type;
+            return true;
+        }
     }
 
     return false;
@@ -253,16 +345,18 @@ inline bool Try_ParseAnimationKeyframeTrackType(const string& typeName, UI_Anima
 
 inline float Clamp_AnimationKeyframeTrackValue(UI_AnimationKeyframeTrackType type, float value)
 {
-    switch (type)
-    {
-    case UI_AnimationKeyframeTrackType::ScaleX:
-    case UI_AnimationKeyframeTrackType::ScaleY:
-        return max(0.01f, value);
-    case UI_AnimationKeyframeTrackType::Alpha:
-        return min(max(value, 0.f), 1.f);
-    default:
-        return value;
-    }
+    const UI_AnimationKeyframeTrackMetadata& metadata = Get_AnimationKeyframeTrackMetadata(type);
+    if (metadata.hasMinValue)
+        value = max(metadata.minValue, value);
+    if (metadata.hasMaxValue)
+        value = min(metadata.maxValue, value);
+    return value;
+}
+
+inline ImVec2 Clamp_AnimationKeyframeTrackVec2Value(UI_AnimationKeyframeTrackType type, ImVec2 value)
+{
+    (void)type;
+    return value;
 }
 
 inline float Clamp_AnimationColorChannel255(float value)

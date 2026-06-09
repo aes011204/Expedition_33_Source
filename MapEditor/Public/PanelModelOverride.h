@@ -7,6 +7,9 @@ struct SceneContext;
 
 class PanelModelOverride final : public MEWindow
 {
+private:
+    static constexpr int32 slotCount = static_cast<int32>(magic_enum::enum_count<MaterialTextureSlot>() - 1);
+
 public:
     explicit PanelModelOverride(SceneContext* ctx);
     virtual ~PanelModelOverride() = default;

@@ -1,11 +1,24 @@
 ﻿#include "EffectInstance.h"
 
+namespace
+{
+    uint32 Generate_EffectPlaybackSeed()
+    {
+        static uint32 state{ 0x9E3779B9u };
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        return state != 0u ? state : 0xA341316Cu;
+    }
+}
+
 IMPLEMENT_REFLECTION(EffectInstance)
 {
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
     info.displayName = "EffectInstance";
     info.category = "Effect";
+    PROPERTY_BOOL("Loop", _loop);
     return true;
 }
 
@@ -35,6 +48,7 @@ HRESULT EffectInstance::Initialize(void* arg)
         _desc = *static_cast<EffectInstanceDesc*>(arg);
 
     _definition = _desc.definition;
+    _effectPlaybackSeed = Generate_EffectPlaybackSeed();
 
     CHECK_FAILED(__super::Initialize(&_desc), E_FAIL);
     CHECK_FAILED(Ready_Emitters(), E_FAIL);
@@ -86,7 +100,10 @@ void EffectInstance::Update(float timeDelta)
 void EffectInstance::Late_Update(float timeDelta)
 {
     if (!Is_Playing())
+    {
+        Restart_LoopIfNeeded();
         return;
+    }
 
     Sync_Emitters();
 
@@ -97,6 +114,7 @@ void EffectInstance::Late_Update(float timeDelta)
     }
 
     Evaluate_Finished();
+    Restart_LoopIfNeeded();
 }
 
 HRESULT EffectInstance::Render()
@@ -108,28 +126,47 @@ HRESULT EffectInstance::Play()
 {
     _playbackState = EffectPlaybackState::Playing;
     Set_Visible(true);
+    Sync_Emitters();
 
     return S_OK;
 }
 
 void EffectInstance::Stop()
 {
+    Bind_TrailSampleProvider({});
     _playbackState = EffectPlaybackState::Stopped;
     Set_Visible(false);
 }
 
 HRESULT EffectInstance::Reset()
 {
+    _effectPlaybackSeed = Generate_EffectPlaybackSeed();
     _playbackState = EffectPlaybackState::Stopped;
     Set_Visible(false);
+    Sync_Emitters();
 
     for (const Shared<EffectEmitter>& emitter : _emitters)
     {
         if (nullptr == emitter)
             continue;
 
+        emitter->Set_EffectPlaybackSeed(_effectPlaybackSeed);
         CHECK_FAILED(emitter->Reset_ForEffectReplay(), E_FAIL);
     }
+
+    return S_OK;
+}
+
+HRESULT EffectInstance::Reload_Definition(const Shared<const EffectDefinition>& definition)
+{
+    CHECK_NULL(definition, E_FAIL);
+
+    Stop();
+    _definition = definition;
+    _desc.definition = definition;
+
+    if (!Try_ReloadEmitters(definition))
+        CHECK_FAILED(Ready_Emitters(), E_FAIL);
 
     return S_OK;
 }
@@ -180,12 +217,50 @@ HRESULT EffectInstance::Ready_Emitters()
         runtimeDesc.localRotationDegrees = emitterDefinition.localRotationDegrees;
         runtimeDesc.useLocalSpace = emitterDefinition.useLocalSpace;
         runtimeDesc.enabled = emitterDefinition.enabled;
+        runtimeDesc.effectPlaybackSeed = _effectPlaybackSeed;
 
         CHECK_FAILED(emitter->Attach_ToEffect(runtimeDesc), E_FAIL);
         _emitters.push_back(emitter);
     }
 
     return S_OK;
+}
+
+bool EffectInstance::Try_ReloadEmitters(const Shared<const EffectDefinition>& definition)
+{
+    if (nullptr == definition)
+        return false;
+
+    vector<const EffectEmitterDefinition*> enabledDefinitions{};
+    enabledDefinitions.reserve(definition->emitters.size());
+    for (const EffectEmitterDefinition& emitterDefinition : definition->emitters)
+    {
+        if (emitterDefinition.enabled)
+            enabledDefinitions.push_back(&emitterDefinition);
+    }
+
+    if (enabledDefinitions.size() != _emitters.size())
+        return false;
+
+    for (size_t index = 0; index < enabledDefinitions.size(); ++index)
+    {
+        const Shared<EffectEmitter>& emitter = _emitters[index];
+        const EffectEmitterDefinition& emitterDefinition = *enabledDefinitions[index];
+        if (nullptr == emitter)
+            return false;
+        if (emitter->Get_EmitterId() != emitterDefinition.id)
+            return false;
+        if (!emitter->Can_ReloadDefinition(emitterDefinition))
+            return false;
+    }
+
+    for (size_t index = 0; index < enabledDefinitions.size(); ++index)
+    {
+        if (FAILED(_emitters[index]->Reload_Definition(*enabledDefinitions[index])))
+            return false;
+    }
+
+    return true;
 }
 
 void EffectInstance::Sync_Emitters()
@@ -220,6 +295,15 @@ void EffectInstance::Evaluate_Finished()
         _playbackState = EffectPlaybackState::Finished;
         Set_Visible(false);
     }
+}
+
+void EffectInstance::Restart_LoopIfNeeded()
+{
+    if (!_loop || !Is_Finished())
+        return;
+
+    if (SUCCEEDED(Reset()))
+        (void)Play();
 }
 
 void EffectInstance::Clear_Emitters()

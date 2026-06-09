@@ -4,6 +4,7 @@
 #include "MECamera.h"
 #include "CmdTransformObject.h"
 #include "CmdDeleteObject.h"
+#include "MEWaterActor.h"
 
 PanelInspector::PanelInspector(SceneContext* ctx, MECamera* camera)
     : MEWindow{ L"Inspector" }, _ctx{ ctx }, _camera{ camera }
@@ -94,7 +95,7 @@ void PanelInspector::DrawTransform(Shared<EditorObject>& obj)
     Matrix rotMat = Matrix::CreateFromQuaternion(obj->_rotation);
 
     float pitch = {}, yaw = {}, roll = {};
-    pitch = asinf(-rotMat._32);
+    pitch = asinf(clamp(-rotMat._32, -1.f, 1.f));
 
     if (cosf(pitch) > 1e-6f)
     {
@@ -248,6 +249,15 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             ImGui::DragFloat("Exposure Min", &obj->_ppExposureMin, 0.01f, -10.f, 10.f);
             ImGui::DragFloat("Exposure Max", &obj->_ppExposureMax, 0.01f, -10.f, 10.f);
             ImGui::DragFloat("Fog Density", &obj->_ppFogDensity, 0.001f, 0.f, 1.f);
+            ImGui::DragFloat("Fog Start", &obj->_ppFogStart, 0.1f, 0.f, 1000.f);
+
+            const char* zoneTypes[] = { "AABB", "Sphere" };
+            ImGui::Combo("Zone Type", &obj->_ppFogZoneType, zoneTypes, 2);
+
+            if (obj->_ppFogZoneType == 1)
+            {
+                ImGui::DragFloat("Fog Radius", &obj->_ppFogRadius, 0.1f, 0.f, 1000.f);
+            }
 
             float fogColor[3] = { obj->_ppFogColor.x, obj->_ppFogColor.y, obj->_ppFogColor.z };
             if (ImGui::ColorEdit3("Fog Color", fogColor))
@@ -365,6 +375,117 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
             ImGui::LabelText("WorldOffsetZ", "%.4f", _ctx->_terrainConfig.worldOffsetZ);
             ImGui::LabelText("ScaleXZ", "%.6f", _ctx->_terrainConfig.scaleXZ);
             ImGui::LabelText("ScaleY", "%.4f", _ctx->_terrainConfig.scaleY);
+        }
+        break;
+
+    case EObjectType::Water:
+        if (ImGui::CollapsingHeader("Water", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            auto& desc = obj->_waterDesc;
+            auto& p = obj->_waterParams;
+            bool rebuildMesh = false;
+            bool reloadTex = false;
+
+            if (ImGui::CollapsingHeader("Grid", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                int cx = static_cast<int>(desc.countX), cz = static_cast<int>(desc.countZ);
+                if (ImGui::InputInt("Count X", &cx))
+                {
+                    desc.countX = (uint32)max(1, cx);
+                    rebuildMesh = true;
+                }
+
+                if (ImGui::InputInt("Count Z", &cz))
+                {
+                    desc.countZ = (uint32)max(1, cz);
+                    rebuildMesh = true;
+                }
+
+                if (ImGui::DragFloat("Size X", &desc.sizeX, 0.1f, 0.01f, 100.f))
+                {
+                    rebuildMesh = true;
+                }
+
+                if (ImGui::DragFloat("Size Z", &desc.sizeZ, 0.1f, 0.01f, 100.f))
+                {
+                    rebuildMesh = true;
+                }
+
+                int cs = (int)desc.chunkSize;
+                if (ImGui::InputInt("Chunk Size", &cs))
+                {
+                    desc.chunkSize = static_cast<uint32>(max(1, cs));
+                    rebuildMesh = true;
+                }
+            }
+
+            auto DrawTexPath = [&](const char* label, wstring& pathField)
+                {
+                    string filename = String::ToString(fs::path(pathField).filename().wstring());
+                    ImGui::TextDisabled("%s: %s", label, filename.empty() ? "(없음)" : filename.c_str());
+                    ImGui::SameLine();
+
+                    string btnLabel = string("Browse##") + label;
+                    if (ImGui::SmallButton(btnLabel.c_str()))
+                    {
+                        ImGui::GetIO().AppFocusLost = true;
+                        WCHAR buf[MAX_PATH] = {};
+                        OPENFILENAME ofn{};
+                        ofn.lStructSize = sizeof(ofn);
+                        ofn.lpstrFilter = L"Texture Files\0*.dds;*.png;*.jpg\0All Files\0*.*\0";
+                        ofn.lpstrFile = buf;
+                        ofn.nMaxFile = MAX_PATH;
+                        ofn.lpstrInitialDir = _waterPath;
+                        ofn.Flags = OFN_FILEMUSTEXIST;
+                        if (GetOpenFileNameW(&ofn))
+                        {
+                            pathField = buf;
+                            reloadTex = true;
+                        }
+                    }
+                };
+
+            if (ImGui::CollapsingHeader("Textures"))
+            {
+                DrawTexPath("Large Wave Normal", obj->_waterLargeWaveNormalPath);
+                DrawTexPath("Small Wave Normal", obj->_waterSmallWaveNormalPath);
+                DrawTexPath("Seafoam", obj->_waterSeafoamPath);
+                DrawTexPath("Cubemap", obj->_waterCubemapPath);
+            }
+
+            if (ImGui::CollapsingHeader("Parameters"))
+            {
+                bool paramsChanged = false;
+                paramsChanged |= ImGui::DragFloat("Large Wave Scale", &p.largeWaveScale, 1.f, 1.f, 1000.f);
+                paramsChanged |= ImGui::DragFloat("Large Wave Speed", &p.largeWaveSpeed, 0.001f, 0.f, 10.f);
+                paramsChanged |= ImGui::DragFloat("Large Wave Amplify", &p.largeWaveAmplify, 0.01f, 0.f, 5.f);
+                paramsChanged |= ImGui::DragFloat("Small Wave Scale", &p.smallWaveScale, 1.f, 1.f, 2000.f);
+                paramsChanged |= ImGui::DragFloat("Small Wave Speed", &p.smallWaveSpeed, 0.01f, 0.f, 10.f);
+                paramsChanged |= ImGui::DragFloat("Small Wave Amplify", &p.smallWaveAmplify, 0.01f, 0.f, 5.f);
+                paramsChanged |= ImGui::DragFloat("Seafoam Scale", &p.seafoamScale, 1.f, 1.f, 2000.f);
+                paramsChanged |= ImGui::DragFloat("Seafoam Speed", &p.seafoamSpeed, 0.001f, 0.f, 1.f);
+                paramsChanged |= ImGui::DragFloat("Seafoam Height Power", &p.seafoamHeightPower, 0.01f, 0.f, 10.f);
+                paramsChanged |= ImGui::DragFloat("Seafoam Height Multiply", &p.seafoamHeightMultiply, 0.01f, 0.f, 20.f);
+                paramsChanged |= ImGui::DragFloat("Foam Distortion", &p.foamDistortion, 0.001f, 0.f, 1.f);
+                paramsChanged |= ImGui::DragFloat("Depth Fade", &p.depthFade, 0.1f, 0.f, 100.f);
+                paramsChanged |= ImGui::DragFloat("Camera Distance Fade", &p.cameraDistanceFade, 1.f, 0.f, 1000.f);
+                paramsChanged |= ImGui::DragFloat("Reflection Amount", &p.reflectionAmount, 0.01f, 0.f, 1.f);
+                paramsChanged |= ImGui::DragFloat("Luminance Bias", &p.luminanceBias, 0.001f, -1.f, 1.f);
+                paramsChanged |= ImGui::ColorEdit4("Water Color", reinterpret_cast<float*>(&p.waterColor));
+                paramsChanged |= ImGui::ColorEdit4("Fresnel Color", reinterpret_cast<float*>(&p.fresnelColor));
+
+                if (paramsChanged && obj->_waterRenderHandle)
+                {
+                    obj->_waterRenderHandle->Set_WaterParams(p);
+                }
+            }
+
+            if (rebuildMesh || reloadTex)
+            {
+                obj->_waterRenderHandle = nullptr;
+                obj->_waterRenderHandleLoaded = false;
+                _ctx->_dirtyRenderHandles = true;
+            }
         }
         break;
 

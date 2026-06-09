@@ -45,8 +45,16 @@ public:
     void    Set_GustaveMechanismCharge(const Shared<BattleMechanismCom>& mechanismCom);
     void    Clear_GustaveMechanismCharge();
 
+    void    Set_LuneMechanismStains(const Shared<BattleMechanismCom>& mechanismCom);
+    void    Clear_LuneMechanismStains();
+
     void    Set_MaelleMechanismStance(const Shared<BattleMechanismCom>& mechanismCom);
     void    Clear_MaelleMechanismStance();
+
+    void    Play_PortraitActivation(HeroId heroId);
+    void    Play_PortraitDamaged(HeroId heroId);
+    void    Play_PortraitDeactivation(HeroId heroId);
+    void    Play_BattleSystemIntro();
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
@@ -55,18 +63,29 @@ private:
     static uint32 Get_SlotIndex(PlayerCharacterType playerType);
     static void Set_TextPair(const Shared<UI_Text>& front, const Shared<UI_Text>& back, const wstring& text);
 
+
 private:
     void    Apply_HpGauge(PartyBattleStatSlot& slot, float ratio);
-    void    Apply_ApGauge(PartyBattleStatSlot& slot, uint32 curAp, uint32 maxAp);
+    void    Apply_ApGauge(PartyBattleStatSlot& slot, uint32 slotIndex, uint32 curAp, uint32 maxAp);
+    void    Apply_CurrentTurnApTransform(uint32 slotIndex, uint32 apIndex);
+    bool    Is_CurrentTurnSlot(uint32 slotIndex) const;
     static void Set_HpText(PartyBattleStatSlot& slot, float hp, float maxHp);
     static void Set_ApText(PartyBattleStatSlot& slot, uint32 ap);
+
+    void    Apply_LuneState(const Shared<BattleMechanismCom>& mechanismCom);
+    Shared<UI_Base> Resolve_LuneStainImage(int32 slotIndex, ElementalType element) const;
+    void    Close_AllLuneStains();
 
     void    Apply_MaelleStanceBadge(BattleMechanismCom::MaelleStance stance);
     void    Close_AllMaelleStanceBadges();
 
+    void    Play_TargetAnimation(const wchar_t* animationName); // Target_Animation은 이름으로 전 UI에 브로드캐스트 재생
+    void    Stop_TargetAnimations();  
+    void    Reset_TargetAnimationState(bool includeRoot);
 
 private:
     PartyBattleStatSlot _partySlots[3]{};
+    HeroId _activePortraitHeroId = HeroId::END;
 
 private: /* 구스타브 */
     Shared<UI_Base> _gustaveMechanismRoot{};
@@ -75,6 +94,8 @@ private: /* 구스타브 */
     Shared<UI_Text> _gustaveMaxChargeText{};
     Shared<UI_Text> _gustaveMaxChargeTextBg{};
 
+private: /* 루네 */
+    array<array<Shared<UI_Base>, 5>, BattleMechanismCom::kLuneMaxStains> _luneStainImages{};
 
 private: /* 마엘 */
     Shared<UI_Base> _maelleCurrentStanceRoot{};

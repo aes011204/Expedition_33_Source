@@ -8,6 +8,9 @@ IMPLEMENT_REFLECTION(AN_VanishDissolve)
     auto& info = GetStaticReflectionInfo();
     info.properties.clear();
 
+    PROPERTY_ENUM("Dissolve Type", _type, DissolveType);
+    PROPERTY_FLOAT("지속시간", _duration);
+
     return true;
 }
 
@@ -27,5 +30,17 @@ void AN_VanishDissolve::Execute(const AnimNotifyContext& context)
     if (effectCom == nullptr)
         return;
 
-    effectCom->Start_VanishDissolve(0.7f, "T_Perlin_Noise_M", true);
+    switch (_type)
+    {
+    case DissolveType::Switch:
+        effectCom->Start_SwitchDissolve(_duration, "T_Perlin_Noise_M");
+        break;
+    case DissolveType::Vanish:
+        effectCom->Start_VanishDissolve(_duration, "T_Perlin_Noise_M", true);
+        break;
+
+    default: ;
+    }
+
+    
 }

@@ -592,7 +592,10 @@ void Cinematic_Tool::Render_BattleClipSequencer()
         &requestOpenInsertPopup,
         &requestRemoveKeyPopup,
         &_battleClipContextTrackIndex,
-        &_battleClipContextFrame);
+        &_battleClipContextFrame,
+        nullptr,
+        false,
+        nullptr);
 
     static bool expanded = true;
     static int firstFrame = 0;
@@ -648,6 +651,26 @@ void Cinematic_Tool::Render_SelectedBattleClipKeyframe()
     ImGui::SetNextItemWidth(140.f);
     if (ImGui::DragFloat("Selected Value", &keyframe->value, 0.01f))
         _isBattleClipPreviewDirty = true;
+
+    ImGui::SetNextItemWidth(160.f);
+    const char* interpolationLabel = magic_enum::enum_name(keyframe->interpolation).data();
+    if (ImGui::BeginCombo("Interpolation", interpolationLabel))
+    {
+        for (InterpolationMode mode : magic_enum::enum_values<InterpolationMode>())
+        {
+            const bool isSelected = keyframe->interpolation == mode;
+            if (ImGui::Selectable(magic_enum::enum_name(mode).data(), isSelected))
+            {
+                keyframe->interpolation = mode;
+                _isBattleClipPreviewDirty = true;
+            }
+
+            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+    }
 }
 
 void Cinematic_Tool::Render_BattleClipInsertKeyframePopup()
@@ -1415,6 +1438,18 @@ void Cinematic_Tool::Insert_BattleClipKeyAtFrame(int trackIndex, int frame)
         track = &_editingBattleClip.sideOffset;
         break;
     case 4:
+        track = &_editingBattleClip.pivotOffset;
+        break;
+    case 5:
+        track = &_editingBattleClip.heightOffset;
+        break;
+    case 6:
+        track = &_editingBattleClip.aimOffset;
+        break;
+    case 7:
+        track = &_editingBattleClip.lookHeightOffset;
+        break;
+    case 8:
         track = &_editingBattleClip.yawOffset;
         break;
     default:
@@ -1669,6 +1704,14 @@ BattleCameraTrack* Cinematic_Tool::Get_SelectedBattleClipTrack()
     case 3:
         return &_editingBattleClip.sideOffset;
     case 4:
+        return &_editingBattleClip.pivotOffset;
+    case 5:
+        return &_editingBattleClip.heightOffset;
+    case 6:
+        return &_editingBattleClip.aimOffset;
+    case 7:
+        return &_editingBattleClip.lookHeightOffset;
+    case 8:
         return &_editingBattleClip.yawOffset;
     default:
         return nullptr;

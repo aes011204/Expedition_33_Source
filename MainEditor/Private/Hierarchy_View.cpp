@@ -87,7 +87,10 @@ void Hierarchy_View::Update(float timeDelta)
 
     const uint32 selectionRevision = EDITOR->Selection_Revision();
     if (_cachedSelectionRevision != selectionRevision)
+    {
         _cachedSelectionRevision = selectionRevision;
+        _scrollSelectionIntoView = true;
+    }
 
     const uint32 currentLevelIndex = GAME->Current_LevelIndex();
     if (_cachedLevelIndex != currentLevelIndex)
@@ -126,6 +129,19 @@ void Hierarchy_View::Draw_SearchBar()
     {
         filteredCount = 0;
 
+        const bool skyBoxRootMatches =
+            Match_SearchPattern("SkyBox", _searchFilter) ||
+            Match_SearchPattern("Sky", _searchFilter);
+
+        uint32 skyBoxObjectIndex = 0;
+        for (const auto& gameObject : _skyBoxObjects)
+        {
+            if (gameObject != nullptr && (skyBoxRootMatches || Pass_SearchFilter(gameObject, skyBoxObjectIndex)))
+                ++filteredCount;
+
+            ++skyBoxObjectIndex;
+        }
+
         for (const auto& [_, objects] : _groupedObjects)
         {
             uint32 objectIndex = 0;
@@ -147,6 +163,7 @@ void Hierarchy_View::Draw_SearchBar()
 void Hierarchy_View::Rebuild_Cache()
 {
     _groupedObjects.clear();
+    _skyBoxObjects.clear();
 
     auto appendLevelObjects =
         [this](uint32 levelIndex, const char* levelLabel)
@@ -157,6 +174,12 @@ void Hierarchy_View::Rebuild_Cache()
                 {
                     if (gameObject == nullptr)
                         return;
+
+                    if (Is_SkyBoxObject(gameObject))
+                    {
+                        _skyBoxObjects.push_back(gameObject);
+                        return;
+                    }
 
                     const wstring groupedLayerTag =
                         String::ToWString(format("[{}] {}", levelLabel, String::ToString(layerTag)));
@@ -222,9 +245,41 @@ bool Hierarchy_View::Pass_LightingSearchFilter() const
         Match_SearchPattern("Shadow", _searchFilter);
 }
 
+bool Hierarchy_View::Pass_SkyBoxRootSearchFilter() const
+{
+    if (_searchFilter.empty())
+        return true;
+
+    if (Match_SearchPattern("SkyBox", _searchFilter) ||
+        Match_SearchPattern("Sky", _searchFilter))
+        return true;
+
+    uint32 objectIndex = 0;
+    for (const auto& gameObject : _skyBoxObjects)
+    {
+        if (gameObject != nullptr && Pass_SearchFilter(gameObject, objectIndex))
+            return true;
+
+        ++objectIndex;
+    }
+
+    return false;
+}
+
+bool Hierarchy_View::Is_SkyBoxObject(const Shared<GameObject>& gameObject) const
+{
+    return gameObject != nullptr && gameObject->Get_ObjectType() == ObjectType::Sky;
+}
+
 uint32 Hierarchy_View::Get_TotalObjectCount() const
 {
     uint32 totalCount = 0;
+
+    for (const auto& gameObject : _skyBoxObjects)
+    {
+        if (gameObject != nullptr)
+            ++totalCount;
+    }
 
     for (const auto& [_, objects] : _groupedObjects)
     {
@@ -261,13 +316,38 @@ void Hierarchy_View::Render()
 
     if (ImGui::Begin(windowName.c_str(), &isOpen))
     {
+        const Shared<GameObject> selectedObject = EDITOR->Selected_Object();
+        const bool shouldRevealSelection = _scrollSelectionIntoView && selectedObject != nullptr;
+        auto containsSelectedObject = [&selectedObject](const Shared<GameObject>& gameObject)
+        {
+            if (gameObject == nullptr || selectedObject == nullptr)
+                return false;
+
+            if (gameObject == selectedObject)
+                return true;
+
+            Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+            if (container == nullptr)
+                return false;
+
+            for (const auto& [_, partObject] : container->Get_PartObjects())
+            {
+                if (partObject == selectedObject)
+                    return true;
+            }
+
+            return false;
+        };
+
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows);
         Handle_Shortcuts();
 
         Draw_SearchBar();
         Draw_LightingNode();
+        Draw_SkyBoxNode();
 
-        if (_groupedObjects.empty())
+        const bool hasHierarchyObjects = !_groupedObjects.empty() || !_skyBoxObjects.empty();
+        if (!hasHierarchyObjects)
         {
             ImGui::TextDisabled("현재 레벨에 오브젝트가 없음");
         }
@@ -304,6 +384,12 @@ void Hierarchy_View::Render()
                 for (const auto& [layerTag, objects] : _groupedObjects)
                 {
                     const string layerName = String::ToString(layerTag);
+                    const bool layerHasSelection =
+                        shouldRevealSelection &&
+                        any_of(objects.begin(), objects.end(), containsSelectedObject);
+
+                    if (layerHasSelection)
+                        ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 
                     if (ImGui::TreeNodeEx(layerName.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
                     {
@@ -440,6 +526,19 @@ void Hierarchy_View::Draw_NodeObject(const Shared<GameObject>& gameObject, uint3
 
     Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
     bool isContainer = (container != nullptr) && !container->Get_PartObjects().empty();
+    bool containsSelectedPart = false;
+
+    if (_scrollSelectionIntoView && isContainer && selectedObject != nullptr && !isSelected)
+    {
+        for (const auto& [_, partObject] : container->Get_PartObjects())
+        {
+            if (partObject == selectedObject)
+            {
+                containsSelectedPart = true;
+                break;
+            }
+        }
+    }
 
     ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
     if (isSelected)
@@ -447,7 +546,16 @@ void Hierarchy_View::Draw_NodeObject(const Shared<GameObject>& gameObject, uint3
     if (!isContainer)
         flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
+    if (containsSelectedPart)
+        ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+
     bool nodeOpen = ImGui::TreeNodeEx(label.c_str(), flags);
+
+    if (isSelected && _scrollSelectionIntoView)
+    {
+        ImGui::SetScrollHereY(0.25f);
+        _scrollSelectionIntoView = false;
+    }
 
     if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
     {
@@ -488,6 +596,12 @@ void Hierarchy_View::Draw_NodeObject(const Shared<GameObject>& gameObject, uint3
                 partFlags |= ImGuiTreeNodeFlags_Selected;
 
             ImGui::TreeNodeEx(partLabel.c_str(), partFlags);
+
+            if (isPartSelected && _scrollSelectionIntoView)
+            {
+                ImGui::SetScrollHereY(0.25f);
+                _scrollSelectionIntoView = false;
+            }
 
             if (ImGui::IsItemClicked())
             {
@@ -561,6 +675,45 @@ void Hierarchy_View::Draw_LightingNode()
     ImGui::Separator();
 }
 
+void Hierarchy_View::Draw_SkyBoxNode()
+{
+    if (_skyBoxObjects.empty() || !Pass_SkyBoxRootSearchFilter())
+        return;
+
+    ImGuiTreeNodeFlags rootFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+    if (ImGui::TreeNodeEx("SkyBox", rootFlags))
+    {
+        const bool skyBoxRootMatches =
+            Match_SearchPattern("SkyBox", _searchFilter) ||
+            Match_SearchPattern("Sky", _searchFilter);
+
+        uint32 objectIndex = 0;
+        for (const auto& gameObject : _skyBoxObjects)
+        {
+            if (gameObject == nullptr)
+            {
+                ++objectIndex;
+                continue;
+            }
+
+            if (!_searchFilter.empty() &&
+                !skyBoxRootMatches &&
+                !Pass_SearchFilter(gameObject, objectIndex))
+            {
+                ++objectIndex;
+                continue;
+            }
+
+            Draw_NodeObject(gameObject, objectIndex);
+            ++objectIndex;
+        }
+
+        ImGui::TreePop();
+    }
+
+    ImGui::Separator();
+}
+
 Shared<Hierarchy_View> Hierarchy_View::Create()
 {
     return make_shared<Hierarchy_View>();
@@ -569,5 +722,6 @@ Shared<Hierarchy_View> Hierarchy_View::Create()
 void Hierarchy_View::Free()
 {
     _groupedObjects.clear();
+    _skyBoxObjects.clear();
     Editor_Window::Free();
 }

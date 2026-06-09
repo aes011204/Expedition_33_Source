@@ -18,6 +18,12 @@
 #include "Player_GameMenu.h"
 #include "SkillTreeCom.h"
 
+namespace
+{
+    constexpr float kFallStateEnterDelaySec = 0.10f;
+    constexpr float kFallStateEnterSpeedY = -2.4f;
+}
+
 Player_WorldBase::Player_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_WorldBase{ device, context }
 {
@@ -49,6 +55,7 @@ HRESULT Player_WorldBase::Initialize(void* arg)
 void Player_WorldBase::BeginPlay()
 {
     Character_WorldBase::BeginPlay();
+    _fallStateEnterAccum = 0.f;
 
     if (auto* body = dynamic_cast<Body_Player*>(Get_PartObject(L"Part_Body")))
     {
@@ -72,6 +79,44 @@ void Player_WorldBase::Priority_Update(float timeDelta)
     _playerControllerCom->Update_InputState();
     _playerStateMachineCom->Update_CurrentState(timeDelta);
     _playerControllerCom->Update_Movement(timeDelta);
+
+    if (_movementCom && _movementCom->Did_InputJumpStart())
+    {
+        _fallStateEnterAccum = 0.f; // 실제 점프 입력은 기존처럼 즉시 Jump 상태로 보낸다.
+        _playerStateMachineCom->Change_State(PlayerState::Jump);
+    }
+    else if (_movementCom)
+    {
+        const PlayerState currentState = _playerStateMachineCom->Get_CurrentPlayerState();
+        const bool canEnterFallState =
+            currentState == PlayerState::Idle ||
+            currentState == PlayerState::Move;
+
+        if (_movementCom->Is_Grounded())
+        {
+            _fallStateEnterAccum = 0.f; // 지면을 다시 밟으면 점프 입력 없는 낙하 진입 누적은 바로 리셋한다.
+        }
+        else if (canEnterFallState &&
+            _movementCom->Get_Velocity().y < kFallStateEnterSpeedY)
+        {
+            _fallStateEnterAccum += timeDelta; // 경사 보행 중 잠깐 비는 공중 프레임은 바로 Jump로 소비하지 않고 짧게 누적 확인한다.
+
+            if (_fallStateEnterAccum >= kFallStateEnterDelaySec)
+            {
+                _fallStateEnterAccum = 0.f;
+                _playerStateMachineCom->Change_State(PlayerState::Jump);
+            }
+        }
+        else
+        {
+            _fallStateEnterAccum = 0.f; // Idle/Move 외 상태거나 하강 속도가 약하면 가짜 낙하 누적을 버린다.
+        }
+    }
+    else
+    {
+        _fallStateEnterAccum = 0.f;
+    }
+
     _playerStateMachineCom->LateUpdate_CurrentState(timeDelta);
 }
 

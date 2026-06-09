@@ -1,0 +1,1 @@
+--format bc5 --quality production --mips --mip-filter box --no-mip-gamma-correct --no-mip-pre-alpha --zcmp 5 --extract-from-atlas --atlas-mips 12

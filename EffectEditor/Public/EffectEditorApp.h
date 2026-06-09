@@ -63,7 +63,7 @@ private:
 private:
     HRESULT Ready_Fonts();
     HRESULT Ready_Prototype_For_Static_Level();
-    HRESULT Ready_PreviewLevel(); // EffectEditor 전용 preview level을 Static resource index 위에 올린다.
+    HRESULT Ready_PreviewLevel();
 
     wstring Get_ClientResourceRoot() const;
     wstring Get_ClientResourcePath(const wchar_t* relativePath) const;
