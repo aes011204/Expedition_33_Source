@@ -14,6 +14,8 @@ inline const char* Resolve_RendererType(const AuthoringTypeData& typeData)
         return "Mesh";
     case AuthoringTypeDataKind::Ribbon:
         return "Ribbon";
+    case AuthoringTypeDataKind::SourceHistoryRibbon:
+        return "SourceHistoryRibbon";
     case AuthoringTypeDataKind::None:
     default:
         return "Sprite";

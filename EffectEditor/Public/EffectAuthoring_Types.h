@@ -506,6 +506,7 @@ enum class AuthoringTypeDataKind : uint8
     Trail,
     Mesh,
     Ribbon,
+    SourceHistoryRibbon,
 };
 
 enum class TrailCurveQuality : uint8
@@ -543,6 +544,36 @@ struct RibbonTypeData
     RibbonLinkOrder linkOrder{ RibbonLinkOrder::BirthOrder };
 };
 
+enum class SourceHistoryPreviewMotionPreset : uint8
+{
+    Off,
+    Line,
+    Arc,
+    Loop,
+};
+
+enum class SourceHistoryPreviewMotionAxis : uint8
+{
+    X,
+    Y,
+    Z,
+};
+
+struct SourceHistoryRibbonTypeData
+{
+    uint32 maxSampleCount{ 64 };
+    float sampleSpacing{ 0.08f };
+    float sampleInterval{ 0.f };
+    float maxLength{ 0.f };
+    float tailFadeLength{ 0.1f };
+    float baseWidth{ 1.f };
+    float tilingDistance{ 0.f };
+    SourceHistoryPreviewMotionPreset previewMotionPreset{ SourceHistoryPreviewMotionPreset::Off };
+    SourceHistoryPreviewMotionAxis previewMotionAxis{ SourceHistoryPreviewMotionAxis::X };
+    float previewMotionAmplitude{ 1.f };
+    float previewMotionSpeed{ 1.f };
+};
+
 struct TrailTypeData
 {
     float width{ 1.f };
@@ -570,7 +601,7 @@ struct MeshTypeData
     bool useModelMaterials{ false };
 };
 
-using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData, MeshTypeData, RibbonTypeData>;
+using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData, MeshTypeData, RibbonTypeData, SourceHistoryRibbonTypeData>;
 
 struct AuthoringTypeData
 {

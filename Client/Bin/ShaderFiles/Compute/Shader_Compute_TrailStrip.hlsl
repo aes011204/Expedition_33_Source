@@ -85,14 +85,14 @@ RWStructuredBuffer<DrawIndexedInstancedIndirectArgs> ArgsData : register(u1);
 
 static const uint kEffectDistributionCurveMaxKeys = 8u;
 
-void ApplyTrailWidth(inout float3 basePosition, inout float3 tipPosition)
+void ApplyTrailWidth(inout float3 basePosition, inout float3 tipPosition, float widthScale)
 {
     const float3 center = (basePosition + tipPosition) * 0.5f;
     const float3 halfSpan = (tipPosition - basePosition) * 0.5f;
     if (length(halfSpan) <= 0.0001f)
         return;
 
-    const float widthRatio = max(g_Width, 0.0001f);
+    const float widthRatio = max(g_Width * max(widthScale, 0.0f), 0.0001f);
     basePosition = center - halfSpan * widthRatio;
     tipPosition = center + halfSpan * widthRatio;
 }
@@ -334,17 +334,22 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float3 currentTip = current.tipWorldPosition.xyz;
     float3 nextBase = next.baseWorldPosition.xyz;
     float3 nextTip = next.tipWorldPosition.xyz;
-    ApplyTrailWidth(currentBase, currentTip);
-    ApplyTrailWidth(nextBase, nextTip);
-
     const float age = max(0.0f, current.sampleParams.x);
     const float lifeProgress = saturate(age / max(g_SegmentLifetime, 0.0001f));
+    const float nextAge = max(0.0f, next.sampleParams.x);
+    const float nextLifeProgress = saturate(nextAge / max(g_SegmentLifetime, 0.0001f));
     const float ageAlpha = saturate(1.0f - lifeProgress);
     const float fallbackWidthScale = lerp(0.25f, 1.0f, ageAlpha);
     const float sizeByLifeWidthScale = EvaluateSizeByLifeWidthScale(lifeProgress);
     const float widthScale = g_SizeByLifeParams.z != 0.0f ? sizeByLifeWidthScale : fallbackWidthScale;
+    const float nextAgeAlpha = saturate(1.0f - nextLifeProgress);
+    const float nextFallbackWidthScale = lerp(0.25f, 1.0f, nextAgeAlpha);
+    const float nextSizeByLifeWidthScale = EvaluateSizeByLifeWidthScale(nextLifeProgress);
+    const float nextWidthScale = g_SizeByLifeParams.z != 0.0f ? nextSizeByLifeWidthScale : nextFallbackWidthScale;
     const float currentDistance = current.sampleParams.y;
     const float nextDistance = next.sampleParams.y;
+    ApplyTrailWidth(currentBase, currentTip, widthScale);
+    ApplyTrailWidth(nextBase, nextTip, nextWidthScale);
     float lengthAlpha = 1.0f;
     if (g_LengthParams.x > 0.0f)
     {
@@ -363,7 +368,7 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     output.startColor = segmentColor;
     output.endColor = segmentColor;
     output.subUVRect = float4(0.0f, currentDistance, 1.0f, nextDistance);
-    output.segmentParams = float4(lifeProgress, widthScale, ageAlpha * lengthAlpha, g_SideFade); // x: 수명 진행률, y: 폭 배율, z: 알파 배율, w: 가장자리 페이드
+    output.segmentParams = float4(lifeProgress, 0.0f, ageAlpha * lengthAlpha, g_SideFade); // x: 수명 진행률, y: reserved, z: 알파 배율, w: 가장자리 페이드
 
     OutputData[index] = output;
 }

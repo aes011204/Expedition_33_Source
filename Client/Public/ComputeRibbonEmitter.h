@@ -90,14 +90,15 @@ private:
 
     struct RibbonInstanceVertex
     {
-        Vec4 previousPosition{}; // segment 시작점 앞 render sample world position이다.
+        Vec4 previousPosition{}; // xyz: segment 시작점 앞 render sample, w: hasPreviousSample flag다.
         Vec4 currentPosition{};  // segment 시작 sample world position이다.
         Vec4 nextPosition{};     // segment 끝 sample world position이다.
+        Vec4 nextNextPosition{}; // xyz: segment 끝점 다음 render sample, w: hasNextNextSample flag다.
         Vec2 lifeTime{};         // x: lifetime, y: age.
         Vec4 startColor{};       // segment 시작 색이다.
         Vec4 endColor{};         // segment 끝 색이다.
         Vec4 subUVRect{};        // xy/zw: segment UV 범위다.
-        Vec4 segmentParams{};    // x: lifeProgress, y: widthScale, z: alphaScale, w: hasPreviousSample.
+        Vec4 segmentParams{};    // x: lifeProgress, y: currentWidth, z: nextWidth, w: alphaScale.
     };
 
     struct DrawIndexedInstancedIndirectArgs

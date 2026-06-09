@@ -1176,6 +1176,21 @@ bool Emitter_View::Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModu
 
 bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitter, AuthoringModuleType type) const
 {
+    if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistoryRibbon)
+    {
+        switch (type)
+        {
+        case AuthoringModuleType::Required:
+        case AuthoringModuleType::Lifetime:
+        case AuthoringModuleType::InitialColor:
+        case AuthoringModuleType::ColorOverLife:
+        case AuthoringModuleType::SizeByLife:
+            return true;
+        default:
+            return false;
+        }
+    }
+
     if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
     {
         switch (type)
@@ -1853,11 +1868,17 @@ void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emi
         emitter.typeData.kind = AuthoringTypeDataKind::Ribbon;
         emitter.typeData.payload = RibbonTypeData{};
         break;
+    case PendingTypeDataAction::AddSourceHistoryRibbon:
+        emitter.typeData.kind = AuthoringTypeDataKind::SourceHistoryRibbon;
+        emitter.typeData.payload = SourceHistoryRibbonTypeData{};
+        break;
     case PendingTypeDataAction::ResetData:
         if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
             emitter.typeData.payload = MeshTypeData{};
         else if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
             emitter.typeData.payload = RibbonTypeData{};
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistoryRibbon)
+            emitter.typeData.payload = SourceHistoryRibbonTypeData{};
         else
         {
             emitter.typeData.kind = AuthoringTypeDataKind::Trail;
@@ -1897,6 +1918,9 @@ void Emitter_View::Process_PendingTypeDataAction()
         break;
     case PendingTypeDataAction::AddRibbon:
         description = "Add Ribbon TypeData";
+        break;
+    case PendingTypeDataAction::AddSourceHistoryRibbon:
+        description = "Add SourceHistoryRibbon TypeData";
         break;
     case PendingTypeDataAction::ResetData:
         description = "Reset TypeData";
@@ -2443,6 +2467,8 @@ void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
             Queue_TypeDataAction(PendingTypeDataAction::AddMesh, emitterIndex);
         if (ImGui::MenuItem("Ribbon TypeData 추가"))
             Queue_TypeDataAction(PendingTypeDataAction::AddRibbon, emitterIndex);
+        if (ImGui::MenuItem("SourceHistoryRibbon TypeData 추가"))
+            Queue_TypeDataAction(PendingTypeDataAction::AddSourceHistoryRibbon, emitterIndex);
         return;
     }
 
@@ -2692,6 +2718,9 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
             break;
         case AuthoringTypeDataKind::Ribbon:
             ImGui::TextUnformatted("리본 데이터");
+            break;
+        case AuthoringTypeDataKind::SourceHistoryRibbon:
+            ImGui::TextUnformatted("소스 히스토리 리본 데이터");
             break;
         case AuthoringTypeDataKind::None:
         default:

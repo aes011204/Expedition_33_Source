@@ -371,17 +371,18 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     const float4 particleColor = lerp(In.startColor, In.endColor, lifeProgress);
     const float2 sampleUV = lerp(In.subUVRect.xy, In.subUVRect.zw, In.texCoord);
     const float2 mainUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMainUVParams, g_EffectSpriteUVOffsetParams.xy, g_EffectSpriteUVModeParams.x);
-    const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, g_EffectSpriteUVModeParams.y);
-    const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, g_EffectSpriteUVModeParams.z);
     const float4 symbol = Sample_EffectSpriteMainTexture(mainUV, g_EffectSpriteUVModeParams.x);
     const float resolvedOpacityPower = g_EffectSpriteParams.y
                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
-    const float resolvedNoiseStrength = g_EffectSpriteParams.z
-                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress);
-    const float resolvedAlphaErosion = g_EffectSpriteAlphaParams.y
-                                       * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress);
-    const float resolvedAlphaCutoff = g_EffectSpriteAlphaParams.x
-                                      * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress);
+    const float resolvedNoiseStrength = 0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f
+                                        ? g_EffectSpriteParams.z * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress)
+                                        : 0.f;
+    const float resolvedAlphaErosion = g_EffectSpriteAlphaParams.y != 0.f
+                                       ? g_EffectSpriteAlphaParams.y * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress)
+                                       : 0.f;
+    const float resolvedAlphaCutoff = g_EffectSpriteAlphaParams.x != 0.f
+                                      ? g_EffectSpriteAlphaParams.x * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress)
+                                      : 0.f;
     const float resolvedCoreIntensity = g_EffectSpriteCoreEmissiveParams.z
                                         * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);
     const float resolvedOuterIntensity = g_EffectSpriteCoreEmissiveColor.a
@@ -407,6 +408,7 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
 
     if (0 != g_EffectSpriteParams.w && resolvedNoiseStrength > 0.f)
     {
+        const float2 noiseUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteNoiseUVParams, g_EffectSpriteUVOffsetParams.zw, g_EffectSpriteUVModeParams.y);
         const float4 noiseTexel = Sample_EffectSpriteNoiseTexture(noiseUV, g_EffectSpriteUVModeParams.y);
         const float noise = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(noiseTexel, (int)g_EffectSpriteSourceParams.x),
@@ -417,6 +419,7 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
 
     if (0 != g_EffectSpriteAlphaParams.z)
     {
+        const float2 maskUV = Build_EffectSpriteUV(sampleUV, g_EffectSpriteMaskUVParams, g_EffectSpriteMaskUVOffsetParams.xy, g_EffectSpriteUVModeParams.z);
         const float4 maskTexel = Sample_EffectSpriteMaskTexture(maskUV, g_EffectSpriteUVModeParams.z);
         maskAlpha = Effect_ApplySourceInvert(
             Effect_SelectScalarSource(maskTexel, (int)g_EffectSpriteSourceParams.y),

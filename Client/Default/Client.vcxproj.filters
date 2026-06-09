@@ -222,6 +222,7 @@
     </Filter>
     <Filter Include="02.GameObject\Effect\Emitters\ComputeTrail" />
     <Filter Include="02.GameObject\Effect\Emitters\ComputeRibbon" />
+    <Filter Include="02.GameObject\Effect\Emitters\ComputeSourceHistoryRibbon" />
     <Filter Include="02.GameObject\Effect\Emitters\Mesh" />
     <Filter Include="90.EditorSupport" />
     <Filter Include="02.GameObject\Camera\BattleCamera">
@@ -655,6 +656,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\ComputeRibbonEmitter.h">
       <Filter>02.GameObject\Effect\Emitters\ComputeRibbon</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ComputeSourceHistoryRibbonEmitter.h">
+      <Filter>02.GameObject\Effect\Emitters\ComputeSourceHistoryRibbon</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\FreeAimTargeting.h">
       <Filter>BattleState</Filter>
@@ -1337,6 +1341,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\ComputeRibbonEmitter.cpp">
       <Filter>02.GameObject\Effect\Emitters\ComputeRibbon</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ComputeSourceHistoryRibbonEmitter.cpp">
+      <Filter>02.GameObject\Effect\Emitters\ComputeSourceHistoryRibbon</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\FreeAimTargeting.cpp">
       <Filter>BattleState</Filter>

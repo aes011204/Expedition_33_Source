@@ -1,6 +1,7 @@
 ﻿#include "EffectEditorApp.h"
 
 #include "ClientInstance.h"
+#include "ComputeSourceHistoryRibbonEmitter.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Level_EffectEditor.h"
@@ -84,6 +85,7 @@ namespace Internal
             prototypeTag == L"GameObject_Effect_ComputeSpriteEmitter" ||
             prototypeTag == L"GameObject_Effect_ComputeTrailEmitter" ||
             prototypeTag == L"GameObject_Effect_ComputeRibbonEmitter" ||
+            prototypeTag == L"GameObject_Effect_ComputeSourceHistoryRibbonEmitter" ||
             prototypeTag == L"GameObject_Effect_MeshEmitter";
     }
 
@@ -605,6 +607,19 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
     }
 
     Internal::Log_EffectEditorResourceFilterSummary("Static", loadJobs.size(), includedCount, excludedCount, failedCount);
+
+    constexpr const wchar_t* sourceHistoryRibbonTag = L"GameObject_Effect_ComputeSourceHistoryRibbonEmitter";
+    if (!GAME->Has_Prototype(ETOI(LevelType::Static), sourceHistoryRibbonTag))
+    {
+        CHECK_FAILED(
+            GAME->Add_Prototype(
+                ETOI(LevelType::Static),
+                sourceHistoryRibbonTag,
+                Client::ComputeSourceHistoryRibbonEmitter::Create(_device, _context)
+            ),
+            E_FAIL
+        );
+    }
 
     return S_OK;
 }

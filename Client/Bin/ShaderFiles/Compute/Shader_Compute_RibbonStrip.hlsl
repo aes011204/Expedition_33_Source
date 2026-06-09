@@ -11,6 +11,7 @@ struct RibbonInstanceVertex
     float4 previousPosition;
     float4 currentPosition;
     float4 nextPosition;
+    float4 nextNextPosition;
     float2 lifeTime;
     float4 startColor;
     float4 endColor;
@@ -57,13 +58,16 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     if (index >= g_SegmentCount)
         return;
 
-    RibbonSamplePayload previous = (RibbonSamplePayload)0;
-    if (index > 0u)
+    RibbonSamplePayload previous = SampleData[index];
+    const bool hasPreviousSample = index > 0u;
+    if (hasPreviousSample)
         previous = SampleData[index - 1u];
-    else
-        previous = SampleData[index];
     const RibbonSamplePayload current = SampleData[index];
     const RibbonSamplePayload next = SampleData[index + 1u];
+    RibbonSamplePayload nextNext = next;
+    const bool hasNextNextSample = index + 2u <= g_SegmentCount;
+    if (hasNextNextSample)
+        nextNext = SampleData[index + 2u];
     const float age = max(0.0f, current.sampleParams.x);
     const float lifetime = max(0.0001f, current.sampleParams.y);
     const float lifeProgress = saturate(age / lifetime);
@@ -74,13 +78,19 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     const float nextV = g_TilingDistance > 0.0f ? nextDistance / max(g_TilingDistance, 0.0001f) : nextDistance / visibleLength;
 
     RibbonInstanceVertex output = (RibbonInstanceVertex)0;
-    output.previousPosition = previous.currentWorldPosition;
+    output.previousPosition = float4(previous.currentWorldPosition.xyz, hasPreviousSample ? 1.0f : 0.0f);
     output.currentPosition = current.currentWorldPosition;
     output.nextPosition = next.currentWorldPosition;
+    output.nextNextPosition = float4(nextNext.currentWorldPosition.xyz, hasNextNextSample ? 1.0f : 0.0f);
     output.lifeTime = float2(lifetime, age);
     output.startColor = current.startColor;
     output.endColor = current.endColor;
     output.subUVRect = float4(0.0f, currentV, 1.0f, nextV);
-    output.segmentParams = float4(lifeProgress, max(current.sampleParams.w, 0.001f), 1.0f - lifeProgress, index > 0u ? 1.0f : 0.0f);
+    output.segmentParams = float4(
+        lifeProgress,
+        max(current.sampleParams.w, 0.001f),
+        max(next.sampleParams.w, 0.001f),
+        1.0f - lifeProgress
+    );
     OutputData[index] = output;
 }

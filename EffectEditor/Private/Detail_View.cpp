@@ -80,6 +80,38 @@ namespace Internal
         }
     }
 
+    static const char* Get_SourceHistoryPreviewMotionPresetLabel(SourceHistoryPreviewMotionPreset value)
+    {
+        switch (value)
+        {
+        case SourceHistoryPreviewMotionPreset::Off:
+            return "Off";
+        case SourceHistoryPreviewMotionPreset::Line:
+            return "Line";
+        case SourceHistoryPreviewMotionPreset::Arc:
+            return "Arc";
+        case SourceHistoryPreviewMotionPreset::Loop:
+            return "Loop";
+        default:
+            return "Off";
+        }
+    }
+
+    static const char* Get_SourceHistoryPreviewMotionAxisLabel(SourceHistoryPreviewMotionAxis value)
+    {
+        switch (value)
+        {
+        case SourceHistoryPreviewMotionAxis::X:
+            return "X";
+        case SourceHistoryPreviewMotionAxis::Y:
+            return "Y";
+        case SourceHistoryPreviewMotionAxis::Z:
+            return "Z";
+        default:
+            return "X";
+        }
+    }
+
     static const char* Get_RenderLayerOverrideLabel(EmitterRenderLayerOverride value)
     {
         switch (value)
@@ -205,6 +237,99 @@ namespace Internal
             {
                 const bool selected = value == candidate;
                 if (ImGui::Selectable(Get_RibbonLinkOrderLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value = defaultValue;
+            return true;
+        }
+
+        return changed;
+    }
+
+    static bool Draw_SourceHistoryPreviewMotionPresetProperty(
+        DetailPropertyContext& detailContext,
+        SourceHistoryPreviewMotionPreset& value,
+        SourceHistoryPreviewMotionPreset defaultValue)
+    {
+        static constexpr SourceHistoryPreviewMotionPreset kValues[] = {
+            SourceHistoryPreviewMotionPreset::Off,
+            SourceHistoryPreviewMotionPreset::Line,
+            SourceHistoryPreviewMotionPreset::Arc,
+            SourceHistoryPreviewMotionPreset::Loop,
+        };
+
+        ImGui::PushID("SourceHistoryPreviewMotionPreset");
+        detailContext.Draw_PropertyLabel("Preview Motion");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_SourceHistoryPreviewMotionPresetLabel(value)))
+        {
+            for (const SourceHistoryPreviewMotionPreset candidate : kValues)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_SourceHistoryPreviewMotionPresetLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value = defaultValue;
+            return true;
+        }
+
+        return changed;
+    }
+
+    static bool Draw_SourceHistoryPreviewMotionAxisProperty(
+        DetailPropertyContext& detailContext,
+        SourceHistoryPreviewMotionAxis& value,
+        SourceHistoryPreviewMotionAxis defaultValue)
+    {
+        static constexpr SourceHistoryPreviewMotionAxis kValues[] = {
+            SourceHistoryPreviewMotionAxis::X,
+            SourceHistoryPreviewMotionAxis::Y,
+            SourceHistoryPreviewMotionAxis::Z,
+        };
+
+        ImGui::PushID("SourceHistoryPreviewMotionAxis");
+        detailContext.Draw_PropertyLabel("Preview Motion Axis");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_SourceHistoryPreviewMotionAxisLabel(value)))
+        {
+            for (const SourceHistoryPreviewMotionAxis candidate : kValues)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_SourceHistoryPreviewMotionAxisLabel(candidate), selected))
                 {
                     value = candidate;
                     changed = true;
@@ -1031,6 +1156,99 @@ void Detail_View::Render_TypeDataDetail(
         }
 
         ImGui::TextDisabled("Link Order는 현재 BirthOrder/SpawnOrder가 동일 처리됩니다.");
+        break;
+    }
+    case AuthoringTypeDataKind::SourceHistoryRibbon:
+    {
+        SourceHistoryRibbonTypeData* data = get_if<SourceHistoryRibbonTypeData>(&emitter.typeData.payload);
+        if (data == nullptr)
+        {
+            ImGui::TextDisabled("SourceHistoryRibbon TypeData payload is invalid.");
+            break;
+        }
+
+        const SourceHistoryRibbonTypeData defaultData{};
+        if (ImGui::CollapsingHeader("Source History Ribbon", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistoryRibbonTypeData"))
+            {
+                changed |= _detailPropertyContext.Draw_UintProperty(
+                    "히스토리 수",
+                    data->maxSampleCount,
+                    defaultData.maxSampleCount,
+                    "source position history가 보관할 최대 sample 개수입니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "샘플 간격",
+                    data->sampleSpacing,
+                    defaultData.sampleSpacing,
+                    0.005f,
+                    "source가 이 거리 이상 움직였을 때 새 sample을 추가합니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "샘플 보강 간격",
+                    data->sampleInterval,
+                    defaultData.sampleInterval,
+                    0.005f,
+                    "0보다 크면 이동이 작아도 이 시간마다 sample을 보강합니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "최대 표시 길이",
+                    data->maxLength,
+                    defaultData.maxLength,
+                    0.01f,
+                    "head 기준 누적 거리로 제한하는 최대 표시 길이입니다. 0 이하면 제한하지 않습니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "꼬리 페이드 길이",
+                    data->tailFadeLength,
+                    defaultData.tailFadeLength,
+                    0.01f,
+                    "최대 표시 길이 끝으로 갈수록 alpha를 줄이는 후보 값입니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "기본 폭",
+                    data->baseWidth,
+                    defaultData.baseWidth,
+                    0.01f,
+                    "SizeByLife를 곱하기 전 source history strip 기본 폭입니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "타일링 거리",
+                    data->tilingDistance,
+                    defaultData.tilingDistance,
+                    0.01f,
+                    "0 이하면 전체 표시 길이에 stretch하고, 양수면 거리 기준으로 texture를 반복합니다."
+                );
+                changed |= Internal::Draw_SourceHistoryPreviewMotionPresetProperty(
+                    _detailPropertyContext,
+                    data->previewMotionPreset,
+                    defaultData.previewMotionPreset
+                );
+                changed |= Internal::Draw_SourceHistoryPreviewMotionAxisProperty(
+                    _detailPropertyContext,
+                    data->previewMotionAxis,
+                    defaultData.previewMotionAxis
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "Preview Motion Amplitude",
+                    data->previewMotionAmplitude,
+                    defaultData.previewMotionAmplitude,
+                    0.01f,
+                    "Line/Arc/Loop preview motion의 offset 크기입니다."
+                );
+                changed |= _detailPropertyContext.Draw_FloatProperty(
+                    "Preview Motion Speed",
+                    data->previewMotionSpeed,
+                    defaultData.previewMotionSpeed,
+                    0.01f,
+                    "Line/Arc는 one-shot 진행 속도, Loop는 반복 속도입니다."
+                );
+                _detailPropertyContext.End_PropertyTable();
+            }
+        }
+
+        ImGui::TextDisabled("Preview Motion은 SourceHistoryRibbon look 검증용이며 gameplay binding이 아닙니다.");
         break;
     }
     case AuthoringTypeDataKind::None:

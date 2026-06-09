@@ -238,6 +238,8 @@ Shared<const EffectDefinition> EffectAssetRuntimeLoader::Load_Definition(const w
             converted = Build_EmitterDefinition(emitter, emitterDefinition);
         else if (rendererTypeLower == "trail")
             converted = Build_TrailEmitterDefinition(emitter, emitterDefinition);
+        else if (rendererTypeLower == "sourcehistoryribbon")
+            converted = Build_SourceHistoryRibbonEmitterDefinition(emitter, emitterDefinition);
         else if (rendererTypeLower == "mesh")
             converted = Build_MeshEmitterDefinition(emitter, emitterDefinition);
         else
@@ -1995,6 +1997,34 @@ void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmit
     definition.useLocalSpace = Read_Bool(data, "useLocalSpace", definition.useLocalSpace);
 }
 
+void EffectAssetRuntimeLoader::Apply_RequiredModule(
+    const json& data,
+    EffectEmitterDefinition& definition,
+    ComputeSourceHistoryRibbonEmitterDesc& desc)
+{
+    const auto materialIter = data.find("material");
+    if (materialIter != data.end() && materialIter->is_object())
+        Apply_MaterialPayload(*materialIter, desc.material);
+
+    Internal::Apply_SortPayload(data, desc.sort);
+    desc.playback.duration = max(0.0001f, Read_Float(data, "duration", desc.playback.duration));
+    desc.playback.loopCount = Read_UInt(data, "loopCount", desc.playback.loopCount);
+    desc.playback.delay = max(0.f, Read_Float(data, "delay", desc.playback.delay));
+    desc.playback.delayFirstLoopOnly = Read_Bool(data, "delayFirstLoopOnly", desc.playback.delayFirstLoopOnly);
+    desc.playback.killOnDeactivate = Read_Bool(data, "killOnDeactivate", desc.playback.killOnDeactivate);
+    desc.playback.killOnCompleted = Read_Bool(data, "killOnCompleted", desc.playback.killOnCompleted);
+
+    const auto originIter = data.find("emitterOrigin");
+    if (originIter != data.end())
+        Read_Vec3(*originIter, definition.localPosition);
+
+    const auto rotationIter = data.find("emitterRotationDegrees");
+    if (rotationIter != data.end())
+        Read_Vec3(*rotationIter, definition.localRotationDegrees);
+
+    definition.useLocalSpace = Read_Bool(data, "useLocalSpace", definition.useLocalSpace);
+}
+
 void EffectAssetRuntimeLoader::Apply_RequiredModule(const json& data, EffectEmitterDefinition& definition, MeshEmitterDesc& desc)
 {
     const auto materialIter = data.find("material");
@@ -2568,6 +2598,105 @@ bool EffectAssetRuntimeLoader::Build_TrailEmitterDefinition(const json& emitter,
         desc.spawnPerUnit.maxFrameDistance =
             max(0.f, Read_Float(*spawnPerUnit, "maxFrameDistance", desc.spawnPerUnit.maxFrameDistance));
     }
+
+    outDefinition.concreteDesc = desc;
+    return true;
+}
+
+bool EffectAssetRuntimeLoader::Build_SourceHistoryRibbonEmitterDefinition(const json& emitter, EffectEmitterDefinition& outDefinition)
+{
+    outDefinition = EffectEmitterDefinition{};
+    outDefinition.id = Read_UInt(emitter, "id");
+    outDefinition.name = Read_String(emitter, "name");
+    outDefinition.kind = EffectEmitterKind::SourceHistoryRibbon;
+    outDefinition.enabled = true;
+    Read_Enum(emitter, "renderLayerOverride", outDefinition.renderLayerOverride);
+
+    ComputeSourceHistoryRibbonEmitterDesc desc{};
+    desc.renderLayerOverride = outDefinition.renderLayerOverride;
+
+    const auto typeDataIter = emitter.find("typeData");
+    if (typeDataIter != emitter.end() && typeDataIter->is_object())
+    {
+        const auto dataIter = typeDataIter->find("data");
+        if (dataIter != typeDataIter->end() && dataIter->is_object())
+        {
+            const json& typeData = *dataIter;
+            desc.maxSampleCount = max(2u, Read_UInt(typeData, "maxSampleCount", desc.maxSampleCount));
+            desc.sampleSpacing = max(0.001f, Read_Float(typeData, "sampleSpacing", desc.sampleSpacing));
+            desc.sampleInterval = max(0.f, Read_Float(typeData, "sampleInterval", desc.sampleInterval));
+            desc.maxLength = max(0.f, Read_Float(typeData, "maxLength", desc.maxLength));
+            desc.tailFadeLength = max(0.f, Read_Float(typeData, "tailFadeLength", desc.tailFadeLength));
+            desc.baseWidth = max(0.001f, Read_Float(typeData, "baseWidth", desc.baseWidth));
+            desc.tilingDistance = max(0.f, Read_Float(typeData, "tilingDistance", desc.tilingDistance));
+        }
+    }
+
+    if (const json* required = Find_ModuleData(emitter, "Required"))
+        Apply_RequiredModule(*required, outDefinition, desc);
+
+    if (const json* lifetime = Find_ModuleData(emitter, "Lifetime"))
+    {
+        const auto lifeTimeIter = lifetime->find("lifeTime");
+        if (lifeTimeIter != lifetime->end())
+        {
+            desc.lifetime.lifeTime = Vec2{
+                Evaluate_FloatDistributionMin(*lifeTimeIter, desc.lifetime.lifeTime.x),
+                Evaluate_FloatDistributionMax(*lifeTimeIter, desc.lifetime.lifeTime.y)
+            };
+            desc.sampleLifetime = max(0.0001f, desc.lifetime.lifeTime.y);
+        }
+    }
+
+    if (const json* initialColor = Find_ModuleData(emitter, "InitialColor"))
+    {
+        const auto colorIter = initialColor->find("color");
+        if (colorIter != initialColor->end())
+        {
+            desc.initialColor.startColorMin = Evaluate_ColorDistributionMin(*colorIter, desc.initialColor.startColorMin);
+            desc.initialColor.startColorMax = Evaluate_ColorDistributionMax(*colorIter, desc.initialColor.startColorMax);
+            desc.initialColor.colorSeed = Internal::Read_DistributionRandomSeedDesc(*colorIter, initialColor);
+        }
+
+        const auto alphaIter = initialColor->find("alpha");
+        if (alphaIter != initialColor->end())
+        {
+            desc.initialColor.startColorMin.w =
+                clamp(Evaluate_FloatDistributionMin(*alphaIter, desc.initialColor.startColorMin.w), 0.f, 1.f);
+            desc.initialColor.startColorMax.w =
+                clamp(Evaluate_FloatDistributionMax(*alphaIter, desc.initialColor.startColorMax.w), 0.f, 1.f);
+            desc.initialColor.alphaSeed = Internal::Read_DistributionRandomSeedDesc(*alphaIter, initialColor);
+        }
+
+        desc.colorOverLife.endColorMin = desc.initialColor.startColorMin;
+        desc.colorOverLife.endColorMax = desc.initialColor.startColorMax;
+    }
+
+    if (const json* colorOverLife = Find_ModuleData(emitter, "ColorOverLife"))
+    {
+        const auto colorIter = colorOverLife->find("colorOverLife");
+        if (colorIter != colorOverLife->end())
+        {
+            desc.colorOverLife.endColorMin = Evaluate_ColorOverLifeEndpointColorMin(*colorIter, desc.colorOverLife.endColorMin);
+            desc.colorOverLife.endColorMax = Evaluate_ColorOverLifeEndpointColorMax(*colorIter, desc.colorOverLife.endColorMax);
+            desc.colorOverLife.colorSeed = Internal::Read_DistributionRandomSeedDesc(*colorIter, colorOverLife);
+        }
+
+        const auto alphaIter = colorOverLife->find("alphaOverLife");
+        if (alphaIter != colorOverLife->end())
+        {
+            desc.colorOverLife.endColorMin.w =
+                clamp(Evaluate_ColorOverLifeEndpointAlphaMin(*alphaIter, desc.colorOverLife.endColorMin.w), 0.f, 1.f);
+            desc.colorOverLife.endColorMax.w =
+                clamp(Evaluate_ColorOverLifeEndpointAlphaMax(*alphaIter, desc.colorOverLife.endColorMax.w), 0.f, 1.f);
+            desc.colorOverLife.alphaSeed = Internal::Read_DistributionRandomSeedDesc(*alphaIter, colorOverLife);
+        }
+
+        Fill_ColorOverLifeCurvePayload(desc.colorOverLife.curve, *colorOverLife);
+    }
+
+    if (const json* sizeByLife = Find_ModuleData(emitter, "SizeByLife"))
+        Fill_SizeByLifePayload(desc.sizeByLife, *sizeByLife);
 
     outDefinition.concreteDesc = desc;
     return true;

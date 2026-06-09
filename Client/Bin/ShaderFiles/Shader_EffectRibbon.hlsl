@@ -95,35 +95,38 @@ struct VS_IN
     float4 previousPosition : WORLD0;
     float4 currentPosition : WORLD1;
     float4 nextPosition : WORLD2;
+    float4 nextNextPosition : WORLD3;
     float2 lifeTime : TEXCOORD0;
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
     float4 subUVRect : TEXCOORD1;
-    float4 segmentParams : TEXCOORD2; // x: life progress, y: width, z: alpha scale, w: hasPrevious
+    float4 segmentParams : TEXCOORD2; // x: life progress, y: current width, z: next width, w: alpha scale
 };
 
 struct VS_OUT
 {
-    float3 previousPosition : POSITION;
-    float3 currentPosition : TEXCOORD0;
-    float3 nextPosition : TEXCOORD1;
-    float2 lifeTime : TEXCOORD2;
+    float4 previousPosition : POSITION;
+    float4 currentPosition : TEXCOORD0;
+    float4 nextPosition : TEXCOORD1;
+    float4 nextNextPosition : TEXCOORD2;
+    float2 lifeTime : TEXCOORD3;
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
-    float4 subUVRect : TEXCOORD3;
-    float4 segmentParams : TEXCOORD4;
+    float4 subUVRect : TEXCOORD4;
+    float4 segmentParams : TEXCOORD5;
 };
 
 struct GS_IN
 {
-    float3 previousPosition : POSITION;
-    float3 currentPosition : TEXCOORD0;
-    float3 nextPosition : TEXCOORD1;
-    float2 lifeTime : TEXCOORD2;
+    float4 previousPosition : POSITION;
+    float4 currentPosition : TEXCOORD0;
+    float4 nextPosition : TEXCOORD1;
+    float4 nextNextPosition : TEXCOORD2;
+    float2 lifeTime : TEXCOORD3;
     float4 startColor : COLOR0;
     float4 endColor : COLOR1;
-    float4 subUVRect : TEXCOORD3;
-    float4 segmentParams : TEXCOORD4;
+    float4 subUVRect : TEXCOORD4;
+    float4 segmentParams : TEXCOORD5;
 };
 
 struct GS_OUT
@@ -162,14 +165,30 @@ float3 Resolve_ViewUpAxis()
     return NormalizeOrFallback(g_ViewMatrixInverse[1].xyz, float3(0.f, 1.f, 0.f));
 }
 
-float3 Resolve_RibbonTangent(float3 previousPosition, float3 currentPosition, float3 nextPosition, float hasPreviousSample)
+float3 Resolve_RibbonTangent(
+    float3 previousPosition,
+    float3 currentPosition,
+    float3 nextPosition,
+    bool hasPreviousSample,
+    bool hasNextSample)
 {
-    const float3 forward = NormalizeOrFallback(nextPosition - currentPosition, float3(0.f, 0.f, 1.f));
-    if (g_EffectRibbonAxisParams.w < 0.5f || hasPreviousSample < 0.5f)
-        return forward;
+    const float3 fallbackAxis = float3(0.f, 0.f, 1.f);
+    float3 forward = fallbackAxis;
+    if (hasNextSample)
+        forward = NormalizeOrFallback(nextPosition - currentPosition, fallbackAxis);
 
-    const float3 backward = NormalizeOrFallback(currentPosition - previousPosition, forward);
-    return NormalizeOrFallback(backward + forward, forward);
+    float3 backward = forward;
+    if (hasPreviousSample)
+        backward = NormalizeOrFallback(currentPosition - previousPosition, forward);
+
+    if (g_EffectRibbonAxisParams.w >= 0.5f && hasPreviousSample && hasNextSample)
+        return NormalizeOrFallback(backward + forward, forward);
+    if (hasNextSample)
+        return forward;
+    if (hasPreviousSample)
+        return backward;
+
+    return fallbackAxis;
 }
 
 float3 Resolve_RibbonSide(float3 currentPosition, float3 tangent)
@@ -194,9 +213,10 @@ VS_OUT VS_MAIN(VS_IN In)
 {
     VS_OUT Out = (VS_OUT)0;
 
-    Out.previousPosition = In.previousPosition.xyz;
-    Out.currentPosition = In.currentPosition.xyz;
-    Out.nextPosition = In.nextPosition.xyz;
+    Out.previousPosition = In.previousPosition;
+    Out.currentPosition = In.currentPosition;
+    Out.nextPosition = In.nextPosition;
+    Out.nextNextPosition = In.nextNextPosition;
     Out.lifeTime = In.lifeTime;
     Out.startColor = In.startColor;
     Out.endColor = In.endColor;
@@ -227,21 +247,35 @@ GS_OUT Build_RibbonVertex(
 [maxvertexcount(4)]
 void GS_MAIN(point GS_IN In[1], inout TriangleStream<GS_OUT> OutStream)
 {
-    const float3 currentPosition = In[0].currentPosition;
-    const float3 nextPosition = In[0].nextPosition;
-    const float3 tangent = Resolve_RibbonTangent(
-        In[0].previousPosition,
+    const float3 previousPosition = In[0].previousPosition.xyz;
+    const float3 currentPosition = In[0].currentPosition.xyz;
+    const float3 nextPosition = In[0].nextPosition.xyz;
+    const float3 nextNextPosition = In[0].nextNextPosition.xyz;
+    const bool hasPreviousSample = In[0].previousPosition.w > 0.5f;
+    const bool hasNextNextSample = In[0].nextNextPosition.w > 0.5f;
+    const float3 currentTangent = Resolve_RibbonTangent(
+        previousPosition,
         currentPosition,
         nextPosition,
-        In[0].segmentParams.w
+        hasPreviousSample,
+        true
     );
-    const float3 side = Resolve_RibbonSide(currentPosition, tangent);
-    const float halfWidth = max(In[0].segmentParams.y, 0.001f) * 0.5f;
+    const float3 nextTangent = Resolve_RibbonTangent(
+        currentPosition,
+        nextPosition,
+        nextNextPosition,
+        true,
+        hasNextNextSample
+    );
+    const float3 currentSide = Resolve_RibbonSide(currentPosition, currentTangent);
+    const float3 nextSide = Resolve_RibbonSide(nextPosition, nextTangent);
+    const float currentHalfWidth = max(In[0].segmentParams.y, 0.001f) * 0.5f;
+    const float nextHalfWidth = max(In[0].segmentParams.z, 0.001f) * 0.5f;
 
-    const float3 currentA = currentPosition - side * halfWidth;
-    const float3 currentB = currentPosition + side * halfWidth;
-    const float3 nextA = nextPosition - side * halfWidth;
-    const float3 nextB = nextPosition + side * halfWidth;
+    const float3 currentA = currentPosition - currentSide * currentHalfWidth;
+    const float3 currentB = currentPosition + currentSide * currentHalfWidth;
+    const float3 nextA = nextPosition - nextSide * nextHalfWidth;
+    const float3 nextB = nextPosition + nextSide * nextHalfWidth;
 
     OutStream.Append(Build_RibbonVertex(currentA, In[0].subUVRect.xy, float2(0.f, 0.f), In[0]));
     OutStream.Append(Build_RibbonVertex(currentB, float2(In[0].subUVRect.z, In[0].subUVRect.y), float2(0.f, 1.f), In[0]));
@@ -340,7 +374,7 @@ EffectMaterialSurface Resolve_EffectRibbonMaterialSurface(PS_IN In)
         breakupNoise,
         1.f
     );
-    surface.coverage = shapeCoverage * saturate(In.color.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
+    surface.coverage = shapeCoverage * saturate(In.color.a * g_Tint.a * saturate(In.segmentParams.w) * sideAlpha);
 
     if (shapeCoverage < max(alphaCutoff, 0.01f))
         discard;
@@ -431,7 +465,7 @@ PS_OUT PS_ADDITIVE(PS_IN In)
     const float edgeBreakup = lerp(1.f, noiseRaw, noiseStrength * edgeWeight);
     float coverage = Effect_ApplyAlphaErosion(maskAlpha, maskAlpha * edgeBreakup, alphaErosion);
     const float coverageBase = saturate(coverage * breakupNoise);
-    const float additiveLifeAlpha = saturate(In.color.a * g_Tint.a * saturate(In.segmentParams.z) * sideAlpha);
+    const float additiveLifeAlpha = saturate(In.color.a * g_Tint.a * saturate(In.segmentParams.w) * sideAlpha);
     const float energyVariation = lerp(1.f, lerp(0.75f, 1.25f, noiseRaw), noiseStrength);
     const int colorSource = (int)g_EffectRibbonAdditiveParams.x;
     const int amountSource = (int)g_EffectRibbonAdditiveParams.y;

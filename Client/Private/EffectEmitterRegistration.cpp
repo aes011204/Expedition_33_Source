@@ -3,6 +3,7 @@
 #include "ComputeSpriteEmitter.h"
 #include "ComputeTrailEmitter.h"
 #include "ComputeRibbonEmitter.h"
+#include "ComputeSourceHistoryRibbonEmitter.h"
 #include "EffectEmitterFactory.h"
 #include "GameInstance.h"
 
@@ -11,6 +12,7 @@ NS_BEGIN(Client)
 namespace Internal
 {
     constexpr const wchar_t* kComputeRibbonEmitterPrototypeTag = L"GameObject_Effect_ComputeRibbonEmitter";
+    constexpr const wchar_t* kComputeSourceHistoryRibbonEmitterPrototypeTag = L"GameObject_Effect_ComputeSourceHistoryRibbonEmitter";
 
     Shared<EffectEmitter> Create_ClientEffectEmitter(const EffectEmitterDefinition& emitterDefinition)
     {
@@ -76,6 +78,33 @@ namespace Internal
             {
                 LOG_WARN(
                     "ComputeRibbonEmitter prototype missing: failed to clone ribbon emitter prototype. emitter='{}'",
+                    emitterDefinition.name
+                );
+            }
+
+            return dynamic_pointer_cast<EffectEmitter>(clonedObject);
+        }
+
+        case EffectEmitterKind::SourceHistoryRibbon:
+        {
+            const auto* desc = get_if<ComputeSourceHistoryRibbonEmitterDesc>(&emitterDefinition.concreteDesc);
+            if (nullptr == desc)
+                return nullptr;
+
+            ComputeSourceHistoryRibbonEmitterDesc concreteDesc = *desc;
+            concreteDesc.renderLayerOverride = emitterDefinition.renderLayerOverride;
+            const Shared<GameObject> clonedObject = dynamic_pointer_cast<GameObject>(
+                GAME->Clone_Prototype(
+                    Prototype::GameObject,
+                    ETOI(LevelType::Static),
+                    kComputeSourceHistoryRibbonEmitterPrototypeTag,
+                    &concreteDesc
+                )
+            );
+            if (clonedObject == nullptr)
+            {
+                LOG_WARN(
+                    "ComputeSourceHistoryRibbonEmitter prototype missing: failed to clone source history ribbon emitter prototype. emitter='{}'",
                     emitterDefinition.name
                 );
             }

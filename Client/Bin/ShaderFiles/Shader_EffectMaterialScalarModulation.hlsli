@@ -128,21 +128,24 @@ float EffectMaterialScalar_ResolveMultiplier(int targetField, float lifeProgress
     float multiplier = 1.f;
     const uint count = min(8u, (uint)g_EffectMaterialScalarModulationParams.x);
 
-    [loop]
-    for (uint index = 0u; index < 8u; ++index)
+    if (count > 0u)
     {
-        if (index >= count)
-            break;
+        [loop]
+        for (uint index = 0u; index < 8u; ++index)
+        {
+            if (index >= count)
+                break;
 
-        const float4 meta = g_EffectMaterialScalarModulationMeta[index];
-        if (meta.x < 0.5f || (int)meta.y != targetField)
-            continue;
+            const float4 meta = g_EffectMaterialScalarModulationMeta[index];
+            if (meta.x < 0.5f || (int)meta.y != targetField)
+                continue;
 
-        const int timeSource = (int)meta.z;
-        const float phase = timeSource == EFFECT_MATERIAL_SCALAR_TIME_EMITTER_TIME
-                            ? g_EffectMaterialScalarModulationParams.y
-                            : lifeProgress;
-        multiplier *= EffectMaterialScalar_EvaluateCurve(index, phase);
+            const int timeSource = (int)meta.z;
+            const float phase = timeSource == EFFECT_MATERIAL_SCALAR_TIME_EMITTER_TIME
+                                ? g_EffectMaterialScalarModulationParams.y
+                                : lifeProgress;
+            multiplier *= EffectMaterialScalar_EvaluateCurve(index, phase);
+        }
     }
 
     return multiplier;

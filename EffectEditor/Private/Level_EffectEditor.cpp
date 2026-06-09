@@ -141,6 +141,36 @@ namespace Internal
         }
     }
 
+    EffectSourceHistoryPreviewMotionPreset Resolve_SourceHistoryPreviewMotionPreset(SourceHistoryPreviewMotionPreset value)
+    {
+        switch (value)
+        {
+        case SourceHistoryPreviewMotionPreset::Line:
+            return EffectSourceHistoryPreviewMotionPreset::Line;
+        case SourceHistoryPreviewMotionPreset::Arc:
+            return EffectSourceHistoryPreviewMotionPreset::Arc;
+        case SourceHistoryPreviewMotionPreset::Loop:
+            return EffectSourceHistoryPreviewMotionPreset::Loop;
+        case SourceHistoryPreviewMotionPreset::Off:
+        default:
+            return EffectSourceHistoryPreviewMotionPreset::Off;
+        }
+    }
+
+    EffectSourceHistoryPreviewMotionAxis Resolve_SourceHistoryPreviewMotionAxis(SourceHistoryPreviewMotionAxis value)
+    {
+        switch (value)
+        {
+        case SourceHistoryPreviewMotionAxis::Y:
+            return EffectSourceHistoryPreviewMotionAxis::Y;
+        case SourceHistoryPreviewMotionAxis::Z:
+            return EffectSourceHistoryPreviewMotionAxis::Z;
+        case SourceHistoryPreviewMotionAxis::X:
+        default:
+            return EffectSourceHistoryPreviewMotionAxis::X;
+        }
+    }
+
     fs::path Resolve_AuthoredAssetPath(const string& guid, const string& path)
     {
         if (GAME == nullptr)
@@ -1418,6 +1448,10 @@ Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition
             definition->emitters.push_back(Build_PreviewRibbonEmitterDefinition(emitter));
             break;
 
+        case AuthoringTypeDataKind::SourceHistoryRibbon:
+            definition->emitters.push_back(Build_PreviewSourceHistoryRibbonEmitterDefinition(emitter));
+            break;
+
         case AuthoringTypeDataKind::None:
         default:
             definition->emitters.push_back(Build_PreviewEmitterDefinition(emitter));
@@ -1753,6 +1787,147 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     }
 
     definition.concreteDesc = desc;
+    return definition;
+}
+
+EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmitterDefinition(const AuthoringEmitter& emitter) const
+{
+    EffectEmitterDefinition definition{};
+    definition.id = emitter.id;
+    definition.name = emitter.name;
+    definition.kind = EffectEmitterKind::SourceHistoryRibbon;
+    definition.enabled = emitter.enabled;
+    definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
+
+    ComputeSourceHistoryRibbonEmitterDesc emitterDesc{};
+    emitterDesc.renderLayerOverride = definition.renderLayerOverride;
+
+    const SourceHistoryRibbonTypeData* sourceHistoryData = get_if<SourceHistoryRibbonTypeData>(&emitter.typeData.payload);
+    const SourceHistoryRibbonTypeData defaultSourceHistoryData{};
+    const SourceHistoryRibbonTypeData& sourceHistoryPolicy =
+        sourceHistoryData != nullptr ? *sourceHistoryData : defaultSourceHistoryData;
+
+    emitterDesc.maxSampleCount = max(2u, sourceHistoryPolicy.maxSampleCount);
+    emitterDesc.sampleSpacing = max(0.001f, sourceHistoryPolicy.sampleSpacing);
+    emitterDesc.sampleInterval = max(0.f, sourceHistoryPolicy.sampleInterval);
+    emitterDesc.maxLength = max(0.f, sourceHistoryPolicy.maxLength);
+    emitterDesc.tailFadeLength = max(0.f, sourceHistoryPolicy.tailFadeLength);
+    emitterDesc.baseWidth = max(0.001f, sourceHistoryPolicy.baseWidth);
+    emitterDesc.tilingDistance = max(0.f, sourceHistoryPolicy.tilingDistance);
+    emitterDesc.previewMotionPreset = Internal::Resolve_SourceHistoryPreviewMotionPreset(sourceHistoryPolicy.previewMotionPreset);
+    emitterDesc.previewMotionAxis = Internal::Resolve_SourceHistoryPreviewMotionAxis(sourceHistoryPolicy.previewMotionAxis);
+    emitterDesc.previewMotionAmplitude = max(0.f, sourceHistoryPolicy.previewMotionAmplitude);
+    emitterDesc.previewMotionSpeed = max(0.f, sourceHistoryPolicy.previewMotionSpeed);
+
+    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    {
+        Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
+
+        emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
+        emitterDesc.sort.sortLayer = required->sortLayer;
+        emitterDesc.sort.artistSortBias = required->sortBias;
+
+        emitterDesc.playback.duration = max(0.0001f, required->duration);
+        emitterDesc.playback.loopCount = required->loopCount;
+        emitterDesc.playback.delay = max(0.f, required->delay);
+        emitterDesc.playback.delayFirstLoopOnly = required->delayFirstLoopOnly;
+        emitterDesc.playback.killOnDeactivate = required->killOnDeactivate;
+        emitterDesc.playback.killOnCompleted = required->killOnCompleted;
+        definition.localPosition = required->emitterOrigin;
+        definition.localRotationDegrees = required->emitterRotationDegrees;
+        definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    {
+        emitterDesc.lifetime.lifeTime = Vec2{
+            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
+            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
+        };
+        emitterDesc.sampleLifetime = max(0.0001f, emitterDesc.lifetime.lifeTime.y);
+    }
+
+    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    {
+        const Color minColor = Internal::Evaluate_ColorDistributionMin(
+            initialColor->color,
+            Color{
+                emitterDesc.initialColor.startColorMin.x,
+                emitterDesc.initialColor.startColorMin.y,
+                emitterDesc.initialColor.startColorMin.z,
+                emitterDesc.initialColor.startColorMin.w
+            }
+        );
+        const Color maxColor = Internal::Evaluate_ColorDistributionMax(
+            initialColor->color,
+            Color{
+                emitterDesc.initialColor.startColorMax.x,
+                emitterDesc.initialColor.startColorMax.y,
+                emitterDesc.initialColor.startColorMax.z,
+                emitterDesc.initialColor.startColorMax.w
+            }
+        );
+        const float minAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMin(initialColor->alpha, emitterDesc.initialColor.startColorMin.w),
+            0.f,
+            1.f
+        );
+        const float maxAlpha = clamp(
+            Internal::Evaluate_FloatDistributionMax(initialColor->alpha, emitterDesc.initialColor.startColorMax.w),
+            0.f,
+            1.f
+        );
+
+        emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
+        emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
+        emitterDesc.initialColor.colorSeed = Internal::Build_RandomSeedDesc(initialColor->color);
+        emitterDesc.initialColor.alphaSeed = Internal::Build_RandomSeedDesc(initialColor->alpha);
+        emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
+        emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
+    }
+
+    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+    {
+        const Color minEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMin(
+            colorOverLife->colorOverLife,
+            Color{
+                emitterDesc.colorOverLife.endColorMin.x,
+                emitterDesc.colorOverLife.endColorMin.y,
+                emitterDesc.colorOverLife.endColorMin.z,
+                emitterDesc.colorOverLife.endColorMin.w
+            }
+        );
+        const Color maxEndColor = Internal::Evaluate_ColorOverLifeEndpointColorMax(
+            colorOverLife->colorOverLife,
+            Color{
+                emitterDesc.colorOverLife.endColorMax.x,
+                emitterDesc.colorOverLife.endColorMax.y,
+                emitterDesc.colorOverLife.endColorMax.z,
+                emitterDesc.colorOverLife.endColorMax.w
+            }
+        );
+        const float minEndAlpha = clamp(
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMin(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMin.w),
+            0.f,
+            1.f
+        );
+        const float maxEndAlpha = clamp(
+            Internal::Evaluate_ColorOverLifeEndpointAlphaMax(colorOverLife->alphaOverLife, emitterDesc.colorOverLife.endColorMax.w),
+            0.f,
+            1.f
+        );
+
+        emitterDesc.colorOverLife.endColorMin = Vec4{ minEndColor.R(), minEndColor.G(), minEndColor.B(), minEndAlpha };
+        emitterDesc.colorOverLife.endColorMax = Vec4{ maxEndColor.R(), maxEndColor.G(), maxEndColor.B(), maxEndAlpha };
+        emitterDesc.colorOverLife.colorSeed = Internal::Build_RandomSeedDesc(colorOverLife->colorOverLife);
+        emitterDesc.colorOverLife.alphaSeed = Internal::Build_RandomSeedDesc(colorOverLife->alphaOverLife);
+        Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
+    }
+
+    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+        Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
+
+    definition.concreteDesc = emitterDesc;
     return definition;
 }
 

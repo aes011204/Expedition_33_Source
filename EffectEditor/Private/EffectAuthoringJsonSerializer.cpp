@@ -461,6 +461,43 @@ namespace Internal
             Try_ReadEnumToken(*linkOrderIter, outData.linkOrder);
     }
 
+    json To_Json(const SourceHistoryRibbonTypeData& data)
+    {
+        json root = json::object();
+        root["maxSampleCount"] = data.maxSampleCount;
+        root["sampleSpacing"] = data.sampleSpacing;
+        root["sampleInterval"] = data.sampleInterval;
+        root["maxLength"] = data.maxLength;
+        root["tailFadeLength"] = data.tailFadeLength;
+        root["baseWidth"] = data.baseWidth;
+        root["tilingDistance"] = data.tilingDistance;
+        root["previewMotionPreset"] = To_EnumToken(data.previewMotionPreset);
+        root["previewMotionAxis"] = To_EnumToken(data.previewMotionAxis);
+        root["previewMotionAmplitude"] = data.previewMotionAmplitude;
+        root["previewMotionSpeed"] = data.previewMotionSpeed;
+        return root;
+    }
+
+    void From_Json(const json& root, SourceHistoryRibbonTypeData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "maxSampleCount", outData.maxSampleCount);
+        Read_NumberField(root, "sampleSpacing", outData.sampleSpacing);
+        Read_NumberField(root, "sampleInterval", outData.sampleInterval);
+        Read_NumberField(root, "maxLength", outData.maxLength);
+        Read_NumberField(root, "tailFadeLength", outData.tailFadeLength);
+        Read_NumberField(root, "baseWidth", outData.baseWidth);
+        Read_NumberField(root, "tilingDistance", outData.tilingDistance);
+        if (const auto presetIter = root.find("previewMotionPreset"); presetIter != root.end())
+            Try_ReadEnumToken(*presetIter, outData.previewMotionPreset);
+        if (const auto axisIter = root.find("previewMotionAxis"); axisIter != root.end())
+            Try_ReadEnumToken(*axisIter, outData.previewMotionAxis);
+        Read_NumberField(root, "previewMotionAmplitude", outData.previewMotionAmplitude);
+        Read_NumberField(root, "previewMotionSpeed", outData.previewMotionSpeed);
+    }
+
     json To_Json(const MeshTypeData& data)
     {
         json root = json::object();
@@ -522,6 +559,12 @@ namespace Internal
             root["data"] = To_Json(ribbonData != nullptr ? *ribbonData : RibbonTypeData{});
             break;
         }
+        case AuthoringTypeDataKind::SourceHistoryRibbon:
+        {
+            const SourceHistoryRibbonTypeData* sourceHistoryRibbonData = get_if<SourceHistoryRibbonTypeData>(&data.payload);
+            root["data"] = To_Json(sourceHistoryRibbonData != nullptr ? *sourceHistoryRibbonData : SourceHistoryRibbonTypeData{});
+            break;
+        }
         case AuthoringTypeDataKind::None:
         default:
             break;
@@ -572,6 +615,17 @@ namespace Internal
                 From_Json(*dataIter, data);
 
             outData.kind = AuthoringTypeDataKind::Ribbon;
+            outData.payload = data;
+            break;
+        }
+        case AuthoringTypeDataKind::SourceHistoryRibbon:
+        {
+            SourceHistoryRibbonTypeData data{};
+            const auto dataIter = root.find("data");
+            if (dataIter != root.end())
+                From_Json(*dataIter, data);
+
+            outData.kind = AuthoringTypeDataKind::SourceHistoryRibbon;
             outData.payload = data;
             break;
         }
