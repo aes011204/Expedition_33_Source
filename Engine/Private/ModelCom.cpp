@@ -20,6 +20,7 @@
 #include "Channel.h"
 #include "ComputeShaderCom.h"
 #include "GameObject.h"
+#include "ModelDeform.h"
 
 ModelCom::ModelCom(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Component{ device, context }
@@ -62,6 +63,16 @@ ModelCom::ModelCom(const ModelCom& prototype)
     Mark_BoneMatricesDirty();
 
     _leaderPoseMatricesValid = false;
+
+    if (prototype._modelDeform != nullptr)
+    {
+        if (const MorphData* morphData = prototype._modelDeform->Get_MorphData())
+        {
+            _modelDeform = ModelDeform::Create();
+            if (_modelDeform != nullptr)
+                _modelDeform->Set_MorphData(MorphData(*morphData));
+        }
+    }
 }
 
 static json Write_PreLocalTransformJson(const Matrix& matrix)
@@ -251,6 +262,93 @@ bool ModelCom::Set_AnimationByState(uint32 stateIndex, float blendDuration, bool
 uint32 ModelCom::Get_AnimIndexByState(uint32 stateIndex) const
 {
     return _stateAnimIndices[stateIndex];
+}
+
+bool ModelCom::Has_MorphData() const
+{
+    return _modelDeform != nullptr && _modelDeform->Has_MorphData();
+}
+
+const MorphData* ModelCom::Get_MorphData() const
+{
+    return _modelDeform != nullptr ? _modelDeform->Get_MorphData() : nullptr;
+}
+
+const vector<float>* ModelCom::Get_MorphWeights() const
+{
+    return _modelDeform != nullptr ? _modelDeform->Get_MorphWeights() : nullptr;
+}
+
+bool ModelCom::Consume_MorphDirty()
+{
+    return _modelDeform != nullptr && _modelDeform->Consume_MorphDirty();
+}
+
+const vector<VTXANIMMESH>* ModelCom::Get_Vertices(uint32 meshIndex) const
+{
+    if (meshIndex >= _meshes.size())
+        return nullptr;
+
+    const Shared<SkeletalMesh> skeletalMesh = dynamic_pointer_cast<SkeletalMesh>(_meshes[meshIndex]);
+    if (skeletalMesh == nullptr)
+        return nullptr;
+
+    return &skeletalMesh->Get_SourceVertices();
+}
+
+const string* ModelCom::Get_MeshName(uint32 meshIndex) const
+{
+    if (meshIndex >= _meshes.size() || _meshes[meshIndex] == nullptr)
+        return nullptr;
+
+    return &_meshes[meshIndex]->Get_Name();
+}
+
+int32 ModelCom::Find_MeshIndexByName(const string& meshName) const
+{
+    for (uint32 i = 0; i < _meshes.size(); ++i)
+    {
+        if (_meshes[i] != nullptr && _meshes[i]->Get_Name() == meshName)
+            return static_cast<int32>(i);
+    }
+
+    return -1;
+}
+
+HRESULT ModelCom::Try_LoadMorphData(const string& modelPath)
+{
+    if (_modelDeform == nullptr)
+        _modelDeform = ModelDeform::Create();
+
+    CHECK_NULL(_modelDeform, E_FAIL);
+    return _modelDeform->Try_LoadMorphData(modelPath);
+}
+
+uint32 ModelCom::Get_MorphTargetCount() const
+{
+    return _modelDeform != nullptr ? _modelDeform->Get_MorphTargetCount() : 0;
+}
+
+const string* ModelCom::Get_MorphTargetName(uint32 index) const
+{
+    return _modelDeform != nullptr ? _modelDeform->Get_MorphTargetName(index) : nullptr;
+}
+
+int32 ModelCom::Find_MorphTargetIndex(const string& name) const
+{
+    return _modelDeform != nullptr ? _modelDeform->Find_MorphTargetIndex(name) : -1;
+}
+
+void ModelCom::Set_MorphWeight(uint32 targetIndex, float weight)
+{
+    if (_modelDeform != nullptr)
+        _modelDeform->Set_MorphWeight(targetIndex, weight);
+}
+
+void ModelCom::Reset_MorphWeights()
+{
+    if (_modelDeform != nullptr)
+        _modelDeform->Reset_MorphWeights();
 }
 
 const char* ModelCom::Get_AnimationName(uint32 animationIndex) const
@@ -2359,6 +2457,7 @@ void ModelCom::Reset_ModelData()
 
     _boneMatricesDirty = true;
     _leaderPoseMatricesValid = false;
+    _modelDeform.reset();
 
     Invalidate_AnimNotifyAsset();
     Clear_LeaderPoseComponent();

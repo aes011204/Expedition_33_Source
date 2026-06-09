@@ -27,8 +27,10 @@ public:
 
     uint32 Get_NumBoneRefs() const override { return _numBones; }
     const vector<uint32>& Get_BoneIndices() const override { return _boneIndices; }
-
     const vector<VTXANIMMESH>& Get_SourceVertices() const { return _sourceVertices; }
+
+public:
+    
 
 private:
     uint32              _numBones{};
