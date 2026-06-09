@@ -989,9 +989,6 @@
     <ClInclude Include="..\Public\UI_CrossHair.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\UI_ExpeditionStatus.h">
-      <Filter>02.GameObject\UI</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\UI_MonsterHpBar.h">
       <Filter>02.GameObject\UI</Filter>
     </ClInclude>
@@ -1657,9 +1654,6 @@
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_CrossHair.cpp">
-      <Filter>02.GameObject\UI</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\UI_ExpeditionStatus.cpp">
       <Filter>02.GameObject\UI</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\UI_MonsterHpBar.cpp">
