@@ -98,6 +98,9 @@ bool MaterialBuilder::Try_ParseCB(const json& value, MaterialCB& out)
     out.ormAoSource = value.value("ormAoSource", out.ormAoSource);
     out.ormRoughnessSource = value.value("ormRoughnessSource", out.ormRoughnessSource);
     out.ormMetalnessSource = value.value("ormMetalnessSource", out.ormMetalnessSource);
+    out.ormAoSourceSlot = value.value("ormAoSourceSlot", out.ormAoSourceSlot);
+    out.ormRoughnessSourceSlot = value.value("ormRoughnessSourceSlot", out.ormRoughnessSourceSlot);
+    out.ormMetalnessSourceSlot = value.value("ormMetalnessSourceSlot", out.ormMetalnessSourceSlot);
     out.opacityMaskSource = value.value("opacityMaskSource", out.opacityMaskSource);
 
     if (value.contains("uvScale"))
@@ -322,6 +325,8 @@ bool MaterialBuilder::Try_LoadBundleAsset(const fs::path& bundlePath, BundleAsse
                 inst.hairIDOverride = jov.value("hairID", inst.hairIDOverride);
                 inst.irisHeightOverride = jov.value("irisHeight", inst.irisHeightOverride);
                 inst.irisMaskOverride = jov.value("irisMask", inst.irisMaskOverride);
+                inst.orm2Override = jov.value("orm2", inst.orm2Override);
+                inst.orm3Override = jov.value("orm3", inst.orm3Override);
             }
 
             // 상대 경로로 저장 된 번들의 텍스쳐 경로를 런타임 접근을 위한 절대로 변경
@@ -337,6 +342,8 @@ bool MaterialBuilder::Try_LoadBundleAsset(const fs::path& bundlePath, BundleAsse
                 if (jtex.contains("hairID")) inst.hairIDPath = Resolve_TexturePathFromJson(resourceRoot, jtex["hairID"]);
                 if (jtex.contains("irisHeight")) inst.irisHeightPath = Resolve_TexturePathFromJson(resourceRoot, jtex["irisHeight"]);
                 if (jtex.contains("irisMask")) inst.irisMaskPath = Resolve_TexturePathFromJson(resourceRoot, jtex["irisMask"]);
+                if (jtex.contains("orm2")) inst.orm2Path = Resolve_TexturePathFromJson(resourceRoot, jtex["orm2"]);
+                if (jtex.contains("orm3")) inst.orm3Path = Resolve_TexturePathFromJson(resourceRoot, jtex["orm3"]);
             }
 
             outAsset.instancesByAssetName.emplace(assetName, std::move(inst));

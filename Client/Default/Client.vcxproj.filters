@@ -136,9 +136,6 @@
     <Filter Include="02.GameObject\Camera\Cinematic">
       <UniqueIdentifier>{9da3a249-fde0-4202-8400-e101dd8261f9}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\InstancedMeshActor">
-      <UniqueIdentifier>{2e753ff9-c664-4b59-b631-8362dc321ba5}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Ailment">
       <UniqueIdentifier>{17b1ad35-1166-4e14-a636-7434629b73c3}</UniqueIdentifier>
     </Filter>
@@ -835,9 +832,6 @@
     <ClInclude Include="..\public\ItemTargeting.h">
       <Filter>BattleState</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\InstancedMeshActor.h">
-      <Filter>02.GameObject\InstancedMeshActor</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\Level_MapTest.h">
       <Filter>01.Levels\MapTest</Filter>
     </ClInclude>
@@ -1498,9 +1492,6 @@
     </ClCompile>
     <ClCompile Include="..\private\ItemTargeting.cpp">
       <Filter>BattleState</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\InstancedMeshActor.cpp">
-      <Filter>02.GameObject\InstancedMeshActor</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\Level_MapTest.cpp">
       <Filter>01.Levels\MapTest</Filter>

@@ -1,4 +1,4 @@
-#include "ModelCom.h"
+﻿#include "ModelCom.h"
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "MaterialBuilder.h"
@@ -688,6 +688,8 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
                     if (base.baseColorOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::BaseColor, 0, base.baseColorPath);
                     if (base.normalOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Normal, 0, base.normalPath);
                     if (base.ormOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
+                    if (base.orm2Override) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM2, 0, base.orm2Path);
+                    if (base.orm3Override) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM3, 0, base.orm3Path);
                     if (base.emissiveOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, base.emissivePath);
                     if (base.hairDepthOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::HairDepth, 0, base.hairDepthPath);
                     if (base.hairIDOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::HairID, 0, base.hairIDPath);
@@ -729,6 +731,8 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
     Apply_TextureOverride(material.get(), MaterialTextureSlot::BaseColor, inst.baseColor);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::Normal, inst.normal);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM, inst.orm);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM2, inst.orm2);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM3, inst.orm3);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::Emissive, inst.emissive);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::OpacityMask, inst.opacityMask);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::HairDepth, inst.hairDepth);
@@ -1180,6 +1184,16 @@ void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bun
     if (base.ormOverride)
     {
         material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
+    }
+
+    if (base.orm2Override)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::ORM2, 0, base.orm2Path);
+    }
+
+    if (base.orm3Override)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::ORM3, 0, base.orm3Path);
     }
 
     if (base.emissiveOverride)

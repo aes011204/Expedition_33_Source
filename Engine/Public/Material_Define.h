@@ -115,6 +115,8 @@ struct MaterialInstanceOverride
     TextureOverride baseColor{};
     TextureOverride normal{};
     TextureOverride orm{};
+    TextureOverride orm2{};
+    TextureOverride orm3{};
     TextureOverride emissive{};
     TextureOverride opacityMask{};
 

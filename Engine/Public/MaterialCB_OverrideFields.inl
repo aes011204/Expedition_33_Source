@@ -1,4 +1,4 @@
-// Single source of truth for "overridable MaterialCB fields".
+﻿// Single source of truth for "overridable MaterialCB fields".
 // Add new fields here when MaterialCB expands (PBR/HDR etc.)
 //
 // Usage:
@@ -26,6 +26,9 @@
     X("ormRoughnessSource",   ormRoughnessSource,   UInt) \
     X("ormMetalnessSource",   ormMetalnessSource,   UInt) \
     X("opacityMaskSource",    opacityMaskSource,    UInt) \
+    X("ormAoSourceSlot",      ormAoSourceSlot,      UInt) \
+    X("ormRoughnessSourceSlot", ormRoughnessSourceSlot, UInt) \
+    X("ormMetalnessSourceSlot", ormMetalnessSourceSlot, UInt) \
     X("uvScale",              uvScale,              Vec2) \
     X("uvOffset",             uvOffset,             Vec2) \
     X("uvRotation",           uvRotation,           Float) \
