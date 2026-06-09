@@ -37,16 +37,38 @@ static HRESULT Bind_MaterialScalarModulationPayload(
     CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationParams", &payload.params, sizeof(payload.params)), E_FAIL);
     CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationMeta", payload.meta.data(), sizeof(payload.meta)), E_FAIL);
     CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyTimes", payload.keyTimes.data(), sizeof(payload.keyTimes)), E_FAIL);
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyTimesBlock1", payload.keyTimesBlock1.data(), sizeof(payload.keyTimesBlock1)),
+        E_FAIL
+    );
     CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyValues", payload.keyValues.data(), sizeof(payload.keyValues)), E_FAIL);
     CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyValuesBlock1", payload.keyValuesBlock1.data(), sizeof(payload.keyValuesBlock1)),
+        E_FAIL
+    );
+    CHECK_FAILED(
         shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyArriveTangents", payload.keyArriveTangents.data(), sizeof(payload.keyArriveTangents)),
+        E_FAIL
+    );
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyArriveTangentsBlock1", payload.keyArriveTangentsBlock1.data(), sizeof(payload.
+            keyArriveTangentsBlock1)),
         E_FAIL
     );
     CHECK_FAILED(
         shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyLeaveTangents", payload.keyLeaveTangents.data(), sizeof(payload.keyLeaveTangents)),
         E_FAIL
     );
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyLeaveTangentsBlock1", payload.keyLeaveTangentsBlock1.data(), sizeof(payload.
+            keyLeaveTangentsBlock1)),
+        E_FAIL
+    );
     CHECK_FAILED(shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyModes", payload.keyModes.data(), sizeof(payload.keyModes)), E_FAIL);
+    CHECK_FAILED(
+        shader->Bind_RawValue("g_EffectMaterialScalarModulationKeyModesBlock1", payload.keyModesBlock1.data(), sizeof(payload.keyModesBlock1)),
+        E_FAIL
+    );
 
     return S_OK;
 }
@@ -294,9 +316,7 @@ HRESULT ComputeTrailEmitter::Reset_ForEffectReplay()
 
     if (nullptr != _computeOutput && nullptr != _computeArgsOutput &&
         nullptr != _instanceBuffer && nullptr != _indirectArgsBuffer)
-    {
         CHECK_FAILED(Copy_ComputeOutput(), E_FAIL);
-    }
 
     return S_OK;
 }
@@ -898,27 +918,43 @@ HRESULT ComputeTrailEmitter::Update_ComputeConstants()
     params.endColor = Internal::Average_Color(_desc.colorOverLife.endColorMin, _desc.colorOverLife.endColorMax);
     const PointParticleColorOverLifeCurveDesc& colorCurve = _desc.colorOverLife.curve;
     params.colorOverLifeCurveParams = Vec4{
-        static_cast<float>(max(1u, min(4u, colorCurve.colorCurveKeyCount))),
-        static_cast<float>(max(1u, min(4u, colorCurve.alphaCurveKeyCount))),
+        static_cast<float>(max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, colorCurve.colorCurveKeyCount))),
+        static_cast<float>(max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, colorCurve.alphaCurveKeyCount))),
         colorCurve.colorCurveEnabled ? 1.f : 0.f,
         colorCurve.alphaCurveEnabled ? 1.f : 0.f
     };
     params.colorOverLifeColorCurveTimes = colorCurve.colorCurveTimes;
+    params.colorOverLifeColorCurveTimesBlock1 = colorCurve.colorCurveTimesBlock1;
     params.colorOverLifeColorCurveValuesR = colorCurve.colorCurveValuesR;
+    params.colorOverLifeColorCurveValuesRBlock1 = colorCurve.colorCurveValuesRBlock1;
     params.colorOverLifeColorCurveValuesG = colorCurve.colorCurveValuesG;
+    params.colorOverLifeColorCurveValuesGBlock1 = colorCurve.colorCurveValuesGBlock1;
     params.colorOverLifeColorCurveValuesB = colorCurve.colorCurveValuesB;
+    params.colorOverLifeColorCurveValuesBBlock1 = colorCurve.colorCurveValuesBBlock1;
     params.colorOverLifeColorCurveArriveR = colorCurve.colorCurveArriveR;
+    params.colorOverLifeColorCurveArriveRBlock1 = colorCurve.colorCurveArriveRBlock1;
     params.colorOverLifeColorCurveArriveG = colorCurve.colorCurveArriveG;
+    params.colorOverLifeColorCurveArriveGBlock1 = colorCurve.colorCurveArriveGBlock1;
     params.colorOverLifeColorCurveArriveB = colorCurve.colorCurveArriveB;
+    params.colorOverLifeColorCurveArriveBBlock1 = colorCurve.colorCurveArriveBBlock1;
     params.colorOverLifeColorCurveLeaveR = colorCurve.colorCurveLeaveR;
+    params.colorOverLifeColorCurveLeaveRBlock1 = colorCurve.colorCurveLeaveRBlock1;
     params.colorOverLifeColorCurveLeaveG = colorCurve.colorCurveLeaveG;
+    params.colorOverLifeColorCurveLeaveGBlock1 = colorCurve.colorCurveLeaveGBlock1;
     params.colorOverLifeColorCurveLeaveB = colorCurve.colorCurveLeaveB;
+    params.colorOverLifeColorCurveLeaveBBlock1 = colorCurve.colorCurveLeaveBBlock1;
     params.colorOverLifeColorCurveModes = colorCurve.colorCurveModes;
+    params.colorOverLifeColorCurveModesBlock1 = colorCurve.colorCurveModesBlock1;
     params.colorOverLifeAlphaCurveTimes = colorCurve.alphaCurveTimes;
+    params.colorOverLifeAlphaCurveTimesBlock1 = colorCurve.alphaCurveTimesBlock1;
     params.colorOverLifeAlphaCurveValues = colorCurve.alphaCurveValues;
+    params.colorOverLifeAlphaCurveValuesBlock1 = colorCurve.alphaCurveValuesBlock1;
     params.colorOverLifeAlphaCurveArrive = colorCurve.alphaCurveArrive;
+    params.colorOverLifeAlphaCurveArriveBlock1 = colorCurve.alphaCurveArriveBlock1;
     params.colorOverLifeAlphaCurveLeave = colorCurve.alphaCurveLeave;
+    params.colorOverLifeAlphaCurveLeaveBlock1 = colorCurve.alphaCurveLeaveBlock1;
     params.colorOverLifeAlphaCurveModes = colorCurve.alphaCurveModes;
+    params.colorOverLifeAlphaCurveModesBlock1 = colorCurve.alphaCurveModesBlock1;
     params.sizeByLifeParams = Vec4{
         _desc.sizeByLife.multiplyXStart,
         _desc.sizeByLife.multiplyXEnd,
@@ -926,14 +962,16 @@ HRESULT ComputeTrailEmitter::Update_ComputeConstants()
         0.f
     };
     params.sizeByLifeCurveTimes = _desc.sizeByLife.curveKeyTimes;
+    params.sizeByLifeCurveTimesBlock1 = _desc.sizeByLife.curveKeyTimesBlock1;
     params.sizeByLifeCurveValuesX = _desc.sizeByLife.curveKeyValuesX;
+    params.sizeByLifeCurveValuesXBlock1 = _desc.sizeByLife.curveKeyValuesXBlock1;
     params.sizeByLifeCurveParams = Vec4{
-        static_cast<float>(max(1u, min(4u, _desc.sizeByLife.curveKeyCount))),
+        static_cast<float>(max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, _desc.sizeByLife.curveKeyCount))),
         _desc.sizeByLife.multiplyX ? 1.f : 0.f,
         0.f,
         0.f
     };
-    params.lengthParams = Vec4{ _desc.maxTrailLength, _desc.tailFadeLength, 0.f, 0.f };
+    params.lengthParams = Vec4{ _desc.maxTrailLength, _desc.tailFadeLength, _desc.autoLifeFade ? 1.f : 0.f, 0.f };
 
     _context->UpdateSubresource(_computeConstantBuffer.Get(), 0, nullptr, &params, 0, 0);
     return S_OK;
@@ -978,22 +1016,14 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
     CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
 
     if (nullptr != _noiseTexture)
-    {
         CHECK_FAILED(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
-    }
     else
-    {
         CHECK_FAILED(_shader->Bind_SRV("g_NoiseTexture", nullptr), E_FAIL);
-    }
 
     if (nullptr != _maskTexture)
-    {
         CHECK_FAILED(_maskTexture->Bind_ShaderResourceView(_shader.get(), "g_MaskTexture", 0), E_FAIL);
-    }
     else
-    {
         CHECK_FAILED(_shader->Bind_SRV("g_MaskTexture", nullptr), E_FAIL);
-    }
 
     CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &_desc.material.tint, sizeof(Vec4)), E_FAIL);
 
@@ -1051,6 +1081,18 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         static_cast<float>(static_cast<uint32>(_desc.material.maskUVTilingMode)),
         0.f
     );
+    const Vec4 effectTrailUVAxisPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(_desc.material.mainUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(_desc.material.mainUVPolicy.vPolicy)),
+        static_cast<float>(static_cast<uint32>(_desc.material.noiseUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(_desc.material.noiseUVPolicy.vPolicy))
+    );
+    const Vec4 effectTrailMaskUVAxisPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(_desc.material.maskUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(_desc.material.maskUVPolicy.vPolicy)),
+        0.f,
+        0.f
+    );
     const Vec4 effectTrailSourceParams = Vec4(
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(_desc.material.noiseSource)),
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(_desc.material.maskSource)),
@@ -1067,6 +1109,8 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaskUVOffsetParams", &effectTrailMaskUVOffsetParams, sizeof(effectTrailMaskUVOffsetParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVPolicyParams", &effectTrailUVPolicyParams, sizeof(effectTrailUVPolicyParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVModeParams", &effectTrailUVModeParams, sizeof(effectTrailUVModeParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailUVAxisPolicyParams", &effectTrailUVAxisPolicyParams, sizeof(effectTrailUVAxisPolicyParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaskUVAxisPolicyParams", &effectTrailMaskUVAxisPolicyParams, sizeof(effectTrailMaskUVAxisPolicyParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailSourceParams", &effectTrailSourceParams, sizeof(effectTrailSourceParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
@@ -1127,9 +1171,14 @@ HRESULT ComputeTrailEmitter::Bind_DistortionResources()
     );
     const Vec4 distortionScreenSize(max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f);
     const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+    const Vec2 flowUVPolicyParams(
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
+    );
 
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVPolicyParams", &flowUVPolicyParams, sizeof(flowUVPolicyParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), E_FAIL);

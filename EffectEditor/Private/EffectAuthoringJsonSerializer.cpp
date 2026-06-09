@@ -32,6 +32,42 @@ namespace Internal
         return true;
     }
 
+    EffectTextureUVTilingMode Resolve_CompatibleUVTilingMode(const EffectMaterialUVAxisPolicy& policy)
+    {
+        return policy.uPolicy == policy.vPolicy ? policy.uPolicy : EffectTextureUVTilingMode::Wrap;
+    }
+
+    json To_Json(const EffectMaterialUVAxisPolicy& data)
+    {
+        json root = json::object();
+        root["uPolicy"] = To_EnumToken(data.uPolicy);
+        root["vPolicy"] = To_EnumToken(data.vPolicy);
+        return root;
+    }
+
+    void Read_UVAxisPolicyField(
+        const json& root,
+        const char* key,
+        EffectTextureUVTilingMode legacyMode,
+        EffectMaterialUVAxisPolicy& outPolicy,
+        EffectTextureUVTilingMode& outCompatibleMode)
+    {
+        outPolicy.uPolicy = legacyMode;
+        outPolicy.vPolicy = legacyMode;
+
+        const auto policyIter = root.find(key);
+        if (policyIter != root.end() && policyIter->is_object())
+        {
+            const json& policy = *policyIter;
+            if (const auto uPolicyIter = policy.find("uPolicy"); uPolicyIter != policy.end())
+                Try_ReadEnumToken(*uPolicyIter, outPolicy.uPolicy);
+            if (const auto vPolicyIter = policy.find("vPolicy"); vPolicyIter != policy.end())
+                Try_ReadEnumToken(*vPolicyIter, outPolicy.vPolicy);
+        }
+
+        outCompatibleMode = Resolve_CompatibleUVTilingMode(outPolicy);
+    }
+
     template <typename T>
     void Read_NumberField(const json& node, const char* key, T& outValue)
     {
@@ -404,6 +440,7 @@ namespace Internal
         root["uvTiling"] = data.uvTiling;
         root["maxTrailLength"] = data.maxTrailLength;
         root["tailFadeLength"] = data.tailFadeLength;
+        root["autoLifeFade"] = data.autoLifeFade;
         root["curveQuality"] = To_EnumToken(data.curveQuality);
         root["sampleSpacing"] = data.sampleSpacing;
         root["curveSubdivision"] = data.curveSubdivision;
@@ -423,6 +460,7 @@ namespace Internal
         Read_NumberField(root, "uvTiling", outData.uvTiling);
         Read_NumberField(root, "maxTrailLength", outData.maxTrailLength);
         Read_NumberField(root, "tailFadeLength", outData.tailFadeLength);
+        Read_BoolField(root, "autoLifeFade", outData.autoLifeFade);
         const auto curveQualityIter = root.find("curveQuality");
         if (curveQualityIter != root.end())
             Try_ReadEnumToken(*curveQualityIter, outData.curveQuality);
@@ -430,6 +468,41 @@ namespace Internal
         Read_NumberField(root, "curveSubdivision", outData.curveSubdivision);
         Read_BoolField(root, "smoothTangent", outData.smoothTangent);
         Read_NumberField(root, "sideFade", outData.sideFade);
+    }
+
+    json To_Json(const SourceHistoryRibbonTypeData& data)
+    {
+        json root = json::object();
+        root["maxSampleCount"] = data.maxSampleCount;
+        root["sampleSpacing"] = data.sampleSpacing;
+        root["sampleInterval"] = data.sampleInterval;
+        root["maxLength"] = data.maxLength;
+        root["tailFadeLength"] = data.tailFadeLength;
+        root["baseWidth"] = data.baseWidth;
+        root["tilingDistance"] = data.tilingDistance;
+        root["autoLifeFade"] = data.autoLifeFade;
+        return root;
+    }
+
+    void From_Json(const json& root, SourceHistoryRibbonTypeData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        Read_NumberField(root, "maxSampleCount", outData.maxSampleCount);
+        Read_NumberField(root, "sampleSpacing", outData.sampleSpacing);
+        Read_NumberField(root, "sampleInterval", outData.sampleInterval);
+        Read_NumberField(root, "maxLength", outData.maxLength);
+        Read_NumberField(root, "tailFadeLength", outData.tailFadeLength);
+        Read_NumberField(root, "baseWidth", outData.baseWidth);
+        Read_NumberField(root, "tilingDistance", outData.tilingDistance);
+        Read_BoolField(root, "autoLifeFade", outData.autoLifeFade);
+        if (const auto presetIter = root.find("previewMotionPreset"); presetIter != root.end())
+            Try_ReadEnumToken(*presetIter, outData.previewMotionPreset);
+        if (const auto axisIter = root.find("previewMotionAxis"); axisIter != root.end())
+            Try_ReadEnumToken(*axisIter, outData.previewMotionAxis);
+        Read_NumberField(root, "previewMotionAmplitude", outData.previewMotionAmplitude);
+        Read_NumberField(root, "previewMotionSpeed", outData.previewMotionSpeed);
     }
 
     json To_Json(const MeshTypeData& data)
@@ -487,6 +560,12 @@ namespace Internal
             root["data"] = To_Json(meshData != nullptr ? *meshData : MeshTypeData{});
             break;
         }
+        case AuthoringTypeDataKind::SourceHistoryRibbon:
+        {
+            const SourceHistoryRibbonTypeData* sourceHistoryRibbonData = get_if<SourceHistoryRibbonTypeData>(&data.payload);
+            root["data"] = To_Json(sourceHistoryRibbonData != nullptr ? *sourceHistoryRibbonData : SourceHistoryRibbonTypeData{});
+            break;
+        }
         case AuthoringTypeDataKind::None:
         default:
             break;
@@ -502,6 +581,13 @@ namespace Internal
 
         AuthoringTypeDataKind kind = AuthoringTypeDataKind::None;
         const auto kindIter = root.find("kind");
+        if (kindIter != root.end() && kindIter->is_string() && kindIter->get<string>() == "Ribbon")
+        {
+            outData.kind = AuthoringTypeDataKind::None;
+            outData.payload = EmptyTypeData{};
+            return;
+        }
+
         if (kindIter == root.end() || !Try_ReadEnumToken(*kindIter, kind))
             return;
 
@@ -526,6 +612,17 @@ namespace Internal
                 From_Json(*dataIter, data);
 
             outData.kind = AuthoringTypeDataKind::Mesh;
+            outData.payload = data;
+            break;
+        }
+        case AuthoringTypeDataKind::SourceHistoryRibbon:
+        {
+            SourceHistoryRibbonTypeData data{};
+            const auto dataIter = root.find("data");
+            if (dataIter != root.end())
+                From_Json(*dataIter, data);
+
+            outData.kind = AuthoringTypeDataKind::SourceHistoryRibbon;
             outData.payload = data;
             break;
         }
@@ -563,19 +660,23 @@ namespace Internal
         root["mainUVScale"] = To_Json(data.mainUVScale);
         root["mainUVOffset"] = To_Json(data.mainUVOffset);
         root["mainUVScrollSpeed"] = To_Json(data.mainUVScrollSpeed);
-        root["mainUVTilingMode"] = To_EnumToken(data.mainUVTilingMode);
+        root["mainUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.mainUVPolicy));
+        root["mainUVPolicy"] = To_Json(data.mainUVPolicy);
         root["noiseUVScale"] = To_Json(data.noiseUVScale);
         root["noiseUVOffset"] = To_Json(data.noiseUVOffset);
         root["noiseUVScrollSpeed"] = To_Json(data.noiseUVScrollSpeed);
-        root["noiseUVTilingMode"] = To_EnumToken(data.noiseUVTilingMode);
+        root["noiseUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.noiseUVPolicy));
+        root["noiseUVPolicy"] = To_Json(data.noiseUVPolicy);
         root["maskUVScale"] = To_Json(data.maskUVScale);
         root["maskUVOffset"] = To_Json(data.maskUVOffset);
         root["maskUVScrollSpeed"] = To_Json(data.maskUVScrollSpeed);
-        root["maskUVTilingMode"] = To_EnumToken(data.maskUVTilingMode);
+        root["maskUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.maskUVPolicy));
+        root["maskUVPolicy"] = To_Json(data.maskUVPolicy);
         root["flowUVScale"] = To_Json(data.flowUVScale);
         root["flowUVOffset"] = To_Json(data.flowUVOffset);
         root["flowUVScrollSpeed"] = To_Json(data.flowUVScrollSpeed);
-        root["flowUVTilingMode"] = To_EnumToken(data.flowUVTilingMode);
+        root["flowUVTilingMode"] = To_EnumToken(Resolve_CompatibleUVTilingMode(data.flowUVPolicy));
+        root["flowUVPolicy"] = To_Json(data.flowUVPolicy);
         root["blendMode"] = To_EnumToken(data.blendMode);
         root["opacitySource"] = data.opacitySource;
         if (data.blendMode == EffectMaterialBlendMode::Additive || !Is_DefaultAdditiveContribution(data.additive))
@@ -664,6 +765,7 @@ namespace Internal
 
         if (const auto mainUVTilingModeIter = root.find("mainUVTilingMode"); mainUVTilingModeIter != root.end())
             Try_ReadEnumToken(*mainUVTilingModeIter, outData.mainUVTilingMode);
+        Read_UVAxisPolicyField(root, "mainUVPolicy", outData.mainUVTilingMode, outData.mainUVPolicy, outData.mainUVTilingMode);
 
         if (const auto noiseUVScaleIter = root.find("noiseUVScale"); noiseUVScaleIter != root.end())
             Read_Vec2(*noiseUVScaleIter, outData.noiseUVScale);
@@ -676,6 +778,7 @@ namespace Internal
 
         if (const auto noiseUVTilingModeIter = root.find("noiseUVTilingMode"); noiseUVTilingModeIter != root.end())
             Try_ReadEnumToken(*noiseUVTilingModeIter, outData.noiseUVTilingMode);
+        Read_UVAxisPolicyField(root, "noiseUVPolicy", outData.noiseUVTilingMode, outData.noiseUVPolicy, outData.noiseUVTilingMode);
 
         if (const auto maskUVScaleIter = root.find("maskUVScale"); maskUVScaleIter != root.end())
             Read_Vec2(*maskUVScaleIter, outData.maskUVScale);
@@ -688,6 +791,7 @@ namespace Internal
 
         if (const auto maskUVTilingModeIter = root.find("maskUVTilingMode"); maskUVTilingModeIter != root.end())
             Try_ReadEnumToken(*maskUVTilingModeIter, outData.maskUVTilingMode);
+        Read_UVAxisPolicyField(root, "maskUVPolicy", outData.maskUVTilingMode, outData.maskUVPolicy, outData.maskUVTilingMode);
 
         if (const auto flowUVScaleIter = root.find("flowUVScale"); flowUVScaleIter != root.end())
             Read_Vec2(*flowUVScaleIter, outData.flowUVScale);
@@ -700,6 +804,7 @@ namespace Internal
 
         if (const auto flowUVTilingModeIter = root.find("flowUVTilingMode"); flowUVTilingModeIter != root.end())
             Try_ReadEnumToken(*flowUVTilingModeIter, outData.flowUVTilingMode);
+        Read_UVAxisPolicyField(root, "flowUVPolicy", outData.flowUVTilingMode, outData.flowUVPolicy, outData.flowUVTilingMode);
 
         Read_NumberField(root, "refractionIntensity", outData.refractionIntensity);
         Read_NumberField(root, "refractionPresence", outData.refractionPresence);

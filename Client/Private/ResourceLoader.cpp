@@ -9,6 +9,7 @@
 #include "FreeCamera.h"
 #include "GameInstance.h"
 #include "GameObject.h"
+#include "MeshEmitter.h"
 #include "ModelCom.h"
 #include "Particle_Types.h"
 #include "ShaderCom.h"
@@ -38,6 +39,24 @@ namespace
             { "INST_WORLD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
             { "INST_COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
             { "INST_LIFE", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 80, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+        };
+    };
+
+    struct RibbonInstanceLayout
+    {
+        static constexpr uint32 numElements = 10; // ComputeSourceHistoryRibbonEmitter::RibbonInstanceVertex와 byte layout을 맞춘다.
+
+        static constexpr D3D11_INPUT_ELEMENT_DESC Elements[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "WORLD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "WORLD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "WORLD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "WORLD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 64, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 72, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "COLOR", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 88, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 104, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
+            { "TEXCOORD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 120, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
         };
     };
 
@@ -589,6 +608,9 @@ ResourceLoader::FInputLayoutInfo ResourceLoader::Get_InputLayout(const string& s
     if ("TrailInstance" == strName || "TRAILINSTANCE" == strName)
         return { TrailInstanceLayout::Elements, TrailInstanceLayout::numElements, ShaderType::BillboardParticle };
 
+    if ("RibbonInstance" == strName || "RIBBONINSTANCE" == strName)
+        return { RibbonInstanceLayout::Elements, RibbonInstanceLayout::numElements, ShaderType::BillboardParticle };
+
     // Mesh Instance (roughly)
     if ("VTXMESHINST" == strName || "VtxMeshInst" == strName || "vtxmeshinst" == strName)
         return { VtxMeshInstanceLayout::Elements, VtxMeshInstanceLayout::numElements, ShaderType::VtxInstanceMesh };
@@ -792,6 +814,15 @@ HRESULT ResourceLoader::Create_LoadJobPrototype(const FLoadJob& loadJob, Shared<
 
     case ELoadJobType::GameObject:
     {
+        if (loadJob.strClassName == "MeshEmitter")
+        {
+            Shared<MeshEmitter> meshEmitter = MeshEmitter::Create(_device, _context);
+            outPrototype = static_pointer_cast<Base>(meshEmitter);
+            if (nullptr == outPrototype)
+                Log_LoadJobPrototypeFailure(loadJob, "create returned null");
+            return S_OK;
+        }
+
         Shared<GameObject> gameObject = GAME->Create_GameObjectPrototype(loadJob.strClassName);
         outPrototype = static_pointer_cast<Base>(gameObject);
         if (nullptr == outPrototype)
