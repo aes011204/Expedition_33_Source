@@ -11,6 +11,10 @@ struct ENGINE_DLL ShadowCascadeDebugInfo
 {
     float expandedNear = 0.f;
     float expandedFar = 0.f;
+    Vec3 centerWS = Vec3::Zero;
+    Vec3 eyeWS = Vec3::Zero;
+    Vec3 centerLS = Vec3::Zero;
+    float stableRadius = 0.f;
     Vec3 minLS = Vec3::Zero;
     Vec3 maxLS = Vec3::Zero;
     Vec3 influenceMinLS = Vec3::Zero;

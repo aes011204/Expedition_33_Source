@@ -164,6 +164,10 @@ HRESULT Shadow::Update_FromCameraFrustum(
         _cascadeSplits[cascadeIndex] = nominalFar;
         _cascadeDebugInfos[cascadeIndex].expandedNear = expandedNear;
         _cascadeDebugInfos[cascadeIndex].expandedFar = expandedFar;
+        _cascadeDebugInfos[cascadeIndex].centerWS = cascadeBounds.centerWS;
+        _cascadeDebugInfos[cascadeIndex].eyeWS = cascadeBounds.eyeWS;
+        _cascadeDebugInfos[cascadeIndex].centerLS = cascadeBounds.centerLS;
+        _cascadeDebugInfos[cascadeIndex].stableRadius = cascadeBounds.stableRadius;
         _cascadeDebugInfos[cascadeIndex].minLS = cascadeBounds.minLS;
         _cascadeDebugInfos[cascadeIndex].maxLS = cascadeBounds.maxLS;
         _cascadeDebugInfos[cascadeIndex].influenceMinLS = cascadeBounds.influenceMinLS;
