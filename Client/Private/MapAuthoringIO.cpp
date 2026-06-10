@@ -132,7 +132,12 @@ bool MapAuthoringIO::Load_PrefabInstances_FromMapData(
             .InLayer(layerTag)
             .Spawn();
         if (gameObject == nullptr)
+        {
+            LOG_WARN("MapAuthoringIO prefab instance spawn failed. prefab={}, layer={}",
+                prefabName.c_str(),
+                String::ToString(layerTag).c_str());
             continue;
+        }
 
         gameObject->Set_RuntimeAuthoringLoaded(true); // 맵 JSON에서 복원된 authored 프리펩임을 런타임에만 표시한다.
 

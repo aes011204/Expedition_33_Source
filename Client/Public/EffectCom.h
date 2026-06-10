@@ -8,6 +8,7 @@
 
 NS_BEGIN(Engine)
 class GameObject;
+class EffectInstance;
 class IEffectTrailSampleProvider;
 class ShaderCom;
 NS_END
@@ -60,6 +61,12 @@ public:
         Vec3 scale = Vec3::One;
         bool followTarget = false;
         bool requiresManualRelease = false;
+    };
+
+    struct AttachedEffectPauseState
+    {
+        Shared<EffectInstance> effect{}; // EffectInstance root를 직접 pause/restore한다.
+        bool wasPaused = false;          // 튜토리얼 시작 전 pause 상태로 되돌리기 위해 저장한다.
     };
 
 private:
@@ -119,6 +126,8 @@ public:
     static Shared<EffectCom> Find_FromNotifyOwner(GameObject* notifyOwner);
 
     void Update_AttachedEffects(float timeDelta); // socket follow와 자동 release 후보 정리를 함께 수행한다.
+    void Capture_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& outStates);
+    void Restore_AttachedEffectPauseStates(vector<AttachedEffectPauseState>& states);
 
     InspectorEffectSettings Get_InspectorEffectSettings() const;
     void Set_InspectorEffectSettings(const InspectorEffectSettings& settings);
@@ -211,6 +220,11 @@ private:
         const Vec3& localRotation,
         Vec3& outWorldPosition,
         Vec3& outWorldRotation) const;
+
+    bool Try_ResolveTrailEffectName(
+            const wstring& effectNameOverride,
+            const wstring& partTag,
+            wstring& outEffectName) const;
 
     bool Try_BuildTrailSample(
         const wstring& partTag,

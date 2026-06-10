@@ -365,15 +365,22 @@ void PhysX_Manager::Unregister_Collider(ColliderCom* collider)
     if (collider == nullptr)
         return;
 
+    if (collider->Is_PhysXRegistered() == false)
+        return;
+
     PxRigidActor* actor = collider->Get_PxActor();
     if (actor == nullptr)
+    {
+        collider->Set_PhysXRegistered(false);
         return;
+    }
 
     auto iter = _actorColliderMap.find(actor);
     if (iter != _actorColliderMap.end())
         _actorColliderMap.erase(iter);
 
-    if (_scene != nullptr)
+    // 이미 scene에서 빠진 actor면 removeActor 재호출 대신 등록 상태만 정리한다.
+    if (_scene != nullptr && actor->getScene() == _scene)
         _scene->removeActor(*actor);
 
     collider->Set_PhysXRegistered(false);

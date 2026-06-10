@@ -125,6 +125,9 @@ HRESULT ContainerObject::Add_PartObject(uint32 prototypeLevelIndex, const wstrin
 	_partObjects.emplace(partTag, partObject);
     _partObjectUpdateOrder.push_back(partObject);
 
+    if (_hasBegunPlay)
+        CHECK_FAILED(partObject->Try_BeginPlay(), E_FAIL);
+
 	return S_OK; 
 }
 
@@ -136,6 +139,35 @@ PartObject* ContainerObject::Find_PartObject(const wstring& partTag)
 		return nullptr;
 
 	return iter->second.get();
+}
+
+bool ContainerObject::Remove_PartObject(const wstring& partTag)
+{
+    auto iter = _partObjects.find(partTag);
+    if (iter == _partObjects.end())
+        return false;
+
+    Shared<PartObject> removedPart = iter->second;
+    _partObjects.erase(iter);
+
+    for (auto orderIter = _partObjectUpdateOrder.begin(); orderIter != _partObjectUpdateOrder.end();)
+    {
+        if (*orderIter == nullptr || *orderIter == removedPart)
+        {
+            orderIter = _partObjectUpdateOrder.erase(orderIter);
+        }
+        else
+        {
+            ++orderIter;
+        }
+    }
+
+    if (removedPart)
+    {
+        removedPart->Free();
+    }
+
+    return true;
 }
 
 PartObject* ContainerObject::Get_PartObject(const wstring& partTag) const

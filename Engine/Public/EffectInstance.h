@@ -33,6 +33,8 @@ public: //## Behavior::Lifecycle
     bool Is_Finished() const; // one-shot 완료 후 pool 반환 후보인지 반환한다.
     void Set_Loop(bool loop) { _loop = loop; }
     bool Is_Loop() const { return _loop; }
+    void Set_PlaybackPaused(bool paused) { _isPlaybackPaused = paused; } // 튜토리얼 freeze는 Stop이 아니라 update만 멈춘다.
+    bool Is_PlaybackPaused() const { return _isPlaybackPaused; }
     void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider); // 현재 acquire context가 공급한 trail sample provider를 child emitter에 다시 전파한다.
     Shared<EffectEmitter> Find_EmitterById(uint32 emitterId) const; // 같은 effect root 안의 child emitter를 follower source id로 찾는다.
 
@@ -51,6 +53,7 @@ private: //## Data::Definition
 private: //## Data::Lifecycle
     EffectPlaybackState _playbackState{ EffectPlaybackState::Stopped }; // pool 재사용 판단에 쓰는 root 재생 상태다.
     bool _loop{ false }; // 에디터 배치 이펙트가 끝난 뒤 같은 definition으로 다시 재생할지 정한다.
+    bool _isPlaybackPaused{ false }; // 현재 프레임을 화면에 남긴 채 emitter 시간 진행만 막는다.
     uint32 _effectPlaybackSeed{ 0 }; // effect root 재생 1회 단위 random seed다.
 
 private: //## Data::Children

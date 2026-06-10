@@ -18,19 +18,23 @@ IMPLEMENT_REFLECTION(ANS_Parry)
 void ANS_Parry::On_Begin(const AnimNotifyContext& context)
 {
     auto battle = CLIENT->Get_BattleController();
-    if (battle)
-        battle->OpenReactionWindow(BattleController::ReactionType::Parry);
+    if (battle == nullptr)
+        return;
+
+    battle->Get_ReactionController().OpenWindow(BattleReactionType::Parry);
 }
 
 void ANS_Parry::On_Tick(const AnimNotifyContext& context)
 {
     UNREFERENCED_PARAMETER(context);
-    LOG_DEBUG("parryyyyyyyyyyyy");
+    
 }
 
 void ANS_Parry::On_End(const AnimNotifyContext& context)
 {
     auto battle = CLIENT->Get_BattleController();
-    if (battle)
-        battle->CloseReactionWindow(BattleController::ReactionType::Parry);
+    if (battle == nullptr)
+        return;
+
+    battle->Get_ReactionController().CloseWindow(BattleReactionType::Parry);
 }

@@ -202,6 +202,10 @@ private:
     bool Tick_PreviewTrailDrain(PreviewTrailRuntime& runtime, float timeDelta);
     vector<const AnimNotifyStateEntry*> Find_ActivePreviewTrailStates() const;
     bool Ensure_PreviewTrailEffect(PreviewTrailRuntime& runtime, const wstring& effectName);
+    bool Try_ResolvePreviewTrailEffectName(
+        const string& effectNameOverride,
+        const string& partTag,
+        wstring& outEffectName) const;
     void Sync_PreviewAnimationSelection(bool keepCurrentTime = false);
     void Validate_SelectedBoneSelection();
     void Assign_SelectedBoneToTrailAnchor(const Shared<ModelCom>& playbackModel, TrailAnchorSlot slot);

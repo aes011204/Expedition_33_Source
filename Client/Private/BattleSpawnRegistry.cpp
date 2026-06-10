@@ -23,6 +23,16 @@ void BattleSpawnRegistry::Register_SpawnObject(const Shared<GameObject>& object,
     _spawnedObjects.push_back(entry);
 }
 
+void BattleSpawnRegistry::Register_BattleHeroObject(const Shared<GameObject>& object, uint32 levelIndex)
+{
+    Register_SpawnObject(object, levelIndex);
+
+    if (!object)
+        return;
+
+    ++_battleHeroSpawnCount;
+}
+
 void BattleSpawnRegistry::Register_BattleMonsterObject(const Shared<GameObject>& object, uint32 levelIndex)
 {
     Register_SpawnObject(object, levelIndex);
@@ -34,7 +44,15 @@ void BattleSpawnRegistry::Register_BattleMonsterObject(const Shared<GameObject>&
     if (monsterStat == nullptr)
         return;
 
+	const CombatStatCom::CombatStatDesc& statInfo = monsterStat->Get_StatInfo();
+
     _battleRewardExp += monsterStat->Get_StatInfo().exp;
+	_battleRewardChroma += statInfo.chroma;
+
+    if (!statInfo.portraitGuid.empty())
+    {
+        _battleMonsterPortraitGuids.push_back(statInfo.portraitGuid);
+    }
 }
 
 void BattleSpawnRegistry::Set_SourceWorldObject(const Shared<GameObject>& object, uint32 levelIndex)
@@ -63,6 +81,14 @@ void BattleSpawnRegistry::Update_SpawnPose(const Shared<GameObject>& object)
     }
 }
 
+void BattleSpawnRegistry::Visit_SpawnedObjects(const function<void(const BattleEntry&)>& visitor) const
+{
+    for (auto& entry : _spawnedObjects)
+    {
+        visitor(entry);
+    }
+}
+
 const BattleSpawnRegistry::BattleEntry* BattleSpawnRegistry::Find_SpawnEntry(const Shared<GameObject>& object) const
 {
     if (object == nullptr)
@@ -86,6 +112,7 @@ void BattleSpawnRegistry::Destroy_SpawnedObjects()
     }
 
     _spawnedObjects.clear();
+    _battleHeroSpawnCount = 0;
 }
 
 void BattleSpawnRegistry::Destroy_SourceWorldObject()
@@ -101,6 +128,8 @@ void BattleSpawnRegistry::Destroy_SourceWorldObject()
 void BattleSpawnRegistry::Clear_BattleReward()
 {
     _battleRewardExp = 0;
+    _battleRewardChroma = 0;
+    _battleMonsterPortraitGuids.clear();
 }
 
 void BattleSpawnRegistry::Clear_SourceWorldObject()
@@ -114,6 +143,8 @@ void BattleSpawnRegistry::Clear_All()
     Destroy_SpawnedObjects();
     Clear_SourceWorldObject();
     Clear_BattleReward();
+
+    _battleHeroSpawnCount = 0;
 }
 
 Shared<BattleSpawnRegistry> BattleSpawnRegistry::Create()

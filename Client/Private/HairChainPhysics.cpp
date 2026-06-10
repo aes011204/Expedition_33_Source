@@ -1,4 +1,4 @@
-#include "HairChainPhysics.h"
+﻿#include "HairChainPhysics.h"
 #include "ModelCom.h"
 
 void HairChainPhysics::Initialize(ModelCom* model, const HairChainPhysicsDesc& desc)

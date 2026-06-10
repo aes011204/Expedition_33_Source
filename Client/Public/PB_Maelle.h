@@ -22,6 +22,8 @@ protected:
 
     void Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const override;
 
+    HeroId Get_HeroId() const override { return HeroId::Maelle; }
+
 public:
     static Shared<PB_Maelle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
     Shared<GameObject> Clone(void* arg) override;

@@ -20,7 +20,7 @@ public:
     void On_End(const AnimNotifyContext& context) override;
 
 private:
-    wstring _effectName = L"Trail_Gustave_v2";
+    wstring _effectName = L""; // 비어 있으면 Weapon 프리펩 기본 Trail 사용
     wstring _partTag = L"Part_Weapon";
     wstring _layerTag = L"Layer_Effect";
 };
