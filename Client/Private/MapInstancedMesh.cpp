@@ -93,7 +93,7 @@ HRESULT MapInstancedMesh::Initialize(void* arg)
         }
     }
 
-    Set_ShadowCasterType(ShadowCasterType::Static);
+    Set_ShadowCasterType(ShadowCasterType::Dynamic);
 
     return S_OK;
 }
@@ -115,11 +115,15 @@ void MapInstancedMesh::Late_Update(float timeDelta)
 
     if (!GAME->IsVisible(_groupBounds))
     {
+        if (Casts_DynamicShadow())
+            GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
         return;
     }
 
     GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-    GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
+    if (Casts_DynamicShadow())
+        GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
 }
 
 HRESULT MapInstancedMesh::Render()
@@ -520,6 +524,15 @@ HRESULT MapInstancedMesh::Render_Shadow()
     }
 
     return S_OK;
+}
+
+bool MapInstancedMesh::Try_Get_ShadowWorldBounds(BoundingBox& outWorldBounds) const
+{
+    if (_instanceCount == 0)
+        return false;
+
+    outWorldBounds = _groupBounds;
+    return true;
 }
 
 void MapInstancedMesh::DispatchCull()

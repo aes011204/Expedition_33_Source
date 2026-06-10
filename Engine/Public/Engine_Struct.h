@@ -50,6 +50,7 @@ enum class CascadeLevel : uint32
     Count
 };
 
+// 카메라의 close/normal/far 모드에 따라서 shadow cascade 구간을 조절하기 위한 프리셋
 struct ShadowCascadePreset
 {
     float focusNear = 0.1f;

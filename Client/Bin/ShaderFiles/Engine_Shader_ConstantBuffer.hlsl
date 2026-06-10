@@ -34,18 +34,15 @@ cbuffer ShadowBuffer
     row_major float4x4 g_CascadeLightViewMatrices[4];
     row_major float4x4 g_CascadeLightProjMatrices[4];
 
-    row_major float4x4 g_StaticLightViewMatrix;
-    row_major float4x4 g_StaticLightProjMatrix;
-
     float4 g_CascadeSplits;
     float g_CascadeBlendDistance;
     float g_LightFar;
     float g_Bias;
 
     float g_ShadowIntensity;
-    float g_StaticShadowEnabled;
     uint g_ShadowCascadeCount;
     uint g_ActiveShadowCascadeIndex;
+    float g_ShadowPadding0;
 };
 
 cbuffer ScreenSpaceBuffer

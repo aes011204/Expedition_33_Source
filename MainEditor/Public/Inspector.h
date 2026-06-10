@@ -49,6 +49,7 @@ private:
 
 private:
     void Draw_PrimaryShadowLightInspector();
+    void Draw_ShadowDebugRTToggleRow(const wchar_t* targetTag, const char* label);
     static void Draw_UIInspector(
         const Shared<Engine::UI_Base>& ui,
         const string& groupName,

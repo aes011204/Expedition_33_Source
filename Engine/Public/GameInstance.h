@@ -24,6 +24,7 @@ NS_BEGIN(Engine)
 
 class Event_Bus;
 class Graphic_Device;
+struct ShadowCascadeDebugInfo;
 class Timer_Manager;
 class Level_Manager;
 class Prototype_Manager;
@@ -411,6 +412,7 @@ public : /* For.Target_Manager */
 
     HRESULT Copy_CurrentRTV_To(const wstring& targetTag);
     HRESULT Copy_RTV(const wstring& srcTargetTag, const wstring& dstTargetTag);
+    HRESULT Copy_RTV_ArraySlice(const wstring& srcTargetTag, uint32 arraySlice, const wstring& dstTargetTag);
 
     HRESULT Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture);
     HRESULT Bind_PlayerStencilWriteState(bool depthWrite);
@@ -431,9 +433,7 @@ public: /* For.Shadow */
     HRESULT                 Bind_ShadowMatrices(Shared<ShaderCom> shader, const char* viewName, const char* projName);
     HRESULT                 Bind_ShadowLightDesc(Shared<ShaderCom> shader, const char* lightFarName, const char* biasName = nullptr, const char* intensityName = nullptr);
     HRESULT                 Bind_ShadowCB(Shared<ShaderCom> shader);
-    HRESULT                 Bind_StaticShadowCB(Shared<ShaderCom> shader);
     HRESULT                 Set_ActiveShadowCascade(uint32 cascadeIndex);
-    void                    Set_ActiveStaticShadow();
     void                    Set_ShadowEnabled(bool enabled);
     uint32                  Get_ShadowCascadeCount() const;
     HRESULT                 Set_ShadowCascadeLevel(CascadeLevel level);
@@ -444,21 +444,15 @@ public: /* For.Shadow */
     HRESULT Update_ShadowLight(const ShadowLightDesc& desc);
     const ShadowLightDesc* Get_ShadowLightDesc() const;
     const Matrix* Get_ShadowTransformMatrix(D3DTS eType) const;
+    const ShadowCascadeDebugInfo* Get_ShadowCascadeDebugInfos() const;
+    bool Is_Visible_In_ShadowInfluenceVolume(const BoundingBox& worldAABB, uint32 cascadeIndex) const;
+    bool Is_Visible_In_ShadowSpace(const BoundingBox& worldAABB, const Matrix& viewProj) const;
 
     // 카메라가 플레이어 따라다니면서 그림자 위치 조절
     HRESULT Update_ShadowFromCameraFrustum(
         const ShadowLightDesc& desc,
         const Shared<Camera>& camera,
         const Vec3& lightDir);
-
-    // Static Shadow 크기 구하기
-    HRESULT Update_StaticShadowFromBounds(
-        const ShadowLightDesc& desc,
-        const BoundingBox& bounds,
-        const Vec3& lightDir);
-
-    void Register_StaticShadowCaster(Shared<GameObject> gameObject);
-    void Mark_StaticShadowDirty();
 
 public: /* For.Collision_Manager */
     void Add_Collider(Shared<ColliderCom> collider);
@@ -508,6 +502,7 @@ public: // For. PhysX_Manager
 public: // For. Culling_Manager
     void UpdateFrustum(const Matrix& view, const Matrix& proj);
     bool IsVisible(const BoundingBox& worldAABB) const;
+    bool IsVisible(const BoundingBox& worldAABB, const Matrix& view, const Matrix& proj) const;
     void BuildOctree(const vector<BoundingBox>& worldAABBs);
     void QueryVisible(vector<uint32>& outIndices) const;
 

@@ -267,22 +267,7 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     // Shadow
     float4 worldPos = WorldPos;
     float viewDepth = Get_ViewZ(In.Texcoord);
-    uint dynamicCascadeIndex = SelectShadowCascade(viewDepth);
-
-    float dynamicShadow = SampleDynamicShadowAmount(worldPos, viewDepth);
-
-    float staticShadow = 0.f;
-    if (g_StaticShadowEnabled > 0.5f)
-    {
-        staticShadow = SampleStaticShadowAmount(
-        g_StaticLightDepthTexture,
-        worldPos,
-        g_StaticLightViewMatrix,
-        g_StaticLightProjMatrix,
-        g_Bias);
-    }
-
-    float finalShadow = max(dynamicShadow, staticShadow);
+    float finalShadow = SampleDynamicShadowAmount(worldPos, viewDepth);;
 
     if (finalShadow > 0.f)
     {
@@ -291,17 +276,26 @@ PS_OUT_HDR_WITH_MASK PS_CombinedHDR(PS_IN In)
     }
 
 #if SHADOW_DEBUG_MODE == 1
-    Out.Color.rgb = dynamicShadow.xxx;
+    Out.Color.rgb = finalShadow.xxx;
     Out.Color.a = Diffuse.a;
     Out.Mask = 1.f;
     return Out;
 #elif SHADOW_DEBUG_MODE == 2
+    uint dynamicCascadeIndex = SelectShadowCascade(viewDepth);
     Out.Color.rgb = GetCascadeDebugColor(dynamicCascadeIndex);
     Out.Color.a = Diffuse.a;
     Out.Mask = 1.f;
     return Out;
+#elif SHADOW_DEBUG_MODE == 3
+    float selectedCascadeShadowAmount = 0.f;
+    uint dynamicCascadeIndex = SelectShadowCascade(viewDepth);
+    const bool hasSelectedCascadeCoords = TrySampleCascadeShadowAmount(worldPos, dynamicCascadeIndex, selectedCascadeShadowAmount);
+    Out.Color.rgb = hasSelectedCascadeCoords ? float3(0.15f, 0.85f, 0.2f) : float3(0.95f, 0.15f, 0.15f);
+    Out.Color.a = Diffuse.a;
+    Out.Mask = 1.f;
+    return Out;
 #endif
-
+// # else
     Out.Color.rgb += Emissive.rgb;
     Out.Color.a = Diffuse.a;
     Out.Mask = 1.f;

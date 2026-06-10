@@ -195,15 +195,19 @@ void PlayableParts::Update(float timeDelta)
 
 void PlayableParts::Late_Update(float timeDelta)
 {
-    if (!Get_Owner() || !Get_Owner()->Is_Visible())
+    Shared<GameObject> owner = Get_Owner();
+    if (!owner)
     {
         return;
     }
 
-    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
-
-    if (Casts_DynamicShadow())
+    if (Casts_DynamicShadow() && Is_Visible())
         GAME->Add_RenderGroup(RenderGroup::Shadow, GetSharedPtr<GameObject>());
+
+    if (!owner->Is_Visible())
+        return;
+
+    GAME->Add_RenderGroup(RenderGroup::NonBlend, GetSharedPtr<GameObject>());
 }
 
 Matrix PlayableParts::Get_GizmoWorldMatrix() const

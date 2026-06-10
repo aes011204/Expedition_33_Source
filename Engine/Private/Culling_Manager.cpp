@@ -1,5 +1,5 @@
 ﻿#include "Culling_Manager.h"
-
+#include "Shadow.h"
 Culling_Manager::Culling_Manager()
 {
 }
@@ -19,6 +19,7 @@ void Culling_Manager::UpdateFrustum(const Matrix& view, const Matrix& proj)
     BoundingFrustum localFrustum;
     BoundingFrustum::CreateFromMatrix(localFrustum, proj);
 
+    // camera space -> world space
     XMVECTOR det;
     XMMATRIX invView = XMMatrixInverse(&det, view);
     localFrustum.Transform(_frustum, invView);
@@ -27,6 +28,124 @@ void Culling_Manager::UpdateFrustum(const Matrix& view, const Matrix& proj)
 bool Culling_Manager::IsVisible(const BoundingBox& worldAABB) const
 {
     return _frustum.Intersects(worldAABB) != DirectX::DISJOINT;
+}
+
+bool Culling_Manager::IsVisible(const BoundingBox& worldAABB, const BoundingFrustum& frustum) const
+{
+    return frustum.Intersects(worldAABB) != DirectX::DISJOINT;
+}
+
+bool Culling_Manager::IsVisible(const BoundingBox& worldAABB, const ShadowCascadeInfluenceVolume& volume) const
+{
+    if (volume.planeCount == 0u)
+        return true;
+
+    if (!volume.bounds.Intersects(worldAABB))
+        return false;
+
+    Vec3 corners[8]{};
+    worldAABB.GetCorners(corners);
+
+    constexpr float kPlaneEpsilon = 0.001f;
+    for (uint32 planeIndex = 0; planeIndex < volume.planeCount; ++planeIndex)
+    {
+        const Vec4& plane = volume.planes[planeIndex];
+        bool allOutside = true;
+
+        for (const Vec3& corner : corners)
+        {
+            const float distance =
+                (plane.x * corner.x) +
+                (plane.y * corner.y) +
+                (plane.z * corner.z) +
+                plane.w;
+
+            if (distance <= kPlaneEpsilon)
+            {
+                allOutside = false;
+                break;
+            }
+        }
+
+        if (allOutside)
+            return false;
+    }
+
+    return true;
+}
+
+bool Culling_Manager::IsVisible(const BoundingBox& worldAABB, const Matrix& view, const Matrix& proj) const
+{
+    BoundingFrustum localFrustum;
+    BoundingFrustum::CreateFromMatrix(localFrustum, proj);
+
+    XMVECTOR det;
+    XMMATRIX invView = XMMatrixInverse(&det, view);
+    localFrustum.Transform(localFrustum, invView);
+
+    return localFrustum.Intersects(worldAABB) != DirectX::DISJOINT;
+}
+
+bool Culling_Manager::IsVisibleInPerspectiveRange(
+    const BoundingBox& worldAABB,
+    const Matrix& view,
+    float fovY,
+    float aspect,
+    float nearZ,
+    float farZ) const
+{
+    const Matrix proj = XMMatrixPerspectiveFovLH(
+        max(0.001f, fovY),
+        max(0.001f, aspect),
+        max(0.001f, nearZ),
+        max(max(0.001f, nearZ) + 1.f, farZ));
+
+    return IsVisible(worldAABB, view, proj);
+}
+
+bool Culling_Manager::IsVisible(
+    const BoundingBox& worldAABB,
+    const Matrix* viewMatrices,
+    const Matrix* projMatrices,
+    uint32 frustumCount) const
+{
+    if (viewMatrices == nullptr || projMatrices == nullptr || frustumCount == 0u)
+        return true;
+
+    for (uint32 frustumIndex = 0; frustumIndex < frustumCount; ++frustumIndex)
+    {
+        if (IsVisible(worldAABB, viewMatrices[frustumIndex], projMatrices[frustumIndex]))
+            return true;
+    }
+
+    return false;
+}
+
+bool Culling_Manager::Is_Visible_In_OrthographicShadowSpace(const BoundingBox& worldAABB, const Matrix& viewProj) const
+{
+    Vec3 corners[8]{};
+    worldAABB.GetCorners(corners);
+
+    Vec3 minNDC(FLT_MAX, FLT_MAX, FLT_MAX);
+    Vec3 maxNDC(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+    for (const Vec3& corner : corners)
+    {
+        const Vec3 ndc = Vec3::Transform(corner, viewProj);
+        minNDC = Vec3::Min(minNDC, ndc);
+        maxNDC = Vec3::Max(maxNDC, ndc);
+    }
+
+    if (maxNDC.x < -1.f || minNDC.x > 1.f)
+        return false;
+
+    if (maxNDC.y < -1.f || minNDC.y > 1.f)
+        return false;
+
+    if (maxNDC.z < 0.f || minNDC.z > 1.f)
+        return false;
+
+    return true;
 }
 
 void Culling_Manager::BuildOctree(const vector<BoundingBox>& worldAABBs)

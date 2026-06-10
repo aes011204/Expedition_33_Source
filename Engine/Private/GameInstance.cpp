@@ -2102,6 +2102,11 @@ HRESULT GameInstance::Copy_RTV(const wstring& srcTargetTag, const wstring& dstTa
     return _targetManager->Copy_RTV(srcTargetTag, dstTargetTag);
 }
 
+HRESULT GameInstance::Copy_RTV_ArraySlice(const wstring& srcTargetTag, uint32 arraySlice, const wstring& dstTargetTag)
+{
+    return _targetManager->Copy_RTV_ArraySlice(srcTargetTag, arraySlice, dstTargetTag);
+}
+
 HRESULT GameInstance::Copy_RT_Resource(const wstring& targetTag, ID3D11Texture2D* destTexture)
 {
     return _targetManager->Copy_Resource(targetTag, destTexture);
@@ -2200,12 +2205,6 @@ HRESULT GameInstance::Bind_ShadowCB(Shared<ShaderCom> shader)
     return _shadow->Bind_ShadowCB(shader);
 }
 
-HRESULT GameInstance::Bind_StaticShadowCB(Shared<ShaderCom> shader)
-{
-    CHECK_NULL(_shadow, E_FAIL);
-    return _shadow->Bind_StaticShadowCB(shader);
-}
-
 HRESULT GameInstance::Update_ShadowLight(const ShadowLightDesc& desc)
 {
     return _shadow->Update_ShadowLight(desc);
@@ -2228,30 +2227,38 @@ const Matrix* GameInstance::Get_ShadowTransformMatrix(D3DTS eType) const
     return nullptr;
 }
 
+const ShadowCascadeDebugInfo* GameInstance::Get_ShadowCascadeDebugInfos() const
+{
+    CHECK_NULL(_shadow, nullptr);
+    return _shadow->Get_CascadeDebugInfos();
+}
+
+bool GameInstance::Is_Visible_In_ShadowInfluenceVolume(const BoundingBox& worldAABB, uint32 cascadeIndex) const
+{
+    if (_cullingManager == nullptr || _shadow == nullptr)
+        return true;
+
+    const ShadowCascadeInfluenceVolume* influenceVolumes = _shadow->Get_CascadeInfluenceVolumes();
+    if (influenceVolumes == nullptr || cascadeIndex >= _shadow->Get_CascadeCount())
+        return true;
+
+    return _cullingManager->IsVisible(worldAABB, influenceVolumes[cascadeIndex]);
+}
+
+bool GameInstance::Is_Visible_In_ShadowSpace(const BoundingBox& worldAABB, const Matrix& viewProj) const
+{
+    if (_cullingManager == nullptr)
+        return true;
+
+    return _cullingManager->Is_Visible_In_OrthographicShadowSpace(worldAABB, viewProj);
+}
+
 HRESULT GameInstance::Update_ShadowFromCameraFrustum(
     const ShadowLightDesc& desc,
     const Shared<Camera>& camera,
     const Vec3& lightDir)
 {
     return _shadow->Update_FromCameraFrustum(desc, camera, lightDir);
-}
-
-HRESULT GameInstance::Update_StaticShadowFromBounds(
-    const ShadowLightDesc& desc,
-    const BoundingBox& bounds,
-    const Vec3& lightDir)
-{
-    return _shadow->Update_StaticShadowFromBounds(desc, bounds, lightDir);
-}
-
-void GameInstance::Register_StaticShadowCaster(Shared<GameObject> gameObject)
-{
-    return _renderer->Register_StaticShadowCaster(gameObject);
-}
-
-void GameInstance::Mark_StaticShadowDirty()
-{
-    return _renderer->Mark_StaticShadowDirty();
 }
 
 void GameInstance::Add_Collider(Shared<ColliderCom> collider)
@@ -2373,6 +2380,14 @@ bool GameInstance::IsVisible(const BoundingBox& worldAABB) const
 {
     if (_cullingManager)
         return _cullingManager->IsVisible(worldAABB);
+
+    return true;
+}
+
+bool GameInstance::IsVisible(const BoundingBox& worldAABB, const Matrix& view, const Matrix& proj) const
+{
+    if (_cullingManager)
+        return _cullingManager->IsVisible(worldAABB, view, proj);
 
     return true;
 }
@@ -2735,12 +2750,6 @@ HRESULT GameInstance::Set_ActiveShadowCascade(uint32 cascadeIndex)
 {
     CHECK_NULL(_shadow, E_FAIL);
     return _shadow->Set_ActiveCascade(cascadeIndex);
-}
-
-void GameInstance::Set_ActiveStaticShadow()
-{
-    CHECK_NULL(_shadow);
-    _shadow->Set_ActiveStaticShadow();
 }
 
 void GameInstance::Set_ShadowEnabled(bool enabled)

@@ -465,6 +465,9 @@
     <ClInclude Include="..\Public\VIBuffer_Plane.h">
       <Filter>01.Utility\04.Component\VIBuffer\Plane</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\ShadowHelper.h">
+      <Filter>01.Utility\07.Lights</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\public\Base.h">

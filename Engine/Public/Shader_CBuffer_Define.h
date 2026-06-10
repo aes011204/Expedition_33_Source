@@ -115,18 +115,15 @@ struct alignas(16) ShadowCB
     Matrix  cascadeLightViewMatrices[ShadowLightDesc::SHADOW_CASCADE_COUNT];
     Matrix  cascadeLightProjMatrices[ShadowLightDesc::SHADOW_CASCADE_COUNT];
 
-    Matrix  staticLightViewMatrix;
-    Matrix  staticLightProjMatrix;
-
     Vec4    cascadeSplits = Vec4::Zero;
     float   cascadeBlendDistance = 0.f;
     float   lightFar = 0.f;
     float   bias = 0.f;
 
     float   intensity = 0.f;
-    float   staticShadowEnabled = 0.f;
     uint32  cascadeCount = 0;
     uint32  activeCascadeIndex = 0;
+    float   shadowPadding0 = 0.f;
 }; 
 
 /* ------------------------------------------ */
