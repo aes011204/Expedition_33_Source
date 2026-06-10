@@ -71,6 +71,36 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
         return parsed.value_or(defaultValue);
     };
 
+    const auto resolve_compatible_uv_tiling_mode = [](const EffectMaterialUVAxisPolicy& policy) -> EffectTextureUVTilingMode
+    {
+        return policy.uPolicy == policy.vPolicy ? policy.uPolicy : EffectTextureUVTilingMode::Wrap;
+    };
+
+    const auto read_uv_axis_policy = [&](
+        const char* key,
+        EffectTextureUVTilingMode legacyMode,
+        EffectMaterialUVAxisPolicy) -> EffectMaterialUVAxisPolicy
+    {
+        EffectMaterialUVAxisPolicy policy{ legacyMode, legacyMode };
+        const auto iter = root.find(key);
+        if (iter == root.end() || !iter->is_object())
+            return policy;
+
+        const auto read_policy_axis = [](const json& node, const char* axisKey, EffectTextureUVTilingMode fallbackValue)
+        {
+            const auto axisIter = node.find(axisKey);
+            if (axisIter == node.end() || !axisIter->is_string())
+                return fallbackValue;
+
+            const optional<EffectTextureUVTilingMode> parsed = magic_enum::enum_cast<EffectTextureUVTilingMode>(axisIter->get<string>());
+            return parsed.value_or(fallbackValue);
+        };
+
+        policy.uPolicy = read_policy_axis(*iter, "uPolicy", policy.uPolicy);
+        policy.vPolicy = read_policy_axis(*iter, "vPolicy", policy.vPolicy);
+        return policy;
+    };
+
     const auto read_blend_mode = [&](const char* key, EffectMaterialBlendMode defaultValue) -> EffectMaterialBlendMode
     {
         const auto iter = root.find(key);
@@ -291,18 +321,26 @@ bool Read(const fs::path& filePath, EffectMaterialInstanceData& outMaterial)
     material.mainUVOffset = read_vec2("mainUVOffset", defaultMaterial.mainUVOffset);
     material.mainUVScrollSpeed = read_vec2("mainUVScrollSpeed", defaultMaterial.mainUVScrollSpeed);
     material.mainUVTilingMode = read_uv_tiling_mode("mainUVTilingMode", defaultMaterial.mainUVTilingMode);
+    material.mainUVPolicy = read_uv_axis_policy("mainUVPolicy", material.mainUVTilingMode, defaultMaterial.mainUVPolicy);
+    material.mainUVTilingMode = resolve_compatible_uv_tiling_mode(material.mainUVPolicy);
     material.noiseUVScale = read_vec2("noiseUVScale", defaultMaterial.noiseUVScale);
     material.noiseUVOffset = read_vec2("noiseUVOffset", defaultMaterial.noiseUVOffset);
     material.noiseUVScrollSpeed = read_vec2("noiseUVScrollSpeed", defaultMaterial.noiseUVScrollSpeed);
     material.noiseUVTilingMode = read_uv_tiling_mode("noiseUVTilingMode", defaultMaterial.noiseUVTilingMode);
+    material.noiseUVPolicy = read_uv_axis_policy("noiseUVPolicy", material.noiseUVTilingMode, defaultMaterial.noiseUVPolicy);
+    material.noiseUVTilingMode = resolve_compatible_uv_tiling_mode(material.noiseUVPolicy);
     material.maskUVScale = read_vec2("maskUVScale", defaultMaterial.maskUVScale);
     material.maskUVOffset = read_vec2("maskUVOffset", defaultMaterial.maskUVOffset);
     material.maskUVScrollSpeed = read_vec2("maskUVScrollSpeed", defaultMaterial.maskUVScrollSpeed);
     material.maskUVTilingMode = read_uv_tiling_mode("maskUVTilingMode", defaultMaterial.maskUVTilingMode);
+    material.maskUVPolicy = read_uv_axis_policy("maskUVPolicy", material.maskUVTilingMode, defaultMaterial.maskUVPolicy);
+    material.maskUVTilingMode = resolve_compatible_uv_tiling_mode(material.maskUVPolicy);
     material.flowUVScale = read_vec2("flowUVScale", defaultMaterial.flowUVScale);
     material.flowUVOffset = read_vec2("flowUVOffset", defaultMaterial.flowUVOffset);
     material.flowUVScrollSpeed = read_vec2("flowUVScrollSpeed", defaultMaterial.flowUVScrollSpeed);
     material.flowUVTilingMode = read_uv_tiling_mode("flowUVTilingMode", defaultMaterial.flowUVTilingMode);
+    material.flowUVPolicy = read_uv_axis_policy("flowUVPolicy", material.flowUVTilingMode, defaultMaterial.flowUVPolicy);
+    material.flowUVTilingMode = resolve_compatible_uv_tiling_mode(material.flowUVPolicy);
     material.blendMode = read_blend_mode("blendMode", defaultMaterial.blendMode);
     material.opacitySource = read_string("opacitySource", defaultMaterial.opacitySource);
 

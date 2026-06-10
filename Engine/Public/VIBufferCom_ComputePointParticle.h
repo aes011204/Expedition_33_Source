@@ -71,7 +71,7 @@ private: //## Data::Compute
     float _deltaTime{};                                      // 이번 dispatch의 frame delta time.
     uint32 _spawnRequest{};                                  // 이번 dispatch에서 inactive slot을 활성화할 요청 수.
     uint32 _killActiveParticles{};                           // 이번 dispatch에서 active particle을 모두 죽일지 나타낸다.
-    bool _hasActiveParticles{ false };                        // readback 없이 비활성 emitter submit을 줄이기 위한 CPU-side latch다.
+    bool _hasActiveParticles{ false };                       // readback 없이 비활성 emitter submit을 줄이기 위한 CPU-side latch다.
 
 private: //## Data::GPU
     D3D11_BUFFER_DESC _instanceBufferDesc{}; // compute output 복사 대상 instance VB 생성 설정.

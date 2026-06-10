@@ -11,7 +11,7 @@ namespace Internal
 {
 constexpr double kMeshEmitterInitializeInfoThresholdMs = 8.0;
 constexpr double kMeshEmitterReloadReuseInfoThresholdMs = 4.0;
-constexpr float kPlaneRadialEpsilon = 0.0001f;
+constexpr float kPlaneRadialEpsilon = 1e-4f;
 
 float Read_Vec4Component(const Vec4& values, uint32 index)
 {
@@ -23,6 +23,14 @@ float Read_Vec4Component(const Vec4& values, uint32 index)
     case 3: return values.w;
     default: return values.x;
     }
+}
+
+float Read_Vec4Component(const Vec4& valuesBlock0, const Vec4& valuesBlock1, uint32 index)
+{
+    if (index < 4u)
+        return Read_Vec4Component(valuesBlock0, index);
+
+    return Read_Vec4Component(valuesBlock1, index - 4u);
 }
 
 bool Has_NonZeroVector(const Vec3& value)
@@ -791,6 +799,18 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
         static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
         0.f
     );
+    const Vec4 effectMeshUVAxisPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.mainUVPolicy.vPolicy)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.vPolicy))
+    );
+    const Vec4 effectMeshMaskUVAxisPolicyParams = Vec4(
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.maskUVPolicy.vPolicy)),
+        0.f,
+        0.f
+    );
     const Vec4 effectMeshSourceParams = Vec4(
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
         static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
@@ -856,6 +876,16 @@ HRESULT MeshEmitter::Bind_EffectMaterialResources()
     );
     CHECK_FAILED_THROTTLED(
         _shader->Bind_RawValue("g_EffectMeshUVModeParams", &effectMeshUVModeParams, sizeof(effectMeshUVModeParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshUVAxisPolicyParams", &effectMeshUVAxisPolicyParams, sizeof(effectMeshUVAxisPolicyParams)),
+        60,
+        E_FAIL
+    );
+    CHECK_FAILED_THROTTLED(
+        _shader->Bind_RawValue("g_EffectMeshMaskUVAxisPolicyParams", &effectMeshMaskUVAxisPolicyParams, sizeof(effectMeshMaskUVAxisPolicyParams)),
         60,
         E_FAIL
     );
@@ -928,10 +958,15 @@ HRESULT MeshEmitter::Bind_DistortionResources()
     };
     const Vec4 distortionScreenSize{ max(1.f, viewport.Width), max(1.f, viewport.Height), 0.f, 0.f };
     const float flowUVTilingMode = static_cast<float>(static_cast<uint32>(material.flowUVTilingMode));
+    const Vec2 flowUVPolicyParams{
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.uPolicy)),
+        static_cast<float>(static_cast<uint32>(material.flowUVPolicy.vPolicy))
+    };
 
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_EffectDistortionParams", &distortionParams, sizeof(distortionParams)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_DistortionScreenSize", &distortionScreenSize, sizeof(distortionScreenSize)), 60, E_FAIL);
+    CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVPolicyParams", &flowUVPolicyParams, sizeof(flowUVPolicyParams)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVScale", &material.flowUVScale, sizeof(material.flowUVScale)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVOffset", &material.flowUVOffset, sizeof(material.flowUVOffset)), 60, E_FAIL);
     CHECK_FAILED_THROTTLED(_shader->Bind_RawValue("g_FlowUVScrollSpeed", &material.flowUVScrollSpeed, sizeof(material.flowUVScrollSpeed)), 60, E_FAIL);
@@ -1518,9 +1553,7 @@ Vec3 MeshEmitter::Sample_InitialOffset(
             _desc.sphereLocation.mode == PointParticleSphereLocationMode::Surface &&
             _desc.sphereLocation.placementMode == PointParticleSphereLocationPlacementMode::EvenByParticleIndex;
         if (useEvenSurfacePlacement)
-        {
             direction = Internal::Resolve_EvenByParticleIndexSphereDirection(placementIndex, placementCount);
-        }
         else
         {
             const float z = RandomRange(-1.f, 1.f, sphereSeed + 5u);
@@ -1585,7 +1618,8 @@ Vec3 MeshEmitter::Sample_InitialOffset(
                                          placementIndex,
                                          placementCount,
                                          angleMinDegrees,
-                                         angleMaxDegrees)
+                                         angleMaxDegrees
+                                     )
                                      : Random01(seed + Internal::Resolve_SeedSalt(_desc.planeRadialLocation.angleDegreesSeed, _effectPlaybackSeed) + 1613u);
             sampleAngle = lerp(angleMin, angleMax, angleRatio);
             u = cosf(sampleAngle) * radius;
@@ -1629,7 +1663,7 @@ Quat MeshEmitter::Build_SphereRadialMeshOrientation(const SphereRadialSample& sa
 
     Vec3 targetRight = preferredUp.Cross(targetForward);
     targetRight = Internal::Normalize_OrFallback(targetRight, Vec3{ 1.f, 0.f, 0.f });
-    Vec3 targetUp = Internal::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
+    const Vec3 targetUp = Internal::Normalize_OrFallback(targetForward.Cross(targetRight), Vec3{ 0.f, 1.f, 0.f });
 
     const Vec3 sourceForward = Internal::Resolve_PlaneRadialOrientationAxis(_desc.sphereRadialOrientation.meshForwardAxis);
     Vec3 sourceUp = Internal::Resolve_PlaneRadialOrientationAxis(_desc.sphereRadialOrientation.meshUpAxis);
@@ -1790,11 +1824,9 @@ Vec3 MeshEmitter::Sample_InitialVelocity(const Vec3& spawnPosition, const PlaneR
         if (radialDirection.LengthSquared() < 0.0001f)
         {
             if (_desc.motion.initialRadialVelocityCenterDirectionMode ==
-                    PointParticleInitialRadialVelocityCenterDirectionMode::PlaneRadial &&
+                PointParticleInitialRadialVelocityCenterDirectionMode::PlaneRadial &&
                 planeRadialSample.enabled)
-            {
                 radialDirection = Resolve_LocalVector(planeRadialSample.radialDirection);
-            }
             else
             {
                 radialDirection = Resolve_LocalVector(
@@ -1925,7 +1957,9 @@ float MeshEmitter::Evaluate_VelocityScaleByLife(float lifeProgress) const
     const float curveScale = Evaluate_CompactCurve(
         lifeProgress,
         _desc.motion.velocityScaleByLifeCurveTimes,
+        _desc.motion.velocityScaleByLifeCurveTimesBlock1,
         _desc.motion.velocityScaleByLifeCurveValues,
+        _desc.motion.velocityScaleByLifeCurveValuesBlock1,
         _desc.motion.velocityScaleByLifeCurveKeyCount,
         fallbackScale
     );
@@ -1937,11 +1971,35 @@ Vec3 MeshEmitter::Evaluate_AccelerationByLife(const MeshParticleState& particle,
     if (!_desc.motion.accelerationCurveEnabled)
         return particle.acceleration;
 
-    const uint32 keyCount = max(1u, min(4u, _desc.motion.accelerationCurveKeyCount));
+    const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, _desc.motion.accelerationCurveKeyCount));
     const Vec3 acceleration{
-        Evaluate_CompactCurve(lifeProgress, _desc.motion.accelerationCurveTimes, _desc.motion.accelerationCurveValuesX, keyCount, particle.acceleration.x),
-        Evaluate_CompactCurve(lifeProgress, _desc.motion.accelerationCurveTimes, _desc.motion.accelerationCurveValuesY, keyCount, particle.acceleration.y),
-        Evaluate_CompactCurve(lifeProgress, _desc.motion.accelerationCurveTimes, _desc.motion.accelerationCurveValuesZ, keyCount, particle.acceleration.z)
+        Evaluate_CompactCurve(
+            lifeProgress,
+            _desc.motion.accelerationCurveTimes,
+            _desc.motion.accelerationCurveTimesBlock1,
+            _desc.motion.accelerationCurveValuesX,
+            _desc.motion.accelerationCurveValuesXBlock1,
+            keyCount,
+            particle.acceleration.x
+        ),
+        Evaluate_CompactCurve(
+            lifeProgress,
+            _desc.motion.accelerationCurveTimes,
+            _desc.motion.accelerationCurveTimesBlock1,
+            _desc.motion.accelerationCurveValuesY,
+            _desc.motion.accelerationCurveValuesYBlock1,
+            keyCount,
+            particle.acceleration.y
+        ),
+        Evaluate_CompactCurve(
+            lifeProgress,
+            _desc.motion.accelerationCurveTimes,
+            _desc.motion.accelerationCurveTimesBlock1,
+            _desc.motion.accelerationCurveValuesZ,
+            _desc.motion.accelerationCurveValuesZBlock1,
+            keyCount,
+            particle.acceleration.z
+        )
     };
     return Resolve_LocalVector(acceleration);
 }
@@ -1954,14 +2012,18 @@ Vec3 MeshEmitter::Evaluate_OrbitOffset(const MeshParticleState& particle, float 
     const float angleDegrees = Evaluate_CompactCurve(
         lifeProgress,
         _desc.orbitOverLife.angleCurveTimes,
+        _desc.orbitOverLife.angleCurveTimesBlock1,
         _desc.orbitOverLife.angleCurveValues,
+        _desc.orbitOverLife.angleCurveValuesBlock1,
         _desc.orbitOverLife.angleCurveKeyCount,
         lerp(_desc.orbitOverLife.angleDegreesOverLife.x, _desc.orbitOverLife.angleDegreesOverLife.y, lifeProgress)
     );
     const float radiusScale = Evaluate_CompactCurve(
         lifeProgress,
         _desc.orbitOverLife.radiusScaleCurveTimes,
+        _desc.orbitOverLife.radiusScaleCurveTimesBlock1,
         _desc.orbitOverLife.radiusScaleCurveValues,
+        _desc.orbitOverLife.radiusScaleCurveValuesBlock1,
         _desc.orbitOverLife.radiusScaleCurveKeyCount,
         lerp(_desc.orbitOverLife.radiusScaleOverLife.x, _desc.orbitOverLife.radiusScaleOverLife.y, lifeProgress)
     );
@@ -2031,58 +2093,67 @@ Vec4 MeshEmitter::Evaluate_ColorOverLife(const MeshParticleState& particle, floa
     const PointParticleColorOverLifeCurveDesc& curve = _desc.colorOverLife.curve;
     if (curve.colorCurveEnabled)
     {
-        const uint32 keyCount = max(1u, min(4u, curve.colorCurveKeyCount));
-        auto evaluate_curve = [lifeProgress, keyCount](const Vec4& times, const Vec4& values, float fallbackValue)
+        const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, curve.colorCurveKeyCount));
+        auto evaluate_curve = [lifeProgress, keyCount](
+            const Vec4& times,
+            const Vec4& timesBlock1,
+            const Vec4& values,
+            const Vec4& valuesBlock1,
+            float fallbackValue)
         {
-            if (keyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, 0u))
-                return Internal::Read_Vec4Component(values, 0u);
+            if (keyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, timesBlock1, 0u))
+                return Internal::Read_Vec4Component(values, valuesBlock1, 0u);
 
             for (uint32 index = 1u; index < keyCount; ++index)
             {
-                const float rightTime = Internal::Read_Vec4Component(times, index);
+                const float rightTime = Internal::Read_Vec4Component(times, timesBlock1, index);
                 if (lifeProgress > rightTime)
                     continue;
 
-                const float leftTime = Internal::Read_Vec4Component(times, index - 1u);
+                const float leftTime = Internal::Read_Vec4Component(times, timesBlock1, index - 1u);
                 const float ratio = clamp((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime), 0.f, 1.f);
-                return lerp(Internal::Read_Vec4Component(values, index - 1u), Internal::Read_Vec4Component(values, index), ratio);
+                return lerp(
+                    Internal::Read_Vec4Component(values, valuesBlock1, index - 1u),
+                    Internal::Read_Vec4Component(values, valuesBlock1, index),
+                    ratio
+                );
             }
 
-            return lifeProgress > Internal::Read_Vec4Component(times, keyCount - 1u)
-                   ? Internal::Read_Vec4Component(values, keyCount - 1u)
+            return lifeProgress > Internal::Read_Vec4Component(times, timesBlock1, keyCount - 1u)
+                   ? Internal::Read_Vec4Component(values, valuesBlock1, keyCount - 1u)
                    : fallbackValue;
         };
 
-        color.x = evaluate_curve(curve.colorCurveTimes, curve.colorCurveValuesR, color.x);
-        color.y = evaluate_curve(curve.colorCurveTimes, curve.colorCurveValuesG, color.y);
-        color.z = evaluate_curve(curve.colorCurveTimes, curve.colorCurveValuesB, color.z);
+        color.x = evaluate_curve(curve.colorCurveTimes, curve.colorCurveTimesBlock1, curve.colorCurveValuesR, curve.colorCurveValuesRBlock1, color.x);
+        color.y = evaluate_curve(curve.colorCurveTimes, curve.colorCurveTimesBlock1, curve.colorCurveValuesG, curve.colorCurveValuesGBlock1, color.y);
+        color.z = evaluate_curve(curve.colorCurveTimes, curve.colorCurveTimesBlock1, curve.colorCurveValuesB, curve.colorCurveValuesBBlock1, color.z);
     }
 
     if (curve.alphaCurveEnabled)
     {
-        const uint32 keyCount = max(1u, min(4u, curve.alphaCurveKeyCount));
-        if (keyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(curve.alphaCurveTimes, 0u))
-            color.w = Internal::Read_Vec4Component(curve.alphaCurveValues, 0u);
+        const uint32 keyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, curve.alphaCurveKeyCount));
+        if (keyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(curve.alphaCurveTimes, curve.alphaCurveTimesBlock1, 0u))
+            color.w = Internal::Read_Vec4Component(curve.alphaCurveValues, curve.alphaCurveValuesBlock1, 0u);
         else
         {
             for (uint32 index = 1u; index < keyCount; ++index)
             {
-                const float rightTime = Internal::Read_Vec4Component(curve.alphaCurveTimes, index);
+                const float rightTime = Internal::Read_Vec4Component(curve.alphaCurveTimes, curve.alphaCurveTimesBlock1, index);
                 if (lifeProgress > rightTime)
                     continue;
 
-                const float leftTime = Internal::Read_Vec4Component(curve.alphaCurveTimes, index - 1u);
+                const float leftTime = Internal::Read_Vec4Component(curve.alphaCurveTimes, curve.alphaCurveTimesBlock1, index - 1u);
                 const float ratio = clamp((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime), 0.f, 1.f);
                 color.w = lerp(
-                    Internal::Read_Vec4Component(curve.alphaCurveValues, index - 1u),
-                    Internal::Read_Vec4Component(curve.alphaCurveValues, index),
+                    Internal::Read_Vec4Component(curve.alphaCurveValues, curve.alphaCurveValuesBlock1, index - 1u),
+                    Internal::Read_Vec4Component(curve.alphaCurveValues, curve.alphaCurveValuesBlock1, index),
                     ratio
                 );
                 break;
             }
 
-            if (lifeProgress > Internal::Read_Vec4Component(curve.alphaCurveTimes, keyCount - 1u))
-                color.w = Internal::Read_Vec4Component(curve.alphaCurveValues, keyCount - 1u);
+            if (lifeProgress > Internal::Read_Vec4Component(curve.alphaCurveTimes, curve.alphaCurveTimesBlock1, keyCount - 1u))
+                color.w = Internal::Read_Vec4Component(curve.alphaCurveValues, curve.alphaCurveValuesBlock1, keyCount - 1u);
         }
     }
 
@@ -2090,25 +2161,36 @@ Vec4 MeshEmitter::Evaluate_ColorOverLife(const MeshParticleState& particle, floa
     return color;
 }
 
-float MeshEmitter::Evaluate_CompactCurve(float lifeProgress, const Vec4& times, const Vec4& values, uint32 keyCount, float fallbackValue) const
+float MeshEmitter::Evaluate_CompactCurve(
+    float lifeProgress,
+    const Vec4& times,
+    const Vec4& timesBlock1,
+    const Vec4& values,
+    const Vec4& valuesBlock1,
+    uint32 keyCount,
+    float fallbackValue) const
 {
-    const uint32 clampedKeyCount = max(1u, min(4u, keyCount));
-    if (clampedKeyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, 0u))
-        return Internal::Read_Vec4Component(values, 0u);
+    const uint32 clampedKeyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, keyCount));
+    if (clampedKeyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, timesBlock1, 0u))
+        return Internal::Read_Vec4Component(values, valuesBlock1, 0u);
 
     for (uint32 index = 1u; index < clampedKeyCount; ++index)
     {
-        const float rightTime = Internal::Read_Vec4Component(times, index);
+        const float rightTime = Internal::Read_Vec4Component(times, timesBlock1, index);
         if (lifeProgress > rightTime)
             continue;
 
-        const float leftTime = Internal::Read_Vec4Component(times, index - 1u);
+        const float leftTime = Internal::Read_Vec4Component(times, timesBlock1, index - 1u);
         const float ratio = clamp((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime), 0.f, 1.f);
-        return lerp(Internal::Read_Vec4Component(values, index - 1u), Internal::Read_Vec4Component(values, index), ratio);
+        return lerp(
+            Internal::Read_Vec4Component(values, valuesBlock1, index - 1u),
+            Internal::Read_Vec4Component(values, valuesBlock1, index),
+            ratio
+        );
     }
 
-    return lifeProgress > Internal::Read_Vec4Component(times, clampedKeyCount - 1u)
-           ? Internal::Read_Vec4Component(values, clampedKeyCount - 1u)
+    return lifeProgress > Internal::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
+           ? Internal::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
            : fallbackValue;
 }
 
@@ -2118,9 +2200,33 @@ Vec3 MeshEmitter::Evaluate_MeshVector3Curve(const MeshVector3CurveRuntimeDesc& d
         return fallbackValue;
 
     return Vec3{
-        Evaluate_CompactCurve(lifeProgress, desc.curveKeyTimes, desc.curveKeyValuesX, desc.curveKeyCount, lerp(desc.start.x, desc.end.x, lifeProgress)),
-        Evaluate_CompactCurve(lifeProgress, desc.curveKeyTimes, desc.curveKeyValuesY, desc.curveKeyCount, lerp(desc.start.y, desc.end.y, lifeProgress)),
-        Evaluate_CompactCurve(lifeProgress, desc.curveKeyTimes, desc.curveKeyValuesZ, desc.curveKeyCount, lerp(desc.start.z, desc.end.z, lifeProgress))
+        Evaluate_CompactCurve(
+            lifeProgress,
+            desc.curveKeyTimes,
+            desc.curveKeyTimesBlock1,
+            desc.curveKeyValuesX,
+            desc.curveKeyValuesXBlock1,
+            desc.curveKeyCount,
+            lerp(desc.start.x, desc.end.x, lifeProgress)
+        ),
+        Evaluate_CompactCurve(
+            lifeProgress,
+            desc.curveKeyTimes,
+            desc.curveKeyTimesBlock1,
+            desc.curveKeyValuesY,
+            desc.curveKeyValuesYBlock1,
+            desc.curveKeyCount,
+            lerp(desc.start.y, desc.end.y, lifeProgress)
+        ),
+        Evaluate_CompactCurve(
+            lifeProgress,
+            desc.curveKeyTimes,
+            desc.curveKeyTimesBlock1,
+            desc.curveKeyValuesZ,
+            desc.curveKeyValuesZBlock1,
+            desc.curveKeyCount,
+            lerp(desc.start.z, desc.end.z, lifeProgress)
+        )
     };
 }
 
