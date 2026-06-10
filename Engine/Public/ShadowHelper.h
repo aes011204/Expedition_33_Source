@@ -260,7 +260,7 @@ inline void Build_CascadeBounds(
 
     // coverage와 현재 slice를 이용하여, upstream 방향으로 충분히 긴 확장 거리
     const float centerToCoverageDistance = (coverageCenter - center).Length();
-    const float extrusionDistance = centerToCoverageDistance + coverageRadius + stableRadius + desc.zPadding;
+    const float extrusionDistance = centerToCoverageDistance + coverageRadius + stableRadius;// +desc.zPadding;
 
     // influence 범위를 projection에서 시작해서 upstream으로 확장
     Vec3 influenceMinLS = projectionMinLS;

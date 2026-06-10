@@ -102,10 +102,10 @@ void Renderer::Draw()
     _screenSize = { GAME->Get_ViewportWidth(), GAME->Get_ViewportHeight() };
 
     Change_ViewportDesc(_screenSize.width, _screenSize.height);
+    Reset_RenderCall();
 
 #ifdef _DEBUG
     DumpCurrentOMState(L"Renderer::Draw:Begin");
-    Reset_RenderCall();
 
 #pragma region DEBUG_VAR
     const auto renderBegin = chrono::steady_clock::now();

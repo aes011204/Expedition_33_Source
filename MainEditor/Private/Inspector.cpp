@@ -468,6 +468,7 @@ bool Inspector::Draw_UIFloatRow(const char* label, const string& id, float& valu
     return ImGui::DragFloat(id.c_str(), &value, speed);
 }
 
+#ifdef _DEBUG
 void Inspector::Draw_ShadowDebugRTToggleRow(const wchar_t* targetTag, const char* label)
 {
     const auto& rtStates = GAME->Get_RTs();
@@ -482,6 +483,7 @@ void Inspector::Draw_ShadowDebugRTToggleRow(const wchar_t* targetTag, const char
     if (ImGui::Checkbox((string("##") + label).c_str(), &isDisplayed))
         GAME->Display_RT(targetTag, isDisplayed);
 }
+#endif
 
 void Inspector::Draw_PrimaryShadowLightInspector()
 {

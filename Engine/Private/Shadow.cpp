@@ -109,45 +109,46 @@ HRESULT Shadow::Update_FromCameraFrustum(
     float coverageRadius = 0.f;
 
     Compute_CornersBoundingSphere(coverageCorners, coverageCenterWS, coverageRadius);
-    const bool dumpShadowCascadeTrace = GAME->KeyDown(KEY_TYPE::T) && GAME->KeyDown(KEY_TYPE::H);
 
     // cascade 구간 쪼개기
     float previousSplit = nearZ;
     const float lambda = min(1.f, max(0.f, _desc.cascadeSplitLambda));
     const float blendDistance = max(0.f, _desc.cascadeBlendDistance);
 
-    if (dumpShadowCascadeTrace)
-    {
-        LOG_WARN(
-            "[ShadowTrace] cameraNear={} cameraFar={} focusNear={} focusFar={} appliedNear={} appliedFar={} fovY={} aspect={} lambda={} blend={} coverageRadius={} lightDir=({:.3f},{:.3f},{:.3f})",
-            camera->Get_Near(),
-            camera->Get_Far(),
-            _desc.focusNear,
-            _desc.focusFar,
-            nearZ,
-            farZ,
-            fovY,
-            aspect,
-            lambda,
-            blendDistance,
-            coverageRadius,
-            dir.x, dir.y, dir.z);
-    }
-
     for (uint32 cascadeIndex = 0; cascadeIndex < CascadeCount; ++cascadeIndex)
     {
+        // 현재 캐스케이드가 실제로 담당하는 receiver 깊이 구간
         const float nominalNear = previousSplit;
         const float nominalFar = (cascadeIndex + 1u == CascadeCount)
             ? farZ
-            : Compute_CascadeSplit(cascadeIndex, CascadeCount, nearZ, farZ, lambda);
-        const float expandedNear = max(nearZ, nominalNear - blendDistance);
-        const float expandedFar = min(farZ, max(expandedNear + 0.001f, nominalFar + blendDistance));
+            : Compute_CascadeSplit(
+                cascadeIndex,
+                CascadeCount,
+                nearZ,
+                farZ,
+                lambda);
 
-        // 현재 cascade가 담당할 깊이 구간, 월드의 코너를 구한다.
+        // 블렌드 구간 확인용 값.
+        // shadow view/proj와 caster influence volume 생성에는 사용하지 않는다.
+        const float expandedNear =
+            max(nearZ, nominalNear - blendDistance);
+
+        const float expandedFar =
+            min(
+                farZ,
+                max(expandedNear + 0.001f, nominalFar + blendDistance));
+
+        // 실제 캐스케이드 receiver 구간은 반드시 nominal 범위로 만든다.
         Vec3 sliceCorners[8]{};
-        Build_FrustumCorners(cameraWorld, expandedNear, expandedFar, tanHalfFovY, aspect, sliceCorners);
+        Build_FrustumCorners(
+            cameraWorld,
+            nominalNear,
+            nominalFar,
+            tanHalfFovY,
+            aspect,
+            sliceCorners);
 
-        // 해당 코너 구간을 빛 공간에서 감쌀 shadow camera 만든다.
+        // 해당 receiver slice를 기준으로 shadow view/proj와 caster 영향 범위를 만든다.
         CascadeBounds cascadeBounds{};
         Build_CascadeBounds(
             sliceCorners,
@@ -162,6 +163,9 @@ HRESULT Shadow::Update_FromCameraFrustum(
             cascadeBounds);
 
         _cascadeSplits[cascadeIndex] = nominalFar;
+
+        // 현재 필드 이름은 expanded이므로 일단 그대로 저장.
+        // 단, 이 값은 디버그 표시용일 뿐 cascade 행렬에는 사용되지 않는다.
         _cascadeDebugInfos[cascadeIndex].expandedNear = expandedNear;
         _cascadeDebugInfos[cascadeIndex].expandedFar = expandedFar;
         _cascadeDebugInfos[cascadeIndex].centerWS = cascadeBounds.centerWS;
@@ -172,44 +176,11 @@ HRESULT Shadow::Update_FromCameraFrustum(
         _cascadeDebugInfos[cascadeIndex].maxLS = cascadeBounds.maxLS;
         _cascadeDebugInfos[cascadeIndex].influenceMinLS = cascadeBounds.influenceMinLS;
         _cascadeDebugInfos[cascadeIndex].influenceMaxLS = cascadeBounds.influenceMaxLS;
+
         previousSplit = nominalFar;
 
-        if (dumpShadowCascadeTrace)
-        {
-            LOG_WARN(
-                "[ShadowTrace][C{}] nominalNear={} nominalFar={} expandedNear={} expandedFar={} centerWS=({:.3f},{:.3f},{:.3f}) eyeWS=({:.3f},{:.3f},{:.3f}) centerLS=({:.3f},{:.3f},{:.3f}) radius={}",
-                cascadeIndex,
-                nominalNear,
-                nominalFar,
-                expandedNear,
-                expandedFar,
-                cascadeBounds.centerWS.x, cascadeBounds.centerWS.y, cascadeBounds.centerWS.z,
-                cascadeBounds.eyeWS.x, cascadeBounds.eyeWS.y, cascadeBounds.eyeWS.z,
-                cascadeBounds.centerLS.x, cascadeBounds.centerLS.y, cascadeBounds.centerLS.z,
-                cascadeBounds.stableRadius);
-            LOG_WARN(
-                "[ShadowTrace][C{}] receiverMinLS=({:.3f},{:.3f},{:.3f}) receiverMaxLS=({:.3f},{:.3f},{:.3f}) projMinLS=({:.3f},{:.3f},{:.3f}) projMaxLS=({:.3f},{:.3f},{:.3f})",
-                cascadeIndex,
-                cascadeBounds.receiverMinLS.x, cascadeBounds.receiverMinLS.y, cascadeBounds.receiverMinLS.z,
-                cascadeBounds.receiverMaxLS.x, cascadeBounds.receiverMaxLS.y, cascadeBounds.receiverMaxLS.z,
-                cascadeBounds.minLS.x, cascadeBounds.minLS.y, cascadeBounds.minLS.z,
-                cascadeBounds.maxLS.x, cascadeBounds.maxLS.y, cascadeBounds.maxLS.z);
-            LOG_WARN(
-                "[ShadowTrace][C{}] influenceMinLS=({:.3f},{:.3f},{:.3f}) influenceMaxLS=({:.3f},{:.3f},{:.3f}) sliceUpstream={} coverageUpstream={} coverageRadius={} centerToCoverage={} extrusion={} texel=({:.5f},{:.5f})",
-                cascadeIndex,
-                cascadeBounds.influenceMinLS.x, cascadeBounds.influenceMinLS.y, cascadeBounds.influenceMinLS.z,
-                cascadeBounds.influenceMaxLS.x, cascadeBounds.influenceMaxLS.y, cascadeBounds.influenceMaxLS.z,
-                cascadeBounds.sliceMaxUpstream,
-                cascadeBounds.coverageMaxUpstream,
-                cascadeBounds.coverageRadius,
-                cascadeBounds.centerToCoverageDistance,
-                cascadeBounds.extrusionDistance,
-                cascadeBounds.texelX,
-                cascadeBounds.texelY);
-        }
-
-        // cascade 구간이 0일 때 대표값으로 저장, 별 의미 없음
-        if (cascadeIndex == 0)
+        // cascade 0의 값을 기존 단일 shadow 대표값으로 저장
+        if (cascadeIndex == 0u)
         {
             _viewMatrix = _cascadeViewMatrices[cascadeIndex];
             _projMatrix = _cascadeProjMatrices[cascadeIndex];

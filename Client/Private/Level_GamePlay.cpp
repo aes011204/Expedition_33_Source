@@ -127,17 +127,17 @@ HRESULT Level_GamePlay::Ready_Lights()
         cascadePresets.close.focusNear = 0.1f;
         cascadePresets.close.focusFar = 28.f;
         cascadePresets.close.cascadeSplitLambda = 0.95f;
-        cascadePresets.close.cascadeBlendDistance = 2.5f;
+        cascadePresets.close.cascadeBlendDistance = 0.8f;
 
         cascadePresets.normal.focusNear = 0.1f;
         cascadePresets.normal.focusFar = 110.f;
         cascadePresets.normal.cascadeSplitLambda = 0.8f;
-        cascadePresets.normal.cascadeBlendDistance = 4.f;
+        cascadePresets.normal.cascadeBlendDistance = 1.7f;
 
         cascadePresets.farRange.focusNear = 0.1f;
         cascadePresets.farRange.focusFar = 180.f;
         cascadePresets.farRange.cascadeSplitLambda = 0.55f;
-        cascadePresets.farRange.cascadeBlendDistance = 6.f;
+        cascadePresets.farRange.cascadeBlendDistance = 3.f;
 
         if (FAILED(GAME->Set_ShadowCascadePresets(cascadePresets)))
             return E_FAIL;
