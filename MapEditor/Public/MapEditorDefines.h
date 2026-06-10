@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine_Define.h"
 #include "Helper_String.h"
 #include "ShaderPassFinder.h"
@@ -203,6 +203,18 @@ namespace MapEditor
         Vec3 _position;
         Vec4 _rotation;
         Vec3 _scale;
+    };
+
+    struct ScatterZone
+    {
+        Vec3 center = Vec3::Zero;
+        float radius = 10.f;
+        int count = 20;
+        int seed = 0;
+        float scaleMin = 0.8f;
+        float scaleMax = 1.2f;
+        float yRotMax = 180.f;
+        float minSpacing = 1.f;
     };
 
     struct CameraBookmark

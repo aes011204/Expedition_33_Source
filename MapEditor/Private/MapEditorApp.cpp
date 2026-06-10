@@ -537,7 +537,14 @@ void MapEditorApp::DoSpawnAt(const string& modelPath)
     }
     else
     {
-        spawned = _scene.SpawnObject(String::ToWString(modelPath), _scene._cursorPos);
+        if (_viewport->IsSpawnAsInstanced())
+        {
+            spawned = _scene.SpawnInstancedObject(String::ToWString(modelPath), _scene._cursorPos);
+        }
+        else
+        {
+            spawned = _scene.SpawnObject(String::ToWString(modelPath), _scene._cursorPos);
+        }
     }
 
     if (spawned)

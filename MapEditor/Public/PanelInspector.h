@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "MEWindow.h"
 
 NS_BEGIN(MapEditor)
@@ -32,6 +32,8 @@ private:
     Quat _editPrevRot = {};
     Vec3 _editPrevScale = {};
     Shared<EditorObject> _editTarget;
+
+    ScatterZone _pendingZone = {};
 
 private:
     void DrawTransform(Shared<EditorObject>& obj);

@@ -739,6 +739,7 @@ void SceneContext::SaveToFile(const string& filePath)
                 instances.push_back(inst);
             }
             e["ModelPath"] = String::ToString(modelFile);
+            e["HasCollision"] = obj->_instancedHasCollision;
             e["Instances"] = instances;
             instancedMeshes.push_back(e);
 
@@ -1136,6 +1137,7 @@ void SceneContext::LoadFromFile(const string& filePath, bool bMerge)
             auto obj = make_shared<EditorObject>();
             obj->_type = EObjectType::InstancedMesh;
             obj->_name = String::ToWString(e["Id"].get<string>());
+            obj->_instancedHasCollision = e.value("HasCollision", false);
 
             string modelPathStr = e.value("ModelPath", string{});
             if (!modelPathStr.empty())
@@ -1260,6 +1262,47 @@ Shared<EditorObject> SceneContext::SpawnObject(const wstring& modelPath, const V
     obj->_worldMatrix = Matrix::CreateScale(obj->_scale)
         * Matrix::CreateFromQuaternion(obj->_rotation)
         * Matrix::CreateTranslation(obj->_position);
+
+    _dirtyRenderHandles = true;
+    Add(obj);
+    return obj;
+}
+
+Shared<EditorObject> SceneContext::SpawnInstancedObject(const wstring& modelPath, const Vec3& pos)
+{
+    for (auto& obj : _instancedMeshes)
+    {
+        if (obj->_instancedModelPath == modelPath)
+        {
+            InstanceTransform t{};
+            t._position = pos;
+            t._scale = Vec3(1.f, 1.f, 1.f);
+            t._rotation = Quat::Identity;
+            obj->_instancedTransforms.push_back(t);
+            obj->_instancedParamsDirty = true;
+            _dirtyRenderHandles = true;
+            return obj;
+        }
+    }
+
+    auto obj = make_shared<EditorObject>();
+    obj->_type = EObjectType::InstancedMesh;
+    obj->_instancedModelPath = modelPath;
+    obj->_position = Vec3::Zero;
+    obj->_scale = Vec3(1.f, 1.f, 1.f);
+    obj->_rotation = Quat::Identity;
+
+    const wstring filename = fs::path(modelPath).stem().wstring();
+    obj->_name = filename.empty() ? L"IM_NEW" : filename;
+
+    InstanceTransform t{};
+    t._position = pos;
+    t._scale = Vec3(1.f, 1.f, 1.f);
+    t._rotation = Quat::Identity;
+    obj->_instancedTransforms.push_back(t);
+
+    obj->UpdateWorldMatrix();
+    obj->_instancedParamsDirty = true;
 
     _dirtyRenderHandles = true;
     Add(obj);
@@ -1673,6 +1716,94 @@ void SceneContext::LoadTerrainConfig(const string& filePath)
     _terrainDirty = true;
 }
 
+bool SceneContext::SampleTerrainY(float worldX, float worldZ, float& outY) const
+{
+    if (_activeLandscapeIdx < 0 || _activeLandscapeIdx >= static_cast<int32>(_landscapes.size()))
+    {
+        return false;
+    }
+
+    auto& actor = _landscapes[_activeLandscapeIdx];
+    auto vb = actor->Get_VIBuffer();
+    if (!vb)
+    {
+        return false;
+    }
+
+    Vec3 landscapePos = actor->Get_Transform()->Get_Position();
+    Vec3 landscapeScale = actor->Get_Transform()->Get_Scale();
+
+    outY = vb->Sample_Height(
+        (worldX - landscapePos.x) / landscapeScale.x,
+        (worldZ - landscapePos.z) / landscapeScale.z)
+        * landscapeScale.y + landscapePos.y;
+
+    return true;
+}
+
+void SceneContext::ScatterAt(EditorObject* obj, const ScatterZone& zone)
+{
+    if (!obj || obj->_type != EObjectType::InstancedMesh)
+    {
+        return;
+    }
+
+    mt19937 rng(static_cast<uint32>(zone.seed));
+
+    int placed = 0;
+    int attempts = 0;
+    const int maxAttempts = zone.count * 20;
+
+    while (placed < zone.count && attempts < maxAttempts)
+    {
+        ++attempts;
+
+        float angle = Math::RandNum(0.f, XM_2PI, rng);
+        float r = zone.radius * sqrtf(Math::RandNum(0.f, 1.f, rng));
+        float wx = zone.center.x + cosf(angle) * r;
+        float wz = zone.center.z + sinf(angle) * r;
+
+        if (zone.minSpacing > 0.f)
+        {
+            bool tooClose = false;
+            for (auto& t : obj->_instancedTransforms)
+            {
+                float dx = t._position.x - wx;
+                float dz = t._position.z - wz;
+                if (sqrtf(dx * dx + dz * dz) < zone.minSpacing)
+                {
+                    tooClose = true;
+                    break;
+                }
+            }
+
+            if (tooClose)
+            {
+                continue;
+            }
+        }
+
+        float wy = zone.center.y;
+        if (!SampleTerrainY(wx, wz, wy))
+        {
+            continue;
+        }
+
+        float scale = Math::RandNum(zone.scaleMin, zone.scaleMax, rng);
+        float yRot = Math::RandNum(0.f, zone.yRotMax * (XM_PI / 180.f), rng);
+
+        InstanceTransform t{};
+        t._position = Vec3(wx, wy, wz);
+        t._scale = Vec3(scale, scale, scale);
+        t._rotation = Vec4(0.f, sinf(yRot * 0.5f), 0.f, cosf(yRot * 0.5f));
+        obj->_instancedTransforms.push_back(t);
+        ++placed;
+    }
+
+    obj->_instancedParamsDirty = true;
+    _dirtyRenderHandles = true;
+}
+
 void SceneContext::Export_MapInstance(const string& filePath)
 {
     fs::path jsonPath(filePath);
@@ -1746,6 +1877,7 @@ void SceneContext::Export_MapInstance(const string& filePath)
         case EObjectType::InstancedMesh:
         {
             e["ModelPath"] = Make_SplitInstanceModelPath(obj->_instancedModelPath);
+            e["HasCollision"] = obj->_instancedHasCollision;
             json instArr = json::array();
             for (auto& transform : obj->_instancedTransforms)
             {
@@ -1779,6 +1911,18 @@ void SceneContext::Export_MapInstance(const string& filePath)
     }
 
     Ensure_StaticModelCollisionBinaries(staticCollisionModels);
+
+    map<wstring, Shared<ModelCom>> instancedCollisionModels;
+    for (auto& obj : _instancedMeshes)
+    {
+        if (obj->_instancedHasCollision && !obj->_instancedModelPath.empty())
+        {
+            instancedCollisionModels[obj->_instancedModelPath] =
+                obj->_instancedRenderHandle ? obj->_instancedRenderHandle->GetModel() : nullptr;
+        }
+    }
+    Ensure_StaticModelCollisionBinaries(instancedCollisionModels);
+
     Remove_MaterialJsonFilesInDirectory(fs::path(_materialsPath) / mapName);
 
     map<wstring, Shared<Engine::ModelCom>> uniqueModels;
@@ -1946,6 +2090,7 @@ void SceneContext::Import_MapInstance(const string& mapName)
                     {
                         obj->_instancedModelPath = Resolve_SplitInstanceImportModelPath(mapRoot, mapName, modelPathStr);
                     }
+                    obj->_instancedHasCollision = e.value("HasCollision", false);
                     
                     if (e.contains("Instances"))
                     {

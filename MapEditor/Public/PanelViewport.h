@@ -18,9 +18,11 @@ public:
     virtual ~PanelViewport() = default;
 
 public:
+    ID3D11ShaderResourceView* Get_SceneSRV() const { return _sceneSRV; }
+    bool IsSpawnAsInstanced() const { return _spawnAsInstanced; }
+
     void SetSnapSettings(Shared<SnapSettings> settings) { _snapSettings = settings; }
     void Set_SceneSRV(ID3D11ShaderResourceView* srv) { _sceneSRV = srv; }
-    ID3D11ShaderResourceView* Get_SceneSRV() const { return _sceneSRV; }
     void Set_SculpState(Shared<LandscapeSculptState> state) { _sculptState = state; }
     void Set_PickingSystem(MEPickingSystem* sys) { _pickingSystem = sys; }
 
@@ -71,6 +73,8 @@ private:
     ImVec2 _sculptVpSize = {};
 
     MEPickingSystem* _pickingSystem = {};
+
+    bool _spawnAsInstanced = false;
 
 private:
     bool Ray_Hit_Landscape(ImVec2 mousePos, ImVec2 vpPos, ImVec2 vpSz, Vec3& outHit);

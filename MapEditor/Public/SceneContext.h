@@ -40,6 +40,7 @@ struct SceneContext
     void SaveToFile(const string& filePath);
     void LoadFromFile(const string& filePath, bool bMerge = false);
     Shared<EditorObject> SpawnObject(const wstring& modelPath, const Vec3& pos);
+    Shared<EditorObject> SpawnInstancedObject(const wstring& modelPath, const Vec3& pos);
     Shared<EditorObject> SpawnFromPrefab(const string& prefabPath, const Vec3& pos);
 
     void PushCommand(Shared<IEditorCommand> cmd);
@@ -69,6 +70,9 @@ struct SceneContext
 
     bool _objectBBoxMode = false;
     bool _hideInstancedMesh = false;
+
+    bool SampleTerrainY(float worldX, float worldZ, float& outY) const;
+    void ScatterAt(EditorObject* obj, const ScatterZone& zone);
 
 public: // Minor 테스트 맵 인스턴스 분할
     void Export_MapInstance(const string& filePath);

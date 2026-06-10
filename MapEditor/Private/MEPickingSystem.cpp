@@ -58,7 +58,8 @@ uint32 MEPickingSystem::SampleID(const SceneContext& scene, const ImVec2& mouseP
             continue;
         }
 
-        obj->_instancedRenderHandle->RenderPickingID(staticCount + i + 1);
+        uint32 baseID = 0x800000u | ((i & 0xFFu) << 15);
+        obj->_instancedRenderHandle->RenderPickingID(baseID);
     }
 
     GAME->Bind_BackBuffer();
@@ -138,13 +139,27 @@ void MEPickingSystem::DoPickAt(SceneContext& scene, const ImVec2& mousePos, cons
     {
         scene._selected = nullptr;
     }
+    else if (id & 0x800000u)
+    {
+        uint32 groupIdx = (id >> 15) & 0xFFu;
+        uint32 instanceIdx = id & 0x7FFFu;
+        if (groupIdx < static_cast<uint32>(scene._instancedMeshes.size()))
+        {
+            scene._selected = scene._instancedMeshes[groupIdx];
+            scene._selected->_selectedInstanceIdx = static_cast<int>(instanceIdx);
+        }
+        else
+        {
+            scene._selected = nullptr;
+        }
+    }
     else if (id <= staticCount)
     {
         scene._selected = scene._staticMeshes[id - 1];
-    }
-    else if (id - staticCount - 1 < static_cast<uint32>(scene._instancedMeshes.size()))
-    {
-        scene._selected = scene._instancedMeshes[id - staticCount - 1];
+        if (scene._selected)
+        {
+            scene._selected->_selectedInstanceIdx = -1;
+        }
     }
     else
     {
@@ -199,7 +214,15 @@ void MEPickingSystem::SetCursorAt(SceneContext& scene, const MECamera& camera, c
     }
     else
     {
-        scene._cursorPos = rayOrigin + rayDir * 10.f;
+        Vec3 worldPos{};
+        if (SampleWorldPos(camera, mousePos, vpPos, vpSize, worldPos))
+        {
+            scene._cursorPos = worldPos;
+        }
+        else
+        {
+            scene._cursorPos = rayOrigin + rayDir * 10.f;
+        }
     }
 
     scene._cursorVisible = true;

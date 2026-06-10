@@ -353,20 +353,71 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
                 obj->_instancedParamsDirty = true;
             }
 
-            int instanceCount = static_cast<int>(obj->_instancedTransforms.size());
-            ImGui::LabelText("Instance Count", "%d", instanceCount);
+            ImGui::Checkbox("Has Collision", &obj->_instancedHasCollision);
 
-            if (!obj->_instancedTransforms.empty())
+            //int instanceCount = static_cast<int>(obj->_instancedTransforms.size());
+            //ImGui::LabelText("Instance Count", "%d", instanceCount);
+
+            //if (!obj->_instancedTransforms.empty())
+            //{
+            //    const auto& t = obj->_instancedTransforms[0];
+            //    ImGui::TextDisabled("Instance[0] Pos: (%.2f, %.2f, %.2f)", t._position.x, t._position.y, t._position.z);
+
+            //    if (ImGui::Button("Focus Instance[0]"))
+            //    {
+            //        _camera->FocusOn(t._position);
+            //    }
+            //}
+        }
+
+        if (ImGui::CollapsingHeader("Scatter Zone"))
+        {
+            ImGui::DragFloat("Radius", &_pendingZone.radius, 0.5f, 0.5f, 200.f);
+            ImGui::DragFloat("Min Spacing", &_pendingZone.minSpacing, 0.1f, 0.f, 50.f);
+            ImGui::DragInt("Count", &_pendingZone.count, 1, 1, 500);
+            ImGui::DragInt("Seed", &_pendingZone.seed, 1, 0, 99999);
+            ImGui::DragFloat("Scale Min", &_pendingZone.scaleMin, 0.01f, 0.01f, 10.f);
+            ImGui::DragFloat("Scale Max", &_pendingZone.scaleMax, 0.01f, 0.01f, 10.f);
+            ImGui::DragFloat("Y Rot Max", &_pendingZone.yRotMax, 1.f, 0.f, 360.f);
+
+            if (ImGui::Button("Use Cursor as Center"))
             {
-                const auto& t = obj->_instancedTransforms[0];
-                ImGui::TextDisabled("Instance[0] Pos: (%.2f, %.2f, %.2f)", t._position.x, t._position.y, t._position.z);
+                _pendingZone.center = _ctx->_cursorPos;
+            }
+            ImGui::SameLine();
+            ImGui::Text("(%.1f, %.1f, %1.f)", _pendingZone.center.x, _pendingZone.center.y, _pendingZone.center.z);
 
-                if (ImGui::Button("Focus Instance[0]"))
-                {
-                    _camera->FocusOn(t._position);
-                }
+            if (ImGui::Button("Generate"))
+            {
+                _ctx->ScatterAt(obj.get(), _pendingZone);
             }
         }
+
+        if (ImGui::CollapsingHeader("Instances"))
+        {
+            int32 instSize = static_cast<int>(obj->_instancedTransforms.size());
+            ImGui::LabelText("Count", "%d", instSize);
+
+            if (obj->_selectedInstanceIdx >= 0 && obj->_selectedInstanceIdx < instSize)
+            {
+                const auto& t = obj->_instancedTransforms[obj->_selectedInstanceIdx];
+                ImGui::Text("Selected: [%d] (%.1f, %.1f, %.1f)", obj->_selectedInstanceIdx, t._position.x, t._position.y, t._position.z);
+
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Del"))
+                {
+                    obj->_instancedTransforms.erase(
+                        obj->_instancedTransforms.begin() + obj->_selectedInstanceIdx);
+                    obj->_instancedParamsDirty = true;
+                    obj->_selectedInstanceIdx = -1;
+                }
+            }
+            else
+            {
+                ImGui::TextDisabled("(Click instance mesh from viewport)");
+            }
+        }
+
         break;
 
     case EObjectType::Terrain:
