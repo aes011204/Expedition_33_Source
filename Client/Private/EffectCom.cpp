@@ -596,6 +596,10 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
     CHECK_NULL(weaponPart, E_FAIL);
 
+    wstring resolvedEffectName{};
+    if (!Try_ResolveTrailEffectName(effectName, partTag, resolvedEffectName))
+        return E_FAIL;
+
     const Shared<ModelCom> weaponModel = weaponPart->Get_Model();
     CHECK_NULL(weaponModel, E_FAIL);
 
@@ -608,7 +612,7 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
         return E_FAIL;
 
     AttachedEffect attached{};
-    attached.effectName = effectName;
+    attached.effectName = resolvedEffectName; // Stop에서도 같은 resolved 이름으로 찾아야 한다.
     attached.partTag = partTag;
     attached.layerTag = layerTag;
     attached.isTrail = true;
@@ -631,7 +635,7 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     CHECK_NULL(effectPool, E_FAIL);
 
     EffectInstancePool::AcquireDesc acquireDesc{};
-    acquireDesc.effectName = effectName;
+    acquireDesc.effectName = resolvedEffectName;
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = initialSample.baseWorldPosition;
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
@@ -645,11 +649,15 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
 
 void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partTag)
 {
+    wstring resolvedEffectName{};
+    if (!Try_ResolveTrailEffectName(effectName, partTag, resolvedEffectName))
+        return;
+
     for (AttachedEffect& attached : _attachedEffects)
     {
         if (!attached.isTrail)
             continue;
-        if (attached.effectName != effectName)
+        if (attached.effectName != resolvedEffectName)
             continue;
         if (attached.partTag != partTag)
             continue;
@@ -666,6 +674,32 @@ bool EffectCom::Try_GetTrailSampleForPart(
     EffectTrailSample& outSample) const
 {
     return Try_BuildTrailSample(partTag, trailAnchorAsset, outSample);
+}
+
+bool EffectCom::Try_ResolveTrailEffectName(
+    const wstring& effectNameOverride,
+    const wstring& partTag,
+    wstring& outEffectName) const
+{
+    outEffectName.clear();
+
+    if (!effectNameOverride.empty())
+    {
+        outEffectName = effectNameOverride;
+        return true;
+    }
+
+    const Shared<GameObject> ownerObject = Get_Owner();
+    const Shared<ContainerObject> ownerContainer = dynamic_pointer_cast<ContainerObject>(ownerObject);
+    if (ownerContainer == nullptr)
+        return false;
+
+    const Weapon* weaponPart = dynamic_cast<Weapon*>(ownerContainer->Get_PartObject(partTag));
+    if (weaponPart == nullptr)
+        return false;
+
+    outEffectName = weaponPart->Get_TrailEffectName(); // notify가 비어 있으면 무기 프리펩 기본 Trail을 소비한다.
+    return !outEffectName.empty();
 }
 
 void EffectCom::Update_AttachedEffects()

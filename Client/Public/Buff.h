@@ -37,6 +37,12 @@ public:
             _pendingRemove = true;
     }
 
+    void    Refresh_DurationTurn(int32 durationTurn)
+    {
+        _durationTurn = durationTurn;   // 같은 상태이상을 다시 맞으면 새 지속 턴
+        _pendingRemove = false;         // 갱신된 버프가 이번 턴에서 정리되지 않게
+    }
+
 
 private:
     Buffs   _buffId = Buffs::None;

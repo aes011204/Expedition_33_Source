@@ -218,6 +218,11 @@ private:
             Vec3& outWorldPosition,
             Vec3& outWorldRotation) const;
 
+    bool Try_ResolveTrailEffectName(
+            const wstring& effectNameOverride,
+            const wstring& partTag,
+            wstring& outEffectName) const;
+
     bool Try_BuildTrailSample(
         const wstring& partTag,
         const TrailAnchorAsset& trailAnchorAsset,

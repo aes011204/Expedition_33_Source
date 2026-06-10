@@ -13,7 +13,6 @@ namespace Client
     class Character_BattleBase;
     struct BattleActionPhase;
     struct Skill_Data;
-    enum class Buffs;
     enum class ElementalType;
     class CombatStatCom;
     class BattleMechanismCom;
@@ -603,6 +602,8 @@ namespace Client
         ElementalType element = ElementalType::None;
         Buffs buff = Buffs::None;
         float ailmentChance = 0.f;
+
+        int32 buffDurationTurn = 0;
     };
 
     //------------------------------------
