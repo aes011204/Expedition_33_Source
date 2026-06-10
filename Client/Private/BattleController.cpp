@@ -506,13 +506,7 @@ void BattleController::EndTurn()
     // 죽은애들은 큐에 다시 안들어가게
     if (actor.statCom->Get_AliveStatus() != EAliveStatus::Dead)
     {
-        TurnEntry entry{};
-        entry.hero = actor;
-
-        entry.nextTime =
-            _battleTime + 100.f / max(actor.statCom->Get_Speed(), 1.f);
-
-        _turnQueue.push(entry);
+        Push_TurnEntry(actor, _battleTime + 100.f / max(actor.statCom->Get_Speed(), 1.f));
     }
 
     _pendingNextTurn = true;
@@ -699,6 +693,7 @@ void BattleController::Build_InitialTurnQueue(bool isPlayerAdvantage)
 
     // 첨 초기화
     _battleTime = 0;
+    _nextTurnEntrySeq = 0;
 
     while (!_turnQueue.empty())
     {
@@ -716,20 +711,14 @@ void BattleController::Build_InitialTurnQueue(bool isPlayerAdvantage)
         if (!hero.actor)
             continue;
 
-        TurnEntry entry = {};
-        entry.nextTime = 100.f / max(hero.statCom->Get_Speed(), 1.f) + heroOffset;
-        entry.hero = hero;
-        _turnQueue.push(entry);
+        Push_TurnEntry(hero, 100.f / max(hero.statCom->Get_Speed(), 1.f) + heroOffset);
     }
     for (const auto& enemy : _enemies)
     {
         if (!enemy.actor)
             continue;
 
-        TurnEntry entry = {};
-        entry.nextTime = 100.f / max(enemy.statCom->Get_Speed(), 1.f) + monsterOffset;
-        entry.hero = enemy;
-        _turnQueue.push(entry);
+        Push_TurnEntry(enemy, 100.f / max(enemy.statCom->Get_Speed(), 1.f) + monsterOffset);
     }
 }
 
@@ -760,9 +749,20 @@ void BattleController::Rebuild_TurnQueue(const BattleChar& revivedActor)
     TurnEntry revivedEntry{};
     revivedEntry.hero = revivedActor;
     revivedEntry.nextTime = _battleTime + 100.f / max(revivedActor.statCom->Get_Speed(), 1.f);
+    revivedEntry.orderSeq = _nextTurnEntrySeq++;
 
     rebuiltQueue.push(revivedEntry);
     _turnQueue = std::move(rebuiltQueue);
+}
+
+void BattleController::Push_TurnEntry(const BattleChar& actor, float nextTime)
+{
+    TurnEntry entry{};
+    entry.hero = actor;
+    entry.nextTime = nextTime;
+    entry.orderSeq = _nextTurnEntrySeq++;
+
+    _turnQueue.push(entry);
 }
 
 float BattleController::Resolve_PrefabGroundOffsetY(const Shared<GameObject>& actor) const
@@ -1560,13 +1560,7 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
         rot.y = yawDeg;
         battleChar.actor->Get_Transform()->Set_RotationEuler(rot);
 
-        TurnEntry turn = {};
-        turn.nextTime = _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f);
-
-        turn.hero = battleChar;
-
-
-        _turnQueue.push(turn);
+        Push_TurnEntry(battleChar, _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f));
     }
     else
     {
@@ -1598,12 +1592,7 @@ void BattleController::Spawn_BattleChar(bool IsHero, string prefabName, Vec3 pos
         _enemies.push_back(battleChar);
 
 
-        TurnEntry turn = {};
-        turn.nextTime = _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f);
-        turn.hero = battleChar;
-
-
-        _turnQueue.push(turn);
+        Push_TurnEntry(battleChar, _battleTime + 100.f / max(battleChar.statCom->Get_Speed(), 1.f));
     }
 }
 
@@ -1614,6 +1603,7 @@ vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
         return preview;
 
     auto queueCopy = _turnQueue;
+    uint64 previewNextTurnEntrySeq = _nextTurnEntrySeq;
 
     if (_currentTurnActor.actor != nullptr && _currentTurnActor.statCom != nullptr)
     {
@@ -1626,6 +1616,7 @@ vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
             nextEntry.hero = _currentTurnActor;
             nextEntry.nextTime =
                 _battleTime + 100.f / max(_currentTurnActor.statCom->Get_Speed(), 1.f);
+            nextEntry.orderSeq = previewNextTurnEntrySeq++;
 
             queueCopy.push(nextEntry);
         }
@@ -1645,6 +1636,7 @@ vector<BattleChar> BattleController::Get_TurnOrderPreview(uint32 maxCount) const
         preview.push_back(entry.hero);
 
         entry.nextTime += 100.f / max(entry.hero.statCom->Get_Speed(), 1.f);
+        entry.orderSeq = previewNextTurnEntrySeq++;
         queueCopy.push(entry);
     }
 
@@ -1995,6 +1987,7 @@ void BattleController::Clear_BattleRuntimeState()
     Clear_FreeAimHitTarget();
     currentTurnIndex = 0;
     _battleTime = 0.f;
+    _nextTurnEntrySeq = 0;
     _flag = false;
     _isActionExecuting = false;
     _hitSequenceRunner.Clear();

@@ -551,7 +551,8 @@ namespace Client
     struct TurnEntry
     {
         BattleChar hero;
-        float nextTime;
+        float nextTime = 0.f;
+        uint64 orderSeq = 0; // 같은 nextTime이면 먼저 예약된 턴부터 처리한다.
     };
 
     struct DamageContext

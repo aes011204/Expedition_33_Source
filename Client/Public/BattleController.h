@@ -201,6 +201,7 @@ private:
     void    Activate_BattleTurnCamera();
     void    Restore_WorldCamera();
     void    Clear_BattleRuntimeState();
+    void    Push_TurnEntry(const BattleChar& actor, float nextTime);
     float   Resolve_PrefabGroundOffsetY(const Shared<GameObject>& actor) const;
 
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
@@ -290,18 +291,19 @@ private:
 public:
     struct Compare
     {
-        bool operator()(TurnEntry& a, TurnEntry& b)
+        bool operator()(const TurnEntry& a, const TurnEntry& b) const
         {
-            if (a.nextTime > b.nextTime)
-                // Ultimate_Data    _selected_ultimate
-                return true;
-            return false;
+            if (a.nextTime != b.nextTime)
+                return a.nextTime > b.nextTime; // nextTime이 작을수록 먼저 행동한다.
+
+            return a.orderSeq > b.orderSeq; // 같은 시간대면 먼저 예약된 턴이 먼저다.
         }
     };
 
 private:
     priority_queue<TurnEntry, vector<TurnEntry>, Compare> _turnQueue;
     float _battleTime = {};
+    uint64 _nextTurnEntrySeq = 0;
     vector<BattleChar> _heroes;
     vector<BattleChar> _enemies;
 
