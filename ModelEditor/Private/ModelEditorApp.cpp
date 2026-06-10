@@ -8,6 +8,7 @@
 #include "Level_ModelEditor.h"
 
 #include "ShaderCom.h"
+#include "ComputeShaderCom.h"
 #include "Vertex_Types.h"
 
 #include <filesystem>
@@ -58,6 +59,26 @@ HRESULT ModelEditorApp::Initialize()
 		return E_FAIL;
 	if (FAILED(GAME->Add_Prototype(0, L"Shader_VtxAnimMesh", vtxAnimMeshShader)))
 		return E_FAIL;
+
+    auto addComputeShader = [&](const wchar_t* prototypeTag, const wchar_t* shaderPath) -> HRESULT
+    {
+        Shared<ComputeShaderCom> shader =
+            ComputeShaderCom::Create(_device, _context, shaderPath, "CS_Main");
+        CHECK_NULL(shader, E_FAIL);
+        return GAME->Add_Prototype(0, prototypeTag, shader);
+    };
+
+    CHECK_FAILED(addComputeShader(
+        L"ComputeShader_BoneRemap",
+        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_BoneRemap.hlsl"), E_FAIL);
+
+    CHECK_FAILED(addComputeShader(
+        L"ComputeShader_AnimMeshSkinning",
+        L"../../../Client/Bin/ShaderFiles/Compute/Shader_Compute_AnimMeshSkinning.hlsl"), E_FAIL);
+
+    CHECK_FAILED(addComputeShader(
+        L"ComputeShader_MorphDeform",
+        L"../../../Engine/Bin/ShaderFiles/Compute/Shader_Compute_MorphDeform.hlsl"), E_FAIL);
 
 	if (FAILED(GAME->Add_Prototype(0, L"Prototype_GameObject_ModelEditorCamera", ModelEditorCamera::Create(_device, _context))))
 		return E_FAIL;

@@ -123,6 +123,7 @@ public: // Morph 메시 연산
     int32 Find_MorphTargetIndex(const string& name) const;
 
     void Set_MorphWeight(uint32 targetIndex, float weight);
+    void Set_MorphWeight_Unclamped(uint32 targetIndex, float weight);
     void Reset_MorphWeights();
     const vector<float>* Get_MorphWeights() const;
     bool Consume_MorphDirty();

@@ -222,6 +222,7 @@ if exist "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\Public\EditorBlock.h" />
+    <ClInclude Include="..\Public\GltfMorphBuilder.h" />
     <ClInclude Include="..\Public\Level_ModelEditor.h" />
     <ClInclude Include="..\Public\ModelEditorCamera.h" />
     <ClInclude Include="..\Public\ModelImGui_Manager.h" />
@@ -241,6 +242,7 @@ if exist "$(SolutionDir)EngineSDK\lib\$(Configuration)\fmod.dll" xcopy /y /d "$(
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\EditorBlock.cpp" />
+    <ClCompile Include="..\Private\GltfMorphBuilder.cpp" />
     <ClCompile Include="..\Private\Level_ModelEditor.cpp" />
     <ClCompile Include="..\Private\ModelEditorCamera.cpp" />
     <ClCompile Include="..\Private\ModelImGui_Manager.cpp" />

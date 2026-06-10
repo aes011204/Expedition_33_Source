@@ -1,4 +1,5 @@
-﻿#include "ModelCom.h"
+﻿#include "pch.h"
+#include "ModelCom.h"
 #include "GameInstance.h"
 #include "Asset_Manager.h"
 #include "MaterialBuilder.h"
@@ -17,7 +18,6 @@
 #include "AnimNotify.h"
 #include "AnimNotifyState.h"
 #include "AnimState_Parser.h"
-#include "Channel.h"
 #include "ComputeShaderCom.h"
 #include "GameObject.h"
 #include "ModelDeform.h"
@@ -343,6 +343,12 @@ void ModelCom::Set_MorphWeight(uint32 targetIndex, float weight)
 {
     if (_modelDeform != nullptr)
         _modelDeform->Set_MorphWeight(targetIndex, weight);
+}
+
+void ModelCom::Set_MorphWeight_Unclamped(uint32 targetIndex, float weight)
+{
+    if (_modelDeform != nullptr)
+        _modelDeform->Set_MorphWeight_Unclamped(targetIndex, weight);
 }
 
 void ModelCom::Reset_MorphWeights()
@@ -2103,7 +2109,8 @@ void ModelCom::Evaluate_AnimationModifiers(float timeDelta)
 {
     for (auto& modifier : _modifiers)
     {
-        modifier->Evaluate_Modifier(this, timeDelta);
+        if (modifier != nullptr)
+            modifier->Evaluate_Modifier(this, timeDelta);
     }
 }
 
@@ -2293,6 +2300,8 @@ HRESULT ModelCom::Ready_Model(const char* modelPath)
         _localBoundsMax = maxBounds;
     }
     stream.close();
+
+    CHECK_FAILED(Try_LoadMorphData(resolvedPath), E_FAIL);
 
     return S_OK;
 }

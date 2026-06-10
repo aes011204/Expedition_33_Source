@@ -43,6 +43,9 @@
     <Filter Include="00. EditorBlock\System">
       <UniqueIdentifier>{22d902cb-9b38-458a-b641-05471e2ee43a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="00. EditorBlock\GltfMorphBuilder">
+      <UniqueIdentifier>{2448021f-20c5-4dc1-ae38-69b36180537d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -62,6 +65,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\EditorBlock.h">
       <Filter>00. EditorBlock</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\GltfMorphBuilder.h">
+      <Filter>00. EditorBlock\GltfMorphBuilder</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\LogWindow.h">
       <Filter>00. EditorBlock\LogWindow</Filter>
@@ -106,6 +112,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\EditorBlock.cpp">
       <Filter>00. EditorBlock</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\GltfMorphBuilder.cpp">
+      <Filter>00. EditorBlock\GltfMorphBuilder</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\LogWindow.cpp">
       <Filter>00. EditorBlock\LogWindow</Filter>
