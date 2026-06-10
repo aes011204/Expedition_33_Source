@@ -362,7 +362,15 @@ BattleTutorialRequest BattleTutorialController::Build_Request(BattleTutorialStep
         break;
 
     case BattleTutorialStep::BattleSystem:
+        request.pauseBattle = true;
+        request.blockInput = true;
+        request.delaySec = 1.3f;
+        break;
     case BattleTutorialStep::TurnOrder:
+        request.pauseBattle = true;
+        request.blockInput = true;
+        request.delaySec = 0.f;
+        break;
     case BattleTutorialStep::Attack:
     case BattleTutorialStep::EnemyTurn:
     case BattleTutorialStep::Skill:

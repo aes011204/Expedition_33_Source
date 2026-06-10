@@ -230,7 +230,28 @@ bool Hierarchy_View::Pass_SearchFilter(const Shared<GameObject>& gameObject, uin
         return true;
 
     const string label = Build_HierarchyLabel(gameObject, objectIndex);
-    return Match_SearchPattern(label, _searchFilter);
+    if (Match_SearchPattern(label, _searchFilter))
+        return true;
+
+    Shared<ContainerObject> container = dynamic_pointer_cast<ContainerObject>(gameObject);
+    if (container == nullptr)
+        return false;
+
+    uint32 partIndex = 0;
+    for (const auto& [partTag, partObject] : container->Get_PartObjects())
+    {
+        if (partObject == nullptr)
+        {
+            ++partIndex;
+            continue;
+        }
+
+        const string partLabel = Build_PartHierarchyLabel(partTag, partIndex++);
+        if (Match_SearchPattern(partLabel, _searchFilter))
+            return true;
+    }
+
+    return false;
 }
 
 bool Hierarchy_View::Pass_LightingSearchFilter() const
@@ -312,6 +333,16 @@ string Hierarchy_View::Build_HierarchyLabel(const Shared<GameObject>& gameObject
         return objectName + " [" + to_string(objectIndex) + "]";
 
     return "GameObject [" + to_string(objectIndex) + "]";
+}
+
+string Hierarchy_View::Build_PartHierarchyLabel(const wstring& partTag, uint32 partIndex) const
+{
+    const string partName = String::ToString(partTag);
+
+    if (!partName.empty())
+        return partName + " [" + to_string(partIndex) + "]";
+
+    return "PartObject [" + to_string(partIndex) + "]";
 }
 
 void Hierarchy_View::Render()
@@ -557,6 +588,9 @@ void Hierarchy_View::Draw_NodeObject(const Shared<GameObject>& gameObject, uint3
     if (containsSelectedPart)
         ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 
+    if (!_searchFilter.empty() && isContainer)
+        ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+
     bool nodeOpen = ImGui::TreeNodeEx(label.c_str(), flags);
 
     if (isSelected && _scrollSelectionIntoView)
@@ -595,7 +629,7 @@ void Hierarchy_View::Draw_NodeObject(const Shared<GameObject>& gameObject, uint3
             ImGui::PushID(partObject.get());
 
             const bool isPartSelected = (selectedObject == partObject);
-            const string partLabel = Build_HierarchyLabel(partObject, partIndex++);
+            const string partLabel = Build_PartHierarchyLabel(partTag, partIndex++);
 
             // 파츠 오브젝트는 더 이상 자식이 없다고 가정하고 Leaf 노드로 출력
             ImGuiTreeNodeFlags partFlags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen |

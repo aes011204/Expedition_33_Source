@@ -129,7 +129,6 @@ void BattleController::Update(float timeDelta)
         {
             _isWaitingBattleTransition = false;
 
-            CLIENT->Clear_RuntimeEffects();
             StartTurn();
         }
 

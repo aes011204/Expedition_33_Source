@@ -459,6 +459,7 @@
     <ClCompile Include="..\Private\BattleEncounterProfile.cpp" />
     <ClCompile Include="..\Private\PlayerInventory.cpp" />
     <ClCompile Include="..\Private\BattleResultRecoder.cpp" />
+    <ClCompile Include="..\Private\CostumeManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -1298,6 +1299,7 @@
     <ClInclude Include="..\Public\PlayerInventory.h" />
     <ClInclude Include="..\Public\BattleResultRecoder.h" />
     <ClInclude Include="..\Public\BattleMonsterSpawnDesc.h" />
+    <ClInclude Include="..\Public\CostumeManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

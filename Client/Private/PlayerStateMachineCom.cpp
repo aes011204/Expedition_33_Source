@@ -80,6 +80,26 @@ Shared<State> PlayerStateMachineCom::Get_State(PlayerState playerState) const
     return iter->second;
 }
 
+void PlayerStateMachineCom::Refresh_BodyPlayerForStates()
+{
+    for (auto& statePair : _states)
+    {
+        Shared<Player_State> playerState = dynamic_pointer_cast<Player_State>(statePair.second);
+        if (playerState == nullptr)
+            continue;
+
+        playerState->Refresh_BodyPlayer();
+    }
+}
+
+bool PlayerStateMachineCom::Reenter_CurrentState()
+{
+    if (_currentState == nullptr)
+        return false;
+
+    return _currentState->EnterInvoke();
+}
+
 PlayerState PlayerStateMachineCom::Get_CurrentPlayerState() const
 {
     auto str = String::ToString(_currentStateName);

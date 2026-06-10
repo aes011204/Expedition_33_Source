@@ -7,8 +7,8 @@
 #include "UIPreviewManager.h"
 
 NS_BEGIN(Engine)
-    class GameInstance;
-    class Level;
+class GameInstance;
+class Level;
 NS_END
 
 NS_BEGIN(Client)
@@ -25,6 +25,7 @@ class ScreenFadeTransition;
 class LevelTransitionFade;
 class ClientScreenFxManager;
 class PlayerInventory;
+class CostumeManager;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -186,6 +187,9 @@ public: /* Delegate */
 public: /* Player Inventory */
     Shared<PlayerInventory> Get_PlayerInventory() const { return _playerInventory; }
 
+public: /* Costume Manager */
+    CostumeManager* Get_CostumeManager() const { return _costumeManager.get(); }
+
 private:
 	HRESULT Ready_ResourceLoader();
     HRESULT Ready_GameDataTables();
@@ -218,8 +222,9 @@ private:
     Shared<ClientScreenFxManager>       _screenFxManager;
 
     Shared<BattleController>    _battleController;
-
     Shared<PlayerInventory>     _playerInventory;
+
+    Unique<CostumeManager>      _costumeManager;
 
 public:
 	void Free() override;

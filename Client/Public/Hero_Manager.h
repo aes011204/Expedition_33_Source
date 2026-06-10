@@ -110,6 +110,8 @@ private:
 private:
     HRESULT Ready_Delegates();
 
+    void Toggle_CostumeForTest();
+
 private:
     vector<HeroPartyEntry>  _heroes;
     uint32                  _activeIndex = 0;

@@ -23,6 +23,7 @@
 #include "MapLoader.h"
 #include "ClientScreenFxManager.h"
 #include "PlayerInventory.h"
+#include "CostumeManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -86,6 +87,9 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _playerInventory = PlayerInventory::Create();
     CHECK_NULL(_playerInventory, E_FAIL);
+
+    _costumeManager = CostumeManager::Create();
+    CHECK_NULL(_costumeManager, E_FAIL);
 
 	_isInitialized = true;
 
@@ -706,6 +710,8 @@ void ClientInstance::Release_Client()
     ReleaseManager(_persistentObjectManager);
     ReleaseManager(_resourceLoader);
     ReleaseManager(_heroManager);
+    ReleaseManager(_playerInventory);
+    ReleaseManager(_costumeManager);
     ReleaseManager(_battleController);
     ReleaseManager(_gamePlayUI);
     ReleaseManager(_screenFxManager);
