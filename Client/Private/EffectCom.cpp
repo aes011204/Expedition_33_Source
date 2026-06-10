@@ -15,6 +15,31 @@
 #include "TrailSampleProvider_ByPart.h"
 #include "Weapon.h"
 
+namespace
+{
+    float Resolve_TrailDrainDuration(const Shared<const EffectDefinition>& definition)
+    {
+        constexpr float fallbackDuration = 0.25f;
+        if (definition == nullptr)
+            return fallbackDuration;
+
+        float duration = fallbackDuration;
+        for (const EffectEmitterDefinition& emitter : definition->emitters)
+        {
+            if (!emitter.enabled || emitter.kind != EffectEmitterKind::ComputeTrail)
+                continue;
+
+            const ComputeTrailEmitterDesc* trailDesc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc);
+            if (trailDesc == nullptr)
+                continue;
+
+            duration = max(duration, trailDesc->segmentLifetime);
+        }
+
+        return max(0.001f, duration);
+    }
+}
+
 IMPLEMENT_REFLECTION(EffectCom)
 {
     auto& info = GetStaticReflectionInfo();
@@ -99,7 +124,7 @@ void EffectCom::Update(float timeDelta)
         _vanishComplete = false;
     }
 
-    Update_AttachedEffects();
+    Update_AttachedEffects(timeDelta);
 }
 
 void EffectCom::Tick_AttachedEffectInstances(float timeDelta)
@@ -582,6 +607,7 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     attached.partTag = partTag;
     attached.layerTag = layerTag;
     attached.isTrail = true;
+    attached.trailSampleEnabled = make_shared<bool>(true);
 
     const fs::path anchorPath = TrailAnchor_Parser::Get_ModelTrailAnchorFilePath(modelGuid);
     if (!TrailAnchor_Parser::Load_FromFile(anchorPath.wstring(), attached.trailAnchorAsset))
@@ -594,7 +620,8 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     attached.trailSampleProvider = make_shared<TrailSampleProvider_ByPart>(
         static_pointer_cast<EffectCom>(GetSharedPtr<EffectCom>()),
         partTag,
-        attached.trailAnchorAsset
+        attached.trailAnchorAsset,
+        attached.trailSampleEnabled
     );
     CHECK_NULL(attached.trailSampleProvider, E_FAIL);
 
@@ -606,6 +633,8 @@ HRESULT EffectCom::Play_TrailEffect(const wstring& effectName, const wstring& pa
     acquireDesc.layerTag = layerTag;
     acquireDesc.worldPosition = initialSample.baseWorldPosition;
     acquireDesc.trailSampleProvider = attached.trailSampleProvider;
+
+    attached.trailDrainDuration = Resolve_TrailDrainDuration(EffectAssetRuntimeLoader::Load_DefinitionByName(effectName));
 
     CHECK_FAILED(effectPool->Acquire(acquireDesc, attached.poolHandle), E_FAIL);
 
@@ -625,7 +654,7 @@ void EffectCom::Stop_TrailEffect(const wstring& effectName, const wstring& partT
         if (attached.partTag != partTag)
             continue;
 
-        Release_AttachedEffect(attached);
+        Begin_TrailDrain(attached);
     }
 
     Prune_ReleasedAttachedEffects();
@@ -639,12 +668,21 @@ bool EffectCom::Try_GetTrailSampleForPart(
     return Try_BuildTrailSample(partTag, trailAnchorAsset, outSample);
 }
 
-void EffectCom::Update_AttachedEffects()
+void EffectCom::Update_AttachedEffects(float timeDelta)
 {
     for (AttachedEffect& attached : _attachedEffects)
     {
         if (attached.poolHandle.effectObject == nullptr)
             continue;
+
+        if (attached.isTrailDraining)
+        {
+            attached.trailDrainElapsed += max(0.f, timeDelta);
+            if (attached.trailDrainElapsed >= attached.trailDrainDuration)
+                Release_AttachedEffect(attached);
+
+            continue;
+        }
 
         if (Should_ReleaseAttachedEffect(attached))
         {
@@ -702,6 +740,22 @@ void EffectCom::Release_AttachedEffect(AttachedEffect& attached)
 
     effectPool->Release(attached.poolHandle);
     attached.poolHandle = {};
+    attached.trailSampleEnabled.reset();
+    attached.trailSampleProvider.reset();
+    attached.isTrailDraining = false;
+    attached.trailDrainElapsed = 0.f;
+}
+
+void EffectCom::Begin_TrailDrain(AttachedEffect& attached)
+{
+    if (!attached.isTrail || attached.isTrailDraining)
+        return;
+
+    if (attached.trailSampleEnabled != nullptr)
+        *attached.trailSampleEnabled = false;
+
+    attached.isTrailDraining = true;
+    attached.trailDrainElapsed = 0.f;
 }
 
 bool EffectCom::Should_ReleaseAttachedEffect(const AttachedEffect& attached) const

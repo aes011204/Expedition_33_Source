@@ -1891,6 +1891,7 @@ bool RequiredModuleDetail::Draw(
 {
     const RequiredModuleData defaultData{};
     bool changed = false;
+    const AuthoringModuleType moduleType = module.type;
 
     if (_materialSlotPreview == nullptr)
         _materialSlotPreview = EffectMaterialPreviewRenderer::Create(64);
@@ -2043,8 +2044,22 @@ bool RequiredModuleDetail::Draw(
         if (detailContext.Begin_PropertyTable("RequiredTime"))
         {
             changed |= detailContext.Draw_UintProperty("루프 횟수", data.loopCount, defaultData.loopCount);
-            changed |= detailContext.Draw_FloatProperty("스폰 활성 시간", data.duration, defaultData.duration);
-            changed |= detailContext.Draw_FloatProperty("스폰 시작 딜레이", data.delay, defaultData.delay);
+            changed |= detailContext.Draw_FloatProperty(
+                "스폰 활성 시간",
+                data.duration,
+                defaultData.duration,
+                0.01f,
+                nullptr,
+                Find_AuthoringValueRange(moduleType, "duration")
+            );
+            changed |= detailContext.Draw_FloatProperty(
+                "스폰 시작 딜레이",
+                data.delay,
+                defaultData.delay,
+                0.01f,
+                nullptr,
+                Find_AuthoringValueRange(moduleType, "delay")
+            );
             changed |= detailContext.Draw_BoolProperty("첫 루프만 스폰 딜레이", data.delayFirstLoopOnly, defaultData.delayFirstLoopOnly);
             detailContext.End_PropertyTable();
         }
@@ -2087,7 +2102,7 @@ bool RequiredModuleDetail::Draw(
     return changed;
 }
 
-bool SpawnModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SpawnModuleData& data, DetailPropertyContext& detailContext)
+bool SpawnModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, SpawnModuleData& data, DetailPropertyContext& detailContext)
 {
     const SpawnModuleData defaultData{};
     bool changed = false;
@@ -2100,8 +2115,24 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SpawnModuleDat
             detailContext.End_PropertyTable();
         }
 
-        changed |= detailContext.Draw_FloatDistributionGroup("초당 생성 수", data.spawnRate, defaultData.spawnRate);
-        changed |= detailContext.Draw_FloatDistributionGroup("스폰 속도 스케일", data.spawnRateScale, defaultData.spawnRateScale);
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "초당 생성 수",
+            data.spawnRate,
+            defaultData.spawnRate,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "spawnRate")
+        );
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "스폰 속도 스케일",
+            data.spawnRateScale,
+            defaultData.spawnRateScale,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "spawnRateScale")
+        );
     }
 
     if (ImGui::CollapsingHeader("버스트", ImGuiTreeNodeFlags_DefaultOpen))
@@ -2112,7 +2143,15 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SpawnModuleDat
             detailContext.End_PropertyTable();
         }
 
-        changed |= detailContext.Draw_FloatDistributionGroup("버스트 스케일", data.burstScale, defaultData.burstScale);
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "버스트 스케일",
+            data.burstScale,
+            defaultData.burstScale,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "burstScale")
+        );
         changed |= detailContext.Draw_BurstListProperty(data.burstList, defaultData.burstList);
     }
 
@@ -2128,14 +2167,22 @@ bool SpawnModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SpawnModuleDat
     return changed;
 }
 
-bool LifetimeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, LifetimeModuleData& data, DetailPropertyContext& detailContext)
+bool LifetimeModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, LifetimeModuleData& data, DetailPropertyContext& detailContext)
 {
     const LifetimeModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("파티클 생존 시간", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        changed |= detailContext.Draw_FloatDistributionGroup("파티클 생존 시간", data.lifeTime, defaultData.lifeTime);
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "파티클 생존 시간",
+            data.lifeTime,
+            defaultData.lifeTime,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "lifeTime")
+        );
         ImGui::TextDisabled("각 particle이 spawn된 뒤 살아 있는 시간입니다. Over Life 계열 curve의 기준이 됩니다.");
     }
 
@@ -2175,7 +2222,7 @@ bool InitialLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Init
     return changed;
 }
 
-bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, SphereLocationModuleData& data, DetailPropertyContext& detailContext)
+bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, SphereLocationModuleData& data, DetailPropertyContext& detailContext)
 {
     const SphereLocationModuleData defaultData{};
     bool changed = false;
@@ -2185,7 +2232,14 @@ bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Spher
         if (detailContext.Begin_PropertyTable("SphereLocation"))
         {
             changed |= detailContext.Draw_Vec3Property("오프셋", data.offset, defaultData.offset);
-            changed |= detailContext.Draw_FloatProperty("반지름", data.radius, defaultData.radius);
+            changed |= detailContext.Draw_FloatProperty(
+                "반지름",
+                data.radius,
+                defaultData.radius,
+                0.01f,
+                nullptr,
+                Find_AuthoringValueRange(module.type, "radius")
+            );
             changed |= Internal::Draw_SphereLocationSpawnModeProperty(
                 detailContext,
                 "생성 방식",
@@ -2212,7 +2266,7 @@ bool SphereLocationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Spher
 
 bool PlaneRadialLocationModuleDetail::Draw(
     AuthoringEmitter&,
-    AuthoringModule&,
+    const AuthoringModule& module,
     PlaneRadialLocationModuleData& data,
     DetailPropertyContext& detailContext)
 {
@@ -2254,7 +2308,15 @@ bool PlaneRadialLocationModuleDetail::Draw(
         }
         else
         {
-            changed |= detailContext.Draw_FloatDistributionGroup("반지름 분포", data.radiusDistribution, defaultData.radiusDistribution, 0.01f, true, false);
+            changed |= detailContext.Draw_FloatDistributionGroup(
+                "반지름 분포",
+                data.radiusDistribution,
+                defaultData.radiusDistribution,
+                0.01f,
+                true,
+                false,
+                Find_AuthoringValueRange(module.type, "radiusDistribution")
+            );
             changed |= detailContext.Draw_FloatDistributionGroup(
                 "각도 분포",
                 data.angleDegreesDistribution,
@@ -2413,13 +2475,23 @@ bool AccelerationModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Acceler
     return changed;
 }
 
-bool DragModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, DragModuleData& data, DetailPropertyContext& detailContext)
+bool DragModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, DragModuleData& data, DetailPropertyContext& detailContext)
 {
     const DragModuleData defaultData{};
     bool changed = false;
 
     if (ImGui::CollapsingHeader("드래그", ImGuiTreeNodeFlags_DefaultOpen))
-        changed |= detailContext.Draw_FloatDistributionGroup("드래그", data.drag, defaultData.drag);
+    {
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "드래그",
+            data.drag,
+            defaultData.drag,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "drag")
+        );
+    }
 
     return changed;
 }
@@ -2665,7 +2737,7 @@ bool MeshRotationRateScaleByLifeModuleDetail::Draw(
     return changed;
 }
 
-bool InitialColorModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, InitialColorModuleData& data, DetailPropertyContext& detailContext)
+bool InitialColorModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, InitialColorModuleData& data, DetailPropertyContext& detailContext)
 {
     const InitialColorModuleData defaultData{};
     bool changed = false;
@@ -2673,13 +2745,21 @@ bool InitialColorModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, Initial
     if (ImGui::CollapsingHeader("초기 컬러", ImGuiTreeNodeFlags_DefaultOpen))
     {
         changed |= detailContext.Draw_ColorRgbDistributionGroup("색상(RGB)", data.color, defaultData.color);
-        changed |= detailContext.Draw_FloatDistributionGroup("알파", data.alpha, defaultData.alpha);
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "알파",
+            data.alpha,
+            defaultData.alpha,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "alpha")
+        );
     }
 
     return changed;
 }
 
-bool ColorOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, ColorOverLifeModuleData& data, DetailPropertyContext& detailContext)
+bool ColorOverLifeModuleDetail::Draw(AuthoringEmitter&, const AuthoringModule& module, ColorOverLifeModuleData& data, DetailPropertyContext& detailContext)
 {
     const ColorOverLifeModuleData defaultData{};
     bool changed = false;
@@ -2687,7 +2767,15 @@ bool ColorOverLifeModuleDetail::Draw(AuthoringEmitter&, AuthoringModule&, ColorO
     if (ImGui::CollapsingHeader("수명에 따른 색상", ImGuiTreeNodeFlags_DefaultOpen))
     {
         changed |= detailContext.Draw_ColorRgbDistributionGroup("색상(RGB)", data.colorOverLife, defaultData.colorOverLife);
-        changed |= detailContext.Draw_FloatDistributionGroup("알파", data.alphaOverLife, defaultData.alphaOverLife);
+        changed |= detailContext.Draw_FloatDistributionGroup(
+            "알파",
+            data.alphaOverLife,
+            defaultData.alphaOverLife,
+            0.01f,
+            true,
+            true,
+            Find_AuthoringValueRange(module.type, "alphaOverLife")
+        );
     }
 
     return changed;

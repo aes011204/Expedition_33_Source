@@ -14,7 +14,8 @@ public:
     TrailSampleProvider_ByPart(
         const Weak<EffectCom>& effectCom,
         wstring partTag,
-        const TrailAnchorAsset& trailAnchorAsset);
+        const TrailAnchorAsset& trailAnchorAsset,
+        Shared<bool> sampleEnabled = nullptr);
 
     ~TrailSampleProvider_ByPart() override = default;
 
@@ -25,6 +26,7 @@ private:
     Weak<EffectCom> _effectCom{};
     wstring _partTag{};
     TrailAnchorAsset _trailAnchorAsset{};
+    Shared<bool> _sampleEnabled{};
 };
 
 NS_END

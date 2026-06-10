@@ -96,6 +96,90 @@ namespace Internal
         }
     }
 
+    static const char* Get_TrailPreviewGateModeLabel(TrailPreviewGateMode value)
+    {
+        switch (value)
+        {
+        case TrailPreviewGateMode::Always:
+            return "항상";
+        case TrailPreviewGateMode::Window:
+            return "구간";
+        default:
+            return "항상";
+        }
+    }
+
+    static bool Draw_TrailPreviewGateModeProperty(
+        DetailPropertyContext& detailContext,
+        TrailPreviewGateMode& value,
+        TrailPreviewGateMode defaultValue)
+    {
+        static constexpr TrailPreviewGateMode kValues[] = {
+            TrailPreviewGateMode::Always,
+            TrailPreviewGateMode::Window,
+        };
+
+        ImGui::PushID("TrailPreviewGateMode");
+        detailContext.Draw_PropertyLabel("활성 방식", "트레일 프리뷰 sample을 항상 받거나 Play 타임라인 비율 구간에서만 받습니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_TrailPreviewGateModeLabel(value)))
+        {
+            for (const TrailPreviewGateMode candidate : kValues)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_TrailPreviewGateModeLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value = defaultValue;
+            return true;
+        }
+
+        return changed;
+    }
+
+    static bool Draw_TrailPreviewGateRatioProperty(
+        DetailPropertyContext& detailContext,
+        const char* label,
+        float& value,
+        float defaultValue,
+        const char* tooltip)
+    {
+        ImGui::PushID(label);
+        detailContext.Draw_PropertyLabel(label, tooltip);
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = ImGui::DragFloat("##Value", &value, 0.001f, 0.f, 1.f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        if (detailContext.Draw_ResetButton(fabs(value - defaultValue) > 0.0001f))
+        {
+            value = defaultValue;
+            changed = true;
+        }
+
+        ImGui::PopID();
+
+        if (changed)
+            value = clamp(value, 0.f, 1.f);
+
+        return changed;
+    }
+
     static bool Draw_RenderLayerOverrideProperty(
         DetailPropertyContext& detailContext,
         const char* label,
@@ -711,6 +795,9 @@ void Detail_View::Render_TrailPreviewDetail()
     const Vec3 defaultTipLocalOffset = EDITOR->Get_DefaultTrailPreviewTipLocalOffset();
     bool visible = EDITOR->Is_TrailPreviewVisible();
     bool debugRenderEnabled = EDITOR->Is_TrailPreviewDebugRenderEnabled();
+    TrailPreviewGateMode gateMode = EDITOR->Get_TrailPreviewGateMode();
+    float gateStartRatio = EDITOR->Get_TrailPreviewGateStartRatio();
+    float gateEndRatio = EDITOR->Get_TrailPreviewGateEndRatio();
 
     bool changed = false;
     if (_detailPropertyContext.Begin_PropertyTable("TrailPreview"))
@@ -721,6 +808,28 @@ void Detail_View::Render_TrailPreviewDetail()
             EDITOR->Set_TrailPreviewDebugRenderEnabled(debugRenderEnabled);
         changed |= _detailPropertyContext.Draw_Vec3Property("Base 로컬", baseLocalOffset, defaultBaseLocalOffset, 0.005f);
         changed |= _detailPropertyContext.Draw_Vec3Property("Tip 로컬", tipLocalOffset, defaultTipLocalOffset, 0.005f);
+        if (Internal::Draw_TrailPreviewGateModeProperty(_detailPropertyContext, gateMode, TrailPreviewGateMode::Window))
+            EDITOR->Set_TrailPreviewGateMode(gateMode);
+        if (gateMode == TrailPreviewGateMode::Window)
+        {
+            bool gateWindowChanged = false;
+            gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                _detailPropertyContext,
+                "시작 비율",
+                gateStartRatio,
+                EDITOR->Get_DefaultTrailPreviewGateStartRatio(),
+                "Trail Preview 공격 모션에서 trail sample 공급을 시작할 normalized ratio입니다. 종료 비율보다 크면 loop 경계를 넘는 구간입니다."
+            );
+            gateWindowChanged |= Internal::Draw_TrailPreviewGateRatioProperty(
+                _detailPropertyContext,
+                "종료 비율",
+                gateEndRatio,
+                EDITOR->Get_DefaultTrailPreviewGateEndRatio(),
+                "Trail Preview 공격 모션에서 trail sample 공급을 끝낼 normalized ratio입니다. 시작 비율보다 작으면 loop 초반에서 닫힙니다."
+            );
+            if (gateWindowChanged)
+                EDITOR->Set_TrailPreviewGateWindow(gateStartRatio, gateEndRatio);
+        }
         _detailPropertyContext.End_PropertyTable();
     }
 

@@ -7,7 +7,7 @@
 
 NS_BEGIN(EffectEditor)
 
-namespace
+namespace Internal
 {
     constexpr EmitterScreenAlignment kVisibleScreenAlignmentValues[] = {
         EmitterScreenAlignment::FacingCameraPosition,
@@ -31,7 +31,35 @@ namespace
 
     static_assert(IM_ARRAYSIZE(kVisibleScreenAlignmentValues) == IM_ARRAYSIZE(kVisibleScreenAlignmentLabels));
 
-    constexpr size_t kDistributionCurveMaxKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+    constexpr size_t kDistributionCurveMaxKeys{ kEffectDistributionCurveMaxKeys };
+
+    float Apply_Range(float value, const AuthoringValueRange* range)
+    {
+        if (range == nullptr)
+            return value;
+
+        if (range->hasMin)
+            value = max(value, range->minValue);
+        if (range->hasMax)
+            value = min(value, range->maxValue);
+
+        return value;
+    }
+
+    Vec2 Apply_Range(Vec2 value, const AuthoringValueRange* range)
+    {
+        value.x = Apply_Range(value.x, range);
+        value.y = Apply_Range(value.y, range);
+        return value;
+    }
+
+    Vec3 Apply_Range(Vec3 value, const AuthoringValueRange* range)
+    {
+        value.x = Apply_Range(value.x, range);
+        value.y = Apply_Range(value.y, range);
+        value.z = Apply_Range(value.z, range);
+        return value;
+    }
 
     int Find_ScreenAlignmentVisibleIndex(EmitterScreenAlignment value)
     {
@@ -236,7 +264,13 @@ public: //## Table / Basic Controls
         return changed;
     }
 
-    bool Draw_FloatProperty(const char* label, float& value, float defaultValue, float speed = 0.01f, const char* tooltip = nullptr)
+    bool Draw_FloatProperty(
+        const char* label,
+        float& value,
+        float defaultValue,
+        float speed = 0.01f,
+        const char* tooltip = nullptr,
+        const AuthoringValueRange* range = nullptr)
     {
         ImGui::PushID(label);
         Draw_PropertyLabel(label, tooltip);
@@ -247,6 +281,8 @@ public: //## Table / Basic Controls
             value = defaultValue;
             changed = true;
         }
+        if (changed)
+            value = Internal::Apply_Range(value, range);
         ImGui::PopID();
         return changed;
     }
@@ -322,7 +358,12 @@ public: //## Table / Basic Controls
         return changed;
     }
 
-    bool Draw_Vec2Property(const char* label, Vec2& value, const Vec2& defaultValue, float speed = 0.01f)
+    bool Draw_Vec2Property(
+        const char* label,
+        Vec2& value,
+        const Vec2& defaultValue,
+        float speed = 0.01f,
+        const AuthoringValueRange* range = nullptr)
     {
         ImGui::PushID(label);
         Draw_PropertyLabel(label);
@@ -333,11 +374,18 @@ public: //## Table / Basic Controls
             value = defaultValue;
             changed = true;
         }
+        if (changed)
+            value = Internal::Apply_Range(value, range);
         ImGui::PopID();
         return changed;
     }
 
-    bool Draw_Vec3Property(const char* label, Vec3& value, const Vec3& defaultValue, float speed = 0.01f)
+    bool Draw_Vec3Property(
+        const char* label,
+        Vec3& value,
+        const Vec3& defaultValue,
+        float speed = 0.01f,
+        const AuthoringValueRange* range = nullptr)
     {
         ImGui::PushID(label);
         Draw_PropertyLabel(label);
@@ -348,6 +396,8 @@ public: //## Table / Basic Controls
             value = defaultValue;
             changed = true;
         }
+        if (changed)
+            value = Internal::Apply_Range(value, range);
         ImGui::PopID();
         return changed;
     }
@@ -433,8 +483,8 @@ public: //## Table / Basic Controls
 
     bool Draw_ScreenAlignmentProperty(const char* label, EmitterScreenAlignment& value, EmitterScreenAlignment defaultValue)
     {
-        const EmitterScreenAlignment fallbackValue = Resolve_ScreenAlignmentFallback(value);
-        int currentIndex = Find_ScreenAlignmentVisibleIndex(fallbackValue);
+        const EmitterScreenAlignment fallbackValue = Internal::Resolve_ScreenAlignmentFallback(value);
+        int currentIndex = Internal::Find_ScreenAlignmentVisibleIndex(fallbackValue);
         if (currentIndex < 0)
             currentIndex = 0;
 
@@ -442,19 +492,19 @@ public: //## Table / Basic Controls
         Draw_PropertyLabel(label);
         ImGui::SetNextItemWidth(-FLT_MIN);
         bool changed = false;
-        if (ImGui::BeginCombo("##Value", kVisibleScreenAlignmentLabels[currentIndex]))
+        if (ImGui::BeginCombo("##Value", Internal::kVisibleScreenAlignmentLabels[currentIndex]))
         {
-            for (int index = 0; index < IM_ARRAYSIZE(kVisibleScreenAlignmentValues); ++index)
+            for (int index = 0; index < IM_ARRAYSIZE(Internal::kVisibleScreenAlignmentValues); ++index)
             {
                 const bool isSelected = currentIndex == index;
-                if (ImGui::Selectable(kVisibleScreenAlignmentLabels[index], isSelected))
+                if (ImGui::Selectable(Internal::kVisibleScreenAlignmentLabels[index], isSelected))
                 {
                     currentIndex = index;
                     changed = true;
                 }
 
                 if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-                    ImGui::SetTooltip("%s", Get_ScreenAlignmentTooltip(kVisibleScreenAlignmentValues[index]));
+                    ImGui::SetTooltip("%s", Internal::Get_ScreenAlignmentTooltip(Internal::kVisibleScreenAlignmentValues[index]));
 
                 if (isSelected)
                     ImGui::SetItemDefaultFocus();
@@ -474,22 +524,22 @@ public: //## Table / Basic Controls
         if (!changed)
             return false;
 
-        if (currentIndex < 0 || currentIndex >= IM_ARRAYSIZE(kVisibleScreenAlignmentValues))
+        if (currentIndex < 0 || currentIndex >= IM_ARRAYSIZE(Internal::kVisibleScreenAlignmentValues))
             value = EmitterScreenAlignment::FacingCameraPosition;
         else
-            value = kVisibleScreenAlignmentValues[currentIndex];
+            value = Internal::kVisibleScreenAlignmentValues[currentIndex];
 
         return true;
     }
 
     void Draw_ScreenAlignmentImplementationNote(EmitterScreenAlignment value) const
     {
-        const int visibleIndex = Find_ScreenAlignmentVisibleIndex(value);
+        const int visibleIndex = Internal::Find_ScreenAlignmentVisibleIndex(value);
         if (visibleIndex >= 0)
             return;
 
-        const char* currentLabel = Get_ScreenAlignmentLabel(value);
-        const char* fallbackLabel = Get_ScreenAlignmentLabel(Resolve_ScreenAlignmentFallback(value));
+        const char* currentLabel = Internal::Get_ScreenAlignmentLabel(value);
+        const char* fallbackLabel = Internal::Get_ScreenAlignmentLabel(Internal::Resolve_ScreenAlignmentFallback(value));
         ImGui::TextDisabled("Current value '%s' is not implemented yet. Preview uses '%s'.", currentLabel, fallbackLabel);
     }
 
@@ -631,7 +681,8 @@ public: //## Distribution Controls
         const FloatDistributionData& defaultValue,
         float speed = 0.01f,
         bool allowUniform = true,
-        bool allowConstantCurve = true)
+        bool allowConstantCurve = true,
+        const AuthoringValueRange* range = nullptr)
     {
         bool changed = false;
 
@@ -641,7 +692,7 @@ public: //## Distribution Controls
         {
             if (_basicDrawer.Begin_PropertyTable("Distribution"))
             {
-                changed |= Draw_FloatDistributionProperty("분포 타입", value, defaultValue, speed, allowUniform, allowConstantCurve);
+                changed |= Draw_FloatDistributionProperty("분포 타입", value, defaultValue, speed, allowUniform, allowConstantCurve, range);
                 _basicDrawer.End_PropertyTable();
             }
 
@@ -657,7 +708,8 @@ public: //## Distribution Controls
         Vector2DistributionData& value,
         const Vector2DistributionData& defaultValue,
         float speed = 0.01f,
-        bool allowConstantCurve = true)
+        bool allowConstantCurve = true,
+        const AuthoringValueRange* range = nullptr)
     {
         bool changed = false;
 
@@ -667,7 +719,7 @@ public: //## Distribution Controls
         {
             if (_basicDrawer.Begin_PropertyTable("Distribution"))
             {
-                changed |= Draw_Vector2DistributionProperty("분포 타입", value, defaultValue, speed, allowConstantCurve);
+                changed |= Draw_Vector2DistributionProperty("분포 타입", value, defaultValue, speed, allowConstantCurve, range);
                 _basicDrawer.End_PropertyTable();
             }
 
@@ -684,7 +736,8 @@ public: //## Distribution Controls
         const Vector3DistributionData& defaultValue,
         float speed = 0.01f,
         bool allowConstantCurve = true,
-        bool showConstantCurveAsUnimplemented = false)
+        bool showConstantCurveAsUnimplemented = false,
+        const AuthoringValueRange* range = nullptr)
     {
         bool changed = false;
 
@@ -700,7 +753,8 @@ public: //## Distribution Controls
                     defaultValue,
                     speed,
                     allowConstantCurve,
-                    showConstantCurveAsUnimplemented
+                    showConstantCurveAsUnimplemented,
+                    range
                 );
                 _basicDrawer.End_PropertyTable();
             }
@@ -1329,22 +1383,24 @@ private: //## Label Helpers
     bool Draw_FloatCurveKeyListProperty(
         ConstantCurveFloatDistributionData& value,
         const ConstantCurveFloatDistributionData& defaultValue,
-        float speed = 0.01f)
+        float speed = 0.01f,
+        const AuthoringValueRange* range = nullptr)
     {
         bool changed = false;
 
         ImGui::PushID("PointsRow");
         _basicDrawer.Draw_PropertyLabel("포인트");
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("키: %zu / %zu", value.keys.size(), kDistributionCurveMaxKeys);
+        ImGui::Text("키: %zu / %zu", value.keys.size(), Internal::kDistributionCurveMaxKeys);
         ImGui::SameLine();
-        const bool canAddKey = value.keys.size() < kDistributionCurveMaxKeys;
+        const bool canAddKey = value.keys.size() < Internal::kDistributionCurveMaxKeys;
         if (!canAddKey)
             ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_PLUS "##AddFloatCurveKey"))
         {
             FloatCurveKeyData seed = value.keys.empty() ? FloatCurveKeyData{} : value.keys.back();
             seed.time = Compute_NewCurveKeyTime(value.keys);
+            seed.value = Internal::Apply_Range(seed.value, range);
             value.keys.push_back(seed);
             changed = true;
         }
@@ -1385,7 +1441,7 @@ private: //## Label Helpers
             {
                 _basicDrawer.Push_RowTint(Get_DistributionKeyBodyRowTint());
                 changed |= _basicDrawer.Draw_FloatProperty("In 값", key.time, defaultKey.time, speed);
-                changed |= _basicDrawer.Draw_FloatProperty("Out 값", key.value, defaultKey.value, speed);
+                changed |= _basicDrawer.Draw_FloatProperty("Out 값", key.value, defaultKey.value, speed, nullptr, range);
 
                 _basicDrawer.Draw_PropertyLabel("보간 모드");
                 ImGui::SetNextItemWidth(-FLT_MIN);
@@ -1436,22 +1492,24 @@ private: //## Label Helpers
     bool Draw_Vector2CurveKeyListProperty(
         ConstantCurveVector2DistributionData& value,
         const ConstantCurveVector2DistributionData& defaultValue,
-        float speed = 0.01f)
+        float speed = 0.01f,
+        const AuthoringValueRange* range = nullptr)
     {
         bool changed = false;
 
         ImGui::PushID("PointsRow");
         _basicDrawer.Draw_PropertyLabel("포인트");
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("키: %zu / %zu", value.keys.size(), kDistributionCurveMaxKeys);
+        ImGui::Text("키: %zu / %zu", value.keys.size(), Internal::kDistributionCurveMaxKeys);
         ImGui::SameLine();
-        const bool canAddKey = value.keys.size() < kDistributionCurveMaxKeys;
+        const bool canAddKey = value.keys.size() < Internal::kDistributionCurveMaxKeys;
         if (!canAddKey)
             ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_PLUS "##AddVector2CurveKey"))
         {
             Vector2CurveKeyData seed = value.keys.empty() ? Vector2CurveKeyData{} : value.keys.back();
             seed.time = Compute_NewCurveKeyTime(value.keys);
+            seed.value = Internal::Apply_Range(seed.value, range);
             value.keys.push_back(seed);
             changed = true;
         }
@@ -1492,7 +1550,7 @@ private: //## Label Helpers
             {
                 _basicDrawer.Push_RowTint(Get_DistributionKeyBodyRowTint());
                 changed |= _basicDrawer.Draw_FloatProperty("In 값", key.time, defaultKey.time, speed);
-                changed |= _basicDrawer.Draw_Vec2Property("Out 값", key.value, defaultKey.value, speed);
+                changed |= _basicDrawer.Draw_Vec2Property("Out 값", key.value, defaultKey.value, speed, range);
 
                 _basicDrawer.Draw_PropertyLabel("보간 모드");
                 ImGui::SetNextItemWidth(-FLT_MIN);
@@ -1533,22 +1591,24 @@ private: //## Label Helpers
     bool Draw_Vector3CurveKeyListProperty(
         ConstantCurveVector3DistributionData& value,
         const ConstantCurveVector3DistributionData& defaultValue,
-        float speed = 0.01f)
+        float speed = 0.01f,
+        const AuthoringValueRange* range = nullptr)
     {
         bool changed = false;
 
         ImGui::PushID("PointsRow");
         _basicDrawer.Draw_PropertyLabel("포인트");
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("키: %zu / %zu", value.keys.size(), kDistributionCurveMaxKeys);
+        ImGui::Text("키: %zu / %zu", value.keys.size(), Internal::kDistributionCurveMaxKeys);
         ImGui::SameLine();
-        const bool canAddKey = value.keys.size() < kDistributionCurveMaxKeys;
+        const bool canAddKey = value.keys.size() < Internal::kDistributionCurveMaxKeys;
         if (!canAddKey)
             ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_PLUS "##AddVector3CurveKey"))
         {
             Vector3CurveKeyData seed = value.keys.empty() ? Vector3CurveKeyData{} : value.keys.back();
             seed.time = Compute_NewCurveKeyTime(value.keys);
+            seed.value = Internal::Apply_Range(seed.value, range);
             value.keys.push_back(seed);
             changed = true;
         }
@@ -1589,7 +1649,7 @@ private: //## Label Helpers
             {
                 _basicDrawer.Push_RowTint(Get_DistributionKeyBodyRowTint());
                 changed |= _basicDrawer.Draw_FloatProperty("In 값", key.time, defaultKey.time, speed);
-                changed |= _basicDrawer.Draw_Vec3Property("Out 값", key.value, defaultKey.value, speed);
+                changed |= _basicDrawer.Draw_Vec3Property("Out 값", key.value, defaultKey.value, speed, range);
 
                 _basicDrawer.Draw_PropertyLabel("보간 모드");
                 ImGui::SetNextItemWidth(-FLT_MIN);
@@ -1636,9 +1696,9 @@ private: //## Label Helpers
         ImGui::PushID("PointsRow");
         _basicDrawer.Draw_PropertyLabel("포인트");
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("키: %zu / %zu", value.keys.size(), kDistributionCurveMaxKeys);
+        ImGui::Text("키: %zu / %zu", value.keys.size(), Internal::kDistributionCurveMaxKeys);
         ImGui::SameLine();
-        const bool canAddKey = value.keys.size() < kDistributionCurveMaxKeys;
+        const bool canAddKey = value.keys.size() < Internal::kDistributionCurveMaxKeys;
         if (!canAddKey)
             ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_PLUS "##AddColorCurveKey"))
@@ -1720,7 +1780,8 @@ private: //## Label Helpers
         const FloatDistributionData& defaultValue,
         float speed = 0.01f,
         bool allowUniform = true,
-        bool allowConstantCurve = true)
+        bool allowConstantCurve = true,
+        const AuthoringValueRange* range = nullptr)
     {
         bool changed = false;
 
@@ -1780,7 +1841,7 @@ private: //## Label Helpers
             {
                 const auto* defaultConstant = get_if<ConstantFloatDistributionData>(&defaultValue.payload);
                 const float defaultField = defaultConstant != nullptr ? defaultConstant->value : constant->value;
-                changed |= _basicDrawer.Draw_FloatProperty("상수", constant->value, defaultField, speed);
+                changed |= _basicDrawer.Draw_FloatProperty("상수", constant->value, defaultField, speed, nullptr, range);
             }
             break;
 
@@ -1790,8 +1851,8 @@ private: //## Label Helpers
                 const auto* defaultUniform = get_if<UniformFloatDistributionData>(&defaultValue.payload);
                 const float defaultMin = defaultUniform != nullptr ? defaultUniform->minValue : uniform->minValue;
                 const float defaultMax = defaultUniform != nullptr ? defaultUniform->maxValue : uniform->maxValue;
-                changed |= _basicDrawer.Draw_FloatProperty("최소", uniform->minValue, defaultMin, speed);
-                changed |= _basicDrawer.Draw_FloatProperty("최대", uniform->maxValue, defaultMax, speed);
+                changed |= _basicDrawer.Draw_FloatProperty("최소", uniform->minValue, defaultMin, speed, nullptr, range);
+                changed |= _basicDrawer.Draw_FloatProperty("최대", uniform->maxValue, defaultMax, speed, nullptr, range);
                 Normalize_FloatUniform(*uniform);
                 changed |= Draw_RandomSeedPayload(uniform->randomSeed);
             }
@@ -1805,7 +1866,7 @@ private: //## Label Helpers
                     const auto* defaultCurve = get_if<ConstantCurveFloatDistributionData>(&defaultValue.payload);
                     const FloatDistributionData fallbackCurveData = FloatDistributionData::Make_ConstantCurve(0.f);
                     const auto* fallbackDefault = get_if<ConstantCurveFloatDistributionData>(&fallbackCurveData.payload);
-                    changed |= Draw_FloatCurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
+                    changed |= Draw_FloatCurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed, range);
                     Normalize_FloatCurveKeys(*curve);
                 }
             }
@@ -1829,7 +1890,8 @@ private: //## Label Helpers
         Vector2DistributionData& value,
         const Vector2DistributionData& defaultValue,
         float speed = 0.01f,
-        bool allowConstantCurve = true)
+        bool allowConstantCurve = true,
+        const AuthoringValueRange* range = nullptr)
     {
         bool changed = false;
 
@@ -1886,7 +1948,7 @@ private: //## Label Helpers
             {
                 const auto* defaultConstant = get_if<ConstantVector2DistributionData>(&defaultValue.payload);
                 const Vec2 defaultField = defaultConstant != nullptr ? defaultConstant->value : constant->value;
-                changed |= _basicDrawer.Draw_Vec2Property("상수", constant->value, defaultField, speed);
+                changed |= _basicDrawer.Draw_Vec2Property("상수", constant->value, defaultField, speed, range);
             }
             break;
         case DistributionMode::Uniform:
@@ -1895,8 +1957,8 @@ private: //## Label Helpers
                 const auto* defaultUniform = get_if<UniformVector2DistributionData>(&defaultValue.payload);
                 const Vec2 defaultMin = defaultUniform != nullptr ? defaultUniform->minValue : uniform->minValue;
                 const Vec2 defaultMax = defaultUniform != nullptr ? defaultUniform->maxValue : uniform->maxValue;
-                changed |= _basicDrawer.Draw_Vec2Property("최소", uniform->minValue, defaultMin, speed);
-                changed |= _basicDrawer.Draw_Vec2Property("최대", uniform->maxValue, defaultMax, speed);
+                changed |= _basicDrawer.Draw_Vec2Property("최소", uniform->minValue, defaultMin, speed, range);
+                changed |= _basicDrawer.Draw_Vec2Property("최대", uniform->maxValue, defaultMax, speed, range);
                 Normalize_Vector2Uniform(*uniform);
                 changed |= Draw_RandomSeedPayload(uniform->randomSeed);
             }
@@ -1909,7 +1971,7 @@ private: //## Label Helpers
                     const auto* defaultCurve = get_if<ConstantCurveVector2DistributionData>(&defaultValue.payload);
                     const Vector2DistributionData fallbackCurveData = Vector2DistributionData::Make_ConstantCurve(Vec2{ 0.f, 0.f });
                     const auto* fallbackDefault = get_if<ConstantCurveVector2DistributionData>(&fallbackCurveData.payload);
-                    changed |= Draw_Vector2CurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
+                    changed |= Draw_Vector2CurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed, range);
                     Normalize_Vector2CurveKeys(*curve);
                 }
             }
@@ -1931,7 +1993,8 @@ private: //## Label Helpers
         const Vector3DistributionData& defaultValue,
         float speed = 0.01f,
         bool allowConstantCurve = true,
-        bool showConstantCurveAsUnimplemented = false)
+        bool showConstantCurveAsUnimplemented = false,
+        const AuthoringValueRange* range = nullptr)
     {
         bool changed = false;
 
@@ -1988,7 +2051,7 @@ private: //## Label Helpers
             {
                 const auto* defaultConstant = get_if<ConstantVector3DistributionData>(&defaultValue.payload);
                 const Vec3 defaultField = defaultConstant != nullptr ? defaultConstant->value : constant->value;
-                changed |= _basicDrawer.Draw_Vec3Property("상수", constant->value, defaultField, speed);
+                changed |= _basicDrawer.Draw_Vec3Property("상수", constant->value, defaultField, speed, range);
             }
             break;
         case DistributionMode::Uniform:
@@ -1997,8 +2060,8 @@ private: //## Label Helpers
                 const auto* defaultUniform = get_if<UniformVector3DistributionData>(&defaultValue.payload);
                 const Vec3 defaultMin = defaultUniform != nullptr ? defaultUniform->minValue : uniform->minValue;
                 const Vec3 defaultMax = defaultUniform != nullptr ? defaultUniform->maxValue : uniform->maxValue;
-                changed |= _basicDrawer.Draw_Vec3Property("최소", uniform->minValue, defaultMin, speed);
-                changed |= _basicDrawer.Draw_Vec3Property("최대", uniform->maxValue, defaultMax, speed);
+                changed |= _basicDrawer.Draw_Vec3Property("최소", uniform->minValue, defaultMin, speed, range);
+                changed |= _basicDrawer.Draw_Vec3Property("최대", uniform->maxValue, defaultMax, speed, range);
                 Normalize_Vector3Uniform(*uniform);
                 changed |= Draw_RandomSeedPayload(uniform->randomSeed);
             }
@@ -2011,7 +2074,7 @@ private: //## Label Helpers
                     const auto* defaultCurve = get_if<ConstantCurveVector3DistributionData>(&defaultValue.payload);
                     const Vector3DistributionData fallbackCurveData = Vector3DistributionData::Make_ConstantCurve(Vec3{ 0.f, 0.f, 0.f });
                     const auto* fallbackDefault = get_if<ConstantCurveVector3DistributionData>(&fallbackCurveData.payload);
-                    changed |= Draw_Vector3CurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed);
+                    changed |= Draw_Vector3CurveKeyListProperty(*curve, defaultCurve != nullptr ? *defaultCurve : *fallbackDefault, speed, range);
                     Normalize_Vector3CurveKeys(*curve);
                 }
             }
@@ -2662,9 +2725,15 @@ bool DetailPropertyContext::Draw_BoolProperty(const char* label, bool& value, bo
     return _basicDrawer->Draw_BoolProperty(label, value, defaultValue, tooltip);
 }
 
-bool DetailPropertyContext::Draw_FloatProperty(const char* label, float& value, float defaultValue, float speed, const char* tooltip)
+bool DetailPropertyContext::Draw_FloatProperty(
+    const char* label,
+    float& value,
+    float defaultValue,
+    float speed,
+    const char* tooltip,
+    const AuthoringValueRange* range)
 {
-    return _basicDrawer->Draw_FloatProperty(label, value, defaultValue, speed, tooltip);
+    return _basicDrawer->Draw_FloatProperty(label, value, defaultValue, speed, tooltip, range);
 }
 
 bool DetailPropertyContext::Draw_ColorProperty(const char* label, Color& value, const Color& defaultValue)
@@ -2683,9 +2752,10 @@ bool DetailPropertyContext::Draw_FloatDistributionGroup(
     const FloatDistributionData& defaultValue,
     float speed,
     bool allowUniform,
-    bool allowConstantCurve)
+    bool allowConstantCurve,
+    const AuthoringValueRange* range)
 {
-    return _distributionDrawer->Draw_FloatDistributionGroup(label, value, defaultValue, speed, allowUniform, allowConstantCurve);
+    return _distributionDrawer->Draw_FloatDistributionGroup(label, value, defaultValue, speed, allowUniform, allowConstantCurve, range);
 }
 
 bool DetailPropertyContext::Draw_Vector2DistributionGroup(
@@ -2693,9 +2763,10 @@ bool DetailPropertyContext::Draw_Vector2DistributionGroup(
     Vector2DistributionData& value,
     const Vector2DistributionData& defaultValue,
     float speed,
-    bool allowConstantCurve)
+    bool allowConstantCurve,
+    const AuthoringValueRange* range)
 {
-    return _distributionDrawer->Draw_Vector2DistributionGroup(label, value, defaultValue, speed, allowConstantCurve);
+    return _distributionDrawer->Draw_Vector2DistributionGroup(label, value, defaultValue, speed, allowConstantCurve, range);
 }
 
 bool DetailPropertyContext::Draw_Vector3DistributionGroup(
@@ -2704,9 +2775,18 @@ bool DetailPropertyContext::Draw_Vector3DistributionGroup(
     const Vector3DistributionData& defaultValue,
     float speed,
     bool allowConstantCurve,
-    bool showConstantCurveAsUnimplemented)
+    bool showConstantCurveAsUnimplemented,
+    const AuthoringValueRange* range)
 {
-    return _distributionDrawer->Draw_Vector3DistributionGroup(label, value, defaultValue, speed, allowConstantCurve, showConstantCurveAsUnimplemented);
+    return _distributionDrawer->Draw_Vector3DistributionGroup(
+        label,
+        value,
+        defaultValue,
+        speed,
+        allowConstantCurve,
+        showConstantCurveAsUnimplemented,
+        range
+    );
 }
 
 bool DetailPropertyContext::Draw_ColorDistributionGroup(const char* label, ColorDistributionData& value, const ColorDistributionData& defaultValue)
@@ -2859,14 +2939,24 @@ bool DetailPropertyContext::Draw_UintProperty(const char* label, uint32& value, 
     return _basicDrawer->Draw_UintProperty(label, value, defaultValue, tooltip);
 }
 
-bool DetailPropertyContext::Draw_Vec2Property(const char* label, Vec2& value, const Vec2& defaultValue, float speed)
+bool DetailPropertyContext::Draw_Vec2Property(
+    const char* label,
+    Vec2& value,
+    const Vec2& defaultValue,
+    float speed,
+    const AuthoringValueRange* range)
 {
-    return _basicDrawer->Draw_Vec2Property(label, value, defaultValue, speed);
+    return _basicDrawer->Draw_Vec2Property(label, value, defaultValue, speed, range);
 }
 
-bool DetailPropertyContext::Draw_Vec3Property(const char* label, Vec3& value, const Vec3& defaultValue, float speed)
+bool DetailPropertyContext::Draw_Vec3Property(
+    const char* label,
+    Vec3& value,
+    const Vec3& defaultValue,
+    float speed,
+    const AuthoringValueRange* range)
 {
-    return _basicDrawer->Draw_Vec3Property(label, value, defaultValue, speed);
+    return _basicDrawer->Draw_Vec3Property(label, value, defaultValue, speed, range);
 }
 
 NS_END

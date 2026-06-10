@@ -86,6 +86,10 @@ public: //## Accessor::Runtime
 public: //## Accessor::PreviewOption
     bool Is_TrailPreviewVisible() const { return _isTrailPreviewVisible; }
     bool Is_PreviewPlaneVisible() const { return _isPreviewPlaneVisible; }
+    TrailPreviewGateMode Get_TrailPreviewGateMode() const { return _trailPreviewGateMode; }
+    float Get_TrailPreviewGateStartRatio() const { return _trailPreviewGateStartRatio; }
+    float Get_TrailPreviewGateEndRatio() const { return _trailPreviewGateEndRatio; }
+    bool Is_TrailPreviewGateOpen() const;
     // Trail preview anchor marker/line 표시 여부다.
     bool Is_TrailPreviewDebugRenderEnabled() const { return _isTrailPreviewDebugRenderEnabled; }
     // Effect shader 기준 influence 범위 외곽선 표시 여부다.
@@ -98,6 +102,8 @@ public: //## Accessor::PreviewOption
     Vec3 Get_DefaultTrailPreviewBaseLocalOffset() const { return kDefaultTrailPreviewBaseLocalOffset; }
     // Trail preview tip offset reset 기준값이다.
     Vec3 Get_DefaultTrailPreviewTipLocalOffset() const { return kDefaultTrailPreviewTipLocalOffset; }
+    float Get_DefaultTrailPreviewGateStartRatio() const { return kDefaultTrailPreviewGateStartRatio; }
+    float Get_DefaultTrailPreviewGateEndRatio() const { return kDefaultTrailPreviewGateEndRatio; }
     const EffectEditorPostProcessOptions& Get_PostProcessOptions() const { return _postProcessOptions; }
     EffectEditorPostProcessOptions Get_DefaultPostProcessOptions() const;
     bool Has_ClientPostProcessSnapshot() const { return _hasClientPostProcessSnapshot; }
@@ -126,10 +132,15 @@ public: //## Behavior::RuntimeControl
     void Request_FrameStep();
     bool Consume_FrameStep();
     void Request_RestartPreview();
+    void Tick_TrailPreviewGate(float timeDelta);
+    void Reset_TrailPreviewGate();
 
 public: //## Behavior::PreviewOption
     void Set_TrailPreviewVisible(bool visible);
     void Set_PreviewPlaneVisible(bool visible);
+    void Set_TrailPreviewGateMode(TrailPreviewGateMode mode);
+    void Set_TrailPreviewGateWindow(float startRatio, float endRatio);
+    void Set_TrailPreviewGateDuration(float duration);
     // Trail preview anchor marker/line 표시 여부만 바꾼다.
     void Set_TrailPreviewDebugRenderEnabled(bool enabled);
     // EffectEditor 세션 전용 influence outline debug 표시를 켜고 끈다.
@@ -202,6 +213,9 @@ private: //## Static Values
     static constexpr float kSceneGridHeight{ 0.f };
     inline static const Vec3 kDefaultTrailPreviewBaseLocalOffset{ 0.f, 1.f, 35.f };
     inline static const Vec3 kDefaultTrailPreviewTipLocalOffset{ 0.f, 1.f, 85.f };
+    static constexpr float kDefaultTrailPreviewGateStartRatio{ 0.f };
+    static constexpr float kDefaultTrailPreviewGateEndRatio{ 0.4f };
+    static constexpr float kDefaultTrailPreviewGateDuration{ 1.f };
 
 private: //## Data::Core
     ComPtr<Device> _device{};
@@ -238,6 +252,11 @@ private: //## Data::Runtime
 private: //## Data::PreviewOption
     bool _isTrailPreviewVisible{ false };
     bool _isPreviewPlaneVisible{ false };
+    TrailPreviewGateMode _trailPreviewGateMode{ TrailPreviewGateMode::Window };
+    float _trailPreviewGateStartRatio{ kDefaultTrailPreviewGateStartRatio };
+    float _trailPreviewGateEndRatio{ kDefaultTrailPreviewGateEndRatio };
+    float _trailPreviewGateElapsedTime{ 0.f };
+    float _trailPreviewGateDuration{ kDefaultTrailPreviewGateDuration };
     bool _isTrailPreviewDebugRenderEnabled{ true };
     bool _isEffectInfluenceOutlineEnabled{ false };
     Vec3 _trailPreviewBaseLocalOffset{ kDefaultTrailPreviewBaseLocalOffset };

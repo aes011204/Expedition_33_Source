@@ -25,7 +25,7 @@ class SpawnModuleDetail
 public:
     bool Draw(
         AuthoringEmitter& emitter,
-        AuthoringModule& module,
+        const AuthoringModule& module,
         SpawnModuleData& data,
         DetailPropertyContext& detailContext);
 };
@@ -35,7 +35,7 @@ class LifetimeModuleDetail
 public:
     bool Draw(
         AuthoringEmitter& emitter,
-        AuthoringModule& module,
+        const AuthoringModule& module,
         LifetimeModuleData& data,
         DetailPropertyContext& detailContext);
 };
@@ -75,7 +75,7 @@ class SphereLocationModuleDetail
 public:
     bool Draw(
         AuthoringEmitter& emitter,
-        AuthoringModule& module,
+        const AuthoringModule& module,
         SphereLocationModuleData& data,
         DetailPropertyContext& detailContext);
 };
@@ -85,7 +85,7 @@ class PlaneRadialLocationModuleDetail
 public:
     bool Draw(
         AuthoringEmitter& emitter,
-        AuthoringModule& module,
+        const AuthoringModule& module,
         PlaneRadialLocationModuleData& data,
         DetailPropertyContext& detailContext);
 };
@@ -135,7 +135,7 @@ class DragModuleDetail
 public:
     bool Draw(
         AuthoringEmitter& emitter,
-        AuthoringModule& module,
+        const AuthoringModule& module,
         DragModuleData& data,
         DetailPropertyContext& detailContext);
 };
@@ -265,7 +265,7 @@ class InitialColorModuleDetail
 public:
     bool Draw(
         AuthoringEmitter& emitter,
-        AuthoringModule& module,
+        const AuthoringModule& module,
         InitialColorModuleData& data,
         DetailPropertyContext& detailContext);
 };
@@ -275,7 +275,7 @@ class ColorOverLifeModuleDetail
 public:
     bool Draw(
         AuthoringEmitter& emitter,
-        AuthoringModule& module,
+        const AuthoringModule& module,
         ColorOverLifeModuleData& data,
         DetailPropertyContext& detailContext);
 };

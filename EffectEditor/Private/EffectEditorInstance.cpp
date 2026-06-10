@@ -245,6 +245,17 @@ float EffectEditorInstance::Get_RuntimeTimeScale() const
     return _runtimeTimeScale;
 }
 
+bool EffectEditorInstance::Is_TrailPreviewGateOpen() const
+{
+    if (TrailPreviewGateMode::Always == _trailPreviewGateMode)
+        return true;
+
+    const float safeDuration = max(kDefaultTrailPreviewGateDuration, _trailPreviewGateDuration);
+    const float loopTime = fmod(max(0.f, _trailPreviewGateElapsedTime), safeDuration);
+    const float ratio = loopTime / safeDuration;
+    return ratio >= _trailPreviewGateStartRatio && ratio <= _trailPreviewGateEndRatio;
+}
+
 EffectEditorPostProcessOptions EffectEditorInstance::Get_DefaultPostProcessOptions() const
 {
     EffectEditorPostProcessOptions options{};
@@ -287,6 +298,9 @@ void EffectEditorInstance::Play()
 {
     End_PreviewCameraDrag();
 
+    if (EffectEditorRuntimeState::Edit == _runtimeState)
+        Reset_TrailPreviewGate();
+
     _runtimeState = EffectEditorRuntimeState::Play;
     Activate_TargetCamera();
 
@@ -318,6 +332,7 @@ void EffectEditorInstance::Stop()
     End_PreviewCameraDrag();
 
     _runtimeState = EffectEditorRuntimeState::Edit;
+    Reset_TrailPreviewGate();
 
     const Shared<Level> currentLevel = GAME->Current_LevelType();
     const Shared<Level_EffectEditor> effectEditorLevel = dynamic_pointer_cast<Level_EffectEditor>(currentLevel);
@@ -380,17 +395,62 @@ void EffectEditorInstance::Request_RestartPreview()
         return;
 
     if (FAILED(effectEditorLevel->Restart_PreviewFromAuthoring()))
+    {
         LOG_ERROR("Failed to restart EffectEditor preview.");
+        return;
+    }
+
+    Reset_TrailPreviewGate();
+}
+
+void EffectEditorInstance::Tick_TrailPreviewGate(float timeDelta)
+{
+    if (timeDelta <= 0.f)
+        return;
+
+    _trailPreviewGateElapsedTime += timeDelta;
+}
+
+void EffectEditorInstance::Reset_TrailPreviewGate()
+{
+    _trailPreviewGateElapsedTime = 0.f;
 }
 
 void EffectEditorInstance::Set_TrailPreviewVisible(bool visible)
 {
+    if (visible && !_isTrailPreviewVisible)
+        Reset_TrailPreviewGate();
+
     _isTrailPreviewVisible = visible;
 }
 
 void EffectEditorInstance::Set_PreviewPlaneVisible(bool visible)
 {
     _isPreviewPlaneVisible = visible;
+}
+
+void EffectEditorInstance::Set_TrailPreviewGateMode(TrailPreviewGateMode mode)
+{
+    if (_trailPreviewGateMode == mode)
+        return;
+
+    _trailPreviewGateMode = mode;
+    Reset_TrailPreviewGate();
+    Request_RestartPreview();
+}
+
+void EffectEditorInstance::Set_TrailPreviewGateWindow(float startRatio, float endRatio)
+{
+    startRatio = clamp(startRatio, 0.f, 1.f);
+    endRatio = clamp(endRatio, 0.f, 1.f);
+
+    _trailPreviewGateStartRatio = startRatio;
+    _trailPreviewGateEndRatio = endRatio;
+}
+
+void EffectEditorInstance::Set_TrailPreviewGateDuration(float duration)
+{
+    _trailPreviewGateDuration = max(kDefaultTrailPreviewGateDuration, duration);
 }
 
 void EffectEditorInstance::Set_TrailPreviewDebugRenderEnabled(bool enabled)

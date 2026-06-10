@@ -21,7 +21,36 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr const wchar_t* kPreviewPoolKey = L"EffectEditorPreview";
+    constexpr auto kPreviewPoolKey = L"EffectEditorPreview";
+    constexpr auto kPreviewTrailStrokePoolKey = L"EffectEditorPreviewTrailStroke";
+
+    class TrailPreviewStrokeSampleProvider final : public IEffectTrailSampleProvider
+    {
+    public:
+        TrailPreviewStrokeSampleProvider(
+            const Weak<IEffectTrailSampleProvider>& sourceProvider,
+            const Shared<bool>& sampleEnabled)
+            : _sourceProvider(sourceProvider)
+            , _sampleEnabled(sampleEnabled)
+        {
+        }
+
+        bool Try_GetTrailSample(EffectTrailSample& outSample) const override
+        {
+            if (_sampleEnabled == nullptr || !*_sampleEnabled)
+                return false;
+
+            const Shared<IEffectTrailSampleProvider> sourceProvider = _sourceProvider.lock();
+            if (sourceProvider == nullptr)
+                return false;
+
+            return sourceProvider->Try_GetTrailSample(outSample);
+        }
+
+    private:
+        Weak<IEffectTrailSampleProvider> _sourceProvider{};
+        Shared<bool> _sampleEnabled{};
+    };
 
     //## Module Lookup
 
@@ -40,6 +69,62 @@ namespace Internal
         }
 
         return nullptr;
+    }
+
+    float Resolve_RequiredDuration(const AuthoringEmitter& emitter)
+    {
+        const RequiredModuleData* required = Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required);
+        if (required == nullptr)
+            return 0.f;
+
+        if (required->useDurationRange)
+            return max(required->duration, required->durationLow);
+
+        return required->duration;
+    }
+
+    float Resolve_TrailPreviewGateDuration(const vector<AuthoringEmitter>& emitters)
+    {
+        float trailDuration = 0.f;
+        float anyDuration = 0.f;
+
+        for (const AuthoringEmitter& emitter : emitters)
+        {
+            if (!emitter.enabled)
+                continue;
+
+            const float duration = max(0.f, Resolve_RequiredDuration(emitter));
+            if (duration <= 0.f)
+                continue;
+
+            anyDuration = max(anyDuration, duration);
+            if (emitter.typeData.kind == AuthoringTypeDataKind::Trail)
+                trailDuration = max(trailDuration, duration);
+        }
+
+        constexpr float fallbackDuration = 1.f;
+        return trailDuration > 0.f ? trailDuration : max(fallbackDuration, anyDuration);
+    }
+
+    float Resolve_TrailStrokeDrainDuration(const Shared<const EffectDefinition>& definition)
+    {
+        if (definition == nullptr)
+            return 0.25f;
+
+        float duration = 0.f;
+        for (const EffectEmitterDefinition& emitter : definition->emitters)
+        {
+            if (!emitter.enabled || emitter.kind != EffectEmitterKind::ComputeTrail)
+                continue;
+
+            const auto* desc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc);
+            if (desc == nullptr)
+                continue;
+
+            duration = max(duration, desc->segmentLifetime);
+        }
+
+        return duration > 0.f ? duration : 0.25f;
     }
 
     //## Preview Policy
@@ -1326,6 +1411,8 @@ HRESULT Level_EffectEditor::Initialize()
 
 void Level_EffectEditor::Update(float timeDelta)
 {
+    Update_PreviewTrailStrokes(timeDelta);
+
     __super::Update(timeDelta);
 }
 
@@ -1346,15 +1433,27 @@ HRESULT Level_EffectEditor::Restart_PreviewFromAuthoring()
         return E_FAIL;
     }
 
+    Clear_PreviewTrailStrokes();
+
+    const bool splitTrailPreview =
+        EDITOR->Get_TrailPreviewGateMode() == TrailPreviewGateMode::Window;
     const Shared<const EffectDefinition> previewDefinition =
-        Build_PreviewEffectDefinition(emitterView->Get_Emitters());
+        Build_PreviewEffectDefinition(emitterView->Get_Emitters(), !splitTrailPreview);
     CHECK_NULL(previewDefinition, E_FAIL);
+    const Shared<const EffectDefinition> previewTrailDefinition =
+        splitTrailPreview ? Build_PreviewTrailEffectDefinition(emitterView->Get_Emitters()) : nullptr;
 
     const EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
     CHECK_NULL(effectPool, E_FAIL);
 
     CHECK_FAILED(Restart_PreviewFromDefinition(previewDefinition), E_FAIL);
     _currentPreviewDefinition = previewDefinition;
+    _currentPreviewTrailDefinition = previewTrailDefinition;
+    _wasTrailPreviewGateOpen = false;
+    _lastTrailPreviewSourceRatio = 0.f;
+    _hasTrailPreviewSourceRatio = false;
+    EDITOR->Set_TrailPreviewGateDuration(Internal::Resolve_TrailPreviewGateDuration(emitterView->Get_Emitters()));
+    EDITOR->Reset_TrailPreviewGate();
 
     for (const AuthoringEmitter& emitter : emitterView->Get_Emitters())
         emitterView->Clear_PreviewDirty(emitter.id);
@@ -1367,6 +1466,10 @@ HRESULT Level_EffectEditor::Reset_PreviewRuntime()
     if (_currentPreviewDefinition == nullptr)
         return S_OK;
 
+    Clear_PreviewTrailStrokes();
+    _wasTrailPreviewGateOpen = false;
+    _lastTrailPreviewSourceRatio = 0.f;
+    _hasTrailPreviewSourceRatio = false;
     return Restart_PreviewFromDefinition(_currentPreviewDefinition);
 }
 
@@ -1398,7 +1501,9 @@ HRESULT Level_EffectEditor::Restart_PreviewFromDefinition(const Shared<const Eff
     return S_OK;
 }
 
-Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition(const vector<AuthoringEmitter>& emitters) const
+Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition(
+    const vector<AuthoringEmitter>& emitters,
+    bool includeTrail) const
 {
     auto definition = make_shared<EffectDefinition>();
     definition->name = "EffectEditorPreview";
@@ -1411,6 +1516,9 @@ Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition
         switch (emitter.typeData.kind)
         {
         case AuthoringTypeDataKind::Trail:
+            if (!includeTrail)
+                break;
+
             definition->emitters.push_back(Build_PreviewTrailEmitterDefinition(emitter));
             break;
 
@@ -1430,6 +1538,22 @@ Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition
     }
 
     return definition;
+}
+
+Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewTrailEffectDefinition(const vector<AuthoringEmitter>& emitters) const
+{
+    auto definition = make_shared<EffectDefinition>();
+    definition->name = "EffectEditorPreviewTrailStroke";
+
+    for (const AuthoringEmitter& emitter : emitters)
+    {
+        if (!emitter.enabled || emitter.typeData.kind != AuthoringTypeDataKind::Trail)
+            continue;
+
+        definition->emitters.push_back(Build_PreviewTrailEmitterDefinition(emitter));
+    }
+
+    return definition->emitters.empty() ? nullptr : definition;
 }
 
 EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const AuthoringEmitter& emitter) const
@@ -2574,8 +2698,160 @@ HRESULT Level_EffectEditor::Ready_Layer_Preview(const wstring& layerTag)
     CHECK_NULL(trailPreviewController, E_FAIL);
     CHECK_FAILED(trailPreviewController->Initialize(&controllerDesc), E_FAIL);
     CHECK_FAILED(GAME->Add_GameObject(ETOI(LevelType::Static), layerTag, trailPreviewController), E_FAIL);
+    _trailPreviewController = trailPreviewController;
 
     return S_OK;
+}
+
+void Level_EffectEditor::Update_PreviewTrailStrokes(float timeDelta)
+{
+    if (EDITOR->Get_TrailPreviewGateMode() != TrailPreviewGateMode::Window ||
+        !EDITOR->Is_TrailPreviewVisible() ||
+        _currentPreviewTrailDefinition == nullptr)
+    {
+        Clear_PreviewTrailStrokes();
+        _wasTrailPreviewGateOpen = false;
+        _hasTrailPreviewSourceRatio = false;
+        return;
+    }
+
+    const float gateStartRatio = EDITOR->Get_TrailPreviewGateStartRatio();
+    const float gateEndRatio = EDITOR->Get_TrailPreviewGateEndRatio();
+    if (fabs(gateEndRatio - gateStartRatio) <= 0.0001f)
+    {
+        Drain_ActivePreviewTrailStrokes();
+        _wasTrailPreviewGateOpen = false;
+        _hasTrailPreviewSourceRatio = false;
+    }
+    else
+    {
+        float sourceRatio = 0.f;
+        const Shared<TrailPreviewController> trailPreviewController = _trailPreviewController.lock();
+        const bool hasSourceRatio =
+            trailPreviewController != nullptr &&
+            trailPreviewController->Try_GetAttackAnimationRatio(sourceRatio);
+
+        if (!hasSourceRatio)
+        {
+            Drain_ActivePreviewTrailStrokes();
+            _wasTrailPreviewGateOpen = false;
+            _hasTrailPreviewSourceRatio = false;
+        }
+        else
+        {
+            const bool gateOpen =
+                gateStartRatio < gateEndRatio
+                ? sourceRatio >= gateStartRatio && sourceRatio < gateEndRatio
+                : sourceRatio >= gateStartRatio || sourceRatio < gateEndRatio;
+            if (gateOpen && !_wasTrailPreviewGateOpen)
+            {
+                if (FAILED(Start_PreviewTrailStroke()))
+                    LOG_WARN("[EffectEditor] Failed to start trail preview stroke.");
+            }
+            else if (!gateOpen && _wasTrailPreviewGateOpen)
+                Drain_ActivePreviewTrailStrokes();
+
+            _wasTrailPreviewGateOpen = gateOpen;
+            _lastTrailPreviewSourceRatio = sourceRatio;
+            _hasTrailPreviewSourceRatio = true;
+        }
+    }
+
+    const float safeTimeDelta = max(0.f, timeDelta);
+    for (int32 runtimeIndex = static_cast<int32>(_previewTrailStrokes.size()) - 1; runtimeIndex >= 0; --runtimeIndex)
+    {
+        PreviewTrailStrokeRuntime& runtime = _previewTrailStrokes[runtimeIndex];
+        if (!runtime.isDraining)
+            continue;
+
+        runtime.drainElapsed += safeTimeDelta;
+        if (runtime.drainElapsed < runtime.drainDuration)
+            continue;
+
+        EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+        if (effectPool != nullptr)
+            effectPool->Release(runtime.poolHandle);
+
+        _previewTrailStrokes.erase(_previewTrailStrokes.begin() + runtimeIndex);
+    }
+}
+
+HRESULT Level_EffectEditor::Start_PreviewTrailStroke()
+{
+    CHECK_NULL(_currentPreviewTrailDefinition, E_FAIL);
+
+    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+    CHECK_NULL(effectPool, E_FAIL);
+
+    PreviewTrailStrokeRuntime runtime{};
+    runtime.sampleEnabled = make_shared<bool>(true);
+    runtime.sampleProvider = make_shared<Internal::TrailPreviewStrokeSampleProvider>(
+        _trailPreviewSampleProvider,
+        runtime.sampleEnabled
+    );
+    CHECK_NULL(runtime.sampleProvider, E_FAIL);
+    runtime.drainDuration = Internal::Resolve_TrailStrokeDrainDuration(_currentPreviewTrailDefinition);
+
+    EffectTrailSample initialSample{};
+    if (runtime.sampleProvider->Try_GetTrailSample(initialSample))
+    {
+        EffectInstancePool::AcquireDesc acquireDesc{};
+        acquireDesc.worldPosition = initialSample.baseWorldPosition;
+        acquireDesc.effectName = Internal::kPreviewTrailStrokePoolKey;
+        acquireDesc.definition = _currentPreviewTrailDefinition;
+        acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
+        acquireDesc.layerTag = kPreviewLayerTag;
+        acquireDesc.trailSampleProvider = runtime.sampleProvider;
+
+        CHECK_FAILED(effectPool->Acquire(acquireDesc, runtime.poolHandle), E_FAIL);
+        _previewTrailStrokes.push_back(std::move(runtime));
+        return S_OK;
+    }
+
+    EffectInstancePool::AcquireDesc acquireDesc{};
+    acquireDesc.effectName = Internal::kPreviewTrailStrokePoolKey;
+    acquireDesc.definition = _currentPreviewTrailDefinition;
+    acquireDesc.layerLevelIndex = ETOI(LevelType::Static);
+    acquireDesc.layerTag = kPreviewLayerTag;
+    acquireDesc.trailSampleProvider = runtime.sampleProvider;
+
+    CHECK_FAILED(effectPool->Acquire(acquireDesc, runtime.poolHandle), E_FAIL);
+    _previewTrailStrokes.push_back(std::move(runtime));
+    return S_OK;
+}
+
+void Level_EffectEditor::Begin_PreviewTrailStrokeDrain(PreviewTrailStrokeRuntime& runtime)
+{
+    if (runtime.isDraining)
+        return;
+
+    if (runtime.sampleEnabled != nullptr)
+        *runtime.sampleEnabled = false;
+
+    runtime.isDraining = true;
+    runtime.drainElapsed = 0.f;
+}
+
+void Level_EffectEditor::Drain_ActivePreviewTrailStrokes()
+{
+    for (PreviewTrailStrokeRuntime& runtime : _previewTrailStrokes)
+        Begin_PreviewTrailStrokeDrain(runtime);
+}
+
+void Level_EffectEditor::Clear_PreviewTrailStrokes()
+{
+    EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
+
+    if (effectPool != nullptr)
+    {
+        for (const PreviewTrailStrokeRuntime& runtime : _previewTrailStrokes)
+            effectPool->Release(runtime.poolHandle);
+    }
+
+    _previewTrailStrokes.clear();
+    _wasTrailPreviewGateOpen = false;
+    _lastTrailPreviewSourceRatio = 0.f;
+    _hasTrailPreviewSourceRatio = false;
 }
 
 void Level_EffectEditor::Clear_PreviewObjects()
@@ -2584,9 +2860,11 @@ void Level_EffectEditor::Clear_PreviewObjects()
     if (nullptr == effectPool)
         return;
 
+    Clear_PreviewTrailStrokes();
     effectPool->Release(_previewPoolHandle);
     _previewPoolHandle = {};
     effectPool->Discard_Inactive(Internal::kPreviewPoolKey);
+    effectPool->Discard_Inactive(Internal::kPreviewTrailStrokePoolKey);
 }
 
 Shared<Level_EffectEditor> Level_EffectEditor::Create(const ComPtr<Device>& device, const ComPtr<Context>& context)

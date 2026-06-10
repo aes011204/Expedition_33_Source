@@ -287,6 +287,7 @@ void EffectEditorApp::Update(float timeDelta)
         freeCameraDelta = timeDelta;
     }
 
+    EDITOR->Tick_TrailPreviewGate(runtimeDelta);
     GAME->Set_FreeCameraTimeDelta(freeCameraDelta);
     {
         ENGINE_PROFILE_SCOPE_BASIC("Game::Update");

@@ -1,5 +1,6 @@
 ﻿#include "CurveEditor_View.h"
 
+#include "EffectAuthoringValueRange.h"
 #include "EffectEditorInstance.h"
 #include "Emitter_View.h"
 #include "Helper_String.h"
@@ -682,12 +683,27 @@ Color CurveEditor_View::Evaluate_Curve(const ConstantCurveColorDistributionData&
     return curve.keys.back().value;
 }
 
+CurveEditor_View::TargetEditRange CurveEditor_View::Compute_TargetEditRange(const CurveTarget& target)
+{
+    TargetEditRange editRange{};
+    if (target.payloadKind == CurveTargetPayloadKind::Color)
+        editRange = TargetEditRange{ 0.f, 1.f };
+
+    if (const AuthoringValueRange* range = Find_AuthoringValueRange(target.identity.moduleType, target.identity.propertyId))
+    {
+        if (range->hasMin)
+            editRange.minValue = range->minValue;
+        if (range->hasMax)
+            editRange.maxValue = range->maxValue;
+    }
+
+    return editRange;
+}
+
 float CurveEditor_View::Clamp_GraphEditedValue(const CurveTarget& target, float value)
 {
-    if (target.payloadKind == CurveTargetPayloadKind::Color)
-        return clamp(value, 0.f, 1.f);
-
-    return clamp(value, -1000.f, 1000.f);
+    const TargetEditRange editRange = Compute_TargetEditRange(target);
+    return clamp(value, editRange.minValue, editRange.maxValue);
 }
 
 Shared<Emitter_View> CurveEditor_View::Resolve_EmitterView() const
@@ -2174,6 +2190,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
     }
 
     bool changed = false;
+    const TargetEditRange editRange = Compute_TargetEditRange(target);
 
     if (const auto* floatDistribution = get_if<FloatDistributionData*>(&target.distribution))
     {
@@ -2188,7 +2205,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         float timeValue = key.time;
         float keyValue = key.value;
         changed |= ImGui::DragFloat("Time", &timeValue, 0.005f, 0.f, 1.f, "%.3f");
-        changed |= ImGui::DragFloat("Value", &keyValue, 0.01f, -1000.f, 1000.f, "%.3f");
+        changed |= ImGui::DragFloat("Value", &keyValue, 0.01f, editRange.minValue, editRange.maxValue, "%.3f");
 
         if (ImGui::BeginCombo("Interpolation", Internal::Get_InterpolationLabel(key.interpolationMode)))
         {
@@ -2226,7 +2243,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         {
             Begin_CurveAuthoringEdit(target, "Edit Curve Key");
             key.time = clamp(timeValue, 0.f, 1.f);
-            key.value = keyValue;
+            key.value = Clamp_GraphEditedValue(target, keyValue);
             Normalize_CurveKeys(*curve);
             Mark_CurveChanged(target);
         }
@@ -2247,13 +2264,13 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         float timeValue = key.time;
         float activeValue = Get_TargetValue(target, key);
         changed |= ImGui::DragFloat("Time", &timeValue, 0.005f, 0.f, 1.f, "%.3f");
-        if (ImGui::DragFloat(Get_ChannelLabel(target.channel), &activeValue, 0.01f, -1000.f, 1000.f, "%.3f"))
+        if (ImGui::DragFloat(Get_ChannelLabel(target.channel), &activeValue, 0.01f, editRange.minValue, editRange.maxValue, "%.3f"))
             changed = true;
 
         const CurveTargetChannel pairedChannel = target.channel == CurveTargetChannel::Y ? CurveTargetChannel::X : CurveTargetChannel::Y;
         float pairedValue = Read_Vector2Channel(key.value, pairedChannel);
         ImGui::BeginDisabled();
-        ImGui::DragFloat(Get_ChannelLabel(pairedChannel), &pairedValue, 0.01f, -1000.f, 1000.f, "%.3f");
+        ImGui::DragFloat(Get_ChannelLabel(pairedChannel), &pairedValue, 0.01f, editRange.minValue, editRange.maxValue, "%.3f");
         ImGui::EndDisabled();
 
         if (ImGui::BeginCombo("Interpolation", Internal::Get_InterpolationLabel(key.interpolationMode)))
@@ -2292,7 +2309,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         {
             Begin_CurveAuthoringEdit(target, "Edit Curve Key");
             key.time = clamp(timeValue, 0.f, 1.f);
-            Set_TargetValue(target, key, activeValue);
+            Set_TargetValue(target, key, Clamp_GraphEditedValue(target, activeValue));
             Normalize_CurveKeys(*curve);
             Mark_CurveChanged(target);
         }
@@ -2313,7 +2330,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         float timeValue = key.time;
         float activeValue = Get_TargetValue(target, key);
         changed |= ImGui::DragFloat("Time", &timeValue, 0.005f, 0.f, 1.f, "%.3f");
-        if (ImGui::DragFloat(Get_ChannelLabel(target.channel), &activeValue, 0.01f, -1000.f, 1000.f, "%.3f"))
+        if (ImGui::DragFloat(Get_ChannelLabel(target.channel), &activeValue, 0.01f, editRange.minValue, editRange.maxValue, "%.3f"))
             changed = true;
 
         for (const CurveTargetChannel channel : { CurveTargetChannel::X, CurveTargetChannel::Y, CurveTargetChannel::Z })
@@ -2323,7 +2340,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
 
             float pairedValue = Read_Vector3Channel(key.value, channel);
             ImGui::BeginDisabled();
-            ImGui::DragFloat(Get_ChannelLabel(channel), &pairedValue, 0.01f, -1000.f, 1000.f, "%.3f");
+            ImGui::DragFloat(Get_ChannelLabel(channel), &pairedValue, 0.01f, editRange.minValue, editRange.maxValue, "%.3f");
             ImGui::EndDisabled();
         }
 
@@ -2363,7 +2380,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         {
             Begin_CurveAuthoringEdit(target, "Edit Curve Key");
             key.time = clamp(timeValue, 0.f, 1.f);
-            Set_TargetValue(target, key, activeValue);
+            Set_TargetValue(target, key, Clamp_GraphEditedValue(target, activeValue));
             Normalize_CurveKeys(*curve);
             Mark_CurveChanged(target);
         }
@@ -2384,7 +2401,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         float timeValue = key.time;
         float activeValue = Get_TargetValue(target, key);
         changed |= ImGui::DragFloat("Time", &timeValue, 0.005f, 0.f, 1.f, "%.3f");
-        if (ImGui::DragFloat(Get_ChannelLabel(target.channel), &activeValue, 0.005f, 0.f, 1.f, "%.3f"))
+        if (ImGui::DragFloat(Get_ChannelLabel(target.channel), &activeValue, 0.005f, editRange.minValue, editRange.maxValue, "%.3f"))
             changed = true;
 
         for (const CurveTargetChannel channel : { CurveTargetChannel::R, CurveTargetChannel::G, CurveTargetChannel::B })
@@ -2394,7 +2411,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
 
             float pairedValue = Read_ColorChannel(key.value, channel);
             ImGui::BeginDisabled();
-            ImGui::DragFloat(Get_ChannelLabel(channel), &pairedValue, 0.005f, 0.f, 1.f, "%.3f");
+            ImGui::DragFloat(Get_ChannelLabel(channel), &pairedValue, 0.005f, editRange.minValue, editRange.maxValue, "%.3f");
             ImGui::EndDisabled();
         }
 
@@ -2434,7 +2451,7 @@ void CurveEditor_View::Draw_SelectedKeyInspector(const CurveTarget& target)
         {
             Begin_CurveAuthoringEdit(target, "Edit Curve Key");
             key.time = clamp(timeValue, 0.f, 1.f);
-            Set_TargetValue(target, key, activeValue);
+            Set_TargetValue(target, key, Clamp_GraphEditedValue(target, activeValue));
             Normalize_CurveKeys(*curve);
             Mark_CurveChanged(target);
         }
