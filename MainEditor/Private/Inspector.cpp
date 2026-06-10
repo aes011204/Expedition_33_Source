@@ -699,6 +699,15 @@ void Inspector::Draw_PrimaryShadowLightInspector()
 
                 ImGui::SetClipboardText(stream.str().c_str());
             }
+            bool drawCascadeSliceDebug = GAME->Is_ShadowCascadeSliceDebugEnabled();
+            if (ImGui::Checkbox("Draw Cascade Slice", &drawCascadeSliceDebug))
+                GAME->Set_ShadowCascadeSliceDebugEnabled(drawCascadeSliceDebug);
+            bool drawCascadeProjectionDebug = GAME->Is_ShadowCascadeProjectionDebugEnabled();
+            if (ImGui::Checkbox("Draw Cascade Projection", &drawCascadeProjectionDebug))
+                GAME->Set_ShadowCascadeProjectionDebugEnabled(drawCascadeProjectionDebug);
+            bool drawCascadeInfluenceDebug = GAME->Is_ShadowCascadeInfluenceDebugEnabled();
+            if (ImGui::Checkbox("Draw Cascade Influence", &drawCascadeInfluenceDebug))
+                GAME->Set_ShadowCascadeInfluenceDebugEnabled(drawCascadeInfluenceDebug);
 
             const uint32 cascadeCount = GAME->Get_ShadowCascadeCount();
             for (uint32 cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)

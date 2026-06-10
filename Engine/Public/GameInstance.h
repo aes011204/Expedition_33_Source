@@ -15,6 +15,7 @@
 #include "Log_Define.h"
 #ifdef _DEBUG
 #include "Print_Manager.h"
+#include "Shadow.h"
 #endif
 
 #pragma endregion
@@ -427,6 +428,12 @@ public : /* For.Target_Manager */
     HRESULT Display_AllRTs(bool render);
     HRESULT Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<ShaderCom> shader);
     const map<wstring, bool>& Get_RTs() const;
+    void Set_ShadowCascadeSliceDebugEnabled(bool enabled);
+    bool Is_ShadowCascadeSliceDebugEnabled() const;
+    void Set_ShadowCascadeProjectionDebugEnabled(bool enabled);
+    bool Is_ShadowCascadeProjectionDebugEnabled() const;
+    void Set_ShadowCascadeInfluenceDebugEnabled(bool enabled);
+    bool Is_ShadowCascadeInfluenceDebugEnabled() const;
 #endif
 
 public: /* For.Shadow */
@@ -608,6 +615,12 @@ private:
 
 #ifdef _DEBUG
     Unique<Print_Manager> _printManager{};
+    bool _shadowCascadeSliceDebugEnabled = false;
+    bool _shadowCascadeProjectionDebugEnabled = false;
+    bool _shadowCascadeInfluenceDebugEnabled = false;
+    bool _hasShadowCascadeDebugSnapshot = false;
+    ShadowCascadeDebugInfo _shadowCascadeDebugSnapshot[Shadow::CascadeCount]{};
+    Matrix _shadowCascadeViewSnapshot[Shadow::CascadeCount]{};
 #endif
 
 private:
@@ -630,6 +643,12 @@ private:
     // 월드 시간 제어
     float _worldTimeScale = 1.f;
     float _unscaledTimeDelta = 0.f;
+
+#ifdef _DEBUG
+private:
+    void Draw_ShadowCascadeWorldDebug();
+    void Capture_ShadowCascadeDebugSnapshot();
+#endif
     float _worldTimeDelta = 0.f;
     bool _isWorldTimeSlowActive = false;
     float _worldTimeSlowElapsed = 0.f;

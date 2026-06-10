@@ -61,6 +61,8 @@ struct CascadeBounds
     // influence : 현재 cascade가 받아야 할 그림자의 caster까지 포함하려고 넓힌 영역
     Vec3 influenceMinLS = Vec3(FLT_MAX, FLT_MAX, FLT_MAX);
     Vec3 influenceMaxLS = Vec3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+    // 실제 caster influence convex prism을 구성하는 월드 공간 점 16개
+    Vec3 influencePointsWS[16]{};
 
     Vec3 centerWS = Vec3::Zero;             // 현재 cascade slice의 bounding sphere 중심, 월드 공간
     Vec3 eyeWS = Vec3::Zero;                // 그 slice를 보기 위해 잡은 light-view 카메라 위치
@@ -298,6 +300,9 @@ inline void Build_CascadeBounds(
         influencePoints[cornerIndex] = sliceCorners[cornerIndex];
         influencePoints[cornerIndex + 8u] = sliceCorners[cornerIndex] + upstreamDir * extrusionDistance;
     }
+
+    for (uint32 pointIndex = 0u; pointIndex < 16u; ++pointIndex)
+        outBounds.influencePointsWS[pointIndex] = influencePoints[pointIndex];
 
     Vec3 influenceMinWS(FLT_MAX, FLT_MAX, FLT_MAX);
     Vec3 influenceMaxWS(-FLT_MAX, -FLT_MAX, -FLT_MAX);

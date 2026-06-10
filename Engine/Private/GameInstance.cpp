@@ -236,6 +236,114 @@ size_t Estimate_TextureSrv_Bytes(ID3D11ShaderResourceView* srv)
 
     return 0;
 }
+
+#ifdef _DEBUG
+constexpr uint32 kCascadeWireEdges[12][2] =
+{
+    { 0u, 1u }, { 1u, 2u }, { 2u, 3u }, { 3u, 0u },
+    { 4u, 5u }, { 5u, 6u }, { 6u, 7u }, { 7u, 4u },
+    { 0u, 4u }, { 1u, 5u }, { 2u, 6u }, { 3u, 7u },
+};
+
+Color Scale_Color(const Color& color, float scale)
+{
+    return Color(
+        min(1.f, color.x * scale),
+        min(1.f, color.y * scale),
+        min(1.f, color.z * scale),
+        color.w);
+}
+
+void Draw_WireBoxFromCorners(const Vec3(&corners)[8], const Color& color)
+{
+    for (const auto& edge : kCascadeWireEdges)
+    {
+        DebugLineDesc lineDesc{};
+        lineDesc.start = corners[edge[0]];
+        lineDesc.end = corners[edge[1]];
+        lineDesc.style.color = color;
+        lineDesc.style.depthEnabled = false;
+        GAME->Draw_DebugLine(lineDesc);
+    }
+}
+
+void Draw_FrustumFarPlane(const Vec3(&corners)[8], const Color& color)
+{
+    constexpr uint32 farEdges[4][2] =
+    {
+        { 4u, 5u },
+        { 5u, 6u },
+        { 6u, 7u },
+        { 7u, 4u },
+    };
+
+    for (const auto& edge : farEdges)
+    {
+        DebugLineDesc lineDesc{};
+        lineDesc.start = corners[edge[0]];
+        lineDesc.end = corners[edge[1]];
+        lineDesc.style.color = color;
+        lineDesc.style.depthEnabled = false;
+        GAME->Draw_DebugLine(lineDesc);
+    }
+}
+
+void Draw_InfluencePrism(const Vec3(&points)[16], const Color& color)
+{
+    for (const auto& edge : kCascadeWireEdges)
+    {
+        DebugLineDesc lineDesc{};
+        lineDesc.start = points[edge[0]];
+        lineDesc.end = points[edge[1]];
+        lineDesc.style.color = color;
+        lineDesc.style.depthEnabled = false;
+        GAME->Draw_DebugLine(lineDesc);
+    }
+
+    for (const auto& edge : kCascadeWireEdges)
+    {
+        DebugLineDesc lineDesc{};
+        lineDesc.start = points[edge[0] + 8u];
+        lineDesc.end = points[edge[1] + 8u];
+        lineDesc.style.color = color;
+        lineDesc.style.depthEnabled = false;
+        GAME->Draw_DebugLine(lineDesc);
+    }
+
+    for (uint32 cornerIndex = 0u; cornerIndex < 8u; ++cornerIndex)
+    {
+        DebugLineDesc lineDesc{};
+        lineDesc.start = points[cornerIndex];
+        lineDesc.end = points[cornerIndex + 8u];
+        lineDesc.style.color = color;
+        lineDesc.style.depthEnabled = false;
+        GAME->Draw_DebugLine(lineDesc);
+    }
+}
+
+void Build_LightSpaceAABBCorners(const Vec3& minLS, const Vec3& maxLS, Vec3(&outCorners)[8])
+{
+    outCorners[0] = Vec3(minLS.x, maxLS.y, minLS.z);
+    outCorners[1] = Vec3(maxLS.x, maxLS.y, minLS.z);
+    outCorners[2] = Vec3(maxLS.x, minLS.y, minLS.z);
+    outCorners[3] = Vec3(minLS.x, minLS.y, minLS.z);
+    outCorners[4] = Vec3(minLS.x, maxLS.y, maxLS.z);
+    outCorners[5] = Vec3(maxLS.x, maxLS.y, maxLS.z);
+    outCorners[6] = Vec3(maxLS.x, minLS.y, maxLS.z);
+    outCorners[7] = Vec3(minLS.x, minLS.y, maxLS.z);
+}
+
+void Draw_LightSpaceAABBWorldWire(const Matrix& inverseView, const Vec3& minLS, const Vec3& maxLS, const Color& color)
+{
+    Vec3 lightSpaceCorners[8]{};
+    Vec3 worldCorners[8]{};
+    Build_LightSpaceAABBCorners(minLS, maxLS, lightSpaceCorners);
+    for (uint32 cornerIndex = 0; cornerIndex < 8u; ++cornerIndex)
+        worldCorners[cornerIndex] = Vec3::Transform(lightSpaceCorners[cornerIndex], inverseView);
+    Draw_WireBoxFromCorners(worldCorners, color);
+}
+
+#endif
 }
 
 GameInstance::GameInstance()
@@ -640,6 +748,7 @@ HRESULT GameInstance::Draw()
 
     // Debug Manager
     {
+        Draw_ShadowCascadeWorldDebug();
         _debugManager->Render_Depth();
         _debugManager->Render_Overlay();
     }
@@ -2447,6 +2556,90 @@ bool GameInstance::Is_DebugRenderEnabled() const
     return _debugManager->Is_Enabled();
 }
 
+#ifdef _DEBUG
+void GameInstance::Capture_ShadowCascadeDebugSnapshot()
+{
+    _hasShadowCascadeDebugSnapshot = false;
+
+    if (_shadow == nullptr)
+        return;
+
+    const ShadowCascadeDebugInfo* cascadeDebugInfos = _shadow->Get_CascadeDebugInfos();
+    const Matrix* cascadeViews = _shadow->Get_CascadeViewMatrices();
+    if (cascadeDebugInfos == nullptr || cascadeViews == nullptr)
+        return;
+
+    for (uint32 cascadeIndex = 0; cascadeIndex < Shadow::CascadeCount; ++cascadeIndex)
+    {
+        _shadowCascadeDebugSnapshot[cascadeIndex] = cascadeDebugInfos[cascadeIndex];
+        _shadowCascadeViewSnapshot[cascadeIndex] = cascadeViews[cascadeIndex];
+    }
+
+    _hasShadowCascadeDebugSnapshot = true;
+}
+
+void GameInstance::Draw_ShadowCascadeWorldDebug()
+{
+    if (_shadow == nullptr)
+        return;
+
+    const bool drawSlice = _shadowCascadeSliceDebugEnabled;
+    const bool drawProjection = _shadowCascadeProjectionDebugEnabled;
+    const bool drawInfluence = _shadowCascadeInfluenceDebugEnabled;
+    if (!drawSlice && !drawProjection && !drawInfluence)
+        return;
+
+    const ShadowCascadeDebugInfo* cascadeDebugInfos = nullptr;
+    const Matrix* cascadeViews = nullptr;
+
+    if (_hasShadowCascadeDebugSnapshot)
+    {
+        cascadeDebugInfos = _shadowCascadeDebugSnapshot;
+        cascadeViews = _shadowCascadeViewSnapshot;
+    }
+    else
+    {
+        cascadeDebugInfos = _shadow->Get_CascadeDebugInfos();
+        cascadeViews = _shadow->Get_CascadeViewMatrices();
+    }
+
+    if (cascadeDebugInfos == nullptr || cascadeViews == nullptr)
+        return;
+
+    static const Color cascadeBaseColors[Shadow::CascadeCount] =
+    {
+        Color(1.f, 0.35f, 0.35f, 1.f),
+        Color(0.35f, 0.8f, 1.f, 1.f),
+        Color(0.45f, 1.f, 0.45f, 1.f),
+        Color(1.f, 0.8f, 0.35f, 1.f),
+    };
+
+    for (uint32 cascadeIndex = 0; cascadeIndex < _shadow->Get_CascadeCount(); ++cascadeIndex)
+    {
+        const ShadowCascadeDebugInfo& debugInfo = cascadeDebugInfos[cascadeIndex];
+        const Matrix inverseView = cascadeViews[cascadeIndex].Invert();
+        const Color sliceColor = Scale_Color(cascadeBaseColors[cascadeIndex], 1.15f);
+        const Color projectionColor = cascadeBaseColors[cascadeIndex];
+        const Color influenceColor = Scale_Color(cascadeBaseColors[cascadeIndex], 0.7f);
+
+        if (drawSlice)
+            Draw_FrustumFarPlane(debugInfo.sliceCornersWS, sliceColor);
+
+        if (drawProjection)
+        {
+            Draw_LightSpaceAABBWorldWire(
+                inverseView,
+                debugInfo.projectionMinLS,
+                debugInfo.projectionMaxLS,
+                projectionColor);
+        }
+
+        if (drawInfluence)
+            Draw_InfluencePrism(debugInfo.influencePointsWS, influenceColor);
+    }
+}
+#endif
+
 HRESULT GameInstance::Render_DebugDepth()
 {
     return _debugManager->Render_Depth();
@@ -2742,6 +2935,42 @@ HRESULT GameInstance::Render_RT_Debug(Shared<VIBuffer_Rect> viBuffer, Shared<Sha
 const map<wstring, bool>& GameInstance::Get_RTs() const
 {
     return _targetManager->Get_RTs();
+}
+
+void GameInstance::Set_ShadowCascadeSliceDebugEnabled(bool enabled)
+{
+    if (enabled && !_shadowCascadeSliceDebugEnabled)
+        Capture_ShadowCascadeDebugSnapshot();
+    _shadowCascadeSliceDebugEnabled = enabled;
+}
+
+bool GameInstance::Is_ShadowCascadeSliceDebugEnabled() const
+{
+    return _shadowCascadeSliceDebugEnabled;
+}
+
+void GameInstance::Set_ShadowCascadeProjectionDebugEnabled(bool enabled)
+{
+    if (enabled && !_shadowCascadeProjectionDebugEnabled)
+        Capture_ShadowCascadeDebugSnapshot();
+    _shadowCascadeProjectionDebugEnabled = enabled;
+}
+
+bool GameInstance::Is_ShadowCascadeProjectionDebugEnabled() const
+{
+    return _shadowCascadeProjectionDebugEnabled;
+}
+
+void GameInstance::Set_ShadowCascadeInfluenceDebugEnabled(bool enabled)
+{
+    if (enabled && !_shadowCascadeInfluenceDebugEnabled)
+        Capture_ShadowCascadeDebugSnapshot();
+    _shadowCascadeInfluenceDebugEnabled = enabled;
+}
+
+bool GameInstance::Is_ShadowCascadeInfluenceDebugEnabled() const
+{
+    return _shadowCascadeInfluenceDebugEnabled;
 }
 
 #endif

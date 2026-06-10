@@ -168,10 +168,19 @@ HRESULT Shadow::Update_FromCameraFrustum(
         // 단, 이 값은 디버그 표시용일 뿐 cascade 행렬에는 사용되지 않는다.
         _cascadeDebugInfos[cascadeIndex].expandedNear = expandedNear;
         _cascadeDebugInfos[cascadeIndex].expandedFar = expandedFar;
+        for (uint32 cornerIndex = 0; cornerIndex < 8u; ++cornerIndex)
+            _cascadeDebugInfos[cascadeIndex].sliceCornersWS[cornerIndex] = sliceCorners[cornerIndex];
+        for (uint32 pointIndex = 0u; pointIndex < 16u; ++pointIndex)
+        {
+            _cascadeDebugInfos[cascadeIndex].influencePointsWS[pointIndex] =
+                cascadeBounds.influencePointsWS[pointIndex];
+        }
         _cascadeDebugInfos[cascadeIndex].centerWS = cascadeBounds.centerWS;
         _cascadeDebugInfos[cascadeIndex].eyeWS = cascadeBounds.eyeWS;
         _cascadeDebugInfos[cascadeIndex].centerLS = cascadeBounds.centerLS;
         _cascadeDebugInfos[cascadeIndex].stableRadius = cascadeBounds.stableRadius;
+        _cascadeDebugInfos[cascadeIndex].projectionMinLS = cascadeBounds.minLS;
+        _cascadeDebugInfos[cascadeIndex].projectionMaxLS = cascadeBounds.maxLS;
         _cascadeDebugInfos[cascadeIndex].minLS = cascadeBounds.minLS;
         _cascadeDebugInfos[cascadeIndex].maxLS = cascadeBounds.maxLS;
         _cascadeDebugInfos[cascadeIndex].influenceMinLS = cascadeBounds.influenceMinLS;
