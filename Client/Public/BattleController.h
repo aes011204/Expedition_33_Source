@@ -28,13 +28,11 @@ class BattleStateMachine;
 class BattleTurnCamera;
 class BattleSpawnRegistry;
 class SkillTreeCom;
+class BattleTutorialController;
+class BattleResultRecoder;
 
 class BattleController : public Base
 {
-public:
-    using ReactionType = BattleReactionType;
-    using ReactionResult = BattleReactionController::BattleReactionInputResult;
-
 public: /* Delegate 선언 */
     // 전투 시작
     DECLARE_DELEGATE(FOnBattleStarted, uint32, bool);
@@ -48,15 +46,9 @@ public: /* Delegate 선언 */
     DECLARE_DELEGATE(FOnTargetPreviewChanged, const BattleChar*);
     // 공격 시작
     DECLARE_DELEGATE(FOnActionStarted, const BattleAction&);
-    // Reaction (Dodge, Parry)
-    DECLARE_DELEGATE(FOnReactionSucceeded, ReactionType,const vector<BattleChar>&);
     // AP ++
     DECLARE_DELEGATE(FOnBattleApChanged, const BattleChar&, uint32, EAPChangeReason);
-    // QTE UI 시작/결과
-    DECLARE_DELEGATE(FOnQTEStarted, const BattleQTERequest&);
-    DECLARE_DELEGATE(FOnQTEResolved, BattleQTEResult);
-    // 카운터 성공 알람
-    DECLARE_DELEGATE(FOnCounterAnnounceRequested, const vector<BattleChar>&);
+
 
 public:
     BattleController();
@@ -106,9 +98,16 @@ public:
     // Action& Get_TurnAction() { return _turnAction; }
     void    Request_WidePresentationMode();
 
+    // 전투 도망
+    void    Request_EscapeBattle();
+
     vector<BattleChar> Get_AliveEnemies();
     vector<BattleChar> Get_AllEnemies() { return _enemies; };
     vector<BattleChar> Get_AliveHeroes();
+
+    BattleReactionController& Get_ReactionController() { return _reactionController; }
+    const BattleReactionController& Get_ReactionController() const { return _reactionController; }
+    Shared<BattleQTEController> Get_QTEController() const { return _qteController; }
 
     bool Is_BattleStarted() { return _isBattleActive; }
     bool Is_BattleEntering() const { return _isBattleEntering; } // 배틀 진입 시작
@@ -122,21 +121,13 @@ public:
 public:
     void End_FirstAnim();
     void Handle_EditorStopRuntime();
-   // void Handle_TargetPreviewChanged(const BattleChar* target);
+    // void Handle_TargetPreviewChanged(const BattleChar* target);
     HRESULT Ready_Delegates();
-
-    //리액션 인풋
-    void    OpenReactionWindow(ReactionType type);
-    void    CloseReactionWindow(ReactionType type); //일단 이건 쓰지 마
-    void    ClearReactionState();
-    void    UpdateReactionInput();
-
-    bool    Try_ConsumeReactionGuard(const BattleChar& target);
 
 public: /* 타겟팅 중인 적 세팅 */
     void                Set_TargetPreview(const BattleChar& target);
     void                Clear_TargetPreview();
-    const BattleChar*   Get_TargetPreview() const;
+    const BattleChar* Get_TargetPreview() const;
 
 public:
     bool                Is_PlayerTurnActive() const;
@@ -144,13 +135,6 @@ public:
 
     Shared<BattleTurnCamera> Get_BattleTurnCamera() const { return _battleTurnCamera; }
     Shared<BattleSpawnRegistry> Get_BattleSpawnRegistry() const { return _battleSpawnRegistry; }
-
-    void                StartCounter(ModelCom* sourceModel);
-    void                ApplyCounterDamage(ModelCom* sourceModel);
-
-    // 카운터 시작 시 타임 관련
-    void                BeginCounterTimeSection(ModelCom* sourceModel, float worldTimeScale, float counterFrameSpeed);
-    void                EndCounterTimeSection(ModelCom* sourceModel);
 
 public:
     // 부활
@@ -163,13 +147,13 @@ public:
     // 초상화 세팅
     vector<BattleChar> Get_TurnOrderPreview(uint32 maxCount = 8) const;
 
-     // 전투 종료
+    // 전투 종료
     void Confirm_Victory();
 
     // 데미지 후 전투 진행 규칙을 한 곳에서 처리한다.
     void Handle_DamageApplied(const DamageAppliedInfo& info);
 
-     // 현재 턴 액터가 죽으면 턴 종료를 예약한다.
+    // 현재 턴 액터가 죽으면 턴 종료를 예약한다.
     void Try_RequestEndTurnOnCurrentActorDeath(const BattleChar& damagedTarget, float damage);
 
     // 마지막 데미지 들어가면서 슬로우 시작
@@ -186,15 +170,9 @@ public:
         return _hasFreeAimHitTarget ? &_freeAimHitTarget : nullptr;
     }
 
-     // 스킬 스크립트가 다단히트를 예약할 때 사용
+    // 스킬 스크립트가 다단히트를 예약할 때 사용
     BattleHitSequenceRunner& Get_HitSequenceRunner() { return _hitSequenceRunner; }
 
-    // QTE
-    void Begin_QTE(const BattleQTERequest& request);
-    void Resolve_QTE(BattleQTEResult result);
-    void Fail_QTEIfActive();
-    void Clear_QTEState();
-    
     bool Is_QTEActive() const;
     bool Has_LastQTEResult() const;
     BattleQTEResult Get_LastQTEResult() const;
@@ -208,19 +186,22 @@ public:
     bool Has_Buff(const BattleChar& target, Buffs buffId) const;
     Shared<BuffSystem> Get_BuffSystem() const { return _buffSystem; }
 
-    bool Is_GroupParryActive() const;
-    // 카운터 성공 알람
-    void Notify_CounterAnnounceRequested(const vector<BattleChar>& counterActors);
-    void StartCounterReturnAll(ModelCom* sourceModel);
-
     // HitStop (패링 직후, Free Aim 으로 약점공격 성공했을 떄 잠깐)
     void Play_BattleHitStop(float worldTimeScale, float duration);
+
+    // 전투 튜토리얼
+    Shared<BattleTutorialController> Get_BattleTutorialController() const { return _battleTutorialController; }
+
+    // 전투 기록
+    Shared<BattleResultRecoder> Get_BattleResultTracker() const { return _battleResultRecoder; }
+    void Handle_ReactionSucceededForResult(BattleReactionType reactionType, const vector<BattleChar>& targets);
 
 private:
     HRESULT Ready_BattleTurnCamera();
     void    Activate_BattleTurnCamera();
     void    Restore_WorldCamera();
     void    Clear_BattleRuntimeState();
+    void    Push_TurnEntry(const BattleChar& actor, float nextTime);
     float   Resolve_PrefabGroundOffsetY(const Shared<GameObject>& actor) const;
 
     void    Complete_BattleField();          // 2초 슬로우모션이 끝난 뒤 실제 PB/MB 생성과 턴 시작을 처리한다.
@@ -228,6 +209,10 @@ private:
 
     // 몬스터 약점공격 보너스 데미지
     bool    Try_ApplyFreeAimWeakPointBonus(const BattleFreeAimHitTarget& hitTarget, const BattleChar& attacker);
+    void    Capture_PreBattleBGM();
+    void    Restore_PreBattleBGM();
+
+    bool    Update_BattleTutorialGate(float timeDelta);
 
 private:
     // World의 SkillTree 상태를 읽어서 battle에서 사용할 기본 스킬 3개 세팅
@@ -242,29 +227,22 @@ private:
 
     PlayerCharacterType To_PlayerCharacterType(HeroId heroId);
 
+private:
+    using BattleReactionInputResult = BattleReactionController::BattleReactionInputResult;
+    void Apply_ReactionApReward(const BattleReactionInputResult& result);
+
 public: /* Delegate */
-   // FDelegateHandle         _targetPreviewChangedHandle;
-   // FOnBattleStarted        OnBattleStarted;
-   // FOnBattleEnded          OnBattleEnded;
-   // FOnTurnStarted          OnTurnStarted;
-   // FOnTurnEnded            OnTurnEnded;
-   // FOnTargetPreviewChanged OnTargetPreviewChanged;
-   // FOnActionStarted        OnActionStarted;
     FOnBattleStarted                OnBattleStarted;        // 배틀 시작
     FOnBattleEnded                  OnBattleEnded;          // 배틀 끝
     FOnTurnStarted                  OnTurnStarted;          // 턴 시작
     FOnTurnEnded                    OnTurnEnded;            // 턴 끝
     FOnTargetPreviewChanged         OnTargetPreviewChanged; // Targeting 중일 때
     FOnActionStarted                OnActionStarted;        // 공격, 스킬 시작
-    FOnReactionSucceeded            OnReactionSucceeded;    // 회피, 패링 성공
     FOnBattleApChanged              OnBattleApChanged;
-    FOnCounterAnnounceRequested     OnCounterAnnounceRequested;
-
-    FOnQTEStarted                   OnQTEStarted;
-    FOnQTEResolved                  OnQTEResolved;
 
     FDelegateHandle                 _damageAppliedHandle{};
     FDelegateHandle                 _editorStopHandle = {};
+    FDelegateHandle                 _reactionSucceededResultHandle{};
 
 private:
     BattleChar                      _currentTurnActor = {};
@@ -305,25 +283,27 @@ private: /* 전투 AP */
 private:
     bool _battleEnded = {};
     bool _pendingNextTurn = {};
+    bool _hasPendingTutorialEnemyTurn = false;
 
     // 현재 턴을 진행중인 적이 죽으면.
-    bool _requestEndTurnOnCurrentActorDeath = false; 
+    bool _requestEndTurnOnCurrentActorDeath = false;
 
 public:
     struct Compare
     {
-        bool operator()(TurnEntry& a, TurnEntry& b)
+        bool operator()(const TurnEntry& a, const TurnEntry& b) const
         {
-            if (a.nextTime > b.nextTime)
-                // Ultimate_Data    _selected_ultimate
-                return true;
-            return false;
+            if (a.nextTime != b.nextTime)
+                return a.nextTime > b.nextTime; // nextTime이 작을수록 먼저 행동한다.
+
+            return a.orderSeq > b.orderSeq; // 같은 시간대면 먼저 예약된 턴이 먼저다.
         }
     };
 
 private:
     priority_queue<TurnEntry, vector<TurnEntry>, Compare> _turnQueue;
     float _battleTime = {};
+    uint64 _nextTurnEntrySeq = 0;
     vector<BattleChar> _heroes;
     vector<BattleChar> _enemies;
 
@@ -331,13 +311,15 @@ private:
     Shared<BuffSystem>           _buffSystem;
     Shared<BattleActionExecutor> _battleActionExe;
 
-    Shared<BattleSpawnRegistry> _battleSpawnRegistry;   // 전투 시작 시 스폰되는 객체들 저장소
-    Shared<BattleQTEController> _qteController{};
-    BattleReactionController    _reactionController{};
-    BattleHitSequenceRunner     _hitSequenceRunner{};   // 루네 천둥번개 같은 다단히트 관리
+    Shared<BattleSpawnRegistry>  _battleSpawnRegistry;   // 전투 시작 시 스폰되는 객체들 저장소
+    Shared<BattleQTEController>  _qteController{};
+    BattleReactionController     _reactionController{};
+    BattleHitSequenceRunner      _hitSequenceRunner{};   // 루네 천둥번개 같은 다단히트 관리
+    Shared<BattleResultRecoder>  _battleResultRecoder{};
 
     bool _firstAnimflag = { false };
-    int  _firstAnimCount = {0};
+    int  _firstAnimCount = { 0 };
+    uint32 _firstAnimTargetCount = { 0 };
 
     bool _isActionExecuting = false;
 
@@ -365,14 +347,19 @@ private:
     vector<BattleMonsterSpawnDesc> _pendingBattleMonsterSpawnDescs = {};
     int32   _pendingBattleStartSpawnerId = 0;
     Vec3    _pendingBattleStartOffset = Vec3::Zero;
+    float   _pendingBattlePlaneYaw = 0.f;
 
     bool _isFreeAimShotPlaying = false;
-    BattleAction _freeAimShotAction {};
+    BattleAction _freeAimShotAction{};
 
     uint32 _lastVictoryRewardExp = 0;
+    wstring _preBattleBGM{};
 
     BattleChar  _enemyTurnTargetedActor = {};
     bool        _hasEnemyTurnTargetedActor = false;
+
+    // 전투 튜토리얼
+    Shared<BattleTutorialController> _battleTutorialController{};
 
 public:
     static Shared<BattleController> Create();

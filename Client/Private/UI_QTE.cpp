@@ -107,7 +107,7 @@ void UI_QTE::Play_QTE(const BattleQTERequest& request)
 
     Apply_PresetPlacement(request);
 
-    // Intro는 targetName으로 바인딩된 모든 UI에 같은 이름으로 재생해야 한다.
+    GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_QTE_Start);
     Play_QTEAnimation(L"QTE_Intro");
 }
 
@@ -305,6 +305,7 @@ void UI_QTE::Play_ResultAnimation(BattleQTEResult result)
         Set_UIOpen(_perfectDecoRoot, true);
         Set_UIOpen(_perfectTextRoot, true);
         Set_UIOpen(_normalDecoRoot, false);
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_QTE_SuccessPerfect);
         Play_QTEAnimation(L"QTE_Success_Perfect");
         break;
 
@@ -312,11 +313,13 @@ void UI_QTE::Play_ResultAnimation(BattleQTEResult result)
         Set_UIOpen(_normalDecoRoot, true);
         Set_UIOpen(_perfectDecoRoot, false);
         Set_UIOpen(_perfectTextRoot, false);
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_QTE_SuccessRegular);
         Play_QTEAnimation(L"QTE_Success_Normal");
         break;
 
     case BattleQTEResult::Fail:
         Close_ResultVisuals();
+        GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_QTE_Miss);
         Play_QTEAnimation(L"QTE_Fail");
         break;
 

@@ -23,5 +23,5 @@ void AN_CounterReturnAll::Execute(const AnimNotifyContext& context)
     if (battle == nullptr)
         return;
 
-    battle->StartCounterReturnAll(context.model);
+    battle->Get_ReactionController().StartCounterReturnAll(context.model);
 }

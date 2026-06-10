@@ -28,7 +28,7 @@ void Level_MainTitle::BeginPlay()
 {
     Level::BeginPlay();
 
-    GAME->Play_BGM(Constants::Sound::MainTitleBGM, 1.f, true, 0.f);
+    GAME->Play_BGM(Constants::SoundBGM::MainTitleBGM, 1.f, true, 0.f);
 }
 
 void Level_MainTitle::Update(float timeDelta)
@@ -50,7 +50,7 @@ void Level_MainTitle::Handle_Button()
 
     if ((_continueButton && _continueButton->Was_Clicked()) || GAME->KeyDown(KEY_TYPE::KEY_1))
     {
-        GAME->Play_Sound(Constants::Sound::MainMenuLoading, SoundChannel::UI, 1.f);
+        GAME->Play_SoundCue(Constants::SoundCue::UI_MainTitle_Loading);
 
         if (FAILED(GAME->Change_Level(ETOI(LevelType::GameEntry), Level_GameEntry::Create(_device.Get(), _context.Get()))))
             return;
@@ -60,7 +60,7 @@ void Level_MainTitle::Handle_Button()
 
     if (_exitButton && _exitButton->Was_Clicked())
     {
-        GAME->Play_Sound(Constants::Sound::MainMenuQuitGame, SoundChannel::UI, 1.f);
+        GAME->Play_SoundCue(Constants::SoundCue::UI_MainTitle_QuitGame);
         PostQuitMessage(0);
 
         return;

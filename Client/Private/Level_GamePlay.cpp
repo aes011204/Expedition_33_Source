@@ -39,7 +39,7 @@ HRESULT Level_GamePlay::Initialize()
     if (FAILED(Ready_Layer_Monster(TEXT("Layer_Monster"))))
         return E_FAIL;
 
-    GAME->Play_BGM(Constants::Sound::SpringBGM, 1.f, true, 0.f);
+    GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;
 }
@@ -241,11 +241,12 @@ HRESULT Level_GamePlay::Ready_Layer_Monster(const wstring& strLayerTag)
         Constants::Prefab::MW_Lancelier,
         ETOI(LevelType::GamePlay),
         strLayerTag);
-
+    
     CHECK_NULL(monster, E_FAIL);
     monster->Get_Transform()->Set_Position(startPos);
 
-    // 이제 여기서 스폰안하고, 에디터에서 스폰&저장 진행
+    // 이제 여기서 스폰안하고, 에디터에서 스폰&저장 진행.
+    // 아니 그냥 데이터 꼬이니까, 스폰은 코드로 진행하는게 좋을거같기도 하고
 
     return S_OK;
 }

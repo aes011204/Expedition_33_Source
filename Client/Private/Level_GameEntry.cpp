@@ -55,7 +55,7 @@ void Level_GameEntry::Handle_Button()
 
     if (_firstLevelButton && _firstLevelButton->Was_Clicked())
     {
-        GAME->Play_Sound(Constants::Sound::MainMenuNewGame, SoundChannel::UI, 1.f);
+        GAME->Play_SoundCue(Constants::SoundCue::UI_MainTitle_NewGame);
 
         if (!CLIENT->Request_LevelTransition(LevelType::MapTest))
             return;
@@ -65,7 +65,7 @@ void Level_GameEntry::Handle_Button()
 
     if (_secondLevelButton && _secondLevelButton->Was_Clicked())
     {
-        GAME->Play_Sound(Constants::Sound::MainMenuNewGame, SoundChannel::UI, 1.f);
+        GAME->Play_SoundCue(Constants::SoundCue::UI_MainTitle_NewGame);
 
         if (!CLIENT->Request_LevelTransition(LevelType::GamePlay))
             return;

@@ -15,97 +15,132 @@ struct ComputePointParticleParams
     uint32 maxDrawCount{};
     uint32 killActiveParticles{};
     Vec4 center{};
-    Vec4 emitterBasisRight{};          // xyz: emitter local X axis in world space.
-    Vec4 emitterBasisUp{};             // xyz: emitter local Y axis in world space.
-    Vec4 emitterBasisLook{};           // xyz: emitter local Z axis in world space.
-    Vec4 spawnRange{};                 // xyz: spawn range, w: unused.
-    Vec4 initialLocationMin{};         // xyz: InitialLocation min offset, w: enabled.
-    Vec4 initialLocationMax{};         // xyz: InitialLocation max offset, w: unused.
-    Vec4 sphereLocationOffsetRadius{}; // xyz: sphere center offset, w: radius.
-    Vec4 sphereLocationParams{};       // x: enabled, y: mode, z/w: unused.
-    Vec4 planeRadialLocationParams{};          // x: enabled, y: plane, z: shape, w: placement mode.
-    Vec4 planeRadialLocationOffsetThickness{}; // xyz: offset, w: thickness.
-    Vec4 planeRadialLocationRectRange{};       // x/y: U range, z/w: V range.
-    Vec4 planeRadialLocationPolarRange{};      // x/y: radius range, z/w: angle degree range.
-    DirectX::XMUINT4 planeRadialLocationSeedSalts{}; // x: U/radius, y: V/angle, z/w: unused.
-    Vec4 planeRadialOrientationParams{};       // x: enabled, y: target kind, z: orientation mode, w: unused.
-    Vec4 sizeMin{};                    // x/y: width/height min, z/w: unused.
-    Vec4 sizeMax{};                    // x/y: width/height max, z/w: unused.
-    Vec4 lifeTime{};                   // x/y: lifetime min/max, z/w: unused.
+    Vec4 emitterBasisRight{};                        // xyz: emitter local X axis in world space.
+    Vec4 emitterBasisUp{};                           // xyz: emitter local Y axis in world space.
+    Vec4 emitterBasisLook{};                         // xyz: emitter local Z axis in world space.
+    Vec4 spawnRange{};                               // xyz: spawn range.
+    Vec4 initialLocationMin{};                       // xyz: InitialLocation min offset, w: enabled.
+    Vec4 initialLocationMax{};                       // xyz: InitialLocation max offset, w: unused.
+    Vec4 sphereLocationOffsetRadius{};               // xyz: sphere center offset, w: radius.
+    Vec4 sphereLocationParams{};                     // x: enabled, y: mode, z: placement mode, w: unused.
+    Vec4 planeRadialLocationParams{};                // x: enabled, y: plane, z: shape, w: placement mode.
+    Vec4 planeRadialLocationOffsetThickness{};       // xyz: offset, w: thickness.
+    Vec4 planeRadialLocationRectRange{};             // x/y: U range, z/w: V range.
+    Vec4 planeRadialLocationPolarRange{};            // x/y: radius range, z/w: angle degree range.
+    XMUINT4 planeRadialLocationSeedSalts{}; // x: U/radius, y: V/angle, z/w: unused.
+    Vec4 planeRadialOrientationParams{};             // x: enabled, y: target kind, z: orientation mode, w: unused.
+    Vec4 sizeMin{};                                  // x/y: width/height min.
+    Vec4 sizeMax{};                                  // x/y: width/height max.
+    Vec4 lifeTime{};                                 // x/y: lifetime min/max.
     Vec4 startColorMin{};
     Vec4 startColorMax{};
     Vec4 endColorMin{};
     Vec4 endColorMax{};
-    Vec4 colorOverLifeCurveParams{};  // x: color key count, y: alpha key count, z: color enabled, w: alpha enabled.
+    Vec4 colorOverLifeCurveParams{};                 // x: color key count, y: alpha key count, z: color enabled, w: alpha enabled.
     Vec4 colorOverLifeColorCurveTimes{};
+    Vec4 colorOverLifeColorCurveTimesBlock1{};
     Vec4 colorOverLifeColorCurveValuesR{};
+    Vec4 colorOverLifeColorCurveValuesRBlock1{};
     Vec4 colorOverLifeColorCurveValuesG{};
+    Vec4 colorOverLifeColorCurveValuesGBlock1{};
     Vec4 colorOverLifeColorCurveValuesB{};
+    Vec4 colorOverLifeColorCurveValuesBBlock1{};
     Vec4 colorOverLifeColorCurveArriveR{};
+    Vec4 colorOverLifeColorCurveArriveRBlock1{};
     Vec4 colorOverLifeColorCurveArriveG{};
+    Vec4 colorOverLifeColorCurveArriveGBlock1{};
     Vec4 colorOverLifeColorCurveArriveB{};
+    Vec4 colorOverLifeColorCurveArriveBBlock1{};
     Vec4 colorOverLifeColorCurveLeaveR{};
+    Vec4 colorOverLifeColorCurveLeaveRBlock1{};
     Vec4 colorOverLifeColorCurveLeaveG{};
+    Vec4 colorOverLifeColorCurveLeaveGBlock1{};
     Vec4 colorOverLifeColorCurveLeaveB{};
+    Vec4 colorOverLifeColorCurveLeaveBBlock1{};
     Vec4 colorOverLifeColorCurveModes{};
+    Vec4 colorOverLifeColorCurveModesBlock1{};
     Vec4 colorOverLifeAlphaCurveTimes{};
+    Vec4 colorOverLifeAlphaCurveTimesBlock1{};
     Vec4 colorOverLifeAlphaCurveValues{};
+    Vec4 colorOverLifeAlphaCurveValuesBlock1{};
     Vec4 colorOverLifeAlphaCurveArrive{};
+    Vec4 colorOverLifeAlphaCurveArriveBlock1{};
     Vec4 colorOverLifeAlphaCurveLeave{};
+    Vec4 colorOverLifeAlphaCurveLeaveBlock1{};
     Vec4 colorOverLifeAlphaCurveModes{};
-    Vec4 subUVParams{};           // x/y: rows/cols, z: playback mode, w: frames per second.
-    Vec4 subUVFrameParams{};      // x/y: start/end frame, z: loop, w: enabled.
-    Vec4 subUVFrameCurveTimes{};  // 후속 Curve Editor용 frame curve key times.
-    Vec4 subUVFrameCurveValues{}; // 후속 Curve Editor용 frame curve frame values.
-    Vec4 subUVFrameCurveParams{}; // x: key count, y/z/w: unused.
-    DirectX::XMUINT4 spawnSeedSalts{}; // x: Lifetime, y: InitialLocation, z: SphereLocation, w: PlaneRadialLocation.
-    DirectX::XMUINT4 subUVSeedSalts{}; // x: SubUV RandomFrame, y/z/w: unused.
-    DirectX::XMUINT4 appearanceSeedSalts0{}; // x: InitialSize, y: InitialColor RGB, z: InitialColor Alpha, w: ColorOverLife RGB.
-    DirectX::XMUINT4 appearanceSeedSalts1{}; // x: ColorOverLife Alpha, y/z/w: unused.
-    Vec4 sizeByLifeParams{};      // x/y: width start/end, z/w: height start/end.
-    Vec4 sizeByLifeCurveTimes{};  // SizeByLife scale curve key times.
-    Vec4 sizeByLifeCurveValuesX{}; // SizeByLife X multiplier key values.
-    Vec4 sizeByLifeCurveValuesY{}; // SizeByLife Y multiplier key values.
-    Vec4 sizeByLifeCurveParams{}; // x: key count, y: multiplyX, z: multiplyY, w: axisLock.
-    Vec4 motionFlags{};           // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled.
-    Vec4 motionSpaceFlags{};      // x: radial world, y: cone enabled, z: cone world, w: radial center direction mode.
-    Vec4 initialVelocityMin{};    // xyz: vector velocity min, w: unused.
-    Vec4 initialVelocityMax{};    // xyz: vector velocity max, w: unused.
-    Vec4 motionRadialPivot{};     // xyz: radial pivot, w: unused.
-    Vec4 motionRadialSpeedDrag{}; // x/y: radial speed min/max, z/w: drag min/max.
-    Vec4 velocityConeAxisAngle{}; // xyz: cone axis, w: half-angle degrees.
-    Vec4 velocityConeSpeed{};     // x/y: cone speed min/max, z/w: unused.
-    Vec4 accelerationMin{};       // xyz: acceleration min, w: unused.
-    Vec4 accelerationMax{};       // xyz: acceleration max, w: unused.
-    Vec4 accelerationCurveTimes{};   // Acceleration key times.
-    Vec4 accelerationCurveValuesX{}; // Acceleration X key values.
-    Vec4 accelerationCurveValuesY{}; // Acceleration Y key values.
-    Vec4 accelerationCurveValuesZ{}; // Acceleration Z key values.
-    Vec4 accelerationCurveParams{};  // x: key count, y: enabled, z/w: unused.
-    Vec4 velocityScaleByLife{};   // x/y: scale start/end, z/w: unused.
-    Vec4 velocityScaleByLifeCurveTimes{};  // VelocityOverLife key times.
-    Vec4 velocityScaleByLifeCurveValues{}; // VelocityOverLife multiplier values.
-    Vec4 velocityScaleByLifeCurveParams{}; // x: key count, y/z/w: unused.
-    Vec4 orbitParams{};           // x: enabled, y: plane, z/w: unused.
-    Vec4 orbitAngleRange{};       // x/y: angle start/end degrees, z/w: unused.
-    Vec4 orbitAngleCurveTimes{};  // OrbitOverLife angle key times.
-    Vec4 orbitAngleCurveValues{}; // OrbitOverLife angle degree key values.
-    Vec4 orbitAngleCurveParams{}; // x: key count, y/z/w: unused.
-    Vec4 orbitRadiusRange{};      // x/y: radius scale start/end, z/w: unused.
-    Vec4 orbitRadiusCurveTimes{}; // OrbitOverLife radius scale key times.
-    Vec4 orbitRadiusCurveValues{}; // OrbitOverLife radius scale key values.
-    Vec4 orbitRadiusCurveParams{}; // x: key count, y/z/w: unused.
-    DirectX::XMUINT4 motionSeedSalts0{}; // x: InitialVelocity, y: InitialRadialVelocity, z: VelocityCone, w: Acceleration.
-    DirectX::XMUINT4 motionSeedSalts1{}; // x: Drag, y/z/w: unused.
-    Vec4 rotationInitialRate{};   // x/y: initial rotation min/max, z/w: rate min/max.
-    Vec4 rotationByLife{};        // x/y: legacy rotation start/end, z/w: rate scale start/end.
-    Vec4 rotationOverLifeCurveTimes{};  // RotationOverLife key times.
-    Vec4 rotationOverLifeCurveValues{}; // RotationOverLife degree key values.
-    Vec4 rotationOverLifeCurveParams{}; // x: key count, y/z/w: unused.
-    Vec4 rotationRateScaleByLifeCurveTimes{};  // RotationRateScaleByLife key times.
-    Vec4 rotationRateScaleByLifeCurveValues{}; // RotationRateScaleByLife multiplier values.
-    Vec4 rotationRateScaleByLifeCurveParams{}; // x: key count, y/z/w: unused.
-    DirectX::XMUINT4 rotationSeedSalts{}; // x: InitialRotation, y: InitialRotationRate, z/w: unused.
+    Vec4 colorOverLifeAlphaCurveModesBlock1{};
+    Vec4 subUVParams{};                              // x/y: rows/cols, z: playback mode, w: frames per second.
+    Vec4 subUVFrameParams{};                         // x/y: start/end frame, z: loop, w: enabled.
+    Vec4 subUVFrameCurveTimes{};                     // SubUV frame curve key times.
+    Vec4 subUVFrameCurveTimesBlock1{};
+    Vec4 subUVFrameCurveValues{};                    // SubUV frame curve frame values.
+    Vec4 subUVFrameCurveValuesBlock1{};
+    Vec4 subUVFrameCurveParams{};                    // x: key count, y/z/w: unused.
+    XMUINT4 spawnSeedSalts{};                        // x: Lifetime, y: InitialLocation, z: SphereLocation, w: PlaneRadialLocation.
+    XMUINT4 subUVSeedSalts{};                        // x: SubUV RandomFrame, y/z/w: unused.
+    XMUINT4 appearanceSeedSalts0{};                  // x: InitialSize, y: InitialColor RGB, z: InitialColor Alpha, w: ColorOverLife RGB.
+    XMUINT4 appearanceSeedSalts1{};                  // x: ColorOverLife Alpha, y/z/w: unused.
+    Vec4 sizeByLifeParams{};                         // x/y: width start/end, z/w: height start/end.
+    Vec4 sizeByLifeCurveTimes{};                     // SizeByLife scale curve key times.
+    Vec4 sizeByLifeCurveTimesBlock1{};
+    Vec4 sizeByLifeCurveValuesX{};                   // SizeByLife X multiplier key values.
+    Vec4 sizeByLifeCurveValuesXBlock1{};
+    Vec4 sizeByLifeCurveValuesY{};                   // SizeByLife Y multiplier key values.
+    Vec4 sizeByLifeCurveValuesYBlock1{};
+    Vec4 sizeByLifeCurveParams{};                    // x: key count, y: multiplyX, z: multiplyY, w: axisLock.
+    Vec4 motionFlags{};                              // x: motion enabled, y: vector enabled, z: vector world, w: radial enabled.
+    Vec4 motionSpaceFlags{};                         // x: radial world, y: cone enabled, z: cone world, w: radial center direction mode.
+    Vec4 initialVelocityMin{};                       // xyz: vector velocity min, w: unused.
+    Vec4 initialVelocityMax{};                       // xyz: vector velocity max, w: unused.
+    Vec4 motionRadialPivot{};                        // xyz: radial pivot, w: unused.
+    Vec4 motionRadialSpeedDrag{};                    // x/y: radial speed min/max, z/w: drag min/max.
+    Vec4 velocityConeAxisAngle{};                    // xyz: cone axis, w: half-angle degrees.
+    Vec4 velocityConeSpeed{};                        // x/y: cone speed min/max, z/w: unused.
+    Vec4 accelerationMin{};                          // xyz: acceleration min, w: unused.
+    Vec4 accelerationMax{};                          // xyz: acceleration max, w: unused.
+    Vec4 accelerationCurveTimes{};                   // Acceleration key times.
+    Vec4 accelerationCurveTimesBlock1{};
+    Vec4 accelerationCurveValuesX{};                 // Acceleration X key values.
+    Vec4 accelerationCurveValuesXBlock1{};
+    Vec4 accelerationCurveValuesY{};                 // Acceleration Y key values.
+    Vec4 accelerationCurveValuesYBlock1{};
+    Vec4 accelerationCurveValuesZ{};                 // Acceleration Z key values.
+    Vec4 accelerationCurveValuesZBlock1{};
+    Vec4 accelerationCurveParams{};                  // x: key count, y: enabled, z/w: unused.
+    Vec4 velocityScaleByLife{};                      // x/y: scale start/end, z/w: unused.
+    Vec4 velocityScaleByLifeCurveTimes{};            // VelocityOverLife key times.
+    Vec4 velocityScaleByLifeCurveTimesBlock1{};
+    Vec4 velocityScaleByLifeCurveValues{};           // VelocityOverLife multiplier values.
+    Vec4 velocityScaleByLifeCurveValuesBlock1{};
+    Vec4 velocityScaleByLifeCurveParams{};           // x: key count, y/z/w: unused.
+    Vec4 orbitParams{};                              // x: enabled, y: plane, z/w: unused.
+    Vec4 orbitAngleRange{};                          // x/y: angle start/end degrees, z/w: unused.
+    Vec4 orbitAngleCurveTimes{};                     // OrbitOverLife angle key times.
+    Vec4 orbitAngleCurveTimesBlock1{};
+    Vec4 orbitAngleCurveValues{};                    // OrbitOverLife angle degree key values.
+    Vec4 orbitAngleCurveValuesBlock1{};
+    Vec4 orbitAngleCurveParams{};                    // x: key count, y/z/w: unused.
+    Vec4 orbitRadiusRange{};                         // x/y: radius scale start/end, z/w: unused.
+    Vec4 orbitRadiusCurveTimes{};                    // OrbitOverLife radius scale key times.
+    Vec4 orbitRadiusCurveTimesBlock1{};
+    Vec4 orbitRadiusCurveValues{};                   // OrbitOverLife radius scale key values.
+    Vec4 orbitRadiusCurveValuesBlock1{};
+    Vec4 orbitRadiusCurveParams{};                   // x: key count, y/z/w: unused.
+    XMUINT4 motionSeedSalts0{};                      // x: InitialVelocity, y: InitialRadialVelocity, z: VelocityCone, w: Acceleration.
+    XMUINT4 motionSeedSalts1{};                      // x: Drag, y/z/w: unused.
+    Vec4 rotationInitialRate{};                      // x/y: initial rotation min/max, z/w: rate min/max.
+    Vec4 rotationByLife{};                           // x/y: legacy rotation start/end, z/w: rate scale start/end.
+    Vec4 rotationOverLifeCurveTimes{};               // RotationOverLife key times.
+    Vec4 rotationOverLifeCurveTimesBlock1{};
+    Vec4 rotationOverLifeCurveValues{};              // RotationOverLife degree key values.
+    Vec4 rotationOverLifeCurveValuesBlock1{};
+    Vec4 rotationOverLifeCurveParams{};              // x: key count, y/z/w: unused.
+    Vec4 rotationRateScaleByLifeCurveTimes{};        // RotationRateScaleByLife key times.
+    Vec4 rotationRateScaleByLifeCurveTimesBlock1{};
+    Vec4 rotationRateScaleByLifeCurveValues{};       // RotationRateScaleByLife multiplier values.
+    Vec4 rotationRateScaleByLifeCurveValuesBlock1{};
+    Vec4 rotationRateScaleByLifeCurveParams{};       // x: key count, y/z/w: unused.
+    XMUINT4 rotationSeedSalts{};                     // x: InitialRotation, y: InitialRotationRate, z/w: unused.
 };
 
 static uint32 Resolve_SeedSalt(const PointParticleRandomSeedRuntimeDesc& seed, uint32 effectPlaybackSeed)
@@ -500,7 +535,7 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.planeRadialLocation.angleDegreesRange.x,
             _desc.planeRadialLocation.angleDegreesRange.y
         },
-        .planeRadialLocationSeedSalts = DirectX::XMUINT4{
+        .planeRadialLocationSeedSalts = XMUINT4{
             _desc.planeRadialLocation.shape == PointParticlePlaneRadialLocationShape::Rectangle
             ? Resolve_SeedSalt(_desc.planeRadialLocation.uSeed, _desc.effectPlaybackSeed)
             : Resolve_SeedSalt(_desc.planeRadialLocation.radiusSeed, _desc.effectPlaybackSeed),
@@ -524,27 +559,43 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         .endColorMin = _desc.endColorMin,
         .endColorMax = _desc.endColorMax,
         .colorOverLifeCurveParams = Vec4{
-            static_cast<float>(max(1u, min(4u, _desc.colorOverLifeCurve.colorCurveKeyCount))),
-            static_cast<float>(max(1u, min(4u, _desc.colorOverLifeCurve.alphaCurveKeyCount))),
+            static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.colorOverLifeCurve.colorCurveKeyCount))),
+            static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.colorOverLifeCurve.alphaCurveKeyCount))),
             _desc.colorOverLifeCurve.colorCurveEnabled ? 1.f : 0.f,
             _desc.colorOverLifeCurve.alphaCurveEnabled ? 1.f : 0.f
         },
         .colorOverLifeColorCurveTimes = _desc.colorOverLifeCurve.colorCurveTimes,
+        .colorOverLifeColorCurveTimesBlock1 = _desc.colorOverLifeCurve.colorCurveTimesBlock1,
         .colorOverLifeColorCurveValuesR = _desc.colorOverLifeCurve.colorCurveValuesR,
+        .colorOverLifeColorCurveValuesRBlock1 = _desc.colorOverLifeCurve.colorCurveValuesRBlock1,
         .colorOverLifeColorCurveValuesG = _desc.colorOverLifeCurve.colorCurveValuesG,
+        .colorOverLifeColorCurveValuesGBlock1 = _desc.colorOverLifeCurve.colorCurveValuesGBlock1,
         .colorOverLifeColorCurveValuesB = _desc.colorOverLifeCurve.colorCurveValuesB,
+        .colorOverLifeColorCurveValuesBBlock1 = _desc.colorOverLifeCurve.colorCurveValuesBBlock1,
         .colorOverLifeColorCurveArriveR = _desc.colorOverLifeCurve.colorCurveArriveR,
+        .colorOverLifeColorCurveArriveRBlock1 = _desc.colorOverLifeCurve.colorCurveArriveRBlock1,
         .colorOverLifeColorCurveArriveG = _desc.colorOverLifeCurve.colorCurveArriveG,
+        .colorOverLifeColorCurveArriveGBlock1 = _desc.colorOverLifeCurve.colorCurveArriveGBlock1,
         .colorOverLifeColorCurveArriveB = _desc.colorOverLifeCurve.colorCurveArriveB,
+        .colorOverLifeColorCurveArriveBBlock1 = _desc.colorOverLifeCurve.colorCurveArriveBBlock1,
         .colorOverLifeColorCurveLeaveR = _desc.colorOverLifeCurve.colorCurveLeaveR,
+        .colorOverLifeColorCurveLeaveRBlock1 = _desc.colorOverLifeCurve.colorCurveLeaveRBlock1,
         .colorOverLifeColorCurveLeaveG = _desc.colorOverLifeCurve.colorCurveLeaveG,
+        .colorOverLifeColorCurveLeaveGBlock1 = _desc.colorOverLifeCurve.colorCurveLeaveGBlock1,
         .colorOverLifeColorCurveLeaveB = _desc.colorOverLifeCurve.colorCurveLeaveB,
+        .colorOverLifeColorCurveLeaveBBlock1 = _desc.colorOverLifeCurve.colorCurveLeaveBBlock1,
         .colorOverLifeColorCurveModes = _desc.colorOverLifeCurve.colorCurveModes,
+        .colorOverLifeColorCurveModesBlock1 = _desc.colorOverLifeCurve.colorCurveModesBlock1,
         .colorOverLifeAlphaCurveTimes = _desc.colorOverLifeCurve.alphaCurveTimes,
+        .colorOverLifeAlphaCurveTimesBlock1 = _desc.colorOverLifeCurve.alphaCurveTimesBlock1,
         .colorOverLifeAlphaCurveValues = _desc.colorOverLifeCurve.alphaCurveValues,
+        .colorOverLifeAlphaCurveValuesBlock1 = _desc.colorOverLifeCurve.alphaCurveValuesBlock1,
         .colorOverLifeAlphaCurveArrive = _desc.colorOverLifeCurve.alphaCurveArrive,
+        .colorOverLifeAlphaCurveArriveBlock1 = _desc.colorOverLifeCurve.alphaCurveArriveBlock1,
         .colorOverLifeAlphaCurveLeave = _desc.colorOverLifeCurve.alphaCurveLeave,
+        .colorOverLifeAlphaCurveLeaveBlock1 = _desc.colorOverLifeCurve.alphaCurveLeaveBlock1,
         .colorOverLifeAlphaCurveModes = _desc.colorOverLifeCurve.alphaCurveModes,
+        .colorOverLifeAlphaCurveModesBlock1 = _desc.colorOverLifeCurve.alphaCurveModesBlock1,
         .subUVParams = Vec4{
             static_cast<float>(max(1u, _desc.subUVRows)),
             static_cast<float>(max(1u, _desc.subUVCols)),
@@ -558,32 +609,34 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.subUvFrameOverLife.enabled ? 1.f : 0.f
         },
         .subUVFrameCurveTimes = _desc.subUvFrameOverLife.frameCurveTimes,
+        .subUVFrameCurveTimesBlock1 = _desc.subUvFrameOverLife.frameCurveTimesBlock1,
         .subUVFrameCurveValues = _desc.subUvFrameOverLife.frameCurveValues,
+        .subUVFrameCurveValuesBlock1 = _desc.subUvFrameOverLife.frameCurveValuesBlock1,
         .subUVFrameCurveParams = Vec4{
-            static_cast<float>(max(1u, min(4u, _desc.subUvFrameOverLife.frameCurveKeyCount))),
+            static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.subUvFrameOverLife.frameCurveKeyCount))),
             0.f,
             0.f,
             0.f
         },
-        .spawnSeedSalts = DirectX::XMUINT4{
+        .spawnSeedSalts = XMUINT4{
             Resolve_SeedSalt(_desc.lifetimeSeed, _desc.effectPlaybackSeed),
             Resolve_SeedSalt(_desc.initialLocationSeed, _desc.effectPlaybackSeed),
             Resolve_SeedSalt(_desc.sphereLocationSeed, _desc.effectPlaybackSeed),
             0u
         },
-        .subUVSeedSalts = DirectX::XMUINT4{
+        .subUVSeedSalts = XMUINT4{
             Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _desc.effectPlaybackSeed),
             0u,
             0u,
             0u
         },
-        .appearanceSeedSalts0 = DirectX::XMUINT4{
+        .appearanceSeedSalts0 = XMUINT4{
             Resolve_SeedSalt(_desc.initialSizeSeed, _desc.effectPlaybackSeed),
             Resolve_SeedSalt(_desc.initialColorSeed, _desc.effectPlaybackSeed),
             Resolve_SeedSalt(_desc.initialAlphaSeed, _desc.effectPlaybackSeed),
             Resolve_SeedSalt(_desc.colorOverLifeSeed, _desc.effectPlaybackSeed)
         },
-        .appearanceSeedSalts1 = DirectX::XMUINT4{
+        .appearanceSeedSalts1 = XMUINT4{
             Resolve_SeedSalt(_desc.alphaOverLifeSeed, _desc.effectPlaybackSeed),
             0u,
             0u,
@@ -596,10 +649,13 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.sizeByLife.multiplyYEnd
         },
         .sizeByLifeCurveTimes = _desc.sizeByLife.curveKeyTimes,
+        .sizeByLifeCurveTimesBlock1 = _desc.sizeByLife.curveKeyTimesBlock1,
         .sizeByLifeCurveValuesX = _desc.sizeByLife.curveKeyValuesX,
+        .sizeByLifeCurveValuesXBlock1 = _desc.sizeByLife.curveKeyValuesXBlock1,
         .sizeByLifeCurveValuesY = _desc.sizeByLife.curveKeyValuesY,
+        .sizeByLifeCurveValuesYBlock1 = _desc.sizeByLife.curveKeyValuesYBlock1,
         .sizeByLifeCurveParams = Vec4{
-            static_cast<float>(max(1u, min(4u, _desc.sizeByLife.curveKeyCount))),
+            static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.sizeByLife.curveKeyCount))),
             _desc.sizeByLife.multiplyX ? 1.f : 0.f,
             _desc.sizeByLife.multiplyY ? 1.f : 0.f,
             static_cast<float>(ETOI(_desc.sizeByLife.axisLock))
@@ -665,20 +721,26 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             0.f
         },
         .accelerationCurveTimes = _desc.motion.accelerationCurveTimes,
+        .accelerationCurveTimesBlock1 = _desc.motion.accelerationCurveTimesBlock1,
         .accelerationCurveValuesX = _desc.motion.accelerationCurveValuesX,
+        .accelerationCurveValuesXBlock1 = _desc.motion.accelerationCurveValuesXBlock1,
         .accelerationCurveValuesY = _desc.motion.accelerationCurveValuesY,
+        .accelerationCurveValuesYBlock1 = _desc.motion.accelerationCurveValuesYBlock1,
         .accelerationCurveValuesZ = _desc.motion.accelerationCurveValuesZ,
+        .accelerationCurveValuesZBlock1 = _desc.motion.accelerationCurveValuesZBlock1,
         .accelerationCurveParams = Vec4{
-            static_cast<float>(_desc.motion.accelerationCurveKeyCount),
+            static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.motion.accelerationCurveKeyCount))),
             _desc.motion.accelerationCurveEnabled ? 1.f : 0.f,
             0.f,
             0.f
         },
         .velocityScaleByLife = Vec4{ _desc.motion.velocityScaleByLife.x, _desc.motion.velocityScaleByLife.y, 0.f, 0.f },
         .velocityScaleByLifeCurveTimes = _desc.motion.velocityScaleByLifeCurveTimes,
+        .velocityScaleByLifeCurveTimesBlock1 = _desc.motion.velocityScaleByLifeCurveTimesBlock1,
         .velocityScaleByLifeCurveValues = _desc.motion.velocityScaleByLifeCurveValues,
+        .velocityScaleByLifeCurveValuesBlock1 = _desc.motion.velocityScaleByLifeCurveValuesBlock1,
         .velocityScaleByLifeCurveParams = Vec4{
-            static_cast<float>(_desc.motion.velocityScaleByLifeCurveKeyCount),
+            static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.motion.velocityScaleByLifeCurveKeyCount))),
             0.f,
             0.f,
             0.f
@@ -691,29 +753,33 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
         },
         .orbitAngleRange = Vec4{ _desc.orbitOverLife.angleDegreesOverLife.x, _desc.orbitOverLife.angleDegreesOverLife.y, 0.f, 0.f },
         .orbitAngleCurveTimes = _desc.orbitOverLife.angleCurveTimes,
+        .orbitAngleCurveTimesBlock1 = _desc.orbitOverLife.angleCurveTimesBlock1,
         .orbitAngleCurveValues = _desc.orbitOverLife.angleCurveValues,
+        .orbitAngleCurveValuesBlock1 = _desc.orbitOverLife.angleCurveValuesBlock1,
         .orbitAngleCurveParams = Vec4{
-            static_cast<float>(_desc.orbitOverLife.angleCurveKeyCount),
+            static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.orbitOverLife.angleCurveKeyCount))),
             0.f,
             0.f,
             0.f
         },
         .orbitRadiusRange = Vec4{ _desc.orbitOverLife.radiusScaleOverLife.x, _desc.orbitOverLife.radiusScaleOverLife.y, 0.f, 0.f },
         .orbitRadiusCurveTimes = _desc.orbitOverLife.radiusScaleCurveTimes,
+        .orbitRadiusCurveTimesBlock1 = _desc.orbitOverLife.radiusScaleCurveTimesBlock1,
         .orbitRadiusCurveValues = _desc.orbitOverLife.radiusScaleCurveValues,
+        .orbitRadiusCurveValuesBlock1 = _desc.orbitOverLife.radiusScaleCurveValuesBlock1,
         .orbitRadiusCurveParams = Vec4{
-            static_cast<float>(_desc.orbitOverLife.radiusScaleCurveKeyCount),
+            static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.orbitOverLife.radiusScaleCurveKeyCount))),
             0.f,
             0.f,
             0.f
         },
-        .motionSeedSalts0 = DirectX::XMUINT4{
+        .motionSeedSalts0 = XMUINT4{
             Resolve_SeedSalt(_desc.motion.initialVelocitySeed, _desc.effectPlaybackSeed),
             Resolve_SeedSalt(_desc.motion.initialRadialVelocitySeed, _desc.effectPlaybackSeed),
             Resolve_SeedSalt(_desc.motion.velocityConeSeed, _desc.effectPlaybackSeed),
             Resolve_SeedSalt(_desc.motion.accelerationSeed, _desc.effectPlaybackSeed)
         },
-        .motionSeedSalts1 = DirectX::XMUINT4{
+        .motionSeedSalts1 = XMUINT4{
             Resolve_SeedSalt(_desc.motion.dragSeed, _desc.effectPlaybackSeed),
             0u,
             0u,
@@ -732,22 +798,26 @@ HRESULT VIBufferCom_ComputePointParticle::Update_ConstantBuffer()
             _desc.rotation.rotationRateScaleByLife.y
         },
         .rotationOverLifeCurveTimes = _desc.rotation.rotationOverLifeCurveTimes,
+        .rotationOverLifeCurveTimesBlock1 = _desc.rotation.rotationOverLifeCurveTimesBlock1,
         .rotationOverLifeCurveValues = _desc.rotation.rotationOverLifeCurveValues,
+        .rotationOverLifeCurveValuesBlock1 = _desc.rotation.rotationOverLifeCurveValuesBlock1,
         .rotationOverLifeCurveParams = Vec4{
-            static_cast<float>(_desc.rotation.rotationOverLifeCurveKeyCount),
+            static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.rotation.rotationOverLifeCurveKeyCount))),
             0.f,
             0.f,
             0.f
         },
         .rotationRateScaleByLifeCurveTimes = _desc.rotation.rotationRateScaleByLifeCurveTimes,
+        .rotationRateScaleByLifeCurveTimesBlock1 = _desc.rotation.rotationRateScaleByLifeCurveTimesBlock1,
         .rotationRateScaleByLifeCurveValues = _desc.rotation.rotationRateScaleByLifeCurveValues,
+        .rotationRateScaleByLifeCurveValuesBlock1 = _desc.rotation.rotationRateScaleByLifeCurveValuesBlock1,
         .rotationRateScaleByLifeCurveParams = Vec4{
-            static_cast<float>(_desc.rotation.rotationRateScaleByLifeCurveKeyCount),
+            static_cast<float>(max(1u, min(kEffectDistributionCurveMaxKeys, _desc.rotation.rotationRateScaleByLifeCurveKeyCount))),
             0.f,
             0.f,
             0.f
         },
-        .rotationSeedSalts = DirectX::XMUINT4{
+        .rotationSeedSalts = XMUINT4{
             Resolve_SeedSalt(_desc.rotation.initialRotationSeed, _desc.effectPlaybackSeed),
             Resolve_SeedSalt(_desc.rotation.initialRotationRateSeed, _desc.effectPlaybackSeed),
             0u,

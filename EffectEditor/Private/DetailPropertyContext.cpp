@@ -3,6 +3,7 @@
 #include <cfloat>
 #include <climits>
 #include "Helper_Distribution.h"
+#include "Particle_Types.h"
 
 NS_BEGIN(EffectEditor)
 
@@ -29,6 +30,8 @@ namespace
     };
 
     static_assert(IM_ARRAYSIZE(kVisibleScreenAlignmentValues) == IM_ARRAYSIZE(kVisibleScreenAlignmentLabels));
+
+    constexpr size_t kDistributionCurveMaxKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
 
     int Find_ScreenAlignmentVisibleIndex(EmitterScreenAlignment value)
     {
@@ -1333,8 +1336,11 @@ private: //## Label Helpers
         ImGui::PushID("PointsRow");
         _basicDrawer.Draw_PropertyLabel("포인트");
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("배열 엘리먼트: %zu", value.keys.size());
+        ImGui::Text("키: %zu / %zu", value.keys.size(), kDistributionCurveMaxKeys);
         ImGui::SameLine();
+        const bool canAddKey = value.keys.size() < kDistributionCurveMaxKeys;
+        if (!canAddKey)
+            ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_PLUS "##AddFloatCurveKey"))
         {
             FloatCurveKeyData seed = value.keys.empty() ? FloatCurveKeyData{} : value.keys.back();
@@ -1342,6 +1348,8 @@ private: //## Label Helpers
             value.keys.push_back(seed);
             changed = true;
         }
+        if (!canAddKey)
+            ImGui::EndDisabled();
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
@@ -1435,8 +1443,11 @@ private: //## Label Helpers
         ImGui::PushID("PointsRow");
         _basicDrawer.Draw_PropertyLabel("포인트");
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("배열 엘리먼트: %zu", value.keys.size());
+        ImGui::Text("키: %zu / %zu", value.keys.size(), kDistributionCurveMaxKeys);
         ImGui::SameLine();
+        const bool canAddKey = value.keys.size() < kDistributionCurveMaxKeys;
+        if (!canAddKey)
+            ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_PLUS "##AddVector2CurveKey"))
         {
             Vector2CurveKeyData seed = value.keys.empty() ? Vector2CurveKeyData{} : value.keys.back();
@@ -1444,6 +1455,8 @@ private: //## Label Helpers
             value.keys.push_back(seed);
             changed = true;
         }
+        if (!canAddKey)
+            ImGui::EndDisabled();
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
@@ -1527,8 +1540,11 @@ private: //## Label Helpers
         ImGui::PushID("PointsRow");
         _basicDrawer.Draw_PropertyLabel("포인트");
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("배열 엘리먼트: %zu", value.keys.size());
+        ImGui::Text("키: %zu / %zu", value.keys.size(), kDistributionCurveMaxKeys);
         ImGui::SameLine();
+        const bool canAddKey = value.keys.size() < kDistributionCurveMaxKeys;
+        if (!canAddKey)
+            ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_PLUS "##AddVector3CurveKey"))
         {
             Vector3CurveKeyData seed = value.keys.empty() ? Vector3CurveKeyData{} : value.keys.back();
@@ -1536,6 +1552,8 @@ private: //## Label Helpers
             value.keys.push_back(seed);
             changed = true;
         }
+        if (!canAddKey)
+            ImGui::EndDisabled();
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 
@@ -1618,8 +1636,11 @@ private: //## Label Helpers
         ImGui::PushID("PointsRow");
         _basicDrawer.Draw_PropertyLabel("포인트");
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("배열 엘리먼트: %zu", value.keys.size());
+        ImGui::Text("키: %zu / %zu", value.keys.size(), kDistributionCurveMaxKeys);
         ImGui::SameLine();
+        const bool canAddKey = value.keys.size() < kDistributionCurveMaxKeys;
+        if (!canAddKey)
+            ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_PLUS "##AddColorCurveKey"))
         {
             ColorCurveKeyData seed = value.keys.empty() ? ColorCurveKeyData{} : value.keys.back();
@@ -1627,6 +1648,8 @@ private: //## Label Helpers
             value.keys.push_back(seed);
             changed = true;
         }
+        if (!canAddKey)
+            ImGui::EndDisabled();
         _basicDrawer.Draw_ResetButton(false);
         ImGui::PopID();
 

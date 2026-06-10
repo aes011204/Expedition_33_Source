@@ -1,8 +1,7 @@
-﻿#include "pch.h"
-#include "EffectEditorApp.h"
+﻿#include "EffectEditorApp.h"
 
-#include <chrono>
 #include "ClientInstance.h"
+#include "ComputeSourceHistoryRibbonEmitter.h"
 #include "EffectEditorInstance.h"
 #include "GameInstance.h"
 #include "Level_EffectEditor.h"
@@ -14,7 +13,7 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr long long kStartupResourceInfoThresholdMs = 50;
+    constexpr long long kStartupResourceInfoThresholdMs = 200;
 
     bool Is_EffectEditorStaticLevelAllowed(const wstring& prototypeTag)
     {
@@ -40,6 +39,8 @@ namespace Internal
             prototypeTag == L"Shader_EffectSprite" ||
             prototypeTag == L"Shader_EffectDistortionSprite" ||
             prototypeTag == L"Shader_EffectTrail" ||
+            prototypeTag == L"Shader_EffectRibbon" ||
+            prototypeTag == L"Shader_EffectRibbonDistortion" ||
             prototypeTag == L"Shader_EffectTrailDistortion" ||
             prototypeTag == L"Shader_VtxMeshInstanceExact" ||
             prototypeTag == L"Shader_EffectMesh" ||
@@ -53,6 +54,7 @@ namespace Internal
         return
             prototypeTag == L"ComputeShader_PointParticle" ||
             prototypeTag == L"ComputeShader_TrailStrip" ||
+            prototypeTag == L"ComputeShader_RibbonStrip" ||
             prototypeTag == L"ComputeShader_BoneRemap" ||
             prototypeTag == L"ComputeShader_AnimMeshSkinning";
     }
@@ -82,6 +84,7 @@ namespace Internal
             prototypeTag == L"GameObject_EffectInstance" ||
             prototypeTag == L"GameObject_Effect_ComputeSpriteEmitter" ||
             prototypeTag == L"GameObject_Effect_ComputeTrailEmitter" ||
+            prototypeTag == L"GameObject_Effect_ComputeSourceHistoryRibbonEmitter" ||
             prototypeTag == L"GameObject_Effect_MeshEmitter";
     }
 
@@ -589,16 +592,6 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
                 String::ToString(loadJob.strPath)
             );
         }
-        else
-        {
-            LOG_DEBUG(
-                "[StartupResourceTiming] scope=Static type={} tag={} elapsed_ms={} path={}",
-                string(magic_enum::enum_name(loadJob.eType)),
-                String::ToString(loadJob.strPrototypeTag),
-                jobElapsedMs,
-                String::ToString(loadJob.strPath)
-            );
-        }
 
         if (FAILED(registerResult))
         {
@@ -613,6 +606,19 @@ HRESULT EffectEditorApp::Ready_Prototype_For_Static_Level()
     }
 
     Internal::Log_EffectEditorResourceFilterSummary("Static", loadJobs.size(), includedCount, excludedCount, failedCount);
+
+    constexpr const wchar_t* sourceHistoryRibbonTag = L"GameObject_Effect_ComputeSourceHistoryRibbonEmitter";
+    if (!GAME->Has_Prototype(ETOI(LevelType::Static), sourceHistoryRibbonTag))
+    {
+        CHECK_FAILED(
+            GAME->Add_Prototype(
+                ETOI(LevelType::Static),
+                sourceHistoryRibbonTag,
+                Client::ComputeSourceHistoryRibbonEmitter::Create(_device, _context)
+            ),
+            E_FAIL
+        );
+    }
 
     return S_OK;
 }

@@ -473,7 +473,22 @@ string AnimNotify_Parser::Get_ModelNotifyStem(const string& modelGuid)
     const wstring resolvedPath = GAME->Resolve_AssetPath(modelGuid);
 
     if (!resolvedPath.empty())
-        return fs::path(resolvedPath).stem().string();
+    {
+        const fs::path modelPath = fs::path(resolvedPath).lexically_normal();
+        const fs::path parentFolder = modelPath.parent_path();
+        const string parentName = parentFolder.filename().string();
+        const string normalizedPath = String::ToLowerCopy(modelPath.generic_string());
+
+        const bool isHeroModelPath = normalizedPath.find("/models/heros/") != string::npos;
+        const bool isBodyFolder =
+            parentName.size() >= 4 &&
+            parentName.compare(parentName.size() - 4, 4, "Body") == 0;
+
+        if (isHeroModelPath && isBodyFolder)
+            return parentName; // 스킨/바디 variant가 바뀌어도 기존 Body notify를 공유한다.
+
+        return modelPath.stem().string();
+    }
 
     return modelGuid;
 }

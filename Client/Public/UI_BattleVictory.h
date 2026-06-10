@@ -4,6 +4,7 @@
 #include "UI_RuntimePanelBase.h"
 
 NS_BEGIN(Engine)
+class UI_Base;
 class UI_Text;
 class UI_Image;
 NS_END
@@ -24,11 +25,29 @@ public:
         uint32 prevExp = 0;
         uint32 prevMaxExp = 0;
 
-        // TODO : 전투 전리품에 아이템 + 돈
+        uint32 visualSlotIndex = UINT_MAX;
+        string portraitGuid{};
+        wstring displayName{};
+    };
+
+    struct VictorySummaryDesc
+    {
+        uint32 rewardExp = 0;
+        uint32 rewardChroma = 0;
+        float elapsedSec = 0.f;
+        uint32 maxDamage = 0;
+        uint32 totalDamageDealt = 0;
+        uint32 totalDamageTaken = 0;
+        uint32 parrySuccessCount = 0;
+        uint32 dodgeSuccessCount = 0;
+        vector<string> defeatedMonsterPortraitGuids{};
     };
 
     struct PlayerSlot
     {
+        Shared<UI_Base>  root{};
+        Shared<UI_Image> portrait{};
+        Shared<UI_Text>  nameText{};
         Shared<UI_Text>  curExpText{};
         Shared<UI_Text>  maxExpText{};
         Shared<UI_Text>  levelText{};
@@ -65,6 +84,7 @@ public:
 
     void    Set_PlayerStatus(const vector<VictoryPlayerStatDesc>& stats);
     void    Set_RewardExp(uint32 rewardExp);
+    void    Set_VictorySummary(const VictorySummaryDesc& summary);
 
 private:
     HRESULT Load_UI(uint32 levelIndex);
@@ -73,8 +93,13 @@ private:
     void    Stop_TargetAnimations();
 
     void    Apply_PlayerStat(const VictoryPlayerStatDesc& stat);
+    void    Apply_VictorySummary(const VictorySummaryDesc& summary);
+    void    Apply_DefeatedMonsterPortraits(const vector<string>& portraitGuids);
+    bool    Ensure_DefeatedMonsterPortraitSlot(uint32 slotIndex);
     static uint32 Get_SlotIndex(PlayerCharacterType playerType);
     static void   Set_UIntText(const Shared<UI_Text>& text, uint32 value);
+    static void   Set_WStringText(const Shared<UI_Text>& text, const wstring& value);
+    static wstring Format_ClearTime(float elapsedSec);
 
     void Update_ExpGauge(float timeDelta);
 
@@ -82,6 +107,18 @@ private:
     array<PlayerSlot, 3> _playerSlots{};
     Shared<UI_Text>      _rewardExpText{};
     Shared<UI_Text>      _rewardExpBgText{};
+    Shared<UI_Text>      _rewardChromaText{};
+    Shared<UI_Text>      _rewardChromaBgText{};
+    Shared<UI_Text>      _maxDamageText{};
+    Shared<UI_Text>      _totalDamageText{};
+    Shared<UI_Text>      _takenDamageText{};
+    Shared<UI_Text>      _clearTimeText{};
+    Shared<UI_Text>      _parrySuccessText{};
+    Shared<UI_Text>      _dodgeSuccessText{};
+    Shared<UI_Base>      _defeatedMonsterPortraitPanel{};
+    Shared<UI_Image>     _defeatedMonsterPortraitTemplate{};
+    vector<Shared<UI_Image>> _defeatedMonsterPortraitSlots{};
+    Vec2                 _defeatedMonsterPortraitBasePosition{};
     float                _introDuration = 0.f;
     float                _expAnimDelayRemaining = 0.f;
     bool                 _isClosingWithOutro = false;

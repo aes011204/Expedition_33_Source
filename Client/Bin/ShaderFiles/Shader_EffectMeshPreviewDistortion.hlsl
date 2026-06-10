@@ -10,6 +10,7 @@ cbuffer cbEffectMeshPreviewDistortion : register(b2)
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectDistortionParams = { 0.f, 1.f, 0.f, 0.f }; // x:intensity, y:presence, z:useFlow, w:material time
     float4 g_DistortionScreenSize = { 512.f, 512.f, 0.f, 0.f };
+    float2 g_FlowUVPolicyParams = { 0.f, 0.f };
     float2 g_FlowUVScale = { 1.f, 1.f };
     float2 g_FlowUVOffset = { 0.f, 0.f };
     float2 g_FlowUVScrollSpeed = { 0.f, 0.f };
@@ -49,15 +50,22 @@ struct VS_OUT
 
 float2 Build_FlowUV(float2 rawUV)
 {
-    const float2 transformedUV = rawUV * g_FlowUVScale + g_FlowUVOffset + g_FlowUVScrollSpeed * g_EffectDistortionParams.w;
-    return g_FlowUVTilingMode >= 2.5f ? rawUV : transformedUV;
+    return EffectDistortion_BuildAxisSeparatedUV(
+        rawUV,
+        g_FlowUVScale,
+        g_FlowUVOffset,
+        g_FlowUVScrollSpeed,
+        g_EffectDistortionParams.w,
+        g_FlowUVPolicyParams
+    );
 }
 
 float2 Sample_FlowTexture(float2 uv)
 {
-    return (g_FlowUVTilingMode >= 0.5f && g_FlowUVTilingMode < 2.5f)
-           ? g_FlowTexture.Sample(LinearClampSampler, uv).rg
-           : g_FlowTexture.Sample(LinearWrapSampler, uv).rg;
+    return g_FlowTexture.Sample(
+        LinearWrapSampler,
+        EffectDistortion_ApplyAxisSeparatedAddress(uv, g_FlowUVPolicyParams)
+    ).rg;
 }
 
 float3 Sample_CheckerSource(float2 screenUV)
@@ -89,7 +97,7 @@ PS_OUT PS_MAIN(VS_OUT In)
     PS_OUT Out = (PS_OUT)0;
 
     const float2 flowUV = Build_FlowUV(In.vTexcoord);
-    const bool useFlow = (0 != g_EffectDistortionParams.z);
+    const bool useFlow = 0 != g_EffectDistortionParams.z;
     const float2 flow = useFlow ? Sample_FlowTexture(flowUV) * 2.f - 1.f : float2(0.f, 0.f);
     const float lensCoverage = EffectDistortion_ComputeLensCoverage(g_Tint.a, 1.f, g_EffectDistortionParams.y);
     const float2 offset = EffectDistortion_ComputeScreenOffset(flow, g_EffectDistortionParams.x);

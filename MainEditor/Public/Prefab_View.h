@@ -55,7 +55,7 @@ private:
     void Render_GizmoOverlay();
     void Draw_SelectedWeaponTrailAnchorPanel(const Shared<GameObject>& selectedObject);
     bool Draw_MonsterBattlePrefabList(const Shared<GameObject>& selectedObject);
-    bool Draw_BattleStartSpawnerSelector(const Shared<GameObject>& selectedObject);
+    bool Draw_MonsterBattleSettings(const Shared<GameObject>& selectedObject);
     void Draw_GameObjectTree(const Shared<GameObject>& gameObject, const wstring& objectKey);
     void Draw_ComponentEntries(const Shared<GameObject>& gameObject, const wstring& objectKey);
 

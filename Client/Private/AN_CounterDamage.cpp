@@ -18,8 +18,8 @@ void AN_CounterDamage::Execute(const AnimNotifyContext& context)
         return;
 
     auto battle = CLIENT->Get_BattleController();
-    if (battle)
-    {
-        battle->ApplyCounterDamage(context.model);
-    }
+    if (battle == nullptr)
+        return;
+
+    battle->Get_ReactionController().ApplyCounterDamage(context.model);
 }

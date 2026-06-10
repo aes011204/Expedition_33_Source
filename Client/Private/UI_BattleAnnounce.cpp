@@ -87,8 +87,30 @@ void UI_BattleAnnounce::Show_Counter(const vector<BattleChar>& counterActors)
         _root->Play_UIAnimation(L"BattleSystem_Announce", true);
 }
 
+void UI_BattleAnnounce::Show_WeakPointHit(const BattleChar& target)
+{
+    if (_announceText == nullptr)
+        return;
+
+    const wstring announceText = Build_WeakPointHitText(target);
+    if (announceText.empty())
+        return;
+
+    // 기존 Announce 닫기
+    Close();
+
+    _announceText->Set_Text(announceText);
+    Open();
+
+    _isShowing = true;
+    _elapsed = 0.f;
+
+    if (_root)
+        _root->Play_UIAnimation(L"BattleSystem_Announce", true);
+}
+
 wstring UI_BattleAnnounce::Build_TurnStartText(const BattleChar& actor, BattleTurnState state,
-    const Skill_Data* skillData)
+                                               const Skill_Data* skillData)
 {
     const wstring subjectName = Resolve_ActorSubjectName(actor);
     if (subjectName.empty())
@@ -132,6 +154,28 @@ wstring UI_BattleAnnounce::Build_CounterText(const vector<BattleChar>& counterAc
         return L"원정대가 카운터를 수행합니다.";
 
     return subjectNames.front() + L" 카운터를 수행합니다.";
+}
+
+wstring UI_BattleAnnounce::Build_WeakPointHitText(const BattleChar& target)
+{
+    const wstring possessiveName = Build_PossessiveSubjectName(target);
+    if (possessiveName.empty())
+        return L"";
+
+    return possessiveName + L" 약점을 공격했습니다.";
+}
+
+wstring UI_BattleAnnounce::Build_PossessiveSubjectName(const BattleChar& target)
+{
+    wstring subjectName = Resolve_ActorSubjectName(target);
+    if (subjectName.empty())
+        return L"";
+
+    const wchar_t lastChar = subjectName.back();
+    if (lastChar == L'이' || lastChar == L'가')
+        subjectName.pop_back();
+
+    return subjectName + L"의";
 }
 
 HRESULT UI_BattleAnnounce::Load_UI(uint32 levelIndex)

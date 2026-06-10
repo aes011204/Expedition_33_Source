@@ -7,7 +7,6 @@
 #include "Battle_Event.h"
 #include "CameraPresetTypes.h"
 #include "Event_Bus.h"
-#include <format>
 #include "BattleAnimUtils.h"
 
 NS_BEGIN(Client)
@@ -75,6 +74,12 @@ void ChooseAction::Update(float timeDelta)
         }
   
         battleFSM->Change_State(BattleTurnState::AttackTargeting);
+        return;
+    }
+
+    if (GAME->KeyDown(KEY_TYPE::C)) // ㅌㅌ
+    {
+        owner->Request_EscapeBattle();
         return;
     }
 

@@ -1,4 +1,4 @@
-#include "TrailSampleProvider_ByPart.h"
+﻿#include "TrailSampleProvider_ByPart.h"
 
 #include "EffectCom.h"
 
@@ -9,7 +9,7 @@ TrailSampleProvider_ByPart::TrailSampleProvider_ByPart(
     wstring partTag,
     const TrailAnchorAsset& trailAnchorAsset)
     : _effectCom(effectCom)
-    , _partTag(std::move(partTag))
+    , _partTag(move(partTag))
     , _trailAnchorAsset(trailAnchorAsset)
 {
 }

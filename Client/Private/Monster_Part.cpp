@@ -79,21 +79,18 @@ HRESULT Monster_Part::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
-    CHECK_FAILED_ONCE(EffectCom::Bind_DrawFeatures(
-        GetSharedPtr<Monster_Part>(),
-        _shader.get(),
-        DrawFeatureFlagDissolve), E_FAIL);
+    CHECK_FAILED_THROTTLED(
+        EffectCom::Bind_DrawFeatures(GetSharedPtr<Monster_Part>(), _shader.get(), DrawFeatureFlagDissolve),
+        60,
+        E_FAIL
+    );
 
     // runtime compute 경로가 있으면 runtime buffer 준비
     if (_animComputeRuntime != nullptr)
-    {
-        CHECK_FAILED_ONCE(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
-    }
+        CHECK_FAILED_THROTTLED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), 60, E_FAIL);
     // runtime이 없는 anim/noncompute 경로는 ModelCom 기본 bone buffer 사용S
     else if (_model->Get_NumAnimations() != 0)
-    {
-        CHECK_FAILED_ONCE(_model->Prepare_BoneMatrixBuffers(), E_FAIL);
-    }
+        CHECK_FAILED_THROTTLED(_model->Prepare_BoneMatrixBuffers(), 60, E_FAIL);
 
     const uint32 iNumMeshes = static_cast<uint32>(_model->Get_NumMeshes());
 
@@ -113,22 +110,20 @@ HRESULT Monster_Part::Render()
         // runtime compute 경로
         if (_animComputeRuntime != nullptr)
         {
-            CHECK_FAILED_ONCE(
-                _animComputeRuntime->Bind_PreparedBoneMatrices(
-                    _shader.get(),
-                    "g_BoneMatricesBuffer",
-                    i),
-                E_FAIL);
+            CHECK_FAILED_THROTTLED(
+                _animComputeRuntime->Bind_PreparedBoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i),
+                60,
+                E_FAIL
+            );
         }
         // runtime 없는 기본 ModelCom 경로
         else if (_model->Get_NumAnimations() != 0)
         {
-            CHECK_FAILED_ONCE(
-                _model->Bind_PreparedBoneMatrices(
-                    _shader.get(),
-                    "g_BoneMatricesBuffer",
-                    i),
-                E_FAIL);
+            CHECK_FAILED_THROTTLED(
+                _model->Bind_PreparedBoneMatrices(_shader.get(), "g_BoneMatricesBuffer", i),
+                60,
+                E_FAIL
+            );
         }
 
         const uint32 passIndex = Decide_PassIndex(material);

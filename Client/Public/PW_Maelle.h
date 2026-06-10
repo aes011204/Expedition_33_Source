@@ -28,6 +28,8 @@ protected:
     const wchar_t* Get_HeadModelTag() const override { return L"Model_MaelleHead"; }
     const wchar_t* Get_HairModelTag() const override { return L"Model_MaelleHair"; }
 
+    HeroId Get_HeroId() const override { return HeroId::Maelle; }
+
 public:
 	static Shared<PW_Maelle> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;

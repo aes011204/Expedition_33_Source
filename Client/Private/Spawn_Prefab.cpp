@@ -185,8 +185,8 @@ fs::path Spawn_Prefab::Resolve_PrefabPath(const string& prefabName)
     if (prefabName.starts_with("PW_") || prefabName.starts_with("PB_"))
         return assetRoot / Constants::Prefab::Player_Dir / fileName; // 플레이어 프리팹은 Player 폴더로 정규화한다.
 
-    if (prefabName.starts_with("MW_") || prefabName.starts_with("MB_"))
-        return assetRoot / Constants::Prefab::Monster_Dir / fileName; // 몬스터 프리팹은 Monster 폴더로 정규화한다.
+    if (prefabName.starts_with("MW_") || prefabName.starts_with("MB_") || prefabName.starts_with("TW_"))
+        return assetRoot / Constants::Prefab::Monster_Dir / fileName; // 튜토리얼 월드 몬스터도 Monster 폴더로 정규화한다.
 
     if (prefabName.starts_with("WP_"))
         return assetRoot / Constants::Prefab::Weapon_Dir / fileName; // 무기 프리팹은 기존 Weapons 폴더를 계속 쓴다.

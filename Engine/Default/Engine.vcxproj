@@ -231,6 +231,7 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\Public\EffectEmitterFactory.h" />
     <ClInclude Include="..\Public\EffectInstance.h" />
     <ClInclude Include="..\Public\EffectMaterial_Types.h" />
+    <ClInclude Include="..\Public\EffectRuntime_Lowering.h" />
     <ClInclude Include="..\Public\EffectRuntime_Types.h" />
     <ClInclude Include="..\Public\Engine_Constants.h" />
     <ClInclude Include="..\Public\EnumFlags.h" />
@@ -297,7 +298,6 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClInclude Include="..\public\UI_Transform.h" />
     <ClInclude Include="..\Public\VIBufferCom_ComputePointParticle.h" />
     <ClInclude Include="..\Public\VIBufferCom_Instance.h" />
-    <ClInclude Include="..\Public\VIBufferCom_PointParticle.h" />
     <ClInclude Include="..\Public\VIBuffer_Landscape.h" />
     <ClInclude Include="..\Public\VIBuffer_MeshInstance.h" />
     <ClInclude Include="..\Public\VIBuffer_Plane.h" />
@@ -428,7 +428,6 @@ if exist "$(OutDir)Engine.pdb" xcopy /y /d "$(OutDir)Engine.pdb" "$(ProjectDir).
     <ClCompile Include="..\private\UI_Transform.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_ComputePointParticle.cpp" />
     <ClCompile Include="..\Private\VIBufferCom_Instance.cpp" />
-    <ClCompile Include="..\Private\VIBufferCom_PointParticle.cpp" />
     <ClCompile Include="..\Private\VIBuffer_Landscape.cpp" />
     <ClCompile Include="..\Private\VIBuffer_MeshInstance.cpp" />
     <ClCompile Include="..\Private\VIBuffer_Plane.cpp" />
