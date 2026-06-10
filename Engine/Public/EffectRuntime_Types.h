@@ -424,6 +424,18 @@ enum class EffectRibbonRenderAxis : uint8
     WorldUp,
 };
 
+enum class EffectSourceHistoryRibbonSourceMode : uint8
+{
+    SelfRoot,
+    ParticleEmitter,
+};
+
+struct EffectFollowerSourcePoint
+{
+    uint32 sourceIndex{};
+    Vec3 position{};
+};
+
 // source/root position history를 camera-facing strip으로 낮추는 runtime payload다.
 struct ComputeSourceHistoryRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
@@ -438,6 +450,9 @@ struct ComputeSourceHistoryRibbonEmitterDesc : public GameObject::GAMEOBJECT_DES
     PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 source history strip 폭 배율로 소비하는 값이다.
     PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};                                      // SubUV RandomFrame replay 단위 seed salt다.
 
+    EffectSourceHistoryRibbonSourceMode sourceMode{ EffectSourceHistoryRibbonSourceMode::SelfRoot }; // source history sample을 만들 source owner 종류다.
+    uint32 sourceEmitterId{}; // ParticleEmitter mode에서 같은 EffectInstance 안의 source emitter id다.
+    uint32 followerLaneCount{ 1 }; // ParticleEmitter mode에서 동시에 따라갈 representative particle lane 상한이다.
     uint32 maxSampleCount{ 64 }; // source history가 보관할 최대 sample 개수다.
     float sampleSpacing{ 0.08f }; // source가 이 거리 이상 움직였을 때 새 sample을 추가한다.
     float sampleInterval{ 0.f }; // 0보다 크면 정지/저속 source도 이 시간마다 sample을 보강한다.

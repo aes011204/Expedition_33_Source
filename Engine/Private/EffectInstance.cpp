@@ -192,6 +192,17 @@ void EffectInstance::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvi
     }
 }
 
+Shared<EffectEmitter> EffectInstance::Find_EmitterById(uint32 emitterId) const
+{
+    for (const Shared<EffectEmitter>& emitter : _emitters)
+    {
+        if (emitter != nullptr && emitter->Get_EmitterId() == emitterId)
+            return emitter;
+    }
+
+    return nullptr;
+}
+
 HRESULT EffectInstance::Ready_Emitters()
 {
     Clear_Emitters();

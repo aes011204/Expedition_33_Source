@@ -380,6 +380,31 @@ bool MeshEmitter::Is_EffectFinished() const
     return !_isReady || (PlaybackState::Completed == _playbackState && _activeInstanceCount == 0u);
 }
 
+bool MeshEmitter::Collect_FollowerSourcePoints(
+    vector<EffectFollowerSourcePoint>& outPoints,
+    uint32 maxPointCount) const
+{
+    if (!_isReady || maxPointCount == 0u)
+        return false;
+
+    const size_t initialCount = outPoints.size();
+    for (uint32 index = 0u; index < static_cast<uint32>(_particles.size()) && outPoints.size() - initialCount < maxPointCount; ++index)
+    {
+        const MeshParticleState& particle = _particles[index];
+        if (!particle.active || particle.age >= particle.lifeMax)
+            continue;
+
+        outPoints.push_back(
+            EffectFollowerSourcePoint{
+                .sourceIndex = index,
+                .position = Resolve_ParticleWorldPosition(particle)
+            }
+        );
+    }
+
+    return outPoints.size() > initialCount;
+}
+
 bool MeshEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
 {
     if (_transformCom == nullptr)

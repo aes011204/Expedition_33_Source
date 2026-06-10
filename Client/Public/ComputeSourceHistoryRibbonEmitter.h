@@ -57,13 +57,25 @@ private:
         float distanceFromHead{};
     };
 
-    struct SamplePayload
+    struct SegmentPayload
     {
-        Vec4 currentWorldPosition{};
-        Vec4 sampleParams{}; // x: age, y: lifetime, z: distance, w: widthScale.
+        Vec4 previousPosition{};
+        Vec4 currentPosition{};
+        Vec4 nextPosition{};
+        Vec4 nextNextPosition{};
+        Vec4 currentSampleParams{}; // x: age, y: lifetime, z: distance, w: widthScale.
+        Vec4 nextSampleParams{};    // x: age, y: lifetime, z: distance, w: widthScale.
         Vec4 startColor{};
         Vec4 endColor{};
         Vec4 subUVRect{ 0.f, 0.f, 1.f, 1.f };
+    };
+
+    struct HistoryLane
+    {
+        uint32 sourceIndex{};
+        vector<HistorySample> history{};
+        float sampleIntervalAccumulator{};
+        bool activeThisFrame{};
     };
 
     struct RibbonComputeParams
@@ -114,6 +126,7 @@ private:
     uint32 _loopIndex{};
     vector<HistorySample> _history{};
     float _sampleIntervalAccumulator{};
+    vector<HistoryLane> _sourceLanes{};
     float _materialElapsedTime{};
     float _visibleRibbonLength{ 1.f };
     uint32 _drawSegmentCount{};
@@ -138,10 +151,17 @@ private:
     void Reset_PlaybackRuntime();
     void Advance_Playback(float timeDelta);
     void Update_History(float timeDelta);
-    bool Should_InsertSample(const Vec3& sourcePosition, float timeDelta) const;
-    void Insert_HistorySample(const Vec3& sourcePosition);
-    void Prune_History();
+    void Update_SelfRootHistory(float timeDelta);
+    void Update_ParticleFollowerHistory(float timeDelta);
+    bool Should_InsertSample(const vector<HistorySample>& history, float sampleIntervalAccumulator, const Vec3& sourcePosition) const;
+    void Insert_HistorySample(vector<HistorySample>& history, float& sampleIntervalAccumulator, const Vec3& sourcePosition);
+    void Prune_History(vector<HistorySample>& history);
     void Build_RenderSamples(vector<RenderSample>& outSamples) const;
+    void Build_RenderSamples(const vector<HistorySample>& history, vector<RenderSample>& outSamples) const;
+    HRESULT Append_SegmentPayloads(const vector<RenderSample>& renderSamples, vector<SegmentPayload>& outPayloads) const;
+    bool Has_RenderableHistory() const;
+    HistoryLane* Find_HistoryLane(uint32 sourceIndex);
+    void Clear_ParticleFollowerHistory();
 
     HRESULT Ready_Components();
     HRESULT Ready_Texture();

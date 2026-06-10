@@ -1,7 +1,11 @@
-struct RibbonSamplePayload
+struct RibbonSegmentPayload
 {
-    float4 currentWorldPosition;
-    float4 sampleParams; // x: age, y: lifetime, z: distance, w: widthScale
+    float4 previousPosition;
+    float4 currentPosition;
+    float4 nextPosition;
+    float4 nextNextPosition;
+    float4 currentSampleParams; // x: age, y: lifetime, z: distance, w: widthScale
+    float4 nextSampleParams;    // x: age, y: lifetime, z: distance, w: widthScale
     float4 startColor;
     float4 endColor;
     float4 subUVRect;
@@ -39,7 +43,7 @@ cbuffer RibbonComputeParams : register(b0)
     float4 g_FadeParams; // x: auto life fade, y: max length, z: tail fade length, w: reserved
 };
 
-StructuredBuffer<RibbonSamplePayload> SampleData : register(t0);
+StructuredBuffer<RibbonSegmentPayload> SegmentData : register(t0);
 RWStructuredBuffer<RibbonInstanceVertex> OutputData : register(u0);
 RWStructuredBuffer<DrawIndexedInstancedIndirectArgs> ArgsData : register(u1);
 
@@ -60,21 +64,12 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     if (index >= g_SegmentCount)
         return;
 
-    RibbonSamplePayload previous = SampleData[index];
-    const bool hasPreviousSample = index > 0u;
-    if (hasPreviousSample)
-        previous = SampleData[index - 1u];
-    const RibbonSamplePayload current = SampleData[index];
-    const RibbonSamplePayload next = SampleData[index + 1u];
-    RibbonSamplePayload nextNext = next;
-    const bool hasNextNextSample = index + 2u <= g_SegmentCount;
-    if (hasNextNextSample)
-        nextNext = SampleData[index + 2u];
-    const float age = max(0.0f, current.sampleParams.x);
-    const float lifetime = max(0.0001f, current.sampleParams.y);
+    const RibbonSegmentPayload segment = SegmentData[index];
+    const float age = max(0.0f, segment.currentSampleParams.x);
+    const float lifetime = max(0.0001f, segment.currentSampleParams.y);
     const float lifeProgress = saturate(age / lifetime);
-    const float currentDistance = current.sampleParams.z;
-    const float nextDistance = next.sampleParams.z;
+    const float currentDistance = segment.currentSampleParams.z;
+    const float nextDistance = segment.nextSampleParams.z;
     const float visibleLength = max(g_VisibleLength, 0.0001f);
     const float currentV = g_TilingDistance > 0.0f ? currentDistance / max(g_TilingDistance, 0.0001f) : currentDistance / visibleLength;
     const float nextV = g_TilingDistance > 0.0f ? nextDistance / max(g_TilingDistance, 0.0001f) : nextDistance / visibleLength;
@@ -88,24 +83,24 @@ void CS_Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     }
 
     RibbonInstanceVertex output = (RibbonInstanceVertex)0;
-    output.previousPosition = float4(previous.currentWorldPosition.xyz, hasPreviousSample ? 1.0f : 0.0f);
-    output.currentPosition = current.currentWorldPosition;
-    output.nextPosition = next.currentWorldPosition;
-    output.nextNextPosition = float4(nextNext.currentWorldPosition.xyz, hasNextNextSample ? 1.0f : 0.0f);
+    output.previousPosition = segment.previousPosition;
+    output.currentPosition = segment.currentPosition;
+    output.nextPosition = segment.nextPosition;
+    output.nextNextPosition = segment.nextNextPosition;
     output.lifeTime = float2(lifetime, age);
-    output.startColor = current.startColor;
-    output.endColor = current.endColor;
-    const float subUVHeight = current.subUVRect.w - current.subUVRect.y;
+    output.startColor = segment.startColor;
+    output.endColor = segment.endColor;
+    const float subUVHeight = segment.subUVRect.w - segment.subUVRect.y;
     output.subUVRect = float4(
-        current.subUVRect.x,
-        current.subUVRect.y + currentV * subUVHeight,
-        current.subUVRect.z,
-        current.subUVRect.y + nextV * subUVHeight
+        segment.subUVRect.x,
+        segment.subUVRect.y + currentV * subUVHeight,
+        segment.subUVRect.z,
+        segment.subUVRect.y + nextV * subUVHeight
     );
     output.segmentParams = float4(
         lifeProgress,
-        max(current.sampleParams.w, 0.001f),
-        max(next.sampleParams.w, 0.001f),
+        max(segment.currentSampleParams.w, 0.001f),
+        max(segment.nextSampleParams.w, 0.001f),
         lifeAlpha * lengthAlpha
     );
     OutputData[index] = output;

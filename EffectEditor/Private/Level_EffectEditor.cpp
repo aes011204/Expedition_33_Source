@@ -2053,6 +2053,14 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
     const SourceHistoryRibbonTypeData& sourceHistoryPolicy =
         sourceHistoryData != nullptr ? *sourceHistoryData : defaultSourceHistoryData;
 
+    emitterDesc.sourceMode = sourceHistoryPolicy.sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter
+                             ? EffectSourceHistoryRibbonSourceMode::ParticleEmitter
+                             : EffectSourceHistoryRibbonSourceMode::SelfRoot;
+    emitterDesc.sourceEmitterId =
+        emitterDesc.sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter
+        ? sourceHistoryPolicy.sourceEmitterId
+        : 0u;
+    emitterDesc.followerLaneCount = max(1u, sourceHistoryPolicy.followerLaneCount);
     emitterDesc.maxSampleCount = max(2u, sourceHistoryPolicy.maxSampleCount);
     emitterDesc.sampleSpacing = max(0.001f, sourceHistoryPolicy.sampleSpacing);
     emitterDesc.sampleInterval = max(0.f, sourceHistoryPolicy.sampleInterval);

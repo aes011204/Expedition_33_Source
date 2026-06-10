@@ -537,13 +537,15 @@ enum class SourceHistoryPreviewMotionAxis : uint8
 enum class SourceHistoryRibbonSourceMode : uint8
 {
     SelfRoot,
-    SourceEmitter,
+    ParticleEmitter,
+    SourceEmitter, // Legacy root follower token. Save/Open에서 ParticleEmitter 또는 SelfRoot로 정리한다.
 };
 
 struct SourceHistoryRibbonTypeData
 {
     SourceHistoryRibbonSourceMode sourceMode{ SourceHistoryRibbonSourceMode::SelfRoot };
     uint32 sourceEmitterId{};
+    uint32 followerLaneCount{ 1 };
     uint32 maxSampleCount{ 64 };
     float sampleSpacing{ 0.08f };
     float sampleInterval{ 0.f };
@@ -999,7 +1001,7 @@ struct MaterialScalarModulationModuleData
     vector<MaterialCoreColorRgbModulatorData> coreColorRgbModulators{};
 };
 
-using AuthoringModuleData = std::variant<
+using AuthoringModuleData = variant<
     RequiredModuleData,
     SpawnModuleData,
     LifetimeModuleData,

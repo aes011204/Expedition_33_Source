@@ -475,6 +475,7 @@ namespace Internal
         json root = json::object();
         root["sourceMode"] = To_EnumToken(data.sourceMode);
         root["sourceEmitterId"] = data.sourceEmitterId;
+        root["followerLaneCount"] = data.followerLaneCount;
         root["maxSampleCount"] = data.maxSampleCount;
         root["sampleSpacing"] = data.sampleSpacing;
         root["sampleInterval"] = data.sampleInterval;
@@ -494,6 +495,16 @@ namespace Internal
         if (const auto sourceModeIter = root.find("sourceMode"); sourceModeIter != root.end())
             Try_ReadEnumToken(*sourceModeIter, outData.sourceMode);
         Read_NumberField(root, "sourceEmitterId", outData.sourceEmitterId);
+        Read_NumberField(root, "followerLaneCount", outData.followerLaneCount);
+        if (outData.sourceMode == SourceHistoryRibbonSourceMode::SourceEmitter)
+        {
+            outData.sourceMode = outData.sourceEmitterId != 0u
+                                 ? SourceHistoryRibbonSourceMode::ParticleEmitter
+                                 : SourceHistoryRibbonSourceMode::SelfRoot;
+        }
+        if (outData.sourceMode == SourceHistoryRibbonSourceMode::SelfRoot)
+            outData.sourceEmitterId = 0u;
+        outData.followerLaneCount = max(1u, outData.followerLaneCount);
         Read_NumberField(root, "maxSampleCount", outData.maxSampleCount);
         Read_NumberField(root, "sampleSpacing", outData.sampleSpacing);
         Read_NumberField(root, "sampleInterval", outData.sampleInterval);

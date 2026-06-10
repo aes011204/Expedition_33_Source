@@ -90,8 +90,10 @@ namespace Internal
         {
         case SourceHistoryRibbonSourceMode::SelfRoot:
             return "Self Root";
+        case SourceHistoryRibbonSourceMode::ParticleEmitter:
+            return "Particle Emitter";
         case SourceHistoryRibbonSourceMode::SourceEmitter:
-            return "Source Emitter";
+            return "Source Emitter (Legacy)";
         default:
             return "Self Root";
         }
@@ -339,10 +341,11 @@ namespace Internal
     {
         static constexpr SourceHistoryRibbonSourceMode kValues[] = {
             SourceHistoryRibbonSourceMode::SelfRoot,
+            SourceHistoryRibbonSourceMode::ParticleEmitter,
         };
 
         ImGui::PushID("SourceHistoryRibbonSourceMode");
-        detailContext.Draw_PropertyLabel("소스 모드", "Phase 3 전까지 Self Root history만 preview/runtime에 연결합니다.");
+        detailContext.Draw_PropertyLabel("소스 모드", "Particle Emitter는 같은 effect 내부 Sprite/Mesh particle을 follower source로 사용합니다.");
         ImGui::SetNextItemWidth(-FLT_MIN);
 
         bool changed = false;
@@ -374,7 +377,114 @@ namespace Internal
         }
 
         if (value == SourceHistoryRibbonSourceMode::SourceEmitter)
-            ImGui::TextDisabled("Source Emitter is reserved for Phase 3 representative particle follower.");
+            ImGui::TextDisabled("Legacy Source Emitter root follower value will be treated as Particle Emitter when a source id is set.");
+
+        return changed;
+    }
+
+    static bool Can_UseAsSourceHistoryRibbonParticleSource(const AuthoringEmitter& emitter)
+    {
+        return emitter.typeData.kind == AuthoringTypeDataKind::None ||
+               emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
+    }
+
+    static const char* Get_SourceHistoryRibbonParticleSourceTypeLabel(const AuthoringEmitter& emitter)
+    {
+        if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
+            return "Mesh";
+
+        return "Sprite";
+    }
+
+    static string Build_SourceHistoryRibbonSourceEmitterLabel(const AuthoringEmitter& emitter)
+    {
+        string label = emitter.name.empty() ? "Emitter" : emitter.name;
+        label += " (id: ";
+        label += to_string(emitter.id);
+        label += ", ";
+        label += Get_SourceHistoryRibbonParticleSourceTypeLabel(emitter);
+        if (!emitter.enabled)
+            label += ", disabled";
+        label += ")";
+        return label;
+    }
+
+    static string Resolve_SourceHistoryRibbonSourceEmitterPreviewLabel(
+        const vector<AuthoringEmitter>& emitters,
+        uint32 currentEmitterId,
+        uint32 sourceEmitterId)
+    {
+        if (sourceEmitterId == 0u)
+            return "None";
+
+        for (const AuthoringEmitter& emitter : emitters)
+        {
+            if (emitter.id == sourceEmitterId)
+                return emitter.id == currentEmitterId
+                       ? "Self reference is invalid"
+                       : Build_SourceHistoryRibbonSourceEmitterLabel(emitter);
+        }
+
+        return "Missing emitter (id: " + to_string(sourceEmitterId) + ")";
+    }
+
+    static bool Draw_SourceHistoryRibbonSourceEmitterProperty(
+        DetailPropertyContext& detailContext,
+        const vector<AuthoringEmitter>& emitters,
+        const AuthoringEmitter& currentEmitter,
+        uint32& sourceEmitterId,
+        uint32 defaultValue)
+    {
+        bool changed = false;
+        const string previewLabel =
+            Resolve_SourceHistoryRibbonSourceEmitterPreviewLabel(emitters, currentEmitter.id, sourceEmitterId);
+
+        ImGui::PushID("SourceHistoryRibbonSourceEmitter");
+        detailContext.Draw_PropertyLabel("소스 Emitter", "같은 effect 내부 Sprite/Mesh particle emitter를 선택합니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        if (ImGui::BeginCombo("##Value", previewLabel.c_str()))
+        {
+            const bool noneSelected = sourceEmitterId == 0u;
+            if (ImGui::Selectable("None", noneSelected))
+            {
+                sourceEmitterId = 0u;
+                changed = true;
+            }
+            if (noneSelected)
+                ImGui::SetItemDefaultFocus();
+
+            for (const AuthoringEmitter& candidate : emitters)
+            {
+                if (candidate.id == currentEmitter.id ||
+                    !Can_UseAsSourceHistoryRibbonParticleSource(candidate))
+                {
+                    continue;
+                }
+
+                const string label = Build_SourceHistoryRibbonSourceEmitterLabel(candidate);
+                const bool selected = sourceEmitterId == candidate.id;
+                if (ImGui::Selectable(label.c_str(), selected))
+                {
+                    sourceEmitterId = candidate.id;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(sourceEmitterId != defaultValue);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            sourceEmitterId = defaultValue;
+            return true;
+        }
 
         return changed;
     }
@@ -1171,6 +1281,14 @@ void Detail_View::Render_TypeDataDetail(
                     defaultData.sourceMode
                 );
 
+                if (data->sourceMode == SourceHistoryRibbonSourceMode::SourceEmitter)
+                {
+                    data->sourceMode = data->sourceEmitterId != 0u
+                                       ? SourceHistoryRibbonSourceMode::ParticleEmitter
+                                       : SourceHistoryRibbonSourceMode::SelfRoot;
+                    changed = true;
+                }
+
                 if (data->sourceMode == SourceHistoryRibbonSourceMode::SelfRoot && data->sourceEmitterId != 0u)
                 {
                     data->sourceEmitterId = 0u;
@@ -1180,6 +1298,24 @@ void Detail_View::Render_TypeDataDetail(
                 {
                     data->sourceEmitterId = 0u;
                     changed = true;
+                }
+
+                if (data->sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter)
+                {
+                    changed |= Internal::Draw_SourceHistoryRibbonSourceEmitterProperty(
+                        _detailPropertyContext,
+                        emitterView->Get_Emitters(),
+                        emitter,
+                        data->sourceEmitterId,
+                        defaultData.sourceEmitterId
+                    );
+                    changed |= _detailPropertyContext.Draw_UintProperty(
+                        "Follower Lane 수",
+                        data->followerLaneCount,
+                        defaultData.followerLaneCount,
+                        "동시에 따라갈 representative particle lane 상한입니다."
+                    );
+                    data->followerLaneCount = max(1u, data->followerLaneCount);
                 }
 
                 _detailPropertyContext.End_PropertyTable();

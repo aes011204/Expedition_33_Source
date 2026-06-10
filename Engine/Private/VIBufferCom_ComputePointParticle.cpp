@@ -339,6 +339,35 @@ HRESULT VIBufferCom_ComputePointParticle::Reset_ForEffectReplay()
     return S_OK;
 }
 
+bool VIBufferCom_ComputePointParticle::Collect_FollowerSourcePoints(
+    vector<EffectFollowerSourcePoint>& outPoints,
+    uint32 maxPointCount) const
+{
+    if (maxPointCount == 0 || nullptr == _computeOutput || _instanceCount == 0)
+        return false;
+
+    vector<ParticleInstanceVertex> particles(_instanceCount);
+    if (FAILED(_computeOutput->Read_Data(particles.data(), _instanceCount)))
+        return false;
+
+    const size_t initialCount = outPoints.size();
+    for (uint32 index = 0; index < _instanceCount && outPoints.size() - initialCount < maxPointCount; ++index)
+    {
+        const ParticleInstanceVertex& particle = particles[index];
+        if (particle.lifeTime.x <= 0.0001f || particle.lifeTime.y < 0.f || particle.lifeTime.y >= particle.lifeTime.x)
+            continue;
+
+        outPoints.push_back(
+            EffectFollowerSourcePoint{
+                .sourceIndex = index,
+                .position = Vec3{ particle.translation.x, particle.translation.y, particle.translation.z }
+            }
+        );
+    }
+
+    return outPoints.size() > initialCount;
+}
+
 HRESULT VIBufferCom_ComputePointParticle::Ready_VertexBuffer()
 {
     const D3D11_BUFFER_DESC vertexBufferDesc = {

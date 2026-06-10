@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "EffectRuntime_Types.h"
 #include "Particle_Types.h"
 #include "VIBufferCom_Instance.h"
 
@@ -29,6 +30,7 @@ public: //## Behavior::ComputeUpdate
     void Set_EmitterBasis(const Vec3& right, const Vec3& up, const Vec3& look);            // emitter local 값을 world 방향으로 바꾸는 basis를 갱신한다.
     HRESULT Reset_ForEffectReplay();                                                       // effect 재사용 전 particle lifecycle/draw state를 초기화한다.
     bool Has_ActiveParticles() const { return _hasActiveParticles; }                       // CPU가 아는 범위에서 활성 particle이 있었는지 확인한다.
+    bool Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>& outPoints, uint32 maxPointCount) const; // compute output에서 follower ribbon 대표 particle 위치를 읽는다.
 
 private: //## Static::ComputeSmoke
     static constexpr uint32 kThreadCountX{ 64 }; // compute shader의 numthreads.x와 맞춘 dispatch 단위.

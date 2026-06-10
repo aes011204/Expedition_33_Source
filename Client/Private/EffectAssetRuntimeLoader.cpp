@@ -2652,6 +2652,15 @@ bool EffectAssetRuntimeLoader::Build_SourceHistoryRibbonEmitterDefinition(const 
         if (dataIter != typeDataIter->end() && dataIter->is_object())
         {
             const json& typeData = *dataIter;
+            const string sourceMode = Read_String(typeData, "sourceMode", "SelfRoot");
+            desc.sourceMode = sourceMode == "ParticleEmitter" || sourceMode == "SourceEmitter"
+                              ? EffectSourceHistoryRibbonSourceMode::ParticleEmitter
+                              : EffectSourceHistoryRibbonSourceMode::SelfRoot;
+            desc.sourceEmitterId =
+                desc.sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter
+                ? Read_UInt(typeData, "sourceEmitterId", 0u)
+                : 0u;
+            desc.followerLaneCount = max(1u, Read_UInt(typeData, "followerLaneCount", desc.followerLaneCount));
             desc.maxSampleCount = max(2u, Read_UInt(typeData, "maxSampleCount", desc.maxSampleCount));
             desc.sampleSpacing = max(0.001f, Read_Float(typeData, "sampleSpacing", desc.sampleSpacing));
             desc.sampleInterval = max(0.f, Read_Float(typeData, "sampleInterval", desc.sampleInterval));

@@ -91,6 +91,11 @@ void EffectEmitter::Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvid
 {
 }
 
+bool EffectEmitter::Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>&, uint32) const
+{
+    return false;
+}
+
 bool EffectEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
 {
     if (_transformCom == nullptr)

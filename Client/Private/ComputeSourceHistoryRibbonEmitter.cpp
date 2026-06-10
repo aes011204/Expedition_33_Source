@@ -2,6 +2,7 @@
 
 #include "ComputeShaderCom.h"
 #include "ComputeStructuredBuffer.h"
+#include "EffectInstance.h"
 #include "EffectMaterialScalarModulationRuntime.h"
 #include "GameInstance.h"
 #include "Renderer_Define.h"
@@ -308,6 +309,9 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Initialize(void* arg)
     _desc.lifetime.lifeTime.x = max(0.0001f, _desc.lifetime.lifeTime.x);
     _desc.lifetime.lifeTime.y = max(_desc.lifetime.lifeTime.x, _desc.lifetime.lifeTime.y);
     _desc.maxSampleCount = max(2u, _desc.maxSampleCount);
+    _desc.followerLaneCount = max(1u, _desc.followerLaneCount);
+    if (_desc.sourceMode != EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
+        _desc.sourceEmitterId = 0u;
     _desc.sampleSpacing = max(0.001f, _desc.sampleSpacing);
     _desc.sampleInterval = max(0.f, _desc.sampleInterval);
     _desc.sampleLifetime = max(0.0001f, _desc.sampleLifetime);
@@ -372,6 +376,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Reset_ForEffectReplay()
     Reset_PlaybackRuntime();
     _history.clear();
     _sampleIntervalAccumulator = 0.f;
+    Clear_ParticleFollowerHistory();
     _materialElapsedTime = 0.f;
     _visibleRibbonLength = 1.f;
     _drawSegmentCount = 0u;
@@ -452,6 +457,17 @@ void ComputeSourceHistoryRibbonEmitter::Advance_Playback(float timeDelta)
 
 void ComputeSourceHistoryRibbonEmitter::Update_History(float timeDelta)
 {
+    if (_desc.sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
+    {
+        Update_ParticleFollowerHistory(timeDelta);
+        return;
+    }
+
+    Update_SelfRootHistory(timeDelta);
+}
+
+void ComputeSourceHistoryRibbonEmitter::Update_SelfRootHistory(float timeDelta)
+{
     const float safeDeltaTime = max(0.f, timeDelta);
     for (HistorySample& sample : _history)
         sample.age += safeDeltaTime;
@@ -459,10 +475,10 @@ void ComputeSourceHistoryRibbonEmitter::Update_History(float timeDelta)
     _sampleIntervalAccumulator += safeDeltaTime;
 
     const Vec3 sourcePosition = Resolve_SourcePosition();
-    if (_history.empty() || Should_InsertSample(sourcePosition, safeDeltaTime))
-        Insert_HistorySample(sourcePosition);
+    if (_history.empty() || Should_InsertSample(_history, _sampleIntervalAccumulator, sourcePosition))
+        Insert_HistorySample(_history, _sampleIntervalAccumulator, sourcePosition);
 
-    Prune_History();
+    Prune_History(_history);
 
     vector<RenderSample> renderSamples{};
     Build_RenderSamples(renderSamples);
@@ -471,53 +487,122 @@ void ComputeSourceHistoryRibbonEmitter::Update_History(float timeDelta)
                            : 1.f;
 }
 
-bool ComputeSourceHistoryRibbonEmitter::Should_InsertSample(const Vec3& sourcePosition, float) const
+void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float timeDelta)
 {
-    if (_history.empty())
-        return true;
-
-    const float movedDistance = (sourcePosition - _history.front().position).Length();
-    if (movedDistance >= _desc.sampleSpacing)
-        return true;
-
-    return _desc.sampleInterval > 0.f && _sampleIntervalAccumulator >= _desc.sampleInterval;
-}
-
-void ComputeSourceHistoryRibbonEmitter::Insert_HistorySample(const Vec3& sourcePosition)
-{
-    _history.insert(_history.begin(), HistorySample{ .position = sourcePosition, .age = 0.f, .distance = 0.f });
-    _sampleIntervalAccumulator = 0.f;
-
-    while (static_cast<uint32>(_history.size()) > _desc.maxSampleCount)
+    const float safeDeltaTime = max(0.f, timeDelta);
+    for (HistoryLane& lane : _sourceLanes)
     {
-        _history.pop_back();
+        lane.activeThisFrame = false;
+        lane.sampleIntervalAccumulator += safeDeltaTime;
+        for (HistorySample& sample : lane.history)
+            sample.age += safeDeltaTime;
+    }
+
+    const Shared<Engine::EffectInstance> effectOwner = dynamic_pointer_cast<Engine::EffectInstance>(_effectOwner.lock());
+    const Shared<EffectEmitter> sourceEmitter =
+        effectOwner != nullptr ? effectOwner->Find_EmitterById(_desc.sourceEmitterId) : nullptr;
+
+    vector<EffectFollowerSourcePoint> sourcePoints{};
+    if (sourceEmitter != nullptr && _desc.followerLaneCount > 0u)
+        sourceEmitter->Collect_FollowerSourcePoints(sourcePoints, _desc.followerLaneCount);
+
+    if (sourcePoints.empty())
+    {
+        Clear_ParticleFollowerHistory();
+        _visibleRibbonLength = 1.f;
+        return;
+    }
+
+    for (const EffectFollowerSourcePoint& sourcePoint : sourcePoints)
+    {
+        HistoryLane* lane = Find_HistoryLane(sourcePoint.sourceIndex);
+        if (lane == nullptr)
+        {
+            _sourceLanes.push_back(HistoryLane{ .sourceIndex = sourcePoint.sourceIndex });
+            lane = &_sourceLanes.back();
+        }
+
+        lane->activeThisFrame = true;
+        if (lane->history.empty() ||
+            Should_InsertSample(lane->history, lane->sampleIntervalAccumulator, sourcePoint.position))
+        {
+            Insert_HistorySample(lane->history, lane->sampleIntervalAccumulator, sourcePoint.position);
+        }
+
+        Prune_History(lane->history);
+    }
+
+    erase_if(
+        _sourceLanes,
+        [](const HistoryLane& lane)
+        {
+            return !lane.activeThisFrame;
+        }
+    );
+
+    _visibleRibbonLength = 1.f;
+    vector<RenderSample> renderSamples{};
+    for (const HistoryLane& lane : _sourceLanes)
+    {
+        Build_RenderSamples(lane.history, renderSamples);
+        if (renderSamples.size() >= 2)
+            _visibleRibbonLength = max(_visibleRibbonLength, renderSamples.back().distanceFromHead);
     }
 }
 
-void ComputeSourceHistoryRibbonEmitter::Prune_History()
+bool ComputeSourceHistoryRibbonEmitter::Should_InsertSample(
+    const vector<HistorySample>& history,
+    float sampleIntervalAccumulator,
+    const Vec3& sourcePosition) const
+{
+    if (history.empty())
+        return true;
+
+    const float movedDistance = (sourcePosition - history.front().position).Length();
+    if (movedDistance >= _desc.sampleSpacing)
+        return true;
+
+    return _desc.sampleInterval > 0.f && sampleIntervalAccumulator >= _desc.sampleInterval;
+}
+
+void ComputeSourceHistoryRibbonEmitter::Insert_HistorySample(
+    vector<HistorySample>& history,
+    float& sampleIntervalAccumulator,
+    const Vec3& sourcePosition)
+{
+    history.insert(history.begin(), HistorySample{ .position = sourcePosition, .age = 0.f, .distance = 0.f });
+    sampleIntervalAccumulator = 0.f;
+
+    while (static_cast<uint32>(history.size()) > _desc.maxSampleCount)
+    {
+        history.pop_back();
+    }
+}
+
+void ComputeSourceHistoryRibbonEmitter::Prune_History(vector<HistorySample>& history)
 {
     erase_if(
-        _history,
+        history,
         [this](const HistorySample& sample)
         {
             return sample.age >= _desc.sampleLifetime;
         }
     );
 
-    if (_history.empty())
+    if (history.empty())
         return;
 
-    _history.front().distance = 0.f;
-    for (size_t index = 1; index < _history.size(); ++index)
+    history.front().distance = 0.f;
+    for (size_t index = 1; index < history.size(); ++index)
     {
-        const float distance = (_history[index].position - _history[index - 1].position).Length();
-        _history[index].distance = _history[index - 1].distance + distance;
+        const float distance = (history[index].position - history[index - 1].position).Length();
+        history[index].distance = history[index - 1].distance + distance;
     }
 
     if (_desc.maxLength > 0.f)
     {
         erase_if(
-            _history,
+            history,
             [this](const HistorySample& sample)
             {
                 return sample.distance > _desc.maxLength;
@@ -528,17 +613,24 @@ void ComputeSourceHistoryRibbonEmitter::Prune_History()
 
 void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(vector<RenderSample>& outSamples) const
 {
+    Build_RenderSamples(_history, outSamples);
+}
+
+void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(
+    const vector<HistorySample>& history,
+    vector<RenderSample>& outSamples) const
+{
     outSamples.clear();
-    if (_history.empty())
+    if (history.empty())
         return;
 
     outSamples.reserve(Compute_MaxRenderSegmentCount() + 1u);
-    outSamples.push_back(RenderSample{ .sample = _history.front(), .distanceFromHead = 0.f });
+    outSamples.push_back(RenderSample{ .sample = history.front(), .distanceFromHead = 0.f });
 
-    for (size_t index = 0; index + 1u < _history.size(); ++index)
+    for (size_t index = 0; index + 1u < history.size(); ++index)
     {
-        const HistorySample& from = _history[index];
-        const HistorySample& to = _history[index + 1u];
+        const HistorySample& from = history[index];
+        const HistorySample& to = history[index + 1u];
         const float segmentDistance = (to.position - from.position).Length();
         const uint32 stepCount = min(
             max(1u, static_cast<uint32>(ceilf(segmentDistance / _desc.sampleSpacing))),
@@ -562,6 +654,37 @@ void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(vector<RenderSample>
         outSamples[index].distanceFromHead = outSamples[index - 1].distanceFromHead + distance;
         outSamples[index].sample.distance = outSamples[index].distanceFromHead;
     }
+}
+
+bool ComputeSourceHistoryRibbonEmitter::Has_RenderableHistory() const
+{
+    if (_desc.sourceMode != EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
+        return _history.size() >= 2u;
+
+    return any_of(
+        _sourceLanes.begin(),
+        _sourceLanes.end(),
+        [](const HistoryLane& lane)
+        {
+            return lane.history.size() >= 2u;
+        }
+    );
+}
+
+ComputeSourceHistoryRibbonEmitter::HistoryLane* ComputeSourceHistoryRibbonEmitter::Find_HistoryLane(uint32 sourceIndex)
+{
+    for (HistoryLane& lane : _sourceLanes)
+    {
+        if (lane.sourceIndex == sourceIndex)
+            return &lane;
+    }
+
+    return nullptr;
+}
+
+void ComputeSourceHistoryRibbonEmitter::Clear_ParticleFollowerHistory()
+{
+    _sourceLanes.clear();
 }
 
 HRESULT ComputeSourceHistoryRibbonEmitter::Ready_Components()
@@ -677,7 +800,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Ready_DrawBuffers()
 HRESULT ComputeSourceHistoryRibbonEmitter::Ready_ComputeBuffers()
 {
     const uint32 maxSegmentCount = Compute_MaxRenderSegmentCount();
-    _sampleInput = ComputeStructuredBuffer::Create(_device, _context, sizeof(SamplePayload), maxSegmentCount + 1u);
+    _sampleInput = ComputeStructuredBuffer::Create(_device, _context, sizeof(SegmentPayload), maxSegmentCount);
     CHECK_NULL(_sampleInput, E_FAIL);
     _computeOutput = ComputeStructuredBuffer::Create(_device, _context, sizeof(RibbonInstanceVertex), maxSegmentCount);
     CHECK_NULL(_computeOutput, E_FAIL);
@@ -703,7 +826,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Dispatch_Compute()
 {
     CHECK_FAILED(Reset_IndirectArgs(), E_FAIL);
 
-    if (_history.size() < 2)
+    if (!Has_RenderableHistory())
     {
         _drawSegmentCount = 0u;
         CHECK_FAILED(Copy_ComputeOutput(), E_FAIL);
@@ -729,39 +852,87 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Dispatch_Compute()
 
 HRESULT ComputeSourceHistoryRibbonEmitter::Update_ComputeInput()
 {
-    vector<RenderSample> renderSamples{};
-    Build_RenderSamples(renderSamples);
-    if (renderSamples.size() < 2)
+    vector<SegmentPayload> payloads{};
+    payloads.reserve(Compute_MaxRenderSegmentCount());
+
+    if (_desc.sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
+    {
+        vector<RenderSample> laneRenderSamples{};
+        for (const HistoryLane& lane : _sourceLanes)
+        {
+            Build_RenderSamples(lane.history, laneRenderSamples);
+            CHECK_FAILED(Append_SegmentPayloads(laneRenderSamples, payloads), E_FAIL);
+            if (payloads.size() >= Compute_MaxRenderSegmentCount())
+                break;
+        }
+    }
+    else
+    {
+        vector<RenderSample> renderSamples{};
+        Build_RenderSamples(renderSamples);
+        CHECK_FAILED(Append_SegmentPayloads(renderSamples, payloads), E_FAIL);
+    }
+
+    if (payloads.empty())
     {
         _drawSegmentCount = 0u;
         _visibleRibbonLength = 1.f;
         return S_OK;
     }
 
-    _drawSegmentCount = min(static_cast<uint32>(renderSamples.size() - 1u), Compute_MaxRenderSegmentCount());
-    _visibleRibbonLength = max(0.0001f, renderSamples[min(renderSamples.size() - 1u, static_cast<size_t>(_drawSegmentCount))].distanceFromHead);
+    _drawSegmentCount = static_cast<uint32>(payloads.size());
+    CHECK_FAILED(_sampleInput->Update_Data(payloads.data(), _drawSegmentCount), E_FAIL);
+    return S_OK;
+}
 
-    vector<SamplePayload> payloads{};
-    payloads.reserve(_drawSegmentCount + 1u);
+HRESULT ComputeSourceHistoryRibbonEmitter::Append_SegmentPayloads(
+    const vector<RenderSample>& renderSamples,
+    vector<SegmentPayload>& outPayloads) const
+{
+    if (renderSamples.size() < 2)
+        return S_OK;
 
     const Vec4 subUVRect = Resolve_SubUVRect(Evaluate_SubUVFrameIndex());
-    for (uint32 index = 0; index <= _drawSegmentCount; ++index)
-    {
-        const RenderSample& renderSample = renderSamples[index];
-        const float lifeProgress = clamp(renderSample.sample.age / max(_desc.sampleLifetime, 0.0001f), 0.f, 1.f);
-        const float width = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(lifeProgress));
-        const Vec4 color = Evaluate_ColorOverLife(lifeProgress);
+    const uint32 maxSegmentCount = Compute_MaxRenderSegmentCount();
+    if (outPayloads.size() >= maxSegmentCount)
+        return S_OK;
 
-        SamplePayload payload{};
-        payload.currentWorldPosition = Vec4(renderSample.sample.position.x, renderSample.sample.position.y, renderSample.sample.position.z, 1.f);
-        payload.sampleParams = Vec4(renderSample.sample.age, _desc.sampleLifetime, renderSample.distanceFromHead, width);
+    const uint32 segmentCount = min(
+        static_cast<uint32>(renderSamples.size() - 1u),
+        maxSegmentCount - static_cast<uint32>(outPayloads.size())
+    );
+
+    for (uint32 index = 0; index < segmentCount; ++index)
+    {
+        const RenderSample& previous = index > 0u ? renderSamples[index - 1u] : renderSamples[index];
+        const RenderSample& current = renderSamples[index];
+        const RenderSample& next = renderSamples[index + 1u];
+        const RenderSample& nextNext = index + 2u < renderSamples.size() ? renderSamples[index + 2u] : next;
+
+        const float currentLifeProgress = clamp(current.sample.age / max(_desc.sampleLifetime, 0.0001f), 0.f, 1.f);
+        const float nextLifeProgress = clamp(next.sample.age / max(_desc.sampleLifetime, 0.0001f), 0.f, 1.f);
+        const float currentWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(currentLifeProgress));
+        const float nextWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(nextLifeProgress));
+        const Vec4 color = Evaluate_ColorOverLife(currentLifeProgress);
+
+        SegmentPayload payload{};
+        payload.previousPosition = Vec4(previous.sample.position.x, previous.sample.position.y, previous.sample.position.z, index > 0u ? 1.f : 0.f);
+        payload.currentPosition = Vec4(current.sample.position.x, current.sample.position.y, current.sample.position.z, 1.f);
+        payload.nextPosition = Vec4(next.sample.position.x, next.sample.position.y, next.sample.position.z, 1.f);
+        payload.nextNextPosition = Vec4(
+            nextNext.sample.position.x,
+            nextNext.sample.position.y,
+            nextNext.sample.position.z,
+            index + 2u < renderSamples.size() ? 1.f : 0.f
+        );
+        payload.currentSampleParams = Vec4(current.sample.age, _desc.sampleLifetime, current.distanceFromHead, currentWidth);
+        payload.nextSampleParams = Vec4(next.sample.age, _desc.sampleLifetime, next.distanceFromHead, nextWidth);
         payload.startColor = color;
         payload.endColor = color;
         payload.subUVRect = subUVRect;
-        payloads.push_back(payload);
+        outPayloads.push_back(payload);
     }
 
-    CHECK_FAILED(_sampleInput->Update_Data(payloads.data(), static_cast<uint32>(payloads.size())), E_FAIL);
     return S_OK;
 }
 
@@ -984,6 +1155,7 @@ void ComputeSourceHistoryRibbonEmitter::Start_NextLoop()
     _playbackState = PlaybackState::Delayed;
     _history.clear();
     _sampleIntervalAccumulator = 0.f;
+    Clear_ParticleFollowerHistory();
     _drawSegmentCount = 0u;
     Resample_RandomSubUVFrameIndex();
 }

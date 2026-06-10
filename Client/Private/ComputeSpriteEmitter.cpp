@@ -389,6 +389,13 @@ bool ComputeSpriteEmitter::Is_EffectFinished() const
     return PlaybackState::Completed == _playbackState;
 }
 
+bool ComputeSpriteEmitter::Collect_FollowerSourcePoints(
+    vector<EffectFollowerSourcePoint>& outPoints,
+    uint32 maxPointCount) const
+{
+    return _viBuffer != nullptr && _viBuffer->Collect_FollowerSourcePoints(outPoints, maxPointCount);
+}
+
 bool ComputeSpriteEmitter::Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const
 {
     if (_transformCom == nullptr)

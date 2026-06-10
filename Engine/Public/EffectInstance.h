@@ -34,6 +34,7 @@ public: //## Behavior::Lifecycle
     void Set_Loop(bool loop) { _loop = loop; }
     bool Is_Loop() const { return _loop; }
     void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider); // 현재 acquire context가 공급한 trail sample provider를 child emitter에 다시 전파한다.
+    Shared<EffectEmitter> Find_EmitterById(uint32 emitterId) const; // 같은 effect root 안의 child emitter를 follower source id로 찾는다.
 
 private: //## Types::Lifecycle
     enum class EffectPlaybackState : uint8

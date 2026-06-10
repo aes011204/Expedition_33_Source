@@ -37,6 +37,7 @@ public: //## Behavior::Lifecycle
     virtual HRESULT Reload_Definition(const EffectEmitterDefinition& emitterDefinition); // 기존 child resource를 가능한 한 유지하고 새 definition payload를 적용한다.
     virtual bool Is_EffectFinished() const;  // effect root가 자연 완료 여부를 종합할 때 사용하는 완료 상태다.
     virtual void Bind_TrailSampleProvider(const Weak<IEffectTrailSampleProvider>& provider); // trail sample provider를 acquire 시점 context로 다시 바인딩한다.
+    virtual bool Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>& outPoints, uint32 maxPointCount) const; // follower ribbon이 같은 effect 내부 source particle 위치를 요청할 때 쓰는 좁은 query다.
     virtual bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const; // Blend 정렬 시 emitter를 대표할 월드 위치를 반환한다.
     virtual EffectSortPolicy Get_BlendSortPolicy() const; // Blend 정렬 시 sort layer 안에서 적용할 정렬 정책을 반환한다.
     virtual int32 Get_BlendSortLayer() const; // Blend 정렬 시 우선 적용할 제작자 layer를 반환한다.
