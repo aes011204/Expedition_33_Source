@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "PanelInspector.h"
 #include "SceneContext.h"
 #include "MECamera.h"
@@ -559,7 +559,8 @@ void PanelInspector::DrawMaterialOverrides(Shared<EditorObject>& obj)
         ImGui::Separator();
         if (ImGui::Button("Export to .material.json", ImVec2(-1, 0)))
         {
-            _ctx->_modelOverrides[filename].ExportToNativeMaterial(String::ToString(obj->_modelPath), String::ToString(_ctx->_mapName));
+            const wstring& exportPath = (obj->_type == EObjectType::InstancedMesh) ? obj->_instancedModelPath : obj->_modelPath;
+            _ctx->_modelOverrides[filename].ExportToNativeMaterial(String::ToString(exportPath), String::ToString(_ctx->_mapName));
         }
     }
 }

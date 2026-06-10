@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "MapEditorApp.h"
 #include "GameInstance.h"
 #include "RenderTarget.h"
@@ -50,7 +50,7 @@ HRESULT MapEditorApp::Initialize()
     _imguiManager = MEImGuiManager::Create(g_hWnd, _device, _context);
     CHECK_NULL(_imguiManager, E_FAIL);
 
-    _camera = MECamera::Create(60.f, static_cast<float>(g_iWinSizeX) / g_iWinSizeY, 0.1f, 1000.f);
+    _camera = MECamera::Create(g_hWnd, 60.f, static_cast<float>(g_iWinSizeX) / g_iWinSizeY, 0.1f, 1000.f);
 
     _bridgeCamera = MEBridgeCamera::Create(_device, _context);
     CHECK_NULL(_bridgeCamera, E_FAIL);
