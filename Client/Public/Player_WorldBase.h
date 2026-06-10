@@ -86,6 +86,7 @@ private:
     HRESULT Rebuild_CostumeParts(const CostumePreset& preset);
     void Clear_CostumeParts();
     CostumePartTransformMap Capture_CostumePartTransforms() const;
+    const CostumePartTransformMap& Get_DefaultCostumePartTransforms();
     void Apply_CostumePartTransform(const wstring& partTag, const CostumePartTransformMap& partTransforms);
     void Apply_CostumePartTransform(const wstring& partTag, const CostumePartTransformMap& partTransforms,
         const CostumePartLocalTransform& fallbackTransform);
@@ -103,6 +104,7 @@ protected:
     Shared<SkillTreeCom>            _skillTreeCom;
     Shared<PlayerStatCom>           _combatStatCom;
     Shared<EffectCom>               _effectCom;
+    CostumePartTransformMap         _defaultCostumePartTransforms{};
     float                           _fallStateEnterAccum = 0.f; // 점프 입력 없는 짧은 공중 흔들림은 바로 Jump 상태로 소비하지 않기 위한 누적 시간
 
 public:

@@ -198,13 +198,18 @@ HRESULT Player_WorldBase::Apply_CostumePreset(const CostumePreset& preset)
 
 HRESULT Player_WorldBase::Rebuild_CostumeParts(const CostumePreset& preset)
 {
-    const CostumePartTransformMap partTransforms = Capture_CostumePartTransforms();
+    if (_defaultCostumePartTransforms.empty())
+        _defaultCostumePartTransforms = Capture_CostumePartTransforms();
+
+    const CostumePartTransformMap currentPartTransforms = Capture_CostumePartTransforms();
+    const CostumePartTransformMap& restorePartTransforms =
+        preset.presetId == "Default" ? Get_DefaultCostumePartTransforms() : currentPartTransforms;
 
     Clear_CostumeParts();
 
     Body_Player* body = Add_CostumeBody(preset.parts.bodyModelTag);
     CHECK_NULL(body, E_FAIL);
-    Apply_CostumePartTransform(TEXT("Part_Body"), partTransforms, preset.parts.bodyTransform);
+    Apply_CostumePartTransform(TEXT("Part_Body"), restorePartTransforms, preset.parts.bodyTransform);
 
     if (_playerStateMachineCom)
     {
@@ -213,19 +218,19 @@ HRESULT Player_WorldBase::Rebuild_CostumeParts(const CostumePreset& preset)
 
     Head_Player* head = Add_CostumeHead(preset.parts.headModelTag, body);
     CHECK_NULL(head, E_FAIL);
-    Apply_CostumePartTransform(TEXT("Part_Head"), partTransforms, preset.parts.headTransform);
+    Apply_CostumePartTransform(TEXT("Part_Head"), restorePartTransforms, preset.parts.headTransform);
 
     CHECK_FAILED(Add_CostumeFaceAccessory(TEXT("Part_Beard"), preset.parts.beardModelTag, head), E_FAIL);
-    Apply_CostumePartTransform(TEXT("Part_Beard"), partTransforms, preset.parts.beardTransform);
+    Apply_CostumePartTransform(TEXT("Part_Beard"), restorePartTransforms, preset.parts.beardTransform);
 
     CHECK_FAILED(Add_CostumeFaceAccessory(TEXT("Part_Mustache"), preset.parts.mustacheModelTag, head), E_FAIL);
-    Apply_CostumePartTransform(TEXT("Part_Mustache"), partTransforms, preset.parts.mustacheTransform);
+    Apply_CostumePartTransform(TEXT("Part_Mustache"), restorePartTransforms, preset.parts.mustacheTransform);
 
     CHECK_FAILED(Add_CostumeHair(preset.parts.hairModelTag, head), E_FAIL);
-    Apply_CostumePartTransform(TEXT("Part_Hair"), partTransforms, preset.parts.hairTransform);
+    Apply_CostumePartTransform(TEXT("Part_Hair"), restorePartTransforms, preset.parts.hairTransform);
 
     CHECK_FAILED(Add_CostumeFaceAccessory(TEXT("Part_Glasses"), preset.parts.glassesModelTag, head), E_FAIL);
-    Apply_CostumePartTransform(TEXT("Part_Glasses"), partTransforms, preset.parts.glassesTransform);
+    Apply_CostumePartTransform(TEXT("Part_Glasses"), restorePartTransforms, preset.parts.glassesTransform);
 
     if (_playerStateMachineCom)
         _playerStateMachineCom->Reenter_CurrentState();
@@ -261,6 +266,14 @@ Player_WorldBase::CostumePartTransformMap Player_WorldBase::Capture_CostumePartT
     }
 
     return partTransforms;
+}
+
+const Player_WorldBase::CostumePartTransformMap& Player_WorldBase::Get_DefaultCostumePartTransforms()
+{
+    if (_defaultCostumePartTransforms.empty())
+        _defaultCostumePartTransforms = Capture_CostumePartTransforms();
+
+    return _defaultCostumePartTransforms;
 }
 
 void Player_WorldBase::Apply_CostumePartTransform(const wstring& partTag,
