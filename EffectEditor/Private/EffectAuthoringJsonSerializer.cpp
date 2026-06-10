@@ -473,6 +473,8 @@ namespace Internal
     json To_Json(const SourceHistoryRibbonTypeData& data)
     {
         json root = json::object();
+        root["sourceMode"] = To_EnumToken(data.sourceMode);
+        root["sourceEmitterId"] = data.sourceEmitterId;
         root["maxSampleCount"] = data.maxSampleCount;
         root["sampleSpacing"] = data.sampleSpacing;
         root["sampleInterval"] = data.sampleInterval;
@@ -489,6 +491,9 @@ namespace Internal
         if (!root.is_object())
             return;
 
+        if (const auto sourceModeIter = root.find("sourceMode"); sourceModeIter != root.end())
+            Try_ReadEnumToken(*sourceModeIter, outData.sourceMode);
+        Read_NumberField(root, "sourceEmitterId", outData.sourceEmitterId);
         Read_NumberField(root, "maxSampleCount", outData.maxSampleCount);
         Read_NumberField(root, "sampleSpacing", outData.sampleSpacing);
         Read_NumberField(root, "sampleInterval", outData.sampleInterval);

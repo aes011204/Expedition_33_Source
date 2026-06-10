@@ -84,6 +84,19 @@ namespace Internal
         }
     }
 
+    static const char* Get_SourceHistoryRibbonSourceModeLabel(SourceHistoryRibbonSourceMode value)
+    {
+        switch (value)
+        {
+        case SourceHistoryRibbonSourceMode::SelfRoot:
+            return "Self Root";
+        case SourceHistoryRibbonSourceMode::SourceEmitter:
+            return "Source Emitter";
+        default:
+            return "Self Root";
+        }
+    }
+
     static const char* Get_RenderLayerOverrideLabel(EmitterRenderLayerOverride value)
     {
         switch (value)
@@ -315,6 +328,53 @@ namespace Internal
             value = defaultValue;
             return true;
         }
+
+        return changed;
+    }
+
+    static bool Draw_SourceHistoryRibbonSourceModeProperty(
+        DetailPropertyContext& detailContext,
+        SourceHistoryRibbonSourceMode& value,
+        SourceHistoryRibbonSourceMode defaultValue)
+    {
+        static constexpr SourceHistoryRibbonSourceMode kValues[] = {
+            SourceHistoryRibbonSourceMode::SelfRoot,
+        };
+
+        ImGui::PushID("SourceHistoryRibbonSourceMode");
+        detailContext.Draw_PropertyLabel("소스 모드", "Phase 3 전까지 Self Root history만 preview/runtime에 연결합니다.");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+
+        bool changed = false;
+        if (ImGui::BeginCombo("##Value", Get_SourceHistoryRibbonSourceModeLabel(value)))
+        {
+            for (const SourceHistoryRibbonSourceMode candidate : kValues)
+            {
+                const bool selected = value == candidate;
+                if (ImGui::Selectable(Get_SourceHistoryRibbonSourceModeLabel(candidate), selected))
+                {
+                    value = candidate;
+                    changed = true;
+                }
+
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+
+            ImGui::EndCombo();
+        }
+
+        const bool resetClicked = detailContext.Draw_ResetButton(value != defaultValue);
+        ImGui::PopID();
+
+        if (resetClicked)
+        {
+            value = defaultValue;
+            return true;
+        }
+
+        if (value == SourceHistoryRibbonSourceMode::SourceEmitter)
+            ImGui::TextDisabled("Source Emitter is reserved for Phase 3 representative particle follower.");
 
         return changed;
     }
@@ -1103,6 +1163,28 @@ void Detail_View::Render_TypeDataDetail(
         const SourceHistoryRibbonTypeData defaultData{};
         if (ImGui::CollapsingHeader("리본", ImGuiTreeNodeFlags_DefaultOpen))
         {
+            if (_detailPropertyContext.Begin_PropertyTable("SourceHistoryRibbonSource"))
+            {
+                changed |= Internal::Draw_SourceHistoryRibbonSourceModeProperty(
+                    _detailPropertyContext,
+                    data->sourceMode,
+                    defaultData.sourceMode
+                );
+
+                if (data->sourceMode == SourceHistoryRibbonSourceMode::SelfRoot && data->sourceEmitterId != 0u)
+                {
+                    data->sourceEmitterId = 0u;
+                    changed = true;
+                }
+                else if (data->sourceEmitterId == emitter.id)
+                {
+                    data->sourceEmitterId = 0u;
+                    changed = true;
+                }
+
+                _detailPropertyContext.End_PropertyTable();
+            }
+
             if (_detailPropertyContext.Begin_PropertyTable("SourceHistoryRibbonTypeData"))
             {
                 changed |= _detailPropertyContext.Draw_UintProperty(

@@ -1046,6 +1046,7 @@ int ComputeSourceHistoryRibbonEmitter::Resolve_OpacitySourceIndex() const
 Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_SourcePosition() const
 {
     const Vec3 basePosition = _transformCom != nullptr ? _transformCom->Get_WorldPosition() : Vec3{};
+
     return basePosition + Resolve_PreviewMotionOffset();
 }
 
@@ -1055,7 +1056,6 @@ Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_PreviewMotionOffset() const
         _desc.previewMotionAmplitude <= 0.f)
         return Vec3{};
 
-    constexpr float kTwoPi{ 6.28318530718f };
     const float speed = max(0.0001f, _desc.previewMotionSpeed);
     const float activeElapsedTime = max(0.f, _loopElapsedTime - Resolve_CurrentLoopDelay());
     const float progress = activeElapsedTime * speed;
@@ -1067,7 +1067,7 @@ Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_PreviewMotionOffset() const
         Vec3 secondAxis{};
         Internal::Resolve_PreviewMotionLoopAxes(_desc.previewMotionAxis, firstAxis, secondAxis);
 
-        const float angle = progress * kTwoPi;
+        const float angle = progress * XM_2PI;
         return (firstAxis * cosf(angle) + secondAxis * sinf(angle)) * amplitude;
     }
 
@@ -1078,7 +1078,7 @@ Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_PreviewMotionOffset() const
     if (_desc.previewMotionPreset == EffectSourceHistoryPreviewMotionPreset::Arc)
     {
         const Vec3 arcAxis = Internal::Resolve_PreviewMotionArcAxis(_desc.previewMotionAxis);
-        offset += arcAxis * (sinf(t * 3.14159265359f) * amplitude);
+        offset += arcAxis * (sinf(t * XM_PI) * amplitude);
     }
 
     return offset;

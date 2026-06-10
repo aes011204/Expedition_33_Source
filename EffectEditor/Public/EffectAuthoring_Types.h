@@ -534,8 +534,16 @@ enum class SourceHistoryPreviewMotionAxis : uint8
     Z,
 };
 
+enum class SourceHistoryRibbonSourceMode : uint8
+{
+    SelfRoot,
+    SourceEmitter,
+};
+
 struct SourceHistoryRibbonTypeData
 {
+    SourceHistoryRibbonSourceMode sourceMode{ SourceHistoryRibbonSourceMode::SelfRoot };
+    uint32 sourceEmitterId{};
     uint32 maxSampleCount{ 64 };
     float sampleSpacing{ 0.08f };
     float sampleInterval{ 0.f };
