@@ -75,6 +75,8 @@ private:
         uint32 sourceIndex{};
         vector<HistorySample> history{};
         float sampleIntervalAccumulator{};
+        float age{};
+        float missingTime{};
         bool activeThisFrame{};
     };
 
@@ -118,9 +120,10 @@ private:
     static constexpr auto kNeutralFlowTexturePath{ "Effects/Textures/Shared/DefaultFlowMap.dds" };
     static constexpr uint32 kThreadCountX{ 64 };
     static constexpr uint32 kMaxDistanceTessellationSubdivision{ 8 };
+    static constexpr float kParticleFollowerLaneRetireGrace{ 0.08f };
 
 private:
-    ComputeSourceHistoryRibbonEmitterDesc _desc{};
+    ComputeRibbonEmitterDesc _desc{};
     PlaybackState _playbackState{ PlaybackState::Delayed };
     float _loopElapsedTime{};
     uint32 _loopIndex{};
@@ -158,7 +161,10 @@ private:
     void Prune_History(vector<HistorySample>& history);
     void Build_RenderSamples(vector<RenderSample>& outSamples) const;
     void Build_RenderSamples(const vector<HistorySample>& history, vector<RenderSample>& outSamples) const;
-    HRESULT Append_SegmentPayloads(const vector<RenderSample>& renderSamples, vector<SegmentPayload>& outPayloads) const;
+    HRESULT Append_SegmentPayloads(
+        const vector<RenderSample>& renderSamples,
+        vector<SegmentPayload>& outPayloads,
+        float widthMultiplier = 1.f) const;
     bool Has_RenderableHistory() const;
     HistoryLane* Find_HistoryLane(uint32 sourceIndex);
     void Clear_ParticleFollowerHistory();
@@ -179,6 +185,7 @@ private:
     HRESULT Bind_MaterialResources();
     HRESULT Bind_DistortionResources();
     bool Can_SubmitRender() const;
+    uint32 Compute_MaxLaneRenderSegmentCount() const;
     uint32 Compute_MaxRenderSegmentCount() const;
 
     void Start_NextLoop();

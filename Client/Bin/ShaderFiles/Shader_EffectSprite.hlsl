@@ -16,11 +16,11 @@ cbuffer cbEffectSpriteMaterial : register(b2)
     float4 g_EffectSpriteMaskUVParams = { 1.f, 1.f, 0.f, 0.f };
     float4 g_EffectSpriteUVOffsetParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main offset, zw: noise offset
     float4 g_EffectSpriteMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };
-    float4 g_EffectSpriteUVModeParams = { 0.f, 0.f, 0.f, 0.f };   // x: main, y: noise, z: mask
-    float4 g_EffectSpriteUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: main U/V policy, zw: noise U/V policy
+    float4 g_EffectSpriteUVModeParams = { 0.f, 0.f, 0.f, 0.f };           // x: main, y: noise, z: mask
+    float4 g_EffectSpriteUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f };     // xy: main U/V policy, zw: noise U/V policy
     float4 g_EffectSpriteMaskUVAxisPolicyParams = { 0.f, 0.f, 0.f, 0.f }; // xy: mask U/V policy, zw: reserved
-    float4 g_EffectSpriteSourceParams = { 1.f, 0.f, 0.f, 0.f };   // x: noise source, y: mask source, z: noise invert, w: mask invert
-    float4 g_EffectSpriteAdditiveParams = { 0.f, 0.f, 0.f, 1.f }; // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
+    float4 g_EffectSpriteSourceParams = { 1.f, 0.f, 0.f, 0.f };           // x: noise source, y: mask source, z: noise invert, w: mask invert
+    float4 g_EffectSpriteAdditiveParams = { 0.f, 0.f, 0.f, 1.f };         // x: colorSource, y: amountSource, z: coveragePolicy, w: intensityScale
     float4 g_EffectSpriteAdditiveEmissiveColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteAdditiveConstantColor = { 1.f, 1.f, 1.f, 1.f };
     float4 g_EffectSpriteAdditiveFlags = { 1.f, 0.f, 0.f, 0.f };         // x: blackNeutral
@@ -390,13 +390,22 @@ EffectMaterialSurface Resolve_EffectMaterialSurface(PS_IN In)
     const float resolvedOpacityPower = g_EffectSpriteParams.y
                                        * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_OPACITY_POWER, lifeProgress);
     const float resolvedNoiseStrength = 0 != g_EffectSpriteParams.w && g_EffectSpriteParams.z > 0.f
-                                        ? g_EffectSpriteParams.z * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH, lifeProgress)
+                                        ? g_EffectSpriteParams.z * EffectMaterialScalar_ResolveMultiplier(
+                                              EFFECT_MATERIAL_SCALAR_TARGET_NOISE_STRENGTH,
+                                              lifeProgress
+                                          )
                                         : 0.f;
     const float resolvedAlphaErosion = g_EffectSpriteAlphaParams.y != 0.f
-                                       ? g_EffectSpriteAlphaParams.y * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION, lifeProgress)
+                                       ? g_EffectSpriteAlphaParams.y * EffectMaterialScalar_ResolveMultiplier(
+                                             EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_EROSION,
+                                             lifeProgress
+                                         )
                                        : 0.f;
     const float resolvedAlphaCutoff = g_EffectSpriteAlphaParams.x != 0.f
-                                      ? g_EffectSpriteAlphaParams.x * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF, lifeProgress)
+                                      ? g_EffectSpriteAlphaParams.x * EffectMaterialScalar_ResolveMultiplier(
+                                            EFFECT_MATERIAL_SCALAR_TARGET_ALPHA_CUTOFF,
+                                            lifeProgress
+                                        )
                                       : 0.f;
     const float resolvedCoreIntensity = g_EffectSpriteCoreEmissiveParams.z
                                         * EffectMaterialScalar_ResolveMultiplier(EFFECT_MATERIAL_SCALAR_TARGET_CORE_INTENSITY, lifeProgress);

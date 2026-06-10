@@ -29,7 +29,7 @@ bool ComputeSpriteEmitter::Is_InfluenceOutlineDebugEnabled()
     return _isInfluenceOutlineDebugEnabled;
 }
 
-namespace Client::Internal
+namespace Client::EffectAssetRuntimeLoad
 {
 static int Resolve_MaterialSourceIndex(const string& source)
 {
@@ -493,7 +493,7 @@ HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureP
 {
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    wstring resolvedPath = Internal::Resolve_TexturePath(
+    wstring resolvedPath = EffectAssetRuntimeLoad::Resolve_TexturePath(
         _desc.required.material.mainTextureGuid,
         _desc.required.material.mainTexturePath,
         usedPathFallback,
@@ -528,7 +528,7 @@ HRESULT ComputeSpriteEmitter::Ready_TextureComponent(string& outResolvedTextureP
             kFallbackTexturePath
         );
 
-        resolvedPath = Internal::Resolve_TexturePathByPath(kFallbackTexturePath);
+        resolvedPath = EffectAssetRuntimeLoad::Resolve_TexturePathByPath(kFallbackTexturePath);
         usedFallback = true;
     }
 
@@ -575,7 +575,7 @@ HRESULT ComputeSpriteEmitter::Ready_NoiseTextureComponent(const string& resolved
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_TexturePath(
+    const wstring resolvedPath = EffectAssetRuntimeLoad::Resolve_TexturePath(
         _desc.required.material.noiseTextureGuid,
         _desc.required.material.noiseTexturePath,
         usedPathFallback,
@@ -638,7 +638,7 @@ HRESULT ComputeSpriteEmitter::Ready_MaskTextureComponent(const string& resolvedT
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_TexturePath(
+    const wstring resolvedPath = EffectAssetRuntimeLoad::Resolve_TexturePath(
         _desc.required.material.maskTextureGuid,
         _desc.required.material.maskTexturePath,
         usedPathFallback,
@@ -704,7 +704,7 @@ HRESULT ComputeSpriteEmitter::Ready_FlowTextureComponent(const string& resolvedT
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_TexturePath(
+    const wstring resolvedPath = EffectAssetRuntimeLoad::Resolve_TexturePath(
         _desc.required.material.flowTextureGuid,
         _desc.required.material.flowTexturePath,
         usedPathFallback,
@@ -770,7 +770,7 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
 {
     const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Internal::Resolve_EmitterTimeCoreColorRgbModulation(_desc.required.material, emitterPhase);
+        EffectAssetRuntimeLoad::Resolve_EmitterTimeCoreColorRgbModulation(_desc.required.material, emitterPhase);
 
     if (nullptr != _noiseTexture)
         CHECK_FAILED_ONCE(_noiseTexture->Bind_ShaderResourceView(_shader.get(), "g_NoiseTexture", 0), E_FAIL);
@@ -820,8 +820,8 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
         0.f
     );
     const Vec4 effectSpriteSourceParams = Vec4(
-        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
-        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+        static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(material.noiseSource)),
+        static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(material.maskSource)),
         material.noiseInvert ? 1.f : 0.f,
         material.maskInvert ? 1.f : 0.f
     );
@@ -852,7 +852,7 @@ HRESULT ComputeSpriteEmitter::Bind_MaterialResources()
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteSourceParams", &effectSpriteSourceParams, sizeof(effectSpriteSourceParams)), E_FAIL);
     CHECK_FAILED_ONCE(_shader->Bind_RawValue("g_EffectSpriteMaterialTime", &_emitterElapsedTime, sizeof(_emitterElapsedTime)), E_FAIL);
     CHECK_FAILED_ONCE(
-        Internal::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.required.material.scalarModulation, emitterPhase),
+        EffectAssetRuntimeLoad::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.required.material.scalarModulation, emitterPhase),
         E_FAIL
     );
 
@@ -968,7 +968,7 @@ HRESULT ComputeSpriteEmitter::Bind_DistortionResources()
     );
     const float emitterPhase = Compute_MaterialScalarModulationPhase(_emitterElapsedTime, _desc.required.playback.duration);
     CHECK_FAILED_ONCE(
-        Internal::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase),
+        EffectAssetRuntimeLoad::Bind_MaterialScalarModulationPayload(_shader.get(), material.scalarModulation, emitterPhase),
         E_FAIL
     );
     CHECK_FAILED_ONCE(
@@ -1037,16 +1037,16 @@ Vec3 ComputeSpriteEmitter::Resolve_RuntimeWorldScale() const
         effectOwner != nullptr ? effectOwner->Get_Transform() : nullptr;
 
     if (ownerTransform != nullptr)
-        return Internal::Resolve_WorldScale(ownerTransform);
+        return EffectAssetRuntimeLoad::Resolve_WorldScale(ownerTransform);
 
-    return Internal::Resolve_WorldScale(_transformCom);
+    return EffectAssetRuntimeLoad::Resolve_WorldScale(_transformCom);
 }
 
 ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() const
 {
     ComputePointParticleDesc desc{};
     const Vec3 worldScale = Resolve_RuntimeWorldScale();
-    const Vec2 planeScale = Internal::Resolve_PlaneScale(_desc.planeRadialLocation.plane, worldScale);
+    const Vec2 planeScale = EffectAssetRuntimeLoad::Resolve_PlaneScale(_desc.planeRadialLocation.plane, worldScale);
     const float uniformLocationScale = max(worldScale.x, max(worldScale.y, worldScale.z));
     const Vec2 spriteScale{ uniformLocationScale, uniformLocationScale };
     const float uniformPlaneScale = max(planeScale.x, planeScale.y);
@@ -1054,9 +1054,9 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.instanceCount = max(1u, _desc.spawn.instanceCount);
     desc.center = _desc.center;
     desc.effectPlaybackSeed = _effectPlaybackSeed;
-    desc.range = Internal::Scale_Vector3(_desc.spawn.spawnRange, worldScale);
-    desc.sizeMin = Internal::Scale_Vector2(_desc.initialSize.sizeMin, spriteScale);
-    desc.sizeMax = Internal::Scale_Vector2(_desc.initialSize.sizeMax, spriteScale);
+    desc.range = EffectAssetRuntimeLoad::Scale_Vector3(_desc.spawn.spawnRange, worldScale);
+    desc.sizeMin = EffectAssetRuntimeLoad::Scale_Vector2(_desc.initialSize.sizeMin, spriteScale);
+    desc.sizeMax = EffectAssetRuntimeLoad::Scale_Vector2(_desc.initialSize.sizeMax, spriteScale);
     desc.initialSizeSeed = _desc.initialSize.sizeSeed;
     desc.lifeTime = _desc.lifetime.lifeTime;
     desc.startColorMin = _desc.initialColor.startColorMin;
@@ -1078,17 +1078,17 @@ ComputePointParticleDesc ComputeSpriteEmitter::Make_ComputePointParticleDesc() c
     desc.spawn = _desc.spawn.particleSpawn;
     desc.lifetimeSeed = _desc.lifetimeSeed;
     desc.initialLocation = _desc.initialLocation;
-    desc.initialLocation.minOffset = Internal::Scale_Vector3(desc.initialLocation.minOffset, worldScale);
-    desc.initialLocation.maxOffset = Internal::Scale_Vector3(desc.initialLocation.maxOffset, worldScale);
+    desc.initialLocation.minOffset = EffectAssetRuntimeLoad::Scale_Vector3(desc.initialLocation.minOffset, worldScale);
+    desc.initialLocation.maxOffset = EffectAssetRuntimeLoad::Scale_Vector3(desc.initialLocation.maxOffset, worldScale);
     desc.sphereLocation = _desc.sphereLocation;
-    desc.sphereLocation.offset = Internal::Scale_Vector3(desc.sphereLocation.offset, worldScale);
+    desc.sphereLocation.offset = EffectAssetRuntimeLoad::Scale_Vector3(desc.sphereLocation.offset, worldScale);
     desc.sphereLocation.radius *= uniformLocationScale;
     desc.planeRadialLocation = _desc.planeRadialLocation;
-    desc.planeRadialLocation.offset = Internal::Scale_Vector3(desc.planeRadialLocation.offset, worldScale);
+    desc.planeRadialLocation.offset = EffectAssetRuntimeLoad::Scale_Vector3(desc.planeRadialLocation.offset, worldScale);
     desc.planeRadialLocation.thickness *= uniformLocationScale;
-    desc.planeRadialLocation.uRange = Internal::Scale_Vector2(desc.planeRadialLocation.uRange, Vec2{ planeScale.x, planeScale.x });
-    desc.planeRadialLocation.vRange = Internal::Scale_Vector2(desc.planeRadialLocation.vRange, Vec2{ planeScale.y, planeScale.y });
-    desc.planeRadialLocation.radiusRange = Internal::Scale_Vector2(desc.planeRadialLocation.radiusRange, Vec2{ uniformPlaneScale, uniformPlaneScale });
+    desc.planeRadialLocation.uRange = EffectAssetRuntimeLoad::Scale_Vector2(desc.planeRadialLocation.uRange, Vec2{ planeScale.x, planeScale.x });
+    desc.planeRadialLocation.vRange = EffectAssetRuntimeLoad::Scale_Vector2(desc.planeRadialLocation.vRange, Vec2{ planeScale.y, planeScale.y });
+    desc.planeRadialLocation.radiusRange = EffectAssetRuntimeLoad::Scale_Vector2(desc.planeRadialLocation.radiusRange, Vec2{ uniformPlaneScale, uniformPlaneScale });
     desc.planeRadialOrientation = _desc.planeRadialOrientation;
     desc.initialLocationSeed = _desc.initialLocationSeed;
     desc.sphereLocationSeed = _desc.sphereLocationSeed;
@@ -1119,7 +1119,7 @@ void ComputeSpriteEmitter::Update_RuntimeDescForCurrentScale(bool forceUpdate)
     const Vec3 worldScale = Resolve_RuntimeWorldScale();
     if (!forceUpdate &&
         _hasRuntimeDescWorldScale &&
-        Internal::Nearly_EqualScale(_runtimeDescWorldScale, worldScale))
+        EffectAssetRuntimeLoad::Nearly_EqualScale(_runtimeDescWorldScale, worldScale))
         return;
 
     _viBuffer->Update_RuntimeDesc(Make_ComputePointParticleDesc());
@@ -1213,8 +1213,8 @@ float ComputeSpriteEmitter::Sample_SpawnDistribution(
     if (minValue == maxValue)
         return minValue;
 
-    const uint32 baseSeed = (_loopIndex + 1u) * 9781u + salt + Internal::Resolve_SeedSalt(seed, _effectPlaybackSeed);
-    return lerp(minValue, maxValue, Internal::Hash01(baseSeed));
+    const uint32 baseSeed = (_loopIndex + 1u) * 9781u + salt + EffectAssetRuntimeLoad::Resolve_SeedSalt(seed, _effectPlaybackSeed);
+    return lerp(minValue, maxValue, EffectAssetRuntimeLoad::Hash01(baseSeed));
 }
 
 void ComputeSpriteEmitter::Reset_PlaybackRuntime()

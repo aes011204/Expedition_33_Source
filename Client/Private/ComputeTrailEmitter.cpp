@@ -7,7 +7,7 @@
 #include "Renderer_Define.h"
 #include "Texture.h"
 
-namespace Client::Internal
+namespace Client::EffectAssetRuntimeLoad
 {
 static int Resolve_MaterialSourceIndex(const string& source)
 {
@@ -348,7 +348,7 @@ HRESULT ComputeTrailEmitter::Ready_Texture()
 {
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    wstring resolvedPath = Internal::Resolve_TrailTexturePath(
+    wstring resolvedPath = EffectAssetRuntimeLoad::Resolve_TrailTexturePath(
         _desc.material.mainTextureGuid,
         _desc.material.mainTexturePath,
         usedPathFallback,
@@ -362,7 +362,7 @@ HRESULT ComputeTrailEmitter::Ready_Texture()
             _desc.material.mainTexturePath
         );
 
-        resolvedPath = Internal::Resolve_TrailTexturePathByPath(kFallbackTexturePath);
+        resolvedPath = EffectAssetRuntimeLoad::Resolve_TrailTexturePathByPath(kFallbackTexturePath);
     }
 
     if (resolvedPath.empty())
@@ -406,7 +406,7 @@ HRESULT ComputeTrailEmitter::Ready_NoiseTexture()
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_TrailTexturePath(
+    const wstring resolvedPath = EffectAssetRuntimeLoad::Resolve_TrailTexturePath(
         _desc.material.noiseTextureGuid,
         _desc.material.noiseTexturePath,
         usedPathFallback,
@@ -463,7 +463,7 @@ HRESULT ComputeTrailEmitter::Ready_MaskTexture()
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_TrailTexturePath(
+    const wstring resolvedPath = EffectAssetRuntimeLoad::Resolve_TrailTexturePath(
         _desc.material.maskTextureGuid,
         _desc.material.maskTexturePath,
         usedPathFallback,
@@ -524,7 +524,7 @@ HRESULT ComputeTrailEmitter::Ready_FlowTexture()
 
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_TrailTexturePath(
+    const wstring resolvedPath = EffectAssetRuntimeLoad::Resolve_TrailTexturePath(
         _desc.material.flowTextureGuid,
         _desc.material.flowTexturePath,
         usedPathFallback,
@@ -721,12 +721,12 @@ void ComputeTrailEmitter::Insert_TrailSamplesForFrame(const EffectTrailSample& t
 
     const TrailHistorySample previousHead = _history.front();
     // 회전 등 base/tip이 반대로 움직이는 경우를 커버하기 위해 최대 거리 기준으로 판정한다.
-    const float motionDistance = Internal::Compute_TrailMotionDistance(previousHead.sample, trailSample);
+    const float motionDistance = EffectAssetRuntimeLoad::Compute_TrailMotionDistance(previousHead.sample, trailSample);
     if (motionDistance < _desc.spawnPerUnit.movementTolerance)
         return;
 
     // 텔레포트 감지는 tip jitter 오감지를 막기 위해 center 기반을 별도로 사용한다.
-    const float centerDistance = Internal::Compute_TrailCenterDistance(previousHead.sample, trailSample);
+    const float centerDistance = EffectAssetRuntimeLoad::Compute_TrailCenterDistance(previousHead.sample, trailSample);
     if (_desc.spawnPerUnit.maxFrameDistance > 0.f &&
         centerDistance > _desc.spawnPerUnit.maxFrameDistance)
     {
@@ -750,7 +750,7 @@ void ComputeTrailEmitter::Insert_TrailSamplesForFrame(const EffectTrailSample& t
     for (uint32 step = 1u; step <= stepCount; ++step)
     {
         const float ratio = static_cast<float>(step) / static_cast<float>(stepCount);
-        const EffectTrailSample interpolatedSample = Internal::Lerp_TrailSample(previousHead.sample, trailSample, ratio);
+        const EffectTrailSample interpolatedSample = EffectAssetRuntimeLoad::Lerp_TrailSample(previousHead.sample, trailSample, ratio);
         const float interpolatedAge = previousHead.age * (1.f - ratio);
         Insert_TrailSample(interpolatedSample, interpolatedAge);
     }
@@ -781,7 +781,7 @@ void ComputeTrailEmitter::Build_RenderSamples(vector<TrailRenderSample>& outSamp
             min(index + 2u, static_cast<uint32>(_history.size() - 1u))
         );
 
-        const float centerDistance = Internal::Compute_TrailCenterDistance(p1, p2);
+        const float centerDistance = EffectAssetRuntimeLoad::Compute_TrailCenterDistance(p1, p2);
         const uint32 stepCount = min(
             max(1u, static_cast<uint32>(ceilf(centerDistance / sampleSpacing))),
             maxIntervalSubdivision
@@ -791,7 +791,7 @@ void ComputeTrailEmitter::Build_RenderSamples(vector<TrailRenderSample>& outSamp
         {
             const float ratio = static_cast<float>(step) / static_cast<float>(stepCount);
             TrailRenderSample renderSample{};
-            renderSample.sample = Internal::Catmull_RomTrailSample(p0, p1, p2, p3, ratio);
+            renderSample.sample = EffectAssetRuntimeLoad::Catmull_RomTrailSample(p0, p1, p2, p3, ratio);
             renderSample.age = _history[index].age + (_history[index + 1u].age - _history[index].age) * ratio;
             outSamples.push_back(renderSample);
         }
@@ -800,7 +800,7 @@ void ComputeTrailEmitter::Build_RenderSamples(vector<TrailRenderSample>& outSamp
     outSamples.front().distanceFromHead = 0.f;
     for (size_t index = 1; index < outSamples.size(); ++index)
     {
-        const float segmentDistance = Internal::Compute_TrailCenterDistance(
+        const float segmentDistance = EffectAssetRuntimeLoad::Compute_TrailCenterDistance(
             outSamples[index - 1].sample,
             outSamples[index].sample
         );
@@ -914,8 +914,8 @@ HRESULT ComputeTrailEmitter::Update_ComputeConstants()
     params.width = _desc.width;
     params.uvTiling = _desc.uvTiling;
     params.sideFade = _desc.sideFade;
-    params.startColor = Internal::Average_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax);
-    params.endColor = Internal::Average_Color(_desc.colorOverLife.endColorMin, _desc.colorOverLife.endColorMax);
+    params.startColor = EffectAssetRuntimeLoad::Average_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax);
+    params.endColor = EffectAssetRuntimeLoad::Average_Color(_desc.colorOverLife.endColorMin, _desc.colorOverLife.endColorMax);
     const PointParticleColorOverLifeCurveDesc& colorCurve = _desc.colorOverLife.curve;
     params.colorOverLifeCurveParams = Vec4{
         static_cast<float>(max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, colorCurve.colorCurveKeyCount))),
@@ -1094,8 +1094,8 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
         0.f
     );
     const Vec4 effectTrailSourceParams = Vec4(
-        static_cast<float>(Internal::Resolve_MaterialSourceIndex(_desc.material.noiseSource)),
-        static_cast<float>(Internal::Resolve_MaterialSourceIndex(_desc.material.maskSource)),
+        static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(_desc.material.noiseSource)),
+        static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(_desc.material.maskSource)),
         _desc.material.noiseInvert ? 1.f : 0.f,
         _desc.material.maskInvert ? 1.f : 0.f
     );
@@ -1115,7 +1115,7 @@ HRESULT ComputeTrailEmitter::Bind_ShaderResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectTrailMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     const float emitterPhase = Client::Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
     CHECK_FAILED(
-        Internal::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.material.scalarModulation, emitterPhase),
+        EffectAssetRuntimeLoad::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.material.scalarModulation, emitterPhase),
         E_FAIL
     );
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);

@@ -60,6 +60,7 @@ private:
     EffectEmitterDefinition Build_PreviewEmitterDefinition(const AuthoringEmitter& emitter) const;
     EffectEmitterDefinition Build_PreviewTrailEmitterDefinition(const AuthoringEmitter& emitter) const;
     EffectEmitterDefinition Build_PreviewSourceHistoryRibbonEmitterDefinition(const AuthoringEmitter& emitter) const;
+    EffectEmitterDefinition Build_PreviewBeamEmitterDefinition(const AuthoringEmitter& emitter) const;
     EffectEmitterDefinition Build_PreviewMeshEmitterDefinition(const AuthoringEmitter& emitter) const;
     // preview에 필요한 최소 directional light만 준비한다.
     HRESULT Ready_Lights();

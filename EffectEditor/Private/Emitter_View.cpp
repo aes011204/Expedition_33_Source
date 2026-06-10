@@ -1185,7 +1185,7 @@ bool Emitter_View::Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModu
 
 bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitter, AuthoringModuleType type) const
 {
-    if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistoryRibbon)
+    if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
     {
         switch (type)
         {
@@ -2298,32 +2298,50 @@ void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emi
     switch (action)
     {
     case PendingTypeDataAction::AddTrail:
+    {
         emitter.typeData.kind = AuthoringTypeDataKind::Trail;
         emitter.typeData.payload = TrailTypeData{};
         break;
+    }
     case PendingTypeDataAction::AddMesh:
+    {
         emitter.typeData.kind = AuthoringTypeDataKind::Mesh;
         emitter.typeData.payload = MeshTypeData{};
         break;
-    case PendingTypeDataAction::AddSourceHistoryRibbon:
-        emitter.typeData.kind = AuthoringTypeDataKind::SourceHistoryRibbon;
-        emitter.typeData.payload = SourceHistoryRibbonTypeData{};
+    }
+    case PendingTypeDataAction::AddRibbon:
+    {
+        emitter.typeData.kind = AuthoringTypeDataKind::Ribbon;
+        emitter.typeData.payload = RibbonTypeData{};
         break;
+    }
+    case PendingTypeDataAction::AddBeam:
+    {
+        emitter.typeData.kind = AuthoringTypeDataKind::Beam;
+        emitter.typeData.payload = BeamTypeData{};
+        break;
+    }
     case PendingTypeDataAction::ResetData:
+    {
         if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
             emitter.typeData.payload = MeshTypeData{};
-        else if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistoryRibbon)
-            emitter.typeData.payload = SourceHistoryRibbonTypeData{};
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Ribbon)
+            emitter.typeData.payload = RibbonTypeData{};
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::Beam)
+            emitter.typeData.payload = BeamTypeData{};
         else
         {
             emitter.typeData.kind = AuthoringTypeDataKind::Trail;
             emitter.typeData.payload = TrailTypeData{};
         }
         break;
+    }
     case PendingTypeDataAction::Remove:
+    {
         emitter.typeData.kind = AuthoringTypeDataKind::None;
         emitter.typeData.payload = EmptyTypeData{};
         break;
+    }
     case PendingTypeDataAction::None:
     default:
         return;
@@ -2348,18 +2366,27 @@ void Emitter_View::Process_PendingTypeDataAction()
     case PendingTypeDataAction::AddTrail:
         description = "Add Trail TypeData";
         break;
+
     case PendingTypeDataAction::AddMesh:
         description = "Add Mesh TypeData";
         break;
-    case PendingTypeDataAction::AddSourceHistoryRibbon:
+
+    case PendingTypeDataAction::AddRibbon:
         description = "Add Ribbon TypeData";
         break;
+
+    case PendingTypeDataAction::AddBeam:
+        description = "Add Beam TypeData";
+        break;
+
     case PendingTypeDataAction::ResetData:
         description = "Reset TypeData";
         break;
+
     case PendingTypeDataAction::Remove:
         description = "Remove TypeData";
         break;
+
     case PendingTypeDataAction::None:
     default:
         break;
@@ -2912,8 +2939,10 @@ void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
             Queue_TypeDataAction(PendingTypeDataAction::AddTrail, emitterIndex);
         if (ImGui::MenuItem("Mesh TypeData 추가"))
             Queue_TypeDataAction(PendingTypeDataAction::AddMesh, emitterIndex);
-        if (ImGui::MenuItem("리본 TypeData 추가"))
-            Queue_TypeDataAction(PendingTypeDataAction::AddSourceHistoryRibbon, emitterIndex);
+        if (ImGui::MenuItem("Ribbon TypeData 추가"))
+            Queue_TypeDataAction(PendingTypeDataAction::AddRibbon, emitterIndex);
+        if (ImGui::MenuItem("Beam TypeData 추가"))
+            Queue_TypeDataAction(PendingTypeDataAction::AddBeam, emitterIndex);
         return;
     }
 
@@ -3199,12 +3228,19 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
         case AuthoringTypeDataKind::Trail:
             ImGui::TextUnformatted("트레일 데이터");
             break;
+
         case AuthoringTypeDataKind::Mesh:
             ImGui::TextUnformatted("메시 데이터");
             break;
-        case AuthoringTypeDataKind::SourceHistoryRibbon:
+
+        case AuthoringTypeDataKind::Ribbon:
             ImGui::TextUnformatted("리본 데이터");
             break;
+
+        case AuthoringTypeDataKind::Beam:
+            ImGui::TextUnformatted("빔 데이터");
+            break;
+
         case AuthoringTypeDataKind::None:
         default:
             ImGui::TextUnformatted("타입 데이터");

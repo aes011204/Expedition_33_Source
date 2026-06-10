@@ -9,7 +9,7 @@
 #include "ShaderCom.h"
 #include "Texture.h"
 
-namespace Client::Internal
+namespace Client::EffectAssetRuntimeLoad
 {
 static int Resolve_MaterialSourceIndex(const string& source)
 {
@@ -302,7 +302,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Initialize_Prototype()
 HRESULT ComputeSourceHistoryRibbonEmitter::Initialize(void* arg)
 {
     if (nullptr != arg)
-        _desc = *static_cast<ComputeSourceHistoryRibbonEmitterDesc*>(arg);
+        _desc = *static_cast<ComputeRibbonEmitterDesc*>(arg);
 
     _desc.playback.duration = max(0.0001f, _desc.playback.duration);
     _desc.playback.delay = max(0.f, _desc.playback.delay);
@@ -317,6 +317,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Initialize(void* arg)
     _desc.sampleLifetime = max(0.0001f, _desc.sampleLifetime);
     _desc.maxLength = max(0.f, _desc.maxLength);
     _desc.tailFadeLength = max(0.f, _desc.tailFadeLength);
+    _desc.laneSpawnFadeInDuration = max(0.f, _desc.laneSpawnFadeInDuration);
     _desc.baseWidth = max(0.001f, _desc.baseWidth);
     _desc.tilingDistance = max(0.f, _desc.tilingDistance);
     _desc.material.subUVRows = max(1u, _desc.material.subUVRows);
@@ -493,6 +494,8 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
     for (HistoryLane& lane : _sourceLanes)
     {
         lane.activeThisFrame = false;
+        lane.age += safeDeltaTime;
+        lane.missingTime += safeDeltaTime;
         lane.sampleIntervalAccumulator += safeDeltaTime;
         for (HistorySample& sample : lane.history)
             sample.age += safeDeltaTime;
@@ -506,13 +509,6 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
     if (sourceEmitter != nullptr && _desc.followerLaneCount > 0u)
         sourceEmitter->Collect_FollowerSourcePoints(sourcePoints, _desc.followerLaneCount);
 
-    if (sourcePoints.empty())
-    {
-        Clear_ParticleFollowerHistory();
-        _visibleRibbonLength = 1.f;
-        return;
-    }
-
     for (const EffectFollowerSourcePoint& sourcePoint : sourcePoints)
     {
         HistoryLane* lane = Find_HistoryLane(sourcePoint.sourceIndex);
@@ -523,11 +519,10 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
         }
 
         lane->activeThisFrame = true;
+        lane->missingTime = 0.f;
         if (lane->history.empty() ||
             Should_InsertSample(lane->history, lane->sampleIntervalAccumulator, sourcePoint.position))
-        {
             Insert_HistorySample(lane->history, lane->sampleIntervalAccumulator, sourcePoint.position);
-        }
 
         Prune_History(lane->history);
     }
@@ -536,7 +531,7 @@ void ComputeSourceHistoryRibbonEmitter::Update_ParticleFollowerHistory(float tim
         _sourceLanes,
         [](const HistoryLane& lane)
         {
-            return !lane.activeThisFrame;
+            return !lane.activeThisFrame && lane.missingTime >= kParticleFollowerLaneRetireGrace;
         }
     );
 
@@ -624,7 +619,7 @@ void ComputeSourceHistoryRibbonEmitter::Build_RenderSamples(
     if (history.empty())
         return;
 
-    outSamples.reserve(Compute_MaxRenderSegmentCount() + 1u);
+    outSamples.reserve(Compute_MaxLaneRenderSegmentCount() + 1u);
     outSamples.push_back(RenderSample{ .sample = history.front(), .distanceFromHead = 0.f });
 
     for (size_t index = 0; index + 1u < history.size(); ++index)
@@ -704,14 +699,14 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Ready_Texture()
 {
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    wstring resolvedPath = Internal::Resolve_RibbonTexturePath(
+    wstring resolvedPath = EffectAssetRuntimeLoad::Resolve_RibbonTexturePath(
         _desc.material.mainTextureGuid,
         _desc.material.mainTexturePath,
         usedPathFallback,
         guidPathMismatch
     );
     if (resolvedPath.empty())
-        resolvedPath = Internal::Resolve_RibbonTexturePathByPath(kFallbackTexturePath);
+        resolvedPath = EffectAssetRuntimeLoad::Resolve_RibbonTexturePathByPath(kFallbackTexturePath);
 
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), L"Texture_Effect_DefaultTexture", _mainTexture), E_FAIL);
     if (!resolvedPath.empty())
@@ -725,7 +720,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Ready_NoiseTexture()
 {
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_RibbonTexturePath(
+    const wstring resolvedPath = EffectAssetRuntimeLoad::Resolve_RibbonTexturePath(
         _desc.material.noiseTextureGuid,
         _desc.material.noiseTexturePath,
         usedPathFallback,
@@ -740,7 +735,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Ready_MaskTexture()
 {
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    const wstring resolvedPath = Internal::Resolve_RibbonTexturePath(
+    const wstring resolvedPath = EffectAssetRuntimeLoad::Resolve_RibbonTexturePath(
         _desc.material.maskTextureGuid,
         _desc.material.maskTexturePath,
         usedPathFallback,
@@ -755,14 +750,14 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Ready_FlowTexture()
 {
     bool usedPathFallback = false;
     bool guidPathMismatch = false;
-    wstring resolvedPath = Internal::Resolve_RibbonTexturePath(
+    wstring resolvedPath = EffectAssetRuntimeLoad::Resolve_RibbonTexturePath(
         _desc.material.flowTextureGuid,
         _desc.material.flowTexturePath,
         usedPathFallback,
         guidPathMismatch
     );
     if (resolvedPath.empty())
-        resolvedPath = Internal::Resolve_RibbonTexturePathByPath(kNeutralFlowTexturePath);
+        resolvedPath = EffectAssetRuntimeLoad::Resolve_RibbonTexturePathByPath(kNeutralFlowTexturePath);
     if (!resolvedPath.empty())
         _flowTexture = Texture::Create(_device, _context, resolvedPath.c_str(), 1);
     return S_OK;
@@ -858,11 +853,19 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Update_ComputeInput()
     if (_desc.sourceMode == EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
     {
         vector<RenderSample> laneRenderSamples{};
+        const uint32 maxSegmentCount = Compute_MaxRenderSegmentCount();
         for (const HistoryLane& lane : _sourceLanes)
         {
             Build_RenderSamples(lane.history, laneRenderSamples);
-            CHECK_FAILED(Append_SegmentPayloads(laneRenderSamples, payloads), E_FAIL);
-            if (payloads.size() >= Compute_MaxRenderSegmentCount())
+
+            const float fadeDuration = max(_desc.laneSpawnFadeInDuration, 0.0001f);
+            const float laneWidthMultiplier =
+                _desc.laneSpawnFadeInEnabled && _desc.laneSpawnFadeInDuration > 0.f
+                ? clamp(lane.age / fadeDuration, 0.f, 1.f)
+                : 1.f;
+            CHECK_FAILED(Append_SegmentPayloads(laneRenderSamples, payloads, laneWidthMultiplier), E_FAIL);
+
+            if (payloads.size() >= maxSegmentCount)
                 break;
         }
     }
@@ -887,7 +890,8 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Update_ComputeInput()
 
 HRESULT ComputeSourceHistoryRibbonEmitter::Append_SegmentPayloads(
     const vector<RenderSample>& renderSamples,
-    vector<SegmentPayload>& outPayloads) const
+    vector<SegmentPayload>& outPayloads,
+    float widthMultiplier) const
 {
     if (renderSamples.size() < 2)
         return S_OK;
@@ -911,8 +915,11 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Append_SegmentPayloads(
 
         const float currentLifeProgress = clamp(current.sample.age / max(_desc.sampleLifetime, 0.0001f), 0.f, 1.f);
         const float nextLifeProgress = clamp(next.sample.age / max(_desc.sampleLifetime, 0.0001f), 0.f, 1.f);
-        const float currentWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(currentLifeProgress));
-        const float nextWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(nextLifeProgress));
+        const float safeWidthMultiplier = clamp(widthMultiplier, 0.f, 1.f);
+        const float currentBaseWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(currentLifeProgress));
+        const float nextBaseWidth = max(0.001f, _desc.baseWidth * Evaluate_WidthScaleByLife(nextLifeProgress));
+        const float currentWidth = currentBaseWidth * safeWidthMultiplier;
+        const float nextWidth = nextBaseWidth * safeWidthMultiplier;
         const Vec4 color = Evaluate_ColorOverLife(currentLifeProgress);
 
         SegmentPayload payload{};
@@ -989,7 +996,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_MaterialResources()
 {
     const float emitterPhase = Compute_MaterialScalarModulationPhase(_materialElapsedTime, _desc.playback.duration);
     const EffectRequiredMaterialRuntimeDesc material =
-        Internal::Resolve_EmitterTimeCoreColorRgbModulation(_desc.material, emitterPhase);
+        EffectAssetRuntimeLoad::Resolve_EmitterTimeCoreColorRgbModulation(_desc.material, emitterPhase);
 
     CHECK_FAILED(_mainTexture->Bind_ShaderResourceView(_shader.get(), "g_MainTexture", 0), E_FAIL);
 
@@ -1036,8 +1043,8 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_MaterialResources()
         0.f
     );
     const Vec4 effectRibbonSourceParams = Vec4(
-        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.noiseSource)),
-        static_cast<float>(Internal::Resolve_MaterialSourceIndex(material.maskSource)),
+        static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(material.noiseSource)),
+        static_cast<float>(EffectAssetRuntimeLoad::Resolve_MaterialSourceIndex(material.maskSource)),
         material.noiseInvert ? 1.f : 0.f,
         material.maskInvert ? 1.f : 0.f
     );
@@ -1097,7 +1104,7 @@ HRESULT ComputeSourceHistoryRibbonEmitter::Bind_MaterialResources()
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonAxisParams", &effectRibbonAxisParams, sizeof(effectRibbonAxisParams)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonFallbackAxis", &effectRibbonFallbackAxis, sizeof(effectRibbonFallbackAxis)), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
-    CHECK_FAILED(Internal::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.material.scalarModulation, emitterPhase), E_FAIL);
+    CHECK_FAILED(EffectAssetRuntimeLoad::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.material.scalarModulation, emitterPhase), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
     return S_OK;
 }
@@ -1143,6 +1150,15 @@ bool ComputeSourceHistoryRibbonEmitter::Can_SubmitRender() const
 }
 
 uint32 ComputeSourceHistoryRibbonEmitter::Compute_MaxRenderSegmentCount() const
+{
+    const uint32 laneSegmentCount = Compute_MaxLaneRenderSegmentCount();
+    if (_desc.sourceMode != EffectSourceHistoryRibbonSourceMode::ParticleEmitter)
+        return laneSegmentCount;
+
+    return laneSegmentCount * max(1u, _desc.followerLaneCount);
+}
+
+uint32 ComputeSourceHistoryRibbonEmitter::Compute_MaxLaneRenderSegmentCount() const
 {
     const uint32 maxRawSegments = max(1u, _desc.maxSampleCount - 1u);
     return maxRawSegments * kMaxDistanceTessellationSubdivision;
@@ -1237,19 +1253,19 @@ Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_PreviewMotionOffset() const
     {
         Vec3 firstAxis{};
         Vec3 secondAxis{};
-        Internal::Resolve_PreviewMotionLoopAxes(_desc.previewMotionAxis, firstAxis, secondAxis);
+        EffectAssetRuntimeLoad::Resolve_PreviewMotionLoopAxes(_desc.previewMotionAxis, firstAxis, secondAxis);
 
         const float angle = progress * XM_2PI;
         return (firstAxis * cosf(angle) + secondAxis * sinf(angle)) * amplitude;
     }
 
     const float t = clamp(progress, 0.f, 1.f);
-    const Vec3 primaryAxis = Internal::Resolve_PreviewMotionAxis(_desc.previewMotionAxis);
+    const Vec3 primaryAxis = EffectAssetRuntimeLoad::Resolve_PreviewMotionAxis(_desc.previewMotionAxis);
     Vec3 offset = primaryAxis * lerp(-amplitude, amplitude, t);
 
     if (_desc.previewMotionPreset == EffectSourceHistoryPreviewMotionPreset::Arc)
     {
-        const Vec3 arcAxis = Internal::Resolve_PreviewMotionArcAxis(_desc.previewMotionAxis);
+        const Vec3 arcAxis = EffectAssetRuntimeLoad::Resolve_PreviewMotionArcAxis(_desc.previewMotionAxis);
         offset += arcAxis * (sinf(t * XM_PI) * amplitude);
     }
 
@@ -1258,8 +1274,8 @@ Vec3 ComputeSourceHistoryRibbonEmitter::Resolve_PreviewMotionOffset() const
 
 Vec4 ComputeSourceHistoryRibbonEmitter::Evaluate_ColorOverLife(float lifeProgress) const
 {
-    const Vec4 startColor = Internal::Average_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax);
-    const Vec4 endColor = Internal::Average_Color(_desc.colorOverLife.endColorMin, _desc.colorOverLife.endColorMax);
+    const Vec4 startColor = EffectAssetRuntimeLoad::Average_Color(_desc.initialColor.startColorMin, _desc.initialColor.startColorMax);
+    const Vec4 endColor = EffectAssetRuntimeLoad::Average_Color(_desc.colorOverLife.endColorMin, _desc.colorOverLife.endColorMax);
     Vec4 color{
         lerp(startColor.x, endColor.x, lifeProgress),
         lerp(startColor.y, endColor.y, lifeProgress),
@@ -1403,8 +1419,8 @@ void ComputeSourceHistoryRibbonEmitter::Resample_RandomSubUVFrameIndex()
         endFrame = startFrame;
 
     const uint32 rangeCount = endFrame - startFrame + 1u;
-    const uint32 seed = (_loopIndex + 1u) * 9781u + Internal::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) + 1201u;
-    const uint32 frameOffset = min(static_cast<uint32>(floorf(Internal::Hash01(seed) * static_cast<float>(rangeCount))), rangeCount - 1u);
+    const uint32 seed = (_loopIndex + 1u) * 9781u + EffectAssetRuntimeLoad::Resolve_SeedSalt(_desc.subUVRandomFrameSeed, _effectPlaybackSeed) + 1201u;
+    const uint32 frameOffset = min(static_cast<uint32>(floorf(EffectAssetRuntimeLoad::Hash01(seed) * static_cast<float>(rangeCount))), rangeCount - 1u);
     _randomSubUVFrameIndex = startFrame + frameOffset;
 }
 
@@ -1418,26 +1434,26 @@ float ComputeSourceHistoryRibbonEmitter::Evaluate_CompactCurve(
     float fallbackValue) const
 {
     const uint32 clampedKeyCount = max(1u, min(::Engine::kEffectDistributionCurveMaxKeys, keyCount));
-    if (clampedKeyCount == 1u || lifeProgress <= Internal::Read_Vec4Component(times, timesBlock1, 0u))
-        return Internal::Read_Vec4Component(values, valuesBlock1, 0u);
+    if (clampedKeyCount == 1u || lifeProgress <= EffectAssetRuntimeLoad::Read_Vec4Component(times, timesBlock1, 0u))
+        return EffectAssetRuntimeLoad::Read_Vec4Component(values, valuesBlock1, 0u);
 
     for (uint32 index = 1u; index < clampedKeyCount; ++index)
     {
-        const float rightTime = Internal::Read_Vec4Component(times, timesBlock1, index);
+        const float rightTime = EffectAssetRuntimeLoad::Read_Vec4Component(times, timesBlock1, index);
         if (lifeProgress > rightTime)
             continue;
 
-        const float leftTime = Internal::Read_Vec4Component(times, timesBlock1, index - 1u);
+        const float leftTime = EffectAssetRuntimeLoad::Read_Vec4Component(times, timesBlock1, index - 1u);
         const float ratio = clamp((lifeProgress - leftTime) / max(0.0001f, rightTime - leftTime), 0.f, 1.f);
         return lerp(
-            Internal::Read_Vec4Component(values, valuesBlock1, index - 1u),
-            Internal::Read_Vec4Component(values, valuesBlock1, index),
+            EffectAssetRuntimeLoad::Read_Vec4Component(values, valuesBlock1, index - 1u),
+            EffectAssetRuntimeLoad::Read_Vec4Component(values, valuesBlock1, index),
             ratio
         );
     }
 
-    return lifeProgress > Internal::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
-           ? Internal::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
+    return lifeProgress > EffectAssetRuntimeLoad::Read_Vec4Component(times, timesBlock1, clampedKeyCount - 1u)
+           ? EffectAssetRuntimeLoad::Read_Vec4Component(values, valuesBlock1, clampedKeyCount - 1u)
            : fallbackValue;
 }
 

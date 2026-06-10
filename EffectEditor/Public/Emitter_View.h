@@ -83,7 +83,8 @@ private: //## Types::PendingAction
         None,
         AddTrail,
         AddMesh,
-        AddSourceHistoryRibbon,
+        AddRibbon,
+        AddBeam,
         ResetData,
         Remove
     };

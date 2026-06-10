@@ -221,9 +221,11 @@
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
     <ClInclude Include="..\Public\EffectCom.h" />
     <ClInclude Include="..\Public\EffectInstancePool.h" />
+    <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
     <ClInclude Include="..\Public\ComputeSourceHistoryRibbonEmitter.h" />
+    <ClInclude Include="..\Public\ComputeGeneratedBeamEmitter.h" />
     <ClInclude Include="..\Public\PreviewRimFeature.h" />
     <ClInclude Include="..\Public\MapWater.h" />
     <ClInclude Include="..\public\Mon_WeakPoint.h" />
@@ -506,6 +508,7 @@
     <ClCompile Include="..\private\BT_Stun.cpp" />
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />
+    <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
     <ClCompile Include="..\Private\MapWater.cpp" />
     <ClCompile Include="..\Private\Mon_WeakPoint.cpp" />
     <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
@@ -602,6 +605,10 @@
     <ClCompile Include="..\Private\ComputeSpriteEmitter.cpp" />
     <ClCompile Include="..\private\DamageSystem.cpp" />
     <ClCompile Include="..\Private\EffectAssetRuntimeLoader.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Curves.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Emitters.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Json.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Material.cpp" />
     <ClCompile Include="..\Private\EffectEmitterRegistration.cpp" />
     <ClCompile Include="..\Private\GameDataTable.cpp" />
     <ClCompile Include="..\Private\GameplayUI.cpp" />

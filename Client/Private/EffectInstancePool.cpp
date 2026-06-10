@@ -379,7 +379,7 @@ void EffectInstancePool::Populate_Handle(
         if (!emitter.enabled)
             continue;
 
-        if (emitter.kind == EffectEmitterKind::ComputeTrail)
+        if (emitter.kind == EffectEmitterKind::Trail)
         {
             outHandle.requiresManualRelease = true;
             return;

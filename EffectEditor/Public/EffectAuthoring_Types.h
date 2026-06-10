@@ -505,7 +505,30 @@ enum class AuthoringTypeDataKind : uint8
     None,
     Trail,
     Mesh,
-    SourceHistoryRibbon,
+    Ribbon,
+    Beam,
+};
+
+// Beam path를 EffectEditor에서 어떤 방식으로 작성할지 결정한다.
+enum class BeamEndpointMode : uint8
+{
+    StartEnd,
+    DirectionLength,
+};
+
+// AuthoredLocal single beam v0의 editor 저장 payload다.
+struct BeamTypeData
+{
+    BeamEndpointMode endpointMode{ BeamEndpointMode::StartEnd }; // local path 작성 방식이다.
+    Vec3 localStart{ 0.f, 2.f, 0.f };                            // effect/emitter local 기준 시작점이다.
+    Vec3 localEnd{ 0.f, -2.f, 0.f };                             // StartEnd 모드의 끝점이다.
+    Vec3 localDirection{ 0.f, -1.f, 0.f };                       // DirectionLength 모드의 방향이다.
+    float length{ 4.f };                                         // DirectionLength 모드의 길이다.
+    uint32 segmentCount{ 8 };                                    // generated polyline segment 수다.
+    float noiseAmplitude{ 0.f };                                 // deterministic path jitter 크기다.
+    uint32 seed{ 1 };                                            // deterministic path jitter seed다.
+    float baseWidth{ 0.25f };                                    // SizeByLife 전 기본 폭이다.
+    float tilingDistance{ 0.f };                                 // 0 이하면 전체 길이 stretch, 양수면 거리 기준 반복이다.
 };
 
 enum class TrailCurveQuality : uint8
@@ -514,6 +537,14 @@ enum class TrailCurveQuality : uint8
     Smooth,      // 보간 밀도를 높여 swing arc를 부드럽게 만드는 preset이다.
     HighQuality, // 더 촘촘한 sample로 곡선을 만드는 고품질 preset이다.
     Custom,      // 세부 곡선 값을 직접 편집하는 모드다.
+};
+
+enum class RibbonCurveQuality : uint8
+{
+    Basic,       // 낮은 보간 비용의 기본 source history sample preset이다.
+    Smooth,      // 더 촘촘한 sample로 follower ribbon 곡선을 부드럽게 만든다.
+    HighQuality, // 가장 촘촘한 sample preset이다.
+    Custom,      // 세부 sample 값을 직접 편집하는 모드다.
 };
 
 struct EmptyTypeData
@@ -541,16 +572,19 @@ enum class SourceHistoryRibbonSourceMode : uint8
     SourceEmitter, // Legacy root follower token. Save/Open에서 ParticleEmitter 또는 SelfRoot로 정리한다.
 };
 
-struct SourceHistoryRibbonTypeData
+struct RibbonTypeData
 {
     SourceHistoryRibbonSourceMode sourceMode{ SourceHistoryRibbonSourceMode::SelfRoot };
     uint32 sourceEmitterId{};
     uint32 followerLaneCount{ 1 };
+    RibbonCurveQuality curveQuality{ RibbonCurveQuality::Basic };
     uint32 maxSampleCount{ 64 };
     float sampleSpacing{ 0.08f };
     float sampleInterval{ 0.f };
     float maxLength{ 0.f };
     float tailFadeLength{ 0.f };
+    bool laneSpawnFadeInEnabled{ true };
+    float laneSpawnFadeInDuration{ 0.08f };
     float baseWidth{ 0.3f };
     float tilingDistance{ 0.f };
     bool autoLifeFade{ false };
@@ -588,7 +622,12 @@ struct MeshTypeData
     bool useModelMaterials{ false };
 };
 
-using AuthoringTypeDataPayload = variant<EmptyTypeData, TrailTypeData, MeshTypeData, SourceHistoryRibbonTypeData>;
+using AuthoringTypeDataPayload = variant<
+    EmptyTypeData,
+    TrailTypeData,
+    MeshTypeData,
+    RibbonTypeData,
+    BeamTypeData>;
 
 struct AuthoringTypeData
 {

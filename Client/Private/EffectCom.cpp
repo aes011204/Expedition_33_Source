@@ -26,7 +26,7 @@ namespace
         float duration = fallbackDuration;
         for (const EffectEmitterDefinition& emitter : definition->emitters)
         {
-            if (!emitter.enabled || emitter.kind != EffectEmitterKind::ComputeTrail)
+            if (!emitter.enabled || emitter.kind != EffectEmitterKind::Trail)
                 continue;
 
             const ComputeTrailEmitterDesc* trailDesc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc);

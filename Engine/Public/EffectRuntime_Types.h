@@ -13,10 +13,11 @@ NS_BEGIN(Engine)
 // Effect 내부 emitter의 concrete runtime 종류를 구분한다.
 enum class EffectEmitterKind : uint8
 {
-    ComputeSprite,       // compute-first sprite emitter runtime이다.
-    ComputeTrail,        // compute-first trail emitter runtime이다.
-    SourceHistoryRibbon, // source/root position history 기반 camera-facing ribbon runtime이다.
-    Mesh,                // model mesh를 instance buffer로 그리는 mesh emitter runtime이다.
+    Sprite, // compute-first sprite emitter runtime이다.
+    Trail,  // compute-first trail emitter runtime이다.
+    Ribbon, // source/root position history 기반 camera-facing ribbon runtime이다.
+    Beam,   // authored local path 기반 generated beam runtime이다.
+    Mesh,   // model mesh를 instance buffer로 그리는 mesh emitter runtime이다.
 };
 
 // Emitter 단위로 자동 render group 판정을 덮을 수 있는 제한된 override다.
@@ -424,6 +425,39 @@ enum class EffectRibbonRenderAxis : uint8
     WorldUp,
 };
 
+// Beam path를 어떤 authored 입력으로 만들지 결정한다.
+enum class EffectBeamEndpointMode : uint8
+{
+    StartEnd,
+    DirectionLength,
+};
+
+// generated beam이 local authored path를 camera-facing strip으로 낮추는 runtime payload다.
+struct ComputeBeamEmitterDesc : public GameObject::GAMEOBJECT_DESC
+{
+    EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 material family 기반 render group을 사용한다.
+    EffectRequiredMaterialRuntimeDesc material{};                                                   // beam 기본 material/tint/blend 값이다.
+    EffectEmitterPlaybackRuntimeDesc playback{};                                                    // duration/loop/delay 같은 공통 재생 규칙이다.
+    EffectLifetimeRuntimeDesc lifetime{};                                                           // beam presentation life 기준 값이다.
+    EffectRequiredSortRuntimeDesc sort{};                                                           // Required 모듈에서 Blend 정렬 규칙으로 소비한다.
+    EffectInitialColorRuntimeDesc initialColor{};                                                   // InitialColor 모듈에서 beam 시작 색으로 소비한다.
+    EffectColorOverLifeRuntimeDesc colorOverLife{};                                                 // ColorOverLife 모듈에서 beam 색/알파로 소비한다.
+    PointParticleSubUVFrameOverLifeDesc subUVFrameOverLife{};                                       // 수명 진행률 기준 SubUV frame 규칙이다.
+    PointParticleSizeByLifeDesc sizeByLife{};                                                       // SizeByLife 모듈에서 beam 폭 배율로 소비한다.
+    PointParticleRandomSeedRuntimeDesc subUVRandomFrameSeed{};                                      // SubUV RandomFrame replay 단위 seed salt다.
+
+    EffectBeamEndpointMode endpointMode{ EffectBeamEndpointMode::StartEnd }; // local path 작성 방식을 고른다.
+    Vec3 localStart{ 0.f, 2.f, 0.f };                                        // effect/emitter local 기준 beam 시작점이다.
+    Vec3 localEnd{ 0.f, -2.f, 0.f };                                         // StartEnd 모드에서 쓰는 local 끝점이다.
+    Vec3 localDirection{ 0.f, -1.f, 0.f };                                   // DirectionLength 모드에서 쓰는 local 방향이다.
+    float length{ 4.f };                                                     // DirectionLength 모드에서 쓰는 beam 길이다.
+    uint32 segmentCount{ 8 };                                                // generated polyline segment 수다.
+    float noiseAmplitude{ 0.f };                                             // 중심선에서 벗어나는 deterministic jitter 크기다.
+    uint32 seed{ 1 };                                                        // generated path jitter seed다.
+    float baseWidth{ 0.25f };                                                // SizeByLife를 곱하기 전 beam 기본 폭이다.
+    float tilingDistance{ 0.f };                                             // 0 이하면 visible length stretch, 양수면 거리 기준 texture 반복이다.
+};
+
 enum class EffectSourceHistoryRibbonSourceMode : uint8
 {
     SelfRoot,
@@ -437,7 +471,7 @@ struct EffectFollowerSourcePoint
 };
 
 // source/root position history를 camera-facing strip으로 낮추는 runtime payload다.
-struct ComputeSourceHistoryRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
+struct ComputeRibbonEmitterDesc : public GameObject::GAMEOBJECT_DESC
 {
     EffectEmitterRenderLayerOverride renderLayerOverride{ EffectEmitterRenderLayerOverride::Auto }; // Auto면 material family 기반 render group을 사용한다.
     EffectRequiredMaterialRuntimeDesc material{};                                                   // ribbon 기본 material/tint/blend 값이다.
@@ -459,6 +493,8 @@ struct ComputeSourceHistoryRibbonEmitterDesc : public GameObject::GAMEOBJECT_DES
     float sampleLifetime{ 0.35f }; // sample 하나가 strip 구성 후보로 남는 시간이다.
     float maxLength{ 0.f }; // head 기준 표시 가능한 최대 길이다. 0 이하면 제한하지 않는다.
     float tailFadeLength{ 0.f }; // maxLength 끝으로 갈수록 alpha를 줄이는 거리다. 0 이하면 끈다.
+    bool laneSpawnFadeInEnabled{ true }; // ParticleEmitter lane이 새로 생길 때 strip 폭 fade-in을 적용할지 결정한다.
+    float laneSpawnFadeInDuration{ 0.08f }; // 새 follower lane 폭이 0에서 원래 폭으로 커지는 시간이다.
     float baseWidth{ 0.3f }; // SizeByLife를 곱하기 전 source history strip 기본 폭이다.
     float tilingDistance{ 0.f }; // 0 이하면 visible length stretch, 양수면 거리 기준 texture 반복이다.
     bool autoLifeFade{ false }; // sample age 기준 자동 alpha fade를 적용할지 결정한다.
@@ -533,15 +569,19 @@ struct MeshEmitterDesc : public GameObject::GAMEOBJECT_DESC
     MeshTransformRuntimeDesc meshTransform{};                           // Mesh 전용 Vec3 scale/rotation payload다.
 };
 
-using EffectEmitterConcreteDesc =
-variant<ComputeSpriteEmitterDesc, ComputeTrailEmitterDesc, ComputeSourceHistoryRibbonEmitterDesc, MeshEmitterDesc>;
+using EffectEmitterConcreteDesc = variant<
+    ComputeSpriteEmitterDesc,
+    ComputeTrailEmitterDesc,
+    ComputeRibbonEmitterDesc,
+    ComputeBeamEmitterDesc,
+    MeshEmitterDesc>;
 
 struct EffectEmitterDefinition
 {
-    uint32 id{};                                                // authoring/runtime 추적용 emitter id다.
-    string name{};                                              // 디버그/로그용 emitter 이름이다.
-    EffectEmitterKind kind{ EffectEmitterKind::ComputeSprite }; // 생성할 concrete emitter 종류다.
-    bool enabled{ true };                                       // root가 runtime child 생성 대상으로 볼지 결정하는 플래그다.
+    uint32 id{};                                         // authoring/runtime 추적용 emitter id다.
+    string name{};                                       // 디버그/로그용 emitter 이름이다.
+    EffectEmitterKind kind{ EffectEmitterKind::Sprite }; // 생성할 concrete emitter 종류다.
+    bool enabled{ true };                                // root가 runtime child 생성 대상으로 볼지 결정하는 플래그다.
 
     Vec3 localPosition{ 0.f, 0.f, 0.f };                                                            // effect root 기준 emitter local 위치다.
     Vec3 localRotationDegrees{ 0.f, 0.f, 0.f };                                                     // effect root 기준 emitter local 회전이다.

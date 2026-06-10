@@ -470,24 +470,90 @@ namespace Internal
         Read_NumberField(root, "sideFade", outData.sideFade);
     }
 
-    json To_Json(const SourceHistoryRibbonTypeData& data)
+    void From_Json(const json& root, BeamTypeData& outData)
+    {
+        if (!root.is_object())
+            return;
+
+        if (const auto endpointModeIter = root.find("endpointMode"); endpointModeIter != root.end())
+            Try_ReadEnumToken(*endpointModeIter, outData.endpointMode);
+        if (const auto localStartIter = root.find("localStart"); localStartIter != root.end())
+            Read_Vec3(*localStartIter, outData.localStart);
+        if (const auto localEndIter = root.find("localEnd"); localEndIter != root.end())
+            Read_Vec3(*localEndIter, outData.localEnd);
+        if (const auto localDirectionIter = root.find("localDirection"); localDirectionIter != root.end())
+            Read_Vec3(*localDirectionIter, outData.localDirection);
+        Read_NumberField(root, "length", outData.length);
+        Read_NumberField(root, "segmentCount", outData.segmentCount);
+        Read_NumberField(root, "noiseAmplitude", outData.noiseAmplitude);
+        Read_NumberField(root, "seed", outData.seed);
+        Read_NumberField(root, "baseWidth", outData.baseWidth);
+        Read_NumberField(root, "tilingDistance", outData.tilingDistance);
+
+        outData.length = max(0.f, outData.length);
+        outData.segmentCount = max(1u, outData.segmentCount);
+        outData.noiseAmplitude = max(0.f, outData.noiseAmplitude);
+        outData.baseWidth = max(0.001f, outData.baseWidth);
+        outData.tilingDistance = max(0.f, outData.tilingDistance);
+    }
+
+    bool Nearly_Equal(float lhs, float rhs)
+    {
+        return fabsf(lhs - rhs) <= 0.0001f;
+    }
+
+    RibbonCurveQuality Infer_RibbonCurveQuality(float sampleSpacing, float sampleInterval)
+    {
+        if (!Nearly_Equal(sampleInterval, 0.f))
+            return RibbonCurveQuality::Custom;
+
+        if (Nearly_Equal(sampleSpacing, 0.08f))
+            return RibbonCurveQuality::Basic;
+        if (Nearly_Equal(sampleSpacing, 0.04f))
+            return RibbonCurveQuality::Smooth;
+        if (Nearly_Equal(sampleSpacing, 0.02f))
+            return RibbonCurveQuality::HighQuality;
+
+        return RibbonCurveQuality::Custom;
+    }
+
+    json To_Json(const RibbonTypeData& data)
     {
         json root = json::object();
         root["sourceMode"] = To_EnumToken(data.sourceMode);
         root["sourceEmitterId"] = data.sourceEmitterId;
         root["followerLaneCount"] = data.followerLaneCount;
+        root["curveQuality"] = To_EnumToken(data.curveQuality);
         root["maxSampleCount"] = data.maxSampleCount;
         root["sampleSpacing"] = data.sampleSpacing;
         root["sampleInterval"] = data.sampleInterval;
         root["maxLength"] = data.maxLength;
         root["tailFadeLength"] = data.tailFadeLength;
+        root["laneSpawnFadeInEnabled"] = data.laneSpawnFadeInEnabled;
+        root["laneSpawnFadeInDuration"] = data.laneSpawnFadeInDuration;
         root["baseWidth"] = data.baseWidth;
         root["tilingDistance"] = data.tilingDistance;
         root["autoLifeFade"] = data.autoLifeFade;
         return root;
     }
 
-    void From_Json(const json& root, SourceHistoryRibbonTypeData& outData)
+    json To_Json(const BeamTypeData& data)
+    {
+        json root = json::object();
+        root["endpointMode"] = To_EnumToken(data.endpointMode);
+        root["localStart"] = To_Json(data.localStart);
+        root["localEnd"] = To_Json(data.localEnd);
+        root["localDirection"] = To_Json(data.localDirection);
+        root["length"] = data.length;
+        root["segmentCount"] = data.segmentCount;
+        root["noiseAmplitude"] = data.noiseAmplitude;
+        root["seed"] = data.seed;
+        root["baseWidth"] = data.baseWidth;
+        root["tilingDistance"] = data.tilingDistance;
+        return root;
+    }
+
+    void From_Json(const json& root, RibbonTypeData& outData)
     {
         if (!root.is_object())
             return;
@@ -508,8 +574,16 @@ namespace Internal
         Read_NumberField(root, "maxSampleCount", outData.maxSampleCount);
         Read_NumberField(root, "sampleSpacing", outData.sampleSpacing);
         Read_NumberField(root, "sampleInterval", outData.sampleInterval);
+        const auto curveQualityIter = root.find("curveQuality");
+        if (curveQualityIter != root.end())
+            Try_ReadEnumToken(*curveQualityIter, outData.curveQuality);
+        else
+            outData.curveQuality = Infer_RibbonCurveQuality(outData.sampleSpacing, outData.sampleInterval);
         Read_NumberField(root, "maxLength", outData.maxLength);
         Read_NumberField(root, "tailFadeLength", outData.tailFadeLength);
+        Read_BoolField(root, "laneSpawnFadeInEnabled", outData.laneSpawnFadeInEnabled);
+        Read_NumberField(root, "laneSpawnFadeInDuration", outData.laneSpawnFadeInDuration);
+        outData.laneSpawnFadeInDuration = max(0.f, outData.laneSpawnFadeInDuration);
         Read_NumberField(root, "baseWidth", outData.baseWidth);
         Read_NumberField(root, "tilingDistance", outData.tilingDistance);
         Read_BoolField(root, "autoLifeFade", outData.autoLifeFade);
@@ -576,10 +650,16 @@ namespace Internal
             root["data"] = To_Json(meshData != nullptr ? *meshData : MeshTypeData{});
             break;
         }
-        case AuthoringTypeDataKind::SourceHistoryRibbon:
+        case AuthoringTypeDataKind::Ribbon:
         {
-            const SourceHistoryRibbonTypeData* sourceHistoryRibbonData = get_if<SourceHistoryRibbonTypeData>(&data.payload);
-            root["data"] = To_Json(sourceHistoryRibbonData != nullptr ? *sourceHistoryRibbonData : SourceHistoryRibbonTypeData{});
+            const RibbonTypeData* sourceHistoryRibbonData = get_if<RibbonTypeData>(&data.payload);
+            root["data"] = To_Json(sourceHistoryRibbonData != nullptr ? *sourceHistoryRibbonData : RibbonTypeData{});
+            break;
+        }
+        case AuthoringTypeDataKind::Beam:
+        {
+            const BeamTypeData* beamData = get_if<BeamTypeData>(&data.payload);
+            root["data"] = To_Json(beamData != nullptr ? *beamData : BeamTypeData{});
             break;
         }
         case AuthoringTypeDataKind::None:
@@ -597,12 +677,6 @@ namespace Internal
 
         AuthoringTypeDataKind kind = AuthoringTypeDataKind::None;
         const auto kindIter = root.find("kind");
-        if (kindIter != root.end() && kindIter->is_string() && kindIter->get<string>() == "Ribbon")
-        {
-            outData.kind = AuthoringTypeDataKind::None;
-            outData.payload = EmptyTypeData{};
-            return;
-        }
 
         if (kindIter == root.end() || !Try_ReadEnumToken(*kindIter, kind))
             return;
@@ -631,14 +705,25 @@ namespace Internal
             outData.payload = data;
             break;
         }
-        case AuthoringTypeDataKind::SourceHistoryRibbon:
+        case AuthoringTypeDataKind::Ribbon:
         {
-            SourceHistoryRibbonTypeData data{};
+            RibbonTypeData data{};
             const auto dataIter = root.find("data");
             if (dataIter != root.end())
                 From_Json(*dataIter, data);
 
-            outData.kind = AuthoringTypeDataKind::SourceHistoryRibbon;
+            outData.kind = AuthoringTypeDataKind::Ribbon;
+            outData.payload = data;
+            break;
+        }
+        case AuthoringTypeDataKind::Beam:
+        {
+            BeamTypeData data{};
+            const auto dataIter = root.find("data");
+            if (dataIter != root.end())
+                From_Json(*dataIter, data);
+
+            outData.kind = AuthoringTypeDataKind::Beam;
             outData.payload = data;
             break;
         }

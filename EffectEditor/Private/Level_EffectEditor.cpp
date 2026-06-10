@@ -23,6 +23,9 @@ namespace Internal
 {
     constexpr auto kPreviewPoolKey = L"EffectEditorPreview";
     constexpr auto kPreviewTrailStrokePoolKey = L"EffectEditorPreviewTrailStroke";
+    constexpr uint32 kRibbonAutoHistoryMaxCount{ 4096 };
+    constexpr float kRibbonAutoHistoryFrameStep{ 0.016f };
+    constexpr uint32 kRibbonAutoHistoryMargin{ 8 };
 
     class TrailPreviewStrokeSampleProvider final : public IEffectTrailSampleProvider
     {
@@ -114,7 +117,7 @@ namespace Internal
         float duration = 0.f;
         for (const EffectEmitterDefinition& emitter : definition->emitters)
         {
-            if (!emitter.enabled || emitter.kind != EffectEmitterKind::ComputeTrail)
+            if (!emitter.enabled || emitter.kind != EffectEmitterKind::Trail)
                 continue;
 
             const auto* desc = get_if<ComputeTrailEmitterDesc>(&emitter.concreteDesc);
@@ -125,6 +128,27 @@ namespace Internal
         }
 
         return duration > 0.f ? duration : 0.25f;
+    }
+
+    uint32 Resolve_RibbonAutoHistoryCount(
+        uint32 authoredCount,
+        float sampleLifetime,
+        float sampleSpacing,
+        float maxLength)
+    {
+        const uint32 authored = max(2u, authoredCount);
+        const uint32 timeBased =
+            static_cast<uint32>(ceilf(max(0.0001f, sampleLifetime) / kRibbonAutoHistoryFrameStep)) + kRibbonAutoHistoryMargin;
+        uint32 required = max(authored, timeBased);
+
+        if (maxLength > 0.f)
+        {
+            const uint32 distanceBased =
+                static_cast<uint32>(ceilf(maxLength / max(0.001f, sampleSpacing))) + kRibbonAutoHistoryMargin;
+            required = max(required, distanceBased);
+        }
+
+        return clamp(required, 2u, kRibbonAutoHistoryMaxCount);
     }
 
     //## Preview Policy
@@ -801,7 +825,7 @@ namespace Internal
         PointParticleColorOverLifeCurveDesc& desc,
         const ColorOverLifeModuleData& data)
     {
-        constexpr uint32 maxColorOverLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+        constexpr uint32 maxColorOverLifeCurveKeys{ kEffectDistributionCurveMaxKeys };
 
         if (const auto* curve = get_if<ConstantCurveColorDistributionData>(&data.colorOverLife.payload))
         {
@@ -882,7 +906,7 @@ namespace Internal
         if (nullptr == curve || curve->keys.empty())
             return;
 
-        constexpr uint32 maxSubUVFrameCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+        constexpr uint32 maxSubUVFrameCurveKeys{ kEffectDistributionCurveMaxKeys };
         const uint32 keyCount = min(maxSubUVFrameCurveKeys, static_cast<uint32>(curve->keys.size()));
         desc.frameCurveKeyCount = keyCount;
 
@@ -962,7 +986,7 @@ namespace Internal
         {
             vector<Vector2CurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &Vector2CurveKeyData::time);
-            constexpr uint32 maxSizeByLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+            constexpr uint32 maxSizeByLifeCurveKeys{ kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxSizeByLifeCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
@@ -994,7 +1018,7 @@ namespace Internal
         {
             vector<FloatCurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &FloatCurveKeyData::time);
-            constexpr uint32 maxRotationOverLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+            constexpr uint32 maxRotationOverLifeCurveKeys{ kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxRotationOverLifeCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
@@ -1024,7 +1048,7 @@ namespace Internal
         {
             vector<FloatCurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &FloatCurveKeyData::time);
-            constexpr uint32 maxRotationRateScaleByLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+            constexpr uint32 maxRotationRateScaleByLifeCurveKeys{ kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxRotationRateScaleByLifeCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
@@ -1039,17 +1063,17 @@ namespace Internal
         }
     }
 
-    ::Engine::EffectOrbitPlane Resolve_EffectOrbitPlane(EffectOrbitPlane plane)
+    Engine::EffectOrbitPlane Resolve_EffectOrbitPlane(EffectOrbitPlane plane)
     {
         switch (plane)
         {
         case EffectOrbitPlane::XZ:
-            return ::Engine::EffectOrbitPlane::XZ;
+            return Engine::EffectOrbitPlane::XZ;
         case EffectOrbitPlane::YZ:
-            return ::Engine::EffectOrbitPlane::YZ;
+            return Engine::EffectOrbitPlane::YZ;
         case EffectOrbitPlane::XY:
         default:
-            return ::Engine::EffectOrbitPlane::XY;
+            return Engine::EffectOrbitPlane::XY;
         }
     }
 
@@ -1076,7 +1100,7 @@ namespace Internal
         {
             vector<FloatCurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &FloatCurveKeyData::time);
-            constexpr uint32 maxOrbitCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+            constexpr uint32 maxOrbitCurveKeys{ kEffectDistributionCurveMaxKeys };
             const uint32 clampedKeyCount = min(maxOrbitCurveKeys, static_cast<uint32>(keys.size()));
             if (clampedKeyCount == 0)
                 return;
@@ -1185,7 +1209,7 @@ namespace Internal
         {
             vector<Vector3CurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &Vector3CurveKeyData::time);
-            constexpr uint32 maxMeshCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+            constexpr uint32 maxMeshCurveKeys{ kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxMeshCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
@@ -1223,7 +1247,7 @@ namespace Internal
 
         vector<Vector3CurveKeyData> keys = curve->keys;
         ranges::sort(keys, {}, &Vector3CurveKeyData::time);
-        constexpr uint32 maxAccelerationCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+        constexpr uint32 maxAccelerationCurveKeys{ kEffectDistributionCurveMaxKeys };
         const uint32 keyCount = min(maxAccelerationCurveKeys, static_cast<uint32>(keys.size()));
         if (keyCount == 0)
             return;
@@ -1262,7 +1286,7 @@ namespace Internal
         {
             vector<FloatCurveKeyData> keys = curve->keys;
             ranges::sort(keys, {}, &FloatCurveKeyData::time);
-            constexpr uint32 maxVelocityScaleByLifeCurveKeys{ ::Engine::kEffectDistributionCurveMaxKeys };
+            constexpr uint32 maxVelocityScaleByLifeCurveKeys{ kEffectDistributionCurveMaxKeys };
             const uint32 keyCount = min(maxVelocityScaleByLifeCurveKeys, static_cast<uint32>(keys.size()));
             if (keyCount == 0)
                 return;
@@ -1526,8 +1550,12 @@ Shared<const EffectDefinition> Level_EffectEditor::Build_PreviewEffectDefinition
             definition->emitters.push_back(Build_PreviewMeshEmitterDefinition(emitter));
             break;
 
-        case AuthoringTypeDataKind::SourceHistoryRibbon:
+        case AuthoringTypeDataKind::Ribbon:
             definition->emitters.push_back(Build_PreviewSourceHistoryRibbonEmitterDefinition(emitter));
+            break;
+
+        case AuthoringTypeDataKind::Beam:
+            definition->emitters.push_back(Build_PreviewBeamEmitterDefinition(emitter));
             break;
 
         case AuthoringTypeDataKind::None:
@@ -1561,7 +1589,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
     EffectEmitterDefinition definition{};
     definition.id = emitter.id;
     definition.name = emitter.name;
-    definition.kind = EffectEmitterKind::ComputeSprite;
+    definition.kind = EffectEmitterKind::Sprite;
     definition.enabled = emitter.enabled;
     definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
@@ -1571,7 +1599,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewEmitterDefinition(const
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
-        Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, desc.required.material);
+        EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, desc.required.material);
 
         desc.required.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
         desc.required.sort.sortLayer = required->sortLayer;
@@ -1889,7 +1917,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
     EffectEmitterDefinition definition{};
     definition.id = emitter.id;
     definition.name = emitter.name;
-    definition.kind = EffectEmitterKind::ComputeTrail;
+    definition.kind = EffectEmitterKind::Trail;
     definition.enabled = emitter.enabled;
     definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
@@ -1913,8 +1941,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewTrailEmitterDefinition(
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
-        Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
-        Engine::EffectRuntime::Apply_TrailMaterialRuntimePolicy(emitterDesc.material);
+        EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
+        EffectRuntime::Apply_TrailMaterialRuntimePolicy(emitterDesc.material);
 
         emitterDesc.playback.duration = max(0.0001f, required->duration);
         emitterDesc.playback.loopCount = required->loopCount;
@@ -2041,16 +2069,16 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
     EffectEmitterDefinition definition{};
     definition.id = emitter.id;
     definition.name = emitter.name;
-    definition.kind = EffectEmitterKind::SourceHistoryRibbon;
+    definition.kind = EffectEmitterKind::Ribbon;
     definition.enabled = emitter.enabled;
     definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
 
-    ComputeSourceHistoryRibbonEmitterDesc emitterDesc{};
+    ComputeRibbonEmitterDesc emitterDesc{};
     emitterDesc.renderLayerOverride = definition.renderLayerOverride;
 
-    const SourceHistoryRibbonTypeData* sourceHistoryData = get_if<SourceHistoryRibbonTypeData>(&emitter.typeData.payload);
-    const SourceHistoryRibbonTypeData defaultSourceHistoryData{};
-    const SourceHistoryRibbonTypeData& sourceHistoryPolicy =
+    const RibbonTypeData* sourceHistoryData = get_if<RibbonTypeData>(&emitter.typeData.payload);
+    const RibbonTypeData defaultSourceHistoryData{};
+    const RibbonTypeData& sourceHistoryPolicy =
         sourceHistoryData != nullptr ? *sourceHistoryData : defaultSourceHistoryData;
 
     emitterDesc.sourceMode = sourceHistoryPolicy.sourceMode == SourceHistoryRibbonSourceMode::ParticleEmitter
@@ -2066,6 +2094,8 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
     emitterDesc.sampleInterval = max(0.f, sourceHistoryPolicy.sampleInterval);
     emitterDesc.maxLength = max(0.f, sourceHistoryPolicy.maxLength);
     emitterDesc.tailFadeLength = max(0.f, sourceHistoryPolicy.tailFadeLength);
+    emitterDesc.laneSpawnFadeInEnabled = sourceHistoryPolicy.laneSpawnFadeInEnabled;
+    emitterDesc.laneSpawnFadeInDuration = max(0.f, sourceHistoryPolicy.laneSpawnFadeInDuration);
     emitterDesc.baseWidth = max(0.001f, sourceHistoryPolicy.baseWidth);
     emitterDesc.tilingDistance = max(0.f, sourceHistoryPolicy.tilingDistance);
     emitterDesc.autoLifeFade = sourceHistoryPolicy.autoLifeFade;
@@ -2076,7 +2106,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
 
     if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
     {
-        Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
+        EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
 
         emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
         emitterDesc.sort.sortLayer = required->sortLayer;
@@ -2206,6 +2236,91 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewSourceHistoryRibbonEmit
     if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
         Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
 
+    emitterDesc.maxSampleCount = Internal::Resolve_RibbonAutoHistoryCount(
+        emitterDesc.maxSampleCount,
+        emitterDesc.sampleLifetime,
+        emitterDesc.sampleSpacing,
+        emitterDesc.maxLength
+    );
+
+    definition.concreteDesc = emitterDesc;
+    return definition;
+}
+
+EffectEmitterDefinition Level_EffectEditor::Build_PreviewBeamEmitterDefinition(const AuthoringEmitter& emitter) const
+{
+    EffectEmitterDefinition definition{};
+    definition.id = emitter.id;
+    definition.name = emitter.name;
+    definition.kind = EffectEmitterKind::Beam;
+    definition.enabled = emitter.enabled;
+    definition.renderLayerOverride = Internal::Resolve_EffectRenderLayerOverride(emitter.renderLayerOverride);
+
+    ComputeBeamEmitterDesc emitterDesc{};
+    emitterDesc.renderLayerOverride = definition.renderLayerOverride;
+
+    const BeamTypeData* beamData = get_if<BeamTypeData>(&emitter.typeData.payload);
+    const BeamTypeData defaultBeamData{};
+    const BeamTypeData& beamPolicy = beamData != nullptr ? *beamData : defaultBeamData;
+
+    emitterDesc.endpointMode = beamPolicy.endpointMode == BeamEndpointMode::DirectionLength
+                               ? EffectBeamEndpointMode::DirectionLength
+                               : EffectBeamEndpointMode::StartEnd;
+    emitterDesc.localStart = beamPolicy.localStart;
+    emitterDesc.localEnd = beamPolicy.localEnd;
+    emitterDesc.localDirection = beamPolicy.localDirection;
+    emitterDesc.length = max(0.f, beamPolicy.length);
+    emitterDesc.segmentCount = max(1u, beamPolicy.segmentCount);
+    emitterDesc.noiseAmplitude = max(0.f, beamPolicy.noiseAmplitude);
+    emitterDesc.seed = beamPolicy.seed;
+    emitterDesc.baseWidth = max(0.001f, beamPolicy.baseWidth);
+    emitterDesc.tilingDistance = max(0.f, beamPolicy.tilingDistance);
+
+    if (const auto* required = Internal::Find_ModuleData<RequiredModuleData>(emitter, AuthoringModuleType::Required))
+    {
+        EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(required->material, emitterDesc.material);
+        emitterDesc.sort.sortPolicy = Internal::Resolve_EffectSortPolicy(required->sortPolicy);
+        emitterDesc.sort.sortLayer = required->sortLayer;
+        emitterDesc.sort.artistSortBias = required->sortBias;
+        emitterDesc.playback.duration = max(0.0001f, required->duration);
+        emitterDesc.playback.loopCount = required->loopCount;
+        emitterDesc.playback.delay = max(0.f, required->delay);
+        emitterDesc.playback.delayFirstLoopOnly = required->delayFirstLoopOnly;
+        emitterDesc.playback.killOnDeactivate = required->killOnDeactivate;
+        emitterDesc.playback.killOnCompleted = required->killOnCompleted;
+        definition.localPosition = required->emitterOrigin;
+        definition.localRotationDegrees = required->emitterRotationDegrees;
+        definition.useLocalSpace = required->useLocalSpace;
+    }
+
+    if (const auto* lifetime = Internal::Find_ModuleData<LifetimeModuleData>(emitter, AuthoringModuleType::Lifetime))
+    {
+        emitterDesc.lifetime.lifeTime = Vec2{
+            Internal::Evaluate_FloatDistributionMin(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.x),
+            Internal::Evaluate_FloatDistributionMax(lifetime->lifeTime, emitterDesc.lifetime.lifeTime.y)
+        };
+    }
+
+    if (const auto* initialColor = Internal::Find_ModuleData<InitialColorModuleData>(emitter, AuthoringModuleType::InitialColor))
+    {
+        const Color minColor = Internal::Evaluate_ColorDistributionMin(initialColor->color, Color{ 1.f, 1.f, 1.f, 1.f });
+        const Color maxColor = Internal::Evaluate_ColorDistributionMax(initialColor->color, Color{ 1.f, 1.f, 1.f, 1.f });
+        const float minAlpha = clamp(Internal::Evaluate_FloatDistributionMin(initialColor->alpha, 1.f), 0.f, 1.f);
+        const float maxAlpha = clamp(Internal::Evaluate_FloatDistributionMax(initialColor->alpha, 1.f), 0.f, 1.f);
+        emitterDesc.initialColor.startColorMin = Vec4{ minColor.R(), minColor.G(), minColor.B(), minAlpha };
+        emitterDesc.initialColor.startColorMax = Vec4{ maxColor.R(), maxColor.G(), maxColor.B(), maxAlpha };
+        emitterDesc.initialColor.colorSeed = Internal::Build_RandomSeedDesc(initialColor->color);
+        emitterDesc.initialColor.alphaSeed = Internal::Build_RandomSeedDesc(initialColor->alpha);
+        emitterDesc.colorOverLife.endColorMin = emitterDesc.initialColor.startColorMin;
+        emitterDesc.colorOverLife.endColorMax = emitterDesc.initialColor.startColorMax;
+    }
+
+    if (const auto* colorOverLife = Internal::Find_ModuleData<ColorOverLifeModuleData>(emitter, AuthoringModuleType::ColorOverLife))
+        Internal::Fill_ColorOverLifeCurvePayload(emitterDesc.colorOverLife.curve, *colorOverLife);
+
+    if (const auto* sizeByLife = Internal::Find_ModuleData<SizeByLifeModuleData>(emitter, AuthoringModuleType::SizeByLife))
+        Internal::Fill_SizeByLifePayload(emitterDesc.sizeByLife, *sizeByLife);
+
     definition.concreteDesc = emitterDesc;
     return definition;
 }
@@ -2230,7 +2345,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
         emitterDesc.useModelMaterials = meshData->useModelMaterials;
 
         if (meshData->hasAssignedMaterialInstance)
-            Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(meshData->assignedMaterial, emitterDesc.material);
+            EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(meshData->assignedMaterial, emitterDesc.material);
         else
         {
             const fs::path assignedMaterialPath = Internal::Resolve_AuthoredAssetPath(
@@ -2239,7 +2354,7 @@ EffectEmitterDefinition Level_EffectEditor::Build_PreviewMeshEmitterDefinition(c
             );
             EffectMaterialInstanceData assignedMaterial{};
             if (!assignedMaterialPath.empty() && EffectMaterialPresetReader::Read(assignedMaterialPath, assignedMaterial))
-                Engine::EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(assignedMaterial, emitterDesc.material);
+                EffectRuntime::Copy_EffectMaterialInstanceToRuntimeDesc(assignedMaterial, emitterDesc.material);
         }
     }
 
