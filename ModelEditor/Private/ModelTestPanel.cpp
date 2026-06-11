@@ -36,6 +36,7 @@ namespace
     constexpr char JSON_FLOAT_CURVES_KEY[] = "FloatCurves";
     constexpr char JSON_FLOAT_CURVE_KEY[] = "FloatCurve";
     constexpr char JSON_KEYS_KEY[] = "Keys";
+    constexpr char JSON_TIME_KEY[] = "Time";
     constexpr char JSON_VALUE_KEY[] = "Value";
 
     constexpr float ZERO_CURVE_EPSILON = 0.000001f;
@@ -72,9 +73,18 @@ namespace
             Write_CurveClipCurve(out, curve);
     }
 
+    void Write_CurveClipTimedCurve(ofstream& out, const CurveClip::TimedCurve& curve)
+    {
+        const uint32 keyCount = static_cast<uint32>(curve.keys.size());
+        Write_CurveClipString(out, curve.name);
+        out.write(reinterpret_cast<const char*>(&keyCount), sizeof(uint32));
+        if (keyCount > 0)
+            out.write(reinterpret_cast<const char*>(curve.keys.data()), sizeof(CurveClip::CurveKey) * keyCount);
+    }
+
     HRESULT Save_CurveClipBinary(const CurveClip& clip, const fs::path& outputPath)
     {
-        if (clip.Get_Poses().empty())
+        if (clip.Get_Poses().empty() && !clip.Has_Timeline())
             return E_FAIL;
 
         ofstream out(outputPath, ios::binary);
@@ -84,6 +94,8 @@ namespace
         const uint32 poseCount = static_cast<uint32>(clip.Get_Poses().size());
         const uint32 magic = CurveClipFormat::MAGIC;
         const uint32 version = CurveClipFormat::VERSION;
+        const float durationSec = clip.Get_DurationSec();
+        const uint32 timedCurveCount = static_cast<uint32>(clip.Get_TimedCurves().size());
         out.write(reinterpret_cast<const char*>(&magic), sizeof(uint32));
         out.write(reinterpret_cast<const char*>(&version), sizeof(uint32));
         out.write(reinterpret_cast<const char*>(&poseCount), sizeof(uint32));
@@ -93,6 +105,11 @@ namespace
 
         for (const CurveClip::CurveClip_Pose& pose : clip.Get_Poses())
             Write_CurveClipPose(out, pose);
+
+        out.write(reinterpret_cast<const char*>(&durationSec), sizeof(float));
+        out.write(reinterpret_cast<const char*>(&timedCurveCount), sizeof(uint32));
+        for (const CurveClip::TimedCurve& curve : clip.Get_TimedCurves())
+            Write_CurveClipTimedCurve(out, curve);
 
         return out.good() ? S_OK : E_FAIL;
     }
@@ -247,7 +264,7 @@ namespace
         return nullptr;
     }
 
-    float Read_StrongestAnimCurveValue(const json& curveNode)
+    float Read_AnimCurveValueAtTime(const json& curveNode, float sampleTimeSec)
     {
         if (!curveNode.contains(JSON_FLOAT_CURVE_KEY) ||
             !curveNode[JSON_FLOAT_CURVE_KEY].contains(JSON_KEYS_KEY) ||
@@ -257,30 +274,104 @@ namespace
         }
 
         const json& keys = curveNode[JSON_FLOAT_CURVE_KEY][JSON_KEYS_KEY];
-        float strongestValue = 0.f;
+        const json* previousKey = nullptr;
         for (const json& key : keys)
         {
-            if (!key.contains(JSON_VALUE_KEY) || !key[JSON_VALUE_KEY].is_number())
+            if (!key.contains(JSON_TIME_KEY) || !key[JSON_TIME_KEY].is_number() ||
+                !key.contains(JSON_VALUE_KEY) || !key[JSON_VALUE_KEY].is_number())
+            {
                 continue;
+            }
 
-            const float value = key[JSON_VALUE_KEY].get<float>();
-            if (std::abs(value) > std::abs(strongestValue))
-                strongestValue = value;
+            const float keyTime = key[JSON_TIME_KEY].get<float>();
+            const float keyValue = key[JSON_VALUE_KEY].get<float>();
+            if (sampleTimeSec <= keyTime)
+            {
+                if (previousKey == nullptr)
+                    return keyValue;
+
+                const float previousTime = (*previousKey)[JSON_TIME_KEY].get<float>();
+                const float previousValue = (*previousKey)[JSON_VALUE_KEY].get<float>();
+                const float span = keyTime - previousTime;
+                if (std::abs(span) <= ZERO_CURVE_EPSILON)
+                    return keyValue;
+
+                const float alpha = (sampleTimeSec - previousTime) / span;
+                return previousValue + (keyValue - previousValue) * alpha;
+            }
+
+            previousKey = &key;
         }
 
-        return strongestValue;
+        return previousKey != nullptr
+            ? (*previousKey)[JSON_VALUE_KEY].get<float>()
+            : 0.f;
+    }
+
+    vector<CurveClip::CurveKey> Read_AnimCurveKeys(const json& curveNode)
+    {
+        vector<CurveClip::CurveKey> curveKeys{};
+        if (!curveNode.contains(JSON_FLOAT_CURVE_KEY) ||
+            !curveNode[JSON_FLOAT_CURVE_KEY].contains(JSON_KEYS_KEY) ||
+            !curveNode[JSON_FLOAT_CURVE_KEY][JSON_KEYS_KEY].is_array())
+        {
+            return curveKeys;
+        }
+
+        const json& keys = curveNode[JSON_FLOAT_CURVE_KEY][JSON_KEYS_KEY];
+        curveKeys.reserve(keys.size());
+        for (const json& key : keys)
+        {
+            if (!key.contains(JSON_TIME_KEY) || !key[JSON_TIME_KEY].is_number() ||
+                !key.contains(JSON_VALUE_KEY) || !key[JSON_VALUE_KEY].is_number())
+            {
+                continue;
+            }
+
+            curveKeys.push_back(CurveClip::CurveKey{
+                key[JSON_TIME_KEY].get<float>(),
+                key[JSON_VALUE_KEY].get<float>() });
+        }
+
+        return curveKeys;
+    }
+
+    float Read_AnimSequenceDurationSec(const json& animSequenceNode)
+    {
+        if (animSequenceNode.contains("SequenceLength") && animSequenceNode["SequenceLength"].is_number())
+            return animSequenceNode["SequenceLength"].get<float>();
+
+        if (animSequenceNode.contains(JSON_PROPERTIES_KEY) &&
+            animSequenceNode[JSON_PROPERTIES_KEY].contains("SequenceLength") &&
+            animSequenceNode[JSON_PROPERTIES_KEY]["SequenceLength"].is_number())
+        {
+            return animSequenceNode[JSON_PROPERTIES_KEY]["SequenceLength"].get<float>();
+        }
+
+        float maxKeyTime = 0.f;
+        const json& floatCurves =
+            animSequenceNode[JSON_COMPRESSED_CURVE_DATA_KEY][JSON_FLOAT_CURVES_KEY];
+        for (const json& curveNode : floatCurves)
+        {
+            for (const CurveClip::CurveKey& key : Read_AnimCurveKeys(curveNode))
+                maxKeyTime = std::max(maxKeyTime, key.timeSec);
+        }
+
+        return maxKeyTime;
     }
 
     vector<CurveClip::CurveClip_Pose> Build_AnimSequenceCompressedCurvePose(
         const json& animSequenceNode,
-        const fs::path& filePath)
+        const fs::path& filePath,
+        float sampleTimeSec)
     {
-        // Current CurveClip stores pose snapshots, so AnimSequence curves are baked as strongest-value poses.
+        // CurveClip stores pose snapshots, so AnimSequence curves are sampled at one editor-selected time.
         const json& floatCurves =
             animSequenceNode[JSON_COMPRESSED_CURVE_DATA_KEY][JSON_FLOAT_CURVES_KEY];
 
         CurveClip::CurveClip_Pose pose{};
-        pose.name = animSequenceNode.value(JSON_NAME_KEY, filePath.stem().string());
+        pose.name = animSequenceNode.value(JSON_NAME_KEY, filePath.stem().string()) +
+            "_Sample_" + to_string(sampleTimeSec) + "s";
         pose.curves.reserve(floatCurves.size());
 
         for (const json& curveNode : floatCurves)
@@ -289,7 +380,7 @@ namespace
             if (curveName.empty())
                 continue;
 
-            const float value = Read_StrongestAnimCurveValue(curveNode);
+            const float value = Read_AnimCurveValueAtTime(curveNode, sampleTimeSec);
             if (std::abs(value) <= ZERO_CURVE_EPSILON)
                 continue;
 
@@ -301,8 +392,41 @@ namespace
         return poses;
     }
 
+    vector<CurveClip::TimedCurve> Build_AnimSequenceTimedCurves(const json& animSequenceNode)
+    {
+        const json& floatCurves =
+            animSequenceNode[JSON_COMPRESSED_CURVE_DATA_KEY][JSON_FLOAT_CURVES_KEY];
+
+        vector<CurveClip::TimedCurve> timedCurves{};
+        timedCurves.reserve(floatCurves.size());
+        for (const json& curveNode : floatCurves)
+        {
+            const string curveName = curveNode.value(JSON_CURVE_NAME_KEY, string{});
+            if (curveName.empty())
+                continue;
+
+            vector<CurveClip::CurveKey> keys = Read_AnimCurveKeys(curveNode);
+            if (keys.empty())
+                continue;
+
+            const bool hasNonZeroKey = ranges::any_of(keys, [](const CurveClip::CurveKey& key)
+            {
+                return std::abs(key.value) > ZERO_CURVE_EPSILON;
+            });
+            if (!hasNonZeroKey)
+                continue;
+
+            CurveClip::TimedCurve timedCurve{};
+            timedCurve.name = curveName;
+            timedCurve.keys = std::move(keys);
+            timedCurves.push_back(std::move(timedCurve));
+        }
+
+        return timedCurves;
+    }
+
     /* Editor-only JSON -> runtime binary source conversion */
-    HRESULT Load_CurveJsonForBuild(const fs::path& filePath, CurveClip& outClip)
+    HRESULT Load_CurveJsonForBuild(const fs::path& filePath, CurveClip& outClip, float animSampleTimeSec)
     {
         ifstream in(filePath);
         if (!in.is_open())
@@ -328,10 +452,13 @@ namespace
 
         if (const json* animSequence = Find_AnimSequenceWithCurveData(root))
         {
-            return outClip.Set_Data(
-                animSequence->value(JSON_NAME_KEY, filePath.stem().string()),
+            const string sourceName = animSequence->value(JSON_NAME_KEY, filePath.stem().string());
+            return outClip.Set_TimelineData(
+                sourceName,
                 String::ToString(filePath.wstring()),
-                Build_AnimSequenceCompressedCurvePose(*animSequence, filePath));
+                Build_AnimSequenceCompressedCurvePose(*animSequence, filePath, animSampleTimeSec),
+                Build_AnimSequenceTimedCurves(*animSequence),
+                Read_AnimSequenceDurationSec(*animSequence));
         }
 
         return E_FAIL;
@@ -541,6 +668,12 @@ void ModelTestPanel::Render_CurveClipSourceControls()
             Build_SelectedCurveClipJson();
     }
 
+    ImGui::SetNextItemWidth(-1.f);
+    ImGui::DragFloat("Anim Sample Time (sec)", &_curveAnimSampleTimeSec, 0.033333f, 0.f, 60.f, "%.3f");
+    ImGui::Checkbox("Play Timeline", &_curvePlayTimeline);
+    ImGui::SameLine();
+    ImGui::Checkbox("Loop Timeline", &_curveLoopTimeline);
+
     if (ImGui::Button("Build Selected JSON", ImVec2(-1.f, 0.f)))
         Build_SelectedCurveClipJson();
 
@@ -668,6 +801,7 @@ HRESULT ModelTestPanel::Load_CurveClip()
     _curveClipStatus =
         "CurveClip loaded: " + clipPath.filename().string() +
         " | poses=" + to_string(static_cast<uint32>(_curveClip->Get_Poses().size())) +
+        " | timeline=" + (_curveClip->Has_Timeline() ? to_string(_curveClip->Get_DurationSec()) + "s" : "none") +
         " | press Apply to preview.";
     return S_OK;
 }
@@ -699,7 +833,9 @@ HRESULT ModelTestPanel::Build_SelectedCurveClipJson()
 
     _curveClipStatus =
         "CurveClip built and loaded: " + builtPath.filename().string() +
-        " | poses=" + to_string(static_cast<uint32>(_curveClip->Get_Poses().size()));
+        " | poses=" + to_string(static_cast<uint32>(_curveClip->Get_Poses().size())) +
+        " | sample=" + to_string(_curveAnimSampleTimeSec) + "s" +
+        " | timeline=" + (_curveClip->Has_Timeline() ? to_string(_curveClip->Get_DurationSec()) + "s" : "none");
     return S_OK;
 }
 
@@ -736,6 +872,8 @@ void ModelTestPanel::Apply_CurveClipPose()
         desc.poseIndex = _selectedCurvePoseIndex;
         desc.poseWeight = _curvePoseWeight;
         desc.allowWeightOvershoot = true;
+        desc.playTimeline = _curvePlayTimeline && _curveClip->Has_Timeline();
+        desc.loopTimeline = _curveLoopTimeline;
 
         auto created = CurveAnimationModifier::Create(&desc);
         if (created == nullptr)
@@ -745,6 +883,7 @@ void ModelTestPanel::Apply_CurveClipPose()
         }
 
         modifier = created.get();
+        modifier->Set_TimelineTimeSec(_curveAnimSampleTimeSec);
         modelCom->Add_AnimModifier(created);
     }
     else
@@ -757,6 +896,9 @@ void ModelTestPanel::Apply_CurveClipPose()
         }
         modifier->Set_PoseWeight(_curvePoseWeight);
         modifier->Set_AllowWeightOvershoot(true);
+        modifier->Set_PlayTimeline(_curvePlayTimeline && _curveClip->Has_Timeline());
+        modifier->Set_LoopTimeline(_curveLoopTimeline);
+        modifier->Set_TimelineTimeSec(_curveAnimSampleTimeSec);
         modifier->Set_Active(true);
     }
 
@@ -784,7 +926,8 @@ void ModelTestPanel::Apply_CurveClipPose()
         "CurveClip modifier applied: matched " + to_string(matchedCount) +
         " / " + to_string(curveCount) +
         " curves | active weights=" + to_string(activeWeightCount) +
-        " | max=" + to_string(maxWeight);
+        " | max=" + to_string(maxWeight) +
+        " | timeline=" + ((_curvePlayTimeline && _curveClip->Has_Timeline()) ? "playing" : "off");
 }
 
 HRESULT ModelTestPanel::Build_CurveClipsFromCurrentModelFolder()
@@ -866,7 +1009,7 @@ HRESULT ModelTestPanel::Build_CurveClipFromJsonFile(const fs::path& jsonPath, fs
 {
     auto clip = CurveClip::Create();
     CHECK_NULL(clip, E_FAIL);
-    if (FAILED(Load_CurveJsonForBuild(jsonPath, *clip)))
+    if (FAILED(Load_CurveJsonForBuild(jsonPath, *clip, _curveAnimSampleTimeSec)))
         return E_FAIL;
 
     fs::path outputPath = jsonPath;

@@ -75,6 +75,9 @@ private: /* CurveClip Test */
     Shared<Engine::CurveClip> _curveClip{};
     int32   _selectedCurvePoseIndex = -1;
     float   _curvePoseWeight = 1.f;
+    float   _curveAnimSampleTimeSec = 1.f;
+    bool    _curvePlayTimeline = true;
+    bool    _curveLoopTimeline = true;
     string  _curveClipStatus{};
 
 public:

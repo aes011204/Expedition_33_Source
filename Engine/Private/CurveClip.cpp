@@ -40,6 +40,46 @@ namespace
 
         return pose;
     }
+
+    CurveClip::TimedCurve Read_BinaryTimedCurve(ifstream& in)
+    {
+        CurveClip::TimedCurve curve{};
+        curve.name = Read_BinaryString(in);
+
+        uint32 keyCount{};
+        in.read(reinterpret_cast<char*>(&keyCount), sizeof(uint32));
+        curve.keys.resize(keyCount);
+        if (keyCount > 0)
+            in.read(reinterpret_cast<char*>(curve.keys.data()), sizeof(CurveClip::CurveKey) * keyCount);
+
+        return curve;
+    }
+
+    float Evaluate_Keys(const vector<CurveClip::CurveKey>& keys, float timeSec)
+    {
+        if (keys.empty())
+            return 0.f;
+
+        if (timeSec <= keys.front().timeSec)
+            return keys.front().value;
+
+        for (size_t i = 1; i < keys.size(); ++i)
+        {
+            const CurveClip::CurveKey& previous = keys[i - 1];
+            const CurveClip::CurveKey& current = keys[i];
+            if (timeSec > current.timeSec)
+                continue;
+
+            const float span = current.timeSec - previous.timeSec;
+            if (std::abs(span) <= 0.000001f)
+                return current.value;
+
+            const float alpha = (timeSec - previous.timeSec) / span;
+            return previous.value + (current.value - previous.value) * alpha;
+        }
+
+        return keys.back().value;
+    }
 }
 
 HRESULT CurveClip::Set_Data(string sourceName, const string& sourcePath, vector<CurveClip_Pose>&& poses)
@@ -55,6 +95,26 @@ HRESULT CurveClip::Set_Data(string sourceName, const string& sourcePath, vector<
     return !_poses.empty() ? S_OK : E_FAIL;
 }
 
+HRESULT CurveClip::Set_TimelineData(
+    string sourceName,
+    const string& sourcePath,
+    vector<CurveClip_Pose>&& poses,
+    vector<TimedCurve>&& timedCurves,
+    float durationSec)
+{
+    Clear();
+
+    _sourceName = std::move(sourceName);
+    _sourcePath = sourcePath;
+    _filePath.clear();
+    _poses = std::move(poses);
+    _timedCurves = std::move(timedCurves);
+    _durationSec = std::max(0.f, durationSec);
+
+    Rebuild_PoseLookup();
+    return (!_poses.empty() || Has_Timeline()) ? S_OK : E_FAIL;
+}
+
 HRESULT CurveClip::Load_Binary(const string& filePath)
 {
     Clear();
@@ -63,15 +123,15 @@ HRESULT CurveClip::Load_Binary(const string& filePath)
     if (!in.is_open())
         return E_FAIL;
 
-    uint32 poseCount{};
-    if (!Read_BinaryHeader(in, poseCount))
+    uint32 version{}, poseCount{};
+    if (!Read_BinaryHeader(in, version, poseCount))
         return E_FAIL;
 
     _sourceName = Read_BinaryString(in);
     _sourcePath = Read_BinaryString(in);
     _filePath = filePath;
 
-    if (!Read_BinaryBody(in, poseCount))
+    if (!Read_BinaryBody(in, version, poseCount))
     {
         Clear();
         return E_FAIL;
@@ -87,6 +147,8 @@ void CurveClip::Clear()
     _sourcePath.clear();
     _filePath.clear();
     _poses.clear();
+    _timedCurves.clear();
+    _durationSec = 0.f;
     _poseLookup.clear();
 }
 
@@ -113,6 +175,42 @@ int32 CurveClip::Find_PoseIndex(const string& poseName) const
     return static_cast<int32>(iter->second);
 }
 
+bool CurveClip::Evaluate_Timeline(float timeSec, bool loop, CurveClip_Pose& outPose) const
+{
+    if (!Has_Timeline())
+        return false;
+
+    float evalTime = timeSec;
+    if (loop && _durationSec > 0.f)
+    {
+        evalTime = std::fmod(evalTime, _durationSec);
+        if (evalTime < 0.f)
+            evalTime += _durationSec;
+    }
+    else
+    {
+        evalTime = std::clamp(evalTime, 0.f, _durationSec);
+    }
+
+    outPose.name = _sourceName + "_Timeline";
+    outPose.curves.clear();
+    outPose.curves.reserve(_timedCurves.size());
+
+    for (const TimedCurve& curve : _timedCurves)
+    {
+        if (curve.name.empty())
+            continue;
+
+        const float value = Evaluate_Keys(curve.keys, evalTime);
+        if (std::abs(value) <= 0.000001f)
+            continue;
+
+        outPose.curves.push_back(Curve{ curve.name, value });
+    }
+
+    return true;
+}
+
 void CurveClip::Rebuild_PoseLookup()
 {
     _poseLookup.clear();
@@ -123,23 +221,35 @@ void CurveClip::Rebuild_PoseLookup()
     }
 }
 
-bool CurveClip::Read_BinaryHeader(ifstream& in, uint32& outPoseCount) const
+bool CurveClip::Read_BinaryHeader(ifstream& in, uint32& outVersion, uint32& outPoseCount) const
 {
-    uint32 magic{}, version{};
+    uint32 magic{};
     in.read(reinterpret_cast<char*>(&magic), sizeof(uint32));
-    in.read(reinterpret_cast<char*>(&version), sizeof(uint32));
+    in.read(reinterpret_cast<char*>(&outVersion), sizeof(uint32));
     in.read(reinterpret_cast<char*>(&outPoseCount), sizeof(uint32));
 
     return in.good() &&
         magic == CurveClipFormat::MAGIC &&
-        version == CurveClipFormat::VERSION;
+        (outVersion == CurveClipFormat::VERSION_POSE_ONLY ||
+            outVersion == CurveClipFormat::VERSION);
 }
 
-bool CurveClip::Read_BinaryBody(ifstream& in, uint32 poseCount)
+bool CurveClip::Read_BinaryBody(ifstream& in, uint32 version, uint32 poseCount)
 {
     _poses.reserve(poseCount);
     for (uint32 poseIndex = 0; poseIndex < poseCount; ++poseIndex)
         _poses.push_back(Read_BinaryPose(in));
+
+    if (version >= CurveClipFormat::VERSION)
+    {
+        uint32 timedCurveCount{};
+        in.read(reinterpret_cast<char*>(&_durationSec), sizeof(float));
+        in.read(reinterpret_cast<char*>(&timedCurveCount), sizeof(uint32));
+
+        _timedCurves.reserve(timedCurveCount);
+        for (uint32 curveIndex = 0; curveIndex < timedCurveCount; ++curveIndex)
+            _timedCurves.push_back(Read_BinaryTimedCurve(in));
+    }
 
     return in.good() || in.eof();
 }

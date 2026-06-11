@@ -178,6 +178,7 @@ void ModelViewerObject::Change_Model(const char* modelFilePath)
     if (newModelCom) {
         _modelCom = newModelCom;
         _components.emplace(TEXT("Com_Model"), _modelCom);
+        _modelCom->Apply_BaseMaterialFromBundle_AllSlots();
 
         LOG_INFO("Successfully created and attached new ModelCom: {}", modelFilePath);
 

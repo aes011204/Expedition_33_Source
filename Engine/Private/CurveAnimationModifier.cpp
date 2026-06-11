@@ -21,6 +21,8 @@ HRESULT CurveAnimationModifier::Initialize(AnimationModifierDesc* desc)
     _clip = curveDesc->clip;
     _poseWeight = curveDesc->poseWeight;
     _allowWeightOvershoot = curveDesc->allowWeightOvershoot;
+    _playTimeline = curveDesc->playTimeline;
+    _loopTimeline = curveDesc->loopTimeline;
 
     if (_clip != nullptr)
         _clips = { _clip };
@@ -41,12 +43,27 @@ HRESULT CurveAnimationModifier::Initialize(AnimationModifierDesc* desc)
 
 void CurveAnimationModifier::Evaluate_Modifier(ModelCom* model, float timeDelta)
 {
-    UNREFERENCED_PARAMETER(timeDelta);
-
-    if (!_isActive || model == nullptr || _clip == nullptr || _poseIndex < 0)
+    if (!_isActive || model == nullptr || _clip == nullptr)
         return;
 
-    const CurveClip::CurveClip_Pose* pose = _clip->Get_Pose(static_cast<uint32>(_poseIndex));
+    CurveClip::CurveClip_Pose timelinePose{};
+    const CurveClip::CurveClip_Pose* pose = nullptr;
+    if (_playTimeline && _clip->Has_Timeline())
+    {
+        _timelineTimeSec += std::max(0.f, timeDelta);
+        if (!_clip->Evaluate_Timeline(_timelineTimeSec, _loopTimeline, timelinePose))
+            return;
+
+        pose = &timelinePose;
+    }
+    else
+    {
+        if (_poseIndex < 0)
+            return;
+
+        pose = _clip->Get_Pose(static_cast<uint32>(_poseIndex));
+    }
+
     if (pose == nullptr)
         return;
 
@@ -70,6 +87,7 @@ void CurveAnimationModifier::Set_CurveClip(const Shared<CurveClip>& clip)
         _clips.push_back(_clip);
 
     _poseIndex = -1;
+    _timelineTimeSec = 0.f;
 }
 
 bool CurveAnimationModifier::Set_Pose(const string& poseName)
@@ -141,7 +159,9 @@ HRESULT CurveAnimationModifier::Load_Preset(const string& presetPath)
     _clips = std::move(loadedClips);
     _clip = _clips.front();
     _poseIndex = !_clip->Get_Poses().empty() ? 0 : -1;
-    return _poseIndex >= 0 ? S_OK : E_FAIL;
+    _playTimeline = _clip->Has_Timeline();
+    _timelineTimeSec = 0.f;
+    return (_poseIndex >= 0 || _playTimeline) ? S_OK : E_FAIL;
 }
 
 HRESULT CurveAnimationModifier::Load_PresetForModel(const string& modelPath)

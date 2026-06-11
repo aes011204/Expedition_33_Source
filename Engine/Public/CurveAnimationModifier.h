@@ -14,6 +14,8 @@ public:
         int32 poseIndex{ -1 };
         float poseWeight{ 1.f };
         bool allowWeightOvershoot{ false };
+        bool playTimeline{ false };
+        bool loopTimeline{ true };
     };
 
 public:
@@ -29,6 +31,9 @@ public:
     bool Set_PoseIndex(int32 poseIndex);
     void Set_PoseWeight(float weight) { _poseWeight = weight; }
     void Set_AllowWeightOvershoot(bool allow) { _allowWeightOvershoot = allow; }
+    void Set_PlayTimeline(bool play) { _playTimeline = play; }
+    void Set_LoopTimeline(bool loop) { _loopTimeline = loop; }
+    void Set_TimelineTimeSec(float timeSec) { _timelineTimeSec = std::max(0.f, timeSec); }
     HRESULT Load_Preset(const string& presetPath);
     HRESULT Load_PresetForModel(const string& modelPath);
     const vector<Shared<CurveClip>>& Get_Clips() const { return _clips; }
@@ -46,7 +51,10 @@ protected:
     vector<Shared<CurveClip>> _clips{};
     int32 _poseIndex{ -1 };
     float _poseWeight{ 1.f };
+    float _timelineTimeSec{ 0.f };
     bool _allowWeightOvershoot{ false };
+    bool _playTimeline{ false };
+    bool _loopTimeline{ true };
 
 public:
     static Shared<CurveAnimationModifier> Create(CurveModifierDesc* desc);

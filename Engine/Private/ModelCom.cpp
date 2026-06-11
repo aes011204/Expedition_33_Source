@@ -284,6 +284,82 @@ bool ModelCom::Consume_MorphDirty()
     return _modelDeform != nullptr && _modelDeform->Consume_MorphDirty();
 }
 
+HRESULT ModelCom::Apply_MorphWeightsToCpuVertices()
+{
+    if (_modelDeform == nullptr || !_modelDeform->Has_MorphData())
+        return S_OK;
+
+    const MorphData* morphData = _modelDeform->Get_MorphData();
+    const vector<float>* weights = _modelDeform->Get_MorphWeights();
+    if (morphData == nullptr || weights == nullptr)
+        return S_OK;
+
+    for (const MorphMeshData& morphMesh : morphData->meshes)
+    {
+        uint32 meshIndex = morphMesh.meshIndex;
+        if (meshIndex >= _meshes.size())
+        {
+            const int32 foundMeshIndex = Find_MeshIndexByName(morphMesh.meshName);
+            if (foundMeshIndex < 0)
+                continue;
+
+            meshIndex = static_cast<uint32>(foundMeshIndex);
+        }
+
+        Shared<SkeletalMesh> skeletalMesh = dynamic_pointer_cast<SkeletalMesh>(_meshes[meshIndex]);
+        if (skeletalMesh == nullptr)
+            continue;
+
+        const vector<VTXANIMMESH>& sourceVertices = skeletalMesh->Get_SourceVertices();
+        if (sourceVertices.empty() || sourceVertices.size() != morphMesh.vertexCount)
+        {
+            const int32 foundMeshIndex = Find_MeshIndexByName(morphMesh.meshName);
+            if (foundMeshIndex < 0 || static_cast<uint32>(foundMeshIndex) == meshIndex)
+                continue;
+
+            meshIndex = static_cast<uint32>(foundMeshIndex);
+            skeletalMesh = dynamic_pointer_cast<SkeletalMesh>(_meshes[meshIndex]);
+            if (skeletalMesh == nullptr)
+                continue;
+
+            if (skeletalMesh->Get_SourceVertices().size() != morphMesh.vertexCount)
+                continue;
+        }
+
+        vector<VTXANIMMESH> morphedVertices = skeletalMesh->Get_SourceVertices();
+        const uint32 targetCount = static_cast<uint32>(std::min(weights->size(), morphMesh.vertexRanges.size()));
+        for (uint32 targetIndex = 0; targetIndex < targetCount; ++targetIndex)
+        {
+            const float targetWeight = (*weights)[targetIndex];
+            if (std::abs(targetWeight) <= 0.000001f)
+                continue;
+
+            const MorphVertexRange& range = morphMesh.vertexRanges[targetIndex];
+            const uint32 end = range.start + range.count;
+            if (range.start > morphMesh.vertexDeltas.size() || end > morphMesh.vertexDeltas.size())
+                continue;
+
+            for (uint32 deltaIndex = range.start; deltaIndex < end; ++deltaIndex)
+            {
+                const MorphVertexDelta& delta = morphMesh.vertexDeltas[deltaIndex];
+                if (delta.vertexIndex >= morphedVertices.size())
+                    continue;
+
+                const float scaledWeight = targetWeight * delta.weightScale;
+                VTXANIMMESH& vertex = morphedVertices[delta.vertexIndex];
+                vertex.position += delta.deltaPosition * scaledWeight;
+                vertex.normal += delta.deltaNormal * scaledWeight;
+                if (vertex.normal.LengthSquared() > 0.000001f)
+                    vertex.normal.Normalize();
+            }
+        }
+
+        CHECK_FAILED(skeletalMesh->Update_VertexBuffer(morphedVertices), E_FAIL);
+    }
+
+    return S_OK;
+}
+
 const vector<VTXANIMMESH>* ModelCom::Get_Vertices(uint32 meshIndex) const
 {
     if (meshIndex >= _meshes.size())

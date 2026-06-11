@@ -1,6 +1,7 @@
 ﻿#include "UIPreviewManager.h"
 #include "PreviewCamera.h"
 #include "Player_WorldBase.h"
+#include "PW_Gustave.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
 #include "Camera.h"
@@ -50,14 +51,26 @@ void UIPreviewManager::Update(float timeDelta)
         for (PreviewHeroEntry& entry : _previewHeroes)
         {
             if (entry.player)
+            {
                 entry.player->Update_StatusPreview(timeDelta);
+
+                if (auto gustave = dynamic_pointer_cast<PW_Gustave>(entry.player))
+                {
+                    const bool playFacialMorph =
+                        _activePanel == PreviewShotPanel::SkillTree &&
+                        _shownHeroId == HeroId::Gustave &&
+                        entry.heroId == HeroId::Gustave;
+
+                    gustave->Update_SkillPanelFacialMorphPreview(timeDelta, playFacialMorph);
+                }
+            }
         }
     }
 }
 
 void UIPreviewManager::Begin_Preview(PreviewShotPanel panel)
 {
-    UNREFERENCED_PARAMETER(panel);
+    _activePanel = panel;
 
     if (_isActive)
         return;
@@ -81,6 +94,9 @@ void UIPreviewManager::Begin_Preview(PreviewShotPanel panel)
 
 void UIPreviewManager::Show_Preview(HeroId heroId, PreviewShotPanel panel)
 {
+    _activePanel = panel;
+    _shownHeroId = heroId;
+
     if (!_isActive)
         Begin_Preview(panel);
 
@@ -106,6 +122,12 @@ void UIPreviewManager::Hide_Preview()
     if (!_isActive)
         return;
 
+    for (PreviewHeroEntry& entry : _previewHeroes)
+    {
+        if (auto gustave = dynamic_pointer_cast<PW_Gustave>(entry.player))
+            gustave->Update_SkillPanelFacialMorphPreview(0.f, false);
+    }
+
     CLIENT->Restore_PreviousCamera();
 
     if (_previewCamera)
@@ -114,6 +136,7 @@ void UIPreviewManager::Hide_Preview()
     Clear_StatusPreviewHeroes();
 
     _isActive = false;
+    _shownHeroId = HeroId::END;
 }
 
 void UIPreviewManager::Apply_Layout(const vector<PreviewSlotDesc>& layout)

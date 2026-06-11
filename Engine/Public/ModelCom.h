@@ -127,6 +127,7 @@ public: // Morph 메시 연산
     void Reset_MorphWeights();
     const vector<float>* Get_MorphWeights() const;
     bool Consume_MorphDirty();
+    HRESULT Apply_MorphWeightsToCpuVertices();
 
     const vector<VTXANIMMESH>* Get_Vertices(uint32 meshIndex) const;
     const string* Get_MeshName(uint32 meshIndex) const;
