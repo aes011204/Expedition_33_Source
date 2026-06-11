@@ -642,7 +642,7 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
 
             battleStat->Set_BattleStartAp();
         }
-            
+
 
         // World Skill Tree 읽어서 세팅
         Configure_BattlePlayerSkills(heroId, battleChar.statCom, worldSkillTreeCom);
@@ -1422,6 +1422,14 @@ void BattleController::Play_EnemyTargetedStart(const BattleChar& target)
     _enemyTurnTargetedActor = target;
     _hasEnemyTurnTargetedActor = true;
 
+    for (const BattleChar& hero : _heroes)
+    {
+        if (hero.actor == nullptr || hero.actor == target.actor)
+            continue;
+
+        BattleAnimUtils::Play_BattleIdle(hero, 0.2f);
+    }
+
     // Start -> Idle은 Notify에서 제어
     if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_Start), 0.2f, false))
     {
@@ -1442,8 +1450,10 @@ void BattleController::Play_EnemyTargetedEnd()
 
     if (target.actor == nullptr || target.ModelCom == nullptr)
         return;
+
     if (target.statCom->Get_AliveStatus() == EAliveStatus::Dead)
         return;
+
     if (!target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Targeted_End), 0.2f, false))
         BattleAnimUtils::Play_BattleIdle(target, 0.2f);
 }
@@ -2281,7 +2291,7 @@ bool BattleController::Update_BattleTutorialGate(float timeDelta)
 
 
 void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<CombatStatCom>& battleStat,
-                                                    const Shared<SkillTreeCom>& worldSkillTreeCom)
+    const Shared<SkillTreeCom>& worldSkillTreeCom)
 {
     if (battleStat == nullptr)
         return;
@@ -2348,12 +2358,12 @@ bool BattleController::Try_BeginTurnStartStatusAnnounce()
     CHECK_NULL(_buffSystem, false);
 
     const auto isProcessed = [this](Buffs buffId)
-    {
-        return ::find(
-            _processedTurnStartStatuses.begin(),
-            _processedTurnStartStatuses.end(),
-            buffId) != _processedTurnStartStatuses.end();
-    };
+        {
+            return ::find(
+                _processedTurnStartStatuses.begin(),
+                _processedTurnStartStatuses.end(),
+                buffId) != _processedTurnStartStatuses.end();
+        };
 
     if (!isProcessed(Buffs::Burn) &&
         _buffSystem->Has_TurnStartBurn(_currentTurnActor))
@@ -2408,6 +2418,20 @@ void BattleController::Continue_StartTurnAfterStatusEffects()
 
             if (!playedTurnStart)
                 BattleAnimUtils::Play_BattleIdle(_currentTurnActor, 0.2f); // Turn_Start 매핑이 없으면 Base Idle
+        }
+
+        for (const BattleChar& hero : _heroes)
+        {
+            if (hero.actor == nullptr || hero.actor == _currentTurnActor.actor)
+                continue;
+
+            if (hero.ModelCom == nullptr || hero.statCom == nullptr)
+                continue;
+
+            if (hero.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+                continue;
+
+            BattleAnimUtils::Play_BattleIdle(hero, 0.2f);
         }
 
         EvtBattlePresentation event;

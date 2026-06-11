@@ -286,6 +286,8 @@ private: /* For Animation Control */
     bool                                _isFinished{ false };
     bool						        _isAnimLoop{ false };
     bool                                _isBlending{ false };
+    bool                                _hasExplicitAnimation{ false };          // 모델 생성 직후 기본 0번 애니와 실제 재생 요청을 구분한다.
+    bool                                _skipInitialBlendSourceNotify{ false };  // 첫 블렌드 동안 기본 0번 애니 notify가 새지 않게 막는다.
     uint32						        _currentAnimIndex{ 0 };
     uint32                              _nextAnimIndex{ 0 };
     uint32                              _currentAnimStateIndex{ UINT32_MAX };
