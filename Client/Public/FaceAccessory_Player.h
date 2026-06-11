@@ -38,6 +38,7 @@ public:
     HRESULT Render_Shadow() override;
     Matrix  Get_GizmoWorldMatrix() const override;
     bool    Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix) override;
+    Shared<ModelCom> Get_Model() const { return _model; }
 
 private:
     HRESULT Ready_Components(const FACE_ACCESSORY_DESC& desc);
