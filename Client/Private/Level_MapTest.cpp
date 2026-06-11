@@ -29,6 +29,7 @@ HRESULT Level_MapTest::Initialize()
     CHECK_FAILED(Ready_Layer_Monster(TEXT("Layer_Monster")), E_FAIL);
     CHECK_FAILED(Ready_Layer_Effect(TEXT("Layer_Effect")), E_FAIL);
 
+
     return S_OK;
 }
 

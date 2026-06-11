@@ -26,6 +26,7 @@ public:
 
         uint32 levelIndex = 0;
         wstring layerTag = {};
+        wstring sourceMapPath = {};
 
         string modelFolder = {};
         unordered_map<string, ModelOverrideEntry> modelOverrides;
@@ -34,6 +35,7 @@ public:
         vector<json> postProcessVolumes = {};
         vector<json> waters = {};
         vector<json> prefabInstances = {};
+        vector<json> authoredObjects = {};
         vector<string> preloadModelPaths = {};
         vector<string> materialAppliedModelPaths = {};
 
@@ -42,6 +44,7 @@ public:
         size_t nextInstancedMeshIndex = 0;
         size_t nextWaterIndex = 0;
         size_t nextPrefabInstanceIndex = 0;
+        size_t nextAuthoredObjectIndex = 0;
 
         umap<string, Shared<ModelCom>> preloadedModelCache = {};
         umap<string, Shared<StaticCollisionData>> preloadedCollisionCache = {};
@@ -58,6 +61,7 @@ public:
         bool postProcessVolumesDone = false;
         bool watersDone = false;
         bool prefabInstancesDone = false;
+        bool authoredObjectsDone = false;
 
         chrono::milliseconds beginSessionDuration{ 0 };
         chrono::milliseconds modelCreateDuration{ 0 };
@@ -67,6 +71,7 @@ public:
         chrono::milliseconds instancedTransformDuration{ 0 };
         chrono::milliseconds instancedAddDuration{ 0 };
         chrono::milliseconds prefabInstanceAddDuration{ 0 };
+        chrono::milliseconds authoredObjectAddDuration{ 0 };
 
         size_t processCallCount = 0;
         size_t modelCreateCount = 0;
@@ -75,6 +80,7 @@ public:
         size_t staticAddCount = 0;
         size_t instancedAddCount = 0;
         size_t prefabInstanceAddCount = 0;
+        size_t authoredObjectAddCount = 0;
         size_t autoInstancedStaticCount = 0;
         size_t autoInstancedGroupCount = 0;
 

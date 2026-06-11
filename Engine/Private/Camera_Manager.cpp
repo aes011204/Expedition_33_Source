@@ -180,7 +180,6 @@ bool Camera_Manager::Activate_CameraByType(ObjectType objectType)
 
             return true;
         }
-
     }
     return false;
 }

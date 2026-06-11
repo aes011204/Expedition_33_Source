@@ -392,6 +392,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.context = context;
     outSession.levelIndex = levelIndex;
     outSession.layerTag = layerTag;
+    outSession.sourceMapPath = filePath;
     outSession.modelFolder = mapData.value("ModelFolder", string{});
 
     Append_JsonArray(mapData, "PostProcessVolumes", outSession.postProcessVolumes);
@@ -436,6 +437,12 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
             outSession.prefabInstances.push_back(item);
     }
 
+    if (mapData.contains("AuthoredObjects") && mapData["AuthoredObjects"].is_array())
+    {
+        for (const json& item : mapData["AuthoredObjects"])
+            outSession.authoredObjects.push_back(item);
+    }
+
     MapCollisionAdapter::AppendModelCollisionSources(
         mapData,
         outSession.cookedCollisionCache,
@@ -452,6 +459,7 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
     outSession.watersDone = outSession.waters.empty();
     outSession.prefabInstancesDone = outSession.prefabInstances.empty();
+    outSession.authoredObjectsDone = outSession.authoredObjects.empty();
     outSession.beginSessionDuration =
         chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - sessionBegin);
 
@@ -612,6 +620,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.postProcessVolumesDone = session.postProcessVolumes.empty();
         session.watersDone = session.waters.empty();
         session.prefabInstancesDone = session.prefabInstances.empty();
+        session.authoredObjectsDone = session.authoredObjects.empty();
     }
 
     if (!session.postProcessVolumesDone)
@@ -651,13 +660,16 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             break;
         }
 
-        const json& e = session.staticMeshes[session.nextStaticMeshIndex++];
+        const size_t sourceStaticMeshIndex = session.nextStaticMeshIndex++;
+        const json& e = session.staticMeshes[sourceStaticMeshIndex];
         const string modelPathStr = e.value("ModelPath", string{});
         if (modelPathStr.empty())
             continue;
 
         MapStaticMesh::MAPSTATICMESH_DESC desc{};
         desc.name = String::ToWString(e.value("Id", string{}));
+        desc.sourceStaticMeshIndex = sourceStaticMeshIndex;
+        desc.sourceMapPath = session.sourceMapPath;
 
         auto it = session.preloadedModelCache.find(modelPathStr);
         if (it != session.preloadedModelCache.end())
@@ -893,6 +905,36 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         ++processedCount;
     }
 
+    while (!session.authoredObjectsDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        if (session.nextAuthoredObjectIndex >= session.authoredObjects.size())
+        {
+            session.authoredObjectsDone = true;
+            break;
+        }
+
+        json singleMapData = json::object();
+        singleMapData["AuthoredObjects"] = json::array(
+            { session.authoredObjects[session.nextAuthoredObjectIndex++] });
+
+        const auto authoredBegin = chrono::steady_clock::now();
+        if (MapAuthoringIO::Load_AuthoredObjects_FromMapData(
+            singleMapData,
+            session.levelIndex,
+            session.spawnedObjects))
+        {
+            ++session.authoredObjectAddCount;
+        }
+
+        session.authoredObjectAddDuration +=
+            chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - authoredBegin);
+
+        ++processedCount;
+    }
+
     outFinished =
         session.preloadModelsDone &&
         session.staticMeshesDone &&
@@ -904,7 +946,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
     if (outFinished && !session.summaryLogged)
     {
         LOG_DEBUG(
-            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{}) prefabInstances(data={}, add={}ms/{}) autoInstanced(groups={}, statics={})",
+            "[MapLoader::Summary] processCalls={} begin={}ms models(data={}, createCalls={}, create={}ms, materials={}ms/{}) staticMeshes(data={}, add={}ms/{}, collisionBuild={}ms/{}) instancedMeshes(data={}, transforms={}ms, add={}ms/{}) prefabInstances(data={}, add={}ms/{}) authoredObjects(data={}, add={}ms/{}) autoInstanced(groups={}, statics={})",
             session.processCallCount,
             session.beginSessionDuration.count(),
             session.preloadModelPaths.size(),
@@ -924,6 +966,9 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             session.prefabInstances.size(),
             session.prefabInstanceAddDuration.count(),
             session.prefabInstanceAddCount,
+            session.authoredObjects.size(),
+            session.authoredObjectAddDuration.count(),
+            session.authoredObjectAddCount,
             session.autoInstancedGroupCount,
             session.autoInstancedStaticCount);
 

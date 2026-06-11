@@ -1,13 +1,7 @@
-﻿#pragma once
+#pragma once
 
-enum class InterpolationMode
-{
-    Step,
-    Linear,
-    EaseInOut,
-    EaseIn,
-    EaseOut
-};
+#include "ScalarTrackTypes.h"
+#include "CameraModifierTypes.h"
 
 enum class CinematicType
 {
@@ -34,7 +28,7 @@ typedef struct CinematicKeyframe
     
 }CINEMATIC_KEYFRAME;
 
-//월드 좌표 키가 아닌, 두 액터 기준 샷 파라미터를 저장하는 것이 목적
+// Stores shot parameters relative to two actors rather than world-space camera keys.
 typedef struct InteractionKeyframe
 {
    int   frame = 0;
@@ -70,6 +64,7 @@ typedef struct CinematicSequence
     string name = "New Sequence";
     int    fps = 30;
     vector<CINEMATIC_TRACK> cinematicTracks;
+    Client::CameraModifierClip modifierClip;
     vector<INTERACTION_TRACK> interactionTracks;
     int    startFrame = 0;
     int    endFrame = 300;

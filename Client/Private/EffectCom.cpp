@@ -323,7 +323,13 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc)
 HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::AttachedHandle* outHandle)
 {
     if (desc.effectName.empty() || desc.layerTag.empty())
+    {
+        LOG_WARN(
+            "[EffectCom] Play_Effect failed: empty effectName or layerTag. effect={}, layer={}",
+            String::ToString(desc.effectName),
+            String::ToString(desc.layerTag));
         return E_FAIL;
+    }
 
     Vec3 spawnWorldPosition{};
     Vec3 spawnWorldRotation{};
@@ -339,7 +345,14 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
         return E_FAIL;
 
     EffectInstancePool* effectPool = CLIENT ? CLIENT->Get_EffectInstancePool() : nullptr;
-    CHECK_NULL(effectPool, E_FAIL);
+    if (effectPool == nullptr)
+    {
+        LOG_WARN(
+            "[EffectCom] Play_Effect failed: effect pool is null. effect={}, layer={}",
+            String::ToString(desc.effectName),
+            String::ToString(desc.layerTag));
+        return E_FAIL;
+    }
 
     EffectInstancePool::AcquireDesc acquireDesc{};
     acquireDesc.effectName = desc.effectName;
@@ -351,7 +364,20 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
     acquireDesc.trailSampleProvider = desc.trailSampleProvider;
 
     EffectInstancePool::AttachedHandle handle{};
-    CHECK_FAILED(effectPool->Acquire(acquireDesc, handle), E_FAIL);
+    const HRESULT acquireResult = effectPool->Acquire(acquireDesc, handle);
+    if (FAILED(acquireResult))
+    {
+        LOG_WARN(
+            "[EffectCom] Play_Effect failed: pool acquire. hr={}, effect={}, level={}, layer={}, pos=({:.3f},{:.3f},{:.3f})",
+            acquireResult,
+            String::ToString(desc.effectName),
+            desc.levelIndex,
+            String::ToString(desc.layerTag),
+            spawnWorldPosition.x,
+            spawnWorldPosition.y,
+            spawnWorldPosition.z);
+        return E_FAIL;
+    }
     if (desc.requiresManualRelease)
         handle.requiresManualRelease = true;
 
@@ -372,6 +398,12 @@ HRESULT EffectCom::Play_Effect(const EffectPlayDesc& desc, EffectInstancePool::A
 
     if (outHandle != nullptr)
         *outHandle = handle;
+
+    if (attached.poolHandle.effectObject && attached.poolHandle.effectObject->Get_Transform())
+    {
+        const Vec3 pos = attached.poolHandle.effectObject->Get_Transform()->Get_WorldPosition();
+        LOG_WARN("Attached effect spawned at: {}, {}, {}", pos.x, pos.y, pos.z);
+    }
 
     return S_OK;
 }
