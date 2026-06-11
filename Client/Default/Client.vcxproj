@@ -119,6 +119,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir);../Public/;../../EngineSDK/inc/Engine/;../../EngineSDK/inc/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
@@ -221,6 +222,9 @@
     <ClInclude Include="..\public\BT_FinishDecision.h" />
     <ClInclude Include="..\public\BT_SetSkill.h" />
     <ClInclude Include="..\public\BT_Set_Target.h" />
+    <ClInclude Include="..\public\CinematicCamera.h" />
+    <ClInclude Include="..\public\CinematicSequenceRunner.h" />
+    <ClInclude Include="..\Public\EyeTarget.h" />
     <ClInclude Include="..\Public\ClientScreenFxManager.h" />
     <ClInclude Include="..\Public\CostumeManager.h" />
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
@@ -229,12 +233,15 @@
     <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h" />
     <ClInclude Include="..\Public\ExpeditionStat_Panel.h" />
     <ClInclude Include="..\Public\ComputeTrailEmitter.h" />
+    <ClInclude Include="..\Public\MapAdapter.h" />
+    <ClInclude Include="..\Public\MapCollisionAdapter.h" />
     <ClInclude Include="..\Public\PlayerInventory.h" />
     <ClInclude Include="..\Public\ComputeSourceHistoryRibbonEmitter.h" />
     <ClInclude Include="..\Public\ComputeGeneratedBeamEmitter.h" />
     <ClInclude Include="..\Public\PreviewRimFeature.h" />
     <ClInclude Include="..\Public\MapWater.h" />
     <ClInclude Include="..\public\Mon_WeakPoint.h" />
+    <ClInclude Include="..\public\PuzzleController.h" />
     <ClInclude Include="..\Public\SkyBoxFlow.h" />
     <ClInclude Include="..\Public\SkyCloudCard.h" />
     <ClInclude Include="..\Public\TrailSampleProvider_ByPart.h" />
@@ -337,7 +344,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
-    <ClInclude Include="..\Public\InstancedMeshActor.h" />
     <ClInclude Include="..\Public\Level_MapTest.h" />
     <ClInclude Include="..\Public\LevelTransitionFade.h" />
     <ClInclude Include="..\Public\Level_Stage01.h" />
@@ -519,10 +525,16 @@
     <ClCompile Include="..\Private\CameraDirector.cpp" />
     <ClCompile Include="..\private\BT_Patrol.cpp" />
     <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp" />
+    <ClCompile Include="..\private\CinematicCamera.cpp" />
+    <ClCompile Include="..\private\CinematicSequenceRunner.cpp" />
+    <ClCompile Include="..\Private\EyeTarget.cpp" />
+    <ClCompile Include="..\Private\MapAdapter.cpp" />
+    <ClCompile Include="..\Private\MapCollisionAdapter.cpp" />
     <ClCompile Include="..\Private\CostumeManager.cpp" />
     <ClCompile Include="..\Private\MapWater.cpp" />
     <ClCompile Include="..\Private\Mon_WeakPoint.cpp" />
     <ClCompile Include="..\Private\PlayerInventory.cpp" />
+    <ClCompile Include="..\private\PuzzleController.cpp" />
     <ClCompile Include="..\Private\SkyBoxFlow.cpp" />
     <ClCompile Include="..\Private\SkyCloudCard.cpp" />
     <ClCompile Include="..\Private\TrailSampleProvider_ByPart.cpp" />
@@ -633,7 +645,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\Private\InstancedMeshActor.cpp" />
     <ClCompile Include="..\Private\Level_MapTest.cpp" />
     <ClCompile Include="..\Private\LevelTransitionFade.cpp" />
     <ClCompile Include="..\Private\Level_Stage01.cpp" />

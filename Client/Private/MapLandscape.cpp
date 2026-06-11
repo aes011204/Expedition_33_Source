@@ -151,6 +151,7 @@ HRESULT MapLandscape::Render()
     const Vec4* camPos4 = GAME->Get_CamPosition();
     Vec3 camPos = Vec3(camPos4->x, camPos4->y, camPos4->z);
     Vec3 localCam = camPos - _transformCom->Get_Position();
+    localCam.y = 0.f;
 
     if (FAILED(_vibuffer->Render_LOD(localCam, _lodDist)))
     {

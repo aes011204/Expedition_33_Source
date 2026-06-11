@@ -45,7 +45,6 @@ private:
     Shared<ShaderCom>                   _staticShaderCom{ nullptr };
     Shared<ShaderCom>                   _animShaderCom{ nullptr };
 	Shared<ModelCom>                    _modelCom = nullptr;
-    ComPtr<ID3D11ShaderResourceView>    _defaultTextureSRV{ nullptr };
 
 public:
     static Shared<ModelViewerObject> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

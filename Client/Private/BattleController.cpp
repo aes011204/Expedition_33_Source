@@ -102,12 +102,6 @@ void BattleController::Update(float timeDelta)
         if (!_hasRequestedBattleEnterCamera)
         {
             const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-            LOG_INFO(
-                "[BattleCamTrace] BattleController::Update request BATTLE_ENTER activeCameraType={} elapsed={:.3f}/{:.3f} worldScale={:.3f}",
-                static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
-                _battleEnterSlow.elapsed,
-                _battleEnterSlow.duration,
-                GAME->Get_WorldTimeScale());
 
             CLIENT->Request_TargetCameraMode(TargetCameraMode::BATTLE_ENTER);
             _hasRequestedBattleEnterCamera = true;
@@ -138,6 +132,37 @@ void BattleController::Update(float timeDelta)
     // 배틀이 완전히 끝남 (배틀턴 나감)
     if (_battleEnded == true)
         return;
+
+    if (_isWaitingTurnStartStatusHit)
+    {
+        const uint32 currentAnimState =
+            _currentTurnActor.ModelCom ? _currentTurnActor.ModelCom->Get_AnimationStateIndex() : UINT32_MAX;
+
+        const bool isStatusHitAnim =
+            currentAnimState == ETOI(BattleAnimType::Hit_Light) ||
+            currentAnimState == ETOI(BattleAnimType::Hit_Stun);
+
+        const bool hitAnimFinished =
+            _currentTurnActor.ModelCom == nullptr ||
+            _currentTurnActor.ModelCom->Is_AnimationFinished() ||
+            !isStatusHitAnim; // Hit notify가 Idle/Stun idle로 넘긴 뒤에는 턴 시작을 이어간다.
+
+        if (!hitAnimFinished)
+            return;
+
+        _isWaitingTurnStartStatusHit = false;
+
+        if (Try_BeginTurnStartStatusAnnounce())
+            return;
+
+        _processedTurnStartStatuses.clear();
+        Continue_StartTurnAfterStatusEffects();
+
+        return;
+    }
+
+    if (_pendingTurnStartStatusBuff != Buffs::None)
+        return; // 상태 이상 아나운스가 끝나기 전에는 턴 입력/AI를 시작하지 않는다.
 
     _reactionController.UpdateAnimation(timeDelta);
 
@@ -276,15 +301,6 @@ void BattleController::OnEnterBattleField(
     _pendingNextTurn = false;
 
     const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    LOG_INFO(
-        "[BattleCamTrace] BattleController::OnEnterBattleField field={} heroes={} monsterSpawns={} activeCameraType={} worldScaleBefore={:.3f} slowScale={:.3f} slowDuration={:.3f}",
-        FieldID,
-        heroIds.size(),
-        battleMonsterSpawnDescs.size(),
-        static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
-        GAME->Get_WorldTimeScale(),
-        _battleEnterSlow.worldTimeScale,
-        _battleEnterSlow.duration);
 
     // 배틀 진입 소스 오브젝트 세팅
     // ex) MW_Lancelier랑 충돌돼서 전투 시작하면 저장하고있다가, 전투 종료 후 삭제하려고
@@ -499,14 +515,18 @@ void BattleController::EndTurn()
     Clear_TargetPreview();
 
     // 상태 이상 엔드
-    _buffSystem->ProcessTurnEnd(_currentTurnActor.statCom);
+    const auto actor = _currentTurnActor;
+    const float scheduleSpeed =
+        _buffSystem ? _buffSystem->Resolve_TurnScheduleSpeed(actor)
+        : max(actor.statCom->Get_Speed(), 1.f);
+
+    _buffSystem->ProcessTurnEnd(_currentTurnActor);
     OnTurnEnded.Broadcast(_currentTurnActor); // 턴 종료 신호
 
-    const auto actor = _currentTurnActor;
     // 죽은애들은 큐에 다시 안들어가게
     if (actor.statCom->Get_AliveStatus() != EAliveStatus::Dead)
     {
-        Push_TurnEntry(actor, _battleTime + 100.f / max(actor.statCom->Get_Speed(), 1.f));
+        Push_TurnEntry(actor, _battleTime + 100.f / scheduleSpeed);
     }
 
     _pendingNextTurn = true;
@@ -535,64 +555,18 @@ void BattleController::StartTurn()
 
 
     _turnAction.ResetAction();
-    //_turnAction = {};
-    //_turnAction._curChar = _currentTurnActor;
     _turnActionRequest = {};
     _turnActionRequest.actor = _currentTurnActor;
-    const auto actor = _currentTurnActor;
 
-    // 상태 이상 엔드
-    _buffSystem->ProcessTurnStart(_currentTurnActor.statCom);
+    _processedTurnStartStatuses.clear();
+    _isWaitingTurnStartStatusHit = false;
 
-    // fsm
-    if (actor.statCom->Is_Player())
-    {
-        const uint32 beforeAp = actor.statCom->Get_CurAP();
+    _buffSystem->ProcessTurnStart(_currentTurnActor);
 
-        actor.statCom->Add_AP(1);
+    if (Try_BeginTurnStartStatusAnnounce())
+        return;
 
-        const uint32 afterAp = actor.statCom->Get_CurAP();
-        const uint32 gainedAp = afterAp - beforeAp;
-
-        if (gainedAp > 0)
-        {
-            // 최대 AP라 실제 증가가 없으면 안띄우기
-            OnBattleApChanged.Broadcast(actor, gainedAp, EAPChangeReason::TurnStart);
-        }
-
-        _battleFSM->Change_State(BattleTurnState::ChooseAction);
-
-        if (_currentTurnActor.ModelCom)
-        {
-            const bool playedTurnStart =
-                _currentTurnActor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Turn_Start),
-                    0.2f,
-                    false
-                ); // 현재 턴 캐릭터만 턴 시작 애니메이션을 시작
-
-            if (!playedTurnStart)
-                BattleAnimUtils::Play_BattleIdle(_currentTurnActor, 0.2f); // Turn_Start 매핑이 없으면 Base Idle
-        }
-
-        EvtBattlePresentation event;
-        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
-        event.subject = _currentTurnActor.actor;
-        GAME->Get_EventBus().Publish(event);
-
-        OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);
-    }
-    else
-    {
-        OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::None);
-
-        if (_battleTutorialController && _battleTutorialController->Should_DeferEnemyTurnStart())
-        {
-            _hasPendingTutorialEnemyTurn = true;
-            return;
-        }
-
-        Run_EnemyTurn();
-    }
+    Continue_StartTurnAfterStatusEffects();
 }
 
 void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const vector<BattleMonsterSpawnDesc>& battleMonsterSpawnDescs)
@@ -964,7 +938,9 @@ void BattleController::Request_WidePresentationMode()
     if (!_battleTurnCamera)
         return;
 
-    EvtBattlePresentation event;
+    LOG_INFO("[BattleCamTrace] Request_WidePresentationMode");
+
+    EvtBattlePresentation event{};
     event.cameraMode = BattleCameraMode::WIDE;
     event.subject = nullptr;
     GAME->Get_EventBus().Publish(event);
@@ -1852,6 +1828,73 @@ bool BattleController::Has_Buff(const BattleChar& target, Buffs buffId) const
     return _buffSystem != nullptr && _buffSystem->Has_Buff(target, buffId);
 }
 
+bool BattleController::Try_ApplySkillBuff(const Skill_Data& skill, const BattleChar& target)
+{
+    if (_buffSystem == nullptr || target.statCom == nullptr)
+        return false;
+
+    if (skill.buff == Buffs::None || skill.buffDurationTurn <= 0)
+        return false;
+
+    if (skill.ailmentChance <= 0.f)
+        return false;
+
+    if (skill.ailmentChance < 1.f && GAME->Random(0.f, 1.f) > skill.ailmentChance)
+        return false;
+
+    _buffSystem->Apply_Buff(target, skill.buff, 1, skill.buffDurationTurn);
+
+    if (skill.buff == Buffs::Stun && target.ModelCom)
+    {
+        target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Stun_Enter), 0.2f, false);
+    }
+
+    return true;
+}
+
+void BattleController::Complete_TurnStartStatusAnnounce()
+{
+    if (_buffSystem == nullptr)
+        return;
+
+    const BattleChar actor = _pendingTurnStartStatusActor;
+    const Buffs pendingBuff = _pendingTurnStartStatusBuff;
+
+    _pendingTurnStartStatusActor = {};
+    _pendingTurnStartStatusBuff = Buffs::None;
+
+    if (pendingBuff == Buffs::Burn)
+    {
+        _processedTurnStartStatuses.push_back(Buffs::Burn);
+
+        if (actor.statCom && actor.statCom->Get_AliveStatus() == EAliveStatus::Dead)
+        {
+            _processedTurnStartStatuses.clear();
+            _isWaitingTurnStartStatusHit = false;
+
+            EndTurn();
+            return;
+        }
+
+        _isWaitingTurnStartStatusHit = true;
+        return;
+    }
+
+    if (pendingBuff == Buffs::Stun)
+    {
+        _processedTurnStartStatuses.push_back(Buffs::Stun);
+
+        if (_buffSystem->Try_ConsumeStunOnTurnStart(actor))
+            BattleAnimUtils::Play_BattleIdle(actor, 0.2f);
+
+        _processedTurnStartStatuses.clear();
+        _isWaitingTurnStartStatusHit = false;
+
+        EndTurn();
+        return;
+    }
+}
+
 void BattleController::Play_BattleHitStop(float worldTimeScale, float duration)
 {
     if (duration <= 0.f)
@@ -1948,12 +1991,6 @@ void BattleController::Activate_BattleTurnCamera()
     _battleTurnCamera->Apply_ShotRequest(request);
 
     const Shared<Camera> activeCamera = GAME->Get_ActiveCamera();
-    LOG_INFO(
-        "[BattleCamTrace] BattleController::Activate_BattleTurnCamera activeBefore={} enemyCount={} subjectPrefab={} worldScale={:.3f}",
-        static_cast<int>(activeCamera ? activeCamera->Get_ObjectType() : ObjectType::None),
-        _enemies.size(),
-        request.presetId.c_str(),
-        GAME->Get_WorldTimeScale());
 
     CLIENT->Request_BattleTurn();
 }
@@ -1991,6 +2028,12 @@ void BattleController::Clear_BattleRuntimeState()
     _flag = false;
     _isActionExecuting = false;
     _hitSequenceRunner.Clear();
+
+    _pendingTurnStartStatusBuff = Buffs::None;
+    _pendingTurnStartStatusActor = {};
+
+    _processedTurnStartStatuses.clear();
+    _isWaitingTurnStartStatusHit = false;
 
     while (!_turnQueue.empty())
     {
@@ -2204,6 +2247,7 @@ bool BattleController::Update_BattleTutorialGate(float timeDelta)
     return false;
 }
 
+
 void BattleController::Configure_BattlePlayerSkills(HeroId heroId, const Shared<CombatStatCom>& battleStat,
                                                     const Shared<SkillTreeCom>& worldSkillTreeCom)
 {
@@ -2265,6 +2309,93 @@ PlayerCharacterType BattleController::To_PlayerCharacterType(HeroId heroId)
     default:
         return PlayerCharacterType::None;
     }
+}
+
+bool BattleController::Try_BeginTurnStartStatusAnnounce()
+{
+    CHECK_NULL(_buffSystem, false);
+
+    const auto isProcessed = [this](Buffs buffId)
+    {
+        return ::find(
+            _processedTurnStartStatuses.begin(),
+            _processedTurnStartStatuses.end(),
+            buffId) != _processedTurnStartStatuses.end();
+    };
+
+    if (!isProcessed(Buffs::Burn) &&
+        _buffSystem->Has_TurnStartBurn(_currentTurnActor))
+    {
+        _pendingTurnStartStatusBuff = Buffs::Burn;
+        _pendingTurnStartStatusActor = _currentTurnActor;
+        OnTurnStartStatusAnnounceRequested.Broadcast(_currentTurnActor, Buffs::Burn);
+        _buffSystem->Apply_BurnTurnStartDamage(_currentTurnActor);
+        return true;
+    }
+
+    if (!isProcessed(Buffs::Stun) &&
+        _buffSystem->Has_Buff(_currentTurnActor, Buffs::Stun))
+    {
+        _pendingTurnStartStatusBuff = Buffs::Stun;
+        _pendingTurnStartStatusActor = _currentTurnActor;
+        OnTurnStartStatusAnnounceRequested.Broadcast(_currentTurnActor, Buffs::Stun);
+        return true;
+    }
+
+    return false;
+}
+
+void BattleController::Continue_StartTurnAfterStatusEffects()
+{
+    const auto actor = _currentTurnActor;
+
+    if (actor.statCom->Is_Player())
+    {
+        const uint32 beforeAp = actor.statCom->Get_CurAP();
+
+        actor.statCom->Add_AP(1);
+
+        const uint32 afterAp = actor.statCom->Get_CurAP();
+        const uint32 gainedAp = afterAp - beforeAp;
+
+        if (gainedAp > 0)
+        {
+            // 최대 AP라 실제 증가가 없으면 안띄우기
+            OnBattleApChanged.Broadcast(actor, gainedAp, EAPChangeReason::TurnStart);
+        }
+
+        _battleFSM->Change_State(BattleTurnState::ChooseAction);
+
+        if (_currentTurnActor.ModelCom)
+        {
+            const bool playedTurnStart =
+                _currentTurnActor.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Turn_Start),
+                    0.2f,
+                    false
+                ); // 현재 턴 캐릭터만 턴 시작 애니메이션을 시작
+
+            if (!playedTurnStart)
+                BattleAnimUtils::Play_BattleIdle(_currentTurnActor, 0.2f); // Turn_Start 매핑이 없으면 Base Idle
+        }
+
+        EvtBattlePresentation event;
+        event.cameraMode = BattleCameraMode::PLAYERFOCUS;
+        event.subject = _currentTurnActor.actor;
+        GAME->Get_EventBus().Publish(event);
+
+        OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::ChooseAction);
+        return;
+    }
+
+    OnTurnStarted.Broadcast(_currentTurnActor, BattleTurnState::None);
+
+    if (_battleTutorialController && _battleTutorialController->Should_DeferEnemyTurnStart())
+    {
+        _hasPendingTutorialEnemyTurn = true;
+        return;
+    }
+
+    Run_EnemyTurn();
 }
 
 void BattleController::Set_BattleFSM()
@@ -2351,6 +2482,13 @@ void BattleController::HitAction(BattleChar target, AttackType attackType, bool 
         return;
     }
 
+    const bool isStunned = _buffSystem && _buffSystem->Has_Buff(target, Buffs::Stun);
+    if (isStunned) // 스턴이면 Hit Stun
+    {
+        target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Stun), 0.2f, false);
+        return;
+    }
+
     // 크리티컬이면 Heavy
     if (isCritical)
     {
@@ -2360,6 +2498,7 @@ void BattleController::HitAction(BattleChar target, AttackType attackType, bool 
 
     switch (attackType)
     {
+    case AttackType::BuffEffect:
     case AttackType::FreeAimLight:
     case AttackType::Combo:
         target.ModelCom->Set_AnimationByState(ETOI(BattleAnimType::Hit_Light), 0.3f, false);

@@ -645,6 +645,8 @@ namespace Client
         string animationKey = "";
         string cameraPresetId = "";
         string cameraClipId = "";
+        float playRate = 1.f;
+
         //  string sequenceKey = "";
         uint32 phaseIndex = {};
         BattleMovementPolicy movementPolicy = BattleMovementPolicy::None;
@@ -701,6 +703,12 @@ namespace Client
         Targeted_End,
 
         Return,
+
+        Stun_Enter,
+        Stun_ToIdle,
+        Idle_Stun,
+        Hit_Stun,
+
     };
 
     enum class BattleReactionType

@@ -33,9 +33,12 @@ private:
     Vec3 _editPrevScale = {};
     Shared<EditorObject> _editTarget;
 
+    ScatterZone _pendingZone = {};
+
 private:
     void DrawTransform(Shared<EditorObject>& obj);
     void DrawZoneShape(Shared<EditorObject>& obj);
+    void DrawMaterialOverrides(Shared<EditorObject>& obj);
     void DrawTypeParams(Shared<EditorObject>& obj);
 
 public:

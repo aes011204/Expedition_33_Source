@@ -53,6 +53,14 @@ struct EditorObject
 
     Shared<MEInstancedMeshActor> _instancedRenderHandle;
     bool _instancedParamsDirty = true;
+    bool _instancedHasCollision = false;
+    int32 _selectedInstanceIdx = -1;
+
+    float _scatterRadius = 5.f;
+    int32 _scatterCount = 5;
+    float _scatterScaleMin = 0.8f;
+    float _scatterScaleMax = 1.2f;
+    float _scatterYRotMax = 180.f;
 
     VIBuffer_Landscape::LAND_DESC _waterDesc = {};
     WaterCB _waterParams = {};

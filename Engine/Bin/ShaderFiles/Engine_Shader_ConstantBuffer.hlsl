@@ -97,7 +97,10 @@ cbuffer MaterialBuffer
     uint g_OrmRoughnessSource;      // 92 ~ 95
     uint g_OrmMetalnessSource;      // 96 ~ 99
     uint g_OpacityMaskSource;       // 100 ~ 103
-    float2 g_MaterialPadding1;      // 104 ~ 111
+    uint g_OrmAoSourceSlot;         // 104 ~ 107
+    uint g_OrmRoughnessSourceSlot;  // 108 ~ 111
+    uint g_OrmMetalnessSourceSlot;  // 112 ~ 115
+    float2 g_MaterialPadding1;      // 116 ~ 119
 }; // 112 bytes
 
 cbuffer DrawFeatureBuffer

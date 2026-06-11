@@ -108,8 +108,14 @@ HRESULT MELandscapeActor::Render()
         return E_FAIL;
     }
 
-    Vec3 localCamPos = _cameraPos - _transformCom->Get_Position();
-    if (FAILED(_vibuffer->Render_LOD(localCamPos, _lodDist)))
+    //Vec3 localCamPos = _cameraPos - _transformCom->Get_Position();
+    //localCamPos.y = 0.f;
+    //if (FAILED(_vibuffer->Render_LOD(localCamPos, _lodDist)))
+    //{
+    //    return E_FAIL;
+    //}
+
+    if (FAILED(_vibuffer->Render_NoLOD()))
     {
         return E_FAIL;
     }

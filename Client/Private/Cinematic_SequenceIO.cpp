@@ -1,4 +1,4 @@
-﻿#include "Cinematic_SequenceIO.h"
+#include "Cinematic_SequenceIO.h"
 
 namespace
 {
@@ -12,6 +12,46 @@ Vec3 ParseVec3FromJson(const json& vecJson, const Vec3& defaultValue = Vec3::Zer
     value.y = vecJson.value("y", defaultValue.y);
     value.z = vecJson.value("z", defaultValue.z);
     return value;
+}
+
+json Serialize_CinematicModifierTrack(const CameraTrack& track)
+{
+    json trackJson = json::array();
+
+    for (const auto& keyframe : track.keyframes)
+    {
+        json keyframeJson{};
+        keyframeJson["time"] = keyframe.time;
+        keyframeJson["value"] = keyframe.value;
+        keyframeJson["interpolation"] = static_cast<int>(keyframe.interpolation);
+        trackJson.push_back(keyframeJson);
+    }
+
+    return trackJson;
+}
+
+void Deserialize_CinematicModifierTrack(const json& trackJson, CameraTrack& outTrack)
+{
+    outTrack.keyframes.clear();
+
+    if (!trackJson.is_array())
+        return;
+
+    for (const auto& keyframeJson : trackJson)
+    {
+        CameraKeyframe keyframe{};
+        keyframe.time = keyframeJson.value("time", keyframe.time);
+        keyframe.value = keyframeJson.value("value", keyframe.value);
+        keyframe.interpolation = static_cast<InterpolationMode>(
+            keyframeJson.value("interpolation", static_cast<int>(keyframe.interpolation)));
+        outTrack.keyframes.push_back(keyframe);
+    }
+
+    std::sort(outTrack.keyframes.begin(), outTrack.keyframes.end(),
+        [](const CameraKeyframe& lhs, const CameraKeyframe& rhs)
+        {
+            return lhs.time < rhs.time;
+        });
 }
 }
 
@@ -28,6 +68,16 @@ void Cinematic_SequenceIO::SaveSequenceToFile(const CINEMATIC_SEQUENCE& sequence
     jsonData["endFrame"] = sequence.endFrame;
     jsonData["fps"] = sequence.fps;
     jsonData["cinematicTracks"] = json::array();
+    jsonData["modifierClip"] =
+    {
+        { "shakeAmplitude", Serialize_CinematicModifierTrack(sequence.modifierClip.shakeAmplitude) },
+        { "shakeFrequencyX", Serialize_CinematicModifierTrack(sequence.modifierClip.shakeFrequencyX) },
+        { "shakeFrequencyY", Serialize_CinematicModifierTrack(sequence.modifierClip.shakeFrequencyY) },
+        { "shakeDecayRateX", Serialize_CinematicModifierTrack(sequence.modifierClip.shakeDecayRateX) },
+        { "shakeDecayRate", Serialize_CinematicModifierTrack(sequence.modifierClip.shakeDecayRate) },
+        { "shakeVerticalRatio", Serialize_CinematicModifierTrack(sequence.modifierClip.shakeVerticalRatio) },
+        { "shakeStrengthScale", Serialize_CinematicModifierTrack(sequence.modifierClip.shakeStrengthScale) }
+    };
 
     for (const auto& cinematicTrack : sequence.cinematicTracks)
     {
@@ -96,6 +146,18 @@ bool Cinematic_SequenceIO::LoadSequenceFromFile(const string& filePath, CINEMATI
     loadedSequence.endFrame = jsonData.value("endFrame", loadedSequence.endFrame);
     loadedSequence.cinematicTracks.clear();
 
+    const json& modifierJson = jsonData["modifierClip"];
+    if (modifierJson.is_object())
+    {
+        Deserialize_CinematicModifierTrack(modifierJson["shakeAmplitude"], loadedSequence.modifierClip.shakeAmplitude);
+        Deserialize_CinematicModifierTrack(modifierJson["shakeFrequencyX"], loadedSequence.modifierClip.shakeFrequencyX);
+        Deserialize_CinematicModifierTrack(modifierJson["shakeFrequencyY"], loadedSequence.modifierClip.shakeFrequencyY);
+        Deserialize_CinematicModifierTrack(modifierJson["shakeDecayRateX"], loadedSequence.modifierClip.shakeDecayRateX);
+        Deserialize_CinematicModifierTrack(modifierJson["shakeDecayRate"], loadedSequence.modifierClip.shakeDecayRate);
+        Deserialize_CinematicModifierTrack(modifierJson["shakeVerticalRatio"], loadedSequence.modifierClip.shakeVerticalRatio);
+        Deserialize_CinematicModifierTrack(modifierJson["shakeStrengthScale"], loadedSequence.modifierClip.shakeStrengthScale);
+    }
+
     const json& tracksJson = jsonData["cinematicTracks"];
     if (tracksJson.is_array())
     {
@@ -120,9 +182,7 @@ bool Cinematic_SequenceIO::LoadSequenceFromFile(const string& filePath, CINEMATI
                     keyframe.camPose.farPlane = keyframeJson.value("farPlane", keyframe.camPose.farPlane);
 
                     const int interpolationValue = keyframeJson.value("interpolation", static_cast<int>(keyframe.interpolation));
-                    keyframe.interpolation = interpolationValue == static_cast<int>(InterpolationMode::Step)
-                        ? InterpolationMode::Step
-                        : InterpolationMode::Linear;
+                    keyframe.interpolation = static_cast<InterpolationMode>(interpolationValue);
 
                     track.keyframes.push_back(keyframe);
                 }

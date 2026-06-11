@@ -365,6 +365,11 @@ void GameplayUI_Battle::Bind_BattleDelegates()
             buffSystem->OnBuffConsumed.Add(this, &GameplayUI_Battle::Handle_BuffConsumed);
     }
 
+    _turnStartStatusAnnounceRequestedHandle =
+        _battleController->OnTurnStartStatusAnnounceRequested.Add(
+            this,
+            &GameplayUI_Battle::Handle_TurnStartStatusAnnounceRequested);
+
     _battleWeakPointConsumedHandle =
         Mon_WeakPoint::OnBattleWeakPointConsumed.Add(this, &GameplayUI_Battle::Handle_BattleWeakPointConsumed);
 
@@ -379,6 +384,13 @@ void GameplayUI_Battle::Bind_BattleDelegates()
                 this, &GameplayUI_Battle::Handle_BattleTutorialClosed);
     }
 
+    if (_battleAnnounce)
+    {
+        _battleAnnounceFinishedHandle =
+            _battleAnnounce->OnAnnounceFinished.Add(
+                this,
+                &GameplayUI_Battle::Handle_BattleAnnounceFinished);
+    }
 }
 
 void GameplayUI_Battle::Unbind_BattleDelegates()
@@ -438,6 +450,9 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
             buffSystem->OnBuffConsumed.Remove(_buffConsumedHandle);
     }
 
+    if (_turnStartStatusAnnounceRequestedHandle.IsValid())
+        _battleController->OnTurnStartStatusAnnounceRequested.Remove(_turnStartStatusAnnounceRequestedHandle);
+
     if (_battleWeakPointConsumedHandle.IsValid())
         Mon_WeakPoint::OnBattleWeakPointConsumed.Remove(_battleWeakPointConsumedHandle);
 
@@ -449,6 +464,9 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
         if (_battleTutorialClosedHandle.IsValid())
             tutorialController->OnTutorialClosed.Remove(_battleTutorialClosedHandle);
     }
+
+    if (_battleAnnounce && _battleAnnounceFinishedHandle.IsValid())
+        _battleAnnounce->OnAnnounceFinished.Remove(_battleAnnounceFinishedHandle);
 
     _battleStartedHandle.Reset();
     _battleEndedHandle.Reset();
@@ -467,10 +485,13 @@ void GameplayUI_Battle::Unbind_BattleDelegates()
 
     _buffAppliedHandle.Reset();
     _buffConsumedHandle.Reset();
+    _turnStartStatusAnnounceRequestedHandle.Reset();
     _battleWeakPointConsumedHandle.Reset();
 
     _battleTutorialRequestedHandle.Reset();
     _battleTutorialClosedHandle.Reset();
+
+    _battleAnnounceFinishedHandle.Reset();
 
     _battleController.reset();
 }
@@ -1051,10 +1072,13 @@ void GameplayUI_Battle::Handle_BuffApplied(const BattleChar& target, Buffs buffI
 
 void GameplayUI_Battle::Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage)
 {
+    UNREFERENCED_PARAMETER(target);
+    UNREFERENCED_PARAMETER(bonusDamage);
+
     if (!_isBattleUiActive)
         return;
 
-    if (_markEffect)
+    if (buffId == Buffs::Mark && _markEffect)
         _markEffect->Clear_Target();
 }
 
@@ -1093,6 +1117,30 @@ void GameplayUI_Battle::Handle_BattleTutorialClosed()
         return;
 
     _battleTutorial->Close();
+}
+
+void GameplayUI_Battle::Handle_TurnStartStatusAnnounceRequested(const BattleChar& target, Buffs buffId)
+{
+    if (!_isBattleUiActive || _battleAnnounce == nullptr)
+        return;
+
+    if (buffId == Buffs::Burn)
+    {
+        _battleAnnounce->Show_BurnTurnStart(target, true);
+        return;
+    }
+
+    if (buffId == Buffs::Stun)
+    {
+        _battleAnnounce->Show_StunTurnSkip(target, true);
+        return;
+    }
+}
+
+void GameplayUI_Battle::Handle_BattleAnnounceFinished()
+{
+    if (_battleController)
+        _battleController->Complete_TurnStartStatusAnnounce();
 }
 
 void GameplayUI_Battle::Update_BattleCommandHUD(float timeDelta)

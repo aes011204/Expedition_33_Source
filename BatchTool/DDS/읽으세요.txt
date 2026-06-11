@@ -1,1 +1,25 @@
-배치 툴 실행해서 png -> dds 로 변환하면 됩니다. .ps1 파일은 무시해도 됨
+BasicConverterToDDS
+├─ Map
+├─ Model
+├─ Effect
+├─ Color / Data / Pure Normal 자동 분류
+├─ Pure Normal은 BC5
+├─ Packed Normal은 BC7
+└─ Overwrite / Skip 선택
+
+NvttNormalConverterToDDS
+├─ Map Normal
+├─ Model Normal
+├─ Effect는 기본적으로 제외
+└─ NVTT 품질이 반드시 필요한 순수 Normal만 처리
+
+============================================
+
+1. NvttNormalConverterToDDS
+- Map / Model 중요 노멀을 먼저 NVTT DDS로 생성한다.
+- Effect는 지원 안 함. (바로 BasicConverterToDDS 사용하세요.)
+
+2. BasicConverterToDDS
+- Skip / existing 선택
+- 이미 만들어진 NVTT 노멀은 건너뛴다.
+- BaseColor, ORM, Emissive 등 나머지만 생성
