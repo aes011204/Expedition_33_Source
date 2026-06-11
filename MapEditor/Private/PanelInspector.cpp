@@ -400,8 +400,8 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
 
             if (obj->_selectedInstanceIdx >= 0 && obj->_selectedInstanceIdx < instSize)
             {
-                const auto& t = obj->_instancedTransforms[obj->_selectedInstanceIdx];
-                ImGui::Text("Selected: [%d] (%.1f, %.1f, %.1f)", obj->_selectedInstanceIdx, t._position.x, t._position.y, t._position.z);
+                auto& t = obj->_instancedTransforms[obj->_selectedInstanceIdx];
+                ImGui::Text("Selected: [%d]", obj->_selectedInstanceIdx);
 
                 ImGui::SameLine();
                 if (ImGui::SmallButton("Del"))
@@ -410,6 +410,46 @@ void PanelInspector::DrawTypeParams(Shared<EditorObject>& obj)
                         obj->_instancedTransforms.begin() + obj->_selectedInstanceIdx);
                     obj->_instancedParamsDirty = true;
                     obj->_selectedInstanceIdx = -1;
+                }
+                else
+                {
+                    float pos[3] = { t._position.x, t._position.y, t._position.z };
+                    if (ImGui::DragFloat3("Inst Pos", pos, 0.1f))
+                    {
+                        t._position = Vec3(pos[0], pos[1], pos[2]);
+                        obj->_instancedParamsDirty = true;
+                    }
+
+                    Quat q(t._rotation.x, t._rotation.y, t._rotation.z, t._rotation.w);
+                    Matrix rotMat = Matrix::CreateFromQuaternion(q);
+                    float pitch = asinf(clamp(-rotMat._32, -1.f, 1.f));
+                    float yaw = {}, roll = {};
+                    if (cosf(pitch) > 1e-6f)
+                    {
+                        yaw = atan2f(rotMat._31, rotMat._33);
+                        roll = atan2f(rotMat._12, rotMat._22);
+                    }
+                    else
+                    {
+                        yaw = atan2f(-rotMat._13, rotMat._11);
+                    }
+                    float euler[3] = { XMConvertToDegrees(pitch), XMConvertToDegrees(yaw), XMConvertToDegrees(roll) };
+                    if (ImGui::DragFloat3("Inst Rot", euler, 0.5f))
+                    {
+                        Quat newQ = Quat::CreateFromYawPitchRoll(
+                            XMConvertToRadians(euler[1]),
+                            XMConvertToRadians(euler[0]),
+                            XMConvertToRadians(euler[2]));
+                        t._rotation = Vec4(newQ.x, newQ.y, newQ.z, newQ.w);
+                        obj->_instancedParamsDirty = true;
+                    }
+
+                    float scl[3] = { t._scale.x, t._scale.y, t._scale.z };
+                    if (ImGui::DragFloat3("Inst Scale", scl, 0.01f))
+                    {
+                        t._scale = Vec3(scl[0], scl[1], scl[2]);
+                        obj->_instancedParamsDirty = true;
+                    }
                 }
             }
             else
