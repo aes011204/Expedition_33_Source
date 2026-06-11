@@ -30,6 +30,8 @@ public:
     static void ApplyDamage(float damage, const vector<BattleChar>& target, AttackType attackType);
     // Asttacker 포함 다중 대상 처리
     static void ApplyDamage(float damage, const BattleChar& attacker, const vector<BattleChar>& target, AttackType attackType);
+    // 플레이어 공격력 포함
+    static float CalculatePlayerAttackDamage(const BattleChar& attacker, float multiplier);
 
     static void Heal(float amount, const BattleChar& target);
 

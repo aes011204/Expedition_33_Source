@@ -629,7 +629,20 @@ void BattleController::Create_BattleChar(const vector<HeroId>& heroIds, const ve
             battleStat->Apply_BattleSyncSnapshot(worldStat->Create_BattleSyncSnapshot());
 
         if (battleStat)
+        {
+            const string characterId = string(magic_enum::enum_name(heroId));
+            const vector<GameDataTable::WeaponDesc>* weapons = CLIENT->Get_WeaponDescs(characterId);
+
+            if (weapons != nullptr && !weapons->empty())
+            {
+                // 일단은 기본 무기 장착
+                const GameDataTable::WeaponDesc& defaultWeapon = weapons->front();
+                battleStat->Set_EquippedWeapon(defaultWeapon.weaponId, defaultWeapon.power);
+            }
+
             battleStat->Set_BattleStartAp();
+        }
+            
 
         // World Skill Tree 읽어서 세팅
         Configure_BattlePlayerSkills(heroId, battleChar.statCom, worldSkillTreeCom);

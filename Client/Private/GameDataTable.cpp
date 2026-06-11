@@ -692,6 +692,10 @@ HRESULT GameDataTable::Load_Weapon(const wstring& jsonRootPath)
         desc.characterId = characterId;
         desc.weaponId = weaponId;
         desc.weaponName = String::ToWString(item.value("Weapon Name", ""));
+
+        desc.weaponPrefabName = item.value("Weapon Prefab", "");
+        desc.subWeaponPrefabName = item.value("Sub Weapon Prefab", "");
+
         desc.level = item.value("Level", 1u);
         desc.power = item.value("Power", 0u);
 

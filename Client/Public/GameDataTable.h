@@ -98,11 +98,15 @@ public:
 
     struct WeaponDesc
     {
-        string characterId;
-        string weaponId;
+        string  characterId;
+        string  weaponId;
         wstring weaponName;
-        uint32 level = 1;
-        uint32 power = 0;
+
+        string  weaponPrefabName;       // 기본 무기
+        string  subWeaponPrefabName;    // 구스타브 총
+
+        uint32  level = 1;
+        uint32  power = 0;
     };
 
 public:

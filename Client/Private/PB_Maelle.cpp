@@ -1,5 +1,8 @@
 ﻿#include "PB_Maelle.h"
 
+#include "ClientInstance.h"
+#include "GameDataTable.h"
+
 IMPLEMENT_REFLECTION(PB_Maelle)
 {
     auto& info = GetStaticReflectionInfo();
@@ -50,9 +53,15 @@ void PB_Maelle::Get_WeaponAttachDescs(vector<WeaponAttachDesc>& outDescs) const
 {
     outDescs.clear();
 
+    const vector<GameDataTable::WeaponDesc>* weapons = CLIENT->Get_WeaponDescs("Maelle");
+    const GameDataTable::WeaponDesc* weapon = (weapons != nullptr && !weapons->empty()) ? &weapons->front() : nullptr;
+
     WeaponAttachDesc desc{};
     desc.partTag = L"Part_Weapon";
-    desc.weaponPrefabName = Constants::Prefab::Maelle_Medalum;
+    desc.weaponPrefabName = (weapon != nullptr && !weapon->weaponPrefabName.empty())
+        ? weapon->weaponPrefabName
+        : Constants::Prefab::Maelle_Medalum; // fallback
+
     desc.socketName = "Weapon_r";
     outDescs.emplace_back(std::move(desc));
 }
