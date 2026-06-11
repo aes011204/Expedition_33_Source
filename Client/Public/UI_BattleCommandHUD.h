@@ -13,7 +13,6 @@ NS_END
 NS_BEGIN(Client)
 
 class BattleMechanismCom;
-class BattleWorldUIPlane;
 
 class UI_BattleCommandHUD final : public UI_RuntimePanelBase
 {
@@ -75,11 +74,6 @@ private:
     void    Set_CommandSlotHighlighted(const CommandSlot& slot, bool highlighted);
     Vec2    Resolve_HeroTestOffset(HeroId heroId) const;
 
-    HRESULT Ready_WorldBackgroundPlane();
-    void    Update_WorldBackgroundPlane();
-    void    Set_ScreenBackgroundVisible(bool visible);
-    Vec3    Resolve_WorldBackgroundPosition() const;
-
 private:
     vector<Shared<UI_Base>> _allHUDUIs{};
     CommandSlot _attackSlot{};
@@ -90,11 +84,6 @@ private:
     Shared<UI_Text>  _currentPlayerApText{};
     Shared<UI_Text>  _currentPlayerApTextBg{};
     Shared<UI_Image> _currentPlayerApStates[kMaxCommandApSegmentCount]{};
-
-    Shared<UI_Base>  _screenBackgroundImage{};
-    Shared<UI_Base>  _screenBackgroundDeco{};
-    Shared<BattleWorldUIPlane> _worldBackgroundPlane{};
-    bool _useWorldBackgroundPlane = false;
 
 private:
     Vec2 _normalScale = Vec2(1.f, 1.f);

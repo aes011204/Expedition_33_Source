@@ -202,7 +202,6 @@
     <ClInclude Include="..\Public\BattleSpawnRegistry.h" />
     <ClInclude Include="..\Public\BattleStartSpawner.h" />
     <ClInclude Include="..\Public\BattleTransition_ScreenFx.h" />
-    <ClInclude Include="..\public\BattleWorldUIPlane.h" />
     <ClInclude Include="..\Public\Battle_Enum.h" />
     <ClInclude Include="..\Public\BattleTurnCamera.h" />
     <ClInclude Include="..\Public\Battle_Event.h" />
@@ -502,7 +501,6 @@
     <ClCompile Include="..\Private\BattleStartSpawner.cpp" />
     <ClCompile Include="..\Private\BattleTransition_ScreenFx.cpp" />
     <ClCompile Include="..\Private\BattleTurnCamera.cpp" />
-    <ClCompile Include="..\private\BattleWorldUIPlane.cpp" />
     <ClCompile Include="..\private\BT_IsStun.cpp" />
     <ClCompile Include="..\private\BT_LookRange.cpp" />
     <ClCompile Include="..\private\BT_Stun.cpp" />
@@ -738,12 +736,6 @@
     <ClCompile Include="..\Private\Weapon.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BattleWorldUIPlane.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Effect</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Effect</ShaderType>
-    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectMaterialScalarModulation.hlsli" />

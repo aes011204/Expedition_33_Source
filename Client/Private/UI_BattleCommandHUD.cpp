@@ -5,8 +5,6 @@
 #include "UI_Image.h"
 #include "UI_Text.h"
 #include "UI_Utils.h"
-#include "BattleWorldUIPlane.h"
-#include "GameInstance.h"
 
 using namespace UI_Utils;
 
@@ -14,11 +12,6 @@ namespace
 {
     constexpr wchar_t kBattleCommandIntroAnimationName[] = L"BattleCommand_Intro";
     constexpr wchar_t kBattleCommandLoopAnimationName[] = L"BattleCommand_Loop";
-    constexpr wchar_t kBattleCommandWorldBackgroundTexturePath[] = L"Textures/UI/Battle/HUD/T_HUD_BattleSystem_BackGround.png";
-
-    const Vec2 kBattleCommandWorldBackgroundSize = Vec2(1.55f, 1.80f);
-    const Vec4 kBattleCommandWorldBackgroundTint = Vec4(1.f, 1.f, 1.f, 0.92f);
-    constexpr float kBattleCommandWorldOffsetPerScreenPixel = 0.0045f;
 
     float Resolve_BattleCommandIntroDurationSec()
     {
@@ -36,8 +29,6 @@ HRESULT UI_BattleCommandHUD::Initialize(uint32 levelIndex)
 
     CHECK_FAILED(Load_UI(levelIndex), E_FAIL);
     CHECK_FAILED(Bind_UI(), E_FAIL);
-
-    Ready_WorldBackgroundPlane();
 
     // BattleCommand HUD는 매 프레임 screen Pos 계산
     Set_EditorPositionDrivenByCode(true);
@@ -77,8 +68,6 @@ void UI_BattleCommandHUD::Update(float timeDelta)
 
     if (_root && _root->Get_Transform())
         _root->Get_Transform()->Set_Position(screenPos);
-
-    Update_WorldBackgroundPlane();
 }
 
 void UI_BattleCommandHUD::Open()
@@ -94,13 +83,6 @@ void UI_BattleCommandHUD::Open()
         return;
 
     Open_AllHUDUIs(); // ChooseAction에 새로 진입한 순간에만 intro 대상들을 다시 연다.
-
-    if (_useWorldBackgroundPlane)
-        Set_ScreenBackgroundVisible(false);
-
-    if (_worldBackgroundPlane)
-        _worldBackgroundPlane->Set_Visible(false);
-
     _isPlayingIntro = true;
     _introElapsed = 0.f;
 
@@ -109,18 +91,10 @@ void UI_BattleCommandHUD::Open()
         _isPlayingIntro = false;
         Play_HUDAnimation(kBattleCommandLoopAnimationName);
     }
-
-    if (_useWorldBackgroundPlane)
-        Set_ScreenBackgroundVisible(false);
 }
 
 void UI_BattleCommandHUD::Close()
 {
-    if (_worldBackgroundPlane)
-        _worldBackgroundPlane->Set_Visible(false);
-
-    Set_ScreenBackgroundVisible(true);
-
     _hasTargetWorldPos = false;
     _isPlayingIntro = false;
     _introElapsed = 0.f;
@@ -260,90 +234,7 @@ HRESULT UI_BattleCommandHUD::Bind_UI()
     CHECK_FAILED(Add_HUDAnimTarget(L"Panel_BattlePortrait_Current_Character_AP_Bar"), E_FAIL);
     CHECK_FAILED(Add_HUDAnimTarget(L"Image_BattleCommand_BG_Deco"), E_FAIL);
 
-    _screenBackgroundImage = Find_UI(_uiByName, L"Image_BattleCommand_BG");
-    _screenBackgroundDeco = Find_UI(_uiByName, L"Image_BattleCommand_BG_Deco");
-
     return S_OK;
-}
-
-HRESULT UI_BattleCommandHUD::Ready_WorldBackgroundPlane()
-{
-    _useWorldBackgroundPlane = false;
-    _worldBackgroundPlane.reset();
-
-    BattleWorldUIPlane::BATTLEWORLDUIPLANE_DESC desc{};
-    desc.texturePath = kBattleCommandWorldBackgroundTexturePath;
-    desc.worldPosition = _targetWorldPos;
-    desc.worldSize = kBattleCommandWorldBackgroundSize;
-    desc.tintColor = kBattleCommandWorldBackgroundTint;
-    desc.billboardMode = BattleWorldUIPlaneBillboardMode::FaceCamera;
-    desc.useDepthRead = true;
-    desc.visible = false;
-
-    Shared<BattleWorldUIPlane> prototype =
-        BattleWorldUIPlane::Create(GAME->Get_Device(), GAME->Get_Context());
-
-    CHECK_NULL(prototype, E_FAIL);
-
-    _worldBackgroundPlane =
-        dynamic_pointer_cast<BattleWorldUIPlane>(prototype->Clone(&desc));
-
-    CHECK_NULL(_worldBackgroundPlane, E_FAIL);
-
-    _useWorldBackgroundPlane = _worldBackgroundPlane->Is_RenderReady();
-
-    if (_useWorldBackgroundPlane)
-        Set_ScreenBackgroundVisible(false);
-
-    return _useWorldBackgroundPlane ? S_OK : E_FAIL;
-}
-
-void UI_BattleCommandHUD::Update_WorldBackgroundPlane()
-{
-    if (!_useWorldBackgroundPlane || _worldBackgroundPlane == nullptr)
-        return;
-
-    if (!_isOpen || !_hasTargetWorldPos)
-    {
-        _worldBackgroundPlane->Set_Visible(false);
-        return;
-    }
-
-    _worldBackgroundPlane->Set_WorldPosition(Resolve_WorldBackgroundPosition());
-    _worldBackgroundPlane->Set_Visible(true);
-    _worldBackgroundPlane->Submit_Render();
-}
-
-void UI_BattleCommandHUD::Set_ScreenBackgroundVisible(bool visible)
-{
-    if (_screenBackgroundImage == nullptr)
-        return;
-
-    if (visible)
-        _screenBackgroundImage->Open();
-    else
-        _screenBackgroundImage->Close();
-}
-
-Vec3 UI_BattleCommandHUD::Resolve_WorldBackgroundPosition() const
-{
-    Vec3 position = _targetWorldPos;
-
-    const Matrix* viewMatrix = GAME->Get_Transform(D3DTS::View);
-    if (viewMatrix == nullptr)
-        return position;
-
-    Matrix inverseView = viewMatrix->Invert();
-
-    Vec3 cameraRight = Vec3(inverseView._11, inverseView._12, inverseView._13);
-    Vec3 cameraUp = Vec3(inverseView._21, inverseView._22, inverseView._23);
-
-    Vec2 screenOffset = Resolve_HeroTestOffset(_currentHeroId);
-
-    position += cameraRight * (screenOffset.x * kBattleCommandWorldOffsetPerScreenPixel);
-    position += cameraUp * (-screenOffset.y * kBattleCommandWorldOffsetPerScreenPixel);
-
-    return position;
 }
 
 void UI_BattleCommandHUD::Open_AllHUDUIs()
