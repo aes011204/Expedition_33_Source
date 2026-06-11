@@ -16,6 +16,9 @@ class UI_BattleSystemHUD final : public UI_RuntimePanelBase
 public:
     struct PartyBattleStatSlot
     {
+        Shared<UI_Base> root{}; // 이 hero portrait 전체를 켜고 끄는 최상위 패널
+        Vec2 defaultPosition{}; // JSON 기준 원래 위치
+
         Shared<UI_Image> hpGauge{};
 
         Shared<UI_Text> currentHpText{};
@@ -42,6 +45,7 @@ public:
 
 public:
     void    Set_PartyBattleStat(PlayerCharacterType playerType, float curHp, float maxHp, uint32 curAp, uint32 maxAp);
+    void    Set_BattleHeroIds(const vector<HeroId>& heroIds);
     void    Set_GustaveMechanismCharge(const Shared<BattleMechanismCom>& mechanismCom);
     void    Clear_GustaveMechanismCharge();
 
@@ -61,12 +65,14 @@ private:
     HRESULT Bind_UI();
 
     static uint32 Get_SlotIndex(PlayerCharacterType playerType);
+    static uint32 Get_SlotIndex(HeroId heroId);
     static void Set_TextPair(const Shared<UI_Text>& front, const Shared<UI_Text>& back, const wstring& text);
 
 
 private:
     void    Apply_HpGauge(PartyBattleStatSlot& slot, float ratio);
     void    Apply_ApGauge(PartyBattleStatSlot& slot, uint32 slotIndex, uint32 curAp, uint32 maxAp);
+    void    Apply_BattlePartyLayout();
     void    Apply_CurrentTurnApTransform(uint32 slotIndex, uint32 apIndex);
     bool    Is_CurrentTurnSlot(uint32 slotIndex) const;
     static void Set_HpText(PartyBattleStatSlot& slot, float hp, float maxHp);
@@ -85,6 +91,7 @@ private:
 
 private:
     PartyBattleStatSlot _partySlots[3]{};
+    array<bool, 3> _visiblePartySlots{ true, true, true }; // 이번 전투에 실제 참여하는 portrait만 연다.
     HeroId _activePortraitHeroId = HeroId::END;
 
 private: /* 구스타브 */

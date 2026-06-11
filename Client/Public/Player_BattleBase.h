@@ -8,6 +8,9 @@ NS_END
 
 NS_BEGIN(Client)
 
+struct CostumePartLocalTransform;
+struct CostumePreset;
+
 class PlayerStatCom;
 class Body_Player;
 class Head_Player;
@@ -49,6 +52,8 @@ protected:
     HRESULT Ready_Components();
     HRESULT Ready_PartObjects();
 
+    virtual HeroId Get_HeroId() const = 0;
+
     virtual HairChainPhysicsDesc Get_HairChainPhysicsDesc() const { return {}; }
 
     virtual const wchar_t* Get_BodyModelTag() const = 0;
@@ -64,6 +69,24 @@ protected:
 
     // body가 만들어진 뒤, 캐릭터별 추가 파트
     virtual HRESULT Ready_WeaponParts(Body_Player* body);
+
+private:
+    const CostumePreset* Get_CurrentBattleCostume() const;
+    // Costume Preset에 태그가 있으면 그 태그를 쓰고, 비어있으면 Default
+    const wchar_t* Select_CostumeModelTag(const wstring& costumeModelTag, const wchar_t* defaultModelTag) const;
+
+    // 수염, 선글라스
+    HRESULT Add_BattleFaceAccessory(
+                const wstring& partTag,
+                const wchar_t* modelTag,
+                const Matrix* parentMatrix,
+                Head_Player* head);
+
+     void Apply_CurrentCostumePartTransforms();
+
+    void Apply_CostumePartTransform(
+        const wstring& partTag,
+        const CostumePartLocalTransform& fallbackTransform);
 
 protected:
     Shared<PlayerStatCom>       _combatStatCom;

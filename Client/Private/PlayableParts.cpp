@@ -265,7 +265,7 @@ HRESULT PlayableParts::Render()
     if (FAILED(Bind_ShaderResources()))
         return E_FAIL;
 
-    CHECK_FAILED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), E_FAIL);
+    CHECK_FAILED_THROTTLED(_animComputeRuntime->Prepare_BoneMatrixBuffers(), 60, E_FAIL);
 
     const uint32 iNumMeshes = static_cast<uint32>(_modelCom->Get_NumMeshes());
     const uint32 supportFeatureMask = Build_DrawFeatureSupportMask(*this);
@@ -281,10 +281,9 @@ HRESULT PlayableParts::Render()
         if (FAILED(_shaderCom->Bind_CBufferData(material->Get_CB())))
             return E_FAIL;
 
-        CHECK_FAILED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), E_FAIL);
+        CHECK_FAILED_THROTTLED(_animComputeRuntime->Bind_PreparedBoneMatrices(_shaderCom.get(), "g_BoneMatricesBuffer", i), 60, E_FAIL);
 
-        CHECK_FAILED(EffectCom::Bind_DrawFeatures(
-            Get_Owner(), _shaderCom.get(), supportFeatureMask), E_FAIL);
+        CHECK_FAILED_THROTTLED(EffectCom::Bind_DrawFeatures(Get_Owner(), _shaderCom.get(), supportFeatureMask), 60, E_FAIL);
 
         const uint32 passIndex = material->Get_PassIndex();
         if (FAILED(_shaderCom->Begin(passIndex)))
@@ -292,7 +291,7 @@ HRESULT PlayableParts::Render()
 
         // 플레이어 파츠가 그려진 픽셀에 stencil=1을 남겨 Background UI가 이 영역을 피하게 한다.
         const bool depthWrite = passIndex != kVtxAnimMeshCharacterHairBlendPass;
-        CHECK_FAILED(GAME->Bind_PlayerStencilWriteState(depthWrite), E_FAIL);
+        CHECK_FAILED_THROTTLED(GAME->Bind_PlayerStencilWriteState(depthWrite), 60, E_FAIL);
 
         _modelCom->Render(i);
     }

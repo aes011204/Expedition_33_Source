@@ -205,8 +205,9 @@ HRESULT GameDataTable::Load_SkillData(const wstring& jsonRootPath)
             magic_enum::enum_cast<Buffs>(item.value("buff", ""))
             .value_or(Buffs::None);
         skill.ailmentChance = item.value("BuffChance", 0.f);
-       // skill.IdleAnimationKey = item.value("IdleAnimationKey", "");
+        // skill.IdleAnimationKey = item.value("IdleAnimationKey", "");
 
+        skill.buffDurationTurn = item.value("BuffTurn", 0);
        
         skill.targetingType = ParseTargetTypes(item.value("targetingType", ""));
 
@@ -397,6 +398,10 @@ HRESULT GameDataTable::Load_SkillPhaseData(const wstring& jsonRootPath)
         const string legacyCameraProfileId = item.value("cameraProfileId", "");
         phase.cameraPresetId = item.value("cameraPresetId", legacyCameraProfileId);
         phase.cameraClipId = item.value("cameraClipId", legacyCameraProfileId);
+
+        phase.playRate = item.value("playRate", 1.f);
+        if (phase.playRate <= 0.f)
+            phase.playRate = 1.f;
 
         phase.movementPolicy =
             magic_enum::enum_cast<BattleMovementPolicy>(item.value("movementPolicy", "None"))

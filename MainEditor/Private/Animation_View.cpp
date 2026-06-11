@@ -2936,7 +2936,8 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         const json payload = activeTrailState->notifyState->To_Json();
         const string partTag = payload.value("_partTag", string{ "Part_Weapon" });
         const string effectNameValue = payload.value("_effectName", string{});
-        if (effectNameValue.empty())
+        wstring resolvedEffectName{};
+        if (!Try_ResolvePreviewTrailEffectName(effectNameValue, partTag, resolvedEffectName))
             continue;
 
         PreviewTrailRuntime* runtime = nullptr;
@@ -2979,8 +2980,7 @@ void Animation_View::Update_PreviewTrailEffect(float timeDelta)
         if (runtime->trailAnchorAsset.modelGuid.empty())
             continue;
 
-        const wstring effectName(effectNameValue.begin(), effectNameValue.end());
-        if (!Ensure_PreviewTrailEffect(*runtime, effectName))
+        if (!Ensure_PreviewTrailEffect(*runtime, resolvedEffectName))
             continue;
 
         const bool timeMovedBackward =
@@ -3127,6 +3127,27 @@ bool Animation_View::Ensure_PreviewTrailEffect(PreviewTrailRuntime& runtime, con
 
     runtime.effectName = effectName;
     return true;
+}
+
+bool Animation_View::Try_ResolvePreviewTrailEffectName(
+    const string& effectNameOverride,
+    const string& partTag,
+    wstring& outEffectName) const
+{
+    outEffectName.clear();
+
+    if (!effectNameOverride.empty())
+    {
+        outEffectName = String::ToWString(effectNameOverride);
+        return true;
+    }
+
+    const Weapon* weapon = Resolve_PreviewWeapon(String::ToWString(partTag));
+    if (weapon == nullptr)
+        return false;
+
+    outEffectName = weapon->Get_TrailEffectName(); // preview도 runtime과 같은 fallback 규칙을 써야 한다.
+    return !outEffectName.empty();
 }
 
 void Animation_View::Assign_SelectedBoneToTrailAnchor(const Shared<ModelCom>& playbackModel, TrailAnchorSlot slot)

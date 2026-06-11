@@ -28,7 +28,10 @@ void AN_Attack::Execute(const AnimNotifyContext& context)
         !curTargets.empty() ? curTargets.front() : turnAction.GetInitTarget();
 
     // 회피/패링 성공 입력이 있으면 이번 공격 notify의 데미지를 소비하고 스킵한다.
-    const bool guarded = battle->Try_ConsumeReactionGuard(reactionTarget);
+    const bool guarded =
+        battle->Get_ReactionController().TryConsumeGuard(
+            reactionTarget,
+            turnAction.GetCurStepIndex());
 
     AttackType attackType = ResolveAttackType(turnAction, turnAction.GetCurStepIndex());
     if (!guarded)

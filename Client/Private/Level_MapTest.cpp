@@ -4,6 +4,7 @@
 #include "GameObject.h"
 #include "GameInstance.h"
 #include "ClientInstance.h"
+#include "Client_Constants.h"
 #include "MapLoader.h"
 #include "SkyBoxFlow.h"
 #include "SkyCloudCard.h"
@@ -35,7 +36,10 @@ void Level_MapTest::BeginPlay()
 {
     Level::BeginPlay();
 
+    Play_MapBGM();
 
+    _editorPlayRuntimeHandle =
+        GAME->Get_DelegateHub().OnEditorPlayRuntime.Add(this, &Level_MapTest::Play_MapBGM);
 }
 
 void Level_MapTest::Update(float fTimeDelta)
@@ -47,6 +51,11 @@ HRESULT Level_MapTest::Render()
     Update_WindowTitleFps(_windowTitleFps, L"Level_MapTest");
 
     return S_OK;
+}
+
+void Level_MapTest::Play_MapBGM()
+{
+    GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 }
 
 HRESULT Level_MapTest::Ready_Lights()
@@ -198,12 +207,20 @@ HRESULT Level_MapTest::Ready_Layer_Monster(const wstring& strLayerTag)
     UNREFERENCED_PARAMETER(strLayerTag);
 
     // 전투 시작 위치
-    const Shared<GameObject> spawner = Spawn_Prefab::Prefab("BSS_GamePlay_Boss")
+    const Shared<GameObject> spawner1 = Spawn_Prefab::Prefab("BSS_GamePlay_Boss")
         .AtLevel(ETOI(LevelType::MapTest))
         .InLayer(TEXT("Layer_BattleStartSpawner"))
         .Position(Vec3(17.f, 0.46f, -3.2f))
         .Spawn();
-    CHECK_NULL(spawner, E_FAIL);
+    CHECK_NULL(spawner1, E_FAIL);
+
+	// 전투 시작 위치
+    const Shared<GameObject> spawner2 = Spawn_Prefab::Prefab("BSS_MapTest")
+        .AtLevel(ETOI(LevelType::MapTest))
+        .InLayer(TEXT("Layer_BattleStartSpawner"))
+        .Position(Vec3(17.83f, 0.46f, -20.27f))
+        .Spawn();
+    CHECK_NULL(spawner2, E_FAIL);
 
     return S_OK;
 }
@@ -229,5 +246,11 @@ Shared<Level_MapTest> Level_MapTest::Create(const ComPtr<Device>& device, const 
 
 void Level_MapTest::Free()
 {
+    if (_editorPlayRuntimeHandle.IsValid())
+    {
+        GAME->Get_DelegateHub().OnEditorPlayRuntime.Remove(_editorPlayRuntimeHandle);
+        _editorPlayRuntimeHandle.Reset();
+    }
+
     __super::Free();
 }

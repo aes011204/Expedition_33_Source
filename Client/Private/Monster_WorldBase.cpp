@@ -3,6 +3,7 @@
 #include "AIController.h"
 #include "BlackBoard.h"
 #include "ClientInstance.h"
+#include "Client_Constants.h"
 #include "ColliderCom.h"
 #include "GameInstance.h"
 #include "MonsterStatCom.h"
@@ -13,6 +14,8 @@
 #include "BattleStartSpawner.h"
 #include "EffectCom.h"
 #include "PlayerStateMachineCom.h"
+#include "Mon_WeakPoint.h"
+#include "BattleEncounterProfile.h"
 
 REGISTER_GLOBAL_ENUM(Monster_WorldBase::MonsterWorldAnim, "MonsterWorldAnim")
 
@@ -72,8 +75,15 @@ namespace
 
         return true;
     }
-}
 
+    string Resolve_SourceBattlePrefabName(const string& sourcePrefabName)
+    {
+        if (sourcePrefabName.starts_with("MW_") || sourcePrefabName.starts_with("TW_"))
+            return "MB_" + sourcePrefabName.substr(3); // MW_Lancelier/TW_Lancelier -> MB_Lancelier로 데이터 전달
+
+        return "";
+    }
+}
 
 Monster_WorldBase::Monster_WorldBase(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : Character_WorldBase(device, context)
@@ -83,43 +93,6 @@ Monster_WorldBase::Monster_WorldBase(const ComPtr<Device>& device, const ComPtr<
 Monster_WorldBase::Monster_WorldBase(const Monster_WorldBase& prototype)
     : Character_WorldBase(prototype)
 {
-}
-
-const vector<Vec3>& Monster_WorldBase::Get_EffectivePatrolPoints()
-{
-    if (!_PatrolPoints.empty())
-        return _PatrolPoints;
-
-    if (_defaultPatrolPoints.empty())
-        Build_DefaultPatrolPoints();
-
-    return _defaultPatrolPoints;
-}
-
-void Monster_WorldBase::Build_DefaultPatrolPoints()
-{
-    _defaultPatrolPoints.clear();
-
-    if (_transformCom == nullptr)
-        return;
-
-    const Vec3 origin = _transformCom->Get_Position();
-    static const Vec3 offsets[] =
-    {
-        {  0.f, 0.f,  0.f },
-        {  3.f, 0.f, -2.f },
-        {  5.f, 0.f,  0.f },
-        {  3.f, 0.f,  2.f },
-        {  0.f, 0.f,  0.f },
-        { -3.f, 0.f, -2.f },
-        { -5.f, 0.f,  0.f },
-        { -3.f, 0.f,  2.f },
-        {  0.f, 0.f,  0.f },
-    };
-
-    _defaultPatrolPoints.reserve(_countof(offsets));
-    for (const Vec3& offset : offsets)
-        _defaultPatrolPoints.push_back(origin + offset);
 }
 
 HRESULT Monster_WorldBase::Initialize_Prototype()
@@ -168,17 +141,22 @@ void Monster_WorldBase::Update(float timeDelta)
     if (CLIENT->Is_BattleActive())
         return;
 
-    if (_aiCtrl )
+    const Shared<GameObject> player = CLIENT->Find_Player(GAME->Current_LevelIndex());
+    bool holdStartIdle = false;
+
+    if (_startIdleUntilPlayerInRange && !_hasReleasedStartIdle)
     {
-        const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
-        const Shared<GameObject> player = CLIENT->Find_Player(GAME->Current_LevelIndex());
-
-        if (bb && player)
+        if (player == nullptr || _transformCom == nullptr || _startIdleReleaseDistance <= 0.f)
         {
-            bb->Set_Value("playerPos", player->Get_Transform()->Get_Position());
-            bb->Set_Value("isStun", _isStun);
-
-            _aiCtrl->Update(timeDelta); // 플레이어가 있을 때만 BT를 갱신해서 editor authored 배치 중 blackboard key 누락을 막는다.
+            holdStartIdle = true; // 맵 진입 직후 player/transform이 아직 안정되지 않은 프레임에도 patrol 진입을 막는다.
+        }
+        else
+        {
+            const float distToPlayer = (player->Get_Transform()->Get_Position() - _transformCom->Get_Position()).Length();
+            if (distToPlayer <= _startIdleReleaseDistance)
+                _hasReleasedStartIdle = true; // 플레이어가 충분히 가까워진 뒤에는 다시 원래 BT를 그대로 사용한다.
+            else
+                holdStartIdle = true;
         }
     }
 
@@ -203,7 +181,6 @@ void Monster_WorldBase::Update(float timeDelta)
         OnHitAnimationFinished();
     }
 
-
     if (bodyPart)
     {
         if (!_hasAppliedAction || _currentAction != _previousAction)
@@ -213,27 +190,43 @@ void Monster_WorldBase::Update(float timeDelta)
             //    ETOI(_previousAction));
 
             bool applied = false;
+            const bool isInitialActionApply = !_hasAppliedAction;
 
             switch (_currentAction)
             {
             case MonsterWorldAnim::Hit:
-                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Hit), 0.2f, false);
+                if (isInitialActionApply)
+                    applied = bodyPart->Get_Model() && bodyPart->Get_Model()->Set_AnimationByState(ETOI(MonsterWorldAnim::Hit), false);
+                else
+                    applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Hit), 0.2f, false);
                 break;
 
             case MonsterWorldAnim::Stun:
-                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Stun), 0.3f, true);
+                if (isInitialActionApply)
+                    applied = bodyPart->Get_Model() && bodyPart->Get_Model()->Set_AnimationByState(ETOI(MonsterWorldAnim::Stun), true);
+                else
+                    applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Stun), 0.3f, true);
                 break;
 
             case MonsterWorldAnim::Idle:
-                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Idle), 0.3f, true);
+                if (isInitialActionApply)
+                    applied = bodyPart->Get_Model() && bodyPart->Get_Model()->Set_AnimationByState(ETOI(MonsterWorldAnim::Idle), true);
+                else
+                    applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Idle), 0.3f, true);
                 break;
 
             case MonsterWorldAnim::Patrol:
-                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Patrol), 0.3f, true);
+                if (isInitialActionApply)
+                    applied = bodyPart->Get_Model() && bodyPart->Get_Model()->Set_AnimationByState(ETOI(MonsterWorldAnim::Patrol), true);
+                else
+                    applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Patrol), 0.3f, true);
                 break;
 
             case MonsterWorldAnim::Chase:
-                applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Chase), 0.3f, true);
+                if (isInitialActionApply)
+                    applied = bodyPart->Get_Model() && bodyPart->Get_Model()->Set_AnimationByState(ETOI(MonsterWorldAnim::Chase), true);
+                else
+                    applied = bodyPart->Set_AnimationByState(ETOI(MonsterWorldAnim::Chase), 0.3f, true);
                 break;
             }
 
@@ -246,7 +239,7 @@ void Monster_WorldBase::Update(float timeDelta)
                 //    animName != nullptr ? animName : "<null>");
             }
 
-            
+
             if (applied)
             {
                 _previousAction = _currentAction;
@@ -287,14 +280,32 @@ void Monster_WorldBase::Update(float timeDelta)
         }
     }
 
-    if(_isStun == true)
+    if (_isStun == true)
     {
         _stunTime -= timeDelta;
 
-        if(_stunTime<=0.f )
+        if (_stunTime <= 0.f)
         {
             _isStun = false;
 
+        }
+    }
+
+    if (_aiCtrl)
+    {
+        const Shared<BlackBoard> bb = _aiCtrl->Get_BlackBoard();
+
+        if (holdStartIdle)
+        {
+            _aiCtrl->Stop_Move();
+            _desiredAction = MonsterWorldAnim::Idle; // 시작 Idle 게이트 중에는 patrol/chase가 desiredAction을 덮지 못하게 한다.
+        }
+        else if (bb && player)
+        {
+            bb->Set_Value("playerPos", player->Get_Transform()->Get_Position());
+            bb->Set_Value("isStun", _isStun);
+
+            _aiCtrl->Update(timeDelta); // 이번 프레임은 기존 desiredAction을 먼저 소비하고, BT 결과는 다음 프레임부터 반영한다.
         }
     }
 
@@ -331,8 +342,23 @@ void Monster_WorldBase::OnHitAnimationFinished()
 
 void Monster_WorldBase::Late_Update(float timeDelta)
 {
-    Character_WorldBase::Late_Update(timeDelta);
+    auto* weakPoint = dynamic_cast<Mon_WeakPoint*>(Get_PartObject(L"Part_Weak"));
 
+    // 배틀 중에는 월드 베이스 안보이게
+    if (CLIENT->Is_BattleActive())
+    {
+        Set_Visible(false);
+
+        if (weakPoint)
+            weakPoint->Hide_WorldWeakPointForBattle();
+
+        return;
+    }
+
+    if (weakPoint && !weakPoint->Is_Visible())
+        weakPoint->Restore_WorldWeakPointAfterBattle();
+
+    Character_WorldBase::Late_Update(timeDelta);
     Update_Culling(Vec3(1.5f, 4.f, 1.5f));
 }
 
@@ -353,6 +379,9 @@ json Monster_WorldBase::To_Json() const
     json& customProperties = data["custom_properties"];
     customProperties["battle_start_spawner_id"] = _battleStartSpawnerId;
     customProperties["battle_start_offset"] = Vec3_ToJson(_battleStartOffset);
+    customProperties["battle_encounter_id"] = _battleEncounterId;
+    customProperties["start_idle_until_player_in_range"] = _startIdleUntilPlayerInRange;
+    customProperties["start_idle_release_distance"] = _startIdleReleaseDistance;
 
     json& battleMonsterSpawns = customProperties["battle_monster_spawns"];
     battleMonsterSpawns = json::array();
@@ -374,6 +403,9 @@ void Monster_WorldBase::From_Json(const json& data)
     _currentAction = MonsterWorldAnim::Idle;
     _previousAction = MonsterWorldAnim::Idle;
     _hasAppliedAction = false;
+    _startIdleUntilPlayerInRange = false;
+    _hasReleasedStartIdle = false;
+    _startIdleReleaseDistance = 0.f;
 
     if (_colliderCom)
     {
@@ -398,6 +430,9 @@ void Monster_WorldBase::From_Json(const json& data)
 
     const json& customProperties = data["custom_properties"];
     _battleStartSpawnerId = customProperties.value("battle_start_spawner_id", 0);
+    _battleEncounterId = customProperties.value("battle_encounter_id", 1); // 새 스폰 포맷도 전투 필드 ID를 먼저 복원한다.
+    _startIdleUntilPlayerInRange = customProperties.value("start_idle_until_player_in_range", false);
+    _startIdleReleaseDistance = customProperties.value("start_idle_release_distance", 0.f);
     if (customProperties.contains("battle_start_offset"))
         (void)Json_ToVec3(customProperties["battle_start_offset"], _battleStartOffset);
 
@@ -485,13 +520,8 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
     if (self)
         self->Set_IsActive(false);
 
-    // Player는 3명 고정 스폰, 몬스터는 자식 객체에서 Set_BattleMonster 함수로 지정
-    vector<HeroId> heroes =
-    {
-        HeroId::Gustave,
-        HeroId::Lune,
-        HeroId::Maelle,
-    };
+    // 전투 시작 플레이어 지정
+    vector<HeroId> heroes = Build_BattleHeroIds();
 
     vector<BattleMonsterSpawnDesc> battleMonsterSpawnDescs{};
     Set_BattleMonsterSpawnDescs(battleMonsterSpawnDescs);
@@ -508,24 +538,97 @@ void Monster_WorldBase::OnBeginOverlap(Shared<ColliderCom> self, Shared<Collider
         return;
     }
 
+    GAME->Play_SoundCue(Constants::SoundCue::UI_Battle_Encounter);
+
     // 이제, 턴 진입 조건에 따라서 플레이어, 몬스터 턴 관리
-    CLIENT->OnEnterBattleField(1, isPlayerAdvantage, heroes, battleMonsterSpawnDescs, GetSharedPtr<GameObject>());
+    CLIENT->OnEnterBattleField(Get_BattleFieldId(), isPlayerAdvantage, heroes, battleMonsterSpawnDescs, GetSharedPtr<GameObject>());
 }
 
 void Monster_WorldBase::On_EditorStopRuntime()
 {
-    _isBattleStart = false;
-
-    if (_colliderCom)
-    {
-        _colliderCom->Set_IsActive(true);
-        _colliderCom->Clear_Overlap();
-    }
+    Restore_AfterBattleExit();
 }
 
 void Monster_WorldBase::Set_BattleMonsterSpawnDescs(vector<BattleMonsterSpawnDesc>& outSpawnDescs) const
 {
     outSpawnDescs = _battleMonsterSpawnDescs;
+
+    const string sourceBattlePrefabName = Resolve_SourceBattlePrefabName(Get_SourcePrefabName());
+    if (sourceBattlePrefabName.empty())
+        return;
+
+    if (!_combatStat)
+        return;
+
+    const BattleMonsterStatSnapshot statSnapshot = _combatStat->Create_BattleSyncSnapshot();
+
+    for (BattleMonsterSpawnDesc& spawnDesc : outSpawnDescs)
+    {
+        if (spawnDesc.prefabName != sourceBattlePrefabName)
+            continue;
+
+        spawnDesc.statSnapshot = statSnapshot;
+    }
+}
+
+vector<HeroId> Monster_WorldBase::Build_BattleHeroIds() const
+{
+    // BattleEncounterProfile이 있으면 조우 전용 파티를 쓰고, 없으면 기본 3인 파티로 돌아간다.
+    return Resolve_BattleEncounterHeroIds(Get_BattleFieldId());
+}
+
+const vector<Vec3>& Monster_WorldBase::Get_EffectivePatrolPoints()
+{
+    if (!_PatrolPoints.empty())
+        return _PatrolPoints;
+
+    if (_defaultPatrolPoints.empty())
+        Build_DefaultPatrolPoints();
+
+    return _defaultPatrolPoints;
+}
+
+void Monster_WorldBase::Build_DefaultPatrolPoints()
+{
+    _defaultPatrolPoints.clear();
+
+    if (_transformCom == nullptr)
+        return;
+
+    const Vec3 origin = _transformCom->Get_Position();
+    static const Vec3 offsets[] =
+    {
+        {  0.f, 0.f,  0.f },
+        {  3.f, 0.f, -2.f },
+        {  5.f, 0.f,  0.f },
+        {  3.f, 0.f,  2.f },
+        {  0.f, 0.f,  0.f },
+        { -3.f, 0.f, -2.f },
+        { -5.f, 0.f,  0.f },
+        { -3.f, 0.f,  2.f },
+        {  0.f, 0.f,  0.f },
+    };
+
+    _defaultPatrolPoints.reserve(_countof(offsets));
+    for (const Vec3& offset : offsets)
+        _defaultPatrolPoints.push_back(origin + offset);
+}
+
+void Monster_WorldBase::Restore_AfterBattleExit()
+{
+    _isBattleStart = false; // 다시 월드 진입 가능하게
+    Set_Visible(true);
+
+    // 약점,
+    if (auto* weakPoint = dynamic_cast<Mon_WeakPoint*>(Get_PartObject(L"Part_Weak")))
+        weakPoint->Restore_WorldWeakPointAfterBattle();
+
+    // 충돌체도 같이 키기
+    if (_colliderCom)
+    {
+        _colliderCom->Set_IsActive(true);
+        _colliderCom->Clear_Overlap();   
+    }
 }
 
 HRESULT Monster_WorldBase::Ready_Components()

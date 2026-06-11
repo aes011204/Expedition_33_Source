@@ -20,6 +20,8 @@ public:
     HRESULT Add_State(PlayerState playerState, const Shared<State>& state);
     bool Change_State(PlayerState playerState);
     Shared<State> Get_State(PlayerState playerState) const;
+    void Refresh_BodyPlayerForStates();
+    bool Reenter_CurrentState();
 
 public:
     PlayerState Get_CurrentPlayerState() const;

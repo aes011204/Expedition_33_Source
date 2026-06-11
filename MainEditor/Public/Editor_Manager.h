@@ -43,6 +43,7 @@ private:
     // GameLauncher 실행
     void Render_LauncherButton();
     bool Launch_GameLauncher();
+    void Render_ReloadDataButton();
 
 private:
     /* 창 이름을 키로 보관하는 에디터 뷰 목록. */

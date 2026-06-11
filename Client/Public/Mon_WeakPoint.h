@@ -11,6 +11,8 @@ NS_BEGIN(Client)
 
 class Monster_BattleBase;
 
+DECLARE_DELEGATE(FOnBattleWeakPointConsumed, const Shared<Monster_BattleBase>&);
+
 class Mon_WeakPoint : public Monster_Part
 {
     GENERATED_GAMEOBJECT(Mon_WeakPoint, ObjectType::Weapon)
@@ -30,19 +32,22 @@ public:
 public:
     virtual HRESULT Initialize_Prototype() override;
     virtual HRESULT Initialize(void* arg) override;
-    virtual void BeginPlay() override;
-    virtual void Priority_Update(float timeDelta) override;
-    virtual void Update(float timeDelta) override;
-    virtual void Late_Update(float timeDelta) override;
+    virtual void    BeginPlay() override;
+    virtual void    Priority_Update(float timeDelta) override;
+    virtual void    Update(float timeDelta) override;
+    virtual void    Late_Update(float timeDelta) override;
     virtual HRESULT Render() override;
     virtual HRESULT Render_Shadow() override;
-    virtual void From_Json(const json& data) override;
-    virtual Matrix Get_GizmoWorldMatrix() const override;
-    virtual bool Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix) override;
+
+    virtual void    From_Json(const json& data) override;
+    virtual Matrix  Get_GizmoWorldMatrix() const override;
+    virtual bool    Apply_GizmoWorldMatrix(const Matrix& gizmoWorldMatrix) override;
 
 public:
     bool Try_Consume_BattleWeakPointHit();
     void Hide_BattleWeakPoint();
+    void Hide_WorldWeakPointForBattle();
+    void Restore_WorldWeakPointAfterBattle();
     void Reset_BattleWeakPoint();
     bool Is_BattleWeakPointEnabled() const { return _isBattleWeakPointEnabled; }
     Matrix Get_CollisionWorldMatrix() const;
@@ -57,6 +62,9 @@ private:
     HRESULT       Ready_WeakPointCollider();
     void          Ready_DefaultWeakPointEffectSettings();
     void          Play_WeakPointEffect();
+
+public:
+    static FOnBattleWeakPointConsumed OnBattleWeakPointConsumed;
 
 private:
     static constexpr float kDefaultWeakPointEffectScale = 0.4f;
