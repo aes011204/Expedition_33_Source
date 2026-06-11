@@ -232,6 +232,8 @@ HRESULT Player_WorldBase::Rebuild_CostumeParts(const CostumePreset& preset)
     CHECK_FAILED(Add_CostumeFaceAccessory(TEXT("Part_Glasses"), preset.parts.glassesModelTag, head), E_FAIL);
     Apply_CostumePartTransform(TEXT("Part_Glasses"), restorePartTransforms, preset.parts.glassesTransform);
 
+    Reapply_CostumeBaseMaterials();
+
     if (_playerStateMachineCom)
         _playerStateMachineCom->Reenter_CurrentState();
 
@@ -313,6 +315,41 @@ void Player_WorldBase::Apply_CostumePartTransform(const wstring& partTag,
         Apply_CostumePartTransform(partTag, partTransforms);
         return;
     }
+}
+
+void Player_WorldBase::Reapply_CostumePartBaseMaterial(const wstring& partTag)
+{
+    PartObject* partObject = Get_PartObject(partTag);
+    if (partObject == nullptr)
+        return;
+
+    Shared<ModelCom> model{};
+
+    if (auto* playablePart = dynamic_cast<PlayableParts*>(partObject))
+    {
+        model = playablePart->Get_Model();
+    }
+    else if (auto* faceAccessory = dynamic_cast<FaceAccessory_Player*>(partObject))
+    {
+        model = faceAccessory->Get_Model();
+    }
+
+    if (model == nullptr)
+        return;
+
+    // 코스튬 전환은 새 모델만 갈아끼우는 경로라 base bundle 재적용을 명시적으로 다시 돌려준다.
+    model->Apply_BaseMaterialFromBundle_AllSlots();
+    (void)model->Normalize_OwnerComponentTagAndBindings();
+}
+
+void Player_WorldBase::Reapply_CostumeBaseMaterials()
+{
+    Reapply_CostumePartBaseMaterial(TEXT("Part_Body"));
+    Reapply_CostumePartBaseMaterial(TEXT("Part_Head"));
+    Reapply_CostumePartBaseMaterial(TEXT("Part_Beard"));
+    Reapply_CostumePartBaseMaterial(TEXT("Part_Mustache"));
+    Reapply_CostumePartBaseMaterial(TEXT("Part_Hair"));
+    Reapply_CostumePartBaseMaterial(TEXT("Part_Glasses"));
 }
 
 Body_Player* Player_WorldBase::Add_CostumeBody(const wstring& modelTag)
