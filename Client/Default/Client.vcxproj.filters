@@ -453,7 +453,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\AN_CounterReturnAll.cpp" />
     <ClCompile Include="..\private\CinematicCamera.cpp" />
-    <ClCompile Include="..\Private\PointParticleEffect.cpp" />
     <ClCompile Include="..\Private\EyeTarget.cpp">
       <Filter>02.GameObject\EyeTarget</Filter>
     </ClCompile>
@@ -1311,7 +1310,6 @@
     </ClInclude>
     <ClInclude Include="..\Public\AN_CounterReturnAll.h" />
     <ClInclude Include="..\public\CinematicCamera.h" />
-    <ClInclude Include="..\Public\PointParticleEffect.h" />
     <ClInclude Include="..\Public\EyeTarget.h">
       <Filter>02.GameObject\EyeTarget</Filter>
     </ClInclude>

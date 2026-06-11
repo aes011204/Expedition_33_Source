@@ -43,7 +43,7 @@ HRESULT Level_GamePlay::Initialize()
     if(FAILED(Ready_Layer_Puzzle(TEXT("Layer_Puzzle"))))
         return E_FAIL;
 
-    GAME->Play_BGM(Constants::Sound::SpringBGM, 1.f, true, 0.f);
+    GAME->Play_BGM(Constants::SoundBGM::SpringBGM, 1.f, true, 0.f);
 
     return S_OK;
 }

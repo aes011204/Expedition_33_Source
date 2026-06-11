@@ -305,7 +305,8 @@ namespace Client::Constants::SoundBGM
 namespace Client::Constants::Cinematic
 {
     inline constexpr wchar_t BridgeCinematic[]= L"../../../Client/Bin/Resources/Data/json/Cinematics/Bridge.json";  
-        
+}
+
 namespace Client::Constants::SoundCue
 {
     constexpr const wchar_t* UI_MainTitle_ButtonHover = L"UI_MainTitle_ButtonHover";

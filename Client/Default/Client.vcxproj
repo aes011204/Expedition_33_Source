@@ -224,6 +224,7 @@
     <ClInclude Include="..\public\BT_Set_Target.h" />
     <ClInclude Include="..\public\CinematicCamera.h" />
     <ClInclude Include="..\public\CinematicSequenceRunner.h" />
+    <ClInclude Include="..\Public\EyeTarget.h" />
     <ClInclude Include="..\Public\ClientScreenFxManager.h" />
     <ClInclude Include="..\Public\CostumeManager.h" />
     <ClInclude Include="..\Public\Distortion_ScreenFx.h" />
