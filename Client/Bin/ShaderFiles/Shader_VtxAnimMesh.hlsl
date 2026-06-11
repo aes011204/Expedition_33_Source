@@ -266,47 +266,74 @@ PS_OUT PS_CharacterEye(PS_IN In)
 
     PS_OUT Out;
 
-    float2 finalUV = ApplyUVTransform(In.Texcoord);
+    float2 baseUV = In.Texcoord;
+    float2 irisUV = ApplyUVTransform(In.Texcoord);
+
+    float3 viewDirWS = normalize(g_CamPosition.xyz - In.WorldPos.xyz);
+
+    float2 irisViewOffset = float2(dot(viewDirWS, normalize(In.Tangent.xyz)), dot(viewDirWS, normalize(In.Binormal.xyz)));
+
+    irisUV -= irisViewOffset * 0.1f;
+
+
     float dissolveEdge = 0.f;
 
     if (IsSwitchDissolveEnabled())
-        dissolveEdge = ApplySwitchDissolveClip(finalUV);
+        dissolveEdge = ApplySwitchDissolveClip(baseUV);
 
-    EyeMaterialSample eye = SampleEyeMaterial(finalUV);
+    EyeMaterialSample eye = SampleEyeMaterial(baseUV, irisUV);
 
     if (eye.opacity < g_OpacityMaskClipValue)
         discard;
 
-    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, finalUV);
+    float3 worldNormal = ComputeWorldNormal(In.Normal.xyz, In.Tangent, In.Binormal, baseUV);
     float3 eyeBaseColor = eye.baseColor;
 
-    // if (HasPreviewRim())
-    // {
-    //     // SkillTree preview에서는 얼굴이 눌리기 쉬워서 눈만 전체 밝기를 조금 더 올린다.
-    //     eyeBaseColor = eyeBaseColor * 1.95f + 0.085f;
-    // }
+    // 카메라를 정면으로 바라보는 곳은 밝게, 눈알의 옆면과 가장자리는 어둡게 만들어 구 형태를 강조한다.
+    float NdotV = saturate(dot(worldNormal, viewDirWS));
+    float eyeCurvatureShade = lerp(0.32f, 1.f, pow(NdotV, 0.65f));
+    float scleraMask = 1.f - eye.irisArea;
+
+    eyeBaseColor *= lerp(1.f, eyeCurvatureShade, scleraMask);
 
     Out.Diffuse = float4(eyeBaseColor, 1.f);
+
     Out.Normal = float4(EncodeNormal(worldNormal), 1.f);
     Out.Depth = float4(In.ProjPos.z / In.ProjPos.w, In.ProjPos.w / g_Far, 0.f, 1.f);
-    float3 orm = SampleOrm(finalUV);
-    // Eye 전용 ORM 보정: iris는 roughness를 낮춰 입체 하이라이트를 살리고,
-    // pupil은 거의 무광에 가깝게 유지한다.
-    float eyeRoughness = lerp(0.20f, 0.06f, eye.irisArea);
-    eyeRoughness = lerp(eyeRoughness, 0.03f, eye.pupilMask);
-    orm.g = min(orm.g, eyeRoughness);
-    orm.b = min(orm.b, 0.02f); // 눈에서 금속감 방지
+    float3 orm = SampleOrm(baseUV);
+
+    // 눈 전체를 덮는 매끈한 각막 표면. 값이 낮을수록 반사가 작고 날카롭게 나타난다.
+    const float corneaRoughness = 0.005f;
+
+    orm.r = max(orm.r, 0.92f);
+    orm.g = min(orm.g, corneaRoughness);
+    orm.b = 0.f;
+
     Out.Material = float4(orm.xyz, 1.f);
 
-    float3 emissive = SampleEmissive(finalUV);
-    emissive += dissolveEdge * g_FeatureParam1.rgb * 0.45f;
+    // 눈 표면 가장자리에서 나타나는 각막 Fresnel 반사
+    float corneaFresnel = pow(1.f - NdotV, 5.f);
 
-    if (HasPreviewRim())
-    {
-        emissive += eyeBaseColor * 0.34f;
-    }
+    // 과하지 않은 차가운 각막 반사색
+    float3 corneaReflection = float3(0.80f, 0.90f, 1.f) * corneaFresnel * 0.10f;
 
-    Out.Emissive = float4(emissive.xyz, 1.f);
+    float3 T = normalize(In.Tangent.xyz);
+    float3 B = normalize(In.Binormal.xyz);
+
+    float3 glintNormalWS = normalize(worldNormal + T * 0.32f - B * 0.18f);
+
+    // 날카로운 작은 안광
+    float corneaGlint = pow(saturate(dot(viewDirWS, glintNormalWS)), 140.f);
+    float glintMask = saturate(0.20f + eye.irisArea * 0.80f);
+
+    // 작은 흰색 안광. 맨 뒤 값을 높이면 안광 커짐
+    float3 corneaHighlight = float3(1.f, 0.96f, 0.90f) * corneaGlint * glintMask * 0.55f;
+    
+    float3 emissive =
+        corneaReflection +
+        corneaHighlight;
+    
+    Out.Emissive = float4(emissive, 1.f);
 
     return Out;
 }
