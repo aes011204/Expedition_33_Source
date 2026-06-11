@@ -19,6 +19,13 @@ class PlayerControllerCom;
 class PlayerStateMachineCom;
 class EffectCom;
 
+class Body_Player;
+class Head_Player;
+class Hair_Player;
+
+struct CostumePreset;
+struct CostumePartLocalTransform;
+
 class Player_WorldBase : public Character_WorldBase
 {
 public:
@@ -43,9 +50,13 @@ public:
     Vec3    Get_MovementVelocity() const;
     void    Start_SwitchDissolve(float durationSec, const string& noiseName);
 
+    HRESULT Apply_CostumePreset(const CostumePreset& preset);
+
 protected:
     HRESULT Ready_Components();
 	HRESULT Ready_PartObjects();
+
+    virtual HeroId Get_HeroId() const { return HeroId::END; }
 
     virtual HairChainPhysicsDesc Get_HairChainPhysicsDesc() const
     {
@@ -62,6 +73,31 @@ protected:
     virtual const wchar_t* Get_BeardModelTag() const { return nullptr; }
     virtual const wchar_t* Get_MustacheModelTag() const { return nullptr; }
 
+private:
+    struct CostumePartTransform
+    {
+        Vec3 position{ Vec3::Zero };
+        Vec3 rotation{ Vec3::Zero };
+        Vec3 scale{ Vec3::One };
+    };
+
+    using CostumePartTransformMap = umap<wstring, CostumePartTransform>;
+
+    HRESULT Rebuild_CostumeParts(const CostumePreset& preset);
+    void Clear_CostumeParts();
+    CostumePartTransformMap Capture_CostumePartTransforms() const;
+    const CostumePartTransformMap& Get_DefaultCostumePartTransforms();
+    void Apply_CostumePartTransform(const wstring& partTag, const CostumePartTransformMap& partTransforms);
+    void Apply_CostumePartTransform(const wstring& partTag, const CostumePartTransformMap& partTransforms,
+        const CostumePartLocalTransform& fallbackTransform);
+    void Reapply_CostumePartBaseMaterial(const wstring& partTag);
+    void Reapply_CostumeBaseMaterials();
+
+    Body_Player* Add_CostumeBody(const wstring& modelTag);
+    Head_Player* Add_CostumeHead(const wstring& modelTag, const Body_Player* body);
+    HRESULT      Add_CostumeHair(const wstring& modelTag, const Head_Player* head);
+    HRESULT      Add_CostumeFaceAccessory(const wstring& partTag, const wstring& modelTag, const Head_Player* head);
+
 protected:
     Shared<MovementCom>             _movementCom;
     Shared<InputCom>                _inputCom;
@@ -70,6 +106,7 @@ protected:
     Shared<SkillTreeCom>            _skillTreeCom;
     Shared<PlayerStatCom>           _combatStatCom;
     Shared<EffectCom>               _effectCom;
+    CostumePartTransformMap         _defaultCostumePartTransforms{};
     float                           _fallStateEnterAccum = 0.f; // 점프 입력 없는 짧은 공중 흔들림은 바로 Jump 상태로 소비하지 않기 위한 누적 시간
 
 public:

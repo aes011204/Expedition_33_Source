@@ -266,6 +266,8 @@ void EditorInstance::Stop()
         if (Shared<GameplayUI> gameplayUI = CLIENT->Get_GameplayUI())
             gameplayUI->Handle_EditorStopRuntime();
 
+        GAME->Stop_AllSounds(0.f);
+
         Restore_PlayStartMonsterSnapshots(); // F4 Stop은 큰 맵 JSON을 다시 읽지 않고 Play 시작 몬스터만 되돌린다.
         CLIENT->Restore_PartyFormationAfterEditorStop();
     }

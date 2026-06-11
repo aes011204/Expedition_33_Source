@@ -74,7 +74,7 @@ HRESULT EffectInstancePool::Reload_Attached(const AcquireDesc& desc, AttachedHan
     if (nullptr == entry || nullptr == entry->instance)
         return E_FAIL;
 
-    Shared<const EffectDefinition> definition = desc.definition ? desc.definition : EffectAssetRuntimeLoader::Load_DefinitionByName(desc.effectName);
+    const Shared<const EffectDefinition> definition = desc.definition ? desc.definition : EffectAssetRuntimeLoader::Load_DefinitionByName(desc.effectName);
     CHECK_NULL(definition, E_FAIL);
 
     CHECK_FAILED(entry->instance->Reload_Definition(definition), E_FAIL);

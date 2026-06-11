@@ -1,97 +1,97 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
-$LevelName = ""
-$TargetMode = ""
-$Overwrite = $false
 $DryRun = $false
-
 foreach ($arg in $args) {
-    if ($arg -ieq "--overwrite" -or $arg -ieq "-Overwrite") {
-        # Support the batch-style option used from ConvertMapTexturesToDDS.bat.
-        $Overwrite = $true
-        continue
-    }
-
     if ($arg -ieq "--dry-run" -or $arg -ieq "-DryRun") {
-        # Dry-run must never call texconv; it only prints the recursive target list.
         $DryRun = $true
-        continue
     }
-
-    if ($arg -match "^[1-4]$") {
-        $TargetMode = $arg
-        continue
-    }
-
-    # Non-numeric positional argument keeps the old level-name workflow.
-    $LevelName = $arg
 }
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Resolve-Path (Join-Path $scriptDir "..\..")
 
-$textureDirs = @()
+Write-Host ""
+Write-Host "============================================="
+Write-Host " Basic Converter To DDS"
+Write-Host "============================================="
+Write-Host " 1. Map"
+Write-Host " 2. Model"
+Write-Host " 3. Effect"
+Write-Host " 4. All"
+Write-Host "============================================="
+$TargetMode = (Read-Host "Select target [1-4]").Trim()
 
-if ([string]::IsNullOrWhiteSpace($LevelName)) {
-    if ([string]::IsNullOrWhiteSpace($TargetMode)) {
-        Write-Host "============================================="
-        Write-Host " Convert Runtime Textures To DDS"
-        Write-Host "============================================="
-        Write-Host " 1. Map"
-        Write-Host " 2. Model"
-        Write-Host " 3. Effect"
-        Write-Host " 4. All"
-        Write-Host "============================================="
-        $TargetMode = (Read-Host "Select target [1-4]").Trim()
-    }
-
-    switch ($TargetMode) {
-        "1" {
-            $targetName = "Map"
-            $textureDirs = @(
-                (Join-Path $repoRoot "Client\Bin\Resources\Map")
-            )
-        }
-        "2" {
-            $targetName = "Model"
-            $textureDirs = @(
-                (Join-Path $repoRoot "Client\Bin\Resources\Models")
-            )
-        }
-        "3" {
-            $targetName = "Effect"
-            $textureDirs = @(
-                (Join-Path $repoRoot "Client\Bin\Resources\Effects")
-            )
-        }
-        "4" {
-            $targetName = "All"
-            $textureDirs = @(
-                (Join-Path $repoRoot "Client\Bin\Resources\Map"),
-                (Join-Path $repoRoot "Client\Bin\Resources\Models"),
-                (Join-Path $repoRoot "Client\Bin\Resources\Effects")
-            )
-        }
-        default {
-            Write-Host "[ERROR] Invalid target selection: $TargetMode"
-            Write-Host "  Enter 1 for Map, 2 for Model, 3 for Effect, or 4 for All."
-            exit 1
-        }
-    }
-} else {
-    $targetName = $LevelName
-    # A positional level name keeps the old map-only workflow.
-    $textureDirs = @(
-        (Join-Path $repoRoot "Client\Bin\Resources\Map\$LevelName\Textures")
-    )
+if ($TargetMode -notin @("1", "2", "3", "4")) {
+    Write-Host "[ERROR] Invalid target selection."
+    exit 1
 }
 
-$missingDirs = $textureDirs | Where-Object { -not (Test-Path -LiteralPath $_) }
+Write-Host ""
+Write-Host "Existing DDS handling:"
+Write-Host " 1. Overwrite existing DDS"
+Write-Host " 2. Skip when DDS already exists"
+$overwriteMode = (Read-Host "Select mode [1-2]").Trim()
+
+switch ($overwriteMode) {
+    "1" { $Overwrite = $true }
+    "2" { $Overwrite = $false }
+    default {
+        Write-Host "[ERROR] Invalid overwrite selection."
+        exit 1
+    }
+}
+
+$textureDirs = @()
+$targetNames = @()
+$LevelName = ""
+
+if ($TargetMode -eq "1" -or $TargetMode -eq "4") {
+    Write-Host ""
+    Write-Host "Enter a path relative to Resources\Map."
+    Write-Host "Example: SmallLevel_MF_Zone_01"
+    $LevelName = (Read-Host "Map path").Trim()
+    if ([string]::IsNullOrWhiteSpace($LevelName)) {
+        Write-Host "[ERROR] Map path is required."
+        exit 1
+    }
+
+    $textureDirs += Join-Path $repoRoot "Client\Bin\Resources\Map\$LevelName\Textures"
+    $targetNames += "Map:$LevelName"
+}
+
+if ($TargetMode -eq "2" -or $TargetMode -eq "4") {
+    Write-Host ""
+    Write-Host "Enter a path relative to Resources\Models."
+    Write-Host "Example: Heros\Lune"
+    $modelPath = (Read-Host "Model path").Trim()
+    if ([string]::IsNullOrWhiteSpace($modelPath)) {
+        Write-Host "[ERROR] Model path is required."
+        exit 1
+    }
+
+    $textureDirs += Join-Path $repoRoot "Client\Bin\Resources\Models\$modelPath"
+    $targetNames += "Model:$modelPath"
+}
+
+if ($TargetMode -eq "3" -or $TargetMode -eq "4") {
+    Write-Host ""
+    Write-Host "Enter a path relative to Resources\Effects."
+    Write-Host "Example: Character\Lune"
+    $effectPath = (Read-Host "Effect path").Trim()
+    if ([string]::IsNullOrWhiteSpace($effectPath)) {
+        Write-Host "[ERROR] Effect path is required."
+        exit 1
+    }
+
+    $textureDirs += Join-Path $repoRoot "Client\Bin\Resources\Effects\$effectPath"
+    $targetNames += "Effect:$effectPath"
+}
+
+$targetName = $targetNames -join ", "
+$missingDirs = @($textureDirs | Where-Object { -not (Test-Path -LiteralPath $_) })
 if ($missingDirs.Count -gt 0) {
     Write-Host "[ERROR] Target folder not found:"
-    foreach ($dir in $missingDirs) {
-        Write-Host "  $dir"
-    }
+    foreach ($dir in $missingDirs) { Write-Host "  $dir" }
     exit 1
 }
 
@@ -113,32 +113,46 @@ function Resolve-TexconvPath {
     return $null
 }
 
+function Test-IsPureNormalName {
+    param([string]$FileName)
+
+    $name = $FileName.ToLowerInvariant()
+    $isPackedNormal =
+        ($name -match "(^|[_\-\.\+])nmao([_\-\.\+]|$)") -or
+        ($name -match "(^|[_\-\.\+])nao([_\-\.\+]|$)") -or
+        ($name -match "(^|[_\-\.\+])nme([_\-\.\+]|$)") -or
+        ($name -match "(^|[_\-\.\+])nre([_\-\.\+]|$)") -or
+        ($name -match "normal.*rough|normal.*metal|normal.*emissive|normal.*mask")
+
+    if ($isPackedNormal) { return $false }
+    return $name -match "normal|normals|norm|nrm|(^|[_\-\.])n([_\-\.]|$)"
+}
+
 function Get-DdsClassification {
     param([string]$FileName)
 
     $name = $FileName.ToLowerInvariant()
+
+    if (Test-IsPureNormalName $FileName) {
+        return [PSCustomObject]@{
+            Format = "BC5_UNORM"
+            Kind = "Normal"
+        }
+    }
+
     $isPackedColor = $name -match "(^|_)(ar)(_|\.|$)|albedo.*roughness|basecolor.*roughness|base_color.*roughness|diffuse.*roughness|albedoalpha|basecoloralpha|coloralpha|colouralpha"
     $isColor = $name -match "basecolor|base_color|albedo|diffuse|diff|emissive|color|colour|_bc|_c\b|_d\b|_albedo"
-    $isData = $name -match "normal|norm|nmao|nao|orm|occlusionroughnessmetallic|\bao\b|mask|height|cavity|metallic|metalness|spec|_n\b|_s\b|_m\b"
-    $isRoughnessOnly = (-not $isPackedColor) -and (-not $isColor) -and ($name -match "roughness|opacity|alpha")
 
     if ($isPackedColor -or $isColor) {
         return [PSCustomObject]@{
             Format = "BC7_UNORM_SRGB"
-            IsData = $false
-        }
-    }
-
-    if ($isData -or $isRoughnessOnly) {
-        return [PSCustomObject]@{
-            Format = "BC7_UNORM"
-            IsData = $true
+            Kind = "Color"
         }
     }
 
     return [PSCustomObject]@{
         Format = "BC7_UNORM"
-        IsData = $true
+        Kind = "Data"
     }
 }
 
@@ -223,13 +237,13 @@ function Resolve-SemanticClassification {
     if ($IsColor) {
         return [PSCustomObject]@{
             Format = "BC7_UNORM_SRGB"
-            IsData = $false
+            Kind = "Color"
         }
     }
 
     return [PSCustomObject]@{
         Format = "BC7_UNORM"
-        IsData = $true
+        Kind = "Data"
     }
 }
 
@@ -478,6 +492,13 @@ function Resolve-DdsClassificationForFile {
         [string]$ResourcesRoot
     )
 
+    if (Test-IsPureNormalName $File.Name) {
+        return [PSCustomObject]@{
+            Format = "BC5_UNORM"
+            Kind = "Normal"
+        }
+    }
+
     $domain = Get-TextureDomain $File.FullName
     $relativePathKey = Get-ResourceRelativeDdsPath -FullPath $File.FullName -ResourcesRoot $ResourcesRoot
     $stemKey = Get-TextureStemKey $File.Name
@@ -601,12 +622,19 @@ foreach ($file in $files) {
 
     Write-Host "[DDS]  $($file.Name) -> $($file.BaseName).dds [$format]"
 
-    if ($classification.IsData) {
-        # 노말, 데이터 텍스처는 배경색 번짐(보라색)을 막기 위해 밉맵을 생성하지 않음 (-m 1)
-        & $texconv -y -ft dds -f $format -m 1 -o $file.DirectoryName $file.FullName | Out-Host
-    } else {
-        # 컬러 텍스처는 밉맵 체인 전체 생성 (-m 0)
-        & $texconv -y -ft dds -f $format -m 0 -o $file.DirectoryName $file.FullName | Out-Host
+    switch ($classification.Kind) {
+        "Color" {
+            # Color: BC7 sRGB with the full mip chain.
+            & $texconv -y -ft dds -f $format -m 0 -o $file.DirectoryName $file.FullName | Out-Host
+        }
+        "Normal" {
+            # Pure normal: BC5 with the full mip chain.
+            & $texconv -y -ft dds -f $format -m 0 -o $file.DirectoryName $file.FullName | Out-Host
+        }
+        default {
+            # Other linear data keeps the existing single-mip behavior.
+            & $texconv -y -ft dds -f $format -m 1 -o $file.DirectoryName $file.FullName | Out-Host
+        }
     }
 
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $outDds)) {

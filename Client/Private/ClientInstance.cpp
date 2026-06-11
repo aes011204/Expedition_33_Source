@@ -24,6 +24,8 @@
 #include "ClientScreenFxManager.h"
 #include "CinematicCamera.h"
 #include "CinematicSequenceRunner.h"
+#include "PlayerInventory.h"
+#include "CostumeManager.h"
 
 IMPLEMENT_SINGLETON(ClientInstance)
 
@@ -87,6 +89,12 @@ HRESULT ClientInstance::Initialize_Client(const ComPtr<Device>& device, const Co
 
     _cinematicSequenceRunner = CinematicSequenceRunner::Create();
     CHECK_NULL(_cinematicSequenceRunner, E_FAIL);
+    
+    _playerInventory = PlayerInventory::Create();
+    CHECK_NULL(_playerInventory, E_FAIL);
+
+    _costumeManager = CostumeManager::Create();
+    CHECK_NULL(_costumeManager, E_FAIL);
 
 	_isInitialized = true;
 
@@ -215,6 +223,14 @@ const Skill_Data* ClientInstance::Get_Skill(const string& skillId)
 const vector<string> ClientInstance::Get_AllSkillIds()
 {
     return _gameDataTable->Get_AllSkillIds();
+}
+
+HRESULT ClientInstance::Reload_GameDataTables()
+{
+    if (_gameDataTable == nullptr)
+        return Ready_GameDataTables();
+
+    return _gameDataTable->Load_All();
 }
 
 const Item_Data* ClientInstance::Get_Item(const string& itemId)
@@ -667,6 +683,15 @@ bool ClientInstance::Play_AttachPartEffect(
         scale));
 }
 
+void ClientInstance::Clear_RuntimeEffects()
+{
+    if (_effectInstancePool == nullptr)
+        return;
+
+    // 월드에 남아있는 이팩트들 제거
+    _effectInstancePool->Clear();
+}
+
 void ClientInstance::Notify_FreeAimShotHit()
 {
     OnFreeAimShotHit.Broadcast();
@@ -743,6 +768,8 @@ void ClientInstance::Release_Client()
     ReleaseManager(_persistentObjectManager);
     ReleaseManager(_resourceLoader);
     ReleaseManager(_heroManager);
+    ReleaseManager(_playerInventory);
+    ReleaseManager(_costumeManager);
     ReleaseManager(_battleController);
     ReleaseManager(_gamePlayUI);
     ReleaseManager(_screenFxManager);

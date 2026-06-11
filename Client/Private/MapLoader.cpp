@@ -1,9 +1,10 @@
 ﻿#include "MapLoader.h"
 #include "GameInstance.h"
+#include "MapAdapter.h"
+#include "MapCollisionAdapter.h"
 #include "MapAuthoringIO.h"
 #include "MapStaticMesh.h"
 #include "MapInstancedMesh.h"
-#include "MapStaticCollisionBuilder.h"
 #include "ModelCom.h"
 #include "StaticCollisionData.h"
 #include "Shader_CBuffer_Define.h"
@@ -15,71 +16,265 @@
 std::mutex MapLoader::g_globalCacheMutex;
 umap<string, Shared<ModelCom>> MapLoader::g_globalModelCache;
 umap<string, Shared<StaticCollisionData>> MapLoader::g_globalCollisionCache;
-umap<string, std::vector<std::pair<uint32, std::string>>> MapLoader::g_globalMaterialBindingCache;
 uint32 MapLoader::g_currentLevelIndex = UINT32_MAX;
+
+MapCollisionAdapter::RuntimeContext MapLoader::MakeCollisionRuntimeContext(LoadSession& session)
+{
+    MapCollisionAdapter::RuntimeContext context{};
+    context.globalCacheMutex = &g_globalCacheMutex;
+    context.globalCollisionCache = &g_globalCollisionCache;
+    context.preloadedCollisionCache = &session.preloadedCollisionCache;
+    context.cookedCollisionCache = &session.cookedCollisionCache;
+    context.primitiveCollisionCache = &session.primitiveCollisionCache;
+    context.outBuildDuration = &session.collisionBuildDuration;
+    context.outBuildCount = &session.collisionBuildCount;
+    return context;
+}
 
 namespace
 {
-    bool Try_ParseCollisionProxy(const json& node, ModelCollisionProxy& outProxy)
+    void Append_JsonArray(const json& mapData, const string& key, vector<json>& outArray)
     {
-        if (!node.is_object())
-            return false;
+        if (!mapData.contains(key) || !mapData[key].is_array())
+            return;
 
-        outProxy = {};
-        outProxy.type = static_cast<ModelCollisionProxyType>(
-            node.value("Type", static_cast<uint32>(ModelCollisionProxyType::TriangleMesh)));
-        outProxy.name = node.value("Name", string{});
-
-        if (node.contains("Center") && node["Center"].is_array() && node["Center"].size() == 3)
+        for (const json& item : mapData[key])
         {
-            outProxy.center = Vec3(
-                node["Center"][0].get<float>(),
-                node["Center"][1].get<float>(),
-                node["Center"][2].get<float>());
+            if (item.is_object())
+                outArray.push_back(item);
         }
+    }
 
-        if (node.contains("Rotation") && node["Rotation"].is_array() && node["Rotation"].size() == 4)
+    void Append_UniqueString(vector<string>& values, string value)
+    {
+        if (value.empty())
+            return;
+
+        if (find(values.begin(), values.end(), value) == values.end())
+            values.push_back(std::move(value));
+    }
+
+    const MapLoader::ModelOverrideEntry* Find_ModelOverrideEntry(
+        const unordered_map<string, MapLoader::ModelOverrideEntry>& modelOverrides,
+        const string& modelPathStr)
+    {
+        auto overrideIt = modelOverrides.find(modelPathStr);
+        if (overrideIt != modelOverrides.end())
+            return &overrideIt->second;
+
+        const string modelFileName = fs::path(modelPathStr).filename().string();
+        overrideIt = modelOverrides.find(modelFileName);
+        if (overrideIt != modelOverrides.end())
+            return &overrideIt->second;
+
+        return nullptr;
+    }
+
+    void Append_MaterialOverridesForMapCandidates(
+        const json& mapData,
+        const wstring& actualPath,
+        unordered_map<string, MapLoader::ModelOverrideEntry>& outOverrides)
+    {
+        vector<string> mapNames;
+        Append_UniqueString(mapNames, mapData.value("MapName", string{}));
+        Append_UniqueString(mapNames, mapData.value("ModelFolder", string{}));
+        Append_UniqueString(mapNames, fs::path(actualPath).stem().string());
+
+        for (const string& mapName : mapNames)
+            MapAdapter::AppendModelOverridesFromMaterialMapName(mapName, outOverrides);
+    }
+
+    void Apply_PostProcessVolumes(const vector<json>& postProcessVolumes)
+    {
+        FogZoneCB fogCB{};
+        for (const auto& e : postProcessVolumes)
         {
-            outProxy.rotation = Quat(
-                node["Rotation"][0].get<float>(),
-                node["Rotation"][1].get<float>(),
-                node["Rotation"][2].get<float>(),
-                node["Rotation"][3].get<float>());
-        }
+            if (fogCB.aabbCount + fogCB.sphereCount >= FogZoneCB::MAX_FOG_ZONES)
+                break;
 
-        if (node.contains("Extents") && node["Extents"].is_array() && node["Extents"].size() == 3)
-        {
-            outProxy.extents = Vec3(
-                node["Extents"][0].get<float>(),
-                node["Extents"][1].get<float>(),
-                node["Extents"][2].get<float>());
-        }
+            float density = e.value("FogDensity", 0.f);
+            if (density <= 0.f)
+                continue;
 
-        outProxy.radius = node.value("Radius", 0.f);
-        outProxy.halfHeight = node.value("HalfHeight", 0.f);
-
-        if (node.contains("Positions") && node["Positions"].is_array())
-        {
-            for (const json& positionNode : node["Positions"])
+            FogZoneEntry entry{};
+            if (e.contains("FogColor"))
             {
-                if (!positionNode.is_array() || positionNode.size() != 3)
-                    continue;
+                auto& c = e["FogColor"];
+                entry.fogColor = Vec4(c[0], c[1], c[2], 1.f);
+            }
 
-                outProxy.positions.push_back(Vec3(
-                    positionNode[0].get<float>(),
-                    positionNode[1].get<float>(),
-                    positionNode[2].get<float>()));
+            entry.fogDensity = density;
+            entry.fogStart = e.value("FogStart", 0.f);
+
+            Vec3 position{};
+            if (e.contains("Position"))
+            {
+                auto& p = e["Position"];
+                position = Vec3(p[0], p[1], p[2]);
+            }
+
+            int zoneType = e.value("FogZoneType", 0);
+            if (zoneType == 0)
+            {
+                Vec3 extent{ 5.f, 5.f, 5.f };
+                if (e.contains("Extent"))
+                {
+                    auto& ex = e["Extent"];
+                    extent = Vec3(ex[0], ex[1], ex[2]);
+                }
+                entry.zoneMin = position - extent;
+                entry.zoneMax = position + extent;
+                fogCB.zones[fogCB.aabbCount++] = entry;
+            }
+            else
+            {
+                entry.zoneMin = position;
+                entry.zoneRadius = e.value("FogRadius", 10.f);
+                fogCB.zones[fogCB.aabbCount + fogCB.sphereCount++] = entry;
             }
         }
 
-        if (node.contains("Indices") && node["Indices"].is_array())
+        GAME->Set_FogZones(fogCB);
+    }
+
+    HRESULT Add_WaterObject(
+        const json& e,
+        uint32 levelIndex,
+        const wstring& layerTag,
+        vector<Shared<GameObject>>* spawnedObjects)
+    {
+        const wstring waterTexBase = Constants::Map::WaterPath;
+        auto WaterTexPath = [&](const string& filename) -> wstring {
+            if (filename.empty())
+            {
+                return {};
+            }
+            return waterTexBase + String::ToWString(filename);
+            };
+
+        MapWater::MAPWATER_DESC desc{};
+
+        if (e.contains("Position"))
         {
-            for (const json& indexNode : node["Indices"])
-                outProxy.indices.push_back(indexNode.get<uint32>());
+            auto& p = e["Position"];
+            desc.position = Vec3(p[0], p[1], p[2]);
+        }
+        if (e.contains("Rotation"))
+        {
+            auto& r = e["Rotation"];
+            desc.rotation = Quat(r[0], r[1], r[2], r[3]);
         }
 
-        return true;
+        desc.planeDesc.countX = e.value("CountX", 64u);
+        desc.planeDesc.countZ = e.value("CountZ", 64u);
+        desc.planeDesc.sizeX = e.value("SizeX", 1.f);
+        desc.planeDesc.sizeZ = e.value("SizeZ", 1.f);
+
+        desc.largeWaveNormalPath = WaterTexPath(e.value("LargeWaveNormal", string{}));
+        desc.smallWaveNormalPath = WaterTexPath(e.value("SmallWaveNormal", string{}));
+        desc.seafoamPath = WaterTexPath(e.value("SeafoamTexture", string{}));
+        desc.cubemapPath = WaterTexPath(e.value("Cubemap", string{}));
+
+        auto& p = desc.waterParams;
+        p.largeWaveScale = e.value("LargeWaveScale", 64.f);
+        p.largeWaveSpeed = e.value("LargeWaveSpeed", 0.1f);
+        p.largeWaveAmplify = e.value("LargeWaveAmplify", 1.f);
+        p.smallWaveScale = e.value("SmallWaveScale", 512.f);
+        p.smallWaveSpeed = e.value("SmallWaveSpeed", 1.f);
+        p.smallWaveAmplify = e.value("SmallWaveAmplify", 1.f);
+        p.seafoamScale = e.value("SeafoamScale", 512.f);
+        p.seafoamSpeed = e.value("SeafoamSpeed", 0.015f);
+        p.seafoamHeightPower = e.value("SeafoamHeightPower", 2.f);
+        p.seafoamHeightMultiply = e.value("SeafoamHeightMultiply", 3.f);
+        p.foamDistortion = e.value("FoamDistortion", 0.f);
+        p.depthFade = e.value("DepthFade", 0.f);
+        p.cameraDistanceFade = e.value("CameraDistanceFade", 0.f);
+        p.reflectionAmount = e.value("ReflectionAmount", 0.f);
+        p.luminanceBias = e.value("LuminanceBias", 0.f);
+
+        if (e.contains("WaterColor"))
+        {
+            auto& c = e["WaterColor"];
+            p.waterColor = Vec4(c[0], c[1], c[2], c[3]);
+        }
+        if (e.contains("FresnelColor"))
+        {
+            auto& c = e["FresnelColor"];
+            p.fresnelColor = Vec4(c[0], c[1], c[2], c[3]);
+        }
+
+        Shared<GameObject> water = nullptr;
+        HRESULT hr = GAME->Add_GameObject(
+            ETOI(LevelType::Static),
+            TEXT("Prototype_MapWater"),
+            levelIndex,
+            layerTag,
+            water,
+            &desc);
+
+        if (SUCCEEDED(hr) && spawnedObjects != nullptr && water != nullptr)
+            spawnedObjects->push_back(water);
+
+        return hr;
     }
+
+}
+
+HRESULT MapLoader::Try_BeginMapInstanceSession(
+    const ComPtr<Device>& device,
+    const ComPtr<Context>& context,
+    const wstring& filePath,
+    uint32 levelIndex,
+    const wstring& layerTag,
+    LoadSession& outSession)
+{
+    // Split MapInstance 경로 해석:
+    // - 파일 경로 입력: MapInstance/<json stem>
+    // - 맵 이름 입력: MapInstance/<map name>
+    // 각 하위 json은 오브젝트 배치 정보와 Map 루트 기준 ModelPath를 가진다.
+    const auto sessionBegin = chrono::steady_clock::now();
+
+    MapAdapter::SplitMapInstanceData splitData{};
+    if (!MapAdapter::TryLoadSplitMapInstanceData(filePath, splitData))
+        return E_FAIL;
+
+    outSession = {};
+    outSession.device = device;
+    outSession.context = context;
+    outSession.levelIndex = levelIndex;
+    outSession.layerTag = layerTag;
+    outSession.modelFolder = splitData.modelFolder;
+    outSession.modelOverrides = std::move(splitData.modelOverrides);
+    outSession.staticMeshes = std::move(splitData.staticMeshes);
+    outSession.instancedMeshes = std::move(splitData.instancedMeshes);
+    outSession.postProcessVolumes = std::move(splitData.postProcessVolumes);
+    outSession.waters = std::move(splitData.waters);
+    outSession.preloadModelPaths = std::move(splitData.preloadModelPaths);
+    outSession.cookedCollisionCache = std::move(splitData.cookedCollisionCache);
+    outSession.primitiveCollisionCache = std::move(splitData.primitiveCollisionCache);
+
+    outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
+    outSession.staticMeshesDone = outSession.staticMeshes.empty();
+    outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
+    outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
+    outSession.watersDone = outSession.waters.empty();
+    outSession.prefabInstancesDone = true;
+
+    outSession.beginSessionDuration =
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - sessionBegin);
+
+    LOG_DEBUG(
+        "[MapLoader::MapInstance] root='{}' modelFolder='{}' staticMeshes={} instancedMeshes={} postProcessVolumes={} waters={} preloadModels={} modelOverrides={}",
+        splitData.root.generic_string(),
+        outSession.modelFolder,
+        outSession.staticMeshes.size(),
+        outSession.instancedMeshes.size(),
+        outSession.postProcessVolumes.size(),
+        outSession.waters.size(),
+        outSession.preloadModelPaths.size(),
+        outSession.modelOverrides.size());
+
+    return S_OK;
 }
 
 HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<Context>& context,
@@ -88,11 +283,30 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     // 새로운 레벨로 진입한 경우 기존 전역 캐시 클리어 (메모리 누수 방지)
     if (g_currentLevelIndex != levelIndex)
     {
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        g_globalModelCache.clear();
-        g_globalCollisionCache.clear();
-        g_globalMaterialBindingCache.clear();
-        g_currentLevelIndex = levelIndex;
+        {
+            std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+            g_globalModelCache.clear();
+            g_globalCollisionCache.clear();
+            g_currentLevelIndex = levelIndex;
+        }
+        MapAdapter::Clear_MaterialCache();
+    }
+
+    {
+        LoadSession mapInstanceSession{};
+        // split MapInstance가 있으면 우선 사용한다.
+        // 실패하면 아래 기존 통합 SaveJson/MapData 로드 경로를 그대로 유지한다.
+        if (SUCCEEDED(Try_BeginMapInstanceSession(
+            device,
+            context,
+            filePath,
+            levelIndex,
+            layerTag,
+            mapInstanceSession)))
+        {
+            outSession = std::move(mapInstanceSession);
+            return S_OK;
+        }
     }
 
     const auto sessionBegin = chrono::steady_clock::now();
@@ -181,153 +395,11 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
     outSession.sourceMapPath = filePath;
     outSession.modelFolder = mapData.value("ModelFolder", string{});
 
-    if (mapData.contains("PostProcessVolumes"))
-    {
-        FogZoneCB fogCB{};
-        for (const auto& e : mapData["PostProcessVolumes"])
-        {
-            if (fogCB.aabbCount + fogCB.sphereCount >= FogZoneCB::MAX_FOG_ZONES)
-            {
-                break;
-            }
+    Append_JsonArray(mapData, "PostProcessVolumes", outSession.postProcessVolumes);
+    Append_JsonArray(mapData, "Waters", outSession.waters);
 
-            float density = e.value("FogDensity", 0.f);
-            if (density <= 0.f)
-            {
-                continue;
-            }
-
-            FogZoneEntry entry{};
-            if (e.contains("FogColor"))
-            {
-                auto& c = e["FogColor"];
-                entry.fogColor = Vec4(c[0], c[1], c[2], 1.f);
-            }
-
-            entry.fogDensity = density;
-            entry.fogStart = e.value("FogStart", 0.f);
-
-            Vec3 position{};
-            if (e.contains("Position"))
-            {
-                auto& p = e["Position"];
-                position = Vec3(p[0], p[1], p[2]);
-            }
-
-            int zoneType = e.value("FogZoneType", 0);
-            if (zoneType == 0) // AABB
-            {
-                Vec3 extent{ 5.f, 5.f, 5.f };
-                if (e.contains("Extent"))
-                {
-                    auto& ex = e["Extent"];
-                    extent = Vec3(ex[0], ex[1], ex[2]);
-                }
-                entry.zoneMin = position - extent;
-                entry.zoneMax = position + extent;
-                fogCB.zones[fogCB.aabbCount++] = entry;
-            }
-            else // sphere
-            {
-                entry.zoneMin = position;
-                entry.zoneRadius = e.value("FogRadius", 10.f);
-                fogCB.zones[fogCB.aabbCount + fogCB.sphereCount++] = entry;
-            }
-        }
-        GAME->Set_FogZones(fogCB);
-    }
-
-    if (mapData.contains("Waters"))
-    {
-        const wstring waterTexBase = Constants::Map::WaterPath;
-        auto WaterTexPath = [&](const string& filename) -> wstring {
-            if (filename.empty())
-            {
-                return {};
-            }
-            return waterTexBase + String::ToWString(filename);
-            };
-
-        for (const auto& e : mapData["Waters"])
-        {
-            MapWater::MAPWATER_DESC desc{};
-
-            if (e.contains("Position"))
-            {
-                auto& p = e["Position"];
-                desc.position = Vec3(p[0], p[1], p[2]);
-            }
-            if (e.contains("Rotation"))
-            {
-                auto& r = e["Rotation"];
-                desc.rotation = Quat(r[0], r[1], r[2], r[3]);
-            }
-
-            desc.planeDesc.countX = e.value("CountX", 64u);
-            desc.planeDesc.countZ = e.value("CountZ", 64u);
-            desc.planeDesc.sizeX = e.value("SizeX", 1.f);
-            desc.planeDesc.sizeZ = e.value("SizeZ", 1.f);
-
-            desc.largeWaveNormalPath = WaterTexPath(e.value("LargeWaveNormal", string{}));
-            desc.smallWaveNormalPath = WaterTexPath(e.value("SmallWaveNormal", string{}));
-            desc.seafoamPath = WaterTexPath(e.value("SeafoamTexture", string{}));
-            desc.cubemapPath = WaterTexPath(e.value("Cubemap", string{}));
-
-            auto& p = desc.waterParams;
-            p.largeWaveScale = e.value("LargeWaveScale", 64.f);
-            p.largeWaveSpeed = e.value("LargeWaveSpeed", 0.1f);
-            p.largeWaveAmplify = e.value("LargeWaveAmplify", 1.f);
-            p.smallWaveScale = e.value("SmallWaveScale", 512.f);
-            p.smallWaveSpeed = e.value("SmallWaveSpeed", 1.f);
-            p.smallWaveAmplify = e.value("SmallWaveAmplify", 1.f);
-            p.seafoamScale = e.value("SeafoamScale", 512.f);
-            p.seafoamSpeed = e.value("SeafoamSpeed", 0.015f);
-            p.seafoamHeightPower = e.value("SeafoamHeightPower", 2.f);
-            p.seafoamHeightMultiply = e.value("SeafoamHeightMultiply", 3.f);
-            p.foamDistortion = e.value("FoamDistortion", 0.f);
-            p.depthFade = e.value("DepthFade", 0.f);
-            p.cameraDistanceFade = e.value("CameraDistanceFade", 0.f);
-            p.reflectionAmount = e.value("ReflectionAmount", 0.f);
-            p.luminanceBias = e.value("LuminanceBias", 0.f);
-
-            if (e.contains("WaterColor"))
-            {
-                auto& c = e["WaterColor"];
-                p.waterColor = Vec4(c[0], c[1], c[2], c[3]);
-            }
-            if (e.contains("FresnelColor"))
-            {
-                auto& c = e["FresnelColor"];
-                p.fresnelColor = Vec4(c[0], c[1], c[2], c[3]);
-            }
-
-            Shared<GameObject> water = nullptr;
-            GAME->Add_GameObject(
-                ETOI(LevelType::Static),
-                TEXT("Prototype_MapWater"),
-                levelIndex,
-                layerTag,
-                water,
-                &desc);
-        }
-    }
-
-    if (mapData.contains("ModelOverrides"))
-    {
-        for (auto& [filename, entry] : mapData["ModelOverrides"].items())
-        {
-            ModelOverrideEntry overrideEntry;
-            overrideEntry.passIndex = entry.value("PassIndex", -1);
-            if (entry.contains("TextureSlots"))
-            {
-                for (auto& [slotStr, texPath] : entry["TextureSlots"].items())
-                {
-                    overrideEntry.textureSlots[stoi(slotStr)] = texPath.get<string>();
-                }
-            }
-            outSession.modelOverrides[filename] = overrideEntry;
-        }
-    }
+    MapAdapter::AppendModelOverrides(mapData, outSession.modelOverrides);
+    Append_MaterialOverridesForMapCandidates(mapData, actualPath, outSession.modelOverrides);
 
     if (mapData.contains("StaticMeshes"))
     {
@@ -436,10 +508,21 @@ HRESULT MapLoader::Begin_LoadSession(const ComPtr<Device>& device, const ComPtr<
                 outSession.primitiveCollisionCache[modelPath] = std::move(primitiveProxies);
         }
     }
+    MapCollisionAdapter::AppendModelCollisionSources(
+        mapData,
+        outSession.cookedCollisionCache,
+        outSession.primitiveCollisionCache);
+    MapCollisionAdapter::AppendSiblingModelCollisionSources(
+        outSession.modelFolder,
+        outSession.staticMeshes,
+        outSession.cookedCollisionCache,
+        outSession.primitiveCollisionCache);
 
     outSession.preloadModelsDone = outSession.preloadModelPaths.empty();
     outSession.staticMeshesDone = outSession.staticMeshes.empty();
     outSession.instancedMeshesDone = outSession.instancedMeshes.empty();
+    outSession.postProcessVolumesDone = outSession.postProcessVolumes.empty();
+    outSession.watersDone = outSession.waters.empty();
     outSession.prefabInstancesDone = outSession.prefabInstances.empty();
     outSession.authoredObjectsDone = outSession.authoredObjects.empty();
     outSession.beginSessionDuration =
@@ -503,7 +586,12 @@ HRESULT MapLoader::Preload_SessionData(const ComPtr<Device>& device, const ComPt
         if (it != outSession.preloadedModelCache.end() && it->second != nullptr)
         {
             // 전역 캐시 및 안전 빌드 헬퍼 활용
-            Shared<StaticCollisionData> collisionData = GetOrBuildCollision(it->second, modelPathStr);
+            const auto collisionContext = MakeCollisionRuntimeContext(outSession);
+            Shared<StaticCollisionData> collisionData = MapCollisionAdapter::BuildStaticCollision(
+                it->second,
+                modelPathStr,
+                collisionContext.globalCacheMutex,
+                collisionContext.globalCollisionCache);
             outSession.preloadedCollisionCache[modelPathStr] = collisionData;
         }
 
@@ -526,6 +614,9 @@ HRESULT MapLoader::Preload_SessionData(const ComPtr<Device>& device, const ComPt
 HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPerFrame,
     chrono::milliseconds maxTimePerFrame, bool& outFinished)
 {
+    // 처리 순서는 의도된 계약이다.
+    // preload -> 전역 one-shot 시스템 -> water -> static -> instanced -> prefab 순서를 유지해야
+    // 기존 통합 맵과 신규 split 맵의 동작 차이를 줄일 수 있다.
     outFinished = false;
     ++session.processCallCount;
 
@@ -591,8 +682,36 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.staticAutoInstancingPrepared = true;
         session.staticMeshesDone = session.staticMeshes.empty();
         session.instancedMeshesDone = session.instancedMeshes.empty();
+        session.postProcessVolumesDone = session.postProcessVolumes.empty();
+        session.watersDone = session.waters.empty();
         session.prefabInstancesDone = session.prefabInstances.empty();
         session.authoredObjectsDone = session.authoredObjects.empty();
+    }
+
+    if (!session.postProcessVolumesDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        Apply_PostProcessVolumes(session.postProcessVolumes);
+        session.postProcessVolumesDone = true;
+        ++processedCount;
+    }
+
+    while (!session.watersDone)
+    {
+        if (IsBudgetExceeded())
+            return S_OK;
+
+        if (session.nextWaterIndex >= session.waters.size())
+        {
+            session.watersDone = true;
+            break;
+        }
+
+        const json& e = session.waters[session.nextWaterIndex++];
+        Add_WaterObject(e, session.levelIndex, session.layerTag, session.spawnedObjects);
+        ++processedCount;
     }
 
     while (!session.staticMeshesDone)
@@ -621,6 +740,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         if (it != session.preloadedModelCache.end())
         {
             desc.model = it->second;
+            ApplySessionModelMaterials(session, modelPathStr, desc.model);
         }
         else
         {
@@ -642,6 +762,7 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             }
 
             session.preloadedModelCache[modelPathStr] = model;
+            MarkSessionModelMaterialsApplied(session, modelPathStr);
             desc.model = model;
         }
 
@@ -653,7 +774,10 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         }
         else
         {
-            desc.collisionData = GetOrCreateCookedCollision(session, desc.model, modelPathStr);
+            desc.collisionData = MapCollisionAdapter::GetOrCreateStaticCollision(
+                MakeCollisionRuntimeContext(session),
+                desc.model,
+                modelPathStr);
         }
 
         desc.modelPath = String::ToWString(modelPathStr);
@@ -719,12 +843,13 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
 
         MapInstancedMesh::MAPINSTANCEDMESH_DESC desc{};
 
-        desc.modelPath = String::ToWString("../../../Client/Bin/Resources/Map/" + session.modelFolder + "/" + modelPathStr);
+        desc.modelPath = String::ToWString(MapAdapter::ResolveMapModelPath(session.modelFolder, modelPathStr));
 
         auto it = session.preloadedModelCache.find(modelPathStr);
         if (it != session.preloadedModelCache.end())
         {
             desc.model = it->second;
+            ApplySessionModelMaterials(session, modelPathStr, desc.model);
         }
         else
         {
@@ -746,11 +871,15 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
             }
 
             session.preloadedModelCache[modelPathStr] = model;
+            MarkSessionModelMaterialsApplied(session, modelPathStr);
             desc.model = model;
         }
 
         // InstancedMeshes도 static mesh와 같은 collision cache를 재사용한다.
-        desc.collisionData = GetOrCreateCookedCollision(session, desc.model, modelPathStr);
+        desc.collisionData = MapCollisionAdapter::GetOrCreateStaticCollision(
+            MakeCollisionRuntimeContext(session),
+            desc.model,
+            modelPathStr);
 
         if (e.contains("Instances"))
         {
@@ -875,8 +1004,9 @@ HRESULT MapLoader::Process_LoadSession(LoadSession& session, size_t maxMeshesPer
         session.preloadModelsDone &&
         session.staticMeshesDone &&
         session.instancedMeshesDone &&
-        session.prefabInstancesDone &&
-        session.authoredObjectsDone;
+        session.postProcessVolumesDone &&
+        session.watersDone &&
+        session.prefabInstancesDone;
 
     if (outFinished && !session.summaryLogged)
     {
@@ -923,135 +1053,46 @@ void MapLoader::Prepare_StaticAutoInstancing(LoadSession& session)
 void MapLoader::ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry)
 {
     if (model == nullptr)
+        return;
+
+    MapAdapter::ApplyMaterial(*model, MapAdapter::BuildMaterialApplyDesc(modelFolder, modelFullPath, overrideEntry));
+}
+
+void MapLoader::MarkSessionModelMaterialsApplied(LoadSession& session, const string& modelPathStr)
+{
+    if (modelPathStr.empty())
+        return;
+
+    if (find(session.materialAppliedModelPaths.begin(), session.materialAppliedModelPaths.end(), modelPathStr) !=
+        session.materialAppliedModelPaths.end())
     {
         return;
     }
 
-    if (modelFolder.empty())
+    session.materialAppliedModelPaths.push_back(modelPathStr);
+}
+
+void MapLoader::ApplySessionModelMaterials(LoadSession& session, const string& modelPathStr, Shared<ModelCom>& model)
+{
+    if (model == nullptr || modelPathStr.empty())
+        return;
+
+    if (find(session.materialAppliedModelPaths.begin(), session.materialAppliedModelPaths.end(), modelPathStr) !=
+        session.materialAppliedModelPaths.end())
     {
         return;
     }
 
-    string bundleKey = modelFolder;
-    transform(bundleKey.begin(), bundleKey.end(), bundleKey.begin(), ::tolower);
+    const string fullPathA = MapAdapter::ResolveMapModelPath(session.modelFolder, modelPathStr);
+    const ModelOverrideEntry* overrideEntry = Find_ModelOverrideEntry(session.modelOverrides, modelPathStr);
 
-    fs::path jsonPath = fs::path(modelFullPath).replace_extension(".json");
-    const string jsonPathKey = jsonPath.generic_string();
+    const auto materialBegin = chrono::steady_clock::now();
+    ApplyMaterials(model, session.modelFolder, fullPathA, overrideEntry);
+    session.materialApplyDuration +=
+        chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
+    ++session.materialApplyCount;
 
-    using MaterialSlotBinding = pair<uint32, string>;
-    
-    vector<MaterialSlotBinding> bindings;
-    bool isCached = false;
-    {
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        auto cacheIt = g_globalMaterialBindingCache.find(jsonPathKey);
-        if (cacheIt != g_globalMaterialBindingCache.end())
-        {
-            bindings = cacheIt->second;
-            isCached = true;
-        }
-    }
-
-    if (!isCached)
-    {
-        ifstream jfs(jsonPath);
-
-        try
-        {
-            if (jfs.is_open())
-            {
-                json modelJson = json::parse(jfs);
-
-                for (auto& entry : modelJson)
-                {
-                    if (entry.value("Type", "") != "StaticMesh")
-                        continue;
-
-                    if (!entry.contains("Properties") ||
-                        !entry["Properties"].contains("StaticMaterials"))
-                    {
-                        break;
-                    }
-
-                    const auto& staticMats = entry["Properties"]["StaticMaterials"];
-
-                    for (uint32 i = 0; i < static_cast<uint32>(staticMats.size()); ++i)
-                    {
-                        const auto& mat = staticMats[i];
-                        if (!mat.contains("MaterialInterface"))
-                            continue;
-
-                        const auto& mi = mat["MaterialInterface"];
-                        if (!mi.is_object())
-                            continue;
-
-                        string objectPath = mi.value("ObjectPath", "");
-                        if (objectPath.empty())
-                            continue;
-
-                        size_t dot = objectPath.find('.');
-                        string packagePath = (dot != string::npos)
-                            ? objectPath.substr(0, dot)
-                            : objectPath;
-
-                        size_t slash = packagePath.rfind('/');
-                        string miName = (slash != string::npos)
-                            ? packagePath.substr(slash + 1)
-                            : packagePath;
-
-                        bindings.emplace_back(i, miName);
-                    }
-
-                    break;
-                }
-            }
-        }
-        catch (...)
-        {
-        }
-
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        g_globalMaterialBindingCache[jsonPathKey] = bindings;
-    }
-
-    for (const MaterialSlotBinding& binding : bindings)
-    {
-        model->Apply_MaterialByAssetName(binding.first, bundleKey, binding.second);
-    }
-
-    int32 forcedPassIndex = overrideEntry ? overrideEntry->passIndex : -1;
-
-    if (forcedPassIndex >= 0)
-    {
-        for (uint32 i = 0; i < static_cast<uint32>(model->Get_NumMaterials()); ++i)
-        {
-            auto mat = model->Get_Material(i);
-            if (mat)
-                mat->Set_ForcedPassIndex(forcedPassIndex);
-        }
-    }
-
-    if (overrideEntry)
-    {
-        for (auto& [slotIdx, texPath] : overrideEntry->textureSlots)
-        {
-            if (texPath.empty())
-            {
-                continue;
-            }
-
-            string fullPath = "../../../Client/Bin/Resources/Map/" + texPath;
-            auto slot = static_cast<MaterialTextureSlot>(slotIdx);
-            for (uint32 i = 0; i < static_cast<uint32>(model->Get_NumMaterials()); ++i)
-            {
-                auto mat = model->Get_Material(i);
-                if (mat)
-                {
-                    mat->Override_TextureSlot(slot, 0, String::ToWString(fullPath));
-                }
-            }
-        }
-    }
+    MarkSessionModelMaterialsApplied(session, modelPathStr);
 }
 
 HRESULT MapLoader::Load(const ComPtr<Device>& device, const ComPtr<Context>& context, const wstring& filePath, uint32 levelIndex, const wstring& layerTag)
@@ -1162,19 +1203,36 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     chrono::milliseconds* outMaterialDuration,
     size_t* outMaterialCount)
 {
+    // modelPathStr은 두 형태를 모두 지원한다.
+    // 1) Map 루트 기준 상대 경로: CustomModel/U_BedRock.model
+    // 2) 구버전 파일명-only 경로: U_BedRock.model + modelFolder fallback
+    string fullPathA = MapAdapter::ResolveMapModelPath(modelFolder, modelPathStr);
+
+    const string cacheKey = String::ToLowerCopy(fs::path(fullPathA).lexically_normal().generic_string());
+    const ModelOverrideEntry* overrideEntry = Find_ModelOverrideEntry(modelOverrides, modelPathStr);
+
     // 1단계: 스레드 안전하게 전역 캐시에서 동일 모델 존재 확인
+    Shared<ModelCom> cachedModel = nullptr;
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        auto it = g_globalModelCache.find(modelPathStr);
+        auto it = g_globalModelCache.find(cacheKey);
         if (it != g_globalModelCache.end())
-        {
-            return it->second;
-        }
+            cachedModel = it->second;
+    }
+
+    if (cachedModel != nullptr)
+    {
+        const auto materialBegin = chrono::steady_clock::now();
+        ApplyMaterials(cachedModel, modelFolder, fullPathA, overrideEntry);
+        const auto materialMs = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - materialBegin);
+
+        if (outMaterialDuration) *outMaterialDuration += materialMs;
+        if (outMaterialCount) (*outMaterialCount)++;
+
+        return cachedModel;
     }
 
     // 2단계: 전역 캐시에 없는 경우 디스크에서 신규 로드 수행
-    string fullPathA = "../../../Client/Bin/Resources/Map/" + modelFolder + "/" + modelPathStr;
-
     const auto createBegin = chrono::steady_clock::now();
     auto model = ModelCom::Create(
         device,
@@ -1188,13 +1246,14 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     if (outCreateCount) (*outCreateCount)++;
 
     if (!model)
-        return nullptr;
-
-    const ModelOverrideEntry* overrideEntry = nullptr;
-    auto overrideIt = modelOverrides.find(modelPathStr);
-    if (overrideIt != modelOverrides.end())
     {
-        overrideEntry = &overrideIt->second;
+        LOG_WARN(
+            "[MapLoader::Model] failed to create model modelFolder='{}' modelPath='{}' resolved='{}' directExists={}",
+            modelFolder,
+            modelPathStr,
+            fullPathA,
+            fs::exists(fs::path(fullPathA)));
+        return nullptr;
     }
 
     const auto materialBegin = chrono::steady_clock::now();
@@ -1207,152 +1266,18 @@ Shared<ModelCom> MapLoader::GetOrLoadModel(
     // 3단계: 로드가 완료된 새 모델을 전역 캐시에 안전하게 등록
     {
         std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        g_globalModelCache[modelPathStr] = model;
+        g_globalModelCache[cacheKey] = model;
     }
 
     return model;
 }
 
-Shared<StaticCollisionData> MapLoader::GetOrCreateCookedCollision(
-    LoadSession& session,
-    const Shared<ModelCom>& model,
-    const string& modelPathStr)
-{
-    if (model == nullptr || modelPathStr.empty())
-        return nullptr;
-
-    auto ensureTriangleMeshes = [&](const Shared<StaticCollisionData>& collisionData)
-    {
-        if (collisionData == nullptr)
-            return;
-
-        if (!collisionData->cookedTriangleMeshes.empty() || !collisionData->triangleMeshes.empty())
-            return;
-
-        const wstring sourceModelPath = !model->Get_SourceModelPath().empty()
-            ? model->Get_SourceModelPath()
-            : String::ToWString(modelPathStr);
-
-        if (sourceModelPath.empty())
-            return;
-
-        // 저장된 collision이 proxy-only 또는 empty여도 gameplay에서는 .model triangle mesh를 우선 보강한다.
-        MapStaticCollisionBuilder::Build_TriangleMeshes_FromModelFile(
-            sourceModelPath,
-            collisionData->triangleMeshes);
-    };
-
-    auto sessionIt = session.preloadedCollisionCache.find(modelPathStr);
-    if (sessionIt != session.preloadedCollisionCache.end())
-    {
-        ensureTriangleMeshes(sessionIt->second);
-        return sessionIt->second;
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        auto globalIt = g_globalCollisionCache.find(modelPathStr);
-        if (globalIt != g_globalCollisionCache.end())
-        {
-            ensureTriangleMeshes(globalIt->second);
-            session.preloadedCollisionCache[modelPathStr] = globalIt->second;
-            return globalIt->second;
-        }
-    }
-
-    auto cookedIt = session.cookedCollisionCache.find(modelPathStr);
-    auto primitiveIt = session.primitiveCollisionCache.find(modelPathStr);
-    const bool hasCollisionEntry =
-        (cookedIt != session.cookedCollisionCache.end() || primitiveIt != session.primitiveCollisionCache.end());
-
-    const bool hasCookedTriangles =
-        (cookedIt != session.cookedCollisionCache.end() && !cookedIt->second.empty());
-    const bool hasPrimitiveProxies =
-        (primitiveIt != session.primitiveCollisionCache.end() && !primitiveIt->second.empty());
-
-    if (!hasCollisionEntry)
-    {
-        // 저장 collision entry가 아예 없는 모델도 런타임에서 triangle/proxy collision을 보강한다.
-        Shared<StaticCollisionData> collisionData = GetOrBuildCollision(
-            model,
-            modelPathStr,
-            &session.collisionBuildDuration,
-            &session.collisionBuildCount);
-
-        if (collisionData != nullptr)
-            session.preloadedCollisionCache[modelPathStr] = collisionData;
-
-        return collisionData;
-    }
-
-    auto collisionData = make_shared<StaticCollisionData>();
-    collisionData->cacheKey = model->Get_SourceModelPath();
-    if (collisionData->cacheKey.empty())
-        collisionData->cacheKey = String::ToWString(modelPathStr);
-    collisionData->preLocalTransform = model->Get_PreLocalTransformMatrix();
-    if (hasCookedTriangles)
-        collisionData->cookedTriangleMeshes = cookedIt->second;
-    if (hasPrimitiveProxies)
-        collisionData->primitiveProxies = primitiveIt->second;
-    ensureTriangleMeshes(collisionData);
-
-    if (collisionData->cookedTriangleMeshes.empty() &&
-        collisionData->primitiveProxies.empty() &&
-        collisionData->triangleMeshes.empty())
-    {
-        return nullptr;
-    }
-
-    session.preloadedCollisionCache[modelPathStr] = collisionData;
-
-    {
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        g_globalCollisionCache[modelPathStr] = collisionData;
-    }
-
-    return collisionData;
-}
-
-Shared<StaticCollisionData> MapLoader::GetOrBuildCollision(
-    const Shared<ModelCom>& model,
-    const string& modelPathStr,
-    chrono::milliseconds* outDuration,
-    size_t* outCount)
-{
-    if (model == nullptr)
-        return nullptr;
-
-    // 1단계: 전역 콜리전 캐시에서 조회
-    {
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        auto it = g_globalCollisionCache.find(modelPathStr);
-        if (it != g_globalCollisionCache.end())
-        {
-            return it->second;
-        }
-    }
-
-    // 2단계: 캐시 미스 시 신규 콜리전 데이터 빌드 수행
-    const auto begin = chrono::steady_clock::now();
-    Shared<StaticCollisionData> collisionData = MapStaticCollisionBuilder::Build(model);
-    const auto elapsed = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - begin);
-
-    if (outDuration) *outDuration += elapsed;
-    if (outCount) (*outCount)++;
-
-    // 3단계: 빌드된 콜리전 데이터를 전역 캐시에 스레드 안전하게 등록
-    {
-        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-        g_globalCollisionCache[modelPathStr] = collisionData;
-    }
-
-    return collisionData;
-}
-
 void MapLoader::Clear_GlobalCache()
 {
-    std::lock_guard<std::mutex> lock(g_globalCacheMutex);
-    g_globalModelCache.clear();
-    g_globalCollisionCache.clear();
-    g_globalMaterialBindingCache.clear();
+    {
+        std::lock_guard<std::mutex> lock(g_globalCacheMutex);
+        g_globalModelCache.clear();
+        g_globalCollisionCache.clear();
+    }
+    MapAdapter::Clear_MaterialCache();
 }

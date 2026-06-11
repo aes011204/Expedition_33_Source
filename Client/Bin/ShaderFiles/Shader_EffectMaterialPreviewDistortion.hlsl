@@ -9,15 +9,16 @@
 cbuffer cbEffectMaterialPreviewDistortion : register(b2)
 {
     float4 g_Tint = { 1.f, 1.f, 1.f, 1.f };
-    float4 g_EffectMaterialPreviewAlphaParams = { 0.f, 0.f, 0.f, 0.f };       // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
-    float4 g_EffectMaterialPreviewMainUVParams = { 1.f, 1.f, 0.f, 0.f };      // xy: scale, zw: scroll speed
-    float4 g_EffectMaterialPreviewMaskUVParams = { 1.f, 1.f, 0.f, 0.f };      // xy: scale, zw: scroll speed
-    float4 g_EffectMaterialPreviewFlowUVParams = { 1.f, 1.f, 0.f, 0.f };      // xy: scale, zw: scroll speed
-    float4 g_EffectMaterialPreviewUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };    // xy: main offset, zw: flow offset
-    float4 g_EffectMaterialPreviewMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };// xy: mask offset, zw: reserved
-    float4 g_EffectMaterialPreviewUVModeParams = { 0.f, 0.f, 0.f, 0.f };      // x: main, y: mask, z: flow, w: reserved
-    float4 g_EffectMaterialPreviewSourceParams = { 1.f, 0.f, 0.f, 0.f };      // y: mask source, w: mask invert
-    float4 g_EffectMaterialPreviewDistortionParams = { 0.f, 1.f, 0.f, 0.f };  // x: intensity, y: presence, z: useFlow, w: time
+    float4 g_EffectMaterialPreviewAlphaParams = { 0.f, 0.f, 0.f, 0.f };                 // x: alphaCutoff, y: alphaErosion, z: useMask, w: reserved
+    float4 g_EffectMaterialPreviewMainUVParams = { 1.f, 1.f, 0.f, 0.f };                // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewMaskUVParams = { 1.f, 1.f, 0.f, 0.f };                // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewFlowUVParams = { 1.f, 1.f, 0.f, 0.f };                // xy: scale, zw: scroll speed
+    float4 g_EffectMaterialPreviewUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };              // xy: main offset, zw: flow offset
+    float4 g_EffectMaterialPreviewMaskUVOffsetParams = { 0.f, 0.f, 0.f, 0.f };          // xy: mask offset, zw: reserved
+    float4 g_EffectMaterialPreviewUVModeParams = { 0.f, 0.f, 0.f, 0.f };                // x: main, y: mask, z: flow, w: reserved
+    float4 g_EffectMaterialPreviewUVPolicyParams = { 0.f, 0.f, 0.f, 0.f };              // xy: flow U/V policy, zw: reserved
+    float4 g_EffectMaterialPreviewSourceParams = { 1.f, 0.f, 0.f, 0.f };                // y: mask source, w: mask invert
+    float4 g_EffectMaterialPreviewDistortionParams = { 0.f, 1.f, 0.f, 0.f };            // x: intensity, y: presence, z: useFlow, w: time
     float4 g_EffectMaterialPreviewDistortionShapeParams = { 0.f, 0.45f, 0.10f, 0.15f }; // x: mode, y: radius, z: thickness, w: softness
     float4 g_EffectMaterialPreviewScreenSize = { 512.f, 512.f, 0.f, 0.f };
     int g_OpacitySource = 0;
@@ -53,11 +54,12 @@ float4 Sample_PreviewMaskTexture(float2 uv, float mode)
            : g_MaskTexture.Sample(LinearWrapSampler, uv);
 }
 
-float2 Sample_PreviewFlowTexture(float2 uv, float mode)
+float2 Sample_PreviewFlowTexture(float2 uv)
 {
-    return Use_PreviewClampSampler(mode)
-           ? g_FlowTexture.Sample(LinearClampSampler, uv).rg
-           : g_FlowTexture.Sample(LinearWrapSampler, uv).rg;
+    return g_FlowTexture.Sample(
+        LinearWrapSampler,
+        EffectDistortion_ApplyAxisSeparatedAddress(uv, g_EffectMaterialPreviewUVPolicyParams.xy)
+    ).rg;
 }
 
 struct VS_IN
@@ -106,7 +108,6 @@ PS_OUT PS_MAIN(PS_IN In)
 
     const float mainUVMode = g_EffectMaterialPreviewUVModeParams.x;
     const float maskUVMode = g_EffectMaterialPreviewUVModeParams.y;
-    const float flowUVMode = g_EffectMaterialPreviewUVModeParams.z;
     const float2 mainUV = Apply_MaterialPreviewUV(
         In.texCoord,
         g_EffectMaterialPreviewMainUVParams,
@@ -117,10 +118,13 @@ PS_OUT PS_MAIN(PS_IN In)
         g_EffectMaterialPreviewMaskUVParams,
         g_EffectMaterialPreviewMaskUVOffsetParams.xy
     );
-    const float2 flowUV = Apply_MaterialPreviewUV(
+    const float2 flowUV = EffectDistortion_BuildAxisSeparatedUV(
         In.texCoord,
-        g_EffectMaterialPreviewFlowUVParams,
-        g_EffectMaterialPreviewUVOffsetParams.zw
+        g_EffectMaterialPreviewFlowUVParams.xy,
+        g_EffectMaterialPreviewUVOffsetParams.zw,
+        g_EffectMaterialPreviewFlowUVParams.zw,
+        g_EffectMaterialPreviewDistortionParams.w,
+        g_EffectMaterialPreviewUVPolicyParams.xy
     );
     const float4 symbol = Sample_PreviewMainTexture(mainUV, mainUVMode);
     const float selectedOpacity = Effect_SelectOpacity(symbol, g_OpacitySource);
@@ -142,7 +146,7 @@ PS_OUT PS_MAIN(PS_IN In)
         discard;
 
     const float2 flow = g_EffectMaterialPreviewDistortionParams.z != 0
-                        ? Sample_PreviewFlowTexture(flowUV, flowUVMode) * 2.f - 1.f
+                        ? Sample_PreviewFlowTexture(flowUV) * 2.f - 1.f
                         : float2(0.f, 0.f);
     const float2 screenUV = In.position.xy / max(g_EffectMaterialPreviewScreenSize.xy, float2(1.f, 1.f));
     const float shapeCoverage = EffectDistortion_ComputeShapeCoverage(

@@ -49,6 +49,7 @@ public:
 public:
     const Matrix* Get_SocketBoneMatrixPtr(const string& boneName) const;
     Shared<ModelCom> Get_Model() const { return _model; }
+    const wstring& Get_TrailEffectName() const { return _trailEffectName; }
 
     // 구스타브 총돌리기
     bool    Begin_NotifyRotation();
@@ -71,6 +72,8 @@ private:
     const Matrix*       _socketMatrix = { nullptr };
     bool                _useBodyFollow = false;
     Vec3                _bodyFollowOffset = Vec3::Zero;
+
+    wstring             _trailEffectName = L""; // 무기 프리펩이 들고 있는 기본 Trail 이펙트 이름
 
     bool _notifyRotationActive = false;
     Quat _notifyRotationBaseLocal = Quat::Identity;

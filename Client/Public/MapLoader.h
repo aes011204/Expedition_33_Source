@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Client_Defines.h"
-#include "CollisionProxy_Types.h"
+#include "MapAdapter.h"
+#include "MapCollisionAdapter.h"
 #include <mutex>
 
 NS_BEGIN(Engine)
@@ -16,11 +17,7 @@ class MapStaticMesh;
 class MapLoader final
 {
 public:
-    struct ModelOverrideEntry
-    {
-        int32 passIndex = -1;
-        unordered_map<int32, string> textureSlots;
-    };
+    using ModelOverrideEntry = MapAdapter::ModelOverrideEntry;
 
     struct LoadSession
     {
@@ -35,20 +32,24 @@ public:
         unordered_map<string, ModelOverrideEntry> modelOverrides;
         vector<json> staticMeshes = {};
         vector<json> instancedMeshes = {};
+        vector<json> postProcessVolumes = {};
+        vector<json> waters = {};
         vector<json> prefabInstances = {};
         vector<json> authoredObjects = {};
         vector<string> preloadModelPaths = {};
+        vector<string> materialAppliedModelPaths = {};
 
         size_t nextPreloadModelIndex = 0;
         size_t nextStaticMeshIndex = 0;
         size_t nextInstancedMeshIndex = 0;
+        size_t nextWaterIndex = 0;
         size_t nextPrefabInstanceIndex = 0;
         size_t nextAuthoredObjectIndex = 0;
 
         umap<string, Shared<ModelCom>> preloadedModelCache = {};
         umap<string, Shared<StaticCollisionData>> preloadedCollisionCache = {};
-        umap<string, vector<vector<uint8_t>>> cookedCollisionCache = {};
-        umap<string, vector<ModelCollisionProxy>> primitiveCollisionCache = {};
+        MapCollisionAdapter::CookedCollisionCache cookedCollisionCache = {};
+        MapCollisionAdapter::PrimitiveCollisionCache primitiveCollisionCache = {};
 
         // 청크 unload를 위해 생성 객체를 선택적으로 수집
         vector<Shared<GameObject>>* spawnedObjects = nullptr; 
@@ -57,6 +58,8 @@ public:
         bool preloadModelsDone = false;
         bool staticMeshesDone = false;
         bool instancedMeshesDone = false;
+        bool postProcessVolumesDone = false;
+        bool watersDone = false;
         bool prefabInstancesDone = false;
         bool authoredObjectsDone = false;
 
@@ -118,8 +121,18 @@ public:
     static void Clear_GlobalCache();
 
 private:
+    static HRESULT Try_BeginMapInstanceSession(
+        const ComPtr<Device>& device,
+        const ComPtr<Context>& context,
+        const wstring& filePath,
+        uint32 levelIndex,
+        const wstring& layerTag,
+        LoadSession& outSession);
+
     static void Prepare_StaticAutoInstancing(LoadSession& session);
     static void ApplyMaterials(Shared<ModelCom>& model, const string& modelFolder, const string& modelFullPath, const ModelOverrideEntry* overrideEntry = nullptr);
+    static void MarkSessionModelMaterialsApplied(LoadSession& session, const string& modelPathStr);
+    static void ApplySessionModelMaterials(LoadSession& session, const string& modelPathStr, Shared<ModelCom>& model);
 
     // 스레드 안전한 전역 모델 조회 및 로드 헬퍼 함수
     static Shared<ModelCom> GetOrLoadModel(
@@ -133,24 +146,13 @@ private:
         chrono::milliseconds* outMaterialDuration = nullptr,
         size_t* outMaterialCount = nullptr);
 
-    // 스레드 안전한 전역 콜리전 빌드 및 조회 헬퍼 함수
-    static Shared<StaticCollisionData> GetOrBuildCollision(
-        const Shared<ModelCom>& model,
-        const string& modelPathStr,
-        chrono::milliseconds* outDuration = nullptr,
-        size_t* outCount = nullptr);
-
-    static Shared<StaticCollisionData> GetOrCreateCookedCollision(
-        LoadSession& session,
-        const Shared<ModelCom>& model,
-        const string& modelPathStr);
-
 private:
+    static MapCollisionAdapter::RuntimeContext MakeCollisionRuntimeContext(LoadSession& session);
+
     // 스레드 안전한 전역 맵 모델 프로토타입 캐시 멤버
     static std::mutex g_globalCacheMutex;
     static umap<string, Shared<ModelCom>> g_globalModelCache;
     static umap<string, Shared<StaticCollisionData>> g_globalCollisionCache;
-    static umap<string, std::vector<std::pair<uint32, std::string>>> g_globalMaterialBindingCache;
     static uint32 g_currentLevelIndex;
 };
 

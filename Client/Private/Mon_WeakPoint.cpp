@@ -9,6 +9,8 @@
 
 NS_BEGIN(Client)
 
+FOnBattleWeakPointConsumed Mon_WeakPoint::OnBattleWeakPointConsumed;
+
 namespace
 {
     constexpr wchar_t kDefaultWeakPointEffectName[] = L"Effects\\Assets\\Monster\\Monster_Weak.effect.json";
@@ -252,6 +254,8 @@ bool Mon_WeakPoint::Try_Consume_BattleWeakPointHit()
     if (!_isBattleWeakPointEnabled)
         return false;
 
+    const Shared<Monster_BattleBase> owner = Resolve_BattleMonsterOwner();
+
     const Matrix effectWorldMatrix = Get_CollisionWorldMatrix();
 
     PlayEffectDesc effectDesc{};
@@ -268,7 +272,14 @@ bool Mon_WeakPoint::Try_Consume_BattleWeakPointHit()
     {
         _colliderCom->Set_IsActive(false);
         _colliderCom->Clear_Overlap();
-        GAME->Unregister_PhysXCollider(_colliderCom.get());
+        if (_colliderCom->Is_PhysXRegistered())
+            GAME->Unregister_PhysXCollider(_colliderCom.get());
+    }
+
+    if (owner)
+    {
+        // 약점 터진거 전파
+        OnBattleWeakPointConsumed.Broadcast(owner);
     }
 
     if (_partEffectCom)
@@ -286,10 +297,43 @@ void Mon_WeakPoint::Hide_BattleWeakPoint()
     {
         _colliderCom->Set_IsActive(false);
         _colliderCom->Clear_Overlap();
-        GAME->Unregister_PhysXCollider(_colliderCom.get());
+        if (_colliderCom->Is_PhysXRegistered())
+            GAME->Unregister_PhysXCollider(_colliderCom.get());
     }
 
     if (_partEffectCom)
+        _partEffectCom->Stop_AllAttachedEffects();
+}
+
+void Mon_WeakPoint::Hide_WorldWeakPointForBattle()
+{
+    Set_Visible(false);
+
+    if (_colliderCom)
+    {
+        _colliderCom->Set_IsActive(false);
+        _colliderCom->Clear_Overlap();
+        if (_colliderCom->Is_PhysXRegistered())
+            GAME->Unregister_PhysXCollider(_colliderCom.get());
+    }
+
+    if (_partEffectCom)
+        _partEffectCom->Stop_AllAttachedEffects();
+}
+
+void Mon_WeakPoint::Restore_WorldWeakPointAfterBattle()
+{
+    Set_Visible(_isBattleWeakPointEnabled);
+
+    if (_colliderCom)
+    {
+        _colliderCom->Set_IsActive(_isBattleWeakPointEnabled);
+        _colliderCom->Clear_Overlap();
+    }
+
+    if (_isBattleWeakPointEnabled)
+        Play_WeakPointEffect();
+    else if (_partEffectCom)
         _partEffectCom->Stop_AllAttachedEffects();
 }
 

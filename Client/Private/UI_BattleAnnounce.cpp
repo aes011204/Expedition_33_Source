@@ -26,6 +26,16 @@ void UI_BattleAnnounce::Update(float timeDelta)
     if (!Is_Open() || !_isShowing)
         return;
 
+    _elapsed += timeDelta;
+
+    if (_elapsed < _lifeTime)
+        return;
+
+    const bool notifyFinished = _notifyFinished;
+    Close();
+
+    if (notifyFinished)
+        OnAnnounceFinished.Broadcast();
 }
 
 void UI_BattleAnnounce::Open()
@@ -37,33 +47,14 @@ void UI_BattleAnnounce::Close()
 {
     _isShowing = false;
     _elapsed = 0.f;
+    _notifyFinished = false;
 
     UI_RuntimePanelBase::Close();
 }
 
 void UI_BattleAnnounce::Show_TurnStart(const BattleChar& actor, BattleTurnState state, const Skill_Data* skillData)
 {
-    if (_announceText == nullptr)
-        return;
-
-    const wstring announceText = Build_TurnStartText(actor, state, skillData);
-    if (announceText.empty())
-    {
-        Close();
-        return;
-    }
-
-    // 이전 재생이 남아있어도 다시 처음부터
-    Close();
-
-    _announceText->Set_Text(announceText);
-    Open();
-
-    _isShowing = true;
-    _elapsed = 0.f;
-
-    if (_root)
-        _root->Play_UIAnimation(L"BattleSystem_Announce", true);
+    Show_Text(Build_TurnStartText(actor, state, skillData), false);
 }
 
 void UI_BattleAnnounce::Show_Counter(const vector<BattleChar>& counterActors)
@@ -87,8 +78,58 @@ void UI_BattleAnnounce::Show_Counter(const vector<BattleChar>& counterActors)
         _root->Play_UIAnimation(L"BattleSystem_Announce", true);
 }
 
+void UI_BattleAnnounce::Show_WeakPointHit(const BattleChar& target)
+{
+    if (_announceText == nullptr)
+        return;
+
+    const wstring announceText = Build_WeakPointHitText(target);
+    if (announceText.empty())
+        return;
+
+    // 기존 Announce 닫기
+    Close();
+
+    _announceText->Set_Text(announceText);
+    Open();
+
+    _isShowing = true;
+    _elapsed = 0.f;
+
+    if (_root)
+        _root->Play_UIAnimation(L"BattleSystem_Announce", true);
+}
+
+void UI_BattleAnnounce::Show_BurnTurnStart(const BattleChar& target, bool notifyFinished)
+{
+    Show_Text(Build_BurnTurnStartText(target), notifyFinished);
+}
+
+void UI_BattleAnnounce::Show_StunTurnSkip(const BattleChar& target, bool notifyFinished)
+{
+    Show_Text(Build_StunTurnSkipText(target), notifyFinished);
+}
+
+void UI_BattleAnnounce::Show_Text(const wstring& announceText, bool notifyFinished)
+{
+    if (_announceText == nullptr || announceText.empty())
+        return;
+
+    Close();
+
+    _announceText->Set_Text(announceText);
+    Open();
+
+    _isShowing = true;
+    _elapsed = 0.f;
+    _notifyFinished = notifyFinished;
+
+    if (_root)
+        _root->Play_UIAnimation(L"BattleSystem_Announce", true);
+}
+
 wstring UI_BattleAnnounce::Build_TurnStartText(const BattleChar& actor, BattleTurnState state,
-    const Skill_Data* skillData)
+                                               const Skill_Data* skillData)
 {
     const wstring subjectName = Resolve_ActorSubjectName(actor);
     if (subjectName.empty())
@@ -132,6 +173,46 @@ wstring UI_BattleAnnounce::Build_CounterText(const vector<BattleChar>& counterAc
         return L"원정대가 카운터를 수행합니다.";
 
     return subjectNames.front() + L" 카운터를 수행합니다.";
+}
+
+wstring UI_BattleAnnounce::Build_WeakPointHitText(const BattleChar& target)
+{
+    const wstring possessiveName = Build_PossessiveSubjectName(target);
+    if (possessiveName.empty())
+        return L"";
+
+    return possessiveName + L" 약점을 공격했습니다.";
+}
+
+wstring UI_BattleAnnounce::Build_BurnTurnStartText(const BattleChar& target)
+{
+    const wstring subjectName = Resolve_ActorSubjectName(target);
+    if (subjectName.empty())
+        return L"대상이 불탑니다.";
+
+    return subjectName + L" 불탑니다.";
+}
+
+wstring UI_BattleAnnounce::Build_StunTurnSkipText(const BattleChar& target)
+{
+    const wstring subjectName = Resolve_ActorSubjectName(target);
+    if (subjectName.empty())
+        return L"대상이 기절에서 벗어납니다.";
+
+    return subjectName + L" 기절에서 벗어납니다.";
+}
+
+wstring UI_BattleAnnounce::Build_PossessiveSubjectName(const BattleChar& target)
+{
+    wstring subjectName = Resolve_ActorSubjectName(target);
+    if (subjectName.empty())
+        return L"";
+
+    const wchar_t lastChar = subjectName.back();
+    if (lastChar == L'이' || lastChar == L'가')
+        subjectName.pop_back();
+
+    return subjectName + L"의";
 }
 
 HRESULT UI_BattleAnnounce::Load_UI(uint32 levelIndex)

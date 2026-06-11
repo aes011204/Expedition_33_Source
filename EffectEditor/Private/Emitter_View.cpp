@@ -23,6 +23,7 @@ namespace Internal
     constexpr auto kEffectAuthoringSaveDefaultFolder = L"../../../Client/Bin/Resources/Effects/Assets";
     constexpr auto kEffectAuthoringSaveDefaultFileName = L"NewEffect.effect.json";
     constexpr auto kEffectAuthoringExtension = L".effect.json";
+    constexpr ImU32 kCurveEditorFocusBarColor = IM_COL32(80, 170, 205, 255);
 
     fs::path Normalize_EffectSaveDialogPath(const fs::path& filePath)
     {
@@ -288,6 +289,7 @@ void Emitter_View::Render()
     {
         _isFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
         _isHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows);
+        Handle_Shortcuts();
 
         if (_modulePickerEmitterIndex.has_value() && _modulePickerEmitterIndex.value() >= _emitters.size())
             Close_ModulePicker();
@@ -737,6 +739,14 @@ AuthoringEmitter Emitter_View::Clone_Emitter(const AuthoringEmitter& sourceEmitt
     return clonedEmitter;
 }
 
+AuthoringModule Emitter_View::Clone_Module(const AuthoringModule& sourceModule)
+{
+    AuthoringModule clonedModule = sourceModule;
+    clonedModule.id = Issue_AuthoringId();
+    Apply_AuthoringModuleMetadata(clonedModule);
+    return clonedModule;
+}
+
 AuthoringModule Emitter_View::Make_DefaultModuleByType(AuthoringModuleType type)
 {
     switch (type)
@@ -1175,6 +1185,23 @@ bool Emitter_View::Has_ModuleType(const AuthoringEmitter& emitter, AuthoringModu
 
 bool Emitter_View::Is_ModuleCompatibleWithEmitter(const AuthoringEmitter& emitter, AuthoringModuleType type) const
 {
+    if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistoryRibbon)
+    {
+        switch (type)
+        {
+        case AuthoringModuleType::Required:
+        case AuthoringModuleType::Lifetime:
+        case AuthoringModuleType::InitialColor:
+        case AuthoringModuleType::ColorOverLife:
+        case AuthoringModuleType::SubUVFrameOverLife:
+        case AuthoringModuleType::SizeByLife:
+        case AuthoringModuleType::MaterialScalarModulation:
+            return true;
+        default:
+            return false;
+        }
+    }
+
     if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
     {
         switch (type)
@@ -1370,6 +1397,436 @@ void Emitter_View::Add_Module(size_t emitterIndex, AuthoringModuleType type)
     _selectedModuleIndex = emitter.modules.size() - 1;
     Sync_SelectionContext();
     MarkDirty();
+}
+
+void Emitter_View::Copy_EmitterToClipboard(size_t emitterIndex)
+{
+    if (emitterIndex >= _emitters.size())
+        return;
+
+    _clipboardKind = AuthoringClipboardKind::Emitter;
+    _clipboardEmitter = _emitters[emitterIndex];
+    _clipboardModule.reset();
+}
+
+void Emitter_View::Copy_ModuleToClipboard(size_t emitterIndex, size_t moduleIndex)
+{
+    if (emitterIndex >= _emitters.size() || moduleIndex >= _emitters[emitterIndex].modules.size())
+        return;
+
+    _clipboardKind = AuthoringClipboardKind::Module;
+    _clipboardEmitter.reset();
+    _clipboardModule = _emitters[emitterIndex].modules[moduleIndex];
+}
+
+bool Emitter_View::Can_PasteEmitterAfter(size_t emitterIndex, string* disabledReason) const
+{
+    const auto set_reason =
+        [&disabledReason](const char* message)
+    {
+        if (disabledReason != nullptr)
+            *disabledReason = message;
+    };
+
+    if (emitterIndex >= _emitters.size())
+    {
+        set_reason("대상 이미터가 없습니다.");
+        return false;
+    }
+
+    if (_clipboardKind != AuthoringClipboardKind::Emitter || !_clipboardEmitter.has_value())
+    {
+        set_reason("복사된 이미터가 없습니다.");
+        return false;
+    }
+
+    set_reason("");
+    return true;
+}
+
+bool Emitter_View::Can_PasteEmitterToEnd(string* disabledReason) const
+{
+    const auto set_reason =
+        [&disabledReason](const char* message)
+    {
+        if (disabledReason != nullptr)
+            *disabledReason = message;
+    };
+
+    if (_clipboardKind != AuthoringClipboardKind::Emitter || !_clipboardEmitter.has_value())
+    {
+        set_reason("복사된 이미터가 없습니다.");
+        return false;
+    }
+
+    set_reason("");
+    return true;
+}
+
+bool Emitter_View::Can_PasteModuleInto(size_t emitterIndex, string* disabledReason) const
+{
+    const auto set_reason =
+        [&disabledReason](const char* message)
+    {
+        if (disabledReason != nullptr)
+            *disabledReason = message;
+    };
+
+    if (emitterIndex >= _emitters.size())
+    {
+        set_reason("대상 이미터가 없습니다.");
+        return false;
+    }
+
+    if (_clipboardKind != AuthoringClipboardKind::Module || !_clipboardModule.has_value())
+    {
+        set_reason("복사된 모듈이 없습니다.");
+        return false;
+    }
+
+    const AuthoringModule& clipboardModule = _clipboardModule.value();
+    if (clipboardModule.type == AuthoringModuleType::Required ||
+        clipboardModule.type == AuthoringModuleType::Spawn)
+    {
+        set_reason("이 모듈은 새로 붙여넣을 수 없습니다.");
+        return false;
+    }
+
+    const AuthoringEmitter& emitter = _emitters[emitterIndex];
+    if (!Can_AddModuleType(emitter, clipboardModule.type))
+    {
+        if (Has_ModuleType(emitter, clipboardModule.type))
+            set_reason("같은 타입 모듈이 이미 있습니다.");
+        else if (!Is_ModuleCompatibleWithEmitter(emitter, clipboardModule.type))
+            set_reason("현재 TypeData와 호환되지 않습니다.");
+        else
+            set_reason("이 모듈은 여기에 붙여넣을 수 없습니다.");
+        return false;
+    }
+
+    set_reason("");
+    return true;
+}
+
+bool Emitter_View::Can_PasteModuleValues(size_t emitterIndex, size_t moduleIndex, string* disabledReason) const
+{
+    const auto set_reason =
+        [&disabledReason](const char* message)
+    {
+        if (disabledReason != nullptr)
+            *disabledReason = message;
+    };
+
+    if (emitterIndex >= _emitters.size() || moduleIndex >= _emitters[emitterIndex].modules.size())
+    {
+        set_reason("대상 모듈이 없습니다.");
+        return false;
+    }
+
+    if (_clipboardKind != AuthoringClipboardKind::Module || !_clipboardModule.has_value())
+    {
+        set_reason("복사된 모듈이 없습니다.");
+        return false;
+    }
+
+    const AuthoringModule& clipboardModule = _clipboardModule.value();
+    const AuthoringModule& targetModule = _emitters[emitterIndex].modules[moduleIndex];
+    if (clipboardModule.type != targetModule.type)
+    {
+        set_reason("같은 타입 모듈에서만 값 붙여넣기가 가능합니다.");
+        return false;
+    }
+
+    if (targetModule.type == AuthoringModuleType::Required ||
+        targetModule.type == AuthoringModuleType::Spawn)
+    {
+        set_reason("이 모듈 값 붙여넣기는 이번 v1 범위에서 지원하지 않습니다.");
+        return false;
+    }
+
+    set_reason("");
+    return true;
+}
+
+void Emitter_View::Paste_EmitterAfter(size_t emitterIndex)
+{
+    if (!Can_PasteEmitterAfter(emitterIndex))
+        return;
+
+    Close_ModulePicker();
+    const size_t insertIndex = emitterIndex + 1;
+    _emitters.insert(
+        _emitters.begin() + static_cast<ptrdiff_t>(insertIndex),
+        Clone_Emitter(_clipboardEmitter.value())
+    );
+    Select_Emitter(insertIndex);
+    MarkDirty();
+}
+
+void Emitter_View::Paste_EmitterToEnd()
+{
+    if (!Can_PasteEmitterToEnd())
+        return;
+
+    Close_ModulePicker();
+    const size_t insertIndex = _emitters.size();
+    _emitters.push_back(Clone_Emitter(_clipboardEmitter.value()));
+    Select_Emitter(insertIndex);
+    MarkDirty();
+}
+
+void Emitter_View::Paste_ModuleInto(size_t emitterIndex)
+{
+    if (!Can_PasteModuleInto(emitterIndex))
+        return;
+
+    AuthoringEmitter& emitter = _emitters[emitterIndex];
+    emitter.modules.push_back(Clone_Module(_clipboardModule.value()));
+    emitter.previewDirty = true;
+    _selectedEmitterIndex = emitterIndex;
+    _selectedTypeData = false;
+    _selectedModuleIndex = emitter.modules.size() - 1;
+    Sync_SelectionContext();
+    MarkDirty();
+}
+
+void Emitter_View::Paste_ModuleValues(size_t emitterIndex, size_t moduleIndex)
+{
+    if (!Can_PasteModuleValues(emitterIndex, moduleIndex))
+        return;
+
+    AuthoringEmitter& emitter = _emitters[emitterIndex];
+    AuthoringModule& targetModule = emitter.modules[moduleIndex];
+    targetModule.data = _clipboardModule.value().data;
+    emitter.previewDirty = true;
+    _selectedEmitterIndex = emitterIndex;
+    _selectedTypeData = false;
+    _selectedModuleIndex = moduleIndex;
+    Sync_SelectionContext();
+    MarkDirty();
+}
+
+void Emitter_View::Notify_ClipboardStatus(const string& message, bool warning) const
+{
+    if (message.empty() || EDITOR == nullptr || EDITOR->Get_Notification() == nullptr)
+        return;
+
+    EDITOR->Get_Notification()->Add_Notification_With_Type(
+        warning ? NotifyType::Warning : NotifyType::Info,
+        "{}",
+        message
+    );
+}
+
+void Emitter_View::Handle_Shortcuts()
+{
+    if (!_isFocused)
+        return;
+
+    const ImGuiIO& io = ImGui::GetIO();
+    if (io.WantTextInput)
+        return;
+
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_C, false))
+    {
+        if (_selectedEmitterIndex.has_value() && !_selectedTypeData && _selectedModuleIndex.has_value())
+        {
+            Copy_ModuleToClipboard(_selectedEmitterIndex.value(), _selectedModuleIndex.value());
+            Notify_ClipboardStatus("모듈을 클립보드에 복사했습니다.");
+        }
+        else if (_selectedEmitterIndex.has_value() && !_selectedTypeData)
+        {
+            Copy_EmitterToClipboard(_selectedEmitterIndex.value());
+            Notify_ClipboardStatus("이미터를 클립보드에 복사했습니다.");
+        }
+        else
+            Notify_ClipboardStatus("이미터 또는 모듈을 선택한 상태에서 복사할 수 있습니다.", true);
+
+        return;
+    }
+
+    if (!io.KeyCtrl || !ImGui::IsKeyPressed(ImGuiKey_V, false))
+        return;
+
+    if (!_selectedEmitterIndex.has_value() || _selectedTypeData)
+    {
+        Notify_ClipboardStatus("이미터 헤더 또는 모듈을 선택한 상태에서 붙여넣을 수 있습니다.", true);
+        return;
+    }
+
+    const size_t emitterIndex = _selectedEmitterIndex.value();
+    if (_clipboardKind == AuthoringClipboardKind::Emitter)
+    {
+        if (_selectedModuleIndex.has_value())
+        {
+            Notify_ClipboardStatus("이미터 붙여넣기는 이미터 헤더 선택 상태에서만 지원합니다.", true);
+            return;
+        }
+
+        string disabledReason{};
+        if (!Can_PasteEmitterAfter(emitterIndex, &disabledReason))
+        {
+            Notify_ClipboardStatus(disabledReason, true);
+            return;
+        }
+
+        Execute_AuthoringEdit(
+            "Paste Emitter",
+            [this, emitterIndex]
+            {
+                Paste_EmitterAfter(emitterIndex);
+            }
+        );
+        return;
+    }
+
+    if (_clipboardKind == AuthoringClipboardKind::Module)
+    {
+        if (_selectedModuleIndex.has_value())
+        {
+            const size_t moduleIndex = _selectedModuleIndex.value();
+            string valuePasteReason{};
+            const bool canPasteValues = Can_PasteModuleValues(emitterIndex, moduleIndex, &valuePasteReason);
+            if (canPasteValues)
+            {
+                Execute_AuthoringEdit(
+                    "Paste Module Values",
+                    [this, emitterIndex, moduleIndex]
+                    {
+                        Paste_ModuleValues(emitterIndex, moduleIndex);
+                    }
+                );
+                return;
+            }
+
+            string modulePasteReason{};
+            const bool canPasteModule = Can_PasteModuleInto(emitterIndex, &modulePasteReason);
+            if (canPasteModule)
+            {
+                Execute_AuthoringEdit(
+                    "Paste Module",
+                    [this, emitterIndex]
+                    {
+                        Paste_ModuleInto(emitterIndex);
+                    }
+                );
+                return;
+            }
+
+            const AuthoringModule* targetModule =
+                moduleIndex < _emitters[emitterIndex].modules.size()
+                ? &_emitters[emitterIndex].modules[moduleIndex]
+                : nullptr;
+            const AuthoringModuleType clipboardType =
+                _clipboardModule.has_value()
+                ? _clipboardModule->type
+                : AuthoringModuleType::Required;
+            const bool prefersValuePasteReason =
+                targetModule != nullptr &&
+                _clipboardModule.has_value() &&
+                targetModule->type == clipboardType;
+            Notify_ClipboardStatus(
+                prefersValuePasteReason || modulePasteReason.empty()
+                ? valuePasteReason
+                : modulePasteReason,
+                true
+            );
+            return;
+        }
+
+        string disabledReason{};
+        if (!Can_PasteModuleInto(emitterIndex, &disabledReason))
+        {
+            Notify_ClipboardStatus(disabledReason, true);
+            return;
+        }
+
+        Execute_AuthoringEdit(
+            "Paste Module",
+            [this, emitterIndex]
+            {
+                Paste_ModuleInto(emitterIndex);
+            }
+        );
+        return;
+    }
+
+    Notify_ClipboardStatus("복사된 이미터 또는 모듈이 없습니다.", true);
+}
+
+void Emitter_View::Process_PendingClipboardAction()
+{
+    if (_pendingClipboardAction == PendingClipboardAction::None ||
+        !_pendingClipboardEmitterIndex.has_value())
+        return;
+
+    const PendingClipboardAction action = _pendingClipboardAction;
+    const size_t emitterIndex = _pendingClipboardEmitterIndex.value();
+    const optional<size_t> moduleIndex = _pendingClipboardModuleIndex;
+
+    switch (action)
+    {
+    case PendingClipboardAction::PasteEmitterAfter:
+        Execute_AuthoringEdit(
+            "Paste Emitter",
+            [this, emitterIndex]
+            {
+                Paste_EmitterAfter(emitterIndex);
+            }
+        );
+        break;
+
+    case PendingClipboardAction::PasteEmitterToEnd:
+        Execute_AuthoringEdit(
+            "Paste Emitter",
+            [this]
+            {
+                Paste_EmitterToEnd();
+            }
+        );
+        break;
+
+    case PendingClipboardAction::PasteModule:
+        Execute_AuthoringEdit(
+            "Paste Module",
+            [this, emitterIndex]
+            {
+                Paste_ModuleInto(emitterIndex);
+            }
+        );
+        break;
+
+    case PendingClipboardAction::PasteModuleValues:
+        if (moduleIndex.has_value())
+        {
+            Execute_AuthoringEdit(
+                "Paste Module Values",
+                [this, emitterIndex, moduleIndex]
+                {
+                    Paste_ModuleValues(emitterIndex, moduleIndex.value());
+                }
+            );
+        }
+        break;
+
+    case PendingClipboardAction::None:
+    default:
+        break;
+    }
+
+    _pendingClipboardAction = PendingClipboardAction::None;
+    _pendingClipboardEmitterIndex.reset();
+    _pendingClipboardModuleIndex.reset();
+}
+
+void Emitter_View::Queue_ClipboardAction(
+    PendingClipboardAction action,
+    size_t emitterIndex,
+    optional<size_t> moduleIndex)
+{
+    _pendingClipboardAction = action;
+    _pendingClipboardEmitterIndex = emitterIndex;
+    _pendingClipboardModuleIndex = moduleIndex;
 }
 
 void Emitter_View::Clear_Selection()
@@ -1848,9 +2305,15 @@ void Emitter_View::Apply_TypeDataAction(PendingTypeDataAction action, size_t emi
         emitter.typeData.kind = AuthoringTypeDataKind::Mesh;
         emitter.typeData.payload = MeshTypeData{};
         break;
+    case PendingTypeDataAction::AddSourceHistoryRibbon:
+        emitter.typeData.kind = AuthoringTypeDataKind::SourceHistoryRibbon;
+        emitter.typeData.payload = SourceHistoryRibbonTypeData{};
+        break;
     case PendingTypeDataAction::ResetData:
         if (emitter.typeData.kind == AuthoringTypeDataKind::Mesh)
             emitter.typeData.payload = MeshTypeData{};
+        else if (emitter.typeData.kind == AuthoringTypeDataKind::SourceHistoryRibbon)
+            emitter.typeData.payload = SourceHistoryRibbonTypeData{};
         else
         {
             emitter.typeData.kind = AuthoringTypeDataKind::Trail;
@@ -1887,6 +2350,9 @@ void Emitter_View::Process_PendingTypeDataAction()
         break;
     case PendingTypeDataAction::AddMesh:
         description = "Add Mesh TypeData";
+        break;
+    case PendingTypeDataAction::AddSourceHistoryRibbon:
+        description = "Add Ribbon TypeData";
         break;
     case PendingTypeDataAction::ResetData:
         description = "Reset TypeData";
@@ -2218,9 +2684,8 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         )
     );
 
-    std::sort(
-        entries.begin(),
-        entries.end(),
+    ranges::sort(
+        entries,
         [](const ModulePickerEntry& lhs, const ModulePickerEntry& rhs)
         {
             return String::ToString(lhs.displayName) < String::ToString(rhs.displayName);
@@ -2383,8 +2848,23 @@ string Emitter_View::Build_ModuleWarningTooltip(const AuthoringEmitter& emitter,
 
 void Emitter_View::Draw_EmitterContextMenu(size_t emitterIndex)
 {
+    string emitterPasteReason{};
+    const bool canPasteEmitter = Can_PasteEmitterAfter(emitterIndex, &emitterPasteReason);
+
     if (ImGui::BeginMenu("이미터"))
     {
+        if (ImGui::MenuItem("이미터 복사"))
+            Copy_EmitterToClipboard(emitterIndex);
+
+        if (!canPasteEmitter)
+            ImGui::BeginDisabled();
+        if (ImGui::MenuItem("뒤에 이미터 붙여넣기"))
+            Queue_ClipboardAction(PendingClipboardAction::PasteEmitterAfter, emitterIndex);
+        if (!canPasteEmitter)
+            ImGui::EndDisabled();
+        if (!canPasteEmitter && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !emitterPasteReason.empty())
+            ImGui::SetTooltip("%s", emitterPasteReason.c_str());
+
         if (ImGui::MenuItem("이미터 복제"))
             Queue_EmitterAction(PendingEmitterAction::Duplicate, emitterIndex);
 
@@ -2432,6 +2912,8 @@ void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
             Queue_TypeDataAction(PendingTypeDataAction::AddTrail, emitterIndex);
         if (ImGui::MenuItem("Mesh TypeData 추가"))
             Queue_TypeDataAction(PendingTypeDataAction::AddMesh, emitterIndex);
+        if (ImGui::MenuItem("리본 TypeData 추가"))
+            Queue_TypeDataAction(PendingTypeDataAction::AddSourceHistoryRibbon, emitterIndex);
         return;
     }
 
@@ -2444,6 +2926,34 @@ void Emitter_View::Draw_TypeDataContextMenu(size_t emitterIndex)
 
 void Emitter_View::Draw_ModuleContextMenu(size_t emitterIndex, size_t moduleIndex, const AuthoringModule& module)
 {
+    string modulePasteReason{};
+    const bool canPasteModule = Can_PasteModuleInto(emitterIndex, &modulePasteReason);
+    string valuePasteReason{};
+    const bool canPasteValues = Can_PasteModuleValues(emitterIndex, moduleIndex, &valuePasteReason);
+
+    if (ImGui::MenuItem("모듈 복사"))
+        Copy_ModuleToClipboard(emitterIndex, moduleIndex);
+
+    if (!canPasteModule)
+        ImGui::BeginDisabled();
+    if (ImGui::MenuItem("모듈 붙여넣기"))
+        Queue_ClipboardAction(PendingClipboardAction::PasteModule, emitterIndex);
+    if (!canPasteModule)
+        ImGui::EndDisabled();
+    if (!canPasteModule && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !modulePasteReason.empty())
+        ImGui::SetTooltip("%s", modulePasteReason.c_str());
+
+    if (!canPasteValues)
+        ImGui::BeginDisabled();
+    if (ImGui::MenuItem("값 붙여넣기"))
+        Queue_ClipboardAction(PendingClipboardAction::PasteModuleValues, emitterIndex, moduleIndex);
+    if (!canPasteValues)
+        ImGui::EndDisabled();
+    if (!canPasteValues && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !valuePasteReason.empty())
+        ImGui::SetTooltip("%s", valuePasteReason.c_str());
+
+    ImGui::Separator();
+
     if (ImGui::MenuItem("모듈 값 초기화"))
         Queue_ModuleAction(PendingModuleAction::ResetData, emitterIndex, moduleIndex);
 
@@ -2506,6 +3016,9 @@ void Emitter_View::Draw_EmitterBoard()
         ImGui::SetNextWindowPos(ImGui::GetMousePos(), ImGuiCond_Appearing);
         if (ImGui::BeginPopup("##EmitterBoardBlankPopup"))
         {
+            string blankPasteReason{};
+            const bool canPasteEmitterToEnd = Can_PasteEmitterToEnd(&blankPasteReason);
+
             if (ImGui::Selectable("새 이미터"))
             {
                 Execute_AuthoringEdit(
@@ -2517,12 +3030,22 @@ void Emitter_View::Draw_EmitterBoard()
                 );
             }
 
+            if (!canPasteEmitterToEnd)
+                ImGui::BeginDisabled();
+            if (ImGui::MenuItem("이미터 붙여넣기"))
+                Queue_ClipboardAction(PendingClipboardAction::PasteEmitterToEnd, _emitters.size());
+            if (!canPasteEmitterToEnd)
+                ImGui::EndDisabled();
+            if (!canPasteEmitterToEnd && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled) && !blankPasteReason.empty())
+                ImGui::SetTooltip("%s", blankPasteReason.c_str());
+
             ImGui::EndPopup();
         }
 
         Process_PendingEmitterAction();
         Process_PendingTypeDataAction();
         Process_PendingModuleAction();
+        Process_PendingClipboardAction();
     }
     ImGui::EndChild();
 }
@@ -2679,6 +3202,9 @@ void Emitter_View::Draw_TypeDataRow(size_t emitterIndex)
         case AuthoringTypeDataKind::Mesh:
             ImGui::TextUnformatted("메시 데이터");
             break;
+        case AuthoringTypeDataKind::SourceHistoryRibbon:
+            ImGui::TextUnformatted("리본 데이터");
+            break;
         case AuthoringTypeDataKind::None:
         default:
             ImGui::TextUnformatted("타입 데이터");
@@ -2725,6 +3251,14 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
     AuthoringEmitter& emitter = _emitters[emitterIndex];
     const bool moduleCompatible = Is_ModuleCompatibleWithEmitter(emitter, module.type);
     const bool canPinCurve = CurveEditor_View::Has_ModuleCurveTargets(emitter, module);
+    const bool canConvertCurve = !canPinCurve && CurveEditor_View::Has_ModuleConvertibleCurveTargets(emitter, module);
+    const bool canUseCurveButton = canPinCurve || canConvertCurve;
+    bool isCurveEditorFocused = false;
+    if (canPinCurve && EDITOR != nullptr)
+    {
+        if (const Shared<CurveEditor_View> curveEditor = dynamic_pointer_cast<CurveEditor_View>(EDITOR->Get_Window(L"Curve Editor")))
+            isCurveEditorFocused = curveEditor->Is_ModuleFocused(emitter.id, module.id);
+    }
     const string displayNameUtf8 = String::ToString(module.displayName);
     const ImVec4 moduleNameTextColor =
         !isSelected && module.enabled && !moduleCompatible
@@ -2746,6 +3280,17 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
         Select_Module(emitterIndex, moduleIndex);
 
     const bool isRowHovered = ImGui::IsItemHovered();
+    if (isCurveEditorFocused)
+    {
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        const ImVec2 rowMin = ImGui::GetItemRectMin();
+        const ImVec2 rowMax = ImGui::GetItemRectMax();
+        drawList->AddRectFilled(
+            rowMin,
+            ImVec2{ rowMin.x + 4.f, rowMax.y },
+            Internal::kCurveEditorFocusBarColor
+        );
+    }
     ImGui::PopStyleColor(4);
     if (ImGui::BeginPopupContextItem("##ModuleRowPopup"))
     {
@@ -2763,31 +3308,60 @@ void Emitter_View::Draw_ModuleRow(size_t emitterIndex, size_t moduleIndex, Autho
 
     if (!isRequiredRow)
     {
-        const float curveButtonRightPadding = canPinCurve ? moduleCheckboxRightPadding + curveButtonSize + curveButtonGap : moduleCheckboxRightPadding;
-        if (canPinCurve)
+        const float curveButtonRightPadding = moduleCheckboxRightPadding + curveButtonSize + curveButtonGap;
+        ImGui::SetCursorPos(
+            ImVec2(
+                rowCursor.x + kEmitterColumnWidth - curveButtonRightPadding,
+                rowCursor.y + (rowHeight - curveButtonSize) * 0.5f
+            )
+        );
+        ImGui::PushID("PinCurves");
+        ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.42f, 0.5f });
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.f, 0.f });
+        if (!canUseCurveButton)
+            ImGui::BeginDisabled();
+        if (ImGui::Button(ICON_FA_CHART_LINE, ImVec2(curveButtonSize, curveButtonSize)) && canUseCurveButton)
         {
-            ImGui::SetCursorPos(
-                ImVec2(
-                    rowCursor.x + kEmitterColumnWidth - curveButtonRightPadding,
-                    rowCursor.y + (rowHeight - curveButtonSize) * 0.5f
-                )
+            if (canPinCurve && EDITOR != nullptr)
+            {
+                if (const Shared<CurveEditor_View> curveEditor = dynamic_pointer_cast<CurveEditor_View>(EDITOR->Get_Window(L"Curve Editor")))
+                    curveEditor->Pin_ModuleTargets(emitter.id, module.id);
+            }
+            else if (canConvertCurve)
+                ImGui::OpenPopup("ConvertCurvesPopup");
+        }
+        if (!canUseCurveButton)
+            ImGui::EndDisabled();
+        ImGui::PopStyleVar(2);
+        if (ImGui::IsItemHovered(canUseCurveButton ? ImGuiHoveredFlags_None : ImGuiHoveredFlags_AllowWhenDisabled))
+        {
+            ImGui::SetTooltip(
+                canPinCurve
+                ? "커브 편집"
+                : canConvertCurve
+                  ? "커브로 전환 후 편집"
+                  : "이 모듈에서는 커브 분포가 지원되지 않습니다"
             );
-            ImGui::PushID("PinCurves");
-            ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.42f, 0.5f });
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.f, 0.f });
-            if (ImGui::Button(ICON_FA_CHART_LINE, ImVec2(curveButtonSize, curveButtonSize)))
+        }
+        if (ImGui::BeginPopup("ConvertCurvesPopup"))
+        {
+            ImGui::TextUnformatted("이 모듈의 분포를 고정값 커브로 전환할까요?");
+            ImGui::TextDisabled("전환 후 Curve Editor에서 바로 편집합니다.");
+            if (ImGui::Button("전환", ImVec2{ 72.f, 0.f }))
             {
                 if (EDITOR != nullptr)
                 {
                     if (const Shared<CurveEditor_View> curveEditor = dynamic_pointer_cast<CurveEditor_View>(EDITOR->Get_Window(L"Curve Editor")))
-                        curveEditor->Pin_ModuleTargets(emitter.id, module.id);
+                        curveEditor->Convert_AndPin_ModuleTargets(emitter.id, module.id);
                 }
+                ImGui::CloseCurrentPopup();
             }
-            ImGui::PopStyleVar(2);
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("모듈 커브 고정");
-            ImGui::PopID();
+            ImGui::SameLine();
+            if (ImGui::Button("취소", ImVec2{ 72.f, 0.f }))
+                ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
         }
+        ImGui::PopID();
 
         ImGui::SetCursorPos(
             ImVec2(

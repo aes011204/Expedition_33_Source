@@ -14,9 +14,9 @@ NS_BEGIN(EffectEditor)
 
 namespace Internal
 {
-    constexpr const char* kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
-    constexpr const wchar_t* kMaterialDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Materials";
-    constexpr float kMaterialFloatEpsilon = 0.0001f;
+    constexpr auto kEffectMaterialPayloadType = "CONTENT_BROWSER_EFFECT_MATERIAL";
+    constexpr auto kMaterialDialogDefaultFolder = L"../../../Client/Bin/Resources/Effects/Materials";
+    constexpr float kMaterialFloatEpsilon = 1e-4f;
 
     bool Uses_DirectionalAlignmentOptions(EmitterScreenAlignment alignment)
     {
@@ -312,6 +312,11 @@ namespace Internal
                : PlaneRadialOrientationTargetKind::Sprite2D;
     }
 
+    static bool Is_MeshEffectAuthoring(const AuthoringEmitter& emitter)
+    {
+        return emitter.typeData.kind == AuthoringTypeDataKind::Mesh;
+    }
+
     static bool Is_PlaneRadialLocationAdvancedPlacementShape(PlaneRadialLocationShape shape)
     {
         return shape != PlaneRadialLocationShape::Rectangle;
@@ -435,7 +440,7 @@ namespace Internal
         switch (timeSource)
         {
         case MaterialScalarModulationTimeSource::ParticleLife:
-            return "ParticleLife (미구현)";
+            return "ParticleLife";
         case MaterialScalarModulationTimeSource::EmitterTime:
             return "EmitterTime";
         default:
@@ -443,9 +448,16 @@ namespace Internal
         }
     }
 
-    static bool Is_MaterialScalarTimeSourceSelectable(MaterialScalarModulationTimeSource timeSource)
+    static bool Is_SpriteMaterialScalarParticleLifeSupported(const AuthoringEmitter& emitter)
     {
-        return timeSource != MaterialScalarModulationTimeSource::ParticleLife;
+        return emitter.typeData.kind == AuthoringTypeDataKind::None && emitter.rendererType == "Sprite";
+    }
+
+    static bool Is_MaterialScalarTimeSourceSelectable(
+        MaterialScalarModulationTimeSource timeSource,
+        bool allowParticleLife)
+    {
+        return timeSource != MaterialScalarModulationTimeSource::ParticleLife || allowParticleLife;
     }
 
     static bool Draw_MaterialModulationTargetProperty(
@@ -520,7 +532,8 @@ namespace Internal
         DetailPropertyContext& detailContext,
         const char* label,
         MaterialScalarModulationTimeSource& value,
-        MaterialScalarModulationTimeSource defaultValue)
+        MaterialScalarModulationTimeSource defaultValue,
+        bool allowParticleLife)
     {
         bool changed = false;
 
@@ -537,7 +550,7 @@ namespace Internal
             for (const MaterialScalarModulationTimeSource candidate : candidates)
             {
                 const bool isSelected = value == candidate;
-                const bool selectable = Is_MaterialScalarTimeSourceSelectable(candidate);
+                const bool selectable = Is_MaterialScalarTimeSourceSelectable(candidate, allowParticleLife);
                 if (!selectable)
                     ImGui::BeginDisabled();
 
@@ -556,6 +569,8 @@ namespace Internal
 
             ImGui::EndCombo();
         }
+        if (!allowParticleLife && value == MaterialScalarModulationTimeSource::ParticleLife)
+            ImGui::TextDisabled("ParticleLife is not supported for this emitter type or row.");
 
         if (detailContext.Draw_ResetButton(value != defaultValue))
         {
@@ -1209,14 +1224,26 @@ namespace Internal
             Is_SameVec2(lhs.mainUVOffset, rhs.mainUVOffset) &&
             Is_SameVec2(lhs.mainUVScrollSpeed, rhs.mainUVScrollSpeed) &&
             lhs.mainUVTilingMode == rhs.mainUVTilingMode &&
+            lhs.mainUVPolicy.uPolicy == rhs.mainUVPolicy.uPolicy &&
+            lhs.mainUVPolicy.vPolicy == rhs.mainUVPolicy.vPolicy &&
             Is_SameVec2(lhs.noiseUVScale, rhs.noiseUVScale) &&
             Is_SameVec2(lhs.noiseUVOffset, rhs.noiseUVOffset) &&
             Is_SameVec2(lhs.noiseUVScrollSpeed, rhs.noiseUVScrollSpeed) &&
             lhs.noiseUVTilingMode == rhs.noiseUVTilingMode &&
+            lhs.noiseUVPolicy.uPolicy == rhs.noiseUVPolicy.uPolicy &&
+            lhs.noiseUVPolicy.vPolicy == rhs.noiseUVPolicy.vPolicy &&
             Is_SameVec2(lhs.maskUVScale, rhs.maskUVScale) &&
             Is_SameVec2(lhs.maskUVOffset, rhs.maskUVOffset) &&
             Is_SameVec2(lhs.maskUVScrollSpeed, rhs.maskUVScrollSpeed) &&
             lhs.maskUVTilingMode == rhs.maskUVTilingMode &&
+            lhs.maskUVPolicy.uPolicy == rhs.maskUVPolicy.uPolicy &&
+            lhs.maskUVPolicy.vPolicy == rhs.maskUVPolicy.vPolicy &&
+            Is_SameVec2(lhs.flowUVScale, rhs.flowUVScale) &&
+            Is_SameVec2(lhs.flowUVOffset, rhs.flowUVOffset) &&
+            Is_SameVec2(lhs.flowUVScrollSpeed, rhs.flowUVScrollSpeed) &&
+            lhs.flowUVTilingMode == rhs.flowUVTilingMode &&
+            lhs.flowUVPolicy.uPolicy == rhs.flowUVPolicy.uPolicy &&
+            lhs.flowUVPolicy.vPolicy == rhs.flowUVPolicy.vPolicy &&
             lhs.blendMode == rhs.blendMode &&
             lhs.opacitySource == rhs.opacitySource &&
             Is_SameAdditiveContribution(lhs.additive, rhs.additive) &&
@@ -1424,22 +1451,28 @@ namespace Internal
         const AuthoringEmitter& emitter,
         RequiredModuleData& data,
         EffectMaterialPreviewRenderer* materialSlotPreview,
-        float timeDelta)
+        float timeDelta,
+        bool allowAuthoring)
     {
         constexpr float browseButtonWidth{ 28.f };
         constexpr float slotHeight = 54.f;
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
         const ImGuiPayload* activePayload = ImGui::GetDragDropPayload();
         const bool isMaterialDragging =
+            allowAuthoring &&
             activePayload != nullptr &&
             activePayload->IsDataType(kEffectMaterialPayloadType);
 
         const ImVec2 slotMin = ImGui::GetCursorScreenPos();
         const float slotWidth = max(180.f, ImGui::GetContentRegionAvail().x - browseButtonWidth - spacing);
+        if (!allowAuthoring)
+            ImGui::BeginDisabled();
         ImGui::InvisibleButton("##MaterialDropSlot", ImVec2(slotWidth, slotHeight));
+        if (!allowAuthoring)
+            ImGui::EndDisabled();
 
         bool changed = false;
-        if (ImGui::BeginDragDropTarget())
+        if (allowAuthoring && ImGui::BeginDragDropTarget())
         {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload(
                 kEffectMaterialPayloadType,
@@ -1453,14 +1486,18 @@ namespace Internal
             ImGui::EndDragDropTarget();
         }
 
-        const bool isHovered = ImGui::IsItemHovered();
+        const bool isHovered = ImGui::IsItemHovered(
+            allowAuthoring ? ImGuiHoveredFlags_None : ImGuiHoveredFlags_AllowWhenDisabled
+        );
         const ImVec2 slotMax{ slotMin.x + slotWidth, slotMin.y + slotHeight };
         const ImU32 fillColor = isMaterialDragging
                                 ? IM_COL32(42, 56, 78, 255)
-                                : IM_COL32(30, 34, 42, 255);
+                                : !allowAuthoring ? IM_COL32(26, 28, 34, 255)
+                                  : IM_COL32(30, 34, 42, 255);
         const ImU32 borderColor = isMaterialDragging
                                   ? IM_COL32(96, 165, 250, 255)
-                                  : isHovered ? IM_COL32(120, 130, 150, 255) : IM_COL32(70, 78, 92, 255);
+                                  : !allowAuthoring ? IM_COL32(58, 64, 76, 255)
+                                    : isHovered ? IM_COL32(120, 130, 150, 255) : IM_COL32(70, 78, 92, 255);
 
         ImDrawList* drawList = ImGui::GetWindowDrawList();
         drawList->AddRectFilled(slotMin, slotMax, fillColor, 6.f);
@@ -1469,6 +1506,7 @@ namespace Internal
         ShaderResourceView* previewSrv = nullptr;
         if (materialSlotPreview != nullptr)
         {
+            const bool allowScalarParticleLife = Is_SpriteMaterialScalarParticleLifeSupported(emitter);
             materialSlotPreview->Update_MaterialTime(timeDelta);
             if (const MaterialScalarModulationModuleData* modulation = Find_MaterialScalarModulationModuleData(emitter))
             {
@@ -1477,7 +1515,7 @@ namespace Internal
                     Build_CoreColorRgbModulationRuntimeDesc(*modulation),
                     Build_MaterialScalarModulationRuntimeDesc(*modulation),
                     data.duration,
-                    false
+                    allowScalarParticleLife
                 );
             }
             else
@@ -1525,39 +1563,54 @@ namespace Internal
 
         if (isHovered)
         {
-            const string mainTooltip =
-                "GUID: " + (data.material.mainTextureGuid.empty() ? string{ "(none)" } : data.material.mainTextureGuid) +
-                "\nPath: " + (data.material.mainTexturePath.empty() ? string{ "(none)" } : data.material.mainTexturePath);
-            const string noiseTooltip =
-                data.material.noiseTextureGuid.empty() && data.material.noiseTexturePath.empty()
-                ? string{ "GUID: (none)\nPath: (none)" }
-                : "GUID: " + (data.material.noiseTextureGuid.empty() ? string{ "(none)" } : data.material.noiseTextureGuid) +
-                  "\nPath: " + (data.material.noiseTexturePath.empty() ? string{ "(none)" } : data.material.noiseTexturePath);
-            ImGui::SetTooltip(
-                "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\n"
-                "현재 sprite effect 경로에서는 Main Texture를 emissive color source로, Opacity Source를 별도 opacity 해석 기준으로 사용합니다.\n\n"
-                "Main Texture (Emissive)\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %u cols x %u rows",
-                mainTooltip.c_str(),
-                noiseTooltip.c_str(),
-                blendModeName.c_str(),
-                sourceSummary.c_str(),
-                data.material.subUVCols,
-                data.material.subUVRows
-            );
+            if (!allowAuthoring)
+                ImGui::SetTooltip("Mesh 머티리얼은 Mesh TypeData의 Assigned Material에서 편집합니다.");
+            else
+            {
+                const string mainTooltip =
+                    "GUID: " + (data.material.mainTextureGuid.empty() ? string{ "(none)" } : data.material.mainTextureGuid) +
+                    "\nPath: " + (data.material.mainTexturePath.empty() ? string{ "(none)" } : data.material.mainTexturePath);
+                const string noiseTooltip =
+                    data.material.noiseTextureGuid.empty() && data.material.noiseTexturePath.empty()
+                    ? string{ "GUID: (none)\nPath: (none)" }
+                    : "GUID: " + (data.material.noiseTextureGuid.empty() ? string{ "(none)" } : data.material.noiseTextureGuid) +
+                      "\nPath: " + (data.material.noiseTexturePath.empty() ? string{ "(none)" } : data.material.noiseTexturePath);
+                ImGui::SetTooltip(
+                    "Content Browser의 .effectmaterial.json 머티리얼 파일을 여기에 드롭하면 현재 embedded material instance로 복사합니다.\n"
+                    "현재 sprite effect 경로에서는 Main Texture를 emissive color source로, Opacity Source를 별도 opacity 해석 기준으로 사용합니다.\n\n"
+                    "Main Texture (Emissive)\n%s\n\nNoise Texture\n%s\n\n%s / %s / SubUV %u cols x %u rows",
+                    mainTooltip.c_str(),
+                    noiseTooltip.c_str(),
+                    blendModeName.c_str(),
+                    sourceSummary.c_str(),
+                    data.material.subUVCols,
+                    data.material.subUVRows
+                );
+            }
         }
 
         ImGui::SameLine();
         ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.5f, 0.5f });
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 0.f, 0.f });
+        if (!allowAuthoring)
+            ImGui::BeginDisabled();
         if (ImGui::Button(ICON_FA_FOLDER_OPEN "##PickMaterial", ImVec2{ browseButtonWidth, slotHeight }))
         {
             wstring pickedFilePath{};
             if (Try_PickMaterialPresetDialog(pickedFilePath))
                 changed = Apply_PresetFileToRequired(pickedFilePath.c_str(), data);
         }
+        if (!allowAuthoring)
+            ImGui::EndDisabled();
         ImGui::PopStyleVar(2);
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-            ImGui::SetTooltip("머티리얼 원본 파일 선택");
+        if (ImGui::IsItemHovered(allowAuthoring ? ImGuiHoveredFlags_DelayShort : ImGuiHoveredFlags_AllowWhenDisabled))
+        {
+            ImGui::SetTooltip(
+                allowAuthoring
+                ? "머티리얼 원본 파일 선택"
+                : "Mesh 머티리얼은 Mesh TypeData의 Assigned Material에서 편집합니다."
+            );
+        }
 
         return changed;
     }
@@ -1842,13 +1895,21 @@ bool RequiredModuleDetail::Draw(
     if (_materialSlotPreview == nullptr)
         _materialSlotPreview = EffectMaterialPreviewRenderer::Create(64);
 
+    const bool allowRequiredMaterialAuthoring = !Internal::Is_MeshEffectAuthoring(emitter);
+
     if (ImGui::CollapsingHeader("머티리얼", ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (detailContext.Begin_PropertyTable("RequiredMaterial"))
         {
             ImGui::PushID("MaterialDropSlot");
             detailContext.Draw_PropertyLabel("머티리얼");
-            changed |= Internal::Draw_MaterialDropSlot(emitter, data, _materialSlotPreview.get(), timeDelta);
+            changed |= Internal::Draw_MaterialDropSlot(
+                emitter,
+                data,
+                _materialSlotPreview.get(),
+                timeDelta,
+                allowRequiredMaterialAuthoring
+            );
             detailContext.Draw_ResetButton(false);
             ImGui::PopID();
 
@@ -1860,16 +1921,32 @@ bool RequiredModuleDetail::Draw(
             const float editButtonWidth = (availableWidth - spacing) * 0.5f;
             const float sourceButtonWidth = (availableWidth - spacing) * 0.5f;
 
+            if (!allowRequiredMaterialAuthoring)
+                ImGui::BeginDisabled();
             if (ImGui::Button("인스턴스 편집", ImVec2{ editButtonWidth, 24.f }))
                 Internal::Open_MaterialInstanceWindow(emitter.id, module.id);
+            if (!allowRequiredMaterialAuthoring)
+                ImGui::EndDisabled();
+            if (!allowRequiredMaterialAuthoring && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("Mesh 머티리얼은 Mesh TypeData의 Assigned Material에서 편집합니다.");
 
             ImGui::SameLine();
 
+            if (!allowRequiredMaterialAuthoring)
+                ImGui::BeginDisabled();
             if (ImGui::Button("원본 보기", ImVec2{ sourceButtonWidth, 24.f }))
                 Internal::Open_PresetBrowserWindow(data);
+            if (!allowRequiredMaterialAuthoring)
+                ImGui::EndDisabled();
 
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
-                ImGui::SetTooltip("원본 머티리얼을 확인");
+            if (ImGui::IsItemHovered(allowRequiredMaterialAuthoring ? ImGuiHoveredFlags_DelayShort : ImGuiHoveredFlags_AllowWhenDisabled))
+            {
+                ImGui::SetTooltip(
+                    allowRequiredMaterialAuthoring
+                    ? "원본 머티리얼을 확인"
+                    : "Mesh 머티리얼은 Mesh TypeData의 Assigned Material에서 편집합니다."
+                );
+            }
             ImGui::PopID();
 
             detailContext.End_PropertyTable();
@@ -1917,8 +1994,6 @@ bool RequiredModuleDetail::Draw(
             }
 
             changed |= detailContext.Draw_BoolProperty("로컬 스페이스 사용", data.useLocalSpace, defaultData.useLocalSpace);
-            changed |= detailContext.Draw_FloatProperty("카메라 모션 블러 양 (미구현)", data.cameraMotionBlurAmount, defaultData.cameraMotionBlurAmount);
-            changed |= detailContext.Draw_BoolProperty("초기화 시 기존 파티클 지우기 (미구현)", data.clearExistingParticlesOnInit, defaultData.clearExistingParticlesOnInit);
             detailContext.End_PropertyTable();
         }
 
@@ -1969,12 +2044,7 @@ bool RequiredModuleDetail::Draw(
         {
             changed |= detailContext.Draw_UintProperty("루프 횟수", data.loopCount, defaultData.loopCount);
             changed |= detailContext.Draw_FloatProperty("스폰 활성 시간", data.duration, defaultData.duration);
-            changed |= detailContext.Draw_FloatProperty("스폰 활성 시간 최소값 (범위 미구현)", data.durationLow, defaultData.durationLow);
-            changed |= detailContext.Draw_BoolProperty("스폰 활성 시간 범위 사용 (미구현)", data.useDurationRange, defaultData.useDurationRange);
-            changed |= detailContext.Draw_BoolProperty("루프마다 스폰 시간 재계산 (미구현)", data.recalculateDurationEachLoop, defaultData.recalculateDurationEachLoop);
             changed |= detailContext.Draw_FloatProperty("스폰 시작 딜레이", data.delay, defaultData.delay);
-            changed |= detailContext.Draw_FloatProperty("스폰 시작 딜레이 최소값 (범위 미구현)", data.delayLow, defaultData.delayLow);
-            changed |= detailContext.Draw_BoolProperty("딜레이 범위 사용 (미구현)", data.useDelayRange, defaultData.useDelayRange);
             changed |= detailContext.Draw_BoolProperty("첫 루프만 스폰 딜레이", data.delayFirstLoopOnly, defaultData.delayFirstLoopOnly);
             detailContext.End_PropertyTable();
         }
@@ -2822,6 +2892,7 @@ bool MaterialScalarModulationModuleDetail::Draw(
     DetailPropertyContext& detailContext)
 {
     bool changed = false;
+    const bool allowScalarParticleLife = Internal::Is_SpriteMaterialScalarParticleLifeSupported(emitter);
 
     if (ImGui::CollapsingHeader("머티리얼 변조", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -2916,7 +2987,8 @@ bool MaterialScalarModulationModuleDetail::Draw(
                                 detailContext,
                                 "시간 축",
                                 modulator.timeSource,
-                                defaultData.timeSource
+                                defaultData.timeSource,
+                                false
                             );
                         }
                         detailContext.End_PropertyTable();
@@ -2985,7 +3057,8 @@ bool MaterialScalarModulationModuleDetail::Draw(
                                 detailContext,
                                 "시간 축",
                                 modulator.timeSource,
-                                defaultData.timeSource
+                                defaultData.timeSource,
+                                allowScalarParticleLife
                             );
                         }
                         detailContext.End_PropertyTable();

@@ -18,21 +18,7 @@ public:
     static void Update_ButtonHoverSound(const Shared<UI_Button>& button, bool& wasHovered);
 
 private:
-    static void Play_RandomHoverSound();
-
-private:
-    static constexpr array<const wchar_t*, 9> HoverSounds =
-    {
-        L"MainTitle/Button_Hover_01.wav",
-        L"MainTitle/Button_Hover_02.wav",
-        L"MainTitle/Button_Hover_03.wav",
-        L"MainTitle/Button_Hover_04.wav",
-        L"MainTitle/Button_Hover_05.wav",
-        L"MainTitle/Button_Hover_06.wav",
-        L"MainTitle/Button_Hover_07.wav",
-        L"MainTitle/Button_Hover_08.wav",
-        L"MainTitle/Button_Hover_09.wav",
-    };
+    static void Play_HoverSound();
 };
 
 NS_END

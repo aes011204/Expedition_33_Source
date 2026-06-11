@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include "Client_Defines.h"
 
 NS_BEGIN(Client)
 

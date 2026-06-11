@@ -1,5 +1,4 @@
-﻿
-#pragma once
+﻿#pragma once
 #include "AnimNotify.h"
 NS_BEGIN(Engine)
 class GameObject;
@@ -10,7 +9,6 @@ class AN_SpawnLineGroundEffect :
     public AnimNotify
 {
     GENERATED_ANIM_NOTIFY(AN_SpawnLineGroundEffect)
-
 
 public:
     string Get_TypeName() const override { return "AN_SpawnLineGroundEffect"; }

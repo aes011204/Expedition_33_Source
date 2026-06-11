@@ -88,6 +88,17 @@ namespace Client::Constants::UI
     inline constexpr wchar_t UI_Shield_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Shield.json";
     inline constexpr wchar_t UI_Destroy_Shield_Path[] = L"UI/UI_Json/BattleSystem/StatusEffect/UI_Destroy_Shield.json";
 
+    // Tutorial
+    inline constexpr wchar_t UI_Tutorial_BattleSystem_Path[] = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_BattleSystem.json";
+    inline constexpr wchar_t UI_Tutorial_TurnOrder_Path[]    = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_TurnOrder.json";
+    inline constexpr wchar_t UI_Tutorial_Attack_Path[]       = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_Attack.json";
+    inline constexpr wchar_t UI_Tutorial_EnemyTurn_Path[]    = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_MonsterTurn.json";
+    inline constexpr wchar_t UI_Tutorial_Dodge_Path[]        = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_Dodge.json";
+    inline constexpr wchar_t UI_Tutorial_Skill_Path[]        = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_Skill.json";
+    inline constexpr wchar_t UI_Tutorial_QTE_Path[]          = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_QTE.json";
+    inline constexpr wchar_t UI_Tutorial_Counter_Path[]      = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_Counter.json";
+    inline constexpr wchar_t UI_Tutorial_FreeAim_Path[]      = L"UI/UI_Json/BattleSystem/Tutorial/UI_Tutorial_FreeAim.json";
+
 #pragma endregion
 
 }
@@ -178,6 +189,20 @@ namespace Client::Constants::UI_Anim
     inline constexpr wchar_t UI_SavePointIntro_Anim_Path[] = L"UI/UI_Animations/SavePoint/SavePoint_Intro";
     inline constexpr wchar_t UI_SavePointOutro_Anim_Path[] = L"UI/UI_Animations/SavePoint/SavePoint_Outro";
 #pragma endregion
+
+#pragma region Tutorial 애니메이션
+    inline constexpr wchar_t UI_Tutorial_BattleSystemAnim_Path[] = L"UI/UI_Animations/Tutorial/Tutorial_BattleSystem";
+    inline constexpr wchar_t UI_Tutorial_TurnOrderAnim_Path[]    = L"UI/UI_Animations/Tutorial/Tutorial_TurnOrder";
+    inline constexpr wchar_t UI_Tutorial_AttackAnim_Path[]       = L"UI/UI_Animations/Tutorial/Tutorial_Attack";
+    inline constexpr wchar_t UI_Tutorial_EnemyTurnAnim_Path[]    = L"UI/UI_Animations/Tutorial/Tutorial_MonsterTurn";
+    inline constexpr wchar_t UI_Tutorial_DodgeAnim_Path[]        = L"UI/UI_Animations/Tutorial/Tutorial_Dodge";
+    inline constexpr wchar_t UI_Tutorial_SkillAnim_Path[]        = L"UI/UI_Animations/Tutorial/Tutorial_Skill";
+    inline constexpr wchar_t UI_Tutorial_QTEAnim_Path[]          = L"UI/UI_Animations/Tutorial/Tutorial_QTE";
+    inline constexpr wchar_t UI_Tutorial_CounterAnim_Path[]      = L"UI/UI_Animations/Tutorial/Tutorial_Counter";
+    inline constexpr wchar_t UI_Tutorial_FreeAimAnim_Path[]      = L"UI/UI_Animations/Tutorial/Tutorial_FreeAim";
+#pragma endregion
+
+
 }
 
 namespace Client::Constants::Map
@@ -268,47 +293,12 @@ namespace Client::Constants::Prefab
 
 }
 
-// 사운드는 헤더를 따로 뺄까;;
-namespace Client::Constants::Sound
+// 이제 사운드는 DT_SoundCue에 추가해서, 거기에 등록된 cueId를 여기에 상수로 매핑하는 형식으로 통일하기
+namespace Client::Constants::SoundBGM
 {
     constexpr const wchar_t* MainTitleBGM = L"MainTitle/MainTitle_BGM.wav";
-
-    constexpr const wchar_t* MainMenuLoading = L"MainTitle/MainMenu_Loading.wav";
-    constexpr const wchar_t* MainMenuNewGame = L"MainTitle/MainMenu_NewGame.wav";
-    constexpr const wchar_t* MainMenuQuitGame = L"MainTitle/MainMenu_QuitGame.wav";
-
-    constexpr const wchar_t* SavePointIntro = L"UI/RestMenu/SavePoint/SFX_UI_RestMenu_Open_01 [1].wav";
-    constexpr const wchar_t* SavePointOutro = L"UI/RestMenu/SavePoint/SFX_UI_RestMenu_Close_01 [1].wav";
-
-    constexpr const wchar_t* GlobalGenericEnter01 = L"UI/Global/SFX_UI_Global_Generic_Enter_01 [1].wav";
-    constexpr const wchar_t* GlobalGenericEnter02 = L"UI/Global/SFX_UI_Global_Generic_Enter_02 [1].wav";
-    constexpr const wchar_t* GlobalGenericEnter03 = L"UI/Global/SFX_UI_Global_Generic_Enter_03 [1].wav";
-    constexpr const wchar_t* GlobalGenericEnter04 = L"UI/Global/SFX_UI_Global_Generic_Enter_04 [1].wav";
-    constexpr const wchar_t* GlobalGenericEnter05 = L"UI/Global/SFX_UI_Global_Generic_Enter_05 [1].wav";
-
-    constexpr const wchar_t* GlobalGenericEnterSounds[5] =
-    {
-        GlobalGenericEnter01,
-        GlobalGenericEnter02,
-        GlobalGenericEnter03,
-        GlobalGenericEnter04,
-        GlobalGenericEnter05
-    };
-
-    constexpr const wchar_t* AllySelect01 = L"Battle/UI_Battle_Select_Ally_01 [1].wav";
-    constexpr const wchar_t* AllySelect02 = L"Battle/UI_Battle_Select_Ally_02 [1].wav";
-    constexpr const wchar_t* AllySelect03 = L"Battle/UI_Battle_Select_Ally_03 [1].wav";
-
-    constexpr const wchar_t* AllySelectSounds[3] =
-    {
-        AllySelect01,
-        AllySelect02,
-        AllySelect03
-    };
-
-    constexpr const wchar_t* SkillTreeNavigate = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Navigate_01 [1].wav";
-    constexpr const wchar_t* SkillTreeLearn = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Learn_01 [1].wav";
-    constexpr const wchar_t* SkillTreeBlocked = L"UI/RestMenu/SkillTree/SFX_UI_RestMenu_Skill_Blocked_01 [1].wav";
+    constexpr const wchar_t* BattleNormalBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Intro [1].wav";
+    constexpr const wchar_t* BattleBossBGM = L"BGM/Battle/MUS_SpringMeadows_BT_BattleTheme_Main [1].wav";
     constexpr const wchar_t* SpringBGM = L"BGM/SpringMeadow/MUS_SpringMeadows_ENV_Nightfall_PartA.wav";
 }
 
@@ -316,4 +306,30 @@ namespace Client::Constants::Cinematic
 {
     inline constexpr wchar_t BridgeCinematic[]= L"../../../Client/Bin/Resources/Data/json/Cinematics/Bridge.json";  
         
+namespace Client::Constants::SoundCue
+{
+    constexpr const wchar_t* UI_MainTitle_ButtonHover = L"UI_MainTitle_ButtonHover";
+    constexpr const wchar_t* UI_MainTitle_Loading = L"UI_MainTitle_Loading";
+    constexpr const wchar_t* UI_MainTitle_NewGame = L"UI_MainTitle_NewGame";
+    constexpr const wchar_t* UI_MainTitle_QuitGame = L"UI_MainTitle_QuitGame";
+
+    constexpr const wchar_t* UI_SavePoint_Open = L"UI_SavePoint_Open";
+    constexpr const wchar_t* UI_SavePoint_Close = L"UI_SavePoint_Close";
+
+    constexpr const wchar_t* UI_Global_GenericEnter = L"UI_Global_GenericEnter";
+    constexpr const wchar_t* UI_Global_NavigateClick = L"UI_Global_NavigateClick";
+    constexpr const wchar_t* UI_Battle_SelectAlly = L"UI_Battle_SelectAlly";
+    constexpr const wchar_t* UI_Battle_Encounter = L"UI_Battle_Encounter";
+    constexpr const wchar_t* UI_Battle_StateEnd = L"UI_Battle_StateEnd";
+
+    constexpr const wchar_t* UI_Battle_QTE_Start = L"UI_Battle_QTE_Start";
+    constexpr const wchar_t* UI_Battle_QTE_Miss = L"UI_Battle_QTE_Miss";
+    constexpr const wchar_t* UI_Battle_QTE_SuccessPerfect = L"UI_Battle_QTE_SuccessPerfect";
+    constexpr const wchar_t* UI_Battle_QTE_SuccessRegular = L"UI_Battle_QTE_SuccessRegular";
+
+    constexpr const wchar_t* UI_SkillTree_Navigate = L"UI_SkillTree_Navigate";
+    constexpr const wchar_t* UI_SkillTree_Learn = L"UI_SkillTree_Learn";
+    constexpr const wchar_t* UI_SkillTree_Blocked = L"UI_SkillTree_Blocked";
+
+    constexpr const wchar_t* SFX_Eveque_Earth_SpikeHit = L"SFX_Eveque_Earth_SpikeHit";
 }

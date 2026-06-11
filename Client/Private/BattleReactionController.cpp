@@ -16,6 +16,10 @@ void BattleReactionController::OpenWindow(BattleReactionType type)
         _isDodgeOpen = true;
     else if (type == BattleReactionType::Parry)
         _isParryOpen = true;
+    else
+        return;
+
+    OnReactionWindowOpened.Broadcast(type);
 }
 
 void BattleReactionController::CloseWindow(BattleReactionType type)
@@ -89,6 +93,19 @@ bool BattleReactionController::TryConsume(BattleReactionType& outResult, uint32 
     return outResult == BattleReactionType::Dodge || outResult == BattleReactionType::Parry;
 }
 
+bool BattleReactionController::TryConsumeGuard(const BattleChar& target, uint32 stepIndex)
+{
+    if (target.actor == nullptr || target.statCom == nullptr)
+        return false;
+
+    if (!target.statCom->Is_Player())
+        return false;
+
+    BattleReactionType result = BattleReactionType::None;
+
+    return TryConsume(result, stepIndex);
+}
+
 bool BattleReactionController::IsWindowOpen(BattleReactionType type) const
 {
     switch (type)
@@ -102,10 +119,9 @@ bool BattleReactionController::IsWindowOpen(BattleReactionType type) const
     }
 }
 
-BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateInput(const BattleAction& turnAction)
+BattleReactionController::BattleReactionInputResult BattleReactionController::SubmitInput(BattleReactionType type,
+    const BattleAction& turnAction)
 {
-    //UpdateAnimation();
-
     BattleReactionInputResult result{};
 
     if (_curSkillData == nullptr)
@@ -121,16 +137,10 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
     if (IsConsumed())
         return result;
 
-    bool pressedQ = GAME->KeyDown(KEY_TYPE::Q);
-    bool pressedE = GAME->KeyDown(KEY_TYPE::E);
-
-    if (!pressedQ && !pressedE)
-        return result;
-
     const BattleChar& counterTarget = turnAction.Get_CurChar();
     const uint32 curStepIndex = turnAction.GetCurStepIndex();
 
-    if (pressedQ)
+    if (type == BattleReactionType::Dodge)
     {
         const bool success = TryInput(BattleReactionType::Dodge, curStepIndex);
 
@@ -151,7 +161,7 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
                 curStepIndex);
         }
     }
-    else if (pressedE)
+    else if (type == BattleReactionType::Parry)
     {
         const bool success = TryInput(BattleReactionType::Parry, curStepIndex);
 
@@ -175,8 +185,11 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
                 continue;
 
             PlayReactionAnimation(
-                target, BattleReactionType::Parry, success, counterTarget, curStepIndex);
-
+                target,
+                BattleReactionType::Parry,
+                success,
+                counterTarget,
+                curStepIndex);
 
             if (success && target.actor != nullptr)
             {
@@ -206,27 +219,34 @@ BattleReactionController::BattleReactionInputResult BattleReactionController::Up
         }
     }
 
-    /*   if ((pressedQ && IsWindowOpen(BattleReactionType::Dodge)) ||
-           (pressedE && IsWindowOpen(BattleReactionType::Parry)))
-       {
-           _isConsumed = true;
-       }*/
+    if (result.success)
+        OnReactionSucceeded.Broadcast(result.type, turnAction.GetCurStepTarget());
 
     return result;
 }
 
+BattleReactionController::BattleReactionInputResult BattleReactionController::UpdateInput(const BattleAction& turnAction)
+{
+    if (GAME->KeyDown(KEY_TYPE::Q))
+        return SubmitInput(BattleReactionType::Dodge, turnAction);
+
+    if (GAME->KeyDown(KEY_TYPE::E))
+        return SubmitInput(BattleReactionType::Parry, turnAction);
+
+    return {};
+}
 
 void BattleReactionController::UpdateAnimation(float timeDelta)
 {
     if (_reactionAnimTargets.empty())
         return;
 
-
     if (_animPhase == ReactionAnimPhase::CounterReturn)
     {
         UpdateCounterReturn(timeDelta);
         return;
     }
+
     bool allFinished = true;
 
     for (const BattleChar& target : _reactionAnimTargets)
@@ -240,7 +260,6 @@ void BattleReactionController::UpdateAnimation(float timeDelta)
             break;
         }
     }
-
 
     if (!allFinished)
     {
@@ -266,6 +285,7 @@ void BattleReactionController::UpdateAnimation(float timeDelta)
         break;
     }
 }
+
 void BattleReactionController::StartCounterReturn()
 {
     if (_animPhase != ReactionAnimPhase::Counter)
@@ -542,10 +562,7 @@ void BattleReactionController::StartCounter(ModelCom* sourceModel)
     _isCounterDamageApplied = false;
     _animPhase = ReactionAnimPhase::Counter;
 
-    if (auto battle = CLIENT->Get_BattleController())
-    {
-        battle->Notify_CounterAnnounceRequested(_reactionAnimTargets);
-    }
+    OnCounterStarted.Broadcast(_reactionAnimTargets);
 }
 
 void BattleReactionController::ApplyCounterDamage(ModelCom* sourceModel)
@@ -815,5 +832,10 @@ Shared<BattleReactionController> BattleReactionController::Create()
 
 void BattleReactionController::Free()
 {
+    OnReactionWindowOpened.Clear();
+    OnReactionSucceeded.Clear();
+    OnCounterStarted.Clear();
+
+    Clear_RuntimeState();
     Base::Free();
 }

@@ -13,7 +13,6 @@ namespace Client
     class Character_BattleBase;
     struct BattleActionPhase;
     struct Skill_Data;
-    enum class Buffs;
     enum class ElementalType;
     class CombatStatCom;
     class BattleMechanismCom;
@@ -551,7 +550,8 @@ namespace Client
     struct TurnEntry
     {
         BattleChar hero;
-        float nextTime;
+        float nextTime = 0.f;
+        uint64 orderSeq = 0; // 같은 nextTime이면 먼저 예약된 턴부터 처리한다.
     };
 
     struct DamageContext
@@ -573,6 +573,7 @@ namespace Client
 
     struct DamageAppliedInfo
     {
+        BattleChar attacker{};      // 때린놈
         BattleChar target{};        // 실제 HP가 깎이 대상
         float damage = 0.f;         // 최종 데미지
         AttackType attackType = AttackType::Invalid; // 기존 피격 애니메이션 분기
@@ -601,6 +602,8 @@ namespace Client
         ElementalType element = ElementalType::None;
         Buffs buff = Buffs::None;
         float ailmentChance = 0.f;
+
+        int32 buffDurationTurn = 0;
     };
 
     //------------------------------------
@@ -642,6 +645,8 @@ namespace Client
         string animationKey = "";
         string cameraPresetId = "";
         string cameraClipId = "";
+        float playRate = 1.f;
+
         //  string sequenceKey = "";
         uint32 phaseIndex = {};
         BattleMovementPolicy movementPolicy = BattleMovementPolicy::None;
@@ -698,6 +703,12 @@ namespace Client
         Targeted_End,
 
         Return,
+
+        Stun_Enter,
+        Stun_ToIdle,
+        Idle_Stun,
+        Hit_Stun,
+
     };
 
     enum class BattleReactionType
@@ -771,6 +782,29 @@ namespace Client
         {
             return target.actor != nullptr && target.statCom != nullptr && hitPart != FreeAimHitPart::None;
         }
+    };
+
+    // 튜토리얼 순서
+    enum class BattleTutorialStep
+    {
+        BattleSystem,
+        TurnOrder,
+        Attack,
+        EnemyTurn,
+        Dodge,
+        Skill,
+        QTE,
+        Counter,
+        FreeAim,
+        END
+    };
+
+    struct BattleTutorialRequest
+    {
+        BattleTutorialStep step = BattleTutorialStep::END;
+        bool pauseBattle = true; // 튜토리얼 표시 중, Model을 멈출것인지
+        bool blockInput = true;  // 입력은?
+        float delaySec = 0.f;    // 연출과 겹치지 않게, 튜토리얼 표시 늦출 때
     };
 
 }

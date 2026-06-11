@@ -84,6 +84,7 @@ protected:
     Vec3                            _revivePosition = Vec3::Zero;
     bool                            _hasRevivePosition = false;
 
+
 public:
     void Free() override;
 

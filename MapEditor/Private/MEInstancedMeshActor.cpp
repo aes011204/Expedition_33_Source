@@ -5,6 +5,7 @@
 #include "ComputeStructuredBuffer.h"
 #include "InstanceCullParams.h"
 #include "MEModelManager.h"
+#include "ShaderPassFinder.h"
 
 MEInstancedMeshActor::MEInstancedMeshActor(const ComPtr<Device>& device, const ComPtr<Context>& context)
     : GameObject{ device, context }
@@ -161,7 +162,7 @@ HRESULT MEInstancedMeshActor::RenderPickingID(uint32 id)
     const uint32 numMeshes = static_cast<uint32>(_lodModels[0]->Get_NumMeshes());
     for (uint32 i = 0; i < numMeshes; ++i)
     {
-        if (FAILED(_shader->Begin(6)))
+        if (FAILED(_shader->Begin(VtxInstanceMeshExactPassIndex::IDInstancePass)))
         {
             return E_FAIL;
         }

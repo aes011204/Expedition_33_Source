@@ -317,12 +317,17 @@ bool MapAuthoringIO::Load_AuthoredObjects_FromMapData(
             if (prefabName.empty() || layerTag.empty())
                 continue;
 
-            Shared<GameObject> gameObject = Spawn_Prefab::Prefab(prefabName)
-                .AtLevel(levelIndex)
-                .InLayer(layerTag)
-                .Spawn();
-            if (gameObject == nullptr)
-                continue;
+        Shared<GameObject> gameObject = Spawn_Prefab::Prefab(prefabName)
+            .AtLevel(levelIndex)
+            .InLayer(layerTag)
+            .Spawn();
+        if (gameObject == nullptr)
+        {
+            LOG_WARN("MapAuthoringIO prefab instance spawn failed. prefab={}, layer={}",
+                prefabName.c_str(),
+                String::ToString(layerTag).c_str());
+            continue;
+        }
 
             gameObject->Set_RuntimeAuthoringLoaded(true);
 
