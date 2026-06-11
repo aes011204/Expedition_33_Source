@@ -18,7 +18,12 @@ void Skill_Lune_Immolation::Execute(const Skill_Data& skill, const BattleAction&
 
     DamageSystem::ApplyDamage(15.f, attacker, target, attackType);
 
-    // TEMP. 이거 일단 임시. 프로토 타입 이후 제대로 구조잡기
+    auto battle = CLIENT->Get_BattleController();
+    CHECK_NULL(battle);
+
+    battle->Try_ApplySkillBuff(skill, target);
+
+    // TEMP. 이거 일단 임시. 프로토 타입 이후 제대로 구조잡기. 근데 그냥 이렇게 코드로 제어해도 될거같기도 하고
     if (target.actor != nullptr)
     {
         PlayEffectDesc effectDesc{};
@@ -49,6 +54,11 @@ void Skill_Lune_IceGust::Execute(const Skill_Data& skill, const BattleAction& ac
         attacker.mechanismCom->Add_LuneStains({ ElementalType::Ice, ElementalType::Light });
 
     DamageSystem::ApplyDamage(15.f, attacker, target, attackType);
+
+    auto battle = CLIENT->Get_BattleController();
+    CHECK_NULL(battle);
+
+    battle->Try_ApplySkillBuff(skill, target);
 }
 
 Shared<Skill_Lune_IceGust> Skill_Lune_IceGust::Create()

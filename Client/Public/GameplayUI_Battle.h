@@ -37,6 +37,9 @@ class UI_SuddenAttack;
 class UI_AddAP;
 class UI_QTE;
 class UI_MarkEffect;
+class UI_BattleTutorial;
+
+class Monster_BattleBase;
 
 class GameplayUI_Battle final : public Base
 {
@@ -71,7 +74,7 @@ private:
     void    Handle_ActionStarted(const BattleAction& action);
     void    Handle_DamageApplied(const DamageAppliedInfo& info);
     void    Handle_HealApplied(const BattleChar& target, float healAmount);
-    void    Handle_ReactionSucceeded(BattleController::ReactionType reactionType, const vector<BattleChar>& target);
+    void    Handle_ReactionSucceeded(BattleReactionType reactionType, const vector<BattleChar>& target);
     void    Handle_BattleApChanged(const BattleChar& actor, uint32 amount, EAPChangeReason reason);
     void    Handle_QTEStarted(const BattleQTERequest& request);
     void    Handle_QTEResolved(BattleQTEResult result);
@@ -80,7 +83,15 @@ private:
     void    Handle_BuffApplied(const BattleChar& target, Buffs buffId);
     void    Handle_BuffConsumed(const BattleChar& target, Buffs buffId, float bonusDamage);
 
+    // 카운터 성공 알림
     void    Handle_CounterAnnounceRequested(const vector<BattleChar>& counterActors);
+    // 약점 터트린거 알림
+    void    Handle_BattleWeakPointConsumed(const Shared<Monster_BattleBase>& monster);
+    void    Handle_BattleTutorialRequested(const BattleTutorialRequest& request);
+    void    Handle_BattleTutorialClosed();
+
+    void    Handle_TurnStartStatusAnnounceRequested(const BattleChar& target, Buffs buffId);
+    void    Handle_BattleAnnounceFinished();
 
     void    Update_BattleCommandHUD(float timeDelta);
     void    Update_BattleSystemHUD(float timeDelta);
@@ -110,6 +121,7 @@ private:
     void    Update_QTE(float timeDelta);
     void    Update_MarkEffect(float timeDelta);
     void    Update_BattleSystemIntroState(float timeDelta);
+    void    Update_BattleTutorial(float timeDelta);
 
 private:
 #pragma region UI 위치맞추기
@@ -158,6 +170,7 @@ private:
     Unique<UI_SuddenAttack>                 _suddenAttack;
     Unique<UI_QTE>                          _qte;
     Unique<UI_MarkEffect>                   _markEffect;
+    Unique<UI_BattleTutorial>               _battleTutorial;
 
 private:
     static constexpr uint32 kDamageFontPoolSize = 8; // 폰트 최대 8개까지만
@@ -194,6 +207,14 @@ private:
     FDelegateHandle          _buffConsumedHandle{};
 
     FDelegateHandle          _counterAnnounceRequestedHandle{};
+    FDelegateHandle          _battleWeakPointConsumedHandle{};
+
+    // 튜토리얼
+    FDelegateHandle          _battleTutorialRequestedHandle{};
+    FDelegateHandle          _battleTutorialClosedHandle{};
+
+    FDelegateHandle          _turnStartStatusAnnounceRequestedHandle{};
+    FDelegateHandle          _battleAnnounceFinishedHandle{};
 
 private:
     BattleChar               _targetPreviewSnapshot{};

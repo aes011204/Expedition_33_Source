@@ -5,6 +5,7 @@
 NS_BEGIN(Client)
 
 class Buff;
+struct BattleMonsterStatSnapshot;
 
 class MonsterStatCom : public CombatStatCom
 {
@@ -13,6 +14,11 @@ public:
     // 초기 세팅 값
     struct MonsterCombatStatDesc : CombatStatCom::CombatStatDesc
     {
+        MonsterCombatStatDesc()
+        {
+            chroma = 100; // prefab/json에 세팅안돼있으면 기본값 세팅
+        }
+
         wstring battleAnnounceName = L"";
 
         bool isBoss = false;
@@ -72,6 +78,9 @@ public:
     {
         return _monsterDesc.battleAnnounceName;
     }
+
+    BattleMonsterStatSnapshot Create_BattleSyncSnapshot() const;
+    void Apply_BattleSyncSnapshot(const BattleMonsterStatSnapshot& snapshot);
 
 private:
     MonsterCombatStatDesc _monsterDesc;

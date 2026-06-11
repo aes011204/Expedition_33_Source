@@ -32,6 +32,8 @@ protected:
     virtual const wchar_t* Get_BeardModelTag() const { return L"Model_GustaveBeard"; }
     virtual const wchar_t* Get_MustacheModelTag() const { return L"Model_GustaveMustache"; }
 
+    HeroId Get_HeroId() const override { return HeroId::Gustave; }
+
 public:
 	static Shared<PW_Gustave> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);
 	virtual Shared<GameObject> Clone(void* arg) override;

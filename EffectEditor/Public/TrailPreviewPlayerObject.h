@@ -26,6 +26,8 @@ public: //## Accessor::Preview
     Shared<TrailPreviewWeaponObject> Get_PreviewWeapon() const;
     void Set_PreviewVisible(bool visible);
 
+    HeroId Get_HeroId() const override { return HeroId::Gustave; }
+
 private: //## Data::PreviewWeapon
     bool _deferPreviewWeaponCreation{ true };
 

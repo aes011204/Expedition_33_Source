@@ -894,22 +894,6 @@ ImTextureID Content_Browser::Get_IconTextureId(IconType iconType) const
     return Internal::ToImTextureId(_iconFiles[iconIndex]);
 }
 
-void Content_Browser::Go_BackFolder()
-{
-    if (!Can_GoBack())
-        return;
-
-    --_folderHistoryIndex;
-
-    FolderNode* target = Find_FolderNode(_rootFolder, _folderHistory[_folderHistoryIndex]);
-    if (!target)
-        return;
-
-    _suppressHistoryRecord = true;
-    Open_Folder(target);
-    _suppressHistoryRecord = false;
-}
-
 bool Content_Browser::Can_GoParentFolder() const
 {
     if (_currentFolder == nullptr || _rootFolder.fullPath.empty())
@@ -935,6 +919,22 @@ void Content_Browser::Go_ParentFolder()
         return;
 
     Open_Folder(target);
+}
+
+void Content_Browser::Go_BackFolder()
+{
+    if (!Can_GoBack())
+        return;
+
+    --_folderHistoryIndex;
+
+    FolderNode* target = Find_FolderNode(_rootFolder, _folderHistory[_folderHistoryIndex]);
+    if (!target)
+        return;
+
+    _suppressHistoryRecord = true;
+    Open_Folder(target);
+    _suppressHistoryRecord = false;
 }
 
 void Content_Browser::Go_ForwardFolder()

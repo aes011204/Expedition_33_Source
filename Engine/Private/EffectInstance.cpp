@@ -76,6 +76,9 @@ void EffectInstance::Priority_Update(float timeDelta)
 
     Sync_Emitters();
 
+    if (_isPlaybackPaused)
+        return; // pause 중에도 transform/visible 동기화는 유지하고 emitter tick만 막는다.
+
     for (const auto& emitter : _emitters)
     {
         if (emitter && emitter->Is_EmitterEnabled())
@@ -89,6 +92,9 @@ void EffectInstance::Update(float timeDelta)
         return;
 
     Sync_Emitters();
+
+    if (_isPlaybackPaused)
+        return; // 트레일/파티클 history와 material elapsed를 현재 프레임에 고정한다.
 
     for (const auto& emitter : _emitters)
     {
@@ -106,6 +112,17 @@ void EffectInstance::Late_Update(float timeDelta)
     }
 
     Sync_Emitters();
+
+    if (_isPlaybackPaused)
+    {
+        for (const auto& emitter : _emitters)
+        {
+            if (emitter && emitter->Is_EmitterEnabled())
+                emitter->Late_Update(0.f); // render 등록은 유지하고 시간 진행만 막는다.
+        }
+
+        return;
+    }
 
     for (const auto& emitter : _emitters)
     {
@@ -125,6 +142,7 @@ HRESULT EffectInstance::Render()
 HRESULT EffectInstance::Play()
 {
     _playbackState = EffectPlaybackState::Playing;
+    _isPlaybackPaused = false; // pool 재사용 시 이전 튜토리얼 pause가 남지 않게 초기화한다.
     Set_Visible(true);
     Sync_Emitters();
 
@@ -134,6 +152,7 @@ HRESULT EffectInstance::Play()
 void EffectInstance::Stop()
 {
     Bind_TrailSampleProvider({});
+    _isPlaybackPaused = false; // Stop은 완전 정지이므로 pause 상태도 같이 해제한다.
     _playbackState = EffectPlaybackState::Stopped;
     Set_Visible(false);
 }
@@ -142,6 +161,7 @@ HRESULT EffectInstance::Reset()
 {
     _effectPlaybackSeed = Generate_EffectPlaybackSeed();
     _playbackState = EffectPlaybackState::Stopped;
+    _isPlaybackPaused = false; // Reset 이후 새 재생은 pause되지 않은 상태로 시작한다.
     Set_Visible(false);
     Sync_Emitters();
 

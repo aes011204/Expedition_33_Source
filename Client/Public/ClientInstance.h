@@ -7,8 +7,8 @@
 #include "UIPreviewManager.h"
 
 NS_BEGIN(Engine)
-    class GameInstance;
-    class Level;
+class GameInstance;
+class Level;
 NS_END
 
 NS_BEGIN(Client)
@@ -24,6 +24,8 @@ class EffectInstancePool;
 class ScreenFadeTransition;
 class LevelTransitionFade;
 class ClientScreenFxManager;
+class PlayerInventory;
+class CostumeManager;
 
 DECLARE_DELEGATE(FOnFreeAimShotHit);
 
@@ -65,6 +67,7 @@ public: /* For.GameData Table */
     const vector<GameDataTable::WeaponDesc>* Get_WeaponDescs(const string& characterId) const;
     const Skill_Data* Get_Skill(const string& skillId);
     const vector<string> Get_AllSkillIds();
+    HRESULT Reload_GameDataTables();
 
     const Item_Data*  Get_Item(const string& itemId);
     const Item_Data*  Get_Item(BattleItemType itemType);
@@ -177,8 +180,16 @@ public: /* Effect 재생 */
         const Vec3& localRotation = Vec3::Zero,
         const Vec3& scale = Vec3::One);
 
+    void Clear_RuntimeEffects();
+
 public: /* Delegate */
     void Notify_FreeAimShotHit();
+
+public: /* Player Inventory */
+    Shared<PlayerInventory> Get_PlayerInventory() const { return _playerInventory; }
+
+public: /* Costume Manager */
+    CostumeManager* Get_CostumeManager() const { return _costumeManager.get(); }
 
 private:
 	HRESULT Ready_ResourceLoader();
@@ -212,6 +223,9 @@ private:
     Shared<ClientScreenFxManager>       _screenFxManager;
 
     Shared<BattleController>    _battleController;
+    Shared<PlayerInventory>     _playerInventory;
+
+    Unique<CostumeManager>      _costumeManager;
 
 public:
 	void Free() override;

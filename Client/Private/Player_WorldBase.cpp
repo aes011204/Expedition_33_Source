@@ -4,6 +4,7 @@
 #include "ClientInstance.h"
 #include "InputCom.h"
 #include "MovementCom.h"
+#include "ModelCom.h"
 #include "PlayerControllerCom.h"
 #include "Bounding_OBB.h"
 #include "ColliderCom.h"
@@ -17,6 +18,8 @@
 #include "Head_Player.h"
 #include "Player_GameMenu.h"
 #include "SkillTreeCom.h"
+#include "CostumeManager.h"
+#include "TransformCom.h"
 
 namespace
 {
@@ -122,7 +125,7 @@ void Player_WorldBase::Priority_Update(float timeDelta)
 
 void Player_WorldBase::Update(float timeDelta)
 {
-    if (CLIENT->Is_BattleActive())
+      if (CLIENT->Is_BattleActive())
         return;
 
     __super::Update(timeDelta);
@@ -135,7 +138,10 @@ void Player_WorldBase::Update(float timeDelta)
 void Player_WorldBase::Late_Update(float timeDelta)
 {
     if (CLIENT->Is_BattleActive())
+    {
+        Set_Visible(false);
         return;
+    }
 
     __super::Late_Update(timeDelta);
 
@@ -178,6 +184,227 @@ void Player_WorldBase::Start_SwitchDissolve(float durationSec, const string& noi
 
 }
 
+HRESULT Player_WorldBase::Apply_CostumePreset(const CostumePreset& preset)
+{
+    if (preset.parts.bodyModelTag.empty() ||
+        preset.parts.headModelTag.empty() ||
+        preset.parts.hairModelTag.empty())
+    {
+        return E_FAIL;
+    }
+
+    return Rebuild_CostumeParts(preset);
+}
+
+HRESULT Player_WorldBase::Rebuild_CostumeParts(const CostumePreset& preset)
+{
+    if (_defaultCostumePartTransforms.empty())
+        _defaultCostumePartTransforms = Capture_CostumePartTransforms();
+
+    const CostumePartTransformMap currentPartTransforms = Capture_CostumePartTransforms();
+    const CostumePartTransformMap& restorePartTransforms =
+        preset.presetId == "Default" ? Get_DefaultCostumePartTransforms() : currentPartTransforms;
+
+    Clear_CostumeParts();
+
+    Body_Player* body = Add_CostumeBody(preset.parts.bodyModelTag);
+    CHECK_NULL(body, E_FAIL);
+    Apply_CostumePartTransform(TEXT("Part_Body"), restorePartTransforms, preset.parts.bodyTransform);
+
+    if (_playerStateMachineCom)
+    {
+        _playerStateMachineCom->Refresh_BodyPlayerForStates();
+    }
+
+    Head_Player* head = Add_CostumeHead(preset.parts.headModelTag, body);
+    CHECK_NULL(head, E_FAIL);
+    Apply_CostumePartTransform(TEXT("Part_Head"), restorePartTransforms, preset.parts.headTransform);
+
+    CHECK_FAILED(Add_CostumeFaceAccessory(TEXT("Part_Beard"), preset.parts.beardModelTag, head), E_FAIL);
+    Apply_CostumePartTransform(TEXT("Part_Beard"), restorePartTransforms, preset.parts.beardTransform);
+
+    CHECK_FAILED(Add_CostumeFaceAccessory(TEXT("Part_Mustache"), preset.parts.mustacheModelTag, head), E_FAIL);
+    Apply_CostumePartTransform(TEXT("Part_Mustache"), restorePartTransforms, preset.parts.mustacheTransform);
+
+    CHECK_FAILED(Add_CostumeHair(preset.parts.hairModelTag, head), E_FAIL);
+    Apply_CostumePartTransform(TEXT("Part_Hair"), restorePartTransforms, preset.parts.hairTransform);
+
+    CHECK_FAILED(Add_CostumeFaceAccessory(TEXT("Part_Glasses"), preset.parts.glassesModelTag, head), E_FAIL);
+    Apply_CostumePartTransform(TEXT("Part_Glasses"), restorePartTransforms, preset.parts.glassesTransform);
+
+    if (_playerStateMachineCom)
+        _playerStateMachineCom->Reenter_CurrentState();
+
+    return S_OK;
+}
+
+void Player_WorldBase::Clear_CostumeParts()
+{
+    Remove_PartObject(TEXT("Part_Glasses"));
+    Remove_PartObject(TEXT("Part_Hair"));
+    Remove_PartObject(TEXT("Part_Mustache"));
+    Remove_PartObject(TEXT("Part_Beard"));
+    Remove_PartObject(TEXT("Part_Head"));
+    Remove_PartObject(TEXT("Part_Body"));
+}
+
+Player_WorldBase::CostumePartTransformMap Player_WorldBase::Capture_CostumePartTransforms() const
+{
+    CostumePartTransformMap partTransforms{};
+
+    for (const auto& [partTag, partObject] : _partObjects)
+    {
+        if (partObject == nullptr || partObject->Get_Transform() == nullptr)
+            continue;
+
+        CostumePartTransform transform{};
+        transform.position = partObject->Get_Transform()->Get_Position();
+        transform.rotation = partObject->Get_Transform()->Get_RotationEuler();
+        transform.scale = partObject->Get_Transform()->Get_Scale();
+
+        partTransforms.emplace(partTag, transform);
+    }
+
+    return partTransforms;
+}
+
+const Player_WorldBase::CostumePartTransformMap& Player_WorldBase::Get_DefaultCostumePartTransforms()
+{
+    if (_defaultCostumePartTransforms.empty())
+        _defaultCostumePartTransforms = Capture_CostumePartTransforms();
+
+    return _defaultCostumePartTransforms;
+}
+
+void Player_WorldBase::Apply_CostumePartTransform(const wstring& partTag,
+    const CostumePartTransformMap& partTransforms)
+{
+    const auto iter = partTransforms.find(partTag);
+    if (iter == partTransforms.end())
+        return;
+
+    PartObject* partObject = Get_PartObject(partTag);
+    if (partObject == nullptr || partObject->Get_Transform() == nullptr)
+        return;
+
+    partObject->Get_Transform()->Set_Position(iter->second.position);
+    partObject->Get_Transform()->Set_RotationEuler(iter->second.rotation);
+    partObject->Get_Transform()->Set_Scale(iter->second.scale);
+}
+
+void Player_WorldBase::Apply_CostumePartTransform(const wstring& partTag,
+    const CostumePartTransformMap& partTransforms, const CostumePartLocalTransform& fallbackTransform)
+{
+    if (fallbackTransform.enabled)
+    {
+        PartObject* partObject = Get_PartObject(partTag);
+        if (partObject == nullptr || partObject->Get_Transform() == nullptr)
+            return;
+
+        partObject->Get_Transform()->Set_Position(fallbackTransform.position);
+        partObject->Get_Transform()->Set_RotationEuler(fallbackTransform.rotation);
+        partObject->Get_Transform()->Set_Scale(fallbackTransform.scale);
+        return;
+    }
+
+    const auto iter = partTransforms.find(partTag);
+    if (iter != partTransforms.end())
+    {
+        Apply_CostumePartTransform(partTag, partTransforms);
+        return;
+    }
+}
+
+Body_Player* Player_WorldBase::Add_CostumeBody(const wstring& modelTag)
+{
+    if (modelTag.empty())
+        return nullptr;
+
+    Body_Player::BODY_PLAYER_DESC bodyDesc{};
+    bodyDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    bodyDesc.modelType = ModelType::Anim;
+    bodyDesc.modelTag = modelTag;
+
+    CHECK_FAILED(__super::Add_PartObject(
+        ETOI(LevelType::Static), TEXT("GameObject_Body_Player"), TEXT("Part_Body"), &bodyDesc), nullptr);
+
+    Body_Player* body = dynamic_cast<Body_Player*>(Get_PartObject(TEXT("Part_Body")));
+    if (body == nullptr)
+        return nullptr;
+
+    if (Shared<ModelCom> model = body->Get_Model())
+        model->Refresh_AnimStateMappingFromOwnerContext();
+
+    return body;
+}
+
+Head_Player* Player_WorldBase::Add_CostumeHead(const wstring& modelTag, const Body_Player* body)
+{
+    if (modelTag.empty() || body == nullptr)
+        return nullptr;
+
+    Head_Player::HEAD_PLAYER_DESC headDesc{};
+    headDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    headDesc.modelType = ModelType::Anim;
+    headDesc.modelTag = modelTag;
+    headDesc.socketMatrixPointer = nullptr;
+
+    CHECK_FAILED(__super::Add_PartObject(
+        ETOI(LevelType::Static), TEXT("GameObject_Head_Player"), TEXT("Part_Head"), &headDesc), nullptr);
+
+    Head_Player* head = dynamic_cast<Head_Player*>(Get_PartObject(TEXT("Part_Head")));
+    if (head == nullptr)
+        return nullptr;
+
+    head->Set_LeaderPoseComponent(body);
+    return head;
+}
+
+HRESULT Player_WorldBase::Add_CostumeHair(const wstring& modelTag, const Head_Player* head)
+{
+    if (modelTag.empty())
+        return S_OK;
+
+    CHECK_NULL(head, E_FAIL);
+
+    Hair_Player::HAIR_PLAYER_DESC hairDesc{};
+    hairDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    hairDesc.modelType = ModelType::Anim;
+    hairDesc.modelTag = modelTag;
+    hairDesc.hairPhysicsDesc = Get_HairChainPhysicsDesc();
+    hairDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
+
+    CHECK_FAILED(__super::Add_PartObject(
+        ETOI(LevelType::Static), TEXT("GameObject_Hair_Player"), TEXT("Part_Hair"), &hairDesc), E_FAIL);
+
+    return S_OK;
+}
+
+HRESULT Player_WorldBase::Add_CostumeFaceAccessory(const wstring& partTag, const wstring& modelTag,
+    const Head_Player* head)
+{
+    if (modelTag.empty())
+        return S_OK;
+
+    CHECK_NULL(head, E_FAIL);
+
+    FaceAccessory_Player::FACE_ACCESSORY_DESC accessoryDesc{};
+    accessoryDesc.parentMatrix = &_transformCom->Get_WorldMatrix();
+    accessoryDesc.modelType = ModelType::NonAnim;
+    accessoryDesc.modelTag = modelTag.c_str();
+    accessoryDesc.socketMatrixPointer = head->Get_SocketBoneMatrixPtr("head");
+
+    if (FAILED(__super::Add_PartObject(
+        ETOI(LevelType::Static), TEXT("GameObject_FaceAccessory_Player"), partTag, &accessoryDesc)))
+    {
+        LOG_WARN("[Player_WorldBase] failed to add costume face accessory: part={}, model={}",
+            String::ToString(partTag), String::ToString(modelTag));
+        return E_FAIL;
+    }
+
+    return S_OK;
+}
+
 HRESULT Player_WorldBase::Ready_Components()
 {
     CHECK_FAILED(Add_Component(ETOI(LevelType::Static), TEXT("Com_Input"), _inputCom), E_FAIL);
@@ -191,7 +418,7 @@ HRESULT Player_WorldBase::Ready_Components()
     moveDesc.jumpVelocity = 20.f;
     moveDesc.gravity = -40.f;
 
-    moveDesc.backend = MovementCom::MoveBackend::PhysXCCT; // 플레이어는 CCT로 테스트
+    moveDesc.backend = MovementCom::MoveBackend::PhysXCCT; // 플레이어는 CCT로 지형타기
 
     moveDesc.sweep.skinWidth = 0.03f;
     moveDesc.sweep.groundSnapUp = 0.35f;

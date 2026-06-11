@@ -356,7 +356,10 @@ Shared<Monster_WorldBase> Player_FreeAim::Find_FreeAimHitMonster(FreeAimHitInfo*
         return nullptr;
 
     Shared<Monster_WorldBase> hitMonsterShared = dynamic_pointer_cast<Monster_WorldBase>(hitOwner);
-    if (!hitMonsterShared && hitOwner->Get_Owner())
+    if (!hitMonsterShared)
+        return nullptr;
+
+    if (hitOwner->Get_Owner())
         hitMonsterShared = dynamic_pointer_cast<Monster_WorldBase>(hitOwner->Get_Owner());
 
     if (!hitMonsterShared)

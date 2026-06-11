@@ -1457,6 +1457,9 @@ void ModelCom::Update_AnimNotifies(const AnimNotifyData& animationData, const An
 
         if (executeNotifies)
         {
+            if (_isAnimationPaused)
+                return; // notify 실행 중 튜토리얼 pause가 걸리면 같은 프레임의 남은 notify를 막는다.
+
             entry.notify->Execute(context);
         }
     }
@@ -1465,6 +1468,9 @@ void ModelCom::Update_AnimNotifies(const AnimNotifyData& animationData, const An
 void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, const AnimNotifyContext& context,
     bool executeNotifies)
 {
+    if (_isAnimationPaused)
+        return; // notify 실행 중 튜토리얼 pause가 걸리면 같은 프레임의 state notify도 막는다.
+
     Stop_NotifyStates_ExceptAnimation(context.animationName, executeNotifies);
 
     for (int32 stateIndex = 0; stateIndex < static_cast<int32>(animationData.notifyStates.size()); ++stateIndex)
@@ -1503,7 +1509,12 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
                 _activeNotifyStates.push_back(active);
 
                 if (executeNotifies)
+                {
+                    if (_isAnimationPaused)
+                        return; // On_Begin 연쇄 실행을 같은 프레임에서 끊는다.
+
                     entry.notifyState->On_Begin(stateContext);
+                }
             }
             else
             {
@@ -1515,6 +1526,9 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
                         context.deltaTime > 0.f ||
                         previousActiveTimeSec != context.currentTimeSec))
                 {
+                    if (_isAnimationPaused)
+                        return; // On_Tick 연쇄 실행을 같은 프레임에서 끊는다.
+
                     _activeNotifyStates[activeIndex].notifyState->On_Tick(stateContext);
                 }
             }
@@ -1527,7 +1541,12 @@ void ModelCom::Update_AnimNotifyStates(const AnimNotifyData& animationData, cons
             stateContext.notifyStateProgress = 1.f; 
 
             if (executeNotifies && instance)
+            {
+                if (_isAnimationPaused)
+                    return; // On_End 연쇄 실행을 같은 프레임에서 끊는다.
+
                 instance->On_End(stateContext);
+            }
         }
     }
 }
@@ -1918,6 +1937,9 @@ void ModelCom::Step_FinalizeAnimationFrame(const AnimPipelineContext& context)
 
     Mark_BoneMatricesDirty();
 
+    if (_isAnimationPaused)
+        return; // 포즈는 고정하되 pause 프레임에서 AN_PlaySound/ANS_Trail/ANS_QTE가 반복 실행되지 않게 막는다.
+
     const float currentTimeSec = Get_CurrentAnimationTimeSec();
     const bool animationChangedThisFrame = context.previousAnimIndex != _currentAnimIndex;
     const float notifyPreviousTimeSec = animationChangedThisFrame ? 0.f : context.previousTimeSec;
@@ -2293,10 +2315,17 @@ bool ModelCom::Ensure_AnimStateAssetLoaded(const string &sourceObjectGUID)
 	if (!sourceObjectGUID.empty())
 	{
 		wstring resolvedPath = GAME->Resolve_AssetPath(sourceObjectGUID);
+		// sourceObjectGUID가 animmap asset일 때만 direct load를 허용한다.
+		// model guid가 들어오면 prefab context 기반 매핑 탐색까지 내려가야 한다.
 		if (!resolvedPath.empty())
 		{
-			return AnimState_Parser::Load_StateAnimations_FromFile(
-				resolvedPath, _animations, _stateAnimIndices, &_animEnumType);
+            const fs::path resolvedAssetPath = fs::path(resolvedPath);
+            const string resolvedFileName = resolvedAssetPath.filename().string();
+            if (resolvedFileName.find(".animmap.json") != string::npos)
+            {
+			    return AnimState_Parser::Load_StateAnimations_FromFile(
+				    resolvedPath, _animations, _stateAnimIndices, &_animEnumType);
+            }
 		}
 	}
 

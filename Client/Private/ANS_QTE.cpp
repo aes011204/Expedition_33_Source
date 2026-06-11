@@ -26,7 +26,13 @@ void ANS_QTE::On_Begin(const AnimNotifyContext& context)
 	auto battle = CLIENT->Get_BattleController();
 	CHECK_NULL(battle);
 
-	battle->Begin_QTE(Make_Request());
+	if (!battle->Is_BattleStarted())
+		return;
+
+	Shared<BattleQTEController> qteController = battle->Get_QTEController();
+	CHECK_NULL(qteController);
+
+	qteController->Begin(Make_Request()); // QTE 시작은 QTEController가 소유하고 시작 이벤트를 직접 낸다.
 }
 
 void ANS_QTE::On_Tick(const AnimNotifyContext& context)
@@ -39,9 +45,8 @@ void ANS_QTE::On_End(const AnimNotifyContext& context)
 	UNREFERENCED_PARAMETER(context);
 
 	// QTE 실패 판정은 NotifyState 길이가 아니라 UI_QTE의 progressDuration 기준으로 처리한다.
-	// 여기서 Fail_QTEIfActive()를 호출하면 ANS 박스 길이에 따라 QTE가 조기 실패할 수 있어서 변경
+	// 여기서 QTEController::FailIfActive()를 호출하면 ANS 박스 길이에 따라 QTE가 조기 실패할 수 있어서 변경
 
-	// TODO : 스킬의 QTE마다 디테일하게 시간 조절하는건 프로토타입 이후 진행해야할거같다.
 }
 
 BattleQTERequest ANS_QTE::Make_Request() const

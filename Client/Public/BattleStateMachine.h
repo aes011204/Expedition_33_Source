@@ -1,14 +1,15 @@
 ﻿#pragma once
+
 #include "Base.h"
 #include "BStateMachine.h"
 #include "Battle_Enum.h"
 #include "Client_Defines.h"
 
-
 NS_BEGIN(Client)
 
-class BattleStateMachine :
-    public BStateMachine
+DECLARE_DELEGATE(FOnBattleTurnStateChanged, BattleTurnState /*prev*/, BattleTurnState /*next*/);
+
+class BattleStateMachine : public BStateMachine
 {
 public:
     BattleStateMachine();
@@ -26,6 +27,9 @@ public:
 
 public:
     BattleTurnState Get_CurrentPlayerState() const;
+
+public:
+    FOnBattleTurnStateChanged OnBattleTurnStateChanged;
 
 public:
     static Shared<BattleStateMachine> Create();

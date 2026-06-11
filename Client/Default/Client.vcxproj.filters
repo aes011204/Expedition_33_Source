@@ -157,9 +157,6 @@
     <Filter Include="02.GameObject\Effect\Emitters\ComputePointParticle">
       <UniqueIdentifier>{ceac3f7c-9e53-4638-aa47-729e8f089b5d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="02.GameObject\Effect\Emitters\PointParticle %28deprecated%29">
-      <UniqueIdentifier>{eed9e460-dd4d-43e8-ab48-b224711cbd67}</UniqueIdentifier>
-    </Filter>
     <Filter Include="02.GameObject\Effect\Emitter Registration">
       <UniqueIdentifier>{cd4fc20f-ded7-47fd-8545-9286732fe833}</UniqueIdentifier>
     </Filter>
@@ -221,6 +218,7 @@
       <UniqueIdentifier>{a1312345-3547-423a-8f4a-75a5083c4e41}</UniqueIdentifier>
     </Filter>
     <Filter Include="02.GameObject\Effect\Emitters\ComputeTrail" />
+    <Filter Include="02.GameObject\Effect\Emitters\ComputeSourceHistoryRibbon" />
     <Filter Include="02.GameObject\Effect\Emitters\Mesh" />
     <Filter Include="90.EditorSupport" />
     <Filter Include="02.GameObject\Camera\BattleCamera">
@@ -457,6 +455,12 @@
     <ClCompile Include="..\Private\MapCollisionAdapter.cpp">
       <Filter>02.GameObject\Map\MapLoader</Filter>
     </ClCompile>
+    <ClCompile Include="..\Private\BattleTutorialController.cpp" />
+    <ClCompile Include="..\Private\UI_BattleTutorial.cpp" />
+    <ClCompile Include="..\Private\BattleEncounterProfile.cpp" />
+    <ClCompile Include="..\Private\PlayerInventory.cpp" />
+    <ClCompile Include="..\Private\BattleResultRecoder.cpp" />
+    <ClCompile Include="..\Private\CostumeManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -494,9 +498,6 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_InstancingSmoke.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
-    </FxCompile>
-    <FxCompile Include="..\Bin\ShaderFiles\Shader_BillboardParticle.hlsl">
-      <Filter>97.ShaderFiles</Filter>
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Deferred.hlsl">
       <Filter>97.ShaderFiles</Filter>
@@ -582,6 +583,9 @@
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectTrailDistortion.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbonDistortion.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectMeshDistortion.hlsl">
       <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
@@ -596,6 +600,12 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl">
       <Filter>97.ShaderFiles</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_RibbonStrip.hlsl">
+      <Filter>97.ShaderFiles\Compute</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -651,6 +661,9 @@
     </ClInclude>
     <ClInclude Include="..\Public\ComputeTrailEmitter.h">
       <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Public\ComputeSourceHistoryRibbonEmitter.h">
+      <Filter>02.GameObject\Effect\Emitters\ComputeSourceHistoryRibbon</Filter>
     </ClInclude>
     <ClInclude Include="..\Public\FreeAimTargeting.h">
       <Filter>BattleState</Filter>
@@ -1045,9 +1058,6 @@
     <ClInclude Include="..\Public\Player_WorldBase.h">
       <Filter>02.GameObject\Player\00. World</Filter>
     </ClInclude>
-    <ClInclude Include="..\Public\PointParticleEffect.h">
-      <Filter>02.GameObject\Effect\Emitters\PointParticle %28deprecated%29</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\ResourceLoader.h">
       <Filter>01.Levels\Loading\Loader</Filter>
     </ClInclude>
@@ -1293,6 +1303,13 @@
     <ClInclude Include="..\Public\MapCollisionAdapter.h">
       <Filter>02.GameObject\Map\MapLoader</Filter>
     </ClInclude>
+    <ClInclude Include="..\Public\BattleTutorialController.h" />
+    <ClInclude Include="..\Public\UI_BattleTutorial.h" />
+    <ClInclude Include="..\Public\BattleEncounterProfile.h" />
+    <ClInclude Include="..\Public\PlayerInventory.h" />
+    <ClInclude Include="..\Public\BattleResultRecoder.h" />
+    <ClInclude Include="..\Public\BattleMonsterSpawnDesc.h" />
+    <ClInclude Include="..\Public\CostumeManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">
@@ -1333,6 +1350,9 @@
     </ClCompile>
     <ClCompile Include="..\Private\ComputeTrailEmitter.cpp">
       <Filter>02.GameObject\Effect\Emitters\ComputeTrail</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\ComputeSourceHistoryRibbonEmitter.cpp">
+      <Filter>02.GameObject\Effect\Emitters\ComputeSourceHistoryRibbon</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\FreeAimTargeting.cpp">
       <Filter>BattleState</Filter>
@@ -1711,9 +1731,6 @@
     </ClCompile>
     <ClCompile Include="..\Private\Player_WorldBase.cpp">
       <Filter>02.GameObject\Player\00. World</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\PointParticleEffect.cpp">
-      <Filter>02.GameObject\Effect\Emitters\PointParticle %28deprecated%29</Filter>
     </ClCompile>
     <ClCompile Include="..\Private\ResourceLoader.cpp">
       <Filter>01.Levels\Loading\Loader</Filter>

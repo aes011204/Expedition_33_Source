@@ -10,6 +10,7 @@
 #include "TargetCamera.h"
 #include "TransformCom.h"
 #include "ColliderCom.h"
+#include "CostumeManager.h"
 #include "PhysX_Types.h"
 #include "MovementCom.h"
 
@@ -96,6 +97,8 @@ void Hero_Manager::Update_HeroManager(float timeDelta)
             return;
 
         Switch_NextHero();
+
+        Toggle_CostumeForTest();
     }
 
     Set_ActiveTrail(timeDelta);
@@ -709,6 +712,30 @@ HRESULT Hero_Manager::Ready_Delegates()
         });
 
     return S_OK;
+}
+
+void Hero_Manager::Toggle_CostumeForTest()
+{
+    CostumeManager* costumeManager = CLIENT->Get_CostumeManager();
+    if (costumeManager == nullptr)
+        return;
+
+    for (const HeroPartyEntry& entry : _heroes)
+    {
+        if (entry.hero == nullptr)
+            continue;
+
+        // T 테스트는 현재 파티에 있는 영웅들의 costume preset을 같은 타이밍에 넘긴다.
+        const CostumePreset* preset = costumeManager->Toggle_NextCostume(entry.heroId);
+        if (preset == nullptr)
+            continue;
+
+        if (FAILED(entry.hero->Apply_CostumePreset(*preset)))
+        {
+            LOG_WARN("[Hero_Manager] failed to apply costume preset: hero={}, preset={}",
+                magic_enum::enum_name(entry.heroId), preset->presetId);
+        }
+    }
 }
 
 void Hero_Manager::Reset_AllHeroesToIdle()
