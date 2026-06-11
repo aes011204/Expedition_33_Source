@@ -1623,10 +1623,10 @@ void GameInstance::Draw_Font(
     _fontManager->Draw(fontTag, text, position, color, rotationRadians, pivot, scale);
 }
 
-HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot, bool forceScan)
+HRESULT GameInstance::Initialize_AssetManager(const wstring& resourceRoot, bool forceScan, const wstring& missingMetaRoot)
 {
     auto stepBegin = chrono::steady_clock::now();
-    _assetManager = Asset_Manager::Create(resourceRoot, forceScan);
+    _assetManager = Asset_Manager::Create(resourceRoot, forceScan, missingMetaRoot);
     if (nullptr == _assetManager)
         return E_FAIL;
     LOG_INFO("[StartupTiming] GameInstance::Asset_Manager::Create elapsed={}ms",

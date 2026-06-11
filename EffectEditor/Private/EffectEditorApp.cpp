@@ -226,7 +226,11 @@ HRESULT EffectEditorApp::Initialize()
     };
 
     CHECK_FAILED(run_startup_step(initializeEngineMs, [&]{ return GAME->Initialize_Engine(engineDesc, _device, _context); }), E_FAIL);
-    CHECK_FAILED(run_startup_step(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring(), true); }), E_FAIL);
+    const fs::path missingMetaRootPath = assetRootPath / L"Effects";
+    CHECK_FAILED(
+        run_startup_step(initializeAssetManagerMs, [&]{ return GAME->Initialize_AssetManager(assetRootPath.wstring(), true, missingMetaRootPath.wstring()); }),
+        E_FAIL
+    );
     CHECK_FAILED(run_startup_step(initializeClientMs, [&]{ return CLIENT->Initialize_Client_ForEffectEditor(_device, _context); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyFontsMs, [&]{ return Ready_Fonts(); }), E_FAIL);
     CHECK_FAILED(run_startup_step(readyStaticResourcesMs, [&]{ return Ready_Prototype_For_Static_Level(); }), E_FAIL);
