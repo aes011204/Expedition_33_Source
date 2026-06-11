@@ -688,6 +688,8 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
                     if (base.baseColorOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::BaseColor, 0, base.baseColorPath);
                     if (base.normalOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Normal, 0, base.normalPath);
                     if (base.ormOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
+                    if (base.orm2Override) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM2, 0, base.orm2Path);
+                    if (base.orm3Override) (void)material->Override_TextureSlot(MaterialTextureSlot::ORM3, 0, base.orm3Path);
                     if (base.emissiveOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::Emissive, 0, base.emissivePath);
                     if (base.hairDepthOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::HairDepth, 0, base.hairDepthPath);
                     if (base.hairIDOverride) (void)material->Override_TextureSlot(MaterialTextureSlot::HairID, 0, base.hairIDPath);
@@ -705,6 +707,9 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
     }
 
     const MaterialInstanceOverride& inst = binding.instance;
+    if (inst.overrideTemplateEnabled)
+        material->Set_TemplateId(inst.templateId);
+
     if (inst.forcedPassIndex >= 0)
         material->Set_ForcedPassIndex(inst.forcedPassIndex);
 
@@ -726,6 +731,8 @@ void ModelCom::Apply_EffectiveMaterial(uint32 materialIndex)
     Apply_TextureOverride(material.get(), MaterialTextureSlot::BaseColor, inst.baseColor);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::Normal, inst.normal);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM, inst.orm);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM2, inst.orm2);
+    Apply_TextureOverride(material.get(), MaterialTextureSlot::ORM3, inst.orm3);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::Emissive, inst.emissive);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::OpacityMask, inst.opacityMask);
     Apply_TextureOverride(material.get(), MaterialTextureSlot::HairDepth, inst.hairDepth);
@@ -775,7 +782,7 @@ json ModelCom::To_Json() const
             || inst.irisMask.enabled;
 
         const bool hasInstanceOverride =
-            (inst.forcedPassIndex >= 0) || inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
+            inst.overrideTemplateEnabled || (inst.forcedPassIndex >= 0) || inst.overrideRenderStateEnabled || inst.cbMask.Any() || hasAnyTextureOverride;
 
         const string baseKey = String::ToLowerCopy(binding.baseBundleKey);
         const bool hasBaseKey = !baseKey.empty() && baseKey != defaultKey;
@@ -791,6 +798,10 @@ json ModelCom::To_Json() const
         if (hasInstanceOverride)
         {
             json instJson{};
+            instJson["override_template_enabled"] = inst.overrideTemplateEnabled;
+            if (inst.overrideTemplateEnabled)
+                instJson["template"] = static_cast<uint32>(inst.templateId);
+
             instJson["override_render_state_enabled"] = inst.overrideRenderStateEnabled;
             if (inst.forcedPassIndex >= 0)
                 instJson["force_pass_index"] = inst.forcedPassIndex;
@@ -1173,6 +1184,16 @@ void ModelCom::Apply_MaterialByAssetName(uint32 materialIndex, const string& bun
     if (base.ormOverride)
     {
         material->Override_TextureSlot(MaterialTextureSlot::ORM, 0, base.ormPath);
+    }
+
+    if (base.orm2Override)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::ORM2, 0, base.orm2Path);
+    }
+
+    if (base.orm3Override)
+    {
+        material->Override_TextureSlot(MaterialTextureSlot::ORM3, 0, base.orm3Path);
     }
 
     if (base.emissiveOverride)

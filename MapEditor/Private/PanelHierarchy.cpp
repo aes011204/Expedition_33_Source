@@ -3,6 +3,22 @@
 #include "SceneContext.h"
 #include "CmdDeleteObject.h"
 
+namespace
+{
+    string ToLowerAscii(string value)
+    {
+        transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+            return static_cast<char>(tolower(c));
+            });
+        return value;
+    }
+
+    bool ContainsSearchText(const string& value, const string& searchText)
+    {
+        return ToLowerAscii(value).find(searchText) != string::npos;
+    }
+}
+
 PanelHierarchy::PanelHierarchy(SceneContext* ctx)
     : MEWindow{ L"Hierarchy" }, _ctx{ ctx }
 {
@@ -31,6 +47,22 @@ void PanelHierarchy::Render()
             _ctx->_modelFolder = String::ToWString(string(_modelFolderBuf));
         }
 
+        const bool hasSearchText = _searchBuffer[0] != '\0';
+        const float clearButtonWidth = ImGui::CalcTextSize("Clear").x + ImGui::GetStyle().FramePadding.x * 2.f;
+        const float searchWidth = hasSearchText
+            ? max(80.f, ImGui::GetContentRegionAvail().x - clearButtonWidth - ImGui::GetStyle().ItemSpacing.x)
+            : -1.f;
+        ImGui::SetNextItemWidth(searchWidth);
+        ImGui::InputTextWithHint("##SearchHierarchy", "Search...", _searchBuffer, sizeof(_searchBuffer));
+        if (hasSearchText)
+        {
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Clear"))
+            {
+                _searchBuffer[0] = '\0';
+            }
+        }
+
         ImGui::Separator();
 
         if (_ctx->_selected != _prevSelected)
@@ -43,6 +75,7 @@ void PanelHierarchy::Render()
 
         Shared<EditorObject> toDelete;
         Shared<EditorObject> toDuplicate;
+        int visibleCount = 0;
 
         for (int i = 0; i < static_cast<int>(_ctx->_objects.size()); ++i)
         {
@@ -51,6 +84,12 @@ void PanelHierarchy::Render()
             {
                 continue;
             }
+
+            if (!PassSearchFilter(obj))
+            {
+                continue;
+            }
+            ++visibleCount;
 
             ImGui::PushID(i);
 
@@ -124,6 +163,10 @@ void PanelHierarchy::Render()
         {
             ImGui::TextDisabled("(오브젝트 없음)");
         }
+        else if (visibleCount == 0)
+        {
+            ImGui::TextDisabled("(검색 결과 없음)");
+        }
         ImGui::EndChild();
 
         if (toDuplicate)
@@ -155,6 +198,45 @@ void PanelHierarchy::StartRename(int index, const Shared<EditorObject>& obj)
     const string currentName = String::ToString(obj->_name);
     strncpy_s(_renameBuffer, currentName.c_str(), sizeof(_renameBuffer) - 1);
     _justStartedRename = true;
+}
+
+bool PanelHierarchy::PassSearchFilter(const Shared<EditorObject>& obj) const
+{
+    if (!obj || _searchBuffer[0] == '\0')
+    {
+        return true;
+    }
+
+    const string searchText = ToLowerAscii(_searchBuffer);
+    const string name = String::ToString(obj->_name);
+    if (ContainsSearchText(name, searchText) ||
+        ContainsSearchText(ObjectTypeLabel(obj->_type), searchText) ||
+        ContainsSearchText(ObjectTypeName(obj->_type), searchText))
+    {
+        return true;
+    }
+
+    if (!obj->_modelPath.empty())
+    {
+        const string modelPath = String::ToString(obj->_modelPath);
+        if (ContainsSearchText(modelPath, searchText) ||
+            ContainsSearchText(fs::path(modelPath).filename().string(), searchText))
+        {
+            return true;
+        }
+    }
+
+    if (!obj->_instancedModelPath.empty())
+    {
+        const string modelPath = String::ToString(obj->_instancedModelPath);
+        if (ContainsSearchText(modelPath, searchText) ||
+            ContainsSearchText(fs::path(modelPath).filename().string(), searchText))
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 Shared<PanelHierarchy> PanelHierarchy::Create(SceneContext* ctx)
