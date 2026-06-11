@@ -40,9 +40,11 @@ namespace Internal
             prototypeTag == L"Shader_EffectSprite" ||
             prototypeTag == L"Shader_EffectDistortionSprite" ||
             prototypeTag == L"Shader_EffectTrail" ||
+            prototypeTag == L"Shader_EffectTrailDistortion" ||
             prototypeTag == L"Shader_EffectRibbon" ||
             prototypeTag == L"Shader_EffectRibbonDistortion" ||
-            prototypeTag == L"Shader_EffectTrailDistortion" ||
+            prototypeTag == L"Shader_EffectBeam" ||
+            prototypeTag == L"Shader_EffectBeamDistortion" ||
             prototypeTag == L"Shader_VtxMeshInstanceExact" ||
             prototypeTag == L"Shader_EffectMesh" ||
             prototypeTag == L"Shader_EffectMeshDistortion" ||

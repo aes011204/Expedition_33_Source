@@ -257,6 +257,9 @@
     <Filter Include="06. Effect System\Component Bridge">
       <UniqueIdentifier>{5bc76e9d-605f-4b64-bf08-407abc40728d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="06. Effect System\Runtime Loader\Support">
+      <UniqueIdentifier>{07fc2861-0bd5-4d40-a61e-87a0c6ed500e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Private\CameraDirector.cpp" />
@@ -471,18 +474,6 @@
     <ClCompile Include="..\Private\ComputeGeneratedBeamEmitter.cpp">
       <Filter>02.GameObject\Effect\Emitters\Beam</Filter>
     </ClCompile>
-    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Curves.cpp">
-      <Filter>06. Effect System\Runtime Loader</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Emitters.cpp">
-      <Filter>06. Effect System\Runtime Loader</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Json.cpp">
-      <Filter>06. Effect System\Runtime Loader</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Material.cpp">
-      <Filter>06. Effect System\Runtime Loader</Filter>
-    </ClCompile>
     <ClCompile Include="..\Private\EffectCom.cpp">
       <Filter>06. Effect System\Component Bridge</Filter>
     </ClCompile>
@@ -492,6 +483,18 @@
     <ClCompile Include="..\Private\PlayerInventory.cpp" />
     <ClCompile Include="..\Private\BattleResultRecoder.cpp" />
     <ClCompile Include="..\Private\CostumeManager.cpp" />
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Curves.cpp">
+      <Filter>06. Effect System\Runtime Loader\Support</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Emitters.cpp">
+      <Filter>06. Effect System\Runtime Loader\Support</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Json.cpp">
+      <Filter>06. Effect System\Runtime Loader\Support</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Private\EffectAssetRuntimeLoader_Material.cpp">
+      <Filter>06. Effect System\Runtime Loader\Support</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_AnimAdditive.hlsl">
@@ -637,6 +640,12 @@
     </FxCompile>
     <FxCompile Include="..\Bin\ShaderFiles\Compute\Shader_Compute_RibbonStrip.hlsl">
       <Filter>97.ShaderFiles\Compute</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeam.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
+    </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl">
+      <Filter>97.ShaderFiles\Effect</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1335,9 +1344,6 @@
     <ClInclude Include="..\Public\ComputeGeneratedBeamEmitter.h">
       <Filter>02.GameObject\Effect\Emitters\Beam</Filter>
     </ClInclude>
-    <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h">
-      <Filter>06. Effect System\Runtime Loader</Filter>
-    </ClInclude>
     <ClInclude Include="..\Public\EffectCom.h">
       <Filter>06. Effect System\Component Bridge</Filter>
     </ClInclude>
@@ -1348,6 +1354,9 @@
     <ClInclude Include="..\Public\BattleResultRecoder.h" />
     <ClInclude Include="..\Public\BattleMonsterSpawnDesc.h" />
     <ClInclude Include="..\Public\CostumeManager.h" />
+    <ClInclude Include="..\Private\EffectAssetRuntimeLoader_Support.h">
+      <Filter>06. Effect System\Runtime Loader\Support</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\private\ANS_Dodge.cpp">

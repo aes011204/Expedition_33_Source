@@ -761,6 +761,8 @@
       <ShaderModel>5.0</ShaderModel>
       <EntryPointName>CS_Main</EntryPointName>
     </FxCompile>
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeam.hlsl" />
+    <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectBeamDistortion.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_EffectRibbon.hlsl" />
     <FxCompile Include="..\Bin\ShaderFiles\Shader_Water.hlsl" />
     <None Include="..\Bin\ShaderFiles\Shader_EffectDistortionCommon.hlsli" />

@@ -28,20 +28,29 @@ public:
     HRESULT Render() override;
 
 public:
-    HRESULT Reset_ForEffectReplay() override;                                   // effect root 재사용 시 sprite playback runtime을 초기화한다.
-    bool Is_EffectFinished() const override;                                    // sprite playback이 마지막 loop를 끝냈는지 반환한다.
-    bool Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>& outPoints, uint32 maxPointCount) const override; // follower ribbon이 따라갈 대표 particle 위치를 제공한다.
-    bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override; // sprite spawn offset까지 반영한 Blend 정렬 대표 위치를 반환한다.
-    EffectSortPolicy Get_BlendSortPolicy() const override;                      // Required Sort Policy authoring 값을 반환한다.
-    int32 Get_BlendSortLayer() const override;                                  // Required Sort Layer authoring 값을 반환한다.
-    float Get_BlendSortBias() const override;                                   // Required Sort Bias authoring 값을 Blend 정렬 보정값으로 반환한다.
+    // effect root 재사용 시 sprite playback runtime을 초기화한다.
+    HRESULT Reset_ForEffectReplay() override;
+    // sprite playback이 마지막 loop를 끝냈는지 반환한다.
+    bool Is_EffectFinished() const override;
+    // follower ribbon이 따라갈 대표 particle 위치를 제공한다.
+    bool Collect_FollowerSourcePoints(vector<EffectFollowerSourcePoint>& outPoints, uint32 maxPointCount) const override;
+    // sprite spawn offset까지 반영한 Blend 정렬 대표 위치를 반환한다.
+    bool Try_Get_BlendSortWorldPosition(Vec3& outWorldPosition) const override;
+    // Required Sort Policy authoring 값을 반환한다.
+    EffectSortPolicy Get_BlendSortPolicy() const override;
+    // Required Sort Layer authoring 값을 반환한다.
+    int32 Get_BlendSortLayer() const override;
+    // Required Sort Bias authoring 값을 Blend 정렬 보정값으로 반환한다.
+    float Get_BlendSortBias() const override;
 
 public: //## Debug::EditorSession
-    static void Set_InfluenceOutlineDebugEnabled(bool enabled); // EffectEditor 세션에서 sprite influence outline shader overlay를 켜고 끈다.
+    // EffectEditor 세션에서 sprite influence outline shader overlay를 켜고 끈다.
+    static void Set_InfluenceOutlineDebugEnabled(bool enabled);
     static bool Is_InfluenceOutlineDebugEnabled();
 
 protected:
-    void On_EffectTransformSynced() override; // root/local-space sync 직후 compute center를 즉시 갱신한다.
+    // root/local-space sync 직후 compute center를 즉시 갱신한다.
+    void On_EffectTransformSynced() override;
 
 private: //## Types::PlaybackRuntime
     enum class PlaybackState : uint8
@@ -61,7 +70,7 @@ private: //## Types::PlaybackRuntime
 private: //## Static Values
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     static constexpr auto kEffectSpriteShaderId{ "Shader_EffectSprite" };
-    static constexpr auto kEffectDistortionSpriteShaderId{ "Shader_EffectDistortionSprite" }; // SpriteDistortion family가 사용할 전용 shader id다.
+    static constexpr auto kEffectDistortionSpriteShaderId{ "Shader_EffectDistortionSprite" };
     static constexpr int kOpacitySourceAlpha{ 0 };
     static constexpr int kOpacitySourceRed{ 1 };
     static constexpr int kOpacitySourceLuminance{ 2 };
@@ -69,70 +78,115 @@ private: //## Static Values
     inline static bool _isInfluenceOutlineDebugEnabled{ false };
 
 private: //## Data::Components
-    Shared<ShaderCom> _shader{};                          // EffectSprite material effect shader.
-    Shared<Texture> _texture{};                           // compute sprite effect main texture.
-    Shared<Texture> _noiseTexture{};                      // 선택 noise texture. 없으면 material noise를 비활성화한다.
-    Shared<Texture> _maskTexture{};                       // 선택 mask texture. 없으면 material mask/erosion을 비활성화한다.
-    Shared<Texture> _flowTexture{};                       // 선택 flow texture. 없으면 distortion offset을 0으로 처리한다.
-    Shared<VIBufferCom_ComputePointParticle> _viBuffer{}; // compute output을 instance draw로 제출하는 검증 버퍼.
+    // EffectSprite material effect shader.
+    Shared<ShaderCom> _shader{};
+    // compute sprite effect main texture.
+    Shared<Texture> _texture{};
+    // 선택 noise texture. 없으면 material noise를 비활성화한다.
+    Shared<Texture> _noiseTexture{};
+    // 선택 mask texture. 없으면 material mask/erosion을 비활성화한다.
+    Shared<Texture> _maskTexture{};
+    // 선택 flow texture. 없으면 distortion offset을 0으로 처리한다.
+    Shared<Texture> _flowTexture{};
+    // compute output을 instance draw로 제출하는 검증 버퍼.
+    Shared<VIBufferCom_ComputePointParticle> _viBuffer{};
 
 private: //## Data::Desc
-    ComputeSpriteEmitterDesc _desc{};               // clone 생성 시 전달받은 compute sprite emitter 규칙이다.
-    int _opacitySourceIndex{ kOpacitySourceAlpha }; // shader opacity source selector.
-    Vec3 _runtimeDescWorldScale{ Vec3::One };       // compute payload에 마지막으로 반영한 effect root world scale이다.
-    bool _hasRuntimeDescWorldScale{ false };        // 최초 sync 때는 scale 값이 같아도 payload를 한 번 갱신한다.
+    // clone 생성 시 전달받은 compute sprite emitter 규칙이다.
+    ComputeSpriteEmitterDesc _desc{};
+    // shader opacity source selector.
+    int _opacitySourceIndex{ kOpacitySourceAlpha };
+    // compute payload에 마지막으로 반영한 effect root world scale이다.
+    Vec3 _runtimeDescWorldScale{ Vec3::One };
+    // 최초 sync 때는 scale 값이 같아도 payload를 한 번 갱신한다.
+    bool _hasRuntimeDescWorldScale{ false };
 
 private: //## Data::SpawnRuntime
-    vector<bool> _burstExecuted{}; // burst 목록의 1회 실행 여부를 emitter runtime 동안 유지한다.
-    float _emitterElapsedTime{};   // spawn rate/burst 평가에 사용할 emitter-local 누적 시간이다.
-    float _spawnAccumulator{};     // fractional spawn rate를 프레임 사이에 보존한다.
+    // burst 목록의 1회 실행 여부를 emitter runtime 동안 유지한다.
+    vector<bool> _burstExecuted{};
+    // spawn rate/burst 평가에 사용할 emitter-local 누적 시간이다.
+    float _emitterElapsedTime{};
+    // fractional spawn rate를 프레임 사이에 보존한다.
+    float _spawnAccumulator{};
     float _sampledSpawnRate{ 10.f };
     float _sampledSpawnRateScale{ 1.f };
 
 private: //## Data::PlaybackRuntime
-    PlaybackState _playbackState{ PlaybackState::Delayed }; // delay/playing/completed 중 현재 emitter 재생 상태다.
-    float _loopElapsedTime{};                               // 현재 loop 안에서 delay를 포함해 흐른 시간이다.
-    uint32 _loopIndex{};                                    // 0부터 시작하는 현재 loop index다.
-    bool _completedKillDispatched{};                        // 완료 kill 요청을 한 번만 보내기 위한 latch다.
+    // delay/playing/completed 중 현재 emitter 재생 상태다.
+    PlaybackState _playbackState{ PlaybackState::Delayed };
+    // 현재 loop 안에서 delay를 포함해 흐른 시간이다.
+    float _loopElapsedTime{};
+    // 0부터 시작하는 현재 loop index다.
+    uint32 _loopIndex{};
+    // 완료 kill 요청을 한 번만 보내기 위한 latch다.
+    bool _completedKillDispatched{};
 
 private: //## Helper::Setup
-    HRESULT Ready_Components();                                             // effect에 필요한 shader/texture/compute buffer component를 준비한다.
-    HRESULT Ready_TextureComponent(string& outResolvedTexturePath);         // compute sprite main texture를 준비하고 fallback 결과를 기록한다.
-    HRESULT Ready_ShaderComponent();                                        // compute sprite effect가 사용할 EffectSprite shader를 준비한다.
-    HRESULT Ready_NoiseTextureComponent(const string& resolvedTexturePath); // 선택 noise texture를 준비하고 없으면 noise path를 비활성화한다.
-    HRESULT Ready_MaskTextureComponent(const string& resolvedTexturePath);  // 선택 mask texture를 준비하고 없으면 alpha mask를 비활성화한다.
-    HRESULT Ready_FlowTextureComponent(const string& resolvedTexturePath);  // SpriteDistortion용 flow texture를 준비하고 없으면 neutral flow로 둔다.
+    // effect에 필요한 shader/texture/compute buffer component를 준비한다.
+    HRESULT Ready_Components();
+    // compute sprite main texture를 준비하고 fallback 결과를 기록한다.
+    HRESULT Ready_TextureComponent(string& outResolvedTexturePath);
+    // compute sprite effect가 사용할 EffectSprite shader를 준비한다.
+    HRESULT Ready_ShaderComponent();
+    // 선택 noise texture를 준비하고 없으면 noise path를 비활성화한다.
+    HRESULT Ready_NoiseTextureComponent(const string& resolvedTexturePath);
+    // 선택 mask texture를 준비하고 없으면 alpha mask를 비활성화한다.
+    HRESULT Ready_MaskTextureComponent(const string& resolvedTexturePath);
+    // SpriteDistortion용 flow texture를 준비하고 없으면 neutral flow로 둔다.
+    HRESULT Ready_FlowTextureComponent(const string& resolvedTexturePath);
 
 private: //## Helper::Render
-    HRESULT Bind_ShaderResources();          // EffectSprite shader에 camera/texture resource를 바인딩한다.
-    HRESULT Bind_MaterialResources();        // EffectSprite material 파라미터를 shader에 바인딩한다.
-    HRESULT Bind_DistortionResources();      // SpriteDistortion field shader에 flow 파라미터를 바인딩한다.
-    bool Is_DistortionFamily() const;        // 현재 material family가 sprite distortion 경로인지 확인한다.
-    RenderGroup Resolve_RenderGroup() const; // material family에 맞는 renderer group을 반환한다.
-    const char* Resolve_ShaderId() const;    // material family에 맞는 shader prototype id를 반환한다.
-    uint32 Resolve_ShaderPassIndex() const;  // 현재 shader에서 사용할 pass index를 반환한다.
-    int Resolve_OpacitySourceIndex() const;  // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
-    uint32 Resolve_BlendPassIndex() const;   // material blend mode에 맞는 EffectSprite shader pass를 고른다.
+    // EffectSprite shader에 camera/texture resource를 바인딩한다.
+    HRESULT Bind_ShaderResources();
+    // EffectSprite material 파라미터를 shader에 바인딩한다.
+    HRESULT Bind_MaterialResources();
+    // SpriteDistortion field shader에 flow 파라미터를 바인딩한다.
+    HRESULT Bind_DistortionResources();
+    // 현재 material family가 sprite distortion 경로인지 확인한다.
+    bool Is_DistortionFamily() const;
+    // material family에 맞는 renderer group을 반환한다.
+    RenderGroup Resolve_RenderGroup() const;
+    // material family에 맞는 shader prototype id를 반환한다.
+    const char* Resolve_ShaderId() const;
+    // 현재 shader에서 사용할 pass index를 반환한다.
+    uint32 Resolve_ShaderPassIndex() const;
+    // authoring opacitySource 문자열을 shader selector 값으로 변환한다.
+    int Resolve_OpacitySourceIndex() const;
+    // material blend mode에 맞는 EffectSprite shader pass를 고른다.
+    uint32 Resolve_BlendPassIndex() const;
 
 private: //## Helper::Desc
-    Vec3 Resolve_RuntimeWorldScale() const;                         // effect root scale을 compute payload 배율로 해석한다.
-    ComputePointParticleDesc Make_ComputePointParticleDesc() const; // compute sprite effect용 particle 규칙을 만든다.
-    void Update_RuntimeDescForCurrentScale(bool forceUpdate);       // root scale 변경을 compute particle payload에 반영한다.
-    void Sync_WorldCenterToComputeBuffer();                         // emitter transform world position을 compute center에 반영한다.
+    // effect root scale을 compute payload 배율로 해석한다.
+    Vec3 Resolve_RuntimeWorldScale() const;
+    // compute sprite effect용 particle 규칙을 만든다.
+    ComputePointParticleDesc Make_ComputePointParticleDesc() const;
+    // root scale 변경을 compute particle payload에 반영한다.
+    void Update_RuntimeDescForCurrentScale(bool forceUpdate);
+    // emitter transform world position을 compute center에 반영한다.
+    void Sync_WorldCenterToComputeBuffer();
 
 private: //## Helper::SpawnRuntime
-    uint32 Consume_SpawnRequest(float timeDelta); // 이번 frame에 새로 활성화할 particle 수를 계산한다.
-    void Resample_LoopSpawnDistributions();       // loop 시작 시 seed 기반 spawn rate 분포를 고정 샘플한다.
+    // 이번 frame에 새로 활성화할 particle 수를 계산한다.
+    uint32 Consume_SpawnRequest(float timeDelta);
+    // loop 시작 시 seed 기반 spawn rate 분포를 고정 샘플한다.
+    void Resample_LoopSpawnDistributions();
     float Sample_SpawnDistribution(const Vec2& range, const PointParticleRandomSeedRuntimeDesc& seed, uint32 salt) const;
 
 private: //## Helper::PlaybackRuntime
-    void Reset_PlaybackRuntime();                   // emitter timing runtime state를 초기화한다.
-    PlaybackTick Advance_Playback(float timeDelta); // delay/duration/loop 정책을 진행하고 compute tick을 만든다.
-    void Start_NextLoop();                          // loop-local spawn/burst state를 초기화하고 다음 loop로 넘어간다.
-    float Resolve_CurrentLoopDelay() const;         // 현재 loop에 적용할 delay를 반환한다.
-    float Resolve_Duration() const;                 // 0 이하 duration으로 인한 무한 루프를 막는 안전 duration을 반환한다.
-    bool Has_NextLoop() const;                      // loopCount 정책상 다음 loop가 있는지 확인한다.
-    bool Can_SubmitRender() const;                  // delay/completed kill 정책상 render 제출 가능한지 확인한다.
+    // emitter timing runtime state를 초기화한다.
+    void Reset_PlaybackRuntime();
+    // delay/duration/loop 정책을 진행하고 compute tick을 만든다.
+    PlaybackTick Advance_Playback(float timeDelta);
+    // loop-local spawn/burst state를 초기화하고 다음 loop로 넘어간다.
+    void Start_NextLoop();
+    // 현재 loop에 적용할 delay를 반환한다.
+    float Resolve_CurrentLoopDelay() const;
+    // 0 이하 duration으로 인한 무한 루프를 막는 안전 duration을 반환한다.
+    float Resolve_Duration() const;
+    // loopCount 정책상 다음 loop가 있는지 확인한다.
+    bool Has_NextLoop() const;
+    // delay/completed kill 정책상 render 제출 가능한지 확인한다.
+    bool Can_SubmitRender() const;
 
 public:
     static Shared<ComputeSpriteEmitter> Create(const ComPtr<Device>& device, const ComPtr<Context>& context);

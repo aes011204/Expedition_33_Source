@@ -2447,24 +2447,27 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
         AuthoringModuleType moduleType,
         bool implemented,
         bool canAdd,
-        string disabledReason)
+        string incompatibleText)
     {
         ModulePickerEntry entry{};
         entry.moduleType = moduleType;
         entry.displayName = Get_AuthoringModuleMetadata(moduleType).displayName;
-        entry.disabledReason = std::move(disabledReason);
         entry.implemented = implemented;
         entry.compatible = Is_ModuleCompatibleWithEmitter(emitter, moduleType);
+        entry.alreadyAdded = Has_ModuleType(emitter, moduleType);
         entry.canAdd = canAdd;
 
-        if (!entry.compatible)
-            entry.stateText = disabledReason == "이미 장착됨" ? "현재 TypeData와 비호환" : disabledReason;
-        else if (canAdd)
-            entry.stateText = "추가 가능";
-        else if (implemented)
+        if (!entry.implemented)
+            entry.stateText = "미구현";
+        else if (!entry.compatible)
+        {
+            entry.stateText = incompatibleText.empty() ? "현재 TypeData와 비호환" : std::move(incompatibleText);
+            entry.tooltipText = "현재 emitter TypeData에서는 이 모듈이 preview/runtime 입력으로 소비되지 않습니다.";
+        }
+        else if (entry.alreadyAdded)
             entry.stateText = "이미 장착됨";
         else
-            entry.stateText = "미구현";
+            entry.stateText = "추가 가능";
 
         return entry;
     };
@@ -2475,7 +2478,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::Lifetime,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::Lifetime),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2483,7 +2486,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialSize,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialSize),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2499,7 +2502,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialLocation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialLocation),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2507,7 +2510,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::SphereLocation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SphereLocation),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2515,7 +2518,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::PlaneRadialLocation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::PlaneRadialLocation),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2523,7 +2526,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialVelocity,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialVelocity),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2531,7 +2534,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialRadialVelocity,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRadialVelocity),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2539,7 +2542,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::VelocityCone,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::VelocityCone),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2547,7 +2550,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::Acceleration,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::Acceleration),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2555,7 +2558,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::Drag,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::Drag),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2563,7 +2566,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::VelocityOverLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::VelocityOverLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2571,7 +2574,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::OrbitOverLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::OrbitOverLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2579,7 +2582,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialRotation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRotation),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2587,7 +2590,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::SphereRadialOrientation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SphereRadialOrientation),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2595,7 +2598,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::PlaneRadialOrientation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::PlaneRadialOrientation),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2603,7 +2606,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::RotationOverLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::RotationOverLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2611,7 +2614,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialRotationRate,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialRotationRate),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2619,7 +2622,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::RotationRateScaleByLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::RotationRateScaleByLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2659,7 +2662,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::InitialColor,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::InitialColor),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2667,7 +2670,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::ColorOverLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::ColorOverLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2675,7 +2678,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::SubUVFrameOverLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SubUVFrameOverLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2683,7 +2686,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::SizeByLife,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SizeByLife),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2699,7 +2702,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::SpawnPerUnit,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::SpawnPerUnit),
-            "이미 장착됨"
+            ""
         )
     );
     entries.push_back(
@@ -2707,7 +2710,7 @@ vector<Emitter_View::ModulePickerEntry> Emitter_View::Build_ModulePickerEntries(
             AuthoringModuleType::MaterialScalarModulation,
             true,
             Can_AddModuleType(emitter, AuthoringModuleType::MaterialScalarModulation),
-            "이미 장착됨"
+            ""
         )
     );
 
@@ -2787,23 +2790,23 @@ void Emitter_View::Draw_ModulePickerPopup()
                 if (!entry.canAdd)
                     ImGui::BeginDisabled();
 
-                const bool useUnsupportedPickerColor = !entry.compatible && entry.canAdd;
+                const bool useUnsupportedPickerColor = !entry.compatible;
                 if (useUnsupportedPickerColor)
                     ImGui::PushStyleColor(ImGuiCol_Text, To_ImVec4(kEmitterUnsupportedModuleTextColor));
 
                 const bool picked = ImGui::Selectable(displayName.c_str(), false, ImGuiSelectableFlags_SpanAllColumns);
-                const bool isModuleNameHovered = ImGui::IsItemHovered();
+                const bool isModuleNameHovered = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled);
                 if (useUnsupportedPickerColor)
                     ImGui::PopStyleColor();
 
-                if (isModuleNameHovered && !entry.compatible)
-                    ImGui::SetTooltip("현재 emitter 타입에서는 이 모듈이 preview에 반영되지 않습니다.");
+                if (isModuleNameHovered && !entry.tooltipText.empty())
+                    ImGui::SetTooltip("%s", entry.tooltipText.c_str());
 
                 if (!entry.canAdd)
                     ImGui::EndDisabled();
 
                 ImGui::TableSetColumnIndex(1);
-                ImGui::TextDisabled("%s", entry.canAdd ? entry.stateText.c_str() : entry.disabledReason.c_str());
+                ImGui::TextDisabled("%s", entry.stateText.c_str());
 
                 if (!picked || !entry.canAdd || !entry.moduleType.has_value())
                     continue;

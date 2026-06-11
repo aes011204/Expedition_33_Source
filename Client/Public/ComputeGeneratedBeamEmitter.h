@@ -97,12 +97,12 @@ private:
     };
 
 private:
-    static constexpr auto kBeamShaderId{ L"Shader_EffectRibbon" };                     // Phase 1은 ribbon strip shader를 재사용한다.
-    static constexpr auto kBeamDistortionShaderId{ L"Shader_EffectRibbonDistortion" }; // distortion material용 shader다.
-    static constexpr auto kBeamComputeShaderId{ L"ComputeShader_RibbonStrip" };        // segment payload를 instance로 낮추는 compute shader다.
+    static constexpr auto kBeamShaderId{ L"Shader_EffectBeam" };                     // beam 전용 좌우 UV 보정 shader다.
+    static constexpr auto kBeamDistortionShaderId{ L"Shader_EffectBeamDistortion" }; // distortion beam 전용 shader다
+    static constexpr auto kBeamComputeShaderId{ L"ComputeShader_RibbonStrip" };      // segment payload를 instance로 낮추는 compute shader다.
     static constexpr auto kFallbackTexturePath{ "Effects/Textures/Shared/DefaultTexture.dds" };
     static constexpr auto kNeutralFlowTexturePath{ "Effects/Textures/Shared/DefaultFlowMap.dds" };
-    static constexpr uint32 kThreadCountX{ 64 };                                       // compute dispatch thread group 크기다.
+    static constexpr uint32 kThreadCountX{ 64 }; // compute dispatch thread group 크기다.
 
 private:
     ComputeBeamEmitterDesc _desc{}; // clone 시점에 받은 Beam runtime 설정이다.

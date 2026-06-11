@@ -104,9 +104,10 @@ private: //## Types::ModulePicker
         optional<AuthoringModuleType> moduleType{};
         wstring displayName{};
         string stateText{};
-        string disabledReason{};
+        string tooltipText{};
         bool implemented{ false };
         bool compatible{ true };
+        bool alreadyAdded{ false };
         bool canAdd{ false };
     };
 

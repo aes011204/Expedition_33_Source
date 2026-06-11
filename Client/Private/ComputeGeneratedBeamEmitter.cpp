@@ -460,7 +460,7 @@ Vec3 ComputeGeneratedBeamEmitter::Resolve_LocalEnd() const
         if (directionLength <= 0.0001f || safeLength <= 0.f)
             return _desc.localStart;
 
-        return _desc.localStart + (_desc.localDirection / directionLength) * safeLength;
+        return _desc.localStart + _desc.localDirection / directionLength * safeLength;
     }
 
     return _desc.localEnd;
@@ -479,7 +479,7 @@ Vec3 ComputeGeneratedBeamEmitter::Evaluate_NoiseOffset(uint32 sampleIndex, const
     if (_desc.noiseAmplitude <= 0.f)
         return Vec3::Zero;
 
-    Vec3 upAxis = fabsf(tangent.y) < 0.99f ? Vec3{ 0.f, 1.f, 0.f } : Vec3{ 1.f, 0.f, 0.f };
+    const Vec3 upAxis = fabsf(tangent.y) < 0.99f ? Vec3{ 0.f, 1.f, 0.f } : Vec3{ 1.f, 0.f, 0.f };
     Vec3 right = tangent.Cross(upAxis);
     if (right.LengthSquared() <= 0.0001f)
         right = tangent.Cross(Vec3{ 0.f, 0.f, 1.f });
@@ -769,12 +769,12 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_ShaderResources()
 
     if (Is_DistortionFamily())
     {
-        const Vec4 effectRibbonAxisParams = Vec4(static_cast<float>(static_cast<uint32>(EffectRibbonRenderAxis::CameraUp)), _visibleBeamLength, 0.f, 1.f);
-        const Vec4 effectRibbonFallbackAxis{ 1.f, 0.f, 0.f, 0.f };
+        const Vec4 effectBeamAxisParams = Vec4(static_cast<float>(static_cast<uint32>(EffectRibbonRenderAxis::CameraUp)), _visibleBeamLength, 0.f, 1.f);
+        const Vec4 effectBeamFallbackAxis{ 1.f, 0.f, 0.f, 0.f };
 
         CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &_desc.material.tint, sizeof(_desc.material.tint)), E_FAIL);
-        CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonAxisParams", &effectRibbonAxisParams, sizeof(effectRibbonAxisParams)), E_FAIL);
-        CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonFallbackAxis", &effectRibbonFallbackAxis, sizeof(effectRibbonFallbackAxis)), E_FAIL);
+        CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamAxisParams", &effectBeamAxisParams, sizeof(effectBeamAxisParams)), E_FAIL);
+        CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamFallbackAxis", &effectBeamFallbackAxis, sizeof(effectBeamFallbackAxis)), E_FAIL);
         CHECK_FAILED(Bind_DistortionResources(), E_FAIL);
         return S_OK;
     }
@@ -803,98 +803,94 @@ HRESULT ComputeGeneratedBeamEmitter::Bind_MaterialResources()
 
     CHECK_FAILED(_shader->Bind_RawValue("g_Tint", &material.tint, sizeof(material.tint)), E_FAIL);
 
-    const Vec4 effectRibbonParams = Vec4(material.intensity, max(material.opacityPower, 0.0001f), material.noiseStrength, nullptr != _noiseTexture ? 1.f : 0.f);
-    const Vec4 effectRibbonAlphaParams = Vec4(
+    const Vec4 effectBeamParams = Vec4(material.intensity, max(material.opacityPower, 0.0001f), material.noiseStrength, nullptr != _noiseTexture ? 1.f : 0.f);
+    const Vec4 effectBeamAlphaParams = Vec4(
         clamp(material.alphaCutoff, 0.f, 1.f),
         clamp(material.alphaErosion, 0.f, 1.f),
         nullptr != _maskTexture ? 1.f : 0.f,
         0.f
     );
-    const Vec4 effectRibbonMainUVParams = Vec4(material.mainUVScale.x, material.mainUVScale.y, material.mainUVScrollSpeed.x, material.mainUVScrollSpeed.y);
-    const Vec4 effectRibbonNoiseUVParams = Vec4(material.noiseUVScale.x, material.noiseUVScale.y, material.noiseUVScrollSpeed.x, material.noiseUVScrollSpeed.y);
-    const Vec4 effectRibbonMaskUVParams = Vec4(material.maskUVScale.x, material.maskUVScale.y, material.maskUVScrollSpeed.x, material.maskUVScrollSpeed.y);
-    const Vec4 effectRibbonUVOffsetParams = Vec4(material.mainUVOffset.x, material.mainUVOffset.y, material.noiseUVOffset.x, material.noiseUVOffset.y);
-    const Vec4 effectRibbonMaskUVOffsetParams = Vec4(material.maskUVOffset.x, material.maskUVOffset.y, 0.f, 0.f);
-    const Vec4 effectRibbonUVModeParams = Vec4(
+    const Vec4 effectBeamMainUVParams = Vec4(material.mainUVScale.x, material.mainUVScale.y, material.mainUVScrollSpeed.x, material.mainUVScrollSpeed.y);
+    const Vec4 effectBeamNoiseUVParams = Vec4(material.noiseUVScale.x, material.noiseUVScale.y, material.noiseUVScrollSpeed.x, material.noiseUVScrollSpeed.y);
+    const Vec4 effectBeamMaskUVParams = Vec4(material.maskUVScale.x, material.maskUVScale.y, material.maskUVScrollSpeed.x, material.maskUVScrollSpeed.y);
+    const Vec4 effectBeamUVOffsetParams = Vec4(material.mainUVOffset.x, material.mainUVOffset.y, material.noiseUVOffset.x, material.noiseUVOffset.y);
+    const Vec4 effectBeamMaskUVOffsetParams = Vec4(material.maskUVOffset.x, material.maskUVOffset.y, 0.f, 0.f);
+    const Vec4 effectBeamUVModeParams = Vec4(
         static_cast<float>(static_cast<uint32>(material.mainUVTilingMode)),
         static_cast<float>(static_cast<uint32>(material.noiseUVTilingMode)),
         static_cast<float>(static_cast<uint32>(material.maskUVTilingMode)),
         0.f
     );
-    const Vec4 effectRibbonUVAxisPolicyParams = Vec4(
+    const Vec4 effectBeamUVAxisPolicyParams = Vec4(
         static_cast<float>(static_cast<uint32>(material.mainUVPolicy.uPolicy)),
         static_cast<float>(static_cast<uint32>(material.mainUVPolicy.vPolicy)),
         static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.uPolicy)),
         static_cast<float>(static_cast<uint32>(material.noiseUVPolicy.vPolicy))
     );
-    const Vec4 effectRibbonMaskUVAxisPolicyParams = Vec4(
+    const Vec4 effectBeamMaskUVAxisPolicyParams = Vec4(
         static_cast<float>(static_cast<uint32>(material.maskUVPolicy.uPolicy)),
         static_cast<float>(static_cast<uint32>(material.maskUVPolicy.vPolicy)),
         0.f,
         0.f
     );
-    const Vec4 effectRibbonSourceParams = Vec4(
+    const Vec4 effectBeamSourceParams = Vec4(
         static_cast<float>(EffectBeamRuntime::Resolve_MaterialSourceIndex(material.noiseSource)),
         static_cast<float>(EffectBeamRuntime::Resolve_MaterialSourceIndex(material.maskSource)),
         material.noiseInvert ? 1.f : 0.f,
         material.maskInvert ? 1.f : 0.f
     );
-    const Vec4 effectRibbonAdditiveParams = Vec4(
+    const Vec4 effectBeamAdditiveParams = Vec4(
         static_cast<float>(static_cast<uint32>(material.additive.colorSource)),
         static_cast<float>(static_cast<uint32>(material.additive.amountSource)),
         static_cast<float>(static_cast<uint32>(material.additive.coveragePolicy)),
         material.additive.intensityScale
     );
-    const Vec4 effectRibbonAdditiveFlags = Vec4(material.additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
-    const Vec4 effectRibbonCoreEmissiveParams = Vec4(
+    const Vec4 effectBeamAdditiveFlags = Vec4(material.additive.blackNeutral ? 1.f : 0.f, 0.f, 0.f, 0.f);
+    const Vec4 effectBeamCoreEmissiveParams = Vec4(
         material.coreEmissive.enabled ? 1.f : 0.f,
         material.coreEmissive.corePower,
         material.coreEmissive.coreIntensity,
         material.coreEmissive.outerPower
     );
-    const Vec4 effectRibbonCoreEmissiveColor = Vec4(
+    const Vec4 effectBeamCoreEmissiveColor = Vec4(
         material.coreEmissive.coreColor.x,
         material.coreEmissive.coreColor.y,
         material.coreEmissive.coreColor.z,
         material.coreEmissive.outerIntensity
     );
-    const Vec4 effectRibbonAxisParams = Vec4(static_cast<float>(static_cast<uint32>(EffectRibbonRenderAxis::CameraUp)), _visibleBeamLength, 0.f, 1.f);
-    const Vec4 effectRibbonFallbackAxis{ 1.f, 0.f, 0.f, 0.f };
+    const Vec4 effectBeamAxisParams = Vec4(static_cast<float>(static_cast<uint32>(EffectRibbonRenderAxis::CameraUp)), _visibleBeamLength, 0.f, 1.f);
+    const Vec4 effectBeamFallbackAxis{ 1.f, 0.f, 0.f, 0.f };
     const int opacitySourceIndex = Resolve_OpacitySourceIndex();
 
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonParams", &effectRibbonParams, sizeof(effectRibbonParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonAlphaParams", &effectRibbonAlphaParams, sizeof(effectRibbonAlphaParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonMainUVParams", &effectRibbonMainUVParams, sizeof(effectRibbonMainUVParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonNoiseUVParams", &effectRibbonNoiseUVParams, sizeof(effectRibbonNoiseUVParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonMaskUVParams", &effectRibbonMaskUVParams, sizeof(effectRibbonMaskUVParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonUVOffsetParams", &effectRibbonUVOffsetParams, sizeof(effectRibbonUVOffsetParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonMaskUVOffsetParams", &effectRibbonMaskUVOffsetParams, sizeof(effectRibbonMaskUVOffsetParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonUVModeParams", &effectRibbonUVModeParams, sizeof(effectRibbonUVModeParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonUVAxisPolicyParams", &effectRibbonUVAxisPolicyParams, sizeof(effectRibbonUVAxisPolicyParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamParams", &effectBeamParams, sizeof(effectBeamParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamAlphaParams", &effectBeamAlphaParams, sizeof(effectBeamAlphaParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamMainUVParams", &effectBeamMainUVParams, sizeof(effectBeamMainUVParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamNoiseUVParams", &effectBeamNoiseUVParams, sizeof(effectBeamNoiseUVParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamMaskUVParams", &effectBeamMaskUVParams, sizeof(effectBeamMaskUVParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamUVOffsetParams", &effectBeamUVOffsetParams, sizeof(effectBeamUVOffsetParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamMaskUVOffsetParams", &effectBeamMaskUVOffsetParams, sizeof(effectBeamMaskUVOffsetParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamUVModeParams", &effectBeamUVModeParams, sizeof(effectBeamUVModeParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamUVAxisPolicyParams", &effectBeamUVAxisPolicyParams, sizeof(effectBeamUVAxisPolicyParams)), E_FAIL);
     CHECK_FAILED(
-        _shader->Bind_RawValue(
-            "g_EffectRibbonMaskUVAxisPolicyParams",
-            &effectRibbonMaskUVAxisPolicyParams,
-            sizeof(effectRibbonMaskUVAxisPolicyParams)
-        ),
+        _shader->Bind_RawValue("g_EffectBeamMaskUVAxisPolicyParams", &effectBeamMaskUVAxisPolicyParams, sizeof(effectBeamMaskUVAxisPolicyParams)),
         E_FAIL
     );
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonSourceParams", &effectRibbonSourceParams, sizeof(effectRibbonSourceParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonAdditiveParams", &effectRibbonAdditiveParams, sizeof(effectRibbonAdditiveParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamSourceParams", &effectBeamSourceParams, sizeof(effectBeamSourceParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamAdditiveParams", &effectBeamAdditiveParams, sizeof(effectBeamAdditiveParams)), E_FAIL);
     CHECK_FAILED(
-        _shader->Bind_RawValue("g_EffectRibbonAdditiveEmissiveColor", &material.additive.emissiveColor, sizeof(material.additive.emissiveColor)),
+        _shader->Bind_RawValue("g_EffectBeamAdditiveEmissiveColor", &material.additive.emissiveColor, sizeof(material.additive.emissiveColor)),
         E_FAIL
     );
     CHECK_FAILED(
-        _shader->Bind_RawValue("g_EffectRibbonAdditiveConstantColor", &material.additive.constantColor, sizeof(material.additive.constantColor)),
+        _shader->Bind_RawValue("g_EffectBeamAdditiveConstantColor", &material.additive.constantColor, sizeof(material.additive.constantColor)),
         E_FAIL
     );
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonAdditiveFlags", &effectRibbonAdditiveFlags, sizeof(effectRibbonAdditiveFlags)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonCoreEmissiveParams", &effectRibbonCoreEmissiveParams, sizeof(effectRibbonCoreEmissiveParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonCoreEmissiveColor", &effectRibbonCoreEmissiveColor, sizeof(effectRibbonCoreEmissiveColor)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonAxisParams", &effectRibbonAxisParams, sizeof(effectRibbonAxisParams)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonFallbackAxis", &effectRibbonFallbackAxis, sizeof(effectRibbonFallbackAxis)), E_FAIL);
-    CHECK_FAILED(_shader->Bind_RawValue("g_EffectRibbonMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamAdditiveFlags", &effectBeamAdditiveFlags, sizeof(effectBeamAdditiveFlags)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamCoreEmissiveParams", &effectBeamCoreEmissiveParams, sizeof(effectBeamCoreEmissiveParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamCoreEmissiveColor", &effectBeamCoreEmissiveColor, sizeof(effectBeamCoreEmissiveColor)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamAxisParams", &effectBeamAxisParams, sizeof(effectBeamAxisParams)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamFallbackAxis", &effectBeamFallbackAxis, sizeof(effectBeamFallbackAxis)), E_FAIL);
+    CHECK_FAILED(_shader->Bind_RawValue("g_EffectBeamMaterialTime", &_materialElapsedTime, sizeof(_materialElapsedTime)), E_FAIL);
     CHECK_FAILED(EffectBeamRuntime::Bind_MaterialScalarModulationPayload(_shader.get(), _desc.material.scalarModulation, emitterPhase), E_FAIL);
     CHECK_FAILED(_shader->Bind_RawValue("g_OpacitySource", &opacitySourceIndex, sizeof(opacitySourceIndex)), E_FAIL);
     return S_OK;
